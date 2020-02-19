@@ -3091,24 +3091,6 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	return PIELevelWorld;
 }
 
-bool FLevelStreamingWrapper::operator<(const FLevelStreamingWrapper& Other) const
-{
-	if (StreamingLevel && Other.StreamingLevel)
-	{
-		const int32 Priority = StreamingLevel->GetPriority();
-		const int32 OtherPriority = Other.StreamingLevel->GetPriority();
-
-		if (Priority == OtherPriority)
-		{
-			return ((UPTRINT)StreamingLevel < (UPTRINT)Other.StreamingLevel);
-		}
-
-		return (Priority < OtherPriority);
-	}
-
-	return (StreamingLevel != nullptr);
-}
-
 void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, bool bGuaranteedNotInContainer)
 {
 	if (StreamingLevel)
@@ -3123,10 +3105,27 @@ void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, b
 		}
 		else
 		{
-			FLevelStreamingWrapper WrappedLevel(StreamingLevel);
-			if (bGuaranteedNotInContainer || !StreamingLevels.Contains(WrappedLevel))
+			if (bGuaranteedNotInContainer || !StreamingLevels.Contains(StreamingLevel))
 			{
-				StreamingLevels.Insert(WrappedLevel, Algo::LowerBound(StreamingLevels, WrappedLevel));
+				auto PrioritySort = [](ULevelStreaming* StreamingLevel, ULevelStreaming* OtherStreamingLevel)
+				{
+					if (StreamingLevel && OtherStreamingLevel)
+					{
+						const int32 Priority = StreamingLevel->GetPriority();
+						const int32 OtherPriority = OtherStreamingLevel->GetPriority();
+
+						if (Priority == OtherPriority)
+						{
+							return ((UPTRINT)StreamingLevel < (UPTRINT)OtherStreamingLevel);
+						}
+
+						return (Priority < OtherPriority);
+					}
+
+					return (StreamingLevel != nullptr);
+				};
+
+				StreamingLevels.Insert(StreamingLevel, Algo::LowerBound(StreamingLevels, StreamingLevel, PrioritySort));
 			}
 		}
 	}
@@ -3161,7 +3160,7 @@ void FStreamingLevelsToConsider::RemoveAt(const int32 Index)
 {
 	if (bStreamingLevelsBeingConsidered)
 	{
-		if (ULevelStreaming* StreamingLevel = StreamingLevels[Index].Get())
+		if (ULevelStreaming* StreamingLevel = StreamingLevels[Index])
 		{
 			LevelsToProcess.Remove(StreamingLevel);
 		}
@@ -3177,10 +3176,9 @@ void FStreamingLevelsToConsider::Reevaluate(ULevelStreaming* StreamingLevel)
 		{
 			// If the streaming level is already in the map then it doesn't need to be updated as it is either
 			// already Reevaluate or the more significant Add
-			FLevelStreamingWrapper WrappedLevel(StreamingLevel);
-			if (!LevelsToProcess.Contains(WrappedLevel))
+			if (!LevelsToProcess.Contains(StreamingLevel))
 			{
-				LevelsToProcess.Add(WrappedLevel, EProcessReason::Reevaluate);
+				LevelsToProcess.Add(StreamingLevel, EProcessReason::Reevaluate);
 			}
 		}
 		else
@@ -3219,10 +3217,10 @@ void FStreamingLevelsToConsider::EndConsideration()
 	{
 		// For any streaming level that was added or had its priority changed while we were considering the
 		// streaming levels go through and ensure they are correctly in the map and sorted to the correct location
-		TSortedMap<FLevelStreamingWrapper, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
-		for (const TPair<FLevelStreamingWrapper,EProcessReason>& LevelToProcessPair : LevelsToProcessCopy)
+		TMap<ULevelStreaming*, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
+		for (const TPair<ULevelStreaming*,EProcessReason>& LevelToProcessPair : LevelsToProcessCopy)
 		{
-			if (ULevelStreaming* StreamingLevel = LevelToProcessPair.Key.Get())
+			if (ULevelStreaming* StreamingLevel = LevelToProcessPair.Key)
 			{
 				// Remove the level if it is already in the list so we can use Add to place in the correct priority location
 				const bool bIsBeingConsidered = Remove(StreamingLevel);
@@ -3239,9 +3237,9 @@ void FStreamingLevelsToConsider::EndConsideration()
 
 void FStreamingLevelsToConsider::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	for (TPair<FLevelStreamingWrapper, EProcessReason>& LevelToProcessPair : LevelsToProcess)
+	for (TPair<ULevelStreaming*, EProcessReason>& LevelToProcessPair : LevelsToProcess)
 	{
-		if (ULevelStreaming*& StreamingLevel = LevelToProcessPair.Key.Get())
+		if (ULevelStreaming*& StreamingLevel = LevelToProcessPair.Key)
 		{
 			Collector.AddReferencedObject(StreamingLevel, InThis);
 		}
@@ -3267,7 +3265,7 @@ void UWorld::UpdateLevelStreaming()
 
 	for (int32 Index = StreamingLevelsToConsider.GetStreamingLevels().Num() - 1; Index >= 0; --Index)
 	{
-		if (ULevelStreaming* StreamingLevel = StreamingLevelsToConsider.GetStreamingLevels()[Index].Get())
+		if (ULevelStreaming* StreamingLevel = StreamingLevelsToConsider.GetStreamingLevels()[Index])
 		{
 			bool bUpdateAgain = true;
 			bool bShouldContinueToConsider = true;
