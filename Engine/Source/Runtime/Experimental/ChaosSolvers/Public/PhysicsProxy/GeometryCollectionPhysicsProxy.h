@@ -52,14 +52,8 @@ public:
 
 	TManagedArray<int32> ClusterId;
 
-	//TManagedArray<int32> RigidBodyIds;
 	TArray<FTransform> ParticleToWorldTransforms;
-	//TManagedArray<int32> Level;
-	//TManagedArray<int32> StatusFlags;
 
-	TArray<Chaos::FSpatialAccelerationIdx> SpatialIdx;
-	TArray<Chaos::FUniqueIdx> UniqueIdx;
-	TArray<void*> UserData;
 	TArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> SharedGeometry;
 	TArray<TArray<FCollisionFilterData>> ShapeSimData;
 	TArray<TArray<FCollisionFilterData>> ShapeQueryData;
