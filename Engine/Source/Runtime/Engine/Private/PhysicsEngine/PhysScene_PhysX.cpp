@@ -1440,7 +1440,7 @@ void FPhysScene_PhysX::DispatchPhysNotifications_AssumesLocked()
 
 }
 
-void FPhysScene_PhysX::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime)
+void FPhysScene_PhysX::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime, float InMaxSubstepDeltaTime, int32 InMaxSubsteps)
 {
 	DeltaSeconds = InDeltaSeconds;
 	MaxPhysicsDeltaTime = InMaxPhysicsDeltaTime;
