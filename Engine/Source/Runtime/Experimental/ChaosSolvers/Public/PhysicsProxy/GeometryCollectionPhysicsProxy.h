@@ -98,6 +98,7 @@ public:
 	// collection attributes
 	static FName SimplicialsAttribute;
 	static FName ImplicitsAttribute;
+	static FName SharedImplicitsAttribute;
 	static FName SolverParticleHandlesAttribute;
 	static FName SolverClusterHandlesAttribute;
 	static FName GTGeometryParticleAttribute;
@@ -291,9 +292,7 @@ private:
 	TManagedArray<FVector> InitialLinearVelocity;
 	TManagedArray<bool> SimulatableParticles;
 	TManagedArray<TUniquePtr<FSimplicial> > Simplicials; // FSimplicial = Chaos::TBVHParticles<float,3>
-	TManagedArray<Chaos::TSerializablePtr<Chaos::FImplicitObject>> Implicits;
-	//TManagedArray<Chaos::TUniquePtr<Chaos::FImplicitObject>> Implicits;
-	//TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> Implicits;
+	TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> Implicits;
 	TArray<int32> EndFrameUnparentingBuffer;
 
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry
