@@ -2312,9 +2312,28 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	// Compile the coordinates
 	// We use the virtual texture world space transform by default
 	int32 CoordinateIndex = INDEX_NONE;
-	if (Coordinates.GetTracedInput().Expression == nullptr)
+
+	if (Coordinates.GetTracedInput().Expression != nullptr && WorldPosition.GetTracedInput().Expression != nullptr)
 	{
-		int32 WorldPositionIndex = Compiler->WorldPosition(WPT_Default);
+		Compiler->Errorf(TEXT("Only one of 'Coordinates' and 'WorldPosition' can be used"));
+	}
+
+	if (Coordinates.GetTracedInput().Expression != nullptr)
+	{
+		CoordinateIndex = Coordinates.Compile(Compiler);
+	}
+	else
+	{
+		int32 WorldPositionIndex = INDEX_NONE;
+		if (WorldPosition.GetTracedInput().Expression != nullptr)
+		{
+			WorldPositionIndex = WorldPosition.Compile(Compiler);
+		}
+		else
+		{
+			WorldPositionIndex = Compiler->WorldPosition(WPT_Default);
+		}
+		
 		int32 P0, P1, P2;
 		if (bIsParameter)
 		{
@@ -2328,11 +2347,8 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			P1 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 1);
 			P2 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 2);
 		}
+
 		CoordinateIndex = Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2);
-	}
-	else
-	{
-		CoordinateIndex = Coordinates.Compile(Compiler);
 	}
 	
 	// Compile the mip level for the current mip value mode
