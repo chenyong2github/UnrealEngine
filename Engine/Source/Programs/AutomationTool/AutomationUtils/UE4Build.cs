@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -35,6 +35,11 @@ namespace AutomationTool
 	public class UE4Build
 	{
 		private BuildCommand OwnerCommand;
+
+		/// <summary>
+		/// If true we will let UBT build UHT
+		/// </summary>
+		public bool AlwaysBuildUHT { get; set; }
 
 		public bool HasBuildProduct(string InFile)
 		{
@@ -125,7 +130,9 @@ namespace AutomationTool
 
 			ClearExportedXGEXML();
 
-			CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable: UBTExecutable, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: String.Format("-Manifest={0} -nobuilduht -NoHotReload -xgeexport {1}", CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName), AddArgs));
+			string UHTArg = this.AlwaysBuildUHT ? "" : "-nobuilduht";
+
+			CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable: UBTExecutable, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: String.Format("-Manifest={0} {1} -NoHotReload -xgeexport {2}", CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName), UHTArg, AddArgs));
 
 			XGEItem Result = new XGEItem();
 			Result.Platform = Platform;

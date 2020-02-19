@@ -18,7 +18,10 @@ namespace AutomationTool
 	[Help("platform=PS4+XboxOne", "Platforms to build, join multiple platforms using +")]
 	[Help("configuration=Development+Test", "Configurations to build, join multiple configurations using +")]
 	[Help("target=Editor+Game", "Targets to build, join multiple targets using +")]
-	[Help("notools", "Don't build any tools (UHT, ShaderCompiler, CrashReporter")]
+	[Help("notools", "Don't build any tools (UnrealPak, Lightmass, ShaderCompiler, CrashReporter")]
+	[Help("clean", "Do a clean build")]
+	[Help("NoXGE", "Toggle to disable the distributed build process")]
+	[Help("DisableUnity", "Toggle to disable the unity build system")]
 	public class BuildTarget : BuildCommand
 	{
 		// exposed as a property so projects can derive and set this directly
@@ -32,13 +35,17 @@ namespace AutomationTool
 
 		public bool	  Clean { get; set; }
 
+		public bool	  NoTools { get; set; }
+
+		public string UBTArgs { get; set; }
+
 		protected Dictionary<string, string> TargetNames { get; set; }
 
 		public BuildTarget()
 		{
 			Platforms = HostPlatform.Current.HostEditorPlatform.ToString();
 			Configurations = "Development";
-
+			UBTArgs = "";
 			TargetNames = new Dictionary<string, string>();
 		}
 
@@ -53,13 +60,13 @@ namespace AutomationTool
 			Platforms = ParseParamValue("platform", Platforms);
 			Configurations = ParseParamValue("configuration", Configurations);
 			Clean = ParseParam("clean") || Clean;
+			NoTools = ParseParam("NoTools") || NoTools;
+			UBTArgs = ParseParamValue("ubtargs", UBTArgs);
 
 			if (string.IsNullOrEmpty(Targets))
 			{
 				throw new AutomationException("No target specified with -target. Use -help to see all options");
 			}
-
-			bool NoTools = ParseParam("notools");
 
 			IEnumerable<string> TargetList = Targets.Split(new char[] { '+' }, StringSplitOptions.RemoveEmptyEntries);
 			IEnumerable<UnrealTargetConfiguration> ConfigurationList = null;
@@ -144,6 +151,7 @@ namespace AutomationTool
 			}
 
 			UE4Build Build = new UE4Build(this);
+			Build.AlwaysBuildUHT = true;
 
 			UE4Build.BuildAgenda Agenda = new UE4Build.BuildAgenda();
 
@@ -153,16 +161,16 @@ namespace AutomationTool
 
 			UnrealTargetPlatform CurrentPlatform = HostPlatform.Current.HostEditorPlatform;
 
-			if (!NoTools)
+			//if (!NoTools)
 			{
-				Agenda.AddTarget("UnrealHeaderTool", CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
+				//Agenda.AddTarget("UnrealHeaderTool", CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
 			}
 
 			if (string.IsNullOrEmpty(EditorTarget) == false)
 			{
 				string TargetName = TargetNames[EditorTarget];
 
-				Agenda.AddTarget(TargetName, CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
+				Agenda.AddTarget(TargetName, CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile, UBTArgs);
 
 				if (!NoTools)
 				{
@@ -186,7 +194,7 @@ namespace AutomationTool
 				{
 					foreach (UnrealTargetConfiguration Config in ConfigurationList)
 					{
-						Agenda.AddTarget(TargetName, Platform, Config);
+						Agenda.AddTarget(TargetName, Platform, Config, ProjectFile, UBTArgs);
 					}
 				}
 			}

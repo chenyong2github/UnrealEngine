@@ -1048,7 +1048,26 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 			TArray<uint8> CachedData;
 			const FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, InPlatform, TargetPlatform);
 
-			if (GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData, Material->GetFriendlyName()))
+			bool CheckCache = true;
+
+			// If NoShaderDDC then don't check for a material the first time we encounter it to simulate
+			// a cold DDC
+			static bool bNoShaderDDC = FParse::Param(FCommandLine::Get(), TEXT("noshaderddc"));
+
+			if (bNoShaderDDC)
+			{
+				static TSet<uint32> SeenKeys;
+
+				const uint32 KeyHash = GetTypeHash(DataKey);
+
+				if (!SeenKeys.Contains(KeyHash))
+				{
+					CheckCache = false;
+					SeenKeys.Add(KeyHash);
+				}
+			}
+
+			if (CheckCache && GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData, Material->GetFriendlyName()))
 			{
 				COOK_STAT(Timer.AddHit(CachedData.Num()));
 				InOutShaderMap = new FMaterialShaderMap();
