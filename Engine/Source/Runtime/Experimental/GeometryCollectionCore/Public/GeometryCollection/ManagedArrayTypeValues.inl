@@ -38,6 +38,7 @@ MANAGED_ARRAY_TYPE(Chaos::TPBDRigidParticleHandleFloat3*, TPBDRigidParticleHandl
 MANAGED_ARRAY_TYPE(Chaos::TPBDGeometryCollectionParticleHandleFloat3*, TPBDGeometryCollectionParticleHandle3fPtr)
 MANAGED_ARRAY_TYPE(Chaos::TPBDRigidClusteredParticleHandleFloat3*, TPBDRigidClusteredParticleHandle3fPtr)
 MANAGED_ARRAY_TYPE(TUniquePtr<Chaos::TGeometryParticleFloat3>, TGeometryParticle3fUniquePtr)
+MANAGED_ARRAY_TYPE(Chaos::ThreadSafeSharedPtr_FImplicitObject, FImplicitObject3ThreadSafeSharedPointer)
 
 // NOTE: new types must be added at the bottom to keep serialization from breaking
 

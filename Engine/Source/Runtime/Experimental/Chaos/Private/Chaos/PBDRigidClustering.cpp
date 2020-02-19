@@ -497,7 +497,7 @@ namespace Chaos
 		const int32 ClusterGroupIndex,
 		TArray<Chaos::TPBDRigidParticleHandle<T,d>*>&& Children,
 		const FClusterCreationParameters<T>& Parameters,
-		TSerializablePtr<FImplicitObject> ProxyGeometry,
+		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
 		const TRigidTransform<T, d>* ForceMassOrientation)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CreateClusterParticle);
@@ -653,7 +653,7 @@ namespace Chaos
 
 		TSet<TPBDRigidParticleHandle<T, d>*> ChildrenSet(ChildrenArray);
 		UpdateMassProperties(NewParticle, ChildrenSet, nullptr);
-		UpdateGeometry(NewParticle, ChildrenSet, TSerializablePtr<FImplicitObject>(), NoCleanParams);
+		UpdateGeometry(NewParticle, ChildrenSet, nullptr, NoCleanParams);
 
 		return NewParticle;
 	}
@@ -1403,7 +1403,7 @@ namespace Chaos
 	void TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::UpdateGeometry(
 		Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Parent, 
 		const TSet<TPBDRigidParticleHandle<T, d>*>& Children, 
-		TSerializablePtr<FImplicitObject> ProxyGeometry, 
+		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
 		const FClusterCreationParameters<T>& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry);
@@ -1517,7 +1517,7 @@ namespace Chaos
 		{
 			//ensureMsgf(false, TEXT("Checking usage with proxy"));
 			//@coverage {production}
-			Parent->SetGeometry(ProxyGeometry);
+			Parent->SetSharedGeometry(ProxyGeometry);
 		}
 		else if (Objects.Num() == 0)
 		{
