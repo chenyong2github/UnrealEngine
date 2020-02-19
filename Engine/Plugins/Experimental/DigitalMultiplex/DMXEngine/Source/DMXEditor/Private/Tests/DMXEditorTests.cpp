@@ -135,12 +135,12 @@ bool FDMXEditorFadersArtNetTest::RunTest(const FString& Parameters)
 			Universes[1].IsValid());
 		if (Universes[0].IsValid() && Universes[1].IsValid())
 		{
-			const TArray<uint8>& DMXData0 = Universes[0]->GetOutputDMXBuffer()->GetDMXData();
-			TestEqual(TEXT("Buffer value should be same"),
-				DMXData0[Helper->FaderEntity->Universes[0].Channel - 1], ChannelValue);
-			const TArray<uint8>& DMXData1 = Universes[1]->GetOutputDMXBuffer()->GetDMXData();
-			TestEqual(TEXT("Buffer value should be same"),
-				DMXData1[Helper->FaderEntity->Universes[1].Channel - 1], ChannelValue);
+			const uint8 DMXData0 = Universes[0]->GetOutputDMXBuffer()->GetDMXDataAddress(
+				Helper->FaderEntity->Universes[0].Channel - 1);
+			TestEqual(TEXT("Buffer value should be same"), DMXData0, ChannelValue);
+			const uint8 DMXData1 = Universes[1]->GetOutputDMXBuffer()->GetDMXDataAddress(
+				Helper->FaderEntity->Universes[1].Channel - 1);
+			TestEqual(TEXT("Buffer value should be same"), DMXData1, ChannelValue);
 		}
 	}
 
@@ -209,14 +209,15 @@ bool FDMXEditorFadersSACNTest::RunTest(const FString& Parameters)
 
 		if (Universes[0].IsValid() && Universes[1].IsValid())
 		{
-			const TArray<uint8>& DMXData0 = Universes[0]->GetOutputDMXBuffer()->GetDMXData();
-			TestEqual(TEXT("Buffer value should be same"),
-				DMXData0[Helper->FaderEntity->Universes[0].Channel - 1], ChannelValue);
-			const TArray<uint8>& DMXData1 = Universes[1]->GetOutputDMXBuffer()->GetDMXData();
-			TestEqual(TEXT("Buffer value should be same"),
-				DMXData1[Helper->FaderEntity->Universes[1].Channel - 1], ChannelValue);
+			const uint8 DMXData0 = Universes[0]->GetOutputDMXBuffer()->GetDMXDataAddress(
+				Helper->FaderEntity->Universes[0].Channel - 1);
+			TestEqual(TEXT("Buffer value should be same"), DMXData0, ChannelValue);
+			const uint8 DMXData1 = Universes[1]->GetOutputDMXBuffer()->GetDMXDataAddress(
+				Helper->FaderEntity->Universes[1].Channel - 1);
+			TestEqual(TEXT("Buffer value should be same"), DMXData1, ChannelValue);
 		}
 	}
+
 	Helper->DMXEditor->CloseWindow();
 
 	FDMXEditorHelper::ResetUniverses();

@@ -97,14 +97,17 @@ void SDMXInputInfo::UpdateChannelsValues()
 				if (TSharedPtr<FDMXBuffer> DMXBuffer = Universe->GetInputDMXBuffer())
 				{
 					// check the sequence ID 
-					uint32 BufferSequanceID = DMXBuffer->GetSequanceID();
-					if (BufferSequanceID != UISequanceID)
+					uint32 BufferSequenceID = DMXBuffer->GetSequenceID();
+					if (BufferSequenceID != UISequenceID)
 					{
-						FMemory::Memcpy(ChannelsValues.GetData(), DMXBuffer->GetDMXData().GetData(), DMX_UNIVERSE_SIZE);
+						DMXBuffer->AccessDMXData([this](TArray<uint8>& InData)
+							{
+								FMemory::Memcpy(ChannelsValues.GetData(), InData.GetData(), DMX_UNIVERSE_SIZE);
+							});
 						UpdateChannelWidgetsValues(ChannelsValues);
 					}
 
-					UISequanceID = BufferSequanceID;
+					UISequenceID = BufferSequenceID;
 				}
 			}
 		}

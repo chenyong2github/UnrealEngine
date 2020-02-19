@@ -108,19 +108,28 @@ bool FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr & Buffer)
 	*Buffer << IncomingDMXFramingLayer;
 	*Buffer << IncomingDMXDMPLayer;
 
-	// Make sure we copy same amount of data
-	if (InputDMXBuffer->GetDMXData().Num() == ACN_DMX_SIZE)
-	{
-		InputDMXBuffer->SetDMXBuffer(IncomingDMXDMPLayer.DMX, ACN_DMX_SIZE);
+	bool bCopySuccessful = false;
+	// Access the buffer thread-safely
+	InputDMXBuffer->AccessDMXData([this, &bCopySuccessful](TArray<uint8>& InData)
+		{
+			// Make sure we copy same amount of data
+			if (InData.Num() == ACN_DMX_SIZE)
+			{
+				InputDMXBuffer->SetDMXBuffer(IncomingDMXDMPLayer.DMX, ACN_DMX_SIZE);
+				GetProtocol()->GetOnUniverseInputUpdate().Broadcast(GetProtocol()->GetProtocolName(), GetUniverseID(), InData);
+				bCopySuccessful = true;
+			}
+			else
+			{
+				UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong! Expected: %d; Found: %d")
+					, NetworkErrorMessagePrefix
+					, ACN_DMX_SIZE
+					, InData.Num());
+				bCopySuccessful = false;
+			}
+		});
 
-		GetProtocol()->GetOnUniverseInputUpdate().Broadcast(GetProtocol()->GetProtocolName(), GetUniverseID(), InputDMXBuffer->GetDMXData());
-		return true;
-	}
-	else
-	{
-		UE_LOG_DMXPROTOCOL(Error, TEXT("%s:Size of incoming DMX buffer is wrong"), NetworkErrorMessagePrefix);
-		return false;
-	}
+	return bCopySuccessful;
 }
 
 void FDMXProtocolUniverseSACN::OnNetworkInterfaceChanged(const FString& InInterfaceIPAddress)

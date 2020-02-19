@@ -128,12 +128,13 @@ public:
 public:
 	//~ USubsystem interface begin
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	//~ USubsystem interface end
 
 private:
-
-	// This function is a delegate for when protocols have input updates
-	UFUNCTION()
-	void BufferReceivedBroadcast(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values);
-
+	/**
+	 * Stores DelegateHandles for each Protocol's UniverseInputUpdate event.
+	 * That way we can unbind them when this subsystem is being destroyed and prevent crashes.
+	 */
+	TMap<FName, FDelegateHandle> UniverseInputUpdateHandles;
 };

@@ -5,9 +5,11 @@
 #include "DMXProtocolCommon.h"
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolMacros.h"
-#include "Dom/JsonObject.h"
 
+#include "Dom/JsonObject.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "HAL/CriticalSection.h"
+#include "Templates/Atomic.h"
 
 #include "DMXProtocolTypes.generated.h"
 
@@ -167,16 +169,23 @@ struct DMXPROTOCOL_API FDMXBuffer
 {
 public:
 	FDMXBuffer()
-		: SequanceID(0)
+		: SequenceID(0)
 	{
 		DMXData.AddZeroed(DMX_UNIVERSE_SIZE);
 	}
 
 	/** @return Gets actual SequanceID  */
-	uint32 GetSequanceID() const { return SequanceID; }
+	uint32 GetSequenceID() const { return SequenceID; }
 
-	/** @return editable DMX buffer */
-	TArray<uint8>& GetDMXData() { return DMXData; }
+	/** @return DMX buffer address value */
+	uint8 GetDMXDataAddress(uint32 InAddress) const;
+
+	/**
+	 * Calls InFunction with a reference to the DMX data buffer passed in on a thread-safe manner.
+	 * This method locks execution and calls InFunction as soon as the buffer can be accessed,
+	 * so it's safe to reference locally scoped variables inside InFunction.
+	 */
+	void AccessDMXData(TFunctionRef<void(TArray<uint8>&)> InFunction);
 
 	/**
 	 * Updates the fragment in the DMX buffer
@@ -201,7 +210,10 @@ private:
 	TArray<uint8> DMXData;
 
 	/** Synchronizations sequence id */
-	uint32 SequanceID;
+	TAtomic<uint32> SequenceID;
+
+	/** Mutex to make sure no two threads write to the buffer concurrently */
+	mutable FCriticalSection BufferCritSec;
 };
 
 struct DMXPROTOCOL_API FDMXPacket

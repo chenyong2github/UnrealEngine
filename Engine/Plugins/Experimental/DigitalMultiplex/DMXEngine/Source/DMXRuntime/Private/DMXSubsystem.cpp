@@ -13,6 +13,8 @@
 
 #include "EngineUtils.h"
 #include "UObject/UObjectIterator.h"
+#include "Async/Async.h"
+#include "Engine/Engine.h"
 
 void UDMXSubsystem::SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixturePatch* FixturePatch, TMap<FName, int32> FunctionMap, EDMXSendResult& OutResult)
 {
@@ -180,7 +182,10 @@ void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 Univer
 			TSharedPtr<FDMXBuffer> Buffer = ProtocolUniverse.Get()->GetInputDMXBuffer();
 			if (Buffer.IsValid())
 			{
-				DMXBuffer = Buffer->GetDMXData();
+				Buffer->AccessDMXData([&DMXBuffer](TArray<uint8>& InData)
+					{
+						DMXBuffer = InData;
+					});
 			}
 		}
 	}
@@ -193,7 +198,7 @@ void UDMXSubsystem::GetFixtureFunctions(const UDMXEntityFixturePatch* InFixtureP
 	if (InFixturePatch != nullptr)
 	{
 		const int32& ActiveMode = InFixturePatch->ActiveMode;
-		const int32 StartingAddress = InFixturePatch->GetStartingChannel();
+		const int32 StartingAddress = InFixturePatch->GetStartingChannel() - 1;
 
 		const UDMXEntityFixtureType* FixtureType = InFixturePatch->ParentFixtureTypeTemplate;
 		if (FixtureType != nullptr)
@@ -202,23 +207,17 @@ void UDMXSubsystem::GetFixtureFunctions(const UDMXEntityFixturePatch* InFixtureP
 
 			for (const FDMXFixtureFunction& Function : CurrentMode.Functions)
 			{
-				const int32 IndexValue = (Function.Channel - 1) + (StartingAddress - 1);
+				const int32 IndexValue = Function.Channel - 1 + StartingAddress;
 
 				const uint8 ChannelsToAdd = UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType);
 
-				TArray<uint8> Bytes;
+				uint32 ChannelVal = 0;
 				for (uint8 ChannelIt = 0; ChannelIt < ChannelsToAdd; ChannelIt++)
 				{
-					const uint8& ByteValue = DMXBuffer[IndexValue + ChannelIt];
-					Bytes.Add(ByteValue);
+					ChannelVal += DMXBuffer[IndexValue + ChannelIt] << ChannelIt * 8;
 				}
 
-				uint32 IntVal = 0;
-				for (uint8 ByteIndex = 0; ByteIndex < Bytes.Num() && ByteIndex < DMX_MAX_FUNCTION_SIZE; ++ByteIndex)
-				{
-					IntVal += Bytes[ByteIndex] << (ByteIndex * 8);
-				}
-				OutResult.Add(FName(*Function.FunctionName), IntVal);
+				OutResult.Add(FName(*Function.FunctionName), ChannelVal);
 			}
 		}
 	}
@@ -287,16 +286,16 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, cons
 
 	// Read the correct amount of channels for each function and store each in the correct byte of an int32
 	const FDMXFixtureMode& Mode = TypeTemplate->Modes[InFixturePatch->ActiveMode];
-	const TArray<uint8>& DMXData = InputDMXBuffer->GetDMXData();
 	
 	// Unsigned to make sure there won't be any system that changes how the bytes sum is done with int32
 	uint32 ChannelValue = 0;
+	const int32 FixtureChannelStart = InFixturePatch->GetStartingChannel() - 1;
 
 	for (const FDMXFixtureFunction& Function : Mode.Functions)
 	{
 		if (Function.Channel > DMX_MAX_ADDRESS)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Channel %d is more then %d"), Function.Channel, DMX_MAX_ADDRESS);
+			UE_LOG(LogTemp, Warning, TEXT("Channel %d is more than %d"), Function.Channel, DMX_MAX_ADDRESS);
 
 			return false;
 		}
@@ -312,10 +311,14 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, cons
 		ChannelValue = 0;
 
 		const int32 NumChannelsToRead = UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType);
-		for (int32 ChannelIndex = 0; ChannelIndex < NumChannelsToRead && ChannelIndex + Function.Channel < DMXData.Num() && ChannelIndex < DMX_MAX_FUNCTION_SIZE; ++ChannelIndex)
-		{
-			ChannelValue += DMXData[Function.Channel + ChannelIndex] << ChannelIndex * 8;
-		}
+		const int32 FunctionChannel = Function.Channel - 1 + FixtureChannelStart;
+		InputDMXBuffer->AccessDMXData([&](TArray<uint8>& DMXData)
+			{
+				for (int32 ChannelIndex = 0; ChannelIndex < NumChannelsToRead && ChannelIndex + FunctionChannel < DMXData.Num() && ChannelIndex < DMX_MAX_FUNCTION_SIZE; ++ChannelIndex)
+				{
+					ChannelValue += DMXData[FunctionChannel + ChannelIndex] << ChannelIndex * 8;
+				}
+			});
 
 		OutFunctionsMap.Add(*Function.FunctionName, ChannelValue);
 	}
@@ -462,12 +465,44 @@ void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		if (TSharedPtr<IDMXProtocol> Protocol = IDMXProtocol::Get(ProtocolName))
 		{
-			Protocol->GetOnUniverseInputUpdate().AddUObject(this, &UDMXSubsystem::BufferReceivedBroadcast);
+			// Using AddLambda instead of AddUObject because the UObject reference is stored
+			// as a TWeakObjectPtr, which gets Garbage Collected when outside PIE and would break
+			// Utility Blueprints that rely on this event and any subsequent PIE sections.
+			FDelegateHandle UniverseUpdateHandle = Protocol->GetOnUniverseInputUpdate().AddLambda([](FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
+				{
+					// Call Broadcast on GameThread to make sure a listener BP won't change
+					// an Actor's properties outside of it
+					AsyncTask(ENamedThreads::GameThread, [Protocol, UniverseID, Values]()
+						{
+							// If this gets called after FEngineLoop::Exit(), GetEngineSubsystem() can crash
+							if (IsEngineExitRequested())
+							{
+								return;
+							}
+
+							// The subsystem could be invalid by the time this code gets called
+							UDMXSubsystem* DMXSubsystem = GEngine->GetEngineSubsystem<UDMXSubsystem>();
+							if (DMXSubsystem != nullptr && DMXSubsystem->IsValidLowLevelFast())
+							{
+								DMXSubsystem->OnProtocolReceived.Broadcast(FDMXProtocolName(Protocol), UniverseID, Values);
+							}
+						});
+				});
+
+			// Store handles to unbind from the event when this subsystem deinitializes
+			UniverseInputUpdateHandles.Add(ProtocolName, UniverseUpdateHandle);
 		}
 	}
 }
 
-void UDMXSubsystem::BufferReceivedBroadcast(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
+void UDMXSubsystem::Deinitialize()
 {
-	OnProtocolReceived.Broadcast(FDMXProtocolName(Protocol), UniverseID, Values);
+	// Unbind from the protocols' universe update event
+	for (const TPair<FName, FDelegateHandle>& It : UniverseInputUpdateHandles)
+	{
+		if (TSharedPtr<IDMXProtocol> Protocol = IDMXProtocol::Get(It.Key))
+		{
+			Protocol->GetOnUniverseInputUpdate().Remove(It.Value);
+		}
+	}
 }

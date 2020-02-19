@@ -219,11 +219,20 @@ EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const TSha
 	FDMXProtocolE131DMPLayerPacket DMPLayer;
 	DMPLayer.AddressIncrement = ACN_ADDRESS_INC;
 	DMPLayer.PropertyValueCount = ACN_DMX_SIZE + 1;
-	if (DMXBuffer->GetDMXData().Num() == ACN_DMX_SIZE)
-	{
-		FMemory::Memcpy(DMPLayer.DMX, DMXBuffer->GetDMXData().GetData(), ACN_DMX_SIZE);
-	}
-	else
+	bool bBufferSizeIsWrong = false;
+	DMXBuffer->AccessDMXData([&DMPLayer, &bBufferSizeIsWrong](TArray<uint8>& InData)
+		{
+			if (InData.Num() == ACN_DMX_SIZE)
+			{
+				FMemory::Memcpy(DMPLayer.DMX, InData.GetData(), ACN_DMX_SIZE);
+			}
+			else
+			{
+				bBufferSizeIsWrong = true;
+			}
+		});
+
+	if (bBufferSizeIsWrong)
 	{
 		return EDMXSendResult::ErrorSizeBuffer;
 	}
