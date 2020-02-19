@@ -194,6 +194,11 @@ void NiagaraEmitterInstanceBatcher::ReleaseTicks()
 	Ticks_RT.Empty(0);
 }
 
+bool NiagaraEmitterInstanceBatcher::UseOverlapCompute()
+{
+	return !IsMobilePlatform(ShaderPlatform) && GNiagaraOverlapCompute;
+}
+
 bool NiagaraEmitterInstanceBatcher::ResetDataInterfaces(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, const FNiagaraShaderRef& ComputeShader ) const
 {
 	bool ValidSpawnStage = true;
@@ -711,14 +716,14 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 		}
 
 		// Set bIsFinalTick for the last tick of each context and reset the scratch index.
-		const int32 ScrachIndexReset = GNiagaraOverlapCompute ? 0 : INDEX_NONE;
+		const int32 ScrachIndexReset = UseOverlapCompute() ? 0 : INDEX_NONE;
 		for (FNiagaraComputeExecutionContext* Context : RelevantContexts)
 		{
 			RelevantTicks[Context->ScratchIndex]->bIsFinalTick = true;
 			Context->ScratchIndex = ScrachIndexReset;
 		}
 
-		if (GNiagaraOverlapCompute)
+		if (UseOverlapCompute())
 		{
 			// Transpose now only once the data to get all independent tick per pass
 			SimPasses.Reserve(2); // Safe bet!
