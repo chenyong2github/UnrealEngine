@@ -100,6 +100,9 @@ private:
 	EShaderPlatform GetShaderPlatformHelper(const ERHIFeatureLevel::Type InFeatureLevel) const;
 
 protected:
+	/** @return true if realtime can be toggled (it cannot be toggled directly if there is an override in place) */
+	bool CanToggleRealtime() const;
+
 	/** call this function to build a 'text' widget that can display the present feature level */
 	TSharedRef<SWidget> BuildFeatureLevelWidget() const;
 ///////////////////////////////////////////////////////////////////////////////

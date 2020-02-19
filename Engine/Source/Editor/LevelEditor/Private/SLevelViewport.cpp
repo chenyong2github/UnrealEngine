@@ -462,11 +462,6 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 			ViewportInstanceSettings.BufferVisualizationMode = NAME_None;
 		}
 
-		// Disable realtime viewports by default for remote sessions
-		if (FPlatformMisc::IsRemoteSession())
-		{
-			ViewportInstanceSettings.bIsRealtime = false;
-		}
 	}
 
 	if(ViewportInstanceSettings.ViewportType == LVT_Perspective)
@@ -536,6 +531,14 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 	LevelViewportClient->SetViewModes(ViewportInstanceSettings.PerspViewModeIndex, ViewportInstanceSettings.OrthoViewModeIndex );
 
 	bShowFullToolbar = ViewportInstanceSettings.bShowFullToolbar;
+
+
+	// Disable realtime viewports by default for remote sessions
+	if (FPlatformMisc::IsRemoteSession())
+	{
+		bool bShouldBeRealtime = false;
+		LevelViewportClient->SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_RDP", "Remote Desktop"));
+	}
 }
 
 FSceneViewport* SLevelViewport::GetGameSceneViewport() const
@@ -2186,11 +2189,9 @@ void SLevelViewport::SaveConfig(const FString& ConfigName) const
 		ViewportInstanceSettings.RayTracingDebugVisualizationMode = LevelViewportClient->CurrentRayTracingDebugVisualizationMode;
 		ViewportInstanceSettings.ExposureSettings = LevelViewportClient->ExposureSettings;
 		ViewportInstanceSettings.FOVAngle = LevelViewportClient->FOVAngle;
-		if (!FPlatformMisc::IsRemoteSession())
-		{
-			// Only save this when we're not a remote session, as remote sessions force realtime to be disabled
-			ViewportInstanceSettings.bIsRealtime = LevelViewportClient->IsRealtime();
-		}
+	
+		LevelViewportClient->SaveRealtimeStateToConfig(ViewportInstanceSettings.bIsRealtime);
+	
 		ViewportInstanceSettings.bShowOnScreenStats = LevelViewportClient->ShouldShowStats();
 		ViewportInstanceSettings.FarViewPlane = LevelViewportClient->GetFarClipPlaneOverride();
 		ViewportInstanceSettings.bShowFullToolbar = bShowFullToolbar;
@@ -2287,12 +2288,6 @@ FLevelEditorViewportInstanceSettings SLevelViewport::LoadLegacyConfigFromIni(con
 	GConfig->GetBool(*IniSection, *(InConfigKey + TEXT(".bWantStats")), ViewportInstanceSettings.bShowOnScreenStats, GEditorPerProjectIni);
 	GConfig->GetBool(*IniSection, *(InConfigKey + TEXT(".bWantFPS")), ViewportInstanceSettings.bShowFPS_DEPRECATED, GEditorPerProjectIni);
 	GConfig->GetFloat(*IniSection, *(InConfigKey + TEXT(".FOVAngle")), ViewportInstanceSettings.FOVAngle, GEditorPerProjectIni);
-
-	// Disable realtime viewports by default for remote sessions
-	if (FPlatformMisc::IsRemoteSession())
-	{
-		ViewportInstanceSettings.bIsRealtime = false;
-	}
 
 	return ViewportInstanceSettings;
 }
