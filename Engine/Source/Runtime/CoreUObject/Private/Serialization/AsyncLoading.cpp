@@ -3979,7 +3979,6 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 
 	if (GEventDrivenLoaderEnabled)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_FAsyncLoadingThread_ProcessAsyncLoading);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		FScopedRecursionNotAllowed RecursionGuard(*this);
 #endif
@@ -4050,6 +4049,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 			}
 			if (AsyncPackagesReadyForTick.Num())
 			{
+				SCOPE_CYCLE_COUNTER(STAT_FAsyncLoadingThread_ProcessAsyncLoading);
+
 				OutPackagesProcessed++;
 				bDidSomething = true;
 				FAsyncPackage* Package = AsyncPackagesReadyForTick[0];
