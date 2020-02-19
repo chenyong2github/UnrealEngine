@@ -96,12 +96,12 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 					.Font(TimeFont)
 					.Text(this, &STimedDataTimecodeProvider::GetTimecodeText)
 				]
-				+ SVerticalBox::Slot()
-				[
-					SNew(STextBlock)
-					.Font(FCoreStyle::Get().GetFontStyle(TEXT("NormalText")))
-					.Text(this, &STimedDataTimecodeProvider::GetSystemTimeText)
-				]
+				//+ SVerticalBox::Slot()
+				//[
+				//	SNew(STextBlock)
+				//	.Font(FCoreStyle::Get().GetFontStyle(TEXT("NormalText")))
+				//	.Text(this, &STimedDataTimecodeProvider::GetSystemTimeText)
+				//]
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -126,7 +126,7 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 					[
 						SNew(STextBlock)
 						.Font(FCoreStyle::Get().GetFontStyle(TEXT("NormalText")))
-						.Text(LOCTEXT("FrameOffsetLabel", "Frame Offset: "))
+						.Text(LOCTEXT("FrameOffsetLabel", "Global TC Offset: "))
 					]
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
@@ -142,6 +142,8 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 					]
 				]
 				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()

@@ -237,6 +237,40 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.OnGetMenuContent(this, &STimedDataMonitorPanel::OnCalibrateBuildMenu)
 				]
 			]
+			// reset errors button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SNew(SButton)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+					.ToolTipText(LOCTEXT("ResetErrors_ToolTip", "Reset the buffer statistics, message or evaluation time (base on settings)."))
+					.ContentPadding(FMargin(4, 4))
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnClicked(this, &STimedDataMonitorPanel::OnResetErrorsClicked)
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+						.Text(FEditorFontGlyphs::Eraser)
+						.ColorAndOpacity(FLinearColor::White)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SComboButton)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnGetMenuContent(this, &STimedDataMonitorPanel::OnResetBuildMenu)
+				]
+			]
 			// show buffers
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -255,26 +289,6 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.Image(FTimedDataMonitorEditorStyle::Get().GetBrush("Img.BufferVisualization"))
 				]
 			]
-			// reset errors button
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(4.f)
-			[
-				SNew(SButton)
-				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
-				.ToolTipText(LOCTEXT("ResetErrors_ToolTip", "Reset Errors"))
-				.ContentPadding(FMargin(4, 4))
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &STimedDataMonitorPanel::OnResetErrorsClicked)
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-					.Text(FEditorFontGlyphs::Eraser)
-					.ColorAndOpacity(FLinearColor::White)
-				]
-			]
 			// Settings button
 			+ SHorizontalBox::Slot()
 			.Padding(4.f)
@@ -284,7 +298,9 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				SNew(SButton)
 				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
 				.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show the general user settings"))
-				.ContentPadding(FMargin(4, 2))
+				.ContentPadding(FMargin(4, 4))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
 				.OnClicked(this, &STimedDataMonitorPanel::OnGeneralUserSettingsClicked)
 				[
 					SNew(STextBlock)
@@ -539,11 +555,101 @@ FText STimedDataMonitorPanel::GetCalibrateButtonText() const
 
 FReply STimedDataMonitorPanel::OnResetErrorsClicked()
 {
+	if (IsResetBufferStatChecked())
+	{
+		OnResetBufferStatClicked();
+	}
+	if (IsClearMessageChecked())
+	{
+		OnClearMessageClicked();
+	}
+	if (IsResetEvaluationChecked())
+	{
+		OnResetAllEvaluationTimeClicked();
+	}
+
+	return FReply::Handled();
+}
+
+
+TSharedRef<SWidget> STimedDataMonitorPanel::OnResetBuildMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+	//Reset the buffer statistics, message and evaluation time
+	MenuBuilder.AddMenuEntry(
+			LOCTEXT("ResetBufferStatisticsLabel", "Reset buffer statistics"),
+			LOCTEXT("ResetBufferStatisticsTooltip", "Reset the buffer statistics."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::OnResetBufferStatClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimedDataMonitorPanel::IsResetBufferStatChecked))
+			);
+	MenuBuilder.AddMenuEntry(
+			LOCTEXT("ResetMessageLabel", "Clear messages"),
+			LOCTEXT("ResetMessageTooltip", "Clear the message list."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::OnClearMessageClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimedDataMonitorPanel::IsClearMessageChecked))
+			);
+
+	MenuBuilder.AddMenuEntry(
+			LOCTEXT("ResetEvaluationTimeLabel", "Reset Evaluation Time"),
+			LOCTEXT("ResetEvaluationTimeTooltip", "Reset all the evaluation time for all input."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::OnResetAllEvaluationTimeClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimedDataMonitorPanel::IsResetEvaluationChecked))
+			);
+
+	return MenuBuilder.MakeWidget();
+}
+
+
+void STimedDataMonitorPanel::OnResetBufferStatClicked()
+{
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 	TimedDataMonitorSubsystem->ResetAllBufferStats();
+}
+
+
+bool STimedDataMonitorPanel::IsResetBufferStatChecked() const
+{
+	return GetDefault<UTimedDataMonitorEditorSettings>()->bResetBufferStatEnabled;
+}
+
+
+void STimedDataMonitorPanel::OnClearMessageClicked()
+{
 	MessageLogListing->ClearMessages();
-	return FReply::Handled();
+}
+
+
+bool STimedDataMonitorPanel::IsClearMessageChecked() const
+{
+	return GetDefault<UTimedDataMonitorEditorSettings>()->bClearMessageEnabled;
+}
+
+
+void STimedDataMonitorPanel::OnResetAllEvaluationTimeClicked()
+{
+	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+	check(TimedDataMonitorSubsystem);
+	TArray<FTimedDataMonitorInputIdentifier> AllInputs = TimedDataMonitorSubsystem->GetAllInputs();
+	for (const FTimedDataMonitorInputIdentifier& Input : AllInputs)
+	{
+		TimedDataMonitorSubsystem->SetInputEvaluationOffsetInSeconds(Input, 0.f);
+	}
+}
+
+
+bool STimedDataMonitorPanel::IsResetEvaluationChecked() const
+{
+	return GetDefault<UTimedDataMonitorEditorSettings>()->bResetEvaluationTimeEnabled;
 }
 
 

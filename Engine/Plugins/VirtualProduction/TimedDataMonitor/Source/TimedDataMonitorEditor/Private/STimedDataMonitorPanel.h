@@ -55,6 +55,13 @@ private:
 	const FSlateBrush* GetCalibrateButtonImage() const;
 	FText GetCalibrateButtonText() const;
 	FReply OnResetErrorsClicked();
+	TSharedRef<SWidget> OnResetBuildMenu();
+	void OnResetBufferStatClicked();
+	bool IsResetBufferStatChecked() const;
+	void OnClearMessageClicked();
+	bool IsClearMessageChecked() const;
+	void OnResetAllEvaluationTimeClicked();
+	bool IsResetEvaluationChecked() const;
 	FReply OnShowBuffersClicked();
 	FReply OnGeneralUserSettingsClicked();
 	FSlateColor GetEvaluationStateColorAndOpacity() const;
