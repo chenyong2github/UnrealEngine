@@ -15,6 +15,7 @@
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
 
+#include "pxr/base/tf/stringUtils.h"
 #include "pxr/usd/usd/prim.h"
 
 #include "USDIncludesEnd.h"
@@ -97,12 +98,13 @@ void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const TCHAR* I
 	GeneratePropertiesList( InPrimPath );
 
 	SAssignNew( HeaderRowWidget, SHeaderRow )
-	.Visibility( EVisibility::Collapsed )
 
 	+SHeaderRow::Column( FName( TEXT("PropertyName") ) )
+	.DefaultLabel( LOCTEXT( "PropertyName", "Name" ) )
 	.FillWidth( 20.f )
 
 	+SHeaderRow::Column( FName( TEXT("PropertyValue") ) )
+	.DefaultLabel( LOCTEXT( "PropertyValue", "Value" ) )
 	.FillWidth( 80.f );
 
 	SListView::Construct
@@ -126,25 +128,30 @@ void SUsdPrimPropertiesList::GeneratePropertiesList( const TCHAR* InPrimPath )
 	FString PrimName;
 	FString PrimKind;
 
+	TUsdStore< pxr::UsdPrim > UsdPrim;
+	pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime();
+
 	{
 		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
 		AUsdStageActor* UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 
 		if ( UsdStageActor )
 		{
+			TimeCode = pxr::UsdTimeCode( UsdStageActor->GetTime() );
+
 			FScopedUsdAllocs UsdAllocs;
 
 			pxr::UsdStageRefPtr UsdStage = UsdStageActor->GetUsdStage();
 
 			if ( UsdStage )
 			{
-				pxr::UsdPrim UsdPrim = UsdStage->GetPrimAtPath( UnrealToUsd::ConvertPath( InPrimPath ).Get() );
+				UsdPrim = UsdStage->GetPrimAtPath( UnrealToUsd::ConvertPath( InPrimPath ).Get() );
 
-				if ( UsdPrim )
+				if ( UsdPrim.Get() )
 				{
 					PrimPath = InPrimPath;
-					PrimName = UsdToUnreal::ConvertString( UsdPrim.GetName() );
-					PrimKind = UsdToUnreal::ConvertString( IUsdPrim::GetKind( UsdPrim ).GetString() );
+					PrimName = UsdToUnreal::ConvertString( UsdPrim.Get().GetName() );
+					PrimKind = UsdToUnreal::ConvertString( IUsdPrim::GetKind( UsdPrim.Get() ).GetString() );
 				}
 			}
 		}
@@ -172,6 +179,27 @@ void SUsdPrimPropertiesList::GeneratePropertiesList( const TCHAR* InPrimPath )
 		PrimKindProperty.Value = PrimKind;
 
 		PrimProperties.Add( MakeSharedUnreal< FUsdPrimProperty >( MoveTemp( PrimKindProperty ) ) );
+	}
+
+	if ( UsdPrim.Get() )
+	{
+		FScopedUsdAllocs UsdAllocs;
+
+		std::vector< pxr::UsdAttribute > PrimAttributes = UsdPrim.Get().GetAttributes();
+
+		for ( const pxr::UsdAttribute& PrimAttribute : PrimAttributes )
+		{
+			FUsdPrimProperty PrimAttributeProperty;
+			PrimAttributeProperty.Label = UsdToUnreal::ConvertString( PrimAttribute.GetName().GetString() );
+
+			pxr::VtValue VtValue;
+			PrimAttribute.Get( &VtValue, TimeCode );
+
+			FString AttributeValue = UsdToUnreal::ConvertString( pxr::TfStringify( VtValue ).c_str() );
+
+			PrimAttributeProperty.Value = MoveTemp( AttributeValue );
+			PrimProperties.Add( MakeSharedUnreal< FUsdPrimProperty >( MoveTemp( PrimAttributeProperty ) ) );
+		}
 	}
 }
 
