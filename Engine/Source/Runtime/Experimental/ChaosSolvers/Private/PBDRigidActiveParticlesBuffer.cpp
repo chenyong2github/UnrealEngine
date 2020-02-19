@@ -22,14 +22,24 @@ namespace Chaos
 	void FPBDRigidActiveParticlesBuffer::BufferPhysicsResults(FPBDRigidsSolver* Solver)
 	{
 		auto& ActiveGameThreadParticles = SolverDataOut->AccessProducerBuffer()->ActiveGameThreadParticles;
+		auto& PhysicsParticleProxies = SolverDataOut->AccessProducerBuffer()->PhysicsParticleProxies;
 
 		ActiveGameThreadParticles.Empty();
-		for (auto& ActiveParticle : Solver->GetParticles().GetActiveParticlesView())
+		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticlesView = 
+			Solver->GetParticles().GetActiveParticlesView();
+		for (auto& ActiveParticle : ActiveParticlesView)
 		{
 			if (ActiveParticle.Handle())
 			{
-				TGeometryParticle<float, 3>* Handle = ActiveParticle.Handle()->GTGeometryParticle();
-				ActiveGameThreadParticles.Add(Handle);
+				// Clustered particles don't have a game thread particle instance.
+				if (TGeometryParticle<float, 3>* Handle = ActiveParticle.Handle()->GTGeometryParticle())
+				{
+					ActiveGameThreadParticles.Add(Handle);
+				}
+				else if(IPhysicsProxyBase** Proxy = Solver->MParticleToProxy.Find(ActiveParticle.Handle()))
+				{
+					PhysicsParticleProxies.Add(*Proxy);
+				}
 			}
 		}
 	}

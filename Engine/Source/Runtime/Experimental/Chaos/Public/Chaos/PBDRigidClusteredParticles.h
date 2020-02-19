@@ -9,48 +9,84 @@ namespace Chaos
 {
 	class FImplicitObjectUnionClustered;
 
-// ClusterId 
-//    Used within the clustering system to describe the clustering hierarchy. The ID will
-//  store the children IDs, and a Parent ID. When Id==NONE_INDEX the cluster is not
-//  controlled by another body. 
+/** 
+ * Used within the clustering system to describe the clustering hierarchy. The ClusterId
+ * stores the children IDs, and a Parent ID. When Id == \c nullptr the cluster is not
+ * controlled by another body. 
+ *
+ * TODO: Chaos - Add dimension template param?  Add floating point param?
+ */
 struct ClusterId
 {
-	ClusterId() : Id(INDEX_NONE), NumChildren(0) {}
-	ClusterId(int32 NewId, int NumChildrenIn)
+	ClusterId() 
+		: Id(nullptr)
+		, NumChildren(0) 
+	{}
+	ClusterId(TPBDRigidParticleHandle<float, 3>* NewId, int NumChildrenIn)
 		: Id(NewId)
-		, NumChildren(NumChildrenIn) {}
-	int32 Id;
+		, NumChildren(NumChildrenIn) 
+	{}
+	TPBDRigidParticleHandle<float, 3>* Id;
 	int32 NumChildren;
 };
 
-/** When multiple children are active and can share one collision proxy. Only valid if all original children are still in the cluster*/
+/** 
+ * When multiple children are active and can share one collision proxy. Only 
+ * valid if all original children are still in the cluster.
+ */
 template <typename T, int d>
 struct CHAOS_API TMultiChildProxyData
 {
+	TMultiChildProxyData()
+		: KeyChild(nullptr)
+	{}
 	TRigidTransform<T, d> RelativeToKeyChild;	//Use one child's transform to determine where to place the geometry. Needed for partial fracture where all children are still present and can therefore use proxy
-	uint32 KeyChild;
+	TPBDRigidParticleHandle<T, d>* KeyChild;
 };
 
-/** Used with TMultiChildProxyData. INDEX_NONE indicates no proxy data available */
+/** 
+ * Used with \c TMultiChildProxyData. \c nullptr indicates no proxy data available.
+ *
+ * TODO: Chaos - Add dimension template param?  Add floating point param?
+ */
 struct FMultiChildProxyId
 {
-	FMultiChildProxyId() : Id(INDEX_NONE) {}
-	int32 Id;
+	FMultiChildProxyId()
+		: Id(nullptr) 
+	{}
+	TPBDRigidParticleHandle<float, 3>* Id;
 };
 
+/**
+ * An entry in a clustered particle's \c ConnectivityEdges array, indicating a
+ * connection between that body and \c Sibling, with a strength breakable by 
+ * a \c Strain threshold.
+ *
+ * TODO: Chaos - Add dimension template param?
+ */
 template <typename T>
 struct TConnectivityEdge
 {
-	TConnectivityEdge() {}
-	TConnectivityEdge(uint32 InSibling, T InStrain)
+	TConnectivityEdge() 
+		: Sibling(nullptr)
+		, Strain(0.0)
+	{}
+
+	TConnectivityEdge(TPBDRigidParticleHandle<T, 3>* InSibling, const T InStrain)
 		: Sibling(InSibling)
-		, Strain(InStrain) {}
+		, Strain(InStrain) 
+	{}
 
 	TConnectivityEdge(const TConnectivityEdge& Other)
 		: Sibling(Other.Sibling)
-		, Strain(Other.Strain) {}
+		, Strain(Other.Strain) 
+	{}
 
-	uint32 Sibling;
+	/** Compares by \p OtherSibling only, for \c TArray::FindByKey(). */
+	bool operator==(const TPBDRigidParticleHandle<T, 3>* OtherSibling) const
+	{ return Sibling == OtherSibling; }
+
+	TPBDRigidParticleHandle<T, 3>* Sibling;
 	T Strain;
 };
 
@@ -104,6 +140,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 
 	const auto& CollisionImpulses(int32 Idx) const { return MCollisionImpulses[Idx]; }
 	auto& CollisionImpulses(int32 Idx) { return MCollisionImpulses[Idx]; }
+	auto& CollisionImpulsesArray() { return MCollisionImpulses; }
 
 	const auto& Strains(int32 Idx) const { return MStrains[Idx]; }
 	auto& Strains(int32 Idx) { return MStrains[Idx]; }
@@ -172,4 +209,4 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	  TArrayCollectionArray<TArray<TConnectivityEdge<T>>> MConnectivityEdges;
 };
 
-}
+} // namespace Chaos
