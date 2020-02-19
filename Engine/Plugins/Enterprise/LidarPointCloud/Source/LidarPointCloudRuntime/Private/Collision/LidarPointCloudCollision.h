@@ -9,5 +9,5 @@ struct FTriMeshCollisionData;
 
 namespace LidarPointCloudCollision
 {
-	void BuildCollisionMesh(const FLidarPointCloudOctree* Octree, const float& CellSize, const bool& bVisibleOnly, FTriMeshCollisionData* CollisionMesh);
+	void BuildCollisionMesh(FLidarPointCloudOctree* Octree, const float& CellSize, const bool& bVisibleOnly, FTriMeshCollisionData* CollisionMesh);
 }

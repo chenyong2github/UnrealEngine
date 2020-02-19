@@ -18,6 +18,10 @@ static float3 LODColors[] = {
 
 // Used for instance handling
 uint IndexDivisor;
+uint FirstElementIndex;
+
+// Alignment
+float3 LocationOffset;
 
 // Used for Sprite Size
 float VDMultiplier;
@@ -31,7 +35,6 @@ float3 ViewUpVector;
 
 // Used for coloration override
 float3 BoundsSize;
-float3 BoundsOffset;
 half3 ElevationColorBottom;
 half3 ElevationColorTop;
 
@@ -52,7 +55,7 @@ uint bUseClassification;
 
 float4 ClassificationColors[32];
 
-StructuredBuffer<float> DataBuffer;
+Buffer<float> DataBuffer;
 
 #if USE_INSTANCING
 	// Instanced stereo sets the eye index explicitly for instanced geometry
@@ -114,10 +117,10 @@ FPointCloudInstanceData GetInstanceData(uint VertexId)
 {
 	FPointCloudInstanceData InstanceData = (FPointCloudInstanceData)0;
 
-	uint PointId = VertexId / IndexDivisor;
+	uint PointId = FirstElementIndex + VertexId / IndexDivisor;
 	uint Idx = PointId * 4;
 
-	InstanceData.Position = float3(DataBuffer[Idx], DataBuffer[Idx + 1], DataBuffer[Idx + 2]);
+	InstanceData.Position = float3(DataBuffer[Idx], DataBuffer[Idx + 1], DataBuffer[Idx + 2]) + LocationOffset;
 	InstanceData.Color = asuint(DataBuffer[Idx + 3]);
 	InstanceData.VirtualDepth = half((0x000000FF & (asuint(DataBuffer[SizeOffset + PointId / 4]) >> (PointId % 4 * 8)))) * VDMultiplier;
 	InstanceData.Scale = RootCellSize * PrecomputedUV_Quad[VertexId % 4] / pow(2, InstanceData.VirtualDepth);
@@ -152,11 +155,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// Color
 	{
 		// Used to account for offset due to shifted points bounds
-		float3 OffsetPosition = Intermediates.Position + BoundsOffset;
+		float3 RelativePosition = Intermediates.Position - LocationOffset;
 
 		half3 Color = half3(0x000000FF & (InstanceData.Color >> 16), 0x000000FF & (InstanceData.Color >> 8), 0x000000FF & InstanceData.Color) * 0.003921568627451;
-		half3 ElevationColor = lerp(ElevationColorBottom, ElevationColorTop, clamp((OffsetPosition.z + BoundsSize.z * 0.5) / BoundsSize.z, 0, 1));
-		half3 PositionColor = (OffsetPosition + BoundsSize * 0.5) / BoundsSize;
+		half3 ElevationColor = lerp(ElevationColorBottom, ElevationColorTop, clamp((RelativePosition.z + BoundsSize.z * 0.5) / BoundsSize.z, 0, 1));
+		half3 PositionColor = (RelativePosition + BoundsSize * 0.5) / BoundsSize;
 		half3 ClassificationColor = ClassificationColors[0x0000001F & InstanceData.Color];
 
 		// Pick color source

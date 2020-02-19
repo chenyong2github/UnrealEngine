@@ -42,25 +42,12 @@ public:
 	/** Component for the preview point cloud. */
 	ULidarPointCloudComponent* PreviewCloudComponent;
 
-	/** Retrieves the static mesh component. */
-	ULidarPointCloudComponent* GetPointCloudComponent() const { return PreviewCloudComponent; }
-
 	/**
 	 *	Sets up the point cloud that the Point Cloud editor is viewing.
 	 *
 	 *	@param	InPointCloud		The point cloud being viewed in the editor.
 	 */
 	void SetPreviewCloud(ULidarPointCloud* InPointCloud);
-
-	/**
-	 *	Updates the preview cloud and other viewport specific settings that go with it.
-	 *
-	 *	@param	InPointCloud		The point cloud being viewed in the editor.
-	 */
-	void UpdatePreviewCloud(ULidarPointCloud* InPointCloud, bool bResetCamera = true);
-
-	/** @return The editor viewport client */
-	FLidarPointCloudEditorViewportClient& GetViewportClient() { return *EditorViewportClient; }
 
 	/** Set the parent tab of the viewport for determining visibility */
 	void SetParentTab(TSharedRef<SDockTab> InParentTab) { ParentTab = InParentTab; }
@@ -85,9 +72,6 @@ public:
 	virtual void OnFloatingButtonClicked() override {}
 	// End of ICommonEditorViewportToolbarInfoProvider interface
 
-	/** Returns the preview scene being rendered in the viewport */
-	TSharedRef<FAdvancedPreviewScene> GetPreviewScene() { return PreviewScene.ToSharedRef(); }
-
 protected:
 	/** SEditorViewport interface */
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
@@ -111,7 +95,7 @@ private:
 	TWeakPtr<FLidarPointCloudEditor> PointCloudEditorPtr;
 
 	/** The scene for this viewport. */
-	TSharedPtr<FAdvancedPreviewScene> PreviewScene;
+	FAdvancedPreviewScene PreviewScene;
 
 	/** Editor viewport client */
 	TSharedPtr<FLidarPointCloudEditorViewportClient> EditorViewportClient;
