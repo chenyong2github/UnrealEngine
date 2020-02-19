@@ -37,6 +37,10 @@ class UEditorPerformanceSettings : public UDeveloperSettings
 	UPROPERTY(EditAnywhere, config, Category = EditorPerformance, meta = (DisplayName = "Enable Shared Data Cache Performance Notifications"))
 	uint32 bEnableSharedDDCPerformanceNotifications : 1;
 
+	/** When enabled, a warning will appear in the viewport when your editors scalability settings are non-default and you may be viewing a low quality scene */
+	UPROPERTY(EditAnywhere, config, Category = EditorPerformance, meta = (DisplayName = "Enable Scalability Warning Indicator"))
+	uint32 bEnableScalabilityWarningIndicator : 1;
+
 public:
 	/** UObject interface */
 	virtual void PostInitProperties() override;

@@ -10,7 +10,7 @@
 #include "EditorStyleSet.h"
 
 
-void SEditorViewportToolBarButton::Construct( const FArguments& Declaration )
+void SEditorViewportToolBarButton::Construct( const FArguments& Declaration)
 {
 	OnClickedDelegate = Declaration._OnClicked;
 	IsChecked = Declaration._IsChecked;
@@ -31,7 +31,7 @@ void SEditorViewportToolBarButton::Construct( const FArguments& Declaration )
 
 		ButtonWidget =
 			SNew( SButton )
-			.ButtonStyle( FEditorStyle::Get(), "EditorViewportToolBar.Button" ) 
+			.ButtonStyle(Declaration._ButtonStyle)
 			.OnClicked( OnClickedDelegate )
 			.HAlign( HAlign_Center )
 			.VAlign( VAlign_Center )
@@ -57,7 +57,7 @@ void SEditorViewportToolBarButton::Construct( const FArguments& Declaration )
 
 		ButtonWidget = 
 			SNew( SCheckBox )
-			.Style(FEditorStyle::Get(), "LevelViewportToolBar.CheckBoxButton" )
+			.Style(Declaration._CheckBoxStyle)
 			.OnCheckStateChanged( this, &SEditorViewportToolBarButton::OnCheckStateChanged )
 			.IsChecked( this, &SEditorViewportToolBarButton::OnIsChecked )
 			[

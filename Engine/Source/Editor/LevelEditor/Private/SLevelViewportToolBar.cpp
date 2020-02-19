@@ -31,6 +31,9 @@
 #include "FoliageType.h"
 #include "ShowFlagMenuCommands.h"
 #include "Bookmarks/BookmarkUI.h"
+#include "Scalability.h"
+#include "SScalabilitySettings.h"
+#include "Editor/EditorPerformanceSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportToolBar"
 
@@ -207,6 +210,40 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 					.OnGetMenuContent( this, &SLevelViewportToolBar::GenerateDevicePreviewMenu )
 					//@todo rendering: mobile preview in view port is not functional yet - remove this once it is.
 					.Visibility(EVisibility::Collapsed)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(ToolbarSlotPadding)
+				[
+					// Button to show that realtime is off
+					SNew(SEditorViewportToolBarButton)	
+					.Cursor(EMouseCursor::Default)
+					.ButtonType(EUserInterfaceActionType::Button)
+					.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.MenuButtonWarning"))
+					.OnClicked(this, &SLevelViewportToolBar::OnRealtimeWarningClicked)
+					.Visibility(this, &SLevelViewportToolBar::GetRealtimeWarningVisibility)
+					.ToolTipText(LOCTEXT("RealtimeOff_ToolTip", "This viewport is not updating in realtime.  Click to turn on realtime mode."))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::GetFontStyle("EditorViewportToolBar.Font"))
+						.Text(LOCTEXT("RealtimeOff", "Realtime: Off"))
+						.ColorAndOpacity(FLinearColor::Black)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(ToolbarSlotPadding)
+				[
+					// Button to show scalability warnings
+					SNew(SEditorViewportToolbarMenu)
+					.ParentToolBar(SharedThis(this))
+					.Cursor(EMouseCursor::Default)
+					.Label(this, &SLevelViewportToolBar::GetScalabilityWarningLabel)
+					.MenuStyle(FEditorStyle::Get(), "EditorViewportToolBar.MenuButtonWarning")
+					.OnGetMenuContent(this, &SLevelViewportToolBar::GetScalabilityWarningMenuContent)
+					.Visibility(this, &SLevelViewportToolBar::GetScalabilityWarningVisibility)
+					.ToolTipText(LOCTEXT("ScalabilityWarning_ToolTip", "Non-default scalability settings could be affecting what is shown in this viewport.\nFor example you may experience lower visual quality, reduced particle counts, and other artifacts that don't match what the scene would look like when running outside of the editor. Click to make changes."))
 				]
 				+ SHorizontalBox::Slot()
 				.Padding( ToolbarSlotPadding )
@@ -504,7 +541,7 @@ static void OnGenerateBookmarkMenu( FMenuBuilder& MenuBuilder , TWeakPtr<class S
 	MenuBuilder.EndSection();
 }
 
-TSharedRef<SWidget> SLevelViewportToolBar::GenerateOptionsMenu() const
+TSharedRef<SWidget> SLevelViewportToolBar::GenerateOptionsMenu() 
 {
 	Viewport.Pin()->OnFloatingButtonClicked();
 
@@ -522,6 +559,25 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateOptionsMenu() const
 		OptionsMenuBuilder.BeginSection("LevelViewportViewportOptions", LOCTEXT("OptionsMenuHeader", "Viewport Options") );
 		{
 			OptionsMenuBuilder.AddMenuEntry( FEditorViewportCommands::Get().ToggleRealTime );
+
+			// Add an option to disable the temporary override if there is one
+			{
+				FUIAction Action;
+				Action.ExecuteAction.BindSP(this, &SLevelViewportToolBar::OnDisableRealtimeOverride);
+				Action.IsActionVisibleDelegate.BindSP(this, &SLevelViewportToolBar::IsRealtimeOverrideToggleVisible);
+
+				TAttribute<FText> Tooltip(this, &SLevelViewportToolBar::GetRealtimeOverrideTooltip);
+
+				OptionsMenuBuilder.AddMenuEntry(
+					LOCTEXT("DisableRealtimeOverride", "Disable Realtime Override"),
+					Tooltip,
+					FSlateIcon(),
+					Action);
+
+				OptionsMenuBuilder.AddMenuSeparator();
+					
+			}
+		
 			OptionsMenuBuilder.AddMenuEntry( FEditorViewportCommands::Get().ToggleStats );
 			OptionsMenuBuilder.AddMenuEntry( FEditorViewportCommands::Get().ToggleFPS );
 			OptionsMenuBuilder.AddMenuEntry( LevelViewportActions.ToggleViewportToolbar );
@@ -1329,6 +1385,34 @@ void SLevelViewportToolBar::CreateViewMenuExtensions(FMenuBuilder& MenuBuilder)
 }
 
 
+void SLevelViewportToolBar::OnDisableRealtimeOverride()
+{
+	if (TSharedPtr<SLevelViewport> ViewportPinned = Viewport.Pin())
+	{
+		ViewportPinned->GetLevelViewportClient().RemoveRealtimeOverride();
+	}
+}
+
+bool SLevelViewportToolBar::IsRealtimeOverrideToggleVisible() const
+{
+	if (TSharedPtr<SLevelViewport> ViewportPinned = Viewport.Pin())
+	{
+		return ViewportPinned->GetLevelViewportClient().IsRealtimeOverrideSet();
+	}
+
+	return false;
+}
+
+FText SLevelViewportToolBar::GetRealtimeOverrideTooltip() const
+{
+	if (TSharedPtr<SLevelViewport> ViewportPinned = Viewport.Pin())
+	{
+		return FText::Format(LOCTEXT("DisableRealtimeOverrideToolTip", "Realtime is currently overridden by \"{0}\".  Click to remove that override"), ViewportPinned->GetLevelViewportClient().GetRealtimeOverrideMessage());
+	}
+
+	return FText::GetEmpty();
+}
+
 bool SLevelViewportToolBar::IsLandscapeLODSettingChecked(int32 Value) const
 {
 	return Viewport.Pin()->GetLevelViewportClient().LandscapeLODOverride == Value;
@@ -1341,5 +1425,47 @@ void SLevelViewportToolBar::OnLandscapeLODChanged(int32 NewValue)
 	ViewportClient.Invalidate();
 }
 
+
+FReply SLevelViewportToolBar::OnRealtimeWarningClicked()
+{
+	FLevelEditorViewportClient& ViewportClient = Viewport.Pin()->GetLevelViewportClient();
+	ViewportClient.SetRealtime(true);
+
+	return FReply::Handled();
+}
+
+EVisibility SLevelViewportToolBar::GetRealtimeWarningVisibility() const
+{
+	FLevelEditorViewportClient& ViewportClient = Viewport.Pin()->GetLevelViewportClient();
+	// If the viewport is not realtime and there is no override then realtime is off
+	return !ViewportClient.IsRealtime() && !ViewportClient.IsRealtimeOverrideSet() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FText SLevelViewportToolBar::GetScalabilityWarningLabel() const
+{
+	const int32 QualityLevel = Scalability::GetQualityLevels().GetMinQualityLevel();
+	if (QualityLevel >= 0)
+	{
+		return FText::Format(LOCTEXT("ScalabilityWarning", "Scalability: {0}"), Scalability::GetScalabilityNameFromQualityLevel(QualityLevel));
+	}
+	
+	return FText::GetEmpty();
+}
+
+EVisibility SLevelViewportToolBar::GetScalabilityWarningVisibility() const
+{
+	//This method returns magic numbers. 3 means epic
+	return GetDefault<UEditorPerformanceSettings>()->bEnableScalabilityWarningIndicator && Scalability::GetQualityLevels().GetMinQualityLevel() < 3 ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+TSharedRef<SWidget> SLevelViewportToolBar::GetScalabilityWarningMenuContent() const
+{
+	return
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		[
+			SNew(SScalabilitySettings)
+		];
+}
 
 #undef LOCTEXT_NAMESPACE

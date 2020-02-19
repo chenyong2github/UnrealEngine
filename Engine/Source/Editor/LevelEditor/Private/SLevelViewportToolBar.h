@@ -104,7 +104,7 @@ private:
 	 *
 	 * @return The widget containing the options menu content
 	 */
-	TSharedRef<SWidget> GenerateOptionsMenu() const;
+	TSharedRef<SWidget> GenerateOptionsMenu();
 
 	/**
 	 * Generates the toolbar camera menu content 
@@ -205,6 +205,13 @@ private:
 	bool IsLandscapeLODSettingChecked(int32 Value) const;
 	void OnLandscapeLODChanged(int32 NewValue);
 
+	FReply OnRealtimeWarningClicked();
+	EVisibility GetRealtimeWarningVisibility() const;
+
+	FText GetScalabilityWarningLabel() const;
+	EVisibility GetScalabilityWarningVisibility() const;
+	TSharedRef<SWidget> GetScalabilityWarningMenuContent() const;
+
 private:
 	/**
 	 * Generates the toolbar show layers menu content 
@@ -231,6 +238,11 @@ private:
 	TSharedPtr<FExtender> GetViewMenuExtender();
 
 	void CreateViewMenuExtensions(FMenuBuilder& MenuBuilder);
+
+	/** Called when the user disables realtime override from the toolbar */
+	void OnDisableRealtimeOverride();
+	bool IsRealtimeOverrideToggleVisible() const;
+	FText GetRealtimeOverrideTooltip() const;
 private:
 	/** The viewport that we are in */
 	TWeakPtr<class SLevelViewport> Viewport;
