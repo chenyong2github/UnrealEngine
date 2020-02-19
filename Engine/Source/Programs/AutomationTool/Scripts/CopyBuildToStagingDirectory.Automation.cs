@@ -79,7 +79,7 @@ public partial class Project : CommandUtils
 			foreach (var Entry in ResponseFile)
 			{
 				string Line = String.Format("\"{0}\" \"{1}\"", Entry.Key, Entry.Value);
-				if (Compressed && !Path.GetExtension(Entry.Key).Contains(".mp4"))
+				if (Compressed && !Path.GetExtension(Entry.Key).Contains(".mp4") && !Path.GetExtension(Entry.Key).Contains("ushaderbytecode") && !Path.GetExtension(Entry.Key).Contains("upipelinecache"))
 				{
 					Line += " -compress";
 				}
