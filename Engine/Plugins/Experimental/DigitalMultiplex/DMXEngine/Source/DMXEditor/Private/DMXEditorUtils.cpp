@@ -518,7 +518,7 @@ bool FDMXEditorUtils::AreFixtureTypesIdentical(const UDMXEntityFixtureType* A, c
 		return false;
 	}
 
-	// Compare each UProperty in the projects
+	// Compare each UProperty in the Fixtures
 	const UStruct* Struct = UDMXEntityFixtureType::StaticClass();
 	TPropertyValueIterator<const FProperty> ItA(Struct, A);
 	TPropertyValueIterator<const FProperty> ItB(Struct, B);
@@ -528,16 +528,29 @@ bool FDMXEditorUtils::AreFixtureTypesIdentical(const UDMXEntityFixtureType* A, c
 
 	for (; ItA && ItB; ++ItA, ++ItB)
 	{
-		const FProperty* Property = ItA->Key;
+		const FProperty* PropertyA = ItA->Key;
+		const FProperty* PropertyB = ItB->Key;
+
+		if (PropertyA == nullptr || PropertyB == nullptr)
+		{
+			return false;
+		}
+
+		// Properties must be in the exact same order on both Fixtures. Otherwise, it means we have
+		// different properties being compared due to differences in array sizes.
+		if (!PropertyA->SameType(PropertyB))
+		{
+			return false;
+		}
 
 		// Name and Id don't have to be identical
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UDMXEntity, Name)
-			|| Property->GetFName() == NAME_ParentLibrary) // Can't GET_MEMBER_NAME... with private properties
+		if (PropertyA->GetFName() == GET_MEMBER_NAME_CHECKED(UDMXEntity, Name)
+			|| PropertyA->GetFName() == NAME_ParentLibrary) // Can't GET_MEMBER_NAME... with private properties
 		{
 			continue;
 		}
 
-		if (Property->GetFName() == NAME_Id)
+		if (PropertyA->GetFName() == NAME_Id)
 		{
 			// Skip all properties from GUID struct
 			for (int32 PropertyCount = 0; PropertyCount < 4; ++PropertyCount)
@@ -551,10 +564,17 @@ bool FDMXEditorUtils::AreFixtureTypesIdentical(const UDMXEntityFixtureType* A, c
 		const void* ValueA = ItA->Value;
 		const void* ValueB = ItB->Value;
 
-		if (!Property->Identical(ValueA, ValueB))
+		if (!PropertyA->Identical(ValueA, ValueB))
 		{
 			return false;
 		}
+	}
+
+	// If one of the Property Iterators is still valid, one of the Fixtures had
+	// less properties due to an array size difference, which means the Fixtures are different.
+	if (ItA || ItB)
+	{
+		return false;
 	}
 
 	return true;
