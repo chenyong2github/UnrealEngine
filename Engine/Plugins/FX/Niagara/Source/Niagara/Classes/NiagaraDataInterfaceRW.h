@@ -118,7 +118,6 @@ protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	virtual void PushToRenderThread() {};
 
-	FNiagaraDataInterfaceProxyRW* RWProxy;
 };
 
 

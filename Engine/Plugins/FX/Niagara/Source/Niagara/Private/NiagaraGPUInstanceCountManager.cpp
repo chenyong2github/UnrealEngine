@@ -75,7 +75,7 @@ uint32 FNiagaraGPUInstanceCountManager::AcquireEntry()
 	{
 		// @TODO : add realloc the buffer and copy the current content to it. Might require reallocating the readback in FNiagaraGPUInstanceCountManager::EnqueueGPUReadback()
 		ensure(UsedInstanceCounts < AllocatedInstanceCounts);
-		UE_LOG(LogNiagara, Error, TEXT("Niagara.MinGPUInstanceCount too small."));
+		UE_LOG(LogNiagara, Error, TEXT("Niagara.MinGPUInstanceCount too small. UsedInstanceCounts: %d < AllocatedInstanceCounts: %d"), UsedInstanceCounts, AllocatedInstanceCounts);
 		return INDEX_NONE;
 	}
 }
@@ -86,8 +86,13 @@ void FNiagaraGPUInstanceCountManager::FreeEntry(uint32& BufferOffset)
 
 	if (BufferOffset != INDEX_NONE)
 	{
+		//UE_LOG(LogNiagara, Warning, TEXT("FNiagaraGPUInstanceCountManager::FreeEntry %d"), BufferOffset);
 		// Add a reset to 0 task.
 		// The entry will only become available/reusable after being reset to 0 in UpdateDrawIndirectBuffer()
+		//if (InstanceCountClearTasks.Find(BufferOffset) != -1)
+		//{
+		//	UE_LOG(LogNiagara, Warning, TEXT("FNiagaraGPUInstanceCountManager::FreeEntry DUPLICATED!!!!!!!!!!!!!! %d"), BufferOffset);
+		//}
 		InstanceCountClearTasks.Add(BufferOffset);
 		BufferOffset = INDEX_NONE;
 	}
@@ -107,6 +112,7 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 			TResourceArray<uint32> InitData;
 			InitData.AddZeroed(AllocatedInstanceCounts);
 			CountBuffer.Initialize(sizeof(uint32), AllocatedInstanceCounts, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_SourceCopy, TEXT("NiagaraGPUInstanceCounts"), &InitData);
+			UE_LOG(LogNiagara, Log, TEXT("FNiagaraGPUInstanceCountManager::ResizeBuffers Alloc AllocatedInstanceCounts: %d ReservedInstanceCounts: %d"), AllocatedInstanceCounts, ReservedInstanceCounts);
 		}
 		// If we need to increase the buffer size to RecommendedInstanceCounts because the buffer is too small.
 		else if (RequiredInstanceCounts > AllocatedInstanceCounts)
@@ -134,6 +140,7 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 			// Swap the buffers
 			AllocatedInstanceCounts = RecommendedInstanceCounts;
 			FMemory::Memswap(&NextCountBuffer, &CountBuffer, sizeof(NextCountBuffer));
+			UE_LOG(LogNiagara, Log, TEXT("FNiagaraGPUInstanceCountManager::ResizeBuffers Resize AllocatedInstanceCounts: %d ReservedInstanceCounts: %d"), AllocatedInstanceCounts, ReservedInstanceCounts);
 		}
 		// If we need to shrink the buffer size because use way to much buffer size.
 		else if ((int32)(RecommendedInstanceCounts * BufferSlack) < AllocatedInstanceCounts)
@@ -199,6 +206,11 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, CountBuffer.UAV);
 
 			FReadBuffer TaskInfosBuffer;
+
+			//for (int32 i = 0; i < InstanceCountClearTasks.Num(); i++)
+			//{
+			//		UE_LOG(LogNiagara, Log, TEXT("InstanceCountClearTasks[%d] = %d"), i, InstanceCountClearTasks[i]);
+			//}
 			{
 				// All draw indirect args task are run first because of the binding between the task ID and arg write offset.
 				const uint32 ArgGenSize = DrawIndirectArgGenTasks.Num() * sizeof(FArgGenTaskInfo);
@@ -228,6 +240,11 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 		}
 		// Once cleared to 0, the count are reusable.
 		FreeEntries.Append(InstanceCountClearTasks);
+
+		//for (int32 i = 0; i < FreeEntries.Num(); i++)
+		//{
+		//	UE_LOG(LogNiagara, Log, TEXT("FreeEntries[%d] = %d"), i, FreeEntries[i]);
+		//}
 
 		DrawIndirectArgGenTasks.Empty();
 		DrawIndirectArgMap.Empty();
