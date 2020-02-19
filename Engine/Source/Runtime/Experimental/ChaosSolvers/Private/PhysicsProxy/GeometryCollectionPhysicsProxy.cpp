@@ -296,11 +296,18 @@ void PopulateSimulatedParticle(
 		TUniquePtr<Chaos::TBVHParticles<float, 3>>& CollisionParticles = Handle->CollisionParticles();
 		if (Simplicial->Size())
 		{
+			const Chaos::TAABB<float,3> ImplicitShapeDomain = 
+				Implicit && Implicit->HasBoundingBox() ? Implicit->BoundingBox() : Chaos::TAABB<float,3>::FullAABB();
+
 			CollisionParticles->Resize(0);
 			CollisionParticles->AddParticles(Simplicial->Size());
 			for (int32 VertexIndex = 0; VertexIndex < (int32)Simplicial->Size(); ++VertexIndex)
 			{
 				CollisionParticles->X(VertexIndex) = Simplicial->X(VertexIndex);
+
+				// Make sure the collision particles are at least in the domain 
+				// of the implicit shape.
+				ensure(ImplicitShapeDomain.Contains(CollisionParticles->X(VertexIndex)));
 			}
 		}
 
@@ -3002,7 +3009,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 			if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
 			{
-				ErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex));
+				ErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
 				CollectionImplicits[TransformGroupIndex] = TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>(
 					FCollisionStructureManager::NewImplicitLevelset(
 						ErrorReporter,
@@ -3221,7 +3228,6 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				}
 				else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 				{
-					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
 					CollectionImplicits[ClusterTransformIdx] = TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>(
 						FCollisionStructureManager::NewImplicitBox(
 							InstanceBoundingBox,
@@ -3234,8 +3240,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				}
 				else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 				{
-					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
-					CollectionImplicits[ClusterTransformIdx] = TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>(
+ 					CollectionImplicits[ClusterTransformIdx] = TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>(
 						FCollisionStructureManager::NewImplicitSphere(
 							InstanceBoundingBox.GetExtent().GetAbsMin() / 2,
 							SizeSpecificData.CollisionObjectReductionPercentage,
