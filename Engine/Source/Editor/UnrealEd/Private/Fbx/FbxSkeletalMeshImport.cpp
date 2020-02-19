@@ -3520,13 +3520,9 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 					int32 UVIndex = (UVReferenceMode[UVLayerIndex] == FbxLayerElement::eDirect) ? 
 							UVMapIndex : LayerElementUV[UVLayerIndex]->GetIndexArray().GetAt(UVMapIndex);
 					FbxVector2	UVVector = LayerElementUV[UVLayerIndex]->GetDirectArray().GetAt(UVIndex);
-					const float U = static_cast<float>(UVVector[0]);
-					const float V = static_cast<float>(UVVector[1]);
-					const float VTile = FMath::FloorToFloat(V);
-					const float VOffset = V - VTile;
 
-					TmpWedges[UnrealVertexIndex].UVs[UVLayerIndex].X = U;
-					TmpWedges[UnrealVertexIndex].UVs[UVLayerIndex].Y = VTile + (1.f - VOffset);   //flip the Y of UVs for DirectX
+					TmpWedges[UnrealVertexIndex].UVs[ UVLayerIndex ].X = static_cast<float>(UVVector[0]);
+					TmpWedges[UnrealVertexIndex].UVs[ UVLayerIndex ].Y = 1.f - static_cast<float>(UVVector[1]);
 				}
 			}
 			else if( UVLayerIndex == 0 )
