@@ -104,7 +104,12 @@ namespace DatasmithNativeTranslatorImpl
 
 		FMeshDescription MeshDescription;
 		DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
-		FStaticMeshOperations::ConvertFromRawMesh(RawMesh, MeshDescription, GroupNamePerGroupIndex);
+
+		// Do not compute normals and tangents during conversion since we have other operations to apply
+		// on the mesh that might invalidate them anyway and we must also validate the mesh to detect 
+		// vertex positions containing NaN before doing computation as MikkTSpace crashes on NaN values.
+		const bool bSkipNormalsAndTangents = true;
+		FStaticMeshOperations::ConvertFromRawMesh(RawMesh, MeshDescription, GroupNamePerGroupIndex, bSkipNormalsAndTangents);
 		return MeshDescription;
 	}
 
