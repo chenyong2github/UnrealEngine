@@ -41,12 +41,12 @@ void RunSegmentationTest(FAutomationTestBase& Test, uint32 MessageSize, uint16 S
 	// invariants
 	{
 		Test.TestEqual(TEXT("The message size must match the actual message size"), Segmenter.GetMessageSize(), Message->TotalSize());
-		Test.TestEqual(TEXT("The total number of segments must match the actual number of segments in the message"), Segmenter.GetSegmentCount(), NumSegments);
+		Test.TestEqual(TEXT("The total number of segments must match the actual number of segments in the message"), Segmenter.GetSegmentCount(), (uint32)NumSegments);
 	}
 
 	// pre-conditions
 	{
-		Test.TestEqual(TEXT("The initial number of pending segments must match the total number of segments in the message"), Segmenter.GetPendingSegmentsCount(), NumSegments);
+		Test.TestEqual(TEXT("The initial number of pending segments must match the total number of segments in the message"), Segmenter.GetPendingSegmentsCount(), (uint32)NumSegments);
 		Test.TestFalse(TEXT("Segmentation of a non-empty message must not be complete initially"), Segmenter.IsComplete());
 	}
 
@@ -57,7 +57,7 @@ void RunSegmentationTest(FAutomationTestBase& Test, uint32 MessageSize, uint16 S
 
 		Segmenter.GetNextPendingSegment(OutData, OutSegmentNumber);
 
-		Test.TestEqual(TEXT("The number of pending segments must not change when peeking at a pending segment"), Segmenter.GetPendingSegmentsCount(), NumSegments);
+		Test.TestEqual(TEXT("The number of pending segments must not change when peeking at a pending segment"), Segmenter.GetPendingSegmentsCount(), (uint32)NumSegments);
 	}
 
 	uint32 GeneratedSegmentCount = 0;
@@ -100,13 +100,13 @@ void RunSegmentationTest(FAutomationTestBase& Test, uint32 MessageSize, uint16 S
 			}
 		}
 
-		Test.TestEqual(TEXT("The number of generated segments must match the total number of segments in the message"), GeneratedSegmentCount, NumSegments);
-		Test.TestEqual(TEXT("The number of invalid segments must be zero"), NumInvalidSegments, (int32)0);
+		Test.TestEqual(TEXT("The number of generated segments must match the total number of segments in the message"), GeneratedSegmentCount, (uint32)NumSegments);
+		Test.TestEqual(TEXT("The number of invalid segments must be zero"), NumInvalidSegments, 0u);
 	}
 
 	// post-conditions
 	{
-		Test.TestEqual(TEXT("The number of pending segments must be zero after segmentation is complete"), Segmenter.GetPendingSegmentsCount(), (uint16)0);
+		Test.TestEqual(TEXT("The number of pending segments must be zero after segmentation is complete"), Segmenter.GetPendingSegmentsCount(), 0u);
 		Test.TestTrue(TEXT("Segmentation must be complete when there are no more pending segments"), Segmenter.IsComplete());
 	}
 }
