@@ -24,6 +24,17 @@ namespace Chaos
 	public:
 		static const int32 MaxConstrainedBodies = 2;
 
+		/**
+		 * The constraint-space axis about which each rotation constraint is applied
+		 */
+		enum class EJointAngularAxisIndex : int32
+		{
+			Twist = 0,		// Twist Axis = X
+			Swing2 = 1,		// Swing2 Axis = Y
+			Swing1 = 2,		// Swing1 Axis = Z
+		};
+
+
 		using FDenseMatrix66 = TDenseMatrix<6 * 6>;
 		using FDenseMatrix61 = TDenseMatrix<6 * 1>;
 

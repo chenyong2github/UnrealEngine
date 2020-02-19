@@ -77,15 +77,18 @@ namespace Chaos
 		const FRotation3& R0,
 		const FRotation3& R1,
 		const EJointAngularConstraintIndex SwingConstraintIndex,
-		const EJointAngularAxisIndex SwingAxisIndex,
 		FVec3& Axis,
 		FReal& Angle)
 	{
 		FVec3 Twist1 = R1 * FJointConstants::TwistAxis();
-		FVec3 Swing0 = R0 * ((SwingConstraintIndex == EJointAngularConstraintIndex::Swing1)? FJointConstants::Swing2Axis() : FJointConstants::Swing1Axis());
+		FVec3 Swing0 = R0 * FJointConstants::OtherSwingAxis(SwingConstraintIndex);
 		Axis = FVec3::CrossProduct(Swing0, Twist1);
-		FReal SwingTwistDot = FVec3::DotProduct(Swing0, Twist1);
-		Angle = FMath::Asin(FMath::Clamp(-SwingTwistDot, -1.0f, 1.0f));
+		Angle = 0.0f;
+		if (Utilities::NormalizeSafe(Axis, KINDA_SMALL_NUMBER))
+		{
+			FReal SwingTwistDot = FVec3::DotProduct(Swing0, Twist1);
+			Angle = FMath::Asin(FMath::Clamp(-SwingTwistDot, -1.0f, 1.0f));
+		}
 	}
 
 
@@ -94,14 +97,13 @@ namespace Chaos
 		const FRotation3& R1,
 		const FReal AngleTolerance,
 		const EJointAngularConstraintIndex SwingConstraintIndex,
-		const EJointAngularAxisIndex SwingAxisIndex,
 		FVec3& Axis,
 		FReal& Angle)
 	{
 		// Decompose rotation of body 1 relative to body 0 into swing and twist rotations, assuming twist is X axis
 		FRotation3 R01Twist, R01Swing;
 		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
-		const FReal R01SwingYorZ = ((int32)SwingAxisIndex == 2) ? R01Swing.Z : R01Swing.Y;	// Can't index a quat :(
+		const FReal R01SwingYorZ = (FJointConstants::AxisIndex(SwingConstraintIndex) == 2) ? R01Swing.Z : R01Swing.Y;	// Can't index a quat :(
 		Angle = 4.0f * FMath::Atan2(R01SwingYorZ, 1.0f + R01Swing.W);
 		const FVec3& AxisLocal = (SwingConstraintIndex == EJointAngularConstraintIndex::Swing1) ? FJointConstants::Swing1Axis() : FJointConstants::Swing2Axis();
 		Axis = R0 * AxisLocal;
@@ -357,57 +359,49 @@ namespace Chaos
 	}
 
 	
-	void FPBDJointUtilities::GetConditionedInverseMass(
-		const FReal InMParent, 
-		const FVec3 InIParent, 
-		const FReal InMChild, 
-		const FVec3 InIChild, 
-		FReal& OutInvMParent, 
-		FReal& OutInvMChild, 
-		FVec3& OutInvIParent,
-		FVec3& OutInvIChild,
-		const FReal MinParentMassRatio, 
+	// @todo(ccaulfield): should also take into account the length of the joint connector to prevent over-rotation
+	void FPBDJointUtilities::ConditionInverseMassAndInertia(
+		FReal& InOutInvMParent,
+		FReal& InOutInvMChild,
+		FVec3& InOutInvIParent,
+		FVec3& InOutInvIChild,
+		const FReal MinParentMassRatio,
 		const FReal MaxInertiaRatio)
 	{
-		FReal MParent = ConditionParentMass(InMParent, InMChild, MinParentMassRatio);
-		FReal MChild = InMChild;
+		FReal MParent = 0.0f;
+		FVec3 IParent = FVec3(0);
+		FReal MChild = 0.0f;
+		FVec3 IChild = FVec3(0);
 
-		FVec3 IParent = ConditionInertia(InIParent, MaxInertiaRatio);
-		FVec3 IChild = ConditionInertia(InIChild, MaxInertiaRatio);
-		IParent = ConditionParentInertia(IParent, IChild, MinParentMassRatio);
-
-		OutInvMParent = 0;
-		OutInvIParent = FVec3(0, 0, 0);
-		if (MParent > 0)
+		// Set up inertia so that it is more uniform (reduce the maximum ratio of the inertia about each axis)
+		if (InOutInvMParent > 0)
 		{
-			OutInvMParent = (FReal)1 / MParent;
-			OutInvIParent = FVec3((FReal)1 / IParent.X, (FReal)1 / IParent.Y, (FReal)1 / IParent.Z);
+			MParent = 1.0f / InOutInvMParent;
+			IParent = ConditionInertia(FVec3(1.0f / InOutInvIParent.X, 1.0f / InOutInvIParent.Y, 1.0f / InOutInvIParent.Z), MaxInertiaRatio);
+		}
+		if (InOutInvMChild > 0)
+		{
+			MChild = 1.0f / InOutInvMChild;
+			IChild = ConditionInertia(FVec3(1.0f / InOutInvIChild.X, 1.0f / InOutInvIChild.Y, 1.0f / InOutInvIChild.Z), MaxInertiaRatio);
 		}
 
-		OutInvMChild = 0;
-		OutInvIChild = FVec3(0, 0, 0);
-		if (MChild > 0)
+		// Set up relative mass and inertia so that the parent cannot be much lighter than the child
+		if ((InOutInvMParent > 0) && (InOutInvMChild > 0))
 		{
-			OutInvMChild = (FReal)1 / MChild;
-			OutInvIChild = FVec3((FReal)1 / IChild.X, (FReal)1 / IChild.Y, (FReal)1 / IChild.Z);
+			MParent = ConditionParentMass(MParent, MChild, MinParentMassRatio);
+			IParent = ConditionParentInertia(IParent, IChild, MinParentMassRatio);
 		}
-	}
 
-	
-	void FPBDJointUtilities::GetConditionedInverseMass(
-		const FReal InM0,
-		const FVec3 InI0,
-		FReal& OutInvM0, 
-		FVec3& OutInvI0,
-		const FReal MaxInertiaRatio)
-	{
-		OutInvM0 = 0;
-		OutInvI0 = FVec3(0, 0, 0);
-		if (InM0 > 0)
+		// Map back to inverses
+		if (InOutInvMParent > 0)
 		{
-			FVec3 I0 = ConditionInertia(InI0, MaxInertiaRatio);
-			OutInvM0 = (FReal)1 / InM0;
-			OutInvI0 = FVec3((FReal)1 / I0.X, (FReal)1 / I0.Y, (FReal)1 / I0.Z);
+			InOutInvMParent = (FReal)1 / MParent;
+			InOutInvIParent = FVec3((FReal)1 / IParent.X, (FReal)1 / IParent.Y, (FReal)1 / IParent.Z);
+		}
+		if (InOutInvMChild > 0)
+		{
+			InOutInvMChild = (FReal)1 / MChild;
+			InOutInvIChild = FVec3((FReal)1 / IChild.X, (FReal)1 / IChild.Y, (FReal)1 / IChild.Z);
 		}
 	}
 
