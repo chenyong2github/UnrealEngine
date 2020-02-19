@@ -164,7 +164,7 @@ public:
 	*
 	* @return A pointer to a FProperty value or UObject.
 	*/
-	virtual uint8* GetValueBaseAddress( uint8* Base ) = 0;
+	virtual uint8* GetValueBaseAddress( uint8* Base ) const = 0;
 
 	/**
 	 * Gets the value formatted as a string.
