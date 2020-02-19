@@ -3963,7 +3963,7 @@ void FEdModeFoliage::ForceRealTimeViewports(const bool bEnable)
 		{
 			if (bEnable)
 			{
-				const bool bShouldBeRealtime = false;
+				const bool bShouldBeRealtime = true;
 				Viewport.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_Foliage", "Foliage Mode"));
 			}
 			else
