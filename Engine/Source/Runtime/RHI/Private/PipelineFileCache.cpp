@@ -1005,6 +1005,7 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	FMemory::Memset(&PSO.GraphicsDesc, 0, sizeof(GraphicsDescriptor));
 	
 	check (Init.BoundShaderState.VertexDeclarationRHI);
+	check (Init.BoundShaderState.VertexDeclarationRHI->IsValid());
 	{
 		bOK &= Init.BoundShaderState.VertexDeclarationRHI->GetInitializer(PSO.GraphicsDesc.VertexDescriptor);
 		check(bOK);
