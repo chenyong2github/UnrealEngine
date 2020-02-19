@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Serialization/BulkData.h"
 #include "LidarPointCloudShared.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLidarPointCloud, Log, All);
@@ -158,6 +159,12 @@ struct LIDARPOINTCLOUDRUNTIME_API FDoubleVector
 
 	FORCEINLINE FVector ToVector() const { return FVector(X, Y, Z); }
 	FORCEINLINE FIntVector ToIntVector() const { return FIntVector(X, Y, Z); }
+
+	friend FArchive& operator<<(FArchive& Ar, FDoubleVector& V)
+	{
+		Ar << V.X << V.Y << V.Z;
+		return Ar;
+	}
 };
 
 #pragma pack(push)
@@ -180,8 +187,9 @@ public:
 	/** Valid range is 0 - 31. */
 	uint8 ClassificationID : 5;
 
-private:
 	uint8 bSelected : 1;
+
+private:	
 	uint8 bMarkedForDeletion : 1;
 
 public:
@@ -242,16 +250,114 @@ public:
 		ClassificationID = Other.ClassificationID;
 	}
 
+	FORCEINLINE FLidarPointCloudPoint Transform(const FTransform& Transform) const
+	{
+		return FLidarPointCloudPoint(Transform.TransformPosition(Location), Color, bVisible, ClassificationID);
+	}
+
 	bool operator==(const FLidarPointCloudPoint& P) const { return Location == P.Location && Color == P.Color && bVisible == P.bVisible && ClassificationID == P.ClassificationID; }
 
 	friend FArchive& operator<<(FArchive& Ar, FLidarPointCloudPoint& P);
 	friend class FLidarPointCloudOctree;
-	friend class FLidarPointCloudInstanceBuffer;
 #if WITH_EDITOR
 	friend class FLidarPointCloudEditor;
 #endif
 };
 #pragma pack(pop)
+
+struct FLidarPointCloudBulkData : public FUntypedBulkData
+{
+private:
+	FLidarPointCloudPoint* DataPtr;
+	TAtomic<bool> bHasData;
+
+public:
+	FLidarPointCloudBulkData()
+		: DataPtr(nullptr)
+		, bHasData(false)
+	{
+	}
+
+	virtual int32 GetElementSize() const override
+	{
+		return sizeof(FLidarPointCloudPoint);
+	}
+	
+	virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) override
+	{
+		Ar.Serialize((FLidarPointCloudPoint*)Data + ElementIndex, sizeof(FLidarPointCloudPoint));
+		//Ar << *((FLidarPointCloudPoint*)Data + ElementIndex);
+	}
+	
+	virtual bool RequiresSingleElementSerialization(FArchive& Ar) override
+	{
+		return false;
+	}
+
+	/** Serves as a workaround for UnloadBulkData being editor-only */
+	void ReleaseData()
+	{
+		if (bHasData)
+		{
+			bHasData = false;
+			void* Temp = nullptr;
+			GetCopy(&Temp);
+			FMemory::Free(Temp);
+		}
+	}
+
+	FORCEINLINE FLidarPointCloudPoint* GetData() const
+	{
+		MakeSureDataIsLoaded();
+		return DataPtr;
+	}
+
+	void CopyToArray(TArray<FLidarPointCloudPoint>& Array)
+	{
+		Array.AddUninitialized(GetElementCount());
+		FMemory::Memcpy(Array.GetData(), GetData(), sizeof(FLidarPointCloudPoint) * Array.Num());
+	}
+
+	void CopyFromArray(TArray<FLidarPointCloudPoint>& Array)
+	{
+		Lock(LOCK_READ_WRITE);
+		DataPtr = (FLidarPointCloudPoint*)Realloc(Array.Num());
+		FMemory::Memcpy(DataPtr, Array.GetData(), Array.Num() * sizeof(FLidarPointCloudPoint));
+		bHasData = true;
+		Unlock();
+	}
+
+	/** Serializes data from legacy arrays */
+	void SerializeLegacy(FArchive& Ar)
+	{
+		// Load legacy data
+		TArray<FLidarPointCloudPoint> AllocatedPoints;
+		TArray<FLidarPointCloudPoint> PaddingPoints;
+		Ar << AllocatedPoints << PaddingPoints;
+
+		// Copy the data to BulkData
+		Lock(LOCK_READ_WRITE);
+		DataPtr = (FLidarPointCloudPoint*)Realloc(AllocatedPoints.Num() + PaddingPoints.Num());
+		FMemory::Memcpy(DataPtr, AllocatedPoints.GetData(), AllocatedPoints.Num() * sizeof(FLidarPointCloudPoint));
+		FMemory::Memcpy(DataPtr + AllocatedPoints.Num(), PaddingPoints.GetData(), PaddingPoints.Num() * sizeof(FLidarPointCloudPoint));
+		bHasData = true;
+		Unlock();
+	}
+
+	FORCEINLINE bool HasData() const { return bHasData; }
+
+private:
+	void MakeSureDataIsLoaded() const
+	{
+		if (!bHasData)
+		{
+			FLidarPointCloudBulkData* mutable_this = const_cast<FLidarPointCloudBulkData*>(this);
+			mutable_this->DataPtr = (FLidarPointCloudPoint*)LockReadOnly();
+			mutable_this->bHasData = true;
+			Unlock();
+		}
+	}
+};
 
 /** Used in blueprint latent function execution */
 UENUM(BlueprintType)
@@ -260,6 +366,63 @@ enum class ELidarPointCloudAsyncMode : uint8
 	Success,
 	Failure,
 	Progress
+};
+
+/** Used to help track multiple buffer allocations */
+class FLidarPointCloudDataBuffer
+{
+public:
+	FLidarPointCloudDataBuffer() : bInUse(false), PendingSize(0) {}
+	~FLidarPointCloudDataBuffer() = default;
+	FLidarPointCloudDataBuffer(const FLidarPointCloudDataBuffer& Other)
+	{
+		Data = Other.Data;
+		bInUse = false;
+	}
+	FLidarPointCloudDataBuffer(FLidarPointCloudDataBuffer&&) = delete;
+	FLidarPointCloudDataBuffer& operator=(const FLidarPointCloudDataBuffer& Other)
+	{
+		Data = Other.Data;
+		bInUse = false;
+		return *this;
+	}
+	FLidarPointCloudDataBuffer& operator=(FLidarPointCloudDataBuffer&&) = delete;
+
+	FORCEINLINE uint8* GetData() { return Data.GetData(); }
+	FORCEINLINE bool InUse() const { return bInUse; }
+	
+	/** Marks the buffer as no longer in use so it can be reassigned to another read thread. */
+	void MarkAsFree();
+	void Initialize(const int32& Size);
+	void Resize(const int32& NewBufferSize, bool bForce = false);
+
+private:
+	TAtomic<bool> bInUse;
+	TArray<uint8> Data;
+	int32 PendingSize;
+
+	friend class FLidarPointCloudDataBufferManager;
+};
+
+/** Used to help track multiple buffer allocations */
+class FLidarPointCloudDataBufferManager
+{
+public:
+	FLidarPointCloudDataBufferManager(const int32& BufferSize);
+	~FLidarPointCloudDataBufferManager();
+	FLidarPointCloudDataBufferManager(const FLidarPointCloudDataBufferManager&) = delete;
+	FLidarPointCloudDataBufferManager(FLidarPointCloudDataBufferManager&&) = delete;
+	FLidarPointCloudDataBufferManager& operator=(const FLidarPointCloudDataBufferManager&) = delete;
+	FLidarPointCloudDataBufferManager& operator=(FLidarPointCloudDataBufferManager&&) = delete;
+
+	FLidarPointCloudDataBuffer* GetFreeBuffer();
+
+	void Resize(const int32& NewBufferSize);
+
+private:
+	int32 BufferSize;
+	TList<FLidarPointCloudDataBuffer> Head;
+	TList<FLidarPointCloudDataBuffer>* Tail;
 };
 
 /** Used for Raycasting */
@@ -284,6 +447,10 @@ public:
 		Origin = Transform.TransformPosition(Origin);
 		SetDirection(Transform.TransformVector(Direction));
 		return *this;
+	}
+	FORCEINLINE FLidarPointCloudRay ShiftBy(const FVector& Offset) const
+	{
+		return FLidarPointCloudRay(Origin + Offset, Direction);
 	}
 
 	FORCEINLINE FVector GetDirection() const { return Direction; }

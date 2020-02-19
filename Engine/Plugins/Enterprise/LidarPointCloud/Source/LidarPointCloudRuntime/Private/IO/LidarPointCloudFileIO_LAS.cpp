@@ -84,115 +84,6 @@ void FLidarPointCloudImportSettings_LAS::ReadFileHeader(const FString& InFilenam
 	}
 }
 
-/** Used to help track multiple import buffer allocations */
-class FLidarPointCloudFileIO_LAS_ImportBuffer
-{
-public:
-	FLidarPointCloudFileIO_LAS_ImportBuffer()
-		: bInUse(false)
-	{
-	}
-	~FLidarPointCloudFileIO_LAS_ImportBuffer() = default;
-	FLidarPointCloudFileIO_LAS_ImportBuffer(const FLidarPointCloudFileIO_LAS_ImportBuffer& Other)
-	{
-		Data = Other.Data;
-		bInUse = false;
-	}
-	FLidarPointCloudFileIO_LAS_ImportBuffer(FLidarPointCloudFileIO_LAS_ImportBuffer&&) = delete;
-	FLidarPointCloudFileIO_LAS_ImportBuffer& operator=(const FLidarPointCloudFileIO_LAS_ImportBuffer& Other)
-	{
-		Data = Other.Data;
-		bInUse = false;
-		return *this;
-	}
-	FLidarPointCloudFileIO_LAS_ImportBuffer& operator=(FLidarPointCloudFileIO_LAS_ImportBuffer&&) = delete;
-
-	FORCEINLINE uint8* GetData() { return Data.GetData(); }
-
-	void Initialize(const int32& Size)
-	{
-		Data.AddUninitialized(Size);
-	}
-
-public:
-	TAtomic<bool> bInUse;
-
-private:
-	TArray<uint8> Data;
-};
-
-/** Used to help track multiple import buffer allocations */
-class FLidarPointCloudFileIO_LAS_ImportBufferManager
-{
-public:
-	FLidarPointCloudFileIO_LAS_ImportBufferManager(const int32& BufferSize)
-		: BufferSize(BufferSize)
-		, Head(FLidarPointCloudFileIO_LAS_ImportBuffer())
-		, Tail(&Head)
-	{
-		Head.Element.Initialize(BufferSize);
-	}
-	~FLidarPointCloudFileIO_LAS_ImportBufferManager()
-	{
-		auto Iterator = &Head;
-		while (Iterator)
-		{
-			if (Iterator != &Head)
-			{
-				auto Tmp = Iterator;
-				Iterator = Iterator->Next;
-				delete Tmp;
-			}
-			else
-			{
-				Iterator = Iterator->Next;
-			}
-		}
-	}
-	FLidarPointCloudFileIO_LAS_ImportBufferManager(const FLidarPointCloudFileIO_LAS_ImportBufferManager&) = delete;
-	FLidarPointCloudFileIO_LAS_ImportBufferManager(FLidarPointCloudFileIO_LAS_ImportBufferManager&&) = delete;
-	FLidarPointCloudFileIO_LAS_ImportBufferManager& operator=(const FLidarPointCloudFileIO_LAS_ImportBufferManager&) = delete;
-	FLidarPointCloudFileIO_LAS_ImportBufferManager& operator=(FLidarPointCloudFileIO_LAS_ImportBufferManager&&) = delete;
-
-	FLidarPointCloudFileIO_LAS_ImportBuffer* GetFreeBuffer()
-	{
-		FLidarPointCloudFileIO_LAS_ImportBuffer* OutBuffer = nullptr;
-
-		// Find available memory allocation
-		{
-			auto Iterator = &Head;
-			while (Iterator)
-			{
-				if (!Iterator->Element.bInUse)
-				{
-					OutBuffer = &Iterator->Element;
-					break;
-				}
-
-				Iterator = Iterator->Next;
-			}
-		}
-
-		// If none found, add a new one
-		if (!OutBuffer)
-		{
-			Tail->Next = new TList<FLidarPointCloudFileIO_LAS_ImportBuffer>(FLidarPointCloudFileIO_LAS_ImportBuffer());
-			Tail = Tail->Next;
-			OutBuffer = &Tail->Element;
-			OutBuffer->Initialize(BufferSize);
-		}
-
-		OutBuffer->bInUse = true;
-
-		return OutBuffer;
-	}
-
-private:
-	int32 BufferSize;
-	TList<FLidarPointCloudFileIO_LAS_ImportBuffer> Head;
-	TList<FLidarPointCloudFileIO_LAS_ImportBuffer>* Tail;
-};
-
 bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPtr<FLidarPointCloudImportSettings> ImportSettings, FLidarPointCloudImportResults &OutImportResults)
 {
 	if (!ValidateImportSettings(ImportSettings, Filename))
@@ -289,21 +180,20 @@ bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPt
 				const float IntensityMultiplier = 1.0f / (bUse16BitIntensity ? 65535.0f : 255.0f);
 				const float RGBMultiplier = 1.0f / (bUse16BitRGB ? 65535.0f : 255.0f);
 
-				const bool bAutoCenter = GetDefault<ULidarPointCloudSettings>()->bAutoCenterOnImport;
 				const float ImportScale = GetDefault<ULidarPointCloudSettings>()->ImportScale;
 
-				FThreadSafeBool bFirstPointSet = !bAutoCenter;
+				FThreadSafeBool bFirstPointSet = false;
 
 				// Multi-threading
 				FCriticalSection CoordsLock;
 				FCriticalSection PointsLock;
 				TArray<TFuture<void>> ThreadResults;
-				FLidarPointCloudFileIO_LAS_ImportBufferManager BufferManager(MaxPointsToRead * Header.PointDataRecordLength);
+				FLidarPointCloudDataBufferManager BufferManager(MaxPointsToRead * Header.PointDataRecordLength);
 
 				// Stream the data
 				while (PointsRead < TotalPointsToRead && !OutImportResults.IsCancelled())
 				{
-					FLidarPointCloudFileIO_LAS_ImportBuffer* Buffer = BufferManager.GetFreeBuffer();
+					FLidarPointCloudDataBuffer* Buffer = BufferManager.GetFreeBuffer();
 
 					// Data should never be null
 					check(Buffer->GetData());
@@ -406,8 +296,7 @@ bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPt
 								}
 							}
 
-							// Memory Sync
-							Buffer->bInUse = false;
+							Buffer->MarkAsFree();
 						}));
 
 					PointsRead += PointsToRead;
@@ -415,12 +304,6 @@ bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPt
 
 				// Sync threads
 				for (auto& ThreadResult : ThreadResults) ThreadResult.Get();
-
-				// Apply re-centering, if selected and not applied already
-				if (bAutoCenter)
-				{
-					OutImportResults.CenterPoints();
-				}
 
 				// Make sure to progress the counter to the end before returning
 				OutImportResults.IncrementProgressCounter(TotalPointsToRead);
@@ -446,10 +329,6 @@ bool ULidarPointCloudFileIO_LAS::HandleExport(const FString& Filename, ULidarPoi
 
 	FDoubleVector Min = PointCloud->GetBounds().Min;
 	FDoubleVector Max = PointCloud->GetBounds().Max;
-
-	// Add original coordinates
-	Min += PointCloud->OriginalCoordinates;
-	Max += PointCloud->OriginalCoordinates;
 
 	// Flip Y
 	float MaxY = Max.Y;
@@ -484,7 +363,7 @@ bool ULidarPointCloudFileIO_LAS::HandleExport(const FString& Filename, ULidarPoi
 
 		for (FLidarPointCloudPoint* Point : Points)
 		{
-			FDoubleVector Location = (PointCloud->OriginalCoordinates + Point->Location) * ExportScale;
+			FDoubleVector Location = (PointCloud->LocationOffset + Point->Location) * ExportScale;
 			Location.Y = -Location.Y;
 
 			PointRecord->Location = (ForwardScale * (Location - Min)).ToIntVector();

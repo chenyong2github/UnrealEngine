@@ -81,6 +81,7 @@ FLidarPointCloudEditor::~FLidarPointCloudEditor()
 	if (PointCloudBeingEdited)
 	{
 		PointCloudBeingEdited->OnPointCloudRebuilt().RemoveAll(this);
+		PointCloudBeingEdited->OnPreSaveCleanup().RemoveAll(this);
 	}
 
 	DeselectPoints();
@@ -144,6 +145,7 @@ void FLidarPointCloudEditor::InitPointCloudEditor(const EToolkitMode::Type Mode,
 
 	// Register for rebuilding events
 	PointCloudBeingEdited->OnPointCloudRebuilt().AddSP(this, &FLidarPointCloudEditor::OnPointCloudRebuilt);
+	PointCloudBeingEdited->OnPreSaveCleanup().AddSP(this, &FLidarPointCloudEditor::OnPreSaveCleanup);
 
 	TSharedPtr<FLidarPointCloudEditor> PointCloudEditor = SharedThis(this);
 
@@ -262,13 +264,18 @@ void FLidarPointCloudEditor::DeselectPoints()
 
 void FLidarPointCloudEditor::DeletePoints()
 {
+	if (!ConfirmCollisionChange())
+	{
+		return;
+	}
+
 	// Permanently remove points
 	if (FMessageDialog::Open(EAppMsgType::Type::YesNo, FText::FromString("Warning: This operation cannot be reversed!\nAre you sure you want to continue?")) != EAppReturnType::Yes)
 	{
 		return;
 	}
 
-	PointCloudBeingEdited->RemovePoints_NoLock(SelectedPoints, true);
+	PointCloudBeingEdited->RemovePoints(SelectedPoints);
 	PointCloudBeingEdited->RefreshRendering();
 	PointCloudBeingEdited->MarkPackageDirty();
 	SelectedPoints.Empty();
@@ -284,7 +291,7 @@ void FLidarPointCloudEditor::DeleteHiddenPoints()
 		return;
 	}
 
-	PointCloudBeingEdited->RemoveHiddenPoints(true);
+	PointCloudBeingEdited->RemoveHiddenPoints();
 	DeselectPoints();
 	PointCloudBeingEdited->RefreshRendering();
 	PointCloudBeingEdited->MarkPackageDirty();
@@ -294,6 +301,11 @@ void FLidarPointCloudEditor::DeleteHiddenPoints()
 
 void FLidarPointCloudEditor::HidePoints()
 {
+	if (!ConfirmCollisionChange())
+	{
+		return;
+	}
+
 	// Hide points
 	for (FLidarPointCloudPoint** Data = SelectedPoints.GetData(), **DataEnd = Data + SelectedPoints.Num(); Data != DataEnd; ++Data)
 	{
@@ -310,8 +322,28 @@ void FLidarPointCloudEditor::UnhideAll()
 {
 	if (PointCloudBeingEdited)
 	{
+		if (!ConfirmCollisionChange())
+		{
+			return;
+		}
+
 		PointCloudBeingEdited->UnhideAll();
 	}
+}
+
+bool FLidarPointCloudEditor::ConfirmCollisionChange()
+{
+	if (PointCloudBeingEdited->HasCollisionData())
+	{
+		if (FMessageDialog::Open(EAppMsgType::Type::YesNo, FText::FromString("Performing this action will invalidate the collision data.\nAre you sure you want to continue?")) != EAppReturnType::Yes)
+		{
+			return false;
+		}
+
+		PointCloudBeingEdited->RemoveCollision();
+	}
+
+	return true;
 }
 
 TSharedRef<SWidget> FLidarPointCloudEditor::BuildPointCloudStatistics()
@@ -355,7 +387,7 @@ TSharedRef<SWidget> FLidarPointCloudEditor::BuildPointCloudStatistics()
 			[
 				SNew(STextBlock).Text_Lambda([this]
 				{
-					FVector BoundingSize = PointCloudBeingEdited ? PointCloudBeingEdited->GetPointsBounds().GetSize() : FVector::ZeroVector;
+					FVector BoundingSize = PointCloudBeingEdited ? PointCloudBeingEdited->GetBounds().GetSize() : FVector::ZeroVector;
 					return FText::Format(LOCTEXT("PCBounds", "Bounds: {0} x {1} x {2}"), FMath::CeilToInt(BoundingSize.X), FMath::CeilToInt(BoundingSize.Y), FMath::CeilToInt(BoundingSize.Z));
 				})
 			]
@@ -545,10 +577,21 @@ void FLidarPointCloudEditor::OnPointCloudRebuilt()
 	SelectedPoints.Empty();
 }
 
+void FLidarPointCloudEditor::OnPreSaveCleanup()
+{
+	// If the cloud asset is being saved, deselect all points
+	DeselectPoints();
+}
+
 void FLidarPointCloudEditor::Extract()
 {
 	// Skip, if no points are selected
 	if (SelectedPoints.Num() == 0)
+	{
+		return;
+	}
+
+	if (!ConfirmCollisionChange())
 	{
 		return;
 	}
@@ -581,6 +624,13 @@ void FLidarPointCloudEditor::ExtractCopy()
 
 void FLidarPointCloudEditor::ToggleCenter()
 {
+	if (!ConfirmCollisionChange())
+	{
+		return;
+	}
+
+	DeselectPoints();
+
 	if (IsCentered())
 	{
 		PointCloudBeingEdited->RestoreOriginalCoordinates();
@@ -598,6 +648,20 @@ void FLidarPointCloudEditor::ToggleCenter()
 
 void FLidarPointCloudEditor::ToggleEditMode()
 {
+	if (!bEditMode)
+	{
+		// Warn about loading the whole cloud
+		if (!PointCloudBeingEdited->IsFullyLoaded())
+		{
+			if (FMessageDialog::Open(EAppMsgType::Type::YesNo, FText::FromString("The asset needs to be fully loaded into memory to enable editing.\nThis may take a while, depending on the size of the asset.\nAre you sure you want to continue?")) != EAppReturnType::Yes)
+			{
+				return;
+			}
+		}
+
+		PointCloudBeingEdited->LoadAllNodes();
+	}
+
 	bEditMode = !bEditMode;
 
 	if (!bEditMode)
@@ -662,6 +726,11 @@ void FLidarPointCloudEditor::RemoveCollision()
 
 void FLidarPointCloudEditor::Align()
 {
+	if (!ConfirmCollisionChange())
+	{
+		return;
+	}
+
 	TArray<FAssetData> SelectedAssets = SelectAssets(LOCTEXT("SelectAlignmentSources", "Select Alignment Sources"));
 	if (SelectedAssets.Num())
 	{
