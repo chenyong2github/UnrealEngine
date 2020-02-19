@@ -63,6 +63,8 @@ namespace Chaos
 
 		void Serialize(FArchive& Ar)
 		{
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+
 			Ar << Friction << Restitution << SleepingLinearThreshold << SleepingAngularThreshold << DisabledLinearThreshold << DisabledAngularThreshold;
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::PhysicsMaterialSleepCounterThreshold)
