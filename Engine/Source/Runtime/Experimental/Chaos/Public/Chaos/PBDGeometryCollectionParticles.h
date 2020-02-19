@@ -2,23 +2,23 @@
 #pragma once
 
 #include "Chaos/ArrayCollectionArray.h"
-#include "Chaos/PBDRigidParticles.h"
+#include "Chaos/PBDRigidClusteredParticles.h"
 
 namespace Chaos
 {
 	template<class T, int d>
-	class TPBDGeometryCollectionParticles : public TPBDRigidParticles<T, d>
+	class TPBDGeometryCollectionParticles : public TPBDRigidClusteredParticles<T, d>
 	{
 	public:
 		TPBDGeometryCollectionParticles()
-		    : TPBDRigidParticles<T, d>()
+		    : TPBDRigidClusteredParticles<T, d>()
 		{
 			InitHelper();
 		}
-		TPBDGeometryCollectionParticles(const TPBDRigidParticles<T, d>& Other) = delete;
+		TPBDGeometryCollectionParticles(const TPBDRigidClusteredParticles<T, d>& Other) = delete;
 
-		TPBDGeometryCollectionParticles(TPBDRigidParticles<T, d>&& Other)
-		    : TPBDRigidParticles<T, d>(MoveTemp(Other))
+		TPBDGeometryCollectionParticles(TPBDRigidClusteredParticles<T, d>&& Other)
+		    : TPBDRigidClusteredParticles<T, d>(MoveTemp(Other))
 		{
 			InitHelper();
 		}
