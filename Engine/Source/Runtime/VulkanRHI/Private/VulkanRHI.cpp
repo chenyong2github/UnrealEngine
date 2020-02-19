@@ -1021,6 +1021,12 @@ IRHIComputeContext* FVulkanDynamicRHI::RHIGetDefaultAsyncComputeContext()
 	return &Device->GetImmediateComputeContext();
 }
 
+uint64 FVulkanDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
+{
+	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
+	return Limits.minTexelBufferOffsetAlignment;
+}
+
 IRHICommandContextContainer* FVulkanDynamicRHI::RHIGetCommandContextContainer(int32 Index, int32 Num)
 {
 	if (GRHIThreadCvar.GetValueOnAnyThread() > 1)
@@ -1472,6 +1478,7 @@ void FVulkanBufferView::Create(VkFormat Format, FVulkanResourceMultiBuffer* Buff
 
 	Flags = Buffer->GetBufferUsageFlags() & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
 	check(Flags);
+	check(IsAligned(Offset, Limits.minTexelBufferOffsetAlignment));
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateBufferView(GetParent()->GetInstanceHandle(), &ViewInfo, VULKAN_CPU_ALLOCATOR, &View));
 	
