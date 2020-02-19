@@ -217,13 +217,13 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 				{
 					FSHAHash CheckLayoutHash;
 					const uint32 CheckLayoutSize = Freeze::HashLayout(*DependencyType, LayoutParams, CheckLayoutHash);
-					checkf(CheckLayoutSize == SavedLayoutSize, TEXT("Mismatch size for type %s"), DependencyType->Name);
+					checkf(CheckLayoutSize == SavedLayoutSize, TEXT("Mismatch size for type %s, compiled size is %d, loaded size is %d"), DependencyType->Name, CheckLayoutSize, SavedLayoutSize);
 					checkf(CheckLayoutHash == SavedLayoutHash, TEXT("Mismatch hash for type %s"), DependencyType->Name);
 				}
 #endif // CHECK_SHADERMAP_DEPENDENCIES
 			}
 		}
-
+		
 		bool bShareCode = false;
 		Ar << bShareCode;
 		if (bShareCode)
