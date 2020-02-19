@@ -12,7 +12,7 @@ public class DMXProtocol : ModuleRules
 			new string[]
 			{
 				"Core",
-            }
+			}
 			);
 			
 		
@@ -21,12 +21,25 @@ public class DMXProtocol : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-                "Serialization",
-                "Networking",
-                "Sockets",
-                "Json"
-            }
-			);
-		
+				"Serialization",
+				"Networking",
+				"Sockets",
+				"Json"
+			}
+		);
+
+		if (Target.Type == TargetType.Editor)
+		{
+			DynamicallyLoadedModuleNames.AddRange(
+				new string[] {
+					"Settings",
+				});
+
+			PrivateIncludePathModuleNames.AddRange(
+				new string[] {
+					"Settings",
+				});
+		}
+
 	}
 }

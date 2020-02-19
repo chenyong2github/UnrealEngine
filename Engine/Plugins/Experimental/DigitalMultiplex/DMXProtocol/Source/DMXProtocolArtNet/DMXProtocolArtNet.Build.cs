@@ -12,9 +12,9 @@ public class DMXProtocolArtNet : ModuleRules
 			new string[]
 			{
 				"Core",
-                "DMXProtocol"
-            }
-            );
+				"DMXProtocol"
+			}
+			);
 			
 		
 		PrivateDependencyModuleNames.AddRange(
@@ -22,9 +22,9 @@ public class DMXProtocolArtNet : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-                "Networking",
-                "Sockets",
-                "Json"
+				"Networking",
+				"Sockets",
+				"Json"
 			}
 			);
 		
