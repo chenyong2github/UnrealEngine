@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Input/SRadialSlider.h"
+
+#include "Curves/CurveFloat.h"
 #include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
 #if WITH_ACCESSIBILITY
