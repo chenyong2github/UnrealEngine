@@ -411,14 +411,16 @@ namespace Chaos
 		InProxy->Initialize();
 		InProxy->InitializeBodiesGT();
 		InProxy->NewData(); // Buffers data on the proxy.
+		FParticlesType* InParticles = &GetParticles();
 
 		// Finish registration on the physics thread...
 		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this,
-			[this, InProxy](FPBDRigidsSolver* Solver)
+			[InParticles, InProxy](FPBDRigidsSolver* Solver)
 		{
 			UE_LOG(LogPBDRigidsSolverSolver, Verbose, 
 				TEXT("FPBDRigidsSolver::RegisterObject(FGeometryCollectionPhysicsProxy*)"));
-			InProxy->InitializeBodiesPT(Solver, Particles);
+			check(InParticles);
+			InProxy->InitializeBodiesPT(Solver, *InParticles);
 			InProxy->PushToPhysicsState(nullptr); // Uses buffer on proxy for transport, not ProxyData.
 		});
 	}
@@ -440,7 +442,7 @@ namespace Chaos
 
 		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(
 			this,
-			[this, InProxy, ProxyData](FPBDRigidsSolver* Solver)
+			[InProxy, ProxyData](FPBDRigidsSolver* Solver)
 			{
 				UE_LOG(LogPBDRigidsSolverSolver, Verbose,
 					TEXT("FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy*)"));
