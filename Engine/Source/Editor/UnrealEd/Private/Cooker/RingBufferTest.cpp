@@ -889,6 +889,85 @@ public:
 				TestTrue(TEXT("MakeContiguous - Full array front at start - no reallocate"), Q.AllocationData == SavedData);
 			}
 		}
+
+		// Test Remove
+		{
+			Counter Value;
+			{
+				TRingBuffer<Counter> Q;
+				Value.Value = 2;
+				Counter::Clear();
+				TestEqual(TEXT("Remove - empty"), Q.Remove(Value), 0);
+				TestEqual(TEXT("Remove - empty - destructor count"), Counter::NumDestruct, 0);
+			}
+			{
+				TRingBuffer<Counter> Q({ 0,1,2,3,4 });
+				Value.Value = 5;
+				Counter::Clear();
+				TestEqual(TEXT("Remove - no hits"), Q.Remove(Value), 0);
+				TestEqual(TEXT("Remove - no hits - destructor count"), Counter::NumDestruct, 0);
+				Q.PushBack(5);
+				TestTrue(TEXT("Remove - no hits - values"), Q == TRingBuffer<Counter>({ 0,1,2,3,4,5 }));
+			}
+			{
+				TRingBuffer<Counter> Q({ 1,2,3,4 });
+				Q.PushFront(0);
+				Value.Value = 0;
+				Counter::Clear();
+				TestEqual(TEXT("Remove - one element at front - num"), Q.Remove(Value), 1);
+				TestEqual(TEXT("Remove - one element at front - destructor count"), Counter::NumDestruct, 5);
+				Q.PushBack(5);
+				TestTrue(TEXT("Remove - one element at front - values"), Q == TRingBuffer<Counter>({ 1,2,3,4,5 }));
+			}
+			{
+				TRingBuffer<Counter> Q({ 0,1,2,3,4 });
+				Value.Value = 2;
+				Counter::Clear();
+				TestEqual(TEXT("Remove - one element in mid - num"), Q.Remove(Value), 1);
+				TestEqual(TEXT("Remove - one element in mid - destructor count"), Counter::NumDestruct, 3);
+				Q.PushBack(5);
+				TestTrue(TEXT("Remove - one element in mid - values"), Q == TRingBuffer<Counter>({ 0,1,3,4,5 }));
+			}
+			{
+				TRingBuffer<Counter> Q({ 1,2,3,4 });
+				Q.PushFront(0);
+				Value.Value = 2;
+				Counter::Clear();
+				TestEqual(TEXT("Remove - one element in mid - front at end"), Q.Remove(Value), 1);
+				TestEqual(TEXT("Remove - one element in mid - front at end - destructor count"), Counter::NumDestruct, 3);
+				Q.PushBack(5);
+				TestTrue(TEXT("Remove - one element in mid - front at end - values"), Q == TRingBuffer<Counter>({ 0,1,3,4,5 }));
+			}
+			{
+				TRingBuffer<Counter> Q({ 0,1,2,3,4 });
+				Value.Value = 4;
+				Counter::Clear();
+				TestEqual(TEXT("Remove - one element - element at end - num"), Q.Remove(Value), 1);
+				TestEqual(TEXT("Remove - one element - element at end - destructor count"), Counter::NumDestruct, 1);
+				Q.PushBack(5);
+				TestTrue(TEXT("Remove - one element - element at end - values"), Q == TRingBuffer<Counter>({ 0,1,2,3,5 }));
+			}
+			{
+				TRingBuffer<Counter> Q({ 1,2,3,4 });
+				Q.PushFront(4);
+				Value.Value = 4;
+				Counter::Clear();
+				TestEqual(TEXT("Remove - one element at front one at end - num"), Q.Remove(Value), 2);
+				TestEqual(TEXT("Remove - one element at front one at end - destructor count"), Counter::NumDestruct, 5);
+				Q.PushBack(5);
+				TestTrue(TEXT("Remove - one element at front one at end - values"), Q == TRingBuffer<Counter>({ 1,2,3,5 }));
+			}
+			{
+				TRingBuffer<Counter> Q({ 1,2,3,4 });
+				Q.PushFront(1);
+				Value.Value = 1;
+				Counter::Clear();
+				TestEqual(TEXT("Remove - two elements - front at end - num"), Q.Remove(Value), 2);
+				TestEqual(TEXT("Remove - two elements - front at end - destructor count"), Counter::NumDestruct, 5);
+				Q.PushBack(5);
+				TestTrue(TEXT("Remove - two elements - front at end - values"), Q == TRingBuffer<Counter>({ 2,3,4,5 }));
+			}
+		}
 		return true;
 	}
 

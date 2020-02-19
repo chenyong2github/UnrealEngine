@@ -529,6 +529,74 @@ public:
 		}
 	}
 
+	/**
+	 * Removes as many instances of Item as there are in the array, maintaining order but not indices.
+	 *
+	 * @param Item Item to remove from array.
+	 * @returns Number of removed elements.
+	 */
+	SizeType Remove(const ElementType& Item)
+	{
+		return RemoveAll([&Item](const ElementType& ExistingItem) { return ExistingItem == Item; });
+	}
+
+	/**
+	 * Removes as many instances of Item as there are in the array, maintaining order but not indices.
+	 *
+	 * @param Item Item to remove from array.
+	 * @returns Number of removed elements.
+	 */
+	template <typename PredicateType>
+	SizeType RemoveAll(PredicateType Predicate)
+	{
+		if (AfterBack == Front)
+		{
+			return 0;
+		}
+
+		StorageModuloType FirstRemoval;
+		ElementType* Data = GetData();
+		for (FirstRemoval = Front; FirstRemoval != AfterBack; ++FirstRemoval)
+		{
+			if (Predicate(Data[FirstRemoval & IndexMask]))
+			{
+				break;
+			}
+		}
+		if (FirstRemoval == AfterBack)
+		{
+			return 0;
+		}
+
+		StorageModuloType WriteIndex = FirstRemoval;
+		StorageModuloType ReadIndex = FirstRemoval + 1;
+		while (ReadIndex != AfterBack)
+		{
+			if (!Predicate(Data[ReadIndex & IndexMask]))
+			{
+				if (bDestructElements)
+				{
+					DestructItem(&Data[WriteIndex & IndexMask]);
+				}
+				new (&Data[WriteIndex & IndexMask]) ElementType(MoveTemp(Data[ReadIndex & IndexMask]));
+				++WriteIndex;
+			}
+			++ReadIndex;
+		}
+		AfterBack = WriteIndex;
+
+		SizeType NumDeleted = static_cast<SizeType>(ReadIndex - WriteIndex);
+		if (bDestructElements)
+		{
+			while (WriteIndex != ReadIndex)
+			{
+				DestructItem(&Data[WriteIndex & IndexMask]);
+				++WriteIndex;
+			}
+		}
+		return NumDeleted;
+	}
+
 	template <typename OtherAllocator>
 	bool operator==(const TRingBuffer<ElementType, OtherAllocator>& Other) const
 	{
