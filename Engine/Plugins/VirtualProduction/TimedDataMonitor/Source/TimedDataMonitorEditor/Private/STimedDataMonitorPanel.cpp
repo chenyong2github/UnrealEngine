@@ -3,10 +3,8 @@
 #include "STimedDataMonitorPanel.h"
 
 #include "Editor.h"
-#include "EditorFontGlyphs.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "Engine/Engine.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IMessageLogListing.h"
 #include "ISettingsModule.h"
 #include "ITimedDataInput.h"
@@ -15,18 +13,29 @@
 #include "Logging/MessageLog.h"
 #include "MessageLogModule.h"
 #include "TimedDataInputCollection.h"
+#include "TimedDataMonitorCalibration.h"
 #include "TimedDataMonitorSubsystem.h"
+#include "TimedDataMonitorEditorSettings.h"
 
-#include "STimecodeProvider.h"
+#include "EditorFontGlyphs.h"
+#include "TimedDataMonitorEditorStyle.h"
+
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Docking/TabManager.h"
+
+#include "STimedDataGenlock.h"
+#include "STimedDataMonitorBufferVisualizer.h"
+#include "STimedDataTimecodeProvider.h"
 #include "STimedDataListView.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SThrobber.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "Widgets/TimedDataMonitorStyle.h"
-
+#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "STimedDataMonitorPanel"
 
@@ -38,15 +47,25 @@ FDelegateHandle STimedDataMonitorPanel::LevelEditorTabManagerChangedHandle;
 namespace Utilities
 {
 	static const FName NAME_App = FName("TimedDataSourceMonitorPanelApp");
+	static const FName NAME_TimedDataMonitorBuffers = FName("TimedDataMonitorBuffers");
 	static const FName NAME_LevelEditorModuleName("LevelEditor");
 	static const FName NAME_LogName = "Timed Data Monitor";
 
-	TSharedRef<SDockTab> CreateTab(const FSpawnTabArgs& Args)
+	TSharedRef<SDockTab> CreateApp(const FSpawnTabArgs& Args)
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
 			[
 				SNew(STimedDataMonitorPanel)
+			];
+	}
+
+	TSharedRef<SDockTab> CreateBuffersVisualizer(const FSpawnTabArgs&)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			[
+				SNew(STimedDataMonitorBufferVisualizer)
 			];
 	}
 }
@@ -59,11 +78,16 @@ void STimedDataMonitorPanel::RegisterNomadTabSpawner(TSharedRef<FWorkspaceItem> 
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(Utilities::NAME_LevelEditorModuleName);
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-		LevelEditorTabManager->RegisterTabSpawner(Utilities::NAME_App, FOnSpawnTab::CreateStatic(&Utilities::CreateTab))
+		LevelEditorTabManager->RegisterTabSpawner(Utilities::NAME_App, FOnSpawnTab::CreateStatic(&Utilities::CreateApp))
 			.SetDisplayName(LOCTEXT("TabTitle", "Timed Input Monitor"))
 			.SetTooltipText(LOCTEXT("TooltipText", "Monitor inputs that can be time synchronized"))
 			.SetGroup(InWorkspaceItem)
-			.SetIcon(FSlateIcon(FTimedDataMonitorStyle::Get().GetStyleSetName(), "Img.Timecode.Small"));
+			.SetIcon(FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), "Img.TimedDataMonitor.Small"));
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(Utilities::NAME_TimedDataMonitorBuffers, FOnSpawnTab::CreateStatic(&Utilities::CreateBuffersVisualizer))
+			.SetDisplayName(LOCTEXT("BufferVisualizerTitle", "Buffer Visualizer"))
+			.SetTooltipText(LOCTEXT("BufferVisualizerTooltip", "Open buffer visualizer tab for Timed Data Monitor."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
 	};
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(Utilities::NAME_LevelEditorModuleName);
@@ -80,6 +104,8 @@ void STimedDataMonitorPanel::RegisterNomadTabSpawner(TSharedRef<FWorkspaceItem> 
 
 void STimedDataMonitorPanel::UnregisterNomadTabSpawner()
 {
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(Utilities::NAME_TimedDataMonitorBuffers);
+
 	if (FSlateApplication::IsInitialized() && FModuleManager::Get().IsModuleLoaded(Utilities::NAME_LevelEditorModuleName))
 	{
 		FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(Utilities::NAME_LevelEditorModuleName);
@@ -121,187 +147,24 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 
 	BuildCalibrationArray();
 
-	TSharedRef<class SWidget> MessageLogListingWidget = MessageLogListing.IsValid() ? MessageLogModule.CreateLogListingWidget(MessageLogListing.ToSharedRef()) : SNullWidget::NullWidget;
+	TSharedRef<SWidget> MessageLogListingWidget = MessageLogListing.IsValid() ? MessageLogModule.CreateLogListingWidget(MessageLogListing.ToSharedRef()) : SNullWidget::NullWidget;
 
-	FProperty* PerformanceThrottlingProperty = FindFieldChecked<FProperty>(UEditorPerformanceSettings::StaticClass(), GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bThrottleCPUWhenNotForeground));
-	PerformanceThrottlingProperty->GetDisplayNameText();
-	FFormatNamedArguments Arguments;
-	Arguments.Add(TEXT("PropertyName"), PerformanceThrottlingProperty->GetDisplayNameText());
-	FText PerformanceWarningText = FText::Format(LOCTEXT("kPerformanceWarningMessage", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
+	TSharedPtr<SWidget> PerformanceWidget;
+	{
+		FProperty* PerformanceThrottlingProperty = FindFieldChecked<FProperty>(UEditorPerformanceSettings::StaticClass(), GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bThrottleCPUWhenNotForeground));
+		PerformanceThrottlingProperty->GetDisplayNameText();
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("PropertyName"), PerformanceThrottlingProperty->GetDisplayNameText());
+		FText PerformanceWarningText = FText::Format(LOCTEXT("PerformanceWarningMessage", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
 
-	const int32 ButtonBoxSize = 28;
-
-	ChildSlot
-	[
-		SNew(SVerticalBox)
-		// toolbar
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10.f, 10.f, 10.f, 10.f)
-		[
-			SNew(SBorder)
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
-			[
-				SNew(SHorizontalBox)
-				// Calibrate button
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(0.f, 0.f, 10.f, 0.f)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.f)
-					[
-						SNew(SButton)
-						.ToolTipText(this, &STimedDataMonitorPanel::GetCalibrateButtonTooltip)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FLinearColor::White)
-						.ContentPadding(FMargin(4, 0))
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.OnClicked(this, &STimedDataMonitorPanel::OnCalibrateClicked)
-						[
-							SNew(STextBlock)
-							.TextStyle(FTimedDataMonitorStyle::Get(), "TextBlock.Large")
-							.Text(this, &STimedDataMonitorPanel::GetCalibrateButtonText)
-						]
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SComboButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FLinearColor::White)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.OnGetMenuContent(this, &STimedDataMonitorPanel::OnCalibrateBuildMenu)
-					]
-				]
-				// reset errors button
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.Padding(0.f)
-				[
-					SNew(SButton)
-					.ToolTipText(LOCTEXT("ResetErrors_ToolTip", "Reset Errors"))
-					.ContentPadding(FMargin(4, 0))
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.OnClicked(this, &STimedDataMonitorPanel::OnResetErrorsClicked)
-					[
-						SNew(STextBlock)
-						.TextStyle(FTimedDataMonitorStyle::Get(), "TextBlock.Regular")
-						.Text(LOCTEXT("ResetErrors", "Reset Errors"))
-					]
-				]
-				// Spacer
-				+ SHorizontalBox::Slot()
-				[
-					SNew(SSpacer)
-				]
-				// Settings button
-				+ SHorizontalBox::Slot()
-				.Padding(.0f)
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SBox)
-					.WidthOverride(ButtonBoxSize)
-					.HeightOverride(ButtonBoxSize)
-					[
-						SNew(SCheckBox)
-						.Padding(4.f)
-						.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show/Hide the general user settings"))
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-						.ForegroundColor(FSlateColor::UseForeground())
-						.IsChecked_Lambda([]() { return ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged_Lambda([](ECheckBoxState CheckState) { FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "Plugins", "Timed Data Monitor"); })
-						[
-							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-							.Text(FEditorFontGlyphs::Cogs)
-						]
-					]
-				]
-			]
-		]
-		// timing element
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10.f, 0.f, 10.f, 10.f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.5f)
-			.Padding(0.f, 0.f, 10.f, 0.f)
-			[
-				SNew(SBorder)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Placeholder", "Placehoder for GL"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.5f)
-			.Padding(0.f)
-			[
-				SNew(SBorder)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STimecodeProvider)
-					.DisplayFrameRate(true)
-				]
-			]
-		]
-		// sources list
-		+ SVerticalBox::Slot()
-		.FillHeight(1.f)
-		.Padding(10.f, 0.f, 10.f, 10.f)
-		[
-			SNew(SScrollBox)
-			.Orientation(Orient_Vertical)
-			+ SScrollBox::Slot()
-			[
-				SAssignNew(TimedDataSourceList, STimedDataInputListView)
-			]
-		]
-		// sources list
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10.f, 0.f, 10.f, 10.f)
-		[
-			SNew(SBorder)
-			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
-			.Visibility(this, &STimedDataMonitorPanel::ShowMessageLog)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					MessageLogListingWidget
-				]
-			]
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10.f, 0.f, 10.f, 10.f)
-		[
-			SNew(SBorder)
+		PerformanceWidget = SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
 			.BorderBackgroundColor(FColor(166, 137, 0))
 			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
 			.Visibility(this, &STimedDataMonitorPanel::ShowEditorPerformanceThrottlingWarning)
 			[
 				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.FillWidth(1.0f)
 				.VAlign(VAlign_Center)
 				[
@@ -311,7 +174,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.ShadowColorAndOpacity(FLinearColor::Black.CopyWithNewOpacity(0.3f))
 					.ShadowOffset(FVector2D::UnitVector)
 				]
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.Padding(FMargin(0.f, 0.f, 10.f, 0.f))
 				.AutoWidth()
 				.VAlign(VAlign_Center)
@@ -320,6 +183,276 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.OnClicked(this, &STimedDataMonitorPanel::DisableEditorPerformanceThrottling)
 					.Text(LOCTEXT("PerformanceWarningDisable", "Disable"))
 				]
+			];
+	}
+
+	TSharedRef<SWidget> Toolbar = SNew(SBorder)
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
+		[
+			SNew(SHorizontalBox)
+			// Calibrate button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SNew(SButton)
+					.ToolTipText(this, &STimedDataMonitorPanel::GetCalibrateButtonTooltip)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+					.ContentPadding(FMargin(4, 0))
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnClicked(this, &STimedDataMonitorPanel::OnCalibrateClicked)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(SImage)
+							.Image(this, &STimedDataMonitorPanel::GetCalibrateButtonImage)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(10.f, 4.f, 4.f, 4.f)
+						[
+							SNew(STextBlock)
+							.TextStyle(FTimedDataMonitorEditorStyle::Get(), "TextBlock.Large")
+							.Text(this, &STimedDataMonitorPanel::GetCalibrateButtonText)
+							.ColorAndOpacity(FLinearColor::White)
+						]
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SComboButton)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnGetMenuContent(this, &STimedDataMonitorPanel::OnCalibrateBuildMenu)
+				]
+			]
+			// reset errors button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SNew(SButton)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+					.ToolTipText(LOCTEXT("ResetErrors_ToolTip", "Reset the buffer statistics, message or evaluation time (base on settings)."))
+					.ContentPadding(FMargin(4, 4))
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnClicked(this, &STimedDataMonitorPanel::OnResetErrorsClicked)
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+						.Text(FEditorFontGlyphs::Eraser)
+						.ColorAndOpacity(FLinearColor::White)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SComboButton)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnGetMenuContent(this, &STimedDataMonitorPanel::OnResetBuildMenu)
+				]
+			]
+			// show buffers
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+				.ToolTipText(LOCTEXT("ShowBuffers_ToolTip", "Open the buffer visualizer"))
+				.ContentPadding(FMargin(4, 2))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &STimedDataMonitorPanel::OnShowBuffersClicked)
+				[
+					SNew(SImage)
+					.Image(FTimedDataMonitorEditorStyle::Get().GetBrush("Img.BufferVisualization"))
+				]
+			]
+			// Settings button
+			+ SHorizontalBox::Slot()
+			.Padding(4.f)
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+				.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show the general user settings"))
+				.ContentPadding(FMargin(4, 4))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &STimedDataMonitorPanel::OnGeneralUserSettingsClicked)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FEditorFontGlyphs::Cogs)
+					.ColorAndOpacity(FLinearColor::White)
+				]
+			]
+			// Spacer
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SSpacer)
+			]
+			// Status
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.18"))
+				.Text(FEditorFontGlyphs::Circle)
+				.ColorAndOpacity(this, &STimedDataMonitorPanel::GetEvaluationStateColorAndOpacity)
+			]
+			// Status test
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(STextBlock)
+				.MinDesiredWidth(100)
+				.TextStyle(FTimedDataMonitorEditorStyle::Get(), "TextBlock.Large")
+				.Text(this, &STimedDataMonitorPanel::GetEvaluationStateText)
+				.ColorAndOpacity(FLinearColor::White)
+			]
+		];
+
+	ChildSlot
+	[
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SNew(SVerticalBox)
+			// toolbar
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 10.f, 10.f, 10.f)
+			[
+				Toolbar
+			]
+			// timing element
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 0.f, 10.f, 10.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
+				.Padding(0.f, 0.f, 10.f, 0.f)
+				[
+					SNew(SBorder)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
+					[
+						SAssignNew(TimedDataGenlockWidget, STimedDataGenlock, SharedThis<STimedDataMonitorPanel>(this))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
+				.Padding(0.f)
+				[
+					SNew(SBorder)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SAssignNew(TimedDataTimecodeWidget, STimedDataTimecodeProvider, SharedThis<STimedDataMonitorPanel>(this))
+					]
+				]
+			]
+			// sources list
+			+ SVerticalBox::Slot()
+			.FillHeight(1.f)
+			.Padding(10.f, 0.f, 10.f, 10.f)
+			[
+				SNew(SScrollBox)
+				.Orientation(Orient_Vertical)
+				+ SScrollBox::Slot()
+				[
+					SAssignNew(TimedDataSourceList, STimedDataInputListView, SharedThis<STimedDataMonitorPanel>(this))
+					.OnContextMenuOpening(this, &STimedDataMonitorPanel::OnDataListConstructContextMenu)
+				]
+			]
+			// message log
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 0.f, 10.f, 10.f)
+			[
+				SNew(SBorder)
+				.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
+				.Visibility(this, &STimedDataMonitorPanel::ShowMessageLog)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						MessageLogListingWidget
+					]
+				]
+			]
+			// show performance warning
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 0.f, 10.f, 10.f)
+			[
+				PerformanceWidget.ToSharedRef()
+			]
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
+			.BorderBackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f, 0.5f))
+			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
+			.Visibility(this, &STimedDataMonitorPanel::GetThrobberVisibility)
+			[
+				SNew(SBox)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Clipping(EWidgetClipping::ClipToBounds)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Center)
+					[
+						SNew(SCircularThrobber)
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Center)
+					[
+						SNew(SButton)
+						.ContentPadding(FMargin(4, 2))
+						.OnClicked(this, &STimedDataMonitorPanel::OnCancelCalibration)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("CancelLabel", "Cancel"))
+						]
+					]
+				]
 			]
 		]
 	];
@@ -327,23 +460,50 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
+void STimedDataMonitorPanel::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	double RefreshTimer = GetDefault<UTimedDataMonitorEditorSettings>()->RefreshRate;
+	if (bRefreshRequested || (FApp::GetCurrentTime() - LastCachedValueUpdateTime > RefreshTimer))
+	{
+		bRefreshRequested = false;
+		LastCachedValueUpdateTime = FApp::GetCurrentTime();
+
+		{
+			UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+			check(TimedDataMonitorSubsystem);
+			CachedGlobalEvaluationState = TimedDataMonitorSubsystem->GetEvaluationState();
+		}
+
+		if (TimedDataGenlockWidget)
+		{
+			TimedDataGenlockWidget->UpdateCachedValue();
+		}
+		if (TimedDataTimecodeWidget)
+		{
+			TimedDataTimecodeWidget->UpdateCachedValue();
+		}
+		if (TimedDataSourceList)
+		{
+			TimedDataSourceList->UpdateCachedValue();
+		}
+	}
+
+	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+}
+
+
 void STimedDataMonitorPanel::BuildCalibrationArray()
 {
 	CalibrationUIAction[(int32)ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode] = FUIAction(
 		FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::CalibrateWithTimecode));
-	CalibrationUIAction[(int32)ETimedDataMonitorEditorCalibrationType::JamWithPlatformTime] = FUIAction(
-		FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::Jam, false));
-	CalibrationUIAction[(int32)ETimedDataMonitorEditorCalibrationType::JamWithTimecode] = FUIAction(
-		FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::Jam, true));
-	CalibrationSlateIcon[(int32)ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode] = FSlateIcon(FTimedDataMonitorStyle::Get().GetStyleSetName(), "Img.Timecode.Small");
-	CalibrationSlateIcon[(int32)ETimedDataMonitorEditorCalibrationType::JamWithPlatformTime] = FSlateIcon(FTimedDataMonitorStyle::Get().GetStyleSetName(), "Img.Timecode.Small");
-	CalibrationSlateIcon[(int32)ETimedDataMonitorEditorCalibrationType::JamWithTimecode] = FSlateIcon(FTimedDataMonitorStyle::Get().GetStyleSetName(), "Img.Timecode.Small");
+	CalibrationUIAction[(int32)ETimedDataMonitorEditorCalibrationType::TimeCorrection] = FUIAction(
+		FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::ApplyTimeCorrectionAll));
+	CalibrationSlateIcon[(int32)ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode] = FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), "Img.Calibration");
+	CalibrationSlateIcon[(int32)ETimedDataMonitorEditorCalibrationType::TimeCorrection] = FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), "Img.TimeCorrection");
 	CalibrationName[(int32)ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode] = LOCTEXT("CalibrateButtonLabel", "Calibrate");
-	CalibrationName[(int32)ETimedDataMonitorEditorCalibrationType::JamWithPlatformTime] = LOCTEXT("JamWithTimeButtonLabel", "Jam (with time)");
-	CalibrationName[(int32)ETimedDataMonitorEditorCalibrationType::JamWithTimecode] = LOCTEXT("JamWithTimecodeButtonLabel", "Jam (with timecode)");
+	CalibrationName[(int32)ETimedDataMonitorEditorCalibrationType::TimeCorrection] = LOCTEXT("JamWithTimeButtonLabel", "Time Correction");
 	CalibrationTooltip[(int32)ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode] = LOCTEXT("CalibrateButtonTooltip", "Find range of frames that all inputs has. If it can be found, change the Timecode Provider delay, resize buffers or delay them to accomadate.");
-	CalibrationTooltip[(int32)ETimedDataMonitorEditorCalibrationType::JamWithPlatformTime] = LOCTEXT("JamWithTimeButtonTooltip", "Set the offset of all inputs to match with the current Platform Time.");
-	CalibrationTooltip[(int32)ETimedDataMonitorEditorCalibrationType::JamWithTimecode] = LOCTEXT("JamWithTimecodeButtonTooltip", "Set the offset of all inputs to match with the current Timecode.");
+	CalibrationTooltip[(int32)ETimedDataMonitorEditorCalibrationType::TimeCorrection] = LOCTEXT("JamWithTimeButtonTooltip", "Set the offset of all inputs to match the Timecode value of the Timecode Provider or the Platform Time, depending on their evaluation type. It may resize buffers if they are too small.");
 }
 
 
@@ -379,6 +539,13 @@ FText STimedDataMonitorPanel::GetCalibrateButtonTooltip() const
 }
 
 
+const FSlateBrush* STimedDataMonitorPanel::GetCalibrateButtonImage() const
+{
+	ETimedDataMonitorEditorCalibrationType CalibrationType = GetDefault<UTimedDataMonitorEditorSettings>()->LastCalibrationType;
+	return CalibrationSlateIcon[(int32)CalibrationType].GetIcon();
+}
+
+
 FText STimedDataMonitorPanel::GetCalibrateButtonText() const
 {
 	ETimedDataMonitorEditorCalibrationType CalibrationType = GetDefault<UTimedDataMonitorEditorSettings>()->LastCalibrationType;
@@ -388,11 +555,199 @@ FText STimedDataMonitorPanel::GetCalibrateButtonText() const
 
 FReply STimedDataMonitorPanel::OnResetErrorsClicked()
 {
+	if (IsResetBufferStatChecked())
+	{
+		OnResetBufferStatClicked();
+	}
+	if (IsClearMessageChecked())
+	{
+		OnClearMessageClicked();
+	}
+	if (IsResetEvaluationChecked())
+	{
+		OnResetAllEvaluationTimeClicked();
+	}
+
+	return FReply::Handled();
+}
+
+
+TSharedRef<SWidget> STimedDataMonitorPanel::OnResetBuildMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+	//Reset the buffer statistics, message and evaluation time
+	MenuBuilder.AddMenuEntry(
+			LOCTEXT("ResetBufferStatisticsLabel", "Reset buffer statistics"),
+			LOCTEXT("ResetBufferStatisticsTooltip", "Reset the buffer statistics."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::OnResetBufferStatClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimedDataMonitorPanel::IsResetBufferStatChecked))
+			);
+	MenuBuilder.AddMenuEntry(
+			LOCTEXT("ResetMessageLabel", "Clear messages"),
+			LOCTEXT("ResetMessageTooltip", "Clear the message list."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::OnClearMessageClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimedDataMonitorPanel::IsClearMessageChecked))
+			);
+
+	MenuBuilder.AddMenuEntry(
+			LOCTEXT("ResetEvaluationTimeLabel", "Reset Evaluation Time"),
+			LOCTEXT("ResetEvaluationTimeTooltip", "Reset all the evaluation time for all input."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::OnResetAllEvaluationTimeClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimedDataMonitorPanel::IsResetEvaluationChecked))
+			);
+
+	return MenuBuilder.MakeWidget();
+}
+
+
+void STimedDataMonitorPanel::OnResetBufferStatClicked()
+{
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 	TimedDataMonitorSubsystem->ResetAllBufferStats();
+}
+
+
+bool STimedDataMonitorPanel::IsResetBufferStatChecked() const
+{
+	return GetDefault<UTimedDataMonitorEditorSettings>()->bResetBufferStatEnabled;
+}
+
+
+void STimedDataMonitorPanel::OnClearMessageClicked()
+{
 	MessageLogListing->ClearMessages();
+}
+
+
+bool STimedDataMonitorPanel::IsClearMessageChecked() const
+{
+	return GetDefault<UTimedDataMonitorEditorSettings>()->bClearMessageEnabled;
+}
+
+
+void STimedDataMonitorPanel::OnResetAllEvaluationTimeClicked()
+{
+	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+	check(TimedDataMonitorSubsystem);
+	TArray<FTimedDataMonitorInputIdentifier> AllInputs = TimedDataMonitorSubsystem->GetAllInputs();
+	for (const FTimedDataMonitorInputIdentifier& Input : AllInputs)
+	{
+		TimedDataMonitorSubsystem->SetInputEvaluationOffsetInSeconds(Input, 0.f);
+	}
+}
+
+
+bool STimedDataMonitorPanel::IsResetEvaluationChecked() const
+{
+	return GetDefault<UTimedDataMonitorEditorSettings>()->bResetEvaluationTimeEnabled;
+}
+
+
+FReply STimedDataMonitorPanel::OnShowBuffersClicked()
+{
+	FGlobalTabmanager::Get()->InvokeTab(FTabId(Utilities::NAME_TimedDataMonitorBuffers));
 	return FReply::Handled();
+}
+
+
+FReply STimedDataMonitorPanel::OnGeneralUserSettingsClicked()
+{
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "Plugins", "Timed Data Monitor");
+	return FReply::Handled();
+}
+
+
+FSlateColor STimedDataMonitorPanel::GetEvaluationStateColorAndOpacity() const
+{
+	return (CachedGlobalEvaluationState == ETimedDataMonitorEvaluationState::InsideRange) ? FLinearColor::Green : FLinearColor::Red;
+}
+
+
+FText STimedDataMonitorPanel::GetEvaluationStateText() const
+{
+	switch(CachedGlobalEvaluationState)
+	{
+	case ETimedDataMonitorEvaluationState::NoSample:
+		return LOCTEXT("EvalState_NoSample", "No Samples");
+	case ETimedDataMonitorEvaluationState::OutsideRange:
+		return LOCTEXT("EvalState_OutsideRange", "Outside Range");
+	case ETimedDataMonitorEvaluationState::InsideRange:
+		return LOCTEXT("EvalState_InsideRange", "Synchronized");
+	}
+
+	return LOCTEXT("EvalState_Disabled", "Disabled");
+}
+
+
+TSharedPtr<SWidget> STimedDataMonitorPanel::OnDataListConstructContextMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("TimeCorrection", "Time Correction"),
+		FText(),
+		CalibrationSlateIcon[(int32)ETimedDataMonitorEditorCalibrationType::TimeCorrection],
+		FUIAction(
+			FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::ApplyTimeCorrectionOnSelection),
+			FCanExecuteAction::CreateSP(this, &STimedDataMonitorPanel::IsSourceListSectionValid)
+		)
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ResetEvaluationTime", "Reset Time Correction"),
+		FText(),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &STimedDataMonitorPanel::ResetTimeCorrectionOnSelection),
+			FCanExecuteAction::CreateSP(this, &STimedDataMonitorPanel::IsSourceListSectionValid)
+		)
+	);
+
+	return MenuBuilder.MakeWidget();
+}
+
+
+bool STimedDataMonitorPanel::IsSourceListSectionValid() const
+{
+	return TimedDataSourceList && TimedDataSourceList->GetSelectedInputIdentifier().IsValid();
+}
+
+
+void STimedDataMonitorPanel::ApplyTimeCorrectionOnSelection()
+{
+	if (TimedDataSourceList)
+	{
+		const FTimedDataMonitorInputIdentifier SelectedInput = TimedDataSourceList->GetSelectedInputIdentifier();
+		if (SelectedInput.IsValid())
+		{
+			ApplyTimeCorrection(SelectedInput);
+		}
+	}
+}
+
+
+void STimedDataMonitorPanel::ResetTimeCorrectionOnSelection()
+{
+	if (TimedDataSourceList)
+	{
+		const FTimedDataMonitorInputIdentifier SelectedInput = TimedDataSourceList->GetSelectedInputIdentifier();
+		if (SelectedInput.IsValid())
+		{
+			UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+			TimedDataMonitorSubsystem->SetInputEvaluationOffsetInSeconds(SelectedInput, 0.f);
+		}
+	}
 }
 
 
@@ -419,123 +774,215 @@ FReply STimedDataMonitorPanel::DisableEditorPerformanceThrottling()
 }
 
 
+EVisibility STimedDataMonitorPanel::GetThrobberVisibility() const
+{
+	return MonitorCalibration ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+
 void STimedDataMonitorPanel::CalibrateWithTimecode()
+{
+	MessageLogListing->ClearMessages();
+	
+	FTimedDataMonitorCalibrationParameters Params = GetDefault<UTimedDataMonitorEditorSettings>()->CalibrationSettings;
+	FTimedDataMonitorCalibration::FOnCalibrationCompletedSignature CompletedCallback = FTimedDataMonitorCalibration::FOnCalibrationCompletedSignature::CreateSP(this, &STimedDataMonitorPanel::CalibrateWithTimecodeCompleted);
+
+	MonitorCalibration = MakeUnique<FTimedDataMonitorCalibration>();
+	MonitorCalibration->CalibrateWithTimecode(Params, CompletedCallback);
+
+	GetMutableDefault<UTimedDataMonitorEditorSettings>()->LastCalibrationType = ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode;
+	GetMutableDefault<UTimedDataMonitorEditorSettings>()->SaveConfig();
+}
+
+void STimedDataMonitorPanel::CalibrateWithTimecodeCompleted(FTimedDataMonitorCalibrationResult Result)
+{
+	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+	MonitorCalibration.Reset();
+
+	if (Result.ReturnCode != ETimedDataMonitorCalibrationReturnCode::Succeeded)
+	{
+		switch (Result.ReturnCode)
+		{
+		case ETimedDataMonitorCalibrationReturnCode::Succeeded:
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Info
+				, LOCTEXT("CalibrateSucceeded", "Calibration succeeded.")));
+			break;
+		case ETimedDataMonitorCalibrationReturnCode::Failed_NoTimecode:
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+				, LOCTEXT("CalibrateFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value.")));
+			break;
+		case ETimedDataMonitorCalibrationReturnCode::Failed_UnresponsiveInput:
+			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+					, FText::Format(LOCTEXT("CalibrateFailed_UnresponsiveInput", "The input '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+			}
+			break;
+		case ETimedDataMonitorCalibrationReturnCode::Failed_InvalidEvaluationType:
+			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+					, FText::Format(LOCTEXT("CalibrationFailed_InvalidEvaluationType", "The input '{0}' is not evaluated in timecode."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+			}
+			break;
+		case ETimedDataMonitorCalibrationReturnCode::Failed_InvalidFrameRate:
+			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+					, FText::Format(LOCTEXT("CalibrationFailed_InvalidFrameRate", "The input '{0}' has an invalid frame rate."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+			}
+			break;
+		case ETimedDataMonitorCalibrationReturnCode::Failed_NoDataBuffered:
+			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+					, FText::Format(LOCTEXT("CalibrationFailed_NoDataBuffered", "The input '{0}' has at least one channel that does not data buffured."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+			}
+			break;
+		case ETimedDataMonitorCalibrationReturnCode::Failed_Reset:
+			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+				, LOCTEXT("CalibrationFailed_Reset", "The process was manually interrupted.")));
+			break;
+		case ETimedDataMonitorCalibrationReturnCode::Retry_NotEnoughData:
+			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+					, FText::Format(LOCTEXT("CalibrationFailed_IncreaseBufferSize", "No interval could be found. The buffer size that is required for input '{0}' should be enough. It doesn't contain enough data."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+			}
+			break;
+		case ETimedDataMonitorCalibrationReturnCode::Retry_IncreaseBufferSize:
+			for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning
+					, FText::Format(LOCTEXT("CalibrationRetry_IncreaseBufferSize", "No interval could be found. The buffer size of input '{0}' has been increased. You may retry when the buffer will be full."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+			}
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+
+void STimedDataMonitorPanel::ApplyTimeCorrectionAll()
 {
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 
 	MessageLogListing->ClearMessages();
 
-	FTimedDataMonitorCalibrationResult Result = TimedDataMonitorSubsystem->CalibrateWithTimecodeProvider();
+	TArray<FTimedDataMonitorInputIdentifier> AllInputs = TimedDataMonitorSubsystem->GetAllInputs();
+	bool bAllSucceeded = true;
+	for (const FTimedDataMonitorInputIdentifier& InputIndentifier : AllInputs)
+	{
+		if (TimedDataMonitorSubsystem->GetInputEnabled(InputIndentifier) != ETimedDataMonitorInputEnabled::Disabled)
+		{
+			ETimedDataMonitorTimeCorrectionReturnCode Result = ApplyTimeCorrection(InputIndentifier);
+			bAllSucceeded = bAllSucceeded && (Result == ETimedDataMonitorTimeCorrectionReturnCode::Succeeded);
+		}
+	}
 
-	//if (Result.ReturnCode != ETimedDataMonitorCalibrationReturnCode::Succeeded)
-	//{
-	//	switch (Result.ReturnCode)
-	//	{
-	//	case ETimedDataMonitorCalibrationReturnCode::Failed_NoTimecode:
-	//		FMessageLog(Utilities::NAME_LogName).Error(LOCTEXT("CalibrationFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value."));
-	//		break;
-	//	case ETimedDataMonitorCalibrationReturnCode::Failed_UnresponsiveInput:
-	//		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
-	//		{
-	//			FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_UnresponsiveInput", "The input '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier)));
-	//		}
-	//		break;
-	//	case ETimedDataMonitorCalibrationReturnCode::Failed_InvalidFrameRate:
-	//		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
-	//		{
-	//			FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_InvalidFrameRate", "The input '{0}' has an invalid frame rate."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier)));
-	//		}
-	//		break;
-	//	case ETimedDataMonitorCalibrationReturnCode::Failed_NoDataBuffered:
-	//		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
-	//		{
-	//			FMessageLog(Utilities::NAME_LogName).Error(FText::Format(LOCTEXT("CalibrationFailed_NoDataBuffered", "The input '{0}' has not data buffured."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier)));
-	//		}
-	//		break;
-	//	default:
-	//		break;
-	//	}
-	//}
+	if (bAllSucceeded)
+	{
+		MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Info
+			, LOCTEXT("JamSucceeded", "Time Correction succeeded.")));
+	}
 
 	GetMutableDefault<UTimedDataMonitorEditorSettings>()->LastCalibrationType = ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode;
 	GetMutableDefault<UTimedDataMonitorEditorSettings>()->SaveConfig();
 }
 
 
-void STimedDataMonitorPanel::Jam(bool bWithTimecode)
+ETimedDataMonitorTimeCorrectionReturnCode STimedDataMonitorPanel::ApplyTimeCorrection(const FTimedDataMonitorInputIdentifier& InputIdentifier)
 {
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 
-	MessageLogListing->ClearMessages();
-
-	ETimedDataInputEvaluationType JamType = bWithTimecode ? ETimedDataInputEvaluationType::Timecode : ETimedDataInputEvaluationType::PlatformTime;
-	FTimedDataMonitorJamResult Result = TimedDataMonitorSubsystem->JamInputs(JamType);
-
+	const FTimedDataMonitorTimeCorrectionResult Result = FTimedDataMonitorCalibration::ApplyTimeCorrection(InputIdentifier, GetDefault<UTimedDataMonitorEditorSettings>()->TimeCorrectionSettings);
 	switch (Result.ReturnCode)
 	{
-	case ETimedDataMonitorJamReturnCode::Succeeded:
-		MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Info
-			, LOCTEXT("JamSucceeded_NoTimecode", "Jam succeeded.")));
+	case ETimedDataMonitorTimeCorrectionReturnCode::Failed_InvalidInput:
+		MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+			, LOCTEXT("JamFailed_InvalidInput", "The input identifier was invalid.")));
 		break;
-	case ETimedDataMonitorJamReturnCode::Failed_NoTimecode:
+	case ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoTimecode:
 		MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
 			, LOCTEXT("JamFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value.")));
 		break;
-	case ETimedDataMonitorJamReturnCode::Failed_UnresponsiveInput:
-		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+	case ETimedDataMonitorTimeCorrectionReturnCode::Failed_UnresponsiveInput:
+		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
 		{
 			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-				, FText::Format(LOCTEXT("JamFailed_UnresponsiveInput", "The channel '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+				, FText::Format(LOCTEXT("JamFailed_UnresponsiveInput", "The channel '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
 		}
 		break;
-	case ETimedDataMonitorJamReturnCode::Failed_EvaluationTypeDoNotMatch:
-		for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+	case ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoDataBuffered:
+		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
 		{
 			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-				, FText::Format(LOCTEXT("JamFailed_InvalidFrameRate", "The input '{0}' evalution type doesn't match with the jam type."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+				, FText::Format(LOCTEXT("JamFailed_NoDataBuffered", "The channel '{0}' has not data buffered."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
 		}
 		break;
-	case ETimedDataMonitorJamReturnCode::Failed_NoDataBuffered:
-		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+	case ETimedDataMonitorTimeCorrectionReturnCode::Failed_BufferCouldNotBeResize:
+		if (Result.FailureChannelIdentifiers.Num() > 0)
+		{
+			for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+					, FText::Format(LOCTEXT("JamFailed_BufferSizeHaveBeenMaxed_Channel", "The buffer size of channel '{0}' could not be increased."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
+			}
+		}
+		else
 		{
 			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-				, FText::Format(LOCTEXT("JamFailed_NoDataBuffered", "The channel '{0}' has not data buffered."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+				, FText::Format(LOCTEXT("JamFailed_BufferSizeHaveBeenMaxed_Input", "The buffer size of input '{0}' could not be increased."), TimedDataMonitorSubsystem->GetInputDisplayName(InputIdentifier))));
 		}
 		break;
-	case ETimedDataMonitorJamReturnCode::Failed_BufferSizeHaveBeenMaxed:
-		for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
+	case ETimedDataMonitorTimeCorrectionReturnCode::Retry_NotEnoughData:
+		if (Result.FailureChannelIdentifiers.Num() > 0)
+		{
+			for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+					, FText::Format(LOCTEXT("JamRetry_IncreaseBufferSize_Channel", "No interval could be found. The buffer  that is required for channel '{0}' could not be increased."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
+			}
+		}
+		else
 		{
 			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-				, FText::Format(LOCTEXT("Failed_BufferSizeHaveBeenMaxed_Input", "The buffer size of input '{0}' could not be increased further."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
+				, FText::Format(LOCTEXT("JamRetry_IncreaseBufferSize_Input", "No interval could be found. The buffer size that is required for input '{0}' should be enough. It doesn't contain enough data."), TimedDataMonitorSubsystem->GetInputDisplayName(InputIdentifier))));
 		}
-		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+		break;				
+	case ETimedDataMonitorTimeCorrectionReturnCode::Retry_IncreaseBufferSize:
+		if (Result.FailureChannelIdentifiers.Num() > 0)
+		{
+			for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+			{
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning
+					, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Channel", "The buffer size of channel '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+			}
+		}
+		else
 		{
 			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-				, FText::Format(LOCTEXT("Failed_BufferSizeHaveBeenMaxed_Channel", "The buffer size of channel '{0}' needed to be increased further."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
-		}
-		break;
-	case ETimedDataMonitorJamReturnCode::Retry_BufferSizeHasBeenIncreased:
-		for (const FTimedDataMonitorInputIdentifier& Identifier : Result.FailureInputIdentifiers)
-		{
-			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning
-				, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Input", "The buffer size of input '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetInputDisplayName(Identifier))));
-		}
-		for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
-		{
-			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning
-				, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Channel", "The buffer size of channel '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+				, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Input", "The buffer size of input '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetInputDisplayName(InputIdentifier))));
 		}
 		break;
 	default:
 		break;
 	}
 
-	GetMutableDefault<UTimedDataMonitorEditorSettings>()->LastCalibrationType = bWithTimecode
-		? ETimedDataMonitorEditorCalibrationType::JamWithTimecode
-		: ETimedDataMonitorEditorCalibrationType::JamWithPlatformTime;
-	GetMutableDefault<UTimedDataMonitorEditorSettings>()->SaveConfig();
+	return Result.ReturnCode;
+}
+
+
+FReply STimedDataMonitorPanel::OnCancelCalibration()
+{
+	if (MonitorCalibration)
+	{
+		MonitorCalibration.Reset();
+	}
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE
