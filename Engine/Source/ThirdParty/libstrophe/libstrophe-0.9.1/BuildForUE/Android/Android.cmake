@@ -1,4 +1,4 @@
-include(../../../PhysX3/Externals/CMakeModules/Android/android.toolchain.cmake)
+include($ENV{NDKROOT}/build/cmake/android.toolchain.cmake)
 
 set(SOCKET_IMPL "../src/sock.c" CACHE TYPE INTERNAL FORCE)
 set(DISABLE_TLS 0 CACHE TYPE INTERNAL FORCE)
