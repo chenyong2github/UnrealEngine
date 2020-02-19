@@ -811,6 +811,22 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 		//Abort remapping of morph target since the data is missing
 		return;
 	}
+
+	//Make sure we have some morph for this LOD
+	bool bContainsMorphTargets = false;
+	for (UMorphTarget* MorphTarget : SkeletalMesh->MorphTargets)
+	{
+		if (MorphTarget->HasDataForLOD(SourceLOD))
+		{
+			bContainsMorphTargets = true;
+		}
+	}
+	if (!bContainsMorphTargets)
+	{
+		//No morph target to remap
+		return;
+	}
+
 	if (bReduceBaseLOD)
 	{
 		ReductionBaseSkeletalMeshBulkData = SkeletalMeshResource->OriginalReductionSourceMeshData[SourceLOD];
@@ -850,21 +866,6 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	{
 		return InternalGetSectionMaterialIndex(TargetLODModel, SectionIndex);
 	};
-
-	//Make sure we have some morph for this LOD
-	bool bContainsMorphTargets = false;
-	for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
-	{
-		if (MorphTarget->HasDataForLOD(SourceLOD))
-		{
-			bContainsMorphTargets = true;
-		}
-	}
-	if (!bContainsMorphTargets)
-	{
-		//No morph target to remap
-		return;
-	}
 
 	//We have to match target sections index with the correct base section index. Reduced LODs can contain a different number of sections than the base LOD
 	TArray<int32> TargetSectionMatchBaseIndex;
@@ -1161,8 +1162,7 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 	{
 		if (!SkeletalMesh->IsLODImportedDataBuildAvailable(LodIndex))
 		{
-			TArray<int32> EmptyLodInfoMaterialMap;
-			ImportedBaseLODModel.UpdateChunkedSectionInfo(SkeletalMesh->GetName(), EmptyLodInfoMaterialMap);
+			ImportedBaseLODModel.UpdateChunkedSectionInfo(SkeletalMesh->GetName());
 		}
 		//When we restore a LOD we destroy the LODMaterialMap (user manual section material slot assignation)
 		FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(LodIndex);
