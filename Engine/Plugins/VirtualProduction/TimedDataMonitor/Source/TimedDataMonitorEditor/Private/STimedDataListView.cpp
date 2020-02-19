@@ -13,14 +13,18 @@
 
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
+#include "TimedDataMonitorEditorStyle.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "STimedDataMonitorPanel.h"
+#include "STimedDataNumericEntryBox.h"
+#include "STimingDiagramWidget.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/SNullWidget.h"
-#include "Widgets/TimedDataMonitorStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "STimedDataListView"
@@ -30,6 +34,7 @@ namespace TimedDataListView
 {
 	const FName HeaderIdName_Enable			= "Enable";
 	const FName HeaderIdName_Icon			= "Edit";
+	const FName HeaderIdName_EvaluationMode = "EvaluationMode";
 	const FName HeaderIdName_Name			= "Name";
 	const FName HeaderIdName_Description	= "Description";
 	const FName HeaderIdName_TimeCorrection	= "TimeCorrection";
@@ -54,14 +59,14 @@ namespace TimedDataListView
 struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData>
 {
 	FTimedDataInputTableRowData(const FTimedDataMonitorInputIdentifier& InInputId)
-		: InputIdentifer(InInputId), bIsInput(true)
+		: InputIdentifier(InInputId), bIsInput(true)
 	{
 		UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 		check(TimedDataMonitorSubsystem);
 
-		DisplayName = TimedDataMonitorSubsystem->GetInputDisplayName(InputIdentifer);
+		DisplayName = TimedDataMonitorSubsystem->GetInputDisplayName(InputIdentifier);
 
-		if (ITimedDataInput* InpuTimedData = TimedDataMonitorSubsystem->GetTimedDataInput(InputIdentifer))
+		if (ITimedDataInput* InpuTimedData = TimedDataMonitorSubsystem->GetTimedDataInput(InputIdentifier))
 		{
 			InputIcon = InpuTimedData->GetDisplayIcon();
 		}
@@ -73,7 +78,7 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 		UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 		check(TimedDataMonitorSubsystem);
 
-		InputIdentifer = TimedDataMonitorSubsystem->GetChannelInput(ChannelIdentifier);
+		InputIdentifier = TimedDataMonitorSubsystem->GetChannelInput(ChannelIdentifier);
 		DisplayName = TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier);
 	}
 
@@ -85,7 +90,7 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 		FTimedDataChannelSampleTime NewestDataTime;
 		if (bIsInput)
 		{
-			switch (TimedDataMonitorSubsystem->GetInputEnabled(InputIdentifer))
+			switch (TimedDataMonitorSubsystem->GetInputEnabled(InputIdentifier))
 			{
 			case ETimedDataMonitorInputEnabled::Enabled:
 				CachedEnabled = ECheckBoxState::Checked;
@@ -99,13 +104,15 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 				break;
 			};
 
-			CachedInputEvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifer);
-			CachedInputEvaluationOffset = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputIdentifer);
-			CachedState = TimedDataMonitorSubsystem->GetInputState(InputIdentifer);
-			CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(InputIdentifer);
-			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifer);
+			CachedInputEvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifier);
+			CachedInputEvaluationOffset = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputIdentifier);
+			CachedState = TimedDataMonitorSubsystem->GetInputConnectionState(InputIdentifier);
+			CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(InputIdentifier);
+			CachedCurrentAmountOfBuffer = 0;
+			bControlBufferSize = TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifier);
+			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && bControlBufferSize;
 
-			NewestDataTime = TimedDataMonitorSubsystem->GetInputNewestDataTime(InputIdentifer);
+			NewestDataTime = TimedDataMonitorSubsystem->GetInputNewestDataTime(InputIdentifier);
 
 			CachedStatsBufferUnderflow = 0;
 			CachedStatsBufferOverflow = 0;
@@ -124,14 +131,16 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 		else
 		{
 			CachedEnabled = TimedDataMonitorSubsystem->IsChannelEnabled(ChannelIdentifier) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-			CachedInputEvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifer);
+			CachedInputEvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifier);
 			CachedInputEvaluationOffset = 0.f;
-			CachedState = TimedDataMonitorSubsystem->GetChannelState(ChannelIdentifier);
-			CachedBufferSize = TimedDataMonitorSubsystem->GetChannelNumberOfSamples(ChannelIdentifier);
+			CachedState = TimedDataMonitorSubsystem->GetChannelConnectionState(ChannelIdentifier);
+			CachedBufferSize = TimedDataMonitorSubsystem->GetChannelDataBufferSize(ChannelIdentifier);
+			CachedCurrentAmountOfBuffer = TimedDataMonitorSubsystem->GetChannelNumberOfSamples(ChannelIdentifier);
 			CachedStatsBufferUnderflow = TimedDataMonitorSubsystem->GetChannelBufferUnderflowStat(ChannelIdentifier);
 			CachedStatsBufferOverflow = TimedDataMonitorSubsystem->GetChannelBufferOverflowStat(ChannelIdentifier);
 			CachedStatsFrameDropped = TimedDataMonitorSubsystem->GetChannelFrameDroppedStat(ChannelIdentifier);
-			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && !TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifer);
+			bControlBufferSize = !TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifier);
+			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && bControlBufferSize;
 
 			NewestDataTime = TimedDataMonitorSubsystem->GetChannelNewestDataTime(ChannelIdentifier);
 		}
@@ -161,7 +170,7 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 	}
 
 public:
-	FTimedDataMonitorInputIdentifier InputIdentifer;
+	FTimedDataMonitorInputIdentifier InputIdentifier;
 	FTimedDataMonitorChannelIdentifier ChannelIdentifier;
 	bool bIsInput;
 
@@ -175,9 +184,11 @@ public:
 	ETimedDataInputState CachedState = ETimedDataInputState::Disconnected;
 	FText CachedDescription;
 	int32 CachedBufferSize = 0;
+	int32 CachedCurrentAmountOfBuffer = 0;
 	int32 CachedStatsBufferUnderflow = 0;
 	int32 CachedStatsBufferOverflow = 0;
 	int32 CachedStatsFrameDropped = 0;
+	bool bControlBufferSize = false;
 	bool bCachedCanEditBufferSize = false;
 };
 
@@ -199,17 +210,26 @@ void STimedDataInputTableRow::Construct(const FArguments& InArgs, const TSharedR
 	}
 	else
 	{
-		Arg.Style(FTimedDataMonitorStyle::Get(), "TableView.Child");
+		Arg.Style(FTimedDataMonitorEditorStyle::Get(), "TableView.Child");
 	}
 	Super::Construct(Arg, InOwerTableView);
+}
+
+
+void STimedDataInputTableRow::UpdateCachedValue()
+{
+	if (DiagramWidget)
+	{
+		DiagramWidget->UpdateCachedValue();
+	}
 }
 
 
 TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
 	const FTextBlockStyle* ItemTextBlockStyle = Item->bIsInput
-		? &FTimedDataMonitorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TextBlock.Large")
-		: &FTimedDataMonitorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TextBlock.Regular");
+		? &FTimedDataMonitorEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TextBlock.Large")
+		: &FTimedDataMonitorEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TextBlock.Regular");
 
 	if (TimedDataListView::HeaderIdName_Enable == ColumnName)
 	{
@@ -217,7 +237,7 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 			? LOCTEXT("ToggleAllChannelsToolTip", "Toggles all channels from this input.")
 			: LOCTEXT("ToggleChannelToolTip", "Toggles whether this channel will collect stats and be used when calibrating.");
 		return SNew(SCheckBox)
-			.Style(FTimedDataMonitorStyle::Get(), "CheckBox.Enable")
+			.Style(FTimedDataMonitorEditorStyle::Get(), "CheckBox.Enable")
 			.ToolTipText(Tooltip)
 			.IsChecked(this, &STimedDataInputTableRow::GetEnabledCheckState)
 			.OnCheckStateChanged(this, &STimedDataInputTableRow::OnEnabledCheckStateChanged);
@@ -236,10 +256,27 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 					.IndentAmount(12)
 				]
 				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
 				.FillWidth(1.0f)
 				[
 					SNew(SImage)
 					.Image(Item->InputIcon)
+				];
+		}
+		return SNullWidget::NullWidget;
+	}
+	if (TimedDataListView::HeaderIdName_EvaluationMode == ColumnName)
+	{
+		if (Item->bIsInput)
+		{
+			return SNew(SComboButton)
+				.ComboButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleComboButton")
+				.HAlign(HAlign_Center)
+				.OnGetMenuContent(this, &STimedDataInputTableRow::OnEvaluationImageBuildMenu)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(this, &STimedDataInputTableRow::GetEvaluationImage)
 				];
 		}
 		return SNullWidget::NullWidget;
@@ -249,6 +286,7 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.Padding(10, 0, 10, 0)
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
 				SNew(STextBlock)
@@ -258,6 +296,7 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 			]
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
 				.Text(Item->DisplayName)
@@ -266,64 +305,105 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 	}
 	if (TimedDataListView::HeaderIdName_Description == ColumnName)
 	{
-		return SNew(STextBlock)
-			.Text(this, &STimedDataInputTableRow::GetDescription)
-			.TextStyle(ItemTextBlockStyle);
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(this, &STimedDataInputTableRow::GetDescription)
+				.TextStyle(ItemTextBlockStyle)
+			];
 	}
 	if (TimedDataListView::HeaderIdName_TimeCorrection == ColumnName)
 	{
 		if (Item->bIsInput)
 		{
-			return SNew(STextBlock)
+			return SNew(STimedDataNumericEntryBox<float>)
 				.TextStyle(ItemTextBlockStyle)
-				.Text(this, &STimedDataInputTableRow::GetEvaluationOffsetText);
+				.MinValue(1)
+				.ToolTipText(LOCTEXT("TimeCorrection_ToolTip", "Time Correction."))
+				.Value(this, &STimedDataInputTableRow::GetEvaluationOffset)
+				.EditLabel(LOCTEXT("TimeCorrection_EditLable", "In Seconds: "))
+				.OnValueCommitted(this, &STimedDataInputTableRow::SetEvaluationOffset);
 		}
 		return SNullWidget::NullWidget;
 	}
 	if (TimedDataListView::HeaderIdName_BufferSize == ColumnName)
 	{
-		//@todo put proper editing widget
-		if (Item->bIsInput) // bCachedCanEditBufferSize
+		if (Item->bControlBufferSize)
 		{
-			return SNew(SNumericEntryBox<int32>)
-				.ToolTipText(LOCTEXT("BufferSize_ToolTip", "Buffer Size."))
+			return SNew(STimedDataNumericEntryBox<int32>)
+				.TextStyle(ItemTextBlockStyle)
 				.MinValue(1)
-				.MinDesiredValueWidth(50)
+				.ToolTipText(LOCTEXT("BufferSize_ToolTip", "Buffer Size."))
 				.Value(this, &STimedDataInputTableRow::GetBufferSize)
+				.ShowAmount(!Item->bIsInput)
+				.Amount(this, &STimedDataInputTableRow::GetCurrentSampleCount)
+				.EditLabel(LOCTEXT("BufferSize_EditLable", "Number of buffer: "))
 				.OnValueCommitted(this, &STimedDataInputTableRow::SetBufferSize)
+				.CanEdit(Item->bControlBufferSize)
 				.IsEnabled(this, &STimedDataInputTableRow::CanEditBufferSize);
 		}
 		else
 		{
-			return SNew(STextBlock)
-				.TextStyle(ItemTextBlockStyle)
-				.Text(this, &STimedDataInputTableRow::GetBufferSizeText);
+			return SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(STextBlock)
+					.TextStyle(ItemTextBlockStyle)
+					.Text(this, &STimedDataInputTableRow::GetBufferSizeText)
+				];
 		}
 	}
 	if (TimedDataListView::HeaderIdName_BufferUnder == ColumnName)
 	{
-		return SNew(STextBlock)
-			.Text(this, &STimedDataInputTableRow::GetBufferUnderflowCount)
-			.TextStyle(ItemTextBlockStyle);
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &STimedDataInputTableRow::GetBufferUnderflowCount)
+				.TextStyle(ItemTextBlockStyle)
+			];
 	}
 	if (TimedDataListView::HeaderIdName_BufferOver == ColumnName)
 	{
-		return SNew(STextBlock)
-			.Text(this, &STimedDataInputTableRow::GetBufferOverflowCount)
-			.TextStyle(ItemTextBlockStyle);
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &STimedDataInputTableRow::GetBufferOverflowCount)
+				.TextStyle(ItemTextBlockStyle)
+			];
 	}
 	if (TimedDataListView::HeaderIdName_FrameDrop == ColumnName)
 	{
-		return SNew(STextBlock)
-			.Text(this, &STimedDataInputTableRow::GetFrameDroppedCount)
-			.TextStyle(ItemTextBlockStyle);
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &STimedDataInputTableRow::GetFrameDroppedCount)
+				.TextStyle(ItemTextBlockStyle)
+			];
 	}
 	if (TimedDataListView::HeaderIdName_TimingDiagram == ColumnName)
 	{
-		//@todo put proper timing diagram
-		return SNew(SBorder)
-			.BorderImage(FTimedDataMonitorStyle::Get().GetBrush("Brush.White"))
-			.BorderBackgroundColor(FLinearColor::Green);
+		return SAssignNew(DiagramWidget, STimingDiagramWidget, Item->bIsInput)
+				.ChannelIdentifier(Item->ChannelIdentifier)
+				.InputIdentifier(Item->InputIdentifier)
+				.ShowSigma(true)
+				.ShowFurther(true);
 	}
 
 	return SNullWidget::NullWidget;
@@ -343,7 +423,7 @@ void STimedDataInputTableRow::OnEnabledCheckStateChanged(ECheckBoxState NewState
 
 	if (Item->bIsInput)
 	{
-		TimedDataMonitorSubsystem->SetInputEnabled(Item->InputIdentifer, NewState == ECheckBoxState::Checked);
+		TimedDataMonitorSubsystem->SetInputEnabled(Item->InputIdentifier, NewState == ECheckBoxState::Checked);
 	}
 	else
 	{
@@ -394,7 +474,26 @@ FText STimedDataInputTableRow::GetEvaluationOffsetText() const
 }
 
 
-TOptional<int32> STimedDataInputTableRow::GetBufferSize() const
+float STimedDataInputTableRow::GetEvaluationOffset() const
+{
+	return Item->CachedInputEvaluationOffset;
+}
+
+
+void STimedDataInputTableRow::SetEvaluationOffset(float InValue, ETextCommit::Type CommitType)
+{
+	if (GetEvaluationOffset() != InValue && Item->bIsInput)
+	{
+		UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+		check(TimedDataMonitorSubsystem);
+
+		TimedDataMonitorSubsystem->SetInputEvaluationOffsetInSeconds(Item->InputIdentifier, InValue);
+		OwnerTreeView->RequestRefresh();
+	}
+}
+
+
+int32 STimedDataInputTableRow::GetBufferSize() const
 {
 	return Item->CachedBufferSize;
 }
@@ -402,24 +501,33 @@ TOptional<int32> STimedDataInputTableRow::GetBufferSize() const
 
 FText STimedDataInputTableRow::GetBufferSizeText() const
 {
-	return FText::AsNumber(Item->CachedBufferSize);
+	if (Item->bIsInput)
+	{
+		return FText::GetEmpty();
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("ChannelBufferSizeFormat", "{0}/{1}"), Item->CachedCurrentAmountOfBuffer, Item->CachedBufferSize);
+	}
 }
 
 
 void STimedDataInputTableRow::SetBufferSize(int32 InValue, ETextCommit::Type InType)
 {
-	if (InType == ETextCommit::OnEnter || InType == ETextCommit::OnUserMovedFocus)
+	if (GetBufferSize() != InValue)
 	{
 		UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 		check(TimedDataMonitorSubsystem);
 
 		if (Item->bIsInput)
 		{
-			TimedDataMonitorSubsystem->SetInputDataBufferSize(Item->InputIdentifer, InValue);
+			TimedDataMonitorSubsystem->SetInputDataBufferSize(Item->InputIdentifier, InValue);
+			Item->CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(Item->InputIdentifier);
 		}
 		else
 		{
 			TimedDataMonitorSubsystem->SetChannelDataBufferSize(Item->ChannelIdentifier, InValue);
+			Item->CachedBufferSize = TimedDataMonitorSubsystem->GetChannelDataBufferSize(Item->ChannelIdentifier);
 		}
 		OwnerTreeView->RequestRefresh();
 	}
@@ -429,6 +537,82 @@ void STimedDataInputTableRow::SetBufferSize(int32 InValue, ETextCommit::Type InT
 bool STimedDataInputTableRow::CanEditBufferSize() const
 {
 	return Item->bCachedCanEditBufferSize;
+}
+
+
+int32 STimedDataInputTableRow::GetCurrentSampleCount() const
+{
+	return Item->CachedCurrentAmountOfBuffer;
+}
+
+TSharedRef<SWidget> STimedDataInputTableRow::OnEvaluationImageBuildMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	const ETimedDataInputEvaluationType CurrentEvaluationType = Item->CachedInputEvaluationType;
+
+	ETimedDataInputEvaluationType LambdaEvaluationType = ETimedDataInputEvaluationType::Timecode;
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("EvaluationTypeTimecodeLabel", "Timecode"),
+		LOCTEXT("EvaluationTypeTimecodeTooltip", "Evaluate the input base on the engine's timecode value."),
+		FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), FTimedDataMonitorEditorStyle::NAME_TimecodeBrush),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &STimedDataInputTableRow::SetInputEvaluationType, LambdaEvaluationType),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([CurrentEvaluationType, LambdaEvaluationType]() { return CurrentEvaluationType == LambdaEvaluationType; })
+		));
+
+	LambdaEvaluationType = ETimedDataInputEvaluationType::PlatformTime;
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("EvaluationTypePlatformTimeLabel", "Platform Time"),
+		LOCTEXT("EvaluationTypePlatformTimeTooltip", "Evaluate the input base ont he engine's time."),
+		FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), FTimedDataMonitorEditorStyle::NAME_PlatformTimeBrush),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &STimedDataInputTableRow::SetInputEvaluationType, LambdaEvaluationType),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([CurrentEvaluationType, LambdaEvaluationType]() { return CurrentEvaluationType == LambdaEvaluationType; })
+		));
+
+	LambdaEvaluationType = ETimedDataInputEvaluationType::None;
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("EvaluationTypeNoneLabel", "No synchronization"),
+		LOCTEXT("EvaluationTypeNoneTooltip", "Do not create any special evaluation (take the latest sample available)."),
+		FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), FTimedDataMonitorEditorStyle::NAME_NoEvaluationBrush),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &STimedDataInputTableRow::SetInputEvaluationType, LambdaEvaluationType),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([CurrentEvaluationType, LambdaEvaluationType]() { return CurrentEvaluationType == LambdaEvaluationType; })
+		));
+
+	return MenuBuilder.MakeWidget();
+}
+
+
+const FSlateBrush* STimedDataInputTableRow::GetEvaluationImage() const
+{
+	if (Item->CachedInputEvaluationType == ETimedDataInputEvaluationType::Timecode)
+	{
+		return FTimedDataMonitorEditorStyle::Get().GetBrush(FTimedDataMonitorEditorStyle::NAME_TimecodeBrush);
+	}
+	if (Item->CachedInputEvaluationType == ETimedDataInputEvaluationType::PlatformTime)
+	{
+		return FTimedDataMonitorEditorStyle::Get().GetBrush(FTimedDataMonitorEditorStyle::NAME_PlatformTimeBrush);
+	}
+	return FTimedDataMonitorEditorStyle::Get().GetBrush(FTimedDataMonitorEditorStyle::NAME_NoEvaluationBrush);
+}
+
+
+void STimedDataInputTableRow::SetInputEvaluationType(ETimedDataInputEvaluationType EvaluationType)
+{
+	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+	check(TimedDataMonitorSubsystem);
+
+	if (Item->bIsInput)
+	{
+		TimedDataMonitorSubsystem->SetInputEvaluationType(Item->InputIdentifier, EvaluationType);
+
+		OwnerTreeView->RequestRefresh();
+	}
 }
 
 
@@ -450,8 +634,9 @@ FText STimedDataInputTableRow::GetFrameDroppedCount() const
 /**
  * STimedDataListView
  */
-void STimedDataInputListView::Construct(const FArguments& InArgs)
+void STimedDataInputListView::Construct(const FArguments& InArgs, TSharedPtr<STimedDataMonitorPanel> InOwnerPanel)
 {
+	OwnerPanel = InOwnerPanel;
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 	TimedDataMonitorSubsystem->OnIdentifierListChanged().AddSP(this, &STimedDataInputListView::RequestRebuildSources);
@@ -462,9 +647,11 @@ void STimedDataInputListView::Construct(const FArguments& InArgs)
 		.TreeItemsSource(&ListItemsSource)
 		.SelectionMode(ESelectionMode::SingleToggle)
 		.OnGenerateRow(this, &STimedDataInputListView::OnGenerateRow)
+		.OnRowReleased(this, &STimedDataInputListView::ReleaseListViewWidget)
 		.OnGetChildren(this, &STimedDataInputListView::GetChildrenForInfo)
 		.OnSelectionChanged(this, &STimedDataInputListView::OnSelectionChanged)
 		.OnIsSelectableOrNavigable(this, &STimedDataInputListView::OnIsSelectableOrNavigable)
+		.OnContextMenuOpening(InArgs._OnContextMenuOpening)
 		.HighlightParentNodesForSelection(true)
 		.HeaderRow
 		(
@@ -487,43 +674,52 @@ void STimedDataInputListView::Construct(const FArguments& InArgs)
 			.DefaultLabel(FText::GetEmpty())
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_Name)
-			.FillWidth(0.33)
+			.FillWidth(0.33f)
 			.HAlignCell(EHorizontalAlignment::HAlign_Left)
 			.DefaultLabel(LOCTEXT("HeaderName_Name", "Name"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_Description)
-			.FillWidth(0.33)
+			.FillWidth(0.33f)
 			.HAlignCell(EHorizontalAlignment::HAlign_Left)
-			.DefaultLabel(LOCTEXT("HeaderName_Description", "Description"))
+			.DefaultLabel(LOCTEXT("HeaderName_Description", "Last Sample Time"))
+
+			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_EvaluationMode)
+			.FixedWidth(48)
+			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.DefaultLabel(LOCTEXT("HeaderName_EvaluationMode", "Eval."))
+			.DefaultTooltip(LOCTEXT("HeaderTooltip_EvaluationMode", "How the input is evaluated"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_TimeCorrection)
 			.FixedWidth(100)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_TimeCorrection", "Time Correction"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferSize)
 			.FixedWidth(100)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_BufferSize", "Buffer Size"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferUnder)
 			.FixedWidth(50)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_BufferUnder", "B.U."))
+			.DefaultTooltip(LOCTEXT("HeaderTooltip_BufferUnder", "Number of buffer underflows detected"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferOver)
 			.FixedWidth(50)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_BufferOver", "B.O."))
+			.DefaultTooltip(LOCTEXT("HeaderTooltip_BufferOver", "Number of buffer overflows detected"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_FrameDrop)
 			.FixedWidth(50)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_FrameDrop", "F.D."))
+			.DefaultTooltip(LOCTEXT("HeaderTooltip_FrameDrop", "Number of frame drop detected"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_TimingDiagram)
-			.FillWidth(0.33)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.FillWidth(0.33f)
+			.HAlignCell(EHorizontalAlignment::HAlign_Fill)
 			.DefaultLabel(LOCTEXT("HeaderName_TimingDiagram", "Timing Diagram"))
 		)
 	);
@@ -540,10 +736,17 @@ STimedDataInputListView::~STimedDataInputListView()
 }
 
 
-void STimedDataInputListView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void STimedDataInputListView::RequestRefresh()
 {
-	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	if (TSharedPtr<STimedDataMonitorPanel> OwnerPanelPin = OwnerPanel.Pin())
+	{
+		OwnerPanelPin->RequestRefresh();
+	}
+}
 
+
+void STimedDataInputListView::UpdateCachedValue()
+{
 	if (bRebuildListRequested)
 	{
 		RebuildSources();
@@ -551,14 +754,21 @@ void STimedDataInputListView::Tick(const FGeometry& AllottedGeometry, const doub
 		bRebuildListRequested = false;
 	}
 
-	double RefreshTimer = GetDefault<UTimedDataMonitorEditorSettings>()->RefreshRate;
-	if (bRefreshRequested || (FApp::GetCurrentTime() - LastCachedValueUpdateTime > RefreshTimer))
+	for (FTimedDataInputTableRowDataPtr& RowDataPtr : ListItemsSource)
 	{
-		bRefreshRequested = false;
-		LastCachedValueUpdateTime = FApp::GetCurrentTime();
-		for (FTimedDataInputTableRowDataPtr& RowDataPtr : ListItemsSource)
+		RowDataPtr->UpdateCachedValue();
+	}
+
+	for (int32 Index = ListRowWidgets.Num() - 1; Index >= 0; --Index)
+	{
+		const TSharedPtr<STimedDataInputTableRow> Row = ListRowWidgets[Index].Pin();
+		if (Row)
 		{
-			RowDataPtr->UpdateCachedValue();
+			Row->UpdateCachedValue();
+		}
+		else
+		{
+			ListRowWidgets.RemoveAtSwap(Index);
 		}
 	}
 }
@@ -600,6 +810,17 @@ void STimedDataInputListView::RebuildSources()
 }
 
 
+FTimedDataMonitorInputIdentifier STimedDataInputListView::GetSelectedInputIdentifier() const
+{
+	TArray<FTimedDataInputTableRowDataPtr> SelectedRows = GetSelectedItems();
+	if (SelectedRows.Num() > 0)
+	{
+		return SelectedRows[0]->InputIdentifier;
+	}
+	return FTimedDataMonitorInputIdentifier();
+}
+
+
 ECheckBoxState STimedDataInputListView::GetAllEnabledCheckState() const
 {
 	return ECheckBoxState::Checked;
@@ -614,16 +835,27 @@ void STimedDataInputListView::OnToggleAllEnabledCheckState(ECheckBoxState CheckB
 	bool bIsEnabled = CheckBoxState == ECheckBoxState::Checked;
 	for (const FTimedDataInputTableRowDataPtr& RowDataPtr : ListItemsSource)
 	{
-		TimedDataMonitorSubsystem->SetInputEnabled(RowDataPtr->InputIdentifer, bIsEnabled);
+		TimedDataMonitorSubsystem->SetInputEnabled(RowDataPtr->InputIdentifier, bIsEnabled);
 	}
 }
 
 
 TSharedRef<ITableRow> STimedDataInputListView::OnGenerateRow(FTimedDataInputTableRowDataPtr InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(STimedDataInputTableRow, OwnerTable, SharedThis<STimedDataInputListView>(this))
+	TSharedRef<STimedDataInputTableRow> Row = SNew(STimedDataInputTableRow, OwnerTable, SharedThis<STimedDataInputListView>(this))
 		.Item(InItem);
+	ListRowWidgets.Add(Row);
+	return Row;
 }
+
+
+void STimedDataInputListView::ReleaseListViewWidget(const TSharedRef<ITableRow>& Row)
+{
+	TSharedRef<STimedDataInputTableRow> RefRow = StaticCastSharedRef<STimedDataInputTableRow>(Row);
+	TWeakPtr<STimedDataInputTableRow> WeakRow = RefRow;
+	ListRowWidgets.RemoveSingleSwap(WeakRow);
+}
+
 
 
 void STimedDataInputListView::GetChildrenForInfo(FTimedDataInputTableRowDataPtr InItem, TArray<FTimedDataInputTableRowDataPtr>& OutChildren)
@@ -636,7 +868,7 @@ void STimedDataInputListView::OnSelectionChanged(FTimedDataInputTableRowDataPtr 
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
-		if (InItem && InItem->bIsInput)
+		if (InItem && !InItem->bIsInput)
 		{
 			ClearSelection();
 		}
@@ -648,5 +880,6 @@ bool STimedDataInputListView::OnIsSelectableOrNavigable(FTimedDataInputTableRowD
 {
 	return InItem && !InItem->bIsInput;
 }
+
 
 #undef LOCTEXT_NAMESPACE

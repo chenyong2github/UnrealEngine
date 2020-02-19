@@ -32,7 +32,8 @@ namespace UnrealBuildTool.Rules
 					"Blackmagic",
 					"Engine",
 					"MediaUtils",
-					"Projects"
+					"Projects",
+					"SlateCore"
                 });
 
 			PrivateIncludePathModuleNames.AddRange(

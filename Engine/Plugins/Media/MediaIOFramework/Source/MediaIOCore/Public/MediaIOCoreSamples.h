@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IMediaSamples.h"
 #include "IMediaTextureSample.h"
+#include "MediaIOCoreSampleContainer.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/SharedPointer.h"
 
@@ -14,13 +15,27 @@ class IMediaOverlaySample;
 class IMediaTextureSample;
 
 /**
+ * Bitflags about different types of sample a MediaIO can push
+ */
+UENUM()
+enum class EMediaIOSampleType
+{
+	None = 0,
+	Video = 1<<0,
+	Audio = 1<<1,
+	Metadata = 1<<2,
+	Subtitles = 1<<3,
+	Caption = 1<<4,
+};
+
+/**
  * General purpose media sample queue.
  */
-class MEDIAIOCORE_API FMediaIOCoreSamples
-	: public IMediaSamples
+
+class MEDIAIOCORE_API FMediaIOCoreSamples : public IMediaSamples
 {
 public:
-	FMediaIOCoreSamples() = default;
+	FMediaIOCoreSamples(ITimedDataInput* ChannelsOwner);
 	FMediaIOCoreSamples(const FMediaIOCoreSamples&) = delete;
 	FMediaIOCoreSamples& operator=(const FMediaIOCoreSamples&) = delete;
 
@@ -35,9 +50,7 @@ public:
 	 */
 	bool AddAudio(const TSharedRef<IMediaAudioSample, ESPMode::ThreadSafe>& Sample)
 	{
-		FScopeLock Lock(&AudioCriticalSection);
-		AudioSamples.EmplaceAt(0, Sample);
-		return true;
+		return AudioSamples.AddSample(Sample);
 	}
 
 	/**
@@ -49,9 +62,7 @@ public:
 	 */
 	bool AddCaption(const TSharedRef<IMediaOverlaySample, ESPMode::ThreadSafe>& Sample)
 	{
-		FScopeLock Lock(&CaptionCriticalSection);
-		CaptionSamples.EmplaceAt(0, Sample);
-		return true;
+		return CaptionSamples.AddSample(Sample);
 	}
 
 	/**
@@ -63,9 +74,7 @@ public:
 	 */
 	bool AddMetadata(const TSharedRef<IMediaBinarySample, ESPMode::ThreadSafe>& Sample)
 	{
-		FScopeLock Lock(&MetadataCriticalSection);
-		MetadataSamples.EmplaceAt(0, Sample);
-		return true;
+		return MetadataSamples.AddSample(Sample);
 	}
 
 	/**
@@ -77,9 +86,7 @@ public:
 	 */
 	bool AddSubtitle(const TSharedRef<IMediaOverlaySample, ESPMode::ThreadSafe>& Sample)
 	{
-		FScopeLock Lock(&SubtitleCriticalSection);
-		SubtitleSamples.EmplaceAt(0, Sample);
-		return true;
+		return SubtitleSamples.AddSample(Sample);
 	}
 
 	/**
@@ -91,9 +98,7 @@ public:
 	 */
 	bool AddVideo(const TSharedRef<IMediaTextureSample, ESPMode::ThreadSafe>& Sample)
 	{
-		FScopeLock Lock(&VideoCriticalSection);
-		VideoSamples.EmplaceAt(0, Sample);
-		return true;
+		return VideoSamples.AddSample(Sample);
 	}
 
 	/**
@@ -104,14 +109,7 @@ public:
 	 */
 	bool PopAudio()
 	{
-		FScopeLock Lock(&AudioCriticalSection);
-		const int32 SampleCount = AudioSamples.Num();
-		if (SampleCount > 0)
-		{
-			AudioSamples.RemoveAt(SampleCount - 1);
-			return true;
-		}
-		return false;
+		return AudioSamples.PopSample();
 	}
 
 	/**
@@ -122,14 +120,7 @@ public:
 	 */
 	bool PopCaption()
 	{
-		FScopeLock Lock(&CaptionCriticalSection);
-		const int32 SampleCount = CaptionSamples.Num();
-		if (SampleCount > 0)
-		{
-			CaptionSamples.RemoveAt(SampleCount - 1);
-			return true;
-		}
-		return false;
+		return CaptionSamples.PopSample();
 	}
 
 	/**
@@ -140,14 +131,7 @@ public:
 	 */
 	bool PopMetadata()
 	{
-		FScopeLock Lock(&MetadataCriticalSection);
-		const int32 SampleCount = MetadataSamples.Num();
-		if (SampleCount > 0)
-		{
-			MetadataSamples.RemoveAt(SampleCount - 1);
-			return true;
-		}
-		return false;
+		return MetadataSamples.PopSample();
 	}
 
 	/**
@@ -158,14 +142,7 @@ public:
 	 */
 	bool PopSubtitle()
 	{
-		FScopeLock Lock(&SubtitleCriticalSection);
-		const int32 SampleCount = SubtitleSamples.Num();
-		if (SampleCount > 0)
-		{
-			SubtitleSamples.RemoveAt(SampleCount - 1);
-			return true;
-		}
-		return false;
+		return SubtitleSamples.PopSample();
 	}
 
 	/**
@@ -176,14 +153,7 @@ public:
 	 */
 	bool PopVideo()
 	{
-		FScopeLock Lock(&VideoCriticalSection);
-		const int32 SampleCount = VideoSamples.Num();
-		if (SampleCount > 0)
-		{
-			VideoSamples.RemoveAt(SampleCount - 1);
-			return true;
-		}
-		return false;
+		return VideoSamples.PopSample();
 	}
 
 	/**
@@ -194,8 +164,7 @@ public:
 	 */
 	int32 NumAudioSamples() const
 	{
-		FScopeLock Lock(&AudioCriticalSection);
-		return AudioSamples.Num();
+		return AudioSamples.NumSamples();
 	}
 
 	/**
@@ -206,8 +175,7 @@ public:
 	 */
 	int32 NumCaptionSamples() const
 	{
-		FScopeLock Lock(&CaptionCriticalSection);
-		return CaptionSamples.Num();
+		return CaptionSamples.NumSamples();
 	}
 
 	/**
@@ -218,8 +186,7 @@ public:
 	 */
 	int32 NumMetadataSamples() const
 	{
-		FScopeLock Lock(&MetadataCriticalSection);
-		return MetadataSamples.Num();
+		return MetadataSamples.NumSamples();
 	}
 
 	/**
@@ -230,8 +197,7 @@ public:
 	 */
 	int32 NumSubtitleSamples() const
 	{
-		FScopeLock Lock(&SubtitleCriticalSection);
-		return SubtitleSamples.Num();
+		return SubtitleSamples.NumSamples();
 	}
 
 	/**
@@ -242,8 +208,7 @@ public:
 	 */
 	int32 NumVideoSamples() const
 	{
-		FScopeLock Lock(&VideoCriticalSection);
-		return VideoSamples.Num();
+		return VideoSamples.NumSamples();
 	}
 
 	/**
@@ -254,20 +219,73 @@ public:
 	 */
 	FTimespan GetNextVideoSampleTime()
 	{
-		FScopeLock Lock(&VideoCriticalSection);
-
-		const int32 SampleCount = VideoSamples.Num();
-		if (SampleCount > 0)
-		{
-			TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample = VideoSamples[SampleCount - 1];
-			if (Sample.IsValid())
-			{
-				return Sample->GetTime();
-			}
-		}
-
-		return FTimespan();
+		return VideoSamples.GetNextSampleTime();
 	}
+
+	/**
+	 * Get Audio Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetAudioFrameDropCount() const
+	{
+		return AudioSamples.GetFrameDroppedStat();
+	}
+
+	/**
+	 * Get Video Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetVideoFrameDropCount() const
+	{
+		return VideoSamples.GetFrameDroppedStat();
+	}
+	
+	/**
+	 * Get Metadata Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetMetadataFrameDropCount() const
+	{
+		return MetadataSamples.GetFrameDroppedStat();
+	}
+
+	/**
+	 * Get Subtitles Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetSubtitlesFrameDropCount() const
+	{
+		return SubtitleSamples.GetFrameDroppedStat();
+	}
+
+	/**
+	 * Get Caption Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetCaptionsFrameDropCount() const
+	{
+		return CaptionSamples.GetFrameDroppedStat();
+	}
+
+	/**
+	 * Caches the current sample container state for a given Player (evaluation) time
+	 */
+	void CacheSamplesState(FTimespan PlayerTime);
+
+	/** Enable or disable channels based on bitfield flag */
+	void EnableTimedDataChannels(EMediaIOSampleType SampleTypes);
+
+	/** Initialize our different buffers with player's settings and wheter or not it should be displayed / supported in Timing monitor */
+	void InitializeVideoBuffer(const FMediaIOSamplingSettings& InSettings);
+	void InitializeAudioBuffer(const FMediaIOSamplingSettings& InSettings);
+	void InitializeMetadataBuffer(const FMediaIOSamplingSettings& InSettings);
+	void InitializeSubtitlesBuffer(const FMediaIOSamplingSettings& InSettings);
+	void InitializeCaptionBuffer(const FMediaIOSamplingSettings& InSettings);
 
 public:
 
@@ -282,23 +300,9 @@ public:
 
 protected:
 
-	/** Audio sample queue. */
-	mutable FCriticalSection AudioCriticalSection;
-	TArray<TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe>> AudioSamples;
-
-	/** Caption sample queue. */
-	mutable FCriticalSection CaptionCriticalSection;
-	TArray<TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>> CaptionSamples;
-
-	/** Metadata sample queue. */
-	mutable FCriticalSection MetadataCriticalSection;
-	TArray<TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>> MetadataSamples;
-
-	/** Subtitle sample queue. */
-	mutable FCriticalSection SubtitleCriticalSection;
-	TArray<TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>> SubtitleSamples;
-
-	/** Video sample queue. */
-	mutable FCriticalSection VideoCriticalSection;
-	TArray<TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>> VideoSamples;
+	FMediaIOCoreSampleContainer<IMediaTextureSample> VideoSamples;
+	FMediaIOCoreSampleContainer<IMediaAudioSample> AudioSamples;
+	FMediaIOCoreSampleContainer<IMediaBinarySample> MetadataSamples;
+	FMediaIOCoreSampleContainer<IMediaOverlaySample> SubtitleSamples;
+	FMediaIOCoreSampleContainer<IMediaOverlaySample> CaptionSamples;
 };
