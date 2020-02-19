@@ -766,7 +766,7 @@ namespace FNiagaraUtilities
 };
 
 USTRUCT()
-struct FNiagaraUserParameterBinding
+struct NIAGARA_API FNiagaraUserParameterBinding
 {
 	GENERATED_USTRUCT_BODY()
 
