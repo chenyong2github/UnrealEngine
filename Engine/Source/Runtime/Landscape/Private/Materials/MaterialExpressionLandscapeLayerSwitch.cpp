@@ -149,9 +149,4 @@ void UMaterialExpressionLandscapeLayerSwitch::GetAllParameterInfo(TArray<FMateri
 	}
 }
 
-bool UMaterialExpressionLandscapeLayerSwitch::NeedsLoadForClient() const
-{
-	return ParameterName != NAME_None;
-}
-
 #undef LOCTEXT_NAMESPACE

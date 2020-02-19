@@ -86,7 +86,6 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	virtual bool NeedsLoadForClient() const override { return true; };
 	//~ Begin UObject Interface
 
 #if WITH_EDITORONLY_DATA

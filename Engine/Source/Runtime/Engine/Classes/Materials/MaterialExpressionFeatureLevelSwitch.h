@@ -23,7 +23,6 @@ class UMaterialExpressionFeatureLevelSwitch : public UMaterialExpression
 
 	//~ Begin UObject Interface.
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
-	virtual bool NeedsLoadForClient() const override;
 	//~ End UObject Interface.
 
 	//~ Begin UMaterialExpression Interface

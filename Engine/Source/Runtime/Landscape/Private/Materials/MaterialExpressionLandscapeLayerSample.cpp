@@ -97,9 +97,4 @@ void UMaterialExpressionLandscapeLayerSample::GetAllParameterInfo(TArray<FMateri
 	}
 }
 
-bool UMaterialExpressionLandscapeLayerSample::NeedsLoadForClient() const
-{
-	return ParameterName != NAME_None;
-}
-
 #undef LOCTEXT_NAMESPACE
