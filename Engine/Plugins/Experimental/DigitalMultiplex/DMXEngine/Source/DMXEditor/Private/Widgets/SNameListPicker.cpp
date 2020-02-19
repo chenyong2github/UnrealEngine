@@ -23,18 +23,6 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 		UpdateOptionsHandle = UpdateOptionsDelegate->Add(FSimpleDelegate::CreateSP(this, &SNameListPicker::UpdateOptionsSource));
 	}
 
-	TSharedPtr<FName> InitiallySelected = nullptr;
-	for (TSharedPtr<FName> NameItem : OptionsSource)
-	{
-		if (NameItem)
-		{
-			if (ValueAttribute.Get() == *NameItem)
-			{
-				InitiallySelected = NameItem;
-				break;
-			}
-		}
-	}
 
 	ChildSlot
 	[
@@ -42,7 +30,8 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 		.OptionsSource(&OptionsSource)
 		.OnGenerateWidget(this, &SNameListPicker::GenerateNameItemWidget)
 		.OnSelectionChanged(this, &SNameListPicker::HandleSelectionChanged)
-		.InitiallySelectedItem(InitiallySelected)
+		.OnComboBoxOpening(this, &SNameListPicker::UpdateSelectedOption)
+		.InitiallySelectedItem(GetSelectedItemFromCurrentValue())
 		[
 			SNew(STextBlock)
 			.Text(this, &SNameListPicker::GetCurrentNameLabel)
@@ -102,6 +91,41 @@ void SNameListPicker::HandleSelectionChanged(const TSharedPtr<FName> Item, ESele
 	if (PickerComboButtonPin.IsValid())
 	{
 		PickerComboButtonPin->SetIsOpen(false);
+	}
+}
+
+TSharedPtr<FName> SNameListPicker::GetSelectedItemFromCurrentValue() const
+{
+	TSharedPtr<FName> InitiallySelected = nullptr;
+
+	const bool bHasMultipleValues = HasMultipleValuesAttribute.Get();
+	if (bHasMultipleValues)
+	{
+		return InitiallySelected;
+	}
+
+	const FName CurrentValue = ValueAttribute.Get();
+
+	for (TSharedPtr<FName> NameItem : OptionsSource)
+	{
+		if (NameItem != nullptr)
+		{
+			if (CurrentValue.IsEqual(*NameItem))
+			{
+				InitiallySelected = NameItem;
+				break;
+			}
+		}
+	}
+
+	return InitiallySelected;
+}
+
+void SNameListPicker::UpdateSelectedOption()
+{
+	if (TSharedPtr<SComboBox<TSharedPtr<FName>>> PinnedButton = PickerComboButton.Pin())
+	{
+		PinnedButton->SetSelectedItem(GetSelectedItemFromCurrentValue());
 	}
 }
 
