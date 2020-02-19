@@ -569,7 +569,7 @@ void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher
 
 void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
 {
-	if (Context.ShaderStageIndex == 0)
+	if (Context.SimulationStageIndex == 0)
 	{
 		FNDIPhysicsAssetData* ProxyData =
 			SystemInstancesToProxyData.Find(Context.SystemInstance);
