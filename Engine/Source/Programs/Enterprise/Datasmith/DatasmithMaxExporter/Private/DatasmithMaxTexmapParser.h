@@ -74,12 +74,12 @@ namespace DatasmithMaxTexmapParser
 	{
 		PBBitmap* SourceFile = nullptr;
 		float Brightness = 1;
-		bool InvertImage = false;
+		bool bInvertImage = false;
 		FVector2D Position = FVector2D(0,0);
 		float Rotation = 0;
 		FVector2D Scale = FVector2D(1, 1);
-		bool RepeatHorizontal = true;
-		bool RepeatVertical = true;
+		bool bRepeatHorizontal = true;
+		bool bRepeatVertical = true;
 		float BlurValue = 0;
 		float BlurOffset = 0;
 		float FilteringValue = 0;
