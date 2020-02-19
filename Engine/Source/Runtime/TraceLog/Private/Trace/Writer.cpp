@@ -83,6 +83,7 @@ TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
 ////////////////////////////////////////////////////////////////////////////////
 enum EKnownThreadIds
 {
+	Tid_NewEvents,
 	Tid_Header,
 	Tid_Process		= 8,
 };
@@ -396,6 +397,34 @@ static uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Si
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static void Writer_ConsumeNewEventNodes()
+{
+	if (!GDataHandle)
+	{
+		return;
+	}
+
+	TWriteBufferRedirect<4096> TraceData;
+
+	FEventNode::FIter Iter = FEventNode::ReadNew();
+	while (const FEventNode* Event = Iter.GetNext())
+	{
+		Event->Describe();
+
+		if (TraceData.GetSize() >= (TraceData.GetCapacity() - 1024))
+		{
+			Writer_SendData(Tid_NewEvents, TraceData.GetData(), TraceData.GetSize());
+			TraceData.Reset();
+		}
+	}
+
+	if (TraceData.GetSize())
+	{
+		Writer_SendData(Tid_NewEvents, TraceData.GetData(), TraceData.GetSize());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 static void Writer_ConsumeEvents()
 {
 	struct FRetireList
@@ -590,6 +619,7 @@ static void Writer_WorkerUpdate()
 {
 	Writer_UpdateControl();
 	Writer_UpdateData();
+	Writer_ConsumeNewEventNodes();
 	Writer_ConsumeEvents();
 }
 
@@ -675,7 +705,7 @@ static void Writer_InternalShutdown()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_InternalInitialize()
+void Writer_InternalInitialize()
 {
 	using namespace Private;
 
@@ -753,104 +783,6 @@ bool Writer_WriteTo(const ANSICHAR* Path)
 
 	GPendingDataHandle = DataHandle;
 	return true;
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-static uint32 volatile GEventUidCounter; // = 0;
-
-////////////////////////////////////////////////////////////////////////////////
-void Writer_EventCreate(
-	FEventDef* Target,
-	const FLiteralName& LoggerName,
-	const FLiteralName& EventName,
-	const FFieldDesc* FieldDescs,
-	uint32 FieldCount,
-	uint32 Flags)
-{
-	Writer_InternalInitialize();
-
-	// Assign a unique ID for this event
-	uint32 Uid = AtomicIncrementRelaxed(&GEventUidCounter) + uint32(EKnownEventUids::User);
-	if (Uid >= uint32(EKnownEventUids::Max))
-	{
-		Target->Uid = uint16(EKnownEventUids::Invalid);
-		Target->bInitialized = true;
-		return;
-	}
-
-	// Fill out the target event's properties
- 	Target->Uid = uint16(Uid);
-	Target->bInitialized = true;
-	Target->bImportant = Flags & FEventDef::Flag_Important;
-
-	// Calculate the number of fields and size of name data.
-	uint16 NamesSize = LoggerName.Length + EventName.Length;
-	for (uint32 i = 0; i < FieldCount; ++i)
-	{
-		NamesSize += FieldDescs[i].NameSize;
-	}
-
-	// Allocate the new event event in the log stream.
-	uint16 EventUid = uint16(EKnownEventUids::NewEvent);
-	uint16 EventSize = sizeof(FNewEventEvent);
-	EventSize += sizeof(FNewEventEvent::Fields[0]) * FieldCount;
-	EventSize += NamesSize;
-
-	FLogInstance LogInstance = Writer_BeginLogNoSync(EventUid, EventSize, false);
-	auto& Event = *(FNewEventEvent*)(LogInstance.Ptr);
-
-	// Write event's main properties.
-	Event.EventUid = uint16(Uid);
-	Event.LoggerNameSize = LoggerName.Length;
-	Event.EventNameSize = EventName.Length;
-	Event.Flags = 0;
-
-	if (Flags & FEventDef::Flag_Important)
-	{
-		Event.Flags |= uint8(EEventFlags::Important);
-	}
-
-	if (Flags & FEventDef::Flag_MaybeHasAux)
-	{
-		Event.Flags |= uint8(EEventFlags::MaybeHasAux);
-	}
-
-	if (Flags & FEventDef::Flag_NoSync)
-	{
-		Event.Flags |= uint8(EEventFlags::NoSync);
-	}
-
-	// Write details about event's fields
-	Event.FieldCount = uint8(FieldCount);
-	for (uint32 i = 0; i < FieldCount; ++i)
-	{
-		const FFieldDesc& FieldDesc = FieldDescs[i];
-		auto& Out = Event.Fields[i];
-		Out.Offset = FieldDesc.ValueOffset;
-		Out.Size = FieldDesc.ValueSize;
-		Out.TypeInfo = FieldDesc.TypeInfo;
-		Out.NameSize = FieldDesc.NameSize;
-	}
-
-	// Write names
-	uint8* Cursor = (uint8*)(Event.Fields + FieldCount);
-	auto WriteName = [&Cursor] (const ANSICHAR* Data, uint32 Size)
-	{
-		memcpy(Cursor, Data, Size);
-		Cursor += Size;
-	};
-
-	WriteName(LoggerName.Ptr, LoggerName.Length);
-	WriteName(EventName.Ptr, EventName.Length);
-	for (uint32 i = 0; i < FieldCount; ++i)
-	{
-		const FFieldDesc& Desc = FieldDescs[i];
-		WriteName(Desc.Name, Desc.NameSize);
-	}
-
-	Writer_EndLog(LogInstance);
 }
 
 } // namespace Private
