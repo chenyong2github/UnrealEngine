@@ -101,6 +101,7 @@
 
 #include "Misc/NetworkVersion.h"
 
+#include "Algo/Find.h"
 #include "Async/ParallelFor.h"
 
 #include "Commandlets/ShaderPipelineCacheToolsCommandlet.h"
@@ -1638,6 +1639,7 @@ public:
 
 	void						OnPackageCooked(const FFilePlatformCookedPackage& CookedPackage, UPackage* Package);
 	void						RemovePendingSavePackage(UPackage* Package);
+	void						RemovePendingSavePackageByFileName(const FName& PackageFileName);
 };
 
 void FPackageTracker::DirtyPackage(const FName& CookedPackageName, UPackage* Package)
@@ -1664,6 +1666,21 @@ void FPackageTracker::OnPackageCooked(const FFilePlatformCookedPackage& CookedPa
 void FPackageTracker::RemovePendingSavePackage(UPackage* Package)
 {
 	PackagesPendingSave.Remove(Package);
+}
+
+void FPackageTracker::RemovePendingSavePackageByFileName(const FName& PackageFileName)
+{
+	const FName* PackageName = PackageNameCache->GetCachedPackageFilenameToPackageFName(PackageFileName);
+	if (PackageName)
+	{
+		UPackage** FoundPackage = Algo::FindByPredicate(PackagesPendingSave, [PackageName](const UPackage* ExistingPackage) {
+			return ExistingPackage->GetFName() == *PackageName;
+		});
+		if (FoundPackage)
+		{
+			PackagesPendingSave.Remove(*FoundPackage);
+		}
+	}
 }
 
 void FPackageTracker::FilterLoadedPackage(UPackage* Package)
@@ -2716,6 +2733,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 		if (TargetPlatforms.Num() == 0)
 		{
 			UE_LOG(LogCook, Error, TEXT("Empty list of platforms requested in CookOnTheSide request."));
+			PackageTracker->RemovePendingSavePackageByFileName(ToBuild.GetFilename());
 			continue;
 		}
 
@@ -2805,6 +2823,10 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 			}
 #endif
 			PackageTracker->OnPackageCooked(FFilePlatformCookedPackage(ToBuild.GetFilename(), TargetPlatforms), LoadedPackage);
+			if (!LoadedPackage)
+			{
+				PackageTracker->RemovePendingSavePackageByFileName(ToBuild.GetFilename());
+			}
 			continue;
 		}
 
@@ -3233,11 +3255,17 @@ bool UCookOnTheFlyServer::SaveCookedPackages(
 	}
 
 	bool bHandledRequestedPackage = false;
-	auto MarkRequestHandled = [&bHandledRequestedPackage, PackageToSave](const UPackage* PackageThatWasHandled)
+	auto MarkRequestHandled = [&bHandledRequestedPackage, PackageToSave, this](UPackage* PackageThatWasHandled, bool bWasAddedToCooked)
 	{
 		if (PackageThatWasHandled == PackageToSave)
 		{
 			bHandledRequestedPackage = true;
+		}
+
+		// If the Package was added to the cooked list, it was removed from pendingsave packages by OnPackageCooked, otherwise we need to remove it here
+		if (!bWasAddedToCooked)
+		{
+			PackageTracker->RemovePendingSavePackage(PackageThatWasHandled);
 		}
 	};
 
@@ -3257,7 +3285,7 @@ bool UCookOnTheFlyServer::SaveCookedPackages(
 			if (Package->IsLoadedByEditorPropertiesOnly() && PackageTracker->UncookedEditorOnlyPackages.Contains(Package->GetFName()))
 			{
 				// We already attempted to cook this package and it's still not referenced by any non editor-only properties.
-				MarkRequestHandled(Package);
+				MarkRequestHandled(Package, false);
 				continue;
 			}
 
@@ -3269,7 +3297,7 @@ bool UCookOnTheFlyServer::SaveCookedPackages(
 			if (PackageTracker->NeverCookPackageList.Contains(PackageFName))
 			{
 				// refuse to save this package, it's clearly one of the undesirables
-				MarkRequestHandled(Package);
+				MarkRequestHandled(Package, false);
 				continue;
 			}
 
@@ -3297,11 +3325,7 @@ bool UCookOnTheFlyServer::SaveCookedPackages(
 				// It should not be possible for pendingsave packages because they should not have been queued if they had completed all of their possible platforms, and should be removed from pendingsave if they are ever cooked
 				UE_LOG(LogCook, Warning, TEXT("%s package '%s' in SaveCookedPackages has no more platforms left to cook; this should not be possible!"),
 					(bProcessingUnsolicitedPackages ? TEXT("Unsolicited") : TEXT("Passed-in")), *PackageFName.ToString());
-				if (bProcessingUnsolicitedPackages)
-				{
-					PackageTracker->RemovePendingSavePackage(Package);
-				}
-				MarkRequestHandled(Package);
+				MarkRequestHandled(Package, false);
 				continue;
 			}
 
@@ -3473,7 +3497,6 @@ bool UCookOnTheFlyServer::SaveCookedPackages(
 				}
 				check(SavePackageResults.Num() == SucceededSavePackage.Num());
 				Timer.SavedPackage();
-				MarkRequestHandled(Package);
 			}
 
 			if (IsCookingInEditor() == false)
@@ -3507,6 +3530,7 @@ bool UCookOnTheFlyServer::SaveCookedPackages(
 				if (!bWasReferencedOnlyByEditorOnlyData)
 				{
 					PackageTracker->OnPackageCooked(FileRequest, Package);
+					MarkRequestHandled(Package, true);
 
 					if ((CurrentCookMode == ECookMode::CookOnTheFly) && bProcessingUnsolicitedPackages)
 					{
@@ -3524,6 +3548,7 @@ bool UCookOnTheFlyServer::SaveCookedPackages(
 				else
 				{
 					PackageTracker->UncookedEditorOnlyPackages.AddUnique(Package->GetFName());
+					MarkRequestHandled(Package, false);
 				}
 			}
 			else
@@ -3532,6 +3557,7 @@ bool UCookOnTheFlyServer::SaveCookedPackages(
 				{
 					check(bSucceededSavePackage == false);
 				}
+				MarkRequestHandled(Package, false);
 			}
 		}
 	}
