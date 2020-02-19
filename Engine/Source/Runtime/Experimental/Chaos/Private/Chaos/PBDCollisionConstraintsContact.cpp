@@ -305,7 +305,7 @@ namespace Chaos
 					PBDRigid0->V() += DP0 / IterationParameters.Dt;
 					PBDRigid0->W() += DR0 / IterationParameters.Dt;
 					P0 += DP0;
-					Q0 += FRotation3::FromElements(DR0, 0.f) * Q0 * IterationParameters.Dt * FReal(0.5);
+					Q0 += FRotation3::FromElements(DR0, 0.f) * Q0 * FReal(0.5);
 					Q0.Normalize();
 					FParticleUtilities::SetCoMWorldTransform(PBDRigid0, P0, Q0);
 				}
@@ -316,7 +316,7 @@ namespace Chaos
 					PBDRigid1->V() += DP1 / IterationParameters.Dt;
 					PBDRigid1->W() += DR1 / IterationParameters.Dt;
 					P1 += DP1;
-					Q1 += FRotation3::FromElements(DR1, 0.f) * Q1 * IterationParameters.Dt * FReal(0.5);
+					Q1 += FRotation3::FromElements(DR1, 0.f) * Q1 * FReal(0.5);
 					Q1.Normalize();
 					FParticleUtilities::SetCoMWorldTransform(PBDRigid1, P1, Q1);
 				}
