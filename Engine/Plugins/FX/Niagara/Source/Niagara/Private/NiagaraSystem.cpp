@@ -476,7 +476,6 @@ void UNiagaraSystem::PostLoad()
 			if (EmitterHandle.GetIsEnabled() && !EmitterHandle.GetInstance()->AreAllScriptAndSourcesSynchronized())
 			{
 				bEmitterScriptsAreSynchronized = false;
-				break;
 			}
 		}
 
