@@ -11,6 +11,7 @@
 #include "Framework/Commands/UICommandInfo.h"
 #include "EditorStyleSet.h"
 #include "Styling/SlateTypes.h"
+#include "Styling/SlateWidgetStyleAsset.h"
 
 struct FSlateBrush;
 enum class ECheckBoxState : uint8;
