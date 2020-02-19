@@ -10,7 +10,7 @@ REM copy to work directory to build libpng with ndk-build
 xcopy /s /I /Q %LIBPNG_PATH% jni
 
 REM build all 4 architectures
-call ndk-build
+call %NDKROOT%/ndk-build
 
 REM create directories for libraries
 mkdir %LIBPNG_PATH%\lib\Android\ARMv7

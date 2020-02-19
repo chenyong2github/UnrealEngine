@@ -539,7 +539,7 @@ public:
 		const FString ManifestPath = BasePath + ManifestFileName;
 
 
-		int Handle = open(TCHAR_TO_UTF8(*ManifestPath), O_WRONLY | O_CREAT | O_TRUNC);
+		int Handle = open(TCHAR_TO_UTF8(*ManifestPath), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 
 		if ( Handle == -1 )
 		{
