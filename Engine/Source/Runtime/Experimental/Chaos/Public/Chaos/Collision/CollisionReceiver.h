@@ -30,6 +30,11 @@ namespace Chaos
 			{
 				SinglePointQueue.Enqueue(Constraint);
 			}
+			for (const TRigidBodySweptPointContactConstraint<FReal, 3>& Constraint : Constraints.SinglePointSweptConstraints)
+			{
+				SingleSweptPointQueue.Enqueue(Constraint);
+			}
+
 			for (const TRigidBodyMultiPointContactConstraint<FReal, 3>& Constraint : Constraints.MultiPointConstraints)
 			{
 				MultiPointQueue.Enqueue(Constraint);
@@ -54,6 +59,15 @@ namespace Chaos
 					CollisionConstraints.AddConstraint(SinglePointConstraint);
 				}
 			}
+			TRigidBodySweptPointContactConstraint<FReal, 3> SinglePointSweptConstraint;
+			while (SingleSweptPointQueue.Dequeue(SinglePointSweptConstraint))
+			{
+				if (!CollisionConstraints.Contains(&SinglePointSweptConstraint))
+				{
+					CollisionConstraints.AddConstraint(SinglePointSweptConstraint);
+				}
+			}
+
 			TRigidBodyMultiPointContactConstraint<FReal, 3> MultiPointConstraint;
 			while (MultiPointQueue.Dequeue(MultiPointConstraint))
 			{
@@ -67,6 +81,7 @@ namespace Chaos
 	private:
 		//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
 		TQueue<TRigidBodyPointContactConstraint<FReal, 3>, EQueueMode::Mpsc> SinglePointQueue;
+		TQueue<TRigidBodySweptPointContactConstraint<FReal, 3>, EQueueMode::Mpsc> SingleSweptPointQueue;
 		TQueue<TRigidBodyMultiPointContactConstraint<FReal, 3>, EQueueMode::Mpsc> MultiPointQueue;
 		FCollisionConstraints& CollisionConstraints;
 	};

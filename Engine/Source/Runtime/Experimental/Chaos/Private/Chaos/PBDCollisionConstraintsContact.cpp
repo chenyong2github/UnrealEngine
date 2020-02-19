@@ -36,6 +36,12 @@ namespace Chaos
 			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(Constraint, Transform0, Transform1, CullDistance);
 		}
 
+		void Update(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance)
+		{
+			// Update as a point constraint (base class).
+			Update(*Constraint.As<FRigidBodyPointContactConstraint>(), CullDistance);
+		}
+
 		void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
@@ -376,12 +382,46 @@ namespace Chaos
 				}
 			}
 		}
+		
+		void ApplySweptImpl(FRigidBodySweptPointContactConstraint& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
+		{
+			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
+			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
+
+			if (IterationParameters.Iteration > 0 || Constraint.TimeOfImpact == 1)
+			{
+				// If not on first iteration, or at TOI = 1 (normal constraint) we don't want to split timestep at TOI.
+				ApplyImpl(Constraint, IterationParameters, ParticleParameters);
+				return;
+			}
+
+			// Rebuild iteration params with partial dt, and non-zero iteration count to force update of constraint.
+			// P may have changed due to other constraints, so at TOI our manifold needs updating.
+			const FReal PartialDT = Constraint.TimeOfImpact * IterationParameters.Dt;
+			const FReal RemainingDT = (1 - Constraint.TimeOfImpact) * IterationParameters.Dt;
+			const int32 FakeIteration = FMath::Max(IterationParameters.Iteration, 1); // Force Apply to update constraint, as other constraints could've changed P
+			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+
+			// Rewind P to TOI and Apply
+			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
+			ApplyImpl(Constraint, IterationParametersPartialDT, ParticleParameters);
+
+			// Advance P to end of frame from TOI, and Apply
+			Particle0->P() = Particle0->P() + Particle0->V() * RemainingDT;
+			ApplyImpl(Constraint, IterationParametersRemainingDT, ParticleParameters);
+		}
+
 
 		void Apply(FCollisionConstraintBase& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
 			if (Constraint.GetType() == FCollisionConstraintBase::FType::SinglePoint)
 			{
 				ApplyImpl(*Constraint.As<FRigidBodyPointContactConstraint>(), IterationParameters, ParticleParameters);
+			}
+			else if (Constraint.GetType() == FCollisionConstraintBase::FType::SinglePointSwept)
+			{
+				ApplySweptImpl(*Constraint.As<FRigidBodySweptPointContactConstraint>(), IterationParameters, ParticleParameters);
 			}
 			else if (Constraint.GetType() == FCollisionConstraintBase::FType::MultiPoint)
 			{
@@ -532,6 +572,10 @@ namespace Chaos
 			if (Constraint.GetType() == FCollisionConstraintBase::FType::SinglePoint)
 			{
 				ApplyPushOutImpl<FRigidBodyPointContactConstraint>(*Constraint.As<FRigidBodyPointContactConstraint>(), IsTemporarilyStatic, IterationParameters, ParticleParameters);
+			}
+			else if (Constraint.GetType() == FCollisionConstraintBase::FType::SinglePointSwept)
+			{
+				ApplyPushOutImpl(*Constraint.As<FRigidBodySweptPointContactConstraint>(), IsTemporarilyStatic, IterationParameters, ParticleParameters);
 			}
 			else if (Constraint.GetType() == FCollisionConstraintBase::FType::MultiPoint)
 			{
