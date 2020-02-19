@@ -112,10 +112,6 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix", DisplayName = "EQ Submix (Legacy)"), AdvancedDisplay)
 	FSoftObjectPath EQSubmix;
 
-	/** The submix through which sounds spatialized using ambisonics are routed */
-	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix"))
-	FSoftObjectPath AmbisonicSubmix;
-
 	/** Sample rate used for voice over IP. VOIP audio is resampled to the application's sample rate on the receiver side. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (DisplayName = "VOIP Sample Rate"))
 	EVoiceSampleRate VoiPSampleRate;

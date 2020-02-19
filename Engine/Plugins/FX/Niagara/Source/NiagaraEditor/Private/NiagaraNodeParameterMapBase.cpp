@@ -174,18 +174,9 @@ void UNiagaraNodeParameterMapBase::GetPinHoverText(const UEdGraphPin& Pin, FStri
 
 			FNiagaraVariable Var = FNiagaraVariable(TypeDef, Pin.PinName);
 			TOptional<FNiagaraVariableMetaData> Metadata = NiagaraGraph->GetMetaData(Var);
-			if (Metadata.IsSet())
-			{
-				FText Desc = FText::Format(LOCTEXT("GetVarTooltip", "Name: \"{0}\"\nType: {1}\nDesc: {2}"), FText::FromName(Pin.PinName),
-					TypeDef.GetNameText(), Metadata->Description);
-				HoverTextOut = Desc.ToString();
-			}
-			else
-			{
-				FText Desc = FText::Format(LOCTEXT("GetVarTooltip_NoDesc", "Name: \"{0}\"\nType: {1}\nDesc: None"), FText::FromName(Pin.PinName),
-					TypeDef.GetNameText());
-				HoverTextOut = Desc.ToString();
-			}
+			FText Description = Metadata.IsSet() ? Metadata->Description : FText::GetEmpty();
+			FText ToolTipText = FNiagaraEditorUtilities::FormatVariableDescription(Description, FText::FromName(Pin.PinName), TypeDef.GetNameText());
+			HoverTextOut = ToolTipText.ToString();
 		}
 	}
 }

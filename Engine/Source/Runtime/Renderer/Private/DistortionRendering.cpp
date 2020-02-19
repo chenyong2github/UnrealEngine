@@ -70,7 +70,7 @@ void SetupDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, cons
 void SetupMobileDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FMobileDistortionPassUniformParameters& DistortionPassParameters)
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-	SetupMobileSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, true, View.bUsesCustomDepthStencil, DistortionPassParameters.SceneTextures);
+	SetupMobileSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, true, View.bCustomDepthStencilValid, DistortionPassParameters.SceneTextures);
 	SetupDistortionParams(DistortionPassParameters.DistortionParams, View);
 }
 
@@ -109,7 +109,7 @@ public:
 	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, IPooledRenderTarget& DistortionRT)
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -136,13 +136,6 @@ public:
 			);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << DistortionTexture << DistortionTextureSampler << SceneColorTexture << SceneColorTextureSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static const TCHAR* GetSourceFilename()
 	{
 		return TEXT("/Engine/Private/DistortApplyScreenPS.usf");
@@ -154,10 +147,10 @@ public:
 	}
 
 private:
-	FShaderResourceParameter DistortionTexture;
-	FShaderResourceParameter DistortionTextureSampler;
-	FShaderResourceParameter SceneColorTexture;
-	FShaderResourceParameter SceneColorTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, DistortionTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, DistortionTextureSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, SceneColorTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, SceneColorTextureSampler);
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -206,7 +199,7 @@ public:
 	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, FRHITexture* PassTexture)
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -220,13 +213,6 @@ public:
 			);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SceneColorTexture << SceneColorTextureSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static const TCHAR* GetSourceFilename()
 	{
 		return TEXT("/Engine/Private/DistortApplyScreenPS.usf");
@@ -238,8 +224,8 @@ public:
 	}
 
 private:
-	FShaderResourceParameter SceneColorTexture;
-	FShaderResourceParameter SceneColorTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, SceneColorTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, SceneColorTextureSampler);
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -285,7 +271,7 @@ protected:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material && IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) && Parameters.Material->IsDistorted();
+		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
 	}
 };
 
@@ -310,7 +296,7 @@ protected:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return FBaseHS::ShouldCompilePermutation(Parameters)
-			&& Parameters.Material && IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) && Parameters.Material->IsDistorted();
+			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
 	}
 };
 
@@ -334,7 +320,7 @@ protected:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return FBaseDS::ShouldCompilePermutation(Parameters)
-			&& Parameters.Material && IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) && Parameters.Material->IsDistorted();
+			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
 	}
 };
 
@@ -354,7 +340,7 @@ class FDistortionMeshPS : public FMeshMaterialShader
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material && IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) && Parameters.Material->IsDistorted();
+		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
 	}
 
 	FDistortionMeshPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -385,12 +371,6 @@ public:
 	
 	FDistortionMeshPS()
 	{
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
 	}
 };
 
@@ -433,8 +413,8 @@ static void DrawDistortionApplyScreenPass(FRHICommandListImmediate& RHICmdList, 
 		kStencilMaskBit, kStencilMaskBit>::GetRHI();
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -452,7 +432,7 @@ static void DrawDistortionApplyScreenPass(FRHICommandListImmediate& RHICmdList, 
 		View.ViewRect.Width(), View.ViewRect.Height(),
 		View.ViewRect.Size(),
 		SceneContext.GetBufferSizeXY(),
-		*VertexShader,
+		VertexShader,
 		EDRF_UseTriangleOptimization);
 }
 
@@ -478,8 +458,8 @@ static void DrawDistortionMergePass(FRHICommandListImmediate& RHICmdList, FScene
 		kStencilMaskBit, kStencilMaskBit>::GetRHI();
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -496,7 +476,7 @@ static void DrawDistortionMergePass(FRHICommandListImmediate& RHICmdList, FScene
 		View.ViewRect.Width(), View.ViewRect.Height(),
 		View.ViewRect.Size(),
 		SceneContext.GetBufferSizeXY(),
-		*VertexShader,
+		VertexShader,
 		EDRF_UseTriangleOptimization);
 }
 
@@ -744,8 +724,9 @@ void FDistortionMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 
 		const EBlendMode BlendMode = Material.GetBlendMode();
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material);
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material);
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
 		if (bIsTranslucent
@@ -762,10 +743,10 @@ void GetDistortionPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	FDistortionMeshHS*& HullShader,
-	FDistortionMeshDS*& DomainShader,
-	FDistortionMeshVS*& VertexShader,
-	FDistortionMeshPS*& PixelShader)
+	TShaderRef<FDistortionMeshHS>& HullShader,
+	TShaderRef<FDistortionMeshDS>& DomainShader,
+	TShaderRef<FDistortionMeshVS>& VertexShader,
+	TShaderRef<FDistortionMeshPS>& PixelShader)
 {
 	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
 

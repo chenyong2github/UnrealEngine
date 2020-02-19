@@ -132,8 +132,10 @@ public:
 
 	FORCEINLINE uint32 GetNumInstances()const { return NumInstances; }
 	FORCEINLINE uint32 GetNumInstancesAllocated()const { return NumInstancesAllocated; }
+	FORCEINLINE uint32 GetNumSpawnedInstances() const { return NumSpawnedInstances; }
 
 	FORCEINLINE void SetNumInstances(uint32 InNumInstances) { check(InNumInstances <= NumInstancesAllocated); NumInstances = InNumInstances; }
+	FORCEINLINE void SetNumSpawnedInstances(uint32 InNumSpawnedInstances) { NumSpawnedInstances = InNumSpawnedInstances; }
 	FORCEINLINE uint32 GetSizeBytes()const { return FloatData.Num() + Int32Data.Num(); }
 	FORCEINLINE FRWBuffer& GetGPUBufferFloat() { return GPUBufferFloat; }
 	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt;	}
@@ -144,6 +146,9 @@ public:
 	FORCEINLINE int32 GetSafeComponentBufferSize() const { return GetSafeComponentBufferSize(GetNumInstancesAllocated()); }
 	FORCEINLINE uint32 GetFloatStride() const { return FloatStride; }
 	FORCEINLINE uint32 GetInt32Stride() const { return Int32Stride; }
+
+	FORCEINLINE uint32 GetIDAcquireTag() const { return IDAcquireTag; }
+	FORCEINLINE void SetIDAcquireTag(uint32 InTag) { IDAcquireTag = InTag; }
 
 	FORCEINLINE FNiagaraDataSet* GetOwner()const { return Owner; }
 
@@ -208,6 +213,10 @@ private:
 	uint32 FloatStride;
 	/** Stride between components in the int32 buffer. */
 	uint32 Int32Stride;
+	/** Number of instances spawned in the last tick. */
+	uint32 NumSpawnedInstances;
+	/** ID acquire tag used in the last tick. */
+	uint32 IDAcquireTag;
 
 	/** Table containing current base locations for all registers in this dataset. */
 	TArray<uint8*> RegisterTable;//TODO: Should make inline? Feels like a useful size to keep local would be too big.
@@ -237,7 +246,7 @@ struct NIAGARA_API FNiagaraDataSetCompiledData
 
 	/** Whether or not this dataset require persistent IDs. */
 	UPROPERTY()
-	uint32 bNeedsPersistentIDs : 1;
+	uint32 bRequiresPersistentIDs : 1;
 
 	/** Unique ID for this DataSet. Used to allow referencing from other emitters and Systems. */
 	UPROPERTY()
@@ -293,12 +302,13 @@ public:
 	/** Returns size in bytes for all data buffers currently allocated by this dataset. */
 	uint32 GetSizeBytes()const;
 
-	FORCEINLINE bool IsInitialized()const { return bInitialized; }
-	FORCEINLINE ENiagaraSimTarget GetSimTarget()const { return CompiledData.SimTarget; }
-	FORCEINLINE FNiagaraDataSetID GetID()const { return CompiledData.ID; }	
-	FORCEINLINE bool GetNeedsPersistentIDs()const { return CompiledData.bNeedsPersistentIDs; }
+	FORCEINLINE bool IsInitialized() const { return bInitialized; }
+	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return CompiledData.SimTarget; }
+	FORCEINLINE FNiagaraDataSetID GetID() const { return CompiledData.ID; }	
+	FORCEINLINE bool RequiresPersistentIDs() const { return CompiledData.bRequiresPersistentIDs; }
 
 	FORCEINLINE TArray<int32>& GetFreeIDTable() { return FreeIDsTable; }
+	FORCEINLINE TArray<int32>& GetSpawnedIDsTable() { return SpawnedIDsTable; }
 	FORCEINLINE int32& GetNumFreeIDs() { return NumFreeIDs; }
 	FORCEINLINE int32& GetMaxUsedID() { return MaxUsedID; }
 	FORCEINLINE int32& GetIDAcquireTag() { return IDAcquireTag; }
@@ -381,6 +391,9 @@ private:
 
 	/** Tag to use when new IDs are acquired. Should be unique per tick. */
 	int32 IDAcquireTag;
+
+	/** Table of IDs spawned in the last tick (just the index part, the acquire tag is IDAcquireTag for all of them). */
+	TArray<int32> SpawnedIDsTable;
 
 	/** GPU buffer of free IDs available on the next tick. */
 	FRWBuffer GPUFreeIDs;
@@ -755,6 +768,8 @@ struct FNiagaraDataSetAccessor<float> : public FNiagaraDataSetAccessorBase
 		DestBase[Index] = InValue;
 	}
 
+	FORCEINLINE const float* const GetX() const { return SrcBase; }
+
 private:
 	float* SrcBase;
 	float* DestBase;
@@ -839,6 +854,9 @@ struct FNiagaraDataSetAccessor<FVector2D> : public FNiagaraDataSetAccessorBase
 		DestXBase[Index] = InValue.X;
 		DestYBase[Index] = InValue.Y;
 	}
+
+	FORCEINLINE const float* const GetX() const { return SrcXBase; }
+	FORCEINLINE const float* const GetY() const { return SrcYBase; }
 
 private:
 
@@ -933,6 +951,10 @@ struct FNiagaraDataSetAccessor<FVector> : public FNiagaraDataSetAccessorBase
 		DestYBase[Index] = InValue.Y;
 		DestZBase[Index] = InValue.Z;
 	}
+
+	FORCEINLINE const float* const GetX() const { return SrcXBase; }
+	FORCEINLINE const float* const GetY() const { return SrcYBase; }
+	FORCEINLINE const float* const GetZ() const { return SrcZBase; }
 
 private:
 
@@ -1502,6 +1524,7 @@ private:
 	uint32 CurrIdx;
 };
 
+#if WITH_EDITOR
 /**
 Allows immediate access to GPU data on the CPU, you can then use FNiagaraDataSetAccessor to access the data.
 This will make a copy of the GPU data and will stall the CPU until the data is ready from the GPU,
@@ -1529,7 +1552,7 @@ private:
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 	uint32				NumInstances = 0;
 };
-
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 

@@ -60,7 +60,7 @@ namespace amf
     // AMFInterface interface  - base class for all AMF interfaces
     //------------------------------------------------------------------------
 #if defined(__cplusplus)
-    class AMF_NO_VTABLE AMFInterface
+    class AMFInterface
     {
     public:
         AMF_DECLARE_IID(0x9d872f34, 0x90dc, 0x4b93, 0xb6, 0xb2, 0x6c, 0xa3, 0x7c, 0x85, 0x25, 0xdb)

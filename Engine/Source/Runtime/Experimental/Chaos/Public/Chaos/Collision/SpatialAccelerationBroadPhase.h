@@ -7,6 +7,7 @@
 #include "Chaos/ISpatialAccelerationCollection.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "Chaos/Capsule.h"
 
 namespace Chaos
 {
@@ -44,6 +45,8 @@ namespace Chaos
 			check(false);
 			return false;
 		}
+
+		const void* GetQueryData() const { return nullptr; }
 	};
 
 	/**
@@ -200,7 +203,10 @@ namespace Chaos
 					}
 
 					// Sleeping won't collide against another sleeping and sleeping vs dynamic gets picked up by the other direction.
-					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() && Particle2.ObjectState() == EObjectStateType::Kinematic;
+					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
+						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
+							(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
+								Particle2.Geometry()->GetType(true) == TCapsule<float>::StaticType()));
 					if (Particle1.ObjectState() == EObjectStateType::Sleeping && !bIsParticle2Kinematic)
 					{
 						continue;
@@ -231,4 +237,43 @@ namespace Chaos
 		const TPBDRigidsSOAs<FReal, 3>& Particles;
 		const FAccelerationStructure* SpatialAcceleration;
 	};
+
+
+
+
+	extern void MoveToTOIPairHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle1, const TGeometryParticleHandle<FReal, 3>* Particle2);
+
+	template<typename T_SPATIALACCELERATION>
+	void MoveToTOIHackImpl(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle1, const T_SPATIALACCELERATION* SpatialAcceleration)
+	{
+		TArray<TAccelerationStructureHandle<FReal, 3>> PotentialIntersections;
+		const TAABB<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox(Particle1);
+		TSimOverlapVisitor<FReal, 3> OverlapVisitor(PotentialIntersections);
+		SpatialAcceleration->Overlap(Box1, OverlapVisitor);
+
+		const int32 NumPotentials = PotentialIntersections.Num();
+		for (int32 i = 0; i < NumPotentials; ++i)
+		{
+			auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
+
+			// We only care about static/kinematics
+			if (Particle2.CastToRigidParticle() && (Particle2.CastToRigidParticle()->ObjectState() == EObjectStateType::Dynamic))
+			{
+				continue;
+			}
+			if (!Particle1.Geometry() && !Particle2.Geometry())
+			{
+				continue;
+			}
+
+			const bool bBody2Bounded = HasBoundingBox(Particle2);
+			if (Particle1.Handle() == Particle2.Handle())
+			{
+				continue;
+			}
+
+			MoveToTOIPairHack(Dt, Particle1.Handle(), &Particle2);
+		}
+	}
+
 }

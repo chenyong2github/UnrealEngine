@@ -424,6 +424,7 @@ void FAppleHttpRequest::CleanupRequest()
 
 void FAppleHttpRequest::CancelRequest()
 {
+	
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpRequest::CancelRequest()"));
 	if(Connection != nullptr)
 	{

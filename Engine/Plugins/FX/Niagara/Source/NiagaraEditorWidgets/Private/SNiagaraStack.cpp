@@ -24,6 +24,7 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Widgets/Input/SButton.h"
@@ -53,6 +54,7 @@
 #include "NiagaraStackCommandContext.h"
 #include "NiagaraEditorUtilities.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStack"
 
@@ -62,6 +64,7 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraStackEmitterHeader) {}
 		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility);
 		SLATE_EVENT(FSimpleDelegate, OnCycleThroughIssues);
+		SLATE_ARGUMENT(TSharedPtr<SNiagaraStack>, ParentStack)
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, UNiagaraStackEntry* InRootEntry, UNiagaraStackViewModel* InStackViewModel)
@@ -70,7 +73,7 @@ public:
 		OnCycleThroughIssues = InArgs._OnCycleThroughIssues;
 		StackViewModel = InStackViewModel;
 		TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*InRootEntry);
-
+		ParentStackPtr = InArgs._ParentStack;
 		ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -136,28 +139,27 @@ public:
 					.Visibility(InArgs._IssueIconVisibility)
 					.OnClicked(this, &SNiagaraStackEmitterHeader::OnIssueIconClicked)
 				]
-				// Open and Focus Source Emitter
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Center)
 				.Padding(0, 0, 2, 0)
 				[
-					SNew(SButton)
-					.IsFocusable(false)
-					.ToolTipText(LOCTEXT("OpenAndFocusParentEmitterToolTip", "Open and Focus Parent Emitter"))
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-					.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
-					.ContentPadding(2)
-					.OnClicked(this, &SNiagaraStackEmitterHeader::OpenParentEmitter)
-					.Visibility(this, &SNiagaraStackEmitterHeader::GetOpenSourceEmitterVisibility)
-					// GoToSource icon is 30x30px so we scale it down to stay in line with other 12x12px UI
-					.DesiredSizeScale(FVector2D(0.55f, 0.55f))
-					.Content()
+					SAssignNew(SettingsAnchor, SMenuAnchor)
+					.Placement(MenuPlacement_MenuLeft)
+					.OnGetMenuContent(this, &SNiagaraStackEmitterHeader::OnGetContent)
 					[
-						SNew(SImage)
-						.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.GoToSourceIcon"))
-						.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+						SNew(SButton)
+						.ForegroundColor(FSlateColor::UseForeground())
+						.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton"))
+						.OnClicked(this, &SNiagaraStackEmitterHeader::OpenSubmenu)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Fill)
+						[
+							SNew(STextBlock)
+							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
+							.Text(FEditorFontGlyphs::Cogs)
+						]
 					]
 				]
 			]
@@ -210,17 +212,6 @@ private:
 		return bIsRenamed ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
-
-	FReply OpenParentEmitter()
-	{
-		UNiagaraEmitter* ParentEmitter = const_cast<UNiagaraEmitter*>(EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter());
-		if (ParentEmitter != nullptr)
-		{
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentEmitter);
-		}
-		return FReply::Handled();
-	}
-
 	EVisibility GetOpenSourceEmitterVisibility() const
 	{
 		return EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter()->GetParent() != nullptr ? EVisibility::Visible : EVisibility::Collapsed;
@@ -233,6 +224,21 @@ private:
 		return FReply::Handled();
 	}
 
+	FReply OpenSubmenu()
+	{
+		SettingsAnchor->SetIsOpen(!SettingsAnchor->IsOpen());
+		return FReply::Handled();
+	}
+
+	TSharedRef<SWidget> OnGetContent() const
+	{
+		if (ParentStackPtr.IsValid())
+		{
+			return ParentStackPtr.Pin()->GenerateStackMenu(TopLevelViewModel).ToSharedRef();
+		}
+		return SNullWidget::NullWidget;
+	}
+
 private:
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 	TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel;
@@ -240,6 +246,8 @@ private:
 	TSharedPtr<SInlineEditableTextBlock> EmitterNameTextBlock;
 	FSimpleDelegate OnCycleThroughIssues;
 	UNiagaraStackViewModel* StackViewModel;
+	TWeakPtr<SNiagaraStack> ParentStackPtr;
+	TSharedPtr<SMenuAnchor> SettingsAnchor;
 };
 
 const float SpacerHeight = 6;
@@ -706,10 +714,9 @@ TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForTopLevelObject(TSharedRef<U
 	{
 		Content = SNew(SNiagaraStackEmitterHeader, Item->EmitterHandleViewModel.ToSharedRef(), Item->RootEntry.Get(), StackViewModel)
 			.IssueIconVisibility(this, &SNiagaraStack::GetIssueIconVisibility)
-			.OnCycleThroughIssues(this, &SNiagaraStack::OnCycleThroughIssues);
+			.OnCycleThroughIssues(this, &SNiagaraStack::OnCycleThroughIssues)
+			.ParentStack(SharedThis(this));
 	}
-
-	Content->SetOnMouseButtonUp(FPointerEventHandler::CreateSP(this, &SNiagaraStack::OnTopLevelRowMouseButtonDown, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel>(Item)));
 
 	return SNew(STableRow<TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel>>, OwnerTable)
 		[
@@ -717,14 +724,23 @@ TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForTopLevelObject(TSharedRef<U
 		];
 }
 
-FReply SNiagaraStack::OnTopLevelRowMouseButtonDown(const FGeometry&, const FPointerEvent& MouseEvent, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModelWeak)
+TSharedPtr<SWidget> SNiagaraStack::GenerateStackMenu(TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModelWeak)
 {
 	TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel = TopLevelViewModelWeak.Pin();
-	if (TopLevelViewModel.IsValid() && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	if (TopLevelViewModel.IsValid())
 	{
 		FMenuBuilder MenuBuilder(true, nullptr);
 
 		FNiagaraEditorUtilities::AddEmitterContextMenuActions(MenuBuilder, TopLevelViewModel->EmitterHandleViewModel);
+
+		MenuBuilder.BeginSection("EmitterEditSection", LOCTEXT("Edit", "Edit"));
+
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
+
+		MenuBuilder.EndSection();
 
 		MenuBuilder.BeginSection("StackActions", LOCTEXT("StackActions", "Stack Actions"));
 		{
@@ -752,11 +768,9 @@ FReply SNiagaraStack::OnTopLevelRowMouseButtonDown(const FGeometry&, const FPoin
 		}
 		MenuBuilder.EndSection();
 
-		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
-		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuBuilder.MakeWidget(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
-		return FReply::Handled();
+		return MenuBuilder.MakeWidget();
 	}
-	return FReply::Unhandled();
+	return SNullWidget::NullWidget;
 }
 
 TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiagaraStackEntry* Item)
@@ -898,7 +912,8 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackFunctionInput* FunctionInput = CastChecked<UNiagaraStackFunctionInput>(Item);
 		return FRowWidgets(
-			SNew(SNiagaraStackFunctionInputName, FunctionInput, StackViewModel),
+			SNew(SNiagaraStackFunctionInputName, FunctionInput, StackViewModel)
+			.IsSelected(Container, &SNiagaraStackTableRow::IsSelected),
 			SNew(SNiagaraStackFunctionInputValue, FunctionInput));
 	}
 	else if (Item->IsA<UNiagaraStackErrorItem>())

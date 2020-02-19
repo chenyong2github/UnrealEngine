@@ -13,7 +13,7 @@ LUMIN_THIRD_PARTY_INCLUDES_END
 namespace MLSDK_API
 {
 
-CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLControllerCreate)
+	CREATE_DEPRECATED_MSG_SHIM(ml_perception_client, MLResult, MLControllerCreate, "Replaced by MLControllerCreateEx.")
 #define MLControllerCreate ::MLSDK_API::MLControllerCreateShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLControllerCreateEx)
 #define MLControllerCreateEx ::MLSDK_API::MLControllerCreateExShim

@@ -89,7 +89,7 @@ FPrimitiveViewRelevance FLineBatcherSceneProxy::GetViewRelevance(const FSceneVie
 	ViewRelevance.bDrawRelevance = IsShown(View);
 	ViewRelevance.bDynamicRelevance = true;
 	// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
-	ViewRelevance.bSeparateTranslucencyRelevance = ViewRelevance.bNormalTranslucencyRelevance = true;
+	ViewRelevance.bSeparateTranslucency = ViewRelevance.bNormalTranslucency = true;
 	return ViewRelevance;
 }
 

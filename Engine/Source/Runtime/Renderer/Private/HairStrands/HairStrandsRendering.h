@@ -40,8 +40,10 @@ void RunHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList, 
 	EWorldType::Type WorldType, 
 	const struct FShaderDrawDebugData* DebugShaderData,
-	TShaderMap<FGlobalShaderType>* ShaderMap, 
+	FGlobalShaderMap* ShaderMap, 
 	EHairStrandsInterpolationType Type,
 	FHairStrandClusterData* ClusterData);
 
-
+void RunHairStrandsBindingQueries(
+	FRHICommandListImmediate& RHICmdList,
+	TShaderMap<FGlobalShaderType>* ShaderMap);

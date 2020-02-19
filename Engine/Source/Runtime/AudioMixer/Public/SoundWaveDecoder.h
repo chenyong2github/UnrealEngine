@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "Engine/Public/AudioDevice.h"
 #include "Engine/Classes/Sound/SoundWave.h"
-#include "AudioMixer/Private/AudioMixerBuffer.h"
-#include "AudioMixer/Private/AudioMixerSourceBuffer.h"
 #include "DSP/SinOsc.h"
 #include "DSP/ParamInterpolator.h"
+#include "Misc/ScopeLock.h"
+
+
 
 class FAudioDevice;
 
@@ -16,6 +17,10 @@ class FAudioDevice;
 
 namespace Audio
 {
+	class FMixerBuffer;
+	class FMixerSourceBuffer;
+	struct FMixerSourceVoiceBuffer;
+
 	struct FDecodingSoundSourceHandle
 	{
 		FDecodingSoundSourceHandle()
@@ -33,12 +38,14 @@ namespace Audio
 			, SeekTime(0.0f)
 			, PitchScale(1.0f)
 			, VolumeScale(1.0f)
+			, bForceSyncDecode(false)
 		{}
 
 		USoundWave* SoundWave;
 		float SeekTime;
 		float PitchScale;
 		float VolumeScale;
+		bool bForceSyncDecode;
 		FDecodingSoundSourceHandle Handle;
 	};
 
@@ -69,8 +76,14 @@ namespace Audio
 		// Sets the volume scale
 		void SetVolumeScale(float InVolumeScale, uint32 NumFrames = 512);
 
+		// Sets the ForceSyncDecode flag. (Decodes for this soundwave will not happen in an async task if true)
+		void SetForceSyncDecode(bool bShouldForceSyncDecode);
+
 		// Get audio buffer
 		bool GetAudioBuffer(const int32 InNumFrames, const int32 InNumChannels, AlignedFloatBuffer& OutAudioBuffer);
+
+		// Return the underlying sound wave
+		USoundWave* GetSoundWave() { return SoundWave; }
 
 	private:
 
@@ -83,7 +96,7 @@ namespace Audio
 		// The sound wave object with which this sound is generating
 		USoundWave* SoundWave;
 
-		// Mixer buffer object which is a conveince wrapper around some buffer initialization and management
+		// Mixer buffer object which is a convenience wrapper around some buffer initialization and management
 		FMixerBuffer* MixerBuffer;
 
 		// Object which handles bulk of decoding operations
@@ -97,6 +110,9 @@ namespace Audio
 
 		// If we've initialized	
 		FThreadSafeBool bInitialized;
+
+		// force the decoding of this sound to be synchronous
+		bool bForceSyncDecode{false};
 
 		// Object used for source generation from decoded buffers
 		struct FSourceInfo
@@ -185,11 +201,15 @@ namespace Audio
 
 	typedef TSharedPtr<FDecodingSoundSource> FDecodingSoundSourcePtr;
 	
-	class AUDIOMIXER_API FSoundSourceDecoder
+	class AUDIOMIXER_API FSoundSourceDecoder : public FGCObject
 	{
 	public:
 		FSoundSourceDecoder();
 		virtual ~FSoundSourceDecoder();
+
+		//~ Begin FGCObject
+		virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
+		//~ End FGCObject
 
 		// Initialize the source decoder at the given output sample rate
 		// Sources will automatically sample rate convert to match this output
@@ -236,6 +256,7 @@ namespace Audio
 		int32 AudioThreadId;
 		FAudioDevice* AudioDevice;
 		int32 SampleRate;
+		FCriticalSection DecodingSourcesCritSec;
 		TMap<int32, FDecodingSoundSourcePtr> InitializingDecodingSources;
 		TMap<int32, FDecodingSoundSourcePtr> DecodingSources;
 		TMap<int32, FSourceDecodeInit> PrecachingSources;

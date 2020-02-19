@@ -174,8 +174,13 @@ class COREUOBJECT_API FArchiveStackTrace : public FLargeMemoryWriter
 		}
 	}
 
-	bool IsInDiffMap(int64 InOffset) const
+	bool ShouldLogOffset(int64 InOffset) const
 	{
+		if (!DiffMap)
+		{
+			return true;
+		}
+
 		for (const FArchiveDiffInfo& Diff : *DiffMap)
 		{
 			if (Diff.Offset <= InOffset && InOffset < (Diff.Offset + Diff.Size))

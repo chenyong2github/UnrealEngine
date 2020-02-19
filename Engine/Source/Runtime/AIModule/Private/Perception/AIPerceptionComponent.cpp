@@ -53,6 +53,7 @@ UAIPerceptionComponent::UAIPerceptionComponent(const FObjectInitializer& ObjectI
 	, PerceptionListenerId(FPerceptionListenerID::InvalidID())
 	, bCleanedUp(false)
 {
+	bForgetStaleActors = GET_AI_CONFIG_VAR(bForgetStaleActors);
 }
 
 void UAIPerceptionComponent::RequestStimuliListenerUpdate()
@@ -105,29 +106,38 @@ void UAIPerceptionComponent::PostInitProperties()
 
 void UAIPerceptionComponent::ConfigureSense(UAISenseConfig& Config)
 {
-	int32 ConfigIndex = INDEX_NONE;
 	// first check if we're reconfiguring a sense
-	for (int32 Index = 0; Index < SensesConfig.Num(); ++Index)
+	bool bIsNewConfig = true;
+	for (UAISenseConfig*& SenseConfig : SensesConfig)
 	{
-		if (SensesConfig[Index] != nullptr
-			&& SensesConfig[Index]->GetClass() == Config.GetClass())
+		if (SenseConfig != nullptr && SenseConfig->GetClass() == Config.GetClass())
 		{
-			ConfigIndex = Index;
-			SensesConfig[Index] = &Config;
-			SetMaxStimulusAge(Index, Config.GetMaxAge());
+			SenseConfig = &Config;
+			bIsNewConfig = false;
 			break;
 		}
 	}
 
-	if (ConfigIndex == INDEX_NONE)
+	if (bIsNewConfig)
 	{
-		ConfigIndex = SensesConfig.Add(&Config);
-		SetMaxStimulusAge(ConfigIndex, Config.GetMaxAge());
+		SensesConfig.Add(&Config);
 	}
 
 	if (IsRegistered())
 	{
-		RequestStimuliListenerUpdate();
+	    UAIPerceptionSystem* AIPerceptionSys = UAIPerceptionSystem::GetCurrent(GetWorld());
+	    if (AIPerceptionSys != nullptr)
+	    {
+			if (bIsNewConfig)
+			{
+				RegisterSenseConfig(Config, *AIPerceptionSys);
+			}
+			else
+			{
+				SetMaxStimulusAge(Config.GetSenseID(), Config.GetMaxAge());
+			}
+		    AIPerceptionSys->OnListenerConfigUpdated(Config.GetSenseID(), *this);
+	    }
 	}
 	// else the sense will be auto-configured during OnRegister
 }
@@ -137,13 +147,18 @@ UAIPerceptionComponent::TAISenseConfigConstIterator UAIPerceptionComponent::GetS
 	return SensesConfig.CreateConstIterator();
 }
 
-void UAIPerceptionComponent::SetMaxStimulusAge(int32 ConfigIndex, float MaxAge)
+void UAIPerceptionComponent::SetMaxStimulusAge(FAISenseID SenseID, float MaxAge)
 {
-	if (MaxActiveAge.IsValidIndex(ConfigIndex) == false)
+	if (!ensureMsgf(SenseID.IsValid(), TEXT("Sense must exist to update max age")))
 	{
-		MaxActiveAge.AddUninitialized(ConfigIndex - MaxActiveAge.Num() + 1);
+		return;
 	}
-	MaxActiveAge[ConfigIndex] = MaxAge;
+
+	if (MaxActiveAge.IsValidIndex(SenseID) == false)
+	{
+		MaxActiveAge.AddUninitialized(SenseID - MaxActiveAge.Num() + 1);
+	}
+	MaxActiveAge[SenseID] = MaxAge;
 
 	// @todo process all data already gathered and see if any _still_active_ stimuli
 	// got it's expiration prolonged, with SetExpirationAge
@@ -174,22 +189,7 @@ void UAIPerceptionComponent::OnRegister()
 			{
 				if (SenseConfig)
 				{
-					TSubclassOf<UAISense> SenseImplementation = SenseConfig->GetSenseImplementation();
-
-					if (SenseImplementation)
-					{
-						// make sure it's registered with perception system
-						AIPerceptionSys->RegisterSenseClass(SenseImplementation);
-
-						if (SenseConfig->IsEnabled())
-						{
-							PerceptionFilter.AcceptChannel(UAISense::GetSenseID(SenseImplementation));
-						}
-
-						const FAISenseID SenseID = UAISense::GetSenseID(SenseImplementation);
-						check(SenseID.IsValid());
-						SetMaxStimulusAge(SenseID, SenseConfig->GetMaxAge());
-					}
+					RegisterSenseConfig(*SenseConfig, *AIPerceptionSys);
 				}
 			}
 
@@ -205,6 +205,24 @@ void UAIPerceptionComponent::OnRegister()
 	if (AIOwner && AIOwner->GetAIPerceptionComponent() == nullptr)
 	{
 		AIOwner->SetPerceptionComponent(*this);
+	}
+}
+
+void UAIPerceptionComponent::RegisterSenseConfig(UAISenseConfig& SenseConfig, UAIPerceptionSystem& AIPerceptionSys)
+{
+	const TSubclassOf<UAISense> SenseImplementation = SenseConfig.GetSenseImplementation();
+	if (SenseImplementation)
+	{
+		// make sure it's registered with perception system
+		const FAISenseID SenseID = AIPerceptionSys.RegisterSenseClass(SenseImplementation);
+		check(SenseID.IsValid());
+
+		if (SenseConfig.IsEnabled())
+		{
+			PerceptionFilter.AcceptChannel(SenseID);
+		}
+
+		SetMaxStimulusAge(SenseID, SenseConfig.GetMaxAge());
 	}
 }
 
@@ -415,6 +433,8 @@ void UAIPerceptionComponent::ProcessStimuli()
 	
 	TArray<AActor*> UpdatedActors;
 	UpdatedActors.Reserve(StimuliToProcess.Num());
+	TArray<AActor*> ActorsToForget;
+	ActorsToForget.Reserve(StimuliToProcess.Num());
 
 	for (FStimulusToProcess& SourcedStimulus : StimuliToProcess)
 	{
@@ -470,6 +490,14 @@ void UAIPerceptionComponent::ProcessStimuli()
 		else
 		{
 			HandleExpiredStimulus(StimulusStore);
+
+			if (bForgetStaleActors && !PerceptualInfo->HasAnyCurrentStimulus())
+			{
+				if (AActor* ActorToForget = PerceptualInfo->Target.Get())
+				{
+					ActorsToForget.Add(ActorToForget);
+				}
+			}
 		}
 
 		// if the new stimulus is "valid" or it's info that "no longer sensed" and it used to be sensed successfully
@@ -493,6 +521,11 @@ void UAIPerceptionComponent::ProcessStimuli()
 		}
 
 		OnPerceptionUpdated.Broadcast(UpdatedActors);
+	}
+
+	for (AActor* ActorToForget : ActorsToForget)
+	{
+		ForgetActor(ActorToForget);
 	}
 }
 

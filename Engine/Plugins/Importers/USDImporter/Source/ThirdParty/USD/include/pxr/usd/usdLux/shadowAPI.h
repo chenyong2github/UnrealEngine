@@ -126,7 +126,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDLUX_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -138,7 +138,7 @@ private:
 
     // override SchemaBase virtuals.
     USDLUX_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -146,10 +146,11 @@ public:
     // --------------------------------------------------------------------- //
     /// Enables shadows to be cast by this light.
     ///
-    /// \n  C++ Type: bool
-    /// \n  Usd Type: SdfValueTypeNames->Bool
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: True
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `bool shadow:enable = 1` |
+    /// | C++ Type | bool |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Bool |
     USDLUX_API
     UsdAttribute GetShadowEnableAttr() const;
 
@@ -168,10 +169,11 @@ public:
     /// The color of shadows cast by the light.  This is a
     /// non-physical control.  The default is to cast black shadows.
     ///
-    /// \n  C++ Type: GfVec3f
-    /// \n  Usd Type: SdfValueTypeNames->Color3f
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: (0, 0, 0)
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `color3f shadow:color = (0, 0, 0)` |
+    /// | C++ Type | GfVec3f |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Color3f |
     USDLUX_API
     UsdAttribute GetShadowColorAttr() const;
 
@@ -188,12 +190,14 @@ public:
     // SHADOWDISTANCE 
     // --------------------------------------------------------------------- //
     /// The maximum distance shadows are cast.
-    /// There is no limit unless this attribute value is overridden.
+    /// The default value (-1) indicates no limit.
+    /// 
     ///
-    /// \n  C++ Type: float
-    /// \n  Usd Type: SdfValueTypeNames->Float
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `float shadow:distance = -1` |
+    /// | C++ Type | float |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
     UsdAttribute GetShadowDistanceAttr() const;
 
@@ -209,13 +213,15 @@ public:
     // --------------------------------------------------------------------- //
     // SHADOWFALLOFF 
     // --------------------------------------------------------------------- //
-    /// The near distance at which shadow falloff beings.
-    /// There is no falloff unless this attribute value is overridden.
+    /// The near distance at which shadow falloff begins.
+    /// The default value (-1) indicates no falloff.
+    /// 
     ///
-    /// \n  C++ Type: float
-    /// \n  Usd Type: SdfValueTypeNames->Float
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `float shadow:falloff = -1` |
+    /// | C++ Type | float |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
     UsdAttribute GetShadowFalloffAttr() const;
 
@@ -235,10 +241,11 @@ public:
     /// with linear distance within the falloff zone.
     /// This requires the use of shadowDistance and shadowFalloff.
     ///
-    /// \n  C++ Type: float
-    /// \n  Usd Type: SdfValueTypeNames->Float
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: 1.0
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `float shadow:falloffGamma = 1` |
+    /// | C++ Type | float |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
     UsdAttribute GetShadowFalloffGammaAttr() const;
 

@@ -53,7 +53,29 @@ class SdfAssetPath;
 /// \class UsdLuxDomeLight
 ///
 /// Light emitted inward from a distant external environment,
-/// such as a sky or IBL light probe.
+/// such as a sky or IBL light probe.  The orientation of a dome light with a
+/// latlong texture is expected to match the OpenEXR specification for latlong 
+/// environment maps.  From the OpenEXR documentation:
+/// 
+/// -------------------------------------------------------------------------
+/// Latitude-Longitude Map:
+/// 
+/// The environment is projected onto the image using polar coordinates
+/// (latitude and longitude).  A pixel's x coordinate corresponds to
+/// its longitude, and the y coordinate corresponds to its latitude.
+/// Pixel (dataWindow.min.x, dataWindow.min.y) has latitude +pi/2 and
+/// longitude +pi; pixel (dataWindow.max.x, dataWindow.max.y) has
+/// latitude -pi/2 and longitude -pi.
+/// 
+/// In 3D space, latitudes -pi/2 and +pi/2 correspond to the negative and
+/// positive y direction.  Latitude 0, longitude 0 points into positive
+/// z direction; and latitude 0, longitude pi/2 points into positive x
+/// direction.
+/// 
+/// The size of the data window should be 2*N by N pixels (width by height),
+/// where N can be any integer greater than 0.
+/// -------------------------------------------------------------------------
+/// 
 ///
 /// For any described attribute \em Fallback \em Value or \em Allowed \em Values below
 /// that are text/tokens, the actual token is published and defined in \ref UsdLuxTokens.
@@ -140,7 +162,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDLUX_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -152,7 +174,7 @@ private:
 
     // override SchemaBase virtuals.
     USDLUX_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -161,10 +183,11 @@ public:
     /// A color texture to use on the dome, such as an HDR (high
     /// dynamic range) texture intended for IBL (image based lighting).
     ///
-    /// \n  C++ Type: SdfAssetPath
-    /// \n  Usd Type: SdfValueTypeNames->Asset
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `asset texture:file` |
+    /// | C++ Type | SdfAssetPath |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Asset |
     USDLUX_API
     UsdAttribute GetTextureFileAttr() const;
 
@@ -195,11 +218,12 @@ public:
     /// vertical cross.
     /// 
     ///
-    /// \n  C++ Type: TfToken
-    /// \n  Usd Type: SdfValueTypeNames->Token
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: automatic
-    /// \n  \ref UsdLuxTokens "Allowed Values": [automatic, latlong, mirroredBall, angular, cubeMapVerticalCross]
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `token texture:format = "automatic"` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    /// | \ref UsdLuxTokens "Allowed Values" | automatic, latlong, mirroredBall, angular, cubeMapVerticalCross |
     USDLUX_API
     UsdAttribute GetTextureFormatAttr() const;
 
@@ -236,6 +260,18 @@ public:
     //  - Close the include guard with #endif
     // ===================================================================== //
     // --(BEGIN CUSTOM CODE)--
+
+    /// Adds a transformation op, if neeeded, to orient the dome to align with
+    /// the stage's up axis.  Uses UsdLuxTokens->orientToStageUpAxis as the op
+    /// suffix.  If an op with this suffix already exists, this method assumes
+    /// it is already applying the proper correction and does nothing further.
+    /// If no op is required to match the stage's up axis, no op will be
+    /// created.
+    ///
+    /// \see UsdGeomXformOp
+    /// \see UsdGeomGetStageUpAxis
+    USDLUX_API
+    void OrientToStageUpAxis() const;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

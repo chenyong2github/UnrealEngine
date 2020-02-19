@@ -280,9 +280,9 @@ void UDecalComponent::BeginPlay()
 	SetLifeSpan(FadeStartDelay + FadeDuration);
 }
 
-void UDecalComponent::CreateRenderState_Concurrent()
+void UDecalComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	// Mimics UPrimitiveComponent's visibility logic, although without the UPrimitiveCompoent visibility flags
 	if ( ShouldComponentAddToScene() && ShouldRender() )

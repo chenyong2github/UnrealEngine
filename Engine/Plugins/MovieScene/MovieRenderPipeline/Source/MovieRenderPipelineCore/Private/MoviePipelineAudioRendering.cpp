@@ -25,7 +25,7 @@ static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextO
 		return nullptr;
 	}
 
-	return ThisWorld->GetAudioDevice();
+	return ThisWorld->GetAudioDevice().GetAudioDevice();
 }
 
 static Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject)
@@ -152,7 +152,7 @@ void UMoviePipeline::ProcessAudioTick()
 		AudioDeltaTime = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence).AsInterval();
 	}
 
-	if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetActiveAudioDevice())
+	if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetActiveAudioDevice().GetAudioDevice())
 	{
 		// Handle any game logic that changed Audio State.
 		AudioDevice->Update(true);

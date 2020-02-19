@@ -159,6 +159,11 @@ FString UKismetSystemLibrary::GetPlatformUserName()
 	return FString(FPlatformProcess::UserName());
 }
 
+FString UKismetSystemLibrary::GetPlatformUserDir()
+{
+	return FString(FPlatformProcess::UserDir());
+}
+
 bool UKismetSystemLibrary::DoesImplementInterface(UObject* TestObject, TSubclassOf<UInterface> Interface)
 {
 	if (Interface != NULL && TestObject != NULL)
@@ -201,6 +206,12 @@ bool UKismetSystemLibrary::IsStandalone(UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	return World ? (World->GetNetMode() == NM_Standalone) : false;
+}
+
+bool UKismetSystemLibrary::IsSplitScreen(UObject* WorldContextObject)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	return World ? GEngine->IsSplitScreen(World) : false;
 }
 
 bool UKismetSystemLibrary::IsPackagedForDistribution()
@@ -438,7 +449,7 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimer(UObject* Object, FString Function
 	InitialStartDelay += FMath::RandRange(-InitialStartDelayVariance, InitialStartDelayVariance);
 	if (Time <= 0.f || ((Time + InitialStartDelay) - InitialStartDelayVariance) < 0.f)
 	{
-		FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative time.  The associated timer may fail to fire!  If using InitialStartDelayVariance, be sure it is smaller than (Time + InitialStartDelay)."), ELogVerbosity::Warning);
+		FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative or zero time.  The associated timer may fail to fire!  If using InitialStartDelayVariance, be sure it is smaller than (Time + InitialStartDelay)."), ELogVerbosity::Warning);
 	}
 
 	FTimerDynamicDelegate Delegate;
@@ -457,7 +468,7 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimerDelegate(FTimerDynamicDelegate Del
 			InitialStartDelay += FMath::RandRange(-InitialStartDelayVariance, InitialStartDelayVariance);
 			if (Time <= 0.f || ((Time + InitialStartDelay) - InitialStartDelayVariance) < 0.f)
 			{
-				FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative time or initial start delay.  The associated timer may fail to fire!  If using InitialStartDelayVariance, be sure it is smaller than (Time + InitialStartDelay)."), ELogVerbosity::Warning);
+				FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative or zero time.  The associated timer may fail to fire!  If using InitialStartDelayVariance, be sure it is smaller than (Time + InitialStartDelay)."), ELogVerbosity::Warning);
 			}
 
 			FTimerManager& TimerManager = World->GetTimerManager();
@@ -3088,5 +3099,4 @@ void UKismetSystemLibrary::GetPrimaryAssetsWithBundleState(const TArray<FName>& 
 		Manager->GetPrimaryAssetsWithBundleState(OutPrimaryAssetIdList, ValidTypes, RequiredBundles, ExcludedBundles, bForceCurrentState);
 	}
 }
-
 #undef LOCTEXT_NAMESPACE

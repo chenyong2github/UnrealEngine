@@ -103,7 +103,8 @@ void MainPS(
 			float3			SampleBaseColor;
 			float			SampleRoughness;
 			float			SampleSpecular;
-			DecodeNodeData(Data, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+			uint			SampleLigthChannelMask;
+			DecodeNodeData(Data, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLigthChannelMask);
 
 			if (bAverageAllSamples)
 			{

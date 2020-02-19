@@ -24,6 +24,11 @@ struct FGPUSortBuffers
 	/** Unordered access views for vertex buffers containing the values. */
 	FRHIUnorderedAccessView* RemoteValueUAVs[2];
 
+	/** Shader resource view holding the initial state of the values. */
+	FRHIShaderResourceView* FirstValuesSRV = nullptr;
+	/** Unordered access view holding the final state of the value. */
+	FRHIUnorderedAccessView* FinalValuesUAV = nullptr;
+
 	/** Default constructor. */
 	FGPUSortBuffers()
 	{
@@ -44,7 +49,7 @@ int32 GetGPUSortPassCount(uint32 KeyMask);
  * @param Count - How many items in the buffer need to be sorted.
  * @returns The index of the buffer containing sorted results.
  */
-ENGINE_API int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortBuffers, int32 BufferIndex, uint32 KeyMask, int32 Count, ERHIFeatureLevel::Type FeatureLevel);
+int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortBuffers, int32 BufferIndex, uint32 KeyMask, int32 Count, ERHIFeatureLevel::Type FeatureLevel);
 
 /**
  * GPU sorting tests.

@@ -196,6 +196,7 @@ public:
 				CollectedResults.Add(Instance.Payload);
 				return true;
 			}
+			const void* GetQueryData() const { return nullptr; }
 			TArray<TPayloadType>& CollectedResults;
 		};
 
@@ -345,21 +346,46 @@ public:
 
 	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, T>>& OutElements)
 	{
+		OutElements.Reserve(GetReserveCount());
 		OutElements.Append(MGlobalPayloads);
-		OutElements.Reserve(OutElements.Num() + MDirtyElements.Num());
-		for(const FCellElement& Elem : MDirtyElements)
+		
+		for (const FCellElement& Elem : MDirtyElements)
 		{
 			OutElements.Add(TPayloadBoundsElement<TPayloadType,T>{Elem.Payload,Elem.Bounds});
 		}
 
-		for(int32 Idx = 0; Idx < MElements.Num(); ++Idx)
+		const auto& Counts = MGrid.Counts();
+		for (int32 X = 0; X < Counts[0]; ++X)
 		{
-			const TArray<FCellElement>& Elems = MElements[Idx];
-			for(const FCellElement& Elem : Elems)
+			for (int32 Y = 0; Y < Counts[1]; ++Y)
 			{
-				OutElements.Add(TPayloadBoundsElement<TPayloadType,T>{Elem.Payload,Elem.Bounds});
+				for (int32 Z = 0; Z < Counts[2]; ++Z)
+				{
+					const auto& Elems = MElements(X, Y, Z);
+					for (const auto& Elem : Elems)
+					{
+						//elements can be in multiple cells, only add for the first cell
+						if (Elem.StartIdx == TVector<int32, 3>(X, Y, Z))
+						{
+							OutElements.Add(TPayloadBoundsElement<TPayloadType, T>{Elem.Payload, Elem.Bounds});
+						}
+					}
+				}
 			}
 		}
+	}
+
+	SIZE_T GetReserveCount() const
+	{
+		// Optimize for fewer memory allocations.
+		const auto& Counts = MGrid.Counts(); 
+		const SIZE_T GridCount = Counts[0] * Counts[1] * Counts[2] * MElements.Num();
+		return MGlobalPayloads.Num() + MDirtyElements.Num() + GridCount;
+	}
+
+	TAABB<T, d> GetBounds() const
+	{
+		return TAABB<T, d>(MGrid.MinCorner(), MGrid.MaxCorner());
 	}
 
 private:
@@ -372,9 +398,15 @@ private:
 	{
 		TVector<T, d> TmpPosition;
 		T TOI;
+		const void* QueryData = Visitor.GetQueryData();
 
 		for (const auto& Elem : MGlobalPayloads)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const auto& InstanceBounds = Elem.Bounds;
 			if (InstanceBounds.RaycastFast(Start,
 				CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
@@ -391,6 +423,11 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const auto& InstanceBounds = Elem.Bounds;
 			if (InstanceBounds.RaycastFast(Start, CurData.Dir,
 				CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
@@ -525,8 +562,14 @@ private:
 	bool SweepImp(const TVector<T, d>& Start, FQueryFastData& CurData, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor) const
 	{
 		T TOI = 0;
+		const void* QueryData = Visitor.GetQueryData();
 		for (const auto& Elem : MGlobalPayloads)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
 			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
@@ -544,6 +587,11 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
 			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
@@ -749,8 +797,14 @@ private:
 	template <typename SQVisitor, bool bPruneDuplicates = true>
 	bool OverlapImp(const TAABB<T, d>& QueryBounds, SQVisitor& Visitor) const
 	{
+		const void* QueryData = Visitor.GetQueryData();
 		for (const auto& Elem : MGlobalPayloads)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 			if (QueryBounds.Intersects(InstanceBounds))
 			{
@@ -764,6 +818,11 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
+			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			{
+				continue;
+			}
+
 			const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 			if (QueryBounds.Intersects(InstanceBounds))
 			{

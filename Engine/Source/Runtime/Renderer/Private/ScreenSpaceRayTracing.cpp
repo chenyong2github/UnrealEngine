@@ -398,14 +398,14 @@ class FScreenSpaceReflectionsTileVS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceReflectionsTileVS, FGlobalShader);
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
-
+		
 	using FParameters = FScreenSpaceReflectionsPS::FParameters; // Sharing parameters for proper registration with RDG
-
+		
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
 		return PermutationVector;
 	}
-
+		
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ::UseSingleLayerWaterIndirectDraw(Parameters.Platform);
@@ -675,7 +675,7 @@ void RenderScreenSpaceReflections(
 		PassParameters->RenderTargets = RenderTargets;
 		
 		TShaderMapRef<FScreenSpaceReflectionsStencilPS> PixelShader(View.ShaderMap, PermutationVector);
-		ClearUnusedGraphResources(*PixelShader, PassParameters);
+		ClearUnusedGraphResources(PixelShader, PassParameters);
 		
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR StencilSetup %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
@@ -688,12 +688,12 @@ void RenderScreenSpaceReflections(
 			RHICmdList.SetStencilRef(0x80);
 		
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, *PixelShader, /* out */ GraphicsPSOInit);
+			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, PixelShader, /* out */ GraphicsPSOInit);
 			// Clobers the stencil to pixel that should not compute SSR
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always, true, CF_Always, SO_Replace, SO_Replace, SO_Replace>::GetRHI();
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
 		});
@@ -735,10 +735,10 @@ void RenderScreenSpaceReflections(
 			PassParameters->ScreenSpaceRayTracingDebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, DenoiserInputs->Color->Desc, TEXT("DebugSSR"), true);
 		}
 		PassParameters->PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
-
+		
 		PassParameters->SceneColor = InputColor;
 		PassParameters->SceneColorSampler = GSSRHalfResSceneColor ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
-
+		
 		PassParameters->HZB = GraphBuilder.RegisterExternalTexture(View.HZB);
 		PassParameters->HZBSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	};
@@ -746,7 +746,7 @@ void RenderScreenSpaceReflections(
 	FScreenSpaceReflectionsPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FSSRQualityDim>(SSRQuality);
 	PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
-
+		
 	FScreenSpaceReflectionsPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceReflectionsPS::FParameters>();
 	PassParameters->CommonParameters = CommonParameters;
 	SetSSRParameters(&PassParameters->SSRPassCommonParameter);
@@ -756,8 +756,8 @@ void RenderScreenSpaceReflections(
 
 	if (TiledScreenSpaceReflection == nullptr)
 	{
-		ClearUnusedGraphResources(*PixelShader, PassParameters);
-
+		ClearUnusedGraphResources(PixelShader, PassParameters);
+		
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR RayMarch(Quality=%d RayPerPixel=%d%s) %dx%d",
 				SSRQuality, RayTracingConfigs.RayCountPerPixel, bDenoiser ? TEXT(" DenoiserOutput") : TEXT(""),
@@ -769,9 +769,9 @@ void RenderScreenSpaceReflections(
 			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 			RHICmdList.SetStencilRef(0x80);
-
+		
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, *PixelShader, /* out */ GraphicsPSOInit);
+			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, PixelShader, /* out */ GraphicsPSOInit);
 			if (SSRStencilPrePass)
 			{
 				// Clobers the stencil to pixel that should not compute SSR
@@ -779,7 +779,7 @@ void RenderScreenSpaceReflections(
 			}
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
 		});
@@ -794,8 +794,8 @@ void RenderScreenSpaceReflections(
 		PassParameters->TileListData = TiledScreenSpaceReflection->TileListStructureBufferSRV;
 		PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection->DispatchIndirectParametersBuffer;
 
-		ValidateShaderParameters(*VertexShader, *PassParameters);
-		ValidateShaderParameters(*PixelShader, *PassParameters);
+		ValidateShaderParameters(VertexShader, *PassParameters);
+		ValidateShaderParameters(PixelShader, *PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR RayMarch(Quality=%d RayPerPixel=%d%s) %dx%d",
@@ -810,7 +810,7 @@ void RenderScreenSpaceReflections(
 			RHICmdList.SetStencilRef(0x80);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, *PixelShader, /* out */ GraphicsPSOInit);
+			FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, PixelShader, /* out */ GraphicsPSOInit);
 			if (SSRStencilPrePass)
 			{
 				// Clobers the stencil to pixel that should not compute SSR
@@ -818,12 +818,12 @@ void RenderScreenSpaceReflections(
 			}
 			GraphicsPSOInit.PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader->GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader->GetPixelShader();
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
 			RHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
@@ -975,7 +975,7 @@ void RenderScreenSpaceDiffuseIndirect(
 				RDG_EVENT_NAME("PrevFrameReduction(LeakFree=%i) %dx%d",
 					bUseLeakFree ? 1 : 0,
 					View.ViewRect.Width(), View.ViewRect.Height()),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), 8));
 		}
@@ -1020,7 +1020,7 @@ void RenderScreenSpaceDiffuseIndirect(
 			PermutationVector.Set<FSSRTPrevFrameReductionCS::FLeakFree>(bUseLeakFree);
 
 			TShaderMapRef<FSSRTPrevFrameReductionCS> ComputeShader(View.ShaderMap, PermutationVector);
-			ClearUnusedGraphResources(*ComputeShader, PassParameters);
+			ClearUnusedGraphResources(ComputeShader, PassParameters);
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("PrevFrameReduction(LeakFree=%i) %dx%d",
 					bUseLeakFree ? 1 : 0,
@@ -1029,7 +1029,7 @@ void RenderScreenSpaceDiffuseIndirect(
 				ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
 				[PassParameters, ComputeShader, &View, Divisor](FRHICommandList& RHICmdList)
 			{
-				FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), 8 * Divisor));
+				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), 8 * Divisor));
 			});
 		}
 	}
@@ -1057,7 +1057,7 @@ void RenderScreenSpaceDiffuseIndirect(
 		PassParameters->ClosestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
 		PassParameters->View = View.ViewUniformBuffer;
-
+			
 		PassParameters->TileClassificationParameters = ClassificationParameters;
 		PassParameters->TileClassificationUAVs = CreateUAVs(GraphBuilder, ClassificationResources);
 
@@ -1077,7 +1077,7 @@ void RenderScreenSpaceDiffuseIndirect(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ScreenSpaceDiffuseClassification %dx%d", ThreadCount.X, ThreadCount.Y),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(ThreadCount, 8));
 	}
@@ -1099,9 +1099,9 @@ void RenderScreenSpaceDiffuseIndirect(
 			Desc.Format = PF_R16F;
 			OutDenoiserInputs->AmbientOcclusionMask = GraphBuilder.CreateTexture(Desc, TEXT("SSRTAmbientOcclusion"));
 		}
-
+	
 		FScreenSpaceDiffuseIndirectCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceDiffuseIndirectCS::FParameters>();
-		
+
 		if (bHalfResolution)
 		{
 			PassParameters->PixelPositionToFullResPixel = 2.0f;
@@ -1157,7 +1157,7 @@ void RenderScreenSpaceDiffuseIndirect(
 			GraphBuilder,
 			RDG_EVENT_NAME("ScreenSpaceDiffuseIndirect(Quality=%d RayPerPixel=%d) %dx%d",
 				Quality, RayCountPerPixel, Viewport.Width(), Viewport.Height()),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), GroupSize));
 	}

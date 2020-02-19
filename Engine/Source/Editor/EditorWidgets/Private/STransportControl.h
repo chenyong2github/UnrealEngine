@@ -67,4 +67,5 @@ private:
 	TSharedPtr<SButton> ForwardPlayButton;
 	TSharedPtr<SButton> BackwardPlayButton;
 	TSharedPtr<SButton> RecordButton;
+	TSharedPtr<SButton> LoopButton;
 };

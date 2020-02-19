@@ -194,7 +194,7 @@ void AWorldSettings::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 
 	UWorld* World = GetWorld();
-	if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = World->GetAudioDevice())
 	{
 		AudioDevice->SetDefaultAudioSettings(World, DefaultReverbSettings, DefaultAmbientZoneSettings);
 	}
@@ -518,6 +518,17 @@ void AWorldSettings::CheckForErrors()
 			->AddToken(FTextToken::Create(LOCTEXT( "MapCheck_Message_RebuildLighting", "Maps need lighting rebuilt" ) ))
 			->AddToken(FMapErrorToken::Create(FMapErrors::RebuildLighting));
 	}
+
+	static const auto CVarAnisotropicBRDF			= IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
+	static const auto CVarBasePassOutputVelocity	= IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
+
+	if (CVarAnisotropicBRDF && CVarBasePassOutputVelocity && CVarAnisotropicBRDF->GetInt() && CVarBasePassOutputVelocity->GetInt())
+	{
+		FMessageLog("MapCheck").Error()
+			->AddToken(FUObjectToken::Create(this))
+			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_AnisotropicBRDF_or_BasePassVelocity", "Anisotropic BRDF and 'output velocity during base pass' options are mutually exclusive. See Project Settings (Rendering) or r.AnisotropicBRDF, r.BasePassOutputsVelocity")))
+			->AddToken(FMapErrorToken::Create(FMapErrors::AnisotropicBRDF_or_BasePassVelocity));
+	}
 }
 
 bool AWorldSettings::CanEditChange(const FProperty* InProperty) const
@@ -622,7 +633,7 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, DefaultReverbSettings) || PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, DefaultAmbientZoneSettings))
 {
 		UWorld* World = GetWorld();
-		if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+		if (FAudioDeviceHandle AudioDevice = World->GetAudioDevice())
 	{
 			AudioDevice->SetDefaultAudioSettings(World, DefaultReverbSettings, DefaultAmbientZoneSettings);
 		}

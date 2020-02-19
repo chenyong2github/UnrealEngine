@@ -41,16 +41,6 @@ UTextureRenderTarget2D::UTextureRenderTarget2D(const FObjectInitializer& ObjectI
 FTextureResource* UTextureRenderTarget2D::CreateResource()
 {
 	UWorld* World = GetWorld();
-	ERHIFeatureLevel::Type FeatureLevel = World != nullptr ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
-	if (FeatureLevel <= ERHIFeatureLevel::ES2)
-	{
-		EPixelFormat Format = GetFormat();
-		if ((!GSupportsRenderTargetFormat_PF_FloatRGBA && (Format == PF_FloatRGBA || Format == PF_FloatRGB))
-			|| Format == PF_A16B16G16R16)
-		{
-			OverrideFormat = PF_B8G8R8A8;
-		}
-	}
 
 	if (bAutoGenerateMips)
 	{

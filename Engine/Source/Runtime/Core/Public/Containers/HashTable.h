@@ -183,6 +183,8 @@ public:
 					FHashTable( uint32 InHashSize = 1024, uint32 InIndexSize = 0 );
 					~FHashTable();
 
+	void			Initialize(uint32 InHashSize = 1024, uint32 InIndexSize = 0);
+
 	void			Clear();
 	void			Free();
 	CORE_API void	Resize( uint32 NewIndexSize );
@@ -213,23 +215,37 @@ protected:
 
 
 FORCEINLINE FHashTable::FHashTable( uint32 InHashSize, uint32 InIndexSize )
-	: HashSize( InHashSize )
+	: HashSize( 0 )
 	, HashMask( 0 )
-	, IndexSize( InIndexSize )
+	, IndexSize( 0 )
 	, Hash( EmptyHash )
 	, NextIndex( NULL )
 {
-	check( HashSize <= 0x10000 );
-	check( FMath::IsPowerOfTwo( HashSize ) );
-	
-	if( IndexSize )
+	if (InHashSize > 0u)
+	{
+		Initialize(InHashSize, InIndexSize);
+	}
+}
+
+FORCEINLINE void FHashTable::Initialize(uint32 InHashSize, uint32 InIndexSize)
+{
+	check(HashSize == 0u);
+	check(IndexSize == 0u);
+
+	HashSize = InHashSize;
+	IndexSize = InIndexSize;
+
+	check(HashSize <= 0x10000);
+	check(FMath::IsPowerOfTwo(HashSize));
+
+	if (IndexSize)
 	{
 		HashMask = (uint16)(HashSize - 1);
-		
-		Hash = new uint32[ HashSize ];
-		NextIndex = new uint32[ IndexSize ];
 
-		FMemory::Memset( Hash, 0xff, HashSize * 4 );
+		Hash = new uint32[HashSize];
+		NextIndex = new uint32[IndexSize];
+
+		FMemory::Memset(Hash, 0xff, HashSize * 4);
 	}
 }
 
@@ -272,6 +288,7 @@ FORCEINLINE uint32 FHashTable::First( uint16 Key ) const
 FORCEINLINE uint32 FHashTable::Next( uint32 Index ) const
 {
 	checkSlow( Index < IndexSize );
+	checkSlow( NextIndex[Index] != Index ); // check for corrupt tables
 	return NextIndex[ Index ];
 }
 

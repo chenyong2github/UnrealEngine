@@ -237,7 +237,7 @@ public:
 	/**
 	 * Build an in memory unique pak file from a subset of files in this pak file
 	 */
-	virtual void		MakeUniquePakFilesForTheseFiles(TArray<TArray<FString>> InFiles) { }
+	virtual void		MakeUniquePakFilesForTheseFiles(const TArray<TArray<FString>>& InFiles) { }
 
 	/**
 	* Performs initialization of the platform file after the new async IO has been enabled
@@ -598,4 +598,23 @@ public:
 		return IPlatformFile::GetPhysicalTypeName();
 	}
 	//~ End IPlatformFile Interface
+};
+
+/* Interface class for FPakFile to allow usage from modules that cannot have a compile dependency on FPakFile */
+class CORE_API IPakFile
+{
+public:
+	virtual const FString& PakGetPakFilename() const = 0;
+	/**
+	  * Return whether the Pak has an entry for the given FileName.  Not necessarily exclusive; other Patch Paks may have their own copy of the same File.
+	  * @param Filename The full LongPackageName path to the file, as returned from FPackageName::LongPackageNameToFilename + extension.  Comparison is case-insensitive.
+	  */
+	virtual bool PakContains(const FString& Filename) const = 0;
+	virtual int32 PakGetPakchunkIndex() const = 0;
+	/**
+	 * Calls the given Visitor on every FileName in the Pruned Directory Index. FileNames passed to the Vistory are the RelativePath from the Mount of the PakFile
+	 * The Pruned Directory Index at Runtime contains only the DirectoryIndexKeepFiles-specified subset of FilesNames and DirectoryNames that exist in the PakFile
+	 */
+	virtual void PakVisitPrunedFilenames(IPlatformFile::FDirectoryVisitor& Visitor) const = 0;
+	virtual const FString& PakGetMountPoint() const = 0;
 };

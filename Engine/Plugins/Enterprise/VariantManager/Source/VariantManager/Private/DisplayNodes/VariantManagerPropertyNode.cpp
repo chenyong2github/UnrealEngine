@@ -360,7 +360,7 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 	}
 	else
 	{
-		FMemory::Memcpy((uint8*)SinglePropWidgetDataPtr, FirstRecordedData.GetData(), FirstPropertyValue->GetValueSizeInBytes());
+	FMemory::Memcpy((uint8*)SinglePropWidgetDataPtr, FirstRecordedData.GetData(), FirstPropertyValue->GetValueSizeInBytes());
 	}
 
 	// Update recorded data when user modifies the widget (modifying the widget will modify the
@@ -531,7 +531,7 @@ void FVariantManagerPropertyNode::UpdateRecordedDataFromSinglePropView(TSharedPt
 		}
 
 		if (FSoftObjectProperty* Prop = CastField<FSoftObjectProperty>(PropHandle->GetProperty()))
-		{
+	{
 			UObject* NewObj = Prop->LoadObjectPropertyValue(SinglePropWidgetDataPtr);
 			PropertyValue->SetRecordedData((uint8*)&NewObj, sizeof(UObject*));
 		}

@@ -157,6 +157,7 @@ namespace UnrealBuildTool
 									byte[] Data = Reader.ReadBytes(NextField.Length);
 
 									XmlDocument Document = new XmlDocument();
+									Document.XmlResolver = null;
 									Document.Load(new MemoryStream(Data));
 									return Document;
 								}

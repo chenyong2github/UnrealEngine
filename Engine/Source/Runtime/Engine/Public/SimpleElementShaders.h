@@ -30,13 +30,13 @@ public:
 
 	/*ENGINE_API */void SetParameters(FRHICommandList& RHICmdList, const FMatrix& TransformValue, bool bSwitchVerticalAxis = false);
 
-	virtual bool Serialize(FArchive& Ar) override;
+	//virtual bool Serialize(FArchive& Ar) override;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 private:
-	FShaderParameter Transform;
-	FShaderParameter SwitchVerticalAxis;
+	LAYOUT_FIELD(FShaderParameter, Transform)
+	LAYOUT_FIELD(FShaderParameter, SwitchVerticalAxis)
 };
 
 /**
@@ -63,15 +63,15 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue );
 
-	virtual bool Serialize(FArchive& Ar) override;
+	//virtual bool Serialize(FArchive& Ar) override;
 
 private:
-	FShaderResourceParameter InTexture;
-	FShaderResourceParameter InTextureSampler;
-	FShaderParameter TextureComponentReplicate;
-	FShaderParameter TextureComponentReplicateAlpha;
-	FShaderParameter EditorCompositeDepthTestParameter;
-	FShaderParameter ScreenToPixel;
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler)
+	LAYOUT_FIELD(FShaderParameter, TextureComponentReplicate)
+	LAYOUT_FIELD(FShaderParameter, TextureComponentReplicateAlpha)
+	LAYOUT_FIELD(FShaderParameter, EditorCompositeDepthTestParameter)
+	LAYOUT_FIELD(FShaderParameter, ScreenToPixel)
 };
 
 /**
@@ -91,7 +91,7 @@ public:
  */
 class FSimpleElementGammaBasePS : public FSimpleElementPS
 {
-	DECLARE_SHADER_TYPE(FSimpleElementGammaBasePS, Global);
+	DECLARE_TYPE_LAYOUT(FSimpleElementGammaBasePS, NonVirtual);
 public:
 
 	FSimpleElementGammaBasePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
@@ -99,10 +99,12 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture,float GammaValue,ESimpleElementBlendMode BlendMode);
 
-	virtual bool Serialize(FArchive& Ar) override;
+	//virtual bool Serialize(FArchive& Ar) override;
 
 private:
-	FShaderParameter Gamma;
+	
+		LAYOUT_FIELD(FShaderParameter, Gamma)
+	
 };
 
 template <bool bSRGBTexture>
@@ -141,7 +143,7 @@ public:
  */
 class FSimpleElementMaskedGammaBasePS : public FSimpleElementGammaBasePS
 {
-	DECLARE_SHADER_TYPE(FSimpleElementMaskedGammaBasePS, Global);
+	DECLARE_TYPE_LAYOUT(FSimpleElementMaskedGammaBasePS, NonVirtual);
 public:
 
 	FSimpleElementMaskedGammaBasePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
@@ -149,10 +151,12 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture,float Gamma,float ClipRefValue,ESimpleElementBlendMode BlendMode);
 
-	virtual bool Serialize(FArchive& Ar) override;
+	//virtual bool Serialize(FArchive& Ar) override;
 
 private:
-	FShaderParameter ClipRef;
+	
+		LAYOUT_FIELD(FShaderParameter, ClipRef)
+	
 };
 
 template <bool bSRGBTexture>
@@ -235,27 +239,27 @@ public:
 	* @param Ar - archive to serialize to
 	* @return true if any of the parameters were outdated
 	*/
-	virtual bool Serialize(FArchive& Ar) override;
+	//virtual bool Serialize(FArchive& Ar) override;
 	
 private:
 	/** The width to smooth the edge the texture */
-	FShaderParameter SmoothWidth;
+	LAYOUT_FIELD(FShaderParameter, SmoothWidth)
 	/** Toggles drop shadow rendering */
-	FShaderParameter EnableShadow;
+	LAYOUT_FIELD(FShaderParameter, EnableShadow)
 	/** 2D vector specifying the direction of shadow */
-	FShaderParameter ShadowDirection;
+	LAYOUT_FIELD(FShaderParameter, ShadowDirection)
 	/** Color of the shadowed pixels */
-	FShaderParameter ShadowColor;	
+	LAYOUT_FIELD(FShaderParameter, ShadowColor)	
 	/** The width to smooth the edge the shadow of the texture */
-	FShaderParameter ShadowSmoothWidth;
+	LAYOUT_FIELD(FShaderParameter, ShadowSmoothWidth)
 	/** whether to turn on the outline glow */
-	FShaderParameter EnableGlow;
+	LAYOUT_FIELD(FShaderParameter, EnableGlow)
 	/** base color to use for the glow */
-	FShaderParameter GlowColor;
+	LAYOUT_FIELD(FShaderParameter, GlowColor)
 	/** outline glow outer radius */
-	FShaderParameter GlowOuterRadius;
+	LAYOUT_FIELD(FShaderParameter, GlowOuterRadius)
 	/** outline glow inner radius */
-	FShaderParameter GlowInnerRadius;
+	LAYOUT_FIELD(FShaderParameter, GlowInnerRadius)
 };
 
 /**
@@ -277,11 +281,11 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue);
 
-	virtual bool Serialize(FArchive& Ar) override;
+	//virtual bool Serialize(FArchive& Ar) override;
 
 private:
-	FShaderResourceParameter InTexture;
-	FShaderResourceParameter InTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler)
 };
 
 
@@ -313,50 +317,13 @@ public:
 	*/
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, const FMatrix& ColorWeightsValue, float GammaValue);
 
-	virtual bool Serialize(FArchive& Ar) override;
+	//virtual bool Serialize(FArchive& Ar) override;
 
 private:
-	FShaderResourceParameter InTexture;
-	FShaderResourceParameter InTextureSampler;
-	FShaderParameter ColorWeights; 
-	FShaderParameter Gamma;
-};
-
-template <class TSimpleElementBase, uint32 EncodedBlendMode>
-class FEncodedSimpleElement : public TSimpleElementBase
-{
-	DECLARE_SHADER_TYPE(FEncodedSimpleElement, Global);
-public:
-	FEncodedSimpleElement(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : TSimpleElementBase(Initializer) {}
-	FEncodedSimpleElement() {}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		TSimpleElementBase::ModifyCompilationEnvironment(Parameters, OutEnvironment); 
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_OPAQUE"), (uint32)ESimpleElementBlendMode::SE_BLEND_Opaque);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_MASKED"), (uint32)ESimpleElementBlendMode::SE_BLEND_Masked);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_TRANSLUCENT"), (uint32)ESimpleElementBlendMode::SE_BLEND_Translucent);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_ADDITIVE"), (uint32)ESimpleElementBlendMode::SE_BLEND_Additive);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_MODULATE"), (uint32)ESimpleElementBlendMode::SE_BLEND_Modulate);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_MASKEDDISTANCEFIELD"), (uint32)ESimpleElementBlendMode::SE_BLEND_MaskedDistanceField);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_MASKEDDISTANCEFIELDSHADOWED"), (uint32)ESimpleElementBlendMode::SE_BLEND_MaskedDistanceFieldShadowed);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_ALPHACOMPOSITE"), (uint32)ESimpleElementBlendMode::SE_BLEND_AlphaComposite);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_ALPHAHOLDOUT"), (uint32)ESimpleElementBlendMode::SE_BLEND_AlphaHoldout);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_ALPHABLEND"), (uint32)ESimpleElementBlendMode::SE_BLEND_AlphaBlend);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_TRANSLUCENTALPHAONLY"), (uint32)ESimpleElementBlendMode::SE_BLEND_TranslucentAlphaOnly);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_TRANSLUCENTALPHAONLYWRITEALPHA"), (uint32)ESimpleElementBlendMode::SE_BLEND_TranslucentAlphaOnlyWriteAlpha);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_TRANSLUCENTDISTANCEFIELD"), (uint32)ESimpleElementBlendMode::SE_BLEND_TranslucentDistanceField);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_TRANSLUCENTDISTANCEFIELDSHADOWED"), (uint32)ESimpleElementBlendMode::SE_BLEND_TranslucentDistanceFieldShadowed);
-		OutEnvironment.SetDefine(TEXT("SE_BLEND_MODE"), EncodedBlendMode);
-		OutEnvironment.SetDefine(TEXT("USE_32BPP_HDR"), 1u);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return ((IsES2Platform(Parameters.Platform) && IsPCPlatform(Parameters.Platform)) || Parameters.Platform == SP_OPENGL_ES2_ANDROID) && TSimpleElementBase::ShouldCompilePermutation(Parameters);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler)
+	LAYOUT_FIELD(FShaderParameter, ColorWeights) 
+	LAYOUT_FIELD(FShaderParameter, Gamma)
 };
 
 typedef FSimpleElementGammaPS<true> FSimpleElementGammaPS_SRGB;

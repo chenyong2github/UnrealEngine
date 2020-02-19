@@ -313,20 +313,18 @@ static void AppendMaterialInfoToMenu(const UMaterialInterface* MaterialInterface
 	const FMaterialResource* Material = MaterialInterface->GetMaterialResource(FeatureLevel);
 	if (Material)
 	{
-		const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& ExpressionsByType = Material->GetUniform2DTextureExpressions();
-		for (FMaterialUniformExpressionTexture* Expression : ExpressionsByType)
+		const FUniformExpressionSet& UniformExpressions = Material->GetUniformExpressions();
+		for (int32 i = 0; i < UniformExpressions.GetNumTextures(EMaterialTextureParameterType::Standard2D); ++i)
 		{
-			if (Expression)
-			{
-				UTexture* Texture = nullptr;
-				Expression->GetGameThreadTextureValue(MaterialInterface, *Material, Texture, true);
+			UTexture* Texture = nullptr;
+			UniformExpressions.GetGameThreadTextureValue(EMaterialTextureParameterType::Standard2D, i, MaterialInterface, *Material, Texture, true);
 
-				const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-				if (Texture2D)
-				{
-					DataPerTextureIndex.FindOrAdd(Expression->GetTextureIndex()).AddUnique(FString::Printf(TEXT("%s.%s"), *MaterialInterface->GetName(), *Texture2D->GetName()));
-					DataPerTextureName.FindOrAdd(*Texture2D->GetName()).AddUnique(FString::Printf(TEXT("%s %d : %s"), *MenuName, Expression->GetTextureIndex(), *MaterialInterface->GetName()));
-				}
+			const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
+			if (Texture2D)
+			{
+				const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, i);
+				DataPerTextureIndex.FindOrAdd(Parameter.TextureIndex).AddUnique(FString::Printf(TEXT("%s.%s"), *MaterialInterface->GetName(), *Texture2D->GetName()));
+				DataPerTextureName.FindOrAdd(*Texture2D->GetName()).AddUnique(FString::Printf(TEXT("%s %d : %s"), *MenuName, Parameter.TextureIndex, *MaterialInterface->GetName()));
 			}
 		}
 	}

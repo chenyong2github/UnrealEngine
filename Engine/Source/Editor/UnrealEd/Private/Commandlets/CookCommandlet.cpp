@@ -324,7 +324,7 @@ UCookCommandlet::UCookCommandlet( const FObjectInitializer& ObjectInitializer )
 	LogToConsole = false;
 }
 
-bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForceClose )
+bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForceClose, const TArray<ITargetPlatform*>& TargetPlatforms)
 {
 	UCookOnTheFlyServer *CookOnTheFlyServer = NewObject<UCookOnTheFlyServer>();
 
@@ -356,7 +356,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 
 	bool BindAnyPort = InstanceId.IsValid();
 
-	if ( CookOnTheFlyServer->StartNetworkFileServer(BindAnyPort) == false )
+	if ( CookOnTheFlyServer->StartNetworkFileServer(BindAnyPort, TargetPlatforms) == false )
 	{
 		return false;
 	}
@@ -549,8 +549,20 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 
 	COOK_STAT(DetailedCookStats::CookProject = FApp::GetProjectName());
 
+
+	ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
 	if ( bCookOnTheFly )
 	{
+		// In cook on the fly, if the user did not provide a targetplatform on the commandline, then we do not intialize any platforms up front; we wait for the first connection.
+		// TPM.GetActiveTargetPlatforms defaults to the currently running platform (e.g. Windows, with editor) in the no-target case, so we need to only call GetActiveTargetPlatforms
+		// if targetplatform was on the commandline
+		FString Unused;
+		TArray<ITargetPlatform*> TargetPlatforms;
+		if (FParse::Value(FCommandLine::Get(), TEXT("TARGETPLATFORM="), Unused))
+		{
+			TargetPlatforms = TPM.GetActiveTargetPlatforms();
+		}
+
 		// parse instance identifier
 		FString InstanceIdString;
 		bool bForceClose = Switches.Contains(TEXT("FORCECLOSE"));
@@ -570,12 +582,10 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 			Timeout = 180;
 		}
 
-		CookOnTheFly( InstanceId, Timeout, bForceClose);
+		CookOnTheFly( InstanceId, Timeout, bForceClose, TargetPlatforms);
 	}
 	else
 	{
-		
-		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
 		const TArray<ITargetPlatform*>& Platforms = TPM.GetActiveTargetPlatforms();
 
 		TArray<FString> FilesInPath;
@@ -819,13 +829,34 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 	CookOptions |= Switches.Contains(TEXT("NODEV")) ? ECookByTheBookOptions::NoDevContent : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("FullLoadAndSave")) ? ECookByTheBookOptions::FullLoadAndSave : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("PackageStore")) ? ECookByTheBookOptions::PackageStore : ECookByTheBookOptions::None;
+	CookOptions |= Switches.Contains(TEXT("NoGameAlwaysCook")) ? ECookByTheBookOptions::NoGameAlwaysCookPackages : ECookByTheBookOptions::None;
 
 	const ECookByTheBookOptions SinglePackageFlags = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::DisableUnsolicitedPackages | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
 	CookOptions |= bCookSinglePackage ? SinglePackageFlags : ECookByTheBookOptions::None;
 
 	UCookOnTheFlyServer::FCookByTheBookStartupOptions StartupOptions;
 
-	StartupOptions.TargetPlatforms = Platforms;
+	// Validate target platforms and add them to StartupOptions
+	for (ITargetPlatform* TargetPlatform : Platforms)
+	{
+		if (TargetPlatform)
+		{
+			if (TargetPlatform->HasEditorOnlyData())
+			{
+				UE_LOG(LogCook, Warning, TEXT("Target platform \"%s\" is an editor platform and can not be a cook target"), *TargetPlatform->PlatformName());
+			}
+			else
+			{
+				StartupOptions.TargetPlatforms.Add(TargetPlatform);
+			}
+		}
+	}
+	if (!StartupOptions.TargetPlatforms.Num())
+	{
+		UE_LOG(LogCook, Error, TEXT("No target platforms specified or all target platforms are invalid"));
+		return false;
+	}
+
 	Swap( StartupOptions.CookMaps, MapList );
 	Swap( StartupOptions.CookDirectories, CmdLineDirEntries );
 	Swap( StartupOptions.NeverCookDirectories, CmdLineNeverCookDirEntries);

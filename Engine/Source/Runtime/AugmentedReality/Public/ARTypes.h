@@ -169,6 +169,8 @@ enum class EARObjectClassification : uint8
 	World,
 	/** A closed mesh that was identified in the scene */
 	SceneObject,
+	/** A user's hand */
+	HandMesh,
 	// Add other types here...
 };
 
@@ -286,7 +288,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Image Detection")
 	EARCandidateImageOrientation GetOrientation() const { return Orientation; }
 
-private:
+protected:
 #if WITH_EDITOR
 	/** Used to enforce physical sizes matching the aspect ratio of the images */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

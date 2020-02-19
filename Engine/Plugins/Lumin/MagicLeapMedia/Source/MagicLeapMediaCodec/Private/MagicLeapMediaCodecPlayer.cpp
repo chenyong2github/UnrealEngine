@@ -866,9 +866,9 @@ void FMagicLeapMediaCodecPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timeco
 	}
 }
 
-bool FMagicLeapMediaCodecPlayer::UpdateTransformMatrix_RenderThread(MLHandle InVideoCodecHandle)
+bool FMagicLeapMediaCodecPlayer::UpdateTransformMatrix_RenderThread(MLHandle InMediaCodecHandle)
 {
-	MLResult Result = MLMediaCodecGetFrameTransformationMatrix(InVideoCodecHandle, FrameTransformationMatrix);
+	MLResult Result = MLMediaCodecGetFrameTransformationMatrix(InMediaCodecHandle, FrameTransformationMatrix);
 	if (UScale != FrameTransformationMatrix[0] ||
 		UOffset != FrameTransformationMatrix[12] ||
 		VScale != -FrameTransformationMatrix[5] ||
@@ -1419,10 +1419,10 @@ bool FMagicLeapMediaCodecPlayer::IsBufferAvailable_RenderThread(MLHandle InMedia
 	return bIsBufferAvailable;
 }
 
-bool FMagicLeapMediaCodecPlayer::GetNativeBuffer_RenderThread(const MLHandle InVideoCodecHandle, MLHandle& NativeBuffer)
+bool FMagicLeapMediaCodecPlayer::GetNativeBuffer_RenderThread(const MLHandle InMediaCodecHandle, MLHandle& NativeBuffer)
 {
 	ensureMsgf(IsInRenderingThread(), TEXT("GetNativeBuffer_RenderThread called outside of render thread"));
-	MLResult Result = MLMediaCodecAcquireNextAvailableFrame(InVideoCodecHandle, &NativeBuffer);
+	MLResult Result = MLMediaCodecAcquireNextAvailableFrame(InMediaCodecHandle, &NativeBuffer);
 	if (Result != MLResult_Ok)
 	{
 		UE_LOG(LogMagicLeapMediaCodec, Error, TEXT("MLMediaCodecAcquireNextAvailableFrame failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
@@ -1431,10 +1431,10 @@ bool FMagicLeapMediaCodecPlayer::GetNativeBuffer_RenderThread(const MLHandle InV
 	return true;
 }
 
-bool FMagicLeapMediaCodecPlayer::ReleaseNativeBuffer_RenderThread(const MLHandle InVideoCodecHandle, MLHandle NativeBuffer)
+bool FMagicLeapMediaCodecPlayer::ReleaseNativeBuffer_RenderThread(const MLHandle InMediaCodecHandle, MLHandle NativeBuffer)
 {
 	ensureMsgf(IsInRenderingThread(), TEXT("ReleaseNativeBuffer_RenderThread called outside of render thread"));
-	MLResult Result = MLMediaCodecReleaseFrame(InVideoCodecHandle, NativeBuffer);
+	MLResult Result = MLMediaCodecReleaseFrame(InMediaCodecHandle, NativeBuffer);
 	if (Result != MLResult_Ok)
 	{
 		UE_LOG(LogMagicLeapMediaCodec, Error, TEXT("MLMediaCodecReleaseFrame failed with error %s"), UTF8_TO_TCHAR(MLMediaResultGetString(Result)));
@@ -1443,7 +1443,7 @@ bool FMagicLeapMediaCodecPlayer::ReleaseNativeBuffer_RenderThread(const MLHandle
 	return true;
 }
 
-bool FMagicLeapMediaCodecPlayer::GetCurrentPosition_RenderThread(const MLHandle InVideoCodecHandle, int32& CurrentPosition)
+bool FMagicLeapMediaCodecPlayer::GetCurrentPosition_RenderThread(const MLHandle InMediaCodecHandle, int32& CurrentPosition)
 {
 	return true;
 }

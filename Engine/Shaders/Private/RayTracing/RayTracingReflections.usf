@@ -142,7 +142,15 @@ float3x3 GetHouseholderTransform(in float3 PlaneNormal)
 }
 
 // Generate a random direction to sample according to world normal and roughness.
-float3 GenerateReflectionDirection(inout RandomSequence RandSequence, uint2 DispatchThreadId, uint BounceIndex, uint SamplePerPixel, float3 IncidentDirection, float3 WorldNormal, float Roughness)
+float3 GenerateReflectionDirection(
+	inout RandomSequence RandSequence, 
+	uint2 DispatchThreadId, 
+	uint BounceIndex, 
+	uint SamplePerPixel, 
+	float3 IncidentDirection, 
+	float3 WorldNormal, 
+	float Roughness
+	)
 {
 	uint DummyVariable;
 	int RetryCount = 0;
@@ -234,7 +242,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 {
 	const float ClearCoatSpecularColor = 0.04; // See ReflectionEnvironmentPixelShader.usf
 
-	FDeferredMaterialPayload DeferredMaterialPayload;
+	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
 	DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
 
 #if DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE
@@ -340,7 +348,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 			uint ShadingModelID = GBufferData.ShadingModelID;
 			float3 TopLayerWorldNormal = GBufferData.WorldNormal;
+			float3 TopLayerWorldTangent = GBufferData.WorldTangent;
 			float  TopLayerRoughness = GBufferData.Roughness;
+			float  TopLayerAnisotropy = GBufferData.Anisotropy;
 			float3 TopLayerSpecularColor = GBufferData.SpecularColor;
 
 			// Track Roughness to terminate bounces early
@@ -348,8 +358,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 			float  ClearCoat = 1.0f;
 			float  BottomLayerRoughness = TopLayerRoughness;
+			float  BottomLayerAnisotropy = TopLayerAnisotropy;
 			float3 BottomLayerSpecularColor = TopLayerSpecularColor;
 			float3 BottomLayerWorldNormal = TopLayerWorldNormal;
+			float3 BottomLayerWorldTangent = TopLayerWorldTangent;
 			if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 			{
 				#if CLEAR_COAT_BOTTOM_NORMAL
@@ -386,8 +398,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				{
 					// top layer isn't really contributing, just trace bottom
 					TopLayerRoughness = BottomLayerRoughness;
+					TopLayerAnisotropy = BottomLayerAnisotropy;
 					TopLayerSpecularColor = BottomLayerSpecularColor;
 					TopLayerWorldNormal = BottomLayerWorldNormal;
+					TopLayerWorldTangent = BottomLayerWorldTangent;
 
 					// override to default material
 					ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
@@ -407,6 +421,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				TopLayerRay.Origin = WorldPosition;
 				TopLayerRay.TMin = 0.0;
 				TopLayerRay.TMax = LocalMaxRayDistance;
+
+#if GBUFFER_HAS_TANGENT
+				ModifyGGXAnisotropicNormalRoughness(TopLayerWorldTangent, TopLayerAnisotropy, TopLayerRoughness, TopLayerWorldNormal, IncidentDirection);
+#endif
 
 				TopLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, TopLayerWorldNormal, TopLayerRoughness);
 
@@ -496,6 +514,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					BottomLayerRay.Origin = WorldPosition;
 					BottomLayerRay.TMin = 0.0;
 					BottomLayerRay.TMax = LocalMaxRayDistance;
+
+#if GBUFFER_HAS_TANGENT
+					ModifyGGXAnisotropicNormalRoughness(BottomLayerWorldTangent, BottomLayerAnisotropy, BottomLayerRoughness, BottomLayerWorldNormal, IncidentDirection);
+#endif
 					BottomLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, BottomLayerWorldNormal, BottomLayerRoughness);
 					ApplyPositionBias(BottomLayerRay, BottomLayerWorldNormal, ReflectionMaxNormalBias);
 					if (BounceIndex == 0 && dot(GBufferData.WorldNormal, BottomLayerRay.Direction) < 0.0)
@@ -589,13 +611,17 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					// Apply correct weights to the bottom and top layers (See ReflectionEnvironmentPixelShader)
 					{
 						float NoVBottom = saturate(dot(-IncidentDirection, BottomLayerWorldNormal));
-
 						float TopLayerFSChlick = EnvBRDF(TopLayerSpecularColor, TopLayerRoughness, NoV).x;
+
+						// Apply refraction-corrected specular term
+						float3 RefractedSpecular = BottomLayerSpecularColor;
+						float RefractionScale = ((NoVBottom * 0.5 + 0.5) * NoVBottom - 1) * saturate(1.25 - 1.25 * BottomLayerRoughness) + 1;
+						RefractedSpecular *= lerp(1, RefractionScale, ClearCoat);
 
 						float TopLayerRefractionTransmittance = (1 - TopLayerFSChlick * ClearCoat);
 
 						float2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(NoVBottom, BottomLayerRoughness), 0).rg;
-						float3 BottomLayerFSChlick = BottomLayerSpecularColor * AB.x + AB.y * saturate(50.0 * BottomLayerSpecularColor.g) * (1 - ClearCoat);
+						float3 BottomLayerFSChlick = RefractedSpecular * AB.x + AB.y * saturate(50.0 * RefractedSpecular.g) * (1 - ClearCoat);
 
 						// dxr-todo: double check the math when we can compare with path tracer.
 						// Matches what is found in ReflectionEnvironmentPixelShader.usf.
@@ -785,14 +811,18 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 				ShadingModelID = PackedPayload.GetShadingModelID();
 				TopLayerWorldNormal = PackedPayload.GetWorldNormal();
+				TopLayerWorldTangent = PackedPayload.GetWorldTangent();
 				TopLayerRoughness = PackedPayload.GetRoughness();
+				TopLayerAnisotropy = PackedPayload.GetAnisotropy();
 				TopLayerSpecularColor = PackedPayload.GetSpecularColor();
 
 				if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 				{
 					BottomLayerRoughness = TopLayerRoughness;
+					BottomLayerAnisotropy = TopLayerAnisotropy;
 					BottomLayerSpecularColor = TopLayerSpecularColor;
 					BottomLayerWorldNormal = TopLayerWorldNormal;
+					BottomLayerWorldTangent = TopLayerWorldTangent;
 					float4 CustomData = PackedPayload.GetCustomData();
 					#if CLEAR_COAT_BOTTOM_NORMAL
 					const float2 oct1 = ((float2(CustomData.a, CustomData.z) * 2) - (256.0 / 255.0)) + UnitVectorToOctahedron(TopLayerWorldNormal);

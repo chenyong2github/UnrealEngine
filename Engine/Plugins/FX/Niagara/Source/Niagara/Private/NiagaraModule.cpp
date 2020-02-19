@@ -23,6 +23,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "Scalability.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -39,7 +40,7 @@ static FAutoConsoleVariableRef CVarLogCompileIdGeneration(
 
 float INiagaraModule::EngineGlobalSpawnCountScale = 1.0f;
 float INiagaraModule::EngineGlobalSystemCountScale = 1.0f;
-int32 INiagaraModule::EngineDetailLevel = 4;
+int32 INiagaraModule::EngineEffectsQuality = 4;
 
 int32 GEnableVerboseNiagaraChangeIdLogging = 0;
 static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
@@ -58,34 +59,6 @@ static TAutoConsoleVariable<int32> CVarUseShaderStages(
 	0, 
 	TEXT("Enable or not the shader stages within Niagara (WIP feature only there for temporary testing)."),
 	ECVF_Default);
-
-/**
-Detail Level CVar.
-Effectively replaces the DetaiMode feature but allows for a rolling range of new hardware and emitters to target them.
-TODO: Possible that this might be more broadly useful across the engine as a replacement for DetailMode so placing in "r." rather than "fx."
-*/
-static TAutoConsoleVariable<float> CVarDetailLevel(
-	TEXT("r.DetailLevel"),
-	4,
-	TEXT("The detail level for use with Niagara.\n")
-	TEXT("If this value does not fall within an Emitter's MinDetailLevel and MaxDetailLevel range, then it will be disabled. \n")
-	TEXT("\n")
-	TEXT("Default = 4"),
-	ECVF_Scalability);
-
-static TAutoConsoleVariable<float> CVarPruneEmittersOnCookByDetailLevel(
-	TEXT("fx.NiagaraPruneEmittersOnCookByDetailLevel"),
-	0,
-	TEXT("Whether to eliminate all emitters that don't match the detail level.\n")
-	TEXT("This will only work if scalability settings affecting detail level can not be changed at runtime (depends on platform).\n"),
-	ECVF_ReadOnly);
-
-static FAutoConsoleVariableRef CVarNiaraGlobalSpawnCountScale(
-	TEXT("fx.NiagaraGlobalSpawnCountScale"),
-	INiagaraModule::EngineGlobalSpawnCountScale,
-	TEXT("A global scale on spawn counts in Niagara. \n"),
-	ECVF_Scalability
-);
 
 static FAutoConsoleVariableRef CVarNiaraGlobalSystemCountScale(
 	TEXT("fx.NiagaraGlobalSystemCountScale"),
@@ -194,9 +167,6 @@ void INiagaraModule::StartupModule()
 	FModuleManager::Get().LoadModule(TEXT("NiagaraEditor"));
 #endif
 
-	CVarDetailLevel.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateRaw(this, &INiagaraModule::OnChangeDetailLevel));
-	EngineDetailLevel = CVarDetailLevel.GetValueOnGameThread();
-
 	//Init commonly used FNiagaraVariables
 
 	Engine_DeltaTime = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.DeltaTime"));
@@ -299,9 +269,11 @@ void INiagaraModule::StartupModule()
 		return FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(DIClassName);
 	}));
 
-	FFXSystemInterface::RegisterCustomFXSystem(NiagaraEmitterInstanceBatcher::Name, FCreateCustomFXSystemDelegate::CreateLambda([](ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform) -> FFXSystemInterface*
+	FFXSystemInterface::RegisterCustomFXSystem(
+		NiagaraEmitterInstanceBatcher::Name, 
+		FCreateCustomFXSystemDelegate::CreateLambda([](ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager) -> FFXSystemInterface*
 	{
-		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform);
+		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform, InGPUSortManager);
 	}));
 }
 
@@ -320,7 +292,6 @@ void INiagaraModule::ShutdownModule()
 	INiagaraShaderModule& NiagaraShaderModule = FModuleManager::LoadModuleChecked<INiagaraShaderModule>("NiagaraShader");
 	NiagaraShaderModule.ResetOnRequestDefaultDataInterfaceHandler();
 
-	CVarDetailLevel.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate());
 	ShutdownRenderingResources();
 }
 
@@ -426,61 +397,19 @@ void INiagaraModule::UnregisterPrecompiler(FDelegateHandle DelegateHandle)
 
 #endif
 
-
-bool INiagaraModule::IsTargetPlatformIncludedInLevelRangeForCook(const ITargetPlatform* InTargetPlatform, const UNiagaraEmitter* InEmitter)
+void INiagaraModule::OnEffectsQualityChanged(int32 NewEffectsQuality)
 {
-#if WITH_EDITORONLY_DATA
-	if (UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(InTargetPlatform->IniPlatformName()))
+	if (NewEffectsQuality != EngineEffectsQuality && FNiagaraPlatformSet::CanChangeScalabilityAtRuntime())
 	{
-		// get local scalability CVars that could cull this actor
-		int32 CVarCullBasedOnDetailLevel;
-		if (DeviceProfile->GetConsolidatedCVarValue(TEXT("fx.NiagaraPruneEmittersOnCookByDetailLevel"), CVarCullBasedOnDetailLevel) && CVarCullBasedOnDetailLevel == 1)
-		{
-			int32 CVarDetailLevelFoundValue;
-			if (InEmitter && DeviceProfile->GetConsolidatedCVarValue(TEXT("r.DetailLevel"), CVarDetailLevelFoundValue))
-			{
-				// Check emitter's detail level range contains the platform's level
-				// If e.g. the emitter's detail level range is between 0 and 2  and the platform detail is 3 only,
-				// then we should cull it.
-				if (InEmitter->IsAllowedByDetailLevel(CVarDetailLevelFoundValue))
-				{
-					return true;
-				}
-				return false;
-			}
-		}
-	}
-#endif
-	return true;
-}
+		EngineEffectsQuality = NewEffectsQuality;
 
-void INiagaraModule::OnChangeDetailLevel(class IConsoleVariable* CVar)
-{
-	int32 NewDetailLevel = CVar->GetInt();
-	if (EngineDetailLevel != NewDetailLevel)
-	{
-		EngineDetailLevel = NewDetailLevel;
+		FNiagaraPlatformSet::InvalidateCachedData();
 
 		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
 		{
 			UNiagaraSystem* System = *It;
 			check(System);
-			System->OnDetailLevelChanges(NewDetailLevel);
-		}
-
-		// If the detail level has changed we have to reset all systems,
-		// and only activate ones that were previously active
-		for (TObjectIterator<UNiagaraComponent> It; It; ++It)
-		{
-			UNiagaraComponent* Comp = *It;
-			check(Comp);
-
-			const bool bWasActive = Comp->IsActive();
-			Comp->DestroyInstance();
-			if ( bWasActive )
-			{
-				Comp->Activate(true);
-			}
+			System->OnEffectsQualityChanged();
 		}
 	}
 }
@@ -1017,6 +946,17 @@ void INiagaraModule::ProcessShaderCompilationQueue()
 	checkf(OnProcessQueue.IsBound(), TEXT("Can not process shader queue.  Delegate was never set."));
 	return OnProcessQueue.Execute();
 }
+
+
+void CVarSinkFunc()
+{
+	//This Cvar sink can happen before the one which primes the cached scalability cvars so we must grab this ourselves.
+	IConsoleManager& ConsoleMan = IConsoleManager::Get();
+	static const auto CVarEQ = ConsoleMan.FindTConsoleVariableDataInt(TEXT("sg.EffectsQuality"));
+	INiagaraModule::OnEffectsQualityChanged(CVarEQ->GetValueOnGameThread());
+}
+
+static FAutoConsoleVariableSink CVarSink(FConsoleCommandDelegate::CreateStatic(&CVarSinkFunc));
 
 #if WITH_EDITOR
 const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()

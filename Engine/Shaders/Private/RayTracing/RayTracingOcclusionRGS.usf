@@ -29,6 +29,7 @@ RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWOcclusionMaskUAV;
 RWTexture2D<float> RWRayDistanceUAV;
 Texture2D<uint4> HairCategorizationTexture;
+Texture2D<uint> HairLightChannelMaskTexture;
 
 uint ShadowMaskType;
 uint LightingChannelMask;
@@ -161,6 +162,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 #endif
 		const bool bIsDepthValid = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r > 0.0;
 		bool bIsValidPixel = ShadingModelID != SHADINGMODELID_UNLIT && bIsDepthValid;
+		uint LightChannel = GetSceneLightingChannel(PixelCoord);
 
 		// Check if there is hair geometry
 		uint RaytracingMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
@@ -174,13 +176,13 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 			{
 				DeviceZ = Categorization.ClosestDepth;
 				ShadingModelID = SHADINGMODELID_HAIR;
+				LightChannel = HairLightChannelMaskTexture.Load(uint3(PixelCoord, 0));
 			}
 		}
 	#endif
 
 		const float3 WorldPosition = ReconstructWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
 
-		const uint LightChannel = GetSceneLightingChannel(PixelCoord);
 		const bool bTraceRay = bIsValidPixel && (LightChannel & LightingChannelMask) != 0;
 		if (!bTraceRay)
 		{

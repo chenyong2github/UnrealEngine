@@ -32,10 +32,10 @@ APlayerController* GetPlayerControllerFromNetId(UWorld* World, const FUniqueNetI
 		{
 			APlayerController* PlayerController = Iterator->Get();
 			// Determine if this is a player with replication
-			if (PlayerController && PlayerController->PlayerState != NULL && PlayerController->PlayerState->UniqueId.IsValid())
+			if (PlayerController && PlayerController->PlayerState != NULL && PlayerController->PlayerState->GetUniqueId().IsValid())
 			{
 				// If the ids match, then this is the right player.
-				if (*PlayerController->PlayerState->UniqueId == PlayerNetId)
+				if (*PlayerController->PlayerState->GetUniqueId() == PlayerNetId)
 				{
 					return PlayerController;
 				}
@@ -233,7 +233,7 @@ void AGameSession::RegisterPlayer(APlayerController* NewPlayer, const TSharedPtr
 	{
 		// Set the player's ID.
 		check(NewPlayer->PlayerState);
-		NewPlayer->PlayerState->PlayerId = GetNextPlayerID();
+		NewPlayer->PlayerState->SetPlayerId(GetNextPlayerID());
 		NewPlayer->PlayerState->SetUniqueId(UniqueId);
 		NewPlayer->PlayerState->RegisterPlayerWithSession(bWasFromInvite);
 	}
@@ -267,9 +267,9 @@ void AGameSession::UnregisterPlayer(const APlayerController* ExitingPlayer)
 	if (GetNetMode() != NM_Standalone &&
 		ExitingPlayer != NULL &&
 		ExitingPlayer->PlayerState &&
-		ExitingPlayer->PlayerState->UniqueId.IsValid())
+		ExitingPlayer->PlayerState->GetUniqueId().IsValid())
 	{
-		UnregisterPlayer(ExitingPlayer->PlayerState->SessionName, ExitingPlayer->PlayerState->UniqueId);
+		UnregisterPlayer(ExitingPlayer->PlayerState->SessionName, ExitingPlayer->PlayerState->GetUniqueId());
 	}
 }
 

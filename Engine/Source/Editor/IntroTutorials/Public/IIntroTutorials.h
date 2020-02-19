@@ -9,6 +9,7 @@
 
 class SWindow;
 class UEditorTutorial;
+struct FTutorialCategory;
 
 /**
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 
@@ -88,5 +89,12 @@ public:
 	* @return a widget used to access context-sensitive tutorials
 	*/
 	virtual TSharedPtr<SWidget> CreateTutorialsLoadingWidget(TWeakPtr<SWindow> InContextWindow = nullptr) const = 0;
+
+	/**
+	* Register a new category with the tutorial browser. Categories are automatically created when tutorial blueprints are discovered, 
+	* but this will allow you to apply some customization for tutorial categories defined by plugins
+	* @param	InTutorialCategory	The new category
+	*/
+	virtual void RegisterCategory(FTutorialCategory NewCategory) = 0;
 };
 

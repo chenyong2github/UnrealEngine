@@ -13,6 +13,7 @@ struct CORE_API FLuminPlatformMisc : public FAndroidMisc
 	 */
 	static void RequestExit(bool Force);
 	static void PlatformPreInit();
+	static void PlatformInit();
 	static bool AllowRenderThread();
 	static bool SupportsLocalCaching();
 	static bool SupportsMessaging();
@@ -35,7 +36,7 @@ struct CORE_API FLuminPlatformMisc : public FAndroidMisc
 
 	FORCEINLINE static const TCHAR* GetNullRHIShaderFormat()
 	{
-		return TEXT("GLSL_ES2");
+		return TEXT("GLSL_ES3_1_ANDROID");
 	}
 
 	static void LowLevelOutputDebugString(const TCHAR *Message);

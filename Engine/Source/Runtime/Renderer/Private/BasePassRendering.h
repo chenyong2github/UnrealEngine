@@ -190,6 +190,7 @@ public:
 template<typename LightMapPolicyType>
 class TBasePassVertexShaderPolicyParamType : public FMeshMaterialShader, public LightMapPolicyType::VertexParametersType
 {
+	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TBasePassVertexShaderPolicyParamType, NonVirtual, FMeshMaterialShader, typename LightMapPolicyType::VertexParametersType);
 protected:
 
 	TBasePassVertexShaderPolicyParamType() {}
@@ -209,14 +210,6 @@ public:
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		LightMapPolicyType::VertexParametersType::Serialize(Ar);
-		Ar << ReflectionCaptureBuffer;
-		return bShaderHasOutdatedParameters;
-	}
-
 	void GetShaderBindings(
 		const FScene* Scene,
 		ERHIFeatureLevel::Type FeatureLevel,
@@ -228,6 +221,7 @@ public:
 		FMeshDrawSingleShaderBindings& ShaderBindings) const;
 
 	void GetElementShaderBindings(
+		const FShaderMapPointerTable& PointerTable,
 		const FScene* Scene,
 		const FSceneView* ViewIfDynamicMeshCommand,
 		const FVertexFactory* VertexFactory,
@@ -240,7 +234,7 @@ public:
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const;
 
-	FShaderUniformBufferParameter ReflectionCaptureBuffer;
+	LAYOUT_FIELD(FShaderUniformBufferParameter, ReflectionCaptureBuffer);
 };
 
 
@@ -255,9 +249,8 @@ template<typename LightMapPolicyType>
 class TBasePassVertexShaderBaseType : public TBasePassVertexShaderPolicyParamType<LightMapPolicyType>
 {
 	typedef TBasePassVertexShaderPolicyParamType<LightMapPolicyType> Super;
-
+	DECLARE_INLINE_TYPE_LAYOUT(TBasePassVertexShaderBaseType, NonVirtual);
 protected:
-
 	TBasePassVertexShaderBaseType(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) : Super(Initializer) {}
 
 	TBasePassVertexShaderBaseType() {}
@@ -274,6 +267,9 @@ public:
 		LightMapPolicyType::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
+
+	
+	
 };
 
 template<typename LightMapPolicyType, bool bEnableAtmosphericFog>
@@ -300,7 +296,7 @@ public:
 		const bool bProjectAllowsAtmosphericFog = !SupportAtmosphericFog || SupportAtmosphericFog->GetValueOnAnyThread() != 0 || bForceAllPermutations;
 
 		bool bShouldCache = Super::ShouldCompilePermutation(Parameters);
-		bShouldCache &= (bEnableAtmosphericFog && bProjectAllowsAtmosphericFog && IsTranslucentBlendMode(Parameters.Material->GetBlendMode())) || !bEnableAtmosphericFog;
+		bShouldCache &= (bEnableAtmosphericFog && bProjectAllowsAtmosphericFog && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)) || !bEnableAtmosphericFog;
 
 		return bShouldCache
 			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5));
@@ -378,13 +374,6 @@ protected:
 		// Re-use vertex shader compilation environment
 		TBasePassVS<LightMapPolicyType,false>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
-
-public:
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FBaseDS::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
 };
 
 /**
@@ -394,6 +383,7 @@ public:
 template<typename LightMapPolicyType>
 class TBasePassPixelShaderPolicyParamType : public FMeshMaterialShader, public LightMapPolicyType::PixelParametersType
 {
+	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TBasePassPixelShaderPolicyParamType, NonVirtual, FMeshMaterialShader, typename LightMapPolicyType::PixelParametersType);
 public:
 
 	// static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -412,7 +402,7 @@ public:
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 	}
 
-	static bool ValidateCompiledResult(EShaderPlatform Platform, const TArray<FMaterial*>& Materials, const FVertexFactoryType* VertexFactoryType, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
+	static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
 	{
 		if (ParameterMap.ContainsParameterAllocation(FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName()))
 		{
@@ -448,16 +438,8 @@ public:
 		const TBasePassShaderElementData<LightMapPolicyType>& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const;
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		LightMapPolicyType::PixelParametersType::Serialize(Ar);
-		Ar << ReflectionCaptureBuffer;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderUniformBufferParameter ReflectionCaptureBuffer;
+	LAYOUT_FIELD(FShaderUniformBufferParameter, ReflectionCaptureBuffer);
 };
 
 /**
@@ -468,9 +450,8 @@ template<typename LightMapPolicyType>
 class TBasePassPixelShaderBaseType : public TBasePassPixelShaderPolicyParamType<LightMapPolicyType>
 {
 	typedef TBasePassPixelShaderPolicyParamType<LightMapPolicyType> Super;
-
+	DECLARE_INLINE_TYPE_LAYOUT(TBasePassPixelShaderBaseType, NonVirtual);
 public:
-
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return LightMapPolicyType::ShouldCompilePermutation(Parameters);
@@ -501,9 +482,9 @@ public:
 		static const auto SupportStationarySkylight = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportStationarySkylight"));
 		static const auto SupportAllShaderPermutations = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAllShaderPermutations"));
 
-		const bool IsSingleLayerWater = Parameters.Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
+		const bool IsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 
-		const bool bTranslucent = IsTranslucentBlendMode(Parameters.Material->GetBlendMode());
+		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
 		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;
 		const bool bProjectSupportsStationarySkylight = !SupportStationarySkylight || SupportStationarySkylight->GetValueOnAnyThread() != 0 || bForceAllPermutations;
 
@@ -513,7 +494,7 @@ public:
 			// Some lightmap policies (eg Simple Forward) always require skylight support
 			|| IsSingleLayerWater
 			|| LightMapPolicyType::RequiresSkylight()
-			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Parameters.Platform)) && Parameters.Material->GetShadingModels().IsLit());
+			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Parameters.Platform)) && Parameters.MaterialParameters.ShadingModels.IsLit());
 		return bCacheShaders
 			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 			&& TBasePassPixelShaderBaseType<LightMapPolicyType>::ShouldCompilePermutation(Parameters);
@@ -522,7 +503,7 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// For deferred decals, the shader class used is FDeferredDecalPS. the TBasePassPS is only used in the material editor and will read wrong values.
-		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), Parameters.Material->GetMaterialDomain() != MD_Surface); 
+		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), Parameters.MaterialParameters.MaterialDomain != MD_Surface); 
 
 		OutEnvironment.SetDefine(TEXT("ENABLE_SKY_LIGHT"), bEnableSkyLight);
 		TBasePassPixelShaderBaseType<LightMapPolicyType>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -537,6 +518,32 @@ public:
 	TBasePassPS() {}
 };
 
+//Alternative base pass PS for 128 bit canvas render targets that need to be set at shader compilation time.
+class F128BitRTBasePassPS : public TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, false>
+{
+	DECLARE_SHADER_TYPE(F128BitRTBasePassPS, MeshMaterial);
+public:
+
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+	{
+		return FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(Parameters.Platform);		
+	}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
+		TBasePassPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	/** Initialization constructor. */
+	F128BitRTBasePassPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer): 
+		TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, false>(Initializer)
+	{}
+
+	/** Default constructor. */
+	F128BitRTBasePassPS() {}
+};
+
 /**
  * Get shader templates allowing to redirect between compatible shaders.
  */
@@ -549,10 +556,11 @@ void GetBasePassShaders(
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableAtmosphericFog,
 	bool bEnableSkyLight,
-	FBaseHS*& HullShader,
-	FBaseDS*& DomainShader,
-	TBasePassVertexShaderPolicyParamType<LightMapPolicyType>*& VertexShader,
-	TBasePassPixelShaderPolicyParamType<LightMapPolicyType>*& PixelShader
+	bool bUse128bitRT,
+	TShaderRef<FBaseHS>& HullShader,
+	TShaderRef<FBaseDS>& DomainShader,
+	TShaderRef<TBasePassVertexShaderPolicyParamType<LightMapPolicyType>>& VertexShader,
+	TShaderRef<TBasePassPixelShaderPolicyParamType<LightMapPolicyType>>& PixelShader
 	)
 {
 	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
@@ -566,7 +574,7 @@ void GetBasePassShaders(
 		DomainShader = Material.GetShader<TBasePassDS<LightMapPolicyType > >(VertexFactoryType);
 		
 		// Metal requires matching permutations, but no other platform should worry about this complication.
-		if (bEnableAtmosphericFog && DomainShader && IsMetalPlatform(EShaderPlatform(DomainShader->GetTarget().Platform)))
+		if (bEnableAtmosphericFog && DomainShader.IsValid() && IsMetalPlatform(EShaderPlatform(DomainShader->GetTarget().Platform)))
 		{
 			HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, true > >(VertexFactoryType);
 		}
@@ -602,10 +610,11 @@ void GetBasePassShaders<FUniformLightMapPolicy>(
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableAtmosphericFog,
 	bool bEnableSkyLight,
-	FBaseHS*& HullShader,
-	FBaseDS*& DomainShader,
-	TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>*& VertexShader,
-	TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>*& PixelShader
+	bool bUse128bitRT,
+	TShaderRef<FBaseHS>& HullShader,
+	TShaderRef<FBaseDS>& DomainShader,
+	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
+	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>& PixelShader
 	);
 
 void SetupBasePassView(FRHICommandList& RHICmdList, const FViewInfo& View, const FSceneRenderer* SceneRenderer, const bool bIsEditorPrimitivePass = false);
@@ -618,7 +627,8 @@ public:
 		None = 0,
 
 		// Informs the processor whether a depth-stencil target is bound when processed draw commands are issued.
-		CanUseDepthStencil = (1 << 0)
+		CanUseDepthStencil = (1 << 0),
+		bRequires128bitRT = (1 << 1)
 	};
 
 	FBasePassMeshProcessor(
@@ -633,6 +643,16 @@ public:
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
+
+	FORCEINLINE_DEBUGGABLE void Set128BitRequirement(const bool Required)
+	{
+		bRequiresExplicit128bitRT = Required;
+	}
+
+	FORCEINLINE_DEBUGGABLE bool Get128BitRequirement() const
+	{
+		return bRequiresExplicit128bitRT;
+	}
 
 private:
 
@@ -670,6 +690,7 @@ private:
 	const bool bTranslucentBasePass;
 	const bool bEnableReceiveDecalOutput;
 	EDepthDrawingMode EarlyZPassMode;
+	bool bRequiresExplicit128bitRT;
 };
 
 ENUM_CLASS_FLAGS(FBasePassMeshProcessor::EFlags);

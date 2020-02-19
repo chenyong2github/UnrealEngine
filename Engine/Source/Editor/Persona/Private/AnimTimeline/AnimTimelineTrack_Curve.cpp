@@ -356,14 +356,32 @@ FReply FAnimTimelineTrack_Curve::HandleDoubleClicked(const FGeometry& InGeometry
 
 void FAnimTimelineTrack_Curve::HandleCurveChanged()
 {
-	CurveEditor->ZoomToFit(EAxisList::Y);
-	CurveOverlay->BuildBoundsLabels();
+	if(CurveEditor.IsValid())
+	{
+		CurveEditor->ZoomToFit(EAxisList::Y);
+	}
+	if(CurveOverlay.IsValid())
+	{
+		CurveOverlay->BuildBoundsLabels();
+	}
 
 	GetModel()->GetAnimSequenceBase()->MarkRawDataAsModified();
 
 	if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(GetModel()->GetAnimSequenceBase()))
 	{
 		AnimSequence->bNeedsRebake = true;
+	}
+}
+
+void FAnimTimelineTrack_Curve::PostUndoRedo()
+{
+	if(CurveEditor.IsValid())
+	{
+		CurveEditor->ZoomToFit(EAxisList::Y);
+	}
+	if(CurveOverlay.IsValid())
+	{
+		CurveOverlay->BuildBoundsLabels();
 	}
 }
 

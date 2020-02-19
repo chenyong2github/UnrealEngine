@@ -33,6 +33,11 @@ bool UNiagaraDataInterfaceCollisionQuery::InitPerInstanceData(void* PerInstanceD
 	return true;
 }
 
+void UNiagaraDataInterfaceCollisionQuery::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance)
+{
+	CQDIPerInstanceData* InstData = (CQDIPerInstanceData*)PerInstanceData;
+	InstData->~CQDIPerInstanceData();
+}
 
 void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 {
@@ -239,6 +244,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 				}\n\
 			}\n\
 		}\n}\n\n");
+		return true;
 	}
 	else if (FunctionInfo.DefinitionName == TEXT("PerformCollisionQueryGPUShader"))
 	{
@@ -304,6 +310,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			{\n\
 				") + SceneDepthFunction + TEXT("(In_SamplePos, In_TraceEndPos, CollisionDepthBounds, ParticleRadius, OutCollisionValid, Out_CollisionPos, Out_CollisionNormal);\n\
 			}\n}\n\n");
+		return true;
 	}
 	else if (FunctionInfo.DefinitionName == TEXT("QuerySceneDepthGPU"))
 	{
@@ -333,6 +340,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			{\n\
 				Out_IsInsideView = false;\n\
 			}\n}\n\n");
+		return true;
 	}
 	else if (FunctionInfo.DefinitionName == TEXT("QueryMeshDistanceFieldGPU"))
 	{
@@ -341,9 +349,10 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);\n\
 			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\
 			\n}\n\n");
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -848,23 +857,19 @@ bool UNiagaraDataInterfaceCollisionQuery::PerInstanceTickPostSimulate(void* PerI
 
 struct FNiagaraDataInterfaceParametersCS_CollisionQuery : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CollisionQuery, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
 		PassUniformBuffer.Bind(ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		GlobalDistanceFieldParameters.Bind(ParameterMap);
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << PassUniformBuffer;
-		Ar << GlobalDistanceFieldParameters;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		
 		TUniformBufferRef<FSceneTexturesUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
 		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, PassUniformBuffer/*Shader->GetUniformBufferParameter(SceneTexturesUniformBufferStruct)*/, SceneTextureUniformParams);
@@ -875,14 +880,12 @@ struct FNiagaraDataInterfaceParametersCS_CollisionQuery : public FNiagaraDataInt
 	}
 
 private:
-
 	/** The SceneDepthTexture parameter for depth buffer collision. */
-	FShaderUniformBufferParameter PassUniformBuffer;
+	LAYOUT_FIELD(FShaderUniformBufferParameter, PassUniformBuffer);
 
-	FGlobalDistanceFieldParameters GlobalDistanceFieldParameters;
+	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
 };
 
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceCollisionQuery::ConstructComputeParameters() const
-{
-	return new FNiagaraDataInterfaceParametersCS_CollisionQuery();
-}
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CollisionQuery);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCollisionQuery, FNiagaraDataInterfaceParametersCS_CollisionQuery);

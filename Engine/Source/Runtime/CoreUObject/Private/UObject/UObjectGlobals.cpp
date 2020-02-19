@@ -2448,7 +2448,7 @@ UObject* StaticAllocateObject
 
 	if (!bSubObject)
 	{
-		FMemory::Memzero((void *)Obj, TotalSize);
+			FMemory::Memzero((void *)Obj, TotalSize);
 		new ((void *)Obj) UObjectBase(const_cast<UClass*>(InClass), InFlags|RF_NeedInitialization, InternalSetFlags, InOuter, InName);
 	}
 	else
@@ -3128,9 +3128,9 @@ UObject* StaticConstructObject_Internal
 	UObject*		InOuter								/*=GetTransientPackage()*/,
 	FName			InName								/*=NAME_None*/,
 	EObjectFlags	InFlags								/*=0*/,
-	EInternalObjectFlags InternalSetFlags /*=0*/,
+	EInternalObjectFlags InternalSetFlags				/*=0*/,
 	UObject*		InTemplate							/*=NULL*/,
-	bool bCopyTransientsFromClassDefaults	/*=false*/,
+	bool bCopyTransientsFromClassDefaults				/*=false*/,
 	FObjectInstancingGraph* InInstanceGraph				/*=NULL*/,
 	bool bAssumeTemplateIsArchetype	/*=false*/
 )
@@ -3167,7 +3167,7 @@ UObject* StaticConstructObject_Internal
 	// Don't call the constructor on recycled subobjects, they haven't been destroyed.
 	if (!bRecycledSubobject)
 	{		
-		FScopeCycleCounterUObject ConstructorScope(InClass, GET_STATID(STAT_ConstructObject));
+		STAT(FScopeCycleCounterUObject ConstructorScope(InClass, GET_STATID(STAT_ConstructObject)));
 		(*InClass->ClassConstructor)( FObjectInitializer(Result, InTemplate, bCopyTransientsFromClassDefaults, true, InInstanceGraph) );
 	}
 	
@@ -4212,7 +4212,7 @@ namespace UE4CodeGen_Private
 			case EPropertyGenFlags::Array:
 			{
 				const FArrayPropertyParams* Prop = (const FArrayPropertyParams*)PropBase;
-				NewProp = new FArrayProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
+				NewProp = new FArrayProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ArrayFlags);
 
 				// Next property is the array inner
 				ReadMore = 1;
@@ -4227,7 +4227,7 @@ namespace UE4CodeGen_Private
 			case EPropertyGenFlags::Map:
 			{
 				const FMapPropertyParams* Prop = (const FMapPropertyParams*)PropBase;
-				NewProp = new FMapProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
+				NewProp = new FMapProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->MapFlags);
 
 				// Next two properties are the map key and value inners
 				ReadMore = 2;

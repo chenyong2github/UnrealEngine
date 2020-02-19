@@ -27,6 +27,10 @@
 
 DEFINE_LOG_CATEGORY(LogEngineSessionManager);
 
+#if !defined(IGNORE_SESSION_SHUTDOWN_IN_BACKGROUND_STATE)
+	#define IGNORE_SESSION_SHUTDOWN_IN_BACKGROUND_STATE 0
+#endif
+
 namespace SessionManagerDefs
 {
 	static const FTimespan SessionRecordExpiration = FTimespan::FromDays(30.0);
@@ -473,7 +477,7 @@ void FEngineSessionManager::SendAbnormalShutdownReport(const FSessionRecord& Rec
 		// Shutting down in deactivated state on PS4 is normal - don't report it
 		return;
 	}
-#elif PLATFORM_XBOXONE
+#elif IGNORE_SESSION_SHUTDOWN_IN_BACKGROUND_STATE
 	if (Record.bIsInBackground && !Record.bCrashed)
 	{
 		// Shutting down in background state on XB1 is normal - don't report it

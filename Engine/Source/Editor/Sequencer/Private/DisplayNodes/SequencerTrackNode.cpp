@@ -345,6 +345,16 @@ bool FSequencerTrackNode::CanRenameNode() const
 }
 
 
+bool FSequencerTrackNode::ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const
+{
+	auto NameableTrack = Cast<UMovieSceneNameableTrack>(AssociatedTrack.Get());
+	if (NameableTrack != nullptr)
+	{
+		return NameableTrack->ValidateDisplayName(NewDisplayName, OutErrorMessage);
+	}
+	return true;
+}
+
 FReply FSequencerTrackNode::CreateNewSection() const
 {
 	UMovieSceneTrack* Track = GetTrack();

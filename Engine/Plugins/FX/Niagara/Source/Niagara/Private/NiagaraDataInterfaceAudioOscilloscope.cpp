@@ -1,0 +1,587 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NiagaraDataInterfaceAudioOscilloscope.h"
+#include "NiagaraTypes.h"
+#include "NiagaraCustomVersion.h"
+#include "AudioResampler.h"
+#include "NiagaraShader.h"
+#include "ShaderParameterUtils.h"
+#include "ClearQuad.h"
+#include "TextureResource.h"
+#include "Engine/Texture2D.h"
+#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraSystemInstance.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Engine.h"
+#include "NiagaraComponent.h"
+
+#define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGridAudioOscilloscope"
+
+
+// Global VM function names, also used by the shaders code generation methods.
+static const FName SampleAudioBufferFunctionName("SampleAudioBuffer");
+static const FName GetAudioBufferNumChannelsFunctionName("GetAudioBufferNumChannels");
+
+// Global variable prefixes, used in HLSL parameter declarations.
+static const FString AudioBufferName(TEXT("AudioBuffer_"));
+static const FString NumChannelsName(TEXT("NumChannels_"));
+
+FNiagaraDataInterfaceProxyOscilloscope::FNiagaraDataInterfaceProxyOscilloscope(int32 InResolution, float InScopeInMillseconds)
+	: PatchMixer()
+	, SubmixRegisteredTo(nullptr)
+	, bIsSubmixListenerRegistered(false)
+	, Resolution(InResolution)
+	, ScopeInMilliseconds(InScopeInMillseconds)
+	, NumChannelsInDownsampledBuffer(0)
+{
+	DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FNiagaraDataInterfaceProxyOscilloscope::OnNewDeviceCreated);
+	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FNiagaraDataInterfaceProxyOscilloscope::OnDeviceDestroyed);
+}
+
+FNiagaraDataInterfaceProxyOscilloscope::~FNiagaraDataInterfaceProxyOscilloscope()
+{
+	check(IsInRenderingThread());
+	GPUDownsampledBuffer.Release();
+
+	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+	FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::RegisterToAllAudioDevices()
+{
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		// Register a new submix listener for every audio device that currently exists.
+		DeviceManager->IterateOverAllDevices([&](Audio::FDeviceId DeviceId, FAudioDevice* InDevice)
+		{
+			check(!SubmixListeners.Contains(DeviceId));
+			FNiagaraSubmixListener& Listener = SubmixListeners.Emplace(DeviceId, FNiagaraSubmixListener(PatchMixer, Resolution * 2));
+			InDevice->RegisterSubmixBufferListener(&Listener, SubmixRegisteredTo);
+		});
+	}
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::UnregisterFromAllAudioDevices(USoundSubmix* Submix)
+{
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		// Register a new submix listener for every audio device that currently exists.
+		DeviceManager->IterateOverAllDevices([&](Audio::FDeviceId DeviceId, FAudioDevice* InDevice)
+		{
+			check(SubmixListeners.Contains(DeviceId));
+
+			InDevice->UnregisterSubmixBufferListener(&SubmixListeners[DeviceId], Submix);
+			SubmixListeners.Remove(DeviceId);
+		});
+	}
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateSubmix(USoundSubmix* Submix)
+{
+	if (bIsSubmixListenerRegistered)
+	{
+		UnregisterFromAllAudioDevices(Submix);
+	}
+
+	SubmixRegisteredTo = Submix;
+	
+	RegisterToAllAudioDevices();
+	bIsSubmixListenerRegistered = true;
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::OnNewDeviceCreated(Audio::FDeviceId InID)
+{
+	if (bIsSubmixListenerRegistered)
+	{
+		check(!SubmixListeners.Contains(InID));
+		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InID);
+		check(DeviceHandle);
+
+		FNiagaraSubmixListener& Listener = SubmixListeners.Emplace(InID, FNiagaraSubmixListener(PatchMixer, Resolution * 2));
+		DeviceHandle->RegisterSubmixBufferListener(&Listener, SubmixRegisteredTo);
+	}
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::OnDeviceDestroyed(Audio::FDeviceId InID)
+{
+	if (bIsSubmixListenerRegistered)
+	{
+		if (SubmixListeners.Contains(InID))
+		{
+			FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InID);
+			check(DeviceHandle);
+
+			DeviceHandle->UnregisterSubmixBufferListener(&SubmixListeners[InID], SubmixRegisteredTo);
+			SubmixListeners.Remove(InID);
+		}
+	}
+}
+
+UNiagaraDataInterfaceAudioOscilloscope::UNiagaraDataInterfaceAudioOscilloscope(FObjectInitializer const& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, Submix(nullptr)
+	, Resolution(512)
+	, ScopeInMilliseconds(20.0f)
+	
+{
+	Proxy = TUniquePtr<FNiagaraDataInterfaceProxyOscilloscope>(new FNiagaraDataInterfaceProxyOscilloscope(Resolution, ScopeInMilliseconds));
+}
+
+float FNiagaraDataInterfaceProxyOscilloscope::SampleAudio(float NormalizedPositionInBuffer, int32 ChannelIndex)
+{
+	if (DownsampledBuffer.Num() == 0)
+	{
+		return 0.0f;
+	}
+
+	NormalizedPositionInBuffer = FMath::Clamp(NormalizedPositionInBuffer, 0.0f, 1.0f - SMALL_NUMBER);
+	float FrameIndex = NormalizedPositionInBuffer * DownsampledBuffer.Num();
+	int32 LowerFrameIndex = FMath::FloorToInt(FrameIndex);
+	float LowerFrameAmplitude = DownsampledBuffer[LowerFrameIndex * NumChannelsInDownsampledBuffer + ChannelIndex];
+	int32 HigherFrameIndex = FMath::CeilToInt(FrameIndex);
+	float HigherFrameAmplitude = DownsampledBuffer[HigherFrameIndex * NumChannelsInDownsampledBuffer + ChannelIndex];
+	float Fraction = HigherFrameIndex - FrameIndex;
+	return FMath::Lerp<float>(LowerFrameAmplitude, HigherFrameAmplitude, Fraction);
+}
+
+void UNiagaraDataInterfaceAudioOscilloscope::SampleAudio(FVectorVMContext& Context)
+{
+	//VectorVM::FUserPtrHandler<UNiagaraDataInterfaceAudioOscilloscope> InstData(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> InNormalizedPos(Context);
+	VectorVM::FExternalFuncRegisterHandler<int32> InChannel(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutAmplitude(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		float Position = InNormalizedPos.Get();
+		int32 Channel = InChannel.Get();
+		*OutAmplitude.GetDest() = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->SampleAudio(Position, Channel);
+
+		InNormalizedPos.Advance();
+		InChannel.Advance();
+		OutAmplitude.Advance();
+	}
+}
+
+int32 FNiagaraDataInterfaceProxyOscilloscope::GetNumChannels()
+{
+	return NumChannelsInDownsampledBuffer;
+}
+
+void UNiagaraDataInterfaceAudioOscilloscope::GetNumChannels(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<UNiagaraDataInterfaceAudioOscilloscope> InstData(Context);
+	VectorVM::FExternalFuncRegisterHandler<int32> OutChannel(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		*OutChannel.GetDestAndAdvance() = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->GetNumChannels();
+	}
+}
+
+void UNiagaraDataInterfaceAudioOscilloscope::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
+{
+	Super::GetFunctions(OutFunctions);
+
+	{
+		FNiagaraFunctionSignature SampleAudioBufferSignature;
+		SampleAudioBufferSignature.Name = SampleAudioBufferFunctionName;
+		SampleAudioBufferSignature.Inputs.Add(FNiagaraVariable(GetClass(), TEXT("Oscilloscope")));
+		SampleAudioBufferSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("NormalizedPositionInBuffer")));
+		SampleAudioBufferSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("ChannelIndex")));
+		SampleAudioBufferSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Amplitude")));
+
+		SampleAudioBufferSignature.bMemberFunction = true;
+		SampleAudioBufferSignature.bRequiresContext = false;
+		OutFunctions.Add(SampleAudioBufferSignature);
+	}
+
+	{
+		FNiagaraFunctionSignature NumChannelsSignature;
+		NumChannelsSignature.Name = GetAudioBufferNumChannelsFunctionName;
+		NumChannelsSignature.Inputs.Add(FNiagaraVariable(GetClass(), TEXT("Oscilloscope")));
+		NumChannelsSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumChannels")));
+
+		NumChannelsSignature.bMemberFunction = true;
+		NumChannelsSignature.bRequiresContext = false;
+		OutFunctions.Add(NumChannelsSignature);
+	}
+}
+
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceAudioOscilloscope, SampleAudio);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceAudioOscilloscope, GetNumChannels);
+
+void UNiagaraDataInterfaceAudioOscilloscope::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
+{
+	if (BindingInfo.Name == SampleAudioBufferFunctionName)
+	{
+		//TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceAudioOscilloscope, SampleAudio)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceAudioOscilloscope, SampleAudio)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetAudioBufferNumChannelsFunctionName)
+	{
+		//TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceAudioOscilloscope, GetNumChannels)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceAudioOscilloscope, GetNumChannels)::Bind(this, OutFunc);
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("Error! Function defined for this class but not bound."));
+	}
+}
+
+bool UNiagaraDataInterfaceAudioOscilloscope::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
+{
+	bool ParentRet = Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL);
+	if (ParentRet)
+	{
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == SampleAudioBufferFunctionName)
+	{
+		// See SampleBuffer(float InNormalizedPosition, int32 InChannel)
+		/**
+		 * float FrameIndex = NormalizedPositionInBuffer * DownsampledBuffer.Num();
+		 * int32 LowerFrameIndex = FMath::FloorToInt(FrameIndex);
+		 * float LowerFrameAmplitude = DownsampledBuffer[LowerFrameIndex * NumChannelsInDownsampledBuffer + ChannelIndex];
+		 * int32 HigherFrameIndex = FMath::CeilToInt(FrameIndex);
+		 * float HigherFrameAmplitude = DownsampledBuffer[HigherFrameIndex * NumChannelsInDownsampledBuffer + ChannelIndex];
+		 * float Fraction = HigherFrameIndex - FrameIndex;
+		 * return FMath::Lerp<float>(LowerFrameAmplitude, HigherFrameAmplitude, Fraction);
+		 */
+		static const TCHAR *FormatBounds = TEXT(R"(
+			void {FunctionName}(float In_NormalizedPosition, int In_ChannelIndex, out float Out_Val)
+			{
+				float FrameIndex = In_NormalizedPosition * {AudioBufferNumFrames};
+				int LowerIndex = floor(FrameIndex);
+				int UpperIndex =  LowerIndex < {AudioBufferNumFrames} ? LowerIndex + 1.0 : LowerIndex;
+				float Fraction = FrameIndex - LowerIndex;
+				float LowerValue = {AudioBuffer}.Load(LowerIndex * {ChannelCount} + In_ChannelIndex);
+				float UpperValue = {AudioBuffer}.Load(UpperIndex * {ChannelCount} + In_ChannelIndex);
+				Out_Val = lerp(LowerValue, UpperValue, Fraction);
+			}
+		)");
+		TMap<FString, FStringFormatArg> ArgsBounds = {
+			{TEXT("FunctionName"), FStringFormatArg(FunctionInfo.InstanceName)},
+			{TEXT("ChannelCount"), FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol)},
+			{TEXT("AudioBufferNumFrames"), FStringFormatArg(Resolution)},
+			{TEXT("AudioBuffer"), FStringFormatArg(AudioBufferName + ParamInfo.DataInterfaceHLSLSymbol)},
+		};
+		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetAudioBufferNumChannelsFunctionName)
+	{
+		// See GetNumChannels()
+		static const TCHAR *FormatBounds = TEXT(R"(
+			void {FunctionName}(out int Out_Val)
+			{
+				Out_Val = {ChannelCount};
+			}
+		)");
+		TMap<FString, FStringFormatArg> ArgsBounds = {
+			{TEXT("FunctionName"), FStringFormatArg(FunctionInfo.InstanceName)},
+			{TEXT("ChannelCount"), FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol)},
+		};
+		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void UNiagaraDataInterfaceAudioOscilloscope::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+{
+	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
+
+	static const TCHAR *FormatDeclarations = TEXT(R"(				
+		Buffer<float> {AudioBufferName};
+		int {NumChannelsName};
+
+	)");
+	TMap<FString, FStringFormatArg> ArgsDeclarations = {
+		{ TEXT("AudioBufferName"),    FStringFormatArg(AudioBufferName + ParamInfo.DataInterfaceHLSLSymbol) },
+		{ TEXT("NumChannelsName"),    FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol) },
+	};
+	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
+}
+
+struct FNiagaraDataInterfaceParametersCS_AudioOscilloscope : public FNiagaraDataInterfaceParametersCS
+{
+	
+
+	FNiagaraDataInterfaceParametersCS_AudioOscilloscope(UNiagaraDataInterfaceAudioOscilloscope* InDataInterface)
+	{
+	}
+
+	virtual ~FNiagaraDataInterfaceParametersCS_AudioOscilloscope() {}
+
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
+	{
+		check(IsInRenderingThread());
+
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
+
+		FNiagaraDataInterfaceProxyOscilloscope* NDI = (FNiagaraDataInterfaceProxyOscilloscope*)Context.DataInterface;
+		FReadBuffer& AudioBufferSRV = NDI->ComputeAndPostSRV();
+
+		SetShaderValue(RHICmdList, ComputeShaderRHI, NumChannels, NDI->GetNumChannels());
+		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, AudioBuffer.GetBaseIndex(), AudioBufferSRV.SRV);
+	}
+
+	FShaderParameter NumChannels;
+	FShaderResourceParameter AudioBuffer;
+};
+
+FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceAudioOscilloscope::ConstructComputeParameters()const
+{
+	return new FNiagaraDataInterfaceParametersCS_AudioOscilloscope(const_cast<UNiagaraDataInterfaceAudioOscilloscope*>(this));
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResolution, float InScopeInMilliseconds)
+{
+	Resolution = InResolution;
+	ScopeInMilliseconds = InScopeInMilliseconds;
+
+	const int32 NumSamplesInBuffer = Resolution * NumChannelsInDownsampledBuffer;
+	if (NumSamplesInBuffer)
+	{
+		ENQUEUE_RENDER_COMMAND(FUpdateDIAudioBuffer)(
+			[&, NumSamplesInBuffer](FRHICommandListImmediate& RHICmdList)
+		{
+			if (GPUDownsampledBuffer.NumBytes > 0)
+			{
+				GPUDownsampledBuffer.Release();
+			}
+
+			GPUDownsampledBuffer.Initialize(sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+		});
+	}
+	
+}
+
+FReadBuffer& FNiagaraDataInterfaceProxyOscilloscope::ComputeAndPostSRV()
+{
+	// Copy to GPUDownsampledBuffer:
+	PostAudioToGPU();
+	return GPUDownsampledBuffer;
+}
+
+#if WITH_EDITOR
+void UNiagaraDataInterfaceAudioOscilloscope::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	static FName SubmixFName = GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceAudioOscilloscope, Submix);
+	static FName ResolutionFName = GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceAudioOscilloscope, Resolution);
+	static FName ScopeInMillisecondsFName = GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceAudioOscilloscope, ScopeInMilliseconds);
+
+	// Regenerate on save any compressed sound formats or if analysis needs to be re-done
+	if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+	{
+		const FName& Name = PropertyThatChanged->GetFName();
+		if (Name == SubmixFName)
+		{
+			GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateSubmix(Submix);
+		}
+		else if (Name == ResolutionFName || Name == ScopeInMillisecondsFName)
+		{
+			GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateResampling(Resolution, ScopeInMilliseconds);
+		}
+	}
+}
+#endif //WITH_EDITOR
+
+void UNiagaraDataInterfaceAudioOscilloscope::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), /*bCanBeParameter*/ true, /*bCanBePayload*/ false, /*bIsUserDefined*/ false);
+	}
+
+	GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateResampling(Resolution, ScopeInMilliseconds);
+	GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateSubmix(Submix);
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::OnBeginDestroy()
+{
+	if (bIsSubmixListenerRegistered)
+	{
+		UnregisterFromAllAudioDevices(SubmixRegisteredTo);
+	}
+}
+
+void UNiagaraDataInterfaceAudioOscilloscope::BeginDestroy()
+{
+	GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnBeginDestroy();
+
+	Super::BeginDestroy();
+}
+
+void UNiagaraDataInterfaceAudioOscilloscope::PostLoad()
+{
+	Super::PostLoad();
+	GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateResampling(Resolution, ScopeInMilliseconds);
+	GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateSubmix(Submix);
+}
+
+bool UNiagaraDataInterfaceAudioOscilloscope::CopyToInternal(UNiagaraDataInterface* Destination) const
+{
+	Super::CopyToInternal(Destination);
+
+	UNiagaraDataInterfaceAudioOscilloscope* CastedDestination = Cast<UNiagaraDataInterfaceAudioOscilloscope>(Destination);
+
+	if (CastedDestination)
+	{
+		CastedDestination->Submix = Submix;
+		CastedDestination->Resolution = Resolution;
+		CastedDestination->ScopeInMilliseconds = ScopeInMilliseconds;
+	}
+	
+	return true;
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::PostAudioToGPU()
+{
+	ENQUEUE_RENDER_COMMAND(FUpdateDIAudioBuffer)(
+		[&](FRHICommandListImmediate& RHICmdList)
+	{
+		DownsampleAudioToBuffer();
+		uint32 BufferSize = Resolution * NumChannelsInDownsampledBuffer * sizeof(float);
+		if (BufferSize != 0 && !GPUDownsampledBuffer.NumBytes)
+		{
+			GPUDownsampledBuffer.Initialize(sizeof(float), Resolution * NumChannelsInDownsampledBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+		}
+
+		if (GPUDownsampledBuffer.NumBytes > 0)
+		{
+			float *BufferData = static_cast<float*>(RHILockVertexBuffer(GPUDownsampledBuffer.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
+			FScopeLock ScopeLock(&DownsampleBufferLock);
+			FPlatformMemory::Memcpy(BufferData, DownsampledBuffer.GetData(), BufferSize);
+			RHIUnlockVertexBuffer(GPUDownsampledBuffer.Buffer);
+		}
+	});
+}
+
+void FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
+{
+	FScopeLock ScopeLock(&DownsampleBufferLock);
+
+	// Get the number of channels from the first listener we find.
+	// If the num channels hasn't been set, either SubmixListeners is empty
+	// or we haven't pushed audio to any of them yet.
+	NumChannelsInDownsampledBuffer = 0;
+	float SourceSampleRate = 0.0f;
+
+	for (auto& Listener : SubmixListeners)
+	{
+		NumChannelsInDownsampledBuffer = Listener.Value.GetNumChannels();
+		SourceSampleRate = Listener.Value.GetSampleRate();
+
+		if (NumChannelsInDownsampledBuffer != 0)
+		{
+			break;
+		}
+	}
+
+	if (NumChannelsInDownsampledBuffer == 0 || FMath::IsNearlyZero(SourceSampleRate))
+	{
+		return;
+	}
+
+	check(NumChannelsInDownsampledBuffer > 0);
+
+	// Get the number of frames of audio in the original sample rate to show.
+	int32 NumFramesToPop = FMath::FloorToInt(SourceSampleRate * (ScopeInMilliseconds / 1000.0f));
+
+	// If we have enough frames buffered to pop, update the PopBuffer. Otherwise, use the previous frames buffer.
+	int32 NumSamplesToPop = NumFramesToPop * NumChannelsInDownsampledBuffer;
+	if (PatchMixer.MaxNumberOfSamplesThatCanBePopped() >= NumFramesToPop)
+	{
+		PopBuffer.Reset();
+		PopBuffer.AddZeroed(NumSamplesToPop);
+		PatchMixer.PopAudio(PopBuffer.GetData(), NumSamplesToPop, true);
+	}
+	else
+	{
+		PopBuffer.SetNumZeroed(NumFramesToPop * NumChannelsInDownsampledBuffer);
+	}
+
+	// Downsample buffer in place.
+	float SampleRateRatio = ((float)Resolution) / ((float)NumFramesToPop);
+	float DestinationSampleRate = SourceSampleRate * SampleRateRatio;
+
+	Audio::FResamplingParameters ResampleParameters = {
+		Audio::EResamplingMethod::Linear,
+		NumChannelsInDownsampledBuffer,
+		SourceSampleRate,
+		DestinationSampleRate,
+		PopBuffer
+	};
+
+	int32 DownsampleBufferSize = Audio::GetOutputBufferSize(ResampleParameters);
+	DownsampledBuffer.Reset();
+	DownsampledBuffer.AddZeroed(DownsampleBufferSize);
+
+
+	Audio::FResamplerResults ResampleResults;
+	ResampleResults.OutBuffer = &DownsampledBuffer;
+
+	bool bResampleResult = Audio::Resample(ResampleParameters, ResampleResults);
+	check(bResampleResult);
+
+	// here we may have an extra sample or two due to roundoff.
+	DownsampledBuffer.SetNumZeroed(Resolution * NumChannelsInDownsampledBuffer);
+}
+
+FNiagaraSubmixListener::FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer)
+	: NumChannelsInSubmix(0)
+	, SubmixSampleRate(0)
+	, MixerInput(InMixer.AddNewInput(InNumSamplesToBuffer, 1.0f))
+{
+
+}
+
+FNiagaraSubmixListener::FNiagaraSubmixListener()
+	: NumChannelsInSubmix(0)
+	, SubmixSampleRate(0)
+{
+
+}
+
+FNiagaraSubmixListener::FNiagaraSubmixListener(FNiagaraSubmixListener&& Other)
+{
+	NumChannelsInSubmix = Other.NumChannelsInSubmix;
+	Other.NumChannelsInSubmix = 0;
+
+	SubmixSampleRate = Other.SubmixSampleRate;
+	Other.SubmixSampleRate = 0;
+
+	MixerInput = MoveTemp(Other.MixerInput);
+}
+
+FNiagaraSubmixListener::~FNiagaraSubmixListener()
+{
+}
+
+float FNiagaraSubmixListener::GetSampleRate()
+{
+	return (float) SubmixSampleRate;
+}
+
+int32 FNiagaraSubmixListener::GetNumChannels()
+{
+	return NumChannelsInSubmix;
+}
+
+void FNiagaraSubmixListener::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock)
+{
+	NumChannelsInSubmix = NumChannels;
+	SubmixSampleRate = SampleRate;
+	MixerInput.PushAudio(AudioData, NumSamples);
+}
+
+#undef LOCTEXT_NAMESPACE

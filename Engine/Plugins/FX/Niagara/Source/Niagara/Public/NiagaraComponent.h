@@ -47,10 +47,13 @@ class NIAGARA_API UNiagaraComponent : public UFXSystemComponent
 public:
 
 	/********* UFXSystemComponent *********/
+	void SetBoolParameter(FName ParameterName, bool Param) override;
+	void SetIntParameter(FName ParameterName, int Param) override;
 	void SetFloatParameter(FName ParameterName, float Param) override;
 	void SetVectorParameter(FName ParameterName, FVector Param) override;
 	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
 	void SetActorParameter(FName ParameterName, class AActor* Param) override;
+
 	virtual UFXSystemAsset* GetFXSystemAsset() const override;
 	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
 	void ReleaseToPool() override;
@@ -118,7 +121,7 @@ protected:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void OnEndOfFrameUpdateDuringTick() override;
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void BeginDestroy() override;
 	//virtual void OnAttachmentChanged() override;
@@ -132,6 +135,13 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attachment)
 	uint32 bAutoManageAttachment : 1;
+
+	/**
+	 * Option for how we handle bWeldSimulatedBodies when we attach to the AutoAttachParent, if bAutoManageAttachment is true.
+	 * @see bAutoManageAttachment
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attachment, meta=(EditCondition="bAutoManageAttachment"))
+	uint32 bAutoAttachWeldSimulatedBodies : 1;
 
 	/**
 	 * Time between forced UpdateTransforms for systems that use dynamically calculated bounds,
@@ -394,20 +404,11 @@ public:
 #endif
 	//~ End UObject Interface
 
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	void SetPreviewDetailLevel(bool bEnablePreviewDetailLevel, int32 PreviewDetailLevel);
-
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance);
 
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	FORCEINLINE bool GetPreviewDetailLevelEnabled()const;
-
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	FORCEINLINE bool GetPreviewLODDistanceEnabled()const;
-
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	FORCEINLINE int32 GetPreviewDetailLevel()const;
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	FORCEINLINE int32 GetPreviewLODDistance()const;
@@ -498,9 +499,7 @@ public:
 	virtual void SetUseAutoManageAttachment(bool bAutoManage) override { bAutoManageAttachment = bAutoManage; }
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-	int32 PreviewDetailLevel;
 	float PreviewLODDistance;
-	uint32 bEnablePreviewDetailLevel : 1;
 	uint32 bEnablePreviewLODDistance : 1;
 #endif
 
@@ -555,14 +554,10 @@ private:
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-FORCEINLINE bool UNiagaraComponent::GetPreviewDetailLevelEnabled()const { return bEnablePreviewDetailLevel; }
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return bEnablePreviewLODDistance; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewDetailLevel()const { return bEnablePreviewDetailLevel ? PreviewDetailLevel : INDEX_NONE; }
 FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
 #else
-FORCEINLINE bool UNiagaraComponent::GetPreviewDetailLevelEnabled()const { return false; }
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return false; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewDetailLevel()const { return INDEX_NONE; }
 FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
 #endif
 

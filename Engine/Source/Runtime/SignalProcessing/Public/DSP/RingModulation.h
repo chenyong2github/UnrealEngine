@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DSP/Osc.h"
+#include "DSP/MultithreadedPatching.h"
 
 namespace Audio
 {
@@ -30,25 +31,30 @@ namespace Audio
 		// Set the ring modulation depth
 		void SetModulationDepth(const float InModulationDepth);
 
+		// Sets that the modulation buffer is external
+		void SetExternalPatchSource(Audio::FPatchOutputStrongPtr InPatch);
+
 		// Set the dry level of the ring modulation
 		void SetDryLevel(const float InDryLevel) { DryLevel = InDryLevel; }
 
 		// Set the wet level of the ring modulation
-		void SetWetLevel(const float InWetLevel) { WetLevel = InWetLevel; }
-
-		// Processes the audio frame (audio frame must have channels equal to that used during initialization)
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
+		void SetWetLevel(const float InWetLevel);
 
 		// Process audio buffer
 		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
 
 	private:
+		void UpdateScale();
+
+		Audio::FPatchOutputStrongPtr Patch;
 		Audio::FOsc Osc;
 		float ModulationFrequency;
 		float ModulationDepth;
 		float DryLevel;
 		float WetLevel;
+		float Scale;
 		int32 NumChannels;
+		TArray<float> ModulationBuffer;
 	};
 
 }

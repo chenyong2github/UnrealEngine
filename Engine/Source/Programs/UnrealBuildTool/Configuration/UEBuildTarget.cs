@@ -260,11 +260,6 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Switch = FindOrAddByName("Switch");
 
 		/// <summary>
-		/// NDA'd platform Quail
-		/// </summary>
-		public static UnrealTargetPlatform Quail = FindOrAddByName("Quail");
-
-		/// <summary>
 		/// Confidential platform
 		/// </summary>
 		public static UnrealTargetPlatform Lumin = FindOrAddByName("Lumin");
@@ -473,9 +468,20 @@ namespace UnrealBuildTool
 		public static UnrealPlatformGroup Sony = FindOrAddByName("Sony");
 
 		/// <summary>
+		/// XboxCommon group
+		/// </summary>
+		public static UnrealPlatformGroup XboxCommon = FindOrAddByName("XboxCommon");
+
+		/// <summary>
 		/// Target all desktop platforms (Win64, Mac, Linux) simultaneously
 		/// </summary>
 		public static UnrealPlatformGroup AllDesktop = FindOrAddByName("AllDesktop");
+
+		/// <summary>
+		/// Desktop group - used by UnrealPlatformClass.Desktop
+		/// </summary>
+		public static UnrealPlatformGroup Desktop = FindOrAddByName("Desktop");
+
 	}
 
 	/// <summary>
@@ -656,7 +662,7 @@ namespace UnrealBuildTool
 			// If we're using the shared build environment, make sure all the settings are valid
 			if (RulesObject.BuildEnvironment == TargetBuildEnvironment.Shared)
 			{
-				ValidateSharedEnvironment(RulesAssembly, Descriptor.Name, RulesObject);
+				ValidateSharedEnvironment(RulesAssembly, Descriptor.Name, Descriptor.AdditionalArguments, RulesObject);
 			}
 
 			// If we're precompiling, generate a list of all the files that we depend on
@@ -739,7 +745,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Validates that the build environment matches the shared build environment, by comparing the TargetRules instance to the vanilla target rules for the current target type.
 		/// </summary>
-		static void ValidateSharedEnvironment(RulesAssembly RulesAssembly, string ThisTargetName, TargetRules ThisRules)
+		static void ValidateSharedEnvironment(RulesAssembly RulesAssembly, string ThisTargetName, CommandLineArguments Arguments, TargetRules ThisRules)
 		{
 			// Allow disabling these checks
 			if(ThisRules.bOverrideBuildEnvironment)
@@ -768,7 +774,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the target rules for it
-			TargetRules BaseRules = RulesAssembly.CreateTargetRules(BaseTargetName, ThisRules.Platform, ThisRules.Configuration, ThisRules.Architecture, null, null);
+			TargetRules BaseRules = RulesAssembly.CreateTargetRules(BaseTargetName, ThisRules.Platform, ThisRules.Configuration, ThisRules.Architecture, null, Arguments);
 
 			// Get all the configurable objects
 			object[] BaseObjects = BaseRules.GetConfigurableObjects().ToArray();
@@ -1041,14 +1047,7 @@ namespace UnrealBuildTool
 			}
 
 			// Build the project intermediate directory
-			if(bUseSharedBuildEnvironment && TargetRulesFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
-			{
-				ProjectIntermediateDirectory = DirectoryReference.Combine(ProjectDirectory, PlatformIntermediateFolder, AppName, Configuration.ToString());
-			}
-			else
-			{
-				ProjectIntermediateDirectory = DirectoryReference.Combine(ProjectDirectory, PlatformIntermediateFolder, TargetName, Configuration.ToString());
-			}
+			ProjectIntermediateDirectory = DirectoryReference.Combine(ProjectDirectory, PlatformIntermediateFolder, TargetName, Configuration.ToString());
 
 			// Build the engine intermediate directory. If we're building agnostic engine binaries, we can use the engine intermediates folder. Otherwise we need to use the project intermediates directory.
 			if (!bUseSharedBuildEnvironment)
@@ -1500,6 +1499,8 @@ namespace UnrealBuildTool
 			UEToolChain TargetToolChain = CreateToolchain(Platform);
 			SetupGlobalEnvironment(TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment);
 
+			FindSharedPCHs(Binaries, GlobalCompileEnvironment);
+
 			return GlobalCompileEnvironment;
 		}
 
@@ -1628,7 +1629,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.HoloLens;
+					IsCurrentPlatform = Platform.IsInGroup(UnrealPlatformGroup.Windows) || Platform == UnrealTargetPlatform.HoloLens;
 				}
 
 				if (IsCurrentPlatform)
@@ -1718,6 +1719,8 @@ namespace UnrealBuildTool
 			{
 				Binary.PrepareRuntimeDependencies(RuntimeDependencies, RuntimeDependencyTargetFileToSourceFile, ExeDir);
 			}
+			TargetToolChain.PrepareRuntimeDependencies(RuntimeDependencies, RuntimeDependencyTargetFileToSourceFile, ExeDir);
+
 			foreach(KeyValuePair<FileReference, FileReference> Pair in RuntimeDependencyTargetFileToSourceFile)
 			{
 				if(!UnrealBuildTool.IsFileInstalled(Pair.Key))
@@ -1882,14 +1885,26 @@ namespace UnrealBuildTool
 			if(!Rules.bDisableLinking)
 			{
 				// Check the distribution level of all binaries based on the dependencies they have
-				if(ProjectFile == null && !Rules.bLegalToDistributeBinary)
+				if (ProjectFile == null && !Rules.bLegalToDistributeBinary)
 				{
+					List<DirectoryReference> RootDirectories = new List<DirectoryReference>();
+					RootDirectories.Add(UnrealBuildTool.EngineDirectory);
+					if (ProjectFile != null)
+					{
+						DirectoryReference ProjectDir = DirectoryReference.FromFile(ProjectFile);
+						RootDirectories.Add(ProjectDir);
+						if (ProjectDescriptor != null)
+						{
+							ProjectDescriptor.AddAdditionalPaths(RootDirectories, ProjectDir);
+						}
+					}
+
 					Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache = new Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>>();
 
 					bool bResult = true;
 					foreach (UEBuildBinary Binary in Binaries)
 					{
-						bResult &= Binary.CheckRestrictedFolders(DirectoryReference.FromFile(ProjectFile), ModuleRestrictedFolderCache);
+						bResult &= Binary.CheckRestrictedFolders(RootDirectories, ModuleRestrictedFolderCache);
 					}
 					foreach(KeyValuePair<FileReference, FileReference> Pair in RuntimeDependencyTargetFileToSourceFile)
 					{
@@ -1934,8 +1949,18 @@ namespace UnrealBuildTool
 			}
 			Makefile.AdditionalDependencies.UnionWith(Makefile.PluginFiles);
 
+			// Add any leaf dependencies (eg. response files) to the dependencies list
+			IEnumerable<FileItem> LeafPrerequisiteItems = Makefile.Actions.SelectMany(x => x.PrerequisiteItems).Except(Makefile.Actions.SelectMany(x => x.ProducedItems));
+			foreach (FileItem LeafPrerequisiteItem in LeafPrerequisiteItems)
+			{
+				if (LeafPrerequisiteItem.Exists)
+				{
+					Makefile.AdditionalDependencies.Add(LeafPrerequisiteItem);
+				}
+			}
+
 			// Write a header containing public definitions for this target
-			if(Rules.ExportPublicHeader != null)
+			if (Rules.ExportPublicHeader != null)
 			{
 				UEBuildBinary Binary = Binaries[0];
 				FileReference Header = FileReference.Combine(Binary.OutputDir, Rules.ExportPublicHeader);
@@ -2687,8 +2712,14 @@ namespace UnrealBuildTool
 			List<PluginInfo> Plugins = RulesAssembly.EnumeratePlugins().ToList();
 			foreach(PluginInfo Plugin in Plugins)
 			{
+				// Ignore plugins which are specifically disabled by this target
+				if (Rules.DisablePlugins.Contains(Plugin.Name))
+				{
+					continue;
+				}
+
 				// Ignore plugins without any modules
-				if(Plugin.Descriptor.Modules == null)
+				if (Plugin.Descriptor.Modules == null)
 				{
 					continue;
 				}

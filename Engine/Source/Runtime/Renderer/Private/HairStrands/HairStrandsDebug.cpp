@@ -56,7 +56,7 @@ static int32 GHairStrandsClusterDebug = 0;
 static FAutoConsoleVariableRef CVarHairStrandsDebugClusterAABB(TEXT("r.HairStrands.Cluster.Debug"), GHairStrandsClusterDebug, TEXT("Draw debug the world bounding box of hair clusters used for culling optimisation."));
 
 static int32 GHairDebugMeshProjection_SkinCacheMesh = 0;
-
+static int32 GHairDebugMeshProjection_SkinCacheMeshInUVsSpace = 0;
 static int32 GHairDebugMeshProjection_Sim_HairRestTriangles = 0;
 static int32 GHairDebugMeshProjection_Sim_HairRestFrames = 0;
 static int32 GHairDebugMeshProjection_Sim_HairDeformedTriangles = 0;
@@ -67,6 +67,8 @@ static int32 GHairDebugMeshProjection_Render_HairRestFrames = 0;
 static int32 GHairDebugMeshProjection_Render_HairDeformedTriangles = 0;
 static int32 GHairDebugMeshProjection_Render_HairDeformedFrames = 0;
 
+
+static FAutoConsoleVariableRef CVarHairDebugMeshProjection_SkinCacheMeshInUVsSpace(			TEXT("r.HairStrands.MeshProjection.DebugInUVsSpace"),			GHairDebugMeshProjection_SkinCacheMeshInUVsSpace, TEXT("Render debug mes projection in UVs space"));
 static FAutoConsoleVariableRef CVarHairDebugMeshProjection_SkinCacheMesh(					TEXT("r.HairStrands.MeshProjection.DebugSkinCache"),			GHairDebugMeshProjection_SkinCacheMesh, TEXT("Render debug mes projection"));
 static FAutoConsoleVariableRef CVarHairDebugMeshProjection_Render_HairRestTriangles(		TEXT("r.HairStrands.MeshProjection.Render.Rest.Triangles"),		GHairDebugMeshProjection_Render_HairRestTriangles, TEXT("Render debug mes projection"));
 static FAutoConsoleVariableRef CVarHairDebugMeshProjection_Render_HairRestFrames(			TEXT("r.HairStrands.MeshProjection.Render.Rest.Frames"),		GHairDebugMeshProjection_Render_HairRestFrames, TEXT("Render debug mes projection"));
@@ -85,7 +87,7 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxel_DrawDebugPage(TEXT("r.HairSt
 
 // Helper functions for accessing interpolation data for debug purpose.
 // Definitions is in HairStrandsInterface.cpp
-void GetGroomInterpolationData(const EWorldType::Type WorldType, FHairStrandsProjectionMeshData::LOD& OutGeometries);
+void GetGroomInterpolationData(const EWorldType::Type WorldType, const EHairStrandsProjectionMeshType MeshtType, FHairStrandsProjectionMeshData::LOD& OutGeometries);
 void GetGroomInterpolationData(const EWorldType::Type WorldType, const bool bRenderData, FHairStrandsProjectionHairData& OutHairData, TArray<int32>& OutLODIndices);
 
 static int32 GHairStrandsCull = 0;
@@ -294,12 +296,12 @@ static void AddDebugHairPrintPass(
 	ShaderDrawDebug::SetParameters(GraphBuilder, View->ShaderDrawData, Parameters->ShaderDrawUniformBuffer);
 	TShaderMapRef<FHairDebugPrintCS> ComputeShader(View->ShaderMap);
 
-	ClearUnusedGraphResources(*ComputeShader, Parameters);
+	ClearUnusedGraphResources(ComputeShader, Parameters);
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsDebugPrint"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		FIntVector(1, 1, 1));
 }
@@ -400,7 +402,7 @@ static void AddDebugHairPass(
 
 	TShaderMapRef<FHairDebugPS> PixelShader(View->ShaderMap);
 
-	ClearUnusedGraphResources(*PixelShader, Parameters);
+	ClearUnusedGraphResources(PixelShader, Parameters);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HairStrandsDebug"),
@@ -414,14 +416,14 @@ static void AddDebugHairPass(
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		VertexShader->SetParameters(RHICmdList, View->ViewUniformBuffer);
 		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *Parameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
 
 		DrawRectangle(
 			RHICmdList,
@@ -431,7 +433,7 @@ static void AddDebugHairPass(
 			Viewport.Width(), Viewport.Height(),
 			Viewport.Size(),
 			Resolution,
-			*VertexShader,
+			VertexShader,
 			EDRF_UseTriangleOptimization);
 	});
 }
@@ -511,7 +513,7 @@ static void AddDebugDeepShadowTexturePass(
 	PermutationVector.Set<FDeepShadowVisualizePS::FOutputType>(ShadowData ? 0 : 1);
 	TShaderMapRef<FDeepShadowVisualizePS> PixelShader(View->ShaderMap, PermutationVector);
 
-	ClearUnusedGraphResources(*PixelShader, Parameters);
+	ClearUnusedGraphResources(PixelShader, Parameters);
 
 	GraphBuilder.AddPass(
 		ShadowData ? RDG_EVENT_NAME("DebugDeepShadowTexture") : RDG_EVENT_NAME("DebugHairViewRect"),
@@ -525,14 +527,14 @@ static void AddDebugDeepShadowTexturePass(
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		VertexShader->SetParameters(RHICmdList, View->ViewUniformBuffer);
 		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *Parameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
 
 		DrawRectangle(
 			RHICmdList,
@@ -542,7 +544,7 @@ static void AddDebugDeepShadowTexturePass(
 			Viewport.Width(), Viewport.Height(),
 			Viewport.Size(),
 			Resolution,
-			*VertexShader,
+			VertexShader,
 			EDRF_UseTriangleOptimization);
 	});
 }
@@ -645,11 +647,11 @@ static void AddVoxelRaymarchingPass(
 		PermutationVector.Set<FVoxelRaymarchingPS::FDebugMode>(DebugPermutation);
 
 		TShaderMapRef<FVoxelRaymarchingPS> PixelShader(View.ShaderMap, PermutationVector);
-		const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
+		const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 		const FIntRect Viewport = View.ViewRect;
 		const FViewInfo* CapturedView = &View;
 
-		ClearUnusedGraphResources(*PixelShader, Parameters);
+		ClearUnusedGraphResources(PixelShader, Parameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HairStrandsVoxelRaymarching"),
@@ -664,14 +666,14 @@ static void AddVoxelRaymarchingPass(
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 			VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
 			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *Parameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
 
 			DrawRectangle(
 				RHICmdList,
@@ -681,7 +683,7 @@ static void AddVoxelRaymarchingPass(
 				Viewport.Width(), Viewport.Height(),
 				Viewport.Size(),
 				Resolution,
-				*VertexShader,
+				VertexShader,
 				EDRF_UseTriangleOptimization);
 		});
 	}
@@ -749,7 +751,7 @@ static void AddVoxelPageRaymarchingPass(
 		TShaderMapRef<FVoxelVirtualRaymarchingCS> ComputeShader(View.ShaderMap);
 
 		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(OutputTexture->Desc.Extent.X, OutputTexture->Desc.Extent.Y, 1), FIntVector(8, 8, 1));
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVoxelVirtualRaymarching"), *ComputeShader, Parameters, DispatchCount);
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVoxelVirtualRaymarching"), ComputeShader, Parameters, DispatchCount);
 	}
 }
 
@@ -801,11 +803,11 @@ static void AddPlotBSDFPass(
 	const FIntPoint OutputResolution = SceneTextures.SceneDepthBuffer->Desc.Extent;
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FHairStrandsBSDFPlotPS> PixelShader(View.ShaderMap);
-	const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
+	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
 	const FViewInfo* CapturedView = &View;
 
-	ClearUnusedGraphResources(*PixelShader, Parameters);
+	ClearUnusedGraphResources(PixelShader, Parameters);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HairStrandsBsdfPlot"),
@@ -820,14 +822,14 @@ static void AddPlotBSDFPass(
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
 		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *Parameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
 
 		DrawRectangle(
 			RHICmdList,
@@ -837,7 +839,7 @@ static void AddPlotBSDFPass(
 			Viewport.Width(), Viewport.Height(),
 			Viewport.Size(),
 			Resolution,
-			*VertexShader,
+			VertexShader,
 			EDRF_UseTriangleOptimization);
 	});
 }
@@ -849,9 +851,15 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairProjectionMeshDebugParameters, )
 	SHADER_PARAMETER(uint32, IndexOffset)
 	SHADER_PARAMETER(uint32, MaxIndexCount)
 	SHADER_PARAMETER(uint32, MaxVertexCount)
+	SHADER_PARAMETER(uint32, MeshUVsChannelOffset)
+	SHADER_PARAMETER(uint32, MeshUVsChannelCount)
+	SHADER_PARAMETER(uint32, bOutputInUVsSpace)
+	SHADER_PARAMETER(uint32, MeshType)
+	SHADER_PARAMETER(uint32, SectionIndex)
 	SHADER_PARAMETER(FVector2D, OutputResolution)
 	SHADER_PARAMETER_SRV(StructuredBuffer, InputIndexBuffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer, InputVertexBuffer)
+	SHADER_PARAMETER_SRV(StructuredBuffer, InputVertexPositionBuffer)
+	SHADER_PARAMETER_SRV(StructuredBuffer, InputVertexUVsBuffer)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -900,6 +908,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairProjectionMeshDebugPS, "/Engine/Private/HairStrands
 static void AddDebugProjectionMeshPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo* View,
+	const EHairStrandsProjectionMeshType MeshType,
 	const bool bClearDepth,
 	FHairStrandsProjectionMeshData::Section& MeshSectionData,
 	FRDGTextureRef& ColorTexture, 
@@ -918,12 +927,18 @@ static void AddDebugProjectionMeshPass(
 	FHairProjectionMeshDebugParameters* Parameters = GraphBuilder.AllocParameters<FHairProjectionMeshDebugParameters>();
 	Parameters->LocalToWorld = MeshSectionData.LocalToWorld.ToMatrixWithScale();
 	Parameters->OutputResolution = Resolution;
+	Parameters->MeshType = uint32(MeshType);
+	Parameters->bOutputInUVsSpace = GHairDebugMeshProjection_SkinCacheMeshInUVsSpace ? 1 : 0;
 	Parameters->VertexOffset = MeshSectionData.VertexBaseIndex;
 	Parameters->IndexOffset = MeshSectionData.IndexBaseIndex;
 	Parameters->MaxIndexCount = MeshSectionData.TotalIndexCount;
 	Parameters->MaxVertexCount = MeshSectionData.TotalVertexCount;
+	Parameters->MeshUVsChannelOffset = MeshSectionData.UVsChannelOffset;
+	Parameters->MeshUVsChannelCount = MeshSectionData.UVsChannelCount;
 	Parameters->InputIndexBuffer  = MeshSectionData.IndexBuffer;
-	Parameters->InputVertexBuffer = MeshSectionData.PositionBuffer;
+	Parameters->InputVertexPositionBuffer = MeshSectionData.PositionBuffer;
+	Parameters->InputVertexUVsBuffer = MeshSectionData.UVsBuffer;
+	Parameters->SectionIndex = MeshSectionData.SectionIndex;
 	Parameters->ViewUniformBuffer = View->ViewUniformBuffer;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(ColorTexture, ERenderTargetLoadAction::ELoad, 0);
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(DepthTexture, bClearDepth ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
@@ -958,16 +973,16 @@ static void AddDebugProjectionMeshPass(
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Wireframe>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PrimitiveType;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-		SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), VSParameters);
-		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), PSParameters);
+		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSParameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PSParameters);
 
 		// Emit an instanced quad draw call on the order of the number of pixels on the screen.	
 		RHICmdList.DrawPrimitive(0, PrimitiveCount, 1);
@@ -979,8 +994,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairProjectionHairDebugParameters, )
 	SHADER_PARAMETER(FVector2D, OutputResolution)
 	SHADER_PARAMETER(uint32, MaxRootCount)
 	SHADER_PARAMETER(uint32, DeformedFrameEnable)
-	SHADER_PARAMETER(FVector, RestPositionOffset)
-	SHADER_PARAMETER(FVector, DeformedPositionOffset)
 	SHADER_PARAMETER(FMatrix, RootLocalToWorld)
 
 	SHADER_PARAMETER_SRV(StructuredBuffer, RestPosition0Buffer)
@@ -1090,12 +1103,10 @@ static void AddDebugProjectionHairPass(
 		Parameters->RootBarycentricBuffer = HairData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->SRV;
 	}
 
-	Parameters->RestPositionOffset = *HairData.LODDatas[LODIndex].RestPositionOffset;
 	Parameters->RestPosition0Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
 	Parameters->RestPosition1Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
 	Parameters->RestPosition2Buffer = HairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
 	
-	Parameters->DeformedPositionOffset = *HairData.LODDatas[LODIndex].DeformedPositionOffset;
 	Parameters->DeformedPosition0Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
 	Parameters->DeformedPosition1Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
 	Parameters->DeformedPosition2Buffer = HairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
@@ -1137,13 +1148,13 @@ static void AddDebugProjectionHairPass(
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PrimitiveType;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-		SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), VSParameters);
-		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), PSParameters);
+		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSParameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PSParameters);
 
 		// Emit an instanced quad draw call on the order of the number of pixels on the screen.	
 		RHICmdList.DrawPrimitive(0, PrimitiveCount, 1);
@@ -1255,7 +1266,7 @@ static void AddDrawDebugClusterPass(
 		return;
 	}
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	for (int DataIndex = 0; DataIndex < HairClusterData.HairGroups.Num(); ++DataIndex)
 	{
@@ -1298,7 +1309,7 @@ static void AddDrawDebugClusterPass(
 				const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(Parameters->ClusterCount, 1, 1), FIntVector(64, 1, 1));// FIX ME, this could get over 65535
 				FComputeShaderUtils::AddPass(
 					GraphBuilder, RDG_EVENT_NAME("DrawDebugClusterAABB"),
-					*ComputeShader, Parameters, DispatchCount);
+					ComputeShader, Parameters, DispatchCount);
 
 				GraphBuilder.Execute();
 			}
@@ -1621,13 +1632,22 @@ void RenderHairStrandsDebugInfo(
 
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)
 			{
-				FHairStrandsProjectionMeshData::LOD MeshProjectionLODData;
-				GetGroomInterpolationData(WorldType, MeshProjectionLODData);
-				for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionLODData.Sections)
+				FViewInfo* LocalView = &View;
+				auto RenderMeshProjection = [&bClearDepth, WorldType, LocalView, &SceneColorTexture, &DepthTexture](FRDGBuilder& InGraphBuilder, EHairStrandsProjectionMeshType MeshType)
 				{
-					AddDebugProjectionMeshPass(GraphBuilder, &View, bClearDepth, Section, SceneColorTexture, DepthTexture);
-					bClearDepth = false;
-				}
+					FHairStrandsProjectionMeshData::LOD MeshProjectionLODData;
+					GetGroomInterpolationData(WorldType, MeshType, MeshProjectionLODData);
+					for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionLODData.Sections)
+					{
+						AddDebugProjectionMeshPass(InGraphBuilder, LocalView, MeshType, bClearDepth, Section, SceneColorTexture, DepthTexture);
+						bClearDepth = false;
+					}
+				};
+
+				RenderMeshProjection(GraphBuilder, EHairStrandsProjectionMeshType::DeformedMesh);
+				RenderMeshProjection(GraphBuilder, EHairStrandsProjectionMeshType::RestMesh);
+				RenderMeshProjection(GraphBuilder, EHairStrandsProjectionMeshType::SourceMesh);
+				RenderMeshProjection(GraphBuilder, EHairStrandsProjectionMeshType::TargetMesh);
 			}
 
 			FViewInfo* LocalView = &View;
@@ -1718,7 +1738,7 @@ void RenderHairStrandsDebugInfo(
 			FHairVisibilityDebugPPLLCS::FPermutationDomain PermutationVector;
 			TShaderMapRef<FHairVisibilityDebugPPLLCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FIntVector TextureSize = SceneColorTexture->Desc.GetSize(); TextureSize.Z = 1;
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairPPLLDebug"), *ComputeShader, PassParameters,
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairPPLLDebug"), ComputeShader, PassParameters,
 				FIntVector::DivideAndRoundUp(TextureSize, FIntVector(8, 8, 1)));
 			GraphBuilder.Execute();
 		}

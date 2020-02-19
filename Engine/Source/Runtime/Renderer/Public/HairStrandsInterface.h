@@ -148,7 +148,9 @@ struct FHairStrandClusterData
 typedef void(*THairStrandsResetInterpolationFunction)(
 	FRHICommandListImmediate& RHICmdList,
 	struct FHairStrandsInterpolationInput* Input,
-	struct FHairStrandsInterpolationOutput* Output);
+	struct FHairStrandsInterpolationOutput* Output,
+	struct FHairStrandsProjectionHairData& SimHairProjection,
+	int32 LODIndex);
 
 typedef void (*THairStrandsInterpolationFunction)(
 	FRHICommandListImmediate& RHICmdList, 
@@ -174,7 +176,10 @@ struct FHairStrandsProjectionMeshData
 	{
 		FTransform LocalToWorld;
 		FRHIShaderResourceView* PositionBuffer = nullptr;
+		FRHIShaderResourceView* UVsBuffer = nullptr;
 		FRHIShaderResourceView* IndexBuffer = nullptr;
+		uint32 UVsChannelCount = 0;
+		uint32 UVsChannelOffset = 0;
 		uint32 NumPrimitives = 0;
 		uint32 VertexBaseIndex = 0;
 		uint32 IndexBaseIndex = 0;
@@ -202,17 +207,17 @@ struct FHairStrandsProjectionHairData
 
 		// The index buffers stores the mesh section & the triangle index into a single uint32 
 		// (3 highest bits store the section (up to 8 sections)
+		//
+		// See EncodeTriangleIndex & DecodeTriangleIndex functions in HairStrandsMeshProjectionCommon.ush
 		FRWBuffer* RootTriangleIndexBuffer = nullptr;
 		FRWBuffer* RootTriangleBarycentricBuffer = nullptr;
 
 		// Rest root triangles' positions are relative to root center (for preserving precision)
-		FVector* RestPositionOffset = nullptr;
 		FRWBuffer* RestRootTrianglePosition0Buffer = nullptr;
 		FRWBuffer* RestRootTrianglePosition1Buffer = nullptr;
 		FRWBuffer* RestRootTrianglePosition2Buffer = nullptr;
 
 		// Deformed root triangles' positions are relative to root center (for preserving precision)
-		FVector* DeformedPositionOffset = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition0Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition1Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition2Buffer = nullptr;
@@ -272,6 +277,25 @@ struct FHairStrandsDebugInfo
 typedef TArray<FHairStrandsDebugInfo> FHairStrandsDebugInfos;
 FHairStrandsDebugInfos GetHairStandsDebugInfos();
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Mesh transfer and hair projection debug infos
+
+enum class EHairStrandsProjectionMeshType
+{
+	RestMesh,
+	DeformedMesh,
+	SourceMesh,
+	TargetMesh
+};
+
+struct FHairStrandsProjectionDebugInfo
+{
+	FHairStrandsProjectionMeshData SourceMeshData;
+	FHairStrandsProjectionMeshData TargetMeshData;
+	TArray<FRWBuffer> TransferredPositions;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Registrations
 
@@ -282,7 +306,8 @@ RENDERER_API void RegisterHairStrands(
 	const FHairStrandsProjectionHairData& RenProjection,
 	const FHairStrandsProjectionHairData& SimProjection,
 	const FHairStrandsPrimitiveResources& PrimitiveResources,
-	const FHairStrandsDebugInfo& DebugInfo);
+	const FHairStrandsDebugInfo& DebugInfo,
+	const FHairStrandsProjectionDebugInfo& DebugProjectionInfo);
 
 RENDERER_API void UnregisterHairStrands(uint64 Id);
 
@@ -301,8 +326,7 @@ RENDERER_API bool UpdateHairStrands(
 	uint64 Id,
 	EWorldType::Type WorldType,
 	const FTransform& HairLocalToWorld,
-	const FTransform& MeshLocalToWorld,
-	const FVector& SkeletalDeformedPositionOffset);
+	const FTransform& MeshLocalToWorld);
 
 RENDERER_API bool UpdateHairStrands(
 	uint64 Id, 
@@ -332,10 +356,24 @@ RENDERER_API FHairCullInfo GetHairStrandsCullInfo();
 
 RENDERER_API bool IsHairRayTracingEnabled();
 
+RENDERER_API void RunMeshTransfer(
+	FRHICommandListImmediate& RHICmdList,
+	const FHairStrandsProjectionMeshData& SourceMeshData,
+	const FHairStrandsProjectionMeshData& TargetMeshData,
+	TArray<FRWBuffer>& TransferredLODsPositions);
+
 RENDERER_API void RunProjection(
 	FRHICommandListImmediate& RHICmdList,
 	const FTransform& LocalToWorld,
-	const FVector& RestPositionOffset,
-	const FHairStrandsProjectionMeshData& MeshData,
+	const FHairStrandsProjectionMeshData& TargetMeshData,
 	FHairStrandsProjectionHairData& RenProjectionHairData,
 	FHairStrandsProjectionHairData& SimProjectionHairData);
+
+typedef void (*TBindingProcess)(FRHICommandListImmediate& RHICmdList, void* Asset);
+RENDERER_API void EnqueueGroomBindingQuery(void* Asset, TBindingProcess BindingProcess);
+void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, class FGlobalShaderMap* ShaderMap);
+bool HasHairStrandsProjectionQuery(EShaderPlatform Platform);
+
+RENDERER_API FHairStrandsProjectionMeshData ExtractMeshData(class FSkeletalMeshRenderData* RenderData);
+
+FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(struct FHairStrandsRootResource* In);

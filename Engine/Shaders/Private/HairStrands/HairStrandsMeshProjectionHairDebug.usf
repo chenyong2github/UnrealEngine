@@ -3,13 +3,14 @@
 //#define SCENE_TEXTURES_DISABLED 1
 
 #include "../Common.ush"
-#include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsDebugCommon.ush"
+#include "HairStrandsMeshProjectionCommon.ush" 
 
 #define INPUT_ROOT_FRAME 0
 #define INPUT_ROOT_TRIANGLE 1
 uint MaxRootCount;
 float4x4 RootLocalToWorld;
-uint			DeformedFrameEnable;
+uint DeformedFrameEnable;
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME
 Buffer<float4> RootPositionBuffer;
@@ -17,22 +18,23 @@ Buffer<float4> RootNormalBuffer;
 Buffer<uint>   RootBarycentricBuffer;
 #endif
 
-float3 RestPositionOffset;
 Buffer<float4>  RestPosition0Buffer;
 Buffer<float4>  RestPosition1Buffer;
 Buffer<float4>  RestPosition2Buffer;
 
-float3 DeformedPositionOffset;
 Buffer<float4>  DeformedPosition0Buffer;
 Buffer<float4>  DeformedPosition1Buffer;
 Buffer<float4>  DeformedPosition2Buffer;
 
 void MainVS(
 	uint VertexId : SV_VertexID,
+	out float2 OutVertexUVs : VERTEXUVs,
 	out float3 OutFaceNormal : FACE_NORMAL,
 	out float4 OutPosition : SV_POSITION)
 {
 	ResolvedView = ResolveView();
+
+	float2 UVs = 0;
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME  
 	const uint LineVertex = (VertexId%2);
@@ -45,14 +47,32 @@ void MainVS(
 	float3 N;
 	float3 P;
 	{
-		const FHairMeshTriangle RestTriangle     = GetTriangleTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer, RestPositionOffset);
-		const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer, DeformedPositionOffset);
+		const FHairMeshTriangleWithUVs RestTriangleWithUVs     = GetTriangleWithUVsTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+		const FHairMeshTriangleWithUVs DeformedTriangleWithUVs = GetTriangleWithUVsTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+
+		const FHairMeshTriangle RestTriangle			= GetTriangleTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+		const FHairMeshTriangle DeformedTriangle		= GetTriangleTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+
 
 		float3 P0 = RootPositionBuffer[LineIndex].xyz;
 		float3 LN = RootNormalBuffer[LineIndex].xyz;
 		float3 B  = DecodeBarycentrics(RootBarycentricBuffer[LineIndex]);
 		float3 P1 = P0 + LN;
 
+		if (DeformedFrameEnable > 0)
+		{
+			UVs = 
+				B.x * DeformedTriangleWithUVs.UV0 +
+				B.y * DeformedTriangleWithUVs.UV1 +
+				B.z * DeformedTriangleWithUVs.UV2;
+		}
+		else
+		{
+			UVs =
+				B.x * RestTriangleWithUVs.UV0 +
+				B.y * RestTriangleWithUVs.UV1 +
+				B.z * RestTriangleWithUVs.UV2;
+		}
 
 		if (DeformedFrameEnable > 0)
 		{
@@ -74,10 +94,10 @@ void MainVS(
 
 	if (TriangleIndex > MaxRootCount) return;
 
-	const FHairMeshTriangle RestTriangle     = GetTriangleTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer, RestPositionOffset);
-	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer, DeformedPositionOffset);
+	const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+	const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
 
-	FHairMeshTriangle Tri;
+	FHairMeshTriangleWithUVs Tri;
 	if (DeformedFrameEnable > 0)
 		Tri = DeformedTriangle;
 	else
@@ -86,12 +106,21 @@ void MainVS(
 	float3 N = Tri.N;
 	float3 P = 0;
 	if (TriangleVertex == 0)
+	{
 		P = Tri.P0;
+		UVs = Tri.UV0;
+	}
 	if (TriangleVertex == 1)
+	{
 		P = Tri.P1;
+		UVs = Tri.UV1;
+	}
 	if (TriangleVertex == 2)
+	{
 		P = Tri.P2;
-	
+		UVs = Tri.UV2;
+	}
+
 	// Debug: To test if the rest-triangle-to-deformed-triangle transformation works correctly
 	#if 0
 	if (DeformedFrameEnable > 0)
@@ -119,15 +148,18 @@ void MainVS(
 	P = mul(float4(P, 1), RootLocalToWorld).xyz;
 #endif
 
+	OutVertexUVs = UVs;
 	OutFaceNormal = N;
 	OutPosition = mul(float4(P,1), View.WorldToClip);
 }
 
 void MainPS(
+	in float2 VertexUVs : VERTEXUVs,
 	in float3 FaceNormal : FACE_NORMAL,
 	out float4 OutColor : SV_Target0)
 {
 	FaceNormal += float3(1,1,1);
 	FaceNormal *= 0.5f;
 	OutColor = float4(FaceNormal,1);
+	OutColor = float4(VertexUVs,0, 1);
 }

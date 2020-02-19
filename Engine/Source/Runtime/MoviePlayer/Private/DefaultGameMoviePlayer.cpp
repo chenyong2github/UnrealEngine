@@ -610,7 +610,8 @@ void FDefaultGameMoviePlayer::TickStreamer(float DeltaTime)
 			MovieStreamingIsDone.Set(1);
 		}
 
-		IXRLoadingScreen* LoadingScreen;
+		// commenting loading screen currently as we don't support changing/adding/removing splash screens on the renderthread
+		/*IXRLoadingScreen* LoadingScreen;
 		if (GEngine && GEngine->XRSystem.IsValid() && (LoadingScreen = GEngine->XRSystem->GetLoadingScreen()) != nullptr)
 		{
 			FTexture2DRHIRef Movie2DTexture = ActiveMovieStreamer->GetTexture();
@@ -628,7 +629,7 @@ void FDefaultGameMoviePlayer::TickStreamer(float DeltaTime)
 				Splash.QuadSize = FVector2D(8.0f, 8.0f*InvAspectRatio);
 				LoadingScreen->AddSplash(Splash);
 			}
-		}
+		}*/
 	}
 }
 

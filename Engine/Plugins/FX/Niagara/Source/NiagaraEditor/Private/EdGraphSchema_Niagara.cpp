@@ -403,12 +403,11 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		FText Keywords;
 		ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Keywords), Keywords);
 
-		FString DisplayNameString = FName::NameToDisplayString(ScriptAsset.AssetName.ToString(), false);
+		bool bIsInLibrary = FNiagaraEditorUtilities::IsScriptAssetInLibrary(ScriptAsset);
+		const FText MenuDesc = FNiagaraEditorUtilities::FormatScriptName(ScriptAsset.AssetName, bIsInLibrary);
+		const FText TooltipDesc = FNiagaraEditorUtilities::FormatScriptDescription(AssetDesc, ScriptAsset.ObjectPath, bIsInLibrary);
 
-		const FText MenuDesc = FText::FromString(DisplayNameString);
-		const FText TooltipDesc = FNiagaraEditorUtilities::FormatScriptAssetDescription(AssetDesc, ScriptAsset.ObjectPath);
-
-		TSharedPtr<FNiagaraSchemaAction_NewNode> FunctionCallAction = AddNewNodeAction(NewActions, Category, MenuDesc, *DisplayNameString, TooltipDesc, Keywords);
+		TSharedPtr<FNiagaraSchemaAction_NewNode> FunctionCallAction = AddNewNodeAction(NewActions, Category, MenuDesc, ScriptAsset.AssetName, TooltipDesc, Keywords);
 
 		UNiagaraNodeFunctionCall* FunctionCallNode = NewObject<UNiagaraNodeFunctionCall>(OwnerOfTemporaries);
 		FunctionCallNode->FunctionScriptAssetObjectPath = ScriptAsset.ObjectPath;
@@ -941,6 +940,13 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Directions are not compatible"));
 	}
 
+	// Check for a circular connection before checking any type compatibility
+	TSet<const UEdGraphNode*> VisitedNodes;
+	if (UEdGraphSchema_Niagara::CheckCircularConnection(VisitedNodes, OutputPin->GetOwningNode(), InputPin->GetOwningNode()))
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Circular connection found"));
+	}
+
 	if (PinA->PinType.PinCategory != TEXT("wildcard") && PinB->PinType.PinCategory != TEXT("wildcard"))
 	{
 		// Check for compatible type pins.
@@ -1010,12 +1016,6 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Types are not compatible"));
 			}
 		}
-	}
-
-	TSet<const UEdGraphNode*> VisitedNodes;
-	if (UEdGraphSchema_Niagara::CheckCircularConnection(VisitedNodes, OutputPin->GetOwningNode(), InputPin->GetOwningNode()))
-	{
-		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Circular connection found"));
 	}
 
 	// See if we want to break existing connections (if its an input with an existing connection)

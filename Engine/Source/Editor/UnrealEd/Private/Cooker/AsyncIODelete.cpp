@@ -89,14 +89,14 @@ bool FAsyncIODelete::Setup()
 	uint32 ErrorCode;
 	if (!DeleteTempRootDirectory(ErrorCode))
 	{
-		UE_LOG(LogCook, Fatal, TEXT("Could not clear asyncdelete root directory '%s'.  LastError: %i."), *TempRoot, ErrorCode);
+		UE_LOG(LogCook, Error, TEXT("Could not clear asyncdelete root directory '%s'.  LastError: %i."), *TempRoot, ErrorCode);
 		return false;
 	}
 
 	// Create the empty directory to work in
 	if (!IFileManager::Get().MakeDirectory(*TempRoot, true))
 	{
-		UE_LOG(LogCook, Fatal, TEXT("Could not create asyncdelete root directory '%s'.  LastError: %i."), *TempRoot, FPlatformMisc::GetLastError());
+		UE_LOG(LogCook, Error, TEXT("Could not create asyncdelete root directory '%s'.  LastError: %i."), *TempRoot, FPlatformMisc::GetLastError());
 		return false;
 	}
 
@@ -159,7 +159,7 @@ bool FAsyncIODelete::WaitForAllTasks(float TimeLimitSeconds)
 
 	if (TimeLimitSeconds <= 0.f)
 	{
-	TasksComplete->Wait();
+		TasksComplete->Wait();
 	}
 	else
 	{
@@ -216,7 +216,7 @@ bool FAsyncIODelete::Delete(const FStringView& PathToDelete, EPathType ExpectedT
 	}
 
 #if ASYNCIODELETE_ASYNC_ENABLED
-	const FString TempPath = FPaths::Combine(TempRoot, FString::Printf(TEXT("Delete%u"), DeleteCounter));
+	const FString TempPath = FPaths::Combine(TempRoot, FString::Printf(TEXT("%u"), DeleteCounter));
 	DeleteCounter++;
 
 	const bool bReplace = true;

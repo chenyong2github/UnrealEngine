@@ -156,11 +156,6 @@ IOnlineEntitlementsPtr FOnlineSubsystemFacebookCommon::GetEntitlementsInterface(
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemFacebookCommon::GetStoreInterface() const
-{
-	return nullptr;
-}
-
 IOnlineEventsPtr FOnlineSubsystemFacebookCommon::GetEventsInterface() const
 {
 	return nullptr;

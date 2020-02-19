@@ -16,6 +16,9 @@ Texture2D SceneGBufferB;
 Texture2D SceneGBufferC;
 Texture2D SceneGBufferD;
 Texture2D SceneGBufferE;
+#if GBUFFER_HAS_TANGENT
+Texture2D SceneGBufferF;
+#endif
 Texture2D<uint> SceneLightingChannels;
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
@@ -26,6 +29,9 @@ Texture2D<uint> SceneLightingChannels;
 #define SceneGBufferCSampler GlobalPointClampedSampler
 #define SceneGBufferDSampler GlobalPointClampedSampler
 #define SceneGBufferESampler GlobalPointClampedSampler
+#if GBUFFER_HAS_TANGENT
+#define SceneGBufferFSampler GlobalPointClampedSampler
+#endif
 
 #else
 SamplerState SceneDepthBufferSampler;
@@ -35,6 +41,9 @@ SamplerState SceneGBufferBSampler;
 SamplerState SceneGBufferCSampler;
 SamplerState SceneGBufferDSampler;
 SamplerState SceneGBufferESampler;
+#if GBUFFER_HAS_TANGENT
+SamplerState SceneGBufferFSampler;
+#endif
 
 #endif
 
@@ -52,6 +61,11 @@ FGBufferData GetGBufferDataFromSceneTextures(float2 UV, bool bGetNormalizedNorma
 	float4 GBufferC = SceneGBufferC.SampleLevel(SceneGBufferCSampler, UV, 0);
 	float4 GBufferD = SceneGBufferD.SampleLevel(SceneGBufferDSampler, UV, 0);
 	float4 GBufferE = SceneGBufferE.SampleLevel(SceneGBufferESampler, UV, 0);
+#if GBUFFER_HAS_TANGENT
+	float4 GBufferF = SceneGBufferF.SampleLevel(SceneGBufferFSampler, UV, 0);
+#else
+	float4 GBufferF = 0.5f;
+#endif
 	float4 GBufferVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, UV, 0);
 
 	uint CustomStencil = 0;
@@ -61,7 +75,7 @@ FGBufferData GetGBufferDataFromSceneTextures(float2 UV, bool bGetNormalizedNorma
 
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
-	return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromSceneColorUV(UV));
+	return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferF, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromSceneColorUV(UV));
 }
 
 /** Returns the light channel mask that should be executed for this pixel. */

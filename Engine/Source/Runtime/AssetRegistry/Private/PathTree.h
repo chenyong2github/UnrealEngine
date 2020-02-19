@@ -16,8 +16,14 @@ public:
 	/** Get all of the paths we know about */
 	bool GetAllPaths(TSet<FName>& OutPaths) const;
 
+	/** Enumerate all of the paths we know about */
+	void EnumerateAllPaths(TFunctionRef<bool(FName)> Callback) const;
+
 	/** Recursively gathers all child paths from the specified base path relative to this node */
 	bool GetSubPaths(FName BasePath, TSet<FName>& OutPaths, bool bRecurse = true) const;
+
+	/** Recursively enumerates all child paths from the specified base path relative to this node */
+	bool EnumerateSubPaths(FName BasePath, TFunctionRef<bool(FName)> Callback, bool bRecurse = true) const;
 
 	uint32 GetAllocatedSize(void) const
 	{

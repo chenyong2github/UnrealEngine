@@ -18,6 +18,7 @@ AudioStreaming.cpp: Implementation of audio streaming classes.
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "AudioDecompress.h"
+#include "AudioDevice.h"
 #include "AudioCompressionSettingsUtils.h"
 
 static int32 DebugMaxElementsDisplayCVar = 128;
@@ -344,6 +345,11 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 
 				AsyncTask(ENamedThreads::GameThread, []()
 				{
+					if (GEngine && GEngine->GetMainAudioDevice())
+					{
+						GEngine->GetMainAudioDevice()->Exec(nullptr, TEXT("audiomemreport"));
+					}
+					
 					int32 NumChunksReleased = 0;
 
 					for (TObjectIterator<USoundWave> It; It; ++It)
@@ -976,6 +982,13 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::InsertChunk(const FChunkKey& 
 		}
 		else
 		{
+			static bool bLoggedCacheSaturated = false;
+			if (!bLoggedCacheSaturated)
+			{
+				UE_LOG(LogAudio, Display, TEXT("Audio Stream Cache: Using %d of %d chunks.."), ChunksInUse, CachePool.Num());
+				bLoggedCacheSaturated = true;
+			}
+			
 			// The pools filled, so we're going to need to evict.
 			CacheElement = EvictLeastRecentChunk();
 
@@ -984,18 +997,18 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::InsertChunk(const FChunkKey& 
 				return nullptr;
 			}
 		}
-	}
 
-	check(CacheElement);
-	CacheElement->bIsLoaded = false;
-	CacheElement->Key = InKey;
-	TouchElement(CacheElement);
+		check(CacheElement);
+		CacheElement->bIsLoaded = false;
+		CacheElement->Key = InKey;
+		TouchElement(CacheElement);
 
-	// If we've got multiple chunks, we can not cache the least recent chunk
-	// without worrying about a circular dependency.
-	if (LeastRecentElement == nullptr && ChunksInUse > 1)
-	{
-		SetUpLeastRecentChunk();
+		// If we've got multiple chunks, we can not cache the least recent chunk
+		// without worrying about a circular dependency.
+		if (LeastRecentElement == nullptr && ChunksInUse > 1)
+		{
+			SetUpLeastRecentChunk();
+		}
 	}
 
 	return CacheElement;
@@ -1035,7 +1048,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 		const FCacheElement* ElementToStopAt = MostRecentElement->LessRecentElement;
 
 		// Otherwise, we need to crawl up the cache from least recent used to most to find a chunk that is not in use:
-		while (CacheElement != ElementToStopAt)
+		while (CacheElement && CacheElement != ElementToStopAt)
 		{
 			if (CacheElement->CanEvictChunk())
 			{
@@ -1054,13 +1067,13 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 			{
 				CacheElement = CacheElement->MoreRecentElement;
 			}
+		}
 
-			// If we ever hit this, it means that we couldn't find any cache elements that aren't in use.
-			if (CacheElement != MostRecentElement)
-			{
-				ensureMsgf(false, TEXT("Cache blown! Please increase the cache size or load less audio."));
-				return nullptr;
-			}
+		// If we ever hit this, it means that we couldn't find any cache elements that aren't in use.
+		if (!CacheElement || CacheElement == ElementToStopAt)
+		{
+			ensureMsgf(false, TEXT("Cache blown! Please increase the cache size or load less audio."));
+			return nullptr;
 		}
 	}
 

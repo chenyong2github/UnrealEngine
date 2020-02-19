@@ -248,9 +248,13 @@ bool FMagicLeapMeshTracker::GetMeshResult()
 
 				// Pull indices
 				CurrentMeshDataCache->Triangles.Reserve(MeshData.index_count);
-				for (uint16_t i = 0; i < MeshData.index_count; ++i)
+				for (uint16_t i = 0; i < MeshData.index_count-2; i += 3)
 				{
+					// Hand mesh indices are in clockwise winding order but Unreal needs them to be counter clockwise to display properly,
+					// so reverse the winding when adding the indices to the Triangles array.
 					CurrentMeshDataCache->Triangles.Add(static_cast<uint32>(MeshData.index[i]));
+					CurrentMeshDataCache->Triangles.Add(static_cast<uint32>(MeshData.index[i+2]));
+					CurrentMeshDataCache->Triangles.Add(static_cast<uint32>(MeshData.index[i+1]));
 				}
 
 				// Pull normals

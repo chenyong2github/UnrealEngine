@@ -171,7 +171,6 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	, MouseCaptureMode(EMouseCaptureMode::CapturePermanently)
 	, bHideCursorDuringCapture(false)
 	, MouseLockMode(EMouseLockMode::LockOnCapture)
-	, AudioDeviceHandle(INDEX_NONE)
 	, bHasAudioFocus(false)
 	, bIsMouseOverClient(false)
 #if WITH_EDITOR
@@ -256,7 +255,6 @@ UGameViewportClient::UGameViewportClient(FVTableHelper& Helper)
 	, MouseCaptureMode(EMouseCaptureMode::CapturePermanently)
 	, bHideCursorDuringCapture(false)
 	, MouseLockMode(EMouseLockMode::LockOnCapture)
-	, AudioDeviceHandle(INDEX_NONE)
 	, bHasAudioFocus(false)
 {
 
@@ -303,14 +301,7 @@ void UGameViewportClient::PostInitProperties()
 
 void UGameViewportClient::BeginDestroy()
 {
-	if (GEngine)
-	{
-		class FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-		if (AudioDeviceManager)
-		{
-			AudioDeviceManager->ShutdownAudioDevice(AudioDeviceHandle);
-		}
-	}
+	AudioDevice.Reset();
 
 	RemoveAllViewportWidgets();
 	Super::BeginDestroy();
@@ -441,11 +432,14 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
 		if (AudioDeviceManager)
 		{
-			FAudioDeviceManager::FCreateAudioDeviceResults NewDeviceResults;
-			if (AudioDeviceManager->CreateAudioDevice(bCreateNewAudioDevice, NewDeviceResults))
-			{
-				AudioDeviceHandle = NewDeviceResults.Handle;
+			// Get a new audio device for this world.
+			FAudioDeviceParams DeviceParams = AudioDeviceManager->GetDefaultParamsForNewWorld();
+			DeviceParams.AssociatedWorld = World;
 
+			AudioDevice = AudioDeviceManager->RequestAudioDevice(DeviceParams);
+
+			if (AudioDevice.IsValid())
+			{
 #if ENABLE_AUDIO_DEBUG
 				FAudioDebugger::ResolveDesiredStats(this);
 #endif // ENABLE_AUDIO_DEBUG
@@ -453,15 +447,15 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 				// Set the base mix of the new device based on the world settings of the world
 				if (World)
 				{
-					NewDeviceResults.AudioDevice->SetDefaultBaseSoundMix(World->GetWorldSettings()->DefaultBaseSoundMix);
+					AudioDevice.GetAudioDevice()->SetDefaultBaseSoundMix(World->GetWorldSettings()->DefaultBaseSoundMix);
 
 					// Set the world's audio device handle to use so that sounds which play in that world will use the correct audio device
-					World->SetAudioDeviceHandle(AudioDeviceHandle);
+					World->SetAudioDevice(AudioDevice);
 				}
 
 				// Set this audio device handle on the world context so future world's set onto the world context
 				// will pass the audio device handle to them and audio will play on the correct audio device
-				WorldContext.AudioDeviceHandle = AudioDeviceHandle;
+				WorldContext.AudioDeviceID = AudioDevice.GetDeviceID();
 			}
 		}
 	}
@@ -542,6 +536,8 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 		GEngine->RemapGamepadControllerIdForPIE(this, ControllerId);
 	}
 
+	OnInputKeyEvent.Broadcast(EventArgs);
+
 #if WITH_EDITOR
 	// Give debugger commands a chance to process key binding
 	if (GameViewportInputKeyDelegate.IsBound())
@@ -608,6 +604,8 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, F
 		GEngine->RemapGamepadControllerIdForPIE(this, ControllerId);
 	}
 
+	OnInputAxisEvent.Broadcast(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+	
 	bool bResult = false;
 
 	// Don't allow mouse/joystick input axes while in PIE and the console has forced the cursor to be visible.  It's
@@ -1233,8 +1231,6 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	}
 
 	TMap<ULocalPlayer*,FSceneView*> PlayerViewMap;
-
-	FAudioDevice* AudioDevice = MyWorld->GetAudioDevice();
 	TArray<FSceneView*> Views;
 
 	for (FLocalPlayerIterator Iterator(GEngine, MyWorld); Iterator; ++Iterator)
@@ -1272,6 +1268,11 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
 						View->SpecularOverrideParameter = FVector4(.1f, .1f, .1f, 0.0f);
 					}
+					else if (View->Family->EngineShowFlags.LightingOnlyOverride)
+					{
+						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+						View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+					}
 					else if (View->Family->EngineShowFlags.ReflectionOverride)
 					{
 						View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
@@ -1303,7 +1304,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 						PlayerViewMap.Add(LocalPlayer, View);
 
 						// Update the listener.
-						if (AudioDevice != NULL && PlayerController != NULL)
+						if (AudioDevice && PlayerController != NULL)
 						{
 							bool bUpdateListenerPosition = true;
 
@@ -1316,8 +1317,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 								// If there is more than one world referencing the main audio device
 								if (AudioDeviceManager->GetNumMainAudioDeviceWorlds() > 1)
 								{
-									uint32 MainAudioDeviceHandle = GEngine->GetAudioDeviceHandle();
-									if (AudioDevice->DeviceHandle == MainAudioDeviceHandle && !bHasAudioFocus)
+									Audio::FDeviceId MainAudioDeviceID = GEngine->GetMainAudioDeviceID();
+									if (AudioDevice->DeviceID == MainAudioDeviceID && !bHasAudioFocus)
 									{
 										bUpdateListenerPosition = false;
 									}
@@ -1824,7 +1825,7 @@ void UGameViewportClient::Precache()
 	if(!GIsEditor)
 	{
 		// Precache sounds...
-		if (FAudioDevice* AudioDevice = GetWorld()->GetAudioDevice())
+		if (AudioDevice)
 		{
 			UE_LOG(LogPlayerManagement, Log, TEXT("Precaching sounds..."));
 			for(TObjectIterator<USoundWave> It;It;++It)
@@ -1891,7 +1892,7 @@ void UGameViewportClient::ReceivedFocus(FViewport* InViewport)
 
 	if (GEngine && GEngine->GetAudioDeviceManager())
 	{
-		GEngine->GetAudioDeviceManager()->SetActiveDevice(AudioDeviceHandle);
+		GEngine->GetAudioDeviceManager()->SetActiveDevice(AudioDevice.GetDeviceID());
 		bHasAudioFocus = true;
 	}
 }
@@ -2446,6 +2447,9 @@ void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, GWhiteTexture, UnsafeZoneColor);
 	TileItem.BlendMode = SE_BLEND_Translucent;
 
+	// Command line override used by mobile PIE.
+	static bool bDrawUnSafeZones = FParse::Param(FCommandLine::Get(), TEXT("DrawUnSafeZones"));
+
 	// CalculateSafeZoneValues() can be slow, so we only want to run it if we have boundaries to draw
 	if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.f)
 	{
@@ -2471,7 +2475,7 @@ void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 		TileItem.Size = FVector2D(SafeZone.Right, HeightOfSides);
 		Canvas->DrawItem(TileItem);
 	}
-	else if (!FSlateApplication::Get().GetCustomSafeZone().GetDesiredSize().IsZero())
+	else if (!FSlateApplication::Get().GetCustomSafeZone().GetDesiredSize().IsZero() || bDrawUnSafeZones)
 	{
 		ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
 		PlaySettings->CalculateCustomUnsafeZones(PlaySettings->CustomUnsafeZoneStarts, PlaySettings->CustomUnsafeZoneDimensions, PlaySettings->DeviceToEmulate, FVector2D(Width, Height));
@@ -3816,17 +3820,10 @@ bool UGameViewportClient::IsSimulateInEditorViewport() const
 	return GameViewport ? GameViewport->GetPlayInEditorIsSimulate() : false;
 }
 
-#if WITH_EDITOR
-void UGameViewportClient::SetPlayInEditorUseMouseForTouch(bool bInUseMouseForTouch)
-{
-	bUseMouseForTouchInEditor = bInUseMouseForTouch;
-}
-#endif
-
 bool UGameViewportClient::GetUseMouseForTouch() const
 {
 #if WITH_EDITOR
-	return bUseMouseForTouchInEditor || GetDefault<UInputSettings>()->bUseMouseForTouch;
+	return GetDefault<ULevelEditorPlaySettings>()->UseMouseForTouch || GetDefault<UInputSettings>()->bUseMouseForTouch;
 #else
 	return GetDefault<UInputSettings>()->bUseMouseForTouch;
 #endif

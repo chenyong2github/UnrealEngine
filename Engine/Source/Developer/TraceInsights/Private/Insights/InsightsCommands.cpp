@@ -95,8 +95,7 @@ void FInsightsActionManager::Map_InsightsManager_Load()
 void FInsightsActionManager::InsightsManager_Load_Execute()
 {
 	//const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(*FPaths::ProfilingDir()));
-	TSharedRef<Trace::ISessionService> SessionService = This->GetSessionService();
-	const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(SessionService->GetLocalSessionDirectory()));
+	const FString ProfilingDirectory(This->GetStoreDir());
 
 	TArray<FString> OutFiles;
 

@@ -86,6 +86,10 @@ public:
 	UPROPERTY(config)
 	bool bShowEmptySections;
 
+	/** If set we'll show the access specifier of functions in the My Blueprint view */
+	UPROPERTY(config)
+	bool bShowAccessSpecifier;
+
 	/** If set will spawn default nodes in new Blueprints */
 	UPROPERTY(EditAnywhere, config, Category=Workflow)
 	bool bSpawnDefaultBlueprintNodes;

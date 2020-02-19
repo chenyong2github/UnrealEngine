@@ -2,7 +2,9 @@
 
 #include "RtAudio.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_XBOXONE
+#if WITH_RTAUDIO
+
+#if PLATFORM_MICROSOFT || PLATFORM_MAC
 /************************************************************************/
 /*! \class RtAudio
     \brief Realtime audio i/o C++ classes.
@@ -3188,7 +3190,7 @@ bool RtApiAsio :: probeDeviceOpen( unsigned int device, StreamMode mode, unsigne
   if ( result != ASE_OK ) {
     // Standard method failed. This can happen with strict/misbehaving drivers that return valid buffer size ranges
     // but only accept the preferred buffer size as parameter for ASIOCreateBuffers. eg. Creatives ASIO driver
-    // in that case, let's be naïve and try that instead
+    // in that case, let's be naÃƒÂ¯ve and try that instead
     *bufferSize = preferSize;
     stream_.bufferSize = *bufferSize;
     result = ASIOCreateBuffers( handle->bufferInfos, nChannels, stream_.bufferSize, &asioCallbacks );
@@ -6205,6 +6207,9 @@ void RtApiDs :: abortStream()
   stopStream();
 }
 
+#pragma warning ( push )
+#pragma warning ( disable : 6385 ) // MSVC has issue with memcpy https://developercommunity.visualstudio.com/content/problem/841208/false-c6385-warning-when-using-memcpy.html
+
 void RtApiDs :: callbackEvent()
 {
   if ( stream_.state == STREAM_STOPPED || stream_.state == STREAM_STOPPING ) {
@@ -6618,6 +6623,7 @@ void RtApiDs :: callbackEvent()
   MUTEX_UNLOCK( &stream_.mutex );
   RtApi::tickStreamTime();
 }
+#pragma warning ( pop )
 
 // Definitions for utility functions and callbacks
 // specific to the DirectSound implementation.
@@ -10201,3 +10207,5 @@ void RtApi :: byteSwapBuffer( char *buffer, unsigned int samples, RtAudioFormat 
   // vim: et sts=2 sw=2
 
 #endif // PLATFORM_WINDOWS
+
+#endif // WITH_RTAUDIO

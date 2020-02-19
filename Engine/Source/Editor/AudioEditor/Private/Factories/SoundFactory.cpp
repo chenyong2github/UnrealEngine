@@ -237,7 +237,7 @@ UObject* USoundFactory::CreateObject
 			// to be auditioned in the editor properly.
 			if (!ExistingSound->ResourceData)
 			{
-				if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
+				if (FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice())
 				{
 					FName RuntimeFormat = AudioDevice->GetRuntimeFormat(ExistingSound);
 					ExistingSound->InitAudioResource(RuntimeFormat);
@@ -496,7 +496,7 @@ UObject* USoundFactory::CreateObject
 		Sound->InvalidateCompressedData(true /* bFreeResources */);
 
 		// If stream caching is enabled, we need to make sure this asset is ready for playback.
-		if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && Sound->IsStreaming())
+		if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && Sound->IsStreaming(nullptr))
 		{
 			Sound->EnsureZerothChunkIsLoaded();
 		}

@@ -1255,6 +1255,18 @@ bool FVulkanCommandListContext::FPendingTransition::GatherBarriers(FTransitionAn
 		if (UAV->SourceVertexBuffer)
 		{
 			VkBufferMemoryBarrier& Barrier = OutBufferBarriers[OutBufferBarriers.AddUninitialized()];
+			if (BUF_DrawIndirect == (UAV->SourceVertexBuffer->GetUEUsage() & BUF_DrawIndirect)) //for indirect read we translate Read INDIRECT_COMMAND_READ
+			{
+				if (SrcAccess == VK_ACCESS_SHADER_READ_BIT)
+				{
+					SrcAccess = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+				}
+				else if (DestAccess == VK_ACCESS_SHADER_READ_BIT)
+				{
+					DestAccess = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+				}
+			}
+
 			VulkanRHI::SetupAndZeroBufferBarrier(Barrier, SrcAccess, DestAccess, UAV->SourceVertexBuffer->GetHandle(), UAV->SourceVertexBuffer->GetOffset(), UAV->SourceVertexBuffer->GetSize());
 			bEmpty = false;
 		}
@@ -1274,6 +1286,18 @@ bool FVulkanCommandListContext::FPendingTransition::GatherBarriers(FTransitionAn
 		else if (UAV->SourceStructuredBuffer)
 		{
 			VkBufferMemoryBarrier& Barrier = OutBufferBarriers[OutBufferBarriers.AddUninitialized()];
+			
+			if(BUF_DrawIndirect == (UAV->SourceStructuredBuffer->GetUEUsage() & BUF_DrawIndirect)) //for indirect read we translate Read INDIRECT_COMMAND_READ
+			{
+				if(SrcAccess == VK_ACCESS_SHADER_READ_BIT)
+				{
+					SrcAccess = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+				}
+				else if(DestAccess == VK_ACCESS_SHADER_READ_BIT)
+				{
+					DestAccess = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+				}
+			}
 			VulkanRHI::SetupAndZeroBufferBarrier(Barrier, SrcAccess, DestAccess, UAV->SourceStructuredBuffer->GetHandle(), UAV->SourceStructuredBuffer->GetOffset(), UAV->SourceStructuredBuffer->GetSize());
 			bEmpty = false;
 		}

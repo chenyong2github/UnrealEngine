@@ -18,6 +18,8 @@ public class Niagara : ModuleRules
                 "Renderer",
                 "JsonUtilities",
 				"Json",
+				"AudioPlatformConfiguration",
+				"SignalProcessing"
             }
         );
 
@@ -59,6 +61,8 @@ public class Niagara : ModuleRules
                 new string[] {
                 "TargetPlatform",
                 "UnrealEd",
+				"SlateCore",
+				"Slate"
             });
         }
     }

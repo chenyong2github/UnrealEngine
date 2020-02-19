@@ -11,7 +11,7 @@
 
 
 // Forward Declarations
-class USoundSubmix;
+class USoundSubmixBase;
 
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSubmixEnvelopeBP, const TArray<float>&, Envelope);
@@ -57,7 +57,7 @@ struct ENGINE_API FSoundSubmixSendInfo
 
 	// The submix to send the audio to
 	UPROPERTY(EditAnywhere, Category = SubmixSend)
-	USoundSubmix* SoundSubmix;
+	USoundSubmixBase* SoundSubmix;
 
 	// The amount of audio to send
 	UPROPERTY(EditAnywhere, Category = SubmixSend)

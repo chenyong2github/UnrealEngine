@@ -185,6 +185,7 @@ SWidget::SWidget()
 	, bNeedsDesiredSize(true)
 	, bUpdatingDesiredSize(false)
 	, bHasCustomPrepass(false)
+	, bHasRelativeLayoutScale(false)
 	, bVolatilityAlwaysInvalidatesPrepass(false)
 #if WITH_ACCESSIBILITY
 	, bCanChildrenBeAccessible(true)
@@ -1415,7 +1416,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 
 }
 
-float SWidget::GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const
+float SWidget::GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const
 {
 	return 1.0f;
 }
@@ -1446,13 +1447,24 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 		const int32 NumChildren = MyChildren->Num();
 		for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
 		{
+			const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
+				? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
+				: InLayoutScaleMultiplier;
+
 			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
 
 			if (Child->Visibility.Get() != EVisibility::Collapsed)
 			{
-				const float ChildLayoutScaleMultiplier = GetRelativeLayoutScale(MyChildren->GetSlotAt(ChildIndex), InLayoutScaleMultiplier);
 				// Recur: Descend down the widget tree.
-				Child->Prepass_Internal(InLayoutScaleMultiplier * ChildLayoutScaleMultiplier);
+				Child->Prepass_Internal(ChildLayoutScaleMultiplier);
+			}
+			else
+			{
+				// If the child widget is collapsed, we need to store the new layout scale it will have when 
+				// it is finally visible and invalidate it's prepass so that it gets that when its visiblity
+				// is finally invalidated.
+				Child->InvalidatePrepass();
+				Child->PrepassLayoutScaleMultiplier = ChildLayoutScaleMultiplier;
 			}
 		}
 		ensure(NumChildren == MyChildren->Num());

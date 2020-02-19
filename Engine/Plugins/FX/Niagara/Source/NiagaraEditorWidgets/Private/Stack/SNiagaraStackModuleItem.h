@@ -5,9 +5,11 @@
 #include "SNiagaraStackEntryWidget.h"
 #include "Styling/SlateTypes.h"
 #include "Layout/Visibility.h"
+#include "Types/SlateEnums.h"
 
 class UNiagaraStackModuleItem;
 class UNiagaraStackViewModel;
+class SNiagaraStackDisplayName;
 
 class SNiagaraStackModuleItem : public SNiagaraStackEntryWidget
 {
@@ -58,6 +60,9 @@ private:
 
 	void ShowReassignModuleScriptMenu();
 
+	void OnRenameCommitted(const FText& NewName, ETextCommit::Type CommitType);
+
 private:
 	UNiagaraStackModuleItem* ModuleItem;
+	TSharedPtr<SNiagaraStackDisplayName> DisplayNameWidget;
 };

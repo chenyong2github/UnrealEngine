@@ -43,8 +43,8 @@ void GetSkyLighting(
 	out float3 OutDiffuseLighting,
 	out float3 OutSubsurfaceLighting)
 {
-	OutDiffuseLighting = 0;
-	OutSubsurfaceLighting = 0;
+	OutDiffuseLighting = float3(0,0,0);
+	OutSubsurfaceLighting = float3(0,0,0);
 
 #if ENABLE_SKY_LIGHT
 
@@ -135,8 +135,8 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	out float3 OutSubsurfaceLighting,
 	out float OutIndirectIrradiance)
 {
-	OutIndirectIrradiance = 0;
-	OutDiffuseLighting = 0;
+	OutIndirectIrradiance = float3(0,0,0);
+	OutDiffuseLighting = float3(0,0,0);
 	OutSubsurfaceLighting = 0;
 	float2 SkyOcclusionUV = 0;
 	uint SkyOcclusionDataIndex = 0u;
@@ -361,14 +361,28 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.BlendingMode = MaterialBlendingMode;
 
 	Payload.HitT = RayTCurrent();
-#if !MATERIAL_TWOSIDED
 	if (HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)
 	{
 		Payload.SetFrontFace();
 	}
+
+#if GBUFFER_HAS_TANGENT
+	#if MATERIAL_TANGENTSPACENORMAL
+		half3 MaterialTangent = normalize(GetMaterialTangent(PixelMaterialInputs));
+
+		float3 WorldTangent = TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, MaterialTangent);
+
+		// flip the tangent for backfaces being rendered with a two-sided material
+		WorldTangent *= MaterialParameters.TwoSidedSign;
+	#else 
+		float3 WorldTangent = normalize(GetMaterialTangent(PixelMaterialInputs));
+	#endif 
+		Payload.WorldTangent = WorldTangent;
+		Payload.Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
 #else
-	Payload.SetFrontFace();
-#endif
+	Payload.WorldTangent = float3(1, 0, 0);
+	Payload.Anisotropy = 1.0;
+#endif	
 
 	float3 DiffuseIndirectLighting = 0;
 	float3 SubsurfaceIndirectLighting;

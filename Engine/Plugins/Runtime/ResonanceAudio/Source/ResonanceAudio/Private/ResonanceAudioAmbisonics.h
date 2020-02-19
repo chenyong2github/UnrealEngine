@@ -8,34 +8,73 @@
 
 namespace ResonanceAudio
 {
-	class FResonanceAudioAmbisonicsMixer : public IAmbisonicsMixer
+	// Packet passed between Resonance submixes. All it holds onto is a raw pointer
+	// to the Resonance system used to encode whatever sources were passed in.
+	class FResonancePacket : public ISoundfieldAudioPacket
+	{
+	private:
+		FResonancePacket() {}
+
+		vraudio::ResonanceAudioApi* ResonanceSystem;
+	public:
+
+		FResonancePacket(vraudio::ResonanceAudioApi* InSystem)
+			: ResonanceSystem(InSystem)
+		{
+		}
+
+		virtual void Serialize(FArchive& Ar) override;
+		virtual TUniquePtr<ISoundfieldAudioPacket> Duplicate() const override;
+		virtual void Reset() override;
+
+		vraudio::ResonanceAudioApi* GetResonanceApi() const
+		{
+			return ResonanceSystem;
+		}
+
+		void SetResonanceApi(vraudio::ResonanceAudioApi* InResonanceSystem)
+		{
+			check(InResonanceSystem);
+			ResonanceSystem = InResonanceSystem;
+		}
+
+		vraudio::ResonanceAudioApi* GetResonanceApi()
+		{
+			return ResonanceSystem;
+		}
+	};
+
+	class FAmbisonicsFactory : public ISoundfieldFactory
 	{
 	public:
-		FResonanceAudioAmbisonicsMixer();
-
-		// Begin IAmbisonicsMixer
-		virtual void Shutdown() override;
-		virtual int32 GetNumChannelsForAmbisonicsFormat(UAmbisonicsSubmixSettingsBase* InSettings) override;
-		virtual void OnOpenEncodingStream(const uint32 StreamId, UAmbisonicsSubmixSettingsBase* InSettings) override;
-		virtual void OnCloseEncodingStream(const uint32 StreamId) override;
-		virtual void EncodeToAmbisonics(const uint32 StreamId, const FAmbisonicsEncoderInputData& InputData, FAmbisonicsEncoderOutputData& OutputData, UAmbisonicsSubmixSettingsBase* InParams) override;
-		virtual void OnOpenDecodingStream(const uint32 StreamId, UAmbisonicsSubmixSettingsBase* InParams, FAmbisonicsDecoderPositionalData& SpecifiedOutputPositions) override;
-		virtual void OnCloseDecodingStream(const uint32 StreamId) override;
-		virtual void DecodeFromAmbisonics(const uint32 StreamId, const FAmbisonicsDecoderInputData& InputData, FAmbisonicsDecoderPositionalData& SpecifiedOutputPositions, FAmbisonicsDecoderOutputData& OutputData) override;
-		virtual bool ShouldReencodeBetween(UAmbisonicsSubmixSettingsBase* SourceSubmixSettings, UAmbisonicsSubmixSettingsBase* DestinationSubmixSettings) override;
-		virtual void Initialize(const FAudioPluginInitializationParams InitializationParams) override;
-		virtual UClass* GetCustomSettingsClass() override;
-		virtual UAmbisonicsSubmixSettingsBase* GetDefaultSettings() override;
-		//~ IAmbisonicsMixer
+		FAmbisonicsFactory();
+		virtual ~FAmbisonicsFactory();
 
 		// This function is called by the ResonanceAudioPluginListener as soon as the ResonanceAudioApi is initialized.
-		void SetResonanceAudioApi(vraudio::ResonanceAudioApi* InResonanceAudioApi) { ResonanceAudioApi = InResonanceAudioApi; };
+		void SetResonanceAudioApi(uint32 AudioDeviceID, vraudio::ResonanceAudioApi* InResonanceAudioApi) 
+		{
+			vraudio::ResonanceAudioApi*& ApiPtr = ResonanceAudioAPIMap.FindOrAdd(AudioDeviceID);
+			ApiPtr = InResonanceAudioApi;
+		};
+
+		// Begin IAmbisonicsMixer
+		virtual FName GetSoundfieldFormatName() override;
+		virtual TUniquePtr<ISoundfieldEncoderStream> CreateEncoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings) override;
+		virtual TUniquePtr<ISoundfieldDecoderStream> CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings) override;
+		virtual TUniquePtr<ISoundfieldTranscodeStream> CreateTranscoderStream(const FName SourceFormat, const ISoundfieldEncodingSettingsProxy& InitialSourceSettings, const FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& InitialDestinationSettings, const FAudioPluginInitializationParams& InitInfo) override;
+		virtual TUniquePtr<ISoundfieldMixerStream> CreateMixerStream(const ISoundfieldEncodingSettingsProxy& InitialSettings) override;
+		virtual TUniquePtr<ISoundfieldAudioPacket> CreateEmptyPacket() override;
+		virtual bool IsTranscodeRequiredBetweenSettings(const ISoundfieldEncodingSettingsProxy& SourceSettings, const ISoundfieldEncodingSettingsProxy& DestinationSettings) override;
+		virtual bool CanTranscodeFromSoundfieldFormat(FName SourceFormat, const ISoundfieldEncodingSettingsProxy& SourceEncodingSettings) override;
+		virtual bool CanTranscodeToSoundfieldFormat(FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& DestinationEncodingSettings) override;
+		virtual UClass* GetCustomEncodingSettingsClass() const override;
+		virtual const USoundfieldEncodingSettingsBase* GetDefaultEncodingSettings() override;
+		//~ IAmbisonicsMixer
 
 	private:
-		// Map of which audio engine StreamIds map to which Resonance SourceIds.
-		TMap<uint32, RaSourceId> ResonanceSourceIdMap;
+		vraudio::ResonanceAudioApi* CreateNewResonanceApiInstance(FAudioDevice* AudioDevice, const FAudioPluginInitializationParams& InInitInfo);
 
-		//Handle to the API context used by this plugin.
-		vraudio::ResonanceAudioApi* ResonanceAudioApi;
+		// Map of which audio engine StreamIds map to which Resonance SourceIds.
+		TMap<uint32, vraudio::ResonanceAudioApi*> ResonanceAudioAPIMap;
 	};
 }

@@ -23,7 +23,7 @@
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, Launch);
 
-#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX
+#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX || PLATFORM_USE_GENERIC_LAUNCH_IMPLEMENTATION
 
 FEngineLoop	GEngineLoop;
 bool GIsConsoleExecutable = false;
@@ -90,11 +90,7 @@ extern UNREALED_API FSecondsCounterData BlueprintCompileAndLoadTimerData;
  * Static guarded main function. Rolled into own function so we can have error handling for debug/ release builds depending
  * on whether a debugger is attached or not.
  */
-#if PLATFORM_WINDOWS
-int32 GuardedMain( const TCHAR* CmdLine, HINSTANCE hInInstance, HINSTANCE hPrevInstance, int32 nCmdShow )
-#else
 int32 GuardedMain( const TCHAR* CmdLine )
-#endif
 {
 #if !(UE_BUILD_SHIPPING)
 	if (FParse::Param(CmdLine, TEXT("waitforattach")))

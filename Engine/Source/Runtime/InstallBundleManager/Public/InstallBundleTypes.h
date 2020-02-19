@@ -85,7 +85,10 @@ enum class EInstallBundleRequestInfoFlags : int32
 	EnqueuedBundlesForInstall = (1 << 0),
 	SkippedAlreadyMountedBundles = (1 << 1),
 	SkippedUnknownBundles = (1 << 2),
-	InitializationError = (1 << 3), // Can't enqueue because the bundle manager failed to initialize
+	SkippedInvalidBundles = (1 << 3), // Bundle can't be used with this build
+	SkippedUnusableLanguageBundles = (1 << 4), // Can't enqueue language bundles because of current system settings
+	SkippedBundlesDueToBundleSource = (1 << 5), // A bundle source rejected a bundle for some reason
+	InitializationError = (1 << 6), // Can't enqueue because the bundle manager failed to initialize
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
 
@@ -120,11 +123,40 @@ struct FInstallBundleRequestInfo
 	TArray<FName> BundlesQueuedForInstall;
 };
 
+enum class EInstallBundleCancelFlags : uint32
+{
+	None = 0,
+	Resumable = (1 << 0),
+};
+ENUM_CLASS_FLAGS(EInstallBundleCancelFlags);
+
+enum class EInstallBundlePauseFlags : uint32
+{
+	None = 0,
+	OnCellularNetwork = (1 << 0),
+	NoInternetConnection = (1 << 1),
+	UserPaused = (1 << 2)
+};
+ENUM_CLASS_FLAGS(EInstallBundlePauseFlags);
+
+enum class EInstallBundleStatus : int
+{
+	Requested,
+	Updating,
+	Finishing,
+	Ready,
+	Count,
+};
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleStatus Status);
+
 struct FInstallBundleSourceInitInfo
 {
 	EInstallBundleManagerInitResult Result = EInstallBundleManagerInitResult::OK;
 	bool bShouldUseFallbackSource = false;
+};
 
+struct FInstallBundleSourceAsyncInitInfo : public FInstallBundleSourceInitInfo
+{
 	TMap<FName, bool> BundleUpToDate;
 };
 
@@ -144,23 +176,16 @@ struct FInstallBundleSourceRequestResultInfo
 	TSet<FString> NonUFSShaderLibPaths;
 
 	bool bContentWasInstalled = false;
+	
+	bool DidBundleSourceDoWork() const { return (ContentPaths.Num() != 0);} 
 };
 
-enum class EInstallBundleCancelFlags : int32
+struct FInstallBundleSourceProgress
 {
-	None = 0,
-	Resumable = (1 << 0),
-};
-ENUM_CLASS_FLAGS(EInstallBundleCancelFlags);
+	FName BundleName;
 
-enum class EInstallBundlePauseFlags : uint32
-{
-	None = 0,
-	OnCellularNetwork = (1 << 0),
-	NoInternetConnection = (1 << 1),
-	UserPaused = (1 << 2)
+	float Install_Percent = 0;
 };
-ENUM_CLASS_FLAGS(EInstallBundlePauseFlags);
 
 struct FInstallBundleSourcePauseInfo
 {
@@ -171,19 +196,10 @@ struct FInstallBundleSourcePauseInfo
 	bool bDidPauseChange = false;
 };
 
-enum class EInstallBundleStatus : int
+enum class EInstallBundleSourceBundleSkipReason : uint32
 {
-	Requested,
-	Updating,
-	Finishing,
-	Ready,
-	Count,
+	None = 0,
+	LanguageNotCurrent = (1 << 0), // The platform language must be changed to make it valid to request this bundle
+	NotValid = (1 << 1), // Bundle can't be used with this build
 };
-INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleStatus Status);
-
-struct FInstallBundleSourceProgress
-{
-	FName BundleName;
-
-	float Install_Percent = 0;
-};
+ENUM_CLASS_FLAGS(EInstallBundleSourceBundleSkipReason);

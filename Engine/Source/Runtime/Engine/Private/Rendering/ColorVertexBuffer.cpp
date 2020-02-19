@@ -5,7 +5,7 @@
 #include "RHI.h"
 #include "Components.h"
 #include "EngineUtils.h"
-#include "StaticMeshVertexData.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 /*-----------------------------------------------------------------------------
 FColorVertexBuffer
@@ -16,8 +16,8 @@ class FColorVertexData :
 	public TStaticMeshVertexData<FColor>
 {
 public:
-	FColorVertexData( bool InNeedsCPUAccess=false )
-		: TStaticMeshVertexData<FColor>( InNeedsCPUAccess )
+	FColorVertexData(bool InNeedsCPUAccess = false)
+		: TStaticMeshVertexData<FColor>(InNeedsCPUAccess)
 	{
 	}
 };
@@ -330,6 +330,7 @@ void FColorVertexBuffer::ImportText(const TCHAR* SourceText)
 void FColorVertexBuffer::operator=(const FColorVertexBuffer &Other)
 {
 	//VertexData doesn't need to be allocated here because Build will be called next,
+	delete VertexData;
 	VertexData = NULL;
 }
 
@@ -418,6 +419,8 @@ FVertexBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Async()
 
 void FColorVertexBuffer::InitRHI()
 {
+	SCOPED_LOADTIMER(FColorVertexBuffer_InitRHI);
+
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 
 	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))

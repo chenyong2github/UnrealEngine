@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
@@ -17,6 +18,7 @@
 #include "Materials/MaterialLayersFunctions.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "MaterialSceneTextureId.h"
+#include "Materials/MaterialRelevance.h"
 #if WITH_CHAOS
 #include "Physics/PhysicsInterfaceCore.h"
 #endif
@@ -30,7 +32,6 @@ class UPhysicalMaterial;
 class UPhysicalMaterialMask;
 class USubsurfaceProfile;
 class UTexture;
-struct FPrimitiveViewRelevance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
 #if WITH_EDITORONLY_DATA
@@ -61,62 +62,6 @@ enum EMaterialUsage
 	MATUSAGE_LidarPointCloud,
 
 	MATUSAGE_MAX,
-};
-
-// the class is only storing bits, initialized to 0 and has an |= operator
-// to provide a combined set of multiple materials (component / mesh)
-struct ENGINE_API FMaterialRelevance
-{
-	// bits that express which EMaterialShadingModel are used
-	uint16 ShadingModelMask;
-	uint8 bOpaque : 1;
-	uint8 bMasked : 1;
-	uint8 bDistortion : 1;
-	uint8 bHairStrands : 1;
-	uint8 bSeparateTranslucency : 1; // Translucency After DOF
-	uint8 bNormalTranslucency : 1;
-	uint8 bUsesSceneColorCopy : 1;
-	uint8 bDisableOffscreenRendering : 1; // Blend Modulate
-	uint8 bDisableDepthTest : 1;
-	uint8 bOutputsTranslucentVelocity : 1;
-	uint8 bUsesGlobalDistanceField : 1;
-	uint8 bUsesWorldPositionOffset : 1;
-	uint8 bDecal : 1;
-	uint8 bTranslucentSurfaceLighting : 1;
-	uint8 bUsesSceneDepth : 1;
-	uint8 bUsesSkyMaterial : 1;
-	uint8 bUsesSingleLayerWaterMaterial : 1;
-	uint8 bHasVolumeMaterialDomain : 1;
-	uint8 bUsesDistanceCullFade : 1;
-	uint8 bUsesCustomDepthStencil : 1;
-
-	/** Default constructor */
-	FMaterialRelevance()
-	{
-		// the class is only storing bits initialized to 0, the following avoids code redundancy
-		uint8 * RESTRICT p = (uint8*)this;
-		for(uint32 i = 0; i < sizeof(*this); ++i)
-		{
-			*p++ = 0;
-		}
-	}
-
-	/** Bitwise OR operator.  Sets any relevance bits which are present in either. */
-	FMaterialRelevance& operator|=(const FMaterialRelevance& B)
-	{
-		// the class is only storing bits, the following avoids code redundancy
-		const uint8 * RESTRICT s = (const uint8*)&B;
-		uint8 * RESTRICT d = (uint8*)this;
-		for(uint32 i = 0; i < sizeof(*this); ++i)
-		{
-			*d = *d | *s; 
-			++s;++d;
-		}
-		return *this;
-	}
-
-	/** Copies the material's relevance flags to a primitive's view relevance flags. */
-	void SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutViewRelevance) const;
 };
 
 /** 
@@ -221,8 +166,42 @@ struct FMaterialTextureInfo
 	ENGINE_API bool IsValid(bool bCheckTextureIndex = false) const; 
 };
 
+struct TMicRecursionGuard
+{
+	inline TMicRecursionGuard() = default;
+	inline TMicRecursionGuard(const TMicRecursionGuard& Parent)
+		: MaterialInterface(nullptr)
+		, PreviousLink(&Parent)
+	{
+	}
+
+	inline void Set(class UMaterialInterface const* InMaterialInterface)
+	{
+		check(MaterialInterface == nullptr);
+		MaterialInterface = InMaterialInterface;
+	}
+
+	inline bool Contains(class UMaterialInterface const* InMaterialInterface)
+	{
+		TMicRecursionGuard const* Link = this;
+		do
+		{
+			if (Link->MaterialInterface == InMaterialInterface)
+			{
+				return true;
+			}
+			Link = Link->PreviousLink;
+		} while (Link);
+		return false;
+	}
+
+private:
+	void const* MaterialInterface = nullptr;
+	TMicRecursionGuard const* PreviousLink = nullptr;
+};
+
 UCLASS(abstract, BlueprintType, MinimalAPI, HideCategories = (Thumbnail))
-class ENGINE_VTABLE UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
+class UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -344,8 +323,7 @@ public:
 	/**
 	 * Same as above, but can be called concurrently
 	 */
-	typedef TArray<class UMaterialInterface const*, TInlineAllocator<8> > TMicRecursionGuard;
-	virtual const class UMaterial* GetMaterial_Concurrent(TMicRecursionGuard& RecursionGuard) const PURE_VIRTUAL(UMaterialInterface::GetMaterial_Concurrent,return NULL;);
+	virtual const class UMaterial* GetMaterial_Concurrent(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const PURE_VIRTUAL(UMaterialInterface::GetMaterial_Concurrent,return NULL;);
 
 	/**
 	* Test this material for dependency on a given material.
@@ -407,14 +385,14 @@ public:
 	 * This is used to implement realtime previewing of parameter defaults. 
 	 * Handles updating dependent MI's and cached uniform expressions.
 	 */
-	virtual void OverrideVectorParameterDefault(const FMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool bOverride, ERHIFeatureLevel::Type FeatureLevel) PURE_VIRTUAL(UMaterialInterface::OverrideTexture, return;);
-	virtual void OverrideScalarParameterDefault(const FMaterialParameterInfo& ParameterInfo, float Value, bool bOverride, ERHIFeatureLevel::Type FeatureLevel) PURE_VIRTUAL(UMaterialInterface::OverrideTexture, return;);
+	virtual void OverrideVectorParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool bOverride, ERHIFeatureLevel::Type FeatureLevel) PURE_VIRTUAL(UMaterialInterface::OverrideTexture, return;);
+	virtual void OverrideScalarParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool bOverride, ERHIFeatureLevel::Type FeatureLevel) PURE_VIRTUAL(UMaterialInterface::OverrideTexture, return;);
 
 	/**
 	 * DEPRECATED: Returns default value of the given parameter
 	 */
 	UE_DEPRECATED(4.19, "This function is deprecated. Use GetScalarParameterDefaultValue instead.")
-	virtual float GetScalarParameterDefault(const FMaterialParameterInfo& ParameterInfo, ERHIFeatureLevel::Type FeatureLevel)
+	virtual float GetScalarParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, ERHIFeatureLevel::Type FeatureLevel)
 	{
 		float Value;
 		GetScalarParameterDefaultValue(ParameterInfo, Value);
@@ -444,6 +422,32 @@ public:
 	 */
 	virtual const FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) const { return NULL; }
 
+#if WITH_EDITORONLY_DATA
+	struct FStaticParamEvaluationContext
+	{
+	public:
+		FStaticParamEvaluationContext(int32 InParameterNum, const FHashedMaterialParameterInfo* InParameterInfos) : PendingParameterNum(InParameterNum), ParameterInfos(InParameterInfos) { PendingParameters.Add(true, PendingParameterNum); ResolvedByOverride.Add(false, PendingParameterNum); }
+
+		const FHashedMaterialParameterInfo* GetParameterInfo(int32 ParamIndex) const { check(ParamIndex >= 0 && ParamIndex < PendingParameters.Num()); return ParameterInfos + ParamIndex; }
+		bool AllResolved() const { return PendingParameterNum == 0; }
+		bool IsResolved(int32 ParamIndex) const { return !PendingParameters[ParamIndex]; }
+		bool IsResolvedByOverride(int32 ParamIndex) const { return ResolvedByOverride[ParamIndex]; }
+		void MarkParameterResolved(int32 ParamIndex, bool bIsOverride);
+		int32 GetPendingParameterNum() const { return PendingParameterNum; }
+		int32 GetTotalParameterNum() const { return PendingParameters.Num(); }
+
+		/**
+		 * Perform an operation on the pending parameters until performed on all pending parameters, or until the operation asks to stop iterating by returning false.
+	 	 * @param Op - The operation to perform on each pending parameter.  Accepts the index for the parameter and the parameter info associated with it.  If the Op returns true, we keep iterating if there are more pending parameters, if it returns false, we stop immediately after this Op.
+		 */
+		void ForEachPendingParameter(TFunctionRef<bool(int32 ParamIndex, const FHashedMaterialParameterInfo& ParamInfo)> Op);
+	private:
+		TBitArray<> PendingParameters;
+		TBitArray<> ResolvedByOverride;
+		int32 PendingParameterNum;
+		const FHashedMaterialParameterInfo* ParameterInfos;
+	};
+
 	/**
 	* Get the value of the given static switch parameter
 	*
@@ -451,8 +455,18 @@ public:
 	* @param	OutValue		Will contain the value of the parameter if successful
 	* @return					True if successful
 	*/
-	virtual bool GetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo,bool &OutValue,FGuid &OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const
-		PURE_VIRTUAL(UMaterialInterface::GetStaticSwitchParameterValue,return false;);
+	ENGINE_API bool GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo& ParameterInfo,bool &OutValue,FGuid &OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const;
+
+	/**
+	* Get the values of the given set of static switch parameters.
+	*
+	* @param	EvalContext			The evaluation context used while determining parameter values.
+	* @param	OutValues			If successful, will contain the value of the requested parameters.  Must be pre-sized to fit at least all parameter values in the evaluation.  If unsuccessful, may still be written to with intermediate values.
+	* @param	OutExpressionGuids	If successful, will contain the identifier of the owning expression of the requested parameter values.  Must be non null and pre-sized to fit at least all parameter values in the evaluation.  If unsuccessful, may still be written to with intermediate values.
+	* @return						True if successfully obtained ALL parameter values requested
+	*/
+	virtual bool GetStaticSwitchParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutValues, FGuid* OutExpressionGuids, bool bCheckParent = true) const
+		PURE_VIRTUAL(UMaterialInterface::GetStaticSwitchParameterValues,return false;);
 
 	/**
 	* Get the value of the given static component mask parameter
@@ -461,8 +475,29 @@ public:
 	* @param	R, G, B, A		Will contain the values of the parameter if successful
 	* @return					True if successful
 	*/
-	virtual bool GetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, bool &R, bool &G, bool &B, bool &A, FGuid &OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const
-		PURE_VIRTUAL(UMaterialInterface::GetStaticComponentMaskParameterValue,return false;);
+	ENGINE_API bool GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const;
+
+	/**
+	* Get the values of the given set of static component mask parameters
+	*
+	* @param	EvalContext				The evaluation context used while determining parameter values
+	* @param	OutRGBAOrderedValues	If successful, will contain the value of the requested parameters.  Must be pre-sized to fit at least four bits for all parameter values in the evaluation.  If unsuccessful, may still be written to with intermediate values.
+	* @param	OutExpressionGuids		If successful, will contain the identifier of the owning expression of the requested parameter values.  Must be non null and pre-sized to fit at least all parameter values in the evaluation.  If unsuccessful, may still be written to with intermediate values.
+	* @return							True if successfully obtained ALL parameter values requested
+	*/
+	virtual bool GetStaticComponentMaskParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutRGBAOrderedValues, FGuid* OutExpressionGuids, bool bCheckParent = true) const
+		PURE_VIRTUAL(UMaterialInterface::GetStaticComponentMaskParameterValues,return false;);
+
+	/**
+	* Get the value of the given static material layers parameter
+	*
+	* @param	ParameterName	The name of the material layer parameter
+	* @param	OutValue		Will contain the value of the parameter if successful
+	* @return					True if successful
+	*/
+	virtual bool GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent = true) const
+		PURE_VIRTUAL(UMaterialInterface::GetMaterialLayersParameterValue, return false;);
+#endif // WITH_EDITORONLY_DATA
 
 	/**
 	* Get the weightmap index of the given terrain layer weight parameter
@@ -471,7 +506,7 @@ public:
 	* @param	OutWeightmapIndex	Will contain the values of the parameter if successful
 	* @return					True if successful
 	*/
-	virtual bool GetTerrainLayerWeightParameterValue(const FMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid &OutExpressionGuid) const
+	virtual bool GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid &OutExpressionGuid) const
 		PURE_VIRTUAL(UMaterialInterface::GetTerrainLayerWeightParameterValue,return false;);
 
 #if WITH_EDITOR
@@ -482,7 +517,7 @@ public:
 	* @param	OutSortPriority	Will contain the sort priority of the parameter if successful
 	* @return					True if successful
 	*/
-	virtual bool GetParameterSortPriority(const FMaterialParameterInfo& ParameterInfo, int32& OutSortPriority, const TArray<struct FStaticMaterialLayersParameter>* MaterialLayersParameters = nullptr) const
+	virtual bool GetParameterSortPriority(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutSortPriority, const TArray<struct FStaticMaterialLayersParameter>* MaterialLayersParameters = nullptr) const
 		PURE_VIRTUAL(UMaterialInterface::GetParameterSortPriority, return false;);
 #endif
 
@@ -495,16 +530,6 @@ public:
 	*/
 	virtual bool GetGroupSortPriority(const FString& InGroupName, int32& OutSortPriority) const
 		PURE_VIRTUAL(UMaterialInterface::GetGroupSortPriority, return false;);
-		
-	/**
-	* Get the value of the given static material layers parameter
-	*
-	* @param	ParameterName	The name of the material layer parameter
-	* @param	OutValue		Will contain the value of the parameter if successful
-	* @return					True if successful
-	*/
-	virtual bool GetMaterialLayersParameterValue(const FMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent = true) const
-		PURE_VIRTUAL(UMaterialInterface::GetMaterialLayersParameterValue,return false;);
 
 	virtual void GetAllScalarParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 		PURE_VIRTUAL(UMaterialInterface::GetAllScalarParameterInfo,return;);
@@ -516,6 +541,8 @@ public:
 		PURE_VIRTUAL(UMaterialInterface::GetAllRuntimeVirtualTextureParameterInfo, return;);
 	virtual void GetAllFontParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 		PURE_VIRTUAL(UMaterialInterface::GetAllFontParameterInfo,return;);
+
+#if WITH_EDITORONLY_DATA
 	virtual void GetAllMaterialLayersParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 		PURE_VIRTUAL(UMaterialInterface::GetAllMaterialLayersParameterInfo,return;);
 	virtual void GetAllStaticSwitchParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
@@ -527,25 +554,29 @@ public:
 		PURE_VIRTUAL(UMaterialInterface::IterateDependentFunctions,return false;);
 	virtual void GetDependentFunctions(TArray<class UMaterialFunctionInterface*>& DependentFunctions) const
 		PURE_VIRTUAL(UMaterialInterface::GetDependentFunctions,return;);
+#endif // WITH_EDITORONLY_DATA
 
-	virtual bool GetScalarParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly = false, bool bCheckOwnedGlobalOverrides = false) const
+	virtual bool GetScalarParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly = false, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetScalarParameterDefaultValue,return false;);
-	virtual bool GetVectorParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly = false, bool bCheckOwnedGlobalOverrides = false) const
+	virtual bool GetVectorParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly = false, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetVectorParameterDefaultValue,return false;);
-	virtual bool GetTextureParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bCheckOwnedGlobalOverrides = false) const
+	virtual bool GetTextureParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetTextureParameterDefaultValue,return false;);
-	virtual bool GetRuntimeVirtualTextureParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue, bool bCheckOwnedGlobalOverrides = false) const
+	virtual bool GetRuntimeVirtualTextureParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetRuntimeVirtualTextureParameterDefaultValue, return false;);
-	virtual bool GetFontParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage, bool bCheckOwnedGlobalOverrides = false) const
+	virtual bool GetFontParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetFontParameterDefaultValue,return false;);
-	virtual bool GetStaticSwitchParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bCheckOwnedGlobalOverrides = false) const
+	
+#if WITH_EDITOR
+	virtual bool GetStaticSwitchParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetStaticSwitchParameterDefaultValue,return false;);
-	virtual bool GetStaticComponentMaskParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid& OutExpressionGuid, bool bCheckOwnedGlobalOverrides = false) const
+	virtual bool GetStaticComponentMaskParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid& OutExpressionGuid, bool bCheckOwnedGlobalOverrides = false) const
 		PURE_VIRTUAL(UMaterialInterface::GetStaticComponentMaskParameterDefaultValue,return false;);
-		
-	/** Appends textures referenced by expressions, including nested functions. */
-	virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
-		PURE_VIRTUAL(UMaterialInterface::AppendReferencedTextures,);
+#endif // WITH_EDITOR
+
+	/** Get textures referenced by expressions, including nested functions. */
+	virtual TArrayView<UObject* const> GetReferencedTextures() const
+		PURE_VIRTUAL(UMaterialInterface::GetReferencedTextures,return TArrayView<UObject* const>(););
 
 	virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal)
 		PURE_VIRTUAL(UMaterialInterface::SaveShaderStableKeysInner, );
@@ -722,27 +753,29 @@ public:
 		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num)
 		PURE_VIRTUAL(UMaterialInterface::GetTexturesInPropertyChain,return false;);
 
-	ENGINE_API virtual bool GetGroupName(const FMaterialParameterInfo& ParameterInfo, FName& GroupName) const;
-	ENGINE_API virtual bool GetParameterDesc(const FMaterialParameterInfo& ParameterInfo, FString& OutDesc, const TArray<struct FStaticMaterialLayersParameter>* MaterialLayersParameters = nullptr) const;	
-	ENGINE_API virtual bool GetScalarParameterSliderMinMax(const FMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const;
+	ENGINE_API virtual bool GetGroupName(const FHashedMaterialParameterInfo& ParameterInfo, FName& GroupName) const;
+	ENGINE_API virtual bool GetParameterDesc(const FHashedMaterialParameterInfo& ParameterInfo, FString& OutDesc, const TArray<struct FStaticMaterialLayersParameter>* MaterialLayersParameters = nullptr) const;
+	ENGINE_API virtual bool GetScalarParameterSliderMinMax(const FHashedMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const;
 #endif // WITH_EDITOR
-	ENGINE_API virtual bool GetScalarParameterValue(const FMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly = false) const;
-	ENGINE_API virtual bool IsScalarParameterUsedAsAtlasPosition(const FMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<class UCurveLinearColor>& Curve, TSoftObjectPtr<class UCurveLinearColorAtlas>&  Atlas) const;
-	ENGINE_API virtual bool GetScalarCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveFloat& OutValue) const;
-	ENGINE_API virtual bool GetVectorParameterValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly = false) const;
-	ENGINE_API virtual bool IsVectorParameterUsedAsChannelMask(const FMaterialParameterInfo& ParameterInfo, bool& OutValue) const;
+	ENGINE_API virtual bool GetScalarParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly = false) const;
 #if WITH_EDITOR
-	ENGINE_API virtual bool GetVectorParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
-#endif
-	ENGINE_API virtual bool GetVectorCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveVector& OutValue) const;
-	ENGINE_API virtual bool GetLinearColorParameterValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const;
-	ENGINE_API virtual bool GetLinearColorCurveParameterValue(const FMaterialParameterInfo& ParameterInfo, FInterpCurveLinearColor& OutValue) const;
-	ENGINE_API virtual bool GetTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bOveriddenOnly = false) const;
-	ENGINE_API virtual bool GetRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly = false) const;
+	ENGINE_API virtual bool IsScalarParameterUsedAsAtlasPosition(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<class UCurveLinearColor>& Curve, TSoftObjectPtr<class UCurveLinearColorAtlas>&  Atlas) const;
+#endif // WITH_EDITOR
+	ENGINE_API virtual bool GetScalarCurveParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FInterpCurveFloat& OutValue) const;
+	ENGINE_API virtual bool GetVectorParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly = false) const;
 #if WITH_EDITOR
-	ENGINE_API virtual bool GetTextureParameterChannelNames(const FMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
+	ENGINE_API virtual bool IsVectorParameterUsedAsChannelMask(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue) const;
+	ENGINE_API virtual bool GetVectorParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
 #endif
-	ENGINE_API virtual bool GetFontParameterValue(const FMaterialParameterInfo& ParameterInfo,class UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly = false) const;
+	ENGINE_API virtual bool GetVectorCurveParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FInterpCurveVector& OutValue) const;
+	ENGINE_API virtual bool GetLinearColorParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const;
+	ENGINE_API virtual bool GetLinearColorCurveParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FInterpCurveLinearColor& OutValue) const;
+	ENGINE_API virtual bool GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bOveriddenOnly = false) const;
+	ENGINE_API virtual bool GetRuntimeVirtualTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly = false) const;
+#if WITH_EDITOR
+	ENGINE_API virtual bool GetTextureParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
+#endif
+	ENGINE_API virtual bool GetFontParameterValue(const FHashedMaterialParameterInfo& ParameterInfo,class UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly = false) const;
 	ENGINE_API virtual bool GetRefractionSettings(float& OutBiasValue) const;
 
 	/**

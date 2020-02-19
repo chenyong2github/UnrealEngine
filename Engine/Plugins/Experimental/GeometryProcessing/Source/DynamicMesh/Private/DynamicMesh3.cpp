@@ -8,6 +8,7 @@
 // NB: These have to be here until C++17 allows inline variables
 constexpr int       FDynamicMesh3::InvalidID;
 constexpr int       FDynamicMesh3::NonManifoldID;
+constexpr int       FDynamicMesh3::DuplicateTriangleID;
 constexpr int       FDynamicMesh3::InvalidGroupID;
 constexpr FVector3d FDynamicMesh3::InvalidVertex;
 constexpr FIndex3i  FDynamicMesh3::InvalidTriangle;
@@ -686,12 +687,11 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 	return true;
 }
 
-bool FDynamicMesh3::CheckValidity(bool bAllowNonManifoldVertices, EValidityCheckFailMode FailMode) const
+bool FDynamicMesh3::CheckValidity(FValidityOptions ValidityOptions, EValidityCheckFailMode FailMode) const
 {
 
 	TArray<int> triToVtxRefs;
 	triToVtxRefs.SetNum(MaxVertexID());
-	//int[] triToVtxRefs = new int[this.MaxVertexID];
 
 	bool is_ok = true;
 	TFunction<void(bool)> CheckOrFailF = [&](bool b)
@@ -762,9 +762,12 @@ bool FDynamicMesh3::CheckValidity(bool bAllowNonManifoldVertices, EValidityCheck
 			CheckOrFailF(IndexUtil::SamePairUnordered(a, b, ev[0], ev[1]));
 
 			// also check that nbr edge has opposite orientation
-			FIndex3i othertv = GetTriangle(tOther);
-			int found = IndexUtil::FindTriOrderedEdge(b, a, othertv);
-			CheckOrFailF(found != InvalidID);
+			if (ValidityOptions.bAllowAdjacentFacesReverseOrientation == false)
+			{
+				FIndex3i othertv = GetTriangle(tOther);
+				int found = IndexUtil::FindTriOrderedEdge(b, a, othertv);
+				CheckOrFailF(found != InvalidID);
+			}
 		}
 	}
 
@@ -832,7 +835,7 @@ bool FDynamicMesh3::CheckValidity(bool bAllowNonManifoldVertices, EValidityCheck
 		GetVtxTriangles(vID, vTris2, true);
 		CheckOrFailF(vTris.Num() == vTris2.Num());
 		//System.Console.WriteLine(string.Format("{0} {1} {2}", vID, vTris.Count, GetVtxEdges(vID).Count));
-		if (bAllowNonManifoldVertices)
+		if (ValidityOptions.bAllowNonManifoldVertices)
 		{
 			CheckOrFailF(vTris.Num() <= GetVtxEdgeCount(vID));
 		}

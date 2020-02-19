@@ -43,6 +43,7 @@ namespace UnrealGameSync
 		void UpdateProgress();
 		void ModifyApplicationSettings();
 		void UpdateAlertWindows();
+		void UpdateTintColors();
 	}
 
 	delegate void WorkspaceStartupCallback(WorkspaceControl Workspace, bool bCancel);
@@ -50,6 +51,23 @@ namespace UnrealGameSync
 
 	partial class WorkspaceControl : UserControl, IMainWindowTabPanel
 	{
+		readonly WorkspaceSyncCategory[] DefaultSyncCategories =
+		{
+			new WorkspaceSyncCategory(new Guid("{6703E989-D912-451D-93AD-B48DE748D282}"), "Content", "*.uasset", "*.umap"),
+			new WorkspaceSyncCategory(new Guid("{6507C2FB-19DD-403A-AFA3-BBF898248D5A}"), "Documentation", "/Engine/Documentation/..."),
+			new WorkspaceSyncCategory(new Guid("{FD7C716E-4BAD-43AE-8FAE-8748EF9EE44D}"), "Platform Support: Android", "/Engine/Source/ThirdParty/.../Android/...", ".../Build/Android/PipelineCaches/..."),
+			new WorkspaceSyncCategory(new Guid("{176B2EB2-35F7-4E8E-B131-5F1C5F0959AF}"), "Platform Support: iOS", "/Engine/Source/ThirdParty/.../IOS/...", ".../Build/IOS/PipelineCaches/..."),
+			new WorkspaceSyncCategory(new Guid("{F44B2D25-CBC0-4A8F-B6B3-E4A8125533DD}"), "Platform Support: Linux", "/Engine/Source/ThirdParty/.../Linux/..."),
+			new WorkspaceSyncCategory(new Guid("{2AF45231-0D75-463B-BF9F-ABB3231091BB}"), "Platform Support: Mac", "/Engine/Source/ThirdParty/.../Mac/...", ".../Build/Mac/PipelineCaches/..."),
+			new WorkspaceSyncCategory(new Guid("{C8CB4934-ADE9-46C9-B6E3-61A659E1FAF5}"), "Platform Support: PS4", ".../PS4/..."),
+			new WorkspaceSyncCategory(new Guid("{F8AE5AC3-DA2D-4719-BABF-8A90D878379E}"), "Platform Support: Switch", ".../Switch/..."),
+			new WorkspaceSyncCategory(new Guid("{3788A0BC-188C-4A0D-950A-D68175F0D110}"), "Platform Support: tvOS", "/Engine/Source/ThirdParty/.../TVOS/..."),
+			new WorkspaceSyncCategory(new Guid("{1144E719-FCD7-491B-B0FC-8B4C3565BF79}"), "Platform Support: Win32", "/Engine/Source/ThirdParty/.../Win32/..."),
+			new WorkspaceSyncCategory(new Guid("{5206CCEE-9024-4E36-8B89-F5F5A7D288D2}"), "Platform Support: Win64", "/Engine/Source/ThirdParty/.../Win64/..."),
+			new WorkspaceSyncCategory(new Guid("{06887423-B094-4718-9B55-C7A21EE67EE4}"), "Platform Support: XboxOne", ".../XboxOne/..."),
+			new WorkspaceSyncCategory(new Guid("{CFEC942A-BB90-4F0C-ACCF-238ECAAD9430}"), "Source Code", "/Engine/Source/..."),
+		};
+
 		enum HorizontalAlignment
 		{
 			Left,
@@ -248,7 +266,7 @@ namespace UnrealGameSync
 		HashSet<int> PromotedChangeNumbers = new HashSet<int>();
 		List<int> ListIndexToChangeIndex = new List<int>();
 		List<int> SortedChangeNumbers = new List<int>();
-		Dictionary<int, string> ChangeNumberToArchivePath = new Dictionary<int, string>();
+		Dictionary<string, Dictionary<int, string>> ArchiveToChangeNumberToArchivePath = new Dictionary<string, Dictionary<int, string>>();
 		Dictionary<int, ChangeLayoutInfo> ChangeNumberToLayoutInfo = new Dictionary<int, ChangeLayoutInfo>();
 		List<ToolStripMenuItem> CustomToolMenuItems = new List<ToolStripMenuItem>();
 		int NumChanges;
@@ -400,6 +418,19 @@ namespace UnrealGameSync
 			StartupCallbacks = new List<WorkspaceStartupCallback>();
 
 			IssueMonitor.OnIssuesChanged += IssueMonitor_OnIssuesChangedAsync;
+
+			if (SelectedFileName.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
+			{
+				string TintColorFileName = GetTintColorFileName();
+
+				Directory.CreateDirectory(Path.GetDirectoryName(TintColorFileName));
+
+				EditorConfigWatcher.Path = Path.GetDirectoryName(TintColorFileName);
+				EditorConfigWatcher.Filter = Path.GetFileName(TintColorFileName);
+				EditorConfigWatcher.EnableRaisingEvents = true;
+
+				TintColor = GetTintColor();
+			}
 		}
 
 		public void IssueMonitor_OnIssuesChangedAsync()
@@ -895,29 +926,48 @@ namespace UnrealGameSync
 				}
 			}
 
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(Workspace.GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories);
+
+			ConfigSection PerforceSection = PerforceMonitor.LatestProjectConfigFile.FindSection("Perforce");
+
+			if (PerforceSection != null)
+			{
+				IEnumerable<string> AdditionalPaths = PerforceSection.GetValues("AdditionalPathsToSync", new string[0]);
+				CombinedSyncFilter = CombinedSyncFilter.Union(AdditionalPaths).ToArray();
+			}			
 
 			WorkspaceUpdateContext Context = new WorkspaceUpdateContext(ChangeNumber, Options, CombinedSyncFilter, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, null, GetWorkspaceVariables(ChangeNumber));
 			if (Options.HasFlag(WorkspaceUpdateOptions.SyncArchives))
 			{
-				string EditorArchivePath = null;
-				if (ShouldSyncPrecompiledEditor)
+				IReadOnlyList<IArchiveInfo> Archives = PerforceMonitor.AvailableArchives;
+				foreach (IArchiveInfo Archive in Archives)
 				{
-					EditorArchivePath = GetArchivePathForChangeNumber(ChangeNumber);
-					if (EditorArchivePath == null)
+					Context.ArchiveTypeToDepotPath[Archive.Type] = null;
+				}
+
+				List<IArchiveInfo> SelectedArchives = GetSelectedArchives(PerforceMonitor.AvailableArchives);
+				foreach (IArchiveInfo Archive in SelectedArchives)
+				{
+					string ArchivePath = GetArchivePathForChangeNumber(Archive, ChangeNumber);
+					if (ArchivePath == null)
 					{
-						MessageBox.Show("There are no compiled editor binaries for this change. To sync it, you must disable syncing of precompiled editor binaries.");
+						MessageBox.Show(String.Format("There are no compiled {0} binaries for this change. To sync it, you must disable syncing of precompiled editor binaries.", Archive.Name));
 						return;
 					}
-					Context.Options &= ~(WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.GenerateProjectFiles);
+
+					if (Archive.Type == EditorArchiveType)
+					{
+						Context.Options &= ~(WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.GenerateProjectFiles);
+					}
 
 					string[] ZippedBinariesSyncFilter;
 					if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "ZippedBinariesSyncFilter", out ZippedBinariesSyncFilter) && ZippedBinariesSyncFilter.Length > 0)
 					{
 						Context.SyncFilter = Enumerable.Concat(Context.SyncFilter, ZippedBinariesSyncFilter).ToArray();
 					}
+
+					Context.ArchiveTypeToDepotPath[Archive.Type] = ArchivePath;
 				}
-				Context.ArchiveTypeToDepotPath.Add(EditorArchiveType, EditorArchivePath);
 			}
 			StartWorkspaceUpdate(Context, Callback);
 		}
@@ -1124,7 +1174,7 @@ namespace UnrealGameSync
 		{
 			if (SelectedFileName != null)
 			{
-				ChangeNumberToArchivePath.Clear();
+				ArchiveToChangeNumberToArchivePath.Clear();
 				ChangeNumberToLayoutInfo.Clear();
 
 				List<PerforceChangeSummary> Changes = PerforceMonitor.GetChanges();
@@ -1471,7 +1521,7 @@ namespace UnrealGameSync
 			UpdateMaxBuildBadgeChars();
 
 			// Update everything else
-			ChangeNumberToArchivePath.Clear();
+			ArchiveToChangeNumberToArchivePath.Clear();
 			ChangeNumberToLayoutInfo.Clear();
 			BuildList.Invalidate();
 			UpdateServiceBadges();
@@ -1562,6 +1612,49 @@ namespace UnrealGameSync
 			return false;
 		}
 
+		Dictionary<Guid, WorkspaceSyncCategory> GetSyncCategories()
+		{
+			Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToCategory = new Dictionary<Guid, WorkspaceSyncCategory>();
+
+			// Add the default filters
+			foreach (WorkspaceSyncCategory DefaultSyncCategory in DefaultSyncCategories)
+			{
+				UniqueIdToCategory.Add(DefaultSyncCategory.UniqueId, DefaultSyncCategory);
+			}
+
+			// Add the custom filters
+			ConfigFile ProjectConfigFile = PerforceMonitor.LatestProjectConfigFile;
+			if (ProjectConfigFile != null)
+			{
+				string[] CategoryLines = ProjectConfigFile.GetValues("Options.SyncCategory", new string[0]);
+				foreach (string CategoryLine in CategoryLines)
+				{
+					ConfigObject Object = new ConfigObject(CategoryLine);
+
+					Guid UniqueId;
+					if (Guid.TryParse(Object.GetValue("UniqueId", ""), out UniqueId))
+					{
+						WorkspaceSyncCategory Category;
+						if (!UniqueIdToCategory.TryGetValue(UniqueId, out Category))
+						{
+							Category = new WorkspaceSyncCategory(UniqueId);
+							UniqueIdToCategory.Add(UniqueId, Category);
+						}
+
+						if (Object.GetValue("Clear", false))
+						{
+							Category.Paths = new string[0];
+						}
+
+						Category.Name = Object.GetValue("Name", Category.Name);
+						Category.bEnable = Object.GetValue("Enable", Category.bEnable);
+						Category.Paths = Enumerable.Concat(Category.Paths, Object.GetValue("Paths", "").Split(';').Select(x => x.Trim())).Distinct().OrderBy(x => x).ToArray();
+					}
+				}
+			}
+			return UniqueIdToCategory;
+		}
+
 		void UpdateReviewsCallback()
 		{
 			if (!bUpdateReviewsPosted)
@@ -1573,7 +1666,7 @@ namespace UnrealGameSync
 
 		void UpdateReviews()
 		{
-			ChangeNumberToArchivePath.Clear();
+			ArchiveToChangeNumberToArchivePath.Clear();
 			ChangeNumberToLayoutInfo.Clear();
 			EventMonitor.ApplyUpdates();
 
@@ -1808,27 +1901,36 @@ namespace UnrealGameSync
 			}
 		}
 
-		private string GetArchivePathForChangeNumber(int ChangeNumber)
+		private string GetArchivePathForChangeNumber(IArchiveInfo Archive, int ChangeNumber)
 		{
 			string ArchivePath;
+
+			Dictionary<int, string> ChangeNumberToArchivePath;
+			if (!ArchiveToChangeNumberToArchivePath.TryGetValue(Archive.Name, out ChangeNumberToArchivePath))
+			{
+				ChangeNumberToArchivePath = new Dictionary<int, string>();
+				ArchiveToChangeNumberToArchivePath[Archive.Name] = ChangeNumberToArchivePath;
+			}
+
 			if(!ChangeNumberToArchivePath.TryGetValue(ChangeNumber, out ArchivePath))
 			{
 				PerforceChangeDetails Details;
 				if(PerforceMonitor.TryGetChangeDetails(ChangeNumber, out Details))
 				{
 					// Try to get the archive for this CL
-					if(!PerforceMonitor.TryGetArchivePathForChangeNumber(ChangeNumber, out ArchivePath) && !Details.bContainsCode)
+					if(!Archive.TryGetArchivePathForChangeNumber(ChangeNumber, out ArchivePath) && !Details.bContainsCode)
 					{
 						// Otherwise if it's a content-only change, find the previous build any use the archive path from that
 						int Index = SortedChangeNumbers.BinarySearch(ChangeNumber);
 						if(Index > 0)
 						{
-							ArchivePath = GetArchivePathForChangeNumber(SortedChangeNumbers[Index - 1]);
+							ArchivePath = GetArchivePathForChangeNumber(Archive, SortedChangeNumbers[Index - 1]);
 						}
 					}
 				}
 				ChangeNumberToArchivePath.Add(ChangeNumber, ArchivePath);
 			}
+
 			return ArchivePath;
 		}
 
@@ -1839,7 +1941,13 @@ namespace UnrealGameSync
 
 		private bool CanSyncChange(int ChangeNumber)
 		{
-			return !ShouldSyncPrecompiledEditor || GetArchivePathForChangeNumber(ChangeNumber) != null;
+			if (PerforceMonitor == null)
+			{
+				return false;
+			}
+
+			List<IArchiveInfo> SelectedArchives = GetSelectedArchives(PerforceMonitor.AvailableArchives);
+			return SelectedArchives.Count == 0 || SelectedArchives.All(x => GetArchivePathForChangeNumber(x, ChangeNumber) != null);
 		}
 
 		private ChangeLayoutInfo GetChangeLayoutInfo(PerforceChangeSummary Change)
@@ -2879,20 +2987,24 @@ namespace UnrealGameSync
 			string ConfigSuffix = (Config == BuildConfig.Development)? "" : String.Format("-Win64-{0}", Config.ToString());
 
 			List<string> PossiblePaths = new List<string>();
-			if(EditorTargetName != null)
+			if (EditorTargetName != null)
 			{
 				PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("{0}{1}.target", EditorTargetName, ConfigSuffix)));
-				PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Build", "Receipts", String.Format("{0}-Win64-{1}.target.xml", EditorTargetName, Config.ToString())));
 			}
-			else if(SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase) && bIsEnterpriseProject)
+			else if (SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
 			{
-				PossiblePaths.Add(Path.Combine(BranchDirectoryName, "Enterprise", "Binaries", "Win64", String.Format("StudioEditor{0}.target", ConfigSuffix)));
-				PossiblePaths.Add(Path.Combine(BranchDirectoryName, "Enterprise", "Build", "Receipts", String.Format("StudioEditor-Win64-{0}.target.xml", Config.ToString())));
+				if (bIsEnterpriseProject)
+				{
+					PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("StudioEditor{0}.target", ConfigSuffix)));
+				}
+				else
+				{
+					PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("UE4Editor{0}.target", ConfigSuffix)));
+				}
 			}
 			else
 			{
-				PossiblePaths.Add(Path.Combine(BranchDirectoryName, "Engine", "Binaries", "Win64", String.Format("UE4Editor{0}.target", ConfigSuffix)));
-				PossiblePaths.Add(Path.Combine(BranchDirectoryName, "Engine", "Build", "Receipts", String.Format("UE4Editor-Win64-{0}.target.xml", Config.ToString())));
+				PossiblePaths.Add(Path.Combine("Engine", "Binaries", "Win64", String.Format("UE4Editor{0}.target", ConfigSuffix)));
 			}
 			return PossiblePaths;
 		}
@@ -3215,7 +3327,7 @@ namespace UnrealGameSync
 
 					StringBuilder Description = new StringBuilder();
 					Description.AppendFormat("{0}: {1}", Issue.Id, Summary);
-					if(Issue.Owner == null)
+					if (Issue.Owner == null)
 					{
 						Description.AppendFormat(" - Unassigned");
 					}
@@ -3226,6 +3338,10 @@ namespace UnrealGameSync
 						{
 							Description.Append(" (?)");
 						}
+					}
+					if (Issue.FixChange > 0)
+					{
+						Description.AppendFormat(" (Unverified fix in CL {0})", Issue.FixChange);
 					}
 
 					Description.AppendFormat(" ({0})", Utility.FormatDurationMinutes((int)((Issue.RetrievedAt - Issue.CreatedAt).TotalMinutes + 1)));
@@ -3858,12 +3974,119 @@ namespace UnrealGameSync
 			return null;
 		}
 
+		private List<IArchiveInfo> GetSelectedArchives(IReadOnlyList<IArchiveInfo> Archives)
+		{
+			Dictionary<string, KeyValuePair<IArchiveInfo, int>> ArchiveTypeToSelection = new Dictionary<string, KeyValuePair<IArchiveInfo, int>>();
+			foreach (IArchiveInfo Archive in Archives)
+			{
+				ArchiveSettings ArchiveSettings = Settings.Archives.FirstOrDefault(x => x.Type == Archive.Type);
+				if (ArchiveSettings != null && ArchiveSettings.bEnabled)
+				{
+					int Preference = ArchiveSettings.Order.IndexOf(Archive.Name);
+					if (Preference == -1)
+					{
+						Preference = ArchiveSettings.Order.Count;
+					}
+
+					KeyValuePair<IArchiveInfo, int> ExistingItem;
+					if (!ArchiveTypeToSelection.TryGetValue(Archive.Type, out ExistingItem) || ExistingItem.Value > Preference)
+					{
+						ArchiveTypeToSelection[Archive.Type] = new KeyValuePair<IArchiveInfo, int>(Archive, Preference);
+					}
+				}
+			}
+			return ArchiveTypeToSelection.Select(x => x.Value.Key).ToList();
+		}
+
+		private void ClearSelectedArchives()
+		{
+			foreach (ArchiveSettings ArchiveSettings in Settings.Archives)
+			{
+				ArchiveSettings.bEnabled = false;
+			}
+			Settings.Save();
+
+			UpdateSelectedArchives();
+		}
+
+		private void SetSelectedArchive(IArchiveInfo Archive, bool bSelected)
+		{
+			ArchiveSettings ArchiveSettings = Settings.Archives.FirstOrDefault(x => x.Type == Archive.Type);
+			if(ArchiveSettings == null)
+			{
+				ArchiveSettings = new ArchiveSettings(bSelected, Archive.Type, new string[] { Archive.Name });
+				Settings.Archives.Add(ArchiveSettings);
+			}
+			else if(bSelected)
+			{
+				ArchiveSettings.bEnabled = true;
+				ArchiveSettings.Order.Remove(Archive.Name);
+				ArchiveSettings.Order.Insert(0, Archive.Name);
+			}
+			else
+			{
+				ArchiveSettings.bEnabled = false;
+			}
+			Settings.Save();
+
+			UpdateSelectedArchives();
+		}
+
+		private void UpdateSelectedArchives()
+        {
+			UpdateBuildSteps();
+			UpdateSyncActionCheckboxes();
+
+			BuildList.Invalidate();
+        }
+
+
 		private void OptionsButton_Click(object sender, EventArgs e)
 		{
 			OptionsContextMenu_AutoResolveConflicts.Checked = Settings.bAutoResolveConflicts;
-			OptionsContextMenu_SyncPrecompiledEditor.Enabled = PerforceMonitor != null && PerforceMonitor.HasZippedBinaries;
-			OptionsContextMenu_SyncPrecompiledEditor.Checked = Settings.bSyncPrecompiledEditor;
-			OptionsContextMenu_SyncPrecompiledEditor.ToolTipText = PerforceMonitor.ZippedBinariesStatus;
+
+			OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.Clear();
+
+			IReadOnlyList<IArchiveInfo> Archives = PerforceMonitor?.AvailableArchives;
+			if (Archives == null || Archives.Count == 0)
+			{
+				OptionsContextMenu_SyncPrecompiledBinaries.Enabled = false;
+				OptionsContextMenu_SyncPrecompiledBinaries.ToolTipText = String.Format("Precompiled binaries are not available for {0}", SelectedProjectIdentifier);
+				OptionsContextMenu_SyncPrecompiledBinaries.Checked = false;
+			}
+			else
+			{
+				List<IArchiveInfo> SelectedArchives = GetSelectedArchives(Archives);
+
+				OptionsContextMenu_SyncPrecompiledBinaries.Enabled = true;
+				OptionsContextMenu_SyncPrecompiledBinaries.ToolTipText = null;
+				OptionsContextMenu_SyncPrecompiledBinaries.Checked = SelectedArchives.Count > 0;
+
+				if (Archives.Count > 1 || Archives[0].Type != EditorArchiveType)
+				{
+					ToolStripMenuItem DisableItem = new ToolStripMenuItem("Disable (compile locally)");
+					DisableItem.Checked = (SelectedArchives.Count == 0);
+					DisableItem.Click += (Sender, Args) => ClearSelectedArchives();
+					OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.Add(DisableItem);
+
+					ToolStripSeparator Separator = new ToolStripSeparator();
+					OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.Add(Separator);
+
+					foreach (IArchiveInfo Archive in Archives)
+					{
+						ToolStripMenuItem Item = new ToolStripMenuItem(Archive.Name);
+						Item.Enabled = Archive.Exists();
+						if (!Item.Enabled)
+						{
+							Item.ToolTipText = String.Format("No valid archives found at {0}", Archive.DepotPath);
+						}
+						Item.Checked = SelectedArchives.Contains(Archive);
+						Item.Click += (Sender, Args) => SetSelectedArchive(Archive, !Item.Checked);
+						OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.Add(Item);
+					}
+				}
+			}
+
 			OptionsContextMenu_EditorBuildConfiguration.Enabled = !ShouldSyncPrecompiledEditor;
 			UpdateCheckedBuildConfig();
 			OptionsContextMenu_UseIncrementalBuilds.Enabled = !ShouldSyncPrecompiledEditor;
@@ -4483,7 +4706,7 @@ namespace UnrealGameSync
 				ExtraSafeToDeleteExtensions = "";
 			}
 
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(Workspace.GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories);
 			List<string> SyncPaths = Workspace.GetSyncPaths(WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects, CombinedSyncFilter);
 
 			CleanWorkspaceWindow.DoClean(ParentForm, Workspace.Perforce, BranchDirectoryName, Workspace.ClientRootPath, SyncPaths, ExtraSafeToDeleteFolders.Split('\n'), ExtraSafeToDeleteExtensions.Split('\n'), Log);
@@ -4643,7 +4866,7 @@ namespace UnrealGameSync
 
 		private bool ShouldSyncPrecompiledEditor
 		{
-			get { return Settings.bSyncPrecompiledEditor && PerforceMonitor != null && PerforceMonitor.HasZippedBinaries; }
+			get { return Settings.Archives.Any(x => x.bEnabled && x.Type == EditorArchiveType) && PerforceMonitor != null && PerforceMonitor.AvailableArchives.Any(x => x.Type == "Editor"); }
 		}
 
 		public BuildConfig GetEditorBuildConfig()
@@ -4654,7 +4877,7 @@ namespace UnrealGameSync
 		private Dictionary<Guid,ConfigObject> GetDefaultBuildStepObjects()
 		{
 			string ProjectArgument = "";
-			if(SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase) && EditorTargetName != null)
+			if(SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
 			{
 				ProjectArgument = String.Format("\"{0}\"", SelectedFileName);
 			}
@@ -4709,17 +4932,16 @@ namespace UnrealGameSync
 			return UserBuildStepObjects.Values.Select(x => new BuildStep(x)).OrderBy(x => x.OrderIndex).ToList();
 		}
 
-		private void OptionsContextMenu_SyncPrecompiledEditor_Click(object sender, EventArgs e)
+		private void OptionsContextMenu_SyncPrecompiledBinaries_Click(object sender, EventArgs e)
 		{
-			OptionsContextMenu_SyncPrecompiledEditor.Checked ^= true;
-
-			Settings.bSyncPrecompiledEditor = OptionsContextMenu_SyncPrecompiledEditor.Checked;
-			Settings.Save();
-
-			UpdateBuildSteps();
-			UpdateSyncActionCheckboxes();
-
-			BuildList.Invalidate();
+			if (OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.Count == 0)
+			{
+				IArchiveInfo EditorArchive = PerforceMonitor.AvailableArchives.FirstOrDefault(x => x.Type == EditorArchiveType);
+				if(EditorArchive != null)
+				{
+					SetSelectedArchive(EditorArchive, !OptionsContextMenu_SyncPrecompiledBinaries.Checked);
+				}
+			}
 		}
 
 		private void BuildList_SelectedIndexChanged(object sender, EventArgs e)
@@ -4748,7 +4970,7 @@ namespace UnrealGameSync
 
 		private void OptionsContextMenu_SyncFilter_Click(object sender, EventArgs e)
 		{
-			SyncFilter Filter = new SyncFilter(Workspace.GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, Settings.bSyncAllProjects, Settings.bIncludeAllProjectsInSolution, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories, WorkspaceSettings.bSyncAllProjects, WorkspaceSettings.bIncludeAllProjectsInSolution);
+			SyncFilter Filter = new SyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, Settings.bSyncAllProjects, Settings.bIncludeAllProjectsInSolution, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories, WorkspaceSettings.bSyncAllProjects, WorkspaceSettings.bIncludeAllProjectsInSolution);
 			if(Filter.ShowDialog() == DialogResult.OK)
 			{
 				Settings.SyncExcludedCategories = Filter.GlobalExcludedCategories;
@@ -5286,6 +5508,92 @@ namespace UnrealGameSync
 		{
 			UpdateBuildList();
 			ShrinkNumRequestedBuilds();
+		}
+
+		public Color? TintColor
+		{
+			get;
+			private set;
+		}
+
+		private void EditorConfigWatcher_Changed(object sender, FileSystemEventArgs e)
+		{
+			UpdateTintColor();
+		}
+
+		private void EditorConfigWatcher_Renamed(object sender, RenamedEventArgs e)
+		{
+			UpdateTintColor();
+		}
+
+		private string GetTintColorFileName()
+		{
+			return Path.Combine(Path.GetDirectoryName(SelectedFileName), "Saved", "Config", "Windows", "EditorPerProjectUserSettings.ini");
+		}
+
+		private Color? GetTintColor()
+		{
+			try
+			{
+				string FileName = GetTintColorFileName();
+				if (!File.Exists(FileName))
+				{
+					return null;
+				}
+
+				ConfigFile Config = new ConfigFile();
+				Config.Load(FileName);
+
+				ConfigSection Section = Config.FindSection("/Script/EditorStyle.EditorStyleSettings");
+				if (Section == null)
+				{
+					return null;
+				}
+
+				string OverrideValue = Section.GetValue("EditorMainWindowBackgroundOverride", null);
+				if (OverrideValue == null)
+				{
+					return null;
+				}
+
+				ConfigObject OverrideObject = new ConfigObject(OverrideValue);
+
+				string TintColorValue = OverrideObject.GetValue("TintColor");
+				if (TintColorValue == null)
+				{
+					return null;
+				}
+
+				ConfigObject TintColorObject = new ConfigObject(TintColorValue);
+				if (TintColorObject.GetValue("ColorUseRule", "") != "UseColor_Specified")
+				{
+					return null;
+				}
+
+				ConfigObject SpecifiedColorObject = new ConfigObject(TintColorObject.GetValue("SpecifiedColor"));
+
+				float R, G, B;
+				if (!float.TryParse(SpecifiedColorObject.GetValue("R", ""), out R) || !float.TryParse(SpecifiedColorObject.GetValue("G", ""), out G) || !float.TryParse(SpecifiedColorObject.GetValue("B", ""), out B))
+				{
+					return null;
+				}
+
+				return Color.FromArgb((int)(255.0f * R), (int)(255.0f * G), (int)(255.0f * B));
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		private void UpdateTintColor()
+		{
+			Color? NewTintColor = GetTintColor();
+			if (TintColor != NewTintColor)
+			{
+				TintColor = NewTintColor;
+				Owner.UpdateTintColors();
+			}
 		}
 	}
 }

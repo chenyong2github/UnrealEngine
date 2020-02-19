@@ -4,9 +4,12 @@
 #include "GroomAsset.h"
 
 #include "EditorFramework/AssetImportData.h"
+#include "HairStrandsRendering.h"
 #include "GroomAssetImportData.h"
 #include "GroomImportOptions.h"
 #include "GroomImportOptionsWindow.h"
+#include "GroomCreateBindingOptions.h"
+#include "GroomCreateBindingOptionsWindow.h"
 #include "Toolkits/SimpleAssetEditor.h"
 #include "ToolMenuSection.h"
 
@@ -34,6 +37,17 @@ void FGroomActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSecti
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteRebuild, GroomAssets),
 			FCanExecuteAction::CreateSP(this, &FGroomActions::CanRebuild, GroomAssets)
+		)
+	);
+
+	Section.AddMenuEntry(
+		"CreateBindingAsset",
+		LOCTEXT("CreateBindingAsset", "Create Binding"),
+		LOCTEXT("CreateBindingAssetTooltip", "Create a binding asset between a skeletal mesh and a groom asset"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FGroomActions::ExecuteCreateBindingAsset, GroomAssets),
+			FCanExecuteAction::CreateSP(this, &FGroomActions::CanCreateBindingAsset, GroomAssets)
 		)
 	);
 }
@@ -120,6 +134,47 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 					CurrentOptions->Rename(nullptr, GroomAssetImportData);
 					GroomAssetImportData->ImportOptions = CurrentOptions;
 					GroomAsset->MarkPackageDirty();
+				}
+			}
+		}
+	}
+}
+
+bool FGroomActions::CanCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+{
+	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	{
+		if (GroomAsset.IsValid())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const
+{
+	for (TWeakObjectPtr<UGroomAsset> GroomAsset : Objects)
+	{
+		if (GroomAsset.IsValid())
+		{
+			{
+
+				// Duplicate the options to prevent dirtying the asset when they are modified but the rebuild is cancelled
+				UGroomCreateBindingOptions* CurrentOptions = NewObject<UGroomCreateBindingOptions>();
+				TSharedPtr<SGroomCreateBindingOptionsWindow> GroomOptionWindow = SGroomCreateBindingOptionsWindow::DisplayCreateBindingOptions(CurrentOptions);
+
+				if (!GroomOptionWindow->ShouldCreate())
+				{
+					continue;
+				}
+				else if (GroomAsset.Get() && CurrentOptions && CurrentOptions->TargetSkeletalMesh)
+				{
+					UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh);
+
+					// The binding task will generate and set the binding value back to the binding asset.
+					// This code is not thread safe.
+					AddGroomBindingTask(BindingAsset);
 				}
 			}
 		}

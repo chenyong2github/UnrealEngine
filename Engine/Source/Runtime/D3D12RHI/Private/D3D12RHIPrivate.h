@@ -43,7 +43,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
 #elif PLATFORM_HOLOLENS
 #include "HoloLens/D3D12RHIBasePrivate.h"
 #else
-#include "XboxOne/D3D12RHIBasePrivate.h"
+#include "D3D12RHIBasePrivate.h"
 #endif
 
 #if NV_AFTERMATH
@@ -87,12 +87,8 @@ typedef FD3D12StateCacheBase FD3D12StateCache;
 
 //@TODO: Improve allocator efficiency so we can increase these thresholds and improve performance
 // We measured 149MB of wastage in 340MB of allocations with DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE set to 512KB
-#if PLATFORM_XBOXONE
-  // Most allocs are 4K and below, but most of the waste comes from larger
-  // allocations, so this is a good compromise (4KB reduced waste by 66% compared to 512KB)
-  #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (4 * 1024) 
-  #define DEFAULT_BUFFER_POOL_SIZE (1 * 1024 * 1024)
-#elif D3D12_RHI_RAYTRACING
+#if !defined(DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE)
+#if D3D12_RHI_RAYTRACING
   // #dxr_todo: Reevaluate these values. Currently optimized to reduce number of CreateCommitedResource() calls, at the expense of memory use.
   #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (8 * 1024 * 1024)
   #define DEFAULT_BUFFER_POOL_SIZE (16 * 1024 * 1024)
@@ -100,7 +96,8 @@ typedef FD3D12StateCacheBase FD3D12StateCache;
   // On PC, buffers are 64KB aligned, so anything smaller should be sub-allocated
   #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (64 * 1024)
   #define DEFAULT_BUFFER_POOL_SIZE (8 * 1024 * 1024)
-#endif
+#endif //D3D12_RHI_RAYTRACING
+#endif //DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE
 
 #define DEFAULT_CONTEXT_UPLOAD_POOL_SIZE (8 * 1024 * 1024)
 #define DEFAULT_CONTEXT_UPLOAD_POOL_MAX_ALLOC_SIZE (4 * 1024 * 1024)
@@ -263,12 +260,12 @@ public:
 	virtual FDepthStencilStateRHIRef RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer) final override;
 	virtual FBlendStateRHIRef RHICreateBlendState(const FBlendStateInitializerRHI& Initializer) final override;
 	virtual FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& Elements) final override;
-	virtual FPixelShaderRHIRef RHICreatePixelShader(const TArray<uint8>& Code) final override;
-	virtual FVertexShaderRHIRef RHICreateVertexShader(const TArray<uint8>& Code) final override;
-	virtual FHullShaderRHIRef RHICreateHullShader(const TArray<uint8>& Code) final override;
-	virtual FDomainShaderRHIRef RHICreateDomainShader(const TArray<uint8>& Code) final override;
-	virtual FGeometryShaderRHIRef RHICreateGeometryShader(const TArray<uint8>& Code) final override;
-	virtual FComputeShaderRHIRef RHICreateComputeShader(const TArray<uint8>& Code) override;
+	virtual FPixelShaderRHIRef RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override;
+	virtual FVertexShaderRHIRef RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override;
+	virtual FHullShaderRHIRef RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override;
+	virtual FDomainShaderRHIRef RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override;
+	virtual FGeometryShaderRHIRef RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override;
+	virtual FComputeShaderRHIRef RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash) override;
 	virtual FComputeFenceRHIRef RHICreateComputeFence(const FName& Name) final override;
 	virtual FGPUFenceRHIRef RHICreateGPUFence(const FName& Name) final override;
 	virtual FStagingBufferRHIRef RHICreateStagingBuffer() final override;
@@ -388,34 +385,34 @@ public:
 	// These will be un-commented as they are implemented.
 	//
 
-	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
+	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		return RHICreateVertexShader(Code);
+		return RHICreateVertexShader(Code, Hash);
 	}
 
-	virtual FGeometryShaderRHIRef CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
+	virtual FGeometryShaderRHIRef CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		return RHICreateGeometryShader(Code);
+		return RHICreateGeometryShader(Code, Hash);
 	}
 
-	virtual FHullShaderRHIRef CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
+	virtual FHullShaderRHIRef CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		return RHICreateHullShader(Code);
+		return RHICreateHullShader(Code, Hash);
 	}
 
-	virtual FDomainShaderRHIRef CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
+	virtual FDomainShaderRHIRef CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		return RHICreateDomainShader(Code);
+		return RHICreateDomainShader(Code, Hash);
 	}
 
-	virtual FPixelShaderRHIRef CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
+	virtual FPixelShaderRHIRef CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		return RHICreatePixelShader(Code);
+		return RHICreatePixelShader(Code, Hash);
 	}
 
-	virtual FComputeShaderRHIRef CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
+	virtual FComputeShaderRHIRef CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		return RHICreateComputeShader(Code);
+		return RHICreateComputeShader(Code, Hash);
 	}
 
 	virtual FVertexBufferRHIRef CreateVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
@@ -460,7 +457,7 @@ public:
 
 	virtual FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer) final override;
 	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer) final override;
-	virtual FRayTracingShaderRHIRef RHICreateRayTracingShader(const TArray<uint8>& Code, EShaderFrequency ShaderFrequency) final override;
+	virtual FRayTracingShaderRHIRef RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency) final override;
 	virtual FRayTracingPipelineStateRHIRef RHICreateRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer) final override;
 
 #endif //D3D12_RHI_RAYTRACING
@@ -902,9 +899,9 @@ public:
 #if	PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	virtual void* CreateVirtualTexture(uint32 Flags, D3D12_RESOURCE_DESC& ResourceDesc, const struct FD3D12TextureLayout& TextureLayout, FD3D12Resource** ppResource, FPlatformMemory::FPlatformVirtualMemoryBlock& RawTextureBlock, D3D12_RESOURCE_STATES InitialUsage = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) = 0;
 	virtual void DestroyVirtualTexture(uint32 Flags, void* RawTextureMemory, FPlatformMemory::FPlatformVirtualMemoryBlock& RawTextureBlock, uint64 CommittedTextureSize) = 0;
-	virtual bool HandleSpecialLock(void*& MemoryOut, uint32 MipIndex, uint32 ArrayIndex, uint32 Flags, EResourceLockMode LockMode, const FD3D12TextureLayout& TextureLayout, void* RawTextureMemory, uint32& DestStride) = 0;
-	virtual bool HandleSpecialUnlock(FRHICommandListBase* RHICmdList, uint32 MipIndex, uint32 Flags, const struct FD3D12TextureLayout& TextureLayout, void* RawTextureMemory) = 0;
 #endif
+	virtual bool HandleSpecialLock(void*& MemoryOut, uint32 MipIndex, uint32 ArrayIndex, uint32 Flags, EResourceLockMode LockMode, const FD3D12TextureLayout& TextureLayout, void* RawTextureMemory, uint32& DestStride) { return false; }
+	virtual bool HandleSpecialUnlock(FRHICommandListBase* RHICmdList, uint32 MipIndex, uint32 Flags, const struct FD3D12TextureLayout& TextureLayout, void* RawTextureMemory) { return false; }
 
 	FD3D12Adapter& GetAdapter(uint32_t Index = 0) { return *ChosenAdapters[Index]; }
 	int32 GetNumAdapters() const { return ChosenAdapters.Num(); }
@@ -1173,13 +1170,14 @@ private:
 	}
 };
 
-#if !PLATFORM_XBOXONE
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
 #ifndef DXGI_PRESENT_ALLOW_TEARING
 #define DXGI_PRESENT_ALLOW_TEARING          0x00000200UL
 #define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
 
 #endif
+
 
 
 #define EMBED_DXGI_ERROR_LIST(PerEntry, Terminator)	\
@@ -1202,4 +1200,4 @@ private:
 
 
 
-#endif //!PLATFORM_XBOXONE
+#endif //(PLATFORM_WINDOWS || PLATFORM_HOLOLENS)

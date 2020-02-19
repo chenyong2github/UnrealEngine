@@ -251,7 +251,7 @@ private:
 
 public:
 	/** The specific audio device to play this component on */
-	uint32 AudioDeviceHandle;
+	uint32 AudioDeviceID;
 
 	/** Configurable, serialized ID for audio plugins */
 	UPROPERTY()
@@ -489,7 +489,7 @@ public:
 
 	/** Sets how much audio the sound should send to the given submix. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSubmixSend(USoundSubmix* Submix, float SendLevel);
+	void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
 
 	/** Sets how much audio the sound should send to the given Source Bus (PRE Source Effects).
 		if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */
@@ -500,6 +500,16 @@ public:
 		if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+
+	/** Sets how much audio the sound should send to the given Audio Bus (PRE Source Effects).
+	if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
+
+	/** Sets how much audio the sound should send to the given Audio Bus (POST Source Effects).
+		if the Audio Bus Send doesn't already exist, it will be added to the overrides on the active sound */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetAudioBusSendPostEffect(UAudioBus* AudioBus, float SourceBusSendLevel);
 
 	/** Sets whether or not the low pass filter is enabled on the audio component. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
@@ -557,6 +567,8 @@ private:
 
 	/** Whether or not the sound is audible. */
 	bool IsInAudibleRange(float* OutMaxDistance) const;
+
+	void SetBusSendffectInternal(USoundSourceBus* InSourceBus, UAudioBus* InAudioBus, float SendLevel, EBusSendType InBusSendType);
 
 public:
 

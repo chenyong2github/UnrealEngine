@@ -333,9 +333,9 @@ TArray<USkyLightComponent*> USkyLightComponent::SkyCapturesToUpdate;
 TArray<USkyLightComponent*> USkyLightComponent::SkyCapturesToUpdateBlendDestinations;
 FCriticalSection USkyLightComponent::SkyCapturesToUpdateLock;
 
-void USkyLightComponent::CreateRenderState_Concurrent()
+void USkyLightComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	bool bHidden = false;
 #if WITH_EDITORONLY_DATA

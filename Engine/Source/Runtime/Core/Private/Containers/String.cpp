@@ -2,6 +2,7 @@
 
 #include "Containers/UnrealString.h"
 
+#include "Containers/StringView.h"
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
@@ -10,8 +11,8 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/ByteSwap.h"
-#include "Misc/StringView.h"
 #include "Misc/VarArgs.h"
+#include "String/HexToBytes.h"
 #include "Templates/UnrealTemplate.h"
 
 /* FString implementation
@@ -148,6 +149,13 @@ FString& FString::operator=(const FStringView& Other)
 		CopyAssignItems(DataPtr, OtherData, OtherLen);
 		DataPtr[OtherLen] = TEXT('\0');
 	}
+	return *this;
+}
+
+FString& FString::operator+=(const FStringView& Str)
+{
+	CheckInvariants();
+	AppendChars(Str.GetData(), Str.Len());
 	return *this;
 }
 
@@ -982,7 +990,7 @@ int32 FString::ParseIntoArrayLines(TArray<FString>& OutArray, bool InCullEmpty) 
 	return ParseIntoArray(OutArray, LineEndings, NumLineEndings, InCullEmpty);
 }
 
-int32 FString::ParseIntoArray(TArray<FString>& OutArray, const TCHAR** DelimArray, int32 NumDelims, bool InCullEmpty) const
+int32 FString::ParseIntoArray(TArray<FString>& OutArray, const TCHAR* const * DelimArray, int32 NumDelims, bool InCullEmpty) const
 {
 	// Make sure the delimit string is not null or empty
 	check(DelimArray);
@@ -1491,6 +1499,11 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 	}
 
 	return Ar;
+}
+
+int32 HexToBytes(const FString& HexString, uint8* OutBytes)
+{
+	return UE::String::HexToBytes(HexString, OutBytes);
 }
 
 int32 FindMatchingClosingParenthesis(const FString& TargetString, const int32 StartSearch)

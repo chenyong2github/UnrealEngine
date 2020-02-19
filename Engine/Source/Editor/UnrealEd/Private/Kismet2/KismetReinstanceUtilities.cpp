@@ -1445,23 +1445,25 @@ namespace InstancedPropertyUtils
 		{
 			if (Obj == nullptr)
 			{
-				FProperty* SerializingProperty = GetSerializedProperty();
-				if (UObject* const* OldInstancedObjPtr = OldInstancedSubObjects.Find(SerializingProperty->GetFName()))
+				if (FProperty* SerializingProperty = GetSerializedProperty())
 				{
-					const UObject* OldInstancedObj = *OldInstancedObjPtr;
-					check(SerializingProperty->HasAnyPropertyFlags(CPF_PersistentInstance));
-
-					UClass* TargetClass = TargetCDO->GetClass();
-					// @TODO: Handle nested instances when we have more time to flush this all out  
-					if ( TargetClass->IsChildOf(SerializingProperty->GetOwnerClass()) )
+					if (UObject* const* OldInstancedObjPtr = OldInstancedSubObjects.Find(SerializingProperty->GetFName()))
 					{
-						FObjectPropertyBase* SerializingObjProperty = CastFieldChecked<FObjectPropertyBase>(SerializingProperty);
-						// being extra careful, not to create our own instanced version when we expect one from the CDO
-						if (SerializingObjProperty->GetObjectPropertyValue_InContainer(TargetCDO) == nullptr)
+						const UObject* OldInstancedObj = *OldInstancedObjPtr;
+						check(SerializingProperty->HasAnyPropertyFlags(CPF_PersistentInstance));
+
+						UClass* TargetClass = TargetCDO->GetClass();
+						// @TODO: Handle nested instances when we have more time to flush this all out  
+						if (TargetClass->IsChildOf(SerializingProperty->GetOwnerClass()))
 						{
-							// @TODO: What if the instanced object is of the same type 
-							//        that we're currently reinstancing
-							Obj = StaticDuplicateObject(OldInstancedObj, Target);// NewObject<UObject>(Target, OldInstancedObj->GetClass()->GetAuthoritativeClass(), OldInstancedObj->GetFName());
+							FObjectPropertyBase* SerializingObjProperty = CastFieldChecked<FObjectPropertyBase>(SerializingProperty);
+							// being extra careful, not to create our own instanced version when we expect one from the CDO
+							if (SerializingObjProperty->GetObjectPropertyValue_InContainer(TargetCDO) == nullptr)
+							{
+								// @TODO: What if the instanced object is of the same type 
+								//        that we're currently reinstancing
+								Obj = StaticDuplicateObject(OldInstancedObj, Target);// NewObject<UObject>(Target, OldInstancedObj->GetClass()->GetAuthoritativeClass(), OldInstancedObj->GetFName());
+							}
 						}
 					}
 				}
@@ -1534,6 +1536,8 @@ UClass* FBlueprintCompileReinstancer::MoveCDOToNewClass(UClass* OwnerClass, cons
 
 	UObject* OldCDO = OwnerClass->ClassDefaultObject;
 	const FName ReinstanceName = MakeUniqueObjectName(GetTransientPackage(), OwnerClass->GetClass(), *(FString(TEXT("REINST_")) + *OwnerClass->GetName()));
+
+	checkf(!OwnerClass->IsPendingKill(), TEXT("%s is PendingKill - will not duplicate successfully"), *(OwnerClass->GetName()));
 	UClass* CopyOfOwnerClass = CastChecked<UClass>(StaticDuplicateObject(OwnerClass, GetTransientPackage(), ReinstanceName, ~RF_Transactional));
 
 	CopyOfOwnerClass->RemoveFromRoot();
@@ -1695,7 +1699,9 @@ static void ReplaceObjectHelper(UObject*& OldObject, UClass* OldClass, UObject*&
 
 	InstancedPropertyUtils::FInstancedPropertyMap InstancedPropertyMap;
 	InstancedPropertyUtils::FArchiveInstancedSubObjCollector  InstancedSubObjCollector(OldObject, InstancedPropertyMap);
-	UEditorEngine::CopyPropertiesForUnrelatedObjects(OldObject, NewUObject);
+	UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+	Options.bNotifyObjectReplacement = true;
+	UEditorEngine::CopyPropertiesForUnrelatedObjects(OldObject, NewUObject, Options);
 	InstancedPropertyUtils::FArchiveInsertInstancedSubObjects InstancedSubObjSpawner(NewUObject, InstancedPropertyMap);
 
 	UWorld* RegisteredWorld = nullptr;
@@ -1849,6 +1855,7 @@ static void ReplaceActorHelper(AActor* OldActor, UClass* OldClass, UObject*& New
 	UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
 	Params.bPreserveRootComponent = bPreserveRootComponent;
 	Params.bAggressiveDefaultSubobjectReplacement = true;
+	Params.bNotifyObjectReplacement = true;
 	UEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor, Params);
 
 	// reset properties/streams
@@ -2359,6 +2366,7 @@ void FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(UObject* Ol
 	Params.bCopyDeprecatedProperties = true;
 	Params.bSkipCompilerGeneratedDefaults = true;
 	Params.bClearReferences = bClearExternalReferences;
+	Params.bNotifyObjectReplacement = true;
 	UEngine::CopyPropertiesForUnrelatedObjects(OldObject, NewObject, Params);
 
 	InstancedPropertyUtils::FArchiveInsertInstancedSubObjects InstancedSubObjSpawner(NewObject, InstancedPropertyMap);

@@ -99,7 +99,7 @@ namespace amf
     // AMFComputeKernel interface
     //----------------------------------------------------------------------------------------------
 #if defined(__cplusplus)
-    class AMF_NO_VTABLE AMFComputeKernel : public AMFInterface
+    class AMFComputeKernel : public AMFInterface
     {
     public:
         AMF_DECLARE_IID(0x94815701, 0x6c84, 0x4ba6, 0xa9, 0xfe, 0xe9, 0xad, 0x40, 0xf8, 0x8, 0x8)
@@ -152,7 +152,7 @@ namespace amf
     // AMFComputeSyncPoint interface
     //----------------------------------------------------------------------------------------------
 #if defined(__cplusplus)
-    class AMF_NO_VTABLE AMFComputeSyncPoint : public AMFInterface
+    class AMFComputeSyncPoint : public AMFInterface
     {
     public:
         AMF_DECLARE_IID(0x66f33fe6, 0xaae, 0x4e65, 0xba, 0x3, 0xea, 0x8b, 0xa3, 0x60, 0x11, 0x2)
@@ -189,7 +189,7 @@ namespace amf
     // AMFCompute interface
     //----------------------------------------------------------------------------------------------
 #if defined(__cplusplus)
-    class AMF_NO_VTABLE AMFCompute : public AMFInterface
+    class AMFCompute : public AMFInterface
     {
     public:
         AMF_DECLARE_IID(0x3846233a, 0x3f43, 0x443f, 0x8a, 0x45, 0x75, 0x22, 0x11, 0xa9, 0xfb, 0xd5)
@@ -268,7 +268,7 @@ namespace amf
     // AMFPrograms interface - singleton
     //----------------------------------------------------------------------------------------------
 #if defined(__cplusplus)
-    class AMF_NO_VTABLE AMFPrograms
+    class AMFPrograms
     {
     public:
         virtual AMF_RESULT          AMF_STD_CALL RegisterKernelSourceFile(AMF_KERNEL_ID* pKernelID, const wchar_t* kernelid_name, const char* kernelName, const wchar_t* filepath, const char* options) = 0;

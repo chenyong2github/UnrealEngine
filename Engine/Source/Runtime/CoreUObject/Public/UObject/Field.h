@@ -65,23 +65,31 @@ public:
 	explicit FFieldClass(const TCHAR* InCPPName, uint64 InId, uint64 InCastFlags, FFieldClass* InSuperClass, FField* (*ConstructFnPtr)(const FFieldVariant&, const FName&, EObjectFlags));
 	~FFieldClass();
 
-	FString GetName() const
+	inline FString GetName() const
 	{
 		return Name.ToString();
 	}
-	FName GetFName() const
+	inline FName GetFName() const
 	{
 		return Name;
 	}
-	uint64 GetId() const
+	inline uint64 GetId() const
 	{
 		return Id;
 	}
-	uint64 GetCastFlags() const
+	inline uint64 GetCastFlags() const
 	{
 		return CastFlags;
 	}
-	bool IsChildOf(const FFieldClass* InClass) const
+	inline bool HasAnyCastFlags(const uint64 InCastFlags) const
+	{
+		return !!(CastFlags & InCastFlags);
+	}
+	inline bool HasAllCastFlags(const uint64 InCastFlags) const
+	{
+		return (CastFlags & InCastFlags) == InCastFlags;
+	}
+	inline bool IsChildOf(const FFieldClass* InClass) const
 	{
 		return !!(CastFlags & InClass->GetId());
 	}
@@ -156,9 +164,9 @@ public: \
 		new (Mem) TClass(EC_InternalUseOnlyConstructor, TClass::StaticClass()); \
 		return Mem; \
 	} \
-	inline void operator delete(void* Ptr) \
+	inline void operator delete(void* InMem) noexcept \
 	{ \
-		FMemory::Free(Ptr); \
+		FMemory::Free(InMem); \
 	} \
 	friend FArchive &operator<<( FArchive& Ar, ThisClass*& Res ) \
 	{ \
@@ -295,6 +303,11 @@ public:
 	{
 		return Container.Field;
 	}
+	/** FOR INTERNAL USE ONLY: Function that returns the owner as UObject without checking if it's actually a UObject */
+	FORCEINLINE UObject* ToUObjectUnsafe() const
+	{
+		return Container.Object;
+	}
 
 	void* GetRawPointer() const
 	{
@@ -346,7 +359,7 @@ public:
 	typedef FField Super;
 	typedef FField ThisClass;
 	typedef FField BaseFieldClass;	
-	typedef FFieldClass ObjectClassType;
+	typedef FFieldClass FieldTypeClass;
 
 	static FFieldClass* StaticClass();
 
@@ -460,16 +473,16 @@ public:
 		return ((GetFlags() & FlagsToCheck) == FlagsToCheck);
 	}
 
-	FFieldClass* GetClass() const
+	inline FFieldClass* GetClass() const
 	{
 		return ClassPrivate;
 	}
-	uint64 GetCastFlags() const
+	inline uint64 GetCastFlags() const
 	{
 		return GetClass()->GetCastFlags();
 	}
 
-	bool IsA(const FFieldClass* FieldType) const
+	inline bool IsA(const FFieldClass* FieldType) const
 	{
 		check(FieldType);
 		return !!(GetCastFlags() & FieldType->GetId());
@@ -481,12 +494,12 @@ public:
 		return !!(GetCastFlags() & T::StaticClassCastFlagsPrivate());
 	}
 
-	bool HasAnyCastFlags(const uint64 InCastFlags) const
+	inline bool HasAnyCastFlags(const uint64 InCastFlags) const
 	{
 		return !!(GetCastFlags() & InCastFlags);
 	}
 
-	bool HasAllCastFlags(const uint64 InCastFlags) const
+	inline bool HasAllCastFlags(const uint64 InCastFlags) const
 	{
 		return (GetCastFlags() & InCastFlags) == InCastFlags;
 	}
@@ -512,6 +525,12 @@ public:
 			TempOuter = TempOuter.ToFieldUnsafe()->Owner;
 		}
 		return TempOuter.ToUObject();
+	}
+
+	/** Internal function for quickly getting the owner of this object as UObject. FOR INTERNAL USE ONLY */
+	FORCEINLINE UObject* InternalGetOwnerAsUObjectUnsafe() const
+	{
+		return Owner.ToUObjectUnsafe();
 	}
 
 	/** Goes up the outer chain to look for a UClass */
@@ -795,9 +814,9 @@ FORCEINLINE FieldType* CastFieldChecked(FField* Src)
 FUNCTION_NON_NULL_RETURN_END
 {
 #if !DO_CHECK
-	return static_cast<FieldType*>(Src);
+	return (FieldType*)Src;
 #else
-	FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? static_cast<FieldType*>(Src) : nullptr;
+	FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? (FieldType*)Src : nullptr;
 	checkf(CastResult, TEXT("CastFieldChecked failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK
@@ -809,10 +828,34 @@ FORCEINLINE const FieldType* CastFieldChecked(const FField* Src)
 FUNCTION_NON_NULL_RETURN_END
 {
 #if !DO_CHECK
-	return static_cast<const FieldType*>(Src);
+	return (const FieldType*)Src;
 #else
-	const FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? static_cast<const FieldType*>(Src) : nullptr;
+	const FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? (const FieldType*)Src : nullptr;
 	checkf(CastResult, TEXT("CastFieldChecked failed with 0x%016llx"), (int64)(PTRINT)Src);
+	return CastResult;
+#endif // !DO_CHECK
+}
+
+template<typename FieldType>
+FORCEINLINE FieldType* CastFieldCheckedNullAllowed(FField* Src)
+{
+#if !DO_CHECK
+	return (FieldType*)Src;
+#else
+	FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? (FieldType*)Src : nullptr;
+	checkf(CastResult || !Src, TEXT("CastFieldCheckedNullAllowed failed with 0x%016llx"), (int64)(PTRINT)Src);
+	return CastResult;
+#endif // !DO_CHECK
+}
+
+template<typename FieldType>
+FORCEINLINE const FieldType* CastFieldCheckedNullAllowed(const FField* Src)
+{
+#if !DO_CHECK
+	return (const FieldType*)Src;
+#else
+	const FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? (const FieldType*)Src : nullptr;
+	checkf(CastResult || !Src, TEXT("CastFieldCheckedNullAllowed failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK
 }

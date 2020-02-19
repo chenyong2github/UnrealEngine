@@ -25,22 +25,20 @@ namespace Audio
 	static uint32 GSubmixMixerIDs = 0;
 
 	FMixerSubmix::FMixerSubmix(FMixerDevice* InMixerDevice)
-		: AmbisonicsSettings(nullptr)
-		, Id(GSubmixMixerIDs++)
+		: Id(GSubmixMixerIDs++)
 		, ParentSubmix(nullptr)
 		, MixerDevice(InMixerDevice)
-		, ChannelFormat(ESubmixChannelFormat::Device)
 		, NumChannels(0)
 		, NumSamples(0)
-		, SubmixAmbisonicsEncoderID(INDEX_NONE)
-		, SubmixAmbisonicsDecoderID(INDEX_NONE)
-		, InitializedOutputVolume(1.0f)
-		, OutputVolume(1.0f)
+		, CurrentOutputVolume(1.0f)
 		, TargetOutputVolume(1.0f)
+		, CurrentWetLevel(1.0f)
+		, TargetWetLevel(1.0f)
+		, CurrentDryLevel(0.0f)
+		, TargetDryLevel(0.0f)
 		, EnvelopeNumChannels(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
-		, bApplyOutputVolumeScale(false)
 		, OwningSubmixObject(nullptr)
 	{
 	}
@@ -48,25 +46,20 @@ namespace Audio
 	FMixerSubmix::~FMixerSubmix()
 	{
 		ClearSoundEffectSubmixes();
-		if (SubmixAmbisonicsEncoderID != INDEX_NONE)
-		{
-			TearDownAmbisonicsEncoder();
-		}
-
-		if (SubmixAmbisonicsDecoderID != INDEX_NONE)
-		{
-			TearDownAmbisonicsDecoder();
-		}
 
 		if (RecoverRecordingOnShutdownCVar && OwningSubmixObject && bIsRecording)
 		{
 			FString InterruptedFileName = TEXT("InterruptedRecording.wav");
 			UE_LOG(LogAudioMixer, Warning, TEXT("Recording of Submix %s was interrupted. Saving interrupted recording as %s."), *(OwningSubmixObject->GetName()), *InterruptedFileName);
-			OwningSubmixObject->StopRecordingOutput(MixerDevice, EAudioRecordingExportType::WavFile, InterruptedFileName, FString());
+			if (const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
+			{
+				USoundSubmix* MutableSubmix = const_cast<USoundSubmix*>(SoundSubmix);
+				MutableSubmix->StopRecordingOutput(MixerDevice, EAudioRecordingExportType::WavFile, InterruptedFileName, FString());
+			}
 		}
 	}
 
-	void FMixerSubmix::Init(USoundSubmix* InSoundSubmix, bool bAllowReInit)
+	void FMixerSubmix::Init(const USoundSubmixBase* InSoundSubmix, bool bAllowReInit)
 	{
 		check(IsInAudioThread());
 		if (InSoundSubmix != nullptr)
@@ -91,86 +84,130 @@ namespace Audio
 
 	void FMixerSubmix::InitInternal()
 	{
-		// Set the initialized output volume
-		InitializedOutputVolume = FMath::Clamp(OwningSubmixObject->OutputVolume, 0.0f, 1.0f);
-
-		if (!FMath::IsNearlyEqual(InitializedOutputVolume, 1.0f))
-		{
-			bApplyOutputVolumeScale = true;
-		}
-
 		// Loop through the submix's presets and make new instances of effects in the same order as the presets
 		ClearSoundEffectSubmixes();
 
-		for (USoundEffectSubmixPreset* EffectPreset : OwningSubmixObject->SubmixEffectChain)
+
+		if (const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
 		{
-			if (EffectPreset)
+			CurrentOutputVolume = FMath::Clamp(SoundSubmix->OutputVolume, 0.0f, 1.0f);
+			TargetOutputVolume = CurrentOutputVolume;
+
+			// Set the initialized output volume
+			CurrentWetLevel = FMath::Clamp(SoundSubmix->WetLevel, 0.0f, 1.0f);
+			TargetWetLevel = CurrentWetLevel;
+
+			CurrentDryLevel = FMath::Clamp(SoundSubmix->DryLevel, 0.0f, 1.0f);
+			TargetDryLevel = CurrentDryLevel;
+
+			for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
 			{
-				// Create a new effect instance using the preset
-				FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
+				if (EffectPreset)
+				{
+					// Create a new effect instance using the preset
+					FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
 				
-				FSoundEffectSubmixInitData InitData;
-				InitData.DeviceHandle = MixerDevice->DeviceHandle;
-				InitData.SampleRate = MixerDevice->GetSampleRate();
-				InitData.PresetSettings = nullptr;
+					FSoundEffectSubmixInitData InitData;
+					InitData.DeviceID = MixerDevice->DeviceID;
+					InitData.SampleRate = MixerDevice->GetSampleRate();
+					InitData.PresetSettings = nullptr;
 
-				// Now set the preset
-				SubmixEffect->Init(InitData);
-				SubmixEffect->SetPreset(EffectPreset);
-				SubmixEffect->SetEnabled(true);
+					// Now set the preset
+					SubmixEffect->Init(InitData);
+					SubmixEffect->SetPreset(EffectPreset);
+					SubmixEffect->SetEnabled(true);
 
-				FSubmixEffectInfo EffectInfo;
-				EffectInfo.PresetId = EffectPreset->GetUniqueID();
-				EffectInfo.EffectInstance = MakeShareable(SubmixEffect);
+					FSubmixEffectInfo EffectInfo;
+					EffectInfo.PresetId = EffectPreset->GetUniqueID();
+					EffectInfo.EffectInstance = MakeShareable(SubmixEffect);
 
-				// Add the effect to this submix's chain
-				EffectSubmixChain.Add(MoveTemp(EffectInfo));
+					// Add the effect to this submix's chain
+					EffectSubmixChain.Add(MoveTemp(EffectInfo));
+				}
 			}
+
+			NumChannels = MixerDevice->GetNumDeviceChannels();
+			const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
+			NumSamples = NumChannels * NumOutputFrames;
 		}
-
-		ChannelFormat = OwningSubmixObject->ChannelFormat;
-
-		if (ChannelFormat == ESubmixChannelFormat::Ambisonics)
+		else if (const USoundfieldSubmix* SoundfieldSubmix = Cast<const USoundfieldSubmix>(OwningSubmixObject))
 		{
-			//Get the ambisonics mixer.
-			AmbisonicsMixer = MixerDevice->GetAmbisonicsMixer();
+			ISoundfieldFactory* SoundfieldFactory = SoundfieldSubmix->GetSoundfieldFactoryForSubmix();
+			const USoundfieldEncodingSettingsBase* EncodingSettings = SoundfieldSubmix->GetSoundfieldEncodingSettings();
 
-			//If we do have a valid ambisonics decoder, lets use it. Otherwise, treat this submix like a device submix.
-			if (AmbisonicsMixer.IsValid())
+			TArray<USoundfieldEffectBase*> Effects = SoundfieldSubmix->GetSoundfieldProcessors();
+			SetupSoundfieldStreams(EncodingSettings, Effects, SoundfieldFactory);
+		}
+		else if (const UEndpointSubmix* EndpointSubmix = Cast<const UEndpointSubmix>(OwningSubmixObject))
+		{
+			NumChannels = MixerDevice->GetNumDeviceChannels();
+			const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
+			NumSamples = NumChannels * NumOutputFrames;
+
+			IAudioEndpointFactory* EndpointFactory = EndpointSubmix->GetAudioEndpointForSubmix();
+			const UAudioEndpointSettingsBase* EndpointSettings = EndpointSubmix->GetEndpointSettings();
+
+			SetupEndpoint(EndpointFactory, EndpointSettings);
+		}
+		else if (const USoundfieldEndpointSubmix* SoundfieldEndpointSubmix = Cast<const USoundfieldEndpointSubmix>(OwningSubmixObject))
+		{
+ 			ISoundfieldEndpointFactory* SoundfieldFactory = SoundfieldEndpointSubmix->GetSoundfieldEndpointForSubmix();
+			const USoundfieldEncodingSettingsBase* EncodingSettings = SoundfieldEndpointSubmix->GetEncodingSettings();
+
+			if (!SoundfieldFactory)
 			{
-				UAmbisonicsSubmixSettingsBase* AmbisonicSubmixSettings = OwningSubmixObject->AmbisonicsPluginSettings;
-				if (!AmbisonicSubmixSettings)
+				UE_LOG(LogAudio, Display, TEXT("Wasn't able to set up soundfield format for submix %s. Sending to default output."), *OwningSubmixObject->GetName());
+				return;
+			}
+
+			if (!EncodingSettings)
+			{
+				EncodingSettings = SoundfieldFactory->GetDefaultEncodingSettings();
+
+				if (!ensureMsgf(EncodingSettings, TEXT("Soundfield Endpoint %s did not return default encoding settings! Is ISoundfieldEndpointFactory::GetDefaultEncodingSettings() implemented?"), *SoundfieldFactory->GetEndpointTypeName().ToString()))
 				{
-					AmbisonicSubmixSettings = AmbisonicsMixer->GetDefaultSettings();
+					return;
+				}
+			}
+
+			TArray<USoundfieldEffectBase*> Effects = SoundfieldEndpointSubmix->GetSoundfieldProcessors();
+
+			SetupSoundfieldStreams(EncodingSettings, Effects, SoundfieldFactory);
+
+			if (IsSoundfieldSubmix())
+			{
+				const USoundfieldEndpointSettingsBase* EndpointSettings = SoundfieldEndpointSubmix->GetEndpointSettings();
+
+				if (!EndpointSettings)
+				{
+					EndpointSettings = SoundfieldFactory->GetDefaultEndpointSettings();
+
+					if (!ensureMsgf(EncodingSettings, TEXT("Soundfield Endpoint %s did not return default encoding settings! Is ISoundfieldEndpointFactory::GetDefaultEndpointSettings() implemented?"), *SoundfieldFactory->GetEndpointTypeName().ToString()))
+					{
+						return;
+					}
 				}
 
-				if (AmbisonicSubmixSettings)
-				{
-					OnAmbisonicsSettingsChanged(AmbisonicSubmixSettings);
-				}
-				else
-				{
-					//Default to first order ambisonics.
-					NumChannels = 4;
-					const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
-					NumSamples = NumChannels * NumOutputFrames;
-				}
+				SetupEndpoint(SoundfieldFactory, EndpointSettings);
 			}
 			else
 			{
-				// There is no valid ambisonics decoder, so fall back to standard downmixing.
-				ChannelFormat = ESubmixChannelFormat::Device;
-				NumChannels = MixerDevice->GetNumChannelsForSubmixFormat(ChannelFormat);
-				const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
-				NumSamples = NumChannels * NumOutputFrames;
+				UE_LOG(LogAudio, Display, TEXT("Wasn't able to set up soundfield format for submix %s. Sending to default output."), *OwningSubmixObject->GetName());
+				SoundfieldStreams.Reset();
 			}
 		}
 		else
 		{
-			NumChannels = MixerDevice->GetNumChannelsForSubmixFormat(ChannelFormat);
-			const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
-			NumSamples = NumChannels * NumOutputFrames;
+			// If we've arrived here, we couldn't identify the type of the submix we're initializing.
+			checkNoEntry();
 		}
+	}
+
+	void FMixerSubmix::DownmixBuffer(const int32 InChannels, const AlignedFloatBuffer& InBuffer, const int32 OutChannels, AlignedFloatBuffer& OutNewBuffer)
+	{
+		Audio::AlignedFloatBuffer MixdownGainsMap;
+		Audio::FMixerDevice::Get2DChannelMap(false, InChannels, OutChannels, false, MixdownGainsMap);
+		Audio::DownmixBuffer(InChannels, OutChannels, InBuffer, OutNewBuffer, MixdownGainsMap.GetData());
 	}
 
 	void FMixerSubmix::SetParentSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr)
@@ -197,9 +234,9 @@ namespace Audio
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 			ParentSubmix = SubmixWeakPtr;
-			if (ChannelFormat == ESubmixChannelFormat::Ambisonics && AmbisonicsMixer.IsValid())
+			if (IsSoundfieldSubmix())
 			{
-				UpdateAmbisonicsDecoderForParent();
+				SetupSoundfieldStreamForParent();
 			}
 		});
 	}
@@ -210,20 +247,14 @@ namespace Audio
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-			FChildSubmixInfo NewChildSubmixInfo;
-			NewChildSubmixInfo.SubmixPtr = SubmixWeakPtr;
-
-			//TODO: switch this conditionally when we are able to route submixes to ambisonics submix.
-			NewChildSubmixInfo.bNeedsAmbisonicsEncoding = false;
-
 			TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> SubmixSharedPtr = SubmixWeakPtr.Pin();
 			if (SubmixSharedPtr.IsValid())
 			{
-				ChildSubmixes.Add(SubmixSharedPtr->GetId(), NewChildSubmixInfo);
+				FChildSubmixInfo& ChildSubmixInfo = ChildSubmixes.Emplace(SubmixSharedPtr->GetId(), SubmixWeakPtr);
 
-				if (ChannelFormat == ESubmixChannelFormat::Ambisonics && AmbisonicsMixer.IsValid())
+				if (IsSoundfieldSubmix())
 				{
-					UpdateAmbisonicsEncoderForChildren();
+					SetupSoundfieldEncodingForChild(ChildSubmixInfo);
 				}
 			}
 		});
@@ -243,17 +274,12 @@ namespace Audio
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 			ChildSubmixes.Remove(OldIdToRemove);
-
-			if (ChannelFormat == ESubmixChannelFormat::Ambisonics && AmbisonicsMixer.IsValid())
-			{
-				UpdateAmbisonicsEncoderForChildren();
-			}
 		});
 	}
 
-	ESubmixChannelFormat FMixerSubmix::GetSubmixChannels() const
+	int32 FMixerSubmix::GetSubmixChannels() const
 	{
-		return ChannelFormat;
+		return NumChannels;
 	}
 
 	TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmix::GetParentSubmix()
@@ -277,22 +303,6 @@ namespace Audio
 
 		FSubmixVoiceData NewVoiceData;
 		NewVoiceData.SendLevel = InSendLevel;
-		
-		// If this is an ambisonics submix, set up a new encoder stream.
-		if (ChannelFormat == ESubmixChannelFormat::Ambisonics && AmbisonicsMixer.IsValid())
-		{
-			//TODO: If a souce is not an ambisonics source, we need to set up an encoder for it.
-			const bool bSourceIsAmbisonics = true;
-			if (!bSourceIsAmbisonics)
-			{
-				NewVoiceData.AmbisonicsEncoderId = MixerDevice->GetNewUniqueAmbisonicsStreamID();
-				AmbisonicsMixer->OnOpenEncodingStream(NewVoiceData.AmbisonicsEncoderId, AmbisonicsSettings);
-			}
-			else
-			{
-				NewVoiceData.AmbisonicsEncoderId = INDEX_NONE;
-			}
-		}
 
 		MixerSourceVoices.Add(InSourceVoice, NewVoiceData);
 	}
@@ -304,16 +314,6 @@ namespace Audio
 		// If the source has a corresponding ambisonics encoder, close it out.
 		uint32 SourceEncoderID = INDEX_NONE;
 		const FSubmixVoiceData* MixerSourceVoiceData = MixerSourceVoices.Find(InSourceVoice);
-		if (MixerSourceVoiceData)
-		{
-			SourceEncoderID = MixerSourceVoiceData->AmbisonicsEncoderId;
-		}
-		
-		if (SourceEncoderID != INDEX_NONE)
-		{
-			check(AmbisonicsMixer.IsValid());
-			AmbisonicsMixer->OnCloseEncodingStream(SourceEncoderID);
-		}
 
 		// If we did find a valid corresponding FSubmixVoiceData, remove it from the map.
 		if (MixerSourceVoiceData)
@@ -394,72 +394,6 @@ namespace Audio
 		});
 	}
 
-	void FMixerSubmix::FormatChangeBuffer(const ESubmixChannelFormat InNewChannelType, AlignedFloatBuffer& InBuffer, AlignedFloatBuffer& OutNewBuffer)
-	{
-		// Retrieve ptr to the cached downmix channel map from the mixer device
-		int32 NewChannelCount = MixerDevice->GetNumChannelsForSubmixFormat(InNewChannelType);
-		Audio::AlignedFloatBuffer ChannelMap;
-		MixerDevice->Get2DChannelMap(false, InNewChannelType, NumChannels, false, ChannelMap);
-		float* ChannelMapPtr = ChannelMap.GetData();
-
-		// Input and output frame count is going to be the same
-		const int32 NumFrames = InBuffer.Num() / NumChannels;
-
-		// Reset the passed in downmix scratch buffer
-		OutNewBuffer.Reset();
-		OutNewBuffer.AddZeroed(NumFrames * NewChannelCount);
-
-		if (SubmixAmbisonicsDecoderID == INDEX_NONE)
-		{
-			float* OutNewBufferPtr = OutNewBuffer.GetData();
-
-			// Loop through the down mix map and perform the downmix operation
-			int32 InputSampleIndex = 0;
-			int32 DownMixedBufferIndex = 0;
-			for (; InputSampleIndex < InBuffer.Num();)
-			{
-				for (int32 DownMixChannel = 0; DownMixChannel < NewChannelCount; ++DownMixChannel)
-				{
-					for (int32 InChannel = 0; InChannel < NumChannels; ++InChannel)
-					{
-						const int32 ChannelMapIndex = NewChannelCount * InChannel + DownMixChannel;
-						OutNewBufferPtr[DownMixedBufferIndex + DownMixChannel] += InBuffer[InputSampleIndex + InChannel] * ChannelMapPtr[ChannelMapIndex];
-					}
-				}
-
-				InputSampleIndex += NumChannels;
-				DownMixedBufferIndex += NewChannelCount;
-			}
-		}
-		else
-		{
-			FAmbisonicsDecoderInputData InputData;
-			InputData.AudioBuffer = &InBuffer;
-			InputData.NumChannels = NumChannels;
-
-			FAmbisonicsDecoderOutputData OutputData = { OutNewBuffer };
-
-			if (CachedPositionalData.OutputNumChannels != NewChannelCount)
-			{
-				// re-cache output positions
-				CachedPositionalData.OutputNumChannels = NewChannelCount;
-
-				CachedPositionalData.OutputChannelPositions = AmbisonicsStatics::GetDefaultPositionMap(NewChannelCount);
-			}
-
-			//TODO: Update listener rotation in CachedPositionalData
-			const TArray<FTransform>* ListenerTransforms = MixerDevice->GetListenerTransforms();
-
-			if (ListenerTransforms != nullptr && ListenerTransforms->Num() >= 1)
-			{
-				CachedPositionalData.ListenerRotation = (*ListenerTransforms)[0].GetRotation();
-			}
-
-			// Todo: sum into OutputData rather than decoding directly to it.
-			AmbisonicsMixer->DecodeFromAmbisonics(SubmixAmbisonicsDecoderID, InputData, CachedPositionalData, OutputData);
-		}
-	}
-
 	void FMixerSubmix::MixBufferDownToMono(const AlignedFloatBuffer& InBuffer, int32 NumInputChannels, AlignedFloatBuffer& OutBuffer)
 	{
 		check(NumInputChannels > 0);
@@ -483,162 +417,260 @@ namespace Audio
 		}
 	}
 
-	void FMixerSubmix::SetUpAmbisonicsEncoder()
+	void FMixerSubmix::SetupSoundfieldEncodersForChildren()
 	{
-		check(AmbisonicsMixer.IsValid());
-
-		// If we haven't already set up the encoder, destroy the old stream.
-		if (SubmixAmbisonicsEncoderID == INDEX_NONE)
-		{
-			TearDownAmbisonicsEncoder();
-		}
-
-		//Get a new unique stream ID
-		SubmixAmbisonicsEncoderID = MixerDevice->GetNewUniqueAmbisonicsStreamID();
-		AmbisonicsMixer->OnOpenEncodingStream(SubmixAmbisonicsEncoderID, AmbisonicsSettings);
-	}
-
-	void FMixerSubmix::SetUpAmbisonicsDecoder()
-	{
-		check(AmbisonicsMixer.IsValid());
-
-		// if we have already set up the decoder, destroy the old stream.
-		if (SubmixAmbisonicsDecoderID == INDEX_NONE)
-		{
-			TearDownAmbisonicsDecoder();
-		}
-
-		SubmixAmbisonicsDecoderID = MixerDevice->GetNewUniqueAmbisonicsStreamID();
-
-		SetUpAmbisonicsPositionalData();
-		AmbisonicsMixer->OnOpenDecodingStream(SubmixAmbisonicsDecoderID, AmbisonicsSettings, CachedPositionalData);
-	}
-
-	void FMixerSubmix::TearDownAmbisonicsEncoder()
-	{
-		if (SubmixAmbisonicsEncoderID != INDEX_NONE)
-		{
-			AmbisonicsMixer->OnCloseEncodingStream(SubmixAmbisonicsEncoderID);
-			SubmixAmbisonicsEncoderID = INDEX_NONE;
-		}
-	}
-
-	void FMixerSubmix::TearDownAmbisonicsDecoder()
-	{
-		if (SubmixAmbisonicsDecoderID != INDEX_NONE)
-		{
-			AmbisonicsMixer->OnCloseDecodingStream(SubmixAmbisonicsDecoderID);
-			SubmixAmbisonicsDecoderID = INDEX_NONE;
-		}
-	}
-
-	void FMixerSubmix::UpdateAmbisonicsEncoderForChildren()
-	{
-		bool bNeedsEncoder = false;
+		check(SoundfieldStreams.Factory);
+		check(SoundfieldStreams.Settings.IsValid());
 
 		//Here we scan all child submixes to see which submixes need to be reencoded.
 		for (auto& Iter : ChildSubmixes)
 		{
 			FChildSubmixInfo& ChildSubmix = Iter.Value;
+			SetupSoundfieldEncodingForChild(ChildSubmix);
+		}
 
-			TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> SubmixPtr = ChildSubmix.SubmixPtr.Pin();
+		if ((ChildSubmixes.Num() > 0) && !SoundfieldStreams.Factory->ShouldEncodeAllStreamsIndependently(*SoundfieldStreams.Settings))
+		{
+			FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+			SoundfieldStreams.DownmixedChildrenEncoder = SoundfieldStreams.Factory->CreateEncoderStream(InitParams, *SoundfieldStreams.Settings);
+		}
+	}
 
-			// Check to see if this child is an ambisonics submix.
-			if (SubmixPtr.IsValid() && SubmixPtr->GetSubmixChannels() == ESubmixChannelFormat::Ambisonics)
+	void FMixerSubmix::SetupSoundfieldEncodingForChild(FChildSubmixInfo& InChild)
+	{
+		TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> SubmixPtr = InChild.SubmixPtr.Pin();
+
+		if (SubmixPtr.IsValid())
+		{
+			check(SoundfieldStreams.Factory && SoundfieldStreams.Settings.IsValid());
+
+			// If this child submix is not a soundfield submix and we need to encode every child submix independently, set up an encoder.
+			if (!SubmixPtr->IsSoundfieldSubmix() && SoundfieldStreams.Factory->ShouldEncodeAllStreamsIndependently(*SoundfieldStreams.Settings))
 			{
-				UAmbisonicsSubmixSettingsBase* ChildAmbisonicsSettings = SubmixPtr->AmbisonicsSettings;
+				FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+				InChild.Encoder = SoundfieldStreams.Factory->CreateEncoderStream(InitParams, *SoundfieldStreams.Settings);
+			}
+			else if(SubmixPtr->IsSoundfieldSubmix())
+			{
+				// If the child submix is of a soundfield format that needs to be transcoded, set up a transcoder.
+				InChild.Transcoder = GetTranscoderForChildSubmix(SubmixPtr);
+			}
 
-				// Check if this child submix needs to be re-encoded.
-				if (!ChildAmbisonicsSettings || AmbisonicsMixer->ShouldReencodeBetween(ChildAmbisonicsSettings, AmbisonicsSettings))
+			// If neither of these are true, either we are downmixing all child audio and encoding it once, or
+			// this submix can handle the child's soundfield audio packet directly, so no encoder nor transcoder is needed.
+		}
+	}
+
+	void FMixerSubmix::SetupSoundfieldStreamForParent()
+	{
+		TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> ParentSubmixSharedPtr = ParentSubmix.Pin();
+
+		if (ParentSubmixSharedPtr.IsValid() && !ParentSubmixSharedPtr->IsSoundfieldSubmix())
+		{
+			// If the submix we're plugged into isn't a soundfield submix, we need to decode our soundfield for it.
+			SetUpSoundfieldPositionalData(ParentSubmixSharedPtr);
+
+			FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+			SoundfieldStreams.ParentDecoder = SoundfieldStreams.Factory->CreateDecoderStream(InitParams, *SoundfieldStreams.Settings);
+		}
+	}
+
+	void FMixerSubmix::SetUpSoundfieldPositionalData(const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>& InParentSubmix)
+	{
+		// If there is a parent and we are not passing it this submix's ambisonics audio, retrieve that submix's channel format.
+		check(InParentSubmix.IsValid());
+
+		const int32 NumParentChannels = InParentSubmix->GetSubmixChannels();
+		SoundfieldStreams.CachedPositionalData.NumChannels = NumParentChannels;
+		SoundfieldStreams.CachedPositionalData.ChannelPositions = MixerDevice->GetDefaultPositionMap(NumParentChannels);
+		
+		// For now we don't actually do any sort of rotation for decoded audio.
+		SoundfieldStreams.CachedPositionalData.Rotation = FQuat::Identity;
+	}
+
+	void FMixerSubmix::MixInSource(const ISoundfieldAudioPacket& InAudio, const ISoundfieldEncodingSettingsProxy& InSettings, ISoundfieldAudioPacket& PacketToSumTo)
+	{
+		check(SoundfieldStreams.Mixer.IsValid());
+
+		FSoundfieldMixerInputData InputData =
+		{
+			InAudio, // InputPacket
+			InSettings, // EncodingSettings
+			1.0f // SendLevel
+		};
+
+		SoundfieldStreams.Mixer->MixTogether(InputData, PacketToSumTo);
+	}
+
+	void FMixerSubmix::MixInChildSubmix(FChildSubmixInfo& Child, ISoundfieldAudioPacket& PacketToSumTo)
+	{
+		check(IsSoundfieldSubmix());
+
+		// We only either encode, transcode input, and never both. If we have both for this child, something went wrong in initialization.
+		check(!(Child.Encoder.IsValid() && Child.Transcoder.IsValid()));
+
+		TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> ChildSubmixSharedPtr = Child.SubmixPtr.Pin();
+		if (ChildSubmixSharedPtr.IsValid())
+		{
+			if (!ChildSubmixSharedPtr->IsSoundfieldSubmix())
+			{
+				// Reset the output scratch buffer so that we can call ProcessAudio on the ChildSubmix with it:
+				ScratchBuffer.Reset(NumSamples);
+				ScratchBuffer.AddZeroed(NumSamples);
+
+				// If this is true, the Soundfield Factory explicitly requested that a seperate encoder stream was set up for every
+				// non-soundfield child submix.
+				if (Child.Encoder.IsValid())
 				{
-					ChildSubmix.bNeedsAmbisonicsEncoding = false;
+					
+
+					ChildSubmixSharedPtr->ProcessAudio(ScratchBuffer);
+
+					// Encode the resulting audio and mix it in.
+					FSoundfieldEncoderInputData InputData = {
+						ScratchBuffer, /* AudioBuffer */
+						ChildSubmixSharedPtr->NumChannels, /* NumChannels */
+						*SoundfieldStreams.Settings, /** InputSettings */
+						SoundfieldStreams.CachedPositionalData /** PosititonalData */
+					};
+
+					Child.Encoder->EncodeAndMixIn(InputData, PacketToSumTo);
 				}
 				else
 				{
-					bNeedsEncoder = true;
+					// Otherwise, process and mix in the submix's audio to the scratch buffer, and we will encode ScratchBuffer later.
+					ChildSubmixSharedPtr->ProcessAudio(ScratchBuffer);
 				}
+			}
+			else if (Child.Transcoder.IsValid())
+			{
+				// Make sure our packet that we call process on is zeroed out:
+				if (!Child.IncomingPacketToTranscode.IsValid())
+				{
+					Child.IncomingPacketToTranscode = ChildSubmixSharedPtr->SoundfieldStreams.Factory->CreateEmptyPacket();
+				}
+				else
+				{
+					Child.IncomingPacketToTranscode->Reset();
+				}
+
+				check(Child.IncomingPacketToTranscode.IsValid());
+
+				ChildSubmixSharedPtr->ProcessAudio(*Child.IncomingPacketToTranscode);
+
+				Child.Transcoder->TranscodeAndMixIn(*Child.IncomingPacketToTranscode, ChildSubmixSharedPtr->GetSoundfieldSettings(), PacketToSumTo, *SoundfieldStreams.Settings);
 			}
 			else
 			{
-				bNeedsEncoder = true;
+				// No conversion necessary.
+				ChildSubmixSharedPtr->ProcessAudio(PacketToSumTo);
 			}
-		}
-
-		if (bNeedsEncoder)
-		{
-			SetUpAmbisonicsEncoder();
-		}
-		else
-		{
-			TearDownAmbisonicsEncoder();
 		}
 	}
 
-	void FMixerSubmix::UpdateAmbisonicsDecoderForParent()
+	bool FMixerSubmix::IsSoundfieldSubmix() const
 	{
-		UAmbisonicsSubmixSettingsBase* ParentAmbisonicsSettings = nullptr;
+		return SoundfieldStreams.Factory != nullptr;
+	}
 
-		TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> ParentSubmixSharedPtr = ParentSubmix.Pin();
-		if (ParentSubmixSharedPtr.IsValid())
+	bool FMixerSubmix::IsDefaultEndpointSubmix() const
+	{
+		return !ParentSubmix.IsValid() && !(EndpointData.SoundfieldEndpoint.IsValid() || EndpointData.NonSoundfieldEndpoint.IsValid());
+	}
+
+	bool FMixerSubmix::IsExternalEndpointSubmix() const
+	{
+		return !ParentSubmix.IsValid() && (EndpointData.SoundfieldEndpoint.IsValid() || EndpointData.NonSoundfieldEndpoint.IsValid());
+	}
+
+	bool FMixerSubmix::IsSoundfieldEndpointSubmix() const
+	{
+		return !ParentSubmix.IsValid() && IsSoundfieldSubmix();
+	}
+
+	FName FMixerSubmix::GetSoundfieldFormat() const
+	{
+		if (IsSoundfieldSubmix())
 		{
-			if (ParentSubmixSharedPtr->GetSubmixChannels() == ESubmixChannelFormat::Ambisonics)
+			return SoundfieldStreams.Factory->GetSoundfieldFormatName();
+		}
+		else
+		{
+			return ISoundfieldFactory::GetFormatNameForNoEncoding();
+		}
+	}
+
+	ISoundfieldEncodingSettingsProxy& FMixerSubmix::GetSoundfieldSettings()
+	{
+		check(IsSoundfieldSubmix());
+		check(SoundfieldStreams.Settings.IsValid());
+
+		return *SoundfieldStreams.Settings;
+	}
+
+	FAudioPluginInitializationParams FMixerSubmix::GetInitializationParamsForSoundfieldStream()
+	{
+		FAudioPluginInitializationParams InitializationParams;
+		InitializationParams.AudioDevicePtr = MixerDevice;
+		InitializationParams.BufferLength = MixerDevice ? MixerDevice->GetNumOutputFrames() : 0;
+		InitializationParams.NumOutputChannels = MixerDevice ? MixerDevice->GetNumDeviceChannels() : 0;
+		InitializationParams.SampleRate = MixerDevice ? MixerDevice->SampleRate : 0.0f;
+
+		// We only use one soundfield stream per source.
+		InitializationParams.NumSources = 1;
+
+		return InitializationParams;
+	}
+
+	FSoundfieldSpeakerPositionalData FMixerSubmix::GetDefaultPositionalDataForAudioDevice()
+	{
+		FSoundfieldSpeakerPositionalData PositionalData;
+		PositionalData.NumChannels = MixerDevice->GetNumDeviceChannels();
+		PositionalData.ChannelPositions = MixerDevice->GetDefaultPositionMap(PositionalData.NumChannels);
+
+		// For now we don't actually do any sort of rotation for decoded audio.
+		PositionalData.Rotation = FQuat::Identity;
+
+		return PositionalData;
+	}
+
+	TUniquePtr<ISoundfieldTranscodeStream> FMixerSubmix::GetTranscoderForChildSubmix(const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>& InChildSubmix)
+	{
+		check(InChildSubmix.IsValid());
+		check(IsSoundfieldSubmix() && InChildSubmix->IsSoundfieldSubmix());
+		check(SoundfieldStreams.Settings.IsValid() && InChildSubmix->SoundfieldStreams.Settings.IsValid());
+
+		if (GetSoundfieldFormat() != InChildSubmix->GetSoundfieldFormat())
+		{
+			ISoundfieldFactory* ChildFactory = InChildSubmix->GetSoundfieldFactory();
+
+			if (SoundfieldStreams.Factory->CanTranscodeFromSoundfieldFormat(InChildSubmix->GetSoundfieldFormat(), *InChildSubmix->SoundfieldStreams.Settings))
 			{
-				ParentAmbisonicsSettings = ParentSubmixSharedPtr->AmbisonicsSettings;
+				FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+				return SoundfieldStreams.Factory->CreateTranscoderStream(InChildSubmix->GetSoundfieldFormat(), InChildSubmix->GetSoundfieldSettings(), SoundfieldStreams.Factory->GetSoundfieldFormatName(), GetSoundfieldSettings(), InitParams);
 			}
-		}
-
-		// If we need to reencode between here and the parent submix, set up the submix decoder.
-		if (!ParentAmbisonicsSettings || AmbisonicsMixer->ShouldReencodeBetween(AmbisonicsSettings, ParentAmbisonicsSettings))
-		{
-			SetUpAmbisonicsDecoder();
+			else if (ChildFactory->CanTranscodeToSoundfieldFormat(GetSoundfieldFormat(), GetSoundfieldSettings()))
+			{
+				FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+				return ChildFactory->CreateTranscoderStream(InChildSubmix->GetSoundfieldFormat(), InChildSubmix->GetSoundfieldSettings(), SoundfieldStreams.Factory->GetSoundfieldFormatName(), GetSoundfieldSettings(), InitParams);
+			}
+			else
+			{
+				return nullptr;
+			}
 		}
 		else
 		{
-			TearDownAmbisonicsDecoder();
+			if (SoundfieldStreams.Factory->IsTranscodeRequiredBetweenSettings(*InChildSubmix->SoundfieldStreams.Settings, *SoundfieldStreams.Settings))
+			{
+				FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+				return SoundfieldStreams.Factory->CreateTranscoderStream(InChildSubmix->GetSoundfieldFormat(), InChildSubmix->GetSoundfieldSettings(), SoundfieldStreams.Factory->GetSoundfieldFormatName(), GetSoundfieldSettings(), InitParams);
+			}
+			else
+			{
+				return nullptr;
+			}
 		}
-	}
-
-	void FMixerSubmix::SetUpAmbisonicsPositionalData()
-	{
-		// If there is a parent and we are not passing it this submix's ambisonics audio, retrieve that submix's channel format.
-		TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> ParentSubmixSharedPtr = ParentSubmix.Pin();
-		if (ParentSubmixSharedPtr.IsValid())
-		{
-			const ESubmixChannelFormat ParentSubmixFormat = ParentSubmixSharedPtr->GetSubmixChannels();
-
-			const int32 NumParentChannels = MixerDevice->GetNumChannelsForSubmixFormat(ParentSubmixFormat);
-			CachedPositionalData.OutputNumChannels = NumParentChannels;
-			CachedPositionalData.OutputChannelPositions = AmbisonicsStatics::GetDefaultPositionMap(NumParentChannels);
-		}
-		
-		CachedPositionalData.ListenerRotation = FQuat::Identity;
-	}
-
-	void FMixerSubmix::EncodeAndMixInSource(AlignedFloatBuffer& InAudioData, FSubmixVoiceData& InVoiceInfo)
-	{
-		InVoiceInfo.CachedEncoderInputData.AudioBuffer = &InAudioData;
-
-		FAmbisonicsEncoderOutputData OutputData = { InputAmbisonicsBuffer };
-		
-		// Encode voice to ambisonics:
-		check(AmbisonicsMixer.IsValid());
-		AmbisonicsMixer->EncodeToAmbisonics(InVoiceInfo.AmbisonicsEncoderId, InVoiceInfo.CachedEncoderInputData, OutputData, AmbisonicsSettings);
-		
-		//Sum output to ambisonics bed:
-		float* DestinationBuffer = InputBuffer.GetData();
-		float* SrcBuffer = InputAmbisonicsBuffer.GetData();
-		for (int32 Index = 0; Index < InputBuffer.Num(); Index++)
-		{
-			DestinationBuffer[Index] += SrcBuffer[Index];
-		}
-	}
-
-	void FMixerSubmix::EncodeAndMixInChildSubmix(FChildSubmixInfo& Child)
-	{
-		check(AmbisonicsMixer.IsValid());
-		check(SubmixAmbisonicsEncoderID != INDEX_NONE);
-
-		//TODO: Implement generic mixdowns to ambisonics. Set up input encoder channel
 	}
 
 	void FMixerSubmix::PumpCommandQueue()
@@ -655,20 +687,58 @@ namespace Audio
 		CommandQueue.Enqueue(MoveTemp(Command));
 	}
 
-	void FMixerSubmix::ProcessAudio(const ESubmixChannelFormat ParentChannelType, AlignedFloatBuffer& OutAudioBuffer)
+	void FMixerSubmix::ProcessAudio(AlignedFloatBuffer& OutAudioBuffer)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-		// Pump pending command queues
-		PumpCommandQueue();
+		// If this is a Soundfield Submix, process our soundfield and decode it to a OutAudioBuffer.
+		if (IsSoundfieldSubmix())
+		{
+			FScopeLock ScopeLock(&SoundfieldStreams.StreamsLock);
+
+			// Initialize or clear the mixed down audio packet.
+			if (!SoundfieldStreams.MixedDownAudio.IsValid())
+			{
+				SoundfieldStreams.MixedDownAudio = SoundfieldStreams.Factory->CreateEmptyPacket();
+			}
+			else
+			{
+				SoundfieldStreams.MixedDownAudio->Reset();
+			}
+
+			check(SoundfieldStreams.MixedDownAudio.IsValid());
+
+			ProcessAudio(*SoundfieldStreams.MixedDownAudio);
+
+			if (!SoundfieldStreams.ParentDecoder.IsValid())
+			{
+				return;
+			}
+
+			//Decode soundfield to interleaved float audio.
+			FSoundfieldDecoderInputData DecoderInput =
+			{
+				*SoundfieldStreams.MixedDownAudio, /* SoundfieldBuffer */
+				SoundfieldStreams.CachedPositionalData, /* PositionalData */
+				MixerDevice ? MixerDevice->GetNumOutputFrames() : 0, /* NumFrames */
+				MixerDevice ? MixerDevice->GetSampleRate() : 0.0f /* SampleRate */
+			};
+
+			FSoundfieldDecoderOutputData DecoderOutput = { OutAudioBuffer };
+
+			SoundfieldStreams.ParentDecoder->DecodeAndMixIn(DecoderInput, DecoderOutput);
+			return;
+		}
+		else
+		{
+			// Pump pending command queues. For Soundfield Submixes this occurs in ProcessAudio(ISoundfieldAudioPacket&).
+			PumpCommandQueue();
+		}
 
 		// Device format may change channels if device is hot swapped
-		if (ChannelFormat == ESubmixChannelFormat::Device)
-		{
-			NumChannels = MixerDevice->GetNumChannelsForSubmixFormat(ChannelFormat);
-			const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
-			NumSamples = NumChannels * NumOutputFrames;
-		}
+		NumChannels = MixerDevice->GetNumDeviceChannels();
+		const int32 NumOutputFrames = OutAudioBuffer.Num() / NumChannels;
+		NumSamples = NumChannels * NumOutputFrames;
 
 		InputBuffer.Reset(NumSamples);
 		InputBuffer.AddZeroed(NumSamples);
@@ -686,22 +756,7 @@ namespace Audio
 				TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> ChildSubmix = ChildSubmixEntry.Value.SubmixPtr.Pin();
 				if (ChildSubmix.IsValid())
 				{
-					ScratchBuffer.Reset(NumSamples);
-					ScratchBuffer.AddZeroed(NumSamples);
-
-					ChildSubmix->ProcessAudio(ChannelFormat, ScratchBuffer);
-
-					float* ScratchBufferPtr = ScratchBuffer.GetData();
-
-					if (ChildSubmixEntry.Value.bNeedsAmbisonicsEncoding)
-					{
-						// Encode into ambisonics. TODO: Implement.
-						EncodeAndMixInChildSubmix(ChildSubmixEntry.Value);
-					}
-					else
-					{
-						Audio::MixInBufferFast(ScratchBufferPtr, BufferPtr, NumSamples);
-					}
+					ChildSubmix->ProcessAudio(InputBuffer);
 				}
 				else
 				{
@@ -719,13 +774,34 @@ namespace Audio
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSource);
 
 			// Loop through this submix's sound sources
-			for (const auto MixerSourceVoiceIter : MixerSourceVoices)
+			for (const auto& MixerSourceVoiceIter : MixerSourceVoices)
 			{
 				const FMixerSourceVoice* MixerSourceVoice = MixerSourceVoiceIter.Key;
 				const float SendLevel = MixerSourceVoiceIter.Value.SendLevel;
 
-				
-				MixerSourceVoice->MixOutputBuffers(ChannelFormat, SendLevel, InputBuffer);
+
+				MixerSourceVoice->MixOutputBuffers(NumChannels, SendLevel, InputBuffer);
+			}
+		}
+
+		DryChannelBuffer.Reset();
+
+		// Check if we need to allocate a dry buffer
+		if (!FMath::IsNearlyEqual(CurrentDryLevel, TargetDryLevel) || !FMath::IsNearlyZero(CurrentDryLevel))
+		{
+			DryChannelBuffer.Append(InputBuffer);
+
+			// If we've already set the volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetDryLevel, CurrentDryLevel))
+			{
+
+				Audio::MultiplyBufferByConstantInPlace(DryChannelBuffer, TargetDryLevel);
+			}
+			else
+			{
+				// To avoid popping, we do a fade on the buffer to the target volume
+				Audio::FadeBufferFast(DryChannelBuffer, CurrentDryLevel, TargetDryLevel);
+				CurrentDryLevel = TargetDryLevel;
 			}
 		}
 
@@ -765,15 +841,17 @@ namespace Audio
 				// Check to see if we need to down-mix our audio before sending to the submix effect
 				const uint32 ChannelCountOverride = SubmixEffect->GetDesiredInputChannelCountOverride();
 
-				// Only support downmixing to stereo. TODO: change GetDesiredInputChannelCountOverride() API to be "DownmixToStereo"
-				if (ChannelCountOverride < (uint32)NumChannels && ChannelCountOverride == 2)
+				if (ChannelCountOverride != INDEX_NONE && ChannelCountOverride != NumChannels)
 				{
 					// Perform the down-mix operation with the down-mixed scratch buffer
-					FormatChangeBuffer(ESubmixChannelFormat::Stereo, InputBuffer, DownmixedBuffer);
+					DownmixedBuffer.Reset();
+					DownmixedBuffer.AddUninitialized(NumOutputFrames * ChannelCountOverride);
+					DownmixBuffer(NumChannels, InputBuffer, ChannelCountOverride, DownmixedBuffer);
 
 					InputData.NumChannels = ChannelCountOverride;
 					InputData.AudioBuffer = &DownmixedBuffer;
 					SubmixEffect->ProcessAudio(InputData, OutputData);
+					DownmixBuffer(ChannelCountOverride, DownmixedBuffer, NumChannels, InputBuffer);
 				}
 				else
 				{
@@ -790,16 +868,39 @@ namespace Audio
 					Audio::MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
 				}
 
-				FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float)*NumSamples);
+				FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float) * NumSamples);
 			}
 		}
 
 		// If we're muted, memzero the buffer. Note we are still doing all the work to maintain buffer state between mutings.
 		if (bIsBackgroundMuted)
 		{
-			FMemory::Memzero((void*)BufferPtr, sizeof(float)*NumSamples);
+			FMemory::Memzero((void*)BufferPtr, sizeof(float) * NumSamples);
 		}
 
+
+		// Don't necessarily need to do this if the user isn't using this feature
+		if (!FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel) || !FMath::IsNearlyEqual(CurrentWetLevel, 1.0f))
+		{
+			// If we've already set the volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel))
+			{
+				Audio::MultiplyBufferByConstantInPlace(InputBuffer, TargetWetLevel);
+			}
+			else
+			{
+				// To avoid popping, we do a fade on the buffer to the target volume
+				Audio::FadeBufferFast(InputBuffer, CurrentWetLevel, TargetWetLevel);
+				CurrentWetLevel = TargetWetLevel;
+			}
+		}
+
+		// Check to see if need to mix together the dry and wet buffers
+		if (DryChannelBuffer.Num())
+		{
+			Audio::MixInBufferFast(DryChannelBuffer, InputBuffer);
+		}
+		
 		// If we are recording, Add out buffer to the RecordingData buffer:
 		{
 			FScopeLock ScopedLock(&RecordingCriticalSection);
@@ -819,16 +920,6 @@ namespace Audio
 			SpectrumAnalyzer->PerformAnalysisIfPossible(true, true);
 		}
 
-		// If the channel types match, just do a copy
-		if (ChannelFormat != ParentChannelType || SubmixAmbisonicsDecoderID != INDEX_NONE)
-		{
-			FormatChangeBuffer(ParentChannelType, InputBuffer, OutAudioBuffer);
-		}
-		else
-		{
-			FMemory::Memcpy((void*)OutAudioBuffer.GetData(), (void*)InputBuffer.GetData(), sizeof(float)*NumSamples);
-		}
-
 		// Perform any envelope following if we're told to do so
 		if (bIsEnvelopeFollowing)
 		{
@@ -838,7 +929,7 @@ namespace Audio
 
 			// Perform envelope following per channel
 			FScopeLock EnvelopeScopeLock(&EnvelopeCriticalSection);
-			FMemory::Memset(EnvelopeValues, sizeof(float)*AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+			FMemory::Memset(EnvelopeValues, sizeof(float) * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 
 			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 			{
@@ -858,32 +949,27 @@ namespace Audio
 			EnvelopeNumChannels = NumChannels;
 		}
 
-		// Don't necessarily need to do this if the user isn't using this feature
-		if (bApplyOutputVolumeScale)
+		// Now apply the output volume
+		if (!FMath::IsNearlyEqual(TargetOutputVolume, CurrentOutputVolume) || !FMath::IsNearlyEqual(CurrentOutputVolume, 1.0f))
 		{
-			const float TargetVolumeProduct = TargetOutputVolume * InitializedOutputVolume;
-			const float OutputVolumeProduct = OutputVolume * InitializedOutputVolume;
-
-			// If we've already set the volume, only need to multiply by constant
-			if (FMath::IsNearlyEqual(TargetVolumeProduct, OutputVolumeProduct))
+			// If we've already set the output volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetOutputVolume, CurrentOutputVolume))
 			{
-				Audio::MultiplyBufferByConstantInPlace(OutAudioBuffer, OutputVolumeProduct);
+				Audio::MultiplyBufferByConstantInPlace(InputBuffer, TargetOutputVolume);
 			}
 			else
 			{
 				// To avoid popping, we do a fade on the buffer to the target volume
-				Audio::FadeBufferFast(OutAudioBuffer, OutputVolumeProduct, TargetVolumeProduct);
-				OutputVolume = TargetOutputVolume;
-
-				// No longer need to multiply the output buffer if we're now at 1.0
-				if (FMath::IsNearlyEqual(OutputVolume * InitializedOutputVolume, 1.0f))
-				{
-					bApplyOutputVolumeScale = false;
-				}
+				Audio::FadeBufferFast(InputBuffer, CurrentOutputVolume, TargetOutputVolume);
+				CurrentOutputVolume = TargetOutputVolume;
 			}
 		}
 
+		// Mix the audio buffer of this submix with the audio buffer of the output buffer (i.e. with other submixes)
+		Audio::MixInBufferFast(InputBuffer, OutAudioBuffer);
+
 		// Now loop through any buffer listeners and feed the listeners the result of this audio callback
+		if(const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
 		{
 			double AudioClock = MixerDevice->GetAudioTime();
 			float SampleRate = MixerDevice->GetSampleRate();
@@ -891,7 +977,191 @@ namespace Audio
 			for (ISubmixBufferListener* BufferListener : BufferListeners)
 			{
 				check(BufferListener);
-				BufferListener->OnNewSubmixBuffer(OwningSubmixObject, OutAudioBuffer.GetData(), OutAudioBuffer.Num(), NumChannels, SampleRate, AudioClock);
+				BufferListener->OnNewSubmixBuffer(SoundSubmix, OutAudioBuffer.GetData(), OutAudioBuffer.Num(), NumChannels, SampleRate, AudioClock);
+			}
+		}
+	}
+
+	void FMixerSubmix::ProcessAudio(ISoundfieldAudioPacket& OutputAudio)
+	{
+		check(IsSoundfieldSubmix());
+		PumpCommandQueue();
+
+		// Mix all submix audio into OutputAudio.
+		{
+			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldChildren);
+
+			// If we are mixing down all non-soundfield child submixes,
+			// Set up the scratch buffer so that we can sum all non-soundfield child submixes to it.
+			if (SoundfieldStreams.DownmixedChildrenEncoder.IsValid())
+			{
+				ScratchBuffer.Reset();
+				ScratchBuffer.AddZeroed(MixerDevice->GetNumOutputFrames() * MixerDevice->GetNumDeviceChannels());
+			}
+
+			// First loop this submix's child submixes that are soundfields mixing in their output into this submix's dry/wet buffers.
+			for (auto& ChildSubmixEntry : ChildSubmixes)
+			{
+				MixInChildSubmix(ChildSubmixEntry.Value, OutputAudio);
+			}
+
+			// If we mixed down all non-soundfield child submixes,
+			// We encode and mix in here.
+			if (ChildSubmixes.Num() && SoundfieldStreams.DownmixedChildrenEncoder.IsValid())
+			{
+				FSoundfieldSpeakerPositionalData PositionalData = GetDefaultPositionalDataForAudioDevice();
+
+				FSoundfieldEncoderInputData InputData = {
+						ScratchBuffer, /* AudioBuffer */
+						MixerDevice->GetNumDeviceChannels(), /* NumChannels */
+						*SoundfieldStreams.Settings, /** InputSettings */
+						PositionalData /** PosititonalData */
+				};
+
+				SoundfieldStreams.DownmixedChildrenEncoder->EncodeAndMixIn(InputData, OutputAudio);
+			}
+		}
+
+		// Mix all source sends into OutputAudio.
+		{
+			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldSources);
+
+			check(SoundfieldStreams.Mixer.IsValid());
+
+			// Loop through this submix's sound sources
+			for (const auto MixerSourceVoiceIter : MixerSourceVoices)
+			{
+				const FMixerSourceVoice* MixerSourceVoice = MixerSourceVoiceIter.Key;
+				const float SendLevel = MixerSourceVoiceIter.Value.SendLevel;
+
+				// if this voice has a valid encoded packet, mix it in.
+				const ISoundfieldAudioPacket* Packet = MixerSourceVoice->GetEncodedOutput(GetKeyForSubmixEncoding());
+				if (Packet)
+				{
+					FSoundfieldMixerInputData InputData =
+					{
+						*Packet,
+						*SoundfieldStreams.Settings,
+						SendLevel
+					};
+
+					SoundfieldStreams.Mixer->MixTogether(InputData, OutputAudio);
+				}
+			}
+		}
+
+		// Run soundfield processors.
+		{
+			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldProcessors);
+
+			for (auto& EffectData : SoundfieldStreams.EffectProcessors)
+			{
+				check(EffectData.Processor.IsValid());
+				check(EffectData.Settings.IsValid());
+
+				EffectData.Processor->ProcessAudio(OutputAudio, *SoundfieldStreams.Settings, *EffectData.Settings);
+			}
+		}
+	}
+
+	void FMixerSubmix::ProcessAudioAndSendToEndpoint()
+	{
+		check(MixerDevice);
+
+		if (IsSoundfieldSubmix())
+		{
+			if (!EndpointData.AudioPacket.IsValid())
+			{
+				EndpointData.AudioPacket = SoundfieldStreams.Factory->CreateEmptyPacket();
+			}
+			else
+			{
+				EndpointData.AudioPacket->Reset();
+			}
+
+			// First, process the audio chain for this submix.
+			check(EndpointData.AudioPacket);
+			ProcessAudio(*EndpointData.AudioPacket);
+
+			if (EndpointData.SoundfieldEndpoint->GetRemainderInPacketBuffer() > 0)
+			{
+				EndpointData.SoundfieldEndpoint->PushAudio(MoveTemp(EndpointData.AudioPacket));
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("Buffer overrun in Soundfield endpoint! %s may need to override ISoundfieldEndpoint::EndpointRequiresCallback() to return true."), *SoundfieldStreams.Factory->GetSoundfieldFormatName().ToString());
+			}
+
+			EndpointData.SoundfieldEndpoint->ProcessAudioIfNecessary();
+		}
+		else
+		{
+			// First, process the chain for this submix.
+			EndpointData.AudioBuffer.Reset();
+			EndpointData.AudioBuffer.AddZeroed(MixerDevice->GetNumOutputFrames() * MixerDevice->GetNumDeviceChannels());
+			ProcessAudio(EndpointData.AudioBuffer);
+
+			if (!EndpointData.Input.IsOutputStillActive())
+			{
+				// Either this is our first time pushing audio or we were disconnected.
+				const float DurationPerCallback = MixerDevice->GetNumOutputFrames() / MixerDevice->GetSampleRate();
+
+				EndpointData.Input = EndpointData.NonSoundfieldEndpoint->PatchNewInput(DurationPerCallback, EndpointData.SampleRate, EndpointData.NumChannels);
+
+				if (!FMath::IsNearlyEqual(EndpointData.SampleRate, MixerDevice->GetSampleRate()))
+				{
+					// Initialize the resampler.
+					float SampleRateRatio = EndpointData.SampleRate / MixerDevice->GetSampleRate();
+
+					EndpointData.Resampler.Init(EResamplingMethod::Linear, SampleRateRatio, NumChannels);
+					EndpointData.bShouldResample = true;
+
+					// Add a little slack at the end of the resampled audio buffer in case we have roundoff jitter.
+					EndpointData.ResampledAudioBuffer.Reset();
+					EndpointData.ResampledAudioBuffer.AddUninitialized(EndpointData.AudioBuffer.Num() * SampleRateRatio + 16);
+				}
+			}
+
+			// Resample if necessary.
+			int32 NumResampledFrames = EndpointData.AudioBuffer.Num() / NumChannels;
+			if (EndpointData.bShouldResample)
+			{
+				EndpointData.Resampler.ProcessAudio(EndpointData.AudioBuffer.GetData(), EndpointData.AudioBuffer.Num(), false, EndpointData.ResampledAudioBuffer.GetData(), EndpointData.ResampledAudioBuffer.Num(), NumResampledFrames);
+			}
+			else
+			{
+				EndpointData.ResampledAudioBuffer = MoveTemp(EndpointData.AudioBuffer);
+			}
+
+			// Downmix if necessary.
+			const bool bShouldDownmix = EndpointData.NumChannels != NumChannels;
+			if (bShouldDownmix)
+			{
+				EndpointData.DownmixedResampledAudioBuffer.Reset();
+				EndpointData.DownmixedResampledAudioBuffer.AddUninitialized(NumResampledFrames * EndpointData.NumChannels);
+
+				EndpointData.DownmixChannelMap.Reset();
+				FMixerDevice::Get2DChannelMap(false, NumChannels, EndpointData.NumChannels, false, EndpointData.DownmixChannelMap);
+				DownmixBuffer(NumChannels, EndpointData.ResampledAudioBuffer, EndpointData.NumChannels, EndpointData.DownmixedResampledAudioBuffer);
+			}
+			else
+			{
+				EndpointData.DownmixedResampledAudioBuffer = MoveTemp(EndpointData.ResampledAudioBuffer);
+			}
+
+			EndpointData.Input.PushAudio(EndpointData.DownmixedResampledAudioBuffer.GetData(), EndpointData.DownmixedResampledAudioBuffer.Num());
+			EndpointData.NonSoundfieldEndpoint->ProcessAudioIfNeccessary();
+
+			// If we did any pointer passing to bypass downmixing or resampling, pass the pointer back to avoid reallocating ResampledAudioBuffer or AudioBuffer.
+
+			if (!bShouldDownmix)
+			{
+				EndpointData.ResampledAudioBuffer = MoveTemp(EndpointData.DownmixedResampledAudioBuffer);
+			}
+
+			if (!EndpointData.bShouldResample)
+			{
+				EndpointData.AudioBuffer = MoveTemp(EndpointData.ResampledAudioBuffer);
 			}
 		}
 	}
@@ -920,24 +1190,173 @@ namespace Audio
 		return nullptr;
 	}
 
-	void FMixerSubmix::OnAmbisonicsSettingsChanged(UAmbisonicsSubmixSettingsBase* InAmbisonicsSettings)
+	void FMixerSubmix::SetSoundfieldFactory(ISoundfieldFactory* InSoundfieldFactory)
 	{
-		check(InAmbisonicsSettings != nullptr);
-		if (!AmbisonicsMixer.IsValid())
+		SoundfieldStreams.Factory = InSoundfieldFactory;
+	}
+
+	void FMixerSubmix::SetupSoundfieldStreams(const USoundfieldEncodingSettingsBase* InAmbisonicsSettings, TArray<USoundfieldEffectBase*>& Processors, ISoundfieldFactory* InSoundfieldFactory)
+	{
+		FScopeLock ScopeLock(&SoundfieldStreams.StreamsLock);
+
+		// SoundfieldStreams.Factory should have already been set by our first pass around the submix graph, since 
+		// we use the soundfield factory
+		check(SoundfieldStreams.Factory == InSoundfieldFactory);
+
+		if (!InSoundfieldFactory)
 		{
-			AmbisonicsMixer = MixerDevice->GetAmbisonicsMixer();
-			if (!AmbisonicsMixer.IsValid())
+			return;
+		}
+
+		check(InAmbisonicsSettings != nullptr);
+		// As a santity check, we ensure the passed in soundfield stream is what was used for the initial SetSoundfieldFactory call.
+		check(InSoundfieldFactory == SoundfieldStreams.Factory);
+
+
+		SoundfieldStreams.Reset();
+		SoundfieldStreams.Factory = InSoundfieldFactory;
+
+		// If this submix is encoded to a soundfield, 
+		// Explicitly set NumChannels and NumSamples to 0 since they are technically irrelevant.
+		NumChannels = 0;
+		NumSamples = 0;
+
+		SoundfieldStreams.Settings = InAmbisonicsSettings->GetProxy();
+
+		// Check to see if this implementation of GetProxy failed.
+		if (!ensureAlwaysMsgf(SoundfieldStreams.Settings.IsValid(), TEXT("Soundfield Format %s failed to create a settings proxy for settings asset %s."), *InSoundfieldFactory->GetSoundfieldFormatName().ToString(), *InAmbisonicsSettings->GetName()))
+		{
+			
+			TeardownSoundfieldStreams();
+			return;
+		}
+		
+		SoundfieldStreams.Mixer = InSoundfieldFactory->CreateMixerStream(*SoundfieldStreams.Settings);
+
+		if (!ensureAlwaysMsgf(SoundfieldStreams.Mixer.IsValid(), TEXT("Soundfield Format %s failed to create a settings proxy for settings asset %s."), *InSoundfieldFactory->GetSoundfieldFormatName().ToString(), *InAmbisonicsSettings->GetName()))
+		{
+			TeardownSoundfieldStreams();
+			return;
+		}
+
+		// Create new processor proxies.
+		for (USoundfieldEffectBase* Processor : Processors)
+		{
+			if (Processor != nullptr)
 			{
-				return;
+				SoundfieldStreams.EffectProcessors.Emplace(SoundfieldStreams.Factory, *SoundfieldStreams.Settings, Processor);
 			}
 		}
 
-		AmbisonicsSettings = InAmbisonicsSettings;
-		NumChannels = AmbisonicsMixer->GetNumChannelsForAmbisonicsFormat(AmbisonicsSettings);
-		NumSamples = NumChannels * MixerDevice->GetNumOutputFrames();
+		SetupSoundfieldEncodersForChildren();
+		SetupSoundfieldStreamForParent();
+	}
 
-		UpdateAmbisonicsEncoderForChildren();
-		UpdateAmbisonicsDecoderForParent();
+	void FMixerSubmix::TeardownSoundfieldStreams()
+	{
+		SoundfieldStreams.Reset();
+
+		for (auto& ChildSubmix : ChildSubmixes)
+		{
+			ChildSubmix.Value.Encoder.Reset();
+			ChildSubmix.Value.Transcoder.Reset();
+		}
+	}
+
+	void FMixerSubmix::SetupEndpoint(IAudioEndpointFactory* InFactory, const UAudioEndpointSettingsBase* InSettings)
+	{
+		checkf(!IsSoundfieldSubmix(), TEXT("Soundfield Endpoint Submixes called with non-soundfield arguments."));
+		check(!ParentSubmix.IsValid());
+		EndpointData.Reset();
+
+		if (!InFactory)
+		{
+			return;
+		}
+
+		TUniquePtr<IAudioEndpointSettingsProxy> SettingsProxy;
+		if (InSettings)
+		{
+			SettingsProxy = InSettings->GetProxy();
+		}
+		else
+		{
+			InSettings = InFactory->GetDefaultSettings();
+			ensureMsgf(InSettings, TEXT("The audio endpoint factory %s failed to generate default settings!"), *InFactory->GetEndpointTypeName().ToString());
+
+			if (InSettings)
+			{
+				SettingsProxy = InSettings->GetProxy();
+			}
+		}
+
+		if (SettingsProxy)
+		{
+			FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+			EndpointData.NonSoundfieldEndpoint = InFactory->CreateNewEndpointInstance(InitParams, *SettingsProxy);
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Settings object %s failed to create a proxy object. Likely an error in the implementation of %s::GetProxy()."), *InSettings->GetName(), *InSettings->GetClass()->GetName());
+		}
+	}
+
+	void FMixerSubmix::SetupEndpoint(ISoundfieldEndpointFactory* InFactory, const USoundfieldEndpointSettingsBase* InSettings)
+	{
+		checkf(IsSoundfieldSubmix(), TEXT("Non-Soundfield Endpoint Submixes called with soundfield arguments."));
+		check(SoundfieldStreams.Factory == InFactory);
+		check(!ParentSubmix.IsValid());
+
+		EndpointData.Reset();
+
+		if (!InFactory)
+		{
+			return;
+		}
+
+		TUniquePtr<ISoundfieldEndpointSettingsProxy> SettingsProxy;
+		if (InSettings)
+		{
+			SettingsProxy = InSettings->GetProxy();
+		}
+		else
+		{
+			InSettings = InFactory->GetDefaultEndpointSettings();
+			ensureMsgf(InSettings, TEXT("The audio endpoint factory %s failed to generate default settings!"), *InFactory->GetEndpointTypeName().ToString());
+
+			if (InSettings)
+			{
+				SettingsProxy = InSettings->GetProxy();
+			}
+		}
+
+		if (SettingsProxy)
+		{
+			FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+			EndpointData.SoundfieldEndpoint = InFactory->CreateNewEndpointInstance(InitParams, *SettingsProxy);
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Settings object %s failed to create a proxy object. Likely an error in the implementation of %s::GetProxy()."), *InSettings->GetName(), *InSettings->GetClass()->GetName());
+		}
+	}
+
+	void FMixerSubmix::UpdateEndpointSettings(TUniquePtr<IAudioEndpointSettingsProxy>&& InSettings)
+	{
+		checkf(!IsSoundfieldSubmix(), TEXT("UpdateEndpointSettings for a soundfield submix was called with an IAudioEndpointSettingsProxy rather than an ISoundfieldEndpointSettingsProxy."));
+		if (ensureMsgf(EndpointData.NonSoundfieldEndpoint.IsValid(), TEXT("UpdateEndpointSettings called on an object that is not an endpoint submix.")))
+		{
+			EndpointData.NonSoundfieldEndpoint->SetNewSettings(MoveTemp(InSettings));
+		}
+	}
+
+	void FMixerSubmix::UpdateEndpointSettings(TUniquePtr<ISoundfieldEndpointSettingsProxy>&& InSettings)
+	{
+		checkf(IsSoundfieldSubmix(), TEXT("UpdateEndpointSettings for a non-soundfield submix was called with an ISoundfieldEndpointSettingsProxy rather than an IAudioEndpointSettingsProxy."));
+		if (ensureMsgf(EndpointData.SoundfieldEndpoint.IsValid(), TEXT("UpdateEndpointSettings called on an object that is not an endpoint submix.")))
+		{
+			EndpointData.SoundfieldEndpoint->SetNewSettings(MoveTemp(InSettings));
+		}
 	}
 
 	void FMixerSubmix::OnStartRecordingOutput(float ExpectedDuration)
@@ -1065,24 +1484,19 @@ namespace Audio
 		}
 	}
 
-	void FMixerSubmix::SetDynamicOutputVolume(float InVolume)
+	void FMixerSubmix::SetOutputVolume(float InOutputVolume)
 	{
-		InVolume = FMath::Clamp(InVolume, 0.0f, 1.0f);
-		if (!FMath::IsNearlyEqual(InVolume, TargetOutputVolume))
-		{
-			TargetOutputVolume = InVolume;
-			bApplyOutputVolumeScale = true;
-		}
+		TargetOutputVolume = FMath::Clamp(InOutputVolume, 0.0f, 1.0f);
 	}
 
-	void FMixerSubmix::SetOutputVolume(float InVolume)
+	void FMixerSubmix::SetDryLevel(float InDryLevel)
 	{
-		InVolume = FMath::Clamp(InVolume, 0.0f, 1.0f);
-		if (!FMath::IsNearlyEqual(InitializedOutputVolume, InVolume))
-		{
-			InitializedOutputVolume = InVolume;
-			bApplyOutputVolumeScale = true;
-		}
+		TargetDryLevel = FMath::Clamp(InDryLevel, 0.0f, 1.0f);
+	}
+
+	void FMixerSubmix::SetWetLevel(float InWetLevel)
+	{
+		TargetWetLevel = FMath::Clamp(InWetLevel, 0.0f, 1.0f);
 	}
 
 	void FMixerSubmix::BroadcastEnvelope()
@@ -1107,6 +1521,17 @@ namespace Audio
 			}
 
 		}
+	}
+
+	FSoundfieldEncodingKey FMixerSubmix::GetKeyForSubmixEncoding()
+	{
+		check(IsSoundfieldSubmix() && SoundfieldStreams.Settings.IsValid());
+		return FSoundfieldEncodingKey(SoundfieldStreams.Factory, *SoundfieldStreams.Settings);
+	}
+
+	ISoundfieldFactory* FMixerSubmix::GetSoundfieldFactory()
+	{
+		return SoundfieldStreams.Factory;
 	}
 
 }

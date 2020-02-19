@@ -35,7 +35,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
 
 	Material = InMaterialInterface->GetMaterial();
-	MaterialInterface->AppendReferencedTextures(ReferencedTextures);
+	ReferencedTextures = MaterialInterface->GetReferencedTextures();
 
 	FMaterialResource* Resource = InMaterialInterface->GetMaterialResource(FeatureLevel);
 	if (Resource)
@@ -68,9 +68,6 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 		FMaterialShaderMapId ResourceId;
 		Resource->GetShaderMapId(ShaderPlatform, ResourceId);
 
-		FStaticParameterSet StaticParamSet;
-		Resource->GetStaticParameterSet(ShaderPlatform, StaticParamSet);
-
 		{
 			TArray<FShaderType*> ShaderTypes;
 			TArray<FVertexFactoryType*> VFTypes;
@@ -84,7 +81,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 
 		ResourceId.Usage = Usage;
 
-		CacheShaders(ResourceId, &StaticParamSet, ShaderPlatform);
+		CacheShaders(ResourceId, ShaderPlatform);
 	}
 	else
 	{
@@ -110,22 +107,22 @@ const FMaterial& FDebugViewModeMaterialProxy::GetMaterialWithFallback(ERHIFeatur
 	}
 }
 
-bool FDebugViewModeMaterialProxy::GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+bool FDebugViewModeMaterialProxy::GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
 {
 	return MaterialInterface->GetRenderProxy()->GetVectorValue(ParameterInfo, OutValue, Context);
 }
 
-bool FDebugViewModeMaterialProxy::GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
+bool FDebugViewModeMaterialProxy::GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
 {
 	return MaterialInterface->GetRenderProxy()->GetScalarValue(ParameterInfo, OutValue, Context);
 }
 
-bool FDebugViewModeMaterialProxy::GetTextureValue(const FMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const
+bool FDebugViewModeMaterialProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const
 {
 	return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo,OutValue,Context);
 }
 
-bool FDebugViewModeMaterialProxy::GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+bool FDebugViewModeMaterialProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
 {
 	return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
 }

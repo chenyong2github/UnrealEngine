@@ -61,7 +61,7 @@ namespace ChaosTest
 
 		// Solver state
 		TPBDRigidsSOAs<FReal, 3> SOAs;
-		TPBDRigidsEvolutionGBF<FReal, 3> Evolution;
+		FPBDRigidsEvolutionGBF Evolution;
 		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial;
 
 		TGeometryParticleHandle<FReal, 3>* GetParticle(const int32 Idx)

@@ -3,7 +3,6 @@
 #include "Input/Devices/VRPN/Tracker/DisplayClusterVrpnTrackerInputDataHolder.h"
 #include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 #include "DisplayClusterLog.h"
-	
 
 FDisplayClusterVrpnTrackerInputDataHolder::FDisplayClusterVrpnTrackerInputDataHolder(const FDisplayClusterConfigInput& config) :
 	FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnTracker>(config)

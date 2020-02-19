@@ -457,7 +457,7 @@ protected:
 	friend void ScalabilityCVarsSinkCallback();
 };
 
-ENGINE_API bool AllowHighQualityLightmaps(ERHIFeatureLevel::Type FeatureLevel);
+ENGINE_API bool AllowHighQualityLightmaps(const FStaticFeatureLevel FeatureLevel);
 
 ENGINE_API const FCachedSystemScalabilityCVars& GetCachedScalabilityCVars();
 

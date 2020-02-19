@@ -23,7 +23,7 @@ APPLICATIONCORE_API GetDpiForMonitorProc GetDpiForMonitor;
 void FWindowsPlatformApplicationMisc::LoadPreInitModules()
 {
 	// D3D11 is not supported on WinXP, so in this case we use the OpenGL RHI
-	if(FWindowsPlatformMisc::VerifyWindowsVersion(6, 0))
+	if(FPlatformMisc::VerifyWindowsVersion(6, 0))
 	{
 		//#todo-rco: Only try on Win10
 		const bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
@@ -72,6 +72,7 @@ class FFeedbackContext* FWindowsPlatformApplicationMisc::GetFeedbackContext()
 
 GenericApplication* FWindowsPlatformApplicationMisc::CreateApplication()
 {
+#if WINDOWS_USE_FEATURE_APPLICATION
 	HICON AppIconHandle = LoadIcon( hInstance, MAKEINTRESOURCE( GetAppIcon() ) );
 	if( AppIconHandle == NULL )
 	{
@@ -79,6 +80,9 @@ GenericApplication* FWindowsPlatformApplicationMisc::CreateApplication()
 	}
 
 	return FWindowsApplication::CreateWindowsApplication( hInstance, AppIconHandle );
+#else
+	return nullptr;
+#endif
 }
 
 void FWindowsPlatformApplicationMisc::RequestMinimize()

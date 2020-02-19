@@ -13,8 +13,9 @@ namespace string
 
 	std::string Replace(const std::string& str, const std::string& from, const std::string& to);
 	std::wstring Replace(const std::wstring& str, const std::wstring& from, const std::wstring& to);
-
 	std::wstring ReplaceAll(const std::wstring& str, const std::wstring& from, const std::wstring& to);
+
+	std::string EraseAll(const std::string& str, const std::string& subString);
 	std::wstring EraseAll(const std::wstring& str, const std::wstring& subString);
 
 	char* Find(char* str, const char* subString);
@@ -22,6 +23,7 @@ namespace string
 
 	const char* Find(const char* str, const char* subString);
 	const wchar_t* Find(const wchar_t* str, const wchar_t* subString);
+	const wchar_t* Find(const wchar_t* str, size_t strLength, const wchar_t* subString, size_t subStringLength);
 
 	bool Matches(const char* str1, const char* str2);
 	bool Matches(const wchar_t* str1, const wchar_t* str2);
@@ -42,4 +44,10 @@ namespace string
 
 	// Turns invalid characters (\ / : * ? " < > | : ; , .) in file names, names for OS objects, etc. into underscores
 	std::wstring MakeSafeName(const std::wstring& name);
+
+	template <typename T>
+	inline T StringToInt(const wchar_t* str)
+	{
+		return static_cast<T>(::_wtoi(str));
+	}
 }

@@ -300,6 +300,8 @@ public:
 	static float GetWakeCounter_AssumesLocked(const FPhysicsActorHandle& InHandle);
 	static void SetWakeCounter_AssumesLocked(const FPhysicsActorHandle& InHandle, float InWakeCounter);
 
+	static void SetInitialized_AssumesLocked(const FPhysicsActorHandle& InHandle, bool InInitialized);
+
 	static SIZE_T GetResourceSizeEx(const FPhysicsActorHandle& InActorRef);
 	
     static FPhysicsConstraintReference_Chaos CreateConstraint(const FPhysicsActorHandle& InActorRef1, const FPhysicsActorHandle& InActorRef2, const FTransform& InLocalFrame1, const FTransform& InLocalFrame2);

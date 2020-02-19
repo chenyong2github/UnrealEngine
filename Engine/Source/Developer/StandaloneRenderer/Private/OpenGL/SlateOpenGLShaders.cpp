@@ -94,16 +94,16 @@ void FSlateOpenGLShader::CompileShader( const FString& Filename, GLenum ShaderTy
 	FString Header;
 	
 	// pass the #define along to the shader
-#if PLATFORM_USES_ES2
-	Header.Append("#define PLATFORM_USES_ES2 1\n");
+#if PLATFORM_USES_GLES
+	Header.Append("#define PLATFORM_USES_GLES 1\n");
 #elif PLATFORM_LINUX
 	#if LINUX_USE_OPENGL_3_2
-	Header.Append("#version 150\n#define PLATFORM_USES_ES2 0\n");
+	Header.Append("#version 150\n#define PLATFORM_USES_GLES 0\n");
 	#else
-	Header.Append("#version 120\n#define PLATFORM_USES_ES2 0\n");
+	Header.Append("#version 120\n#define PLATFORM_USES_GLES 0\n");
 	#endif // LINUX_USE_OPENGL_3_2
 #else
-	Header.Append("#version 120\n#define PLATFORM_USES_ES2 0\n");
+	Header.Append("#version 120\n#define PLATFORM_USES_GLES 0\n");
 #endif
 	
 #if PLATFORM_LINUX

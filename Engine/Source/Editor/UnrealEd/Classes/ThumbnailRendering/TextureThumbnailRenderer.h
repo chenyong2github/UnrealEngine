@@ -16,7 +16,7 @@ class FCanvas;
 class FRenderTarget;
 
 UCLASS(MinimalAPI)
-class UNREALED_VTABLE UTextureThumbnailRenderer : public UThumbnailRenderer
+class UTextureThumbnailRenderer : public UThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
 

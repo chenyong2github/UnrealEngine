@@ -19,6 +19,10 @@ USteamNetConnection::USteamNetConnection(const FObjectInitializer& ObjectInitial
 void USteamNetConnection::InitLocalConnection(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)
 {
 	bIsPassthrough = InURL.Host.StartsWith(STEAM_URL_PREFIX) ? false : true;
+	if (!bIsPassthrough)
+	{
+		DisableAddressResolution();
+	}
 	
 	Super::InitLocalConnection(InDriver, InSocket, InURL, InState, InMaxPacket, InPacketOverhead);
 	if (!bIsPassthrough && RemoteAddr.IsValid())
@@ -34,6 +38,10 @@ void USteamNetConnection::InitLocalConnection(UNetDriver* InDriver, class FSocke
 void USteamNetConnection::InitRemoteConnection(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, const class FInternetAddr& InRemoteAddr, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)
 {
 	bIsPassthrough = ((USteamNetDriver*)InDriver)->bIsPassthrough;
+	if (!bIsPassthrough)
+	{
+		DisableAddressResolution();
+	}
 
 	Super::InitRemoteConnection(InDriver, InSocket, InURL, InRemoteAddr, InState, InMaxPacket, InPacketOverhead);
 	if (!bIsPassthrough && RemoteAddr.IsValid())
@@ -60,4 +68,3 @@ void USteamNetConnection::CleanUp()
 		}
 	}
 }
-

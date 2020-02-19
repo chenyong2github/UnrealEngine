@@ -49,8 +49,8 @@ class FPostProcessBenchmarkPS : public FGlobalShader
 	FPostProcessBenchmarkPS() {}
 
 public:
-	FShaderResourceParameter InputTexture;
-	FShaderResourceParameter InputTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, InputTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InputTextureSampler);
 
 	/** Initialization constructor. */
 	FPostProcessBenchmarkPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -60,17 +60,9 @@ public:
 		InputTextureSampler.Bind(Initializer.ParameterMap,TEXT("InputTextureSampler"));
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << InputTexture << InputTextureSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, TRefCountPtr<IPooledRenderTarget>& Src)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -123,17 +115,9 @@ public:
 	{
 	}
 
-	/** Serializer */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-
-		return bShaderHasOutdatedParameters;
-	}
-
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 		
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 	}
@@ -210,8 +194,8 @@ void RunBenchmarkShader(FRHICommandList& RHICmdList, FRHIVertexBuffer* VertexThr
 		: GFilterVertexDeclaration.VertexDeclarationRHI;
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = VertexDeclaration;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -262,7 +246,7 @@ void RunBenchmarkShader(FRHICommandList& RHICmdList, FRHIVertexBuffer* VertexThr
 				GBenchmarkResolution, LocalHeight,
 				FIntPoint(GBenchmarkResolution, GBenchmarkResolution),
 				FIntPoint(GBenchmarkResolution, GBenchmarkResolution),
-				*VertexShader,
+				VertexShader,
 				EDRF_Default);
 		}
 	}

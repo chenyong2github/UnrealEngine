@@ -8,6 +8,9 @@
 
 #include "CoreMinimal.h"
 #include "FXSystem.h"
+#include "Templates/RefCounting.h"
+
+class FGPUSortManager;
 
 /**
  * FX system.
@@ -15,6 +18,8 @@
 class FFXSystemSet : public FFXSystemInterface
 {
 public:
+
+	FFXSystemSet(FGPUSortManager* InGPUSortManager);
 
 	TArray<FFXSystemInterface*> FXSystems;
 
@@ -45,8 +50,14 @@ public:
 
 	virtual void OnDestroy() override;
 
+	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
+	virtual FGPUSortManager* GetGPUSortManager() const override;
+
 protected:
 
 	/** By making the destructor protected, an instance must be destroyed via FFXSystemInterface::Destroy. */
 	virtual ~FFXSystemSet();
+
+	// We keep a reference to the GPUSortManager only for GetGPUSortManager().
+	TRefCountPtr<FGPUSortManager> GPUSortManager;
 };

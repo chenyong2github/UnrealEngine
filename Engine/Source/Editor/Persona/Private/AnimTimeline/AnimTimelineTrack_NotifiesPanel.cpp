@@ -30,27 +30,11 @@ FAnimTimelineTrack_NotifiesPanel::FAnimTimelineTrack_NotifiesPanel(const TShared
 
 TSharedRef<SWidget> FAnimTimelineTrack_NotifiesPanel::GenerateContainerWidgetForTimeline()
 {
-	UAnimMontage* AnimMontage = Cast<UAnimMontage>(GetModel()->GetAnimSequenceBase());
-	bool bChildAnimMontage = AnimMontage && AnimMontage->HasParentAsset();
+	GetAnimNotifyPanel();
 
-	return SAssignNew(AnimNotifyPanel, SAnimNotifyPanel, GetModel())
-		.IsEnabled(!bChildAnimMontage)
-		.Sequence(GetModel()->GetAnimSequenceBase())
-		.InputMin(this, &FAnimTimelineTrack_NotifiesPanel::GetMinInput)
-		.InputMax(this, &FAnimTimelineTrack_NotifiesPanel::GetMaxInput)
-		.ViewInputMin(this, &FAnimTimelineTrack_NotifiesPanel::GetViewMinInput)
-		.ViewInputMax(this, &FAnimTimelineTrack_NotifiesPanel::GetViewMaxInput)
-		.OnGetScrubValue(this, &FAnimTimelineTrack_NotifiesPanel::GetScrubValue)
-		.OnSelectionChanged(this, &FAnimTimelineTrack_NotifiesPanel::SelectObjects)
-		.OnSetInputViewRange(this, &FAnimTimelineTrack_NotifiesPanel::OnSetInputViewRange)
-		.OnInvokeTab(GetModel()->OnInvokeTab)
-		.OnSnapPosition(&GetModel().Get(), &FAnimModel::Snap)
-		.OnGetTimingNodeVisibility(this, &FAnimTimelineTrack_NotifiesPanel::OnGetTimingNodeVisibility)
-		.OnNotifiesChanged_Lambda([this]()
-		{ 
-			Update();
-			GetModel()->OnTracksChanged().Broadcast(); 
-		});
+	AnimNotifyPanel->Update();
+
+	return AnimNotifyPanel.ToSharedRef();
 }
 
 TSharedRef<SWidget> FAnimTimelineTrack_NotifiesPanel::GenerateContainerWidgetForOutliner(const TSharedRef<SAnimOutlinerItem>& InRow)
@@ -258,7 +242,10 @@ void FAnimTimelineTrack_NotifiesPanel::Update()
 {
 	SetHeight((float)GetModel()->GetAnimSequenceBase()->AnimNotifyTracks.Num() * NotificationTrackHeight);
 	RefreshOutlinerWidget();
-	AnimNotifyPanel->Update();
+	if(AnimNotifyPanel.IsValid())
+	{
+		AnimNotifyPanel->Update();
+	}
 }
 
 void FAnimTimelineTrack_NotifiesPanel::OnCommitTrackName(const FText& InText, ETextCommit::Type CommitInfo, int32 TrackIndexToName)
@@ -277,6 +264,36 @@ void FAnimTimelineTrack_NotifiesPanel::OnCommitTrackName(const FText& InText, ET
 EVisibility FAnimTimelineTrack_NotifiesPanel::OnGetTimingNodeVisibility(ETimingElementType::Type ElementType) const
 {
 	return StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel())->IsNotifiesTimingElementDisplayEnabled(ElementType) ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+TSharedRef<SAnimNotifyPanel> FAnimTimelineTrack_NotifiesPanel::GetAnimNotifyPanel()
+{
+	if(!AnimNotifyPanel.IsValid())
+	{
+		UAnimMontage* AnimMontage = Cast<UAnimMontage>(GetModel()->GetAnimSequenceBase());
+		bool bChildAnimMontage = AnimMontage && AnimMontage->HasParentAsset();
+
+		AnimNotifyPanel = SNew(SAnimNotifyPanel, GetModel())
+			.IsEnabled(!bChildAnimMontage)
+			.Sequence(GetModel()->GetAnimSequenceBase())
+			.InputMin(this, &FAnimTimelineTrack_NotifiesPanel::GetMinInput)
+			.InputMax(this, &FAnimTimelineTrack_NotifiesPanel::GetMaxInput)
+			.ViewInputMin(this, &FAnimTimelineTrack_NotifiesPanel::GetViewMinInput)
+			.ViewInputMax(this, &FAnimTimelineTrack_NotifiesPanel::GetViewMaxInput)
+			.OnGetScrubValue(this, &FAnimTimelineTrack_NotifiesPanel::GetScrubValue)
+			.OnSelectionChanged(this, &FAnimTimelineTrack_NotifiesPanel::SelectObjects)
+			.OnSetInputViewRange(this, &FAnimTimelineTrack_NotifiesPanel::OnSetInputViewRange)
+			.OnInvokeTab(GetModel()->OnInvokeTab)
+			.OnSnapPosition(&GetModel().Get(), &FAnimModel::Snap)
+			.OnGetTimingNodeVisibility(this, &FAnimTimelineTrack_NotifiesPanel::OnGetTimingNodeVisibility)
+			.OnNotifiesChanged_Lambda([this]()
+			{ 
+				Update();
+				GetModel()->OnTracksChanged().Broadcast(); 
+			});	
+	}
+
+	return AnimNotifyPanel.ToSharedRef();
 }
 
 #undef LOCTEXT_NAMESPACE

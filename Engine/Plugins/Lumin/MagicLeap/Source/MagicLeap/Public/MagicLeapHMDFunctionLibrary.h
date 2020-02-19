@@ -54,6 +54,41 @@ public:
 	float Confidence;
 };
 
+USTRUCT(BlueprintType)
+struct FMagicLeapGraphicsClientPerformanceInfo
+{
+	GENERATED_BODY()
+
+public:
+	/** The average frame start CPU to composition acquisition of the frame, in milliseconds. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
+	float FrameStartCPUCompAcquireCPUTimeMs;
+
+	/** The average frame start CPU to frame end GPU, in milliseconds. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
+	float FrameStartCPUFrameEndGPUTimeMs;
+
+	/** The average frame cadence, CPU start to CPU start, in milliseconds. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
+	float FrameStartCPUFrameStartCPUTimeMs;
+
+	/** The average frame CPU duration, in milliseconds. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
+	float FrameDurationCPUTimeMs;
+
+	/** The average frame GPU duration, in milliseconds. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
+	float FrameDurationGPUTimeMs;
+
+	/** The average CPU duration for internal operations per frame, in milliseconds. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
+	float FrameInternalDurationCPUTimeMs;
+
+	/** The average GPU duration for internal operations per frame, in milliseconds. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
+	float FrameInternalDurationGPUTimeMs;
+};
+
 UCLASS(ClassGroup = MagicLeap)
 class MAGICLEAP_API UMagicLeapHMDFunctionLibrary : public UBlueprintFunctionLibrary
 {
@@ -99,6 +134,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MagicLeap")
 	static FString GetMLSDKVersion();
 
+	UFUNCTION(BlueprintPure, Category = "MagicLeap")
+	static int32 GetMinimumAPILevel();
+
+	UFUNCTION(BlueprintPure, Category = "MagicLeap")
+	static int32 GetPlatformAPILevel();
+
 	/** Returns true if this code is executing on the ML HMD, false otherwise (e.g. it's executing on PC) */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MagicLeap")
 	static bool IsRunningOnMagicLeapHMD();
@@ -125,4 +166,7 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MagicLeap")
 	static bool SetAppReady();
+
+	UFUNCTION(BlueprintCallable, Category = "MagicLeap|Performance")
+	static bool GetGraphicsClientPerformanceInfo(FMagicLeapGraphicsClientPerformanceInfo& PerformanceInfo);
 };

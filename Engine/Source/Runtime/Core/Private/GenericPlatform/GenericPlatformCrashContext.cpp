@@ -575,7 +575,13 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 
 	// Legacy callstack element for current crash reporter
 	AddCrashProperty( TEXT( "NumMinidumpFramesToIgnore"), NumMinidumpFramesToIgnore );
-	AddCrashProperty( TEXT( "CallStack" ), TEXT("") );
+	// Allow platforms to override callstack property, on some platforms the callstack is not captured by native code, those callstacks can be substituted by platform code here.
+	{
+		CommonBuffer += TEXT("<CallStack>");
+		CommonBuffer += GetCallstackProperty();
+		CommonBuffer += TEXT("</CallStack>");
+		CommonBuffer += LINE_TERMINATOR;
+	}
 
 	// Add new portable callstack element with crash stack
 	AddPortableCallStack();
@@ -634,6 +640,11 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 #endif // PLATFORM_DESKTOP
 
 	AddFooter(CommonBuffer);
+}
+
+const TCHAR* FGenericCrashContext::GetCallstackProperty() const
+{
+	return TEXT("");
 }
 
 void FGenericCrashContext::SetNumMinidumpFramesToIgnore(int InNumMinidumpFramesToIgnore)

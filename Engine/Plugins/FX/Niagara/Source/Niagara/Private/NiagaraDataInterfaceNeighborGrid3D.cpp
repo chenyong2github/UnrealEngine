@@ -28,41 +28,30 @@ static const FName SetParticleNeighborCountFunctionName("SetParticleNeighborCoun
 /*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_NeighborGrid3D, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		NumVoxelsParam.Bind(ParameterMap, *(NumVoxelsName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));		
-		VoxelSizeParam.Bind(ParameterMap, *(VoxelSizeName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		NumVoxelsParam.Bind(ParameterMap, *(NumVoxelsName + ParameterInfo.DataInterfaceHLSLSymbol));		
+		VoxelSizeParam.Bind(ParameterMap, *(VoxelSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		MaxNeighborsPerVoxelParam.Bind(ParameterMap, *(MaxNeighborsPerVoxelName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));		
-		WorldBBoxSizeParam.Bind(ParameterMap, *(WorldBBoxSizeName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		MaxNeighborsPerVoxelParam.Bind(ParameterMap, *(MaxNeighborsPerVoxelName + ParameterInfo.DataInterfaceHLSLSymbol));
+		WorldBBoxSizeParam.Bind(ParameterMap, *(WorldBBoxSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 		
-		ParticleNeighborsGridParam.Bind(ParameterMap,  *(ParticleNeighborsName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		ParticleNeighborCountGridParam.Bind(ParameterMap,  *(ParticleNeighborCountName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		ParticleNeighborsGridParam.Bind(ParameterMap,  *(ParticleNeighborsName + ParameterInfo.DataInterfaceHLSLSymbol));
+		ParticleNeighborCountGridParam.Bind(ParameterMap,  *(ParticleNeighborCountName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		OutputParticleNeighborsGridParam.Bind(ParameterMap, *(OutputParticleNeighborsName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		OutputParticleNeighborCountGridParam.Bind(ParameterMap, *(OutputParticleNeighborCountName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));		
-	}
-
-	virtual void Serialize(FArchive& Ar)override
-	{
-		Ar << NumVoxelsParam;
-		Ar << VoxelSizeParam;
-		Ar << MaxNeighborsPerVoxelParam;		
-		Ar << WorldBBoxSizeParam;
-		
-		Ar << ParticleNeighborsGridParam;
-		Ar << ParticleNeighborCountGridParam;
-		Ar << OutputParticleNeighborsGridParam;
-		Ar << OutputParticleNeighborCountGridParam;		
+		OutputParticleNeighborsGridParam.Bind(ParameterMap, *(OutputParticleNeighborsName + ParameterInfo.DataInterfaceHLSLSymbol));
+		OutputParticleNeighborCountGridParam.Bind(ParameterMap, *(OutputParticleNeighborCountName + ParameterInfo.DataInterfaceHLSLSymbol));		
 	}
 
 	// #todo(dmp): make resource transitions batched
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
 		// Get shader and DI
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyNeighborGrid3D* VFDI = static_cast<FNiagaraDataInterfaceProxyNeighborGrid3D*>(Context.DataInterface);
 
 		NeighborGrid3DRWInstanceData* ProxyData = VFDI->SystemInstancesToProxyData.Find(Context.SystemInstance);
@@ -85,13 +74,13 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 			if (ParticleNeighborsGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodBuffer.UAV);
-				SetSRVParameter(RHICmdList, Context.Shader->GetComputeShader(), ParticleNeighborsGridParam, ProxyData->NeighborhoodBuffer.SRV);
+				SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), ParticleNeighborsGridParam, ProxyData->NeighborhoodBuffer.SRV);
 			}
 
 			if (ParticleNeighborCountGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodCountBuffer.UAV);
-				SetSRVParameter(RHICmdList, Context.Shader->GetComputeShader(), ParticleNeighborCountGridParam, ProxyData->NeighborhoodCountBuffer.SRV);
+				SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), ParticleNeighborCountGridParam, ProxyData->NeighborhoodCountBuffer.SRV);
 			}
 		}
 		else
@@ -99,42 +88,45 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 			if (OutputParticleNeighborsGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodBuffer.UAV);
-				OutputParticleNeighborsGridParam.SetBuffer(RHICmdList, Context.Shader->GetComputeShader(), ProxyData->NeighborhoodBuffer);
+				OutputParticleNeighborsGridParam.SetBuffer(RHICmdList, Context.Shader.GetComputeShader(), ProxyData->NeighborhoodBuffer);
 			}
 
 			if (OutputParticleNeighborCountGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodCountBuffer.UAV);
-				OutputParticleNeighborCountGridParam.SetBuffer(RHICmdList, Context.Shader->GetComputeShader(), ProxyData->NeighborhoodCountBuffer);
+				OutputParticleNeighborCountGridParam.SetBuffer(RHICmdList, Context.Shader.GetComputeShader(), ProxyData->NeighborhoodCountBuffer);
 			}
 		}
 		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
 	}
 
-	virtual void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const 
+	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const 
 	{
 		if (OutputParticleNeighborsGridParam.IsBound())
 		{
-			OutputParticleNeighborsGridParam.UnsetUAV(RHICmdList, Context.Shader->GetComputeShader());
+			OutputParticleNeighborsGridParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
 		}
 
 		if (OutputParticleNeighborCountGridParam.IsBound())
 		{
-			OutputParticleNeighborCountGridParam.UnsetUAV(RHICmdList, Context.Shader->GetComputeShader());
+			OutputParticleNeighborCountGridParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
 		}
 	}
 
 private:
-	FShaderParameter NumVoxelsParam;
-	FShaderParameter VoxelSizeParam;
-	FShaderParameter MaxNeighborsPerVoxelParam;	
-	FShaderParameter WorldBBoxSizeParam;
-	FShaderResourceParameter ParticleNeighborsGridParam;
-	FShaderResourceParameter ParticleNeighborCountGridParam;
-	FRWShaderParameter OutputParticleNeighborCountGridParam;
-	FRWShaderParameter OutputParticleNeighborsGridParam;
+	LAYOUT_FIELD(FShaderParameter, NumVoxelsParam);
+	LAYOUT_FIELD(FShaderParameter, VoxelSizeParam);
+	LAYOUT_FIELD(FShaderParameter, MaxNeighborsPerVoxelParam);
+	LAYOUT_FIELD(FShaderParameter, WorldBBoxSizeParam);
+	LAYOUT_FIELD(FShaderResourceParameter, ParticleNeighborsGridParam);
+	LAYOUT_FIELD(FShaderResourceParameter, ParticleNeighborCountGridParam);
+	LAYOUT_FIELD(FRWShaderParameter, OutputParticleNeighborCountGridParam);
+	LAYOUT_FIELD(FRWShaderParameter, OutputParticleNeighborsGridParam);
 };
 
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_NeighborGrid3D);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceNeighborGrid3D, FNiagaraDataInterfaceParametersCS_NeighborGrid3D);
 
 UNiagaraDataInterfaceNeighborGrid3D::UNiagaraDataInterfaceNeighborGrid3D(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -395,13 +387,6 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 
 	return false;
 }
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceNeighborGrid3D::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_NeighborGrid3D();
-}
-
-
 
 bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {

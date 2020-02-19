@@ -187,7 +187,6 @@ void FD3D12CommandContext::OpenCommandList()
 	// Mark state as dirty so next time ApplyState is called, it will set all state on this new command list
 	StateCache.DirtyStateForNewCommandList();
 
-	numPrimitives = 0;
 	numDraws = 0;
 	numDispatches = 0;
 	numClears = 0;
@@ -200,9 +199,17 @@ void FD3D12CommandContext::CloseCommandList()
 {
 	CommandListHandle.Close();
 
+	uint32 NumTriangles = StateCache.GetNumTrianglesStat();
+	uint32 NumLines     = StateCache.GetNumLinesStat();
+
+#if STATS
 	INC_DWORD_STAT_BY(STAT_RHIDrawPrimitiveCalls, numDraws);
+	INC_DWORD_STAT_BY(STAT_RHILines, NumLines);
+	INC_DWORD_STAT_BY(STAT_RHITriangles, NumTriangles);
+#endif
+
 	FPlatformAtomics::InterlockedAdd(&GCurrentNumDrawCallsRHI, numDraws);
-	FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI, numPrimitives);
+	FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI, NumLines + NumTriangles);
 }
 
 FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompletion, EFlushCommandsExtraAction ExtraAction)

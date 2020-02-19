@@ -72,7 +72,6 @@ class RENDERCORE_API FShaderPipelineCache : public FTickableObjectRenderThread
 	{
 		FPipelineCacheFileFormatPSO PSO;
 		FShaderPipelineCacheArchive* ReadRequests;
-		TSet<FSHAHash> ShaderCodeReads;
 	};
 
 public:
@@ -239,6 +238,7 @@ private:
 	bool bPaused;
 	bool bOpened;
 	bool bReady;
+	bool bPreOptimizing;
     int32 PausedCount;
 	FShaderCachePrecompileContext ShaderCachePrecompileContext;
 	

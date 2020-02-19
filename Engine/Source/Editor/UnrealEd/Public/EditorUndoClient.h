@@ -44,3 +44,13 @@ public:
 	/** Return the transaction context for this client */
 	virtual FString GetTransactionContext() const { return FString(); }
 };
+
+/** An undo client that registers itself in its constructor and unregisters itself in its destructor */
+class UNREALED_API FSelfRegisteringEditorUndoClient : public FEditorUndoClient
+{
+public:
+	/** Register in constructor */
+	FSelfRegisteringEditorUndoClient();
+
+	/** FEditorUndoClient already unregisters in its destructor */
+};

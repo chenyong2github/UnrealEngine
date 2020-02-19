@@ -29,6 +29,12 @@
 #include "ScopedTransaction.h"
 #include "SourceCodeNavigation.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Subsystems/PanelExtensionSubsystem.h"
+#include "DetailsViewObjectFilter.h"
+#include "IDetailRootObjectCustomization.h"
+
+IConsoleVariable* SActorDetails::ShowComponents = IConsoleManager::Get().RegisterConsoleVariable(TEXT("ShowFlag.DetailsPanelComponents"), true, TEXT("Show components in editor details panel."), ECVF_Cheat);
+
 
 class SActorDetailsUneditableComponentWarning : public SCompoundWidget
 {
@@ -149,6 +155,13 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		[
 			DetailsView->GetNameAreaWidget().ToSharedRef()
 		]
+		+ SVerticalBox::Slot()
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+		.AutoHeight()
+		[
+			SNew(SExtensionPanel)
+			.ExtensionPanelID("ActorDetailsPanel")
+		]
 		+SVerticalBox::Slot()
 		[
 			SAssignNew(DetailsSplitter, SSplitter)
@@ -222,7 +235,7 @@ SActorDetails::~SActorDetails()
 	}
 }
 
-void SActorDetails::OnDetailsViewObjectArrayChanged(const FString& InTitle, const TArray<TWeakObjectPtr<UObject>>& InObjects)
+void SActorDetails::OnDetailsViewObjectArrayChanged(const FString& InTitle, const TArray<UObject*>& InObjects)
 {
 	// The DetailsView will already check validity every tick and hide itself when invalid, so this piggy-backs on that code instead of needing a second tick function.
 	if (InObjects.Num() == 0 && !LockedActorSelection.IsValid())
@@ -257,7 +270,8 @@ void SActorDetails::SetObjects(const TArray<UObject*>& InObjects, bool bForceRef
 			}
 		}
 
-		ComponentsBox->SetVisibility(bShowingComponents ? EVisibility::Visible : EVisibility::Collapsed);
+		bool ShowComponentsInDetailsPanel = ShowComponents->GetBool();
+ 		ComponentsBox->SetVisibility((bShowingComponents & ShowComponentsInDetailsPanel) ? EVisibility::Visible : EVisibility::Collapsed);
 
 		if(DetailsView->GetHostTabManager().IsValid())
 		{
@@ -303,6 +317,13 @@ void SActorDetails::PostUndo(bool bSuccess)
 void SActorDetails::PostRedo(bool bSuccess)
 {
 	PostUndo(bSuccess);
+}
+
+void SActorDetails::SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization)
+{
+	DetailsView->SetObjectFilter(ActorDetailsObjectFilter);
+	DetailsView->SetRootObjectCustomizationInstance(ActorDetailsRootCustomization);
+	DetailsView->ForceRefresh();
 }
 
 void SActorDetails::OnComponentsEditedInWorld()

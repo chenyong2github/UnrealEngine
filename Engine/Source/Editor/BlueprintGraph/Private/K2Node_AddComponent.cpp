@@ -11,6 +11,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
@@ -210,7 +211,7 @@ void UK2Node_AddComponent::ValidateNodeDuringCompilation(FCompilerResultsLog& Me
 	const UClass* TemplateClass = GetSpawnedType();
 	if (TemplateClass)
 	{
-		if (!TemplateClass->IsChildOf(UActorComponent::StaticClass()) || TemplateClass->HasAnyClassFlags(CLASS_Abstract) || !TemplateClass->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent) )
+		if (!FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(TemplateClass))
 		{
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("TemplateClass"), FText::FromString(TemplateClass->GetName()));

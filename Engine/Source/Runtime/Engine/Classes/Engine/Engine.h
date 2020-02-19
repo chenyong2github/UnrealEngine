@@ -17,6 +17,7 @@
 #include "Subsystems/SubsystemCollection.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "RHI.h"
+#include "AudioDeviceManager.h"
 #include "Engine.generated.h"
 
 #define WITH_DYNAMIC_RESOLUTION (!UE_SERVER)
@@ -24,7 +25,6 @@
 class AMatineeActor;
 class APlayerController;
 class Error;
-class FAudioDeviceManager;
 class FCanvas;
 class FCommonViewportClient;
 class FFineGrainedPerformanceTracker;
@@ -366,7 +366,7 @@ struct FWorldContext
 	bool	bWaitingOnOnlineSubsystem;
 
 	/** Handle to this world context's audio device.*/
-	uint32 AudioDeviceHandle;
+	uint32 AudioDeviceID;
 
 	/** Custom description to be display in blueprint debugger UI */
 	FString CustomDescription;
@@ -414,7 +414,7 @@ struct FWorldContext
 		, PIEWorldFeatureLevel(ERHIFeatureLevel::Num)
 		, RunAsDedicated(false)
 		, bWaitingOnOnlineSubsystem(false)
-		, AudioDeviceHandle(INDEX_NONE)
+		, AudioDeviceID(INDEX_NONE)
 		, ThisCurrentWorld(nullptr)
 	{ }
 
@@ -1027,6 +1027,14 @@ public:
 	UPROPERTY(globalconfig)
 	FSoftObjectPath ClothPaintMaterialWireframeName;
 
+	/** A material used to render physical material mask on mesh. */
+	UPROPERTY()
+	class UMaterial* PhysicalMaterialMaskMaterial;
+
+	/** A material used to render physical material mask on mesh. */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath PhysicalMaterialMaskMaterialName;
+
 	/** A material used to render debug meshes. */
 	UPROPERTY()
 	class UMaterial* DebugEditorMaterial;
@@ -1125,9 +1133,6 @@ public:
 	*/
 	UPROPERTY(globalconfig)
 	float MaxPixelShaderAdditiveComplexityCount;
-
-	UPROPERTY(globalconfig)
-	float MaxES2PixelShaderAdditiveComplexityCount;
 
 	UPROPERTY(globalconfig)
 	float MaxES3PixelShaderAdditiveComplexityCount;
@@ -1784,7 +1789,7 @@ protected:
 	FAudioDeviceManager* AudioDeviceManager;
 
 	/** Audio device handle to the main audio device. */
-	uint32 MainAudioDeviceHandle;
+	FAudioDeviceHandle MainAudioDeviceHandle;
 
 private:
 	/** A collection of messages to display on-screen. */
@@ -2462,16 +2467,17 @@ public:
 	FAudioDeviceManager* GetAudioDeviceManager();
 
 	/** @return the main audio device handle used by the engine. */
-	uint32 GetAudioDeviceHandle() const;
+	uint32 GetMainAudioDeviceID() const;
 
 	/** @return the main audio device. */
-	class FAudioDevice* GetMainAudioDevice();
+	FAudioDeviceHandle GetMainAudioDevice();
+	class FAudioDevice* GetMainAudioDeviceRaw();
 
 	/** @return the currently active audio device */
-	class FAudioDevice* GetActiveAudioDevice();
+	FAudioDeviceHandle GetActiveAudioDevice();
 
 	/** @return whether we're currently running in split screen (more than one local player) */
-	bool IsSplitScreen(UWorld *InWorld);
+	virtual bool IsSplitScreen(UWorld *InWorld);
 
 	/** @return whether we're currently running with stereoscopic 3D enabled for the specified viewport (or globally, if viewport is nullptr) */
 	bool IsStereoscopic3D(FViewport* InViewport = nullptr);
@@ -2663,7 +2669,7 @@ public:
 			, bCopyDeprecatedProperties(false)
 			, bPreserveRootComponent(true)
 			, bSkipCompilerGeneratedDefaults(false)
-			, bNotifyObjectReplacement(true)
+			, bNotifyObjectReplacement(false)
 			, bClearReferences(true)
 		{}
 	};

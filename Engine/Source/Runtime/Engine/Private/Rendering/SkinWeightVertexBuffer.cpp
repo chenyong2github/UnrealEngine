@@ -6,6 +6,7 @@
 #include "RenderUtils.h"
 #include "SkeletalMeshTypes.h"
 #include "UObject/AnimObjectVersion.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 /*-----------------------------------------------------------------------------
 FSkinWeightLookupVertexBuffer
@@ -128,15 +129,18 @@ void FSkinWeightLookupVertexBuffer::InitRHI()
 	// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 
-	bool bSRV = VertexBufferRHI && GSupportsResourceView && GPixelFormats[PixelFormat].Supported;
-	// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
-	// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
-	// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
-	bSRV |= GetNeedsCPUAccess();
-
-	if (bSRV)
+	if (VertexBufferRHI)
 	{
-		SRVValue = RHICreateShaderResourceView(LookupData ? VertexBufferRHI : nullptr, PixelFormatStride, PixelFormat);
+		bool bSRV = GSupportsResourceView && GPixelFormats[PixelFormat].Supported;
+		// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
+		// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
+		// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
+		bSRV |= GetNeedsCPUAccess();
+
+		if (bSRV && LookupData && VertexBufferRHI)
+		{
+			SRVValue = RHICreateShaderResourceView(VertexBufferRHI, PixelFormatStride, PixelFormat);
+		}
 	}
 }
 
@@ -419,6 +423,8 @@ FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Async()
 
 void FSkinWeightDataVertexBuffer::InitRHI()
 {
+	SCOPED_LOADTIMER(FSkinWeightVertexBuffer_InitRHI);
+
 	// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 
@@ -428,9 +434,9 @@ void FSkinWeightDataVertexBuffer::InitRHI()
 	// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
 	bSRV |= GetNeedsCPUAccess();
 
-	if (bSRV)
+	if (bSRV && WeightData && VertexBufferRHI)
 	{
-		SRVValue = RHICreateShaderResourceView(WeightData ? VertexBufferRHI : nullptr, GetPixelFormatStride(), GetPixelFormat());
+		SRVValue = RHICreateShaderResourceView(VertexBufferRHI, GetPixelFormatStride(), GetPixelFormat());
 	}
 }
 

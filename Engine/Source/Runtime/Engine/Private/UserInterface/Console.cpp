@@ -30,6 +30,8 @@
 #include "Misc/TextFilter.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Engine/AssetManager.h"
+#include "IO/IoDispatcher.h"
 
 static const uint32 MAX_AUTOCOMPLETION_LINES = 20;
 
@@ -264,47 +266,74 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 
 	// enumerate maps
 	{
-		TArray<FString> Packages;
-		for (int32 PathIdx = 0; PathIdx < ConsoleSettings->AutoCompleteMapPaths.Num(); ++PathIdx)
+		auto FindPackagesInDirectory = [](TArray<FString>& OutPackages, const FString& InPath)
 		{
-			FPackageName::FindPackagesInDirectory(Packages, FString::Printf(TEXT("%s%s"), *FPaths::ProjectDir(), *ConsoleSettings->AutoCompleteMapPaths[PathIdx]));
+			// Can't search packages using the filesystem when I/O dispatcher is enabled
+			if (FIoDispatcher::IsInitialized())
+			{
+				FString PackagePath;
+				if (FPackageName::TryConvertFilenameToLongPackageName(InPath, PackagePath))
+				{
+					if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::LoadModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
+					{
+						TArray<FAssetData> Assets;
+						AssetRegistryModule->Get().GetAssetsByPath(FName(*PackagePath), Assets, true);
+
+						for (const FAssetData& Asset : Assets)
+						{
+							if (!!(Asset.PackageFlags & PKG_ContainsMap))
+							{
+								OutPackages.Emplace(Asset.AssetName.ToString());
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				TArray<FString> Filenames;
+				FPackageName::FindPackagesInDirectory(Filenames, InPath);
+
+				for (const FString& Filename : Filenames)
+				{
+					const int32 NameStartIdx = Filename.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+					const int32 ExtIdx = Filename.Find(*FPackageName::GetMapPackageExtension(), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+
+					if (NameStartIdx != INDEX_NONE && ExtIdx != INDEX_NONE)
+					{
+						OutPackages.Emplace(Filename.Mid(NameStartIdx + 1, ExtIdx - NameStartIdx - 1));
+					}
+				}
+			}
+		};
+
+		TArray<FString> Packages;
+		for (const FString& MapPath : ConsoleSettings->AutoCompleteMapPaths)
+		{
+			FindPackagesInDirectory(Packages, FString::Printf(TEXT("%s%s"), *FPaths::ProjectDir(), *MapPath));
 		}
 
-		// also include maps in this user's developer dir
-		FPackageName::FindPackagesInDirectory(Packages, FPaths::GameUserDeveloperDir());
+		FindPackagesInDirectory(Packages, FPaths::GameUserDeveloperDir());
 
-		for (int32 PackageIndex = 0; PackageIndex < Packages.Num(); PackageIndex++)
+		for (const FString& MapName : Packages)
 		{
-			FString Pkg = MoveTemp(Packages[PackageIndex]);
-			const int32 ExtIdx = Pkg.Find(*FPackageName::GetMapPackageExtension(), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-
-			FString MapName;
-			if (ExtIdx != INDEX_NONE && Pkg.Split(TEXT("/"), nullptr, &MapName, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
+			int32 NewIdx = 0;
+			// put _P maps at the front so that they match early, since those are generally the maps we want to actually open
+			if (MapName.EndsWith(TEXT("_P")))
 			{
-				// try to peel off the extension
-				FString TrimmedMapName;
-				if (!MapName.Split(TEXT("."), &TrimmedMapName, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
-				{
-					TrimmedMapName = MapName;
-				}
-				int32 NewIdx;
-				// put _P maps at the front so that they match early, since those are generally the maps we want to actually open
-				if (TrimmedMapName.EndsWith(TEXT("_P")))
-				{
-					NewIdx = 0;
-					AutoCompleteList.InsertDefaulted(0, 3);
-				}
-				else
-				{
-					NewIdx = AutoCompleteList.AddDefaulted(3);
-				}
-				AutoCompleteList[NewIdx].Command = FString::Printf(TEXT("open %s"), *TrimmedMapName);
-				AutoCompleteList[NewIdx].Color = ConsoleSettings->AutoCompleteCommandColor;
-				AutoCompleteList[NewIdx + 1].Command = FString::Printf(TEXT("travel %s"), *TrimmedMapName);
-				AutoCompleteList[NewIdx + 1].Color = ConsoleSettings->AutoCompleteCommandColor;
-				AutoCompleteList[NewIdx + 2].Command = FString::Printf(TEXT("servertravel %s"), *TrimmedMapName);
-				AutoCompleteList[NewIdx + 2].Color = ConsoleSettings->AutoCompleteCommandColor;
+				AutoCompleteList.InsertDefaulted(0, 3);
 			}
+			else
+			{
+				NewIdx = AutoCompleteList.AddDefaulted(3);
+			}
+
+			AutoCompleteList[NewIdx].Command = FString::Printf(TEXT("open %s"), *MapName);
+			AutoCompleteList[NewIdx].Color = ConsoleSettings->AutoCompleteCommandColor;
+			AutoCompleteList[NewIdx + 1].Command = FString::Printf(TEXT("travel %s"), *MapName);
+			AutoCompleteList[NewIdx + 1].Color = ConsoleSettings->AutoCompleteCommandColor;
+			AutoCompleteList[NewIdx + 2].Command = FString::Printf(TEXT("servertravel %s"), *MapName);
+			AutoCompleteList[NewIdx + 2].Color = ConsoleSettings->AutoCompleteCommandColor;
 		}
 	}
 

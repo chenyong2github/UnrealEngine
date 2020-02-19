@@ -242,7 +242,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 		TMap<ULocalPlayer*, FSceneView*> PlayerViewMap;
 
-		FAudioDevice* AudioDevice = MyWorld->GetAudioDevice();
+		FAudioDeviceHandle RetrievedAudioDevice = MyWorld->GetAudioDevice();
 		TArray<FSceneView*> Views;
 
 		for (FLocalPlayerIterator Iterator(GEngine, MyWorld); Iterator; ++Iterator)
@@ -277,6 +277,11 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 							View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
 							View->SpecularOverrideParameter = FVector4(.1f, .1f, .1f, 0.0f);
 						}
+						else if (View->Family->EngineShowFlags.LightingOnlyOverride)
+						{
+							View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+							View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+						}
 						else if (View->Family->EngineShowFlags.ReflectionOverride)
 						{
 							View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
@@ -310,7 +315,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 							PlayerViewMap.Add(LocalPlayer, View);
 
 							// Update the listener.
-							if (AudioDevice != NULL && PlayerController != NULL)
+							if (RetrievedAudioDevice && PlayerController != NULL)
 							{
 								bool bUpdateListenerPosition = true;
 
@@ -323,8 +328,8 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 									// If there is more than one world referencing the main audio device
 									if (AudioDeviceManager->GetNumMainAudioDeviceWorlds() > 1)
 									{
-										uint32 MainAudioDeviceHandle = GEngine->GetAudioDeviceHandle();
-										if (AudioDevice->DeviceHandle == MainAudioDeviceHandle && !HasAudioFocus())
+										uint32 MainAudioDeviceID = GEngine->GetMainAudioDeviceID();
+										if (AudioDevice->DeviceID == MainAudioDeviceID && !HasAudioFocus())
 										{
 											bUpdateListenerPosition = false;
 										}
@@ -351,16 +356,16 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 									ListenerTransform.NormalizeRotation();
 
 									uint32 ViewportIndex = PlayerViewMap.Num() - 1;
-									AudioDevice->SetListener(MyWorld, ViewportIndex, ListenerTransform, (View->bCameraCut ? 0.f : MyWorld->GetDeltaSeconds()));
+									RetrievedAudioDevice->SetListener(MyWorld, ViewportIndex, ListenerTransform, (View->bCameraCut ? 0.f : MyWorld->GetDeltaSeconds()));
 
 									FVector OverrideAttenuation;
 									if (PlayerController->GetAudioListenerAttenuationOverridePosition(OverrideAttenuation))
 									{
-										AudioDevice->SetListenerAttenuationOverride(ViewportIndex, OverrideAttenuation);
+										RetrievedAudioDevice->SetListenerAttenuationOverride(ViewportIndex, OverrideAttenuation);
 									}
 									else
 									{
-										AudioDevice->ClearListenerAttenuationOverride(ViewportIndex);
+										RetrievedAudioDevice->ClearListenerAttenuationOverride(ViewportIndex);
 									}
 								}
 							}

@@ -70,7 +70,7 @@ void FAnimNode_RotationOffsetBlendSpace::UpdateAssetPlayer(const FAnimationUpdat
 	BasePose.Update(Context);
 
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), ActualAlpha);
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("PlayTime"), InternalTimeAccumulator);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Playback Time"), InternalTimeAccumulator);
 }
 
 void FAnimNode_RotationOffsetBlendSpace::Evaluate_AnyThread(FPoseContext& Context)

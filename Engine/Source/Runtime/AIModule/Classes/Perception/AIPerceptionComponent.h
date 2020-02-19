@@ -238,6 +238,11 @@ protected:
 	TArray<float> MaxActiveAge;
 
 private:
+
+	/** Determines whether all knowledge of previously sensed actors will be removed or not when they become stale.
+		That is, when they are no longer perceived and have exceeded the max age of the sense. */
+	uint32 bForgetStaleActors : 1;
+
 	uint32 bCleanedUp : 1;
 
 public:
@@ -366,7 +371,8 @@ protected:
 private:
 	friend UAIPerceptionSystem;
 
+	void RegisterSenseConfig(UAISenseConfig& SenseConfig, UAIPerceptionSystem& AIPerceptionSys);
 	void StoreListenerId(FPerceptionListenerID InListenerId) { PerceptionListenerId = InListenerId; }
-	void SetMaxStimulusAge(int32 ConfigIndex, float MaxAge);
+	void SetMaxStimulusAge(FAISenseID SenseId, float MaxAge);
 };
 

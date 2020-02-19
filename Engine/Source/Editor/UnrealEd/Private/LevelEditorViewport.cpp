@@ -4658,7 +4658,7 @@ void FLevelEditorViewportClient::UpdateAudioListener(const FSceneView& View)
 
 	if (ViewportWorld)
 	{
-		if (FAudioDevice* AudioDevice = ViewportWorld->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = ViewportWorld->GetAudioDeviceRaw())
 		{
 			FVector ViewLocation = GetViewLocation();
 

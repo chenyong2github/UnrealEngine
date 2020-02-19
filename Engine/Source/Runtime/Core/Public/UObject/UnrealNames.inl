@@ -137,6 +137,7 @@ REGISTER_NAME(255,Control)
 REGISTER_NAME(256,Voice)
 REGISTER_NAME(257, Zlib)
 REGISTER_NAME(258, Gzip)
+REGISTER_NAME(259, LZ4)
 
 // Online
 REGISTER_NAME(280,DGram)
@@ -204,3 +205,4 @@ REGISTER_NAME(602,GameUserSettings)
 
 // Commonly multicased names - defined globally to prevent non-determinism in package name tables
 REGISTER_NAME(700,Filename)
+REGISTER_NAME(701,Lerp)

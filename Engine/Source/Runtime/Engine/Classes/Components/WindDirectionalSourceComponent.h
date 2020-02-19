@@ -83,7 +83,7 @@ protected:
 	//~ Begin UActorComponent Interface.
 	virtual void Activate(bool bReset) override;
 	virtual void Deactivate() override;
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;

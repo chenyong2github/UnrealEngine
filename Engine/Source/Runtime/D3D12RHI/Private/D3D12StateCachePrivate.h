@@ -384,6 +384,11 @@ protected:
 			// Primitive Topology State
 			EPrimitiveType CurrentPrimitiveType;
 			D3D_PRIMITIVE_TOPOLOGY CurrentPrimitiveTopology;
+			uint32 PrimitiveTypeFactor;
+			uint32 PrimitiveTypeOffset;
+			uint32* CurrentPrimitiveStat;
+			uint32 NumTriangles;
+			uint32 NumLines;
 
 			// Input Layout State
 			D3D12_RECT CurrentScissorRects[D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
@@ -526,7 +531,7 @@ public:
 		return PipelineState.Graphics.CurrentPipelineStateObject;
 	}
 
-	const FD3D12RootSignature* GetGraphicsRootSignature()
+	const FD3D12RootSignature* GetGraphicsRootSignature() const
 	{
 		return PipelineState.Graphics.CurrentPipelineStateObject ? PipelineState.Graphics.CurrentPipelineStateObject->RootSignature : nullptr;
 	}
@@ -536,7 +541,16 @@ public:
 		return PipelineState.Graphics.CurrentPrimitiveType;
 	}
 
-	const FD3D12RootSignature* GetComputeRootSignature()
+	inline uint32 GetVertexCountAndIncrementStat(uint32 NumPrimitives)
+	{
+		*PipelineState.Graphics.CurrentPrimitiveStat += NumPrimitives;
+		return PipelineState.Graphics.PrimitiveTypeFactor * NumPrimitives + PipelineState.Graphics.PrimitiveTypeOffset;
+	}
+
+	inline uint32 GetNumTrianglesStat() const { return PipelineState.Graphics.NumTriangles; }
+	inline uint32 GetNumLinesStat() const { return PipelineState.Graphics.NumLines; }
+
+	const FD3D12RootSignature* GetComputeRootSignature() const
 	{
 		return PipelineState.Compute.CurrentPipelineStateObject ? PipelineState.Compute.CurrentPipelineStateObject->ComputeShader->pRootSignature : nullptr;
 	}
@@ -772,6 +786,11 @@ public:
 				PipelineState.Graphics.CurrentPrimitiveType = PrimitiveType;
 				PipelineState.Graphics.CurrentPrimitiveTopology = GetD3D12PrimitiveType(PrimitiveType, bUsingTessellation);
 				bNeedSetPrimitiveTopology = true;
+
+				static_assert(PT_Num == 38, "This computation needs to be updated, matching that of GetVertexCountForPrimitiveCount()");
+				PipelineState.Graphics.PrimitiveTypeFactor = (PrimitiveType == PT_TriangleList)? 3 : (PrimitiveType == PT_LineList)? 2 : (PrimitiveType == PT_RectList)? 3 : (PrimitiveType >= PT_1_ControlPointPatchList)? (PrimitiveType - PT_1_ControlPointPatchList + 1) : 1;
+				PipelineState.Graphics.PrimitiveTypeOffset = (PrimitiveType == PT_TriangleStrip)? 2 : 0;
+				PipelineState.Graphics.CurrentPrimitiveStat = (PrimitiveType == PT_LineList)? &PipelineState.Graphics.NumLines : &PipelineState.Graphics.NumTriangles;
 			}
 
 			// Set the PSO

@@ -5,7 +5,7 @@
 #include <limits>
 //#include <math.h>
 
-//#include "TimingProfilerCommon.h" // for UE_LOG(TimingProfiler, ...
+//#include "Insights/Log.h"
 
 namespace TimeUtils
 {
@@ -701,15 +701,15 @@ void TestTimeFormatting()
 {
 	double T1 = 1 * TimeUtils::Day + 2 * TimeUtils::Hour + 3 * TimeUtils::Minute + 4.567890123456789;
 	FString S1 = FormatTime(T1, TimeUtils::Day);
-	//UE_LOG(TimingProfiler, Log, TEXT("D-T: %s"), *S1);
+	//UE_LOG(TraceInsights, Log, TEXT("D-T: %s"), *S1);
 	FString S2 = FormatTime(T1, TimeUtils::Hour);
-	//UE_LOG(TimingProfiler, Log, TEXT("H-T: %s"), *S2);
+	//UE_LOG(TraceInsights, Log, TEXT("H-T: %s"), *S2);
 	FString S3 = FormatTime(T1, TimeUtils::Minute);
-	//UE_LOG(TimingProfiler, Log, TEXT("M-T: %s"), *S3);
+	//UE_LOG(TraceInsights, Log, TEXT("M-T: %s"), *S3);
 	for (double P = 10.0; P >= TimeUtils::Picosecond; P /= 10.0)
 	{
 		FString SP = FormatTime(T1, P);
-		//UE_LOG(TimingProfiler, Log, TEXT("P:%g T: %s"), P, *SP);
+		//UE_LOG(TraceInsights, Log, TEXT("P:%g T: %s"), P, *SP);
 	}
 }
 
@@ -781,7 +781,7 @@ void TestTimeAutoFormatting()
 	for (int32 Index = 0; Index < DataCount; ++Index)
 	{
 		FString Str = FormatTimeAuto(Data[Index].T);
-		//UE_LOG(TimingProfiler, Log, TEXT("%s : %s"), Data[Index].Msg, *Str);
+		//UE_LOG(TraceInsights, Log, TEXT("%s : %s"), Data[Index].Msg, *Str);
 	}
 }
 
@@ -811,7 +811,7 @@ void TestOptimizationIssue()
 	constexpr double Ns = 0.000000001;
 	int32 D1 = GetNumDigits(Ns);
 	int32 D2 = GetNumDigitsOptDisabled(Ns);
-	//UE_LOG(TimingProfiler, Log, TEXT("D1 = %d, D2 = %d"), D1, D2);
+	//UE_LOG(TraceInsights, Log, TEXT("D1 = %d, D2 = %d"), D1, D2);
 	ensure(D1 == 9); // 10 ?
 	ensure(D1 == D2);
 }

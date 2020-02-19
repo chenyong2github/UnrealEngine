@@ -250,25 +250,41 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 			UMorphTarget* MorphTarget = InMorphTargets[AnimIdx];
 			int32 NumSrcDeltas = 0;
 			FMorphTargetDelta* MorphDeltas = MorphTarget->GetMorphTargetDelta(LODIndex, NumSrcDeltas);
-			for (int32 DeltaIndex = 0; DeltaIndex < NumSrcDeltas; DeltaIndex++)
+
+			if (NumSrcDeltas == 0)
 			{
-				const auto& MorphDelta = MorphDeltas[DeltaIndex];
-				// when import, we do check threshold, and also when adding weight, we do have threshold for how smaller weight can fit in
-				// so no reason to check here another threshold
-				MaximumValues[0] = FMath::Max(MaximumValues[0], MorphDelta.PositionDelta.X);
-				MaximumValues[1] = FMath::Max(MaximumValues[1], MorphDelta.PositionDelta.Y);
-				MaximumValues[2] = FMath::Max(MaximumValues[2], MorphDelta.PositionDelta.Z);
-				MaximumValues[3] = FMath::Max(MaximumValues[3], FMath::Max(MorphDelta.TangentZDelta.X, FMath::Max(MorphDelta.TangentZDelta.Y, MorphDelta.TangentZDelta.Z)));
+				MaximumValues[0] = 0.0f;
+				MaximumValues[1] = 0.0f;
+				MaximumValues[2] = 0.0f;
+				MaximumValues[3] = 0.0f;
 
-				MinimumValues[0] = FMath::Min(MinimumValues[0], MorphDelta.PositionDelta.X);
-				MinimumValues[1] = FMath::Min(MinimumValues[1], MorphDelta.PositionDelta.Y);
-				MinimumValues[2] = FMath::Min(MinimumValues[2], MorphDelta.PositionDelta.Z);
-				MinimumValues[3] = FMath::Min(MinimumValues[3], FMath::Min(MorphDelta.TangentZDelta.X, FMath::Min(MorphDelta.TangentZDelta.Y, MorphDelta.TangentZDelta.Z)));
+				MinimumValues[0] = 0.0f;
+				MinimumValues[1] = 0.0f;
+				MinimumValues[2] = 0.0f;
+				MinimumValues[3] = 0.0f;
+			}
+			else
+			{
+				for (int32 DeltaIndex = 0; DeltaIndex < NumSrcDeltas; DeltaIndex++)
+				{
+					const auto& MorphDelta = MorphDeltas[DeltaIndex];
+					// when import, we do check threshold, and also when adding weight, we do have threshold for how smaller weight can fit in
+					// so no reason to check here another threshold
+					MaximumValues[0] = FMath::Max(MaximumValues[0], MorphDelta.PositionDelta.X);
+					MaximumValues[1] = FMath::Max(MaximumValues[1], MorphDelta.PositionDelta.Y);
+					MaximumValues[2] = FMath::Max(MaximumValues[2], MorphDelta.PositionDelta.Z);
+					MaximumValues[3] = FMath::Max(MaximumValues[3], FMath::Max(MorphDelta.TangentZDelta.X, FMath::Max(MorphDelta.TangentZDelta.Y, MorphDelta.TangentZDelta.Z)));
 
-				MaxVertexIndex = FMath::Max(MorphDelta.SourceIdx, MaxVertexIndex);
-				MorphTargetVertexInfoBuffers.VertexIndices.Add(MorphDelta.SourceIdx);
-				MorphTargetVertexInfoBuffers.MorphDeltas.Emplace(MorphDelta.PositionDelta, MorphDelta.TangentZDelta);
-				MorphTargetVertexInfoBuffers.NumTotalWorkItems++;
+					MinimumValues[0] = FMath::Min(MinimumValues[0], MorphDelta.PositionDelta.X);
+					MinimumValues[1] = FMath::Min(MinimumValues[1], MorphDelta.PositionDelta.Y);
+					MinimumValues[2] = FMath::Min(MinimumValues[2], MorphDelta.PositionDelta.Z);
+					MinimumValues[3] = FMath::Min(MinimumValues[3], FMath::Min(MorphDelta.TangentZDelta.X, FMath::Min(MorphDelta.TangentZDelta.Y, MorphDelta.TangentZDelta.Z)));
+
+					MaxVertexIndex = FMath::Max(MorphDelta.SourceIdx, MaxVertexIndex);
+					MorphTargetVertexInfoBuffers.VertexIndices.Add(MorphDelta.SourceIdx);
+					MorphTargetVertexInfoBuffers.MorphDeltas.Emplace(MorphDelta.PositionDelta, MorphDelta.TangentZDelta);
+					MorphTargetVertexInfoBuffers.NumTotalWorkItems++;
+				}
 			}
 
 			uint32 MorphTargetSize = MorphTargetVertexInfoBuffers.NumTotalWorkItems - StartOffset;

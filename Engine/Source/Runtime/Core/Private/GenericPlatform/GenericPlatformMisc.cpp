@@ -483,6 +483,12 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 		CurrentProfiler->StartScopedEvent(ANSI_TO_TCHAR(Text));
 	}
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 }
 
 void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text)
@@ -496,6 +502,12 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 		CurrentProfiler->StartScopedEvent(Text);
 	}
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 }
 
 void FGenericPlatformMisc::EndNamedEvent()
@@ -507,6 +519,12 @@ void FGenericPlatformMisc::EndNamedEvent()
 	if (CurrentProfiler != NULL)
 	{
 		CurrentProfiler->EndScopedEvent();
+	}
+#endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputEndEvent();
 	}
 #endif
 }
@@ -1448,4 +1466,33 @@ void FGenericPlatformMisc::ParseChunkIdPakchunkIndexMapping(TArray<FString> Chun
 			OutMapping.Add(ChunkId, PakchunkIndex);
 		}
 	}
+}
+
+int32 FGenericPlatformMisc::GetPakchunkIndexFromPakFile(const FString& InFilename)
+{
+	FString ChunkIdentifier(TEXT("pakchunk"));
+	FString BaseFilename = FPaths::GetBaseFilename(InFilename);
+	int32 ChunkNumber = INDEX_NONE;
+
+	if (BaseFilename.StartsWith(ChunkIdentifier))
+	{
+		int32 StartOfNumber = ChunkIdentifier.Len();
+		int32 DigitCount = 0;
+		if (FChar::IsDigit(BaseFilename[StartOfNumber]))
+		{
+			while ((DigitCount + StartOfNumber) < BaseFilename.Len() && FChar::IsDigit(BaseFilename[StartOfNumber + DigitCount]))
+			{
+				DigitCount++;
+			}
+
+			if ((StartOfNumber + DigitCount) < BaseFilename.Len())
+			{
+				FString ChunkNumberString = BaseFilename.Mid(StartOfNumber, DigitCount);
+				check(ChunkNumberString.IsNumeric());
+				TTypeFromString<int32>::FromString(ChunkNumber, *ChunkNumberString);
+			}
+		}
+	}
+
+	return ChunkNumber;
 }

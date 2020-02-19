@@ -2,8 +2,12 @@
 
 #pragma once
 
-#ifndef DISKELMESH_USE_EXTRA_INFLUENCES
-#define DISKELMESH_USE_EXTRA_INFLUENCES	0			// Default is 4 bone, this enables support for 4 & 8 bones
+#define DISKELMESH_BONE_INFLUENCES_DEFAULT		0
+#define DISKELMESH_BONE_INFLUENCES_EXTRA		1
+#define DISKELMESH_BONE_INFLUENCES_UNLIMITED	2
+
+#ifndef DISKELMESH_BONE_INFLUENCES
+#define DISKELMESH_BONE_INFLUENCES	DISKELMESH_BONE_INFLUENCES_DEFAULT
 #endif
 
 struct FDISkelMeshContext
@@ -11,6 +15,7 @@ struct FDISkelMeshContext
 	Buffer<uint>	MeshIndexBuffer;
 	Buffer<float>	MeshVertexBuffer;
 	Buffer<uint>	MeshSkinWeightBuffer;
+	Buffer<uint>	MeshSkinWeightLookupBuffer;
 	Buffer<float4>	MeshCurrBonesBuffer;
 	Buffer<float4>	MeshPrevBonesBuffer;
 	Buffer<float4>	MeshCurrSamplingBonesBuffer;
@@ -24,6 +29,7 @@ struct FDISkelMeshContext
 	uint			MeshTriangleCount;
 	uint			MeshVertexCount;
     uint			MeshWeightStride;
+	uint			MeshSkinWeightIndexSize;
 	uint			MeshNumTexCoord;
 	uint			MeshNumWeights;
 	uint			NumSpecificBones;
@@ -34,6 +40,7 @@ struct FDISkelMeshContext
 	float4x4		InstancePrevTransform;
 	float			InstanceInvDeltaTime;
 	bool			UniformTriangleSamplingEnable;
+	bool			UnlimitedBoneInfluences;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,26 +115,62 @@ FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedVertex(in FDISkelMeshContext DICon
 		float3x4 PrevBoneMatrix;
 		float3x4 CurrBoneMatrix;
 
-#if DISKELMESH_USE_EXTRA_INFLUENCES
-        uint WeightOffset = DIContext.MeshNumWeights == 8 ? 2 : 1;
+#if DISKELMESH_BONE_INFLUENCES == DISKELMESH_BONE_INFLUENCES_UNLIMITED
+		BRANCH
+		if (DIContext.UnlimitedBoneInfluences)
+		{
+			uint BlendOffsetCount = DIContext.MeshSkinWeightLookupBuffer[VertexIndex];
+			int NumBoneInfluences = BlendOffsetCount & 0xff;
+			int StreamOffset = BlendOffsetCount >> 8;
+			int WeightsOffset = StreamOffset + (DIContext.MeshSkinWeightIndexSize * NumBoneInfluences);
 
-        int4 BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride]);
-        float4 BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + WeightOffset]);
-        CurrBoneMatrix = DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
-        PrevBoneMatrix = DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
-		if (DIContext.MeshNumWeights == 8)
-        {
-            BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + 2]);
-            BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + WeightOffset + 1]);
-			CurrBoneMatrix += DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
-			PrevBoneMatrix += DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
-        }
-#else
-        int4 BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride]);
-        float4 BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + 1]);
-        CurrBoneMatrix = DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
-        PrevBoneMatrix = DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
+			PrevBoneMatrix = float3x4(float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0));
+			CurrBoneMatrix = float3x4(float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0));
+			for (int InfluenceIdx = 0; InfluenceIdx < NumBoneInfluences; InfluenceIdx++)
+			{
+				int BoneIndexOffset = StreamOffset + (DIContext.MeshSkinWeightIndexSize * InfluenceIdx);
+				int BoneIndex = DIContext.MeshSkinWeightBuffer[BoneIndexOffset];
+				if (DIContext.MeshSkinWeightIndexSize > 1)
+				{
+					BoneIndex = DIContext.MeshSkinWeightBuffer[BoneIndexOffset + 1] << 8 | BoneIndex;
+					//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
+					float BoneWeight = float(DIContext.MeshSkinWeightBuffer[WeightsOffset + InfluenceIdx]) / 255.0f;
+					PrevBoneMatrix += DISkelMesh_GetPrevBoneSkinningMatrix(DIContext, BoneIndex) * BoneWeight;
+					CurrBoneMatrix += DISkelMesh_GetCurrBoneSkinningMatrix(DIContext, BoneIndex) * BoneWeight;
+				}
+				else
+				{
+					//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
+					float BoneWeight = float(DIContext.MeshSkinWeightBuffer[WeightsOffset + InfluenceIdx]) / 255.0f;
+					PrevBoneMatrix += DISkelMesh_GetPrevBoneSkinningMatrix(DIContext, BoneIndex) * BoneWeight;
+					CurrBoneMatrix += DISkelMesh_GetCurrBoneSkinningMatrix(DIContext, BoneIndex) * BoneWeight;
+				}
+			}	
+		}
+		else
 #endif
+		{
+#if DISKELMESH_BONE_INFLUENCES > DISKELMESH_BONE_INFLUENCES_DEFAULT
+			uint WeightOffset = DIContext.MeshNumWeights == 8 ? 2 : 1;
+
+			int4 BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride]);
+			float4 BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + WeightOffset]);
+			CurrBoneMatrix = DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
+			PrevBoneMatrix = DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
+			if (DIContext.MeshNumWeights == 8)
+			{
+			    BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + 2]);
+			    BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + WeightOffset + 1]);
+				CurrBoneMatrix += DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
+				PrevBoneMatrix += DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
+			}
+#else
+			int4 BlendIndices = DISkelMesh_UnpackIndices4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride]);
+			float4 BlendWeights = DISkelMesh_UnpackWeights4(DIContext.MeshSkinWeightBuffer[VertexIndex * DIContext.MeshWeightStride + 1]);
+			CurrBoneMatrix = DISkelMesh_GetCurrSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
+			PrevBoneMatrix = DISkelMesh_GetPrevSkinningMatrix(DIContext, VertexIndex, BlendIndices, BlendWeights);
+#endif
+		}
 
 		CurrPosition = mul(CurrBoneMatrix, float4(CurrPosition, 1.0f)).xyz;
 		PrevPosition = mul(PrevBoneMatrix, float4(PrevPosition, 1.0f)).xyz;
@@ -415,7 +458,8 @@ void DISkelMesh_GetSpecificBoneCount(in FDISkelMeshContext DIContext, out int Co
 
 void DISkelMesh_GetSpecificBoneAt(in FDISkelMeshContext DIContext, in int InBoneIndex, out int Bone)
 {
-    Bone = (int)DIContext.SpecificBones[InBoneIndex];
+    int BoneIndex = min(InBoneIndex, int(DIContext.NumSpecificBones - 1));
+    Bone = (int)DIContext.SpecificBones[BoneIndex];
 }
 
 void DISkelMesh_RandomSpecificBone(in FDISkelMeshContext DIContext, out int Bone)
@@ -446,6 +490,7 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	Buffer<uint>	MeshIndexBuffer_ ## NAME; \
 	Buffer<float>	MeshVertexBuffer_ ## NAME; \
 	Buffer<uint>	MeshSkinWeightBuffer_ ## NAME; \
+	Buffer<uint>	MeshSkinWeightLookupBuffer_ ## NAME; \
 	Buffer<float4>	MeshCurrBonesBuffer_ ## NAME; \
 	Buffer<float4>	MeshPrevBonesBuffer_ ## NAME; \
 	Buffer<float4>	MeshCurrSamplingBonesBuffer_ ## NAME; \
@@ -459,6 +504,7 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	uint			MeshTriangleCount_ ## NAME; \
 	uint			MeshVertexCount_ ## NAME; \
 	uint			MeshWeightStride_ ## NAME; \
+	uint			MeshSkinWeightIndexSize_ ## NAME; \
 	uint			MeshNumTexCoord_ ## NAME; \
 	uint			MeshNumWeights_ ## NAME; \
 	uint			NumSpecificBones_ ## NAME; \
@@ -475,6 +521,7 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	DIContext.MeshIndexBuffer = MeshIndexBuffer_ ## NAME; \
 	DIContext.MeshVertexBuffer = MeshVertexBuffer_ ## NAME; \
 	DIContext.MeshSkinWeightBuffer = MeshSkinWeightBuffer_ ## NAME; \
+	DIContext.MeshSkinWeightLookupBuffer = MeshSkinWeightLookupBuffer_ ## NAME; \
 	DIContext.MeshCurrBonesBuffer = MeshCurrBonesBuffer_ ## NAME; \
 	DIContext.MeshPrevBonesBuffer = MeshPrevBonesBuffer_ ## NAME; \
 	DIContext.MeshCurrSamplingBonesBuffer = MeshCurrSamplingBonesBuffer_ ## NAME; \
@@ -494,8 +541,9 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	DIContext.NumSpecificSockets = NumSpecificSockets_ ## NAME; \
 	DIContext.SpecificSocketBoneOffset = SpecificSocketBoneOffset_ ## NAME; \
 	DIContext.MeshWeightStride = MeshWeightStride_ ## NAME; \
+	DIContext.MeshSkinWeightIndexSize = MeshSkinWeightIndexSize_ ## NAME; \
 	DIContext.InstanceTransform = InstanceTransform_ ## NAME; \
 	DIContext.InstancePrevTransform = InstancePrevTransform_ ## NAME; \
 	DIContext.InstanceInvDeltaTime = InstanceInvDeltaTime_ ## NAME; \
 	DIContext.UniformTriangleSamplingEnable = EnabledFeatures_ ## NAME & 0x1; \
-
+	DIContext.UnlimitedBoneInfluences = EnabledFeatures_ ## NAME & 0x2; \

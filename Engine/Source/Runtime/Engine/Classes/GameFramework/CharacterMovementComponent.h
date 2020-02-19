@@ -2075,7 +2075,7 @@ protected:
 	virtual void PerformMovement(float DeltaTime);
 
 	/** Special Tick for Simulated Proxies */
-	void SimulatedTick(float DeltaSeconds);
+	virtual void SimulatedTick(float DeltaSeconds);
 
 	/** Simulate movement on a non-owning client. Called by SimulatedTick(). */
 	virtual void SimulateMovement(float DeltaTime);

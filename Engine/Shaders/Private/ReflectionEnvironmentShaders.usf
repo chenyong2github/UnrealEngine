@@ -31,8 +31,11 @@ void CopyToCubeFaceVS(
 
 int CubeFace;
 
-Texture2D InTexture;
-SamplerState InTextureSampler;
+Texture2D SceneColorTexture;
+SamplerState SceneColorSampler;
+
+Texture2D SceneDepthTexture;
+SamplerState SceneDepthSampler;
 
 /** 
  * X = 0 if capturing sky light, 1 if capturing reflection capture with MaxDistance fade, 2 otherwise, 
@@ -46,9 +49,12 @@ void CopySceneColorToCubeFaceColorPS(
 	FCopyToCubeFaceVSOutput Input,
 	out float4 OutColor : SV_Target0
 	)
-{ 
-	float SceneDepth = CalcSceneDepth(Input.UV);
-	float3 SceneColor = Texture2DSample(InTexture, InTextureSampler, Input.UV).rgb;
+{
+	float SceneDepth = SCENE_TEXTURES_DISABLED_SCENE_DEPTH_VALUE;
+#if !SCENE_TEXTURES_DISABLED
+	SceneDepth = ConvertFromDeviceZ(Texture2DSample(SceneDepthTexture, SceneDepthSampler, Input.UV).r);
+#endif
+	float3 SceneColor = Texture2DSample(SceneColorTexture, SceneColorSampler, Input.UV).rgb;
 
 	// Convert INF's to valid values
 	SceneColor = ClampToHalfFloatRange(SceneColor);
@@ -135,8 +141,8 @@ float CubeTexelWeight( float3 N )
 }
 
 
-TextureCube SourceTexture;
-SamplerState SourceTextureSampler;
+TextureCube CubemapTexture;
+SamplerState CubemapSampler;
 float2 SinCosSourceCubemapRotation;
 
 void CopyCubemapToCubeFaceColorPS(
@@ -148,7 +154,7 @@ void CopyCubemapToCubeFaceColorPS(
 	float3 CubeCoordinates = GetCubemapVector(ScaledUVs);
 	// Rotate around Z axis
 	CubeCoordinates.xy = float2(dot(CubeCoordinates.xy, float2(SinCosSourceCubemapRotation.y, -SinCosSourceCubemapRotation.x)), dot(CubeCoordinates.xy, SinCosSourceCubemapRotation));
-	OutColor = TextureCubeSampleLevel(SourceTexture, SourceTextureSampler, CubeCoordinates, 0);
+	OutColor = TextureCubeSampleLevel(CubemapTexture, CubemapSampler, CubeCoordinates, 0);
 
 	if (SkyLightCaptureParameters.x > 0)
 	{
@@ -165,6 +171,9 @@ void CopyCubemapToCubeFaceColorPS(
 
 uint MipIndex;
 uint NumMips;
+
+TextureCube SourceTexture;
+SamplerState SourceTextureSampler;
 
 void DownsamplePS(
 	FScreenVertexOutput Input,

@@ -49,6 +49,12 @@ private:
 
 	void DeleteSelectedEntries() const;
 
+	FText GetCanRenameSelectedEntriesToolTip() const;
+
+	bool CanRenameSelectedEntries() const;
+
+	void RenameSelectedEntries();
+
 private:
 	TSharedRef<FUICommandList> Commands;
 

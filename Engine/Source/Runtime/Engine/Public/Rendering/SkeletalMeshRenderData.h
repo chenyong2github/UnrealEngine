@@ -41,7 +41,7 @@ public:
 	FSkeletalMeshRenderData();
 
 #if WITH_EDITOR
-	void Cache(USkeletalMesh* Owner);
+	void Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner);
 
 	void SyncUVChannelData(const TArray<FSkeletalMaterial>& ObjectData);
 #endif

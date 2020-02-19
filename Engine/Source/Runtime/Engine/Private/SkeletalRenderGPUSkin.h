@@ -114,8 +114,11 @@ public:
 	/** Update Simulated Positions & Normals from APEX Clothing actor */
 	bool UpdateClothSimulationData(USkinnedMeshComponent* InMeshComponent);
 
+	// Whether this LOD is allowed to use the skin cache feature
+	uint8 bIsSkinCacheAllowed : 1;
+
 #if RHI_RAYTRACING
-	bool bAnySegmentUsesWorldPositionOffset;
+	uint8 bAnySegmentUsesWorldPositionOffset : 1;
 #endif
 };
 
@@ -561,22 +564,6 @@ public:
 		MorphDeltasParameter.Bind(Initializer.ParameterMap, TEXT("MorphDeltas"));
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << MorphVertexBufferParameter;
-
-		Ar << MorphTargetWeightParameter;
-		Ar << ThreadOffsetsParameter;
-		Ar << GlobalDispatchOffsetParameter;
-		Ar << PositionScaleParameter;
-
-		Ar << VertexIndicesParameter;
-		Ar << MorphDeltasParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 	void SetParameters(FRHICommandList& RHICmdList, const FVector4& LocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer);
 	void SetOffsetAndSize(FRHICommandList& RHICmdList, uint32 StartIndex, uint32 EndIndexPlusOne, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, const TArray<float>& MorphTargetWeights);
 
@@ -589,16 +576,16 @@ public:
 	}
 
 protected:
-	FShaderResourceParameter MorphVertexBufferParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, MorphVertexBufferParameter);
 
-	FShaderParameter MorphTargetWeightParameter;
-	FShaderParameter OffsetAndSizeParameter;
-	FShaderParameter ThreadOffsetsParameter;
-	FShaderParameter GlobalDispatchOffsetParameter;
-	FShaderParameter PositionScaleParameter;
+	LAYOUT_FIELD(FShaderParameter, MorphTargetWeightParameter);
+	LAYOUT_FIELD(FShaderParameter, OffsetAndSizeParameter);
+	LAYOUT_FIELD(FShaderParameter, ThreadOffsetsParameter);
+	LAYOUT_FIELD(FShaderParameter, GlobalDispatchOffsetParameter);
+	LAYOUT_FIELD(FShaderParameter, PositionScaleParameter);
 
-	FShaderResourceParameter VertexIndicesParameter;
-	FShaderResourceParameter MorphDeltasParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, VertexIndicesParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MorphDeltasParameter);
 };
 
 class FGPUMorphNormalizeCS : public FGlobalShader
@@ -620,21 +607,6 @@ public:
 		PositionScaleParameter.Bind(Initializer.ParameterMap, TEXT("PositionScale"));
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << MorphVertexBufferParameter;
-		Ar << MorphPermutationBufferParameter;
-
-		Ar << MorphTargetWeightParameter;
-		Ar << ThreadOffsetsParameter;
-		Ar << GlobalDispatchOffsetParameter;
-		Ar << PositionScaleParameter;
-
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
@@ -647,11 +619,11 @@ public:
 	void EndAllDispatches(FRHICommandList& RHICmdList);
 
 protected:
-	FShaderResourceParameter MorphVertexBufferParameter;
-	FShaderResourceParameter MorphPermutationBufferParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, MorphVertexBufferParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MorphPermutationBufferParameter);
 
-	FShaderParameter MorphTargetWeightParameter;
-	FShaderParameter ThreadOffsetsParameter;
-	FShaderParameter GlobalDispatchOffsetParameter;
-	FShaderParameter PositionScaleParameter;
+	LAYOUT_FIELD(FShaderParameter, MorphTargetWeightParameter);
+	LAYOUT_FIELD(FShaderParameter, ThreadOffsetsParameter);
+	LAYOUT_FIELD(FShaderParameter, GlobalDispatchOffsetParameter);
+	LAYOUT_FIELD(FShaderParameter, PositionScaleParameter);
 };

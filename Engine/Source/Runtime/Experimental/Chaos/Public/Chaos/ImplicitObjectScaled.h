@@ -377,7 +377,7 @@ public:
 
 			TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
 			
-			if (MObject->SweepGeom(ScaledB, BToATMNoScale, UnscaledDir, UnscaledLength, UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex, MInternalThickness + Thickness, bComputeMTD))
+			if (MObject->SweepGeom(ScaledB, BToATMNoScale, UnscaledDir, UnscaledLength, UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex, MInternalThickness + Thickness, bComputeMTD, MScale))
 			{
 				const T NewTime = LengthScaleInv * UnscaledTime;
 				//We double check that NewTime < Length because of potential precision issues. When that happens we always keep the shortest hit first
@@ -394,6 +394,15 @@ public:
 		return false;
 	}
 
+	template <typename QueryGeomType>
+	bool GJKContactPoint(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+	{
+		TRigidTransform<T, d> AToBTMNoScale(AToBTM.GetLocation() * MInvScale, AToBTM.GetRotation());
+
+		auto ScaledA = MakeScaledHelper(A, MInvScale);
+		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, MInternalThickness + Thickness, Location, Normal, Penetration, MScale);
+	}
+
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
 	template <typename QueryGeomType>
 	bool LowLevelOverlapGeom(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0, FMTDInfo* OutMTD = nullptr) const
@@ -402,7 +411,7 @@ public:
 
 		auto ScaledB = MakeScaledHelper(B, MInvScale);
 		TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
-		return MObject->OverlapGeom(ScaledB, BToATMNoScale, MInternalThickness + Thickness, OutMTD);
+		return MObject->OverlapGeom(ScaledB, BToATMNoScale, MInternalThickness + Thickness, OutMTD, MScale);
 	}
 
 	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
@@ -449,7 +458,11 @@ public:
 	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const override
 	{
 		const TVector<T, d> UnscaledPoint = MInvScale * Point;
-		return MObject->Overlap(UnscaledPoint, MInternalThickness + Thickness);
+
+		// TODO: consider alternative that handles thickness scaling properly in 3D, only works for uniform scaling right now
+		const T UnscaleThickness = MInvScale[0] * Thickness; 
+
+		return MObject->Overlap(UnscaledPoint, MInternalThickness + UnscaleThickness);
 	}
 
 	virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override
@@ -502,7 +515,9 @@ public:
 	{
 		if (T UnscaledMargin = MObject->GetMargin())
 		{
-			ensure(MScale[0] == MScale[1] && MScale[1] == MScale[2]);
+			CHAOS_ENSURE(FMath::IsNearlyEqual(MScale[0], MScale[1], KINDA_SMALL_NUMBER));
+			CHAOS_ENSURE(FMath::IsNearlyEqual(MScale[1], MScale[2], KINDA_SMALL_NUMBER));
+
 			return UnscaledMargin * FMath::Abs(MScale[0]);
 		}
 

@@ -45,6 +45,7 @@
 #include "Engine/Texture2DArray.h"
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -428,7 +429,7 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 }
 
 #if WITH_EDITORONLY_DATA
-uint32 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey)
+uint32 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName)
 {
 	int32 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
@@ -442,7 +443,7 @@ uint32 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey
 		BulkData.Unlock();
 	}
 	const uint32 Result = DerivedData.Num();
-	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData);
+	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, TextureName);
 	DerivedDataKey = InDerivedDataKey;
 	BulkData.RemoveBulkData();
 	return Result;
@@ -540,7 +541,7 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 #else
 			OutBulkDataFilename = PlatformData->CachedPackageFileName;
 
-			if (PlatformData->Mips[MipIndex].BulkData.InSeperateFile())
+			if (PlatformData->Mips[MipIndex].BulkData.IsInSeperateFile())
 			{	
 				const bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.IsOptional();
 				OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
@@ -1608,6 +1609,8 @@ FTexture2DResource::~FTexture2DResource()
  */
 void FTexture2DResource::InitRHI()
 {
+	SCOPED_LOADTIMER(FTexture2DResource_InitRHI);
+
 	FTexture2DScopedDebugInfo ScopedDebugInfo(Owner);
 	INC_DWORD_STAT_BY( STAT_TextureMemory, TextureSize );
 	INC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );

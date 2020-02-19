@@ -35,7 +35,7 @@ public:
 	FMetalCommandQueue& GetCommandQueue();
 	FMetalCommandList& GetCommandList();
 	mtlpp::CommandBuffer const& GetCurrentCommandBuffer() const;
-	mtlpp::CommandBuffer& GetCurrentCommandBuffer();
+	mtlpp::CommandBuffer& METALRHI_API GetCurrentCommandBuffer();
 	FMetalStateCache& GetCurrentState() { return StateCache; }
 	FMetalRenderPass& GetCurrentRenderPass() { return RenderPass; }
 	

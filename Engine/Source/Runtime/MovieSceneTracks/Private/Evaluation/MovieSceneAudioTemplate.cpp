@@ -250,6 +250,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 		: AudioSection(InAudioSection), SectionKey(InAudioSection)
 	{}
 
+
 	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
 	{
 		FCachedAudioTrackData& TrackData = PersistentData.GetOrAddTrackData<FCachedAudioTrackData>();
@@ -268,8 +269,9 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			const FMovieSceneActorReferenceData& AttachActorData = AudioSection->GetAttachActorData();
 
 			USceneComponent* AttachComponent = nullptr;
-
-			FMovieSceneObjectBindingID AttachBindingID = AttachActorData.Evaluate(Context.GetTime()).Object;
+			FMovieSceneActorReferenceKey AttachKey;
+			AttachActorData.Evaluate(Context.GetTime(), AttachKey);
+			FMovieSceneObjectBindingID AttachBindingID = AttachKey.Object;
 			if (AttachBindingID.IsValid())
 			{
 				FMovieSceneSequenceID SequenceID = Operand.SequenceID;
@@ -285,19 +287,10 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 
 				for (TWeakObjectPtr<> WeakObject : Player.FindBoundObjects(ObjectOperand))
 				{
-					UObject* AttachObject = WeakObject.Get();
-					if (AttachObject)
+					AActor* AttachActor = Cast<AActor>(WeakObject.Get());
+					if (AttachActor)
 					{
-						if (AttachObject->IsA<AActor>())
-						{
-							AActor* Actor = Cast<AActor>(AttachObject);
-							AttachComponent = Actor->GetRootComponent();
-						}
-						else if (AttachObject->IsA<UActorComponent>())
-						{
-							UActorComponent* ActorComponent = Cast<UActorComponent>(AttachObject);
-							AttachComponent = Cast<USceneComponent>(ActorComponent);
-						}
+						AttachComponent = AudioSection->GetAttachComponent(AttachActor, AttachKey);
 					}
 					if (AttachComponent)
 					{
@@ -331,9 +324,9 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 
 			if (AudioComponent)
 			{
-				if (AttachComponent)
+				if (AttachComponent && (AudioComponent->GetAttachParent() != AttachComponent || AudioComponent->GetAttachSocketName() != AttachKey.SocketName))
 				{
-					AudioComponent->AttachToComponent(AttachComponent, FAttachmentTransformRules::KeepRelativeTransform);
+					AudioComponent->AttachToComponent(AttachComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachKey.SocketName);
 				}
 
 				EnsureAudioIsPlaying(*AudioComponent, PersistentData, Context, AudioComponent->GetAttachParent() != nullptr, Player);

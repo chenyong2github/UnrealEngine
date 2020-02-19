@@ -5,7 +5,7 @@
 #include "SNiagaraParameterCollection.h"
 
 #include "NiagaraObjectSelection.h"
-#include "SNiagaraSelectedObjectsDetails.h"
+#include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraEditorStyle.h"
 #include "ScopedTransaction.h"

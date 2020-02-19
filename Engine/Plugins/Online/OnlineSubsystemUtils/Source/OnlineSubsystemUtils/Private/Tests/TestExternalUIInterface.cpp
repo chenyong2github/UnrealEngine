@@ -2,22 +2,28 @@
 
 #include "Tests/TestExternalUIInterface.h"
 #include "OnlineSubsystem.h"
+#include "Internationalization/Text.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-void FTestExternalUIInterface::Test()
+void FTestExternalUIInterface::PrepareTests()
 {
 	// Cache interfaces
 	OnlineSub = IOnlineSubsystem::Get(FName(*SubsystemName));
-	check(OnlineSub); 
+	check(OnlineSub);
 
 	ExternalUI = OnlineSub->GetExternalUIInterface();
 	check(ExternalUI.IsValid());
 
 	// Define and register delegates
-	ExternalUIChangeDelegate       = FOnExternalUIChangeDelegate::CreateRaw(this, &FTestExternalUIInterface::OnExternalUIChange);
+	ExternalUIChangeDelegate = FOnExternalUIChangeDelegate::CreateRaw(this, &FTestExternalUIInterface::OnExternalUIChange);
 	ExternalUIChangeDelegateHandle = ExternalUI->AddOnExternalUIChangeDelegate_Handle(ExternalUIChangeDelegate);
+}
+
+void FTestExternalUIInterface::Test()
+{
+	PrepareTests();
 
 	// Are we testing at least one of our external UI?
 	if (bTestLoginUI == false && bTestFriendsUI == false && bTestInviteUI == false && bTestAchievementsUI == false && bTestWebURL == false && bTestProfileUI == false)
@@ -28,6 +34,61 @@ void FTestExternalUIInterface::Test()
 	else
 	{
 		StartNextTest();
+	}
+}
+
+void FTestExternalUIInterface::TestSendMessage(const FString& InMsgRecepient, const FString& InMessage)
+{
+	PrepareTests();
+	bIsolatedTest = true;
+
+	if (InMsgRecepient.IsEmpty())
+	{
+		UE_LOG_ONLINE_EXTERNALUI(Error, TEXT("ExternalUI TestSendMessage -- InMsgRecepient must not be empty!"));
+		FinishTest();
+		return;
+	}
+
+	TSharedPtr<const FUniqueNetId> TargetUser = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InMsgRecepient);
+	if (!TargetUser.IsValid())
+	{
+		UE_LOG_ONLINE_EXTERNALUI(Error, TEXT("ExternalUI TestSendMessage -- Message target user is invalid!"));
+		FinishTest();
+		return;
+	}
+
+	FShowSendMessageParams MessageParams;
+	MessageParams.DisplayMessage = FText::FromString(InMessage);
+
+	bool bWasOpened = ExternalUI->ShowSendMessageToUserUI(0, *TargetUser, MessageParams, FOnShowSendMessageUIClosedDelegate::CreateRaw(this, &FTestExternalUIInterface::OnSendMessageUIClosed));
+	UE_LOG_ONLINE_EXTERNALUI(Log, TEXT("ExternalUI TestSendMessage -- Message test opened %d"), bWasOpened);
+	if (!bWasOpened)
+	{
+		FinishTest();
+	}
+}
+
+void FTestExternalUIInterface::TestStorePage(const FString& InProductId, bool bShouldAddToCart)
+{
+	PrepareTests();
+	bIsolatedTest = true;
+
+	if (InProductId.IsEmpty())
+	{
+		UE_LOG_ONLINE_EXTERNALUI(Error, TEXT("ExternalUI TestStorePage -- Product Id must not be empty!"));
+		FinishTest();
+		return;
+	}
+
+	FShowStoreParams StoreParams;
+	StoreParams.ProductId = InProductId;
+	StoreParams.bAddToCart = bShouldAddToCart;
+
+	bool bWasOpened = ExternalUI->ShowStoreUI(0, StoreParams, FOnShowStoreUIClosedDelegate::CreateRaw(this, &FTestExternalUIInterface::OnStoreUIClosed));
+	UE_LOG_ONLINE_EXTERNALUI(Log, TEXT("ExternalUI TestStorePage -- Store test opened %d"), bWasOpened);
+	if (!bWasOpened)
+	{
+		FinishTest();
 	}
 }
 
@@ -177,9 +238,16 @@ void FTestExternalUIInterface::OnExternalUIChange(bool bIsOpening)
 
 	if (bIsOpening == false)
 	{
-		// The external UI is no longer active
-		// Move on to the next test
-		StartNextTest();
+		if (bIsolatedTest)
+		{
+			FinishTest();
+		}
+		else
+		{
+			// The external UI is no longer active
+			// Move on to the next test
+			StartNextTest();
+		}
 	}
 }
 
@@ -196,6 +264,16 @@ void FTestExternalUIInterface::OnProfileUIClosed()
 void FTestExternalUIInterface::OnShowWebUrlClosed(const FString& FinalUrl)
 {
 	UE_LOG_ONLINE_EXTERNALUI(Log, TEXT("Show Web Url closed with FinalUrl=%s."), *FinalUrl);
+}
+
+void FTestExternalUIInterface::OnStoreUIClosed(bool bWasPurchased)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Log, TEXT("Store UI was closed. Purchase Made: %d"), bWasPurchased);
+}
+
+void FTestExternalUIInterface::OnSendMessageUIClosed(bool bWasSent)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Log, TEXT("Send Message UI closed. Message sent: %d"), bWasSent);
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS

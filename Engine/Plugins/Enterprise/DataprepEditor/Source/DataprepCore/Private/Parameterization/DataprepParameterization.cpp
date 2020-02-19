@@ -163,9 +163,9 @@ namespace DataprepParameterization
 			}
 
 			if ( NumberOfObject == ValueTypeValidationData.Num() )
-			{
-				ValueTypeValidationData.Add( CurrentProperty->GetClass() );
-			}
+				{
+					ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+				}
 		}
 	}
 
@@ -520,6 +520,40 @@ FDataprepParameterizationBinding::FDataprepParameterizationBinding(UDataprepPara
 			DataprepParameterization::PopulateValueTypeValidationData( Property, ValueTypeValidationData );
 		}
 	}
+}
+
+bool FDataprepParameterizationBinding::Serialize(FArchive& Ar)
+{
+	check(false); // @todo FProperties: if we never hit this, we don't need this
+
+	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
+
+	UScriptStruct* Struct = FDataprepParameterizationBinding::StaticStruct();
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
+
+#if WITH_EDITORONLY_DATA
+	//Take old data and put it in new data structure
+	if (Ar.IsLoading() && Ar.CustomVer(FCoreObjectVersion::GUID) < FCoreObjectVersion::FProperties)
+	{
+		//if (ValueType_DEPRECATED)
+		//{
+		//	ValueType = FFieldClass::GetNameToFieldClassMap().FindRef(ValueType_DEPRECATED->GetFName());
+		//}
+		//else
+		//{
+		//	ValueType = nullptr;
+		//}
+	}
+	else
+#endif // WITH_EDITORONLY_DATA
+	{
+		ValueTypeValidationData.Serialize(Ar);
+	}
+
+	return true;
 }
 
 bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
@@ -1158,9 +1192,9 @@ void UDataprepParameterization::OnObjectPostEdit(UDataprepParameterizableObject*
 
 			TSharedPtr<FDataprepParameterizationBinding> Binding = BindingsContainer->GetContainingBinding( BindingForModifiedProperty );
 			if ( Binding )
-		{
+			{
 				UpdateParameterizationFromBinding( Binding.ToSharedRef() );
-		}
+			}
 		}
 	}
 }
@@ -1343,7 +1377,9 @@ void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateDa
 
 		if ( bMigrateData )
 		{
-			GEngine->CopyPropertiesForUnrelatedObjects( OldClass->GetDefaultObject(), CustomContainerClass->GetDefaultObject() );
+			UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+			Options.bNotifyObjectReplacement = true;
+			UEngine::CopyPropertiesForUnrelatedObjects( OldClass->GetDefaultObject(), CustomContainerClass->GetDefaultObject(), Options );
 		}
 
 		// For the instances
@@ -1365,7 +1401,9 @@ void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateDa
 				
 				if ( bMigrateData )
 				{
-					GEngine->CopyPropertiesForUnrelatedObjects( OldObject, Object );
+					UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+					Options.bNotifyObjectReplacement = true;
+					UEngine::CopyPropertiesForUnrelatedObjects( OldObject, Object, Options );
 				}
 
 				OldToNew.Add( OldObject, Object );

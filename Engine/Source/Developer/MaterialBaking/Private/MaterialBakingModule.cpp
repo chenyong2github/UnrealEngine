@@ -252,7 +252,9 @@ void FMaterialBakingModule::StartupModule()
 	PerPropertyFormat[MP_Metallic] = PF_B8G8R8A8;
 	PerPropertyFormat[MP_Specular] = PF_B8G8R8A8;
 	PerPropertyFormat[MP_Roughness] = PF_B8G8R8A8;
+	PerPropertyFormat[MP_Anisotropy] = PF_B8G8R8A8;
 	PerPropertyFormat[MP_Normal] = PF_B8G8R8A8;
+	PerPropertyFormat[MP_Tangent] = PF_B8G8R8A8;
 	PerPropertyFormat[MP_AmbientOcclusion] = PF_B8G8R8A8;
 	PerPropertyFormat[MP_SubsurfaceColor] = PF_B8G8R8A8;
 

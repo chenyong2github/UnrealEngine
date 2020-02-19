@@ -268,7 +268,7 @@ public:
 		}
 
 		// Get the audio main device
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 
 		bool bSuccess = false;
 
@@ -278,7 +278,7 @@ public:
 			FAudioQualitySettings QualitySettings = AudioDevice->GetQualityLevelSettings();
 
 			// Initialize the audio device
-			bSuccess = AudioDevice->Init(QualitySettings.MaxChannels);
+			bSuccess = AudioDevice->Init(AudioDevice.GetDeviceID(), QualitySettings.MaxChannels);
 
 			if (bSuccess)
 			{
@@ -335,7 +335,7 @@ public:
 
 		LoadEditorAndEngineObjects<USoundWave>(SearchPaths, SoundWaves, &IgnoreList);
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 
 		bool bSuccess = false;
 
@@ -348,7 +348,7 @@ public:
 			FAudioQualitySettings QualitySettings = AudioDevice->GetQualityLevelSettings();
 
 			// Initialize the audio device
-			bSuccess = AudioDevice->Init(QualitySettings.MaxChannels);
+			bSuccess = AudioDevice->Init(AudioDevice.GetDeviceID(), QualitySettings.MaxChannels);
 
 			// Wait a few seconds to give the editor a chance to load everything... you get hitches in the beginning otherwise
 			FPlatformProcess::Sleep(1);
@@ -364,7 +364,7 @@ public:
 					{
 						int32 NumActiveSounds = AudioDevice->GetNumActiveSources();
 
-						PlayOneShotSound(AudioDevice, SoundWaves);
+						PlayOneShotSound(AudioDevice.GetAudioDevice(), SoundWaves);
 					}
 
 					CurrentTime = AudioDevice->GetAudioTime();
@@ -420,7 +420,7 @@ public:
 
 		LoadEditorAndEngineObjects<USoundWave>(SearchPaths, SoundWaves, &IgnoreList);
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 
 		bool bSuccess = false;
 		float TimeCount = 0.0f;
@@ -432,7 +432,7 @@ public:
 			FAudioQualitySettings QualitySettings = AudioDevice->GetQualityLevelSettings();
 
 			// Initialize the audio device
-			bSuccess = AudioDevice->Init(QualitySettings.MaxChannels);
+			bSuccess = AudioDevice->Init(AudioDevice.GetDeviceID(), QualitySettings.MaxChannels);
 
 			// Wait a few seconds to give the editor a chance to load everything... you get hitches in the beginning otherwise
 			FPlatformProcess::Sleep(1);
@@ -441,7 +441,7 @@ public:
 
 			if (bSuccess)
 			{
-				UAudioComponent* LoopingSound = SpawnLoopingSound(AudioDevice, World, SoundWaves);
+				UAudioComponent* LoopingSound = SpawnLoopingSound(AudioDevice.GetAudioDevice(), World, SoundWaves);
 
 				while (true)
 				{
@@ -501,7 +501,7 @@ public:
 			SoundWave->SoundGroup = ESoundGroup::SOUNDGROUP_Music;
 		}
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 
 		bool bSuccess = false;
 		float TimeCount = 0.0f;
@@ -513,7 +513,7 @@ public:
 			FAudioQualitySettings QualitySettings = AudioDevice->GetQualityLevelSettings();
 
 			// Initialize the audio device
-			bSuccess = AudioDevice->Init(QualitySettings.MaxChannels);
+			bSuccess = AudioDevice->Init(AudioDevice.GetDeviceID(), QualitySettings.MaxChannels);
 
 			// Wait a few seconds to give the editor a chance to load everything... you get hitches in the beginning otherwise
 			FPlatformProcess::Sleep(1);
@@ -522,7 +522,7 @@ public:
 
 			if (bSuccess)
 			{
-				UAudioComponent* LoopingSound = SpawnLoopingSound(AudioDevice, World, SoundWaves);
+				UAudioComponent* LoopingSound = SpawnLoopingSound(AudioDevice.GetAudioDevice(), World, SoundWaves);
 				LoopingSound->Play(0.0f);
 
 				while (true)
@@ -586,7 +586,7 @@ public:
 
 		LoadEditorAndEngineObjects<USoundWave>(SearchPaths, SoundWaves, &IgnoreList);
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 		if (!AudioDevice)
 		{
 			return false;
@@ -609,7 +609,7 @@ public:
 
 		for (int32 i = 0; i < NumLoops; ++i)
 		{
-			UAudioComponent* LoopingSound = SpawnLoopingSound(AudioDevice, World, SoundWaves);
+			UAudioComponent* LoopingSound = SpawnLoopingSound(AudioDevice.GetAudioDevice(), World, SoundWaves);
 			if (!LoopingSound)
 			{
 				return false;
@@ -711,7 +711,7 @@ public:
 
 		LoadEditorAndEngineObjects<USoundAttenuation>(SearchPaths, SoundAttenuations);
 
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 		if (!AudioDevice)
 		{
 			return false;
@@ -737,7 +737,7 @@ public:
 			int32 AttenuationIndex = FMath::RandRange(0, SoundAttenuations.Num() - 1);
 			USoundAttenuation* Attenuation = SoundAttenuations[AttenuationIndex];
 
-			UAudioComponent* LoopingSound = SpawnLoopingSound(AudioDevice, World, SoundWaves, true, Attenuation);
+			UAudioComponent* LoopingSound = SpawnLoopingSound(AudioDevice.GetAudioDevice(), World, SoundWaves, true, Attenuation);
 			if (!LoopingSound)
 			{
 				return false;

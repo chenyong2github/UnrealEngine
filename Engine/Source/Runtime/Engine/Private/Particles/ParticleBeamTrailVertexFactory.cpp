@@ -17,16 +17,9 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleBeamTrailUniformParameters,"Be
  */
 class FParticleBeamTrailVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FParticleBeamTrailVertexFactoryShaderParameters, NonVirtual);
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
-	{
-	}
-
-	virtual void Serialize(FArchive& Ar) override
-	{
-	}
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -35,11 +28,14 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		FParticleBeamTrailVertexFactory* BeamTrailVF = (FParticleBeamTrailVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FParticleBeamTrailUniformParameters>(), BeamTrailVF->GetBeamTrailUniformBuffer() );
 	}
+
+	
+	
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -107,17 +103,17 @@ static TGlobalResource<FParticleBeamTrailVertexDeclaration> GParticleBeamTrailVe
 
 ///////////////////////////////////////////////////////////////////////////////
 
-bool FParticleBeamTrailVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FParticleBeamTrailVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return Material->IsUsedWithBeamTrails() || Material->IsSpecialEngineMaterial();
+	return Parameters.MaterialParameters.bIsUsedWithBeamTrails || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
 }
 
 /**
  * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
  */
-void FParticleBeamTrailVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FParticleBeamTrailVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FParticleVertexFactoryBase::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	FParticleVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("PARTICLE_BEAMTRAIL_FACTORY"),TEXT("1"));
 }
 
@@ -131,11 +127,6 @@ void FParticleBeamTrailVertexFactory::InitRHI()
 
 	FVertexStream* VertexStream = new(Streams) FVertexStream;
 	FVertexStream* DynamicParameterStream = new(Streams) FVertexStream;
-}
-
-FVertexFactoryShaderParameters* FParticleBeamTrailVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new FParticleBeamTrailVertexFactoryShaderParameters() : NULL;
 }
 
 void FParticleBeamTrailVertexFactory::SetVertexBuffer(const FVertexBuffer* InBuffer, uint32 StreamOffset, uint32 Stride)
@@ -168,5 +159,7 @@ void FParticleBeamTrailVertexFactory::SetDynamicParameterBuffer(const FVertexBuf
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FParticleBeamTrailVertexFactory, SF_Vertex, FParticleBeamTrailVertexFactoryShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FParticleBeamTrailVertexFactory,"/Engine/Private/ParticleBeamTrailVertexFactory.ush",true,false,true,false,false);

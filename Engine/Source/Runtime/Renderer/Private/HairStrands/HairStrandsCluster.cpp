@@ -105,7 +105,7 @@ static void AddHairMacroGroupAABBPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("HairStrandsMacroGroupAABBUpdate"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			FIntVector(1,1,1));
 
@@ -142,7 +142,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 			int32 MaterialId = 0;
 			FHairStrandsMacroGroupDatas& MacroGroups = MacroGroupsViews.Views.AddDefaulted_GetRef();
 
-			if (View.HairStrandsMeshElements.Num() == 0)
+			if (View.HairStrandsMeshElements.Num() == 0 || View.bIsPlanarReflection || View.bIsReflectionCapture)
 			{
 				continue;
 			}
@@ -151,7 +151,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 			uint32 MacroGroupId = 0;
 			auto UpdateMacroGroup = [&MacroGroups, &View, &MacroGroupId, &MaterialId](const FMeshBatchAndRelevance* MeshBatchAndRelevance, const FPrimitiveSceneProxy* Proxy)
 			{
-				const bool bIsHairStrandsFactory = MeshBatchAndRelevance->Mesh->VertexFactory->GetType()->GetId() == CompatibleVF->GetId();
+				const bool bIsHairStrandsFactory = MeshBatchAndRelevance->Mesh->VertexFactory->GetType()->GetHashedName() == CompatibleVF->GetHashedName();
 				if (!bIsHairStrandsFactory)
 					return;
 

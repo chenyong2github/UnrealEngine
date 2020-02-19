@@ -72,10 +72,10 @@ public:
 
 #endif
 
-	FORCEINLINE static int32 GetDetailLevel() { return EngineDetailLevel; }
+	FORCEINLINE static int32 GetEffectsQuality() { return EngineEffectsQuality; }
+
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
 	FORCEINLINE static float GetGlobalSystemCountScale() { return EngineGlobalSystemCountScale; }
-	static bool IsTargetPlatformIncludedInLevelRangeForCook(const ITargetPlatform* InTargetPlatform, const class UNiagaraEmitter* InEmitter);
 
 	static float EngineGlobalSpawnCountScale;
 	static float EngineGlobalSystemCountScale;
@@ -165,6 +165,8 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_DataInstance_Alive() { return DataInstance_Alive; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_BeginDefaults() { return Translator_BeginDefaults; }
 
+	static void OnEffectsQualityChanged(int32 NewEffectsQuality);
+
 	FOnProcessQueue OnProcessQueue;
 
 #if WITH_EDITORONLY_DATA
@@ -176,8 +178,8 @@ public:
 	FOnPrecompile ObjectPrecompilerDelegate;
 #endif
 
-	void OnChangeDetailLevel(class IConsoleVariable* CVar);
-	static int32 EngineDetailLevel;
+	static int32 EngineEffectsQuality;
+
 
 private:
 	static FNiagaraVariable Engine_DeltaTime;

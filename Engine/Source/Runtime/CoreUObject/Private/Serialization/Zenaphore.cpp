@@ -65,9 +65,6 @@ void FZenaphoreWaiter::Wait()
 	}
 	else
 	{
-#if CPUPROFILERTRACE_ENABLED
-		FCpuProfilerTrace::OutputBeginEvent(WaitCpuScopeId);
-#endif
 		for (;;)
 		{
 			Outer.Event->Wait(INT32_MAX, true);
@@ -79,8 +76,5 @@ void FZenaphoreWaiter::Wait()
 			}
 		}
 		SpinCount = 0;
-#if CPUPROFILERTRACE_ENABLED
-		FCpuProfilerTrace::OutputEndEvent();
-#endif
 	}
 }

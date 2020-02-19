@@ -130,6 +130,8 @@ namespace FNiagaraEditorUtilities
 	/** Returns whether the data in two structs on scope matches. */
 	bool DataMatches(const FStructOnScope& StructOnScopeA, const FStructOnScope& StructOnScopeB);
 
+	void NIAGARAEDITOR_API CopyDataTo(FStructOnScope& DestinationStructOnScope, const FStructOnScope& SourceStructOnScope, bool bCheckTypes = true);
+
 	TSharedPtr<SWidget> CreateInlineErrorText(TAttribute<FText> ErrorMessage, TAttribute<FText> ErrorTooltip);
 
 	void CompileExistingEmitters(const TArray<UNiagaraEmitter*>& AffectedEmitters);
@@ -147,6 +149,8 @@ namespace FNiagaraEditorUtilities
 	void SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const FCompileConstantResolver& ConstantResolver);
 
 	bool ResolveConstantValue(UEdGraphPin* Pin, int32& Value);
+
+	TSharedPtr<FStructOnScope> StaticSwitchDefaultIntToStructOnScope(int32 InStaticSwitchDefaultValue, FNiagaraTypeDefinition InSwitchType);
 
 	void PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage, const FCompileConstantResolver& ConstantResolver);
 
@@ -190,7 +194,13 @@ namespace FNiagaraEditorUtilities
 	 */
 	const FNiagaraEmitterHandle* GetEmitterHandleForEmitter(UNiagaraSystem& System, UNiagaraEmitter& Emitter);
 
-	NIAGARAEDITOR_API FText FormatScriptAssetDescription(FText Description, FName Path);
+	NIAGARAEDITOR_API bool IsScriptAssetInLibrary(const FAssetData& ScriptAssetData);
+
+	NIAGARAEDITOR_API FText FormatScriptName(FName Name, bool bIsInLibrary);
+
+	NIAGARAEDITOR_API FText FormatScriptDescription(FText Description, FName Path, bool bIsInLibrary);
+
+	NIAGARAEDITOR_API FText FormatVariableDescription(FText Description, FText Name, FText Type);
 
 	void ResetSystemsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel);
 
@@ -222,6 +232,7 @@ namespace FNiagaraEditorUtilities
 
 	void ShowParentEmitterInContentBrowser(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 
+	void OpenParentEmitterForEdit(TSharedRef<FNiagaraEmitterViewModel> Emitter);
 	ECheckBoxState GetSelectedEmittersEnabledCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
 	void ToggleSelectedEmittersEnabled(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
 
@@ -229,4 +240,6 @@ namespace FNiagaraEditorUtilities
 	void ToggleSelectedEmittersIsolated(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
 
 	void CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+
+	NIAGARAEDITOR_API void WarnWithToastAndLog(FText WarningMessage);
 };

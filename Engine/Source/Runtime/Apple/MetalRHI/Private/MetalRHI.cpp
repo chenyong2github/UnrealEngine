@@ -207,10 +207,10 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	MemoryStats.SharedSystemMemory = Stats.AvailablePhysical;
 	
 #if PLATFORM_TVOS
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_METAL_TVOS;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_METAL_TVOS;
 #else
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_METAL;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_METAL;
 #endif
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
@@ -299,7 +299,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 	if (RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
 	{
-		check(PreviewFeatureLevel == ERHIFeatureLevel::ES2 || PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
+		check(PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
 
 		// ES3.1 feature level emulation
 		GMaxRHIFeatureLevel = PreviewFeatureLevel;
@@ -311,7 +311,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 
 	ValidateTargetedRHIFeatureLevelExists(GMaxRHIShaderPlatform);
 	
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_NumPlatforms;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::ES3_1) ? SP_METAL_MACES3_1 : SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5) ? GMaxRHIShaderPlatform : SP_NumPlatforms;
@@ -854,21 +854,11 @@ FMetalDynamicRHI::~FMetalDynamicRHI()
 {
 	check(IsInGameThread() && IsInRenderingThread());
 	
-	// Ask all initialized FRenderResources to release their RHI resources.
-	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-	{
-		FRenderResource* Resource = *ResourceIt;
-		check(Resource->IsInitialized());
-		Resource->ReleaseRHI();
-	}
-	
-	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-	{
-		ResourceIt->ReleaseDynamicRHI();
-	}
-	
 	GIsMetalInitialized = false;
 	GIsRHIInitialized = false;
+
+	// Ask all initialized FRenderResources to release their RHI resources.
+	FRenderResource::ReleaseRHIForAllResources();	
 	
 #if ENABLE_METAL_GPUPROFILE
 	FMetalProfiler::DestroyProfiler();
@@ -899,6 +889,10 @@ uint64 FMetalDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Forma
 	}
 }
 
+uint64 FMetalDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
+{
+	return ImmediateContext.Context->GetDevice().GetMinimumLinearTextureAlignmentForPixelFormat((mtlpp::PixelFormat)GMetalBufferFormats[Format].LinearTextureFormat);
+}
 
 void FMetalDynamicRHI::Init()
 {

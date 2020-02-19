@@ -380,69 +380,8 @@ namespace UnrealBuildTool
 				CreateHeadersForISPC(ToolChain, CompileEnvironment, InputFiles.ISPCFiles, IntermediateDirectory, Makefile.Actions);
 			}
 
-			if (Target.bUsePCHFiles && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs)
-			{
-				// If this module doesn't need a shared PCH, configure that
-				if(Rules.PrivatePCHHeaderFile != null && (Rules.PCHUsage == ModuleRules.PCHUsageMode.NoSharedPCHs || Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs))
-				{
-					PrecompiledHeaderInstance Instance = CreatePrivatePCH(ToolChain, FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.PrivatePCHHeaderFile)), CompileEnvironment, Makefile.Actions);
-
-					CompileEnvironment = new CppCompileEnvironment(CompileEnvironment);
-					CompileEnvironment.Definitions.Clear();
-					CompileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.Include;
-					CompileEnvironment.PrecompiledHeaderIncludeFilename = Instance.HeaderFile.Location;
-					CompileEnvironment.PrecompiledHeaderFile = Instance.Output.PrecompiledHeaderFile;
-
-					LinkInputFiles.AddRange(Instance.Output.ObjectFiles);
-				}
-
-				// Try to find a suitable shared PCH for this module
-				if (CompileEnvironment.PrecompiledHeaderFile == null && CompileEnvironment.SharedPCHs.Count > 0 && !CompileEnvironment.bIsBuildingLibrary && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoSharedPCHs)
-				{
-					// Find all the dependencies of this module
-					HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
-					GetAllDependencyModules(new List<UEBuildModule>(), ReferencedModules, bIncludeDynamicallyLoaded: false, bForceCircular: false, bOnlyDirectDependencies: true);
-
-					// Find the first shared PCH module we can use
-					PrecompiledHeaderTemplate Template = CompileEnvironment.SharedPCHs.FirstOrDefault(x => ReferencedModules.Contains(x.Module));
-					if(Template != null && Template.IsValidFor(CompileEnvironment))
-					{
-						PrecompiledHeaderInstance Instance = FindOrCreateSharedPCH(ToolChain, Template, ModuleCompileEnvironment, Makefile.Actions);
-
-						FileReference PrivateDefinitionsFile = FileReference.Combine(IntermediateDirectory, String.Format("Definitions.{0}.h", Name));
-
-						FileItem PrivateDefinitionsFileItem;
-						using (StringWriter Writer = new StringWriter())
-						{
-							// Remove the module _API definition for cases where there are circular dependencies between the shared PCH module and modules using it
-							Writer.WriteLine("#undef {0}", ModuleApiDefine);
-							Writer.WriteLine("#undef {0}", ModuleVTableDefine);
-
-							// Games may choose to use shared PCHs from the engine, so allow them to change the value of these macros
-							if(!Rules.bTreatAsEngineModule)
-							{
-								Writer.WriteLine("#undef UE_IS_ENGINE_MODULE");
-								Writer.WriteLine("#undef DEPRECATED_FORGAME");
-								Writer.WriteLine("#define DEPRECATED_FORGAME DEPRECATED");
-								Writer.WriteLine("#undef UE_DEPRECATED_FORGAME");
-								Writer.WriteLine("#define UE_DEPRECATED_FORGAME UE_DEPRECATED");
-							}
-
-							WriteDefinitions(CompileEnvironment.Definitions, Writer);
-							PrivateDefinitionsFileItem = FileItem.CreateIntermediateTextFile(PrivateDefinitionsFile, Writer.ToString());
-						}
-
-						CompileEnvironment = new CppCompileEnvironment(CompileEnvironment);
-						CompileEnvironment.Definitions.Clear();
-						CompileEnvironment.ForceIncludeFiles.Add(PrivateDefinitionsFileItem);
-						CompileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.Include;
-						CompileEnvironment.PrecompiledHeaderIncludeFilename = Instance.HeaderFile.Location;
-						CompileEnvironment.PrecompiledHeaderFile = Instance.Output.PrecompiledHeaderFile;
-
-						LinkInputFiles.AddRange(Instance.Output.ObjectFiles);
-					}
-				}
-			}
+			// Configure the precompiled headers for this module
+			CompileEnvironment = SetupPrecompiledHeaders(Target, ToolChain, CompileEnvironment, LinkInputFiles, Makefile.Actions);
 
 			// Write all the definitions to a separate file
 			CreateHeaderForDefinitions(CompileEnvironment, IntermediateDirectory, null);
@@ -630,7 +569,15 @@ namespace UnrealBuildTool
 			CompileEnvironment.bOptimizeCode = ModuleCompileEnvironment.bOptimizeCode;
 
 			// Create the action to compile the PCH file.
-			CPPOutput Output = ToolChain.CompileCPPFiles(CompileEnvironment, new List<FileItem>() { WrapperFile }, IntermediateDirectory, Name, Actions);
+			CPPOutput Output;
+			if (ToolChain == null)
+			{
+				Output = new CPPOutput();
+			}
+			else
+			{
+				Output = ToolChain.CompileCPPFiles(CompileEnvironment, new List<FileItem>() { WrapperFile }, IntermediateDirectory, Name, Actions);
+			}
 			return new PrecompiledHeaderInstance(WrapperFile, CompileEnvironment, Output);
 		}
 
@@ -662,7 +609,15 @@ namespace UnrealBuildTool
 				CopySettingsForSharedPCH(ModuleCompileEnvironment, CompileEnvironment);
 
 				// Create the PCH
-				CPPOutput Output = ToolChain.CompileCPPFiles(CompileEnvironment, new List<FileItem>() { WrapperFile }, Template.OutputDir, "Shared", Actions);
+				CPPOutput Output;
+				if (ToolChain == null)
+				{
+					Output = new CPPOutput();
+				}
+				else
+				{
+					Output = ToolChain.CompileCPPFiles(CompileEnvironment, new List<FileItem>() { WrapperFile }, Template.OutputDir, "Shared", Actions);
+				}
 				Instance = new PrecompiledHeaderInstance(WrapperFile, CompileEnvironment, Output);
 				Template.Instances.Add(Instance);
 			}
@@ -965,6 +920,81 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Configure precompiled headers for this module
+		/// </summary>
+		/// <param name="Target">The target being built</param>
+		/// <param name="ToolChain">The toolchain to build with</param>
+		/// <param name="CompileEnvironment">The current compile environment</param>
+		/// <param name="LinkInputFiles">List of files that will be linked for the target</param>
+		/// <param name="Actions">List of build actions</param>
+		CppCompileEnvironment SetupPrecompiledHeaders(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> LinkInputFiles, List<Action> Actions)
+		{
+			if (Target.bUsePCHFiles && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs)
+			{
+				// If this module doesn't need a shared PCH, configure that
+				if(Rules.PrivatePCHHeaderFile != null && (Rules.PCHUsage == ModuleRules.PCHUsageMode.NoSharedPCHs || Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs))
+				{
+					PrecompiledHeaderInstance Instance = CreatePrivatePCH(ToolChain, FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.PrivatePCHHeaderFile)), CompileEnvironment, Actions);
+
+					CompileEnvironment = new CppCompileEnvironment(CompileEnvironment);
+					CompileEnvironment.Definitions.Clear();
+					CompileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.Include;
+					CompileEnvironment.PrecompiledHeaderIncludeFilename = Instance.HeaderFile.Location;
+					CompileEnvironment.PrecompiledHeaderFile = Instance.Output.PrecompiledHeaderFile;
+
+					LinkInputFiles.AddRange(Instance.Output.ObjectFiles);
+				}
+
+				// Try to find a suitable shared PCH for this module
+				if (CompileEnvironment.PrecompiledHeaderFile == null && CompileEnvironment.SharedPCHs.Count > 0 && !CompileEnvironment.bIsBuildingLibrary && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoSharedPCHs)
+				{
+					// Find all the dependencies of this module
+					HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
+					GetAllDependencyModules(new List<UEBuildModule>(), ReferencedModules, bIncludeDynamicallyLoaded: false, bForceCircular: false, bOnlyDirectDependencies: true);
+
+					// Find the first shared PCH module we can use
+					PrecompiledHeaderTemplate Template = CompileEnvironment.SharedPCHs.FirstOrDefault(x => ReferencedModules.Contains(x.Module));
+					if(Template != null && Template.IsValidFor(CompileEnvironment))
+					{
+						PrecompiledHeaderInstance Instance = FindOrCreateSharedPCH(ToolChain, Template, CompileEnvironment, Actions);
+
+						FileReference PrivateDefinitionsFile = FileReference.Combine(IntermediateDirectory, String.Format("Definitions.{0}.h", Name));
+
+						FileItem PrivateDefinitionsFileItem;
+						using (StringWriter Writer = new StringWriter())
+						{
+							// Remove the module _API definition for cases where there are circular dependencies between the shared PCH module and modules using it
+							Writer.WriteLine("#undef {0}", ModuleApiDefine);
+
+							// Games may choose to use shared PCHs from the engine, so allow them to change the value of these macros
+							if(!Rules.bTreatAsEngineModule)
+							{
+								Writer.WriteLine("#undef UE_IS_ENGINE_MODULE");
+								Writer.WriteLine("#undef DEPRECATED_FORGAME");
+								Writer.WriteLine("#define DEPRECATED_FORGAME DEPRECATED");
+								Writer.WriteLine("#undef UE_DEPRECATED_FORGAME");
+								Writer.WriteLine("#define UE_DEPRECATED_FORGAME UE_DEPRECATED");
+							}
+
+							WriteDefinitions(CompileEnvironment.Definitions, Writer);
+							PrivateDefinitionsFileItem = FileItem.CreateIntermediateTextFile(PrivateDefinitionsFile, Writer.ToString());
+						}
+
+						CompileEnvironment = new CppCompileEnvironment(CompileEnvironment);
+						CompileEnvironment.Definitions.Clear();
+						CompileEnvironment.ForceIncludeFiles.Add(PrivateDefinitionsFileItem);
+						CompileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.Include;
+						CompileEnvironment.PrecompiledHeaderIncludeFilename = Instance.HeaderFile.Location;
+						CompileEnvironment.PrecompiledHeaderFile = Instance.Output.PrecompiledHeaderFile;
+
+						LinkInputFiles.AddRange(Instance.Output.ObjectFiles);
+					}
+				}
+			}
+			return CompileEnvironment;
+		}
+
+		/// <summary>
 		/// Creates a header file containing all the preprocessor definitions for a compile environment, and force-include it. We allow a more flexible syntax for preprocessor definitions than
 		/// is typically allowed on the command line (allowing function macros or double-quote characters, for example). Ensuring all definitions are specified in a header files ensures consistent
 		/// behavior.
@@ -1127,8 +1157,6 @@ namespace UnrealBuildTool
 				case "VulkanRHI":
 				case "OpenGLDrv":
 				case "MetalRHI":
-				case "PS4RHI":
-                case "Gnmx":
 					return true;
 			}
 			return false;
@@ -1155,6 +1183,14 @@ namespace UnrealBuildTool
 				default:
 					return true;
 			}
+		}
+
+		public CppCompileEnvironment CreateCompileEnvironmentForIntellisense(ReadOnlyTargetRules Target, CppCompileEnvironment BaseCompileEnvironment)
+		{
+			CppCompileEnvironment CompileEnvironment = CreateModuleCompileEnvironment(Target, BaseCompileEnvironment);
+			CompileEnvironment = SetupPrecompiledHeaders(Target, null, CompileEnvironment, new List<FileItem>(), new List<Action>());
+			CreateHeaderForDefinitions(CompileEnvironment, IntermediateDirectory, null);
+			return CompileEnvironment;
 		}
 
 		/// <summary>

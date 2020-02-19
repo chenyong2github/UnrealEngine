@@ -7,10 +7,25 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "LandscapeMaterialInstanceConstant.generated.h"
 
+USTRUCT()
+struct FLandscapeMaterialTextureStreamingInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FName TextureName;
+
+	UPROPERTY()
+	float TexelFactor;
+};
+
 UCLASS(MinimalAPI)
 class ULandscapeMaterialInstanceConstant : public UMaterialInstanceConstant
 {
 	GENERATED_UCLASS_BODY()
+
+	UPROPERTY()
+	TArray<FLandscapeMaterialTextureStreamingInfo> TextureStreamingInfo;
 
 	UPROPERTY()
 	uint32 bIsLayerThumbnail:1;
@@ -24,7 +39,19 @@ class ULandscapeMaterialInstanceConstant : public UMaterialInstanceConstant
 	UPROPERTY()
 	uint32 bEditorToolUsage:1;
 
+	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	virtual FMaterialResource* AllocatePermutationResource() override;
 	virtual bool HasOverridenBaseProperties() const override;
+
+#if WITH_EDITOR
+	FLandscapeMaterialTextureStreamingInfo& AcquireTextureStreamingInfo(const FName& TextureName);
+	void UpdateCachedTextureStreaming();
+#endif
+
+public:
+	float GetLandscapeTexelFactor(const FName& TextureName) const;
 };
 

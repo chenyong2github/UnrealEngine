@@ -10,32 +10,61 @@
 #include "Containers/List.h"
 #include "RHI.h"
 #include "RenderCore.h"
+#include "Serialization/MemoryLayout.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 /** Number of frames after which unused global resource allocations will be discarded. */
 extern int32 GGlobalBufferNumFramesUnusedThresold;
 
 /**
  * A rendering resource which is owned by the rendering thread.
+ * NOTE - Adding new virtual methods to this class may require stubs added to FViewport/FDummyViewport, otherwise certain modules may have link errors
  */
 class RENDERCORE_API FRenderResource
 {
 public:
+	template<typename FunctionType>
+	static void ForAllResources(const FunctionType& Function)
+	{
+		const TArray<FRenderResource*>& ResourceList = GetResourceList();
+		ResourceListIterationActive.Increment();
+		for (int32 Index = 0; Index < ResourceList.Num(); ++Index)
+		{
+			FRenderResource* Resource = ResourceList[Index];
+			if (Resource)
+			{
+				checkSlow(Resource->ListIndex == Index);
+				Function(Resource);
+			}
+		}
+		ResourceListIterationActive.Decrement();
+	}
 
-	/** @return The global initialized resource list. */
-	static TLinkedList<FRenderResource*>*& GetResourceList();
+	static void InitRHIForAllResources()
+	{
+		ForAllResources([](FRenderResource* Resource) { Resource->InitRHI(); });
+		// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
+		ForAllResources([](FRenderResource* Resource) { Resource->InitDynamicRHI(); });
+	}
+
+	static void ReleaseRHIForAllResources()
+	{
+		ForAllResources([](FRenderResource* Resource) { check(Resource->IsInitialized()); Resource->ReleaseRHI(); });
+		ForAllResources([](FRenderResource* Resource) { Resource->ReleaseDynamicRHI(); });
+	}
 
 	static void ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel);
 
 	/** Default constructor. */
 	FRenderResource()
-		: FeatureLevel(ERHIFeatureLevel::Num)
-		, bInitialized(false)
+		: ListIndex(INDEX_NONE)
+		, FeatureLevel(ERHIFeatureLevel::Num)
 	{}
 
 	/** Constructor when we know what feature level this resource should support */
 	FRenderResource(ERHIFeatureLevel::Type InFeatureLevel)
-		: FeatureLevel(InFeatureLevel)
-		, bInitialized(false)
+		: ListIndex(INDEX_NONE)
+		, FeatureLevel(InFeatureLevel)
 	{}
 
 	/** Destructor used to catch unreleased resources. */
@@ -89,32 +118,31 @@ public:
 	 */
 	void UpdateRHI();
 
-	// Probably temporary code that sends a task back to renderthread_local and blocks waiting for it to call InitResource
-	void InitResourceFromPossiblyParallelRendering();
-
 	/** @return The resource's friendly name.  Typically a UObject name. */
 	virtual FString GetFriendlyName() const { return TEXT("undefined"); }
 
 	// Accessors.
-	FORCEINLINE bool IsInitialized() const { return bInitialized; }
+	FORCEINLINE bool IsInitialized() const { return ListIndex != INDEX_NONE; }
 
 	/** Initialize all resources initialized before the RHI was initialized */
 	static void InitPreRHIResources();
 
+private:
+	/** @return The global initialized resource list. */
+	static TArray<FRenderResource*>& GetResourceList();
+
+	static FThreadSafeCounter ResourceListIterationActive;
+
+	int32 ListIndex;
+
 protected:
 	// This is used during mobile editor preview refactor, this will eventually be replaced with a parameter to InitRHI() etc..
-	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel == ERHIFeatureLevel::Num ? GMaxRHIFeatureLevel : FeatureLevel; }
+	void SetFeatureLevel(const FStaticFeatureLevel InFeatureLevel) { FeatureLevel = (ERHIFeatureLevel::Type)InFeatureLevel; }
+	const FStaticFeatureLevel GetFeatureLevel() const { return FeatureLevel == ERHIFeatureLevel::Num ? FStaticFeatureLevel(GMaxRHIFeatureLevel) : FeatureLevel; }
 	FORCEINLINE bool HasValidFeatureLevel() const { return FeatureLevel < ERHIFeatureLevel::Num; }
 
-	ERHIFeatureLevel::Type FeatureLevel;
-
 private:
-	/** True if the resource has been initialized. */
-	bool bInitialized;
-
-	#if PLATFORM_NEEDS_RHIRESOURCELIST
-	TLinkedList<FRenderResource*> ResourceLink;
-	#endif
+	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;
 };
 
 /**
@@ -552,14 +580,8 @@ FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform Shader
 {
 	if (RHISupportsRayTracingShaders(ShaderPlatform))
 	{
-		// r.RayTracing is a read-only CVar. UE needs to be restarted to effectively change it
-		auto GetRayTracingCVarValue = []()
-		{
-			auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
-			return CVar && CVar->GetInt() > 0;
-		};
-		static const bool bRayTracingEnabled = GetRayTracingCVarValue();
-		return bRayTracingEnabled;
+		extern RENDERCORE_API uint64 GRayTracingPlaformMask;
+		return !!(GRayTracingPlaformMask & (1ull << ShaderPlatform));
 	}
 	else
 	{
@@ -573,14 +595,7 @@ FORCEINLINE bool IsRayTracingEnabled()
 {
 	if (GRHISupportsRayTracing)
 	{
-		// r.RayTracing is a read-only CVar. UE needs to be restarted to effectively change it
-		auto GetRayTracingCVarValue = []()
-		{
-			auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
-			return CVar && CVar->GetInt() > 0;
-		};
-		static const bool bRayTracingEnabled = GetRayTracingCVarValue();
-		return bRayTracingEnabled;
+		return ShouldCompileRayTracingShadersForProject(GMaxRHIShaderPlatform);
 	}
 	else
 	{
@@ -588,22 +603,22 @@ FORCEINLINE bool IsRayTracingEnabled()
 	}
 }
 
-#if RHI_RAYTRACING
-
 /** A ray tracing geometry resource */
 class RENDERCORE_API FRayTracingGeometry : public FRenderResource
 {
 public:
-	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
-	FRayTracingGeometryInitializer Initializer;
+	TResourceArray<uint8> RawData;
 
 	/** Default constructor. */
 	FRayTracingGeometry()
-		: RayTracingGeometryRHI(NULL)
 	{}
 
 	/** Destructor. */
 	virtual ~FRayTracingGeometry() {}
+
+#if RHI_RAYTRACING
+	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
+	FRayTracingGeometryInitializer Initializer;
 
 	// FRenderResource interface.
 	virtual void ReleaseRHI() override
@@ -619,6 +634,15 @@ public:
 
 	virtual void InitRHI() override
 	{
+		if (!IsRayTracingEnabled())
+			return;
+
+		check(RawData.Num() == 0 || Initializer.OfflineData == nullptr);
+		if (RawData.Num())
+		{
+			Initializer.OfflineData = &RawData;
+		}
+
 		bool bAllSegmentsAreValid = true;
 		for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 		{
@@ -629,22 +653,27 @@ public:
 			}
 		}
 
-		if (Initializer.IndexBuffer && bAllSegmentsAreValid && IsRayTracingEnabled())
+		if (Initializer.IndexBuffer && bAllSegmentsAreValid)
 		{
 			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
-			FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);
+			if (Initializer.OfflineData == nullptr)
+			{
+				FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);
+			}
 		}
 	}
+
+
+#endif
 };
 
+#if RHI_RAYTRACING
 class RENDERCORE_API FRayTracingScene : public FRenderResource
 {
 public:
 	FRayTracingSceneRHIRef RayTracingSceneRHI = nullptr;
 
 	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingScene"); }
-
-	
 
 	virtual void ReleaseRHI()
 	{
@@ -848,3 +877,19 @@ private:
 	uint32 NextBoundShaderStateIndex;
 	FCriticalSection BoundShaderStateHistoryLock;
 };
+
+/**Note, this should only be used when a platform requires special shader compilation for 32 bit pixel format render targets.
+Does not replace pixel format associations across the board**/
+
+FORCEINLINE bool PlatformRequires128bitRT(EPixelFormat PixelFormat)
+{
+	switch (PixelFormat)
+	{
+	case PF_R32_FLOAT:
+	case PF_G32R32F:
+	case PF_A32B32G32R32F:
+		return FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(GMaxRHIShaderPlatform);
+	default:
+		return false;
+	}
+}

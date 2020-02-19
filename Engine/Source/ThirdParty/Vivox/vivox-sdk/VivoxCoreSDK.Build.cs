@@ -55,10 +55,6 @@ namespace UnrealBuildTool.Rules
  				PublicAdditionalLibraries.Add(VivoxLibPath + "libvivoxsdk.a");
 				PublicFrameworks.Add("CFNetwork");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Switch)
-			{
-				PublicAdditionalLibraries.Add(VivoxLibPath + "libvivoxsdk.a");
-			}
 			else if (Target.Platform == UnrealTargetPlatform.Android)
 			{ 
 				PublicAdditionalLibraries.Add(Path.Combine(VivoxLibPath, "armeabi-v7a","libvivox-sdk.so"));

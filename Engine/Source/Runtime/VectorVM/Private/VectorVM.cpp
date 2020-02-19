@@ -1421,6 +1421,7 @@ struct FScalarKernelAcquireID
 		const int32 DataSetIndex = Context.DecodeU16();
 		const TArrayView<FDataSetMeta> MetaTable = Context.DataSetMetaTable;
 		TArray<int32>&RESTRICT FreeIDTable = *MetaTable[DataSetIndex].FreeIDTable;
+		TArray<int32>&RESTRICT SpawnedIDsTable = *MetaTable[DataSetIndex].SpawnedIDsTable;
 
 		const int32 Tag = MetaTable[DataSetIndex].IDAcquireTag;
 
@@ -1453,6 +1454,8 @@ struct FScalarKernelAcquireID
 			*IDTag = Tag;
 			++IDIndex;
 			++IDTag;
+
+			SpawnedIDsTable.Add(AcquiredID);
 		}
 
 		MetaTable[DataSetIndex].UnlockFreeTable();
@@ -1479,7 +1482,8 @@ struct FScalarKernelUpdateID
 		const TArrayView<FDataSetMeta> MetaTable = Context.DataSetMetaTable;
 
 		TArray<int32>&RESTRICT IDTable = *MetaTable[DataSetIndex].IDTable;
-		const int32 InstanceOffset = MetaTable[DataSetIndex].InstanceOffset + Context.StartInstance;
+		const int32 InstanceOffset = MetaTable[DataSetIndex].InstanceOffset;
+		const int32 AbsoluteStartInstance = InstanceOffset + Context.StartInstance;
 
 		const int32*RESTRICT IDRegister = (int32*)(Context.GetTempRegister(InstanceIDRegisterIndex));
 		const int32*RESTRICT IndexRegister = (int32*)(Context.GetTempRegister(InstanceIndexRegisterIndex));
@@ -1487,7 +1491,7 @@ struct FScalarKernelUpdateID
 		FDataSetThreadLocalTempData& DataSetTempData = Context.ThreadLocalTempData[DataSetIndex];
 
 		TArray<int32>&RESTRICT IDsToFree = DataSetTempData.IDsToFree;
-		check(IDTable.Num() >= InstanceOffset + Context.NumInstances);
+		check(IDTable.Num() >= AbsoluteStartInstance + Context.NumInstances);
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
 			int32 InstanceId = IDRegister[i];
@@ -1497,13 +1501,15 @@ struct FScalarKernelUpdateID
 			{
 				//Add the ID to a thread local list of IDs to free which are actually added to the list safely at the end of this chunk's execution.
 				IDsToFree.Add(InstanceId);
-				IDTable[InstanceId] = INDEX_NONE;
 				//UE_LOG(LogVectorVM, Warning, TEXT("FreeingID: InstanceID:%d."), InstanceId);
 			}
 			else
 			{
-				//Update the actual index for this ID. No thread safety is needed as this ID slot can only ever be written by this instance and so a single thread.
-				IDTable[InstanceId] = Index;
+				// Update the actual index for this ID. No thread safety is needed as this ID slot can only ever be written by this instance and so a single thread.
+				// The index passed into this function is the same as that given to the OutputData*() functions (FScalarKernelWriteOutputIndexed kernel).
+				// That value is local to the execution step (update or spawn), so we must offset it by the start instance number for the step, just like
+				// GetOutputRegister() does.
+				IDTable[InstanceId] = Index + InstanceOffset;
 
 				//Update thread local max ID seen. We push this to the real value at the end of execution.
 				DataSetTempData.MaxID = FMath::Max(DataSetTempData.MaxID, InstanceId);

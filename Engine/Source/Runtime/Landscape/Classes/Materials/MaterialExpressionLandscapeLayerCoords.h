@@ -66,10 +66,6 @@ class LANDSCAPE_API UMaterialExpressionLandscapeLayerCoords : public UMaterialEx
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 #endif
 	//~ End UMaterialExpression Interface
-
-	//~ Begin UObject Interface
-	virtual bool NeedsLoadForClient() const override;
-	//~ End UObject Interface
 };
 
 

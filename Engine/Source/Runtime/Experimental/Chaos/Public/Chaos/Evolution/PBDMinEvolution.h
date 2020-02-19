@@ -32,6 +32,8 @@ namespace Chaos
 	class CHAOS_API FPBDMinEvolution
 	{
 	public:
+		// @todo(ccaulfield): make it so that CollisionDetection is plugged in with a constraint rule...
+
 		using FCollisionConstraints = TPBDCollisionConstraints<FReal, 3>;
 		using FCollisionDetector = TCollisionDetector<FParticlePairBroadPhase, FNarrowPhase, FSyncCollisionReceiver, FCollisionConstraints>;
 		using FEvolutionCallback = TFunction<void()>;

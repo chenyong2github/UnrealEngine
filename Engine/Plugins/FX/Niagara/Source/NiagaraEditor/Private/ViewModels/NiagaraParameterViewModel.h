@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NiagaraParameterEditMode.h"
+#include "ViewModels/NiagaraParameterEditMode.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Delegates/Delegate.h"
 #include "Styling/SlateTypes.h"

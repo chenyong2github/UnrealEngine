@@ -5,6 +5,12 @@
 =============================================================================*/
 
 #include "FXSystemSet.h"
+#include "GPUSortManager.h"
+
+FFXSystemSet::FFXSystemSet(FGPUSortManager* InGPUSortManager)
+	: GPUSortManager(InGPUSortManager)
+{
+}
 
 FFXSystemInterface* FFXSystemSet::GetInterface(const FName& InName)
 {
@@ -191,4 +197,9 @@ FFXSystemSet::~FFXSystemSet()
 		check(FXSystem);
 		delete FXSystem;
 	}
+}
+
+FGPUSortManager* FFXSystemSet::GetGPUSortManager() const
+{
+	return GPUSortManager;
 }

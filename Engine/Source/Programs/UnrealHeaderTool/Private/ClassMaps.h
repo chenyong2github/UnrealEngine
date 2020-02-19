@@ -47,6 +47,7 @@ extern TSet<FProperty*> GUnsizedProperties;
 extern TSet<UField*> GEditorOnlyDataTypes;
 extern TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
 extern TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;
+extern TSet<FProperty*> GPropertyUsesMemoryImageAllocator;
 
 /** Types access specifiers. */
 enum EAccessSpecifier

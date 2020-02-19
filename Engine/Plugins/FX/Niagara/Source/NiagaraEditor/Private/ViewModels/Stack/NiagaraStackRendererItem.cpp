@@ -8,7 +8,7 @@
 #include "NiagaraScript.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 #include "Internationalization/Internationalization.h"
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraNodeOutput.h"

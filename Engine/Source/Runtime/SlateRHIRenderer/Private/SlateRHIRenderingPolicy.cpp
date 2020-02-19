@@ -242,7 +242,7 @@ static FSceneView* CreateSceneView( FSceneViewFamilyContext* ViewFamilyContext, 
 
 	ViewUniformShaderParameters.MobilePreviewMode =
 		(GIsEditor &&
-		(RHIFeatureLevel == ERHIFeatureLevel::ES2 || RHIFeatureLevel == ERHIFeatureLevel::ES3_1) &&
+		(RHIFeatureLevel == ERHIFeatureLevel::ES3_1) &&
 		GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1) ? 1.0f : 0.0f;
 
 	UpdateNoiseTextureParameters(ViewUniformShaderParameters);
@@ -405,7 +405,7 @@ static bool UpdateScissorRect(
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateUpdateScissorRect_ClearStencil"));
 				}
 
-				TShaderMap<FGlobalShaderType>* MaxFeatureLevelShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+				FGlobalShaderMap* MaxFeatureLevelShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 				// Set the new shaders
 				TShaderMapRef<FSlateMaskingVS> VertexShader(MaxFeatureLevelShaderMap);
@@ -435,8 +435,8 @@ static bool UpdateScissorRect(
 						, /*StencilWriteMask*/ 0xFF>::GetRHI();
 
 					WriteMaskPSOInit.BoundShaderState.VertexDeclarationRHI = GSlateMaskingVertexDeclaration.VertexDeclarationRHI;
-					WriteMaskPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-					WriteMaskPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+					WriteMaskPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+					WriteMaskPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					WriteMaskPSOInit.PrimitiveType = PT_TriangleStrip;
 
 					SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit);
@@ -651,7 +651,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 	const FSlateRenderDataHandle* LastHandle = nullptr;
 
 	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(FeatureLevel);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 #if WITH_SLATE_VISUALIZERS
 	FRandomStream BatchColors(1337);
@@ -774,16 +774,16 @@ void FSlateRHIRenderingPolicy::DrawElements(
 			{
 				check(RHICmdList.IsInsideRenderPass());
 				check(RenderBatch.NumIndices > 0);
-				FSlateElementPS* PixelShader = nullptr;
+				TShaderRef<FSlateElementPS> PixelShader;
 
 				const bool bUseInstancing = RenderBatch.InstanceCount > 1 && RenderBatch.InstanceData != nullptr;
 				check(bUseInstancing == false);
 
 #if WITH_SLATE_VISUALIZERS
-				FSlateDebugBatchingPS* BatchingPixelShader = nullptr;
+				TShaderRef<FSlateDebugBatchingPS> BatchingPixelShader;
 				if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
 				{
-					BatchingPixelShader = *TShaderMapRef<FSlateDebugBatchingPS>(ShaderMap);
+					BatchingPixelShader = TShaderMapRef<FSlateDebugBatchingPS>(ShaderMap);
 					PixelShader = BatchingPixelShader;
 				}
 				else
@@ -828,8 +828,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				}
 
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GSlateVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*GlobalVertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GlobalVertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = GetRHIPrimitiveType(RenderBatch.DrawPrimitiveType);
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -1020,32 +1020,32 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 					const FMaterial* Material = MaterialRenderProxy->GetMaterial(ActiveSceneView.GetFeatureLevel());
 
-					FSlateMaterialShaderPS* PixelShader = GetMaterialPixelShader(Material, ShaderType);
+					TShaderRef<FSlateMaterialShaderPS> PixelShader = GetMaterialPixelShader(Material, ShaderType);
 
 					const bool bUseInstancing = RenderBatch.InstanceCount > 0 && RenderBatch.InstanceData != nullptr;
-					FSlateMaterialShaderVS* VertexShader = GetMaterialVertexShader(Material, bUseInstancing);
+					TShaderRef<FSlateMaterialShaderVS> VertexShader = GetMaterialVertexShader(Material, bUseInstancing);
 
-					if (VertexShader && PixelShader)
+					if (VertexShader.IsValid() && PixelShader.IsValid())
 					{
 #if WITH_SLATE_VISUALIZERS
 						if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
 						{
-							FSlateDebugBatchingPS* BatchingPixelShader = *TShaderMapRef<FSlateDebugBatchingPS>(ShaderMap);
+							TShaderMapRef<FSlateDebugBatchingPS> BatchingPixelShader(ShaderMap);
 
 							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseInstancing ? GSlateInstancedVertexDeclaration.VertexDeclarationRHI : GSlateVertexDeclaration.VertexDeclarationRHI;
-							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*GlobalVertexShader);
-							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(BatchingPixelShader);
+							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GlobalVertexShader.GetVertexShader();
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = BatchingPixelShader.GetPixelShader();
 
 							BatchingPixelShader->SetBatchColor(RHICmdList, BatchColor);
 							GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
 						}
 						else if (CVarShowSlateOverdraw.GetValueOnRenderThread() != 0)
 						{
-							FSlateElementPS* OverdrawPixelShader = *TShaderMapRef<FSlateDebugOverdrawPS>(ShaderMap);
+							TShaderMapRef<FSlateDebugOverdrawPS> OverdrawPixelShader(ShaderMap);
 
 							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseInstancing ? GSlateInstancedVertexDeclaration.VertexDeclarationRHI : GSlateVertexDeclaration.VertexDeclarationRHI;
-							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*GlobalVertexShader);
-							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(OverdrawPixelShader);
+							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GlobalVertexShader.GetVertexShader();
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = OverdrawPixelShader.GetPixelShader();
 
 							GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
 						}
@@ -1060,8 +1060,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 							}
 
 							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseInstancing ? GSlateInstancedVertexDeclaration.VertexDeclarationRHI : GSlateVertexDeclaration.VertexDeclarationRHI;
-							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader);
-							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
+							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 							GraphicsPSOInit.PrimitiveType = GetRHIPrimitiveType(RenderBatch.DrawPrimitiveType);
 
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -1268,15 +1268,15 @@ ETextureSamplerFilter FSlateRHIRenderingPolicy::GetSamplerFilter(const UTexture*
 	return Filter;
 }
 
-FSlateElementPS* FSlateRHIRenderingPolicy::GetTexturePixelShader( TShaderMap<FGlobalShaderType>* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects )
+TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGlobalShaderMap* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects )
 {
-	FSlateElementPS* PixelShader = nullptr;
+	TShaderRef<FSlateElementPS> PixelShader;
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Slate_GetTexturePixelShader);
 
 #if WITH_SLATE_VISUALIZERS
 	if ( CVarShowSlateOverdraw.GetValueOnRenderThread() != 0 )
 	{
-		PixelShader = *TShaderMapRef<FSlateDebugOverdrawPS>(ShaderMap);
+		PixelShader = TShaderMapRef<FSlateDebugOverdrawPS>(ShaderMap);
 	}
 	else
 #endif
@@ -1292,31 +1292,31 @@ FSlateElementPS* FSlateRHIRenderingPolicy::GetTexturePixelShader( TShaderMap<FGl
 		case ESlateShader::Default:
 			if ( bUseTextureAlpha )
 			{
-				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true> >(ShaderMap);
+				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true> >(ShaderMap);
 			}
 			else
 			{
-				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false> >(ShaderMap);
+				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false> >(ShaderMap);
 			}
 			break;
 		case ESlateShader::Border:
 			if ( bUseTextureAlpha )
 			{
-				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Border, true, true> >(ShaderMap);
+				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Border, true, true> >(ShaderMap);
 			}
 			else
 			{
-				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Border, true, false> >(ShaderMap);
+				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Border, true, false> >(ShaderMap);
 			}
 			break;
 		case ESlateShader::GrayscaleFont:
-			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::GrayscaleFont, true> >(ShaderMap);
+			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::GrayscaleFont, true> >(ShaderMap);
 			break;
 		case ESlateShader::ColorFont:
-			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::ColorFont, true> >(ShaderMap);
+			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::ColorFont, true> >(ShaderMap);
 			break;
 		case ESlateShader::LineSegment:
-			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::LineSegment, true> >(ShaderMap);
+			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::LineSegment, true> >(ShaderMap);
 			break;
 		}
 	}
@@ -1328,31 +1328,31 @@ FSlateElementPS* FSlateRHIRenderingPolicy::GetTexturePixelShader( TShaderMap<FGl
 		case ESlateShader::Default:
 			if ( bUseTextureAlpha )
 			{
-				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true> >(ShaderMap);
+				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true> >(ShaderMap);
 			}
 			else
 			{
-				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false> >(ShaderMap);
+				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false> >(ShaderMap);
 			}
 			break;
 		case ESlateShader::Border:
 			if ( bUseTextureAlpha )
 			{
-				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Border, false, true> >(ShaderMap);
+				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Border, false, true> >(ShaderMap);
 			}
 			else
 			{
-				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Border, false, false> >(ShaderMap);
+				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Border, false, false> >(ShaderMap);
 			}
 			break;
 		case ESlateShader::GrayscaleFont:
-			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::GrayscaleFont, false> >(ShaderMap);
+			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::GrayscaleFont, false> >(ShaderMap);
 			break;
 		case ESlateShader::ColorFont:
-			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::ColorFont, false> >(ShaderMap);
+			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::ColorFont, false> >(ShaderMap);
 			break;
 		case ESlateShader::LineSegment:
-			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::LineSegment, false> >(ShaderMap);
+			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::LineSegment, false> >(ShaderMap);
 			break;
 		}
 	}
@@ -1363,11 +1363,11 @@ FSlateElementPS* FSlateRHIRenderingPolicy::GetTexturePixelShader( TShaderMap<FGl
 	return PixelShader;
 }
 
-FSlateMaterialShaderPS* FSlateRHIRenderingPolicy::GetMaterialPixelShader( const FMaterial* Material, ESlateShader ShaderType)
+TShaderRef<FSlateMaterialShaderPS> FSlateRHIRenderingPolicy::GetMaterialPixelShader( const FMaterial* Material, ESlateShader ShaderType)
 {
 	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
 
-	FShader* FoundShader = nullptr;
+	TShaderRef<FShader> FoundShader;
 	switch (ShaderType)
 	{
 	case ESlateShader::Default:
@@ -1390,14 +1390,14 @@ FSlateMaterialShaderPS* FSlateRHIRenderingPolicy::GetMaterialPixelShader( const 
 		break;
 	}
 
-	return FoundShader ? (FSlateMaterialShaderPS*)FoundShader->GetShader() : nullptr;
+	return TShaderRef<FSlateMaterialShaderPS>::Cast(FoundShader);
 }
 
-FSlateMaterialShaderVS* FSlateRHIRenderingPolicy::GetMaterialVertexShader( const FMaterial* Material, bool bUseInstancing )
+TShaderRef<FSlateMaterialShaderVS> FSlateRHIRenderingPolicy::GetMaterialVertexShader( const FMaterial* Material, bool bUseInstancing )
 {
 	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
 
-	FShader* FoundShader = nullptr;
+	TShaderRef<FShader> FoundShader;
 	if( bUseInstancing )
 	{
 		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderVS<true>::StaticType);
@@ -1407,7 +1407,7 @@ FSlateMaterialShaderVS* FSlateRHIRenderingPolicy::GetMaterialVertexShader( const
 		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderVS<false>::StaticType);
 	}
 	
-	return FoundShader ? (FSlateMaterialShaderVS*)FoundShader->GetShader() : nullptr;
+	return TShaderRef<FSlateMaterialShaderVS>::Cast(FoundShader);
 }
 
 EPrimitiveType FSlateRHIRenderingPolicy::GetRHIPrimitiveType(ESlateDrawPrimitive SlateType)

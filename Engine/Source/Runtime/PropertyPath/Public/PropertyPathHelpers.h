@@ -22,6 +22,11 @@ struct PROPERTYPATH_API FPropertyPathSegment
 	/** Construct from char count and storage */
 	FPropertyPathSegment(int32 InCount, const TCHAR* InString);
 
+	/**
+	 * Called after this event has been serialized in order to cache the field pointer if necessary
+	 */
+	void PostSerialize(const FArchive& Ar);
+
 	/** Make a copy which is unresolved */
 	static FPropertyPathSegment MakeUnresolvedCopy(const FPropertyPathSegment& ToCopy);
 
@@ -64,6 +69,12 @@ private:
 	 * the Struct doesn't change, this value is returned to avoid performing another Field lookup.
 	 */
 	mutable FFieldVariant Field;
+};
+
+template<>
+struct TStructOpsTypeTraits<FPropertyPathSegment> : TStructOpsTypeTraitsBase2<FPropertyPathSegment>
+{
+	enum { WithPostSerialize = true };
 };
 
 /** Base class for cached property paths */

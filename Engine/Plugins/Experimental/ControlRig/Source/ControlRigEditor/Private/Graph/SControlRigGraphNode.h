@@ -39,6 +39,7 @@ public:
 		TitleAreaWidget = DefaultTitleAreaWidget;
 	}
 	virtual const FSlateBrush * GetNodeBodyBrush() const override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	virtual TSharedPtr<SGraphPin> GetHoveredPin( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) const override;
@@ -106,4 +107,7 @@ private:
 	int32 NodeErrorType;
 
 	TSharedPtr<SImage> VisualDebugIndicatorWidget;
+
+	static const FSlateBrush* CachedImg_CR_Pin_Connected;
+	static const FSlateBrush* CachedImg_CR_Pin_Disconnected;
 };

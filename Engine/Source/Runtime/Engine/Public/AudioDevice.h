@@ -44,7 +44,7 @@ class USoundConcurrency;
 class USoundEffectSourcePreset;
 class USoundEffectSubmixPreset;
 class USoundMix;
-class USoundSubmix;
+class USoundSubmixBase;
 class USoundSourceBus;
 class USoundWave;
 class UWorld;
@@ -503,7 +503,7 @@ public:
 	/**
 	 * Basic initialization of the platform agnostic layer of the audio system
 	 */
-	bool Init(int32 InMaxSources);
+	bool Init(Audio::FDeviceId InDeviceID, int32 InMaxSources);
 
 	/**
 	 * Tears down the audio device
@@ -660,11 +660,6 @@ public:
 	void ClearListenerAttenuationOverride(int32 ListenerIndex);
 
 	const TArray<FListener>& GetListeners() const { check(IsInAudioThread()); return Listeners; }
-
-	/**
-	* Get ambisonics mixer, if one is available
-	*/
-	TAmbisonicsMixerPtr GetAmbisonicsMixer() { return AmbisonicsMixer; };
 
 	/**
 	 * Returns the currently applied reverb effect if there is one.
@@ -830,10 +825,10 @@ public:
 	virtual void InitSoundSubmixes() {}
 
 	/** Registers the sound submix */
-	virtual void RegisterSoundSubmix(USoundSubmix* SoundSubmix, bool bInit) {}
+	virtual void RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix, bool bInit) {}
 
 	/** Unregisters the sound submix */
-	virtual void UnregisterSoundSubmix(USoundSubmix* SoundSubmix) {}
+	virtual void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix) {}
 
 	/**
 	 * Registers the submix buffer listener with the given submix.
@@ -1132,10 +1127,10 @@ public:
 	}
 
 	/** Returns the main audio device of the engine */
-	static FAudioDevice* GetMainAudioDevice()
+	static FAudioDeviceHandle GetMainAudioDevice()
 	{
 		// Try to get GEngine's main audio device
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 
 		// If we don't have a main audio device (maybe we're running in a non-standard mode like a commandlet)
 		if (!AudioDevice)
@@ -1194,7 +1189,7 @@ public:
 
 	static bool IsOcclusionPluginLoaded()
 	{
-		if (FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice())
+		if (FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice())
 		{
 			return MainAudioDevice->bOcclusionInterfaceEnabled;
 		}
@@ -1209,7 +1204,7 @@ public:
 
 	static bool IsReverbPluginLoaded()
 	{
-		if (FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice())
+		if (FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice())
 		{
 			return MainAudioDevice->bReverbInterfaceEnabled;
 		}
@@ -1244,13 +1239,7 @@ public:
 	virtual bool GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries) { return false; }
 
 	/** Updates the submix properties of any playing submix instances. Allows editor to make changes to submix properties and hear them propagate live.*/
-	virtual void UpdateSubmixProperties(USoundSubmix* InSubmix)
-	{
-		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
-	}
-
-	/** Sets the dynamic volume of the given submix. */
-	virtual void SetSubmixOutputVolume(USoundSubmix* InSubmix, float NewVolume)
+	virtual void UpdateSubmixProperties(USoundSubmixBase* InSubmix)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
@@ -1280,6 +1269,30 @@ public:
 	virtual void StopEnvelopeFollowing(USoundSubmix* InSubmix)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Envelope following submixes only works with the audio mixer. Please run using -audiomixer or set INI file to use submix recording."));
+	}
+
+	/** Set the wet-dry level of the given submix */
+	virtual void SetSubmixWetDryLevel(USoundSubmix* InSoundSubmix, float InOutputVolume, float InWetLevel, float InDryLevel)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Set the wet-dry level of the given submix */
+	virtual void SetSubmixOutputVolume(USoundSubmix* InSoundSubmix, float InOutputVolume)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Set the wet-dry level of the given submix */
+	virtual void SetSubmixWetLevel(USoundSubmix* InSoundSubmix, float InWetLevel)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Set the wet-dry level of the given submix */
+	virtual void SetSubmixDryLevel(USoundSubmix* InSoundSubmix, float InDryLevel)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
 
 	/** Adds an envelope follower delegate to the submix for this audio device. */
@@ -1678,8 +1691,8 @@ public:
 
 	bool IsMainAudioDevice()
 	{
-		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
-		return (MainAudioDevice == nullptr || MainAudioDevice == this);
+		FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice();
+		return (!MainAudioDevice || MainAudioDevice.GetAudioDevice() == this);
 	}
 
 	/** Set whether or not we force the use of attenuation for non-game worlds (as by default we only care about game worlds) */
@@ -1710,7 +1723,7 @@ public:
 	int32 NumPrecacheFrames;
 
 	/** The handle for this audio device used in the audio device manager. */
-	Audio::FDeviceId DeviceHandle;
+	Audio::FDeviceId DeviceID;
 
 	/** 3rd party audio spatialization interface. */
 	TAudioSpatializationPtr SpatializationPluginInterface;
@@ -1723,9 +1736,6 @@ public:
 
 	/** 3rd party modulation interface */
 	TAudioModulationPtr ModulationInterface;
-
-	/** This devices ambisonics pointer, if one exists */
-	TAmbisonicsMixerPtr AmbisonicsMixer;
 
 	/** 3rd party listener observers registered to this audio device. */
 	TArray<TAudioPluginListenerPtr> PluginListeners;

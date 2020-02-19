@@ -155,7 +155,7 @@ TArray<const UStruct*> FObjectPropertyNode::GetAllStructures() const
 // Intended for a function that gets the number of elements in a container
 DECLARE_DELEGATE_RetVal_OneParam(int32, FGetNumDelegate, const void*);
 
-bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
+bool FObjectPropertyNode::GetReadAddressUncached(const FPropertyNode& InNode,
 											   bool InRequiresSingleSelection,
 											   FReadAddressListData* OutAddresses,
 											   bool bComparePropertyContents,
@@ -168,7 +168,7 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 		return false;
 	}
 
-	FProperty* InItemProperty = InNode.GetProperty();
+	const FProperty* InItemProperty = InNode.GetProperty();
 	// Is there a InItemProperty bound to the InItemProperty window?
 	if( !InItemProperty )
 	{
@@ -203,7 +203,7 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 
 	if( ArrayOuter || SetOuter || MapOuter)
 	{
-		FPropertyNode* ParentPropertyNode = InNode.GetParentNode();
+		const FPropertyNode* ParentPropertyNode = InNode.GetParentNode();
 		check(ParentPropertyNode);
 		const UObject* TempObject = GetUObject(0);
 		if( TempObject )
@@ -213,13 +213,15 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 			{
 				if ( ArrayOuter )
 				{
-					const int32 Num = FScriptArrayHelper::Num(BaseAddr);
+					FScriptArrayHelper ArrayHelper(ArrayOuter, BaseAddr);
+					const int32 Num = ArrayHelper.Num();
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ++ObjIndex)
 					{
 						TempObject = GetUObject(ObjIndex);
 						BaseAddr = ParentPropertyNode->GetValueBaseAddressFromObject(TempObject);
 
-						if (BaseAddr && Num != FScriptArrayHelper::Num(BaseAddr))
+						ArrayHelper = FScriptArrayHelper(ArrayOuter, BaseAddr);
+						if (BaseAddr && Num != ArrayHelper.Num())
 						{
 							bAllTheSame = false;
 						}
@@ -241,15 +243,20 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 				}
 				else if ( MapOuter )
 				{
-					const int32 Num = FScriptMapHelper::Num(BaseAddr);
+					FScriptMapHelper MapHelper(MapOuter, BaseAddr);
+					const int32 Num = MapHelper.Num();
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ++ObjIndex)
 					{
 						TempObject = GetUObject(ObjIndex);
 						BaseAddr = ParentPropertyNode->GetValueBaseAddressFromObject(TempObject);
 
-						if (BaseAddr && Num != FScriptMapHelper::Num(BaseAddr))
+						if (BaseAddr)
 						{
-							bAllTheSame = false;
+							MapHelper = FScriptMapHelper(MapOuter, BaseAddr);
+							if (Num != MapHelper.Num())
+							{
+								bAllTheSame = false;
+							}
 						}
 					}
 				}
@@ -263,9 +270,9 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 		// If the item is an array or set itself, return NULL if there are a different number of
 		// items in the container in different objects, when multi-selecting.
 
-		FArrayProperty* ArrayProp = CastField<FArrayProperty>(InItemProperty);
-		FSetProperty* SetProp = CastField<FSetProperty>(InItemProperty);
-		FMapProperty* MapProp = CastField<FMapProperty>(InItemProperty);
+		const FArrayProperty* ArrayProp = CastField<FArrayProperty>(InItemProperty);
+		const FSetProperty* SetProp = CastField<FSetProperty>(InItemProperty);
+		const FMapProperty* MapProp = CastField<FMapProperty>(InItemProperty);
 
 		if (ArrayProp || SetProp || MapProp)
 		{
@@ -277,13 +284,18 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 
 				if (ArrayProp)
 				{
-					int32 const Num = FScriptArrayHelper::Num(BaseAddr);
+					FScriptArrayHelper ArrayHelper(ArrayProp, BaseAddr);
+					int32 const Num = ArrayHelper.Num();
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ObjIndex++)
 					{
 						TempObject = GetUObject(ObjIndex);
-						if (TempObject && Num != FScriptArrayHelper::Num(InNode.GetValueBaseAddressFromObject(TempObject)))
+						if (TempObject)
 						{
-							bAllTheSame = false;
+							ArrayHelper = FScriptArrayHelper(ArrayProp, InNode.GetValueBaseAddressFromObject(TempObject));
+							if (Num != ArrayHelper.Num())
+							{
+								bAllTheSame = false;
+							}
 						}
 					}
 				}
@@ -301,13 +313,18 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 				}
 				else if (MapProp)
 				{
-					int32 const Num = FScriptMapHelper::Num(BaseAddr);
+					FScriptMapHelper MapHelper(MapProp, BaseAddr);
+					int32 const Num = MapHelper.Num();
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ++ObjIndex)
 					{
 						TempObject = GetUObject(ObjIndex);
-						if (TempObject && Num != FScriptMapHelper::Num(InNode.GetValueBaseAddressFromObject(TempObject)))
+						if (TempObject)
 						{
-							bAllTheSame = false;
+							MapHelper = FScriptMapHelper(MapProp, InNode.GetValueBaseAddressFromObject(TempObject));
+							if (Num != MapHelper.Num())
+							{
+								bAllTheSame = false;
+							}
 						}
 					}
 				}
@@ -375,7 +392,7 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
  * @param InItem		The property to get objects from.
  * @param OutAddresses	Storage array for all of the objects' addresses.
  */
-bool FObjectPropertyNode::GetReadAddressUncached( FPropertyNode& InNode, FReadAddressListData& OutAddresses ) const
+bool FObjectPropertyNode::GetReadAddressUncached(const FPropertyNode& InNode, FReadAddressListData& OutAddresses ) const
 {
 	// Are any objects selected for property editing?
 	if( !GetNumObjects())
@@ -383,7 +400,7 @@ bool FObjectPropertyNode::GetReadAddressUncached( FPropertyNode& InNode, FReadAd
 		return false;
 	}
 
-	FProperty* InItemProperty = InNode.GetProperty();
+	const FProperty* InItemProperty = InNode.GetProperty();
 	// Is there a InItemProperty bound to the InItemProperty window?
 	if( !InItemProperty )
 	{
@@ -405,7 +422,7 @@ bool FObjectPropertyNode::GetReadAddressUncached( FPropertyNode& InNode, FReadAd
 	return true;
 }
 
-uint8* FObjectPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData)
+uint8* FObjectPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) const
 {
 	uint8* Result = StartAddress;
 

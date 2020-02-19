@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfacePhysicsAsset.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "SkeletalRenderPublic.h"
 #include "SkeletalMeshTypes.h"
 #include "AnimationRuntime.h"
 #include "NiagaraShader.h"
@@ -46,24 +47,7 @@ const FString UNiagaraDataInterfacePhysicsAsset::BoxExtentName(TEXT("BoxExtent_"
 
 struct FNDIPhysicsAssetParametersName
 {
-	FNDIPhysicsAssetParametersName(const FString& Suffix)
-	{
-		ElementOffsetsName = UNiagaraDataInterfacePhysicsAsset::ElementOffsetsName + Suffix;
-
-		CurrentTransformBufferName = UNiagaraDataInterfacePhysicsAsset::CurrentTransformBufferName + Suffix;
-		PreviousTransformBufferName = UNiagaraDataInterfacePhysicsAsset::PreviousTransformBufferName + Suffix;
-		PreviousInverseBufferName = UNiagaraDataInterfacePhysicsAsset::PreviousInverseBufferName + Suffix;
-		InverseTransformBufferName = UNiagaraDataInterfacePhysicsAsset::InverseTransformBufferName + Suffix;
-		RestTransformBufferName = UNiagaraDataInterfacePhysicsAsset::RestTransformBufferName + Suffix;
-		RestInverseBufferName = UNiagaraDataInterfacePhysicsAsset::RestInverseBufferName + Suffix;
-		ElementExtentBufferName = UNiagaraDataInterfacePhysicsAsset::ElementExtentBufferName + Suffix;
-
-		BoxOriginName = UNiagaraDataInterfacePhysicsAsset::BoxOriginName + Suffix;
-		BoxExtentName = UNiagaraDataInterfacePhysicsAsset::BoxExtentName + Suffix;
-	}
-
 	FString ElementOffsetsName;
-	
 	FString CurrentTransformBufferName;
 	FString PreviousTransformBufferName;
 	FString PreviousInverseBufferName;
@@ -75,6 +59,20 @@ struct FNDIPhysicsAssetParametersName
 	FString BoxOriginName;
 	FString BoxExtentName;
 };
+
+static void GetNiagaraDataInterfaceParametersName(FNDIPhysicsAssetParametersName& Names, const FString& Suffix)
+{
+	Names.ElementOffsetsName = UNiagaraDataInterfacePhysicsAsset::ElementOffsetsName + Suffix;
+	Names.CurrentTransformBufferName = UNiagaraDataInterfacePhysicsAsset::CurrentTransformBufferName + Suffix;
+	Names.PreviousTransformBufferName = UNiagaraDataInterfacePhysicsAsset::PreviousTransformBufferName + Suffix;
+	Names.InverseTransformBufferName = UNiagaraDataInterfacePhysicsAsset::InverseTransformBufferName + Suffix;
+	Names.RestTransformBufferName = UNiagaraDataInterfacePhysicsAsset::RestTransformBufferName + Suffix;
+	Names.RestInverseBufferName = UNiagaraDataInterfacePhysicsAsset::RestInverseBufferName + Suffix;
+	Names.ElementExtentBufferName = UNiagaraDataInterfacePhysicsAsset::ElementExtentBufferName + Suffix;
+
+	Names.BoxOriginName = UNiagaraDataInterfacePhysicsAsset::BoxOriginName + Suffix;
+	Names.BoxExtentName = UNiagaraDataInterfacePhysicsAsset::BoxExtentName + Suffix;
+}
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -305,6 +303,28 @@ void FNDIPhysicsAssetBuffer::Update()
 	}
 }
 
+struct FPhysicsAssetManager
+{
+	TMap<int32,FSkeletalMeshObject*> Elements;
+};
+
+FPhysicsAssetManager GHairManager;
+
+void MeshObjectCallback(
+	FSkeletalMeshObjectCallbackData::EEventType Event,
+	FSkeletalMeshObject* MeshObject,
+	uint64 UserData)
+{
+	ENQUEUE_RENDER_COMMAND(FPhysicsAssetUpdate)(
+		[Event, MeshObject, UserData](FRHICommandListImmediate& RHICmdList)
+	{
+		if (Event == FSkeletalMeshObjectCallbackData::EEventType::Register || Event == FSkeletalMeshObjectCallbackData::EEventType::Update)
+		{
+			GHairManager.Elements.Add(UserData,MeshObject);
+		}
+	});
+}
+
 void FNDIPhysicsAssetBuffer::InitRHI()
 {
 	if (IsValid())
@@ -320,6 +340,25 @@ void FNDIPhysicsAssetBuffer::InitRHI()
 		//UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
 		//	AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
 	}
+
+	// /*const FPrimitiveComponentId LocalComponentId = SkeletalMesh->ComponentId;
+	//EWorldType::Type WorldType = SkeletalMesh->GetWorld() ? EWorldType::Type(SkeletalMesh->GetWorld()->WorldType) : EWorldType::None;
+	//WorldType = WorldType == EWorldType::Inactive ? EWorldType::Editor : WorldType;*/
+
+	//// Always setup the callback, even if the SkeletalMeshData are not ready yet
+	//if (SkeletalMesh.IsValid() && SkeletalMesh.Get() != nullptr)
+	//{
+	//	/*FSkeletalMeshObjectCallbackData CallbackData;
+	//	CallbackData.Run = MeshObjectCallback;
+	//	CallbackData.UserData = (uint64(LocalComponentId.PrimIDValue) & 0xFFFFFFFF) | (uint64(WorldType) << 32);
+	//	SkeletalMesh->MeshObjectCallbackData = CallbackData;*/
+
+	//	if (SkeletalMesh->MeshObject != nullptr)
+	//	{
+	//		UE_LOG(LogPhysicsAsset, Log, TEXT("Skin Cache there : %d %d %d"), SkeletalMesh->MeshObject, SkeletalMesh->MeshObject->GetCachedGeometry().LODIndex, 
+	//				SkeletalMesh->MeshObject->GetCachedGeometry().Sections.Num());
+	//	}
+	//}
 }
 
 void FNDIPhysicsAssetBuffer::ReleaseRHI()
@@ -376,9 +415,12 @@ bool FNDIPhysicsAssetData::Init(UNiagaraDataInterfacePhysicsAsset* Interface, FN
 
 struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNDIPhysicsAssetParametersCS, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		FNDIPhysicsAssetParametersName ParamNames(ParamRef.ParameterInfo.DataInterfaceHLSLSymbol);
+		FNDIPhysicsAssetParametersName ParamNames;
+		GetNiagaraDataInterfaceParametersName(ParamNames, *ParameterInfo.DataInterfaceHLSLSymbol);
 
 		ElementOffsets.Bind(ParameterMap, *ParamNames.ElementOffsetsName);
 
@@ -423,25 +465,11 @@ struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << ElementOffsets;
-		Ar << CurrentTransformBuffer;
-		Ar << PreviousTransformBuffer;
-		Ar << PreviousInverseBuffer;
-		Ar << InverseTransformBuffer;
-		Ar << RestTransformBuffer;
-		Ar << RestInverseBuffer;
-		Ar << ElementExtentBuffer;
-		Ar << BoxOrigin;
-		Ar << BoxExtent;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FNDIPhysicsAssetProxy* InterfaceProxy =
 			static_cast<FNDIPhysicsAssetProxy*>(Context.DataInterface);
@@ -480,25 +508,29 @@ struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 	}
 
-	virtual void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 	}
 
 private:
 
-	FShaderParameter ElementOffsets;
+	LAYOUT_FIELD(FShaderParameter, ElementOffsets);
 
-	FShaderResourceParameter CurrentTransformBuffer;
-	FShaderResourceParameter PreviousTransformBuffer;
-	FShaderResourceParameter PreviousInverseBuffer;
-	FShaderResourceParameter InverseTransformBuffer;
-	FShaderResourceParameter RestTransformBuffer;
-	FShaderResourceParameter RestInverseBuffer;
-	FShaderResourceParameter ElementExtentBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, CurrentTransformBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousTransformBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousInverseBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, InverseTransformBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, RestTransformBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, RestInverseBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, ElementExtentBuffer);
 
-	FShaderParameter BoxOrigin;
-	FShaderParameter BoxExtent;
+	LAYOUT_FIELD(FShaderParameter, BoxOrigin);
+	LAYOUT_FIELD(FShaderParameter, BoxExtent);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNDIPhysicsAssetParametersCS);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfacePhysicsAsset, FNDIPhysicsAssetParametersCS);
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -533,6 +565,28 @@ void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher
 	check(IsInRenderingThread());
 	//check(SystemInstancesToProxyData.Contains(SystemInstance));
 	SystemInstancesToProxyData.Remove(SystemInstance);
+}
+
+void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
+	if (Context.ShaderStageIndex == 0)
+	{
+		FNDIPhysicsAssetData* ProxyData =
+			SystemInstancesToProxyData.Find(Context.SystemInstance);
+
+		if (ProxyData != nullptr)
+		{
+
+		}
+	}
+}
+
+void FNDIPhysicsAssetProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
+}
+
+void FNDIPhysicsAssetProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -825,7 +879,8 @@ void UNiagaraDataInterfacePhysicsAsset::GetProjectionPoint(FVectorVMContext& Con
 
 bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	FNDIPhysicsAssetParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
+	FNDIPhysicsAssetParametersName ParamNames;
+	GetNiagaraDataInterfaceParametersName(ParamNames, ParamInfo.DataInterfaceHLSLSymbol);
 
 	TMap<FString, FStringFormatArg> ArgsSample = {
 		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
@@ -939,12 +994,5 @@ void UNiagaraDataInterfacePhysicsAsset::ProvidePerInstanceDataForRenderThread(vo
 	}
 	check(Proxy);
 }
-
-FNiagaraDataInterfaceParametersCS*
-UNiagaraDataInterfacePhysicsAsset::ConstructComputeParameters() const
-{
-	return new FNDIPhysicsAssetParametersCS();
-}
-
 
 #undef LOCTEXT_NAMESPACE

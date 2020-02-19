@@ -836,11 +836,11 @@ void USkeletalMeshComponent::BeginPlay()
 	// Trace the 'first frame' markers
 	TRACE_SKELETAL_MESH_COMPONENT(this);
 
-	if (AnimScriptInstance)
+	ForEachAnimInstance([](UAnimInstance* InAnimInstance)
 	{
-		AnimScriptInstance->NativeBeginPlay();
-		AnimScriptInstance->BlueprintBeginPlay();
-	}
+		InAnimInstance->NativeBeginPlay();
+		InAnimInstance->BlueprintBeginPlay();
+	});
 }
 
 #if WITH_EDITOR
@@ -2292,8 +2292,11 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 	if (EvaluationContext.AnimInstance && EvaluationContext.AnimInstance->NeedsUpdate())
 	{
 		EvaluationContext.AnimInstance->PostUpdateAnimation();
+	}
 
-		for (UAnimInstance* LinkedInstance : LinkedInstances)
+	for (UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		if(LinkedInstance->NeedsUpdate())
 		{
 			LinkedInstance->PostUpdateAnimation();
 		}
@@ -2450,12 +2453,20 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 			}
 		}
 
-		// If we have no physics to blend, we are done
+#if WITH_EDITOR	
+		// If we have no physics to blend or in editor since there is no physics tick group, we are done
+		if (!ShouldBlendPhysicsBones() || GetWorld()->WorldType == EWorldType::Editor)
+		{
+			// Flip buffers, update bounds, attachments etc.
+			FinalizeAnimationUpdate();
+		}
+#else
 		if (!ShouldBlendPhysicsBones())
 		{
 			// Flip buffers, update bounds, attachments etc.
 			FinalizeAnimationUpdate();
 		}
+#endif
 	}
 	else 
 	{
@@ -2810,6 +2821,27 @@ UAnimInstance* USkeletalMeshComponent::GetLinkedAnimLayerInstanceByClass(TSubcla
 		return AnimScriptInstance->GetLinkedAnimLayerInstanceByClass(InClass);
 	}
 	return nullptr;
+}
+
+void USkeletalMeshComponent::ForEachAnimInstance(TFunctionRef<void(UAnimInstance*)> InFunction)
+{
+	if(AnimScriptInstance)
+	{
+		InFunction(AnimScriptInstance);
+	}
+
+	for(UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		if(LinkedInstance)
+		{
+			InFunction(LinkedInstance);
+		}
+	}
+
+	if(PostProcessAnimInstance)
+	{
+		InFunction(PostProcessAnimInstance);
+	}
 }
 
 bool USkeletalMeshComponent::HasValidAnimationInstance() const

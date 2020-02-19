@@ -71,6 +71,14 @@ void UNiagaraNodeWriteDataSet::Compile(class FHlslNiagaraTranslator* Translator,
 	TArray<int32> Inputs;
 	CompileInputPins(Translator, Inputs);
 
+
+	bool bGPUSim = Translator->IsCompileOptionDefined(TEXT("GPUComputeSim"));
+
+	if (bGPUSim)
+	{
+		Translator->Error(LOCTEXT("CannotRunWriteDataSetGPU", "Cannot use an event write node on GPU sims!"), this, nullptr);
+	}
+
 	FString IssuesWithStruct;
 	if (!IsSynchronizedWithStruct(true, &IssuesWithStruct,false))
 	{

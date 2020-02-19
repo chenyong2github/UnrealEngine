@@ -94,6 +94,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, DebugParams(InDebugParams)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
+		, QueryFilterDataConcrete(P2UFilterData(QueryFilterData.data))
 		, QueryCallback(InQueryCallback)
 	{
 #if WITH_PHYSX
@@ -111,6 +112,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, DebugParams(InDebugParams)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
+		, QueryFilterDataConcrete(P2UFilterData(QueryFilterData.data))
 		, QueryGeom(&InQueryGeom)
 		, QueryCallback(InQueryCallback)
 		, StartTM(InStartTM)
@@ -129,6 +131,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, DebugParams(InDebugParams)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
+		, QueryFilterDataConcrete(P2UFilterData(QueryFilterData.data))
 		, QueryGeom(&InQueryGeom)
 		, QueryCallback(InQueryCallback)
 		, StartTM(InWorldTM)
@@ -155,6 +158,11 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		return Visit<ESQType::Overlap>(Instance, nullptr);
 	}
 
+	virtual const void* GetQueryData() const override
+	{
+		return &QueryFilterData;
+	}
+
 private:
 
 	enum class ESQType
@@ -167,6 +175,7 @@ private:
 	template <ESQType SQ>
 	bool Visit(const Chaos::TSpatialVisitorData<TPayload>& Instance, Chaos::FQueryFastData* CurData)
 	{
+		//QUICK_SCOPE_CYCLE_COUNTER(SQVisit);
 #if CHAOS_DEBUG_DRAW && WITH_CHAOS
 		if (DebugParams.IsDebugQuery() && ChaosSQDrawDebugVisitorQueries)
 		{
@@ -198,8 +207,10 @@ private:
 				}
 				else
 				{
-					InflatedWorldBounds = TAABB<FReal, 3>(Shape->WorldSpaceInflatedShapeBounds.Min() - HalfExtents, Shape->WorldSpaceInflatedShapeBounds.Max() + HalfExtents);
+					// Transform to world bounds and get the proper half extent.
+					const FVec3 WorldHalfExtent = QueryGeom ? QueryGeom->BoundingBox().TransformedAABB(StartTM).Extents() * 0.5f : HalfExtents;
 
+					InflatedWorldBounds = TAABB<FReal, 3>(Shape->WorldSpaceInflatedShapeBounds.Min() - WorldHalfExtent, Shape->WorldSpaceInflatedShapeBounds.Max() + WorldHalfExtent);
 				}
 				if (SQ != ESQType::Overlap)
 				{
@@ -223,7 +234,7 @@ private:
 			//TODO: use gt particles directly
 			//#TODO alternative to px flags
 #if WITH_PHYSX
-			ECollisionQueryHitType HitType = QueryFilterData.flags & PxQueryFlag::ePREFILTER ? QueryCallback.PreFilter(P2UFilterData(QueryFilterData.data), *Shape, *GeometryParticle) : ECollisionQueryHitType::Block;
+			ECollisionQueryHitType HitType = QueryFilterData.flags & PxQueryFlag::ePREFILTER ? QueryCallback.PreFilter(QueryFilterDataConcrete, *Shape, *GeometryParticle) : ECollisionQueryHitType::Block;
 #else
 			//#TODO Chaos flag alternative
 			ensure(false);
@@ -231,7 +242,7 @@ private:
 #endif
 			if (HitType != ECollisionQueryHitType::None)
 			{
-
+				//QUICK_SCOPE_CYCLE_COUNTER(SQNarrow);
 				THitType Hit;
 				Hit.Actor = GeometryParticle;
 				Hit.Shape = Shape.Get();
@@ -280,9 +291,10 @@ private:
 
 				if(bHit)
 				{
+					//QUICK_SCOPE_CYCLE_COUNTER(SQNarrowHit);
 					FillHitHelper(Hit, Distance, WorldPosition, WorldNormal, FaceIdx, bComputeMTD);
 #if WITH_PHYSX
-					HitType = QueryFilterData.flags & PxQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(P2UFilterData(QueryFilterData.data), Hit) : HitType;
+					HitType = QueryFilterData.flags & PxQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
 #else
 					//#TODO Chaos flag alternative
 					ensure(false);
@@ -340,6 +352,7 @@ private:
 	const FQueryDebugParams DebugParams;
 	ChaosInterface::FSQHitBuffer<THitType>& HitBuffer;
 	const FQueryFilterData& QueryFilterData;
+	const FCollisionFilterData QueryFilterDataConcrete;
 	const QueryGeometryType* QueryGeom;
 	ICollisionQueryFilterCallbackBase& QueryCallback;
 	const FTransform StartTM;

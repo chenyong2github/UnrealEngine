@@ -10,6 +10,12 @@
 #include "Templates/Models.h"
 #include "Chaos/BoundingVolume.h"
 
+struct FAABBTreeCVars
+{
+	static int32 UpdateDirtyElementPayloadData;
+	static FAutoConsoleVariableRef CVarUpdateDirtyElementPayloadData;
+};
+
 namespace Chaos
 {
 
@@ -69,19 +75,64 @@ struct TAABBTreeIntersectionHelper<T, FQueryFastDataVoid, EAABBQueryType::Overla
 	}
 };
 
+template <typename TPayloadType, typename T, bool bComputeBounds>
+struct TBoundsWrapperHelper
+{
+
+};
+
 template <typename TPayloadType, typename T>
-struct TAABBTreeLeafArray
+struct TBoundsWrapperHelper<TPayloadType, T, true>
+{
+	void ComputeBounds(const TArray<TPayloadBoundsElement<TPayloadType, T>>& Elems)
+	{
+		Bounds = TAABB<T, 3>::EmptyAABB();
+
+		for (const auto& Elem : Elems)
+		{
+			Bounds.GrowToInclude(Elem.Bounds);
+		}
+	}
+
+	const TAABB<T, 3>& GetBounds() const { return Bounds; }
+
+private:
+	TAABB<T, 3> Bounds;
+};
+
+template <typename TPayloadType, typename T>
+struct TBoundsWrapperHelper<TPayloadType, T, false>
+{
+	void ComputeBounds(const TArray<TPayloadBoundsElement<TPayloadType, T>>&)
+	{
+	}
+
+	const TAABB<T, 3> GetBounds() const
+	{
+		return TAABB<T, 3>::EmptyAABB();
+	}
+};
+
+template <typename TPayloadType, typename T, bool bComputeBounds = true>
+struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComputeBounds>
 {
 	TAABBTreeLeafArray() {}
 	//todo: avoid copy?
 	TAABBTreeLeafArray(const TArray<TPayloadBoundsElement<TPayloadType, T>>& InElems)
 		: Elems(InElems)
 	{
+		this->ComputeBounds(Elems);
 	}
 
 	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, T>>& OutElements)
 	{
 		OutElements.Append(Elems);
+	}
+
+	SIZE_T GetReserveCount() const
+	{
+		// Optimize for fewer memory allocations.
+		return Elems.Num();
 	}
 
 	template <typename TSQVisitor, typename TQueryFastData>
@@ -148,16 +199,22 @@ struct TAABBTreeLeafArray
 		}
 	}
 
+	const TAABB<T, 3>& GetBounds() const
+	{
+		return Bounds;
+	}
+
 	void Serialize(FChaosArchive& Ar)
 	{
 		Ar << Elems;
 	}
 
 	TArray<TPayloadBoundsElement<TPayloadType, T>> Elems;
+	TAABB<T,3> Bounds;
 };
 
-template <typename TPayloadType, typename T>
-FChaosArchive& operator<<(FChaosArchive& Ar, TAABBTreeLeafArray<TPayloadType, T>& LeafArray)
+template <typename TPayloadType, typename T, bool bComputeBounds>
+FChaosArchive& operator<<(FChaosArchive& Ar, TAABBTreeLeafArray<TPayloadType, T, bComputeBounds>& LeafArray)
 {
 	LeafArray.Serialize(Ar);
 	return Ar;
@@ -172,8 +229,8 @@ struct TAABBTreeNode
 		ChildrenBounds[1] = TAABB<T, 3>();
 	}
 	TAABB<T, 3> ChildrenBounds[2];
-	int32 ChildrenNodes[2];
-	bool bLeaf;
+	int32 ChildrenNodes[2] = { 0, 0 };
+	bool bLeaf = false;
 
 	void Serialize(FChaosArchive& Ar)
 	{
@@ -226,6 +283,27 @@ inline FArchive& operator<<(FArchive& Ar, FAABBTreePayloadInfo& PayloadInfo)
 
 extern CHAOS_API int32 MaxDirtyElements;
 
+struct CIsUpdatableElement
+{
+	template<typename ElementT>
+	auto Requires(ElementT& InElem, const ElementT& InOtherElem) -> decltype(InElem.UpdateFrom(InOtherElem));
+};
+
+template<typename T, typename TEnableIf<!TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+static void UpdateElementHelper(T& InElem, const T& InFrom)
+{
+
+}
+
+template<typename T, typename TEnableIf<TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+static void UpdateElementHelper(T& InElem, const T& InFrom)
+{
+	if(FAABBTreeCVars::UpdateDirtyElementPayloadData != 0)
+	{
+		InElem.UpdateFrom(InFrom);
+	}
+}
+
 template <typename TPayloadType, typename TLeafType, typename T, bool bMutable = true>
 class TAABBTree final : public ISpatialAcceleration<TPayloadType, T, 3>
 {
@@ -258,28 +336,11 @@ public:
 		}
 
 		// still has work to complete
-		if (!TimeSliceWorkToComplete.IsEmpty())
+		if (WorkStack.Num())
 		{
-			FWorkSnapshot Store;
-			TimeSliceWorkToComplete.Dequeue(Store);
 			NumProcessedThisSlice = 0;
-			if (Store.TimeslicePhase == eTimeSlicePhase::PHASE1)
-			{
-				SplitNode(Store.Bounds, Store.Elems, Store.NodeLevel, Store.NewNodeIdx);
-			}
-			else
-			{
-				check(Store.TimeslicePhase == eTimeSlicePhase::PHASE2);
-				SplitNode(Store.Bounds, Store.RealBounds, Store.Elems, Store.SplitBoundsSize2, Store.NewNodeIdx, Store.NodeLevel, Store.BoxIdx);
-			}
+			SplitNode();
 		}
-
-		// are done now?
-		if (TimeSliceWorkToComplete.IsEmpty())
-		{
-			this->SetAsyncTimeSlicingComplete(true);
-		}
-
 	}
 
 	template <typename TParticles>
@@ -427,6 +488,16 @@ public:
 			{
 				if (PayloadInfo->LeafIdx != INDEX_NONE)
 				{
+					//If we are still within the same leaf bounds, do nothing
+					if (bHasBounds)
+					{
+						const TAABB<T,3>& LeafBounds = Leaves[PayloadInfo->LeafIdx].GetBounds();
+						if (LeafBounds.Contains(NewBounds.Min()) && LeafBounds.Contains(NewBounds.Max()))
+						{
+							return;
+						}
+					}
+
 					Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
 					PayloadInfo->LeafIdx = INDEX_NONE;
 				}
@@ -455,6 +526,7 @@ public:
 				else
 				{
 					DirtyElements[PayloadInfo->DirtyPayloadIdx].Bounds = NewBounds;
+					UpdateElementHelper(DirtyElements[PayloadInfo->DirtyPayloadIdx].Payload, Payload);
 				}
 
 				// Handle something that previously did not have bounds that may be in global elements.
@@ -480,6 +552,7 @@ public:
 				else
 				{
 					GlobalPayloads[PayloadInfo->GlobalPayloadIdx].Bounds = GlobalBounds;
+					UpdateElementHelper(GlobalPayloads[PayloadInfo->GlobalPayloadIdx].Payload, Payload);
 				}
 
 				// Handle something that previously had bounds that may be in dirty elements.
@@ -557,10 +630,19 @@ private:
 	void ReoptimizeTree()
 	{
 		TArray<FElement> AllElements;
+
+		SIZE_T ReserveCount = DirtyElements.Num() + GlobalPayloads.Num();
+		for (const auto& Leaf : Leaves)
+		{
+			ReserveCount += Leaf.GetReserveCount();
+		}
+
+		AllElements.Reserve(ReserveCount);
+
 		AllElements.Append(DirtyElements);
 		AllElements.Append(GlobalPayloads);
 
-		for(auto& Leaf : Leaves)
+		for (auto& Leaf : Leaves)
 		{
 			Leaf.GatherElements(AllElements);
 		}
@@ -572,41 +654,58 @@ private:
 	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
 	bool QueryImp(const TVector<T, 3>& Start, TQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, const TAABB<T,3>& QueryBounds, SQVisitor& Visitor) const
 	{
+		//QUICK_SCOPE_CYCLE_COUNTER(AABBTreeQueryImp);
 		TVector<T, 3> TmpPosition;
 		T TOI = 0;
+		const void* QueryData = Visitor.GetQueryData();
 
-		for (const auto& Elem : GlobalPayloads)
 		{
-			const auto& InstanceBounds = Elem.Bounds;
-			if (TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
+
+			//QUICK_SCOPE_CYCLE_COUNTER(QueryGlobal);
+
+			for(const auto& Elem : GlobalPayloads)
 			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true);
-				bool bContinue;
-				if (Query == EAABBQueryType::Overlap)
+				if (PrePreFilterHelper(Elem.Payload, QueryData))
 				{
-					bContinue = Visitor.VisitOverlap(VisitData);
-				}
-				else
-				{
-					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurData) : Visitor.VisitRaycast(VisitData, CurData);
+					continue;
 				}
 
-				if (!bContinue)
+				const auto& InstanceBounds = Elem.Bounds;
+				if(TAABBTreeIntersectionHelper<T,TQueryFastData,Query>::Intersects(Start,CurData,TOI,TmpPosition,InstanceBounds,QueryBounds,QueryHalfExtents))
 				{
-					return false;
+					TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload,true);
+					bool bContinue;
+					if(Query == EAABBQueryType::Overlap)
+					{
+						bContinue = Visitor.VisitOverlap(VisitData);
+					} else
+					{
+						bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData,CurData) : Visitor.VisitRaycast(VisitData,CurData);
+					}
+
+					if(!bContinue)
+					{
+						return false;
+					}
 				}
 			}
 		}
 
 		if (bMutable)
 		{
+			//QUICK_SCOPE_CYCLE_COUNTER(QueryDirty);
+
 			for (const auto& Elem : DirtyElements)
 			{
 				const auto& InstanceBounds = Elem.Bounds;
+				if (PrePreFilterHelper(Elem.Payload, QueryData))
+				{
+					continue;
+				}
+
 				if (TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
 				{
 					TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-
 					bool bContinue;
 					if (Query == EAABBQueryType::Overlap)
 					{
@@ -623,6 +722,7 @@ private:
 					}
 				}
 			}
+
 		}
 
 		struct FNodeQueueEntry
@@ -684,15 +784,44 @@ private:
 		return true;
 	}
 
+	int32 GetNewWorkSnapshot()
+	{
+		if(WorkPoolFreeList.Num())
+		{
+			return WorkPoolFreeList.Pop();
+		}
+		else
+		{
+			return WorkPool.AddDefaulted(1);
+		}
+	}
+
+	void FreeWorkSnapshot(int32 WorkSnapshotIdx)
+	{
+		//Reset for next time they want to use it
+		WorkPool[WorkSnapshotIdx] = FWorkSnapshot();
+		WorkPoolFreeList.Add(WorkSnapshotIdx);
+		
+	}
+
 	template <typename TParticles>
 	void GenerateTree(const TParticles& Particles)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AABBTreeGenerateTree);
 		this->SetAsyncTimeSlicingComplete(false);
 
-		TArray<FElement> ElemsWithBounds;
-		ElemsWithBounds.Reserve(Particles.Num());
+		ensure(WorkStack.Num() == 0);
 
+		const int32 ExpectedNumLeaves = Particles.Num() / MaxChildrenInLeaf;
+		const int32 ExpectedNumNodes = ExpectedNumLeaves;
+
+		WorkStack.Reserve(ExpectedNumNodes);
+
+		const int32 CurIdx = GetNewWorkSnapshot();
+		FWorkSnapshot& WorkSnapshot = WorkPool[CurIdx];
+		WorkSnapshot.Elems.Reserve(Particles.Num());
+		
+		
 		GlobalPayloads.Reset();
 		Leaves.Reset();
 		Nodes.Reset();
@@ -700,13 +829,14 @@ private:
 		PayloadToInfo.Reset();
 		NumProcessedThisSlice = 0;
 
-		FullBounds = TAABB<T, 3>::EmptyAABB();
+		WorkSnapshot.Bounds = TAABB<T, 3>::EmptyAABB();
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_AABBTreeTimeSliceSetup);
 
 			int32 Idx = 0;
 
+			//TODO: we need a better way to time-slice this case since there can be a huge number of Particles. Can't do it right now without making full copy
 			for (auto& Particle : Particles)
 			{
 				bool bHasBoundingBox = HasBoundingBox(Particle);
@@ -721,8 +851,8 @@ private:
 					}
 					else
 					{
-						ElemsWithBounds.Add(FElement{ Payload, ElemBounds });
-						FullBounds.GrowToInclude(ElemBounds);
+						WorkSnapshot.Elems.Add(FElement{ Payload, ElemBounds });
+						WorkSnapshot.Bounds.GrowToInclude(ElemBounds);
 					}
 				}
 				else
@@ -742,201 +872,287 @@ private:
 				++Idx;
 				//todo: payload info
 			}
-
 		}
+
+		NumProcessedThisSlice = Particles.Num();	//todo: give chance to time slice out of next phase
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_AABBTreeInitialTimeSlice);
+			WorkSnapshot.NewNodeIdx = 0;
+			WorkSnapshot.NodeLevel = 0;
 
-			SplitNode(FullBounds, ElemsWithBounds, 0, 0, true);
+			//push root onto stack
+			WorkStack.Add(CurIdx);
 
-			if (TimeSliceWorkToComplete.IsEmpty())
+			SplitNode();
+		}
+
+		/*  Helper validation code 
+		int32 Count = 0;
+		TSet<int32> Seen;
+		if(WorkStack.Num() == 0)
+		{
+			int32 LeafIdx = 0;
+			for (const auto& Leaf : Leaves)
 			{
-				this->SetAsyncTimeSlicingComplete(true);
-			}
-		}
-
-	}
-
-	void SplitNode(TAABB<T, 3>& SplitBounds, TAABB<T, 3>& RealBounds, TArray<FElement>& Children, T& SplitBoundsSize2, int NewNodeIdx, int NodeLevel, int BoxIdx)
-	{
-		//SCOPE_CYCLE_COUNTER(STAT_AABBTreeChildrenPhase);
-
-		check (Children.Num() > 0)
-		{
-			Nodes[NewNodeIdx].bLeaf = false;
-
-			// increment this early so the amount of recursion work left on the stack is smaller
-			NumProcessedThisSlice += Children.Num();
-
-			const int32 ChildIdx = Nodes.Num();
-			Nodes[NewNodeIdx].ChildrenBounds[BoxIdx] = RealBounds;
-			Nodes[NewNodeIdx].ChildrenNodes[BoxIdx] = ChildIdx;
-
-			SplitNode(RealBounds, Children, NodeLevel + 1, ChildIdx);
-		}
-
-	}
-
-	void SplitNode(const TAABB<T, 3>& Bounds, const TArray<FElement>& Elems, int32 NodeLevel, int32 NewNodeIdx, bool Initial=false)
-	{
-		// create the actual node space but might no be filled in (YET) due to time slicing exit
-		if (NewNodeIdx >= Nodes.Num())
-		{
-		 	Nodes.AddDefaulted();	//todo: remove TAABB
-		}
-
-		bool WeAreTimeslicing = (MaxNumToProcess > 0);
-
-		if (WeAreTimeslicing && (NumProcessedThisSlice >= MaxNumToProcess))
-		{
-			// done enough work, capture stack
-			FWorkSnapshot Store;
-			Store.TimeslicePhase = eTimeSlicePhase::PHASE1;
-			Store.Bounds = Bounds;
-			Store.Elems = Elems;			
-			Store.NodeLevel = NodeLevel;
-			Store.NewNodeIdx = NewNodeIdx;
-
-			TimeSliceWorkToComplete.Enqueue(Store);
-
-			return; // done enough
-		}
-
-		auto& PayloadToInfoRef = PayloadToInfo;
-		auto& LeavesRef = Leaves;
-		auto& NodesRef = Nodes;
-		auto MakeLeaf = [NewNodeIdx, &PayloadToInfoRef, &Elems, &LeavesRef, &NodesRef]()
-		{
-			if (bMutable)
-			{
-				for (const FElement& Elem : Elems)
+				Validate(Seen, Count, Leaf);
+				bool bHasParent = false;
+				for (const auto& Node : Nodes)
 				{
-					PayloadToInfoRef.Add(Elem.Payload, FAABBTreePayloadInfo{ INDEX_NONE, INDEX_NONE, LeavesRef.Num() });
+					if (Node.bLeaf && Node.ChildrenNodes[0] == LeafIdx)
+					{
+						bHasParent = true;
+
+						break;
+					}
 				}
+				ensure(bHasParent);
+				++LeafIdx;
 			}
+			ensure(Count == 0 || Seen.Num() == Count);
+			ensure(Count == 0 || Count == Particles.Num());
+		}
+		*/
 
-			NodesRef[NewNodeIdx].bLeaf = true;
-			NodesRef[NewNodeIdx].ChildrenNodes[0] = LeavesRef.Add(TLeafType{ Elems }); //todo: avoid copy?
+	}
 
-		};
+	enum eTimeSlicePhase
+	{
+		PreFindBestBounds,
+		DuringFindBestBounds,
+		ProcessingChildren
+	};
 
-		if (Elems.Num() <= MaxChildrenInLeaf || NodeLevel >= MaxTreeDepth)
+	struct FSplitInfo
+	{
+		TAABB<T, 3> SplitBounds;	//Even split of parent bounds
+		TAABB<T, 3> RealBounds;	//Actual bounds as children are added
+		int32 WorkSnapshotIdx;	//Idx into work snapshot pool
+		T SplitBoundsSize2;
+	};
+
+	struct FWorkSnapshot
+	{
+		FWorkSnapshot()
+			: TimeslicePhase(eTimeSlicePhase::PreFindBestBounds)
 		{
-			MakeLeaf();
-			return; // keep working
+
 		}
 
-		const TVector<T, 3> Extents = Bounds.Extents();
-		const int32 MaxAxis = Bounds.LargestAxis();
-		bool ChildrenInBothHalves = false;
+		eTimeSlicePhase TimeslicePhase;
+
+		TAABB<T, 3> Bounds;
+		TArray<FElement> Elems;
+
+		int32 NodeLevel;
+		int32 NewNodeIdx;
+
+		int32 BestBoundsCurIdx;
 
 		FSplitInfo SplitInfos[2];
-		SplitInfos[0].SplitBounds = TAABB<T, 3>(Bounds.Min(), Bounds.Min());
-		SplitInfos[1].SplitBounds = TAABB<T, 3>(Bounds.Max(), Bounds.Max());
+	};
 
-		const TVector<T, 3> Center = Bounds.Center();
-		for (FSplitInfo& SplitInfo : SplitInfos)
+	void FindBestBounds(const int32 StartElemIdx, const int32 LastElem, FWorkSnapshot& CurrentSnapshot)
+	{
+		// add all elements to one of the two split infos at this level - root level [ not taking into account the max number allowed or anything
+		for(int32 ElemIdx = StartElemIdx; ElemIdx < LastElem; ++ElemIdx)
 		{
-			SplitInfo.RealBounds = TAABB<T, 3>::EmptyAABB();
-
-			for (int32 Axis = 0; Axis < 3; ++Axis)
+			const FElement& Elem = CurrentSnapshot.Elems[ElemIdx];
+			int32 MinBoxIdx = INDEX_NONE;
+			T MinDelta2 = TNumericLimits<T>::Max();
+			int32 BoxIdx = 0;
+			for (const FSplitInfo& SplitInfo : CurrentSnapshot.SplitInfos)
 			{
-				TVector<T, 3> NewPt0 = Center;
-				TVector<T, 3> NewPt1 = Center;
-				if (Axis != MaxAxis)
+				TAABB<T, 3> NewBox = SplitInfo.SplitBounds;
+				NewBox.GrowToInclude(Elem.Bounds);
+				const T Delta2 = NewBox.Extents().SizeSquared() - SplitInfo.SplitBoundsSize2;
+				if (Delta2 < MinDelta2)
 				{
-					NewPt0[Axis] = Bounds.Min()[Axis];
-					NewPt1[Axis] = Bounds.Max()[Axis];
-					SplitInfo.SplitBounds.GrowToInclude(NewPt0);
-					SplitInfo.SplitBounds.GrowToInclude(NewPt1);
+					MinDelta2 = Delta2;
+					MinBoxIdx = BoxIdx;
 				}
+				++BoxIdx;
 			}
 
-			SplitInfo.SplitBoundsSize2 = SplitInfo.SplitBounds.Extents().SizeSquared();
+			if (CHAOS_ENSURE(MinBoxIdx != INDEX_NONE))
+			{
+				FSplitInfo& SplitInfo = CurrentSnapshot.SplitInfos[MinBoxIdx];
+				WorkPool[SplitInfo.WorkSnapshotIdx].Elems.Add(Elem);
+				SplitInfo.RealBounds.GrowToInclude(Elem.Bounds);
+			}
 		}
-		
+
+		NumProcessedThisSlice += LastElem - StartElemIdx;
+	}
+
+	void SplitNode()
+	{
+		const bool WeAreTimeslicing = (MaxNumToProcess > 0);
+
+		while (WorkStack.Num())
 		{
-			//SCOPE_CYCLE_COUNTER(STAT_AABBTreeGrowPhase);
+			//NOTE: remember to be careful with this since it's a pointer on a tarray
+			const int32 CurIdx = WorkStack.Last();
 
-			// add all elements to one of the two split infos at this level - root level [ not taking into account the max number allowed or anything
-			for (const FElement& Elem : Elems)
+			if (WorkPool[CurIdx].TimeslicePhase == eTimeSlicePhase::ProcessingChildren)
 			{
-				int32 MinBoxIdx = INDEX_NONE;
-				T MinDelta2 = TNumericLimits<T>::Max();
-				int32 BoxIdx = 0;
-				for (const FSplitInfo& SplitInfo : SplitInfos)
-				{
-					TAABB<T, 3> NewBox = SplitInfo.SplitBounds;
-					NewBox.GrowToInclude(Elem.Bounds);
-					const T Delta2 = NewBox.Extents().SizeSquared() - SplitInfo.SplitBoundsSize2;
-					if (Delta2 < MinDelta2)
-					{
-						MinDelta2 = Delta2;
-						MinBoxIdx = BoxIdx;
-					}
-					++BoxIdx;
-				}
-
-				if (CHAOS_ENSURE(MinBoxIdx != INDEX_NONE))
-				{
-					SplitInfos[MinBoxIdx].Children.Add(Elem);
-					SplitInfos[MinBoxIdx].RealBounds.GrowToInclude(Elem.Bounds);
-				}
+				//If we got to this it must be that my children are done, so I'm done as well
+				WorkStack.Pop(/*bResize=*/false);
+				FreeWorkSnapshot(CurIdx);
+				continue;
 			}
 
-			NumProcessedThisSlice += Elems.Num();
+			const int32 NewNodeIdx = WorkPool[CurIdx].NewNodeIdx;
 
-			ChildrenInBothHalves = SplitInfos[0].Children.Num() && SplitInfos[1].Children.Num();
-
-			if (ChildrenInBothHalves && WeAreTimeslicing && (NumProcessedThisSlice >= MaxNumToProcess))
+			// create the actual node space but might no be filled in (YET) due to time slicing exit
+			if (NewNodeIdx >= Nodes.Num())
 			{
-				for (int32 BoxIdx = 0; BoxIdx < 2; ++BoxIdx)
-				{
-					// done enough work, capture stack
-					FWorkSnapshot Store;
-					Store.TimeslicePhase = eTimeSlicePhase::PHASE2;
-					Store.NodeLevel = NodeLevel;
-					Store.NewNodeIdx = NewNodeIdx;
-					Store.BoxIdx = BoxIdx;
-					Store.Bounds = MoveTemp(SplitInfos[BoxIdx].SplitBounds);
-					Store.Elems = MoveTemp(SplitInfos[BoxIdx].Children);
-					Store.RealBounds = MoveTemp(SplitInfos[BoxIdx].RealBounds);
-					Store.SplitBoundsSize2 = SplitInfos[BoxIdx].SplitBoundsSize2;
-					TimeSliceWorkToComplete.Enqueue(Store);
-				}
+				Nodes.AddDefaulted((1 + NewNodeIdx) - Nodes.Num());
+			}
+
+			if (WeAreTimeslicing && (NumProcessedThisSlice >= MaxNumToProcess))
+			{
 				return; // done enough
-			}	
-		}
+			}
 
-		{			
-			//SCOPE_CYCLE_COUNTER(STAT_AABBTreeChildrenPhase);
+			auto& PayloadToInfoRef = PayloadToInfo;
+			auto& LeavesRef = Leaves;
+			auto& NodesRef = Nodes;
+			auto& WorkPoolRef = WorkPool;
+			auto MakeLeaf = [NewNodeIdx, &PayloadToInfoRef, &WorkPoolRef, CurIdx, &LeavesRef, &NodesRef]()
+			{
+				if (bMutable)
+				{
+					//todo: does this need time slicing in the case when we have a ton of elements that can't be split?
+					//hopefully not a real issue
+					for (const FElement& Elem : WorkPoolRef[CurIdx].Elems)
+					{
+						PayloadToInfoRef.Add(Elem.Payload, FAABBTreePayloadInfo{ INDEX_NONE, INDEX_NONE, LeavesRef.Num() });
+					}
+				}
 
-			// if children in both halves, recurse a level down
-			if (ChildrenInBothHalves)
+				NodesRef[NewNodeIdx].bLeaf = true;
+				NodesRef[NewNodeIdx].ChildrenNodes[0] = LeavesRef.Add(TLeafType{ WorkPoolRef[CurIdx].Elems }); //todo: avoid copy?
+
+			};
+
+			if (WorkPool[CurIdx].Elems.Num() <= MaxChildrenInLeaf || WorkPool[CurIdx].NodeLevel >= MaxTreeDepth)
+			{
+
+				MakeLeaf();
+				WorkStack.Pop(/*bResize=*/false);	//finished with this node
+				FreeWorkSnapshot(CurIdx);
+				continue;
+			}
+
+			if (WorkPool[CurIdx].TimeslicePhase == eTimeSlicePhase::PreFindBestBounds)
+			{
+				const TVector<T, 3> Extents = WorkPool[CurIdx].Bounds.Extents();
+				const int32 MaxAxis = WorkPool[CurIdx].Bounds.LargestAxis();
+
+				//Add two children, remember this invalidates any pointers to current snapshot
+				const int32 FirstChildIdx = GetNewWorkSnapshot();
+				const int32 SecondChildIdx = GetNewWorkSnapshot();
+
+				//mark idx of children into the work pool
+				WorkPool[CurIdx].SplitInfos[0].WorkSnapshotIdx = FirstChildIdx;
+				WorkPool[CurIdx].SplitInfos[1].WorkSnapshotIdx = SecondChildIdx;
+
+				//these are the hypothetical bounds for the perfect 50/50 split
+				WorkPool[CurIdx].SplitInfos[0].SplitBounds = TAABB<T, 3>(WorkPool[CurIdx].Bounds.Min(), WorkPool[CurIdx].Bounds.Min());
+				WorkPool[CurIdx].SplitInfos[1].SplitBounds = TAABB<T, 3>(WorkPool[CurIdx].Bounds.Max(), WorkPool[CurIdx].Bounds.Max());
+
+				const TVector<T, 3> Center = WorkPool[CurIdx].Bounds.Center();
+				for (FSplitInfo& SplitInfo : WorkPool[CurIdx].SplitInfos)
+				{
+					SplitInfo.RealBounds = TAABB<T, 3>::EmptyAABB();
+
+					for (int32 Axis = 0; Axis < 3; ++Axis)
+					{
+						TVector<T, 3> NewPt0 = Center;
+						TVector<T, 3> NewPt1 = Center;
+						if (Axis != MaxAxis)
+						{
+							NewPt0[Axis] = WorkPool[CurIdx].Bounds.Min()[Axis];
+							NewPt1[Axis] = WorkPool[CurIdx].Bounds.Max()[Axis];
+							SplitInfo.SplitBounds.GrowToInclude(NewPt0);
+							SplitInfo.SplitBounds.GrowToInclude(NewPt1);
+						}
+					}
+
+					SplitInfo.SplitBoundsSize2 = SplitInfo.SplitBounds.Extents().SizeSquared();
+				}
+
+				WorkPool[CurIdx].BestBoundsCurIdx = 0;
+				WorkPool[CurIdx].TimeslicePhase = eTimeSlicePhase::DuringFindBestBounds;
+				const int32 ExpectedNumPerChild = WorkPool[CurIdx].Elems.Num() / 2;
+				{
+					WorkPool[FirstChildIdx].Elems.Reserve(ExpectedNumPerChild);
+					WorkPool[SecondChildIdx].Elems.Reserve(ExpectedNumPerChild);
+				}
+			}
+
+			if (WorkPool[CurIdx].TimeslicePhase == eTimeSlicePhase::DuringFindBestBounds)
+			{
+				const int32 NumWeCanProcess = MaxNumToProcess - NumProcessedThisSlice;
+				const int32 LastIdxToProcess = WeAreTimeslicing ? FMath::Min(WorkPool[CurIdx].BestBoundsCurIdx + NumWeCanProcess, WorkPool[CurIdx].Elems.Num()) : WorkPool[CurIdx].Elems.Num();
+				FindBestBounds(WorkPool[CurIdx].BestBoundsCurIdx, LastIdxToProcess, WorkPool[CurIdx]);
+				WorkPool[CurIdx].BestBoundsCurIdx = LastIdxToProcess;
+
+				if (WeAreTimeslicing && (NumProcessedThisSlice >= MaxNumToProcess))
+				{
+					return; // done enough
+				}
+			}
+
+
+			const int32 FirstChildIdx = WorkPool[CurIdx].SplitInfos[0].WorkSnapshotIdx;
+			const int32 SecondChildIdx = WorkPool[CurIdx].SplitInfos[1].WorkSnapshotIdx;
+
+			const bool bChildrenInBothHalves = WorkPool[FirstChildIdx].Elems.Num() && WorkPool[SecondChildIdx].Elems.Num();
+
+			// if children in both halves, push them on the stack to continue the split
+			if (bChildrenInBothHalves)
 			{
 				Nodes[NewNodeIdx].bLeaf = false;
 
-				// increment this early so the amount of recursion work left on the stack is smaller
-				NumProcessedThisSlice += SplitInfos[0].Children.Num() + SplitInfos[1].Children.Num();
+				Nodes[NewNodeIdx].ChildrenBounds[0] = WorkPool[CurIdx].SplitInfos[0].RealBounds;
+				WorkPool[FirstChildIdx].Bounds = Nodes[NewNodeIdx].ChildrenBounds[0];
+				Nodes[NewNodeIdx].ChildrenNodes[0] = Nodes.Num();
 
-				for (int32 BoxIdx = 0; BoxIdx < 2; ++BoxIdx)
-				{
-					const int32 ChildIdx = Nodes.Num();
-					Nodes[NewNodeIdx].ChildrenBounds[BoxIdx] = SplitInfos[BoxIdx].RealBounds;
-					Nodes[NewNodeIdx].ChildrenNodes[BoxIdx] = ChildIdx;
+				Nodes[NewNodeIdx].ChildrenBounds[1] = WorkPool[CurIdx].SplitInfos[1].RealBounds;
+				WorkPool[SecondChildIdx].Bounds = Nodes[NewNodeIdx].ChildrenBounds[1];
+				Nodes[NewNodeIdx].ChildrenNodes[1] = Nodes.Num() + 1;
 
-					SplitNode(SplitInfos[BoxIdx].RealBounds, SplitInfos[BoxIdx].Children, NodeLevel + 1, ChildIdx);
-				}
+				WorkPool[FirstChildIdx].NodeLevel = WorkPool[CurIdx].NodeLevel + 1;
+				WorkPool[SecondChildIdx].NodeLevel = WorkPool[CurIdx].NodeLevel + 1;
+
+				WorkPool[FirstChildIdx].NewNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[0];
+				WorkPool[SecondChildIdx].NewNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[1];
+
+				//push these two new nodes onto the stack
+				WorkStack.Add(SecondChildIdx);
+				WorkStack.Add(FirstChildIdx);
+
+				// create the actual node so that no one else can use our children node indices
+				const int32 HighestNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[1];
+				Nodes.AddDefaulted((1 + HighestNodeIdx) - Nodes.Num());
+				
+				WorkPool[CurIdx].TimeslicePhase = eTimeSlicePhase::ProcessingChildren;
 			}
 			else
 			{
 				//couldn't split so just make a leaf - THIS COULD CONTAIN MORE THAN MaxChildrenInLeaf!!!
 				MakeLeaf();
+				WorkStack.Pop(/*bResize=*/false);	//we are done with this node
+				FreeWorkSnapshot(CurIdx);
 			}
 		}
 
-		return; // keep working
+		check(WorkStack.Num() == 0);
+		//Stack is empty, clean up pool and mark task as complete
+		
+		this->SetAsyncTimeSlicingComplete(true);
 	}
 
 	TArray<TPayloadType> FindAllIntersectionsImp(const TAABB<T, 3>& Intersection) const
@@ -959,6 +1175,9 @@ private:
 				check(false);
 				return true;
 			}
+
+			const void* GetQueryData() const { return nullptr; }
+
 			TArray<TPayloadType>& CollectedResults;
 		};
 
@@ -989,8 +1208,12 @@ private:
 
 	TAABBTree<TPayloadType,TLeafType,T,bMutable>& operator=(const TAABBTree<TPayloadType,TLeafType,T,bMutable>& Rhs)
 	{
-		ensure(Rhs.TimeSliceWorkToComplete.IsEmpty());
-		TimeSliceWorkToComplete.Empty();
+		ensure(Rhs.WorkStack.Num() == 0);
+		//ensure(Rhs.WorkPool.Num() == 0);
+		//ensure(Rhs.WorkPoolFreeList.Num() == 0);
+		WorkStack.Empty();
+		WorkPool.Empty();
+		WorkPoolFreeList.Empty();
 		if(this != &Rhs)
 		{
 			FullBounds = Rhs.FullBounds;
@@ -1009,14 +1232,6 @@ private:
 		return *this;
 	}
 
-	struct FSplitInfo
-	{
-		TAABB<T, 3> SplitBounds;	//Even split of parent bounds
-		TAABB<T, 3> RealBounds;	//Actual bounds as children are added
-		TArray<FElement> Children;
-		T SplitBoundsSize2;
-	};
-
 	TAABB<T, 3> FullBounds;
 	TArray<FNode> Nodes;
 	TArray<TLeafType> Leaves;
@@ -1028,32 +1243,11 @@ private:
 	int32 MaxTreeDepth;
 	T MaxPayloadBounds;
 	int32 MaxNumToProcess;
-	
-	enum eTimeSlicePhase
-	{
-		PHASE1,
-		PHASE2
-	};
-
-	struct FWorkSnapshot
-	{
-		eTimeSlicePhase TimeslicePhase;
-
-		// used for phase 1 & 2
-		TAABB<T, 3> Bounds;
-		TArray<FElement> Elems;
-
-		int32 NodeLevel;
-		int32 NewNodeIdx;
-	
-		// phase 2 data only
-		TAABB<T, 3> RealBounds;
-		int8 BoxIdx;
-		T SplitBoundsSize2;
-	};
 
 	int32 NumProcessedThisSlice;
-	TQueue<FWorkSnapshot> TimeSliceWorkToComplete;
+	TArray<int32> WorkStack;
+	TArray<int32> WorkPoolFreeList;
+	TArray<FWorkSnapshot> WorkPool;
 };
 
 template<typename TPayloadType, typename TLeafType, class T, bool bMutable>

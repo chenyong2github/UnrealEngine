@@ -276,6 +276,26 @@ FAndroidCrashContext::FAndroidCrashContext(ECrashContextType InType, const TCHAR
 	}
 }
 
+
+void FAndroidCrashContext::SetOverrideCallstack(const FString& OverrideCallstackIN)
+{
+	OverrideCallstack.Reset();
+	TArray<FString> OutArray;
+	OverrideCallstackIN.ParseIntoArrayLines(OutArray);
+
+	for (const FString& Line : OutArray)
+	{
+		AppendEscapedXMLString(OverrideCallstack, *Line);
+		OverrideCallstack += TEXT("&#xA;");
+		OverrideCallstack += LINE_TERMINATOR;
+	}
+}
+
+const TCHAR* FAndroidCrashContext::GetCallstackProperty() const
+{
+	return *OverrideCallstack;
+}
+
 void FAndroidCrashContext::CaptureCrashInfo()
 {
 	CapturePortableCallStack(0, Context);

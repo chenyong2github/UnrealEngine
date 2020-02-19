@@ -18,7 +18,7 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
-#include "Insights/TimingProfilerCommon.h"
+#include "Insights/Log.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/MarkersTimingTrack.h" // for FTimeMarkerTrackBuilder::GetColorBy*
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
@@ -722,19 +722,12 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 
 		//TODO: show only categories that are used in current trace
 		//TODO: cause of duplicates: a) runtime, b) case insensitive, c) stripped "Log" prefix
-		//TODO: FString vs. FText vs. FName ?
 
-		//TODO: int32 NumCategories = static_cast<int32>(LogProvider.GetCategoriesCount());
-		int32 NumCategories = 0;
-		LogProvider.EnumerateCategories([&NumCategories](const Trace::FLogCategory& Category)
-		{
-			NumCategories++;
-		});
-
+		const int32 NumCategories = static_cast<int32>(LogProvider.GetCategoryCount());
 		if (NumCategories != TotalNumCategories)
 		{
 			TotalNumCategories = NumCategories;
-			UE_LOG(TimingProfiler, Log, TEXT("[LogView] Total Log Categories: %d"), TotalNumCategories);
+			UE_LOG(TraceInsights, Log, TEXT("[LogView] Total Log Categories: %d"), TotalNumCategories);
 
 			TSet<FName> Categories;
 			LogProvider.EnumerateCategories([&Categories](const Trace::FLogCategory& Category)
@@ -746,12 +739,12 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 				}
 				if (Categories.Contains(FName(*CategoryStr)))
 				{
-					UE_LOG(TimingProfiler, Log, TEXT("[LogView] Duplicated Log Category: \"%s\""), Category.Name);
+					UE_LOG(TraceInsights, Log, TEXT("[LogView] Duplicated Log Category: \"%s\""), Category.Name);
 				}
 				Categories.Add(FName(*CategoryStr));
 			});
 			Filter.SyncAvailableCategories(Categories);
-			UE_LOG(TimingProfiler, Log, TEXT("[LogView] Unique Log Categories: %d"), Filter.GetAvailableLogCategories().Num());
+			UE_LOG(TraceInsights, Log, TEXT("[LogView] Unique Log Categories: %d"), Filter.GetAvailableLogCategories().Num());
 
 			//Cache.Reset();
 			Messages.Reset();
@@ -781,7 +774,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 					FilteringEndIndex = NewMessageCount;
 					FilteringChangeNumber = Filter.GetChangeNumber();
 					FilteringAsyncTask = MakeUnique<FAsyncTask<FLogFilteringAsyncTask>>(FilteringStartIndex, FilteringEndIndex, Filter, SharedThis(this));
-					UE_LOG(TimingProfiler, Log, TEXT("[LogView] Start async task for filtering by%s%s%s (\"%s\") (%d to %d)"),
+					UE_LOG(TraceInsights, Log, TEXT("[LogView] Start async task for filtering by%s%s%s (\"%s\") (%d to %d)"),
 						Filter.IsFilterSetByVerbosity() ? TEXT(" Verbosity,") : TEXT(""),
 						Filter.IsFilterSetByCategory() ? TEXT(" Category,") : TEXT(""),
 						Filter.IsFilterSetByText() ? TEXT(" Text") : TEXT(""),
@@ -831,7 +824,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 				uint64 DurationMs = FilteringStopwatch.GetAccumulatedTimeMs();
 				if (DurationMs > 10) // avoids spams
 				{
-					UE_LOG(TimingProfiler, Log, TEXT("[LogView] Updated (no filter; %d added / %d total messages) in %llu ms."),
+					UE_LOG(TraceInsights, Log, TEXT("[LogView] Updated (no filter; %d added / %d total messages) in %llu ms."),
 						NumAddedMessages, NewMessageCount, DurationMs);
 				}
 			}
@@ -839,7 +832,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 		else // if (NewMessageCount < TotalNumMessages)
 		{
 			// Just reset. On next Tick() the list will grow if needed.
-			UE_LOG(TimingProfiler, Log, TEXT("[LogView] RESET"));
+			UE_LOG(TraceInsights, Log, TEXT("[LogView] RESET"));
 			Cache.Reset();
 			Messages.Reset();
 			TotalNumMessages = 0;
@@ -900,7 +893,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			{
 				int32 NumAsyncFilteredMessages = Task.GetEndIndex() - Task.GetStartIndex();
 				double Speed = static_cast<double>(NumAsyncFilteredMessages) / FilteringStopwatch.GetAccumulatedTime();
-				UE_LOG(TimingProfiler, Log, TEXT("[LogView] Updated (%d added / %d async filtered / %d total messages) in %llu ms (%.2f messages/second)."),
+				UE_LOG(TraceInsights, Log, TEXT("[LogView] Updated (%d added / %d async filtered / %d total messages) in %llu ms (%.2f messages/second)."),
 					NumFilteredMessages, NumAsyncFilteredMessages, TotalNumMessages, DurationMs, Speed);
 			}
 		}
@@ -1001,7 +994,7 @@ void SLogView::FilterTextBox_OnTextChanged(const FText& InFilterText)
 void SLogView::OnFilterChanged()
 {
 	const FString FilterText = FilterTextBox->GetText().ToString();
-	UE_LOG(TimingProfiler, Log, TEXT("[LogView] OnFilterChanged: \"%s\""), *FilterText);
+	UE_LOG(TraceInsights, Log, TEXT("[LogView] OnFilterChanged: \"%s\""), *FilterText);
 	Cache.Reset();
 	Messages.Reset();
 	TotalNumMessages = 0;

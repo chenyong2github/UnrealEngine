@@ -218,7 +218,7 @@ struct TNetSimCueTraits
 	static constexpr ENetSimCueInvoker InvokeMask { Traits::InvokeMask };
 	static constexpr bool Resimulate { Traits::Resimulate };
 	static constexpr ENetSimCueReplicationTarget ReplicationTarget { Traits::ReplicationTarget };
-	static constexpr ESimulationTickContext SimTickMask { GetSimTickMask( (ENetSimCueInvoker)InvokeMask, Resimulate) };
+	static constexpr ESimulationTickContext SimTickMask() { return GetSimTickMask((ENetSimCueInvoker)InvokeMask, Resimulate); };
 };
 
 // Type requirements: helper to determine if NetSerialize/NetIdentical functions need to be defined for user types based on the above traits

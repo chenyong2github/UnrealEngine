@@ -224,7 +224,10 @@ public:
 	TArray<FVulkanTextureView> AttachmentTextureViews;
 	// Copy from the Depth render target partial view
 	FVulkanTextureView PartialDepthTextureView;
+
+	// Image views and memory allocations we need to addref + release
 	TArray<VkImageView> AttachmentViewsToDelete;
+	TArray< TRefCountPtr<VulkanRHI::FOldResourceAllocation> > ResourceAllocationsToDelete;
 
 	inline bool ContainsRenderTarget(FRHITexture* Texture) const
 	{
@@ -677,7 +680,7 @@ static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetS
 inline VkFormat UEToVkTextureFormat(EPixelFormat UEFormat, const bool bIsSRGB)
 {
 	VkFormat Format = (VkFormat)GPixelFormats[UEFormat].PlatformFormat;
-	if (bIsSRGB && GMaxRHIFeatureLevel > ERHIFeatureLevel::ES2)
+	if (bIsSRGB)
 	{
 		switch (Format)
 		{

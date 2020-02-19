@@ -20,6 +20,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
 
+#if !defined(SUPPORTS_LOGS_IN_USERDIR)
+	#define SUPPORTS_LOGS_IN_USERDIR 0
+#endif
+
 struct FPaths::FStaticData
 {
 	FCriticalSection GameProjectFilePathLock;
@@ -368,7 +372,7 @@ FString FPaths::ProjectLogDir()
 	{
 		return *OverrideDir;
 	}
-#elif PLATFORM_MAC || PLATFORM_XBOXONE
+#elif PLATFORM_MAC || SUPPORTS_LOGS_IN_USERDIR
 	if (CustomUserDirArgument().IsEmpty())
 	{
 		return FPlatformProcess::UserLogsDir();
@@ -1088,10 +1092,40 @@ bool FPaths::CollapseRelativeDirectories(FString& InPath)
 
 void FPaths::RemoveDuplicateSlashes(FString& InPath)
 {
-	while (InPath.Contains(TEXT("//"), ESearchCase::CaseSensitive))
+	TCHAR* Text = InPath.GetCharArray().GetData();
+	if (!Text)
 	{
-		InPath = InPath.Replace(TEXT("//"), TEXT("/"), ESearchCase::CaseSensitive);
+		return;
 	}
+	const TCHAR* const TwoSlashStr = TEXT("//");
+	const TCHAR SlashChr = TEXT('/');
+
+	TCHAR* const EditStart = TCString<TCHAR>::Strstr(Text, TwoSlashStr);
+	if (!EditStart)
+	{
+		return;
+	}
+	const TCHAR* const TextEnd = Text + InPath.Len();
+
+	// Since we know we've found TwoSlashes, point the initial Write head at the spot where the second slash is (which we shall skip), and point the Read head at the next character after the second slash
+	TCHAR* Write = EditStart + 1;	// The position to write the next character of the output
+	const TCHAR* Read = Write + 1;	// The next character of the input to read
+
+	for (; Read < TextEnd; ++Read)
+	{
+		TCHAR NextChar = *Read;
+		if (Write[-1] != SlashChr || NextChar != SlashChr)
+		{
+			*Write++ = NextChar;
+		}
+		else
+		{
+			// Skip the NextChar when adding on a slash after an existing slash, e.g // or more generally before/////after
+			//                                                                       WR                         W  R
+		}
+	}
+	*Write = TEXT('\0');
+	InPath.TrimToNullTerminator();
 }
 
 void FPaths::MakeStandardFilename(FString& InPath)
@@ -1480,7 +1514,7 @@ bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 	MakeStandardFilename(TmpA);
 	MakeStandardFilename(TmpB);
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
+#if PLATFORM_MICROSOFT
 	return FCString::Stricmp(*TmpA, *TmpB) == 0;
 #else
 	return FCString::Strcmp(*TmpA, *TmpB) == 0;
@@ -1497,7 +1531,7 @@ bool FPaths::IsUnderDirectory(const FString& InPath, const FString& InDirectory)
 		Directory.RemoveAt(Directory.Len() - 1);
 	}
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
+#if PLATFORM_MICROSOFT
 	int Compare = FCString::Strnicmp(*Path, *Directory, Directory.Len());
 #else
 	int Compare = FCString::Strncmp(*Path, *Directory, Directory.Len());

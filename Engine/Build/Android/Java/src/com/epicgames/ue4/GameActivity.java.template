@@ -477,7 +477,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	private String EGLErrorStatus = "UNSET";
 	
 	/** Flag for not officially supported devices */
-	public boolean bSupportedDevice = true;
+	public static boolean bSupportedDevice = true;
 
 	/** Used for LocalNotification support*/
 	private boolean localNotificationAppLaunched = false;
@@ -4524,14 +4524,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 		else if( IapStoreHelper != null )
 		{
-			if(!IapStoreHelper.onActivityResult(requestCode, resultCode, data))
-			{
 				super.onActivityResult(requestCode, resultCode, data);
-			}
-			else
-			{
-				Log.debug("[JAVA] - Store Helper handled onActivityResult");
-			}
 		}
 		else
 		{

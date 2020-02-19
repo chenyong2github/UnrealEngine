@@ -690,12 +690,6 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 #endif
 	}
 	
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-	{
-		// Remove sRGB read flag when not supported
-		Flags &= ~TexCreate_SRGB;
-	}
-	
 	FPlatformAtomics::InterlockedExchange(&Written, 0);
 	mtlpp::PixelFormat MTLFormat = (mtlpp::PixelFormat)GPixelFormats[Format].PlatformFormat;
 	

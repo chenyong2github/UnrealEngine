@@ -268,7 +268,7 @@ FPrimitiveViewRelevance FEQSSceneProxy::GetViewRelevance(const FSceneView* View)
 		&& (!bDrawOnlyWhenSelected || SafeIsActorSelected());
 	Result.bDynamicRelevance = true;
 	// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
-	Result.bSeparateTranslucencyRelevance = Result.bNormalTranslucencyRelevance = IsShown(View);
+	Result.bSeparateTranslucency = Result.bNormalTranslucency = IsShown(View);
 	return Result;
 }
 
@@ -348,9 +348,9 @@ FBoxSphereBounds UEQSRenderingComponent::CalcBounds(const FTransform& LocalToWor
 	return FBoxSphereBounds(BoundingSphere).TransformBy(LocalToWorld);
 }
 
-void UEQSRenderingComponent::CreateRenderState_Concurrent()
+void UEQSRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 #if USE_EQS_DEBUGGER
 	EQSRenderingDebugDrawDelegateHelper.RegisterDebugDrawDelgate();

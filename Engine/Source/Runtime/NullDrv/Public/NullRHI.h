@@ -42,32 +42,32 @@ public:
 		return new FRHIVertexDeclaration(); 
 	}
 
-	virtual FPixelShaderRHIRef RHICreatePixelShader(const TArray<uint8>& Code) final override
+	virtual FPixelShaderRHIRef RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override
 	{ 
 		return new FRHIPixelShader(); 
 	}
 
-	virtual FVertexShaderRHIRef RHICreateVertexShader(const TArray<uint8>& Code) final override
+	virtual FVertexShaderRHIRef RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override
 	{ 
 		return new FRHIVertexShader(); 
 	}
 
-	virtual FHullShaderRHIRef RHICreateHullShader(const TArray<uint8>& Code) final override
+	virtual FHullShaderRHIRef RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override
 	{ 
 		return new FRHIHullShader(); 
 	}
 
-	virtual FDomainShaderRHIRef RHICreateDomainShader(const TArray<uint8>& Code) final override
+	virtual FDomainShaderRHIRef RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override
 	{ 
 		return new FRHIDomainShader(); 
 	}
 
-	virtual FGeometryShaderRHIRef RHICreateGeometryShader(const TArray<uint8>& Code) final override
+	virtual FGeometryShaderRHIRef RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override
 	{ 
 		return new FRHIGeometryShader(); 
 	}
 
-	virtual FComputeShaderRHIRef RHICreateComputeShader(const TArray<uint8>& Code) final override
+	virtual FComputeShaderRHIRef RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash) final override
 	{ 
 		return new FRHIComputeShader(); 
 	}

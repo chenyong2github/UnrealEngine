@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	AndroidOpenGLPrivate.h: Code shared betweeen AndroidOpenGL and AndroidESDeferredOpenGL
+	AndroidOpenGLPrivate.h: Code shared betweeen AndroidOpenGL and AndroidESDeferredOpenGL (Removed)
 =============================================================================*/
 #pragma once
 
@@ -27,7 +27,6 @@ public:
 	FString GLVersion;
 	bool bSupportsFloatingPointRenderTargets;
 	bool bSupportsFrameBufferFetch;
-	bool bES30Support;
 	TArray<FString> TargetPlatformNames;
 
 	void RemoveTargetPlatform(FString PlatformName)
@@ -47,16 +46,12 @@ private:
 		if (!EGL->IsInitialized())
 		{
 			FAndroidAppEntry::PlatformInit();
-#if PLATFORM_ANDROIDESDEFERRED
-			EGL->InitSurface(false, true);
-#endif
 		}
-#if !PLATFORM_ANDROIDESDEFERRED
+
 		// Do not create a window surface if the app is for Oculus Mobile (use small buffer)
 		bool bCreateSurface = !AndroidThunkCpp_IsOculusMobileApplication();
 		FPlatformMisc::LowLevelOutputDebugString(TEXT("FAndroidGPUInfo"));
 		EGL->InitSurface(bCreateSurface, bCreateSurface);
-#endif
 		EGL->SetCurrentSharedContext();
 
 		// get extensions
@@ -70,11 +65,6 @@ private:
 
 		GLVersion = (const ANSICHAR*)glGetString(GL_VERSION);
 
-		bES30Support = GLVersion.Contains(TEXT("OpenGL ES 3."));
-
-#if PLATFORM_ANDROIDESDEFERRED
-		TargetPlatformNames.Add(TEXT("Android_ESDEFERRED"));
-#else
 		// highest priority is the per-texture version
 		if (ExtensionsString.Contains(TEXT("GL_KHR_texture_compression_astc_ldr")))
 		{
@@ -92,10 +82,8 @@ private:
 		{
 			TargetPlatformNames.Add(TEXT("Android_PVRTC"));
 		}
-		if (bES30Support)
-		{
-			TargetPlatformNames.Add(TEXT("Android_ETC2"));
-		}
+		
+		TargetPlatformNames.Add(TEXT("Android_ETC2"));
 
 		// all devices support ETC
 		TargetPlatformNames.Add(TEXT("Android_ETC1a"));
@@ -104,11 +92,10 @@ private:
 		// finally, generic Android
 		TargetPlatformNames.Add(TEXT("Android"));
 
-#endif
 		bSupportsFloatingPointRenderTargets = 
 			ExtensionsString.Contains(TEXT("GL_EXT_color_buffer_half_float")) 
 			// According to https://www.khronos.org/registry/gles/extensions/EXT/EXT_color_buffer_float.txt
-			|| (bES30Support && ExtensionsString.Contains(TEXT("GL_EXT_color_buffer_float")));
+			|| (ExtensionsString.Contains(TEXT("GL_EXT_color_buffer_float")));
 
 		bSupportsFrameBufferFetch = ExtensionsString.Contains(TEXT("GL_EXT_shader_framebuffer_fetch")) || ExtensionsString.Contains(TEXT("GL_NV_shader_framebuffer_fetch")) 
 			|| ExtensionsString.Contains(TEXT("GL_ARM_shader_framebuffer_fetch ")); // has space at the end to exclude GL_ARM_shader_framebuffer_fetch_depth_stencil match

@@ -83,6 +83,7 @@ public class Ansel : ModuleRules
 			"CoreUObject",
             "SlateCore",
 			"Engine",
+			"RenderCore",
 			"RHI",
 		});
 

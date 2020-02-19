@@ -41,7 +41,7 @@ public:
 		Result.bDrawRelevance = IsShown(View);
 		Result.bDynamicRelevance = true;
 		// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
-		Result.bSeparateTranslucencyRelevance = Result.bNormalTranslucencyRelevance = IsShown(View) && GIsEditor;
+		Result.bSeparateTranslucency = Result.bNormalTranslucency = IsShown(View) && GIsEditor;
 		return Result;
 	}
 
@@ -114,9 +114,9 @@ FBoxSphereBounds UVisualLoggerRenderingComponent::CalcBounds(const FTransform& L
 	return MyBounds;
 }
 
-void UVisualLoggerRenderingComponent::CreateRenderState_Concurrent()
+void UVisualLoggerRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 #if WITH_EDITOR
 	DebugDrawDelegateHelper.RegisterDebugDrawDelgate();

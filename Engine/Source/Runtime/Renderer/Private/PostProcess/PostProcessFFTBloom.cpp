@@ -263,7 +263,7 @@ void ResizeAndCenterTexture(
 		// Use multiple threads per scan line to insure memory coalescing during the write
 		const int32 ThreadsPerGroup = FResizeAndCenterTextureCS::ThreadsPerGroup;
 		const int32 ThreadsGroupsPerScanLine = (DstBufferSize.X % ThreadsPerGroup == 0) ? DstBufferSize.X / ThreadsPerGroup : DstBufferSize.X / ThreadsPerGroup + 1;
-		FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, DstBufferSize.Y, 1));
+		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, DstBufferSize.Y, 1));
 	}
 }
 
@@ -308,7 +308,7 @@ void CaptureKernelWeight(
 		PassParameters.HalfResSumLocation = HalfResSumLocation;
 		PassParameters.UVCenter = CenterUV;
 
-		FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, PassParameters, FIntVector(1, 1, 1));
+		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(1, 1, 1));
 	}
 
 	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, DstTargetItem.UAV);
@@ -370,7 +370,7 @@ void BlendLowRes(
 		const int32 ThreadsPerGroup = ComputeShader->ThreadsPerGroup;
 		const int32 ThreadsGroupsPerScanLine = (TargetExtent.X % ThreadsPerGroup == 0) ? TargetExtent.X / ThreadsPerGroup : TargetExtent.X / ThreadsPerGroup + 1;
 
-		FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, TargetExtent.Y, 1));
+		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, TargetExtent.Y, 1));
 	}
 
 	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DstUAV);
@@ -414,7 +414,7 @@ void CopyImageRect(
 		const int32 ThreadsPerGroup = ComputeShader->ThreadsPerGroup;
 		const int32 ThreadsGroupsPerScanLine = (DstRectSize.X % ThreadsPerGroup == 0) ? DstRectSize.X / ThreadsPerGroup : DstRectSize.X / ThreadsPerGroup + 1;
 
-		FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, DstRectSize.Y, 1));
+		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, DstRectSize.Y, 1));
 	}
 }
 

@@ -511,7 +511,7 @@ void USkinnedMeshComponent::OnUnregister()
 	}
 }
 
-void USkinnedMeshComponent::CreateRenderState_Concurrent()
+void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
@@ -572,7 +572,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent()
 		}
 	}
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	if (SkeletalMesh)
 	{
@@ -1371,6 +1371,13 @@ bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FNam
 	const int32 BoneIndex = GetBoneIndex(BoneName);
 	const TArray<FTransform>& Transforms = GetComponentSpaceTransforms();
 
+	// detect the case where we don't have a pose yet
+	if (Transforms.Num() == 0)
+	{
+		OutTwistAngle = OutSwingAngle = 0.f;
+		return false;
+	}
+
 	if (BoneIndex != INDEX_NONE && ensureMsgf(BoneIndex < Transforms.Num(), TEXT("Invalid transform access in %s. Index=%d, Num=%d"), *GetPathName(), BoneIndex, Transforms.Num()))
 	{
 		FTransform LocalTransform = GetComponentSpaceTransforms()[BoneIndex];
@@ -1399,6 +1406,41 @@ bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FNam
 	}
 
 	return false;
+}
+
+bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
+{
+	static const IConsoleVariable* CVarDefaultGPUSkinCacheBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.DefaultBehavior"));
+
+	bool bIsRayTracing = IsRayTracingEnabled();
+
+	bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
+
+	if (!SkeletalMesh)
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bGlobalDefault);
+	}
+
+	FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LodIdx);
+	if (!LodInfo)
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bGlobalDefault);
+	}
+
+	bool bLodEnabled = LodInfo->SkinCacheUsage == ESkinCacheUsage::Auto ?
+		bGlobalDefault :
+		LodInfo->SkinCacheUsage == ESkinCacheUsage::Enabled;
+
+	if (!SkinCacheUsage.IsValidIndex(LodIdx))
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bLodEnabled);
+	}
+
+	bool bComponentEnabled = SkinCacheUsage[LodIdx] == ESkinCacheUsage::Auto ? 
+		bLodEnabled :
+		SkinCacheUsage[LodIdx] == ESkinCacheUsage::Enabled;
+
+	return GEnableGPUSkinCache && (bIsRayTracing || bComponentEnabled);
 }
 
 void USkinnedMeshComponent::GetBoneNames(TArray<FName>& BoneNames)
@@ -1478,9 +1520,19 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 
 		SkeletalMesh = InSkelMesh;
 
-		for (TWeakObjectPtr<USkinnedMeshComponent>& SlavePoseComponent : SlavePoseComponents)
+		//SlavePoseComponents is an array of weak obj ptrs, so it can contain null elements
+		for (auto Iter = SlavePoseComponents.CreateIterator(); Iter; ++Iter)
 		{
-			SlavePoseComponent->UpdateMasterBoneMap();
+			TWeakObjectPtr<USkinnedMeshComponent> Comp = (*Iter);
+			if (Comp.IsValid() == false)
+			{
+				SlavePoseComponents.RemoveAt(Iter.GetIndex());
+				--Iter;
+			}
+			else
+			{
+				Comp->UpdateMasterBoneMap();
+			}
 		}
 
 		// Don't init anim state if not registered
@@ -3685,7 +3737,7 @@ void USkinnedMeshComponent::HandleFeatureLevelChanged(ERHIFeatureLevel::Type InF
 		}
 	}
 }
-#endif // WITH_EDITORONLY_DATA
+#endif
 
 void FAnimUpdateRateParameters::SetTrailMode(float DeltaTime, uint8 UpdateRateShift, int32 NewUpdateRate, int32 NewEvaluationRate, bool bNewInterpSkippedFrames)
 {

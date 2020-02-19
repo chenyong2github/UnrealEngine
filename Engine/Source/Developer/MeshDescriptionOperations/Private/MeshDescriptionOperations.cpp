@@ -55,9 +55,12 @@ EComputeNTBsFlags ConvertTangentOptionsToNTBsFlags(FMeshDescriptionOperations::E
 
 void FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(FMeshDescription& MeshDescription, ETangentOptions TangentOptions, bool bForceRecomputeNormals, bool bForceRecomputeTangents)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded);
+
 	EComputeNTBsFlags ComputeNTBsOptions = ConvertTangentOptionsToNTBsFlags(TangentOptions);
 	ComputeNTBsOptions |= (bForceRecomputeNormals) ? EComputeNTBsFlags::Normals : EComputeNTBsFlags::None;
 	ComputeNTBsOptions |= (bForceRecomputeTangents) ? EComputeNTBsFlags::Tangents : EComputeNTBsFlags::None;
+
 
 	FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(MeshDescription, ComputeNTBsOptions);
 }
@@ -105,6 +108,8 @@ bool FMeshDescriptionOperations::CreateLightMapUVLayout(FMeshDescription& MeshDe
 
 bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescription& MeshDescription, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh);
+
 	return FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(MeshDescription, TextureResolution, bMergeIdenticalMaterials, OutTexCoords);
 }
 

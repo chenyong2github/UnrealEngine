@@ -71,6 +71,9 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
+#include "Async/Future.h"
+#include "Async/Async.h"
+
 #if WITH_EDITOR
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -507,6 +510,8 @@ void FMeshMergeUtilities::BakeMaterialsForMesh(UStaticMesh* StaticMesh) const
 
 void FMeshMergeUtilities::DetermineMaterialVertexDataUsage(TArray<bool>& InOutMaterialUsesVertexData, const TArray<UMaterialInterface*>& UniqueMaterials, const UMaterialOptions* MaterialOptions) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DetermineMaterialVertexDataUsage);
+
 	InOutMaterialUsesVertexData.SetNum(UniqueMaterials.Num());
 	for (int32 MaterialIndex = 0; MaterialIndex < UniqueMaterials.Num(); ++MaterialIndex)
 	{
@@ -628,6 +633,12 @@ UMaterialOptions* FMeshMergeUtilities::PopulateMaterialOptions(const FMaterialPr
 	if (MaterialSettings.bRoughnessMap)
 		MaterialOptions->Properties.Add(Property);
 
+	PopulatePropertyEntry(MaterialSettings, MP_Anisotropy, Property);
+	if (MaterialSettings.bAnisotropyMap)
+	{
+		MaterialOptions->Properties.Add(Property);
+	}
+
 	PopulatePropertyEntry(MaterialSettings, MP_Metallic, Property);
 	if (MaterialSettings.bMetallicMap)
 		MaterialOptions->Properties.Add(Property);
@@ -635,6 +646,12 @@ UMaterialOptions* FMeshMergeUtilities::PopulateMaterialOptions(const FMaterialPr
 	PopulatePropertyEntry(MaterialSettings, MP_Normal, Property);
 	if (MaterialSettings.bNormalMap)
 		MaterialOptions->Properties.Add(Property);
+
+	PopulatePropertyEntry(MaterialSettings, MP_Tangent, Property);
+	if (MaterialSettings.bTangentMap)
+	{
+		MaterialOptions->Properties.Add(Property);
+	}
 
 	PopulatePropertyEntry(MaterialSettings, MP_Opacity, Property);
 	if (MaterialSettings.bOpacityMap)
@@ -671,8 +688,10 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 					case MP_BaseColor: return MaterialSettings.DiffuseTextureSize;
 					case MP_Specular: return MaterialSettings.SpecularTextureSize;
 					case MP_Roughness: return MaterialSettings.RoughnessTextureSize;
+					case MP_Anisotropy: return MaterialSettings.AnisotropyTextureSize;
 					case MP_Metallic: return MaterialSettings.MetallicTextureSize;
 					case MP_Normal: return MaterialSettings.NormalTextureSize;
+					case MP_Tangent: return MaterialSettings.TangentTextureSize;
 					case MP_Opacity: return MaterialSettings.OpacityTextureSize;
 					case MP_OpacityMask: return MaterialSettings.OpacityMaskTextureSize;
 					case MP_EmissiveColor: return MaterialSettings.EmissiveTextureSize;
@@ -700,9 +719,11 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 				switch (MaterialProperty)
 				{
 				case MP_Normal: return FullRes;
+				case MP_Tangent: return HalfRes;
 				case MP_BaseColor: return HalfRes;
 				case MP_Specular: return QuarterRes;
 				case MP_Roughness: return QuarterRes;
+				case MP_Anisotropy: return QuarterRes;
 				case MP_Metallic: return QuarterRes;				
 				case MP_Opacity: return QuarterRes;
 				case MP_OpacityMask: return QuarterRes;
@@ -734,8 +755,10 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 		{
 			case MP_BaseColor: return false;
 			case MP_Normal: return !MaterialSettings.bNormalMap;
+			case MP_Tangent: return !MaterialSettings.bTangentMap;
 			case MP_Specular: return !MaterialSettings.bSpecularMap;
 			case MP_Roughness: return !MaterialSettings.bRoughnessMap;
+			case MP_Anisotropy: return !MaterialSettings.bAnisotropyMap;
 			case MP_Metallic: return !MaterialSettings.bMetallicMap;
 			case MP_Opacity: return !MaterialSettings.bOpacityMap;
 			case MP_OpacityMask: return !MaterialSettings.bOpacityMaskMap;
@@ -755,8 +778,10 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 		{
 			case MP_BaseColor: return 1.0f;
 			case MP_Normal: return 1.0f;
+			case MP_Tangent: return 1.0f;
 			case MP_Specular: return MaterialSettings.SpecularConstant;
 			case MP_Roughness: return MaterialSettings.RoughnessConstant;
+			case MP_Anisotropy: return MaterialSettings.AnisotropyConstant;
 			case MP_Metallic: return MaterialSettings.MetallicConstant;
 			case MP_Opacity: return MaterialSettings.OpacityConstant;
 			case MP_OpacityMask: return MaterialSettings.OpacityMaskConstant;
@@ -1898,6 +1923,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 	TArray<FSectionInfo> Sections;
 	if (bMergeAllLODs)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RetrieveRawMeshData);
 		for (int32 ComponentIndex = 0; ComponentIndex < StaticMeshComponentsToMerge.Num(); ++ComponentIndex)
 		{
 			UStaticMeshComponent* Component = StaticMeshComponentsToMerge[ComponentIndex];
@@ -1945,6 +1971,8 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 	}
 	else
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RetrieveRawMeshData);
+
 		// Retrieve HLOD module for calculating LOD index from screen size
 		FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
 		IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
@@ -1995,7 +2023,10 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		}
 	}
 
-	DataTracker.ProcessRawMeshes();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ProcessRawMeshes);
+		DataTracker.ProcessRawMeshes();
+	}
 
 	// Retrieve physics data
 	UBodySetup* BodySetupSource = nullptr;
@@ -2070,6 +2101,11 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		// for the merged mesh and baking out materials using those UVs
 		const bool bGloballyRemapUVs = !bMergeAllLODs && !InSettings.bReuseMeshLightmapUVs;
 
+		typedef TTuple<UStaticMesh*, int32> FMeshLODTuple;
+		typedef TFuture<TArray<FVector2D>> FUVComputeFuture;
+		TMap<FMeshLODTuple, FUVComputeFuture> MeshLODsTextureCoordinates;
+		TMap<int32, FMeshLODTuple> MeshDataAwaitingResults;
+
 		for (TConstRawMeshIterator RawMeshIterator = DataTracker.GetConstRawMeshIterator(); RawMeshIterator; ++RawMeshIterator)
 		{
 			const FMeshLODKey& Key = RawMeshIterator.Key();
@@ -2092,9 +2128,6 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				SectionIndices.Add(SectionIndex);
 			}
 
-			// Cache unique texture coordinates
-			TArray<FVector2D> UniqueTextureCoordinates;
-
 			for (TPair<UMaterialInterface*, TArray<int32>>& MaterialSectionIndexPair : MaterialAndSectionIndices)
 			{
 				UMaterialInterface* Material = MaterialSectionIndexPair.Key;
@@ -2111,10 +2144,11 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				MeshData.VertexColorHash = Key.GetVertexColorHash();
 				MeshData.bMirrored = Component->GetComponentTransform().GetDeterminant() < 0.0f;
 				int32 MeshDataIndex = 0;
-
+				
 				if (InSettings.bCreateMergedMaterial || bGloballyRemapUVs || (InSettings.bUseVertexDataForBakingMaterial && (bDoesMaterialUseVertexData || bRequiresUniqueUVs)))
 				{
-					MeshData.RawMeshDescription = DataTracker.GetRawMeshPtr(Key);
+					FMeshDescription* RawMeshDescription = DataTracker.GetRawMeshPtr(Key);
+					MeshData.RawMeshDescription = RawMeshDescription;
 
 					// if it has vertex color/*WedgetColors.Num()*/, it should also use light map UV index
 					// we can't do this for all meshes, but only for the mesh that has vertex color.
@@ -2130,12 +2164,21 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 						}
 						else
 						{
-							if (!UniqueTextureCoordinates.Num())
+							// Verify if we started an async task to generate UVs for this static mesh & LOD
+							FMeshLODTuple Tuple(Key.GetMesh(), Key.GetLODIndex());
+							if (!MeshLODsTextureCoordinates.Find(Tuple))
 							{
-								FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(*MeshData.RawMeshDescription, MaterialOptions->TextureSize.GetMax(), false, UniqueTextureCoordinates);
-								ScaleTextureCoordinatesToBox(FBox2D(FVector2D::ZeroVector, FVector2D(1, 1)), UniqueTextureCoordinates);
+								// No job found yet, fire an async task
+								MeshLODsTextureCoordinates.Add(Tuple, Async(EAsyncExecution::Thread, [RawMeshDescription, MaterialOptions, this]()
+								{
+									TArray<FVector2D> UniqueTextureCoordinates;
+									FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(*RawMeshDescription, MaterialOptions->TextureSize.GetMax(), false, UniqueTextureCoordinates);
+									ScaleTextureCoordinatesToBox(FBox2D(FVector2D::ZeroVector, FVector2D(1, 1)), UniqueTextureCoordinates);
+									return UniqueTextureCoordinates;
+								}));
 							}
-							MeshData.CustomTextureCoordinates = UniqueTextureCoordinates;
+							// Keep track of the fact that this mesh is waiting for the UV computation to finish
+							MeshDataAwaitingResults.Add(MeshDataIndex, Tuple);
 						}
 					}
 
@@ -2146,10 +2189,10 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					Adapters[Key.GetMeshIndex()].ApplySettings(Key.GetLODIndex(), MeshData);
 
 					int32 ExistingMeshDataIndex = INDEX_NONE;
-		
+
 					auto MaterialsAreEquivalent = [&InSettings](const UMaterialInterface* Material0, const UMaterialInterface* Material1)
 					{
-						if(InSettings.bMergeEquivalentMaterials)
+						if (InSettings.bMergeEquivalentMaterials)
 						{
 							return FMaterialKey(Material0) == FMaterialKey(Material1);
 						}
@@ -2160,19 +2203,19 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					};
 
 					// Find any existing materials
-					for(int32 GlobalMaterialSettingsIndex = 0; GlobalMaterialSettingsIndex < GlobalMaterialSettings.Num(); ++GlobalMaterialSettingsIndex)
+					for (int32 GlobalMaterialSettingsIndex = 0; GlobalMaterialSettingsIndex < GlobalMaterialSettings.Num(); ++GlobalMaterialSettingsIndex)
 					{
 						const FMaterialData& ExistingMaterialData = GlobalMaterialSettings[GlobalMaterialSettingsIndex];
 						// Compare materials (note this assumes property sizes match!)
-						if(MaterialsAreEquivalent(ExistingMaterialData.Material, MaterialData.Material))
+						if (MaterialsAreEquivalent(ExistingMaterialData.Material, MaterialData.Material))
 						{
 							// materials match, so check the corresponding mesh data
 							const FMeshData& ExistingMeshData = GlobalMeshSettings[GlobalMaterialSettingsIndex];
-							bool bMatchesMesh = (ExistingMeshData.Mesh == MeshData.Mesh && 
-												ExistingMeshData.MaterialIndices == MeshData.MaterialIndices && 
-												ExistingMeshData.bMirrored == MeshData.bMirrored &&
-												ExistingMeshData.VertexColorHash == MeshData.VertexColorHash);
-							if(bMatchesMesh)
+							bool bMatchesMesh = (ExistingMeshData.Mesh == MeshData.Mesh &&
+								ExistingMeshData.MaterialIndices == MeshData.MaterialIndices &&
+								ExistingMeshData.bMirrored == MeshData.bMirrored &&
+								ExistingMeshData.VertexColorHash == MeshData.VertexColorHash);
+							if (bMatchesMesh)
 							{
 								MeshDataIndex = ExistingMeshDataIndex = GlobalMaterialSettingsIndex;
 								break;
@@ -2180,7 +2223,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 						}
 					}
 
-					if(ExistingMeshDataIndex == INDEX_NONE)
+					if (ExistingMeshDataIndex == INDEX_NONE)
 					{
 						GlobalMeshSettings.Add(MeshData);
 						GlobalMaterialSettings.Add(MaterialData);
@@ -2212,6 +2255,12 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					OutputMaterialsMap.Add(Key, MaterialRemapPair(OriginalSectionIndex, MeshDataIndex));
 				}
 			}
+		}
+
+		// Fetch results from the async UV computation tasks
+		for (auto MeshData : MeshDataAwaitingResults)
+		{
+			GlobalMeshSettings[MeshData.Key].CustomTextureCoordinates = MeshLODsTextureCoordinates[MeshData.Value].Get();
 		}
 
 		TArray<FMeshData*> MeshSettingPtrs;

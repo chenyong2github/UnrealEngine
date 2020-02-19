@@ -102,6 +102,10 @@ bool FXmppMessagesStrophe::HandleMessageStanza(const FStropheStanza& IncomingSta
 			FDateTime::ParseIso8601(*TimestampStr, Message.Timestamp);
 		}
 	}
+	else
+	{
+		UE_LOG(LogXmpp, Warning, TEXT("Message: Failed to Deserialize JsonBody %s"), *IncomingStanza.GetBodyText().GetValue());
+	}
 
 	FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 	IncomingMessages.Enqueue(MakeUnique<FXmppMessage>(MoveTemp(Message)));

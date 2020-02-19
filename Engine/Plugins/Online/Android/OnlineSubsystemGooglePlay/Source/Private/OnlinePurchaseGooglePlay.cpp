@@ -5,6 +5,10 @@
 #include "OnlineStoreGooglePlay.h"
 #include "OnlineError.h"
 #include "Misc/Base64.h"
+#include "Async/TaskGraphInterfaces.h"
+#include <jni.h>
+#include "Android/AndroidJavaEnv.h"
+#include "Async/TaskGraphInterfaces.h"
 
 #define LOCTEXT_NAMESPACE "OnlineSubsystemGooglePlay"
 #define GOOGLEPLAYUSER TEXT("GooglePlayUser")
@@ -199,6 +203,7 @@ void FOnlinePurchaseGooglePlay::GetReceipts(const FUniqueNetId& UserId, TArray<F
 		const TArray<TSharedRef<FPurchaseReceipt>>& UserCompletedTransactions = *UserCompletedTransactionsPtr;
 		for (int32 Idx = 0; Idx < UserCompletedTransactions.Num(); Idx++)
 		{
+			UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseGooglePlay::GetReceipts - Adding UserCompletedTransaction to OutReceipts"));
 			const TSharedRef<FPurchaseReceipt>& Transaction = UserCompletedTransactions[Idx];
 			OutReceipts.Add(*Transaction);
 		}
@@ -207,14 +212,17 @@ void FOnlinePurchaseGooglePlay::GetReceipts(const FUniqueNetId& UserId, TArray<F
 	// Add purchases completed while "offline"
 	for (int32 Idx = 0; Idx < OfflineTransactions.Num(); Idx++)
 	{
+		UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseGooglePlay::GetReceipts - Adding OfflineTransaction to OutReceipts"));
 		OutReceipts.Add(*OfflineTransactions[Idx]);
 	}
+
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseGooglePlay::GetReceipts - Final Number of outreciepts OutReceipts - %d"), OutReceipts.Num());
 }
 
 void FOnlinePurchaseGooglePlay::OnTransactionCompleteResponse(EGooglePlayBillingResponseCode InResponseCode, const FGoogleTransactionData& InTransactionData)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseGooglePlay::OnTransactionCompleteResponse %s"), ToString(InResponseCode));
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("3... Transaction: %s"), *InTransactionData.ToDebugString());
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseGooglePlay::OnTransactionCompleteResponse %s"), ToString(InResponseCode));
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT("3... Transaction: %s"), *InTransactionData.ToDebugString());
 	EPurchaseTransactionState Result = ConvertGPResponseCodeToPurchaseTransactionState(InResponseCode);
 
 	FString UserIdStr = GOOGLEPLAYUSER;
@@ -223,6 +231,12 @@ void FOnlinePurchaseGooglePlay::OnTransactionCompleteResponse(EGooglePlayBilling
 	{
 		const TSharedRef<FOnlinePurchasePendingTransactionGooglePlay> UserPendingTransaction = *UserPendingTransactionPtr;
 		const FString& ErrorStr = InTransactionData.GetErrorStr();
+
+		if (Result == EPurchaseTransactionState::Canceled && !InTransactionData.GetOfferId().IsEmpty())
+		{
+			// When result is cancelled, but there is a sku in the transaction data, this is a deferred transaction
+			Result = EPurchaseTransactionState::Deferred;
+		}
 
 		if (Result == EPurchaseTransactionState::Purchased || Result == EPurchaseTransactionState::Restored)
 		{
@@ -250,6 +264,10 @@ void FOnlinePurchaseGooglePlay::OnTransactionCompleteResponse(EGooglePlayBilling
 			case EPurchaseTransactionState::Purchased:
 				FinalResult.bSucceeded = true;
 				break;
+			case EPurchaseTransactionState::Deferred:
+				FinalResult.SetFromErrorCode(TEXT("com.epicgames.purchase.deferred"));
+				FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("GooglePlayTransactionDeferred", "Transaction Deferred");
+				break;
 			case EPurchaseTransactionState::Invalid:
 				FinalResult.SetFromErrorCode(TEXT("com.epicgames.purchase.invalid"));
 				FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("GooglePlayInvalidState", "Invalid purchase result");
@@ -268,19 +286,42 @@ void FOnlinePurchaseGooglePlay::OnTransactionCompleteResponse(EGooglePlayBilling
 		TArray< TSharedRef<FPurchaseReceipt> >& UserCompletedTransactions = CompletedTransactions.FindOrAdd(UserIdStr);
 
 		PendingTransactions.Remove(UserIdStr);
-		UserCompletedTransactions.Add(FinalReceipt);
+
+		// If this is a deferred transaction, we will process it as an "offline" transaction, so don't complete
+		if (Result != EPurchaseTransactionState::Deferred)
+		{
+			UserCompletedTransactions.Add(FinalReceipt);
+		}
 
 		UserPendingTransaction->CheckoutCompleteDelegate.ExecuteIfBound(FinalResult, FinalReceipt);
 	}
 	else
 	{
-		UE_LOG_ONLINE_PURCHASE(Log, TEXT("No pending transaction found associated with this purchase completion event"));
+		// Need to populate offlineTransactions here. 
+		// Transactions that come in during login or other non explicit purchase moments are added to a receipts list for later redemption
+		UE_LOG_ONLINE_PURCHASE(Log, TEXT("Pending transaction completed offline"));
+		if (Result == EPurchaseTransactionState::Restored || Result == EPurchaseTransactionState::Purchased)
+		{
+			TSharedRef<FPurchaseReceipt> OfflineReceipt = FOnlinePurchasePendingTransactionGooglePlay::GenerateReceipt(InTransactionData);
+			OfflineTransactions.Add(OfflineReceipt);
+
+			// Queue this user to be updated about this next-tick on the game-thread, if they're not mid-purchase
+			TWeakPtr<FOnlinePurchaseGooglePlay, ESPMode::ThreadSafe> WeakThis(AsShared());
+			Subsystem->ExecuteNextTick([WeakThis]()
+			{
+				FOnlinePurchaseGooglePlayPtr StrongThis = WeakThis.Pin();
+				if (StrongThis.IsValid())
+				{
+					StrongThis->TriggerOnUnexpectedPurchaseReceiptDelegates(*FUniqueNetIdGooglePlay::EmptyId());
+				}
+			});
+		}
 	}
 }
 
 void FOnlinePurchaseGooglePlay::OnQueryExistingPurchasesComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FGoogleTransactionData>& InExistingPurchases)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseGooglePlay::OnQueryExistingPurchasesComplete Response: %s Num: %d"), ToString(InResponseCode), InExistingPurchases.Num());
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseGooglePlay::OnQueryExistingPurchasesComplete Response: %s Num: %d"), ToString(InResponseCode), InExistingPurchases.Num());
 
 	if (bQueryingReceipts)
 	{
@@ -290,14 +331,14 @@ void FOnlinePurchaseGooglePlay::OnQueryExistingPurchasesComplete(EGooglePlayBill
 			EPurchaseTransactionState Result = ConvertGPResponseCodeToPurchaseTransactionState(InResponseCode);
 			for (const FGoogleTransactionData& Purchase : InExistingPurchases)
 			{
-				UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("Adding existing receipt %s"), *Purchase.ToDebugString());
+				UE_LOG_ONLINE_PURCHASE(Log, TEXT("Adding existing receipt %s"), *Purchase.ToDebugString());
 				TSharedRef<FPurchaseReceipt> OfflineReceipt = FOnlinePurchasePendingTransactionGooglePlay::GenerateReceipt(Purchase);
 				OfflineTransactions.Add(OfflineReceipt);
 			}
 		}
 		else
 		{
-			UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("OnQueryExistingPurchasesComplete failed"));
+			UE_LOG_ONLINE_PURCHASE(Log, TEXT("OnQueryExistingPurchasesComplete failed"));
 		}
 
 		Subsystem->ExecuteNextTick([this, bSuccess]()
@@ -393,6 +434,150 @@ bool FOnlinePurchasePendingTransactionGooglePlay::AddCompletedOffer(EPurchaseTra
 	}
 	
 	return false;
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeQueryExistingPurchasesComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jobjectArray ProductIDs, jobjectArray ProductTokens, jobjectArray ReceiptsData, jobjectArray Signatures)
+{
+	TArray<FGoogleTransactionData> ExistingPurchaseInfo;
+
+	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)responseCode;
+
+	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
+	if (jenv && bWasSuccessful)
+	{
+		jsize NumProducts = jenv->GetArrayLength(ProductIDs);
+		jsize NumProductTokens = jenv->GetArrayLength(ProductTokens);
+		jsize NumReceipts = jenv->GetArrayLength(ReceiptsData);
+		jsize NumSignatures = jenv->GetArrayLength(Signatures);
+
+		ensure((NumProducts == NumProductTokens) && (NumProducts == NumReceipts) && (NumProducts == NumSignatures));
+
+		for (jsize Idx = 0; Idx < NumProducts; Idx++)
+		{
+			// Build the product information strings.
+			const auto OfferId = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx));
+			const auto ProductToken = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductTokens, Idx));
+			const auto ReceiptData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx));
+			const auto SignatureData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Signatures, Idx));
+
+			FGoogleTransactionData ExistingPurchase(OfferId, ProductToken, ReceiptData, SignatureData);
+			ExistingPurchaseInfo.Add(ExistingPurchase);
+
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\Existing Product Identifier: %s"), *ExistingPurchase.ToDebugString());
+		}
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.QueryExistingPurchases"), STAT_FSimpleDelegateGraphTask_QueryExistingPurchases, STATGROUP_TaskGraphTasks);
+
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+		FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]()
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Query existing purchases was completed %s\n"), bWasSuccessful ? TEXT("successfully") : TEXT("unsuccessfully"));
+		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM))
+		{
+			FOnlineSubsystemGooglePlay* const OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(OnlineSub);
+			if (OnlineSubGP)
+			{
+				OnlineSubGP->TriggerOnGooglePlayQueryExistingPurchasesCompleteDelegates(EGPResponse, ExistingPurchaseInfo);
+			}
+		}
+	}),
+		GET_STATID(STAT_FSimpleDelegateGraphTask_QueryExistingPurchases),
+		nullptr,
+		ENamedThreads::GameThread
+		);
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeRestorePurchasesComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jobjectArray ProductIDs, jobjectArray ProductTokens, jobjectArray ReceiptsData, jobjectArray Signatures)
+{
+	TArray<FGoogleTransactionData> RestoredPurchaseInfo;
+
+	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)responseCode;
+	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
+
+	if (jenv && bWasSuccessful)
+	{
+		jsize NumProducts = jenv->GetArrayLength(ProductIDs);
+		jsize NumProductTokens = jenv->GetArrayLength(ProductTokens);
+		jsize NumReceipts = jenv->GetArrayLength(ReceiptsData);
+		jsize NumSignatures = jenv->GetArrayLength(Signatures);
+
+		ensure((NumProducts == NumProductTokens) && (NumProducts == NumReceipts) && (NumProducts == NumSignatures));
+
+		for (jsize Idx = 0; Idx < NumProducts; Idx++)
+		{
+			const auto OfferId = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx));
+			const auto ProductToken = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductTokens, Idx));
+			const auto ReceiptData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx));
+			const auto SignatureData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Signatures, Idx));
+
+			FGoogleTransactionData RestoredPurchase(OfferId, ProductToken, ReceiptData, SignatureData);
+			RestoredPurchaseInfo.Add(RestoredPurchase);
+
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Restored Transaction: %s"), *RestoredPurchase.ToDebugString());
+		}
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.RestorePurchases"), STAT_FSimpleDelegateGraphTask_RestorePurchases, STATGROUP_TaskGraphTasks);
+
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+		FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]()
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Restoring In-App Purchases was completed  %s\n"), bWasSuccessful ? TEXT("successfully") : TEXT("unsuccessfully"));
+
+		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM))
+		{
+			FOnlineSubsystemGooglePlay* const OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(OnlineSub);
+			if (OnlineSubGP)
+			{
+				OnlineSubGP->TriggerOnGooglePlayRestorePurchasesCompleteDelegates(EGPResponse, RestoredPurchaseInfo);
+			}
+		}
+	}),
+		GET_STATID(STAT_FSimpleDelegateGraphTask_RestorePurchases),
+		nullptr,
+		ENamedThreads::GameThread
+		);
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativePurchaseComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring productId, jstring productToken, jstring receiptData, jstring signature)
+{
+	FString ProductId, ProductToken, ReceiptData, Signature;
+	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)responseCode;
+
+	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
+
+	//Store off results, because we will use them to determine if this is a deferred transaction.
+	ProductId = FJavaHelper::FStringFromParam(jenv, productId);
+	ProductToken = FJavaHelper::FStringFromParam(jenv, productToken);
+	ReceiptData = FJavaHelper::FStringFromParam(jenv, receiptData);
+	Signature = FJavaHelper::FStringFromParam(jenv, signature);
+
+
+	FGoogleTransactionData TransactionData(ProductId, ProductToken, ReceiptData, Signature);
+
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("1... Response: %s, Transaction %s"), ToString(EGPResponse), *TransactionData.ToDebugString());
+
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessIapResult"), STAT_FSimpleDelegateGraphTask_ProcessIapResult, STATGROUP_TaskGraphTasks);
+
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+		FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]()
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("In-App Purchase was completed  %s\n"), bWasSuccessful ? TEXT("successfully") : TEXT("unsuccessfully"));
+		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM))
+		{
+			FOnlineSubsystemGooglePlay* const OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(OnlineSub);
+			if (OnlineSubGP)
+			{
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("2... Response %s Transaction %s"), ToString(EGPResponse), *TransactionData.ToDebugString());
+				OnlineSubGP->TriggerOnGooglePlayProcessPurchaseCompleteDelegates(EGPResponse, TransactionData);
+			}
+		}
+	}),
+		GET_STATID(STAT_FSimpleDelegateGraphTask_ProcessIapResult),
+		nullptr,
+		ENamedThreads::GameThread
+		);
 }
 
 #undef LOCTEXT_NAMESPACE

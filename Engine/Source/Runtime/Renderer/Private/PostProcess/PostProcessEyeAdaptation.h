@@ -5,6 +5,7 @@
 #include "ScreenPass.h"
 
 // LuminanceMax is the amount of light that will cause the sensor to saturate at EV100.
+//  See also https://en.wikipedia.org/wiki/Film_speed and https://en.wikipedia.org/wiki/Exposure_value for more info.
 FORCEINLINE float EV100ToLuminance(float LuminanceMax, float EV100)
 {
 	return LuminanceMax * FMath::Pow(2.0f, EV100);
@@ -34,6 +35,20 @@ float LuminanceMaxFromLensAttenuation();
 // Returns whether the auto exposure method is supported by the feature level.
 bool IsAutoExposureMethodSupported(ERHIFeatureLevel::Type FeatureLevel, EAutoExposureMethod AutoExposureMethodId);
 
+// Returns true if the view is in a debug mode that disables all exposure
+bool IsAutoExposureDebugMode(const FViewInfo& View);
+
+// Returns the fixed exposure value
+float CalculateFixedAutoExposure(const FViewInfo& View);
+
+// Returns the manual exposure value
+float CalculateManualAutoExposure(const FViewInfo& View, bool bForceDisablePhysicalCamera);
+
+// Returns the exposure compensation from the View, 
+float GetAutoExposureCompensationFromSettings(const FViewInfo& View);
+
+bool IsExtendLuminanceRangeEnabled();
+
 // Returns the auto exposure method enabled by the view (including CVar override).
 EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View);
 
@@ -42,15 +57,15 @@ BEGIN_SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, )
 	SHADER_PARAMETER(float, ExposureHighPercent)
 	SHADER_PARAMETER(float, MinAverageLuminance)
 	SHADER_PARAMETER(float, MaxAverageLuminance)
-	SHADER_PARAMETER(float, ExposureCompensation)
+	SHADER_PARAMETER(float, ExposureCompensationSettings)
+	SHADER_PARAMETER(float, ExposureCompensationCurve)
 	SHADER_PARAMETER(float, DeltaWorldTime)
 	SHADER_PARAMETER(float, ExposureSpeedUp)
 	SHADER_PARAMETER(float, ExposureSpeedDown)
 	SHADER_PARAMETER(float, HistogramScale)
 	SHADER_PARAMETER(float, HistogramBias)
 	SHADER_PARAMETER(float, LuminanceMin)
-	SHADER_PARAMETER(float, CalibrationConstantInverse)
-	SHADER_PARAMETER(float, WeightSlope)
+	SHADER_PARAMETER(float, BlackHistogramBucketInfluence)
 	SHADER_PARAMETER(float, GreyMult)
 	SHADER_PARAMETER(float, ExponentialUpM)
 	SHADER_PARAMETER(float, ExponentialDownM)

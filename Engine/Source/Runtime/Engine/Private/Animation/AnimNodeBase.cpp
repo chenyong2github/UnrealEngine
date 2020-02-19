@@ -467,10 +467,13 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 
 	if (LinkedNode != NULL)
 	{
+		{
 #if ANIM_TRACE_ENABLED
-		Output.SetNodeId(LinkID);
+			Output.SetNodeId(LinkID);
+			TRACE_SCOPED_ANIM_NODE(Output);
 #endif
-		LinkedNode->EvaluateComponentSpace_AnyThread(Output);
+			LinkedNode->EvaluateComponentSpace_AnyThread(Output);
+		}
 
 #if WITH_EDITOR
 		Output.AnimInstanceProxy->RegisterWatchedPose(Output.Pose, LinkID);
@@ -689,21 +692,26 @@ void FExposedValueHandler::Initialize(UObject* AnimInstanceObject, int32 NodeOff
 				check(CopyRecord.DestProperty.Get());
 			}
 
-			if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(CopyRecord.DestProperty.Get()))
+			if (CastField<FNameProperty>(CopyRecord.DestProperty.Get()))
+			{
+				CopyRecord.CopyType = ECopyType::NameProperty;
+			}
+			else if (CastField<FBoolProperty>(CopyRecord.DestProperty.Get()))
 			{
 				CopyRecord.CopyType = ECopyType::BoolProperty;
 			}
-			else if (FStructProperty* StructProperty = CastField<FStructProperty>(CopyRecord.DestProperty.Get()))
+			else if (CastField<FStructProperty>(CopyRecord.DestProperty.Get()))
 			{
 				CopyRecord.CopyType = ECopyType::StructProperty;
 			}
-			else if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(CopyRecord.DestProperty.Get()))
+			else if (CastField<FObjectPropertyBase>(CopyRecord.DestProperty.Get()))
 			{
 				CopyRecord.CopyType = ECopyType::ObjectProperty;
 			}
 			else
 			{
-				CopyRecord.CopyType = ECopyType::MemCopy;
+				check(CopyRecord.DestProperty->PropertyFlags & CPF_IsPlainOldData);
+				CopyRecord.CopyType = ECopyType::PlainProperty;
 			}
 		}
 	}
@@ -736,7 +744,7 @@ void FExposedValueHandler::Execute(const FAnimationBaseContext& Context) const
 				switch(CopyRecord.CopyType)
 				{
 				default:
-				case ECopyType::MemCopy:
+				case ECopyType::PlainProperty:
 					FMemory::Memcpy(Dest, Src, CopyRecord.Size);
 					break;
 				case ECopyType::BoolProperty:
@@ -752,6 +760,12 @@ void FExposedValueHandler::Execute(const FAnimationBaseContext& Context) const
 					{
 						UObject* Value = static_cast<FObjectPropertyBase*>(SourceProperty)->GetObjectPropertyValue(Src);
 						static_cast<FObjectPropertyBase*>(CopyRecord.DestProperty.Get())->SetObjectPropertyValue(Dest, Value);
+					}
+					break;
+				case ECopyType::NameProperty:
+					{
+						const FName& NameValue = static_cast<FNameProperty*>(SourceProperty)->GetPropertyValue(Src);
+						static_cast<FNameProperty*>(CopyRecord.DestProperty.Get())->SetPropertyValue(Dest, NameValue);
 					}
 					break;
 				}

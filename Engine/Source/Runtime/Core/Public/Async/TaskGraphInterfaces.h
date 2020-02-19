@@ -48,7 +48,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("ParallelForTask"), STAT_ParallelForTask, STATGRO
 
 namespace ENamedThreads
 {
-	enum Type
+	enum Type : int32
 	{
 		UnusedAnchor = -1,
 		/** The always-present, named threads are listed next **/
@@ -210,6 +210,8 @@ namespace ENamedThreads
 
 }
 
+DECLARE_INTRINSIC_TYPE_LAYOUT(ENamedThreads::Type);
+
 extern CORE_API int32 GEnablePowerSavingThreadPriorityReductionCVar;
 
 enum class EPowerSavingEligibility : uint8
@@ -340,7 +342,7 @@ public:
 	 *	Requests that a named thread, which must be this thread, run until idle, then return.
 	 *	@param	CurrentThread; The name of this thread
 	**/
-	virtual void ProcessThreadUntilIdle(ENamedThreads::Type CurrentThread)=0;
+	virtual uint64 ProcessThreadUntilIdle(ENamedThreads::Type CurrentThread)=0;
 
 	/** 
 	 *	Requests that a named thread, which must be this thread, run until an explicit return request is received, then return.

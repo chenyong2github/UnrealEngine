@@ -24,6 +24,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FImageTargetUnreliableTrackingMult
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FImageTargetReliableTracking, const FVector&, NewLocation, const FRotator&, NewRotation);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FImageTargetReliableTrackingMulti, const FVector&, NewLocation, const FRotator&, NewRotation);
 
+/** Delegate used to notify LuminARImageTracker that the target image was successfully set. */
+DECLARE_DELEGATE_OneParam(FSetImageTargetSucceededStaticDelegate, FMagicLeapImageTrackerTarget& /*Target*/);
+
 /** Delegate used to notify the instigating blueprint that the target image was successfully set. */
 DECLARE_DYNAMIC_DELEGATE(FSetImageTargetSucceeded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSetImageTargetSucceededMulti);
@@ -63,6 +66,7 @@ struct FMagicLeapImageTrackerTarget
 	FImageTargetFoundMulti OnImageTargetFound;
 	FImageTargetLostMulti OnImageTargetLost;
 	FImageTargetUnreliableTrackingMulti OnImageTargetUnreliableTracking;
+	FSetImageTargetSucceededStaticDelegate SetImageTargetSucceededDelegate;
 
 	FMagicLeapImageTrackerTarget()
 	: Name(TEXT("Undefined"))

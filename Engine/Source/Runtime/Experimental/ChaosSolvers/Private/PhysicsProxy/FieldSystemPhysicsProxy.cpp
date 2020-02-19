@@ -129,20 +129,24 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					int32 i = 0;
 					for(Chaos::TGeometryParticleHandle<float,3>* Handle : Handles)
 					{
-						const Chaos::EObjectStateType CurrState = Handle->ObjectState();
-						if(CurrState == Chaos::EObjectStateType::Kinematic)
+						const Chaos::EObjectStateType ObjectState = Handle->ObjectState();
+						switch (ObjectState)
 						{
-							DynamicState[i] = (int)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+						case Chaos::EObjectStateType::Kinematic:
+							DynamicState[i++] = (int)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+							break;
+						case Chaos::EObjectStateType::Static:
+							DynamicState[i++] = (int)EObjectStateTypeEnum::Chaos_Object_Static;
+							break;
+						case Chaos::EObjectStateType::Sleeping:
+							DynamicState[i++] = (int)EObjectStateTypeEnum::Chaos_Object_Sleeping;
+							break;
+						case Chaos::EObjectStateType::Dynamic:
+						case Chaos::EObjectStateType::Uninitialized:
+						default:
+							DynamicState[i++] = (int)EObjectStateTypeEnum::Chaos_Object_Dynamic;
+							break;
 						}
-						else if (CurrState == Chaos::EObjectStateType::Static)
-						{
-							DynamicState[i] = (int)EObjectStateTypeEnum::Chaos_Object_Static;
-						}
-						else
-						{
-							DynamicState[i] = (int)EObjectStateTypeEnum::Chaos_Object_Dynamic;
-						}
-						++i;
 					}
 
 					TArrayView<int32> DynamicStateView(&(DynamicState[0]), DynamicState.Num());
@@ -168,11 +172,22 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 						// we're just going to ignore non-dynamic particles.  This has the added
 						// benefit of not needing to deal with the floor, as it's pretty likely to
 						// not be dynamic.  Har.
-						Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
-						if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
+						if(Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle())
 						{
-							const int32 FieldState = DynamicStateView[i];
+							const bool bIsGC = (Handle->GetParticleType() == Chaos::EParticleType::GeometryCollection);
 							const EObjectStateType HandleState = RigidHandle->ObjectState();
+
+							// Non-Geometry Collection rigid bodies are more restricted as to how
+							// they can change state, as they'd have to promote or demote to a 
+							// different particle type, necessitating changing to a different
+							// particle SOA, which would be expensive.  So, we only permit 
+							// downgrading from Dynamic in those cases.
+							if (!bIsGC && HandleState != Chaos::EObjectStateType::Dynamic)
+							{
+								continue;
+							}
+
+							const int32 FieldState = DynamicStateView[i];
 							if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
 							{
 								if ((HandleState == Chaos::EObjectStateType::Static ||
@@ -190,7 +205,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 							}
 							else if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic)
 							{
-								if (HandleState == Chaos::EObjectStateType::Dynamic)
+								if (HandleState != Chaos::EObjectStateType::Kinematic)
 								{
 									RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Kinematic);
 									RigidHandle->SetV(Chaos::TVector<float, 3>(0));
@@ -200,7 +215,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 							}
 							else if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Static)
 							{
-								if (HandleState == Chaos::EObjectStateType::Dynamic)
+								if (HandleState != Chaos::EObjectStateType::Static)
 								{
 									RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Static);
 									RigidHandle->SetV(Chaos::TVector<float, 3>(0));
@@ -210,7 +225,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 							}
 							else if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Sleeping)
 							{
-								if (HandleState == Chaos::EObjectStateType::Dynamic)
+								if (HandleState != Chaos::EObjectStateType::Sleeping)
 								{
 									RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Sleeping);
 									StateChanged = true;
@@ -575,119 +590,59 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
 					TEXT("Field based evaluation of the simulations 'Disable' parameter expects scale field inputs.")))
 				{
-#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
-					const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyMapping = CurrentSolver->GetPhysicsProxyReverseMapping();
 					
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
+					if (Handles.Num())
 					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						FFieldContext Context(
+							SampleIndicesView,
+							SamplePointsView,
+							Command.MetaData);
 
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
+						TArray<float> LocalResults;
+						LocalResults.AddUninitialized(Handles.Num());
+						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
+						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(
+							Context, ResultsView);
 
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-
-						TArray<float> Results;
-						Results.AddUninitialized(Particles.Size());
-						for (const ContextIndex Index : IndicesArray)
+						int32 i = 0;
+						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
 						{
-							const SolverObjectWrapper& ParticleObjectWrapper = SolverObjectMapping[Index.Result];
-							TSerializablePtr<Chaos::FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(Index.Result);
-							if (ensure(Material) && ParticleObjectWrapper.SolverObject)
-							{
-								const TUniquePtr<Chaos::FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result);
-								if (InstanceMaterial)
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
+							
+							if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic && ResultsView.Num() > 0)
+							{						
+								// if no per particle physics material is set, make one
+								if (!CurrentSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle).IsValid())
 								{
-									Results[Index.Result] = InstanceMaterial->DisabledLinearThreshold;
-								}
+
+									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>();
+									NewMaterial->DisabledLinearThreshold = ResultsView[i];
+									NewMaterial->DisabledAngularThreshold = ResultsView[i];
+
+
+									CurrentSolver->GetEvolution()->SetPhysicsMaterial(RigidHandle, MakeSerializable(NewMaterial));
+									CurrentSolver->GetEvolution()->SetPerParticlePhysicsMaterial(RigidHandle, NewMaterial);
+								} 
 								else
 								{
-									Results[Index.Result] = Material->DisabledLinearThreshold;
+									const TUniquePtr<FChaosPhysicsMaterial> &InstanceMaterial = CurrentSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle);
+		
+									if (ResultsView[i] != InstanceMaterial->DisabledLinearThreshold)
+									{
+										InstanceMaterial->DisabledLinearThreshold = ResultsView[i];
+										InstanceMaterial->DisabledAngularThreshold = ResultsView[i];
+									}
 								}
 							}
-							else
-							{
-								Results[Index.Result] = 0.0f;
-							}
+							++i;
 						}
-
-						TArrayView<float> ResultsView(&(Results[0]), Results.Num());
-						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
-
-						for (const ContextIndex Index : IndicesArray)
-						{
-							const int32 i = Index.Result;
-							const PhysicsProxyWrapper& ParticleObjectWrapper = PhysicsProxyMapping[i];
-							TSerializablePtr<Chaos::FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(i);
-							if (!ensure(Material) || !ParticleObjectWrapper.PhysicsProxy)	//question: do we actually need to check for solver object?
-							{
-								continue;
-							}
-
-							//per instance override
-							if (!CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result))
-							{
-								if (Results[i] != Material->DisabledLinearThreshold)
-								{
-									// value changed from shared material, make unique material.
-									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>(*Material);
-									CurrentSolver->SetPerParticlePhysicsMaterial(Index.Result, MoveTemp(NewMaterial));
-									const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
-
-									InstanceMaterial->DisabledLinearThreshold = Results[i];
-									InstanceMaterial->DisabledAngularThreshold = Results[i];
-								}
-							}
-							else
-							{
-								const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
-
-								if (InstanceMaterial->DisabledLinearThreshold != Results[i])
-								{
-									InstanceMaterial->DisabledLinearThreshold = Results[i];
-									InstanceMaterial->DisabledAngularThreshold = Results[i];
-								}
-							}
-						}
-					}
-#endif
+					}									
 				}
+
 				CommandsToRemove.Add(CommandIndex);
 			}
-#if TODO_REIMPLEMENT_RIGID_CLUSTERING
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_InternalClusterStrain))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_InternalClusterStrain);
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'ExternalClusterStrain' parameter expects scalar field inputs.")))
-				{
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
-					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
-
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-
-						float * vptr = &(Strains[0]);
-						TArrayView<float> ResultsView(vptr, Particles.Size());
-						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
-					}
-				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-#endif
 			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_CollisionGroup))
 			{
 				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),

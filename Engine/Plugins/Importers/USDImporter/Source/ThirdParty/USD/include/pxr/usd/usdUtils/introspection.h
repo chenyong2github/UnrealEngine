@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDUTILS_INTROSPECTION_H
-#define USDUTILS_INTROSPECTION_H
+#ifndef PXR_USD_USD_UTILS_INTROSPECTION_H
+#define PXR_USD_USD_UTILS_INTROSPECTION_H
 
 /// \file usdUtils/introspection.h
 ///
@@ -124,4 +124,4 @@ size_t UsdUtilsComputeUsdStageStats(const UsdStageWeakPtr &stage,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif /* USDUTILS_INTROSPECTION_H */
+#endif /* PXR_USD_USD_UTILS_INTROSPECTION_H */

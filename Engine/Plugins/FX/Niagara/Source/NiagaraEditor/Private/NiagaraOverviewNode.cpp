@@ -99,16 +99,21 @@ FLinearColor UNiagaraOverviewNode::GetNodeTitleColor() const
 		NotIsolatedColor = FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.OverviewNode.NotIsolatedColor");
 	}
 
-	if (EmitterHandleGuid.IsValid() && OwningSystem->GetIsolateEnabled())
+	if (EmitterHandleGuid.IsValid())
 	{
-		const FNiagaraEmitterHandle* Handle = FindEmitterHandleByID(OwningSystem, EmitterHandleGuid);
-		if (ensureMsgf(Handle != nullptr, TEXT("Failed to find matching emitter handle for existing overview node!")))
+		if (OwningSystem != nullptr && OwningSystem->GetIsolateEnabled())
 		{
-			return Handle->IsIsolated() ? IsolatedColor : NotIsolatedColor;
+			const FNiagaraEmitterHandle* Handle = FindEmitterHandleByID(OwningSystem, EmitterHandleGuid);
+			if (ensureMsgf(Handle != nullptr, TEXT("Failed to find matching emitter handle for existing overview node!")))
+			{
+				return Handle->IsIsolated() ? IsolatedColor : NotIsolatedColor;
+			}
 		}
+		
+		return EmitterColor;
 	}
-
-	return EmitterHandleGuid.IsValid() ? EmitterColor : SystemColor;
+	
+	return SystemColor;
 }
 
 static bool IsSystemAsset(UNiagaraSystem* System)
@@ -201,6 +206,16 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 						),
 						EUserInterfaceActionType::ToggleButton
 					);
+
+					Section.AddMenuEntry(
+						"RenameEmitter",
+						LOCTEXT("RenameEmitter", "Rename Emitter"),
+						LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(EmitterHandleViewModel, &FNiagaraEmitterHandleViewModel::SetIsRenamePending, true)
+						)
+					);
 				}
 
 				Section.AddMenuEntry(
@@ -230,6 +245,22 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 							[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
 							{
 								return bSingleSelection && bHasParent;
+							}
+						)
+					)
+				);
+
+				Section.AddMenuEntry(
+					"CreateAssetFromThis",
+					LOCTEXT("CreateAssetFromThisEmitter", "Create Asset From This"),
+					LOCTEXT("CreateAssetFromThisEmitterToolTip", "Create an emitter asset from this emitter."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::CreateAssetFromEmitter, EmitterHandleViewModel),
+						FCanExecuteAction::CreateLambda(
+							[bSingleSelection, EmitterHandleViewModel]()
+							{
+								return bSingleSelection && EmitterHandleViewModel->GetOwningSystemEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 							}
 						)
 					)

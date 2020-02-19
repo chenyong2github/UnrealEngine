@@ -78,14 +78,26 @@ void FVREditorModeManager::Tick( const float DeltaTime )
 	{
 		// Shutdown PIE if we came from the VR Editor and we are not already requesting to start the VR Editor and when any of the players is holding down the required input
 		const float ShutDownInputKeyTime = 1.0f;
+		const float ShutDownTriggerValue = 0.7f;
 		TArray<APlayerController*> PlayerControllers;
 		GEngine->GetAllLocalPlayerControllers(PlayerControllers);
 		for(APlayerController* PlayerController : PlayerControllers)
 		{
-			if((PlayerController->GetInputKeyTimeDown( EKeys::MotionController_Left_Grip1 ) > ShutDownInputKeyTime || PlayerController->GetInputKeyTimeDown( EKeys::MotionController_Left_Grip2 ) > ShutDownInputKeyTime ) &&
-				(PlayerController->GetInputKeyTimeDown( EKeys::MotionController_Right_Grip1 ) > ShutDownInputKeyTime || PlayerController->GetInputKeyTimeDown( EKeys::MotionController_Right_Grip2 ) > ShutDownInputKeyTime ) &&
-				PlayerController->GetInputKeyTimeDown( EKeys::MotionController_Right_Trigger ) > ShutDownInputKeyTime &&
-				PlayerController->GetInputKeyTimeDown( EKeys::MotionController_Left_Trigger ) > ShutDownInputKeyTime)
+			const float LeftGripTimeDown = FMath::Max3(PlayerController->GetInputKeyTimeDown(EKeys::Vive_Left_Grip_Click),
+				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Left_Grip_Click),
+				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Left_Grip_Click));
+			const float RightGripTimeDown = FMath::Max3(PlayerController->GetInputKeyTimeDown(EKeys::Vive_Right_Grip_Click),
+				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Right_Grip_Click),
+				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Right_Grip_Click));
+			const float LeftTriggerValue = FMath::Max3(PlayerController->GetInputAxisValue(EKeys::Vive_Left_Trigger_Axis.GetFName()),
+				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Left_Trigger_Axis.GetFName()),
+				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Left_Trigger_Axis.GetFName()));
+			const float RightTriggerValue = FMath::Max3(PlayerController->GetInputAxisValue(EKeys::Vive_Right_Trigger_Axis.GetFName()),
+				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Right_Trigger_Axis.GetFName()),
+				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Right_Trigger_Axis.GetFName()));
+
+			if(LeftGripTimeDown > ShutDownInputKeyTime && RightGripTimeDown > ShutDownInputKeyTime &&
+				LeftTriggerValue > ShutDownTriggerValue && RightTriggerValue > ShutDownTriggerValue)
 			{
 				CurrentVREditorMode->TogglePIEAndVREditor();
 				// We need to clear the input of the playercontroller when exiting PIE. 

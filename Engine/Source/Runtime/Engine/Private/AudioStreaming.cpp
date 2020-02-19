@@ -68,7 +68,7 @@ void FAsyncStreamDerivedChunkWorker::DoWork()
 
 	TArray<uint8> DerivedChunkData;
 
-	if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedChunkData))
+	if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedChunkData, TEXT("Unknown Audio"_SV)))
 	{
 		FMemoryReader Ar(DerivedChunkData, true);
 		int32 ChunkSize = 0;
@@ -709,7 +709,7 @@ void FLegacyAudioStreamingManager::NotifyLevelOffset(class ULevel* Level, const 
 
 void FLegacyAudioStreamingManager::AddStreamingSoundWave(USoundWave* SoundWave)
 {
-	if (FPlatformProperties::SupportsAudioStreaming() && SoundWave->IsStreaming())
+	if (FPlatformProperties::SupportsAudioStreaming() && SoundWave->IsStreaming(nullptr))
 	{
 		FScopeLock Lock(&CriticalSection);
 
@@ -873,7 +873,7 @@ void FLegacyAudioStreamingManager::AddStreamingSoundSource(FSoundSource* SoundSo
 void FLegacyAudioStreamingManager::RemoveStreamingSoundSource(FSoundSource* SoundSource)
 {
 	const FWaveInstance* WaveInstance = SoundSource->GetWaveInstance();
-	if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->IsStreaming() && !WaveInstance->WaveData->ShouldUseStreamCaching())
+	if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->IsStreaming(nullptr) && !WaveInstance->WaveData->ShouldUseStreamCaching())
 	{
 		FScopeLock Lock(&CriticalSection);
 

@@ -128,7 +128,7 @@ bool FWmfMediaSession::Initialize(bool LowLatency)
 
 	if (LowLatency)
 	{
-		if (FWindowsPlatformMisc::VerifyWindowsVersion(6, 2))
+		if (FPlatformMisc::VerifyWindowsVersion(6, 2))
 		{
 			HRESULT Result = Attributes->SetUINT32(MF_LOW_LATENCY, TRUE);
 

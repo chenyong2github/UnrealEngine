@@ -381,7 +381,10 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 		}
 
 		FEdgeLoop InnerLoop;
-		InnerLoop.InitializeFromVertices(Mesh, NewVertexLoop, false);
+		if (!ensure(InnerLoop.InitializeFromVertices(Mesh, NewVertexLoop, false)))
+		{
+			return false;
+		}
 		LoopPair.InnerVertices = MoveTemp(InnerLoop.Vertices);
 		LoopPair.InnerEdges = MoveTemp(InnerLoop.Edges);
 		LoopPair.bOuterIncludesIsolatedVertices = bSawBoundaryInLoop;
@@ -590,7 +593,7 @@ bool FDynamicMeshEditor::ReinsertSubmesh(const FDynamicSubmesh3& Region, FOption
 
 
 		int new_tid = Mesh->AppendTriangle(new_t, gid);
-		ensure(new_tid != FDynamicMesh3::InvalidID && new_tid != FDynamicMesh3::NonManifoldID);
+		ensure(new_tid >= 0);
 		if (!Mesh->IsTriangle(new_tid))
 		{
 			bAllOK = false;

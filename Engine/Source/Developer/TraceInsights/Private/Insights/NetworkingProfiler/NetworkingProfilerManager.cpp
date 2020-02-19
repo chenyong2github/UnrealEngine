@@ -4,7 +4,6 @@
 
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/InsightsManager.h"

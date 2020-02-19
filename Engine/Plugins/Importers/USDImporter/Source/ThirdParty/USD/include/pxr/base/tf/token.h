@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_TOKEN_H
-#define TF_TOKEN_H
+#ifndef PXR_BASE_TF_TOKEN_H
+#define PXR_BASE_TF_TOKEN_H
 
 /// \file tf/token.h
 ///
@@ -46,6 +46,8 @@
 #include <set>
 
 PXR_NAMESPACE_OPEN_SCOPE
+
+struct TfTokenFastArbitraryLessThan;
 
 /// \class TfToken
 /// \ingroup group_tf_String
@@ -90,18 +92,18 @@ public:
     enum _ImmortalTag { Immortal };
 
     /// Create the empty token, containing the empty string.
-    TfToken() {}
+    constexpr TfToken() noexcept {}
 
     /// Copy constructor.
-    TfToken(TfToken const& rhs) : _rep(rhs._rep) { _AddRef(); }
+    TfToken(TfToken const& rhs) noexcept : _rep(rhs._rep) { _AddRef(); }
 
     /// Move constructor.
-    TfToken(TfToken && rhs) : _rep(rhs._rep) {
+    TfToken(TfToken && rhs) noexcept : _rep(rhs._rep) {
         rhs._rep = TfPointerAndBits<const _Rep>();
     }
     
     /// Copy assignment.
-    TfToken& operator= (TfToken const& rhs) {
+    TfToken& operator= (TfToken const& rhs) noexcept {
         if (&rhs != this) {
             rhs._AddRef();
             _RemoveRef();
@@ -111,7 +113,7 @@ public:
     }
 
     /// Move assignment.
-    TfToken& operator= (TfToken && rhs) {
+    TfToken& operator= (TfToken && rhs) noexcept {
         if (&rhs != this) {
             _RemoveRef();
             _rep = rhs._rep;
@@ -167,15 +169,6 @@ public:
         size_t operator()(TfToken const& token) const { return token.Hash(); }
     };
 
-    /// Functor to be used with std::set when lexicographical ordering
-    // isn't crucial and you just want uniqueness and fast lookup
-    // without the overhead of an TfHashSet.
-    struct LTTokenFunctor {
-        bool operator()(TfToken const& s1, TfToken const& s2) const {
-            return s1._rep.Get() < s2._rep.Get();
-        }
-    };
-
     /// \typedef TfHashSet<TfToken, TfToken::HashFunctor> HashSet;
     ///
     /// Predefined type for TfHashSet of tokens, since it's so awkward to
@@ -183,13 +176,13 @@ public:
     ///
     typedef TfHashSet<TfToken, TfToken::HashFunctor> HashSet;
     
-    /// \typedef std::set<TfToken, TfToken::LTTokenFunctor> Set;
+    /// \typedef std::set<TfToken, TfTokenFastArbitraryLessThan> Set;
     ///
     /// Predefined type for set of tokens, for when faster lookup is
     /// desired, without paying the memory or initialization cost of a
     /// TfHashSet.
     ///
-    typedef std::set<TfToken, TfToken::LTTokenFunctor> Set;
+    typedef std::set<TfToken, TfTokenFastArbitraryLessThan> Set;
     
     /// Return the size of the string that this token represents.
     size_t size() const {
@@ -278,13 +271,20 @@ public:
 
     /// Less-than operator that compares tokenized strings lexicographically.
     /// Allows \c TfToken to be used in \c std::set
-    inline bool operator<(TfToken const& o) const {
-        return GetString() < o.GetString();
+    inline bool operator<(TfToken const& r) const {
+        auto ll = _rep.GetLiteral(), rl = r._rep.GetLiteral();
+        if (ll && rl) {
+            auto lrep = _rep.Get(), rrep = r._rep.Get();
+            uint64_t lcc = lrep->_compareCode, rcc = rrep->_compareCode;
+            return lcc < rcc || (lcc == rcc && lrep->_str < rrep->_str);
+        }
+        // One or both are zero -- return true if ll is zero and rl is not.
+        return !ll && rl;
     }
 
     /// Greater-than operator that compares tokenized strings lexicographically.
     inline bool operator>(TfToken const& o) const {
-        return GetString() > o.GetString();
+        return o < *this;
     }
 
     /// Greater-than-or-equal operator that compares tokenized strings
@@ -304,6 +304,9 @@ public:
     
     /// Returns \c true iff this token contains the empty string \c ""
     bool IsEmpty() const { return _rep.GetLiteral() == 0; }
+
+    /// Returns \c true iff this is an immortal token.
+    bool IsImmortal() const { return !_rep->_isCounted; }
 
     /// Stream insertion.
     friend TF_API std::ostream &operator <<(std::ostream &stream, TfToken const&);
@@ -369,12 +372,14 @@ private:
         _Rep(_Rep const &rhs) : _str(rhs._str), 
                                 _cstr(rhs._str.c_str() != rhs._cstr ? 
                                           rhs._cstr : _str.c_str()),
+                                _compareCode(rhs._compareCode),
                                 _refCount(rhs._refCount.load()),
                                 _isCounted(rhs._isCounted), 
                                 _setNum(rhs._setNum) {}
         _Rep& operator=(_Rep const &rhs) {
             _str = rhs._str;
             _cstr = (rhs._str.c_str() != rhs._cstr ? rhs._cstr : _str.c_str());
+            _compareCode = rhs._compareCode;
             _refCount = rhs._refCount.load();
             _isCounted = rhs._isCounted;
             _setNum = rhs._setNum;
@@ -391,6 +396,7 @@ private:
 
         std::string _str;
         char const *_cstr;
+        mutable uint64_t _compareCode;
         mutable std::atomic_int _refCount;
         mutable bool _isCounted;
         mutable unsigned char _setNum;
@@ -428,4 +434,4 @@ typedef std::vector<TfToken> TfTokenVector;
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_TOKEN_H
+#endif // PXR_BASE_TF_TOKEN_H

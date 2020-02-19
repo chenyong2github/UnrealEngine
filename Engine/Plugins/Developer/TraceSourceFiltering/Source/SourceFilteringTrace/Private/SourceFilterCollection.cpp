@@ -1,0 +1,402 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SourceFilterCollection.h"
+#include "SourceFilterTrace.h"
+#include "AssetRegistryModule.h"
+#include "AssetData.h"
+#include "Async/Async.h"
+#include "UObject/UObjectIterator.h"
+#include "EmptySourceFilter.h"
+
+template<typename T>
+T* USourceFilterCollection::CreateNewFilter(UClass* Class /*= T::StaticClass()*/)
+{
+	T* NewFilter = NewObject<T>(this, Class, NAME_None, RF_Transactional);
+	return NewFilter;
+}
+
+
+void USourceFilterCollection::AddFilter(UDataSourceFilter* NewFilter)
+{
+	Filters.Add(NewFilter);
+	ChildToParent.Add(NewFilter, nullptr);
+	AddClassName(NewFilter);
+
+	TRACE_FILTER_INSTANCE(NewFilter);
+}
+
+UDataSourceFilter* USourceFilterCollection::AddFilterOfClass(const TSubclassOf<UDataSourceFilter>& FilterClass)
+{
+	checkf(FilterClass.Get(), TEXT("Cannot create filter using a null class"));
+
+	UDataSourceFilter* NewFilter = CreateNewFilter<UDataSourceFilter>(FilterClass.Get());
+	AddFilter(NewFilter);
+	AddClassName(NewFilter);
+
+	return NewFilter;
+}
+
+UDataSourceFilter* USourceFilterCollection::AddFilterOfClassToSet(const TSubclassOf<UDataSourceFilter>& FilterClass, UDataSourceFilterSet* FilterSet)
+{
+	checkf(FilterClass.Get() && FilterSet, TEXT("Cannot add filter using a null class, or null target set"));
+	if (FilterSet)
+	{
+		FilterSet->Modify();
+
+		UDataSourceFilter* NewFilter = CreateNewFilter<UDataSourceFilter>(FilterClass.Get());
+		FilterSet->Filters.Add(NewFilter);
+		ChildToParent.Add(NewFilter, FilterSet);
+		AddClassName(NewFilter);
+
+		TRACE_FILTER_INSTANCE(NewFilter);
+
+		TRACE_FILTER_OPERATION(NewFilter, ESourceActorFilterOperation::MoveFilter, TRACE_FILTER_IDENTIFIER(FilterSet));
+
+		return NewFilter;
+	}
+
+	return nullptr;
+}
+
+UDataSourceFilterSet* USourceFilterCollection::ConvertFilterToSet(UDataSourceFilter* ReplacedFilter, EFilterSetMode Mode)
+{
+	ensure(ReplacedFilter);
+
+	UDataSourceFilterSet* NewFilterSet = CreateNewFilter<UDataSourceFilterSet>();
+	TRACE_FILTER_SET(NewFilterSet);
+	AddClassName(NewFilterSet);
+
+	NewFilterSet->SetFilterMode(Mode);
+
+	ReplaceFilter(ReplacedFilter, NewFilterSet);
+	MoveFilter(ReplacedFilter, NewFilterSet);
+
+	return NewFilterSet;
+}
+
+UDataSourceFilterSet* USourceFilterCollection::MakeFilterSet(UDataSourceFilter* FilterOne, UDataSourceFilter* FilterTwo, EFilterSetMode Mode)
+{
+	ensure(FilterOne && FilterTwo);
+
+	UDataSourceFilterSet* NewFilterSet = CreateNewFilter<UDataSourceFilterSet>();
+	TRACE_FILTER_SET(NewFilterSet);
+	AddClassName(NewFilterSet);
+
+	NewFilterSet->SetFilterMode(Mode);
+
+	ReplaceFilter(FilterOne, NewFilterSet);
+
+	MoveFilter(FilterOne, NewFilterSet);
+	MoveFilter(FilterTwo, NewFilterSet);
+
+	return NewFilterSet;
+}
+
+
+UDataSourceFilterSet* USourceFilterCollection::MakeEmptyFilterSet(EFilterSetMode Mode)
+{
+	UDataSourceFilterSet* NewFilterSet = CreateNewFilter<UDataSourceFilterSet>();
+	TRACE_FILTER_SET(NewFilterSet);
+	AddClassName(NewFilterSet);
+
+	NewFilterSet->SetFilterMode(Mode);
+
+	Filters.Add(NewFilterSet);
+	ChildToParent.FindOrAdd(NewFilterSet) = nullptr;
+
+	return NewFilterSet;
+}
+
+void USourceFilterCollection::AddFiltersFromPreset(const TArray<FString>& ClassNames, const TMap<int32, int32>& ChildToParentIndices)
+{
+	AsyncTask(ENamedThreads::GameThread,
+		[this, ClassNames, ChildToParentIndices]()
+	{
+		const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EFilterSetMode"), true);
+
+		TArray<UDataSourceFilter*> CreatedFilters;
+		TArray<bool> MovedFlags;
+
+		CreatedFilters.SetNumZeroed(ClassNames.Num());
+		MovedFlags.SetNumZeroed(ClassNames.Num());
+
+		for (const TPair<int32, int32>& ChildToParentPair : ChildToParentIndices)
+		{
+			const int32 FilterIndex = ChildToParentPair.Key;
+			const int64 Value = EnumPtr->GetValueByNameString(ClassNames[FilterIndex]);
+			if (Value != INDEX_NONE)
+			{
+				// This is a set, so create one
+				CreatedFilters[FilterIndex] = MakeEmptyFilterSet((EFilterSetMode)Value);
+			}
+			else
+			{
+#if SOURCE_FILTER_TRACE_ENABLED
+				// This is a filter, so create it according to the class name				
+				if (UClass* Class = FSourceFilterTrace::RetrieveClassByName(ClassNames[FilterIndex]))
+				{
+					if (UDataSourceFilter* Filter = CreateNewFilter<UDataSourceFilter>(Class))
+					{
+						CreatedFilters[FilterIndex] = Filter;
+						AddFilter(Filter);
+					}
+				}
+#endif // SOURCE_FILTER_TRACE_ENABLED
+			}
+
+			// In case we were unable to retrieve a Filter instance its class replace it with an empty 'stub' filter instance, indicating to the user that it, and its class, is missing
+			if (CreatedFilters[FilterIndex] == nullptr)
+			{
+				if (UEmptySourceFilter* Filter = CreateNewFilter<UEmptySourceFilter>())
+				{
+					TRACE_FILTER_CLASS(UEmptySourceFilter::StaticClass());
+					CreatedFilters[FilterIndex] = Filter;
+
+					Filter->MissingClassName = ClassNames[FilterIndex];
+					AddFilter(Filter);
+				}
+
+			}
+
+			if (CreatedFilters[FilterIndex] != nullptr && ChildToParentPair.Value == INDEX_NONE)
+			{
+				MovedFlags[FilterIndex] = true;
+			}
+		}
+
+		// Regenerate the parent child relationship from the preset
+		bool bAnyMoved = true;
+		while (bAnyMoved)
+		{
+			bAnyMoved = false;
+			for (const TPair<int32, int32>& ChildToParentPair : ChildToParentIndices)
+			{
+				if (ChildToParentPair.Value != INDEX_NONE && !MovedFlags[ChildToParentPair.Key] && MovedFlags[ChildToParentPair.Value])
+				{
+					MoveFilter(CreatedFilters[ChildToParentPair.Key], CastChecked<UDataSourceFilterSet>(CreatedFilters[ChildToParentPair.Value]));
+					MovedFlags[ChildToParentPair.Key] = true;
+					bAnyMoved = true;
+				}
+			}
+		}
+	});
+}
+
+void USourceFilterCollection::RemoveFilter(UDataSourceFilter* ToRemoveFilter)
+{
+	UDataSourceFilterSet* OuterFilterSet = nullptr;
+	ChildToParent.RemoveAndCopyValue(ToRemoveFilter, OuterFilterSet);
+	
+	// In case of a set, also remove children 
+	if (UDataSourceFilterSet* FilterSet = Cast<UDataSourceFilterSet>(ToRemoveFilter))
+	{
+		FilterSet->Modify();
+
+		// Also remove contained children
+		for (UDataSourceFilter* Filter : FilterSet->Filters)
+		{
+			RemoveFilterRecursive(Filter);
+		}
+
+		FilterSet->Filters.Empty();
+	}
+
+	TRACE_FILTER_OPERATION(ToRemoveFilter, ESourceActorFilterOperation::RemoveFilter, TRACE_FILTER_IDENTIFIER(Cast<UDataSourceFilterSet>(ToRemoveFilter)));
+
+	if (OuterFilterSet)
+	{
+		OuterFilterSet->Modify();
+		RemoveFilterFromSet(ToRemoveFilter, OuterFilterSet);
+	}
+	else
+	{
+		Filters.RemoveSingle(ToRemoveFilter);
+	}
+}
+
+void USourceFilterCollection::RemoveFilterFromSet(UDataSourceFilter* ToRemoveFilter, UDataSourceFilterSet* FilterSet)
+{
+	FilterSet->Filters.RemoveSingle(ToRemoveFilter);
+
+	// in case set is empty, remove it
+	if (FilterSet->Filters.Num() == 0)
+	{
+		RemoveFilter(FilterSet);
+	}
+}
+
+void USourceFilterCollection::RemoveFilterRecursive(UDataSourceFilter* ToRemoveFilter)
+{
+	ChildToParent.Remove(ToRemoveFilter);
+
+	if (UDataSourceFilterSet* FilterSet = Cast<UDataSourceFilterSet>(ToRemoveFilter))
+	{
+		for (UDataSourceFilter* Filter : FilterSet->Filters)
+		{
+			RemoveFilterRecursive(Filter);
+		}
+	}
+
+	TRACE_FILTER_OPERATION(ToRemoveFilter, ESourceActorFilterOperation::RemoveFilter, TRACE_FILTER_IDENTIFIER(Cast<UDataSourceFilterSet>(ToRemoveFilter)));
+}
+
+void USourceFilterCollection::ReplaceFilter(UDataSourceFilter* Destination, UDataSourceFilter* Source)
+{
+	TRACE_FILTER_OPERATION(Source, ESourceActorFilterOperation::ReplaceFilter, TRACE_FILTER_IDENTIFIER(Destination));
+
+	UDataSourceFilterSet* OuterFilterSet = ChildToParent.FindChecked(Destination);
+	if (OuterFilterSet)
+	{
+		OuterFilterSet->Modify();
+
+		const int32 FilterEntryIndex = OuterFilterSet->Filters.IndexOfByKey(Destination);
+		OuterFilterSet->Filters[FilterEntryIndex] = Source;
+	}
+	else
+	{
+		const int32 FilterEntryIndex = Filters.IndexOfByKey(Destination);
+		Filters[FilterEntryIndex] = Source;
+	}
+
+	ChildToParent.FindOrAdd(Source) = OuterFilterSet;
+}
+
+void USourceFilterCollection::MoveFilter(UDataSourceFilter* Filter, UDataSourceFilterSet* Destination)
+{
+	TRACE_FILTER_OPERATION(Filter, ESourceActorFilterOperation::MoveFilter, Destination ? TRACE_FILTER_IDENTIFIER(Destination) : 0);
+
+	UDataSourceFilterSet*& FilterParent = ChildToParent.FindChecked(Filter);
+
+	if (FilterParent)
+	{
+		RemoveFilterFromSet(Filter, FilterParent);
+	}
+	else
+	{
+		// Currently top level filter
+		Filters.RemoveSingle(Filter);
+	}
+
+	if (Destination)
+	{
+		Destination->Filters.Add(Filter);
+	}
+	else
+	{
+		// Make top level filter
+		Filters.Add(Filter);
+	}
+
+	FilterParent = Destination;
+}
+
+void USourceFilterCollection::Reset()
+{
+	TArray<UDataSourceFilter*> FiltersToRemove = Filters;
+	for (UDataSourceFilter* Filter : FiltersToRemove)
+	{
+		RemoveFilter(Filter);
+	}
+	FilterClasses.Empty();
+	FilterClassMap.Empty();
+}
+
+void USourceFilterCollection::CopyData(USourceFilterCollection* OtherCollection)
+{
+	Filters.Empty();
+	ChildToParent.Empty();
+	FilterClasses = OtherCollection->FilterClasses;
+
+	int32 FilterOffset = 0;
+	for (UDataSourceFilter* Filter : OtherCollection->Filters)
+	{
+		UDataSourceFilter* FilterCopy = RecursiveCopyFilter(Filter, FilterOffset);
+		Filters.Add(FilterCopy);
+		ChildToParent.Add(FilterCopy, nullptr);
+		AddClassName(FilterCopy);
+	}
+	FilterClasses.Empty();
+}
+
+UDataSourceFilter* USourceFilterCollection::RecursiveCopyFilter(UDataSourceFilter* Filter, int32& FilterOffset)
+{
+	UDataSourceFilter* FilterCopy = nullptr;
+	if (Filter)
+	{
+		FilterCopy = DuplicateObject(Filter, this);
+		++FilterOffset;
+
+		if (UDataSourceFilterSet* FilterSet = Cast<UDataSourceFilterSet>(FilterCopy))
+		{
+			TArray<UDataSourceFilter*> NewChildFilters;
+			for (UDataSourceFilter* ChildFilter : FilterSet->Filters)
+			{
+				UDataSourceFilter* ChildFilterCopy = RecursiveCopyFilter(ChildFilter, FilterOffset);
+				ChildToParent.Add(ChildFilterCopy, FilterSet);
+				NewChildFilters.Add(ChildFilterCopy);
+
+				AddClassName(ChildFilterCopy);
+			}
+
+			FilterSet->Filters = NewChildFilters;
+		}
+	}
+	else
+	{
+		UEmptySourceFilter* EmptyFilter = CreateNewFilter<UEmptySourceFilter>();
+		if (FilterClasses.IsValidIndex(FilterOffset))
+		{
+			EmptyFilter->MissingClassName = FilterClasses[FilterOffset];
+		}
+
+		FilterCopy = EmptyFilter;
+		++FilterOffset;
+	}
+
+	return FilterCopy;
+}
+
+void USourceFilterCollection::Serialize(FArchive& Ar)
+{
+	if (Ar.IsSaving() && !Ar.IsTransacting())
+	{
+		FilterClasses.Empty();
+
+		// Regenerate the flat list of class names, corresponding to the entries in Filters, main purpose is to be able to surface missing Filter class names to the user
+		for (UDataSourceFilter* Filter : Filters)
+		{
+			RecursiveRetrieveFilterClassNames(Filter);
+		}
+	}
+
+	Super::Serialize(Ar);
+}
+
+void USourceFilterCollection::AddClassName(UDataSourceFilter* Filter)
+{
+	FilterClassMap.Add(Filter, Filter->GetClass()->GetName());
+}
+
+void USourceFilterCollection::RecursiveRetrieveFilterClassNames(UDataSourceFilter* Filter)
+{
+	if (Filter)
+	{
+		const FString ClassName = FilterClassMap.FindChecked(Filter);
+		FilterClasses.Add(ClassName);
+
+		if (UDataSourceFilterSet* FilterSet = Cast<UDataSourceFilterSet>(Filter))
+		{
+			/* Any child filters will be added in-line, meaning the list will look as such:
+				TopLevelFilterSetA_Class
+					ChildOneFilter_Class
+					ChildTwoFilter_Class
+				TopLevelFilter_Class
+				etc.
+			*/
+			for (UDataSourceFilter* ChildFilter : FilterSet->Filters)
+			{
+				RecursiveRetrieveFilterClassNames(ChildFilter);
+			}
+		}
+	}
+}

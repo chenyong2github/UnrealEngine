@@ -240,8 +240,9 @@ void FLightmapDensityMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		const bool bMaterialMasked = Material->IsMasked();
 		const bool bTranslucentBlendMode = IsTranslucentBlendMode(Material->GetBlendMode());
 		const bool bIsLitMaterial = Material->GetShadingModels().IsLit();
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material);
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material);
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
 		const FLightMapInteraction LightMapInteraction = (MeshBatch.LCI && bIsLitMaterial) ? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel) : FLightMapInteraction();
 
 		// Force simple lightmaps based on system settings.

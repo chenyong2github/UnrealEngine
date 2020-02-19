@@ -99,9 +99,6 @@ public:
 	FString Chipset;
 
 	UPROPERTY()
-	FPIERHIOverrideState GLES2RHIState;
-
-	UPROPERTY()
 	FPIERHIOverrideState GLES31RHIState;
 
 // 	UPROPERTY()
@@ -119,9 +116,6 @@ public:
 
 	UPROPERTY()
 	float NativeScaleFactor = 0.0f;
-
-	UPROPERTY()
-	FPIERHIOverrideState GLES2RHIState;
 
 	UPROPERTY()
 	FPIERHIOverrideState MetalRHIState;

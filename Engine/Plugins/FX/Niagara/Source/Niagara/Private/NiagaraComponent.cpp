@@ -127,8 +127,6 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		, PerfAsset(InComponent->GetAsset())
 #endif
 {
-	// In this case only, update the System renderers on the game thread.
-	check(IsInGameThread());
 	FNiagaraSystemInstance* SystemInst = InComponent->GetSystemInstance();
 	if (SystemInst)
 	{
@@ -294,7 +292,7 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 		}
 	}
 
-	Relevance.bVelocityRelevance = IsMovable() && Relevance.bOpaqueRelevance && Relevance.bRenderInMainPass;
+	Relevance.bVelocityRelevance = IsMovable() && Relevance.bOpaque && Relevance.bRenderInMainPass;
 
 	return Relevance;
 }
@@ -442,9 +440,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bAutoDestroy(false)
 	, MaxTimeBeforeForceUpdateTransform(5.0f)
 #if WITH_EDITOR
-	, PreviewDetailLevel(INDEX_NONE)
 	, PreviewLODDistance(0.0f)
-	, bEnablePreviewDetailLevel(false)
 	, bEnablePreviewLODDistance(false)
 	, bWaitForCompilationOnActivate(false)
 #endif
@@ -473,6 +469,16 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 }
 
 /********* UFXSystemComponent *********/
+void UNiagaraComponent::SetBoolParameter(FName Parametername, bool Param)
+{
+	SetVariableBool(Parametername, Param);
+}
+
+void UNiagaraComponent::SetIntParameter(FName ParameterName, int Param)
+{
+	SetVariableInt(ParameterName, Param);
+}
+
 void UNiagaraComponent::SetFloatParameter(FName ParameterName, float Param)
 {
 	SetVariableFloat(ParameterName, Param);
@@ -774,13 +780,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 {
 	bAwaitingActivationDueToNotReady = false;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (IsES2Platform(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]))
-	{
-		GbSuppressNiagaraSystems = 1;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	if (GbSuppressNiagaraSystems != 0)
 	{
 		OnSystemComplete();
@@ -885,7 +884,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 				SavedAutoAttachRelativeRotation = GetRelativeRotation();
 				SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 				//bIsChangingAutoAttachment = true;
-				AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
+				AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, bAutoAttachWeldSimulatedBodies), AutoAttachSocketName);
 				//bIsChangingAutoAttachment = false;
 			}
 
@@ -1135,6 +1134,8 @@ void UNiagaraComponent::OnUnregister()
 
 	SetActiveFlag(false);
 
+	UnregisterWithScalabilityManager();
+
 	if (SystemInstance)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::OnUnregister: %p  %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
@@ -1182,9 +1183,9 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	}
 }
 
-void UNiagaraComponent::CreateRenderState_Concurrent()
+void UNiagaraComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 	// The emitter instance may not tick again next frame so we send the dynamic data here so that the current state
 	// renders.  This can happen when while editing, or any time the age update mode is set to desired age.
 	SendRenderDynamicData_Concurrent();
@@ -1792,25 +1793,12 @@ void UNiagaraComponent::SetMaxSimTime(float InMaxTime)
 }
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-void UNiagaraComponent::SetPreviewDetailLevel(bool bInEnablePreviewDetailLevel, int32 InPreviewDetailLevel)
-{
-	bool bReInit = bEnablePreviewDetailLevel != bInEnablePreviewDetailLevel || (bEnablePreviewDetailLevel && PreviewDetailLevel != InPreviewDetailLevel);
-
-	bEnablePreviewDetailLevel = bInEnablePreviewDetailLevel;
-	PreviewDetailLevel = InPreviewDetailLevel;
-	if (bReInit)
-	{
-		ReinitializeSystem();
-	}
-}
-
 void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance)
 {
 	bEnablePreviewLODDistance = bInEnablePreviewLODDistance;
 	PreviewLODDistance = InPreviewLODDistance;
 }
 #else
-void UNiagaraComponent::SetPreviewDetailLevel(bool bInEnablePreviewDetailLevel, int32 InPreviewDetailLevel){}
 void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance){}
 #endif
 

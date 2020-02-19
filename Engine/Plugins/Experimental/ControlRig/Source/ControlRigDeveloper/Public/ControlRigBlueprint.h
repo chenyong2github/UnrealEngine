@@ -67,20 +67,25 @@ public:
 	virtual bool ShouldBeMarkedDirtyUponTransaction() const override { return false; }
 
 	/** IInterface_PreviewMeshProvider interface */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
+	
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	void RecompileVM();
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	void RecompileVMIfRequired();
 	
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	void RequestAutoVMRecompilation();
 
 	void IncrementVMRecompileBracket();
 	void DecrementVMRecompileBracket();
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	void RequestControlRigInit();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM")

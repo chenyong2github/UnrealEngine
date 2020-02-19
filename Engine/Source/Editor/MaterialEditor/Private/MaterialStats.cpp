@@ -101,16 +101,16 @@ FText FShaderPlatformSettings::GetShaderCode(const EMaterialQualityLevel::Type Q
 	// check if shader compilation is done and extract shader code
 	if (bCompilationFinished)
 	{
-		TMap<FName, FShader*> ShaderMap;
+		TMap<FHashedName, TShaderRef<FShader>> ShaderMap;
 		MaterialShaderMap->GetShaderList(ShaderMap);
 
 		const auto Entry = ShaderMap.Find(PlatformData[QualityType].ComboBoxSelectedName);
 		if (Entry != nullptr)
 		{
-			const FShader* Shader = *Entry;
+			const TShaderRef<FShader>& Shader = *Entry;
 
-			const FName ShaderFName = Shader->GetType()->GetFName();
-			const FString* ShaderSource = MaterialShaderMap->GetShaderSource(ShaderFName);
+			const FName ShaderFName = Shader.GetType()->GetFName();
+			const FMemoryImageString* ShaderSource = MaterialShaderMap->GetShaderSource(ShaderFName);
 			if (ShaderSource != nullptr)
 			{
 				PlatformData[QualityType].bUpdateShaderCode = false;
@@ -173,12 +173,11 @@ bool FShaderPlatformSettings::CheckShaders()
 			{
 				Data.MaterialResourcesStats->CancelCompilation();
 
-				Material->RebuildExpressionTextureReferences();
+				Material->UpdateCachedExpressionData();
 
 				if (MaterialInstance != nullptr)
 				{
-					MaterialInstance->PermutationTextureReferences.Empty();
-					MaterialInstance->AppendReferencedTextures(MaterialInstance->PermutationTextureReferences);
+					MaterialInstance->UpdateCachedLayerParameters();
 				}
 
 				Data.MaterialResourcesStats->CacheShaders(PlatformShaderID);
@@ -219,13 +218,13 @@ bool FShaderPlatformSettings::Update()
 				const FMaterialShaderMap* MaterialShaderMap = Resource->GetGameThreadShaderMap();
 				if (MaterialShaderMap != nullptr)
 				{
-					TMap<FShaderId, FShader*> ShaderMap;
+					TMap<FShaderId, TShaderRef<FShader>> ShaderMap;
 					MaterialShaderMap->GetShaderList(ShaderMap);
 
 					QualityItem.ArrShaderNames.Empty();
 					for (const auto Entry : ShaderMap)
 					{
-						QualityItem.ArrShaderNames.Add(MakeShareable(new FName(Entry.Key.ShaderType->GetFName())));
+						QualityItem.ArrShaderNames.Add(MakeShareable(new FName(Entry.Value.GetType()->GetFName())));
 					}
 
 					if (QualityItem.ArrShaderNames.Num() > 0)
@@ -420,7 +419,6 @@ void FMaterialStats::BuildShaderPlatformDB()
 
 	// Android
 	AddShaderPlatform(EPlatformCategoryType::Android, SP_OPENGL_ES3_1_ANDROID, TEXT("Android GLES 3.1"), true, true, TEXT("Android, OpenGLES 3.1"));
-	AddShaderPlatform(EPlatformCategoryType::Android, SP_OPENGL_ES2_ANDROID, TEXT("Android GLES 2.0"), true, true, TEXT("Android, OpenGLES 2.0"));
 	AddShaderPlatform(EPlatformCategoryType::Android, SP_VULKAN_ES3_1_ANDROID, TEXT("Android Vulkan"), true, true, TEXT("Android, Vulkan"));
 
 	// Apple

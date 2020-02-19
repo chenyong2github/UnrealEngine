@@ -66,66 +66,6 @@ struct APPLICATIONCORE_API FGamepadKeyNames
 	static const FName RightStickDown;
 	static const FName RightStickRight;
 	static const FName RightStickLeft;
-
-	// Motion Controls
-	//		Left Controller
-	static const FName MotionController_Left_FaceButton1;
-	static const FName MotionController_Left_FaceButton2;
-	static const FName MotionController_Left_FaceButton3;
-	static const FName MotionController_Left_FaceButton4;
-	static const FName MotionController_Left_FaceButton5;
-	static const FName MotionController_Left_FaceButton6;
-	static const FName MotionController_Left_FaceButton7;
-	static const FName MotionController_Left_FaceButton8;
-
-	static const FName MotionController_Left_Shoulder;
-	static const FName MotionController_Left_Trigger;
-
-	static const FName MotionController_Left_Grip1;
-	static const FName MotionController_Left_Grip2;
-
-	static const FName MotionController_Left_Thumbstick;
-	static const FName MotionController_Left_Thumbstick_Up;
-	static const FName MotionController_Left_Thumbstick_Down;
-	static const FName MotionController_Left_Thumbstick_Left;
-	static const FName MotionController_Left_Thumbstick_Right;
-
-	//		Right Controller
-	static const FName MotionController_Right_FaceButton1;
-	static const FName MotionController_Right_FaceButton2;
-	static const FName MotionController_Right_FaceButton3;
-	static const FName MotionController_Right_FaceButton4;
-	static const FName MotionController_Right_FaceButton5;
-	static const FName MotionController_Right_FaceButton6;
-	static const FName MotionController_Right_FaceButton7;
-	static const FName MotionController_Right_FaceButton8;
-
-	static const FName MotionController_Right_Shoulder;
-	static const FName MotionController_Right_Trigger;
-
-	static const FName MotionController_Right_Grip1;
-	static const FName MotionController_Right_Grip2;
-
-	static const FName MotionController_Right_Thumbstick;
-	static const FName MotionController_Right_Thumbstick_Up;
-	static const FName MotionController_Right_Thumbstick_Down;
-	static const FName MotionController_Right_Thumbstick_Left;
-	static const FName MotionController_Right_Thumbstick_Right;
-
-	//   Motion Controller Axes
-	//		Left Controller
-	static const FName MotionController_Left_Thumbstick_X;
-	static const FName MotionController_Left_Thumbstick_Y;
-	static const FName MotionController_Left_TriggerAxis;
-	static const FName MotionController_Left_Grip1Axis;
-	static const FName MotionController_Left_Grip2Axis;
-
-	//		Right Controller
-	static const FName MotionController_Right_Thumbstick_X;
-	static const FName MotionController_Right_Thumbstick_Y;
-	static const FName MotionController_Right_TriggerAxis;
-	static const FName MotionController_Right_Grip1Axis;
-	static const FName MotionController_Right_Grip2Axis;
 };
 
 enum class EWindowActivation : uint8

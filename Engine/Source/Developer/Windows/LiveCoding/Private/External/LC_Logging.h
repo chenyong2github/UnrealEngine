@@ -76,11 +76,11 @@ namespace logging
 #define LC_LOG_TELEMETRY(_format, ...)			logging::Log(logging::Channel::TELEMETRY, logging::Type::LOG_INFO, "%s" _format "\n", logging::GetIndentation(logging::Channel::TELEMETRY), __VA_ARGS__)
 
 #define LC_WARNING_USER(_format, ...)			logging::Log(logging::Channel::USER, logging::Type::LOG_WARNING, "%s" _format "\n", logging::GetIndentation(logging::Channel::USER), __VA_ARGS__)
-#define LC_WARNING_DEV(_format, ...)			logging::Log(logging::Channel::DEV, logging::Type::LOG_WARNING, "%s" _format "\n", logging::GetIndentation(logging::Channel::DEV), __VA_ARGS__)
-#define LC_WARNING_TELEMETRY(_format, ...)		logging::Log(logging::Channel::TELEMETRY, logging::Type::LOG_WARNING, "%s" _format "\n", logging::GetIndentation(logging::Channel::TELEMETRY), __VA_ARGS__)
+#define LC_WARNING_DEV(_format, ...)			logging::Log(logging::Channel::DEV, logging::Type::LOG_WARNING, "WARNING: %s" _format "\n", logging::GetIndentation(logging::Channel::DEV), __VA_ARGS__)
+#define LC_WARNING_TELEMETRY(_format, ...)		logging::Log(logging::Channel::TELEMETRY, logging::Type::LOG_WARNING, "WARNING: %s" _format "\n", logging::GetIndentation(logging::Channel::TELEMETRY), __VA_ARGS__)
 
 #define LC_ERROR_USER(_format, ...)				logging::Log(logging::Channel::USER, logging::Type::LOG_ERROR, "%s" _format "\n", logging::GetIndentation(logging::Channel::USER), __VA_ARGS__)
-#define LC_ERROR_DEV(_format, ...)				logging::Log(logging::Channel::DEV, logging::Type::LOG_ERROR, "%s" _format "\n", logging::GetIndentation(logging::Channel::DEV), __VA_ARGS__)
-#define LC_ERROR_TELEMETRY(_format, ...)		logging::Log(logging::Channel::TELEMETRY, logging::Type::LOG_ERROR, "%s" _format "\n", logging::GetIndentation(logging::Channel::TELEMETRY), __VA_ARGS__)
+#define LC_ERROR_DEV(_format, ...)				logging::Log(logging::Channel::DEV, logging::Type::LOG_ERROR, "ERROR: %s" _format "\n", logging::GetIndentation(logging::Channel::DEV), __VA_ARGS__)
+#define LC_ERROR_TELEMETRY(_format, ...)		logging::Log(logging::Channel::TELEMETRY, logging::Type::LOG_ERROR, "ERROR: %s" _format "\n", logging::GetIndentation(logging::Channel::TELEMETRY), __VA_ARGS__)
 
 #define LC_SUCCESS_USER(_format, ...)			logging::Log(logging::Channel::USER, logging::Type::LOG_SUCCESS, "%s" _format "\n", logging::GetIndentation(logging::Channel::USER), __VA_ARGS__)

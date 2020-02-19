@@ -10,6 +10,14 @@
 class FAudioMixerModuleCoreAudio : public IAudioDeviceModule
 {
 public:
+
+	virtual void StartupModule() override
+	{
+		IAudioDeviceModule::StartupModule();
+
+		FModuleManager::Get().LoadModuleChecked(TEXT("AudioMixerCore"));
+	}
+
 	virtual bool IsAudioMixerModule() const override { return true; }
 
 	virtual Audio::IAudioMixerPlatformInterface* CreateAudioMixerPlatformInterface() override

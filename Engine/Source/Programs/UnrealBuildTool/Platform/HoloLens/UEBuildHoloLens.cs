@@ -20,6 +20,7 @@ namespace UnrealBuildTool
 		/// Version of the compiler toolchain to use on HoloLens. A value of "default" will be changed to a specific version at UBT startup.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "CompilerVersion")]
+		[XmlConfigFile(Category = "HoloLensPlatform")]
 		[CommandLine("-2015", Value = "VisualStudio2015")]
 		[CommandLine("-2017", Value = "VisualStudio2017")]
 		[CommandLine("-2019", Value = "VisualStudio2019")]
@@ -28,8 +29,8 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Architecture of Target.
 		/// </summary>
-		[CommandLine("x64", Value = "x64")]
-		[CommandLine("arm64", Value = "ARM64")]
+		[CommandLine("-x64", Value = "x64")]
+		[CommandLine("-arm64", Value = "ARM64")]
 		public WindowsArchitecture Architecture = WindowsArchitecture.x64;
 
 		/// <summary>
@@ -216,7 +217,7 @@ namespace UnrealBuildTool
 			}
 
 			// Initialize the VC environment for the target, and set all the version numbers to the concrete values we chose.
-			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.HoloLensPlatform.Win10SDKVersionString);
+			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.HoloLensPlatform.Win10SDKVersionString, null);
 			Target.WindowsPlatform.Environment = Environment;
 			Target.WindowsPlatform.Compiler = Environment.Compiler;
 			Target.WindowsPlatform.CompilerVersion = Environment.CompilerVersion.ToString();
@@ -414,6 +415,8 @@ namespace UnrealBuildTool
 		/// <param name="Target">The target being build</param>
 		public override void ModifyModuleRulesForOtherPlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
 		{
+			// This code has been removed because it causes a full rebuild after generating project files (since response files are overwritten with different defines).
+#if false
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				if (ProjectFileGenerator.bGenerateProjectFiles)
@@ -431,6 +434,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+#endif
 		}
 
 		/// <summary>
@@ -597,6 +601,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("HOLOLENS=1");
 
 			CompileEnvironment.Definitions.Add("WINAPI_FAMILY=WINAPI_FAMILY_APP");
+			CompileEnvironment.Definitions.Add("PLATFORM_MICROSOFT=1");
 
 			// No D3DX on HoloLens!
 			CompileEnvironment.Definitions.Add("NO_D3DX_LIBS=1");

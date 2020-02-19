@@ -27,6 +27,7 @@ class INiagaraEditorOnlyDataUtilities;
 class FNiagaraEditorCommands;
 struct FNiagaraScriptHighlight;
 class FNiagaraClipboard;
+class UNiagaraScratchPadViewModel;
 class FHlslNiagaraCompiler;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
@@ -38,6 +39,7 @@ public:
 	virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) const = 0;
 	virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const = 0;
 	virtual TSharedRef<SWidget> CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const = 0;
+	virtual TSharedRef<SWidget> CreateScriptScratchPad(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const = 0;
 	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
 };
 
@@ -124,6 +126,8 @@ private:
 	void OnPreGarbageCollection();
 	void OnExecParticleInvoked(const TCHAR* InStr);
 	void OnPostEngineInit();
+	void OnDeviceProfileManagerUpdated();
+	void OnPreExit();
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -160,6 +164,8 @@ private:
 	FDelegateHandle ScriptCompilerHandle;
 	FDelegateHandle CompileResultHandle;
 	FDelegateHandle PrecompilerHandle;
+
+	FDelegateHandle DeviceProfileManagerUpdatedHandle;
 
 	USequencerSettings* SequencerSettings;
 	

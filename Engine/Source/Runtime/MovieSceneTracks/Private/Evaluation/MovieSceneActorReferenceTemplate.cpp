@@ -58,6 +58,7 @@ void FMovieSceneActorReferenceSectionTemplate::Evaluate(const FMovieSceneEvaluat
 {
 	using namespace PropertyTemplate;
 
-	FMovieSceneActorReferenceKey ObjectBinding = ActorReferenceData.Evaluate(Context.GetTime());
+	FMovieSceneActorReferenceKey ObjectBinding;
+	ActorReferenceData.Evaluate(Context.GetTime(), ObjectBinding);
 	ExecutionTokens.Add(TPropertyTrackExecutionToken<UObject*, FMovieSceneObjectBindingID>(ObjectBinding.Object));
 }

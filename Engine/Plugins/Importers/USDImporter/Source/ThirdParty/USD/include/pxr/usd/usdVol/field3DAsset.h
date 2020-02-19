@@ -140,7 +140,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDVOL_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -152,19 +152,21 @@ private:
 
     // override SchemaBase virtuals.
     USDVOL_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
     // FIELDNAME 
     // --------------------------------------------------------------------- //
     /// Name of an individual field within the file specified by
-    /// the filePath attribute.
+    /// the filePath attribute. Clients which consume Field3D files
+    /// should treat this as the Field3D field \p attribute.
     ///
-    /// \n  C++ Type: TfToken
-    /// \n  Usd Type: SdfValueTypeNames->Token
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `token fieldName` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
     USDVOL_API
     UsdAttribute GetFieldNameAttr() const;
 
@@ -178,16 +180,41 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
+    // FIELDPURPOSE 
+    // --------------------------------------------------------------------- //
+    /// Optional token which can be used to indicate the purpose or grouping
+    /// of an individual field. Clients which consume Field3D files
+    /// should treat this as the Field3D field \p name.
+    ///
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `token fieldPurpose` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    USDVOL_API
+    UsdAttribute GetFieldPurposeAttr() const;
+
+    /// See GetFieldPurposeAttr(), and also 
+    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
+    /// If specified, author \p defaultValue as the attribute's default,
+    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
+    /// the default for \p writeSparsely is \c false.
+    USDVOL_API
+    UsdAttribute CreateFieldPurposeAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
+
+public:
+    // --------------------------------------------------------------------- //
     // FIELDINDEX 
     // --------------------------------------------------------------------- //
     /// A Field3D file can contain multiple fields with the same
     /// name. This attribute is an index used to disambiguate
     /// between these multiple fields with the same name.
     ///
-    /// \n  C++ Type: int
-    /// \n  Usd Type: SdfValueTypeNames->Int
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `int fieldIndex` |
+    /// | C++ Type | int |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Int |
     USDVOL_API
     UsdAttribute GetFieldIndexAttr() const;
 

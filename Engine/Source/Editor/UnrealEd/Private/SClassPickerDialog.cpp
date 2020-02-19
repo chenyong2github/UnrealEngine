@@ -22,7 +22,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "Editor/ClassViewer/Private/SClassViewer.h"
+#include "SClassViewer.h"
 #include "EditorClassUtils.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Styling/SlateIconFinder.h"

@@ -107,17 +107,10 @@ void FOpenGLDynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHIT
 	if( CurrentContext != CONTEXT_Rendering )
 	{
 		check(CurrentContext == CONTEXT_Shared);
-		if (FOpenGL::GetShaderPlatform() != EShaderPlatform::SP_OPENGL_ES2_WEBGL)
-		{
-			check(!bIsRenderingContextAcquired || !GUseThreadedRendering);
-			bRevertToSharedContextAfterDrawingViewport = true;
-			PlatformRenderingContextSetup(PlatformDevice);
-		}
-		else
-		{
-			// XXX multithread check?
-			// On WebGL, PlatformRenderingContextSetup actually makes-current the Shared context.
-		}
+		check(!bIsRenderingContextAcquired || !GUseThreadedRendering);
+
+		bRevertToSharedContextAfterDrawingViewport = true;
+		PlatformRenderingContextSetup(PlatformDevice);
 	}
 
 	// Set the render target and viewport.

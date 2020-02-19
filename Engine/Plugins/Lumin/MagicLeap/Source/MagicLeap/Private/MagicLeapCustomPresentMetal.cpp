@@ -55,20 +55,31 @@ void FMagicLeapCustomPresentMetal::FinishRendering()
 		// Notify first render here instead of in RenderToMLSurfaces_RenderThread() because the render to MLSurfaces is already finished by now.
 		NotifyFirstRender();
 
-		const MLGraphicsVirtualCameraInfoArray& vp_array = Plugin->GetCurrentFrame().FrameInfo.virtual_camera_info_array;
+		const MLGraphicsFrameInfo& FrameInfo = Plugin->GetCurrentFrame().FrameInfo;
 
-		MLResult Result;
-		for (uint32 i = 0; i < vp_array.num_virtual_cameras; ++i)
-		{
-			Result = MLRemoteGraphicsSignalSyncObjectMTL(Plugin->GraphicsClient, vp_array.virtual_cameras[i].sync_object);
-			UE_CLOG(Result != MLResult_Ok, LogMagicLeap, Error, TEXT("MLRemoteGraphicsSignalSyncObjectMTL(%d) failed with status %d"), i, Result);
-		}
+		FMetalDynamicRHI* MetalDynamicRHI = static_cast<FMetalDynamicRHI*>(GDynamicRHI);
+		FMetalRHIImmediateCommandContext* ImmediateCommandContext = static_cast<FMetalRHIImmediateCommandContext*>(MetalDynamicRHI->RHIGetDefaultContext());
+		FMetalContext& Context = ImmediateCommandContext->GetInternalContext();
+		mtlpp::CommandBuffer& CommandBuffer = Context.GetCurrentCommandBuffer();
 
-		Result = MLGraphicsEndFrame(Plugin->GraphicsClient, Plugin->GetCurrentFrame().FrameInfo.handle);
+		// Signal the sync objects only after the command buffer is completed.
+		// TODO : Investigate why this is needed for metal but works fine for vulkan.
+		// MagicLeapCustomPresent::Present() is supposed to be called only after all GPU work
+		// on the engine side is complete for the render targets.
+		CommandBuffer.AddCompletedHandler([this, FrameInfo](mtlpp::CommandBuffer const& InBuffer){
+			MLResult Result;
+			for (uint32 i = 0; i < FrameInfo.num_virtual_cameras; ++i)
+			{
+				Result = MLRemoteGraphicsSignalSyncObjectMTL(Plugin->GraphicsClient, FrameInfo.virtual_cameras[i].sync_object);
+				UE_CLOG(Result != MLResult_Ok, LogMagicLeap, Error, TEXT("MLRemoteGraphicsSignalSyncObjectMTL(%d) failed with status %s"), i, UTF8_TO_TCHAR(MLGetResultString(Result)));
+			}
+		});
+
+		MLResult Result = MLGraphicsEndFrame(Plugin->GraphicsClient, FrameInfo.handle);
 		if (Result != MLResult_Ok)
 		{
 #if !WITH_EDITOR
-			UE_LOG(LogMagicLeap, Error, TEXT("MLGraphicsEndFrame failed with status %d"), Result);
+			UE_LOG(LogMagicLeap, Error, TEXT("MLGraphicsEndFrame failed with status %s"), UTF8_TO_TCHAR(MLGetResultString(Result)));
 #endif
 		}
 	}
@@ -123,17 +134,17 @@ void FMagicLeapCustomPresentMetal::RenderToMLSurfaces_RenderThread(FRHICommandLi
 #if WITH_MLSDK
 	if (Plugin->IsDeviceInitialized() && Plugin->GetCurrentFrame().bBeginFrameSucceeded)
 	{
-		const MLGraphicsVirtualCameraInfoArray& vp_array = Plugin->GetCurrentFrame().FrameInfo.virtual_camera_info_array;
+		const MLGraphicsFrameInfo& FrameInfo = Plugin->GetCurrentFrame().FrameInfo;
 
 		// Manage MLGraphics texture as an FMetalTexture to use it with Unreal's render pipeline.
 		// Use AutoRelease for ownership so that color_id is not owned by the FMetalTexture object, lifetime is externally managed.
-		FMetalTexture DestMTLTexture((id<MTLTexture>)vp_array.color_id, ns::Ownership::AutoRelease);
+		FMetalTexture DestMTLTexture((id<MTLTexture>)FrameInfo.color_id, ns::Ownership::AutoRelease);
 		if (!DestTextureRef.IsValid())
 		{
-			const uint32 vp_width = static_cast<uint32>(vp_array.viewport.w);
-			const uint32 vp_height = static_cast<uint32>(vp_array.viewport.h);
+			const uint32 vp_width = static_cast<uint32>(FrameInfo.viewport.w);
+			const uint32 vp_height = static_cast<uint32>(FrameInfo.viewport.h);
 			// TODO: @njain add an overload to FMetalSurface to handle externally owned textures, similar to FVulkanSurface.
-			DestTextureRef = new FMetalTexture2DArray(PF_R8G8B8A8, vp_width, vp_height, vp_array.num_virtual_cameras, 1, TexCreate_RenderTargetable, nullptr, FClearValueBinding::Transparent);
+			DestTextureRef = new FMetalTexture2DArray(PF_R8G8B8A8, vp_width, vp_height, FrameInfo.num_virtual_cameras, 1, TexCreate_RenderTargetable, nullptr, FClearValueBinding::Transparent);
 		}
 
 		// Set MLGraphics texture into Unreal's FMetalTexture2DArray.

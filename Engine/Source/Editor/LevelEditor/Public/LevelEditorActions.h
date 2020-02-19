@@ -555,8 +555,7 @@ public:
 	TSharedPtr< FUICommandInfo > OpenLevelBlueprint;
 	TSharedPtr< FUICommandInfo > CheckOutProjectSettingsConfig;
 	TSharedPtr< FUICommandInfo > CreateBlankBlueprintClass;
-	TSharedPtr< FUICommandInfo > ConvertSelectionToBlueprintViaHarvest;
-	TSharedPtr< FUICommandInfo > ConvertSelectionToBlueprintViaSubclass;
+	TSharedPtr< FUICommandInfo > ConvertSelectionToBlueprint;
 
 	/** Editor mode commands */
 	TArray< TSharedPtr< FUICommandInfo > > EditorModeCommands;
@@ -592,7 +591,6 @@ public:
 	TSharedPtr< FUICommandInfo > ToggleFeatureLevelPreview;
 
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM5;
-	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES2;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES31;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidVulkanES31;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_IOSMetalES31;
@@ -1178,23 +1176,11 @@ public:
 	/** Helps the user create a Blueprint class */
 	static void CreateBlankBlueprintClass();
 
-	/** Can call HarvestSelectedActorsIntoBlueprintClass right now?  (is anything selected) */
-	static bool CanHarvestSelectedActorsIntoBlueprintClass();
-
-	/** Harvest all of the components in the selected actors into a Blueprint, and replace the instances with one new actor */
-	static void HarvestSelectedActorsIntoBlueprintClass();
-
-	/** Can call SubclassSelectedActorIntoBlueprintClass right now? */
+	/** Can the selected actors be converted to a blueprint class in any of the supported ways? */
 	static bool CanConvertSelectedActorsIntoBlueprintClass();
 
-	/** Convert the selected actor into a Blueprint (via subclassing or child actors) */
+	/** Bring up the convert actors to blueprint UI */
 	static void ConvertSelectedActorsIntoBlueprintClass();
-
-	/** Get the label to display for the convert selected actors to blueprint menu option */
-	static FText GetConvertSelectedActorsIntoBlueprintClassLabel();
-
-	/** Get the tooltip to display for the convert selected actors to blueprint menu option */
-	static FText GetConvertSelectedActorsIntoBlueprintClassTooltip();
 
 	/** Shows only selected actors, hiding any unselected actors and unhiding any selected hidden actors. */
 	static void OnShowOnlySelectedActors();

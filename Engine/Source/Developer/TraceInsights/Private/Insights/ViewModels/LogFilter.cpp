@@ -5,7 +5,7 @@
 #include "Async/AsyncWork.h"
 
 // Insights
-#include "Insights/TimingProfilerCommon.h" // for UE_LOG
+#include "Insights/Log.h"
 #include "Insights/Widgets/SLogView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -273,11 +273,11 @@ void FLogFilteringAsyncTask::DoWork()
 
 	if (Filter.IsFilterSetByText())
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork [%d to %d] by Text (\"%s\")"), StartIndex, EndIndex, *Filter.GetFilterText().ToString());
+		UE_LOG(TraceInsights, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork [%d to %d] by Text (\"%s\")"), StartIndex, EndIndex, *Filter.GetFilterText().ToString());
 	}
 	else
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork [%d to %d]"), StartIndex, EndIndex);
+		UE_LOG(TraceInsights, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork [%d to %d]"), StartIndex, EndIndex);
 	}
 
 	for (int32 Index = StartIndex; Index < EndIndex && !bCanceled; ++Index)
@@ -295,11 +295,11 @@ void FLogFilteringAsyncTask::DoWork()
 	if (bCanceled)
 	{
 		FilteredMessages.Reset();
-		UE_LOG(TimingProfiler, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork CANCELED"));
+		UE_LOG(TraceInsights, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork CANCELED"));
 	}
 	else
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork DONE (%d filtered messages)"), FilteredMessages.Num());
+		UE_LOG(TraceInsights, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork DONE (%d filtered messages)"), FilteredMessages.Num());
 	}
 }
 

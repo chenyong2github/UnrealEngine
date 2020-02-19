@@ -14,6 +14,7 @@
 #include "Math/GenericOctreePublic.h"
 #include "Engine/Scene.h"
 #include "RendererInterface.h"
+#include "MeshPassProcessor.h"
 
 class FPrimitiveSceneInfo;
 class FPrimitiveSceneProxy;
@@ -213,6 +214,7 @@ typedef TOctree<FPrimitiveSceneInfoCompact,struct FPrimitiveOctreeSemantics> FSc
  */
 class FPrimitiveSceneInfo : public FDeferredCleanupInterface
 {
+	friend class FSceneRenderer;
 public:
 
 	/** The render proxy for the primitive. */
@@ -338,7 +340,7 @@ public:
 	~FPrimitiveSceneInfo();
 
 	/** Adds the primitive to the scene. */
-	void AddToScene(FRHICommandListImmediate& RHICmdList, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists = true);
+	static void AddToScene(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists = true, bool bAsyncCreateLPIs = false);
 
 	/** Removes the primitive from the scene. */
 	void RemoveFromScene(bool bUpdateStaticDrawLists);
@@ -359,16 +361,7 @@ public:
 	}
 
 	/** Updates the primitive's static meshes in the scene. */
-	void UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, bool bReAddToDrawLists = true);
-
-	/** Updates the primitive's static meshes in the scene. */
-	FORCEINLINE void ConditionalUpdateStaticMeshes(FRHICommandListImmediate& RHICmdList)
-	{
-		if (NeedsUpdateStaticMeshes())
-		{
-			UpdateStaticMeshes(RHICmdList);
-		}
-	}
+	static void UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bReAddToDrawLists = true);
 
 	/** Updates the primitive's uniform buffer. */
 	void UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList);
@@ -389,7 +382,7 @@ public:
 	void BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck();
 
 	/** Adds the primitive's static meshes to the scene. */
-	void AddStaticMeshes(FRHICommandListImmediate& RHICmdList, bool bUpdateStaticDrawLists = true);
+	static void AddStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bUpdateStaticDrawLists = true);
 
 	/** Removes the primitive's static meshes from the scene. */
 	void RemoveStaticMeshes();
@@ -451,11 +444,13 @@ public:
 
 	FORCEINLINE void MarkIndirectLightingCacheBufferDirty()
 	{
-		bIndirectLightingCacheBufferDirty = true;
+		if (!bIndirectLightingCacheBufferDirty)
+		{
+			bIndirectLightingCacheBufferDirty = true;
+		}
 	}
 
 	void UpdateIndirectLightingCacheBuffer();
-	void ClearIndirectLightingCacheBuffer(bool bSingleFrameOnly);
 
 	/** Will output the LOD ranges of the static meshes used with this primitive. */
 	RENDERER_API void GetStaticMeshesLODRange(int8& OutMinLOD, int8& OutMaxLOD) const;
@@ -537,7 +532,7 @@ private:
 		class FVolumetricLightmapSceneData* VolumetricLightmapSceneData);
 
 	/** Creates cached mesh draw commands for all meshes. */
-	void CacheMeshDrawCommands(FRHICommandListImmediate& RHICmdList);
+	static void CacheMeshDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 
 	/** Removes cached mesh draw commands for all meshes. */
 	void RemoveCachedMeshDrawCommands();

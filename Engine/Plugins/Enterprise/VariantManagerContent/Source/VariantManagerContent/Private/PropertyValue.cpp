@@ -22,6 +22,9 @@
 #include "EdGraphSchema_K2.h"
 #endif
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 #define LOCTEXT_NAMESPACE "PropertyValue"
 
 DEFINE_LOG_CATEGORY(LogVariantContent);
@@ -618,7 +621,7 @@ void UPropertyValue::ApplyDataToResolvedObject()
 	// Modify container component
 	UObject* ContainerObject = nullptr;
 	if (ParentContainerObject && ParentContainerObject->IsA(UActorComponent::StaticClass()))
-	{
+		{
 		ParentContainerObject->SetFlags(RF_Transactional);
 		ParentContainerObject->Modify();
 		ContainerObject = ParentContainerObject;
@@ -1161,8 +1164,8 @@ const TArray<uint8>& UPropertyValue::GetDefaultValue()
 							}
 							else
 							{
-								FMemory::Memcpy(DefaultValue.GetData(), PropertyValuePtr, NumBytes);
-							}
+							FMemory::Memcpy(DefaultValue.GetData(), PropertyValuePtr, NumBytes);
+						}
 
 						}
 
@@ -1729,3 +1732,5 @@ void UPropertyValueVisibility::Serialize(FArchive& Ar)
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#include "UObject/DefineUPropertyMacros.h"

@@ -981,6 +981,10 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 		CapsuleEnds.Reserve(NumCapsules * 2);
 		for (uint32 i = Offset; i < CollisionParticles.Size(); ++i)
 		{
+			// Always initialize the collision particle transforms before setting any geometry as otherwise NaNs gets detected during the bounding box updates
+			CollisionParticles.X(i) = Chaos::TVector<float, 3>(0.f);
+			CollisionParticles.R(i) = Chaos::TRotation<float, 3>::FromIdentity();
+
 			const FClothCollisionPrim_SphereConnection& Connection = ClothCollisionData.SphereConnections[i - Offset];
 
 			const int32 SphereIndex0 = Connection.SphereIndices[0];
@@ -1067,27 +1071,31 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 	{
 		const uint32 Offset = CollisionParticles.Size();
 		CollisionParticles.AddParticles(NumSpheres);
-		// i = Spheres index, j = CollisionParticles index
-		for (uint32 i = 0, j = Offset; i < (uint32)ClothCollisionData.Spheres.Num(); ++i)
+		// i = CollisionParticles index, j = Spheres index
+		for (uint32 i = Offset, j = 0; j < (uint32)ClothCollisionData.Spheres.Num(); ++j)
 		{
 			// Skip spheres that are the end caps of capsules.
-			if (CapsuleEnds.Contains(i))
+			if (CapsuleEnds.Contains(j))
 				continue;
 
-			const FClothCollisionPrim_Sphere& Sphere = ClothCollisionData.Spheres[i];
+			const FClothCollisionPrim_Sphere& Sphere = ClothCollisionData.Spheres[j];
 
-			BoneIndices[j] = GetMappedBoneIndex(UsedBoneIndices, Sphere.BoneIndex);
-			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision sphere on bone index %d."), BoneIndices[j]);
+			// Always initialize the collision particle transforms before setting any geometry as otherwise NaNs gets detected during the bounding box updates
+			CollisionParticles.X(i) = Chaos::TVector<float, 3>(0.f);
+			CollisionParticles.R(i) = Chaos::TRotation<float, 3>::FromIdentity();
 
-			BaseTransforms[j] = Chaos::TRigidTransform<float, 3>(FTransform::Identity);
+			BoneIndices[i] = GetMappedBoneIndex(UsedBoneIndices, Sphere.BoneIndex);
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision sphere on bone index %d."), BoneIndices[i]);
+
+			BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(FTransform::Identity);
 
 			CollisionParticles.SetDynamicGeometry(
-				j,
+				i,
 				MakeUnique<Chaos::TSphere<float, 3>>(
 					Sphere.LocalPosition,
 					Sphere.Radius));
 
-			++j;
+			++i;
 		}
 	}
 
@@ -1100,6 +1108,10 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 		for (uint32 i = Offset; i < CollisionParticles.Size(); ++i)
 		{
 			const FClothCollisionPrim_Convex& Convex = ClothCollisionData.Convexes[i - Offset];
+
+			// Always initialize the collision particle transforms before setting any geometry as otherwise NaNs gets detected during the bounding box updates
+			CollisionParticles.X(i) = Chaos::TVector<float, 3>(0.f);
+			CollisionParticles.R(i) = Chaos::TRotation<float, 3>::FromIdentity();
 
 			BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(FTransform::Identity);
 
@@ -1172,6 +1184,10 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 		{
 			const FClothCollisionPrim_Box& Box = ClothCollisionData.Boxes[i - Offset];
 			
+			// Always initialize the collision particle transforms before setting any geometry as otherwise NaNs gets detected during the bounding box updates
+			CollisionParticles.X(i) = Chaos::TVector<float, 3>(0.f);
+			CollisionParticles.R(i) = Chaos::TRotation<float, 3>::FromIdentity();
+
 			BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(Box.LocalPosition, Box.LocalRotation);
 			
 			BoneIndices[i] = GetMappedBoneIndex(UsedBoneIndices, Box.BoneIndex);
@@ -1236,8 +1252,8 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	// Set gravity, using the legacy priority: 1) config override, 2) game override, 3) world gravity
 	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
-		(ClothSharedSimConfig && ClothSharedSimConfig->bUseGravityOverride) ? ClothSharedSimConfig->Gravity :
 		bOverrideGravity ? Gravity :
+		(ClothSharedSimConfig && ClothSharedSimConfig->bUseGravityOverride) ? ClothSharedSimConfig->Gravity :
 		ClothSharedSimConfig ? Context->WorldGravity * ClothSharedSimConfig->GravityScale :
 		Context->WorldGravity));
 

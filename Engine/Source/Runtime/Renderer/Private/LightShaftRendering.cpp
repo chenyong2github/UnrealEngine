@@ -108,6 +108,7 @@ static FAutoConsoleVariableRef CVarCacheLightShaftNumSamples(
 /** Light shaft parameters that are shared between multiple pixel shaders. */
 class FLightShaftPixelShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FLightShaftPixelShaderParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -251,20 +252,22 @@ public:
 		}
 	}
 private:
-	FShaderParameter TextureSpaceBlurOriginParameter;
-	FShaderParameter WorldSpaceBlurOriginAndRadiusParameter;
-	FShaderParameter LightSourceRadius;
-	FShaderParameter SpotAnglesParameter;
-	FShaderParameter WorldSpaceSpotDirectionParameter;
-	FShaderParameter WorldSpaceCameraPositionParameter;
-	FShaderParameter UVMinMaxParameter;
-	FShaderParameter AspectRatioAndInvAspectRatioParameter;
-	FShaderParameter LightShaftParameters;
-	FShaderParameter BloomTintAndThresholdParameter;
-	FShaderParameter BloomMaxBrightnessParameter;
-	FShaderParameter DistanceFadeParameter;
-	FShaderResourceParameter SourceTextureParameter;
-	FShaderResourceParameter SourceTextureSamplerParameter;
+
+	LAYOUT_FIELD(FShaderParameter, TextureSpaceBlurOriginParameter)
+	LAYOUT_FIELD(FShaderParameter, WorldSpaceBlurOriginAndRadiusParameter)
+	LAYOUT_FIELD(FShaderParameter, LightSourceRadius)
+	LAYOUT_FIELD(FShaderParameter, SpotAnglesParameter)
+	LAYOUT_FIELD(FShaderParameter, WorldSpaceSpotDirectionParameter)
+	LAYOUT_FIELD(FShaderParameter, WorldSpaceCameraPositionParameter)
+	LAYOUT_FIELD(FShaderParameter, UVMinMaxParameter)
+	LAYOUT_FIELD(FShaderParameter, AspectRatioAndInvAspectRatioParameter)
+	LAYOUT_FIELD(FShaderParameter, LightShaftParameters)
+	LAYOUT_FIELD(FShaderParameter, BloomTintAndThresholdParameter)
+	LAYOUT_FIELD(FShaderParameter, BloomMaxBrightnessParameter);
+	LAYOUT_FIELD(FShaderParameter, DistanceFadeParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSamplerParameter)
+
 };
 
 /*-----------------------------------------------------------------------------
@@ -293,7 +296,7 @@ public:
 	/** Sets shader parameter values */
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(), View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
 	}
 };
 
@@ -334,33 +337,23 @@ public:
 		SceneTextureParams.Bind(Initializer);
 	}
 
-	/** Serializer */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << LightShaftParameters;
-		Ar << SampleOffsetsParameter;
-		Ar << SceneTextureParams;
-		return bShaderHasOutdatedParameters;
-	}
-
 	/** Sets shader parameter values */
 	void SetParameters(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& PassSource)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetPixelShader(), View.ViewUniformBuffer);
-		LightShaftParameters.SetParameters(RHICmdList, GetPixelShader(), LightSceneInfo, View, PassSource);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
+		LightShaftParameters.SetParameters(RHICmdList, RHICmdList.GetBoundPixelShader(), LightSceneInfo, View, PassSource);
 
 		const FIntPoint BufferSize = FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY();
 		FVector2D SampleOffsets(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
-		SetShaderValue(RHICmdList, GetPixelShader(),SampleOffsetsParameter,SampleOffsets);
-		SceneTextureParams.Set(RHICmdList, GetPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),SampleOffsetsParameter,SampleOffsets);
+		SceneTextureParams.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
 	}
 
 private:
 
-	FLightShaftPixelShaderParameters LightShaftParameters;
-	FShaderParameter SampleOffsetsParameter;
-	FSceneTextureShaderParameters SceneTextureParams;
+	LAYOUT_FIELD(FLightShaftPixelShaderParameters, LightShaftParameters);
+	LAYOUT_FIELD(FShaderParameter, SampleOffsetsParameter);
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParams);
 };
 
 #define IMPLEMENT_LSDOWNSAMPLE_PIXELSHADER_TYPE(LightType,DownsampleValue) \
@@ -404,29 +397,20 @@ public:
 		LightShaftParameters.Bind(Initializer.ParameterMap);
 	}
 
-	/** Serializer */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << RadialBlurParameters;
-		Ar << LightShaftParameters;
-		return bShaderHasOutdatedParameters;
-	}
-
 	/** Sets shader parameter values */
 	void SetParameters(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, const FViewInfo& View, int32 PassIndex, TRefCountPtr<IPooledRenderTarget>& PassSource)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetPixelShader(), View.ViewUniformBuffer);
-		LightShaftParameters.SetParameters(RHICmdList, GetPixelShader(), LightSceneInfo, View, PassSource);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
+		LightShaftParameters.SetParameters(RHICmdList, RHICmdList.GetBoundPixelShader(), LightSceneInfo, View, PassSource);
 
 		const FVector4 Parameters(GLightShaftBlurNumSamples, GLightShaftFirstPassDistance, PassIndex);
-		SetShaderValue(RHICmdList, GetPixelShader(), RadialBlurParameters, Parameters);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), RadialBlurParameters, Parameters);
 	}
 
 private:
 
-	FShaderParameter RadialBlurParameters;
-	FLightShaftPixelShaderParameters LightShaftParameters;
+	LAYOUT_FIELD(FShaderParameter, RadialBlurParameters);
+	LAYOUT_FIELD(FLightShaftPixelShaderParameters, LightShaftParameters);
 };
 
 IMPLEMENT_SHADER_TYPE(,FBlurLightShaftsPixelShader,TEXT("/Engine/Private/LightShaftShader.usf"),TEXT("BlurLightShaftsMain"),SF_Pixel);
@@ -455,24 +439,16 @@ public:
 		LightShaftParameters.Bind(Initializer.ParameterMap);
 	}
 
-	/** Serializer */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << LightShaftParameters;
-		return bShaderHasOutdatedParameters;
-	}
-
 	/** Sets shader parameter values */
 	void SetParameters(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& PassSource)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetPixelShader(), View.ViewUniformBuffer);
-		LightShaftParameters.SetParameters(RHICmdList, GetPixelShader(), LightSceneInfo, View, PassSource);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
+		LightShaftParameters.SetParameters(RHICmdList, RHICmdList.GetBoundPixelShader(), LightSceneInfo, View, PassSource);
 	}
 
 private:
 
-	FLightShaftPixelShaderParameters LightShaftParameters;
+	LAYOUT_FIELD(FLightShaftPixelShaderParameters, LightShaftParameters);
 };
 
 IMPLEMENT_SHADER_TYPE(,FFinishOcclusionPixelShader,TEXT("/Engine/Private/LightShaftShader.usf"),TEXT("FinishOcclusionMain"),SF_Pixel);
@@ -501,9 +477,10 @@ void DownsamplePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View,
 	const FIntPoint BufferSize = FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY();
 	const uint32 DownsampleFactor	= GetLightShaftDownsampleFactor();
 	const FIntPoint FilterBufferSize = BufferSize / DownsampleFactor;
-	const FIntPoint DownSampledXY = View.ViewRect.Min / DownsampleFactor;
-	const uint32 DownsampledSizeX = View.ViewRect.Width() / DownsampleFactor;
-	const uint32 DownsampledSizeY = View.ViewRect.Height() / DownsampleFactor;
+	const FIntRect DownsampledRect = FIntRect::DivideAndRoundUp(View.ViewRect, DownsampleFactor);
+	const FIntPoint DownSampledXY = DownsampledRect.Min;
+	const uint32 DownsampledSizeX = DownsampledRect.Width();
+	const uint32 DownsampledSizeY = DownsampledRect.Height();
 
 	FRHIRenderPassInfo RPInfo(LightShaftsDest->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
 	TransitionRenderPassTargets(RHICmdList, RPInfo);
@@ -531,8 +508,8 @@ void DownsamplePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View,
 		{
 			TShaderMapRef<TDownsampleLightShaftsPixelShader<LightType_Directional, bDownsampleOcclusion> > DownsampleLightShaftsPixelShader(View.ShaderMap);
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*DownsampleLightShaftsVertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*DownsampleLightShaftsPixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = DownsampleLightShaftsVertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = DownsampleLightShaftsPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			DownsampleLightShaftsPixelShader->SetParameters(RHICmdList, LightSceneInfo, View, UnusedRT);
 		}
@@ -541,8 +518,8 @@ void DownsamplePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View,
 		{
 			TShaderMapRef<TDownsampleLightShaftsPixelShader<LightType_Spot, bDownsampleOcclusion> > DownsampleLightShaftsPixelShader(View.ShaderMap);
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*DownsampleLightShaftsVertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*DownsampleLightShaftsPixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = DownsampleLightShaftsVertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = DownsampleLightShaftsPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			DownsampleLightShaftsPixelShader->SetParameters(RHICmdList, LightSceneInfo, View, UnusedRT);
 		}
@@ -552,8 +529,8 @@ void DownsamplePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View,
 		{
 			TShaderMapRef<TDownsampleLightShaftsPixelShader<LightType_Point, bDownsampleOcclusion> > DownsampleLightShaftsPixelShader(View.ShaderMap);
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*DownsampleLightShaftsVertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*DownsampleLightShaftsPixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = DownsampleLightShaftsVertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = DownsampleLightShaftsPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			DownsampleLightShaftsPixelShader->SetParameters(RHICmdList, LightSceneInfo, View, UnusedRT);
 		}
@@ -571,7 +548,7 @@ void DownsamplePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View,
 			View.ViewRect.Width(), View.ViewRect.Height(),
 			FIntPoint(DownsampledSizeX, DownsampledSizeY),
 			BufferSize,
-			*DownsampleLightShaftsVertexShader,
+			DownsampleLightShaftsVertexShader,
 			EDRF_UseTriangleOptimization);
 	}
 	RHICmdList.EndRenderPass();
@@ -666,8 +643,8 @@ void ApplyRadialBlurPasses(
 			TShaderMapRef<FBlurLightShaftsPixelShader> BlurLightShaftsPixelShader(View.ShaderMap);
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ScreenVertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*BlurLightShaftsPixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = BlurLightShaftsPixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -685,7 +662,7 @@ void ApplyRadialBlurPasses(
 					DownSampledXY.X, DownSampledXY.Y,
 					DownsampledSizeX, DownsampledSizeY,
 					FilterBufferSize, FilterBufferSize,
-					*ScreenVertexShader,
+					ScreenVertexShader,
 					EDRF_UseTriangleOptimization);
 			}
 		}
@@ -725,8 +702,8 @@ void FinishOcclusionTerm(FRHICommandList& RHICmdList, const FViewInfo& View, con
 		TShaderMapRef<FFinishOcclusionPixelShader> MaskOcclusionTermPixelShader(View.ShaderMap);
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ScreenVertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*MaskOcclusionTermPixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = MaskOcclusionTermPixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -742,7 +719,7 @@ void FinishOcclusionTerm(FRHICommandList& RHICmdList, const FViewInfo& View, con
 				DownSampledXY.X, DownSampledXY.Y,
 				DownsampledSizeX, DownsampledSizeY,
 				FilterBufferSize, FilterBufferSize,
-				*ScreenVertexShader,
+				ScreenVertexShader,
 				EDRF_UseTriangleOptimization);
 		}
 	}
@@ -897,24 +874,14 @@ public:
 		UVMinMaxParameter.Bind(Initializer.ParameterMap, TEXT("UVMinMax"));
 	}
 
-	/** Serializer */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << SourceTextureParameter;
-		Ar << SourceTextureSamplerParameter;
-		Ar << UVMinMaxParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 	/** Sets shader parameter values */
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& LightShaftOcclusion, const FIntPoint& FilterBufferSize, const FIntRect& DownSampleRect)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetPixelShader(), View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
 
 		SetTextureParameter(
 			RHICmdList, 
-			GetPixelShader(),
+			RHICmdList.GetBoundPixelShader(),
 			SourceTextureParameter, SourceTextureSamplerParameter,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
 			LightShaftOcclusion->GetRenderTargetItem().ShaderResourceTexture
@@ -926,13 +893,13 @@ public:
 			(DownSampleRect.Max.X - 0.5f) / float(FilterBufferSize.X),
 			(DownSampleRect.Max.Y - 0.5f) / float(FilterBufferSize.Y));
 
-		SetShaderValue(RHICmdList, GetPixelShader(), UVMinMaxParameter, UVMinMaxValue);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UVMinMaxParameter, UVMinMaxValue);
 	}
 
 private:
-	FShaderResourceParameter SourceTextureParameter;
-	FShaderResourceParameter SourceTextureSamplerParameter;
-	FShaderParameter UVMinMaxParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSamplerParameter);
+	LAYOUT_FIELD(FShaderParameter, UVMinMaxParameter);
 };
 
 IMPLEMENT_SHADER_TYPE(,FApplyLightShaftsPixelShader,TEXT("/Engine/Private/LightShaftShader.usf"),TEXT("ApplyLightShaftsPixelMain"),SF_Pixel);
@@ -965,8 +932,8 @@ void ApplyLightShaftBloom(FRHICommandListImmediate& RHICmdList, const FViewInfo&
 	TShaderMapRef<FApplyLightShaftsPixelShader> ApplyLightShaftsPixelShader(View.ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ScreenVertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ApplyLightShaftsPixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ApplyLightShaftsPixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -993,7 +960,7 @@ void ApplyLightShaftBloom(FRHICommandListImmediate& RHICmdList, const FViewInfo&
 		DownSampledXY.X, DownSampledXY.Y, 
 		DownsampledSizeX, DownsampledSizeY,
 		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), FilterBufferSize,
-		*ScreenVertexShader,
+		ScreenVertexShader,
 		EDRF_UseTriangleOptimization);
 
 	if (bUseSeparateTranslucency)

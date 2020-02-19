@@ -288,6 +288,14 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	StateMachineNodeProperties.Empty();
 	InitializationNodeProperties.Empty();
 
+#if WITH_EDITORONLY_DATA
+	for (FExposedValueHandler& Handler : EvaluateGraphExposedInputs)
+	{
+		// handle potential renames of the class package
+		Handler.ValueHandlerNodeProperty.ResolveWithRenamedStructPackage(this);
+	}
+#endif // WITH_EDITORONLY_DATA
+
 #if WITH_EDITOR
 	// This relies on the entire class being fully loaded, this is not the case with EDL async-loading, in which case the functions are generated in PostLoad
 	GenerateAnimationBlueprintFunctions();
@@ -400,7 +408,7 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 		bool bFoundOutput = false;
 #if WITH_EDITOR
 		// In editor we can grab the group from metadata, otherwise we need to wait until CDO post load (LinkFunctionsToDefaultObjectNodes)
-		FText CategoryText = FObjectEditorUtils::GetCategoryText((*It)->GetAssociatedFField());
+		FText CategoryText = FObjectEditorUtils::GetCategoryText(*It);
 		FName Group = CategoryText.IsEmpty() ? NAME_None : FName(*CategoryText.ToString());
 #endif
 		FStructProperty* OutputPoseNodeProperty = nullptr;

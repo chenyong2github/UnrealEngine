@@ -296,7 +296,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 			GPixelFormats[SrcDesc.Format].Name,
 			SrcDesc.Extent.X, SrcDesc.Extent.Y,
 			*ExtendedDrawEvent),
-		*PixelShader,
+		PixelShader,
 		PassParameters,
 		FIntRect(0, 0, RTExtent.X, RTExtent.Y));
 

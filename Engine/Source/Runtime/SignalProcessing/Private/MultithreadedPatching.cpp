@@ -120,6 +120,15 @@ namespace Audio
 	{
 	}
 
+	FPatchInput::FPatchInput(FPatchInput&& Other)
+	{
+		OutputHandle = Other.OutputHandle;
+		Other.OutputHandle.Reset();
+
+		PushCallsCounter = Other.PushCallsCounter;
+		Other.PushCallsCounter = 0;
+	}
+
 	FPatchInput& FPatchInput::operator=(const FPatchInput& Other)
 	{
 		OutputHandle = Other.OutputHandle;
@@ -254,6 +263,12 @@ namespace Audio
 			check(SmallestNumSamplesBuffered <= ((uint32)TNumericLimits<int32>::Max()));
 			return SmallestNumSamplesBuffered;
 		}
+	}
+
+	void FPatchMixer::DisconnectAllInputs()
+	{
+		FScopeLock ScopeLock(&CurrentPatchesCriticalSection);
+		CurrentInputs.Reset();
 	}
 
 	void FPatchMixer::ConnectNewPatches()

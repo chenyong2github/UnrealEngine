@@ -664,6 +664,32 @@ namespace
 	}
 
 
+	// helper strings that denote UE4-specific symbols.
+	// note that the global object array is a reference type, which we don't want to put into our UE4-specific library.
+	// therefore, the object array in the DLL (reference) has a different type than the object array in our LIB (pointer).
+#if LC_64_BIT
+	static const char* const g_ue4NameTableInDLL = "?GFNameTableForDebuggerVisualizers_MT@@3PEAPEAPEAUFNameEntry@@EA";
+	static const char* const g_ue4ObjectArrayInDLL = "?GObjectArrayForDebugVisualizers@@3AEAPEAVFChunkedFixedUObjectArray@@EA";
+	static const char* const g_ue4NameTableInLIB = "?GFNameTableForDebuggerVisualizers_MT@@3PEAPEAPEAUFNameEntry@@EA";
+	static const char* const g_ue4ObjectArrayInLIB = "?GObjectArrayForDebugVisualizers@@3PEAVFChunkedFixedUObjectArray@@EA";
+#else
+	static const char* const g_ue4NameTableInDLL = "?GFNameTableForDebuggerVisualizers_MT@@3PAPAPAUFNameEntry@@A";
+	static const char* const g_ue4ObjectArrayInDLL = "?GObjectArrayForDebugVisualizers@@3AAPAVFChunkedFixedUObjectArray@@A";
+	static const char* const g_ue4NameTableInLIB = "?GFNameTableForDebuggerVisualizers_MT@@3PAPAPAUFNameEntry@@A";
+	static const char* const g_ue4ObjectArrayInLIB = "?GObjectArrayForDebugVisualizers@@3PAVFChunkedFixedUObjectArray@@A";
+#endif
+
+	// helper function to patch UE4-specific symbols
+	static void PatchUE4NatVisSymbols(void* originalModuleBase, void* patchBase, uint32_t originalRva, uint32_t patchRva, process::Handle processHandle)
+	{
+		const void* originalAddr = pointer::Offset<const void*>(originalModuleBase, originalRva);
+		void* patchAddr = pointer::Offset<void*>(patchBase, patchRva);
+
+		const uintptr_t value = process::ReadProcessMemory<uintptr_t>(processHandle, originalAddr);
+		process::WriteProcessMemory(processHandle, patchAddr, value);
+	}
+
+
 	// helper function to patch security cookies
 	static void PatchSecurityCookie(void* originalModuleBase, void* patchBase, uint32_t originalRva, uint32_t patchRva, process::Handle processHandle)
 	{
@@ -959,6 +985,8 @@ void LiveModule::Load(symbols::Provider* provider, symbols::DiaCompilandDB* diaC
 	scheduler::DestroyTask(taskImageSectionDB);
 	scheduler::DestroyTask(taskLinkerDB);
 
+	symbols::FinalizeContributions(m_compilandDB, m_contributionDB);
+
 	// check linker command-line for missing/wrong linker options
 	{
 		// the command-line is optional
@@ -1036,7 +1064,7 @@ void LiveModule::Load(symbols::Provider* provider, symbols::DiaCompilandDB* diaC
 			const symbols::Contribution* contribution = symbols::FindContributionByRVA(m_contributionDB, rva);
 			if (contribution)
 			{
-				const ImmutableString& compilandName = symbols::GetContributionCompilandName(m_compilandDB, m_contributionDB, contribution);
+				const ImmutableString& compilandName = symbols::GetContributionCompilandName(m_contributionDB, contribution);
 				m_externalSymbolsPerCompilandCache[compilandName].push_back(symbol);
 
 				// is this a symbol emitted from a precompiled header?
@@ -2148,7 +2176,6 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			{
 				symbols::GatherDynamicInitializers(provider, image, imageSections, m_imageSectionDB, m_contributionDB, m_compilandDB, m_coffCache, m_symbolDB);
 
-				symbols::DiaSymbolCache diaSymbolCache;
 				for (size_t i = 0u; i < count; ++i)
 				{
 					const symbols::ObjPath& objPath = objToReconstruct[i];
@@ -2159,7 +2186,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 						continue;
 					}
 
-					symbols::ReconstructFromExecutableCoff(provider, image, imageSections, database, noSymbolsToIgnore, objPath, m_compilandDB, m_contributionDB, m_thunkDB, m_imageSectionDB, m_symbolDB, &diaSymbolCache);
+					symbols::ReconstructFromExecutableCoff(provider, image, imageSections, database, noSymbolsToIgnore, objPath, m_contributionDB, m_thunkDB, m_imageSectionDB, m_symbolDB);
 				}
 			}
 			symbols::Close(provider);
@@ -2372,13 +2399,6 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 						KernelBase.dll!RaiseException()
 						vcruntime140d.dll!_CxxThrowException(void * pExceptionObject, const _s__ThrowInfo * pThrowInfo)
 					*/
-					continue;
-				}
-				else if (string::Matches(symbolName.c_str(), "?GNames@@3PEAPEB_WEA"))
-				{
-					// never strip special UE4 symbols, otherwise custom .natvis visualizers won't work.
-					// the visualizers rely on the GNames symbol, so it must be part of patches as well.
-					// GNames relocates to GNameTable (e.g. const wchar_t** GNames = GNameTable) and the relocations will be patched accordingly.
 					continue;
 				}
 
@@ -2816,9 +2836,15 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		// though the corresponding DLL has been unloaded already.
 		// in this case, we increase the counter until we find a PDB file that was either deleted successfully or
 		// did not exist yet.
+
+		// safety net: in case the PDB path does not exist, we generate the PDB filename from the module name
+		const std::wstring originalPdbPath = (m_linkerDB->pdbPath.GetLength() != 0u)
+			? string::ToWideString(m_linkerDB->pdbPath)			// we have a valid, original PDB path for the module
+			: file::RemoveExtension(m_moduleName) + L".pdb";	// create our own PDB path based on the module's name
+
 		isExeOrPdbFileStillThere = false;
-		pdbPath = string::Replace(string::ToWideString(m_linkerDB->pdbPath), L".pdb", std::wstring(L".pdb") + patchInstanceStr);
-		exePath = string::Replace(string::ToWideString(m_linkerDB->pdbPath), L".pdb", std::wstring(L".exe") + patchInstanceStr);
+		pdbPath = string::Replace(originalPdbPath, L".pdb", std::wstring(L".pdb") + patchInstanceStr);
+		exePath = string::Replace(originalPdbPath, L".pdb", std::wstring(L".exe") + patchInstanceStr);
 		const file::Attributes& pdbAttributes = file::GetAttributes(pdbPath.c_str());
 		const file::Attributes& exeAttributes = file::GetAttributes(exePath.c_str());
 
@@ -2882,6 +2908,35 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			linkerOptions += string::ToWideString(libPath);
 			linkerOptions += L"\"\n";
 		}
+	}
+
+	// add UE4-specific helper library to support NatVis visualizers when debugging
+	if (appSettings::g_ue4EnableNatVisSupport->GetValue())
+	{
+		const std::wstring& lppExePath = process::GetImagePath();
+		std::wstring libPath = file::GetDirectory(lppExePath);
+		libPath += L"\\UE4_NatVisHelper.lib";
+
+		// check whether the .lib file exists and output a warning if not
+		{
+			const file::Attributes& attributes = file::GetAttributes(libPath.c_str());
+			if (!file::DoesExist(attributes))
+			{
+				LC_WARNING_USER("Cannot find UE4 NatVis helper library at %S", libPath.c_str());
+			}
+		}
+
+		linkerOptions += L"\"";
+		linkerOptions += libPath;
+		linkerOptions += L"\"\n";
+
+		// force the linker to include the needed symbols
+		linkerOptions += L"/INCLUDE:";
+		linkerOptions += string::ToWideString(g_ue4NameTableInLIB);
+		linkerOptions += L"\n";
+		linkerOptions += L"/INCLUDE:";
+		linkerOptions += string::ToWideString(g_ue4ObjectArrayInLIB);
+		linkerOptions += L"\n";
 	}
 
 	// BEGIN EPIC MOD - Support for UE4 debug visualizers
@@ -3249,7 +3304,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	symbols::CompilandDB* patch_compilandDB = taskPatch_compilandDB->GetResult();
 	symbols::ThunkDB* patch_thunkDB = taskPatch_thunkDB->GetResult();
 	symbols::ImageSectionDB* patch_imageSectionDB = taskPatch_imageSectionDB->GetResult();
-
+	
 	symbols::DestroyLinkerSymbol(patch_linkerSymbol);
 
 	// destroy tasks
@@ -3259,6 +3314,8 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	scheduler::DestroyTask(taskPatch_compilandDB);
 	scheduler::DestroyTask(taskPatch_thunkDB);
 	scheduler::DestroyTask(taskPatch_imageSectionDB);
+
+	symbols::FinalizeContributions(patch_compilandDB, patch_contributionDB);
 
 	LC_LOG_DEV("Updating cache of external symbols");
 
@@ -3285,7 +3342,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			const symbols::Contribution* contribution = symbols::FindContributionByRVA(patch_contributionDB, rva);
 			if (contribution)
 			{
-				const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_compilandDB, patch_contributionDB, contribution);
+				const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_contributionDB, contribution);
 				m_externalSymbolsPerCompilandCache[compilandName].push_back(symbol);
 			}
 		}
@@ -3322,7 +3379,6 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			{
 				symbols::GatherDynamicInitializers(provider, originalImage, originalImageSections, m_imageSectionDB, m_contributionDB, m_compilandDB, m_coffCache, m_symbolDB);
 
-				symbols::DiaSymbolCache diaSymbolCache;
 				const size_t count = updatedCoffs.size();
 				for (size_t i = 0u; i < count; ++i)
 				{
@@ -3342,7 +3398,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 
 						m_reconstructedCompilands.emplace(objPath);
 
-						symbols::ReconstructFromExecutableCoff(provider, originalImage, originalImageSections, database, noSymbolsToIgnore, objPath, m_compilandDB, m_contributionDB, m_thunkDB, m_imageSectionDB, m_symbolDB, &diaSymbolCache);
+						symbols::ReconstructFromExecutableCoff(provider, originalImage, originalImageSections, database, noSymbolsToIgnore, objPath, m_contributionDB, m_thunkDB, m_imageSectionDB, m_symbolDB);
 					}
 				}
 			}
@@ -3368,7 +3424,6 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		LC_LOG_DEV("Reconstructing patch symbols from OBJ");
 		LC_LOG_INDENT_DEV;
 
-		symbols::DiaSymbolCache diaSymbolCache;
 		for (auto it = patch_compilandDB->compilands.begin(); it != patch_compilandDB->compilands.end(); ++it)
 		{
 			const symbols::ObjPath& patchObjPath = it->first;
@@ -3380,7 +3435,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			}
 
 			symbols::ReconstructFromExecutableCoff(patchSymbolProvider, patchImage, patchImageSections,
-				database, strippedSymbolsPerCompiland[patchObjPath], patchObjPath, patch_compilandDB, patch_contributionDB, patch_thunkDB, patch_imageSectionDB, patch_symbolDB, &diaSymbolCache);
+				database, strippedSymbolsPerCompiland[patchObjPath], patchObjPath, patch_contributionDB, patch_thunkDB, patch_imageSectionDB, patch_symbolDB);
 		}
 
 		// merge compilands and dependencies with existing ones to account for new files and e.g. new #includes.
@@ -3532,7 +3587,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 				const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(patch_contributionDB, realSymbol->rva);
 				if (originalContribution)
 				{
-					const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_compilandDB, patch_contributionDB, originalContribution);
+					const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_contributionDB, originalContribution);
 					if (compilandName != objPath)
 					{
 						LC_LOG_DEV("Ignoring relocations for symbol %s in file %s (original compiland: %s)",
@@ -3636,6 +3691,40 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		}
 	}
 
+	// patch UE4-specific symbols needed by NatVis visualizers
+	if (appSettings::g_ue4EnableNatVisSupport->GetValue())
+	{
+		{
+			const symbols::Symbol* originalNameTable = symbols::FindSymbolByName(m_symbolDB, ImmutableString(g_ue4NameTableInDLL));
+			const symbols::Symbol* newNameTable = symbols::FindSymbolByName(patch_symbolDB, ImmutableString(g_ue4NameTableInLIB));
+
+			if (originalNameTable && newNameTable)
+			{
+				for (size_t p = 0u; p < processCount; ++p)
+				{
+					const PerProcessData& data = processData[p];
+					PatchUE4NatVisSymbols(data.originalModuleBase, loadedPatches[p], originalNameTable->rva, newNameTable->rva, data.liveProcess->GetProcessHandle());
+				}
+
+				compiledModulePatch->RegisterUe4NameTable(originalNameTable->rva, newNameTable->rva);
+			}
+		}
+		{
+			const symbols::Symbol* originalObjectArray = symbols::FindSymbolByName(m_symbolDB, ImmutableString(g_ue4ObjectArrayInDLL));
+			const symbols::Symbol* newObjectArray = symbols::FindSymbolByName(patch_symbolDB, ImmutableString(g_ue4ObjectArrayInLIB));
+
+			if (originalObjectArray && newObjectArray)
+			{
+				for (size_t p = 0u; p < processCount; ++p)
+				{
+					const PerProcessData& data = processData[p];
+					PatchUE4NatVisSymbols(data.originalModuleBase, loadedPatches[p], originalObjectArray->rva, newObjectArray->rva, data.liveProcess->GetProcessHandle());
+				}
+
+				compiledModulePatch->RegisterUe4ObjectArray(originalObjectArray->rva, newObjectArray->rva);
+			}
+		}
+	}
 
 	// now that relocations are done, it is safe to call the entry point.
 	// restore the original entry point and tell the process to call it.
@@ -3750,7 +3839,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 				const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(patch_contributionDB, realSymbol->rva);
 				if (originalContribution)
 				{
-					const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_compilandDB, patch_contributionDB, originalContribution);
+					const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_contributionDB, originalContribution);
 					if (compilandName != objPath)
 					{
 						LC_LOG_DEV("Ignoring relocations for symbol %s in file %s (original compiland: %s)",
@@ -3873,7 +3962,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 				const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(originalData.data->contributionDb, originalData.symbol->rva);
 				if (originalContribution)
 				{
-					const ImmutableString& compilandName = symbols::GetContributionCompilandName(originalData.data->compilandDb, originalData.data->contributionDb, originalContribution);
+					const ImmutableString& compilandName = symbols::GetContributionCompilandName(originalData.data->contributionDb, originalContribution);
 					const symbols::Compiland* compiland = symbols::FindCompiland(originalData.data->compilandDb, compilandName);
 					if (!compiland)
 					{
@@ -4207,6 +4296,12 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 		LC_LOG_DEV("Patching security cookie");
 		PatchSecurityCookie(originalModuleBase, moduleBase, patchData.originalCookieRva, patchData.patchCookieRva, processHandle);
 
+		if (appSettings::g_ue4EnableNatVisSupport->GetValue())
+		{
+			LC_LOG_DEV("Patching symbols for UE4 NatVis visualizers");
+			PatchUE4NatVisSymbols(originalModuleBase, moduleBase, patchData.originalUe4NameTableRva, patchData.patchUe4NameTableRva, processHandle);
+			PatchUE4NatVisSymbols(originalModuleBase, moduleBase, patchData.originalUe4ObjectArrayRva, patchData.patchUe4ObjectArrayRva, processHandle);
+		}
 
 		// now that relocations are done, it is safe to call the entry point.
 		// restore the original entry point and tell the process to call it.

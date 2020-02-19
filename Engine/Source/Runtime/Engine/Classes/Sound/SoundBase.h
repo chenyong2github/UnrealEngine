@@ -13,7 +13,7 @@
 #include "SoundSubmixSend.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-
+#include "AudioDeviceManager.h"
 #include "SoundBase.generated.h"
 
 
@@ -152,7 +152,7 @@ public:
 	/** Submix to route sound output to. If unset, falls back to referenced SoundClass submix.
 	  * If SoundClass submix is unset, sends to the 'Master Submix' as set in the 'Audio' category of Project Settings'. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Submix", meta = (DisplayName = "Submix"))
-	USoundSubmix* SoundSubmixObject;
+	USoundSubmixBase* SoundSubmixObject;
 
 	/** Array of submix sends to which a prescribed amount (see 'Send Level') of this sound is sent. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Submix", meta = (DisplayName = "Submix Sends"))
@@ -238,7 +238,7 @@ public:
 	virtual USoundClass* GetSoundClass() const;
 
 	/** Returns the SoundSubmix used for this sound. */
-	virtual USoundSubmix* GetSoundSubmix() const;
+	virtual USoundSubmixBase* GetSoundSubmix() const;
 
 	/** Returns the sound submix sends for this sound. */
 	void GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) const;

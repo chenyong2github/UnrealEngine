@@ -74,7 +74,9 @@ struct FTexture2DMipMap
 		bool IsAvailableForUse() const { return !(BulkDataFlags & BULKDATA_Unused); }
 		bool IsOptional() const { return (BulkDataFlags & BULKDATA_OptionalPayload) != 0; }
 		bool IsInlined() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) == 0 && (GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0; }
-		bool InSeperateFile() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0; }
+		UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
+		FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
+		bool IsInSeperateFile() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0; }
 		bool IsBulkDataLoaded() const { return IsInlined(); }
 		bool IsAsyncLoadingComplete() const { return true; }
 		bool IsStoredCompressedOnDisk() const { return !!(BulkDataFlags & BULKDATA_SerializeCompressed); }
@@ -138,7 +140,7 @@ struct FTexture2DMipMap
 	 * Place mip-map data in the derived data cache associated with the provided
 	 * key.
 	 */
-	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey);
+	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName);
 #endif // #if WITH_EDITORONLY_DATA
 };
 

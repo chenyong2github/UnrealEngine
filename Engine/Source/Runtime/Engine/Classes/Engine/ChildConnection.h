@@ -64,6 +64,11 @@ public:
 		return Parent->IsNetReady(Saturate);
 	}
 
+	virtual bool IsEncryptionEnabled() const override
+	{
+		return Parent->IsEncryptionEnabled();
+	}
+
 	virtual void Tick() override
 	{
 		State = Parent->State;

@@ -88,10 +88,12 @@ namespace UnrealBuildTool
 	{
 		Program,
 		EngineRuntime,
+		EngineUncooked,
 		EngineDeveloper,
 		EngineEditor,
 		EngineThirdParty,
 		GameRuntime,
+		GameUncooked,
 		GameDeveloper,
 		GameEditor,
 		GameThirdParty,
@@ -120,7 +122,6 @@ namespace UnrealBuildTool
 				case ModuleHostType.RuntimeNoCommandlet:
 				case ModuleHostType.RuntimeAndProgram:
 				case ModuleHostType.CookedOnly:
-				case ModuleHostType.UncookedOnly:
 				case ModuleHostType.ServerOnly:
 				case ModuleHostType.ClientOnly:
 				case ModuleHostType.ClientOnlyNoCommandlet:
@@ -132,6 +133,8 @@ namespace UnrealBuildTool
 				case ModuleHostType.EditorNoCommandlet:
 				case ModuleHostType.EditorAndProgram:
 					return UHTModuleType.EngineEditor;
+				case ModuleHostType.UncookedOnly:
+					return UHTModuleType.EngineUncooked;
 				default:
 					return null;
 			}
@@ -146,7 +149,6 @@ namespace UnrealBuildTool
 				case ModuleHostType.RuntimeNoCommandlet:
 				case ModuleHostType.RuntimeAndProgram:
 				case ModuleHostType.CookedOnly:
-				case ModuleHostType.UncookedOnly:
 				case ModuleHostType.ServerOnly:
 				case ModuleHostType.ClientOnly:
 				case ModuleHostType.ClientOnlyNoCommandlet:
@@ -158,6 +160,8 @@ namespace UnrealBuildTool
 				case ModuleHostType.EditorNoCommandlet:
 				case ModuleHostType.EditorAndProgram:
 					return UHTModuleType.GameEditor;
+				case ModuleHostType.UncookedOnly:
+					return UHTModuleType.GameUncooked;
 				default:
 					return null;
 			}
@@ -704,21 +708,25 @@ namespace UnrealBuildTool
 					return false;
 				}
 
-				TargetReceipt Receipt;
-				if (!TargetReceipt.TryRead(ReceiptPath, out Receipt))
+				// Don't check timestamps for individual binaries if we're using the installed version of UHT. It will always be up to date.
+				if (!UnrealBuildTool.IsFileInstalled(ReceiptFile.Location))
 				{
-					Timestamp = DateTime.MaxValue;
-					return false;
-				}
-
-				// Make sure all the build products exist, and that the receipt is newer
-				foreach (BuildProduct BuildProduct in Receipt.BuildProducts)
-				{
-					FileItem BuildProductItem = FileItem.GetItemByFileReference(BuildProduct.Path);
-					if(!BuildProductItem.Exists || BuildProductItem.LastWriteTimeUtc > ReceiptFile.LastWriteTimeUtc)
+					TargetReceipt Receipt;
+					if (!TargetReceipt.TryRead(ReceiptPath, out Receipt))
 					{
 						Timestamp = DateTime.MaxValue;
 						return false;
+					}
+
+					// Make sure all the build products exist, and that the receipt is newer
+					foreach (BuildProduct BuildProduct in Receipt.BuildProducts)
+					{
+						FileItem BuildProductItem = FileItem.GetItemByFileReference(BuildProduct.Path);
+						if (!BuildProductItem.Exists || BuildProductItem.LastWriteTimeUtc > ReceiptFile.LastWriteTimeUtc)
+						{
+							Timestamp = DateTime.MaxValue;
+							return false;
+						}
 					}
 				}
 

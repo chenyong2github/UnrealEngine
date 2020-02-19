@@ -424,30 +424,37 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 
 	if (DeviceGroup.IsValid())
 	{
-		const TArray<FString>& Devices = DeviceGroup->GetDeviceIDs();		
+		const TArray<FString>& Devices = DeviceGroup->GetDeviceIDs();
 
-		// for each deployed device...
-		for (int32 DeviceIndex = 0; DeviceIndex < Devices.Num(); ++DeviceIndex)
+		if (Devices.Num() > 0)
 		{
-			const FString& DeviceId = Devices[DeviceIndex];
-			TSharedPtr<ITargetDeviceProxy> DeviceProxy = DeviceProxyManager->FindProxyDeviceForTargetDevice(DeviceId);
-			if (DeviceProxy.IsValid())
+			// for each deployed device...
+			for (int32 DeviceIndex = 0; DeviceIndex < Devices.Num(); ++DeviceIndex)
 			{
-				AddDeviceToLaunchCommand(DeviceId, DeviceProxy, InProfile, DeviceNames, RoleCommands, bVsyncAdded);
-
-				// also add the credentials, if necessary
-				FString DeviceUser = DeviceProxy->GetDeviceUser();
-				if (DeviceUser.Len() > 0)
+				const FString& DeviceId = Devices[DeviceIndex];
+				TSharedPtr<ITargetDeviceProxy> DeviceProxy = DeviceProxyManager->FindProxyDeviceForTargetDevice(DeviceId);
+				if (DeviceProxy.IsValid())
 				{
-					DeviceCommand += FString::Printf(TEXT(" -deviceuser=%s"), *DeviceUser);
-				}
+					AddDeviceToLaunchCommand(DeviceId, DeviceProxy, InProfile, DeviceNames, RoleCommands, bVsyncAdded);
 
-				FString DeviceUserPassword = DeviceProxy->GetDeviceUserPassword();
-				if (DeviceUserPassword.Len() > 0)
-				{
-					DeviceCommand += FString::Printf(TEXT(" -devicepass=%s"), *DeviceUserPassword);
+					// also add the credentials, if necessary
+					FString DeviceUser = DeviceProxy->GetDeviceUser();
+					if (DeviceUser.Len() > 0)
+					{
+						DeviceCommand += FString::Printf(TEXT(" -deviceuser=%s"), *DeviceUser);
+					}
+
+					FString DeviceUserPassword = DeviceProxy->GetDeviceUserPassword();
+					if (DeviceUserPassword.Len() > 0)
+					{
+						DeviceCommand += FString::Printf(TEXT(" -devicepass=%s"), *DeviceUserPassword);
+					}
 				}
 			}
+		}
+		else
+		{
+			RoleCommands = InProfile->GetDefaultLaunchRole()->GetUATCommandLine();
 		}
 	}
 
@@ -578,6 +585,11 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			if (InProfile->IsPackingWithUnrealPak())
 			{
 				UATCommand += TEXT(" -pak");
+			}
+
+			if (InProfile->IsUsingIoStore())
+			{
+				UATCommand += TEXT(" -iostore");
 			}
 
 			if ( InProfile->IsCreatingReleaseVersion() )

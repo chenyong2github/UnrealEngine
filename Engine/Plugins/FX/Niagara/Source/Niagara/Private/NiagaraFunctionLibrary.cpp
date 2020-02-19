@@ -12,6 +12,9 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataInterfaceStaticMesh.h"
 #include "NiagaraStats.h"
+#include "NiagaraDataInterfaceTexture.h"
+#include "NiagaraDataInterfaceVolumeTexture.h"
+#include "Engine/VolumeTexture.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraFunctionLibrary"
 
@@ -387,6 +390,76 @@ void UNiagaraFunctionLibrary::OverrideSystemUserVariableSkeletalMeshComponent(UN
 	SkeletalMeshInterface->SetSourceComponentFromBlueprints(SkeletalMeshComponent);
 }
 
+void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UTexture* Texture)
+{
+	if (!NiagaraSystem)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"SetTextureObject\" is NULL, OverrideName \"%s\" and Texture \"%s\", skipping."), *OverrideName, Texture ? *Texture->GetName() : TEXT("NULL"));
+		return;
+	}
+
+	if (!Texture)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Texture in \"SetTextureObject\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		return;
+	}
+
+	const FNiagaraParameterStore& OverrideParameters = NiagaraSystem->GetOverrideParameters();
+
+	FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterfaceTexture::StaticClass()), *OverrideName);
+
+	int32 Index = OverrideParameters.IndexOf(Variable);
+	if (Index == INDEX_NONE)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		return;
+	}
+
+	UNiagaraDataInterfaceTexture* TexureDI = Cast<UNiagaraDataInterfaceTexture>(OverrideParameters.GetDataInterface(Index));
+	if (!TexureDI)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		return;
+	}
+
+	TexureDI->SetTexture(Texture);
+}
+
+void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UVolumeTexture* Texture)
+{
+	if (!NiagaraSystem)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"SetVolumeTextureObject\" is NULL, OverrideName \"%s\" and Texture \"%s\", skipping."), *OverrideName, Texture ? *Texture->GetName() : TEXT("NULL"));
+		return;
+	}
+
+	if (!Texture)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Volume Texture in \"SetVolumeTextureObject\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		return;
+	}
+
+	const FNiagaraParameterStore& OverrideParameters = NiagaraSystem->GetOverrideParameters();
+
+	FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterfaceVolumeTexture::StaticClass()), *OverrideName);
+
+	int32 Index = OverrideParameters.IndexOf(Variable);
+	if (Index == INDEX_NONE)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		return;
+	}
+
+	UNiagaraDataInterfaceVolumeTexture* TexureDI = Cast<UNiagaraDataInterfaceVolumeTexture>(OverrideParameters.GetDataInterface(Index));
+	if (!TexureDI)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Volume Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		return;
+	}
+
+	TexureDI->SetTexture(Texture);
+}
+
 UNiagaraParameterCollectionInstance* UNiagaraFunctionLibrary::GetNiagaraParameterCollection(UObject* WorldContextObject, UNiagaraParameterCollection* Collection)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
@@ -398,9 +471,9 @@ UNiagaraParameterCollectionInstance* UNiagaraFunctionLibrary::GetNiagaraParamete
 }
 
 
-const TArray<FNiagaraFunctionSignature>& UNiagaraFunctionLibrary::GetVectorVMFastPathOps()
+const TArray<FNiagaraFunctionSignature>& UNiagaraFunctionLibrary::GetVectorVMFastPathOps(bool bIgnoreConsoleVariable)
 {
-	if (GAllowFastPathFunctionLibrary == 0)
+	if (!bIgnoreConsoleVariable && (GAllowFastPathFunctionLibrary == 0))
 	{
 		static TArray<FNiagaraFunctionSignature> Empty;
 		return Empty;
@@ -682,9 +755,9 @@ struct FVectorKernelFastMatrixToQuaternion
 			float InvS = rsqrt(tr + 1.f);
 			float s = 0.5f * InvS;
 
-			Quat.x = (Mat[2][1] - Mat[1][2]) * s;
-			Quat.y = (Mat[0][2] - Mat[2][0]) * s;
-			Quat.z = (Mat[1][0] - Mat[0][1]) * s;
+			Quat.x = (Mat[1][2] - Mat[2][1]) * s;
+			Quat.y = (Mat[2][0] - Mat[0][2]) * s;
+			Quat.z = (Mat[0][1] - Mat[1][0]) * s;
 			Quat.w = 0.5f * rcp(InvS);
 		}
 		else if ( (Mat[0][0] > Mat[1][1]) && (Mat[0][0] > Mat[2][2]) )
@@ -694,9 +767,9 @@ struct FVectorKernelFastMatrixToQuaternion
 			s = 0.5f * InvS;
 
 			Quat.x = 0.5f * rcp(InvS);
-			Quat.y = (Mat[1][0] + Mat[0][1]) * s;
-			Quat.z = (Mat[2][0] + Mat[0][2]) * s;
-			Quat.w = (Mat[2][1] - Mat[1][2]) * s;
+			Quat.y = (Mat[0][1] + Mat[1][0]) * s;
+			Quat.z = (Mat[0][2] + Mat[2][0]) * s;
+			Quat.w = (Mat[1][2] - Mat[2][1]) * s;
 		}
 		else if ( Mat[1][1] > Mat[2][2] )
 		{
@@ -704,10 +777,10 @@ struct FVectorKernelFastMatrixToQuaternion
 			float InvS = rsqrt(s);
 			s = 0.5f * InvS;
 
-			Quat.x = (Mat[0][1] + Mat[1][0]) * s;
+			Quat.x = (Mat[1][0] + Mat[0][1]) * s;
 			Quat.y = 0.5f * rcp(InvS);
-			Quat.z = (Mat[2][1] + Mat[1][2]) * s;
-			Quat.w = (Mat[0][2] - Mat[2][0]) * s;
+			Quat.z = (Mat[1][2] + Mat[2][1]) * s;
+			Quat.w = (Mat[2][0] - Mat[0][2]) * s;
 
 		}
 		else
@@ -716,10 +789,10 @@ struct FVectorKernelFastMatrixToQuaternion
 			float InvS = rsqrt(s);
 			s = 0.5f * InvS;
 
-			Quat.x = (Mat[0][2] + Mat[2][0]) * s;
-			Quat.y = (Mat[1][2] + Mat[2][1]) * s;
+			Quat.x = (Mat[2][0] + Mat[0][2]) * s;
+			Quat.y = (Mat[2][1] + Mat[1][2]) * s;
 			Quat.z = 0.5f * rcp(InvS);
-			Quat.w = (Mat[1][0] - Mat[0][1]) * s;
+			Quat.w = (Mat[0][1] - Mat[1][0]) * s;
 		}
 	}
 )");
@@ -741,15 +814,65 @@ struct FVectorKernelFastMatrixToQuaternion
 			OutQuat.Emplace(Context);
 		}
 
-		for ( int32 i=0; i < Context.GetNumInstances(); ++i )
+		for ( int32 iInstance=0; iInstance < Context.GetNumInstances(); ++iInstance)
 		{
+			// Read Matrix
 			FMatrix Mat;
 			for ( int32 j=0; j < 16; ++j )
 			{
-				Mat.M[j & 3][j >> 2] = InMatrix[j].GetAndAdvance();
+				Mat.M[j >> 2][j & 3] = InMatrix[j].GetAndAdvance();
 			}
 
-			FQuat Quat(Mat);
+			// Generate Quat (without checking for consistency with the GPU)
+			FQuat Quat;
+			{
+				// Check diagonal (trace)
+				const float tr = Mat.M[0][0] + Mat.M[1][1] + Mat.M[2][2];
+				if (tr > 0.0f)
+				{
+					float InvS = FMath::InvSqrt(tr + 1.f);
+					Quat.W = 0.5f * (1.f / InvS);
+					const float s = 0.5f * InvS;
+
+					Quat.X = (Mat.M[1][2] - Mat.M[2][1]) * s;
+					Quat.Y = (Mat.M[2][0] - Mat.M[0][2]) * s;
+					Quat.Z = (Mat.M[0][1] - Mat.M[1][0]) * s;
+				}
+				else
+				{
+					// diagonal is negative
+					int32 i = 0;
+
+					if (Mat.M[1][1] > Mat.M[0][0])
+						i = 1;
+
+					if (Mat.M[2][2] > Mat.M[i][i])
+						i = 2;
+
+					static const int32 nxt[3] = { 1, 2, 0 };
+					const int32 j = nxt[i];
+					const int32 k = nxt[j];
+
+					float s = Mat.M[i][i] - Mat.M[j][j] - Mat.M[k][k] + 1.0f;
+
+					float InvS = FMath::InvSqrt(s);
+
+					float qt[4];
+					qt[i] = 0.5f * (1.f / InvS);
+
+					s = 0.5f * InvS;
+
+					qt[3] = (Mat.M[j][k] - Mat.M[k][j]) * s;
+					qt[j] = (Mat.M[i][j] + Mat.M[j][i]) * s;
+					qt[k] = (Mat.M[i][k] + Mat.M[k][i]) * s;
+
+					Quat.X = qt[0];
+					Quat.Y = qt[1];
+					Quat.Z = qt[2];
+					Quat.W = qt[3];
+				}
+			}
+
 			*OutQuat[0].GetDestAndAdvance() = Quat.X;
 			*OutQuat[1].GetDestAndAdvance() = Quat.Y;
 			*OutQuat[2].GetDestAndAdvance() = Quat.Z;

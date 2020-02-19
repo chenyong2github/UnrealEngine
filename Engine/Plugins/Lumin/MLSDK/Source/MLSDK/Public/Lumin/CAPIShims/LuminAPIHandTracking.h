@@ -17,8 +17,10 @@ CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingCreate)
 #define MLHandTrackingCreate ::MLSDK_API::MLHandTrackingCreateShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingDestroy)
 #define MLHandTrackingDestroy ::MLSDK_API::MLHandTrackingDestroyShim
-CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingGetData)
+CREATE_DEPRECATED_MSG_SHIM(ml_perception_client, MLResult, MLHandTrackingGetData, "Replaced by MLHandTrackingDataEx.")
 #define MLHandTrackingGetData ::MLSDK_API::MLHandTrackingGetDataShim
+CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingGetDataEx)
+#define MLHandTrackingGetDataEx ::MLSDK_API::MLHandTrackingGetDataExShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingGetStaticData)
 #define MLHandTrackingGetStaticData ::MLSDK_API::MLHandTrackingGetStaticDataShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingSetConfiguration)

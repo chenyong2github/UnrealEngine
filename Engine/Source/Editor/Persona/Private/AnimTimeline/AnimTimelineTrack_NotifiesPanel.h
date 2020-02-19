@@ -24,7 +24,7 @@ public:
 	virtual TSharedRef<SWidget> GenerateContainerWidgetForOutliner(const TSharedRef<SAnimOutlinerItem>& InRow) override;
 	virtual bool SupportsFiltering() const override { return false; }
 
-	TSharedPtr<SAnimNotifyPanel> GetAnimNotifyPanel() { return AnimNotifyPanel; }
+	TSharedRef<SAnimNotifyPanel> GetAnimNotifyPanel();
 	
 	void Update();
 

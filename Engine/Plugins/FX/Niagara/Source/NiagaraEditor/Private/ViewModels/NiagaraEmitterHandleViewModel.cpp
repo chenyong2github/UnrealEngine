@@ -6,7 +6,7 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraObjectSelection.h"
 #include "NiagaraScriptSource.h"
@@ -14,9 +14,9 @@
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraScriptOutputCollectionViewModel.h"
+#include "Algo/Find.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-
 #include "ScopedTransaction.h"
 #include "NiagaraRendererProperties.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
@@ -45,31 +45,6 @@ void FNiagaraEmitterHandleViewModel::Cleanup()
 	{
 		EmitterStackViewModel->Finalize();
 		EmitterStackViewModel = nullptr;
-	}
-}
-
-void FNiagaraEmitterHandleViewModel::GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData)
-{
-	InRendererPreviewData.Empty();
-	UNiagaraEmitter* Emitter = GetEmitterHandle()->GetInstance();
-	UNiagaraStackRoot* StackRoot = Cast<UNiagaraStackRoot>(EmitterStackViewModel->GetRootEntry());
-	if (StackRoot)
-	{
-		TArray<UNiagaraStackEntry*> Children;
-		StackRoot->GetRenderGroup()->GetUnfilteredChildren(Children);
-		for (UNiagaraStackEntry* Child : Children)
-		{
-			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(Child))
-			{
-				TArray<UMaterialInterface*> Materials;
-				FNiagaraEmitterInstance* InInstance = GetEmitterViewModel()->GetSimulation().IsValid() ? GetEmitterViewModel()->GetSimulation().Pin().Get() : nullptr;
-				RendererItem->GetRendererProperties()->GetUsedMaterials(InInstance, Materials);
-				for (UMaterialInterface* Material : Materials)
-				{
-					InRendererPreviewData.Add(new FRendererPreviewData(Child, Material));
-				}
-			}
-		}
 	}
 }
 
@@ -233,10 +208,27 @@ void FNiagaraEmitterHandleViewModel::OnNameTextComitted(const FText& InText, ETe
 
 bool FNiagaraEmitterHandleViewModel::VerifyNameTextChanged(const FText& NewText, FText& OutErrorMessage)
 {
-	FName NewName = *NewText.ToString();
-	if (NewName == FName())
+	static const FString ReservedNames[] =
+	{
+		TEXT("Particles"),
+		TEXT("Local"),
+		TEXT("Engine"),
+		TEXT("Transient"),
+		TEXT("User"),
+		TEXT("Emitter"),
+		TEXT("Module"),
+		TEXT("NPC")
+	};
+
+	FString NewString = NewText.ToString();
+	if (NewText.IsEmptyOrWhitespace())
 	{
 		OutErrorMessage = NSLOCTEXT("NiagaraEmitterEditor", "NiagaraInputNameEmptyWarn", "Cannot have empty name!");
+		return false;
+	}
+	else if (Algo::Find(ReservedNames, NewString) != nullptr)
+	{
+		OutErrorMessage = FText::Format(NSLOCTEXT("NiagaraEmitterEditor", "NiagaraInputNameReservedWarn", "Cannot use reserved name \"{0}\"!"), NewText);
 		return false;
 	}
 	return true;

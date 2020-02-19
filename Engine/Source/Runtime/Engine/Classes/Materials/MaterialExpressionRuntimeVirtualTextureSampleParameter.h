@@ -35,7 +35,7 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 #endif
 
 	/** Return whether this is the named parameter from this material expression, and if it is then return its value. */
-	bool IsNamedParameter(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue) const;
+	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue) const;
 	/** Adds to arrays of parameter info and id with the values used by this material expression. */
 	void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
 

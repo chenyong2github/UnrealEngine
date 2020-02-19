@@ -6,6 +6,18 @@
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "Modules/ModuleManager.h"
+#if WITH_EDITOR
+#include "Widgets/Images/SImage.h"
+#include "Styling/SlateIconFinder.h"
+#include "Widgets/SWidget.h"
+#include "Styling/SlateBrush.h"
+#include "AssetThumbnail.h"
+#include "Widgets/Text/STextBlock.h"
+#endif
+
+
+#define LOCTEXT_NAMESPACE "UNiagaraMeshRendererProperties"
+
 
 TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> UNiagaraMeshRendererProperties::MeshRendererPropertiesToDeferredInit;
 
@@ -32,9 +44,14 @@ bool FNiagaraMeshMaterialOverride::SerializeFromMismatchedTag(const struct FProp
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	: ParticleMesh(nullptr)
 	, SortMode(ENiagaraSortMode::None)
+	, bOverrideMaterials(false)
 	, bSortOnlyWhenTranslucent(true)
 	, SubImageSize(1.0f, 1.0f)
 	, bSubImageBlend(false)
+	, FacingMode(ENiagaraMeshFacingMode::Default)
+	, bLockedAxisEnable(false)
+	, LockedAxis(0.0f, 0.0f, 1.0f)
+	, LockedAxisSpace(ENiagaraMeshLockedAxisSpace::Simulation)
 {
 }
 
@@ -54,8 +71,8 @@ FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator
 {
 	if (ParticleMesh)
 	{
-		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator = new FNiagaraBoundsCalculatorHelper<false, true, false>();
-		BoundsCalculator->MeshExtents = ParticleMesh->GetBounds().BoxExtent;
+		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator
+			= new FNiagaraBoundsCalculatorHelper<false, true, false>(ParticleMesh->GetBounds().BoxExtent);
 		return BoundsCalculator;
 	}
 
@@ -122,6 +139,7 @@ void UNiagaraMeshRendererProperties::InitBindings()
 		ScaleBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_SCALE);
 		MaterialRandomBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_MATERIAL_RANDOM);
 		NormalizedAgeBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
+		CameraOffsetBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_CAMERA_OFFSET);
 
 		//Default custom sorting to age
 		CustomSortingBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
@@ -271,6 +289,46 @@ const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetOptionalAttri
 	return Attrs;
 }
 
+void UNiagaraMeshRendererProperties::GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
+{
+	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
+	int32 ThumbnailSize = 32;
+	TArray<UMaterialInterface*> Materials;
+	GetUsedMaterials(InEmitter, Materials);
+	for (UMaterialInterface* Material : Materials)
+	{
+		TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(Material, ThumbnailSize, ThumbnailSize, InThumbnailPool));
+		if (AssetThumbnail)
+		{
+			ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
+		}
+		OutWidgets.Add(ThumbnailWidget);
+	}
+
+	if (Materials.Num() == 0)
+	{
+		TSharedRef<SWidget> SpriteWidget = SNew(SImage)
+			.Image(FSlateIconFinder::FindIconBrushForClass(GetClass()));
+		OutWidgets.Add(SpriteWidget);
+	}
+}
+
+void UNiagaraMeshRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
+{
+	TArray<UMaterialInterface*> Materials;
+	GetUsedMaterials(InEmitter, Materials);
+	if (Materials.Num() > 0)
+	{
+		GetRendererWidgets(InEmitter, OutWidgets, InThumbnailPool);
+	}
+	else
+	{
+		TSharedRef<SWidget> MeshTooltip = SNew(STextBlock)
+			.Text(LOCTEXT("MeshRendererNoMat", "Mesh Renderer (No Material Set)"));
+		OutWidgets.Add(MeshTooltip);
+	}
+}
+
 void UNiagaraMeshRendererProperties::BeginDestroy()
 {
 	Super::BeginDestroy();
@@ -344,3 +402,5 @@ void UNiagaraMeshRendererProperties::CheckMaterialUsage()
 }
 
 #endif // WITH_EDITORONLY_DATA
+
+#undef LOCTEXT_NAMESPACE

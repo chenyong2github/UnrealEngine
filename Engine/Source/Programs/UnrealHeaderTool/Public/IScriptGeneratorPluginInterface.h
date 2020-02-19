@@ -16,10 +16,12 @@ struct EBuildModuleType
 	{
 		Program,
 		EngineRuntime,
+		EngineUncooked,
 		EngineDeveloper,
 		EngineEditor,
 		EngineThirdParty,
 		GameRuntime,
+		GameUncooked,
 		GameDeveloper,
 		GameEditor,
 		GameThirdParty,

@@ -1496,10 +1496,10 @@ void FMaterialOfflineCompilation::CopyPlatformSpecificStats()
 		return;
 	}
 
-	TMap<FName, FShader*> SrcShaders;
+	TMap<FHashedName, TShaderRef<FShader>> SrcShaders;
 	SrcShaderMap->GetShaderList(SrcShaders);
 
-	TMap<FName, FShader*> DstShaders;
+	TMap<FHashedName, TShaderRef<FShader>> DstShaders;
 	DstShaderMap->GetShaderList(DstShaders);
 
 	for (auto Pair : SrcShaders)
@@ -1507,11 +1507,8 @@ void FMaterialOfflineCompilation::CopyPlatformSpecificStats()
 		auto *DestinationShaderPtr = DstShaders.Find(Pair.Key);
 		if (DestinationShaderPtr != nullptr)
 		{
-			FShader *DestinationShader = *DestinationShaderPtr;
-			FShader *SourceShader = Pair.Value;
-
-			auto NumInstructions = SourceShader->GetNumInstructions();
-			DestinationShader->SetNumInstructions(NumInstructions);
+			auto NumInstructions = Pair.Value->GetNumInstructions();
+			(*DestinationShaderPtr)->SetNumInstructions(NumInstructions);
 		}
 	}
 }

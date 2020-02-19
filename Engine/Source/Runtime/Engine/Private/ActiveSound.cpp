@@ -198,7 +198,7 @@ int32 FActiveSound::GetPlayCount() const
 		return 0;
 	}
 
-	if (const int32* PlayCount = Sound->CurrentPlayCount.Find(AudioDevice->DeviceHandle))
+	if (const int32* PlayCount = Sound->CurrentPlayCount.Find(AudioDevice->DeviceID))
 	{
 		return *PlayCount;
 	}
@@ -322,7 +322,7 @@ USoundClass* FActiveSound::GetSoundClass() const
 	return nullptr;
 }
 
-USoundSubmix* FActiveSound::GetSoundSubmix() const
+USoundSubmixBase* FActiveSound::GetSoundSubmix() const
 {
 	return Sound ? Sound->GetSoundSubmix() : nullptr;
 }
@@ -343,20 +343,20 @@ void FActiveSound::SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo)
 	SoundSubmixSendsOverride.Add(SubmixSendInfo);
 }
 
-void FActiveSound::SetSourceBusSend(EBusSendType BusSendType, const FSoundSourceBusSendInfo& SourceBusSendInfo)
+void FActiveSound::SetSourceBusSend(EBusSendType BusSendType, const FSoundSourceBusSendInfo& SendInfo)
 {
 	// Override send level if the source bus send is already included in active sound
-	for (FSoundSourceBusSendInfo& Info : SoundSourceBusSendsOverride[(int32)BusSendType])
+	for (FSoundSourceBusSendInfo& Info : BusSendsOverride[(int32)BusSendType])
 	{
-		if (Info.SoundSourceBus == SourceBusSendInfo.SoundSourceBus)
+		if (Info.SoundSourceBus == SendInfo.SoundSourceBus || Info.AudioBus == SendInfo.AudioBus)
 		{
-			Info.SendLevel = SourceBusSendInfo.SendLevel;
+			Info.SendLevel = SendInfo.SendLevel;
 			return;
 		}
 	}
 
 	// Otherwise, add it to the source bus send overrides
-	SoundSourceBusSendsOverride[(int32)BusSendType].Add(SourceBusSendInfo);
+	BusSendsOverride[(int32)BusSendType].Add(SendInfo);
 }
 
 void FActiveSound::Stop()
@@ -386,6 +386,8 @@ void FActiveSound::GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) c
 					bOverridden = true;
 					break;
 				}
+
+				ensure(OutSendInfo.SendLevel > 0.0f);
 			}
 
 			if (!bOverridden)
@@ -396,7 +398,7 @@ void FActiveSound::GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) c
 	}
 }
 
-void FActiveSound::GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const
+void FActiveSound::GetBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const
 {
 	if (Sound)
 	{
@@ -404,12 +406,12 @@ void FActiveSound::GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoun
 		Sound->GetSoundSourceBusSends(BusSendType, OutSends);
 
 		// Loop through the overrides, which may append or override the existing send
-		for (const FSoundSourceBusSendInfo& SendInfo : SoundSourceBusSendsOverride[(int32)BusSendType])
+		for (const FSoundSourceBusSendInfo& SendInfo : BusSendsOverride[(int32)BusSendType])
 		{
 			bool bOverridden = false;
 			for (FSoundSourceBusSendInfo& OutSendInfo : OutSends)
 			{
-				if (OutSendInfo.SoundSourceBus == SendInfo.SoundSourceBus)
+				if (OutSendInfo.SoundSourceBus == SendInfo.SoundSourceBus || OutSendInfo.AudioBus == SendInfo.AudioBus)
 				{
 					OutSendInfo.SendLevel = SendInfo.SendLevel;
 					bOverridden = true;
@@ -533,7 +535,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 
 	for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 	{
-		GetSoundSourceBusSends((EBusSendType)BusSendType, ParseParams.SoundSourceBusSends[BusSendType]);
+		GetBusSends((EBusSendType)BusSendType, ParseParams.BusSends[BusSendType]);
 	}
 
 	// Set up the base source effect chain.
@@ -764,13 +766,13 @@ void FActiveSound::MarkPendingDestroy(bool bDestroyNow)
 
 	if (Sound && !bIsStopping)
 	{
-		int32* PlayCount = AudioDevice ? Sound->CurrentPlayCount.Find(AudioDevice->DeviceHandle) : nullptr;
+		int32* PlayCount = AudioDevice ? Sound->CurrentPlayCount.Find(AudioDevice->DeviceID) : nullptr;
 		if (PlayCount)
 		{
 			*PlayCount = FMath::Max(*PlayCount - 1, 0);
 			if (*PlayCount == 0)
 			{
-				Sound->CurrentPlayCount.Remove(AudioDevice->DeviceHandle);
+				Sound->CurrentPlayCount.Remove(AudioDevice->DeviceID);
 			}
 		}
 
@@ -953,7 +955,7 @@ void FActiveSound::OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDat
 	{
 		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(TraceDetails.AudioDeviceID))
+			if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDeviceRaw(TraceDetails.AudioDeviceID))
 			{
 				FActiveSound* ActiveSound = TraceDetails.ActiveSound;
 
@@ -1011,7 +1013,7 @@ void FActiveSound::CheckOcclusion(const FVector ListenerLocation, const FVector 
 				const uint32 SoundOwnerID = OwnerID;
 				TWeakObjectPtr<UWorld> SoundWorld = World;
 				FAsyncTraceDetails TraceDetails;
-				TraceDetails.AudioDeviceID = AudioDevice->DeviceHandle;
+				TraceDetails.AudioDeviceID = AudioDevice->DeviceID;
 				TraceDetails.ActiveSound = this;
 
 				FAudioThread::RunCommandOnGameThread([SoundWorld, SoundLocation, ListenerLocation, OcclusionTraceChannel, SoundOwnerID, bUseComplexCollisionForOcclusion, TraceDetails]

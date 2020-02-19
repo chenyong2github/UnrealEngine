@@ -15,7 +15,7 @@ public class OnlineSubsystemUtils : ModuleRules
         string EnginePath = Path.GetFullPath(Target.RelativeEnginePath);
         string RuntimePath = EnginePath + "Source/Runtime/";
 
-        bool bIsWindowsPlatformBuild = ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64));
+        bool bIsWindowsPlatformBuild = Target.Platform.IsInGroup(UnrealPlatformGroup.Windows);
 
         if (bIsWindowsPlatformBuild)
         {

@@ -52,6 +52,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "IVREditorModule.h"
+#include "VREditorMode.h"
+#include "VREditorInteractor.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SteamVRInputDevice"
@@ -1224,36 +1227,36 @@ void FSteamVRInputDevice::OnVREditingModeEnter()
 	// Set Input Settings
 	auto InputSettings = GetMutableDefault<UInputSettings>();
 
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_WorldMovementL", EKeys::MotionController_Left_Grip1), false);
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TouchL", EKeys::Vive_Left_Trackpad_Touch), false);
-	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerL", EKeys::MotionController_Left_Trigger), false);
-	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisL", EKeys::MotionController_Left_TriggerAxis), false);
-	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_X", EKeys::MotionController_Left_Thumbstick_X), false);
-	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_Y", EKeys::MotionController_Left_Thumbstick_Y), false);
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionL", EKeys::MotionController_Left_Thumbstick), false);
+	UVREditorMode* EditorMode = IVREditorModule::Get().GetVRMode();
+	if (!EditorMode)
+	{
+		return;
+	}
 
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ModifierL", EKeys::Vive_Left_Menu_Click), false);
+	for (UVREditorInteractor* Interactor : EditorMode->GetVRInteractors())
+	{
+		FName Hand = Interactor->GetControllerHandSide();
+		for (const auto& KeyToAction : Interactor->GetKeyToActionMap())
+		{
+			const FKey Key = KeyToAction.Key;
+			if (Key.GetFName().ToString().StartsWith("MotionController"))
+			{
+				continue;
+			}
 
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownL", EKeys::Vive_Left_Trackpad_Down), false); // down
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftL", EKeys::Vive_Left_Trackpad_Left), false);
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightL", EKeys::Vive_Left_Trackpad_Right), false);
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpL", EKeys::Vive_Left_Trackpad_Up), false);
+			const FName Action = KeyToAction.Value.ActionType;
+			FName CombinedName = FName("VREditor_" + Hand.ToString() + "_" + Action.ToString());
 
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_WorldMovementR", EKeys::MotionController_Right_Grip1), false);
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TouchR", EKeys::Vive_Right_Trackpad_Touch), false);
-	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerR", EKeys::MotionController_Right_Trigger), false);
-	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisR", EKeys::MotionController_Right_TriggerAxis), false);
-	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_X", EKeys::MotionController_Right_Thumbstick_X), false);
-	InputSettings->AddAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_Y", EKeys::MotionController_Right_Thumbstick_Y), false);
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionR", EKeys::MotionController_Right_Thumbstick), false);
-
-
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_ModifierR", EKeys::Vive_Right_Menu_Click), false);
-
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownR", EKeys::Vive_Right_Trackpad_Down), false); // down
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftR", EKeys::Vive_Right_Trackpad_Left), false);
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightR", EKeys::Vive_Right_Trackpad_Right), false);
-	InputSettings->AddActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpR", EKeys::Vive_Right_Trackpad_Up), false);
+			if (Key.IsFloatAxis())
+			{
+				InputSettings->AddAxisMapping(FInputAxisKeyMapping(CombinedName, Key), false);
+			}
+			else
+			{
+				InputSettings->AddActionMapping(FInputActionKeyMapping(CombinedName, Key), false);
+			}
+		}
+	}
 
 	InputSettings->ForceRebuildKeymaps();
 
@@ -1265,34 +1268,36 @@ void FSteamVRInputDevice::OnVREditingModeExit()
 	// Set Input Settings
 	auto InputSettings = GetMutableDefault<UInputSettings>();
 
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_WorldMovementL", EKeys::MotionController_Left_Grip1), false);
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TouchL", EKeys::Vive_Left_Trackpad_Touch), false);
-	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisL", EKeys::MotionController_Left_TriggerAxis), false);
-	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_X", EKeys::MotionController_Left_Thumbstick_X), false);
-	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionL_Y", EKeys::MotionController_Left_Thumbstick_Y), false);
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionL", EKeys::MotionController_Left_Thumbstick), false);
+	UVREditorMode* EditorMode = IVREditorModule::Get().GetVRMode();
+	if (!EditorMode)
+	{
+		return;
+	}
 
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ModifierL", EKeys::Vive_Left_Menu_Click), false);
+	for (UVREditorInteractor* Interactor : EditorMode->GetVRInteractors())
+	{
+		FName Hand = Interactor->GetControllerHandSide();
+		for (const auto& KeyToAction : Interactor->GetKeyToActionMap())
+		{
+			const FKey Key = KeyToAction.Key;
+			if (Key.GetFName().ToString().StartsWith("MotionController"))
+			{
+				continue;
+			}
 
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownL", EKeys::Vive_Left_Trackpad_Down), false); // down
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftL", EKeys::Vive_Left_Trackpad_Left), false);
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightL", EKeys::Vive_Left_Trackpad_Right), false);
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpL", EKeys::Vive_Left_Trackpad_Up), false);
+			const FName Action = KeyToAction.Value.ActionType;
+			FName CombinedName = FName("VREditor_" + Hand.ToString() + "_" + Action.ToString());
 
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_WorldMovementR", EKeys::MotionController_Right_Grip1), false);
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TouchR", EKeys::Vive_Right_Trackpad_Touch), false);
-	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TriggerAxisR", EKeys::MotionController_Right_TriggerAxis), false);
-	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_X", EKeys::MotionController_Right_Thumbstick_X), false);
-	InputSettings->RemoveAxisMapping(FInputAxisKeyMapping("VREditor_TrackpadPositionR_Y", EKeys::MotionController_Right_Thumbstick_Y), false);
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ConfirmRadialSelectionR", EKeys::MotionController_Right_Thumbstick), false);
-
-
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_ModifierR", EKeys::Vive_Right_Menu_Click), false);
-
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadDownR", EKeys::Vive_Right_Trackpad_Down), false); // down
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadLeftR", EKeys::Vive_Right_Trackpad_Left), false);
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadRightR", EKeys::Vive_Right_Trackpad_Right), false);
-	InputSettings->RemoveActionMapping(FInputActionKeyMapping("VREditor_TrackpadUpR", EKeys::Vive_Right_Trackpad_Up), false);
+			if (Key.IsFloatAxis())
+			{
+				InputSettings->RemoveAxisMapping(FInputAxisKeyMapping(CombinedName, Key), false);
+			}
+			else
+			{
+				InputSettings->RemoveActionMapping(FInputActionKeyMapping(CombinedName, Key), false);
+			}
+		}
+	}
 
 	InputSettings->ForceRebuildKeymaps();
 

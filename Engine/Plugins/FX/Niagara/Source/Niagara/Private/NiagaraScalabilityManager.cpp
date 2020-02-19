@@ -181,7 +181,7 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 #endif
 
 		UNiagaraSystem* System = Component->GetAsset();
-		const FNiagaraScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings(Component->GetPreviewDetailLevel());
+		const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
 
 		SignificanceSortedIndices.Add(i);
 		bNeedSortedSignificanceCull = ScalabilitySettings.bCullMaxInstanceCount && ScalabilitySettings.MaxInstances > 0;
@@ -204,7 +204,7 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 
 			bool bOldCulled = CompState.bCulled;
 
-			const FNiagaraScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings(Component->GetPreviewDetailLevel());
+			const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
 			WorldMan->SortedSignificanceCull(EffectType, ScalabilitySettings, CompState.Significance, i, CompState);
 
 			CompState.bDirty |= CompState.bCulled != bOldCulled;

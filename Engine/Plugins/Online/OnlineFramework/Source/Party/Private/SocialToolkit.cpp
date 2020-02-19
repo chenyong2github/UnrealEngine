@@ -209,9 +209,27 @@ IOnlineSubsystem* USocialToolkit::GetSocialOss(ESocialSubsystem SubsystemType) c
 	return Online::GetSubsystem(GetWorld(), USocialManager::GetSocialOssName(SubsystemType));
 }
 
-TSharedRef<ISocialUserList> USocialToolkit::CreateUserList(const FSocialUserListConfig& ListConfig)
+TSharedRef<ISocialUserList> USocialToolkit::CreateUserList(const FSocialUserListConfig& ListConfig) const
 {
-	return FSocialUserList::CreateUserList(*this, ListConfig);
+	CachedSocialUserLists.RemoveAll([](const TWeakPtr<FSocialUserList>& UserList)
+	{
+		return !UserList.IsValid(); 
+	});
+
+	TWeakPtr<FSocialUserList>* FoundUserList = CachedSocialUserLists.FindByPredicate([ListConfig](const TWeakPtr<FSocialUserList>& UserList)
+	{
+		return UserList.IsValid() ? UserList.Pin()->GetListConfig() == ListConfig : false;
+	});
+
+	if (FoundUserList && (*FoundUserList).IsValid())
+	{
+		UE_LOG(LogParty, Verbose, TEXT("%s Found Userlist %s while creating Userlist %s with the same list config."), ANSI_TO_TCHAR(__FUNCTION__), *(*FoundUserList).Pin()->GetListConfig().Name, *ListConfig.Name);
+		return (*FoundUserList).Pin().ToSharedRef();
+	}
+	
+	TSharedRef<FSocialUserList> NewUserList = FSocialUserList::CreateUserList(*this, ListConfig);
+	CachedSocialUserLists.Add(NewUserList);
+	return NewUserList;
 }
 
 USocialUser& USocialToolkit::GetLocalUser() const

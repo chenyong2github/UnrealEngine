@@ -244,12 +244,16 @@ private:
 	int32 NumActiveTargets;
 };
 
+struct FD3D11RHIGenericCommandString
+{
+	static const TCHAR* TStr() { return TEXT("FD3D11RHIGenericCommand"); }
+};
 template <
 	typename JobType,
 	typename = TEnableIf<TOr<
 	TIsSame<JobType, TFunction<void()>>,
 	TIsSame<JobType, TFunction<void()>&>>::Value>>
-	class TD3D11RHIGenericCommand final : public FRHICommand<TD3D11RHIGenericCommand<JobType>>
+	class TD3D11RHIGenericCommand final : public FRHICommand<TD3D11RHIGenericCommand<JobType>, FD3D11RHIGenericCommandString>
 {
 public:
 	// InRHIJob is supposed to be called on RHIT (don't capture things that can become outdated here)

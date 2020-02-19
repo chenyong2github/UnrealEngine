@@ -152,13 +152,13 @@ namespace ChaosTest {
 		TEvolution Evolution(Particles);
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> ParticleHandles = Evolution.CreateDynamicParticles(5);
 
-		TPBDRigidSpringConstraints<FReal, 3> Constraints;
-		TArray<TPBDRigidSpringConstraintHandle<FReal, 3>*> ConstraintsHandles =
+		FPBDRigidSpringConstraints Constraints;
+		TArray<FPBDRigidSpringConstraintHandle*> ConstraintsHandles =
 		{
-			Constraints.AddConstraint({ ParticleHandles[0], ParticleHandles[1] }, { { 0, 0, 0 }, { 0, 0, 0 } }),
-			Constraints.AddConstraint({ ParticleHandles[1], ParticleHandles[2] }, { { 0, 0, 0 }, { 0, 0, 0 } }),
-			Constraints.AddConstraint({ ParticleHandles[2], ParticleHandles[3] }, { { 0, 0, 0 }, { 0, 0, 0 } }),
-			Constraints.AddConstraint({ ParticleHandles[3], ParticleHandles[4] }, { { 0, 0, 0 }, { 0, 0, 0 } }),
+			Constraints.AddConstraint({ ParticleHandles[0], ParticleHandles[1] }, { { 0, 0, 0 }, { 0, 0, 0 } }, 1.0f, 0.0f, 0.0f),
+			Constraints.AddConstraint({ ParticleHandles[1], ParticleHandles[2] }, { { 0, 0, 0 }, { 0, 0, 0 } }, 1.0f, 0.0f, 0.0f),
+			Constraints.AddConstraint({ ParticleHandles[2], ParticleHandles[3] }, { { 0, 0, 0 }, { 0, 0, 0 } }, 1.0f, 0.0f, 0.0f),
+			Constraints.AddConstraint({ ParticleHandles[3], ParticleHandles[4] }, { { 0, 0, 0 }, { 0, 0, 0 } }, 1.0f, 0.0f, 0.0f),
 		};
 
 		CheckConstraintHandles(Constraints, ParticleHandles, ConstraintsHandles);
@@ -186,35 +186,35 @@ namespace ChaosTest {
 
 	TEST(ConstraintHandleTests, DISABLED_CollisionConstraintHandle)
 	{
-		CollisionConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		CollisionConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}
 
 	TEST(ConstraintHandleTests, JointConstraintHandle)
 	{
-		JointConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		JointConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}
 
 	TEST(ConstraintHandleTests, PositionConstraintHandles)
 	{
-		PositionConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		PositionConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}
 
 	TEST(ConstraintHandleTests, RigidSpringConstraintHandles)
 	{
-		RigidSpringConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		RigidSpringConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}
 
 	TEST(ConstraintHandleTests, RigidDynamicSpringConstraintHandles)
 	{
-		RigidDynamicSpringConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		RigidDynamicSpringConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}

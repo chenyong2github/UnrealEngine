@@ -760,16 +760,19 @@ void SPropertyTreeViewImpl::RequestRefresh()
 	FavoritesTree->RequestTreeRefresh();
 }
 
-void SPropertyTreeViewImpl::SetObjectArray( const TArray< TWeakObjectPtr< UObject > >& InObjects )
+void SPropertyTreeViewImpl::SetObjectArray( const TArray<UObject*>& InObjects )
 {
 	check( RootPropertyNode.IsValid() );
 
 	PreSetObject();
 
+	TArray<UObject*> SetObjects;
+	SetObjects.Reserve(InObjects.Num());
+
 	bool bOwnedByLockedLevel = false;
-	for( int32 ObjectIndex = 0 ; ObjectIndex < InObjects.Num() ; ++ObjectIndex )
+	for(UObject* Object : InObjects)
 	{
-		RootPropertyNode->AddObject( InObjects[ObjectIndex].Get() );
+		RootPropertyNode->AddObject(Object);
 	}
 
 	// @todo Slate Property Window
@@ -809,7 +812,7 @@ void SPropertyTreeViewImpl::SetObjectArray( const TArray< TWeakObjectPtr< UObjec
 		Title = FText::Format( NSLOCTEXT("PropertyView", "MultipleSelectedFmt", "{0} ({1} selected)"), FText::FromString(RootPropertyNode->GetObjectBaseClass()->GetName()), RootPropertyNode->GetNumObjects() ).ToString();
 	}
 
-	OnObjectArrayChanged.ExecuteIfBound(Title, InObjects);
+	OnObjectArrayChanged.ExecuteIfBound(Title, SetObjects);
 }
 
 TSharedRef< FPropertyPath > SPropertyTreeViewImpl::GetRootPath() const
@@ -841,7 +844,7 @@ void SPropertyTreeViewImpl::SetRootPath( const TSharedPtr< FPropertyPath >& Path
 void SPropertyTreeViewImpl::ReplaceObjects( const TMap<UObject*, UObject*>& OldToNewObjectMap )
 {
 
-	TArray< TWeakObjectPtr< UObject > > NewObjectList;
+	TArray<UObject*> NewObjectList;
 	bool bObjectsReplaced = false;
 
 	TArray< FObjectPropertyNode* > ObjectNodes;
@@ -880,7 +883,7 @@ void SPropertyTreeViewImpl::ReplaceObjects( const TMap<UObject*, UObject*>& OldT
 
 void SPropertyTreeViewImpl::RemoveDeletedObjects( const TArray<UObject*>& DeletedObjects )
 {
-	TArray< TWeakObjectPtr< UObject > > NewObjectList;
+	TArray<UObject*> NewObjectList;
 	bool bObjectsRemoved = false;
 
 	// Scan all objects and look for objects which need to be replaced
@@ -912,7 +915,7 @@ void SPropertyTreeViewImpl::RemoveDeletedObjects( const TArray<UObject*>& Delete
  */
 void SPropertyTreeViewImpl::RemoveInvalidActors( const TSet<AActor*>& ValidActors )
 {
-	TArray< TWeakObjectPtr< UObject > > ResetArray;
+	TArray<UObject*> ResetArray;
 
 	bool bAllFound = true;
 	for ( TPropObjectIterator Itor( RootPropertyNode->ObjectIterator() ); Itor; ++Itor )
@@ -1039,7 +1042,7 @@ void SPropertyTreeViewImpl::Tick( const FGeometry& AllottedGeometry, const doubl
 	}
 	else if( Result == EPropertyDataValidationResult::ObjectInvalid && !bNodeTreeExternallyManaged )
 	{
-		TArray< TWeakObjectPtr< UObject > > ResetArray;
+		TArray<UObject*> ResetArray;
 		for ( TPropObjectIterator Itor( RootPropertyNode->ObjectIterator() ) ; Itor ; ++Itor )
 		{
 			TWeakObjectPtr<UObject> Object = *Itor;
@@ -1258,7 +1261,7 @@ void SPropertyTreeViewImpl::SetIsPropertyVisible(FIsPropertyVisible IsPropertyVi
 
 	if( RootPropertyNode.IsValid() )
 	{
-		TArray< TWeakObjectPtr< UObject > > Objects;
+		TArray<UObject*> Objects;
 		for( int32 ObjIndex = 0; ObjIndex < RootPropertyNode->GetNumObjects(); ++ObjIndex )
 		{
 			Objects.Add( RootPropertyNode->GetUObject( ObjIndex ) );

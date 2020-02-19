@@ -294,6 +294,7 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 		ComputeNodeName();
 	}
 
+	UpdateNodeErrorMessage();
 }
 
 // Returns true if this node is deprecated
@@ -680,15 +681,10 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("Message"), Signature.ExperimentalMessage);
-				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}"), Args);
+				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}."), Args);
 			}
 		}
 	}
-}
-
-void UNiagaraNodeFunctionCall::PostPlacedNewNode()
-{
-	UpdateNodeErrorMessage();
 }
 
 bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()

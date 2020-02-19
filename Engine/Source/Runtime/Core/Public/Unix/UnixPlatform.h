@@ -56,6 +56,7 @@ typedef FUnixPlatformTypes FPlatformTypes;
 #define PLATFORM_USE_PTHREADS							1
 #define PLATFORM_MAX_FILEPATH_LENGTH_DEPRECATED			UNIX_MAX_PATH /* @todo linux: avoid using PATH_MAX as it is known to be broken */
 #define PLATFORM_HAS_NO_EPROCLIM						1
+#define PLATFORM_HAS_BSD_IPV6_SOCKETS					1
 #define PLATFORM_HAS_BSD_SOCKET_FEATURE_IOCTL			1
 #define PLATFORM_HAS_BSD_SOCKET_FEATURE_MSG_DONTWAIT	1
 #define PLATFORM_HAS_BSD_SOCKET_FEATURE_RECVMMSG		1
@@ -98,6 +99,14 @@ typedef FUnixPlatformTypes FPlatformTypes;
 	#define PLATFORM_ENABLE_VECTORINTRINSICS_NEON	1
 #endif
 
+// We do not currently compile with -msse4 or higher on Unix or Linux
+#ifndef PLATFORM_MAYBE_HAS_SSE4_1 // May be set from UnrealBuildTool
+	#define PLATFORM_MAYBE_HAS_SSE4_1							0
+#endif
+#ifndef PLATFORM_ALWAYS_HAS_SSE4_1 // May be set from UnrealBuildTool
+	#define PLATFORM_ALWAYS_HAS_SSE4_1							0
+#endif
+
 
 // Function type macros.
 #define VARARGS															/* Functions with variable arguments */
@@ -119,12 +128,6 @@ typedef FUnixPlatformTypes FPlatformTypes;
 #endif
 
 #define ABSTRACT abstract
-
-// DLL export and import for types, only supported on clang
-#if defined(__clang__)
-#define DLLEXPORT_VTABLE	__attribute__ ((__type_visibility__("default")))
-#define DLLIMPORT_VTABLE	__attribute__ ((__type_visibility__("default")))
-#endif
 
 // DLL export and import definitions
 #define DLLEXPORT			__attribute__((visibility("default")))

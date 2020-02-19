@@ -91,8 +91,9 @@ public class Engine : ModuleRules
 				"PakFile",
 				"NetworkReplayStreaming",
 				"PhysicsCore",
-				"SignalProcessing"
-			}
+                "SignalProcessing",
+                "AudioExtensions"
+            }
 		);
 
 		PrivateDependencyModuleNames.AddRange(
@@ -158,10 +159,6 @@ public class Engine : ModuleRules
 					bVariadicTemplatesSupported = false;
 				}
 			}
-
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"libOpus"
-				);
 		}
 
 		if (bVariadicTemplatesSupported)

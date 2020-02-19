@@ -72,22 +72,32 @@ struct FAISightQuery
 	FPerceptionListenerID ObserverId;
 	FAISightTarget::FTargetId TargetId;
 
-	float Age;
 	float Score;
 	float Importance;
 
 	FVector LastSeenLocation;
 
-	uint32 bLastResult : 1;
+	uint64 bLastResult:1;
+	uint64 LastProcessedFrameNumber :63;
 
 	FAISightQuery(FPerceptionListenerID ListenerId = FPerceptionListenerID::InvalidID(), FAISightTarget::FTargetId Target = FAISightTarget::InvalidTargetId)
-		: ObserverId(ListenerId), TargetId(Target), Age(0), Score(0), Importance(0), LastSeenLocation(FAISystem::InvalidLocation), bLastResult(false)
+		: ObserverId(ListenerId), TargetId(Target), Score(0), Importance(0), LastSeenLocation(FAISystem::InvalidLocation), bLastResult(false), LastProcessedFrameNumber(GFrameCounter)
 	{
+	}
+
+	float GetAge() const
+	{
+		return (float)(GFrameCounter - LastProcessedFrameNumber);
 	}
 
 	void RecalcScore()
 	{
-		Score = Age + Importance;
+		Score = GetAge() + Importance;
+	}
+
+	void OnProcessed()
+	{
+		LastProcessedFrameNumber = GFrameCounter;
 	}
 
 	void ForgetPreviousResult()
@@ -121,6 +131,8 @@ public:
 		float SightRadiusSq;
 		float AutoSuccessRangeSqFromLastSeenLocation;
 		float LoseSightRadiusSq;
+		float PointOfViewBackwardOffset;
+		float NearClippingRadiusSq;
 		uint8 AffiliationFlags;
 
 		FDigestedSightProperties();
@@ -131,7 +143,13 @@ public:
 	FTargetsContainer ObservedTargets;
 	TMap<FPerceptionListenerID, FDigestedSightProperties> DigestedProperties;
 
-	TArray<FAISightQuery> SightQueryQueue;
+	/** The SightQueries are a n^2 problem and to reduce the sort time, they are now split between in range and out of range */
+	/** Since the out of range queries only age as the distance component of the score is always 0, there is few need to sort them */
+	/** In the majority of the cases most of the queries are out of range, so the sort time is greatly reduced as we only sort the in range queries */
+	int32 NextOutOfRangeIndex = 0;
+	bool bSightQueriesOutOfRangeDirty = true;
+	TArray<FAISightQuery> SightQueriesOutOfRange;
+	TArray<FAISightQuery> SightQueriesInRange;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
@@ -175,26 +193,41 @@ protected:
 
 	void OnNewListenerImpl(const FPerceptionListener& NewListener);
 	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
-	void OnListenerRemovedImpl(const FPerceptionListener& UpdatedListener);	
+	void OnListenerRemovedImpl(const FPerceptionListener& RemovedListener);
+	virtual void OnListenerConfigUpdated(const FPerceptionListener& UpdatedListener) override;
 	
-	void GenerateQueriesForListener(const FPerceptionListener& Listener, const FDigestedSightProperties& PropertyDigest);
-	void GenerateQueriesForListener(const FPerceptionListener& Listener, const FDigestedSightProperties& PropertyDigest, TFunctionRef<void(FAISightQuery&)> OnAddedFunc);
+	void GenerateQueriesForListener(const FPerceptionListener& Listener, const FDigestedSightProperties& PropertyDigest, const TFunction<void(FAISightQuery&)>& OnAddedFunc = nullptr);
 
+	void RemoveAllQueriesByListener(const FPerceptionListener& Listener, const TFunction<void(const FAISightQuery&)>& OnRemoveFunc = nullptr);
+	void RemoveAllQueriesToTarget(const FAISightTarget::FTargetId& TargetId, const TFunction<void(const FAISightQuery&)>& OnRemoveFunc = nullptr);
+
+	/** returns information whether new LoS queries have been added */
+	bool RegisterTarget(AActor& TargetActor, const TFunction<void(FAISightQuery&)>& OnAddedFunc = nullptr);
+
+	float CalcQueryImportance(const FPerceptionListener& Listener, const FVector& TargetLocation, const float SightRadiusSq) const;
+
+	// Deprecated methods
+public:
+	UE_DEPRECATED(4.25, "Not needed anymore done automatically at the beginning of each update.")
+	FORCEINLINE void SortQueries() {}
+
+protected:
 	enum FQueriesOperationPostProcess
 	{
 		DontSort,
 		Sort
 	};
-	void RemoveAllQueriesByListener(const FPerceptionListener& Listener, FQueriesOperationPostProcess PostProcess);
-	void RemoveAllQueriesByListener(const FPerceptionListener& Listener, FQueriesOperationPostProcess PostProcess, TFunctionRef<void(const FAISightQuery&)> OnRemoveFunc);
-	void RemoveAllQueriesToTarget(const FAISightTarget::FTargetId& TargetId, FQueriesOperationPostProcess PostProcess);
-	void RemoveAllQueriesToTarget(const FAISightTarget::FTargetId& TargetId, FQueriesOperationPostProcess PostProcess, TFunctionRef<void(const FAISightQuery&)> OnRemoveFunc);
+	UE_DEPRECATED(4.25, "Use RemoveAllQueriesByListener without unneeded PostProcess parameter.")
+	void RemoveAllQueriesByListener(const FPerceptionListener& Listener, FQueriesOperationPostProcess PostProcess) { RemoveAllQueriesByListener(Listener); }
+	UE_DEPRECATED(4.25, "Use RemoveAllQueriesByListener without unneeded PostProcess parameter.")
+	void RemoveAllQueriesByListener(const FPerceptionListener& Listener, FQueriesOperationPostProcess PostProcess, TFunctionRef<void(const FAISightQuery&)> OnRemoveFunc) { RemoveAllQueriesByListener(Listener, [&](const FAISightQuery& query) { OnRemoveFunc(query); }); }
+	UE_DEPRECATED(4.25, "Use RemoveAllQueriesToTarget without unneeded PostProcess parameter.")
+	void RemoveAllQueriesToTarget(const FAISightTarget::FTargetId& TargetId, FQueriesOperationPostProcess PostProcess) { RemoveAllQueriesToTarget(TargetId); }
+	UE_DEPRECATED(4.25, "Use RemoveAllQueriesToTarget without unneeded PostProcess parameter.")
+	void RemoveAllQueriesToTarget(const FAISightTarget::FTargetId& TargetId, FQueriesOperationPostProcess PostProcess, TFunctionRef<void(const FAISightQuery&)> OnRemoveFunc) { RemoveAllQueriesToTarget(TargetId, [&](const FAISightQuery& query) { OnRemoveFunc(query); }); }
+	UE_DEPRECATED(4.25, "Use RegisterTarget without unneeded PostProcess parameter.")
+	bool RegisterTarget(AActor& TargetActor, FQueriesOperationPostProcess PostProcess) { return RegisterTarget(TargetActor); }
+	UE_DEPRECATED(4.25, "Use RegisterTarget without unneeded PostProcess parameter.")
+	bool RegisterTarget(AActor& TargetActor, FQueriesOperationPostProcess PostProcess, TFunctionRef<void(FAISightQuery&)> OnAddedFunc) { return RegisterTarget(TargetActor, [&](FAISightQuery& query) { OnAddedFunc(query); }); }
 
-	/** returns information whether new LoS queries have been added */
-	bool RegisterTarget(AActor& TargetActor, FQueriesOperationPostProcess PostProcess);
-	bool RegisterTarget(AActor& TargetActor, FQueriesOperationPostProcess PostProcess, TFunctionRef<void(FAISightQuery&)> OnAddedFunc);
-
-	FORCEINLINE void SortQueries() { SightQueryQueue.Sort(FAISightQuery::FSortPredicate()); }
-
-	float CalcQueryImportance(const FPerceptionListener& Listener, const FVector& TargetLocation, const float SightRadiusSq) const;
 };

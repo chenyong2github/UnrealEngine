@@ -55,6 +55,8 @@ enum EGCReferenceType
 	GCRT_EndOfStream,
 	GCRT_NoopPersistentObject,
 	GCRT_NoopClass,
+	GCRT_ArrayObjectFreezable,
+	GCRT_ArrayStructFreezable,
 };
 
 /** 

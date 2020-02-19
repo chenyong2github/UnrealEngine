@@ -175,7 +175,7 @@ public:
 		// Fetch data from DDC
 		TArray<uint8> Results;
 		//TODO(ddebaets) this sync request seems to be blocking here while it uses the job pool. add overload to perform it on this thread?
-		const bool DDCResult = DDC.GetSynchronous(*Chunk->DerivedDataKey, Results);
+		const bool DDCResult = DDC.GetSynchronous(*Chunk->DerivedDataKey, Results, Filename);
 		if (DDCResult == false)
 		{
 			UE_LOG(LogVTDiskCache, Error, TEXT("Failed to fetch data from DDC (key: %s)"), *Chunk->DerivedDataKey);

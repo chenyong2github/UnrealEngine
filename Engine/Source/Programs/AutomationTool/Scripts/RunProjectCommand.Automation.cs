@@ -790,10 +790,6 @@ public partial class Project : CommandUtils
 				{
 					TempCmdLine += "-signedpak ";
 				}
-				else
-				{
-					TempCmdLine += "-pak ";
-				}
 			}
 			else if (!Params.Stage)
 			{
@@ -984,10 +980,6 @@ public partial class Project : CommandUtils
 			if (ServerParams.SignedPak)
 			{
 				Args += " -signedpak";
-			}
-			else
-			{
-				Args += " -pak";
 			}
 		}
 		if (IsBuildMachine || Params.Unattended)

@@ -350,7 +350,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingSkyLight(const FViewInfo& V
 				PermutationVector.Set<FRayTracingSkyLightRGS::FEnableMaterialsDim>(EnableMaterialsIndex != 0);
 				PermutationVector.Set<FRayTracingSkyLightRGS::FDecoupleSampleGeneration>(DecoupleSampleGeneration != 0);
 				TShaderMapRef<FRayTracingSkyLightRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
-				OutRayGenShaders.Add(RayGenerationShader->GetRayTracingShader());
+				OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 			}
 		}
 	}
@@ -422,7 +422,7 @@ void FDeferredShadingSceneRenderer::GenerateSkyLightVisibilityRays(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("GenerateSkyLightVisibilityRays"),
-		*ComputeShader,
+		ComputeShader,
 		PassParameters,
 		FComputeShaderUtils::GetGroupCount(FIntPoint(Dimensions.X, Dimensions.Y), FGenerateSkyLightVisibilityRaysCS::kGroupSize)
 	);
@@ -538,7 +538,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		PermutationVector.Set<FRayTracingSkyLightRGS::FEnableMaterialsDim>(CVarRayTracingSkyLightEnableMaterials.GetValueOnRenderThread() != 0);
 		PermutationVector.Set<FRayTracingSkyLightRGS::FDecoupleSampleGeneration>(CVarRayTracingSkyLightDecoupleSampleGeneration.GetValueOnRenderThread() != 0);
 		TShaderMapRef<FRayTracingSkyLightRGS> RayGenerationShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
-		ClearUnusedGraphResources(*RayGenerationShader, PassParameters);
+		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 		FIntPoint RayTracingResolution = View.ViewRect.Size();
 		GraphBuilder.AddPass(
@@ -548,18 +548,18 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
 		{
 			FRayTracingShaderBindingsWriter GlobalResources;
-			SetShaderParameters(GlobalResources, *RayGenerationShader, *PassParameters);
+			SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
 			FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 			if (CVarRayTracingSkyLightEnableMaterials.GetValueOnRenderThread() == 0)
 			{
 				// Declare default pipeline
 				FRayTracingPipelineStateInitializer Initializer;
-				Initializer.MaxPayloadSizeInBytes = 52; // sizeof(FPackedMaterialClosestHitPayload)
-				FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader->GetRayTracingShader() };
+				Initializer.MaxPayloadSizeInBytes = 60; // sizeof(FPackedMaterialClosestHitPayload)
+				FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
 				Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-				FRHIRayTracingShader* HitGroupTable[] = { View.ShaderMap->GetShader<FOpaqueShadowHitGroup>()->GetRayTracingShader() };
+				FRHIRayTracingShader* HitGroupTable[] = { View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader() };
 				Initializer.SetHitGroupTable(HitGroupTable);
 				Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.
 
@@ -567,7 +567,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			}
 
 			FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-			RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+			RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
 		});
 
 		// Denoising
@@ -692,12 +692,12 @@ void FDeferredShadingSceneRenderer::CompositeRayTracingSkyLight(
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			RHICmdList.SetViewport((float)View.ViewRect.Min.X, (float)View.ViewRect.Min.Y, 0.0f, (float)View.ViewRect.Max.X, (float)View.ViewRect.Max.Y, 1.0f);
 
@@ -709,7 +709,7 @@ void FDeferredShadingSceneRenderer::CompositeRayTracingSkyLight(
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
 				SceneContext.GetBufferSizeXY(),
-				*VertexShader
+				VertexShader
 			);
 		}
 		);
@@ -769,7 +769,7 @@ public:
 		const FRWBuffer& MipTreePosZ,
 		const FRWBuffer& MipTreeNegZ)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
@@ -781,27 +781,14 @@ public:
 		SetSRVParameter(RHICmdList, ShaderRHI, MipTreeNegZParameter, MipTreeNegZ.SRV);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << DimensionsParameter;
-		Ar << MipTreePosXParameter;
-		Ar << MipTreeNegXParameter;
-		Ar << MipTreePosYParameter;
-		Ar << MipTreeNegYParameter;
-		Ar << MipTreePosZParameter;
-		Ar << MipTreeNegZParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter DimensionsParameter;
-	FShaderResourceParameter MipTreePosXParameter;
-	FShaderResourceParameter MipTreeNegXParameter;
-	FShaderResourceParameter MipTreePosYParameter;
-	FShaderResourceParameter MipTreeNegYParameter;
-	FShaderResourceParameter MipTreePosZParameter;
-	FShaderResourceParameter MipTreeNegZParameter;
+	LAYOUT_FIELD(FShaderParameter, DimensionsParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MipTreePosXParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MipTreeNegXParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MipTreePosYParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MipTreeNegYParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MipTreePosZParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MipTreeNegZParameter);
 };
 
 IMPLEMENT_SHADER_TYPE(, FVisualizeSkyLightMipTreePS, TEXT("/Engine/Private/RayTracing/VisualizeSkyLightMipTreePS.usf"), TEXT("VisualizeSkyLightMipTreePS"), SF_Pixel)
@@ -844,8 +831,8 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -868,7 +855,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 		View.ViewRect.Width(), View.ViewRect.Height(),
 		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
 		SceneContext.GetBufferSizeXY(),
-		*VertexShader);
+		VertexShader);
 	ResolveSceneColor(RHICmdList);
 	RHICmdList.EndRenderPass();
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SkyLightMipTreeRT);

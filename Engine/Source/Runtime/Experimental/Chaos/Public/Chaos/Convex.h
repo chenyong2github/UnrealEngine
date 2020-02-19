@@ -8,6 +8,7 @@
 #include "ChaosArchive.h"
 #include "GJK.h"
 #include "ChaosCheck.h"
+#include "ChaosLog.h"
 
 namespace Chaos
 {
@@ -167,15 +168,22 @@ namespace Chaos
 			int32 MaxVIdx = 0;
 			const int32 NumVertices = SurfaceParticles.Size();
 
-			check(NumVertices > 0);
-			for (int32 Idx = 0; Idx < NumVertices; ++Idx)
+			if(ensure(NumVertices > 0))
 			{
-				const FReal Dot = FVec3::DotProduct(SurfaceParticles.X(Idx), Direction);
-				if (Dot > MaxDot)
+				for(int32 Idx = 0; Idx < NumVertices; ++Idx)
 				{
-					MaxDot = Dot;
-					MaxVIdx = Idx;
+					const FReal Dot = FVec3::DotProduct(SurfaceParticles.X(Idx), Direction);
+					if(Dot > MaxDot)
+					{
+						MaxDot = Dot;
+						MaxVIdx = Idx;
+					}
 				}
+			}
+			else
+			{
+				UE_LOG(LogChaos, Warning, TEXT("Attempting to get a support for an empty convex. Returning object center."));
+				return FVec3(0);
 			}
 
 			if (Thickness)

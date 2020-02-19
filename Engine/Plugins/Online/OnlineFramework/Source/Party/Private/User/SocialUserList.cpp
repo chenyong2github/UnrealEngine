@@ -6,20 +6,19 @@
 #include "Party/PartyMember.h"
 
 #include "Containers/Ticker.h"
-#include "Interfaces/OnlinePresenceInterface.h"
 #include "SocialSettings.h"
 #include "Algo/Transform.h"
 #include "SocialManager.h"
 #include "Party/SocialParty.h"
 
-TSharedRef<FSocialUserList> FSocialUserList::CreateUserList(USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& InConfig)
+TSharedRef<FSocialUserList> FSocialUserList::CreateUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& InConfig)
 {
 	TSharedRef<FSocialUserList> NewList = MakeShareable(new FSocialUserList(InOwnerToolkit, InConfig));
 	NewList->InitializeList();
 	return NewList;
 }
 
-FSocialUserList::FSocialUserList(USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& InConfig)
+FSocialUserList::FSocialUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& InConfig)
 	: OwnerToolkit(&InOwnerToolkit)
 	, ListConfig(InConfig)
 {
@@ -96,7 +95,10 @@ void FSocialUserList::UpdateNow()
 
 void FSocialUserList::SetAllowAutoUpdate(bool bIsEnabled)
 {
-	if (!bIsEnabled && UpdateTickerHandle.IsValid())
+	bIsEnabled ? AutoUpdateRequests++ : AutoUpdateRequests--;
+	AutoUpdateRequests = FMath::Max(AutoUpdateRequests, 0);
+
+	if (AutoUpdateRequests == 0 && UpdateTickerHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
 		UpdateTickerHandle.Reset();
@@ -225,7 +227,6 @@ void FSocialUserList::HandleUserPresenceChanged(ESocialSubsystem SubsystemType, 
 
 void FSocialUserList::HandleUserGameSpecificStatusChanged(USocialUser* User)
 {
-	// passing dummy Subsystem because HandleUserPresence changed currently doesn't care
 	MarkUserAsDirty(*User);
 	UpdateNow();
 }
@@ -285,7 +286,8 @@ void FSocialUserList::TryAddUserFast(USocialUser& User)
 				// Last step is to check the custom filter, if provided
 				bCanAdd = ListConfig.OnCustomFilterUser.IsBound() ? ListConfig.OnCustomFilterUser.Execute(User) : true;
 
-				// do an initial pass on the GameSpecificStatusFilters (these will only be run again when the user broadcasts OnGameSpecificStatusChanged)
+				// do an initial pass on the GameSpecificStatusFilters on newly added user, and for users that passed other checks but don't yet have the correct presence or game status,
+				// this will be called again from UpdateListInternal(), after the user broadcasts OnGameSpecificStatusChanged, or OnUserPresenceChanged, and the list mark it dirty.
 				for (TFunction<bool(const USocialUser&)> CustomFilterFunction : ListConfig.GameSpecificStatusFilters)
 				{
 					if (!bCanAdd)
@@ -353,7 +355,8 @@ void FSocialUserList::TryRemoveUserFast(USocialUser& User)
 				// We're going to keep the user based on the stock filters, but the custom filter can still veto
 				bRemoveUser = ListConfig.OnCustomFilterUser.IsBound() ? !ListConfig.OnCustomFilterUser.Execute(User) : false;
 
-				// do an initial pass on the GameSpecificStatusFilters (these will only be run again when the user broadcasts OnGameSpecificStatusChanged)
+				// For users that we decide to remove due to incorrect presence or game status, we'll keep listening to their presence and game status change since they may qualify again.
+				// For users that have presence or game status changed but still fit this list, these will be run again next time we got a presence changed or game status changed event.
 				if (!bRemoveUser)
 				{
 					for (TFunction<bool(const USocialUser&)> CustomFilterFunction : ListConfig.GameSpecificStatusFilters)
@@ -568,7 +571,7 @@ void FSocialUserList::UpdateListInternal()
 			{
 				SCOPED_NAMED_EVENT(STAT_SocialUserList_Sort, FColor::Orange);
 
-				UE_LOG(LogParty, Verbose, TEXT("%s sorting list of [%d] users"), ANSI_TO_TCHAR(__FUNCTION__), NumUsers);
+				UE_LOG(LogParty, VeryVerbose, TEXT("%s sorting list of [%d] users"), ANSI_TO_TCHAR(__FUNCTION__), NumUsers);
 
 				TArray<FUserSortData> SortedData;
 				SortedData.Reserve(NumUsers);

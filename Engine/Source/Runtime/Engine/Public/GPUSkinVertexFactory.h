@@ -396,8 +396,8 @@ public:
 		return Data.bUse16BitBoneIndex;
 	}
 
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class ::FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class ::FMaterial* Material, const FShaderType* ShaderType);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 	
 	/**
 	* An implementation of the interface used by TSynchronizedResource to 
@@ -416,8 +416,6 @@ public:
 	virtual void InitRHI() override;
 	virtual void InitDynamicRHI() override;
 	virtual void ReleaseDynamicRHI() override;
-
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 	void CopyDataTypeForPassthroughFactory(class FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory);
 
@@ -482,8 +480,8 @@ public:
 		bSupportsManualVertexFetch = true;
 	}
 
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class ::FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class ::FMaterial* Material, const FShaderType* ShaderType);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	inline void UpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory, struct FRWBuffer* PositionRWBuffer, struct FRWBuffer* TangentRWBuffer)
 	{
@@ -505,9 +503,6 @@ public:
 	}
 
 	void SetData(const FDataType& InData);
-
-	// FRenderResource interface.
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 	//TODO should be supported
 	bool SupportsPositionOnlyStream() const override { return false; }
@@ -564,8 +559,8 @@ public:
 	: TGPUSkinVertexFactory<BoneInfluenceType>(InFeatureLevel, InNumVertices)
 	{}
 
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class ::FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class ::FMaterial* Material, const FShaderType* ShaderType);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 	
 	/**
 	* An implementation of the interface used by TSynchronizedResource to 
@@ -588,7 +583,6 @@ public:
 	*/
 	virtual void InitRHI() override;
 
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 	virtual uint32 GetNumBoneInfluences() const override
 	{
@@ -683,6 +677,8 @@ public:
 		FVertexBufferAndSRV& GetClothBufferForWriting(uint32 FrameNumber)
 		{
 			uint32 Index = GetOldestIndex(FrameNumber);
+			Index = (BufferFrameNumber[0] == FrameNumber) ? 0 : Index;
+			Index = (BufferFrameNumber[1] == FrameNumber) ? 1 : Index;
 
 			// we don't write -1 as that is used to invalidate the entry
 			if(FrameNumber == -1)
@@ -714,6 +710,8 @@ public:
 		FMatrix& GetClothLocalToWorldForWriting(uint32 FrameNumber)
 		{
 			uint32 Index = GetOldestIndex(FrameNumber);
+			Index = (BufferFrameNumber[0] == FrameNumber) ? 0 : Index;
+			Index = (BufferFrameNumber[1] == FrameNumber) ? 1 : Index;
 
 			return ClothLocalToWorld[Index];
 		}
@@ -900,8 +898,8 @@ public:
 		: TGPUSkinVertexFactory<BoneInfluenceType>(InFeatureLevel, InNumVertices)
 	{}
 
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class ::FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class ::FMaterial* Material, const FShaderType* ShaderType);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	/**
 	* An implementation of the interface used by TSynchronizedResource to 
@@ -975,8 +973,6 @@ public:
 	*/
 	virtual void InitRHI() override;
 	virtual void ReleaseDynamicRHI() override;
-
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 protected:
 	/**

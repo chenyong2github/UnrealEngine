@@ -8,7 +8,6 @@
 #include "Chaos/Levelset.h"
 #include "Chaos/MassProperties.h"
 #include "Chaos/PBDRigidsEvolution.h"
-#include "Chaos/PBDRigidsEvolutionPGS.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDCollisionConstraintsPGS.h"
 #include "Chaos/Sphere.h"
@@ -114,7 +113,7 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RewindAndEvolve<BGF>()"), STAT_RewindAndEvolve_BGF, STATGROUP_Chaos);
 	template<class T, int d>
-	void RewindAndEvolve(TPBDRigidsEvolutionGBF<T, d>& Evolution, TPBDRigidClusteredParticles<T, d>& InParticles, const TSet<int32>& IslandsToRecollide, const TSet<uint32>& AllActivatedChildren, const T Dt, TPBDCollisionConstraints<T, d>& CollisionRule)
+	void RewindAndEvolve(FPBDRigidsEvolutionGBF& Evolution, TPBDRigidClusteredParticles<T, d>& InParticles, const TSet<int32>& IslandsToRecollide, const TSet<uint32>& AllActivatedChildren, const T Dt, TPBDCollisionConstraints<T, d>& CollisionRule)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_RewindAndEvolve_BGF);
 		// Rewind active particles
@@ -187,76 +186,6 @@ namespace Chaos
 			});
 		}
 	}
-
-#if CHAOS_PARTICLEHANDLE_TODO
-	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RewindAndEvolve<PSG>()"), STAT_RewindAndEvolve_PSG, STATGROUP_Chaos);
-	template<class T, int d>
-	void RewindAndEvolve(TPBDRigidsEvolutionPGS<T, d>& Evolution, TPBDRigidClusteredParticles<T, d>& InParticles, const TSet<int32>& IslandsToRecollide, const TSet<uint32>& AllActivatedChildren, const T Dt, TPBDCollisionConstraintPGS<T, d>& CollisionRule)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_RewindAndEvolve_PSG);
-		// Rewind active particles
-		TArray<int32>& NonDisabledIndices = Evolution.GetNonDisabledIndices();
-		PhysicsParallelFor(IslandsToRecollide.Num(), [&](int32 Island) {
-			TArray<int32> ParticleIndices = Evolution.GetIslandParticles(Island); // copy
-			for (int32 ArrayIdx = ParticleIndices.Num() - 1; ArrayIdx >= 0; --ArrayIdx)
-			{
-				int32 Index = ParticleIndices[ArrayIdx];
-				if (InParticles.Sleeping(Index) || InParticles.Disabled(Index))
-				{
-					ParticleIndices.RemoveAtSwap(ArrayIdx);
-				}
-				else
-				{
-					InParticles.P(Index) = InParticles.X(Index);
-					InParticles.Q(Index) = InParticles.R(Index);
-					InParticles.V(Index) = InParticles.PreV(Index);
-					InParticles.W(Index) = InParticles.PreW(Index);
-				}
-			}
-			Evolution.IntegrateV(ParticleIndices, Dt);
-		});
-
-		TSet<uint32> AllIslandParticles;
-		for (const auto& Island : IslandsToRecollide)
-		{
-			const TArray<int32>& ParticleIndices = Evolution.GetIslandParticles(Island);
-			for (const auto& Index : ParticleIndices)
-			{
-				if (InParticles.Disabled(Index) == false) //HACK: cluster code is incorrectly adding disabled children
-				{
-					if (!AllIslandParticles.Contains(Index))
-					{
-						AllIslandParticles.Add(Index);
-						NonDisabledIndices.Add(Index);
-					}
-				}
-				else
-				{
-					//FPlatformMisc::DebugBreak();
-				}
-			}
-		}
-
-		// @todo(mlentine): We can precompute internal constraints which can filter some from the narrow phase tests but may not help much
-		CollisionRule.UpdateConstraints(InParticles, Dt, AllActivatedChildren, AllIslandParticles.Array());
-
-		Evolution.InitializeAccelerationStructures();
-
-		PhysicsParallelFor(Evolution.NumIslands(), [&](int32 Island) {
-			Evolution.UpdateAccelerationStructures(Island);
-			Evolution.ApplyConstraints(Dt, Island);
-		});
-		PhysicsParallelFor(Evolution.NumIslands(), [&](int32 Island) {
-			const TArray<int32>& ParticleIndices = Evolution.GetIslandParticles(Island);
-			Evolution.IntegrateX(ParticleIndices, Dt);
-		});
-
-		// @todo(mlentine): Need to enforce constraints
-		PhysicsParallelFor(Evolution.NumIslands(), [&](int32 Island) {
-			Evolution.ApplyPushOut(Dt, Island);
-		});
-	}
-#endif
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateClusterMassProperties()"), STAT_UpdateClusterMassProperties, STATGROUP_Chaos);
 	template<class T, int d>
@@ -1925,10 +1854,7 @@ namespace Chaos
 } // namespace Chaos
 
 using namespace Chaos;
-template class CHAOS_API Chaos::TPBDRigidClustering<TPBDRigidsEvolutionGBF<float, 3>, TPBDCollisionConstraints<float, 3>, float, 3>;
-#if CHAOS_PARTICLEHANDLE_TODO
-template class CHAOS_API Chaos::TPBDRigidClustering<TPBDRigidsEvolutionPGS<float, 3>, TPBDCollisionConstraintPGS<float, 3>, float, 3>;
-#endif
+template class CHAOS_API Chaos::TPBDRigidClustering<FPBDRigidsEvolutionGBF, TPBDCollisionConstraints<float, 3>, float, 3>;
 template CHAOS_API void Chaos::UpdateClusterMassProperties<float, 3>(TPBDRigidClusteredParticles<float, 3>& Particles, const TArray<uint32>& Children, const uint32 ClusterIndex, const TRigidTransform<float, 3>* ForceMassOrientation,
 	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<float, 3>>>* MMultiChildProxyData,
 	const TArrayCollectionArray<FMultiChildProxyId>* MMultiChildProxyId);

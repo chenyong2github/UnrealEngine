@@ -97,6 +97,17 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 		case RAY_TRACING_DEBUG_VIZ_HITKIND:
 			Result = Payload.IsFrontFace() ? float4(0.0, 1.0, 0.0, 1.0f) : float4(1.0, 0.0, 0.0, 1.0f);
 			break;
+		case RAY_TRACING_DEBUG_VIZ_WORLD_TANGENT:
+			Result = float4(Payload.WorldTangent * 0.5 + 0.5, 1.0f);
+			break;
+		case RAY_TRACING_DEBUG_VIZ_ANISOTROPY:
+			{	
+			// Follow same mapping than raster buffer visualization (BP located in Engine/Contents/Anisotropy)
+			float AniG = saturate(Payload.Anisotropy);
+			float AniB = saturate(-1.0 * Payload.Anisotropy);
+			Result = float4(0.0, pow(AniG, 2.2), pow(AniB, 2.2), 1.0f);
+			break;
+			}
 		}
 	}
 

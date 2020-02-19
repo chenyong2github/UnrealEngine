@@ -61,9 +61,8 @@ bool USteamNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, con
 		return false;
 	}
 
-	if(Socket == NULL)
+	if (GetSocket() == nullptr)
 	{
-		Socket = 0;
 		Error = FString::Printf( TEXT("SteamSockets: socket failed (%i)"), (int32)SocketSubsystem->GetLastErrorCode() );
 		return false;
 	}
@@ -75,7 +74,7 @@ bool USteamNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, con
 	LocalAddr->SetPort(URL.Port);
 
 	int32 AttemptPort = LocalAddr->GetPort();
-	int32 BoundPort = SocketSubsystem->BindNextPort(Socket, *LocalAddr, MaxPortCountToTry + 1, 1);
+	int32 BoundPort = SocketSubsystem->BindNextPort(GetSocket(), *LocalAddr, MaxPortCountToTry + 1, 1);
 	UE_LOG(LogNet, Display, TEXT("%s bound to port %d"), *GetName(), BoundPort);
 	// Success.
 	return true;
@@ -89,7 +88,7 @@ bool USteamNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectU
 		// If we are opening a Steam URL, create a Steam client socket
 		if (ConnectURL.Host.StartsWith(STEAM_URL_PREFIX))
 		{
-			Socket = SteamSockets->CreateSocket(FName(TEXT("SteamClientSocket")), TEXT("Unreal client (Steam)"), FNetworkProtocolTypes::Steam);
+			SetSocketAndLocalAddress(SteamSockets->CreateSocket(FName(TEXT("SteamClientSocket")), TEXT("Unreal client (Steam)"), FNetworkProtocolTypes::Steam));
 		}
 		else
 		{
@@ -106,7 +105,7 @@ bool USteamNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool
 	if (SteamSockets && !ListenURL.HasOption(TEXT("bIsLanMatch")))
 	{
 		FName SocketTypeName = IsRunningDedicatedServer() ? FName(TEXT("SteamServerSocket")) : FName(TEXT("SteamClientSocket"));
-		Socket = SteamSockets->CreateSocket(SocketTypeName, TEXT("Unreal server (Steam)"), FNetworkProtocolTypes::Steam);
+		SetSocketAndLocalAddress(SteamSockets->CreateSocket(SocketTypeName, TEXT("Unreal server (Steam)"), FNetworkProtocolTypes::Steam));
 	}
 	else
 	{
@@ -121,7 +120,7 @@ void USteamNetDriver::Shutdown()
 {
 	if (!bIsPassthrough)
 	{
-		FSocketSteam* SteamSocket = (FSocketSteam*)Socket;
+		FSocketSteam* SteamSocket = (FSocketSteam*)GetSocket();
 		if (SteamSocket)
 		{
 			SteamSocket->SetSteamSendMode(k_EP2PSendUnreliableNoDelay);
@@ -133,7 +132,7 @@ void USteamNetDriver::Shutdown()
 
 bool USteamNetDriver::IsNetResourceValid()
 {
-	bool bIsValidSteamSocket = !bIsPassthrough && (Socket != NULL) && ((FSocketSteam*)Socket)->LocalSteamId.IsValid();
+	bool bIsValidSteamSocket = !bIsPassthrough && (GetSocket() != nullptr) && ((FSocketSteam*)GetSocket())->LocalSteamId.IsValid();
 	bool bIsValidPassthroughSocket = bIsPassthrough && UIpNetDriver::IsNetResourceValid();
 	return bIsValidSteamSocket || bIsValidPassthroughSocket;
 }

@@ -1252,7 +1252,7 @@ bool FSCSEditorTreeNodeComponent::CanEditDefaults() const
 	}
 	else if (UActorComponent* ComponentTemplate = GetComponentTemplate())
 	{
-		bCanEdit = FComponentEditorUtils::CanEditNativeComponent(ComponentTemplate);
+		bCanEdit = (FComponentEditorUtils::GetPropertyForEditableNativeComponent(ComponentTemplate) != nullptr);
 	}
 
 	return bCanEdit;
@@ -4708,7 +4708,7 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 						&& (!ActorComp->IsVisualizationComponent())
 						&& (ActorComp->CreationMethod != EComponentCreationMethod::UserConstructionScript || !bHideConstructionScriptComponentsInDetailsView)
 						&& (ParentSceneComp == nullptr || !ParentSceneComp->IsCreatedByConstructionScript() || !ActorComp->HasAnyFlags(RF_DefaultSubObject)))
-						&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::CanEditNativeComponent(ActorComp));
+						&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ActorComp));
 				};
 
 				for (auto It(ComponentsToAdd.CreateIterator()); It; ++It)
@@ -6541,6 +6541,7 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 			const FScopedTransaction Transaction(LOCTEXT("PushToBlueprintDefaults_Transaction", "Apply Changes to Blueprint"));
 
 			// The component selection state should be maintained
+			GEditor->GetSelectedActors()->Modify();
 			GEditor->GetSelectedComponents()->Modify();
 
 			Actor->Modify();
@@ -6574,15 +6575,15 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 					}
 				}
 			}
-		}
 
-		// Compile the BP outside of the transaction
- 		if (NumChangedProperties > 0)
- 		{
-			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-			FKismetEditorUtilities::CompileBlueprint(Blueprint);
-			RestoreSelectedInstanceComponent.Restore();
- 		}
+			// Compile the BP outside of the transaction
+			if (NumChangedProperties > 0)
+			{
+				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+				FKismetEditorUtilities::CompileBlueprint(Blueprint);
+				RestoreSelectedInstanceComponent.Restore();
+			}
+		}
 
 		// Set up a notification record to indicate success/failure
 		FNotificationInfo NotificationInfo(FText::GetEmpty());

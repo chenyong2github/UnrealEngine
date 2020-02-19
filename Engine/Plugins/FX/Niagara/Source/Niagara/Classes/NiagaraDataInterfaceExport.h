@@ -40,7 +40,7 @@ public:
 
 struct ExportInterface_InstanceData
 {
-	UObject* CallbackHandler = nullptr;
+	TWeakObjectPtr<UObject> CallbackHandler;
 
 	/** We use a lock-free queue here because multiple threads might try to push data to it at the same time. */
 	TQueue<FBasicParticleData, EQueueMode::Mpsc> GatheredData;
@@ -69,6 +69,7 @@ public:
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual int32 PerInstanceDataSize() const override { return sizeof(ExportInterface_InstanceData); }
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;

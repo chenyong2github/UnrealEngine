@@ -12,10 +12,12 @@ EBuildModuleType::Type EBuildModuleType::Parse(const TCHAR* Value)
 		TEXT("EngineEditor"),
 		TEXT("EngineRuntime"),
 		TEXT("EngineThirdParty"),
+		TEXT("EngineUncooked"),
 		TEXT("GameDeveloper"),
 		TEXT("GameEditor"),
 		TEXT("GameRuntime"),
 		TEXT("GameThirdParty"),
+		TEXT("GameUncooked"),
 		TEXT("Program")
 	};
 
@@ -30,10 +32,12 @@ EBuildModuleType::Type EBuildModuleType::Parse(const TCHAR* Value)
 		EngineEditor,
 		EngineRuntime,
 		EngineThirdParty,
+		EngineUncooked,
 		GameDeveloper,
 		GameEditor,
 		GameRuntime,
 		GameThirdParty,
+		GameUncooked,
 		Program
 	};
 

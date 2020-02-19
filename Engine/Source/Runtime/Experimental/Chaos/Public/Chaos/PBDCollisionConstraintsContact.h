@@ -4,6 +4,7 @@
 #include "Chaos/ExternalCollisionData.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/Collision/CollisionApplyType.h"
 
 namespace Chaos
 {
@@ -11,7 +12,6 @@ namespace Chaos
 
 	namespace Collisions
 	{
-
 		template<class T = float>
 		struct TContactParticleParameters {
 			T CullDistance;
@@ -26,6 +26,7 @@ namespace Chaos
 			const int32 Iteration;
 			const int32 NumIterations;
 			const int32 NumPairIterations;
+			const ECollisionApplyType ApplyType;	// @todo(chaos): a better way to customize the collision solver
 			bool* NeedsAnotherIteration;
 		};
 		using FContactIterationParameters = TContactIterationParameters<FReal>;

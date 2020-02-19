@@ -136,7 +136,7 @@ protected:
 	/** Helper function for AllocateDefaultPins */
 	void CreateExecutionPins();
 	void CreateInputPins(URigVMPin* InParentPin = nullptr);
-	void CreateInputOutputPins(URigVMPin* InParentPin = nullptr);
+	void CreateInputOutputPins(URigVMPin* InParentPin = nullptr, bool bHidden = false);
 	void CreateOutputPins(URigVMPin* InParentPin = nullptr);
 
 	/** Copies default values from underlying properties into pin defaults, for editing */

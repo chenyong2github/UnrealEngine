@@ -71,7 +71,7 @@ namespace process
 
 	Context* Spawn(const wchar_t* exePath, const wchar_t* workingDirectory, const wchar_t* commandLine, const void* environmentBlock, uint32_t flags)
 	{
-		Context* context = new Context { flags };
+		Context* context = new Context { flags, nullptr, PROCESS_INFORMATION {}, nullptr, {} };
 
 		::SECURITY_ATTRIBUTES saAttr;
 		saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -518,12 +518,13 @@ namespace process
 			const windowsInternal::NT_LDR_DATA_TABLE_ENTRY entry = ReadProcessMemory<windowsInternal::NT_LDR_DATA_TABLE_ENTRY>(handle, currentNode);
 
 			wchar_t fullDllName[MAX_PATH] = {};
-			if (entry.FullDllName.Length > 0)
+
+			// certain modules don't have a name and DLL base, skip those
+			if ((entry.DllBase != nullptr) && (entry.FullDllName.Length > 0) && (entry.FullDllName.Buffer != nullptr))
 			{
 				ReadProcessMemory(handle, entry.FullDllName.Buffer, fullDllName, entry.FullDllName.Length);
+				modules.emplace_back(Module { fullDllName, entry.DllBase, entry.SizeOfImage });
 			}
-
-			modules.emplace_back(Module { fullDllName, entry.DllBase, entry.SizeOfImage });
 
 			currentNode = entry.InLoadOrderLinks.Flink;
 			if (currentNode == nullptr)
@@ -618,7 +619,7 @@ namespace process
 
 		Environment* environment = new Environment;
 		environment->size = memoryInfo.RegionSize - (reinterpret_cast<uintptr_t>(processEnvironment) - reinterpret_cast<uintptr_t>(memoryInfo.BaseAddress));
-		environment->data = new char[environment->size];
+		environment->data = ::malloc(environment->size);
 
 		ReadProcessMemory(handle, processEnvironment, environment->data, environment->size);
 
@@ -639,8 +640,11 @@ namespace process
 
 		Environment* environment = new Environment;
 		environment->size = environmentData.size();
-		environment->data = new char[environmentData.size() * sizeof(wchar_t)];
-		memcpy(environment->data, environmentData.data(), environmentData.size() * sizeof(wchar_t));
+		environment->data = ::malloc(environmentData.size() * sizeof(wchar_t));
+		if (environment->data != nullptr)
+		{
+			memcpy(environment->data, environmentData.data(), environmentData.size() * sizeof(wchar_t));
+		}
 		return environment;
 	}
 	// END EPIC MOD
@@ -650,7 +654,7 @@ namespace process
 	{
 		if (environment)
 		{
-			delete[] environment->data;
+			::free(environment->data);
 		}
 
 		memory::DeleteAndNull(environment);

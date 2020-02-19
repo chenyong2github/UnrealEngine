@@ -11,6 +11,8 @@
 	THIRD_PARTY_INCLUDES_START
 		#include <windows.h>
 		#include <D3D11.h>
+		#include <d3d11_1.h>
+		#include <dxgi1_2.h>
 	THIRD_PARTY_INCLUDES_END
 
 	#include "Windows/COMPointer.h"
@@ -39,15 +41,13 @@ public:
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	/** Forces the reconstruction of the texture data and conversion from Nv12 to RGB */
-	virtual void Init(ID3D11Texture2D* InCameraImage);
+	virtual void Init(void* handle);
 
 	friend class FHoloLensCameraImageResource;
 
 private:
 	/** Used to prevent two updates of the texture in the same game frame */
 	uint64 LastUpdateFrame;
-	/** The D3D texture that was passed to us from the HoloLens pass through camera */
-	TComPtr<ID3D11Texture2D> CameraImage;
 #endif
 };
 

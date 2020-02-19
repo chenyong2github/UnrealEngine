@@ -67,11 +67,6 @@ namespace UnrealBuildTool
 		protected readonly string ModuleApiDefine;
 
 		/// <summary>
-		/// The name of the _VTABLE define for this module
-		/// </summary>
-		protected readonly string ModuleVTableDefine;
-
-		/// <summary>
 		/// Set of all the public definitions
 		/// </summary>
 		public readonly HashSet<string> PublicDefinitions;
@@ -175,7 +170,6 @@ namespace UnrealBuildTool
 			this.Rules = Rules;
 
 			ModuleApiDefine = Name.ToUpperInvariant() + "_API";
-			ModuleVTableDefine = Name.ToUpperInvariant() + "_VTABLE";
 
 			PublicDefinitions = HashSetFromOptionalEnumerableStringParameter(Rules.PublicDefinitions);
 			PublicIncludePaths = CreateDirectoryHashSet(Rules.PublicIncludePaths);
@@ -337,9 +331,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Determines the distribution level of a module based on its directory and includes.
 		/// </summary>
-		/// <param name="ProjectDir">The project directory, if available</param>
+		/// <param name="RootDirectories">The set of additional paths to check, if available</param>
 		/// <returns>Map of the restricted folder types to the first found instance</returns>
-		public Dictionary<RestrictedFolder, DirectoryReference> FindRestrictedFolderReferences(DirectoryReference ProjectDir)
+		public Dictionary<RestrictedFolder, DirectoryReference> FindRestrictedFolderReferences(List<DirectoryReference> RootDirectories)
 		{
 			Dictionary<RestrictedFolder, DirectoryReference> References = new Dictionary<RestrictedFolder, DirectoryReference>();
 			if (!Rules.bLegalToDistributeObjectCode)
@@ -357,17 +351,9 @@ namespace UnrealBuildTool
 				foreach(DirectoryReference ReferencedDir in ReferencedDirs)
 				{
 					// Find the base directory containing this reference
-					DirectoryReference BaseDir;
+					DirectoryReference BaseDir = RootDirectories.FirstOrDefault(x => ReferencedDir.IsUnderDirectory(x));
 					// @todo platplug does this need to check platform extension engine directories? what are ReferencedDir's here?
-					if(ReferencedDir.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
-					{
-						BaseDir = UnrealBuildTool.EngineDirectory;
-					}
-					else if(ProjectDir != null && ReferencedDir.IsUnderDirectory(ProjectDir))
-					{
-						BaseDir = ProjectDir;
-					}
-					else
+					if (BaseDir == null)
 					{
 						continue;
 					}
@@ -518,28 +504,23 @@ namespace UnrealBuildTool
 				{
 					if (Rules.Target.bShouldCompileAsDLL && (Rules.Target.bHasExports || Rules.ModuleSymbolVisibility == ModuleRules.SymbolVisibility.VisibileForDll))
 					{
-						Definitions.Add(ModuleVTableDefine + "=DLLEXPORT_VTABLE");
 						Definitions.Add(ModuleApiDefine + "=DLLEXPORT");
 					}
 					else
 					{
-						Definitions.Add(ModuleVTableDefine + "=");
 						Definitions.Add(ModuleApiDefine + "=");
 					}
 				}
 				else if(Binary == null || SourceBinary != Binary)
 				{
-					Definitions.Add(ModuleVTableDefine + "=DLLIMPORT_VTABLE");
 					Definitions.Add(ModuleApiDefine + "=DLLIMPORT");
 				}
 				else if(!Binary.bAllowExports)
 				{
-					Definitions.Add(ModuleVTableDefine + "=");
 					Definitions.Add(ModuleApiDefine + "=");
 				}
 				else
 				{
-					Definitions.Add(ModuleVTableDefine + "=DLLEXPORT_VTABLE");
 					Definitions.Add(ModuleApiDefine + "=DLLEXPORT");
 				}
 			}
@@ -872,13 +853,13 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns valueless API defines (like MODULE_API or MODULE_VTABLE)
+		/// Returns valueless API defines (like MODULE_API)
 		/// </summary>
 		public IEnumerable<string> GetEmptyApiMacros()
 		{
 			if (Rules.Type == ModuleRules.ModuleType.CPlusPlus)
 			{
-				return new[] {ModuleVTableDefine + "=", ModuleApiDefine + "="};
+				return new[] {ModuleApiDefine + "="};
 			}
 
 			return new string[0];

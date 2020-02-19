@@ -16,6 +16,14 @@ class UObject;
 struct COREUOBJECT_API FFieldPath
 {
 protected:
+
+	/* Determines the behavior when resolving stored path */
+	enum EPathResolveType
+	{
+		UseStructIfOuterNotFound = 0,
+		UseStructAlways = 1
+	};
+
 	/** Untracked pointer to the resolved property */
 	mutable FField* ResolvedField;
 #if WITH_EDITORONLY_DATA
@@ -102,17 +110,17 @@ public:
 	 * @param OutOwnerIndex ObjectIndex of the Owner UObject
 	 * @return Resolved field or null
 	 */
-	FField* TryToResolvePath(UStruct* InCurrentStruct = nullptr, int32* OutOwnerIndex = nullptr) const;
+	FField* TryToResolvePath(UStruct* InCurrentStruct = nullptr, int32* OutOwnerIndex = nullptr, EPathResolveType InResolveType = FFieldPath::UseStructIfOuterNotFound) const;
 
 	/**
 	 * Tries to resolve the path and caches the result
 	 * @param ExpectedClass Expected class of the resolved field
 	 * @param InCurrentStruct Struct that's trying to resolve this field path	 
 	 */
-	FORCEINLINE void ResolveField(FFieldClass* ExpectedClass = FField::StaticClass(), UStruct* InCurrentStruct = nullptr) const
+	FORCEINLINE void ResolveField(FFieldClass* ExpectedClass = FField::StaticClass(), UStruct* InCurrentStruct = nullptr, EPathResolveType InResolveType = FFieldPath::UseStructIfOuterNotFound) const
 	{
 		int32 FoundOwner = -1;
-		FField* FoundField = TryToResolvePath(InCurrentStruct, &FoundOwner);
+		FField* FoundField = TryToResolvePath(InCurrentStruct, &FoundOwner, InResolveType);
 		if (FoundField && FoundField->IsA(ExpectedClass) 
 #if WITH_EDITORONLY_DATA
 			&& (!InitialFieldClass || FoundField->IsA(InitialFieldClass))
@@ -202,8 +210,21 @@ private:
 public:
 	TFieldPath()
 	{}
-	TFieldPath(const TFieldPath&) = default;
-	TFieldPath& operator=(const TFieldPath&) = default;
+	FORCEINLINE TFieldPath(const TFieldPath& Other)
+	{
+		//  First refresh the serial number from the other path
+		Other.Get();
+		// Now that the Other path is refreshed, we can copy from it
+		FFieldPath::operator=(Other);
+	}
+	FORCEINLINE TFieldPath& operator=(const TFieldPath& Other)
+	{
+		//  First refresh the serial number from the other path
+		Other.Get();
+		// Now that the Other path is refreshed, we can copy from it
+		FFieldPath::operator=(Other);
+		return *this;
+	}
 
 	/**
 	* Construct from a null pointer
@@ -280,6 +301,10 @@ public:
 		// one or both of the types have only been forward-declared.
 		static_assert(TPointerIsConvertibleFromTo<OtherPropertyType, PropertyType>::Value, "Unable to convert TFieldPath - types are incompatible");
 
+		// First make sure the Other path has the serial number up to date, otherwise we'll keep having to
+		// reevealuate this path because it gets the serial number copied from the Other path
+		Other.Get();
+		// Now that the Other path is refreshed, we can copy from it
 		FFieldPath::operator=(Other);
 	}
 
@@ -292,8 +317,15 @@ public:
 	{
 		if (NeedsResolving() && Path.Num())
 		{
-			ResolveField(PropertyType::StaticClass(), InCurrentStruct);
+			ResolveField(PropertyType::StaticClass(), InCurrentStruct, FFieldPath::UseStructIfOuterNotFound);
 		}
+		return static_cast<PropertyType*>(ResolvedField);
+	}
+
+	FORCEINLINE PropertyType* ResolveWithRenamedStructPackage(UStruct* InCurrentStruct)
+	{
+		ClearCachedField();
+		ResolveField(PropertyType::StaticClass(), InCurrentStruct, FFieldPath::UseStructAlways);
 		return static_cast<PropertyType*>(ResolvedField);
 	}
 
@@ -336,7 +368,7 @@ public:
 	FORCEINLINE bool operator==(const TFieldPath<OtherPropertyType> &Other) const
 	{
 		static_assert(TPointerIsConvertibleFromTo<OtherPropertyType, FField>::Value, "TFieldPath can only be compared with FField types");
-		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value || TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
+		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
 
 		return Path == Other.Path;
 	}
@@ -349,7 +381,7 @@ public:
 	FORCEINLINE bool operator!=(const TFieldPath<OtherPropertyType> &Other) const
 	{
 		static_assert(TPointerIsConvertibleFromTo<OtherPropertyType, FField>::Value, "TFieldPath can only be compared with FField types");
-		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value || TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
+		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
 
 		return Path != Other.Path;
 	}
@@ -362,7 +394,7 @@ public:
 	FORCEINLINE bool operator==(const OtherPropertyType* Other) const
 	{
 		static_assert(TPointerIsConvertibleFromTo<OtherPropertyType, FField>::Value, "TFieldPath can only be compared with FField types");
-		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value || TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
+		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
 
 		return Get() == Other;
 	}
@@ -375,7 +407,7 @@ public:
 	FORCEINLINE bool operator!=(const OtherPropertyType* Other) const
 	{
 		static_assert(TPointerIsConvertibleFromTo<OtherPropertyType, FField>::Value, "TFieldPath can only be compared with FField types");
-		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value || TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
+		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
 
 		return Get() != Other;
 	}
@@ -457,5 +489,4 @@ struct TPropertyPathMapKeyFuncs : public TDefaultMapKeyFuncs<KeyType, ValueType,
 		return GetTypeHash(Key);
 	}
 };
-
 

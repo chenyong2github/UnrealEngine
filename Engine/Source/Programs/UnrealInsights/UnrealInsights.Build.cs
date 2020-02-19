@@ -22,6 +22,7 @@ public class UnrealInsights : ModuleRules
 				"SourceCodeAccess",
 				"StandaloneRenderer",
 				"TraceInsights",
+				"TraceAnalysis",
 				"TraceServices"
 			}
 		);

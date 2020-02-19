@@ -31,8 +31,11 @@ struct NIAGARACORE_API FNiagaraCompileHash
 	}
 
 	bool operator==(const FNiagaraCompileHash& Other) const;
-
 	bool operator!=(const FNiagaraCompileHash& Other) const;
+	bool operator==(const FSHAHash& Other) const;
+	inline bool operator!=(const FSHAHash& Other) const { return !operator==(Other); }
+
+	bool ToSHAHash(FSHAHash& OutHash) const;
 
 	bool IsValid() const;
 
@@ -50,3 +53,12 @@ private:
 	UPROPERTY()
 	TArray<uint8> DataHash;
 };
+
+inline bool operator==(const FSHAHash& Lhs, const FNiagaraCompileHash& Rhs)
+{
+	return Rhs.operator==(Lhs);
+}
+inline bool operator!=(const FSHAHash& Lhs, const FNiagaraCompileHash& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}

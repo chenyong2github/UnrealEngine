@@ -17,8 +17,8 @@ enum GLSLVersion
 {
 	GLSL_150_REMOVED,
 	GLSL_430,
-	GLSL_ES2,
-	GLSL_ES2_WEBGL,
+	GLSL_ES2_REMOVED,
+	GLSL_ES2_WEBGL_REMOVED,
 	GLSL_150_ES2_DEPRECATED,	// ES2 Emulation
 	GLSL_150_ES2_NOUB_DEPRECATED,	// ES2 Emulation with NoUBs
 	GLSL_150_ES3_1,	// ES3.1 Emulation
@@ -90,7 +90,6 @@ protected:
 
 	void BuildShaderOutput(FShaderCompilerOutput& ShaderOutput, const FShaderCompilerInput& ShaderInput, const ANSICHAR* InShaderSource, int32 SourceLen, GLSLVersion Version);
 	void PrecompileShader(FShaderCompilerOutput& ShaderOutput, const FShaderCompilerInput& ShaderInput, const ANSICHAR* ShaderSource, GLSLVersion Version, EHlslShaderFrequency Frequency);
-	void PrecompileGLSLES2(FShaderCompilerOutput& ShaderOutput, const FShaderCompilerInput& ShaderInput, const ANSICHAR* ShaderSource, EHlslShaderFrequency Frequency);
 
 	bool PlatformSupportsOfflineCompilation(const GLSLVersion ShaderVersion) const;
 

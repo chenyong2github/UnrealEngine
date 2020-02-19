@@ -3,6 +3,7 @@
 #include "HairStrandsUtils.h"
 #include "ScenePrivate.h"
 #include "HairStrandsCluster.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 
 static float GHairR = 1;
 static float GHairTT = 1;
@@ -260,4 +261,39 @@ FVector4 PackHairRenderInfo(
 	Out.W = *((float*)(&BitField));
 
 	return Out;
+}
+
+FHairStrandsProjectionMeshData ExtractMeshData(FSkeletalMeshRenderData* RenderData)
+{
+	FHairStrandsProjectionMeshData MeshData;
+	uint32 LODIndex = 0;
+	for (FSkeletalMeshLODRenderData& LODRenderData : RenderData->LODRenderData)
+	{
+		FHairStrandsProjectionMeshData::LOD& LOD = MeshData.LODs.AddDefaulted_GetRef();
+		uint32 SectionIndex = 0;
+		for (FSkelMeshRenderSection& InSection : LODRenderData.RenderSections)
+		{
+			// Pick between float and halt
+			const uint32 UVSizeInByte = (LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs() ? 4 : 2) * 2;
+
+			FHairStrandsProjectionMeshData::Section& OutSection = LOD.Sections.AddDefaulted_GetRef();
+			OutSection.UVsChannelOffset = 0; // Assume that we needs to pair meshes based on UVs 0
+			OutSection.UVsChannelCount = LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+			OutSection.UVsBuffer = LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
+			OutSection.PositionBuffer = LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetSRV();
+			OutSection.IndexBuffer = LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
+			OutSection.TotalVertexCount = LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+			OutSection.TotalIndexCount = LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
+			OutSection.NumPrimitives = InSection.NumTriangles;
+			OutSection.VertexBaseIndex = InSection.BaseVertexIndex;
+			OutSection.IndexBaseIndex = InSection.BaseIndex;
+			OutSection.SectionIndex = SectionIndex;
+			OutSection.LODIndex = LODIndex;
+
+			++SectionIndex;
+		}
+		++LODIndex;
+	}
+
+	return MeshData;
 }

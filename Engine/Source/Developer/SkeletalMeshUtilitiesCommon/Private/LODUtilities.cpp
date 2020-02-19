@@ -17,6 +17,7 @@
 #include "ClothingAsset.h"
 #include "OverlappingCorners.h"
 #include "Framework/Commands/UIAction.h"
+#include "HAL/ThreadSafeBool.h"
 
 #include "ObjectTools.h"
 #include "ScopedTransaction.h"
@@ -114,7 +115,7 @@ void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<S
 	// warn about too many influences
 	if (MaxVertexInfluence > MAX_TOTAL_INFLUENCES)
 	{
-		UE_LOG(LogLODUtilities, Warning, TEXT("Warning skeletal mesh influence count of %d exceeds max count of %d. Influence truncation will occur. Maximum Ignored Weight %f"), MaxVertexInfluence, MAX_TOTAL_INFLUENCES, MaxIgnoredWeight);
+		UE_LOG(LogLODUtilities, Display, TEXT("Skeletal mesh influence count of %d exceeds max count of %d. Influence truncation will occur. Maximum Ignored Weight %f"), MaxVertexInfluence, MAX_TOTAL_INFLUENCES, MaxIgnoredWeight);
 	}
 
 	for (int32 i = 0; i < Influences.Num(); i++)
@@ -968,7 +969,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	CreateLODMorphTarget(SkeletalMesh, ReductionBaseSkeletalMeshBulkData, SourceLOD, DestinationLOD, PerMorphTargetBaseIndexToMorphTargetDelta, BaseMorphIndexToTargetIndexList, TargetVertices, TargetMatchData);
 }
 
-void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 DesiredLOD, bool bRestoreClothing /*= false*/)
+void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 DesiredLOD, bool bRestoreClothing /*= false*/, FThreadSafeBool* OutNeedsPackageDirtied/*= nullptr*/)
 {
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
@@ -1092,7 +1093,14 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		};
 
 		ApplyMorphTargetOption();
-		SkeletalMesh->MarkPackageDirty();
+		if (IsInGameThread())
+		{
+			SkeletalMesh->MarkPackageDirty();
+		}
+		else if(OutNeedsPackageDirtied)
+		{
+			(*OutNeedsPackageDirtied) = true;
+		}
 	}
 	else
 	{
@@ -1115,7 +1123,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 	}
 }
 
-void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD, bool bRestoreClothing /*= false*/)
+void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD, bool bRestoreClothing /*= false*/, FThreadSafeBool* OutNeedsPackageDirtied/*= nullptr*/)
 {
 	USkeletalMesh* SkeletalMesh = UpdateContext.SkeletalMesh;
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
@@ -1123,7 +1131,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateCo
 
 	if (MeshReduction && MeshReduction->IsSupported() && SkeletalMesh)
 	{
-		SimplifySkeletalMeshLOD(SkeletalMesh, DesiredLOD, bRestoreClothing);
+		SimplifySkeletalMeshLOD(SkeletalMesh, DesiredLOD, bRestoreClothing, OutNeedsPackageDirtied);
 		
 		if (UpdateContext.OnLODChanged.IsBound())
 		{
@@ -2032,29 +2040,37 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 			}
 
 			// Load the BulkData for all dependent LODs; this has to be done on the main thread since it requires access to the Linker and FLinkerLoad::Serialize is not threadsafe
-			FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
-			if (SkeletalMeshResource)
 			{
-				FSkeletalMeshLODModel** LODModels = SkeletalMeshResource->LODModels.GetData();
-				const int32 NumLODModels = SkeletalMeshResource->LODModels.Num();
-				for (int32 DependentLODIndex : DependentLODs)
+				FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
+				if (SkeletalMeshResource)
 				{
-					if (DependentLODIndex < NumLODModels)
+					FSkeletalMeshLODModel** LODModels = SkeletalMeshResource->LODModels.GetData();
+					const int32 NumLODModels = SkeletalMeshResource->LODModels.Num();
+					for (int32 DependentLODIndex : DependentLODs)
 					{
-						SkeletalMesh->ForceBulkDataResident(DependentLODIndex);
+						if (DependentLODIndex < NumLODModels)
+						{
+							SkeletalMesh->ForceBulkDataResident(DependentLODIndex);
+						}
 					}
 				}
 			}
 
 			SkeletalMesh->ReserveLODImportData(MaxDependentLODIndex);
-			//Reduce all dependent LOD in same time
-			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh](int32 IterationIndex)
+			//Reduce all dependent LODs in parallel
+			FThreadSafeBool bNeedsPackageDirtied(false);
+			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied](int32 IterationIndex)
 			{
 				check(DependentLODs.IsValidIndex(IterationIndex));
 				int32 DependentLODIndex = DependentLODs[IterationIndex];
 				check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
-				FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false);
+				FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
 			});
+
+			if (bNeedsPackageDirtied)
+			{
+				SkeletalMesh->MarkPackageDirty();
+			}
 
 			//Restore the clothings and unbind the delegates
 			for (int32 DependentLODIndex : DependentLODs)
@@ -2130,7 +2146,7 @@ public:
 		: LODModel(InLODModel)
 		, RefSkeleton(InRefSkeleton)
 		, BaseImportData(InBaseImportData)
-		, MorphLODPoints(InMorphLODPoints)
+		, CompressMorphLODPoints(InMorphLODPoints)
 		, MorphTargetDeltas(InMorphDeltas)
 		, BaseIndexData(InBaseIndexData)
 		, BaseWedgePointIndices(InBaseWedgePointIndices)
@@ -2147,6 +2163,21 @@ public:
 		, Thresholds(InThresholds)
 	{
 		MeshUtilities = &FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+	}
+
+	//Decompress the shape points data
+	void DecompressData()
+	{
+		const TArray<FVector>& BaseMeshPoints = BaseImportData.Points;
+		MorphLODPoints = BaseMeshPoints;
+		int32 ModifiedPointIndex = 0;
+		for (uint32 PointIndex : ModifiedPoints)
+		{
+			MorphLODPoints[PointIndex] = CompressMorphLODPoints[ModifiedPointIndex];
+			ModifiedPointIndex++;
+		}
+
+		check(MorphLODPoints.Num() == MeshDataBundle.Vertices.Num());
 	}
 
 	void PrepareTangents()
@@ -2299,6 +2330,7 @@ public:
 
 	void DoWork()
 	{
+		DecompressData();
 		PrepareTangents();
 		ComputeTangents();
 		ComputeMorphDeltas();
@@ -2330,7 +2362,8 @@ private:
 	// @todo not thread safe
 	const FReferenceSkeleton& RefSkeleton;
 	const FSkeletalMeshImportData& BaseImportData;
-	const TArray<FVector> MorphLODPoints;
+	const TArray<FVector> CompressMorphLODPoints;
+	TArray<FVector> MorphLODPoints;
 
 	IMeshUtilities* MeshUtilities;
 

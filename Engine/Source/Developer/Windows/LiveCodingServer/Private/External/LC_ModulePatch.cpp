@@ -42,6 +42,20 @@ void ModulePatch::RegisterSecurityCookie(uint32_t originalRva, uint32_t patchRva
 }
 
 
+void ModulePatch::RegisterUe4NameTable(uint32_t originalRva, uint32_t patchRva)
+{
+	m_data.originalUe4NameTableRva = originalRva;
+	m_data.patchUe4NameTableRva = patchRva;
+}
+
+
+void ModulePatch::RegisterUe4ObjectArray(uint32_t originalRva, uint32_t patchRva)
+{
+	m_data.originalUe4ObjectArrayRva = originalRva;
+	m_data.patchUe4NameTableRva = patchRva;
+}
+
+
 void ModulePatch::RegisterDllMain(uint32_t rva)
 {
 	m_data.dllMainRva = rva;

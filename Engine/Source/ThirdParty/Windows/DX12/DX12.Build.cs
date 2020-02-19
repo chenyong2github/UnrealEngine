@@ -18,16 +18,11 @@ public class DX12 : ModuleRules
 		{
 			DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
 		}
-		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
 		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			LibDir = DirectXSDKDir + "/Lib/x64/";
-
-            PublicDelayLoadDLLs.Add("WinPixEventRuntime.dll");
-            PublicAdditionalLibraries.Add(LibDir + "WinPixEventRuntime.lib");
-            RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64/WinPixEventRuntime.dll");
         }
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
@@ -47,7 +42,7 @@ public class DX12 : ModuleRules
 				LibDir = Target.UEThirdPartySourceDirectory + "/Windows/Pix/Lib/" + Arch + "/";
 				PublicDelayLoadDLLs.Add("WinPixEventRuntime.dll");
 				PublicAdditionalLibraries.Add(LibDir + "WinPixEventRuntime.lib");
-				RuntimeDependencies.Add(System.String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/{0}/WinPixEventRuntime.dll", Arch));
+				RuntimeDependencies.Add(System.String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/WinPixEventRuntime/{0}/WinPixEventRuntime.dll", Arch));
 				PublicDefinitions.Add("D3D12_PROFILING_ENABLED=1");
 				PublicDefinitions.Add("PROFILE");
 			}
@@ -62,11 +57,21 @@ public class DX12 : ModuleRules
 			"d3d12.dll"
 			} );
 
-		PublicAdditionalLibraries.AddRange(
-			new string[] {
-                LibDir + "d3d12.lib"
-			}
-			);
+		if (LibDir != null)
+		{
+			PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
+
+			PublicAdditionalLibraries.AddRange(
+				new string[] {
+					LibDir + "d3d12.lib"
+				}
+				);
+		}
+
+		//DX12 extensions, not part of SDK
+		string D3DX12Dir = Target.UEThirdPartySourceDirectory + "Windows/D3DX12";
+		PublicSystemIncludePaths.Add(D3DX12Dir + "/include");
+
 	}
 }
 

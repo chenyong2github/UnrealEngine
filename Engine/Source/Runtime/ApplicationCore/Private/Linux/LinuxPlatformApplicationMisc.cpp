@@ -57,12 +57,18 @@ namespace
 extern CORE_API TFunction<void()> UngrabAllInputCallback;
 extern CORE_API TFunction<EAppReturnType::Type(EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption)> MessageBoxExtCallback;
 
+static bool IsSDLDummyDriver()
+{
+	char const* SdlVideoDriver = SDL_GetCurrentVideoDriver();
+	return (SdlVideoDriver && !strcmp(SdlVideoDriver, "dummy"));
+}
+
 EAppReturnType::Type MessageBoxExtImpl(EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption)
 {
 	int NumberOfButtons = 0;
 
 	// if multimedia cannot be initialized for messagebox, just fall back to default implementation
-	if (!FPlatformApplicationMisc::InitSDL()) //	will not initialize more than once
+	if (!FPlatformApplicationMisc::InitSDL() || IsSDLDummyDriver()) //	will not initialize more than once
 	{
 		EAppReturnType::Type Answer = EAppReturnType::Type::Cancel;
 		FString Message = GetHeadlessMessageBoxMessage(MsgType, Caption, Text, Answer);
@@ -282,6 +288,13 @@ bool FLinuxPlatformApplicationMisc::InitSDL()
 		// Furthermore SDL hides the mouse which we prevent with extending SDL with a new hint.
 		SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_MODE_SHOW_CURSOR, "1"); // When relative mouse mode is acive, don't hide cursor.
 		SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_MODE_WARP, "0"); // Don't warp the cursor to the center in relative mouse mode.
+
+		// If we're rendering offscreen, use the "dummy" SDL video driver
+		if (FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen")) && !getenv("SDL_VIDEODRIVER"))
+		{
+			UE_LOG(LogInit, Log, TEXT("Hinting SDL to use 'dummy' video driver."), *EglDeviceHint);
+			setenv("SDL_VIDEODRIVER", "dummy", 1);
+		}
 
 		// we don't use SDL for audio
 		if (SDL_Init((SDL_INIT_EVERYTHING ^ SDL_INIT_AUDIO) | SDL_INIT_NOPARACHUTE) != 0)

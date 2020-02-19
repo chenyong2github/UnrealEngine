@@ -306,6 +306,8 @@ struct FGBufferData
 {
 	// normalized
 	float3 WorldNormal;
+	// normalized, only valid if GBUFFER_HAS_TANGENT
+	float3 WorldTangent;
 	// 0..1 (derived from BaseColor, Metalness, Specular)
 	float3 DiffuseColor;
 	// 0..1 (derived from BaseColor, Metalness, Specular)
@@ -325,6 +327,8 @@ struct FGBufferData
 	float4 PrecomputedShadowFactors;
 	// 0..1
 	float Roughness;
+	// -1..1, only valid if GBUFFER_HAS_TANGENT
+	float Anisotropy;
 	// 0..1 ambient occlusion  e.g.SSAO, wet surface mask, skylight mask, ...
 	float GBufferAO;
 	// 0..255 
@@ -386,6 +390,7 @@ void EncodeGBuffer(
 	out float4 OutGBufferC,
 	out float4 OutGBufferD,
 	out float4 OutGBufferE,
+	out float4 OutGBufferF,
 	out float4 OutGBufferVelocity,
 	float QuantizationBias = 0		// -0.5 to 0.5 random float. Used to bias quantization.
 	)
@@ -397,6 +402,7 @@ void EncodeGBuffer(
 		OutGBufferC = 0;
 		OutGBufferD = 0;
 		OutGBufferE = 0;
+		OutGBufferF = 0.5f;
 	}
 	else
 	{
@@ -429,6 +435,13 @@ void EncodeGBuffer(
 
 		OutGBufferD = GBuffer.CustomData;
 		OutGBufferE = GBuffer.PrecomputedShadowFactors;
+
+#if GBUFFER_HAS_TANGENT
+		OutGBufferF.rgb = EncodeNormal(GBuffer.WorldTangent);
+		OutGBufferF.a = GBuffer.Anisotropy * 0.5f + 0.5f;
+#else
+		OutGBufferF = 0;
+#endif
 	}
 
 #if WRITES_VELOCITY_TO_GBUFFER
@@ -498,6 +511,7 @@ FGBufferData DecodeGBufferData(
 	float4 InGBufferC,
 	float4 InGBufferD,
 	float4 InGBufferE,
+	float4 InGBufferF,
 	float4 InGBufferVelocity,
 	float CustomNativeDepth,
 	uint CustomStencil,
@@ -573,6 +587,19 @@ FGBufferData DecodeGBufferData(
 		#endif //USE_DEVELOPMENT_SHADERS
 	}
 
+#if GBUFFER_HAS_TANGENT
+	GBuffer.WorldTangent = DecodeNormal(InGBufferF.rgb);
+	GBuffer.Anisotropy = InGBufferF.a * 2.0f - 1.0f;
+
+	if(bGetNormalizedNormal)
+	{
+		GBuffer.WorldTangent = normalize(GBuffer.WorldTangent);
+	}
+#else
+	GBuffer.WorldTangent = 0;
+	GBuffer.Anisotropy = 0;
+#endif
+
 	GBuffer.Velocity = !(GBuffer.SelectiveOutputMask & SKIP_VELOCITY_MASK) ? InGBufferVelocity : 0;
 
 	return GBuffer;
@@ -613,6 +640,12 @@ uint ExtractSubsurfaceProfileInt(FGBufferData BufferData)
 			float4 GBufferE = 1;
 		#endif
 
+		#if GBUFFER_HAS_TANGENT
+			float4 GBufferF = SceneTexturesStruct.GBufferFTextureNonMS.Load(int3(PixelPos, 0));
+		#else
+			float4 GBufferF = 0.5f;
+		#endif 
+
 		#if WRITES_VELOCITY_TO_GBUFFER
 			float4 GBufferVelocity = SceneTexturesStruct.GBufferVelocityTextureNonMS.Load(int3(PixelPos, 0));
 		#else
@@ -621,7 +654,7 @@ uint ExtractSubsurfaceProfileInt(FGBufferData BufferData)
 
 		float SceneDepth = CalcSceneDepth(PixelPos);
 
-		return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromPixelPos(PixelPos));
+		return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferF, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromPixelPos(PixelPos));
 	}
 
 	// @param PixelPos relative to left top of the rendertarget (not viewport)
@@ -679,6 +712,12 @@ FGBufferData GetGBufferData(float2 UV, bool bGetNormalizedNormal = true)
 		float4 GBufferE = 1;
 	#endif
 
+	#if GBUFFER_HAS_TANGENT
+		float4 GBufferF = Texture2DSampleLevel(SceneTexturesStruct.GBufferFTexture, SceneTexturesStruct.GBufferFTextureSampler, UV, 0);
+	#else
+		float4 GBufferF = 0.5f;
+	#endif 
+
 	#if WRITES_VELOCITY_TO_GBUFFER
 		float4 GBufferVelocity = Texture2DSampleLevel(SceneTexturesStruct.GBufferVelocityTexture, SceneTexturesStruct.GBufferVelocityTextureSampler, UV, 0);
 	#else
@@ -688,7 +727,7 @@ FGBufferData GetGBufferData(float2 UV, bool bGetNormalizedNormal = true)
 
 	float SceneDepth = CalcSceneDepth(UV);
 	
-	return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromSceneColorUV(UV));
+	return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferF, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromSceneColorUV(UV));
 }
 
 // Minimal path for just the lighting model, used to branch around unlit pixels (skybox)

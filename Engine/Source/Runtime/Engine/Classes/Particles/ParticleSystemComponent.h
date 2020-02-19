@@ -333,12 +333,20 @@ class ENGINE_API UFXSystemComponent : public UPrimitiveComponent
 	GENERATED_UCLASS_BODY()
 public:
 
-	/** Change a named float parameter */
+	/**Change a named boolean parameter, ParticleSystemComponent converts to float.*/
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void SetBoolParameter(FName ParameterName, bool Param) {}
+
+	/** Change a named int parameter */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
+	virtual void SetIntParameter(FName ParameterName, int Param) {}
+
+	/** Change a named float parameter */
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
 	virtual void SetFloatParameter(FName ParameterName, float Param) {}
 
 	/** 
-	 *	Set a named vector instance parameter on this ParticleSystemComponent. 
+	 *	Set a named vector instance parameter on this ParticleSystemComponent.
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
@@ -487,6 +495,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Attachment)
 	uint8 bAutoManageAttachment:1;
+
+	/**
+	 * Option for how we handle bWeldSimulatedBodies when we attach to the AutoAttachParent, if bAutoManageAttachment is true.
+	 * @see bAutoManageAttachment
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attachment, meta=(EditCondition="bAutoManageAttachment"))
+	uint8 bAutoAttachWeldSimulatedBodies:1;
 	
 	/** If this component is having it's significance managed by gameplay code. */
 	uint8 bIsManagingSignificance : 1;
@@ -1052,6 +1067,21 @@ public:
 	 */
 	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
 
+
+	/**
+	 *	Set a named float instance parameter on this ParticleSystemComponent.
+	 *	This is for function parity with the VFX Marshaller. The bool is converted
+	 *  and then set to a float.
+	 */
+	void SetBoolParameter(FName ParameterName, bool Param) override;
+
+	/**
+	 *	Set a named float instance parameter on this ParticleSystemComponent.
+	 *	This is for function parity with the VFX Marshaller. The int is converted
+	 *  and then set to a float.
+	 */
+	void SetIntParameter(FName ParameterName, int Param) override;
+
 	/** Change a named float parameter */
 	void SetFloatParameter(FName ParameterName, float Param) override;
 
@@ -1259,7 +1289,7 @@ public:
 
 	virtual void OnEndOfFrameUpdateDuringTick() override;
 protected:
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
 	virtual void OnRegister() override;

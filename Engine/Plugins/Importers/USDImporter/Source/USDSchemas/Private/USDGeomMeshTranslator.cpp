@@ -290,7 +290,7 @@ namespace UsdGeomMeshTranslatorImpl
 		check(RunningPlatform);
 
 		const FStaticMeshLODSettings& LODSettings = RunningPlatform->GetStaticMeshLODSettings();
-		StaticMesh.RenderData->Cache( &StaticMesh, LODSettings );
+		StaticMesh.RenderData->Cache(RunningPlatform, &StaticMesh, LODSettings );
 
 		if ( StaticMesh.BodySetup )
 		{

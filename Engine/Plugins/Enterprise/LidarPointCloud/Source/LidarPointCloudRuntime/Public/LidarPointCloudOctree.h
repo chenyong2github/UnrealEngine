@@ -461,18 +461,12 @@ struct FLidarPointCloudTraversalOctreeNode
 	FLidarPointCloudTraversalOctreeNode* Parent;
 
 	/** Stores the children array */
-	FLidarPointCloudTraversalOctreeNode* Children;
-	uint8 NumChildren : 4;
+	TArray<FLidarPointCloudTraversalOctreeNode> Children;
 
 	/** Holds true if the node has been selected for rendering. */
-	uint8 bSelected : 4;
+	bool bSelected;
 
 	FLidarPointCloudTraversalOctreeNode();
-	~FLidarPointCloudTraversalOctreeNode();
-	FLidarPointCloudTraversalOctreeNode(const FLidarPointCloudTraversalOctreeNode&) = delete;
-	FLidarPointCloudTraversalOctreeNode(FLidarPointCloudTraversalOctreeNode&&) = delete;
-	FLidarPointCloudTraversalOctreeNode& operator=(const FLidarPointCloudTraversalOctreeNode&) = delete;
-	FLidarPointCloudTraversalOctreeNode& operator=(FLidarPointCloudTraversalOctreeNode&&) = delete;
 
 	/** Builds the traversal version of the given node. */
 	void Build(FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld);

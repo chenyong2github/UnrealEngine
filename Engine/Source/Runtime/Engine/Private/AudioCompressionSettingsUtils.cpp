@@ -2,9 +2,9 @@
 
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioCompressionSettings.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 #define ENABLE_PLATFORM_COMPRESSION_OVERRIDES 1
-#define PLATFORM_SUPPORTS_COMPRESSION_OVERRIDES (PLATFORM_ANDROID && !PLATFORM_LUMIN) || PLATFORM_IOS || PLATFORM_SWITCH || PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_WINDOWS
 
 #if PLATFORM_ANDROID && !PLATFORM_LUMIN && ENABLE_PLATFORM_COMPRESSION_OVERRIDES
 #include "AndroidRuntimeSettings.h"
@@ -72,106 +72,240 @@ const FPlatformRuntimeAudioCompressionOverrides* FPlatformCompressionUtilities::
 	return nullptr;
 }
 
-void CacheCurrentPlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides)
+void CacheAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides, const TCHAR* InPlatformName=nullptr)
 {
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN
-	const TCHAR* CategoryName = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
-#elif PLATFORM_IOS
-	const TCHAR* CategoryName = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
-#elif PLATFORM_SWITCH
-	const TCHAR* CategoryName = TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings");
-#elif PLATFORM_WINDOWS
-	const TCHAR* CategoryName = TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings");
-#elif PLATFORM_PS4
-	const TCHAR* CategoryName = TEXT("/Script/PS4PlatformEditor.PS4TargetSettings");
-#elif PLATFORM_XBOXONE
-	const TCHAR* CategoryName = TEXT("/Script/XboxOnePlatformEditor.XboxOneTargetSettings");
-#else
-	const TCHAR* CategoryName = TEXT("");
-#endif
+	// if the platform was passed in, use it, otherwise, get the runtime platform's name for looking up DDPI
+	FString PlatformName = InPlatformName ? FString(InPlatformName) : FString(FPlatformProperties::IniPlatformName());
+	
+	// now use that platform name to get the ini section out of DDPI
+	FString CategoryName = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName).AudioCompressionSettingsIniSectionName;
 
-	int32 SoundCueCookQualityIndex = INDEX_NONE;
-	if (GConfig->GetInt(CategoryName, TEXT("SoundCueCookQualityIndex"), SoundCueCookQualityIndex, GEngineIni))
+	// if we don't support platform overrides, then return 
+	if (CategoryName.Len() == 0)
 	{
-		OutOverrides.SoundCueCookQualityIndex = SoundCueCookQualityIndex;
+		OutOverrides = FPlatformAudioCookOverrides();
+		return;
 	}
 	
-	GConfig->GetBool(CategoryName, TEXT("bResampleForDevice"), OutOverrides.bResampleForDevice, GEngineIni);
+	FConfigFile PlatformFile;
+	FConfigCacheIni::LoadLocalIniFile(PlatformFile, TEXT("Engine"), true, *PlatformName);
 
-	GConfig->GetFloat(CategoryName, TEXT("CompressionQualityModifier"), OutOverrides.CompressionQualityModifier, GEngineIni);
 
-	GConfig->GetFloat(CategoryName, TEXT("AutoStreamingThreshold"), OutOverrides.AutoStreamingThreshold, GEngineIni);
+	int32 SoundCueQualityIndex = INDEX_NONE;
+	if (PlatformFile.GetInt(*CategoryName, TEXT("SoundCueCookQualityIndex"), SoundCueQualityIndex))
+	{
+		OutOverrides.SoundCueCookQualityIndex = SoundCueQualityIndex;
+	}
 
-	GConfig->GetBool(CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching, GEngineIni);
+	PlatformFile.GetBool(*CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching);
 
 	/** Memory Load On Demand Settings */
 	if (OutOverrides.bUseStreamCaching)
 	{
 		// Cache size:
 		int32 RetrievedCacheSize = 32 * 1024;
-		GConfig->GetInt(CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize, GEngineIni);
+		PlatformFile.GetInt(*CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize);
 		OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
+
+		bool bForceLegacyStreamChunking = false;
+		PlatformFile.GetBool(*CategoryName, TEXT("bForceLegacyStreamChunking"), bForceLegacyStreamChunking);
+		OutOverrides.StreamCachingSettings.bForceLegacyStreamChunking = bForceLegacyStreamChunking;
+
+		int32 ZerothChunkSizeForLegacyStreamChunking = 0;
+		PlatformFile.GetInt(*CategoryName, TEXT("ZerothChunkSizeForLegacyStreamChunking"), ZerothChunkSizeForLegacyStreamChunking);
+		OutOverrides.StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB = ZerothChunkSizeForLegacyStreamChunking;
 	}
+
+	PlatformFile.GetBool(*CategoryName, TEXT("bResampleForDevice"), OutOverrides.bResampleForDevice);
+
+	PlatformFile.GetFloat(*CategoryName, TEXT("CompressionQualityModifier"), OutOverrides.CompressionQualityModifier);
+
+	PlatformFile.GetFloat(*CategoryName, TEXT("AutoStreamingThreshold"), OutOverrides.AutoStreamingThreshold);
+
+#if 1
+	//Cache sample rate map:
+	float RetrievedSampleRate = -1.0f;
+
+	PlatformFile.GetFloat(*CategoryName, TEXT("MaxSampleRate"), RetrievedSampleRate);
+	float* FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Max);
+
+	if (FoundSampleRate)
+	{
+		if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+		{
+			*FoundSampleRate = RetrievedSampleRate;
+		}
+
+	}
+	else
+	{
+		OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Max, RetrievedSampleRate);
+	}
+
+	RetrievedSampleRate = -1.0f;
+
+	PlatformFile.GetFloat(*CategoryName, TEXT("HighSampleRate"), RetrievedSampleRate);
+	FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::High);
+
+	if (FoundSampleRate)
+	{
+		if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+		{
+			*FoundSampleRate = RetrievedSampleRate;
+		}
+
+	}
+	else
+	{
+		OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::High, RetrievedSampleRate);
+	}
+
+
+	RetrievedSampleRate = -1.0f;
+
+	PlatformFile.GetFloat(*CategoryName, TEXT("MedSampleRate"), RetrievedSampleRate);
+	FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Medium);
+
+	if (FoundSampleRate)
+	{
+		if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+		{
+			*FoundSampleRate = RetrievedSampleRate;
+		}
+	}
+	else
+	{
+		OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Medium, RetrievedSampleRate);
+	}
+
+	RetrievedSampleRate = -1.0f;
+
+	PlatformFile.GetFloat(*CategoryName, TEXT("LowSampleRate"), RetrievedSampleRate);
+	FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Low);
+
+	if (FoundSampleRate)
+	{
+		if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+		{
+			*FoundSampleRate = RetrievedSampleRate;
+		}
+	}
+	else
+	{
+		OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Low, RetrievedSampleRate);
+	}
+
+	RetrievedSampleRate = -1.0f;
+
+	PlatformFile.GetFloat(*CategoryName, TEXT("MinSampleRate"), RetrievedSampleRate);
+	FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Min);
+
+	if (FoundSampleRate)
+	{
+		if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+		{
+			*FoundSampleRate = RetrievedSampleRate;
+		}
+	}
+	else
+	{
+		OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Min, RetrievedSampleRate);
+	}
+
+#else
 
 	//Cache sample rate map.
 	OutOverrides.PlatformSampleRates.Reset();
 
 	float RetrievedSampleRate = -1.0f;
 
-	GConfig->GetFloat(CategoryName, TEXT("MaxSampleRate"), RetrievedSampleRate, GEngineIni);
+	PlatformFile.GetFloat(*CategoryName, TEXT("MaxSampleRate"), RetrievedSampleRate);
 	OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Max, RetrievedSampleRate);
 
 	RetrievedSampleRate = -1.0f;
 
-	GConfig->GetFloat(CategoryName, TEXT("HighSampleRate"), RetrievedSampleRate, GEngineIni);
+	PlatformFile.GetFloat(*CategoryName, TEXT("HighSampleRate"), RetrievedSampleRate);
 	OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::High, RetrievedSampleRate);
 
 	RetrievedSampleRate = -1.0f;
 
-	GConfig->GetFloat(CategoryName, TEXT("MedSampleRate"), RetrievedSampleRate, GEngineIni);
+	PlatformFile.GetFloat(*CategoryName, TEXT("MedSampleRate"), RetrievedSampleRate);
 	OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Medium, RetrievedSampleRate);
 
 	RetrievedSampleRate = -1.0f;
 
-	GConfig->GetFloat(CategoryName, TEXT("LowSampleRate"), RetrievedSampleRate, GEngineIni);
+	PlatformFile.GetFloat(*CategoryName, TEXT("LowSampleRate"), RetrievedSampleRate);
 	OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Low, RetrievedSampleRate);
 
 	RetrievedSampleRate = -1.0f;
 
-	GConfig->GetFloat(CategoryName, TEXT("MinSampleRate"), RetrievedSampleRate, GEngineIni);
+	PlatformFile.GetFloat(*CategoryName, TEXT("MinSampleRate"), RetrievedSampleRate);
 	OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Min, RetrievedSampleRate);
+#endif
 }
 
-#if PLATFORM_SUPPORTS_COMPRESSION_OVERRIDES
-static FPlatformAudioCookOverrides OutOverrides = FPlatformAudioCookOverrides();
-#endif
 
+static bool PlatformSupportsCompressionOverrides(const FString& PlatformName)
+{
+	return FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName).AudioCompressionSettingsIniSectionName.Len() > 0;
+}
 
+static inline FString GetCookOverridePlatformName(const TCHAR* PlatformName)
+{
+	return PlatformName ? FString(PlatformName) : FString(FPlatformProperties::IniPlatformName());
+}
 
-#if PLATFORM_SUPPORTS_COMPRESSION_OVERRIDES
+static bool PlatformSupportsCompressionOverrides(const TCHAR* PlatformName=nullptr)
+{
+	return PlatformSupportsCompressionOverrides(GetCookOverridePlatformName(PlatformName));
+}
+
 static FCriticalSection CookOverridesCriticalSection;
-#endif // PLATFORM_SUPPORTS_COMPRESSION_OVERRIDES
+
+static FPlatformAudioCookOverrides& GetCacheableOverridesByPlatform(const TCHAR* InPlatformName, bool& bNeedsToBeInitialized)
+{
+	FScopeLock ScopeLock(&CookOverridesCriticalSection);
+
+	// registry of overrides by platform name, for cooking, etc that may need multiple platforms worth
+	static TMap<FString, FPlatformAudioCookOverrides> OverridesByPlatform;
+
+	// make sure we don't reallocate the memory later
+	if (OverridesByPlatform.Num() == 0)
+	{
+		// give enough space for all known platforms
+		OverridesByPlatform.Reserve(FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles());
+	}
+
+	FString PlatformName = GetCookOverridePlatformName(InPlatformName);
+	// return one, or make one
+	FPlatformAudioCookOverrides* ExistingOverrides = OverridesByPlatform.Find(PlatformName);
+	if (ExistingOverrides != nullptr)
+	{
+		bNeedsToBeInitialized = false;
+		return *ExistingOverrides;
+	}
+
+	bNeedsToBeInitialized = true;
+	return OverridesByPlatform.Add(PlatformName, FPlatformAudioCookOverrides());
+}
 
 void FPlatformCompressionUtilities::RecacheCookOverrides()
 {
-#if PLATFORM_SUPPORTS_COMPRESSION_OVERRIDES
-	FScopeLock ScopeLock(&CookOverridesCriticalSection);
-	CacheCurrentPlatformAudioCookOverrides(OutOverrides);
-#endif // PLATFORM_SUPPORTS_COMPRESSION_OVERRIDES
+	if (PlatformSupportsCompressionOverrides())
+	{
+		FScopeLock ScopeLock(&CookOverridesCriticalSection);
+		bool bNeedsToBeInitialized;
+		CacheAudioCookOverrides(GetCacheableOverridesByPlatform(nullptr, bNeedsToBeInitialized));
+	}
 }
 
-const FPlatformAudioCookOverrides* FPlatformCompressionUtilities::GetCookOverridesForCurrentPlatform(bool bForceRecache)
+const FPlatformAudioCookOverrides* FPlatformCompressionUtilities::GetCookOverrides(const TCHAR* PlatformName, bool bForceRecache)
 {
-#if PLATFORM_SUPPORTS_COMPRESSION_OVERRIDES
-	static bool bCachedCookOverrides = false;
+	bool bNeedsToBeInitialized;
+	FPlatformAudioCookOverrides& Overrides = GetCacheableOverridesByPlatform(PlatformName, bNeedsToBeInitialized);
 
-#if !WITH_EDITOR
-	// In non-editor situations, we only need to cache the cook overrides once.
-	if (!bCachedCookOverrides)
-	{
-#else
+#if WITH_EDITOR
 	// In editor situations, the settings can change at any time, so we need to retrieve them.
-	FScopeLock ScopeLock(&CookOverridesCriticalSection);
 	
 	static double LastCacheTime = 0.0;
 	double CurrentTime = FPlatformTime::Seconds();
@@ -179,27 +313,29 @@ const FPlatformAudioCookOverrides* FPlatformCompressionUtilities::GetCookOverrid
 
 	if (bForceRecache || TimeSinceLastCache > CookOverrideCachingIntervalCvar)
 	{
+		bNeedsToBeInitialized = true;
 		LastCacheTime = CurrentTime;
-#endif // WITH_EDITOR
-	
-		CacheCurrentPlatformAudioCookOverrides(OutOverrides);
-		bCachedCookOverrides = true;
 	}
-	return &OutOverrides;
-#else 
-	return nullptr;
 #endif
+	
+	if (bNeedsToBeInitialized)
+	{
+		FScopeLock ScopeLock(&CookOverridesCriticalSection);
+		CacheAudioCookOverrides(Overrides, PlatformName);
+	}
+
+	return &Overrides;
 }
 
 bool FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching()
 {
-	const FPlatformAudioCookOverrides* Settings = GetCookOverridesForCurrentPlatform();
+	const FPlatformAudioCookOverrides* Settings = GetCookOverrides();
 	return Settings && Settings->bUseStreamCaching;
 }
 
 const FAudioStreamCachingSettings& FPlatformCompressionUtilities::GetStreamCachingSettingsForCurrentPlatform()
 {
-	const FPlatformAudioCookOverrides* Settings = GetCookOverridesForCurrentPlatform();
+	const FPlatformAudioCookOverrides* Settings = GetCookOverrides();
 	checkf(Settings, TEXT("Please only use this function if FPlatformCompressionUtilities::IsCurrentPlatformUsingLoadOnDemand() returns true."));
 	return Settings->StreamCachingSettings;
 }
@@ -207,7 +343,7 @@ const FAudioStreamCachingSettings& FPlatformCompressionUtilities::GetStreamCachi
 FCachedAudioStreamingManagerParams FPlatformCompressionUtilities::BuildCachedStreamingManagerParams()
 {
 	const FAudioStreamCachingSettings& CacheSettings = GetStreamCachingSettingsForCurrentPlatform();
-	int32 MaxChunkSize = GetMaxChunkSizeForCookOverrides(GetCookOverridesForCurrentPlatform());
+	int32 MaxChunkSize = GetMaxChunkSizeForCookOverrides(GetCookOverrides());
 
 	// Our number of elements is tweakable based on the minimum cache usage we want to support.
 	const float MinimumCacheUsage = FMath::Clamp(MinimumCacheUsageCvar, 0.0f, 0.95f);
@@ -273,7 +409,7 @@ float FPlatformCompressionUtilities::GetCompressionDurationForCurrentPlatform()
 float FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel /*= ESoundwaveSampleRateSettings::High*/)
 {
 	float SampleRate = -1.0f;
-	const FPlatformAudioCookOverrides* Settings = GetCookOverridesForCurrentPlatform();
+	const FPlatformAudioCookOverrides* Settings = GetCookOverrides();
 	if (Settings && Settings->bResampleForDevice)
 	{
 		const float* FoundSampleRate = Settings->PlatformSampleRates.Find(InSampleRateLevel);

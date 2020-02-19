@@ -91,7 +91,8 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 			int32 CurrShape = 0;
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
-				Shape->SimData = Data->ShapeSimData[CurrShape++];
+				Shape->SimData = Data->ShapeSimData[CurrShape];
+				Shape->QueryData = Data->ShapeQueryData[CurrShape++];
 			}
 		}
 
@@ -200,7 +201,8 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 			int32 CurrShape = 0;
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
-				Shape->SimData = Data->ShapeSimData[CurrShape++];
+				Shape->SimData = Data->ShapeSimData[CurrShape];
+				Shape->QueryData = Data->ShapeQueryData[CurrShape++];
 			}
 		}
 
@@ -331,6 +333,19 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			RigidHandle->SetTorque(Data->MTorque);
 			bDynamicPropertyUpdated = true;
 		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::LinearImpulse))
+		{
+			RigidHandle->SetLinearImpulse(Data->MLinearImpulse);
+			bDynamicPropertyUpdated = true;
+		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::AngularImpulse))
+		{
+			RigidHandle->SetAngularImpulse(Data->MAngularImpulse);
+			bDynamicPropertyUpdated = true;
+		}
+
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ObjectState))
 		{
 			GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Data->MObjectState);
@@ -377,7 +392,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			int32 CurrShape = 0;
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
-				Shape->SimData = Data->ShapeSimData[CurrShape++];
+				Shape->SimData = Data->ShapeSimData[CurrShape];
+				Shape->QueryData = Data->ShapeQueryData[CurrShape++];
 			}
 		}
 
@@ -388,7 +404,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 				GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Chaos::EObjectStateType::Dynamic);
 			}
 		}
-		else
+		
+		if(Data->MInitialized)
 		{
 			// wait for the first pass with nothing updated to claim its initialized
 			bInitialized = true;
@@ -402,6 +419,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccum
 {
 	Particle->SetF(Chaos::TVector<float, 3>(0));
 	Particle->SetTorque(Chaos::TVector<float, 3>(0));
+	Particle->SetLinearImpulse(Chaos::TVector<float, 3>(0));
+	Particle->SetAngularImpulse(Chaos::TVector<float, 3>(0));
 	Particle->ClearDirtyFlags();
 }
 
@@ -432,7 +451,10 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPh
 		Particle->SetV(Buffer->MV, false);
 		Particle->SetW(Buffer->MW, false);
 		Particle->UpdateShapeBounds();
-		Particle->SetObjectState(Buffer->MObjectState, true);
+		if (!Particle->IsDirty(Chaos::EParticleFlags::ObjectState))
+		{
+			Particle->SetObjectState(Buffer->MObjectState, true);
+		}
 	}
 }
 

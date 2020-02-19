@@ -109,6 +109,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Async/Async.h"
+#include "StudioAnalytics.h"
 #include "UObject/SoftObjectPath.h"
 #include "IAssetViewport.h"
 
@@ -177,33 +179,6 @@ void UEditorEngine::EndPlayMap()
 	FSoftObjectPath::ClearPIEPackageNames();
 
 	FlushAsyncLoading();
-
-	// Monitoring when PIE corrupts references between the World and the PIE generated World for UE-20486
-	{
-		TArray<ULevel*> Levels = EditorWorld->GetLevels();
-
-		for (ULevel* Level : Levels)
-		{
-			TArray<UBlueprint*> LevelBlueprints = Level->GetLevelBlueprints();
-
-			if (LevelBlueprints.Num() > 0)
-			{
-				UBlueprint* LevelScriptBlueprint = LevelBlueprints[0];
-				if (LevelScriptBlueprint && LevelScriptBlueprint->GeneratedClass && LevelScriptBlueprint->GeneratedClass->ClassGeneratedBy)
-				{
-					UE_LOG(LogBlueprintUserMessages, Log, TEXT("Early EndPlayMap Detection: Level '%s' has LevelScriptBlueprint '%s' with GeneratedClass '%s' with ClassGeneratedBy '%s'"), *Level->GetPathName(), *LevelScriptBlueprint->GetPathName(), *LevelScriptBlueprint->GeneratedClass->GetPathName(), *LevelScriptBlueprint->GeneratedClass->ClassGeneratedBy->GetPathName());
-				}
-				else if (LevelScriptBlueprint && LevelScriptBlueprint->GeneratedClass)
-				{
-					UE_LOG(LogBlueprintUserMessages, Log, TEXT("Early EndPlayMap Detection: Level '%s' has LevelScriptBlueprint '%s' with GeneratedClass '%s'"), *Level->GetPathName(), *LevelScriptBlueprint->GetPathName(), *LevelScriptBlueprint->GeneratedClass->GetPathName());
-				}
-				else if (LevelScriptBlueprint)
-				{
-					UE_LOG(LogBlueprintUserMessages, Log, TEXT("Early EndPlayMap Detection: Level '%s' has LevelScriptBlueprint '%s'"), *Level->GetPathName(), *LevelScriptBlueprint->GetPathName());
-				}
-			}
-		}
-	}
 
 	if (GEngine->XRSystem.IsValid() && !bIsSimulatingInEditor)
 	{
@@ -370,34 +345,7 @@ void UEditorEngine::EndPlayMap()
 	FNavigationSystem::OnPIEEnd(*EditorWorld);
 
 	FGameDelegates::Get().GetEndPlayMapDelegate().Broadcast();
-
-	// Monitoring when PIE corrupts references between the World and the PIE generated World for UE-20486
-	{
-		TArray<ULevel*> Levels = EditorWorld->GetLevels();
-
-		for (ULevel* Level : Levels)
-		{
-			TArray<UBlueprint*> LevelBlueprints = Level->GetLevelBlueprints();
-
-			if (LevelBlueprints.Num() > 0)
-			{
-				UBlueprint* LevelScriptBlueprint = LevelBlueprints[0];
-				if (LevelScriptBlueprint && LevelScriptBlueprint->GeneratedClass && LevelScriptBlueprint->GeneratedClass->ClassGeneratedBy)
-				{
-					UE_LOG(LogBlueprintUserMessages, Log, TEXT("Late EndPlayMap Detection: Level '%s' has LevelScriptBlueprint '%s' with GeneratedClass '%s' with ClassGeneratedBy '%s'"), *Level->GetPathName(), *LevelScriptBlueprint->GetPathName(), *LevelScriptBlueprint->GeneratedClass->GetPathName(), *LevelScriptBlueprint->GeneratedClass->ClassGeneratedBy->GetPathName());
-				}
-				else if (LevelScriptBlueprint && LevelScriptBlueprint->GeneratedClass)
-				{
-					UE_LOG(LogBlueprintUserMessages, Log, TEXT("Late EndPlayMap Detection: Level '%s' has LevelScriptBlueprint '%s' with GeneratedClass '%s'"), *Level->GetPathName(), *LevelScriptBlueprint->GetPathName(), *LevelScriptBlueprint->GeneratedClass->GetPathName());
-				}
-				else if (LevelScriptBlueprint)
-				{
-					UE_LOG(LogBlueprintUserMessages, Log, TEXT("Late EndPlayMap Detection: Level '%s' has LevelScriptBlueprint '%s'"), *Level->GetPathName(), *LevelScriptBlueprint->GetPathName());
-				}
-			}
-		}
-	}
-
+	
 	// find objects like Textures in the playworld levels that won't get garbage collected as they are marked RF_Standalone
 	for (FObjectIterator It; It; ++It)
 	{
@@ -724,7 +672,7 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 	bool bWasSimulatingInEditor = PlayInEditorSessionInfo->OriginalRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor;
 	
 	// Stop all audio and remove references to temp level.
-	if (FAudioDevice* AudioDevice = PlayWorld->GetAudioDevice())
+	if (FAudioDevice* AudioDevice = PlayWorld->GetAudioDeviceRaw())
 	{
 		AudioDevice->Flush(PlayWorld);
 		AudioDevice->ResetInterpolation();
@@ -1102,12 +1050,12 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 
 	// If our settings require us to launch a separate process in any form, we require the user to save
 	// their content so that when the new process reads the data from disk it will match what we have in-editor.
-	const bool bIsExternalMemoryProcess = PlaySessionRequest->SessionDestination != EPlaySessionDestinationType::InProcess;
-
 	bool bUserWantsInProcess;
 	EditorPlaySettings->GetRunUnderOneProcess(bUserWantsInProcess);
 
-	bool bRequestSave = bIsExternalMemoryProcess && !bUserWantsInProcess;
+	const bool bIsInProcess = PlaySessionRequest->SessionDestination == EPlaySessionDestinationType::InProcess && bUserWantsInProcess;
+
+	bool bRequestSave = !bIsInProcess;
 
 	if (bRequestSave && !SaveMapsForPlaySession())
 	{
@@ -2296,7 +2244,7 @@ void UEditorEngine::ResetPIEAudioSetting(UWorld *CurrentPieWorld)
 	ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
 	if (!PlayInSettings->EnableGameSound)
 	{
-		if (FAudioDevice* AudioDevice = CurrentPieWorld->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = CurrentPieWorld->GetAudioDeviceRaw())
 		{
 			AudioDevice->SetTransientMasterVolume(0.0f);
 		}
@@ -2353,7 +2301,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 
 	// Broadcast PreBeginPIE before checks that might block PIE below (BeginPIE is broadcast below after the checks)
 	FEditorDelegates::PreBeginPIE.Broadcast(InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor);
-	double PIEStartTime = FPlatformTime::Seconds();
+	const double PIEStartTime = FStudioAnalytics::GetAnalyticSeconds();
 	const FScopedBusyCursor BusyCursor;
 
 	// Block PIE when there is a transaction recording into the undo buffer. This is generally avoided
@@ -2476,7 +2424,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	}
 
 	// Flush all audio sources from the editor world
-	if (FAudioDevice* AudioDevice = EditorWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = EditorWorld->GetAudioDevice())
 	{
 		AudioDevice->Flush(EditorWorld);
 		AudioDevice->ResetInterpolation();
@@ -2728,7 +2676,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 
 		if (!InParams.EditorPlaySettings->EnableGameSound)
 		{
-			if (FAudioDevice* GameInstanceAudioDevice = GameInstance->GetWorld()->GetAudioDevice())
+			if (FAudioDeviceHandle GameInstanceAudioDevice = GameInstance->GetWorld()->GetAudioDevice())
 			{
 				GameInstanceAudioDevice->SetTransientMasterVolume(0.0f);
 			}

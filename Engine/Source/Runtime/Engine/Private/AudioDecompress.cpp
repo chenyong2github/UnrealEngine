@@ -639,13 +639,17 @@ namespace ADPCM
 /**
  * Worker for decompression on a separate thread
  */
-FAsyncAudioDecompressWorker::FAsyncAudioDecompressWorker(USoundWave* InWave, int32 InPrecacheBufferNumFrames)
+FAsyncAudioDecompressWorker::FAsyncAudioDecompressWorker(USoundWave* InWave, int32 InPrecacheBufferNumFrames, FAudioDevice* InAudioDevice)
 	: Wave(InWave)
 	, AudioInfo(nullptr)
 	, NumPrecacheFrames(InPrecacheBufferNumFrames)
 {
 	check(NumPrecacheFrames > 0);
-	if (GEngine && GEngine->GetMainAudioDevice())
+	if (InAudioDevice)
+	{
+		AudioInfo = InAudioDevice->CreateCompressedAudioInfo(Wave);
+	}
+	else if (GEngine && GEngine->GetMainAudioDevice())
 	{
 		AudioInfo = GEngine->GetMainAudioDevice()->CreateCompressedAudioInfo(Wave);
 	}

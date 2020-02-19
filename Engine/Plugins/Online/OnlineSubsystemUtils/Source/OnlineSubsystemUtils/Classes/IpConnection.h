@@ -16,6 +16,19 @@
 class FInternetAddr;
 class ISocketSubsystem;
 
+/** A state system of the address resolution functionality. */
+enum class EAddressResolutionState : uint8
+{
+	None = 0,
+	Disabled,
+	WaitingForResolves,
+	Connecting,
+	TryNextAddress,
+	Connected,
+	Done,	
+	Error
+};
+
 UCLASS(transient, config=Engine)
 class ONLINESUBSYSTEMUTILS_API UIpConnection : public UNetConnection
 {
@@ -23,6 +36,7 @@ class ONLINESUBSYSTEMUTILS_API UIpConnection : public UNetConnection
 	// Variables.
 
 	class FSocket*				Socket;
+	UE_DEPRECATED(4.25, "Address resolution is now handled in the IpNetDriver and no longer done entirely in the IpConnection")
 	class FResolveInfo*			ResolveInfo;
 
 	//~ Begin NetConnection Interface
@@ -35,6 +49,7 @@ class ONLINESUBSYSTEMUTILS_API UIpConnection : public UNetConnection
 	virtual void Tick() override;
 	virtual void CleanUp() override;
 	virtual void ReceivedRawPacket(void* Data, int32 Count) override;
+	virtual float GetTimeoutValue() override;
 	//~ End NetConnection Interface
 
 	/**
@@ -77,16 +92,80 @@ private:
 	float SocketErrorDisconnectDelay;
 
 	/** Cached time of the first send socket error that will be used to compute disconnect delay. */
-	float SocketError_SendDelayStartTime;
+	double SocketError_SendDelayStartTime;
 
 	/** Cached time of the first recv socket error that will be used to compute disconnect delay. */
-	float SocketError_RecvDelayStartTime;
+	double SocketError_RecvDelayStartTime;
 
-	friend class FIpConnectionHelper;
+private:
 
 	/** Handles any SendTo errors on the game thread. */
 	void HandleSocketSendResult(const FSocketSendResult& Result, ISocketSubsystem* SocketSubsystem);
 
 	/** Notifies us that we've encountered an error while receiving a packet. */
 	void HandleSocketRecvError(class UNetDriver* NetDriver, const FString& ErrorString);
+
+	/** An array of sockets tied to every binding address. */
+	TArray<FSocket*> BindSockets;
+
+	/** An array containing the address results GAI returns for the current host value. Given to us from the netdriver. */
+	TArray<TSharedRef<FInternetAddr>> ResolverResults;
+
+	/** The index into the ResolverResults that we're currently attempting */
+	int32 CurrentAddressIndex;
+
+	/** 
+	 *  The connection's current status of where it is in the resolution state machine.
+	 *  If a platform should not use resolution, call DisableAddressResolution() in your constructor
+	 */
+	EAddressResolutionState ResolutionState;
+
+	/**
+	 * Cleans up the socket information in use with resolution. This can get called numerous times.
+	 */
+	void CleanupResolutionSockets();
+
+	/**
+	 * Determines if we can continue processing resolution results or not based on flags and
+	 * current flow.
+	 *
+	 * @return if resolution is allowed to continue processing.
+	 */
+	bool CanContinueResolution() const {
+		return CurrentAddressIndex < ResolverResults.Num() && IsAddressResolutionEnabled() &&
+			ResolutionState != EAddressResolutionState::Error && ResolutionState != EAddressResolutionState::Done;
+	}
+
+	/**
+	 * Checks to see if this netconnection class can use address resolution
+	 *
+	 * @return if address resolution is allowed to continue processing.
+	 */
+	bool IsAddressResolutionEnabled() const {
+		return ResolutionState != EAddressResolutionState::Disabled;
+	}
+
+	/**
+	 * Checks to see if this netconnection class has encountered an error during process resolution
+	 *
+	 * @return If an error has occurred
+	 */
+	bool HasAddressResolutionFailed() const {
+		return ResolutionState == EAddressResolutionState::Error;
+	}
+
+protected:
+	/**
+	 * Disables address resolution by pushing the disabled flag into the status field.
+	 */
+	void DisableAddressResolution() { ResolutionState = EAddressResolutionState::Disabled; }
+
+	/**
+	 * Handles a NetConnection timeout. Overridden in order to handle parsing multiple GAI results during resolution.
+	 * 
+	 * @param ErrorStr A string containing the current error message for either usage or writing into.
+	 */
+	virtual void HandleConnectionTimeout(const FString& ErrorStr) override;
+
+	friend class FIpConnectionHelper;
 };

@@ -8,6 +8,8 @@
 
 #include "CoreMinimal.h"
 
+class FStringBuilderBase;
+class FStringView;
 struct FFileStatData;
 
 class COREUOBJECT_API FPackageName
@@ -312,14 +314,59 @@ public:
 		return TextMapPackageExtension;
 	}
 
+	/**
+	 * Returns whether the passed in extension is a valid text package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is either an text asset or a text map extension, otherwise false
+	 */
+	static bool IsTextPackageExtension(const TCHAR* Ext);
+
+	/**
+	 * Returns whether the passed in extension is a valid text asset package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is a text asset extension, otherwise false
+	 */
+	static bool IsTextAssetPackageExtension(const TCHAR* Ext);
+
+	/**
+	 * Returns whether the passed in extension is a valid text map package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is a text map extension, otherwise false
+	 */
+	static bool IsTextMapPackageExtension(const TCHAR* Ext);
+
 	/** 
-	 * Returns whether the passed in extension is a valid package 
+	 * Returns whether the passed in extension is a valid binary package
 	 * extension. Extensions with and without trailing dots are supported.
 	 *
 	 * @param	Extension to test. 
-	 * @return	True if Ext is either an asset or a map extension, otherwise false
+	 * @return	True if Ext is either a binary  asset or map extension, otherwise false
 	 */
 	static bool IsPackageExtension(const TCHAR* Ext);
+
+	/**
+	 * Returns whether the passed in extension is a valid binary asset package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is a binary asset extension, otherwise false
+	 */
+	static bool IsAssetPackageExtension(const TCHAR* Ext);
+
+	/**
+	 * Returns whether the passed in extension is a valid binary map package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is a binary asset extension, otherwise false
+	 */
+	static bool IsMapPackageExtension(const TCHAR* Ext);
 
 	/** 
 	 * Returns whether the passed in filename ends with any of the known
@@ -453,13 +500,20 @@ public:
 	 * @param Extension The extension for this package
 	 * @return True if the long package name was fixed up, false otherwise
 	 */
-	static bool FixPackageNameCase(FString& LongPackageName, const FString& Extension);
+	static bool FixPackageNameCase(FString& LongPackageName, const FStringView& Extension);
 
 	UE_DEPRECATED(4.17, "Deprecated. Call TryConvertLongPackageNameToFilename instead, which also works on nested paths")
 	static bool ConvertRootPathToContentPath(const FString& RootPath, FString& OutContentPath);
 
 	UE_DEPRECATED(4.17, "Deprecated. Call TryConvertFilenameToLongPackageName instead")
 	static FString PackageFromPath(const TCHAR* InPathName);
+
+	/** Override whether a package exist or not. */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FDoesPackageExistOverride, FName);
+	static FDoesPackageExistOverride& DoesPackageExistOverride()
+	{
+		return DoesPackageExistOverrideDelegate;
+	}
 
 private:
 
@@ -472,14 +526,17 @@ private:
 	 * Internal function used to rename filename to long package name.
 	 *
 	 * @param InFilename
-	 * @return Long package name.
+	 * @param OutPackageName Long package name.
 	 */
-	static FString InternalFilenameToLongPackageName(const FString& InFilename);
+	static void InternalFilenameToLongPackageName(const FStringView& InFilename, FStringBuilderBase& OutPackageName);
 
 	/** Event that is triggered when a new content path is mounted */
 	static FOnContentPathMountedEvent OnContentPathMountedEvent;
 
 	/** Event that is triggered when a new content path is removed */
 	static FOnContentPathDismountedEvent OnContentPathDismountedEvent;
+
+	/** Delegate used to check whether a package exist without using the filesystem. */
+	static FDoesPackageExistOverride DoesPackageExistOverrideDelegate;
 };
 

@@ -17,11 +17,7 @@
 	#define NUM_SLATE_TEXCOORDS 1
 #endif
 
-// On mobile renderers we don't convert textures into linear space when slate is rendering.
-// since the final output is a gamma space render target.
-// Metal iOS, Android OpenGL ES 3.1 and Vulkan support sampling from sRGB textures
-#define SOURCE_IN_LINEAR_SPACE  USE_MATERIALS || (FEATURE_LEVEL != FEATURE_LEVEL_ES2) // ES2 does blending in sRGB space
-
+#define SOURCE_IN_LINEAR_SPACE  1 
 
 /** Shader types (mirrored from ESlateShader::Type in RenderingCommon.h */
 #define ST_Default			0

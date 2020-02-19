@@ -1,0 +1,17 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+
+RWBuffer<int> TargetBuffer;
+int FillValue;
+uint BufferSize;
+
+[numthreads(64, 1, 1)]
+void FillIntBuffer(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint Index = DispatchThreadId.x;
+	if(Index < BufferSize)
+	{
+		TargetBuffer[Index] = FillValue;
+	}
+}

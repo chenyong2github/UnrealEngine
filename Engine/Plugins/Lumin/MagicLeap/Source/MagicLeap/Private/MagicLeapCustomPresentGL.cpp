@@ -41,9 +41,9 @@ void FMagicLeapCustomPresentOpenGL::FinishRendering()
 		NotifyFirstRender();
 
 		// TODO [Blake] : Hack since we cannot yet specify a handle per view in the view family
-		const MLGraphicsVirtualCameraInfoArray& vp_array = Plugin->GetCurrentFrame().FrameInfo.virtual_camera_info_array;
-		const uint32 vp_width = static_cast<uint32>(vp_array.viewport.w);
-		const uint32 vp_height = static_cast<uint32>(vp_array.viewport.h);
+		const MLGraphicsFrameInfo& FrameInfo = Plugin->GetCurrentFrame().FrameInfo;
+		const uint32 vp_width = static_cast<uint32>(FrameInfo.viewport.w);
+		const uint32 vp_height = static_cast<uint32>(FrameInfo.viewport.h);
 
 		if (!bFramebuffersValid)
 		{
@@ -66,7 +66,7 @@ void FMagicLeapCustomPresentOpenGL::FinishRendering()
 			glDisable(GL_FRAMEBUFFER_SRGB);
 		}
 
-		//check(vp_array.num_virtual_cameras >= 2); // We assume at least one virtual camera per eye
+		//check(FrameInfo.num_virtual_cameras >= 2); // We assume at least one virtual camera per eye
 
 		const FIntPoint& IdealRenderTargetSize = Plugin->GetHMDDevice()->GetIdealRenderTargetSize();
 		const int32 SizeX = FMath::CeilToInt(IdealRenderTargetSize.X * Plugin->GetCurrentFrame().PixelDensity);
@@ -77,32 +77,26 @@ void FMagicLeapCustomPresentOpenGL::FinishRendering()
 		FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, RenderTargetTexture, 0);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, Framebuffers[1]);
-		FOpenGL::FramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, vp_array.color_id, 0, 0);
+		FOpenGL::FramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, FrameInfo.color_id, 0, 0);
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, Framebuffers[0]);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Framebuffers[1]);
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		const bool bShouldFlipVertically = !IsES2Platform(GMaxRHIShaderPlatform);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		// Blit with a vertical flip
+		FOpenGL::BlitFramebuffer(0, 0, SizeX / 2, SizeY, 0, vp_height, vp_width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-		bShouldFlipVertically ?
-			FOpenGL::BlitFramebuffer(0, 0, SizeX / 2, SizeY, 0, vp_height, vp_width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST) :
-			FOpenGL::BlitFramebuffer(0, 0, SizeX / 2, SizeY, 0, 0, vp_width, vp_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-		MLResult Result = MLGraphicsSignalSyncObjectGL(Plugin->GraphicsClient, vp_array.virtual_cameras[0].sync_object);
+		MLResult Result = MLGraphicsSignalSyncObjectGL(Plugin->GraphicsClient, FrameInfo.virtual_cameras[0].sync_object);
 		if (Result != MLResult_Ok)
 		{
 			UE_LOG(LogMagicLeap, Error, TEXT("MLGraphicsSignalSyncObjectGL for eye 0 failed with status %d"), Result);
 		}
 
-		FOpenGL::FramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, vp_array.color_id, 0, 1);
+		FOpenGL::FramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, FrameInfo.color_id, 0, 1);
 
-		bShouldFlipVertically ?
-			FOpenGL::BlitFramebuffer(SizeX / 2, 0, SizeX, SizeY, 0, vp_height, vp_width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST) :
-			FOpenGL::BlitFramebuffer(SizeX / 2, 0, SizeX, SizeY, 0, 0, vp_width, vp_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		// Blit with a vertical flip
+		FOpenGL::BlitFramebuffer(SizeX / 2, 0, SizeX, SizeY, 0, vp_height, vp_width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-		Result = MLGraphicsSignalSyncObjectGL(Plugin->GraphicsClient, vp_array.virtual_cameras[1].sync_object);
+		Result = MLGraphicsSignalSyncObjectGL(Plugin->GraphicsClient, FrameInfo.virtual_cameras[1].sync_object);
 		if (Result != MLResult_Ok)
 		{
 			UE_LOG(LogMagicLeap, Error, TEXT("MLGraphicsSignalSyncObjectGL for eye 1 failed with status %d"), Result);
@@ -114,11 +108,11 @@ void FMagicLeapCustomPresentOpenGL::FinishRendering()
 			glEnable(GL_FRAMEBUFFER_SRGB);
 		}
 
-		static_assert(UE_ARRAY_COUNT(vp_array.virtual_cameras) == 2, "The MLSDK has updated the size of the virtual_cameras array.");
+		static_assert(UE_ARRAY_COUNT(FrameInfo.virtual_cameras) == 2, "The MLSDK has updated the size of the virtual_cameras array.");
 #if 0 // Enable this in case the MLSDK increases the size of the virtual_cameras array past 2
-		for (uint32 i = 2; i < vp_array.num_virtual_cameras; ++i)
+		for (uint32 i = 2; i < FrameInfo.num_virtual_cameras; ++i)
 		{
-			Result = MLGraphicsSignalSyncObjectGL(Plugin->GraphicsClient, vp_array.virtual_cameras[i].sync_object);
+			Result = MLGraphicsSignalSyncObjectGL(Plugin->GraphicsClient, FrameInfo.virtual_cameras[i].sync_object);
 			if (Result != MLResult_Ok)
 			{
 				UE_LOG(LogMagicLeap, Error, TEXT("MLGraphicsSignalSyncObjectGL for eye %d failed with status %d"), i, Result);

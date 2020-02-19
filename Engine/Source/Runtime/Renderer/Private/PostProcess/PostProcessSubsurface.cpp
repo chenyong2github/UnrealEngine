@@ -99,6 +99,12 @@ namespace
 		TEXT("1: Automatic. The subsurface will only switch to separable in half resolution. (default)"),
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
+
+	TAutoConsoleVariable<int32> CVarSSSBurleyNumSamplesOverride(
+		TEXT("r.SSS.Burley.NumSamplesOverride"),
+		0,
+		TEXT("When zero, Burley SSS adaptively determines the number of samples. When non-zero, this value overrides the sample count.\n"),
+		ECVF_RenderThreadSafe);
 }
 
 // Define to use a custom ps to clear UAV.
@@ -214,8 +220,10 @@ FSubsurfaceParameters GetSubsurfaceCommonParameters(FRHICommandListImmediate& RH
 	const float SSSScaleZ = DistanceToProjectionWindow * GetSubsurfaceRadiusScale();
 	const float SSSScaleX = SSSScaleZ / SUBSURFACE_KERNEL_SIZE * 0.5f;
 
+	const float SSSOverrideNumSamples = float(CVarSSSBurleyNumSamplesOverride.GetValueOnRenderThread());
+
 	FSubsurfaceParameters Parameters;
-	Parameters.SubsurfaceParams = FVector4(SSSScaleX, SSSScaleZ, 0, 0);
+	Parameters.SubsurfaceParams = FVector4(SSSScaleX, SSSScaleZ, SSSOverrideNumSamples, 0);
 	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters.SceneUniformBuffer = CreateSceneTextureUniformBuffer(
 		SceneContext, View.FeatureLevel, ESceneTextureSetupMode::All, EUniformBufferUsage::UniformBuffer_SingleFrame);
@@ -638,7 +646,7 @@ FRDGTextureRef ResolveTextureToSRV(FRDGBuilder& GraphBuilder, FRDGTextureRef Inp
 
 	TShaderMapRef<FSubsurfaceSRVResolvePS> PixelShader(View.ShaderMap);
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("SubsurfaceTextureResolve"), View, SceneViewport, SceneViewport, *PixelShader, PassParameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("SubsurfaceTextureResolve"), View, SceneViewport, SceneViewport, PixelShader, PassParameters);
 
 	return SRVTextureOutput;
 }
@@ -657,7 +665,7 @@ FRDGTextureRef CreateBlackUAVTexture(FRDGBuilder& GraphBuilder, FRDGTextureDesc 
 
 	TShaderMapRef<FSubsurfaceSRVResolvePS> PixelShader(View.ShaderMap);
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("ClearUAV"), View, SceneViewport, SceneViewport, *PixelShader, PassParameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("ClearUAV"), View, SceneViewport, SceneViewport, PixelShader, PassParameters);
 #else
 	FRDGTextureRef SRVTextureOutput = GraphBuilder.CreateTexture(SRVDesc, Name);
 	FRDGTextureUAVDesc UAVClearDesc(SRVTextureOutput, 0);
@@ -866,7 +874,7 @@ void ComputeSubsurfaceForView(
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			PassParameters->RWBurleyGroupBuffer = GraphBuilder.CreateUAV(BurleyGroupBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->RWSeparableGroupBuffer = GraphBuilder.CreateUAV(SeparableGroupBuffer, EPixelFormat::PF_R32_UINT);
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("InitGroupCounter"), *ComputeShader, PassParameters, FIntVector(1, 1, 1));
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("InitGroupCounter"), ComputeShader, PassParameters, FIntVector(1, 1, 1));
 		}
 
 		// Call the indirect setup
@@ -893,7 +901,7 @@ void ComputeSubsurfaceForView(
 
 			FIntPoint ComputeGroupCount = FIntPoint::DivideAndRoundUp(SubsurfaceViewport.Extent, kSubsurfaceGroupSize);
 
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("SubsurfaceSetup"), *ComputeShader, PassParameters, FIntVector(ComputeGroupCount.X, ComputeGroupCount.Y, 1));
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("SubsurfaceSetup"), ComputeShader, PassParameters, FIntVector(ComputeGroupCount.X, ComputeGroupCount.Y, 1));
 		}
 
 		// In half resolution, only Separable is used. We do not need this mipmap.
@@ -926,7 +934,7 @@ void ComputeSubsurfaceForView(
 				PassParameters->GroupBuffer = GraphBuilder.CreateSRV(SubsurfaceBufferUsage[SubsurfaceTypeIndex], EPixelFormat::PF_R32_UINT);
 
 				TShaderMapRef<ARGSETUPSHADER> ComputeShader(View.ShaderMap);
-				FComputeShaderUtils::AddPass(GraphBuilder, FRDGEventName(SubsurfacePhaseName[SubsurfaceTypeIndex]), *ComputeShader, PassParameters, FIntVector(1, 1, 1));
+				FComputeShaderUtils::AddPass(GraphBuilder, FRDGEventName(SubsurfacePhaseName[SubsurfaceTypeIndex]), ComputeShader, PassParameters, FIntVector(1, 1, 1));
 			}
 		}
 
@@ -1008,7 +1016,7 @@ void ComputeSubsurfaceForView(
 				ComputeShaderPermutationVector.Set<SHADER::FRunningInSeparable>(bForceRunningInSeparable);
 				TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
 
-				FComputeShaderUtils::AddPass(GraphBuilder, FRDGEventName(PassInfo.Name), *ComputeShader, PassParameters, SubsurfaceBufferArgs[SubsurfaceTypeIndex], 0);
+				FComputeShaderUtils::AddPass(GraphBuilder, FRDGEventName(PassInfo.Name), ComputeShader, PassParameters, SubsurfaceBufferArgs[SubsurfaceTypeIndex], 0);
 			}
 		}
 	}
@@ -1049,7 +1057,7 @@ void ComputeSubsurfaceForView(
 			View,
 			SceneViewport,
 			SceneViewport,
-			*PixelShader,
+			PixelShader,
 			PassParameters,
 			EScreenPassDrawFlags::AllowHMDHiddenAreaMask);
 	}
@@ -1113,7 +1121,7 @@ FRDGTextureRef ComputeSubsurface(
 					const FViewInfo& View = Views[ViewIndex];
 					const FScreenPassTextureViewport TextureViewport(SceneTexture, View.ViewRect);
 
-					DrawScreenPass(RHICmdList, View, TextureViewport, TextureViewport, *PixelShader, *PassParameters);
+					DrawScreenPass(RHICmdList, View, TextureViewport, TextureViewport, PixelShader, *PassParameters);
 				}
 			}
 		});
@@ -1170,7 +1178,7 @@ FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const F
 
 	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeSubsurface");
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, FScreenPassTextureViewport(Output), InputViewport, *PixelShader, PassParameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, FScreenPassTextureViewport(Output), InputViewport, PixelShader, PassParameters);
 
 	Output.LoadAction = ERenderTargetLoadAction::ELoad;
 

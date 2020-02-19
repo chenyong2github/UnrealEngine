@@ -52,7 +52,7 @@ public:
 		return Parent->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
 	}
 
-	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (ParameterInfo.Name == FName(TEXT("AlphaScaleBias")))
 		{
@@ -86,7 +86,7 @@ public:
 
 		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
 	}
-	virtual bool GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (ParameterInfo.Name == FName(TEXT("Top")))
 		{
@@ -100,7 +100,7 @@ public:
 		}
 		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
 	}
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (ParameterInfo.Name == FName(TEXT("AlphaTexture")))
 		{
@@ -111,7 +111,7 @@ public:
 		}
 		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
 	{
 		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
@@ -343,7 +343,7 @@ public:
 		Result.bDrawRelevance = IsShown(View) && bVisible && !View->bIsGameView && GLandscapeEditRenderMode & ELandscapeEditRenderMode::Gizmo;
 		Result.bDynamicRelevance = true;
 		// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
-		Result.bSeparateTranslucencyRelevance = Result.bNormalTranslucencyRelevance = true;
+		Result.bSeparateTranslucency = Result.bNormalTranslucency = true;
 #endif
 		return Result;
 	}

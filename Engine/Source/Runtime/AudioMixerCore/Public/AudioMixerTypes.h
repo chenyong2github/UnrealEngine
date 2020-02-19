@@ -17,6 +17,7 @@ namespace Audio {
 			SDL2,		// Linux
 			OpenSLES, 	// Android
 			Switch, 	// Switch
+			Other,      // Generic output type.
 			Null		// Unknown/not Supported
 		};
 	}

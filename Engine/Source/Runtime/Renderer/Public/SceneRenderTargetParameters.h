@@ -30,18 +30,21 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSceneTexturesUniformParameters, RENDERER_A
 	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferCTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferDTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferETexture)
+	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferFTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferVelocityTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GBufferATextureNonMS)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GBufferBTextureNonMS)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GBufferCTextureNonMS)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GBufferDTextureNonMS)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GBufferETextureNonMS)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GBufferFTextureNonMS)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GBufferVelocityTextureNonMS)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferATextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferBTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferCTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferDTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferETextureSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferFTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferVelocityTextureSampler)
 
 	// SSAO
@@ -114,6 +117,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDE
 	SHADER_PARAMETER_TEXTURE(Texture2D, MobileCustomStencilTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, MobileCustomStencilTextureSampler)
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VirtualTextureFeedbackUAV)
+	SHADER_PARAMETER_SRV(Buffer<float4>, EyeAdaptationBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern void SetupMobileSceneTextureUniformParameters(
@@ -133,6 +137,7 @@ extern RENDERER_API void BindSceneTextureUniformBufferDependentOnShadingPath(
 /** Encapsulates scene texture shader parameter bindings. */
 class RENDERER_API FSceneTextureShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FSceneTextureShaderParameters, NonVirtual);
 public:
 	/** Binds the parameters using a compiled shader's parameter map. */
 	void Bind(const FShader::CompiledShaderInitializerType& Initializer)
@@ -183,5 +188,5 @@ public:
 	}
 
 private:
-	FShaderUniformBufferParameter SceneTexturesUniformBuffer;
+	LAYOUT_FIELD(FShaderUniformBufferParameter, SceneTexturesUniformBuffer);
 };

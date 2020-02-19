@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef TRACE_COLLECTION_NOTICE_H
-#define TRACE_COLLECTION_NOTICE_H
+#ifndef PXR_BASE_TRACE_COLLECTION_NOTICE_H
+#define PXR_BASE_TRACE_COLLECTION_NOTICE_H
 
 #include "pxr/pxr.h"
 
@@ -61,4 +61,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TRACE_COLLECTION_NOTICE_H
+#endif // PXR_BASE_TRACE_COLLECTION_NOTICE_H

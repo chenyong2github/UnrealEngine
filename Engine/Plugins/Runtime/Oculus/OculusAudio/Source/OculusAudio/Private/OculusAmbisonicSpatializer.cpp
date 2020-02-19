@@ -1,187 +1,383 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OculusAmbisonicSpatializer.h"
+#include "ISoundfieldFormat.h"
 #include "OculusAudioMixer.h"
+#include "DSP/BufferVectorOperations.h"
+#include "AudioMixerDevice.h"
 #include "OculusAudioDllManager.h"
+#include "OculusAudioContextManager.h"
+#include "SoundFieldRendering.h"
 
-FOculusAmbisonicsMixer::FOculusAmbisonicsMixer()
-	: Context(nullptr)
-	, SampleRate(0)
+static int32 UseSoundfieldSubmixForOculusAudioOutputCVar = 0;
+FAutoConsoleVariableRef CVarUseSoundfieldSubmixForOculusAudioOutput(
+	TEXT("au.oculus.UseSoundfieldSubmixForOculusAudioOutput"),
+	UseSoundfieldSubmixForOculusAudioOutputCVar,
+	TEXT("If set to 1, this will allow for audio sources to be sent to an Oculus Audio soundfield submix to be HRTF spatialized, rather than using the Oculus Audio Spatialization Plugin for the entire project.\n")
+	TEXT("0: Disable, >0: Enable"),
+	ECVF_Default);
+
+// the Oculus Audio renderer renders all inputs immediately to an interleaved stereo output.
+class FOculusSoundfieldBuffer : public ISoundfieldAudioPacket
 {
-}
+public:
+	// Interleaved binaural audio buffer.
+	Audio::AlignedFloatBuffer AudioBuffer;
+	int32 NumChannels;
 
-void FOculusAmbisonicsMixer::Shutdown()
-{
-}
+	FOculusSoundfieldBuffer()
+		: NumChannels(0)
+	{}
 
-int32 FOculusAmbisonicsMixer::GetNumChannelsForAmbisonicsFormat(UAmbisonicsSubmixSettingsBase* InSettings)
-{
-	return 4;
-}
-
-void FOculusAmbisonicsMixer::OnOpenEncodingStream(const uint32 StreamId, UAmbisonicsSubmixSettingsBase* InSettings)
-{
-	UOculusAmbisonicsSettings* Settings = CastChecked<UOculusAmbisonicsSettings>(InSettings);
-
-	ovrAudioAmbisonicStream NewStream = nullptr;
-	ovrAudioAmbisonicFormat StreamFormat = (Settings->ChannelOrder == EAmbisonicFormat::AmbiX ? ovrAudioAmbisonicFormat_AmbiX : ovrAudioAmbisonicFormat_FuMa);
-	ovrResult OurResult = OVRA_CALL(ovrAudio_CreateAmbisonicStream)(Context, SampleRate, BufferLength, StreamFormat, 1, &NewStream);
-	check(OurResult == 0);
-	check(NewStream != nullptr);
-	OpenStreams.Add(StreamId, NewStream);
-}
-
-void FOculusAmbisonicsMixer::OnCloseEncodingStream(const uint32 SourceId)
-{
-	ovrAudioAmbisonicStream* InStream = OpenStreams.Find(SourceId);
-	if (InStream != nullptr)
+	virtual void Serialize(FArchive& Ar) override
 	{
-		OVRA_CALL(ovrAudio_DestroyAmbisonicStream)(*InStream);
-		OpenStreams.Remove(SourceId);
-	}
-	else
-	{
-		checkf(false, TEXT("Tried to close a stream we did not open."));
-	}
-}
-
-void FOculusAmbisonicsMixer::EncodeToAmbisonics(const uint32 SourceId, const FAmbisonicsEncoderInputData& InputData, FAmbisonicsEncoderOutputData& OutputData, UAmbisonicsSubmixSettingsBase* InParams)
-{
-	//Oculus only supports encoding mono streams.
-	if (InputData.NumChannels == 1)
-	{
-		//TODO: Implement;
-		//ovrAudio_MonoToAmbisonic(InputData.AudioBuffer->GetData())
-	}
-}
-
-void FOculusAmbisonicsMixer::OnOpenDecodingStream(const uint32 StreamId, UAmbisonicsSubmixSettingsBase* InSettings, FAmbisonicsDecoderPositionalData& SpecifiedOutputPositions)
-{
-	ovrAudioAmbisonicFormat StreamFormat = ovrAudioAmbisonicFormat_AmbiX;
-	ovrAudioAmbisonicSpeakerLayout SpeakerLayout = ovrAudioAmbisonicSpeakerLayout_SphericalHarmonics;
-	if (InSettings != nullptr) 
-	{
-		UOculusAmbisonicsSettings* Settings = CastChecked<UOculusAmbisonicsSettings>(InSettings);
-		StreamFormat = (Settings->ChannelOrder == EAmbisonicFormat::AmbiX ? ovrAudioAmbisonicFormat_AmbiX : ovrAudioAmbisonicFormat_FuMa);
-		SpeakerLayout = (Settings->SpatializationMode == EAmbisonicMode::SphericalHarmonics) ?
-			ovrAudioAmbisonicSpeakerLayout_SphericalHarmonics : ovrAudioAmbisonicSpeakerLayout_Icosahedron;
+		Ar << AudioBuffer;
+		Ar << NumChannels;
 	}
 
-	ovrAudioAmbisonicStream NewStream = nullptr;
-	ovrResult OurResult = OVRA_CALL(ovrAudio_CreateAmbisonicStream)(Context, SampleRate, BufferLength, StreamFormat, 1, &NewStream);
 
-	check(OurResult == 0);
-	check(NewStream != nullptr);
-
-	OurResult = OVRA_CALL(ovrAudio_SetAmbisonicSpeakerLayout)(NewStream, SpeakerLayout);
-
-	check(OurResult == 0);
-	OpenStreams.Add(StreamId, NewStream);
-}
-
-void FOculusAmbisonicsMixer::OnCloseDecodingStream(const uint32 StreamId)
-{
-	ovrAudioAmbisonicStream* InStream = OpenStreams.Find(StreamId);
-	if (InStream != nullptr)
+	virtual TUniquePtr<ISoundfieldAudioPacket> Duplicate() const override
 	{
-		OVRA_CALL(ovrAudio_DestroyAmbisonicStream)(*InStream);
-		OpenStreams.Remove(StreamId);
+		return TUniquePtr<ISoundfieldAudioPacket>(new FOculusSoundfieldBuffer(*this));
 	}
-	else
-	{
-		checkf(false, TEXT("Tried to close a stream we did not open."));
-	}
-}
 
-void FOculusAmbisonicsMixer::DecodeFromAmbisonics(const uint32 StreamId, const FAmbisonicsDecoderInputData& InputData, FAmbisonicsDecoderPositionalData& SpecifiedOutputPositions, FAmbisonicsDecoderOutputData& OutputData)
-{
-	//Currently, Oculus only decodes first-order to stereo.
-	if (SpecifiedOutputPositions.OutputNumChannels == 2 && InputData.NumChannels == 4)
+
+	virtual void Reset() override
 	{
-		//Get ambisonics stream
-		ovrAudioAmbisonicStream* ThisStream = OpenStreams.Find(StreamId);
-		if (ThisStream != nullptr)
+		AudioBuffer.Reset();
+		NumChannels = 0;
+	}
+
+};
+
+class FOculusEncoder : public ISoundfieldEncoderStream
+{
+private:
+	ovrAudioContext Context;
+	TArray<int32> SourceIds;
+
+	// temp buffers use to binauralize each source.
+	Audio::AlignedFloatBuffer ScratchMonoBuffer;
+	Audio::AlignedFloatBuffer ScratchOutputBuffer;
+
+	static int32 SourceIdCounter;
+	static FCriticalSection SourceIdCounterCritSection;
+
+public:
+
+	FOculusEncoder(ovrAudioContext InContext, int32 InNumChannels, int32 MaxNumSources)
+		: Context(InContext)
+	{
+		check(Context != nullptr);
 		{
-			//convert ambisonics rotation to listener rotation:
+			// Assign source Ids for each channel here.
+			FScopeLock ScopeLock(&SourceIdCounterCritSection);
+			for (int32 Index = 0; Index < InNumChannels; Index++)
 			{
-				// Translate the input position to OVR coordinates
-				FQuat& ListenerRotation = SpecifiedOutputPositions.ListenerRotation;
-				FVector OvrListenerForward = OculusAudioSpatializationAudioMixer::ToOVRVector(ListenerRotation.GetForwardVector());
-				FVector OvrListenerUp = OculusAudioSpatializationAudioMixer::ToOVRVector(ListenerRotation.GetUpVector());
 
-				static auto SetListenerVectors = OVRA_CALL(ovrAudio_SetListenerVectors);
-				ovrResult Result = SetListenerVectors(Context,
-					0.0f, 0.0f, 0.0f,
-					OvrListenerForward.X, OvrListenerForward.Y, OvrListenerForward.Z,
-					OvrListenerUp.X, OvrListenerUp.Y, OvrListenerUp.Z);
+				SourceIds.Add(SourceIdCounter);
+				SourceIdCounter = (SourceIdCounter + 1) % MaxNumSources;
 			}
-			ovrResult DecodeResult= OVRA_CALL(ovrAudio_ProcessAmbisonicStreamInterleaved)(Context, *ThisStream, InputData.AudioBuffer->GetData(), OutputData.AudioBuffer.GetData(), InputData.AudioBuffer->Num() / InputData.NumChannels);
+		}
+
+		// Set default settings for each source channel here.
+		for (int32& SourceId : SourceIds)
+		{
+			uint32 Flags = 0;
+			Flags |= ovrAudioSourceFlag_ReflectionsDisabled;
+
+			ovrResult Result = OVRA_CALL(ovrAudio_SetAudioSourceFlags)(Context, SourceId, Flags);
+			check(Result == ovrSuccess);
+
+			ovrAudioSourceAttenuationMode mode = ovrAudioSourceAttenuationMode_None;
+			Result = OVRA_CALL(ovrAudio_SetAudioSourceAttenuationMode)(Context, SourceId, mode, 1.0f);
+			check(Result == ovrSuccess);
+
+			Result = OVRA_CALL(ovrAudio_SetAudioReverbSendLevel)(Context, SourceId, 0.0f);
+			check(Result == ovrSuccess);
+		}
+	}
+
+	virtual void Encode(const FSoundfieldEncoderInputData& InputData, ISoundfieldAudioPacket& OutputData) override
+	{
+		OutputData.Reset();
+		EncodeAndMixIn(InputData, OutputData);
+	}
+
+
+	// Binaurally spatialize each independent speaker position. If UseSoundfieldSubmixForOculusAudioOutputCVar
+	// was false when this encoder was created this will no-op.
+	virtual void EncodeAndMixIn(const FSoundfieldEncoderInputData& InputData, ISoundfieldAudioPacket& OutputData) override
+	{
+		FOculusSoundfieldBuffer& OutputBuffer = DowncastSoundfieldRef<FOculusSoundfieldBuffer>(OutputData);
+
+		check(InputData.NumChannels == SourceIds.Num());
+		const int32 NumFrames = InputData.AudioBuffer.Num() / InputData.NumChannels;
+
+		OutputBuffer.AudioBuffer.Reset();
+		OutputBuffer.NumChannels = 2;
+		OutputBuffer.AudioBuffer.AddZeroed(NumFrames * OutputBuffer.NumChannels);
+
+		FQuat ListenerOrientation = InputData.PositionalData.Rotation.Inverse();
+
+		// Translate the input position to OVR coordinates
+		FVector ListenerPosition = OculusAudioSpatializationAudioMixer::ToOVRVector(FVector::ZeroVector);
+		FVector ListenerForward = OculusAudioSpatializationAudioMixer::ToOVRVector(ListenerOrientation.GetForwardVector());
+		FVector OvrListenerUp = OculusAudioSpatializationAudioMixer::ToOVRVector(ListenerOrientation.GetUpVector());
+
+		ovrResult Result = OVRA_CALL(ovrAudio_SetListenerVectors)(Context,
+			ListenerPosition.X, ListenerPosition.Y, ListenerPosition.Z,
+			ListenerForward.X, ListenerForward.Y, ListenerForward.Z,
+			OvrListenerUp.X, OvrListenerUp.Y, OvrListenerUp.Z);
+		OVR_AUDIO_CHECK(Result, "Failed to set listener position and rotation");
+
+		check(InputData.PositionalData.ChannelPositions);
+		const TArray<Audio::FChannelPositionInfo>& ChannelPositions = *(InputData.PositionalData.ChannelPositions);
+
+		for (int32 ChannelIndex = 0; ChannelIndex < SourceIds.Num(); ChannelIndex++)
+		{
+			int32& SourceId = SourceIds[ChannelIndex];
+			const Audio::FChannelPositionInfo& ChannelPosition = ChannelPositions[ChannelIndex];
+			
+
+			// Translate the input position to OVR coordinates
+			FVector SourcePosition = OculusAudioSpatializationAudioMixer::ToOVRVector(ChannelPosition);
+
+			// Set the source position to current audio position
+			Result = OVRA_CALL(ovrAudio_SetAudioSourcePos)(Context, SourceId, SourcePosition.X, SourcePosition.Y, SourcePosition.Z);
+			OVR_AUDIO_CHECK(Result, "Failed to set audio source position");
+
+			// Deinterleave the audio into the mono temp buffer.
+			ScratchMonoBuffer.Reset();
+			ScratchMonoBuffer.AddUninitialized(NumFrames);
+			for(int32 FrameIndex = 0; FrameIndex < NumFrames; FrameIndex++)
+			{
+				ScratchMonoBuffer[FrameIndex] = InputData.AudioBuffer[FrameIndex * InputData.NumChannels + ChannelIndex];
+			}
+
+			ScratchOutputBuffer.Reset();
+			ScratchOutputBuffer.AddUninitialized(NumFrames * 2);
+
+			uint32 Status = 0;
+			Result = OVRA_CALL(ovrAudio_SpatializeMonoSourceInterleaved)(Context, SourceId, &Status, ScratchOutputBuffer.GetData(), ScratchMonoBuffer.GetData());
+			OVR_AUDIO_CHECK(Result, "Failed to spatialize mono source interleaved");
+
+			// sum the interleaved output into the output bed.
+			Audio::MixInBufferFast(ScratchOutputBuffer, OutputBuffer.AudioBuffer);
+		}
+	}
+};
+
+int32 FOculusEncoder::SourceIdCounter = 0;
+FCriticalSection FOculusEncoder::SourceIdCounterCritSection;
+
+// Because Oculus spatializes every directly to an interleaved stereo buffer,
+// we simply pass it forward here.
+class FOculusAudioDecoder : public ISoundfieldDecoderStream
+{
+public:
+
+	virtual void Decode(const FSoundfieldDecoderInputData& InputData, FSoundfieldDecoderOutputData& OutputData) override
+	{
+		OutputData.AudioBuffer.Reset();
+		OutputData.AudioBuffer.AddZeroed(InputData.NumFrames * InputData.PositionalData.NumChannels);
+		DecodeAndMixIn(InputData, OutputData);
+	}
+
+	virtual void DecodeAndMixIn(const FSoundfieldDecoderInputData& InputData, FSoundfieldDecoderOutputData& OutputData) override
+	{
+		if (UseSoundfieldSubmixForOculusAudioOutputCVar)
+		{
+			const FOculusSoundfieldBuffer& InputBuffer = DowncastSoundfieldRef<const FOculusSoundfieldBuffer>(InputData.SoundfieldBuffer);
+
+			if (InputBuffer.AudioBuffer.Num() == 0)
+			{
+				return;
+			}
+			else if (InputData.PositionalData.NumChannels == InputBuffer.NumChannels)
+			{
+				// If the number of output channels is the same as the input channels, mix it in directly.
+				Audio::MixInBufferFast(InputBuffer.AudioBuffer, OutputData.AudioBuffer);
+			}
+			else
+			{
+				// Otherwise, downmix and mix in.
+				Audio::AlignedFloatBuffer OutChannelMap;
+				Audio::FMixerDevice::Get2DChannelMap(false, InputBuffer.NumChannels, InputData.PositionalData.NumChannels, false, OutChannelMap);
+				Audio::DownmixAndSumIntoBuffer(InputBuffer.NumChannels, InputData.PositionalData.NumChannels, InputBuffer.AudioBuffer, OutputData.AudioBuffer, OutChannelMap.GetData());
+			}
+		}
+	}
+};
+
+// Class that takes ambisonics audio and renders it to an FOculusSoundfieldBuffer.
+class FOculusAmbisonicsTranscoder : public ISoundfieldTranscodeStream
+{
+private:
+	ovrAudioContext Context;
+	ovrAudioAmbisonicStream AmbiStreamObject;
+public:
+	FOculusAmbisonicsTranscoder(ovrAudioContext InContext, int32 InSampleRate, int32 InBufferLength)
+		: Context(InContext)
+	{
+		ovrAudioAmbisonicFormat StreamFormat = ovrAudioAmbisonicFormat_AmbiX;
+		ovrResult OurResult = OVRA_CALL(ovrAudio_CreateAmbisonicStream)(Context, InSampleRate, InBufferLength, StreamFormat, 1, &AmbiStreamObject);
+		check(OurResult == 0);
+		check(AmbiStreamObject != nullptr);
+	}
+
+	virtual void Transcode(const ISoundfieldAudioPacket& InputData, const ISoundfieldEncodingSettingsProxy& InputSettings, ISoundfieldAudioPacket& OutputData, const ISoundfieldEncodingSettingsProxy& OutputSettings) override
+	{
+		OutputData.Reset();
+		TranscodeAndMixIn(InputData, InputSettings, OutputData, OutputSettings);
+	}
+
+
+	virtual void TranscodeAndMixIn(const ISoundfieldAudioPacket& InputData, const ISoundfieldEncodingSettingsProxy& InputSettings, ISoundfieldAudioPacket& PacketToSumTo, const ISoundfieldEncodingSettingsProxy& OutputSettings) override
+	{
+		const FAmbisonicsSoundfieldBuffer& InputBuffer = DowncastSoundfieldRef<const FAmbisonicsSoundfieldBuffer>(InputData);
+		FOculusSoundfieldBuffer& OutputBuffer = DowncastSoundfieldRef<FOculusSoundfieldBuffer>(PacketToSumTo);
+
+		const int32 NumFrames = InputBuffer.AudioBuffer.Num() / InputBuffer.NumChannels;
+		OutputBuffer.AudioBuffer.SetNumZeroed(NumFrames * 2);
+		OutputBuffer.NumChannels = 2;
+
+		//Currently, Oculus only decodes first-order ambisonics to stereo.
+		// in the future we can truncate InputBuffer to four channels and 
+		// render that.
+		// For now we just output silence for higher order ambisonics from the Oculus spatializaers
+		if (InputBuffer.NumChannels == 4)
+		{
+			// Translate the input position to OVR coordinates
+			const FQuat& ListenerRotation = InputBuffer.Rotation;
+			FVector OvrListenerForward = OculusAudioSpatializationAudioMixer::ToOVRVector(ListenerRotation.GetForwardVector());
+			FVector OvrListenerUp = OculusAudioSpatializationAudioMixer::ToOVRVector(ListenerRotation.GetUpVector());
+
+			static auto SetListenerVectors = OVRA_CALL(ovrAudio_SetListenerVectors);
+			ovrResult Result = SetListenerVectors(Context,
+				0.0f, 0.0f, 0.0f,
+				OvrListenerForward.X, OvrListenerForward.Y, OvrListenerForward.Z,
+				OvrListenerUp.X, OvrListenerUp.Y, OvrListenerUp.Z);
+
+			ovrResult DecodeResult = OVRA_CALL(ovrAudio_ProcessAmbisonicStreamInterleaved)(Context, AmbiStreamObject, InputBuffer.AudioBuffer.GetData(), OutputBuffer.AudioBuffer.GetData(), NumFrames);
 			check(DecodeResult == 0);
+		}
+	}
+
+};
+
+// Since FOculusSoundfieldBuffer is just an interleaved stereo buffer, we simply mix the buffer here.
+class FOculusAudioSoundfieldMixer : public ISoundfieldMixerStream
+{
+public:
+	virtual void MixTogether(const FSoundfieldMixerInputData& InputData, ISoundfieldAudioPacket& PacketToSumTo) override
+	{
+		const FOculusSoundfieldBuffer& InputBuffer = DowncastSoundfieldRef<const FOculusSoundfieldBuffer>(InputData.InputPacket);
+		FOculusSoundfieldBuffer& OutputBuffer = DowncastSoundfieldRef<FOculusSoundfieldBuffer>(PacketToSumTo);
+
+		if (OutputBuffer.AudioBuffer.Num() == 0)
+		{
+			OutputBuffer.AudioBuffer = InputBuffer.AudioBuffer;
+			OutputBuffer.NumChannels = InputBuffer.NumChannels;
 		}
 		else
 		{
-			checkf(false, TEXT("Invalid stream ID."));
+			check(InputBuffer.AudioBuffer.Num() == OutputBuffer.AudioBuffer.Num());
+			check(InputBuffer.NumChannels == OutputBuffer.NumChannels);
+
+
+			Audio::MixInBufferFast(InputBuffer.AudioBuffer, OutputBuffer.AudioBuffer, InputData.SendLevel);
 		}
+	}
+};
+
+FOculusAmbisonicsFactory::FOculusAmbisonicsFactory()
+{
+	ISoundfieldFactory::RegisterSoundfieldFormat(this);
+}
+
+FOculusAmbisonicsFactory::~FOculusAmbisonicsFactory()
+{
+	ISoundfieldFactory::UnregisterSoundfieldFormat(this);
+}
+
+bool FOculusAmbisonicsFactory::IsTranscodeRequiredBetweenSettings(const ISoundfieldEncodingSettingsProxy& SourceSettings, const ISoundfieldEncodingSettingsProxy& DestinationSettings)
+{
+	return false;
+}
+
+bool FOculusAmbisonicsFactory::CanTranscodeFromSoundfieldFormat(FName SourceFormat, const ISoundfieldEncodingSettingsProxy& SourceEncodingSettings)
+{
+	FName AmbisonicsSoundfieldFormatName = GetUnrealAmbisonicsFormatName();
+	if (SourceFormat == AmbisonicsSoundfieldFormatName)
+	{
+		return true;
 	}
 	else
 	{
-		checkf(false, TEXT("Invalid number of channels. Input channels were %d but should be 4, output channels were %d but should be 2."), InputData.NumChannels, SpecifiedOutputPositions.OutputNumChannels);
+		return false;
 	}
+}
 
-#define AMBISONICS_SINE_TEST 0
+bool FOculusAmbisonicsFactory::CanTranscodeToSoundfieldFormat(FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& DestinationEncodingSettings)
+{
+	return false;
+}
 
-#if AMBISONICS_SINE_TEST
-	static float n = 0.0f;
-	for (int32 Index = 0; Index < OutputData.AudioBuffer.Num(); Index+= SpecifiedOutputPositions.OutputNumChannels)
+UClass* FOculusAmbisonicsFactory::GetCustomEncodingSettingsClass() const
+{
+	return UOculusAudioSoundfieldSettings::StaticClass();
+}
+
+const USoundfieldEncodingSettingsBase* FOculusAmbisonicsFactory::GetDefaultEncodingSettings()
+{
+	return GetDefault<UOculusAudioSoundfieldSettings>();
+}
+
+FName FOculusAmbisonicsFactory::GetSoundfieldFormatName()
+{
+	static FName OculusBinauralFormatName = FName(TEXT("Oculus Binaural"));
+	return OculusBinauralFormatName;
+}
+
+TUniquePtr<ISoundfieldEncoderStream> FOculusAmbisonicsFactory::CreateEncoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings)
+{
+	ovrAudioContext Context = FOculusAudioContextManager::GetContextForAudioDevice(InitInfo.AudioDevicePtr);
+	if (!Context)
 	{
-		// Do a sine test before we're all done
-		for (int32 ChannelIndex = 0; ChannelIndex < SpecifiedOutputPositions.OutputNumChannels; ChannelIndex++)
-		{
-			OutputData.AudioBuffer[Index + ChannelIndex] = FMath::Sin(440.0f * n * 2.0f * PI / 48000.0f);
-		}
-		n += 1.0f;
+		Context = FOculusAudioContextManager::CreateContextForAudioDevice(InitInfo.AudioDevicePtr);
+		check(Context);
 	}
-#endif
+
+	return TUniquePtr<ISoundfieldEncoderStream>(new FOculusEncoder(Context, InitInfo.NumOutputChannels, InitInfo.NumSources));
 }
 
-bool FOculusAmbisonicsMixer::ShouldReencodeBetween(UAmbisonicsSubmixSettingsBase* SourceSubmixSettings, UAmbisonicsSubmixSettingsBase* DestinationSubmixSettings)
+TUniquePtr<ISoundfieldDecoderStream> FOculusAmbisonicsFactory::CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings)
 {
-	//stub
-	return true;
+	return TUniquePtr<ISoundfieldDecoderStream>(new FOculusAudioDecoder());
 }
 
-void FOculusAmbisonicsMixer::Initialize(const FAudioPluginInitializationParams InitializationParams)
+TUniquePtr<ISoundfieldTranscodeStream> FOculusAmbisonicsFactory::CreateTranscoderStream(const FName SourceFormat, const ISoundfieldEncodingSettingsProxy& InitialSourceSettings, const FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& InitialDestinationSettings, const FAudioPluginInitializationParams& InitInfo)
 {
-	SampleRate = InitializationParams.SampleRate;
-	BufferLength = InitializationParams.BufferLength;
+	check(SourceFormat == GetUnrealAmbisonicsFormatName());
+	check(DestinationFormat == GetSoundfieldFormatName());
 
-
-	ovrAudioContextConfiguration ContextConfig;
-	ContextConfig.acc_Size = sizeof(ovrAudioContextConfiguration);
-
-	// TODO: Check if MaxNumSources also handles ambisonics stuff.
-	ContextConfig.acc_MaxNumSources = 1;
-	ContextConfig.acc_SampleRate = SampleRate;
-	ContextConfig.acc_BufferLength = BufferLength;
-	ovrResult Result = OVRA_CALL(ovrAudio_CreateContext)(&Context, &ContextConfig);
-	OVR_AUDIO_CHECK(Result, "Failed to create ambisonic context");
-}
-
-UClass* FOculusAmbisonicsMixer::GetCustomSettingsClass()
-{
-	return UOculusAmbisonicsSettings::StaticClass();
-}
-
-UAmbisonicsSubmixSettingsBase* FOculusAmbisonicsMixer::GetDefaultSettings()
-{
-	static UOculusAmbisonicsSettings* DefaultSettingsPtr = nullptr;
-	if (DefaultSettingsPtr == nullptr)
+	ovrAudioContext Context = FOculusAudioContextManager::GetContextForAudioDevice(InitInfo.AudioDevicePtr);
+	if (!Context)
 	{
-		DefaultSettingsPtr = NewObject<UOculusAmbisonicsSettings>();
-		DefaultSettingsPtr->ChannelOrder = EAmbisonicFormat::AmbiX;
-		DefaultSettingsPtr->SpatializationMode = EAmbisonicMode::SphericalHarmonics;
-		DefaultSettingsPtr->AddToRoot();
+		Context = FOculusAudioContextManager::CreateContextForAudioDevice(InitInfo.AudioDevicePtr);
+		check(Context);
 	}
 
-	return DefaultSettingsPtr;
+	return TUniquePtr<ISoundfieldTranscodeStream>(new FOculusAmbisonicsTranscoder(Context, InitInfo.SampleRate, InitInfo.BufferLength));
+}
+
+TUniquePtr<ISoundfieldMixerStream> FOculusAmbisonicsFactory::CreateMixerStream(const ISoundfieldEncodingSettingsProxy& InitialSettings)
+{
+	return TUniquePtr<ISoundfieldMixerStream>(new FOculusAudioSoundfieldMixer());
+}
+
+TUniquePtr<ISoundfieldAudioPacket> FOculusAmbisonicsFactory::CreateEmptyPacket()
+{
+	return TUniquePtr<ISoundfieldAudioPacket>(new FOculusSoundfieldBuffer());
 }

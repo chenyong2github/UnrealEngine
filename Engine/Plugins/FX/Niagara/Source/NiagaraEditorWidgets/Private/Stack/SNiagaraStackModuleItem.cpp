@@ -26,6 +26,8 @@
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "EditorFontGlyphs.h"
+#include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackModuleItem"
 
@@ -52,14 +54,16 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 			.VAlign(VAlign_Center)
 			.Padding(2, 0, 0, 0)
 			[
-				SNew(SNiagaraStackDisplayName, InModuleItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
+				SAssignNew(DisplayNameWidget, SNiagaraStackDisplayName, InModuleItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
+				.OnRenameCommitted(this, &SNiagaraStackModuleItem::OnRenameCommitted)
+				.TypeNameStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.TypeNameText")
 			]
 			// Raise Action Menu button
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				SNew(SComboButton)
-				.HasDownArrow(true)
+				.HasDownArrow(false)
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.OnGetMenuContent(this, &SNiagaraStackModuleItem::RaiseActionMenuClicked)
@@ -68,6 +72,11 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				.VAlign(VAlign_Center)
 				.Visibility(this, &SNiagaraStackModuleItem::GetRaiseActionMenuVisibility)
 				.IsEnabled(this, &SNiagaraStackModuleItem::GetButtonsEnabled)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("PropertyWindow.Button_AddToArray"))
+				]
 			]
 			// Refresh button
 			+ SHorizontalBox::Slot()
@@ -86,7 +95,7 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-					.Text(FText::FromString(FString(TEXT("\xf021"))))
+					.Text(FEditorFontGlyphs::Refresh)
 				]
 			]
 			// Delete button
@@ -105,7 +114,7 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-					.Text(FText::FromString(FString(TEXT("\xf1f8"))))
+					.Text(FEditorFontGlyphs::Trash)
 				]
 			]
 			// Enabled checkbox
@@ -156,6 +165,16 @@ void SNiagaraStackModuleItem::Tick(const FGeometry& AllottedGeometry, const doub
 		ModuleItem->SetIsModuleScriptReassignmentPending(false);
 		ShowReassignModuleScriptMenu();
 	}
+
+	if (StackEntryItem->GetIsRenamePending())
+	{
+		if (DisplayNameWidget.IsValid())
+		{
+			DisplayNameWidget->StartRename();
+		}
+		StackEntryItem->SetIsRenamePending(false);
+	}
+	SNiagaraStackEntryWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
 ECheckBoxState SNiagaraStackModuleItem::GetCheckState() const
@@ -203,7 +222,9 @@ EVisibility SNiagaraStackModuleItem::GetRefreshVisibility() const
 
 FReply SNiagaraStackModuleItem::DeleteClicked()
 {
-	ModuleItem->Delete();
+	TArray<UNiagaraStackEntry*> EntriesToDelete;
+	EntriesToDelete.Add(ModuleItem);
+	FNiagaraStackClipboardUtilities::DeleteSelection(EntriesToDelete);
 	return FReply::Handled();
 }
 
@@ -321,12 +342,13 @@ void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions, UNiagaraSt
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
 		}
 
-		FString DisplayNameString = FName::NameToDisplayString(ModuleAsset.AssetName.ToString(), false);
-		FText DisplayName = FText::FromString(DisplayNameString);
+		bool bIsInLibrary = FNiagaraEditorUtilities::IsScriptAssetInLibrary(ModuleAsset);
+
+		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleAsset.AssetName, bIsInLibrary);
 
 		FText AssetDescription;
 		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Description), AssetDescription);
-		FText Description = FNiagaraEditorUtilities::FormatScriptAssetDescription(AssetDescription, ModuleAsset.ObjectPath);
+		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(AssetDescription, ModuleAsset.ObjectPath, bIsInLibrary);
 
 		FText Keywords;
 		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Keywords), Keywords);
@@ -358,6 +380,14 @@ void SNiagaraStackModuleItem::ShowReassignModuleScriptMenu()
 	bool bAutoAdjustForDpiScale = false; // Don't adjust for dpi scale because the push menu command is expecting an unscaled position.
 	FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(ThisGeometry.GetLayoutBoundingRect(), MenuWidget->GetDesiredSize(), bAutoAdjustForDpiScale);
 	FSlateApplication::Get().PushMenu(AsShared(), FWidgetPath(), MenuWidget, MenuPosition, FPopupTransitionEffect::ContextMenu);
+}
+
+void SNiagaraStackModuleItem::OnRenameCommitted(const FText& NewName, ETextCommit::Type CommitType)
+{
+	if (CommitType != ETextCommit::OnCleared)
+	{
+		StackEntryItem->OnRenamed(NewName);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

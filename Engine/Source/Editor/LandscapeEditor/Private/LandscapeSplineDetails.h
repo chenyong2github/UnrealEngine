@@ -20,6 +20,7 @@ public:
 
 private:
 	FEdModeLandscape* GetEditorMode() const;
+	FText OnGetSplineOwningLandscapeText() const;
 	FReply OnSelectConnectedControlPointsButtonClicked();
 	FReply OnSelectConnectedSegmentsButtonClicked();
 	FReply OnMoveToCurrentLevelButtonClicked();

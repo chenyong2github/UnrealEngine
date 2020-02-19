@@ -57,6 +57,7 @@ namespace UnrealBuildTool.Rules
                         "Slate",
                         "SlateCore",
                         "MRMesh",
+						"WindowsMixedRealityHMD",
                     }
                     );
 

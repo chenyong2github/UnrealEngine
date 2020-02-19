@@ -28,40 +28,29 @@ static const FName SampleGridFunctionName("SampleGrid");
 /*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Grid2DCollection, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{			
-		NumCellsParam.Bind(ParameterMap, *(NumCellsName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		NumTilesParam.Bind(ParameterMap, *(NumTilesName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		NumCellsParam.Bind(ParameterMap, *(NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
+		NumTilesParam.Bind(ParameterMap, *(NumTilesName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		CellSizeParam.Bind(ParameterMap, *(CellSizeName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		
-		WorldBBoxSizeParam.Bind(ParameterMap, *(WorldBBoxSizeName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		CellSizeParam.Bind(ParameterMap, *(CellSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		GridParam.Bind(ParameterMap, *(GridName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		OutputGridParam.Bind(ParameterMap, *(OutputGridName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		WorldBBoxSizeParam.Bind(ParameterMap, *(WorldBBoxSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		SamplerParam.Bind(ParameterMap, *(SamplerName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		GridParam.Bind(ParameterMap, *(GridName + ParameterInfo.DataInterfaceHLSLSymbol));
+		OutputGridParam.Bind(ParameterMap, *(OutputGridName + ParameterInfo.DataInterfaceHLSLSymbol));
+
+		SamplerParam.Bind(ParameterMap, *(SamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
-	virtual void Serialize(FArchive& Ar)override
-	{		
-		Ar << NumCellsParam;		
-		Ar << NumTilesParam;	
-		Ar << CellSizeParam;			
-		Ar << WorldBBoxSizeParam;
-
-		Ar << GridParam;
-		Ar << OutputGridParam;		
-
-		Ar << SamplerParam;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
 		// Get shader and DI
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyGrid2DCollection* VFDI = static_cast<FNiagaraDataInterfaceProxyGrid2DCollection*>(Context.DataInterface);
 		
 		Grid2DCollectionRWInstanceData* ProxyData = VFDI->SystemInstancesToProxyData.Find(Context.SystemInstance);
@@ -70,8 +59,8 @@ struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataI
 		int NumCellsTmp[2];
 		NumCellsTmp[0] = ProxyData->NumCellsX;
 		NumCellsTmp[1] = ProxyData->NumCellsY;
-		SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, NumCellsTmp);	
-
+		SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, NumCellsTmp);		
+		
 		int NumTilesTmp[2];
 		NumTilesTmp[0] = ProxyData->NumTilesX;
 		NumTilesTmp[1] = ProxyData->NumTilesY;
@@ -87,38 +76,41 @@ struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataI
 		if (GridParam.IsBound() && ProxyData->GetCurrentData() != NULL)
 		{
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->GetCurrentData()->GridBuffer.UAV);
-			SetSRVParameter(RHICmdList, Context.Shader->GetComputeShader(), GridParam, ProxyData->GetCurrentData()->GridBuffer.SRV);
+			SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), GridParam, ProxyData->GetCurrentData()->GridBuffer.SRV);
 		}
 
 		if (Context.IsOutputStage && OutputGridParam.IsBound() && ProxyData->GetDestinationData() != NULL)
 		{
 			const FTextureRWBuffer2D& TextureBuffer = ProxyData->GetDestinationData()->GridBuffer;
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->GetDestinationData()->GridBuffer.UAV);
-			OutputGridParam.SetTexture(RHICmdList, Context.Shader->GetComputeShader(), TextureBuffer.Buffer, TextureBuffer.UAV);
+			OutputGridParam.SetTexture(RHICmdList, Context.Shader.GetComputeShader(), TextureBuffer.Buffer, TextureBuffer.UAV);
 		}
 	}
 
-	virtual void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const 
+	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const 
 	{
 		if (OutputGridParam.IsBound())
 		{
-			OutputGridParam.UnsetUAV(RHICmdList, Context.Shader->GetComputeShader());
+			OutputGridParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
 		}
 	}
 
 private:
 
-	FShaderParameter NumCellsParam;
-	FShaderParameter NumTilesParam;
-	FShaderParameter CellSizeParam;	
-	FShaderParameter WorldBBoxSizeParam;
+	LAYOUT_FIELD(FShaderParameter, NumCellsParam);
+	LAYOUT_FIELD(FShaderParameter, NumTilesParam);
+	LAYOUT_FIELD(FShaderParameter, CellSizeParam);
+	LAYOUT_FIELD(FShaderParameter, WorldBBoxSizeParam);
 
-	FShaderResourceParameter GridParam;
-	FRWShaderParameter OutputGridParam;
-
-	FShaderResourceParameter SamplerParam;
+	LAYOUT_FIELD(FShaderResourceParameter, GridParam);
+	LAYOUT_FIELD(FRWShaderParameter, OutputGridParam);
 	
+	LAYOUT_FIELD(FShaderResourceParameter, SamplerParam);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Grid2DCollection);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceGrid2DCollection, FNiagaraDataInterfaceParametersCS_Grid2DCollection);
 
 
 UNiagaraDataInterfaceGrid2DCollection::UNiagaraDataInterfaceGrid2DCollection(FObjectInitializer const& ObjectInitializer)
@@ -179,7 +171,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Name = SampleGridFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("UnitX")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("UnitY")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("UnitY")));		
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("AttributeIndex")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Value")));
 
@@ -237,7 +229,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNi
 		RWTexture2D<float> RW{OutputGridName};
 		int2 {NumTiles};
 		SamplerState {SamplerName};
-	
+
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {				
 		{ TEXT("GridName"),    GridName + ParamInfo.DataInterfaceHLSLSymbol },
@@ -279,7 +271,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_AttributeIndex, float In_Value, out int val)
-			{			
+			{				
 				int TileIndexX = In_AttributeIndex % {NumTiles}.x;
 				int TileIndexY = In_AttributeIndex / {NumTiles}.x;
 	
@@ -319,13 +311,6 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	return false;
 }
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceGrid2DCollection::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_Grid2DCollection();
-}
-
-
 
 bool UNiagaraDataInterfaceGrid2DCollection::CopyToInternal(UNiagaraDataInterface* Destination) const
 {
@@ -390,7 +375,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 
 	TSet<int> RT_OutputShaderStages = OutputShaderStages;
 	TSet<int> RT_IterationShaderStages = IterationShaderStages;
-	
+
 	FVector2D RT_CellSize = RT_WorldBBoxSize / FVector2D(RT_NumCellsX, RT_NumCellsY);
 	InstanceData->CellSize = RT_CellSize;
 	InstanceData->WorldBBoxSize = RT_WorldBBoxSize;
@@ -404,7 +389,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 
 		TargetData->NumCellsX = RT_NumCellsX;
 		TargetData->NumCellsY = RT_NumCellsY;
-		
+
 		TargetData->NumTilesX = RT_NumTilesX;
 		TargetData->NumTilesY = RT_NumTilesY;
 
@@ -668,7 +653,7 @@ void FNiagaraDataInterfaceProxyGrid2DCollection::PreStage(FRHICommandList& RHICm
 		// we start.  If a user wants to access data from the previous stage, then they can read from the current data.
 
 		// #todo(dmp): we might want to expose an option where we have buffers that are write only and need a clear (ie: no buffering like the neighbor grid).  They would be considered transient perhaps?  It'd be more
-		// memory efficient since it would theoretically not require any double buffering.		
+		// memory efficient since it would theoretically not require any double buffering.
 		if (!Context.IsIterationStage)
 		{
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);

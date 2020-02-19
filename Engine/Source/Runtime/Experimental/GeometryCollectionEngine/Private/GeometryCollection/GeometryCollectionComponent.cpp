@@ -338,9 +338,9 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 	return FBoxSphereBounds(ForceInitToZero);
 }
 
-void UGeometryCollectionComponent::CreateRenderState_Concurrent()
+void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	if (SceneProxy && RestCollection && RestCollection->HasVisibleGeometry())
 	{

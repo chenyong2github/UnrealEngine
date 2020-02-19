@@ -9,6 +9,7 @@
 #include "NiagaraLightRendererProperties.generated.h"
 
 class FNiagaraEmitterInstance;
+class SWidget;
 
 UCLASS(editinlinenew, meta = (DisplayName = "Light Renderer"))
 class UNiagaraLightRendererProperties : public UNiagaraRendererProperties
@@ -34,6 +35,8 @@ public:
 	virtual void FixMaterial(UMaterial* Material) override;
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
+	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
+	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Whether to use physically based inverse squared falloff from the light.  If unchecked, the value from the LightExponent binding will be used instead. */

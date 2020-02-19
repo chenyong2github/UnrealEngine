@@ -36,14 +36,14 @@ public:
 		return StructData;
 	}
 
-	bool GetReadAddressUncached(FPropertyNode& InPropertyNode, FReadAddressListData& OutAddresses) const override
+	bool GetReadAddressUncached(const FPropertyNode& InPropertyNode, FReadAddressListData& OutAddresses) const override
 	{
 		if (!HasValidStructData())
 		{
 			return false;
 		}
 
-		FProperty* InItemProperty = InPropertyNode.GetProperty();
+		const FProperty* InItemProperty = InPropertyNode.GetProperty();
 		if (!InItemProperty)
 		{
 			return false;
@@ -62,7 +62,7 @@ public:
 		return true;
 	}
 
-	bool GetReadAddressUncached(FPropertyNode& InPropertyNode,
+	bool GetReadAddressUncached(const FPropertyNode& InPropertyNode,
 		bool InRequiresSingleSelection,
 		FReadAddressListData* OutAddresses,
 		bool bComparePropertyContents,
@@ -149,7 +149,7 @@ protected:
 	/** FPropertyNode interface */
 	virtual void InitChildNodes() override;
 
-	virtual uint8* GetValueBaseAddress(uint8* Base, bool bIsSparseData) override
+	virtual uint8* GetValueBaseAddress(uint8* Base, bool bIsSparseData) const override
 	{
 		check(bIsSparseData == false);
 		return HasValidStructData() ? StructData->GetStructMemory() : nullptr;

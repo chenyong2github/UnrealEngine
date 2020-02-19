@@ -589,9 +589,18 @@ void UWidget::SetUserFocus(APlayerController* PlayerController)
 		if ( ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer() )
 		{
 			TOptional<int32> UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
-			if (UserIndex.IsSet() && !FSlateApplication::Get().SetUserFocus(UserIndex.GetValue(), SafeWidget) )
+			if (UserIndex.IsSet())
 			{
-				LocalPlayer->GetSlateOperations().SetUserFocus(SafeWidget.ToSharedRef());
+				FReply& DelayedSlateOperations = LocalPlayer->GetSlateOperations();
+				if (FSlateApplication::Get().SetUserFocus(UserIndex.GetValue(), SafeWidget))
+				{
+					DelayedSlateOperations.CancelFocusRequest();
+				}
+				else
+				{
+					DelayedSlateOperations.SetUserFocus(SafeWidget.ToSharedRef());
+				}
+				
 			}
 		}
 	}
@@ -733,7 +742,7 @@ void UWidget::RemoveFromParent()
 		else
 		{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (GetCachedWidget().IsValid() && !IsDesignTime())
+			if (GetCachedWidget().IsValid() && GetCachedWidget()->GetParentWidget().IsValid() && !IsDesignTime())
 			{
 				FText WarningMessage = FText::Format(LOCTEXT("RemoveFromParentWithNoParent", "UWidget::RemoveFromParent() called on '{0}' which has no UMG parent (if it was added directly to a native Slate widget via TakeWidget() then it must be removed explicitly rather than via RemoveFromParent())"), FText::AsCultureInvariant(GetPathName()));
 				// @todo: nickd - we need to switch this back to a warning in engine, but info for games

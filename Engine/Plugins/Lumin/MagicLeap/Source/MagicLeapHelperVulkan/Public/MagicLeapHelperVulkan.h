@@ -8,9 +8,9 @@
 class MAGICLEAPHELPERVULKAN_API FMagicLeapHelperVulkan
 {
 public:
-	static void BlitImage(uint64 SrcName, int32 SrcX, int32 SrcY, int32 SrcZ, int32 SrcWidth, int32 SrcHeight, int32 SrcDepth, uint64 DstName, int32 DstLayer, int32 DstX, int32 DstY, int32 DstZ, int32 DstWidth, int32 DstHeight, int32 DstDepth);
-	static void SignalObjects(uint64 SignalObject0, uint64 SignalObject1);
-	static void ClearImage(uint64 Dest, const FLinearColor& ClearColor, uint32 BaseMipLevel, uint32 LevelCount, uint32 BaseArrayLayer, uint32 LayerCount);
+	static void BlitImage(uint64 SrcName, int32 SrcX, int32 SrcY, int32 SrcZ, int32 SrcWidth, int32 SrcHeight, int32 SrcDepth, uint64 DstName, int32 DstLayer, int32 DstX, int32 DstY, int32 DstZ, int32 DstWidth, int32 DstHeight, int32 DstDepth, bool bIsDepthStencil = false);
+	static void SignalObjects(uint64 SignalObject0, uint64 SignalObject1, uint64 WaitObject);
+	static void ClearImage(uint64 Dest, const FLinearColor& ClearColor, uint32 BaseMipLevel, uint32 LevelCount, uint32 BaseArrayLayer, uint32 LayerCount, bool bIsDepthStencil = false);
 	static uint64 AliasImageSRGB(const uint64 Allocation, const uint64 AllocationOffset, const uint32 Width, const uint32 Height);
 	static void DestroyImageSRGB(void* Dest);
 	static bool GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out);

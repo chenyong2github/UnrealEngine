@@ -27,77 +27,9 @@
 #include "ObjectEditorUtils.h"
 #include "SResetToDefaultPropertyEditor.h"
 #include "PropertyPathHelpers.h"
+#include "PropertyTextUtilities.h"
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
-
-void PropertyToTextHelper(FString& OutString, FPropertyNode* InPropertyNode, FProperty* Property, uint8* ValueAddress, EPropertyPortFlags PortFlags)
-{
-	if (InPropertyNode->GetArrayIndex() != INDEX_NONE || Property->ArrayDim == 1)
-	{
-		Property->ExportText_Direct(OutString, ValueAddress, ValueAddress, nullptr, PortFlags);
-	}
-	else
-	{
-		FArrayProperty::ExportTextInnerItem(OutString, Property, ValueAddress, Property->ArrayDim, ValueAddress, Property->ArrayDim, nullptr, PortFlags);
-	}
-}
-
-void PropertyToTextHelper(FString& OutString, FPropertyNode* InPropertyNode, FProperty* Property, const FObjectBaseAddress& ObjectAddress, EPropertyPortFlags PortFlags)
-{
-	bool bIsSparseProperty = !!InPropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData);
-	bool bIsInContainer = false;
-	FProperty* Outer = Property->GetOwner<FProperty>();
-	if (bIsSparseProperty)
-	{
-		while (Outer)
-		{
-			FArrayProperty* ArrayOuter = Property->GetOwner<FArrayProperty>();
-			FSetProperty* SetOuter = Property->GetOwner<FSetProperty>();
-			FMapProperty* MapOuter = Property->GetOwner<FMapProperty>();
-			if (ArrayOuter || SetOuter || MapOuter)
-			{
-				bIsInContainer = true;
-				break;
-			}
-
-			Outer = Outer->GetOwner<FProperty>();
-		}
-	}
-	if (!bIsSparseProperty || bIsInContainer)
-	{
-		PropertyToTextHelper(OutString, InPropertyNode, Property, ObjectAddress.BaseAddress, PortFlags);
-	}
-	else
-	{
-// TODO: once we're sure that these don't differ we should always use the call to PropertyToTextHelper
-		void* BaseAddress = ObjectAddress.Object->GetClass()->GetOrCreateSparseClassData();
-		void* ValueAddress = Property->ContainerPtrToValuePtr<void>(BaseAddress);
-		Property->ExportText_Direct(OutString, ValueAddress, ValueAddress, nullptr, PortFlags);
-
-		FString Test;
-		PropertyToTextHelper(Test, InPropertyNode, Property, (uint8*)ValueAddress, PortFlags);
-		check(Test.Compare(OutString) == 0);
-	}
-}
-
-void TextToPropertyHelper(const TCHAR* Buffer, FPropertyNode* InPropertyNode, FProperty* Property, uint8* ValueAddress, UObject* Object)
-{
-	if (InPropertyNode->GetArrayIndex() != INDEX_NONE || Property->ArrayDim == 1)
-	{
-		Property->ImportText(Buffer, ValueAddress, 0, Object);
-	}
-	else
-	{
-		FArrayProperty::ImportTextInnerItem(Buffer, Property, ValueAddress, 0, Object);
-	}
-}
-
-void TextToPropertyHelper(const TCHAR* Buffer, FPropertyNode* InPropertyNode, FProperty* Property, const FObjectBaseAddress& ObjectAddress)
-{
-
-	uint8* BaseAddress = InPropertyNode ? InPropertyNode->GetValueBaseAddressFromObject(ObjectAddress.Object) : ObjectAddress.BaseAddress;
-	TextToPropertyHelper(Buffer, InPropertyNode, Property, BaseAddress, ObjectAddress.Object);
-}
 
 FPropertyValueImpl::FPropertyValueImpl( TSharedPtr<FPropertyNode> InPropertyNode, FNotifyHook* InNotifyHook, TSharedPtr<IPropertyUtilities> InPropertyUtilities )
 	: PropertyNode( InPropertyNode )
@@ -139,141 +71,6 @@ void FPropertyValueImpl::GetObjectsToModify( TArray<FObjectBaseAddress>& Objects
 		ObjectsToModify.Add(ObjectToModify);
 		return true;
 	});
-}
-
-FPropertyAccess::Result FPropertyValueImpl::GetPropertyValueString( FString& OutString, FPropertyNode* InPropertyNode, const bool bAllowAlternateDisplayValue, EPropertyPortFlags PortFlags ) const
-{
-	FPropertyAccess::Result Result = FPropertyAccess::Success;
-
-	uint8* ValueAddress = nullptr;
-	FReadAddressList ReadAddresses;
-	bool bAllValuesTheSame = InPropertyNode->GetReadAddress( !!InPropertyNode->HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly), ReadAddresses, false, true );
-
-	if( (ReadAddresses.Num() > 0 && bAllValuesTheSame) || ReadAddresses.Num() == 1 ) 
-	{
-		ValueAddress = ReadAddresses.GetAddress(0);
-
-		if( ValueAddress != nullptr )
-		{
-			FProperty* Property = InPropertyNode->GetProperty();
-
-			// Check for bogus data
-			if( Property != nullptr && InPropertyNode->GetParentNode() != nullptr )
-			{
-				PropertyToTextHelper(OutString, InPropertyNode, Property, ValueAddress, PortFlags);
-
-				UEnum* Enum = nullptr;
-				int64 EnumValue = 0;
-				if ( FByteProperty* ByteProperty = CastField<FByteProperty>(Property) )
-				{
-					if ( ByteProperty->Enum != nullptr )
-					{
-						Enum = ByteProperty->Enum;
-						EnumValue = ByteProperty->GetPropertyValue(ValueAddress);
-					}
-				}
-				else if ( FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property) )
-				{
-					Enum = EnumProperty->GetEnum();
-					EnumValue = EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(ValueAddress);
-				}
-
-				if ( Enum != nullptr )
-				{
-					if (Enum->IsValidEnumValue(EnumValue))
-					{
-						// See if we specified an alternate name for this value using metadata
-						OutString = Enum->GetDisplayNameTextByValue(EnumValue).ToString();
-						if(!bAllowAlternateDisplayValue || OutString.Len() == 0) 
-						{
-							OutString = Enum->GetNameStringByValue(EnumValue);
-						}
-					}
-					else
-					{
-						Result = FPropertyAccess::Fail;
-					}
-				}
-			}
-			else
-			{
-				Result = FPropertyAccess::Fail;
-			}
-		}
-
-	}
-	else
-	{
-		Result = ReadAddresses.Num() > 1 ? FPropertyAccess::MultipleValues : FPropertyAccess::Fail;
-	}
-
-	return Result;
-}
-
-FPropertyAccess::Result FPropertyValueImpl::GetPropertyValueText( FText& OutText, FPropertyNode* InPropertyNode, const bool bAllowAlternateDisplayValue ) const
-{
-	FPropertyAccess::Result Result = FPropertyAccess::Success;
-
-	uint8* ValueAddress = nullptr;
-	FReadAddressList ReadAddresses;
-	bool bAllValuesTheSame = InPropertyNode->GetReadAddress( !!InPropertyNode->HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly), ReadAddresses, false, true );
-
-	if( ReadAddresses.Num() > 0 && InPropertyNode->GetProperty() != nullptr && (bAllValuesTheSame || ReadAddresses.Num() == 1) ) 
-	{
-		ValueAddress = ReadAddresses.GetAddress(0);
-
-		if( ValueAddress != nullptr )
-		{
-			FProperty* Property = InPropertyNode->GetProperty();
-
-			if(Property->IsA(FTextProperty::StaticClass()))
-			{
-				OutText = CastField<FTextProperty>(Property)->GetPropertyValue(ValueAddress);
-			}
-			else
-			{
-				FString ExportedTextString;
-				PropertyToTextHelper(ExportedTextString, InPropertyNode, Property, ValueAddress, PPF_PropertyWindow);
-
-				UEnum* Enum = nullptr;
-				int64 EnumValue = 0;
-				if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
-				{
-					Enum = ByteProperty->Enum;
-					EnumValue = ByteProperty->GetPropertyValue(ValueAddress);
-				}
-				else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
-				{
-					Enum = EnumProperty->GetEnum();
-					EnumValue = EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(ValueAddress);
-				}
-
-				if (Enum)
-				{
-					if (Enum->IsValidEnumValue(EnumValue))
-					{
-						// Text form is always display name
-						OutText = Enum->GetDisplayNameTextByValue(EnumValue);
-					}
-					else
-					{
-						Result = FPropertyAccess::Fail;
-					}
-				}
-				else
-				{
-					OutText = FText::FromString(ExportedTextString);
-				}
-			}
-		}
-
-	}
-	else
-	{
-		Result = ReadAddresses.Num() > 1 ? FPropertyAccess::MultipleValues : FPropertyAccess::Fail;
-	}
-
-	return Result;
 }
 
 FPropertyAccess::Result FPropertyValueImpl::GetValueData( void*& OutAddress ) const
@@ -337,17 +134,19 @@ FString FPropertyValueImpl::GetPropertyValueArray() const
 				uint8* Addr = ReadAddresses.GetAddress(0);
 				if( Addr )
 				{
-					if ( NodeProperty->IsA<FArrayProperty>() )
+					if ( FArrayProperty* ArrayProperty = CastField<FArrayProperty>(NodeProperty) )
 					{
-						String = FString::Printf( TEXT("%(%d)"), FScriptArrayHelper::Num(Addr) );
+						FScriptArrayHelper ArrayHelper(ArrayProperty, Addr);
+						String = FString::Printf( TEXT("%(%d)"), ArrayHelper.Num() );
 					}
 					else if ( CastField<FSetProperty>(NodeProperty) != nullptr )	
 					{
 						String = FString::Printf( TEXT("%(%d)"), FScriptSetHelper::Num(Addr) );
 					}
-					else if (CastField<FMapProperty>(NodeProperty) != nullptr)
+					else if (FMapProperty* MapProperty = CastField<FMapProperty>(NodeProperty))
 					{
-						String = FString::Printf(TEXT("%(%d)"), FScriptMapHelper::Num(Addr));
+						FScriptMapHelper MapHelper(MapProperty, Addr);
+						String = FString::Printf(TEXT("%(%d)"), MapHelper.Num());
 					}
 					else
 					{
@@ -476,7 +275,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 			// Cache the value of the property before modifying it.
 			FString PreviousValue;
-			PropertyToTextHelper(PreviousValue, InPropertyNode, NodeProperty, Cur, PPF_None);
+			FPropertyTextUtilities::PropertyToTextHelper(PreviousValue, InPropertyNode, NodeProperty, Cur, PPF_None);
 
 			// If this property is the inner-property of a container, cache the current value as well
 			FString PreviousContainerValue;
@@ -566,13 +365,13 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 			// Set the new value.
 			const TCHAR* NewValue = *InValues[ObjectIndex];
-			TextToPropertyHelper(NewValue, InPropertyNode, NodeProperty, Cur);
+			FPropertyTextUtilities::TextToPropertyHelper(NewValue, InPropertyNode, NodeProperty, Cur);
 
 			if (Cur.Object)
 			{
 				// Cache the value of the property after having modified it.
 				FString ValueAfterImport;
-				PropertyToTextHelper(ValueAfterImport, InPropertyNode, NodeProperty, Cur, PPF_None);
+				FPropertyTextUtilities::PropertyToTextHelper(ValueAfterImport, InPropertyNode, NodeProperty, Cur, PPF_None);
 
 				if ((Cur.Object->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
 					(Cur.Object->HasAnyFlags(RF_DefaultSubObject) && Cur.Object->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
@@ -772,7 +571,8 @@ static int32 GetArrayPropertyLastValidIndex( FObjectPropertyNode* InObjectNode, 
 		if (ArrayProperty)
 		{
 			uint8* PropertyAddressBase = ArrayProperty->ContainerPtrToValuePtr<uint8>(ParentObject);
-			ClampMax = FScriptArrayHelper::Num(PropertyAddressBase) - 1;
+			FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyAddressBase);
+			ClampMax = ArrayHelper.Num() - 1;
 		}
 		else
 		{
@@ -797,7 +597,7 @@ FPropertyAccess::Result FPropertyValueImpl::GetValueAsString( FString& OutString
 	if( PropertyNodePin.IsValid() )
 	{
 		const bool bAllowAlternateDisplayValue = false;
-		Res = GetPropertyValueString( OutString, PropertyNodePin.Get(), bAllowAlternateDisplayValue, PortFlags );
+		Res = PropertyNodePin->GetPropertyValueString( OutString, bAllowAlternateDisplayValue, PortFlags );
 	}
 	else
 	{
@@ -816,7 +616,7 @@ FPropertyAccess::Result FPropertyValueImpl::GetValueAsDisplayString( FString& Ou
 	if( PropertyNodePin.IsValid() )
 	{
 		const bool bAllowAlternateDisplayValue = true;
-		Res = GetPropertyValueString(OutString, PropertyNodePin.Get(), bAllowAlternateDisplayValue, PortFlags);
+		Res = PropertyNodePin->GetPropertyValueString(OutString, bAllowAlternateDisplayValue, PortFlags);
 	}
 	else
 	{
@@ -834,7 +634,7 @@ FPropertyAccess::Result FPropertyValueImpl::GetValueAsText( FText& OutText ) con
 
 	if( PropertyNodePin.IsValid() )
 	{
-		Res = GetPropertyValueText( OutText, PropertyNodePin.Get(), false/*bAllowAlternateDisplayValue*/ );
+		Res = PropertyNodePin->GetPropertyValueText( OutText, false/*bAllowAlternateDisplayValue*/ );
 	}
 	else
 	{
@@ -852,7 +652,7 @@ FPropertyAccess::Result FPropertyValueImpl::GetValueAsDisplayText( FText& OutTex
 
 	if( PropertyNodePin.IsValid() )
 	{
-		Res = GetPropertyValueText( OutText, PropertyNodePin.Get(), true/*bAllowAlternateDisplayValue*/ );
+		Res = PropertyNodePin->GetPropertyValueText( OutText, true/*bAllowAlternateDisplayValue*/ );
 	}
 	else
 	{
@@ -2761,7 +2561,7 @@ void FPropertyHandleBase::SetToolTipText( const FText& ToolTip )
 	}
 }
 
-uint8* FPropertyHandleBase::GetValueBaseAddress(uint8* Base)
+uint8* FPropertyHandleBase::GetValueBaseAddress(uint8* Base) const
 {
 	TSharedPtr<FPropertyNode> PropertyNode = Implementation->GetPropertyNode();
 	if (PropertyNode.IsValid())

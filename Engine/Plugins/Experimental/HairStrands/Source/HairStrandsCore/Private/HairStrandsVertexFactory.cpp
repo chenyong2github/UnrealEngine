@@ -42,27 +42,28 @@ TGlobalResource<FDummyCulledDispatchVertexIdsBuffer> GDummyCulledDispatchVertexI
 
 class FHairStrandsVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FHairStrandsVertexFactoryShaderParameters, NonVirtual);
 public:
 
-	FShaderParameter Radius;
-	FShaderParameter Length;
-	FShaderParameter RadiusAtDepth1_Primary;	// unused
-	FShaderParameter RadiusAtDepth1_Velocity;	// unused
-	FShaderParameter PositionOffset;
-	FShaderParameter PreviousPositionOffset;
-	FShaderParameter Density;
-	FShaderParameter Culling;
+	LAYOUT_FIELD(FShaderParameter, Radius);
+	LAYOUT_FIELD(FShaderParameter, Length);
+	LAYOUT_FIELD(FShaderParameter, RadiusAtDepth1_Primary);	// unused
+	LAYOUT_FIELD(FShaderParameter, RadiusAtDepth1_Velocity);	// unused
+	LAYOUT_FIELD(FShaderParameter, PositionOffset);
+	LAYOUT_FIELD(FShaderParameter, PreviousPositionOffset);
+	LAYOUT_FIELD(FShaderParameter, Density);
+	LAYOUT_FIELD(FShaderParameter, Culling);
 
-	FShaderResourceParameter PositionBuffer;
-	FShaderResourceParameter PreviousPositionBuffer;
-	FShaderResourceParameter AttributeBuffer;
-	FShaderResourceParameter MaterialBuffer;
-	FShaderResourceParameter TangentBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, PositionBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousPositionBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, AttributeBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MaterialBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, TangentBuffer);
 
-	FShaderResourceParameter CulledVertexIdsBuffer;
-	FShaderResourceParameter CulledVertexRadiusScaleBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, CulledVertexIdsBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, CulledVertexRadiusScaleBuffer);
 
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		Radius.Bind(ParameterMap, TEXT("HairStrandsVF_Radius"));
 		Length.Bind(ParameterMap, TEXT("HairStrandsVF_Length"));
@@ -81,28 +82,7 @@ public:
 		CulledVertexRadiusScaleBuffer.Bind(ParameterMap, TEXT("CulledVertexRadiusScaleBuffer"));
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << Radius;
-		Ar << Length;
-		Ar << RadiusAtDepth1_Primary;	// unused
-		Ar << RadiusAtDepth1_Velocity;	// unused
-		Ar << PositionOffset;
-		Ar << PreviousPositionOffset;
-		Ar << Density;
-		Ar << Culling;
-
-		Ar << PositionBuffer;
-		Ar << PreviousPositionBuffer;
-		Ar << AttributeBuffer;
-		Ar << MaterialBuffer;
-		Ar << TangentBuffer;
-
-		Ar << CulledVertexIdsBuffer;
-		Ar << CulledVertexRadiusScaleBuffer;
-	}
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -112,7 +92,7 @@ public:
 		const FMeshBatchElement& BatchElement,
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-	) const override
+	) const
 	{
 		const FHairStrandsVertexFactory* VF = static_cast<const FHairStrandsVertexFactory*>(VertexFactory);
 
@@ -148,20 +128,22 @@ public:
 	}
 };
 
+IMPLEMENT_TYPE_LAYOUT(FHairStrandsVertexFactoryShaderParameters);
+
 /**
  * Should we cache the material's shadertype on this platform with this vertex factory? 
  */
-bool FHairStrandsVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FHairStrandsVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (Material->GetMaterialDomain() == MD_Surface && Material->IsUsedWithHairStrands() && Platform == EShaderPlatform::SP_PCD3D_SM5) || Material->IsSpecialEngineMaterial();
+	return (Parameters.MaterialParameters.MaterialDomain == MD_Surface && Parameters.MaterialParameters.bIsUsedWithHairStrands && Parameters.Platform == EShaderPlatform::SP_PCD3D_SM5) || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
 }
 
-void FHairStrandsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FHairStrandsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	const bool bUseGPUSceneAndPrimitiveIdStream = Type->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform));
+	const bool bUseGPUSceneAndPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bUseGPUSceneAndPrimitiveIdStream);
 	OutEnvironment.SetDefine(TEXT("VF_STRAND_HAIR"), TEXT("1"));
-	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), bUseGPUSceneAndPrimitiveIdStream && GPUSceneUseTexture2D(Platform));
+	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), bUseGPUSceneAndPrimitiveIdStream && GPUSceneUseTexture2D(Parameters.Platform));
 }
 
 void FHairStrandsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
@@ -225,31 +207,15 @@ void FHairStrandsVertexFactory::InitRHI()
 	check(IsValidRef(GetDeclaration()));
 }
 
-FVertexFactoryShaderParameters* FHairStrandsVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	if (ShaderFrequency == SF_Vertex)
-	{
-		return new FHairStrandsVertexFactoryShaderParameters();
-	}
-
-	if (ShaderFrequency == SF_Pixel)
-	{
-		return new FHairStrandsVertexFactoryShaderParameters();
-	}
-
-#if RHI_RAYTRACING
-	if (ShaderFrequency == SF_RayHitGroup)
-	{
-		return new FHairStrandsVertexFactoryShaderParameters();
-	}
-#endif // RHI_RAYTRACING
-
-	return NULL;
-}
-
 void FHairStrandsVertexFactory::ReleaseRHI()
 {
 	FVertexFactory::ReleaseRHI();
 }
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Vertex, FHairStrandsVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Pixel, FHairStrandsVertexFactoryShaderParameters);
+#if RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_RayHitGroup, FHairStrandsVertexFactoryShaderParameters);
+#endif // RHI_RAYTRACING
 
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairStrandsVertexFactory,"/Engine/Private/HairStrands/HairStrandsVertexFactory.ush",true,false,true,true,true,true,true);

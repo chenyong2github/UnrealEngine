@@ -125,6 +125,8 @@ public:
 
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 
+	void PreGarbageCollect();
+	void PostReachabilityAnalysis();
 	void PostGarbageCollect();
 	void PreGarbageCollectBeginDestroy();
 	
@@ -152,10 +154,10 @@ public:
 	NIAGARA_API bool ShouldPreCull(UNiagaraSystem* System, UNiagaraComponent* Component);
 	NIAGARA_API bool ShouldPreCull(UNiagaraSystem* System, FVector Location);
 
-	void CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState);
-	void CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState);
+	void CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState);
+	void CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState);
 
-	/*FORCEINLINE_DEBUGGABLE*/ void SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, float Significance, int32 Index, FNiagaraScalabilityState& OutState);
+	/*FORCEINLINE_DEBUGGABLE*/ void SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32 Index, FNiagaraScalabilityState& OutState);
 
 #if DEBUG_SCALABILITY_STATE
 	void DumpScalabilityState();
@@ -178,6 +180,12 @@ private:
 	// Callback for when a world is ticked.
 	static void TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 
+	// Callback to handle any pre GC processing needed.
+	static void OnPreGarbageCollect();
+
+	// Callback post reachability
+	static void OnPostReachabilityAnalysis();
+
 	// Callback to handle any post GC processing needed.
 	static void OnPostGarbageCollect();
 
@@ -189,20 +197,22 @@ private:
 
 	FORCEINLINE_DEBUGGABLE bool CanPreCull(UNiagaraEffectType* EffectType);
 
-	FORCEINLINE_DEBUGGABLE void SignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, float Significance, FNiagaraScalabilityState& OutState);
-	FORCEINLINE_DEBUGGABLE void VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
-	FORCEINLINE_DEBUGGABLE void OwnerLODCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
-	FORCEINLINE_DEBUGGABLE void InstanceCountCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState);
+	FORCEINLINE_DEBUGGABLE void SignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, FNiagaraScalabilityState& OutState);
+	FORCEINLINE_DEBUGGABLE void VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
+	FORCEINLINE_DEBUGGABLE void OwnerLODCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
+	FORCEINLINE_DEBUGGABLE void InstanceCountCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState);
 
 	/** Calculate significance contribution from the distance to nearest view. */
-	FORCEINLINE_DEBUGGABLE float DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, FVector Location);
-	FORCEINLINE_DEBUGGABLE float DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component);
+	FORCEINLINE_DEBUGGABLE float DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location);
+	FORCEINLINE_DEBUGGABLE float DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component);
 	
 	static FDelegateHandle OnWorldInitHandle;
 	static FDelegateHandle OnWorldCleanupHandle;
 	static FDelegateHandle OnPreWorldFinishDestroyHandle;
 	static FDelegateHandle OnWorldBeginTearDownHandle;
 	static FDelegateHandle TickWorldHandle;
+	static FDelegateHandle PreGCHandle;
+	static FDelegateHandle PostReachabilityAnalysisHandle;
 	static FDelegateHandle PostGCHandle;
 	static FDelegateHandle PreGCBeginDestroyHandle;
 

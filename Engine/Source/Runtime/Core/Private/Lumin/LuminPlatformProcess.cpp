@@ -12,6 +12,18 @@
 #include <dlfcn.h>
 #include "Lumin/CAPIShims/LuminAPIDispatch.h"
 
+constexpr static uint64 ArmCores = MAKEAFFINITYMASK2(3,4);
+constexpr static uint64 DenverCores = MAKEAFFINITYMASK1(2);
+int64 FLuminAffinity::GameThreadMask = ArmCores;
+int64 FLuminAffinity::RenderingThreadMask = ArmCores;
+int64 FLuminAffinity::RTHeartBeatMask = ArmCores;
+int64 FLuminAffinity::RHIThreadMask = ArmCores;
+int64 FLuminAffinity::PoolThreadMask = DenverCores;
+int64 FLuminAffinity::TaskGraphThreadMask = ArmCores;
+int64 FLuminAffinity::TaskGraphBGTaskMask = ArmCores;
+int64 FLuminAffinity::StatsThreadMask = ArmCores;
+int64 FLuminAffinity::AudioThreadMask = DenverCores;
+
 const TCHAR* FLuminPlatformProcess::ComputerName()
 {
 	return TEXT("Lumin Device");
@@ -157,4 +169,135 @@ const TCHAR* FLuminPlatformProcess::GetModuleExtension()
 const TCHAR* FLuminPlatformProcess::GetBinariesSubdirectory()
 {
 	return TEXT(""); //binaries are located in bin/ we no longer have a subdirectory to return.
+}
+
+// Can be specified per device profile
+// lumin.DefaultThreadAffinity MainGame 3 4 Rendering 2...
+TAutoConsoleVariable<FString> CVarLuminDefaultThreadAffinity(
+	TEXT("lumin.DefaultThreadAffinity"), 
+	TEXT(""), 
+	TEXT("Sets the thread affinity for Lumin platform. Sets of args [MainGame|Rendering|RTHeartBeat|RHI|Pool|TaskGraph|TaskGraphBG|Audio] [int affinity] [optional int affinity2] [optional int affinity3], ex: lumin.DefaultThreadAffinity=MainGame 3 4 Rendering 2"));
+
+static void LuminSetAffinityOnThread()
+{
+	if (IsInActualRenderingThread()) // If RenderingThread is not started yet, affinity will applied at RT creation time 
+	{
+		FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetRenderingThreadMask());
+	}
+	else if (IsInGameThread())
+	{
+		FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetMainGameMask());
+	}
+}
+
+static void ApplyDefaultThreadAffinity(IConsoleVariable* Var)
+{
+	FString AffinityCmd = CVarLuminDefaultThreadAffinity.GetValueOnAnyThread();
+
+	TArray<FString> Args;
+	if (AffinityCmd.ParseIntoArrayWS(Args) > 0)
+	{
+		constexpr int32 FirstAvailableCPU = 2;
+		constexpr int32 LastAvailableCPU = 4;
+		for (int32 i = 0; i < Args.Num(); i++)
+		{
+			uint64 Affinity = 0;
+			int64* Mask = nullptr;
+
+			// Determine which Mask should be updated
+			if (Args[i] == TEXT("MainGame"))
+			{
+				Mask = &FLuminAffinity::GameThreadMask;
+			}
+			else if (Args[i] == TEXT("Rendering"))
+			{
+				Mask = &FLuminAffinity::RenderingThreadMask;
+			}
+			else if (Args[i] == TEXT("RTHeartBeat"))
+			{
+				Mask = &FLuminAffinity::RTHeartBeatMask;
+			}
+			else if (Args[i] == TEXT("RHI"))
+			{
+				Mask = &FLuminAffinity::RHIThreadMask;
+			}
+			else if (Args[i] == TEXT("Pool"))
+			{
+				Mask = &FLuminAffinity::PoolThreadMask;
+			}
+			else if (Args[i] == TEXT("TaskGraph"))
+			{
+				Mask = &FLuminAffinity::TaskGraphThreadMask;
+			}
+			else if (Args[i] == TEXT("TaskGraphBG"))
+			{
+				Mask = &FLuminAffinity::TaskGraphBGTaskMask;
+			}
+			else if (Args[i] == TEXT("Audio"))
+			{
+				Mask = &FLuminAffinity::AudioThreadMask;
+			}
+			else
+			{
+				UE_LOG(LogLumin, Warning, TEXT("Skipping unknown argument [%s] to lumin.DefaultThreadAffinity"), *Args[i]); 
+				continue;
+			}
+			check(Mask != nullptr);
+
+			// Store the current mask for logging purposes
+			FString CurrentMask(Args[i]);
+
+			// Parse the affinities specified for the current mask
+			for (int32 j = i + 1; j < Args.Num() && Args[j].IsNumeric(); j++)
+			{
+				int32 Arg = FCString::Atoi(*Args[j]);
+				if (Arg >= FirstAvailableCPU && Arg <= LastAvailableCPU)
+				{
+					Affinity |= MAKEAFFINITYMASK1(Arg);
+				}
+				else
+				{
+					UE_LOG(LogLumin, Warning, TEXT("Skipping invalid CPU affinity [%d] for %s Thread.  Only CPUs %d through %d are available for application use."), Arg, *CurrentMask, FirstAvailableCPU, LastAvailableCPU); 
+				}
+
+				// increment i since an Argument has been consumed
+				i++;
+			}
+
+			// Update the current mask with the new affinity, as long as a valid affinity was supplied
+			if (Affinity != 0)
+			{
+				*Mask = Affinity;
+			}
+		}
+
+		if (!FApp::ShouldUseThreadingForPerformance())
+		{
+			FLuminAffinity::TaskGraphThreadMask = FLuminAffinity::TaskGraphBGTaskMask = FLuminAffinity::GameThreadMask;
+			UE_LOG(LogLumin, Log, TEXT("Using Game Thread affinity for Task Graph threads since ShouldUseThreadingForPerformance() is false")); 
+		}
+
+		if (FTaskGraphInterface::IsRunning())
+		{
+			FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+				FSimpleDelegateGraphTask::FDelegate::CreateStatic(&LuminSetAffinityOnThread),
+				TStatId(), NULL, ENamedThreads::GetRenderThread());
+
+			FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+				FSimpleDelegateGraphTask::FDelegate::CreateStatic(&LuminSetAffinityOnThread),
+				TStatId(), NULL, ENamedThreads::GameThread);
+		}
+		else
+		{
+			LuminSetAffinityOnThread();
+		}
+	}
+}
+
+void LuminSetupDefaultThreadAffinity()
+{
+	ApplyDefaultThreadAffinity(nullptr);
+
+	// Watch for CVar update
+	CVarLuminDefaultThreadAffinity->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&ApplyDefaultThreadAffinity));
 }

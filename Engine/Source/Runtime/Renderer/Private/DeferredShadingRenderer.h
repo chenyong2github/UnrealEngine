@@ -300,6 +300,12 @@ private:
 	/** Issues a timestamp query for the end of the separate translucency pass. */
 	void EndTimingSeparateTranslucencyPass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
+	/** Issues a timestamp query for the beginning of the separate translucency modulate pass. */
+	void BeginTimingSeparateTranslucencyModulatePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+
+	/** Issues a timestamp query for the end of the separate translucency modulate pass. */
+	void EndTimingSeparateTranslucencyModulatePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+
 	/** Setup the downsampled view uniform parameters if it was not already built */
 	void SetupDownsampledTranslucencyViewParameters(
 		FRHICommandListImmediate& RHICmdList, 
@@ -495,6 +501,7 @@ private:
 
 	void UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
 	void UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
+	void AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd = false);
 	void PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch);
 
 	void RenderViewTranslucency(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, ETranslucencyPass::Type TranslucenyPass);
@@ -523,6 +530,7 @@ private:
 		const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
 		const bool bSubPixelShadowMask,
 		FRDGTextureRef HairCategorizationTexture,
+		FRDGTextureRef HairLightChannelMaskTexture,
 		FRDGTextureUAV* OutShadowMaskUAV,
 		FRDGTextureUAV* OutRayHitDistanceUAV);
 

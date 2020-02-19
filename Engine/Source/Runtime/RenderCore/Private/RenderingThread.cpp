@@ -25,11 +25,12 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/MiscTrace.h"
 
+
 //
 // Globals
 //
 
-
+UE_TRACE_CHANNEL_DEFINE(RenderCommandsChannel);
 
 RENDERCORE_API bool GIsThreadedRendering = false;
 RENDERCORE_API bool GUseThreadedRendering = false;
@@ -299,7 +300,7 @@ public:
 	void Start()
 	{
 		Thread = FRunnableThread::Create(this, TEXT("RHIThread"), 512 * 1024, FPlatformAffinity::GetRHIThreadPriority(),
-			FPlatformAffinity::GetRHIThreadMask()
+			FPlatformAffinity::GetRHIThreadMask(), FPlatformAffinity::GetRHIThreadFlags()
 			);
 		check(Thread);
 	}
@@ -718,7 +719,7 @@ void StartRenderingThread()
 	// Create the rendering thread.
 	GRenderingThreadRunnable = new FRenderingThread();
 
-	GRenderingThread = FRunnableThread::Create(GRenderingThreadRunnable, *BuildRenderingThreadName(ThreadCount), 0, FPlatformAffinity::GetRenderingThreadPriority(), FPlatformAffinity::GetRenderingThreadMask());
+	GRenderingThread = FRunnableThread::Create(GRenderingThreadRunnable, *BuildRenderingThreadName(ThreadCount), 0, FPlatformAffinity::GetRenderingThreadPriority(), FPlatformAffinity::GetRenderingThreadMask(), FPlatformAffinity::GetRenderingThreadFlags());
 	TRACE_SET_THREAD_GROUP(GRenderingThread->GetThreadID(), "Render");
 
 	// Wait for render thread to have taskgraph bound before we dispatch any tasks for it.

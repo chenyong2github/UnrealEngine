@@ -1014,7 +1014,7 @@ int UDynamicMeshSculptTool::FindHitTargetMeshTriangle(const FRay3d& LocalRay)
 		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
 		FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition(StateOut.Position));
 
-		BrushTargetMeshSpatial.TriangleFilterF = [this, Mesh, &LocalEyePosition](int TriangleID) {
+		BrushTargetMeshSpatial.TriangleFilterF = [this, Mesh, LocalEyePosition](int TriangleID) {
 			FVector3d Normal, Centroid;
 			double Area;
 			Mesh->GetTriInfo(TriangleID, Normal, Area, Centroid);

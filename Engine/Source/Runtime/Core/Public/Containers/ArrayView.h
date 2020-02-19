@@ -142,6 +142,17 @@ public:
 		check(ArrayNum >= 0);
 	}
 
+	/**
+	 * Construct a view of an initializer list.
+	 *
+	 * The caller is responsible for ensuring that the view does not outlive the initializer list.
+	 */
+	FORCEINLINE TArrayView(std::initializer_list<ElementType> List)
+		: DataPtr(ArrayViewPrivate::GetDataHelper(List))
+		, ArrayNum(GetNum(List))
+	{
+	}
+
 public:
 
 	/**
@@ -557,4 +568,26 @@ template<typename ElementType>
 auto MakeArrayView(ElementType* Pointer, int32 Size)
 {
 	return TArrayView<ElementType>(Pointer, Size);
+}
+
+template <typename T>
+TArrayView<const T> MakeArrayView(std::initializer_list<T> List)
+{
+	return TArrayView<const T>(List);
+}
+
+template<typename InElementType, typename InAllocatorType>
+template<typename OtherElementType>
+FORCEINLINE TArray<InElementType, InAllocatorType>::TArray(const TArrayView<OtherElementType>& Other)
+{
+	CopyToEmpty(Other.GetData(), Other.Num(), 0, 0);
+}
+
+template<typename InElementType, typename InAllocatorType>
+template<typename OtherElementType>
+FORCEINLINE TArray<InElementType, InAllocatorType>& TArray<InElementType, InAllocatorType>::operator=(const TArrayView<OtherElementType>& Other)
+{
+	DestructItems(GetData(), ArrayNum);
+	CopyToEmpty(Other.GetData(), Other.Num(), ArrayMax, 0);
+	return *this;
 }

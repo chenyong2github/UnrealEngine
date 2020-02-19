@@ -163,5 +163,4 @@ void FVariantManagerUtils::InvalidateCache(UClass* OldClass, UClass* NewClass, E
 	LightColorProperty = nullptr;
 	DefaultLightColorProperty = nullptr;
 }
-
 #undef GET_MEMBER_NAME_CHECKED

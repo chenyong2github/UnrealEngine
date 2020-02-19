@@ -600,13 +600,13 @@ UE_DEPRECATED(4.25, "No longer used; use version that takes a UPackage* and call
 COREUOBJECT_API void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename);
 
 /**
- * 
+ *
  * Reset the loader for the given package if it is using the given filename, so we can write to the file
  *
  * @param	Package			The package we are saving
  * @param	Filename		The filename we are saving too
  */
-COREUOBJECT_API void ResetLoadersForSave(UPackage* Package, const TCHAR *Filename);
+COREUOBJECT_API void ResetLoadersForSave(UPackage* Package, const TCHAR* Filename);
 
 /*
  * Ensure all data that can be loaded from the linker (thumbnails, bulk data) is loaded, in preparation for saving out the given package

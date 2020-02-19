@@ -18,6 +18,7 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/LazySingleton.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Async/TaskGraphInterfaces.h"
 
 #ifndef DEFAULT_NO_THREADING
 	#define DEFAULT_NO_THREADING 0
@@ -545,11 +546,18 @@ bool FGenericPlatformProcess::WritePipe(void* WritePipe, const uint8* Data, cons
 
 bool FGenericPlatformProcess::SupportsMultithreading()
 {
+	if (!FCommandLine::IsInitialized())
+	{
+		// If we don't know yet -- return the default setting
+		return !DEFAULT_NO_THREADING;
+	}
+
 #if DEFAULT_NO_THREADING
-	static bool bSupportsMultithreading = FCommandLine::IsInitialized() ? FParse::Param(FCommandLine::Get(), TEXT("threading")) : 0;
+	static bool bSupportsMultithreading = FParse::Param(FCommandLine::Get(), TEXT("threading"));
 #else
-	static bool bSupportsMultithreading = FCommandLine::IsInitialized() ? !FParse::Param(FCommandLine::Get(), TEXT("nothreading")) : 1;
+	static bool bSupportsMultithreading = !FParse::Param(FCommandLine::Get(), TEXT("nothreading"));
 #endif
+
 	return bSupportsMultithreading;
 }
 
@@ -606,3 +614,19 @@ void FGenericPlatformProcess::TearDown()
 	TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::TearDown();
 	TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::TearDown();
 }
+
+ENamedThreads::Type FGenericPlatformProcess::GetDesiredThreadForUObjectReferenceCollector()
+{
+	return ENamedThreads::AnyThread;
+}
+
+void FGenericPlatformProcess::ModifyThreadAssignmentForUObjectReferenceCollector( int32& NumThreads, int32& NumBackgroundThreads, ENamedThreads::Type& NormalThreadName, ENamedThreads::Type& BackgroundThreadName )
+{
+#if PLATFORM_ANDROID
+	// On devices with overridden affinity only HiPri threads can run on big cores
+	NormalThreadName = ENamedThreads::AnyHiPriThreadHiPriTask; 
+	NumBackgroundThreads = 0; // run on single group
+#endif
+}
+
+

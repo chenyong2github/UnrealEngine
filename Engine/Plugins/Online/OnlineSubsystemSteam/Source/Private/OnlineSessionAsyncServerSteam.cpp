@@ -256,10 +256,10 @@ void UpdatePublishedSettings(UWorld* World, FNamedOnlineSession* Session)
 			for (int32 PlayerIdx=0; PlayerIdx < GameState->PlayerArray.Num(); PlayerIdx++)
 			{
 				APlayerState const* const PlayerState = GameState->PlayerArray[PlayerIdx];
-				if (PlayerState && PlayerState->UniqueId.IsValid())
+				if (PlayerState && PlayerState->GetUniqueId().IsValid())
 				{
-					CSteamID SteamId(*(uint64*)PlayerState->UniqueId->GetBytes());
-					SteamGameServerPtr->BUpdateUserData(SteamId, TCHAR_TO_UTF8(*PlayerState->GetPlayerName()), PlayerState->Score);
+					CSteamID SteamId(*(uint64*)PlayerState->GetUniqueId()->GetBytes());
+					SteamGameServerPtr->BUpdateUserData(SteamId, TCHAR_TO_UTF8(*PlayerState->GetPlayerName()), PlayerState->GetScore());
 				}
 			}
 		}
@@ -444,7 +444,7 @@ void FOnlineAsyncTaskSteamCreateServer::Finalize()
 
 			// Create the proper ip address for this server
 			NewSessionInfo->HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-			NewSessionInfo->HostAddr->SetIp(SteamGameServerPtr->GetPublicIP());
+			NewSessionInfo->HostAddr->SetIp(SteamGameServerPtr->GetPublicIP().m_unIPv4);
 			NewSessionInfo->HostAddr->SetPort(Subsystem->GetGameServerGamePort());
 			UE_LOG_ONLINE_SESSION(Verbose, TEXT("Server IP: %s"), *NewSessionInfo->HostAddr->ToString(true));
 
@@ -480,7 +480,7 @@ void FOnlineAsyncTaskSteamCreateServer::Finalize()
 			if (SteamUser() && bShouldUseAdvertise)
 			{
 				UE_LOG_ONLINE(Warning, TEXT("AUTH: CreateServerSteam is calling the depricated AdvertiseGame call"));
-				SteamUser()->AdvertiseGame(k_steamIDNonSteamGS, SteamGameServerPtr->GetPublicIP(), Subsystem->GetGameServerGamePort());
+				SteamUser()->AdvertiseGame(k_steamIDNonSteamGS, SteamGameServerPtr->GetPublicIP().m_unIPv4, Subsystem->GetGameServerGamePort());
 			}
 		}
 		else

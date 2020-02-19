@@ -74,4 +74,50 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HoloLensAR|ARPin", meta = (Keywords = "hololensar wmr pin ar all"))
 	static void RemoveAllARPinsFromWMRAnchorStore();
 
+	/**
+	 * Enable or disable Mixed Reality Capture camera.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HoloLensAR", meta = (Keywords = "hololensar wmr ar all"))
+	static void SetEnabledMixedRealityCamera(bool IsEnabled);
+
+	/**
+	 * Change screen size of Mixed Reality Capture camera.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HoloLensAR", meta = (Keywords = "hololensar wmr ar all"))
+	static FIntPoint ResizeMixedRealityCamera(const FIntPoint& size);
+
+	/**
+	 * Get the transform from PV camera space to Unreal world space.
+	 */
+	UFUNCTION(BlueprintPure, Category = "HoloLensAR", meta = (Keywords = "hololensar wmr ar all"))
+	static FTransform GetPVCameraToWorldTransform();
+
+	/**
+	 * Get the PV Camera intrinsics.
+	 */
+	UFUNCTION(BlueprintPure, Category = "HoloLensAR", meta = (Keywords = "hololensar wmr ar all"))
+	static bool GetPVCameraIntrinsics(FVector2D& focalLength, int& width, int& height, FVector2D& principalPoint, FVector& radialDistortion, FVector2D& tangentialDistortion);
+
+	/**
+	 * Get a ray into the scene from a camera point.
+	 * X is left/right
+	 * Y is up/down
+	 */
+	UFUNCTION(BlueprintPure, Category = "HoloLensAR", meta = (Keywords = "hololensar wmr ar all"))
+	static FVector GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate);
+	
+	/**
+	 * Turn the camera on.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HoloLensAR", meta = (Keywords = "hololensar wmr ar all"))
+	static void StartCameraCapture();
+
+	/**
+	 * Turn the camera off.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HoloLensAR", meta = (Keywords = "hololensar wmr ar all"))
+	static void StopCameraCapture();
+	
+	
+	static UWMRARPin* CreateNamedARPinAroundAnchor(FName Name, const FString& AnchorId);
 };

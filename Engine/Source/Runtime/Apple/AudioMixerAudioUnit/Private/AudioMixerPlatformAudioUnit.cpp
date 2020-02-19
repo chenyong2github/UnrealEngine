@@ -443,6 +443,12 @@ namespace Audio
 		{
 			NumFrames = (int32)(SampleRate * BufferSizeInSec);
 		}
+
+		if (FMath::IsNearlyZero(SampleRate))
+		{
+			SampleRate = DefaultSampleRate;
+		}
+
 		InternalPlatformSettings.SampleRate = SampleRate;
 
 		return InternalPlatformSettings;

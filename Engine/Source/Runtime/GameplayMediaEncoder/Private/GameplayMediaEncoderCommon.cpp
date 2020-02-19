@@ -9,15 +9,12 @@ uint64 MemoryCheckpoint(const FString& Name)
 #if PLATFORM_WINDOWS
 	return 0;
 #else
-	TITLEMEMORYSTATUS TitleStatus;
-	TitleStatus.dwLength = sizeof(TitleStatus);
-	TitleMemoryStatus(&TitleStatus);
+	uint64_t UsedPhysical = FPlatformMemory::GetMemoryUsedFast();
 
 	static uint64 PeakMemory = 0;
 
 	FMemoryCheckpoint Check;
 	Check.Name = Name;
-	uint64_t UsedPhysical = TitleStatus.ullLegacyUsed + TitleStatus.ullTitleUsed;
 	static uint64_t FirstUsedPhysical = UsedPhysical;
 	
 	Check.UsedPhysicalMB = UsedPhysical / double(1024 * 1024);

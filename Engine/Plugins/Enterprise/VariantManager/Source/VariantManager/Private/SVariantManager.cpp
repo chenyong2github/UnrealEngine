@@ -312,10 +312,10 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Text(LOCTEXT("ActorsText", "Actors"))
-					]
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+					.Text(LOCTEXT("ActorsText", "Actors"))
+				]
 
 					+SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
@@ -394,10 +394,10 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-							.Text(LOCTEXT("PropertiesText", "Properties"))
-						]
+						SNew(STextBlock)
+						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.Text(LOCTEXT("PropertiesText", "Properties"))
+					]
 
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -1438,32 +1438,32 @@ void SVariantManager::CaptureNewPropertiesFromSelectedActors()
 		return;
 	}
 
-	FVariantManagerSelection& Selection = PinnedVariantManager->GetSelection();
-	const TSet<TSharedRef<FVariantManagerActorNode>>& SelectedActorNodes = Selection.GetSelectedActorNodes();
+		FVariantManagerSelection& Selection = PinnedVariantManager->GetSelection();
+		const TSet<TSharedRef<FVariantManagerActorNode>>& SelectedActorNodes = Selection.GetSelectedActorNodes();
 
-	TArray<UVariantObjectBinding*> SelectedBindings;
-	for (const TSharedRef<FVariantManagerActorNode>& ActorNode : SelectedActorNodes)
-	{
-		UVariantObjectBinding* Binding = ActorNode->GetObjectBinding().Get();
-		if (Binding)
+		TArray<UVariantObjectBinding*> SelectedBindings;
+		for (const TSharedRef<FVariantManagerActorNode>& ActorNode : SelectedActorNodes)
 		{
-			SelectedBindings.Add(Binding);
+			UVariantObjectBinding* Binding = ActorNode->GetObjectBinding().Get();
+			if (Binding)
+			{
+				SelectedBindings.Add(Binding);
+			}
 		}
-	}
 
-	int32 NumBindings = SelectedBindings.Num();
+		int32 NumBindings = SelectedBindings.Num();
 	if (NumBindings == 0)
 	{
 		return;
 	}
 
-	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("ActorNodeCaptureNewPropertiesTransaction", "Capture new properties for {0} actor {0}|plural(one=binding,other=bindings)"),
-		NumBindings
-		));
+		FScopedTransaction Transaction(FText::Format(
+			LOCTEXT("ActorNodeCaptureNewPropertiesTransaction", "Capture new properties for {0} actor {0}|plural(one=binding,other=bindings)"),
+			NumBindings
+			));
 
-	PinnedVariantManager->CaptureNewProperties(SelectedBindings);
-	PinnedVariantManager->GetVariantManagerWidget()->RefreshPropertyList();
+		PinnedVariantManager->CaptureNewProperties(SelectedBindings);
+		PinnedVariantManager->GetVariantManagerWidget()->RefreshPropertyList();
 }
 
 bool SVariantManager::CanCaptureNewPropertiesFromSelectedActors()
@@ -2360,7 +2360,7 @@ void SVariantManager::RefreshPropertyList()
 		if (Left.DisplayOrder == Right.DisplayOrder)
 		{
 			return Left.GetName().LexicalLess(Right.GetName());
-		}
+	}
 
 		return Left.DisplayOrder < Right.DisplayOrder;
 	});
@@ -2945,7 +2945,7 @@ namespace SVariantManagerUtils
 	{
 		FString PathActorToLeafComponent;
 		FString PathTailProperty;
-		AActor* TargetActor = nullptr;
+	AActor* TargetActor = nullptr;
 		USceneComponent* LeafComponent = nullptr;
 	};
 
@@ -3008,7 +3008,7 @@ namespace SVariantManagerUtils
 				else if (UActorComponent* StartingActorComp = Cast<UActorComponent>(TargetObject))
 				{
 					if (StartingActorComp->GetOwner() == TargetActor)
-					{
+	{
 						// Actor components can't be attached to scene components, so we know we're
 						// attached directly to the actor and there are no other components in the chain
 						ComponentPath = StartingActorComp->GetName() + PATH_DELIMITER;
@@ -3016,23 +3016,23 @@ namespace SVariantManagerUtils
 					}
 				}
 			}
-		}
+	}
 
-		// We need to check if its a blueprint actor or not, as we handle blueprint root component
-		// names a little bit differently
-		bool bIsBlueprintGeneratedClass = ((UObject*)TargetActor->GetClass())->IsA(UBlueprintGeneratedClass::StaticClass());
+	// We need to check if its a blueprint actor or not, as we handle blueprint root component
+	// names a little bit differently
+	bool bIsBlueprintGeneratedClass = ((UObject*)TargetActor->GetClass())->IsA(UBlueprintGeneratedClass::StaticClass());
 
 		// Build component path up to TargetActor, if our Object is actually a SceneComponent
 		USceneComponent* ComponentPointer = LeafComponent;
 		while (ComponentPointer)
-		{
+	{
 			USceneComponent* AttachParent = ComponentPointer->GetAttachParent();
 
-			FString ComponentName;
+		FString ComponentName;
 
 			// We're some form of root component, naming is different
-			if (AttachParent == nullptr || AttachParent->GetOwner() != TargetActor)
-			{
+		if (AttachParent == nullptr || AttachParent->GetOwner() != TargetActor)
+		{
 				// Users can rename of the root component for a blueprint generated class, so lets use that.
 				// On other cases, users can't rename root components, and their actual names are always
 				// something like StaticMeshComponent0 or LightComponent0 (even if its class is a UPointLightComponent).
@@ -3074,26 +3074,26 @@ namespace SVariantManagerUtils
 
 			ComponentPath = RootComponentName;
 			PropertyPath += ChildPropertyName;
-		}
-		else
-		{
+			}
+			else
+			{
 			PropertyPath += ChildPropertyName;
-		}
+			}
 
 		Result.TargetActor = TargetActor;
 		Result.LeafComponent = LeafComponent;
 		Result.PathActorToLeafComponent = ComponentPath;
 		Result.PathTailProperty = PropertyPath;
 		return Result;
-	}
+		}
 }
 
 void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event)
 {
 	if (!bAutoCaptureProperties || !Object || !Event.Property)
-	{
+		{
 		return;
-	}
+		}
 
 	bool bIsStructProperty = Event.MemberProperty && Event.MemberProperty->IsA(FStructProperty::StaticClass());
 	bool bIsBuiltIn = bIsStructProperty && FVariantManagerUtils::IsBuiltInStructProperty(Event.MemberProperty);
@@ -3133,9 +3133,9 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	}
 
 	if (PropertyPath.IsEmpty())
-	{
+		{
 		return;
-	}
+		}
 
 	bool bUpdatedSomething = AutoCaptureProperty(VariantManagerPtr.Pin().Get(), TargetActor, PropertyPath, Prop);
 	if (bUpdatedSomething)
@@ -3154,7 +3154,7 @@ namespace SVariantManagerUtils
 		for (PropNode* Node = PropChain.GetHead(); Node; Node = Node->GetNextNode())
 		{
 			Hash = HashCombine(Hash, GetTypeHash(Node->GetValue()));
-	}
+		}
 
 		Hash = HashCombine(Hash, GetTypeHash(Object));
 
@@ -3169,7 +3169,7 @@ void SVariantManager::OnPreObjectPropertyChanged(UObject* Object, const class FE
 	// but in the first firing the root component is Object, and in the second firing, the root component is
 
 	if (!bAutoCaptureProperties || !Object)
-	{
+		{
 		return;
 	}
 
@@ -3251,16 +3251,16 @@ void SVariantManager::OnPreObjectPropertyChanged(UObject* Object, const class FE
 
 				if (!IntermediatePath.EndsWith(PATH_DELIMITER + Category + PATH_DELIMITER) &&
 					LastCategorySegment != PropertyName)
-				{
+	{
 					IntermediatePath += Category + PATH_DELIMITER;
 				}
 			}
-		}
+	}
 
 		if (Node == Tail)
-		{
+	{
 			break;
-		}
+	}
 
 		IntermediatePath += PropertyName + PATH_DELIMITER;
 
@@ -3279,7 +3279,7 @@ void SVariantManager::OnPreObjectPropertyChanged(UObject* Object, const class FE
 			}
 		}
 		else
-		{
+	{
 			bShowCategories = false;
 		}
 	}

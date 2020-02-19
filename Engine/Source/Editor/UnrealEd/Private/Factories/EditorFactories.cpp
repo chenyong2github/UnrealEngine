@@ -274,6 +274,7 @@
 #include "DesktopPlatformModule.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Factories/TextureImportSettings.h"
+#include "AssetImportTask.h"
 
 #include "SkinWeightsUtilities.h"
 
@@ -4284,6 +4285,25 @@ UObject* UTextureFactory::FactoryCreateBinary
 	if (bForceOverwriteExistingSettings)
 	{
 		bUsingExistingSettings = false;
+	}
+	else if (AssetImportTask && AssetImportTask->bAutomated)
+	{
+		if (ExistingTexture)
+		{
+			if (!AssetImportTask->bReplaceExisting)
+			{
+				GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
+				return nullptr;
+			}
+			else
+			{
+				bUsingExistingSettings = !AssetImportTask->bReplaceExistingSettings;
+			}
+		}
+		else
+		{
+			bUsingExistingSettings = false;
+		}
 	}
 	else
 	{

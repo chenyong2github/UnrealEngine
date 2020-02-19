@@ -58,17 +58,23 @@ public:
 		{
 			FTransformCurve& TransformCurve = *(static_cast<FTransformCurve*>(CurveBase));
 			check(CurveIndex < 9);
-			const int32 SubCurveIndex = CurveIndex / 3;
-			switch(SubCurveIndex)
+			const int32 SubCurveIndex = CurveIndex % 3;
+			switch(CurveIndex)
 			{
 			default:
 				check(false);
 				// fall through
 			case 0:
-				return TransformCurve.TranslationCurve.FloatCurves[SubCurveIndex];
 			case 1:
-				return TransformCurve.RotationCurve.FloatCurves[SubCurveIndex];
 			case 2:
+				return TransformCurve.TranslationCurve.FloatCurves[SubCurveIndex];
+			case 3:
+			case 4:
+			case 5:
+				return TransformCurve.RotationCurve.FloatCurves[SubCurveIndex];
+			case 6:
+			case 7:
+			case 8:
 				return TransformCurve.ScaleCurve.FloatCurves[SubCurveIndex];
 			}
 			

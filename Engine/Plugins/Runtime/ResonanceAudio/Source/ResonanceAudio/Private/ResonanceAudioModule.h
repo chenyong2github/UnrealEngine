@@ -36,8 +36,6 @@ namespace ResonanceAudio
 		
 		virtual bool IsExternalSend() override { return true; }
 
-		virtual TAmbisonicsMixerPtr CreateNewAmbisonicsMixer(FAudioDevice* OwningDevice) override;
-
 		virtual int32 GetMaxSupportedChannels() override
 		{
 			return 2;
@@ -110,6 +108,7 @@ namespace ResonanceAudio
 		// Plugin factories.
 		FSpatializationPluginFactory SpatializationPluginFactory;
 		FReverbPluginFactory ReverbPluginFactory;
+		FAmbisonicsFactory AmbisonicsFactory;
 	};
 
 }  // namespace ResonanceAudio

@@ -587,7 +587,7 @@ namespace UnrealBuildTool
 		/// Checks whether the binary output paths are appropriate for the distribution
 		/// level of its direct module dependencies
 		/// </summary>
-		public bool CheckRestrictedFolders(DirectoryReference ProjectDir, Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache)
+		public bool CheckRestrictedFolders(List<DirectoryReference> RootDirectories, Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache)
 		{
 			// Find all the modules we depend on
 			Dictionary<UEBuildModule, UEBuildModule> ModuleReferencedBy = new Dictionary<UEBuildModule, UEBuildModule>();
@@ -598,16 +598,8 @@ namespace UnrealBuildTool
 			foreach (FileReference OutputFilePath in OutputFilePaths)
 			{
 				// Find the base directory for this binary
-				DirectoryReference BaseDir;
-				if(OutputFilePath.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
-				{
-					BaseDir = UnrealBuildTool.EngineDirectory;
-				}
-				else if(ProjectDir != null && OutputFilePath.IsUnderDirectory(ProjectDir))
-				{
-					BaseDir = ProjectDir;
-				}
-				else
+				DirectoryReference BaseDir = RootDirectories.FirstOrDefault(x => OutputFilePath.IsUnderDirectory(x));
+				if (BaseDir == null)
 				{
 					continue;
 				}
@@ -622,7 +614,7 @@ namespace UnrealBuildTool
 					Dictionary<RestrictedFolder, DirectoryReference> ModuleRestrictedFolders;
 					if (!ModuleRestrictedFolderCache.TryGetValue(Module, out ModuleRestrictedFolders))
 					{
-						ModuleRestrictedFolders = Module.FindRestrictedFolderReferences(ProjectDir);
+						ModuleRestrictedFolders = Module.FindRestrictedFolderReferences(RootDirectories);
 						ModuleRestrictedFolderCache.Add(Module, ModuleRestrictedFolders);
 					}
 
@@ -760,7 +752,7 @@ namespace UnrealBuildTool
 			BinaryLinkEnvironment.bIsBuildingLibrary = IsBuildingLibrary(Type);
 
 			// If we don't have any resource file, use the default or compile a custom one for this module
-			if(BinaryLinkEnvironment.Platform == UnrealTargetPlatform.Win32 || BinaryLinkEnvironment.Platform == UnrealTargetPlatform.Win64)
+			if(BinaryLinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				// Figure out if this binary has any custom resource files. Hacky check to ignore the resource file in the Launch module, since it contains dialogs that the engine needs and always needs to be included.
 				FileItem[] CustomResourceFiles = BinaryLinkEnvironment.InputFiles.Where(x => x.Location.HasExtension(".res") && !x.Location.FullName.EndsWith("\\Launch\\PCLaunch.rc.res", StringComparison.OrdinalIgnoreCase)).ToArray();

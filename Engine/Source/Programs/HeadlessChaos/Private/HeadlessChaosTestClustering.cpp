@@ -25,7 +25,7 @@ namespace ChaosTest {
 	void ImplicitCluster()
 	{
 		TPBDRigidsSOAs<T, 3> Particles;
-		TPBDRigidsEvolutionGBF<T, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
 		
 		uint32 FirstId = ClusteredParticles.Size();
@@ -66,7 +66,7 @@ namespace ChaosTest {
 	void FractureCluster()
 	{
 		TPBDRigidsSOAs<T, 3> Particles;
-		TPBDRigidsEvolutionGBF<T, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
 
 		//create a long row of boxes - the depth 0 cluster is the entire row, the depth 1 clusters 4 boxes each, the depth 2 clusters are 1 box each
@@ -181,7 +181,7 @@ namespace ChaosTest {
 	void PartialFractureCluster()
 	{
 		TPBDRigidsSOAs<T, 3> Particles;
-		TPBDRigidsEvolutionGBF<T, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
 
 		//create a long row of boxes - the depth 0 cluster is the entire row, the depth 1 clusters 4 boxes each, the depth 2 clusters are 1 box each

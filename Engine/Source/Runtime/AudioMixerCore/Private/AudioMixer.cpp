@@ -65,6 +65,13 @@ FAutoConsoleVariableRef CVarUnderrunTimeout(
 	TEXT("Amount of time to wait for the render thread to generate the next buffer before submitting an underrun buffer. \n"),
 	ECVF_Default);
 
+static int32 FadeoutTimeoutCVar = 2000;
+FAutoConsoleVariableRef CVarFadeoutTimeout(
+	TEXT("au.FadeOutTimeoutMSec"),
+	FadeoutTimeoutCVar,
+	TEXT("Amount of time to wait for the FadeOut Event to fire. \n"),
+	ECVF_Default);
+
 static float LinearGainScalarForFinalOututCVar = 1.0f;
 FAutoConsoleVariableRef LinearGainScalarForFinalOutut(
 	TEXT("au.LinearGainScalarForFinalOutut"),
@@ -344,8 +351,11 @@ namespace Audio
 
 		bPerformingFade = true;
 		if (AudioFadeEvent != nullptr)
-		{
-			AudioFadeEvent->Wait();
+		{						
+			if (!AudioFadeEvent->Wait(FadeoutTimeoutCVar))
+			{
+				UE_LOG(LogAudioMixer, Warning, TEXT("FadeOutEvent timed out"));
+			}
 		}
 
 		FadeVolume = 0.0f;

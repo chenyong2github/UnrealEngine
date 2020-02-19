@@ -28,7 +28,7 @@ struct CHAOS_API FQueryFastData
 
 	const bool bParallel[3];
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#ifdef _MSC_VER
 	#pragma warning (push)
 	#pragma warning(disable:4723)
 #endif
@@ -45,7 +45,7 @@ struct CHAOS_API FQueryFastData
 		}
 	}
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#ifdef _MSC_VER
 	#pragma warning(pop)
 #endif
 
@@ -139,6 +139,8 @@ public:
 		Returns true to continue iterating through the acceleration structure
 	*/
 	virtual bool Sweep(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData) = 0;
+
+	virtual const void* GetQueryData() const { return nullptr; }
 };
 
 /**
@@ -192,6 +194,12 @@ FORCEINLINE FUniqueIdx GetUniqueIdx(const int32 Payload)
 {
 	ensure(Payload >=0);	//-1 idx implies it was never set
 	return FUniqueIdx(Payload);
+}
+
+FORCEINLINE FUniqueIdx GetUniqueIdx(const FUniqueIdx Payload)
+{
+	ensure(Payload.IsValid());
+	return Payload;
 }
 
 
@@ -360,6 +368,11 @@ public:
 		return Visitor.Sweep(Instance, CurData);
 	}
 
+	FORCEINLINE const void* GetQueryData() const
+	{
+		return Visitor.GetQueryData();
+	}
+
 private:
 	ISpatialVisitor<TPayloadType, T>& Visitor;
 };
@@ -430,13 +443,25 @@ public:
 		Add(Key) = Value;
 	}
 
-	void Remove(const TKey& Key)
+	void RemoveChecked(const TKey& Key)
 	{
 		const int32 Idx = GetUniqueIdx(Key).Idx;
 		Entries[Idx] = FEntry();	//Mark as free, also resets default values for next use of value
 #if CHAOS_SERIALIZE_OUT
 		KeysToSerializeOut[Idx] = TKey();
 #endif
+	}
+
+	void Remove(const TKey& Key)
+	{
+		const int32 Idx = GetUniqueIdx(Key).Idx;
+		if(Idx >= 0 && Idx < Entries.Num())
+		{
+			Entries[Idx] = FEntry();	//Mark as free, also resets default values for next use of value
+#if CHAOS_SERIALIZE_OUT
+			KeysToSerializeOut[Idx] = TKey();
+#endif
+		}
 	}
 
 	void Reset()
@@ -500,5 +525,24 @@ FChaosArchive& operator<< (FChaosArchive& Ar, TArrayAsMap<TKey, TValue>& Map)
 	Map.Serialize(Ar);
 	return Ar;
 }
+
+
+template <typename TPayload>
+typename TEnableIf<!TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(const TPayload& Payload, const void* QueryData)
+{
+	return Payload.PrePreFilter(QueryData);
+}
+
+template <typename TPayload>
+typename TEnableIf<TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(const TPayload& Payload, const void* QueryData)
+{
+	return false;
+}
+
+FORCEINLINE bool PrePreFilterHelper(const int32 Payload, const void* QueryData)
+{
+	return false;
+}
+
 
 }

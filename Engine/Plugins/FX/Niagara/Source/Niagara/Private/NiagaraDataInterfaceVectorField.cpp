@@ -309,91 +309,68 @@ bool UNiagaraDataInterfaceVectorField::GetFunctionHLSL(const FNiagaraDataInterfa
 	return false;
 }
 
-struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterfaceParametersCS
+void FNiagaraDataInterfaceParametersCS_VectorField::Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
-	{
-		VectorFieldSampler.Bind(ParameterMap, *(SamplerBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		VectorFieldTexture.Bind(ParameterMap, *(TextureBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		TilingAxes.Bind(ParameterMap, *(TilingAxesBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		Dimensions.Bind(ParameterMap, *(DimensionsBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		MinBounds.Bind(ParameterMap, *(MinBoundsBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		MaxBounds.Bind(ParameterMap, *(MaxBoundsBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	virtual void Serialize(FArchive& Ar)override
-	{
-		Ar << VectorFieldSampler;
-		Ar << VectorFieldTexture;
-		Ar << TilingAxes;
-		Ar << Dimensions;
-		Ar << MinBounds;
-		Ar << MaxBounds;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
-	{
-		check(IsInRenderingThread());
-
-		// Different sampler states used by the computer shader to sample 3D vector field. 
-		// Encoded as bitflags. To sample: 
-		//     1st bit: X-axis tiling flag
-		//     2nd bit: Y-axis tiling flag
-		//     3rd bit: Z-axis tiling flag
-		static FRHISamplerState* SamplerStates[8] = { nullptr };
-		if (SamplerStates[0] == nullptr)
-		{
-			SamplerStates[0] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			SamplerStates[1] = TStaticSamplerState<SF_Bilinear, AM_Wrap,  AM_Clamp, AM_Clamp>::GetRHI();
-			SamplerStates[2] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Wrap,  AM_Clamp>::GetRHI();
-			SamplerStates[3] = TStaticSamplerState<SF_Bilinear, AM_Wrap,  AM_Wrap,  AM_Clamp>::GetRHI();
-			SamplerStates[4] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Wrap>::GetRHI();
-			SamplerStates[5] = TStaticSamplerState<SF_Bilinear, AM_Wrap,  AM_Clamp, AM_Wrap>::GetRHI();
-			SamplerStates[6] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Wrap,  AM_Wrap>::GetRHI();
-			SamplerStates[7] = TStaticSamplerState<SF_Bilinear, AM_Wrap,  AM_Wrap,  AM_Wrap>::GetRHI();
-		}
-
-		// Get shader and DI
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
-		FNiagaraDataInterfaceProxyVectorField* VFDI = static_cast<FNiagaraDataInterfaceProxyVectorField*>(Context.DataInterface);
-		
-		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
-
-		// Get and set 3D texture handle from the currently bound vector field.
-		if (VFDI->TextureRHI)
-		{
-			SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, VFDI->TextureRHI);
-		}
-		else
-		{
-			SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, GBlackVolumeTexture->TextureRHI);
-		}
-		
-		// Get and set sampler state
-		FRHISamplerState* SamplerState = SamplerStates[int(VFDI->bTileX) + 2 * int(VFDI->bTileY) + 4 * int(VFDI->bTileZ)];
-		SetSamplerParameter(RHICmdList, ComputeShaderRHI, VectorFieldSampler, SamplerState);
-
-		//
-		SetShaderValue(RHICmdList, ComputeShaderRHI, TilingAxes, VFDI->GetTilingAxes());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, VFDI->Dimensions);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MinBounds, VFDI->MinBounds);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxBounds, VFDI->MaxBounds);
-	}
-
-private:
-
-	FShaderResourceParameter VectorFieldSampler;
-	FShaderResourceParameter VectorFieldTexture;
-	FShaderParameter TilingAxes;
-	FShaderParameter Dimensions;
-	FShaderParameter MinBounds;
-	FShaderParameter MaxBounds;
-};
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceVectorField::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_VectorField();
+	VectorFieldSampler.Bind(ParameterMap, *(SamplerBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+	VectorFieldTexture.Bind(ParameterMap, *(TextureBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+	TilingAxes.Bind(ParameterMap, *(TilingAxesBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+	Dimensions.Bind(ParameterMap, *(DimensionsBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+	MinBounds.Bind(ParameterMap, *(MinBoundsBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+	MaxBounds.Bind(ParameterMap, *(MaxBoundsBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 }
+
+void FNiagaraDataInterfaceParametersCS_VectorField::Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
+{
+	check(IsInRenderingThread());
+
+	// Different sampler states used by the computer shader to sample 3D vector field. 
+	// Encoded as bitflags. To sample: 
+	//     1st bit: X-axis tiling flag
+	//     2nd bit: Y-axis tiling flag
+	//     3rd bit: Z-axis tiling flag
+	static FRHISamplerState* SamplerStates[8] = { nullptr };
+	if (SamplerStates[0] == nullptr)
+	{
+		SamplerStates[0] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		SamplerStates[1] = TStaticSamplerState<SF_Bilinear, AM_Wrap,  AM_Clamp, AM_Clamp>::GetRHI();
+		SamplerStates[2] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Wrap,  AM_Clamp>::GetRHI();
+		SamplerStates[3] = TStaticSamplerState<SF_Bilinear, AM_Wrap,  AM_Wrap,  AM_Clamp>::GetRHI();
+		SamplerStates[4] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Wrap>::GetRHI();
+		SamplerStates[5] = TStaticSamplerState<SF_Bilinear, AM_Wrap,  AM_Clamp, AM_Wrap>::GetRHI();
+		SamplerStates[6] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Wrap,  AM_Wrap>::GetRHI();
+		SamplerStates[7] = TStaticSamplerState<SF_Bilinear, AM_Wrap,  AM_Wrap,  AM_Wrap>::GetRHI();
+	}
+
+	// Get shader and DI
+	FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
+	FNiagaraDataInterfaceProxyVectorField* VFDI = static_cast<FNiagaraDataInterfaceProxyVectorField*>(Context.DataInterface);
+		
+	// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
+
+	// Get and set 3D texture handle from the currently bound vector field.
+	if (VFDI->TextureRHI)
+	{
+		SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, VFDI->TextureRHI);
+	}
+	else
+	{
+		SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, GBlackVolumeTexture->TextureRHI);
+	}
+		
+	// Get and set sampler state
+	FRHISamplerState* SamplerState = SamplerStates[int(VFDI->bTileX) + 2 * int(VFDI->bTileY) + 4 * int(VFDI->bTileZ)];
+	SetSamplerParameter(RHICmdList, ComputeShaderRHI, VectorFieldSampler, SamplerState);
+
+	//
+	SetShaderValue(RHICmdList, ComputeShaderRHI, TilingAxes, VFDI->GetTilingAxes());
+	SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, VFDI->Dimensions);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, MinBounds, VFDI->MinBounds);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, MaxBounds, VFDI->MaxBounds);
+}
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_VectorField);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceVectorField, FNiagaraDataInterfaceParametersCS_VectorField);
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 

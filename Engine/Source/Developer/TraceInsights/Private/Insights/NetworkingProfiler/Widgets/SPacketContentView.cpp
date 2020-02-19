@@ -59,6 +59,7 @@ void SPacketContentView::Reset()
 	ConnectionIndex = 0;
 	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
 	PacketIndex = 0;
+	PacketSequence = 0;
 	PacketBitSize = 0;
 
 	bFilterByEventType = false;
@@ -376,7 +377,7 @@ FReply SPacketContentView::FindNextPacket_OnClicked()
 
 FText SPacketContentView::GetPacketText() const
 {
-	return FText::AsNumber(PacketIndex);
+	return FText::AsNumber(PacketSequence);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -385,13 +386,13 @@ void SPacketContentView::Packet_OnTextCommitted(const FText& InNewText, ETextCom
 {
 	if (InNewText.IsNumeric())
 	{
-		int32 NewPacketIndex = 0;
-		TTypeFromString<int32>::FromString(NewPacketIndex, *InNewText.ToString());
+		uint32 NewPacketSequence = 0;
+		TTypeFromString<uint32>::FromString(NewPacketSequence, *InNewText.ToString());
 
 		TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
 		if (PacketView.IsValid())
 		{
-			PacketView->SetSelectedPacket(NewPacketIndex);
+			PacketView->SelectPacketBySequenceNumber(NewPacketSequence);
 		}
 	}
 }
@@ -621,6 +622,7 @@ void SPacketContentView::ResetPacket()
 	ConnectionIndex = 0;
 	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
 	PacketIndex = 0;
+	PacketSequence = 0;
 	PacketBitSize = 0;
 
 	FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
@@ -644,6 +646,7 @@ void SPacketContentView::SetPacket(uint32 InGameInstanceIndex, uint32 InConnecti
 	ConnectionIndex = InConnectionIndex;
 	ConnectionMode = InConnectionMode;
 	PacketIndex = InPacketIndex;
+	PacketSequence = GetPacketSequence(InPacketIndex);
 	PacketBitSize = InPacketBitSize;
 
 	FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
@@ -718,6 +721,27 @@ void SPacketContentView::EnableFilterEventType(const uint32 InEventTypeIndex)
 	SetFilterEventType(InEventTypeIndex, EventName);
 	bHighlightFilteredEvents = true;
 	bIsStateDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32 SPacketContentView::GetPacketSequence(int32 InPacketIndex) const
+{
+	uint32 NewSequenceNumber = 0U;
+
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+
+		NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, InPacketIndex, InPacketIndex, [&NewSequenceNumber](const Trace::FNetProfilerPacket& Packet)
+		{
+			NewSequenceNumber = Packet.SequenceNumber;
+		});
+	}
+
+	return NewSequenceNumber;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

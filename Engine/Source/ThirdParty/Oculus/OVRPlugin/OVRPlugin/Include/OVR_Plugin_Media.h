@@ -28,10 +28,10 @@ OVRP_EXPORT ovrpResult ovrp_Media_SetMrcFrameImageFlipped(ovrpBool flipped);
 OVRP_EXPORT ovrpResult ovrp_Media_GetMrcFrameImageFlipped(ovrpBool* flipped);
 OVRP_EXPORT ovrpResult ovrp_Media_SetMrcFrameInverseAlpha(ovrpBool inverseAlpha);
 OVRP_EXPORT ovrpResult ovrp_Media_GetMrcFrameInverseAlpha(ovrpBool* inverseAlpha);
+OVRP_EXPORT ovrpResult ovrp_Media_SetAvailableQueueIndexVulkan(unsigned int queueIndexVk);
 OVRP_EXPORT ovrpResult ovrp_Media_EncodeMrcFrame(void* videoData, float* audioData, int audioDataLen, int audioChannels, double timestamp, int* outSyncId);
 OVRP_EXPORT ovrpResult ovrp_Media_EncodeMrcFrameWithDualTextures(void* backgroundTextureHandle, void* foregroundTextureHandle, float* audioData, int audioDataLen, int audioChannels, double timestamp, int* outSyncId);
 OVRP_EXPORT ovrpResult ovrp_Media_SyncMrcFrame(int syncId);
-
 
 #ifdef __cplusplus
 }

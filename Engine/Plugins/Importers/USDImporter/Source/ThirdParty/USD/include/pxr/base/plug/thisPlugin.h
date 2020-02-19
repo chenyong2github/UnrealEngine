@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PLUG_THISPLUGIN_H
-#define PLUG_THISPLUGIN_H
+#ifndef PXR_BASE_PLUG_THIS_PLUGIN_H
+#define PXR_BASE_PLUG_THIS_PLUGIN_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/plug/registry.h"
@@ -40,4 +40,4 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PLUG_THISPLUGIN_H
+#endif // PXR_BASE_PLUG_THIS_PLUGIN_H

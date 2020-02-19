@@ -2452,7 +2452,7 @@ bool FVivoxVoiceChat::GetAudioOutputDeviceMuted() const
 
 TArray<FString> FVivoxVoiceChat::GetAvailableInputDevices() const
 {
-	return GetVoiceChatUser().GetAvailableOutputDevices();
+	return GetVoiceChatUser().GetAvailableInputDevices();
 }
 
 TArray<FString> FVivoxVoiceChat::GetAvailableOutputDevices() const

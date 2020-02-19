@@ -72,14 +72,13 @@ namespace Audio
 		const float BeatDivision = (float)QuantizationSettings.BeatDivision;
 		const float BeatTimeSeconds = 4.0f * QuarterNoteTime / FMath::Max(1.0f, BeatDivision);
 
+		// force a 32second note to be at least a single sample
 		NumFramesPerBeat = (uint32)(BeatTimeSeconds * QuantizationSettings.SampleRate);
-		NumFramesPerBar = QuantizationSettings.BeatsPerBar * NumFramesPerBeat;
-		check(NumFramesPerBar != 0);
+		NumFramesPerBar = FMath::Max(QuantizationSettings.BeatsPerBar * NumFramesPerBeat, 32u);
 
 		for (int32 Index = 0; Index < (int32)EEventQuantization::Count; ++Index)
 		{
 			FEventQuantizationState& EventState = EventQuantizationStates[Index];
-			EventState.FrameCount = 0;
 			EventState.EventFrameDuration = NumFramesPerBar;
 
 			switch ((EEventQuantization)Index)
@@ -145,6 +144,9 @@ namespace Audio
 				checkf(false, TEXT("Need to update this loop for new quantization enumeration"));
 				break;
 			}
+
+			// Set the events to trigger on the first sample
+			EventState.FrameCount = EventState.EventFrameDuration - 1;
 		}
 
 		BPMQuantizationState.FrameCount = 0;
@@ -195,22 +197,23 @@ namespace Audio
 		BPMQuantizationState.QueuedEvents.Add(MoveTemp(Lambda));
 	}
 
-	void FEventQuantizer::NotifyEventForState(FEventQuantizationState& State, EEventQuantization Type, bool bIsQuantizationEvent, int32 NumFrames)
+	void FEventQuantizer::NotifyEventForState(FEventQuantizationState& State, EEventQuantization Type, bool bIsQuantizationEvent, int32 NumFramesInCallback)
 	{
 		check(State.FrameCount != INDEX_NONE);
 		check(State.EventFrameDuration != INDEX_NONE);
 
-		uint32 NextFrameCount = State.FrameCount + NumFrames;
+		uint32 NextFrameCount = State.FrameCount + NumFramesInCallback;
 
 		bool bResetFrameCount = false;
+		int32 NumEventsFired = 0;
 
 		// Check the event trigger condition
 		if (NextFrameCount >= State.EventFrameDuration)
 		{
 			// Compute the frame offset (basically where in this buffer the event starts)
-			int32 FrameOffset = (int32)(State.EventFrameDuration - State.FrameCount - 1);
-			int32 FramesLeft = NumFrames - FrameOffset;
-			check(FramesLeft >= 0);
+			int32 NextEventFrameStart = (int32)(State.EventFrameDuration - State.FrameCount - 1);
+			int32 PostEventFramesRemaining = NumFramesInCallback - NextEventFrameStart;
+			check(PostEventFramesRemaining >= 0);
 
 			// Support lambda callbacks (events) queuing more events.
 			// Which may need to be executed within a single audio buffer. 
@@ -228,7 +231,7 @@ namespace Audio
 					// We use the copied events since this loop
 					for (TFunction<void(uint32 NumFramesOffset)>& Event : CopiedEvents)
 					{
-						Event(FrameOffset);
+						Event(NextEventFrameStart);
 					}
 				}
 
@@ -241,7 +244,7 @@ namespace Audio
 
 				// Do event listener notifications *with* the frame count with offset accounted for so 
 				// callbacks will get exact frame counts of when this event happened.
-				uint32 FrameCountWithOffset = FrameCount + FrameOffset;
+				uint32 FrameCountWithOffset = FrameCount + NextEventFrameStart;
 				int32 NumBars = FrameCountWithOffset / NumFramesPerBar;
 				int32 NumBeatsFromStart = FrameCountWithOffset / (NumFramesPerBeat - 1);
 				int32 NumBeatsInBar = NumBeatsFromStart % QuantizationSettings.BeatsPerBar;
@@ -254,14 +257,15 @@ namespace Audio
 					}
 				}
 
-				FrameOffset += State.EventFrameDuration;
-				FramesLeft -= State.EventFrameDuration;
-
-			} while (FramesLeft > (int32)State.EventFrameDuration);
+				NextEventFrameStart += State.EventFrameDuration;
+				PostEventFramesRemaining -= State.EventFrameDuration;
+				++NumEventsFired;
+			} while (PostEventFramesRemaining >= 0);
 
 			// Wrap the frame count back to within the event frame duration range
 			// but keep the phase of the frame
-			State.FrameCount = NextFrameCount - (int32)State.EventFrameDuration;
+			int32 Temp = static_cast<int32>(NextFrameCount) - (NumEventsFired * static_cast<int32>(State.EventFrameDuration));
+			State.FrameCount = FMath::Max(0, Temp);
 		}
 		else
 		{

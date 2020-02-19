@@ -3,41 +3,38 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Materials/MaterialRelevance.h"
 
 /**
  * The different types of relevance a primitive scene proxy can declare towards a particular scene view.
  * the class is only storing bits, and has an |= operator
  */
-struct FPrimitiveViewRelevance
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+struct FPrimitiveViewRelevance : public FMaterialRelevance
 {
+#if WITH_EDITOR
+	// Deprecate common attributes with FMaterialRelevance that have different names
+	UE_DEPRECATED(4.25, "ShadingModelMaskRelevance has been renamed ShadingModelMask")
+	uint16 ShadingModelMaskRelevance;
+	UE_DEPRECATED(4.25, "bOpaqueRelevance has been renamed bOpaque")
+	uint32 bOpaqueRelevance : 1;
+	UE_DEPRECATED(4.25, "bMaskedRelevance has been renamed bMasked")
+	uint32 bMaskedRelevance : 1;
+	UE_DEPRECATED(4.25, "bTranslucentVelocityRelevance has been renamed bOutputsTranslucentVelocity")
+	uint32 bTranslucentVelocityRelevance : 1;
+	UE_DEPRECATED(4.25, "bDistortionRelevance has been renamed bDistortion")
+	uint32 bDistortionRelevance : 1;
+	UE_DEPRECATED(4.25, "bSeparateTranslucencyRelevance has been renamed bSeparateTranslucency")
+	uint32 bSeparateTranslucencyRelevance : 1;
+	UE_DEPRECATED(4.25, "bNormalTranslucencyRelevance has been renamed bNormalTranslucency")
+	uint32 bNormalTranslucencyRelevance : 1;
+	UE_DEPRECATED(4.25, "bHairStrandsRelevance has been renamed bHairStrands")
+	uint32 bHairStrandsRelevance : 1;
+#endif
+
 	// Warning: This class is memzeroed externally as 0 is assumed a
 	// valid value for all members meaning 'not relevant'. If this
 	// changes existing class usage should be re-evaluated
-
-	// from FMaterialRelevance (could be made the base class):
-
-	/** The LightingProfile supported by this primitive, as a bitmask. */
-	uint16 ShadingModelMaskRelevance;
-	/** The primitive has one or more opaque or masked elements. */
-	uint32 bOpaqueRelevance : 1;
-	/** The primitive has one or more masked elements. */
-	uint32 bMaskedRelevance : 1;
-	/** The primitive has one or more translucent elements which output velocity. */
-	uint32 bTranslucentVelocityRelevance : 1;
-	/** The primitive has one or more distortion elements. */
-	uint32 bDistortionRelevance : 1;
-	/** The primitive has one or more elements that have SeparateTranslucency. */
-	uint32 bSeparateTranslucencyRelevance : 1;
-	/** The primitive has one or more elements that have normal translucency. */
-	uint32 bNormalTranslucencyRelevance : 1;
-	/** For translucent primitives reading the scene color. */
-	uint32 bUsesSceneColorCopy : 1;
-	/** For primitive that can't render in offscreen buffers (blend modulate). */
-	uint32 bDisableOffscreenRendering : 1;
-	/** */
-	uint32 bUsesGlobalDistanceField : 1;
-
-	// others:
 
 	/** The primitive's static elements are rendered for the view. */
 	uint32 bStaticRelevance : 1; 
@@ -47,8 +44,6 @@ struct FPrimitiveViewRelevance
 	uint32 bDrawRelevance : 1;
 	/** The primitive is casting a shadow. */
 	uint32 bShadowRelevance : 1;
-	/** The primitive is hair strands geometry. */
-	uint32 bHairStrandsRelevance : 1;
 	/** The primitive should render velocity. */
 	uint32 bVelocityRelevance : 1;
 	/** The primitive should render to the custom depth pass. */
@@ -57,8 +52,6 @@ struct FPrimitiveViewRelevance
 	uint32 bRenderInDepthPass : 1;
 	/** The primitive should render to the base pass / normal depth / velocity rendering. */
 	uint32 bRenderInMainPass : 1;
-	/** The primitive has materials using the volume domain. */
-	uint32 bHasVolumeMaterialDomain : 1;
 	/** The primitive is drawn only in the editor and composited onto the scene after post processing */
 	uint32 bEditorPrimitiveRelevance : 1;
 	/** The primitive's static elements are selected and rendered again in the selection outline pass*/
@@ -67,26 +60,12 @@ struct FPrimitiveViewRelevance
 	uint32 bEditorNoDepthTestPrimitiveRelevance : 1;
 	/** The primitive should have GatherSimpleLights called on the proxy when gathering simple lights. */
 	uint32 bHasSimpleLights : 1;
-	/** The primitive has one or more elements that have World Position Offset. */
-	uint32 bUsesWorldPositionOffset : 1;
 	/** Whether the primitive uses non-default lighting channels. */
 	uint32 bUsesLightingChannels : 1;
-	/** */
-	uint32 bDecal : 1;
-	/** Whether the primitive has materials that use translucent surface lighting. */
-	uint32 bTranslucentSurfaceLighting : 1;
 	/** Whether the primitive has materials that use volumetric translucent self shadow. */
 	uint32 bTranslucentSelfShadow : 1;
-	/** Whether the primitive has materials that read the scene depth. */
-	uint32 bUsesSceneDepth : 1;
-	/** Whether the primitive has materials that read the scene depth. */
-	uint32 bUsesSkyMaterial : 1;
-	/** Whether the primitive uses a single layer water material. */
-	uint32 bUsesSingleLayerWaterMaterial : 1;
 	/** Whether the view use custom data. */
 	uint32 bUseCustomViewData : 1;
-	/** Whether the primitive has materials that read the custom depth or custom stencil */
-	uint32 bUsesCustomDepthStencil : 1;
 
 	/** 
 	 * Whether this primitive view relevance has been initialized this frame.  
@@ -97,12 +76,12 @@ struct FPrimitiveViewRelevance
 
 	bool HasTranslucency() const 
 	{
-		return bSeparateTranslucencyRelevance || bNormalTranslucencyRelevance;
+		return bSeparateTranslucency || bNormalTranslucency || bSeparateTranslucencyModulate;
 	}
 
 	bool HasVelocity() const
 	{
-		return bVelocityRelevance || bTranslucentVelocityRelevance;
+		return bVelocityRelevance || bOutputsTranslucentVelocity;
 	}
 
 	/** Default constructor */
@@ -117,7 +96,7 @@ struct FPrimitiveViewRelevance
 
 		// only exceptions (bugs we need to fix?):
 
-		bOpaqueRelevance = true;
+		bOpaque = true;
 		// without it BSP doesn't render
 		bRenderInMainPass = true;
 	}
@@ -136,3 +115,4 @@ struct FPrimitiveViewRelevance
 		return *this;
 	}
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

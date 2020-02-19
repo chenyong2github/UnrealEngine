@@ -23,6 +23,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
 	UGroomAsset* GroomAsset;
 
+	/** Niagara component that will be attached to the system*/
+	//UPROPERTY()
+	class UNiagaraComponent* NiagaraComponent;
+
 	/** 
 	 * When activated, the groom will be attached and skinned onto the skeletal mesh, if the groom component is a child of a skeletal/skinned component.
 	 * This requires the following projection settings: 
@@ -32,15 +36,35 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
 	bool bBindGroomToSkeletalMesh;
 
+	/** Skeletal mesh on which the groom has been authored. If not provided, the skeletal mesh on which the groom component is attached will be used. If provided, both skeletal mesh needs to share the same topology. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	class USkeletalMesh* SourceSkeletalMesh;
+
+	/** Optional binding asset for binding a groom onto a skeletal mesh. If the binding asset is not provided the projection is done at runtime, which implies a large GPU cost at startup time. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	class UGroomBindingAsset* BindingAsset;
+
+	/** Create default Niagara component for simulation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	bool	bCreateNiagaraComponent;
+
 	/** Boolean to check when animation has been loaded */
 	bool bResetSimulation;
 
 	/** Previous bone matrix to compare the difference and decide to reset or not the simulation */
 	FMatrix	PrevBoneMatrix;
 
-	/** Listen for the animation event to trigger the sim */
-	UFUNCTION()
-	void ResetSimulation();
+	/** Update Niagara component */
+	void UpdateNiagaraComponent();
+
+	/** Update Group Description */
+	void UpdateHairGroupsDesc();
+
+	/** Enable simulated groups */
+	void EnableSimulatedGroups();
+
+	/** Disable Simulated groups */
+	void DisableSimulatedGroups();
 
 	//~ Begin UActorComponent Interface.
 	virtual void OnRegister() override;
@@ -86,12 +110,26 @@ public:
 	void Invalidate();
 #endif
 
+	void SetGroomAsset(UGroomAsset* Asset);
+	void SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding);
+	void SetHairLengthScale(float Scale);
+	void SetHairWidth(float HairWidth);
+	void SetBinding(bool bBind);
+	void SetBinding(UGroomBindingAsset* InBinding);
+
+	/** Groom's groups info. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
+		TArray<FHairGroupDesc> GroomGroupsDesc;
+
+private:
+
 	struct FHairGroupResource
 	{
 		// Sim to rendering interpolation resources
 		FHairStrandsInterpolationResource* InterpolationResource = nullptr;
 
 		// Projection resources
+		bool bOwnRootResourceAllocation = true;
 		struct FHairStrandsRootResource* RenRootResources = nullptr;
 		struct FHairStrandsRootResource* SimRootResources = nullptr;
 	#if RHI_RAYTRACING
@@ -109,13 +147,14 @@ public:
 		FHairStrandsRestResource* RenderRestResources = nullptr;
 		FHairStrandsRestResource* SimRestResources = nullptr;
 	};
-	typedef TArray<FHairGroupResource> FHairGroupResources;
 
-	/** Groom's groups info. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
-	TArray<FHairGroupDesc> GroomGroupsDesc;
+	struct FHairGroupResources
+	{
+		TArray<FHairGroupResource> HairGroups;
+	};
+	static void DeleteHairGroupResources(FHairGroupResources*& InHairGroupResources);
 
-	FHairGroupResources HairGroupResources;
+	FHairGroupResources* HairGroupResources = nullptr;
 	struct FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
 	struct FHairStrandsInterpolationInput* InterpolationInput = nullptr;
 
@@ -133,10 +172,12 @@ private:
 
 	void InitResources();
 	void ReleaseResources();
+	void UpdateHairGroupsDescAndInvalidateRenderState();
 
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const override;
 
 	friend class FGroomComponentRecreateRenderStateContext;
+	friend class FHairStrandsSceneProxy;
 };
 
 /** Used to recreate render context for all GroomComponents that use a given GroomAsset */

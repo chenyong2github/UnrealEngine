@@ -697,9 +697,14 @@ void ULandscapeComponent::FixupWeightmaps()
 			bool bFixedWeightmapTextureIndex = false;
 
 			// Store the weightmap allocations in WeightmapUsageMap
-			for (int32 LayerIdx = 0; LayerIdx < WeightmapLayerAllocations.Num(); LayerIdx++)
+			for (int32 LayerIdx = 0; LayerIdx < WeightmapLayerAllocations.Num();)
 			{
 				FWeightmapLayerAllocationInfo& Allocation = WeightmapLayerAllocations[LayerIdx];
+				if (!Allocation.IsAllocated())
+				{
+					WeightmapLayerAllocations.RemoveAt(LayerIdx);
+					continue;
+				}
 
 				// Fix up any problems caused by the layer deletion bug.
 				if (Allocation.WeightmapTextureIndex >= WeightmapTextures.Num())
@@ -741,13 +746,13 @@ void ULandscapeComponent::FixupWeightmaps()
 						->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_FixedUpSharedLayerWeightmap", "Fixed up shared weightmap texture for layer {LayerName} in component '{LandscapeName}' (shares with '{ChannelName}')"), Arguments)))
 						->AddToken(FMapErrorToken::Create(FMapErrors::FixedUpSharedLayerWeightmap));
 					WeightmapLayerAllocations.RemoveAt(LayerIdx);
-					LayerIdx--;
 					continue;
 				}
 				else
 				{
 					Usage->ChannelUsage[Allocation.WeightmapTextureChannel] = this;
 				}
+				++LayerIdx;
 			}
 
 			RemoveInvalidWeightmaps();
@@ -6001,16 +6006,10 @@ static void GetAllMobileRelevantLayerNames(TSet<FName>& OutLayerNames, UMaterial
 	TArray<FMaterialParameterInfo> ParameterInfos;
 	TArray<FGuid> ParameterIds;
 
-	TArray<UMaterialExpression*> ES2MobileExpressions;
-	InMaterial->GetAllReferencedExpressions(ES2MobileExpressions, nullptr, ERHIFeatureLevel::ES2);
 	TArray<UMaterialExpression*> ES31Expressions;
 	InMaterial->GetAllReferencedExpressions(ES31Expressions, nullptr, ERHIFeatureLevel::ES3_1);
 
-	TArray<UMaterialExpression*> MobileExpressions = MoveTemp(ES2MobileExpressions);
-	for (UMaterialExpression* Expression : ES31Expressions)
-	{
-		MobileExpressions.AddUnique(Expression);
-	}
+	TArray<UMaterialExpression*> MobileExpressions = MoveTemp(ES31Expressions);
 
 	for (UMaterialExpression* Expression : MobileExpressions)
 	{
@@ -6592,7 +6591,7 @@ void BuildHoleRenderData(int32 InNumSubsections, int32 InSubsectionSizeVerts, TA
 	}
 
 	OutHoleRenderData.MinIndex = MinIndex;
-	OutHoleRenderData.MinIndex = MaxIndex;
+	OutHoleRenderData.MaxIndex = MaxIndex;
 }
 
 // Generates vertex and index buffer data from the component's height map and visibility textures.

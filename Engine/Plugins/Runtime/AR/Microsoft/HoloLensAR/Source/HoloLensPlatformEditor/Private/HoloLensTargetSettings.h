@@ -40,6 +40,9 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category="HoloLens", Meta=(DisplayName="Build for HoloLens Device"))
 	bool bBuildForDevice = true;
 
+	UPROPERTY(EditAnywhere, config, Category = "Packaging", AdvancedDisplay, Meta = (DisplayName = "Use Name in App Logo"))
+	bool bUseNameForLogo = true;
+
 	/**
 	 * Controls whether to use the retail Windows Store environment for license checks.  This must be turned on
 	 * when building for submission to the Windows Store, or when sideloading outside of Developer Mode.  Note,

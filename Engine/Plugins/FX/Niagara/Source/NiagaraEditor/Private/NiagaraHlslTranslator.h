@@ -82,7 +82,7 @@ struct FNiagaraTranslateResults
 class FNiagaraCompileRequestData : public FNiagaraCompileRequestDataBase
 {
 public:
-	FNiagaraCompileRequestData() : bUseRapidIterationParams(true), DetailLevelMask(FNiagaraCompileRequestDataBase::CookForAllDetailLevelMask)
+	FNiagaraCompileRequestData() : bUseRapidIterationParams(true)
 	{
 
 	}
@@ -109,9 +109,6 @@ public:
 		return EmitterData[Index];
 	}
 	void AddRapidIterationParameters(const FNiagaraParameterStore& InParamStore, FCompileConstantResolver InResolver);
-	virtual uint32 GetDetailLevelMask(void) const override {
-		return DetailLevelMask;
-	};
 	virtual bool GetUseRapidIterationParams() const override { return bUseRapidIterationParams; }
 
 	// If this is being held onto for any length of time, make sure to hold onto it in a gc-aware object. Right now in this information-passing struct,
@@ -126,7 +123,6 @@ public:
 	UNiagaraScriptSource* Source;
 	FString SourceName;
 	bool bUseRapidIterationParams = true;
-	uint32 DetailLevelMask = 0xFFFFFFFF;
 
 	UEnum* ENiagaraScriptCompileStatusEnum;
 	UEnum* ENiagaraScriptUsageEnum;
@@ -453,6 +449,7 @@ public:
 	virtual int32 GetParameter(const FNiagaraVariable& Parameter);
 	virtual int32 GetRapidIterationParameter(const FNiagaraVariable& Parameter);
 
+	bool IsCompileOptionDefined(const TCHAR* InDefineStr);
 
 	virtual int32 GetAttribute(const FNiagaraVariable& Attribute);
 
@@ -687,6 +684,4 @@ private:
 	TArray<FNiagaraVariable> InitialNamespaceVariablesMissingDefault;
 	// Variables that need to be initialized in the body or at the end of spawn.
 	TArray<FNiagaraVariable> DeferredVariablesMissingDefault;
-
-	TMap<FName, TSet<FNiagaraFunctionSignature>> DataInterfaceRegisteredFunctions;
 };

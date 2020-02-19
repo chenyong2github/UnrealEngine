@@ -35,6 +35,8 @@ FAnimNode_LinkedAnimGraph::FAnimNode_LinkedAnimGraph()
 	, LinkedRoot(nullptr)
 	, NodeIndex(INDEX_NONE)
 	, PendingBlendDuration(-1.0f)
+	, bReceiveNotifiesFromLinkedInstances(false)
+	, bPropagateNotifiesToLinkedInstances(false)
 {
 }
 
@@ -136,6 +138,7 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 		PendingBlendDuration = -1.0f;
 	}
 
+	TRACE_ANIM_NODE_VALUE(InContext, TEXT("Name"), GetDynamicLinkFunctionName());
 	TRACE_ANIM_NODE_VALUE(InContext, TEXT("Target Class"), InstanceClass.Get());
 }
 
@@ -258,6 +261,8 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 			// we mark them as created by linked anim graph
 			// this is to know who owns memory instance
 			InstanceToRun->bCreatedByLinkedAnimGraph = true;
+			InstanceToRun->bPropagateNotifiesToLinkedInstances = bPropagateNotifiesToLinkedInstances;
+			InstanceToRun->bReceiveNotifiesFromLinkedInstances = bReceiveNotifiesFromLinkedInstances;
 		}
 
 		SetTargetInstance(InstanceToRun);

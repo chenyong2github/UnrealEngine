@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDSKEL_BINDING_H
-#define USDSKEL_BINDING_H
+#ifndef PXR_USD_USD_SKEL_BINDING_H
+#define PXR_USD_USD_SKEL_BINDING_H
 
 /// \file usdSkel/binding.h
 

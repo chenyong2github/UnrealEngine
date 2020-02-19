@@ -145,14 +145,14 @@ namespace Chaos
 		// Simple Rule API
 		//
 
-		void Apply(const FReal Dt, const int32 It, const int32 NumIts);
+		bool Apply(const FReal Dt, const int32 It, const int32 NumIts);
 		bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts);
 
 		//
 		// Island Rule API
 		//
 
-		void Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
+		bool Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 		bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
 

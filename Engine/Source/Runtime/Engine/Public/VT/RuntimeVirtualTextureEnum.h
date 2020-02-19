@@ -9,6 +9,24 @@
 namespace RuntimeVirtualTexture { enum { MaxTextureLayers = 3 }; }
 
 /** 
+ * Enumeration of all runtime virtual texture material attributes.
+ * These can be combined to form full ERuntimeVirtualTextureMaterialType layouts.
+ */
+enum class ERuntimeVirtualTextureAttributeType : uint8
+{
+	BaseColor,
+	Normal,
+	Roughness,
+	Specular,
+	Mask,
+	WorldHeight,
+
+	Count
+};
+
+static_assert((uint32)ERuntimeVirtualTextureAttributeType::Count <= 8u, "ERuntimeVirtualTextureAttributeType can no longer be used to create 8bit masks.");
+
+/** 
  * Enumeration of virtual texture stack layouts to support. 
  * Extend this enumeration with other layouts as required. For example we will probably want to add a displacement texture option.
  * This "fixed function" approach will probably break down if we end up needing to support some complex set of attribute combinations but it is OK to begin with.
@@ -42,7 +60,6 @@ enum class ERuntimeVirtualTextureMainPassType : uint8
 };
 
 /** Enumeration of runtime virtual texture debug modes. */
-UENUM()
 enum class ERuntimeVirtualTextureDebugType
 {
 	None,

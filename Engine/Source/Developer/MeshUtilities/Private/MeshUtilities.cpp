@@ -2121,7 +2121,7 @@ static void BuildDepthOnlyIndexBuffer(
 	TArray<uint32>& OutDepthIndices,
 	const TArray<FStaticMeshBuildVertex>& InVertices,
 	const TArray<uint32>& InIndices,
-	const TArray<FStaticMeshSection>& InSections
+	const TArrayView<FStaticMeshSection>& InSections
 	)
 {
 	int32 NumVertices = InVertices.Num();
@@ -2771,6 +2771,7 @@ public:
 			// Build and cache optimize vertex and index buffers.
 			{
 				// TODO_STATICMESH: The wedge map is only valid for LODIndex 0 if no reduction has been performed.
+				// TODO - write directly to TMemoryImageArray
 				// We can compute an approximate one instead for other LODs.
 				TArray<int32> TempWedgeMap;
 				TArray<int32>& WedgeMap = InOutModels[LODIndex].ReductionSettings.PercentTriangles >= 1.0f ? LODModel.WedgeMap : TempWedgeMap;
@@ -3871,7 +3872,7 @@ public:
 						}
 						else
 						{
-							UE_LOG(LogSkeletalMesh, Warning, TEXT("%s"), *(TextMessage.ToString()));
+							UE_LOG(LogSkeletalMesh, Display, TEXT("%s"), *(TextMessage.ToString()));
 						}
 					}
 				}

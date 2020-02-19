@@ -1555,7 +1555,11 @@ namespace ObjectTools
 								Notification->SetCompletionState( CollectionCreated ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail );
 							}
 						}
-					} //-V773
+						if (ContentHelper)
+						{
+							delete ContentHelper;
+						}
+					}
 				}
 			}
 			else
@@ -2116,7 +2120,7 @@ namespace ObjectTools
 			const int32 NumAudioDevices = AudioDeviceManager->GetNumActiveAudioDevices();
 			for (int32 DeviceIndex = 0; DeviceIndex < NumAudioDevices; DeviceIndex++)
 			{
-				FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(DeviceIndex);
+				FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDeviceRaw(DeviceIndex);
 				if (AudioDevice != nullptr)
 				{
 					AudioDevice->StopAllSounds();
@@ -2630,6 +2634,9 @@ namespace ObjectTools
 
 		bool bSelectionChanged = false;
 
+		TArray<UObject*> ObjectsToReplace;
+		ObjectsToReplace.Reserve(ObjectsToDelete.Num());
+
 		// Destroy all Components
 		if (ComponentsToDelete.Num() > 0)
 		{
@@ -2685,6 +2692,12 @@ namespace ObjectTools
 					{
 						CurActor->GetWorld()->EditorDestroyActor( CurActor, false );
 					}
+					// Ensure that we replace any generated actors who don't have worlds that are left such as the template
+					// from Child Actor Components
+					else
+					{
+						ObjectsToReplace.Add(CurActor);
+					}
 
 					bNeedsGarbageCollection = true;
 				}
@@ -2707,9 +2720,6 @@ namespace ObjectTools
 		{
 			int32 ReplaceableObjectsNum = 0;
 			{
-				TArray<UObject*> ObjectsToReplace;
-				ObjectsToReplace.Reserve(ObjectsToDelete.Num());
-
 				for(TWeakObjectPtr<UObject>& Object : ObjectsToDelete)
 				{
 					if(Object.IsValid())
@@ -2767,7 +2777,7 @@ namespace ObjectTools
 					TArray<UObject*> UDStructToReplace;
 					for (int32 Iter = 0; Iter < ObjectsToReplace.Num(); )
 					{
-						if (auto UDStruct = Cast<UUserDefinedStruct>(ObjectsToReplace[Iter]))
+						if (UUserDefinedStruct* UDStruct = Cast<UUserDefinedStruct>(ObjectsToReplace[Iter]))
 						{
 							ObjectsToReplace.RemoveAtSwap(Iter);
 							UDStructToReplace.Add(UDStruct);
@@ -2788,7 +2798,7 @@ namespace ObjectTools
 
 				{
 					FForceReplaceInfo ReplaceInfo;
-					ForceReplaceReferences(NULL, ObjectsToReplace, ReplaceInfo, false);
+					ForceReplaceReferences(nullptr, ObjectsToReplace, ReplaceInfo, false);
 					ReplaceableObjectsNum += ReplaceInfo.ReplaceableObjects.Num();
 				}
 			}
@@ -2807,7 +2817,7 @@ namespace ObjectTools
 			for(auto It = ObjectsToDelete.CreateIterator(); It; ++It)
 			{
 				UObject* CurObject = It->Get();
-				if ( !ensure(CurObject != NULL) )
+				if ( !ensure(CurObject != nullptr) )
 				{
 					continue;
 				}
@@ -3426,17 +3436,18 @@ namespace ObjectTools
 				Redirector = NULL;
 			}
 
+			UPackage* OldPackage = Object->GetOutermost();
 			UPackage* NewPackage = CreatePackage( NULL, *PkgName );
+
 			// if this object is being renamed out of the MyLevel package into a content package, we need to mark it RF_Standalone
 			// so that it will be saved (UWorld::CleanupWorld() clears this flag for all objects inside the package)
 			if (!Object->HasAnyFlags(RF_Standalone)
-				&&	Object->GetOutermost()->ContainsMap()
+				&&	OldPackage->ContainsMap()
 				&&	!NewPackage->GetOutermost()->ContainsMap() )
 			{
 				Object->SetFlags(RF_Standalone);
 			}
 
-			UPackage *OldPackage = Object->GetOutermost();
 			FString OldObjectFullName = Object->GetFullName();
 			FString OldObjectPathName = Object->GetPathName();
 			GEditor->RenameObject( Object, NewPackage, *ObjName, bLeaveRedirector ? REN_None : REN_DontCreateRedirectors );
@@ -3458,6 +3469,12 @@ namespace ObjectTools
 			UObjectRedirector* NewRedirector = FindObject<UObjectRedirector>(NULL, *OldObjectPathName);
 			if ( NewRedirector )
 			{
+				// If we created a redirector to a map asset, ensure the redirector package is flagged as containing a map for it to have the correct file extension.
+				if (NewPackage->ContainsMap())
+				{
+					NewRedirector->GetOutermost()->ThisContainsMap();
+				}
+
 				FAssetRegistryModule::AssetCreated(NewRedirector);
 			}
 

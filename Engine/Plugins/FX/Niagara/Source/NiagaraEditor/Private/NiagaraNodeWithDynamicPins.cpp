@@ -9,13 +9,11 @@
 #include "ToolMenus.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
-#include "SNiagaraGraphPinAdd.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
 #include "SNiagaraParameterMapView.h"
 #include "Framework/Application/SlateApplication.h"
 #include "NiagaraNodeParameterMapBase.h"
-#include "Widgets/SEditableTextBoxWithVerification.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeWithDynamicPins"
 
@@ -177,7 +175,7 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 				.WidthOverride(100)
 				.Padding(FMargin(5, 0, 0, 0))
 				[
-					SNew(SEditableTextBoxWithVerification)
+					SNew(SEditableTextBox)
 					.Text_UObject(this, &UNiagaraNodeWithDynamicPins::GetPinNameText, Pin)
 					.OnTextCommitted_UObject(const_cast<UNiagaraNodeWithDynamicPins*>(this), &UNiagaraNodeWithDynamicPins::PinNameTextCommitted, Pin)
 					.OnVerifyTextChanged_UObject(this, &UNiagaraNodeWithDynamicPins::VerifyEditablePinName, Context->Pin)

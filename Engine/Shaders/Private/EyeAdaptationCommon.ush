@@ -9,6 +9,7 @@
 
 // Single pixel RT used for EyeAdaptation, use function EyeAdaptationLookup() to access.
 Texture2D EyeAdaptation;
+Buffer<float4> EyeAdaptationBuffer;
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 
 //Provides access to the EyeAdaptation RT. Only available in SM5.
@@ -20,7 +21,7 @@ float EyeAdaptationLookup()
 #else
 float EyeAdaptationLookup()
 {
-	return 1;
+	return EyeAdaptationBuffer[0].x;
 }
 #endif
 

@@ -55,10 +55,10 @@ public:
 		checkf(UniformBuffer, TEXT("Attemped to assign a null uniform buffer to the global uniform buffer bindings."));
 		const FRHIUniformBufferLayout& Layout = UniformBuffer->GetLayout();
 		const FUniformBufferStaticSlot Slot = Layout.StaticSlot;
-		checkf(IsUniformBufferStaticSlotValid(Slot), TEXT("Attempted to set a global uniform buffer %s with an invalid slot."), *Layout.GetDebugName().ToString());
+		checkf(IsUniformBufferStaticSlotValid(Slot), TEXT("Attempted to set a global uniform buffer %s with an invalid slot."), *Layout.GetDebugName());
 
 #if VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS
-		ensureMsgf(INDEX_NONE == Slots.Find(Slot), TEXT("Uniform Buffer %s was added twice to the binding array."), *Layout.GetDebugName().ToString());
+		ensureMsgf(INDEX_NONE == Slots.Find(Slot), TEXT("Uniform Buffer %s was added twice to the binding array."), *Layout.GetDebugName());
 #endif
 
 		Slots.Add(Slot);
@@ -127,6 +127,9 @@ public:
 	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	*/
 	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) = 0;
+
+	virtual void RHIBeginUAVOverlap() {}
+	virtual void RHIEndUAVOverlap() {}
 
 	/**
 	* Clears a UAV to the multi-channel floating point value provided. Should only be called on UAVs with a floating point format, or on structured buffers.

@@ -16,6 +16,24 @@ void FMagicLeapPrivilegesModule::StartupModule()
 	IMagicLeapPrivilegesModule::StartupModule();
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapPrivilegesModule::Tick);
 	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+
+	// Until there is a dedicated Lumin OnlineSubsystem, request the LAN privilege on module startup if the command line is requesting connection to a specified IP.
+#if PLATFORM_LUMIN && !UE_SERVER
+	const TCHAR* CmdLine = FCommandLine::Get();
+
+	FString PackageName;
+	if (FParse::Token(CmdLine, PackageName, 0))
+	{
+		FURL URL(nullptr, *PackageName, TRAVEL_Absolute);
+		// No need to specially account for cook on the fly (filehostip/streaminghostip) because in that case the URL will still be local (not an explicit ip address),
+		// so the privilege will not be requested, as expected.
+		if (URL.Valid && !URL.HasOption(TEXT("failed")) && !URL.HasOption(TEXT("closed")) && !URL.HasOption(TEXT("restart")) &&
+			!GDisallowNetworkTravel && !URL.HasOption(TEXT("listen")) && !URL.IsLocalInternal() && URL.IsInternal() && GIsClient)
+		{
+			RequestPrivilege(EMagicLeapPrivilege::LocalAreaNetwork);
+		}
+	}
+#endif // PLATFORM_LUMIN && !UE_SERVER
 }
 
 void FMagicLeapPrivilegesModule::ShutdownModule()

@@ -227,7 +227,7 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstance
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
+		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FNiagaraRendererRibbons::RayTracingDynamicVertexBuffer"));
 
 		FRayTracingGeometryInitializer Initializer;
 		Initializer.IndexBuffer = nullptr;
@@ -731,7 +731,7 @@ void FNiagaraRendererRibbons::AddDynamicParam(TArray<FNiagaraRibbonVertexDynamic
 
 bool FNiagaraRendererRibbons::IsMaterialValid(UMaterialInterface* Mat)const
 {
-	return Mat && Mat->CheckMaterialUsage(MATUSAGE_NiagaraRibbons);
+	return Mat && Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraRibbons);
 }
 
 

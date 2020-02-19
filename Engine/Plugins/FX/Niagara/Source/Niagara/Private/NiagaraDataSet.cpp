@@ -127,6 +127,7 @@ void FNiagaraDataSet::ResetBuffersInternal()
 	FreeIDsTable.Reset();
 	NumFreeIDs = 0;
 	MaxUsedID = INDEX_NONE;
+	SpawnedIDsTable.Reset();
 
 	//Ensure we have a valid current buffer
 	BeginSimulate();
@@ -216,7 +217,7 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 	CheckForNaNs();
 #endif
 
-	if (GetNeedsPersistentIDs())
+	if (RequiresPersistentIDs())
 	{
 		TArray<int32>& CurrentIDTable = CurrentData->GetIDTable();
 		TArray<int32>& DestinationIDTable = DestinationData->GetIDTable();
@@ -225,7 +226,6 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 
 		int32 RequiredIDs = FMath::Max(NumInstances, NumUsedIDs);
 		int32 ExistingNumIDs = CurrentIDTable.Num();
-		int32 NumNewIDs = RequiredIDs - ExistingNumIDs;
 
 		//////////////////////////////////////////////////////////////////////////
 		//TODO: We should replace this with a lock free list that uses just a single table with RequiredIDs elements.
@@ -236,20 +236,12 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 		{
 			//UE_LOG(LogNiagara, Warning, TEXT("Growing ID Table! OldSize:%d | NewSize:%d"), ExistingNumIDs, RequiredIDs);
 			int32 NewNumIds = RequiredIDs - ExistingNumIDs;
-#if 0
-			DestinationIDTable.SetNumUninitialized(RequiredIDs);
-#else
-			while (DestinationIDTable.Num() < RequiredIDs)
-			{
-				DestinationIDTable.Add(INDEX_NONE);
-			}
-#endif
 
 			//Free ID Table must always be at least as large as the data buffer + it's current size in the case all particles die this frame.
-			FreeIDsTable.AddUninitialized(NumNewIDs);
+			FreeIDsTable.AddUninitialized(NewNumIds);
 
 			//Free table should always have enough room for these new IDs.
-			check(NumFreeIDs + NumNewIDs <= FreeIDsTable.Num());
+			check(NumFreeIDs + NewNumIds <= FreeIDsTable.Num());
 
 			//ID Table grows so add any new IDs to the free array. Add in reverse order to maintain a continuous increasing allocation when popping.
 			for (int32 NewFreeID = RequiredIDs - 1; NewFreeID >= ExistingNumIDs; --NewFreeID)
@@ -290,8 +282,16 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 			RequiredIDs = ExistingNumIDs;
 		}
 
+		// We know that we can't spawn more than NumFreeIDs particles, so we can pre-allocate SpawnedIDsTable here, to avoid allocations during execution.
+		SpawnedIDsTable.Reserve(NumFreeIDs);
+
+		// We need to clear the ID to index table to -1 so we don't have stale entries for particles which died in the previous
+		// frame (when the results were written to another buffer). All the entries which are in use will be filled in by the script.
 		DestinationIDTable.SetNumUninitialized(RequiredIDs);
-		MaxUsedID = INDEX_NONE;//reset the max ID ready for it to be filled in during simulation.
+		FMemory::Memset(DestinationIDTable.GetData(), -1, RequiredIDs * DestinationIDTable.GetTypeSize());
+
+		//reset the max ID ready for it to be filled in during simulation.
+		MaxUsedID = INDEX_NONE;
 
 // 		UE_LOG(LogNiagara, Warning, TEXT("DataSetAllocate: NumInstances:%d | ID Table Size:%d | NumFreeIDs:%d | FreeTableSize:%d"), NumInstances, DestinationData->GetIDTable().Num(), NumFreeIDs, FreeIDsTable.Num());
 // 		UE_LOG(LogNiagara, Warning, TEXT("== FreeIDs %d =="), NumFreeIDs);
@@ -349,7 +349,7 @@ void FNiagaraDataSet::ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& 
 
 void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName)
 {
-	checkSlow(GetSimTarget() == ENiagaraSimTarget::GPUComputeSim && GetNeedsPersistentIDs());
+	checkSlow(GetSimTarget() == ENiagaraSimTarget::GPUComputeSim && RequiresPersistentIDs());
 
 	// Clearing and compacting the ID table must run over all the allocated elements, so we must use a chunk size which balances
 	// between reallocation frequency and the cost of processing unused elements.
@@ -363,27 +363,22 @@ void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList&
 		return;
 	}
 
+	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUComputeInitFreeIDs, TEXT("Init Free IDs - %s"), DebugSimName ? DebugSimName : TEXT(""));
+
 	TCHAR DebugBufferName[128];
 	FCString::Snprintf(DebugBufferName, UE_ARRAY_COUNT(DebugBufferName), TEXT("NiagaraFreeIDList_%s"), DebugSimName ? DebugSimName : TEXT(""));
 	FRWBuffer NewFreeIDsBuffer;
 	NewFreeIDsBuffer.Initialize(sizeof(int32), NumIDsToAlloc, EPixelFormat::PF_R32_SINT, BUF_Static, DebugBufferName);
 
 	// We must maintain the existing list of free IDs.
-	FRHIShaderResourceView* ExistingBuffer;
-	if (GPUNumAllocatedIDs > 0)
-	{
-		// The free IDs buffer was written in the previous simulation step, but hasn't been transitioned to read yet, so we must
-		// transition it explicitly here. The new buffer will be transitioned by NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(),
-		// so there's no need for a barrier at the end of this function.
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, GPUFreeIDs.UAV);
-		ExistingBuffer = GPUFreeIDs.SRV;
-	}
-	else
-	{
-		ExistingBuffer = FNiagaraRenderer::GetDummyIntBuffer().SRV;
-	}
-	
-	NiagaraInitGPUFreeIDList(RHICmdList, FeatureLevel, NumIDsToAlloc, NewFreeIDsBuffer, GPUNumAllocatedIDs, ExistingBuffer);
+	FRWBuffer& ExistingBuffer = (GPUNumAllocatedIDs > 0) ? GPUFreeIDs : FNiagaraRenderer::GetDummyIntBuffer();
+
+	// The free IDs buffer was written in the previous simulation step, but hasn't been transitioned to read yet, so we must
+	// transition it explicitly here. The new buffer will be transitioned by NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(),
+	// so there's no need for a barrier at the end of this function.
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ExistingBuffer.UAV);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, NewFreeIDsBuffer.UAV);
+	NiagaraInitGPUFreeIDList(RHICmdList, FeatureLevel, NumIDsToAlloc, NewFreeIDsBuffer, GPUNumAllocatedIDs, ExistingBuffer.SRV);
 
 	GPUFreeIDs = MoveTemp(NewFreeIDsBuffer);
 	GPUNumAllocatedIDs = NumIDsToAlloc;
@@ -485,6 +480,8 @@ FNiagaraDataBuffer::FNiagaraDataBuffer(FNiagaraDataSet* InOwner)
 	, NumInstancesAllocated(0)
 	, FloatStride(0)
 	, Int32Stride(0)
+	, NumSpawnedInstances(0)
+	, IDAcquireTag(0)
 {
 }
 
@@ -699,13 +696,19 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			NumChunksAllocatedForGPU = RecommendedNumChunks; 
 			const uint32 NumElementsToAlloc = NumChunksAllocatedForGPU * ALLOC_CHUNKSIZE;
 
+			uint32 DataBufferFlags = BUF_Static;
+#if WITH_EDITORONLY_DATA
+			// This needs to be set if debug readback is supported.
+			DataBufferFlags |= BUF_SourceCopy;
+#endif
+
 			if (Owner->GetNumFloatComponents())
 			{
 				if (GPUBufferFloat.Buffer)
 				{
 					GPUBufferFloat.Release();
 				}
-				GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
+				GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, DataBufferFlags, TEXT("NiagaraFloatDataBuffer"));
 			}
 			if (Owner->GetNumInt32Components())
 			{
@@ -713,11 +716,11 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 				{
 					GPUBufferInt.Release();
 				}
-				GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static);
+				GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, DataBufferFlags, TEXT("NiagaraIntDataBuffer"));
 			}
 		}
 
-		if (Owner->GetNeedsPersistentIDs())
+		if (Owner->RequiresPersistentIDs())
 		{
 			uint32 NumExistingElems = GPUIDToIndexTable.Buffer ? GPUIDToIndexTable.Buffer->GetSize() / sizeof(int32) : 0;
 			uint32 NumNeededElems = Owner->GetGPUNumAllocatedIDs();
@@ -971,7 +974,7 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 	check(IsInRenderingThread());
 
 	const uint32 SafeBufferSize = GetFloatStride() / sizeof(float);
-	FRHIComputeShader* ComputeShader = Shader->GetComputeShader();
+	FRHIComputeShader* ComputeShader = CommandList.GetBoundComputeShader();
 
 	if (bInput)
 	{
@@ -997,11 +1000,12 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandList &RHICmdList)
 {
 	check(IsInRenderingThread());
+	FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 	if (Shader->FloatOutputBufferParam.IsUAVBound())
 	{
 #if !PLATFORM_PS4
-		Shader->FloatOutputBufferParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+		Shader->FloatOutputBufferParam.UnsetUAV(RHICmdList, ShaderRHI);
 #endif
 		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, CurrDataRender().GetGPUBufferFloat()->UAV);
 	}
@@ -1009,7 +1013,7 @@ void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandLi
 	if (Shader->IntOutputBufferParam.IsUAVBound())
 	{
 #if !PLATFORM_PS4
-		Shader->IntOutputBufferParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+		Shader->IntOutputBufferParam.UnsetUAV(RHICmdList, ShaderRHI);
 #endif
 		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, CurrDataRender().GetGPUBufferInt()->UAV);
 	}
@@ -1017,7 +1021,7 @@ void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandLi
 	if (Shader->IDToIndexBufferParam.IsUAVBound())
 	{
 #if !PLATFORM_PS4
-		Shader->IDToIndexBufferParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+		Shader->IDToIndexBufferParam.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 #endif
 	}
 }
@@ -1028,6 +1032,7 @@ void FNiagaraDataBuffer::ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager
 }
 
 
+#if WITH_EDITOR
 void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatcher* InBatcher, FNiagaraDataSet* InDataSet)
 {
 	check(DataSet == nullptr);
@@ -1085,6 +1090,7 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatche
 	);
 	FlushRenderingCommands();
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1144,7 +1150,7 @@ FNiagaraDataSetCompiledData::FNiagaraDataSetCompiledData()
 
 void FNiagaraDataSetCompiledData::Empty()
 {
-	bNeedsPersistentIDs = 0;
+	bRequiresPersistentIDs = 0;
 	TotalFloatComponents = 0;
 	TotalInt32Components = 0;
 	Variables.Empty();

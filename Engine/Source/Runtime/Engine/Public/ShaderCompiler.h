@@ -662,6 +662,8 @@ extern ENGINE_API void GlobalBeginCompileShader(
 	const FString& DebugExtension = ""
 	);
 
+extern void GetOutdatedShaderTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes);
+
 /** Implementation of the 'recompileshaders' console command.  Recompiles shaders at runtime based on various criteria. */
 extern bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar);
 
@@ -693,7 +695,7 @@ extern ENGINE_API bool RecompileChangedShadersForPlatform(const FString& Platfor
 * Begins recompiling the specified global shader types, and flushes their bound shader states.
 * FinishRecompileGlobalShaders must be called after this and before using the global shaders for anything.
 */
-extern ENGINE_API void BeginRecompileGlobalShaders(const TArray<FShaderType*>& OutdatedShaderTypes, const TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, EShaderPlatform ShaderPlatform);
+extern ENGINE_API void BeginRecompileGlobalShaders(const TArray<const FShaderType*>& OutdatedShaderTypes, const TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, EShaderPlatform ShaderPlatform, const ITargetPlatform* TargetPlatform = nullptr);
 
 /** Finishes recompiling global shaders.  Must be called after BeginRecompileGlobalShaders. */
 extern ENGINE_API void FinishRecompileGlobalShaders();
@@ -729,8 +731,9 @@ extern ENGINE_API void RecompileShadersForRemote(
 	bool bCompileChangedShaders = true);
 
 extern ENGINE_API void CompileGlobalShaderMap(bool bRefreshShaderMap=false);
-extern ENGINE_API void CompileGlobalShaderMap(EShaderPlatform Platform, bool bRefreshShaderMap = false);
 extern ENGINE_API void CompileGlobalShaderMap(ERHIFeatureLevel::Type InFeatureLevel, bool bRefreshShaderMap=false);
+extern ENGINE_API void CompileGlobalShaderMap(EShaderPlatform Platform, bool bRefreshShaderMap = false);
+extern ENGINE_API void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, bool bRefreshShaderMap);
 
 extern ENGINE_API FString GetGlobalShaderMapDDCKey();
 

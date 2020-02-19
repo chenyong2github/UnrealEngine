@@ -52,15 +52,16 @@ public:
 	void PostTick();
 	bool HandleCompletion(bool bForce = false);
 
-	bool RequiredPersistentID()const;
+	bool RequiresPersistentIDs() const;
 
 	FORCEINLINE bool ShouldTick()const { return ExecutionState == ENiagaraExecutionState::Active || GetNumParticles() > 0; }
 
 	uint32 CalculateEventSpawnCount(const FNiagaraEventScriptProperties &EventHandlerProps, TArray<int32, TInlineAllocator<16>>& EventSpawnCounts, FNiagaraDataSet *EventSet);
 
-	/** Generate system bounds, reading back data from the GPU will introduce a stall and should only be used for debug purposes. */
-	FBox CalculateDynamicBounds(const bool bReadGPUSimulation = false);
+#if WITH_EDITOR
+	/** Potentially reads back data from the GPU which will introduce a stall and should only be used for debug purposes. */
 	NIAGARA_API void CalculateFixedBounds(const FTransform& ToWorldSpace);
+#endif
 
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
 
@@ -81,7 +82,7 @@ public:
 		return 0;
 	}
 	FORCEINLINE int32 GetTotalSpawnedParticles()const { return TotalSpawnedParticles; }
-	FORCEINLINE float GetSpawnCountScale(int32 EffectsQuality = -1)const { return CachedEmitter->GetSpawnCountScale(EffectsQuality); }
+	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CachedEmitter->GetScalabilitySettings(); }
 
 	NIAGARA_API const FNiagaraEmitterHandle& GetEmitterHandle() const;
 
@@ -133,6 +134,9 @@ private:
 	void BuildConstantBufferTable(
 		const FNiagaraScriptExecutionContext& ExecContext,
 		FScriptExecutionConstantBufferTable& ConstantBufferTable) const;
+
+	/** Generate emitter bounds */
+	FBox InternalCalculateDynamicBounds(int32 ParticleCount) const;
 
 	template<typename TBindingType, typename TVariableType>
 	static void AddBinding(FName ParameterName, TVariableType ParameterType, TBindingType* SourceValuePtr, FNiagaraParameterStore& TargetParameterStore, TArray<TNiagaraFastPathAttributeBinding<TBindingType>>& TargetBindings)

@@ -905,9 +905,9 @@ public:
 				ensure(InnerProp);
 				FScriptArray ScriptArray;
 				ArrayPropr->ImportText(*Term->Name, &ScriptArray, 0, NULL, GLog);
-				int32 ElementNum = ScriptArray.Num();
 
 				FScriptArrayHelper ScriptArrayHelper(ArrayPropr, &ScriptArray);
+				int32 ElementNum = ScriptArrayHelper.Num();
 
 				Writer << EX_ArrayConst;
 				Writer << InnerProp;

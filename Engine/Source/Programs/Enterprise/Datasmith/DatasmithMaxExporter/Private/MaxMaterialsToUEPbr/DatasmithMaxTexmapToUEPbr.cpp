@@ -825,7 +825,7 @@ IDatasmithMaterialExpression* FDatasmithMaxAutodeskBitmapToUEPbr::Convert(FDatas
 	DatasmithMaxTexmapParser::FAutodeskBitmapParameters AutodeskBitmapParameters = DatasmithMaxTexmapParser::ParseAutodeskBitmap(InTexmap);
 	FScopedBitMapPtr ActualBitmap(AutodeskBitmapParameters.SourceFile->bi, AutodeskBitmapParameters.SourceFile->bm);
 	FString ActualBitmapName = FDatasmithMaxMatWriter::GetActualBitmapName(&ActualBitmap.MapInfo);
-	bool bUseAlphaAsMono = ActualBitmap.Map->HasAlpha();
+	bool bUseAlphaAsMono = (ActualBitmap.Map->HasAlpha() != 0);
 	bool bIsSRGB = FDatasmithMaxMatHelper::IsSRGB(*ActualBitmap.Map);
 
 	return FDatasmithMaxTexmapToUEPbrUtils::ConvertBitMap(MaxMaterialToUEPbr, InTexmap, ActualBitmapName, bUseAlphaAsMono, bIsSRGB);
@@ -975,7 +975,7 @@ IDatasmithMaterialExpression* FDatasmithMaxNormalToUEPbr::Convert( FDatasmithMax
 
 bool FDatasmithMaxRGBMultiplyToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const
 {
-	return InTexmap ? InTexmap->ClassID() == RGBMULTIPLYCLASS : false;
+	return InTexmap ? (bool)( InTexmap->ClassID() == RGBMULTIPLYCLASS ) : false;
 }
 
 IDatasmithMaterialExpression* FDatasmithMaxRGBMultiplyToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
@@ -1003,7 +1003,7 @@ IDatasmithMaterialExpression* FDatasmithMaxRGBMultiplyToUEPbr::Convert( FDatasmi
 
 bool FDatasmithMaxRGBTintToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const
 {
-	return InTexmap ? InTexmap->ClassID() == RGBTINTCLASS : false;
+	return InTexmap ? (bool)( InTexmap->ClassID() == RGBTINTCLASS ) : false;
 }
 
 IDatasmithMaterialExpression* FDatasmithMaxRGBTintToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )

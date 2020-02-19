@@ -136,18 +136,47 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterOutputCollection));
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterLinkedInputCollection));
 	}
+
+	OnEditorDataChanged();
+	GetStackEditorData().OnPersistentDataChanged().AddUObject(this, &UNiagaraStackModuleItem::OnEditorDataChanged);
+}
+
+void UNiagaraStackModuleItem::OnEditorDataChanged()
+{
+	const FText* NewDisplayName = GetStackEditorData().GetStackEntryDisplayName(GetStackEditorDataKey());
+	if (NewDisplayName == nullptr)
+	{
+		CustomDisplayName.Reset();
+	}
+	else
+	{
+		CustomDisplayName = *NewDisplayName;
+	}
 }
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
+{
+	if (IsFinalized())
+	{
+		return FText::FromName(NAME_None);
+	}
+
+	if (CustomDisplayName.IsSet())
+	{
+		return CustomDisplayName.GetValue();
+	}
+	
+	return GetOriginalName();
+}
+
+FText UNiagaraStackModuleItem::GetOriginalName() const
 {
 	if (FunctionCallNode != nullptr)
 	{
 		return FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
 	}
-	else
-	{
+
 	return FText::FromName(NAME_None);
-	}
 }
 
 UObject* UNiagaraStackModuleItem::GetDisplayedObject() const
@@ -1118,7 +1147,6 @@ FText UNiagaraStackModuleItem::GetDeleteTransactionText() const
 void UNiagaraStackModuleItem::Delete()
 {
 	checkf(CanMoveAndDelete(), TEXT("This module can't be deleted"));
-
 	const FNiagaraEmitterHandle* EmitterHandle = GetEmitterViewModel().IsValid()
 		? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(GetSystemViewModel()->GetSystem(), *GetEmitterViewModel()->GetEmitter())
 		: nullptr;

@@ -30,8 +30,15 @@ struct FAudioStreamCachingSettings
 	// CacheSizeKB / 256.
 	int32 CacheSizeKB;
 
+	// Bool flag for keeping sounds flagged for streaming chunked in the style of the legacy streaming manager.
+	bool bForceLegacyStreamChunking;
+
+	int32 ZerothChunkSizeForLegacyStreamChunkingKB;
+
 	FAudioStreamCachingSettings()
 		: CacheSizeKB(DefaultCacheSize)
+		, bForceLegacyStreamChunking(false)
+		, ZerothChunkSizeForLegacyStreamChunkingKB(256)
 	{
 	}
 };
@@ -105,6 +112,12 @@ struct FPlatformAudioCookOverrides
 			// cache info:
 			OutSuffix.Append(TEXT("MEM_"));
 			OutSuffix.AppendInt(InOverrides->StreamCachingSettings.CacheSizeKB);
+
+			if (InOverrides->StreamCachingSettings.bForceLegacyStreamChunking)
+			{
+				OutSuffix.Append(TEXT("_LegacyChunking_"));
+				OutSuffix.AppendInt(InOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB);
+			}
 		}
 		
 

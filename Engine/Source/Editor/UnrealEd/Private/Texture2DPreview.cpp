@@ -29,11 +29,9 @@ namespace
 
 class FSimpleElementTexture2DPreviewPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FSimpleElementTexture2DPreviewPS);
-
-	using FPermutationDomain = TShaderPermutationDomain<FTexture2DPreviewVirtualTexture, FTexture2DPreviewTexture2DArray>;
-
+	DECLARE_SHADER_TYPE(FSimpleElementTexture2DPreviewPS, Global);
 public:
+	using FPermutationDomain = TShaderPermutationDomain<FTexture2DPreviewVirtualTexture, FTexture2DPreviewTexture2DArray>;
 
 	FSimpleElementTexture2DPreviewPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 		FGlobalShader(Initializer)
@@ -65,23 +63,24 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, const FMatrix& ColorWeightsValue, float GammaValue, float MipLevel, float LayerIndex, bool bIsNormalMap, bool bIsSingleVTPhysicalSpace, bool bIsVirtualTexture, bool bIsTextureArray)
 	{
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		if (bIsVirtualTexture)
 		{
 			FVirtualTexture2DResource* VirtualTextureValue = (FVirtualTexture2DResource*)TextureValue;
 			IAllocatedVirtualTexture* AllocatedVT = VirtualTextureValue->AcquireAllocatedVT();
 	
 			FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureSRV((uint32)LayerIndex, TextureValue->bSRGB);
-			SetSRVParameter(RHICmdList, GetPixelShader(), InTexture, PhysicalView);
-			SetSamplerParameter(RHICmdList, GetPixelShader(), InTextureSampler, VirtualTextureValue->SamplerStateRHI);
+			SetSRVParameter(RHICmdList, ShaderRHI, InTexture, PhysicalView);
+			SetSamplerParameter(RHICmdList, ShaderRHI, InTextureSampler, VirtualTextureValue->SamplerStateRHI);
 
-			SetTextureParameter(RHICmdList, GetPixelShader(), InPageTableTexture0, AllocatedVT->GetPageTableTexture(0u));
+			SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture0, AllocatedVT->GetPageTableTexture(0u));
 			if (AllocatedVT->GetNumPageTableTextures() > 1u)
 			{
-				SetTextureParameter(RHICmdList, GetPixelShader(), InPageTableTexture1, AllocatedVT->GetPageTableTexture(1u));
+				SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture1, AllocatedVT->GetPageTableTexture(1u));
 			}
 			else
 			{
-				SetTextureParameter(RHICmdList, GetPixelShader(), InPageTableTexture1, GBlackTexture->TextureRHI);
+				SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture1, GBlackTexture->TextureRHI);
 			}
 
 			FUintVector4 PageTableUniform[2];
@@ -90,61 +89,44 @@ public:
 			AllocatedVT->GetPackedPageTableUniform(PageTableUniform, false);
 			AllocatedVT->GetPackedUniform(&Uniform, (uint32)LayerIndex);
 
-			SetShaderValueArray(RHICmdList, GetPixelShader(), VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
-			SetShaderValue(RHICmdList, GetPixelShader(), VTPackedUniform, Uniform);
+			SetShaderValueArray(RHICmdList, ShaderRHI, VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
+			SetShaderValue(RHICmdList, ShaderRHI, VTPackedUniform, Uniform);
 		}
 		else
 		{
-			SetTextureParameter(RHICmdList, GetPixelShader(), InPageTableTexture0, GBlackTexture->TextureRHI);
-			SetTextureParameter(RHICmdList, GetPixelShader(), InPageTableTexture1, GBlackTexture->TextureRHI);
-			SetTextureParameter(RHICmdList, GetPixelShader(), InTexture, InTextureSampler, TextureValue);
+			SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture0, GBlackTexture->TextureRHI);
+			SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture1, GBlackTexture->TextureRHI);
+			SetTextureParameter(RHICmdList, ShaderRHI, InTexture, InTextureSampler, TextureValue);
 		}
 		
-		SetShaderValue(RHICmdList, GetPixelShader(),ColorWeights,ColorWeightsValue);
+		SetShaderValue(RHICmdList, ShaderRHI,ColorWeights,ColorWeightsValue);
 		FVector4 PackedParametersValue(GammaValue, MipLevel, bIsNormalMap ? 1.0 : -1.0f, bIsSingleVTPhysicalSpace ? 0 : LayerIndex);
-		SetShaderValue(RHICmdList, GetPixelShader(), PackedParameters, PackedParametersValue);
+		SetShaderValue(RHICmdList, ShaderRHI, PackedParameters, PackedParametersValue);
 
 		// Store slice count for texture array
 		if (bIsTextureArray)
 		{
 			const FTexture2DArrayResource* TextureValue2DArray = (FTexture2DArrayResource*)(TextureValue);
 			float NumSlicesData = TextureValue2DArray ? float(TextureValue2DArray->GetNumSlices()) : 1;
-			SetShaderValue(RHICmdList, GetPixelShader(), NumSlices, NumSlicesData);
+			SetShaderValue(RHICmdList, ShaderRHI, NumSlices, NumSlicesData);
 		}
 
-		SetShaderValue(RHICmdList, GetPixelShader(),TextureComponentReplicate, (TextureValue && TextureValue->bGreyScaleFormat) ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
-		SetShaderValue(RHICmdList, GetPixelShader(),TextureComponentReplicateAlpha, (TextureValue && TextureValue->bGreyScaleFormat) ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << InTexture;
-		Ar << InTextureSampler;
-		Ar << InPageTableTexture0;
-		Ar << InPageTableTexture1;
-		Ar << VTPackedPageTableUniform;
-		Ar << VTPackedUniform;
-		Ar << TextureComponentReplicate;
-		Ar << TextureComponentReplicateAlpha;
-		Ar << ColorWeights;
-		Ar << NumSlices;
-		Ar << PackedParameters;
-		return bShaderHasOutdatedParameters;
+		SetShaderValue(RHICmdList, ShaderRHI, TextureComponentReplicate, (TextureValue && TextureValue->bGreyScaleFormat) ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
+		SetShaderValue(RHICmdList, ShaderRHI, TextureComponentReplicateAlpha, (TextureValue && TextureValue->bGreyScaleFormat) ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
 	}
 
 private:
-	FShaderResourceParameter InTexture;			// if VT, this used as the physical texture
-	FShaderResourceParameter InTextureSampler;	// if VT, this is the physical sampler
-	FShaderResourceParameter InPageTableTexture0;
-	FShaderResourceParameter InPageTableTexture1;
-	FShaderParameter VTPackedPageTableUniform;
-	FShaderParameter VTPackedUniform;
-	FShaderParameter TextureComponentReplicate;
-	FShaderParameter TextureComponentReplicateAlpha;
-	FShaderParameter ColorWeights; 
-	FShaderParameter PackedParameters;
-	FShaderParameter NumSlices;
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture);			// if VT, this used as the physical texture
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);	// if VT, this is the physical sampler
+	LAYOUT_FIELD(FShaderResourceParameter, InPageTableTexture0);
+	LAYOUT_FIELD(FShaderResourceParameter, InPageTableTexture1);
+	LAYOUT_FIELD(FShaderParameter, VTPackedPageTableUniform);
+	LAYOUT_FIELD(FShaderParameter, VTPackedUniform);
+	LAYOUT_FIELD(FShaderParameter, TextureComponentReplicate);
+	LAYOUT_FIELD(FShaderParameter, TextureComponentReplicateAlpha);
+	LAYOUT_FIELD(FShaderParameter, ColorWeights);
+	LAYOUT_FIELD(FShaderParameter, PackedParameters);
+	LAYOUT_FIELD(FShaderParameter, NumSlices);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSimpleElementTexture2DPreviewPS, "/Engine/Private/SimpleElementTexture2DPreviewPixelShader.usf", "Main", SF_Pixel);
@@ -162,13 +144,13 @@ void FBatchedElementTexture2DPreviewParameters::BindShaders(
 	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(InFeatureLevel));
 
 	FSimpleElementTexture2DPreviewPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FTexture2DPreviewVirtualTexture>(bIsVirtualTexture);
+	PermutationVector.Set<FTexture2DPreviewVirtualTexture>(bIsVirtualTexture);	
 	PermutationVector.Set<FTexture2DPreviewTexture2DArray>(bIsTextureArray);
 	TShaderMapRef<FSimpleElementTexture2DPreviewPS> PixelShader(GetGlobalShaderMap(InFeatureLevel), PermutationVector);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GSimpleElementVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	if (bIsSingleChannelFormat)

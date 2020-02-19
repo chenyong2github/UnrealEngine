@@ -218,7 +218,7 @@
 #include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "StudioAnalytics.h"
-
+#include "Engine/LevelScriptActor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -1901,15 +1901,12 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		if (bRequestEndPlayMapQueued)
 		{
 			// Shutdown all audio devices if we've requested end playmap now to avoid issues with GC running
-			TArray<FAudioDevice*>& AudioDevices = AudioDeviceManager->GetAudioDevices();
+			TArray<FAudioDevice*> AudioDevices = AudioDeviceManager->GetAudioDevices();
 			for (FAudioDevice* AudioDevice : AudioDevices)
 			{
-				if (AudioDevice)
-				{
 					AudioDevice->Flush(nullptr);
 				}
 			}
-		}
 
 		if (PlayWorld)
 		{
@@ -2287,7 +2284,7 @@ UAudioComponent* UEditorEngine::GetPreviewAudioComponent()
 
 UAudioComponent* UEditorEngine::ResetPreviewAudioComponent( USoundBase* Sound, USoundNode* SoundNode )
 {
-	if (FAudioDevice* AudioDevice = GetMainAudioDevice())
+	if (FAudioDevice* AudioDevice = GetMainAudioDeviceRaw())
 	{
 		if (PreviewAudioComponent)
 		{
@@ -5171,7 +5168,9 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 			if (Blueprint->GeneratedClass->IsChildOf(OldActorClass) && NewActor != NULL)
 			{
 				NewActor->UnregisterAllComponents();
-				UEditorEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor);
+				FCopyPropertiesForUnrelatedObjectsParams Options;
+				Options.bNotifyObjectReplacement = true;
+				UEditorEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor, Options);
 				NewActor->RegisterAllComponents();
 			}
 		}
@@ -6880,7 +6879,13 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 {
 	if (bReading)
 	{
-		if (bIsReplay && Context.World() && Context.World()->RemapCompiledScriptActor(Str))
+		UWorld* const World = Context.World();
+		if (World == nullptr)
+		{
+			return false;
+		}
+
+		if (bIsReplay && World->RemapCompiledScriptActor(Str))
 		{
 			return true;
 		}
@@ -6895,9 +6900,44 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 		
 		if (bIsReplay)
 		{
-			FString AssetName = Path.GetAssetName();
-			FString ShortName = FPackageName::GetShortName(Path.GetLongPackageName());
+			const FString AssetName = Path.GetAssetName();
+			const FString ShortName = FPackageName::GetShortName(Path.GetLongPackageName());
 
+			FString PackageNameOnly = Path.ToString();
+			FPackageName::TryConvertFilenameToLongPackageName(PackageNameOnly, PackageNameOnly);
+
+			const FString PrefixedFullName = UWorld::ConvertToPIEPackageName(Str, Context.PIEInstance);
+			const FString PrefixedPackageName = UWorld::ConvertToPIEPackageName(PackageNameOnly, Context.PIEInstance);
+			const FString WorldPackageName = World->GetOutermost()->GetName();
+
+			if (WorldPackageName == PrefixedPackageName)
+			{
+				const ALevelScriptActor* LSA = World->GetLevelScriptActor();
+				if (LSA && LSA->GetClass() && LSA->GetClass()->GetName() == AssetName && LSA->GetClass()->GetOutermost()->GetName() != WorldPackageName)
+				{
+					Str = Path.ToString();
+				}
+				else
+				{
+					Str = PrefixedFullName;
+				}
+				
+				return true;
+			}
+
+			for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
+			{
+				if (StreamingLevel != nullptr)
+				{
+					const FString StreamingLevelName = StreamingLevel->GetWorldAsset().GetLongPackageName();
+					if (StreamingLevelName == PrefixedPackageName)
+					{
+						Str = PrefixedFullName;
+						return true;
+					}
+				}
+			}
+			
 			const bool bActorClass = FPackageName::IsValidObjectPath(Path.ToString()) && !AssetName.IsEmpty() && !ShortName.IsEmpty() && (AssetName == (ShortName + TEXT("_C")));
 			if (!bActorClass)
 			{
@@ -7113,9 +7153,12 @@ void UEditorEngine::InitializeNewlyCreatedInactiveWorld(UWorld* World)
 
 		// Create the world without a physics scene because creating too many physics scenes causes deadlock issues in PhysX. The scene will be created when it is opened in the level editor.
 		// Also, don't create an FXSystem because it consumes too much video memory. This is also created when the level editor opens this world.
+		// Do not create AISystem/Navigation for inactive world. These ones will also be created when the level editor opens this world. if required.
 		World->InitWorld(GetEditorWorldInitializationValues()
 			.CreatePhysicsScene(false)
 			.CreateFXSystem(false)
+			.CreateAISystem(false)
+			.CreateNavigation(false)
 			);
 
 		// Update components so the scene is populated
@@ -7449,7 +7492,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		FlushRenderingCommands();
 
 		// Set only require the preview feature level and the max feature level. The Max feature level is required for the toggle feature.
-		for (uint32 i = (uint32)ERHIFeatureLevel::ES2; i < (uint32)ERHIFeatureLevel::Num; i++)
+		for (uint32 i = (uint32)ERHIFeatureLevel::ES3_1; i < (uint32)ERHIFeatureLevel::Num; i++)
 		{
 			ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)i;
 			UMaterialInterface::SetGlobalRequiredFeatureLevel(FeatureLevel, FeatureLevel == PreviewPlatform.PreviewFeatureLevel || FeatureLevel == GMaxRHIFeatureLevel);

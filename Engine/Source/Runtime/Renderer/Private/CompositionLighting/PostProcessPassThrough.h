@@ -27,13 +27,13 @@ class FPostProcessPassThroughPS : public FGlobalShader
 	FPostProcessPassThroughPS() {}
 
 public:
-	FPostProcessPassParameters PostprocessParameter;
+	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter)
 
 	/** Initialization constructor. */
 	FPostProcessPassThroughPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override;
+	//virtual bool Serialize(FArchive& Ar) override;
 
 	template <typename TRHICmdList>
 	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context);

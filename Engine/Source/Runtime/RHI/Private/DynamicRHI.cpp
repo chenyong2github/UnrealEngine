@@ -15,6 +15,9 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "PipelineStateCache.h"
 
+IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
+IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometrySegment);
+
 #ifndef PLATFORM_ALLOW_NULL_RHI
 	#define PLATFORM_ALLOW_NULL_RHI		0
 #endif
@@ -148,7 +151,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("AdapterName"), FText::FromString(DriverInfo.DeviceDescription));
 			Args.Add(TEXT("Vendor"), FText::FromString(VendorString));
-			Args.Add(TEXT("RecommendedVer"), FText::FromString(DetectedGPUHardware.GetSuggestedDriverVersion()));
+			Args.Add(TEXT("RecommendedVer"), FText::FromString(DetectedGPUHardware.GetSuggestedDriverVersion(DriverInfo.RHIName)));
 			Args.Add(TEXT("InstalledVer"), FText::FromString(DriverInfo.UserDriverVersion));
 
 			// this message can be suppressed with r.WarnOfBadDrivers=0
@@ -178,35 +181,13 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		return;
 	}
 
-#if WITH_EDITOR
-	if (FPlatformMisc::MacOSXVersionCompare(10,13,6) < 0)
+	if (FPlatformMisc::MacOSXVersionCompare(10,14,6) < 0)
 	{
-		const FString BaseName = FApp::HasProjectName() ? FApp::GetProjectName() : TEXT("");
 		// this message can be suppressed with r.WarnOfBadDrivers=0
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
 									 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Body", "Please update to the latest version of macOS for best performance and stability.").ToString(),
 									 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
 	}
-#else
-	if (FPlatformMisc::MacOSXVersionCompare(10,14,6) < 0)
-	{
-		const FString BaseName = FApp::HasProjectName() ? FApp::GetProjectName() : TEXT("");
-		if (BaseName == TEXT("FortniteGame"))
-		{
-			// this message can be suppressed with r.WarnOfBadDrivers=0
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_FNS12_Body", "Starting with Chapter 2 Season 2, macOS versions older than 10.14.6 will no longer be supported. Please update to macOS version 10.14.6 or newer before the Season begins.").ToString(),
-										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
-		}
-		else
-		{
-			// this message can be suppressed with r.WarnOfBadDrivers=0
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Body", "Please update to the latest version of macOS for best performance and stability.").ToString(),
-										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
-		}
-	}
-#endif
 }
 #endif // PLATFORM_WINDOWS
 
@@ -215,7 +196,7 @@ void RHIInit(bool bHasEditorToken)
 	if(!GDynamicRHI)
 	{
 		// read in any data driven shader platform info structures we can find
-		FDataDrivenShaderPlatformInfo::Initialize();
+		FGenericDataDrivenShaderPlatformInfo::Initialize();
 
 		GRHICommandList.LatchBypass(); // read commandline for bypass flag
 
@@ -386,6 +367,11 @@ void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIV
 void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer)
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
+}
+
+uint64 FDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
+{
+	return 16; // not-Metal requires a minimum alignment of of 16-bytes.
 }
 
 uint64 FDynamicRHI::RHICalcVMTexture2DPlatformSize(uint32 Mip0Width, uint32 Mip0Height, uint8 Format, uint32 NumMips, uint32 FirstMipIdx, uint32 NumSamples, uint32 Flags, uint32& OutAlign)

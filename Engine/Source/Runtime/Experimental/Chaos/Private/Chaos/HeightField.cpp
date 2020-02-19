@@ -259,6 +259,17 @@ namespace Chaos
 
 							if(Time <= 0) //initial overlap or MTD, so stop
 							{
+								// This is incorrect. To prevent objects pushing through the surface of the heightfield
+								// we adopt the triangle normal but this leaves us with an incorrect MTD from the GJK call
+								// above. #TODO possibly re-do GJK with a plane, or some geom vs.plane special case to solve
+								// both triangles as planes 
+								const TVector<T, 3> AB = B - A;
+								const TVector<T, 3> AC = C - A;
+
+								TVector<T, 3> TriNormal = TVector<T, 3>::CrossProduct(AB, AC);
+								TriNormal.SafeNormalize();
+
+								OutNormal = TriNormal;
 								CurrentLength = 0;
 								return false;
 							}
@@ -557,6 +568,38 @@ namespace Chaos
 	}
 
 	template<typename T>
+	uint8 Chaos::THeightField<T>::GetMaterialIndex(int32 InIndex) const
+	{
+		if(CHAOS_ENSURE(InIndex >= 0 && InIndex < GeomData.MaterialIndices.Num()))
+		{
+			return GeomData.MaterialIndices[InIndex];
+		}
+
+		return TNumericLimits<uint8>::Max();
+	}
+
+	template<typename T>
+	uint8 Chaos::THeightField<T>::GetMaterialIndex(int32 InX, int32 InY) const
+	{
+		const int32 Index = InY * GeomData.NumCols + InX;
+		return GetMaterialIndex(Index);
+	}
+
+	template<typename T>
+	bool Chaos::THeightField<T>::IsHole(int32 InIndex) const
+	{
+		return GetMaterialIndex(InIndex) == TNumericLimits<uint8>::Max();
+	}
+
+	template<typename T>
+	bool Chaos::THeightField<T>::IsHole(int32 InCellX, int32 InCellY) const
+	{
+		// Convert to single cell index
+		const int32 Index = InCellY * (GeomData.NumCols - 1) + InCellX;
+		return IsHole(Index);
+	}
+
+	template<typename T>
 	T Chaos::THeightField<T>::GetHeightAt(const TVector<T, 2>& InGridLocationLocal) const
 	{
 		if(CHAOS_ENSURE(InGridLocationLocal == FlatGrid.Clamp(InGridLocationLocal)))
@@ -720,7 +763,7 @@ namespace Chaos
 		T InvCurrentLength = 1 / CurrentLength;
 		for(int Axis = 0; Axis < 3; ++Axis)
 		{
-			bParallel[Axis] = Dir[Axis] == 0;
+			bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
 			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 		}
 
@@ -920,7 +963,7 @@ namespace Chaos
 			T InvCurrentLength = 1 / CurrentLength;
 			for(int Axis = 0; Axis < 3; ++Axis)
 			{
-				bParallel[Axis] = Dir[Axis] == 0;
+				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
 				InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 			}
 

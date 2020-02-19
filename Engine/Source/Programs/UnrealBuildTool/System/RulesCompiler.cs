@@ -256,6 +256,9 @@ namespace UnrealBuildTool
 					DirectoryItem BaseDirectory = DirectoryItem.GetItemByDirectoryReference(Directory);
 					Queue.Enqueue(() => FindAllRulesFilesRecursively(BaseDirectory, Cache, Queue));
 				}
+				Cache.ModuleRules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
+				Cache.TargetRules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
+				Cache.AutomationModules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
 				RootFolderToRulesFileCache[Directory] = Cache;
 			}
 
@@ -460,7 +463,6 @@ namespace UnrealBuildTool
 					AddEngineModuleRulesWithContext(SourceDirectory, "Editor", DefaultModuleContext, UHTModuleType.EngineEditor, ModuleFileToContext);
 					AddEngineModuleRulesWithContext(SourceDirectory, "ThirdParty", DefaultModuleContext, UHTModuleType.EngineThirdParty, ModuleFileToContext);
 				}
-
 			}
 			// Add all the plugin modules too (don't need to loop over RootDirectories since the plugins come in already found
 			using (Timeline.ScopeEvent("Finding plugin modules"))
@@ -547,8 +549,15 @@ namespace UnrealBuildTool
 				Dictionary<FileReference, ModuleRulesContext> ModuleFiles = new Dictionary<FileReference, ModuleRulesContext>();
 				List<FileReference> TargetFiles = new List<FileReference>();
 
+				// Find all the project directories
+				List<DirectoryReference> ProjectDirectories = new List<DirectoryReference>(UnrealBuildTool.GetAllProjectDirectories(ProjectFileName));
+				if (Project.AdditionalRootDirectories != null)
+				{
+					ProjectDirectories.AddRange(Project.AdditionalRootDirectories);
+				}
+
 				// Find all the rules/plugins under the project source directories
-				foreach (DirectoryReference ProjectDirectory in UnrealBuildTool.GetAllProjectDirectories(ProjectFileName))
+				foreach (DirectoryReference ProjectDirectory in ProjectDirectories)
 				{
 					DirectoryReference ProjectSourceDirectory = DirectoryReference.Combine(ProjectDirectory, "Source");
 
@@ -563,12 +572,11 @@ namespace UnrealBuildTool
 				// Add the project's additional plugin directories plugins too
 				if (Project.AdditionalPluginDirectories != null)
 				{
-					foreach (string AdditionalPluginDirectory in Project.AdditionalPluginDirectories)
+					foreach (DirectoryReference AdditionalPluginDirectory in Project.AdditionalPluginDirectories)
 					{
-						ProjectPlugins.AddRange(Plugins.ReadAdditionalPlugins(MainProjectDirectory, AdditionalPluginDirectory));
+						ProjectPlugins.AddRange(Plugins.ReadAdditionalPlugins(AdditionalPluginDirectory));
 					}
 				}
-
 
 				// Find all the plugin module rules
 				FindModuleRulesForPlugins(ProjectPlugins, DefaultModuleContext, ModuleFiles);

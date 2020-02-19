@@ -8,6 +8,7 @@
 #include "Containers/Array.h"
 #include "CoreGlobals.h"
 #include "Containers/ResourceArray.h"
+#include "Serialization/MemoryImage.h"
 
 /** alignment for supported resource types */
 enum EResourceAlignment
@@ -23,13 +24,15 @@ enum EResourceAlignment
  *
  * @param Alignment - memory alignment to use for the allocation
  */
-template< typename ElementType, uint32 Alignment = DEFAULT_ALIGNMENT >
+template< typename ElementType, uint32 Alignment = DEFAULT_ALIGNMENT>
 class TResourceArray
 	:	public FResourceArrayInterface
-	,	public TArray<ElementType, TAlignedHeapAllocator<Alignment> >
+	,	public TArray<ElementType, TMemoryImageAllocator<Alignment>>
 {
+	using ParentArrayType = TArray<ElementType, TMemoryImageAllocator<Alignment>>;
+	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TResourceArray, Virtual, FResourceArrayInterface, ParentArrayType);
 public:
-	typedef TArray<ElementType, TAlignedHeapAllocator<Alignment> > Super;
+	using Super = ParentArrayType;
 
 	/** 
 	* Constructor 
@@ -138,11 +141,11 @@ private:
 	* true if this array needs to be accessed by the CPU.  
 	* If no CPU access is needed then the resource is freed once its RHI resource has been created
 	*/
-	bool bNeedsCPUAccess;
+	LAYOUT_FIELD(bool, bNeedsCPUAccess);
 };
 
-template< typename ElementType, uint32 Alignment >
-struct TContainerTraits<TResourceArray<ElementType, Alignment> > : public TContainerTraitsBase<TResourceArray<ElementType, Alignment> >
+template< typename ElementType, uint32 Alignment>
+struct TContainerTraits<TResourceArray<ElementType, Alignment>> : public TContainerTraitsBase<TResourceArray<ElementType, Alignment>>
 {
 	enum { MoveWillEmptyContainer = TContainerTraits<typename TResourceArray<ElementType, Alignment>::Super>::MoveWillEmptyContainer };
 };

@@ -25,6 +25,7 @@ struct FIndexLengthPair
         return Ar;
     }
 };
+template<> struct TCanBulkSerialize<FIndexLengthPair> { enum { Value = true }; };
 
 class FDuplicatedVerticesBuffer : public FRenderResource
 {

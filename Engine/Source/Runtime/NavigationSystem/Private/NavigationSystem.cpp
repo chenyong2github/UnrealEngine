@@ -120,6 +120,7 @@ DEFINE_STAT(STAT_Navigation_ObservedPathsCount);
 DEFINE_STAT(STAT_Navigation_RecastMemory);
 
 CSV_DEFINE_CATEGORY(NavigationSystem, false);
+CSV_DEFINE_CATEGORY(NavTasks, true);
 
 //----------------------------------------------------------------------//
 // consts
@@ -776,6 +777,8 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 
 			if (GetDefaultNavDataInstance(FNavigationSystem::DontCreate) != NULL)
 			{
+				const bool bIsInGame = World->IsGameWorld();
+
 				// trigger navmesh update
 				for (TActorIterator<ANavigationData> It(World); It; ++It)
 				{
@@ -787,7 +790,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 
 						if (Result == RegistrationSuccessful)
 						{
-							if (bAllowRebuild)
+							if (bAllowRebuild && (!bIsInGame || NavData->SupportsRuntimeGeneration()))
 							{
 								NavData->RebuildAll();
 							}
@@ -981,6 +984,9 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 			}
 		}
 	}
+
+	CSV_CUSTOM_STAT(NavTasks, NumRemainingTasks, GetNumRemainingBuildTasks(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(NavTasks, NumRunningTasks, GetNumRunningBuildTasks(), ECsvCustomStatOp::Set);
 
 	if (AsyncPathFindingQueries.Num() > 0)
 	{
@@ -3257,6 +3263,13 @@ void UNavigationSystemV1::OnPIEEnd()
 	}
 }
 
+void UNavigationSystemV1::AddNavigationBuildLock(uint8 Flags)
+{
+	NavBuildingLockFlags |= Flags;
+
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::AddNavigationBuildLock IsLocked=%s"), IsNavigationBuildingLocked() ? TEXT("true") : TEXT("false"));
+}
+
 void UNavigationSystemV1::RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor)
 {
 	const bool bWasLocked = IsNavigationBuildingLocked();
@@ -3265,14 +3278,27 @@ void UNavigationSystemV1::RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebui
 
 	const bool bIsLocked = IsNavigationBuildingLocked();
 	const bool bSkipRebuild = (OperationMode == FNavigationSystemRunMode::EditorMode) && bSkipRebuildInEditor;
+
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::RemoveNavigationBuildLock bWasLocked=%s IsLocked=%s"), bWasLocked ? TEXT("true") : TEXT("false"), bIsLocked ? TEXT("true") : TEXT("false"));
+
 	if (bWasLocked && !bIsLocked && !bSkipRebuild)
 	{
 		RebuildAll();
 	}
 }
 
+void UNavigationSystemV1::SetNavigationOctreeLock(bool bLock)
+{
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::SetNavigationOctreeLock IsLocked=%s"), bLock ? TEXT("true") : TEXT("false"));
+
+	DefaultOctreeController.SetNavigationOctreeLock(bLock);
+}
+
+
 void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 {
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::RebuildAll"));
+
 	const bool bIsInGame = GetWorld()->IsGameWorld();
 	
 	GatherNavigationBounds();

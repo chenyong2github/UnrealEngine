@@ -80,6 +80,8 @@ struct FTonemapInputs
 
 	// Whether to leave the final output in HDR.
 	bool bOutputInHDR = false;
+
+	FRHIShaderResourceView* EyeAdaptationBuffer = nullptr;
 };
 
 FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FTonemapInputs& Inputs);
@@ -109,10 +111,10 @@ private:
 // ePId_Input0: SceneColor
 // ePId_Input1: BloomCombined (not needed for bDoGammaOnly)
 // ePId_Input2: Dof (not needed for bDoGammaOnly)
-class FRCPassPostProcessTonemapES2 : public TRenderingCompositePassBase<3, 1>
+class FRCPassPostProcessTonemapES2 : public TRenderingCompositePassBase<4, 1>
 {
 public:
-	FRCPassPostProcessTonemapES2(const FViewInfo& View, bool bInUsedFramebufferFetch, bool bInSRGBAwareTarget);
+	FRCPassPostProcessTonemapES2(const FViewInfo& View, bool bInUsedFramebufferFetch, bool bInSRGBAwareTarget, bool bInDoEyeAdaptation);
 
 	// interface FRenderingCompositePass ---------
 
@@ -127,4 +129,5 @@ private:
 
 	bool bUsedFramebufferFetch;
 	bool bSRGBAwareTarget;
+	bool bDoEyeAdaptation;
 };

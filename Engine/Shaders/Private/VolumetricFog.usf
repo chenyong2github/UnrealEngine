@@ -194,7 +194,7 @@ void InjectShadowedLocalLightPS(
 
 	OutScattering = 0;
 
-	uint3 GridCoordinate = uint3(SvPosition.xy, Input.LayerIndex);
+	uint3 GridCoordinate = uint3(Input.Vertex.Position.xy, Input.LayerIndex);
 
 	// Somehow pixels are being rasterized outside of the viewport on a 970 GTX, perhaps due to use of a geometry shader bypassing the viewport scissor.
 	// This triggers the HistoryMissSuperSampleCount path causing significant overhead for shading off-screen pixels.

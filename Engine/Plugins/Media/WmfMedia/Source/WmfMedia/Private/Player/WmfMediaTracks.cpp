@@ -1078,7 +1078,7 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 	if ((GEngine != nullptr) && 
 		GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding &&
 		MajorType == MFMediaType_Video &&
-		FWindowsPlatformMisc::VerifyWindowsVersion(6, 2) && // Windows 8
+		FPlatformMisc::VerifyWindowsVersion(6, 2) && // Windows 8
 		FWmfMediaStreamSink::Create(MFMediaType_Video, MediaStreamSink))
 	{
 		VideoHardwareVideoDecodingSamplePool = MakeShared<FWmfMediaHardwareVideoDecodingTextureSamplePool>();

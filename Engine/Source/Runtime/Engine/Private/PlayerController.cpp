@@ -811,7 +811,7 @@ void APlayerController::ClientRestart_Implementation(APawn* NewPawn)
 void APlayerController::OnPossess(APawn* PawnToPossess)
 {
 	if ( PawnToPossess != NULL && 
-		(PlayerState == NULL || !PlayerState->bOnlySpectator) )
+		(PlayerState == NULL || !PlayerState->IsOnlyASpectator()) )
 	{
 		const bool bNewPawn = (GetPawn() != PawnToPossess);
 
@@ -1221,7 +1221,7 @@ void APlayerController::Reset()
 	SetViewTarget(this);
 	ResetCameraMode();
 
-	bPlayerIsWaiting = !PlayerState->bOnlySpectator;
+	bPlayerIsWaiting = !PlayerState->IsOnlyASpectator();
 	ChangeState(NAME_Spectating);
 }
 
@@ -1232,7 +1232,7 @@ void APlayerController::ClientReset_Implementation()
 	ResetCameraMode();
 	SetViewTarget(this);
 
-	bPlayerIsWaiting = (PlayerState == nullptr) || !PlayerState->bOnlySpectator;
+	bPlayerIsWaiting = (PlayerState == nullptr) || !PlayerState->IsOnlyASpectator();
 	ChangeState(NAME_Spectating);
 }
 
@@ -3048,7 +3048,7 @@ void APlayerController::ServerRestartPlayer_Implementation()
 
 bool APlayerController::CanRestartPlayer()
 {
-	return PlayerState && !PlayerState->bOnlySpectator && HasClientLoadedCurrentWorld() && PendingSwapConnection == NULL;
+	return PlayerState && !PlayerState->IsOnlyASpectator() && HasClientLoadedCurrentWorld() && PendingSwapConnection == NULL;
 }
 
 /// @cond DOXYGEN_WARNINGS
@@ -4715,11 +4715,13 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 		// Process PlayerTick with input.
 		if (!PlayerInput && (Player == nullptr || Cast<ULocalPlayer>( Player ) != nullptr))
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(HVS_InitInputSystem); // HVS_BCF - Temp.  Just trying to track down where time is being spent.
 			InitInputSystem();
 		}
 
 		if (PlayerInput)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(HVS_PlayerTick); // HVS_BCF - Temp.  Just trying to track down where time is being spent.
 			PlayerTick(DeltaSeconds);
 		}
 
@@ -4731,6 +4733,7 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 		// update viewtarget replicated info
 		if (PlayerCameraManager != nullptr)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(HVS_UpdateViewtargetReplicatedInfo); // HVS_BCF - Temp.  Just trying to track down where time is being spent.
 			APawn* TargetPawn = PlayerCameraManager->GetViewTargetPawn();
 			if ((TargetPawn != GetPawn()) && (TargetPawn != nullptr))
 			{
@@ -4756,6 +4759,7 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 
 	if (!IsPendingKill())
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(HVS_Tick); // HVS_BCF - Temp.  Just trying to track down where time is being spent.
 		Tick(DeltaSeconds);	// perform any tick functions unique to an actor subclass
 	}
 
@@ -4845,8 +4849,8 @@ bool APlayerController::DefaultCanUnpause()
 void APlayerController::StartSpectatingOnly()
 {
 	ChangeState(NAME_Spectating);
-	PlayerState->bIsSpectator = true;
-	PlayerState->bOnlySpectator = true;
+	PlayerState->SetIsSpectator(true);
+	PlayerState->SetIsOnlyASpectator(true);
 	bPlayerIsWaiting = false; // Can't spawn, we are only allowed to be a spectator.
 }
 
@@ -5030,11 +5034,11 @@ void APlayerController::EndSpectatingState()
 {
 	if ( PlayerState != NULL )
 	{
-		if ( PlayerState->bOnlySpectator )
+		if ( PlayerState->IsOnlyASpectator() )
 		{
 			UE_LOG(LogPlayerController, Warning, TEXT("Spectator only UPlayer* leaving spectating state"));
 		}
-		PlayerState->bIsSpectator = false;
+		PlayerState->SetIsSpectator(false);
 	}
 
 	bPlayerIsWaiting = false;

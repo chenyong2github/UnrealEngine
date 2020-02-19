@@ -167,14 +167,14 @@ FLocalFileNetworkReplayStreamer::~FLocalFileNetworkReplayStreamer()
 
 }
 
-bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(const FString& StreamName, FLocalFileReplayInfo& Info) const
+bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(const FString& StreamName, FLocalFileReplayInfo& Info, EReadReplayInfoFlags Flags) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_LocalReplay_ReadReplayInfo);
 
 	TSharedPtr<FArchive> LocalFileAr = CreateLocalFileReader(GetDemoFullFilename(StreamName));
 	if (LocalFileAr.IsValid())
 	{
-		return ReadReplayInfo(*LocalFileAr.Get(), Info);
+		return ReadReplayInfo(*LocalFileAr.Get(), Info, Flags);
 	}
 
 	return false;
@@ -182,11 +182,21 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(const FString& StreamName, 
 
 bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFileReplayInfo& Info) const
 {
+	return ReadReplayInfo(Archive, Info, EReadReplayInfoFlags::None);
+}
+
+bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFileReplayInfo& Info, EReadReplayInfoFlags Flags) const
+{
 	FLocalFileSerializationInfo DefaultSerializationInfo;
-	return ReadReplayInfo(Archive, Info, DefaultSerializationInfo);
+	return ReadReplayInfo(Archive, Info, DefaultSerializationInfo, Flags);
 }
 
 bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFileReplayInfo& Info, FLocalFileSerializationInfo& SerializationInfo) const
+{
+	return ReadReplayInfo(Archive, Info, SerializationInfo, EReadReplayInfoFlags::None);
+}
+
+bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFileReplayInfo& Info, FLocalFileSerializationInfo& SerializationInfo, EReadReplayInfoFlags Flags) const
 {
 	// reset the info before reading
 	Info = FLocalFileReplayInfo();
@@ -489,7 +499,7 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 			CheckpointIds.Add(Checkpoint.Id);
 		}
 
-		Info.bIsValid = Info.Chunks.IsValidIndex(Info.HeaderChunkIndex);
+		Info.bIsValid = EnumHasAnyFlags(Flags, EReadReplayInfoFlags::SkipHeaderChunkTest) || Info.Chunks.IsValidIndex(Info.HeaderChunkIndex);
 
 		return Info.bIsValid && !Archive.IsError();
 	}
@@ -752,8 +762,16 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 		// We are recording
 		StreamerState = EStreamerState::Recording;
 
+		CurrentReplayInfo.EncryptionKey.Reset();
+
+		// generate key now in case any other events are queued during the initial write
+		if (SupportsEncryption())
+		{
+			GenerateEncryptionKey(CurrentReplayInfo.EncryptionKey);
+		}
+
 		AddDelegateFileRequestToQueue<FStartStreamingResult>(EQueuedLocalFileRequestType::StartRecording,
-			[this, FullDemoFilename, Params, FinalDemoName](TLocalFileRequestCommonData<FStartStreamingResult>& RequestData)
+			[this, FullDemoFilename, Params, FinalDemoName, EncryptionKey=CurrentReplayInfo.EncryptionKey](TLocalFileRequestCommonData<FStartStreamingResult>& RequestData)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_LocalReplay_StartRecording);
 
@@ -776,11 +794,7 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 				RequestData.ReplayInfo.FriendlyName = Params.FriendlyName;
 				RequestData.ReplayInfo.bIsLive = true;
 				RequestData.ReplayInfo.Timestamp = FDateTime::Now();
-
-				if (SupportsEncryption())
-				{
-					GenerateEncryptionKey(RequestData.ReplayInfo.EncryptionKey);
-				}
+				RequestData.ReplayInfo.EncryptionKey = EncryptionKey;
 
 				WriteReplayInfo(CurrentStreamName, RequestData.ReplayInfo);
 
@@ -1100,7 +1114,7 @@ void FLocalFileNetworkReplayStreamer::AddOrUpdateEvent(const FString& Name, cons
 		{
 			SCOPE_CYCLE_COUNTER(STAT_LocalReplay_FlushEvent);
 
-			if (ReadReplayInfo(CurrentStreamName, ReplayInfo))
+			if (ReadReplayInfo(CurrentStreamName, ReplayInfo, EReadReplayInfoFlags::SkipHeaderChunkTest))
 			{
 				TSharedPtr<FArchive> LocalFileAr = CreateLocalFileWriter(GetDemoFullFilename(CurrentStreamName));
 				if (LocalFileAr.IsValid())
@@ -1517,7 +1531,7 @@ void FLocalFileNetworkReplayStreamer::RenameReplayFriendlyName_Internal(const FS
 			// Do this inside a scope, to make sure the file archive is closed before continuing.
 			{
 				TSharedPtr<FArchive> ReadAr = CreateLocalFileReader(FullReplayName);
-				if (!ReadAr.IsValid() || ReadAr->TotalSize() <= 0 || !ReadReplayInfo(*ReadAr.Get(), TempReplayInfo, SerializationInfo))
+				if (!ReadAr.IsValid() || ReadAr->TotalSize() <= 0 || !ReadReplayInfo(*ReadAr.Get(), TempReplayInfo, SerializationInfo, EReadReplayInfoFlags::None))
 				{
 					UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::RenameReplayFriendlyName: Failed to read replay info %s"), *ReplayName);
 					return;
@@ -1964,7 +1978,7 @@ void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 Checkpoint
 			TSharedPtr<FArchive> LocalFileAr = CreateLocalFileReader(FullDemoFilename);
 			if (LocalFileAr.IsValid())
 			{
-				if (ReadReplayInfo(*LocalFileAr, RequestData.ReplayInfo))
+				if (ReadReplayInfo(*LocalFileAr, RequestData.ReplayInfo, EReadReplayInfoFlags::None))
 				{
 					TArray<uint8> CheckpointData;
 
@@ -2162,7 +2176,7 @@ void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 Checkpoint
 			TSharedPtr<FArchive> LocalFileAr = CreateLocalFileReader(FullDemoFilename);
 			if (LocalFileAr.IsValid())
 			{
-				if (ReadReplayInfo(*LocalFileAr, RequestData.ReplayInfo))
+				if (ReadReplayInfo(*LocalFileAr, RequestData.ReplayInfo, EReadReplayInfoFlags::None))
 				{
 					LocalFileAr->Seek(RequestData.ReplayInfo.Checkpoints[CheckpointIndex].EventDataOffset);
 
@@ -3200,28 +3214,6 @@ bool FLocalFileNetworkReplayStreamer::IsCheckpointTypeSupported(EReplayCheckpoin
 	}
 
 	return bSupported;
-}
-
-const int32 FLocalFileNetworkReplayStreamer::GetUserIndexFromUserString(const FString& UserString)
-{
-	if (!UserString.IsEmpty() && GEngine != nullptr)
-	{
-		if (UWorld* World = GWorld.GetReference())
-		{
-			for (auto ConstIt = GEngine->GetLocalPlayerIterator(World); ConstIt; ++ConstIt)
-			{
-				if (ULocalPlayer const * const LocalPlayer = *ConstIt)
-				{
-					if (UserString.Equals(LocalPlayer->GetPreferredUniqueNetId().ToString()))
-					{
-						return LocalPlayer->GetControllerId();
-					}
-				}
-			}
-		}
-	}
-
-	return INDEX_NONE;
 }
 
 void FLocalFileNetworkReplayStreamer::UpdateCurrentReplayInfo(FLocalFileReplayInfo& ReplayInfo)

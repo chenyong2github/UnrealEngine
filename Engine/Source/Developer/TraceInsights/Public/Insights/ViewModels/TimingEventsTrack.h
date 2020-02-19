@@ -21,8 +21,11 @@ public:
 
 class TRACEINSIGHTS_API FTimingEventsTrack : public FBaseTimingTrack
 {
+	INSIGHTS_DECLARE_RTTI(FTimingEventsTrack, FBaseTimingTrack)
+
 public:
-	explicit FTimingEventsTrack(const FName& InType, const FName& InSubType, const FString& InName);
+	explicit FTimingEventsTrack();
+	explicit FTimingEventsTrack(const FString& InTrackName);
 	virtual ~FTimingEventsTrack();
 
 	//////////////////////////////////////////////////
@@ -54,6 +57,8 @@ protected:
 	void DrawEvents(const ITimingTrackDrawContext& Context, const float OffsetY = 1.0f) const;
 	void DrawHeader(const ITimingTrackDrawContext& Context) const;
 
+	void DrawMarkers(const ITimingTrackDrawContext& Context, float LineY, float LineH) const;
+
 	int32 GetHeaderBackgroundLayerId(const ITimingTrackDrawContext& Context) const;
 	int32 GetHeaderTextLayerId(const ITimingTrackDrawContext& Context) const;
 
@@ -75,7 +80,7 @@ private:
 	FFilteredDrawStateInfo FilteredDrawStateInfo;
 
 public:
-	static bool bUseDownSampling; // toggle to enable/disbale downsampling, for debugging purposes only
+	static bool bUseDownSampling; // toggle to enable/disable downsampling, for debugging purposes only
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

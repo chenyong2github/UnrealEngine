@@ -392,17 +392,25 @@ TPair<float, float> FRichCurve::GetKeyTimeValuePair(FKeyHandle KeyHandle) const
 
 void FRichCurve::SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode)
 {
+	SetKeyInterpMode(KeyHandle, NewInterpMode, true);
+}
+
+void FRichCurve::SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode, bool bAutoSetTangents)
+{
 	if (!IsKeyHandleValid(KeyHandle))
 	{
 		return;
 	}
 
 	GetKey(KeyHandle).InterpMode = NewInterpMode;
-	AutoSetTangents();
+	if (bAutoSetTangents)
+	{
+		AutoSetTangents();
+	}
 }
 
 
-void FRichCurve::SetKeyTangentMode(FKeyHandle KeyHandle, ERichCurveTangentMode NewTangentMode)
+void FRichCurve::SetKeyTangentMode(FKeyHandle KeyHandle, ERichCurveTangentMode NewTangentMode, bool bAutoSetTangents /*= true*/)
 {
 	if (!IsKeyHandleValid(KeyHandle))
 	{
@@ -410,11 +418,14 @@ void FRichCurve::SetKeyTangentMode(FKeyHandle KeyHandle, ERichCurveTangentMode N
 	}
 
 	GetKey(KeyHandle).TangentMode = NewTangentMode;
-	AutoSetTangents();
+	if (bAutoSetTangents)
+	{
+		AutoSetTangents();
+	}
 }
 
 
-void FRichCurve::SetKeyTangentWeightMode(FKeyHandle KeyHandle, ERichCurveTangentWeightMode NewTangentWeightMode)
+void FRichCurve::SetKeyTangentWeightMode(FKeyHandle KeyHandle, ERichCurveTangentWeightMode NewTangentWeightMode, bool bAutoSetTangents /*= true*/)
 {
 	if (!IsKeyHandleValid(KeyHandle))
 	{
@@ -422,7 +433,10 @@ void FRichCurve::SetKeyTangentWeightMode(FKeyHandle KeyHandle, ERichCurveTangent
 	}
 
 	GetKey(KeyHandle).TangentWeightMode = NewTangentWeightMode;
-	AutoSetTangents();
+	if (bAutoSetTangents)
+	{
+		AutoSetTangents();
+	}
 }
 
 

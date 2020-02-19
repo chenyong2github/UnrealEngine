@@ -19,7 +19,7 @@ class UPrimitiveComponent;
 
 DECLARE_DELEGATE_TwoParams(FDebugDrawDelegate, class UCanvas*, class APlayerController*);
 
-class ENGINE_VTABLE FDebugRenderSceneProxy : public FPrimitiveSceneProxy
+class FDebugRenderSceneProxy : public FPrimitiveSceneProxy
 {
 public:
 	ENGINE_API SIZE_T GetTypeHash() const override;
@@ -249,7 +249,7 @@ public:
 };
 
 
-struct ENGINE_VTABLE FDebugDrawDelegateHelper
+struct FDebugDrawDelegateHelper
 {
 	FDebugDrawDelegateHelper()
 		: State(UndefinedState)

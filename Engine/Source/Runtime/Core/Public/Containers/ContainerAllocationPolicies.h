@@ -9,6 +9,14 @@
 #include "HAL/PlatformMath.h"
 #include "Templates/MemoryOps.h"
 #include "Math/NumericLimits.h"
+#include "Templates/IsPolymorphic.h"
+
+// This option disables array slack for initial allocations, e.g where TArray::SetNum 
+// is called. This tends to save a lot of memory with almost no measured performance cost.
+// NOTE: This can cause latent memory corruption issues to become more prominent
+#ifndef CONTAINER_INITIAL_ALLOC_ZERO_SLACK
+#define CONTAINER_INITIAL_ALLOC_ZERO_SLACK 0
+#endif
 
 class FDefaultBitArrayAllocator;
 
@@ -75,11 +83,24 @@ FORCEINLINE SizeType DefaultCalculateSlackGrow(SizeType NumElements, SizeType Nu
 	checkSlow(NumElements > NumAllocatedElements && NumElements > 0);
 
 	SIZE_T Grow = FirstGrow; // this is the amount for the first alloc
+
+#if CONTAINER_INITIAL_ALLOC_ZERO_SLACK
+	if (NumAllocatedElements)
+	{
+		// Allocate slack for the array proportional to its size.
+		Grow = SIZE_T(NumElements) + 3 * SIZE_T(NumElements) / 8 + ConstantGrow;
+	}
+	else if (SIZE_T(NumElements) > Grow)
+	{
+		Grow = SIZE_T(NumElements);
+	}
+#else
 	if (NumAllocatedElements || SIZE_T(NumElements) > Grow)
 	{
 		// Allocate slack for the array proportional to its size.
 		Grow = SIZE_T(NumElements) + 3 * SIZE_T(NumElements) / 8 + ConstantGrow;
 	}
+#endif
 	if (bAllowQuantize)
 	{
 		Retval = (SizeType)(FMemory::QuantizeSize(Grow * BytesPerElement, Alignment) / BytesPerElement);
@@ -125,6 +146,7 @@ struct TAllocatorTraitsBase
 {
 	enum { SupportsMove    = false };
 	enum { IsZeroConstruct = false };
+	enum { SupportsFreezeMemoryImage = false };
 };
 
 template <typename AllocatorType>
@@ -480,7 +502,7 @@ public:
 		{
 			return !!Data;
 		}
-		
+
 		SizeType GetInitialCapacity() const
 		{
 			return 0;
@@ -898,7 +920,7 @@ public:
 		{
 			return false;
 		}
-		
+
 		SizeType GetInitialCapacity() const
 		{
 			return NumInlineElements;
@@ -978,6 +1000,8 @@ public:
 	typedef TFixedAllocator<InlineBitArrayDWORDs> BitArrayAllocator;
 };
 
+
+
 //
 // Set allocation definitions.
 //
@@ -1011,6 +1035,22 @@ public:
 
 	typedef InSparseArrayAllocator SparseArrayAllocator;
 	typedef InHashAllocator        HashAllocator;
+};
+
+template<
+	typename InSparseArrayAllocator,
+	typename InHashAllocator,
+	uint32   AverageNumberOfElementsPerHashBucket,
+	uint32   BaseNumberOfHashBuckets,
+	uint32   MinNumberOfHashedElements
+>
+struct TAllocatorTraits<TSetAllocator<InSparseArrayAllocator, InHashAllocator, AverageNumberOfElementsPerHashBucket, BaseNumberOfHashBuckets, MinNumberOfHashedElements>> :
+	TAllocatorTraitsBase<TSetAllocator<InSparseArrayAllocator, InHashAllocator, AverageNumberOfElementsPerHashBucket, BaseNumberOfHashBuckets, MinNumberOfHashedElements>>
+{
+	enum
+	{
+		SupportsFreezeMemoryImage = TAllocatorTraits<InSparseArrayAllocator>::SupportsFreezeMemoryImage && TAllocatorTraits<InHashAllocator>::SupportsFreezeMemoryImage,
+	};
 };
 
 /** An inline set allocator that allows sizing of the inline allocations for a set number of elements. */
@@ -1108,5 +1148,14 @@ template <> struct TAllocatorTraits<FDefaultAllocator>            : TAllocatorTr
 template <> struct TAllocatorTraits<FDefaultSetAllocator>         : TAllocatorTraits<typename FDefaultSetAllocator        ::Typedef> {};
 template <> struct TAllocatorTraits<FDefaultBitArrayAllocator>    : TAllocatorTraits<typename FDefaultBitArrayAllocator   ::Typedef> {};
 template <> struct TAllocatorTraits<FDefaultSparseArrayAllocator> : TAllocatorTraits<typename FDefaultSparseArrayAllocator::Typedef> {};
+
+template <typename InElementAllocator, typename InBitArrayAllocator>
+struct TAllocatorTraits<TSparseArrayAllocator<InElementAllocator, InBitArrayAllocator>> : TAllocatorTraitsBase<TSparseArrayAllocator<InElementAllocator, InBitArrayAllocator>>
+{
+	enum
+	{
+		SupportsFreezeMemoryImage = TAllocatorTraits<InElementAllocator>::SupportsFreezeMemoryImage && TAllocatorTraits<InBitArrayAllocator>::SupportsFreezeMemoryImage,
+	};
+};
 
 template <uint8 FromIndexSize, uint8 ToIndexSize> struct TCanMoveBetweenAllocators<TSizedDefaultAllocator<FromIndexSize>, TSizedDefaultAllocator<ToIndexSize>> : TCanMoveBetweenAllocators<typename TSizedDefaultAllocator<FromIndexSize>::Typedef, typename TSizedDefaultAllocator<ToIndexSize>::Typedef> {};

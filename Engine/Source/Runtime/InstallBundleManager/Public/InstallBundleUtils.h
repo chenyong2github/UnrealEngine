@@ -167,6 +167,7 @@ namespace InstallBundleUtil
 		void StatsEnd(FName BundleName);
 		void StatsBegin(FName BundleName, const TCHAR* State);
 		void StatsEnd(FName BundleName, const TCHAR* State, uint64 DataSize = 0);
+		void StatsReset(FName BundleName);
 
 		const TMap<FName, InstallBundleUtil::FContentRequestStats>& GetMap() { return StatsMap; }
 	};
@@ -283,13 +284,18 @@ namespace InstallBundleUtil
 			//Saves the persistent stat data to disk in the location returned by GetFullPathForStatFile()
 			//Returns True if that save succeeds and false otherwise.
 			bool SaveStatsToDisk();
+			
+			//Function that allows you to load stats from disk. Returns true if stats were either loaded from disk now, or previously were loaded from disk.
+			//NOTE: This does not begin stat collection, so you should still call StatsBegin on this before handling any stats!
+			bool LoadStatsFromDisk();
 
 		protected:
-			bool LoadStatsFromDisk();
 			void ResetStats(const FString& NewAnalyticsSessionID);
-
+			
 			//Called after we load data but before we process any of it.
 			//Useful for fixing up the data loaded from disk before it changes or is acted upon by anything else
+			//NOTE: A call to LoadStatsFromDisk will not necessarily call this! It will only be called when data is actually pulled from
+			//the disk, and its possible to skip pulling data from the disk!
 			void OnLoadingDataFromDisk();
 
 			//Helper to try and reconcile offline and active timers after we load data from disk
@@ -301,6 +307,8 @@ namespace InstallBundleUtil
 				, CountStatMap()
 				, AnalyticsSessionID()
 				, bIsActive(false)
+				, bIsDirty(false)
+				, bHasLoadedFromDisk(false)
 			{
 			}
 			
@@ -313,6 +321,8 @@ namespace InstallBundleUtil
 			//We don't serialize these as they are tracking behavior and not stats
 			bool bIsActive;
 			bool bIsDirty;
+			
+			bool bHasLoadedFromDisk;
 			
 		//Static Methods
 		public:
@@ -425,25 +435,29 @@ namespace InstallBundleUtil
 			virtual void StartSessionPersistentStatTracking(const FString& SessionName, const TArray<FName>& RequiredBundles = TArray<FName>(), const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false);
 
 			virtual void StopBundlePersistentStatTracking(FName BundleName, bool bStopAllActiveTimers = true);
-			virtual void StopSessionPersistentStatTracking(FString SessionName, bool bStopAllActiveTimers = true);
+			virtual void StopSessionPersistentStatTracking(const FString& SessionName, bool bStopAllActiveTimers = true);
 
 			virtual void StartBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToStart);
-			virtual void StartSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToStart);
+			virtual void StartSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToStart);
 
 			virtual void StopBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToStop);
-			virtual void StopSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToStop);
+			virtual void StopSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToStop);
 
 			virtual void UpdateBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToUpdate);
-			virtual void UpdateSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToUpdate);
+			virtual void UpdateSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToUpdate);
 
 			virtual void IncrementBundlePersistentCounter(FName BundleName, ECountStatNames CounterToUpdate);
-			virtual void IncrementSessionPersistentCounter(FString SessionName, ECountStatNames CounterToUpdate);
+			virtual void IncrementSessionPersistentCounter(const FString& SessionName, ECountStatNames CounterToUpdate);
 
 			virtual const FBundlePersistentStats* GetBundleStat(FName BundleName) const;
 			virtual const FSessionPersistentStats* GetSessionStat(const FString& SessionName) const;
 
 			virtual void SaveAllDirtyStatsToDisk();
-
+			
+			//Deletes persistent stat information from our stats for this Session/Bundle to reduce memory useage
+			virtual void RemoveSessionStats(const FString& SessionName);
+			virtual void RemoveBundleStats(FName BundleName);
+			
 		protected:
 			virtual bool Tick(float dt);
 			virtual void ResetTimerUpdate();
@@ -468,9 +482,6 @@ namespace InstallBundleUtil
 			//NOTE: doesn't get called by timer's being Start/Stopped for bShouldAutoHandleFGBGStats
 			virtual void OnTimerStoppedForStat(FPersistentStatsBase& BundleStatForTimer, ETimingStatNames TimerStarted);
 
-			//Called whenever we update our stat's data in one of this class' methods
-			virtual void OnDataUpdatedForStat(FPersistentStatsBase& UpdatedBundleStat);
-
 			//Stops active foreground timers when going to background and starts applicable background version
 			//Also increments background counters
 			virtual void UpdateStatsForBackground(FPersistentStatsBase& StatToUpdate);
@@ -478,7 +489,13 @@ namespace InstallBundleUtil
 			//Stops active background timers and resumes applicable foreground timers
 			//Also increments foreground counters
 			virtual void UpdateStatsForForeground(FPersistentStatsBase& StatToUpdate);
-
+			
+			//Goes through this Session's RequiredBundles and loads data from disk for those bundles. Allows us to make sure we have
+			//full data in memory from disk without having to know the previous runs AnalyticsID to call StatsBegin on that bundle.
+			//NOTE: You should still call StatsBegin on the listed bundles before Starting/Incrementing/ETC any analytics! This just
+			//ensures that the previous run data exists for this given session!
+			virtual void LoadRequiredBundleDataFromDiskForSession(const FString& SessionName);
+			
 		protected:
 			TMap<FName, FBundlePersistentStats> PerBundlePersistentStatMap;
 			TMap<FString, FSessionPersistentStats> SessionPersistentStatMap;
@@ -518,12 +535,8 @@ namespace InstallBundleUtil
 			//								 This way we will not update a given stat more then once a tick to disk.
 			//
 			//DirtyStatSaveToDiskRate -- Determines how often we update our dirty stats in seconds. <=0 means update every tick.
-			//
-			//bShouldSaveStatsOnUpdate -- If this is set to true then we save all stats EVERY time they are updated without waiting for tick.
-			//								 This could lead to multiple disk writes for a given stat in 1 tick.
 			bool bShouldSaveDirtyStatsOnTick;
 			float DirtyStatSaveToDiskRate;
-			bool bShouldSaveStatsOnUpdate;
 
 			//Determines if we should automatically Start,Stop,and Update the _FG and _BG versions of our timer stats.
 			//If true you only have to call Start/Stop on the _Real versions of all timers and we will automatically

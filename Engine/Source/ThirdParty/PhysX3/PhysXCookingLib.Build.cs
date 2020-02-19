@@ -77,9 +77,5 @@ public class PhysXCookingLib : ModuleRules
                 PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "XboxOne", "VS" + VersionName, String.Format("PhysX3Cooking{0}.lib", LibrarySuffix)));
             }
         }
-        else if (Target.Platform == UnrealTargetPlatform.Switch)
-        {
-            PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Switch", String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
-        }
 	}
 }

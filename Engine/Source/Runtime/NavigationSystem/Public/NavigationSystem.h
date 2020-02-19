@@ -779,10 +779,10 @@ public:
 	/** adds BSP collisions of currently streamed in levels to octree */
 	void InitializeLevelCollisions();
 
-	FORCEINLINE void AddNavigationBuildLock(uint8 Flags) { NavBuildingLockFlags |= Flags; }
+	void AddNavigationBuildLock(uint8 Flags);
 	void RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor = false);
 
-	void SetNavigationOctreeLock(bool bLock) { DefaultOctreeController.SetNavigationOctreeLock(bLock); }
+	void SetNavigationOctreeLock(bool bLock);
 
 	/** checks if auto-rebuilding navigation data is enabled. Defaults to bNavigationAutoUpdateEnabled
 	*	value, but can be overridden per nav sys instance */

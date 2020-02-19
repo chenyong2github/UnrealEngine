@@ -113,13 +113,13 @@ static inline void InitUniformBufferStaticSlots(TShaderType* Shader)
 	}
 }
 
-FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(const TArray<uint8>& Code)
+FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D11VertexShader* Shader = new FD3D11VertexShader;
 
-	FMemoryReader Ar( Code, true );
+	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -140,18 +140,18 @@ FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(const TArray<uint8>&
 
 FVertexShaderRHIRef FD3D11DynamicRHI::CreateVertexShader_RenderThread(
 	class FRHICommandListImmediate& RHICmdList,
-	const TArray<uint8>& Code)
+	TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateVertexShader(Code);
+	return RHICreateVertexShader(Code, Hash);
 }
 
-FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(const TArray<uint8>& Code) 
+FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D11GeometryShader* Shader = new FD3D11GeometryShader;
 
-	FMemoryReader Ar( Code, true );
+	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -168,18 +168,18 @@ FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(const TArray<uin
 
 FGeometryShaderRHIRef FD3D11DynamicRHI::CreateGeometryShader_RenderThread(
 	class FRHICommandListImmediate& RHICmdList,
-	const TArray<uint8>& Code)
+	TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateGeometryShader(Code);
+	return RHICreateGeometryShader(Code, Hash);
 }
 
-FHullShaderRHIRef FD3D11DynamicRHI::RHICreateHullShader(const TArray<uint8>& Code) 
+FHullShaderRHIRef FD3D11DynamicRHI::RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D11HullShader* Shader = new FD3D11HullShader;
 
-	FMemoryReader Ar( Code, true );
+	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -196,18 +196,18 @@ FHullShaderRHIRef FD3D11DynamicRHI::RHICreateHullShader(const TArray<uint8>& Cod
 
 FHullShaderRHIRef FD3D11DynamicRHI::CreateHullShader_RenderThread(
 	class FRHICommandListImmediate& RHICmdList,
-	const TArray<uint8>& Code)
+	TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateHullShader(Code);
+	return RHICreateHullShader(Code, Hash);
 }
 
-FDomainShaderRHIRef FD3D11DynamicRHI::RHICreateDomainShader(const TArray<uint8>& Code) 
+FDomainShaderRHIRef FD3D11DynamicRHI::RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D11DomainShader* Shader = new FD3D11DomainShader;
 
-	FMemoryReader Ar(Code, true);
+	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -224,18 +224,18 @@ FDomainShaderRHIRef FD3D11DynamicRHI::RHICreateDomainShader(const TArray<uint8>&
 
 FDomainShaderRHIRef FD3D11DynamicRHI::CreateDomainShader_RenderThread(
 	class FRHICommandListImmediate& RHICmdList,
-	const TArray<uint8>& Code)
+	TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateDomainShader(Code);
+	return RHICreateDomainShader(Code, Hash);
 }
 
-FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(const TArray<uint8>& Code)
+FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D11PixelShader* Shader = new FD3D11PixelShader;
 
-	FMemoryReader Ar( Code, true );
+	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -252,18 +252,18 @@ FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(const TArray<uint8>& C
 
 FPixelShaderRHIRef FD3D11DynamicRHI::CreatePixelShader_RenderThread(
 	class FRHICommandListImmediate& RHICmdList,
-	const TArray<uint8>& Code)
+	TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreatePixelShader(Code);
+	return RHICreatePixelShader(Code, Hash);
 }
 
-FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(const TArray<uint8>& Code) 
+FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D11ComputeShader* Shader = new FD3D11ComputeShader;
 
-	FMemoryReader Ar( Code, true );
+	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -280,9 +280,9 @@ FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(const TArray<uint8
 
 FComputeShaderRHIRef FD3D11DynamicRHI::CreateComputeShader_RenderThread(
 	class FRHICommandListImmediate& RHICmdList,
-	const TArray<uint8>& Code)
+	TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateComputeShader(Code);
+	return RHICreateComputeShader(Code, Hash);
 }
 
 void FD3D11DynamicRHI::RHISetMultipleViewports(uint32 Count, const FViewportBounds* Data) 

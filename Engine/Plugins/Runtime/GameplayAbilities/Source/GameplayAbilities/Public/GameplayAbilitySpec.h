@@ -218,7 +218,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 	GENERATED_USTRUCT_BODY()
 
 	FGameplayAbilitySpec()
-		: Ability(nullptr), Level(1), InputID(INDEX_NONE), SourceObject(nullptr), ActiveCount(0), InputPressed(false), RemoveAfterActivation(false), PendingRemove(false)
+		: Ability(nullptr), Level(1), InputID(INDEX_NONE), SourceObject(nullptr), ActiveCount(0), InputPressed(false), RemoveAfterActivation(false), PendingRemove(false), bActivateOnce(false)
 	{ }
 
 	/** Version that takes an ability class */
@@ -265,6 +265,10 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 	/** Pending removal due to scope lock */
 	UPROPERTY(NotReplicated)
 	uint8 PendingRemove:1;
+
+	/** This ability should be activated once when it is granted. */
+	UPROPERTY(NotReplicated)
+	uint8 bActivateOnce : 1;
 
 	/** Activation state of this ability. This is not replicated since it needs to be overwritten locally on clients during prediction. */
 	UPROPERTY(NotReplicated)

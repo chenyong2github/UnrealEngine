@@ -25,11 +25,8 @@ struct FPlatformOpenGLContext;
 #define UGL_SUPPORTS_PIXELBUFFERS		1
 #define UGL_SUPPORTS_UNIFORMBUFFERS		1
 
-#ifndef OPENGL_ES2
-#define OPENGL_ES2	0
-#endif
-#ifndef OPENGL_ESDEFERRED
-#define OPENGL_ESDEFERRED	0
+#ifndef OPENGL_ES
+#define OPENGL_ES	0
 #endif
 #ifndef OPENGL_GL3
 #define OPENGL_GL3	0
@@ -177,7 +174,6 @@ public:
 	static FORCEINLINE bool AmdWorkaround()								{ return false; }
 	static FORCEINLINE bool SupportsSeparateShaderObjects()				{ return false; }
 	static FORCEINLINE bool NeedsVertexAttribRemapTable()				{ return false; }
-	static FORCEINLINE bool SupportsHDR32bppEncodeModeIntrinsic()		{ return false; }
 	static FORCEINLINE bool SupportsRGB10A2()							{ return true; }
 	static FORCEINLINE bool SupportsProgramBinary()						{ return false; }
 	

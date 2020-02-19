@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Gameplay Insights",
 	"Description": "Allows debugging of gameplay and animation systems via Unreal Insights",
-	"Category": "GameplayInsights",
+	"Category": "Insights",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
@@ -14,9 +14,18 @@
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
+	"SupportedPrograms": [ "UnrealInsights" ],
 	"Modules": [
 		{
 			"Name": "GameplayInsights",
+			"Type": "EditorAndProgram",
+			"LoadingPhase": "Default",
+			"WhitelistPrograms": [
+				"UnrealInsights"
+			]
+		},
+		{
+			"Name": "GameplayInsightsEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}

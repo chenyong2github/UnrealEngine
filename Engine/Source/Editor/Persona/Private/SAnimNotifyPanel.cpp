@@ -2562,6 +2562,7 @@ void SAnimNotifyTrack::CreateNewSyncMarkerAtCursor(FString NewSyncMarkerName, UC
 	SyncMarker.MarkerName = FName(*NewSyncMarkerName);
 	SyncMarker.TrackIndex = TrackIndex;
 	SyncMarker.Time = LastClickedTime;
+	SyncMarker.Guid = FGuid::NewGuid();
 
 	Seq->PostEditChange();
 	Seq->MarkPackageDirty();
@@ -4483,6 +4484,7 @@ void SAnimNotifyPanel::OnReplaceSelectedWithNotify(FString NewNotifyName, UClass
 			if ((OldEventPayload != nullptr) && (NewEvent.Notify != nullptr))
 			{
 				UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
+				CopyParams.bNotifyObjectReplacement = true;
 				UEngine::CopyPropertiesForUnrelatedObjects(OldEventPayload, NewEvent.Notify, CopyParams);
 			}
 

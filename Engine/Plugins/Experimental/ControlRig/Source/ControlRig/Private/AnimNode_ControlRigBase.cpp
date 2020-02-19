@@ -50,6 +50,7 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 	{
 		//Don't Inititialize the Control Rig here it may have the wrong VM on the CDO
 		SetTargetInstance(ControlRig);
+		ControlRig->RequestInit();
 	}
 }
 
@@ -89,6 +90,11 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 		FCSPose<FCompactPose> MeshPoses;
 		// first I need to convert to local pose
 		MeshPoses.InitPose(InOutput.Pose);
+
+		// reset transforms here to prevent additive transforms from accumulating to INF
+		// we only update transforms from the mesh pose for bones in the current LOD, 
+		// so the reset here ensures excluded bones are also reset
+		ControlRig->GetBoneHierarchy().ResetTransforms();
 
 		// @re-think - now control rig contains init pose from their default hierarchy and current pose from this instance.
 		// we may need this init pose somewhere (instance refpose)
@@ -293,6 +299,9 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 				ControlRigCurveMapping.Add(CurveNames[Index], Index);
 			}
 		}
+
+		// re-init when LOD changes
+		ControlRig->Execute(EControlRigState::Init);
 	}
 }
 

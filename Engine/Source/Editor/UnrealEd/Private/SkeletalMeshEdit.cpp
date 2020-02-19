@@ -990,9 +990,9 @@ bool UnFbx::FFbxImporter::ValidateAnimStack(TArray<FbxNode*>& SortedLinks, TArra
 	return bValidAnimStack;
 }
 
-bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& RichCurve, const FbxTimeSpan &AnimTimeSpan, const float ValueScale/*=1.f*/) const
+bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& RichCurve, const FbxTimeSpan &AnimTimeSpan, const float ValueScale/*=1.f*/, const bool bAutoSetTangents /*= true*/)
 {
-	static float DefaultCurveWeight = FbxAnimCurveDef::sDEFAULT_WEIGHT;
+	const float DefaultCurveWeight = FbxAnimCurveDef::sDEFAULT_WEIGHT;
 
 	if ( FbxCurve )
 	{
@@ -1013,8 +1013,8 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 
 			float LeaveTangent = 0.f; 
 			float ArriveTangent = 0.f;
-			float LeaveTangentWeight = 0.f;
-			float ArriveTangentWeight = 0.f;
+			float LeaveTangentWeight = DefaultCurveWeight;
+			float ArriveTangentWeight = DefaultCurveWeight;
 
 			switch (KeyInterpMode)
 			{
@@ -1044,70 +1044,68 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 				break;
 			}
 
-			// break or any other tangent mode doesn't work well with DCC
-			// it's because we don't support tangent weights, break with tangent weights won't work
-			// I added new ticket to support this, but meanwhile, we'll have to just import using auto. 
-			// @Todo: fix me: UE-20414
-			// when we import tangent, we only support break or user
-			// since it's modified by DCC and we only assume these two are valid
-			// auto does our own stuff, which doesn't work with what you see in DCC
-// 			if (KeyTangentMode & FbxAnimCurveDef::eTangentGenericBreak)
-// 			{
-// 				NewTangentMode = RCTM_Break;
-// 			}
-// 			else
-// 			{
-// 				NewTangentMode = RCTM_User;
-// 			}
+			//Gather if we want to use auto mode for tangent weight
+			bool bSetDefaultWeight = (KeyTangentMode & FbxAnimCurveDef::eTangentAuto);
+ 			if (KeyTangentMode & FbxAnimCurveDef::eTangentGenericBreak)
+ 			{
+ 				NewTangentMode = RCTM_Break;
+ 			}
+  			else if(KeyTangentMode & FbxAnimCurveDef::eTangentUser)
+  			{
+  				NewTangentMode = RCTM_User;
+  			}
+			//Anything else will be set to auto, we do not support eTangentTCB (Tension, Continuity, Bias)
 
-			// @fix me : weight of tangent is not used, but we'll just save this for future where we might use it. 
-			switch (KeyTangentWeightMode)
+			// @fix me : weight of tangent is not used, but we'll just save this for future where we might use it.
+			if (!bSetDefaultWeight)
 			{
-			case FbxAnimCurveDef::eWeightedNone://! Tangent has default weights of 0.333; we define this state as not weighted.
-				LeaveTangentWeight = ArriveTangentWeight = DefaultCurveWeight;
-				NewTangentWeightMode = RCTWM_WeightedNone;
-				break;
-			case FbxAnimCurveDef::eWeightedRight: //! Right tangent is weighted.
-				NewTangentWeightMode = RCTWM_WeightedLeave;
-				LeaveTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
-				ArriveTangentWeight = DefaultCurveWeight;
-				break;
-			case FbxAnimCurveDef::eWeightedNextLeft://! Left tangent is weighted.
-				NewTangentWeightMode = RCTWM_WeightedArrive;
-				LeaveTangentWeight = DefaultCurveWeight;
-				if ( KeyIndex > 0 )
+				switch (KeyTangentWeightMode)
 				{
-					FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex-1);
-					ArriveTangentWeight = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);
+				case FbxAnimCurveDef::eWeightedNone://! Tangent has default weights of 0.333; we define this state as not weighted.
+					LeaveTangentWeight = ArriveTangentWeight = DefaultCurveWeight;
+					NewTangentWeightMode = RCTWM_WeightedNone;
+					break;
+				case FbxAnimCurveDef::eWeightedRight: //! Right tangent is weighted.
+					NewTangentWeightMode = RCTWM_WeightedLeave;
+					LeaveTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
+					ArriveTangentWeight = DefaultCurveWeight;
+					break;
+				case FbxAnimCurveDef::eWeightedNextLeft://! Left tangent is weighted.
+					NewTangentWeightMode = RCTWM_WeightedArrive;
+					LeaveTangentWeight = DefaultCurveWeight;
+					if (KeyIndex > 0)
+					{
+						FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex - 1);
+						ArriveTangentWeight = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);
+					}
+					else
+					{
+						ArriveTangentWeight = 0.f;
+					}
+					break;
+				case FbxAnimCurveDef::eWeightedAll://! Both left and right tangents are weighted.
+					NewTangentWeightMode = RCTWM_WeightedBoth;
+					LeaveTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
+					if (KeyIndex > 0)
+					{
+						FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex - 1);
+						ArriveTangentWeight = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);
+					}
+					else
+					{
+						ArriveTangentWeight = 0.f;
+					}
+					break;
 				}
-				else
-				{
-					ArriveTangentWeight = 0.f;
-				}
-				break;
-			case FbxAnimCurveDef::eWeightedAll://! Both left and right tangents are weighted.
-				NewTangentWeightMode = RCTWM_WeightedBoth;
-				LeaveTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
-				if ( KeyIndex > 0 )
-				{
-					FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex-1);
-					ArriveTangentWeight = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);
-				}
-				else
-				{
-					ArriveTangentWeight = 0.f;
-				}
-				break;
 			}
 
-			RichCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode);
-			RichCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode);
-			RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode);
+			RichCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode, bAutoSetTangents);
+			RichCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode, bAutoSetTangents);
+			RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode, bAutoSetTangents);
 
 			FRichCurveKey& NewKey = RichCurve.GetKey(NewKeyHandle);
-			// apply 1/100 - that seems like the tangent unit difference with FBX
-			NewKey.ArriveTangent = ArriveTangent * 0.01f;
-			NewKey.LeaveTangent = LeaveTangent * 0.01f;
+			NewKey.ArriveTangent = ArriveTangent;
+			NewKey.LeaveTangent = LeaveTangent;
 			NewKey.ArriveTangentWeight = ArriveTangentWeight;
 			NewKey.LeaveTangentWeight = LeaveTangentWeight;
 		}

@@ -31,6 +31,13 @@ limitations under the License.
 extern "C" {
 #endif
 
+// The following macros are only defined when building in UE4
+#if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT || UE_BUILD_TEST || UE_BUILD_SHIPPING) && PLATFORM_ANDROID
+// OVRPlugin does not support Android system callbacks in UE4.
+// Please use Optional Mobile Features Blueprint Library Plugin or include FAndroidMisc.h in your project
+#define OVRPLUGIN_JNI_LIB_EXCLUDED
+#endif
+
 /// Initializes the Oculus display driver before graphics initialization, if applicable.
 OVRP_EXPORT ovrpResult ovrp_PreInitialize3(void* activity);
 
@@ -42,15 +49,15 @@ OVRP_EXPORT ovrpBool ovrp_GetInitialized();
 /// You must call this before any other function except ovrp_PreInitialize() or
 /// ovrp_GetInitialized().
 OVRP_EXPORT ovrpResult ovrp_Initialize5(
-  ovrpRenderAPIType apiType,
-  ovrpLogCallback logCallback,
-  void* activity,
-  void* vkInstance,
-  void* vkPhysicalDevice,
-  void* vkDevice,
-  void* vkQueue,
-  int initializeFlags,
-  OVRP_CONSTREF(ovrpVersion) version);
+    ovrpRenderAPIType apiType,
+    ovrpLogCallback logCallback,
+    void* activity,
+    void* vkInstance,
+    void* vkPhysicalDevice,
+    void* vkDevice,
+    void* vkQueue,
+    int initializeFlags,
+    OVRP_CONSTREF(ovrpVersion) version);
 
 /// Tears down the Oculus runtime, VR tracking, and graphics resources.
 OVRP_EXPORT ovrpResult ovrp_Shutdown2();
@@ -112,22 +119,26 @@ OVRP_EXPORT ovrpResult ovrp_SetupDistortionWindow3(int flags);
 /// Destroys the dedicated VR window.
 OVRP_EXPORT ovrpResult ovrp_DestroyDistortionWindow2();
 
-//Returns handedness as specified in the mobile device
+// Returns handedness as specified in the mobile device
 OVRP_EXPORT ovrpResult ovrp_GetDominantHand(ovrpHandedness* dominantHand);
 
 /// Used by System Activities application for setting the Remote Handedness.
 OVRP_EXPORT ovrpResult ovrp_SetRemoteHandedness(ovrpHandedness handedness);
 
-//Returns the recenter mode (i.e. what the HMD does when the controller recenters).
+// Returns the recenter mode (i.e. what the HMD does when the controller recenters).
 // If true, the HMD recenters on controller recenter, and if false, the HMD does nothing on controller recenter.
 OVRP_EXPORT ovrpResult ovrp_GetReorientHMDOnControllerRecenter(ovrpBool* recenter);
 
-//Sets the recenter mode on mobile, and returns unsupported on PC.
+// Sets the recenter mode on mobile, and returns unsupported on PC.
 OVRP_EXPORT ovrpResult ovrp_SetReorientHMDOnControllerRecenter(ovrpBool recenter);
 
-//Sets color scale parameters; can be used for effects like fade-to-black. Final pixel color will be multiplied by colorScale
-//and added to offset. If applyToAllLayers is false, this applies only for the eyefov layer. If it's true, it's for every layer submitted.
-OVRP_EXPORT ovrpResult ovrp_SetColorScaleAndOffset(const ovrpVector4f colorScale, const ovrpVector4f colorOffset, const ovrpBool applyToAllLayers);
+// Sets color scale parameters; can be used for effects like fade-to-black. Final pixel color will be multiplied by
+// colorScale and added to offset. If applyToAllLayers is false, this applies only for the eyefov layer. If it's true,
+// it's for every layer submitted.
+OVRP_EXPORT ovrpResult ovrp_SetColorScaleAndOffset(
+    const ovrpVector4f colorScale,
+    const ovrpVector4f colorOffset,
+    const ovrpBool applyToAllLayers);
 
 /// Creates a layer.
 /// The desc remains constant for the lifetime of the layer.
@@ -193,7 +204,7 @@ OVRP_EXPORT ovrpResult ovrp_CalculateEyeLayerDesc2(
     int mipLevels,
     int sampleCount,
     ovrpTextureFormat format,
-	ovrpTextureFormat depthFormat,
+    ovrpTextureFormat depthFormat,
     int layerFlags,
     ovrpLayerDesc_EyeFov* layerDesc);
 
@@ -267,7 +278,7 @@ OVRP_EXPORT ovrpResult ovrp_GetTrackingOrientationEnabled2(ovrpBool* trackingOri
 /// If true, head tracking affects the rotation reported by ovrp_GetEyePose.
 OVRP_EXPORT ovrpResult ovrp_SetTrackingOrientationEnabled2(ovrpBool trackingOrientationEnabled);
 
-/// If true, the HMD supports position tracking (e.g. a sensor is attached).
+/// If true, the HMD supports position tracking
 OVRP_EXPORT ovrpResult ovrp_GetTrackingPositionSupported2(ovrpBool* trackingPositionSupported);
 
 /// If true, head tracking affects the position reported by ovrp_GetEyePose.
@@ -321,7 +332,8 @@ OVRP_EXPORT ovrpResult ovrp_SetNodePositionTracked2(ovrpNode nodeId, ovrpBool no
 /// Gets the current pose, acceleration, and velocity of the given node on the given update cadence.
 OVRP_EXPORT ovrpResult ovrp_GetNodePoseState3(ovrpStep step, int frameIndex, ovrpNode nodeId, ovrpPoseStatef* nodePoseState);
 
-/// Gets the current pose, acceleration, and velocity of the given node on the given update cadence, without applying any modifier (e.g. HeadPoseModifier)
+/// Gets the current pose, acceleration, and velocity of the given node on the given update cadence, without applying
+/// any modifier (e.g. HeadPoseModifier)
 OVRP_EXPORT ovrpResult ovrp_GetNodePoseStateRaw(ovrpStep step, int frameIndex, ovrpNode nodeId, ovrpPoseStatef* nodePoseState);
 
 /// Gets the current frustum for the given node, if available.
@@ -381,7 +393,7 @@ OVRP_EXPORT ovrpResult ovrp_GetSystemPowerSavingMode2(ovrpBool* systemPowerSavin
 OVRP_EXPORT ovrpResult ovrp_GetSystemDisplayFrequency2(float* systemDisplayFrequency);
 
 /// Gets the available refresh rates of the HMD.
-OVRP_EXPORT ovrpResult ovrp_GetSystemDisplayAvailableFrequencies(float* systemDisplayAvailableFrequencies, int *arraySize);
+OVRP_EXPORT ovrpResult ovrp_GetSystemDisplayAvailableFrequencies(float* systemDisplayAvailableFrequencies, int* arraySize);
 
 /// Sets the refresh rate for the HMD
 OVRP_EXPORT ovrpResult ovrp_SetSystemDisplayFrequency(float requestedFrequency);
@@ -392,6 +404,9 @@ OVRP_EXPORT ovrpResult ovrp_GetSystemVSyncCount2(int* systemVSyncCount);
 /// Sets the minimum number of vsyncs to wait after each frame.
 OVRP_EXPORT ovrpResult ovrp_SetSystemVSyncCount2(int systemVSyncCount);
 
+/// OVRPlugin does not support Android system callbacks in UE4.
+/// Please use Optional Mobile Features Blueprint Library Plugin or include FAndroidMisc.h in your project
+#ifndef OVRPLUGIN_JNI_LIB_EXCLUDED
 /// Gets the current system volume level.
 OVRP_EXPORT ovrpResult ovrp_GetSystemVolume2(float* systemVolume);
 
@@ -406,6 +421,7 @@ OVRP_EXPORT ovrpResult ovrp_GetSystemBatteryLevel2(float* systemBatteryLevel);
 
 /// Gets the current battery temperature in degrees Celsius.
 OVRP_EXPORT ovrpResult ovrp_GetSystemBatteryTemperature2(float* systemBatteryTemperature);
+#endif
 
 /// Gets the current product name for the device, if available.
 OVRP_EXPORT ovrpResult ovrp_GetSystemProductName2(char const** systemProductName);
@@ -558,7 +574,11 @@ OVRP_EXPORT ovrpResult ovrp_GetGPUUtilLevel(float* gpuUtil);
 OVRP_EXPORT ovrpResult ovrp_SetThreadPerformance(int threadId, ovrpThreadPerf perf);
 
 /// This is specifically for Unity to fix Core Affinity wrong assignment.
-OVRP_EXPORT ovrpResult ovrp_AutoThreadScheduling(unsigned int bigCoreMaskFromEngine, unsigned int* threadIds, ovrpThreadPerf* threadPerfFlags, int threadCount);
+OVRP_EXPORT ovrpResult ovrp_AutoThreadScheduling(
+    unsigned int bigCoreMaskFromEngine,
+    unsigned int* threadIds,
+    ovrpThreadPerf* threadPerfFlags,
+    int threadCount);
 
 
 
@@ -567,7 +587,13 @@ OVRP_EXPORT ovrpResult ovrp_AutoThreadScheduling(unsigned int bigCoreMaskFromEng
 OVRP_EXPORT ovrpResult ovrp_GetGPUFrameTime(float* gpuTime);
 
 /// This is to request vertices and indices for the triangle mesh
-OVRP_EXPORT ovrpResult ovrp_GetViewportStencil(ovrpEye eyeId, ovrpViewportStencilType type, ovrpVector2f *vertices, int *vertexCount, ovrpUInt16 *indices, int *indexCount);
+OVRP_EXPORT ovrpResult ovrp_GetViewportStencil(
+    ovrpEye eyeId,
+    ovrpViewportStencilType type,
+    ovrpVector2f* vertices,
+    int* vertexCount,
+    ovrpUInt16* indices,
+    int* indexCount);
 
 OVRP_EXPORT ovrpResult ovrp_SendEvent(const char* eventName, const char* param);
 
@@ -601,7 +627,14 @@ OVRP_EXPORT ovrpResult ovrp_GetASWAdaptiveMode(ovrpBool* aswAdaptiveMode);
 OVRP_EXPORT ovrpResult ovrp_SetASWAdaptiveMode(ovrpBool aswAdaptiveMode);
 OVRP_EXPORT ovrpResult ovrp_IsRequestingASWData(ovrpBool* needASWData);
 
-OVRP_EXPORT ovrpResult ovrp_GetPredictedDisplayTime(int frameIndex, double *predictedDisplayTime);
+OVRP_EXPORT ovrpResult ovrp_GetPredictedDisplayTime(int frameIndex, double* predictedDisplayTime);
+
+OVRP_EXPORT ovrpResult ovrp_GetHandTrackingEnabled(ovrpBool* handTrackingEnabled);
+OVRP_EXPORT ovrpResult ovrp_GetHandState(ovrpStep step, ovrpHand hand, ovrpHandState* handState);
+OVRP_EXPORT ovrpResult ovrp_GetSkeleton(ovrpSkeletonType skeletonType, ovrpSkeleton* skeleton);
+OVRP_EXPORT ovrpResult ovrp_GetMesh(ovrpMeshType meshType, ovrpMesh* mesh);
+
+OVRP_EXPORT ovrpResult ovrp_GetLocalTrackingSpaceRecenterCount(int* recenterCount);
 
 #ifdef __cplusplus
 }

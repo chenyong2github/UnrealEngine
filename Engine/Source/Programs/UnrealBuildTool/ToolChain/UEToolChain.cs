@@ -2,10 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using System.Diagnostics;
 using System.IO;
-using Microsoft.Win32;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
@@ -79,6 +78,11 @@ namespace UnrealBuildTool
 		{
 		}
 
+		public virtual void PrepareRuntimeDependencies( List<RuntimeDependency> RuntimeDependencies, Dictionary<FileReference, FileReference> TargetFileToSourceFile, DirectoryReference ExeDir )
+		{
+			
+		}
+
 		/// <summary>
 		/// Adds a build product and its associated debug file to a receipt.
 		/// </summary>
@@ -119,8 +123,7 @@ namespace UnrealBuildTool
 		{
 			List<string> ISPCTargets = new List<string>();
 
-			if (Platform == UnrealTargetPlatform.Win32 ||
-				Platform == UnrealTargetPlatform.Win64 ||
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) ||
 				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxAArch64) ||
 				Platform == UnrealTargetPlatform.Mac)
 			{
@@ -158,7 +161,7 @@ namespace UnrealBuildTool
 		{
 			string ISPCOS = "";
 
-			if (Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64)
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows))
 			{
 				ISPCOS += "windows";
 			}
@@ -192,7 +195,7 @@ namespace UnrealBuildTool
 		{
 			string ISPCArch = "";
 
-			if (Platform == UnrealTargetPlatform.Win64 ||
+			if ((UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) && Platform != UnrealTargetPlatform.Win32) ||
 				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxAArch64) ||
 				Platform == UnrealTargetPlatform.Mac)
 			{
@@ -236,7 +239,7 @@ namespace UnrealBuildTool
 			string ISPCArchitecturePath = "";
 			string ExeExtension = ".exe";
 
-			if (Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32)
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows))
 			{
 				ISPCArchitecturePath = "Windows";
 			}
@@ -267,8 +270,7 @@ namespace UnrealBuildTool
 		{
 			string Suffix = "";
 
-			if (Platform == UnrealTargetPlatform.Win64 ||
-				Platform == UnrealTargetPlatform.Win32)
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows))
 			{
 				Suffix += ".obj";
 			}
@@ -312,7 +314,7 @@ namespace UnrealBuildTool
 				List<string> Arguments = new List<string>();
 
 				// Add the ISPC obj file as a prerequisite of the action.
-				Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
+				CompileAction.CommandArguments = String.Format("\"{0}\" ", ISPCFile.AbsolutePath);
 
 				// Add the ISPC h file to the produced item list.
 				FileItem ISPCIncludeHeaderFile = FileItem.GetItemByFileReference(
@@ -340,20 +342,20 @@ namespace UnrealBuildTool
 				}
 
 				// Build target triplet
-				Arguments.Add(String.Format("--target-os=\"{0}\"", GetISPCOSTarget(CompileEnvironment.Platform)));
-				Arguments.Add(String.Format("--arch=\"{0}\"", GetISPCArchTarget(CompileEnvironment.Platform, null)));
-				Arguments.Add(String.Format("--target=\"{0}\"", TargetString));
+				Arguments.Add(String.Format("--target-os={0}", GetISPCOSTarget(CompileEnvironment.Platform)));
+				Arguments.Add(String.Format("--arch={0}", GetISPCArchTarget(CompileEnvironment.Platform, null)));
+				Arguments.Add(String.Format("--target={0}", TargetString));
 
 				// PIC is needed for modular builds except on Windows
 				if ((CompileEnvironment.bIsBuildingDLL ||
 					CompileEnvironment.bIsBuildingLibrary) &&
-					(CompileEnvironment.Platform != UnrealTargetPlatform.Win32 &&
-					CompileEnvironment.Platform != UnrealTargetPlatform.Win64))
+					!UEBuildPlatform.IsPlatformInGroup(CompileEnvironment.Platform, UnrealPlatformGroup.Windows))
 				{
 					Arguments.Add("--pic");
 				}
 
 				// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
+				// Because ISPC response files don't support white space in arguments, paths with white space need to be passed to the command line directly.
 				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 				{
 					Arguments.Add(String.Format("-I\"{0}\"", IncludePath));
@@ -368,15 +370,18 @@ namespace UnrealBuildTool
 				// Generate the included header dependency list
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(ISPCFile.AbsolutePath) + ".d"));
-					Arguments.Add(String.Format("-M -MF \"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/')));
+					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(ISPCFile.AbsolutePath) + ".txt"));
+					Arguments.Add(String.Format("-MMM \"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/')));
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.ProducedItems.Add(DependencyListFile);
 				}
 
 				CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
 
-				CompileAction.CommandArguments = String.Join(" ", Arguments);
+				FileReference ResponseFileName = new FileReference(ISPCIncludeHeaderFile.AbsolutePath + ".response");
+				FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
+				CompileAction.CommandArguments += String.Format("@\"{0}\"", ResponseFileName);
+				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 
 				// Add the source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(ISPCFile);
@@ -529,8 +534,7 @@ namespace UnrealBuildTool
 				// PIC is needed for modular builds except on Windows
 				if ((CompileEnvironment.bIsBuildingDLL || 
 					CompileEnvironment.bIsBuildingLibrary) &&
-					(CompileEnvironment.Platform != UnrealTargetPlatform.Win32 &&
-					CompileEnvironment.Platform != UnrealTargetPlatform.Win64))
+					!UEBuildPlatform.IsPlatformInGroup(CompileEnvironment.Platform, UnrealPlatformGroup.Windows))
 				{
 					Arguments.Add("--pic");
 				}
@@ -556,7 +560,7 @@ namespace UnrealBuildTool
 				// Consume the included header dependency list
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(ISPCFile.AbsolutePath) + ".d"));
+					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(ISPCFile.AbsolutePath) + ".txt"));
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.PrerequisiteItems.Add(DependencyListFile);
 				}
@@ -564,7 +568,10 @@ namespace UnrealBuildTool
 				CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
 				Result.ObjectFiles.AddRange(CompiledISPCObjFiles);
 
-				CompileAction.CommandArguments = String.Join(" ", Arguments);
+				FileReference ResponseFileName = new FileReference(CompiledISPCObjFileNoISA.AbsolutePath + ".response");
+				FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
+				CompileAction.CommandArguments = " @\"" + ResponseFileName + "\"";
+				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 
 				// Add the source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(ISPCFile);

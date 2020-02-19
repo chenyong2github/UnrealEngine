@@ -246,6 +246,8 @@ FAutoConsoleVariableRef CVarUseOctreeForShadowCulling(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
+CSV_DECLARE_CATEGORY_EXTERN(LightCount);
+
 #if !UE_BUILD_SHIPPING
 // read and written on the render thread
 bool GDumpShadowSetup = false;
@@ -842,7 +844,7 @@ void FProjectedShadowInfo::AddCachedMeshDrawCommandsForPass(
 			const FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = InPrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
 			const FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[PassType];
 			const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
-					? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
+					? &Scene->CachedMeshDrawCommandStateBuckets[PassType].GetByElementId(CachedMeshDrawCommand.StateBucketId).Key
 					: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
 
 			FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
@@ -1049,7 +1051,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 			}
 		}
 
-		bool bOpaqueRelevance = false;
+		bool bOpaque = false;
 		bool bTranslucentRelevance = false;
 		bool bShadowRelevance = false;
 		bool bCustomDataRelevance = false;
@@ -1103,8 +1105,8 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 				ViewMask |= (1 << ViewIndex);
 			}
 
-			bOpaqueRelevance |= ViewRelevance.bOpaqueRelevance || ViewRelevance.bMaskedRelevance;
-			bTranslucentRelevance |= ViewRelevance.HasTranslucency() && !ViewRelevance.bMaskedRelevance;
+			bOpaque |= ViewRelevance.bOpaque || ViewRelevance.bMasked;
+			bTranslucentRelevance |= ViewRelevance.HasTranslucency() && !ViewRelevance.bMasked;
 			bShadowRelevance |= ViewRelevance.bShadowRelevance;
 			bCustomDataRelevance |= ViewRelevance.bUseCustomViewData;
 		}
@@ -1134,7 +1136,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 			}
 		}
 
-		if (bOpaqueRelevance && bShadowRelevance)
+		if (bOpaque && bShadowRelevance)
 		{
 			const FBoxSphereBounds& Bounds = Proxy->GetBounds();
 			bool bDrawingStaticMeshes = false;
@@ -1259,7 +1261,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 			ProjectionStencilingPasses.Add(FShadowMeshDrawCommandPass());
 			FShadowMeshDrawCommandPass& ProjectionStencilingPass = ProjectionStencilingPasses[ViewIndex];
 
-			FDynamicPassMeshDrawListContext ProjectionStencilingContext(DynamicMeshDrawCommandStorage, ProjectionStencilingPass.VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet);
+			FDynamicPassMeshDrawListContext ProjectionStencilingContext(DynamicMeshDrawCommandStorage, ProjectionStencilingPass.VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, NeedsShaderInitialisation);
 
 			FMeshPassProcessorRenderState DrawRenderState;
 			DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
@@ -1352,7 +1354,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 				}
 			}
 
-			ApplyViewOverridesToMeshDrawCommands(View, ProjectionStencilingPass.VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet);
+			ApplyViewOverridesToMeshDrawCommands(View, ProjectionStencilingPass.VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, NeedsShaderInitialisation);
 
 			// If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
 			// TODO: Support instanced stereo properly in the projection stenciling pass.
@@ -1747,7 +1749,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 	bool bShadowIsPotentiallyVisibleNextFrame = false;
 	bool bOpaqueShadowIsVisibleThisFrame = false;
 	bool bSubjectIsVisible = false;
-	bool bOpaqueRelevance = false;
+	bool bOpaque = false;
 	bool bTranslucentRelevance = false;
 	bool bTranslucentShadowIsVisibleThisFrame = false;
 	int32 NumBufferedFrames = FOcclusionQueryHelpers::GetNumBufferedFrames(FeatureLevel);
@@ -1799,7 +1801,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 		bOpaqueShadowIsVisibleThisFrame |= (bPrimitiveIsShadowRelevant && !bOpaqueShadowIsOccluded);
 		bTranslucentShadowIsVisibleThisFrame |= (bPrimitiveIsShadowRelevant && !bTranslucentShadowIsOccluded);
 		bShadowIsPotentiallyVisibleNextFrame |= bPrimitiveIsShadowRelevant;
-		bOpaqueRelevance |= ViewRelevance.bOpaqueRelevance;
+		bOpaque |= ViewRelevance.bOpaque;
 		bTranslucentRelevance |= ViewRelevance.HasTranslucency();
 	}
 
@@ -1967,7 +1969,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 			// Use the max resolution if the desired resolution is larger than that
 			const int32 SizeX = MaxDesiredResolution >= MaxShadowResolution ? MaxShadowResolution : (1 << (FMath::CeilLogTwo(MaxDesiredResolution) - 1));
 
-			if (bOpaqueRelevance && bCreateOpaqueObjectShadow && (bOpaqueShadowIsVisibleThisFrame || bShadowIsPotentiallyVisibleNextFrame))
+			if (bOpaque && bCreateOpaqueObjectShadow && (bOpaqueShadowIsVisibleThisFrame || bShadowIsPotentiallyVisibleNextFrame))
 			{
 				// Create a projected shadow for this interaction's shadow.
 				FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(),1,16) FProjectedShadowInfo;
@@ -2050,7 +2052,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 		// If the subject is visible in at least one view, create a preshadow for static primitives shadowing the subject.
 		if (MaxPreFadeAlpha > 1.0f / 256.0f 
 			&& bRenderPreShadow
-			&& bOpaqueRelevance
+			&& bOpaque
 			&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Round down to the nearest power of two so that resolution changes are always doubling or halving the resolution, which increases filtering stability.
@@ -2527,6 +2529,8 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 
 		if (MaxFadeAlpha > 1.0f / 256.0f)
 		{
+			Scene->FlushAsyncLightPrimitiveInteractionCreation();
+
 			for (int32 ShadowIndex = 0, ShadowCount = ProjectedShadowInitializers.Num(); ShadowIndex < ShadowCount; ShadowIndex++)
 			{
 				FWholeSceneProjectedShadowInitializer& ProjectedShadowInitializer = ProjectedShadowInitializers[ShadowIndex];
@@ -2667,7 +2671,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 							&& (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly || bCastCachedShadowFromMovablePrimitives))
 						{
 							// Add all the shadow casting primitives affected by the light to the shadow's subject primitive list.
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionOftenMovingPrimitiveList;
+							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false);
 								Interaction;
 								Interaction = Interaction->GetNextPrimitive())
 							{
@@ -2688,7 +2692,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						if (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly)
 						{
 							// Add all the shadow casting primitives affected by the light to the shadow's subject primitive list.
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionStaticPrimitiveList;
+							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false);
 								Interaction;
 								Interaction = Interaction->GetNextPrimitive())
 							{
@@ -3509,7 +3513,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 				const FVisibleLightViewInfo& VisibleLightViewInfo = View.VisibleLightInfos[LightSceneInfo->Id];
 				const FPrimitiveViewRelevance ViewRelevance = VisibleLightViewInfo.ProjectedShadowViewRelevanceMap[ShadowIndex];
 				const bool bHasViewRelevance = (ProjectedShadowInfo->bTranslucentShadow && ViewRelevance.HasTranslucency()) 
-					|| (!ProjectedShadowInfo->bTranslucentShadow && ViewRelevance.bOpaqueRelevance);
+					|| (!ProjectedShadowInfo->bTranslucentShadow && ViewRelevance.bOpaque);
 
 				bShadowIsVisible |= bHasViewRelevance && VisibleLightViewInfo.ProjectedShadowVisibilityMap[ShadowIndex];
 			}
@@ -4106,7 +4110,6 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 	const bool bProjectEnablePointLightShadows = Scene->ReadOnlyCVARCache.bEnablePointLightShadows;
 	uint32 NumPointShadowCachesUpdatedThisFrame = 0;
 	uint32 NumSpotShadowCachesUpdatedThisFrame = 0;
-	uint32 NumInteractionShadows = 0;
 
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> PreShadows;
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> ViewDependentWholeSceneShadows;
@@ -4209,23 +4212,23 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 
 						if( !bMobile || (LightSceneInfo->Proxy->CastsModulatedShadows() && !LightSceneInfo->Proxy->UseCSMForDynamicObjects()))
 						{
+							Scene->FlushAsyncLightPrimitiveInteractionCreation();
+
 							// Look for individual primitives with a dynamic shadow.
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionOftenMovingPrimitiveList;
+							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false);
 								Interaction;
 								Interaction = Interaction->GetNextPrimitive()
 								)
 							{
 								SetupInteractionShadows(RHICmdList, Interaction, VisibleLightInfo, bStaticSceneOnly, ViewDependentWholeSceneShadows, PreShadows);
-								NumInteractionShadows++;
 							}
 
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionStaticPrimitiveList;
+							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false);
 								Interaction;
 								Interaction = Interaction->GetNextPrimitive()
 								)
 							{
 								SetupInteractionShadows(RHICmdList, Interaction, VisibleLightInfo, bStaticSceneOnly, ViewDependentWholeSceneShadows, PreShadows);
-								NumInteractionShadows++;
 							}
 						}
 					}
@@ -4233,8 +4236,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 			}
 		}
 
-		CSV_CUSTOM_STAT_GLOBAL(ShadowTotalLightUpdated, float(NumPointShadowCachesUpdatedThisFrame + NumSpotShadowCachesUpdatedThisFrame), ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT_GLOBAL(ShadowInteractionShadowsCount, float(NumInteractionShadows), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(LightCount, UpdatedShadowMaps, float(NumPointShadowCachesUpdatedThisFrame + NumSpotShadowCachesUpdatedThisFrame), ECsvCustomStatOp::Set);
 
 		// Calculate visibility of the projected shadows.
 		InitProjectedShadowVisibility(RHICmdList);

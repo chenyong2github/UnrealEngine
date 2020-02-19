@@ -7,6 +7,7 @@
 #include "Animation/AnimMontage.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectThreadContext.h"
 #include "Animation/AssetMappingTable.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimInstance.h"
@@ -16,6 +17,7 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Engine/Engine.h"
+#include "Animation/AnimTrace.h"
 
 DEFINE_LOG_CATEGORY(LogAnimMontage);
 
@@ -596,7 +598,12 @@ void UAnimMontage::RefreshCacheData()
 	// This gets called whenever notifies are modified in the editor, so refresh our branch list
 	RefreshBranchingPointMarkers();
 #if WITH_EDITOR
-	PropagateChanges();
+	if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+	{
+		// This is not needed during post load (as the child montages themselves will handle
+		// updating and calling it can cause deterministic cooking issues depending on load order
+		PropagateChanges();
+	}
 #endif // WITH_EDITOR
 }
 
@@ -1476,6 +1483,7 @@ void FAnimMontageInstance::Terminate()
 		{
 			FAnimNotifyEvent& NotifyEvent = ActiveStateBranchingPoints[Index];
 			FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
+			TRACE_ANIM_NOTIFY(Inst, NotifyEvent, End);
 			NotifyEvent.NotifyStateClass->BranchingPointNotifyEnd(BranchingPointNotifyPayload);
 		}
 		ActiveStateBranchingPoints.Empty();
@@ -2329,6 +2337,13 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 		}
 	}
 
+#if ANIM_TRACE_ENABLED
+	for(const FPassedMarker& PassedMarker : MarkersPassedThisTick)
+	{
+		TRACE_ANIM_SYNC_MARKER(AnimInstance.Get(), PassedMarker);
+	}
+#endif
+
 	// If this Montage has no weight, it should be terminated.
 	if (IsStopped() && (Blend.IsComplete()))
 	{
@@ -2415,6 +2430,7 @@ void FAnimMontageInstance::UpdateActiveStateBranchingPoints(float CurrentTrackPo
 			if (!bNotifyIsActive)
 			{
 				FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
+				TRACE_ANIM_NOTIFY(AnimInstance.Get(), NotifyEvent, End);
 				NotifyEvent.NotifyStateClass->BranchingPointNotifyEnd(BranchingPointNotifyPayload);
 				ActiveStateBranchingPoints.RemoveAt(Index, 1);
 			}
@@ -2433,6 +2449,7 @@ void FAnimMontageInstance::UpdateActiveStateBranchingPoints(float CurrentTrackPo
 			if (bNotifyIsActive && !ActiveStateBranchingPoints.Contains(NotifyEvent))
 			{
 				FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
+				TRACE_ANIM_NOTIFY(AnimInstance.Get(), NotifyEvent, Begin);
 				NotifyEvent.NotifyStateClass->BranchingPointNotifyBegin(BranchingPointNotifyPayload);
 				ActiveStateBranchingPoints.Add(NotifyEvent);
 			}
@@ -2469,12 +2486,14 @@ void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarke
 				if (BranchingPointMarker->NotifyEventType == EAnimNotifyEventType::Begin)
 				{
 					FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, NotifyEvent, InstanceID);
+					TRACE_ANIM_NOTIFY(AnimInstance.Get(), *NotifyEvent, Begin);
 					NotifyEvent->NotifyStateClass->BranchingPointNotifyBegin(BranchingPointNotifyPayload);
 					ActiveStateBranchingPoints.Add(*NotifyEvent);
 				}
 				else
 				{
 					FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, NotifyEvent, InstanceID);
+					TRACE_ANIM_NOTIFY(AnimInstance.Get(), *NotifyEvent, End);
 					NotifyEvent->NotifyStateClass->BranchingPointNotifyEnd(BranchingPointNotifyPayload);
 					ActiveStateBranchingPoints.RemoveSingleSwap(*NotifyEvent);
 				}
@@ -2484,6 +2503,7 @@ void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarke
 			{
 				// Implemented notify: just call Notify. UAnimNotify will forward this to the event which will do the work.
 				FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, NotifyEvent, InstanceID);
+				TRACE_ANIM_NOTIFY(AnimInstance.Get(), *NotifyEvent, Event);
 				NotifyEvent->Notify->BranchingPointNotify(BranchingPointNotifyPayload);
 			}
 			// Try to match a notify function by name.

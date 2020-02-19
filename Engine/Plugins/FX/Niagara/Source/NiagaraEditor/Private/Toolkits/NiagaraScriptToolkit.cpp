@@ -4,14 +4,14 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraScript.h"
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraObjectSelection.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraScriptOutputCollectionViewModel.h"
-#include "SNiagaraScriptGraph.h"
-#include "SNiagaraSelectedObjectsDetails.h"
+#include "Widgets/SNiagaraScriptGraph.h"
+#include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "SNiagaraParameterCollection.h"
 #include "UObject/Package.h"
 #include "SNiagaraParameterMapView.h"
@@ -341,13 +341,6 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptDetails(const FSpawnTa
 	TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 	DetailsView->OnFinishedChangingProperties().AddRaw(this, &FNiagaraScriptToolkit::OnEditedScriptPropertyFinishedChanging);
-	DetailsView->RegisterInstancedCustomPropertyLayout(
-		UNiagaraScript::StaticClass(),
-		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptDetails::MakeInstance, ScriptViewModelWeakPtr));
-	DetailsView->RegisterInstancedCustomPropertyTypeLayout(
-		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));
-	
 	DetailsView->SetObjects(DetailsScriptSelection->GetSelectedObjects().Array());
 
 	return SNew(SDockTab)

@@ -830,9 +830,7 @@ namespace DatasmithImporterImpl
 					TextureParametersToConvertMap.Add(BaseMaterial, FMaterialParameterInfo());
 
 					//If no unsupported virtual texture parameters were found, it's possible that a texture needing conversion is simply not exposed as a parameter, so we still need to check for those.
-					TArray<UObject*> ReferencedTextures;
-					BaseMaterial->AppendReferencedTextures(ReferencedTextures);
-					for (UObject* ReferencedTexture : ReferencedTextures)
+					for (UObject* ReferencedTexture : BaseMaterial->GetCachedExpressionData().ReferencedTextures)
 					{
 						if (VirtualTexturesToConvert.Contains(Cast<UTexture2D>(ReferencedTexture)))
 						{
@@ -2389,10 +2387,10 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		if (UMaterial* SourceMaterial = Cast< UMaterial >(SourceMaterialInterface))
 		{
-			SourceMaterial->RebuildExpressionTextureReferences();
-			
+			SourceMaterial->UpdateCachedExpressionData();
+
 			TArray<UObject*> ReferencedTextures;
-			SourceMaterial->AppendReferencedTextures(ReferencedTextures);
+			ReferencedTextures = SourceMaterial->GetReferencedTextures();
 			for (UTexture2D* VirtualTexture : ImportContext.AssetsContext.VirtualTexturesToConvert)
 			{
 				if (ReferencedTextures.Contains(VirtualTexture))
@@ -2402,7 +2400,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 				}
 			}
 
-			for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
+			for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)
 			{
 				if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
 				{

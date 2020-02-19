@@ -23,6 +23,9 @@ private:
 	static void OnDeviceReality_Handler(void* ApplicationContext);
 	static void OnDeviceStandby_Handler(void* ApplicationContext);
 
+	static void OnFocusLost_Handler(void* ApplicationContext, MLLifecycleFocusLostReason reason);
+	static void OnFocusGained_Handler(void* ApplicationContext);
+
 	static void OnFEngineLoopInitComplete_Handler();
 
 private:

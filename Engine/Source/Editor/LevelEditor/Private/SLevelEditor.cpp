@@ -106,12 +106,7 @@ void SLevelEditor::BindCommands()
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::CreateBlankBlueprintClass ) );
 
 	LevelEditorCommands->MapAction(
-		Actions.ConvertSelectionToBlueprintViaHarvest,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::HarvestSelectedActorsIntoBlueprintClass ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::CanHarvestSelectedActorsIntoBlueprintClass ) );
-
-	LevelEditorCommands->MapAction(
-		Actions.ConvertSelectionToBlueprintViaSubclass,
+		Actions.ConvertSelectionToBlueprint,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ConvertSelectedActorsIntoBlueprintClass ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::CanConvertSelectedActorsIntoBlueprintClass ) );
 
@@ -1706,6 +1701,17 @@ TSharedRef<SWidget> SLevelEditor::CreateActorDetails( const FName TabIdentifier 
 	return ActorDetails;
 }
 
+
+void SLevelEditor::SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization)
+{
+	for (TWeakPtr<SActorDetails> Details : AllActorDetailPanels)
+	{
+		if (TSharedPtr<SActorDetails> DetailsPinned = Details.Pin())
+		{
+			DetailsPinned->SetActorDetailsRootCustomization(ActorDetailsObjectFilter, ActorDetailsRootCustomization);
+		}
+	}
+}
 
 TSharedRef<SWidget> SLevelEditor::CreateToolBox()
 {

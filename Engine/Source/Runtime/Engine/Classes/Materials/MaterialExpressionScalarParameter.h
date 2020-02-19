@@ -47,7 +47,7 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 	//~ End UMaterialExpression Interface
 
 	/** Return whether this is the named parameter, and fill in its value */
-	bool IsNamedParameter(const FMaterialParameterInfo& ParameterInfo, float& OutValue) const;
+	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue) const;
 
 #if WITH_EDITOR
 	bool SetParameterValue(FName InParameterName, float InValue);

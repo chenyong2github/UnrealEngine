@@ -34,6 +34,7 @@ public class ResonanceAudio : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "AudioMixer",
+				"SoundFieldRendering",
                 "ProceduralMeshComponent",
             }
         );
@@ -52,7 +53,8 @@ public class ResonanceAudio : ModuleRules
                 "InputCore",
                 "Projects",
                 "AudioMixer",
-                "ProceduralMeshComponent"
+                "ProceduralMeshComponent",
+                "AudioExtensions"
             }
         );
 

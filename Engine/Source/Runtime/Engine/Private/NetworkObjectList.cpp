@@ -21,7 +21,7 @@ void FNetworkObjectList::AddInitialObjects(UWorld* const World, UNetDriver* NetD
 	for (FActorIterator Iter(World); Iter; ++Iter)
 	{
 		AActor* Actor = *Iter;
-		if (Actor != nullptr && !Actor->IsPendingKill() && ULevel::IsNetActor(Actor))
+		if (Actor != nullptr && !Actor->IsPendingKill() && ULevel::IsNetActor(Actor) && !UNetDriver::IsDormInitialStartupActor(Actor))
 		{
 			FindOrAdd(Actor, NetDriver);
 		}

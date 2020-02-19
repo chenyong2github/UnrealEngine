@@ -32,7 +32,12 @@ groupshared uint PageIndexOffsets[MAX_INSTANCE_GROUP_COUNT];
 void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint MacroGroupId = DispatchThreadId.x;
-	FHairAABB Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+
+	FHairAABB Bound = InitHairAABB();
+	if (MacroGroupId < MacroGroupCount)
+	{
+		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	}
 
 	// Page index allocation
 	int3 PageIndexResolution = 0;
@@ -61,9 +66,17 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 		GroupMemoryBarrierWithGroupSync();
 
-		const uint PageIndexOffset = PageIndexOffsets[MacroGroupId];
-		OutPageIndexResolutionAndOffsetBuffer[MacroGroupId] = uint4(PageIndexResolution, PageIndexOffset);
-		WriteHairAABB(MacroGroupId, Bound, MacroGroupAABBBuffer);
+		if (MacroGroupId < MacroGroupCount)
+		{
+			const uint PageIndexOffset = PageIndexOffsets[MacroGroupId];
+			OutPageIndexResolutionAndOffsetBuffer[MacroGroupId] = uint4(PageIndexResolution, PageIndexOffset);
+			WriteHairAABB(MacroGroupId, Bound, MacroGroupAABBBuffer);
+		}
+	}
+
+	if (MacroGroupId >= MacroGroupCount)
+	{
+		return;
 	}
 
 	// Use CPU data, which allow to compare the GPU driven part with CPU data

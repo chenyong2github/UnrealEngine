@@ -110,7 +110,7 @@ public:
 
 	virtual TSharedPtr<IAnalyticsProviderET> GetAnalyticsProvider() const { return TSharedPtr<IAnalyticsProviderET>(); }
 
-	virtual void StartPersistentStatTrackingSession(const FString& SessionName, const TArray<FName>& RequiredBundles = TArray<FName>(), const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false) {}
-	virtual void StopPersistentStatTrackingSession(const FString& SessionName) {}
+	virtual void StartSessionPersistentStatTracking(const FString& SessionName, const TArray<FName>& RequiredBundles = TArray<FName>(), const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false, const FInstallBundleCombinedContentState* State = nullptr) {}
+	virtual void StopSessionPersistentStatTracking(const FString& SessionName) {}
 };
 

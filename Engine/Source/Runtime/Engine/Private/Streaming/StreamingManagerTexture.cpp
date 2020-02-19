@@ -31,7 +31,7 @@ CSV_DEFINE_CATEGORY(TextureStreaming, true);
 
 static TAutoConsoleVariable<int32> CVarStreamingOverlapAssetAndLevelTicks(
 	TEXT("r.Streaming.OverlapAssetAndLevelTicks"),
-	!WITH_EDITOR && (PLATFORM_PS4 || PLATFORM_XBOXONE),
+	!WITH_EDITOR && (PLATFORM_PS4),
 	TEXT("Ticks render asset streaming info on a high priority task thread while ticking levels on GT"),
 	ECVF_Default);
 
@@ -134,7 +134,7 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FRenderAssetStreamingManager::OnPreGarbageCollect);
 
-	FCoreDelegates::OnPakFileMounted.AddRaw(this, &FRenderAssetStreamingManager::OnPakFileMounted);
+	FCoreDelegates::OnPakFileMounted2.AddRaw(this, &FRenderAssetStreamingManager::OnPakFileMounted);
 }
 
 FRenderAssetStreamingManager::~FRenderAssetStreamingManager()
@@ -189,7 +189,7 @@ void FRenderAssetStreamingManager::OnPreGarbageCollect()
 
 
 
-void FRenderAssetStreamingManager::OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId)
+void FRenderAssetStreamingManager::OnPakFileMounted(const IPakFile& PakFile)
 {
 	// clear the cached file exists checks which failed as they may now be loaded
 	bNewFilesLoaded = true;

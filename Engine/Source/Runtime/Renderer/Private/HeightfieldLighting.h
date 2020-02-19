@@ -148,6 +148,7 @@ extern FRHIShaderResourceView* GetHeightfieldDescriptionsSRV();
 
 class FHeightfieldDescriptionParameters
 {
+	DECLARE_TYPE_LAYOUT(FHeightfieldDescriptionParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -170,12 +171,15 @@ public:
 	}
 
 private:
-	FShaderResourceParameter HeightfieldDescriptions;
-	FShaderParameter NumHeightfields;
+	
+		LAYOUT_FIELD(FShaderResourceParameter, HeightfieldDescriptions)
+		LAYOUT_FIELD(FShaderParameter, NumHeightfields)
+	
 };
 
 class FHeightfieldTextureParameters
 {
+	DECLARE_TYPE_LAYOUT(FHeightfieldTextureParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -224,10 +228,12 @@ public:
 	}
 
 private:
-	FShaderResourceParameter HeightfieldTexture;
-	FShaderResourceParameter HeightfieldSampler;
-	FShaderResourceParameter DiffuseColorTexture;
-	FShaderResourceParameter DiffuseColorSampler;
-	FShaderResourceParameter VisibilityTexture;
-	FShaderResourceParameter VisibilitySampler;
+	
+		LAYOUT_FIELD(FShaderResourceParameter, HeightfieldTexture)
+		LAYOUT_FIELD(FShaderResourceParameter, HeightfieldSampler)
+		LAYOUT_FIELD(FShaderResourceParameter, DiffuseColorTexture)
+		LAYOUT_FIELD(FShaderResourceParameter, DiffuseColorSampler)
+		LAYOUT_FIELD(FShaderResourceParameter, VisibilityTexture)
+		LAYOUT_FIELD(FShaderResourceParameter, VisibilitySampler)
+	
 };

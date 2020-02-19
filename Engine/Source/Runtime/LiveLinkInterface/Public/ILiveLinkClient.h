@@ -16,6 +16,7 @@ class ILiveLinkSource;
 class ULiveLinkRole;
 struct FLiveLinkSubjectFrameData;
 struct FTimecode;
+class ULiveLinkSourceSettings;
 
 DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSourceChangedDelegate, FGuid /*SourceGuid*/);
 DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSubjectChangedDelegate, FLiveLinkSubjectKey /*SubjectKey*/);
@@ -235,15 +236,15 @@ public:
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(const FLiveLinkSubjectKey& SubjectKey) const = 0;
 
 	/**
+	 * Get the Settings of this source.
+	 */
+	virtual ULiveLinkSourceSettings* GetSourceSettings(const FGuid& SourceKey) const = 0;
+
+	/**
 	 * Get the time of all the frames for a source.
 	 * @note Use for debugging purposes.
 	 */
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(FLiveLinkSubjectName SubjectName) const = 0;
-
-	/**
-	 * Get the Settings of this source.
-	 */
-	virtual ULiveLinkSourceSettings* GetSourceSettings(const FGuid& SourceKey) const = 0;
 
 	/**
 	 * Get the Settings of this subject.
@@ -293,6 +294,11 @@ public:
 
 	/** Notify when the LiveLinkClient has ticked. */
 	virtual FSimpleMulticastDelegate& OnLiveLinkTicked() = 0;
+	/**
+	* Performs an internal Tick(). This is to be used when we want to run live link outside of the normal engine tick workflow,
+	* for example when we need to export data that requires live link evaluation during the export process.
+	*/
+	virtual void ForceTick() = 0;
 
 	/** Notify when the list of sources has changed. */
 	virtual FSimpleMulticastDelegate& OnLiveLinkSourcesChanged() = 0;

@@ -134,6 +134,7 @@ public:
 
 	void EnsurePacketIsVisible(const int InPacketIndex);
 	void SetSelectedPacket(const int32 InPacketIndex);
+	void SelectPacketBySequenceNumber(const uint32 InSequenceNumber);
 	void SelectPreviousPacket();
 	void SelectNextPacket();
 	void ExtendLeftSideOfSelectedInterval();

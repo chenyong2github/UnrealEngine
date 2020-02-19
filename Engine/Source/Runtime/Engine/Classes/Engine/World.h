@@ -22,7 +22,7 @@
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "Particles/WorldPSCPool.h"
 #include "Containers/SortedMap.h"
-
+#include "AudioDeviceManager.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
 
@@ -790,13 +790,13 @@ struct FStreamingLevelsToConsider
 		: bStreamingLevelsBeingConsidered(false)
 	{}
 
+private:
+
 	/** Priority sorted array of streaming levels actively being considered. */
 	UPROPERTY()
 	TArray<FLevelStreamingWrapper> StreamingLevels;
 
-private:
-
-	enum class EProcessReason
+	enum class EProcessReason : uint8
 	{
 		Add,
 		Reevaluate
@@ -816,6 +816,8 @@ private:
 
 public:
 
+	const TArray<FLevelStreamingWrapper>& GetStreamingLevels() const { return StreamingLevels; }
+
 	void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	void BeginConsideration();
@@ -826,6 +828,9 @@ public:
 
 	/* Remove an element from the container. */
 	bool Remove(ULevelStreaming* StreamingLevel);
+
+	/* Remove the element at a given index from the container. */
+	void RemoveAt(int32 Index);
 
 	/* Returns if an element is in the container. */
 	bool Contains(ULevelStreaming* StreamingLevel) const;
@@ -1004,7 +1009,7 @@ public:
 
 private:
 	/** DefaultPhysicsVolume used for whole game **/
-	UPROPERTY()
+	UPROPERTY(Transient)
 	APhysicsVolume*								DefaultPhysicsVolume;
 
 public:
@@ -1188,7 +1193,7 @@ private:
 public:
 
 	/** Handle to the active audio device for this world. */
-	uint32 AudioDeviceHandle;
+	FAudioDeviceHandle AudioDeviceHandle;
 
 #if WITH_EDITOR
 	/** Hierarchical LOD System. Used when WorldSetting.bEnableHierarchicalLODSystem is true */
@@ -2425,7 +2430,7 @@ public:
 	 * @param	bRerunConstructionScripts	If we should rerun construction scripts on actors
 	 * @param	bCurrentLevelOnly			If true, affect only the current level.
 	 */
-	void UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly);
+	void UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly, FRegisterComponentContext* Context = nullptr);
 
 	/**
 	 * Updates cull distance volumes for a specified component or a specified actor or all actors
@@ -2925,6 +2930,9 @@ public:
 	// Destroys the current demo net driver
 	void DestroyDemoNetDriver();
 
+	// Remove internal references to pending demo net driver when starting a replay, but do not destroy it
+	void ClearDemoNetDriver();
+
 	/** Returns true if we are currently playing a replay */
 	bool IsPlayingReplay() const;
 
@@ -3166,7 +3174,7 @@ public:
 	 * @param InURL commandline URL
 	 * @param bResetTime (optional) whether the WorldSettings's TimeSeconds should be reset to zero
 	 */
-	void InitializeActorsForPlay(const FURL& InURL, bool bResetTime = true);
+	void InitializeActorsForPlay(const FURL& InURL, bool bResetTime = true, FRegisterComponentContext* Context = nullptr);
 
 	/**
 	 * Start gameplay. This will cause the game mode to transition to the correct state and call BeginPlay on all actors
@@ -3306,18 +3314,20 @@ public:
 	 */
 	class AAudioVolume* GetAudioSettings( const FVector& ViewLocation, struct FReverbSettings* OutReverbSettings, struct FInteriorSettings* OutInteriorSettings );
 
-	/** Returns the audio device handle for this world.*/
-	uint32 GetAudioDeviceHandle() const { return AudioDeviceHandle; }
-
-	/** Sets the audio device handle to the active audio device for this world.*/
-	void SetAudioDeviceHandle(const uint32 InAudioDeviceHandle);
+	void SetAudioDevice(FAudioDeviceHandle& InHandle);
 
 	/**
-	* Returns the audio device associated with this world, or returns the main audio device if there is none.
+	 * Get the audio device used by this world.
+	 */
+	FAudioDeviceHandle GetAudioDevice();
+
+	/**
+	* Returns the audio device associated with this world.
+	* Lifecycle of the audio device is not guaranteed unless you used GetAudioDevice().
 	*
 	* @return Audio device to use with this world.
 	*/
-	class FAudioDevice* GetAudioDevice();
+	class FAudioDevice* GetAudioDeviceRaw();
 
 	/** Return the URL of this level on the local machine. */
 	virtual FString GetLocalURL() const;

@@ -4,6 +4,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/TracingProfiler.h"
 #include "RenderCore.h"
+#include "GpuProfilerTrace.h"
+#include "GPUProfiler.h"
 
 // Only exposed for debugging. Disabling this carries a severe performance penalty
 #define RENDER_QUERY_POOLING_ENABLED 1
@@ -252,6 +254,47 @@ private:
 #endif
 };
 
+#if GPUPROFILERTRACE_ENABLED
+void TraverseEventTree(
+	const TArray<FRealtimeGPUProfilerEvent, TInlineAllocator<100u>>& GpuProfilerEvents,
+	const TArray<TArray<int32>>& GpuProfilerEventChildrenIndices,
+	int32 Root,
+	const uint64 GPUTimestampOffset)
+{
+	uint64 lastStartTime = 0;
+	uint64 lastEndTime = 0;
+
+	uint64 RootStartTime = 0;
+	uint64 RootEndTime = 0;
+
+	if (Root != 0)
+	{
+		FGpuProfilerTrace::SpecifyEventByName(GpuProfilerEvents[Root].GetName());
+		FGpuProfilerTrace::BeginEventByName(GpuProfilerEvents[Root].GetName(), GpuProfilerEvents[Root].GetFrameNumber(), GpuProfilerEvents[Root].GetStartResultMicroseconds() + GPUTimestampOffset);
+	}
+
+	for (int32 Subroot : GpuProfilerEventChildrenIndices[Root])
+	{
+		check(GpuProfilerEvents[Subroot].GetStartResultMicroseconds() >= lastEndTime);
+		lastStartTime = GpuProfilerEvents[Subroot].GetStartResultMicroseconds();
+		lastEndTime = GpuProfilerEvents[Subroot].GetEndResultMicroseconds();
+		check(lastStartTime <= lastEndTime);
+		if (Root != 0)
+		{
+			check(lastStartTime >= GpuProfilerEvents[Root].GetStartResultMicroseconds());
+			check(lastEndTime <= GpuProfilerEvents[Root].GetEndResultMicroseconds());
+		}
+		TraverseEventTree(GpuProfilerEvents, GpuProfilerEventChildrenIndices, Subroot, GPUTimestampOffset);
+	}
+
+	if (Root != 0)
+	{
+		FGpuProfilerTrace::SpecifyEventByName(GpuProfilerEvents[Root].GetName());
+		FGpuProfilerTrace::EndEvent(GpuProfilerEvents[Root].GetEndResultMicroseconds() + GPUTimestampOffset);
+	}
+}
+#endif
+
 /*-----------------------------------------------------------------------------
 FRealtimeGPUProfilerFrame class
 Container for a single frame's GPU stats
@@ -437,6 +480,25 @@ public:
 			CsvProfiler->RecordCustomStat(CSV_STAT_FNAME(Total), CSV_CATEGORY_INDEX(GPU), TotalUs / 1000.f, ECsvCustomStatOp::Set);
 		}
 #endif
+
+#if GPUPROFILERTRACE_ENABLED
+		TArray<TArray<int32>> GpuProfilerEventChildrenIndices;
+		GpuProfilerEventChildrenIndices.AddDefaulted(GpuProfilerEvents.Num());
+		for (int32 EventIdx = 1; EventIdx < GpuProfilerEventParentIndices.Num(); ++EventIdx)
+		{
+			const int32 ParentIdx = GpuProfilerEventParentIndices[EventIdx];
+
+			GpuProfilerEventChildrenIndices[ParentIdx].Add(EventIdx);
+		}
+
+		FGPUTimingCalibrationTimestamp CalibrationTimestamp = FGPUTiming::GetCalibrationTimestamp();
+		const uint64 GPUTimeOffset = CalibrationTimestamp.CPUMicroseconds - CalibrationTimestamp.GPUMicroseconds;
+
+		FGpuProfilerTrace::BeginFrame();
+		TraverseEventTree(GpuProfilerEvents, GpuProfilerEventChildrenIndices, 0, GPUTimeOffset);
+		FGpuProfilerTrace::EndFrame();
+#endif
+
 		return true;
 	}
 

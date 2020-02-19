@@ -7,6 +7,7 @@
 
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/DebugDrawQueue.h"
+#include "Chaos/Joint/ChaosJointLog.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
@@ -18,7 +19,7 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 
-//#pragma optimize("", off)
+//PRAGMA_DISABLE_OPTIMIZATION
 
 DECLARE_CYCLE_STAT(TEXT("FSimulation::Simulate_Chaos"), STAT_ImmediateSimulate_Chaos, STATGROUP_ImmediatePhysics);
 
@@ -57,7 +58,7 @@ int32 ChaosImmediate_Joint_PairIterations = -1;
 int32 ChaosImmediate_Joint_PushOutPairIterations = -1;
 float ChaosImmediate_Joint_SwingTwistAngleTolerance = 1.0e-6f;
 float ChaosImmediate_Joint_PositionTolerance = 0.05f;
-float ChaosImmediate_Joint_AngleTolerance = 0.01f;
+float ChaosImmediate_Joint_AngleTolerance = 0.001f;
 int32 ChaosImmediate_Joint_EnableTwistLimits = 1;
 int32 ChaosImmediate_Joint_EnableSwingLimits = 1;
 int32 ChaosImmediate_Joint_EnableDrives = 1;
@@ -99,6 +100,16 @@ FAutoConsoleVariableRef CVarChaosImmPhysJointAngularDriveDamping(TEXT("p.Chaos.I
 FAutoConsoleVariableRef CVarChaosImmPhysJointMinParentMassRatio(TEXT("p.Chaos.ImmPhys.Joint.MinParentMassRatio"), ChaosImmediate_Joint_MinParentMassRatio, TEXT("6Dof joint MinParentMassRatio (if > 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysJointMaxInertiaRatio(TEXT("p.Chaos.ImmPhys.Joint.MaxInertiaRatio"), ChaosImmediate_Joint_MaxInertiaRatio, TEXT("6Dof joint MaxInertiaRatio (if > 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysJointAngularPositionCorrection(TEXT("p.Chaos.ImmPhys.Joint.AngularPositionCorrection"), ChaosImmediate_Joint_AngularPositionCorrection, TEXT("6Dof joint post-rotation constraint position correction amount [0-1]"));
+
+//
+// Even more temp that the above...
+//
+int32 ChaosImmediate_UsePositionSolver = 1;
+int32 ChaosImmediate_PositionSolverIts = 3;
+int32 ChaosImmediate_PositionSolverPairIts = 2;
+FAutoConsoleVariableRef CVarChaosImmPhysUsePositionSolver(TEXT("p.Chaos.ImmPhys.UsePositionSolver"), ChaosImmediate_UsePositionSolver, TEXT("Use position based collision solver for Immediate Physics (default true)"));
+FAutoConsoleVariableRef CVarChaosImmPhysPositionIts(TEXT("p.Chaos.ImmPhys.PositionSolverIts"), ChaosImmediate_PositionSolverIts, TEXT("Number of iterations to use in position solver mode (default 3)"));
+FAutoConsoleVariableRef CVarChaosImmPhysPositionPairIts(TEXT("p.Chaos.ImmPhys.PositionSolverPairIts"), ChaosImmediate_PositionSolverPairIts, TEXT("Number of pair-iterations to use in position solver mode (default 2)"));
 
 //
 // end remove when finished
@@ -171,6 +182,7 @@ namespace ImmediatePhysics_Chaos
 
 		// RBAN collision customization
 		Collisions.DisableHandles();
+		Collisions.SetApplyType(ECollisionApplyType::Position);
 		CollisionDetector.GetContext().bFilteringEnabled = false;
 
 #if CHAOS_DEBUG_DRAW
@@ -577,13 +589,30 @@ namespace ImmediatePhysics_Chaos
 			BroadPhase.SetCullDustance(ChaosImmediate_Collision_CullDistance);
 			Evolution.SetBoundsExtension(ChaosImmediate_Evolution_BoundsExtension);
 
-			SetSolverIterations(
-				ChaosImmediate_Evolution_Iterations,
-				ChaosImmediate_Joint_PairIterations,
-				ChaosImmediate_Collision_PairIterations,
-				ChaosImmediate_Evolution_PushOutIterations,
-				ChaosImmediate_Joint_PushOutPairIterations,
-				ChaosImmediate_Collision_PushOutPairIterations);
+			if (ChaosImmediate_UsePositionSolver)
+			{
+				SetSolverIterations(
+					ChaosImmediate_PositionSolverIts,
+					ChaosImmediate_PositionSolverPairIts,
+					ChaosImmediate_PositionSolverPairIts,
+					0,
+					0,
+					0);
+
+				Collisions.SetApplyType(ECollisionApplyType::Position);
+			}
+			else
+			{
+				SetSolverIterations(
+					ChaosImmediate_Evolution_Iterations,
+					ChaosImmediate_Joint_PairIterations,
+					ChaosImmediate_Collision_PairIterations,
+					ChaosImmediate_Evolution_PushOutIterations,
+					ChaosImmediate_Joint_PushOutPairIterations,
+					ChaosImmediate_Collision_PushOutPairIterations);
+
+				Collisions.SetApplyType(ECollisionApplyType::Velocity);
+			}
 		}
 		UE_LOG(LogChaosJoint, Verbose, TEXT("Simulate Dt = %f Steps %d x %f"), DeltaTime, NumSteps, StepTime);
 

@@ -122,9 +122,9 @@ void FControlClient::SendWriteTo(const TCHAR* Path)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FControlClient::SendToggleEvent(const TCHAR* EventSpec, bool bState)
+void FControlClient::SendToggleChannel(const TCHAR* Channels, bool bState /*= true*/)
 {
-    FormatAndSend(TEXT("ToggleEvent %s %d"), EventSpec, bState);
+	FormatAndSend(TEXT("ToggleChannels %s %d"), Channels, bState);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -172,4 +172,4 @@ void FControlClient::Send(const uint8* Data, int Length)
     }
 }
 
-} // namesapce Trace
+} // namespace Trace

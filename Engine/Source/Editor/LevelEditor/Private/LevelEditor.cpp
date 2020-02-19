@@ -39,6 +39,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Subsystems/PanelExtensionSubsystem.h"
 #include "Classes/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
@@ -136,6 +137,12 @@ public:
 
 		SetToolTipText(RightContentTooltip);
 
+		TSharedRef<SWidget> DefaultNamePlate = SNew(STextBlock)
+			.Text(RightContentText)
+			.Visibility(EVisibility::HitTestInvisible)
+			.TextStyle(FEditorStyle::Get(), "SProjectBadge.Text")
+			.ColorAndOpacity(BadgeTextColor);
+
 		SBox::Construct(SBox::FArguments()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Top)
@@ -147,11 +154,9 @@ public:
 				.BorderBackgroundColor(BadgeBackgroundColor)
 				.VAlign(VAlign_Top)
 				[
-					SNew(STextBlock)
-					.Text(RightContentText)
-					.Visibility(EVisibility::HitTestInvisible)
-					.TextStyle(FEditorStyle::Get(),"SProjectBadge.Text")
-					.ColorAndOpacity(BadgeTextColor)
+					SNew(SExtensionPanel)
+					.ExtensionPanelID("LevelEditorProjectNamePlate")
+					.DefaultWidget(DefaultNamePlate)
 				]
 			]);
 	}
@@ -223,6 +228,7 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 			}
 		}
 
+		LevelEditorCreatedEvent.Broadcast(LevelEditorTmp);
 	}
 
 	IIntroTutorials& IntroTutorials = FModuleManager::LoadModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
@@ -1809,12 +1815,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None, false)),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None)));
-
-	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_AndroidGLES2,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, LegacyShaderPlatformToShaderFormat(SP_OPENGL_ES2_ANDROID), true)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, LegacyShaderPlatformToShaderFormat(SP_OPENGL_ES2_ANDROID))));
 
 	ActionList.MapAction(
 		Commands.PreviewPlatformOverride_AndroidGLES31,

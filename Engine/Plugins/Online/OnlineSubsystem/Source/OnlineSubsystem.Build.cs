@@ -10,8 +10,8 @@ public class OnlineSubsystem : ModuleRules
 		
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"Json",
-			}
+				"Json"
+            }
 		);
 
 		PublicIncludePaths.Add(ModuleDirectory);
@@ -26,7 +26,7 @@ public class OnlineSubsystem : ModuleRules
 				"ImageCore",
 				"Sockets",
 				"JsonUtilities",
-				"AudioMixer"
+				"AudioMixer",
 			}
 		);
 	}

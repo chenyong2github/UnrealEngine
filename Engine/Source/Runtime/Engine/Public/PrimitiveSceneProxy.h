@@ -123,7 +123,7 @@ extern bool CacheShadowDepthsFromPrimitivesUsingWPO();
  * Encapsulates the data which is mirrored to render a UPrimitiveComponent parallel to the game thread.
  * This is intended to be subclassed to support different primitive types.  
  */
-class ENGINE_VTABLE FPrimitiveSceneProxy
+class FPrimitiveSceneProxy
 {
 public:
 
@@ -1115,10 +1115,10 @@ protected:
 /**
  * Returns if specified mesh command can be cached, or needs to be recreated every frame.
  */
-ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& MeshBatch);
+ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch);
 
 /**
  * Returns if specified mesh command can be cached, or needs to be recreated every frame; this is a slightly slower version
  * used for materials with external textures that need invalidating their PSOs.
  */
-ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& MeshBatch, ERHIFeatureLevel::Type FeatureLevel);
+ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch, ERHIFeatureLevel::Type FeatureLevel);

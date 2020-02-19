@@ -133,8 +133,6 @@ public:
 	virtual FName GetWaveFormat( const class USoundWave* Wave ) const override;
 	virtual void GetAllWaveFormats(TArray<FName>& OutFormat) const override;
 
-	virtual FPlatformAudioCookOverrides* GetAudioCompressionSettings() const override;
-
 #endif // WITH_ENGINE
 
 	virtual void GetBuildProjectSettingKeys(FString& OutSection, TArray<FString>& InBoolKeys, TArray<FString>& InIntKeys, TArray<FString>& InStringKeys) const override
