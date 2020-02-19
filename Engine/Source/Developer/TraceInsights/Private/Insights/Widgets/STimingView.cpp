@@ -792,41 +792,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	Viewport.ResetDirtyFlags();
 
-	UpdateOtherViews();
-
 	TickStopwatch.Stop();
 	TickDurationHistory.AddValue(TickStopwatch.AccumulatedTime);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//TODO: Move this check into STimersView/SStatsView or in STimingProfilerWindow or in FTimingProfilerManager.
-void STimingView::UpdateOtherViews()
-{
-	// We need to check if TimersView or StatsView needs to update their lists of timers / counters.
-	// But, ensure we do not check too often.
-	static uint64 NextTimestamp = 0;
-	uint64 Time = FPlatformTime::Cycles64();
-	if (Time > NextTimestamp)
-	{
-		const uint64 WaitTime = static_cast<uint64>(0.2 / FPlatformTime::GetSecondsPerCycle64()); // 200ms
-		NextTimestamp = Time + WaitTime;
-
-		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Wnd)
-		{
-			TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
-			if (TimersView)
-			{
-				TimersView->RebuildTree(false);
-			}
-			TSharedPtr<SStatsView> StatsView = Wnd->GetStatsView();
-			if (StatsView)
-			{
-				StatsView->RebuildTree(false);
-			}
-		}
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

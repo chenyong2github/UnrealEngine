@@ -239,6 +239,15 @@ protected:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	/**
+	 * Ticks this widget.  Override in derived classes, but always call the parent implementation.
+	 *
+	 * @param  AllottedGeometry The space allotted for this widget
+	 * @param  InCurrentTime  Current absolute real time
+	 * @param  InDeltaTime  Real time passed since last tick
+	 */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
 protected:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;

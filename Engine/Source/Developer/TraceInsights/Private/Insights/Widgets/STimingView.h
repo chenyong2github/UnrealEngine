@@ -290,8 +290,6 @@ protected:
 		return FVector2D(16.0f, 16.0f);
 	}
 
-	void UpdateOtherViews();
-
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
 
 	/** Binds our UI commands to delegates. */

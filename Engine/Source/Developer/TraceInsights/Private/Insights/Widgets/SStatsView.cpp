@@ -671,9 +671,28 @@ void SStatsView::InsightsManager_OnSessionChanged()
 
 void SStatsView::UpdateTree()
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	CreateGroups();
+
+	Stopwatch.Update();
+	const double Time1 = Stopwatch.GetAccumulatedTime();
+
 	SortStats();
+
+	Stopwatch.Update();
+	const double Time2 = Stopwatch.GetAccumulatedTime();
+
 	ApplyFiltering();
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("Counter tree view updated in %.3fs (%d counters) --> G:%.3fs + S:%.3fs + F:%.3fs"),
+			TotalTime, StatsNodes.Num(), Time1, Time2 - Time1, TotalTime - Time2);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1513,8 +1532,32 @@ void SStatsView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	// We need to check if the list of counters has changed.
+	// But, ensure we do not check too often.
+	static uint64 NextTimestamp = 0;
+	uint64 Time = FPlatformTime::Cycles64();
+	if (Time > NextTimestamp)
+	{
+		// 1000 counters --> check each 150ms
+		// 10000 counters --> check each 600ms
+		// 100000 counters --> check each 5.1s
+		const double WaitTimeSec = 0.1 + StatsNodes.Num() / 20000.0;
+		const uint64 WaitTime = static_cast<uint64>(WaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
+		NextTimestamp = Time + WaitTime;
+
+		RebuildTree(false);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SStatsView::RebuildTree(bool bResync)
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	TArray<FStatsNodePtr> SelectedItems;
 	bool bListHasChanged = false;
 
@@ -1566,6 +1609,13 @@ void SStatsView::RebuildTree(bool bResync)
 
 	if (bListHasChanged)
 	{
+		// Disable sorting if too many items.
+		if (StatsNodes.Num() > 10000)
+		{
+			ColumnBeingSorted = NAME_None;
+			ColumnSortMode = GetDefaultColumnSortMode();
+		}
+
 		UpdateTree();
 		UpdateStats(StatsStartTime, StatsEndTime);
 
@@ -1590,6 +1640,13 @@ void SStatsView::RebuildTree(bool bResync)
 				TreeView->RequestScrollIntoView(NewSelectedItems[0]);
 			}
 		}
+	}
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("Counter tree view rebuilt in %.3fs (%d counters)."), TotalTime, StatsNodes.Num());
 	}
 }
 
