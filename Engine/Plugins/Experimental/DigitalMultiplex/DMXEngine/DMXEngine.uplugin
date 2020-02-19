@@ -16,38 +16,17 @@
     {
       "Name": "DMXRuntime",
       "Type": "Runtime",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": 
-      [
-        "Win64",
-        "Win32",
-        "Mac",
-        "Linux"
-      ]
+      "LoadingPhase": "Default"
     },
     {
       "Name": "DMXEditor",
       "Type": "Editor",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": 
-      [
-        "Win64",
-        "Win32",
-        "Mac",
-        "Linux"
-      ]
+      "LoadingPhase": "Default"
     },
 	{
       "Name": "DMXBlueprintGraph",
       "Type": "UncookedOnly",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": 
-      [
-        "Win64",
-        "Win32",
-        "Mac",
-        "Linux"
-      ]
+      "LoadingPhase": "Default"
     }
   ],
   "Plugins": [
