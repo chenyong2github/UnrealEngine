@@ -572,20 +572,12 @@ struct FLandscapeRenderSystem
 	{
 		FLandscapeRenderSystem& RenderSystem;
 		const FSceneView* ViewPtrAsIdentifier;
-		bool ViewEngineShowFlagLOD;
+		int32 ViewLODOverride;
 		float ViewLODDistanceFactor;
 		FVector ViewOrigin;
 		FMatrix ViewProjectionMatrix;
 
-		FComputeSectionPerViewParametersTask(FLandscapeRenderSystem& InRenderSystem, const FSceneView* InView)
-			: RenderSystem(InRenderSystem)
-			, ViewPtrAsIdentifier(InView)
-			, ViewEngineShowFlagLOD(InView->Family->EngineShowFlags.LOD)
-			, ViewLODDistanceFactor(InView->LODDistanceFactor)
-			, ViewOrigin(InView->ViewMatrices.GetViewOrigin())
-			, ViewProjectionMatrix(InView->ViewMatrices.GetProjectionMatrix())
-		{
-		}
+		FComputeSectionPerViewParametersTask(FLandscapeRenderSystem& InRenderSystem, const FSceneView* InView);
 
 		FORCEINLINE TStatId GetStatId() const
 		{
@@ -604,7 +596,7 @@ struct FLandscapeRenderSystem
 
 		void AnyThreadTask()
 		{
-			RenderSystem.ComputeSectionPerViewParameters(ViewPtrAsIdentifier, ViewEngineShowFlagLOD, ViewLODDistanceFactor, ViewOrigin, ViewProjectionMatrix);
+			RenderSystem.ComputeSectionPerViewParameters(ViewPtrAsIdentifier, ViewLODOverride, ViewLODDistanceFactor, ViewOrigin, ViewProjectionMatrix);
 		}
 
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -698,7 +690,7 @@ struct FLandscapeRenderSystem
 
 	void ComputeSectionPerViewParameters(
 		const FSceneView* ViewPtrAsIdentifier,
-		bool ViewEngineShowFlagLOD,
+		int32 ViewLODOverride,
 		float ViewLODDistanceFactor,
 		FVector ViewOrigin,
 		FMatrix ViewProjectionMarix);
