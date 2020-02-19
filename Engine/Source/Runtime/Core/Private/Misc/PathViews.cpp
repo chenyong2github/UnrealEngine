@@ -3,6 +3,7 @@
 #include "Misc/PathViews.h"
 
 #include "Algo/FindLast.h"
+#include "Containers/UnrealString.h"
 #include "Containers/StringView.h"
 #include "Misc/StringBuilder.h"
 
@@ -10,6 +11,8 @@ namespace UE4PathViews_Private
 {
 	static bool IsSlashOrBackslash(TCHAR C) { return C == TEXT('/') || C == TEXT('\\'); }
 	static bool IsNotSlashOrBackslash(TCHAR C) { return C != TEXT('/') && C != TEXT('\\'); }
+
+	static bool IsSlashOrBackslashOrPeriod(TCHAR C) { return C == TEXT('/') || C == TEXT('\\') || C == TEXT('.'); }
 }
 
 FStringView FPathViews::GetCleanFilename(const FStringView& InPath)
@@ -83,4 +86,36 @@ void FPathViews::Append(FStringBuilderBase& Builder, const FStringView& Suffix)
 		Builder.Append(TEXT('/'));
 	}
 	Builder.Append(Suffix);
+}
+
+FString FPathViews::ChangeExtension(const FStringView& InPath, const FStringView& InNewExtension)
+{
+	// Make sure the period we found was actually for a file extension and not part of the file path.
+	const TCHAR* PathEndPos = Algo::FindLastByPredicate(InPath, UE4PathViews_Private::IsSlashOrBackslashOrPeriod);
+	if (PathEndPos != nullptr && *PathEndPos == TEXT('.'))
+	{
+		const FStringView::SizeType Pos = FStringView::SizeType(PathEndPos - InPath.GetData());
+		const FStringView FileWithoutExtension = InPath.Left(Pos);
+
+		if (!InNewExtension.IsEmpty() && !InNewExtension.StartsWith('.'))
+		{
+			// The new extension lacks a period so we need to add it ourselves.
+			FString Result(FileWithoutExtension, InNewExtension.Len() + 1);
+			Result += '.';
+			Result += InNewExtension;
+
+			return Result;
+		}
+		else
+		{
+			FString Result(FileWithoutExtension, InNewExtension.Len());
+			Result += InNewExtension;
+
+			return Result;
+		}
+	}
+	else
+	{
+		return FString(InPath);
+	}
 }
