@@ -884,7 +884,9 @@ class BuildPhysX_Android : BuildPhysX.MakefileTargetPlatform
 			case "x86":   AndroidAPILevel = "android-19"; AndroidABI = "x86";         break;
 			case "x64":   AndroidAPILevel = "android-21"; AndroidABI = "x86_64";      break;
 		}
-		return " -DANDROID_NDK=\"" + NDKDirectory + "\" -DCMAKE_MAKE_PROGRAM=\"" + NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe\" -DANDROID_NATIVE_API_LEVEL=\"" + AndroidAPILevel + "\" -DANDROID_ABI=\"" + AndroidABI + "\" -DANDROID_STL=gnustl_shared";
+		return " -DANDROID_NDK=\"" + NDKDirectory + "\" -DCMAKE_MAKE_PROGRAM=\"" + NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe\" -DANDROID_NATIVE_API_LEVEL=\"" + AndroidAPILevel + "\" -DANDROID_ABI=\"" + AndroidABI + "\" -DANDROID_STL=c++_shared" +
+				" -DPXSHARED_ROOT_DIR=\"" + PxSharedRootDirectory + "\"" +
+				" -DNVTOOLSEXT_INCLUDE_DIRS=\"Externals/nvToolsExt/1/include\"";
 		}
 		}
 
