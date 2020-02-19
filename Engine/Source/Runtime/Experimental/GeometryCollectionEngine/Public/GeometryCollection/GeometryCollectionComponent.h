@@ -232,27 +232,37 @@ private:
 //GetArrayRest (gives original rest value)
 //This generates pointers to arrays marked private. Macro assumes getters are public
 //todo(ocohen): may want to take in a static name
-#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)\
-FORCEINLINE const TManagedArray<Type>& Get##Name##Array() const {\
-	return Indirect##Name##Array ? *Indirect##Name##Array : RestCollection->GetGeometryCollection()->Name;\
-}\
-FORCEINLINE TManagedArray<Type>& Get##Name##ArrayCopyOnWrite(){\
-	if(!Indirect##Name##Array)\
-	{\
-		static FName StaticName(#Name);\
-		DynamicCollection->AddAttribute<Type>(StaticName, Group);\
-		DynamicCollection->CopyAttribute(*RestCollection->GetGeometryCollection(), StaticName, Group);\
-		Indirect##Name##Array = &DynamicCollection->GetAttribute<Type>(StaticName, Group);\
-		CopyOnWriteAttributeList.Add(reinterpret_cast<FManagedArrayBase**>(&Indirect##Name##Array));\
-	}\
-	return *Indirect##Name##Array;\
-}\
-FORCEINLINE void Reset##Name##ArrayDynamic(){\
-	Indirect##Name##Array = NULL;\
-}\
-FORCEINLINE const TManagedArray<Type>& Get##Name##ArrayRest() const{ return RestCollection->GetGeometryCollection()->Name; }\
-private:\
-TManagedArray<Type>* Indirect##Name##Array;\
+#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)								\
+FORCEINLINE const TManagedArray<Type>& Get##Name##Array() const 				\
+{																				\
+	return Indirect##Name##Array ?												\
+		*Indirect##Name##Array : RestCollection->GetGeometryCollection()->Name;	\
+}																				\
+FORCEINLINE TManagedArray<Type>& Get##Name##ArrayCopyOnWrite()					\
+{																				\
+	if(!Indirect##Name##Array)													\
+	{																			\
+		static FName StaticName(#Name);											\
+		DynamicCollection->AddAttribute<Type>(StaticName, Group);				\
+		DynamicCollection->CopyAttribute(										\
+			*RestCollection->GetGeometryCollection(), StaticName, Group);		\
+		Indirect##Name##Array =													\
+			&DynamicCollection->GetAttribute<Type>(StaticName, Group);			\
+		CopyOnWriteAttributeList.Add(											\
+			reinterpret_cast<FManagedArrayBase**>(&Indirect##Name##Array));		\
+	}																			\
+	return *Indirect##Name##Array;												\
+}																				\
+FORCEINLINE void Reset##Name##ArrayDynamic()									\
+{																				\
+	Indirect##Name##Array = NULL;												\
+}																				\
+FORCEINLINE const TManagedArray<Type>& Get##Name##ArrayRest() const				\
+{																				\
+	return RestCollection->GetGeometryCollection()->Name;						\
+}																				\
+private:																		\
+	TManagedArray<Type>* Indirect##Name##Array;									\
 public:
 
 /**
