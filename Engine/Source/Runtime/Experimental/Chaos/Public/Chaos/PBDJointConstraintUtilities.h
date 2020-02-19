@@ -45,7 +45,6 @@ namespace Chaos
 			const FRotation3& R0,
 			const FRotation3& R1,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const EJointAngularAxisIndex SwingAxisIndex,
 			FVec3& Axis,
 			FReal& Angle);
 
@@ -54,7 +53,6 @@ namespace Chaos
 			const FRotation3& R1,
 			const FReal AngleTolerance,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const EJointAngularAxisIndex SwingAxisIndex,
 			FVec3& Axis,
 			FReal& Angle);
 
@@ -88,25 +86,13 @@ namespace Chaos
 			const FReal MChild, 
 			const FReal MinRatio);
 
-		static CHAOS_API void GetConditionedInverseMass(
-			const float MParent,
-			const FVec3 IParent,
-			const float MChild,
-			const FVec3 IChild,
-			FReal& OutInvMParent,
-			FReal& OutInvMChild,
-			FVec3& OutInvIParent,
-			FVec3& OutInvIChild,
+		static CHAOS_API void ConditionInverseMassAndInertia(
+			FReal& InOutInvMParent,
+			FReal& InOutInvMChild,
+			FVec3& InOutInvIParent,
+			FVec3& InOutInvIChild,
 			const FReal MinParentMassRatio,
 			const FReal MaxInertiaRatio);
-
-		static CHAOS_API void GetConditionedInverseMass(
-			const float M,
-			const FVec3 I,
-			FReal& OutInvM0,
-			FVec3& OutInvI0,
-			const FReal MaxInertiaRatio);
-
 
 		static FReal GetLinearStiffness(
 			const FPBDJointSolverSettings& SolverSettings,
