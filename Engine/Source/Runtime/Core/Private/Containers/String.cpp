@@ -125,7 +125,16 @@ FString::FString(const FStringView& Other)
 	{
 		Reserve(OtherLen);
 		Append(Other.GetData(), OtherLen);
-		AppendChar(TEXT('\0'));
+	}
+}
+
+FString::FString(const FStringView& Other, int32 ExtraSlack)
+{
+	Reserve(Other.Len() + ExtraSlack);
+
+	if (!Other.IsEmpty())
+	{
+		Append(Other.GetData(), Other.Len());
 	}
 }
 
