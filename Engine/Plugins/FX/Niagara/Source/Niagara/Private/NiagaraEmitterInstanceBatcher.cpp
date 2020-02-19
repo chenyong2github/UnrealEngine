@@ -483,7 +483,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraBufferArray& ReadBuffers, FNiagaraBufferArray& WriteBuffers, bool bSetReadback)
+void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraBufferArray& ReadBuffers, FNiagaraBufferArray& WriteBuffers)
 {
 	FRHICommandListImmediate& RHICmdListImmediate = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -531,12 +531,12 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& Ove
 				DispatchMultipleStages(*Tick, &Instance, RHICmdList, ViewUniformBuffer, Context->GPUScript_RT->GetShader());
 
 				FNiagaraDataBuffer* CurrentData = Instance.CurrentData;
-				if (bSetReadback && Tick->bIsFinalTick)
+				if (!GPUInstanceCounterManager.HasPendingGPUReadback() && Tick->bIsFinalTick)
 				{
 					// Now that the current data is not required anymore, stage it for readback.
 					if (CurrentData->GetNumInstances() && Context->EmitterInstanceReadback.GPUCountOffset == INDEX_NONE && CurrentData->GetGPUInstanceCountBufferOffset() != INDEX_NONE)
 					{
-						// Transfer the GPU instance counter ownership to the context. Note that when bSetReadback is true, a readback request will be performed later in the tick update.
+						// Transfer the GPU instance counter ownership to the context. Note that a readback request will be performed later in the tick update, unless there's already a pending readback.
 						Context->EmitterInstanceReadback.GPUCountOffset = CurrentData->GetGPUInstanceCountBufferOffset();
 						Context->EmitterInstanceReadback.CPUCount = CurrentData->GetNumInstances();
 						CurrentData->ClearGPUInstanceCountBufferOffset();
@@ -559,7 +559,7 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& R
 	if (bAllowGPUParticleUpdate)
 	{
 		// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
-		ExecuteAll(RHICmdList, ViewUniformBuffer, !GPUInstanceCounterManager.HasPendingGPUReadback(), ETickStage::PostOpaqueRender);
+		ExecuteAll(RHICmdList, ViewUniformBuffer, ETickStage::PostOpaqueRender);
 
 		RHICmdList.BeginUAVOverlap();
 		UpdateFreeIDBuffers(RHICmdList, DeferredIDBufferUpdates);
@@ -662,7 +662,7 @@ void NiagaraEmitterInstanceBatcher::UpdateFreeIDBuffers(FRHICommandList& RHICmdL
 	bFreeIDListSizesBufferCleared = false;
 }
 
-void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bSetReadback, ETickStage TickStage)
+void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, ETickStage TickStage)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUSimTick_RT);
 
@@ -769,7 +769,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUSimulation);
 			SCOPED_GPU_STAT(RHICmdList, NiagaraGPUSimulation);
-			DispatchAllOnCompute(SimPass, RHICmdList, ViewUniformBuffer, ReadBuffers, WriteBuffers, bSetReadback);
+			DispatchAllOnCompute(SimPass, RHICmdList, ViewUniformBuffer, ReadBuffers, WriteBuffers);
 		}
 
 		if (InstancesWithPersistentIDs.Num() == 0)
@@ -883,7 +883,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 
 		if (GNiagaraAllowTickBeforeRender)
 		{
-			ExecuteAll(RHICmdList, nullptr, !GPUInstanceCounterManager.HasPendingGPUReadback(), ETickStage::PreInitViews);
+			ExecuteAll(RHICmdList, nullptr, ETickStage::PreInitViews);
 		}
 	}
 	else
@@ -898,7 +898,7 @@ void NiagaraEmitterInstanceBatcher::PostInitViews(FRHICommandListImmediate& RHIC
 
 	if (bAllowGPUParticleUpdate)
 	{
-		ExecuteAll(RHICmdList, ViewUniformBuffer, false, ETickStage::PostInitViews);
+		ExecuteAll(RHICmdList, ViewUniformBuffer, ETickStage::PostInitViews);
 	}
 }
 
