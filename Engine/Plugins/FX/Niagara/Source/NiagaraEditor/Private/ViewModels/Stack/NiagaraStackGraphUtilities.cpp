@@ -1552,6 +1552,7 @@ void FNiagaraStackGraphUtilities::GetAvailableParametersForScript(UNiagaraNodeOu
 	if (ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript ||
 		ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated ||
 		ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript ||
+		ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript ||
 		ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleEventScript)
 	{
 		OutAvailableParameters.Append(FNiagaraConstants::GetCommonParticleAttributes());
@@ -1593,6 +1594,7 @@ TOptional<FName> FNiagaraStackGraphUtilities::GetNamespaceForScriptUsage(ENiagar
 	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
 	case ENiagaraScriptUsage::ParticleUpdateScript:
 	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
 		return FNiagaraParameterHandle::ParticleAttributeNamespace;
 	case ENiagaraScriptUsage::EmitterSpawnScript:
 	case ENiagaraScriptUsage::EmitterUpdateScript:
@@ -1845,7 +1847,7 @@ bool FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(FNiagaraVariable Pa
 	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
 	case ENiagaraScriptUsage::ParticleUpdateScript:
 	case ENiagaraScriptUsage::ParticleEventScript:
-	case ENiagaraScriptUsage::ParticleShaderStageScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
 		return ParameterHandle.IsParticleAttributeHandle();
 	default:
 		return false;

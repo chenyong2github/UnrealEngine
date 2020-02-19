@@ -817,6 +817,12 @@ void FNiagaraEditorModule::StartupModule()
 		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));
 
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+	    FNiagaraVariableDataInterfaceBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceBindingCustomization::MakeInstance)
+	);
+
 	FNiagaraEditorStyle::Initialize();
 	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.NiagaraEditor.ReinitializeStyle"),

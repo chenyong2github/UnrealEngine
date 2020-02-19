@@ -6,8 +6,8 @@
 #include "ViewModels/Stack/NiagaraStackRenderItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventHandlerGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
-#include "ViewModels/Stack/NiagaraStackShaderStagesGroup.h"
-#include "ViewModels/Stack/NiagaraStackShaderStageGroup.h"
+#include "ViewModels/Stack/NiagaraStackSimulationStagesGroup.h"
+#include "ViewModels/Stack/NiagaraStackSimulationStageGroup.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
@@ -19,14 +19,6 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
-int32 GbShowNewShaderStageStackUIOptions = 0;
-static FAutoConsoleVariableRef CVarShowNewShaderStageStackUIOptions(
-	TEXT("fx.Niagara.ShowNewShaderStageStackUIOptions"),
-	GbShowNewShaderStageStackUIOptions,
-	TEXT("If > 0 the new shader state UI will be shown in the stack view.  This UI will generate data, but that data is currently unused.\n"),
-	ECVF_Default
-);
-
 UNiagaraStackRoot::UNiagaraStackRoot()
 	: SystemSettingsGroup(nullptr)
 	, EmitterSettingsGroup(nullptr)
@@ -35,7 +27,7 @@ UNiagaraStackRoot::UNiagaraStackRoot()
 	, ParticleSpawnGroup(nullptr)
 	, ParticleUpdateGroup(nullptr)
 	, AddEventHandlerGroup(nullptr)
-	, AddShaderStageGroup(nullptr)
+	, AddSimulationStageGroup(nullptr)
 	, RenderGroup(nullptr)
 {
 }
@@ -52,7 +44,7 @@ void UNiagaraStackRoot::Initialize(FRequiredEntryData InRequiredEntryData, bool 
 	ParticleSpawnGroup = nullptr;
 	ParticleUpdateGroup = nullptr;
 	AddEventHandlerGroup = nullptr;
-	AddShaderStageGroup = nullptr;
+	AddSimulationStageGroup = nullptr;
 	RenderGroup = nullptr;
 }
 
@@ -165,14 +157,14 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 		AddEventHandlerGroup->SetOnItemAdded(UNiagaraStackEventHandlerGroup::FOnItemAdded::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
 	}
 
-	if (bIncludeEmitterInformation && AddShaderStageGroup == nullptr && GbShowNewShaderStageStackUIOptions > 0)
+	if (bIncludeEmitterInformation && AddSimulationStageGroup == nullptr && GetEmitterViewModel()->GetEmitter()->bSimulationStagesEnabled)
 	{
-		AddShaderStageGroup = NewObject<UNiagaraStackShaderStagesGroup>(this);
+		AddSimulationStageGroup = NewObject<UNiagaraStackSimulationStagesGroup>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
-			FExecutionCategoryNames::Particle, FExecutionSubcategoryNames::ShaderStage,
+			FExecutionCategoryNames::Particle, FExecutionSubcategoryNames::SimulationStage,
 			GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData());
-		AddShaderStageGroup->Initialize(RequiredEntryData);
-		AddShaderStageGroup->SetOnItemAdded(UNiagaraStackShaderStagesGroup::FOnItemAdded::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
+		AddSimulationStageGroup->Initialize(RequiredEntryData);
+		AddSimulationStageGroup->SetOnItemAdded(UNiagaraStackSimulationStagesGroup::FOnItemAdded::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
 	}
 
 	if (bIncludeEmitterInformation && RenderGroup == nullptr)
@@ -221,27 +213,27 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 
 		NewChildren.Add(AddEventHandlerGroup);
 
-		if (GbShowNewShaderStageStackUIOptions > 0)
+		if (GetEmitterViewModel()->GetEmitter()->bSimulationStagesEnabled)
 		{
-			for (UNiagaraShaderStageBase* ShaderStage : GetEmitterViewModel()->GetEmitter()->GetShaderStages())
+			for (UNiagaraSimulationStageBase* SimulationStage : GetEmitterViewModel()->GetEmitter()->GetSimulationStages())
 			{
-				UNiagaraStackShaderStageGroup* ShaderStageGroup = FindCurrentChildOfTypeByPredicate<UNiagaraStackShaderStageGroup>(CurrentChildren,
-					[ShaderStage](UNiagaraStackShaderStageGroup* CurrentShaderStageGroup) { return CurrentShaderStageGroup->GetShaderStage() == ShaderStage; });
+				UNiagaraStackSimulationStageGroup* SimulationStageGroup = FindCurrentChildOfTypeByPredicate<UNiagaraStackSimulationStageGroup>(CurrentChildren,
+					[SimulationStage](UNiagaraStackSimulationStageGroup* CurrentSimulationStageGroup) { return CurrentSimulationStageGroup->GetSimulationStage() == SimulationStage; });
 
-				if (ShaderStageGroup == nullptr)
+				if (SimulationStageGroup == nullptr)
 				{
-					ShaderStageGroup = NewObject<UNiagaraStackShaderStageGroup>(this);
+					SimulationStageGroup = NewObject<UNiagaraStackSimulationStageGroup>(this);
 					FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
-						FExecutionCategoryNames::Particle, FExecutionSubcategoryNames::ShaderStage,
+						FExecutionCategoryNames::Particle, FExecutionSubcategoryNames::SimulationStage,
 						GetEmitterViewModel()->GetEditorData().GetStackEditorData());
-					ShaderStageGroup->Initialize(RequiredEntryData, GetEmitterViewModel()->GetSharedScriptViewModel(), ShaderStage);
-					ShaderStageGroup->SetOnModifiedShaderStages(UNiagaraStackShaderStageGroup::FOnModifiedShaderStages::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
+					SimulationStageGroup->Initialize(RequiredEntryData, GetEmitterViewModel()->GetSharedScriptViewModel(), SimulationStage);
+					SimulationStageGroup->SetOnModifiedSimulationStages(UNiagaraStackSimulationStageGroup::FOnModifiedSimulationStages::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
 				}
 
-				NewChildren.Add(ShaderStageGroup);
+				NewChildren.Add(SimulationStageGroup);
 			}
 
-			NewChildren.Add(AddShaderStageGroup);
+			NewChildren.Add(AddSimulationStageGroup);
 		}
 
 		NewChildren.Add(RenderGroup);

@@ -434,6 +434,7 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	int32 NumInstances = SourceParticleData->GetNumInstances();
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
 
+
 	FMaterialRenderProxy* MaterialRenderProxy = DynamicDataSprites->Material;
 	check(MaterialRenderProxy);
 

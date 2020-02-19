@@ -56,6 +56,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "NiagaraSimulationStageBase.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1389,6 +1390,16 @@ UNiagaraScript* FNiagaraEditorUtilities::GetScriptFromSystem(UNiagaraSystem& Sys
 					if (EventScriptProperties.Script->GetUsageId() == UsageId)
 					{
 						return EventScriptProperties.Script;
+					}
+				}
+			}
+			else if (UNiagaraScript::IsEquivalentUsage(Usage, ENiagaraScriptUsage::ParticleSimulationStageScript))
+			{
+				for (const UNiagaraSimulationStageBase* SimulationStage : ScriptEmitterHandle->GetInstance()->GetSimulationStages())
+				{
+					if (SimulationStage && SimulationStage->Script && SimulationStage->Script->GetUsageId() == UsageId)
+					{
+						return SimulationStage->Script;
 					}
 				}
 			}

@@ -14,6 +14,7 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraWorldManager.h"
+#include "NiagaraSimulationStageBase.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Custom Events"), STAT_NiagaraNumCustomEvents, STATGROUP_Niagara);
 
@@ -358,6 +359,11 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 
 			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
 			UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+
+			for (int32 i = 0; i < CachedEmitter->GetSimulationStages().Num(); i++)
+			{
+				CachedEmitter->GetSimulationStages()[i]->Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
+			}
 		}
 	
 		EventExecContexts.SetNum(CachedEmitter->GetEventHandlers().Num());
@@ -709,6 +715,11 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 		{
 			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
 			UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+
+			for (int32 i = 0; i < CachedEmitter->GetSimulationStages().Num(); i++)
+			{
+				CachedEmitter->GetSimulationStages()[i]->Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
+			}
 		}
 	}
 }

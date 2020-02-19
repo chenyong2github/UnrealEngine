@@ -1787,8 +1787,6 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		VariableToScriptVariable.Remove(Variable);
 	}
 	
-	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
-	if (UseShaderStagesCVar->GetInt() == 1)
 	{
 		// Add the array indices to the parameters
 		// When a particle attribute is created we need access the corresponding RegisterIdx if we want to 
