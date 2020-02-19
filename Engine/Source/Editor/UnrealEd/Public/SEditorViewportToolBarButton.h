@@ -9,6 +9,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/SlateDelegates.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "EditorStyleSet.h"
 
 struct FSlateBrush;
 enum class ECheckBoxState : uint8;
