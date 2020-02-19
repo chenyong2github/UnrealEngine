@@ -2,7 +2,7 @@
 
 #include "Packets/DMXProtocolE131PDUPacket.h"
 #include "DMXProtocolTypes.h"
-#include "Serialization/DMXMemoryWriter.h"
+#include "Serialization/BufferArchive.h"
 
 #include "DMXProtocolMacros.h"
 
@@ -14,7 +14,7 @@ REGISTER_DMX_ARCHIVE(FDMXProtocolUDPE131DiscoveryLayerPacket);
 
 TSharedPtr<FBufferArchive> FDMXProtocolE131RootLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -28,8 +28,7 @@ void FDMXProtocolE131RootLayerPacket::Serialize(FArchive & Ar)
 	Ar.SetByteSwapping(false);
 	Ar.Serialize((void*)ACNPacketIdentifier, ACN_IDENTIFIER_SIZE);
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar.SetByteSwapping(false);
 	Ar.Serialize((void*)CID, ACN_CIDBYTES);
@@ -38,7 +37,7 @@ void FDMXProtocolE131RootLayerPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolE131FramingLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -47,8 +46,7 @@ TSharedPtr<FBufferArchive> FDMXProtocolE131FramingLayerPacket::Pack()
 void FDMXProtocolE131FramingLayerPacket::Serialize(FArchive & Ar)
 {
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar.SetByteSwapping(false);
 	Ar.Serialize((void*)SourceName, ACN_SOURCE_NAME_SIZE);
@@ -63,7 +61,7 @@ void FDMXProtocolE131FramingLayerPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolE131DMPLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -72,8 +70,7 @@ TSharedPtr<FBufferArchive> FDMXProtocolE131DMPLayerPacket::Pack()
 void FDMXProtocolE131DMPLayerPacket::Serialize(FArchive & Ar)
 {
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar << AddressTypeAndDataType;
 	Ar << FirstPropertyAddress;
@@ -87,7 +84,7 @@ void FDMXProtocolE131DMPLayerPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolUDPE131FramingLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -96,8 +93,7 @@ TSharedPtr<FBufferArchive> FDMXProtocolUDPE131FramingLayerPacket::Pack()
 void FDMXProtocolUDPE131FramingLayerPacket::Serialize(FArchive & Ar)
 {
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar.SetByteSwapping(false);
 	Ar.Serialize((void*)SourceName, ACN_SOURCE_NAME_SIZE);
@@ -106,7 +102,7 @@ void FDMXProtocolUDPE131FramingLayerPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolUDPE131DiscoveryLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -115,8 +111,7 @@ TSharedPtr<FBufferArchive> FDMXProtocolUDPE131DiscoveryLayerPacket::Pack()
 void FDMXProtocolUDPE131DiscoveryLayerPacket::Serialize(FArchive & Ar)
 {
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar << Page;
 	Ar << Last;

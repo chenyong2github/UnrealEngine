@@ -10,9 +10,7 @@
 
 class FRunnableThread;
 
-/**
- * Delegate type for received data.
- */
+/**  Delegate type for received data. */
 DECLARE_DELEGATE_OneParam(FOnDMXDataReceived, const FArrayReaderPtr&);
 
 class IDMXProtocolSender 

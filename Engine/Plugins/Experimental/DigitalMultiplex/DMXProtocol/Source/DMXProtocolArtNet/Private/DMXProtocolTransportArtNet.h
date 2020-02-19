@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/Queue.h"
+
 #include "Interfaces/IDMXProtocolTransport.h"
 #include "DMXProtocolTypes.h"
+
+#include "Containers/Queue.h"
+#include "HAL/CriticalSection.h"
 
 class FSocket;
 class ISocketSubsystem;

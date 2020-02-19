@@ -7,11 +7,12 @@
 
 #include "DMXProtocolArtNet.h"
 #include "DMXProtocolTypes.h"
+#include "DMXProtocolArtNetConstants.h"
 
 
 IMPLEMENT_MODULE(FDMXProtocolArtNetModule, DMXProtocolArtNet);
 
-const FName FDMXProtocolArtNetModule::NAME_Artnet = FName(TEXT("Art-Net"));
+const FName FDMXProtocolArtNetModule::NAME_Artnet = FName(DMX_PROTOCOLNAME_ARTNET);
 
 FAutoConsoleCommand FDMXProtocolArtNetModule::SendDMXCommand(
 	TEXT("DMX.ArtNet.SendDMX"),
@@ -27,14 +28,14 @@ TSharedPtr<IDMXProtocol> FDMXProtocolFactoryArtNet::CreateProtocol(const FName &
 	{
 		if (!ProtocolArtNetPtr->Init())
 		{
-			UE_LOG_DMXPROTOCOL(Warning, TEXT("ArtNet failed to initialize!"));
+			UE_LOG_DMXPROTOCOL(Verbose, TEXT("ArtNet failed to initialize!"));
 			ProtocolArtNetPtr->Shutdown();
 			ProtocolArtNetPtr = nullptr;
 		}
 	}
 	else
 	{
-		UE_LOG_DMXPROTOCOL(Warning, TEXT("ArtNet disabled!"));
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("ArtNet disabled!"));
 		ProtocolArtNetPtr->Shutdown();
 		ProtocolArtNetPtr = nullptr;
 	}
@@ -72,7 +73,7 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 {
 	if (Args.Num() < 2)
 	{
-		UE_LOG_DMXPROTOCOL(Warning, TEXT("Not enough arguments. It won't be sent\n"
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Not enough arguments. It won't be sent\n"
 										"Command structure is DMX.ArtNet.SendDMX [UniverseID] Channel:Value Channel:Value Channel:Value\n"
 										"For example: DMX.ArtNet.SendDMX 17 10:6 11:7 12:8 13:9"));
 		return;
@@ -82,7 +83,7 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 	LexTryParseString<uint32>(UniverseID, *Args[0]);
 	if (UniverseID > ARTNET_MAX_UNIVERSES)
 	{
-		UE_LOG_DMXPROTOCOL(Warning, TEXT("The UniverseID is bigger then the max universe value. It won't be sent\n"
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("The UniverseID is bigger then the max universe value. It won't be sent\n"
 			"For example: DMX.ArtNet.SendDMX 17 10:6 11:7 12:8 13:9\n"
 			"Where Universe %d should be less then %d"), UniverseID, ARTNET_MAX_UNIVERSES);
 		return;
@@ -102,7 +103,7 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 		LexTryParseString<uint32>(Key, *KeyStr);
 		if (Key > DMX_UNIVERSE_SIZE)
 		{
-			UE_LOG_DMXPROTOCOL(Warning, TEXT("The input channel is bigger then the universe size. It won't be sent\n"
+			UE_LOG_DMXPROTOCOL(Verbose, TEXT("The input channel is bigger then the universe size. It won't be sent\n"
 				"For example: DMX.ArtNet.SendDMX 17 10:6 11:7 12:8 13:9\n"
 				"Where channel %d should be less then %d"), Key, DMX_UNIVERSE_SIZE);
 			return;
@@ -110,7 +111,7 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 		LexTryParseString<uint32>(Value, *ValueStr);
 		if (Value > DMX_MAX_CHANNEL_VALUE)
 		{
-			UE_LOG_DMXPROTOCOL(Warning, TEXT("The input value is bigger then the universe size. It won't be sent\n"
+			UE_LOG_DMXPROTOCOL(Verbose, TEXT("The input value is bigger then the universe size. It won't be sent\n"
 				"For example: DMX.ArtNet.SendDMX 17 10:6 11:7 12:8 13:9\n"
 				"Where value %d should be less then %d"), Value, DMX_MAX_CHANNEL_VALUE);
 			return;
@@ -118,6 +119,9 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 		DMXFragment.Add(Key, Value);
 	}
 
-	FDMXProtocolArtNet* DMXProtocol = IDMXProtocol::Get<FDMXProtocolArtNet>(FDMXProtocolArtNetModule::NAME_Artnet);
-	DMXProtocol->SetDMXFragment(UniverseID, DMXFragment, true);
+	TSharedPtr<IDMXProtocol> DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
+	if (DMXProtocol.IsValid())
+	{
+		DMXProtocol->SendDMXFragmentCreate(UniverseID, DMXFragment);
+	}
 }
