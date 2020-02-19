@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "UObject/UnrealType.h"
 #include "PropertyPath.h"
+#include "PropertyEditorModule.h"
 
 class FComplexPropertyNode;
 class FNotifyHook;
