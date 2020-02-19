@@ -148,6 +148,12 @@ void FControlRigLayerInstanceProxy::AddControlRigTrack(int32 ControlRigID, UCont
 	Node->Initialize_AnyThread(FAnimationInitializeContext(this));
 }
 
+bool FControlRigLayerInstanceProxy::HasControlRigTrack(int32 ControlRigID)
+{
+	FAnimNode_ControlRig_ExternalSource* Node = FindControlRigNode(ControlRigID);
+	return (Node != nullptr) ? true : false;
+}
+
 void FControlRigLayerInstanceProxy::ResetControlRigTracks()
 {
 	SequencerToControlRigNodeMap.Reset();
