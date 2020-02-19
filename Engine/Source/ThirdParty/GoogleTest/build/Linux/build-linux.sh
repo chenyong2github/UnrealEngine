@@ -12,7 +12,7 @@ if [ -n "$1" ]
 fi
 
 if [ -z $TARGET_ARCH ]; then
-	TARGET_ARCH=x86_64-unknonw-linux-gnu
+	TARGET_ARCH=x86_64-unknown-linux-gnu
 fi
 
 GTEST_SDK=$(pwd)/../google-test-source
@@ -40,15 +40,15 @@ mkdir -p $OUTPUT_LIBS
 # unpack source if needed
 if [ ! -d "$GTEST_SDK" ]; then
 	pushd $(pwd)/../
-	bash uncompress_and_patch.sh
+	bash uncompress_and_patch.sh googletest-release-*.zip
 	popd
 fi
 
 
 #####################
 # config cmake project
-pushd $OUTPUT_DIR 
-cmake -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DCMAKE_CXX_FLAGS="-std=c++11 -L$CXX_LIBS -I$CXX_INCLUDES -I$CXX_INCLUDES/c++/v1/ -lc++abi -stdlib=libc++ $fPIC" -DCMAKE_BUILD_TYPE=$CONFIG -D BUILD_SHARED_LIBS:BOOL=OFF $GTEST_SDK
+pushd $OUTPUT_DIR
+cmake -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DCMAKE_CXX_FLAGS="-Qunused-arguments -std=c++11 -L$CXX_LIBS -I$CXX_INCLUDES -I$CXX_INCLUDES/c++/v1/ -lc++abi -stdlib=libc++ $fPIC" -DCMAKE_BUILD_TYPE=$CONFIG -D BUILD_SHARED_LIBS:BOOL=OFF $GTEST_SDK
 popd
 
 
