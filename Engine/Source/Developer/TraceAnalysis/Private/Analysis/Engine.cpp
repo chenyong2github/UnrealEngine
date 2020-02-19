@@ -465,6 +465,8 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 {
 	uint16 SelfIndex = Analyzers.Num();
 	Analyzers.Add(this);
+
+	SessionContext = {};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
