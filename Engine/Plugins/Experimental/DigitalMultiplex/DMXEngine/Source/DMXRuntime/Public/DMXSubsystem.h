@@ -122,6 +122,14 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InName, InFunctionsMap"), Category = "DMX")
 	int32 GetFunctionsValue(const FName& InName, const TMap<FName, int32>& InFunctionsMap);
 
+	/** Get a DMX Subsystem, pure version */
+	UFUNCTION(BlueprintPure, Category = "DMX Subsystem", meta = (BlueprintInternalUseOnly = "true"))
+	static UDMXSubsystem* GetDMXSubsystem_Pure();
+
+	/** Get a DMX Subsystem, callable version */
+	UFUNCTION(BlueprintCallable, Category = "DMX Subsystem", meta = (BlueprintInternalUseOnly = "true"))
+	static UDMXSubsystem* GetDMXSubsystem_Callable();
+
 	UPROPERTY(BlueprintAssignable, Category = "DMX")
 	FProtocolReceivedDelegate OnProtocolReceived;
 

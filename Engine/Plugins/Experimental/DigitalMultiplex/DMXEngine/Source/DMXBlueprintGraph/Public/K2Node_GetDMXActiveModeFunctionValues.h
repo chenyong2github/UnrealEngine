@@ -17,8 +17,8 @@ class UDMXEntityFixturePatch;
 struct FDMXFixtureMode;
 struct FDMXFixtureFunction;
 
-UCLASS(BlueprintType)
-class UK2Node_GetDMXActiveModeFunctionValues
+UCLASS()
+class DMXBLUEPRINTGRAPH_API UK2Node_GetDMXActiveModeFunctionValues
 	: public UK2Node_EditablePinBase
 {
 	GENERATED_BODY()

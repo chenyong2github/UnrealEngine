@@ -12,7 +12,6 @@
 #include "BlueprintNodeSpawner.h"
 #include "K2Node_CallFunction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Engine/Engine.h"
 
 #define LOCTEXT_NAMESPACE "UK2Node_GetDMXFixturePatch"
 
@@ -27,6 +26,8 @@ void UK2Node_GetDMXFixturePatch::AllocateDefaultPins()
 	UEdGraphPin* InputDMXFixturePatchPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, FDMXEntityFixturePatchRef::StaticStruct(), InputDMXFixturePatchPinName);
 	K2Schema->ConstructBasicPinTooltip(*InputDMXFixturePatchPin, LOCTEXT("InputDMXFixtureTypePin", "Get the fixture patch reference."), InputDMXFixturePatchPin->PinToolTip);
 	InputDMXFixturePatchPin->bNotConnectable = true;
+
+
 
 	// Output pins
 	UEdGraphPin* OutputDMXFixturePatchPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, UDMXEntityFixturePatch::StaticClass(), OutputDMXFixturePatchPinName);
@@ -67,22 +68,27 @@ void UK2Node_GetDMXFixturePatch::ExpandNode(FKismetCompilerContext& CompilerCont
 
 	const UEdGraphSchema_K2* K2Schema = CompilerContext.GetSchema();
 
-	UDMXSubsystem* Subsystem = GEngine->GetEngineSubsystem<UDMXSubsystem>();
+	// First node to execute. GetDMXSubsystem
+	FName GetDMXSubsystemFunctionName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetDMXSubsystem_Pure);
+	const UFunction* GetDMXSubsystemFunction = UDMXSubsystem::StaticClass()->FindFunctionByName(GetDMXSubsystemFunctionName);
+	check(nullptr != GetDMXSubsystemFunction);
+	UK2Node_CallFunction* DMXSubsystemNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
+	DMXSubsystemNode->SetFromFunction(GetDMXSubsystemFunction);
+	DMXSubsystemNode->AllocateDefaultPins();
 
-	UEdGraphPin* SelfPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UDMXSubsystem::StaticClass(), UEdGraphSchema_K2::PN_Self);
-	SelfPin->DefaultObject = Subsystem;
+	UEdGraphPin* DMXSubsystemResult = DMXSubsystemNode->GetReturnValuePin();
 
-	// Function to call
-	const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFixturePatch);
-	const UFunction* Function = UDMXSubsystem::StaticClass()->FindFunctionByName(FunctionName);
-	check(nullptr != Function);
+	// Second node to execute. GetFixturePatch
+	const FName GetFixturePatchName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFixturePatch);
+	const UFunction* GetFixturePatchFunction = UDMXSubsystem::StaticClass()->FindFunctionByName(GetFixturePatchName);
+	check(nullptr != GetFixturePatchFunction);
 
 	// Spawn call function node
 	UK2Node_CallFunction* SendDataGetFunction = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
-	SendDataGetFunction->FunctionReference.SetExternalMember(FunctionName, UK2Node_CallFunction::StaticClass());
+	SendDataGetFunction->FunctionReference.SetExternalMember(GetFixturePatchName, UK2Node_CallFunction::StaticClass());
 
 	// Set function node pins
-	SendDataGetFunction->SetFromFunction(Function);
+	SendDataGetFunction->SetFromFunction(GetFixturePatchFunction);
 	SendDataGetFunction->AllocateDefaultPins();
 
 	// Hook up function node inputs
@@ -93,7 +99,7 @@ void UK2Node_GetDMXFixturePatch::ExpandNode(FKismetCompilerContext& CompilerCont
 	const FString&& FixturePatchStr = GetFixturePatchValueAsString();
 
 	// Hook up input
-	CompilerContext.MovePinLinksToIntermediate(*SelfPin, *FunctionSelfPin);
+	K2Schema->TryCreateConnection(FunctionSelfPin, DMXSubsystemResult);
 	K2Schema->TrySetDefaultValue(*FunctionInFixturePatchPin, FixturePatchStr);
 	check(FunctionInFixturePatchPin->GetDefaultAsString().Equals(FixturePatchStr));
 

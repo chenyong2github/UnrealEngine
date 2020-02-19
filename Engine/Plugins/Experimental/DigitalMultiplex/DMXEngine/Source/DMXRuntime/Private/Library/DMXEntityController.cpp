@@ -20,6 +20,12 @@ void UDMXEntityController::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void UDMXEntityController::PostLoad()
+{
+	Super::PostLoad();
+	ValidateRangeValues();
+}
+
 #endif // WITH_EDITOR
 
 void UDMXEntityController::ValidateRangeValues()

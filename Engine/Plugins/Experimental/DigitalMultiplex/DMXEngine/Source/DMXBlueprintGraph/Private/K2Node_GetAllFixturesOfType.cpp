@@ -9,7 +9,6 @@
 #include "K2Node_CallFunction.h"
 #include "KismetCompiler.h"
 #include "EditorCategoryUtils.h"
-#include "Engine/Engine.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_GetAllFixturesOfType"
 
@@ -32,7 +31,7 @@ void UK2Node_GetAllFixturesOfType::AllocateDefaultPins()
 
 	FCreatePinParams PinParams = FCreatePinParams();
 	PinParams.ContainerType = EPinContainerType::Array;
-	UEdGraphPin* OutResultPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, UDMXEntityFixturePatch::StaticClass() ,FK2Node_GetAllFixturesOfType::OutResultPinName, PinParams);
+	UEdGraphPin* OutResultPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, UDMXEntityFixturePatch::StaticClass(), FK2Node_GetAllFixturesOfType::OutResultPinName, PinParams);
 }
 
 FText UK2Node_GetAllFixturesOfType::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -42,15 +41,31 @@ FText UK2Node_GetAllFixturesOfType::GetNodeTitle(ENodeTitleType::Type TitleType)
 
 void UK2Node_GetAllFixturesOfType::ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
-	UDMXSubsystem* Subsystem = GEngine->GetEngineSubsystem<UDMXSubsystem>();
+	Super::ExpandNode(CompilerContext, SourceGraph);
+	const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
 
+	// First node to execute. GetDMXSubsystem
+	FName GetDMXSubsystemFunctionName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetDMXSubsystem_Callable);
+	UK2Node_CallFunction* DMXSubsystemNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
+	DMXSubsystemNode->FunctionReference.SetExternalMember(GetDMXSubsystemFunctionName, UDMXSubsystem::StaticClass());
+	DMXSubsystemNode->AllocateDefaultPins();
+
+	UEdGraphPin* DMXSubsystemExecPin = DMXSubsystemNode->GetExecPin();
+	UEdGraphPin* DMXSubsystemThenPin = DMXSubsystemNode->GetThenPin();
+	UEdGraphPin* DMXSubsystemResult = DMXSubsystemNode->GetReturnValuePin();
+
+	// Hook up inputs
+	CompilerContext.MovePinLinksToIntermediate(*GetExecPin(), *DMXSubsystemExecPin);
+
+	// Hook up outputs
+	UEdGraphPin* LastThenPin = DMXSubsystemThenPin;
+	Schema->TryCreateConnection(LastThenPin, DMXSubsystemThenPin);
+
+	// Second node to execute. GetAllFixturesOfType
 	const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetAllFixturesOfType);
 	static const FName ClassName(TEXT("DMXLibrary"));
 	static const FName FixtureTypeName(TEXT("FixtureType"));
 	static const FName OutResultName(TEXT("OutResult"));
-	
-	UEdGraphPin* SelfPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UDMXSubsystem::StaticClass(), UEdGraphSchema_K2::PN_Self);
-	SelfPin->DefaultObject = Subsystem;
 
 	UK2Node_GetAllFixturesOfType* GetNode = this;
 	UEdGraphPin* ClassPin = GetNode->GetClassPin();
@@ -67,13 +82,15 @@ void UK2Node_GetAllFixturesOfType::ExpandNode(class FKismetCompilerContext& Comp
 	UEdGraphPin* CallOutResult = GetAllFixturesNode->FindPinChecked(OutResultName);
 	UEdGraphPin* CallThenPin = GetAllFixturesNode->GetThenPin();
 
-	CompilerContext.MovePinLinksToIntermediate(*SelfPin, *GetAllFixturesNode->FindPin(UEdGraphSchema_K2::PN_Self));
-	CompilerContext.MovePinLinksToIntermediate(*GetExecPin(), *GetAllFixturesNode->GetExecPin());
+	Schema->TryCreateConnection(GetAllFixturesNode->FindPin(UEdGraphSchema_K2::PN_Self), DMXSubsystemResult);
 	CompilerContext.MovePinLinksToIntermediate(*ClassPin, *CallClass);
 	CompilerContext.MovePinLinksToIntermediate(*FixtureTypePin, *CallFixtureType);
 	CallOutResult->PinType = SendOutResult->PinType;
 	CompilerContext.MovePinLinksToIntermediate(*SendOutResult, *CallOutResult);
-	CompilerContext.MovePinLinksToIntermediate(*ThenPin, *CallThenPin);
+
+	Schema->TryCreateConnection(LastThenPin, GetAllFixturesNode->GetExecPin());
+	LastThenPin = CallThenPin;
+	CompilerContext.MovePinLinksToIntermediate(*ThenPin, *LastThenPin);
 }
 
 void UK2Node_GetAllFixturesOfType::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)

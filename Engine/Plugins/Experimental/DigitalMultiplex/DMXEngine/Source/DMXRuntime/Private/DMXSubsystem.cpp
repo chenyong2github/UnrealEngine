@@ -337,6 +337,16 @@ int32 UDMXSubsystem::GetFunctionsValue(const FName& InName, const TMap<FName, in
 	return 0;
 }
 
+/*static*/ UDMXSubsystem* UDMXSubsystem::GetDMXSubsystem_Pure()
+{
+	return GEngine->GetEngineSubsystem<UDMXSubsystem>();
+}
+
+/*static*/ UDMXSubsystem* UDMXSubsystem::GetDMXSubsystem_Callable()
+{
+	return UDMXSubsystem::GetDMXSubsystem_Pure();
+}
+
 TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesWithTag(const UDMXLibrary* DMXLibrary, FName CustomTag)
 {
 	TArray<UDMXEntityFixturePatch*> FoundPatches;

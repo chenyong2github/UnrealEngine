@@ -56,9 +56,7 @@ public:
 public:
 	UDMXEntityController()
 		: UniverseLocalNum(1)
-	{
-		ValidateRangeValues();
-	}
+	{}
 
 	/** Returns the currently assigned protocol for this controller */
 	UFUNCTION(BlueprintPure, Category = "DMX")
@@ -66,6 +64,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
 #endif // WITH_EDITOR
 
 protected:
