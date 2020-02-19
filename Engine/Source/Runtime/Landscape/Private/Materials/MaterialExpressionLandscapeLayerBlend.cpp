@@ -341,10 +341,4 @@ void UMaterialExpressionLandscapeLayerBlend::GetAllParameterInfo(TArray<FMateria
 	}
 }
 
-bool UMaterialExpressionLandscapeLayerBlend::NeedsLoadForClient() const
-{
-	return true;
-}
-
-
 #undef LOCTEXT_NAMESPACE
