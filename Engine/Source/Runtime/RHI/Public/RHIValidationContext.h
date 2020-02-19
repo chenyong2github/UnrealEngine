@@ -302,6 +302,11 @@ public:
 		RHIContext->RHIEndRenderQuery(RenderQuery);
 	}
 
+	virtual void RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery) override final
+	{
+		RHIContext->RHICalibrateTimers(CalibrationQuery);
+	}
+
 	virtual void RHISubmitCommandsHint() override final
 	{
 		ensureMsgf(!State.bInsideBeginRenderPass, TEXT("Submitting inside a RenderPass is not efficient!"));
