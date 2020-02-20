@@ -7,8 +7,6 @@ namespace UnrealBuildTool.Rules
 		public DatasmithImporter(ReadOnlyTargetRules Target)
 			: base(Target)
 		{
-			OptimizeCode = CodeOptimization.InShippingBuildsOnly;
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

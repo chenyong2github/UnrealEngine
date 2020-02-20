@@ -251,13 +251,6 @@ void UDatasmithConsumer::PostLoad()
 			LevelName = GetOuter()->GetName() + TEXT("_Map");
 		}
 
-		if(OutputLevelSoftPtr_DEPRECATED.ToString().Len() > 0)
-		{
-			OutputLevelSoftObject = OutputLevelSoftPtr_DEPRECATED.ToSoftObjectPath();
-
-			bMarkDirty = true;
-		}
-
 		if(OutputLevelSoftObject.GetAssetPathString().Len() == 0)
 		{
 			OutputLevelSoftObject = FSoftObjectPath(FPaths::Combine(TargetContentFolder, LevelName) + "." + LevelName);
