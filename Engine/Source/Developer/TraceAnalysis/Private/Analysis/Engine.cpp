@@ -7,6 +7,7 @@
 #include "CoreGlobals.h"
 #include "HAL/UnrealMemory.h"
 #include "StreamReader.h"
+#include "Templates/UnrealTemplate.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/Detail/Protocol.h"
@@ -679,7 +680,13 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 {
-	/* Once upon a time there was a need for this event. Now there isn't */
+	// "Serial" will tell us approximately where we've started in the log serial
+	// range. We'll bias is by half so we won't accept any serialised events and
+	// mark the MSB to indicate that NextLogSerial should be corrected.
+	NextLogSerial = Context.EventData.GetValue<uint32>("Serial");
+	NextLogSerial -= (0x00ffffff + 1) >> 2;
+	NextLogSerial &= 0x00ffffff;
+	NextLogSerial |= 0x80000000;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1036,6 +1043,7 @@ bool FAnalysisEngine::OnDataProtocol2()
 	do
 	{
 		int32 MinLogSerial = INT_MAX;
+		int32 MaxLogSerial = INT_MIN;
 
 		FTidPacketTransport::ThreadIter Iter = InnerTransport->ReadThreads();
 		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
@@ -1045,11 +1053,26 @@ bool FAnalysisEngine::OnDataProtocol2()
 			if (ReqLogSerial >= 0)
 			{
 				MinLogSerial = FMath::Min(MinLogSerial, ReqLogSerial);
+				MaxLogSerial = FMath::Max(MaxLogSerial, ReqLogSerial);
 			}
+		}
+
+		// If min/max are more than half the serial range apart consider them
+		// as having wrapped.
+		if ((MaxLogSerial - MinLogSerial) > ((0x00ffffff + 1) >> 2))
+		{
+			Swap(MaxLogSerial, MinLogSerial);
+			MinLogSerial -= (0x00ffffff + 1);
 		}
 
 		if (uint32(MinLogSerial) != (NextLogSerial & 0x00ffffff))
 		{
+			if (NextLogSerial & 0x80000000)
+			{
+				NextLogSerial = (MinLogSerial & 0x00ffffff);
+				continue;
+			}
+
 			break;
 		}
 	}
