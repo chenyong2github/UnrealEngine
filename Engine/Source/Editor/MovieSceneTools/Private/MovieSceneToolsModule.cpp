@@ -48,6 +48,7 @@
 #include "TrackEditors/MaterialParameterCollectionTrackEditor.h"
 #include "TrackEditors/ObjectPropertyTrackEditor.h"
 #include "TrackEditors/PrimitiveMaterialTrackEditor.h"
+#include "TrackEditors/CameraShakeSourceShakeTrackEditor.h"
 
 #include "MovieSceneBuiltInEasingFunctionCustomization.h"
 #include "MovieSceneObjectBindingIDCustomization.h"
@@ -123,6 +124,7 @@ void FMovieSceneToolsModule::StartupModule()
 		CameraShakeTrackCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FCameraShakeTrackEditor::CreateTrackEditor));
 		MPCTrackCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FMaterialParameterCollectionTrackEditor::CreateTrackEditor));
 		PrimitiveMaterialCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FPrimitiveMaterialTrackEditor::CreateTrackEditor));
+		CameraShakeSourceShakeCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FCameraShakeSourceShakeTrackEditor::CreateTrackEditor));
 
 		RegisterClipboardConversions();
 
@@ -193,6 +195,7 @@ void FMovieSceneToolsModule::ShutdownModule()
 	SequencerModule.UnRegisterTrackEditor( VisibilityPropertyTrackCreateEditorHandle );
 	SequencerModule.UnRegisterTrackEditor( ActorReferencePropertyTrackCreateEditorHandle );
 	SequencerModule.UnRegisterTrackEditor( StringPropertyTrackCreateEditorHandle );
+	SequencerModule.UnRegisterTrackEditor( CameraShakeSourceShakeCreateEditorHandle );
 
 	// unregister specialty track editors
 	SequencerModule.UnRegisterTrackEditor( AnimationTrackCreateEditorHandle );
