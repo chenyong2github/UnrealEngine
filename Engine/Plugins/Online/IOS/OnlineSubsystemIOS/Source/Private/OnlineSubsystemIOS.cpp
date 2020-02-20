@@ -79,12 +79,10 @@ IOnlineEntitlementsPtr FOnlineSubsystemIOS::GetEntitlementsInterface() const
 	return nullptr;
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 IOnlineStorePtr FOnlineSubsystemIOS::GetStoreInterface() const
 {
 	return StoreInterface;
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 IOnlineStoreV2Ptr FOnlineSubsystemIOS::GetStoreV2Interface() const
 {

@@ -28,9 +28,7 @@ void UInAppPurchaseCallbackProxy::Trigger(APlayerController* PlayerController, c
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			IOnlineStorePtr StoreInterface = OnlineSub->GetStoreInterface();
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			if (StoreInterface.IsValid())
 			{
 				bFailedToEvenSubmit = false;
@@ -125,9 +123,7 @@ void UInAppPurchaseCallbackProxy::RemoveDelegate()
 	{
 		if (IOnlineSubsystem* OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			IOnlineStorePtr InAppPurchases = OnlineSub->GetStoreInterface();
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			if (InAppPurchases.IsValid())
 			{
 				InAppPurchases->ClearOnInAppPurchaseCompleteDelegate_Handle(InAppPurchaseCompleteDelegateHandle);
