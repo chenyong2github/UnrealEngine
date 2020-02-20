@@ -5,6 +5,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "HAL/IConsoleManager.h"
@@ -1077,7 +1078,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 							{
 								BulkDataOffsetInFile -= IFileManager::Get().FileSize(*Filename);
 								check(BulkDataOffsetInFile >= 0);
-								Filename = FPaths::GetBaseFilename(Filename, false) + TEXT(".uexp");
+								Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
 							}
 							bWasMapped = BulkData.MapFile(*Filename, BulkDataOffsetInFile, GetBulkDataSize());
 						}
@@ -1099,7 +1100,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				else if (BulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
 				{
 					// Load from optional payload instead if optional payload is available
-					FString OptionalFilename = FPaths::ChangeExtension(Filename, TEXT(".uptnl"));
+					FString OptionalFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
 					if (IFileManager::Get().FileExists(*OptionalFilename))
 					{
 						Filename = OptionalFilename;
@@ -1140,22 +1141,22 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 						int64 DummyBulkDataOffsetInFile;
 						Ar << DummyBulkDataOffsetInFile;
 
-						Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+						Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
 					}
 				}
 				else if (BulkDataFlags & BULKDATA_OptionalPayload)
 				{
-					Filename = FPaths::ChangeExtension(Filename, TEXT(".uptnl"));
+					Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
 				}
 				else if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
 				{
 					if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
 					{
-						Filename = FPaths::ChangeExtension(Filename, TEXT(".m.ubulk"));
+						Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
 					}
 					else
 					{
-						Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+						Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
 					}
 
 
@@ -1203,7 +1204,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 							{
 								BulkDataOffsetInFile -= IFileManager::Get().FileSize(*Filename);
 								check(BulkDataOffsetInFile >= 0);
-								Filename = FPaths::GetBaseFilename(Filename, false) + TEXT(".uexp");
+								Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
 							}
 
 							FArchive* TargetArchive = IFileManager::Get().CreateFileReader(*Filename);
@@ -1645,7 +1646,7 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 	if (GEventDrivenLoaderEnabled && (AdjustedFilename.EndsWith(TEXT(".uasset")) || AdjustedFilename.EndsWith(TEXT(".umap"))))
 	{
 		AdjustedBulkDataOffsetInFile -= IFileManager::Get().FileSize(*AdjustedFilename);
-		AdjustedFilename = FPaths::GetBaseFilename(AdjustedFilename, false) + TEXT(".uexp");
+		AdjustedFilename = FPaths::GetBaseFilename(AdjustedFilename, false) + BulkDataExt::Export;
 
 		UE_LOG(LogSerialization, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *AdjustedFilename);
 	}
@@ -1877,11 +1878,11 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		FString BulkDataFilename;
 		if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
 		{
-			BulkDataFilename = FPaths::ChangeExtension(Filename, TEXT(".m.ubulk"));
+			BulkDataFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
 		}
 		else
 		{
-			BulkDataFilename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+			BulkDataFilename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
 		}
 		BulkDataArchive = IFileManager::Get().CreateFileReader(*BulkDataFilename, FILEREAD_Silent);
 	}
@@ -1952,7 +1953,7 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		// is it possible for streaming mips to be loaded in non streaming ways.
 		if (CVarTextureStreamingEnabled->GetValueOnAnyThread() != 0)
 		{
-			bool bIsBulkFile = Filename.EndsWith(TEXT(".ubulk"));
+			bool bIsBulkFile = Filename.EndsWith(BulkDataExt::Default);
 			UE_CLOG(GEventDrivenLoaderEnabled && bIsBulkFile && (IsInGameThread() || IsInAsyncLoadingThread()), LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (LoadDataIntoMemory). This is not desireable. File %s"), *Filename);
 		}
 #endif
@@ -1961,7 +1962,7 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		{
 			BulkDataOffsetInFile -= IFileManager::Get().FileSize(*Filename);
 			check(BulkDataOffsetInFile >= 0);
-			Filename = FPaths::GetBaseFilename(Filename, false) + TEXT(".uexp");
+			Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
 		}
 
 		FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);

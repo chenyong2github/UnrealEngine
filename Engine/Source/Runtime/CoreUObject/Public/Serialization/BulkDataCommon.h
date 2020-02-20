@@ -86,3 +86,11 @@ enum EBulkDataLockFlags
 	LOCK_READ_ONLY = 1,
 	LOCK_READ_WRITE = 2,
 };
+
+namespace BulkDataExt
+{
+	extern const FString Export;		// Stored in the export data
+	extern const FString Default;		// Stored in a separate file
+	extern const FString MemoryMapped;	// Stored in a separate file aligned for memory mapping
+	extern const FString Optional;		// Stored in a separate file that is optional
+}

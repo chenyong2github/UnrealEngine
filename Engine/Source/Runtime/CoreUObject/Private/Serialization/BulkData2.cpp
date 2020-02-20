@@ -6,6 +6,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/BulkData.h"
 #include "UObject/LinkerLoad.h"
@@ -25,14 +26,17 @@ IMPLEMENT_TYPE_LAYOUT(FBulkDataBase);
 // If set to 0 then we will pretend that optional data does not exist, useful for testing.
 #define ALLOW_OPTIONAL_DATA 1
 
-namespace
+namespace BulkDataExt
 {
 	// TODO: Maybe expose this and start using everywhere?
-	static const FString InlinedExt = TEXT(".uexp");			// Stored in the export data
-	static const FString DefaultExt = TEXT(".ubulk");			// Stored in a separate file
-	static const FString MemoryMappedExt = TEXT(".m.ubulk");	// Stored in a separate file aligned for memory mapping
-	static const FString OptionalExt = TEXT(".uptnl");			// Stored in a separate file that is optional
+	const FString Export		= TEXT(".uexp");	// Stored in the export data
+	const FString Default		= TEXT(".ubulk");	// Stored in a separate file
+	const FString MemoryMapped	= TEXT(".m.ubulk");	// Stored in a separate file aligned for memory mapping
+	const FString Optional		= TEXT(".uptnl");	// Stored in a separate file that is optional
+}
 
+namespace
+{
 	const uint16 InvalidBulkDataIndex = ~uint16(0);
 
 	FORCEINLINE bool IsIoDispatcherEnabled()
@@ -1408,7 +1412,7 @@ void FBulkDataBase::InternalLoadFromFileSystem(void** DstBuffer)
 	if (IsInlined() && (FileData.PackageHeaderFilename.EndsWith(TEXT(".uasset")) || FileData.PackageHeaderFilename.EndsWith(TEXT(".umap"))))
 	{
 		Offset -= IFileManager::Get().FileSize(*FileData.PackageHeaderFilename);
-		Filename = FPaths::GetBaseFilename(FileData.PackageHeaderFilename, false) + TEXT(".uexp");
+		Filename = FPaths::GetBaseFilename(FileData.PackageHeaderFilename, false) + BulkDataExt::Export;
 	}
 	else
 	{
@@ -1506,6 +1510,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 	else
 	{
 		check(Filename != nullptr);
+		ConvertFilenameFromFlags(TEXT("BOB"));
 		const FString OptionalDataFilename = ConvertFilenameFromFlags(*Filename);
 
 		if (IFileManager::Get().FileExists(*OptionalDataFilename))
@@ -1639,7 +1644,7 @@ FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 		// Optional data should be tested for first as we in theory can have data that would
 		// be marked as inline, also marked as optional and in this case we should treat it as
 		// optional data first.
-		return FPaths::ChangeExtension(Filename, OptionalExt);
+		return FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
 	}
 	else if (!IsInSeperateFile())
 	{
@@ -1647,15 +1652,15 @@ FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 	}
 	else if (IsInlined())
 	{
-		return FPaths::ChangeExtension(Filename, InlinedExt);
+		return FPathViews::ChangeExtension(Filename, BulkDataExt::Export);
 	}
 	else if (IsMemoryMapped())
 	{
-		return FPaths::ChangeExtension(Filename, MemoryMappedExt);
+		return FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
 	}
 	else
 	{
-		return FPaths::ChangeExtension(Filename, DefaultExt);
+		return FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
 	}
 }
 
