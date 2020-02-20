@@ -9,14 +9,14 @@
 class URuntimeVirtualTexture;
 
 /** Component used to place a URuntimeVirtualTexture in the world. */
-UCLASS(ClassGroup = Rendering, collapsecategories, hidecategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering), editinlinenew)
+UCLASS(Blueprintable, ClassGroup = Rendering, collapsecategories, hidecategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering), editinlinenew)
 class ENGINE_API URuntimeVirtualTextureComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
-private:
+protected:
 	/** The virtual texture object to use. */
-	UPROPERTY(EditAnywhere, DuplicateTransient, Category = VirtualTexture)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTexture)
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
 
 	/** Use any streaming low mips when rendering in editor. Set true to view and debug the baked streaming low mips. */
@@ -32,6 +32,7 @@ public:
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 
 	/** Get the runtime virtual texture UV to World transform on this component. */
+	UFUNCTION(BlueprintPure, Category = VirtualTexture)
 	FTransform GetVirtualTextureTransform() const;
 
 	/** Get if we want use any streaming low mips in the runtime virtual texture set on this component. */
