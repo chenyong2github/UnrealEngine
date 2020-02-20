@@ -497,6 +497,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
 	float GetEnvelopeFollowerValue() const { return CurrentEnvelopeValue; }
 
+	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
+	int32 GetMaxActiveClipLimit() const;
+
 	// The default quantizations settings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TimeSynth")
 	FTimeSynthQuantizationSettings QuantizationSettings;
