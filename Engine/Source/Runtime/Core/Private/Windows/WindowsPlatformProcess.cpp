@@ -1628,6 +1628,16 @@ bool FWindowsPlatformProcess::Daemonize()
 	return true;
 }
 
+void FWindowsPlatformProcess::SetupAudioThread()
+{
+	ensure(FPlatformMisc::CoInitialize());
+}
+
+void FWindowsPlatformProcess::TeardownAudioThread()
+{
+	FPlatformMisc::CoUninitialize();
+}
+
 /**
  * Maps a relative virtual address (RVA) to an address in memory.
  *

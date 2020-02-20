@@ -222,6 +222,9 @@ struct CORE_API FGenericPlatformProcess
 	/** Allow the platform to do anything it needs for audio thread */
 	static void SetupAudioThread() { }
 
+	/** Allow the platform to tear down the audio thread */
+	static void TeardownAudioThread() { }
+	
 	/** Content saved to the game or engine directories should be rerouted to user directories instead **/
 	static bool ShouldSaveToUserDir();
 
