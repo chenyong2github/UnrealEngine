@@ -1468,6 +1468,12 @@ void FOpenGLDynamicRHI::SetCustomPresent(FRHICustomPresent* InCustomPresent)
 	CustomPresent = InCustomPresent;
 }
 
+uint64 FOpenGLDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
+{
+	check(FOpenGL::GetTextureBufferAlignment()>=0);
+	return FOpenGL::GetTextureBufferAlignment();
+}
+
 bool FOpenGLDynamicRHIModule::IsSupported()
 {
 	return true;

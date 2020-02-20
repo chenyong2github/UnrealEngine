@@ -333,6 +333,10 @@ typedef GLfloat GLdouble;
 #define GL_PROGRAM_BINARY_LENGTH 0x8741
 #endif
 
+#ifndef GL_TEXTURE_BUFFER_OFFSET_ALIGNMENT
+#define GL_TEXTURE_BUFFER_OFFSET_ALIGNMENT		0x919F
+#endif
+
 // Normalize debug macros due to naming differences across GL versions
 #if defined(GL_KHR_debug) && GL_KHR_debug
 #define GL_DEBUG_SOURCE_OTHER_ARB GL_DEBUG_SOURCE_OTHER_KHR
