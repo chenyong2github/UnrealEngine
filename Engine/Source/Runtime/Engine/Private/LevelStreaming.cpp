@@ -101,7 +101,7 @@ void FStreamLevelAction::UpdateOperation(FLatentResponse& Response)
 	}
 	else
 	{
-		Response.DoneIf(true);
+		Response.FinishAndTriggerIf(true, LatentInfo.ExecutionFunction, LatentInfo.Linkage, LatentInfo.CallbackTarget);
 	}
 }
 
