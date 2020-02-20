@@ -20,7 +20,7 @@ namespace AutomationTool.Benchmark
 			: base(InProject, InTarget, InPlatform, InOptions)
 		{
 			PreTask = new BenchmarkBuildTask(InProject, InTarget, InPlatform, InOptions);
-			TaskName = TaskName + " (nopcompile)";
+			TaskModifiers.Add("nopcompile");
 		}
 
 		protected override bool PerformPrequisites()

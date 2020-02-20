@@ -25,9 +25,6 @@ namespace AutomationTool.Benchmark
 
 	class BenchmarkCookTask : BenchmarkTaskBase
 	{
-
-		string TaskName;
-
 		string ProjectName;
 
 		FileReference ProjectFile;
@@ -61,18 +58,13 @@ namespace AutomationTool.Benchmark
 
 			if (Options.HasFlag(CookOptions.NoDDC))
 			{
-				TaskName += " (noddc)";
+				TaskModifiers.Add("noddc");
 			}
 
 			if (Options.HasFlag(CookOptions.NoShaderDDC))
 			{
-				TaskName += " (noshaderddc)";
+				TaskModifiers.Add("noshaderddc");
 			}
-		}
-
-		public override string GetTaskName()
-		{
-			return TaskName;
 		}
 
 		protected override bool PerformPrequisites()
