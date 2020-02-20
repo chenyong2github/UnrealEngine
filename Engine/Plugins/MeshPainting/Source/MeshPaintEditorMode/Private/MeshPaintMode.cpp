@@ -127,7 +127,10 @@ void UMeshPaintMode::Enter()
 	RegisterTool(ToolManagerCommands.TexturePaint, TEXT("TextureBrushTool"), NewObject<UMeshTexturePaintingToolBuilder>());
 	UpdateSelectedMeshes();
 
+	// disable tool change tracking to activate default tool, and then switch to full undo/redo tracking mode
+	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
 	ActivateDefaultTool();
+	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::FullUndoRedo);
 }
 
 void UMeshPaintMode::Exit()
