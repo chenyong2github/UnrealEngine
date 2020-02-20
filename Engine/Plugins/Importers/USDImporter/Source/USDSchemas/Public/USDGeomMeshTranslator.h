@@ -63,15 +63,17 @@ protected:
 class USDSCHEMAS_API FUsdGeomMeshTranslator : public FUsdGeomXformableTranslator
 {
 public:
+	using Super = FUsdGeomXformableTranslator;
+
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
 
 	FUsdGeomMeshTranslator( const FUsdGeomMeshTranslator& Other ) = delete;
 	FUsdGeomMeshTranslator& operator=( const FUsdGeomMeshTranslator& Other ) = delete;
 
 	virtual void CreateAssets() override;
-	virtual USceneComponent* CreateComponents() override;
+	virtual void UpdateComponents( USceneComponent* SceneComponent ) override;
 
-	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return true; }
+	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
 
 };
 
