@@ -78,6 +78,7 @@ namespace AutomationTool.Benchmark
 
 				Command.UBTArgs += " -" + Arg;
 				TaskModifiers.Add(Arg);
+				Command.Params = new[] { Arg };	// need to also pass it to this
 			}
 			else
 			{

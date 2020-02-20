@@ -268,6 +268,7 @@ namespace AutomationTool.Benchmark
 
 						WriteCSVResults(FileName);
 
+						Log.TraceInformation("Waiting {0} secs until next task {1}", TimeBetweenTasks);
 						Thread.Sleep(TimeBetweenTasks * 1000);
 					}
 				}
