@@ -1033,24 +1033,27 @@ bool FAnalysisEngine::OnDataProtocol2()
 	auto* InnerTransport = (FTidPacketTransport*)Transport;
 	InnerTransport->Update();
 
-	int32 EventCount;
 	do
 	{
-		EventCount = 0;
+		int32 MinLogSerial = INT_MAX;
+
 		FTidPacketTransport::ThreadIter Iter = InnerTransport->ReadThreads();
 		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
 		{
 			uint32 ThreadId = InnerTransport->GetThreadId(Iter);
-			int32 ThreadEventCount = OnDataProtocol2(ThreadId, *Reader);
-			if (ThreadEventCount < 0)
+			int32 ReqLogSerial = OnDataProtocol2(ThreadId, *Reader);
+			if (ReqLogSerial >= 0)
 			{
-				return false;
+				MinLogSerial = FMath::Min(MinLogSerial, ReqLogSerial);
 			}
+		}
 
-			EventCount += ThreadEventCount;
+		if (uint32(MinLogSerial) != (NextLogSerial & 0x00ffffff))
+		{
+			break;
 		}
 	}
-	while (EventCount);
+	while (true);
 
 	return true;
 }
@@ -1058,8 +1061,7 @@ bool FAnalysisEngine::OnDataProtocol2()
 ////////////////////////////////////////////////////////////////////////////////
 int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 {
-	int32 EventCount = 0;
-	while (!Reader.IsEmpty())
+	while (true)
 	{
 		auto Mark = Reader.SaveMark();
 
@@ -1095,7 +1097,7 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 					const auto* HeaderV1 = (Protocol1::FEventHeader*)Header;
 					if (HeaderV1->Serial != uint16(NextLogSerial))
 					{
-						return EventCount;
+						return HeaderV1->Serial;
 					}
 					BlockSize += sizeof(*HeaderV1);
 				}
@@ -1108,7 +1110,7 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 					uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);
 					if (EventSerial != (NextLogSerial & 0x00ffffff))
 					{
-						return EventCount;
+						return EventSerial;
 					}
 					BlockSize += sizeof(*HeaderSync);
 				}
@@ -1158,11 +1160,9 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 				RetireAnalyzer(Analyzer);
 			}
 		});
-
-		++EventCount;
 	}
 
-	return EventCount;
+	return -1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
