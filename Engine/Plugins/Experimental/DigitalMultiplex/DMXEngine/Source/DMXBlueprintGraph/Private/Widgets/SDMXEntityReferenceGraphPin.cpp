@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets//SDMXEntityReferenceGraphPin.h"
+#include "Widgets/SDMXEntityReferenceGraphPin.h"
 
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntity.h"
