@@ -791,11 +791,23 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 			if (bAttemptFileMapping)
 			{
-				check(Filename != nullptr);
-				FString MemoryMappedFilename = ConvertFilenameFromFlags(*Filename);
-				if (!MemoryMapBulkData(MemoryMappedFilename, BulkDataOffsetInFile, BulkDataSize))
+				if (bUseIoDispatcher)
 				{
-					bShouldForceLoad = true; // Signal we want to force the BulkData to load
+					const int64 BulkDataID = BulkDataSize > 0 ? BulkDataOffsetInFile : TNumericLimits<uint64>::Max();
+					Data.ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, EIoChunkType::MemoryMappedBulkData);
+
+					TIoStatusOr<FIoMappedRegion> Status = IoDispatcher->OpenMapped(Data.ChunkID, FIoReadOptions());
+					FIoMappedRegion MappedRegion = Status.ConsumeValueOrDie();
+					DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);
+				}
+				else
+				{
+					check(Filename != nullptr);
+					FString MemoryMappedFilename = ConvertFilenameFromFlags(*Filename);
+					if (!MemoryMapBulkData(MemoryMappedFilename, BulkDataOffsetInFile, BulkDataSize))
+					{
+						bShouldForceLoad = true; // Signal we want to force the BulkData to load
+					}
 				}
 			}
 			else if (!Ar.IsAllowingLazyLoading() && !IsInSeperateFile())

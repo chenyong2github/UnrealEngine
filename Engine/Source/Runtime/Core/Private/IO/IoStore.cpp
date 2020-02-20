@@ -37,6 +37,7 @@ struct FIoStoreWriterBlock
 	FIoStoreWriterBlock* Next = nullptr;
 	FName CompressionMethod = NAME_None;
 	uint64 CompressedSize = 0;
+	int64 AlignmentOrPadding = 0;
 	FIoBuffer UncompressedData;
 	FIoBuffer CompressedData;
 	FGraphEventRef CompressionTask;
@@ -106,6 +107,7 @@ public:
 
 	void FreeBlock(FIoStoreWriterBlock* Block)
 	{
+		Block->AlignmentOrPadding = 0;
 		{
 			FScopeLock Lock(&FreeBlocksCritical);
 			Block->Next = FirstFreeBlock;
@@ -138,6 +140,11 @@ UE_NODISCARD FIoStatus FIoStoreWriterContext::Initialize(const FIoStoreWriterSet
 	return Impl->Initialize(InWriterSettings);
 }
 
+static int64 GetPadding(const int64 Offset, const int64 Alignment)
+{
+	return (Alignment - (Offset % Alignment)) % Alignment;
+}
+
 class FChunkWriter
 {
 public:
@@ -151,10 +158,11 @@ public:
 		}
 	}
 
-	FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, const TCHAR* InFileName)
+	FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, const TCHAR* InFileName, bool bInIsContainerCompressed)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(InitializeChunkWriter);
 		WriterContext = &InContext;
+		bIsContainerCompressed = bInIsContainerCompressed;
 		check(WriterContext->Settings().CompressionBlockSize > 0);
 		CompressionInfo.BlockSize = WriterContext->Settings().CompressionBlockSize;
 
@@ -189,6 +197,18 @@ public:
 					if (CurrentWriteQueueItem->bShouldCompress)
 					{
 						FTaskGraphInterface::Get().WaitUntilTaskCompletes(CurrentWriteQueueItem->CompressionTask);
+					}
+					if (CurrentWriteQueueItem->AlignmentOrPadding > 0)
+					{
+						const int64 Padding = bIsContainerCompressed
+							? GetPadding(FileHandle->Tell(), CurrentWriteQueueItem->AlignmentOrPadding)
+							: CurrentWriteQueueItem->AlignmentOrPadding;
+						if (Padding > 0)
+						{
+							AlignmentPaddingBuffer.SetNumZeroed(int32(Padding), false);
+							FileHandle->Write(AlignmentPaddingBuffer.GetData(), Padding);
+						}
+						check(bIsContainerCompressed && (FileHandle->Tell() % CurrentWriteQueueItem->AlignmentOrPadding) == 0);
 					}
 					const int64 CompressedFileOffset = FileHandle->Tell();
 					FIoStoreCompressedBlockEntry CompressedBlockEntry;
@@ -227,18 +247,32 @@ public:
 
 	TIoStatusOr<FIoStoreTocEntry> Write(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions)
 	{
-		FIoStoreTocEntry TocEntry;
-		TocEntry.SetOffset(UncompressedOffset);
-		TocEntry.SetLength(Chunk.DataSize());
-		TocEntry.ChunkId = ChunkId;
-		
-		UncompressedOffset += Chunk.DataSize();
-
 		if (CurrentBlockOffset > 0 && WriteOptions.bCompressed != CurrentBlock->bShouldCompress)
 		{
 			FlushCurrentBlock();
 		}
 
+		if (WriteOptions.Alignment > 0)
+		{
+			check(!WriteOptions.bCompressed);
+			FlushCurrentBlock();
+
+			CurrentBlock = WriterContext->AllocBlock();
+			CurrentBlock->AlignmentOrPadding = WriteOptions.Alignment;
+			if (!bIsContainerCompressed)
+			{
+				CurrentBlock->AlignmentOrPadding = GetPadding(UncompressedOffset, WriteOptions.Alignment); 
+				UncompressedOffset += CurrentBlock->AlignmentOrPadding;
+			}
+		}
+
+		FIoStoreTocEntry TocEntry;
+		TocEntry.SetOffset(UncompressedOffset);
+		TocEntry.SetLength(Chunk.DataSize());
+		TocEntry.ChunkId = ChunkId;
+
+		UncompressedOffset += Chunk.DataSize();
+	
 		uint64 RemainingBytesInChunk = Chunk.DataSize();
 		uint64 OffsetInChunk = 0;
 		while (RemainingBytesInChunk > 0)
@@ -381,6 +415,8 @@ private:
 	FIoStoreWriterBlock* WriteQueueTail = nullptr;
 	FEvent* WriteQueueEvent = nullptr;
 	TAtomic<bool> bAllScheduled{ false };
+	TArray<uint8> AlignmentPaddingBuffer;
+	bool bIsContainerCompressed = false;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -393,7 +429,7 @@ public:
 	{
 	}
 
-	UE_NODISCARD FIoStatus Initialize(FIoStoreWriterContextImpl& InContext)
+	UE_NODISCARD FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, bool bInIsContainerCompressed)
 	{
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 
@@ -406,7 +442,7 @@ public:
 		Ipf.CreateDirectoryTree(*FPaths::GetPath(ContainerFilePath));
 
 		ChunkWriter = MakeUnique<FChunkWriter>();
-		FIoStatus Status = ChunkWriter->Initialize(InContext, *ContainerFilePath);
+		FIoStatus Status = ChunkWriter->Initialize(InContext, *ContainerFilePath, bInIsContainerCompressed);
 
 		if (!Status.IsOk())
 		{ 
@@ -616,9 +652,9 @@ FIoStoreWriter::~FIoStoreWriter()
 	check(Status.IsOk());
 }
 
-FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context)
+FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed)
 {
-	return Impl->Initialize(*Context.Impl);
+	return Impl->Initialize(*Context.Impl, bIsContainerCompressed);
 }
 
 FIoStatus FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions)

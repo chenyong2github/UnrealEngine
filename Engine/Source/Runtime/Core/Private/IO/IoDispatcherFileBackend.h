@@ -10,6 +10,8 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/Runnable.h"
 
+class IMappedFileHandle;
+
 struct FFileIoStoreContainerFile
 {
 	uint64 FileHandle = 0;
@@ -17,6 +19,8 @@ struct FFileIoStoreContainerFile
 	uint64 CompressionBlockSize = 0;
 	TArray<FName> CompressionMethods;
 	TArray<FIoStoreCompressedBlockEntry> CompressionBlocks;
+	FString FilePath;
+	TUniquePtr<IMappedFileHandle> MappedFileHandle;
 };
 
 struct FFileIoStoreBuffer
@@ -113,8 +117,9 @@ public:
 	FIoStatus Initialize(const FIoStoreEnvironment& Environment);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
-	const FIoOffsetAndLength* Resolve(FFileIoStoreResolvedRequest& ResolvedRequest);
+	const FIoOffsetAndLength* Resolve(const FIoChunkId& ChunkId) const;
 	const FFileIoStoreContainerFile& GetContainerFile() { return ContainerFile; }
+	IMappedFileHandle* GetMappedContainerFileHandle();
 
 private:
 	FFileIoStoreImpl& PlatformImpl;
@@ -134,6 +139,7 @@ public:
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	void ProcessCompletedBlocks();
+	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
 
 	static bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 

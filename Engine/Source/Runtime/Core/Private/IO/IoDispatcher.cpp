@@ -14,6 +14,7 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "HAL/Event.h"
+#include "Async/MappedFileHandle.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
@@ -201,9 +202,9 @@ public:
 		BatchAllocator.Destroy(Batch);
 	}
 
-	void ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
+	void ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
 	{
-		FIoRequestImpl* Request = AllocRequest(Chunk, Options);
+		FIoRequestImpl* Request = AllocRequest(ChunkId, Options);
 		Request->Callback = MoveTemp(Callback);
 		{
 			FScopeLock _(&WaitingLock);
@@ -219,6 +220,11 @@ public:
 			}
 		}
 		EventQueue.Notify();
+	}
+
+	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
+	{
+		return FileIoStore.OpenMapped(ChunkId, Options);
 	}
 
 	FIoStatus Mount(const FIoStoreEnvironment& Environment)
@@ -452,9 +458,15 @@ FIoDispatcher::FreeBatch(FIoBatch Batch)
 }
 
 void
-FIoDispatcher::ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
+FIoDispatcher::ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
 {
-	Impl->ReadWithCallback(Chunk, Options, MoveTemp(Callback));
+	Impl->ReadWithCallback(ChunkId, Options, MoveTemp(Callback));
+}
+
+TIoStatusOr<FIoMappedRegion>
+FIoDispatcher::OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
+{
+	return Impl->OpenMapped(ChunkId, Options);
 }
 
 // Polling methods
@@ -580,3 +592,4 @@ FIoRequest::GetResult() const
 		return Impl->Status;
 	}
 }
+

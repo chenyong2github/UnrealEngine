@@ -49,6 +49,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 
 static const FName DefaultCompressionMethod = NAME_Zlib;
 static const int64 DefaultCompressionBlockSize = 64 << 10;
+const int64 DefaultMemoryMappingAlignment = 16 << 10;
 
 struct FContainerSourceFile 
 {
@@ -64,7 +65,7 @@ struct FContainerSourceSpec
 
 struct FCookedFileStatData
 {
-	enum EFileExt { UMap, UAsset, UExp, UBulk, UPtnl };
+	enum EFileExt { UMap, UAsset, UExp, UBulk, UPtnl, UMappedBulk };
 	enum EFileType { PackageHeader, PackageData, BulkData };
 
 	int64 FileSize = 0;
@@ -86,6 +87,7 @@ struct FContainerTargetFile
 	bool bIsBulkData = false;
 	bool bIsOptionalBulkData = false;
 	bool bNeedsCompression = false;
+	bool bIsMemoryMappedBulkData = false;
 };
 
 struct FContainerTargetSpec
@@ -94,6 +96,7 @@ struct FContainerTargetSpec
 	FIoStoreWriter* IoStoreWriter;
 	TArray<FContainerTargetFile> TargetFiles;
 	TUniquePtr<FIoStoreEnvironment> IoStoreEnv;
+	bool bIsCompressed = false;
 };
 
 struct FPackageAssetData
@@ -1072,29 +1075,34 @@ static EIoChunkType BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBu
 		return EIoChunkType::BulkData;
 	case FPackageStoreBulkDataManifest::EBulkdataType::Optional:
 		return EIoChunkType::OptionalBulkData;
+	case FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped:
+		return EIoChunkType::MemoryMappedBulkData;
 	default:
 		UE_LOG(LogIoStore, Error, TEXT("Invalid EBulkdataType (%d) found!"), Type);
 		return EIoChunkType::Invalid;
 	}
 }
 
-static bool AppendBulkDataChunk(const FContainerTargetFile& TargetFile, const FPackageStoreBulkDataManifest& BulkDataManifest, FIoStoreWriter* IoStoreWriter, FIoBuffer BulkDataBuffer)
+static bool AppendBulkDataChunk(const FContainerTargetFile& TargetFile, const FPackageStoreBulkDataManifest& BulkDataManifest, FIoStoreWriter* IoStoreWriter, FIoBuffer BulkDataBuffer, int64 MemoryMappingAlignment)
 {
 	const FPackage& Package = *TargetFile.Package;
 	const FPackageStoreBulkDataManifest::FPackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
 	if (PackageDesc != nullptr)
 	{
-		FPackageStoreBulkDataManifest::EBulkdataType BulkDataType =
-			TargetFile.bIsOptionalBulkData ?
-			FPackageStoreBulkDataManifest::EBulkdataType::Optional :
-			FPackageStoreBulkDataManifest::EBulkdataType::Normal;
+		FPackageStoreBulkDataManifest::EBulkdataType BulkDataType = TargetFile.bIsOptionalBulkData
+			? FPackageStoreBulkDataManifest::EBulkdataType::Optional
+			: TargetFile.bIsMemoryMappedBulkData
+				? FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped
+				: FPackageStoreBulkDataManifest::EBulkdataType::Normal;
+
 		const EIoChunkType ChunkIdType = BulkdataTypeToChunkIdType(BulkDataType);
 
 		const FIoChunkId BulkDataChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, ChunkIdType, *TargetFile.TargetPath);
 
 		FIoWriteOptions WriteOptions;
 		WriteOptions.DebugName = *TargetFile.TargetPath;
-		WriteOptions.bCompressed = TargetFile.bNeedsCompression;
+		WriteOptions.bCompressed = BulkDataType == FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped ? false : TargetFile.bNeedsCompression;
+		WriteOptions.Alignment = BulkDataType == FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped ? MemoryMappingAlignment : 0;
 		const FIoStatus AppendResult = IoStoreWriter->Append(BulkDataChunkId, BulkDataBuffer, WriteOptions);
 		if (!AppendResult.IsOk())
 		{
@@ -2181,8 +2189,19 @@ int32 CreateTarget(
 
 					FString RelativeFileName = TEXT("../../../");
 					RelativeFileName.AppendChars(*NormalizedSourcePath + CookedDirLen, NormalizedSourcePath.Len() - CookedDirLen);
+					FPackage* Package = nullptr;
+					const bool bIsMemoryMappedBulkData = CookedFileStatData->FileExt == FCookedFileStatData::EFileExt::UMappedBulk;
 
-					FPackage* Package = FindOrAddPackage(*RelativeFileName, Packages, PackageMap);
+					if (bIsMemoryMappedBulkData)
+					{
+						FString TmpFileName = FString(RelativeFileName.Len() - 8, GetData(RelativeFileName)) + TEXT(".ubulk");
+						Package = FindOrAddPackage(*TmpFileName, Packages, PackageMap);
+					}
+					else
+					{
+						Package = FindOrAddPackage(*RelativeFileName, Packages, PackageMap);
+					}
+
 					if (Package)
 					{
 						FContainerTargetFile& TargetFile = ContainerTarget.TargetFiles.AddDefaulted_GetRef();
@@ -2203,7 +2222,9 @@ int32 CreateTarget(
 							Package->FileName = SourceFile.NormalizedPath; // .uasset path
 							Package->UAssetSize = OriginalCookedFileStatData->FileSize;
 						}
-						TargetFile.bNeedsCompression = SourceFile.bNeedsCompression;
+						TargetFile.bNeedsCompression = SourceFile.bNeedsCompression && !bIsMemoryMappedBulkData;
+						TargetFile.bIsMemoryMappedBulkData = bIsMemoryMappedBulkData;
+						ContainerTarget.bIsCompressed |= TargetFile.bNeedsCompression;
 					}
 				}
 			}
@@ -2692,9 +2713,11 @@ int32 CreateTarget(
 		}
 		FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
 		check(IoStatus.IsOk());
-		for (FIoStoreWriter* IoStoreWriter : IoStoreWriters)
+		IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, /* bIsCompressed */ false);
+		check(IoStatus.IsOk());
+		for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
 		{
-			IoStatus = IoStoreWriter->Initialize(*IoStoreWriterContext);
+			IoStatus = ContainerTarget.IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerTarget.bIsCompressed);
 			check(IoStatus.IsOk());
 		}
 	}
@@ -2749,7 +2772,7 @@ int32 CreateTarget(
 		TAtomic<uint64> OpenFileHandlesCount{ 0 };
 
 		TArray<FObjectExport>& ObjectExports = PackageAssetData.ObjectExports;
-		TFuture<void> ReaderTask = Async(EAsyncExecution::ThreadPool, [&ReadFileTasks, &BufferMemoryAllocated, &OpenFileHandlesCount, TaskStartedEvent, TaskFinishedEvent, &BulkDataManifest, &ObjectExports]()
+		TFuture<void> ReaderTask = Async(EAsyncExecution::ThreadPool, [&ReadFileTasks, &BufferMemoryAllocated, &OpenFileHandlesCount, TaskStartedEvent, TaskFinishedEvent, &BulkDataManifest, &ObjectExports, &GeneralIoWriterSettings]()
 		{
 			IOSTORE_CPU_SCOPE(ReadContainerSourceFilesTask);
 			for (FReadFileTask& ReadFileTask : ReadFileTasks)
@@ -2767,7 +2790,7 @@ int32 CreateTarget(
 
 				if (ReadFileTask.ContainerTargetFile->bIsBulkData)
 				{
-					AppendBulkDataChunk(*ReadFileTask.ContainerTargetFile, BulkDataManifest, ReadFileTask.Container->IoStoreWriter, ReadFileTask.IoBuffer);
+					AppendBulkDataChunk(*ReadFileTask.ContainerTargetFile, BulkDataManifest, ReadFileTask.Container->IoStoreWriter, ReadFileTask.IoBuffer, GeneralIoWriterSettings.MemoryMappingAlignment);
 				}
 				else
 				{
@@ -3136,7 +3159,7 @@ public:
 	virtual bool Visit(const TCHAR* FilenameOrDirectory, const FFileStatData& StatData)
 	{
 		// Should match FCookedFileStatData::EFileExt
-		static const TCHAR* Extensions[] = { TEXT("umap"), TEXT("uasset"), TEXT("uexp"), TEXT("ubulk"), TEXT("uptnl") };
+		static const TCHAR* Extensions[] = { TEXT("umap"), TEXT("uasset"), TEXT("uexp"), TEXT("ubulk"), TEXT("uptnl"), TEXT("m.ubulk") };
 		static const int32 NumPackageExtensions = 2;
 		static const int32 UExpExtensionIndex = 2;
 
@@ -3152,10 +3175,21 @@ public:
 		}
 
 		int32 ExtIndex = 0;
-		for (ExtIndex = 0; ExtIndex < UE_ARRAY_COUNT(Extensions); ++ExtIndex)
+		if (0 == FCString::Stricmp(Extension, Extensions[3]))
 		{
-			if (0 == FCString::Stricmp(Extension, Extensions[ExtIndex]))
-				break;
+			ExtIndex = 3;
+			if (0 == FCString::Stricmp(Extension - 3, TEXT(".m.ubulk")))
+			{
+				ExtIndex = 5;
+			}
+		}
+		else
+		{
+			for (ExtIndex = 0; ExtIndex < UE_ARRAY_COUNT(Extensions); ++ExtIndex)
+			{
+				if (0 == FCString::Stricmp(Extension, Extensions[ExtIndex]))
+					break;
+			}
 		}
 
 		if (ExtIndex >= UE_ARRAY_COUNT(Extensions))
@@ -3219,6 +3253,16 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	FIoStoreWriterSettings GeneralIoWriterSettings { DefaultCompressionMethod, DefaultCompressionBlockSize, false };
 	GeneralIoWriterSettings.bEnableCsvOutput = FParse::Param(CmdLine, TEXT("-csvoutput"));
+
+	if (FParse::Value(CmdLine, TEXT("-AlignForMemoryMapping="), GeneralIoWriterSettings.MemoryMappingAlignment))
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Using memory mapping alignment '%ld'"), GeneralIoWriterSettings.MemoryMappingAlignment);
+	}
+	else
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Using default memory mapping alignment '%ld'"), DefaultMemoryMappingAlignment);
+		GeneralIoWriterSettings.MemoryMappingAlignment = DefaultMemoryMappingAlignment;
+	}
 
 	TArray<FName> CompressionFormats;
 	FString DesiredCompressionFormats;

@@ -30,6 +30,8 @@ class FIoBatchImpl;
 class FIoDispatcherImpl;
 class FIoStoreWriterContextImpl;
 class FIoStoreWriterImpl;
+class IMappedFileHandle;
+class IMappedFileRegion;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
 
@@ -581,6 +583,7 @@ enum class EIoChunkType : uint8
 	ExportBundleData,
 	BulkData,
 	OptionalBulkData,
+	MemoryMappedBulkData,
 	LoaderGlobalMeta,
 	LoaderInitialLoadMeta,
 	LoaderGlobalNames,
@@ -742,6 +745,15 @@ private:
 	FEvent*				CompletionEvent = nullptr;
 };
 
+/**
+ * Mapped region.
+ */
+struct FIoMappedRegion
+{
+	IMappedFileHandle* MappedFileHandle = nullptr;
+	IMappedFileRegion* MappedFileRegion = nullptr;
+};
+
 /** I/O dispatcher
   */
 class FIoDispatcher
@@ -755,7 +767,8 @@ public:
 	CORE_API FIoBatch				NewBatch();
 	CORE_API void					FreeBatch(FIoBatch Batch);
 
-	CORE_API void					ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback);
+	CORE_API void					ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback);
+	CORE_API TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
 
 	// Polling methods
 	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
@@ -802,6 +815,7 @@ struct FIoStoreWriterSettings
 {
 	FName CompressionMethod = NAME_None;
 	int64 CompressionBlockSize = 0;
+	int64 MemoryMappingAlignment = 0;
 	bool bEnableCsvOutput = false;
 };
 
@@ -818,6 +832,7 @@ struct FIoStoreWriterResult
 struct FIoWriteOptions
 {
 	const TCHAR* DebugName = nullptr;
+	int64 Alignment = 0;
 	bool bCompressed = false;
 };
 
@@ -844,7 +859,7 @@ public:
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
-	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context);
+	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed);
 	UE_NODISCARD CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions);
 
 	/**

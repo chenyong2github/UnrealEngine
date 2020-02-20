@@ -7,6 +7,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/IConsoleManager.h"
 #include "Async/AsyncWork.h"
+#include "Async/MappedFileHandle.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
 
@@ -36,6 +37,26 @@ static FAutoConsoleVariableRef CVar_IoDispatcherDecompressionWorkerCount(
 	TEXT("IoDispatcher decompression worker count.")
 );
 
+class FMappedFileProxy final : public IMappedFileHandle
+{
+public:
+	FMappedFileProxy(IMappedFileHandle* InSharedMappedFileHandle, uint64 InSize)
+		: IMappedFileHandle(InSize)
+		, SharedMappedFileHandle(InSharedMappedFileHandle)
+	{
+		check(InSharedMappedFileHandle != nullptr);
+	}
+
+	virtual ~FMappedFileProxy() { }
+
+	virtual IMappedFileRegion* MapRegion(int64 Offset = 0, int64 BytesToMap = MAX_int64, bool bPreloadHint = false) override
+	{
+		return SharedMappedFileHandle->MapRegion(Offset, BytesToMap, bPreloadHint);
+	}
+private:
+	IMappedFileHandle* SharedMappedFileHandle;
+};
+
 FFileIoStoreReader::FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl)
 	: PlatformImpl(InPlatformImpl)
 {
@@ -58,6 +79,8 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 	{
 		return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore container file '") << *ContainerFilePath << TEXT("'");
 	}
+
+	ContainerFile.FilePath = ContainerFilePath;
 
 	TUniquePtr<uint8[]> TocBuffer;
 	bool bTocReadOk = false;
@@ -169,9 +192,21 @@ TIoStatusOr<uint64> FFileIoStoreReader::GetSizeForChunk(const FIoChunkId& ChunkI
 	}
 }
 
-const FIoOffsetAndLength* FFileIoStoreReader::Resolve(FFileIoStoreResolvedRequest& ResolvedRequest)
+const FIoOffsetAndLength* FFileIoStoreReader::Resolve(const FIoChunkId& ChunkId) const
 {
-	return Toc.Find(ResolvedRequest.Request->ChunkId);
+	return Toc.Find(ChunkId);
+}
+
+IMappedFileHandle* FFileIoStoreReader::GetMappedContainerFileHandle()
+{
+	if (!ContainerFile.MappedFileHandle)
+	{
+		IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
+		ContainerFile.MappedFileHandle.Reset(Ipf.OpenMapped(*ContainerFile.FilePath));
+	}
+
+	check(ContainerFile.FileSize > 0);
+	return new FMappedFileProxy(ContainerFile.MappedFileHandle.Get(), ContainerFile.FileSize);
 }
 
 FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue)
@@ -229,7 +264,7 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 	int32 ReaderIndex = 0;
 	for (FFileIoStoreReader* Reader : IoStoreReaders)
 	{
-		if (const FIoOffsetAndLength* OffsetAndLength = Reader->Resolve(ResolvedRequest))
+		if (const FIoOffsetAndLength* OffsetAndLength = Reader->Resolve(ResolvedRequest.Request->ChunkId))
 		{
 			uint64 RequestedOffset = ResolvedRequest.Request->Options.GetOffset();
 			ResolvedRequest.ResolvedOffset = OffsetAndLength->GetOffset() + RequestedOffset;
@@ -568,6 +603,55 @@ void FFileIoStore::ProcessCompletedBlocks()
 	{
 		ReadyForDecompressionTail = nullptr;
 	}
+}
+
+TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
+{
+	if (!FPlatformProperties::SupportsMemoryMappedFiles())
+	{
+		return FIoStatus(EIoErrorCode::Unknown, TEXT("Platform does not support memory mapped files"));
+	}
+
+	if (Options.GetTargetVa() != nullptr)
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Invalid read options"));
+	}
+
+	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
+
+	for (FFileIoStoreReader* Reader : IoStoreReaders)
+	{
+		if (const FIoOffsetAndLength* OffsetAndLength = Reader->Resolve(ChunkId))
+		{
+			uint64 ResolvedOffset = OffsetAndLength->GetOffset();
+			uint64 ResolvedSize = FMath::Min(Options.GetSize(), OffsetAndLength->GetLength());
+			
+			const FFileIoStoreContainerFile& ContainerFile = Reader->GetContainerFile();
+			const bool bIsCompressed = ContainerFile.CompressionBlockSize > 0;
+
+			IMappedFileHandle* MappedFileHandle = Reader->GetMappedContainerFileHandle();
+			IMappedFileRegion* MappedFileRegion = nullptr;
+
+			if (bIsCompressed)
+			{
+				int32 BlockIndex = int32(ResolvedOffset / ContainerFile.CompressionBlockSize);
+				const FIoStoreCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[BlockIndex];
+				const int64 BlockOffset = (int64)CompressionBlockEntry.OffsetAndLength.GetOffset();
+				check(BlockOffset % FPlatformProperties::GetMemoryMappingAlignment() == 0);
+
+				MappedFileRegion = MappedFileHandle->MapRegion(BlockOffset + Options.GetOffset(), ResolvedSize);
+				check(IsAligned(MappedFileRegion->GetMappedPtr(), FPlatformProperties::GetMemoryMappingAlignment()));
+			}
+			else
+			{
+				MappedFileRegion = MappedFileHandle->MapRegion(ResolvedOffset + Options.GetOffset(), ResolvedSize);
+			}
+
+			return FIoMappedRegion { MappedFileHandle, MappedFileRegion };
+		}
+	}
+
+	return FIoStatus::Invalid;
 }
 
 void FFileIoStore::ReadBlockAndScatter(uint32 ReaderIndex, uint32 BlockIndex, const FFileIoStoreResolvedRequest& ResolvedRequest)
