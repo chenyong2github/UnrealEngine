@@ -197,12 +197,10 @@ USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* Subsyste
 			const USubsystem* CDO = SubsystemClass->GetDefaultObject<USubsystem>();
 			if (CDO->ShouldCreateSubsystem(Outer))
 			{
-				USubsystem*& Subsystem = SubsystemMap.Add(SubsystemClass);
-				Subsystem = NewObject<USubsystem>(Outer, SubsystemClass);
-
+				USubsystem* Subsystem = NewObject<USubsystem>(Outer, SubsystemClass);
+				SubsystemMap.Add(SubsystemClass,Subsystem);
 				Subsystem->InternalOwningSubsystem = this;
 				Subsystem->Initialize(*this);
-				
 				return Subsystem;
 			}
 		}
