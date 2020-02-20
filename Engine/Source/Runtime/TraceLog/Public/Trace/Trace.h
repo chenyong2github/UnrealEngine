@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Config.h"
+#include "Detail/Trace.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 #if UE_TRACE_ENABLED
@@ -45,7 +45,6 @@ UE_TRACE_API bool	ToggleChannel(struct FChannel& Channel, bool bEnabled) UE_TRAC
 #define UE_TRACE_CHANNEL_DEFINE(ChannelName)					TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName)
 #define UE_TRACE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)			TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)
 
-#include "Detail/Trace.h"
 #include "Detail/EventDef.inl"
 #include "Detail/Writer.inl"
 #include "Detail/Channel.inl"
