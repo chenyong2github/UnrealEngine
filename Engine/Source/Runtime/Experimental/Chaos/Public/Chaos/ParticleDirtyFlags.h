@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "Chaos/Core.h"
+
+class FName;
+
 namespace Chaos
 {
 
@@ -10,11 +14,35 @@ using ChaosGeometrySp = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>;
 #define PARTICLE_PROPERTY(PropName, Type) PropName,
 	enum EParticleProperty : uint32
 	{
-#include "ParticleProperties.h"
+#include "ParticleProperties.inl"
 		NumProperties
 	};
 
 #undef PARTICLE_PROPERTY
+
+#define PARTICLE_PROPERTY_TYPE(TypeName, Type) TypeName,
+	enum EParticlePropertyType: uint32
+	{
+#include "ParticlePropertiesTypes.inl"
+		NumTypes
+	};
+
+#undef PARTICLE_PROPERTY_TYPE
+
+template <typename T>
+struct TParticlePropertyTrait
+{
+};
+
+#define PARTICLE_PROPERTY_TYPE(TypeName, Type) \
+template <>\
+struct TParticlePropertyTrait<Type>\
+{\
+	static constexpr uint32 PoolIdx = (uint32)EParticlePropertyType::TypeName;\
+};
+
+#include "ParticlePropertiesTypes.inl"
+#undef PARTICLE_PROPERTY_TYPE
 	
 	// There is a dirty flag for every user-settable particle property.
 	// Dirty property values will get copied from game to physics thread buffers,
@@ -23,7 +51,7 @@ using ChaosGeometrySp = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>;
 
 	enum class EParticleFlags : uint32
 	{
-		#include "ParticleProperties.h"
+		#include "ParticleProperties.inl"
 		DummyFlag
 	};
 #undef PARTICLE_PROPERTY
@@ -75,17 +103,14 @@ using ChaosGeometrySp = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>;
 
 	struct FDirtyIdx
 	{
-		uint32 Entry;
-
-		bool operator==(const FDirtyIdx& Rhs) const
-		{
-			return Entry == Rhs.Entry;
-		}
+		uint32 bHasEntry : 1;
+		uint32 Entry : 31;
 	};
 
 	template <typename T>
 	class TDirtyElementPool
 	{
+		static_assert(sizeof(TParticlePropertyTrait<T>::PoolIdx),"Property type must be registed. Is it in ParticlePropertiesTypes?");
 	public:
 		const T& Read(int32 Idx) const
 		{
@@ -143,89 +168,133 @@ using ChaosGeometrySp = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>;
 	class FDirtyPropertiesManager
 	{
 	public:
-#define PARTICLE_PROPERTY(PropName, Type) \
-const TDirtyElementPool<Type>& Get##PropName##Pool() const { return Dirty##PropName##Pool; }\
-TDirtyElementPool<Type>& Get##PropName##Pool() { return Dirty##PropName##Pool; }
+		template <typename T>
+		TDirtyElementPool<T>& GetPool()
+		{
+			switch(TParticlePropertyTrait<T>::PoolIdx)
+			{
+#define PARTICLE_PROPERTY_TYPE(TypeName, Type) case EParticlePropertyType::TypeName: return (TDirtyElementPool<T>&)TypeName##Pool;
+#include "ParticlePropertiesTypes.inl"
+#undef PARTICLE_PROPERTY_TYPE
+			default: check(false);
+			}
+			
+			static TDirtyElementPool<T> ErrorPool;
+			return ErrorPool;
+		}
 
-#include "ParticleProperties.h"
-#undef PARTICLE_PROPERTY
+		template <typename T>
+		const TDirtyElementPool<T>& GetPool() const
+		{
+			switch(TParticlePropertyTrait<T>::PoolIdx)
+			{
+#define PARTICLE_PROPERTY_TYPE(TypeName, Type) case EParticlePropertyType::TypeName: return (const TDirtyElementPool<T>&)TypeName##Pool;
+#include "ParticlePropertiesTypes.inl"
+#undef PARTICLE_PROPERTY_TYPE
+			default: check(false);
+			}
+
+			static TDirtyElementPool<T> ErrorPool;
+			return ErrorPool;
+		}
+
 	private:
 
-		//creates a TDirtyElementPool for each property
-#define PARTICLE_PROPERTY(Property, Type) TDirtyElementPool<Type> Dirty##Property##Pool;
-#include "ParticleProperties.h"
-#undef PARTICLE_PROPERTY
+#define PARTICLE_PROPERTY_TYPE(TypeName, Type) TDirtyElementPool<Type> TypeName##Pool;
+#include "ParticlePropertiesTypes.inl"
+#undef PARTICLE_PROPERTY_TYPE
 	};
 
-	class FDirtyProperties
+
+template <typename T>
+class TRemoteParticleProperty
+{
+public:
+	TRemoteParticleProperty()
 	{
-	public:
-		bool IsDirty(const EParticleFlags CheckBits) const
+		Idx.bHasEntry = false;
+	}
+
+	TRemoteParticleProperty(const TRemoteParticleProperty<T>& Rhs) = delete;
+	TRemoteParticleProperty(TRemoteParticleProperty<T>&& Rhs)
+	: Idx(Rhs.Idx)
+	{
+		Rhs.bHasEntry = false;
+	}
+
+	~TRemoteParticleProperty()
+	{
+		ensure(!Idx.bHasEntry);	//leaking, make sure to call Pop
+	}
+
+	const T& Read(const FDirtyPropertiesManager& Manager) const
+	{
+		ensure(Idx.bHasEntry);
+		return Manager.GetPool<T>().Read(Idx.Entry);
+	}
+
+	T Pop(FDirtyPropertiesManager& Manager)
+	{
+		ensure(Idx.bHasEntry);
+		Idx.bHasEntry = false;
+		return Manager.GetPool<T>().Pop(Idx.Entry);
+	}
+
+	void Clear(FDirtyPropertiesManager& Manager)
+	{
+		if(Idx.bHasEntry)
 		{
-			return Flags.IsDirty(CheckBits);
+			Idx.bHasEntry = false;
+			Manager.GetPool<T>().Pop(Idx.Entry);
+		}
+	}
+
+	void Write(FDirtyPropertiesManager& Manager, const T& Val)
+	{
+		if(Idx.bHasEntry)
+		{
+			Manager.GetPool<T>().Update(Idx.Entry,Val);
+		}
+		else
+		{
+			Idx.Entry = Manager.GetPool<T>().Write(Val);
+			Idx.bHasEntry = true;
+		}
+	}
+private:
+	FDirtyIdx Idx;
+
+	TRemoteParticleProperty<T>& operator=(const TRemoteParticleProperty<T>& Rhs){}
+};
+
+template <typename T, EParticleFlags Flag>
+class TParticleProperty
+{
+public:
+	const T& Read() const { return Property; }
+	void Write(const T& Val, TRemoteParticleProperty<T>& Remote, FParticleDirtyFlags& PendingFlush, FParticleDirtyFlags& Dirty, FDirtyPropertiesManager* Manager)
+	{
+		Property = Val;
+		if(Manager)
+		{
+			Remote.Write(*Manager, Val);
+			PendingFlush.MarkClean(Flag);
+		}
+		else
+		{
+			PendingFlush.MarkDirty(Flag);
 		}
 
-		bool IsDirty(const int32 CheckBits) const
-		{
-			return Flags.IsDirty(CheckBits);
-		}
+		Dirty.MarkDirty(Flag);
+	}
 
-		~FDirtyProperties()
-		{
-			//Make sure to call Clean before killing this guy
-			ensure(Flags.IsClean());
-		}
+	void Flush(TRemoteParticleProperty<T>& Remote,FParticleDirtyFlags& PendingFlush,FDirtyPropertiesManager& Manager)
+	{
+		Remote.Write(Manager, Property);
+		PendingFlush.MarkClean(Flag);
+	}
 
-		void Clean(FDirtyPropertiesManager& DirtyPropertyManager)
-		{
-			if(!Flags.IsClean())
-			{
-#define PARTICLE_PROPERTY(PropName, Type) if(Flags.IsDirty(EParticleFlags::PropName)){ Pop##PropName(DirtyPropertyManager); }
-#include "ParticleProperties.h"
-#undef PARTICLE_PROPERTY
-			}
-		}
-
-#define PARTICLE_PROPERTY(PropName, Type)\
-Type const& Read##PropName(const FDirtyPropertiesManager& DirtyPropertiesManager) const { return ReadImp(PropName, DirtyPropertiesManager.Get##PropName##Pool()); }\
-Type Pop##PropName(FDirtyPropertiesManager& DirtyPropertiesManager) { return PopImp(PropName, EParticleFlags::PropName, DirtyPropertiesManager.Get##PropName##Pool()); }\
-void Write##PropName(FDirtyPropertiesManager& DirtyPropertiesManager, Type const& Val) { WriteImp(PropName, EParticleFlags::PropName, Val, DirtyPropertiesManager.Get##PropName##Pool()); }
-
-#include "ParticleProperties.h"
-#undef PARTICLE_PROPERTY
-
-	private:
-		FParticleDirtyFlags Flags;
-#define PARTICLE_PROPERTY(PropName, Type) FDirtyIdx PropName;
-#include "ParticleProperties.h"
-#undef PARTICLE_PROPERTY
-
-		template <typename T>
-		void WriteImp(FDirtyIdx& Prop, EParticleFlags Flag, const T& Val, TDirtyElementPool<T>& Pool)
-		{
-			if(Flags.IsDirty(Flag))
-			{
-				Pool.Update(Prop.Entry,Val);
-			}
-			else
-			{
-				Prop.Entry = Pool.Write(Val);
-				Flags.MarkDirty(Flag);
-			}
-		}
-
-		template <typename T>
-		const T& ReadImp(const FDirtyIdx Prop, const TDirtyElementPool<T>& Pool) const
-		{
-			return Pool.Read(Prop.Entry);
-		}
-
-		template <typename T>
-		T PopImp(const FDirtyIdx Prop, EParticleFlags Flag, TDirtyElementPool<T>& Pool)
-		{
-			ensure(Flags.IsDirty(Flag));
-			Flags.MarkClean(Flag);
-			return Pool.Pop(Prop.Entry);
-		}
-	};
+private:
+	T Property;
+};
 }
