@@ -3360,6 +3360,13 @@ bool UNavigationSystemV1::IsNavigationBuildInProgress(bool bCheckDirtyToo)
 void UNavigationSystemV1::OnNavigationGenerationFinished(ANavigationData& NavData)
 {
 	OnNavigationGenerationFinishedDelegate.Broadcast(&NavData);
+
+#if WITH_EDITOR
+	if (!GetWorld()->IsGameWorld())
+	{
+		NavData.MarkPackageDirty();
+	}
+#endif //WITH_EDITOR
 }
 
 int32 UNavigationSystemV1::GetNumRemainingBuildTasks() const
