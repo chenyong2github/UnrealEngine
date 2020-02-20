@@ -328,4 +328,5 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, FImplicitObject& Value)
 
 typedef FImplicitObject FImplicitObject3;
 typedef TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ThreadSafeSharedPtr_FImplicitObject;
+typedef TSharedPtr<Chaos::FImplicitObject, ESPMode::NotThreadSafe> NotThreadSafeSharedPtr_FImplicitObject;
 }
