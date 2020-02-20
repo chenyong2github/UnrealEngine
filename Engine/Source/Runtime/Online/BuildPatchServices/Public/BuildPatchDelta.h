@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 
+#include "Interfaces/IBuildManifest.h"
+
 namespace BuildPatchServices
 {
 	/**
@@ -40,4 +42,12 @@ namespace BuildPatchServices
 			default: return InvalidOrMax;
 		}
 	}
+
+	/**
+	 * Based on the source and destination manifests, get the filename for the delta that optimises patching from source to destination.
+	 * @param SourceManifest        The source manifest.
+	 * @param DestinationManifest   The destination manifest.
+	 * @return the CloudDir relative delta filename.
+	 */
+	BUILDPATCHSERVICES_API FString GetChunkDeltaFilename(const IBuildManifestRef& SourceManifest, const IBuildManifestRef& DestinationManifest);
 }
