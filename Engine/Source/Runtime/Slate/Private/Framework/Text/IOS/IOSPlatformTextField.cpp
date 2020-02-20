@@ -57,7 +57,10 @@ FIOSPlatformTextField::~FIOSPlatformTextField()
 		dispatch_async(dispatch_get_main_queue(), ^{
             NSLog(@"Finally releasing text field %@", LocalTextField);
 #if !PLATFORM_TVOS
-            [LocalTextField hide];
+			if (LocalTextField != nullptr && [LocalTextField respondsToSelector:@selector(hide:)])
+			{
+            	[LocalTextField hide];
+			}
 #endif
 		});
 	}
