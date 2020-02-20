@@ -194,6 +194,9 @@ private:
 	/** Is the uploading complete. */
 	bool bIsUploadComplete;
 
+	/** To know if the ticker was started.*/
+	FDelegateHandle TickHandle;
+
 };
 
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
