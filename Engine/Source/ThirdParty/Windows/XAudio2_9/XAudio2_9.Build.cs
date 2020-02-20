@@ -15,13 +15,11 @@ public class XAudio2_9 : ModuleRules
 		{		
 			PublicAdditionalLibraries.Add(XAudio2_9Dir + "/Lib/x64/xaudio2_9redist.lib");
             RuntimeDependencies.Add("$(TargetOutputDir)/XAudio2_9redist.dll", XAudio2_9Dir + "/Bin/x64/XAudio2_9redist.dll");
-			RuntimeDependencies.Add("$(TargetOutputDir)/XAudio2_9redist.pdb", XAudio2_9Dir + "/Lib/x64/XAudio2_9redist.pdb", StagedFileType.DebugNonUFS);
 		}
         else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
 			PublicAdditionalLibraries.Add(XAudio2_9Dir + "/Lib/x86/xaudio2_9redist.lib");
             RuntimeDependencies.Add("$(TargetOutputDir)/XAudio2_9redist.dll", XAudio2_9Dir + "/Bin/x86/XAudio2_9redist.dll");
-			RuntimeDependencies.Add("$(TargetOutputDir)/XAudio2_9redist.pdb", XAudio2_9Dir + "/Lib/x86/XAudio2_9redist.pdb", StagedFileType.DebugNonUFS);
 		}
 
     }
