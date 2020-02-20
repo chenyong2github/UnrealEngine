@@ -29,6 +29,14 @@ const FString UNiagaraDataInterfaceStaticMesh::InstanceWorldVelocityName(TEXT("I
 const FString UNiagaraDataInterfaceStaticMesh::AreaWeightedSamplingName(TEXT("AreaWeightedSamplingName_"));
 const FString UNiagaraDataInterfaceStaticMesh::NumTexCoordName(TEXT("NumTexCoordName_"));
 
+static int32 GNiagaraFailStaticMeshDataInterface = 1;
+static FAutoConsoleVariableRef CVarNiagaraFailStaticMeshDataInterface(
+	TEXT("fx.Niagara.FailStaticMeshDataInterface"),
+	GNiagaraFailStaticMeshDataInterface,
+	TEXT("When enabled we will fail out using static mesh data interfaces."),
+	ECVF_Default
+);
+
 FStaticMeshFilteredAreaWeightedSectionSampler::FStaticMeshFilteredAreaWeightedSectionSampler()
 	: Res(nullptr)
 	, Owner(nullptr)
@@ -233,6 +241,12 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		TransformInverseTransposed = Transform.InverseFast().GetTransposed();
 	}
 
+	if (GNiagaraFailStaticMeshDataInterface != 0)
+	{
+		UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface aborting because \"fx.Niagara.FailStaticMeshDataInterface 1\". Failed InitPerInstanceData - %s"), *Interface->GetFullName());
+		return false;
+	}
+
 	if (!Mesh)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface has no valid mesh. Failed InitPerInstanceData - %s"), *Interface->GetFullName());
@@ -277,6 +291,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	}
 
 	Sampler.Init(&Res, this);
+
 
 	return true;
 }

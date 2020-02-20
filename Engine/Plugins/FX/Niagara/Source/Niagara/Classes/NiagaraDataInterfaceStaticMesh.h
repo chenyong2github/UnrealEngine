@@ -99,6 +99,8 @@ protected:
 
 struct FNDIStaticMesh_InstanceData
 {
+	FNDIStaticMesh_InstanceData() : Mesh(nullptr) {}
+
 	 //Cached ptr to component we sample from. 
 	TWeakObjectPtr<USceneComponent> Component;
 
