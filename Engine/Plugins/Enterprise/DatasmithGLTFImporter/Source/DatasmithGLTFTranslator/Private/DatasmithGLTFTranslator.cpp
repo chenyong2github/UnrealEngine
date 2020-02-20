@@ -124,12 +124,12 @@ bool FDatasmithGLTFTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 	}
 
 	bool bSuccess = Importer->SendSceneToDatasmith();
-	ShowLogMessages(Importer->GetLogMessages());
 	return bSuccess;
 }
 
 void FDatasmithGLTFTranslator::UnloadScene()
 {
+	ShowLogMessages(Importer->GetLogMessages());
 	Importer->UnloadScene();
 }
 
