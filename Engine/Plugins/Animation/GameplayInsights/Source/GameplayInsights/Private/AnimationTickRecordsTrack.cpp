@@ -59,15 +59,12 @@ static FLinearColor MakeSeriesColor(FTickRecordSeries::ESeriesType InSeed, bool 
 	return MakeSeriesColor((uint32)InSeed, bInLine);
 }
 
-FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, uint64 InAssetId, int32 InNodeId, const TCHAR* InName)
-	: FGameplayGraphTrack(InSharedData.GetGameplaySharedData(), InObjectID, MakeTrackName(InSharedData.GetGameplaySharedData(), InAssetId, InName))
+FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
+	: FGameplayGraphTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("AnimationTickRecordsTrackName", "Blend Weights - {0}"), FText::FromString(InName)))
 	, SharedData(InSharedData)
-	, AssetId(InAssetId)
-	, NodeId(InNodeId)
 {
-	uint32 Hash = GetTypeHash(GetName());
-	MainSeriesLineColor = MakeSeriesColor(Hash, true);
-	MainSeriesFillColor = MakeSeriesColor(Hash);
+	bDrawLabels = true;
+	Layout = EGameplayGraphLayout::Stack;
 
 #if WITH_EDITOR
 	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
@@ -89,109 +86,112 @@ FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedDat
 
 void FAnimationTickRecordsTrack::AddAllSeries()
 {
-	if(AllSeries.Num() > 0)
-	{
-		return;
-	}
-
 	struct FSeriesDescription
 	{
 		FText Name;
 		FText Description;
-		FLinearColor LineColor;
-		FLinearColor FillColor;
 		FTickRecordSeries::ESeriesType Type;
 		bool bEnabled;
 	};
 
-	const FSeriesDescription SeriesDescriptions[] =
-	{
-		{ 
-			LOCTEXT("SeriesNameBlendWeight", "Blend Weight"), 
-			LOCTEXT("SeriesDescBlendWeight", "The final effective weight that this animation sequence was played at"), 
-			MainSeriesLineColor, 
-			MainSeriesFillColor, 
-			FTickRecordSeries::ESeriesType::BlendWeight,
-			true
-		},
-		{ 
-			LOCTEXT("SeriesNamePlaybackTime", "Playback Time"), 
-			LOCTEXT("SeriesDescPlaybackTime", "The playback time of this animation sequence"), 
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::PlaybackTime, true), 
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::PlaybackTime),
-			FTickRecordSeries::ESeriesType::PlaybackTime,
-			false
-		},
-		{ 
-			LOCTEXT("SeriesNameRootMotionWeight", "Root Motion Weight"),
-			LOCTEXT("SeriesDescRootMotionWeight", "The final effective root motion weight that this animation sequence was played at"), 
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::RootMotionWeight, true), 
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::RootMotionWeight), 
-			FTickRecordSeries::ESeriesType::RootMotionWeight, 
-			false
-		},
-		{ 
-			LOCTEXT("SeriesNamePlayRate", "Play Rate"), 
-			LOCTEXT("SeriesDescPlayRate", "The play rate/speed of this animation sequence"), 
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::PlayRate, true),
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::PlayRate), 
-			FTickRecordSeries::ESeriesType::PlayRate,
-			false
-		},
-	};
-
-	const FSeriesDescription BlendSpaceSeriesDescriptions[] =
-	{
-		{ 
-			LOCTEXT("SeriesNameBlendSpacePositionX", "BlendSpace Position X"), 
-			LOCTEXT("SeriesDescBlendSpacePositionX", "The X value used to sample this blend space"), 
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::BlendSpacePositionX, true),
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::BlendSpacePositionX),
-			FTickRecordSeries::ESeriesType::BlendSpacePositionX, 
-			false
-		},
-		{
-			LOCTEXT("SeriesNameBlendSpacePositionY", "BlendSpace Position Y"), 
-			LOCTEXT("SeriesDescBlendSpacePositionY", "The Y value used to sample this blend space"), 
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::BlendSpacePositionY, true), 
-			MakeSeriesColor(FTickRecordSeries::ESeriesType::BlendSpacePositionY), 
-			FTickRecordSeries::ESeriesType::BlendSpacePositionY, 
-			false
-		},
-	};
-
-	auto AddSeries = [this](const FSeriesDescription& InSeriesDescription)
-	{
-		TSharedRef<FTickRecordSeries> Series = MakeShared<FTickRecordSeries>();
-		Series->SetName(InSeriesDescription.Name.ToString());
-		Series->SetDescription(InSeriesDescription.Description.ToString());
-		Series->SetColor(InSeriesDescription.LineColor, InSeriesDescription.LineColor, InSeriesDescription.FillColor);
-		Series->Type = InSeriesDescription.Type;
-		Series->SetVisibility(InSeriesDescription.bEnabled);
-		Series->SetBaselineY(25.0f);
-		Series->SetScaleY(20.0f);
-		Series->EnableAutoZoom();
-		AllSeries.Add(Series);	
-	};
-
-	for(const FSeriesDescription& SeriesDescription : SeriesDescriptions)
-	{
-		AddSeries(SeriesDescription);
-	}
-
 	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-	if(GameplayProvider)
+	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+	if(GameplayProvider && AnimationProvider)
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(AssetId);
-		if(FCString::Stristr(ClassInfo.Name, TEXT("BlendSpace")) != nullptr)
+		AnimationProvider->EnumerateTickRecordIds(GetGameplayTrack().GetObjectId(), [this, &GameplayProvider](uint64 InAssetId, int32 InNodeId)
 		{
-			for(const FSeriesDescription& BlendSpaceSeriesDescription : BlendSpaceSeriesDescriptions)
+			auto CheckExistingSeries = [InAssetId, InNodeId](const TSharedPtr<FGraphSeries>& InSeries)
 			{
-				AddSeries(BlendSpaceSeriesDescription);
+				TSharedPtr<FTickRecordSeries> TickRecordSeries = StaticCastSharedPtr<FTickRecordSeries>(InSeries);
+				return TickRecordSeries->AssetId == InAssetId && TickRecordSeries->NodeId == InNodeId;
+			};
+
+			if (!AllSeries.ContainsByPredicate(CheckExistingSeries))
+			{
+				static const FSeriesDescription SeriesDescriptions[] =
+				{
+					{
+						LOCTEXT("SeriesNameBlendWeight", "Blend Weight"),
+						LOCTEXT("SeriesDescBlendWeight", "The final effective weight that this animation sequence was played at"),
+						FTickRecordSeries::ESeriesType::BlendWeight,
+						true
+					},
+					{
+						LOCTEXT("SeriesNamePlaybackTime", "Playback Time"),
+						LOCTEXT("SeriesDescPlaybackTime", "The playback time of this animation sequence"),
+						FTickRecordSeries::ESeriesType::PlaybackTime,
+						false
+					},
+					{
+						LOCTEXT("SeriesNameRootMotionWeight", "Root Motion Weight"),
+						LOCTEXT("SeriesDescRootMotionWeight", "The final effective root motion weight that this animation sequence was played at"),
+						FTickRecordSeries::ESeriesType::RootMotionWeight,
+						false
+					},
+					{
+						LOCTEXT("SeriesNamePlayRate", "Play Rate"),
+						LOCTEXT("SeriesDescPlayRate", "The play rate/speed of this animation sequence"),
+						FTickRecordSeries::ESeriesType::PlayRate,
+						false
+					},
+				};
+
+				static const FSeriesDescription BlendSpaceSeriesDescriptions[] =
+				{
+					{
+						LOCTEXT("SeriesNameBlendSpacePositionX", "BlendSpace Position X"),
+						LOCTEXT("SeriesDescBlendSpacePositionX", "The X value used to sample this blend space"),
+						FTickRecordSeries::ESeriesType::BlendSpacePositionX,
+						false
+					},
+					{
+						LOCTEXT("SeriesNameBlendSpacePositionY", "BlendSpace Position Y"),
+						LOCTEXT("SeriesDescBlendSpacePositionY", "The Y value used to sample this blend space"),
+						FTickRecordSeries::ESeriesType::BlendSpacePositionY,
+						false
+					},
+				};
+
+				const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(InAssetId);
+				const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InAssetId);
+
+				auto AddSeries = [this, GameplayProvider](const FSeriesDescription& InSeriesDescription, const TCHAR* InAssetName, uint64 InAssetId, int32 InNodeId)
+				{
+					FString Name = FText::Format(LOCTEXT("SeriesNameFormat", "{0} - {1}"), FText::FromString(InAssetName), InSeriesDescription.Name).ToString();
+					uint32 Hash = GetTypeHash(Name);
+					FLinearColor LineColor = MakeSeriesColor(Hash, true);
+					FLinearColor FillColor = MakeSeriesColor(Hash);
+
+					TSharedRef<FTickRecordSeries> Series = MakeShared<FTickRecordSeries>();
+					Series->SetName(Name);
+					Series->SetDescription(InSeriesDescription.Description.ToString());
+					Series->SetColor(LineColor, LineColor, FillColor);
+					Series->Type = InSeriesDescription.Type;
+					Series->SetVisibility(InSeriesDescription.bEnabled);
+					Series->SetBaselineY(25.0f);
+					Series->SetScaleY(20.0f);
+					Series->EnableAutoZoom();
+					Series->AssetId = InAssetId;
+					Series->NodeId = InNodeId;
+					AllSeries.Add(Series);
+				};
+
+				for (const FSeriesDescription& SeriesDescription : SeriesDescriptions)
+				{
+					AddSeries(SeriesDescription, ObjectInfo.Name, InAssetId, InNodeId);
+				}
+
+				if (FCString::Stristr(ClassInfo.Name, TEXT("BlendSpace")) != nullptr)
+				{
+					for (const FSeriesDescription& BlendSpaceSeriesDescription : BlendSpaceSeriesDescriptions)
+					{
+						AddSeries(BlendSpaceSeriesDescription, ObjectInfo.Name, InAssetId, InNodeId);
+					}
+				}
 			}
-		}
+		});
 	}
 }
 
@@ -209,14 +209,17 @@ bool FAnimationTickRecordsTrack::UpdateSeriesBoundsHelper(FTickRecordSeries& InS
 		InSeries.CurrentMin = 0.0;
 		InSeries.CurrentMax = 0.0;
 
-		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), GetAssetId(), GetNodeId(), [&bFoundEvents, &InViewport, &InSeries, &Projection](const FAnimationProvider::TickRecordTimeline& InTimeline)
+		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), [&bFoundEvents, &InViewport, &InSeries, &Projection](const FAnimationProvider::TickRecordTimeline& InTimeline)
 		{
 			InTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(), [&bFoundEvents, &InSeries, &Projection](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
 			{
-				const float Value = Invoke(Projection, InMessage);
-				InSeries.CurrentMin = FMath::Min(InSeries.CurrentMin, Value);
-				InSeries.CurrentMax = FMath::Max(InSeries.CurrentMax, Value);
-				bFoundEvents = true;
+				if (InMessage.AssetId == InSeries.AssetId && InMessage.NodeId == InSeries.NodeId)
+				{
+					const float Value = Invoke(Projection, InMessage);
+					InSeries.CurrentMin = FMath::Min(InSeries.CurrentMin, Value);
+					InSeries.CurrentMax = FMath::Max(InSeries.CurrentMax, Value);
+					bFoundEvents = true;
+				}
 			});
 		});
 	}
@@ -235,11 +238,21 @@ void FAnimationTickRecordsTrack::UpdateSeriesHelper(FTickRecordSeries& InSeries,
 
 		FGraphTrackBuilder Builder(*this, InSeries, InViewport);
 
-		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), GetAssetId(), GetNodeId(), [this, &AnimationProvider, &Builder, &InViewport, &Projection](const FAnimationProvider::TickRecordTimeline& InTimeline)
+		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), [this, &AnimationProvider, &Builder, &InViewport, &InSeries, &Projection](const FAnimationProvider::TickRecordTimeline& InTimeline)
 		{
-			InTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(), [this, &Builder, &Projection](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
+			uint16 FrameCounter = 0;
+			uint16 LastFrameWithTickRecord = 0;
+
+			InTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(), [this, &FrameCounter, &LastFrameWithTickRecord, &Builder, &InSeries, &Projection](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
 			{
-				Builder.AddEvent(InStartTime, InEndTime - InStartTime, Invoke(Projection, InMessage), InMessage.bContinuous);
+				FrameCounter = InMessage.FrameCounter;
+
+				if (InMessage.AssetId == InSeries.AssetId && InMessage.NodeId == InSeries.NodeId)
+				{
+					Builder.AddEvent(InStartTime, InEndTime - InStartTime, Invoke(Projection, InMessage), LastFrameWithTickRecord == FrameCounter - 1);
+
+					LastFrameWithTickRecord = InMessage.FrameCounter;
+				}
 			});
 		});
 	}
@@ -293,6 +306,20 @@ void FAnimationTickRecordsTrack::UpdateSeries(FGameplayGraphSeries& InSeries, co
 	}
 }
 
+void FAnimationTickRecordsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
+{
+	FGameplayGraphTrack::PostUpdate(Context);
+
+	if(Context.GetHoveredEvent().IsValid() && Context.GetHoveredEvent()->Is<FGraphTrackEvent>())
+	{
+		TSharedPtr<const FGraphTrackEvent> HoveredEvent = StaticCastSharedPtr<const FGraphTrackEvent>(Context.GetHoveredEvent());
+		if(HoveredEvent->GetTrack() == SharedThis(this))
+		{
+			CachedHoveredEvent = HoveredEvent;
+		}
+	}
+}
+
 void FAnimationTickRecordsTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const
 {
 	const FGraphTrackEvent& GraphTrackEvent = *static_cast<const FGraphTrackEvent*>(&HoveredTimingEvent);
@@ -307,6 +334,7 @@ void FAnimationTickRecordsTrack::InitTooltip(FTooltipDrawState& Tooltip, const I
 
 		Tooltip.AddNameValueTextLine(LOCTEXT("EventTime", "Time").ToString(), FText::AsNumber(InFoundStartTime).ToString());
 		Tooltip.AddNameValueTextLine(GraphTrackEvent.GetSeries()->GetName().ToString(), FText::AsNumber(GraphTrackEvent.GetValue()).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("EventWorld", "World").ToString(), GetGameplayTrack().GetWorldName(SharedData.GetAnalysisSession()).ToString());
 
 		Tooltip.UpdateLayout();
 	});
@@ -337,7 +365,7 @@ void FAnimationTickRecordsTrack::FindTickRecordMessage(const FTimingEventSearchP
 			{
 				Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-				AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), AssetId, NodeId, [this, &InContext](const FAnimationProvider::TickRecordTimeline& InTimeline)
+				AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), [this, &InContext](const FAnimationProvider::TickRecordTimeline& InTimeline)
 				{
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
 					{
@@ -364,60 +392,51 @@ void FAnimationTickRecordsTrack::FindTickRecordMessage(const FTimingEventSearchP
 void FAnimationTickRecordsTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 #if WITH_EDITOR
-	MenuBuilder.BeginSection("TrackActions", LOCTEXT("TrackActionsMenuHeader", "Track Actions"));
+	if(CachedHoveredEvent.IsValid())
 	{
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("FindAssetPlayerNode", "Find Asset Player Node"),
-			LOCTEXT("FindAssetPlayerNode_Tooltip", "Open the animation blueprint that this animation was played from."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]()
-				{
-					if(InstanceClass.LoadSynchronous())
-					{
-						if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass.Get()->ClassGeneratedBy))
-						{
-							GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AnimBlueprint);
+		int32 NodeId = StaticCastSharedRef<const FTickRecordSeries>(CachedHoveredEvent.Pin()->GetSeries())->NodeId;
 
-							if(IAnimationBlueprintEditor* AnimBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, true)))
+		MenuBuilder.BeginSection("TrackActions", LOCTEXT("TrackActionsMenuHeader", "Track Actions"));
+		{
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("FindAssetPlayerNode", "Find Asset Player Node"),
+				LOCTEXT("FindAssetPlayerNode_Tooltip", "Open the animation blueprint that this animation was played from."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this, NodeId]()
+					{
+						if(InstanceClass.LoadSynchronous())
+						{
+							if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass.Get()->ClassGeneratedBy))
 							{
-								int32 AnimNodeIndex = InstanceClass.Get()->AnimNodeProperties.Num() - NodeId - 1;
-								TWeakObjectPtr<const UEdGraphNode>* GraphNode = InstanceClass.Get()->AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(AnimNodeIndex);
-								if(GraphNode != nullptr && GraphNode->Get())
+								GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AnimBlueprint);
+
+								if(IAnimationBlueprintEditor* AnimBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, true)))
 								{
-									AnimBlueprintEditor->JumpToHyperlink(GraphNode->Get());
+									int32 AnimNodeIndex = InstanceClass.Get()->AnimNodeProperties.Num() - NodeId - 1;
+									TWeakObjectPtr<const UEdGraphNode>* GraphNode = InstanceClass.Get()->AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(AnimNodeIndex);
+									if(GraphNode != nullptr && GraphNode->Get())
+									{
+										AnimBlueprintEditor->JumpToHyperlink(GraphNode->Get());
+									}
 								}
 							}
 						}
-					}
-				})
-			),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
+					})
+				),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		MenuBuilder.EndSection();
 	}
-	MenuBuilder.EndSection();
 #endif
 
 	FGameplayGraphTrack::BuildContextMenu(MenuBuilder);
 }
 
-FText FAnimationTickRecordsTrack::MakeTrackName(const FGameplaySharedData& InSharedData, uint64 InAssetID, const TCHAR* InName) const
-{
-	FText AssetTypeName = LOCTEXT("UnknownAsset", "Unknown");
-
-	const FGameplayProvider* GameplayProvider = InSharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-	if(GameplayProvider)
-	{
-		const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(InAssetID);
-		AssetTypeName = FText::FromString(ClassInfo.Name);
-	}
-
-	return FText::Format(LOCTEXT("AnimationTickRecordsTrackName", "{0} - {1}"), AssetTypeName, FText::FromString(InName));
-}
-
-void FAnimationTickRecordsTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+void FAnimationTickRecordsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
 {
 	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
@@ -425,33 +444,26 @@ void FAnimationTickRecordsTrack::GetVariantsAtTime(double InTime, TArray<TShared
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(AssetId);
-		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeObject(FText::FromString(ClassInfo.Name), AssetId));
-
-		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData.GetAnalysisSession());
-
-		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), AssetId, NodeId, [&Header, &FramesProvider, &InTime](const FAnimationProvider::TickRecordTimeline& InTimeline)
+		AnimationProvider->ReadTickRecordTimeline(GetGameplayTrack().GetObjectId(), [&GameplayProvider, &OutVariants, &InFrame](const FAnimationProvider::TickRecordTimeline& InTimeline)
 		{
-			// round to nearest frame boundary
-			Trace::FFrame Frame;
-			if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTime, Frame))
+			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [&GameplayProvider, &OutVariants, &InFrame](double InStartTime, double InEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
 			{
-				InTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [&Header](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
+				if(InStartTime >= InFrame.StartTime && InEndTime <= InFrame.EndTime)
 				{
-					if(Header->GetChildren().Num() == 0)
+					const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(InMessage.AssetId);
+					TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeObject(FText::FromString(ClassInfo.Name), InMessage.AssetId));
+
+					Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendWeight", "Blend Weight"), InMessage.BlendWeight));
+					Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("PlaybackTime", "Playback Time"), InMessage.PlaybackTime));
+					Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("RootMotionWeight", "Root Motion Weight"), InMessage.RootMotionWeight));
+					Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("PlayRate", "Play Rate"), InMessage.PlayRate));
+					if(InMessage.bIsBlendSpace)
 					{
-						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendWeight", "Blend Weight"), InMessage.BlendWeight));
-						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("PlaybackTime", "Playback Time"), InMessage.PlaybackTime));
-						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("RootMotionWeight", "Root Motion Weight"), InMessage.RootMotionWeight));
-						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("PlayRate", "Play Rate"), InMessage.PlayRate));
-						if(InMessage.bIsBlendSpace)
-						{
-							Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionX", "Blend Space Position X"), InMessage.BlendSpacePositionX));
-							Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionY", "Blend Space Position Y"), InMessage.BlendSpacePositionY));
-						}
+						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionX", "Blend Space Position X"), InMessage.BlendSpacePositionX));
+						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionY", "Blend Space Position Y"), InMessage.BlendSpacePositionY));
 					}
-				});
-			}
+				}
+			});
 		});
 	}
 }

@@ -229,8 +229,8 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		int32 NodeId = EventData.GetValue<int32>("NodeId");
 		float Position = EventData.GetValue<float>("Position");
 		float Length = EventData.GetValue<float>("Length");
-		int32 FrameCount = EventData.GetValue<int32>("FrameCount");
-		AnimationProvider.AppendAnimSequencePlayer(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), NodeId, Position, Length, FrameCount);
+		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
+		AnimationProvider.AppendAnimSequencePlayer(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), NodeId, Position, Length, FrameCounter);
 		break;
 	}
 	case RouteId_BlendSpacePlayer:
@@ -287,7 +287,8 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		uint32 NextSectionNameId = EventData.GetValue<uint32>("NextSectionNameId");
 		float Weight = EventData.GetValue<float>("Weight");
 		float DesiredWeight = EventData.GetValue<float>("DesiredWeight");
-		AnimationProvider.AppendMontage(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight);
+		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
+		AnimationProvider.AppendMontage(AnimInstanceId, Context.SessionContext.TimestampFromCycle(Cycle), MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight, FrameCounter);
 		break;
 	}
 	}

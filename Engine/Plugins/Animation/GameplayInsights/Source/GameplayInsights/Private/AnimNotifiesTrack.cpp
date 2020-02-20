@@ -34,11 +34,11 @@ void FAnimNotifiesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 
 		bHasNotifies = false;
 
-		AnimationProvider->ReadNotifyTimeline(GetGameplayTrack().GetObjectId(), [this, &AnimationProvider, &Context, &Builder](const FAnimationProvider::AnimNotifyTimeline& InTimeline)
+		AnimationProvider->ReadNotifyTimeline(GetGameplayTrack().GetObjectId(), [this, &Context, &Builder](const FAnimationProvider::AnimNotifyTimeline& InTimeline)
 		{
-			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [this, &AnimationProvider, &Builder](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
+			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [this, &Builder](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
 			{
-				Builder.AddEvent(InStartTime, InEndTime, 0, AnimationProvider->GetName(InMessage.NameId));
+				Builder.AddEvent(InStartTime, InEndTime, 0, InMessage.Name);
 				bHasNotifies = true;
 			});
 		});
@@ -46,7 +46,7 @@ void FAnimNotifiesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 		uint32 Depth = bHasNotifies ? 1 : 0;
 		IdToDepthMap.Reset();
 
-		AnimationProvider->EnumerateNotifyStateTimelines(GetGameplayTrack().GetObjectId(), [this, &AnimationProvider, &Context, &Builder, &Depth](uint64 InNotifyId, const FAnimationProvider::AnimNotifyTimeline& InTimeline)
+		AnimationProvider->EnumerateNotifyStateTimelines(GetGameplayTrack().GetObjectId(), [this, &Context, &Builder, &Depth](uint64 InNotifyId, const FAnimationProvider::AnimNotifyTimeline& InTimeline)
 		{
 			uint32 DepthToUse = 0;
 			if(uint32* FoundDepthPtr = IdToDepthMap.Find(InNotifyId))
@@ -59,9 +59,9 @@ void FAnimNotifiesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 				DepthToUse = Depth;
 			}
 
-			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&AnimationProvider, &Builder, &DepthToUse](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
+			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder, &DepthToUse](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
 			{
-				Builder.AddEvent(InStartTime, InEndTime, DepthToUse, AnimationProvider->GetName(InMessage.NameId));
+				Builder.AddEvent(InStartTime, InEndTime, DepthToUse, InMessage.Name);
 			});
 		});
 	}
@@ -71,6 +71,51 @@ void FAnimNotifiesTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
 	DrawEvents(Context);
 	GetGameplayTrack().DrawHeaderForTimingTrack(Context, *this, false);
+}
+
+static const TCHAR* GetMessageType(EAnimNotifyMessageType InType, bool bInForEvent)
+{
+	switch (InType)
+	{
+	case EAnimNotifyMessageType::Begin:
+	case EAnimNotifyMessageType::End:
+	case EAnimNotifyMessageType::Tick:
+	{
+		static FText StateType = LOCTEXT("AnimNotifyState", "Anim Notify State");
+		static FText BeginType = LOCTEXT("AnimNotifyStateBegin", "Anim Notify State (Begin)");
+		static FText EndType = LOCTEXT("AnimNotifyStateEnd", "Anim Notify State (End)");
+		static FText TickType = LOCTEXT("AnimNotifyStateTick", "Anim Notify State (Tick)");
+		if (bInForEvent)
+		{
+			switch (InType)
+			{
+			case EAnimNotifyMessageType::Begin:
+				return *BeginType.ToString();
+			case EAnimNotifyMessageType::End:
+				return *EndType.ToString();
+			case EAnimNotifyMessageType::Tick:
+				return *TickType.ToString();
+			}
+		}
+		else
+		{
+			return *StateType.ToString();
+		}
+	}
+	case EAnimNotifyMessageType::Event:
+	{
+		static FText Type = LOCTEXT("AnimNotify", "Anim Notify");
+		return *Type.ToString();
+	}
+	case EAnimNotifyMessageType::SyncMarker:
+	{
+		static FText Type = LOCTEXT("SyncMarker", "Sync Marker");
+		return *Type.ToString();
+	}
+	}
+
+	static FText UnknownType = LOCTEXT("UnknownType", "Unknown");
+	return *UnknownType.ToString();
 }
 
 void FAnimNotifiesTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const
@@ -87,6 +132,8 @@ void FAnimNotifiesTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEv
 		Tooltip.ResetContent();
 
 		Tooltip.AddTitle(GetName());
+
+		Tooltip.AddNameValueTextLine(LOCTEXT("NotifyType", "Type").ToString(), GetMessageType(InMessage.NotifyEventType, InFoundDepth == 0));
 
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
@@ -118,6 +165,8 @@ void FAnimNotifiesTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEv
 				Tooltip.AddNameValueTextLine((bIsState ? LOCTEXT("Notify State Class", "Notify State Class") : LOCTEXT("NotifyClass", "Notify Class")).ToString(), NotifyClassInfo.PathName);
 			}
 		}
+
+		Tooltip.AddNameValueTextLine(LOCTEXT("EventWorld", "World").ToString(), GetGameplayTrack().GetWorldName(SharedData.GetAnalysisSession()).ToString());
 
 		Tooltip.UpdateLayout();
 	});
@@ -181,34 +230,7 @@ void FAnimNotifiesTrack::FindAnimNotifyMessage(const FTimingEventSearchParameter
 		});
 }
 
-static const TCHAR* GetMessageType(EAnimNotifyMessageType InType)
-{
-	switch(InType)
-	{
-	case EAnimNotifyMessageType::Begin:
-	case EAnimNotifyMessageType::End:
-	case EAnimNotifyMessageType::Tick:
-	{
-		static FText Type = LOCTEXT("AnimNotifyState", "Anim Notify State");
-		return *Type.ToString();
-	}
-	case EAnimNotifyMessageType::Event:
-	{
-		static FText Type = LOCTEXT("AnimNotify", "Anim Notify");
-		return *Type.ToString();
-	}
-	case EAnimNotifyMessageType::SyncMarker:
-	{
-		static FText Type = LOCTEXT("SyncMarker", "Sync Marker");
-		return *Type.ToString();
-	}
-	}
-
-	static FText UnknownType = LOCTEXT("UnknownType", "Unknown");
-	return *UnknownType.ToString();
-}
-
-void FAnimNotifiesTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const 
+void FAnimNotifiesTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const 
 {
 	TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("AnimNotifiesHeader", "Notifies and Sync Markers")));
 
@@ -220,39 +242,36 @@ void FAnimNotifiesTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVar
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		// round to nearest frame boundary
-		Trace::FFrame Frame;
-		if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTime, Frame))
+		bool bForEvent = true;
+		auto ProcessEvent = [this, &AnimationProvider, &GameplayProvider, &Header, &bForEvent](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
 		{
-			auto ProcessEvent = [this, &AnimationProvider, &GameplayProvider, &Header](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
+			const TCHAR* Name = AnimationProvider->GetName(InMessage.NameId);
+			TSharedRef<FVariantTreeNode> NotifyHeader = Header->AddChild(FVariantTreeNode::MakeHeader(FText::FromString(Name)));
+
+			NotifyHeader->AddChild(FVariantTreeNode::MakeString(LOCTEXT("EventType", "Type"), GetMessageType(InMessage.NotifyEventType, bForEvent)));
+			NotifyHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventDuration", "Duration"), InEndTime - InStartTime));
+			NotifyHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventTime", "Time"), InStartTime));
+
+			if(InMessage.NotifyEventType != EAnimNotifyMessageType::SyncMarker)
 			{
-				const TCHAR* Name = AnimationProvider->GetName(InMessage.NameId);
-				TSharedRef<FVariantTreeNode> NotifyHeader = Header->AddChild(FVariantTreeNode::MakeHeader(FText::FromString(Name)));
+				NotifyHeader->AddChild(FVariantTreeNode::MakeObject(LOCTEXT("Asset", "Asset"), InMessage.AssetId));
 
-				NotifyHeader->AddChild(FVariantTreeNode::MakeString(LOCTEXT("EventType", "Type"), GetMessageType(InMessage.NotifyEventType)));
-				NotifyHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventDuration", "Duration"), InEndTime - InStartTime));
-				NotifyHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventTime", "Time"), InStartTime));
+				const FObjectInfo& NotifyInfo = GameplayProvider->GetObjectInfo(InMessage.NotifyId);
+				bool bIsState = InMessage.NotifyEventType == EAnimNotifyMessageType::Begin || InMessage.NotifyEventType == EAnimNotifyMessageType::End || InMessage.NotifyEventType == EAnimNotifyMessageType::Tick;
+				NotifyHeader->AddChild(FVariantTreeNode::MakeClass((bIsState ? LOCTEXT("Notify State Class", "Notify State Class") : LOCTEXT("NotifyClass", "Notify Class")), NotifyInfo.ClassId));
+			}
+		};
 
-				if(InMessage.NotifyEventType != EAnimNotifyMessageType::SyncMarker)
-				{
-					NotifyHeader->AddChild(FVariantTreeNode::MakeObject(LOCTEXT("Asset", "Asset"), InMessage.AssetId));
+		AnimationProvider->ReadNotifyTimeline(GetGameplayTrack().GetObjectId(), [&InFrame, &ProcessEvent](const FAnimationProvider::AnimNotifyTimeline& InTimeline)
+		{
+			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, ProcessEvent);
+		});
 
-					const FObjectInfo& NotifyInfo = GameplayProvider->GetObjectInfo(InMessage.NotifyId);
-					bool bIsState = InMessage.NotifyEventType == EAnimNotifyMessageType::Begin || InMessage.NotifyEventType == EAnimNotifyMessageType::End || InMessage.NotifyEventType == EAnimNotifyMessageType::Tick;
-					NotifyHeader->AddChild(FVariantTreeNode::MakeClass((bIsState ? LOCTEXT("Notify State Class", "Notify State Class") : LOCTEXT("NotifyClass", "Notify Class")), NotifyInfo.ClassId));
-				}
-			};
-
-			AnimationProvider->ReadNotifyTimeline(GetGameplayTrack().GetObjectId(), [&Frame, &ProcessEvent](const FAnimationProvider::AnimNotifyTimeline& InTimeline)
-			{
-				InTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, ProcessEvent);
-			});
-
-			AnimationProvider->EnumerateNotifyStateTimelines(GetGameplayTrack().GetObjectId(), [&Frame, &ProcessEvent](uint32 InNotifyNameId, const FAnimationProvider::AnimNotifyTimeline& InTimeline)
-			{
-				InTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, ProcessEvent);
-			});
-		}
+		bForEvent = false;
+		AnimationProvider->EnumerateNotifyStateTimelines(GetGameplayTrack().GetObjectId(), [&InFrame, &ProcessEvent](uint32 InNotifyNameId, const FAnimationProvider::AnimNotifyTimeline& InTimeline)
+		{
+			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, ProcessEvent);
+		});
 	}
 }
 

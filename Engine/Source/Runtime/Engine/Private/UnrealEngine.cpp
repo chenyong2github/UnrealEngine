@@ -231,7 +231,6 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Components/SkinnedMeshComponent.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "ObjectTrace.h"
-#include "Animation/AnimTrace.h"
 #include "StudioAnalytics.h"
 #include "TraceFilter.h"
 
@@ -271,6 +270,10 @@ void FEngineModule::StartupModule()
 	USkinnedMeshComponent::BindWorldDelegates();
 #endif
 
+#if OBJECT_TRACE_ENABLED
+	FObjectTrace::Init();
+#endif
+
 #if TRACE_FILTERING_ENABLED
 	FTraceFilter::Init();
 #endif
@@ -280,6 +283,10 @@ void FEngineModule::ShutdownModule()
 {
 #if TRACE_FILTERING_ENABLED
 	FTraceFilter::Destroy();
+#endif
+
+#if OBJECT_TRACE_ENABLED
+	FObjectTrace::Destroy();
 #endif
 
 	FParticleSystemWorldManager::OnShutdown();

@@ -115,12 +115,12 @@ void FMontageTrack::UpdateSeries(FGameplayGraphSeries& InSeries, const FTimingTr
 
 		AnimationProvider->ReadMontageTimeline(GetGameplayTrack().GetObjectId(), [this, &Builder, &InViewport, &MontageSeries, &AnimationProvider](const FAnimationProvider::AnimMontageTimeline& InTimeline)
 		{
-			int32 FrameCounter = 0;
-			int32 LastFrameWithMontage = 0;
+			uint16 FrameCounter = 0;
+			uint16 LastFrameWithMontage = 0;
 
 			InTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(), [this, &FrameCounter, &LastFrameWithMontage, &Builder, &MontageSeries, &AnimationProvider](double InStartTime, double InEndTime, uint32 InDepth, const FAnimMontageMessage& InMessage)
 			{
-				FrameCounter++;
+				FrameCounter = InMessage.FrameCounter;
 
 				if(InMessage.MontageId == MontageSeries.MontageId)
 				{
@@ -169,6 +169,8 @@ void FMontageTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& 
 			}
 		}
 
+		Tooltip.AddNameValueTextLine(LOCTEXT("EventWorld", "World").ToString(), GetGameplayTrack().GetWorldName(SharedData.GetAnalysisSession()).ToString());
+
 		Tooltip.UpdateLayout();
 	});
 }
@@ -208,13 +210,21 @@ void FMontageTrack::FindMontageMessage(const FTimingEventSearchParameters& InPar
 			}
 		},
 
+		[&InParameters](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FAnimMontageMessage& InEvent)
+		{
+			// Match the start time exactly here
+			return InFoundStartTime == InParameters.StartTime;
+		},
+
 		[&InFoundPredicate](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FAnimMontageMessage& InEvent)
 		{
 			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
-		});
+		},
+		
+		TTimingEventSearch<FAnimMontageMessage>::NoMatch);
 }
 
-void FMontageTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const 
+void FMontageTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const 
 {
 	TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("MontagesHeader", "Montages")));
 
@@ -226,29 +236,24 @@ void FMontageTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantT
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		AnimationProvider->ReadMontageTimeline(GetGameplayTrack().GetObjectId(), [this, &InTime, &AnimationProvider, &FramesProvider, &GameplayProvider, &Header](const FAnimationProvider::AnimMontageTimeline& InTimeline)
+		AnimationProvider->ReadMontageTimeline(GetGameplayTrack().GetObjectId(), [this, &InFrame, &AnimationProvider, &GameplayProvider, &Header](const FAnimationProvider::AnimMontageTimeline& InTimeline)
 		{
-			// round to nearest frame boundary
-			Trace::FFrame Frame;
-			if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTime, Frame))
+			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [this, &AnimationProvider, &GameplayProvider, &Header, &InFrame](double InStartTime, double InEndTime, uint32 InDepth, const FAnimMontageMessage& InMessage)
 			{
-				InTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [this, &AnimationProvider, &GameplayProvider, &Header, &Frame](double InStartTime, double InEndTime, uint32 InDepth, const FAnimMontageMessage& InMessage)
+				if(InStartTime >= InFrame.StartTime && InEndTime <= InFrame.EndTime)
 				{
-					if(InStartTime >= Frame.StartTime && InEndTime <= Frame.EndTime)
-					{
-						const FObjectInfo& MontageInfo = GameplayProvider->GetObjectInfo(InMessage.MontageId);
-						TSharedRef<FVariantTreeNode> MontageHeader = Header->AddChild(FVariantTreeNode::MakeObject(FText::FromString(MontageInfo.Name), InMessage.MontageId));
+					const FObjectInfo& MontageInfo = GameplayProvider->GetObjectInfo(InMessage.MontageId);
+					TSharedRef<FVariantTreeNode> MontageHeader = Header->AddChild(FVariantTreeNode::MakeObject(FText::FromString(MontageInfo.Name), InMessage.MontageId));
 
-						MontageHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventWeight", "Weight"), InMessage.Weight));
-						MontageHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventDesiredWeight", "Desired Weight"), InMessage.DesiredWeight));
+					MontageHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventWeight", "Weight"), InMessage.Weight));
+					MontageHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventDesiredWeight", "Desired Weight"), InMessage.DesiredWeight));
 
-						const TCHAR* CurrentSectionName = AnimationProvider->GetName(InMessage.CurrentSectionNameId);
-						MontageHeader->AddChild(FVariantTreeNode::MakeString(LOCTEXT("CurrentSectionName", "Current Section"), CurrentSectionName));
-						const TCHAR* NextSectionName = AnimationProvider->GetName(InMessage.NextSectionNameId);
-						MontageHeader->AddChild(FVariantTreeNode::MakeString(LOCTEXT("NextSectionName", "Next Section"), NextSectionName));
-					}
-				});
-			}
+					const TCHAR* CurrentSectionName = AnimationProvider->GetName(InMessage.CurrentSectionNameId);
+					MontageHeader->AddChild(FVariantTreeNode::MakeString(LOCTEXT("CurrentSectionName", "Current Section"), CurrentSectionName));
+					const TCHAR* NextSectionName = AnimationProvider->GetName(InMessage.NextSectionNameId);
+					MontageHeader->AddChild(FVariantTreeNode::MakeString(LOCTEXT("NextSectionName", "Next Section"), NextSectionName));
+				}
+			});
 		});
 	}
 }

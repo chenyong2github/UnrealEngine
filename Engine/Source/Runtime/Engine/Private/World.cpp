@@ -3983,6 +3983,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 
 void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime, FRegisterComponentContext* Context)
 {
+	TRACE_WORLD(this);
 	TRACE_OBJECT_EVENT(this, InitializeActorsForPlay);
 
 	check(bIsWorldInitialized);

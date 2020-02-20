@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Insights/ViewModels/TimingEventsTrack.h"
+#include "TraceServices/Model/Frames.h"
 
 class FGameplaySharedData;
 namespace Trace { class IAnalysisSession; }
@@ -76,6 +77,9 @@ public:
 	/** Open an anim graph tab to see its schematic view */
 	void OpenAnimGraphTab(uint64 InAnimInstanceId) const;
 
+	/** Get the current marker frame, if any. @return true if the frame is valid */
+	bool GetCurrentMarkerFrame(Trace::FFrame& OutFrame) const { OutFrame = MarkerFrame; return bMarkerFrameValid; }
+
 private:
 	// UI handlers
 	void ToggleAnimationTracks();
@@ -113,9 +117,11 @@ private:
 
 	/** Various times and ranges */
 	double MarkerTime;
+	Trace::FFrame MarkerFrame;
 
 	/** Validity flags for pose times/ranges */
 	bool bTimeMarkerValid;
+	bool bMarkerFrameValid;
 
 	// Flags controlling whether check type of our animation tracks are enabled
 	bool bSkeletalMeshPoseTracksEnabled;

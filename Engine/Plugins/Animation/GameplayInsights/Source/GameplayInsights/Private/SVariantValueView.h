@@ -5,12 +5,13 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
+#include "TraceServices/Model/Frames.h"
 
 namespace Trace { class IAnalysisSession; }
 struct FVariantTreeNode;
 
 // Delegate called to get variant values to display
-DECLARE_DELEGATE_TwoParams(FOnGetVariantValues, double /*InTime*/, TArray<TSharedRef<FVariantTreeNode>>& /*OutValues*/);
+DECLARE_DELEGATE_TwoParams(FOnGetVariantValues, const Trace::FFrame& /*InFrame*/, TArray<TSharedRef<FVariantTreeNode>>& /*OutValues*/);
 
 class SVariantValueView : public SCompoundWidget
 {
@@ -24,7 +25,7 @@ public:
 	void Construct(const FArguments& InArgs, const Trace::IAnalysisSession& InAnalysisSession);
 
 	/** Refresh the displayed variants. */
-	void RequestRefresh(double InTimeMarker) { TimeMarker = InTimeMarker; bNeedsRefresh = true; }
+	void RequestRefresh(const Trace::FFrame& InFrame) { Frame = InFrame; bNeedsRefresh = true; }
 
 private:
 	// Generate a row widget for a property item
@@ -43,7 +44,7 @@ private:
 
 	TArray<TSharedRef<FVariantTreeNode>> VariantTreeNodes;
 
-	double TimeMarker;
+	Trace::FFrame Frame;
 
 	FOnGetVariantValues OnGetVariantValues;
 
