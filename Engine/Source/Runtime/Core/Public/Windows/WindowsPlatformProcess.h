@@ -186,6 +186,8 @@ public:
 	static FSemaphore* NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks = 1);
 	static bool DeleteInterprocessSynchObject(FSemaphore * Object);
 	static bool Daemonize();
+	static void SetupAudioThread();
+	static void TeardownAudioThread();
 protected:
 
 	/**
