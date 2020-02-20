@@ -1607,6 +1607,11 @@ bool UGameplayAbility::HasAuthority(const FGameplayAbilityActivationInfo* Activa
 	return (ActivationInfo->ActivationMode == EGameplayAbilityActivationMode::Authority);
 }
 
+bool UGameplayAbility::K2_HasAuthority() const
+{
+	return HasAuthority(&CurrentActivationInfo);
+}
+
 bool UGameplayAbility::HasAuthorityOrPredictionKey(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo* ActivationInfo) const
 {
 	return ActorInfo->AbilitySystemComponent->HasAuthorityOrPredictionKey(ActivationInfo);
