@@ -32,4 +32,6 @@ private:
 	TWeakPtr<FBaseTimingTrack> TimingTrack;
 
 	TSharedPtr<SVariantValueView> VariantValueView;
+
+	const Trace::IAnalysisSession* AnalysisSession;
 };

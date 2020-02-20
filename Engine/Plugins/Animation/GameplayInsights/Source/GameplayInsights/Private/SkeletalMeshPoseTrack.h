@@ -55,7 +55,7 @@ public:
 	void RemoveWorld(UWorld* InWorld);
 
 	// Draw poses at the specified time
-	void DrawPoses(UWorld* InWorld, double InTime);
+	void DrawPoses(UWorld* InWorld, double InTime, double InFrameStartTime, double InFrameEndTime);
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

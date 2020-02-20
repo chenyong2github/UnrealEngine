@@ -89,40 +89,35 @@ void FAnimationProvider::EnumerateSkeletalMeshCurves(const FSkeletalMeshPoseMess
 	}
 }
 
-void FAnimationProvider::EnumerateTickRecordTimelines(uint64 InObjectId, TFunctionRef<void(uint64, int32, const TickRecordTimeline&)> Callback) const
+void FAnimationProvider::EnumerateTickRecordIds(uint64 InObjectId, TFunctionRef<void(uint64, int32)> Callback) const
 {
 	Session.ReadAccessCheck();
 
 	const uint32* IndexPtr = ObjectIdToTickRecordTimelineStorage.Find(InObjectId);
-	if(IndexPtr != nullptr)
+	if (IndexPtr != nullptr)
 	{
 		if (*IndexPtr < uint32(TickRecordTimelineStorage.Num()))
 		{
 			const TSharedRef<FTickRecordTimelineStorage>& TimelineStorage = TickRecordTimelineStorage[*IndexPtr];
-			for(auto AssetIdPair : TimelineStorage->AssetIdAndPlayerToTickRecordTimeline)
+			for (auto AssetIdPair : TimelineStorage->AssetIdAndPlayers)
 			{
-				Callback(AssetIdPair.Key.Key, AssetIdPair.Key.Value, TimelineStorage->Timelines[AssetIdPair.Value].Get());
+				Callback(AssetIdPair.Key, AssetIdPair.Value);
 			}
 		}
 	}
 }
 
-bool FAnimationProvider::ReadTickRecordTimeline(uint64 InObjectId, uint64 InAssetId, int32 InNodeId, TFunctionRef<void(const TickRecordTimeline&)> Callback) const
+bool FAnimationProvider::ReadTickRecordTimeline(uint64 InObjectId, TFunctionRef<void(const TickRecordTimeline&)> Callback) const
 {
 	Session.ReadAccessCheck();
 
 	const uint32* IndexPtr = ObjectIdToTickRecordTimelineStorage.Find(InObjectId);
-	if(IndexPtr != nullptr)
+	if (IndexPtr != nullptr)
 	{
 		if (*IndexPtr < uint32(TickRecordTimelineStorage.Num()))
 		{
-			const TSharedRef<FTickRecordTimelineStorage>& TimelineStorage = TickRecordTimelineStorage[*IndexPtr];
-			const uint32* TimelineIndexPtr = TimelineStorage->AssetIdAndPlayerToTickRecordTimeline.Find(TTuple<uint64, int32>(InAssetId, InNodeId));
-			if(TimelineIndexPtr != nullptr)
-			{
-				Callback(TimelineStorage->Timelines[*TimelineIndexPtr].Get());
-				return true;
-			}
+			Callback(*TickRecordTimelineStorage[*IndexPtr]->Timeline.Get());
+			return true;
 		}
 	}
 
@@ -377,7 +372,6 @@ void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime
 {
 	Session.WriteAccessCheck();
 
-	TSharedPtr<Trace::TPointTimeline<FTickRecordMessage>> Timeline;
 	TSharedPtr<FTickRecordTimelineStorage> TimelineStorage;
 	uint32* TimelineStorageIndexPtr = ObjectIdToTickRecordTimelineStorage.Find(InAnimInstanceId);
 	if(TimelineStorageIndexPtr != nullptr)
@@ -388,41 +382,13 @@ void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime
 	{
 		ObjectIdToTickRecordTimelineStorage.Add(InAnimInstanceId, TickRecordTimelineStorage.Num());
 		TimelineStorage = TickRecordTimelineStorage.Add_GetRef(MakeShared<FTickRecordTimelineStorage>());
+		TimelineStorage->Timeline = MakeShared<Trace::TPointTimeline<FTickRecordMessage>>(Session.GetLinearAllocator());
+		TimelineStorage->Timeline->SetEnumerateOutsideRange(true);
 	}
 
 	check(TimelineStorage.IsValid());
 
-	uint32* TimelineIndexPtr = TimelineStorage->AssetIdAndPlayerToTickRecordTimeline.Find(TTuple<uint64, int32>(InAssetId, InNodeId));
-	if(TimelineIndexPtr != nullptr)
-	{
-		Timeline = TimelineStorage->Timelines[*TimelineIndexPtr];
-	}
-	else
-	{
-		Timeline = MakeShared<Trace::TPointTimeline<FTickRecordMessage>>(Session.GetLinearAllocator());
-
-		// We need to enumerate outside range to make sure we draw lines to the edge of the viewport when iterating to draw
-		Timeline->SetEnumerateOutsideRange(true);
-		TimelineStorage->AssetIdAndPlayerToTickRecordTimeline.Add(TTuple<uint64, int32>(InAssetId, InNodeId), TimelineStorage->Timelines.Num());
-		TimelineStorage->Timelines.Add(Timeline.ToSharedRef());
-	}
-
-	// check for continuity
-	bool bContinuous = false;
-	const uint64 NumEvents = Timeline->GetEventCount();
-	if(NumEvents > 0)
-	{
-		if(InFrameCounter - 1 != Timeline->GetEvent(NumEvents - 1).FrameCounter)
-		{
-			// discontinuous frame count
-			bContinuous = false;
-		}
-		else
-		{
-			// continuous frame time
-			bContinuous = true;
-		}
-	}
+	TimelineStorage->AssetIdAndPlayers.Add(TTuple<uint64, int32>(InAssetId, InNodeId));
 
 	FTickRecordMessage Message;
 	Message.AnimInstanceId = InAnimInstanceId;
@@ -437,9 +403,8 @@ void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime
 	Message.FrameCounter = InFrameCounter;
 	Message.bLooping = bInLooping;
 	Message.bIsBlendSpace = bInIsBlendSpace;
-	Message.bContinuous = bContinuous;
 
-	Timeline->AppendEvent(InTime, Message);
+	TimelineStorage->Timeline->AppendEvent(InTime, Message);
 
 	Session.UpdateDurationSeconds(InTime);
 }
@@ -497,6 +462,7 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	Message.CurveStartIndex = SkeletalMeshCurves.Num();
 	Message.ComponentId = InObjectId;
 	Message.MeshId = InMeshId;
+	Message.MeshName = GameplayProvider.GetObjectInfo(Message.MeshId).Name;
 	Message.NumTransforms = (uint16)InPose.Num() - 1;
 	Message.NumCurves = (uint16)InCurves.Num();
 	Message.LodIndex = InLodIndex;
@@ -518,7 +484,7 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	Session.UpdateDurationSeconds(InTime);
 }
 
-void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 InMeshId, double InTime, uint16 InLodIndex, uint16 InFrameCounter, const FTransform& InComponentToworld, const TArrayView<const FTransform>& InPose, const TArrayView<const uint32>& InCurveIds, const TArrayView<const float>& InCurveValues)
+void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 InMeshId, double InTime, uint16 InLodIndex, uint16 InFrameCounter, const FTransform& InComponentToWorld, const TArrayView<const FTransform>& InPose, const TArrayView<const uint32>& InCurveIds, const TArrayView<const float>& InCurveValues)
 {
 	Session.WriteAccessCheck();
 
@@ -547,11 +513,12 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	const int32 NumCurves = InCurveIds.Num();
 
 	FSkeletalMeshPoseMessage Message;
-	Message.ComponentToWorld = InComponentToworld;
+	Message.ComponentToWorld = InComponentToWorld;
 	Message.TransformStartIndex = SkeletalMeshPoseTransforms.Num();
 	Message.CurveStartIndex = SkeletalMeshCurves.Num();
 	Message.ComponentId = InObjectId;
 	Message.MeshId = InMeshId;
+	Message.MeshName = GameplayProvider.GetObjectInfo(Message.MeshId).Name;
 	Message.NumTransforms = (uint16)InPose.Num();
 	Message.NumCurves = (uint16)NumCurves;
 	Message.LodIndex = InLodIndex;
@@ -693,7 +660,7 @@ void FAnimationProvider::AppendAnimNodeStart(uint64 InAnimInstanceId, double InS
 	Session.UpdateDurationSeconds(InStartTime);
 }
 
-void FAnimationProvider::AppendAnimSequencePlayer(uint64 InAnimInstanceId, double InTime, int32 InNodeId, float InPosition, float InLength, int32 InFrameCount)
+void FAnimationProvider::AppendAnimSequencePlayer(uint64 InAnimInstanceId, double InTime, int32 InNodeId, float InPosition, float InLength, uint16 InFrameCounter)
 {
 	Session.WriteAccessCheck();
 
@@ -716,7 +683,7 @@ void FAnimationProvider::AppendAnimSequencePlayer(uint64 InAnimInstanceId, doubl
 	Message.NodeId = InNodeId;
 	Message.Position = InPosition;
 	Message.Length = InLength;
-	Message.FrameCount = InFrameCount;
+	Message.FrameCounter = InFrameCounter;
 
 	Timeline->AppendEvent(InTime, Message);
 
@@ -924,6 +891,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 			Message.AssetId = InAssetId;
 			Message.NotifyId = InNotifyId;
 			Message.NameId = InNameId;
+			Message.Name = GetName(InNameId);
 			Message.Time = InNotifyTime; 
 			Message.Duration = InNotifyDuration;
 			Message.NotifyEventType = InNotifyEventType;
@@ -955,6 +923,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 		Message.AssetId = InAssetId;
 		Message.NotifyId = InNotifyId;
 		Message.NameId = InNameId;
+		Message.Name = GetName(InNameId);
 		Message.Time = InNotifyTime; 
 		Message.Duration = InNotifyDuration;
 		Message.NotifyEventType = InNotifyEventType;
@@ -965,7 +934,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 	Session.UpdateDurationSeconds(InTime);
 }
 
-void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, uint64 InMontageId, uint32 InCurrentSectionNameId, uint32 InNextSectionNameId, float InWeight, float InDesiredWeight)
+void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, uint64 InMontageId, uint32 InCurrentSectionNameId, uint32 InNextSectionNameId, float InWeight, float InDesiredWeight, uint16 InFrameCounter)
 {
 	Session.WriteAccessCheck();
 
@@ -993,6 +962,7 @@ void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, u
 	Message.NextSectionNameId = InNextSectionNameId;
 	Message.Weight = InWeight;
 	Message.DesiredWeight = InDesiredWeight;
+	Message.FrameCounter = InFrameCounter;
 
 	TimelineStorage->Timeline->AppendEvent(InTime, Message);
 
