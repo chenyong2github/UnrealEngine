@@ -1774,18 +1774,26 @@ namespace WindowsMixedReality
 		// Do not wait for a frame if we are running on the emulator or HL1 Remoting.
 		if (!m_isHL1Remoting)
 		{
-			if (!IsActiveAndValid())
+			if (!IsActiveAndValid() || currentFrame != nullptr)
 			{
 				return;
 			}
 
+			try
+			{
 #if	LOG_HOLOLENS_FRAME_COUNTER
-			{ std::wstringstream string; string << L"BlockUntilNextFrame() started"; Log(string); }
-			holographicSpace.WaitForNextFrameReady();
-			{ std::wstringstream string; string << L"BlockUntilNextFrame() ended"; Log(string); }
+				{ std::wstringstream string; string << L"BlockUntilNextFrame() started"; Log(string); }
+				holographicSpace.WaitForNextFrameReady();
+				{ std::wstringstream string; string << L"BlockUntilNextFrame() ended"; Log(string); }
 #else
-			holographicSpace.WaitForNextFrameReady();
+				holographicSpace.WaitForNextFrameReady();
 #endif
+			}
+			catch (winrt::hresult_error&)
+			{
+				Log(L"BlockUntilNextFrame() failed with exception");
+			}
+
 		}
 #endif
 	}
