@@ -19,6 +19,7 @@
 #include "ObjectTemplates/DatasmithObjectTemplate.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
 #include "UI/DatasmithUIManager.h"
+#include "UI/DatasmithConsumerDetails.h"
 
 #include "AssetToolsModule.h"
 #include "ContentBrowserDelegates.h"
@@ -80,6 +81,7 @@ public:
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 			PropertyModule.RegisterCustomClassLayout( TEXT("DatasmithFileProducer"), FOnGetDetailCustomizationInstance::CreateStatic( &FDatasmithFileProducerDetails::MakeDetails ) );
 			PropertyModule.RegisterCustomClassLayout( TEXT("DatasmithDirProducer"), FOnGetDetailCustomizationInstance::CreateStatic( &FDatasmithDirProducerDetails::MakeDetails ) );
+			PropertyModule.RegisterCustomClassLayout( TEXT("DatasmithConsumer"), FOnGetDetailCustomizationInstance::CreateStatic( &FDatasmithConsumerDetails::MakeDetails ) );
 
 			AddDataprepMenuEntryForDatasmithSceneAsset();
 		}
@@ -106,6 +108,8 @@ public:
 			// Register the details customizer
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 			PropertyModule.UnregisterCustomClassLayout( TEXT("DatasmithFileProducer") );
+			PropertyModule.UnregisterCustomClassLayout( TEXT("DatasmithDirProducer") );
+			PropertyModule.UnregisterCustomClassLayout( TEXT("DatasmithConsumer") );
 		}
 	}
 

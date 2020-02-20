@@ -404,6 +404,37 @@ void FDatasmithImporterUtils::AddUniqueLayersToWorld(UWorld* World, const TSet< 
 
 bool FDatasmithImporterUtils::CanCreateAsset(const FString& AssetPathName, const UClass* AssetClass, FText& OutFailReason)
 {
+	switch(CanCreateAsset(AssetPathName, AssetClass))
+	{
+		case EAssetCreationStatus::CS_HasRedirector:
+		{
+			OutFailReason = FText::Format(LOCTEXT("FoundRedirectionForAsset", "Found redirection for asset {0}. Skipping this asset ..."), FText::FromString(AssetPathName));
+			return false;
+		}
+
+		case EAssetCreationStatus::CS_ClassMismatch:
+		{
+			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+			const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*AssetPathName);
+
+			const FString FoundClassName(AssetData.GetClass()->GetFName().ToString());
+			const FString ExpectedClassName(AssetClass->GetFName().ToString());
+			OutFailReason = FText::Format(LOCTEXT("AssetClassMismatch", "Found asset {0} of class {1} instead of class {2}. Skipping this asset ..."), FText::FromString(AssetPathName), FText::FromString(FoundClassName), FText::FromString(ExpectedClassName) );
+			return false;
+		}
+
+		case EAssetCreationStatus::CS_CanCreate:
+		default:
+		{
+			break;
+		}
+	}
+
+	return true;
+}
+
+FDatasmithImporterUtils::EAssetCreationStatus FDatasmithImporterUtils::CanCreateAsset(const FString& AssetPathName, const UClass* AssetClass)
+{
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 	const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*AssetPathName);
@@ -411,25 +442,21 @@ bool FDatasmithImporterUtils::CanCreateAsset(const FString& AssetPathName, const
 	// Asset does not exist yet. Safe to import
 	if (!AssetData.IsValid())
 	{
-		return true;
+		return EAssetCreationStatus::CS_CanCreate;
 	}
 
 	// Warn and skip import of asset since it is an object redirection
 	if (AssetData.IsRedirector())
 	{
-		OutFailReason = FText::Format(LOCTEXT("FoundRedirectionForAsset", "Found redirection for asset {0}. Skipping this asset ..."), FText::FromString(AssetPathName));
-		return false;
+		return EAssetCreationStatus::CS_HasRedirector;
 	}
 	// Warn and skip re-import of asset since it is not of the expected class
 	else if (!AssetData.GetClass()->IsChildOf(AssetClass))
 	{
-		const FString FoundClassName(AssetData.GetClass()->GetFName().ToString());
-		const FString ExpectedClassName(AssetClass->GetFName().ToString());
-		OutFailReason = FText::Format(LOCTEXT("AssetClassMismatch", "Found asset {0} of class {1} instead of class {2}. Skipping this asset ..."), FText::FromString(AssetPathName), FText::FromString(FoundClassName), FText::FromString(ExpectedClassName) );
-		return false;
+		return EAssetCreationStatus::CS_ClassMismatch;
 	}
 
-	return true;
+	return EAssetCreationStatus::CS_CanCreate;
 }
 
 UDatasmithScene* FDatasmithImporterUtils::FindDatasmithSceneForAsset( UObject* Asset )

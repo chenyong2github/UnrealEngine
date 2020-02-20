@@ -92,67 +92,6 @@ private:
 	TSharedPtr< SWidget > CategoryContent;
 };
 
-class SDataprepConsumerWidget : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SDataprepConsumerWidget)
-		: _DataprepConsumer(nullptr)
-	{}
-
-	SLATE_ARGUMENT(TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData)
-	SLATE_ARGUMENT(UDataprepContentConsumer*, DataprepConsumer)
-	SLATE_END_ARGS()
-
-	void Construct( const FArguments& InArgs );
-
-	virtual ~SDataprepConsumerWidget();
-
-	/** Update DataprepConsumerPtr and content folder's and level name's text boxes */
-	void SetDataprepConsumer( UDataprepContentConsumer* DataprepConsumer );
-
-private:
-	/** Create complete widget from valid UDataprepContentConsumer object */
-	TSharedRef<SWidget> BuildWidget();
-	/** Create empty widget from invalid UDataprepContentConsumer object */
-	TSharedRef<SWidget> BuildNullWidget();
-	/** Callback when content of level name's text box has changed */
-	void OnLevelNameChanged( const FText& NewLevelName, ETextCommit::Type CommitType );
-	/** Callback when browser's button is clicked */
-	void OnBrowseContentFolder();
-	/** Callback when content of content folder's text box has changed */
-	void OnTextCommitted( const FText&, ETextCommit::Type );
-
-	/** Update content folder's and level name's text boxes */
-	void OnConsumerChanged();
-	/** Update content folder's text boxes */
-	void UpdateContentFolderText();
-
-	/** Callbacks to update splitter */
-	void OnLeftColumnResized(float InNewWidth)
-	{
-		// This has to be bound or the splitter will take it upon itself to determine the size
-		// We do nothing here because it is handled by the column size data
-	}
-
-	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
-	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
-
-private:
-	/** Weak pointer on edited consumer */
-	TWeakObjectPtr<UDataprepContentConsumer> DataprepConsumerPtr;
-	/** Content folder's text box */
-	TSharedPtr< SEditableTextBox > ContentFolderTextBox;
-	/** Level name's text box */
-	TSharedPtr< SEditableTextBox > LevelTextBox;
-	/** Helps sync column resizing with another part of the UI (producers widget) */
-	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
-	/** Relative width to control splitters. */
-	float ColumnWidth;
-
-	FDelegateHandle OnConsumerChangedHandle;
-};
-
 class SDataprepDetailsView : public SCompoundWidget, public FGCObject
 {
 	using Super = SCompoundWidget;
@@ -214,7 +153,7 @@ private:
 	 * @param LeftPadding				The Padding on the left of the row
 	 * @param ParameterizationContext	Parameterization context of the associated property
 	 */
-	void CreateDefaultWidget(int32 Index, TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const FDataprepParameterizationContext& ParameterizationContext);
+	void CreateDefaultWidget(int32 Index, TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, const FDataprepParameterizationContext& ParameterizationContext);
 
 	/** Callback used by all splitters in the details view, so that they move in sync */
 	void OnLeftColumnResized(float InNewWidth)
@@ -225,7 +164,7 @@ private:
 
 	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
 	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
+	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth < 0.3f ? 0.3f : InWidth; }
 
 	/** Callback to track property changes on array properties */
 	void OnPropertyChanged( const struct FPropertyChangedEvent& InEvent );

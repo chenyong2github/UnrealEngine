@@ -9,6 +9,7 @@
 #define LOCTEXT_NAMESPACE "DataprepOperation"
 
 FText FDataprepOperationCategories::ActorOperation(LOCTEXT("DataprepOperation_ActorOperationName", "On Actor"));
+FText FDataprepOperationCategories::AssetOperation(LOCTEXT("DataprepOperationAssetOperationName", "On Asset"));
 FText FDataprepOperationCategories::MeshOperation( LOCTEXT("DataprepOperation_MeshOperationName", "On Mesh"));
 FText FDataprepOperationCategories::ObjectOperation( LOCTEXT("DataprepOperation_ObjectOperationName", "On Object"));
 
