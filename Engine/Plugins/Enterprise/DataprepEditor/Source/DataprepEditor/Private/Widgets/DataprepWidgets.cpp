@@ -55,45 +55,89 @@
 
 namespace DataprepWidgetUtils
 {
-	TSharedRef<SWidget> CreatePropertyWidget( TSharedPtr<SWidget> NameWidget, TSharedPtr<SWidget> ValueWidget, TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData, float Spacing, EHorizontalAlignment HAlign = EHorizontalAlignment::HAlign_Left, EVerticalAlignment VAlign = EVerticalAlignment::VAlign_Center )
+	class SCustomSplitter : public SSplitter
+	{
+	public:
+		SLATE_BEGIN_ARGS(SCustomSplitter) {}
+			SLATE_ARGUMENT( TSharedPtr<SWidget>, NameWidget )
+			SLATE_ARGUMENT( TSharedPtr<SWidget>, ValueWidget )
+			SLATE_ARGUMENT( TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData )
+		SLATE_END_ARGS();
+
+		void Construct(const FArguments& InArgs)
+		{
+			SSplitter::FArguments Args;
+
+			SSplitter::Construct(Args
+				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+				.PhysicalSplitterHandleSize(1.0f)
+				.HitDetectionSplitterHandleSize(5.0f)
+				.ResizeMode( ESplitterResizeMode::Fill ));
+
+			ColumnSizeData = InArgs._ColumnSizeData;
+
+			AddSlot()
+			.Value(ColumnSizeData->LeftColumnWidth)
+			.OnSlotResized( SSplitter::FOnSlotResized::CreateLambda( [](float InNewWidth) -> void {} ) )
+			[
+				InArgs._NameWidget.ToSharedRef()
+			];
+
+			AddSlot()
+			.Value(InArgs._ColumnSizeData->RightColumnWidth)
+			.OnSlotResized(ColumnSizeData->OnWidthChanged)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding( 5.0f, 2.5f, 2.0f, 2.5f )
+				.HAlign( HAlign_Fill )
+				.VAlign( VAlign_Fill )
+				.FillWidth(1.f)
+				[
+					InArgs._ValueWidget.ToSharedRef()
+				]
+			];
+		}
+
+		virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override
+		{
+			if(Children.Num() > 1)
+			{
+				const SSplitter::FSlot& LeftChild = Children[0];
+
+				const FVector2D AllottedSize = AllottedGeometry.GetLocalSize();
+
+				FVector2D LocalPosition = FVector2D::ZeroVector;
+				FVector2D LocalSize(  AllottedSize.X * ColumnSizeData->LeftColumnWidth.Get(0.f), AllottedSize.Y );
+
+				ArrangedChildren.AddWidget( EVisibility::Visible, AllottedGeometry.MakeChild( LeftChild.GetWidget(), LocalPosition, LocalSize ));
+
+				const SSplitter::FSlot& RightChild = Children[1];
+
+				LocalPosition = FVector2D(LocalSize.X, 0.f);
+				LocalSize.X = AllottedSize.X * ColumnSizeData->RightColumnWidth.Get(0.f);
+
+				ArrangedChildren.AddWidget( EVisibility::Visible, AllottedGeometry.MakeChild( RightChild.GetWidget(), LocalPosition, LocalSize ));
+			}
+		}
+
+	private:
+		TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
+};
+
+	TSharedRef<SWidget> CreatePropertyWidget( TSharedPtr<SWidget> NameWidget, TSharedPtr<SWidget> ValueWidget, TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData, float Spacing)
 	{
 		return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.f)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Fill)
+		.HAlign(HAlign_Fill)
 		.Padding(0.0f, 0.0f, 0.0f, Spacing)
 		[
-			SNew(SSplitter)
-			.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-			.PhysicalSplitterHandleSize(1.0f)
-			.HitDetectionSplitterHandleSize(5.0f)
-			.ResizeMode( ESplitterResizeMode::Fill )
-			+ SSplitter::Slot()
-			.Value(ColumnSizeData->LeftColumnWidth)
-			.OnSlotResized( SSplitter::FOnSlotResized::CreateLambda( [](float InNewWidth) -> void {} ) )
-			[
-				NameWidget.ToSharedRef()
-			]
-			+ SSplitter::Slot()
-			.Value(ColumnSizeData->RightColumnWidth)
-			.OnSlotResized(ColumnSizeData->OnWidthChanged)
-			[
-				SNew(SHorizontalBox)
-				.Clipping(EWidgetClipping::OnDemand)
-				+ SHorizontalBox::Slot()
-				.Padding( 5.0f, 2.5f, 2.0f, 2.5f )
-				.HAlign( HAlign )
-				.VAlign( VAlign )
-				[
-					// Trick to force the splitter widget to fill up the space of its parent
-					// Strongly inspired from SDetailSingleItemRow
-					SNew(DataprepWidgetUtils::SConstrainedBox)
-					[
-						ValueWidget.ToSharedRef()
-					]
-				]
-			]
+			SNew(SCustomSplitter)
+			.NameWidget(NameWidget)
+			.ValueWidget(ValueWidget)
+			.ColumnSizeData(ColumnSizeData)
 		];
 	}
 }
@@ -194,358 +238,7 @@ void SDataprepCategoryWidget::Construct( const FArguments& InArgs, TSharedRef< S
 	);
 }
 
-void SDataprepConsumerWidget::OnLevelNameChanged( const FText &NewLevelName, ETextCommit::Type CommitType )
-{
-	const FScopedTransaction Transaction( LOCTEXT("Consumer_SetLevelName", "Set Level Name") );
-	FText OutReason;
-	if( !DataprepConsumerPtr->SetLevelName( NewLevelName.ToString(), OutReason ) )
-	{
-		UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *OutReason.ToString() );
-		LevelTextBox->SetText( FText::FromString( DataprepConsumerPtr->GetLevelName() ) );
-	}
-}
-
-void SDataprepConsumerWidget::OnTextCommitted( const FText& NewText, ETextCommit::Type CommitType)
-{
-	if( UDataprepContentConsumer* DataprepConsumer = DataprepConsumerPtr.Get() )
-	{
-		FString NewContentFolder( NewText.ToString() );
-
-		// Replace /Content/ with /Game/ since /Content is only used for display 
-		if( NewContentFolder.StartsWith( TEXT("/Content") ) )
-		{
-			NewContentFolder = NewContentFolder.Replace( TEXT( "/Content" ), TEXT( "/Game" ) );
-		}
-		
-		// Remove ending '/' if applicable
-		if( !NewContentFolder.IsEmpty() && NewContentFolder[ NewContentFolder.Len()-1 ] == TEXT('/') )
-	{
-			NewContentFolder[ NewContentFolder.Len()-1 ] = 0;
-			NewContentFolder = NewContentFolder.LeftChop(1);
-	}
-
-		const FScopedTransaction Transaction( LOCTEXT("Consumer_SetTargetContentFolder", "Set Target Content Folder") );
-
-		FText ErrorReason;
-		if( !DataprepConsumer->SetTargetContentFolder( NewContentFolder, ErrorReason ) )
-	{
-			UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *ErrorReason.ToString() );
-			UpdateContentFolderText();
-		}
-	}
-}
-
-void SDataprepConsumerWidget::OnBrowseContentFolder()
-{
-	FString Path = DataprepConsumerPtr->GetTargetContentFolder();
-	if( Path.IsEmpty() )
-	{
-		Path = FPaths::GetPath( DataprepConsumerPtr->GetOutermost()->GetPathName() );
-	}
-	Path += TEXT("/"); // Trailing '/' is needed to set the default path
-
-	//Ask the user for the root path where they want any content to be placed
-	if( UDataprepContentConsumer* DataprepConsumer = DataprepConsumerPtr.Get() )
-	{
-		TSharedRef<SDlgPickPath> PickContentPathDlg =
-			SNew(SDlgPickPath)
-			.Title(LOCTEXT("DataprepSlateHelper_ChooseImportRootContentPath", "Choose Location for importing the Datasmith content"))
-			.DefaultPath(FText::FromString(Path));
-
-		if ( PickContentPathDlg->ShowModal() == EAppReturnType::Ok )
-		{
-			const FScopedTransaction Transaction( LOCTEXT("Consumer_SetTargetContentFolder", "Set Target Content Folder") );
-
-			FText ErrorReason;
-			if( DataprepConsumer->SetTargetContentFolder( PickContentPathDlg->GetPath().ToString(), ErrorReason ) )
-			{
-			UpdateContentFolderText();
-		}
-			else
-			{
-				UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *ErrorReason.ToString() );
-			}
-		}
-	}
-}
-
-void SDataprepConsumerWidget::SetDataprepConsumer(UDataprepContentConsumer* InDataprepConsumer)
-{
-	if(InDataprepConsumer == nullptr)
-	{
-		return;
-	}
-
-	if(DataprepConsumerPtr != InDataprepConsumer)
-	{
-		if(DataprepConsumerPtr.IsValid())
-		{
-			DataprepConsumerPtr->GetOnChanged().Remove( OnConsumerChangedHandle );
-		}
-
-		DataprepConsumerPtr = InDataprepConsumer;
-
-		OnConsumerChangedHandle = InDataprepConsumer->GetOnChanged().AddSP( this, &SDataprepConsumerWidget::OnConsumerChanged );
-
-		OnConsumerChanged();
-	}
-}
-
-void SDataprepConsumerWidget::Construct(const FArguments& InArgs )
-{
-	if (InArgs._ColumnSizeData.IsValid())
-	{
-		ColumnSizeData = InArgs._ColumnSizeData;
-	}
-	else
-	{
-		ColumnWidth = 0.7f;
-		ColumnSizeData = MakeShared<FDataprepDetailsViewColumnSizeData>();
-		ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepConsumerWidget::OnGetLeftColumnWidth);
-		ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepConsumerWidget::OnGetRightColumnWidth);
-		ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepConsumerWidget::OnSetColumnWidth);
-	}
-
-	TSharedPtr<SWidget> InnerWidget = InArgs._DataprepConsumer ? BuildWidget() : BuildNullWidget();
-
-	ChildSlot
-	[
-		InnerWidget.ToSharedRef()
-	];
-
-	if(InArgs._DataprepConsumer)
-	{
-		SetDataprepConsumer( InArgs._DataprepConsumer );
-	}
-}
-
-SDataprepConsumerWidget::~SDataprepConsumerWidget()
-{
-	if ( UDataprepContentConsumer* DataprepConsumer = DataprepConsumerPtr.Get() )
-	{
-		DataprepConsumer->GetOnChanged().Remove( OnConsumerChangedHandle );
-	}
-}
-
-TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
-{
-	TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton( FSimpleDelegate::CreateSP( this, &SDataprepConsumerWidget::OnBrowseContentFolder ) );
-
-	TSharedRef<SWidget> Widget = SNew(SBorder)
-	.BorderImage( FCoreStyle::Get().GetBrush("NoBrush") )
-	[
-		SNew(SGridPanel)
-		.FillColumn(0, 1.0f)
-		+ SGridPanel::Slot(0, 0)
-		.Padding(10.0f, 5.0f, 0.0f, 5.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(SSplitter)
-				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-				.PhysicalSplitterHandleSize(1.0f)
-				.HitDetectionSplitterHandleSize(5.0f)
-				.ResizeMode(ESplitterResizeMode::Fill)
-				+ SSplitter::Slot()
-				.Value(ColumnSizeData->LeftColumnWidth)
-				.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SDataprepConsumerWidget::OnLeftColumnResized))
-				[
-					SNew(SHorizontalBox)
-					.Clipping(EWidgetClipping::OnDemand)
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Folder"))
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
-				]
-				+ SSplitter::Slot()
-				.Value(ColumnSizeData->RightColumnWidth)
-				.OnSlotResized(ColumnSizeData->OnWidthChanged)
-				[
-					SNew(SHorizontalBox)
-					.Clipping(EWidgetClipping::OnDemand)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.Padding(5.0f, 2.5f, 2.0f, 2.5f)
-					[
-						// Trick to force the splitter widget to fill up the space of its parent
-						// Strongly inspired from SDetailSingleItemRow
-						SNew(DataprepWidgetUtils::SConstrainedBox)
-						[
-							SAssignNew(ContentFolderTextBox, SEditableTextBox)
-							.Font(IDetailLayoutBuilder::GetDetailFont())
-							.HintText(LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in"))
-							.IsReadOnly(false)
-							.OnTextCommitted(FOnTextCommitted::CreateSP(this, &SDataprepConsumerWidget::OnTextCommitted))
-						]
-					]
-				]
-			]
-		]
-		+ SGridPanel::Slot(1, 0)
-		.Padding(5.0f, 5.0f, 0.0f, 5.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			.AutoWidth()
-			[
-				BrowseButton
-			]
-		]
-		// This column is required to align consumer section with producers' section which has 3 columns.
-		+ SGridPanel::Slot(2, 0)
-		.Padding(5.0f, 5.0f, 0.0f, 5.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.IsFocusable(false)
-				.Visibility(EVisibility::Hidden)
-				.IsEnabled(false)
-				.VAlign(VAlign_Top)
-				.Content()
-				[
-					SNew(STextBlock)
-					.Font(FDataprepEditorUtils::GetGlyphFont())
-					.ColorAndOpacity(FLinearColor::Transparent)
-					.Text(FEditorFontGlyphs::Exclamation_Triangle)
-				]
-			]
-		]
-		+ SGridPanel::Slot(0, 1)
-		.Padding(10.0f, 5.0f, 0.0f, 5.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(SSplitter)
-				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-				.PhysicalSplitterHandleSize(1.0f)
-				.HitDetectionSplitterHandleSize(5.0f)
-				.ResizeMode(ESplitterResizeMode::Fill)
-				+ SSplitter::Slot()
-				.Value(ColumnSizeData->LeftColumnWidth)
-				.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SDataprepConsumerWidget::OnLeftColumnResized))
-				[
-					SNew(SHorizontalBox)
-					.Clipping(EWidgetClipping::OnDemand)
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Sub-Level"))
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
-				]
-				+ SSplitter::Slot()
-				.Value(ColumnSizeData->RightColumnWidth)
-				.OnSlotResized(ColumnSizeData->OnWidthChanged)
-				[
-					SNew(SHorizontalBox)
-					.Clipping(EWidgetClipping::OnDemand)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.Padding(5.0f, 2.5f, 2.0f, 2.5f)
-					[
-						// Trick to force the splitter widget to fill up the space of its parent
-						// Strongly inspired from SDetailSingleItemRow
-						SNew(DataprepWidgetUtils::SConstrainedBox)
-						[
-							SAssignNew(LevelTextBox, SEditableTextBox)
-							.Font(IDetailLayoutBuilder::GetDetailFont())
-							.HintText(LOCTEXT("DataprepSlateHelper_LevelNameHintText", "Current will be used"))
-							.OnTextCommitted(this, &SDataprepConsumerWidget::OnLevelNameChanged)
-						]
-					]
-				]
-			]
-		]
-	];
-
-	return Widget;
-}
-
-TSharedRef<SWidget> SDataprepConsumerWidget::BuildNullWidget()
-{
-	return SNew(SBorder)
-	.BorderImage( FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder") )
-	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.Padding(5.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.FillWidth(1.0f)
-			[
-				SNew(STextBlock)
-				.Font( IDetailLayoutBuilder::GetDetailFont() )
-				.Text(LOCTEXT("DataprepSlateHelper_Error_InvalidConsumer", "Error: Not a valid consumer"))
-				.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
-				.ColorAndOpacity( FLinearColor(1,0,0,1) )
-			]
-		]
-	];
-}
-
-void SDataprepConsumerWidget::UpdateContentFolderText()
-{
-	if(UDataprepContentConsumer* Consumer = DataprepConsumerPtr.Get())
-	{
-		FString TargetContentFolder( Consumer->GetTargetContentFolder() );
-
-		if( TargetContentFolder.IsEmpty() )
-		{
-			TargetContentFolder = TEXT("/Content");
-		}
-		else if( TargetContentFolder.StartsWith( TEXT( "/Game" ) ) )
-		{
-			TargetContentFolder = TargetContentFolder.Replace( TEXT( "/Game" ), TEXT( "/Content" ) );
-		}
-
-		ContentFolderTextBox->SetText( FText::FromString( TargetContentFolder + TEXT( "/" ) ) );
-	}
-	else
-	{
-		ContentFolderTextBox->SetText( TAttribute<FText>() );
-	}
-}
-
-void SDataprepConsumerWidget::OnConsumerChanged()
-{
-	if(DataprepConsumerPtr.IsValid())
-	{
-		UpdateContentFolderText();
-		LevelTextBox->SetText( FText::FromString( DataprepConsumerPtr->GetLevelName() ) );
-	}
-	else
-	{
-		ContentFolderTextBox->SetText( TAttribute<FText>() );
-		LevelTextBox->SetText( TAttribute<FText>() );
-	}
-}
-
-
-void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const FDataprepParameterizationContext& ParameterizationContext)
+void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, const FDataprepParameterizationContext& ParameterizationContext)
 {
 	TSharedRef<SHorizontalBox> NameColumn = SNew(SHorizontalBox)
 		.Clipping(EWidgetClipping::OnDemand);
@@ -597,7 +290,7 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 		SNew(SDataprepContextMenuOverride)
 		.OnContextMenuOpening(OnContextMenuOpening)
 		[
-			DataprepWidgetUtils::CreatePropertyWidget( NameColumn, ValueWidget, ColumnSizeData, Spacing, HAlign, VAlign )
+			DataprepWidgetUtils::CreatePropertyWidget( NameColumn, ValueWidget, ColumnSizeData, Spacing )
 		]
 		];
 
@@ -793,7 +486,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 				TSharedPtr< SWidget > ValueWidget;
 				DetailPropertyRow->GetDefaultWidgets( NameWidget, ValueWidget, Row, true );
 
-				CreateDefaultWidget( Index, NameWidget, ValueWidget, LeftPadding, Row.ValueWidget.HorizontalAlignment, Row.ValueWidget.VerticalAlignment, CurrentParameterizationContext );
+				CreateDefaultWidget( Index, NameWidget, ValueWidget, LeftPadding, CurrentParameterizationContext );
 				Index++;
 
 				TArray< TSharedRef< IDetailTreeNode > > Children;
@@ -834,7 +527,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 
 			if( NameWidget.IsValid() && ValueWidget.IsValid() )
 			{
-				CreateDefaultWidget( Index, NameWidget, ValueWidget, LeftPadding, HAlign, VAlign, CurrentParameterizationContext );
+				CreateDefaultWidget( Index, NameWidget, ValueWidget, LeftPadding, CurrentParameterizationContext );
 				Index++;
 
 				bool bDisplayChildren = true;
@@ -1073,7 +766,7 @@ void SDataprepInstanceParentWidget::Construct(const FArguments& InArgs)
 	}
 	else
 	{
-		ColumnWidth = 0.7f;
+		ColumnWidth = 0.5f;
 		ColumnSizeData = MakeShared<FDataprepDetailsViewColumnSizeData>();
 		ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepInstanceParentWidget::OnGetLeftColumnWidth);
 		ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepInstanceParentWidget::OnGetRightColumnWidth);

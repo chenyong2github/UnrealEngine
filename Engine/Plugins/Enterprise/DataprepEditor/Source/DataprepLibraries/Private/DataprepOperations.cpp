@@ -383,4 +383,23 @@ void UDataprepFlipFacesOperation::OnExecution_Implementation(const FDataprepCont
 	UStaticMesh::BatchBuild(StaticMeshes.Array());
 }
 
+void UDataprepSetOutputLevel::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("RandomizeTransform"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	UDataprepOperationsLibrary::SetSubOuputLevel(InContext.Objects, LevelName);
+}
+
+void UDataprepSetOutputFolder::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("RandomizeTransform"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	UDataprepOperationsLibrary::SetSubOuputFolder(InContext.Objects, FolderName);
+}
+
+
 #undef LOCTEXT_NAMESPACE

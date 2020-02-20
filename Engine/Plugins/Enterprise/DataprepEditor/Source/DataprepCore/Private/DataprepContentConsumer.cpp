@@ -8,7 +8,6 @@
 
 #include "EditorLevelUtils.h"
 #include "Engine/Level.h"
-#include "Engine/LevelStreamingDynamic.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
@@ -17,6 +16,16 @@
 #include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "DataprepContentConsumer"
+
+const FString UDataprepContentConsumer::RelativeOutput = TEXT("ContentConsumer_RelativeOutput");
+
+const FString& UDataprepConsumerUserData::GetMarker(const FString& MarkerName) const
+{
+	static FString NullString;
+
+	const FString* ValuePtr = Markers.Find(MarkerName);
+	return ValuePtr ? *ValuePtr : NullString;
+}
 
 UDataprepContentConsumer::UDataprepContentConsumer()
 {
@@ -119,7 +128,7 @@ FString UDataprepContentConsumer::GetTargetPackagePath() const
 	}
 
 	// If path is one level deep, make sure it ends with a '/'
-	int32 Index = -1;
+	int32 Index = INDEX_NONE;
 	TargetPackagePath.FindLastChar(L'/', Index);
 	check(Index >= 0);
 	if(Index == 0)
