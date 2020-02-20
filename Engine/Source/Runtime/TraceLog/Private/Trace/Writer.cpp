@@ -538,11 +538,13 @@ static void Writer_ConsumeEvents()
 static void Writer_LogHeader()
 {
 	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync|Important)
+		UE_TRACE_EVENT_FIELD(uint32, Serial)
 		UE_TRACE_EVENT_FIELD(uint16, Endian)
 		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
+		<< NewTrace.Serial(uint32(GLogSerial)) // should really atomic-load-relaxed here...
 		<< NewTrace.Endian(0x524d)
 		<< NewTrace.PointerSize(sizeof(void*));
 }
