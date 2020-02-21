@@ -381,6 +381,9 @@ protected:
 
 	/** All functions called in the script. */
 	TMap<FNiagaraFunctionSignature, FString> Functions;
+	TMap<FNiagaraFunctionSignature, TArray<FName> > FunctionStageWriteTargets;
+	TArray<TArray<FName>> ActiveStageWriteTargets;
+
 	/** Map of function graphs we've seen before and already pre-processed. */
 	TMap<const UNiagaraGraph*, UNiagaraGraph*> PreprocessedFunctions;
 
