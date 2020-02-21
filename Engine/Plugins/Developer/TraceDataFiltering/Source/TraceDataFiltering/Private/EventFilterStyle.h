@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Styling/SlateStyle.h"
+#include "Styling/SlateTypes.h"
 
 class FEventFilterStyle
 {
