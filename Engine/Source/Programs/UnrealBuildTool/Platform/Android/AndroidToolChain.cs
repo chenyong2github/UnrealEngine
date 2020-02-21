@@ -14,9 +14,9 @@ namespace UnrealBuildTool
 	class AndroidToolChain : ISPCToolChain, IAndroidToolChain
 	{
 		// Android NDK toolchain that must be used for C++ compiling
-		readonly int MinimumNDKToolchain = 140100;
-		readonly int MaximumNDKToolchain = 180100;
-		readonly int RecommendedNDKToolchain = 140100;
+		readonly int MinimumNDKToolchain = 200200;
+		readonly int MaximumNDKToolchain = 220100;
+		readonly int RecommendedNDKToolchain = 210100;
 
 		public static readonly string[] AllCpuSuffixes =
 		{
@@ -135,9 +135,9 @@ namespace UnrealBuildTool
 			int RevisionMinor = ToolchainInt - (RevisionNum * 10000);
 			int RevisionLetterNum = RevisionMinor / 100;
 			int RevisionBeta = RevisionMinor - (RevisionLetterNum * 100);
-			char RevisionLetter = Convert.ToChar('a' + RevisionLetterNum);
+			char RevisionLetter = Convert.ToChar('a' + RevisionLetterNum - 1);
 
-			return "r" + RevisionNum + (RevisionLetterNum > 0 ? Char.ToString(RevisionLetter) : "");
+			return "r" + RevisionNum + (RevisionLetterNum > 1 ? Char.ToString(RevisionLetter) : "");
 		}
 
 		[CommandLine("-Architectures=", ListSeparator = '+')]
@@ -232,9 +232,6 @@ namespace UnrealBuildTool
 				NDKDefineInt = 100500;
 			}
 
-			string ClangVersion = "";
-			string GccVersion = "";
-
 			string ArchitecturePath = "";
 			string ArchitecturePathWindows32 = @"prebuilt/windows";
 			string ArchitecturePathWindows64 = @"prebuilt/windows-x86_64";
@@ -242,23 +239,23 @@ namespace UnrealBuildTool
 			string ArchitecturePathLinux = @"prebuilt/linux-x86_64";
 			string ExeExtension = ".exe";
 
-			if (Directory.Exists(Path.Combine(NDKPath, ArchitecturePathWindows64)))
+			if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePathWindows64)))
 			{
 				Log.TraceVerbose("        Found Windows 64 bit versions of toolchain");
 				ArchitecturePath = ArchitecturePathWindows64;
 			}
-			else if (Directory.Exists(Path.Combine(NDKPath, ArchitecturePathWindows32)))
+			else if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePathWindows32)))
 			{
 				Log.TraceVerbose("        Found Windows 32 bit versions of toolchain");
 				ArchitecturePath = ArchitecturePathWindows32;
 			}
-			else if (Directory.Exists(Path.Combine(NDKPath, ArchitecturePathMac)))
+			else if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePathMac)))
 			{
 				Log.TraceVerbose("        Found Mac versions of toolchain");
 				ArchitecturePath = ArchitecturePathMac;
 				ExeExtension = "";
 			}
-			else if (Directory.Exists(Path.Combine(NDKPath, ArchitecturePathLinux)))
+			else if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePathLinux)))
 			{
 				Log.TraceVerbose("        Found Linux versions of toolchain");
 				ArchitecturePath = ArchitecturePathLinux;
@@ -269,35 +266,11 @@ namespace UnrealBuildTool
 				throw new BuildException("Couldn't find 32-bit or 64-bit versions of the Android toolchain with NDKROOT: " + NDKPath);
 			}
 
-			// prefer clang 3.6, but fall back if needed for now
-			if (Directory.Exists(Path.Combine(NDKPath, @"toolchains/llvm-3.6")))
-			{
-				SetClangVersion(3, 6, 0);
-				ClangVersion = "-3.6";
-				GccVersion = "4.9";
-			}
-			else if (Directory.Exists(Path.Combine(NDKPath, @"toolchains/llvm-3.5")))
-			{
-				SetClangVersion(3, 5, 0);
-				ClangVersion = "-3.5";
-				GccVersion = "4.9";
-			}
-			else if (Directory.Exists(Path.Combine(NDKPath, @"toolchains/llvm-3.3")))
-			{
-				SetClangVersion(3, 3, 0);
-				ClangVersion = "-3.3";
-				GccVersion = "4.8";
-			}
-			else if (Directory.Exists(Path.Combine(NDKPath, @"toolchains/llvm-3.1")))
-			{
-				SetClangVersion(3, 1, 0);
-				ClangVersion = "-3.1";
-				GccVersion = "4.6";
-			}
-			else if (Directory.Exists(Path.Combine(NDKPath, @"toolchains/llvm")))
+			// figure out clang version (will live in toolchains/llvm from NDK 21 forward
+			if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm")))
 			{
 				// look for version in AndroidVersion.txt (fail if not found)
-				string VersionFilename = Path.Combine(NDKPath, @"toolchains/llvm/", ArchitecturePath, @"AndroidVersion.txt");
+				string VersionFilename = Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePath, "AndroidVersion.txt");
 				if (!File.Exists(VersionFilename))
 				{
 					throw new BuildException("Cannot find supported Android toolchain");
@@ -305,8 +278,6 @@ namespace UnrealBuildTool
 				string[] VersionFile = File.ReadAllLines(VersionFilename);
 				string[] VersionParts = VersionFile[0].Split('.');
 				SetClangVersion(int.Parse(VersionParts[0]), (VersionParts.Length > 1) ? int.Parse(VersionParts[1]) : 0, (VersionParts.Length > 2) ? int.Parse(VersionParts[2]) : 0);
-				ClangVersion = "";
-				GccVersion = "4.9";
 			}
 			else
 			{
@@ -322,11 +293,23 @@ namespace UnrealBuildTool
 			}
 
 			// set up the path to our toolchains
-			ClangPath = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/llvm" + ClangVersion, ArchitecturePath, @"bin/clang++" + ExeExtension));
-			ArPathArm = Path.Combine(NDKPath, @"toolchains/arm-linux-androideabi-" + GccVersion, ArchitecturePath, @"bin/arm-linux-androideabi-ar" + ExeExtension);     //@todo android: use llvm-ar.exe instead?
-			ArPathArm64 = Path.Combine(NDKPath, @"toolchains/aarch64-linux-android-" + GccVersion, ArchitecturePath, @"bin/aarch64-linux-android-ar" + ExeExtension);   //@todo android: use llvm-ar.exe instead?
-			ArPathx86 = Path.Combine(NDKPath, @"toolchains/x86-" + GccVersion, ArchitecturePath, @"bin/i686-linux-android-ar" + ExeExtension);                          //@todo android: verify x86 toolchain
-			ArPathx64 = Path.Combine(NDKPath, @"toolchains/x86_64-" + GccVersion, ArchitecturePath, @"bin/x86_64-linux-android-ar" + ExeExtension);                     //@todo android: verify x64 toolchain
+			ClangPath = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/clang++" + ExeExtension));
+			if (NDKDefineInt < 210000)
+			{
+				// use ld before r21
+				ArPathArm = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/x86-4.9", ArchitecturePath, @"bin/armv7a-linux-androideabi-ar" + ExeExtension));
+				ArPathArm64 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/x86-4.9", ArchitecturePath, @"bin/aarch64-linux-android-ar" + ExeExtension));
+				ArPathx86 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/x86-4.9", ArchitecturePath, @"bin/i686-linux-android-ar" + ExeExtension));
+				ArPathx64 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/x86_4.9", ArchitecturePath, @"bin/x86_64-linux-android-ar" + ExeExtension));
+			}
+			else
+			{
+				// use lld for r21+
+				ArPathArm = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/llvm-ar" + ExeExtension));
+				ArPathArm64 = ArPathArm;
+				ArPathx86 = ArPathArm;
+				ArPathx64 = ArPathArm;
+			}
 
 			// NDK setup (use no less than 21 for 64-bit targets)
 			int NDKApiLevel32Int = GetNdkApiLevelInt();
@@ -339,47 +322,20 @@ namespace UnrealBuildTool
 				NDKApiLevel64Bit = "android-21";
 			}
 
-			// toolchain params
-			ToolchainLinkParamsArm = " -target armv7-none-linux-androideabi" +
-									   " --sysroot=\"" + Path.Combine(NDKPath, "platforms", NDKApiLevel32Bit, "arch-arm") + "\"" +
-									   " -gcc-toolchain \"" + Path.Combine(NDKPath, @"toolchains/arm-linux-androideabi-" + GccVersion, ArchitecturePath) + "\"";
-			ToolchainLinkParamsArm64 = " -target aarch64-none-linux-android" +
-									   " --sysroot=\"" + Path.Combine(NDKPath, "platforms", NDKApiLevel64Bit, "arch-arm64") + "\"" +
-									   " -gcc-toolchain \"" + Path.Combine(NDKPath, @"toolchains/aarch64-linux-android-" + GccVersion, ArchitecturePath) + "\"";
-			ToolchainLinkParamsx86 = " -target i686-none-linux-android" +
-									   " --sysroot=\"" + Path.Combine(NDKPath, "platforms", NDKApiLevel32Bit, "arch-x86") + "\"" +
-									   " -gcc-toolchain \"" + Path.Combine(NDKPath, @"toolchains/x86-" + GccVersion, ArchitecturePath) + "\"";
-			ToolchainLinkParamsx64 = " -target x86_64-none-linux-android" +
-									   " --sysroot=\"" + Path.Combine(NDKPath, "platforms", NDKApiLevel64Bit, "arch-x86_64") + "\"" +
-									   " -gcc-toolchain \"" + Path.Combine(NDKPath, @"toolchains\x86_64-" + GccVersion, ArchitecturePath) + "\"";
+			string GCCToolchainPath = Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePath);
+			string SysrootPath = Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePath, "sysroot");
+
+			// toolchain params (note: use ANDROID=1 same as we define it)
+			ToolchainLinkParamsArm = " --target=armv7-none-linux-androideabi" + NDKApiLevel32Int + " --gcc-toolchain=\"" + GCCToolchainPath + "\" --sysroot=\"" + SysrootPath + "\" -DANDROID=1";
+			ToolchainLinkParamsArm64 = " --target=aarch64-none-linux-android" + NDKApiLevel64Int + " --gcc-toolchain=\"" + GCCToolchainPath + "\" --sysroot=\"" + SysrootPath + "\" -DANDROID=1";
+			ToolchainLinkParamsx86 = " --target=i686-none-linux-android" + NDKApiLevel32Int + " --gcc-toolchain=\"" + GCCToolchainPath + "\" --sysroot=\"" + SysrootPath + "\" -DANDROID=1";
+			ToolchainLinkParamsx64 = " --target=x86_64-none-linux-android" + NDKApiLevel64Int + " --gcc-toolchain=\"" + GCCToolchainPath + "\" --sysroot=\"" + SysrootPath + "\" -DANDROID=1";
 
 			// use NDK version -D__ANDROID_API__ for r14b+
-			if (NDKDefineInt >= 140200)
-			{
-				ToolchainParamsArm = " -target armv7-none-linux-androideabi" +
-										" --sysroot='" + Path.Combine(NDKPath, "sysroot") + "'" +
-										" -isystem '" + Path.Combine(NDKPath, "sysroot/usr/include/arm-linux-androideabi/") + "'" +
-										" -D__ANDROID_API__=" + NDKApiLevel32Int;
-				ToolchainParamsArm64 = " -target aarch64-none-linux-android" +
-										" --sysroot='" + Path.Combine(NDKPath, "sysroot") + "'" +
-										" -isystem '" + Path.Combine(NDKPath, "sysroot/usr/include/aarch64-linux-android/") + "'" +
-										" -D__ANDROID_API__=" + NDKApiLevel64Int;
-				ToolchainParamsx86 = " -target i686-none-linux-android" +
-										" --sysroot='" + Path.Combine(NDKPath, "sysroot") + "'" +
-										" -isystem '" + Path.Combine(NDKPath, "sysroot/usr/include/i686-linux-android/") + "'" +
-										" -D__ANDROID_API__=" + NDKApiLevel32Int;
-				ToolchainParamsx64 = " -target x86_64-none-linux-android" +
-										" --sysroot='" + Path.Combine(NDKPath, "sysroot") + "'" +
-										" -isystem '" + Path.Combine(NDKPath, "sysroot/usr/include/x86_64-linux-android/") + "'" +
-										" -D__ANDROID_API__=" + NDKApiLevel64Int;
-			}
-			else
-			{
-				ToolchainParamsArm = ToolchainLinkParamsArm;
-				ToolchainParamsArm64 = ToolchainLinkParamsArm64;
-				ToolchainParamsx86 = ToolchainLinkParamsx86;
-				ToolchainParamsx64 = ToolchainLinkParamsx64;
-			}
+			ToolchainParamsArm = ToolchainLinkParamsArm + " -D__ANDROID_API__=" + NDKApiLevel32Int;
+			ToolchainParamsArm64 = ToolchainLinkParamsArm64 + " -D__ANDROID_API__=" + NDKApiLevel64Int;
+			ToolchainParamsx86 = ToolchainLinkParamsx86 + " -D__ANDROID_API__=" + NDKApiLevel32Int;
+			ToolchainParamsx64 = ToolchainLinkParamsx64 + " -D__ANDROID_API__=" + NDKApiLevel64Int;
 		}
 
 		public virtual void ParseArchitectures()
@@ -584,9 +540,11 @@ namespace UnrealBuildTool
 
 			// build up the commandline common to C and C++
 			Result += " -c";
+			Result += " -no-canonical-prefixes";
 			Result += " -fdiagnostics-format=msvc";
 			Result += " -Wall";
 			Result += " -Wdelete-non-virtual-dtor";
+			Result += " -fno-PIE";
 
 			Result += " -Wno-unused-variable";
 			// this will hide the warnings about static functions in headers that aren't used in every single .cpp file
@@ -675,6 +633,8 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// FORTIFY default
+			Result += " -D_FORTIFY_SOURCE=2";
 
 			// Optionally enable exception handling (off by default since it generates extra code needed to propagate exceptions)
 			if (CompileEnvironment.bEnableExceptions)
@@ -703,10 +663,10 @@ namespace UnrealBuildTool
 			{
 				//		Result += " -mthumb-interwork";			// Generates code which supports calling between ARM and Thumb instructions, w/o it you can't reliability use both together
 				Result += " -funwind-tables";           // Just generates any needed static data, affects no code
-				Result += " -fstack-protector";         // Emits extra code to check for buffer overflows
+				Result += " -fstack-protector-strong";  // Emits extra code to check for buffer overflows
 														//		Result += " -mlong-calls";				// Perform function calls by first loading the address of the function into a reg and then performing the subroutine call
 				Result += " -fno-strict-aliasing";      // Prevents unwanted or invalid optimizations that could produce incorrect code
-				Result += " -fpic";                     // Generates position-independent code (PIC) suitable for use in a shared library
+				Result += " -fPIC";                     // Generates position-independent code (PIC) suitable for use in a shared library
 				Result += " -fno-short-enums";          // Do not allocate to an enum type only as many bytes as it needs for the declared range of possible values
 														//		Result += " -finline-limit=64";			// GCC limits the size of functions that can be inlined, this flag allows coarse control of this limit
 														//		Result += " -Wno-psabi";				// Warn when G++ generates code that is probably not compatible with the vendor-neutral C++ ABI
@@ -745,9 +705,9 @@ namespace UnrealBuildTool
 			else if (Architecture == "-arm64")
 			{
 				Result += " -funwind-tables";           // Just generates any needed static data, affects no code
-				Result += " -fstack-protector";         // Emits extra code to check for buffer overflows
+				Result += " -fstack-protector-strong";  // Emits extra code to check for buffer overflows
 				Result += " -fno-strict-aliasing";      // Prevents unwanted or invalid optimizations that could produce incorrect code
-				Result += " -fpic";                     // Generates position-independent code (PIC) suitable for use in a shared library
+				Result += " -fPIC";                     // Generates position-independent code (PIC) suitable for use in a shared library
 				Result += " -fno-short-enums";          // Do not allocate to an enum type only as many bytes as it needs for the declared range of possible values
 				Result += " -D__arm64__";               // for some reason this isn't defined and needed for PhysX
 
@@ -765,15 +725,29 @@ namespace UnrealBuildTool
 			}
 			else if (Architecture == "-x86")
 			{
+				Result += " -funwind-tables";           // Just generates any needed static data, affects no code
+				Result += " -fstack-protector-strong";  // Emits extra code to check for buffer overflows
 				Result += " -fstrict-aliasing";
+				Result += " -fPIC";                     // Generates position-independent code (PIC) suitable for use in a shared library
 				Result += " -fno-omit-frame-pointer";
 				Result += " -fno-strict-aliasing";
 				Result += " -fno-short-enums";
 				Result += " -march=atom";
+
+				Result += " -Wno-error=atomic-alignment";   // deals with 64-bit types (ok for these to be slower)
+				Result += " -Wno-atomic-alignment";
+
+				if (GetNdkApiLevelInt() < 24)
+				{
+					Result += " -mstackrealign";
+				}
 			}
 			else if (Architecture == "-x64")
 			{
+				Result += " -funwind-tables";           // Just generates any needed static data, affects no code
+				Result += " -fstack-protector-strong";  // Emits extra code to check for buffer overflows
 				Result += " -fstrict-aliasing";
+				Result += " -fPIC";                     // Generates position-independent code (PIC) suitable for use in a shared library
 				Result += " -fno-omit-frame-pointer";
 				Result += " -fno-strict-aliasing";
 				Result += " -fno-short-enums";
@@ -847,9 +821,11 @@ namespace UnrealBuildTool
 			string Result = "";
 
 			Result += " -nostdlib";
+			Result += " -no-canonical-prefixes";
 			Result += " -Wl,-shared,-Bsymbolic";
 			Result += " -Wl,--no-undefined";
-			if(bEnableGcSections)
+			Result += " -Wl,-no-pie";
+			if (bEnableGcSections)
 			{
 				Result += " -Wl,-gc-sections"; // Enable garbage collection of unused input sections. works best with -ffunction-sections, -fdata-sections
 			}
@@ -859,6 +835,7 @@ namespace UnrealBuildTool
 				Result += " -Wl,--strip-debug";
 			}
 
+			bool bUseLLD = NDKDefineInt >= 210000;
 			if (Architecture == "-arm64")
 			{
 				Result += ToolchainLinkParamsArm64;
@@ -878,24 +855,44 @@ namespace UnrealBuildTool
 			{
 				Result += ToolchainLinkParamsArm;
 				Result += " -march=armv7-a";
-				Result += " -Wl,--fix-cortex-a8";       // required to route around a CPU bug in some Cortex-A8 implementations
 
 				if (LinkEnvironment.Configuration == CppConfiguration.Shipping)
 				{
 					Result += " -Wl,--icf=all"; // Enables ICF (Identical Code Folding). [all, safe] safe == fold functions that can be proven not to have their address taken.
-					Result += " -Wl,--icf-iterations=3";
+					if (!bUseLLD)
+					{
+						Result += " -Wl,--icf-iterations=3";
+					}
 				}
 			}
 
-			if (bUseLdGold && CompilerVersionGreaterOrEqual(3, 6, 0) && CompilerVersionLessThan(3, 8, 0))
+			if (bUseLLD)
 			{
-				Result += " -fuse-ld=gold";             // ld.gold is available in r10e (clang 3.6)
+				// use lld as linker (requires llvm-strip)
+				Result += " -fuse-ld=lld";
+			}
+			else
+			{
+				if (bUseLdGold)
+				{
+					// use ld.gold as linker (requires strip)
+					Result += " -fuse-ld=gold";
+				}
+				else
+				{
+					// use ld as linker (requires strip)
+					Result += " -fuse-ld=ld";
+				}
 			}
 
 			// make sure the DT_SONAME field is set properly (or we can a warning toast at startup on new Android)
 			Result += " -Wl,-soname,libUE4.so";
 
-			Result += " -Wl,--build-id";				// add build-id to make debugging easier
+			// exclude defaults, add at end
+			Result += "	-Wl,--exclude-libs,libgcc_real.a";
+			Result += " -Wl,--exclude-libs,libatomic.a";
+
+			Result += " -Wl,--build-id=sha1";				// add build-id to make debugging easier
 
 			// verbose output from the linker
 			// Result += " -v";
@@ -1479,7 +1476,8 @@ namespace UnrealBuildTool
 						if (SourceFile.AbsolutePath.Equals(NativeGluePath))
 						{
 							// Remove visibility settings for android native glue. Since it doesn't decorate with visibility attributes.
-							AllArguments = AllArguments.Replace("-fvisibility-ms-compat -fvisibility-inlines-hidden", "");
+							//AllArguments = AllArguments.Replace("-fvisibility-ms-compat -fvisibility-inlines-hidden", "");
+							AllArguments = AllArguments.Replace("-fvisibility=hidden -fvisibility-inlines-hidden", "");
 						}
 
 						AllArguments = Utils.ExpandVariables(AllArguments);
