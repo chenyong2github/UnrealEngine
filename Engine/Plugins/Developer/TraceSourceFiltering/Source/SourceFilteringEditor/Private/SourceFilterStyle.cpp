@@ -18,6 +18,7 @@ FTextBlockStyle FSourceFilterStyle::NormalText;
 #define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( StyleSet->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( StyleSet->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
+#define ICON_FONT(...) FSlateFontInfo(StyleSet->RootToContentDir("Fonts/FontAwesome", TEXT(".ttf")), __VA_ARGS__)
 
 // Const icon sizes
 static const FVector2D Icon8x8(8.0f, 8.0f);
@@ -51,6 +52,8 @@ void FSourceFilterStyle::Initialize()
 	
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
+
+	StyleSet->Set("SourceFilter.GroupBorder", new BOX_BRUSH("Common/GroupBorder", FMargin(4.0f / 16.0f)));
 
 
 	NormalText = FTextBlockStyle()
@@ -149,6 +152,8 @@ void FSourceFilterStyle::Initialize()
 		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)));
 
 	StyleSet->Set("SourceFilter.DragDrop.Border", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));
+
+	StyleSet->Set("FontAwesome.9", ICON_FONT(9));
 		
 	FSlateStyleRegistry::RegisterSlateStyle( *StyleSet.Get() );
 }
@@ -157,6 +162,7 @@ void FSourceFilterStyle::Initialize()
 #undef BOX_BRUSH
 #undef BORDER_BRUSH
 #undef DEFAULT_FONT
+#undef ICON_FONT
 
 void FSourceFilterStyle::Shutdown()
 {
