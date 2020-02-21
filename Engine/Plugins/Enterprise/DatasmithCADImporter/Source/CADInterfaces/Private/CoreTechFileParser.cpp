@@ -21,6 +21,11 @@ namespace CADLibrary
 
 namespace {
 
+	double Distance(const CT_COORDINATE& Point1, const CT_COORDINATE& Point2)
+	{
+		return sqrt((Point2.xyz[0] - Point1.xyz[0]) * (Point2.xyz[0] - Point1.xyz[0]) + (Point2.xyz[1] - Point1.xyz[1]) * (Point2.xyz[1] - Point1.xyz[1]) + (Point2.xyz[2] - Point1.xyz[2]) * (Point2.xyz[2] - Point1.xyz[2]));
+	};
+
 	void ScaleUV(CT_OBJECT_ID FaceID, TArray<FVector2D>& TexCoordArray, float Scale)
 	{
 		float VMin, VMax, UMin, UMax;
