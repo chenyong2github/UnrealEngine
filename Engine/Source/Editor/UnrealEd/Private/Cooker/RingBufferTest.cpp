@@ -199,6 +199,32 @@ public:
 			TestEqual(TEXT("Test GetFront const"), 5, const_cast<TRingBuffer<uint32>&>(Q).GetFront());
 		}
 
+		// Test PopFrontValue/PopBackValue
+		{
+			TRingBuffer<Counter> Q({ 31,32,33 });
+			Q.PushFront(30);
+
+			Counter::Clear();
+			Counter C(Q.PopFrontValue());
+			TestEqual(TEXT("PopFrontValue - PoppedValue"), C.Value, 30);
+			TestTrue(TEXT("PopFrontValue - ConstructorCounts"), Counter::NumMove > 0 && Counter::NumCopy == 0);
+			TestEqual(TEXT("PopFrontValue - Remaining Values"), Q, TRingBuffer<Counter>({ 31,32,33 }));
+			Counter::Clear();
+			TestEqual(TEXT("PopFrontValue Inline - PoppedValue"), Q.PopFrontValue().Value, 31);
+			TestTrue(TEXT("PopFrontValue Inline - ConstructorCounts"), Counter::NumCopy == 0);
+			TestEqual(TEXT("PopFrontValue Inline - Remaining Values"), Q, TRingBuffer<Counter>({ 32,33 }));
+
+			Counter::Clear();
+			Counter D(Q.PopBackValue());
+			TestEqual(TEXT("PopBackValue - PoppedValue"), D.Value, 33);
+			TestTrue(TEXT("PopBackValue - ConstructorCounts"), Counter::NumMove > 0 && Counter::NumCopy == 0);
+			TestEqual(TEXT("PopBackValue - Remaining Values"), Q, TRingBuffer<Counter>({ Counter(32) }));
+			Counter::Clear();
+			TestEqual(TEXT("PopBackValue Inline - PoppedValue"), Q.PopBackValue().Value, 32);
+			TestTrue(TEXT("PopBackValue Inline - ConstructorCounts"), Counter::NumCopy == 0);
+			TestTrue(TEXT("PopBackValue Inline - Remaining Values"), Q.IsEmpty());
+		}
+
 		// Test Initializer_List
 		{
 			const TRingBuffer<int32>::IndexType InitializerSize = 9;
@@ -968,6 +994,7 @@ public:
 				TestTrue(TEXT("Remove - two elements - front at end - values"), Q == TRingBuffer<Counter>({ 2,3,4,5 }));
 			}
 		}
+
 		return true;
 	}
 

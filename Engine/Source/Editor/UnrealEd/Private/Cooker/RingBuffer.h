@@ -9,6 +9,7 @@
 #include "Templates/IsPODType.h"
 #include "Templates/IsTriviallyDestructible.h"
 #include "Templates/MemoryOps.h"
+#include "Templates/UnrealTemplate.h"
 
 // PUBLIC_RINGBUFFER_TODO: Move TMakeSigned and TMakeUnsigned into MakeSigned.h
 template <typename T>
@@ -351,7 +352,7 @@ public:
 		return (*this)[Num() - 1];
 	}
 
-	/** Pop the given number of arguments (default: 1) from the front pointer of the RingBuffer.  Invalid to call with a number of elements greater than the current number of elements in the RingBuffer. */
+	/** Pop the given number of elements (default: 1) from the front pointer of the RingBuffer.  Invalid to call with a number of elements greater than the current number of elements in the RingBuffer. */
 	void PopFront(SizeType PopCount=1)
 	{
 		if (!PopRangeCheck(PopCount))
@@ -368,6 +369,15 @@ public:
 		Front += PopCount; // Note this may overflow (wrapping around to 0xffffffff) if AfterBack has already underflowed; this is valid.
 	}
 
+	/* Pop one element from the front pointer of the RingBuffer and return the popped value. Invalid to call when the RingBuffer is empty. */
+	ElementType PopFrontValue()
+	{
+		PopRangeCheck(1);
+		ElementType Result(MoveTemp(GetFront()));
+		PopFrontNoCheck(1);
+		return Result;
+	}
+
 	/** Pop the given number of arguments (default: 1) from the back pointer of the RingBuffer.  Invalid to call with a number of elements greater than the current number of elements in the RingBuffer. */
 	void PopBack(SizeType PopCount=1)
 	{
@@ -378,11 +388,20 @@ public:
 		PopBackNoCheck(PopCount);
 	}
 
-	/** Pop the given number of arguments (default: 1) from the front pointer of the RingBuffer.  Invalid to call (and does not warn) with a number of elements greater than the current number of elements in the RingBuffer. */
+	/** Pop the given number of elements (default: 1) from the back pointer of the RingBuffer.  Invalid to call (and does not warn) with a number of elements greater than the current number of elements in the RingBuffer. */
 	void PopBackNoCheck(SizeType PopCount=1)
 	{
 		DestructRange(AfterBack - PopCount, AfterBack);
 		AfterBack -= PopCount; // Note this may underflow (wrapping around to 0xffffffff) if Front has already underflowed; this is valid.
+	}
+
+	/* Pop one element from the back pointer of the RingBuffer and return the popped value. Invalid to call when the RingBuffer is empty. */
+	ElementType PopBackValue()
+	{
+		PopRangeCheck(1);
+		ElementType Result(MoveTemp(GetBack()));
+		PopBackNoCheck(1);
+		return Result;
 	}
 
 	/** Move the value at the given index into the front pointer of the RingBuffer, and shift all elements ahead of it down by one to make room for it.  Invalid to call with a negative index or index greater than the number of elements in the RingBuffer. */
