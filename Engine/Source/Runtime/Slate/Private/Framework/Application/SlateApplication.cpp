@@ -1747,38 +1747,26 @@ static bool IsFocusInViewport(const TSet<TWeakPtr<SViewport>> Viewports, const F
 
 EUINavigation FSlateApplication::GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const
 {
-#if WITH_EDITOR
-	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
-	TSharedPtr<const FSlateUser> User = GetUser(GetUserIndexForKeyboard());
-	if (User && !IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
-	{
-		return EditorNavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
-	}
-#endif
-	return NavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
+	TSharedRef<FNavigationConfig> RelevantNavConfig = GetRelevantNavConfig(InKeyEvent.GetUserIndex());
+	return RelevantNavConfig->GetNavigationDirectionFromKey(InKeyEvent);
 }
 
 EUINavigation FSlateApplication::GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent)
 {
-#if WITH_EDITOR
-	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
-	TSharedPtr<const FSlateUser> User = GetUser(GetUserIndexForKeyboard());
-	if (User && !IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
-	{
-		return EditorNavigationConfig->GetNavigationDirectionFromKey(InAnalogEvent);
-	}
-#endif
-	return NavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
+	TSharedRef<FNavigationConfig> RelevantNavConfig = GetRelevantNavConfig(InAnalogEvent.GetUserIndex());
+	return RelevantNavConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
 }
 
 EUINavigationAction FSlateApplication::GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const
 {
-	return NavigationConfig->GetNavigationActionFromKey(InKeyEvent);
+	TSharedRef<FNavigationConfig> RelevantNavConfig = GetRelevantNavConfig(InKeyEvent.GetUserIndex());
+	return RelevantNavConfig->GetNavigationActionFromKey(InKeyEvent);
 }
 
 EUINavigationAction FSlateApplication::GetNavigationActionForKey(const FKey& InKey) const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Not enough info to pick the best config, so this can only use the default
 	return NavigationConfig->GetNavigationActionForKey(InKey);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
@@ -2705,7 +2693,7 @@ bool FSlateApplication::SetUserFocus(FSlateUser& User, const FWidgetPath& InFocu
 			ProcessReply(InFocusPath, Reply, nullptr, nullptr, User.GetUserIndex());
 		}
 
-		NavigationConfig->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
+		GetRelevantNavConfig(User.GetUserIndex())->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
 
 #if WITH_ACCESSIBILITY
 		GetAccessibleMessageHandler()->OnWidgetEventRaised(NewFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, false, true);
@@ -3979,6 +3967,29 @@ bool FSlateApplication::ShowUserFocus(const TSharedPtr<const SWidget> Widget) co
 		}
 	}
 	return false;
+}
+
+TSharedRef<FNavigationConfig> FSlateApplication::GetRelevantNavConfig(int32 UserIndex) const
+{
+	TSharedPtr<FNavigationConfig> RelevantNavConfig = NavigationConfig;
+	if (TSharedPtr<const FSlateUser> User = GetUser(UserIndex))
+	{
+#if WITH_EDITOR
+		// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
+		if (UserIndex == GetUserIndexForKeyboard() && !IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
+		{
+			RelevantNavConfig = EditorNavigationConfig;
+		}
+		else
+#endif
+		if (TSharedPtr<FNavigationConfig> UserNavConfig = User->GetUserNavigationConfig())
+		{
+			// Use the user's personal config if it has one assigned
+			RelevantNavConfig = UserNavConfig;
+		}
+	}
+
+	return RelevantNavConfig.ToSharedRef();
 }
 
 bool FSlateApplication::HasUserFocusedDescendants(const TSharedRef< const SWidget >& Widget, int32 UserIndex) const
