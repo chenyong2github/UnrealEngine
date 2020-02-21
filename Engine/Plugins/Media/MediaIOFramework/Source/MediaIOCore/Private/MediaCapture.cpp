@@ -2,6 +2,7 @@
 
 #include "MediaCapture.h"
 
+#include "Application/ThrottleManager.h"
 #include "Async/Async.h"
 #include "Engine/GameEngine.h"
 #include "Engine/RendererSettings.h"
@@ -77,6 +78,7 @@ FMediaCaptureOptions::FMediaCaptureOptions()
 	: Crop(EMediaCaptureCroppingType::None)
 	, CustomCapturePoint(FIntPoint::ZeroValue)
 	, bResizeSourceBuffer(false)
+	, bSkipFrameWhenRunningExpensiveTasks(true)
 {
 
 }
@@ -89,6 +91,7 @@ UMediaCapture::UMediaCapture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, CurrentResolvedTargetIndex(0)
 	, NumberOfCaptureFrame(2)
+	, CaptureRequestCount(0)
 	, MediaState(EMediaCaptureState::Stopped)
 	, DesiredSize(1280, 720)
 	, DesiredPixelFormat(EPixelFormat::PF_A2B10G10R10)
@@ -604,6 +607,11 @@ void UMediaCapture::OnEndFrame_GameThread()
 		return;
 	}
 
+	if (DesiredCaptureOptions.bSkipFrameWhenRunningExpensiveTasks && !FSlateThrottleManager::Get().IsAllowingExpensiveTasks())
+	{
+		return;
+	}
+
 	CurrentResolvedTargetIndex = (CurrentResolvedTargetIndex + 1) % NumberOfCaptureFrame;
 	int32 ReadyFrameIndex = (CurrentResolvedTargetIndex + 1) % NumberOfCaptureFrame; // Next one in the buffer queue
 
@@ -632,6 +640,7 @@ void UMediaCapture::OnEndFrame_GameThread()
 		CapturingFrame->CaptureBaseData.SourceFrameTimecode = FApp::GetTimecode();
 		CapturingFrame->CaptureBaseData.SourceFrameTimecodeFramerate = FApp::GetTimecodeFrameRate();
 		CapturingFrame->CaptureBaseData.SourceFrameNumberRenderThread = GFrameNumber;
+		CapturingFrame->CaptureBaseData.SourceFrameNumber = ++CaptureRequestCount;
 		CapturingFrame->UserData = GetCaptureFrameUserData_GameThread();
 	}
 
