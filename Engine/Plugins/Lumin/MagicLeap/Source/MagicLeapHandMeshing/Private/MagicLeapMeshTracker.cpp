@@ -13,9 +13,9 @@ FMagicLeapMeshTracker::FMagicLeapMeshTracker()
 , CurrentMeshRequest(ML_INVALID_HANDLE)
 #endif //WITH_MLSDK
 , bCreating(false)
+, bUseWeightedNormals(false)
 , MeshBrickIndex(0)
 , MRMesh(nullptr)
-, CurrentMeshDataCache(nullptr)
 {
 };
 
@@ -123,6 +123,11 @@ bool FMagicLeapMeshTracker::DisconnectMRMesh(class UMRMeshComponent* InMRMeshPtr
 	return true;
 }
 
+void FMagicLeapMeshTracker::SetUseWeightedNormals(const bool bInUseWeightedNormals)
+{
+	bUseWeightedNormals = bInUseWeightedNormals;
+}
+
 bool FMagicLeapMeshTracker::Update()
 {
 	if (bCreating)
@@ -203,38 +208,28 @@ bool FMagicLeapMeshTracker::GetMeshResult()
 				CurrentMeshRequest = ML_INVALID_HANDLE;
 				return true;
 			}
-
-			if (CurrentMeshDataCache.Get() != nullptr)
-			{
-				// Get/create brick ID for this mesh GUID
-				auto MeshBrickInfo = GetBrickInfo(CurrentMeshDataCache->BlockID, true);
-				// Create/update brick
-				static_cast<IMRMesh*>(MRMesh)->SendBrickData(
-					IMRMesh::FSendBrickDataArgs
-					{
-						TSharedPtr<IMRMesh::FBrickDataReceipt, ESPMode::ThreadSafe>
-						(new FMeshTrackerBrickDataReceipt(CurrentMeshDataCache)),
-						*MeshBrickInfo,
-						CurrentMeshDataCache->WorldVertices,
-						CurrentMeshDataCache->UV0,
-						CurrentMeshDataCache->Tangents,
-						CurrentMeshDataCache->VertexColors,
-						CurrentMeshDataCache->Triangles
-					}
-				);
-			}
 			// Mesh request pending...
 			return false;
 		}
 		else
 		{
+			// Create a bounding box based on the hmd position and rotation
+			FRotator HMDRotation;
+			FVector HMDPosition;
+			UHeadMountedDisplayFunctionLibrary::GetOrientationAndPosition(HMDRotation, HMDPosition);
+			// Put the center 1/2 meter in front of the face and set the radius to 1 meter
+			const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
+			FVector Center = TrackingToWorld.TransformPosition(HMDPosition + ((WorldToMetersScale / 2.f) * HMDRotation.Vector()));
+			FVector BoxExtent(WorldToMetersScale);
+			FBox Bounds(Center - BoxExtent, Center + BoxExtent);
+
 			FVector VertexOffset = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(MRMesh).Inverse().GetLocation();
 			for (uint32_t MeshIndex = 0; MeshIndex < Mesh.data_count; ++MeshIndex)
 			{
 				const auto &MeshData = Mesh.data[MeshIndex];
 				auto BlockID = FGuid();// MeshData.id.data[0], MeshData.id.data[0] >> 32, MeshData.id.data[1], MeshData.id.data[1] >> 32);
 				// Acquire mesh data cache and mark its brick ID
-				CurrentMeshDataCache = AquireMeshDataCache();
+				FMLCachedMeshData::SharedPtr CurrentMeshDataCache = AquireMeshDataCache();
 				CurrentMeshDataCache->BlockID = BlockID;
 
 				// Pull vertices
@@ -257,24 +252,39 @@ bool FMagicLeapMeshTracker::GetMeshResult()
 					CurrentMeshDataCache->Triangles.Add(static_cast<uint32>(MeshData.index[i+1]));
 				}
 
-				// Pull normals
-				CurrentMeshDataCache->Normals.Reserve(MeshData.vertex_count);
-				for (int32 iNormal = 0; iNormal < CurrentMeshDataCache->Triangles.Num()-2; ++iNormal)
+				// Generate normals
+				CurrentMeshDataCache->Normals.SetNumZeroed(MeshData.vertex_count);
+				for (int32 iNormal = 0; iNormal < CurrentMeshDataCache->Triangles.Num()-2; iNormal += 3)
 				{
 					FVector A = CurrentMeshDataCache->WorldVertices[CurrentMeshDataCache->Triangles[iNormal]];
 					FVector B = CurrentMeshDataCache->WorldVertices[CurrentMeshDataCache->Triangles[iNormal+1]];
 					FVector C = CurrentMeshDataCache->WorldVertices[CurrentMeshDataCache->Triangles[iNormal+2]];
+					// Get the normal for this triangle.
 					FVector AToB = B - A;
-					AToB.Normalize();
 					FVector AToC = C - A;
-					AToC.Normalize();
-					FVector Normal = FVector::CrossProduct(AToB, AToC);
-					CurrentMeshDataCache->Normals.Add(Normal);
+					FVector Normal = FVector::CrossProduct(AToC, AToB);
+					// Weight it based on the area of the triangle, if requested.  Otherwise, just normalize it.
+					if (bUseWeightedNormals)
+					{
+						float TriangleSize = 0.5f * Normal.Size();
+						Normal.Normalize();
+						Normal *= TriangleSize;
+					}
+					else
+					{
+						Normal.Normalize();
+					}
+					// Add to the normals of each vertex of the triangle.  The final normals will be Normalized while iterating to get tangents, below.
+					CurrentMeshDataCache->Normals[CurrentMeshDataCache->Triangles[iNormal]] += Normal;
+					CurrentMeshDataCache->Normals[CurrentMeshDataCache->Triangles[iNormal+1]] += Normal;
+					CurrentMeshDataCache->Normals[CurrentMeshDataCache->Triangles[iNormal+2]] += Normal;
 				}
 				
 				CurrentMeshDataCache->Tangents.Reserve(MeshData.vertex_count * 2);
 				for (uint32_t t = 0; t < MeshData.vertex_count; ++t)
 				{
+					// Normals aren't normalized above due to the iterative nature of their generation.  Normalize here before getting their tangents.
+					CurrentMeshDataCache->Normals[t].Normalize();
 					const FVector& Norm = CurrentMeshDataCache->Normals[t];
 
 					// Calculate tangent
@@ -324,7 +334,8 @@ bool FMagicLeapMeshTracker::GetMeshResult()
 						CurrentMeshDataCache->UV0,
 						CurrentMeshDataCache->Tangents,
 						CurrentMeshDataCache->VertexColors,
-						CurrentMeshDataCache->Triangles
+						CurrentMeshDataCache->Triangles,
+						Bounds
 					}
 				);
 			}
@@ -332,7 +343,6 @@ bool FMagicLeapMeshTracker::GetMeshResult()
 			// All meshes pulled and/or updated; free the ML resource
 			MLHandMeshingFreeResource(MeshTracker, &CurrentMeshRequest);
 			CurrentMeshRequest = ML_INVALID_HANDLE;
-			CurrentMeshDataCache = nullptr;
 			return true;
 		}
 	}
