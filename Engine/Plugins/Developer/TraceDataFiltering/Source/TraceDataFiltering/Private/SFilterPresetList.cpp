@@ -45,6 +45,7 @@ void SFilterPresetList::Construct( const FArguments& InArgs )
 	
 	PresetContainer = GetMutableDefault<ULocalFilterPresetContainer>();
 	SharedPresetContainer = GetMutableDefault<USharedFilterPresetContainer>();
+	EnginePresetContainer = GetMutableDefault<UEngineFilterPresetContainer>();
 	
 	RefreshFilterPresets();
 
@@ -89,7 +90,7 @@ void SFilterPresetList::RefreshFilterPresets()
 
 	PresetContainer->GetUserPresets(UserFilterPresets);
 
-	SharedPresetContainer->GetEnginePresets(EngineFilterPresets);
+	EnginePresetContainer->GetEnginePresets(EngineFilterPresets);
 	SharedPresetContainer->GetSharedUserPresets(SharedUserFilterPresets);
 
 	AllFilterPresets.Append(EngineFilterPresets);

@@ -16,6 +16,7 @@ class SFilterPreset;
 class SWrapBox;
 class ULocalFilterPresetContainer;
 class USharedFilterPresetContainer;
+class UEngineFilterPresetContainer;
 
 /**
  * A list of presets currently applied to insights filtering window
@@ -114,6 +115,7 @@ private:
 	/** Weak pointers to filter preset containers */
 	TWeakObjectPtr<ULocalFilterPresetContainer> PresetContainer;
 	TWeakObjectPtr<USharedFilterPresetContainer> SharedPresetContainer;
+	TWeakObjectPtr<UEngineFilterPresetContainer> EnginePresetContainer;
 
 	/** Delegate for when Presets have changed */
 	FOnPresetsChanged OnPresetsChanged;
