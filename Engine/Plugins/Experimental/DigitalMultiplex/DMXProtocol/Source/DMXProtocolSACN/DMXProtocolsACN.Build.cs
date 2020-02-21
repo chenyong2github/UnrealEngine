@@ -8,23 +8,23 @@ public class DMXProtocolSACN : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(
-            new string[]
-            {
-                "Core",
-                "DMXProtocol"
-            }
-            );
+		PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"DMXProtocol"
+			}
+			);
 
 
-        PrivateDependencyModuleNames.AddRange(
+		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"CoreUObject",
 				"Engine",
-                "Networking",
-                "Sockets",
-                "Json"
+				"Networking",
+				"Sockets",
+				"Json"
 			}
 			);
 		
