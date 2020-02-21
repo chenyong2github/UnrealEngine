@@ -10,12 +10,11 @@ void UDatasmithRemoteEndpointComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	FRemoteImportAnchor Anchor;
-	RegisteredAnchorName = Name.IsEmpty() ? Name = GetName() : Name;
-	Anchor.Name = RegisteredAnchorName;
+	Anchor.Name = Name.IsEmpty() ? GetName() : Name;
 	Anchor.Description = TEXT("UDatasmithRemoteEndpointComponent");
 	Anchor.OnImportFileDelegate.BindUObject(this, &UDatasmithRemoteEndpointComponent::OnImportFile);
 
-	URemoteImportLibrary::RegisterAnchor(Anchor);
+	RegisteredAnchorName = URemoteImportLibrary::RegisterAnchor(Anchor);
 }
 
 void UDatasmithRemoteEndpointComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
