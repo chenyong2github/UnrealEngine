@@ -963,7 +963,6 @@ void UMaterial::PreSave(const class ITargetPlatform* TargetPlatform)
 	Super::PreSave(TargetPlatform);
 #if WITH_EDITOR
 	GMaterialsWithDirtyUsageFlags.RemoveAnnotation(this);
-	UpdateCachedExpressionData();
 #endif
 }
 
@@ -3069,7 +3068,7 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITOR
-	UpdateCachedExpressionData();
+	check(!HasAnyFlags(RF_NeedPostLoad));
 #endif
 	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
 	{
