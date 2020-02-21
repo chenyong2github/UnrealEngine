@@ -5,6 +5,7 @@
 #include "USDConversionUtils.h"
 #include "USDImportOptions.h"
 #include "USDImporter.h"
+#include "USDLog.h"
 #include "USDSceneImportFactory.h"
 #include "USDTypesConversion.h"
 #include "UnrealUSDWrapper.h"
@@ -27,7 +28,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 
 	UUSDSceneImportOptions* ImportOptions = Cast<UUSDSceneImportOptions>(ImportContext.ImportOptions);
 
-	// Parent/child hierarchy will be ignored unless the kind is a group.  Keep track of the current parent and use it 
+	// Parent/child hierarchy will be ignored unless the kind is a group.  Keep track of the current parent and use it
 	TUsdStore< pxr::UsdPrim > GroupParent = ParentPrim;
 
 	if (IUsdPrim::IsKindChildOf( *Prim, USDKindTypes::Component ))
@@ -41,7 +42,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 		{
 			SpawnData.ActorClassName = UsdToUnreal::ConvertString( IUsdPrim::GetUnrealActorClass( *Prim ) );
 
-			UE_LOG(LogUSDImport, Log, TEXT("Adding %s Actor with custom actor class to spawn"), *PrimName.ToString());
+			UE_LOG(LogUsd, Log, TEXT("Adding %s Actor with custom actor class to spawn"), *PrimName.ToString());
 		}
 		else if(bHasUnrealAssetPath)
 		{
@@ -54,13 +55,13 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 				FindMeshAssetsToImport(ImportContext, *Prim, GroupParent, SpawnData.AssetsToImport);
 			}
 
-			UE_LOG(LogUSDImport, Log, TEXT("Adding %s Actor with custom asset path to spawn"), *PrimName.ToString());
+			UE_LOG(LogUsd, Log, TEXT("Adding %s Actor with custom asset path to spawn"), *PrimName.ToString());
 		}
-		else 
+		else
 		{
 			FindMeshAssetsToImport(ImportContext, *Prim, GroupParent, SpawnData.AssetsToImport);
 
-			UE_LOG(LogUSDImport, Log, TEXT("Adding %s Actor with %d meshes"), *PrimName.ToString(), SpawnData.AssetsToImport.Num());
+			UE_LOG(LogUsd, Log, TEXT("Adding %s Actor with %d meshes"), *PrimName.ToString(), SpawnData.AssetsToImport.Num());
 		}
 
 		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( UsdUtils::GetUsdStageAxis( *ImportContext.Stage ), IUsdPrim::GetLocalTransform( *Prim ) );
@@ -75,7 +76,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 
 		OutSpawnDatas.Add(SpawnData);
 
-	
+
 	}
 	else if ( IUsdPrim::IsKindChildOf( *Prim, USDKindTypes::Group ))
 	{
@@ -97,7 +98,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 			ImportContext.ActorsToDestroy.Add(SpawnData.ActorName);
 		}
 
-		UE_LOG(LogUSDImport, Log, TEXT("Adding %s Group Actor to spawn"), *PrimName.ToString());
+		UE_LOG(LogUsd, Log, TEXT("Adding %s Group Actor to spawn"), *PrimName.ToString());
 	}
 
 	for (pxr::UsdPrim Child : Prim.Get().GetFilteredChildren( pxr::UsdTraverseInstanceProxies() ))
