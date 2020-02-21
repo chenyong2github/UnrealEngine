@@ -1906,6 +1906,15 @@ FName UBlueprintGeneratedClass::FindPropertyNameFromGuid(const FGuid& PropertyGu
 {
 	FName RedirectedName = NAME_None;
 #if WITH_EDITORONLY_DATA
+	if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+	{
+		FName NameFromSuper = Super->FindPropertyNameFromGuid(PropertyGuid);
+		if (NameFromSuper != FName())
+		{
+			return NameFromSuper;
+		}
+	}
+
 	if (const FName* Result = PropertyGuids.FindKey(PropertyGuid))
 	{
 		RedirectedName = *Result;
@@ -1921,6 +1930,10 @@ FGuid UBlueprintGeneratedClass::FindPropertyGuidFromName(const FName InName) con
 	if (const FGuid* Result = PropertyGuids.Find(InName))
 	{
 		PropertyGuid = *Result;
+	}
+	else if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+	{
+		PropertyGuid = Super->FindPropertyGuidFromName(InName);
 	}
 #endif // WITH_EDITORONLY_DATA
 	return PropertyGuid;
