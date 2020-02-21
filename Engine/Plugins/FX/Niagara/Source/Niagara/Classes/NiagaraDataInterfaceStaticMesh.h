@@ -102,7 +102,10 @@ struct FNDIStaticMesh_InstanceData
 	FNDIStaticMesh_InstanceData() : Mesh(nullptr) {}
 
 	 //Cached ptr to component we sample from. 
-	TWeakObjectPtr<USceneComponent> Component;
+	TWeakObjectPtr<USceneComponent> SafeComponent_GT;
+
+	// Cached ptr to the mesh so that we can make sure that we haven't been deleted.
+	TWeakObjectPtr<UStaticMesh> SafeMesh_GT;
 
 	//Cached ptr to actual mesh we sample from. 
 	UStaticMesh* Mesh;
