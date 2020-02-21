@@ -223,6 +223,10 @@ private:
     
     void OnShaderLibraryStateChanged(ELibraryState State, EShaderPlatform Platform, FString const& Name);
 
+	FRHIBlendState* GetOrCreateBlendState(const FBlendStateInitializerRHI& Initializer);
+	FRHIRasterizerState* GetOrCreateRasterizerState(const FRasterizerStateInitializerRHI& Initializer);
+	FRHIDepthStencilState* GetOrCreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer);
+
 private:
 	static FShaderPipelineCache* ShaderPipelineCache;
 	TArray<CompileJob> ReadTasks;
@@ -268,4 +272,8 @@ private:
 	TSet<uint64> CompletedMasks;
 	float TotalPrecompileWallTime;
 	int64 TotalPrecompileTasks;
+
+	TMap<FBlendStateInitializerRHI, FRHIBlendState*> BlendStateCache;
+	TMap<FRasterizerStateInitializerRHI, FRHIRasterizerState*> RasterizerStateCache;
+	TMap<FDepthStencilStateInitializerRHI, FRHIDepthStencilState*> DepthStencilStateCache;
 };

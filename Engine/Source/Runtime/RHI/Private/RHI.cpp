@@ -169,6 +169,68 @@ void FVertexElement::FromString(const FStringView& InSrc)
 	check(Parts.GetData() + PartCount == PartIt);
 }
 
+uint32 GetTypeHash(const FRasterizerStateInitializerRHI& Initializer)
+{
+	uint32 Hash = GetTypeHash(Initializer.FillMode);
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.CullMode));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.DepthBias));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.SlopeScaleDepthBias));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.bAllowMSAA));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.bEnableLineAA));
+	return Hash;
+}
+	
+bool operator== (const FRasterizerStateInitializerRHI& A, const FRasterizerStateInitializerRHI& B)
+{
+	bool bSame = 
+		A.FillMode == B.FillMode && 
+		A.CullMode == B.CullMode && 
+		A.DepthBias == B.DepthBias && 
+		A.SlopeScaleDepthBias == B.SlopeScaleDepthBias && 
+		A.bAllowMSAA == B.bAllowMSAA && 
+		A.bEnableLineAA == B.bEnableLineAA;
+	return bSame;
+}
+
+uint32 GetTypeHash(const FDepthStencilStateInitializerRHI& Initializer)
+{
+	uint32 Hash = GetTypeHash(Initializer.bEnableDepthWrite);
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.DepthTest));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.bEnableFrontFaceStencil));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.FrontFaceStencilTest));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.FrontFaceStencilFailStencilOp));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.FrontFaceDepthFailStencilOp));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.FrontFacePassStencilOp));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.bEnableBackFaceStencil));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.BackFaceStencilTest));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.BackFaceStencilFailStencilOp));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.BackFaceDepthFailStencilOp));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.BackFacePassStencilOp));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.StencilReadMask));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.StencilWriteMask));
+	return Hash;
+}
+
+bool operator== (const FDepthStencilStateInitializerRHI& A, const FDepthStencilStateInitializerRHI& B)
+{
+	bool bSame = 
+		A.bEnableDepthWrite == B.bEnableDepthWrite && 
+		A.DepthTest == B.DepthTest && 
+		A.bEnableFrontFaceStencil == B.bEnableFrontFaceStencil && 
+		A.FrontFaceStencilTest == B.FrontFaceStencilTest && 
+		A.FrontFaceStencilFailStencilOp == B.FrontFaceStencilFailStencilOp && 
+		A.FrontFaceDepthFailStencilOp == B.FrontFaceDepthFailStencilOp && 
+		A.FrontFacePassStencilOp == B.FrontFacePassStencilOp && 
+		A.bEnableBackFaceStencil == B.bEnableBackFaceStencil && 
+		A.BackFaceStencilTest == B.BackFaceStencilTest && 
+		A.BackFaceStencilFailStencilOp == B.BackFaceStencilFailStencilOp && 
+		A.BackFaceDepthFailStencilOp == B.BackFaceDepthFailStencilOp && 
+		A.BackFacePassStencilOp == B.BackFacePassStencilOp && 
+		A.StencilReadMask == B.StencilReadMask && 
+		A.StencilWriteMask == B.StencilWriteMask;
+	return bSame;
+}
+
 FString FDepthStencilStateInitializerRHI::ToString() const
 {
 	return
@@ -269,6 +331,27 @@ void FBlendStateInitializerRHI::FromString(const FStringView& InSrc)
 	check(Parts.GetData() + PartCount == PartIt);
 }
 
+uint32 GetTypeHash(const FBlendStateInitializerRHI& Initializer)
+{
+	uint32 Hash = GetTypeHash(Initializer.bUseIndependentRenderTargetBlendStates);
+	for (int32 i = 0; i < MaxSimultaneousRenderTargets; ++i)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Initializer.RenderTargets[i]));
+	}
+	
+	return Hash;
+}
+
+bool operator== (const FBlendStateInitializerRHI& A, const FBlendStateInitializerRHI& B)
+{
+	bool bSame = A.bUseIndependentRenderTargetBlendStates == B.bUseIndependentRenderTargetBlendStates;
+	for (int32 i = 0; i < MaxSimultaneousRenderTargets && bSame; ++i)
+	{
+		bSame = bSame && A.RenderTargets[i] == B.RenderTargets[i];
+	}
+	return bSame;
+}
+
 
 FString FBlendStateInitializerRHI::FRenderTarget::ToString() const
 {
@@ -306,6 +389,31 @@ void FBlendStateInitializerRHI::FRenderTarget::FromString(TArrayView<const FStri
 	LexFromString((uint8&)AlphaSrcBlend, *PartIt++);
 	LexFromString((uint8&)AlphaDestBlend, *PartIt++);
 	LexFromString((uint8&)ColorWriteMask, *PartIt++);
+}
+
+uint32 GetTypeHash(const FBlendStateInitializerRHI::FRenderTarget& Initializer)
+{
+	uint32 Hash = GetTypeHash(Initializer.ColorBlendOp);
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.ColorDestBlend));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.ColorSrcBlend));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.AlphaBlendOp));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.AlphaDestBlend));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.AlphaSrcBlend));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.ColorWriteMask));
+	return Hash;
+}
+
+bool operator==(const FBlendStateInitializerRHI::FRenderTarget& A, const FBlendStateInitializerRHI::FRenderTarget& B)
+{
+	bool bSame = 
+		A.ColorBlendOp == B.ColorBlendOp && 
+		A.ColorDestBlend == B.ColorDestBlend && 
+		A.ColorSrcBlend == B.ColorSrcBlend && 
+		A.AlphaBlendOp == B.AlphaBlendOp && 
+		A.AlphaDestBlend == B.AlphaDestBlend && 
+		A.AlphaSrcBlend == B.AlphaSrcBlend && 
+		A.ColorWriteMask == B.ColorWriteMask;
+	return bSame;
 }
 
 bool FRHIResource::Bypass()

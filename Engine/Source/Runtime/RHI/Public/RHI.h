@@ -869,6 +869,9 @@ struct FRasterizerStateInitializerRHI
 		Ar << RasterizerStateInitializer.bEnableLineAA;
 		return Ar;
 	}
+
+	RHI_API friend uint32 GetTypeHash(const FRasterizerStateInitializerRHI& Initializer);
+	RHI_API friend bool operator== (const FRasterizerStateInitializerRHI& A, const FRasterizerStateInitializerRHI& B);
 };
 
 struct FDepthStencilStateInitializerRHI
@@ -939,6 +942,10 @@ struct FDepthStencilStateInitializerRHI
 		Ar << DepthStencilStateInitializer.StencilWriteMask;
 		return Ar;
 	}
+
+	RHI_API friend uint32 GetTypeHash(const FDepthStencilStateInitializerRHI& Initializer);
+	RHI_API friend bool operator== (const FDepthStencilStateInitializerRHI& A, const FDepthStencilStateInitializerRHI& B);
+	
 	RHI_API FString ToString() const;
 	RHI_API void FromString(const FString& Src);
 	RHI_API void FromString(const FStringView& Src);
@@ -991,6 +998,10 @@ public:
 			Ar << RenderTarget.ColorWriteMask;
 			return Ar;
 		}
+		
+		friend uint32 GetTypeHash(const FRenderTarget& RenderTarget);
+		friend bool operator== (const FRenderTarget& A, const FRenderTarget& B);
+
 		RHI_API FString ToString() const;
 		RHI_API void FromString(const TArray<FString>& Parts, int32 Index);
 		RHI_API void FromString(TArrayView<const FStringView> Parts);
@@ -1025,6 +1036,10 @@ public:
 		Ar << BlendStateInitializer.bUseIndependentRenderTargetBlendStates;
 		return Ar;
 	}
+
+	RHI_API friend uint32 GetTypeHash(const FBlendStateInitializerRHI& Initializer);
+	RHI_API friend bool operator== (const FBlendStateInitializerRHI& A, const FBlendStateInitializerRHI& B);
+	
 	RHI_API FString ToString() const;
 	RHI_API void FromString(const FString& Src);
 	RHI_API void FromString(const FStringView& Src);
