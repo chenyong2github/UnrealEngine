@@ -63,10 +63,6 @@ FUObjectAnnotationSparse<FTracedObjectAnnotation, true> GObjectTraceAnnotations;
 
 void FObjectTrace::Init()
 {
-	if (FParse::Param(FCommandLine::Get(), TEXT("objecttrace")))
-	{
-		Trace::ToggleChannel(ObjectChannel, true);
-	}
 }
 
 uint64 FObjectTrace::GetObjectId(const UObject* InObject)

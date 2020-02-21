@@ -60,10 +60,6 @@ void FCountersTrace::OutputSetValue(uint16 CounterId, double Value)
 
 void FCountersTrace::Init(const TCHAR* CmdLine)
 {
-	if (FParse::Param(CmdLine, TEXT("counterstrace")))
-	{
-		Trace::ToggleChannel(CountersChannel, true);
-	}
 }
 
 #endif

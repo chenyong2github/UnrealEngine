@@ -115,10 +115,6 @@ UE_TRACE_EVENT_END()
 
 void FLoadTimeProfilerTracePrivate::Init()
 {
-	if (FParse::Param(FCommandLine::Get(), TEXT("loadtimetrace")))
-	{
-		Trace::ToggleChannel(LoadTimeChannel, true);
-	}
 }
 
 void FLoadTimeProfilerTracePrivate::OutputStartAsyncLoading()

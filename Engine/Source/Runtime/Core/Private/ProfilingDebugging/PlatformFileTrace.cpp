@@ -139,10 +139,6 @@ void FPlatformFileTrace::EndWrite(uint64 WriteHandle, uint64 SizeWritten)
 
 void FPlatformFileTrace::Init(const TCHAR* CmdLine)
 {
-	if (FParse::Param(CmdLine, TEXT("filetrace")))
-	{
-		Trace::ToggleChannel(FileChannel, true);
-	}
 }
 
 #endif
