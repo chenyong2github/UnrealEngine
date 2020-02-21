@@ -887,6 +887,13 @@ private:
 	*/
 	void AddDebugDisplayProperty(class UObject* Obj, TSubclassOf<class UObject> WithinClass, const FName& PropertyName, bool bSpecialProperty = false);
 
+protected:
+	/** Handle to the audio device created for this viewport. Each viewport (for multiple PIE) will have its own audio device. */
+	uint32 AudioDeviceHandle = INDEX_NONE;
+
+	/** Whether or not this audio device is in audio-focus */
+	bool bHasAudioFocus = false;
+
 private:
 	/** Slate window associated with this viewport client.  The same window may host more than one viewport client. */
 	TWeakPtr<SWindow> Window;
@@ -1001,9 +1008,6 @@ private:
 
 	/** Mouse cursor locking behavior when the viewport is clicked */
 	EMouseLockMode MouseLockMode;
-
-	/** Whether or not this audio device is in audio-focus */
-	bool bHasAudioFocus;
 
 	/** Is the mouse currently over the viewport client */
 	bool bIsMouseOverClient;
