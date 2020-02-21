@@ -93,6 +93,63 @@ namespace DatasmithStaticMeshImporterImpl
 	}
 }
 
+void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescription>& MeshDescriptions)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::CleanupMeshDescriptions)
+
+	TSet<FPolygonID> PolygonsToDelete;
+	for (FMeshDescription& MeshDescription : MeshDescriptions)
+	{
+		FStaticMeshConstAttributes Attributes(MeshDescription);
+		const TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		if (VertexPositions.IsValid())
+		{
+			for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
+			{
+				// Ensure that no vertices contains NaN since it can wreck havoc in other algorithms (i.e. MikkTSpace)
+				if (VertexPositions[VertexID].ContainsNaN())
+				{
+					for (FPolygonID PolygonID : MeshDescription.GetVertexConnectedPolygons(VertexID))
+					{
+						PolygonsToDelete.Add(PolygonID);
+					}
+				}
+			}
+		}
+
+		if (PolygonsToDelete.Num() > 0)
+		{
+			TArray<FEdgeID> OrphanedEdges;
+			TArray<FVertexInstanceID> OrphanedVertexInstances;
+			TArray<FPolygonGroupID> OrphanedPolygonGroups;
+			TArray<FVertexID> OrphanedVertices;
+			for (FPolygonID PolygonID : PolygonsToDelete)
+			{
+				MeshDescription.DeletePolygon(PolygonID, &OrphanedEdges, &OrphanedVertexInstances, &OrphanedPolygonGroups);
+			}
+			for (FPolygonGroupID PolygonGroupID : OrphanedPolygonGroups)
+			{
+				MeshDescription.DeletePolygonGroup(PolygonGroupID);
+			}
+			for (FVertexInstanceID VertexInstanceID : OrphanedVertexInstances)
+			{
+				MeshDescription.DeleteVertexInstance(VertexInstanceID, &OrphanedVertices);
+			}
+			for (FEdgeID EdgeID : OrphanedEdges)
+			{
+				MeshDescription.DeleteEdge(EdgeID, &OrphanedVertices);
+			}
+			for (FVertexID VertexID : OrphanedVertices)
+			{
+				MeshDescription.DeleteVertex(VertexID);
+			}
+
+			FElementIDRemappings Remappings;
+			MeshDescription.Compact(Remappings);
+		}
+	}
+}
+
 UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< IDatasmithMeshElement > MeshElement, FDatasmithMeshElementPayload& Payload, EObjectFlags ObjectFlags, const FDatasmithStaticMeshImportOptions& ImportOptions, FDatasmithAssetsImportContext& AssetsContext, UStaticMesh* ExistingMesh)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::ImportStaticMesh);
@@ -106,6 +163,9 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 	{
 		return nullptr;
 	}
+
+	// Destructive cleanup of the mesh descriptions to avoid passing invalid data to the rest of the editor
+	CleanupMeshDescriptions(MeshDescriptions);
 
 	// 2. find the destination
 	UStaticMesh* ResultStaticMesh = nullptr;
