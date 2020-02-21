@@ -349,6 +349,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 		Usages.Add(ENiagaraScriptUsage::ParticleSpawnScriptInterpolated);
 		Usages.Add(ENiagaraScriptUsage::ParticleUpdateScript);
 		Usages.Add(ENiagaraScriptUsage::ParticleEventScript);
+		Usages.Add(ENiagaraScriptUsage::ParticleSimulationStageScript);
 	
 		uint32 NodeIdx = OutHistory.BeginNodeVisitation(ParamMapIdx, this);
 		for (ENiagaraScriptUsage OutputNodeUsage : Usages)

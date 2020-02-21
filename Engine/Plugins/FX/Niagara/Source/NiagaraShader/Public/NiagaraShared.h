@@ -587,6 +587,8 @@ public:
 	NIAGARASHADER_API  bool CacheShaders(EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
 	bool CacheShaders(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
 
+
+	NIAGARASHADER_API uint32 GetUseSimStagesDefine() const;
 	/**
 	 * Should the shader for this script with the given platform, shader type and vertex
 	 * factory type combination be compiled

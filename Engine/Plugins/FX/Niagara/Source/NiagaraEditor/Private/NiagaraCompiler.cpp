@@ -31,6 +31,7 @@
 #include "ShaderCompiler.h"
 #include "NiagaraShader.h"
 #include "NiagaraScript.h"
+#include "NiagaraSimulationStageBase.h"
 #include "Serialization/MemoryReader.h"
 #include "HAL/ThreadSafeBool.h"
 
@@ -423,7 +424,7 @@ void FNiagaraCompileRequestData::AddRapidIterationParameters(const FNiagaraParam
 	}
 }
 
-void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSource, const TArray<FNiagaraVariable>& EncounterableVariables, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver)
+void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSource, const TArray<FNiagaraVariable>& EncounterableVariables, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, const TArray<UNiagaraSimulationStageBase*>* SimStages)
 {
 	{
 		ENiagaraScriptCompileStatusEnum = StaticEnum<ENiagaraScriptCompileStatus>();
@@ -435,6 +436,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 		NodeGraphDeepCopy->FindOutputNodes(OutputNodes);
 		PrecompiledHistories.Empty();
 
+		int32 NumSimStageNodes = 0;
 		for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
 		{
 			// Map all for this output node
@@ -458,8 +460,38 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 				}
 			}
 
+			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+			{
+				NumSimStageNodes++;
+			}
+
 			PrecompiledHistories.Append(Histories);
 			Builder.EndTranslation(TranslationName);
+		}
+
+		if (SimStages && NumSimStageNodes)
+		{
+			SpawnOnlyPerStage.AddZeroed(NumSimStageNodes);
+			NumIterationsPerStage.AddZeroed(NumSimStageNodes);
+			IterationSourcePerStage.AddZeroed(NumSimStageNodes);
+			StageGuids.AddDefaulted(NumSimStageNodes);
+			StageNames.AddDefaulted(NumSimStageNodes);
+			int32 NumProvidedStages = SimStages->Num();
+
+			for (int32 i = 0; i < NumSimStageNodes && i < NumProvidedStages; i++)
+			{
+				UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>((*SimStages)[i]);
+
+				if (GenericStage)
+				{
+					NumIterationsPerStage[i] = GenericStage->Iterations;
+					IterationSourcePerStage[i] = GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+					SpawnOnlyPerStage[i] = GenericStage->bSpawnOnly;
+					StageGuids[i] = GenericStage->Script->GetUsageId();
+					StageNames[i] = GenericStage->SimulationStageName;
+
+				}
+			}
 		}
 
 
@@ -530,7 +562,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetSource());
 		BasePtr->DeepCopyGraphs(Source, Script->GetUsage(), EmptyResolver);
 		const TArray<FNiagaraVariable> EncounterableVariables;
-		BasePtr->FinishPrecompile(Source, EncounterableVariables, Script->GetUsage(), EmptyResolver);
+		BasePtr->FinishPrecompile(Source, EncounterableVariables, Script->GetUsage(), EmptyResolver, nullptr);
 	}
 	else if (System)
 	{
@@ -569,7 +601,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		BasePtr->DeepCopyGraphs(Source, ENiagaraScriptUsage::SystemSpawnScript, FCompileConstantResolver());
 		BasePtr->AddRapidIterationParameters(System->GetSystemSpawnScript()->RapidIterationParameters, FCompileConstantResolver());
 		BasePtr->AddRapidIterationParameters(System->GetSystemUpdateScript()->RapidIterationParameters, FCompileConstantResolver());
-		BasePtr->FinishPrecompile(Source, EncounterableVars, ENiagaraScriptUsage::SystemSpawnScript, EmptyResolver);
+		BasePtr->FinishPrecompile(Source, EncounterableVars, ENiagaraScriptUsage::SystemSpawnScript, EmptyResolver, nullptr);
 
 		// Add the User and System variables that we did encounter to the list that emitters might also encounter.
 		BasePtr->GatherPreCompiledVariables(TEXT("User"), EncounterableVars);
@@ -592,7 +624,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 						BasePtr->EmitterData[i]->AddRapidIterationParameters(EmitterScripts[ScriptIdx]->RapidIterationParameters, ConstantResolver);
 					}
 				}
-				BasePtr->EmitterData[i]->FinishPrecompile(Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource), EncounterableVars, ENiagaraScriptUsage::EmitterSpawnScript, ConstantResolver);
+				BasePtr->EmitterData[i]->FinishPrecompile(Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource), EncounterableVars, ENiagaraScriptUsage::EmitterSpawnScript, ConstantResolver, &Handle.GetInstance()->GetSimulationStages());
 				BasePtr->MergeInEmitterPrecompiledData(BasePtr->EmitterData[i].Get());
 			}
 		}

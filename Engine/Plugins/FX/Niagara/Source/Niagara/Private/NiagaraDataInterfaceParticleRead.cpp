@@ -387,14 +387,14 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			// ourselves. We can't use SourceDataSet->GetCurrentData() in that case, because EndSimulate() has already been
 			// called on the current emitter, and the current data has been set to the destination data. We need to use the
 			// current compute instance data to get to the input buffers.
-			SourceData = Context.ComputeInstanceData->CurrentData;
+			SourceData = Context.ComputeInstanceData->SimStageData[0].Source;
 
 			// We still want to get the spawn count and ID acquire tag from the destination data, because that's where
 			// NiagaraEmitterInstanceBatcher::Run() stores them.
-			if (Context.ComputeInstanceData->DestinationData != nullptr)
+			if (Context.ComputeInstanceData->SimStageData[0].Destination != nullptr)
 			{
-				NumSpawnedInstances = Context.ComputeInstanceData->DestinationData->GetNumSpawnedInstances();
-				IDAcquireTag = Context.ComputeInstanceData->DestinationData->GetIDAcquireTag();
+				NumSpawnedInstances = Context.ComputeInstanceData->SimStageData[0].Destination->GetNumSpawnedInstances();
+				IDAcquireTag = Context.ComputeInstanceData->SimStageData[0].Destination->GetIDAcquireTag();
 			}
 		}
 		else

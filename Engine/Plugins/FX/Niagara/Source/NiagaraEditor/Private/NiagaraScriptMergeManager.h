@@ -24,7 +24,7 @@ class UEdGraphNode;
 class UEdGraphPin;
 class UNiagaraDataInterface;
 struct FNiagaraEventScriptProperties;
-class UNiagaraShaderStageBase;
+class UNiagaraSimulationStageBase;
 class UNiagaraRendererProperties;
 
 class FNiagaraStackFunctionMergeAdapter;
@@ -158,32 +158,32 @@ private:
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> EventStack;
 };
 
-class FNiagaraShaderStageMergeAdapter
+class FNiagaraSimulationStageMergeAdapter
 {
 public:
-	FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, const UNiagaraShaderStageBase* InShaderStage, UNiagaraNodeOutput* InOutputNode);
-	FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraShaderStageBase* InShaderStage, UNiagaraNodeOutput* InOutputNode);
-	FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraNodeOutput* InOutputNode);
+	FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, const UNiagaraSimulationStageBase* InSimulationStage, UNiagaraNodeOutput* InOutputNode);
+	FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraSimulationStageBase* InSimulationStage, UNiagaraNodeOutput* InOutputNode);
+	FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraNodeOutput* InOutputNode);
 
 	FGuid GetUsageId() const;
 	const UNiagaraEmitter* GetEmitter() const;
-	const UNiagaraShaderStageBase* GetShaderStage() const;
-	UNiagaraShaderStageBase* GetEditableShaderStage() const;
+	const UNiagaraSimulationStageBase* GetSimulationStage() const;
+	UNiagaraSimulationStageBase* GetEditableSimulationStage() const;
 	UNiagaraNodeOutput* GetOutputNode() const;
 	UNiagaraNodeInput* GetInputNode() const;
-	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetShaderStageStack() const;
+	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetSimulationStageStack() const;
 
 private:
-	void Initialize(const UNiagaraEmitter& InEmitter, const UNiagaraShaderStageBase* InShaderStage, UNiagaraShaderStageBase* InEditableShaderStage, UNiagaraNodeOutput* InOutputNode);
+	void Initialize(const UNiagaraEmitter& InEmitter, const UNiagaraSimulationStageBase* InSimulationStage, UNiagaraSimulationStageBase* InEditableSimulationStage, UNiagaraNodeOutput* InOutputNode);
 
 private:
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
-	const UNiagaraShaderStageBase* ShaderStage;
-	UNiagaraShaderStageBase* EditableShaderStage;
+	const UNiagaraSimulationStageBase* SimulationStage;
+	UNiagaraSimulationStageBase* EditableSimulationStage;
 	TWeakObjectPtr<UNiagaraNodeOutput> OutputNode;
 	TWeakObjectPtr<UNiagaraNodeInput> InputNode;
 
-	TSharedPtr<FNiagaraScriptStackMergeAdapter> ShaderStageStack;
+	TSharedPtr<FNiagaraScriptStackMergeAdapter> SimulationStageStack;
 };
 
 class FNiagaraRendererMergeAdapter
@@ -210,7 +210,7 @@ public:
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetParticleSpawnStack() const;
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetParticleUpdateStack() const;
 	const TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> GetEventHandlers() const;
-	const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> GetShaderStages() const;
+	const TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>> GetSimulationStages() const;
 	const TArray<TSharedRef<FNiagaraRendererMergeAdapter>> GetRenderers() const;
 	const UNiagaraEmitterEditorData* GetEditorData() const;
 
@@ -218,7 +218,7 @@ public:
 
 	TSharedPtr<FNiagaraEventHandlerMergeAdapter> GetEventHandler(FGuid EventScriptUsageId);
 
-	TSharedPtr<FNiagaraShaderStageMergeAdapter> GetShaderStage(FGuid ShaderStageUsageId);
+	TSharedPtr<FNiagaraSimulationStageMergeAdapter> GetSimulationStage(FGuid SimulationStageUsageId);
 
 	TSharedPtr<FNiagaraRendererMergeAdapter> GetRenderer(FGuid RendererMergeId);
 
@@ -233,7 +233,7 @@ private:
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> ParticleSpawnStack;
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> ParticleUpdateStack;
 	TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> EventHandlers;
-	TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> ShaderStages;
+	TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>> SimulationStages;
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> Renderers;
 	TWeakObjectPtr<const UNiagaraEmitterEditorData> EditorData;
 };
@@ -280,10 +280,10 @@ struct FNiagaraModifiedEventHandlerDiffResults
 	FNiagaraScriptStackDiffResults ScriptDiffResults;
 };
 
-struct FNiagaraModifiedShaderStageDiffResults
+struct FNiagaraModifiedSimulationStageDiffResults
 {
-	TSharedPtr<FNiagaraShaderStageMergeAdapter> BaseAdapter;
-	TSharedPtr<FNiagaraShaderStageMergeAdapter> OtherAdapter;
+	TSharedPtr<FNiagaraSimulationStageMergeAdapter> BaseAdapter;
+	TSharedPtr<FNiagaraSimulationStageMergeAdapter> OtherAdapter;
 	TArray<FProperty*> ChangedProperties;
 	FNiagaraScriptStackDiffResults ScriptDiffResults;
 };
@@ -313,9 +313,9 @@ struct FNiagaraEmitterDiffResults
 	TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> AddedOtherEventHandlers;
 	TArray<FNiagaraModifiedEventHandlerDiffResults> ModifiedEventHandlers;
 
-	TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> RemovedBaseShaderStages;
-	TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> AddedOtherShaderStages;
-	TArray<FNiagaraModifiedShaderStageDiffResults> ModifiedShaderStages;
+	TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>> RemovedBaseSimulationStages;
+	TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>> AddedOtherSimulationStages;
+	TArray<FNiagaraModifiedSimulationStageDiffResults> ModifiedSimulationStages;
 
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> RemovedBaseRenderers;
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> AddedOtherRenderers;
@@ -366,11 +366,11 @@ public:
 
 	void ResetEventHandlerPropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid EventScriptUsageId);
 
-	bool HasBaseShaderStage(const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId);
+	bool HasBaseSimulationStage(const UNiagaraEmitter& BaseEmitter, FGuid SimulationStageScriptUsageId);
 
-	bool IsShaderStagePropertySetDifferentFromBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId);
+	bool IsSimulationStagePropertySetDifferentFromBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid SimulationStageScriptUsageId);
 
-	void ResetShaderStagePropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId);
+	void ResetSimulationStagePropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid SimulationStageScriptUsageId);
 
 	bool HasBaseRenderer(const UNiagaraEmitter& BaseEmitter, FGuid RendererMergeId);
 
@@ -384,7 +384,7 @@ public:
 
 	void DiffEventHandlers(const TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>>& BaseEventHandlers, const TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>>& OtherEventHandlers, FNiagaraEmitterDiffResults& DiffResults) const;
 
-	void DiffShaderStages(const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>>& BaseShaderStages, const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>>& OtherShaderStages, FNiagaraEmitterDiffResults& DiffResults) const;
+	void DiffSimulationStages(const TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>>& BaseSimulationStages, const TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>>& OtherSimulationStages, FNiagaraEmitterDiffResults& DiffResults) const;
 
 	void DiffRenderers(const TArray<TSharedRef<FNiagaraRendererMergeAdapter>>& BaseRenderers, const TArray<TSharedRef<FNiagaraRendererMergeAdapter>>& OtherRenderers, FNiagaraEmitterDiffResults& DiffResults) const;
 
@@ -406,7 +406,7 @@ private:
 
 	FApplyDiffResults ApplyEventHandlerDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
 
-	FApplyDiffResults ApplyShaderStageDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
+	FApplyDiffResults ApplySimulationStageDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
 
 	FApplyDiffResults ApplyRendererDiff(UNiagaraEmitter& BaseEmitter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
 
