@@ -124,15 +124,15 @@ bool Import(FTranslateResult& Translation, UWorld* TargetWorld, const FTransform
 					);
 
 					AStaticMeshActor* NewMeshActor = TargetWorld->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), WorldTransform*RootTM);
-#if WITH_EDITOR
-					NewMeshActor->SetActorLabel(MeshActorElement->GetLabel());
-#endif // WITH_EDITOR
-
 					if (NewMeshActor == nullptr)
 					{
 						UE_LOG(LogDatasmithRemoteImport, Error, TEXT("Error on static mesh actor spawn"));
 						return false;
 					}
+
+#if WITH_EDITOR
+					NewMeshActor->SetActorLabel(MeshActorElement->GetLabel());
+#endif // WITH_EDITOR
 
 					if (UStaticMesh* StaticMeshObject = NewObject<UStaticMesh>())
 					{
