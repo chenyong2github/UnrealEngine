@@ -192,21 +192,21 @@ namespace Chaos
 	struct TBreakingData
 	{
 		TBreakingData()
-			: Location(TVector<T, d>((T)0.0))
+			: Particle(nullptr)
+			, Location(TVector<T, d>((T)0.0))
 			, Velocity(TVector<T, d>((T)0.0))
 			, AngularVelocity(TVector<T, d>((T)0.0))
 			, Mass((T)0.0)
-			, Particle(nullptr)
 			, ParticleIndex(INDEX_NONE)
 			, ParticleIndexMesh(INDEX_NONE)
 			, BoundingBox(TAABB<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
 		{}
 
+		TGeometryParticle<T, d>* Particle; // 64 bits go first for better packing
 		TVector<T, d> Location;
 		TVector<T, d> Velocity;
 		TVector<T, d> AngularVelocity;
 		T Mass;
-		TGeometryParticle<T, d>* Particle;
 		int32 ParticleIndex; //#todo: remove this in favor of TGeometryParticle?
 		int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 								 // It is important to be able to get extra data from the component

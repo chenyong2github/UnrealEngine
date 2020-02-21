@@ -174,26 +174,20 @@ protected:
 	}
 
   protected:
-	TArray<TUniquePtr<FImplicitObject>> MObjects;
-	TAABB<FReal,3> MLocalBoundingBox;
-	TUniquePtr<FLargeImplicitObjectUnionData> LargeUnionData;	//only needed when there are many objects
-
 	//needed for serialization
 	FImplicitObjectUnion();
 	friend FImplicitObject;	//needed for serialization
-public:
+
+	TArray<TUniquePtr<FImplicitObject>> MObjects;
+	TAABB<FReal,3> MLocalBoundingBox;
+	TUniquePtr<FLargeImplicitObjectUnionData> LargeUnionData;	//only needed when there are many objects
 };
 
 class CHAOS_API FImplicitObjectUnionClustered: public FImplicitObjectUnion
 {
 public:
-
-	FImplicitObjectUnionClustered(TArray<TUniquePtr<FImplicitObject>>&& Objects,const TArray<int32>& OriginalParticleLookupHack = TArray<int32>());
-	FImplicitObjectUnionClustered()
-		: FImplicitObjectUnion()
-	{
-		Type = ImplicitObjectType::UnionClustered;
-	}
+	FImplicitObjectUnionClustered();
+	FImplicitObjectUnionClustered(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<TPBDRigidParticleHandle<FReal, 3>*>& OriginalParticleLookupHack = TArray<TPBDRigidParticleHandle<FReal, 3>*>());
 	FImplicitObjectUnionClustered(const FImplicitObjectUnionClustered& Other) = delete;
 	FImplicitObjectUnionClustered(FImplicitObjectUnionClustered&& Other);
 	virtual ~FImplicitObjectUnionClustered() = default;
@@ -203,11 +197,51 @@ public:
 		return ImplicitObjectType::UnionClustered;
 	}
 
-	TArray<int32> FindAllIntersectingChildren(const TAABB<FReal,3>& LocalBounds) const;
+	TArray<TPBDRigidParticleHandle<FReal, 3>*> FindAllIntersectingChildren(const TAABB<FReal, 3>& LocalBounds) const;
+
+#if CHAOS_PARTICLEHANDLE_TODO
 	TArray<int32> FindAllIntersectingChildren(const TSpatialRay<FReal,3>& LocalRay) const;
+	{
+		TArray<int32> IntersectingChildren;
+		if (LargeUnionData) //todo: make this work when hierarchy is not built
+		{
+			IntersectingChildren = LargeUnionData->Hierarchy.FindAllIntersections(LocalRay);
+			for (int32 i = IntersectingChildren.Num() - 1; i >= 0; --i)
+			{
+				const int32 Idx = IntersectingChildren[i];
+				if (Idx < MOriginalParticleLookupHack.Num())
+				{
+					IntersectingChildren[i] = MOriginalParticleLookupHack[Idx];
+				}
+				else
+				{
+					IntersectingChildren.RemoveAtSwap(i);
+				}
+			}
+			/*for (int32& Idx : IntersectingChildren)
+			{
+				Idx = MOriginalParticleLookupHack[Idx];
+			}*/
+		}
+		else
+		{
+			IntersectingChildren = MOriginalParticleLookupHack;
+		}
+
+		return IntersectingChildren;
+	}
+#endif
+
+	const TPBDRigidParticleHandle<FReal, 3>* FindParticleForImplicitObject(const FImplicitObject* Object) const
+	{ 
+		typedef TPBDRigidParticleHandle<FReal, 3>* ValueType;
+		const ValueType* Handle = MCollisionParticleLookupHack.Find(Object);
+		return Handle ? *Handle : nullptr;
+	}
 
 private:
-	TArray<int32> MOriginalParticleLookupHack;	//temp hack for finding original particles
-	TMap<const FImplicitObject*,int32> MCollisionParticleLookupHack;	//temp hack for finding collision particles
+	// Temp hack for finding original particles
+	TArray<TPBDRigidParticleHandle<FReal, 3>*> MOriginalParticleLookupHack;	
+	TMap<const FImplicitObject*,TPBDRigidParticleHandle<FReal, 3>*> MCollisionParticleLookupHack;	//temp hack for finding collision particles
 };
 }
