@@ -17,9 +17,8 @@ class FLevelBlueprintAssetHandler : public IBlueprintAssetHandler
 
 	virtual bool AssetContainsBlueprint(const FAssetData& InAssetData) const
 	{
-		static FName FiB("FiB");
 		// Worlds are only considered to contain a blueprint if they have FiB data
-		return InAssetData.TagsAndValues.Contains(FiB) || InAssetData.TagsAndValues.Contains(FBlueprintTags::FindInBlueprintsData);
+		return InAssetData.TagsAndValues.Contains(FBlueprintTags::FindInBlueprintsData) || InAssetData.TagsAndValues.Contains(FBlueprintTags::UnversionedFindInBlueprintsData);
 	}
 };
 
