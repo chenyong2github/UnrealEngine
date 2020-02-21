@@ -473,6 +473,7 @@ void FObjectPropertyNode::GetCategoryProperties(const TSet<UClass*>& ClassesToCo
 	const TSet<FName>& CategoriesFromBlueprints, TSet<FName>& CategoriesFromProperties, TArray<FName>& SortedCategories)
 {
 	static const FName Name_bShowOnlyWhenTrue("bShowOnlyWhenTrue");
+	static const FName Name_ShowOnlyInnerProperties("ShowOnlyInnerProperties");
 
 	FName CategoryName = FObjectEditorUtils::GetCategoryFName(CurrentProperty);
 
@@ -502,6 +503,18 @@ void FObjectPropertyNode::GetCategoryProperties(const TSet<UClass*>& ClassesToCo
 				SortedCategories.Add(CategoryName);
 			}
 			CategoriesFromProperties.Add(CategoryName);
+		}
+	}
+
+	if (CurrentProperty->HasMetaData(Name_ShowOnlyInnerProperties))
+	{
+		const FStructProperty* StructProperty = CastField<const FStructProperty>(CurrentProperty);
+		if (StructProperty)
+		{
+			for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
+			{
+				GetCategoryProperties(ClassesToConsider, *It, bShouldShowDisableEditOnInstance, bShouldShowHiddenProperties, CategoriesFromBlueprints, CategoriesFromProperties, SortedCategories);
+			}
 		}
 	}
 }
