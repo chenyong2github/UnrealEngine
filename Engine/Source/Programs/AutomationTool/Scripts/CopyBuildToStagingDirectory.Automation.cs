@@ -165,7 +165,7 @@ public partial class Project : CommandUtils
 
 	static private string GetIoStoreCommandArguments(
 		Dictionary<string, string> UnrealPakResponseFile,
-		FileReference OutputLocation,
+		StagedFileReference ContainerRelativePath,
 		FileReference PakOrderFileLocation,
 		string PlatformOptions,
 		bool Compressed,
@@ -174,13 +174,13 @@ public partial class Project : CommandUtils
 		FileReference SecondaryPakOrderFileLocation=null)
 	{
 		StringBuilder CmdLine = new StringBuilder();
-		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(OutputLocation.FullName, null)));
+		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(ContainerRelativePath.Name));
 
 		// Force encryption of ALL files if we're using specific encryption key. This should be made an option per encryption key in the settings, but for our initial
 		// implementation we will just assume that we require maximum security for this data.
 		bool bForceEncryption = !string.IsNullOrEmpty(EncryptionKeyGuid);
-		string PakName = Path.GetFileNameWithoutExtension(OutputLocation.FullName);
-		string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakListIoStore_" + PakName + ".txt");
+		string ContainerName = Path.GetFileNameWithoutExtension(ContainerRelativePath.Name);
+		string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakListIoStore_" + ContainerName + ".txt");
 		WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, Compressed, CryptoSettings, bForceEncryption);
 		CmdLine.AppendFormat(" -ResponseFile={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakResponseFileName));
 
@@ -2260,9 +2260,25 @@ public partial class Project : CommandUtils
 							}
 						}
 
+						string ContainerName = PakParams.PakName + "-" + SC.FinalCookPlatform;
+						StagedFileReference ContainerRelativeLocation;
+						if (Params.HasDLCName)
+						{
+							ContainerRelativeLocation = StagedFileReference.Combine(Params.DLCFile.Directory.MakeRelativeTo(SC.ProjectRoot), "Content", "Paks", SC.FinalCookPlatform, Params.DLCFile.GetFileNameWithoutExtension() + ContainerName);
+						}
+						else
+						{
+							ContainerRelativeLocation = StagedFileReference.Combine("Content", "Paks", ContainerName);
+						}
+						if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+						{
+							ContainerRelativeLocation = ContainerRelativeLocation.ToLowerInvariant();
+						}
+						ContainerRelativeLocation = SC.StageTargetPlatform.Remap(ContainerRelativeLocation);
+
 						IoStoreCommands.Add(GetIoStoreCommandArguments(
 							IoStoreResponseFile,
-							OutputLocation,
+							ContainerRelativeLocation,
 							PrimaryOrderFile,
 							AdditionalArgs,
 							PakParams.bCompressed,
@@ -2486,16 +2502,26 @@ public partial class Project : CommandUtils
 		string CommandletParams = String.Format("-OutputDirectory={0} -CookedDirectory={1} -Commands={2}", OutputLocation.FullName, SC.PlatformCookDir, MakePathSafeToUseWithCommandLine(CommandsFileName));
 		if (PackageOrderFileLocation != null)
 		{
-			CommandletParams += String.Format(" -PackageOrder={0}", PackageOrderFileLocation.FullName);
+			CommandletParams += String.Format(" -PackageOrder={0}", MakePathSafeToUseWithCommandLine(PackageOrderFileLocation.FullName));
 		}
 		if (CookerOpenOrderFileLocation != null)
 		{
-			CommandletParams += String.Format(" -CookerOrder={0}", CookerOpenOrderFileLocation.FullName);
+			CommandletParams += String.Format(" -CookerOrder={0}", MakePathSafeToUseWithCommandLine(CookerOpenOrderFileLocation.FullName));
 		}
 		if (!string.IsNullOrWhiteSpace(AdditionalArgs))
 		{
 			CommandletParams += AdditionalArgs;
 		}
+
+		if (Params.HasCreateReleaseVersion)
+		{
+			CommandletParams += String.Format(" -CreateReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetCreateReleaseVersionPath(SC, Params.Client)));
+		}
+		if (Params.HasBasedOnReleaseVersion)
+		{
+			CommandletParams += String.Format(" -BasedOnReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetBasedOnReleaseVersionPath(SC, Params.Client)));
+		}
+
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
 		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
 	}

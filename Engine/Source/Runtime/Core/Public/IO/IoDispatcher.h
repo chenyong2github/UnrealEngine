@@ -815,7 +815,6 @@ struct FIoStoreWriterSettings
 {
 	FName CompressionMethod = NAME_None;
 	int64 CompressionBlockSize = 0;
-	int64 MemoryMappingAlignment = 0;
 	bool bEnableCsvOutput = false;
 };
 
@@ -833,7 +832,7 @@ struct FIoWriteOptions
 {
 	const TCHAR* DebugName = nullptr;
 	int64 Alignment = 0;
-	bool bCompressed = false;
+	bool bForceUncompressed = false;
 };
 
 class FIoStoreWriterContext
@@ -861,6 +860,7 @@ public:
 
 	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed);
 	UE_NODISCARD CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions);
+	UE_NODISCARD CORE_API FIoStatus	AppendPadding(uint64 Count);
 
 	/**
 	 * Creates an addressable range in an already mapped Chunk.

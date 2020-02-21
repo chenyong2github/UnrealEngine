@@ -37,11 +37,11 @@ struct FIoStoreWriterBlock
 	FIoStoreWriterBlock* Next = nullptr;
 	FName CompressionMethod = NAME_None;
 	uint64 CompressedSize = 0;
-	int64 AlignmentOrPadding = 0;
+	uint64 Alignment = 0;
 	FIoBuffer UncompressedData;
 	FIoBuffer CompressedData;
 	FGraphEventRef CompressionTask;
-	bool bShouldCompress = false;
+	bool bForceUncompressed = false;
 };
 
 class FIoStoreWriterContextImpl
@@ -107,7 +107,8 @@ public:
 
 	void FreeBlock(FIoStoreWriterBlock* Block)
 	{
-		Block->AlignmentOrPadding = 0;
+		Block->bForceUncompressed = false;
+		Block->Alignment = 0;
 		{
 			FScopeLock Lock(&FreeBlocksCritical);
 			Block->Next = FirstFreeBlock;
@@ -140,7 +141,7 @@ UE_NODISCARD FIoStatus FIoStoreWriterContext::Initialize(const FIoStoreWriterSet
 	return Impl->Initialize(InWriterSettings);
 }
 
-static int64 GetPadding(const int64 Offset, const int64 Alignment)
+static uint64 GetPadding(const uint64 Offset, const uint64 Alignment)
 {
 	return (Alignment - (Offset % Alignment)) % Alignment;
 }
@@ -194,21 +195,19 @@ public:
 					FIoStoreWriterBlock* CurrentWriteQueueItem = NextWriteQueueItem;
 					NextWriteQueueItem = NextWriteQueueItem->Next;
 
-					if (CurrentWriteQueueItem->bShouldCompress)
+					if (bIsContainerCompressed && !CurrentWriteQueueItem->bForceUncompressed)
 					{
 						FTaskGraphInterface::Get().WaitUntilTaskCompletes(CurrentWriteQueueItem->CompressionTask);
 					}
-					if (CurrentWriteQueueItem->AlignmentOrPadding > 0)
+					if (CurrentWriteQueueItem->Alignment > 0)
 					{
-						const int64 Padding = bIsContainerCompressed
-							? GetPadding(FileHandle->Tell(), CurrentWriteQueueItem->AlignmentOrPadding)
-							: CurrentWriteQueueItem->AlignmentOrPadding;
+						const uint64 Padding = GetPadding(FileHandle->Tell(), CurrentWriteQueueItem->Alignment);
 						if (Padding > 0)
 						{
 							AlignmentPaddingBuffer.SetNumZeroed(int32(Padding), false);
 							FileHandle->Write(AlignmentPaddingBuffer.GetData(), Padding);
 						}
-						check(bIsContainerCompressed && (FileHandle->Tell() % CurrentWriteQueueItem->AlignmentOrPadding) == 0);
+						check(FileHandle->Tell() % CurrentWriteQueueItem->Alignment == 0);
 					}
 					const int64 CompressedFileOffset = FileHandle->Tell();
 					FIoStoreCompressedBlockEntry CompressedBlockEntry;
@@ -247,22 +246,26 @@ public:
 
 	TIoStatusOr<FIoStoreTocEntry> Write(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions)
 	{
-		if (CurrentBlockOffset > 0 && WriteOptions.bCompressed != CurrentBlock->bShouldCompress)
-		{
-			FlushCurrentBlock();
-		}
-
 		if (WriteOptions.Alignment > 0)
 		{
-			check(!WriteOptions.bCompressed);
-			FlushCurrentBlock();
-
-			CurrentBlock = WriterContext->AllocBlock();
-			CurrentBlock->AlignmentOrPadding = WriteOptions.Alignment;
-			if (!bIsContainerCompressed)
+			if (CurrentBlockOffset > 0)
 			{
-				CurrentBlock->AlignmentOrPadding = GetPadding(UncompressedOffset, WriteOptions.Alignment); 
-				UncompressedOffset += CurrentBlock->AlignmentOrPadding;
+				FIoStatus IoStatus = FIoStatusBuilder(EIoErrorCode::InvalidParameter) << TEXT("Can only force alignment at the start of a block");
+				return IoStatus;
+			}
+			if (!CurrentBlock)
+			{
+				CurrentBlock = WriterContext->AllocBlock();
+			}
+			CurrentBlock->Alignment = WriteOptions.Alignment;
+		}
+
+		if (bIsContainerCompressed && WriteOptions.bForceUncompressed)
+		{
+			if (CurrentBlockOffset > 0 && CurrentBlock && !CurrentBlock->bForceUncompressed)
+			{
+				FIoStatus IoStatus = FIoStatusBuilder(EIoErrorCode::InvalidParameter) << TEXT("Can only change compression mode at the start of a block");
+				return IoStatus;
 			}
 		}
 
@@ -272,7 +275,7 @@ public:
 		TocEntry.ChunkId = ChunkId;
 
 		UncompressedOffset += Chunk.DataSize();
-	
+
 		uint64 RemainingBytesInChunk = Chunk.DataSize();
 		uint64 OffsetInChunk = 0;
 		while (RemainingBytesInChunk > 0)
@@ -281,9 +284,8 @@ public:
 			{
 				CurrentBlock = WriterContext->AllocBlock();
 			}
-			check(CurrentBlockOffset == 0 || CurrentBlock->bShouldCompress == WriteOptions.bCompressed);
 			check(CurrentBlock->UncompressedData.DataSize() > CurrentBlockOffset);
-			CurrentBlock->bShouldCompress = WriteOptions.bCompressed;
+			CurrentBlock->bForceUncompressed = WriteOptions.bForceUncompressed;
 			uint64 BytesToWrite = FMath::Min(RemainingBytesInChunk, CurrentBlock->UncompressedData.DataSize() - CurrentBlockOffset);
 			FMemory::Memcpy(CurrentBlock->UncompressedData.Data() + CurrentBlockOffset, Chunk.Data() + OffsetInChunk, BytesToWrite);
 			OffsetInChunk += BytesToWrite;
@@ -297,6 +299,29 @@ public:
 		}
 		
 		return TocEntry;
+	}
+
+	FIoStatus WritePadding(uint64 Count)
+	{
+		while (Count > 0)
+		{
+			if (!CurrentBlock)
+			{
+				CurrentBlock = WriterContext->AllocBlock();
+			}
+			check(CurrentBlock->UncompressedData.DataSize() > CurrentBlockOffset);
+			uint64 BytesToWrite = FMath::Min(Count, CurrentBlock->UncompressedData.DataSize() - CurrentBlockOffset);
+			FMemory::Memzero(CurrentBlock->UncompressedData.Data() + CurrentBlockOffset, BytesToWrite);
+			check(Count >= BytesToWrite);
+			Count -= BytesToWrite;
+			CurrentBlockOffset += BytesToWrite;
+			UncompressedOffset += BytesToWrite;
+			if (CurrentBlockOffset == CurrentBlock->UncompressedData.DataSize())
+			{
+				FlushCurrentBlock();
+			}
+		}
+		return FIoStatus::Ok;
 	}
 
 	FIoStatus Flush()
@@ -372,7 +397,7 @@ private:
 			FMemory::Memzero(CurrentBlock->UncompressedData.Data() + CurrentBlockOffset, PadCount);
 			UncompressedOffset += PadCount;
 		}
-		if (CurrentBlock->bShouldCompress)
+		if (bIsContainerCompressed && !CurrentBlock->bForceUncompressed)
 		{
 			FIoStoreWriterBlock* ReadyToCompressBlock = CurrentBlock;
 			CurrentBlock->CompressionTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, ReadyToCompressBlock]()
@@ -521,6 +546,11 @@ public:
 		}
 	}
 
+	UE_NODISCARD FIoStatus AppendPadding(uint64 Count)
+	{
+		return ChunkWriter->WritePadding(Count);
+	}
+
 	UE_NODISCARD FIoStatus MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange)
 	{
 		//TODO: Does RelativeOffset + Length overflow?
@@ -660,6 +690,11 @@ FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, bool 
 FIoStatus FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions)
 {
 	return Impl->Append(ChunkId, Chunk, WriteOptions);
+}
+
+FIoStatus FIoStoreWriter::AppendPadding(uint64 Count)
+{
+	return Impl->AppendPadding(Count);
 }
 
 FIoStatus FIoStoreWriter::MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange)
