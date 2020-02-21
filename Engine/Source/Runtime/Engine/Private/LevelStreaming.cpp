@@ -657,6 +657,12 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			break;
 
 		case ETargetState::LoadedNotVisible:
+			if (LoadedLevel && !IsDesiredLevelLoaded())
+			{
+				// Process PendingUnloadLevel to unblock level streaming state machine (no new request will start while there's a pending level to unload) 
+				// This rare case can happen if desired level (typically LODPackage) changed between last RequestLevel call and AsyncLevelLoadComplete completion callback.
+				DiscardPendingUnloadLevel(World);
+			}
 			UpdateStreamingState_RequestLevel();
 			break;
 
