@@ -900,8 +900,11 @@ EReimportResult::Type UDatasmithImportFactory::ReimportMaterial( UMaterialInterf
 
 	FDatasmithImporter::ImportMaterial( ImportContext, MaterialElement.ToSharedRef(), Material );
 
+	const FString& RootFolderPath = ImportContext.AssetsContext.RootFolderPath;
+	const FString& TransientFolderPath = ImportContext.AssetsContext.TransientFolderPath;
+
 	UMaterialInterface* NewMaterial = ImportContext.ImportedMaterials.FindRef( MaterialElement.ToSharedRef() );
-	FDatasmithImporter::FinalizeMaterial( NewMaterial, *MaterialPath, Material );
+	FDatasmithImporter::FinalizeMaterial( NewMaterial, *MaterialPath, *TransientFolderPath, *RootFolderPath, Material );
 
 	FGlobalComponentReregisterContext RecreateComponents;
 
