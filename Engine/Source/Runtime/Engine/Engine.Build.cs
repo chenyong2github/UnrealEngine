@@ -37,7 +37,7 @@ public class Engine : ModuleRules
 				"AutomationWorker",
 				"MovieSceneCapture",
 				"DesktopPlatform",
-            }
+			}
 		);
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
@@ -76,6 +76,7 @@ public class Engine : ModuleRules
 				"Messaging",
 				"MessagingCommon",
 				"RenderCore",
+				"AnalyticsET",
 				"RHI",
 				"Sockets",
 				"AssetRegistry", // Here until FAssetData is moved to engine
@@ -105,14 +106,13 @@ public class Engine : ModuleRules
 				"MaterialShaderQualitySettings",
 				"CinematicCamera",
 				"Analytics",
-				"AnalyticsET",
 				"AudioMixer",
 				"AudioMixerCore",
 				"SignalProcessing",
 				"CrunchCompression",
 				"IntelISPC",
 				"TraceLog",
-            }
+			}
 		);
 
 		// Cross platform Audio Codecs:
@@ -186,7 +186,7 @@ public class Engine : ModuleRules
 
 		CircularlyReferencedDependentModules.Add("GameplayTags");
 		CircularlyReferencedDependentModules.Add("Landscape");
-        CircularlyReferencedDependentModules.Add("UMG");
+		CircularlyReferencedDependentModules.Add("UMG");
 		CircularlyReferencedDependentModules.Add("MaterialShaderQualitySettings");
 		CircularlyReferencedDependentModules.Add("CinematicCamera");
 		CircularlyReferencedDependentModules.Add("AudioMixer");
@@ -374,15 +374,15 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.Add("PhysXCooking");
 		}
 
-        PublicDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"PhysicsSQ",
 				"ChaosSolvers"
 			}
 		);
 
-        // Engine public headers need to know about some types (enums etc.)
-        PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");
+		// Engine public headers need to know about some types (enums etc.)
+		PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");
 		PublicDependencyModuleNames.Add("ClothingSystemRuntimeInterface");
 
 		if (Target.bBuildEditor)
