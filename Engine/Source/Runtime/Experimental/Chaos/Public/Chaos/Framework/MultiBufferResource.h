@@ -243,6 +243,15 @@ namespace Chaos
 		}
 
 		/**
+		 * Get access to the currently held consumer buffer, ignoring whether
+		 * it's already been consumed.
+		 */
+		const ResourceType* PeekConsumerBuffer() const
+		{
+			return ConsumerThreadBuffer->Value.Get();
+		}
+
+		/**
 		 * Make the current producer buffer available to the consumer thread.
 		 *
 		 * This function should only be called by the producer thread.
