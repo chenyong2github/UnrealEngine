@@ -1204,6 +1204,26 @@ bool UMaterialInstance::GetRefractionSettings(float& OutBiasValue) const
 	}
 }
 
+int32 UMaterialInstance::GetLayerParameterIndex(EMaterialParameterAssociation Association, UMaterialFunctionInterface* LayerFunction) const
+{
+	check(Association != GlobalParameter);
+
+	int32 Index = INDEX_NONE;
+	for (const FStaticMaterialLayersParameter& LayersParam : GetStaticParameters().MaterialLayersParameters)
+	{
+		if (LayersParam.bOverride)
+		{
+			if (Association == BlendParameter) Index = LayersParam.Value.Blends.Find(LayerFunction);
+			else if (Association == LayerParameter) Index = LayersParam.Value.Layers.Find(LayerFunction);
+		}
+	}
+	if (Index == INDEX_NONE && Parent)
+	{
+		Index = Parent->GetLayerParameterIndex(Association, LayerFunction);
+	}
+	return Index;
+}
+
 void UMaterialInstance::GetTextureExpressionValues(const FMaterialResource* MaterialResource, TArray<UTexture*>& OutTextures, TArray< TArray<int32> >* OutIndices) const
 {
 	check(MaterialResource);
