@@ -51,7 +51,7 @@ namespace OpenGLConsoleVariables
 
 	static FAutoConsoleVariable CVarUseEmulatedUBs(
 		TEXT("OpenGL.UseEmulatedUBs"),
-		0,
+		1,
 		TEXT("If true, enable using emulated uniform buffers on ES3.1 mode."),
 		ECVF_ReadOnly
 		);
