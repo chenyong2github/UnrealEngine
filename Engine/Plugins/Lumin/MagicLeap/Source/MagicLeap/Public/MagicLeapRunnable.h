@@ -35,6 +35,7 @@ public:
 	, StopTaskCounter(0)
 	, Semaphore(nullptr)
 	, bPaused(false)
+	, bShuttingDown(false)
 	{
 		AppEventHandler.SetOnAppPauseHandler([this]() 
 		{
@@ -44,6 +45,16 @@ public:
 		AppEventHandler.SetOnAppResumeHandler([this]()
 		{
 			OnAppResume();
+		});
+
+		AppEventHandler.SetOnAppStartHandler([this]()
+		{
+			OnAppStart();
+		});
+
+		AppEventHandler.SetOnAppShutDownHandler([this]()
+		{
+			OnAppShutdown();
 		});
 	}
 
@@ -118,8 +129,23 @@ public:
 		}
 	}
 
+	void OnAppStart()
+	{
+		bShuttingDown = false;
+	}
+
+	void OnAppShutdown()
+	{
+		bShuttingDown = true;
+	}
+
 	void PushNewTask(const TTaskType& InTask)
 	{
+		if (bShuttingDown)
+		{
+			return;
+		}
+
 		// on demand thread creation
 		if (!Thread)
 		{
@@ -175,6 +201,7 @@ protected:
 	FThreadSafeCounter StopTaskCounter;
 	FEvent* Semaphore;
 	FThreadSafeBool bPaused;
+	FThreadSafeBool bShuttingDown;
 	TQueue<TTaskType, EQueueMode::Spsc> IncomingTasks;
 	TQueue<TTaskType, EQueueMode::Mpsc> CompletedTasks; // allow multiple (binder) threads to push completed tasks
 	TTaskType CurrentTask;
