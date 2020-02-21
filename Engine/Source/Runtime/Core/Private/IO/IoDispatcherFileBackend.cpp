@@ -637,7 +637,7 @@ TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId,
 				int32 BlockIndex = int32(ResolvedOffset / ContainerFile.CompressionBlockSize);
 				const FIoStoreCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[BlockIndex];
 				const int64 BlockOffset = (int64)CompressionBlockEntry.OffsetAndLength.GetOffset();
-				check(BlockOffset % FPlatformProperties::GetMemoryMappingAlignment() == 0);
+				check(BlockOffset > 0 && IsAligned(BlockOffset, FPlatformProperties::GetMemoryMappingAlignment()));
 
 				MappedFileRegion = MappedFileHandle->MapRegion(BlockOffset + Options.GetOffset(), ResolvedSize);
 				check(IsAligned(MappedFileRegion->GetMappedPtr(), FPlatformProperties::GetMemoryMappingAlignment()));
