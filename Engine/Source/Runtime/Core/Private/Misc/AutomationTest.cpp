@@ -1238,6 +1238,7 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const int64 Actual, const
 	return true;
 }
 
+#if PLATFORM_64BITS
 bool FAutomationTestBase::TestEqual(const TCHAR* What, const SIZE_T Actual, const SIZE_T Expected)
 {
 	if (Actual != Expected)
@@ -1247,6 +1248,7 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const SIZE_T Actual, cons
 	}
 	return true;
 }
+#endif
 
 bool FAutomationTestBase::TestEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance)
 {

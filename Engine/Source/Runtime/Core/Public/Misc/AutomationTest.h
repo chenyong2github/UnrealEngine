@@ -1326,7 +1326,9 @@ public:
 
 	bool TestEqual(const TCHAR* What, int32 Actual, int32 Expected);
 	bool TestEqual(const TCHAR* What, int64 Actual, int64 Expected);
+#if PLATFORM_64BITS
 	bool TestEqual(const TCHAR* What, SIZE_T Actual, SIZE_T Expected);
+#endif
 	bool TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER);
