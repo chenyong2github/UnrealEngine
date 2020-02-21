@@ -7,6 +7,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Images/SImage.h"
 #include "Templates/SharedPointer.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
