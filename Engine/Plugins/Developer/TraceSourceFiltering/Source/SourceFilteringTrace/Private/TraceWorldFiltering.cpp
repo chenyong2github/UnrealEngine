@@ -206,6 +206,8 @@ void FTraceWorldFiltering::OnWorldInit(UWorld* InWorld, const UWorld::Initializa
 
 void FTraceWorldFiltering::OnWorldPostInit(UWorld* World, const UWorld::InitializationValues IVS)
 {
+	UpdateWorldFiltering();
+
 	// Handle all loaded AActors within this world, to handle duplicated UWorlds (PIE)
 	FSourceFilterManager* Manager = WorldSourceFilterManagers.FindChecked(World);
 	Manager->Tick(0.f);
