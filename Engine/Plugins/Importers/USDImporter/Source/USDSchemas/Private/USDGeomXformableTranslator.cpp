@@ -156,8 +156,19 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 {
 	TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
 
+	// We should only add components to our transient/instanced actors, never to the AUsdStageActor or any other permanent actor
+	bool bOwnerActorIsPersistent = false;
+	if (USceneComponent* RootComponent = Context->ParentComponent)
+	{
+		if (AActor* Actor = RootComponent->GetOwner())
+		{
+			bOwnerActorIsPersistent = !Actor->HasAnyFlags(RF_Transient);
+		}
+	}
+
 	const bool bNeedsActor =
 		(
+			bOwnerActorIsPersistent ||
 			Context->ParentComponent == nullptr ||
 			Prim.Get().IsPseudoRoot() ||
 			Prim.Get().IsModel() ||
@@ -242,9 +253,6 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 		{
 			SceneComponent->GetOwner()->SetRootComponent( SceneComponent );
 		}
-
-		// Set purpose as a tag so its visibility can be toggled later
-		SceneComponent->ComponentTags.Add(IUsdPrim::GetPurposeName(IUsdPrim::GetPurpose(Prim.Get())));
 	}
 
 	return SceneComponent;
@@ -280,6 +288,11 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 				StaticMeshComponent->RegisterComponent();
 			}
 		}
+
+		// Set purpose as a tag so its visibility can be toggled later
+		TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
+		SceneComponent->ComponentTags.RemoveAll([&](const FName& Tag){ return Tag.ToString().EndsWith(TEXT("Purpose")); });
+		SceneComponent->ComponentTags.Add(IUsdPrim::GetPurposeName(IUsdPrim::GetPurpose(Prim.Get())));
 	}
 }
 
