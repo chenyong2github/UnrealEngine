@@ -16,7 +16,7 @@ class UControlRigEditModeSettings : public UObject
 	UControlRigEditModeSettings()
 		: bDisplayHierarchy(false)
 		, bHideManipulators(false)
-		, bDisplayAxesOnSelection(true)
+		, bDisplayAxesOnSelection(false)
 		, AxisScale(10.f)
 		, bCoordSystemPerWidgetMode(true)
 		, bOnlySelectRigControls(false)
