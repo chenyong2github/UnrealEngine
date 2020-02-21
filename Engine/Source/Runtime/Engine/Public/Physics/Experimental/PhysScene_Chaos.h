@@ -14,7 +14,7 @@
 #include "Chaos/Transform.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Declares.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
+#include "Chaos/SingleParticlePhysicsProxyFwd.h"
 #include "Framework/Threading.h"
 #include "Chaos/PBDCollisionConstraints.h"
 

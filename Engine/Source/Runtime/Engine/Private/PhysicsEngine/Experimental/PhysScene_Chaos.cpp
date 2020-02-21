@@ -26,7 +26,7 @@
 
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Chaos/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
 #include "Chaos/UniformGrid.h"
@@ -819,7 +819,7 @@ void FPhysScene_Chaos::RemoveObject(FGeometryParticlePhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 {
-	Chaos::FPhysicsSolver* Solver = InObject->GetSolver();
+	Chaos::FPhysicsSolver* Solver = static_cast<Chaos::FPhysicsSolver*>(InObject->GetSolver());
 	if(Solver && !Solver->UnregisterObject(InObject))
 	{
 		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
@@ -830,7 +830,7 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
 {
-	Chaos::FPhysicsSolver* CurrSceneSolver = InObject->GetSolver();
+	Chaos::FPhysicsSolver* CurrSceneSolver = static_cast<Chaos::FPhysicsSolver*>(InObject->GetSolver());
 	if(CurrSceneSolver && !CurrSceneSolver->UnregisterObject(InObject))
 	{
 		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));

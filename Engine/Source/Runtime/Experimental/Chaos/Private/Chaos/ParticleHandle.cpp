@@ -86,7 +86,7 @@ namespace Chaos
 
 			if (Proxy)
 			{
-				if (FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
+				if (FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver())
 				{
 					PhysicsSolverBase->AddDirtyProxy(Proxy);
 				}
