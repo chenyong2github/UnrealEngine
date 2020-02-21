@@ -63,10 +63,10 @@ class NIAGARACORE_API UNiagaraDataInterfaceBase : public UNiagaraMergeable
 public:
 	
 	/** Constructs the correct CS parameter type for this DI (if any). The object type returned by this can only vary by class and not per object data. */
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const { return nullptr; }
+	virtual FNiagaraDataInterfaceParametersCS* CreateComputeParameters() const { return nullptr; }
 	virtual const FTypeLayoutDesc* GetComputeParametersTypeDesc() const { return nullptr; }
 
-	/** Methods that operate on an instance of type FNiagaraDataInterfaceParametersCS*, created by the above ConstructComputeParameters() method */
+	/** Methods that operate on an instance of type FNiagaraDataInterfaceParametersCS*, created by the above CreateComputeParameters() method */
 	virtual void BindParameters(FNiagaraDataInterfaceParametersCS* Base, const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap) {}
 	virtual void SetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const {}
 	virtual void UnsetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const {}
@@ -74,7 +74,7 @@ public:
 
 /** This goes in class declaration for UNiagaraDataInterfaceBase-derived types, that need custom parameter type */
 #define DECLARE_NIAGARA_DI_PARAMETER() \
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override; \
+	virtual FNiagaraDataInterfaceParametersCS* CreateComputeParameters() const override; \
 	virtual const FTypeLayoutDesc* GetComputeParametersTypeDesc() const override; \
 	virtual void BindParameters(FNiagaraDataInterfaceParametersCS* Base, const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap) override; \
 	virtual void SetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override; \
@@ -83,7 +83,7 @@ public:
 /** This goes in cpp file matched with class declartion using DECLARE_NIAGARA_DI_PARAMETER() */
 #define IMPLEMENT_NIAGARA_DI_PARAMETER(T, ParameterType) \
 	static_assert(ParameterType::InterfaceType == ETypeLayoutInterface::NonVirtual, "DI ParameterType must be non-virtual"); \
-	FNiagaraDataInterfaceParametersCS* T::ConstructComputeParameters() const { return new ParameterType(); } \
+	FNiagaraDataInterfaceParametersCS* T::CreateComputeParameters() const { return new ParameterType(); } \
 	const FTypeLayoutDesc* T::GetComputeParametersTypeDesc() const { return &StaticGetTypeLayoutDesc<ParameterType>(); } \
 	void T::BindParameters(FNiagaraDataInterfaceParametersCS* Base, const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap) { static_cast<ParameterType*>(Base)->Bind(ParameterInfo, ParameterMap); } \
 	void T::SetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const { static_cast<const ParameterType*>(Base)->Set(RHICmdList, Context); } \
