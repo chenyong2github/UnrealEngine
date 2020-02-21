@@ -846,6 +846,23 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 	OtherOutputParamMapHistories = CompileData->GetPrecomputedHistories();
 
+	bool bCPUSim = IsCompileOptionDefined(TEXT("CPUSim"));
+	bool bGPUSim = IsCompileOptionDefined(TEXT("GPUComputeSim"));
+
+	if (bUsesSimStages && bCPUSim)
+	{
+		Error(LOCTEXT("CannotUseSimStagesWithCPU", "Cannot use CPU simulations with Experimental Simulation Stages or Deprecated Shader Stages!"), nullptr, nullptr);
+		return TranslateResults;
+	}
+
+
+	if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleEventScript && bGPUSim)
+	{
+		Error(LOCTEXT("CannotUseEventsWithGPU", "GPU Events scripts are currently unsupported. Consider using DirectReads instead!"), nullptr, nullptr);
+		return TranslateResults;
+	}
+
+
 	switch (CompileOptions.TargetUsage)
 	{
 	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
@@ -985,7 +1002,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			Error(FText::Format(LOCTEXT("GetOutputNodeFail", "Cannot find output node of type {0}!"), FText::AsNumber((int32)TranslationStages[i].ScriptUsage)), nullptr, nullptr);
 			return TranslateResults;
 		}
-
+		
 		ValidateTypePins(TranslationStages[i].OutputNode);
 		{
 			bool bHasAnyConnections = false;
