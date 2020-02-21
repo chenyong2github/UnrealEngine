@@ -19,7 +19,7 @@ class FName;
 
 struct FGpuProfilerTrace
 {
-	RHI_API static void BeginFrame();
+	RHI_API static void BeginFrame(struct FGPUTimingCalibrationTimestamp& Calibration);
 	RHI_API static void SpecifyEventByName(const FName& Name);
 	RHI_API static void BeginEventByName(const FName& Name, uint32 FrameNumber, uint64 TimestampMicroseconds);
 	RHI_API static void EndEvent(uint64 TimestampMicroseconds);
