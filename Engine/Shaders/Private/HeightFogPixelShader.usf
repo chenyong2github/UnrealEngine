@@ -12,6 +12,8 @@
 float bOnlyOnRenderedOpaque;
 float bUseLinearDepthTexture;
 
+float4 LinearDepthTextureMinMaxUV;
+
 Texture2D OcclusionTexture;
 SamplerState OcclusionSampler;
 
@@ -29,7 +31,8 @@ void ExponentialPixelMain(
 	float DeviceZ;
 	if (bUseLinearDepthTexture > 0.0f)
 	{
-		SceneDepth = Texture2DSampleLevel(LinearDepthTexture, LinearDepthSampler, TexCoord, 0).r * bUseLinearDepthTexture; // bUseLinearDepthTexture is also a scale to get depth in correct range
+		float2 SampleUV = clamp(TexCoord, LinearDepthTextureMinMaxUV.xy, LinearDepthTextureMinMaxUV.zw);
+		SceneDepth = Texture2DSampleLevel(LinearDepthTexture, LinearDepthSampler, SampleUV, 0).r * bUseLinearDepthTexture; // bUseLinearDepthTexture is also a scale to get depth in correct range
 		DeviceZ = ConvertToDeviceZ(SceneDepth);
 	}
 	else
