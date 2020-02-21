@@ -529,7 +529,7 @@ public:
 	 * Array of runtime virtual textures into which we render the instances. 
 	 * The mesh material also needs to be set up to output to a virtual texture. 
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
 
 	/**
