@@ -19,6 +19,7 @@ public:
 	bool DestroyClient();
 	bool ConnectMRMesh(UMRMeshComponent* InMRMeshPtr);
 	bool DisconnectMRMesh(class UMRMeshComponent* InMRMeshPtr);
+	void SetUseWeightedNormals(const bool bInUseWeightedNormals);
 	bool HasMRMesh() const;
 	bool HasClient() const;
 

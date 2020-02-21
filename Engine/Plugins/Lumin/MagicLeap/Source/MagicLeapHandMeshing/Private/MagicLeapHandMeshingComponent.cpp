@@ -24,3 +24,8 @@ bool UMagicLeapHandMeshingComponent::DisconnectMRMesh(class UMRMeshComponent* In
 {
 	return GetMagicLeapHandMeshingModule().DisconnectMRMesh(InMRMeshPtr);
 }
+
+void UMagicLeapHandMeshingComponent::SetUseWeightedNormals(const bool bInUseWeightedNormals)
+{
+	GetMagicLeapHandMeshingModule().SetUseWeightedNormals(bInUseWeightedNormals);
+}
