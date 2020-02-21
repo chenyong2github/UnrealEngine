@@ -30,10 +30,39 @@
 #define IS_PROPERTY(Name) PropertyChangedEvent.MemberProperty->GetName().Equals(#Name)
 
 const FGuid ULidarPointCloud::PointCloudFileGUID('P', 'C', 'P', 'F');
-const int32 ULidarPointCloud::PointCloudFileVersion(15);
+const int32 ULidarPointCloud::PointCloudFileVersion(17);
 FCustomVersionRegistration PCPFileVersion(ULidarPointCloud::PointCloudFileGUID, ULidarPointCloud::PointCloudFileVersion, TEXT("LiDAR Point Cloud File Version"));
 
 #define LOCTEXT_NAMESPACE "LidarPointCloud"
+
+class FPointCloudLatentAction : public FPendingLatentAction
+{
+public:
+	FName ExecutionFunction;
+	int32 OutputLink;
+	FWeakObjectPtr CallbackTarget;
+	ELidarPointCloudAsyncMode* Mode = nullptr;
+
+	FPointCloudLatentAction(const FLatentActionInfo& LatentInfo, ELidarPointCloudAsyncMode& Mode)
+		: ExecutionFunction(LatentInfo.ExecutionFunction)
+		, OutputLink(LatentInfo.Linkage)
+		, CallbackTarget(LatentInfo.CallbackTarget)
+		, Mode(&Mode)
+	{
+	}
+
+	virtual void UpdateOperation(FLatentResponse& Response) override
+	{
+		if (*Mode != ELidarPointCloudAsyncMode::Progress)
+		{
+			Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
+		}
+		else
+		{
+			Response.TriggerLink(ExecutionFunction, OutputLink, CallbackTarget);
+		}
+	}
+};
 
 /////////////////////////////////////////////////
 // FLidarPointCloudNotification
@@ -160,8 +189,9 @@ void FLidarPointCloudNotification::UpdateStatus()
 
 ULidarPointCloud::ULidarPointCloud()
 	: CollisionAccuracy(100)
-	, Octree()
+	, Octree(this)
 	, OriginalCoordinates(FDoubleVector::ZeroVector)
+	, LocationOffset(FDoubleVector::ZeroVector)
 	, Notification(this)
 	, BodySetup(nullptr)
 	, bCollisionBuildInProgress(false)
@@ -198,8 +228,6 @@ void ULidarPointCloud::Serialize(FArchive& Ar)
 	{
 		return;
 	}
-
-	FScopeBenchmarkTimer BenchmarkTimer("Serialization");
 	
 	ULidarPointCloudFileIO::SerializeImportSettings(Ar, ImportSettings);
 
@@ -250,6 +278,12 @@ void ULidarPointCloud::BeginDestroy()
 	ReleaseCollisionRendering();
 }
 
+void ULidarPointCloud::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+	OnPreSaveCleanupEvent.Broadcast();
+}
+
 #if WITH_EDITOR
 void ULidarPointCloud::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -293,24 +327,24 @@ TArray<FLidarPointCloudPoint*> ULidarPointCloud::GetPoints(int64 StartIndex, int
 	return Points;
 }
 
-TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsAsCopies(int32 StartIndex, int32 Count) const
+TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsAsCopies(bool bReturnWorldSpace, int32 StartIndex, int32 Count) const
 {
 	TArray<FLidarPointCloudPoint> Points;
-	GetPointsAsCopies(Points, StartIndex, Count);
+	GetPointsAsCopies(Points, bReturnWorldSpace, StartIndex, Count);
 	return Points;
 }
 
-TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsInSphereAsCopies(FVector Center, float Radius, bool bVisibleOnly)
+TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsInSphereAsCopies(FVector Center, float Radius, bool bVisibleOnly, bool bReturnWorldSpace)
 {
 	TArray<FLidarPointCloudPoint> Points;
-	GetPointsInSphereAsCopies(Points, FSphere(Center, Radius), bVisibleOnly);
+	GetPointsInSphereAsCopies(Points, FSphere(Center, Radius), bVisibleOnly, bReturnWorldSpace);
 	return Points;
 }
 
-TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly)
+TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly, bool bReturnWorldSpace)
 {
 	TArray<FLidarPointCloudPoint> Points;
-	GetPointsInBoxAsCopies(Points, FBox(Center - Extent, Center + Extent), bVisibleOnly);
+	GetPointsInBoxAsCopies(Points, FBox(Center - Extent, Center + Extent), bVisibleOnly, bReturnWorldSpace);
 	return Points;
 }
 
@@ -402,35 +436,11 @@ void ULidarPointCloud::RemoveCollision()
 	bCollisionBuildInProgress = false;
 }
 
-void ULidarPointCloud::CenterPoints()
+void ULidarPointCloud::SetLocationOffset(FDoubleVector Offset)
 {
-	// Only shift, if not already centered
-	if (!IsCentered())
-	{
-		ShiftPointsBy(-GetPointsBounds().GetCenter(), true);
-	}
-}
-
-void ULidarPointCloud::RestoreOriginalCoordinates()
-{
-	if (!OriginalCoordinates.IsNearlyZero(0.001f))
-	{
-		ShiftPointsBy(OriginalCoordinates, true);
-	}
-}
-
-void ULidarPointCloud::ShiftPointsBy(FDoubleVector Offset, bool bRefreshPointsBounds)
-{
-	Octree.ShiftPointsBy(Offset, bRefreshPointsBounds);
-	OriginalCoordinates -= Offset;
+	LocationOffset = Offset;
 	MarkPackageDirty();
 	OnPointCloudRebuiltEvent.Broadcast();
-}
-
-bool ULidarPointCloud::IsCentered() const
-{
-	// Return as centered if within 1mm of center
-	return GetPointsBounds().GetCenter().IsNearlyZero(0.1f);
 }
 
 void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncParameters)
@@ -448,8 +458,10 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 		bAsyncCancelled = false;
 		Notification.Create("Importing Point Cloud", &bAsyncCancelled);
 
+		const bool bCenter = GetDefault<ULidarPointCloudSettings>()->bAutoCenterOnImport;
+
 		// The actual import function to be executed
-		auto ImportFunction = [this, AsyncParameters]
+		auto ImportFunction = [this, AsyncParameters, bCenter]
 		{
 			// This will take over the lock
 			FScopeLock Lock(&ImportLock);
@@ -473,11 +485,11 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 				FScopeLock DataLock(&Octree.DataLock);
 				
 				// Re-initialize the Octree
-				Octree.Initialize(ImportResults.Bounds);
+				Initialize(ImportResults.Bounds);
 
 				FScopeBenchmarkTimer BenchmarkTimer("Octree Build-Up");
 
-				bSuccess = InsertPoints_NoLock(ImportResults.Points.GetData(), ImportResults.Points.Num(), GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false, &bAsyncCancelled, [this, AsyncParameters](float Progress)
+				bSuccess = InsertPoints_NoLock(ImportResults.Points.GetData(), ImportResults.Points.Num(), GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false, -LocationOffset.ToVector(), &bAsyncCancelled, [this, AsyncParameters](float Progress)
 				{
 					Notification.SetProgress(50.0f + 50.0f * Progress);
 					if (AsyncParameters.ProgressCallback)
@@ -488,14 +500,20 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 
 				if (bSuccess)
 				{
-					RefreshPointsBounds();
-					OriginalCoordinates = ImportResults.OriginalCoordinates;
+					RefreshBounds();
+					OriginalCoordinates = LocationOffset + ImportResults.OriginalCoordinates;
+
+					// Show the cloud at its original location, if selected
+					LocationOffset = bCenter ? FDoubleVector::ZeroVector : OriginalCoordinates;
 				}
 				else
 				{
 					BenchmarkTimer.bActive = false;
 
 					Octree.Empty(true);
+
+					OriginalCoordinates = FDoubleVector::ZeroVector;
+					LocationOffset = FDoubleVector::ZeroVector;
 
 					// Update PointCloudAssetRegistryCache
 					PointCloudAssetRegistryCache.PointCount = FString::FromInt(Octree.GetNumPoints());
@@ -553,23 +571,48 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 	}
 }
 
+void ULidarPointCloud::Reimport(UObject* WorldContextObject, bool bUseAsync, FLatentActionInfo LatentInfo, ELidarPointCloudAsyncMode& AsyncMode, float& Progress)
+{
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		FLatentActionManager& LatentActionManager = World->GetLatentActionManager();
+		if (LatentActionManager.FindExistingAction<FPointCloudLatentAction>(LatentInfo.CallbackTarget, LatentInfo.UUID) == nullptr)
+		{
+			AsyncMode = ELidarPointCloudAsyncMode::Progress;
+			FPointCloudLatentAction* CompletionAction = new FPointCloudLatentAction(LatentInfo, AsyncMode);
+
+			LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, CompletionAction);
+
+			Reimport(FLidarPointCloudAsyncParameters(bUseAsync,
+				[&Progress, &AsyncMode](float InProgress)
+				{
+					Progress = InProgress;
+				},
+				[&AsyncMode](bool bSuccess)
+				{
+					AsyncMode = bSuccess ? ELidarPointCloudAsyncMode::Success : ELidarPointCloudAsyncMode::Failure;
+				}));
+		}
+	}
+}
+
 bool ULidarPointCloud::Export(const FString& Filename)
 {
 	return ULidarPointCloudFileIO::Export(Filename, this);
 }
 
-void ULidarPointCloud::InsertPoint(const FLidarPointCloudPoint& Point, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds)
+void ULidarPointCloud::InsertPoint(const FLidarPointCloudPoint& Point, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation)
 {
 	FScopeLock Lock(&Octree.DataLock);
 
-	Octree.InsertPoint(&Point, DuplicateHandling, bRefreshPointsBounds);
+	Octree.InsertPoint(&Point, DuplicateHandling, bRefreshPointsBounds, Translation);
 
 	// Update PointCloudAssetRegistryCache
 	PointCloudAssetRegistryCache.PointCount = FString::FromInt(Octree.GetNumPoints());
 }
 
 template<typename T>
-bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, FThreadSafeBool* bCanceled, TFunction<void(float)> ProgressCallback)
+bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled, TFunction<void(float)> ProgressCallback)
 {
 	const ULidarPointCloudSettings* Settings = GetDefault<ULidarPointCloudSettings>();
 	const int32 MaxBatchSize = Settings->MultithreadingInsertionBatchSize;
@@ -583,7 +626,7 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 
 		const int32 NumThreads = FMath::Min(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 1, (int32)(Count / MaxBatchSize) + 1);
 		TArray<TFuture<void>>ThreadResults;
-		ThreadResults.Reserve( NumThreads );
+		ThreadResults.Reserve(NumThreads);
 		const int64 NumPointsPerThread = Count / NumThreads + 1;
 
 		FCriticalSection ProgressCallbackLock;
@@ -592,7 +635,8 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 		for (int32 t = 0; t < NumThreads; t++)
 		{
 			const int32 ThreadID = t;
-			ThreadResults.Add(Async(EAsyncExecution::Thread, [this, ThreadID, DuplicateHandling, bRefreshPointsBounds, MaxBatchSize, NumPointsPerThread, RefreshStatusFrequency, &ProcessedPoints, &TotalProcessedPoints, InPoints, Count, &ProgressCallback, &ProgressCallbackLock, &bCanceled]
+
+			ThreadResults.Add(Async(EAsyncExecution::Thread, [this, ThreadID, DuplicateHandling, bRefreshPointsBounds, MaxBatchSize, NumPointsPerThread, RefreshStatusFrequency, &ProcessedPoints, &TotalProcessedPoints, InPoints, Count, &ProgressCallback, &ProgressCallbackLock, &bCanceled, &Translation]
 				{
 					int64 Idx = ThreadID * NumPointsPerThread;
 					int64 MaxIdx = FMath::Min(Idx + NumPointsPerThread, Count);
@@ -602,7 +646,7 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 					{
 						int32 BatchSize = FMath::Min(MaxIdx - Idx, (int64)MaxBatchSize);
 
-						Octree.InsertPoints(DataPointer, BatchSize, DuplicateHandling, bRefreshPointsBounds);
+						Octree.InsertPoints(DataPointer, BatchSize, DuplicateHandling, bRefreshPointsBounds, Translation);
 
 						if (ProgressCallback)
 						{
@@ -642,7 +686,7 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 		{
 			int32 BatchSize = FMath::Min(Count - Idx, (int64)MaxBatchSize);
 
-			Octree.InsertPoints(DataPointer, BatchSize, DuplicateHandling, bRefreshPointsBounds);
+			Octree.InsertPoints(DataPointer, BatchSize, DuplicateHandling, bRefreshPointsBounds, Translation);
 
 			Idx += BatchSize;
 			DataPointer += BatchSize;
@@ -679,13 +723,9 @@ bool ULidarPointCloud::SetData(T Points, const int64& Count, TFunction<void(floa
 		// Initialize the Octree
 		Initialize(Bounds);
 
-		bSuccess = InsertPoints_NoLock(Points, Count, GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false, nullptr, MoveTemp(ProgressCallback));
+		bSuccess = InsertPoints_NoLock(Points, Count, GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false, -LocationOffset.ToVector(), nullptr, MoveTemp(ProgressCallback));
 
-		if (bSuccess)
-		{
-			RefreshPointsBounds();
-		}
-		else
+		if (!bSuccess)
 		{
 			Octree.Empty(true);
 		}
@@ -757,7 +797,9 @@ void ULidarPointCloud::Merge(TArray<ULidarPointCloud*> PointCloudsToMerge, TFunc
 
 	// Make a copy of current points, as the data will be reinitialized
 	TArray<FLidarPointCloudPoint> Points;
-	GetPointsAsCopies(Points);
+	GetPointsAsCopies(Points, false);
+
+	FDoubleVector OldLocationOffset = LocationOffset;
 
 	// Initialize the Octree
 	Initialize(NewBounds);
@@ -768,7 +810,7 @@ void ULidarPointCloud::Merge(TArray<ULidarPointCloud*> PointCloudsToMerge, TFunc
 	}
 
 	// Re-insert original points
-	InsertPoints(Points, GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false);
+	InsertPoints(Points, GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false, (OldLocationOffset - LocationOffset).ToVector());
 
 	int32 Progress = 0;
 	float ProgressMulti = 1.0f / (1 + PointCloudsToMerge.Num());
@@ -782,16 +824,14 @@ void ULidarPointCloud::Merge(TArray<ULidarPointCloud*> PointCloudsToMerge, TFunc
 	for (ULidarPointCloud* Asset : PointCloudsToMerge)
 	{
 		// #todo: Do this in batches to avoid spiking RAM
-		Asset->GetPointsAsCopies(Points);
-		InsertPoints(Points, GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false);
+		Asset->GetPointsAsCopies(Points, false);
+		InsertPoints(Points, GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false, (Asset->LocationOffset - LocationOffset).ToVector());
 
 		if (ProgressCallback)
 		{
 			ProgressCallback(++Progress * ProgressMulti);
 		}
 	}
-
-	RefreshPointsBounds();
 
 	auto PostFunction = [this]() {
 		MarkPackageDirty();
@@ -830,8 +870,8 @@ void ULidarPointCloud::AlignClouds(TArray<ULidarPointCloud*> PointCloudsToAlign)
 	// Calculate combined bounds
 	for (ULidarPointCloud* Asset : PointCloudsToAlign)
 	{
-		FDoubleVector OffsetMin = Asset->OriginalCoordinates + Asset->GetBounds().Min;
-		FDoubleVector OffsetMax = Asset->OriginalCoordinates + Asset->GetBounds().Max;
+		FDoubleVector OffsetMin = Asset->OriginalCoordinates - Asset->Octree.GetExtent();
+		FDoubleVector OffsetMax = Asset->OriginalCoordinates + Asset->Octree.GetExtent();
 
 		Min.X = FMath::Min(Min.X, OffsetMin.X);
 		Min.Y = FMath::Min(Min.Y, OffsetMin.Y);
@@ -847,9 +887,7 @@ void ULidarPointCloud::AlignClouds(TArray<ULidarPointCloud*> PointCloudsToAlign)
 	// Calculate and apply individual shifts
 	for (ULidarPointCloud* Asset : PointCloudsToAlign)
 	{
-		FDoubleVector OffsetCenter = Asset->OriginalCoordinates + Asset->GetBounds().GetCenter();
-		FDoubleVector Delta = OffsetCenter - CombinedCenter;
-		Asset->ShiftPointsBy(Delta, true);
+		Asset->SetLocationOffset(Asset->OriginalCoordinates - CombinedCenter);
 	}
 }
 
@@ -965,35 +1003,6 @@ void ULidarPointCloud::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBody
 	bCollisionBuildInProgress = false;
 }
 
-class FPointCloudLatentAction : public FPendingLatentAction
-{
-public:
-	FName ExecutionFunction;
-	int32 OutputLink;
-	FWeakObjectPtr CallbackTarget;
-	ELidarPointCloudAsyncMode* Mode = nullptr;
-
-	FPointCloudLatentAction(const FLatentActionInfo& LatentInfo, ELidarPointCloudAsyncMode& Mode)
-		: ExecutionFunction(LatentInfo.ExecutionFunction)
-		, OutputLink(LatentInfo.Linkage)
-		, CallbackTarget(LatentInfo.CallbackTarget)
-		, Mode(&Mode)
-	{
-	}
-
-	virtual void UpdateOperation(FLatentResponse& Response) override
-	{
-		if (*Mode != ELidarPointCloudAsyncMode::Progress)
-		{
-			Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
-		}
-		else
-		{
-			Response.TriggerLink(ExecutionFunction, OutputLink, CallbackTarget);
-		}
-	}
-};
-
 void ULidarPointCloudBlueprintLibrary::CreatePointCloudFromFile(UObject* WorldContextObject, const FString& Filename, bool bUseAsync, FLatentActionInfo LatentInfo, ELidarPointCloudAsyncMode& AsyncMode, float& Progress, ULidarPointCloud*& PointCloud)
 {	
 	CreatePointCloudFromFile(WorldContextObject, Filename, bUseAsync, LatentInfo, FLidarPointCloudImportSettings::MakeGeneric(Filename), AsyncMode, Progress, PointCloud);
@@ -1089,7 +1098,7 @@ bool ULidarPointCloudBlueprintLibrary::LineTraceMulti(UObject* WorldContextObjec
 			auto Component = Actor->GetPointCloudComponent();
 
 			FLidarPointCloudTraceHit Hit(Actor, Component);
-			if (Component->LineTraceMulti(Ray, Radius, bVisibleOnly, Hit.Points))
+			if (Component->LineTraceMulti(Ray, Radius, bVisibleOnly, true, Hit.Points))
 			{
 				Hits.Add(Hit);
 				return true;
@@ -1100,9 +1109,9 @@ bool ULidarPointCloudBlueprintLibrary::LineTraceMulti(UObject* WorldContextObjec
 	return Hits.Num() > 0;
 }
 
-template bool ULidarPointCloud::InsertPoints_NoLock<FLidarPointCloudPoint*>(FLidarPointCloudPoint*, const int64&, ELidarPointCloudDuplicateHandling, bool, FThreadSafeBool*, TFunction<void(float)>);
-template bool ULidarPointCloud::InsertPoints_NoLock<const FLidarPointCloudPoint*>(const FLidarPointCloudPoint*, const int64&, ELidarPointCloudDuplicateHandling, bool, FThreadSafeBool*, TFunction<void(float)>);
-template bool ULidarPointCloud::InsertPoints_NoLock<FLidarPointCloudPoint**>(FLidarPointCloudPoint**, const int64&, ELidarPointCloudDuplicateHandling, bool, FThreadSafeBool*, TFunction<void(float)>);
+template bool ULidarPointCloud::InsertPoints_NoLock<FLidarPointCloudPoint*>(FLidarPointCloudPoint*, const int64&, ELidarPointCloudDuplicateHandling, bool, const FVector&, FThreadSafeBool*, TFunction<void(float)>);
+template bool ULidarPointCloud::InsertPoints_NoLock<const FLidarPointCloudPoint*>(const FLidarPointCloudPoint*, const int64&, ELidarPointCloudDuplicateHandling, bool, const FVector&, FThreadSafeBool*, TFunction<void(float)>);
+template bool ULidarPointCloud::InsertPoints_NoLock<FLidarPointCloudPoint**>(FLidarPointCloudPoint**, const int64&, ELidarPointCloudDuplicateHandling, bool, const FVector&, FThreadSafeBool*, TFunction<void(float)>);
 template bool ULidarPointCloud::SetData<const FLidarPointCloudPoint*>(const FLidarPointCloudPoint*, const int64&, TFunction<void(float)>);
 template bool ULidarPointCloud::SetData<FLidarPointCloudPoint**>(FLidarPointCloudPoint**, const int64&, TFunction<void(float)>);
 

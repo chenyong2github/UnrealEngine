@@ -3,6 +3,7 @@
 #include "LidarPointCloudCollision.h"
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudOctree.h"
+#include "LidarPointCloud.h"
 
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Async/Async.h"
@@ -385,7 +386,7 @@ void MarchingCubes(uint8* VoxelizedGrid, int32 GridDimension, float CellSize, FV
 	}
 }
 
-void LidarPointCloudCollision::BuildCollisionMesh(const FLidarPointCloudOctree* Octree, const float& CellSize, const bool& bVisibleOnly, FTriMeshCollisionData* CollisionMesh)
+void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree, const float& CellSize, const bool& bVisibleOnly, FTriMeshCollisionData* CollisionMesh)
 {
 	if (!CollisionMesh)
 	{
@@ -397,6 +398,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(const FLidarPointCloudOctree* 
 	// Expand original bounds to make sure the mesh is closed at the edges
 	const FBox Bounds = Octree->GetBounds().ExpandBy(FVector::OneVector * CellSize, FVector::OneVector * CellSize);
 	const FVector BoundsSize = Bounds.GetSize();
+	const FVector LocationOffset = Octree->GetOwner()->LocationOffset.ToVector();
 
 	// Number of cells in each axis
 	const int32 BatchSize = GetDefault<ULidarPointCloudSettings>()->MeshingBatchSize;
@@ -424,7 +426,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(const FLidarPointCloudOctree* 
 	// Fire threads
 	for (int32 t = 0; t < MaxNumThreads && SampleIndex.GetValue() < TotalNumSamples; t++)
 	{
-		ThreadResults.Add(Async(EAsyncExecution::TaskGraph, [t, &SampleIndex, &Vertices, &NumVertices, CollisionMesh, BatchSize, TotalNumSamples, NumSamples, BaseSamplingBounds, CellSize, Octree, InversedCellSize, bVisibleOnly]
+		ThreadResults.Add(Async(EAsyncExecution::TaskGraph, [t, &SampleIndex, &Vertices, &NumVertices, CollisionMesh, BatchSize, TotalNumSamples, NumSamples, BaseSamplingBounds, CellSize, Octree, InversedCellSize, bVisibleOnly, LocationOffset]
 		{
 			// Local caching arrays to reduce number of syncs required
 			TArray<FVector> _Vertices;
@@ -467,7 +469,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(const FLidarPointCloudOctree* 
 					VoxelizedGrid[Grid.Z * NumCellsSq + Grid.Y * BatchSize + Grid.X] = 1;
 				}
 
-				MarchingCubes(VoxelizedGrid, BatchSize, CellSize, SamplingBounds.Min, _Vertices);
+				MarchingCubes(VoxelizedGrid, BatchSize, CellSize, SamplingBounds.Min + LocationOffset, _Vertices);
 			}
 
 			// Sync
