@@ -27,6 +27,13 @@ namespace WindowsMixedReality
 		OSSubVersionLabel = OSVersionLabel;
 		bool bHasSupportedWindowsVersion = OSSubVersionLabel.RemoveFromStart("Windows 10 (Release ") && OSSubVersionLabel.RemoveFromEnd(")") && (FCString::Atoi(*OSSubVersionLabel) >= MIN_WIN_10_VERSION_FOR_WMR);
 
+		// If we can't find Win10 version, check for Windows Server equivalent
+		if (!bHasSupportedWindowsVersion)
+		{
+			OSSubVersionLabel = OSVersionLabel;
+			bHasSupportedWindowsVersion = OSSubVersionLabel.RemoveFromStart("Windows Server Technical Preview (Release ") && OSSubVersionLabel.RemoveFromEnd(")") && (FCString::Atoi(*OSSubVersionLabel) >= MIN_WIN_10_VERSION_FOR_WMR);
+		}
+
 		if (bHasSupportedWindowsVersion)
 		{
 			// Get the base directory of this plugin
