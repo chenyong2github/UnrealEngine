@@ -60,42 +60,44 @@ public:
 	 * @param DestinationName   Name of the destination FRemoteImportAnchor
 	 * @return                  Whether the import operation has been triggered
 	 */
-	UFUNCTION(BlueprintCallable, Category="RemoteImport")
+	UFUNCTION(BlueprintCallable, Category="RemoteImport|Action")
 	static bool ImportSource(const FString& FilePath, const FString& DestinationName);
 
 
 	/**
 	 * Register a possible destination for a remote import
-	 * @param Anchor Description of the destination
+	 * @param Anchor        Description of the destination
+	 * @param bAllowRename  When true, a unique name is generated to register the anchor even when names collide
+	 * @returns the anchor handle, required to unregister the Anchor
 	 */
-	UFUNCTION(BlueprintCallable, Category="RemoteImport")
-	static void RegisterAnchor(const FRemoteImportAnchor& Anchor);
+	UFUNCTION(BlueprintCallable, Category="RemoteImport|Anchor")
+	static FString RegisterAnchor(const FRemoteImportAnchor& Anchor, bool bAllowRename=true);
 
 	/**
 	 * Remove a destination
-	 * @param AnchorName Name of the registered anchor to remove
+	 * @param AnchorHandle  Registered handle as returned by RegisterAnchor()
 	 */
-	UFUNCTION(BlueprintCallable, Category="RemoteImport")
-	static void UnregisterAnchor(const FString& AnchorName);
+	UFUNCTION(BlueprintCallable, Category="RemoteImport|Anchor")
+	static void UnregisterAnchor(const FString& AnchorHandle);
 
 	/**
 	 * List registered Anchor names.
 	 * @return Names that are valid as destination names.
 	 */
-	UFUNCTION(BlueprintCallable, Category="RemoteImport")
+	UFUNCTION(BlueprintCallable, Category="RemoteImport|Anchor")
 	static TArray<FString> ListAnchors();
 
 
 	/** Enable the server so that the process is visible to clients */
-	UFUNCTION(BlueprintCallable, Exec, Category="RemoteImport")
+	UFUNCTION(BlueprintCallable, Category="RemoteImport|Server")
 	static void StartRemoteImportServer();
 
 	/** Disable the server so that the process is hidden to clients */
-	UFUNCTION(BlueprintCallable, Exec, Category="RemoteImport")
+	UFUNCTION(BlueprintCallable, Category="RemoteImport|Server")
 	static void StopRemoteImportServer();
 
 	/** @return Whether the server is currently active */
-	UFUNCTION(BlueprintCallable, Exec, Category="RemoteImport")
+	UFUNCTION(BlueprintCallable, Category="RemoteImport|Server")
 	static bool IsRemoteImportServerActive();
 
 public:
