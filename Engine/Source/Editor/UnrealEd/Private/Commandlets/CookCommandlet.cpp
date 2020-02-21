@@ -789,13 +789,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 			MapIniSections.Add(SectionStr);
 		}
 	}
-	
-	// If we still don't have any mapsList check if the allmaps ini section is filled out
-	// this is for backwards compatibility
-	if (MapList.Num() == 0 && MapIniSections.Num() == 0)
-	{
-		MapIniSections.Add(FString(TEXT("AllMaps")));
-	}
 
 	if (!bCookSinglePackage)
 	{

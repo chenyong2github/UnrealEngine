@@ -6143,37 +6143,39 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 
 		{
 			TArray<FString> MapList;
-			for (const auto& IniMapSection : IniMapSections)
+			for (const FString& IniMapSection : IniMapSections)
 			{
-				UE_LOG(LogCook, Verbose, TEXT("Loading map ini section %s "), *IniMapSection);
+				UE_LOG(LogCook, Verbose, TEXT("Loading map ini section %s"), *IniMapSection);
 				GEditor->LoadMapListFromIni(*IniMapSection, MapList);
 			}
-			for (int32 MapIdx = 0; MapIdx < MapList.Num(); MapIdx++)
+			for (const FString& MapName : MapList)
 			{
-				UE_LOG(LogCook, Verbose, TEXT("Maplist contains has %s "), *MapList[MapIdx]);
-				AddFileToCook(FilesInPath, MapList[MapIdx]);
+				UE_LOG(LogCook, Verbose, TEXT("Maplist contains %s"), *MapName);
+				AddFileToCook(FilesInPath, MapName);
 				bFoundMapsToCook = true;
 			}
 		}
 
 		// If we didn't find any maps look in the project settings for maps
-		for (const FFilePath& MapToCook : PackagingSettings->MapsToCook)
+		if (bFoundMapsToCook == false)
 		{
-			UE_LOG(LogCook, Verbose, TEXT("Maps to cook list contains %s "), *MapToCook.FilePath);
-			FilesInPath.Add(FName(*MapToCook.FilePath));
-			bFoundMapsToCook = true;
+			for (const FFilePath& MapToCook : PackagingSettings->MapsToCook)
+			{
+				UE_LOG(LogCook, Verbose, TEXT("Maps to cook list contains %s"), *MapToCook.FilePath);
+				FilesInPath.Add(FName(*MapToCook.FilePath));
+				bFoundMapsToCook = true;
+			}
 		}
 
-
-
-		// if we didn't find maps to cook, and we don't have any commandline maps (CookMaps), then cook the allmaps section
-		if (bFoundMapsToCook == false && CookMaps.Num() == 0)
+		// If we didn't find any maps, cook the AllMaps section
+		if (bFoundMapsToCook == false)
 		{
-			UE_LOG(LogCook, Verbose, TEXT("Loading default map ini section AllMaps "));
+			UE_LOG(LogCook, Verbose, TEXT("Loading default map ini section AllMaps"));
 			TArray<FString> AllMapsSection;
 			GEditor->LoadMapListFromIni(TEXT("AllMaps"), AllMapsSection);
 			for (const FString& MapName : AllMapsSection)
 			{
+				UE_LOG(LogCook, Verbose, TEXT("Maplist contains %s"), *MapName);
 				AddFileToCook(FilesInPath, MapName);
 			}
 		}
