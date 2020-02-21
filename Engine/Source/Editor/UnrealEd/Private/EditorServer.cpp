@@ -34,6 +34,7 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/Level.h"
+#include "Engine/LevelScriptBlueprint.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
@@ -2080,10 +2081,20 @@ void UEditorEngine::EditorDestroyWorld( FWorldContext & Context, const FText& Cl
 	FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(ContextWorld);
 	for (ULevel* Level : ContextWorld->GetLevels())
 	{
-		UWorld* LevelWorld = Level->GetTypedOuter<UWorld>();
-		if (ensureAlways(LevelWorld) && LevelWorld != ContextWorld && LevelWorld != NewWorld)
+		if (ensureAlways(Level))
 		{
-			FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(LevelWorld);
+			const bool bDontCreate = true;
+			if (ULevelScriptBlueprint* LSBP = Level->GetLevelScriptBlueprint(bDontCreate))
+			{
+				// Signals that the associated LSBP is about to be unloaded.
+				LSBP->ClearEditorReferences();
+			}
+
+			UWorld* LevelWorld = Level->GetTypedOuter<UWorld>();
+			if (ensureAlways(LevelWorld) && LevelWorld != ContextWorld && LevelWorld != NewWorld)
+			{
+				FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(LevelWorld);
+			}
 		}
 	}
 

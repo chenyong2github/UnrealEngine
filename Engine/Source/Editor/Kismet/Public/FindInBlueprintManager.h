@@ -701,7 +701,10 @@ private:
 	/** Removes a Blueprint from being managed by the FiB system by passing in the UBlueprint's path */
 	void RemoveBlueprintByPath(FName InPath);
 
-	/** Begins the process of extracting unloaded FiB data */
+	/** Adds a new search database entry for unloaded asset data */
+	void AddUnloadedBlueprintSearchMetadata(const FAssetData& InAssetData);
+
+	/** Begins the process of extracting FiB data from an unloaded asset */
 	void ExtractUnloadedFiBData(const FAssetData& InAssetData, const FString& InFiBData, EFiBVersion InFiBDataVersion);
 
 	/** Determines the global find results tab label */
