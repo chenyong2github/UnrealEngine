@@ -729,6 +729,13 @@ namespace UnrealBuildTool
 			{
 				// libdwarf (from elftoolchain 0.6.1) doesn't support DWARF4. If we need to go back to depending on elftoolchain revert this back to dwarf-3
 				Result += " -gdwarf-4";
+
+				if (CompilerVersionMajor >= 9)
+				{
+					// Generate .debug_pubnames and .debug_pubtypes sections in a format suitable for conversion into a
+					// GDB index. This option is only useful with a linker that can produce GDB index version 7.
+					Result += " -ggnu-pubnames";
+				}
 			}
 
 			// optimization level
@@ -966,6 +973,13 @@ namespace UnrealBuildTool
 					Result += string.Format(" -Wl,-rpath=\"{0}/lib/clang/{1}.{2}.{3}/lib/linux\"",
 							BaseLinuxPath, CompilerVersionMajor, CompilerVersionMinor, CompilerVersionPatch);
 				}
+			}
+
+			if (UsingLld(Architecture) && LinkEnvironment.bCreateDebugInfo && (CompilerVersionMajor >= 9))
+			{
+				// Generate .gdb_index section. On my machine, this cuts symbol loading time (breaking at main) from 45
+				// seconds to 17 seconds (with gdb v8.3.1).
+				Result += " -Wl,--gdb-index";
 			}
 
 			// RPATH for third party libs
