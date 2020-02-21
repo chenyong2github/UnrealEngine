@@ -126,6 +126,15 @@ void FAppFramework::ApplicationResumeDelegate()
 	}
 }
 
+void FAppFramework::OnApplicationStart()
+{
+	FScopeLock Lock(&EventHandlersCriticalSection);
+	for (auto EventHandler : EventHandlers)
+	{
+		EventHandler->OnAppStart();
+	}
+}
+
 void FAppFramework::OnApplicationShutdown()
 {
 	FScopeLock Lock(&EventHandlersCriticalSection);
