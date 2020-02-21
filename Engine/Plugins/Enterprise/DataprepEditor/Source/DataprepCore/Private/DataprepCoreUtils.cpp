@@ -30,6 +30,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RenderingThread.h"
 #include "UObject/StrongObjectPtr.h"
@@ -617,15 +618,43 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 	// Force compilation of materials which have no render proxy
 	if(MaterialInterfaces.Num() > 0)
 	{
-		auto MustCompile = [](const UMaterialInterface* MaterialInterface)
+		auto MustCompile = [](UMaterialInterface* MaterialInterface) -> bool
 		{
-			if( MaterialInterface )
+			if(MaterialInterface == nullptr)
 			{
-				const FMaterialRenderProxy* RenderProxy = MaterialInterface->GetRenderProxy();
-				return RenderProxy == nullptr || !RenderProxy->IsInitialized();
+				return false;
 			}
 
-			return false;
+			// Force recompilation of constant material instances which either override blend mode or any static switch
+			if(UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >(MaterialInterface))
+			{
+				// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
+				if ( ConstantMaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
+				{
+					ConstantMaterialInstance->ForceRecompileForRendering();
+					return true;
+				}
+				else
+				{
+					// If a static switch is overridden, we need to recompile
+					FStaticParameterSet StaticParameters;
+					ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
+
+					for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
+					{
+						if ( Switch.bOverride )
+						{
+							ConstantMaterialInstance->ForceRecompileForRendering();
+							return true;
+						}
+					}
+				}
+			}
+
+			// Force compilation if there is no valid render proxy
+			const FMaterialRenderProxy* RenderProxy = MaterialInterface->GetRenderProxy();
+
+			return RenderProxy == nullptr || !RenderProxy->IsInitialized();
 		};
 
 		int32 AssetBuiltCount = 0;
