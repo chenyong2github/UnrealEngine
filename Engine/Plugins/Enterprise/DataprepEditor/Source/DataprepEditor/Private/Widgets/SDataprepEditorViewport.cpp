@@ -171,7 +171,7 @@ namespace DataprepEditor3DPreviewUtils
 
 	/** Compile all materials included in the input array*/
 	// Copied from DatasmithImporterImpl::CompileMaterial
-	void CompileMaterials(const TArray< UMaterialInterface* > Materials);
+	void CompileMaterials(const TArray< UMaterialInterface* >& Materials);
 
 	void FindMeshComponents(const AActor * InActor, TArray<UStaticMeshComponent*>& MeshComponents, bool bRecursive );
 
@@ -721,6 +721,21 @@ void SDataprepEditorViewport::OnFocusViewportToSelection()
 
 void SDataprepEditorViewport::InitializeDefaultMaterials()
 {
+	auto CreateMaterialFunc = [](FString MaterialName) -> UMaterial*
+	{
+		FSoftObjectPath MaterialSoftPath = FSoftObjectPath(FString("/DataprepEditor/") + MaterialName + "." + MaterialName);
+		if(UMaterial* Material = Cast< UMaterial >( MaterialSoftPath.TryLoad() ))
+		{
+			Material->SetFlags(RF_Transient);
+			Material->ClearFlags(RF_Transactional);
+
+			return Material;
+		}
+
+		check(false);
+		return nullptr;
+	};
+
 	const int32 DefaultMaterialsCount = 4;
 
 	TArray< UMaterialInterface* > Materials;
@@ -728,15 +743,7 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!PreviewMaterial.IsValid())
 	{
-		PreviewMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/PreviewMaterial.PreviewMaterial").TryLoad() ) );
-
-		if(!PreviewMaterial.IsValid())
-		{
-			PreviewMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial").TryLoad() ) );
-		}
-
-		check( PreviewMaterial.IsValid() );
-
+		PreviewMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("PreviewMaterial") );
 		Materials.Add( PreviewMaterial.Get() );
 	}
 
@@ -758,28 +765,19 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!XRayMaterial.IsValid())
 	{
-		XRayMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/xray_master.xray_master").TryLoad() ) );
-
-		check( XRayMaterial.IsValid() );
-
+		XRayMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("xray_master") );
 		Materials.Add( XRayMaterial.Get() );
 	}
 
 	if(!BackFaceMaterial.IsValid())
 	{
-		BackFaceMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/BackFaceMaterial.BackFaceMaterial").TryLoad() ) );
-
-		check( BackFaceMaterial.IsValid() );
-
+		BackFaceMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("BackFaceMaterial") );
 		Materials.Add( BackFaceMaterial.Get() );
 	}
 
 	if(!PerMeshMaterial.IsValid())
 	{
-		PerMeshMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/PerMeshMaterial.PerMeshMaterial").TryLoad() ) );
-
-		check( PerMeshMaterial.IsValid() );
-
+		PerMeshMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("PerMeshMaterial") );
 		Materials.Add( PerMeshMaterial.Get() );
 	}
 
@@ -807,10 +805,7 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!ReflectionMaterial.IsValid())
 	{
-		ReflectionMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/ReflectionMaterial.ReflectionMaterial").TryLoad() ) );
-
-		check( ReflectionMaterial.IsValid() );
-
+		ReflectionMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("ReflectionMaterial") );
 		Materials.Add( ReflectionMaterial.Get() );
 	}
 
@@ -1626,7 +1621,7 @@ namespace DataprepEditor3DPreviewUtils
 	}
 
 	// Copied from DatasmithImporterImpl::CompileMaterial
-	void CompileMaterials(const TArray< UMaterialInterface* > Materials)
+	void CompileMaterials(const TArray< UMaterialInterface* >& Materials)
 	{
 		if(Materials.Num() > 0)
 		{
