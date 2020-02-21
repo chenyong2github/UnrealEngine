@@ -20,6 +20,11 @@ FSessionTraceFilterService::FSessionTraceFilterService(Trace::FSessionHandle InH
 	RetrieveAndStoreStartupChannels();
 }
 
+FSessionTraceFilterService::~FSessionTraceFilterService()
+{
+	FCoreDelegates::OnEndFrame.RemoveAll(this);
+}
+
 void FSessionTraceFilterService::GetRootObjects(TArray<FTraceObjectInfo>& OutObjects) const
 {
 	const Trace::IChannelProvider* ChannelProvider = Session->ReadProvider<Trace::IChannelProvider>("ChannelProvider");

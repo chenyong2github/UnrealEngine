@@ -19,7 +19,7 @@ class FSessionTraceFilterService : public ISessionTraceFilterService
 {
 public:
 	FSessionTraceFilterService(Trace::FSessionHandle InHandle, TSharedPtr<const Trace::IAnalysisSession> InSession);
-	virtual ~FSessionTraceFilterService() {}
+	virtual ~FSessionTraceFilterService();
 
 	/** Begin ISessionTraceFilterService overrides */
 	virtual void GetRootObjects(TArray<FTraceObjectInfo>& OutObjects) const override;
