@@ -55,6 +55,11 @@ namespace MagicLeap
 		virtual ~IAppEventHandler();
 
 		/**
+			Perform any operations that must occur when an application begins
+		*/
+		virtual void OnAppStart();
+
+		/**
 			Can be overridden by inheriting class that needs to destroy certain api interfaces before the perception stack is
 			closed down.
 		*/
@@ -100,6 +105,15 @@ namespace MagicLeap
 			Triggered when a privilege request changes state.
 		*/
 		bool AddPrivilegeEventHandler(EMagicLeapPrivilege PrivilegeID, FRequiredPrivilege::FPrivilegeEventHandler&& InOnPrivilegeEvent);
+
+		/**
+			Use this as an alternative to overriding the OnAppStart function.  This allows you to use IAppEventHandler
+			as and aggregate class rather than an ancestor.
+		*/
+		void SetOnAppStartHandler(FEventHandler&& InOnAppStartHandler)
+		{
+			OnAppStartHandler = MoveTemp(InOnAppStartHandler);
+		}
 
 		/**
 			Use this as an alternative to overriding the OnAppShutDown function.  This allows you to use IAppEventHandler
@@ -149,6 +163,7 @@ namespace MagicLeap
 
 	protected:
 		TMap<EMagicLeapPrivilege, FRequiredPrivilege> RequiredPrivileges;
+		FEventHandler OnAppStartHandler;
 		FEventHandler OnAppShutDownHandler;
 		FEventHandler OnAppTickHandler;
 		FEventHandler OnAppPauseHandler;

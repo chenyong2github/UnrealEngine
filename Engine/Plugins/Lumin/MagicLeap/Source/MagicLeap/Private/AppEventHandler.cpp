@@ -9,7 +9,8 @@
 namespace MagicLeap
 {
 	IAppEventHandler::IAppEventHandler(const TArray<EMagicLeapPrivilege>& InRequiredPrivilegeIDs)
-	: OnAppShutDownHandler(nullptr)
+	: OnAppStartHandler(nullptr)
+	, OnAppShutDownHandler(nullptr)
 	, OnAppTickHandler(nullptr)
 	, OnAppPauseHandler(nullptr)
 	, OnAppResumeHandler(nullptr)
@@ -144,6 +145,14 @@ namespace MagicLeap
 		UE_LOG(LogMagicLeap, Error, TEXT("Failed to resolve Privilege '%s' in required privileges list!"), *MagicLeap::MLPrivilegeToString(PrivilegeID));
 #endif // WITH_MLSDK
 		return false;
+	}
+
+	void IAppEventHandler::OnAppStart()
+	{
+		if (OnAppStartHandler)
+		{
+			OnAppStartHandler();
+		}
 	}
 
 	void IAppEventHandler::OnAppShutDown()
