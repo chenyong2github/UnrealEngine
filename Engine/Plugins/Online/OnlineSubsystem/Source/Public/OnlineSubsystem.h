@@ -373,7 +373,8 @@ public:
 	 * Get the interface for accessing an online store
 	 * @return Interface pointer for the appropriate online store service
 	 */
-	UE_DEPRECATED(4.25, "Move to OnlineStoreInterfaceV2 and OnlinePurchaseInterface.")
+	// @todo samz
+	//	UE_DEPRECATED(4.26, "Move to OnlineStoreInterfaceV2 and OnlinePurchaseInterface.")
 	virtual IOnlineStorePtr GetStoreInterface() const { return nullptr; }
 
 	/** 
