@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets//SNullGraphPin.h"
+#include "Widgets/SNullGraphPin.h"
 
 #include "Widgets/SNullWidget.h"
 
