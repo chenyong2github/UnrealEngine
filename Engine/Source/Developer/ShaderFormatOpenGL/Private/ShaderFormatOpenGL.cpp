@@ -18,7 +18,7 @@ class FShaderFormatGLSL : public IShaderFormat
 	enum
 	{
 		/** Version for shader format, this becomes part of the DDC key. */
-		UE_SHADER_GLSL_VER = 89,
+		UE_SHADER_GLSL_VER = 90,
 	};
 
 	void CheckFormat(FName Format) const
