@@ -34,19 +34,31 @@ bool URemoteImportLibrary::ImportSource(const FString& FilePath, const FString& 
 }
 
 
-void URemoteImportLibrary::RegisterAnchor(const FRemoteImportAnchor& Anchor)
+FString URemoteImportLibrary::RegisterAnchor(const FRemoteImportAnchor& Anchor, bool bAllowRename)
 {
-	Anchors.Add(Anchor);
+	FRemoteImportAnchor AnchorCopy = Anchor;
+	FString InitialName = AnchorCopy.Name;
+	int32 Suffix = 0;
+	while (Anchors.FindByPredicate([&](const FRemoteImportAnchor& Registered){return Registered.Name == AnchorCopy.Name;}))
+	{
+		if (!bAllowRename)
+		{
+			return {};
+		}
+		AnchorCopy.Name = InitialName + TEXT("_") + FString::FromInt(Suffix++);
+	}
+	Anchors.Add(AnchorCopy);
 	OnAnchorListChange.Broadcast();
+	return AnchorCopy.Name;
 }
 
-
-void URemoteImportLibrary::UnregisterAnchor(const FString& AnchorName)
+void URemoteImportLibrary::UnregisterAnchor(const FString& AnchorHandle)
 {
-	Anchors.RemoveAll([&AnchorName](const FRemoteImportAnchor& Anchor){ return Anchor.Name == AnchorName; });
-	OnAnchorListChange.Broadcast();
+	if (Anchors.RemoveAll([&AnchorHandle](const FRemoteImportAnchor& Anchor){ return Anchor.Name == AnchorHandle; }))
+	{
+		OnAnchorListChange.Broadcast();
+	}
 }
-
 
 TArray<FString> URemoteImportLibrary::ListAnchors()
 {
