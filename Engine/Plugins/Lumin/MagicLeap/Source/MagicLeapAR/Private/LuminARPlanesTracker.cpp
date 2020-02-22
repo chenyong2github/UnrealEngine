@@ -29,6 +29,8 @@ void FLuminARPlanesTracker::DestroyEntityTracker()
 	IMagicLeapPlanesModule::Get().RemoveQuery(PlanesQueryHandle);
 	IMagicLeapPlanesModule::Get().DestroyTracker();
 	PlaneResultsMap.Empty();
+	PlaneParentMap.Empty();
+	bPlanesQueryPending = false;
 }
 
 void FLuminARPlanesTracker::OnStartGameFrame()

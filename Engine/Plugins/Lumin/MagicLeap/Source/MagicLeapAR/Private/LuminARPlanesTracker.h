@@ -47,7 +47,6 @@ private:
 	// Maps InnerID's to the plane and boundary data
 	TMap<FGuid, FLuminPlanesAndBoundaries> PlaneResultsMap;
 
-	int32 MaxPlaneQueryResults = 0;
 	bool bDiscardZeroExtentPlanes = false;
 
 	bool bPlanesQueryPending;
