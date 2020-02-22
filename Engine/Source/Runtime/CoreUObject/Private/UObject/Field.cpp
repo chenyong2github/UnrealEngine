@@ -644,17 +644,17 @@ FString FField::GetFullGroupName(bool bStartWithOuter) const
 			}
 			else
 			{
-				return Owner.ToField()->GetPathName();
+				return Owner.ToField()->GetPathName(GetOutermost());
 			}
 		}
 		else
 		{
-			return TEXT("");
+			return FString();
 		}
 	}
 	else
 	{
-		return GetPathName();
+		return GetPathName(GetOutermost());
 	}
 }
 
