@@ -316,7 +316,10 @@ bool FStreamingGeometryCacheData::BlockTillAllRequestsFinished(float TimeLimit)
 void FStreamingGeometryCacheData::ProcessCompletedChunks()
 {
 	//Note: This function should only be called from code which owns the CriticalSection
-	check(IsInGameThread() || IsInRenderingThread());
+	if (!IsInGameThread() && !IsInRenderingThread())
+	{
+		return;
+	}
 
 	FCompletedChunk CompletedChunk;
 	while (CompletedChunks.Dequeue(CompletedChunk))
