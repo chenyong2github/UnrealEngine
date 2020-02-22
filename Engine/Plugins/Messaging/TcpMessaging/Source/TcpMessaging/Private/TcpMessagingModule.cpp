@@ -272,7 +272,7 @@ protected:
 	 */
 	bool SupportsNetworkedTransport() const
 	{
-#if UE_BUILD_SHIPPING
+#if UE_BUILD_SHIPPING && !(defined(ALLOW_TCP_MESSAGING_SHIPPING) && ALLOW_TCP_MESSAGING_SHIPPING)
 		return false;
 #else
 		// disallow unsupported platforms
