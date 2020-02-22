@@ -18,7 +18,14 @@ DECLARE_LOG_CATEGORY_EXTERN( LogDatasmithImport, Log, All );
 class DATASMITHIMPORTER_API FDatasmithImporterUtils
 {
 public:
-	/** Loads an IDatasmithScene from a UDatasmithScene */
+	enum class EAssetCreationStatus : uint8
+	{
+		CS_CanCreate,
+		CS_HasRedirector,
+		CS_ClassMismatch,
+	};
+
+		/** Loads an IDatasmithScene from a UDatasmithScene */
 	static TSharedPtr< IDatasmithScene > LoadDatasmithScene( UDatasmithScene* DatasmithSceneAsset );
 
 	/** Saves an IDatasmithScene into a UDatasmithScene */
@@ -109,6 +116,25 @@ public:
 	 * would not prevent the creation of such asset. A special report is done for object redirector
 	 */
 	static bool CanCreateAsset(const FString& AssetPathName, const UClass* AssetClass, FText& OutFailReason);
+
+	/**
+	 * @param AssetPathName		Full path name of the asset to create
+	 * @param AssetClass		Class of the asset to create
+	 * Returns a state from the creation enumeration, EAssetCreationStatus.
+	 * Given a path and a class, check if an existing asset with a different class
+	 * would not prevent the creation of such asset.
+	 */
+	static EAssetCreationStatus CanCreateAsset(const FString& AssetPathName, const UClass* AssetClass);
+
+	/**
+	 * @param AssetPathName		Full path name of the asset to create
+	 * Calls CanCreateAsset(const FString&, const UClass*) with the instantiating class
+	 */
+	template< class ObjectType >
+	static EAssetCreationStatus CanCreateAsset(const FString& AssetPathName)
+	{
+		return CanCreateAsset(AssetPathName, ObjectType::StaticClass());
+	}
 
 	/**
 	 * Finds the UDatasmithScene for which the Asset belongs to.
