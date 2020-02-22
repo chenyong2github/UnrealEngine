@@ -317,7 +317,7 @@ FText STimingDiagramWidget::GetTooltipText() const
 		const float DistanceToNewestSampleSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleStandardDeviation(InputIdentifier);
 		const float DistanceToOldestSampleSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleStandardDeviation(InputIdentifier);
 
-		return FText::Format(LOCTEXT("TimingDiagramTooltip", "Distance to newest:\nMean: {0}\nSigma: {1}\n\nDistance to oldest:\nMean: {2}\nSigma: {3}")
+		return FText::Format(LOCTEXT("TimingDiagramTooltip_DistanceToNewest", "Distance to newest:\nMean: {0}\nSigma: {1}\n\nDistance to oldest:\nMean: {2}\nSigma: {3}")
 			, DistanceToNewestSampleAverage
 			, DistanceToNewestSampleSigma
 			, DistanceToOldestSampleAverage
@@ -333,7 +333,7 @@ FText STimingDiagramWidget::GetTooltipText() const
 		FTimedDataInputEvaluationData LastEvalData;
 		TimedDataMonitorSubsystem->GetChannelLastEvaluationDataStat(ChannelIdentifier, LastEvalData);
 	
-		return FText::Format(LOCTEXT("TimingDiagramTooltip", "Sample count: {0}\n\nDistance to newest:\nLast Value: {1}\nMean: {2}\nSigma: {3}\n\nDistance to oldest:\nLast Value: {4}\nMean: {5}\nSigma: {6}")
+		return FText::Format(LOCTEXT("TimingDiagramTooltip_SampleCount", "Sample count: {0}\n\nDistance to newest:\nLast Value: {1}\nMean: {2}\nSigma: {3}\n\nDistance to oldest:\nLast Value: {4}\nMean: {5}\nSigma: {6}")
 		, SampleCount
 		, LastEvalData.DistanceToNewestSampleSeconds
 		, DistanceToNewestSampleAverage
