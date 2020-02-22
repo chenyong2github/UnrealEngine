@@ -3114,10 +3114,40 @@ FString GetFbxPropertyStringValue(const FbxProperty& Property)
 		ValueStr = LexToString(BoolValue);
 	}
 	break;
+	case eFbxChar:
+	{
+		FbxChar CharValue = Property.Get<FbxChar>();
+		ValueStr = LexToString(CharValue);
+	}
+	break;
+	case eFbxUChar:
+	{
+		FbxUChar UCharValue = Property.Get<FbxUChar>();
+		ValueStr = LexToString(UCharValue);
+	}
+	break;
+	case eFbxShort:
+	{
+		FbxShort ShortValue = Property.Get<FbxShort>();
+		ValueStr = LexToString(ShortValue);
+	}
+	break;
+	case eFbxUShort:
+	{
+		FbxUShort UShortValue = Property.Get<FbxUShort>();
+		ValueStr = LexToString(UShortValue);
+	}
+	break;
 	case eFbxInt:
 	{
 		FbxInt IntValue = Property.Get<FbxInt>();
 		ValueStr = LexToString(IntValue);
+	}
+	break;
+	case eFbxUInt:
+	{
+		FbxUInt UIntValue = Property.Get<FbxUInt>();
+		ValueStr = LexToString(UIntValue);
 	}
 	break;
 	case eFbxEnum:
