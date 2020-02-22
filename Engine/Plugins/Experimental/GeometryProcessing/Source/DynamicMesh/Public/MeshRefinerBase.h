@@ -90,6 +90,10 @@ public:
 
 
 public:
+	FMeshRefinerBase(const FMeshRefinerBase&) = delete;
+	FMeshRefinerBase(FMeshRefinerBase&&) = delete;
+	FMeshRefinerBase& operator=(const FMeshRefinerBase&) = delete;
+	FMeshRefinerBase& operator=(FMeshRefinerBase&&) = delete;
 	virtual ~FMeshRefinerBase() {}
 
 	/** Get the current mesh we are operating on */
