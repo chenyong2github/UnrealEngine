@@ -17,6 +17,7 @@ void FGameplayAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Class, "Object", "Class");
 	Builder.RouteEvent(RouteId_Object, "Object", "Object");
 	Builder.RouteEvent(RouteId_ObjectEvent, "Object", "ObjectEvent");
+	Builder.RouteEvent(RouteId_World, "Object", "World");
 }
 
 bool FGameplayAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
@@ -26,6 +27,16 @@ bool FGameplayAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
 	{
+	case RouteId_World:
+	{
+		uint64 Id = EventData.GetValue<uint64>("Id");
+		int32 PIEInstanceId = EventData.GetValue<int32>("PIEInstanceId");
+		uint8 Type = EventData.GetValue<uint8>("Type");
+		uint8 NetMode = EventData.GetValue<uint8>("NetMode");
+		bool bIsSimulating = EventData.GetValue<bool>("IsSimulating");
+		GameplayProvider.AppendWorld(Id, PIEInstanceId, Type, NetMode, bIsSimulating);
+		break;
+	}
 	case RouteId_Class:
 	{
 		const TCHAR* ClassNameAndPathName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());

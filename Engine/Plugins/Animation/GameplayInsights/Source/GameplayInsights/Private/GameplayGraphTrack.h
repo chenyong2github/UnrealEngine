@@ -9,6 +9,7 @@
 class FTimingEventSearchParameters;
 class FGameplayGraphTrack;
 struct FVariantTreeNode;
+namespace Trace { struct FFrame; }
 
 /** The various layouts that we display series with */
 enum class EGameplayGraphLayout : int32
@@ -50,8 +51,9 @@ public:
 	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
-	// Get all variants at the specified time
+	// Get all variants at the specified time/frame
 	virtual void GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const {}
+	virtual void GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const;
 
 	// Get the requested track size scale
 	float GetRequestedTrackSizeScale() const { return RequestedTrackSizeScale; }
