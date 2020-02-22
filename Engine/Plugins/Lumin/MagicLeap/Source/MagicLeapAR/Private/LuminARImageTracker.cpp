@@ -26,6 +26,7 @@ void FLuminARImageTracker::CreateEntityTracker()
 void FLuminARImageTracker::DestroyEntityTracker()
 {
 	IMagicLeapImageTrackerModule::Get().DestroyTracker();
+	TrackedTargetNames.Empty();
 }
 
 void FLuminARImageTracker::OnStartGameFrame()
