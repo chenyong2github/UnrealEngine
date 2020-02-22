@@ -1117,7 +1117,7 @@ bool UGameplayCueManager::VerifyNotifyAssetIsInValidPath(FString Path)
 
 	if (!ValidPath)
 	{
-		FString MessageTry = FString::Printf(TEXT("Warning: Invalid GameplayCue Path %s"));
+		FString MessageTry = FString::Printf(TEXT("Warning: Invalid GameplayCue Path %s"), *Path);
 		MessageTry += TEXT("\n\nGameplayCue Notifies should only be saved in the following folders:");
 
 		ABILITY_LOG(Warning, TEXT("Warning: Invalid GameplayCuePath: %s"), *Path);
