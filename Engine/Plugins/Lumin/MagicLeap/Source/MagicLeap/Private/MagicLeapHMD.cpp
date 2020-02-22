@@ -539,7 +539,7 @@ bool FMagicLeapHMD::IsHMDConnected()
 		{
 			while (!IsEngineExitRequested())
 			{
-				bool bIsZIServerRunning;
+				bool bIsZIServerRunning = false;
 				MLResult Result = MLRemoteIsServerConfigured(&bIsZIServerRunning);
 				if (Result != MLResult_Ok && Result != MLResult_Timeout && Result != MLResult_NotImplemented)
 				{
@@ -743,6 +743,12 @@ void FMagicLeapHMD::RefreshTrackingFrame()
 {
 #if WITH_MLSDK
 	check(IsInGameThread());
+
+	// Can't refresh tracking frame until head tracking has been enabled
+	if (HeadTracker == ML_INVALID_HANDLE)
+	{
+		return;
+	}
 
 	GameTrackingFrame.PixelDensity = PixelDensity;
 
@@ -1191,19 +1197,26 @@ bool FMagicLeapHMD::NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderT
 
 bool FMagicLeapHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 FlagsIn, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
-	// From AllocateRenderTargetTexture
-	if (!IsStereoEnabled())
+	if (IsStereoEnabled() && bNeedReAllocateDepthTexture)
 	{
-		return false;
+		FIntPoint ExpectedRenderTargetSize = GetIdealRenderTargetSize();
+		ExpectedRenderTargetSize.X = FMath::CeilToInt(ExpectedRenderTargetSize.X * PixelDensity);
+		ExpectedRenderTargetSize.Y = FMath::CeilToInt(ExpectedRenderTargetSize.Y * PixelDensity);
+
+		// Ensure the texture size matches eye render target size. We may get other depth allocations unrelated to the main scene render.
+		if (ExpectedRenderTargetSize == FIntPoint(SizeX, SizeY))
+		{
+			FRHIResourceCreateInfo CreateInfo(FClearValueBinding::DepthFar);
+			RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_DepthStencil, 1, FlagsIn, TargetableTextureFlags | TexCreate_InputAttachmentRead, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture);
+
+			DepthBuffer = OutTargetableTexture;
+			bNeedReAllocateDepthTexture = false;
+
+			return true;
+		}
 	}
 
-	FRHIResourceCreateInfo CreateInfo(FClearValueBinding::DepthFar);
-	RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_DepthStencil, 1, FlagsIn, TargetableTextureFlags | TexCreate_InputAttachmentRead, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture);
-
-	DepthBuffer = OutTargetableTexture;
-	bNeedReAllocateDepthTexture = false;
-
-	return true;
+	return false;
 }
 
 bool FMagicLeapHMD::GetHeadTrackingState(FMagicLeapHeadTrackingState& State) const
@@ -1301,7 +1314,10 @@ bool FMagicLeapHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint
 	FRHIResourceCreateInfo CreateInfo;
 	RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_R8G8B8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture);
 
+#if PLATFORM_LUMIN
+	// Depth should only be allocated if it is going to be used. Depth is not used with ZI
 	bNeedReAllocateDepthTexture = true;
+#endif // PLATFORM_LUMIN
 
 	return true;
 }
@@ -1544,6 +1560,7 @@ void FMagicLeapHMD::EnableDeviceFeatures()
 		// we get the profile effects on non-vr-preview rendering.
 		EnableLuminProfile();
 	}
+	AppFramework.OnApplicationStart();
 }
 
 void FMagicLeapHMD::DisableDeviceFeatures()
@@ -1580,6 +1597,13 @@ void FMagicLeapHMD::DisableDeviceFeatures()
 void FMagicLeapHMD::InitDevice_RenderThread()
 {
 #if WITH_MLSDK
+	// Can't initialize render thread until head tracking has been enabled
+	MLHandle HeadTrackerHandle = FPlatformAtomics::AtomicRead(reinterpret_cast<const volatile int64*>(&HeadTracker));
+	if (HeadTrackerHandle == ML_INVALID_HANDLE)
+	{
+		return;
+	}
+
 	if (bQueuedGraphicsCreateCall)
 	{
 		UE_LOG(LogMagicLeap, Warning, TEXT("Graphics client create call already queued."));
@@ -1591,11 +1615,16 @@ void FMagicLeapHMD::InitDevice_RenderThread()
 		bool bDeviceSuccessfullyInitialized = false;
 		// Unreal supports sRGB which is the default we are requesting from graphics as well now.
 		MLGraphicsOptions gfx_opts;
-		gfx_opts.graphics_flags = 0; //MLGraphicsFlags_DebugMode;
 		gfx_opts.color_format = MLSurfaceFormat_RGBA8UNormSRGB;
-		gfx_opts.depth_format = MLSurfaceFormat_D32Float;
 
+#if PLATFORM_LUMIN
 		gfx_opts.graphics_flags = MLGraphicsFlags_Default;
+		gfx_opts.depth_format = MLSurfaceFormat_D32Float;
+#else
+		// ZI doesn't make use of depth
+		gfx_opts.graphics_flags = MLGraphicsFlags_NoDepth;
+#endif
+
 
 #if PLATFORM_WINDOWS
 		if (IsPCPlatform(GMaxRHIShaderPlatform) && !IsOpenGLPlatform(GMaxRHIShaderPlatform))
