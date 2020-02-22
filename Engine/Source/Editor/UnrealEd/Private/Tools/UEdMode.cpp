@@ -396,7 +396,7 @@ UEdMode::UEdMode()
 	ToolsContext = nullptr;
 	ToolsContextClass = UInteractiveToolsContext::StaticClass();
 	ToolCommandList = MakeShareable(new FUICommandList);
-	bCheckIfDefaultToolNeeded = true;
+	bCheckIfDefaultToolNeeded = false;
 }
 
 
