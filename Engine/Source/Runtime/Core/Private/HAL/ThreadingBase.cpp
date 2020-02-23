@@ -807,6 +807,9 @@ FQueuedThreadPool* FQueuedThreadPool::Allocate()
 	return new FQueuedThreadPoolBase;
 }
 
+FQueuedThreadPool::FQueuedThreadPool() = default;
+FQueuedThreadPool::~FQueuedThreadPool() = default;
+
 //////////////////////////////////////////////////////////////////////////
 
 uint32
