@@ -9,7 +9,6 @@
 #include "Internationalization/Text.h"
 #include "Logging/TokenizedMessage.h"
 
-class Error;
 class IMessageLog;
 
 class FMessageLog
