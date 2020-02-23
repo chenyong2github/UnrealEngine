@@ -2,6 +2,7 @@
 
 #include "Net/NetPushModelHelpers.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "EngineLogs.h"
 
 void UNetPushModelHelpers::MarkPropertyDirty(UObject* Object, FName PropertyName)
 {
