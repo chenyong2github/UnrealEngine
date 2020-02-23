@@ -1065,7 +1065,7 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		for (UBlueprintGeneratedClass* TestBPClass = BlueprintClass; TestBPClass != nullptr; TestBPClass = Cast<UBlueprintGeneratedClass>(TestBPClass->GetSuperClass()))
 		{
 			const UBlueprint* AssociatedBP = Cast<const UBlueprint>(TestBPClass->ClassGeneratedBy);
-			if (AssociatedBP->SimpleConstructionScript != nullptr)
+			if (AssociatedBP && AssociatedBP->SimpleConstructionScript != nullptr)
 			{
 				NumAddedComponents += AssociatedBP->SimpleConstructionScript->GetAllNodesConst().Num();
 			}
