@@ -244,6 +244,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Determines if a file is part of the given module
+		/// </summary>
+		/// <param name="Location">Path to the file</param>
+		/// <returns>True if the file is part of this module</returns>
+		public virtual bool ContainsFile(FileReference Location)
+		{
+			return Location.IsUnderDirectory(ModuleDirectory);
+		}
+
+		/// <summary>
 		/// Returns a list of this module's dependencies.
 		/// </summary>
 		/// <returns>An enumerable containing the dependencies of the module.</returns>
