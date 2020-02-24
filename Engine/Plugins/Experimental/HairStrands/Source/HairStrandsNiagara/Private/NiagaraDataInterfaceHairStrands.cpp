@@ -731,22 +731,22 @@ public:
 
 			const FHairStrandsRootResource::FMeshProjectionLOD* MeshProjection = (HasRootAttachedValue == 1) ? &(HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0]) : nullptr;
 
-			FShaderResourceViewRHIRef RestTrianglePositionASRV = (HasRootAttachedValue == 1) ?
-				MeshProjection->RestRootTrianglePosition0Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
-			FShaderResourceViewRHIRef RestTrianglePositionBSRV = (HasRootAttachedValue == 1) ?
-				MeshProjection->RestRootTrianglePosition1Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
-			FShaderResourceViewRHIRef RestTrianglePositionCSRV = (HasRootAttachedValue == 1) ?
-				MeshProjection->RestRootTrianglePosition2Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+			FRHIShaderResourceView* RestTrianglePositionASRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->RestRootTrianglePosition0Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* RestTrianglePositionBSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->RestRootTrianglePosition1Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* RestTrianglePositionCSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->RestRootTrianglePosition2Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
-			FShaderResourceViewRHIRef DeformedTrianglePositionASRV = (HasRootAttachedValue == 1) ?
-				MeshProjection->DeformedRootTrianglePosition0Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
-			FShaderResourceViewRHIRef DeformedTrianglePositionBSRV = (HasRootAttachedValue == 1) ?
-				MeshProjection->DeformedRootTrianglePosition1Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
-			FShaderResourceViewRHIRef DeformedTrianglePositionCSRV = (HasRootAttachedValue == 1) ?
-				MeshProjection->DeformedRootTrianglePosition2Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+			FRHIShaderResourceView* DeformedTrianglePositionASRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->DeformedRootTrianglePosition0Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* DeformedTrianglePositionBSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->DeformedRootTrianglePosition1Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* DeformedTrianglePositionCSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->DeformedRootTrianglePosition2Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
-			FShaderResourceViewRHIRef RootBarycentricCoordinatesSRV = (HasRootAttachedValue == 1) ? 
-				MeshProjection->RootTriangleBarycentricBuffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+			FRHIShaderResourceView* RootBarycentricCoordinatesSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->RootTriangleBarycentricBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
 			int32 bNeedSimReset = (ProxyData->TickCount <= ProxyData->ResetTick ? 1 : 0);
 			FVector RestRootOffsetValue = FVector::ZeroVector;
@@ -791,11 +791,11 @@ public:
 		}
 		else
 		{
-			SetUAVParameter(RHICmdList, ComputeShaderRHI, DeformedPositionBuffer, FNiagaraRenderer::GetDummyFloatBuffer().UAV);
-			SetUAVParameter(RHICmdList, ComputeShaderRHI, BoundingBoxBuffer, FNiagaraRenderer::GetDummyUIntBuffer().UAV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, NodeBoundBuffer, FNiagaraRenderer::GetDummyUIntBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurvesOffsetsBuffer, FNiagaraRenderer::GetDummyUIntBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestPositionBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+			SetUAVParameter(RHICmdList, ComputeShaderRHI, DeformedPositionBuffer, Context.Batcher->GetEmptyRWBufferFromPool(RHICmdList, PF_R32_FLOAT));
+			SetUAVParameter(RHICmdList, ComputeShaderRHI, BoundingBoxBuffer, Context.Batcher->GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT));
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, NodeBoundBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurvesOffsetsBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestPositionBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, FMatrix::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, FMatrix::Identity);
@@ -813,15 +813,15 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, RestPositionOffset, FVector(0,0,0));
 			SetShaderValue(RHICmdList, ComputeShaderRHI, DeformedPositionOffset, FVector(0,0,0));
 
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTrianglePositionABuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTrianglePositionBBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTrianglePositionCBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTrianglePositionABuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTrianglePositionBBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTrianglePositionCBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, DeformedTrianglePositionABuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, DeformedTrianglePositionBBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, DeformedTrianglePositionCBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, DeformedTrianglePositionABuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, DeformedTrianglePositionBBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, DeformedTrianglePositionCBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RootBarycentricCoordinatesBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, RootBarycentricCoordinatesBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 		}
 	}
 
