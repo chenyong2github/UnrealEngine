@@ -78,7 +78,7 @@ FMediaIOCorePlayerBase::FMediaIOCorePlayerBase(IMediaEventSink& InEventSink)
 	, TimeDelay(0.0)
 	, PreviousFrameTimespan(FTimespan::Zero())
 {
-	Samples = new FMediaIOCoreSamples(this);
+	Samples = new FMediaIOCoreSamples();
 }
 
 FMediaIOCorePlayerBase::~FMediaIOCorePlayerBase()
@@ -193,26 +193,31 @@ void FMediaIOCorePlayerBase::TickTimeManagement()
 {
 	if (bUseTimeSynchronization)
 	{
-		FTimecode Timecode = FApp::GetTimecode();
-		const FFrameRate FrameRate = FApp::GetTimecodeFrameRate();
-
-		if (!bWarnedIncompatibleFrameRate)
+		TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
+		if (CurrentFrameTime.IsSet())
 		{
-			if (!FrameRate.IsMultipleOf(VideoFrameRate) && !VideoFrameRate.IsMultipleOf(FrameRate))
+			if (!bWarnedIncompatibleFrameRate)
 			{
-				bWarnedIncompatibleFrameRate = true;
-				UE_LOG(LogMediaIOCore, Warning, TEXT("The video's frame rate is incompatible with engine's frame rate. %s"), *OpenUrl);
+				if (!CurrentFrameTime->Rate.IsMultipleOf(VideoFrameRate) && !VideoFrameRate.IsMultipleOf(CurrentFrameTime->Rate))
+				{
+					bWarnedIncompatibleFrameRate = true;
+					UE_LOG(LogMediaIOCore, Warning, TEXT("The video's frame rate is incompatible with engine's frame rate. %s"), *OpenUrl);
+				}
 			}
-		}
 
-		if (FrameDelay != 0)
+			if (FrameDelay != 0)
+			{
+				FFrameTime FrameNumberVideoRate = CurrentFrameTime->ConvertTo(VideoFrameRate);
+				FrameNumberVideoRate.FrameNumber -= FrameDelay;
+				CurrentFrameTime->Time = FFrameRate::TransformTime(FrameNumberVideoRate, VideoFrameRate, CurrentFrameTime->Rate);
+			}
+
+			CurrentTime = FTimespan::FromSeconds(CurrentFrameTime->AsSeconds());
+		}
+		else
 		{
-			FFrameNumber FrameNumber = Timecode.ToFrameNumber(VideoFrameRate);
-			FrameNumber -= FrameDelay;
-			Timecode = FTimecode::FromFrameNumber(FrameNumber, FrameRate, Timecode.bDropFrameFormat);
+			UE_LOG(LogMediaIOCore, Verbose, TEXT("The video '%s' is configured to use timecode but none is available on the engine."), *OpenUrl);
 		}
-
-		CurrentTime = Timecode.ToTimespan(FrameRate);
 	}
 	else
 	{
