@@ -23,6 +23,7 @@
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraNodeOutput.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "EdGraphSchema_NiagaraSystemOverview.h"
@@ -1272,6 +1273,51 @@ void FNiagaraSystemViewModel::ResetCurveData()
 	OnCurveOwnerChangedDelegate.Broadcast();
 }
 
+void GetCompiledScriptAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNiagaraSystem& OwningSystem, UNiagaraScript*& OutCompiledScript, FString& OutEmitterName)
+{
+	OutCompiledScript = nullptr;
+	OutEmitterName = FString();
+	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(StackNode);
+	if (OutputNode != nullptr)
+	{
+		if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript)
+		{
+			OutCompiledScript = OwningSystem.GetSystemSpawnScript();
+		}
+		else if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript)
+		{
+			OutCompiledScript = OwningSystem.GetSystemUpdateScript();
+		}
+		else
+		{
+			const FNiagaraEmitterHandle* OwningEmitterHandle = OwningSystem.GetEmitterHandles().FindByPredicate([&StackNode](const FNiagaraEmitterHandle& EmitterHandle)
+			{
+				return CastChecked<UNiagaraScriptSource>(EmitterHandle.GetInstance()->GraphSource)->NodeGraph == StackNode.GetNiagaraGraph();
+			});
+
+			if(OwningEmitterHandle != nullptr)
+			{
+				OutEmitterName = OwningEmitterHandle->GetInstance()->GetUniqueEmitterName();
+				switch (OutputNode->GetUsage())
+				{
+				case ENiagaraScriptUsage::EmitterSpawnScript:
+					OutCompiledScript = OwningSystem.GetSystemSpawnScript();
+					break;
+				case ENiagaraScriptUsage::EmitterUpdateScript:
+					OutCompiledScript = OwningSystem.GetSystemUpdateScript();
+					break;
+				case ENiagaraScriptUsage::ParticleSpawnScript:
+				case ENiagaraScriptUsage::ParticleUpdateScript:
+				case ENiagaraScriptUsage::ParticleEventScript:
+				case ENiagaraScriptUsage::ParticleSimulationStageScript:
+					OutCompiledScript = OwningEmitterHandle->GetInstance()->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId());
+					break;
+				}
+			}
+		}
+	}
+}
+
 void UpdateCompiledDataInterfacesForScript(UNiagaraScript& TargetScript, FName TargetDataInterfaceName, UNiagaraDataInterface& SourceDataInterface)
 {
 	for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : TargetScript.GetCachedDefaultDataInterfaces())
@@ -1297,32 +1343,14 @@ void FNiagaraSystemViewModel::UpdateCompiledDataInterfaces(UNiagaraDataInterface
 		}
 
 		// If the data interface was owned by an input node, then we need to try to update the compiled version.
-		UNiagaraEmitter* OwningEmitter;
-		UNiagaraScript* OwningScript;
-		FNiagaraStackGraphUtilities::GetOwningEmitterAndScriptForStackNode(*OuterInputNode, GetSystem(), OwningEmitter, OwningScript);
-		if (ensureMsgf(OwningScript != nullptr, TEXT("Could not find owning script for data interface input node.")))
+		UNiagaraScript* CompiledScript;
+		FString EmitterName;
+		GetCompiledScriptAndEmitterNameFromInputNode(*OuterInputNode, GetSystem(), CompiledScript, EmitterName);
+		if (ensureMsgf(CompiledScript != nullptr, TEXT("Could not find owning script for data interface input node.")))
 		{
-			switch (OwningScript->GetUsage())
-			{
-			case ENiagaraScriptUsage::SystemSpawnScript:
-			case ENiagaraScriptUsage::SystemUpdateScript:
-			case ENiagaraScriptUsage::ParticleSpawnScript:
-			case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
-			case ENiagaraScriptUsage::ParticleUpdateScript:
-			case ENiagaraScriptUsage::ParticleSimulationStageScript:
-			case ENiagaraScriptUsage::ParticleEventScript:
-				UpdateCompiledDataInterfacesForScript(*OwningScript, OuterInputNode->Input.GetName(), *ChangedDataInterface);
-				break;
-			case ENiagaraScriptUsage::EmitterSpawnScript:
-			case ENiagaraScriptUsage::EmitterUpdateScript:
-				if (ensureMsgf(OwningEmitter != nullptr, TEXT("Could not find owning emitter for data interface input node.")))
-				{
-					UNiagaraScript& TargetScript = OwningScript->GetUsage() == ENiagaraScriptUsage::EmitterSpawnScript ? *GetSystem().GetSystemSpawnScript() : *GetSystem().GetSystemUpdateScript();
-					FName AliasedInputNodeName = FNiagaraParameterMapHistory::ResolveEmitterAlias(OuterInputNode->Input.GetName(), OwningEmitter->GetUniqueEmitterName());
-					UpdateCompiledDataInterfacesForScript(TargetScript, AliasedInputNodeName, *ChangedDataInterface);
-				}
-				break;
-			}
+			bool bIsParameterMapDataInterface = false;
+			FName DataInterfaceName = FHlslNiagaraTranslator::GetDataInterfaceName(OuterInputNode->Input.GetName(), EmitterName, bIsParameterMapDataInterface);
+			UpdateCompiledDataInterfacesForScript(*CompiledScript, DataInterfaceName, *ChangedDataInterface);
 		}
 	}
 	else
