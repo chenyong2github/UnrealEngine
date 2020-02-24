@@ -1714,6 +1714,11 @@ namespace AutomationTool
 		public ParamList<string> ExtraTargetsToStageWithClient = new ParamList<string>();
 
         /// <summary>
+        /// Stage: Optional callback that a build script can use to modify a deployment context before it is applied
+        /// </summary>
+        public Action<ProjectParams, DeploymentContext> ModifyDeploymentContextCallback = null;
+
+        /// <summary>
         /// On Windows, adds an executable to the root of the staging directory which checks for prerequisites being 
 		/// installed and launches the game with a path to the .uproject file.
 		/// </summary>

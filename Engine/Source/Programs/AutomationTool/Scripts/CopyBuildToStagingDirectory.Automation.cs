@@ -938,6 +938,12 @@ public partial class Project : CommandUtils
 			}
 		}
 
+		// Allow the calling scripts to make modifications to the deployment context before we finalize it
+		if (Params.ModifyDeploymentContextCallback != null)
+		{
+			Params.ModifyDeploymentContextCallback(Params, SC);
+		}
+
 		// Apply all the directory mappings
 		SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
 		SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
@@ -1259,7 +1265,7 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	static StagedFileReference ApplyDirectoryRemap(DeploymentContext SC, StagedFileReference InputFile)
+	public static StagedFileReference ApplyDirectoryRemap(DeploymentContext SC, StagedFileReference InputFile)
 	{
 		StagedFileReference CurrentFile = InputFile;
 		foreach (Tuple<StagedDirectoryReference, StagedDirectoryReference> RemapDirectory in SC.RemapDirectories)
@@ -3488,7 +3494,7 @@ public partial class Project : CommandUtils
 			// If we are staging a client and have been asked to include editor targets, we currently only want to
 			// include a single Development editor target. Ideally, we should have shipping editor configs and then
 			// just include the requested configs for all targets
-			if (!InDedicatedServer && Params.EditorTargets.Contains(Target))
+			if (Params.EditorTargets.Contains(Target) || Params.ProgramTargets.Contains(Target))
 			{
 				TargetAndConfigPairs.Add(new Tuple<string, UnrealTargetConfiguration>(Target, UnrealTargetConfiguration.Development));
 			}
