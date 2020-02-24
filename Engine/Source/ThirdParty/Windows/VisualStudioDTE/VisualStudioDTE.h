@@ -14,15 +14,8 @@
 	#pragma warning(disable: 4146)
 	#pragma warning(disable: 4191)
 	#pragma warning(disable: 6244)
-
-	// import EnvDTE
-	#if WITH_VISUALSTUDIO_DTE_OLB
-		// Including pregenerated .tlh file to avoid race conditions generating from olb by multiple compilers running in parallel (typically in non-unity builds).
-		#include "NotForLicensees/dte80a.tlh" 
-		// #import "NotForLicensees/dte80a.olb" version("8.0") lcid("0") raw_interfaces_only named_guids
-	#else
-		#import "libid:80cc9f66-e7d8-4ddd-85b6-d9e6cd0e93e2" version("8.0") lcid("0") raw_interfaces_only named_guids
-	#endif
+	
+	#include "dte80a.tlh"
 
 	#pragma warning(pop)
 #endif

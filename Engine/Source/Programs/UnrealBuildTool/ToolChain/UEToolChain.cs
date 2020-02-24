@@ -42,6 +42,11 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
+		public virtual void GenerateTypeLibraryHeader(CppCompileEnvironment CompileEnvironment, ModuleRules.TypeLibrary TypeLibrary, FileReference OutputFile, List<Action> Actions)
+		{
+			throw new NotSupportedException("This platform does not support type libraries.");
+		}
+
 		public abstract FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions);
 		public virtual FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
 		{
