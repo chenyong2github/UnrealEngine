@@ -1268,7 +1268,9 @@ void AddShaderSourceDirectoryMapping(const FString& VirtualShaderDirectory, cons
 {
 	check(IsInGameThread());
 
-	if (FPlatformProperties::RequiresCookedData())
+	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
+
+	if (FPlatformProperties::RequiresCookedData() || bNoShaderCompile)
 	{
 		return;
 	}
