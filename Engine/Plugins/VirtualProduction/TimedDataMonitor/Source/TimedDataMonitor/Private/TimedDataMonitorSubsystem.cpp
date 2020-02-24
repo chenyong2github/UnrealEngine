@@ -3,6 +3,7 @@
 #include "TimedDataMonitorSubsystem.h"
 
 #include "Engine/Engine.h"
+#include "Engine/TimecodeProvider.h"
 #include "Engine/World.h"
 #include "ITimeManagementModule.h"
 #include "LatentActions.h"
@@ -12,6 +13,10 @@
 #include "TimedDataInputCollection.h"
 #include "TimedDataMonitorCalibration.h"
 #include "UObject/Stack.h"
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#include "Misc/FileHelper.h"
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 
 static TAutoConsoleVariable<bool> CVarEnableTimedDataMonitorSubsystemStats(TEXT("TimedDataMonitor.EnableStatUpdate"), 1, TEXT("Enable calculating evaluation statistics of all registered channels."));
