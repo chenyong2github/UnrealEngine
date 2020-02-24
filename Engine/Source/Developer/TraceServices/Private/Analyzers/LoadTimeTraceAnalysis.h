@@ -109,6 +109,11 @@ private:
 		RouteId_ClassInfo,
 		RouteId_BatchIssued,
 		RouteId_BatchResolved,
+
+		// Backwards compatibility
+		RouteId_BeginObjectScope,
+		RouteId_EndObjectScope,
+		RouteId_AsyncPackageLinkerAssociation,
 	};
 
 	enum
@@ -155,4 +160,7 @@ private:
 	TPointerMap<uint64> ActiveBatchesMap;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
 	TPointerMap<const Trace::FClassInfo*> ClassInfosMap;
+
+	// Backwards compatibility
+	TPointerMap<FAsyncPackageState*> LinkerToAsyncPackageMap;
 };

@@ -81,6 +81,11 @@ void FAsyncLoadingTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 	Builder.RouteEvent(RouteId_ClassInfo, "LoadTime", "ClassInfo");
 	Builder.RouteEvent(RouteId_BatchIssued, "IoDispatcher", "BatchIssued");
 	Builder.RouteEvent(RouteId_BatchResolved, "IoDispatcher", "BatchResolved");
+
+	// Backwards compatibility
+	Builder.RouteEvent(RouteId_BeginObjectScope, "LoadTime", "BeginObjectScope");
+	Builder.RouteEvent(RouteId_EndObjectScope, "LoadTime", "EndObjectScope");
+	Builder.RouteEvent(RouteId_AsyncPackageLinkerAssociation, "LoadTime", "AsyncPackageLinkerAssociation");
 }
 
 bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
@@ -90,8 +95,17 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	{
 	case RouteId_PackageSummary:
 	{
+		FAsyncPackageState* AsyncPackage = nullptr;
 		uint64 AsyncPackagePtr = EventData.GetValue<uint64>("AsyncPackage");
-		FAsyncPackageState* AsyncPackage = ActiveAsyncPackagesMap.FindRef(AsyncPackagePtr);
+		if (AsyncPackagePtr)
+		{
+			AsyncPackage = ActiveAsyncPackagesMap.FindRef(AsyncPackagePtr);
+		}
+		else
+		{
+			uint64 LinkerPtr = EventData.GetValue<uint64>("Linker"); // Backwards compatibility
+			AsyncPackage = LinkerToAsyncPackageMap.FindRef(LinkerPtr);
+		}
 		if (AsyncPackage)
 		{
 			Trace::FAnalysisSessionEditScope _(Session);
@@ -107,8 +121,18 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		Trace::FAnalysisSessionEditScope _(Session);
 
 		Trace::FPackageExportInfo& Export = LoadTimeProfilerProvider.CreateExport();
+		Export.SerialSize = EventData.GetValue<uint64>("SerialSize"); // Backwards compatibility
+		FAsyncPackageState* AsyncPackage = nullptr;
 		uint64 AsyncPackagePtr = EventData.GetValue<uint64>("AsyncPackage");
-		FAsyncPackageState* AsyncPackage = ActiveAsyncPackagesMap.FindRef(AsyncPackagePtr);
+		if (AsyncPackagePtr)
+		{
+			AsyncPackage = ActiveAsyncPackagesMap.FindRef(AsyncPackagePtr);
+		}
+		else
+		{
+			uint64 LinkerPtr = EventData.GetValue<uint64>("Linker");  // Backwards compatibility
+			AsyncPackage = LinkerToAsyncPackageMap.FindRef(LinkerPtr);
+		}
 		if (AsyncPackage)
 		{
 			AsyncPackage->PackageInfo->Exports.Add(&Export);
@@ -145,11 +169,12 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 
 		Trace::FPackageExportInfo* Export = ExportsMap.FindRef(ObjectPtr);
-		check(Export);
-
 		if (Export)
 		{
-			Export->SerialSize = SerialSize;
+			if (SerialSize)
+			{
+				Export->SerialSize = SerialSize;
+			}
 			if (Export->Package)
 			{
 				const_cast<Trace::FPackageInfo*>(Export->Package)->TotalExportsSerialSize += SerialSize;
@@ -365,6 +390,37 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 			LoadTimeProfilerProvider.EndIoDispatcherBatch(*FindBatchHandle, Context.SessionContext.TimestampFromCycle(Cycle), TotalSize);
 		}
 
+		break;
+	}
+	case RouteId_BeginObjectScope:
+	{
+		uint64 ObjectPtr = EventData.GetValue<uint64>("Object");
+		Trace::FPackageExportInfo* Export = ExportsMap.FindRef(ObjectPtr);
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
+		FThreadState& ThreadState = GetThreadState(ThreadId);
+		Trace::ELoadTimeProfilerObjectEventType EventType = static_cast<Trace::ELoadTimeProfilerObjectEventType>(EventData.GetValue<uint8>("EventType"));
+		if (Export)
+		{
+			ThreadState.EnterExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")), Export, EventType);
+		}
+		break;
+	}
+	case RouteId_EndObjectScope:
+	{
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
+		FThreadState& ThreadState = GetThreadState(ThreadId);
+		ThreadState.LeaveExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+		break;
+	}
+	case RouteId_AsyncPackageLinkerAssociation:
+	{
+		uint64 LinkerPtr = EventData.GetValue<uint64>("Linker");
+		uint64 AsyncPackagePtr = EventData.GetValue<uint64>("AsyncPackage");
+		FAsyncPackageState* AsyncPackageState = ActiveAsyncPackagesMap.FindRef(AsyncPackagePtr);
+		if (AsyncPackageState)
+		{
+			LinkerToAsyncPackageMap.Add(LinkerPtr, AsyncPackageState);
+		}
 		break;
 	}
 	}
