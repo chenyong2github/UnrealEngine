@@ -193,6 +193,25 @@ void URuntimeVirtualTextureStreamingProxy::BeginCacheForCookedPlatformData(const
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 }
 
+bool URuntimeVirtualTextureStreamingProxy::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	if (!UseVirtualTexturing(GMaxRHIFeatureLevel, TargetPlatform))
+	{
+		return true;
+	}
+
+	return Super::IsCachedCookedPlatformDataLoaded(TargetPlatform);
+}
+
+void URuntimeVirtualTextureStreamingProxy::ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+	if (!UseVirtualTexturing(GMaxRHIFeatureLevel, TargetPlatform))
+	{
+		return;
+	}
+
+	Super::ClearCachedCookedPlatformData(TargetPlatform);
+}
 #endif
 
 
