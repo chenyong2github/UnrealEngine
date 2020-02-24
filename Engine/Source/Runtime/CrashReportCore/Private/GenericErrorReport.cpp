@@ -5,12 +5,14 @@
 #include "HAL/PlatformFilemanager.h"
 #include "UObject/NameTypes.h"
 #include "Logging/LogMacros.h"
+#include "Misc/EngineBuildSettings.h"
 #include "Misc/Parse.h"
 #include "Misc/FileHelper.h"
 #include "Internationalization/Text.h"
 #include "CrashReportCoreConfig.h"
 #include "Modules/ModuleManager.h"
 #include "CrashReportUtil.h"
+
 
 #if WITH_CRASHREPORTER
 #include "CrashDebugHelper.h"
@@ -62,12 +64,11 @@ bool FGenericErrorReport::SetUserComment(const FText& UserComment)
 
 	FPrimaryCrashProperties::Get()->UserDescription = UserComment.ToString();
 
-	// Load the file and remove all PII if bAllowToBeContacted is set to false.
-	const bool bRemovePersonalData = !bAllowToBeContacted;
+	// Load the file and remove all PII if not an internal build
+	const bool bRemovePersonalData = !FEngineBuildSettings::IsInternalBuild();
 	if( bRemovePersonalData )
 	{
 		FPrimaryCrashProperties::Get()->UserName = TEXT( "" );
-		FPrimaryCrashProperties::Get()->EpicAccountId = TEXT( "" );
 		// For now remove the command line completely, to hide the potential personal data. Need to revisit it later.
 		FPrimaryCrashProperties::Get()->CommandLine = TEXT( "CommandLineRemoved" );
 	}
