@@ -254,7 +254,10 @@ UEdGraphNode* FEdGraphSchemaAction_K2NewNode::CreateNode(
 	// Duplicate template node to create new node
 	UK2Node* ResultNode = ConstructionFn(ParentGraph);
 	InitializerFn(ResultNode);
-	ResultNode->SetFlags(RF_Transactional);
+	if (ParentGraph->HasAnyFlags(RF_Transactional))
+	{
+		ResultNode->SetFlags(RF_Transactional);
+	}
 
 	ParentGraph->AddNode(ResultNode, true, bSelectNewNode);
 
