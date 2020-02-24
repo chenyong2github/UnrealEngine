@@ -1255,6 +1255,11 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 
 void FInstancedStaticMeshSceneProxy::SetupRayTracingCullClusters()
 {
+	if (!IsRayTracingEnabled())
+	{
+		return;
+	}
+
 	check(IsInGameThread());
 
 	//#dxr_todo: select the appropriate LOD depending on Context.View
