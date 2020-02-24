@@ -569,7 +569,7 @@ void FCoreTechFileParser::ReadMaterials()
 FCoreTechFileParser::FCoreTechFileParser(const FImportParameters& ImportParams, const FString& EnginePluginsPath, const FString& InCachePath)
 	: CachePath(InCachePath)
 	, ImportParameters(ImportParams)
-	, bSewRequired(ImportParameters.StitchingTechnique == StitchingSew)
+	, bFixTopoRequired(ImportParameters.StitchingTechnique != StitchingNone)
 {
 	CTKIO_InitializeKernel(ImportParameters.MetricUnit, *EnginePluginsPath);
 }
@@ -821,11 +821,11 @@ CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt
 	// Ask Kernel IO to complete or create missing topology
 	if (MainFileExt == TEXT("igs") || MainFileExt == TEXT("iges"))
 	{
+		bFixTopoRequired = false;
 		Flags |= CT_LOAD_FLAG_COMPLETE_TOPOLOGY;
 		if (ImportParameters.StitchingTechnique == StitchingSew)
 		{
 			Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY;
-			bSewRequired = false;
 		}
 	}
 
@@ -969,9 +969,19 @@ bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 Default
 	TArray<CT_OBJECT_ID> Instances, Bodies;
 	GetInstancesAndBodies(ComponentId, Instances, Bodies);
 
-	if (!Instances.Num() && (Bodies.Num() > 1) && bSewRequired)
+	if (ImportParameters.StitchingTechnique != StitchingNone && bFixTopoRequired)
 	{
-		Repair(ComponentId, StitchingSew);
+		if (!Instances.Num() && Bodies.Num() > 1 && ImportParameters.StitchingTechnique == StitchingSew)
+		{
+			Repair(ComponentId, StitchingSew);
+		}
+		else
+		{
+			for (CT_OBJECT_ID Body : Bodies)
+			{
+				Repair(Body, StitchingHeal);
+			}
+		}
 		GetInstancesAndBodies(ComponentId, Instances, Bodies);
 	}
 

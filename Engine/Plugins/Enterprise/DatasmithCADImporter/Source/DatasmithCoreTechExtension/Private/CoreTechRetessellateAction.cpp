@@ -203,12 +203,16 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 			{
 				TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
 				FMeshSectionInfoMap& SectionInfoMap = StaticMesh.GetSectionInfoMap();
-				ensure(MeshDescription.PolygonGroups().Num() == SectionInfoMap.GetSectionNumber(0));
 
 				for (FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
 				{
 					FMeshSectionInfo Section = SectionInfoMap.Get(0, PolygonGroupID.GetValue());
-					Section.MaterialIndex = StaticMesh.GetMaterialIndex(MaterialSlotNames[PolygonGroupID]);
+					int32 MaterialIndex = StaticMesh.GetMaterialIndex(MaterialSlotNames[PolygonGroupID]);
+					if (MaterialIndex < 0)
+					{
+						MaterialIndex = 0;
+					}
+					Section.MaterialIndex = MaterialIndex;
 					SectionInfoMap.Set(0, PolygonGroupID.GetValue(), Section);
 				}
 			}
