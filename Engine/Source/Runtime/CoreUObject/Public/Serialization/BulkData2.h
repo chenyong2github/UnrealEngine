@@ -51,6 +51,9 @@ struct FBulkDataOrId
 };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FBulkDataOrId);
 
+// Declare this here rather than BulkDataCommon.h
+DECLARE_INTRINSIC_TYPE_LAYOUT(EBulkDataFlags);
+
 /**
  * This is a wrapper for the BulkData memory allocation so we can use a single pointer to either
  * reference a straight memory allocation or in the case that the BulkData object represents a 
@@ -109,17 +112,25 @@ public:
 public:
 	static constexpr FileToken InvalidToken = INDEX_NONE;
 
-	FBulkDataBase(const FBulkDataBase& Other) { *this = Other; }
-	FBulkDataBase(FBulkDataBase&& Other);
-	FBulkDataBase& operator=(const FBulkDataBase& Other);
-
 	FBulkDataBase()
 	{ 
 		Data.Fallback.BulkDataSize = 0;
 		Data.Fallback.Token = InvalidToken;
 	}
-	~FBulkDataBase();
+	
+	FBulkDataBase(const FBulkDataBase& Other)
+	{
+		// Need some partial initialization of operator= will try to release the token!
+		Data.Fallback.BulkDataSize = 0;
+		Data.Fallback.Token = InvalidToken;
 
+		*this = Other;
+	}
+
+	FBulkDataBase(FBulkDataBase&& Other);
+	FBulkDataBase& operator=(const FBulkDataBase& Other);
+
+	~FBulkDataBase();
 protected:
 
 	void Serialize(FArchive& Ar, UObject* Owner, int32 Index, bool bAttemptFileMapping, int32 ElementSize);
@@ -247,7 +258,7 @@ private:
 
 	LAYOUT_FIELD(FBulkDataOrId, Data);
 	LAYOUT_FIELD(FBulkDataAllocation, DataAllocation);
-	LAYOUT_FIELD_INITIALIZED(uint32, BulkDataFlags, 0);
+	LAYOUT_FIELD_INITIALIZED(EBulkDataFlags, BulkDataFlags, EBulkDataFlags::BULKDATA_None);
 	LAYOUT_MUTABLE_FIELD_INITIALIZED(uint8, LockStatus, 0); // Mutable so that the read only lock can be const
 };
 
