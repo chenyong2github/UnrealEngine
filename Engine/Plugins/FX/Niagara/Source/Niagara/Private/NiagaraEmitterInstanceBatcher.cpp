@@ -1264,21 +1264,28 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	// set the shader and data set params 
 	//
 	const bool bRequiresPersistentIDs = Context->MainDataSet->RequiresPersistentIDs();
-	SetSRVParameter(RHICmdList, Shader.GetComputeShader(), Shader->FreeIDBufferParam, bRequiresPersistentIDs ? Context->MainDataSet->GetGPUFreeIDs().SRV : FNiagaraRenderer::GetDummyIntBuffer().SRV);
+	SetSRVParameter(RHICmdList, Shader.GetComputeShader(), Shader->FreeIDBufferParam, bRequiresPersistentIDs ? Context->MainDataSet->GetGPUFreeIDs().SRV : FNiagaraRenderer::GetDummyIntBuffer());
 	CurrentData.SetShaderParams(Shader.GetShader(), RHICmdList, true);
 	DestinationData.SetShaderParams(Shader.GetShader(), RHICmdList, false);
 
-	// set the index buffer uav
+	// set the instance count uav
 	//
-	if (Shader->InstanceCountsParam.IsBound() && !IterationInterface )
+	if (Shader->InstanceCountsParam.IsBound())
 	{
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, GPUInstanceCounterManager.GetInstanceCountBuffer().UAV);
-		Shader->InstanceCountsParam.SetBuffer(RHICmdList, ComputeShader, GPUInstanceCounterManager.GetInstanceCountBuffer());
-		const uint32 ReadOffset = (Tick.bNeedsReset && SimulationStageIndex == 0) ? INDEX_NONE : Instance->SimStageData[SimulationStageIndex].SourceCountOffset;
-		const uint32 WriteOffset = Instance->SimStageData[SimulationStageIndex].DestinationCountOffset;
-		//UE_LOG(LogNiagara, Log, TEXT("Instance count setup R: %d W: %d reset? %s %d"), ReadOffset, WriteOffset, Tick.bNeedsReset ? TEXT("T") : TEXT("F"), CurrentData.GetGPUInstanceCountBufferOffset());
-		SetShaderValue(RHICmdList, ComputeShader, Shader->ReadInstanceCountOffsetParam, ReadOffset);
-		SetShaderValue(RHICmdList, ComputeShader, Shader->WriteInstanceCountOffsetParam, WriteOffset);
+		if (IterationInterface)
+		{
+			RHICmdList.SetUAVParameter(ComputeShader, Shader->InstanceCountsParam.GetUAVIndex(), GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT));
+		}
+		else
+		{
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, GPUInstanceCounterManager.GetInstanceCountBuffer().UAV);
+			Shader->InstanceCountsParam.SetBuffer(RHICmdList, ComputeShader, GPUInstanceCounterManager.GetInstanceCountBuffer());
+			const uint32 ReadOffset = (Tick.bNeedsReset && SimulationStageIndex == 0) ? INDEX_NONE : Instance->SimStageData[SimulationStageIndex].SourceCountOffset;
+			const uint32 WriteOffset = Instance->SimStageData[SimulationStageIndex].DestinationCountOffset;
+			//UE_LOG(LogNiagara, Log, TEXT("Instance count setup R: %d W: %d reset? %s %d"), ReadOffset, WriteOffset, Tick.bNeedsReset ? TEXT("T") : TEXT("F"), CurrentData.GetGPUInstanceCountBufferOffset());
+			SetShaderValue(RHICmdList, ComputeShader, Shader->ReadInstanceCountOffsetParam, ReadOffset);
+			SetShaderValue(RHICmdList, ComputeShader, Shader->WriteInstanceCountOffsetParam, WriteOffset);
+		}
 	}
 
 	// set the execution parameters
@@ -1399,9 +1406,77 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	CurrentData.UnsetShaderParams(Shader.GetShader(), RHICmdList);
 	DestinationData.UnsetShaderParams(Shader.GetShader(), RHICmdList);
 	Shader->InstanceCountsParam.UnsetUAV(RHICmdList, ComputeShader);
+
+	ResetEmptyUAVPools(RHICmdList);
 }
 
 FGPUSortManager* NiagaraEmitterInstanceBatcher::GetGPUSortManager() const
 {
 	return GPUSortManager;
+}
+
+NiagaraEmitterInstanceBatcher::DummyUAV::~DummyUAV()
+{
+	UAV.SafeRelease();
+	Buffer.SafeRelease();
+	Texture.SafeRelease();
+}
+
+void NiagaraEmitterInstanceBatcher::DummyUAV::Init(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture, const TCHAR* DebugName)
+{
+	checkSlow(IsInRenderingThread());
+
+	FRHIResourceCreateInfo CreateInfo;
+	CreateInfo.DebugName = DebugName;
+
+	if (IsTexture)
+	{
+		Texture = RHICreateTexture2D(1, 1, Format, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+		UAV = RHICreateUnorderedAccessView(Texture, 0);
+	}
+	else
+	{
+		uint32 BytesPerElement = GPixelFormats[Format].BlockBytes;
+		Buffer = RHICreateVertexBuffer(BytesPerElement, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
+		UAV = RHICreateUnorderedAccessView(Buffer, Format);
+	}
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAV);
+}
+
+FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const
+{
+	TMap<EPixelFormat, DummyUAVPool>& UAVMap = IsTexture ? DummyTexturePool : DummyBufferPool;
+	DummyUAVPool& Pool = UAVMap.FindOrAdd(Format);
+	checkSlow(Pool.NextFreeIndex <= Pool.UAVs.Num());
+	if (Pool.NextFreeIndex == Pool.UAVs.Num())
+	{
+		DummyUAV& NewUAV = Pool.UAVs.AddDefaulted_GetRef();
+		NewUAV.Init(RHICmdList, Format, IsTexture, TEXT("NiagaraEmitterInstanceBatcher::DummyUAV"));
+	}
+
+	FRHIUnorderedAccessView* UAV = Pool.UAVs[Pool.NextFreeIndex].UAV;
+	++Pool.NextFreeIndex;
+	return UAV;
+}
+
+void NiagaraEmitterInstanceBatcher::ResetEmptyUAVPool(TMap<EPixelFormat, DummyUAVPool>& UAVMap, TArray<FRHIUnorderedAccessView*>& Transitions)
+{
+	for (TPair<EPixelFormat, DummyUAVPool>& Entry : UAVMap)
+	{
+		for (int UsedIdx = 0; UsedIdx < Entry.Value.NextFreeIndex; ++UsedIdx)
+		{
+			Transitions.Add(Entry.Value.UAVs[UsedIdx].UAV);
+		}
+		Entry.Value.NextFreeIndex = 0;
+	}
+}
+
+void NiagaraEmitterInstanceBatcher::ResetEmptyUAVPools(FRHICommandList& RHICmdList)
+{
+	TArray<FRHIUnorderedAccessView*> Transitions;
+	Transitions.Reserve(32);
+	ResetEmptyUAVPool(DummyBufferPool, Transitions);
+	ResetEmptyUAVPool(DummyTexturePool, Transitions);
+	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, Transitions.GetData(), Transitions.Num());
 }

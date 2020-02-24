@@ -414,7 +414,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 			}
 			else
 			{
-				OutVertexFactory.SetParticleData(FNiagaraRenderer::GetDummyFloatBuffer().SRV, 0);
+				OutVertexFactory.SetParticleData(FNiagaraRenderer::GetDummyFloatBuffer(), 0);
 			}
 		}
 	}

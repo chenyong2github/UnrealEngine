@@ -224,13 +224,13 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		{
 			SetShaderValue(RHICmdList, ComputeShader, NumSpawnedParticlesParam, 0);
 			SetShaderValue(RHICmdList, ComputeShader, SpawnedParticlesAcquireTagParam, 0);
-			SetSRVParameter(RHICmdList, ComputeShader, SpawnedIDsBufferParam, FNiagaraRenderer::GetDummyIntBuffer().SRV);
+			SetSRVParameter(RHICmdList, ComputeShader, SpawnedIDsBufferParam, FNiagaraRenderer::GetDummyIntBuffer());
 			SetShaderValue(RHICmdList, ComputeShader, NumParticlesParam, 0);
 		}
 
-		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, FNiagaraRenderer::GetDummyIntBuffer().SRV);
-		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, FNiagaraRenderer::GetDummyIntBuffer().SRV);
+		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, FNiagaraRenderer::GetDummyIntBuffer());
+		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, FNiagaraRenderer::GetDummyFloatBuffer());
+		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, FNiagaraRenderer::GetDummyIntBuffer());
 		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideFloatParam, 0);
 		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideIntParam, 0);
 		SetShaderValueArray(RHICmdList, ComputeShader, AttributeIndicesParam, AttributeIndices.GetData(), AttributeIndices.Num());
@@ -331,12 +331,12 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 
 	FRHIShaderResourceView* GetIntSRVWithFallback(FRWBuffer& Buffer) const
 	{
-		return Buffer.SRV ? Buffer.SRV : FNiagaraRenderer::GetDummyIntBuffer().SRV;
+		return Buffer.SRV ? Buffer.SRV : FNiagaraRenderer::GetDummyIntBuffer();
 	}
 
 	FRHIShaderResourceView* GetFloatSRVWithFallback(FRWBuffer& Buffer) const
 	{
-		return Buffer.SRV ? Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+		return Buffer.SRV ? Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer();
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
