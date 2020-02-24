@@ -18,7 +18,7 @@ public:
 		, _ButtonStyle(nullptr)
 	{}
 
-	SLATE_ATTRIBUTE(int32, CurrentValue)
+		SLATE_ATTRIBUTE(int32, CurrentValue)
 		SLATE_ATTRIBUTE(FMargin, ContentPadding)
 		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
 		SLATE_EVENT(FOnEnumSelectionChanged, OnEnumSelectionChanged)
@@ -49,5 +49,5 @@ private:
 
 	FOnGetToolTipForValue OnGetToolTipForValue;
 
-	FOnEnumSelectionChanged OnEnumSelectionChanged;
+	FOnEnumSelectionChanged OnEnumSelectionChangedDelegate;
 };
