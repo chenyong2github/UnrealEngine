@@ -643,7 +643,15 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 
 	RemoveBulkData();
 
-	Data.Fallback.Token = FileTokenSystem::CopyFileToken(Other.Data.Fallback.Token);
+	if (Other.IsUsingIODispatcher())
+	{
+		Data.ChunkID = Other.Data.ChunkID;
+	}
+	else
+	{
+		Data.Fallback.BulkDataSize = Other.Data.Fallback.BulkDataSize;
+		Data.Fallback.Token = FileTokenSystem::CopyFileToken(Other.Data.Fallback.Token);
+	}
 
 	// Copy token
 	BulkDataFlags = Other.BulkDataFlags;
@@ -657,10 +665,21 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 	}
 	else
 	{
-		const int64 BulkDataSize = GetBulkDataSize();
-		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
-		const FString MemoryMappedFilename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
-		MemoryMapBulkData(MemoryMappedFilename, FileData.BulkDataOffsetInFile, BulkDataSize);
+		// Note we don't need a fallback since thge original already managed the load, if we fail now then it
+		// is an actual error.
+		if (Other.IsUsingIODispatcher())
+		{
+			TIoStatusOr<FIoMappedRegion> Status = IoDispatcher->OpenMapped(Data.ChunkID, FIoReadOptions());
+			FIoMappedRegion MappedRegion = Status.ConsumeValueOrDie();
+			DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);		
+		}
+		else
+		{
+			const int64 BulkDataSize = GetBulkDataSize();
+			FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
+			const FString MemoryMappedFilename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
+			MemoryMapBulkData(MemoryMappedFilename, FileData.BulkDataOffsetInFile, BulkDataSize);
+		}
 	}
 
 	return *this;
@@ -736,7 +755,9 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		if (!IsInlined() && bUseIoDispatcher)
 		{
-			const EIoChunkType Type = IsOptional() ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
+			const EIoChunkType Type =	IsOptional() ? EIoChunkType::OptionalBulkData : 
+										IsFileMemoryMapped() ? EIoChunkType::MemoryMappedBulkData : 
+										EIoChunkType::BulkData;
 
 			const int64 BulkDataID = BulkDataSize > 0 ? BulkDataOffsetInFile : TNumericLimits<uint64>::Max();
 			Data.ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, Type);
@@ -793,12 +814,16 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				if (bUseIoDispatcher)
 				{
-					const int64 BulkDataID = BulkDataSize > 0 ? BulkDataOffsetInFile : TNumericLimits<uint64>::Max();
-					Data.ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, EIoChunkType::MemoryMappedBulkData);
-
 					TIoStatusOr<FIoMappedRegion> Status = IoDispatcher->OpenMapped(Data.ChunkID, FIoReadOptions());
-					FIoMappedRegion MappedRegion = Status.ConsumeValueOrDie();
-					DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);
+					if (Status.IsOk())
+					{
+						FIoMappedRegion MappedRegion = Status.ConsumeValueOrDie();
+						DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);
+					}
+					else
+					{
+						bShouldForceLoad = true; // Signal we want to force the BulkData to load
+					}
 				}
 				else
 				{
@@ -1107,7 +1132,7 @@ bool FBulkDataBase::IsSingleUse() const
 	return (BulkDataFlags & BULKDATA_SingleUse) != 0;
 }
 
-bool FBulkDataBase::IsMemoryMapped() const
+bool FBulkDataBase::IsFileMemoryMapped() const
 {
 	return (BulkDataFlags & BULKDATA_MemoryMappedPayload) != 0;
 }
@@ -1666,7 +1691,7 @@ FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 	{
 		return FPathViews::ChangeExtension(Filename, BulkDataExt::Export);
 	}
-	else if (IsMemoryMapped())
+	else if (IsFileMemoryMapped())
 	{
 		return FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
 	}

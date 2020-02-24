@@ -177,10 +177,12 @@ public:
 	bool IsOptional() const;
 	bool IsInlined() const;
 	UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
-		FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
+	FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
 	bool IsInSeperateFile() const;
 	bool IsSingleUse() const;
-	bool IsMemoryMapped() const;
+	UE_DEPRECATED(4.26, "Use ::IsFileMemoryMapped() instead")
+	bool IsMemoryMapped() const { return IsFileMemoryMapped(); }
+	bool IsFileMemoryMapped() const;
 	bool IsDataMemoryMapped() const;
 	bool IsUsingIODispatcher() const;
 
