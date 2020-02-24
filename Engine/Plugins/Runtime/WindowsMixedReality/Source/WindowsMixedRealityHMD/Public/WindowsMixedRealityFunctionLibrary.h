@@ -26,7 +26,8 @@ enum class EHMDInputControllerButtons : uint8
 	Menu,
 	Thumbstick,
 	Touchpad,
-	TouchpadIsTouched
+	TouchpadIsTouched,
+	Count UMETA(Hidden)
 };
 
 UENUM()

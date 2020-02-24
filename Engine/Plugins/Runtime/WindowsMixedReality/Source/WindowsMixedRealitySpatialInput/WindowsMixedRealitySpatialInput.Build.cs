@@ -68,6 +68,16 @@ namespace UnrealBuildTool.Rules
                 PCHUsage = PCHUsageMode.NoSharedPCHs;
                 PrivatePCHHeaderFile = "Private/WindowsMixedRealitySpatialInput.h";
             }
-        }
-    }
+
+			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.bBuildEditor == true)
+			{
+				PrivateDependencyModuleNames.Add("WindowsMixedRealityInputSimulation");
+				PrivateDefinitions.Add("WITH_INPUT_SIMULATION=1");
+			}
+			else
+			{
+				PrivateDefinitions.Add("WITH_INPUT_SIMULATION=0");
+			}
+		}
+	}
 }

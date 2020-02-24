@@ -211,6 +211,23 @@ namespace WindowsMixedReality
 	// FWindowsMixedRealityHMD IHeadMountedDisplay Implementation
 	//---------------------------------------------------
 
+	bool FWindowsMixedRealityHMD::IsHeadTrackingAllowed() const
+	{
+		if (FHeadMountedDisplayBase::IsHeadTrackingAllowed())
+		{
+			return true;
+		}
+
+#if WITH_INPUT_SIMULATION
+		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		{
+			return true;
+		}
+#endif
+
+		return false;
+	}
+
 	bool FWindowsMixedRealityHMD::IsHMDConnected()
 	{
 #if WITH_WINDOWS_MIXED_REALITY
@@ -343,8 +360,17 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealityHMD::HasValidTrackingPosition()
 	{
-		const Frame& TheFrame = GetFrame();
-		return TheFrame.bPositionalTrackingUsed;
+#if WITH_INPUT_SIMULATION
+		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		{
+			return InputSim->HasPositionalTracking();
+		}
+		else
+#endif
+		{
+			const Frame& TheFrame = GetFrame();
+			return TheFrame.bPositionalTrackingUsed;
+		}
 	}
 
 	FString FWindowsMixedRealityHMD::GetVersionString() const
@@ -710,10 +736,20 @@ namespace WindowsMixedReality
 			return false;
 		}
 
-		// Get most recently available tracking data.
-		Frame& TheFrame = GetFrame();
-		CurrentOrientation = TheFrame.HeadOrientation;
-		CurrentPosition = TheFrame.HeadPosition;
+#if WITH_INPUT_SIMULATION
+		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		{
+			CurrentOrientation = InputSim->GetHeadOrientation();
+			CurrentPosition = InputSim->GetHeadPosition();
+		}
+		else
+#endif
+		{
+			// Get most recently available tracking data.
+			Frame& TheFrame = GetFrame();
+			CurrentOrientation = TheFrame.HeadOrientation;
+			CurrentPosition = TheFrame.HeadPosition;
+		}
 
 		return true;
 	}
@@ -1979,11 +2015,10 @@ namespace WindowsMixedReality
 	HMDInputPressState WindowsMixedReality::FWindowsMixedRealityHMD::GetPressState(HMDHand hand, HMDInputControllerButtons button, bool onlyRegisterClicks)
 	{
 #if WITH_INPUT_SIMULATION
-		auto* InputSim = GEngine->GetEngineSubsystem<UWindowsMixedRealityInputSimulationEngineSubsystem>();
-		if (InputSim && InputSim->IsInputSimulationEnabled())
+		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
 			bool IsPressed;
-			if (InputSim->GetPressState((EControllerHand)hand, (EInputSimulationControllerButtons)button, onlyRegisterClicks, IsPressed))
+			if (InputSim->GetPressState((EControllerHand)hand, (EHMDInputControllerButtons)button, onlyRegisterClicks, IsPressed))
 			{
 				return IsPressed ? HMDInputPressState::Pressed : HMDInputPressState::Released;
 			}
