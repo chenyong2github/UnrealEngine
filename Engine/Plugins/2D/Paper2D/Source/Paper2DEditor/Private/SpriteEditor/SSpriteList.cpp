@@ -33,9 +33,10 @@ void SSpriteList::RebuildWidget(UTexture2D* NewTextureFilter)
 
 	if (NewTextureFilter != nullptr)
 	{
-		const FString TextureString = TSoftObjectPtr<UTexture2D>(NewTextureFilter).ToString();
 		const FName SourceTexturePropName(TEXT("SourceTexture")); //@TODO: Protected: GET_MEMBER_NAME_CHECKED(UPaperSprite, SourceTexture);
-		Config.Filter.TagsAndValues.Add(SourceTexturePropName, TextureString);
+		Config.Filter.TagsAndValues.Add(SourceTexturePropName, TSoftObjectPtr<UTexture2D>(NewTextureFilter).ToString());
+		// Legacy format for files that haven't been resaved
+		Config.Filter.TagsAndValues.Add(SourceTexturePropName, FAssetData(NewTextureFilter).GetExportTextName());
 
 		// Ignore the source texture since we're filtering against it
 		AssetRegistryTagsToIgnore.Add(SourceTexturePropName);
