@@ -101,7 +101,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_LIB;OPENVDB_2_ABI_COMPATIBLE;OPENVDB_STATICLIB;OPENVDB_OPENEXR_STATICLIB;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\zlib\v1.2.8.\include\Win64\VS2015\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdyParty\openexr\Deploy\include;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\IntelTBB\IntelTBB-4.4u3\include;$(SolutionDir)..\..\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\zlib\v1.2.8.\include\Win64\VS2015\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\openexr\Deploy\OpenEXR-2.3.0\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\IntelTBB\IntelTBB-2019u8\include;$(SolutionDir)..\..\</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
@@ -143,7 +143,7 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_LIB;OPENVDB_2_ABI_COMPATIBLE;OPENVDB_STATICLIB;OPENVDB_OPENEXR_STATICLIB;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\zlib\v1.2.8.\include\Win64\VS2015\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdyParty\openexr\Deploy\include;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\IntelTBB\IntelTBB-4.4u3\include;$(SolutionDir)..\..\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\zlib\v1.2.8.\include\Win64\VS2015\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\openexr\Deploy\OpenEXR-2.3.0\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\;$(SolutionDir)..\..\..\..\..\..\..\Source\ThirdParty\IntelTBB\IntelTBB-2019u8\include;$(SolutionDir)..\..\</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
