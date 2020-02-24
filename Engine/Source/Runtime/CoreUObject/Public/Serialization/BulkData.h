@@ -38,8 +38,7 @@ class IMappedFileRegion;
  */
 struct COREUOBJECT_API FOwnedBulkDataPtr
 {
-
-	FOwnedBulkDataPtr(void* InAllocatedData)
+	explicit FOwnedBulkDataPtr(void* InAllocatedData)
 		: AllocatedData(InAllocatedData)
 		, MappedHandle(nullptr)
 		, MappedRegion(nullptr)
