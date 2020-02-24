@@ -100,6 +100,7 @@ namespace WindowsMixedReality
 
 	public:
 		/** IHeadMountedDisplay interface */
+		virtual bool IsHeadTrackingAllowed() const override;
 		virtual bool IsHMDConnected() override;
 		virtual bool IsHMDEnabled() const override;
 		virtual EHMDWornState::Type GetHMDWornState() override;

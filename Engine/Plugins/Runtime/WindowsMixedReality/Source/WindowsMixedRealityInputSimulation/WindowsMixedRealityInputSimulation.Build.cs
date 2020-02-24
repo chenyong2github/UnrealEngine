@@ -9,9 +9,18 @@ namespace UnrealBuildTool.Rules
 		public WindowsMixedRealityInputSimulation(ReadOnlyTargetRules Target)
 				: base(Target)
 		{
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"WindowsMixedRealityHandTracking"
+				}
+			);
+
             PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"HeadMountedDisplay",
+					"WindowsMixedRealityHMD"
 				}
 			);
 
@@ -21,8 +30,6 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"HeadMountedDisplay",
-					"WindowsMixedRealityHandTracking",
 					"WindowsMixedRealityRuntimeSettings",
 				}
 			);
