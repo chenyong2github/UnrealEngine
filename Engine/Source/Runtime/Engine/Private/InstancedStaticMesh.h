@@ -239,8 +239,6 @@ public:
 	// FRenderResource interface.
 	virtual void InitRHI() override;
 
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
-
 	/** Make sure we account for changes in the signature of GetStaticBatchElementVisibility() */
 	static CONSTEXPR uint32 NumBitsForVisibilityMask()
 	{		
