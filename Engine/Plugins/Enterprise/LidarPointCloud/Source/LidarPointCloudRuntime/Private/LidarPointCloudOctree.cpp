@@ -156,7 +156,7 @@ FLidarPointCloudOctreeNode* FLidarPointCloudOctreeNode::GetChildNodeAtLocation(c
 
 void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, const FLidarPointCloudPoint* Points, const int32& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
 {
-	const auto& LODData = Tree->SharedData[Depth];
+	const FLidarPointCloudOctree::FSharedLODData& LODData = Tree->SharedData[Depth];
 
 	// Local 
 	TArray<FLidarPointCloudPoint> PointBuckets[8];
@@ -170,7 +170,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, cons
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		const FVector AdjustedLocation = Points[Index].Location + Translation;
-		auto InGridData = CalculateGridCellData(AdjustedLocation, Center, LODData);
+		FGridAllocation InGridData = CalculateGridCellData(AdjustedLocation, Center, LODData);
 		FGridAllocation* GridCell = NewGridAllocationMap.Find(InGridData.Index);
 
 		// Attempt to allocate the point to this node
@@ -225,7 +225,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, cons
 		// Rebuild Current Grid Mapping
 		for (int32 i = 0; i < AllocatedPoints.Num(); ++i)
 		{
-			auto InGridData = CalculateGridCellData(AllocatedPoints[i].Location, Center, LODData);
+			FGridAllocation InGridData = CalculateGridCellData(AllocatedPoints[i].Location, Center, LODData);
 			FGridAllocation* GridCell = CurrentGridAllocationMap.Find(InGridData.Index);
 
 			// Attempt to allocate the point to this node
@@ -252,7 +252,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, cons
 		}
 
 		// Compare the incoming data to the currently held set, and replace if necessary
-		for (auto& Element : NewGridAllocationMap)
+		for (TPair<int32, FGridAllocation>& Element : NewGridAllocationMap)
 		{
 			const int32& GridIndex = Element.Key;
 			const FLidarPointCloudPoint& Point = Points[Element.Value.Index];
@@ -347,7 +347,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, cons
 
 void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLidarPointCloudPoint** Points, const int32& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
 {
-	const auto& LODData = Tree->SharedData[Depth];
+	const FLidarPointCloudOctree::FSharedLODData& LODData = Tree->SharedData[Depth];
 
 	// Local 
 	TArray<FLidarPointCloudPoint> PointBuckets[8];
@@ -361,7 +361,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 	for (int32 Index = 0; Index < Count; Index++)
 	{
 		const FVector AdjustedLocation = Points[Index]->Location + Translation;
-		auto InGridData = CalculateGridCellData(AdjustedLocation, Center, LODData);
+		FGridAllocation InGridData = CalculateGridCellData(AdjustedLocation, Center, LODData);
 		FGridAllocation* GridCell = NewGridAllocationMap.Find(InGridData.Index);
 
 		// Attempt to allocate the point to this node
@@ -416,7 +416,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 		// Rebuild Current Grid Mapping
 		for (int32 i = 0; i < AllocatedPoints.Num(); ++i)
 		{
-			auto InGridData = CalculateGridCellData(AllocatedPoints[i].Location, Center, LODData);
+			FGridAllocation InGridData = CalculateGridCellData(AllocatedPoints[i].Location, Center, LODData);
 			FGridAllocation* GridCell = CurrentGridAllocationMap.Find(InGridData.Index);
 
 			// Attempt to allocate the point to this node
@@ -443,7 +443,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 		}
 
 		// Compare the incoming data to the currently held set, and replace if necessary
-		for (auto& Element : NewGridAllocationMap)
+		for (TPair<int32, FGridAllocation>& Element : NewGridAllocationMap)
 		{
 			const int32& GridIndex = Element.Key;
 			const FLidarPointCloudPoint& Point = *Points[Element.Value.Index];
@@ -901,7 +901,7 @@ void FLidarPointCloudOctree::GetPointsAsCopies(TArray<FLidarPointCloudPoint>& Po
 				const int32 NumPointsToCopy = FMath::Max(0LL, FMath::Min((int64)CurrentNode->GetNumPoints(), Count + StartIndex) - StartIndex);
 				if (NumPointsToCopy > 0)
 				{
-					for (auto Point = CurrentNode->GetData() + StartIndex, DataEnd = Point + StartIndex + NumPointsToCopy; Point != DataEnd; ++Point)
+					for (FLidarPointCloudPoint* Point = CurrentNode->GetData() + StartIndex, *DataEnd = Point + StartIndex + NumPointsToCopy; Point != DataEnd; ++Point)
 					{
 						Points.Add(Point->Transform(*LocalToWorld));
 					}
@@ -1153,7 +1153,7 @@ void FLidarPointCloudOctree::SetVisibilityOfPointsByRay(const bool& bNewVisibili
 			// Sort points to speed up rendering
 			CurrentNode->SortVisiblePoints();
 
-			for (auto Child : CurrentNode->Children)
+			for (FLidarPointCloudOctreeNode*& Child : CurrentNode->Children)
 			{
 				Nodes.Enqueue(Child);
 			}
@@ -1342,7 +1342,7 @@ void FLidarPointCloudOctree::RemovePoints(TArray<FLidarPointCloudPoint*>& Points
 		return;
 	}
 
-	for (auto Point = Points.GetData(), DataEnd = Point + Points.Num(); Point != DataEnd; ++Point)
+	for (FLidarPointCloudPoint** Point = Points.GetData(), ** DataEnd = Point + Points.Num(); Point != DataEnd; ++Point)
 	{
 		(*Point)->bMarkedForDeletion = true;
 	}
@@ -1493,7 +1493,7 @@ void FLidarPointCloudOctree::Empty(bool bDestroyNodes)
 		Root.~FLidarPointCloudOctreeNode();
 
 		// Reset node counters
-		for (auto& Count : NodeCount)
+		for (FThreadSafeCounter& Count : NodeCount)
 		{
 			Count.Reset();
 		}
@@ -1511,7 +1511,7 @@ void FLidarPointCloudOctree::Empty(bool bDestroyNodes)
 	}
 	
 	// Reset point counters
-	for (auto& Count : PointCount)
+	for (FThreadSafeCounter64& Count : PointCount)
 	{
 		Count.Reset();
 	}
@@ -1525,7 +1525,7 @@ void FLidarPointCloudOctree::UnregisterTraversalOctree(FLidarPointCloudTraversal
 
 		for (int32 i = 0; i < LinkedTraversalOctrees.Num(); ++i)
 		{
-			if (auto TO = LinkedTraversalOctrees[i].Pin())
+			if (TSharedPtr<FLidarPointCloudTraversalOctree, ESPMode::ThreadSafe> TO = LinkedTraversalOctrees[i].Pin())
 			{
 				if (TO.Get() == TraversalOctree)
 				{
@@ -1609,7 +1609,7 @@ void FLidarPointCloudOctree::UnloadOldNodes(const float& CurrentTime)
 
 	for(int32 i = 0; i < NodesInUse.Num(); ++i)
 	{
-		auto& Node = NodesInUse[i];
+		FLidarPointCloudOctreeNode* Node = NodesInUse[i];
 
 		// Unload data, if it expired
 		if (Node->BulkDataLifetime < CurrentTime)
@@ -1677,7 +1677,7 @@ void FLidarPointCloudOctree::MarkTraversalOctreesForInvalidation()
 {
 	for (int32 i = 0; i < LinkedTraversalOctrees.Num(); ++i)
 	{
-		if (auto TraversalOctree = LinkedTraversalOctrees[i].Pin())
+		if (TSharedPtr<FLidarPointCloudTraversalOctree, ESPMode::ThreadSafe> TraversalOctree = LinkedTraversalOctrees[i].Pin())
 		{
 			TraversalOctree->bValid = false;
 		}
@@ -1868,7 +1868,7 @@ void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<flo
 	Nodes.Enqueue(this);
 	while (Nodes.Dequeue(CurrentNode))
 	{
-		for (auto& Child : CurrentNode->Children)
+		for (const FLidarPointCloudTraversalOctreeNode& Child : CurrentNode->Children)
 		{
 			if (Child.bSelected)
 			{
@@ -1891,7 +1891,7 @@ void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<flo
 	Nodes.Enqueue(this);
 	while (Nodes.Dequeue(CurrentNode))
 	{
-		for (auto& Child : CurrentNode->Children)
+		for (const FLidarPointCloudTraversalOctreeNode& Child : CurrentNode->Children)
 		{
 			if (Child.bSelected)
 			{
@@ -1935,7 +1935,7 @@ FLidarPointCloudTraversalOctree::FLidarPointCloudTraversalOctree(FLidarPointClou
 
 	int64 NumPoints = 0;
 	TArray<int64> PointCount;
-	for (auto& Count : Octree->PointCount)
+	for (FThreadSafeCounter64& Count : Octree->PointCount)
 	{
 		PointCount.Add(Count.GetValue());
 		NumPoints += Count.GetValue();
