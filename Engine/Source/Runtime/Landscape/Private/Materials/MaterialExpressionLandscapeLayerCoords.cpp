@@ -105,9 +105,4 @@ void UMaterialExpressionLandscapeLayerCoords::GetCaption(TArray<FString>& OutCap
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionLandscapeLayerCoords::NeedsLoadForClient() const
-{
-	return true;
-}
-
 #undef LOCTEXT_NAMESPACE

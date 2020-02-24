@@ -2041,8 +2041,17 @@ bool UMaterial::GetParameterDesc(const FHashedMaterialParameterInfo& ParameterIn
 }
 void UMaterial::UpdateCachedExpressionData()
 {
-	CachedExpressionData.Reset();
-	CachedExpressionData.UpdateForExpressions(Expressions, EMaterialParameterAssociation::GlobalParameter, -1);
+	{
+		FMaterialCachedExpressionData UpdatedCachedExpressionData;
+		UpdatedCachedExpressionData.Reset();
+		if (UpdatedCachedExpressionData.UpdateForExpressions(Expressions, EMaterialParameterAssociation::GlobalParameter, -1))
+		{
+			// Only update our cached data if the update succeeded
+			// It's possible we could have some nullptr UMaterialExpressions, if we're loading cooked data here
+			// In that case we simply keep existing cached data
+			CachedExpressionData = MoveTemp(UpdatedCachedExpressionData);
+		}
+	}
 
 	// Always append a default high quality level if nothing else is set
 	bool bAnyQualityLevelsSet = false;
@@ -2057,6 +2066,10 @@ void UMaterial::UpdateCachedExpressionData()
 
 	if (!bAnyQualityLevelsSet)
 	{
+		if (CachedExpressionData.QualityLevelsUsed.Num() == 0)
+		{
+			CachedExpressionData.QualityLevelsUsed.AddDefaulted(EMaterialQualityLevel::Num);
+		}
 		CachedExpressionData.QualityLevelsUsed[EMaterialQualityLevel::High] = true;
 	}
 }

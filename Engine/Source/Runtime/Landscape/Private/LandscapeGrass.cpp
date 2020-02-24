@@ -1121,10 +1121,6 @@ FName UMaterialExpressionLandscapeGrassOutput::GetInputName(int32 InputIndex) co
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionLandscapeGrassOutput::NeedsLoadForClient() const
-{
-	return true;
-}
 
 #if WITH_EDITOR
 void UMaterialExpressionLandscapeGrassOutput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

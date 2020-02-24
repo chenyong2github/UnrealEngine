@@ -42,7 +42,6 @@ class UMaterialExpressionDynamicParameter : public UMaterialExpression
 #endif // WITH_EDITOR
 
 	virtual void PostLoad() override;
-	virtual bool NeedsLoadForClient() const override;
 	//~ End UObject Interface
 
 	//~ Begin UMaterialExpression Interface
