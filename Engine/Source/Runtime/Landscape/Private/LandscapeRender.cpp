@@ -2300,7 +2300,7 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 		}
 
 		UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(AvailableMaterials[MaterialIndex]);
-		bool HasTessellationEnabled = (GetScene().GetFeatureLevel() >= ERHIFeatureLevel::SM5) ? MaterialInstance != nullptr && MaterialInstance->GetMaterial_Concurrent()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation && MaterialIndexToDisabledTessellationMaterial[MaterialIndex] != INDEX_NONE : false;
+		bool HasTessellationEnabled = (GetScene().GetFeatureLevel() >= ERHIFeatureLevel::SM5) ? MaterialInstance != nullptr && RequiresAdjacencyInformation(MaterialInstance, VertexFactory->GetType(), GetScene().GetFeatureLevel()) && MaterialIndexToDisabledTessellationMaterial[MaterialIndex] != INDEX_NONE : false;
 
 		if (HasTessellationEnabled)
 		{
