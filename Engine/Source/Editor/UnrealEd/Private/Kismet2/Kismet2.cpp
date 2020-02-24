@@ -1036,27 +1036,27 @@ UPackage* CreateBlueprintPackage(const FString& Path, FString& OutAssetName)
 	return CreatePackage(nullptr, *PackageName);
 }
 
-UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FString& Path, AActor* Actor, const bool bReplaceActor, bool bKeepMobility /*= false*/)
+UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FString& Path, AActor* Actor, const bool bReplaceActor, bool bKeepMobility /*= false*/, UClass* ParentClassOverride /*= nullptr*/, bool bOpenInEditor /*= true*/)
 {
 	UBlueprint* NewBlueprint = nullptr;
 	FString AssetName;
 
 	if (UPackage* Package = CreateBlueprintPackage(Path, AssetName))
 	{
-		NewBlueprint = CreateBlueprintFromActor(FName(*AssetName), Package, Actor, bReplaceActor, bKeepMobility);
+		NewBlueprint = CreateBlueprintFromActor(FName(*AssetName), Package, Actor, bReplaceActor, bKeepMobility, ParentClassOverride, bOpenInEditor);
 	}
 
 	return NewBlueprint;
 }
 
-UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, const bool bReplaceInWorld)
+UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, const bool bReplaceInWorld, UClass* ParentClass, bool bOpenInEditor)
 {
 	UBlueprint* NewBlueprint = nullptr;
 	FString AssetName;
 
 	if (UPackage* Package = CreateBlueprintPackage(Path, AssetName))
 	{
-		NewBlueprint = CreateBlueprintFromActors(FName(*AssetName), Package, Actors, bReplaceInWorld);
+		NewBlueprint = CreateBlueprintFromActors(FName(*AssetName), Package, Actors, bReplaceInWorld, ParentClass, bOpenInEditor);
 	}
 
 	return NewBlueprint;
@@ -1341,7 +1341,7 @@ private:
 	friend class FKismetEditorUtilities;
 };
 
-UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, const bool bReplaceActor, bool bKeepMobility /*= false*/)
+UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, const bool bReplaceActor, bool bKeepMobility /*= false*/, UClass* ParentClassOverride /*= nullptr*/, bool bOpenInEditor /*= true*/)
 {
 	UBlueprint* NewBlueprint = nullptr;
 
@@ -1426,7 +1426,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName Bluepri
 		}
 	}
 
-	if (NewBlueprint)
+	if (NewBlueprint && bOpenInEditor)
 	{
 		// Open the editor for the new blueprint
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBlueprint);
@@ -1449,7 +1449,7 @@ struct FBlueprintAssemblyProps
 	USCS_Node* RootNodeOverride = nullptr;
 };
 
-void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AActor*>& Actors, const bool bReplaceInWorld, TFunctionRef<void(const FBlueprintAssemblyProps&)> AssembleBlueprintFunc)
+void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AActor*>& Actors, const bool bReplaceInWorld, TFunctionRef<void(const FBlueprintAssemblyProps&)> AssembleBlueprintFunc, bool bOpenInEditor = true)
 {
 	check(Actors.Num());
 	check(Blueprint);
@@ -1567,10 +1567,13 @@ void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AAct
 	}
 
 	// Open the editor for the new blueprint
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
+	if (bOpenInEditor)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
+	}
 }
 
-UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, const bool bReplaceInWorld)
+UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, const bool bReplaceInWorld, UClass* ParentClass, bool bOpenInEditor)
 {
 	auto AssemblyFunction = [](const FBlueprintAssemblyProps& AssemblyProps)
 	{
@@ -1624,7 +1627,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName Bluepr
 
 		if (Blueprint != nullptr)
 		{
-			CreateBlueprintFromActors_Internal(Blueprint, Actors, bReplaceInWorld, AssemblyFunction);
+			CreateBlueprintFromActors_Internal(Blueprint, Actors, bReplaceInWorld, AssemblyFunction, bOpenInEditor);
 		}
 	}
 

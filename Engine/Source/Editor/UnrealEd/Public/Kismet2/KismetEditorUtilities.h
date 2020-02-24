@@ -155,9 +155,10 @@ public:
 	 * @param Actor					The actor to use as the template for the blueprint
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
+	 * @param bOpenInEditor			If true, open the created blueprint in the blueprint editor
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false );
+	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr, bool bOpenInEditor = true);
 
 	/** 
 	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 
@@ -166,18 +167,20 @@ public:
 	 * @param Actor					The actor to use as the template for the blueprint
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
+	 * @param bOpenInEditor			If true, open the created blueprint in the blueprint editor
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false);
+	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr, bool bOpenInEditor = true);
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
 	 * @param Path					The path to use when creating the package for the new blueprint
 	 * @param Actors				The actors to use when creating child actor components
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
+	 * @param bOpenInEditor			If true, open the created blueprint in the blueprint editor
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceActor);
+	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceActor, UClass* ParentClass = AActor::StaticClass(), bool bOpenInEditor = true);
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
@@ -186,10 +189,11 @@ public:
 	 * @param Actors				The actors to use when creating child actor components
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
+	 * @param bOpenInEditor			If true, open the created blueprint in the blueprint editor
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld);
-	
+	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass(), bool bOpenInEditor = true);
+
 	/** 
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class. 
 	 * @param Path					The path to use when creating the package for the new blueprint
