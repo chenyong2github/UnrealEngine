@@ -33,11 +33,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// The directory for this module's object files
-		/// </summary>
-		public readonly DirectoryReference IntermediateDirectory;
-
-		/// <summary>
 		/// The directory for this module's generated code
 		/// </summary>
 		public readonly DirectoryReference GeneratedCodeDirectory;
@@ -138,9 +133,8 @@ namespace UnrealBuildTool
 
 
 		public UEBuildModuleCPP(ModuleRules Rules, DirectoryReference IntermediateDirectory, DirectoryReference GeneratedCodeDirectory)
-			: base(Rules)
+			: base(Rules, IntermediateDirectory)
 		{
-			this.IntermediateDirectory = IntermediateDirectory;
 			this.GeneratedCodeDirectory = GeneratedCodeDirectory;
 
 			foreach (string Def in PublicDefinitions)
@@ -238,6 +232,7 @@ namespace UnrealBuildTool
 			HashSet<DirectoryReference> SystemIncludePaths,
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
+			List<FileItem> AdditionalPrerequisites,
 			bool bLegacyPublicIncludePaths
 			)
 		{
@@ -248,7 +243,7 @@ namespace UnrealBuildTool
 				IncludePaths.Add(GeneratedCodeDirectory);
 			}
 
-			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, bLegacyPublicIncludePaths);
+			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bLegacyPublicIncludePaths);
 		}
 
 		// UEBuildModule interface.
@@ -256,7 +251,7 @@ namespace UnrealBuildTool
 		{
 			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BinaryCompileEnvironment.Platform);
 
-			List<FileItem> LinkInputFiles = new List<FileItem>();
+			List<FileItem> LinkInputFiles = base.Compile(Target, ToolChain, BinaryCompileEnvironment, SingleFileToCompile, WorkingSet, Makefile);
 
 			CppCompileEnvironment ModuleCompileEnvironment = CreateModuleCompileEnvironment(Target, BinaryCompileEnvironment);
 
@@ -1263,7 +1258,7 @@ namespace UnrealBuildTool
 			}
 
 			// Setup the compile environment for the module.
-			SetupPrivateCompileEnvironment(Result.UserIncludePaths, Result.SystemIncludePaths, Result.Definitions, Result.AdditionalFrameworks, Rules.bLegacyPublicIncludePaths);
+			SetupPrivateCompileEnvironment(Result.UserIncludePaths, Result.SystemIncludePaths, Result.Definitions, Result.AdditionalFrameworks, Result.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
 
 			return Result;
 		}
@@ -1305,7 +1300,7 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, Rules.bLegacyPublicIncludePaths);
+				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, CompileEnvironment.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
 			}
 			return CompileEnvironment;
 		}
