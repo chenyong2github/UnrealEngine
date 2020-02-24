@@ -14,15 +14,9 @@ namespace UnrealBuildTool
 	/// </summary>
 	class UEBuildModuleExternal : UEBuildModule
 	{
-		public UEBuildModuleExternal(ModuleRules Rules)
-			: base(Rules)
+		public UEBuildModuleExternal(ModuleRules Rules, DirectoryReference IntermediateDirectory)
+			: base(Rules, IntermediateDirectory)
 		{
-		}
-
-		// UEBuildModule interface.
-		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, FileReference SingleFileToCompile, ISourceFileWorkingSet WorkingSet, TargetMakefile Makefile)
-		{
-			return new List<FileItem>();
 		}
 	}
 }
