@@ -1230,7 +1230,7 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 				if (Entry.IsValid())
 				{
 					PathsToLoad.Append(Entry.BundleAssets);
-					bNothingToLoadForAsset &= Entry.BundleAssets.Num() == 0;
+					bNothingToLoadForAsset = false;
 				}
 				else
 				{
