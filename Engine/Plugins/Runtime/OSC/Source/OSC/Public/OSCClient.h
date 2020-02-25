@@ -20,6 +20,8 @@ public:
 	virtual void GetSendIPAddress(FString& InIPAddress, int32& Port) const = 0;
 	virtual bool SetSendIPAddress(const FString& InIPAddress, const int32 Port) = 0;
 
+	virtual bool IsActive() const = 0;
+
 	virtual void SendMessage(FOSCMessage& Message) = 0;
 	virtual void SendBundle(FOSCBundle& Bundle) = 0;
 
@@ -33,6 +35,8 @@ class OSC_API UOSCClient : public UObject
 
 public:
 	void Connect();
+
+	bool IsActive() const;
 
 	/** Gets the OSC Client IP address and port. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
