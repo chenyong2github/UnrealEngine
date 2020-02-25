@@ -40,6 +40,11 @@ namespace UnrealBuildTool
 		static FileReference InstalledProjectFile;
 
 		/// <summary>
+		/// Directory for saved application settings (typically Engine/Programs)
+		/// </summary>
+		static DirectoryReference CachedEngineProgramSavedDirectory;
+
+		/// <summary>
 		/// The path to UBT
 		/// </summary>
 		public static readonly FileReference UnrealBuildToolPath = FileReference.FindCorrectCase(new FileReference(Assembly.GetExecutingAssembly().GetOriginalLocation()));
@@ -108,6 +113,21 @@ namespace UnrealBuildTool
 		/// The full name of the Enterprise/Intermediate directory
 		/// </summary>
 		public static readonly DirectoryReference EnterpriseIntermediateDirectory = DirectoryReference.Combine(EnterpriseDirectory, "Intermediate");
+
+		/// <summary>
+		/// The engine programs directory
+		/// </summary>
+		public static DirectoryReference EngineProgramSavedDirectory
+		{
+			get
+			{
+				if (CachedEngineProgramSavedDirectory == null)
+				{
+					CachedEngineProgramSavedDirectory = Utils.GetUserSettingDirectory() ?? DirectoryReference.Combine(EngineDirectory, "Programs");
+				}
+				return CachedEngineProgramSavedDirectory;
+			}
+		}
 
 		/// <summary>
 		/// Returns the root location of platform extensions within the given project
