@@ -482,20 +482,20 @@ public:
 	/** Unsafely return a writable reference to the value at the given Index.  Invalid to call (and does not warn) with an index less than 0 or greater than or equal to the number of elements in the RingBuffer. */
 	ElementType& GetAtIndexNoCheck(IndexType Index)
 	{
-		return GetData()[(Front + Index) & IndexMask];
+		return GetStorage()[(Front + Index) & IndexMask];
 	}
 
 	/** Unsafely return a const reference to the value at the given Index.  Invalid to call (and does not warn) with an index less than 0 or greater than or equal to the number of elements in the RingBuffer. */
 	const ElementType& GetAtIndexNoCheck(IndexType Index) const
 	{
-		return GetData()[(Front + Index) & IndexMask];
+		return GetStorage()[(Front + Index) & IndexMask];
 	}
 
 	/** Given a reference to an Element anywhere in memory, return the index of the element in the RingBuffer, or INDEX_NONE if it is not present. */
 	IndexType ConvertReferenceToIndex(const ElementType& Element) const
 	{
 		const ElementType* const Ptr = &Element;
-		const ElementType* const Data = GetData();
+		const ElementType* const Data = GetStorage();
 		const ElementType* const DataEnd = Data + GetCapacity();
 		const ElementType* const FrontPtr = Data + (Front & IndexMask);
 		IndexType Index;
@@ -574,7 +574,7 @@ public:
 		}
 
 		StorageModuloType FirstRemoval;
-		ElementType* Data = GetData();
+		ElementType* Data = GetStorage();
 		for (FirstRemoval = Front; FirstRemoval != AfterBack; ++FirstRemoval)
 		{
 			if (Predicate(Data[FirstRemoval & IndexMask]))
@@ -654,7 +654,7 @@ public:
 			Reallocate(GetCapacity());
 			MaskedFront = Front & IndexMask;
 		}
-		return TArrayView<T>(GetData() + MaskedFront, Num());
+		return TArrayView<T>(GetStorage() + MaskedFront, Num());
 	}
 
 private:
@@ -667,7 +667,7 @@ private:
 	/** Set the capacity to the given value and move or copy all elements from the old storage into a new storage with the given capacity.  Assumes the capacity has already been normalized and is greater than or equal to the number of elements in the RingBuffer. */
 	void Reallocate(SizeType NewCapacity)
 	{
-		ElementType* SrcData = GetData();
+		ElementType* SrcData = GetStorage();
 		const SizeType SrcCapacity = static_cast<SizeType>(GetCapacity());
 		const SizeType SrcNum = static_cast<SizeType>(Num());
 
@@ -745,7 +745,7 @@ private:
 		const StorageModuloType DestructCount = RangeEnd - RangeStart;
 		if (bDestructElements && DestructCount > 0)
 		{
-			ElementType* Data = GetData();
+			ElementType* Data = GetStorage();
 			const StorageModuloType MaskedRangeStart = RangeStart & IndexMask;
 			const StorageModuloType MaskedRangeEnd = RangeEnd & IndexMask;
 			if (MaskedRangeStart >= MaskedRangeEnd)
@@ -794,7 +794,7 @@ private:
 		// We also want to avoid doing a branch.  TODO: Is there a FMath::Select function that does this branch-less style select?
 		check((RangeLast - RangeFirst) * (RangeDirection == 1) + (RangeFirst - RangeLast) * (RangeDirection != -1) <= static_cast<StorageModuloType>(GetCapacity()));
 
-		ElementType* Data = GetData();
+		ElementType* Data = GetStorage();
 		ElementType Copy(MoveTemp(Data[RangeLast & IndexMask]));
 		if (bDestructElements)
 		{
@@ -823,13 +823,13 @@ private:
 	}
 
 	/** Return a pointer to the underlying storage of the RingBuffer */
-	const ElementType* GetData() const
+	const ElementType* GetStorage() const
 	{
 		return AllocationData;
 	}
 
 	/** Return a const pointer to the underlying storage of the RingBuffer */
-	ElementType* GetData()
+	ElementType* GetStorage()
 	{
 		return AllocationData;
 	}
