@@ -20,6 +20,7 @@ public:
 	);
 
 	void Initialize(UNiagaraScript* InScript, UNiagaraScript* InSourceScript);
+	UNiagaraScript* GetStandaloneScript();
 
 private:
 	virtual void OnVMScriptCompiled(UNiagaraScript* InScript) override;

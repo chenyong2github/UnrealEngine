@@ -4353,7 +4353,7 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 		Error(LOCTEXT("EmitterMissingParamMapIndex", "Emitter call missing valid ParameterMap index!"), EmitterNode, nullptr);
 		return;
 	}
-	ActiveHistoryForFunctionCalls.EnterEmitter(EmitterUniqueName, EmitterNode);
+	ActiveHistoryForFunctionCalls.EnterEmitter(EmitterUniqueName, EmitterNode->GetCalledGraph(), EmitterNode);
 
 	// Clear out the parameter map writes to emitter module parameters as they should not be shared across emitters.
 	if (ParamMapHistoryIdx != -1 && ParamMapHistoryIdx < ParamMapHistories.Num())
@@ -5199,7 +5199,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 
 	//UE_LOG(LogNiagaraEditor, Log, TEXT("Function Call: %s %d"), *FunctionNode->GetFunctionName(), ActiveStageIdx);
 	// We need the generated string to generate the proper signature for now.
-	ActiveHistoryForFunctionCalls.EnterFunction(FunctionNode->GetFunctionName(), FunctionNode->FunctionScript, FunctionNode);
+	ActiveHistoryForFunctionCalls.EnterFunction(FunctionNode->GetFunctionName(), FunctionNode->FunctionScript, FunctionNode->GetNiagaraGraph(), FunctionNode);
 
 	// Check if there are static switch parameters being set directly by a set node from the stack UI.
 	// This can happen if a module was changed and the original parameter was replaced by a static switch with the same name, but the emitter was not yet updated.

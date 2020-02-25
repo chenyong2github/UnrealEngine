@@ -255,6 +255,43 @@ void UNiagaraMeshRendererProperties::FixMaterial(UMaterial* Material)
 	Material->ForceRecompileForRendering();
 }
 
+const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetBoundAttributes()
+{
+	CurrentAttributeBindings.Reset();
+
+	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
+	AttributeBindings.Add(&PositionBinding);
+	AttributeBindings.Add(&ColorBinding);
+	AttributeBindings.Add(&VelocityBinding);
+	AttributeBindings.Add(&MeshOrientationBinding);
+	AttributeBindings.Add(&ScaleBinding);
+	AttributeBindings.Add(&DynamicMaterialBinding);
+	AttributeBindings.Add(&DynamicMaterial1Binding);
+	AttributeBindings.Add(&DynamicMaterial2Binding);
+	AttributeBindings.Add(&DynamicMaterial3Binding);
+	AttributeBindings.Add(&MaterialRandomBinding);
+	AttributeBindings.Add(&CustomSortingBinding);
+	AttributeBindings.Add(&NormalizedAgeBinding);
+
+	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
+	{
+		if (AttributeBinding->BoundVariable.IsValid())
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->BoundVariable);
+		}
+		else if (AttributeBinding->DataSetVariable.IsValid())
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->DataSetVariable);
+		}
+		else
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->DefaultValueIfNonExistent);
+		}
+	}
+
+	return CurrentAttributeBindings;
+}
+
 const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetRequiredAttributes()
 {
 	static TArray<FNiagaraVariable> Attrs;

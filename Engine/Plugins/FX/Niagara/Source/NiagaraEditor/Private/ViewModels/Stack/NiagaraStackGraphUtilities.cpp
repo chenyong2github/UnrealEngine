@@ -1607,6 +1607,32 @@ TOptional<FName> FNiagaraStackGraphUtilities::GetNamespaceForScriptUsage(ENiagar
 	}
 }
 
+ENiagaraParameterScope FNiagaraStackGraphUtilities::GetScopeForScriptUsage(ENiagaraScriptUsage ScriptUsage)
+{
+	switch (ScriptUsage)
+	{
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
+		return ENiagaraParameterScope::Particles;
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+	case ENiagaraScriptUsage::EmitterUpdateScript:
+		return ENiagaraParameterScope::Emitter;
+	case ENiagaraScriptUsage::SystemSpawnScript:
+	case ENiagaraScriptUsage::SystemUpdateScript:
+		return ENiagaraParameterScope::System;
+	case ENiagaraScriptUsage::Module:
+	case ENiagaraScriptUsage::Function:
+	case ENiagaraScriptUsage::DynamicInput:
+		return ENiagaraParameterScope::None; // These script usages do not have associated scopes.
+	default:
+		checkf(false, TEXT("Script usage does not have known scope!"));
+		return ENiagaraParameterScope::None;
+	}
+}
+
 void FNiagaraStackGraphUtilities::GetOwningEmitterAndScriptForStackNode(UNiagaraNode& StackNode, UNiagaraSystem& OwningSystem, UNiagaraEmitter*& OutEmitter, UNiagaraScript*& OutScript)
 {
 	OutEmitter = nullptr;
@@ -2529,6 +2555,162 @@ void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem& Sy
 			}
 		}
 	}
+}
+
+FString FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(const ENiagaraParameterScope& InScope)
+{
+	switch (InScope) {
+		case ENiagaraParameterScope::Engine:
+			return PARAM_MAP_ENGINE_STR;
+			break;
+		case ENiagaraParameterScope::User:
+			return PARAM_MAP_USER_STR;
+			break;
+		case ENiagaraParameterScope::System:
+			return PARAM_MAP_SYSTEM_STR;
+			break;
+		case ENiagaraParameterScope::Emitter:
+			return PARAM_MAP_EMITTER_STR;
+			break;
+		case ENiagaraParameterScope::Particles:
+			return PARAM_MAP_ATTRIBUTE_STR;
+			break;
+		case ENiagaraParameterScope::ScriptPersistent:
+			return PARAM_MAP_SCRIPT_PERSISTENT_STR;
+			break;
+		case ENiagaraParameterScope::ScriptTransient:
+			return PARAM_MAP_SCRIPT_TRANSIENT_STR;
+			break;
+		case ENiagaraParameterScope::Input:
+			return PARAM_MAP_MODULE_STR;
+			break;
+		case ENiagaraParameterScope::Local:
+			return PARAM_MAP_LOCAL_STR;
+			break;
+		default:
+			checkf(false, TEXT("Unhandled parameter scope encountered!"));
+			return FString();
+			break;
+	};
+}
+
+FString FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterMetaData(const FNiagaraVariableMetaData& InMetaData)
+{
+	if (InMetaData.IsInputOrLocalUsage())
+	{
+		FString NamespaceString = FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(InMetaData.Scope);
+		if (InMetaData.Usage == ENiagaraScriptParameterUsage::InitialValueInput)
+		{
+			NamespaceString.Append(PARAM_MAP_INITIAL_STR);
+		}
+		return NamespaceString;
+	}
+	return PARAM_MAP_OUTPUT_STR;
+}
+
+TArray<FName> FNiagaraStackGraphUtilities::DecomposeVariableNamespace(const FName& InVarName, FName& OutFriendlyName)
+{
+	int32 DotIndex;
+	TArray<FName> OutNamespaces;
+	FString VarNameString = InVarName.ToString();
+	while (VarNameString.FindChar(TEXT('.'), DotIndex))
+	{
+		OutNamespaces.Add(FName(*VarNameString.Left(DotIndex)));
+		VarNameString = *VarNameString.RightChop(DotIndex + 1);
+	}
+	OutFriendlyName = FName(*VarNameString);
+	return OutNamespaces;
+}
+
+void FNiagaraStackGraphUtilities::SetParameterMetaDataFromName(const FName& InVarName, ENiagaraParameterScope& OutScope, ENiagaraScriptParameterUsage& OutUsage, FName& OutFriendlyName)
+{
+	TArray<FName> DecomposedNamespaces = FNiagaraStackGraphUtilities::DecomposeVariableNamespace(InVarName, OutFriendlyName);
+	if (DecomposedNamespaces.Num() == 0)
+	{
+		UE_LOG(LogNiagaraEditor, Display, TEXT("Unexpected parameter encountered without a namespace: %s"), *InVarName.ToString());
+	}
+
+	bool bCheckIsInitialValue = false;
+	for (int NamespaceIdx = 0; NamespaceIdx < DecomposedNamespaces.Num(); ++NamespaceIdx)
+	{
+		const FName& Namespace = DecomposedNamespaces[NamespaceIdx];
+
+		if (bCheckIsInitialValue)
+		{
+			if (Namespace == FNiagaraParameterHandle::InitialNamespace)
+			{
+				OutUsage = ENiagaraScriptParameterUsage::InitialValueInput;
+			}
+			return;
+		}
+
+		if (Namespace == FNiagaraParameterHandle::LocalNamespace)
+		{
+			OutScope = ENiagaraParameterScope::Local;
+			OutUsage = ENiagaraScriptParameterUsage::Local;
+			return;
+		}
+		else if (Namespace == FNiagaraParameterHandle::ModuleNamespace)
+		{
+			OutScope = ENiagaraParameterScope::Input;
+			return;
+		}
+		else if (Namespace == FNiagaraParameterHandle::UserNamespace)
+		{
+			OutScope = ENiagaraParameterScope::User;
+			return;
+		}
+		else if (Namespace == FNiagaraParameterHandle::EngineNamespace)
+		{
+			OutScope = ENiagaraParameterScope::Engine;
+			return;
+		}
+		else if (Namespace == FNiagaraParameterHandle::SystemNamespace)
+		{
+			OutScope = ENiagaraParameterScope::System;
+			bCheckIsInitialValue = true;
+		}
+		else if (Namespace == FNiagaraParameterHandle::EmitterNamespace)
+		{
+			OutScope = ENiagaraParameterScope::Emitter;
+			bCheckIsInitialValue = true;
+		}
+		else if (Namespace == FNiagaraParameterHandle::ParticleAttributeNamespace)
+		{
+			OutScope = ENiagaraParameterScope::Particles;
+			bCheckIsInitialValue = true;
+		}
+	}
+	
+	if (bCheckIsInitialValue == false)
+	{
+		// custom user namespace
+		OutScope = ENiagaraParameterScope::ScriptTransient;
+	}
+}
+
+FString FNiagaraStackGraphUtilities::GetNamespacelessVariableNameString(const FName& InVarName)
+{
+	int32 DotIndex;
+	FString VarNameString = InVarName.ToString();
+	if (VarNameString.FindLastChar(TEXT('.'), DotIndex))
+	{
+		return VarNameString.RightChop(DotIndex + 1);
+	}
+	// No dot index, must be a namespaceless variable name (e.g. static switch name) just return the name to string.
+	return VarNameString;
+}
+
+FName FNiagaraStackGraphUtilities::GetVariableNameForScope(const FName& CurrentVariableName, const ENiagaraParameterScope NewVariableScope, bool bIsInitialValue)
+{
+	FString NewVariableScopeString = FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(NewVariableScope);
+	if (bIsInitialValue)
+	{
+		NewVariableScopeString.Append(PARAM_MAP_INITIAL_STR);
+	}
+	const FString ExistingVariableNameString = FNiagaraStackGraphUtilities::GetNamespacelessVariableNameString(CurrentVariableName);
+	FName NewVariableName = FName(*(NewVariableScopeString + ExistingVariableNameString));
+	return NewVariableName;
 }
 
 #undef LOCTEXT_NAMESPACE
