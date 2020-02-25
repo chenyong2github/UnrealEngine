@@ -747,7 +747,7 @@ namespace Chaos
 					((FGeometryParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults();
 					break;
 				case Chaos::EParticleType::GeometryCollection:
-					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy));
+					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
 					break;
 				case Chaos::EParticleType::Clustered:
 					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
@@ -788,7 +788,7 @@ namespace Chaos
 					((FGeometryParticlePhysicsProxy*)(Proxy))->FlipBuffer();
 					break;
 				case Chaos::EParticleType::GeometryCollection:
-					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy));
+					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
 					break;
 				case Chaos::EParticleType::Clustered:
 					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
@@ -832,7 +832,7 @@ namespace Chaos
 					((FGeometryParticlePhysicsProxy*)(Proxy))->PullFromPhysicsState();
 					break;
 				case Chaos::EParticleType::GeometryCollection:
-					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy));
+					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
 					break;
 				case Chaos::EParticleType::Clustered:
 					ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
