@@ -33,7 +33,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void Solver_AdvanceNoObjects()
 	{
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		Solver->AdvanceSolverBy(1 / 24.);
@@ -67,7 +67,8 @@ namespace GeometryCollectionExample
 		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
+
 		Solver->RegisterObject(PhysObject);
 
 		Solver->SetHasFloor(false);
@@ -124,7 +125,7 @@ namespace GeometryCollectionExample
 		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
 		PhysObject->Initialize();
 
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
@@ -155,7 +156,7 @@ namespace GeometryCollectionExample
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		TArray<TSharedPtr<FGeometryCollection> > RestArray;
@@ -216,7 +217,7 @@ namespace GeometryCollectionExample
 		PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
-		*SolverInOut = FChaosSolversModule::GetModule()->CreateSolver(true);
+		*SolverInOut = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Chaos::FPBDRigidsSolver* Solver = *SolverInOut;
 		Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
