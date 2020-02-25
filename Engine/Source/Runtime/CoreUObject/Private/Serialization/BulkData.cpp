@@ -1146,13 +1146,13 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				}
 				else if (BulkDataFlags & BULKDATA_OptionalPayload)
 				{
-					Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
+					Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
 				}
 				else if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
 				{
 					if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
 					{
-						Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
+						Filename = FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
 					}
 					else
 					{

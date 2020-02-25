@@ -1547,7 +1547,6 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 	else
 	{
 		check(Filename != nullptr);
-		ConvertFilenameFromFlags(TEXT("BOB"));
 		const FString OptionalDataFilename = ConvertFilenameFromFlags(*Filename);
 
 		if (IFileManager::Get().FileExists(*OptionalDataFilename))
