@@ -40,12 +40,9 @@ namespace GeometryCollectionExample {
 
 	void FinalizeSolver(Chaos::FPBDRigidsSolver& InSolver)
 	{
-		InSolver.ForEachPhysicsProxy([](auto* Object)
-		{
-			Object->BufferPhysicsResults();
-			Object->FlipBuffer();
-			Object->PullFromPhysicsState();
-		});
+		InSolver.BufferPhysicsResults();
+		InSolver.FlipBuffers();
+		InSolver.UpdateGameThreadStructures();
 	}
 
 
