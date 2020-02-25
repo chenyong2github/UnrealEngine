@@ -1,0 +1,284 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NiagaraDataInterfaceAudio.h"
+
+FNiagaraSubmixListener::FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer)
+	: NumChannelsInSubmix(0)
+	, SubmixSampleRate(0)
+	, MixerInput(InMixer.AddNewInput(InNumSamplesToBuffer, 1.0f))
+{
+
+}
+
+FNiagaraSubmixListener::FNiagaraSubmixListener()
+	: NumChannelsInSubmix(0)
+	, SubmixSampleRate(0)
+{
+}
+
+FNiagaraSubmixListener::FNiagaraSubmixListener(FNiagaraSubmixListener&& Other)
+{
+	NumChannelsInSubmix = Other.NumChannelsInSubmix.Load();
+	Other.NumChannelsInSubmix = 0;
+
+	SubmixSampleRate = Other.SubmixSampleRate.Load();
+	Other.SubmixSampleRate = 0;
+
+	MixerInput = MoveTemp(Other.MixerInput);
+}
+
+FNiagaraSubmixListener::~FNiagaraSubmixListener()
+{
+}
+
+float FNiagaraSubmixListener::GetSampleRate() const
+{
+	return (float) SubmixSampleRate;
+}
+
+int32 FNiagaraSubmixListener::GetNumChannels() const
+{
+	return NumChannelsInSubmix;
+}
+
+void FNiagaraSubmixListener::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock)
+{
+	NumChannelsInSubmix = NumChannels;
+	SubmixSampleRate = SampleRate;
+	MixerInput.PushAudio(AudioData, NumSamples);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+FNiagaraDataInterfaceProxySubmix::FNiagaraDataInterfaceProxySubmix(int32 InNumSamplesToBuffer)
+	: PatchMixer()
+	, SubmixRegisteredTo(nullptr)
+	, bIsSubmixListenerRegistered(false)
+	, NumSamplesToBuffer(InNumSamplesToBuffer)
+{
+	check(NumSamplesToBuffer > 0);
+
+	DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FNiagaraDataInterfaceProxySubmix::OnNewDeviceCreated);
+
+	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FNiagaraDataInterfaceProxySubmix::OnDeviceDestroyed);
+}
+
+FNiagaraDataInterfaceProxySubmix::~FNiagaraDataInterfaceProxySubmix()
+{
+	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+	FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
+}
+
+void FNiagaraDataInterfaceProxySubmix::RegisterToAllAudioDevices()
+{
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		// Register a new submix listener for every audio device that currently exists.
+		DeviceManager->IterateOverAllDevices([&](Audio::FDeviceId DeviceId, FAudioDevice* InDevice)
+		{
+			AddSubmixListener(DeviceId);
+		});
+	}
+}
+
+void FNiagaraDataInterfaceProxySubmix::UnregisterFromAllAudioDevices(USoundSubmix* Submix)
+{
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		// Register a new submix listener for every audio device that currently exists.
+		DeviceManager->IterateOverAllDevices([&](Audio::FDeviceId DeviceId, FAudioDevice* InDevice)
+		{
+			RemoveSubmixListener(DeviceId);
+		});
+	}
+}
+
+void FNiagaraDataInterfaceProxySubmix::OnUpdateSubmix(USoundSubmix* Submix)
+{
+	if (bIsSubmixListenerRegistered)
+	{
+		UnregisterFromAllAudioDevices(Submix);
+	}
+
+	SubmixRegisteredTo = Submix;
+	
+	RegisterToAllAudioDevices();
+	bIsSubmixListenerRegistered = true;
+}
+
+
+void FNiagaraDataInterfaceProxySubmix::OnNewDeviceCreated(Audio::FDeviceId InDeviceId)
+{
+	if (bIsSubmixListenerRegistered)
+	{
+		AddSubmixListener(InDeviceId);
+	}
+}
+
+void FNiagaraDataInterfaceProxySubmix::OnDeviceDestroyed(Audio::FDeviceId InDeviceId)
+{
+	if (bIsSubmixListenerRegistered)
+	{
+		RemoveSubmixListener(InDeviceId);
+	}
+}
+
+void FNiagaraDataInterfaceProxySubmix::AddSubmixListener(const Audio::FDeviceId InDeviceId)
+{
+	check(!SubmixListeners.Contains(InDeviceId));
+
+	FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InDeviceId);
+	check(DeviceHandle);
+
+	FNiagaraSubmixListener& Listener = SubmixListeners.Emplace(InDeviceId, FNiagaraSubmixListener(PatchMixer, NumSamplesToBuffer));
+
+	DeviceHandle->RegisterSubmixBufferListener(&Listener, SubmixRegisteredTo);
+}
+
+void FNiagaraDataInterfaceProxySubmix::RemoveSubmixListener(Audio::FDeviceId InDeviceId)
+{
+	if (SubmixListeners.Contains(InDeviceId))
+	{
+		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InDeviceId);
+		check(DeviceHandle);
+
+		DeviceHandle->UnregisterSubmixBufferListener(&SubmixListeners[InDeviceId], SubmixRegisteredTo);
+		SubmixListeners.Remove(InDeviceId);
+	}
+}
+
+int32 FNiagaraDataInterfaceProxySubmix::GetNumChannels() const
+{
+	TArray<Audio::FDeviceId> DeviceIds;
+	SubmixListeners.GetKeys(DeviceIds);
+	for (const Audio::FDeviceId DeviceId : DeviceIds)
+	{
+		int32 NumChannels = SubmixListeners[DeviceId].GetNumChannels();
+
+		if (NumChannels != 0)
+		{
+			// Not sure which listener is receiving callbacks, or if more than one is,
+			// so return first non-zero value.
+			return NumChannels;
+		}
+	}
+	return 0;
+}
+
+float FNiagaraDataInterfaceProxySubmix::GetSampleRate() const
+{
+	TArray<Audio::FDeviceId> DeviceIds;
+	SubmixListeners.GetKeys(DeviceIds);
+	for (const Audio::FDeviceId DeviceId : DeviceIds)
+	{
+		float SampleRate = SubmixListeners[DeviceId].GetSampleRate();
+
+		if (SampleRate > 0.f)
+		{
+			// Not sure which listener is receiving callbacks, or if more than one is,
+			// so return first non-zero value.
+			return SampleRate;
+		}
+	}
+	return 0.f;
+}
+
+void FNiagaraDataInterfaceProxySubmix::OnBeginDestroy()
+{
+	if (bIsSubmixListenerRegistered)
+	{
+		UnregisterFromAllAudioDevices(SubmixRegisteredTo);
+	}
+}
+
+int32 FNiagaraDataInterfaceProxySubmix::PopAudio(float* OutBuffer, int32 NumSamples, bool bUseLatestAudio)
+{
+	return PatchMixer.PopAudio(OutBuffer, NumSamples, bUseLatestAudio);
+}
+
+int32 FNiagaraDataInterfaceProxySubmix::GetNumSamplesAvailable()
+{
+	return PatchMixer.MaxNumberOfSamplesThatCanBePopped();
+}
+
+int32 FNiagaraDataInterfaceProxySubmix::GetNumFramesAvailable()
+{
+	int32 NumChannels = GetNumChannels();
+
+	if (NumChannels < 1)
+	{
+		return 0;
+	}
+
+	return GetNumSamplesAvailable() / NumChannels;
+}
+
+int32 FNiagaraDataInterfaceProxySubmix::PerInstanceDataPassedToRenderThreadSize() const
+{
+	return 0;
+}
+
+UNiagaraDataInterfaceAudioSubmix::UNiagaraDataInterfaceAudioSubmix(FObjectInitializer const& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, Submix(nullptr)
+{
+	int32 DefaultNumSamplesToBuffer = 16384;
+	Proxy = MakeUnique<FNiagaraDataInterfaceProxySubmix>(DefaultNumSamplesToBuffer);
+}
+
+
+#if WITH_EDITOR
+void UNiagaraDataInterfaceAudioSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	static FName SubmixFName = GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceAudioSubmix, Submix);
+
+	// Regenerate on save any compressed sound formats or if analysis needs to be re-done
+	if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+	{
+		const FName& Name = PropertyThatChanged->GetFName();
+		if (Name == SubmixFName)
+		{
+			GetProxyAs<FNiagaraDataInterfaceProxySubmix>()->OnUpdateSubmix(Submix);
+		}
+	}
+}
+#endif //WITH_EDITOR
+
+void UNiagaraDataInterfaceAudioSubmix::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	GetProxyAs<FNiagaraDataInterfaceProxySubmix>()->OnUpdateSubmix(Submix);
+}
+
+
+void UNiagaraDataInterfaceAudioSubmix::BeginDestroy()
+{
+	GetProxyAs<FNiagaraDataInterfaceProxySubmix>()->OnBeginDestroy();
+
+	Super::BeginDestroy();
+}
+
+void UNiagaraDataInterfaceAudioSubmix::PostLoad()
+{
+	Super::PostLoad();
+	GetProxyAs<FNiagaraDataInterfaceProxySubmix>()->OnUpdateSubmix(Submix);
+}
+
+bool UNiagaraDataInterfaceAudioSubmix::CopyToInternal(UNiagaraDataInterface* Destination) const
+{
+	Super::CopyToInternal(Destination);
+
+	UNiagaraDataInterfaceAudioSubmix* CastedDestination = Cast<UNiagaraDataInterfaceAudioSubmix>(Destination);
+
+	if (CastedDestination)
+	{
+		CastedDestination->Submix = Submix;
+	}
+	
+	return true;
+}
+
