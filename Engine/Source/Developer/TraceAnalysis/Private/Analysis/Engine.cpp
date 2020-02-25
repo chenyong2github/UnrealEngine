@@ -709,6 +709,8 @@ void FAnalysisEngine::OnChannelAnnounceInternal(const FOnEventContext& Context)
 			Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
 		}
 	}
+
+	OnChannelToggleInternal(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
