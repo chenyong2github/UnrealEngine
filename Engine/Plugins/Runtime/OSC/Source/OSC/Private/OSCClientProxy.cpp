@@ -22,6 +22,11 @@ FOSCClientProxy::FOSCClientProxy(const FString& InClientName)
 	ClientName = InClientName;
 }
 
+FOSCClientProxy::~FOSCClientProxy()
+{
+	Stop();
+}
+
 void FOSCClientProxy::GetSendIPAddress(FString& InIPAddress, int32& Port) const
 {
 	const bool bAppendPort = false;
