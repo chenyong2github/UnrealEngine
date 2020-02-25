@@ -3898,7 +3898,7 @@ namespace UE4CodeGen_Private
 {
 	void ConstructFProperty(FFieldVariant Outer, const FPropertyParamsBase* const*& PropertyArray, int32& NumProperties)
 	{
-		const FPropertyParamsBase* PropBase = *PropertyArray++;
+		const FPropertyParamsBase* PropBase = *--PropertyArray;
 
 		uint32 ReadMore = 0;
 
@@ -4368,6 +4368,8 @@ namespace UE4CodeGen_Private
 
 	void ConstructFProperties(UObject* Outer, const FPropertyParamsBase* const* PropertyArray, int32 NumProperties)
 	{
+		// Move pointer to the end, because we'll iterate backwards over the properties
+		PropertyArray += NumProperties;
 		while (NumProperties)
 		{
 			ConstructFProperty(Outer, PropertyArray, NumProperties);
