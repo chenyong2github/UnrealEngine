@@ -404,6 +404,7 @@ public:
 
 	inline void			SetSize(uint64 InSize)	{ return CorePtr->SetSize(InSize); }
 
+	inline bool			IsAvailable() const;
 	inline bool			IsMemoryOwned() const	{ return CorePtr->IsMemoryOwned(); }
 
 	inline void			EnsureOwned() const		{ if (!CorePtr->IsMemoryOwned()) { MakeOwned(); } }
@@ -515,23 +516,6 @@ private:
 };
 
 /**
- * Addressable chunk types.
- */
-enum class EIoChunkType : uint8
-{
-	Invalid,
-	InstallManifest,
-	ExportBundleData,
-	BulkData,
-	OptionalBulkData,
-	MemoryMappedBulkData,
-	LoaderGlobalMeta,
-	LoaderInitialLoadMeta,
-	LoaderGlobalNames,
-	LoaderGlobalNameHashes
-};
-
-/**
  * Identifier to a chunk of data.
  */
 class FIoChunkId
@@ -577,8 +561,6 @@ public:
 	}
 
 private:
-	friend static FIoChunkId CloneChunkIdWithType(FIoChunkId, EIoChunkType);
-
 	static inline FIoChunkId CreateEmptyId()
 	{
 		FIoChunkId ChunkId;
@@ -589,6 +571,23 @@ private:
 	}
 
 	uint8	Id[12];
+};
+
+/**
+ * Addressable chunk types.
+ */
+enum class EIoChunkType : uint8
+{
+	Invalid,
+	InstallManifest,
+	ExportBundleData,
+	BulkData,
+	OptionalBulkData,
+	MemoryMappedBulkData,
+	LoaderGlobalMeta,
+	LoaderInitialLoadMeta,
+	LoaderGlobalNames,
+	LoaderGlobalNameHashes
 };
 
 /**
@@ -641,23 +640,6 @@ static FIoChunkId CreateBulkdataChunkId(int32 GlobalPackageId, int64 BulkDataChu
 	ChunkId.Set(Data, 12);
 
 	return ChunkId;
-}
-
-/**
- * Creates a copy of an existing FIoChunkId with a different EIoChunkType.
- *
- * @param ChunkIdIn	The original FIoChunkId
- * @param ChunkType	The EIoChunkType to use instead
- *
- * @return A new FIoChunkId with the same data as ChunkIDIn but with ChunkType as the type
- */
-static FIoChunkId CloneChunkIdWithType(const FIoChunkId ChunkIdIn, EIoChunkType ChunkType)
-{
-	FIoChunkId ChunkIdOut;
-	FMemory::Memcpy(ChunkIdOut.Id, ChunkIdIn.Id, 11);
-	ChunkIdOut.Id[11] = ChunkIdIn.Id[11];
-
-	return ChunkIdOut;
 }
 
 //////////////////////////////////////////////////////////////////////////
