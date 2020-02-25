@@ -46,7 +46,9 @@ TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUnifo
 	const FLocalVertexFactory* LocalVertexFactory, 
 	uint32 LODLightmapDataIndex, 
 	FColorVertexBuffer* OverrideColorVertexBuffer, 
-	int32 BaseVertexIndex)
+	int32 BaseVertexIndex,
+	int32 PreSkinBaseVertexIndex
+	)
 {
 	FLocalVertexFactoryUniformShaderParameters UniformParameters;
 
@@ -56,6 +58,7 @@ TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUnifo
 	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		UniformParameters.VertexFetch_PositionBuffer = LocalVertexFactory->GetPositionsSRV();
+		UniformParameters.VertexFetch_PreSkinPositionBuffer = LocalVertexFactory->GetPreSkinPositionSRV();
 
 		UniformParameters.VertexFetch_PackedTangentsBuffer = LocalVertexFactory->GetTangentsSRV();
 		UniformParameters.VertexFetch_TexCoordBuffer = LocalVertexFactory->GetTextureCoordinatesSRV();
@@ -73,6 +76,7 @@ TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUnifo
 	}
 	else
 	{
+		UniformParameters.VertexFetch_PreSkinPositionBuffer = GNullColorVertexBuffer.VertexBufferSRV;
 		UniformParameters.VertexFetch_PackedTangentsBuffer = GNullColorVertexBuffer.VertexBufferSRV;
 		UniformParameters.VertexFetch_TexCoordBuffer = GNullColorVertexBuffer.VertexBufferSRV;
 	}
@@ -85,7 +89,10 @@ TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUnifo
 	const int32 NumTexCoords = LocalVertexFactory->GetNumTexcoords();
 	const int32 LightMapCoordinateIndex = LocalVertexFactory->GetLightMapCoordinateIndex();
 	const int32 EffectiveBaseVertexIndex = RHISupportsAbsoluteVertexID(GMaxRHIShaderPlatform) ? 0 : BaseVertexIndex;
+	const int32 EffectivePreSkinBaseVertexIndex = RHISupportsAbsoluteVertexID(GMaxRHIShaderPlatform) ? 0 : PreSkinBaseVertexIndex;
+
 	UniformParameters.VertexFetch_Parameters = {ColorIndexMask, NumTexCoords, LightMapCoordinateIndex, EffectiveBaseVertexIndex};
+	UniformParameters.PreSkinBaseVertexIndex = EffectivePreSkinBaseVertexIndex;
 
 	return TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
 }
@@ -378,10 +385,11 @@ void FLocalVertexFactory::InitRHI()
 	check(IsValidRef(GetDeclaration()));
 
 	const int32 DefaultBaseVertexIndex = 0;
+	const int32 DefaultPreSkinBaseVertexIndex = 0;
 	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || bCanUseGPUScene)
 	{
 		SCOPED_LOADTIMER(FLocalVertexFactory_InitRHI_CreateLocalVFUniformBuffer);
-		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex);
+		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex, DefaultPreSkinBaseVertexIndex);
 	}
 
 	check(IsValidRef(GetDeclaration()));
