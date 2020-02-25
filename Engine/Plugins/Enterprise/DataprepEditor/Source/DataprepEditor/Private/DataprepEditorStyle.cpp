@@ -31,6 +31,7 @@ void FDataprepEditorStyle::Initialize()
 
 	const FVector2D Icon20x16(16.0f, 16.0f);
 	const FVector2D Icon20x20(20.0f, 20.0f);
+	const FVector2D Icon32x32(32.0f, 32.0f);
 	const FVector2D Icon40x40(40.0f, 40.0f);
 
 	StyleSet->Set("DataprepEditor.Producer", new IMAGE_PLUGIN_BRUSH("Icons/Producer24", Icon20x20));
@@ -59,27 +60,68 @@ void FDataprepEditorStyle::Initialize()
 	StyleSet->Set("DataprepEditor.ExecutePipeline.Selected", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon40x40));
 	StyleSet->Set("DataprepEditor.ExecutePipeline.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon20x20));
 
+	StyleSet->Set("DataprepEditor.TrackNode.Slot", new IMAGE_PLUGIN_BRUSH("CircleBox", Icon32x32));
+
 	StyleSet->Set( "DataprepEditor.SectionFont", DEFAULT_FONT( "Bold", 10 ) );
 
 	// Dataprep action UI
 	{
-		StyleSet->Set("DataprepAction.Padding", 2.f);
+		StyleSet->Set("Dataprep.TextSeparator.Color", FLinearColor(FColor(200, 200, 200, 200)) );
 
-		StyleSet->Set("DataprepAction.OutlineColor", FLinearColor(FColor(62, 62, 62)));
+		const FMargin ActionOuter(1.f, 2.f, 2.f, 2.f);
+		StyleSet->Set("DataprepAction.Body.Padding", ActionOuter + FMargin(5.f, 0.f, 0.f, 0.f));
+		StyleSet->Set("DataprepAction.Outter.Regular.Padding", ActionOuter);
+		StyleSet->Set("DataprepAction.Outter.Selected.Padding", FMargin(0.f));
+		StyleSet->Set("DataprepAction.Steps.Padding", ActionOuter + FMargin(10.f, 0.f, 4.f, 0.f));
 
-		StyleSet->Set("DataprepActionStep.BackgroundColor", FLinearColor(FColor(62, 62, 62)) );
+		StyleSet->Set("DataprepAction.OutlineColor", FLinearColor(FColor(10, 177, 51)));
+		StyleSet->Set("DataprepAction.BackgroundColor", FLinearColor(FColor(61, 61, 61)));
+
+		{
+			FTextBlockStyle TilteTextStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
+			TilteTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
+			StyleSet->Set("DataprepAction.TitleTextStyle", TilteTextStyle);
+
+			FEditableTextBoxStyle TitleEditableText = FEditorStyle::GetWidgetStyle< FEditableTextBoxStyle >("ViewportMenu.EditableText");
+			TitleEditableText.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
+
+			StyleSet->Set( "DataprepAction.TitleInlineEditableText", FInlineEditableTextBlockStyle()
+				.SetTextStyle(TilteTextStyle)
+				.SetEditableTextBoxStyle(TitleEditableText)
+			);
+		}
+
+		StyleSet->Set("DataprepAction.EmptyStep.Background.Hovered", FLinearColor(FColor(66, 66, 66)));
+		StyleSet->Set("DataprepAction.EmptyStep.Background.Normal", FLinearColor(FColor(57, 57, 57)));
+		StyleSet->Set("DataprepAction.EmptyStep.Outer.Hovered", FLinearColor(FColor(117, 117, 117)));
+		StyleSet->Set("DataprepAction.EmptyStep.Outer.Normal", FLinearColor(FColor(85, 85, 85)));
+		StyleSet->Set("DataprepAction.EmptyStep.Text.Hovered", FLinearColor(FColor(230, 230, 230)));
+		StyleSet->Set("DataprepAction.EmptyStep.Text.Normal", FLinearColor(FColor(117, 117, 117)));
+
+		StyleSet->Set("DataprepAction.EmptyStep.Bottom.Padding", FMargin(0.f, 0.f, 0.f, 5.f));
+
+		StyleSet->Set("DataprepActionSteps.BackgroundColor", FLinearColor(FColor(26, 26, 26)));
+
+		StyleSet->Set("DataprepActionStep.BackgroundColor", FLinearColor(FColor(93, 93, 93)) );
 		StyleSet->Set("DataprepActionStep.DragAndDrop", FLinearColor(FColor(212, 212, 59)) );
 		StyleSet->Set("DataprepActionStep.Selected", FLinearColor(FColor(1, 202, 252)) );
-		StyleSet->Set("DataprepActionStep.Filter.OutlineColor", FLinearColor(FColor(67, 105, 124)));
-		StyleSet->Set("DataprepActionStep.Operation.OutlineColor", FLinearColor(FColor(87, 107, 61)) );
+		StyleSet->Set("DataprepActionStep.Filter.OutlineColor", FLinearColor(FColor(220, 125, 67)));
+		StyleSet->Set("DataprepActionStep.Operation.OutlineColor", FLinearColor(FColor(67, 177, 220)) );
+		StyleSet->Set("DataprepActionStep.Separator.Color", FLinearColor(FColor(182, 219, 192)) );
 
-		StyleSet->Set("DataprepActionBlock.TitleBackgroundColor", FLinearColor(0.065307f, 0.065307f, 0.065307f));
-		StyleSet->Set("DataprepActionBlock.ContentBackgroundColor", FLinearColor(0.11f, 0.11f, 0.11f));
-		FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
-		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
-		StyleSet->Set("DataprepActionBlock.TitleTextBlockStyle", TilteTextBlockStyle);
-		StyleSet->Set("DataprepActionSteps.BackgroundColor", FLinearColor( 0.1033, 0.1033, 0.1033));
-		StyleSet->Set("DataprepActionStep.Padding", 10.f);
+		StyleSet->Set("DataprepActionStep.Outter.Regular.Padding", FMargin(10.f, 3.f, 10.f, 3.f));
+		StyleSet->Set("DataprepActionStep.Outter.Selected.Padding", FMargin(10.f, 0.f, 4.f, 0.f));
+		StyleSet->Set("DataprepActionStep.Padding", FMargin(15.f, 3.f, 5.f, 3.f));
+
+		StyleSet->Set("DataprepActionStep.DnD.Outter.Padding", FMargin(0.f, 5.f, 0.f, 5.f));
+		StyleSet->Set("DataprepActionStep.DnD.Inner.Padding", FMargin(5.f, 5.f, 5.f, 5.f));
+
+		StyleSet->Set("DataprepActionBlock.ContentBackgroundColor.Old", FLinearColor(0.11f, 0.11f, 0.11f));
+		{
+			FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
+			TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 10));
+			StyleSet->Set("DataprepActionBlock.TitleTextBlockStyle", TilteTextBlockStyle);
+		}
 	}
 
 	// DataprepGraphEditor

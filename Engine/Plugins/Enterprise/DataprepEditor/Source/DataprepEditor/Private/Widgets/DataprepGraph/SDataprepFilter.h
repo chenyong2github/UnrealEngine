@@ -16,8 +16,15 @@ struct FDataprepSchemaActionContext;
 class SDataprepFilter : public SDataprepActionBlock, public FGCObject
 {
 public:
+#ifndef NO_BLUEPRINT
+	SLATE_BEGIN_ARGS(SDataprepFilter)
+	: _IsSimplified(false)
+	{}
+		SLATE_ARGUMENT( bool, IsSimplified )
+#else
 	SLATE_BEGIN_ARGS(SDataprepFilter) {}
-	SLATE_END_ARGS();
+#endif
+	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepFilter& InFilter, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext);
 
@@ -26,7 +33,7 @@ public:
 protected:
 
 	// SDataprepActionBlock interface
-	virtual FLinearColor GetOutlineColor() const override;
+	virtual FSlateColor GetOutlineColor() const override;
 	virtual FText GetBlockTitle() const override;
 	virtual TSharedRef<SWidget> GetTitleWidget() override;
 	virtual TSharedRef<SWidget> GetContentWidget() override;
