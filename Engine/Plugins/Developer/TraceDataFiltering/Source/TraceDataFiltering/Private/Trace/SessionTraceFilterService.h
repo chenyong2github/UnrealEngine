@@ -50,5 +50,5 @@ protected:
 	TSet<FString> FrameZeroEnabledChannels;
 	
 	/** Timestamp at which contained data (including provider) was last updated */
-	FDateTime TimeStamp;	
+	FDateTime TimeStamp = 0;
 };
