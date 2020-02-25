@@ -54,6 +54,7 @@ struct FRHICommandSetStereoViewport;
 struct FRHICommandSetStreamSource;
 struct FRHICommandSetViewport;
 struct FRHICommandTransitionTextures;
+struct FRHICommandTransitionTexturesPipeline;
 struct FRHICommandTransitionTexturesDepth;
 struct FRHICommandTransitionTexturesArray;
 struct FRHICommandUpdateTextureReference;
@@ -399,6 +400,12 @@ void FRHICommandTransitionTextures::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(TransitionTextures);
 	INTERNAL_DECORATOR(RHITransitionResources)(TransitionType, &Textures[0], NumTextures);
+}
+
+void FRHICommandTransitionTexturesPipeline::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(TransitionTextures);
+	INTERNAL_DECORATOR(RHITransitionResources)(TransitionType, TransitionPipeline, &Textures[0], NumTextures);
 }
 
 void FRHICommandTransitionTexturesDepth::Execute(FRHICommandListBase& CmdList)

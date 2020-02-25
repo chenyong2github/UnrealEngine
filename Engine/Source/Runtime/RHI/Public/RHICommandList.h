@@ -1555,6 +1555,37 @@ FRHICOMMAND_MACRO(FRHICommandTransitionTexturesArray)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+
+FRHICOMMAND_MACRO(FRHICommandTransitionTexturesPipeline)
+{
+	int32 NumTextures;
+	FRHITexture** Textures; // Pointer to an array of textures, allocated inline with the command list
+	EResourceTransitionAccess TransitionType;
+	EResourceTransitionPipeline TransitionPipeline;
+	FORCEINLINE_DEBUGGABLE FRHICommandTransitionTexturesPipeline(EResourceTransitionAccess InTransitionType, EResourceTransitionPipeline InTransitionPipeline, FRHITexture** InTextures, int32 InNumTextures)
+		: NumTextures(InNumTextures)
+		, Textures(InTextures)
+		, TransitionType(InTransitionType)
+		, TransitionPipeline(InTransitionPipeline)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+FRHICOMMAND_MACRO(FRHICommandTransitionTexturesArrayPipeline)
+{
+	TArray<FRHITexture*>& Textures;
+	EResourceTransitionAccess TransitionType;
+	EResourceTransitionPipeline TransitionPipeline;
+	FORCEINLINE_DEBUGGABLE FRHICommandTransitionTexturesArrayPipeline(EResourceTransitionAccess InTransitionType, EResourceTransitionPipeline InTransitionPipeline, TArray<FRHITexture*>& InTextures)
+		: Textures(InTextures)
+		, TransitionType(InTransitionType)
+		, TransitionPipeline(InTransitionPipeline)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 struct FRHICommandTransitionUAVsString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandTransitionUAVs"); }
@@ -3385,6 +3416,40 @@ public:
 
 		ALLOC_COMMAND(FRHICommandTransitionTextures)(TransitionType, InlineTextureArray, NumTextures);
 	}
+
+	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture* InTexture)
+	{
+		FRHITexture* Texture = InTexture;
+		check(Texture == nullptr || Texture->IsCommitted());
+		if (Bypass())
+		{
+			GetContext().RHITransitionResources(TransitionType, TransitionPipeline, &Texture, 1);
+			return;
+		}
+
+		// Allocate space to hold the single texture pointer inline in the command list itself.
+		FRHITexture** TextureArray = (FRHITexture**)Alloc(sizeof(FRHITexture*), alignof(FRHITexture*));
+		TextureArray[0] = Texture;
+		ALLOC_COMMAND(FRHICommandTransitionTexturesPipeline)(TransitionType, TransitionPipeline, TextureArray, 1);
+	}
+
+	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture** InTextures, int32 NumTextures)
+	{
+		if (Bypass())
+		{
+			GetContext().RHITransitionResources(TransitionType, TransitionPipeline, InTextures, NumTextures);
+			return;
+		}
+
+		// Allocate space to hold the list of textures inline in the command list itself.
+		FRHITexture** InlineTextureArray = (FRHITexture**)Alloc(sizeof(FRHITexture*) * NumTextures, alignof(FRHITexture*));
+		for (int32 Index = 0; Index < NumTextures; ++Index)
+		{
+			InlineTextureArray[Index] = InTextures[Index];
+		}
+
+		ALLOC_COMMAND(FRHICommandTransitionTexturesPipeline)(TransitionType, TransitionPipeline,  InlineTextureArray, NumTextures);
+	}	
 
 	FORCEINLINE_DEBUGGABLE void TransitionResourceArrayNoCopy(EResourceTransitionAccess TransitionType, TArray<FRHITexture*>& InTextures)
 	{
