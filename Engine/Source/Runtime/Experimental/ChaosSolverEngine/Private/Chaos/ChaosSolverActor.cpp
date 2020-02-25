@@ -210,6 +210,7 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 #endif
 	));
 	Solver = PhysScene->GetSolver();
+
 	// Ticking setup for collision/breaking notifies
 	PrimaryActorTick.TickGroup = TG_PostPhysics;
 	PrimaryActorTick.bCanEverTick = true;
@@ -259,6 +260,11 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 #endif // WITH_EDITORONLY_DATA
 
 	GameplayEventDispatcherComponent = ObjectInitializer.CreateDefaultSubobject<UChaosGameplayEventDispatcher>(this, TEXT("GameplayEventDispatcher"));
+}
+
+void AChaosSolverActor::PreInitializeComponents()
+{
+	Super::PreInitializeComponents();
 }
 
 void AChaosSolverActor::BeginPlay()
@@ -361,6 +367,16 @@ void AChaosSolverActor::PostRegisterAllComponents()
 		SetAsCurrentWorldSolver();
 	}
 #endif
+}
+
+void AChaosSolverActor::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	if(FChaosSolversModule* Module = FChaosSolversModule::GetModule())
+	{
+		Module->MigrateSolver(GetSolver(), GetWorld());
+	}
 }
 
 void AChaosSolverActor::SetAsCurrentWorldSolver()

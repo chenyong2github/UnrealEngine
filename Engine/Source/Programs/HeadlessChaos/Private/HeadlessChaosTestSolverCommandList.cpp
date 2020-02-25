@@ -31,7 +31,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::DedicatedThread);
 
 		// Make a solver
-		Chaos::FPhysicsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPhysicsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		// Make a particle
