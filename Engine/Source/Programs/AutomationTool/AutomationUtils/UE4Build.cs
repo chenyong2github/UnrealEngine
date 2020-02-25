@@ -1341,7 +1341,7 @@ namespace AutomationTool
 			// All scripts are expected to exist in DotNET/AutomationScripts subfolder.
 			foreach (Assembly ScriptAssembly in ScriptCompiler.Assemblies)
 			{
-				string UATScriptFilePath = ScriptAssembly.Location;
+				string UATScriptFilePath = ScriptAssembly.GetOriginalLocation();
 				if (!CommandUtils.FileExists_NoExceptions(UATScriptFilePath))
 				{
 					throw new UE4BuildException("Cannot add UAT to the build products because {0} does not exist.", UATScriptFilePath);
