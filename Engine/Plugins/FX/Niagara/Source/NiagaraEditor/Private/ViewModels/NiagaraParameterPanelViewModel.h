@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraEditorCommon.h"
+#include "Types/SlateEnums.h"
 
 class UNiagaraSystem;
 class FNiagaraSystemViewModel;
@@ -67,7 +68,7 @@ public:
 
 	virtual const TArray<FNiagaraScriptVariableAndViewInfo> GetViewedParameters() = 0;
 
-	TSharedRef<SWidget> GetScriptParameterVisualWidget(FCreateWidgetForActionData* const InCreateData) const;
+	TSharedRef<class SWidget> GetScriptParameterVisualWidget(FCreateWidgetForActionData* const InCreateData) const;
 
 	FOnParameterPanelViewModelRefreshed& GetOnRefreshed() { return OnParameterPanelViewModelRefreshed; };
 
@@ -189,7 +190,7 @@ private:
 
 	TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num> GetParameterScopesEnabledAndTooltips(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InVarMetaData) const;
 
-	TSharedRef<SWidget> GetScriptParameterVisualWidget(const UEdGraphPin* Pin) const;
+	TSharedRef<class SWidget> GetScriptParameterVisualWidget(const UEdGraphPin* Pin) const;
 
 	TSharedPtr<FNiagaraObjectSelection> VariableObjectSelection;
 };
