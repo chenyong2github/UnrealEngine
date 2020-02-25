@@ -260,6 +260,14 @@ public:
 			return PositionBuffer;
 		}
 
+		inline FRHIShaderResourceView* GetPreSkinPositionSRV()
+		{
+			check(SourceVertexFactory);
+			check(SourceVertexFactory->GetPositionsSRV());
+
+			return SourceVertexFactory->GetPositionsSRV().GetReference();
+		}
+
 		inline FRWBuffer* GetTangentRWBuffer()
 		{
 			return TangentBuffer;
@@ -267,7 +275,7 @@ public:
 
 		void UpdateVertexFactoryDeclaration()
 		{
-			TargetVertexFactory->UpdateVertexDeclaration(SourceVertexFactory, GetPositionRWBuffer(), GetTangentRWBuffer());
+			TargetVertexFactory->UpdateVertexDeclaration(SourceVertexFactory, GetPositionRWBuffer(), GetPreSkinPositionSRV(), GetTangentRWBuffer());
 		}
 	};
 
@@ -1475,7 +1483,6 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumVertices, VertexCountAlign64 * 64);
 		RHICmdList.DispatchComputeShader(VertexCountAlign64, 1, 1);
 		Shader->UnsetParameters(RHICmdList);
-
 	}
 
 	check(DispatchData.PreviousPositionBuffer != DispatchData.PositionBuffer);
