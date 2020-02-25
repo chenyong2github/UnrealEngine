@@ -4,6 +4,7 @@
 
 // Datasmith SDK.
 #include "DatasmithSceneFactory.h"
+#include "DatasmithSceneExporter.h"
 
 // Datasmith facade classes.
 class FDatasmithFacadeElement;
@@ -42,6 +43,9 @@ public:
 		const TCHAR* InSceneName // Datasmith scene name
 	);
 
+	// Instanciate an exporter and register export start time
+	void PreExport();
+
 	// Build and export a Datasmith scene instance and its scene element assets.
 	void ExportScene(
 		const TCHAR* InOutputPath // Datasmith scene output file path
@@ -78,4 +82,7 @@ private:
 
 	// Datasmith scene instance built with the collected elements.
 	TSharedRef<IDatasmithScene> SceneRef;
+
+	// Datasmith scene exporter
+	TSharedPtr<FDatasmithSceneExporter> SceneExporterRef;
 };
