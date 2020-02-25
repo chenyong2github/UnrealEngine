@@ -708,7 +708,15 @@ namespace UnrealBuildTool
 			}
 
 			// Don't create a side-by-side manifest file for the executable.
-			Arguments.Add("/MANIFEST:NO");
+			if (Target.WindowsPlatform.ManifestFile == null)
+			{
+				Arguments.Add("/MANIFEST:NO");
+			}
+			else
+			{
+				Arguments.Add("/MANIFEST:EMBED");
+				Arguments.Add(String.Format("/MANIFESTINPUT:{0}", Utils.MakePathSafeToUseWithCommandLine(Target.WindowsPlatform.ManifestFile)));
+			}
 
 			// Prevents the linker from displaying its logo for each invocation.
 			Arguments.Add("/NOLOGO");
