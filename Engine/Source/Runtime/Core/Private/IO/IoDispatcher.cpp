@@ -283,7 +283,6 @@ private:
 
 	void ProcessCompletedBlocks()
 	{
-		EventQueue.Poll();
 		FileIoStore.ProcessCompletedBlocks();
 		ProcessCompletedRequests();
 	}
@@ -397,7 +396,15 @@ private:
 		FMemory::SetupTLSCachesOnCurrentThread();
 		while (!bStopRequested)
 		{
-			EventQueue.Wait();
+			if (SubmittedRequestsHead)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherWaitForIo);
+				EventQueue.WaitForIo();
+			}
+			else
+			{
+				EventQueue.Wait();
+			}
 			
 			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessEventQueue);
 			ProcessIncomingRequests();

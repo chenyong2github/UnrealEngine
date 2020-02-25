@@ -19,7 +19,10 @@ public:
 	~FGenericIoDispatcherEventQueue();
 	void Notify();
 	void Wait();
-	void Poll() {};
+	void WaitForIo()
+	{
+		Wait();
+	}
 
 private:
 	FEvent* Event;
