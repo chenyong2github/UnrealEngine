@@ -60,7 +60,7 @@ class FRayTracingPipelineState;
 
 DECLARE_STATS_GROUP(TEXT("RHICmdList"), STATGROUP_RHICMDLIST, STATCAT_Advanced);
 
-RHI_API extern Trace::FChannel RHICommandsChannel;
+RHI_API UE_TRACE_CHANNEL_EXTERN(RHICommandsChannel);
 
 // set this one to get a stat for each RHI command 
 #define RHI_STATS 0

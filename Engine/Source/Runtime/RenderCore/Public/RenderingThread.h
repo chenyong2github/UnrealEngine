@@ -126,7 +126,7 @@ private:
 // Render commands
 ////////////////////////////////////
 
-RENDERCORE_API extern Trace::FChannel RenderCommandsChannel;
+RENDERCORE_API UE_TRACE_CHANNEL_EXTERN(RenderCommandsChannel);
 
 /** The parent class of commands stored in the rendering command queue. */
 class RENDERCORE_API FRenderCommand
