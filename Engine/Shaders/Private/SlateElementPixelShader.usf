@@ -172,7 +172,11 @@ half4 GetFontElementColor( VertexToPixelInterpolants InVertex )
 	half4 OutColor = BaseColor;
 
 #if SHADER_TYPE == ST_GrayscaleFont
-	OutColor.a *= Texture2DSample_A8( ElementTexture, ElementTextureSampler, AtlasTextureCoordinates );
+	#if USE_MATERIALS && MATERIALBLENDING_ADDITIVE
+		OutColor *= Texture2DSample_A8( ElementTexture, ElementTextureSampler, AtlasTextureCoordinates );
+	#else
+		OutColor.a *= Texture2DSample_A8( ElementTexture, ElementTextureSampler, AtlasTextureCoordinates );
+	#endif
 #else
 	OutColor *= Texture2DSample( ElementTexture, ElementTextureSampler, AtlasTextureCoordinates );
 #endif
