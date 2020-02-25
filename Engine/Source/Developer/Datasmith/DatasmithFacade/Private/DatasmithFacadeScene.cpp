@@ -106,20 +106,28 @@ void FDatasmithFacadeScene::BuildScene(
 	FDatasmithFacadeMaterial::ClearBuiltTextureSet();
 }
 
-void FDatasmithFacadeScene::ExportScene(
-	const TCHAR* InOutputPath
-)
+void FDatasmithFacadeScene::PreExport()
 {
-	FString OutputPath = InOutputPath;
-
 	// Initialize the Datasmith exporter module.
 	FDatasmithExporterManager::Initialize();
 
 	// Create a Datasmith scene exporter.
-	TSharedRef<FDatasmithSceneExporter> SceneExporterRef = MakeShared<FDatasmithSceneExporter>();
+	SceneExporterRef = MakeShared<FDatasmithSceneExporter>();
 
 	// Start measuring the time taken to export the scene.
 	SceneExporterRef->PreExport();
+}
+
+void FDatasmithFacadeScene::ExportScene(
+	const TCHAR* InOutputPath
+)
+{
+	if (!SceneExporterRef.IsValid())
+	{
+		return;
+	}
+
+	FString OutputPath = InOutputPath;
 
 	// Set the name of the scene to export and let Datasmith sanitize it when required.
 	FString SceneName = FPaths::GetBaseFilename(OutputPath);
