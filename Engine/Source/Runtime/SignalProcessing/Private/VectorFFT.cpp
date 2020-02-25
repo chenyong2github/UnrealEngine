@@ -1141,13 +1141,13 @@ namespace Audio
 	/** Scaling applied when performing forward FFT. */
 	EFFTScaling FVectorRealToComplexFFT::ForwardScaling() const
 	{
-		return EFFTScaling::None;
+		return EFFTScaling::MultipliedBySqrtFFTSize;
 	}
 
 	/** Scaling applied when performing inverse FFT. */
 	EFFTScaling FVectorRealToComplexFFT::InverseScaling() const
 	{
-		return EFFTScaling::None;
+		return EFFTScaling::DividedBySqrtFFTSize;
 	}
 
 	void FVectorRealToComplexFFT::ForwardRealToComplex(const float* RESTRICT InReal, float* RESTRICT OutComplex)
