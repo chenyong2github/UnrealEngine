@@ -38,7 +38,6 @@ public:
 	void SetCompressibleData(FCompressibleAnimRef InCompressibleAnimData)
 	{
 		DataToCompressPtr = InCompressibleAnimData;
-		check(DataToCompressPtr->Skeleton != nullptr);
 	}
 
 	FCompressibleAnimPtr GetCompressibleData() const { return DataToCompressPtr; }

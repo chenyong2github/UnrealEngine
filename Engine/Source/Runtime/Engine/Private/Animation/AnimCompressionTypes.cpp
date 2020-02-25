@@ -128,7 +128,6 @@ void StripFramesOdd(TArray<ArrayValue>& Keys, const int32 NumFrames)
 FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping)
 	: CurveCompressionSettings(InSeq->CurveCompressionSettings)
 	, BoneCompressionSettings(InSeq->BoneCompressionSettings)
-	, Skeleton(InSeq->GetSkeleton())
 	, TrackToSkeletonMapTable(InSeq->GetRawTrackToSkeletonMapTable())
 	, Interpolation(InSeq->Interpolation)
 	, SequenceLength(InSeq->SequenceLength)
@@ -144,7 +143,11 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	, AnimFName(InSeq->GetFName())
 {
 #if WITH_EDITOR
+	USkeleton* Skeleton = InSeq->GetSkeleton();
 	FAnimationUtils::BuildSkeletonMetaData(Skeleton, BoneData);
+
+	RefLocalPoses = Skeleton->GetRefLocalPoses();
+	RefSkeleton = Skeleton->GetReferenceSkeleton();
 
 	const bool bHasVirtualBones = InSeq->GetSkeleton()->GetVirtualBones().Num() > 0;
 
@@ -205,7 +208,6 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames)
 	: CurveCompressionSettings(InCurveCompressionSettings)
 	, BoneCompressionSettings(InBoneCompressionSettings)
-	, Skeleton(InSkeleton)
 	, Interpolation(InInterpolation)
 	, SequenceLength(InSequenceLength)
 	, NumFrames(InNumFrames)
@@ -213,14 +215,15 @@ FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBon
 	, ErrorThresholdScale(1.f)
 {
 #if WITH_EDITOR
-	FAnimationUtils::BuildSkeletonMetaData(Skeleton, BoneData);
+	RefLocalPoses = InSkeleton->GetRefLocalPoses();
+	RefSkeleton = InSkeleton->GetReferenceSkeleton();
+	FAnimationUtils::BuildSkeletonMetaData(InSkeleton, BoneData);
 #endif
 }
 
 FCompressibleAnimData::FCompressibleAnimData()
 : CurveCompressionSettings(nullptr)
 , BoneCompressionSettings(nullptr)
-, Skeleton(nullptr)
 , Interpolation((EAnimInterpolationType)0)
 , SequenceLength(0.f)
 , NumFrames(0)

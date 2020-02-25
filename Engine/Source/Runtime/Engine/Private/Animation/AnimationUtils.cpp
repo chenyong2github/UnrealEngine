@@ -249,10 +249,7 @@ void FAnimationUtils::ComputeCompressionError(const FCompressibleAnimData& Compr
 		float ErrorCount = 0.0f;
 		float ErrorTotal = 0.0f;
 
-		USkeleton* Skeleton = CompressibleAnimData.Skeleton;
-		check ( Skeleton );
-
-		const TArray<FTransform>& RefPose = Skeleton->GetRefLocalPoses();
+		const TArray<FTransform>& RefPose = CompressibleAnimData.RefLocalPoses;
 
 		TArray<FTransform> RawTransforms;
 		TArray<FTransform> NewTransforms;
@@ -272,7 +269,7 @@ void FAnimationUtils::ComputeCompressionError(const FCompressibleAnimData& Compr
 		{
 			FCachedBoneIndexData& BoneIndexData = CachedBoneIndexData[BoneIndex];
 			BoneIndexData.TrackIndex = GetAnimTrackIndexForSkeletonBone(BoneIndex, CompressibleAnimData.TrackToSkeletonMapTable);
-			BoneIndexData.ParentIndex = Skeleton->GetReferenceSkeleton().GetParentIndex(BoneIndex);
+			BoneIndexData.ParentIndex = CompressibleAnimData.RefSkeleton.GetParentIndex(BoneIndex);
 		}
 
 		// Check the precondition that parents occur before children in the RequiredBones array.
@@ -604,10 +601,7 @@ void FAnimationUtils::TallyErrorsFromPerturbation(
 	const int32 NumBones = CompressibleAnimData.BoneData.Num();
 
 
-	USkeleton* Skeleton = CompressibleAnimData.Skeleton;
-	check ( Skeleton );
-
-	const TArray<FTransform>& RefPose = Skeleton->GetRefLocalPoses();
+	const TArray<FTransform>& RefPose = CompressibleAnimData.RefLocalPoses;
 
 	TArray<FTransform> RawAtoms;
 	TArray<FTransform> NewAtomsT;
@@ -690,7 +684,7 @@ void FAnimationUtils::TallyErrorsFromPerturbation(
 				// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.
 				if ( BoneIndex > 0 )
 				{
-					const int32 ParentIndex = Skeleton->GetReferenceSkeleton().GetParentIndex(BoneIndex);
+					const int32 ParentIndex = CompressibleAnimData.RefSkeleton.GetParentIndex(BoneIndex);
 
 					// Check the precondition that parents occur before children in the RequiredBones array.
 					check( ParentIndex != INDEX_NONE );
@@ -944,11 +938,6 @@ bool FAnimationUtils::CompressAnimBones(FCompressibleAnimData& AnimSeq, FCompres
 {
 	// Clear any previous data we might have even if we end up failing to compress
 	Target = FCompressibleAnimDataResult();
-
-	if (AnimSeq.Skeleton == nullptr)
-	{
-		return false;
-	}
 
 	if (AnimSeq.BoneCompressionSettings == nullptr || !AnimSeq.BoneCompressionSettings->AreSettingsValid())
 	{
