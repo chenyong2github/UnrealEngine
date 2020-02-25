@@ -1381,9 +1381,10 @@ void FGPUSkinPassthroughVertexFactory::SetData(const FDataType& InData)
 {
 	FLocalVertexFactory::SetData(InData);
 	const int32 DefaultBaseVertexIndex = 0;
+	const int32 DefaultPreSkinBaseVertexIndex = 0;
 	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
-		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex);
+		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex, DefaultPreSkinBaseVertexIndex);
 	}
 }
 
