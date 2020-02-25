@@ -168,7 +168,7 @@ Texture2D<float4> 			DiffusionInputTexture;
 
 Texture2D<uint4>  			CategorizationTexture;
 Texture2D<uint> 			VisibilityNodeIndex;
-StructuredBuffer<FNodeData> VisibilityNodeData;
+StructuredBuffer<FPackedHairSample> VisibilityNodeData;
 
 Texture3D<float4>			HairLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
@@ -232,6 +232,7 @@ FGBufferData GetGBufferData(uint2 PixelCoord)
 	GBuffer.WorldNormal = float3(1, 0, 0);
 	GBuffer.BaseColor = float3(0, 0, 0);
 	GBuffer.Roughness = 1;
+	GBuffer.CustomData = float4(0,0,1,0);
 	GBuffer.Specular = 0;
 
 	uint MacroGroupIndex = 0;
@@ -243,23 +244,17 @@ FGBufferData GetGBufferData(uint2 PixelCoord)
 		for (uint SampleIt = 0; SampleIt < NodeDesc.Count; ++SampleIt)
 		{
 			const uint LocalOffset = NodeDesc.Offset + SampleIt;
-			const FNodeData NodeData = VisibilityNodeData[LocalOffset];
-			float			SampleDepth;
-			FVisibilityData SampleVisData;
-			float3			SampleBaseColor;
-			float			SampleRoughness;
-			float			SampleSpecular;
-			uint			SampleLigthChannelMask;
-			DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLigthChannelMask);
+			const FPackedHairSample NodeData = VisibilityNodeData[LocalOffset];
+			const FHairSample Sample = UnpackHairSample(NodeData);
 
-			if (SampleDepth >= ClosestDepth) // InverseZ
+			if (Sample.Depth >= ClosestDepth) // InverseZ
 			{
 				GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
-				GBuffer.WorldNormal = SampleVisData.Tangent;
-				GBuffer.BaseColor = SampleBaseColor;
-				GBuffer.Roughness = SampleRoughness;
-				GBuffer.Specular = SampleSpecular;
-				ClosestDepth = SampleDepth;
+				GBuffer.WorldNormal = Sample.Tangent;
+				GBuffer.BaseColor = Sample.BaseColor;
+				GBuffer.Roughness = Sample.Roughness;
+				GBuffer.Specular = Sample.Specular;
+				ClosestDepth = Sample.Depth;
 
 				// todo
 				MacroGroupIndex = 0; //clamp(SampleVisData.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);

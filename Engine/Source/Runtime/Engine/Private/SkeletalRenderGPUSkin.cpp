@@ -134,15 +134,6 @@ void FMorphVertexBuffer::ReleaseDynamicRHI()
 /*-----------------------------------------------------------------------------
 FSkeletalMeshObjectGPUSkin
 -----------------------------------------------------------------------------*/
-void FSkeletalMeshObjectGPUSkin::SetCallbackData(FSkeletalMeshObjectCallbackData& InMeshObjectCallbackData)
-{
-	CallbackData = InMeshObjectCallbackData;
-	if (CallbackData.Run)
-	{
-		CallbackData.Run(FSkeletalMeshObjectCallbackData::EEventType::Register, this, CallbackData.UserData);
-	}
-}
-
 FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectGPUSkin(USkinnedMeshComponent* InMeshComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, ERHIFeatureLevel::Type InFeatureLevel)
 	: FSkeletalMeshObject(InMeshComponent, InSkelMeshRenderData, InFeatureLevel)
 	,	DynamicData(NULL)
@@ -159,7 +150,6 @@ FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectGPUSkin(USkinnedMeshComponent* In
 	}
 
 	InitResources(InMeshComponent);
-	SetCallbackData(InMeshComponent->MeshObjectCallbackData);
 }
 
 
@@ -202,11 +192,6 @@ void FSkeletalMeshObjectGPUSkin::InitResources(USkinnedMeshComponent* InMeshComp
 
 void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 {
-	if (CallbackData.Run)
-	{
-		CallbackData.Run(FSkeletalMeshObjectCallbackData::EEventType::Unregister, this, CallbackData.UserData);
-	}
-
 	for( int32 LODIndex=0;LODIndex < LODs.Num();LODIndex++ )
 	{
 		FSkeletalMeshObjectLOD& SkelLOD = LODs[LODIndex];
@@ -322,11 +307,6 @@ void FSkeletalMeshObjectGPUSkin::Update(int32 LODIndex,USkinnedMeshComponent* In
 			MeshObject->UpdateDynamicData_RenderThread(GPUSkinCache, RHICmdList, NewDynamicData, nullptr, FrameNumberToPrepare, RevisionNumber);
 		}
 	);
-
-	if (CallbackData.Run)
-	{
-		CallbackData.Run(FSkeletalMeshObjectCallbackData::EEventType::Update, this, CallbackData.UserData);
-	}
 }
 
 void FSkeletalMeshObjectGPUSkin::UpdateSkinWeightBuffer(USkinnedMeshComponent* InMeshComponent)
@@ -581,7 +561,6 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 		bDataPresent = VertexFactoryData.VertexFactories.Num() > 0;
 	}
 
-	CachedGeometry.Reset();
 	if (bDataPresent)
 	{
 		for (int32 SectionIdx = 0; SectionIdx < Sections.Num(); SectionIdx++)
@@ -671,14 +650,6 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 				GPUSkinCache->ProcessEntry(RHICmdList, VertexFactory,
 					VertexFactoryData.PassthroughVertexFactories[SectionIdx].Get(), Section, this, bMorph ? &LOD.MorphVertexBuffer : 0, bClothFactory ? &LODData.ClothVertexBuffer : 0,
 					bClothFactory ? DynamicData->ClothingSimData.Find(Section.CorrespondClothAssetIndex) : 0, LocalToCloth, DynamicData->ClothBlendWeight, RevisionNumber, SectionIdx, SkinCacheEntry);
-
-				FCachedGeometrySection CachedSection = GPUSkinCache->GetCachedGeometry(SkinCacheEntry, SectionIdx);
-				CachedSection.IndexBuffer		= LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
-				CachedSection.TotalIndexCount	= LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
-				CachedSection.LODIndex			= DynamicData->LODIndex;
-				CachedSection.UVsChannelOffset	= 0; // Assume that we needs to pair meshes based on UVs 0
-				CachedSection.UVsChannelCount	= LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-				CachedGeometry.Sections.Add(CachedSection);
 			}
 
 			if (bNeedFence)

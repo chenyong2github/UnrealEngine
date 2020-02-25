@@ -45,6 +45,7 @@ FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent,
 ,	bUsePerBoneMotionBlur(InMeshComponent->bPerBoneMotionBlur)
 ,	StatId(InMeshComponent->SkeletalMesh->GetStatID(true))
 ,	FeatureLevel(InFeatureLevel)
+,	ComponentId(InMeshComponent->ComponentId.PrimIDValue)
 {
 	check(SkeletalMeshRenderData);
 

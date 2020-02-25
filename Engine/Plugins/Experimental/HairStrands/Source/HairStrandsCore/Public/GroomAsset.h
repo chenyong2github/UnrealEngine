@@ -11,6 +11,7 @@
 #include "GroomSettings.h"
 #include "Curves/CurveFloat.h"
 #include "HairStrandsInterface.h"
+#include "Interfaces/Interface_AssetUserData.h"
 #include "Engine/SkeletalMesh.h"
 #include "Interfaces/Interface_AssetUserData.h"
 
@@ -48,7 +49,7 @@ struct FHairStrandsRootData
 {
 	/** Build the hair strands resource */
 	FHairStrandsRootData();
-	FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount);
+	FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
 	void Serialize(FArchive& Ar);
 	void Reset();
 	bool HasProjectionData() const;
@@ -64,9 +65,21 @@ struct FHairStrandsRootData
 		TArray<FHairStrandsCurveTriangleBarycentricFormat::Type> RootTriangleBarycentricBuffer;
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		TArray< FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition0Buffer;
-		TArray< FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition1Buffer;
-		TArray< FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition2Buffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition0Buffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition1Buffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition2Buffer;
+
+		/* Number of samples used for the mesh interpolation */
+		uint32 SampleCount = 0;
+
+		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount */
+		TArray<FHairStrandsWeightFormat::Type> MeshInterpolationWeightsBuffer;
+
+		/* Store the samples vertex indices */
+		TArray<FHairStrandsIndexFormat::Type> MeshSampleIndicesBuffer;
+
+		/* Store the samples rest positions */
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestSamplePositionsBuffer;
 	};
 
 	/* Number of roots */
@@ -91,7 +104,7 @@ struct FHairStrandsRootResource : public FRenderResource
 	/** Build the hair strands resource */
 	FHairStrandsRootResource();
 	FHairStrandsRootResource(const FHairStrandsRootData& RootData);
-	FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount);
+	FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -101,7 +114,7 @@ struct FHairStrandsRootResource : public FRenderResource
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRootResource"); }
-	
+
 	/* Populate GPU LOD data from RootData (this function doesn't initialize resources) */
 	void PopulateFromRootData();
 
@@ -115,11 +128,11 @@ struct FHairStrandsRootResource : public FRenderResource
 		int32 LODIndex = -1;
 
 		/* Triangle on which a root is attached */
-		/* When the projection is done with source to target mesh transfer, the projection indices does not match. 
+		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
 		   In this case we need to separate index computation. The barycentric coords remain the same however. */
 		FRWBuffer RootTriangleIndexBuffer;
 		FRWBuffer RootTriangleBarycentricBuffer;
-	
+
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
 		FRWBuffer RestRootTrianglePosition0Buffer;
 		FRWBuffer RestRootTrianglePosition1Buffer;
@@ -129,6 +142,14 @@ struct FHairStrandsRootResource : public FRenderResource
 		FRWBuffer DeformedRootTrianglePosition0Buffer;
 		FRWBuffer DeformedRootTrianglePosition1Buffer;
 		FRWBuffer DeformedRootTrianglePosition2Buffer;
+
+		/* Strand hair mesh interpolation matrix and sample indices */
+		uint32 SampleCount = 0;
+		FRWBuffer MeshInterpolationWeightsBuffer;
+		FRWBuffer MeshSampleIndicesBuffer;
+		FRWBuffer RestSamplePositionsBuffer;
+		FRWBuffer DeformedSamplePositionsBuffer;
+		FRWBuffer MeshSampleWeightsBuffer;
 	};
 
 	/* Store the hair projection information for each mesh LOD */
@@ -197,11 +218,14 @@ struct FHairStrandsDeformedResource : public FRenderResource
 
 	/* Whether the GPU data should be initialized with the asset data or not */
 	const bool bInitializedData;
+
+	/* Whether the GPU data should be initialized with the asset data or not */
+	uint32 CurrentIndex = 0;
 };
 
 struct FHairStrandsClusterCullingResource : public FRenderResource
 {
-	FHairStrandsClusterCullingResource(const FHairGroupData& GroupData);
+	FHairStrandsClusterCullingResource(const FHairStrandsDatas& RenStrandsData);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -324,6 +348,12 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 	/** Guide render resource to be allocated */
 	FHairStrandsRestResource* HairSimulationRestResource = nullptr;
 
+	/** Interpolation resource to be allocated */
+	FHairStrandsInterpolationResource* HairInterpolationResource = nullptr;
+
+	/** Cluster culling resource to be allocated */
+	FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
+
 	friend FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData);
 };
 
@@ -353,8 +383,8 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 	/** Density factor for converting hair into guide curve if no guides are provided. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
-	float HairToGuideDensity = 0.1f;
+	UPROPERTY(BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
+	float HairToGuideDensity = 0.1f; // To remove, as this is now stored into the import settings
 
 	/** Group Id to be simulated */
 	UPROPERTY(EditAnywhere, Category = "Hair Physics|Group Setup", meta = (ToolTip = "Group ID that will be simulated with niagara"))
@@ -498,6 +528,8 @@ public:
 
 #endif // WITH_EDITORONLY_DATA
 
+	bool IsValid() const { return bIsInitialized; }
+
 	/** Initialize resources. */
 	void InitResource();
 
@@ -543,6 +575,7 @@ private:
 
 	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
+	bool bIsInitialized;
 
 	UPROPERTY()
 	bool bIsCacheable = true;
@@ -595,6 +628,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
 	USkeletalMesh* TargetSkeletalMesh;
 
+	/** Number of points used for the rbf interpolation */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
+	int32 NumInterpolationPoints = 100;
+
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroups", meta = (DisplayName = "Group"))
 	TArray<FGoomBindingGroupInfo> GroupInfos;
 
@@ -606,6 +643,10 @@ public:
 	};
 	typedef TArray<FHairGroupResource> FHairGroupResources;
 	FHairGroupResources HairGroupResources;
+
+	/** Queue of resources which needs to be deleted. This queue is needed for keeping valid pointer on the group resources 
+	   when the binding asset is recomputed */
+	TQueue<FHairGroupResource> HairGroupResourcesToDelete;
 
 	struct FHairGroupData
 	{
@@ -622,12 +663,23 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
 
+	static bool IsCompatible(const USkeletalMesh* InSkeletalMesh, const UGroomBindingAsset* InBinding);
+	static bool IsCompatible(const UGroomAsset* InGroom, const UGroomBindingAsset* InBinding);
+	static bool IsBindingAssetValid(const UGroomBindingAsset* InBinding, bool bIsBindingReloading=false);
+
 #if WITH_EDITOR
 	FOnGroomBindingAssetChanged& GetOnGroomBindingAssetChanged() { return OnGroomBindingAssetChanged; }
 
 	/**  Part of UObject interface  */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
+	enum class EQueryStatus
+	{
+		None,
+		Submitted,
+		Completed
+	};
+	EQueryStatus QueryStatus = EQueryStatus::None;
 #endif // WITH_EDITOR
 
 	/** Initialize resources. */
@@ -645,4 +697,14 @@ public:
 #if WITH_EDITOR
 	FOnGroomBindingAssetChanged OnGroomBindingAssetChanged;
 #endif
+};
+
+struct FProcessedHairDescription
+{
+	typedef TPair<FHairGroupInfo, FHairGroupData> FHairGroup;
+	typedef TMap<int32, FHairGroup> FHairGroups;
+	FHairGroups HairGroups;
+	bool bCanUseClosestGuidesAndWeights = false;
+	bool bHasUVData = false;
+	bool IsValid() const;
 };

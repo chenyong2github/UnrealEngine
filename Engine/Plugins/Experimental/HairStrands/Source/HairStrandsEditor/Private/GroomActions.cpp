@@ -170,7 +170,14 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 				}
 				else if (GroomAsset.Get() && CurrentOptions && CurrentOptions->TargetSkeletalMesh)
 				{
-					UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh);
+					GroomAsset->ConditionalPostLoad();
+					if (CurrentOptions->SourceSkeletalMesh)
+					{
+						CurrentOptions->SourceSkeletalMesh->ConditionalPostLoad();
+					}
+					CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
+
+					UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints);
 
 					// The binding task will generate and set the binding value back to the binding asset.
 					// This code is not thread safe.

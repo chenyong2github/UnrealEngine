@@ -2,6 +2,7 @@
 
 #include "HairStrandsEditor.h"
 #include "GroomActions.h"
+#include "GroomBindingActions.h"
 
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
@@ -15,10 +16,13 @@ IMPLEMENT_MODULE(FHairStrandsEditor, HairStrandsEditor);
 void FHairStrandsEditor::StartupModule()
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	TSharedRef<IAssetTypeActions> AssetActions = MakeShareable(new FGroomActions());
+	TSharedRef<IAssetTypeActions> GroomAssetActions = MakeShareable(new FGroomActions());
+	TSharedRef<IAssetTypeActions> BindingAssetActions = MakeShareable(new FGroomBindingActions());
 
-	AssetTools.RegisterAssetTypeActions(AssetActions);
-	RegisteredAssetTypeActions.Add(AssetActions);
+	AssetTools.RegisterAssetTypeActions(GroomAssetActions);
+	AssetTools.RegisterAssetTypeActions(BindingAssetActions);
+	RegisteredAssetTypeActions.Add(GroomAssetActions);
+	RegisteredAssetTypeActions.Add(BindingAssetActions);
 
 	RegisterHairTranslator<FFbxHairTranslator>();
 

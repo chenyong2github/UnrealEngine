@@ -3037,7 +3037,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
 		const FShaderDrawDebugData* ShaderDrawData = &Views[0].ShaderDrawData;
 		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-		RunHairStrandsInterpolation(RHICmdList, WorldType, ShaderDrawData, ShaderMap, EHairStrandsInterpolationType::SimulationStrands, nullptr);
+		RunHairStrandsInterpolation(RHICmdList, WorldType, Scene->GetGPUSkinCache(), ShaderDrawData, ShaderMap, EHairStrandsInterpolationType::SimulationStrands, nullptr);
 	}
 
 	// Notify the FX system that the scene is about to perform visibility checks.

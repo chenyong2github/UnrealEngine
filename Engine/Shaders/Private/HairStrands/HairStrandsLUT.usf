@@ -90,6 +90,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	GBufferData.BaseColor	= Absorption.xxx;		// Perceptual absorption
 	GBufferData.Metallic	= 0;		 			// This disable the fake multiple scattering
 	GBufferData.Roughness 	= Roughness; 			// Perceptual roughness
+	GBufferData.CustomData  = float4(0, 0, 1, 0); 	// Backlit
 
 	float FrontHemisphereOutput = 0;
 	float BackHemisphereOutput  = 0;
@@ -199,6 +200,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	GBufferData.BaseColor = Absorption.xxx;		// Perceptual absorption
 	GBufferData.Metallic = 0;		 			// This disable the fake multiple scattering
 	GBufferData.Roughness = Roughness; 			// Perceptual roughness
+	GBufferData.CustomData = float4(0,0,1,0); 	// Backlit
 
 	float R_Output = 0;
 	float TT_Output = 0;

@@ -47,7 +47,24 @@ const FString UNiagaraDataInterfacePhysicsAsset::BoxExtentName(TEXT("BoxExtent_"
 
 struct FNDIPhysicsAssetParametersName
 {
+	FNDIPhysicsAssetParametersName(const FString& Suffix)
+	{
+		ElementOffsetsName = UNiagaraDataInterfacePhysicsAsset::ElementOffsetsName + Suffix;
+
+		CurrentTransformBufferName = UNiagaraDataInterfacePhysicsAsset::CurrentTransformBufferName + Suffix;
+		PreviousTransformBufferName = UNiagaraDataInterfacePhysicsAsset::PreviousTransformBufferName + Suffix;
+		PreviousInverseBufferName = UNiagaraDataInterfacePhysicsAsset::PreviousInverseBufferName + Suffix;
+		InverseTransformBufferName = UNiagaraDataInterfacePhysicsAsset::InverseTransformBufferName + Suffix;
+		RestTransformBufferName = UNiagaraDataInterfacePhysicsAsset::RestTransformBufferName + Suffix;
+		RestInverseBufferName = UNiagaraDataInterfacePhysicsAsset::RestInverseBufferName + Suffix;
+		ElementExtentBufferName = UNiagaraDataInterfacePhysicsAsset::ElementExtentBufferName + Suffix;
+
+		BoxOriginName = UNiagaraDataInterfacePhysicsAsset::BoxOriginName + Suffix;
+		BoxExtentName = UNiagaraDataInterfacePhysicsAsset::BoxExtentName + Suffix;
+	}
+
 	FString ElementOffsetsName;
+	
 	FString CurrentTransformBufferName;
 	FString PreviousTransformBufferName;
 	FString PreviousInverseBufferName;
@@ -59,20 +76,6 @@ struct FNDIPhysicsAssetParametersName
 	FString BoxOriginName;
 	FString BoxExtentName;
 };
-
-static void GetNiagaraDataInterfaceParametersName(FNDIPhysicsAssetParametersName& Names, const FString& Suffix)
-{
-	Names.ElementOffsetsName = UNiagaraDataInterfacePhysicsAsset::ElementOffsetsName + Suffix;
-	Names.CurrentTransformBufferName = UNiagaraDataInterfacePhysicsAsset::CurrentTransformBufferName + Suffix;
-	Names.PreviousTransformBufferName = UNiagaraDataInterfacePhysicsAsset::PreviousTransformBufferName + Suffix;
-	Names.InverseTransformBufferName = UNiagaraDataInterfacePhysicsAsset::InverseTransformBufferName + Suffix;
-	Names.RestTransformBufferName = UNiagaraDataInterfacePhysicsAsset::RestTransformBufferName + Suffix;
-	Names.RestInverseBufferName = UNiagaraDataInterfacePhysicsAsset::RestInverseBufferName + Suffix;
-	Names.ElementExtentBufferName = UNiagaraDataInterfacePhysicsAsset::ElementExtentBufferName + Suffix;
-
-	Names.BoxOriginName = UNiagaraDataInterfacePhysicsAsset::BoxOriginName + Suffix;
-	Names.BoxExtentName = UNiagaraDataInterfacePhysicsAsset::BoxExtentName + Suffix;
-}
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -303,28 +306,6 @@ void FNDIPhysicsAssetBuffer::Update()
 	}
 }
 
-struct FPhysicsAssetManager
-{
-	TMap<int32,FSkeletalMeshObject*> Elements;
-};
-
-FPhysicsAssetManager GHairManager;
-
-void MeshObjectCallback(
-	FSkeletalMeshObjectCallbackData::EEventType Event,
-	FSkeletalMeshObject* MeshObject,
-	uint64 UserData)
-{
-	ENQUEUE_RENDER_COMMAND(FPhysicsAssetUpdate)(
-		[Event, MeshObject, UserData](FRHICommandListImmediate& RHICmdList)
-	{
-		if (Event == FSkeletalMeshObjectCallbackData::EEventType::Register || Event == FSkeletalMeshObjectCallbackData::EEventType::Update)
-		{
-			GHairManager.Elements.Add(UserData,MeshObject);
-		}
-	});
-}
-
 void FNDIPhysicsAssetBuffer::InitRHI()
 {
 	if (IsValid())
@@ -337,8 +318,8 @@ void FNDIPhysicsAssetBuffer::InitRHI()
 		CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, true>(AssetArrays->ElementExtent.Num(), AssetArrays->ElementExtent, ElementExtentBuffer);
 		CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, true>(AssetArrays->PreviousInverse.Num(), AssetArrays->PreviousInverse, PreviousInverseBuffer);
 
-		//UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
-		//	AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
+		UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
+			AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
 	}
 
 	// /*const FPrimitiveComponentId LocalComponentId = SkeletalMesh->ComponentId;
@@ -419,8 +400,7 @@ struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		FNDIPhysicsAssetParametersName ParamNames;
-		GetNiagaraDataInterfaceParametersName(ParamNames, *ParameterInfo.DataInterfaceHLSLSymbol);
+		FNDIPhysicsAssetParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
 
 		ElementOffsets.Bind(ParameterMap, *ParamNames.ElementOffsetsName);
 
@@ -531,6 +511,7 @@ private:
 IMPLEMENT_TYPE_LAYOUT(FNDIPhysicsAssetParametersCS);
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfacePhysicsAsset, FNDIPhysicsAssetParametersCS);
+
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -879,8 +860,7 @@ void UNiagaraDataInterfacePhysicsAsset::GetProjectionPoint(FVectorVMContext& Con
 
 bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	FNDIPhysicsAssetParametersName ParamNames;
-	GetNiagaraDataInterfaceParametersName(ParamNames, ParamInfo.DataInterfaceHLSLSymbol);
+	FNDIPhysicsAssetParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
 
 	TMap<FString, FStringFormatArg> ArgsSample = {
 		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
