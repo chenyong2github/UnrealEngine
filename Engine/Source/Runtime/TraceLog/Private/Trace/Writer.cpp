@@ -397,30 +397,41 @@ static uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Si
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_ConsumeNewEventNodes()
+static void Writer_DescribeAnnounce()
 {
 	if (!GDataHandle)
 	{
 		return;
 	}
 
-	TWriteBufferRedirect<4096> TraceData;
-
-	FEventNode::FIter Iter = FEventNode::ReadNew();
-	while (const FEventNode* Event = Iter.GetNext())
+	// Describe new events
 	{
-		Event->Describe();
+		TWriteBufferRedirect<4096> TraceData;
 
-		if (TraceData.GetSize() >= (TraceData.GetCapacity() - 1024))
+		FEventNode::FIter Iter = FEventNode::ReadNew();
+		while (const FEventNode* Event = Iter.GetNext())
+		{
+			Event->Describe();
+
+			// Flush just in case an NewEvent event will be larger than 512 bytes.
+			if (TraceData.GetSize() >= (TraceData.GetCapacity() - 512))
+			{
+				Writer_SendData(Tid_NewEvents, TraceData.GetData(), TraceData.GetSize());
+				TraceData.Reset();
+			}
+		}
+
+		if (TraceData.GetSize())
 		{
 			Writer_SendData(Tid_NewEvents, TraceData.GetData(), TraceData.GetSize());
-			TraceData.Reset();
 		}
 	}
 
-	if (TraceData.GetSize())
+	// Announce new channels
+	FChannel::Iter Iter = FChannel::ReadNew();
+	while (const FChannel* Channel = Iter.GetNext())
 	{
-		Writer_SendData(Tid_NewEvents, TraceData.GetData(), TraceData.GetSize());
+		Channel->Announce();
 	}
 }
 
@@ -621,7 +632,7 @@ static void Writer_WorkerUpdate()
 {
 	Writer_UpdateControl();
 	Writer_UpdateData();
-	Writer_ConsumeNewEventNodes();
+	Writer_DescribeAnnounce();
 	Writer_ConsumeEvents();
 }
 

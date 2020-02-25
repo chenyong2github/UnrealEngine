@@ -18,7 +18,7 @@
 	{ \
 		F##ChannelName##Registrator() \
 		{ \
-			Trace::FChannel::Register(ChannelName, PREPROCESSOR_TO_STRING(ChannelName)); \
+			ChannelName.Initialize(#ChannelName); \
 		} \
 	}; \
 	static F##ChannelName##Registrator ChannelName##Reg = F##ChannelName##Registrator();
