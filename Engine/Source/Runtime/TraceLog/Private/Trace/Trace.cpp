@@ -71,14 +71,7 @@ bool ToggleChannel(const TCHAR* ChannelName, bool bEnabled)
 {
 	ANSICHAR ChannelNameA[64];
 	ToAnsiCheap(ChannelNameA, ChannelName);
-
 	return FChannel::Toggle(ChannelNameA, bEnabled);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool ToggleChannel(struct FChannel& Channel, bool bEnabled)
-{
-	return FChannel::Toggle(&Channel, bEnabled);
 }
 
 } // namespace Trace
