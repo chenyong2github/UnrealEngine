@@ -3,13 +3,18 @@
 #include "DSP/FloatArrayMath.h"
 #include "CoreMinimal.h"
 
-namespace
-{
-	const float LOGE10 = FMath::Loge(10.f);
-}
 
 namespace Audio
 {
+	namespace MathIntrinsics
+	{
+		const float Loge10 = FMath::Loge(10.f);
+		const int32 SimdMask = 0xFFFFFFFC;
+		const int32 NotSimdMask = 0x00000003;
+
+		
+	}
+
 	void ArrayCumulativeSum(TArrayView<const float> InView, TArray<float>& OutData)
 	{
 		// Initialize output data
@@ -299,23 +304,114 @@ namespace Audio
 		}
 	}
 
-	void ArrayMultiplyByConstantInPlace(TArrayView<float> InView, float InMultiplier)
+	void ArrayMultiplyByConstantInPlace(TArrayView<float> InValues, float InMultiplier)
 	{
-		const int32 Num = InView.Num();
-		float* InViewData = InView.GetData();
+		const int32 Num = InValues.Num();
+		float* InData = InValues.GetData();
+
 		for (int32 i = 0; i < Num; i++)
 		{
-			InViewData[i] *= InMultiplier;
+			InData[i] *= InMultiplier;
 		}
 	}
 
-	void ArraySubtractByConstantInPlace(TArrayView<float> InView, float InSubtrahend)
+	void ArrayMultiplyByConstantInPlace(AlignedFloatBuffer& InValues, float InMultiplier)
 	{
-		const int32 Num = InView.Num();
-		float* InViewData = InView.GetData();
+		const int32 Num = InValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		float* InData = InValues.GetData();
+
+		if (NumToSimd)
+		{
+			MultiplyBufferByConstantInPlace(InData, NumToSimd, InMultiplier);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<float> ValuesView(&InData[NumToSimd],  NumNotToSimd);
+
+			ArrayMultiplyByConstantInPlace(ValuesView, InMultiplier);
+		}
+		
+	}
+
+	void ArrayAddInPlace(TArrayView<const float> InValues, TArrayView<float> InAccumulateValues)
+	{
+		check(InValues.Num() == InAccumulateValues.Num());
+
+		const int32 Num = InValues.Num();
+
+		const float* InData = InValues.GetData();
+		float* InAccumulateData = InAccumulateValues.GetData();
+
 		for (int32 i = 0; i < Num; i++)
 		{
-			InViewData[i] -= InSubtrahend;
+			InAccumulateData[i] += InData[i];
+		}
+	}
+
+	void ArrayAddInPlace(const AlignedFloatBuffer& InValues, AlignedFloatBuffer& InAccumulateValues)
+	{
+		check(InValues.Num() == InAccumulateValues.Num());
+
+		const int32 Num = InAccumulateValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const float* InData = InValues.GetData();
+		float* InAccumulateData = InAccumulateValues.GetData();
+
+		for (int32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
+			VectorRegister VectorAccumData = VectorLoadAligned(&InAccumulateData[i]);
+
+			VectorRegister VectorOut = VectorAdd(VectorData, VectorAccumData);
+			VectorStoreAligned(VectorOut, &InAccumulateData[i]);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<const float> ValuesView(&InData[NumToSimd],  NumNotToSimd);
+			TArrayView<float> AccumulateView(&InAccumulateData[NumToSimd], NumNotToSimd);
+
+			ArrayAddInPlace(ValuesView, AccumulateView);
+		}
+	}
+
+	void ArraySubtractByConstantInPlace(TArrayView<float> InValues, float InSubtrahend)
+	{
+		const int32 Num = InValues.Num();
+		float* InValuesData = InValues.GetData();
+		for (int32 i = 0; i < Num; i++)
+		{
+			InValuesData[i] -= InSubtrahend;
+		}
+	}
+
+	void ArraySubtractByConstantInPlace(AlignedFloatBuffer& InValues, float InSubtrahend)
+	{
+		const int32 Num = InValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		float* InData = InValues.GetData();
+
+		const VectorRegister VectorSubtrahend = VectorSetFloat1(InSubtrahend);
+
+		for (int32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
+			VectorData = VectorSubtract(VectorData, VectorSubtrahend);
+			VectorStoreAligned(VectorData, &InData[i]);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<float> View(&InData[NumToSimd], NumNotToSimd);
+			ArraySubtractByConstantInPlace(View, InSubtrahend);
 		}
 	}
 
@@ -344,25 +440,138 @@ namespace Audio
 		}
 	}
 
-	void ArrayMagnitudeToDecibelInPlace(TArrayView<float> InView)
+	void ArrayMagnitudeToDecibelInPlace(TArrayView<float> InValues)
 	{
-		const int32 Num = InView.Num();
-		float* InViewData = InView.GetData();
+		const int32 Num = InValues.Num();
+		float* InValuesData = InValues.GetData();
 		for (int32 i = 0; i < Num; i++)
 		{
-			InViewData[i] = 20.f * FMath::Loge(InViewData[i]) / LOGE10;
+			InValuesData[i] = 20.f * FMath::Loge(InValuesData[i]) / MathIntrinsics::Loge10;
 		}
 	}
 
-	void ArrayPowerToDecibelInPlace(TArrayView<float> InView)
+	void ArrayMagnitudeToDecibelInPlace(AlignedFloatBuffer& InValues)
 	{
-		const int32 Num = InView.Num();
-		float* InViewData = InView.GetData();
-		for (int32 i = 0; i < Num; i++)
+		const int32 Num = InValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		float* InData = InValues.GetData();
+
+		const VectorRegister VectorScale = VectorSetFloat1(20.f / MathIntrinsics::Loge10);
+
+		for (int32 i = 0; i < NumToSimd; i += 4)
 		{
-			InViewData[i] = 10.f * FMath::Loge(InViewData[i]) / LOGE10;
+			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
+
+			VectorData = VectorLog(VectorData);
+			VectorData = VectorMultiply(VectorData, VectorScale);
+
+			VectorStoreAligned(VectorData, &InData[i]);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<float> InView(&InData[NumToSimd], NumNotToSimd);
+			ArrayMagnitudeToDecibelInPlace(InView);
 		}
 	}
+
+	void ArrayPowerToDecibelInPlace(TArrayView<float> InValues)
+	{
+		const int32 Num = InValues.Num();
+		float* InValuesData = InValues.GetData();
+		for (int32 i = 0; i < Num; i++)
+		{
+			InValuesData[i] = 10.f * FMath::Loge(InValuesData[i]) / MathIntrinsics::Loge10;
+		}
+	}
+
+	void ArrayPowerToDecibelInPlace(AlignedFloatBuffer& InValues)
+	{
+		const int32 Num = InValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		float* InData = InValues.GetData();
+
+		const VectorRegister VectorScale = VectorSetFloat1(10.f / MathIntrinsics::Loge10);
+
+		for (int32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
+
+			VectorData = VectorLog(VectorData);
+			VectorData = VectorMultiply(VectorData, VectorScale);
+
+			VectorStoreAligned(VectorData, &InData[i]);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<float> InView(&InData[NumToSimd], NumNotToSimd);
+			ArrayPowerToDecibelInPlace(InView);
+		}
+	}
+
+	void ArrayComplexToPower(TArrayView<const float> InComplexValues, TArrayView<float> OutPowerValues)
+	{
+		check((InComplexValues.Num() % 2) == 0);
+		check(InComplexValues.Num() == (OutPowerValues.Num() * 2));
+
+		const int32 NumOut = OutPowerValues.Num();
+
+		const float* InComplexData = InComplexValues.GetData();
+		float* OutPowerData = OutPowerValues.GetData();
+
+		for (int32 i = 0; i < NumOut; i++)
+		{
+			int32 ComplexPos = 2 * i;
+
+			float RealValue = InComplexData[ComplexPos];
+			float ImagValue = InComplexData[ComplexPos + 1];
+
+			OutPowerData[i] = (RealValue * RealValue) + (ImagValue * ImagValue);
+		}
+	}
+
+	void ArrayComplexToPower(const AlignedFloatBuffer& InComplexValues, AlignedFloatBuffer& OutPowerValues)
+	{
+		check((InComplexValues.Num() % 2) == 0);
+		check(InComplexValues.Num() == (OutPowerValues.Num() * 2));
+
+		const int32 NumOut = OutPowerValues.Num();
+		const int32 NumToSimd = NumOut & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = NumOut & MathIntrinsics::NotSimdMask;
+
+		const float* InComplexData = InComplexValues.GetData();
+		float* OutPowerData = OutPowerValues.GetData();
+
+		for (int32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister VectorComplex1 = VectorLoadAligned(&InComplexData[2 * i]);
+			VectorRegister VectorSquared1 = VectorMultiply (VectorComplex1, VectorComplex1);
+
+			VectorRegister VectorComplex2 = VectorLoadAligned(&InComplexData[(2 * i) + 4]);
+			VectorRegister VectorSquared2 = VectorMultiply (VectorComplex2, VectorComplex2);
+
+			VectorRegister VectorSquareReal = VectorShuffle(VectorSquared1, VectorSquared2, 0, 2, 0, 2);
+			VectorRegister VectorSquareImag = VectorShuffle(VectorSquared1, VectorSquared2, 1, 3, 1, 3);
+
+			VectorRegister VectorOut = VectorAdd(VectorSquareReal, VectorSquareImag);
+			
+			VectorStoreAligned(VectorOut, &OutPowerData[i]);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<const float> ComplexView(&InComplexData[2 * NumToSimd], 2 * NumNotToSimd);
+			TArrayView<float> PowerView(&OutPowerData[NumToSimd], NumNotToSimd);
+
+			ArrayComplexToPower(ComplexView, PowerView);
+		}
+	}
+
 
 	FContiguousSparse2DKernelTransform::FContiguousSparse2DKernelTransform(const int32 NumInElements, const int32 NumOutElements)
 	:	NumIn(NumInElements)

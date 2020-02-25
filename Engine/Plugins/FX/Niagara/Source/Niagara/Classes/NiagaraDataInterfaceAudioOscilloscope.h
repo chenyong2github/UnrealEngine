@@ -9,39 +9,9 @@
 #include "AudioDevice.h"
 #include "AudioDeviceManager.h"
 #include "DSP/MultithreadedPatching.h"
+#include "NiagaraDataInterfaceAudio.h"
 #include "NiagaraDataInterfaceAudioOscilloscope.generated.h"
 
-// Class used to to capture the audio stream of an arbitrary submix.
-class NIAGARA_API FNiagaraSubmixListener : public ISubmixBufferListener
-{
-public:
-	FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer);
-	FNiagaraSubmixListener(const FNiagaraSubmixListener& Other)
-	{
-		// Copy constructor technically required to compile TMap, but not used during runtime if move constructor is available.
-		// If you're hitting this, consider using Emplace or Add(MoveTemp()).
-		checkNoEntry();
-	}
-
-	FNiagaraSubmixListener(FNiagaraSubmixListener&& Other);
-
-	virtual ~FNiagaraSubmixListener();
-
-	float GetSampleRate();
-	int32 GetNumChannels();
-
-	// Begin ISubmixBufferListener overrides
-	virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
-	// End ISubmixBufferListener overrides
-
-private:
-	FNiagaraSubmixListener();
-
-	int32 NumChannelsInSubmix;
-	int32 SubmixSampleRate;
-
-	Audio::FPatchInput MixerInput;
-};
 
 struct FNiagaraDataInterfaceProxyOscilloscope : public FNiagaraDataInterfaceProxy
 {
