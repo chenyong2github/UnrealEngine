@@ -22,6 +22,7 @@ public:
 
 	virtual bool IsPinNameEditable(const UEdGraphPin* GraphPinObj) const override;
 	virtual bool IsPinNameEditableUponCreation(const UEdGraphPin* GraphPinObj) const override;
+	virtual void RemoveDynamicPin(UEdGraphPin* Pin) override;
 	virtual bool VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const override;
 	virtual bool CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)  override;
 	virtual bool CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) override;
@@ -39,4 +40,7 @@ public:
 protected:
 	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin); 
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
+
+	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
+	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_Input; };
 };

@@ -427,6 +427,8 @@ UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
 UEnum* FNiagaraTypeDefinition::ExecutionStateSourceEnum;
 UEnum* FNiagaraTypeDefinition::ScriptUsageEnum;
 
+UEnum* FNiagaraTypeDefinition::ParameterScopeEnum;
+
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ParameterMapDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::IDDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::NumericDef;
@@ -543,6 +545,8 @@ void FNiagaraTypeDefinition::Init()
 	ExecutionStateSourceEnum = StaticEnum<ENiagaraExecutionStateSource>();
 	SimulationTargetEnum = StaticEnum<ENiagaraSimTarget>();
 	ScriptUsageEnum = StaticEnum<ENiagaraScriptUsage>();
+
+	ParameterScopeEnum = StaticEnum<ENiagaraParameterScope>();
 	
 	RecreateUserDefinedTypeRegistry();
 }
