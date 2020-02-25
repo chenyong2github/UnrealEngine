@@ -89,7 +89,7 @@ bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 		OutData.BoneCompressionCodec = CompressionResult.Codec;
 
 		FMemoryWriter Ar(OutDataArray, true);
-		OutData.SerializeCompressedData(Ar, true, nullptr, DataToCompress.Skeleton, DataToCompress.BoneCompressionSettings, DataToCompress.CurveCompressionSettings); //Save out compressed
+		OutData.SerializeCompressedData(Ar, true, nullptr, nullptr, DataToCompress.BoneCompressionSettings, DataToCompress.CurveCompressionSettings); //Save out compressed
 	}
 
 	return bCompressionSuccessful;
