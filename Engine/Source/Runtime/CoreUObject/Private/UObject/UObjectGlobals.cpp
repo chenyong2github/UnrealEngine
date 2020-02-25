@@ -4366,7 +4366,7 @@ namespace UE4CodeGen_Private
 		}
 	}
 
-	void ConstructUProperties(UObject* Outer, const FPropertyParamsBase* const* PropertyArray, int32 NumProperties)
+	void ConstructFProperties(UObject* Outer, const FPropertyParamsBase* const* PropertyArray, int32 NumProperties)
 	{
 		while (NumProperties)
 		{
@@ -4443,7 +4443,7 @@ namespace UE4CodeGen_Private
 		NewFunction->RPCId = Params.RPCId;
 		NewFunction->RPCResponseId = Params.RPCResponseId;
 
-		ConstructUProperties(NewFunction, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewFunction, Params.PropertyArray, Params.NumProperties);
 
 		NewFunction->Bind();
 		NewFunction->StaticLink();
@@ -4501,7 +4501,7 @@ namespace UE4CodeGen_Private
 		UScriptStruct* NewStruct = new(EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) UScriptStruct(FObjectInitializer(), Super, StructOps, (EStructFlags)Params.StructFlags, Params.SizeOf, Params.AlignOf);
 		OutStruct = NewStruct;
 
-		ConstructUProperties(NewStruct, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewStruct, Params.PropertyArray, Params.NumProperties);
 
 		NewStruct->StaticLink();
 
@@ -4584,7 +4584,7 @@ namespace UE4CodeGen_Private
 		}
 		NewClass->CreateLinkAndAddChildFunctionsToMap(Params.FunctionLinkArray, Params.NumFunctions);
 
-		ConstructUProperties(NewClass, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewClass, Params.PropertyArray, Params.NumProperties);
 
 		if (Params.ClassConfigNameUTF8)
 		{
