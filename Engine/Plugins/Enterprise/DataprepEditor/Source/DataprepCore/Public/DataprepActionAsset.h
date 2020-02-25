@@ -455,7 +455,7 @@ private:
 	bool bWorkingSetHasChanged;
 
 	/** UI label of the action */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Label")
 	FString Label;
 
 	/** Package which static meshes will be added to */
