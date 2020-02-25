@@ -8,7 +8,7 @@
 
 
 USTRUCT(BlueprintType)
-struct FSoundModulationValue
+struct AUDIOMODULATION_API FSoundModulationValue
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -20,12 +20,15 @@ struct FSoundModulationValue
 	float TargetValue;
 
 	/** Time it takes (in sec) to unitarily increase the bus value (from 0 to 1). */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Attack Time", ClampMin = "0.0", UIMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Attack Time (sec)", ClampMin = "0.0", UIMin = "0.0"))
 	float AttackTime;
 
 	/** Time it takes (in sec) to unitarily decrease the bus value (from 1 to 0). */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Release Time", ClampMin = "0.0", UIMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Release Time (sec)", ClampMin = "0.0", UIMin = "0.0"))
 	float ReleaseTime;
+
+	/** Set current value (for resetting value state only as circumvents lerp, and may result in discontinuity). */
+	void SetCurrentValue(float InValue);
 
 	/** Current value lerping toward target */
 	float GetCurrentValue() const;
