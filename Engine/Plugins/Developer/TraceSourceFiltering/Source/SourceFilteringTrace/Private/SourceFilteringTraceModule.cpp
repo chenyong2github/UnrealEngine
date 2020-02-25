@@ -14,7 +14,6 @@
 #include "PropertyPathHelpers.h"
 #include "AssetRegistryModule.h"
 #include "Engine/EngineTypes.h"
-#include "Trace/Detail/Channel.h"
 
 #include "DataSourceFilter.h"
 #include "SourceFilterManager.h"
@@ -75,7 +74,7 @@ void FSourceFilteringTraceModule::StartupModule()
 	FTraceSourceFiltering::Initialize();
 
 	// Forcefully enable the source trace channel
-	Trace::FChannel::Toggle(&TraceSourceFiltersChannel, true);
+	Trace::ToggleChannel(TEXT("TraceSourceFiltersChannel"), true);
 
 #if WITH_EDITOR
 	// Add callback to trace out Filter Classes once the Asset Registry has finished loading 
