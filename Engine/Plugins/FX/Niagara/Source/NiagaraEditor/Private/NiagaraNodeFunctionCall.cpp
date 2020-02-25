@@ -839,7 +839,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 			}
 		}
 
-		OutHistory.EnterFunction(GetFunctionName(), FunctionScript, this);
+		OutHistory.EnterFunction(GetFunctionName(), FunctionScript, FunctionGraph, this);
 		if (ParamMapIdx != INDEX_NONE)
 		{
 			NodeIdx = OutHistory.BeginNodeVisitation(ParamMapIdx, this);

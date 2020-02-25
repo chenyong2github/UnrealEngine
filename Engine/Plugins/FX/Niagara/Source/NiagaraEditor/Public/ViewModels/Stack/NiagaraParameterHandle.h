@@ -68,6 +68,8 @@ public:
 	static const FName ModuleNamespace;
 	static const FName ParameterCollectionNamespace;
 	static const FString InitialPrefix;
+	static const FName LocalNamespace;
+	static const FName InitialNamespace;
 
 private:
 	FName ParameterHandleName;
