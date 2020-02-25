@@ -56,12 +56,33 @@ public:
 		FNiagaraDataInterfaceProxyNeighborGrid3D* VFDI = static_cast<FNiagaraDataInterfaceProxyNeighborGrid3D*>(Context.DataInterface);
 
 		NeighborGrid3DRWInstanceData* ProxyData = VFDI->SystemInstancesToProxyData.Find(Context.SystemInstance);
-		check(ProxyData);
+		float VoxelSizeTmp[3];
+
+		if (!ProxyData)
+		{
+			VoxelSizeTmp[0] = VoxelSizeTmp[1] = VoxelSizeTmp[2] = 1.0f;
+			SetShaderValue(RHICmdList, ComputeShaderRHI, NumVoxelsParam, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, VoxelSizeParam, VoxelSizeTmp);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxNeighborsPerVoxelParam, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, FVector(0.0f, 0.0f, 0.0f));
+			SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), ParticleNeighborsGridParam, FNiagaraRenderer::GetDummyIntBuffer());
+			SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), ParticleNeighborCountGridParam, FNiagaraRenderer::GetDummyIntBuffer());
+			if (OutputParticleNeighborsGridParam.IsUAVBound())
+			{
+				RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputParticleNeighborsGridParam.GetUAVIndex(), Context.Batcher->GetEmptyRWBufferFromPool(RHICmdList, PF_R32_SINT));
+			}
+
+			if (OutputParticleNeighborCountGridParam.IsUAVBound())
+			{
+				RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputParticleNeighborCountGridParam.GetUAVIndex(), Context.Batcher->GetEmptyRWBufferFromPool(RHICmdList, PF_R32_SINT));
+			}
+
+			return;
+		}
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumVoxelsParam, ProxyData->NumVoxels);
 
 		// #todo(dmp): remove this computation here
-		float VoxelSizeTmp[3];
 		VoxelSizeTmp[0] = ProxyData->WorldBBoxSize.X / ProxyData->NumVoxels.X;
 		VoxelSizeTmp[1] = ProxyData->WorldBBoxSize.Y / ProxyData->NumVoxels.Y;
 		VoxelSizeTmp[2] = ProxyData->WorldBBoxSize.Z / ProxyData->NumVoxels.Z;
