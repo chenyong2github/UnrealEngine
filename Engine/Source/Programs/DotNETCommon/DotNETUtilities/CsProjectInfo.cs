@@ -56,6 +56,31 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Get the ouptut file for this project
+		/// </summary>
+		/// <param name="File">If successful, receives the assembly path</param>
+		/// <returns>True if the output file was found</returns>
+		public bool TryGetOutputFile(out FileReference File)
+		{
+			DirectoryReference OutputDir;
+			if(!TryGetOutputDir(out OutputDir))
+			{
+				File = null;
+				return false;
+			}
+
+			string AssemblyName;
+			if(!TryGetAssemblyName(out AssemblyName))
+			{
+				File = null;
+				return false;
+			}
+
+			File = FileReference.Combine(OutputDir, AssemblyName + ".dll");
+			return true;
+		}
+
+		/// <summary>
 		/// Resolve the project's output directory
 		/// </summary>
 		/// <param name="BaseDirectory">Base directory to resolve relative paths to</param>
@@ -74,14 +99,32 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Resolve the project's output directory
+		/// </summary>
+		/// <param name="OutputDir">If successful, receives the output directory</param>
+		/// <returns>True if the output directory was found</returns>
+		public bool TryGetOutputDir(out DirectoryReference OutputDir)
+		{
+			string OutputPath;
+			if (Properties.TryGetValue("OutputPath", out OutputPath))
+			{
+				OutputDir = DirectoryReference.Combine(ProjectPath.Directory, OutputPath);
+				return true;
+			}
+			else
+			{
+				OutputDir = null;
+				return false;
+			}
+		}
+
+		/// <summary>
 		/// Returns the assembly name used by this project
 		/// </summary>
 		/// <returns></returns>
-		public string GetAssemblyName()
+		public bool TryGetAssemblyName(out string AssemblyName)
 		{
-			string Output = "";
-			Properties.TryGetValue("AssemblyName", out Output);
-			return Output;
+			return Properties.TryGetValue("AssemblyName", out AssemblyName);
 		}
 
 		/// <summary>
@@ -268,6 +311,22 @@ namespace Tools.DotNETCommon
 						break;
 				}
 			}
+		}
+
+		/// <summary>
+		/// Reads project information for the given file.
+		/// </summary>
+		/// <param name="File">The project file to read</param>
+		/// <param name="Properties">Initial set of property values</param>
+		/// <returns>The parsed project info</returns>
+		public static CsProjectInfo Read(FileReference File, Dictionary<string, string> Properties)
+		{
+			CsProjectInfo Project;
+			if(!TryRead(File, Properties, out Project))
+			{
+				throw new Exception(String.Format("Unable to read '{0}'", File));
+			}
+			return Project;
 		}
 
 		/// <summary>
@@ -904,9 +963,11 @@ namespace Tools.DotNETCommon
 		public static bool AddCsProjectInfo(this HashCollection Hasher, CsProjectInfo Project, HashCollection.HashType HashType)
 		{
 			// Get the output assembly and pdb file
-			DirectoryReference ProjectDirectory = Project.ProjectPath.Directory;
-			DirectoryReference OutputDir = Project.GetOutputDir(ProjectDirectory);
-			FileReference OutputFile = FileReference.Combine(OutputDir, Project.GetAssemblyName() + ".dll");
+			FileReference OutputFile;
+			if(!Project.TryGetOutputFile(out OutputFile))
+			{
+				throw new Exception(String.Format("Unable to get output file for {0}", Project.ProjectPath));
+			}
 			FileReference DebugFile = OutputFile.ChangeExtension("pdb");
 
 			// build a list of all input and output files from this module
