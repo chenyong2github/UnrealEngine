@@ -216,7 +216,7 @@ FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue)
 	, BufferAvailableEvent(FPlatformProcess::GetSynchEventFromPool())
 	, PendingBlockEvent(FPlatformProcess::GetSynchEventFromPool())
 {
-	uint64 BufferCount = uint64(GIoDispatcherBufferMemoryMB > 0 ? GIoDispatcherBufferMemoryMB << 20 : 32 << 20) / ReadBufferSize;
+	uint64 BufferCount = uint64(GIoDispatcherBufferMemoryMB > 0 ? uint64(GIoDispatcherBufferMemoryMB) << 20 : 32ull << 20) / ReadBufferSize;
 	uint64 MemorySize = BufferCount * ReadBufferSize;
 	BufferMemory = reinterpret_cast<uint8*>(FMemory::Malloc(MemorySize));
 	for (uint64 BufferIndex = 0; BufferIndex < BufferCount; ++BufferIndex)
