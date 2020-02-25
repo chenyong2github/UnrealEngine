@@ -18,10 +18,10 @@ void SDataprepSelectionTransform::Construct(const FArguments& InArgs, UDataprepS
 	TAttribute<FText> TooltipTextAttribute = MakeAttributeSP(this, &SDataprepSelectionTransform::GetTooltipText);
 	SetToolTipText(TooltipTextAttribute);
 
-	SDataprepActionBlock::Construct(SDataprepActionBlock::FArguments(), InDataprepActionContext);
+	SDataprepActionBlock::Construct(SDataprepActionBlock::FArguments().IsSimplified(InArgs._IsSimplified), InDataprepActionContext);
 }
 
-FLinearColor SDataprepSelectionTransform::GetOutlineColor() const
+FSlateColor SDataprepSelectionTransform::GetOutlineColor() const
 {
 	return FDataprepEditorStyle::GetColor("DataprepActionStep.Operation.OutlineColor");
 }
