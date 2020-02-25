@@ -2177,7 +2177,7 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		return;
 	}
 
-	WaitOnExistingCompression(false);
+	WaitOnExistingCompression(true);
 
 	if (BoneCompressionSettings == nullptr || !BoneCompressionSettings->AreSettingsValid())
 	{
