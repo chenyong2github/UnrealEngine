@@ -53,29 +53,15 @@ void FTraceDataStream::Close()
 ////////////////////////////////////////////////////////////////////////////////
 int32 FTraceDataStream::Read(void* Dest, uint32 DestSize)
 {
-	uint8* Cursor = (uint8*)Dest;
-	uint32 Remaining = DestSize;
-	do
+	asio::error_code ErrorCode;
+	size_t BytesRead = Socket.read_some(asio::buffer(Dest, DestSize), ErrorCode);
+	if (ErrorCode)
 	{
-		asio::error_code ErrorCode;
-		size_t BytesRead = Socket.read_some(asio::buffer(Cursor, Remaining), ErrorCode);
-		if (ErrorCode)
-		{
-			break;
-		}
-
-		Remaining -= BytesRead;
-		Cursor += BytesRead;
-	}
-	while (Remaining);
-
-	if (int32 Bytes = int32(DestSize - Remaining))
-	{
-		return Bytes;
+		Close();
+		return -1;
 	}
 
-	Close();
-	return -1;
+	return int32(BytesRead);
 }
 
 
