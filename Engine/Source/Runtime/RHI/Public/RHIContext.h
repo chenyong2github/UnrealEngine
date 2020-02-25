@@ -349,6 +349,7 @@ public:
 	* Explicitly transition a texture resource from readable -> writable by the GPU or vice versa.
 	* We know render targets are only used as rendered targets on the Gfx pipeline, so these transitions are assumed to be implemented such
 	* Gfx->Gfx and Gfx->Compute pipeline transitions are both handled by this call by the RHI implementation.  Hence, no pipeline parameter on this call.
+	* TransitionPipeline version is also available to transition from Compute->Gfx for example
 	*
 	* @param TransitionType - direction of the transition
 	* @param InTextures - array of texture objects to transition
@@ -364,6 +365,21 @@ public:
 				RHICopyToResolveTarget(InTextures[i], InTextures[i], ResolveParams);
 			}
 		}
+	}
+
+	/**
+	* Explicitly transition a texture resource from readable -> writable by the GPU or vice versa.
+	* Also explicitly states which pipeline the texture can be used on next.  For example, if a Compute job just wrote this UAV for a Pixel shader to read
+	* you would do EResourceTransitionAccess::Readable and EResourceTransitionPipeline::EComputeToGfx
+	*
+	* @param TransitionType - direction of the transition
+	* @param TransitionPipeline - How this Texture is transitioning between Gfx and Compute, if at all.
+	* @param InTextures - array of texture objects to transition
+	* @param NumTextures - number of textures to transition
+	*/
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture** InTextures, int32 NumTextures)
+	{
+		RHITransitionResources(TransitionType, InTextures, NumTextures);
 	}
 
 	/**
