@@ -69,16 +69,23 @@ private:
 
 	void StartAsyncWork(FDerivedDataAnimationCompression& Compressor, UAnimSequence* Anim, const uint64 NewTaskSize, const bool bPerformFrameStripping);
 
+	void StartQueuedTasks(int32 MaxActiveTasks);
+
 	bool WaitOnActiveCompression(UAnimSequence* Anim);
 
 	void OnActiveCompressionFinished(int32 ActiveAnimIndex);
 
-	FAsyncCompressedAnimationsManagement() : ActiveMemoryUsage(0) {}
+	FAsyncCompressedAnimationsManagement();
+
+	void Shutdown();
 
 	//Array of active and queued compression jobs
 	TArray<FActiveAsyncCompressionTask> ActiveAsyncCompressionTasks;
 	TArray<FQueuedAsyncCompressionWork> QueuedAsyncCompressionWork;
 	uint64 ActiveMemoryUsage;
+
+	//Cache the last tick time to keep queue pumping during large loading segments
+	double LastTickTime;
 
 	/* Begin FTickableEditorObject */
 	virtual void Tick(float DeltaTime) override;
