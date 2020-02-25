@@ -99,7 +99,7 @@ FPackedVirtualVoxelNodeDesc PackVoxelNode(FVirtualVoxelNodeDesc In)
 	Out.MinAABB = In.MinAABB;
 	Out.MaxAABB = In.MaxAABB;
 	Out.PackedPageIndexResolution =
-		  In.PageIndexResolution.x & 0xFF | 
+		 (In.PageIndexResolution.x & 0xFF) | 
 		((In.PageIndexResolution.y & 0xFF)<<8) | 
 		((In.PageIndexResolution.z & 0xFF)<<16);
 	Out.PageIndexOffset = In.PageIndexOffset;
@@ -112,6 +112,7 @@ struct FHairTraversalResult
 {
 	float HairCount;
 	float Visibility;
+	float HitT;
 };
 
 FHairTraversalResult InitHairTraversalResult()
@@ -119,6 +120,7 @@ FHairTraversalResult InitHairTraversalResult()
 	FHairTraversalResult Out;
 	Out.HairCount = 0;
 	Out.Visibility = 1;
+	Out.HitT = -1;
 	return Out;
 }
 
@@ -126,6 +128,7 @@ void Acc(inout FHairTraversalResult Out, const FHairTraversalResult In)
 {
 	Out.HairCount += In.HairCount;
 	Out.Visibility = min(Out.Visibility, In.Visibility);
+	Out.HitT = In.HitT >= 0 && Out.HitT >= 0 ? min(In.HitT, Out.HitT) : (In.HitT >= 0 ? In.HitT : Out.HitT);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -174,4 +177,23 @@ FHairTraversalResult GetHairVoxelDensity(uint3 InVolumeCoord, Texture3D<uint> In
 	Out.HairCount = GetInternalVoxelHairCount(RawDensity) * DensityScale;
 	Out.Visibility = GetInternalVoxelOpaqueVisibility(RawDensity);
 	return Out;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint EncodeBaseColorAndRoughness(float3 BaseColor, float Roughness)
+{
+	return
+		(uint(BaseColor.x * 0xFF) & 0xFF) |
+		(uint(BaseColor.y * 0xFF) & 0xFF) << 8 |
+		(uint(BaseColor.z * 0xFF) & 0xFF) << 16 |
+		(uint(Roughness * 0xFF) & 0xFF) << 24;
+}
+
+void DecodeBaseColorAndRoughness(uint Encoded, inout float3 BaseColor, out float Roughness)
+{
+	BaseColor.x = (float((Encoded) & 0xFF) / 255.f);
+	BaseColor.y = (float((Encoded >> 8) & 0xFF) / 255.f);
+	BaseColor.z = (float((Encoded >> 16) & 0xFF) / 255.f);
+	Roughness = (float((Encoded >> 24) & 0xFF) / 255.f);
 }

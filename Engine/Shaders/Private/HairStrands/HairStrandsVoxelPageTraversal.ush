@@ -61,10 +61,10 @@ void AddAABBVolume(bool bEnabled, float3 P0, float3 P1)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool ShouldStopTraversal(const FHairTraversalResult InResult, float InHairCountThreshold)
+bool ShouldStopTraversal(const FHairTraversalResult InResult, float InHairCountThreshold, bool InUseOpaqueVisibility=true)
 {
 	// Change this function once we have better result/control over the opaque filtering
-	return InResult.Visibility == 0 || (InHairCountThreshold != 0 && InResult.HairCount > InHairCountThreshold);
+	return (InUseOpaqueVisibility && InResult.Visibility == 0) || (InHairCountThreshold != 0 && InResult.HairCount > InHairCountThreshold);
 }
 
 float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
@@ -118,7 +118,10 @@ FHairTraversalResult ComputeHairCountVoxel(
 			Acc(Out, StepResult);
 
 			if (ShouldStopTraversal(Out, CountThreshold))
+			{
+				Out.HitT = StepIt * VoxelWorldSize;
 				return Out;
+			}
 		}
 	}
 
@@ -187,7 +190,10 @@ FHairTraversalResult ComputeHairCountVoxelCone(
 			Acc(Out, StepResult);
 
 			if (ShouldStopTraversal(Out, CountThreshold))
+			{
+				Out.HitT = T;
 				return Out;
+			}
 
 			const float VoxelRadius = T * TanConeAngle;
 			const float NumVoxel = VolumeSize / max(2 * VoxelRadius, VoxelSize);
@@ -220,18 +226,25 @@ struct FHairTraversalSettings
 	float	SteppingScale;		// Rate at which the raymarching step increase
 	float3	Random;
 	float	TanConeAngle;
+	bool	bUseOpaqueVisibility;
 	bool	bDebugEnabled;
 };
+
+float GetHairTraversalMaxT()
+{
+	return 999999;
+}
 
 FHairTraversalSettings InitHairTraversalSettings()
 {
 	FHairTraversalSettings Out;
 	Out.DensityScale = 1;
 	Out.CountThreshold = 0;
-	Out.DistanceThreshold = 100000.f;
+	Out.DistanceThreshold = GetHairTraversalMaxT();
 	Out.SteppingScale = 1;
 	Out.Random = 0.5f;
 	Out.TanConeAngle = 0;
+	Out.bUseOpaqueVisibility = true;
 	Out.bDebugEnabled = false;
 	return Out;
 }
@@ -347,8 +360,11 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 				}
 				#endif
 
-				if (ShouldStopTraversal(Out, InSettings.CountThreshold))
+				if (ShouldStopTraversal(Out, InSettings.CountThreshold, InSettings.bUseOpaqueVisibility))
+				{
+					Out.HitT = length(HitP - O);
 					return Out;
+				}
 			}
 			#if VOXEL_TRAVERSAL_TYPE == VOXEL_TRAVERSAL_LINEAR_MIPMAP
 			StepScale = min(InCommonDesc.PageResolution, StepScale * InSettings.SteppingScale);
@@ -513,6 +529,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 						#if VOXEL_TRAVERSAL_DEBUG
 						AddStepAABB(InSettings.bDebugEnabled, InnerHitP - D * 2, InnerHitP + D * 2, float3(1, 0.25f, 0));
 						#endif
+						Out.HitT = length(InnerHitP - O);
 						return Out;
 					}
 				}

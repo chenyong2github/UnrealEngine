@@ -21,7 +21,8 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 					"RHI",
 					"ChaosCore",
-					"Chaos"
+					"Chaos",
+					"Eigen"
 				});
 
 			if (Target.bBuildEditor == true)

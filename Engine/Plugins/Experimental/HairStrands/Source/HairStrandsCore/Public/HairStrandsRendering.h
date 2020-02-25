@@ -83,6 +83,8 @@ struct FHairStrandsInterpolationOutput
 		float HairRadius = 0;
 		float HairLength = 0;
 		float HairDensity = 0;
+		bool bUseStableRasterization = false;
+		bool bScatterSceneLighting = false;
 
 		inline void Reset()
 		{
@@ -97,6 +99,8 @@ struct FHairStrandsInterpolationOutput
 			HairRadius = 0;
 			HairLength = 0;
 			HairDensity = 0;
+			bUseStableRasterization = false;
+			bScatterSceneLighting = false;
 		}
 	};
 
@@ -104,7 +108,7 @@ struct FHairStrandsInterpolationOutput
 	{
 		FRWBuffer* SimDeformedPositionBuffer[2] = { nullptr, nullptr };
 		FRWBuffer* RenderDeformedPositionBuffer[2] = { nullptr, nullptr };
-		uint32 CurrentIndex = 0;
+		uint32*	   CurrentIndex = nullptr;
 
 		FRWBuffer* RenderTangentBuffer = nullptr;
 		FRWBuffer* RenderAttributeBuffer = nullptr;
@@ -152,11 +156,14 @@ void ResetHairStrandsInterpolation(
 void ComputeHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
 	const struct FShaderDrawDebugData* DebugShaderData,
+	const FTransform& LocalToWorld,
 	FHairStrandsInterpolationInput* Input,
 	FHairStrandsInterpolationOutput* Output, 
 	struct FHairStrandsProjectionHairData& RenHairDatas,
 	struct FHairStrandsProjectionHairData& SimHairDatas,
 	int32 LODIndex,
 	struct FHairStrandClusterData* ClusterData);
+
+HAIRSTRANDSCORE_API void ComputeInterpolationWeights(class UGroomBindingAsset* BindingAsset, class FSkeletalMeshRenderData* TargetRenderData, TArray<FRWBuffer>& TransferedPositions);
 
 HAIRSTRANDSCORE_API void AddGroomBindingTask(class UGroomBindingAsset* BindingAsset);

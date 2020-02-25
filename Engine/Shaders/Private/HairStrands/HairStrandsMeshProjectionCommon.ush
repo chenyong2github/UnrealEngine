@@ -247,13 +247,13 @@ struct FHairTriangleIndex
 
 uint EncodeTriangleIndex(uint TriangleIndex, uint SectionIndex)
 {
-	return ((SectionIndex & 0x3) <<28) | (TriangleIndex & 0xCFFFFFFF);
+	return ((SectionIndex & 0xF)<<28) | (TriangleIndex & 0xFFFFFFF);
 }
 
 FHairTriangleIndex DecodeTriangleIndex(uint Encoded)
 {
 	FHairTriangleIndex Out;
-	Out.SectionIndex = (Encoded>>28) & 0x7;
-	Out.TriangleIndex = Encoded & 0xCFFFFFFF;
+	Out.SectionIndex = (Encoded>>28) & 0xF;
+	Out.TriangleIndex = Encoded & 0xFFFFFFF;
 	return Out;
 }
