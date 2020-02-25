@@ -7,7 +7,7 @@
 
 namespace Audio
 {
-	class AUDIOMIXER_API FInterpolatedLPF
+	class SIGNALPROCESSING_API FInterpolatedLPF
 	{
 	public:
 		// ctor
@@ -72,7 +72,7 @@ namespace Audio
 
 
 
-	class AUDIOMIXER_API FInterpolatedHPF
+	class SIGNALPROCESSING_API FInterpolatedHPF
 	{
 	public:
 		// ctor
