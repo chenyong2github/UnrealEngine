@@ -594,6 +594,16 @@ public:
 
 	~FShaderLibraryInstance()
 	{
+		// release RHI on all of the resources
+		for (FShaderMapResource_SharedCode* Resource : Resources)
+		{
+			if (Resource)
+			{
+				Resource->ReleaseRHI();
+			}
+		}
+		
+		Library->Teardown();
 		DEC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, GetSizeBytes());
 	}
 
