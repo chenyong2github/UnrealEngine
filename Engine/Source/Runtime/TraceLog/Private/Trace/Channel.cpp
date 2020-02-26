@@ -129,7 +129,7 @@ void FChannel::Initialize(const ANSICHAR* InChannelName)
 ///////////////////////////////////////////////////////////////////////////////
 void FChannel::Announce() const
 {
-	UE_TRACE_EVENT_BEGIN($Trace, ChannelAnnounce, Important)
+	UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
 		UE_TRACE_EVENT_FIELD(uint32, Id)
 		UE_TRACE_EVENT_FIELD(bool, IsEnabled)
 	UE_TRACE_EVENT_END()
@@ -139,7 +139,7 @@ void FChannel::Announce() const
 	memcpy(Buffer, Name.Ptr, Count);
 	Buffer[Count] = '\0';
 
-	UE_TRACE_LOG($Trace, ChannelAnnounce, TraceLogChannel, Count + 1)
+	UE_TRACE_LOG(Trace, ChannelAnnounce, TraceLogChannel, Count + 1)
 		<< ChannelAnnounce.Id(Name.Hash)
 		<< ChannelAnnounce.IsEnabled(!bDisabled)
 		<< ChannelAnnounce.Attachment(Buffer, Count + 1);
@@ -167,7 +167,7 @@ void FChannel::ToggleAll(bool bEnabled)
 ///////////////////////////////////////////////////////////////////////////////
 bool FChannel::Toggle(bool bEnabled)
 {
-	UE_TRACE_EVENT_BEGIN($Trace, ChannelToggle, Important)
+	UE_TRACE_EVENT_BEGIN(Trace, ChannelToggle, Important)
 		UE_TRACE_EVENT_FIELD(uint32, Id)
 		UE_TRACE_EVENT_FIELD(bool, IsEnabled)
 	UE_TRACE_EVENT_END()
@@ -176,7 +176,7 @@ bool FChannel::Toggle(bool bEnabled)
 	if (bWasEnabled != bEnabled)
 	{
 		bDisabled = !bEnabled;
-		UE_TRACE_LOG($Trace, ChannelToggle, TraceLogChannel)
+		UE_TRACE_LOG(Trace, ChannelToggle, TraceLogChannel)
 			<< ChannelToggle.Id(Name.Hash)
 			<< ChannelToggle.IsEnabled(bEnabled);
 	}

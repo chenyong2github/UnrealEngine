@@ -658,8 +658,8 @@ void FAnalysisEngine::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 	// Aux events
 	Builder.RouteEvent(RouteId_Timing,			"$Trace", "Timing");
-	Builder.RouteEvent(RouteId_ChannelAnnounce,	"$Trace", "ChannelAnnounce");
-	Builder.RouteEvent(RouteId_ChannelToggle,	"$Trace", "ChannelToggle");
+	Builder.RouteEvent(RouteId_ChannelAnnounce,	"Trace", "ChannelAnnounce");
+	Builder.RouteEvent(RouteId_ChannelToggle,	"Trace", "ChannelToggle");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

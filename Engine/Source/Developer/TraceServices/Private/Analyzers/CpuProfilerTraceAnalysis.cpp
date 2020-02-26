@@ -27,8 +27,8 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EventSpec, "CpuProfiler", "EventSpec");
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
-	Builder.RouteEvent(RouteId_ChannelAnnounce, "$Trace", "ChannelAnnounce");
-	Builder.RouteEvent(RouteId_ChannelToggle, "$Trace", "ChannelToggle");
+	Builder.RouteEvent(RouteId_ChannelAnnounce, "Trace", "ChannelAnnounce");
+	Builder.RouteEvent(RouteId_ChannelToggle, "Trace", "ChannelToggle");
 }
 
 bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
