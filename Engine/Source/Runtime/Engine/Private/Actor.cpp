@@ -42,6 +42,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "ObjectTrace.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Engine/AutoDestroySubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -1009,8 +1010,6 @@ void AActor::TickActor( float DeltaSeconds, ELevelTick TickType, FActorTickFunct
 
 void AActor::Tick( float DeltaSeconds )
 {
-	bool bShouldAutoDestroy = bAutoDestroyWhenFinished;
-
 	if (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint) || !GetClass()->HasAnyClassFlags(CLASS_Native))
 	{
 		// Blueprint code outside of the construction script should not run in the editor
@@ -1032,28 +1031,6 @@ void AActor::Tick( float DeltaSeconds )
 		{
 			FLatentActionManager& LatentActionManager = MyWorld->GetLatentActionManager();
 			LatentActionManager.ProcessLatentActions(this, MyWorld->GetDeltaSeconds());
-			if (bShouldAutoDestroy)
-			{
-				bShouldAutoDestroy = (LatentActionManager.GetNumActionsForObject(this) == 0);
-			}
-		}
-	}
-
-	if (bShouldAutoDestroy)
-	{
-		for (UActorComponent* const Comp : GetComponents())
-		{
-			if (Comp && !Comp->IsReadyForOwnerToAutoDestroy())
-			{
-				bShouldAutoDestroy = false;
-				break;
-			}
-		}
-
-		// die!
-		if (bShouldAutoDestroy)
-		{
-			Destroy();
 		}
 	}
 }
@@ -1660,6 +1637,23 @@ bool AActor::HasNetOwner() const
 	}
 
 	return TopOwner->HasNetOwner();
+}
+
+void AActor::SetAutoDestroyWhenFinished(bool bVal)
+{
+	bAutoDestroyWhenFinished = bVal;
+	if (UWorld* MyWorld = GetWorld())
+	{
+		UAutoDestroySubsystem* AutoDestroySub = MyWorld->GetSubsystem<UAutoDestroySubsystem>();
+		if (bAutoDestroyWhenFinished && (HasActorBegunPlay() || IsActorBeginningPlay()))
+		{
+			AutoDestroySub->RegisterActor(this);
+		}
+		else
+		{
+			AutoDestroySub->UnregisterActor(this);
+		}
+	}
 }
 
 void AActor::K2_AttachRootComponentTo(USceneComponent* InParent, FName InSocketName, EAttachLocation::Type AttachLocationType /*= EAttachLocation::KeepRelativeOffset */, bool bWeldSimulatedBodies /*=true*/)
@@ -3487,6 +3481,17 @@ void AActor::BeginPlay()
 		{
 			// When an Actor begins play we expect only the not bAutoRegister false components to not be registered
 			//check(!Component->bAutoRegister);
+		}
+	}
+
+	if (GetAutoDestroyWhenFinished())
+	{
+		if (UWorld* MyWorld = GetWorld())
+		{
+			if (UAutoDestroySubsystem* AutoDestroySys = MyWorld->GetSubsystem<UAutoDestroySubsystem>())
+			{
+				AutoDestroySys->RegisterActor(this);
+			}			
 		}
 	}
 
