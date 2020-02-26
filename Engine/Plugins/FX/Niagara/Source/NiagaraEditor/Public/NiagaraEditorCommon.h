@@ -201,6 +201,7 @@ namespace NiagaraParameterPanelSectionID
 
 		// Group B, for contextual information when editing systems
 		ENGINE,
+		OWNER,
 		USER,
 		SYSTEM,
 		EMITTER,

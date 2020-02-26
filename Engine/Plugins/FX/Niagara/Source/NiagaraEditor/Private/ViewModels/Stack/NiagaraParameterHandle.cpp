@@ -15,6 +15,7 @@ const FName FNiagaraParameterHandle::ParameterCollectionNamespace(TEXT("NPC"));
 const FString FNiagaraParameterHandle::InitialPrefix(TEXT("Initial"));
 const FName FNiagaraParameterHandle::LocalNamespace(TEXT("Local"));
 const FName FNiagaraParameterHandle::InitialNamespace(TEXT("Initial"));
+const FName FNiagaraParameterHandle::OwnerNamespace(TEXT("Owner"));
 
 FNiagaraParameterHandle::FNiagaraParameterHandle() 
 {
