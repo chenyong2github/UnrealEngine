@@ -124,7 +124,7 @@ template<> void FRHICommandSetShaderParameter<FRHIComputeShader>::Execute(FRHICo
 template <> void FRHICommandSetShaderParameter<FRHIGraphicsShader>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(SetShaderParameter);
-	INTERNAL_DECORATOR(RHISetShaderParameter)(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
+	INTERNAL_DECORATOR(RHISetShaderParameter)(Shader, BufferIndex, BaseIndex, NumBytes, NewValue); 
 }
 
 template<> void FRHICommandSetShaderUniformBuffer<FRHIComputeShader>::Execute(FRHICommandListBase& CmdList)
@@ -448,6 +448,10 @@ void FRHICommandWriteGPUFence::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(WriteGPUFence);
 	INTERNAL_DECORATOR_COMPUTE(RHIWriteGPUFence)(Fence);
+	if (Fence)
+	{
+		Fence->NumPendingWriteCommands.Decrement();
+	}
 }
 
 void FRHICommandSetGlobalUniformBuffers::Execute(FRHICommandListBase& CmdList)
@@ -587,7 +591,7 @@ void FRHICommandSetRayTracingBindings::Execute(FRHICommandListBase& CmdList)
 	{
 		INTERNAL_DECORATOR(RHISetRayTracingCallableShader)(Scene, ShaderSlot, GetRHIRayTracingPipelineState(Pipeline), ShaderIndex, NumUniformBuffers, UniformBuffers, UserData);
 	}
-	else 
+	else
 	{
 		INTERNAL_DECORATOR(RHISetRayTracingMissShader)(Scene, ShaderSlot, GetRHIRayTracingPipelineState(Pipeline), ShaderIndex, NumUniformBuffers, UniformBuffers, UserData);
 	}
