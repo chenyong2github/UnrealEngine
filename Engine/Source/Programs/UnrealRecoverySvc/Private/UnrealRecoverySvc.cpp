@@ -39,8 +39,9 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		}
 
 		UConcertServerConfig* ServerConfig = IConcertSyncServerModule::Get().ParseServerSettings(FCommandLine::Get());
-		ServerConfig->bAutoArchiveOnReboot = true; // If server crashed, was killed, etc, ensure the recovery session is archived (expected by recovery flow).
-		ServerConfig->EndpointSettings.RemoteEndpointTimeoutSeconds = 4; // Non-zero -> Ensure the Endpoints are re-registered with Message Bus if the UDP layer restarts or some errors trigger a 'auto-repair'.
+		ServerConfig->bAutoArchiveOnReboot = false; // Skip archiving, this can takes several minutes. It is more efficient to leave the live session as it and 'copy' it on demand (to restore).
+		ServerConfig->bAutoArchiveOnShutdown = false; // Skip archiving, this can takes several minutes. It is more efficient to leave the live session as it and 'copy' it on demand (to restore).
+		ServerConfig->EndpointSettings.RemoteEndpointTimeoutSeconds = 0; // Ensure the endpoints never time out (and are kept alive automatically by Concert).
 		ServerConfig->bMountDefaultSessionRepository = false; // Let the client mount its own repository to support concurrent service and avoid them to access the same non-sharable database files.
 		ServerConfig->AuthorizedClientKeys.Add(ServerConfig->ServerName); // The disaster recovery client is configured to use the unique server name as key to identify itself.
 		return ServerConfig;
