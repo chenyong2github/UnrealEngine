@@ -90,7 +90,7 @@ public:
 
 	FDateTime GetInitializationTime() const { return InitializationTime; }
 public:
-	void OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
+	void ProcessOutstandingFinishedFrames();
 	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
 	const MoviePipeline::FAudioState& GetAudioState() const { return AudioState; }
 public:
