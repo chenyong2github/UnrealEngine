@@ -514,6 +514,8 @@ public:
 
 	virtual bool RHIRequiresComputeGenerateMips() const override;
 
+	virtual uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format) final override;
+
 	void Cleanup();
 
 	void PurgeFramebufferFromCaches(GLuint Framebuffer);

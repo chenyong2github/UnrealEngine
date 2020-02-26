@@ -1021,6 +1021,12 @@ IRHIComputeContext* FVulkanDynamicRHI::RHIGetDefaultAsyncComputeContext()
 	return &Device->GetImmediateComputeContext();
 }
 
+uint64 FVulkanDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
+{
+	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
+	return Limits.minTexelBufferOffsetAlignment;
+}
+
 IRHICommandContextContainer* FVulkanDynamicRHI::RHIGetCommandContextContainer(int32 Index, int32 Num)
 {
 	if (GRHIThreadCvar.GetValueOnAnyThread() > 1)
