@@ -176,7 +176,7 @@ void UMoviePipeline::TickProducingFrames()
 	// This block is optional, as they may not want motion blur fixes.
 	if (CurrentCameraCut.State == EMovieRenderShotState::MotionBlur)
 	{
-		CachedOutputState.bSkipRendering = true;
+		CachedOutputState.bSkipRendering = false;
 		CachedOutputState.bDiscardRenderResult = true;
 
 		const MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(CurrentShot);
