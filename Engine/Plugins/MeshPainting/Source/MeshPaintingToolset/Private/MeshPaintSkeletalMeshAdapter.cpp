@@ -43,12 +43,15 @@ FMeshPaintSkeletalMeshComponentAdapter::~FMeshPaintSkeletalMeshComponentAdapter(
 void FMeshPaintSkeletalMeshComponentAdapter::OnSkeletalMeshChanged()
 {
 	OnRemoved();
-	ReferencedSkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
-	if (SkeletalMeshComponent->SkeletalMesh != nullptr)
-	{	
-		Initialize();
-		OnAdded();
-	}	
+	if (SkeletalMeshComponent != nullptr)
+	{
+		ReferencedSkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+		if (SkeletalMeshComponent->SkeletalMesh != nullptr)
+		{
+			Initialize();
+			OnAdded();
+		}
+	}
 }
 
 void FMeshPaintSkeletalMeshComponentAdapter::OnPostMeshCached(USkeletalMesh* SkeletalMesh)
