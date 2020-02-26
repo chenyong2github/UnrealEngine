@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include "EventDef.h"
+#include "EventNode.h"
 
 namespace Trace
 {
