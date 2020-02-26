@@ -1003,6 +1003,8 @@ public:
 
 	const FName& GetFName() const { return FenceName; }
 
+	FThreadSafeCounter NumPendingWriteCommands;
+
 protected:
 	FName FenceName;
 };

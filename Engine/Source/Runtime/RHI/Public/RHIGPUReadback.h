@@ -29,7 +29,7 @@ public:
 	/** Indicates if the data is in place and ready to be read. */
 	FORCEINLINE bool IsReady()
 	{
-		return !Fence || Fence->Poll();
+		return !Fence || (Fence->NumPendingWriteCommands.GetValue() == 0 && Fence->Poll());
 	}
 
 	/** Indicates if the data is in place and ready to be read on a subset of GPUs. */
