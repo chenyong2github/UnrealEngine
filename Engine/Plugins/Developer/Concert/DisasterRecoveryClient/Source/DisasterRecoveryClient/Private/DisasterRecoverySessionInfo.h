@@ -46,11 +46,11 @@ struct FDisasterRecoverySession
 
 	/** The client that mounted that session repository. */
 	UPROPERTY()
-	int32 MountedByProcessId = 0;
+	uint32 MountedByProcessId = 0;
 
 	/** The process ID of the client connected to the session (the session is live and recording transactions for this client process). */
 	UPROPERTY()
-	int32 ClientProcessId = 0;
+	uint32 ClientProcessId = 0;
 
 	/** Information about the session. */
 	UPROPERTY()
@@ -95,6 +95,22 @@ struct FDisasterRecoverySession
 	}
 };
 
+/** Information about a disaster recovery client. */
+USTRUCT()
+struct FDisasterRecoveryClientInfo
+{
+	GENERATED_BODY()
+
+	/** The client process ID. */
+	UPROPERTY()
+	uint32 ClientProcessId;
+
+	/** The client app ID. */
+	UPROPERTY()
+	FGuid ClientAppId;
+};
+
+
 /**
  * Hold the information for multiple disaster recovery sessions.
  */
@@ -127,7 +143,7 @@ struct FDisasterRecoveryInfo
 	UPROPERTY()
 	TArray<FGuid> DiscardedRepositoryIds;
 
-	/** The list of process IDs for disaster recovery client currently executing. */
+	/** The list of client currently executing (in different processes). */
 	UPROPERTY()
-	TArray<int32> ClientProcessIds;
+	TArray<FDisasterRecoveryClientInfo> Clients;
 };
