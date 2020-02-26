@@ -5413,6 +5413,8 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
 )
 {
 	FUHTStringBuilder RPCWrappers;
+
+	FMacroBlockEmitter OutCppEditorOnly(OutCpp, TEXT("WITH_EDITOR"));
 	for (UFunction* Function : CallbackFunctions)
 	{
 		// Never expecting to export delegate functions this way
@@ -5421,14 +5423,18 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
 		FFunctionData*   CompilerInfo = FFunctionData::FindForFunction(Function);
 		const FFuncInfo& FunctionData = CompilerInfo->GetFunctionData();
 		FString          FunctionName = Function->GetName();
-		UClass*          Class        = CastChecked<UClass>(Function->GetOuter());
-		const FString    ClassName    = FNameLookupCPP::GetNameCPP(Class);
+		UClass*          Class = CastChecked<UClass>(Function->GetOuter());
+		const FString    ClassName = FNameLookupCPP::GetNameCPP(Class);
 
 		if (FunctionData.FunctionFlags & FUNC_NetResponse)
 		{
 			// Net response functions don't go into the VM
 			continue;
 		}
+
+		const bool bIsEditorOnly = Function->HasAnyFunctionFlags(FUNC_EditorOnly);
+
+		OutCppEditorOnly(bIsEditorOnly);
 
 		const bool bWillBeProgrammerTyped = FunctionName == FunctionData.MarshallAndCallName;
 
