@@ -217,7 +217,7 @@ struct FHairStrandsDeformedResource : public FRenderResource
 	const FHairStrandsDatas::FRenderData& RenderData;
 
 	/* Whether the GPU data should be initialized with the asset data or not */
-	const bool bInitializedData;
+	const bool bInitializedData = false;
 
 	/* Whether the GPU data should be initialized with the asset data or not */
 	uint32 CurrentIndex = 0;
@@ -575,11 +575,11 @@ private:
 
 	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
-	bool bIsInitialized;
 
 	UPROPERTY()
 	bool bIsCacheable = true;
 #endif
+	bool bIsInitialized;
 };
 
 USTRUCT(BlueprintType)
@@ -672,6 +672,8 @@ public:
 
 	/**  Part of UObject interface  */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	
+#endif // WITH_EDITOR
 
 	enum class EQueryStatus
 	{
@@ -680,7 +682,6 @@ public:
 		Completed
 	};
 	EQueryStatus QueryStatus = EQueryStatus::None;
-#endif // WITH_EDITOR
 
 	/** Initialize resources. */
 	void InitResource();
