@@ -217,7 +217,7 @@ namespace ChaosTest {
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
 		TPBDCollisionConstraints<T, 3>::FMultiPointContactConstraint * Constraint = Collisions.GetConstraint(0).template As<TPBDCollisionConstraints<T, 3>::FMultiPointContactConstraint>();
-		EXPECT_TRUE(Constraint);
+		EXPECT_TRUE(Constraint != nullptr);
 
 		Collisions.UpdateManifold(*Constraint);
 
