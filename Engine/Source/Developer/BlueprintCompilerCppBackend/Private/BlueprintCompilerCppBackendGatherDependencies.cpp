@@ -21,6 +21,42 @@
 #include "K2Node_EnumLiteral.h"
 #include "KismetCompiler.h" // For LogK2Compiler
 
+class FGatherConvertedClassDependenciesArchive : public FReferenceCollectorArchive
+{
+public:
+	FGatherConvertedClassDependenciesArchive(UObject* InSerializingObject, FReferenceCollector& InCollector)
+		: FReferenceCollectorArchive(InSerializingObject, InCollector)
+	{
+		ArIsObjectReferenceCollector = true;
+		SetIsPersistent(InCollector.IsIgnoringTransient());
+		ArIgnoreArchetypeRef = InCollector.IsIgnoringArchetypeRef();
+	}
+
+protected:
+	virtual FArchive& operator<<(UObject*& Object) override
+	{
+		if (Object)
+		{
+			FReferenceCollector& CurrentCollector = GetCollector();
+			FProperty* OldCollectorSerializedProperty = CurrentCollector.GetSerializedProperty();
+			CurrentCollector.SetSerializedProperty(GetSerializedProperty());
+			CurrentCollector.AddReferencedObject(Object, GetSerializingObject(), GetSerializedProperty());
+			CurrentCollector.SetSerializedProperty(OldCollectorSerializedProperty);
+		}
+		return *this;
+	}
+
+	virtual FArchive& operator<<(FField*& Field) override
+	{
+		if (Field)
+		{
+			FReferenceCollector& CurrentCollector = GetCollector();
+			Field->AddReferencedObjects(CurrentCollector);
+		}
+		return *this;
+	}
+};
+
 struct FGatherConvertedClassDependenciesHelperBase : public FReferenceCollector
 {
 	TSet<UObject*> SerializedObjects;
@@ -28,6 +64,7 @@ struct FGatherConvertedClassDependenciesHelperBase : public FReferenceCollector
 
 	FGatherConvertedClassDependenciesHelperBase(FGatherConvertedClassDependencies& InDependencies)
 		: Dependencies(InDependencies)
+		, Archive(nullptr, *this)
 	{ }
 
 	virtual bool IsIgnoringArchetypeRef() const override { return false; }
@@ -36,7 +73,7 @@ struct FGatherConvertedClassDependenciesHelperBase : public FReferenceCollector
 	void FindReferences(UObject* Object)
 	{
 		{
-			FVerySlowReferenceCollectorArchiveScope CollectorScope(GetVerySlowReferenceCollectorArchive(), Object, nullptr);
+			FVerySlowReferenceCollectorArchiveScope CollectorScope(Archive, Object, nullptr);
 			const bool bOldFilterEditorOnly = CollectorScope.GetArchive().IsFilterEditorOnly();
 			CollectorScope.GetArchive().SetFilterEditorOnly(true);
 			if (UClass* AsBPGC = Cast<UBlueprintGeneratedClass>(Object))
@@ -45,6 +82,16 @@ struct FGatherConvertedClassDependenciesHelperBase : public FReferenceCollector
 			}
 			Object->Serialize(CollectorScope.GetArchive());
 			CollectorScope.GetArchive().SetFilterEditorOnly(bOldFilterEditorOnly);
+
+			// Class/struct fields (FFields) are no longer serialized, but we still need to find and collect property object references as part of dependency gathering.
+			// Note: Cannot rely on UStruct::PropertyObjectReferences (cached at link time) because that's GC-specific and excludes native references that we need here.
+			if (UStruct* ObjAsStruct = Cast<UStruct>(Object))
+			{
+				for (FField* ChildProperty = ObjAsStruct->ChildProperties; ChildProperty; ChildProperty = ChildProperty->Next)
+				{
+					ChildProperty->AddReferencedObjects(*this);
+				}
+			}
 		}
 	}
 
@@ -97,6 +144,9 @@ struct FGatherConvertedClassDependenciesHelperBase : public FReferenceCollector
 			Dependencies.ConvertedEnum.Add(InUDE);
 		}
 	}
+
+private:
+	FGatherConvertedClassDependenciesArchive Archive;
 };
 
 struct FFindAssetsToInclude : public FGatherConvertedClassDependenciesHelperBase
