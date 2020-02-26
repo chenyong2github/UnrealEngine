@@ -28,6 +28,8 @@
 #include "HAL/FileManager.h"
 
 #include "LODUtilities.h"
+#include "UObject/UnrealType.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "FBXFactory"
 
