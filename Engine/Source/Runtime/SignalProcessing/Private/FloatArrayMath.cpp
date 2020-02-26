@@ -11,8 +11,54 @@ namespace Audio
 		const float Loge10 = FMath::Loge(10.f);
 		const int32 SimdMask = 0xFFFFFFFC;
 		const int32 NotSimdMask = 0x00000003;
+	}
 
-		
+	void ArraySum(TArrayView<const float> InValues, float& OutSum)
+	{
+		OutSum = 0.f;
+
+		int32 Num = InValues.Num();
+		const float* InData = InValues.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			OutSum += InData[i];
+		}
+	}
+
+	void ArraySum(const AlignedFloatBuffer& InValues, float& OutSum)
+	{
+		OutSum = 0.f;
+
+		const int32 Num = InValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const float* InData = InValues.GetData();
+
+		if (NumToSimd)
+		{
+			VectorRegister Total = VectorSetFloat1(0.f);
+
+			for (int32 i = 0; i < NumToSimd; i += 4)
+			{
+				VectorRegister VectorData = VectorLoadAligned(&InData[i]);
+				Total = VectorAdd(Total, VectorData);
+			}
+
+			OutSum = VectorGetComponent(Total, 0) + VectorGetComponent(Total, 1) + VectorGetComponent(Total, 2) + VectorGetComponent(Total, 3);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<const float> ValuesView(&InData[NumToSimd],  NumNotToSimd);
+
+			float ExtraSum = 0.f;
+
+			ArraySum(ValuesView, ExtraSum);
+
+			OutSum += ExtraSum;
+		}
 	}
 
 	void ArrayCumulativeSum(TArrayView<const float> InView, TArray<float>& OutData)
@@ -304,6 +350,44 @@ namespace Audio
 		}
 	}
 
+	void ArrayMultiplyInPlace(TArrayView<const float> InValues1, TArrayView<float> InValues2)
+	{
+		const int32 Num = InValues1.Num();
+
+		const float* InData1 = InValues1.GetData();
+		float* InData2 = InValues2.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			InData2[i] *= InData1[i];
+		}
+	}
+
+	void ArrayMultiplyInPlace(const AlignedFloatBuffer& InValues1, AlignedFloatBuffer& InValues2)
+	{
+		check(InValues1.Num() == InValues2.Num());
+
+		const int32 Num = InValues1.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const float* InData1 = InValues1.GetData();
+		float* InData2 = InValues2.GetData();
+
+		if (NumToSimd)
+		{
+			MultiplyBuffersInPlace(InData1, InData2, NumToSimd);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<const float> ValuesView1(&InData1[NumToSimd],  NumNotToSimd);
+			TArrayView<float> ValuesView2(&InData2[NumToSimd],  NumNotToSimd);
+
+			ArrayMultiplyInPlace(ValuesView1, ValuesView2);
+		}
+	}
+
 	void ArrayMultiplyByConstantInPlace(TArrayView<float> InValues, float InMultiplier)
 	{
 		const int32 Num = InValues.Num();
@@ -334,7 +418,6 @@ namespace Audio
 
 			ArrayMultiplyByConstantInPlace(ValuesView, InMultiplier);
 		}
-		
 	}
 
 	void ArrayAddInPlace(TArrayView<const float> InValues, TArrayView<float> InAccumulateValues)
@@ -440,17 +523,21 @@ namespace Audio
 		}
 	}
 
-	void ArrayMagnitudeToDecibelInPlace(TArrayView<float> InValues)
+	void ArrayMagnitudeToDecibelInPlace(TArrayView<float> InValues, float InMinimumDb)
 	{
 		const int32 Num = InValues.Num();
 		float* InValuesData = InValues.GetData();
+
+		const float Minimum = FMath::Exp(InMinimumDb * MathIntrinsics::Loge10 / 20.f);
+
 		for (int32 i = 0; i < Num; i++)
 		{
+			InValuesData[i] = FMath::Max(InValuesData[i], Minimum);
 			InValuesData[i] = 20.f * FMath::Loge(InValuesData[i]) / MathIntrinsics::Loge10;
 		}
 	}
 
-	void ArrayMagnitudeToDecibelInPlace(AlignedFloatBuffer& InValues)
+	void ArrayMagnitudeToDecibelInPlace(AlignedFloatBuffer& InValues, float InMinimumDb)
 	{
 		const int32 Num = InValues.Num();
 		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
@@ -458,12 +545,17 @@ namespace Audio
 
 		float* InData = InValues.GetData();
 
-		const VectorRegister VectorScale = VectorSetFloat1(20.f / MathIntrinsics::Loge10);
+		const float Scale = 20.f / MathIntrinsics::Loge10;
+		const float Minimum = FMath::Exp(InMinimumDb * MathIntrinsics::Loge10 / 20.f);
+
+		const VectorRegister VectorScale = VectorSetFloat1(Scale);
+		const VectorRegister VectorMinimum = VectorSetFloat1(Minimum);
 
 		for (int32 i = 0; i < NumToSimd; i += 4)
 		{
 			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
-
+			
+			VectorData = VectorMax(VectorData, VectorMinimum);
 			VectorData = VectorLog(VectorData);
 			VectorData = VectorMultiply(VectorData, VectorScale);
 
@@ -473,21 +565,25 @@ namespace Audio
 		if (NumNotToSimd)
 		{
 			TArrayView<float> InView(&InData[NumToSimd], NumNotToSimd);
-			ArrayMagnitudeToDecibelInPlace(InView);
+			ArrayMagnitudeToDecibelInPlace(InView, InMinimumDb);
 		}
 	}
 
-	void ArrayPowerToDecibelInPlace(TArrayView<float> InValues)
+	void ArrayPowerToDecibelInPlace(TArrayView<float> InValues, float InMinimumDb)
 	{
 		const int32 Num = InValues.Num();
 		float* InValuesData = InValues.GetData();
+
+		const float Minimum = FMath::Exp(InMinimumDb * MathIntrinsics::Loge10 / 10.f);
+
 		for (int32 i = 0; i < Num; i++)
 		{
+			InValuesData[i] = FMath::Max(InValuesData[i], Minimum);
 			InValuesData[i] = 10.f * FMath::Loge(InValuesData[i]) / MathIntrinsics::Loge10;
 		}
 	}
 
-	void ArrayPowerToDecibelInPlace(AlignedFloatBuffer& InValues)
+	void ArrayPowerToDecibelInPlace(AlignedFloatBuffer& InValues, float InMinimumDb)
 	{
 		const int32 Num = InValues.Num();
 		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
@@ -495,12 +591,17 @@ namespace Audio
 
 		float* InData = InValues.GetData();
 
-		const VectorRegister VectorScale = VectorSetFloat1(10.f / MathIntrinsics::Loge10);
+		const float Scale = 10.f / MathIntrinsics::Loge10;
+		const float Minimum = FMath::Exp(InMinimumDb * MathIntrinsics::Loge10 / 10.f);
+
+		const VectorRegister VectorMinimum = VectorSetFloat1(Minimum);
+		const VectorRegister VectorScale = VectorSetFloat1(Scale);
 
 		for (int32 i = 0; i < NumToSimd; i += 4)
 		{
 			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
 
+			VectorData = VectorMax(VectorData, VectorMinimum);
 			VectorData = VectorLog(VectorData);
 			VectorData = VectorMultiply(VectorData, VectorScale);
 
@@ -510,7 +611,7 @@ namespace Audio
 		if (NumNotToSimd)
 		{
 			TArrayView<float> InView(&InData[NumToSimd], NumNotToSimd);
-			ArrayPowerToDecibelInPlace(InView);
+			ArrayPowerToDecibelInPlace(InView, InMinimumDb);
 		}
 	}
 

@@ -102,22 +102,37 @@ namespace Audio
 			// Sanity check the CQT bins to make sure we the bandwidth wasn't so small that the array is essentially empty
 			if (OffsetBandWeights.Num() > 0)
 			{
-				if (OffsetBandWeights.FilterByPredicate([](float InVal) { return InVal >= 0.5f; }).Num() < 1)
+
+				float GaussianSum = 0.f;
+				Audio::ArraySum(OffsetBandWeights, GaussianSum);
+
+				if (GaussianSum < 0.95f)
 				{
-					// Hit a condition where all values in band weights are below 0.5f. 
 					// It's a bit of an arbitrary threshold, but it tells us that the bandwidth
 					// is low enough and the FFT granularity course enough to where our pseudo 
 					// cqt windows will likely miss data. In this case we force the window to 
-					// have a single value of 1 at the nearest FFT bin.
+					// interpolate between two nearest fft bins.
 					FMemory::Memset(OffsetBandWeights.GetData(), 0, OffsetBandWeights.Num() * sizeof(float));
-					int32 NearestIndex = FMath::RoundToInt(InFFTSize * BandCenter / InSampleRate) - OffsetBandWeightsIndex;
+					float Position = InFFTSize * BandCenter / InSampleRate - static_cast<float>(OffsetBandWeightsIndex);
+					int32 LowerIndex = FMath::FloorToInt(Position);
+					int32 UpperIndex = LowerIndex + 1;
 
-					if (NearestIndex < OffsetBandWeights.Num())
+					if ((LowerIndex >= 0) && (UpperIndex < OffsetBandWeights.Num()))
 					{
-						NearestIndex = FMath::Clamp(NearestIndex, 0, OffsetBandWeights.Num() - 1);
-						OffsetBandWeights[NearestIndex] = 1.f / static_cast<float>(InFFTSize);
+						OffsetBandWeights[LowerIndex] = 1.f - (Position - static_cast<float>(LowerIndex));
+						OffsetBandWeights[UpperIndex] = 1.f - OffsetBandWeights[LowerIndex];
 
 						// Need to update digital bandwidth to be bandwidth of FFTbin
+						DigitalBandWidth = 1.f / static_cast<float>(InFFTSize);
+					}
+					else if ((LowerIndex >= 0) && (LowerIndex < OffsetBandWeights.Num()))
+					{
+						OffsetBandWeights[LowerIndex] = 1.f;
+						DigitalBandWidth = 1.f / static_cast<float>(InFFTSize);
+					}
+					else if ((UpperIndex >= 0) && (UpperIndex < OffsetBandWeights.Num()))
+					{
+						OffsetBandWeights[UpperIndex] = 1.f;
 						DigitalBandWidth = 1.f / static_cast<float>(InFFTSize);
 					}
 				}
