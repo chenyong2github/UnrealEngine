@@ -21,8 +21,8 @@ public:
 	
 private:
 
-	void AddToolbarExtension(FToolBarBuilder& Builder);
-	void AddMenuExtension(FMenuBuilder& Builder);
+	void RegisterMenus();
+
 
 private:
 	TSharedPtr<class FUICommandList> PluginCommands;
