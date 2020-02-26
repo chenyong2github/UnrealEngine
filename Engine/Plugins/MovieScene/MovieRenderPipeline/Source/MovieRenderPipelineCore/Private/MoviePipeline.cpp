@@ -376,6 +376,12 @@ bool UMoviePipeline::ProcessEndOfCameraCut(FMoviePipelineShotInfo &CurrentShot, 
 	// tick the new shot will be initialized and processed.
 	if (CurrentShotIndex >= ShotList.Num())
 	{
+		// Ensure all frames have been processed by the GPU and sent to the Output Merger
+		FlushRenderingCommands();
+		
+		// And then make sure all frames are sent to the Output Containers before we finalize.
+		ProcessOutstandingFinishedFrames();
+
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Finished rendering last shot. Moving to Finalize to finish writing items to disk."), GFrameCounter);
 		PipelineState = EMovieRenderPipelineState::Finalize;
 
