@@ -1574,6 +1574,16 @@ void UMeshToolManager::CacheSelectionData(const int32 PaintLODIndex, const int32
 	bNeedsRecache = false;
 }
 
+int32 UMeshToolManager::GetMaxUVIndexToPaint() const
+{
+	if (PaintableComponents.Num() == 1 && PaintableComponents[0])
+	{
+		return UMeshPaintingToolset::GetNumberOfUVs(PaintableComponents[0], 0) - 1;
+	}
+
+	return 0;
+}
+
 UMeshToolsContext::UMeshToolsContext()
 	:Super()
 {
