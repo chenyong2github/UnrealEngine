@@ -108,6 +108,12 @@ public:
 	bool bAutoArchiveOnReboot = false;
 
 	/**
+	 * If true, instruct the server to auto-archive live sessions on shutdown.
+	 */
+	UPROPERTY(config)
+	bool bAutoArchiveOnShutdown = true;
+
+	/**
 	 * Clean server sessions working directory when booting
 	 * Can be specified on the server cmd with `-CONCERTCLEAN`
 	 */
