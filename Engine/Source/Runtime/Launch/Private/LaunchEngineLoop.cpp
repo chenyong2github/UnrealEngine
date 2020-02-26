@@ -1382,11 +1382,16 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 		Trace::FInitializeDesc Desc;
 		Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
+
+		FString Parameter;
+		if (FParse::Value(CmdLine, TEXT("-tracememmb="), Parameter))
+		{
+			Desc.MaxMemoryHintMb = uint32(FCString::Strtoi(*Parameter, nullptr, 10));
+		}
 		Trace::Initialize(Desc);
 
 		FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
 
-		FString Parameter;
 		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
 		{
 			Trace::SendTo(*Parameter);

@@ -142,9 +142,8 @@ T_ALIGN static FWriteBuffer* volatile	GPoolFreeList;		// = nullptr;
 T_ALIGN static UPTRINT volatile			GPoolFutex;			// = 0
 T_ALIGN static FWriteBuffer* volatile	GNewThreadList;		// = nullptr;
 T_ALIGN static FPoolPage* volatile		GPoolPageList;		// = nullptr;
-#if TRACE_PRIVATE_PERF
 static uint32							GPoolUsage;			// = 0;
-#endif
+static uint32							GPoolUsageThreshold;// = 0;
 #undef T_ALIGN
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -182,6 +181,13 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageSize)
 			break;
 		}
 
+		// Throttle back if memory usage is growing past a comfortable threshold
+		if (GPoolUsageThreshold && (GPoolUsage > GPoolUsageThreshold))
+		{
+			ThreadSleep(0);
+			continue;
+		}
+
 		// The free list is empty. Map some more memory.
 		UPTRINT Futex = AtomicLoadRelaxed(&GPoolFutex);
 		if (Futex || !AtomicCompareExchangeAcquire(&GPoolFutex, Futex + 1, Futex))
@@ -194,9 +200,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageSize)
 
 		// The free list is empty so we have to populate it with some new blocks.
 		uint8* PageBase = (uint8*)Writer_MemoryAllocate(PageSize, PLATFORM_CACHE_LINE_SIZE);
-#if TRACE_PRIVATE_PERF
 		GPoolUsage += PageSize;
-#endif
 
 		uint32 BufferSize = GPoolBlockSize;
 		BufferSize -= sizeof(FWriteBuffer);
@@ -745,6 +749,13 @@ void Writer_Initialize(const FInitializeDesc& Desc)
 	{
 		Writer_WorkerCreate();
 	}
+
+	GPoolUsageThreshold = Desc.MaxMemoryHintMb;
+	if (GPoolUsageThreshold > 2 << 10)
+	{
+		GPoolUsageThreshold = 2 << 10;
+	}
+	GPoolUsageThreshold <<= 20;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
