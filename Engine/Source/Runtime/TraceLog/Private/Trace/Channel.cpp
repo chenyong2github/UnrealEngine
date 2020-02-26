@@ -102,7 +102,7 @@ FChannel::Iter FChannel::ReadNew()
 		List = AtomicLoadRelaxed(&GNewChannelList);
 	}
 
-	return { List, List, List };
+	return { { List, List, List } };
 }
 
 ///////////////////////////////////////////////////////////////////////////////
