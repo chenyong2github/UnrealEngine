@@ -6,6 +6,7 @@
 #include "Internationalization/Text.h"
 #include "NiagaraTypes.h"
 #include "NiagaraActions.h"
+#include "Framework/Commands/Commands.h"
 
 class SGraphActionMenu;
 class SEditableTextBox;

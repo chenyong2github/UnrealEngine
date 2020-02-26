@@ -10,6 +10,7 @@
 #include "NiagaraParameterPanelViewModel.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
+#include "CoreMinimal.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Parameter Panel Entry Parameter Name ViewModel							///
