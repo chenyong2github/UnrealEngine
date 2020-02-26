@@ -194,6 +194,7 @@ private:
 		return (FNiagaraComputeInstanceData*)(PackedData + sizeof(uint32));
 	}
 
+	bool UseOverlapCompute();
 	void FinishDispatches();
 	void ReleaseTicks();
 	void ResizeFreeIDsListSizesBuffer(uint32 NumInstances);
