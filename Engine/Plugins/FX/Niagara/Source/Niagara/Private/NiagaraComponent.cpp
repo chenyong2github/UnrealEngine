@@ -433,6 +433,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bForceSolo(false)
 	, AgeUpdateMode(ENiagaraAgeUpdateMode::TickDeltaTime)
 	, DesiredAge(0.0f)
+	, LastHandledDesiredAge(0.0f)
 	, bCanRenderWhileSeeking(true)
 	, SeekDelta(1 / 30.0f)
 	, MaxSimTime(33.0f / 1000.0f)
@@ -582,7 +583,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		{
 			SystemInstance->ComponentTick(DeltaSeconds, ThisTickFunction->GetCompletionHandle());
 		}
-		else
+		else if(AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAge)
 		{
 			float AgeDiff = FMath::Max(DesiredAge, 0.0f) - SystemInstance->GetAge();
 			int32 TicksToProcess = 0;
@@ -622,6 +623,33 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 			{
 				bIsSeeking = false;
 			}
+		}
+		else if (AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAgeNoSeek)
+		{
+			int32 MaxForwardFrames = 5; // HACK - for some reason sequencer jumps forwards by multiple frames on pause, so this is being added to allow for FX to stay alive when being controlled by sequencer in the editor.  This should be lowered once that issue is fixed.
+			float AgeDiff = DesiredAge - LastHandledDesiredAge;
+			if (AgeDiff < 0)
+			{
+				if (FMath::Abs(AgeDiff) >= SeekDelta)
+				{
+					// When going back in time for a frame or more, reset and simulate a single frame.  We ignore small negative changes to delta
+					// time which can happen when controlling time with the timeline and the time snaps to a previous time when paused.
+					SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+					SystemInstance->ComponentTick(SeekDelta, nullptr);
+				}
+			}
+			else if (AgeDiff < MaxForwardFrames * SeekDelta)
+			{
+				// Allow ticks between 0 and MaxForwardFrames, but don't ever send more then 2 x the seek delta.
+				SystemInstance->ComponentTick(FMath::Min(AgeDiff, 2 * SeekDelta), nullptr);
+			}
+			else
+			{
+				// When going forward in time for more than MaxForwardFrames, reset and simulate a single frame.
+				SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+				SystemInstance->ComponentTick(SeekDelta, nullptr);
+			}
+			LastHandledDesiredAge = DesiredAge;
 		}
 
 		if (SceneProxy != nullptr)
