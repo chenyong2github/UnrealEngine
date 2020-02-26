@@ -1,0 +1,66 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "HairStrandsMeshProjectionCommon.ush"
+
+uint MaxRootCount;
+uint MaxSampleCount;
+
+Buffer<float4> RestSamplePositionsBuffer;
+Buffer<float4> MeshSampleWeightsBuffer;
+
+Buffer<float4> RestRootTrianglePosition0;
+Buffer<float4> RestRootTrianglePosition1;
+Buffer<float4> RestRootTrianglePosition2;
+
+RWBuffer<float4> OutDeformedRootTrianglePosition0;
+RWBuffer<float4> OutDeformedRootTrianglePosition1;
+RWBuffer<float4> OutDeformedRootTrianglePosition2;
+
+[numthreads(128, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{ 
+	const uint RootIndex = DispatchThreadId.x;
+	if (RootIndex >= MaxRootCount) 
+		return;
+
+	{
+		const float3 RestControlPoint = RestRootTrianglePosition0[RootIndex];
+		float3 ControlPoint = RestControlPoint;
+
+		// Apply rbf interpolation from the samples set
+		for(int i = 0; i < MaxSampleCount; ++i)
+		{
+			const float3 PositionDelta = RestControlPoint - RestSamplePositionsBuffer[i];
+			const float FunctionValue = sqrt( dot(PositionDelta,PositionDelta)+1);
+			ControlPoint += FunctionValue * MeshSampleWeightsBuffer[i].xyz;
+		}
+		OutDeformedRootTrianglePosition0[RootIndex+MaxRootCount] = float4(ControlPoint,1);
+	}
+	{
+		const float3 RestControlPoint = RestRootTrianglePosition1[RootIndex];
+		float3 ControlPoint = RestControlPoint;
+
+		// Apply rbf interpolation from the samples set
+		for(int i = 0; i < MaxSampleCount; ++i)
+		{
+			const float3 PositionDelta = RestControlPoint - RestSamplePositionsBuffer[i];
+			const float FunctionValue = sqrt( dot(PositionDelta,PositionDelta)+1);
+			ControlPoint += FunctionValue * MeshSampleWeightsBuffer[i].xyz;
+		}
+		OutDeformedRootTrianglePosition1[RootIndex+MaxRootCount] = float4(ControlPoint,1);
+	}
+	{
+		const float3 RestControlPoint = RestRootTrianglePosition2[RootIndex];
+		float3 ControlPoint = RestControlPoint;
+
+		// Apply rbf interpolation from the samples set
+		for(int i = 0; i < MaxSampleCount; ++i)
+		{
+			const float3 PositionDelta = RestControlPoint - RestSamplePositionsBuffer[i];
+			const float FunctionValue = sqrt( dot(PositionDelta,PositionDelta)+1);
+			ControlPoint += FunctionValue * MeshSampleWeightsBuffer[i].xyz;
+		}
+		OutDeformedRootTrianglePosition2[RootIndex+MaxRootCount] = float4(ControlPoint,1);
+	}
+}

@@ -284,9 +284,9 @@ public:
 		DispatchData[Section].UpdateVertexFactoryDeclaration();
 	}
 
-	inline FCachedGeometrySection GetCachedGeometry(int32 SectionIndex) const
+	inline FCachedGeometry::Section GetCachedGeometry(int32 SectionIndex) const
 	{
-		FCachedGeometrySection MeshSection;
+		FCachedGeometry::Section MeshSection;
 		const FSkelMeshRenderSection& Section = *DispatchData[SectionIndex].Section;
 		MeshSection.PositionBuffer	= DispatchData[SectionIndex].PositionBuffer->SRV;
 		MeshSection.UVsBuffer		= DispatchData[SectionIndex].UVsBufferSRV;
@@ -1577,9 +1577,37 @@ void FGPUSkinCache::InvalidateAllEntries()
 	SET_MEMORY_STAT(STAT_GPUSkinCache_TangentsIntermediateMemUsed, 0);
 }
 
-FCachedGeometrySection FGPUSkinCache::GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 sectionIndex)
+FCachedGeometry FGPUSkinCache::GetCachedGeometry(uint32 ComponentId) const
 {
-	return InOutEntry ? InOutEntry->GetCachedGeometry(sectionIndex) : FCachedGeometrySection();
+	FCachedGeometry Out;
+	for (FGPUSkinCacheEntry* Entry : Entries)
+	{
+		if (Entry && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId)
+		{
+			const uint32 LODIndex = Entry->GPUSkin->GetLOD();
+			const FSkeletalMeshRenderData& RenderData = Entry->GPUSkin->GetSkeletalMeshRenderData();
+			const FSkeletalMeshLODRenderData& LODData = RenderData.LODRenderData[LODIndex];
+			const uint32 SectionCount = LODData.RenderSections.Num();
+			for (uint32 SectionIdx=0; SectionIdx< SectionCount;++SectionIdx)
+			{
+				FCachedGeometry::Section CachedSection = Entry->GetCachedGeometry(SectionIdx);
+				CachedSection.IndexBuffer		= LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
+				CachedSection.TotalIndexCount	= LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
+				CachedSection.LODIndex			= LODIndex;
+				CachedSection.UVsChannelOffset	= 0; // Assume that we needs to pair meshes based on UVs 0
+				CachedSection.UVsChannelCount	= LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+				Out.Sections.Add(CachedSection);
+			}
+			break;
+		}
+	}
+
+	return Out;
+}
+
+FCachedGeometry::Section FGPUSkinCache::GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 sectionIndex)
+{
+	return InOutEntry ? InOutEntry->GetCachedGeometry(sectionIndex) : FCachedGeometry::Section();
 }
 
 void FGPUSkinCache::UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry)

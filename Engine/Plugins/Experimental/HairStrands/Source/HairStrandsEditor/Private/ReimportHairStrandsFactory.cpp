@@ -5,6 +5,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "HairDescription.h"
 #include "GroomAsset.h"
+#include "GroomBuilder.h"
 #include "GroomAssetImportData.h"
 #include "GroomImportOptions.h"
 #include "GroomImportOptionsWindow.h"
@@ -95,9 +96,32 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 			CurrentOptions = NewObject<UGroomImportOptions>();
 		}
 
+		TSharedPtr<IHairStrandsTranslator> SelectedTranslator = GetTranslator(CurrentFilename);
+		if (!SelectedTranslator.IsValid())
+		{
+			return EReimportResult::Failed;
+		}
+
+		// Load the alembic file upfront to preview & report any potential issue
+		FProcessedHairDescription OutDescription;
+		const bool bRunValidation = RunGroomAssetValidation();
+		if (bRunValidation)
+		{
+			FScopedSlowTask Progress((float)1, LOCTEXT("ReimportHairAsset", "Reimporting hair asset for preview..."), true);
+			Progress.MakeDialog(true);
+
+			FHairDescription HairDescription;
+			if (!SelectedTranslator->Translate(CurrentFilename, HairDescription, CurrentOptions->ConversionSettings))
+			{
+				return EReimportResult::Failed;
+			}
+
+			FGroomBuilder::ProcessHairDescription(HairDescription, CurrentOptions->BuildSettings, OutDescription);
+		}
+
 		if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 		{
-			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(CurrentOptions, CurrentFilename);
+			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(CurrentOptions, CurrentFilename, bRunValidation ? &OutDescription : nullptr);
 
 			if (!GroomOptionWindow->ShouldImport())
 			{
@@ -107,12 +131,6 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 			// Move the transient ImportOptions to the asset package and set it on the GroomAssetImportData for serialization
 			CurrentOptions->Rename(nullptr, GroomAssetImportData);
 			GroomAssetImportData->ImportOptions = CurrentOptions;
-		}
-
-		TSharedPtr<IHairStrandsTranslator> SelectedTranslator = GetTranslator(CurrentFilename);
-		if (!SelectedTranslator.IsValid())
-		{
-			return EReimportResult::Failed;
 		}
 
 		FHairDescription HairDescription;

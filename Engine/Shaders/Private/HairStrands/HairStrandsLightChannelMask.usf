@@ -10,7 +10,7 @@
 
 uint2						OutputResolution;
 Texture2D<uint> 			NodeOffsetAndCount;
-StructuredBuffer<FNodeData> NodeData;
+StructuredBuffer<FPackedHairSample> NodeData;
 RWTexture2D<uint>			OutLightChannelMaskTexture;
 
 #if PERMUTATION_GROUP_SIZE == 0
@@ -36,15 +36,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
 	{
 		const uint LocalOffset = NodeDesc.Offset + SampleIt;
-		const FNodeData Data = NodeData[LocalOffset];
-		float			SampleDepth;
-		FVisibilityData SampleVisData;
-		float3			SampleBaseColor;
-		float			SampleRoughness;
-		float			SampleSpecular;
-		uint			SampleLightChannelMask;
-		DecodeNodeData(Data, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLightChannelMask);
-		OutLightChannelMask |= SampleLightChannelMask;
+		const FPackedHairSample Data = NodeData[LocalOffset];
+		const FHairSample Sample = UnpackHairSample(Data);
+		OutLightChannelMask |= Sample.LightChannelMask;
 	}
 
 	OutLightChannelMaskTexture[PixelCoord] = OutLightChannelMask;

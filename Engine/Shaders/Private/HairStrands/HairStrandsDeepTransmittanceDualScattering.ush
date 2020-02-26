@@ -22,6 +22,7 @@ float Hair_g2(float B,float Theta)
 void ComputeDualScatteringTerms(
 	const FHairTransmittanceData TransmittanceData,
 	const float Roughness,
+	const float Backlit,
 	const float3 V,
 	const float3 L,
 	const float3 T,
@@ -110,7 +111,9 @@ void ComputeDualScatteringTerms(
     //const float3 GlobalScattering = lerp(1, Tf * Sf * df, saturate(TransmittanceData.HairCount));
 	//const float3 GlobalScattering = Tf * Sf * df;
 
-	const float3 LocalScattering  = 2 * Ab * Sb * db;
+	const float Attenuation = lerp(1, Backlit, saturate(-dot(V,L)));
+
+	const float3 LocalScattering  = 2 * Ab * Sb * db * Attenuation;
 	
 	// Decode if the Local/Global component should be enabled or not (for debug purpose)
 	const float LocalWeights  = (HairComponents & HAIR_COMPONENT_LS) > 0 ? 1 : 0;
@@ -141,6 +144,7 @@ FHairTransmittanceData GetHairTransmittance(
 
 	// Hack: Override the actual roughness, with a different value to achieve a specific look
 	const float Roughness = GBuffer.CustomData.x > 0 ? GBuffer.CustomData.x : GBuffer.Roughness;
+	const float Backlit = GBuffer.CustomData.z;
 
 	const float3 T = GBuffer.WorldNormal;
 	{
@@ -155,6 +159,7 @@ FHairTransmittanceData GetHairTransmittance(
 	ComputeDualScatteringTerms(
 		TransmittanceData,
 		Roughness,
+		Backlit,
 		V,
 		L,
 		T,

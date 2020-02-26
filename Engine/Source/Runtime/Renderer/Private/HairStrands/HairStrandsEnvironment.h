@@ -23,3 +23,8 @@ void RenderHairStrandsEnvironmentLighting(
 	const struct FHairStrandsDatas* HairDatas,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneColorSubPixelTexture);
+
+void RenderHairStrandsSceneColorScattering(
+	FRHICommandListImmediate& RHICmdList,
+	const TArray<FViewInfo>& Views,
+	const struct FHairStrandsDatas* HairDatas);

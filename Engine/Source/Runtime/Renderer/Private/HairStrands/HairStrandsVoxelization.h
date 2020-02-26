@@ -51,6 +51,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, )
 	SHADER_PARAMETER(uint32, PageResolution)
 	SHADER_PARAMETER(uint32, PageIndexCount)
 	SHADER_PARAMETER(uint32, IndirectDispatchGroupSize)
+	SHADER_PARAMETER(uint32, NodeDescCount)
 	SHADER_PARAMETER(float, DensityScale)
 	SHADER_PARAMETER(float, DepthBiasScale)
 	SHADER_PARAMETER(float, SteppingScale)
@@ -100,3 +101,11 @@ void VoxelizeHairStrands(
 	const class FScene* Scene,
 	const TArray<FViewInfo>& Views,
 	struct FHairStrandsMacroGroupViews& MacroGroupViews);
+
+
+struct FHairStrandsOcclusionResources
+{
+	FRDGTextureRef CategorizationTexture = nullptr;
+	FRDGTextureRef LightChannelMaskTexture = nullptr;
+	const FVirtualVoxelResources* VoxelResources = nullptr;
+};
