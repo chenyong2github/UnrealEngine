@@ -243,6 +243,12 @@ namespace UnrealBuildTool
 				// Make sure that none of the actions conflict with any other (producing output files differently, etc...)
 				ActionGraph.CheckForConflicts(Makefiles.SelectMany(x => x.Actions));
 
+				// Check we don't exceed the nominal max path length
+				using (Timeline.ScopeEvent("ActionGraph.CheckPathLengths"))
+				{
+					ActionGraph.CheckPathLengths(BuildConfiguration, Makefiles.SelectMany(x => x.Actions));
+				}
+
 				// Find all the actions to be executed
 				HashSet<Action>[] ActionsToExecute = new HashSet<Action>[TargetDescriptors.Count];
 				for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
@@ -265,7 +271,7 @@ namespace UnrealBuildTool
 				ActionGraph.Link(MergedActionsToExecute);
 
 				// Make sure the appropriate executor is selected
-				foreach(TargetDescriptor TargetDescriptor in TargetDescriptors)
+				foreach (TargetDescriptor TargetDescriptor in TargetDescriptors)
 				{
 					UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(TargetDescriptor.Platform);
 					BuildConfiguration.bAllowXGE &= BuildPlatform.CanUseXGE();
