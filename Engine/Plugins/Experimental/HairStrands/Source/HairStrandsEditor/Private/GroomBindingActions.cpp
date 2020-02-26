@@ -25,9 +25,9 @@ void FGroomBindingActions::GetActions(const TArray<UObject*>& InObjects, FToolMe
 	TArray<TWeakObjectPtr<UGroomBindingAsset>> GroomBindingAssets = GetTypedWeakObjectPtrs<UGroomBindingAsset>(InObjects);
 
 	Section.AddMenuEntry(
-		"RebuildGroom",
-		LOCTEXT("RebuildGroom", "Rebuild"),
-		LOCTEXT("RebuildGroomTooltip", "Rebuild the groom binding"),
+		"RebuildGroomBinding",
+		LOCTEXT("RebuildGroomBinding", "Rebuild"),
+		LOCTEXT("RebuildGroomBindingTooltip", "Rebuild the groom binding"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FGroomBindingActions::ExecuteRebuildBindingAsset, GroomBindingAssets),
