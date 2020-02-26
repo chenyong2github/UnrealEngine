@@ -32,6 +32,11 @@ namespace UnrealBuildTool
 		/// Just output a list of XGE actions; don't build anything
 		/// </summary>
 		XGEExport = 2,
+
+		/// <summary>
+		/// Fail if any engine files would be modified by the build
+		/// </summary>
+		NoEngineChanges = 4,
 	}
 
 	/// <summary>
@@ -64,6 +69,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-XGEExport")]
 		public bool bXGEExport = false;
+
+		/// <summary>
+		/// Do not allow any engine files to be output (used by compile on startup functionality)
+		/// </summary>
+		[CommandLine("-NoEngineChanges")]
+		public bool bNoEngineChanges = false;
 
 		/// <summary>
 		/// Whether we should just export the outdated actions list
@@ -197,6 +208,10 @@ namespace UnrealBuildTool
 					{
 						Options |= BuildOptions.XGEExport;
 					}
+					if(bNoEngineChanges)
+					{
+						Options |= BuildOptions.NoEngineChanges;
+					}
 
 					// Create the working set provider
 					using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(UnrealBuildTool.RootDirectory, ProjectDirs))
@@ -275,6 +290,22 @@ namespace UnrealBuildTool
 
 				// Link all the actions together
 				ActionGraph.Link(MergedActionsToExecute);
+
+				// Make sure we're not modifying any engine files
+				if ((Options & BuildOptions.NoEngineChanges) != 0)
+				{
+					List<FileItem> EngineChanges = MergedActionsToExecute.SelectMany(x => x.ProducedItems).Where(x => x.Location.IsUnderDirectory(UnrealBuildTool.EngineDirectory)).Distinct().OrderBy(x => x.FullName).ToList();
+					if (EngineChanges.Count > 0)
+					{
+						StringBuilder Result = new StringBuilder("Building would modify the following engine files:\n");
+						foreach (FileItem EngineChange in EngineChanges)
+						{
+							Result.AppendFormat("\n{0}", EngineChange.FullName);
+						}
+						Result.Append("\n\nPlease rebuild from an IDE instead.");
+						throw new BuildException(Result.ToString());
+					}
+				}
 
 				// Make sure the appropriate executor is selected
 				foreach (TargetDescriptor TargetDescriptor in TargetDescriptors)
