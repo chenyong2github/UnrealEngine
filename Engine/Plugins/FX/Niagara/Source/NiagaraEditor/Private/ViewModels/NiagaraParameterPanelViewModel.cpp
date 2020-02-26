@@ -23,6 +23,8 @@
 #include "NiagaraSystem.h"
 #include "NiagaraObjectSelection.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Editor.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanelViewModel"
 
@@ -347,7 +349,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::RemoveParameter(const FNiagar
 
 bool FNiagaraSystemToolkitParameterPanelViewModel::CanRemoveParameter(const FNiagaraVariable& TargetVariableToRemove, const FNiagaraVariableMetaData& TargetVariableMetaData) const
 {
-	return TargetVariableMetaData.bCreatedInSystemEditor == true;
+	return TargetVariableMetaData.bCreatedInSystemEditor;
 }
 
 void FNiagaraSystemToolkitParameterPanelViewModel::RenameParameter(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, const FText& NewVariableNameText) const
