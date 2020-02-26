@@ -63,6 +63,9 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	FFrameRate GetEffectiveFrameRate(const ULevelSequence* InSequence) const;
+
+	TRange<FFrameNumber> GetEffectivePlaybackRange(const ULevelSequence* InSequence) const;
+
 protected:
 	virtual bool CanSettingBeAdded(const UMoviePipelineSetting* InSetting) const override
 	{
