@@ -4,6 +4,9 @@
 
 #include "NiagaraEditorCommon.h"
 #include "Types/SlateEnums.h"
+#include "EditorUndoClient.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "Input/Events.h"
 
 class UNiagaraSystem;
 class FNiagaraSystemViewModel;
