@@ -79,6 +79,8 @@ const NiagaraParameterPanelSectionID::Type NiagaraParameterPanelSectionID::GetSe
 	switch (InScope) {
 	case ENiagaraParameterScope::Engine:
 		return NiagaraParameterPanelSectionID::ENGINE;
+	case ENiagaraParameterScope::Owner:
+		return NiagaraParameterPanelSectionID::OWNER;
 	case ENiagaraParameterScope::User:
 		return NiagaraParameterPanelSectionID::USER;
 	case ENiagaraParameterScope::System:
@@ -143,6 +145,8 @@ ENiagaraParameterScope NiagaraParameterPanelSectionID::GetScopeForNewParametersI
 	switch (InSection) {
 	case NiagaraParameterPanelSectionID::ENGINE:
 		return ENiagaraParameterScope::Engine;
+	case NiagaraParameterPanelSectionID::OWNER:
+		return ENiagaraParameterScope::Owner;
 	case NiagaraParameterPanelSectionID::USER:
 		return ENiagaraParameterScope::User;
 	case NiagaraParameterPanelSectionID::SYSTEM:
