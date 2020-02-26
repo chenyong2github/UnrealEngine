@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "NiagaraCommon.h"
+#include "MovieScene/MovieSceneNiagaraSystemSpawnSection.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieSceneTrackImplementation.h"
 #include "MovieSceneNiagaraSystemTrackTemplate.generated.h"
@@ -26,7 +28,11 @@ struct FMovieSceneNiagaraSystemTrackImplementation : public FMovieSceneTrackImpl
 public:
 	FMovieSceneNiagaraSystemTrackImplementation() { }
 	FMovieSceneNiagaraSystemTrackImplementation(FFrameNumber InSpawnSectionStartFrame, FFrameNumber InSpawnSectionEndFrame);
-	
+	FMovieSceneNiagaraSystemTrackImplementation(
+		FFrameNumber InSpawnSectionStartFrame, FFrameNumber InSpawnSectionEndFrame,
+		ENiagaraSystemSpawnSectionStartBehavior InSectionStartBehavior, ENiagaraSystemSpawnSectionEvaluateBehavior InSectionEvaluateBehavior,
+		ENiagaraSystemSpawnSectionEndBehavior InSectionEndBehavior, ENiagaraAgeUpdateMode InAgeUpdateMode);
+
 	virtual void SetupOverrides() override
 	{
 		EnableOverrides(CustomEvaluateFlag);
@@ -41,4 +47,8 @@ private:
 	FFrameNumber SpawnSectionStartFrame;
 	UPROPERTY()
 	FFrameNumber SpawnSectionEndFrame;
+	ENiagaraSystemSpawnSectionStartBehavior SpawnSectionStartBehavior;
+	ENiagaraSystemSpawnSectionEvaluateBehavior SpawnSectionEvaluateBehavior;
+	ENiagaraSystemSpawnSectionEndBehavior SpawnSectionEndBehavior;
+	ENiagaraAgeUpdateMode AgeUpdateMode;
 };

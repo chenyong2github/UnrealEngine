@@ -97,6 +97,9 @@ private:
 	/** The desired age of the System instance.  This is only relevant when using the DesiredAge age update mode. */
 	float DesiredAge;
 
+	/** The last desired age value that was handled by the tick function.  This is only relevant when using the DesiredAgeNoSeek age update mode. */
+	float LastHandledDesiredAge;
+
 	/** Whether or not the component can render while seeking to the desired age. */
 	bool bCanRenderWhileSeeking;
 
