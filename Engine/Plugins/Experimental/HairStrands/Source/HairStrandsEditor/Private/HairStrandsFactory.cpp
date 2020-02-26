@@ -80,7 +80,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		FProcessedHairDescription OutDescription;
 		if (bRunValidation)
 		{
-			FScopedSlowTask Progress((float)1, LOCTEXT("ImportHairAsset", "Importing hair asset for preview..."), true);
+			FScopedSlowTask Progress((float)1, LOCTEXT("ImportHairAssetForPreview", "Importing hair asset for preview..."), true);
 			Progress.MakeDialog(true);
 
 			FHairDescription HairDescription;
