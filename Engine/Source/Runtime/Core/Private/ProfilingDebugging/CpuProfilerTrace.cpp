@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/TlsAutoCleanup.h"

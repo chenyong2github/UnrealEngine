@@ -8,7 +8,7 @@
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Protocol.h"
 #include "Trace/Detail/Channel.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "WriteBufferRedirect.h"
 
 namespace Trace {

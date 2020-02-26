@@ -6,7 +6,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/CString.h"
 #include "ProfilingDebugging/MiscTrace.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "UObject/NameTypes.h"
 
 #if GPUPROFILERTRACE_ENABLED

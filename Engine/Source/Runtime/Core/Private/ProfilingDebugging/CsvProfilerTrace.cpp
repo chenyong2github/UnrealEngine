@@ -4,7 +4,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/PlatformTime.h"
 #include "UObject/NameTypes.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 
 #if CSVPROFILERTRACE_ENABLED
 

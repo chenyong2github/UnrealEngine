@@ -7,7 +7,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
 #include "Misc/Parse.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 
 UE_TRACE_CHANNEL(FileChannel)
 

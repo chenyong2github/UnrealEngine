@@ -3,7 +3,7 @@
 #include "SourceFilteringTraceModule.h"
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/Class.h"

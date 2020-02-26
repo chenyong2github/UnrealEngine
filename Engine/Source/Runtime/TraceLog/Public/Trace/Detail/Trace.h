@@ -6,10 +6,6 @@
 
 #if UE_TRACE_ENABLED
 
-#include "CoreTypes.h"
-#include "Trace/Detail/Field.h"
-#include "Trace/Detail/EventNode.h"
-
 #define TRACE_PRIVATE_CHANNEL_DECLARE(LinkageType, ChannelName) \
 	LinkageType Trace::FChannel ChannelName;
 

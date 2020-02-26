@@ -3,7 +3,7 @@
 
 #if LOGTRACE_ENABLED
 
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "Templates/Function.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"

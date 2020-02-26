@@ -5,7 +5,7 @@
 #if LOADTIMEPROFILERTRACE_ENABLED
 
 #include "LoadTimeTracePrivate.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"

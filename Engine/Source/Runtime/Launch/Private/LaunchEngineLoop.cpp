@@ -27,7 +27,7 @@
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
 #include "Stats/StatsMallocProfilerProxy.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
 #include "ProfilingDebugging/CountersTrace.h"

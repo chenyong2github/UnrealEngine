@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Trace/Config.h"
+#include "Trace/Trace.h"
 #include "Trace/Detail/Channel.h"
 #include "Trace/Detail/Channel.inl"
 

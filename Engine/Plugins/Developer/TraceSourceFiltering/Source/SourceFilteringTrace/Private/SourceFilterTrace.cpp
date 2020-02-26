@@ -7,6 +7,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/Class.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Trace/Trace.inl"
 
 #include "DataSourceFilter.h"
 #include "TraceWorldFiltering.h"
