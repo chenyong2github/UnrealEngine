@@ -48,7 +48,7 @@ void FOSCServerProxy::OnPacketReceived(const FArrayReaderPtr& Data, const FIPv4E
 			return;
 		}
 
-		Server->OnPacketReceived(Endpoint.Address.ToString());
+		Server->OnPacketReceived(Endpoint.Address.ToString(), Endpoint.Port);
 	}, GET_STATID(STAT_OSCServerOnPacketReceived), nullptr, ENamedThreads::GameThread);
 }
 
