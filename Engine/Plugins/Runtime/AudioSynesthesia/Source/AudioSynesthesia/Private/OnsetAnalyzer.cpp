@@ -131,7 +131,7 @@ namespace Audio
 		MelTransform->TransformArray(FFTSpectrumBuffer, MelSpectrum);
 
 		// Apply decibel scaling 
-		ArrayPowerToDecibelInPlace(MelSpectrum);
+		ArrayPowerToDecibelInPlace(MelSpectrum, -90.f);
 
 		// Clamp to noise floor
 		ArrayClampMinInPlace(MelSpectrum, Settings.NoiseFloorDb);

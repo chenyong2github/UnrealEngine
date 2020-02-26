@@ -60,17 +60,17 @@ namespace Audio
 			switch (Settings.SpectrumType)
 			{
 				case ESpectrumType::MagnitudeSpectrum:
-					ArrayMagnitudeToDecibelInPlace(OutCQT);
+					ArrayMagnitudeToDecibelInPlace(OutCQT, -90.f);
 					break;
 
 				case ESpectrumType::PowerSpectrum:
-					ArrayPowerToDecibelInPlace(OutCQT);
+					ArrayPowerToDecibelInPlace(OutCQT, -90.f);
 					break;
 
 				default:
 					check(false);
 					//checkf(false, TEXT("Unhandled ESpectrumType %s"), GETENUMSTRING(ESpectrumType, Settings.SpectrumType));
-					ArrayPowerToDecibelInPlace(OutCQT);
+					ArrayPowerToDecibelInPlace(OutCQT, -90.f);
 			}
 		}
 	}
