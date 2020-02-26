@@ -63,7 +63,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
 	EMoviePipelineTextureStreamingMethod TextureStreaming;
 
-	/** Should we try to use the highest quality LOD for meshes regardless of distance? */
+	/** Should we try to use the highest quality LOD for meshes and particle systems regardless of distance? */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
 	bool bUseLODZero;
 
@@ -99,6 +99,7 @@ private:
 	int32 PreviousTextureStreaming;
 	int32 PreviousForceLOD;
 	int32 PreviousSkeletalMeshBias;
+	int32 PreviousParticleLODBias;
 	int32 PreviousShadowDistanceScale;
 	int32 PreviousShadowQuality;
 	float PreviousShadowRadiusThreshold;
