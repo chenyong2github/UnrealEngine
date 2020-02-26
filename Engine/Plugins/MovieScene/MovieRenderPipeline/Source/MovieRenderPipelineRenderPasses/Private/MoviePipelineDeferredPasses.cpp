@@ -31,13 +31,17 @@
 #include "MovieRenderPipelineCoreModule.h"
 
 DECLARE_CYCLE_STAT(TEXT("MoviePipeline_SampleReadback"), STAT_SampleReadback, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("MoviePipeline_SampleReadbackAlloc"), STAT_SampleReadbackAlloc, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("MoviePipeline_SampleReadbackRHI"), STAT_SampleReadbackRHI, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("MoviePipeline_SampleReadbackBroadcast"), STAT_SampleReadbackBroadcast, STATGROUP_MoviePipeline);
 DECLARE_CYCLE_STAT(TEXT("MoviePipeline_AccumulateSample_RT"), STAT_AccumulateSample_RenderThread, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("MoviePipeline_OnBackbufferSampleReady_RT"), STAT_OnBackbufferSampleReady_RenderThread, STATGROUP_MoviePipeline);
 
+DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableSurface"), STAT_MoviePipeline_WaitForAvailableSurface, STATGROUP_MoviePipeline);
 
 namespace MoviePipeline
 {
 	// Forward Declare
-	void ReadBackbufferAndBroadcast_RenderThread(FRHICommandListImmediate &RHICmdList, FRenderTarget* InFromRenderTarget, const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelineSampleReady& OnReadDelegate);
 	void AccumulateSample_RenderThread(TUniquePtr<FImagePixelData>&& InPixelData, TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData, MoviePipeline::FSampleRenderThreadParams& InParams);
 
 	void FDeferredRenderEnginePass::Setup(TWeakObjectPtr<UMoviePipeline> InOwningPipeline, const FMoviePipelineRenderPassInitSettings& InInitSettings)
@@ -53,11 +57,16 @@ namespace MoviePipeline
 
 		// Allocate 
 		ViewState.Allocate();
+
+		SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3);
 	}
 
 	void FDeferredRenderEnginePass::Teardown()
 	{
 		FMoviePipelineEnginePass::Teardown();
+
+		// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
+		SurfaceQueue->Shutdown();
 
 		FSceneViewStateInterface* Ref = ViewState.GetReference();
 		if (Ref)
@@ -175,55 +184,42 @@ namespace MoviePipeline
 			View->MaterialTextureMipBias += InSampleState.TextureSharpnessBias;
 		}
 
+		// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
+		{
+			SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableSurface);
+			SurfaceQueue->BlockUntilAnyAvailable();
+		}
+
 		FCanvas Canvas = FCanvas(TileRenderTarget->GameThread_GetRenderTargetResource(), nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
 		// SetupViewDelegate.Broadcast(ViewFamily, *View, InSampleState);
 
 		// Draw the world into this View Family
 		GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 
+		// If this was just to contribute to the history buffer, no need to go any further.
+		if (InSampleState.bDiscardResult)
+		{
+			return;
+		}
+		
+		TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
+
 		FRenderTarget* BackbufferRenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
 		FMoviePipelineSampleReady& OnBackbufferReadDelegate = BackbufferReadyDelegate;
 
 		ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
-			[InSampleState, BackbufferRenderTarget, OnBackbufferReadDelegate](FRHICommandListImmediate& RHICmdList)
+			[LocalSurfaceQueue, InSampleState, BackbufferRenderTarget, OnBackbufferReadDelegate](FRHICommandListImmediate& RHICmdList)
 		{
-			// If they only needed this frame for the history, we don't actually care about trying to output it,
-			// so we can skip the copy and pushing to output.
-			if (InSampleState.bDiscardResult)
-			{
-				return;
-			}
+				// If they are using tiles, we'll output some more fine-grained progress via logging since it freezes the UI for such a long time.
+				if (InSampleState.GetTileCount() > 1)
+				{
+					UE_LOG(LogMovieRenderPipeline, Log, TEXT("Frame: %d TemporalSample: %d/%d Rendered Tile: %d/%d Sample: %d/%d"),
+						InSampleState.OutputState.OutputFrameNumber, InSampleState.TemporalSampleIndex + 1, InSampleState.TemporalSampleCount,
+						InSampleState.GetTileIndex() + 1, InSampleState.GetTileCount(), InSampleState.SpatialSampleIndex + 1, InSampleState.SpatialSampleCount);
+				}
 
-			// If they are using tiles, we'll output some more fine-grained progress via logging since it freezes the UI for such a long time.
-			if (InSampleState.GetTileCount() > 1)
-			{
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Frame: %d TemporalSample: %d/%d Rendered Tile: %d/%d Sample: %d/%d"),
-					InSampleState.OutputState.OutputFrameNumber, InSampleState.TemporalSampleIndex + 1, InSampleState.TemporalSampleCount,
-					InSampleState.GetTileIndex() + 1, InSampleState.GetTileCount(), InSampleState.SpatialSampleIndex + 1, InSampleState.SpatialSampleCount);
-			}
-
-			ReadBackbufferAndBroadcast_RenderThread(RHICmdList, BackbufferRenderTarget, InSampleState, OnBackbufferReadDelegate);
+				LocalSurfaceQueue->OnRenderTargetReady_RenderThread(BackbufferRenderTarget->GetRenderTargetTexture(), InSampleState, OnBackbufferReadDelegate);
 		});
-	}
-
-	void ReadBackbufferAndBroadcast_RenderThread(FRHICommandListImmediate &RHICmdList, FRenderTarget* InFromRenderTarget, const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelineSampleReady& OnReadDelegate)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SampleReadback);
-
-		check(IsInRenderingThread());
-
-		FIntRect SourceRect = FIntRect(0, 0, InFromRenderTarget->GetSizeXY().X, InFromRenderTarget->GetSizeXY().Y);
-
-		// Read the data back to the CPU
-		TArray<FLinearColor> RawPixels;
-		RawPixels.SetNum(SourceRect.Width() * SourceRect.Height());
-
-		FReadSurfaceDataFlags ReadDataFlags(ERangeCompressionMode::RCM_MinMax);
-		ReadDataFlags.SetLinearToGamma(false);
-
-		RHICmdList.ReadSurfaceData(InFromRenderTarget->GetRenderTargetTexture(), SourceRect, RawPixels, ReadDataFlags);
-
-		OnReadDelegate.Broadcast(RawPixels, InSampleState);
 	}
 
 	FSceneView* FDeferredRenderEnginePass::CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InSampleState)
@@ -446,8 +442,10 @@ void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelin
 	}
 }
 
-void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FLinearColor> InPixelData, FMoviePipelineRenderPassMetrics InSampleState)
+void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FFloat16Color>& InPixelData, FMoviePipelineRenderPassMetrics InSampleState)
 {
+	SCOPE_CYCLE_COUNTER(STAT_OnBackbufferSampleReady_RenderThread);
+
 	MoviePipeline::FSampleRenderThreadParams AccumulationParams;
 	{
 		AccumulationParams.OutputMerger = GetPipeline()->OutputBuilder;
@@ -461,7 +459,7 @@ void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FLinearColor
 	FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("Backbuffer"));
 	FrameData->SampleState = InSampleState;
 
-	TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(InSampleState.BackbufferSize, TArray64<FLinearColor>(MoveTemp(InPixelData)), FrameData);
+	TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(InSampleState.BackbufferSize, TArray64<FFloat16Color>(MoveTemp(InPixelData)), FrameData);
 
 	AccumulateSample_RenderThread(MoveTemp(PixelData), FrameData, AccumulationParams);
 }
