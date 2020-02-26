@@ -25,7 +25,8 @@ namespace WindowsMixedReality
 		FPlatformMisc::GetOSVersions(OSVersionLabel, OSSubVersionLabel);
 		// GetOSVersion returns the Win10 release version in the OSVersion rather than the OSSubVersion, so parse it out ourselves
 		OSSubVersionLabel = OSVersionLabel;
-		bool bHasSupportedWindowsVersion = OSSubVersionLabel.RemoveFromStart("Windows 10 (Release ") && OSSubVersionLabel.RemoveFromEnd(")") && (FCString::Atoi(*OSSubVersionLabel) >= MIN_WIN_10_VERSION_FOR_WMR);
+		bool bHasSupportedWindowsVersion = OSSubVersionLabel.StartsWith("Windows 10") || OSSubVersionLabel.StartsWith("Windows Server 2019");
+		bool bHasSupportedWindowsBuild = false;
 
 		// If we can't find Win10 version, check for Windows Server equivalent
 		if (!bHasSupportedWindowsVersion)
@@ -35,6 +36,19 @@ namespace WindowsMixedReality
 		}
 
 		if (bHasSupportedWindowsVersion)
+		{
+			FString BeginMarker = TEXT("(Release ");
+			int Begin = OSSubVersionLabel.Find(BeginMarker);
+			int End = OSSubVersionLabel.Find(")", ESearchCase::IgnoreCase, ESearchDir::FromStart, Begin);
+			if (Begin >= 0 && End >= 0)
+			{
+				Begin += BeginMarker.Len();
+				OSSubVersionLabel = OSSubVersionLabel.Mid(Begin, End - Begin);
+				bHasSupportedWindowsBuild = FCString::Atoi(*OSSubVersionLabel) >= MIN_WIN_10_VERSION_FOR_WMR;
+			}
+		}
+
+		if (bHasSupportedWindowsBuild && bHasSupportedWindowsVersion)
 		{
 			// Get the base directory of this plugin
 			FString BaseDir = IPluginManager::Get().FindPlugin("WindowsMixedReality")->GetBaseDir();
