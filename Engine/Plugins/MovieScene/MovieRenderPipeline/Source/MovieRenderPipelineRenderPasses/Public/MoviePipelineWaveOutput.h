@@ -30,5 +30,7 @@ public:
 	FString FileNameFormat;
 
 private:
+	/** Kept alive during finalization because the writer writes async to disk but doesn't expect to fall out of scope */
+	TArray<TUniquePtr<Audio::FSoundWavePCMWriter>> ActiveWriters;
 	TAtomic<int32> OutstandingWrites;
 };
