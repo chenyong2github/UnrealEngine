@@ -21,6 +21,7 @@
 // Forward Declare
 static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(FImagePixelData* InPixelData);
 
+DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
 
 UMoviePipelineImageSequenceOutputBase::UMoviePipelineImageSequenceOutputBase()
 {
@@ -44,6 +45,8 @@ bool UMoviePipelineImageSequenceOutputBase::HasFinishedProcessingImpl()
 
 void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ImgSeqRecieveImageData);
+
 	check(InMergedOutputFrame);
 
 	// We do a little special handling for Burn In overlays, because we need to composite them on top of the main image. We may also want to write them
