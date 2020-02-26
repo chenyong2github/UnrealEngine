@@ -41,6 +41,6 @@ UE_TRACE_API bool	ToggleChannel(const TCHAR* ChannelName, bool bEnabled) UE_TRAC
 
 ////////////////////////////////////////////////////////////////////////////////
 #define UE_TRACE_CHANNEL(ChannelName)							TRACE_PRIVATE_CHANNEL(ChannelName)
-#define UE_TRACE_CHANNEL_EXTERN(ChannelName)					TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName)
+#define UE_TRACE_CHANNEL_EXTERN(ChannelName, ...)				TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ##__VA_ARGS__)
 #define UE_TRACE_CHANNEL_DEFINE(ChannelName)					TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName)
 #define UE_TRACE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)			TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)

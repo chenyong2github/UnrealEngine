@@ -17,9 +17,7 @@
 
 #if CPUPROFILERTRACE_ENABLED
 
-// @note Cannot use the declare macros in this header since including
-// Trace.h will result in a circular dependency.
-CORE_API extern Trace::FChannel CpuChannel;
+UE_TRACE_CHANNEL_EXTERN(CpuChannel, CORE_API);
 
 struct FCpuProfilerTrace
 {

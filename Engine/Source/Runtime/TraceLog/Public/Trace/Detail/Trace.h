@@ -23,8 +23,8 @@
 	TRACE_PRIVATE_CHANNEL_DECLARE(static, ChannelName) \
 	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName)
 
-#define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName) \
-	TRACE_PRIVATE_CHANNEL_DECLARE(extern, ChannelName)
+#define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ...) \
+	__VA_ARGS__ TRACE_PRIVATE_CHANNEL_DECLARE(extern, ChannelName)
 
 #define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName) \
 	TRACE_PRIVATE_CHANNEL_DECLARE(, ChannelName) \
@@ -106,7 +106,7 @@
 
 #define TRACE_PRIVATE_CHANNEL(ChannelName)
 
-#define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName)
+#define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ...)
 
 #define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName)
 
