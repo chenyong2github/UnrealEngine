@@ -44,6 +44,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPostProcessMaterialParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, MobileCustomStencilTextureSampler)
 	SHADER_PARAMETER(int32, MobileStencilValueRef)
 	SHADER_PARAMETER(uint32, bFlipYAxis)
+	SHADER_PARAMETER(uint32, bMetalMSAAHDRDecode)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -111,7 +112,9 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FPostProcessMaterialInputs& Inputs,
-	const UMaterialInterface* MaterialInterface);
+	const UMaterialInterface* MaterialInterface,
+	//bMetalMSAAHDRDecode has to be set only on mobile platform, the other platforms could use the default value.
+	const bool bMetalMSAAHDRDecode = false);
 
 FScreenPassTexture AddPostProcessMaterialChain(
 	FRDGBuilder& GraphBuilder,
@@ -144,11 +147,13 @@ FScreenPassTexture AddHighResolutionScreenshotMaskPass(
 FRenderingCompositePass* AddPostProcessMaterialPass(
 	const FPostprocessContext& Context,
 	const UMaterialInterface* MaterialInterface,
+	const bool bMetalMSAAHDRDecode,
 	EPixelFormat OutputFormat = PF_Unknown);
 
 FRenderingCompositeOutputRef AddPostProcessMaterialChain(
 	FPostprocessContext& Context,
 	EBlendableLocation InLocation,
+	bool& bMetalMSAAHDRDecode,
 	FRenderingCompositeOutputRef SeparateTranslucency = FRenderingCompositeOutputRef(),
 	FRenderingCompositeOutputRef PreTonemapHDRColor = FRenderingCompositeOutputRef(),
 	FRenderingCompositeOutputRef PostTonemapHDRColor = FRenderingCompositeOutputRef(),
