@@ -305,9 +305,24 @@ void PopulateSimulatedParticle(
 			{
 				CollisionParticles->X(VertexIndex) = Simplicial->X(VertexIndex);
 
+
+#if 0 
+				// Ryan - this is crashing for Jack with stack:
+				/*
+				Assertion failed : (Index >= 0)& (Index < ArrayNum)[File:E:\4.25\Engine\Source\Runtime\Core\Public\Containers / Array.h][Line:674] Array index out of bounds : 4 from an array of size 4
+					ChaosDestructionDemoEditor_Core!FDebug::OptionallyLogFormattedEnsureMessageReturningFalseImpl()[e:\4.25\engine\source\runtime\core\private\misc\assertionmacros.cpp:491]
+					ChaosDestructionDemoEditor_ChaosSolvers!<lambda_9b5be2529a6e7fa96c17dd5bd4cd785f>::operator()()[e:\4.25\engine\source\runtime\experimental\chaossolvers\private\physicsproxy\geometrycollectionphysicsproxy.cpp:310]
+					ChaosDestructionDemoEditor_ChaosSolvers!PopulateSimulatedParticle()[e:\4.25\engine\source\runtime\experimental\chaossolvers\private\physicsproxy\geometrycollectionphysicsproxy.cpp:310]
+					ChaosDestructionDemoEditor_ChaosSolvers!FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures()[e:\4.25\engine\source\runtime\experimental\chaossolvers\private\physicsproxy\geometrycollectionphysicsproxy.cpp:2825]
+					ChaosDestructionDemoEditor_GeometryCollectionEngine!FDerivedDataGeometryCollectionCooker::Build()[e:\4.25\engine\source\runtime\experimental\geometrycollectionengine\private\geometrycollection\deriveddatageometrycollectioncooker.cpp:37]
+					ChaosDestructionDemoEditor_DerivedDataCache!FDerivedDataCache::FBuildAsyncWorker::DoWork()
+				*/
+				// Removing for now.
+
 				// Make sure the collision particles are at least in the domain 
 				// of the implicit shape.
 				ensure(ImplicitShapeDomain.Contains(CollisionParticles->X(VertexIndex)));
+#endif
 			}
 		}
 
