@@ -273,6 +273,24 @@ struct FSkelMeshSourceSectionUserData
 		return (ClothingData.AssetGuid.IsValid());
 	}
 
+	static FSkelMeshSourceSectionUserData& GetSourceSectionUserData(TMap<int32, FSkelMeshSourceSectionUserData>& UserSectionsData, const FSkelMeshSection& Section)
+	{
+		FSkelMeshSourceSectionUserData* UserSectionData = UserSectionsData.Find(Section.OriginalDataSectionIndex);
+		if (!UserSectionData)
+		{
+			//If the UserSectionData do not exist add it and copy from the section data
+			UserSectionData = &UserSectionsData.Add(Section.OriginalDataSectionIndex);
+			UserSectionData->bCastShadow = Section.bCastShadow;
+			UserSectionData->bDisabled = Section.bDisabled;
+			UserSectionData->bRecomputeTangent = Section.bRecomputeTangent;
+			UserSectionData->GenerateUpToLodIndex = Section.GenerateUpToLodIndex;
+			UserSectionData->CorrespondClothAssetIndex = Section.CorrespondClothAssetIndex;
+			UserSectionData->ClothingData.AssetGuid = Section.ClothingData.AssetGuid;
+			UserSectionData->ClothingData.AssetLodIndex = Section.ClothingData.AssetLodIndex;
+		}
+		check(UserSectionData);
+		return *UserSectionData;
+	}
 	// Serialization.
 	friend FArchive& operator<<(FArchive& Ar, FSkelMeshSourceSectionUserData& S);
 };
@@ -420,7 +438,7 @@ public:
 	* This function will update the chunked information for each section. Only old data before the 
 	* skeletal mesh build refactor should need to call this function.
 	*/
-	ENGINE_API void UpdateChunkedSectionInfo(const FString& SkeletalMeshName, TArray<int32>& LODMaterialMap);
+	ENGINE_API void UpdateChunkedSectionInfo(const FString& SkeletalMeshName);
 };
 
 #endif // WITH_EDITOR

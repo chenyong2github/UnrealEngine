@@ -531,6 +531,12 @@ void FReductionBaseSkeletalMeshBulkData::LoadReductionData(FSkeletalMeshLODModel
 			Ar << ReductionSkeletalMeshData;
 
 			CacheGeometryInfo(BaseLODModel);
+
+			//This call will filled missing chunked data for old asset that cannot build normal and chunking (not re import since the new skeletal mesh chunk build refactor)
+			if (!BaseLODModel.bIsBuildDataAvailable)
+			{
+				BaseLODModel.UpdateChunkedSectionInfo(Owner ? Owner->GetName() : FString(TEXT("")));
+			}
 		}
 		// Unlock the bulk data
 	}
