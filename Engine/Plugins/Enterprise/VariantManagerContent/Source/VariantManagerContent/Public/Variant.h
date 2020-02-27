@@ -12,7 +12,7 @@
 
 class UVariantObjectBinding;
 
-UCLASS(DefaultToInstanced)
+UCLASS(BlueprintType)
 class VARIANTMANAGERCONTENT_API UVariant : public UObject
 {
 	GENERATED_UCLASS_BODY()
