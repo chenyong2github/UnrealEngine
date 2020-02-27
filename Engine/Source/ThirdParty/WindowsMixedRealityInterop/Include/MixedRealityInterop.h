@@ -36,6 +36,7 @@
 
 #include <atomic>
 #include <memory>
+#include <vector>
 
 #pragma warning(default:4005)
 #pragma warning(default:4668)
@@ -624,8 +625,24 @@ public:
 	static void Release();
 
 	// The session lifecycle
+	struct ConfigData
+	{
+		const wchar_t* accountId = nullptr;
+		const wchar_t* accountKey = nullptr;
+		bool bCoarseLocalizationEnabled = false;
+		bool bEnableGPS = false;
+		bool bEnableWifi = false;
+		std::vector<const wchar_t*> BLEBeaconUUIDs;
+		int logVerbosity = 0;
+
+		//uncopyable, due to char*'s.
+		ConfigData() {}
+	private:
+		ConfigData(const ConfigData&) = delete;
+		ConfigData& operator=(const ConfigData&) = delete;
+	};
 	virtual bool CreateSession() = 0;
-	virtual bool ConfigSession(const wchar_t* accountId, const wchar_t* accountKey, int logVerbosity) = 0;
+	virtual bool ConfigSession(const ConfigData& InConfigData) = 0;
 	virtual bool StartSession() = 0;
 	virtual void StopSession() = 0;
 	virtual void DestroySession() = 0;
@@ -634,12 +651,13 @@ public:
 	{
 		NotStarted,
 		Started,
-		FailBadAnchorId,
+		FailBadAnchorIdentifier,
 		FailAnchorIdAlreadyUsed,
 		FailAnchorDoesNotExist,
 		FailAnchorAlreadyTracked,
 		FailNoAnchor,
 		FailNoLocalAnchor,
+		FailNoCloudAnchor,
 		FailNoSession,
 		FailNotEnoughData,
 		FailSeeErrorString,
@@ -647,6 +665,12 @@ public:
 		Canceled,
 		Success
 	};
+
+	typedef int CloudAnchorID;
+	static const CloudAnchorID CloudAnchorID_Invalid = -1;
+	typedef int32_t WatcherID;
+	typedef std::wstring LocalAnchorID;
+	typedef std::wstring CloudAnchorIdentifier;
 
 	struct AsyncData
 	{
@@ -659,34 +683,81 @@ public:
 
 	struct SaveAsyncData : public AsyncData
 	{
-		std::wstring LocalAnchorId;
-		std::wstring CloudAnchorIdentifier;
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
 	};
 	typedef std::shared_ptr<SaveAsyncData> SaveAsyncDataPtr;
 
 	struct DeleteAsyncData : public AsyncData
 	{
-		std::wstring LocalAnchorId;
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
 	};
 	typedef std::shared_ptr<DeleteAsyncData> DeleteAsyncDataPtr;
 
 	struct LoadByIDAsyncData : public AsyncData
 	{
-		std::wstring CloudAnchorIdentifier;
-		std::wstring LocalAnchorId;
+		CloudAnchorIdentifier CloudAnchorIdentifier;
+		LocalAnchorID LocalAnchorId;
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
 	};
 	typedef std::shared_ptr<LoadByIDAsyncData> LoadByIDAsyncDataPtr;
+
+	struct UpdateCloudAnchorPropertiesAsyncData : public AsyncData
+	{
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<UpdateCloudAnchorPropertiesAsyncData> UpdateCloudAnchorPropertiesAsyncDataPtr;
+
+	struct RefreshCloudAnchorPropertiesAsyncData : public AsyncData
+	{
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<RefreshCloudAnchorPropertiesAsyncData> RefreshCloudAnchorPropertiesAsyncDataPtr;
+
+	struct GetCloudAnchorPropertiesAsyncData : public AsyncData
+	{
+		CloudAnchorIdentifier CloudAnchorIdentifier;
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<GetCloudAnchorPropertiesAsyncData> GetCloudAnchorPropertiesAsyncDataPtr;
+
+	struct CreateWatcherAsyncData : public AsyncData
+	{
+		bool bBypassCache = false;
+		std::vector<std::wstring> Identifiers;
+		CloudAnchorID NearCloudAnchorID = CloudAnchorID_Invalid;
+		float NearCloudAnchorDistance = 5.0f;
+		int NearCloudAnchorMaxResultCount = 20;
+		bool SearchNearDevice = false;
+		float NearDeviceDistance = 5.0f;
+		int NearDeviceMaxResultCount = 20;
+		int AzureSpatialAnchorDataCategory = 0;
+		int AzureSptialAnchorsLocateStrategy = 0;
+
+		int32 OutWatcherIdentifier = -1;
+		std::vector<CloudAnchorID> OutCloudAnchorIDs;
+	};
+	typedef std::shared_ptr<CreateWatcherAsyncData> CreateWatcherAsyncDataPtr;
+
 
 	// Things you can do while your session is running.
 	// AsyncDataPtr objects are created by UE4, and passed in here.
 	virtual bool HasEnoughDataForSaving() = 0;
-	virtual bool CreateCloudAnchor(const wchar_t* localAnchorId) = 0;
-	virtual bool SetCloudAnchorExpiration(const wchar_t* localAnchorId, int minutesFromNow) = 0;
+	virtual const wchar_t* GetCloudSpatialAnchorIdentifier(CloudAnchorID cloudAnchorID) = 0;
+	virtual bool CreateCloudAnchor(LocalAnchorID localAnchorId, CloudAnchorID& outCloudAnchorID) = 0;
+	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME expirationTime) = 0;
+	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME& expirationTime) = 0;
+	virtual bool SetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, const std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
+	virtual bool GetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
 	virtual bool SaveCloudAnchor(SaveAsyncDataPtr Data) = 0;
 	virtual bool DeleteCloudAnchor(DeleteAsyncDataPtr Data) = 0;
 	virtual bool LoadCloudAnchorByID(LoadByIDAsyncDataPtr Data) = 0;
-	//virtual void FindCloudAnchorNearCloudAnchorWithID(const wchar_t* anchorId) = 0;
-	//virtual void FindAnchorByLocation()=0;
+	virtual bool UpdateCloudAnchorProperties(UpdateCloudAnchorPropertiesAsyncDataPtr Data) = 0;
+	virtual bool RefreshCloudAnchorProperties(RefreshCloudAnchorPropertiesAsyncDataPtr Data) = 0;
+	virtual bool GetCloudAnchorProperties(GetCloudAnchorPropertiesAsyncDataPtr Data) = 0;
+	virtual bool CreateWatcher(const CreateWatcherAsyncDataPtr Data) = 0;
+	virtual bool StopWatcher(WatcherID WatcherIdentifier) = 0;
+	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(LocalAnchorID localAnchorId, CloudAnchorID cloudAnchorID) = 0;
+
 
 protected:
 	AzureSpatialAnchorsInterop() {};
