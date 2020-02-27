@@ -510,13 +510,13 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					// Get outermost packages, in case groups were selected.
 					UPackage* RealPackage = TopLevelPackage->GetOutermost() ? TopLevelPackage->GetOutermost() : TopLevelPackage;
 
-					if (RealPackage->IsDirty())
-					{
-						DirtyPackages.AddUnique(RealPackage);
-					}
-					else if (RealPackage->HasAnyPackageFlags(PKG_InMemoryOnly))
+					if (RealPackage->HasAnyPackageFlags(PKG_InMemoryOnly))
 					{
 						InMemoryPackages.AddUnique(RealPackage);
+					}
+					else if (RealPackage->IsDirty())
+					{
+						DirtyPackages.AddUnique(RealPackage);
 					}
 					else
 					{
