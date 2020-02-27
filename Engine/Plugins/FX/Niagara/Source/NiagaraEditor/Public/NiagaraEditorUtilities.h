@@ -242,4 +242,12 @@ namespace FNiagaraEditorUtilities
 	NIAGARAEDITOR_API void WarnWithToastAndLog(FText WarningMessage);
 
 	void GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex);
+
+	FName GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName);
+
+	template<typename T>
+	FName GetUniqueObjectName(UObject* Outer, const FString& CandidateName)
+	{
+		return GetUniqueObjectName(Outer, T::StaticClass(), CandidateName);
+	}
 };
