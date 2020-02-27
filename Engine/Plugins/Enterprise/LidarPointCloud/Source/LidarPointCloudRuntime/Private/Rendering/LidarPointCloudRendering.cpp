@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Rendering/LidarPointCloudRendering.h"
 #include "LidarPointCloudRenderBuffers.h"
 #include "LidarPointCloudComponent.h"
 #include "LidarPointCloud.h"
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudOctree.h"
+#include "LidarPointCloudLODManager.h"
 #include "PrimitiveSceneProxy.h"
 #include "MeshBatch.h"
 #include "Engine/Engine.h"
@@ -13,17 +15,15 @@
 #include "LocalVertexFactory.h"
 #include "Materials/Material.h"
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("Visible Points"), STAT_PointCount, STATGROUP_LidarPointCloud)
-DECLARE_DWORD_COUNTER_STAT(TEXT("Visible Nodes"), STAT_NodeCount, STATGROUP_LidarPointCloud)
 DECLARE_DWORD_COUNTER_STAT(TEXT("Draw Calls"), STAT_DrawCallCount, STATGROUP_LidarPointCloud)
 
-DECLARE_CYCLE_STAT(TEXT("Buffer Update"), STAT_BufferUpdate, STATGROUP_LidarPointCloud);
-
-/** A global instance of an Index Buffer shared between all Lidar Point Cloud proxies */
-TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
-
-/** A global instance of a Vertex Factory shared between all Lidar Point Cloud proxies */
-TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;
+FLidarPointCloudProxyUpdateData::FLidarPointCloudProxyUpdateData()
+	: FirstElementIndex(0)
+	, NumElements(0)
+	, VDMultiplier(1)
+	, RootCellSize(1)
+{
+}
 
 class FLidarPointCloudCollisionRendering
 {
@@ -89,9 +89,9 @@ private:
 			if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 			{
 				NewData.PositionComponentSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_R32_FLOAT);
-				NewData.ColorComponentsSRV = RHICreateShaderResourceView(nullptr, 4, PF_R8G8B8A8);
-				NewData.TangentsSRV = RHICreateShaderResourceView(nullptr, 4, PF_R8G8B8A8);
-				NewData.TextureCoordinatesSRV = RHICreateShaderResourceView(nullptr, 4, PF_G16R16F);
+				NewData.ColorComponentsSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_R8G8B8A8);
+				NewData.TangentsSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_R8G8B8A8);
+				NewData.TextureCoordinatesSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_G16R16F);
 			}
 
 			Data = NewData;
@@ -153,14 +153,13 @@ private:
 	int32 MaxVertexIndex;
 };
 
-class FLidarPointCloudSceneProxy : public FPrimitiveSceneProxy
+class FLidarPointCloudSceneProxy : public ILidarPointCloudSceneProxy, public FPrimitiveSceneProxy
 {
 public:
 	FLidarPointCloudSceneProxy(ULidarPointCloudComponent* Component)
 		: FPrimitiveSceneProxy(Component)
-		, bReadyToRender(false)
+		, ProxyWrapper(MakeShared<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe>(this))
 		, Component(Component)
-		, Octree(&Component->GetPointCloud()->Octree)
 		, Owner(Component->GetOwner())
 		, CollisionRendering(Component->GetPointCloud()->CollisionRendering)
 	{
@@ -174,7 +173,7 @@ public:
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PointCloudSceneProxy_GetDynamicMeshElements);
 
-		if (!bReadyToRender)
+		if (!Component->GetMaterial(0))
 		{
 			return;
 		}
@@ -188,8 +187,7 @@ public:
 			if (IsShown(View) && (VisibilityMap & (1 << ViewIndex)))
 			{
 				// Prepare the draw call
-				int32 NumElements = InstanceBuffer.GetNumInstances();
-				if (NumElements)
+				if (RenderData.NumElements)
 				{
 					FMeshBatch& MeshBatch = Collector.AllocateMesh();
 
@@ -206,7 +204,7 @@ public:
 					BatchElement.IndexBuffer = &GLidarPointCloudIndexBuffer;
 					BatchElement.FirstIndex = bUsesSprites ? 0 : GLidarPointCloudIndexBuffer.GetPointOffset();
 					BatchElement.MinVertexIndex = 0;
-					BatchElement.NumPrimitives = NumElements * (bUsesSprites ? 2 : 1);
+					BatchElement.NumPrimitives = RenderData.NumElements * (bUsesSprites ? 2 : 1);
 					BatchElement.UserData = &UserData[UserData.Add(BuildUserDataElement(View))];
 
 					Collector.AddMesh(ViewIndex, MeshBatch);
@@ -220,10 +218,9 @@ public:
 				// Draw selected nodes' bounds
 				if (Component->bDrawNodeBounds)
 				{
-					for (auto Node : SelectedNodes)
+					for (auto& Node : RenderData.Bounds)
 					{
-						FVector Extent = TraversalOctree->Extents[Node->Depth];
-						DrawWireBox(PDI, FBox(Node->Center - Extent, Node->Center + Extent), FColor(72, 72, 255), SDPG_World);
+						DrawWireBox(PDI, Node, FColor(72, 72, 255), SDPG_World);
 					}
 				}
 
@@ -269,72 +266,13 @@ public:
 		return Result;
 	}
 
-	/** Calculates node visibility and updates InstanceBuffer */
 	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) override
 	{
 		// Don't process for shadow views
-		if (InIsShadowOnly)
+		if (!InIsShadowOnly)
 		{
-			return nullptr;
+			UserData.Reset(10);
 		}
-
-		bReadyToRender = false;
-
-		// Check if the data is available
-		if (!Octree || Octree->GetNumNodes() == 0 || !TraversalOctree.IsValid() || TraversalOctree->NumLODs == 0 || !Component->GetMaterial(0))
-		{
-			return nullptr;
-		}
-
-		// Check if the access to the data has been restricted
-		FScopeTryLock Lock(&Octree->DataLock);
-		if (!Lock.IsLocked())
-		{
-			return nullptr;
-		}
-
-		// Re-initialize the traversal octree, if needed
-		if (!TraversalOctree->bValid)
-		{
-			TraversalOctree.Reset(new FLidarPointCloudTraversalOctree(Octree, Component->GetComponentTransform()));
-		}
-
-		// Clamp the budget to 25M
-		const int32 PointBudget = FMath::Clamp(Component->PointBudget, 0, 25000000);
-
-		// Expand the Index Buffer, if necessary
-		GLidarPointCloudIndexBuffer.Resize(PointBudget);
-
-		// Prepare the buffer
-		InstanceBuffer.Reset();
-
-		// Select the relevant nodes to be rendered
-		SelectedNodes = TraversalOctree->GetVisibleNodes(&InView, FMath::Max(Component->MinScreenSize * Component->MinScreenSize, 0.0f), PointBudget, Component->ScreenCenterImportance, Component->MinDepth, Component->MaxDepth);
-		INC_DWORD_STAT_BY(STAT_NodeCount, SelectedNodes.Num());
-
-		// Calculate sprite size, if needed
-		if (Component->PointSize > 0)
-		{
-			TraversalOctree->CalculateSpriteSize(SelectedNodes, Component->PointSizeBias);
-		}
-
-		// Allocate the selected nodes
-		for (auto Node : SelectedNodes)
-		{
-			InstanceBuffer.AddNode(Node);
-		}
-
-		// Update buffers
-		{
-			SCOPE_CYCLE_COUNTER(STAT_BufferUpdate);
-			InstanceBuffer.UpdateData(Component->ColorSource == ELidarPointCloudColorationMode::Classification);
-		}
-
-		bReadyToRender = true;
-
-		UserData.Reset(10);
-
-		INC_DWORD_STAT_BY(STAT_PointCount, InstanceBuffer.GetNumInstances());
 
 		return nullptr;
 	}
@@ -361,15 +299,12 @@ public:
 
 	/** UserData is used to pass rendering information to the VertexFactory */
 	FLidarPointCloudBatchElementUserData BuildUserDataElement(const FSceneView* InView) const
-	{
-		// Each point has a virtual LOD in range of 0 to Octree->GetNumLODs(), mapped to 0 - 255 range
-		// To reverse the mapping: x / 255.0f * Octree->GetNumLODs() or x * (1.0f / 255.0f * Octree->GetNumLODs())
-		constexpr float InvertedMultiplier = 1.0f / 255.0f;
-		FLidarPointCloudBatchElementUserData UserDataElement(InvertedMultiplier * Octree->GetNumLODs(), Octree->GetRootCellSize());
+	{	
+		FLidarPointCloudBatchElementUserData UserDataElement(RenderData.VDMultiplier, RenderData.RootCellSize);
 
 		const bool bUsesSprites = Component->PointSize > 0;
 
-		auto BoundsSize = Component->GetPointCloud()->GetPointsBounds().GetSize();
+		auto BoundsSize = Component->GetPointCloud()->GetBounds().GetSize();
 
 		// Make sure to apply minimum bounds size
 		BoundsSize.X = FMath::Max(BoundsSize.X, 0.001f);
@@ -378,14 +313,16 @@ public:
 
 		// Update shader parameters
 		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
+		UserDataElement.FirstElementIndex = RenderData.FirstElementIndex;
 
-		UserDataElement.SizeOffset = InstanceBuffer.GetNumInstances() * 4;
+		UserDataElement.LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();
+		
+		UserDataElement.SizeOffset = GLidarPointCloudRenderBuffer.PointCount * 4;
 		UserDataElement.SpriteSizeMultiplier = Component->PointSize * Component->GetComponentScale().GetAbsMax();
 
 		UserDataElement.ViewRightVector = InView->GetViewRight();
 		UserDataElement.ViewUpVector = InView->GetViewUp();
 		UserDataElement.BoundsSize = BoundsSize;
-		UserDataElement.BoundsOffset = Component->GetPointCloud()->GetBounds().GetCenter() - Component->GetPointCloud()->GetPointsBounds().GetCenter();
 		UserDataElement.ElevationColorBottom = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorBottom);
 		UserDataElement.ElevationColorTop = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorTop);
 		UserDataElement.bUseCircle = bUsesSprites && Component->PointShape == ELidarPointCloudSpriteShape::Circle;
@@ -402,7 +339,7 @@ public:
 		UserDataElement.SetClassificationColors(Component->ClassificationColors);
 
 		// Make sure to update the reference to the resource, in case it was re-initialized
-		UserDataElement.DataBuffer = InstanceBuffer.StructuredBuffer.SRV;
+		UserDataElement.DataBuffer = GLidarPointCloudRenderBuffer.SRV;
 
 		return UserDataElement;
 	}
@@ -417,26 +354,16 @@ public:
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
 
-private:
-	virtual void CreateRenderThreadResources() override
-	{
-		InstanceBuffer.bOwnedByEditor = Component->IsOwnedByEditor();
-	}
-	virtual void OnTransformChanged() override
-	{
-		TraversalOctree.Reset(new FLidarPointCloudTraversalOctree(Octree, Component->GetComponentTransform()));
-	}
+	virtual void UpdateRenderData(FLidarPointCloudProxyUpdateData InRenderData) override { RenderData = InRenderData; }
+
+public:
+	TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> ProxyWrapper;
 
 private:
-	FLidarPointCloudInstanceBuffer InstanceBuffer;
+	FLidarPointCloudProxyUpdateData RenderData;
 	mutable TArray<FLidarPointCloudBatchElementUserData> UserData;
-	TUniquePtr<FLidarPointCloudTraversalOctree> TraversalOctree;
-	TArray<FLidarPointCloudTraversalOctreeNode*> SelectedNodes;
-
-	bool bReadyToRender;
 
 	ULidarPointCloudComponent* Component;
-	FLidarPointCloudOctree* Octree;
 	FMaterialRelevance MaterialRelevance;
 	AActor* Owner;
 
@@ -445,10 +372,11 @@ private:
 
 FPrimitiveSceneProxy* ULidarPointCloudComponent::CreateSceneProxy()
 {
-	FPrimitiveSceneProxy* Proxy = nullptr;
+	FLidarPointCloudSceneProxy* Proxy = nullptr;
 	if (PointCloud)
 	{
 		Proxy = new FLidarPointCloudSceneProxy(this);
+		FLidarPointCloudLODManager::RegisterProxy(this, Proxy->ProxyWrapper);
 	}
 	return Proxy;
 }
