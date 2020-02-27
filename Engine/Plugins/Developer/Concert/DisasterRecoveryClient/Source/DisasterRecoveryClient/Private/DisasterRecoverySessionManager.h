@@ -179,6 +179,6 @@ private:
 	FString RecoveryInfoPathname;
 
 	TArray<int32> CrashingProcessIds;
-	uint32 SessionsCacheVersion = 0;
+	uint32 SessionsCacheRevision = 0;
 	bool bRefreshing = false;
 };
