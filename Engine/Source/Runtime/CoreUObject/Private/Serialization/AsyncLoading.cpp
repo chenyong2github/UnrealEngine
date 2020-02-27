@@ -5089,7 +5089,7 @@ void FAsyncLoadingThread::NotifyConstructedDuringAsyncLoading(UObject* Object, b
 		{
 			AsyncPackage->MarkNewObjectForLoadIfItIsAnExport(Object);
 		}
-		}
+	}
 	}
 
 void FAsyncLoadingThread::FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import)
@@ -5226,7 +5226,6 @@ void FAsyncPackage::AddObjectReference(UObject* InObject)
 			if (!ReferencedObjects.Contains(InObject))
 			{
 				ReferencedObjects.Add(InObject);
-				InObject->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
 			}
 		}
 		UE_CLOG(InObject->HasAnyInternalFlags(EInternalObjectFlags::Unreachable), LogStreaming, Fatal, TEXT("Trying to add an unreachable object %s to FAsyncPackage %s referenced objects list."), *InObject->GetFullName(), *GetPackageName().ToString());
@@ -5235,7 +5234,18 @@ void FAsyncPackage::AddObjectReference(UObject* InObject)
 
 void FAsyncPackage::EmptyReferencedObjects()
 {
+	const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
 	FScopeLock ReferencedObjectsLock(&ReferencedObjectsCritical);
+	for (UObject* Obj : ReferencedObjects)
+	{
+		if (Obj)
+		{
+			// Temporary fatal messages instead of checks to find the cause for a one-time crash in shipping config
+			UE_CLOG(!Obj->IsValidLowLevelFast(), LogStreaming, Fatal, TEXT("Invalid object in Async Objects Referencer"));
+			Obj->AtomicallyClearInternalFlags(AsyncFlags);
+			check(!Obj->HasAnyInternalFlags(AsyncFlags))
+		}
+	}
 	ReferencedObjects.Reset();
 }
 
@@ -6354,7 +6364,6 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 				{
 					TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
 					Object->ConditionalPostLoad();
-					Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 				}
 				ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
 
@@ -6680,17 +6689,6 @@ EAsyncPackageState::Type FAsyncPackage::FinishObjects()
 		LoadContext->DetachFromLinkers();
 	}
 
-	{
-		FScopeLock ReferencedObjectsLock(&ReferencedObjectsCritical);
-		for (UObject* Obj : ReferencedObjects)
-		{
-			if (Obj && !Obj->HasAnyFlags(RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
-			{
-				Obj->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
-			}
-		}
-	}
-
 	return EAsyncPackageState::Complete;
 }
 
@@ -6782,11 +6780,11 @@ void FAsyncPackage::Cancel()
 		{			
 		TArray<UObject*>& ThreadObjLoaded = LoadContext->PRIVATE_GetObjectsLoadedInternalUseOnly();
 		if (ThreadObjLoaded.Num())
-			{
+		{
 			PackageObjLoaded.Append(ThreadObjLoaded);
 			ThreadObjLoaded.Reset();
-			}
 		}
+	}
 
 	{
 		// Clear load flags from any referenced objects
