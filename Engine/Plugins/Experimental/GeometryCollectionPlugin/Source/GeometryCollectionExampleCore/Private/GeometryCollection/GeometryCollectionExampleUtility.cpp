@@ -200,7 +200,7 @@ namespace GeometryCollectionExample {
 		return RestCollection;
 	}
 
-	void InitMaterialToZero(TUniquePtr<Chaos::FChaosPhysicsMaterial> const &PhysicalMaterial)
+	void InitMaterialToZero(Chaos::FChaosPhysicsMaterial * PhysicalMaterial)
 	{
 		PhysicalMaterial->Friction = 0;
 		PhysicalMaterial->Restitution = 0;
@@ -221,7 +221,37 @@ namespace GeometryCollectionExample {
 		if (PhysicalMaterial == nullptr)
 		{
 			PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
-			InitMaterialToZero(PhysicalMaterial);
+			InitMaterialToZero(PhysicalMaterial.Get());
+		}
+
+		if (RestCollection == nullptr)
+		{
+			//Default initialization is a cube of the specified center and size. 
+			RestCollection = GeometryCollection::MakeCubeElement(InitParams.RestCenter, InitParams.RestScale);
+			if (InitParams.RestInitFunc != nullptr)
+			{
+				InitParams.RestInitFunc(RestCollection);
+			}
+		}
+
+		if (DynamicCollection == nullptr)
+		{
+			DynamicCollection = GeometryCollectionToGeometryDynamicCollection(RestCollection.Get(), InitParams.DynamicStateDefault);
+		}
+	}
+
+	void InitCollections(
+		TSharedPtr<Chaos::FChaosPhysicsMaterial>& PhysicalMaterial,
+		TSharedPtr<FGeometryCollection>& RestCollection,
+		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
+		InitCollectionsParameters& InitParams
+	)
+	{
+		// Allow for customized initialization of these objects in the calling function. 
+		if (PhysicalMaterial == nullptr)
+		{
+			PhysicalMaterial = MakeShared<Chaos::FChaosPhysicsMaterial>();
+			InitMaterialToZero(PhysicalMaterial.Get());
 		}
 
 		if (RestCollection == nullptr)
