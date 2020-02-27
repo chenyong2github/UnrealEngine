@@ -71,6 +71,14 @@ public:
 	int32 AddAction(const UDataprepActionAsset* Action);
 
 	/**
+	 * Add the actions to the Dataprep asset
+	 * @param Actions The array of action to add
+	 * @param bCreateOne Indicates if one or more action assets should be created. By default one is created
+	 * @return The index of the last added action or index none if the action is invalid
+	 */
+	int32 AddActions(const TArray<const UDataprepActionAsset*>& Actions);
+
+	/**
 	 * Creates an action from the array of action steps or one action per action steps
 	 * then add the action(s) to the Dataprep asset
 	 * @param ActionSteps The array of action steps to process
@@ -86,6 +94,14 @@ public:
 	 * @return True if the insertion is successful, false if the action or the index are invalid
 	 */
 	bool InsertAction(const UDataprepActionAsset* InAction, int32 Index);
+
+	/**
+	 * Insert a copy of each action into the Dataprep asset at the requested index
+	 * @param Actions The array of actions to insert
+	 * @param Index The index at which the insertion must happen
+	 * @return True if the insertion is successful, false if the actions or the index are invalid
+	 */
+	bool InsertActions(const TArray<const UDataprepActionAsset*>& InActions, int32 Index);
 
 	/**
 	 * Creates an action from the array of action steps or one action per action steps
