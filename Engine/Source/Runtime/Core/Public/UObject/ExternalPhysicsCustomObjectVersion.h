@@ -117,6 +117,12 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Added serialization for the collision type in the shape
 		SerializeCollisionTraceType,
 
+		// Force rebuild of indices in BodySetup
+		ForceRebuildBodySetupIndices,
+
+		// Added serialization for the physics material sleep counter threshold
+		PhysicsMaterialSleepCounterThreshold,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

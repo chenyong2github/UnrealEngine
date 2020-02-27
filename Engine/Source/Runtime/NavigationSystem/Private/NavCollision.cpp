@@ -99,7 +99,7 @@ public:
 
 	virtual FString GetPluginSpecificCacheKeySuffix() const override
 	{
-		const uint16 Version = 13;
+		const uint16 Version = 14;
 
 		return FString::Printf( TEXT("%s_%s_%s_%hu")
 			, *Format.ToString()

@@ -41,6 +41,13 @@ namespace Chaos
 			FVec3& AxisLocal,
 			FReal& Angle);
 
+		static void GetLockedSwingAxisAngle(
+			const FRotation3& R0,
+			const FRotation3& R1,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			FVec3& Axis,
+			FReal& Angle);
+
 		static void GetDualConeSwingAxisAngle(
 			const FRotation3& R0,
 			const FRotation3& R1,
@@ -55,6 +62,13 @@ namespace Chaos
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			FVec3& Axis,
 			FReal& Angle);
+
+		static void GetLockedAxes(
+			const FRotation3& R0, 
+			const FRotation3& R1, 
+			FVec3& Axis0, 
+			FVec3& Axis1, 
+			FVec3& Axis2);
 
 		/**
 		 * Increase the lower inertia components to ensure that the maximum ratio between any pair of elements is MaxRatio.

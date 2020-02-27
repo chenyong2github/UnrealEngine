@@ -16,7 +16,7 @@ namespace ChaosTest {
 	GTEST_TEST(SimTests, SphereSphereSimTest)
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TPBDRigidsEvolutionGBF<FReal, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -45,7 +45,7 @@ namespace ChaosTest {
 	GTEST_TEST(SimTests, BoxBoxSimTest)
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TPBDRigidsEvolutionGBF<FReal, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -83,7 +83,7 @@ namespace ChaosTest {
 	GTEST_TEST(SimTests, DISABLED_VeryLowInertiaSimTest)
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TPBDRigidsEvolutionGBF<FReal, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -111,7 +111,7 @@ namespace ChaosTest {
 	GTEST_TEST(SimTests, SleepAndWakeSimTest)
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TPBDRigidsEvolutionGBF<FReal, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic1 = Evolution.CreateDynamicParticles(1)[0];
 		auto Dynamic2 = Evolution.CreateDynamicParticles(1)[0];

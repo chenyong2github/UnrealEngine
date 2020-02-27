@@ -1172,6 +1172,13 @@ public:
 		return TRotation<T, d>::FromIdentity();
 	}
 
+#if CHAOS_CHECKED
+	const FName& DebugName() const
+	{
+		return Handle->DebugName();
+	}
+#endif
+
 	int32 Island() const
 	{
 		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)

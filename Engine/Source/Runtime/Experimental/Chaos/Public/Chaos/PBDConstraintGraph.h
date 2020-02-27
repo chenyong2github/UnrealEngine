@@ -42,9 +42,6 @@ namespace Chaos
 	public:
 		friend class FPBDConstraintColor;
 
-		/** Number of sleep threshold passes before sleep mode is enabled */
-		static const int32 SleepCountThreshold = 5;
-
 		/** Information required to map a graph edge back to its constraint */
 		struct FConstraintData
 		{

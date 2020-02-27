@@ -173,10 +173,10 @@ namespace Chaos
 			constexpr T Epsilon = 1e-4;
 			bool bCheckCaps = false;
 
-			if (A < Epsilon)
+			if (C <= 0.f)
 			{
-				//Parallel and inside cylinder so check caps
-				bCheckCaps = C <= 0;
+				// Inside cylinder so check caps
+				bCheckCaps = true;
 			}
 			else
 			{

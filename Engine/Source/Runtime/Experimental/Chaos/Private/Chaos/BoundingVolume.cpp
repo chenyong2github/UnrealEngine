@@ -21,12 +21,6 @@ namespace Chaos
 	    MaxDirtyElements,
 	    TEXT("The max number of dirty elements. This forces a flush which is very expensive"));
 
-	CHAOS_API int32 FixEPAWhenSimplexOutside = 1;
-	FAutoConsoleVariableRef CVarFixEPAWhenSimplexOutside(
-	    TEXT("p.FixEPAWhenSimplexOutside"),
-	    FixEPAWhenSimplexOutside,
-	    TEXT(""));
-
 	    template<typename TPayloadType, typename T, int d>
 	    ISpatialAcceleration<TPayloadType, T, d>* ISpatialAcceleration<TPayloadType, T, d>::SerializationFactory(FChaosArchive& Ar, ISpatialAcceleration<TPayloadType, T, d>* Accel)
 	{

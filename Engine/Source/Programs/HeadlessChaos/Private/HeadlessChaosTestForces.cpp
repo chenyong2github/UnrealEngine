@@ -23,7 +23,7 @@ namespace ChaosTest {
 		Evolution.AdvanceOneTimeStep(0.1);
 		EXPECT_LT(Dynamics[0]->X()[2], 0);
 	}
-	template void Gravity<Chaos::TPBDRigidsEvolutionGBF<float, 3>, float>();
+	template void Gravity<Chaos::FPBDRigidsEvolutionGBF, float>();
 
 
 }

@@ -42,15 +42,18 @@ namespace Chaos
 
 		const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
 
-		if(BType == ImplicitObjectType::Sphere)
-		{
-			const FImplicitObject& BBase = static_cast<const FImplicitObject&>(B);
-			const TSphere<FReal, 3>& BSphere = static_cast<const TSphere<FReal, 3>&>(BBase);
-			const FVec3 PtInA = BToATM.TransformPositionNoScale(BSphere.GetCenter());
-			return A.Overlap(PtInA, Thickness + BSphere.GetRadius());
-		}
-		//todo: A is a sphere
-		else if (A.IsConvex())
+		// This specialization for sphere is bugged since the sphere radius is not inverse scaled, 
+		// nor can it be properly if testing against non-uniform scaled convexes
+		//if(BType == ImplicitObjectType::Sphere)
+		//{
+		//	const FImplicitObject& BBase = static_cast<const FImplicitObject&>(B);
+		//	const TSphere<FReal, 3>& BSphere = static_cast<const TSphere<FReal, 3>&>(BBase);
+		//	const FVec3 PtInA = BToATM.TransformPositionNoScale(BSphere.GetCenter());
+		//	return A.Overlap(PtInA, Thickness + BSphere.GetRadius());
+		//}
+		////todo: A is a sphere
+		//else 
+		if (A.IsConvex())
 		{
 			const FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();
 			if (OutMTD)
