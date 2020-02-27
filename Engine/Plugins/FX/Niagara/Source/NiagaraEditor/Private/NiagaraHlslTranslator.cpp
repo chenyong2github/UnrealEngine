@@ -1999,29 +1999,28 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	DataSetWrites.GetKeys(WriteDataSetIDs);
 
 	// Whether Alive is used and must be set at each run
-	const bool bUsesAlive = [&]
+	bool bUsesAlive = false;
+	TArray<FName> DataSetNames;
+	for (const FNiagaraDataSetID& ReadId : ReadDataSetIDs)
 	{
-		TArray<FName> DataSetNames;
-		for (const FNiagaraDataSetID& ReadId : ReadDataSetIDs)
+		DataSetNames.AddUnique(ReadId.Name);
+	}
+	for (const FNiagaraDataSetID& WriteId : WriteDataSetIDs)
+	{
+		DataSetNames.AddUnique(WriteId.Name);
+	}
+	for (int32 i = 0; i < ParamMapHistories.Num(); i++)
+	{
+		for (const FName& DataSetName : DataSetNames)
 		{
-			DataSetNames.AddUnique(ReadId.Name);
-		}
-		for (const FNiagaraDataSetID& WriteId : WriteDataSetIDs)
-		{
-			DataSetNames.AddUnique(WriteId.Name);
-		}
-		for (int32 i = 0; i < ParamMapHistories.Num(); i++)
-		{
-			for (FName DataSetName : DataSetNames)
+			if (ParamMapHistories[i].FindVariable(*(DataSetName.ToString() + TEXT(".Alive")), FNiagaraTypeDefinition::GetBoolDef()) != INDEX_NONE)
 			{
-				if (ParamMapHistories[i].FindVariable(*(DataSetName.ToString() + TEXT(".Alive")), FNiagaraTypeDefinition::GetBoolDef()) != INDEX_NONE)
-				{
-					return true;
-				}
+				bUsesAlive = true;
+				TranslationStages[i].bUsesAlive = true;
+				break;
 			}
 		}
-		return false;
-	}();
+	}
 
 	const bool bRequiresPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
 
@@ -2247,15 +2246,16 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					"	{\n"), TranslationStages[i].SimulationStageIndexMin, TranslationStages[i].SimulationStageIndexMax);
 			}
 
-			if (bUsesAlive)
+			if (TranslationStages[i].bUsesAlive)
 			{
+				HlslOutput += TEXT("\t\tGStageUsesAlive = true;\n");
 				HlslOutput += TEXT("\t\tconst bool bValid = Context.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance.Alive;\n");
-				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, false, bValid);\n");
+				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
 			}
 			else
 			{
 				HlslOutput += TEXT("\t\tconst bool bValid = GCurrentPhase != -1;\n");
-				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
+				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, false, bValid);\n");
 			}
 
 			FString ContextName = TEXT("Context.Map.");
@@ -2450,16 +2450,20 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"		WriteDataSets(Context); \n"
 			"	}\n"
 			"	\n"
-			"	StoreUpdateVariables(Context); \n\n"
-			"	#if USE_SIMULATION_STAGES \n"
-			"	// We want to keep pushing along the counts so that we can  \n"
-			"	// use any of the write locations in the future. Only simulation stage 0 will increment the counters. \n"
-			"	if (SimulationStageIndex > 0 && GDispatchThreadId.x == 0) \n"
+			"	StoreUpdateVariables(Context);\n\n"
+		);
+
+	if (bUseSimulationStages)
+	{
+		HlslOutput += TEXT(
+			"	// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
+			"   // count isn't updated. In that case we must manually copy the original count here.\n"
+			"	if (SimulationStageIndex > 0 && !GStageUsesAlive && GDispatchThreadId.x == 0) \n"
 			"	{ \n"
 			"		RWInstanceCounts[WriteInstanceCountOffset] = RWInstanceCounts[ReadInstanceCountOffset]; \n"
 			"	} \n"
-			"	#endif \n"	
 		);
+	}
 
 	HlslOutput += TEXT("}\n");
 }
@@ -2642,11 +2646,11 @@ void FHlslNiagaraTranslator::DefineDataSetVariableWrites(FString &OutHlslOutput,
 	// grab the current ouput index to write datas 
 	if (bUsesAlive)
 	{
-		OutHlslOutput += "\tint TmpWriteIndex = OutputIndex(0, false, bValid);\n";
+		OutHlslOutput += "\tint TmpWriteIndex = OutputIndex(0, true, bValid);\n";
 	}
 	else
 	{
-		OutHlslOutput += "\tint TmpWriteIndex = OutputIndex(0, true, true);\n";
+		OutHlslOutput += "\tint TmpWriteIndex = OutputIndex(0, false, true);\n";
 	}
 
 	bool bRequiresPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
