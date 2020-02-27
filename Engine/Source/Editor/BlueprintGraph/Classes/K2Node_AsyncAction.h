@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "K2Node_BaseAsyncTask.h"
-#include "K2Node_LatentOnlineCall.generated.h"
+#include "K2Node_AsyncAction.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
 
-// This node is a latent online subsystem call (handles scanning all UOnlineBlueprintCallProxyBase classes for static factory calls)
+/** !!! The proxy object should have RF_StrongRefOnFrame flag. !!! */
+
 UCLASS()
-class ONLINEBLUEPRINTSUPPORT_API UK2Node_LatentOnlineCall : public UK2Node_BaseAsyncTask
+class BLUEPRINTGRAPH_API UK2Node_AsyncAction : public UK2Node_BaseAsyncTask
 {
 	GENERATED_UCLASS_BODY()
 	
