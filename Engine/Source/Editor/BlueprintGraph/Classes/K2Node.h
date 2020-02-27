@@ -406,6 +406,9 @@ class UK2Node : public UEdGraphNode
 	/** Return whether this node references the specified variable, give the supplied scope. Used when variable types are changed. */
 	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const { return false; }
 
+	/** Helper function for ExpandNode(), allowing other contexts to call pin expansion alone */
+	BLUEPRINTGRAPH_API void ExpandSplitPins(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph);
+
 protected:
 
 	enum ERedirectType
