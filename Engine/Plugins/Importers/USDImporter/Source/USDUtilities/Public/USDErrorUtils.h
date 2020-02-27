@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogUsdErrorUtility, Log, All);
-
 namespace UsdUtils
 {
     /**
