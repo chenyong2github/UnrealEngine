@@ -116,8 +116,8 @@ public:
 	LAYOUT_FIELD(FShaderParameter, CopyInstancesBeforeStartParam);
 	LAYOUT_FIELD(FShaderParameter, NumSpawnedInstancesParam);
 	LAYOUT_FIELD(FShaderParameter, UpdateStartInstanceParam);
-	LAYOUT_FIELD(FShaderParameter, DefaultShaderStageIndexParam);
-	LAYOUT_FIELD(FShaderParameter, ShaderStageIndexParam);
+	LAYOUT_FIELD(FShaderParameter, DefaultSimulationStageIndexParam);
+	LAYOUT_FIELD(FShaderParameter, SimulationStageIndexParam);
 	LAYOUT_FIELD(FShaderParameter, IterationInterfaceCount);
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeWriteParam);

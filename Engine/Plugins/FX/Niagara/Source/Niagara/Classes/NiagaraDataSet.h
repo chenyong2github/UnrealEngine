@@ -291,7 +291,7 @@ public:
 	void ResetBuffers();
 
 	/** Begins a new simulation pass and grabs a destination buffer. Returns the new destination data buffer. */
-	FNiagaraDataBuffer& BeginSimulate();
+	FNiagaraDataBuffer& BeginSimulate(bool bResetDestinationData = true);
 
 	/** Ends a simulation pass and sets the current simulation state. */
 	void EndSimulate(bool SetCurrentData = true);

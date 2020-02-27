@@ -4,7 +4,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSource.h"
-#include "NiagaraShaderStageBase.h"
+#include "NiagaraSimulationStageBase.h"
 #include "NiagaraRendererProperties.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraGraph.h"
@@ -419,47 +419,47 @@ TSharedPtr<FNiagaraScriptStackMergeAdapter> FNiagaraEventHandlerMergeAdapter::Ge
 	return EventStack;
 }
 
-FNiagaraShaderStageMergeAdapter::FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, const UNiagaraShaderStageBase* InShaderStage, UNiagaraNodeOutput* InOutputNode)
+FNiagaraSimulationStageMergeAdapter::FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, const UNiagaraSimulationStageBase* InSimulationStage, UNiagaraNodeOutput* InOutputNode)
 {
-	Initialize(InEmitter, InShaderStage, nullptr, InOutputNode);
+	Initialize(InEmitter, InSimulationStage, nullptr, InOutputNode);
 }
 
-FNiagaraShaderStageMergeAdapter::FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraShaderStageBase* InShaderStage, UNiagaraNodeOutput* InOutputNode)
+FNiagaraSimulationStageMergeAdapter::FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraSimulationStageBase* InSimulationStage, UNiagaraNodeOutput* InOutputNode)
 {
-	Initialize(InEmitter, InShaderStage, InShaderStage, InOutputNode);
+	Initialize(InEmitter, InSimulationStage, InSimulationStage, InOutputNode);
 }
 
-FNiagaraShaderStageMergeAdapter::FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraNodeOutput* InOutputNode)
+FNiagaraSimulationStageMergeAdapter::FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraNodeOutput* InOutputNode)
 {
 	Initialize(InEmitter, nullptr, nullptr, InOutputNode);
 }
 
-void FNiagaraShaderStageMergeAdapter::Initialize(const UNiagaraEmitter& InEmitter, const UNiagaraShaderStageBase* InShaderStage, UNiagaraShaderStageBase* InEditableShaderStage, UNiagaraNodeOutput* InOutputNode)
+void FNiagaraSimulationStageMergeAdapter::Initialize(const UNiagaraEmitter& InEmitter, const UNiagaraSimulationStageBase* InSimulationStage, UNiagaraSimulationStageBase* InEditableSimulationStage, UNiagaraNodeOutput* InOutputNode)
 {
 	Emitter = MakeWeakObjectPtr(const_cast<UNiagaraEmitter*>(&InEmitter));
 
-	ShaderStage = InShaderStage;
-	EditableShaderStage = InEditableShaderStage;
+	SimulationStage = InSimulationStage;
+	EditableSimulationStage = InEditableSimulationStage;
 
 	OutputNode = InOutputNode;
 
-	if (ShaderStage != nullptr && OutputNode != nullptr)
+	if (SimulationStage != nullptr && OutputNode != nullptr)
 	{
-		ShaderStageStack = MakeShared<FNiagaraScriptStackMergeAdapter>(*OutputNode.Get(), *ShaderStage->Script, Emitter->GetUniqueEmitterName());
-		InputNode = ShaderStageStack->GetInputNode();
+		SimulationStageStack = MakeShared<FNiagaraScriptStackMergeAdapter>(*OutputNode.Get(), *SimulationStage->Script, Emitter->GetUniqueEmitterName());
+		InputNode = SimulationStageStack->GetInputNode();
 	}
 }
 
-const UNiagaraEmitter* FNiagaraShaderStageMergeAdapter::GetEmitter() const
+const UNiagaraEmitter* FNiagaraSimulationStageMergeAdapter::GetEmitter() const
 {
 	return Emitter.Get();
 }
 
-FGuid FNiagaraShaderStageMergeAdapter::GetUsageId() const
+FGuid FNiagaraSimulationStageMergeAdapter::GetUsageId() const
 {
-	if (ShaderStage != nullptr)
+	if (SimulationStage != nullptr)
 	{
-		return ShaderStage->Script->GetUsageId();
+		return SimulationStage->Script->GetUsageId();
 	}
 	else
 	{
@@ -467,29 +467,29 @@ FGuid FNiagaraShaderStageMergeAdapter::GetUsageId() const
 	}
 }
 
-const UNiagaraShaderStageBase* FNiagaraShaderStageMergeAdapter::GetShaderStage() const
+const UNiagaraSimulationStageBase* FNiagaraSimulationStageMergeAdapter::GetSimulationStage() const
 {
-	return ShaderStage;
+	return SimulationStage;
 }
 
-UNiagaraShaderStageBase* FNiagaraShaderStageMergeAdapter::GetEditableShaderStage() const
+UNiagaraSimulationStageBase* FNiagaraSimulationStageMergeAdapter::GetEditableSimulationStage() const
 {
-	return EditableShaderStage;
+	return EditableSimulationStage;
 }
 
-UNiagaraNodeOutput* FNiagaraShaderStageMergeAdapter::GetOutputNode() const
+UNiagaraNodeOutput* FNiagaraSimulationStageMergeAdapter::GetOutputNode() const
 {
 	return OutputNode.Get();
 }
 
-UNiagaraNodeInput* FNiagaraShaderStageMergeAdapter::GetInputNode() const
+UNiagaraNodeInput* FNiagaraSimulationStageMergeAdapter::GetInputNode() const
 {
 	return InputNode.Get();
 }
 
-TSharedPtr<FNiagaraScriptStackMergeAdapter> FNiagaraShaderStageMergeAdapter::GetShaderStageStack() const
+TSharedPtr<FNiagaraScriptStackMergeAdapter> FNiagaraSimulationStageMergeAdapter::GetSimulationStageStack() const
 {
-	return ShaderStageStack;
+	return SimulationStageStack;
 }
 
 FNiagaraRendererMergeAdapter::FNiagaraRendererMergeAdapter(UNiagaraRendererProperties& InRenderer)
@@ -522,7 +522,7 @@ void FNiagaraEmitterMergeAdapter::Initialize(const UNiagaraEmitter& InEmitter, U
 	Graph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
 
 	TArray<UNiagaraNodeOutput*> EventOutputNodes;
-	TArray<UNiagaraNodeOutput*> ShaderStageOutputNodes;
+	TArray<UNiagaraNodeOutput*> SimulationStageOutputNodes;
 	for (UNiagaraNodeOutput* OutputNode : OutputNodes)
 	{
 		if (UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::EmitterSpawnScript))
@@ -545,9 +545,9 @@ void FNiagaraEmitterMergeAdapter::Initialize(const UNiagaraEmitter& InEmitter, U
 		{
 			EventOutputNodes.Add(OutputNode);
 		}
-		else if (UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleShaderStageScript))
+		else if (UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleSimulationStageScript))
 		{
-			ShaderStageOutputNodes.Add(OutputNode);
+			SimulationStageOutputNodes.Add(OutputNode);
 		}
 	}
 
@@ -583,32 +583,32 @@ void FNiagaraEmitterMergeAdapter::Initialize(const UNiagaraEmitter& InEmitter, U
 
 	// Create an shader stage adapter for each usage id even if it's missing a shader stage object or an output node.  These
 	// incomplete adapters will be caught if they are diffed.
-	for (const UNiagaraShaderStageBase* ShaderStage : Emitter->GetShaderStages())
+	for (const UNiagaraSimulationStageBase* SimulationStage : Emitter->GetSimulationStages())
 	{
-		UNiagaraNodeOutput** MatchingOutputNodePtr = ShaderStageOutputNodes.FindByPredicate(
-			[=](UNiagaraNodeOutput* ShaderStageOutputNode) { return ShaderStageOutputNode->GetUsageId() == ShaderStage->Script->GetUsageId(); });
+		UNiagaraNodeOutput** MatchingOutputNodePtr = SimulationStageOutputNodes.FindByPredicate(
+			[=](UNiagaraNodeOutput* SimulationStageOutputNode) { return SimulationStageOutputNode->GetUsageId() == SimulationStage->Script->GetUsageId(); });
 
 		UNiagaraNodeOutput* MatchingOutputNode = MatchingOutputNodePtr != nullptr ? *MatchingOutputNodePtr : nullptr;
 
 		if (EditableEmitter == nullptr)
 		{
-			ShaderStages.Add(MakeShared<FNiagaraShaderStageMergeAdapter>(*Emitter.Get(), ShaderStage, MatchingOutputNode));
+			SimulationStages.Add(MakeShared<FNiagaraSimulationStageMergeAdapter>(*Emitter.Get(), SimulationStage, MatchingOutputNode));
 		}
 		else
 		{
-			UNiagaraShaderStageBase* EditableShaderStage = EditableEmitter->GetShaderStageById(ShaderStage->Script->GetUsageId());
-			ShaderStages.Add(MakeShared<FNiagaraShaderStageMergeAdapter>(*Emitter.Get(), EditableShaderStage, MatchingOutputNode));
+			UNiagaraSimulationStageBase* EditableSimulationStage = EditableEmitter->GetSimulationStageById(SimulationStage->Script->GetUsageId());
+			SimulationStages.Add(MakeShared<FNiagaraSimulationStageMergeAdapter>(*Emitter.Get(), EditableSimulationStage, MatchingOutputNode));
 		}
 
 		if (MatchingOutputNode != nullptr)
 		{
-			ShaderStageOutputNodes.Remove(MatchingOutputNode);
+			SimulationStageOutputNodes.Remove(MatchingOutputNode);
 		}
 	}
 
-	for (UNiagaraNodeOutput* ShaderStageOutputNode : ShaderStageOutputNodes)
+	for (UNiagaraNodeOutput* SimulationStageOutputNode : SimulationStageOutputNodes)
 	{
-		ShaderStages.Add(MakeShared<FNiagaraShaderStageMergeAdapter>(*Emitter.Get(), ShaderStageOutputNode));
+		SimulationStages.Add(MakeShared<FNiagaraSimulationStageMergeAdapter>(*Emitter.Get(), SimulationStageOutputNode));
 	}
 
 	// Renderers
@@ -650,9 +650,9 @@ const TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> FNiagaraEmitterMergeA
 	return EventHandlers;
 }
 
-const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> FNiagaraEmitterMergeAdapter::GetShaderStages() const
+const TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>> FNiagaraEmitterMergeAdapter::GetSimulationStages() const
 {
-	return ShaderStages;
+	return SimulationStages;
 }
 
 const TArray<TSharedRef<FNiagaraRendererMergeAdapter>> FNiagaraEmitterMergeAdapter::GetRenderers() const
@@ -705,16 +705,16 @@ TSharedPtr<FNiagaraEventHandlerMergeAdapter> FNiagaraEmitterMergeAdapter::GetEve
 	return TSharedPtr<FNiagaraEventHandlerMergeAdapter>();
 }
 
-TSharedPtr<FNiagaraShaderStageMergeAdapter> FNiagaraEmitterMergeAdapter::GetShaderStage(FGuid ShaderStageUsageId)
+TSharedPtr<FNiagaraSimulationStageMergeAdapter> FNiagaraEmitterMergeAdapter::GetSimulationStage(FGuid SimulationStageUsageId)
 {
-	for (TSharedRef<FNiagaraShaderStageMergeAdapter> ShaderStage : ShaderStages)
+	for (TSharedRef<FNiagaraSimulationStageMergeAdapter> SimulationStage : SimulationStages)
 	{
-		if (ShaderStage->GetUsageId() == ShaderStageUsageId)
+		if (SimulationStage->GetUsageId() == SimulationStageUsageId)
 		{
-			return ShaderStage;
+			return SimulationStage;
 		}
 	}
-	return TSharedPtr<FNiagaraShaderStageMergeAdapter>();
+	return TSharedPtr<FNiagaraSimulationStageMergeAdapter>();
 }
 
 TSharedPtr<FNiagaraRendererMergeAdapter> FNiagaraEmitterMergeAdapter::GetRenderer(FGuid RendererMergeId)
@@ -782,18 +782,18 @@ bool FNiagaraEmitterDiffResults::IsValid() const
 			break;
 		}
 	}
-	bool bShaderStageDiffsAreValid = true;
-	for (const FNiagaraModifiedShaderStageDiffResults& ShaderStageDiffResults : ModifiedShaderStages)
+	bool bSimulationStageDiffsAreValid = true;
+	for (const FNiagaraModifiedSimulationStageDiffResults& SimulationStageDiffResults : ModifiedSimulationStages)
 	{
-		if (ShaderStageDiffResults.ScriptDiffResults.IsValid() == false)
+		if (SimulationStageDiffResults.ScriptDiffResults.IsValid() == false)
 		{
-			bShaderStageDiffsAreValid = false;
+			bSimulationStageDiffsAreValid = false;
 			break;
 		}
 	}
 	return bIsValid &&
 		bEventHandlerDiffsAreValid &&
-		bShaderStageDiffsAreValid &&
+		bSimulationStageDiffsAreValid &&
 		EmitterSpawnDiffResults.IsValid() &&
 		EmitterUpdateDiffResults.IsValid() &&
 		ParticleSpawnDiffResults.IsValid() &&
@@ -810,9 +810,9 @@ bool FNiagaraEmitterDiffResults::IsEmpty() const
 		RemovedBaseEventHandlers.Num() == 0 &&
 		AddedOtherEventHandlers.Num() == 0 &&
 		ModifiedEventHandlers.Num() == 0 &&
-		RemovedBaseShaderStages.Num() == 0 &&
-		AddedOtherShaderStages.Num() == 0 &&
-		ModifiedShaderStages.Num() == 0 &&
+		RemovedBaseSimulationStages.Num() == 0 &&
+		AddedOtherSimulationStages.Num() == 0 &&
+		ModifiedSimulationStages.Num() == 0 &&
 		RemovedBaseRenderers.Num() == 0 &&
 		AddedOtherRenderers.Num() == 0 &&
 		ModifiedBaseRenderers.Num() == 0 &&
@@ -1087,13 +1087,13 @@ INiagaraMergeManager::FMergeEmitterResults FNiagaraScriptMergeManager::MergeEmit
 		MergeResults.bModifiedGraph |= EventHandlerResults.bModifiedGraph;
 		MergeResults.ErrorMessages.Append(EventHandlerResults.ErrorMessages);
 
-		FApplyDiffResults ShaderStageResults = ApplyShaderStageDiff(MergedInstanceAdapter, DiffResults, bNoParentAtLastMerge);
-		if (ShaderStageResults.bSucceeded == false)
+		FApplyDiffResults SimulationStageResults = ApplySimulationStageDiff(MergedInstanceAdapter, DiffResults, bNoParentAtLastMerge);
+		if (SimulationStageResults.bSucceeded == false)
 		{
 			MergeResults.MergeResult = INiagaraMergeManager::EMergeEmitterResult::FailedToMerge;
 		}
-		MergeResults.bModifiedGraph |= ShaderStageResults.bModifiedGraph;
-		MergeResults.ErrorMessages.Append(ShaderStageResults.ErrorMessages);
+		MergeResults.bModifiedGraph |= SimulationStageResults.bModifiedGraph;
+		MergeResults.ErrorMessages.Append(SimulationStageResults.ErrorMessages);
 
 		FApplyDiffResults RendererResults = ApplyRendererDiff(*MergedInstance, DiffResults, bNoParentAtLastMerge);
 		if (RendererResults.bSucceeded == false)
@@ -1341,47 +1341,47 @@ void FNiagaraScriptMergeManager::ResetEventHandlerPropertySetToBase(UNiagaraEmit
 	Emitter.PostEditChange();
 }
 
-bool FNiagaraScriptMergeManager::HasBaseShaderStage(const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId)
+bool FNiagaraScriptMergeManager::HasBaseSimulationStage(const UNiagaraEmitter& BaseEmitter, FGuid SimulationStageScriptUsageId)
 {
 	TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter = GetEmitterMergeAdapterUsingCache(BaseEmitter);
-	return BaseEmitterAdapter->GetShaderStage(ShaderStageScriptUsageId).IsValid();
+	return BaseEmitterAdapter->GetSimulationStage(SimulationStageScriptUsageId).IsValid();
 }
 
-bool FNiagaraScriptMergeManager::IsShaderStagePropertySetDifferentFromBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId)
+bool FNiagaraScriptMergeManager::IsSimulationStagePropertySetDifferentFromBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid SimulationStageScriptUsageId)
 {
 	TSharedRef<FNiagaraEmitterMergeAdapter> EmitterAdapter = GetEmitterMergeAdapterUsingCache(Emitter);
 	TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter = GetEmitterMergeAdapterUsingCache(BaseEmitter);
 
-	TSharedPtr<FNiagaraShaderStageMergeAdapter> ShaderStageAdapter = EmitterAdapter->GetShaderStage(ShaderStageScriptUsageId);
-	TSharedPtr<FNiagaraShaderStageMergeAdapter> BaseShaderStageAdapter = BaseEmitterAdapter->GetShaderStage(ShaderStageScriptUsageId);
+	TSharedPtr<FNiagaraSimulationStageMergeAdapter> SimulationStageAdapter = EmitterAdapter->GetSimulationStage(SimulationStageScriptUsageId);
+	TSharedPtr<FNiagaraSimulationStageMergeAdapter> BaseSimulationStageAdapter = BaseEmitterAdapter->GetSimulationStage(SimulationStageScriptUsageId);
 
-	if (ShaderStageAdapter->GetEditableShaderStage() == nullptr || BaseShaderStageAdapter->GetShaderStage() == nullptr)
+	if (SimulationStageAdapter->GetEditableSimulationStage() == nullptr || BaseSimulationStageAdapter->GetSimulationStage() == nullptr)
 	{
 		return true;
 	}
 
 	TArray<FProperty*> DifferentProperties;
-	DiffEditableProperties(BaseShaderStageAdapter->GetShaderStage(), ShaderStageAdapter->GetShaderStage(), *BaseShaderStageAdapter->GetShaderStage()->GetClass(), DifferentProperties);
+	DiffEditableProperties(BaseSimulationStageAdapter->GetSimulationStage(), SimulationStageAdapter->GetSimulationStage(), *BaseSimulationStageAdapter->GetSimulationStage()->GetClass(), DifferentProperties);
 	return DifferentProperties.Num() > 0;
 }
 
-void FNiagaraScriptMergeManager::ResetShaderStagePropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId)
+void FNiagaraScriptMergeManager::ResetSimulationStagePropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid SimulationStageScriptUsageId)
 {
 	TSharedRef<FNiagaraEmitterMergeAdapter> EmitterAdapter = GetEmitterMergeAdapterUsingCache(Emitter);
 	TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter = GetEmitterMergeAdapterUsingCache(BaseEmitter);
 
-	TSharedPtr<FNiagaraShaderStageMergeAdapter> ShaderStageAdapter = EmitterAdapter->GetShaderStage(ShaderStageScriptUsageId);
-	TSharedPtr<FNiagaraShaderStageMergeAdapter> BaseShaderStageAdapter = BaseEmitterAdapter->GetShaderStage(ShaderStageScriptUsageId);
+	TSharedPtr<FNiagaraSimulationStageMergeAdapter> SimulationStageAdapter = EmitterAdapter->GetSimulationStage(SimulationStageScriptUsageId);
+	TSharedPtr<FNiagaraSimulationStageMergeAdapter> BaseSimulationStageAdapter = BaseEmitterAdapter->GetSimulationStage(SimulationStageScriptUsageId);
 
-	if (ShaderStageAdapter->GetEditableShaderStage() == nullptr || BaseShaderStageAdapter->GetShaderStage() == nullptr)
+	if (SimulationStageAdapter->GetEditableSimulationStage() == nullptr || BaseSimulationStageAdapter->GetSimulationStage() == nullptr)
 	{
 		// TODO: Display an error to the user.
 		return;
 	}
 
 	TArray<FProperty*> DifferentProperties;
-	DiffEditableProperties(BaseShaderStageAdapter->GetShaderStage(), ShaderStageAdapter->GetShaderStage(), *BaseShaderStageAdapter->GetShaderStage()->GetClass(), DifferentProperties);
-	CopyPropertiesToBase(ShaderStageAdapter->GetEditableShaderStage(), BaseShaderStageAdapter->GetShaderStage(), DifferentProperties);
+	DiffEditableProperties(BaseSimulationStageAdapter->GetSimulationStage(), SimulationStageAdapter->GetSimulationStage(), *BaseSimulationStageAdapter->GetSimulationStage()->GetClass(), DifferentProperties);
+	CopyPropertiesToBase(SimulationStageAdapter->GetEditableSimulationStage(), BaseSimulationStageAdapter->GetSimulationStage(), DifferentProperties);
 	Emitter.PostEditChange();
 }
 
@@ -1496,7 +1496,7 @@ FNiagaraEmitterDiffResults FNiagaraScriptMergeManager::DiffEmitters(UNiagaraEmit
 	}
 
 	DiffEventHandlers(BaseEmitterAdapter->GetEventHandlers(), OtherEmitterAdapter->GetEventHandlers(), EmitterDiffResults);
-	DiffShaderStages(BaseEmitterAdapter->GetShaderStages(), OtherEmitterAdapter->GetShaderStages(), EmitterDiffResults);
+	DiffSimulationStages(BaseEmitterAdapter->GetSimulationStages(), OtherEmitterAdapter->GetSimulationStages(), EmitterDiffResults);
 	DiffRenderers(BaseEmitterAdapter->GetRenderers(), OtherEmitterAdapter->GetRenderers(), EmitterDiffResults);
 	DiffEditableProperties(&BaseEmitter, &OtherEmitter, *UNiagaraEmitter::StaticClass(), EmitterDiffResults.DifferentEmitterProperties);
 	DiffStackEntryDisplayNames(BaseEmitterAdapter->GetEditorData(), OtherEmitterAdapter->GetEditorData(), EmitterDiffResults.ModifiedStackEntryDisplayNames);
@@ -1617,51 +1617,51 @@ void FNiagaraScriptMergeManager::DiffEventHandlers(const TArray<TSharedRef<FNiag
 	}
 }
 
-void FNiagaraScriptMergeManager::DiffShaderStages(const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>>& BaseShaderStages, const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>>& OtherShaderStages, FNiagaraEmitterDiffResults& DiffResults) const
+void FNiagaraScriptMergeManager::DiffSimulationStages(const TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>>& BaseSimulationStages, const TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>>& OtherSimulationStages, FNiagaraEmitterDiffResults& DiffResults) const
 {
-	FListDiffResults<TSharedRef<FNiagaraShaderStageMergeAdapter>> ShaderStageListDiffResults = DiffLists<TSharedRef<FNiagaraShaderStageMergeAdapter>, FGuid>(
-		BaseShaderStages,
-		OtherShaderStages,
-		[](TSharedRef<FNiagaraShaderStageMergeAdapter> ShaderStage) { return ShaderStage->GetUsageId(); });
+	FListDiffResults<TSharedRef<FNiagaraSimulationStageMergeAdapter>> SimulationStageListDiffResults = DiffLists<TSharedRef<FNiagaraSimulationStageMergeAdapter>, FGuid>(
+		BaseSimulationStages,
+		OtherSimulationStages,
+		[](TSharedRef<FNiagaraSimulationStageMergeAdapter> SimulationStage) { return SimulationStage->GetUsageId(); });
 
-	DiffResults.RemovedBaseShaderStages.Append(ShaderStageListDiffResults.RemovedBaseValues);
-	DiffResults.AddedOtherShaderStages.Append(ShaderStageListDiffResults.AddedOtherValues);
+	DiffResults.RemovedBaseSimulationStages.Append(SimulationStageListDiffResults.RemovedBaseValues);
+	DiffResults.AddedOtherSimulationStages.Append(SimulationStageListDiffResults.AddedOtherValues);
 
-	for (const FCommonValuePair<TSharedRef<FNiagaraShaderStageMergeAdapter>>& CommonValuePair : ShaderStageListDiffResults.CommonValuePairs)
+	for (const FCommonValuePair<TSharedRef<FNiagaraSimulationStageMergeAdapter>>& CommonValuePair : SimulationStageListDiffResults.CommonValuePairs)
 	{
-		if (CommonValuePair.BaseValue->GetShaderStage() == nullptr || CommonValuePair.BaseValue->GetOutputNode() == nullptr)
+		if (CommonValuePair.BaseValue->GetSimulationStage() == nullptr || CommonValuePair.BaseValue->GetOutputNode() == nullptr)
 		{
-			DiffResults.AddError(FText::Format(LOCTEXT("InvalidBaseShaderStageDiffFailedFormat", "Failed to diff shader stages, the base shader stage was invalid.  Script Usage Id: {0}"),
+			DiffResults.AddError(FText::Format(LOCTEXT("InvalidBaseSimulationStageDiffFailedFormat", "Failed to diff shader stages, the base shader stage was invalid.  Script Usage Id: {0}"),
 				FText::FromString(CommonValuePair.BaseValue->GetUsageId().ToString())));
 		}
-		else if (CommonValuePair.OtherValue->GetShaderStage() == nullptr || CommonValuePair.OtherValue->GetOutputNode() == nullptr)
+		else if (CommonValuePair.OtherValue->GetSimulationStage() == nullptr || CommonValuePair.OtherValue->GetOutputNode() == nullptr)
 		{
-			DiffResults.AddError(FText::Format(LOCTEXT("InvalidOtherShaderStageDiffFailedFormat", "Failed to diff shader stage, the other shader stage was invalid.  Script Usage Id: {0}"),
+			DiffResults.AddError(FText::Format(LOCTEXT("InvalidOtherSimulationStageDiffFailedFormat", "Failed to diff shader stage, the other shader stage was invalid.  Script Usage Id: {0}"),
 				FText::FromString(CommonValuePair.OtherValue->GetUsageId().ToString())));
 		}
 		else
 		{
 			TArray<FProperty*> DifferentProperties;
-			DiffEditableProperties(CommonValuePair.BaseValue->GetShaderStage(), CommonValuePair.OtherValue->GetShaderStage(), *CommonValuePair.BaseValue->GetShaderStage()->GetClass(), DifferentProperties);
+			DiffEditableProperties(CommonValuePair.BaseValue->GetSimulationStage(), CommonValuePair.OtherValue->GetSimulationStage(), *CommonValuePair.BaseValue->GetSimulationStage()->GetClass(), DifferentProperties);
 
-			FNiagaraScriptStackDiffResults ShaderStageScriptStackDiffResults;
-			DiffScriptStacks(CommonValuePair.BaseValue->GetShaderStageStack().ToSharedRef(), CommonValuePair.OtherValue->GetShaderStageStack().ToSharedRef(), ShaderStageScriptStackDiffResults);
+			FNiagaraScriptStackDiffResults SimulationStageScriptStackDiffResults;
+			DiffScriptStacks(CommonValuePair.BaseValue->GetSimulationStageStack().ToSharedRef(), CommonValuePair.OtherValue->GetSimulationStageStack().ToSharedRef(), SimulationStageScriptStackDiffResults);
 
-			if (DifferentProperties.Num() > 0 || ShaderStageScriptStackDiffResults.IsValid() == false || ShaderStageScriptStackDiffResults.IsEmpty() == false)
+			if (DifferentProperties.Num() > 0 || SimulationStageScriptStackDiffResults.IsValid() == false || SimulationStageScriptStackDiffResults.IsEmpty() == false)
 			{
-				FNiagaraModifiedShaderStageDiffResults ModifiedShaderStageResults;
-				ModifiedShaderStageResults.BaseAdapter = CommonValuePair.BaseValue;
-				ModifiedShaderStageResults.OtherAdapter = CommonValuePair.OtherValue;
-				ModifiedShaderStageResults.ChangedProperties.Append(DifferentProperties);
-				ModifiedShaderStageResults.ScriptDiffResults = ShaderStageScriptStackDiffResults;
-				DiffResults.ModifiedShaderStages.Add(ModifiedShaderStageResults);
+				FNiagaraModifiedSimulationStageDiffResults ModifiedSimulationStageResults;
+				ModifiedSimulationStageResults.BaseAdapter = CommonValuePair.BaseValue;
+				ModifiedSimulationStageResults.OtherAdapter = CommonValuePair.OtherValue;
+				ModifiedSimulationStageResults.ChangedProperties.Append(DifferentProperties);
+				ModifiedSimulationStageResults.ScriptDiffResults = SimulationStageScriptStackDiffResults;
+				DiffResults.ModifiedSimulationStages.Add(ModifiedSimulationStageResults);
 			}
 
-			if (ShaderStageScriptStackDiffResults.IsValid() == false)
+			if (SimulationStageScriptStackDiffResults.IsValid() == false)
 			{
-				for (const FText& ShaderStageScriptStackDiffErrorMessage : ShaderStageScriptStackDiffResults.GetErrorMessages())
+				for (const FText& SimulationStageScriptStackDiffErrorMessage : SimulationStageScriptStackDiffResults.GetErrorMessages())
 				{
-					DiffResults.AddError(ShaderStageScriptStackDiffErrorMessage);
+					DiffResults.AddError(SimulationStageScriptStackDiffErrorMessage);
 				}
 			}
 		}
@@ -2443,49 +2443,49 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyE
 	return Results;
 }
 
-FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyShaderStageDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const
+FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplySimulationStageDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const
 {
 	FApplyDiffResults Results;
-	if (DiffResults.RemovedBaseShaderStages.Num() > 0)
+	if (DiffResults.RemovedBaseSimulationStages.Num() > 0)
 	{
 		Results.bSucceeded = false;
 		Results.bModifiedGraph = false;
 		// If this becomes supported, it needs to handle the bNoParentAtLastMerge case
-		Results.ErrorMessages.Add(LOCTEXT("RemovedShaderStagesUnsupported", "Apply diff failed, removed shader stages are currently unsupported."));
+		Results.ErrorMessages.Add(LOCTEXT("RemovedSimulationStagesUnsupported", "Apply diff failed, removed shader stages are currently unsupported."));
 		return Results;
 	}
 
-	for (const FNiagaraModifiedShaderStageDiffResults& ModifiedShaderStage : DiffResults.ModifiedShaderStages)
+	for (const FNiagaraModifiedSimulationStageDiffResults& ModifiedSimulationStage : DiffResults.ModifiedSimulationStages)
 	{
-		if (ModifiedShaderStage.OtherAdapter->GetShaderStage() == nullptr)
+		if (ModifiedSimulationStage.OtherAdapter->GetSimulationStage() == nullptr)
 		{
 			Results.bSucceeded = false;
 			Results.ErrorMessages.Add(FText::Format(
-				LOCTEXT("MissingModifiedShaderStageObjectFormat", "Apply diff failed.  The modified shader stage with id: {0} was missing it's shader stage object."),
-				FText::FromString(ModifiedShaderStage.OtherAdapter->GetUsageId().ToString(EGuidFormats::DigitsWithHyphens))));
+				LOCTEXT("MissingModifiedSimulationStageObjectFormat", "Apply diff failed.  The modified shader stage with id: {0} was missing it's shader stage object."),
+				FText::FromString(ModifiedSimulationStage.OtherAdapter->GetUsageId().ToString(EGuidFormats::DigitsWithHyphens))));
 		}
-		else if (ModifiedShaderStage.OtherAdapter->GetOutputNode() == nullptr)
+		else if (ModifiedSimulationStage.OtherAdapter->GetOutputNode() == nullptr)
 		{
 			Results.bSucceeded = false;
 			Results.ErrorMessages.Add(FText::Format(
-				LOCTEXT("MissingModifiedShaderStageOutputNodeFormat", "Apply diff failed.  The modified shader stage with id: {0} was missing it's output node."),
-				FText::FromString(ModifiedShaderStage.OtherAdapter->GetUsageId().ToString(EGuidFormats::DigitsWithHyphens))));
+				LOCTEXT("MissingModifiedSimulationStageOutputNodeFormat", "Apply diff failed.  The modified shader stage with id: {0} was missing it's output node."),
+				FText::FromString(ModifiedSimulationStage.OtherAdapter->GetUsageId().ToString(EGuidFormats::DigitsWithHyphens))));
 		}
 		else
 		{
-			TSharedPtr<FNiagaraShaderStageMergeAdapter> MatchingBaseShaderStageAdapter = BaseEmitterAdapter->GetShaderStage(ModifiedShaderStage.OtherAdapter->GetUsageId());
-			if (MatchingBaseShaderStageAdapter.IsValid())
+			TSharedPtr<FNiagaraSimulationStageMergeAdapter> MatchingBaseSimulationStageAdapter = BaseEmitterAdapter->GetSimulationStage(ModifiedSimulationStage.OtherAdapter->GetUsageId());
+			if (MatchingBaseSimulationStageAdapter.IsValid())
 			{
-				if (ModifiedShaderStage.ChangedProperties.Num() > 0)
+				if (ModifiedSimulationStage.ChangedProperties.Num() > 0)
 				{
-					CopyPropertiesToBase(MatchingBaseShaderStageAdapter->GetEditableShaderStage(), ModifiedShaderStage.OtherAdapter->GetEditableShaderStage(), ModifiedShaderStage.ChangedProperties);
+					CopyPropertiesToBase(MatchingBaseSimulationStageAdapter->GetEditableSimulationStage(), ModifiedSimulationStage.OtherAdapter->GetEditableSimulationStage(), ModifiedSimulationStage.ChangedProperties);
 				}
-				if (ModifiedShaderStage.ScriptDiffResults.IsEmpty() == false)
+				if (ModifiedSimulationStage.ScriptDiffResults.IsEmpty() == false)
 				{
-					FApplyDiffResults ApplyShaderStageStackDiffResults = ApplyScriptStackDiff(MatchingBaseShaderStageAdapter->GetShaderStageStack().ToSharedRef(), ModifiedShaderStage.ScriptDiffResults, bNoParentAtLastMerge);
-					Results.bSucceeded &= ApplyShaderStageStackDiffResults.bSucceeded;
-					Results.bModifiedGraph |= ApplyShaderStageStackDiffResults.bModifiedGraph;
-					Results.ErrorMessages.Append(ApplyShaderStageStackDiffResults.ErrorMessages);
+					FApplyDiffResults ApplySimulationStageStackDiffResults = ApplyScriptStackDiff(MatchingBaseSimulationStageAdapter->GetSimulationStageStack().ToSharedRef(), ModifiedSimulationStage.ScriptDiffResults, bNoParentAtLastMerge);
+					Results.bSucceeded &= ApplySimulationStageStackDiffResults.bSucceeded;
+					Results.bModifiedGraph |= ApplySimulationStageStackDiffResults.bModifiedGraph;
+					Results.ErrorMessages.Append(ApplySimulationStageStackDiffResults.ErrorMessages);
 				}
 			}
 		}
@@ -2493,49 +2493,49 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 
 	UNiagaraScriptSource* EmitterSource = CastChecked<UNiagaraScriptSource>(BaseEmitterAdapter->GetEditableEmitter()->GraphSource);
 	UNiagaraGraph* EmitterGraph = EmitterSource->NodeGraph;
-	for (TSharedRef<FNiagaraShaderStageMergeAdapter> AddedOtherShaderStage : DiffResults.AddedOtherShaderStages)
+	for (TSharedRef<FNiagaraSimulationStageMergeAdapter> AddedOtherSimulationStage : DiffResults.AddedOtherSimulationStages)
 	{
-		if (AddedOtherShaderStage->GetShaderStage() == nullptr)
+		if (AddedOtherSimulationStage->GetSimulationStage() == nullptr)
 		{
 			Results.bSucceeded = false;
 			Results.ErrorMessages.Add(FText::Format(
-				LOCTEXT("MissingAddedShaderStageObjectFormat", "Apply diff failed.  The added shader stage with id: {0} was missing it's shader stage object."),
-				FText::FromString(AddedOtherShaderStage->GetUsageId().ToString(EGuidFormats::DigitsWithHyphens))));
+				LOCTEXT("MissingAddedSimulationStageObjectFormat", "Apply diff failed.  The added shader stage with id: {0} was missing it's shader stage object."),
+				FText::FromString(AddedOtherSimulationStage->GetUsageId().ToString(EGuidFormats::DigitsWithHyphens))));
 		}
-		else if (AddedOtherShaderStage->GetOutputNode() == nullptr)
+		else if (AddedOtherSimulationStage->GetOutputNode() == nullptr)
 		{
 			Results.bSucceeded = false;
 			Results.ErrorMessages.Add(FText::Format(
-				LOCTEXT("MissingAddedShaderStageOutputNodeFormat", "Apply diff failed.  The added shader stage with id: {0} was missing it's output node."),
-				FText::FromString(AddedOtherShaderStage->GetUsageId().ToString(EGuidFormats::DigitsWithHyphens))));
+				LOCTEXT("MissingAddedSimulationStageOutputNodeFormat", "Apply diff failed.  The added shader stage with id: {0} was missing it's output node."),
+				FText::FromString(AddedOtherSimulationStage->GetUsageId().ToString(EGuidFormats::DigitsWithHyphens))));
 		}
 		else
 		{
 			UNiagaraEmitter* BaseEmitter = BaseEmitterAdapter->GetEditableEmitter();
-			UNiagaraShaderStageBase* AddedShaderStage = CastChecked<UNiagaraShaderStageBase>(StaticDuplicateObject(AddedOtherShaderStage->GetShaderStage(), BaseEmitter));
-			AddedShaderStage->Script = NewObject<UNiagaraScript>(AddedShaderStage, MakeUniqueObjectName(AddedShaderStage, UNiagaraScript::StaticClass(), "ShaderStage"), EObjectFlags::RF_Transactional);
-			AddedShaderStage->Script->SetUsage(ENiagaraScriptUsage::ParticleShaderStageScript);
-			AddedShaderStage->Script->SetUsageId(AddedOtherShaderStage->GetUsageId());
-			AddedShaderStage->Script->SetSource(EmitterSource);
-			BaseEmitter->AddShaderStage(AddedShaderStage);
+			UNiagaraSimulationStageBase* AddedSimulationStage = CastChecked<UNiagaraSimulationStageBase>(StaticDuplicateObject(AddedOtherSimulationStage->GetSimulationStage(), BaseEmitter));
+			AddedSimulationStage->Script = NewObject<UNiagaraScript>(AddedSimulationStage, MakeUniqueObjectName(AddedSimulationStage, UNiagaraScript::StaticClass(), "SimulationStage"), EObjectFlags::RF_Transactional);
+			AddedSimulationStage->Script->SetUsage(ENiagaraScriptUsage::ParticleSimulationStageScript);
+			AddedSimulationStage->Script->SetUsageId(AddedOtherSimulationStage->GetUsageId());
+			AddedSimulationStage->Script->SetSource(EmitterSource);
+			BaseEmitter->AddSimulationStage(AddedSimulationStage);
 
-			FGuid PreferredOutputNodeGuid = AddedOtherShaderStage->GetOutputNode()->NodeGuid;
-			FGuid PreferredInputNodeGuid = AddedOtherShaderStage->GetInputNode()->NodeGuid;
-			UNiagaraNodeOutput* ShaderStageOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*EmitterGraph, ENiagaraScriptUsage::ParticleShaderStageScript, AddedShaderStage->Script->GetUsageId(), PreferredOutputNodeGuid, PreferredInputNodeGuid);
-			for (TSharedRef<FNiagaraStackFunctionMergeAdapter> ModuleAdapter : AddedOtherShaderStage->GetShaderStageStack()->GetModuleFunctions())
+			FGuid PreferredOutputNodeGuid = AddedOtherSimulationStage->GetOutputNode()->NodeGuid;
+			FGuid PreferredInputNodeGuid = AddedOtherSimulationStage->GetInputNode()->NodeGuid;
+			UNiagaraNodeOutput* SimulationStageOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*EmitterGraph, ENiagaraScriptUsage::ParticleSimulationStageScript, AddedSimulationStage->Script->GetUsageId(), PreferredOutputNodeGuid, PreferredInputNodeGuid);
+			for (TSharedRef<FNiagaraStackFunctionMergeAdapter> ModuleAdapter : AddedOtherSimulationStage->GetSimulationStageStack()->GetModuleFunctions())
 			{
-				FApplyDiffResults AddModuleResults = AddModule(BaseEmitter->GetUniqueEmitterName(), *AddedShaderStage->Script, *ShaderStageOutputNode, ModuleAdapter);
+				FApplyDiffResults AddModuleResults = AddModule(BaseEmitter->GetUniqueEmitterName(), *AddedSimulationStage->Script, *SimulationStageOutputNode, ModuleAdapter);
 				Results.bSucceeded &= AddModuleResults.bSucceeded;
 				Results.ErrorMessages.Append(AddModuleResults.ErrorMessages);
 			}
 
 			// Force the base compile id of the new shader stage to match the added instance shader stage.
-			UNiagaraScriptSource* AddedShaderStageSourceFromDiff = Cast<UNiagaraScriptSource>(AddedOtherShaderStage->GetShaderStage()->Script->GetSource());
-			UNiagaraGraph* AddedShaderStageGraphFromDiff = AddedShaderStageSourceFromDiff->NodeGraph;
-			FGuid ScriptBaseIdFromDiff = AddedShaderStageGraphFromDiff->GetBaseId(ENiagaraScriptUsage::ParticleShaderStageScript, AddedOtherShaderStage->GetUsageId());
-			UNiagaraScriptSource* AddedShaderStageSource = Cast<UNiagaraScriptSource>(AddedShaderStage->Script->GetSource());
-			UNiagaraGraph* AddedShaderStageGraph = AddedShaderStageSource->NodeGraph;
-			AddedShaderStageGraph->ForceBaseId(ENiagaraScriptUsage::ParticleShaderStageScript, AddedOtherShaderStage->GetUsageId(), ScriptBaseIdFromDiff);
+			UNiagaraScriptSource* AddedSimulationStageSourceFromDiff = Cast<UNiagaraScriptSource>(AddedOtherSimulationStage->GetSimulationStage()->Script->GetSource());
+			UNiagaraGraph* AddedSimulationStageGraphFromDiff = AddedSimulationStageSourceFromDiff->NodeGraph;
+			FGuid ScriptBaseIdFromDiff = AddedSimulationStageGraphFromDiff->GetBaseId(ENiagaraScriptUsage::ParticleSimulationStageScript, AddedOtherSimulationStage->GetUsageId());
+			UNiagaraScriptSource* AddedSimulationStageSource = Cast<UNiagaraScriptSource>(AddedSimulationStage->Script->GetSource());
+			UNiagaraGraph* AddedSimulationStageGraph = AddedSimulationStageSource->NodeGraph;
+			AddedSimulationStageGraph->ForceBaseId(ENiagaraScriptUsage::ParticleSimulationStageScript, AddedOtherSimulationStage->GetUsageId(), ScriptBaseIdFromDiff);
 
 			Results.bModifiedGraph = true;
 		}
