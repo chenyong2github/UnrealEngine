@@ -10,7 +10,6 @@
 #include "NiagaraNodeWithDynamicPins.generated.h"
 
 class UEdGraphPin;
-class SNiagaraGraphPinAdd;
 
 DECLARE_DELEGATE_OneParam(FOnAddParameter, const FNiagaraVariable&);
 

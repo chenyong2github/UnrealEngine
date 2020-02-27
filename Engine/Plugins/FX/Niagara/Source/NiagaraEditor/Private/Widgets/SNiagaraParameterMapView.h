@@ -19,7 +19,6 @@ class SEditableTextBox;
 class SExpanderArrow;
 class SSearchBox;
 class SComboButton;
-class SNiagaraGraphPinAdd;
 class FNiagaraObjectSelection;
 class UNiagaraGraph;
 struct FEdGraphSchemaAction;
