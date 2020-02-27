@@ -2041,7 +2041,8 @@ void UMaterial::UpdateCachedExpressionData()
 	{
 		FMaterialCachedExpressionData UpdatedCachedExpressionData;
 		UpdatedCachedExpressionData.Reset();
-		if (UpdatedCachedExpressionData.UpdateForExpressions(Expressions, EMaterialParameterAssociation::GlobalParameter, -1))
+		FMaterialCachedExpressionContext Context(nullptr); // UMaterial have no parent
+		if (UpdatedCachedExpressionData.UpdateForExpressions(Context, Expressions, EMaterialParameterAssociation::GlobalParameter, -1))
 		{
 			// Only update our cached data if the update succeeded
 			// It's possible we could have some nullptr UMaterialExpressions, if we're loading cooked data here
