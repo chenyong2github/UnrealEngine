@@ -174,8 +174,7 @@ private:
 	TSet<FString> NamesOfAllActors;
 
 	/** Names of IDatasmithActorElements that shouldn't be removed when optimizing the scene */
-	TSet<FString> NamesOfCameraTargetActors;
-	TSet<FString> NamesOfAnimatedActors;
+	TSet<FString> NamesOfActorsToKeep;
 
 	/** Where all actor animations are imported into when parsing the scene */
 	TSharedPtr<IDatasmithLevelSequenceElement> LevelSequence;
