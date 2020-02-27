@@ -4,9 +4,10 @@
 
 #include "AnalyticsEventAttribute.h"
 #include "Algo/Transform.h"
-#include "Interfaces/IAnalyticsProvider.h"
+#include "IAnalyticsProviderET.h"
 #include "EditorAnalyticsSession.h"
 #include "HAL/PlatformProcess.h"
+#include "Misc/EngineVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorSessionSummary, Verbose, All);
 
@@ -26,7 +27,7 @@ namespace EditorSessionSenderDefs
 	static const FString AbnormalSessionToken(TEXT("AbnormalShutdown"));
 }
 
-FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProvider& InAnalyticsProvider, const FString& InSenderName, const int32 InCurrentSessionProcessId)
+FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProviderET& InAnalyticsProvider, const FString& InSenderName, const int32 InCurrentSessionProcessId)
 	: HeartbeatTimeElapsed(0.0f)
 	, AnalyticsProvider(InAnalyticsProvider)
 	, Sender(InSenderName)
@@ -167,13 +168,21 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	FString PluginsString = FString::Join(Session.Plugins, TEXT(","));
 
 	TArray<FAnalyticsEventAttribute> AnalyticsAttributes;
+
+	// Track which app/user is sending the summary (summary can be sent by another process (CrashReportClient) or another instance in case of crash/abnormal terminaison.
+	AnalyticsAttributes.Emplace(TEXT("SummarySenderAppId"), AnalyticsProvider.GetAppID());
+	AnalyticsAttributes.Emplace(TEXT("SummarySenderAppVersion"), AnalyticsProvider.GetAppVersion());
+	AnalyticsAttributes.Emplace(TEXT("SummarySenderEngineVersion"), FEngineVersion::Current().ToString(EVersionComponent::Changelist)); // Same as in EditorSessionSummaryWriter.cpp
+	AnalyticsAttributes.Emplace(TEXT("SummarySenderUserId"), AnalyticsProvider.GetUserID());
+	AnalyticsAttributes.Emplace(TEXT("SummarySenderSessionId"), AnalyticsProvider.GetSessionID()); // Not stripping the {} around the GUID like EditorSessionSummaryWriter does with SessionId.
+
 	AnalyticsAttributes.Emplace(TEXT("ProjectName"), Session.ProjectName);
 	AnalyticsAttributes.Emplace(TEXT("ProjectID"), Session.ProjectID);
 	AnalyticsAttributes.Emplace(TEXT("ProjectDescription"), Session.ProjectDescription);
 	AnalyticsAttributes.Emplace(TEXT("ProjectVersion"), Session.ProjectVersion);
 	AnalyticsAttributes.Emplace(TEXT("Platform"), FPlatformProperties::PlatformName());
-	AnalyticsAttributes.Emplace(TEXT("SessionId"), SessionIdString);
-	AnalyticsAttributes.Emplace(TEXT("EngineVersion"), Session.EngineVersion);
+	AnalyticsAttributes.Emplace(TEXT("SessionId"), SessionIdString); // The provider is expected to add it as "SessionID" param in the HTTP request, but keep it for completness, because the formats are slightly different.
+	AnalyticsAttributes.Emplace(TEXT("EngineVersion"), Session.EngineVersion); // The provider is expected to add it as "AppVersion" param in the HTTP request, but keep it for completness, because the formats are slightly different.
 	AnalyticsAttributes.Emplace(TEXT("ShutdownType"), ShutdownTypeString);
 	AnalyticsAttributes.Emplace(TEXT("StartupTimestamp"), Session.StartupTimestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("Timestamp"), Session.Timestamp.ToIso8601());
@@ -218,8 +227,31 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 		AnalyticsAttributes.Emplace(TEXT("ExitCode"), CurrentSessionExitCode.GetValue());
 	}
 
-	// Send the event.
-	AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+	// Sending the summary event of the current process analytic session?
+	if (AnalyticsProvider.GetSessionID().Contains(Session.SessionId)) // The string (GUID) returned by GetSessionID() is surrounded with braces like "{3FEA3232-...}" while Session.SessionId is not -> "3FEA3232-..."
+	{
+		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+	}
+	else // The summary was created by another process/instance in a different session. (Ex: Editor sending a summary a prevoulsy crashed instance or CrashReportClientEditor sending it on behalf of the Editor)
+	{
+		// The provider sending a 'summary event' created by another instance/process must parametrize its post request 'as if' it was sent from the instance/session that created it (backend expectation).
+		// Create a new provider to avoid interfering with the current session events. (ex. if another thread sends telemetry at the same time, don't accidently tag it with the wrong SessionID, AppID, etc.).
+		TSharedPtr<IAnalyticsProviderET> TempSummaryProvider = FAnalyticsET::Get().CreateAnalyticsProvider(AnalyticsProvider.GetConfig());
+		
+		// Reconfigure the analytics provider to sent the summary event 'as if' it was sent by the process that created it. This is required by the analytics backend.
+		FGuid SessionGuid;
+		FGuid::Parse(Session.SessionId, SessionGuid);
+		TempSummaryProvider->SetSessionID(SessionGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces)); // Ensure to put back the {} around the GUID.
+		TempSummaryProvider->SetAppID(CopyTemp(Session.AppId));
+		TempSummaryProvider->SetAppVersion(CopyTemp(Session.AppVersion));
+		TempSummaryProvider->SetUserID(CopyTemp(Session.UserId));
+
+		// Send the summary.
+		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+
+		// The temporary provider is about to be deleted (going out of scope), ensure it sents its report.
+		TempSummaryProvider->BlockUntilFlushed(2.0f);
+	}
 
 	UE_LOG(LogEditorSessionSummary, Log, TEXT("EditorSessionSummary sent report. Type=%s, SessionId=%s"), *ShutdownTypeString, *SessionIdString);
 }
