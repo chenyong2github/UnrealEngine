@@ -333,8 +333,11 @@ void SActorDetails::OnComponentsEditedInWorld()
 		// The component composition of the observed actor has changed, so rebuild the node tree
 		TGuardValue<bool> SelectionGuard(bSelectionGuard, true);
 
+
 		// Refresh the tree and update the selection to match the world
 		SCSEditor->UpdateTree();
+
+		DetailsView->ForceRefresh();
 	}
 }
 
