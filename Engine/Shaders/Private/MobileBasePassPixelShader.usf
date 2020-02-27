@@ -107,14 +107,6 @@ float4 SpotLightDirectionAndSpecularScale[MAX_DYNAMIC_POINT_LIGHTS];
 	#endif
 #endif
 
-#if LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
-#if COMPILER_HLSLCC
-	#define VTFeedbackBuffer MobileSceneTextures.VirtualTextureFeedbackUAV
-#else
-	RWBuffer<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER);
-#endif
-#endif
-
 half PhongApprox( half Roughness, half RoL )
 {
 	half a = Roughness * Roughness;			// 1 mul
@@ -841,9 +833,9 @@ void Main(
 	FinalizeVirtualTextureFeedback(
 		MaterialParameters.VirtualTextureFeedback,
 		MaterialParameters.SvPosition,
-		Opacity,
+		ShadingModelContext.Opacity,
 		View.FrameNumber,
-		VTFeedbackBuffer
+		View.VTFeedbackBuffer
 	);
 #endif
 }
