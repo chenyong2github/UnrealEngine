@@ -27,6 +27,7 @@
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "TessellationRendering.h"
 #include "UObject/SoftObjectPath.h"
 
@@ -848,6 +849,26 @@ void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& Sele
 				}
 			}
 		}
+	}
+}
+
+void UDataprepOperationsLibrary::FlipFaces(const TSet< UStaticMesh* >& StaticMeshes)
+{
+	for (UStaticMesh* StaticMesh : StaticMeshes)
+	{
+		if (nullptr == StaticMesh || !StaticMesh->IsMeshDescriptionValid(0))
+		{
+			continue;
+		}
+
+		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
+
+		UStaticMesh::FCommitMeshDescriptionParams Params;
+		Params.bMarkPackageDirty = false;
+		Params.bUseHashAsGuid = true;
+
+		FStaticMeshOperations::FlipPolygons(*MeshDescription);
+		StaticMesh->CommitMeshDescription(0, Params);
 	}
 }
 
