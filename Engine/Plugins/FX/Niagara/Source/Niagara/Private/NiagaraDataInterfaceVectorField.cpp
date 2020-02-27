@@ -665,12 +665,11 @@ void UNiagaraDataInterfaceVectorField::PushToRenderThread()
 	bool RT_bTileY = bTileY;
 	bool RT_bTileZ = bTileZ;
 
-	// @todo-threadsafety. This would be a race but I'm taking a ref here. Not ideal in the long term.
-	FTextureRHIRef VolumeTextureRHI = Field ? ((UVectorFieldStatic*)Field)->GetVolumeTextureRef() : (FRHITexture*)GBlackVolumeTexture->TextureRHI;
+	FVectorFieldTextureAccessor TextureAccessor(Field);
 
 	// Push Updates to Proxy.
-	ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
-		[RT_Proxy, RT_Dimensions, RT_MinBounds, RT_MaxBounds, RT_bTileX, RT_bTileY, RT_bTileZ, VolumeTextureRHI](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(FUpdateDIVectorField)(
+		[RT_Proxy, RT_Dimensions, RT_MinBounds, RT_MaxBounds, RT_bTileX, RT_bTileY, RT_bTileZ, TextureAccessor](FRHICommandListImmediate& RHICmdList)
 	{
 		RT_Proxy->bTileX = RT_bTileX;
 		RT_Proxy->bTileY = RT_bTileY;
@@ -678,7 +677,7 @@ void UNiagaraDataInterfaceVectorField::PushToRenderThread()
 		RT_Proxy->Dimensions = RT_Dimensions;
 		RT_Proxy->MinBounds = RT_MinBounds;
 		RT_Proxy->MaxBounds = RT_MaxBounds;
-		RT_Proxy->TextureRHI = VolumeTextureRHI;
+		RT_Proxy->TextureRHI = TextureAccessor.GetTexture();
 	});
 }
 
