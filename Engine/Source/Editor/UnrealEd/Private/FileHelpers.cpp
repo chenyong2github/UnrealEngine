@@ -4295,6 +4295,7 @@ static bool InternalCheckoutAndSavePackages(const TArray<UPackage*>& PackagesToS
 			// Prevent modal window if not requested.
 			TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
+			TArray<UPackage*> PackagesCheckedOut;
 			const bool bErrorIfAlreadyCheckedOut = false;
 			const bool bConfirmPackageBranchCheckOutStatus = false;
 
