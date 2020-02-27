@@ -573,7 +573,11 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	{
 		FNiagaraSharedObject::FlushDeletionList();
 
+#if PLATFORM_DESKTOP
 		bAppHasFocus = FPlatformApplicationMisc::IsThisApplicationForeground();
+#else
+		bAppHasFocus = true;
+#endif
 
 		// Cache player view locations for all system instances to access
 		//-TODO: Do we need to do this per tick group?
