@@ -7,12 +7,10 @@
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
 #include "Framework/Application/SlateApplication.h"
-
-
 #include "Interfaces/IMainFrameModule.h"
+#include "Math/UnrealMathUtility.h"
 
 #include "AlembicImportOptions.h"
-
 #include "AlembicLibraryModule.h"
 #include "AbcImporter.h"
 #include "AbcImportLogger.h"
@@ -498,10 +496,12 @@ EReimportResult::Type UAlembicImportFactory::Reimport(UObject* Obj)
 
 void UAlembicImportFactory::ShowImportOptionsWindow(TSharedPtr<SAlembicImportOptions>& Options, FString FilePath, const FAbcImporter& Importer)
 {
+	// Window size computed from SAlembicImportOptions
+	const float WindowHeight = 500.f + FMath::Clamp(Importer.GetPolyMeshes().Num() * 16.f, 0.f, 250.f);
 
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(LOCTEXT("WindowTitle", "Alembic Cache Import Options"))
-		.SizingRule(ESizingRule::Autosized);
+		.ClientSize(FVector2D(522.f, WindowHeight));
 
 	Window->SetContent
 		(
