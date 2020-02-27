@@ -5734,6 +5734,7 @@ void FPakFile::AddEntryToIndex(const FString& Filename, const FPakEntryLocation&
 	{
 		check(IsPathInDirectoryFormat(MountPoint));
 		check(Filename.StartsWith(MountPoint));
+		check(Filename.Len() > MountPoint.Len());
 		RelativePathFromMount = Filename.Mid(MountPoint.Len());
 	}
 
@@ -6030,14 +6031,7 @@ bool FPakFile::NormalizeDirectoryQuery(const TCHAR* InPath, FString& OutRelative
 {
 	OutRelativePathFromMount = InPath;
 	MakeDirectoryFromPath(OutRelativePathFromMount);
-
-	// Check the specified path is under the mount point of this pak file.
-	if (!OutRelativePathFromMount.StartsWith(MountPoint))
-	{
-		return false;
-	}
-	OutRelativePathFromMount = OutRelativePathFromMount.Mid(MountPoint.Len());
-	return true;
+	return GetRelativePathFromMountInline(OutRelativePathFromMount, MountPoint);
 }
 
 const FPakDirectory* FPakFile::FindPrunedDirectoryInternal(const FString& RelativePathFromMount) const
