@@ -402,7 +402,7 @@ private:
 	uint32 GetNewDeviceID();
 
 	/** Toggles between audio mixer and non-audio mixer audio engine. */
-	void ToggleAudioMixer();
+	bool ToggleAudioMixer();
 
 	/** Load audio device module. */
 	bool LoadDefaultAudioDeviceModule();
