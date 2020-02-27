@@ -59,12 +59,7 @@ public:
 	*/
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		LodValuesParameter.Bind(ParameterMap,TEXT("LodValues"));
-		ForcedLodParameter.Bind(ParameterMap,TEXT("ForcedLod"));
-		LodTessellationParameter.Bind(ParameterMap, TEXT("LodTessellationParams"));
-		NeighborSectionLodParameter.Bind(ParameterMap,TEXT("NeighborSectionLod"));
-		LodBiasParameter.Bind(ParameterMap,TEXT("LodBias"));
-		SectionLodsParameter.Bind(ParameterMap,TEXT("SectionLods"));
+		TexCoordOffsetParameter.Bind(ParameterMap,TEXT("TexCoordOffset"));
 	}
 
 	void GetElementShaderBindings(
@@ -87,28 +82,15 @@ public:
 		const FLandscapeComponentSceneProxyMobile* SceneProxy = (const FLandscapeComponentSceneProxyMobile*)BatchElementParams->SceneProxy;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(),*BatchElementParams->LandscapeUniformShaderParametersResource);
 
-		if (LodValuesParameter.IsBound())
-		{
-			FVector4 LodValues(
-				0.0f, // this is the mesh's LOD, ES2 always uses the LOD0 mesh
-				0.0f, // unused
-				(float)SceneProxy->SubsectionSizeQuads,
-				1.f / (float)SceneProxy->SubsectionSizeQuads);
-
-			ShaderBindings.Add(LodValuesParameter, LodValues);
-		}
-
-		if (LodBiasParameter.IsBound())
+		if (TexCoordOffsetParameter.IsBound())
 		{
 			FVector CameraLocalPos3D = SceneProxy->WorldToLocal.TransformPosition(InView->ViewMatrices.GetViewOrigin());
 
-			FVector4 LodBias(
-				0.0f, // unused
-				0.0f, // unused
+			FVector2D TexCoordOffset(
 				CameraLocalPos3D.X + SceneProxy->SectionBase.X,
 				CameraLocalPos3D.Y + SceneProxy->SectionBase.Y
 			);
-			ShaderBindings.Add(LodBiasParameter, LodBias);
+			ShaderBindings.Add(TexCoordOffsetParameter, TexCoordOffset);
 		}
 
 		if (SceneProxy->bRegistered)
@@ -119,77 +101,10 @@ public:
 		{
 			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), GNullLandscapeRenderSystemResources.UniformBuffer);
 		}
-
-		if (ForcedLodParameter.IsBound())
-		{
-			ShaderBindings.Add(ForcedLodParameter, BatchElementParams->ForcedLOD);
-		}
-
-#if 0
-		FLandscapeComponentSceneProxy::FViewCustomDataLOD* LODData = (FLandscapeComponentSceneProxy::FViewCustomDataLOD*)InView->GetCustomData(SceneProxy->GetPrimitiveSceneInfo()->GetIndex());
-		int32 SubSectionIndex = BatchElementParams->SubX + BatchElementParams->SubY * SceneProxy->NumSubsections;
-
-		if (LODData != nullptr)
-		{
-			SceneProxy->PostInitViewCustomData(*InView, LODData);
-
-			if (LodTessellationParameter.IsBound())
-			{
-				ShaderBindings.Add(LodTessellationParameter, LODData->LodTessellationParams);
 			}
 
-			if (SectionLodsParameter.IsBound())
-			{
-				if (LODData->UseCombinedMeshBatch)
-				{
-					ShaderBindings.Add(SectionLodsParameter, LODData->ShaderCurrentLOD);
-				}
-				else // in non combined, only the one representing us as we'll be called 4 times (once per sub section)
-				{
-					check(SubSectionIndex >= 0);
-					FVector4 ShaderCurrentLOD(ForceInitToZero);
-					ShaderCurrentLOD.Component(SubSectionIndex) = LODData->ShaderCurrentLOD.Component(SubSectionIndex);
-
-					ShaderBindings.Add(SectionLodsParameter, ShaderCurrentLOD);
-				}
-			}
-
-			if (NeighborSectionLodParameter.IsBound())
-			{
-				FVector4 ShaderCurrentNeighborLOD[FLandscapeComponentSceneProxy::NEIGHBOR_COUNT] = { FVector4(ForceInitToZero), FVector4(ForceInitToZero), FVector4(ForceInitToZero), FVector4(ForceInitToZero) };
-
-				if (LODData->UseCombinedMeshBatch)
-				{
-					int32 SubSectionCount = SceneProxy->NumSubsections == 1 ? 1 : FLandscapeComponentSceneProxy::MAX_SUBSECTION_COUNT;
-
-					for (int32 NeighborSubSectionIndex = 0; NeighborSubSectionIndex < SubSectionCount; ++NeighborSubSectionIndex)
-					{
-						ShaderCurrentNeighborLOD[NeighborSubSectionIndex] = LODData->SubSections[NeighborSubSectionIndex].ShaderCurrentNeighborLOD;
-						check(ShaderCurrentNeighborLOD[NeighborSubSectionIndex].X != -1.0f); // they should all match so only check the 1st one for simplicity
-					}
-
-					ShaderBindings.Add(NeighborSectionLodParameter, ShaderCurrentNeighborLOD);
-				}
-				else // in non combined, only the one representing us as we'll be called 4 times (once per sub section)
-				{
-					check(SubSectionIndex >= 0);
-					ShaderCurrentNeighborLOD[SubSectionIndex] = LODData->SubSections[SubSectionIndex].ShaderCurrentNeighborLOD;
-					check(ShaderCurrentNeighborLOD[SubSectionIndex].X != -1.0f); // they should all match so only check the 1st one for simplicity
-
-					ShaderBindings.Add(NeighborSectionLodParameter, ShaderCurrentNeighborLOD);
-				}
-			}
-		}
-#endif
-	}
 protected:
-	LAYOUT_FIELD(FShaderParameter, LodValuesParameter);
-	LAYOUT_FIELD(FShaderParameter, ForcedLodParameter);
-	LAYOUT_FIELD(FShaderParameter, LodTessellationParameter);
-	LAYOUT_FIELD(FShaderParameter, NeighborSectionLodParameter);
-	LAYOUT_FIELD(FShaderParameter, LodBiasParameter);
-	LAYOUT_FIELD(FShaderParameter, SectionLodsParameter);
-	LAYOUT_FIELD(TShaderUniformBufferParameter<FLandscapeUniformShaderParameters>, LandscapeShaderParameters);
+	LAYOUT_FIELD(FShaderParameter, TexCoordOffsetParameter);
 };
 
 /** Shader parameters for use with FLandscapeVertexFactory */
@@ -204,7 +119,6 @@ public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		FLandscapeVertexFactoryPixelShaderParameters::Bind(ParameterMap);
-		BlendableLayerMaskParameter.Bind(ParameterMap, TEXT("BlendableLayerMask"));
 	}
 
 	void GetElementShaderBindings(
@@ -222,23 +136,7 @@ public:
 		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimePS);
 		
 		FLandscapeVertexFactoryPixelShaderParameters::GetElementShaderBindings(Scene, InView, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams);
-
-		if (BlendableLayerMaskParameter.IsBound())
-		{
-			const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
-			check(BatchElementParams);
-			const FLandscapeComponentSceneProxyMobile* SceneProxy = (const FLandscapeComponentSceneProxyMobile*)BatchElementParams->SceneProxy;
-			
-			FVector MaskVector;
-			MaskVector[0] = (SceneProxy->BlendableLayerMask & (1 << 0)) ? 1 : 0;
-			MaskVector[1] = (SceneProxy->BlendableLayerMask & (1 << 1)) ? 1 : 0;
-			MaskVector[2] = (SceneProxy->BlendableLayerMask & (1 << 2)) ? 1 : 0;
-			ShaderBindings.Add(BlendableLayerMaskParameter, MaskVector);
-		}
 	}
-
-protected:
-	LAYOUT_FIELD(FShaderParameter, BlendableLayerMaskParameter);
 };
 
 /**
@@ -266,20 +164,11 @@ public:
 		check(BatchElementParams);
 		const FLandscapeComponentSceneProxyMobile* SceneProxy = (const FLandscapeComponentSceneProxyMobile*)BatchElementParams->SceneProxy;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeFixedGridUniformShaderParameters>(), SceneProxy->LandscapeFixedGridUniformShaderParameters[BatchElementParams->CurrentLOD]);
 
-		if (LodValuesParameter.IsBound())
+		if (TexCoordOffsetParameter.IsBound())
 		{
-			ShaderBindings.Add(LodValuesParameter, SceneProxy->GetShaderLODValues(BatchElementParams->CurrentLOD));
-		}
-
-		if (LodBiasParameter.IsBound())
-		{
-			ShaderBindings.Add(LodBiasParameter, FVector4(ForceInitToZero));
-		}
-
-		if (ForcedLodParameter.IsBound())
-		{
-			ShaderBindings.Add(ForcedLodParameter, BatchElementParams->ForcedLOD);
+			ShaderBindings.Add(TexCoordOffsetParameter, FVector4(ForceInitToZero));
 		}
 	}
 };
@@ -460,8 +349,6 @@ FLandscapeComponentSceneProxyMobile::FLandscapeComponentSceneProxyMobile(ULandsc
 
 	WeightmapTextures = InComponent->MobileWeightmapTextures;
 	NormalmapTexture = InComponent->MobileWeightmapTextures[0];
-
-	BlendableLayerMask = InComponent->MobileBlendableLayerMask;
 
 #if WITH_EDITOR
 	TArray<FWeightmapLayerAllocationInfo>& LayerAllocations = InComponent->MobileWeightmapLayerAllocations.Num() ? InComponent->MobileWeightmapLayerAllocations : InComponent->GetWeightmapLayerAllocations();

@@ -88,7 +88,6 @@ LANDSCAPE_API extern UMaterialInterface* GLandscapeDirtyMaterial;
 
 /** The uniform shader parameters for a landscape draw call. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, LANDSCAPE_API)
-/** vertex shader parameters */
 SHADER_PARAMETER(int32, ComponentBaseX)
 SHADER_PARAMETER(int32, ComponentBaseY)
 SHADER_PARAMETER(int32, SubsectionSizeVerts)
@@ -100,6 +99,7 @@ SHADER_PARAMETER(FVector4, LandscapeLightmapScaleBias)
 SHADER_PARAMETER(FVector4, SubsectionSizeVertsLayerUVPan)
 SHADER_PARAMETER(FVector4, SubsectionOffsetParams)
 SHADER_PARAMETER(FVector4, LightmapSubsectionOffsetParams)
+	SHADER_PARAMETER(FVector4, BlendableLayerMask)
 SHADER_PARAMETER(FMatrix, LocalToWorldNoScaling)
 SHADER_PARAMETER_TEXTURE(Texture2D, HeightmapTexture)
 SHADER_PARAMETER_SAMPLER(SamplerState, HeightmapTextureSampler)
@@ -108,7 +108,6 @@ SHADER_PARAMETER_SAMPLER(SamplerState, NormalmapTextureSampler)
 SHADER_PARAMETER_TEXTURE(Texture2D, XYOffsetmapTexture)
 SHADER_PARAMETER_SAMPLER(SamplerState, XYOffsetmapTextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeVertexFactoryMVFParameters, LANDSCAPE_API)
 	SHADER_PARAMETER(FIntPoint, SubXY)
@@ -125,6 +124,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeSectionLODUniformParameters, )
 	SHADER_PARAMETER_SRV(Buffer<float>, SectionTessellationFalloffK)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, )
+	SHADER_PARAMETER(FVector4, LodValues)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
 /* Data needed for the landscape vertex factory to set the render state for an individual batch element */
 struct FLandscapeBatchElementParams
 {
@@ -132,14 +135,8 @@ struct FLandscapeBatchElementParams
 	FLandscapeVertexFactoryMVFUniformBufferRef LandscapeVertexFactoryMVFUniformBuffer;
 #endif
 	const TUniformBuffer<FLandscapeUniformShaderParameters>* LandscapeUniformShaderParametersResource;
-	const FMatrix* LocalToWorldNoScalingPtr;
-
-	// LOD calculation-related params
 	const FLandscapeComponentSceneProxy* SceneProxy;
-	int32 SubX;
-	int32 SubY;
 	int32 CurrentLOD;
-	int32 ForcedLOD = -1;
 };
 
 class FLandscapeElementParamArray : public FOneFrameResource
@@ -913,6 +910,8 @@ protected:
 
 	UTexture2D* XYOffsetmapTexture;
 
+	uint8 BlendableLayerMask;
+
 	uint32						SharedBuffersKey;
 	FLandscapeSharedBuffers*	SharedBuffers;
 	FLandscapeVertexFactory*	VertexFactory;
@@ -965,6 +964,8 @@ protected:
 #endif
 
 	TUniformBuffer<FLandscapeUniformShaderParameters> LandscapeUniformShaderParameters;
+
+	TArray< TUniformBuffer<FLandscapeFixedGridUniformShaderParameters> > LandscapeFixedGridUniformShaderParameters;
 
 	// Cached versions of these
 	FMatrix					WorldToLocal;
