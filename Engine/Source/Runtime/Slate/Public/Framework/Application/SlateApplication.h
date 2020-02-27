@@ -955,6 +955,8 @@ protected:
 	virtual bool IsWidgetDirectlyHovered(const TSharedPtr<const SWidget> Widget) const override;
 	virtual bool ShowUserFocus(const TSharedPtr<const SWidget> Widget) const override;
 
+	TSharedRef<FNavigationConfig> GetRelevantNavConfig(int32 UserIndex) const;
+
 	/**
 	 * Pumps and ticks the platform.
 	 */
