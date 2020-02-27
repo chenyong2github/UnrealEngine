@@ -22,7 +22,17 @@ public:
 	 * Only call from Initialize() of Systems to ensure initialization order
 	 * Note: Dependencies only work within a collection
 	 */
-	bool InitializeDependency(TSubclassOf<USubsystem> SubsystemClass);
+	USubsystem* InitializeDependency(TSubclassOf<USubsystem> SubsystemClass);
+
+	/**
+	 * Only call from Initialize() of Systems to ensure initialization order
+	 * Note: Dependencies only work within a collection
+	 */
+	template <typename TSubsystemClass>
+	TSubsystemClass* InitializeDependency()
+	{
+		return Cast<TSubsystemClass>(InitializeDependency(TSubsystemClass::StaticClass()));
+	}
 
 	/* FGCObject Interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -45,7 +55,7 @@ protected:
 	const TSubclassOf<USubsystem>& GetBaseType() const { return BaseType; }
 
 private:
-	bool AddAndInitializeSubsystem(UClass* SubsystemClass);
+	USubsystem* AddAndInitializeSubsystem(UClass* SubsystemClass);
 
 	void RemoveAndDeinitializeSubsystem(USubsystem* Subsystem);
 
