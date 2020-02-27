@@ -441,20 +441,8 @@ FReply FDataprepDragDropOp::DoDropOnActionStep(UDataprepGraphActionStepNode* Tar
 						{
 							if(!bCopyRequested)
 							{
-								UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject(SourceActionAsset);
-								// If the last step is removed from the source action, remove the whole action from the Dataprep asset
-								if(SourceActionAsset->GetStepsCount() == 1 && DataprepAsset)
-								{
-									// Find index of source action 
-									int32 Index = DataprepAsset->GetActionIndex(SourceActionAsset);
-									ensure(Index != INDEX_NONE);
-
-									bTransactionSuccessful &= DataprepAsset->RemoveAction(Index);
-								}
-								else
-								{
-									bTransactionSuccessful &= SourceActionAsset->RemoveStep( StepIndex );
-								}
+								int32 ActionIndex = INDEX_NONE;
+								bTransactionSuccessful &= FDataprepCoreUtils::RemoveStep(SourceActionAsset, StepIndex, ActionIndex);
 							}
 
 							bTransactionSuccessful &= TargetActionAsset->InsertStep( SourceActionStepPtr.Get(), TargetActionStepNode->GetStepIndex() );
@@ -540,9 +528,13 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 
 			if(!bCopySteps)
 			{
+				int32 ActionIndex;
 				for(TPair<UDataprepActionAsset*, TArray<int32>>& Entry : ActionAssetMap)
 				{
-					Entry.Key->RemoveSteps(Entry.Value);
+					if(Entry.Key)
+					{
+						bTransactionSuccessful &= FDataprepCoreUtils::RemoveSteps(Entry.Key, Entry.Value, ActionIndex);
+					}
 				}
 			}
 
@@ -640,18 +632,19 @@ FReply FDataprepDragDropOp::DoDropOnActionAsset(UDataprepGraphActionNode* Target
 					{
 						if(!bCopyRequested)
 						{
-							SourceActionAsset->RemoveStep( StepIndex );
+							int32 ActionIndex = INDEX_NONE;
+							bTransactionSuccessful &= FDataprepCoreUtils::RemoveStep(SourceActionAsset, StepIndex, ActionIndex);
 						}
 
-						TargetActionAsset->AddStep( SourceActionStepPtr.Get() );
+						bTransactionSuccessful &= TargetActionAsset->AddStep( SourceActionStepPtr.Get() ) != INDEX_NONE;
 					}
 					else if(bCopyRequested)
 					{
-						TargetActionAsset->AddStep( SourceActionStepPtr.Get() );
+						bTransactionSuccessful &= TargetActionAsset->AddStep( SourceActionStepPtr.Get() ) != INDEX_NONE;
 					}
 					else
 					{
-						TargetActionAsset->MoveStep( StepIndex, TargetActionAsset->GetStepsCount() - 1 );
+						bTransactionSuccessful &= TargetActionAsset->MoveStep( StepIndex, TargetActionAsset->GetStepsCount() - 1 );
 					}
 				}
 

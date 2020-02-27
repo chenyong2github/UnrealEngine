@@ -105,7 +105,9 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 
 			if(ActionStepBlockPtr.IsValid())
 			{
-				ActionStepBlockPtr->bDragEnabled = false;
+#ifndef NO_BLUEPRINT
+				ActionStepBlockPtr->bIsSimplifiedGraph = true;
+#endif
 				ActionBlock = ActionStepBlockPtr->AsShared();
 			}
 		}
