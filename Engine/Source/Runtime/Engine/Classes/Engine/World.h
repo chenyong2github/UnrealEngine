@@ -757,31 +757,6 @@ private:
 };
 
 USTRUCT()
-struct FLevelStreamingWrapper
-{
-	GENERATED_BODY()
-
-	FLevelStreamingWrapper()
-		: StreamingLevel(nullptr)
-	{}
-
-	FLevelStreamingWrapper(ULevelStreaming* InStreamingLevel)
-		: StreamingLevel(InStreamingLevel)
-	{}
-
-	ULevelStreaming*& Get() { return StreamingLevel; }
-	ULevelStreaming* Get() const { return StreamingLevel; }
-
-
-	bool operator<(const FLevelStreamingWrapper& Other) const;
-	bool operator==(const FLevelStreamingWrapper& Other) const { return StreamingLevel == Other.StreamingLevel; }
-
-private:
-	UPROPERTY()
-	ULevelStreaming* StreamingLevel;
-};
-
-USTRUCT()
 struct FStreamingLevelsToConsider
 {
 	GENERATED_BODY()
@@ -794,7 +769,7 @@ private:
 
 	/** Priority sorted array of streaming levels actively being considered. */
 	UPROPERTY()
-	TArray<FLevelStreamingWrapper> StreamingLevels;
+	TArray<ULevelStreaming*> StreamingLevels;
 
 	enum class EProcessReason : uint8
 	{
@@ -803,7 +778,7 @@ private:
 	};
 
 	/** Streaming levels that had their priority changed or were added to the container while consideration was underway. */
-	TSortedMap<FLevelStreamingWrapper, EProcessReason> LevelsToProcess;
+	TMap<ULevelStreaming*, EProcessReason> LevelsToProcess;
 
 	/** Whether the streaming levels are under active consideration or not */
 	bool bStreamingLevelsBeingConsidered;
@@ -816,7 +791,7 @@ private:
 
 public:
 
-	const TArray<FLevelStreamingWrapper>& GetStreamingLevels() const { return StreamingLevels; }
+	const TArray<ULevelStreaming*>& GetStreamingLevels() const { return StreamingLevels; }
 
 	void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
