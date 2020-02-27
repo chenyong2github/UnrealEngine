@@ -96,7 +96,7 @@ static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMater
 	return INDEX_NONE;
 }
 
-bool FMaterialCachedExpressionData::UpdateForFunction(UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex)
+bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpressionContext& Context, UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex)
 {
 	if (!Function)
 	{
@@ -107,7 +107,7 @@ bool FMaterialCachedExpressionData::UpdateForFunction(UMaterialFunctionInterface
 	const TArray<UMaterialExpression*>* FunctionExpressions = Function->GetFunctionExpressions();
 	if (FunctionExpressions)
 	{
-		if (!UpdateForExpressions(*FunctionExpressions, Association, ParameterIndex))
+		if (!UpdateForExpressions(Context, *FunctionExpressions, Association, ParameterIndex))
 		{
 			bResult = false;
 		}
@@ -176,12 +176,12 @@ bool FMaterialCachedExpressionData::UpdateForFunction(UMaterialFunctionInterface
 	return bResult;
 }
 
-bool FMaterialCachedExpressionData::UpdateForLayerFunctions(const FMaterialLayersFunctions& LayerFunctions)
+bool FMaterialCachedExpressionData::UpdateForLayerFunctions(const FMaterialCachedExpressionContext& Context, const FMaterialLayersFunctions& LayerFunctions)
 {
 	bool bResult = true;
 	for (int32 LayerIndex = 0; LayerIndex < LayerFunctions.Layers.Num(); ++LayerIndex)
 	{
-		if (!UpdateForFunction(LayerFunctions.Layers[LayerIndex], LayerParameter, LayerIndex))
+		if (!UpdateForFunction(Context, LayerFunctions.Layers[LayerIndex], LayerParameter, LayerIndex))
 		{
 			bResult = false;
 		}
@@ -189,7 +189,7 @@ bool FMaterialCachedExpressionData::UpdateForLayerFunctions(const FMaterialLayer
 
 	for (int32 BlendIndex = 0; BlendIndex < LayerFunctions.Blends.Num(); ++BlendIndex)
 	{
-		if (!UpdateForFunction(LayerFunctions.Blends[BlendIndex], BlendParameter, BlendIndex))
+		if (!UpdateForFunction(Context, LayerFunctions.Blends[BlendIndex], BlendParameter, BlendIndex))
 		{
 			bResult = false;
 		}
@@ -197,7 +197,7 @@ bool FMaterialCachedExpressionData::UpdateForLayerFunctions(const FMaterialLayer
 	return bResult;
 }
 
-bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialExpression*>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex)
+bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedExpressionContext& Context, const TArray<UMaterialExpression*>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex)
 {
 	bool bResult = true;
 	for (UMaterialExpression* Expression : Expressions)
@@ -221,7 +221,12 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Scalar, ParameterInfo, ExpressionScalarParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				Parameters.ScalarValues.Insert(ExpressionScalarParameter->DefaultValue, Index);
+				float Value = ExpressionScalarParameter->DefaultValue;
+				if (Context.Parent)
+				{
+					Context.Parent->GetScalarParameterDefaultValue(ParameterInfo, Value, false, true);
+				}
+				Parameters.ScalarValues.Insert(Value, Index);
 				Parameters.ScalarMinMaxValues.Insert(FVector2D(ExpressionScalarParameter->SliderMin, ExpressionScalarParameter->SliderMax), Index);
 				if (ExpressionScalarParameter->IsUsedAsAtlasPosition())
 				{
@@ -242,7 +247,12 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Vector, ParameterInfo, ExpressionVectorParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				Parameters.VectorValues.Insert(ExpressionVectorParameter->DefaultValue, Index);
+				FLinearColor Value = ExpressionVectorParameter->DefaultValue;
+				if (Context.Parent)
+				{
+					Context.Parent->GetVectorParameterDefaultValue(ParameterInfo, Value, false, true);
+				}
+				Parameters.VectorValues.Insert(Value, Index);
 				Parameters.VectorChannelNameValues.Insert(ExpressionVectorParameter->ChannelNames, Index);
 				Parameters.VectorUsedAsChannelMaskValues.Insert(ExpressionVectorParameter->IsUsedAsChannelMask(), Index);
 			}
@@ -253,7 +263,12 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Texture, ParameterInfo, ExpressionTextureParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				Parameters.TextureValues.Insert(ExpressionTextureParameter->Texture, Index);
+				UTexture* Value = ExpressionTextureParameter->Texture;
+				if (Context.Parent)
+				{
+					Context.Parent->GetTextureParameterDefaultValue(ParameterInfo, Value, true);
+				}
+				Parameters.TextureValues.Insert(Value, Index);
 				Parameters.TextureChannelNameValues.Insert(ExpressionTextureParameter->ChannelNames, Index);
 			}
 		}
@@ -263,8 +278,14 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Font, ParameterInfo, ExpressionFontParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				Parameters.FontValues.Insert(ExpressionFontParameter->Font, Index);
-				Parameters.FontPageValues.Insert(ExpressionFontParameter->FontTexturePage, Index);
+				UFont* Font = ExpressionFontParameter->Font;
+				int32 FontTexturePage = ExpressionFontParameter->FontTexturePage;
+				if (Context.Parent)
+				{
+					Context.Parent->GetFontParameterDefaultValue(ParameterInfo, Font, FontTexturePage, true);
+				}
+				Parameters.FontValues.Insert(Font, Index);
+				Parameters.FontPageValues.Insert(FontTexturePage, Index);
 			}
 		}
 		else if (UMaterialExpressionRuntimeVirtualTextureSampleParameter* ExpressionRTVParameter = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(Expression))
@@ -273,7 +294,12 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, ExpressionRTVParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				Parameters.RuntimeVirtualTextureValues.Insert(ExpressionRTVParameter->VirtualTexture, Index);
+				URuntimeVirtualTexture* Value = ExpressionRTVParameter->VirtualTexture;
+				if (Context.Parent)
+				{
+					Context.Parent->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value, true);
+				}
+				Parameters.RuntimeVirtualTextureValues.Insert(Value, Index);
 			}
 		}
 		else if (UMaterialExpressionCollectionParameter* ExpressionCollectionParameter = Cast<UMaterialExpressionCollectionParameter>(Expression))
@@ -327,7 +353,7 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 		}
 		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{
-			if (!UpdateForFunction(FunctionCall->MaterialFunction, GlobalParameter, -1))
+			if (!UpdateForFunction(Context, FunctionCall->MaterialFunction, GlobalParameter, -1))
 			{
 				bResult = false;
 			}
@@ -339,7 +365,7 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 		else if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{
 			checkf(Association == GlobalParameter, TEXT("UMaterialExpressionMaterialAttributeLayers can't be nested"));
-			if (!UpdateForLayerFunctions(LayersExpression->DefaultLayers))
+			if (!UpdateForLayerFunctions(Context, LayersExpression->DefaultLayers))
 			{
 				bResult = false;
 			}
@@ -420,6 +446,21 @@ bool FMaterialCachedParameters::IsParameterValid(EMaterialParameterType Type, in
 {
 	const FMaterialCachedParameterEntry& Entry = Entries[(int32)Type];
 	return !bOveriddenOnly || Entry.Overrides[Index];
+}
+
+bool FMaterialCachedParameters::IsDefaultParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const
+{
+	const FMaterialCachedParameterEntry& Entry = Entries[(int32)Type];
+	const bool bOveridden = Entry.Overrides[Index];
+	if (!bCheckOwnedGlobalOverrides && bOveridden)
+	{
+		return false;
+	}
+	if (bOveriddenOnly && !bOveridden)
+	{
+		return false;
+	}
+	return true;
 }
 
 void FMaterialCachedParameters::GetAllParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
