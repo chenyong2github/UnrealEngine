@@ -591,8 +591,7 @@ void FEdModeLandscape::Enter()
 	// Force real-time viewports.  We'll back up the current viewport state so we can restore it when the
 	// user exits this mode.
 	const bool bWantRealTime = true;
-	const bool bRememberCurrentState = true;
-	ForceRealTimeViewports(bWantRealTime, bRememberCurrentState);
+	ForceRealTimeViewports(bWantRealTime);
 
 	CurrentBrush->EnterBrush();
 	if (GizmoBrush)
@@ -657,9 +656,8 @@ void FEdModeLandscape::Exit()
 	}
 
 	// Restore real-time viewport state if we changed it
-	const bool bWantRealTime = false;
-	const bool bRememberCurrentState = false;
-	ForceRealTimeViewports(bWantRealTime, bRememberCurrentState);
+	const bool bWantRealTimeOverride = false;
+	ForceRealTimeViewports(bWantRealTimeOverride);
 
 	if (Toolkit.IsValid())
 	{
@@ -3366,8 +3364,7 @@ void FEdModeLandscape::PostUndo()
 }
 
 /** Forces all level editor viewports to realtime mode */
-void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable, const bool bStoreCurrentState)
-
+void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable)
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
@@ -3381,7 +3378,7 @@ void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable, const bool bSt
 				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
 				if (bEnable)
 				{
-					Viewport.SetRealtime(bEnable, bStoreCurrentState);
+					Viewport.SetRealtimeOverride(bEnable, LOCTEXT("RealtimeOverrideMessage_Landscape", "Landscape Mode"));
 
 					// @todo vreditor: Force game view to true in VREditor since we can't use hitproxies and debug objects yet
 					UVREditorMode* VREditorMode = Cast<UVREditorMode>( GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions( GetWorld() )->FindExtension( UVREditorMode::StaticClass() ) );
@@ -3396,8 +3393,7 @@ void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable, const bool bSt
 				}
 				else
 				{
-					const bool bAllowDisable = true;
-					Viewport.RestoreRealtime(bAllowDisable);
+					Viewport.RemoveRealtimeOverride();
 				}
 			}
 		}

@@ -6142,8 +6142,39 @@ void UEditorEngine::NotifyToolsOfObjectReplacement(const TMap<UObject*, UObject*
 	}
 }
 
+void UEditorEngine::SetViewportsRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)
+{
+	for (FEditorViewportClient* VC : AllViewportClients)
+	{
+		if (VC)
+		{
+			VC->SetRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+		}
+	}
+
+	RedrawAllViewports();
+
+	FEditorSupportDelegates::UpdateUI.Broadcast();
+}
+
+void UEditorEngine::RemoveViewportsRealtimeOverride()
+{
+	for (FEditorViewportClient* VC : AllViewportClients)
+	{
+		if (VC)
+		{
+			VC->RemoveRealtimeOverride();
+		}
+	}
+
+	RedrawAllViewports();
+
+	FEditorSupportDelegates::UpdateUI.Broadcast();
+}
+
 void UEditorEngine::DisableRealtimeViewports()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for(FEditorViewportClient* VC : AllViewportClients)
 	{
 		if( VC )
@@ -6155,11 +6186,13 @@ void UEditorEngine::DisableRealtimeViewports()
 	RedrawAllViewports();
 
 	FEditorSupportDelegates::UpdateUI.Broadcast();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
 void UEditorEngine::RestoreRealtimeViewports()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for(FEditorViewportClient* VC : AllViewportClients)
 	{
 		if( VC )
@@ -6171,6 +6204,7 @@ void UEditorEngine::RestoreRealtimeViewports()
 	RedrawAllViewports();
 
 	FEditorSupportDelegates::UpdateUI.Broadcast();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 

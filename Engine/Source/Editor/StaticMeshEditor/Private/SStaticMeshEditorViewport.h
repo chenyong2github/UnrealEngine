@@ -167,9 +167,6 @@ private:
 	/** Callback for checking the physical material mask show flag. */
 	bool IsInViewModePhysicalMaterialMasksChecked() const;
 
-	/** Callback for toggling the realtime preview flag. */
-	void SetRealtimePreview();
-
 	/** Callback for updating preview socket meshes if the static mesh or socket has been modified. */
 	void OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 

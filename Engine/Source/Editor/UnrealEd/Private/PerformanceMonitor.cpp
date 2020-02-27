@@ -206,7 +206,14 @@ void FPerformanceMonitor::AutoApplyScalability()
 	const bool bAutoApplied = false;
 	Scalability::RecordQualityLevelsAnalytics(bAutoApplied);
 
-	GEditor->DisableRealtimeViewports();
+	for (FEditorViewportClient* VC : GEditor->GetAllViewportClients())
+	{
+		if (VC)
+		{
+			VC->SetRealtime(false);
+			VC->Invalidate();
+		}
+	}
 
 	// Reset the timers so as not to skew the data with the time it took to do the benchmark	
 	FineMovingAverage.Reset();
