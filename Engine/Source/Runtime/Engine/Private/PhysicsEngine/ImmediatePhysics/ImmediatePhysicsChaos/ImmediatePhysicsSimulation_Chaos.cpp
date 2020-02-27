@@ -189,8 +189,8 @@ namespace ImmediatePhysics_Chaos
 		Evolution.SetPostIntegrateCallback(
 			[this]()
 			{
-				DebugDrawDynamicParticles(3, 3, FColor(32, 32, 0));
-				DebugDrawConstraints(3, 3, 0.3f);
+				DebugDrawDynamicParticles(3, 4, FColor(32, 32, 0));
+				DebugDrawConstraints(3, 4, 0.3f);
 			});
 		Evolution.SetPostApplyCallback(
 			[this]()
@@ -637,7 +637,7 @@ namespace ImmediatePhysics_Chaos
 		Evolution.Advance(StepTime, NumSteps);
 
 		DebugDrawKinematicParticles(1, 4, FColor(128, 0, 0));
-		DebugDrawDynamicParticles(1, 4, FColor(255, 255, 0));
+		DebugDrawDynamicParticles(1, 3, FColor(255, 255, 0));
 		DebugDrawConstraints(1, 2, 1.0f);
 	}
 
