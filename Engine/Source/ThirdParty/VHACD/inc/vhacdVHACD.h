@@ -210,7 +210,7 @@ private:
             return;
         }
         m_dim = (size_t)(pow((double)params.m_resolution, 1.0 / 3.0) + 0.5);
-        Volume volume;
+        Volume volume(params);
         volume.Voxelize(points, stridePoints, nPoints,
             triangles, strideTriangles, nTriangles,
             m_dim, m_barycenter, m_rot);
@@ -273,7 +273,7 @@ private:
             progress = iteration * 100.0 / maxIteration;
             Update(progress, 0.0, params);
 
-            m_volume = new Volume;
+            m_volume = new Volume(params);
             m_volume->Voxelize(points, stridePoints, nPoints,
                 triangles, strideTriangles, nTriangles,
                 m_dim, m_barycenter, m_rot);
