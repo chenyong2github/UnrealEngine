@@ -170,12 +170,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of allowed platforms
 		/// </summary>
-		public UnrealTargetPlatform[] WhitelistPlatforms;
+		public List<UnrealTargetPlatform> WhitelistPlatforms;
 
 		/// <summary>
 		/// List of disallowed platforms
 		/// </summary>
-		public UnrealTargetPlatform[] BlacklistPlatforms;
+		public List<UnrealTargetPlatform> BlacklistPlatforms;
 
 		/// <summary>
 		/// List of allowed targets
@@ -243,13 +243,13 @@ namespace UnrealBuildTool
 				string[] WhitelistPlatforms;
 				if (InObject.TryGetStringArrayField("WhitelistPlatforms", out WhitelistPlatforms))
 				{
-					Module.WhitelistPlatforms = Array.ConvertAll(WhitelistPlatforms, x => UnrealTargetPlatform.Parse(x));
+					Module.WhitelistPlatforms = Array.ConvertAll(WhitelistPlatforms, x => UnrealTargetPlatform.Parse(x)).ToList();
 				}
 
 				string[] BlacklistPlatforms;
 				if (InObject.TryGetStringArrayField("BlacklistPlatforms", out BlacklistPlatforms))
 				{
-					Module.BlacklistPlatforms = Array.ConvertAll(BlacklistPlatforms, x => UnrealTargetPlatform.Parse(x));
+					Module.BlacklistPlatforms = Array.ConvertAll(BlacklistPlatforms, x => UnrealTargetPlatform.Parse(x)).ToList();
 				}
 			}
 			catch (BuildException Ex)
@@ -313,7 +313,7 @@ namespace UnrealBuildTool
 			Writer.WriteValue("Name", Name);
 			Writer.WriteValue("Type", Type.ToString());
 			Writer.WriteValue("LoadingPhase", LoadingPhase.ToString());
-			if (WhitelistPlatforms != null && WhitelistPlatforms.Length > 0)
+			if (WhitelistPlatforms != null && WhitelistPlatforms.Count > 0)
 			{
 				Writer.WriteArrayStart("WhitelistPlatforms");
 				foreach (UnrealTargetPlatform WhitelistPlatform in WhitelistPlatforms)
@@ -322,7 +322,7 @@ namespace UnrealBuildTool
 				}
 				Writer.WriteArrayEnd();
 			}
-			if (BlacklistPlatforms != null && BlacklistPlatforms.Length > 0)
+			if (BlacklistPlatforms != null && BlacklistPlatforms.Count > 0)
 			{
 				Writer.WriteArrayStart("BlacklistPlatforms");
 				foreach (UnrealTargetPlatform BlacklistPlatform in BlacklistPlatforms)
@@ -431,7 +431,7 @@ namespace UnrealBuildTool
 		public bool IsCompiledInConfiguration(UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string TargetName, TargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData)
 		{
 			// Check the platform is whitelisted
-			if (WhitelistPlatforms != null && WhitelistPlatforms.Length > 0 && !WhitelistPlatforms.Contains(Platform))
+			if (WhitelistPlatforms != null && WhitelistPlatforms.Count > 0 && !WhitelistPlatforms.Contains(Platform))
 			{
 				return false;
 			}
