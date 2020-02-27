@@ -416,9 +416,13 @@ void FLevelEditorSequencerIntegration::OnSequencerEvaluated()
 	// Blueprint, and other editors that have a 3d viewport.
 	for (FEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
-		if (LevelVC && !LevelVC->IsRealtime())
+		if (LevelVC)
 		{
-			LevelVC->RequestRealTimeFrames(1);
+			if (!LevelVC->IsRealtime())
+			{
+				LevelVC->RequestRealTimeFrames(1);
+			}
+			LevelVC->Invalidate();
 		}
 	}
 
