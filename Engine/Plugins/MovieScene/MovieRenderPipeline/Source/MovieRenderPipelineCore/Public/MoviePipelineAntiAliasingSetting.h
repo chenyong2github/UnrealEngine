@@ -18,7 +18,7 @@ public:
 		, bOverrideAntiAliasing(false)
 		, AntiAliasingMethod(EAntiAliasingMethod::AAM_None)
 		, HandleFrameCount(0)
-		, RenderWarmUpCount(8)
+		, RenderWarmUpCount(32)
 		, EngineWarmUpCount(0)
 		, AccumulationGamma(1.f)
 	{
