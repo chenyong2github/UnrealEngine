@@ -5,22 +5,29 @@
 #include "DatasmithImportOptions.h"
 #include "DatasmithPayload.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 
 #include "HAL/FileManager.h" // IFileManager
+#include "Misc/FileHelper.h"
 #include "Math/Transform.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
-#include "XmlParser.h"
 #include "Modules/ModuleManager.h"
+#include "XmlParser.h"
 
 
+#ifdef CAD_LIBRARY
 #include "CADData.h"
 #include "CADToolsModule.h"
+#include "CoreTechParametricSurfaceExtension.h"
+#endif // CAD_LIBRARY
+#include "DatasmithAdditionalData.h"
 #include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"
 #include "DatasmithSceneGraphBuilder.h"
 #include "DatasmithUtils.h"
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogDatasmithPlmXmlImport, Log, All);
 
@@ -215,16 +222,17 @@ namespace PlmXml
 		ActorElement->SetScale(Transform.GetScale3D());
 	}
 
-#ifdef CAD_INTERFACE
+#ifdef CAD_LIBRARY
 	class FPlmXmlMeshLoaderWithDatasmithDispatcher
 	{
 	public:
 		TSharedRef<IDatasmithScene> DatasmithScene;
+		FDatasmithTessellationOptions& TessellationOptions;
+		
 		TUniquePtr<DatasmithDispatcher::FDatasmithDispatcher> DatasmithDispatcher;
 
 		TUniquePtr <FDatasmithSceneGraphBuilder> SceneGraphBuilder;
 		TUniquePtr<FDatasmithMeshBuilder> MeshBuilderPtr;
-
 
 		CADLibrary::FImportParameters ImportParameters;
 		TMap<uint32, FString> CADFileToUE4GeomMap;
@@ -234,8 +242,10 @@ namespace PlmXml
 
 		FString CacheDir;
 
-		FPlmXmlMeshLoaderWithDatasmithDispatcher(TSharedRef<IDatasmithScene> InDatasmithScene, FDatasmithTessellationOptions& TessellationOptions)
+		FPlmXmlMeshLoaderWithDatasmithDispatcher(TSharedRef<IDatasmithScene> InDatasmithScene, FDatasmithTessellationOptions& InTessellationOptions)
 			: DatasmithScene(InDatasmithScene)
+			, TessellationOptions(InTessellationOptions)
+		
 		{
 			FCADToolsModule& CADToolsModule = FCADToolsModule::Get();
 			
@@ -302,6 +312,9 @@ namespace PlmXml
 			if (TOptional<FMeshDescription> Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 			{
 				OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
+
+				DatasmithCoreTechParametricSurfaceData::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
+				
 				return true;
 			}
 			return false;
@@ -309,7 +322,7 @@ namespace PlmXml
 
 		void SetTessellationOptions(const UDatasmithCommonTessellationOptions& TessellationOptions);
 	};
-#else
+#else // CAD_LIBRARY
 	class FPlmXmlMeshLoaderSimple
 	{
 	public:
@@ -371,7 +384,7 @@ namespace PlmXml
 
 		void SetTessellationOptions(const UDatasmithCommonTessellationOptions& TessellationOptions);
 	};
-#endif
+#endif // CAD_LIBRARY
 	struct FParsedPlmXml
 	{
 		TMap<FString, const FXmlNode*> ExternalFileNodes;
