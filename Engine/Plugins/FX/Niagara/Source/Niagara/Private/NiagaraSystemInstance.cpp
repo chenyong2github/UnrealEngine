@@ -1339,7 +1339,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			CalcInstDataSize(Sim.GetEventExecutionContexts()[i].GetDataInterfaces());
 		}
 
-		if (Sim.GetCachedEmitter() && Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetCachedEmitter()->bSimulationStagesEnabled)
+		if (Sim.GetCachedEmitter() && Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetCachedEmitter()->bSimulationStagesEnabled && Sim.GetGPUContext())
 		{
 			CalcInstDataSize(Sim.GetGPUContext()->GetDataInterfaces());
 		}
