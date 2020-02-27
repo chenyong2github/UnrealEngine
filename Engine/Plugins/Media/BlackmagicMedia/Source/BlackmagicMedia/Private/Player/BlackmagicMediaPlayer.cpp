@@ -5,6 +5,7 @@
 #include "Blackmagic.h"
 #include "BlackmagicMediaPrivate.h"
 #include "BlackmagicMediaSource.h"
+#include "IBlackmagicMediaModule.h"
 
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformProcess.h"
@@ -22,6 +23,7 @@
 #include "Misc/App.h"
 #include "Slate/SceneViewport.h"
 #include "Stats/Stats2.h"
+#include "Styling/SlateStyle.h"
 
 #include "BlackmagicMediaSource.h"
 
@@ -55,9 +57,8 @@ namespace BlackmagicMediaPlayerHelpers
 			, LastBitsPerSample(0)
 			, LastNumChannels(0)
 			, LastSampleRate(0)
-			, AudioFrameDropCount(0)
-			, MetadataFrameDropCount(0)
-			, VideoFrameDropCount(0)
+			, PreviousAudioFrameDropCount(0)
+			, PreviousVideoFrameDropCount(0)
 			, LastHasFrameTime(0.0)
 			, bReceivedValidFrame(false)
 			, bIsTimecodeExpected(false)
@@ -108,32 +109,30 @@ namespace BlackmagicMediaPlayerHelpers
 
 		void VerifyFrameDropCount_GameThread(const FString& InUrl)
 		{
-			//Audio buffer
-			int32 AudioOverflowCount = FMath::Max(MediaPlayer->Samples->NumAudioSamples() - MaxNumAudioFrameBuffer, 0);
-			for (int32 i = 0; i < AudioOverflowCount; ++i)
-			{
-				MediaPlayer->Samples->PopAudio();
-			}
-
-			//Video buffer
-			int32 VideoOverflowCount = FMath::Max(MediaPlayer->Samples->NumVideoSamples() - MaxNumVideoFrameBuffer, 0);
-			for (int32 i = 0; i < VideoOverflowCount; ++i)
-			{
-				MediaPlayer->Samples->PopVideo();
-			}
-
 			if (MediaPlayer->bVerifyFrameDropCount)
 			{
-				AudioOverflowCount += FPlatformAtomics::InterlockedExchange(&AudioFrameDropCount, 0);
-				if (AudioOverflowCount > 0)
+				const int32 CurrentAudioDropCount = MediaPlayer->Samples->GetAudioFrameDropCount();
+				int32 DeltaAudioDropCount = CurrentAudioDropCount;
+				if (CurrentAudioDropCount >= PreviousAudioFrameDropCount)
 				{
-					UE_LOG(LogBlackmagicMedia, Warning, TEXT("Lost %d audio frames on input %s. Frame rate is either too slow or buffering capacity is too small."), AudioOverflowCount, *InUrl);
+					DeltaAudioDropCount = CurrentAudioDropCount - PreviousAudioFrameDropCount;
+				}
+				PreviousAudioFrameDropCount = CurrentAudioDropCount;
+				if (DeltaAudioDropCount > 0)
+				{
+					UE_LOG(LogBlackmagicMedia, Warning, TEXT("Lost %d audio frames on input %s. Frame rate is either too slow or buffering capacity is too small."), DeltaAudioDropCount, *InUrl);
 				}
 
-				VideoOverflowCount += FPlatformAtomics::InterlockedExchange(&VideoFrameDropCount, 0);
-				if (VideoOverflowCount > 0)
+				const int32 CurrentVideoDropCount = MediaPlayer->Samples->GetVideoFrameDropCount();
+				int32 DeltaVideoDropCount = CurrentVideoDropCount;
+				if (CurrentVideoDropCount >= PreviousVideoFrameDropCount)
 				{
-					UE_LOG(LogBlackmagicMedia, Warning, TEXT("Lost %d video frames on input %s. Frame rate is either too slow or buffering capacity is too small."), VideoOverflowCount, *InUrl);
+					DeltaVideoDropCount = CurrentVideoDropCount - PreviousVideoFrameDropCount;
+				}
+				PreviousVideoFrameDropCount = CurrentVideoDropCount;
+				if (DeltaVideoDropCount > 0)
+				{
+					UE_LOG(LogBlackmagicMedia, Warning, TEXT("Lost %d video frames on input %s. Frame rate is either too slow or buffering capacity is too small."), DeltaVideoDropCount, *InUrl);
 				}
 			}
 		}
@@ -236,126 +235,105 @@ namespace BlackmagicMediaPlayerHelpers
 
 				if (InFrameInfo.AudioBuffer)
 				{
-					if (MediaPlayer->Samples->NumAudioSamples() >= MaxNumAudioFrameBuffer * BlackmagicMediaPlayerHelpers::ToleratedExtraMaxBufferCount)
+					auto AudioSamle = MediaPlayer->AudioSamplePool->AcquireShared();
+					if (AudioSamle->Initialize(reinterpret_cast<int32*>(InFrameInfo.AudioBuffer)
+						, InFrameInfo.AudioBufferSize / sizeof(int32)
+						, InFrameInfo.NumberOfAudioChannel
+						, InFrameInfo.AudioRate
+						, DecodedTime
+						, DecodedTimecode))
 					{
-						if (MediaPlayer->bVerifyFrameDropCount)
-						{
-							FPlatformAtomics::InterlockedIncrement(&AudioFrameDropCount);
-						}
-					}
-					else
-					{
-						auto AudioSamle = MediaPlayer->AudioSamplePool->AcquireShared();
-						if (AudioSamle->Initialize(reinterpret_cast<int32*>(InFrameInfo.AudioBuffer)
-							, InFrameInfo.AudioBufferSize / sizeof(int32)
-							, InFrameInfo.NumberOfAudioChannel
-							, InFrameInfo.AudioRate
-							, DecodedTime
-							, DecodedTimecode))
-						{
-							MediaPlayer->Samples->AddAudio(AudioSamle);
+						MediaPlayer->Samples->AddAudio(AudioSamle);
 
-							LastBitsPerSample = sizeof(int32);
-							LastSampleRate = InFrameInfo.AudioRate;
-							LastNumChannels = InFrameInfo.NumberOfAudioChannel;
-						}
+						LastBitsPerSample = sizeof(int32);
+						LastSampleRate = InFrameInfo.AudioRate;
+						LastNumChannels = InFrameInfo.NumberOfAudioChannel;
 					}
 				}
 
 				if (InFrameInfo.VideoBuffer)
 				{
 					const bool bIsProgressivePicture = InFrameInfo.FieldDominance != BlackmagicDesign::EFieldDominance::Interlaced;
-					const int32 NumVideoSamples = MediaPlayer->Samples->NumVideoSamples() + (!bIsProgressivePicture ? 1 : 0);
-					if (NumVideoSamples >= MaxNumVideoFrameBuffer * BlackmagicMediaPlayerHelpers::ToleratedExtraMaxBufferCount)
+					EMediaTextureSampleFormat SampleFormat = EMediaTextureSampleFormat::CharBGRA;
+					EMediaIOCoreEncodePixelFormat EncodePixelFormat = EMediaIOCoreEncodePixelFormat::CharUYVY;
+					FString OutputFilename = "";
+
+					switch (InFrameInfo.PixelFormat)
 					{
-						if (MediaPlayer->bVerifyFrameDropCount)
+					case BlackmagicDesign::EPixelFormat::pf_8Bits:
+						SampleFormat = EMediaTextureSampleFormat::CharUYVY;
+						EncodePixelFormat = EMediaIOCoreEncodePixelFormat::CharUYVY;
+						OutputFilename = FString::Printf(TEXT("Blackmagic_Output_8_YUV_ch%d"), ChannelInfo.DeviceIndex);
+						break;
+					case BlackmagicDesign::EPixelFormat::pf_10Bits:
+						SampleFormat = EMediaTextureSampleFormat::YUVv210;
+						EncodePixelFormat = EMediaIOCoreEncodePixelFormat::YUVv210;
+						OutputFilename = FString::Printf(TEXT("Blackmagic_Output_10_YUV_ch%d"), ChannelInfo.DeviceIndex);
+						break;
+					}
+
+					if (bBlackmagicWriteOutputRawDataCmdEnable)
+					{
+						MediaIOCoreFileWriter::WriteRawFile(OutputFilename, reinterpret_cast<uint8*>(InFrameInfo.VideoBuffer), InFrameInfo.VideoPitch * InFrameInfo.VideoHeight);
+						bBlackmagicWriteOutputRawDataCmdEnable = false;
+					}
+
+					if (bIsProgressivePicture)
+					{
+						if (bEncodeTimecodeInTexel && DecodedTimecode.IsSet())
 						{
-							FPlatformAtomics::InterlockedIncrement(&VideoFrameDropCount);
+							FTimecode SetTimecode = DecodedTimecode.GetValue();
+							FMediaIOCoreEncodeTime EncodeTime(EncodePixelFormat, InFrameInfo.VideoBuffer, InFrameInfo.VideoPitch, InFrameInfo.VideoWidth, InFrameInfo.VideoHeight);
+							EncodeTime.Render(SetTimecode.Hours, SetTimecode.Minutes, SetTimecode.Seconds, SetTimecode.Frames);
+						}
+
+						auto TextureSample = MediaPlayer->TextureSamplePool->AcquireShared();
+						if (TextureSample->Initialize(InFrameInfo.VideoBuffer
+							, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
+							, InFrameInfo.VideoPitch
+							, InFrameInfo.VideoWidth
+							, InFrameInfo.VideoHeight
+							, SampleFormat
+							, DecodedTime
+							, MediaPlayer->VideoFrameRate
+							, DecodedTimecode
+							, bIsSRGBInput))
+						{
+							MediaPlayer->Samples->AddVideo(TextureSample);
 						}
 					}
 					else
 					{
-						EMediaTextureSampleFormat SampleFormat = EMediaTextureSampleFormat::CharBGRA;
-						EMediaIOCoreEncodePixelFormat EncodePixelFormat = EMediaIOCoreEncodePixelFormat::CharUYVY;
-						FString OutputFilename = "";
-
-						switch (InFrameInfo.PixelFormat)
+						auto TextureSampleEven = MediaPlayer->TextureSamplePool->AcquireShared();
+						if (TextureSampleEven->InitializeWithEvenOddLine(true
+							, InFrameInfo.VideoBuffer
+							, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
+							, InFrameInfo.VideoPitch
+							, InFrameInfo.VideoWidth
+							, InFrameInfo.VideoHeight
+							, SampleFormat
+							, DecodedTime
+							, MediaPlayer->VideoFrameRate
+							, DecodedTimecode
+							, bIsSRGBInput))
 						{
-						case BlackmagicDesign::EPixelFormat::pf_8Bits:
-							SampleFormat = EMediaTextureSampleFormat::CharUYVY;
-							EncodePixelFormat = EMediaIOCoreEncodePixelFormat::CharUYVY;
-							OutputFilename = FString::Printf(TEXT("Blackmagic_Output_8_YUV_ch%d"), ChannelInfo.DeviceIndex);
-							break;
-						case BlackmagicDesign::EPixelFormat::pf_10Bits:
-							SampleFormat = EMediaTextureSampleFormat::YUVv210;
-							EncodePixelFormat = EMediaIOCoreEncodePixelFormat::YUVv210;
-							OutputFilename = FString::Printf(TEXT("Blackmagic_Output_10_YUV_ch%d"), ChannelInfo.DeviceIndex);
-							break;
+							MediaPlayer->Samples->AddVideo(TextureSampleEven);
 						}
 
-						if (bBlackmagicWriteOutputRawDataCmdEnable)
+						auto TextureSampleOdd = MediaPlayer->TextureSamplePool->AcquireShared();
+						if (TextureSampleOdd->InitializeWithEvenOddLine(false
+							, InFrameInfo.VideoBuffer
+							, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
+							, InFrameInfo.VideoPitch
+							, InFrameInfo.VideoWidth
+							, InFrameInfo.VideoHeight
+							, SampleFormat
+							, DecodedTimeF2
+							, MediaPlayer->VideoFrameRate
+							, DecodedTimecodeF2
+							, bIsSRGBInput))
 						{
-							MediaIOCoreFileWriter::WriteRawFile(OutputFilename, reinterpret_cast<uint8*>(InFrameInfo.VideoBuffer), InFrameInfo.VideoPitch * InFrameInfo.VideoHeight);
-							bBlackmagicWriteOutputRawDataCmdEnable = false;
-						}
-
-						if (bIsProgressivePicture)
-						{
-							if (bEncodeTimecodeInTexel && DecodedTimecode.IsSet())
-							{
-								FTimecode SetTimecode = DecodedTimecode.GetValue();
-								FMediaIOCoreEncodeTime EncodeTime(EncodePixelFormat, InFrameInfo.VideoBuffer, InFrameInfo.VideoPitch, InFrameInfo.VideoWidth, InFrameInfo.VideoHeight);
-								EncodeTime.Render(SetTimecode.Hours, SetTimecode.Minutes, SetTimecode.Seconds, SetTimecode.Frames);
-							}
-
-							auto TextureSample = MediaPlayer->TextureSamplePool->AcquireShared();
-							if (TextureSample->Initialize(InFrameInfo.VideoBuffer
-								, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
-								, InFrameInfo.VideoPitch
-								, InFrameInfo.VideoWidth
-								, InFrameInfo.VideoHeight
-								, SampleFormat
-								, DecodedTime
-								, MediaPlayer->VideoFrameRate
-								, DecodedTimecode
-								, bIsSRGBInput))
-							{
-								MediaPlayer->Samples->AddVideo(TextureSample);
-							}
-						}
-						else
-						{
-							auto TextureSampleEven = MediaPlayer->TextureSamplePool->AcquireShared();
-							if (TextureSampleEven->InitializeWithEvenOddLine(true
-								, InFrameInfo.VideoBuffer
-								, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
-								, InFrameInfo.VideoPitch
-								, InFrameInfo.VideoWidth
-								, InFrameInfo.VideoHeight
-								, SampleFormat
-								, DecodedTime
-								, MediaPlayer->VideoFrameRate
-								, DecodedTimecode
-								, bIsSRGBInput))
-							{
-								MediaPlayer->Samples->AddVideo(TextureSampleEven);
-							}
-
-							auto TextureSampleOdd = MediaPlayer->TextureSamplePool->AcquireShared();
-							if (TextureSampleOdd->InitializeWithEvenOddLine(false
-								, InFrameInfo.VideoBuffer
-								, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
-								, InFrameInfo.VideoPitch
-								, InFrameInfo.VideoWidth
-								, InFrameInfo.VideoHeight
-								, SampleFormat
-								, DecodedTimeF2
-								, MediaPlayer->VideoFrameRate
-								, DecodedTimecodeF2
-								, bIsSRGBInput))
-							{
-								MediaPlayer->Samples->AddVideo(TextureSampleOdd);
-							}
+							MediaPlayer->Samples->AddVideo(TextureSampleOdd);
 						}
 					}
 				}
@@ -393,9 +371,9 @@ namespace BlackmagicMediaPlayerHelpers
 		uint32 LastNumChannels;
 		uint32 LastSampleRate;
 
-		int32 AudioFrameDropCount;
-		int32 MetadataFrameDropCount;
-		int32 VideoFrameDropCount;
+		/** Frame drop count from the previous tick to keep track of deltas */
+		int32 PreviousAudioFrameDropCount;
+		int32 PreviousVideoFrameDropCount;
 
 		int32 MaxNumAudioFrameBuffer;
 		int32 MaxNumVideoFrameBuffer;
@@ -421,7 +399,9 @@ FBlackmagicMediaPlayer::FBlackmagicMediaPlayer(IMediaEventSink& InEventSink)
 	, AudioSamplePool(new FBlackmagicMediaAudioSamplePool)
 	, TextureSamplePool(new FBlackmagicMediaTextureSamplePool)
 	, bVerifyFrameDropCount(false)
+	, SupportedSampleTypes(static_cast<EMediaIOSampleType>(static_cast<uint8>(EMediaIOSampleType::Video) | static_cast<uint8>(EMediaIOSampleType::Audio)))
 {
+	Samples->EnableTimedDataChannels(SupportedSampleTypes);
 }
 
 FBlackmagicMediaPlayer::~FBlackmagicMediaPlayer()
@@ -511,8 +491,11 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 
 	bVerifyFrameDropCount = Options->GetMediaOption(BlackmagicMediaOption::LogDropFrame, false);
 	const bool bEncodeTimecodeInTexel = TimecodeFormat != EMediaIOTimecodeFormat::None && Options->GetMediaOption(BlackmagicMediaOption::EncodeTimecodeInTexel, false);
-	int32 MaxNumAudioFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxAudioFrameBuffer, (int64)8);
-	int32 MaxNumVideoFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxVideoFrameBuffer, (int64)8);
+	MaxNumAudioFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxAudioFrameBuffer, (int64)8);
+	MaxNumVideoFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxVideoFrameBuffer, (int64)8);
+
+	// Setup our different supported channels based on source settings
+	SetupSampleChannels();
 
 	bool bSuccess = EventCallback->Initialize(ChannelOptions, bEncodeTimecodeInTexel, MaxNumAudioFrameBuffer, MaxNumVideoFrameBuffer, bIsSRGBInput);
 
@@ -554,14 +537,22 @@ void FBlackmagicMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 	TickTimeManagement();
 }
 
-void FBlackmagicMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
+void FBlackmagicMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 {
+	Super::TickFetch(DeltaTime, Timecode);
 	if (IsHardwareReady())
 	{
 		ProcessFrame();
 		VerifyFrameDropCount();
 	}
 }
+
+#if WITH_EDITOR
+const FSlateBrush* FBlackmagicMediaPlayer::GetDisplayIcon() const
+{
+	return IBlackmagicMediaModule::Get().GetStyle()->GetBrush("BlackmagicMediaIcon");
+}
+#endif //WITH_EDITOR
 
 void FBlackmagicMediaPlayer::ProcessFrame()
 {
@@ -576,6 +567,17 @@ void FBlackmagicMediaPlayer::VerifyFrameDropCount()
 bool FBlackmagicMediaPlayer::IsHardwareReady() const
 {
 	return EventCallback && EventCallback->GetMediaState() == EMediaState::Playing;
+}
+
+void FBlackmagicMediaPlayer::SetupSampleChannels()
+{
+	FMediaIOSamplingSettings VideoSettings = BaseSettings;
+	VideoSettings.BufferSize = MaxNumVideoFrameBuffer;
+	Samples->InitializeVideoBuffer(VideoSettings);
+
+	FMediaIOSamplingSettings AudioSettings = BaseSettings;
+	AudioSettings.BufferSize = MaxNumAudioFrameBuffer;
+	Samples->InitializeAudioBuffer(AudioSettings);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -39,8 +39,12 @@ struct FLiveLinkSourceBufferManagementSettings
 {
 	GENERATED_BODY()
 
+	/** Enabled the ValidEngineTime setting. */
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(InlineEditConditionToggle=true))
+	bool bValidEngineTimeEnabled = false;
+
 	/** If the frame is older than ValidTime, remove it from the buffer list (in seconds). */
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ForceUnits=s, ClampMin=0.5))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ForceUnits=s, ClampMin=0.5, EditCondition="bValidEngineTimeEnabled"))
 	float ValidEngineTime = 1.0f;
 
 	/** When evaluating with time: how far back from current time should we read the buffer (in seconds) */
@@ -64,7 +68,11 @@ struct FLiveLinkSourceBufferManagementSettings
 	FFrameRate SourceTimecodeFrameRate = { 24, 1 };
 
 	/** If the frame timecode is older than ValidTimecodeFrame, remove it from the buffer list (in TimecodeFrameRate). */
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ClampMin=1))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(InlineEditConditionToggle=true))
+	bool bValidTimecodeFrameEnabled = false;
+
+	/** If the frame timecode is older than ValidTimecodeFrame, remove it from the buffer list (in TimecodeFrameRate). */
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ClampMin=1, EditCondition="bValidTimecodeFrameEnabled"))
 	int32 ValidTimecodeFrame = 30;
 
 	/** When evaluating with timecode: how far back from current timecode should we read the buffer (in TimecodeFrameRate). */
