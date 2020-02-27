@@ -695,7 +695,7 @@ private:
 	TArray<FPendingAutoReceiveInputActor> PendingAutoReceiveInputActors;
 
 	/** List of replicated static actors that have been destroyed. Used by net drivers to replicate destruction to clients. */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray<FReplicatedStaticActorDestructionInfo> DestroyedReplicatedStaticActors;
 
 #if WITH_EDITORONLY_DATA
