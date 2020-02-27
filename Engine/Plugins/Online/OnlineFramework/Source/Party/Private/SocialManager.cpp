@@ -688,7 +688,7 @@ void USocialManager::RegisterSecondaryPlayer(int32 LocalPlayerNum, const FOnJoin
 
 		if (PrimaryUserId.IsValid() && SecondaryUserId.IsValid())
 		{
-			// FORT-245799 If P2 is already in the party, leave first so we can join cleanly
+			// If P2 is already in the party, leave first so we can join cleanly
 			if (PersistentParty->GetPartyMember(SecondaryUserId))
 			{
 				PersistentParty->RemoveLocalMember(SecondaryUserId, USocialParty::FOnLeavePartyAttemptComplete::CreateWeakLambda(this, [this, LocalPlayerNum, JoinDelegate](ELeavePartyCompletionResult LeaveResult)
@@ -707,12 +707,14 @@ void USocialManager::RegisterSecondaryPlayer(int32 LocalPlayerNum, const FOnJoin
 					}
 				}));
 			}
-
-			FString JoinInfoStr = PartyInterface->MakeJoinInfoJson(*PrimaryUserId, PersistentParty->GetPartyId());
-			IOnlinePartyJoinInfoConstPtr JoinInfo = PartyInterface->MakeJoinInfoFromJson(JoinInfoStr);
-			if (JoinInfo && JoinInfo->IsValid())
+			else
 			{
-				PartyInterface->JoinParty(*SecondaryUserId, *JoinInfo, JoinDelegate);
+				FString JoinInfoStr = PartyInterface->MakeJoinInfoJson(*PrimaryUserId, PersistentParty->GetPartyId());
+				IOnlinePartyJoinInfoConstPtr JoinInfo = PartyInterface->MakeJoinInfoFromJson(JoinInfoStr);
+				if (JoinInfo && JoinInfo->IsValid())
+				{
+					PartyInterface->JoinParty(*SecondaryUserId, *JoinInfo, JoinDelegate);
+				}
 			}
 		}
 	}
