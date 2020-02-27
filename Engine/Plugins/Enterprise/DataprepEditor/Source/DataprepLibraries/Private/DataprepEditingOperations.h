@@ -157,3 +157,23 @@ protected:
 
 	bool IsActorVisible(AActor*, TMap<AActor*, bool>& VisibilityMap);
 };
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Spawn Actors At Location", ToolTip = "For each actor in the input set, spawn an actor from the specified Asset at the same position and orientation than the reference"))
+class UDataprepSpawnActorsAtLocation : public UDataprepEditingOperation
+{
+	GENERATED_BODY()
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation)
+	UStaticMesh* StaticMesh;
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
