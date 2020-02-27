@@ -8,22 +8,27 @@
 #include "DataprepGraph/DataprepGraph.h"
 #include "DataprepGraph/DataprepGraphSchema.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
+#include "SchemaActions/DataprepAllMenuActionCollector.h"
 #include "SchemaActions/DataprepDragDropOp.h"
+#include "SchemaActions/IDataprepMenuActionCollector.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 #include "Widgets/DataprepWidgets.h"
+#include "Widgets/SDataprepActionMenu.h"
 
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphNode_Comment.h"
 #include "EdGraphUtilities.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "ScopedTransaction.h"
 #include "SGraphPanel.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
@@ -77,13 +82,19 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 	check(InDataprepAsset);
 	DataprepAssetPtr = InDataprepAsset;
 
+	SGraphEditor::FGraphEditorEvents Events;
+	Events.OnCreateNodeOrPinMenu = SGraphEditor::FOnCreateNodeOrPinMenu::CreateSP(this, &SDataprepGraphEditor::OnCreateNodeOrPinMenu);
+	Events.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &SDataprepGraphEditor::OnCreateActionMenu);
+	Events.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &SDataprepGraphEditor::OnNodeVerifyTitleCommit);
+	Events.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &SDataprepGraphEditor::OnNodeTitleCommitted);
+
 	BuildCommandList();
 
 	SGraphEditor::FArguments Arguments;
 	Arguments._AdditionalCommands = GraphEditorCommands;
 	Arguments._TitleBar = InArgs._TitleBar;
 	Arguments._GraphToEdit = InArgs._GraphToEdit;
-	Arguments._GraphEvents = InArgs._GraphEvents;
+	Arguments._GraphEvents = Events;
 
 	SGraphEditor::Construct( Arguments );
 
@@ -399,10 +410,6 @@ void SDataprepGraphEditor::BuildCommandList()
 			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::DuplicateNodes),
 			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanDuplicateNodes)
 		);
-
-		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
-			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::OnCreateComment)
-		);
 	}
 }
 
@@ -705,31 +712,6 @@ void SDataprepGraphEditor::DeleteSelectedDuplicatableNodes()
 	}
 }
 
-void SDataprepGraphEditor::OnCreateComment()
-{
-	if (UEdGraph* Graph = GetCurrentGraph())
-	{
-		if (const UEdGraphSchema* Schema = Graph->GetSchema())
-		{
-			// Add menu item for creating comment boxes
-			UEdGraphNode_Comment* CommentTemplate = NewObject<UEdGraphNode_Comment>();
-
-			FVector2D SpawnLocation = GetPasteLocation();
-
-			FSlateRect Bounds;
-			if ( GetBoundsForSelectedNodes(Bounds, 50.0f) )
-			{
-				CommentTemplate->SetBounds(Bounds);
-				SpawnLocation.X = CommentTemplate->NodePosX;
-				SpawnLocation.Y = CommentTemplate->NodePosY;
-			}
-
-			UEdGraphNode* NewNode = FEdGraphSchemaAction_NewNode::SpawnNodeFromTemplate<UEdGraphNode_Comment>(Graph, CommentTemplate, SpawnLocation, /** bSelectNewNode */ true);
-		}
-	}
-}
-
-
 bool SDataprepGraphEditor::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage)
 {
 	bool bValid(false);
@@ -749,14 +731,6 @@ bool SDataprepGraphEditor::OnNodeVerifyTitleCommit(const FText& NewText, UEdGrap
 		{
 			bValid = true;
 		}
-		//else if (PipelineView.IsValid())
-		//{
-		//	EValidatorResult Valid = NameEntryValidator->IsValid(NewText.ToString(), false);
-
-		//	NodeBeingChanged->bHasCompilerMessage = true;
-		//	NodeBeingChanged->ErrorMsg = NameEntryValidator->GetErrorString(NewText.ToString(), Valid);
-		//	NodeBeingChanged->ErrorType = EMessageSeverity::Error;
-		//}
 	}
 
 	return bValid;
@@ -770,6 +744,48 @@ void SDataprepGraphEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommi
 		NodeBeingChanged->Modify();
 		NodeBeingChanged->OnRenameNode(NewText.ToString());
 	}
+}
+
+FActionMenuContent SDataprepGraphEditor::OnCreateActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
+{
+	// bAutoExpand is voluntary ignored for now
+	TUniquePtr<IDataprepMenuActionCollector> ActionCollector = MakeUnique<FDataprepAllMenuActionCollector>();
+
+	TSharedRef<SDataprepActionMenu> ActionMenu =
+		SNew (SDataprepActionMenu, MoveTemp(ActionCollector))
+		.TransactionText(LOCTEXT("AddingANewActionNode","Add a Action Node"))
+		.GraphObj(InGraph)
+		.NewNodePosition(InNodePosition)
+		.DraggedFromPins(InDraggedPins)
+		.OnClosedCallback(InOnMenuClosed);
+
+	return FActionMenuContent( ActionMenu, ActionMenu->GetFilterTextBox() );
+}
+
+FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging)
+{
+	if(CurrentGraph != GetCurrentGraph())
+	{
+		return FActionMenuContent();
+	}
+
+	// Open contextual menu for action node
+	if(const UDataprepGraphActionNode* ActionNode = Cast<const UDataprepGraphActionNode>(InGraphNode))
+	{
+		MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
+		{
+			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Copy);
+			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Cut);
+			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Duplicate);
+			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Delete);
+		}
+		MenuBuilder->EndSection();
+
+		return FActionMenuContent(MenuBuilder->MakeWidget());
+	}
+
+	// Create contextual for graph panel when on top of track node too
+	return OnCreateActionMenu(CurrentGraph, GetPasteLocation(), TArray<UEdGraphPin*>(), true, SGraphEditor::FActionMenuClosed());
 }
 
 #undef LOCTEXT_NAMESPACE
