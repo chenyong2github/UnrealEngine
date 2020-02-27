@@ -19,6 +19,7 @@
 #include "NiagaraComponentPool.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEffectType.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Update Scalability Managers [GT]"), STAT_UpdateScalabilityManagers, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
@@ -138,6 +139,7 @@ FName FNiagaraWorldManagerTickFunction::DiagnosticContext(bool bDetailed)
 FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
 	: World(InWorld)
 	, CachedEffectsQuality(INDEX_NONE)
+	, bAppHasFocus(true)
 {
 	for (int32 TickGroup=0; TickGroup < NiagaraNumTickGroups; ++TickGroup)
 	{
@@ -571,6 +573,8 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	{
 		FNiagaraSharedObject::FlushDeletionList();
 
+		bAppHasFocus = FPlatformApplicationMisc::IsThisApplicationForeground();
+
 		// Cache player view locations for all system instances to access
 		//-TODO: Do we need to do this per tick group?
 		bCachedPlayerViewLocationsValid = true;
@@ -798,7 +802,8 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	OwnerLODCull(EffectType, ScalabilitySettings, Component, OutState);
 	
 	//Can't cull dynamic bounds by visibility
-	if (System->bFixedBounds)
+
+	if (System->bFixedBounds && bAppHasFocus)
 	{
 		VisibilityCull(EffectType, ScalabilitySettings, Component, OutState);
 	}
