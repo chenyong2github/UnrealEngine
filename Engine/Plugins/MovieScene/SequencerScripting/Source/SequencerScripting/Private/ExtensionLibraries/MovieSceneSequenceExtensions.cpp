@@ -37,11 +37,11 @@ TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::GetMasterTracks(UMovieS
 	if (MovieScene)
 	{
 		Tracks = MovieScene->GetMasterTracks();
-	}
 
-	if (UMovieSceneTrack* CameraCutTrack = MovieScene->GetCameraCutTrack())
-	{
-		Tracks.Add(CameraCutTrack);
+		if (UMovieSceneTrack* CameraCutTrack = MovieScene->GetCameraCutTrack())
+		{
+			Tracks.Add(CameraCutTrack);
+		}
 	}
 
 	return Tracks;
