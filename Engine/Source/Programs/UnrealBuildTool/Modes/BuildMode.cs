@@ -303,7 +303,8 @@ namespace UnrealBuildTool
 							Result.AppendFormat("\n{0}", EngineChange.FullName);
 						}
 						Result.Append("\n\nPlease rebuild from an IDE instead.");
-						throw new BuildException(Result.ToString());
+						Log.TraceError("{0}", Result.ToString());
+						throw new CompilationResultException(CompilationResult.FailedDueToEngineChange);
 					}
 				}
 
