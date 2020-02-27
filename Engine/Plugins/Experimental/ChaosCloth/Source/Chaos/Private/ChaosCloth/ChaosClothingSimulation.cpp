@@ -50,6 +50,7 @@
 
 namespace ChaosClothingSimulationConsoleVariables
 {
+	TAutoConsoleVariable<bool> CVarDebugDrawBounds          (TEXT("p.ChaosCloth.DebugDrawBounds"              ), false, TEXT("Whether to debug draw the Chaos Cloth bounds"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugDrawPhysMeshWired   (TEXT("p.ChaosCloth.DebugDrawPhysMeshWired"       ), false, TEXT("Whether to debug draw the Chaos Cloth wireframe meshes"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugPointNormals        (TEXT("p.ChaosCloth.DebugDrawPointNormals"        ), false, TEXT("Whether to debug draw the Chaos Cloth point normals"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugInversedPointNormals(TEXT("p.ChaosCloth.DebugDrawInversedPointNormals"), false, TEXT("Whether to debug draw the Chaos Cloth inversed point normals"), ECVF_Cheat);
@@ -1372,6 +1373,7 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	// Debug draw
 #if CHAOS_DEBUG_DRAW
+	if (ChaosClothingSimulationConsoleVariables::CVarDebugDrawBounds          .GetValueOnAnyThread()) { DebugDrawBounds              (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugDrawPhysMeshWired   .GetValueOnAnyThread()) { DebugDrawPhysMeshWired       (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugPointNormals        .GetValueOnAnyThread()) { DebugDrawPointNormals        (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugInversedPointNormals.GetValueOnAnyThread()) { DebugDrawInversedPointNormals(); }
@@ -1436,6 +1438,46 @@ void ClothingSimulation::GetSimulationData(
             Data.Normals[LocalIndex] = -PointNormals[i][LocalIndex]; // Note the Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
 		}
     }
+}
+
+FBoxSphereBounds ClothingSimulation::GetBounds(const USkeletalMeshComponent* InOwnerComponent) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+	if (!Particles.Size())
+	{
+		return FBoxSphereBounds(EForceInit::ForceInit);
+	}
+
+	// Find bounding box
+	TAABB<float, 3> BoundingBox = TAABB<float, 3>::EmptyAABB();
+	for (uint32 ParticleIndex = 0; ParticleIndex < Particles.Size(); ++ParticleIndex)
+	{
+		BoundingBox.GrowToInclude(Particles.X(ParticleIndex) + LocalSimSpaceOffset);
+	}
+
+	// Find bounding sphere (squared) radius
+	const TVector<float, 3> Center = BoundingBox.Center();
+	float SquaredRadius = 0.f;
+	for (uint32 ParticleIndex = 0; ParticleIndex < Particles.Size(); ++ParticleIndex)
+	{
+		SquaredRadius = FMath::Max(SquaredRadius, (Particles.X(ParticleIndex) + LocalSimSpaceOffset - Center).SizeSquared());
+	}
+
+	// Create bounds (in world space)
+	const FBoxSphereBounds Bounds(BoundingBox.Center(), BoundingBox.Extents() * 0.5f, FMath::Sqrt(SquaredRadius));
+
+	// Transform to component space
+	if (InOwnerComponent)
+	{
+		// Retrieve the master component (unlike the one passed to the context, this could be a slave component)
+		const USkinnedMeshComponent* const OwnerComponent = InOwnerComponent->MasterPoseComponent.IsValid() ?
+			InOwnerComponent->MasterPoseComponent.Get() : InOwnerComponent;
+
+		// Return local bounds
+		return Bounds.TransformBy(OwnerComponent->GetComponentTransform().Inverse());
+	}
+	// Return world space bounds (for debug drawing)
+	return Bounds;
 }
 
 void ClothingSimulation::AddExternalCollisions(const FClothCollisionData& InData)
@@ -1694,7 +1736,7 @@ static void DrawBox(FPrimitiveDrawInterface* PDI, const TBox<float, 3>& Box, con
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
 	{
-		FDebugDrawQueue::GetInstance().DrawDebugBox(Position, Box.Extents(), Rotation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
+		FDebugDrawQueue::GetInstance().DrawDebugBox(Position, Box.Extents() * 0.5f, Rotation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
 		return;
 	}
 #endif
@@ -1802,6 +1844,18 @@ static void DrawCoordinateSystem(FPrimitiveDrawInterface* PDI, const FQuat& Rota
 	DrawLine(PDI, Position, Position + Y, FLinearColor::Green);
 	DrawLine(PDI, Position, Position + Z, FLinearColor::Blue);
 }
+
+#if CHAOS_DEBUG_DRAW
+void ClothingSimulation::DebugDrawBounds() const
+{
+	// Calculate World space bounds
+	const FBoxSphereBounds Bounds = GetBounds(nullptr);
+
+	// Draw bounds
+	DrawBox(nullptr, TBox<float, 3>(-Bounds.BoxExtent, Bounds.BoxExtent), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Purple));
+	DrawSphere(nullptr, TSphere<float, 3>(FVector::ZeroVector, Bounds.SphereRadius), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Orange));
+}
+#endif  // #if CHAOS_DEBUG_DRAW
 
 void ClothingSimulation::DebugDrawPhysMeshWired(USkeletalMeshComponent* /*OwnerComponent*/, FPrimitiveDrawInterface* PDI) const
 {
