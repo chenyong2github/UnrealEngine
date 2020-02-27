@@ -45,6 +45,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasDriverProperties : 1;
 			uint32 HasEXTFragmentDensityMap : 1;
 			uint32 HasEXTFullscreenExclusive : 1;
+			uint32 HasKHRImageFormatList : 1;
 		};
 		uint32 Packed;
 	};

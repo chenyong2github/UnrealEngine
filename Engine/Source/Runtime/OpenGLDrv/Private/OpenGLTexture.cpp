@@ -307,18 +307,10 @@ FRHITexture* FOpenGLDynamicRHI::CreateOpenGLRHITextureOnly(const uint32 SizeX, c
 		NumSamples = 1;
 	}
 
-	bool bNoSRGBSupport = (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2);
-
 	if ((Flags & TexCreate_RenderTargetable) && Format == PF_B8G8R8A8 && !FOpenGL::SupportsBGRA8888RenderTarget())
 	{
 		// Some android devices does not support BGRA as a color attachment
 		Format = PF_R8G8B8A8;
-	}
-
-	if (bNoSRGBSupport)
-	{
-		// Remove sRGB read flag when not supported
-		Flags &= ~TexCreate_SRGB;
 	}
 
 	GLenum Target = GL_NONE;
@@ -711,31 +703,6 @@ void FOpenGLDynamicRHI::InitializeGLTexture(FRHITexture* Texture, uint32 SizeX, 
 	// next operation that needs the stage will switch something else in on it.
 }
 
-#if PLATFORM_ANDROIDESDEFERRED // Flithy hack to workaround radr://16011763
-GLuint FOpenGLTextureBase::GetOpenGLFramebuffer(uint32 ArrayIndices, uint32 MipmapLevels)
-{
-	GLuint FBO = 0;
-	switch(Attachment)
-	{
-		case GL_COLOR_ATTACHMENT0:
-		{
-			FOpenGLTextureBase* RenderTarget[] = {this};
-			FBO = OpenGLRHI->GetOpenGLFramebuffer(1, RenderTarget, &ArrayIndices, &MipmapLevels, NULL);
-			break;
-		}
-		case GL_DEPTH_ATTACHMENT:
-		case GL_DEPTH_STENCIL_ATTACHMENT:
-		{
-			FBO = OpenGLRHI->GetOpenGLFramebuffer(1, NULL, &ArrayIndices, &MipmapLevels, this);
-			break;
-		}
-		default:
-			break;
-	}
-	return FBO;
-}
-#endif
-
 template<typename RHIResourceType>
 void TOpenGLTexture<RHIResourceType>::Resolve(uint32 MipIndex,uint32 ArrayIndex)
 {
@@ -791,20 +758,6 @@ void TOpenGLTexture<RHIResourceType>::Resolve(uint32 MipIndex,uint32 ArrayIndex)
 	
 	glBindBuffer( GL_PIXEL_PACK_BUFFER, PixelBuffer->Resource );
 
-#if PLATFORM_ANDROIDESDEFERRED // glReadPixels is async with PBOs - glGetTexImage is not: radr://16011763
-	if(Attachment == GL_COLOR_ATTACHMENT0 && !GLFormat.bCompressed)
-	{
-		GLuint SourceFBO = GetOpenGLFramebuffer(ArrayIndex, MipIndex);
-		check(SourceFBO > 0);
-		glBindFramebuffer(UGL_READ_FRAMEBUFFER, SourceFBO);
-		FOpenGL::ReadBuffer(Attachment);
-		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glReadPixels(0, 0, MipSizeX, MipSizeY, GLFormat.Format, GLFormat.Type, 0 );
-		glPixelStorei(GL_PACK_ALIGNMENT, 4);
-		ContextState.Framebuffer = (GLuint)-1;
-	}
-	else
-#endif
 	{
 		if( this->GetSizeZ() )
 		{
@@ -1429,20 +1382,6 @@ void TOpenGLTexture<RHIResourceType>::CloneViaPBO( TOpenGLTexture<RHIResourceTyp
 			
 			glBindBuffer( GL_PIXEL_PACK_BUFFER, PixelBuffer->Resource );
 			
-#if PLATFORM_ANDROIDESDEFERRED // glReadPixels is async with PBOs - glGetTexImage is not: radr://16011763
-			if(Attachment == GL_COLOR_ATTACHMENT0 && !GLFormat.bCompressed)
-			{
-				GLuint SourceFBO = Src->GetOpenGLFramebuffer(ArrayIndex, SrcMipIndex);
-				check(SourceFBO > 0);
-				glBindFramebuffer(UGL_READ_FRAMEBUFFER, SourceFBO);
-				FOpenGL::ReadBuffer(Attachment);
-				glPixelStorei(GL_PACK_ALIGNMENT, 1);
-				glReadPixels(0, 0, MipSizeX, MipSizeY, GLFormat.Format, GLFormat.Type, 0 );
-				glPixelStorei(GL_PACK_ALIGNMENT, 4);
-				ContextState.Framebuffer = (GLuint)-1;
-			}
-			else
-#endif
 			if (GLFormat.bCompressed)
 			{
 				FOpenGL::GetCompressedTexImage(Src->bCubemap ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + ArrayIndex : Src->Target,
@@ -1621,12 +1560,6 @@ FTexture2DArrayRHIRef FOpenGLDynamicRHI::RHICreateTexture2DArray(uint32 SizeX,ui
 		NumMips = FindMaxMipmapLevel(SizeX, SizeY);
 	}
 
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-	{
-		// Remove sRGB read flag when not supported
-		Flags &= ~TexCreate_SRGB;
-	}
-
 	GLuint TextureID = 0;
 	FOpenGL::GenTextures(1, &TextureID);
 
@@ -1734,12 +1667,6 @@ FTexture3DRHIRef FOpenGLDynamicRHI::RHICreateTexture3D(uint32 SizeX,uint32 SizeY
 	if(NumMips == 0)
 	{
 		NumMips = FindMaxMipmapLevel(SizeX, SizeY, SizeZ);
-	}
-
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-	{
-		// Remove sRGB read flag when not supported
-		Flags &= ~TexCreate_SRGB;
 	}
 
 	GLuint TextureID = 0;
@@ -1929,7 +1856,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 				FRHITexture2D* DepthStencilTex = nullptr;
 
 				// For stencil sampling we have to use a separate single channel texture to blit stencil data into
-#if PLATFORM_DESKTOP || PLATFORM_ANDROIDESDEFERRED
+#if PLATFORM_DESKTOP
 				if (FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5 && Format == PF_X24_G8 && FOpenGL::SupportsPixelBuffers())
 				{
 					check(NumMipLevels == 1 && MipLevel == 0);

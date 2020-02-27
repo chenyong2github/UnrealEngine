@@ -36,11 +36,11 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDefinitions.Add("GTEST_OS_IOS=1");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Quail || Target.Platform == UnrealTargetPlatform.Lumin)
+			else if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Lumin)
 			{
 				PublicDefinitions.Add("GTEST_OS_LINUX_ANDROID=1");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.PS4)
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) || Target.Platform == UnrealTargetPlatform.PS4)
 			{
 				PublicDefinitions.Add("GTEST_OS_LINUX=1");
 			}

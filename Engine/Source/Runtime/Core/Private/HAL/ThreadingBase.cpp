@@ -163,7 +163,8 @@ public:
 
 	virtual bool CreateInternal(FRunnable* InRunnable, const TCHAR* InThreadName,
 		uint32 InStackSize,
-		EThreadPriority InThreadPri, uint64 InThreadAffinityMask) override
+		EThreadPriority InThreadPri, uint64 InThreadAffinityMask,
+		EThreadCreateFlags InCreateFlags = EThreadCreateFlags::None) override
 
 	{
 		Runnable = InRunnable->GetSingleThreadInterface();
@@ -402,7 +403,8 @@ FRunnableThread* FRunnableThread::Create(
 	const TCHAR* ThreadName,
 	uint32 InStackSize,
 	EThreadPriority InThreadPri, 
-	uint64 InThreadAffinityMask)
+	uint64 InThreadAffinityMask,
+	EThreadCreateFlags InCreateFlags)
 {
 	FRunnableThread* NewThread = nullptr;
 	if (FPlatformProcess::SupportsMultithreading())
@@ -413,7 +415,7 @@ FRunnableThread* FRunnableThread::Create(
 		if (NewThread)
 		{
 			// Call the thread's create method
-			if (NewThread->CreateInternal(InRunnable,ThreadName,InStackSize,InThreadPri,InThreadAffinityMask) == false)
+			if (NewThread->CreateInternal(InRunnable,ThreadName,InStackSize,InThreadPri,InThreadAffinityMask,InCreateFlags) == false)
 			{
 				// We failed to start the thread correctly so clean up
 				delete NewThread;

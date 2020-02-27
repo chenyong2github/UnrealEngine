@@ -17,6 +17,14 @@
 	#define WITH_OGGVORBIS 0
 #endif
 
+/**
+ * Whether to load OggVorbis DLLs
+ **/
+#ifndef WITH_OGGVORBIS_DLL
+	#define WITH_OGGVORBIS_DLL (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#endif
+
+
 namespace VorbisChannelInfo
 {
 	extern ENGINE_API const int32 Order[8][8];

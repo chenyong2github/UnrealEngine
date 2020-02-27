@@ -42,12 +42,6 @@
 #if !defined(PLATFORM_ANDROID_VULKAN)
 	#define PLATFORM_ANDROID_VULKAN 0
 #endif
-#if !defined(PLATFORM_QUAIL)
-	#define PLATFORM_QUAIL 0
-#endif
-#if !defined(PLATFORM_ANDROIDESDEFERRED)
-	#define PLATFORM_ANDROIDESDEFERRED 0
-#endif
 #if !defined(PLATFORM_ANDROIDGL4)
 	#define PLATFORM_ANDROIDGL4 0
 #endif
@@ -74,6 +68,9 @@
 #endif
 #if !defined(PLATFORM_UNIX)
 	#define PLATFORM_UNIX 0
+#endif
+#if !defined(PLATFORM_MICROSOFT)
+	#define PLATFORM_MICROSOFT 0
 #endif
 #if !defined(PLATFORM_HOLOLENS)
 #define PLATFORM_HOLOLENS 0
@@ -335,8 +332,8 @@
 	#define PLATFORM_SUPPORTS_DRAW_MESH_EVENTS	1
 #endif
 
-#ifndef PLATFORM_USES_ES2
-	#define PLATFORM_USES_ES2					0
+#ifndef PLATFORM_USES_GLES
+	#define PLATFORM_USES_GLES					0
 #endif
 
 #ifndef PLATFORM_SUPPORTS_GEOMETRY_SHADERS
@@ -575,6 +572,17 @@
 	#define	PLATFORM_HAS_FPlatformVirtualMemoryBlock 1
 #endif
 
+#ifndef PLATFORM_USE_GENERIC_LAUNCH_IMPLEMENTATION
+	#define PLATFORM_USE_GENERIC_LAUNCH_IMPLEMENTATION			0
+#endif
+
+#ifndef PLATFORM_USES_FIXED_HDR_SETTING
+	#define PLATFORM_USES_FIXED_HDR_SETTING 0
+#endif
+
+#ifndef PLATFORM_MANAGES_HDR_SETTING
+	#define PLATFORM_MANAGES_HDR_SETTING 0
+#endif
 
 // deprecated, do not use
 #define PLATFORM_HAS_THREADSAFE_RHIGetRenderQueryResult	#
@@ -794,11 +802,6 @@
 #ifndef DLLEXPORT
 	#define DLLEXPORT
 	#define DLLIMPORT
-#endif
-
-#ifndef DLLEXPORT_VTABLE
-	#define DLLEXPORT_VTABLE
-	#define DLLIMPORT_VTABLE
 #endif
 
 // embedded app is not default (embedding UE4 in a native view, right now just for IOS and Android)

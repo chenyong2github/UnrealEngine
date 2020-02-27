@@ -638,7 +638,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 				}
 				
 				// Disable UAV cache flushing so we have optimal VT feedback performance.
-				RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
+				RHICmdList.BeginUAVOverlap();
 
 				// optimization to have less state changes
 				EDecalRasterizerState LastDecalRasterizerState = DRS_Undefined;
@@ -767,8 +767,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 				// Finished rendering sorted decals, so end the renderpass.
 				RHICmdList.EndRenderPass();
 				
-				RHICmdList.AutomaticCacheFlushAfterComputeShader(true);
-				RHICmdList.FlushComputeShaderCache();
+				RHICmdList.EndUAVOverlap();
 			}
 
 			if (RHICmdList.IsInsideRenderPass())

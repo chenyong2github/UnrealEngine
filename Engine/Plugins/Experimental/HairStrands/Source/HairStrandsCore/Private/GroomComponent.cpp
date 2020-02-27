@@ -29,7 +29,7 @@ float GetHairClipLength() { return GHairClipLength > 0 ? GHairClipLength : 10000
 /**
  * An material render proxy which overrides the debug mode parameter.
  */
-class ENGINE_VTABLE FHairDebugModeMaterialRenderProxy : public FMaterialRenderProxy
+class FHairDebugModeMaterialRenderProxy : public FMaterialRenderProxy
 {
 public:
 	const FMaterialRenderProxy* const Parent;

@@ -20,6 +20,7 @@ FOculusAudioContextManager::FOculusAudioContextManager()
 
 FOculusAudioContextManager::~FOculusAudioContextManager()
 {
+	SerializationContext = nullptr;
 }
 
 void FOculusAudioContextManager::OnListenerInitialize(FAudioDevice* AudioDevice, UWorld* ListenerWorld)
@@ -29,11 +30,9 @@ void FOculusAudioContextManager::OnListenerInitialize(FAudioDevice* AudioDevice,
 void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
 {
 	FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");
-	check(Plugin != nullptr);
-
 	FString OculusSpatializerPluginName = Plugin->GetSpatializationPluginFactory()->GetDisplayName();
 	FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
-	if (CurrentSpatializerPluginName.Equals(OculusSpatializerPluginName))
+	if (CurrentSpatializerPluginName.Equals(OculusSpatializerPluginName)) // we have a match!
 	{
 		OculusAudioSpatializationAudioMixer* Spatializer =
 			static_cast<OculusAudioSpatializationAudioMixer*>(AudioDevice->SpatializationPluginInterface.Get());
@@ -54,6 +53,7 @@ void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
 	// This is a niche use case, but could be solved by having the oculus soundfield explicitly destroy
 	// a context.
 	DestroyContextForAudioDevice(AudioDevice);
+	SerializationContext = nullptr;
 }
 
 ovrAudioContext FOculusAudioContextManager::GetOrCreateSerializationContext(UActorComponent* Parent)

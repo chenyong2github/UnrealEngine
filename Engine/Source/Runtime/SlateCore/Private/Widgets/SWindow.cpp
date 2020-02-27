@@ -789,12 +789,12 @@ FGeometry SWindow::GetWindowGeometryInWindow() const
 
 FSlateLayoutTransform SWindow::GetLocalToScreenTransform() const
 {
-	return FSlateLayoutTransform(FSlateApplicationBase::Get().GetApplicationScale() * NativeWindow->GetDPIScaleFactor(), ScreenPosition);
+	return FSlateLayoutTransform(FSlateApplicationBase::Get().GetApplicationScale() * GetDPIScaleFactor(), ScreenPosition);
 }
 
 FSlateLayoutTransform SWindow::GetLocalToWindowTransform() const
 {
-	return FSlateLayoutTransform(FSlateApplicationBase::Get().GetApplicationScale() * NativeWindow->GetDPIScaleFactor());
+	return FSlateLayoutTransform(FSlateApplicationBase::Get().GetApplicationScale() * GetDPIScaleFactor());
 }
 
 
@@ -873,7 +873,7 @@ FMargin SWindow::GetWindowBorderSize( bool bIncTitleBar ) const
 // window is borderless. This causes problems for menu positioning.
 	if (NativeWindow.IsValid() && NativeWindow->IsMaximized())
 	{
-		const float DesktopPixelsToSlateUnits = 1.0f / (FSlateApplicationBase::Get().GetApplicationScale() * NativeWindow->GetDPIScaleFactor());
+		const float DesktopPixelsToSlateUnits = 1.0f / (FSlateApplicationBase::Get().GetApplicationScale() * GetDPIScaleFactor());
 		FMargin BorderSize(NativeWindow->GetWindowBorderSize() * DesktopPixelsToSlateUnits);
 		if(bIncTitleBar)
 		{
@@ -1391,7 +1391,7 @@ void SWindow::ShowWindow()
 		// Repositioning the window on show with the new size solves this.
 		if ( SizingRule == ESizingRule::Autosized && AutoCenterRule != EAutoCenter::None )
 		{
-			SlatePrepass( FSlateApplicationBase::Get().GetApplicationScale() * NativeWindow->GetDPIScaleFactor() );
+			SlatePrepass( FSlateApplicationBase::Get().GetApplicationScale() * GetDPIScaleFactor() );
 			const FVector2D WindowDesiredSizePixels = GetDesiredSizeDesktopPixels();
 			ReshapeWindow(InitialDesiredScreenPosition - (WindowDesiredSizePixels * 0.5f), WindowDesiredSizePixels);
 		}
@@ -1865,7 +1865,7 @@ EWindowZone::Type SWindow::GetCurrentWindowZone(FVector2D LocalMousePosition)
 	const bool bIsFullscreenMode = GetWindowMode() == EWindowMode::WindowedFullscreen || GetWindowMode() == EWindowMode::Fullscreen;
 	const bool bIsBorderlessGameWindow = Type == EWindowType::GameWindow && !bHasOSWindowBorder;
 
-	const float WindowDPIScale = FSlateApplicationBase::Get().GetApplicationScale() * (NativeWindow.IsValid() ? NativeWindow->GetDPIScaleFactor() : 1.0f);
+	const float WindowDPIScale = FSlateApplicationBase::Get().GetApplicationScale() * (NativeWindow.IsValid() ? GetDPIScaleFactor() : 1.0f);
 
 	const FMargin DPIScaledResizeBorder = UserResizeBorder * WindowDPIScale;
 
@@ -2060,7 +2060,7 @@ int32 SWindow::PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowEle
 	Context.bParentEnabled = bParentEnabled;
 	// Fast path at the window level should only be enabled if global invalidation is allowed
 	Context.bAllowFastPathUpdate = bAllowFastUpdate && GSlateEnableGlobalInvalidation;
-	Context.LayoutScaleMultiplier = FSlateApplicationBase::Get().GetApplicationScale() * GetNativeWindow()->GetDPIScaleFactor();
+	Context.LayoutScaleMultiplier = FSlateApplicationBase::Get().GetApplicationScale() * GetDPIScaleFactor();
 	Context.PaintArgs = &PaintArgs;
 	Context.IncomingLayerId = 0;
 	Context.CullingRect = GetClippingRectangleInWindow();

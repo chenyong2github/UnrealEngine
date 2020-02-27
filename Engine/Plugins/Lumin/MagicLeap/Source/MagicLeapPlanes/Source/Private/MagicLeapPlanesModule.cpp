@@ -106,7 +106,8 @@ namespace MagicLeap
 }
 #endif // WITH_MLSDK
 
-FMagicLeapPlanesModule::FMagicLeapPlanesModule()
+FMagicLeapPlanesModule::FMagicLeapPlanesModule():
+	LastAssignedSerialNumber(0)
 {}
 
 void FMagicLeapPlanesModule::StartupModule()
@@ -116,7 +117,6 @@ void FMagicLeapPlanesModule::StartupModule()
 	Tracker = ML_INVALID_HANDLE;
 #endif // WITH_MLSDK
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapPlanesModule::Tick);
-
 	IMagicLeapPlugin::Get().RegisterMagicLeapTrackerEntity(this);
 }
 
@@ -145,11 +145,10 @@ bool FMagicLeapPlanesModule::Tick(float DeltaTime)
 		return true;
 	}
 
-	const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
 
 	for (int32 iRequest = PendingRequests.Num()-1; iRequest > -1; --iRequest)
 	{
-		FPlanesRequestMetaData& PendingRequest = PendingRequests[iRequest];
+		FPlanesRequestMetaData& PendingRequest = GetQuery(PendingRequests[iRequest]);
 		uint32 OutNumResults = 0;
 
 		MLPlaneBoundariesList BoundariesList;
@@ -165,9 +164,19 @@ bool FMagicLeapPlanesModule::Tick(float DeltaTime)
 		break;
 		case MLResult_UnspecifiedFailure:
 		{
-			PendingRequest.ResultDelegateStatic.ExecuteIfBound(false, TArray<FMagicLeapPlaneResult>(), TArray<FMagicLeapPlaneBoundaries>());
-			PendingRequest.ResultDelegateDynamic.Broadcast(false, TArray<FMagicLeapPlaneResult>(), TArray<FMagicLeapPlaneBoundaries>());
+				
+			const bool bDispatchSuccess = PendingRequest.Dispatch(false, TArray<FMagicLeapPlaneResult>(), TArray<FGuid>(), TArray<FMagicLeapPlaneBoundaries>(), TArray<FGuid>());
+
+			UE_CLOG(!bDispatchSuccess,LogMagicLeapPlanes, Error, TEXT("Plane result dispatch failed."));
+				
 			PendingRequests.RemoveAt(iRequest);
+			PendingRequest.bInProgress = false;
+				
+			if(PendingRequest.bRemoveRequested)
+			{
+				RemoveQuery(PendingRequest.QueryHandle);
+			}
+		
 		}
 		break;
 		case MLResult_Ok:
@@ -175,9 +184,23 @@ bool FMagicLeapPlanesModule::Tick(float DeltaTime)
 			const IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::Get();
 			float WorldToMetersScale = MLPlugin.GetWorldToMetersScale();
 
-			TArray<FMagicLeapPlaneResult> Planes;
-			Planes.Reserve(OutNumResults);
+			const FTransform TrackingToWorld = PendingRequest.bTrackingSpace ? FTransform::Identity : UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
 
+			TArray<FMagicLeapPlaneResult> Planes;
+			Planes.Reserve(OutNumResults); // Reserve for the worse case scenario
+				
+			TArray<FGuid> RemovedPlanes;
+			TMap<FGuid, TArray< TTuple<FMatrix, FGuid>>> ScratchPlaneStorage;
+			if (PendingRequest.QueryType == EMagicLeapPlaneQueryType::Delta)
+			{
+				
+				// Reserve for the worse cast scenario
+				RemovedPlanes.Reserve(OutNumResults);
+				ScratchPlaneStorage.Reserve(OutNumResults);
+				
+			}
+				
+				
 			for (uint32 i = 0; i < OutNumResults; ++i)
 			{
 				FMagicLeapPlaneResult ResultPlane;
@@ -209,11 +232,91 @@ bool FMagicLeapPlanesModule::Tick(float DeltaTime)
 				ResultPlane.ContentOrientation = PlaneTransform.Rotator();
 				ResultPlane.ID = MagicLeap::MLHandleToFGuid(PendingRequest.ResultMLPlanes[i].id);
 				MLToUnrealPlanesQueryFlags(PendingRequest.ResultMLPlanes[i].flags, ResultPlane.PlaneFlags);
-				
-				Planes.Add(ResultPlane);
+
+				// Do some extra processing depending on the query type
+				if(PendingRequest.QueryType == EMagicLeapPlaneQueryType::Bulk)
+				{
+					
+					Planes.Add(ResultPlane);
+					
+				}
+				else
+				{
+
+					const FMatrix PlaneMatrix = PlaneTransform.ToMatrixWithScale();
+
+					bool bPlaneFound = false;
+
+					// The current plane only needs to be compared to other planes with the same outer plane ID
+					auto& PlaneInfoArray = PendingRequest.PlaneStorage.FindOrAdd(ResultPlane.ID);
+					for (int32 t = 0; t < PlaneInfoArray.Num(); ++t) {
+
+						//Calculate the Frobenius norm of the matrix
+						float Error = 0.0f;
+
+						// Avoiding the FMatrix operators allows a single iteration over all matrix elements.
+						for (int32 j = 0; j < 4; ++j) {
+							for (int32 k = 0; k < 4; ++k) {
+								
+								const float Difference = PlaneMatrix.M[j][k] - PlaneInfoArray[t].Key.M[j][k];
+								Error += Difference * Difference;
+
+							}
+
+						}
+						
+						// Note: The matrix norm is only being compared, and the monotonic sqrt(Error) isn't needed.					
+						// Remove the plane from the list of removed planes
+						if (Error < PendingRequest.SimilarityThreshold)
+						{
+							
+							bPlaneFound = true;
+							ResultPlane.InnerID = PlaneInfoArray[t].Value;
+							PlaneInfoArray.RemoveAtSwap(t, 1, false);
+
+							break;
+							
+						}
+					}
+
+					// Create a new plane if nothing was found in storage
+					if (!bPlaneFound)
+					{
+						
+						ResultPlane.InnerID = FGuid::NewGuid();
+						Planes.Add(ResultPlane);
+						
+					}
+
+					// All planes get placed into the temporary query storage
+					ScratchPlaneStorage.FindOrAdd(ResultPlane.ID).Add(MakeTuple(PlaneMatrix, ResultPlane.InnerID));
+					
+				}
 			}
 
+			// Query types that send `Removed Plane IDs` need post-processing
+			if (PendingRequest.QueryType == EMagicLeapPlaneQueryType::Delta)
+			{
+
+				// Everything leftover in `PlaneStorage` was not matched and can be removed
+				for(const auto& PlaneInfoArrayPair : PendingRequest.PlaneStorage)
+				{
+					for(auto& InfoTuple : PlaneInfoArrayPair.Value)
+					{
+						
+						RemovedPlanes.Add(InfoTuple.Value);
+						
+					}
+				}
+
+				// The removed planes are processed and the storage can now hold the processed planes
+				PendingRequest.PlaneStorage = ScratchPlaneStorage;
+				
+			}
+				
 			TArray<FMagicLeapPlaneBoundaries> ResultBoundariesList;
+			TArray<FGuid> RemovedBoundaries;
+				
 			if (BoundariesList.plane_boundaries != nullptr)
 			{
 				ResultBoundariesList.AddDefaulted(BoundariesList.plane_boundaries_count);
@@ -257,10 +360,19 @@ bool FMagicLeapPlanesModule::Tick(float DeltaTime)
 				Result = MLPlanesReleaseBoundariesList(Tracker, &BoundariesList);
 				UE_CLOG(Result != MLResult_Ok, LogMagicLeapPlanes, Error, TEXT("MLPlanesReleaseBoundariesList failed with error %s"), UTF8_TO_TCHAR(MLGetResultString(Result)));
 			}
+				
+			const bool bDispatchSuccess = PendingRequest.Dispatch(true, Planes, RemovedPlanes, ResultBoundariesList, RemovedBoundaries);
 
-			PendingRequest.ResultDelegateStatic.ExecuteIfBound(true, Planes, ResultBoundariesList);
-			PendingRequest.ResultDelegateDynamic.Broadcast(true, Planes, ResultBoundariesList);
+			UE_CLOG(!bDispatchSuccess,LogMagicLeapPlanes, Error, TEXT("Plane result dispatch failed."));
+							
 			PendingRequests.RemoveAt(iRequest);
+			PendingRequest.bInProgress = false;
+				
+			if (PendingRequest.bRemoveRequested)
+			{
+				RemoveQuery(PendingRequest.QueryHandle);
+			}
+				
 		}
 		break;
 		default:
@@ -299,8 +411,12 @@ bool FMagicLeapPlanesModule::CreateTracker()
 }
 
 bool FMagicLeapPlanesModule::DestroyTracker()
-{
+{	
 #if WITH_MLSDK
+
+	Requests.Empty();
+	PendingRequests.Empty();
+	
 	if (MLHandleIsValid(Tracker))
 	{
 		MLResult Result = MLPlanesDestroy(Tracker);
@@ -326,18 +442,67 @@ bool FMagicLeapPlanesModule::IsTrackerValid() const
 #endif // WITH_MLSDK
 }
 
-bool FMagicLeapPlanesModule::QueryBeginAsync(const FMagicLeapPlanesQuery& QueryParams, const FMagicLeapPlanesResultStaticDelegate& InResultDelegate)
+FGuid FMagicLeapPlanesModule::AddQuery(EMagicLeapPlaneQueryType QueryType)
 {
 #if WITH_MLSDK
+	const int32 Index = Requests.Add(FPlanesRequestMetaData(QueryType));
+	const FGuid QueryHandle = FGuid(Index, ++LastAssignedSerialNumber, 0, 0);
+	Requests[Index].QueryHandle = QueryHandle;
+	
+	return QueryHandle;
+#else
+	return FGuid();
+#endif //WITH_MLSDK	
+}
+
+bool FMagicLeapPlanesModule::RemoveQuery(FGuid QueryHandle){	
+#if WITH_MLSDK
+	if(ContainsQuery(QueryHandle))
+	{
+		FPlanesRequestMetaData& RequestMetaData = GetQuery(QueryHandle);
+		if(RequestMetaData.bInProgress)
+		{
+			// Defer the removal until the plane query is processed.
+			RequestMetaData.bRemoveRequested = true;
+			
+		}
+		else
+		{
+			
+			Requests.RemoveAt(QueryHandle.A);
+			
+		}
+		
+		return true;	
+	}
+#endif //WITH_MLSDK
+	
+	return false;
+	
+}
+
+bool FMagicLeapPlanesModule::QueryBeginAsync(
+	const FMagicLeapPlanesQuery& QueryParams, 
+	const FMagicLeapPlanesResultStaticDelegate& InResultDelegate)
+{
+#if WITH_MLSDK
+	FGuid QueryHandle = AddQuery(EMagicLeapPlaneQueryType::Bulk);
 	MLHandle Handle = SubmitPlanesQuery(QueryParams);
 	if (MLHandleIsValid(Handle))
 	{
-		FPlanesRequestMetaData& RequestMetaData = PendingRequests.AddDefaulted_GetRef();
+		FPlanesRequestMetaData& RequestMetaData = GetQuery(QueryHandle);
 		RequestMetaData.ResultHandle = Handle;
-		RequestMetaData.ResultMLPlanes.AddDefaulted(QueryParams.MaxResults);
-		RequestMetaData.ResultDelegateStatic = InResultDelegate;
+		RequestMetaData.ResultMLPlanes.SetNum(QueryParams.MaxResults);
+		RequestMetaData.ResultDelegate.SetSubtype<FMagicLeapPlanesResultStaticDelegate>(InResultDelegate);
+		RequestMetaData.bTrackingSpace = QueryParams.bResultTrackingSpace;
+		RequestMetaData.SimilarityThreshold = QueryParams.SimilarityThreshold;
+		RequestMetaData.bRemoveRequested = true;
+		RequestMetaData.bIsPersistent = false;
+		
+		PendingRequests.Add(QueryHandle);
 		return true;
 	}
+	
 #endif // WITH_MLSDK
 	return false;
 }
@@ -347,14 +512,97 @@ bool FMagicLeapPlanesModule::QueryBeginAsync(
 	const FMagicLeapPlanesResultDelegateMulti& InResultDelegate)
 {
 #if WITH_MLSDK
+	FGuid QueryHandle = AddQuery(EMagicLeapPlaneQueryType::Bulk);
 	MLHandle Handle = SubmitPlanesQuery(QueryParams);
 	if (MLHandleIsValid(Handle))
 	{
-		FPlanesRequestMetaData& RequestMetaData = PendingRequests.AddDefaulted_GetRef();
+		FPlanesRequestMetaData& RequestMetaData = GetQuery(QueryHandle);
 		RequestMetaData.ResultHandle = Handle;
-		RequestMetaData.ResultMLPlanes.AddDefaulted(QueryParams.MaxResults);
-		RequestMetaData.ResultDelegateDynamic = InResultDelegate;
+		RequestMetaData.ResultMLPlanes.SetNum(QueryParams.MaxResults);
+		RequestMetaData.ResultDelegate.SetSubtype<FMagicLeapPlanesResultDelegateMulti>(InResultDelegate);
+		RequestMetaData.bTrackingSpace = QueryParams.bResultTrackingSpace;
+		RequestMetaData.SimilarityThreshold = QueryParams.SimilarityThreshold;
+		RequestMetaData.bRemoveRequested = true;
+		RequestMetaData.bIsPersistent = false;
+		
+		PendingRequests.Add(QueryHandle);
 		return true;
+	}
+
+#endif // WITH_MLSDK
+	return false;
+}
+
+bool FMagicLeapPlanesModule::PersistentQueryBeginAsync(
+	const FMagicLeapPlanesQuery& QueryParams, 
+	const FGuid& QueryHandle, 
+	const FMagicLeapPersistentPlanesResultStaticDelegate& InResultDelegate)
+{
+#if WITH_MLSDK
+
+	if (ContainsQuery(QueryHandle))
+	{
+		
+		MLHandle Handle = SubmitPlanesQuery(QueryParams);
+		if (MLHandleIsValid(Handle))
+		{
+			FPlanesRequestMetaData& RequestMetaData = GetQuery(QueryHandle);
+			RequestMetaData.ResultHandle = Handle;
+			RequestMetaData.ResultMLPlanes.SetNum(QueryParams.MaxResults);
+			RequestMetaData.ResultDelegate.SetSubtype<FMagicLeapPersistentPlanesResultStaticDelegate>(InResultDelegate);
+			RequestMetaData.bTrackingSpace = QueryParams.bResultTrackingSpace;
+			RequestMetaData.SimilarityThreshold = QueryParams.SimilarityThreshold;
+			RequestMetaData.bRemoveRequested = false;
+			RequestMetaData.bIsPersistent = true;
+			
+			// Persistent queries do not enqueue another request if one is already in progress
+			if(!RequestMetaData.bInProgress)
+			{
+				
+				RequestMetaData.bInProgress = true;
+				PendingRequests.Add(QueryHandle);
+				
+			}		
+			
+			return true;
+		}
+	}
+#endif // WITH_MLSDK
+	return false;
+}
+
+bool FMagicLeapPlanesModule::PersistentQueryBeginAsync(
+	const FMagicLeapPlanesQuery& QueryParams,
+	const FGuid& QueryHandle,
+	const FMagicLeapPersistentPlanesResultDelegateMulti& InResultDelegate)
+{
+#if WITH_MLSDK
+	
+	if (ContainsQuery(QueryHandle))
+	{
+		MLHandle Handle = SubmitPlanesQuery(QueryParams);
+		if (MLHandleIsValid(Handle))
+		{
+			FPlanesRequestMetaData& RequestMetaData = GetQuery(QueryHandle);
+			RequestMetaData.ResultHandle = Handle;
+			RequestMetaData.ResultMLPlanes.SetNum(QueryParams.MaxResults);
+			RequestMetaData.ResultDelegate.SetSubtype<FMagicLeapPersistentPlanesResultDelegateMulti>(InResultDelegate);
+			RequestMetaData.bTrackingSpace = QueryParams.bResultTrackingSpace;
+			RequestMetaData.SimilarityThreshold = QueryParams.SimilarityThreshold;
+			RequestMetaData.bRemoveRequested = false;
+			RequestMetaData.bIsPersistent = true;
+
+			// Persistent queries do not enqueue another request if one is already in progress
+			if (!RequestMetaData.bInProgress)
+			{
+				
+				RequestMetaData.bInProgress = true;
+				PendingRequests.Add(QueryHandle);
+				
+			}
+			
+			return true;
+		}
 	}
 #endif // WITH_MLSDK
 	return false;
@@ -372,15 +620,24 @@ MLHandle FMagicLeapPlanesModule::SubmitPlanesQuery(const FMagicLeapPlanesQuery& 
 	float WorldToMetersScale = MLPlugin.GetWorldToMetersScale();
 	check(WorldToMetersScale != 0);
 
-	const FTransform WorldToTracking = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr).Inverse();
-
 	MLPlanesQuery Query;
 	Query.max_results = static_cast<uint32>(QueryParams.MaxResults);
 	Query.flags = UnrealToMLPlanesQueryFlags(QueryParams.Flags);
 	Query.min_hole_length = QueryParams.MinHoleLength / WorldToMetersScale;
 	Query.min_plane_area = QueryParams.MinPlaneArea / (WorldToMetersScale * WorldToMetersScale);
-	Query.bounds_center = MagicLeap::ToMLVector(WorldToTracking.TransformPosition(QueryParams.SearchVolumePosition), WorldToMetersScale);
-	Query.bounds_rotation = MagicLeap::ToMLQuat(WorldToTracking.TransformRotation(QueryParams.SearchVolumeOrientation));
+
+	if (QueryParams.bSearchVolumeTrackingSpace)
+	{
+		Query.bounds_center = MagicLeap::ToMLVector(QueryParams.SearchVolumePosition, WorldToMetersScale);
+		Query.bounds_rotation = MagicLeap::ToMLQuat(QueryParams.SearchVolumeOrientation);
+	}
+	else
+	{
+		const FTransform WorldToTracking = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr).Inverse();
+		Query.bounds_center = MagicLeap::ToMLVector(WorldToTracking.TransformPosition(QueryParams.SearchVolumePosition), WorldToMetersScale);
+		Query.bounds_rotation = MagicLeap::ToMLQuat(WorldToTracking.TransformRotation(QueryParams.SearchVolumeOrientation));
+	}
+
 	// The C-API extents are 'full' extents - width, height, and depth. UE4 boxes are 'half' extents.
 	Query.bounds_extents = MagicLeap::ToMLVectorExtents(QueryParams.SearchVolumeExtents * 2, WorldToMetersScale);
 
@@ -389,6 +646,71 @@ MLHandle FMagicLeapPlanesModule::SubmitPlanesQuery(const FMagicLeapPlanesQuery& 
 	UE_CLOG(Result != MLResult_Ok, LogMagicLeapPlanes, Error, TEXT("MLPlanesQueryBegin failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
 
 	return Handle;
+}
+
+FMagicLeapPlanesModule::FPlanesRequestMetaData& FMagicLeapPlanesModule::GetQuery(const FGuid& Handle)
+{
+	
+	FPlanesRequestMetaData& MetaData = Requests[Handle.A];
+	check(MetaData.QueryHandle == Handle);
+	
+	return MetaData;
+	
+}
+
+bool FMagicLeapPlanesModule::ContainsQuery(const FGuid& Handle) const
+{
+	
+	return Requests.IsValidIndex(Handle.A) && Requests[Handle.A].QueryHandle == Handle;
+	
+}
+
+bool FMagicLeapPlanesModule::FPlanesRequestMetaData::Dispatch(
+	bool bSuccess, 
+	const TArray<FMagicLeapPlaneResult>& AddedPlanes,
+	const TArray<FGuid>& RemovedPlaneIDs,
+	const TArray<FMagicLeapPlaneBoundaries>& AddedPolygons,
+	const TArray<FGuid>& RemovedPolygonIDs)
+{
+
+	if (!bIsPersistent)
+	{
+		if (ResultDelegate.HasSubtype<FMagicLeapPlanesResultStaticDelegate>())
+		{
+			
+			auto& Delegate = ResultDelegate.GetSubtype<FMagicLeapPlanesResultStaticDelegate>();
+			return Delegate.ExecuteIfBound(bSuccess, AddedPlanes, AddedPolygons);
+			
+		}
+		else if(ResultDelegate.HasSubtype<FMagicLeapPlanesResultDelegateMulti>())
+		{
+			
+			auto& Delegate = ResultDelegate.GetSubtype<FMagicLeapPlanesResultDelegateMulti>();
+			Delegate.Broadcast(bSuccess, AddedPlanes, AddedPolygons);
+			return true;
+			
+		}
+	}
+	else
+	{
+		if (ResultDelegate.HasSubtype<FMagicLeapPersistentPlanesResultStaticDelegate>())
+		{
+			
+			auto& Delegate = ResultDelegate.GetSubtype<FMagicLeapPersistentPlanesResultStaticDelegate>();
+			return Delegate.ExecuteIfBound(bSuccess, QueryHandle, QueryType, AddedPlanes, RemovedPlaneIDs, AddedPolygons, RemovedPolygonIDs);
+			
+		}
+		else if(ResultDelegate.HasSubtype<FMagicLeapPersistentPlanesResultDelegateMulti>())
+		{
+			
+			auto& Delegate = ResultDelegate.GetSubtype<FMagicLeapPersistentPlanesResultDelegateMulti>();
+			Delegate.Broadcast(bSuccess, QueryHandle, QueryType, AddedPlanes, RemovedPlaneIDs, AddedPolygons, RemovedPolygonIDs);
+			return true;
+			
+		}
+	}
+	
+	return false;
 }
 #endif // WITH_MLSDK
 

@@ -19,8 +19,7 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-				(Target.Platform == UnrealTargetPlatform.Win32))
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				if (Target.bBuildDeveloperTools)
 				{

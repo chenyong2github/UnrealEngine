@@ -19,6 +19,7 @@
 #include "SceneTextureParameters.h"
 #include "HairStrands/HairStrandsRendering.h"
 #include "ScreenPass.h"
+#include "SkyAtmosphereRendering.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
@@ -243,6 +244,7 @@ class FDeferredLightPS : public FGlobalShader
 	class FLightingChannelsDim	: SHADER_PERMUTATION_BOOL("USE_LIGHTING_CHANNELS");
 	class FTransmissionDim		: SHADER_PERMUTATION_BOOL("USE_TRANSMISSION");
 	class FHairLighting			: SHADER_PERMUTATION_BOOL("USE_HAIR_LIGHTING");
+	class FAtmosphereTransmittance: SHADER_PERMUTATION_BOOL("USE_ATMOSPHERE_TRANSMITTANCE");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FSourceShapeDim,
@@ -252,7 +254,8 @@ class FDeferredLightPS : public FGlobalShader
 		FVisualizeCullingDim,
 		FLightingChannelsDim,
 		FTransmissionDim,
-		FHairLighting>;
+		FHairLighting,
+		FAtmosphereTransmittance>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -261,6 +264,11 @@ class FDeferredLightPS : public FGlobalShader
 		if( PermutationVector.Get< FSourceShapeDim >() == ELightSourceShape::Directional && (
 			PermutationVector.Get< FIESProfileDim >() ||
 			PermutationVector.Get< FInverseSquaredDim >() ) )
+		{
+			return false;
+		}
+
+		if (PermutationVector.Get< FSourceShapeDim >() != ELightSourceShape::Directional && PermutationVector.Get<FAtmosphereTransmittance>())
 		{
 			return false;
 		}
@@ -1936,6 +1944,7 @@ static void SetShaderTemplLightingSimple(
 	PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( false );
 	PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( false );
 	PermutationVector.Set< FDeferredLightPS::FHairLighting>( false );
+	PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >( false );
 
 	TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
@@ -2065,6 +2074,8 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 			}
 			else
 			{
+				const bool bAtmospherePerPixelTransmittance = LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() && ShouldApplyAtmosphereLightPerPixelTransmittance(Scene, View.Family->EngineShowFlags);
+
 				FDeferredLightPS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >( ELightSourceShape::Directional );
 				PermutationVector.Set< FDeferredLightPS::FIESProfileDim >( false );
@@ -2073,6 +2084,8 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( View.bUsesLightingChannels );
 				PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( bTransmission );
 				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairRenderingEnabled);
+				// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
+				PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(bAtmospherePerPixelTransmittance);
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -2128,6 +2141,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( View.bUsesLightingChannels );
 				PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( bTransmission );
 				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairRenderingEnabled);
+				PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >(false);
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();

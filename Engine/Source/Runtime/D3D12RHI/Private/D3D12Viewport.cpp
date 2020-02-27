@@ -186,7 +186,7 @@ bool bNeedSwapChain = true;
 /**
  * Creates a FD3D12Surface to represent a swap chain's back buffer.
  */
-FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain, uint32 BackBufferIndex)
+FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain, uint32 BackBufferIndex, TRefCountPtr<ID3D12Resource> BackBufferResourceOverride)
 {
 	FD3D12Adapter* Adapter = Parent->GetParentAdapter();
 
@@ -195,6 +195,10 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 	if (SwapChain)
 	{
 		VERIFYD3D12RESULT_EX(SwapChain->GetBuffer(BackBufferIndex, IID_PPV_ARGS(BackBufferResource.GetInitReference())), Parent->GetDevice());
+	}
+	else if (BackBufferResourceOverride.IsValid())
+	{
+		BackBufferResource = BackBufferResourceOverride;
 	}
 	else
 	{
@@ -348,6 +352,8 @@ FD3D12Viewport::~FD3D12Viewport()
 		FramePacerRunnable = nullptr;
 	}
 #endif //WITH_MGPU
+
+	FinalDestroyInternal();
 }
 
 DXGI_MODE_DESC FD3D12Viewport::SetupDXGI_MODE_DESC() const

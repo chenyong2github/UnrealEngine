@@ -1316,7 +1316,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 				MaterialRelevances.Add(MaterialInterface->GetRelevance_Concurrent(FeatureLevel));
 			}
 
-			bRequiresAdjacencyInformation |= RequiresAdjacencyInformation(MaterialInterface, XYOffsetmapTexture == nullptr ? &FLandscapeVertexFactory::StaticType : &FLandscapeXYOffsetVertexFactory::StaticType, InComponent->GetWorld()->FeatureLevel.GetValue());
+			bRequiresAdjacencyInformation |= MaterialSettingsRequireAdjacencyInformation_GameThread(MaterialInterface, XYOffsetmapTexture == nullptr ? &FLandscapeVertexFactory::StaticType : &FLandscapeXYOffsetVertexFactory::StaticType, InComponent->GetWorld()->FeatureLevel.GetValue());
 
 			bool HasTessellationEnabled = false;
 
@@ -1603,6 +1603,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 	FPrimitiveViewRelevance Result;
 	const bool bCollisionView = (View->Family->EngineShowFlags.CollisionVisibility || View->Family->EngineShowFlags.CollisionPawn);
 	Result.bDrawRelevance = (IsShown(View) || bCollisionView) && View->Family->EngineShowFlags.Landscape;
+	Result.bRenderInMainPass = ShouldRenderInMainPass();
 	Result.bRenderCustomDepth = ShouldRenderCustomDepth();
 	Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 	Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
@@ -1820,7 +1821,7 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 
 	// cache component's WorldToLocal
 	FMatrix LtoW = GetLocalToWorld();
-	WorldToLocal = LtoW.InverseFast();
+	WorldToLocal = LtoW.Inverse();
 
 	// cache component's LocalToWorldNoScaling
 	LocalToWorldNoScaling = LtoW;
@@ -1903,6 +1904,9 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 		FLandscapeRenderSystem& RenderSystem = *LandscapeRenderSystems.FindChecked(LandscapeKey);
 		RenderSystem.SetSectionOriginAndRadius(ComponentBase, OriginAndSphereRadius);
 	}
+
+	// Recache mesh draw commands for changed uniform buffers
+	GetScene().UpdateCachedRenderStates(this);
 }
 
 float FLandscapeComponentSceneProxy::GetComponentScreenSize(const FSceneView* View, const FVector& Origin, float MaxExtend, float ElementRadius) const
@@ -2513,7 +2517,7 @@ void FLandscapeComponentSceneProxy::CalculateBatchElementLOD(const FSceneView& I
 		InOutLODData.UseCombinedMeshBatch = false; // default to individual batch render
 
 		float SubSectionMaxExtend = ComponentMaxExtend / 2.0f;
-		float SubSectionRadius = GetBounds().SphereRadius / 2.0f;
+		float SubSectionRadius = FMath::Max(GetBounds().SphereRadius / 2.0f, 1.0f); // clamp radius to avoid any div by 0 later
 		float CombinedScreenRatio = 0.0f;
 		bool AllSubSectionHaveSameScreenSize = true;
 
@@ -2526,7 +2530,6 @@ void FLandscapeComponentSceneProxy::CalculateBatchElementLOD(const FSceneView& I
 				FViewCustomDataSubSectionLOD& SubSectionLODData = InOutLODData.SubSections[SubSectionIndex];
 
 				SubSectionLODData.ScreenSizeSquared = GetComponentScreenSize(&InView, SubSectionScreenSizeTestingPosition[SubSectionIndex], SubSectionMaxExtend, SubSectionRadius);
-
 				check(SubSectionLODData.ScreenSizeSquared > 0.0f);
 
 				CalculateLODFromScreenSize(InView, SubSectionLODData.ScreenSizeSquared, InViewLODScale, SubSectionIndex, InOutLODData);

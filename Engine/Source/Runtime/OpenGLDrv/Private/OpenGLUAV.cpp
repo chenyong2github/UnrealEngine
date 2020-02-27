@@ -282,18 +282,6 @@ void FOpenGLDynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAcces
 	glBindBuffer(GL_TEXTURE_BUFFER, Texture->BufferResource);
 	FOpenGL::ClearBufferData(GL_TEXTURE_BUFFER, Texture->Format, GL_RGBA_INTEGER, GL_FLOAT, reinterpret_cast<const uint32*>(&Values));
 	GPUProfilingData.RegisterGPUWork(1);
-
-#elif OPENGL_ESDEFERRED
-	glBindBuffer(GL_TEXTURE_BUFFER, Texture->BufferResource);
-	uint32 BufferSize = Texture->GetBufferSize();
-	if (BufferSize > 0)
-	{
-		void* BufferData = FOpenGL::MapBufferRange(GL_TEXTURE_BUFFER, 0, BufferSize, FOpenGLBase::RLM_WriteOnly);
-		uint8 ClearValue = uint8(Values[0] & 0xff);
-		FPlatformMemory::Memset(BufferData, ClearValue, BufferSize);
-		FOpenGL::UnmapBufferRange(GL_TEXTURE_BUFFER, 0, BufferSize);
-		GPUProfilingData.RegisterGPUWork(1);
-	}
 #else
 	UE_LOG(LogRHI, Fatal, TEXT("Only OpenGL4 supports RHIClearUAVFloat."));
 #endif
@@ -307,18 +295,6 @@ void FOpenGLDynamicRHI::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccess
 	glBindBuffer(GL_TEXTURE_BUFFER, Texture->BufferResource);
 	FOpenGL::ClearBufferData(GL_TEXTURE_BUFFER, Texture->Format, GL_RGBA_INTEGER, GL_UNSIGNED_INT, reinterpret_cast<const uint32*>(&Values));
 	GPUProfilingData.RegisterGPUWork(1);
-
-#elif OPENGL_ESDEFERRED
-	glBindBuffer(GL_TEXTURE_BUFFER, Texture->BufferResource);
-	uint32 BufferSize = Texture->GetBufferSize();
-	if (BufferSize > 0)
-	{
-		void* BufferData = FOpenGL::MapBufferRange(GL_TEXTURE_BUFFER, 0, BufferSize, FOpenGLBase::RLM_WriteOnly);
-		uint8 ClearValue = uint8(Values[0] & 0xff);
-		FPlatformMemory::Memset(BufferData, ClearValue, BufferSize);
-		FOpenGL::UnmapBufferRange(GL_TEXTURE_BUFFER, 0, BufferSize);
-		GPUProfilingData.RegisterGPUWork(1);
-	}
 #else
 	UE_LOG(LogRHI, Fatal, TEXT("Only OpenGL4 supports RHIClearUAVUint."));
 #endif

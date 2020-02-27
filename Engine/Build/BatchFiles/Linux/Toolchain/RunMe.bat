@@ -2,9 +2,9 @@
 
 
 
-set TOOLCHAIN_VERSION=v15
+set TOOLCHAIN_VERSION=v16
 
-set LLVM_VERSION=8.0.1
+set LLVM_VERSION=9.0.1
 
 
 
@@ -62,32 +62,49 @@ unzip -o %ROOT_DIR:\=/%/%FILENAME%-windows.zip -d OUTPUT
 
 
 
-set RELEASE=%LLVM_VERSION:.=%
+set GIT_LLVM_RELEASE_HASH=c1a0a213378a458fbea1a5c77b315c7dce08fd05
 
-%SVN_BINARY% co http://llvm.org/svn/llvm-project/llvm/tags/RELEASE_%RELEASE%/final source
+git clone https://github.com/llvm/llvm-project source
+pushd source
+git checkout %GIT_LLVM_RELEASE_HASH%
+popd
+
+
+mkdir build_llvm
+
+pushd build_llvm
 
 
 
-pushd source\tools
+%CMAKE_BINARY% -G "Visual Studio 15 2017 Win64" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="../install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" "../source/llvm"
 
-%SVN_BINARY% co http://llvm.org/svn/llvm-project/cfe/tags/RELEASE_%RELEASE%/final clang
+%CMAKE_BINARY% --build . --target install --config MinSizeRel
 
-%SVN_BINARY% co http://llvm.org/svn/llvm-project/lld/tags/RELEASE_%RELEASE%/final lld
+
 
 popd
 
 
+mkdir build_lld
 
-mkdir build
-
-pushd build
-
+pushd build_lld
 
 
-%CMAKE_BINARY% -G "Visual Studio 14 Win64" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="..\install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" "..\source"
 
+%CMAKE_BINARY% -G "Visual Studio 15 2017 Win64" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="../install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" -DLLVM_CONFIG_PATH="../install/bin/llvm-config.exe" "../source/lld"
+%CMAKE_BINARY% -G "Visual Studio 15 2017 Win64" -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON -DCMAKE_INSTALL_PREFIX="../install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" -DLLVM_CONFIG_PATH="../install/bin/llvm-config.exe" "../source/lld"
 %CMAKE_BINARY% --build . --target install --config MinSizeRel
 
+
+popd
+
+mkdir build_clang
+
+pushd build_clang
+
+
+%CMAKE_BINARY% -G "Visual Studio 15 2017 Win64" -DCMAKE_INSTALL_PREFIX="../install" -DPYTHON_EXECUTABLE="%PYTHON_BINARY%" "../source/clang"
+%CMAKE_BINARY% --build . --target install --config MinSizeRel
 
 
 popd

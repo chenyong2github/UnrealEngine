@@ -277,7 +277,7 @@ class FTBBThread : private FRunnableThread
 	virtual void Suspend( bool ) override {}
 	virtual bool Kill( bool ) override { return false; }
 	virtual void WaitForCompletion() override {}
-	virtual bool CreateInternal( FRunnable*, const TCHAR*, uint32, EThreadPriority, uint64 ) override { return true; }
+	virtual bool CreateInternal( FRunnable*, const TCHAR*, uint32, EThreadPriority, uint64, EThreadCreateFlags) override { return true; }
 public:
 	FTBBThread()
 	{

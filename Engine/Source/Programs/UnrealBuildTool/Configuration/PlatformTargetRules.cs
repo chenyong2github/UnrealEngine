@@ -28,7 +28,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The private mutable settings object
 		/// </summary>
-		private XboxOneTargetRules Inner;
+		protected XboxOneTargetRules Inner;
 
 		/// <summary>
 		/// Constructor

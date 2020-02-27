@@ -5,23 +5,67 @@
 #include "RHIDefinitions.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
-#include "LuminARDevice.h"
 #include "ARSessionConfig.h"
 
+#include "IMagicLeapPlugin.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
+#include "MagicLeapHMDFunctionLibrary.h"
+#include "MagicLeapARPinFunctionLibrary.h"
+
+#include "IMagicLeapImageTrackerModule.h"
+
+#include "LuminARPlanesTracker.h"
+#include "LuminARPointsTracker.h"
+#include "LuminARLightTracker.h"
+#include "LuminARImageTracker.h"
 
 FLuminARImplementation::FLuminARImplementation()
-	: LuminARDeviceInstance(nullptr)
-	, bHasValidPose(false)
-	, DeltaControlRotation(FRotator::ZeroRotator)
-	, DeltaControlOrientation(FQuat::Identity)
-	, LightEstimate(nullptr)
+	: bIsLuminARSessionRunning(false)
+	, FrameNumber(0)
+	, LatestCameraTimestamp(0)
+	, LatestCameraTrackingState(ELuminARTrackingState::StoppedTracking)
+	, bStartSessionRequested(false)
+	, bUpdateTrackedImages(true)
+	, CurrentSessionStatus(EARSessionStatus::NotStarted)
+	, LightEstimateTracker(nullptr)
 {
-	LuminARDeviceInstance = FLuminARDevice::GetInstance();
-	check(LuminARDeviceInstance);
+	Trackers.Add(new FLuminARPlanesTracker(*this));
+	Trackers.Add(new FLuminARPointsTracker(*this));
+	ImageTracker = new FLuminARImageTracker(*this);
+	Trackers.Add(ImageTracker);
 }
 
 FLuminARImplementation::~FLuminARImplementation()
 {
+	if (bIsLuminARSessionRunning)
+	{
+		OnStopARSession();
+	}
+
+	if (LightEstimateTracker)
+	{
+		LightEstimateTracker = nullptr;
+	}
+
+	if (ImageTracker)
+	{
+		ImageTracker = nullptr;
+	}
+
+	for (ILuminARTracker* Tracker : Trackers)
+	{
+		delete Tracker;
+	}
+
+	TargetImageTextures.Empty();
+}
+
+bool FLuminARImplementation::IsTrackableTypeSupported(UClass* ClassType) const
+{
+	return (ClassType == UARTrackedGeometry::StaticClass()) ||
+			(ClassType == UARTrackedPoint::StaticClass()) ||
+			(ClassType == UARPlaneGeometry::StaticClass()) ||
+			(ClassType == UARTrackedImage::StaticClass());
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -31,12 +75,69 @@ FLuminARImplementation::~FLuminARImplementation()
 
 void* FLuminARImplementation::GetARSessionRawPointer()
 {
-	return static_cast<void*>(FLuminARDevice::GetInstance()->GetARSessionRawPointer());
+	return nullptr;
 }
 
 void* FLuminARImplementation::GetGameThreadARFrameRawPointer()
 {
-	return static_cast<void*>(FLuminARDevice::GetInstance()->GetGameThreadARFrameRawPointer());
+	return nullptr;
+}
+
+ELuminARTrackingState FLuminARImplementation::GetTrackingState() const
+{
+	if (!bIsLuminARSessionRunning)
+	{
+		return ELuminARTrackingState::StoppedTracking;
+	}
+	return LatestCameraTrackingState;
+}
+
+bool FLuminARImplementation::GetStartSessionRequestFinished() const
+{
+	return !bStartSessionRequested;
+}
+
+void FLuminARImplementation::ARLineTrace(const FVector2D& ScreenPosition, ELuminARLineTraceChannel TraceChannels, TArray<FARTraceResult>& OutHitResults)
+{
+	OutHitResults.Empty();
+	if (!bIsLuminARSessionRunning)
+	{
+		return;
+	}
+
+	// Only testing straight forward from a little below the headset... Lumin isn't a handheld, but it's nice to have this do something.
+	IXRTrackingSystem* XRTrackingSystem = GetARSystem()->GetXRTrackingSystem();
+	TArray<int32> Devices;
+	XRTrackingSystem->EnumerateTrackedDevices(Devices, EXRTrackedDeviceType::HeadMountedDisplay);
+	check(Devices.Num() == 1);
+	if (Devices.Num() > 0)
+	{
+		const int32 HMDDeviceID = Devices[0];
+		FQuat HMDQuat;
+		FVector HMDPosition;
+		const bool Success = XRTrackingSystem->GetCurrentPose(HMDDeviceID, HMDQuat, HMDPosition);
+		const FTransform TrackingToWorldTransform = XRTrackingSystem->GetTrackingToWorldTransform();
+		if (Success)
+		{
+			const FVector HMDWorldPosition = TrackingToWorldTransform.TransformPosition(HMDPosition);
+			const FQuat HMDWorldQuat = TrackingToWorldTransform.TransformRotation(HMDQuat);
+			const FVector Start = HMDWorldPosition + FVector(0.0f, 0.0f, -10.0f);
+			const FVector Direction = HMDWorldQuat.Vector();
+			const FVector End = Start + (Direction * 10000.0f);
+
+			ARLineTrace(Start, End, TraceChannels, OutHitResults);
+		}
+	}
+}
+
+uint32 FLuminARImplementation::GetFrameNum() const
+{
+	return FrameNumber;
+}
+
+int64 FLuminARImplementation::GetCameraTimestamp() const
+{
+	return LatestCameraTimestamp;
 }
 
 void FLuminARImplementation::OnARSystemInitialized()
@@ -45,24 +146,89 @@ void FLuminARImplementation::OnARSystemInitialized()
 
 bool FLuminARImplementation::OnStartARGameFrame(FWorldContext& WorldContext)
 {
-	if (LuminARDeviceInstance->GetIsLuminARSessionRunning())
-	{
-		bHasValidPose = (LuminARDeviceInstance->GetTrackingState() == ELuminARTrackingState::Tracking);
+	const float WorldToMeterScale = IMagicLeapPlugin::Get().GetWorldToMetersScale();
 
-		if (LightEstimate == nullptr)
+	TFunction<void()> Func;
+	while (RunOnGameThreadQueue.Dequeue(Func))
+	{
+		Func();
+	}
+
+	// Start session with requested config
+	if (!bIsLuminARSessionRunning && bStartSessionRequested)
+	{
+		bStartSessionRequested = false;
+
+		const UARSessionConfig& RequestedConfig = ARSystem->AccessSessionConfig();
+
+		if (!OnIsTrackingTypeSupported(RequestedConfig.GetSessionType()))
 		{
-			LightEstimate = NewObject<UARBasicLightEstimate>();
+			UE_LOG(LogLuminAR, Warning, TEXT("Start AR failed: Unsupported AR tracking type %d for LuminAR"), static_cast<int32>(RequestedConfig.GetSessionType()));
+			CurrentSessionStatus = EARSessionStatus::UnsupportedConfiguration;
+			return false;
 		}
-		FLuminARLightEstimate LuminARLightEstimate = FLuminARDevice::GetInstance()->GetLatestLightEstimate();
-		if (LuminARLightEstimate.bIsValid)
+
+		for (ILuminARTracker* Tracker : Trackers)
 		{
-			LightEstimate->SetLightEstimate(LuminARLightEstimate.RGBScaleFactor, LuminARLightEstimate.PixelIntensity);
+			Tracker->CreateEntityTracker();
 		}
-		else
+
+		// TODO : when trackeers that need privs are introduced, delay setting this flag until privs are granted.
+		bIsLuminARSessionRunning = true;
+		CurrentSessionStatus = EARSessionStatus::Running;
+
+		ARSystem->OnARSessionStarted.Broadcast();
+	}
+
+	if (bIsLuminARSessionRunning)
+	{
+		FMagicLeapHeadTrackingState TrackingState;
+		bool bResult = UMagicLeapHMDFunctionLibrary::GetHeadTrackingState(TrackingState);
+		if (!bResult || TrackingState.Error != EMagicLeapHeadTrackingError::None)
 		{
-			LightEstimate = nullptr;
+			LatestCameraTrackingState = ELuminARTrackingState::NotTracking;
+			return true;
+		}
+
+		LatestCameraTimestamp = FPlatformTime::Seconds();
+		LatestCameraTrackingState = ELuminARTrackingState::Tracking;
+		FrameNumber++;
+
+		for (auto& Tracker : Trackers)
+		{
+			Tracker->OnStartGameFrame();
+		}
+	
+		// Update Anchors
+		for (auto HandleToAnchorMapPair : HandleToAnchorMap)
+		{
+			const FGuid AnchorHandle = HandleToAnchorMapPair.Key;
+			UARPin* const AnchorPin = HandleToAnchorMapPair.Value;
+			LuminArAnchor* LuminArAnchor = reinterpret_cast<struct LuminArAnchor*>(AnchorPin->GetNativeResource());
+			check(LuminArAnchor);
+			const FGuid ParentTrackableHandle = LuminArAnchor->ParentTrackable;
+			if (MagicLeap::FGuidIsValidHandle(ParentTrackableHandle))
+			{
+				UARTrackedGeometry* const ParentTrackable = GetOrCreateTrackableFromHandle<UARTrackedGeometry>(ParentTrackableHandle);
+				const EARTrackingState AnchorTrackingState = ParentTrackable->GetTrackingState();
+				if (AnchorPin->GetTrackingState() != EARTrackingState::StoppedTracking)
+				{
+					AnchorPin->OnTrackingStateChanged(AnchorTrackingState);
+				}
+
+				if (AnchorPin->GetTrackingState() == EARTrackingState::Tracking)
+				{
+					AnchorPin->OnTransformUpdated(ParentTrackable->GetLocalToTrackingTransform());
+				}
+			}
 		}
 	}
+
+	if (bUpdateTrackedImages)
+	{
+		UpdateTrackedImages();
+	}
+
 	return true;
 }
 
@@ -78,33 +244,102 @@ EARTrackingQualityReason FLuminARImplementation::OnGetTrackingQualityReason() co
 
 EARTrackingQuality FLuminARImplementation::OnGetTrackingQuality() const
 {
-	if (!bHasValidPose)
+	FMagicLeapHeadTrackingState TrackingState;
+	const bool bResult = UMagicLeapHMDFunctionLibrary::GetHeadTrackingState(TrackingState);
+	if (bResult)
 	{
-		return EARTrackingQuality::NotTracking;
+		return (TrackingState.Mode == EMagicLeapHeadTrackingMode::PositionAndOrientation) ? EARTrackingQuality::OrientationAndPosition : EARTrackingQuality::NotTracking;
 	}
 
-	return EARTrackingQuality::OrientationAndPosition;
+	return EARTrackingQuality::NotTracking;
 }
 
 void FLuminARImplementation::OnStartARSession(UARSessionConfig* SessionConfig)
 {
-	FLuminARDevice::GetInstance()->StartLuminARSessionRequest(SessionConfig);
+	UE_LOG(LogLuminAR, Log, TEXT("Start LuminAR session requested"));
+
+	if (bIsLuminARSessionRunning)
+	{
+		if (SessionConfig == &ARSystem->AccessSessionConfig())
+		{
+			UE_LOG(LogLuminAR, Warning, TEXT("LuminAR session is already running with the requested LuminAR config. Request aborted."));
+			bStartSessionRequested = false;
+			return;
+		}
+
+		OnPauseARSession();
+	}
+
+	if (bStartSessionRequested)
+	{
+		UE_LOG(LogLuminAR, Warning, TEXT("LuminAR session is already starting. This will overriding the previous session config with the new one."))
+	}
+
+	bStartSessionRequested = true;
+
+	// TODO : check if this code is needed.
+	// Try recreating the LuminARSession to fix the fatal error.
+	// if (CurrentSessionStatus == EARSessionStatus::FatalError)
+	// {
+	// 	UE_LOG(LogLuminAR, Warning, TEXT("Reset LuminAR session due to fatal error detected."));
+	// 	ResetLuminARSession();
+	// }
+
+	if (SessionConfig->GetLightEstimationMode() == EARLightEstimationMode::AmbientLightEstimate)
+	{
+		// Keep a pointer to the tracker, in addition to adding it to the Trackers list, for direct access when getting light estimates
+		LightEstimateTracker = new FLuminARLightTracker(*this);
+		Trackers.Add(LightEstimateTracker);
+	}
 }
 
 void FLuminARImplementation::OnPauseARSession()
 {
-	FLuminARDevice::GetInstance()->PauseLuminARSession();
+	UE_LOG(LogLuminAR, Log, TEXT("Pausing LuminAR session."));
+	if (!bIsLuminARSessionRunning)
+	{
+		if(bStartSessionRequested)
+		{
+			bStartSessionRequested = false;
+		}
+		else
+		{
+			UE_LOG(LogLuminAR, Log, TEXT("Could not stop LuminAR tracking session because there is no running tracking session!"));
+		}
+		return;
+	}
+
+	for (UARPin* Anchor : AllAnchors)
+	{
+		Anchor->OnTrackingStateChanged(EARTrackingState::NotTracking);
+	}
+
+	bIsLuminARSessionRunning = false;
+	CurrentSessionStatus = EARSessionStatus::NotStarted;
 }
 
 void FLuminARImplementation::OnStopARSession()
 {
-	FLuminARDevice::GetInstance()->PauseLuminARSession();
-	FLuminARDevice::GetInstance()->ResetLuminARSession();
+	OnPauseARSession();
+
+	for (UARPin* Anchor : AllAnchors)
+	{
+		Anchor->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
+	}
+
+	for (ILuminARTracker* Tracker : Trackers)
+	{
+		Tracker->DestroyEntityTracker();
+	}
+
+	CurrentSessionStatus = EARSessionStatus::NotStarted;
+
+	TargetImageTextures.Empty();
 }
 
 FARSessionStatus FLuminARImplementation::OnGetARSessionStatus() const
 {
-	return FLuminARDevice::GetInstance()->GetSessionStatus();
+	return CurrentSessionStatus;
 }
 
 void FLuminARImplementation::OnSetAlignmentTransform(const FTransform& InAlignmentTransform)
@@ -149,55 +384,104 @@ static ELuminARLineTraceChannel ConvertToLuminTraceChannels(EARLineTraceChannels
 TArray<FARTraceResult> FLuminARImplementation::OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels)
 {
 	TArray<FARTraceResult> OutHitResults;
-	FLuminARDevice::GetInstance()->ARLineTrace(ScreenCoord, ConvertToLuminTraceChannels(TraceChannels), OutHitResults);
+	ARLineTrace(ScreenCoord, ConvertToLuminTraceChannels(TraceChannels), OutHitResults);
 	return OutHitResults;
 }
 
 TArray<FARTraceResult> FLuminARImplementation::OnLineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels)
 {
 	TArray<FARTraceResult> OutHitResults;
-	FLuminARDevice::GetInstance()->ARLineTrace(Start, End, ConvertToLuminTraceChannels(TraceChannels), OutHitResults);
+	ARLineTrace(Start, End, ConvertToLuminTraceChannels(TraceChannels), OutHitResults);
 	return OutHitResults;
 }
 
 TArray<UARTrackedGeometry*> FLuminARImplementation::OnGetAllTrackedGeometries() const
 {
 	TArray<UARTrackedGeometry*> AllTrackedGeometry;
-	FLuminARDevice::GetInstance()->GetAllTrackables<UARTrackedGeometry>(AllTrackedGeometry);
+	GetAllTrackables<UARTrackedGeometry>(AllTrackedGeometry);
 	return AllTrackedGeometry;
 }
 
 TArray<UARPin*> FLuminARImplementation::OnGetAllPins() const
 {
-	TArray<UARPin*> AllARPins;
-	FLuminARDevice::GetInstance()->GetAllARPins(AllARPins);
-	return AllARPins;
+	return AllAnchors;
 }
 
 bool FLuminARImplementation::OnIsTrackingTypeSupported(EARSessionType SessionType) const
 {
-	return FLuminARDevice::GetInstance()->GetIsTrackingTypeSupported(SessionType);
+	return (SessionType == EARSessionType::World) ? true : false;
 }
 
 UARLightEstimate* FLuminARImplementation::OnGetCurrentLightEstimate() const
 {
-	return LightEstimate;
+	return LightEstimateTracker ? LightEstimateTracker->LightEstimate : nullptr;
 }
 
 UARPin* FLuminARImplementation::OnPinComponent(USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry /*= nullptr*/, const FName DebugName /*= NAME_None*/)
 {
 	UARPin* NewARPin = nullptr;
-	ELuminARFunctionStatus Status = FLuminARDevice::GetInstance()->CreateARPin(PinToWorldTransform, TrackedGeometry, ComponentToPin, DebugName, NewARPin);
-	if (Status != ELuminARFunctionStatus::Success)
+
+	if (TrackedGeometry == nullptr)
 	{
-		UE_LOG(LogLuminARImplementation, Warning, TEXT("OnPinComponent CreateARPin did not return success.  Status=%i"), static_cast<int32>(Status));
+		UE_LOG(LogLuminAR, Error, TEXT("Can pin a component only to a valid tracked geometry."));
 	}
+	else if (bIsLuminARSessionRunning)
+	{
+		const FTransform& TrackingToAlignedTracking = ARSystem->GetAlignmentTransform();
+		const FTransform PinToTrackingTransform = PinToWorldTransform.GetRelativeTransform(ARSystem->GetXRTrackingSystem()->GetTrackingToWorldTransform()).GetRelativeTransform(TrackingToAlignedTracking);
+
+		ensure(TrackedGeometry->GetNativeResource() != nullptr);
+		const FGuid& ParentHandle = static_cast<FLuminARTrackableResource*>(TrackedGeometry->GetNativeResource())->GetNativeHandle();
+		ensure(MagicLeap::FGuidIsValidHandle(ParentHandle));
+		TSharedPtr<LuminArAnchor> NewLuminArAnchor = MakeShared<LuminArAnchor>(ParentHandle);
+
+		NewARPin = NewObject<UARPin>();
+		NewARPin->InitARPin(GetARSystem(), ComponentToPin, PinToTrackingTransform, TrackedGeometry, DebugName);
+		NewARPin->SetNativeResource(reinterpret_cast<void*>(NewLuminArAnchor.Get()));
+
+		HandleToLuminAnchorMap.Add(NewLuminArAnchor->Handle, NewLuminArAnchor);
+		AllAnchors.Add(NewARPin);
+		HandleToAnchorMap.Add(NewLuminArAnchor->Handle, NewARPin);
+	}
+
 	return NewARPin;
 }
 
 void FLuminARImplementation::OnRemovePin(UARPin* PinToRemove)
 {
-	FLuminARDevice::GetInstance()->RemoveARPin(PinToRemove);
+	if (bIsLuminARSessionRunning && AllAnchors.Contains(PinToRemove))
+	{
+		LuminArAnchor* NativeResource = reinterpret_cast<LuminArAnchor*>(PinToRemove->GetNativeResource());
+		check(NativeResource);
+		NativeResource->Detach();
+		PinToRemove->SetNativeResource(nullptr);
+
+		PinToRemove->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
+
+		HandleToAnchorMap.Remove(NativeResource->Handle);
+		HandleToLuminAnchorMap.Remove(NativeResource->Handle);
+		AllAnchors.Remove(PinToRemove);
+	}
+}
+
+EARWorldMappingState FLuminARImplementation::OnGetWorldMappingStatus() const
+{
+	if (bIsLuminARSessionRunning && UMagicLeapARPinFunctionLibrary::IsTrackerValid())
+	{
+		int32 Count = 0;
+		const EMagicLeapPassableWorldError PassableWorldResult = UMagicLeapARPinFunctionLibrary::GetNumAvailableARPins(Count);
+		switch (PassableWorldResult)
+		{
+			case EMagicLeapPassableWorldError::None:
+				// TODO : when can we consider the state to be "mapped"? return StillMappingRelocalizable for now.
+				return (Count > 0) ? EARWorldMappingState::StillMappingRelocalizable : EARWorldMappingState::StillMappingNotRelocalizable;
+			case EMagicLeapPassableWorldError::LowMapQuality:
+			case EMagicLeapPassableWorldError::UnableToLocalize:
+				return EARWorldMappingState::StillMappingNotRelocalizable;
+		}
+	}
+
+	return EARWorldMappingState::NotAvailable;
 }
 
 TArray<FVector> FLuminARImplementation::OnGetPointCloud() const
@@ -206,11 +490,259 @@ TArray<FVector> FLuminARImplementation::OnGetPointCloud() const
 	return TArray<FVector>();
 }
 
+void FLuminARImplementation::SetARSystem(TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> InARSystem)
+{
+	ARSystem = InARSystem;
+}
 
 void FLuminARImplementation::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	if (LightEstimate != nullptr)
+	if (LightEstimateTracker != nullptr)
 	{
-		Collector.AddReferencedObject(LightEstimate);
+		Collector.AddReferencedObject(LightEstimateTracker->LightEstimate);
+	}
+
+	Collector.AddReferencedObjects(AllAnchors);
+}
+
+TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> FLuminARImplementation::GetARSystem()
+{
+	return ARSystem.ToSharedRef();
+}
+
+void FLuminARImplementation::DumpTrackableHandleMap(const FGuid& SessionHandle) const
+{
+	UE_LOG(LogLuminAR, Log, TEXT("ULuminARUObjectManager::DumpTrackableHandleMap"));
+	for (const auto& KeyValuePair : TrackableHandleMap)
+	{
+		const TWeakObjectPtr<UARTrackedGeometry> TrackedGeometry = KeyValuePair.Value;
+		UE_LOG(LogLuminAR, Log, TEXT("  Trackable Handle %s"), *KeyValuePair.Key.ToString());
+		if (TrackedGeometry.IsValid())
+		{
+			UARTrackedGeometry* TrackedGeometryObj = TrackedGeometry.Get();
+			const FLuminARTrackableResource* NativeResource = static_cast<FLuminARTrackableResource*>(TrackedGeometryObj->GetNativeResource());
+			UE_LOG(LogLuminAR, Log, TEXT("  TrackedGeometry - NativeResource:%s, type: %s, tracking state: %d"),
+				*NativeResource->GetNativeHandle().ToString(), *TrackedGeometryObj->GetClass()->GetFName().ToString(), (int)TrackedGeometryObj->GetTrackingState());
+		}
+		else
+		{
+			UE_LOG(LogLuminAR, Log, TEXT("  TrackedGeometry - InValid or Pending Kill."))
+		}
+	}
+}
+
+void FLuminARImplementation::ARLineTrace(const FVector& Start, const FVector& End, ELuminARLineTraceChannel TraceChannels, TArray<FARTraceResult>& OutHitResults)
+{
+	if (!bIsLuminARSessionRunning)
+	{
+		return;
+	}
+	OutHitResults.Empty();
+
+	// Only testing vs planes now, but not the ground plane.
+	ELuminARLineTraceChannel AllPlaneTraceChannels = /*ELuminARLineTraceChannel::InfinitePlane |*/ ELuminARLineTraceChannel::PlaneUsingExtent | ELuminARLineTraceChannel::PlaneUsingBoundaryPolygon;
+	if (!(TraceChannels & AllPlaneTraceChannels))
+		return;
+
+	TArray<UARPlaneGeometry*> Planes;
+	GetAllTrackables(Planes);
+
+	for (UARPlaneGeometry* PPlane : Planes)
+	{
+		check(PPlane);
+		UARPlaneGeometry& Plane = *PPlane;
+
+		const FTransform LocalToWorld = Plane.GetLocalToWorldTransform();
+		const FVector PlaneOrigin = LocalToWorld.GetLocation();
+		const FVector PlaneNormal = LocalToWorld.TransformVectorNoScale(FVector(0, 0, 1));
+		const FVector Dir = End - Start;
+		// check if Dir is parallel to plane, no intersection
+		if (!FMath::IsNearlyZero(Dir | PlaneNormal, KINDA_SMALL_NUMBER))
+		{
+			// if T < 0 or > 1 we are outside the line segment, no intersection
+			float T = (((PlaneOrigin - Start) | PlaneNormal) / ((End - Start) | PlaneNormal));
+			if (T >= 0.0f || T <= 1.0f)
+			{
+				const FVector Intersection = Start + (Dir * T);
+
+				EARLineTraceChannels FoundInTraceChannel = EARLineTraceChannels::None;
+
+				if (!!(TraceChannels & (ELuminARLineTraceChannel::PlaneUsingExtent | ELuminARLineTraceChannel::PlaneUsingBoundaryPolygon)))
+				{
+					const FTransform WorldToLocal = LocalToWorld.Inverse();
+					const FVector LocalIntersection = WorldToLocal.TransformPosition(Intersection);
+
+					// Note: doing boundary check first for consistency with ARCore
+
+					if (FoundInTraceChannel == EARLineTraceChannels::None
+						&& !!(TraceChannels & ELuminARLineTraceChannel::PlaneUsingBoundaryPolygon))
+					{
+						// Note: could optimize this by computing an aligned boundary bounding rectangle during plane update and testing that first.
+
+						// Did we hit inside the boundary?
+						const TArray<FVector> Boundary = Plane.GetBoundaryPolygonInLocalSpace();
+						if (Boundary.Num() > 3) // has to be at least a triangle to have an inside
+						{
+							// This is the 'ray casting algorithm' for detecting if a point is inside a polygon.
+
+							// Draw a line from the point to the outside. Test for intersect with all edges.  If an odd number of edges are intersected the point is inside the polygon.
+							// The bounds are in plane local space, such that the plane is the x-y plane (z is always zero).
+							// We will offset that to put the point we are testing at 0,0 and our ray will be the +y axis (meaning the endpoint is 0,infinity and certainly outside the polygon).
+
+							// This could get the wrong answer if the test line goes exactly through a boundary vertex because that would register as two intersections.
+							// We are ignoring this rare failure cases.
+
+							const FVector2D Origin(LocalIntersection.X, LocalIntersection.Y);
+							const int Num = Boundary.Num();
+							FVector2D A(Boundary[Num - 1].X - Origin.X, Boundary[Num - 1].Y - Origin.Y);
+							int32 Crossings = 0;
+							for (int i = 0; i < Num; ++i)
+							{
+								const FVector2D B(Boundary[i].X - Origin.X, Boundary[i].Y - Origin.Y);
+
+								// Check if there is any Y intercept in the line segment.
+								if (FMath::Sign(A.X) != FMath::Sign(B.X))
+								{
+									// Check if the Y intercept is positive.
+									const float Slope = (B.Y - A.Y) / (B.X - A.X);
+									const float YIntercept = A.Y - (Slope * A.X);
+									if (YIntercept > 0.0f)
+									{
+										Crossings += 1;
+									}
+								}
+
+								A = B;
+							}
+							if ((Crossings & 0x01) == 0x01)
+							{
+								FoundInTraceChannel = EARLineTraceChannels::PlaneUsingBoundaryPolygon;
+							}
+						}
+					}
+
+					if (FoundInTraceChannel == EARLineTraceChannels::None
+						&& !!(TraceChannels & ELuminARLineTraceChannel::PlaneUsingExtent))
+					{
+						// Did we hit inside the plane extents?
+						if (FMath::Abs(LocalIntersection.X) <= Plane.GetExtent().X
+							&& FMath::Abs(LocalIntersection.Y) <= Plane.GetExtent().Y)
+						{
+							FoundInTraceChannel = EARLineTraceChannels::PlaneUsingExtent;
+						}
+					}
+				}
+
+				//// This 'infinite plane' 'ground plane' stuff seems... weird.
+				//if (FoundInTraceChannel == EARLineTraceChannels::None
+				//	&&!!(TraceChannels & ELuminARLineTraceChannel::InfinitePlane))
+				//{
+				//	FoundInTraceChannel = EARLineTraceChannels::GroundPlane;
+				//}
+
+				// write the result
+				if (FoundInTraceChannel != EARLineTraceChannels::None)
+				{
+					const float Distance = Dir.Size() * T;
+
+					FTransform HitTransform = LocalToWorld;
+					HitTransform.SetLocation(Intersection);
+
+					FARTraceResult UEHitResult(GetARSystem(), Distance, FoundInTraceChannel, HitTransform, &Plane);
+					UEHitResult.SetLocalToWorldTransform(HitTransform);
+					OutHitResults.Add(UEHitResult);
+				}
+			}
+		}
+	}
+
+	// Sort closest to furthest
+	OutHitResults.Sort(FARTraceResult::FARTraceResultComparer());
+}
+
+void FLuminARImplementation::UpdateTrackedImages()
+{
+	bUpdateTrackedImages = false;
+
+	if (ImageTracker != nullptr)
+	{
+		const UARSessionConfig& ARSessionConfig = GetARSystem()->AccessSessionConfig();
+		const ULuminARSessionConfig* LuminARSessionConfig = Cast<ULuminARSessionConfig>(&ARSessionConfig);
+
+		const TArray<UARCandidateImage*> CandidateImages = ARSessionConfig.GetCandidateImageList();
+		for (int i = 0; i < CandidateImages.Num(); i++)
+		{
+			UTexture2D* ImageTarget = CandidateImages[i]->GetCandidateTexture();
+
+			if (ImageTarget == nullptr)
+			{
+				UE_LOG(LogLuminAR, Warning, TEXT("ImageTarget is NULL!."));
+				continue;
+			}
+
+			if (ImageTarget && !(ImageTarget->GetPixelFormat() == EPixelFormat::PF_R8G8B8A8 || ImageTarget->GetPixelFormat() == EPixelFormat::PF_B8G8R8A8))
+			{
+				UE_LOG(LogLuminAR, Error, TEXT("Cannot set texture %s as it uses an invalid pixel format!  Valid formats are R8B8G8A8 or B8G8R8A8"), *ImageTarget->GetName());
+				continue;
+			}
+
+			if (TargetImageTextures.Contains(ImageTarget))
+			{
+				UE_LOG(LogLuminAR, Warning, TEXT("Skipped setting %s as it is already being used as an image target"), *ImageTarget->GetName());
+				continue;
+			}
+
+			TargetImageTextures.Add(ImageTarget);
+
+			FMagicLeapImageTrackerTarget Target;
+			Target.Name = CandidateImages[i]->GetFriendlyName();
+			ULuminARCandidateImage* LuminCandidateImage = Cast<ULuminARCandidateImage>(CandidateImages[i]);
+#if WITH_MLSDK
+			float ImageWidth = CandidateImages[i]->GetPhysicalWidth();
+			float ImageHeight = CandidateImages[i]->GetPhysicalHeight();
+			Target.Settings.longer_dimension = (ImageWidth > ImageHeight ? ImageWidth : ImageHeight);
+			// If the candidate image isn't a ULuminARCandidateImage there is no data about whether the image is stationary so assume false, per the is_stationary documentation
+			Target.Settings.is_stationary = LuminCandidateImage ? LuminCandidateImage->GetImageIsStationary() : false;
+#endif // WITH_MLSDK
+
+			Target.Texture = ImageTarget;
+			// If the candidate image isn't a ULuminARCandidateImage there is no data about whether to report unreliable data, so use this component's setting
+			Target.bUseUnreliablePose = LuminCandidateImage ? LuminCandidateImage->GetUseUnreliablePose() : LuminARSessionConfig->bDefaultUseUnreliablePose;
+			Target.SetImageTargetSucceededDelegate.BindRaw(ImageTracker, &FLuminARImageTracker::OnSetImageTargetSucceeded);
+
+			IMagicLeapImageTrackerModule::Get().SetTargetAsync(Target);
+		}
+	}
+}
+
+UARCandidateImage* FLuminARImplementation::GetCandidateImage(const FString& Name)
+{
+	const UARSessionConfig& ARSessionConfig = GetARSystem()->AccessSessionConfig();
+	const ULuminARSessionConfig* LuminARSessionConfig = Cast<ULuminARSessionConfig>(&ARSessionConfig);
+
+	const TArray<UARCandidateImage*>& Images = ARSessionConfig.GetCandidateImageList();
+	for (int32 i = 0; i < Images.Num(); i++)
+	{
+		if (Images[i]->GetFriendlyName() == Name)
+		{
+			return Images[i];
+		}
+	}
+
+	return nullptr;
+}
+
+ULuminARCandidateImage* FLuminARImplementation::AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary)
+{
+	if (OnAddRuntimeCandidateImage(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth))
+	{
+		float PhysicalHeight = PhysicalWidth / CandidateTexture->GetSizeX() * CandidateTexture->GetSizeY();
+		ULuminARCandidateImage* NewCandidateImage = ULuminARCandidateImage::CreateNewLuminARCandidateImage(CandidateTexture, FriendlyName, PhysicalWidth, PhysicalHeight, EARCandidateImageOrientation::Landscape, bUseUnreliablePose, bImageIsStationary);
+		SessionConfig->AddCandidateImage(NewCandidateImage);
+		return NewCandidateImage;
+	}
+	else
+	{
+		return nullptr;
 	}
 }

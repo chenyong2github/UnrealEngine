@@ -34,7 +34,7 @@ class FMagicLeapImageTrackerRunnable : public FMagicLeapRunnable<FMagicLeapImage
 public:
 	FMagicLeapImageTrackerRunnable();
 
-	void Exit() override;
+	void Stop() override;
 	void Pause() override;
 	void Resume() override;
 	bool ProcessCurrentTask() override;
@@ -47,6 +47,7 @@ public:
 	void SetImageTrackerEnabled(bool bEnabled);
 	void UpdateTargetsMainThread();
 	bool TryGetRelativeTransformMainThread(const FString& TargetName, FVector& OutLocation, FRotator& OutRotation);
+	bool IsTracked(const FString& TargetName) const;
 
 private:
 	TMap<FString, FMagicLeapImageTrackerTarget> TrackedImageTargets;

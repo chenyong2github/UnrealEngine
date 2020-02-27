@@ -16,11 +16,10 @@
 #include "AudioPluginUtilities.h"
 #include "OpusAudioInfo.h"
 #include "VorbisAudioInfo.h"
-#include "ADPCMAudioInfo.h"
 #include "XAudio2Effects.h"
 #include "Interfaces/IAudioFormat.h"
 #include "HAL/PlatformAffinity.h"
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_XBOXONE
+#if PLATFORM_MICROSOFT
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
@@ -38,6 +37,8 @@ THIRD_PARTY_INCLUDES_END
 #if WITH_XMA2
 #include "XMAAudioInfo.h"
 #endif
+
+#include "ADPCMAudioInfo.h"
 
 DEFINE_LOG_CATEGORY(LogXAudio2);
 
@@ -127,7 +128,11 @@ bool FXAudio2Device::InitializeHardware()
 	{
 		UE_LOG(LogInit, Verbose, TEXT("Loading XAudio2 dll"));
 
+#if defined(XAUDIO2_DLL_A) //is this ref counting fix still necessary on post- XAudio2_7 ?
+		FXAudioDeviceProperties::XAudio2Dll = LoadLibraryA(XAUDIO2_DLL_A);
+#else
 		FXAudioDeviceProperties::XAudio2Dll = LoadLibraryA("XAudio2_7.dll");
+#endif
 
 		// returning null means we failed to load XAudio2, which means everything will fail
 		if (FXAudioDeviceProperties::XAudio2Dll == nullptr)

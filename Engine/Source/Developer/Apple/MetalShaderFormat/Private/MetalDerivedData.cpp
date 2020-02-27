@@ -393,6 +393,68 @@ struct FMetalShaderOutputMetaData
 	uint32 ConstantBuffers = 0;
 };
 
+// Replace the special texture "gl_LastFragData" to a native subpass fetch operation
+static void PatchSpecialTextureInHlslSource(std::string& SourceData, int& SubpassInput0Dim)
+{
+	// Invalidate output parameter for dimension of subpass input attachemnt at slot 0 (primary slot for "gl_LastFragData").
+	SubpassInput0Dim = 0;
+	
+	// Check if special texture is present in the code
+	static const std::string GSpecialTextureLastFragData = "gl_LastFragData";
+	if (SourceData.find(GSpecialTextureLastFragData) != std::string::npos)
+	{
+		// Replace declaration of special texture with corresponding 'SubpassInput' declaration with respective dimension, i.e. float, float4, etc.
+		struct FHlslVectorType
+		{
+			std::string TypenameIdent;
+			int Dimension;
+		};
+		const FHlslVectorType FragDeclTypes[4] =
+		{
+			{ "float4", 4 },
+			{ "float3", 3 },
+			{ "float2", 2 },
+			{ "float", 1 },
+		};
+		
+		for (const FHlslVectorType& FragDeclType : FragDeclTypes)
+		{
+			// Try to find "Texture2D<T>" or "Texture2D< T >" (where T is the vector type), because a rewritten HLSL might have changed the formatting.
+			std::string FragDecl = "Texture2D<" + FragDeclType.TypenameIdent + "> " + GSpecialTextureLastFragData + ";";
+			size_t FragDeclIncludePos = SourceData.find(FragDecl);
+			
+			if (FragDeclIncludePos == std::string::npos)
+			{
+				FragDecl = "Texture2D< " + FragDeclType.TypenameIdent + " > " + GSpecialTextureLastFragData + ";";
+				FragDeclIncludePos = SourceData.find(FragDecl);
+			}
+			
+			if (FragDeclIncludePos != std::string::npos)
+			{
+				// Replace declaration of Texture2D<T> with SubpassInput<T>
+				SourceData.replace(
+					FragDeclIncludePos,
+					FragDecl.length(),
+					("[[vk::input_attachment_index(0)]] SubpassInput<" + FragDeclType.TypenameIdent + "> " + GSpecialTextureLastFragData + ";")
+				);
+				SubpassInput0Dim = FragDeclType.Dimension;
+				break;
+			}
+		}
+		
+		// Replace all uses of special texture by 'SubpassLoad' operation
+		static const std::string FragLoad = GSpecialTextureLastFragData + ".Load(uint3(0, 0, 0), 0)";
+		for (size_t FragLoadIncludePos = 0; (FragLoadIncludePos = SourceData.find(FragLoad)) != std::string::npos;)
+		{
+			SourceData.replace(
+				FragLoadIncludePos,
+				FragLoad.length(),
+				(GSpecialTextureLastFragData + ".SubpassLoad()")
+			);
+		}
+	}
+}
+
 bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 {
 	Output.bSucceeded = false;
@@ -600,51 +662,34 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
         // Can't rewrite tessellation shaders because the rewriter doesn't handle HLSL attributes like patchFunction properly and it isn't clear how it should.
         if (!bUsingTessellation)
         {
+			// Rewrite HLSL to eliminate unused global variables ahead of compilation
             ShaderConductor::Compiler::ResultDesc Results = ShaderConductor::Compiler::Rewrite(SourceDesc, Options);
 			RewriteBlob = Results.target;
 			
 			SourceData.clear();
             SourceData.resize(RewriteBlob->Size());
-			FCStringAnsi::Strncpy(const_cast<char*>(SourceData.c_str()), (const char*)RewriteBlob->Data(), RewriteBlob->Size());
-			
-			static const std::string glFragDecl = "Texture2D<float4> gl_LastFragData;";
-			size_t glFragDeclIncludePos = SourceData.find(glFragDecl);
-			if (glFragDeclIncludePos != std::string::npos)
-				SourceData.replace(glFragDeclIncludePos, glFragDecl.length(), "[[vk::input_attachment_index(0)]] SubpassInput<float4> gl_LastFragData;");
-			
-			static const std::string glFragLoad = "gl_LastFragData.Load(uint3(0, 0, 0), 0)";
-			size_t glFragLoadIncludePos = SourceData.find(glFragLoad);
-			if (glFragLoadIncludePos != std::string::npos)
-				SourceData.replace(glFragLoadIncludePos, glFragLoad.length(), "gl_LastFragData.SubpassLoad()");
-			
-			SourceDesc.source = SourceData.c_str();
-			
-            if (bDumpDebugInfo)
-            {
-                FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".dxc.hlsl")));
-                if (FileWriter)
-                {
-                    FileWriter->Serialize(const_cast<void*>(RewriteBlob->Data()), RewriteBlob->Size());
-                    FileWriter->Close();
-                    delete FileWriter;
-                }
-            }
+			FCStringAnsi::Strncpy(&SourceData[0], reinterpret_cast<const char*>(RewriteBlob->Data()), RewriteBlob->Size());
         }
-		else
-		{
-			static const std::string glFragDecl = "Texture2D<float4> gl_LastFragData;";
-			size_t glFragDeclIncludePos = SourceData.find(glFragDecl);
-			if (glFragDeclIncludePos != std::string::npos)
-				SourceData.replace(glFragDeclIncludePos, glFragDecl.length(), "[[vk::input_attachment_index(0)]] SubpassInput<float4> gl_LastFragData;");
-			
-			static const std::string glFragLoad = "gl_LastFragData.Load(uint3(0,0,0),0)";
-			size_t glFragLoadIncludePos = SourceData.find(glFragLoad);
-			if (glFragLoadIncludePos != std::string::npos)
-				SourceData.replace(glFragLoadIncludePos, glFragLoad.length(), "gl_LastFragData.SubpassLoad()");
-			
-			SourceDesc.source = SourceData.c_str();
-		}
 		
+		// Replace special case texture "gl_LastFragData" by native subpass fetch operation
+		int SubpassInput0Dim = 0;
+		PatchSpecialTextureInHlslSource(SourceData, SubpassInput0Dim);
+		
+		// Pass latest content of HLSL to input descriptor for ShaderConductor
+		SourceDesc.source = SourceData.c_str();
+
+		if (bDumpDebugInfo)
+		{
+			// Dump final HLSL content to debug file
+			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".dxc.hlsl")));
+			if (FileWriter)
+			{
+				FileWriter->Serialize(reinterpret_cast<void*>(&SourceData[0]), SourceData.size());
+				FileWriter->Close();
+				delete FileWriter;
+			}
+		}
+
 		Options.removeUnusedGlobals = false;
 
 		ShaderConductor::Compiler::TargetDesc TargetDesc;
@@ -671,6 +716,22 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		uint64 BufferIndices = 0xffffffffffffffff;
 		if (!Results.hasError)
 		{
+			// Dump SPIRV module before code reflection so we can analyse the dumped output as early as possible (in case of issues in SPIRV-Reflect)
+			if (bDumpDebugInfo)
+			{
+				if (Results.target->Size() > 0u)
+				{
+					FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".dxc.spv")));
+					if (FileWriter)
+					{
+						TArray<char> SpirvData(reinterpret_cast<const char*>(Results.target->Data()), Results.target->Size());
+						FileWriter->Serialize(&SpirvData[0], SpirvData.Num());
+						FileWriter->Close();
+						delete FileWriter;
+					}
+				}
+			}
+			
 			// Now perform reflection on the SPIRV and tweak any decorations that we need to.
 			// This used to be done via JSON, but that was slow and alloc happy so use SPIRV-Reflect instead.
 			spv_reflect::ShaderModule Reflection(Results.target->Size(), Results.target->Data());
@@ -1830,14 +1891,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			ShaderConductor::Blob* OldData = Results.target;
 			Results.target = ShaderConductor::CreateBlob(Reflection.GetCode(), Reflection.GetCodeSize());
 			
-			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".dxc.spirv")));
-			if (FileWriter)
-			{
-				FileWriter->Serialize((void*)Reflection.GetCode(), Reflection.GetCodeSize());
-				FileWriter->Close();
-				delete FileWriter;
-			}
-			
 			ShaderConductor::DestroyBlob(OldData);
 		}
 		
@@ -1859,7 +1912,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			FCStringAnsi::Snprintf(BufferIdx, 3, "%d", SideTableIndex);
 			BufferIndices &= ~(1ull << (uint64)SideTableIndex);
 
-			ShaderConductor::MacroDefine Defines[16] =
+			ShaderConductor::MacroDefine Defines[17] =
 			{
 				{"texel_buffer_texture_width", "0"},
 				{"enforce_storge_buffer_bounds", "1"},
@@ -1887,6 +1940,15 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					Defines[TargetDesc.numOptions++] = { "ios_use_framebuffer_fetch_subpasses", "1" };
 					Defines[TargetDesc.numOptions++] = { "emulate_cube_array", "1" };
 					break;
+			}
+			
+			char SubpassInput0DimStr[2];
+			if (SubpassInput0Dim >= 1 && SubpassInput0Dim <= 4)
+			{
+				// If a dimension for the subpass input attachment at binding slot 0 was determined,
+				// forward this dimension to SPIRV-Cross because SPIR-V doesn't support a dimension for OpTypeImage instruction with SubpassData
+				FCStringAnsi::Snprintf(SubpassInput0DimStr, 2, "%u", static_cast<uint32>(SubpassInput0Dim));
+				Defines[TargetDesc.numOptions++] = { "subpass_input_dimension0", SubpassInput0DimStr };
 			}
 			
 			if (Frequency == HSF_VertexShader && bUsingTessellation)

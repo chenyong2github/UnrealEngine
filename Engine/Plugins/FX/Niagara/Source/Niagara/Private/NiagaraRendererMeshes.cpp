@@ -9,6 +9,7 @@
 #include "Engine/StaticMesh.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSortingGPU.h"
+#include "NiagaraGPURayTracingTransformsShader.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
@@ -28,6 +29,13 @@ static FAutoConsoleVariableRef CVarEnableNiagaraMeshRendering(
 	TEXT("If == 0, Niagara Mesh Renderers are disabled. \n"),
 	ECVF_Default
 );
+
+#if RHI_RAYTRACING
+static TAutoConsoleVariable<int32> CVarRayTracingNiagaraMeshes(
+	TEXT("r.RayTracing.Niagara.Meshes"),
+	1,
+	TEXT("Include Niagara meshes in ray tracing effects (default = 1 (Niagara meshes enabled in ray tracing))"));
+#endif
 
 extern int32 GbEnableMinimalGPUBuffers;
 
@@ -535,11 +543,11 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 }
 
 #if RHI_RAYTRACING
+
 void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* SceneProxy)
 {
-	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	if (!CVarRayTracingNiagaraMeshes.GetValueOnRenderThread())
 	{
-		//#dxr_todo: support GPU particles
 		return;
 	}
 
@@ -584,7 +592,6 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		FMaterialRenderProxy* MaterialProxy = DynamicDataMesh->Materials[SectionIndex];
 		if ((Section.NumTriangles == 0) || (MaterialProxy == NULL))
 		{
-			//@todo. This should never occur, but it does occasionally.
 			continue;
 		}
 
@@ -641,7 +648,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 
 	auto GetInstancePosition = [&PositionX, &PositionY, &PositionZ](int32 Idx)
 	{
-		return FVector(PositionX[Idx], PositionY[Idx], PositionZ[Idx]);
+		return FVector4(PositionX[Idx], PositionY[Idx], PositionZ[Idx], 1);
 	};
 
 	auto GetInstanceScale = [&ScaleX, &ScaleY, &ScaleZ](int32 Idx)
@@ -660,39 +667,118 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 	bool bHasScale = ScaleBaseCompOffset > 0;
 
 	FMatrix LocalTransform(SceneProxy->GetLocalToWorld());
-	FVector4 DefaultPosLocal = LocalTransform.GetOrigin();
 
 	for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
 	{	
-		FMatrix InstanceTransform = bLocalSpace ? LocalTransform : FMatrix::Identity;
+		FMatrix InstanceTransform(FMatrix::Identity);
 
-		if (bHasPosition)
+		if (SimTarget == ENiagaraSimTarget::CPUSim)
 		{
-			FVector InstancePos(GetInstancePosition(InstanceIndex));
-			InstanceTransform.SetOrigin(InstanceTransform.GetOrigin() + InstancePos);
+			FVector4 InstancePos = GetInstancePosition(InstanceIndex);
+			
+			FVector4 Transform1 = FVector4(1.0f, 0.0f, 0.0f, InstancePos.X);
+			FVector4 Transform2 = FVector4(0.0f, 1.0f, 0.0f, InstancePos.Y);
+			FVector4 Transform3 = FVector4(0.0f, 0.0f, 1.0f, InstancePos.Z);
+
+			if (bHasRotation)
+			{
+				FQuat InstanceQuat = GetInstanceQuat(InstanceIndex);
+				FTransform RotationTransform(InstanceQuat.GetNormalized());
+				FMatrix RotationMatrix = RotationTransform.ToMatrixWithScale();			
+
+				Transform1.X = RotationMatrix.M[0][0];
+				Transform1.Y = RotationMatrix.M[0][1];
+				Transform1.Z = RotationMatrix.M[0][2];
+
+				Transform2.X = RotationMatrix.M[1][0];
+				Transform2.Y = RotationMatrix.M[1][1];
+				Transform2.Z = RotationMatrix.M[1][2];
+
+				Transform3.X = RotationMatrix.M[2][0];
+				Transform3.Y = RotationMatrix.M[2][1];
+				Transform3.Z = RotationMatrix.M[2][2];
+			}
+
+			FMatrix ScaleMatrix(FMatrix::Identity);
+			if (bHasScale)
+			{
+				FVector InstanceSca(GetInstanceScale(InstanceIndex));
+				ScaleMatrix.M[0][0] *= InstanceSca.X;
+				ScaleMatrix.M[1][1] *= InstanceSca.Y;
+				ScaleMatrix.M[2][2] *= InstanceSca.Z;
+			}
+
+			InstanceTransform = FMatrix(FPlane(Transform1), FPlane(Transform2), FPlane(Transform3), FPlane(0.0, 0.0, 0.0, 1.0));
+			InstanceTransform = InstanceTransform * ScaleMatrix;
+			InstanceTransform = InstanceTransform.GetTransposed();
+
+			if (bLocalSpace)
+			{
+				InstanceTransform = InstanceTransform * LocalTransform;
+			}
 		}
-
-		if (bHasRotation)
+		else
 		{
-			FQuat InstanceQuat = GetInstanceQuat(InstanceIndex);
-			FTransform RotationTransform(InstanceQuat/*.GetNormalized()*/);
-			FMatrix RotationMatrix = RotationTransform.ToMatrixWithScale();			
-			InstanceTransform = RotationMatrix * InstanceTransform;
-		}
-
-		if (bHasScale)
-		{
+			// Indirect instancing dispatching: transforms are not available at this point but computed in GPU instead
+			// Set invalid transforms so ray tracing ignores them. Valid transforms will be set later directly in the GPU
 			FMatrix ScaleTransform = FMatrix::Identity;
-
-			FVector InstanceSca(GetInstanceScale(InstanceIndex));
-			ScaleTransform.M[0][0] *= InstanceSca.X;
-			ScaleTransform.M[1][1] *= InstanceSca.Y;
-			ScaleTransform.M[2][2] *= InstanceSca.Z;
+			ScaleTransform.M[0][0] = 0.0;
+			ScaleTransform.M[1][1] = 0.0;
+			ScaleTransform.M[2][2] = 0.0;
 
 			InstanceTransform = ScaleTransform * InstanceTransform;
 		}
 
 		RayTracingInstance.InstanceTransforms.Add(InstanceTransform);
+	}
+
+	// Set indirect transforms for GPU instances
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim 
+		&& FNiagaraUtilities::AllowComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel])
+		&& FDataDrivenShaderPlatformInfo::GetSupportsRayTracingIndirectInstanceData(GShaderPlatformForFeatureLevel[FeatureLevel])
+		)
+	{
+		FRHICommandListImmediate& RHICmdList = Context.RHICmdList;
+		
+		uint32 CPUInstancesCount = SourceParticleData->GetNumInstances();
+	
+		RayTracingInstance.NumTransforms = CPUInstancesCount;
+
+		FRWBufferStructured InstanceGPUTransformsBuffer;
+		//InstanceGPUTransformsBuffer.Initialize(sizeof(FMatrix), CPUInstancesCount, BUF_Static);
+		InstanceGPUTransformsBuffer.Initialize(3*4*sizeof(float), CPUInstancesCount, BUF_Static);
+		RayTracingInstance.InstanceGPUTransformsSRV = InstanceGPUTransformsBuffer.SRV;
+
+		FNiagaraDrawIndirectArgsGenCS::FPermutationDomain PermutationVector;
+		TShaderMapRef<FNiagaraGPURayTracingTransformsCS> GPURayTracingTransformsCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
+		RHICmdList.SetComputeShader(GPURayTracingTransformsCS.GetComputeShader());
+
+		const FUintVector4 NiagaraOffsets(
+			VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset(), 
+			VFVariables[ENiagaraMeshVFLayout::Transform].GetGPUOffset(),
+			VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset(),
+			bLocalSpace? 1 : 0);
+
+		uint32 FloatDataOffset = 0;
+		uint32 FloatDataStride = SourceParticleData->GetFloatStride() / sizeof(float);
+
+		GPURayTracingTransformsCS->SetParameters(
+			RHICmdList, 
+			CPUInstancesCount,
+			SourceParticleData->GetGPUBufferFloat().SRV, 
+			FloatDataOffset, 
+			FloatDataStride, 
+			SourceParticleData->GetGPUInstanceCountBufferOffset(),
+			Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer().SRV,
+			NiagaraOffsets, 
+			LocalTransform, 
+			InstanceGPUTransformsBuffer.UAV);
+
+		uint32 NGroups = FMath::DivideAndRoundUp(CPUInstancesCount, FNiagaraGPURayTracingTransformsCS::ThreadGroupSize);
+		DispatchComputeShader(RHICmdList, GPURayTracingTransformsCS, NGroups, 1, 1);
+		GPURayTracingTransformsCS->UnbindBuffers(RHICmdList);
+
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, InstanceGPUTransformsBuffer.UAV);
 	}
 
 	OutRayTracingInstances.Add(RayTracingInstance);

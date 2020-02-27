@@ -526,6 +526,8 @@ public:
 	virtual void RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override;
 	virtual void RHIAutomaticCacheFlushAfterComputeShader(bool bEnable) final override;
 	virtual void RHIFlushComputeShaderCache() final override;
+	virtual void RHIBeginUAVOverlap() final override;
+	virtual void RHIEndUAVOverlap() final override;
 	virtual void RHISetMultipleViewports(uint32 Count, const FViewportBounds* Data) final override;
 	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values) final override;
 	virtual void RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values) final override;
@@ -597,6 +599,7 @@ public:
 	virtual void RHICopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox) final override;
 
 	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* Resource);
+	virtual FTexture2DArrayRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 TexCreateFlags, const FClearValueBinding&, ID3D11Texture2D* Resource);
 	virtual FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* Resource);
 	
 	virtual void RHIPerFrameRHIFlushComplete() final override;
@@ -1067,8 +1070,11 @@ protected:
 	void StopIntelExtensions();
 #endif // INTEL_EXTENSIONS
 
-	void BeginUAVOverlap();
-	void EndUAVOverlap();
+	// UAV overlap handling
+	bool bUAVOverlapAllowed = false;
+	bool bUAVOverlapEnabled = false;
+	bool IsUAVOverlapSupported();
+	void UAVBarrier();
 
 #if INTEL_METRICSDISCOVERY
 	void CreateIntelMetricsDiscovery();

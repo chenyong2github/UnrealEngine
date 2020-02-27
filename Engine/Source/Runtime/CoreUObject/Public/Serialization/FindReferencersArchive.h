@@ -11,7 +11,7 @@
 /**
  * Archive for mapping out the referencers of a collection of objects.
  */
-class COREUOBJECT_VTABLE FFindReferencersArchive : public FArchiveUObject
+class FFindReferencersArchive : public FArchiveUObject
 {
 public:
 	/**

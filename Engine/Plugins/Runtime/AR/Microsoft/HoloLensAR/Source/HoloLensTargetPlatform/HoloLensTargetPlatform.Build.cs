@@ -6,47 +6,49 @@ using UnrealBuildTool;
 
 public class HoloLensTargetPlatform : ModuleRules
 {
-	private string ModulePath
-	{
-		get { return ModuleDirectory; }
-	}
- 
-	private string ThirdPartyPath
-	{
-		get { return Path.GetFullPath( Path.Combine( ModulePath, "../ThirdParty" ) ); }
-	}
-	
 	public HoloLensTargetPlatform(ReadOnlyTargetRules Target) : base(Target)
     {
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
+                "CoreUObject",
 				"Settings",
                 "EngineSettings",
                 "TargetPlatform",
 				"DesktopPlatform",
-				"HoloLensDeviceDetector",
 				"HTTP",
-				"HoloLensPlatformEditor"
-			}
-		);
+                "Json",
+                "HoloLensPlatformEditor",
+            }
+        );
 
 		PrivateIncludePathModuleNames.Add("Settings");
 
-		// compile withEngine
-		if (Target.bCompileAgainstEngine)
+        int Win10Build = 0;
+        Version ver = null;
+        if (Version.TryParse(Target.WindowsPlatform.WindowsSdkVersion, out ver))
+        {
+            Win10Build = ver.Build;
+        }
+
+        //there is a WinSDK bug that prevented to include the file into this version
+		if(Win10Build != 0 && Win10Build != 16299)
+        {
+            PrivateDefinitions.Add("APPXPACKAGING_ENABLE=1");
+        }
+		else
+        {
+            PrivateDefinitions.Add("APPXPACKAGING_ENABLE=0");
+        }
+
+        // compile withEngine
+        if (Target.bCompileAgainstEngine)
 		{
 			PrivateDependencyModuleNames.Add("Engine");
 			PrivateIncludePathModuleNames.Add("TextureCompressor");
 		}
 
 		PublicSystemLibraries.Add("shlwapi.lib");
-		
-		string LibrariesPath = Path.Combine(ThirdPartyPath, "Lib", Target.WindowsPlatform.GetArchitectureSubpath());
-				
-		PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "HoloLensBuildLib.lib"));
-		
-		PrivateIncludePaths.Add(Path.Combine(ThirdPartyPath, "Include/"));
+        PublicSystemLibraries.Add("runtimeobject.lib");
 	}
 }

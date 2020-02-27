@@ -28,7 +28,7 @@ static TAutoConsoleVariable<int32> CVarD3D12Texture2DRHIFlush(
 
 static TAutoConsoleVariable<int32> CVarUseUpdateTexture3DComputeShader(
 	TEXT("D3D12.UseUpdateTexture3DComputeShader"),
-	PLATFORM_XBOXONE,
+	0,
 	TEXT("If enabled, use a compute shader for UpdateTexture3D. Avoids alignment restrictions")
 	TEXT(" 0: off (default)\n")
 	TEXT(" 1: on"),
@@ -158,23 +158,13 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 {
 	FD3D12TextureBase* TextureBase;
 	FD3D12ResourceLocation SrcResourceLoc;
-	uint32 SizeX;
-	uint32 SizeY;
-	uint32 SizeZ;
-	uint32 NumSlices;
-	uint32 NumMips;
-	EPixelFormat Format;
+	uint32 NumSubresources;
 	D3D12_RESOURCE_STATES DestinationState;
 
-	FORCEINLINE_DEBUGGABLE FD3D12RHICommandInitializeTexture(FD3D12TextureBase* InTexture, FD3D12ResourceLocation& InSrcResourceLoc, uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumSlices, uint32 InNumMips, EPixelFormat InFormat, D3D12_RESOURCE_STATES InDestinationState)
+	FORCEINLINE_DEBUGGABLE FD3D12RHICommandInitializeTexture(FD3D12TextureBase* InTexture, FD3D12ResourceLocation& InSrcResourceLoc, uint32 InNumSubresources, D3D12_RESOURCE_STATES InDestinationState)
 		: TextureBase(InTexture)
 		, SrcResourceLoc(InSrcResourceLoc.GetParentDevice())
-		, SizeX(InSizeX)
-		, SizeY(InSizeY)
-		, SizeZ(InSizeZ)
-		, NumSlices(InNumSlices)
-		, NumMips(InNumMips)
-		, Format(InFormat)
+		, NumSubresources(InNumSubresources)
 		, DestinationState(InDestinationState)
 	{
 		FD3D12ResourceLocation::TransferOwnership(SrcResourceLoc, InSrcResourceLoc);
@@ -187,7 +177,22 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 
 	void ExecuteNoCmdList()
 	{
-		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT) GPixelFormats[Format].PlatformFormat;
+		size_t MemSize = NumSubresources * (sizeof(D3D12_PLACED_SUBRESOURCE_FOOTPRINT) + sizeof(UINT) + sizeof(UINT64));
+		const bool bAllocateOnStack = (MemSize < 4096);
+		void* Mem = bAllocateOnStack? FMemory_Alloca(MemSize) : FMemory::Malloc(MemSize);
+
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT* Footprints = (D3D12_PLACED_SUBRESOURCE_FOOTPRINT*) Mem;
+		check(Footprints);
+		UINT* Rows = (UINT*) (Footprints + NumSubresources);
+		UINT64* RowSizeInBytes = (UINT64*) (Rows + NumSubresources);
+
+		uint64 Size = 0;
+		const D3D12_RESOURCE_DESC& Desc = TextureBase->GetResource()->GetDesc();
+		TextureBase->GetParentDevice()->GetDevice()->GetCopyableFootprints(&Desc, 0, NumSubresources, SrcResourceLoc.GetOffsetFromBaseOfResource(), Footprints, Rows, RowSizeInBytes, &Size);
+
+		D3D12_TEXTURE_COPY_LOCATION Src;
+		Src.pResource = SrcResourceLoc.GetResource()->GetResource();
+		Src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
 		// Begin with the root texture (i.e. device node 0)
 		FD3D12TextureBase* CurrentTexture = TextureBase;
@@ -199,44 +204,21 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			FD3D12Resource* Resource = CurrentTexture->GetResource();
 
 			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
-			hCommandList.GetCurrentOwningContext()->numCopies += NumSlices * NumMips;
+			hCommandList.GetCurrentOwningContext()->numCopies += NumSubresources;
 
 			FConditionalScopeResourceBarrier ConditionalScopeResourceBarrier(hCommandList, Resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
-			ID3D12Device* D3DDevice = Device->GetDevice();
 			ID3D12GraphicsCommandList* CmdList = hCommandList.GraphicsCommandList();
 
 			D3D12_TEXTURE_COPY_LOCATION Dst;
 			Dst.pResource = Resource->GetResource();
 			Dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-			D3D12_TEXTURE_COPY_LOCATION Src;
-			Src.pResource = SrcResourceLoc.GetResource()->GetResource();
-			Src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-
-			uint64 Offset = SrcResourceLoc.GetOffsetFromBaseOfResource();
-			for (uint32 ArraySliceIndex = 0; ArraySliceIndex < NumSlices; ++ArraySliceIndex)
+			for (uint32 Subresource = 0; Subresource < NumSubresources; Subresource++)
 			{
-				for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-				{
-					uint32 NumBlocksX = FMath::Max(1U, (SizeX >> MipIndex) / GPixelFormats[Format].BlockSizeX);
-					uint32 NumBlocksY = FMath::Max(1U, (SizeY >> MipIndex) / GPixelFormats[Format].BlockSizeY);
-					uint32 NumBlocksZ = FMath::Max(1U, (SizeZ >> MipIndex) / GPixelFormats[Format].BlockSizeZ);
-
-					uint32 RowPitch = Align(NumBlocksX * GPixelFormats[Format].BlockBytes, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-
-					Dst.SubresourceIndex                   = ArraySliceIndex * NumMips + MipIndex;
-					Src.PlacedFootprint.Offset             = Offset;
-					Src.PlacedFootprint.Footprint.Format   = PlatformFormat;
-					Src.PlacedFootprint.Footprint.Width    = FMath::Max(1U, SizeX >> MipIndex);
-					Src.PlacedFootprint.Footprint.Height   = FMath::Max(1U, SizeY >> MipIndex);
-					Src.PlacedFootprint.Footprint.Depth    = FMath::Max(1U, SizeZ >> MipIndex);
-					Src.PlacedFootprint.Footprint.RowPitch = RowPitch;
-
-					CmdList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
-
-					Offset += RowPitch * NumBlocksY * NumBlocksZ;
-				}
+				Dst.SubresourceIndex = Subresource;
+				Src.PlacedFootprint = Footprints[Subresource];
+				CmdList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
 			}
 
 			hCommandList.UpdateResidency(Resource);
@@ -244,6 +226,10 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			CurrentTexture = CurrentTexture->GetNextObject();
 		}
 
+		if (!bAllocateOnStack)
+		{
+			FMemory::Free(Mem);
+		}
 	}
 };
 
@@ -720,12 +706,6 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateTextureTime);
 
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-	{
-		// Remove sRGB read flag when not supported
-		Flags &= ~TexCreate_SRGB;
-	}
-
 	const bool bSRGB = (Flags & TexCreate_SRGB) != 0;
 
 	const DXGI_FORMAT PlatformResourceFormat = GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, Flags);
@@ -1151,12 +1131,6 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 	
 	const uint32 InvalidFlags = TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_GenerateMipCapable | TexCreate_UAV | TexCreate_Presentable | TexCreate_CPUReadback;
 	check((Flags & InvalidFlags) == 0);
-
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-	{
-		// Remove sRGB read flag when not supported
-		Flags &= ~TexCreate_SRGB;
-	}
 
 	const DXGI_FORMAT PlatformResourceFormat = (DXGI_FORMAT)GPixelFormats[Format].PlatformFormat;
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, ((Flags & TexCreate_SRGB) != 0));
@@ -1593,17 +1567,18 @@ void* TD3D12Texture2D<RHIResourceType>::Lock(class FRHICommandListImmediate* RHI
 
 	FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
 
+#if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
+	void* RawTextureMemory = (void*)ResourceLocation.GetGPUVirtualAddress();
+#endif
+
 	void* Data = nullptr;
 
-#if	PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-
-	if (GetParentDevice()->GetOwningRHI()->HandleSpecialLock(Data, MipIndex, ArrayIndex, GetFlags(), LockMode, GetTextureLayout(), RawTextureMemory, DestStride))
+	if (GetParentDevice()->GetOwningRHI()->HandleSpecialLock(Data, MipIndex, ArrayIndex, RHIResourceType::GetFlags(), LockMode, GetTextureLayout(), RawTextureMemory, DestStride))
 	{
 		// nothing left to do...
 		check(Data != nullptr);
 	}
 	else
-#endif
 	if (LockMode == RLM_WriteOnly)
 	{
 		// If we're writing to the texture, allocate a system memory buffer to receive the new contents.
@@ -1752,57 +1727,69 @@ void FD3D12TextureBase::InitializeTextureData(FRHICommandListImmediate* RHICmdLi
 {
 	// each mip of each array slice counts as a subresource
 	uint32 NumSubresources = NumMips * NumSlices;
-	uint64 Size = GetRequiredIntermediateSize(GetResource()->GetResource(), 0, NumSubresources);
 
-	FD3D12ResourceLocation SrcResourceLoc(GetParentDevice());
-	uint8* DstData = (uint8*) SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &SrcResourceLoc);
-	uint32 DstDataOffset = 0;
+	FD3D12Device* Device = GetParentDevice();
+
+	size_t MemSize = NumSubresources * (sizeof(D3D12_PLACED_SUBRESOURCE_FOOTPRINT) + sizeof(UINT) + sizeof(UINT64));
+	const bool bAllocateOnStack = (MemSize < 4096);
+	void* Mem = bAllocateOnStack? FMemory_Alloca(MemSize) : FMemory::Malloc(MemSize);
+
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT* Footprints = (D3D12_PLACED_SUBRESOURCE_FOOTPRINT*) Mem;
+	check(Footprints);
+	UINT* Rows = (UINT*) (Footprints + NumSubresources);
+	check(Rows);
+	UINT64* RowSizeInBytes = (UINT64*) (Rows + NumSubresources);
+	check(RowSizeInBytes);
+
+	uint64 Size = 0;
+	const D3D12_RESOURCE_DESC& Desc = GetResource()->GetDesc();
+	Device->GetDevice()->GetCopyableFootprints(&Desc, 0, NumSubresources, 0, Footprints, Rows, RowSizeInBytes, &Size);
+
+	FD3D12ResourceLocation SrcResourceLoc(Device);
+	uint8* DstDataBase = (uint8*) Device->GetDefaultFastAllocator().Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &SrcResourceLoc);
 
 	const uint8* SrcData = (const uint8*) InitData;
-	for (uint32 ArraySliceIndex = 0; ArraySliceIndex < NumSlices; ++ArraySliceIndex)
+	for (uint32 Subresource = 0; Subresource < NumSubresources; Subresource++)
 	{
-		for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+		uint8* DstData = DstDataBase + Footprints[Subresource].Offset;
+
+		const uint32 NumRows = Rows[Subresource] * Footprints[Subresource].Footprint.Depth;
+		const uint32 SrcRowPitch = RowSizeInBytes[Subresource];
+		const uint32 DstRowPitch = Footprints[Subresource].Footprint.RowPitch;
+
+		// If src and dst pitch are aligned, which is typically the case for the bulk of the data (most large mips, POT textures), we can use a single large memcpy()
+		if (SrcRowPitch == DstRowPitch)
 		{
-			uint32 NumBlocksX = FMath::Max(1U, (SizeX >> MipIndex) / GPixelFormats[Format].BlockSizeX);
-			uint32 NumBlocksY = FMath::Max(1U, (SizeY >> MipIndex) / GPixelFormats[Format].BlockSizeY);
-			uint32 NumBlocksZ = FMath::Max(1U, (SizeZ >> MipIndex) / GPixelFormats[Format].BlockSizeZ);
-
-			uint32 RowPitch = NumBlocksX * GPixelFormats[Format].BlockBytes;
-			uint32 NumRows = NumBlocksY * NumBlocksZ;
-
-			// If RowPitch is aligned, which is typically the case for the bulk of the data (most large mips, POT textures), we turn the below loop into a single large memcpy
-			if (IsAligned(RowPitch, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT))
-			{
-				RowPitch *= NumRows;
-				NumRows = 1;
-			}
-
+			memcpy(DstData, SrcData, SrcRowPitch * NumRows);
+			SrcData += SrcRowPitch * NumRows;
+		}
+		else
+		{
 			for (uint32 Row = 0; Row < NumRows; ++Row)
 			{
-				DstDataOffset = Align<uint32>(DstDataOffset, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-				memcpy(DstData + DstDataOffset, SrcData, RowPitch);
+				memcpy(DstData, SrcData, SrcRowPitch);
 
-				SrcData += RowPitch;
-				DstDataOffset += RowPitch;
+				SrcData += SrcRowPitch;
+				DstData += DstRowPitch;
 			}
 		}
 	}
 
-#if PLATFORM_WINDOWS
-	ensure(DstDataOffset == Size);
-#else
-	ensure(Align(DstDataOffset, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT) == Size);
-#endif
-	ensure(SrcData == (uint8*) InitData + InitDataSize);
+	check(SrcData == (uint8*) InitData + InitDataSize);
 
 	if (ShouldDeferCmdListOperation(RHICmdList))
 	{
-		ALLOC_COMMAND_CL(*RHICmdList, FD3D12RHICommandInitializeTexture)(this, SrcResourceLoc, SizeX, SizeY, SizeZ, NumSlices, NumMips, Format, DestinationState);
+		ALLOC_COMMAND_CL(*RHICmdList, FD3D12RHICommandInitializeTexture)(this, SrcResourceLoc, NumSubresources, DestinationState);
 	}
 	else
 	{
-		FD3D12RHICommandInitializeTexture Command(this, SrcResourceLoc, SizeX, SizeY, SizeZ, NumSlices, NumMips, Format, DestinationState);
+		FD3D12RHICommandInitializeTexture Command(this, SrcResourceLoc, NumSubresources, DestinationState);
 		Command.ExecuteNoCmdList();
+	}
+
+	if (!bAllocateOnStack)
+	{
+		FMemory::Free(Mem);
 	}
 }
 
@@ -1832,13 +1819,15 @@ void TD3D12Texture2D<RHIResourceType>::UnlockInternal(class FRHICommandListImmed
 
 	check(LockedResource);
 
-#if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-	if (GetParentDevice()->GetOwningRHI()->HandleSpecialUnlock(RHICmdList, MipIndex, GetFlags(), GetTextureLayout(), RawTextureMemory))
+#if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
+	void* RawTextureMemory = (void*)ResourceLocation.GetGPUVirtualAddress();
+#endif
+
+	if (GetParentDevice()->GetOwningRHI()->HandleSpecialUnlock(RHICmdList, MipIndex, RHIResourceType::GetFlags(), GetTextureLayout(), RawTextureMemory))
 	{
 		// nothing left to do...
 	}
 	else
-#endif
 	{
 		if (!LockedResource->bLockedForReadOnly)
 		{
@@ -2579,12 +2568,6 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHICreateTexture2DFromResource(EPixelFormat F
 
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateTextureTime);
 
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-	{
-		// Remove sRGB read flag when not supported
-		TexCreateFlags &= ~TexCreate_SRGB;
-	}
-
 	const bool bSRGB = (TexCreateFlags & TexCreate_SRGB) != 0;
 
 	const DXGI_FORMAT PlatformResourceFormat = TextureDesc.Format;
@@ -2726,12 +2709,6 @@ FTextureCubeRHIRef FD3D12DynamicRHI::RHICreateTextureCubeFromResource(EPixelForm
 	}
 
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateTextureTime);
-
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-	{
-		// Remove sRGB read flag when not supported
-		TexCreateFlags &= ~TexCreate_SRGB;
-	}
 
 	const bool bSRGB = (TexCreateFlags & TexCreate_SRGB) != 0;
 

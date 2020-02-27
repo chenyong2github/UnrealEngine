@@ -359,7 +359,14 @@ void FMaterialShader::SetParameters(
 		}
 		else if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
 		{
-			TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = CreateMobileSceneTextureUniformBufferSingleDraw(RHICmdList, View.FeatureLevel);
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FMobileSceneTextureUniformParameters UniformParameters;
+			SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, true, true, UniformParameters);
+			if (View.GetEyeAdaptationBuffer())
+			{
+				UniformParameters.EyeAdaptationBuffer = View.GetEyeAdaptationBuffer()->SRV;
+			}
+			TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = TUniformBufferRef<FMobileSceneTextureUniformParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_SingleDraw);
 			SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetUniformBufferParameter(), UniformBuffer);
 		}
 	}

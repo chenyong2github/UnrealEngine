@@ -57,13 +57,12 @@ void FMagicLeapCustomPresentVulkan::FinishRendering()
 		NotifyFirstRender();
 
 		// TODO [Blake] : Hack since we cannot yet specify a handle per view in the view family
-		const MLGraphicsVirtualCameraInfoArray& vp_array = Plugin->GetCurrentFrame().FrameInfo.virtual_camera_info_array;
-		const uint32 vp_width = static_cast<uint32>(vp_array.viewport.w);
-		const uint32 vp_height = static_cast<uint32>(vp_array.viewport.h);
+		const MLGraphicsFrameInfo& FrameInfo = Plugin->GetCurrentFrame().FrameInfo;
+		const uint32 vp_width = static_cast<uint32>(FrameInfo.viewport.w);
+		const uint32 vp_height = static_cast<uint32>(FrameInfo.viewport.h);
 
-		// Clear MLGraphics eye textures since on Vulkan they are not pre-cleared. (needs to be done on RHI thread)
-		// Temporary. We are getting an API change and an OS update to clear them before sending to the app, same as in OpenGL.
-		FMagicLeapHelperVulkan::ClearImage(vp_array.color_id, FLinearColor::Transparent, 0 /* BaseMipLevel */, 1 /* LevelCount */, 0 /* BaseArrayLayer */, vp_array.num_virtual_cameras);
+		// Clear MLGraphics depth textures since on Vulkan they are not pre-cleared. (needs to be done on RHI thread)
+		FMagicLeapHelperVulkan::ClearImage(FrameInfo.depth_id, FLinearColor::Black, 0 /* BaseMipLevel */, 1 /* LevelCount */, 0 /* BaseArrayLayer */, FrameInfo.num_virtual_cameras, true);
 
 		// Alias the render target with an srgb image description for proper color space output.
 		if (RenderTargetTextureAllocation != VK_NULL_HANDLE && LastAliasedRenderTarget != RenderTargetTexture)
@@ -81,10 +80,15 @@ void FMagicLeapCustomPresentVulkan::FinishRendering()
 		}
 
 		const VkImage FinalTarget = (RenderTargetTextureSRGB != VK_NULL_HANDLE) ? reinterpret_cast<const VkImage>(RenderTargetTextureSRGB) : reinterpret_cast<const VkImage>(RenderTargetTexture);
-		FMagicLeapHelperVulkan::BlitImage((uint64)FinalTarget, 0, 0, 0, vp_width, vp_height, 1, (uint64)vp_array.color_id, 0, 0, 0, 0, vp_width, vp_height, 1);
-		FMagicLeapHelperVulkan::BlitImage((uint64)FinalTarget, vp_width, 0, 0, vp_width, vp_height, 1, (uint64)vp_array.color_id, 1, 0, 0, 0, vp_width, vp_height, 1);
+		FMagicLeapHelperVulkan::BlitImage((uint64)FinalTarget, 0, 0, 0, vp_width, vp_height, 1, (uint64)FrameInfo.color_id, 0, 0, 0, 0, vp_width, vp_height, 1);
+		FMagicLeapHelperVulkan::BlitImage((uint64)FinalTarget, vp_width, 0, 0, vp_width, vp_height, 1, (uint64)FrameInfo.color_id, 1, 0, 0, 0, vp_width, vp_height, 1);
 
-		FMagicLeapHelperVulkan::SignalObjects((uint64)vp_array.virtual_cameras[0].sync_object, (uint64)vp_array.virtual_cameras[1].sync_object);
+		const VkImage DepthTarget = static_cast<FVulkanTexture2D*>(Plugin->DepthBuffer->GetTexture2D())->Surface.Image;
+
+		FMagicLeapHelperVulkan::BlitImage((uint64)DepthTarget, 0, 0, 0, vp_width, vp_height, 1, (uint64)FrameInfo.depth_id, 0, 0, 0, 0, vp_width, vp_height, 1, true);
+		FMagicLeapHelperVulkan::BlitImage((uint64)DepthTarget, vp_width, 0, 0, vp_width, vp_height, 1, (uint64)FrameInfo.depth_id, 1, 0, 0, 0, vp_width, vp_height, 1, true);
+
+		FMagicLeapHelperVulkan::SignalObjects((uint64)FrameInfo.virtual_cameras[0].sync_object, (uint64)FrameInfo.virtual_cameras[1].sync_object, (uint64)FrameInfo.wait_sync_object);
 
 		MLResult Result = MLGraphicsEndFrame(Plugin->GraphicsClient, Plugin->GetCurrentFrame().FrameInfo.handle);
 		if (Result != MLResult_Ok)

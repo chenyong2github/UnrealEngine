@@ -319,6 +319,7 @@ public:
 	virtual int32 RotateAboutAxis(int32 NormalizedRotationAxisAndAngleIndex, int32 PositionOnAxisIndex, int32 PositionIndex) = 0;
 	virtual int32 TwoSidedSign() = 0;
 	virtual int32 VertexNormal() = 0;
+	virtual int32 VertexTangent() = 0;
 	virtual int32 PixelNormalWS() = 0;
 
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) = 0;
@@ -580,6 +581,7 @@ public:
 	}
 	virtual int32 TwoSidedSign() override { return Compiler->TwoSidedSign(); }
 	virtual int32 VertexNormal() override { return Compiler->VertexNormal(); }
+	virtual int32 VertexTangent() override { return Compiler->VertexTangent(); }
 	virtual int32 PixelNormalWS() override { return Compiler->PixelNormalWS(); }
 
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override { return Compiler->CustomExpression(Custom,CompiledInputs); }

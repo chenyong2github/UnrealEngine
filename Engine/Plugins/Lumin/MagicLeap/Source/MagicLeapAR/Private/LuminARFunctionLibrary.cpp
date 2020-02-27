@@ -6,7 +6,8 @@
 #include "LatentActions.h"
 #include "ARBlueprintLibrary.h"
 
-#include "LuminARDevice.h"
+#include "LuminARModule.h"
+#include "LuminARTrackingSystem.h"
 #include "LuminARTrackingSystem.h"
 
 
@@ -26,7 +27,8 @@ public:
 
 	virtual void UpdateOperation(FLatentResponse& Response) override
 	{
-		bool bSessionStartedFinished = FLuminARDevice::GetInstance()->GetStartSessionRequestFinished();
+		TSharedPtr<FLuminARImplementation, ESPMode::ThreadSafe> LuminARSystem = FLuminARModule::GetLuminARSystem();
+		bool bSessionStartedFinished = (LuminARSystem.IsValid()) ? LuminARSystem->GetStartSessionRequestFinished() : false;
 		Response.FinishAndTriggerIf(bSessionStartedFinished, ExecutionFunction, OutputLink, CallbackTarget);
 	}
 #if WITH_EDITOR
@@ -57,13 +59,9 @@ void ULuminARSessionFunctionLibrary::StartLuminARSession(UObject* WorldContextOb
 /************************************************************************/
 ELuminARTrackingState ULuminARFrameFunctionLibrary::GetTrackingState()
 {
-	return FLuminARDevice::GetInstance()->GetTrackingState();
+	TSharedPtr<FLuminARImplementation, ESPMode::ThreadSafe> LuminARSystem = FLuminARModule::GetLuminARSystem();
+	return (LuminARSystem.IsValid()) ? LuminARSystem->GetTrackingState() : ELuminARTrackingState::StoppedTracking;
 }
-
-//void ULuminARFrameFunctionLibrary::GetPose(FTransform& LastePose)
-//{
-//	LastePose = FLuminARDevice::GetInstance()->GetLatestPose();
-//}
 
 bool ULuminARFrameFunctionLibrary::LuminARLineTrace(UObject* WorldContextObject, const FVector2D& ScreenPosition, TSet<ELuminARLineTraceChannel> TraceChannels, TArray<FARTraceResult>& OutHitResults)
 {
@@ -73,12 +71,25 @@ bool ULuminARFrameFunctionLibrary::LuminARLineTrace(UObject* WorldContextObject,
 		TraceChannelValue = TraceChannelValue | Channel;
 	}
 
-	FLuminARDevice::GetInstance()->ARLineTrace(ScreenPosition, TraceChannelValue, OutHitResults);
-	return OutHitResults.Num() > 0;
+	TSharedPtr<FLuminARImplementation, ESPMode::ThreadSafe> LuminARSystem = FLuminARModule::GetLuminARSystem();
+	if (LuminARSystem.IsValid())
+	{
+		LuminARSystem->ARLineTrace(ScreenPosition, TraceChannelValue, OutHitResults);
+		return OutHitResults.Num() > 0;
+	}
+
+	return false;
 }
 
-void ULuminARFrameFunctionLibrary::GetLightEstimation(FLuminARLightEstimate& LightEstimation)
+ULuminARCandidateImage* ULuminARImageTrackingFunctionLibrary::AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary)
 {
-	LightEstimation = FLuminARDevice::GetInstance()->GetLatestLightEstimate();
+	TSharedPtr<FLuminARImplementation, ESPMode::ThreadSafe> LuminARSystem = FLuminARModule::GetLuminARSystem();
+	if (LuminARSystem.IsValid())
+	{
+		return LuminARSystem->AddLuminRuntimeCandidateImage(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth, bUseUnreliablePose, bImageIsStationary);
+	}
+	else
+	{
+		return nullptr;
+	}
 }
-

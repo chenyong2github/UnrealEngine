@@ -40,6 +40,7 @@ struct FPostProcessingInputs
 	FRDGTextureRef ViewFamilyTexture = nullptr;
 	FRDGTextureRef SceneColor = nullptr;
 	FRDGTextureRef SeparateTranslucency = nullptr;
+	FRDGTextureRef SeparateModulation = nullptr;
 	FRDGTextureRef CustomDepth = nullptr;
 
 	void Validate() const
@@ -48,6 +49,7 @@ struct FPostProcessingInputs
 		check(SceneTextures);
 		check(SceneColor);
 		check(SeparateTranslucency);
+		check(SeparateModulation);
 	}
 };
 

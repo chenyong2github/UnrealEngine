@@ -15,9 +15,9 @@
 #include "../ShadingCommon.ush"
 #include "/Engine/Shared/RayTracingDefinitions.h"
 
-#ifdef PLATFORM_RAY_TRACING_USH
+#ifdef OVERRIDE_RAYTRACING_USH
 #include "/Platform/Private/RayTracing.ush"
-#endif // PLATFORM_RAY_TRACING_USH
+#endif // OVERRIDE_RAYTRACING_USH
 
 // Define generic wrappers for ray tracing shader entry points, if not already overriden
 
@@ -187,7 +187,9 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	// It is not packed in FRayHitInfoPacked
 	float3 WorldPos;					// 136       0       (derived)
 	uint Flags;							// 148       4       32bits
-										// 152 total
+	float3 WorldTangent;				// 152       6       48bits
+	float Anisotropy;					// 164       2       16bits (packed with WorldTangent)
+										// 166 total
 
 	void SetMinimalPayloadMode() { Flags |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD; }
 	bool IsMinimalPayloadMode() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
@@ -228,7 +230,8 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint IorAndShadingModelIDAndBlendingModeAndFlags;    // 4  bytes
 	uint PackedIndirectIrradiance[2];                    // 8  bytes
 	uint PackedCustomData;                               // 4  bytes
-	                                                     // 52 bytes total
+	uint WorldTangentAndAnisotropy[2];					 // 8  bytes
+	                                                     // 60 bytes total
 
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlags |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD << 24; }
 	bool IsMinimalPayloadMode() { return ((IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
@@ -288,8 +291,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 		Result.w = (PackedCustomData >> 24) & 0xFF;
 		Result /= 255.0;
 		return Result;
-	}
-	
+	}	
 
 	float3 GetBaseColor()
 	{
@@ -297,6 +299,15 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 		Result.x = f16tof32(BaseColorAndOpacity[0]);
 		Result.y = f16tof32(BaseColorAndOpacity[0] >> 16);
 		Result.z = f16tof32(BaseColorAndOpacity[1]);
+		return Result;
+	}
+	
+	float3 GetWorldTangent()
+	{
+		float3 Result;
+		Result.x = f16tof32(WorldTangentAndAnisotropy[0]);
+		Result.y = f16tof32(WorldTangentAndAnisotropy[0] >> 16);
+		Result.z = f16tof32(WorldTangentAndAnisotropy[1]);
 		return Result;
 	}
 
@@ -308,6 +319,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint GetBlendingMode()   { return (IorAndShadingModelIDAndBlendingModeAndFlags >> 20) & 0xF;  }
 	uint GetFlags()          { return (IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & 0xFF; }
 	uint GetShadingModelID() { return (IorAndShadingModelIDAndBlendingModeAndFlags >> 16) & 0xF; }
+	float GetAnisotropy()    { return f16tof32(WorldTangentAndAnisotropy[1] >> 16); }
 
 	float3 GetDiffuseColor() { return GetBaseColor() - GetBaseColor() * GetMetallic(); }
 	float3 GetSpecularColor() { return ComputeF0(GetSpecular(), GetBaseColor(), GetMetallic()); }
@@ -341,6 +353,10 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	Output.PackedIndirectIrradiance[1] = f32tof16(Input.IndirectIrradiance.z);
 	int4 CustomData = round(Input.CustomData * 255);
 	Output.PackedCustomData = CustomData.x | (CustomData.y << 8) | (CustomData.z << 16) | (CustomData.w << 24);
+	Output.WorldTangentAndAnisotropy[0]  = f32tof16(Input.WorldTangent.x);
+	Output.WorldTangentAndAnisotropy[0] |= f32tof16(Input.WorldTangent.y) << 16;
+	Output.WorldTangentAndAnisotropy[1]  = f32tof16(Input.WorldTangent.z);
+	Output.WorldTangentAndAnisotropy[1] |= f32tof16(Input.Anisotropy) << 16;
 
 	return Output;
 }
@@ -364,6 +380,8 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	Output.Flags              = Input.GetFlags();
 	Output.IndirectIrradiance = Input.GetIndirectIrradiance();
 	Output.CustomData         = Input.GetCustomData();
+	Output.WorldTangent		  = Input.GetWorldTangent();
+	Output.Anisotropy         = Input.GetAnisotropy();
 
 	Output.DiffuseColor  = Output.BaseColor - Output.BaseColor * Output.Metallic;
 	Output.SpecularColor = ComputeF0(Output.Specular, Output.BaseColor, Output.Metallic);

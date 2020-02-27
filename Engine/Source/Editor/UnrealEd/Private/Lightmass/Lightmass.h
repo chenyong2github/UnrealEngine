@@ -622,7 +622,9 @@ protected:
 	/** Whether lightmass has received a quit message from Swarm. */
 	bool						bQuitReceived;
 	/** Number of completed tasks, as reported from Swarm. */
-	int32							NumCompletedTasks;
+	volatile int32				NumCompletedTasks;
+	/** Number of completed volumetric lightmap tasks, for chasing down UE-80351. */
+	volatile int32				NumCompletedVolumetricLightmapTasks = 0;
 	/** Whether Lightmass is currently running. */
 	bool						bRunningLightmass;
 	/** Lightmass statistics*/

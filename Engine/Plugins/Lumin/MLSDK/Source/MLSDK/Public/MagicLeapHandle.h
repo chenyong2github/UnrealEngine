@@ -33,4 +33,9 @@ namespace MagicLeap
 #endif // WITH_MLSDK
 	}
 
+#if WITH_MLSDK
+	static FGuid INVALID_FGUID = MLHandleToFGuid(ML_INVALID_HANDLE);
+#else
+	static FGuid INVALID_FGUID = FGuid();
+#endif // WITH_MLSDK
 }

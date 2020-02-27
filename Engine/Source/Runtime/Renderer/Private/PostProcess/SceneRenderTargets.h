@@ -118,7 +118,9 @@ static const int32 NumTranslucencyShadowSurfaces = 2;
 
 #define STENCIL_LIGHTING_CHANNELS_MASK(Value) uint8((Value & 0x7) << STENCIL_LIGHTING_CHANNELS_BIT_ID)
 
-#define PREVENT_RENDERTARGET_SIZE_THRASHING (PLATFORM_DESKTOP || PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_ANDROID || PLATFORM_IOS || PLATFORM_SWITCH || PLATFORM_UNIX)
+#if !defined(PREVENT_RENDERTARGET_SIZE_THRASHING)
+	#define PREVENT_RENDERTARGET_SIZE_THRASHING (PLATFORM_DESKTOP || PLATFORM_PS4 || PLATFORM_ANDROID || PLATFORM_IOS || PLATFORM_SWITCH || PLATFORM_UNIX)
+#endif
 
 enum class ESceneColorFormatType
 {
@@ -176,7 +178,6 @@ protected:
 		CurrentMaxShadowResolution(0),
 		CurrentRSMResolution(0),
 		CurrentTranslucencyLightingVolumeDim(64),
-		CurrentMobile32bpp(0),
 		bCurrentLightPropagationVolume(false),
 		CurrentFeatureLevel(ERHIFeatureLevel::Num),
 		CurrentShadingPath(EShadingPath::Num),
@@ -188,7 +189,8 @@ protected:
 		QuadOverdrawIndex(INDEX_NONE),
 		bHMDAllocatedDepthTarget(false),
 		bKeepDepthContent(true),
-		bAllocatedFoveationTexture(false)
+		bAllocatedFoveationTexture(false),
+		bAllowTangentGBuffer(false)
 		{
 			FMemory::Memset(LargestDesiredSizes, 0);
 #if PREVENT_RENDERTARGET_SIZE_THRASHING
@@ -255,10 +257,20 @@ public:
 	void BeginRenderingSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, const FSceneRenderer& Renderer, bool bFirstTimeThisFrame);
 	void ResolveSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View);
 
+	/** Begin rendering translucency in a separate (offscreen) buffer. This can be any translucency pass, but is only the modulation component. */
+	void BeginRenderingSeparateTranslucencyModulate(FRHICommandList& RHICmdList, const FViewInfo& View, const FSceneRenderer& Renderer, bool bFirstTimeThisFrame);
+	void ResolveSeparateTranslucencyModulate(FRHICommandList& RHICmdList, const FViewInfo& View);
+
 	void FreeSeparateTranslucency()
 	{
 		SeparateTranslucencyRT.SafeRelease();
 		check(!SeparateTranslucencyRT);
+	}
+
+	void FreeSeparateTranslucencyModulate()
+	{
+		SeparateTranslucencyModulateRT.SafeRelease();
+		check(!SeparateTranslucencyModulateRT);
 	}
 
 	void FreeDownsampledTranslucencyDepth()
@@ -311,6 +323,12 @@ public:
 
 	/** Returns a dummy texture that can be used for shader resource binding when separate translucency render target is not available */
 	TRefCountPtr<IPooledRenderTarget>& GetSeparateTranslucencyDummy();
+
+	/** Separate translucency buffer can be downsampled or not (as it is used to store the AfterDOF translucency) */
+	TRefCountPtr<IPooledRenderTarget>& GetSeparateTranslucencyModulate(FRHICommandList& RHICmdList, FIntPoint Size);
+
+	/** Returns a dummy texture that can be used for shader resource binding when separate translucency render target is not available */
+	TRefCountPtr<IPooledRenderTarget>& GetSeparateTranslucencyModulateDummy();
 
 	bool IsDownsampledTranslucencyDepthValid()
 	{
@@ -378,6 +396,7 @@ public:
 	const FTexture2DRHIRef& GetGBufferCTexture() const { return (const FTexture2DRHIRef&)GBufferC->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferDTexture() const { return (const FTexture2DRHIRef&)GBufferD->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferETexture() const { return (const FTexture2DRHIRef&)GBufferE->GetRenderTargetItem().ShaderResourceTexture; }
+	const FTexture2DRHIRef& GetGBufferFTexture() const { return (const FTexture2DRHIRef&)GBufferF->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferVelocityTexture() const { return (const FTexture2DRHIRef&)SceneVelocity->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetFoveationTexture() const { return (const FTexture2DRHIRef&)FoveationTexture->GetRenderTargetItem().ShaderResourceTexture; }
 
@@ -487,6 +506,7 @@ public:
 	EPixelFormat GetGBufferCFormat() const;
 	EPixelFormat GetGBufferDFormat() const;
 	EPixelFormat GetGBufferEFormat() const;
+	EPixelFormat GetGBufferFFormat() const;
 	void AllocGBufferTargets(FRHICommandList& RHICmdList);
 
 	void AllocLightAttenuation(FRHICommandList& RHICmdList);
@@ -546,6 +566,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GBufferC;
 	TRefCountPtr<IPooledRenderTarget> GBufferD;
 	TRefCountPtr<IPooledRenderTarget> GBufferE;
+	TRefCountPtr<IPooledRenderTarget> GBufferF;
 
 	// DBuffer: For decals before base pass (only temporarily available after early z pass and until base pass)
 	TRefCountPtr<IPooledRenderTarget> DBufferA;
@@ -594,6 +615,8 @@ public:
 
 	/** ONLY for snapshots!!! this is a copy of the SeparateTranslucencyRT from the view state. */
 	TRefCountPtr<IPooledRenderTarget> SeparateTranslucencyRT;
+	/** For dual blending alpha */
+	TRefCountPtr<IPooledRenderTarget> SeparateTranslucencyModulateRT;
 	/** Downsampled depth used when rendering translucency in smaller resolution. */
 	TRefCountPtr<IPooledRenderTarget> DownsampledTranslucencyDepthRT;
 
@@ -649,12 +672,11 @@ public:
 	void AllocateDeferredShadingPathRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews = 1);
 
 	/** Fills the given FRenderPassInfo with the current GBuffer */
-	int32 FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex);
+	int32 FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex, int32& OutTangentRTIndex);
 
 	/** Gets all GBuffers to use.  Returns the number actually used. */
-	int32 GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
-	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBinding OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
-
+	int32 GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex, int32& OutTangentRTIndex);
+	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBinding OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex, int32& OutTangentRTIndex);
 private:
 
 	/** Allocates render targets for use with the current shading path. */
@@ -702,7 +724,8 @@ private:
 			|| AreShadingPathRenderTargetsAllocated(ESceneColorFormatType::Mobile); 
 	}
 
-	int32 GetGBufferRenderTargets(TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
+	/** Gets all GBuffers to use.  Returns the number actually used. */
+	int32 GetGBufferRenderTargets(TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex, int32& OutTangentRTIndex);
 
 	ESceneColorFormatType GetSceneColorFormatType() const
 	{
@@ -750,8 +773,6 @@ private:
 	int32 CurrentRSMResolution;
 	/** To detect a change of the CVar r.TranslucencyLightingVolumeDim */
 	int32 CurrentTranslucencyLightingVolumeDim;
-	/** To detect a change of the CVar r.MobileHDR / r.MobileHDR32bppMode */
-	int32 CurrentMobile32bpp;
 	/** To detect a change of the CVar r.MobileMSAA or r.MSAA */
 	int32 CurrentMSAACount;
 	/** To detect a change of the CVar r.Shadow.MinResolution */
@@ -797,6 +818,9 @@ private:
 
 	/** True if the a variable resolution texture is allocated to control sampling or shading rate */
 	bool bAllocatedFoveationTexture;
+
+	/** True if base pass is allowed to emit tangent vector */
+	bool bAllowTangentGBuffer;
 
 	/** CAUTION: When adding new data, make sure you copy it in the snapshot constructor! **/
 

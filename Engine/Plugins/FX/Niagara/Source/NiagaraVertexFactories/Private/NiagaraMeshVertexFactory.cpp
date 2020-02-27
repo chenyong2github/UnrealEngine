@@ -234,12 +234,6 @@ bool FNiagaraMeshVertexFactory::ShouldCompilePermutation(const FVertexFactorySha
 	return (FNiagaraUtilities::SupportsNiagaraRendering(Parameters.Platform)) && (Parameters.MaterialParameters.bIsUsedWithNiagaraMeshParticles || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
-bool FNiagaraMeshVertexFactoryEmulatedInstancing::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
-{
-	return (Parameters.Platform == SP_OPENGL_ES2_ANDROID || Parameters.Platform == SP_OPENGL_ES2_WEBGL) // Those are only platforms that might not support hardware instancing
-		&& FNiagaraMeshVertexFactory::ShouldCompilePermutation(Parameters);
-}
-
 void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)
 {
 	check(IsInRenderingThread());
@@ -250,9 +244,5 @@ void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_Vertex, FNiagaraMeshVertexFactoryShaderParametersVS);
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_Pixel, FNiagaraMeshVertexFactoryShaderParametersPS);
 
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEmulatedInstancing, SF_Vertex, FNiagaraMeshVertexFactoryShaderParametersVS);
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEmulatedInstancing, SF_Pixel, FNiagaraMeshVertexFactoryShaderParametersPS);
-
 IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactory, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush", true, false, true, false, false);
-IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEmulatedInstancing, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush", true, false, true, false, false);
 

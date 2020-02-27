@@ -16,6 +16,10 @@ public abstract class BaseWinPlatform : Platform
 		: base(P)
 	{
 	}
+	protected override string GetPlatformExeExtension()
+	{
+		return ".exe";
+	}
 
 	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
 	{

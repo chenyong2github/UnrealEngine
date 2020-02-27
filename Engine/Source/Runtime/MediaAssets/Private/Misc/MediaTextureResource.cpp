@@ -597,13 +597,6 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			}
 
 			bool bIsSampleOutputSrgb = Sample->IsOutputSrgb();
-			if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2 && IsSimulatedPlatform(GMaxRHIShaderPlatform) )
-			{
-				// simulated ES2 has no HW support for sRGB, all external textures are assumed to be in sRGB form. 
-				// see FHLSLMaterialTranslator::TextureSample(), SAMPLERTYPE_External case.
-				// We must not convert to linear for the ES2 case.
-				bIsSampleOutputSrgb = false;
-			}
 
 			switch (Sample->GetFormat())
 			{

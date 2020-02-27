@@ -14,6 +14,21 @@ GLint GMaxOpenGLTextureFilterAnisotropic = 1;
 // Similar to sizeof(FSamplerStateInitializerRHI), but without any padding added by the compiler
 static uint32 SizeOfSamplerStateInitializer = 0;
 
+static FArchive& operator<<(FArchive& Ar, FSamplerStateInitializerRHI& SamplerStateInitializer)
+{
+	Ar << SamplerStateInitializer.Filter;
+	Ar << SamplerStateInitializer.AddressU;
+	Ar << SamplerStateInitializer.AddressV;
+	Ar << SamplerStateInitializer.AddressW;
+	Ar << SamplerStateInitializer.MipBias;
+	Ar << SamplerStateInitializer.MinMipLevel;
+	Ar << SamplerStateInitializer.MaxMipLevel;
+	Ar << SamplerStateInitializer.MaxAnisotropy;
+	Ar << SamplerStateInitializer.BorderColor;
+	Ar << SamplerStateInitializer.SamplerComparisonFunction;
+	return Ar;
+}
+
 static FORCEINLINE void CalculateSizeOfSamplerStateInitializer()
 {
 	if (SizeOfSamplerStateInitializer == 0)

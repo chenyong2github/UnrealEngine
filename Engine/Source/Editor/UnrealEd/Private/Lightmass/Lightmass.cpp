@@ -394,6 +394,7 @@ void FLightmassProcessor::SwarmCallback( NSwarm::FMessage* CallbackMessage, void
 						TList<FGuid>* NewElement = new TList<FGuid>(TaskStateMessage->TaskGuid, NULL);
 						Processor->CompletedVolumetricLightmapTasks.AddElement( NewElement );
 						FPlatformAtomics::InterlockedIncrement( &Processor->NumCompletedTasks );
+						FPlatformAtomics::InterlockedIncrement( &Processor->NumCompletedVolumetricLightmapTasks );
 					}
 					else if (TaskStateMessage->TaskGuid == MeshAreaLightDataGuid)
 					{
@@ -2919,7 +2920,8 @@ void FLightmassProcessor::IssueStaticShadowDepthMapTask(const ULightComponent* L
 		}
 		else
 		{
-			UE_LOG(LogLightmassSolver, Log,  TEXT("Error, AddTask for StaticShadowDepthMaps failed with error code %d"), ErrorCode );
+			UE_LOG(LogLightmassSolver, Warning,  TEXT("Error, AddTask for StaticShadowDepthMaps failed with error code %d"), ErrorCode );
+			bProcessingFailed = true;
 		}
 	}
 }
@@ -3160,6 +3162,7 @@ bool FLightmassProcessor::BeginRun()
 	if( ErrorCode < 0 )
 	{
 		UE_LOG(LogLightmassSolver, Log,  TEXT("Error, BeginJobSpecification failed with error code %d"), ErrorCode );
+		bProcessingFailed = true;
 	}
 
 	// Count the number of tasks given to Swarm
@@ -3202,7 +3205,8 @@ bool FLightmassProcessor::BeginRun()
 				}
 				else
 				{
-					UE_LOG(LogLightmassSolver, Log,  TEXT("Error, AddTask failed with error code %d"), ErrorCode );
+					UE_LOG(LogLightmassSolver, Warning,  TEXT("Error, AddTask failed with error code %d"), ErrorCode );
+					bProcessingFailed = true;
 				}
 			}
 		}
@@ -3220,7 +3224,8 @@ bool FLightmassProcessor::BeginRun()
 			}
 			else
 			{
-				UE_LOG(LogLightmassSolver, Log,  TEXT("Error, AddTask failed with error code %d"), ErrorCode );
+				UE_LOG(LogLightmassSolver, Warning,  TEXT("Error, AddTask failed with error code %d"), ErrorCode );
+				bProcessingFailed = true;
 			}
 		}
 
@@ -3235,6 +3240,7 @@ bool FLightmassProcessor::BeginRun()
 			else
 			{
 				UE_LOG(LogLightmassSolver, Log,  TEXT("Error, AddTask failed with error code %d"), ErrorCode );
+				bProcessingFailed = true;
 			}
 		}
 
@@ -3376,7 +3382,7 @@ bool FLightmassProcessor::Update()
 	bool bIsFinished = false;
 	if ( !bQuitReceived && !bProcessingFailed && !GEditor->GetMapBuildCancelled() )
 	{
-		bool bAllTaskAreComplete = (NumCompletedTasks == NumTotalSwarmTasks ? true : false);
+		bool bAllTaskAreComplete = (FPlatformAtomics::AtomicRead(&NumCompletedTasks) == NumTotalSwarmTasks ? true : false);
 
 #if USE_LOCAL_SWARM_INTERFACE
 		if (IsRunningCommandlet())

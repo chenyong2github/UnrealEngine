@@ -105,6 +105,7 @@ public:
 	ENGINE_API ~FGPUSkinCache();
 
 	struct FCachedGeometrySection GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 SectionId);
+	void UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry);
 
 	void ProcessEntry(FRHICommandListImmediate& RHICmdList, FGPUBaseSkinVertexFactory* VertexFactory,
 		FGPUSkinPassthroughVertexFactory* TargetVertexFactory, const FSkelMeshRenderSection& BatchElement, FSkeletalMeshObjectGPUSkin* Skin,

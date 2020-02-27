@@ -7490,7 +7490,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		FlushRenderingCommands();
 
 		// Set only require the preview feature level and the max feature level. The Max feature level is required for the toggle feature.
-		for (uint32 i = (uint32)ERHIFeatureLevel::ES2; i < (uint32)ERHIFeatureLevel::Num; i++)
+		for (uint32 i = (uint32)ERHIFeatureLevel::ES3_1; i < (uint32)ERHIFeatureLevel::Num; i++)
 		{
 			ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)i;
 			UMaterialInterface::SetGlobalRequiredFeatureLevel(FeatureLevel, FeatureLevel == PreviewPlatform.PreviewFeatureLevel || FeatureLevel == GMaxRHIFeatureLevel);

@@ -111,38 +111,43 @@ protected:
 		return InStackSize;
 	}
 
-	bool SpinPthread(pthread_t* HandlePtr, bool* OutThreadCreated, PthreadEntryPoint Proc, uint32 InStackSize, void *Arg)
+	virtual bool SetThreadAttr(pthread_attr_t *ThreadAttr, uint32 InStackSize, EThreadCreateFlags InCreateFlags)
 	{
-		*OutThreadCreated = false;
-		pthread_attr_t *AttrPtr = nullptr;
-		pthread_attr_t StackAttr;
-
 		// allow platform to adjust stack size
 		InStackSize = AdjustStackSize(InStackSize);
 
 		if (InStackSize != 0)
 		{
-			if (pthread_attr_init(&StackAttr) == 0)
+			if (pthread_attr_init(ThreadAttr) == 0)
 			{
 				// we'll use this the attribute if this succeeds, otherwise, we'll wing it without it.
-				const size_t StackSize = (size_t) InStackSize;
-				if (pthread_attr_setstacksize(&StackAttr, StackSize) == 0)
+				const size_t StackSize = (size_t)InStackSize;
+				if (pthread_attr_setstacksize(ThreadAttr, StackSize) != 0)
 				{
-					AttrPtr = &StackAttr;
+					UE_LOG(LogHAL, Log, TEXT("Failed to change pthread stack size to %d bytes"), (int)InStackSize);
 				}
+				return true;
 			}
-
-			if (AttrPtr == NULL)
+			else
 			{
-				UE_LOG(LogHAL, Log, TEXT("Failed to change pthread stack size to %d bytes"), (int) InStackSize);
+				UE_LOG(LogHAL, Log, TEXT("Failed to init thread attr"));
 			}
 		}
 
-		const int ThreadErrno = CreateThreadWithName(HandlePtr, AttrPtr, Proc, Arg, TCHAR_TO_ANSI(*ThreadName));
+		return false;
+	}
+
+	bool SpinPthread(pthread_t* HandlePtr, bool* OutThreadCreated, PthreadEntryPoint Proc, uint32 InStackSize, EThreadCreateFlags InCreateFlags, void *Arg)
+	{
+		*OutThreadCreated = false;
+		pthread_attr_t ThreadAttr;
+		pthread_attr_t *ThreadAttrPtr = SetThreadAttr(&ThreadAttr, InStackSize, InCreateFlags) ? &ThreadAttr : nullptr;
+
+		const int ThreadErrno = CreateThreadWithName(HandlePtr, ThreadAttrPtr, Proc, Arg, TCHAR_TO_ANSI(*ThreadName));
 		*OutThreadCreated = (ThreadErrno == 0);
-		if (AttrPtr != nullptr)
+		if (ThreadAttrPtr)
 		{
-			pthread_attr_destroy(AttrPtr);
+			pthread_attr_destroy(ThreadAttrPtr);
 		}
 
 		// Move the thread to the specified processors if requested
@@ -288,7 +293,8 @@ protected:
 
 	virtual bool CreateInternal(FRunnable* InRunnable, const TCHAR* InThreadName,
 		uint32 InStackSize = 0,
-		EThreadPriority InThreadPri = TPri_Normal, uint64 InThreadAffinityMask = 0) override
+		EThreadPriority InThreadPri = TPri_Normal, uint64 InThreadAffinityMask = 0,
+		EThreadCreateFlags InCreateFlags = EThreadCreateFlags::None) override
 	{
 		check(InRunnable);
 		Runnable = InRunnable;
@@ -300,7 +306,7 @@ protected:
 		ThreadAffinityMask = InThreadAffinityMask;
 
 		// Create the new thread
-		const bool ThreadCreated = SpinPthread(&Thread, &bThreadStartedAndNotCleanedUp, GetThreadEntryPoint(), InStackSize, this);
+		const bool ThreadCreated = SpinPthread(&Thread, &bThreadStartedAndNotCleanedUp, GetThreadEntryPoint(), InStackSize, InCreateFlags, this);
 		// If it fails, clear all the vars
 		if (ThreadCreated)
 		{

@@ -633,6 +633,12 @@ UMaterialOptions* FMeshMergeUtilities::PopulateMaterialOptions(const FMaterialPr
 	if (MaterialSettings.bRoughnessMap)
 		MaterialOptions->Properties.Add(Property);
 
+	PopulatePropertyEntry(MaterialSettings, MP_Anisotropy, Property);
+	if (MaterialSettings.bAnisotropyMap)
+	{
+		MaterialOptions->Properties.Add(Property);
+	}
+
 	PopulatePropertyEntry(MaterialSettings, MP_Metallic, Property);
 	if (MaterialSettings.bMetallicMap)
 		MaterialOptions->Properties.Add(Property);
@@ -640,6 +646,12 @@ UMaterialOptions* FMeshMergeUtilities::PopulateMaterialOptions(const FMaterialPr
 	PopulatePropertyEntry(MaterialSettings, MP_Normal, Property);
 	if (MaterialSettings.bNormalMap)
 		MaterialOptions->Properties.Add(Property);
+
+	PopulatePropertyEntry(MaterialSettings, MP_Tangent, Property);
+	if (MaterialSettings.bTangentMap)
+	{
+		MaterialOptions->Properties.Add(Property);
+	}
 
 	PopulatePropertyEntry(MaterialSettings, MP_Opacity, Property);
 	if (MaterialSettings.bOpacityMap)
@@ -676,8 +688,10 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 					case MP_BaseColor: return MaterialSettings.DiffuseTextureSize;
 					case MP_Specular: return MaterialSettings.SpecularTextureSize;
 					case MP_Roughness: return MaterialSettings.RoughnessTextureSize;
+					case MP_Anisotropy: return MaterialSettings.AnisotropyTextureSize;
 					case MP_Metallic: return MaterialSettings.MetallicTextureSize;
 					case MP_Normal: return MaterialSettings.NormalTextureSize;
+					case MP_Tangent: return MaterialSettings.TangentTextureSize;
 					case MP_Opacity: return MaterialSettings.OpacityTextureSize;
 					case MP_OpacityMask: return MaterialSettings.OpacityMaskTextureSize;
 					case MP_EmissiveColor: return MaterialSettings.EmissiveTextureSize;
@@ -705,9 +719,11 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 				switch (MaterialProperty)
 				{
 				case MP_Normal: return FullRes;
+				case MP_Tangent: return HalfRes;
 				case MP_BaseColor: return HalfRes;
 				case MP_Specular: return QuarterRes;
 				case MP_Roughness: return QuarterRes;
+				case MP_Anisotropy: return QuarterRes;
 				case MP_Metallic: return QuarterRes;				
 				case MP_Opacity: return QuarterRes;
 				case MP_OpacityMask: return QuarterRes;
@@ -739,8 +755,10 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 		{
 			case MP_BaseColor: return false;
 			case MP_Normal: return !MaterialSettings.bNormalMap;
+			case MP_Tangent: return !MaterialSettings.bTangentMap;
 			case MP_Specular: return !MaterialSettings.bSpecularMap;
 			case MP_Roughness: return !MaterialSettings.bRoughnessMap;
+			case MP_Anisotropy: return !MaterialSettings.bAnisotropyMap;
 			case MP_Metallic: return !MaterialSettings.bMetallicMap;
 			case MP_Opacity: return !MaterialSettings.bOpacityMap;
 			case MP_OpacityMask: return !MaterialSettings.bOpacityMaskMap;
@@ -760,8 +778,10 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 		{
 			case MP_BaseColor: return 1.0f;
 			case MP_Normal: return 1.0f;
+			case MP_Tangent: return 1.0f;
 			case MP_Specular: return MaterialSettings.SpecularConstant;
 			case MP_Roughness: return MaterialSettings.RoughnessConstant;
+			case MP_Anisotropy: return MaterialSettings.AnisotropyConstant;
 			case MP_Metallic: return MaterialSettings.MetallicConstant;
 			case MP_Opacity: return MaterialSettings.OpacityConstant;
 			case MP_OpacityMask: return MaterialSettings.OpacityMaskConstant;

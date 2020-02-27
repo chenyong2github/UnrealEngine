@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+
+#if WINDOWS_USE_FEATURE_APPLICATION
+
 #include "Math/Color.h"
 #include "HAL/IConsoleManager.h"
 #include "GenericPlatform/GenericApplication.h"
@@ -528,3 +531,5 @@ private:
 
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#endif

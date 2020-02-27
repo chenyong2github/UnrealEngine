@@ -89,3 +89,91 @@ void UHoloLensARFunctionLibrary::RemoveAllARPinsFromWMRAnchorStore()
 	}
 	ARSystem->RemoveAllARPinsFromAnchorStore();
 }
+
+void UHoloLensARFunctionLibrary::SetEnabledMixedRealityCamera(bool IsEnabled)
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return;
+	}
+	ARSystem->SetEnabledMixedRealityCamera(IsEnabled);
+}
+
+
+FIntPoint UHoloLensARFunctionLibrary::ResizeMixedRealityCamera(const FIntPoint& size)
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return FIntPoint::ZeroValue;
+	}
+	FIntPoint newSize = size;
+	ARSystem->ResizeMixedRealityCamera(newSize);
+	return newSize;
+}
+
+FTransform UHoloLensARFunctionLibrary::GetPVCameraToWorldTransform()
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return FTransform::Identity;
+	}
+	
+	return ARSystem->GetPVCameraToWorldTransform();
+}
+
+bool UHoloLensARFunctionLibrary::GetPVCameraIntrinsics(FVector2D& focalLength, int& width, int& height, FVector2D& principalPoint, FVector& radialDistortion, FVector2D& tangentialDistortion)
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return false;
+	}
+
+	return ARSystem->GetPVCameraIntrinsics(focalLength, width, height, principalPoint, radialDistortion, tangentialDistortion);
+}
+
+FVector UHoloLensARFunctionLibrary::GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate)
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return FVector(0, 0, 0);
+	}
+
+	return ARSystem->GetWorldSpaceRayFromCameraPoint(pixelCoordinate);
+}
+
+void UHoloLensARFunctionLibrary::StartCameraCapture()
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return;
+	}
+
+	ARSystem->StartCameraCapture();
+}
+
+void UHoloLensARFunctionLibrary::StopCameraCapture()
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return;
+	}
+
+	ARSystem->StopCameraCapture();
+}
+
+UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName Name, const FString& AnchorId)
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return nullptr;
+	}
+	return ARSystem->CreateNamedARPinAroundAnchor(Name, AnchorId);
+}

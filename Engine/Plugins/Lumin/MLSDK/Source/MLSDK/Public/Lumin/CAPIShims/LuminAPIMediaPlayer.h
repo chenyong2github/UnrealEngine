@@ -132,16 +132,12 @@ CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaPlayerGetBufferingSettings
 #define MLMediaPlayerGetBufferingSettings ::MLSDK_API::MLMediaPlayerGetBufferingSettingsShim
 CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaPlayerSetBufferingSettings)
 #define MLMediaPlayerSetBufferingSettings ::MLSDK_API::MLMediaPlayerSetBufferingSettingsShim
-CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaStreamSourceCreate)
-#define MLMediaStreamSourceCreate ::MLSDK_API::MLMediaStreamSourceCreateShim
-CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaStreamSourceDestroy)
-#define MLMediaStreamSourceDestroy ::MLSDK_API::MLMediaStreamSourceDestroyShim
-CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaStreamSourceGetBuffer)
-#define MLMediaStreamSourceGetBuffer ::MLSDK_API::MLMediaStreamSourceGetBufferShim
-CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaStreamSourcePushBuffer)
-#define MLMediaStreamSourcePushBuffer ::MLSDK_API::MLMediaStreamSourcePushBufferShim
-CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaStreamSourcePushEOS)
-#define MLMediaStreamSourcePushEOS ::MLSDK_API::MLMediaStreamSourcePushEOSShim
+CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaPlayerGetTimedTextEx)
+#define MLMediaPlayerGetTimedTextEx ::MLSDK_API::MLMediaPlayerGetTimedTextExShim
+CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaPlayerReleaseTimedTextEx)
+#define MLMediaPlayerReleaseTimedTextEx ::MLSDK_API::MLMediaPlayerReleaseTimedTextExShim
+CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaPlayerSetOnMediaTimedTextUpdateCallback)
+#define MLMediaPlayerSetOnMediaTimedTextUpdateCallback ::MLSDK_API::MLMediaPlayerSetOnMediaTimedTextUpdateCallbackShim
 
 }
 

@@ -76,9 +76,20 @@ float3 CalcThinTransmission(float NoL, float NoV, FMaterialClosestHitPayload Pay
 	{
 		float LayerThickness = GetClearCoatThickness(Payload);
 		float ThinDistance = LayerThickness * (rcp(NoV) + rcp(NoL));
-		float3 TransmissionColor = GetBaseColor(Payload);
-		float OpticalDepth = TransmissionColor * ThinDistance;
-		Transmission = exp(-OpticalDepth);
+		float Metallic = GetMetallic(Payload);
+		float ClearCoat = GetClearCoat(Payload);
+
+		// Only absorb for metallic materials
+		Transmission = 1.0;
+		if (Metallic * ClearCoat > 0.0)
+		{
+			// Base color represents reflected color viewed at 0 incidence angle, after being absorbed through the substrate.
+			// Because of this, extinction is normalized by traveling through layer thickness twice
+			float3 TransmissionColor = GetBaseColor(Payload);
+			float3 ExtinctionCoefficient = -log(TransmissionColor) / (2.0 * LayerThickness);
+			float3 OpticalDepth = ExtinctionCoefficient * ThinDistance;
+			Transmission = exp(-OpticalDepth);
+		}
 	}
 	return Transmission;
 }

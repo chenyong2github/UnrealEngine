@@ -30,6 +30,13 @@ struct FTentDistribution
 	float Width;
 };
 
+UENUM()
+enum class ESkyAtmosphereTransformMode : uint8
+{
+	PlanetTopAtAbsoluteWorldOrigin,
+	PlanetTopAtComponentTransform,
+	PlanetCenterAtComponentTransform,
+};
 
 /**
  * 
@@ -42,6 +49,9 @@ class USkyAtmosphereComponent : public USceneComponent
 	~USkyAtmosphereComponent();
 
 
+	/** The ground albedo that will tint the astmophere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (HideAlphaChannel))
+	ESkyAtmosphereTransformMode TransformMode;
 
 	/** The planet radius. (kilometers from the center to the ground level). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 6000.0, UIMax = 7000.0, ClampMin = 100.0, ClampMax = 10000.0))
@@ -175,7 +185,7 @@ class USkyAtmosphereComponent : public USceneComponent
 protected:
 	//~ Begin UActorComponent Interface.
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	//virtual void SendRenderTransform_Concurrent() override;
+	virtual void SendRenderTransform_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface.
 
@@ -223,6 +233,8 @@ private:
 	 * Update static lighting GUIDs.
 	 */
 	void UpdateStaticLightingGUIDs();
+
+	void SendRenderTransformCommand();
 };
 
 
@@ -247,5 +259,8 @@ private:
 #endif
 
 public:
+
+	/** Returns SkyAtmosphereComponent subobject */
+	ENGINE_API USkyAtmosphereComponent* GetComponent() const { return SkyAtmosphereComponent; }
 
 };

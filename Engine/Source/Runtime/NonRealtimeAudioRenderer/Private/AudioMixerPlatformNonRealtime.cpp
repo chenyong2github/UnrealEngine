@@ -11,6 +11,10 @@
 #define WITH_XMA2 0
 #endif
 
+#ifndef HAS_COMPRESSED_AUDIO_INFO_CLASS
+#define HAS_COMPRESSED_AUDIO_INFO_CLASS 0
+#endif
+
 #if WITH_XMA2
 #include "XMAAudioInfo.h"
 #endif  //#if WITH_XMA2
@@ -344,17 +348,17 @@ namespace Audio
 
 	bool FMixerPlatformNonRealtime::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
 	{
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS || HAS_COMPRESSED_AUDIO_INFO_CLASS
 		return true;
 #else
 		return false;
-#endif // PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#endif // PLATFORM_WINDOWS || HAS_COMPRESSED_AUDIO_INFO_CLASS
 	}
 
 	ICompressedAudioInfo* FMixerPlatformNonRealtime::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
 		// TODO: Currently this is a copy paste of the XAudio2 platform interface. Ultimately, this function needs to propogate to the current platform's correct CrateCompressedAudioInfo call.
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS || HAS_COMPRESSED_AUDIO_INFO_CLASS
 		check(InSoundWave);
 
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
@@ -386,7 +390,7 @@ namespace Audio
 			return XMA2_INFO_NEW();
 		}
 #endif // WITH_XMA2
-#endif // PLATFORM_WINDOWS || WITH_XMA2
+#endif // PLATFORM_WINDOWS || HAS_COMPRESSED_AUDIO_INFO_CLASS
 
 		return nullptr;
 	}

@@ -1394,6 +1394,10 @@ public:
 	{
 	}
 
+	static void PumpMessagesForSlowTask()
+	{
+	}
+
 	static void HidePlatformStartupScreen()
 	{
 
@@ -1414,6 +1418,11 @@ public:
 	}
 
 	static int32 GetPakchunkIndexFromPakFile(const FString& InFilename);
+
+	FORCEINLINE static bool Expand16BitIndicesTo32BitOnLoad()
+	{
+		return false;
+	}
 
 #if !UE_BUILD_SHIPPING
 	/**

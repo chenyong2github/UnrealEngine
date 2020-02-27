@@ -531,7 +531,7 @@ void InitDebugContext()
 	}
 
 	// this is to suppress feeding back of the debug markers and groups to the log, since those originate in the app anyways...
-#if ENABLE_OPENGL_DEBUG_GROUPS && defined(GL_ARB_debug_output) && GL_ARB_debug_output && GL_KHR_debug && !OPENGL_ESDEFERRED
+#if ENABLE_OPENGL_DEBUG_GROUPS && defined(GL_ARB_debug_output) && GL_ARB_debug_output && GL_KHR_debug
 	if(glDebugMessageControlARB && bDebugOutputInitialized)
 	{
 		glDebugMessageControlARB(GL_DEBUG_SOURCE_APPLICATION_ARB, GL_DEBUG_TYPE_MARKER, GL_DONT_CARE, 0, NULL, GL_FALSE);
@@ -802,23 +802,17 @@ static void InitRHICapabilitiesForGL()
 	GRHISupportsRHIThread = false;
 #endif
 	
+	// By default use emulated UBs on mobile
 	static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("OpenGL.UseEmulatedUBs"));
 	const bool bUseEmulatedUBs = (CVar && CVar->GetValueOnAnyThread() != 0);
-	
-	// Emulate uniform buffers on ES2
-	// Optional emulation on ES3.1 and PC
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	GUseEmulatedUniformBuffers = (IsES2Platform(GMaxRHIShaderPlatform) && !IsPCPlatform(GMaxRHIShaderPlatform)) || bUseEmulatedUBs;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	GUseEmulatedUniformBuffers = (IsMobilePlatform(GMaxRHIShaderPlatform) && bUseEmulatedUBs);
 
 	FString FeatureLevelName;
 	GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelName);
 	FString ShaderPlatformName = LegacyShaderPlatformToShaderFormat(GMaxRHIShaderPlatform).ToString();
 
 	UE_LOG(LogRHI, Log, TEXT("OpenGL MajorVersion = %d, MinorVersion = %d, ShaderPlatform = %s, FeatureLevel = %s"), MajorVersion, MinorVersion, *ShaderPlatformName, *FeatureLevelName);
-#if PLATFORM_ANDROIDESDEFERRED
-	UE_LOG(LogRHI, Log, TEXT("PLATFORM_ANDROIDESDEFERRED"));
-#elif PLATFORM_ANDROID
+#if PLATFORM_ANDROID
 #if PLATFORM_LUMINGL4
 	UE_LOG(LogRHI, Log, TEXT("PLATFORM_LUMINGL4"));
 #else
@@ -864,16 +858,12 @@ static void InitRHICapabilitiesForGL()
 	// It's not possible to create a framebuffer with the backbuffer as the color attachment and a custom renderbuffer as the depth/stencil surface.
 	GRHISupportsBackBufferWithCustomDepthStencil = false;
 
-	GSupportsHDR32bppEncodeModeIntrinsic = FOpenGL::SupportsHDR32bppEncodeModeIntrinsic();
-
 	GRHISupportsLazyShaderCodeLoading = true;
 
-	checkf(!IsMobileHDR32bpp() || GSupportsHDR32bppEncodeModeIntrinsic || IsPCPlatform(GMaxRHIShaderPlatform), TEXT("Current platform does not support 32bpp HDR but IsMobileHDR32bpp() returned true"));
-
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2) ? GMaxRHIShaderPlatform : SP_NumPlatforms;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1) ? GMaxRHIShaderPlatform : SP_OPENGL_PCES3_1;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = OPENGL_ESDEFERRED ? SP_OPENGL_ES31_EXT : SP_OPENGL_SM5;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_OPENGL_SM5;
 
 	// Set to same values as in DX11, as for the time being clip space adjustment are done entirely
 	// in HLSLCC-generated shader code and OpenGLDrv.
@@ -928,7 +918,7 @@ static void InitRHICapabilitiesForGL()
 	
 
 	SetupTextureFormat( PF_R5G6B5_UNORM,		FOpenGLTextureFormat( ));
-#if PLATFORM_DESKTOP || PLATFORM_ANDROIDESDEFERRED || PLATFORM_LUMINGL4
+#if PLATFORM_DESKTOP || PLATFORM_LUMINGL4
 	CA_SUPPRESS(6286);
 	if (PLATFORM_DESKTOP || FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
@@ -1009,13 +999,13 @@ static void InitRHICapabilitiesForGL()
 		}
 	}
 	else
-#endif // PLATFORM_DESKTOP || PLATFORM_ANDROIDESDEFERRED || PLATFORM_LUMINGL4
+#endif // PLATFORM_DESKTOP || PLATFORM_LUMINGL4
 	{
 #if !PLATFORM_DESKTOP && !PLATFORM_LUMINGL4
 		SetupTextureFormat(PF_B8G8R8A8, FOpenGLTextureFormat(GL_RGBA8, GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, true));
 		SetupTextureFormat(PF_R8G8B8A8, FOpenGLTextureFormat(GL_RGBA8, GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false));
 		SetupTextureFormat(PF_R8G8B8A8_UINT, FOpenGLTextureFormat(GL_RGBA8UI, GL_RGBA8UI, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, false, false));
-		SetupTextureFormat(PF_G8, FOpenGLTextureFormat(GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, false, false));
+		SetupTextureFormat(PF_G8, FOpenGLTextureFormat(GL_R8, GL_R8, GL_RED, GL_UNSIGNED_BYTE, false, false));
 		SetupTextureFormat(PF_A8, FOpenGLTextureFormat(GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE, false, false));
 
 		FOpenGL::PE_SetupTextureFormat(&SetupTextureFormat); // platform extension
@@ -1063,6 +1053,11 @@ static void InitRHICapabilitiesForGL()
 #endif
 			SetupTextureFormat( PF_R16F,			FOpenGLTextureFormat( GL_R16F,					GL_R16F,				GL_RED,			GL_HALF_FLOAT,						false,	false));
 			SetupTextureFormat( PF_R16F_FILTER,		FOpenGLTextureFormat( GL_R16F,					GL_R16F,				GL_RED,			GL_HALF_FLOAT,						false,	false));
+		}
+
+		if (FOpenGL::SupportsR11G11B10F())
+		{
+			SetupTextureFormat(PF_FloatR11G11B10, FOpenGLTextureFormat(GL_R11F_G11F_B10F, GL_R11F_G11F_B10F, GL_RGB, GL_UNSIGNED_INT_10F_11F_11F_REV, false, false));
 		}
 
 		// ES3.0 and up 
@@ -1247,401 +1242,6 @@ static bool VerifyCompiledShader(GLuint Shader, const ANSICHAR* GlslCode, bool I
 }
 #endif
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
-static void AttemptLinkProgramExecute(GLuint VertexShaderResource, GLuint PixelShaderResource)
-{
-	GLuint Program = glCreateProgram();
-	glAttachShader(Program, VertexShaderResource);
-	glAttachShader(Program, PixelShaderResource);
-	glLinkProgram(Program);
-	GLint LinkStatus = 0;
-	glGetProgramiv(Program, GL_LINK_STATUS, &LinkStatus);
-	if (LinkStatus != GL_TRUE)
-	{
-		FOpenGL::bRequiresGLFragCoordVaryingLimitHack = true;
-		UE_LOG(LogRHI, Warning, TEXT("gl_FragCoord uses a varying... enabled hack"));
-		return;
-	}
-
-	// pull binary from linked program
-	GLint BinaryLength = -1;
-	glGetProgramiv(Program, GL_PROGRAM_BINARY_LENGTH, &BinaryLength);
-	FOpenGL::bBinaryProgramRetrievalFailed = BinaryLength == 0;
-
-	UE_LOG(LogRHI, Warning, TEXT("gl_FragCoord does not need a varying"));
-}
-
-struct FRHICommandAttemptLinkProgram final : public FRHICommand<FRHICommandAttemptLinkProgram>
-{
-	GLuint VertexShaderResource;
-	GLuint PixelShaderResource;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandAttemptLinkProgram(GLuint InVertexShaderResource, GLuint InPixelShaderResource)
-		: VertexShaderResource(InVertexShaderResource)
-		, PixelShaderResource(InPixelShaderResource)
-	{
-	}
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandAttemptLinkProgram_Execute);
-		AttemptLinkProgramExecute(VertexShaderResource, PixelShaderResource);
-	}
-};
-#endif
-
-static void CheckVaryingLimit()
-{
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
-	FOpenGL::bRequiresGLFragCoordVaryingLimitHack = false;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (IsES2Platform(GMaxRHIShaderPlatform))
-	{
-		// Some mobile GPUs require an available varying vector to support gl_FragCoord.
-		// If there are only 8 supported, it is possible to run out of varyings on these
-		// GPUs so test to see if need to fake gl_FragCoord with the assumption it is
-		// used for mobile HDR mosaic.
-
-		// Do not need to do this check if more than 8 varyings supported
-		if (FOpenGL::GetMaxVaryingVectors() > 8)
-		{
-			return;
-		}
-
-		// Make sure MobileHDR is on and device needs mosaic
-		static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
-		static auto* MobileHDR32bppModeCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR32bppMode"));
-
-		const bool bMobileHDR32bpp = (MobileHDRCvar && MobileHDRCvar->GetValueOnAnyThread() == 1)
-			&& (FAndroidMisc::SupportsFloatingPointRenderTargets() == false || (MobileHDR32bppModeCvar && MobileHDR32bppModeCvar->GetValueOnAnyThread() != 0));
-		const bool bRequiresMosaic = bMobileHDR32bpp && (!FAndroidMisc::SupportsShaderFramebufferFetch() || (MobileHDR32bppModeCvar && MobileHDR32bppModeCvar->GetValueOnAnyThread() == 1));
-
-		if (!bRequiresMosaic)
-		{
-			return;
-		}
-
-		UE_LOG(LogRHI, Display, TEXT("Testing for gl_FragCoord requiring a varying since mosaic is enabled"));
-		FOpenGL::bIsCheckingShaderCompilerHacks = true;
-
-		static const ANSICHAR TestVertexProgram[] = "\n"
-			"#version 100\n"
-			"attribute vec4 in_ATTRIBUTE0;\n"
-			"attribute vec4 in_ATTRIBUTE1;\n"
-			"varying highp vec4 TexCoord0;\n"
-			"varying highp vec4 TexCoord1;\n"
-			"varying highp vec4 TexCoord2;\n"
-			"varying highp vec4 TexCoord3;\n"
-			"varying highp vec4 TexCoord4;\n"
-			"varying highp vec4 TexCoord5;\n"
-			"varying highp vec4 TexCoord6;\n"
-			"varying highp vec4 TexCoord7;\n"
-			"void main()\n"
-			"{\n"
-			"   TexCoord0 = in_ATTRIBUTE1 * vec4(0.1,0.2,0.3,0.4);\n"
-			"   TexCoord1 = in_ATTRIBUTE1 * vec4(0.5,0.6,0.7,0.8);\n"
-			"   TexCoord2 = in_ATTRIBUTE1 * vec4(0.12,0.22,0.32,0.42);\n"
-			"   TexCoord3 = in_ATTRIBUTE1 * vec4(0.52,0.62,0.72,0.82);\n"
-			"   TexCoord4 = in_ATTRIBUTE1 * vec4(0.14,0.24,0.34,0.44);\n"
-			"   TexCoord5 = in_ATTRIBUTE1 * vec4(0.54,0.64,0.74,0.84);\n"
-			"   TexCoord6 = in_ATTRIBUTE1 * vec4(0.16,0.26,0.36,0.46);\n"
-			"   TexCoord7 = in_ATTRIBUTE1 * vec4(0.56,0.66,0.76,0.86);\n"
-			"	gl_Position.xyzw = in_ATTRIBUTE0;\n"
-			"}\n";
-		static const ANSICHAR TestFragmentProgram[] = "\n"
-			"#version 100\n"
-			"varying highp vec4 TexCoord0;\n"
-			"varying highp vec4 TexCoord1;\n"
-			"varying highp vec4 TexCoord2;\n"
-			"varying highp vec4 TexCoord3;\n"
-			"varying highp vec4 TexCoord4;\n"
-			"varying highp vec4 TexCoord5;\n"
-			"varying highp vec4 TexCoord6;\n"
-			"varying highp vec4 TexCoord7;\n"
-			"void main()\n"
-			"{\n"
-			"   gl_FragColor = TexCoord0 * TexCoord1 * TexCoord2 * TexCoord3 * TexCoord4 * TexCoord5 * TexCoord6 * TexCoord7 * gl_FragCoord.xyxy;"
-			"}\n";
-
-		FShaderCode VertexShaderCode;
-		{
-			FOpenGLCodeHeader Header;
-			Header.FrequencyMarker = 0x5653;
-			Header.GlslMarker = 0x474c534c;
-
-			FMemoryWriter Writer(VertexShaderCode.GetWriteAccess(), true);
-			Writer << Header;
-			Writer.Serialize((void*)TestVertexProgram, sizeof(TestVertexProgram));
-			Writer.Close();
-		}
-
-		FShaderCode FragmentShaderCode;
-		{
-			FOpenGLCodeHeader Header;
-			Header.FrequencyMarker = 0x5053;
-			Header.GlslMarker = 0x474c534c;
-
-			FMemoryWriter Writer(FragmentShaderCode.GetWriteAccess(), true);
-			Writer << Header;
-			Writer.Serialize((void*)(TestFragmentProgram), sizeof(TestFragmentProgram));
-			Writer.Close();
-		}
-
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-		// Try to compile test shaders
-		GOpenGLShaderHackLastCompileSuccess = false;
-		FVertexShaderRHIRef VertexShaderRHI = RHICreateVertexShader(VertexShaderCode.GetReadAccess(), FSHAHash());
-		FOpenGLVertexShader* OGLVertexShader = (FOpenGLVertexShader*)VertexShaderRHI.GetReference();
-
-		if (IsRunningRHIInSeparateThread())
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-
-		if (!VerifyCompiledShader(OGLVertexShader->Resource, TestVertexProgram, false))
-		{
-			UE_LOG(LogRHI, Warning, TEXT("Vertex shader for varying test failed to compile. Try running anyway."));
-			FOpenGL::bIsCheckingShaderCompilerHacks = false;
-			return;
-		}
-
-		GOpenGLShaderHackLastCompileSuccess = false;
-		FPixelShaderRHIRef PixelShaderRHI = RHICreatePixelShader(FragmentShaderCode.GetReadAccess(), FSHAHash());
-		FOpenGLPixelShader* OGLPixelShader = (FOpenGLPixelShader*)PixelShaderRHI.GetReference();
-
-		if (IsRunningRHIInSeparateThread())
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-
-		if (!VerifyCompiledShader(OGLPixelShader->Resource, TestFragmentProgram, false))
-		{
-			UE_LOG(LogRHI, Warning, TEXT("Fragment shader for varying test failed to compile. Try running anyway."));
-			FOpenGL::bIsCheckingShaderCompilerHacks = false;
-			return;
-		}
-
-		FOpenGL::bIsCheckingShaderCompilerHacks = false;
-
-		// Now try linking them.. this is where gl_FragCoord may cause a failure
-		if (IsRunningRHIInSeparateThread())
-		{
-			new (RHICmdList.AllocCommand<FRHICommandAttemptLinkProgram>()) FRHICommandAttemptLinkProgram(OGLVertexShader->Resource, OGLPixelShader->Resource);
-			// wait for AttemptLinkProgramExecute to complete.
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-		else
-		{
-			AttemptLinkProgramExecute(OGLVertexShader->Resource, OGLPixelShader->Resource);
-		}
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#elif PLATFORM_IOS
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (IsES2Platform(GMaxRHIShaderPlatform))
-	{
-		FOpenGL::bIsLimitingShaderCompileCount = FPlatformMisc::GetIOSDeviceType() == FPlatformMisc::IOS_IPad4;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-}
-
-static void CheckTextureCubeLodSupport()
-{
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (IsES2Platform(GMaxRHIShaderPlatform))
-	{
-		UE_LOG(LogRHI, Display, TEXT("Testing for shader compiler compatibility"));
-		FOpenGL::bIsCheckingShaderCompilerHacks = true;
-
-		// This code creates a sample program and finds out which hacks are required to compile it
-		static const ANSICHAR TestFragmentProgram[] = "\n"
-			"#version 100\n"
-			"#ifndef DONTEMITEXTENSIONSHADERTEXTURELODENABLE\n"
-			"#extension GL_EXT_shader_texture_lod : enable\n"
-			"#endif\n"
-			"// end extensions\n"
-			"precision mediump float;\n"
-			"precision mediump int;\n"
-			"#ifndef DONTEMITSAMPLERDEFAULTPRECISION\n"
-			"precision mediump sampler2D;\n"
-			"precision mediump samplerCube;\n"
-			"#endif\n"
-			"varying vec3 TexCoord;\n"
-			"uniform samplerCube Texture;\n"
-			"void main()\n"
-			"{\n"
-			"	gl_FragColor = textureCubeLodEXT(Texture,TexCoord, 4.0);\n"
-			"}\n";
-
-		FOpenGL::bRequiresDontEmitPrecisionForTextureSamplers = false;
-		FOpenGL::bRequiresTextureCubeLodEXTToTextureCubeLodDefine = false;
-
-		FShaderCode ShaderCode;
-		{
-			FOpenGLCodeHeader Header;
-			Header.FrequencyMarker = 0x5053;
-			Header.GlslMarker = 0x474c534c;
-
-			FMemoryWriter Writer(ShaderCode.GetWriteAccess(), true);
-			Writer << Header;
-			Writer.Serialize((void*)TestFragmentProgram, sizeof(TestFragmentProgram));
-			Writer.Close();
-		}
-		const TArray<uint8>& Code = ShaderCode.GetReadAccess();
-
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-		// try to compile without any hacks
-		GOpenGLShaderHackLastCompileSuccess = false;
-		FPixelShaderRHIRef PixelShaderRHI = RHICreatePixelShader(Code, FSHAHash());
-		FOpenGLPixelShader* OGLPixelShader = (FOpenGLPixelShader*)(PixelShaderRHI.GetReference());
-
-		if (IsRunningRHIInSeparateThread())
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-
-		if (VerifyCompiledShader(OGLPixelShader->Resource, TestFragmentProgram, false))
-		{
-			UE_LOG(LogRHI, Display, TEXT("Shaders compile fine no need to enable hacks"));
-			// we are done
-			FOpenGL::bIsCheckingShaderCompilerHacks = false;
-			return;
-		}
-
-		FOpenGL::bRequiresDontEmitPrecisionForTextureSamplers = true;
-		FOpenGL::bRequiresTextureCubeLodEXTToTextureCubeLodDefine = false;
-
-		// second most number of devices fall into this hack category
-		// try to compile without using precision for texture samplers
-		// Samsung Galaxy Express	Samsung Galaxy S3	Samsung Galaxy S3 mini	Samsung Galaxy Tab GT-P1000	Samsung Galaxy Tab 2
-		GOpenGLShaderHackLastCompileSuccess = false;
-		PixelShaderRHI = RHICreatePixelShader(Code, FSHAHash());
-		OGLPixelShader = (FOpenGLPixelShader*)(PixelShaderRHI.GetReference());
-
-		if (IsRunningRHIInSeparateThread())
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-
-		if (VerifyCompiledShader(OGLPixelShader->Resource, TestFragmentProgram, false))
-		{
-			UE_LOG(LogRHI, Warning, TEXT("Enabling shader compiler hack to remove precision modifiers for texture samplers"));
-
-			// we are done
-			FOpenGL::bIsCheckingShaderCompilerHacks = false;
-			return;
-		}
-
-		FOpenGL::bRequiresDontEmitPrecisionForTextureSamplers = false;
-		FOpenGL::bRequiresTextureCubeLodEXTToTextureCubeLodDefine = true;
-
-		// third most likely Samsung Galaxy Tab GT-P1000
-		GOpenGLShaderHackLastCompileSuccess = false;
-		PixelShaderRHI = RHICreatePixelShader(Code, FSHAHash());
-		OGLPixelShader = (FOpenGLPixelShader*)(PixelShaderRHI.GetReference());
-
-		if (IsRunningRHIInSeparateThread())
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-
-		if (VerifyCompiledShader(OGLPixelShader->Resource, TestFragmentProgram, false))
-		{
-			UE_LOG(LogRHI, Warning, TEXT("Enabling shader compiler hack to redefine textureCubeLodEXT to textureCubeLod"));
-			// we are done
-			FOpenGL::bIsCheckingShaderCompilerHacks = false;
-			return;
-		}
-
-		FOpenGL::bRequiresDontEmitPrecisionForTextureSamplers = true;
-		FOpenGL::bRequiresTextureCubeLodEXTToTextureCubeLodDefine = true;
-
-		// try both hacks
-		GOpenGLShaderHackLastCompileSuccess = false;
-		PixelShaderRHI = RHICreatePixelShader(Code, FSHAHash());
-		OGLPixelShader = (FOpenGLPixelShader*)(PixelShaderRHI.GetReference());
-		
-		if (IsRunningRHIInSeparateThread())
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-
-		if (VerifyCompiledShader(OGLPixelShader->Resource, TestFragmentProgram, false))
-		{
-			UE_LOG(LogRHI, Warning, TEXT("Enabling shader compiler hack to redefine textureCubeLodEXT to textureCubeLod and remove precision modifiers"));
-			// we are done
-			FOpenGL::bIsCheckingShaderCompilerHacks = false;
-			return;
-		}
-
-		UE_LOG(LogRHI, Warning, TEXT("Unable to find a test shader that compiles try running anyway"));
-		FOpenGL::bIsCheckingShaderCompilerHacks = false;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-}
-
-static void CheckRoundFunction()
-{
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
-	FOpenGL::bRequiresRoundFunctionHack = false;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (IsES2Platform(GMaxRHIShaderPlatform))
-	{
-		UE_LOG(LogRHI, Display, TEXT("Testing for round() function availability"));
-		FOpenGL::bIsCheckingShaderCompilerHacks = true;
-
-		static const ANSICHAR TestVertexProgram[] = "\n"
-			"#version 100\n"
-			"attribute vec4 in_ATTRIBUTE0;\n"
-			"void main()\n"
-			"{\n"
-			"   float value = round(0.5);\n"
-			"	gl_Position.xyzw = in_ATTRIBUTE0;\n"
-			"}\n";
-
-		FShaderCode VertexShaderCode;
-		{
-			FOpenGLCodeHeader Header;
-			Header.FrequencyMarker = 0x5653;
-			Header.GlslMarker = 0x474c534c;
-
-			FMemoryWriter Writer(VertexShaderCode.GetWriteAccess(), true);
-			Writer << Header;
-			Writer.Serialize((void*)TestVertexProgram, sizeof(TestVertexProgram));
-			Writer.Close();
-		}
-
-		// Try to compile test shaders
-		GOpenGLShaderHackLastCompileSuccess = false;
-		FVertexShaderRHIRef VertexShaderRHI = RHICreateVertexShader(VertexShaderCode.GetReadAccess(), FSHAHash());
-		FOpenGLVertexShader* OGLVertexShader = (FOpenGLVertexShader*)VertexShaderRHI.GetReference();
-
-		if (IsRunningRHIInSeparateThread())
-		{
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-				
-		if (!VerifyCompiledShader(OGLVertexShader->Resource, TestVertexProgram, false))
-		{
-			UE_LOG(LogRHI, Warning, TEXT("Using the round() function hack, because the vertex shader for round function test failed to compile."));
-			FOpenGL::bRequiresRoundFunctionHack = true;
-			FOpenGL::bIsCheckingShaderCompilerHacks = false;
-			return;
-		}
-
-		FOpenGL::bIsCheckingShaderCompilerHacks = false;
-
-		UE_LOG(LogRHI, Warning, TEXT("Disabling the need for the round() function hack"));
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-}
-
 void FOpenGLDynamicRHI::Init()
 {
 	check(!GIsRHIInitialized);
@@ -1702,10 +1302,6 @@ void FOpenGLDynamicRHI::Init()
 	FOpenGL::Flush();
 
 	FHardwareInfo::RegisterHardwareInfo( NAME_RHI, TEXT( "OpenGL" ) );
-
-	CheckTextureCubeLodSupport();
-	CheckVaryingLimit();
-	CheckRoundFunction();
 
 	GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
 	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());

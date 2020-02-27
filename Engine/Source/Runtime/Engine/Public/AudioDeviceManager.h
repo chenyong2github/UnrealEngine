@@ -426,6 +426,9 @@ private:
 	*/
 	bool ShutdownAllAudioDevices();
 
+	/** Application enters background handler */
+	void AppWillEnterBackground();
+
 	/** Audio device module which creates (old backend) audio devices. */
 	IAudioDeviceModule* AudioDeviceModule;
 

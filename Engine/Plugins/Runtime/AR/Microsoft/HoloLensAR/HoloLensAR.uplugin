@@ -33,16 +33,6 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
-				"HoloLens",
-				"Win64"
-			]
-		},
-		{
-			"Name": "HoloLensDeviceDetector",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"HoloLens",
 				"Win64"
 			]
 		},
@@ -51,7 +41,6 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
-				"HoloLens",
 				"Win64"
 			]
 		}

@@ -125,6 +125,7 @@ namespace VulkanRHI
 			, bIsCoherent(0)
 			, bIsCached(0)
 			, bFreedBySystem(false)
+			, bDedicatedMemory(0)
 #if VULKAN_MEMORY_TRACK_FILE_LINE
 			, File(nullptr)
 			, Line(0)
@@ -185,6 +186,7 @@ namespace VulkanRHI
 		uint32 bIsCoherent : 1;
 		uint32 bIsCached : 1;
 		uint32 bFreedBySystem : 1;
+		uint32 bDedicatedMemory : 1;
 		uint32 : 0;
 
 #if VULKAN_MEMORY_TRACK_FILE_LINE
@@ -616,7 +618,7 @@ namespace VulkanRHI
 		}
 
 		void Flush(VkDeviceSize Offset, VkDeviceSize AllocationSize);
-		uint32 GetMaxSize(){ return MaxSize; }
+		uint32 GetMaxSize() const { return MaxSize; }
 	protected:
 		FResourceHeapManager* Owner;
 		uint32 MemoryTypeIndex;
@@ -1222,6 +1224,7 @@ namespace VulkanRHI
 			Semaphore,
 			ShaderModule,
 			Event,
+			ResourceAllocation,
 		};
 
 		template <typename T>
@@ -1230,6 +1233,7 @@ namespace VulkanRHI
 			static_assert(sizeof(T) <= sizeof(uint64), "Vulkan resource handle type size too large.");
 			EnqueueGenericResource(Type, (uint64)Handle);
 		}
+		void EnqueueResourceAllocation(TRefCountPtr<VulkanRHI::FOldResourceAllocation> ResourceAllocation);
 
 		void ReleaseResources(bool bDeleteImmediately = false);
 
@@ -1258,11 +1262,13 @@ namespace VulkanRHI
 
 		struct FEntry
 		{
-			uint64 FenceCounter;
-			uint64 Handle;
-			FVulkanCmdBuffer* CmdBuffer;
 			EType StructureType;
 			uint32 FrameNumber;
+			uint64 FenceCounter;
+			FVulkanCmdBuffer* CmdBuffer;
+
+			uint64 Handle;
+			TRefCountPtr<VulkanRHI::FOldResourceAllocation> ResourceAllocation;
 		};
 		FCriticalSection CS;
 		TArray<FEntry> Entries;
@@ -1634,10 +1640,11 @@ namespace VulkanRHI
 		}
 	};
 
-	class FSemaphore : public FRefCount
+	class VULKANRHI_API FSemaphore : public FRefCount
 	{
 	public:
 		FSemaphore(FVulkanDevice& InDevice);
+		FSemaphore(FVulkanDevice& InDevice, const VkSemaphore& InExternalSemaphore);
 		virtual ~FSemaphore();
 
 		inline VkSemaphore GetHandle() const
@@ -1645,9 +1652,15 @@ namespace VulkanRHI
 			return SemaphoreHandle;
 		}
 
+		inline bool IsExternallyOwned() const
+		{
+			return bExternallyOwned;
+		}
+
 	private:
 		FVulkanDevice& Device;
 		VkSemaphore SemaphoreHandle;
+		bool bExternallyOwned;
 	};
 }
 

@@ -66,7 +66,6 @@ struct ENGINE_API TPerPlatformProperty
 		FName PlatformGroupName;
 		switch (FeatureLevel)
 		{
-			case ERHIFeatureLevel::ES2:
 			case ERHIFeatureLevel::ES3_1:
 			{
 				static FName NAME_Mobile("Mobile");

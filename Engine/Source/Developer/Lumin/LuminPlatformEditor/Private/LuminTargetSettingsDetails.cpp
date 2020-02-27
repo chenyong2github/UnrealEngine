@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LuminTargetSettingsDetails.h"
+#include "LuminLocalizedIconListWidget.h"
+#include "LuminLocalizedAppNameListWidget.h"
+#include "LuminPathPickerWidget.h"
 
 #include "SExternalImageReference.h"
 #include "EditorDirectories.h"
@@ -25,17 +28,15 @@ DEFINE_LOG_CATEGORY_STATIC(LogLuminTargetSettingsDetail, Log, All);
 
 #define LOCTEXT_NAMESPACE "LuminTargetSettingsDetails"
 
-static constexpr float ExpireDuration = 5.0f;
-
 TSharedRef<IDetailCustomization> FLuminTargetSettingsDetails::MakeInstance()
 {
 	return MakeShareable(new FLuminTargetSettingsDetails);
 }
 
 FLuminTargetSettingsDetails::FLuminTargetSettingsDetails()
-	: DefaultIconModelPath(FPaths::EngineDir() / TEXT("Build/Lumin/Resources/Model"))
-	, DefaultIconPortalPath(FPaths::EngineDir() / TEXT("Build/Lumin/Resources/Portal"))
-	, GameLuminPath(FPaths::ProjectDir() / TEXT("Build/Lumin"))
+	: DefaultIconModelPath(TEXT("Build/Lumin/Resources/Model"))
+	, DefaultIconPortalPath(TEXT("Build/Lumin/Resources/Portal"))
+	, GameLuminPath(FPaths::ProjectDir() / TEXT("Build/Lumin/Resources"))
 	, GameProjectSetupPath(GameLuminPath / TEXT("IconSetup.txt"))
 	, SavedLayoutBuilder(nullptr)
 {
@@ -55,6 +56,7 @@ void FLuminTargetSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 
 	BuildAudioSection(DetailBuilder);
 	BuildAppTileSection(DetailBuilder);
+	BuildLocalizedAppNameSection();
 }
 
 FString FLuminTargetSettingsDetails::IconModelPathGetter()
@@ -67,16 +69,8 @@ FString FLuminTargetSettingsDetails::IconModelPathGetter()
 		// paths to the platform build resource locations.
 		if (!SetupForPlatformAttribute.Get())
 		{
-			// Otherwise they are in the engine tree. But they could be outdate paths.
-			// In which case we use the hard-wired defaults.
-			if (FPaths::DirectoryExists(FPaths::EngineDir() / Result))
-			{
-				Result = FPaths::EngineDir() / Result;
-			}
-			else
-			{
-				Result = DefaultIconModelPath;
-			}
+			Result.Empty();
+			IconModelPathProp->SetValue(Result);
 		}
 	}
 	return Result;
@@ -92,16 +86,8 @@ FString FLuminTargetSettingsDetails::IconPortalPathGetter()
 		// paths to the platform build resource locations.
 		if (!SetupForPlatformAttribute.Get())
 		{
-			// Otherwise they are in the engine tree. But they could be outdate paths.
-			// In which case we use the hard-wired defaults.
-			if (FPaths::DirectoryExists(FPaths::EngineDir() / Result))
-			{
-				Result = FPaths::EngineDir() / Result;
-			}
-			else
-			{
-				Result = DefaultIconPortalPath;
-			}
+			Result.Empty();
+			IconPortalPathProp->SetValue(Result);
 		}
 	}
 	return Result;
@@ -117,8 +103,8 @@ FString FLuminTargetSettingsDetails::CertificateGetter()
 void FLuminTargetSettingsDetails::CopySetupFilesIntoProject()
 {
 	// Start out with the hard-wired default paths.
-	FString SourceModelPath = DefaultIconModelPath;
-	FString SourcePortalPath = DefaultIconPortalPath;
+	FString SourceModelPath = FPaths::EngineDir() / DefaultIconModelPath;
+	FString SourcePortalPath = FPaths::EngineDir() / DefaultIconPortalPath;
 	// Override with soft-wired defaults from the engine config. These are going to be engine
 	// root relative as we are copying from the engine tree to the project tree.
 	// But only override if those soft-wired engine paths exists. If they don't it's likely
@@ -144,8 +130,8 @@ void FLuminTargetSettingsDetails::CopySetupFilesIntoProject()
 		// And set the icon path config vars to the project directory now that we have it.
 		// This makes it so that the packaging will use these instead of the engine
 		// files directly. The values for both are fixed to the project root relative locations.
-		if (IconModelPathProp->SetValue(FString("Build/Lumin/Model")) != FPropertyAccess::Success ||
-			IconPortalPathProp->SetValue(FString("Build/Lumin/Portal")) != FPropertyAccess::Success)
+		if (IconModelPathProp->SetValue(TargetModelPath.Replace(*FPaths::ProjectDir(), TEXT(""))) != FPropertyAccess::Success ||
+			IconPortalPathProp->SetValue(TargetPortalPath.Replace(*FPaths::ProjectDir(), TEXT(""))) != FPropertyAccess::Success)
 		{
 			UE_LOG(LogLuminTargetSettingsDetail, Error, TEXT("Failed to update icon or portal "));
 		}
@@ -164,6 +150,7 @@ void FLuminTargetSettingsDetails::BuildAppTileSection(IDetailLayoutBuilder& Deta
 	IDetailCategoryBuilder& AppTitleCategory = DetailBuilder.EditCategory(TEXT("Magic Leap App Tile"));
 	DetailBuilder.HideProperty("IconModelPath");
 	DetailBuilder.HideProperty("IconPortalPath");
+	DetailBuilder.HideProperty("LocalizedIconInfos");
 	TSharedRef<SPlatformSetupMessage> PlatformSetupMessage = SNew(SPlatformSetupMessage, GameProjectSetupPath)
 		.PlatformName(LOCTEXT("LuminPlatformName", "Magic Leap"))
 		.OnSetupClicked(FSimpleDelegate::CreateLambda([this] { this->CopySetupFilesIntoProject(); }));
@@ -199,76 +186,15 @@ void FLuminTargetSettingsDetails::BuildAppTileSection(IDetailLayoutBuilder& Deta
 				.OnClicked(this, &FLuminTargetSettingsDetails::OpenBuildFolder)
 			]
 		];
-	BuildPathPicker(DetailBuilder, AppTitleCategory, IconModelPathAttribute,
-		LOCTEXT("IconModelLabel", "Icon Model"),
-		LOCTEXT("PickIconModelButton_Tooltip", "Select the icon model to use for the application. The files will be copied to the project build folder."),
-		FOnChoosePath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickDirectory),
-		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickIconModelPath),
-		false /*bClearButton*/,
-		LOCTEXT("NoClearButton_Tooltip", ""),
-		true /*bDisableUntilConfigured*/);
-	BuildPathPicker(DetailBuilder, AppTitleCategory, IconPortalPathAttribute,
-		LOCTEXT("IconPortalLabel", "Icon Portal"),
-		LOCTEXT("PickIconPortalButton_Tooltip", "Select the icon portal to use for the application. The files will be copied to the project build folder."),
-		FOnChoosePath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickDirectory),
-		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickIconPortalPath),
-		false /*bClearButton*/,
-		LOCTEXT("NoClearButton_Tooltip", ""),
-		true /*bDisableUntilConfigured*/);
 
+	BuildIconPickers(AppTitleCategory);
+		
 	////////// UI for signing cert..
 
 	IDetailCategoryBuilder& DistributionSigningCategory = DetailBuilder.EditCategory(TEXT("Distribution Signing"));
 	DetailBuilder.HideProperty("Certificate");
-	BuildPathPicker(DetailBuilder, DistributionSigningCategory, CertificateAttribute,
-		LOCTEXT("CertificateFilePathLabel", "Certificate File Path"),
-		LOCTEXT("PickCertificateButton_Tooltip", "Select the certificate to use for signing a distribution package. The file will be copied to the project build folder."),
-		FOnChoosePath::CreateLambda([this](TAttribute<FString> FilePath, const FOnPickPath& OnPick, TSharedPtr<SButton> PickButton)->FReply
-		{
-			const FString FilterText = LOCTEXT("CertificateFile", "Certificate File").ToString();
-			return this->OnPickFile(FilePath, OnPick, PickButton,
-				LOCTEXT("PickCertificateFileDialogTitle", "Choose a certificate").ToString(),
-				FString::Printf(TEXT("%s (*.cert)|*.cert"), *FilterText));
-		}),
-		FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickCertificate),
-		true /*bClearButton*/,
-		LOCTEXT("CertClearButton_Tooltip", "Clear the selected certificate."),
-		false /*bDisableUntilConfigured*/);
-
-}
-
-FReply FLuminTargetSettingsDetails::OnPickIconModelPath(const FString& DirPath)
-{
-	FString ProjectModelPath = GameLuminPath / TEXT("Model");
-	if (ProjectModelPath != DirPath)
-	{
-		// Copy the contents of the selected path to the project build path.
-		const bool bModelFilesUpdated = CopyDir(DirPath, ProjectModelPath);
-		if (bModelFilesUpdated)
-		{
-			FNotificationInfo SuccessInfo(LOCTEXT("ModelFilesUpdatedLabel", "Icon model files updated."));
-			SuccessInfo.ExpireDuration = ExpireDuration;
-			FSlateNotificationManager::Get().AddNotification(SuccessInfo);
-		}
-	}
-	return FReply::Handled();
-}
-
-FReply FLuminTargetSettingsDetails::OnPickIconPortalPath(const FString& DirPath)
-{
-	FString ProjectPortalPath = GameLuminPath / TEXT("Portal");
-	if (ProjectPortalPath != DirPath)
-	{
-		// Copy the contents of the selected path to the project build path.
-		const bool bPortalFilesUpdated = CopyDir(DirPath, ProjectPortalPath);
-		if (bPortalFilesUpdated)
-		{
-			FNotificationInfo SuccessInfo(LOCTEXT("PortalFilesUpdatedLabel", "Icon portal files updated."));
-			SuccessInfo.ExpireDuration = ExpireDuration;
-			FSlateNotificationManager::Get().AddNotification(SuccessInfo);
-		}
-	}
-	return FReply::Handled();
+	
+	BuildCertificatePicker(DistributionSigningCategory, false);
 }
 
 bool FLuminTargetSettingsDetails::CopyDir(FString SourceDir, FString TargetDir)
@@ -332,79 +258,9 @@ bool FLuminTargetSettingsDetails::CopyDir(FString SourceDir, FString TargetDir)
 	return FilesCopiedCount > 0;
 }
 
-void FLuminTargetSettingsDetails::BuildPathPicker(
-	IDetailLayoutBuilder& DetailBuilder, IDetailCategoryBuilder& Category,
-	TAttribute<FString> Path, const FText& Label, const FText& Tooltip,
-	const FOnChoosePath& OnChoose, const FOnPickPath& OnPick, bool bClearButton, const FText& ClearTooltip,
-	bool bDisableUntilConfigured)
+void FLuminTargetSettingsDetails::BuildIconPickers(IDetailCategoryBuilder& Category)
 {
-	TSharedPtr<SButton> PickButton = nullptr;
-	TSharedPtr<SWidget> PickWidget = nullptr;
-	PickWidget = SAssignNew(PickButton, SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-		.ToolTipText(Tooltip)
-		.ContentPadding(2.0f)
-		.ForegroundColor(FSlateColor::UseForeground())
-		.IsFocusable(false)
-		[
-			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-			.ColorAndOpacity(FSlateColor::UseForeground())
-		]
-	;
-	PickButton->SetOnClicked(FOnClicked::CreateLambda([OnChoose, OnPick, Path, PickButton]()->FReply
-	{
-		return OnChoose.Execute(Path.Get(), OnPick, PickButton);
-	}));
-
-	TSharedPtr<SButton> ClearButton = nullptr;
-	TSharedPtr<SWidget> ClearWidget = nullptr;
-	ClearWidget = SAssignNew(ClearButton, SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-		.ToolTipText(ClearTooltip)
-		.ContentPadding(2.0f)
-		.ForegroundColor(FSlateColor::UseForeground())
-		.IsFocusable(false)
-		.IsEnabled(bClearButton)
-		[
-			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Clear"))
-			.ColorAndOpacity(FSlateColor::UseForeground())
-		]
-	;
-	ClearButton->SetOnClicked(FOnClicked::CreateLambda([this]()->FReply
-	{
-		CertificateProp->SetValue(TEXT(""));
-		return FReply::Handled();
-	}));
-
-	TSharedPtr<SHorizontalBox> PathPickerBox = SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.Text(TAttribute<FText>::Create(
-				TAttribute<FText>::FGetter::CreateLambda([Path]()->FText { return FText::FromString(Path.Get()); })))
-			.Font(DetailBuilder.GetDetailFont())
-			.Margin(2.0f)
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			PickWidget.ToSharedRef()
-		]
-	;
-
-	if (bClearButton)
-	{
-		PathPickerBox->AddSlot()
-			.AutoWidth()
-			[
-				ClearWidget.ToSharedRef()
-			];
-	}
-
-	FDetailWidgetRow& Row = Category.AddCustomRow(Label, false)
+	FDetailWidgetRow& DefaultIconModelRow = Category.AddCustomRow(LOCTEXT("IconModelPath", "Default Icon Model Path"), false)
 		.NameContent()
 		[
 			SNew(SHorizontalBox)
@@ -413,63 +269,237 @@ void FLuminTargetSettingsDetails::BuildPathPicker(
 			.FillWidth(1.0f)
 			[
 				SNew(STextBlock)
-				.Text(Label)
-				.Font(DetailBuilder.GetDetailFont())
+				.ToolTipText(LOCTEXT("DefaultIconModelPathToolTip", "The default icon model files to use for undefined locales."))
+				.Text(LOCTEXT("DefaultIconModelPath", "Default Icon Model Path"))
+				.Font(SavedLayoutBuilder->GetDetailFont())
 			]
 		]
 		.ValueContent()
 		[
-			PathPickerBox.ToSharedRef()
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SLuminPathPickerWidget)
+				.FilePickerTitle(LOCTEXT("IconModelFolderDialogTitle", "Choose an icon model source.").ToString())
+				.FileFilter(TEXT("(*.fbx;*.obj)|*.fbx;*.obj"))
+				.StartDirectory(IconModelPathAttribute)
+				.ToolTipText(LOCTEXT("PickIconPortalButton_Tooltip", "Select the default (non-locale-specific) icon model to use for the application. All files in the parent folder of the selected model will be copied to the project build folder."))
+				.OnPickPath(FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickDefaultIconModel))
+				.OnClearPath(FOnClearPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnClearDefaultIconModel))
+			]
+		];
+
+	DefaultIconModelRow.IsEnabled(SetupForPlatformAttribute);
+
+	FDetailWidgetRow& DefaultIconPortalRow = Category.AddCustomRow(LOCTEXT("IconPortalPath", "Default Icon Portal Path"), false)
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0, 1, 0, 1))
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.ToolTipText(LOCTEXT("DefaultIconPortalPathToolTip", "The default icon portal files to use for undefined locales."))
+				.Text(LOCTEXT("DefaultIconPortalPath", "Default Icon Portal Path"))
+				.Font(SavedLayoutBuilder->GetDetailFont())
+			]
+		]
+		.ValueContent()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SLuminPathPickerWidget)
+				.FilePickerTitle(LOCTEXT("IconPortalFolderDialogTitle", "Choose an icon portal source.").ToString())
+				.FileFilter(TEXT("(*.fbx;*.obj)|*.fbx;*.obj"))
+				.StartDirectory(IconPortalPathAttribute)
+				.ToolTipText(LOCTEXT("PickIconModelButton_Tooltip", "Select the default (non-locale-specific) icon portal to use for the application. All files in the parent folder of the selected portal will be copied to the project build folder."))
+				.OnPickPath(FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickDefaultIconPortal))
+				.OnClearPath(FOnClearPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnClearDefaultIconPortal))
+			]
+		];
+
+	DefaultIconPortalRow.IsEnabled(SetupForPlatformAttribute);
+		
+	FDetailWidgetRow& LocalizedIconsRow = Category.AddCustomRow(LOCTEXT("LocalizedIconsLabel", "Localized Icon Settings"), false)
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0, 1, 0, 1))
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.ToolTipText(LOCTEXT("PickIconsButton_Tooltip", "Select the locale specific icon assets to use for the application.  The files will be copied to the project build folder."))
+				.Text(LOCTEXT("LocalizedIconsLabel", "Localized Icon Settings"))
+				.Font(SavedLayoutBuilder->GetDetailFont())
+			]
+		]
+		.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SLuminLocalizedIconListWidget)
+				.ToolTipText(LOCTEXT("PickIconsButton_Tooltip", "Select the locale specific icon assets to use for the application.  The files will be copied to the project build folder."))
+				.GameLuminPath(GameLuminPath)
+				.DetailLayoutBuilder(SavedLayoutBuilder)
+			]
+		];
+
+	LocalizedIconsRow.IsEnabled(SetupForPlatformAttribute);
+}
+
+FReply FLuminTargetSettingsDetails::OnPickDefaultIconModel(const FString& ModelFileFullPath)
+{
+	FString ProjectModelPath = GameLuminPath / TEXT("Model");
+	FString SourceModelPath = FPaths::GetPath(ModelFileFullPath);
+	if (ProjectModelPath != SourceModelPath)
+	{
+		// Copy the contents of the selected path to the project build path.
+		const bool bModelFilesUpdated = CopyDir(SourceModelPath, ProjectModelPath);
+		if (bModelFilesUpdated)
+		{
+			if (IconModelPathProp->SetValue(DefaultIconModelPath / FPaths::GetCleanFilename(ModelFileFullPath)) != FPropertyAccess::Success)
+			{
+				UE_LOG(LogLuminTargetSettingsDetail, Error, TEXT("Failed to update icon model."));
+			}
+			else
+			{
+				FNotificationInfo SuccessInfo(LOCTEXT("ModelFilesUpdatedLabel", "Icon model files updated."));
+				SuccessInfo.ExpireDuration = 5.0f;
+				FSlateNotificationManager::Get().AddNotification(SuccessInfo);
+			}
+
+			return FReply::Handled();
+		}
+	}
+	return FReply::Unhandled();
+}
+
+FReply FLuminTargetSettingsDetails::OnClearDefaultIconModel()
+{
+	if (IconModelPathProp->SetValue(TEXT("")) != FPropertyAccess::Success)
+	{
+		UE_LOG(LogLuminTargetSettingsDetail, Error, TEXT("Failed to clear icon model path."));
+	}
+	return FReply::Handled();
+}
+
+FReply FLuminTargetSettingsDetails::OnPickDefaultIconPortal(const FString& PortalFileFullPath)
+{
+	FString ProjectPortalPath = GameLuminPath / TEXT("Portal");
+	FString SourcePortalPath = FPaths::GetPath(PortalFileFullPath);
+	if (ProjectPortalPath != SourcePortalPath)
+	{
+		// Copy the contents of the selected path to the project build path.
+		const bool bPortalFilesUpdated = CopyDir(SourcePortalPath, ProjectPortalPath);
+		if (bPortalFilesUpdated)
+		{
+			if (IconPortalPathProp->SetValue(DefaultIconPortalPath / FPaths::GetCleanFilename(PortalFileFullPath)) != FPropertyAccess::Success)
+			{
+				UE_LOG(LogLuminTargetSettingsDetail, Error, TEXT("Failed to update icon portal."));
+			}
+			else
+			{
+				FNotificationInfo SuccessInfo(LOCTEXT("PortalFilesUpdatedLabel", "Icon portal files updated."));
+				SuccessInfo.ExpireDuration = 5.0f;
+				FSlateNotificationManager::Get().AddNotification(SuccessInfo);
+			}
+
+			return FReply::Handled();
+		}
+	}
+	return FReply::Unhandled();
+}
+
+FReply FLuminTargetSettingsDetails::OnClearDefaultIconPortal()
+{
+	if (IconPortalPathProp->SetValue(TEXT("")) != FPropertyAccess::Success)
+	{
+		UE_LOG(LogLuminTargetSettingsDetail, Error, TEXT("Failed to clear icon portal path."));
+	}
+	return FReply::Handled();
+}
+
+void FLuminTargetSettingsDetails::BuildLocalizedAppNameSection()
+{
+	IDetailCategoryBuilder& Category = SavedLayoutBuilder->EditCategory(TEXT("Advanced MPK Packaging"));
+	SavedLayoutBuilder->HideProperty("LocalizedAppNames");
+	FDetailWidgetRow& Row = Category.AddCustomRow(LOCTEXT("LocalizedAppNamesLabel", "Localized App Names"), false)
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0, 1, 0, 1))
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("LocalizedAppNamesLabel", "Localized App Names"))
+				.ToolTipText(LOCTEXT("LocalizedAppNames_Tooltip", "Edit locale-specific names for the application"))
+				.Font(SavedLayoutBuilder->GetDetailFont())
+			]
+		]
+		.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SLuminLocalizedAppNameListWidget)
+				.DetailLayoutBuilder(SavedLayoutBuilder)
+			]
+		];
+
+	Row.IsEnabled(true);
+}
+
+FReply FLuminTargetSettingsDetails::OnClearCertificate()
+{
+	CertificateProp->SetValue(TEXT(""));
+	return FReply::Handled();
+}
+
+void FLuminTargetSettingsDetails::BuildCertificatePicker(IDetailCategoryBuilder& Category, bool bDisableUntilConfigured)
+{
+	FDetailWidgetRow& Row = Category.AddCustomRow(LOCTEXT("CertificateFilePathLabel", "Certificate File Path"), false)
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0, 1, 0, 1))
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("CertificateFilePathLabel", "Certificate File Path"))
+				.Font(SavedLayoutBuilder->GetDetailFont())
+			]
+		]
+		.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SLuminPathPickerWidget)
+				.StartDirectory(CertificateAttribute)
+				.FilePickerTitle(FString::Printf(TEXT("%s (*.cert)|*.cert"), *LOCTEXT("CertificateFile", "Certificate File").ToString()))
+				.FileFilter(FString::Printf(TEXT("%s (*.cert)|*.cert"), *LOCTEXT("CertificateFile", "Certificate File").ToString()))
+				.ToolTipText(LOCTEXT("PickCertificateButton_Tooltip", "Select the certificate to use for signing a distribution package. The file will be copied to the project build folder."))
+				.OnPickPath(FOnPickPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnPickCertificate))
+				.OnClearPath(FOnClearPath::CreateRaw(this, &FLuminTargetSettingsDetails::OnClearCertificate))
+			]
 		];
 
 	if (bDisableUntilConfigured)
 	{
 		Row.IsEnabled(SetupForPlatformAttribute);
 	}
-}
-
-FReply FLuminTargetSettingsDetails::OnPickDirectory(TAttribute<FString> DirPath, const FLuminTargetSettingsDetails::FOnPickPath& OnPick, TSharedPtr<SButton> PickButton)
-{
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	if (DesktopPlatform)
-	{
-		TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(PickButton.ToSharedRef());
-		void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
-		FString StartDirectory = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT);
-		FString Directory;
-		if (DesktopPlatform->OpenDirectoryDialog(ParentWindowHandle, LOCTEXT("FolderDialogTitle", "Choose a directory").ToString(), StartDirectory, Directory))
-		{
-			FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_IMPORT, Directory);
-			return OnPick.Execute(Directory);
-		}
-	}
-	return FReply::Handled();
-}
-
-FReply FLuminTargetSettingsDetails::OnPickFile(
-	TAttribute<FString> FilePath, const FLuminTargetSettingsDetails::FOnPickPath& OnPick,
-	TSharedPtr<SButton> PickButton, const FString & Title, const FString & Filter)
-{
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	if (DesktopPlatform)
-	{
-		TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(PickButton.ToSharedRef());
-		void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
-		FString StartDirectory = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT);
-		TArray<FString> OutFiles;
-		if (DesktopPlatform->OpenFileDialog(
-			ParentWindowHandle,
-			Title,
-			FilePath.Get(),
-			TEXT(""),
-			Filter,
-			EFileDialogFlags::None,
-			OutFiles))
-		{
-			return OnPick.Execute(OutFiles[0]);
-		}
-	}
-	return FReply::Handled();
 }
 
 FReply FLuminTargetSettingsDetails::OpenBuildFolder()

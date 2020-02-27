@@ -12,8 +12,6 @@ enum class EMagicLeapContactsResult : uint8
 	HandleNotFound,
 	/** Request is completed, its corresponding result has been returned, and its related resources are marked for deletion. */
 	Completed,
-	/** Request is successfully cancelled. */
-	Cancelled,
 	/** Request failed due to system being in an illegal state, for e.g., when the user hasn't successfully logged-in. */
 	IllegalState,
 };
@@ -91,12 +89,12 @@ struct FMagicLeapContact
 };
 
 /** Delegate used to convey the result of a single contact operation. */
-DECLARE_DYNAMIC_DELEGATE_OneParam(FSingleContactResultDelegate, EMagicLeapContactsOperationStatus, OpStatus);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSingleContactResultDelegateMulti, EMagicLeapContactsOperationStatus, OpStatus);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FMagicLeapSingleContactResultDelegate, EMagicLeapContactsOperationStatus, OpStatus);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMagicLeapSingleContactResultDelegateMulti, EMagicLeapContactsOperationStatus, OpStatus);
 
 /** Delegate used to convey the result of a multiple contacts operation. */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FMultipleContactsResultDelegate, const TArray<FMagicLeapContact>&, Contacts, EMagicLeapContactsOperationStatus, OpStatus);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMultipleContactsResultDelegateMulti, const TArray<FMagicLeapContact>&, Contacts, EMagicLeapContactsOperationStatus, OpStatus);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FMagicLeapMultipleContactsResultDelegate, const TArray<FMagicLeapContact>&, Contacts, EMagicLeapContactsOperationStatus, OpStatus);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMagicLeapMultipleContactsResultDelegateMulti, const TArray<FMagicLeapContact>&, Contacts, EMagicLeapContactsOperationStatus, OpStatus);
 
 /**
 	Delegate used to pass log messages from the contacts plugin to the initiating blueprint.
@@ -104,5 +102,5 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMultipleContactsResultDelegateMult
 	@param LogMessage A string containing the log message.
 	@param OpStatus The status of the operation associated with the log message.
 */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FContactsLogMessage, const FString&, LogMessage, EMagicLeapContactsOperationStatus, OpStatus);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FContactsLogMessageMulti, const FString&, LogMessage, EMagicLeapContactsOperationStatus, OpStatus);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FMagicLeapContactsLogMessage, const FString&, LogMessage, EMagicLeapContactsOperationStatus, OpStatus);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMagicLeapContactsLogMessageMulti, const FString&, LogMessage, EMagicLeapContactsOperationStatus, OpStatus);

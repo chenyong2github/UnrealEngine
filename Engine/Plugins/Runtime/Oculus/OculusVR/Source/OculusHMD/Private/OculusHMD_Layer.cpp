@@ -396,7 +396,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 
 		EPixelFormat Format = Desc.Texture.IsValid() ? CustomPresent->GetPixelFormat(Desc.Texture->GetFormat()) : CustomPresent->GetDefaultPixelFormat();
 #if PLATFORM_ANDROID
-		uint32 NumMips = 1;
+		uint32 NumMips = Desc.Texture.IsValid() ? Desc.Texture->GetNumMips() : 1;
 #else
 		uint32 NumMips = 0;
 #endif
@@ -557,6 +557,11 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 
 			uint32 ColorTexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | (bNeedsTexSrgbCreate ? TexCreate_SRGB : 0);
 			uint32 DepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable;
+
+			if (Desc.Texture.IsValid())
+			{
+				ColorTexCreateFlags |= (Desc.Texture->GetFlags() & TexCreate_SRGB);
+			}
 
 			FClearValueBinding ColorTextureBinding = FClearValueBinding();
 
@@ -772,6 +777,9 @@ const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, 
 				OvrpLayerSubmit.ViewportRect[eye] = ToOvrpRecti(Settings->EyeRenderViewport[eye]);
 			}
 		}
+
+		OvrpLayerSubmit.EyeFov.Fov[0] = Frame->Fov[0];
+		OvrpLayerSubmit.EyeFov.Fov[1] = Frame->Fov[1];
 
 #if PLATFORM_ANDROID
 		if (LayerIndex != 0)

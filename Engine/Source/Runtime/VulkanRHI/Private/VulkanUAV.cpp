@@ -114,7 +114,7 @@ void FVulkanShaderResourceView::UpdateView()
 		if (TextureView.View == VK_NULL_HANDLE)
 		{
 			const bool bBaseSRGB = (SourceTexture->GetFlags() & TexCreate_SRGB) != 0;
-			const bool bSRGB = (SRGBOverride == SRGBO_ForceEnable) || (SRGBOverride == SRGBO_Default && bBaseSRGB);
+			const bool bSRGB = (SRGBOverride != SRGBO_ForceDisable) && bBaseSRGB;
 
 			EPixelFormat Format = (BufferViewFormat == PF_Unknown) ? SourceTexture->GetFormat() : BufferViewFormat;
 			if (FRHITexture2D* Tex2D = SourceTexture->GetTexture2D())

@@ -170,13 +170,13 @@ namespace WindowsMixedReality
 #endif
 	}
 #if WITH_WINDOWS_MIXED_REALITY
-	bool FWindowsMixedRealityStatics::GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition)
+	bool FWindowsMixedRealityStatics::GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition, float& OutRadius)
 	{
 		FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
 
 		if (hmd != nullptr)
 		{
-			return hmd->GetHandJointOrientationAndPosition(hand, joint, OutOrientation, OutPosition);
+			return hmd->GetHandJointOrientationAndPosition(hand, joint, OutOrientation, OutPosition, OutRadius);
 		}
 
 		return false;

@@ -133,6 +133,8 @@ private:
 	MLInputControllerCallbacks InputControllerCallbacks;
 	TMap<FName, FMagicLeapControllerState> CurrMotionSourceControllerState;
 	TMap<FName, FMagicLeapControllerState> PrevMotionSourceControllerState;
+
+	void EnqueueButton(EControllerHand ControllerHand, MLInputControllerButton Button, bool bIsPressed);
 #endif //WITH_MLSDK
 
 	bool bIsInputStateValid;

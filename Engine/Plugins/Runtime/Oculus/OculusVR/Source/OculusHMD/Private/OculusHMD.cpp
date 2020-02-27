@@ -2527,8 +2527,11 @@ namespace OculusHMD
 			Settings->EyeProjectionMatrices[0] = ovrpMatrix4f_Projection(frustumLeft, true);
 			Settings->EyeProjectionMatrices[1] = ovrpMatrix4f_Projection(frustumRight, true);
 
-			Settings->PerspectiveProjection[0] = ovrpMatrix4f_Projection(frustumLeft, false);
-			Settings->PerspectiveProjection[1] = ovrpMatrix4f_Projection(frustumRight, false);
+			if (Frame.IsValid())
+			{
+				Frame->Fov[0] = EyeLayerDesc.Fov[0];
+				Frame->Fov[1] = EyeLayerDesc.Fov[1];
+			}
 
 			// Flag if need to recreate render targets
 			if (!EyeLayer->CanReuseResources(EyeLayer_RenderThread.Get()))

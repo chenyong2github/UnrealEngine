@@ -493,9 +493,10 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(FRHICommandListImmediate
 		// Fog must be done in the base pass for MSAA to work
 		&& !IsForwardShadingEnabled(ShaderPlatform))
 	{
+		FSceneRenderTargetItem& RT = PassData.SceneColorWithoutSingleLayerWater->GetRenderTargetItem();
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, PassData.SceneColorWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture.GetReference());
-		FRHIRenderPassInfo RPInfo(PassData.SceneColorWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture, MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore));
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RT.TargetableTexture.GetReference());
+		FRHIRenderPassInfo RPInfo(RT.TargetableTexture, MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore));
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("BeginRenderingSceneColor"));
 
 		FLightShaftsOutput LightShaftsOutput;
@@ -519,6 +520,8 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(FRHICommandListImmediate
 		}
 
 		RHICmdList.EndRenderPass();
+
+		RHICmdList.CopyToResolveTarget(RT.TargetableTexture, RT.ShaderResourceTexture, FResolveParams());
 	}
 }
 

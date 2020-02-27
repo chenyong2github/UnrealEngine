@@ -40,6 +40,10 @@ DEFINE_STAT(STAT_PixelBufferMemory);
 IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayout);
 IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayout::FResourceParameter);
 
+#if !defined(RHIRESOURCE_NUM_FRAMES_TO_EXPIRE)
+	#define RHIRESOURCE_NUM_FRAMES_TO_EXPIRE 3
+#endif
+
 static FAutoConsoleVariable CVarUseVulkanRealUBs(
 	TEXT("r.Vulkan.UseRealUBs"),
 	1,
@@ -366,12 +370,7 @@ void FRHIResource::FlushPendingDeletes(bool bFlushDeferredDeletes)
 		}
 	}
 
-#if PLATFORM_XBOXONE
-	// Adding another frame of latency on Xbox. Speculative GPU crash fix.
-	const uint32 NumFramesToExpire = 4;
-#else
-	const uint32 NumFramesToExpire = 3;
-#endif
+	const uint32 NumFramesToExpire = RHIRESOURCE_NUM_FRAMES_TO_EXPIRE;
 
 	if (DeferredDeletionQueue.Num())
 	{
@@ -505,6 +504,7 @@ bool GHardwareHiddenSurfaceRemoval = false;
 bool GRHISupportsAsyncTextureCreation = false;
 bool GRHISupportsQuadTopology = false;
 bool GRHISupportsRectTopology = false;
+bool GRHISupportsPrimitiveShaders = false;
 bool GRHISupportsAtomicUInt64 = false;
 bool GRHISupportsResummarizeHTile = false;
 bool GRHISupportsExplicitHTile = false;
@@ -553,10 +553,11 @@ bool GRHISupportsRayTracing = false;
 bool GRHISupportsRayTracingMissShaderBindings = false;
 bool GRHISupportsRayTracingAsyncBuildAccelerationStructure = false;
 bool GRHISupportsWaveOperations = false;
+int32 GRHIMinimumWaveSize = 4; // Minimum supported value in SM 6.0
+int32 GRHIMaximumWaveSize = 128; // Maximum supported value in SM 6.0
 bool GRHISupportsRHIThread = false;
 bool GRHISupportsRHIOnTaskThread = false;
 bool GRHISupportsParallelRHIExecute = false;
-bool GSupportsHDR32bppEncodeModeIntrinsic = false;
 bool GSupportsParallelOcclusionQueries = false;
 bool GSupportsTransientResourceAliasing = false;
 bool GRHIRequiresRenderTargetForPixelShaderUAVs = false;
@@ -573,6 +574,8 @@ bool GRHISupportsHDROutput = false;
 EPixelFormat GRHIHDRDisplayOutputFormat = PF_FloatRGBA;
 
 uint64 GRHIPresentCounter = 1;
+
+bool GRHISupportsArrayIndexFromAnyShader = false;
 
 /** Whether we are profiling GPU hitches. */
 bool GTriggerGPUHitchProfile = false;
@@ -749,13 +752,10 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 		return NAME_PLATFORM_PS4;
 	case SP_XBOXONE_D3D12:
 		return NAME_PLATFORM_XBOXONE;
-	case SP_OPENGL_ES2_ANDROID:
 	case SP_OPENGL_ES31_EXT:
 	case SP_VULKAN_ES3_1_ANDROID:
 	case SP_OPENGL_ES3_1_ANDROID:
 		return NAME_PLATFORM_ANDROID;
-	case SP_OPENGL_ES2_WEBGL:
-		return FName(TEXT(PREPROCESSOR_TO_STRING(PLATFORM_HEADER_NAME))); // WIP: platform extension magic
 	case SP_METAL:
 	case SP_METAL_MRT:
 		return NAME_PLATFORM_IOS;
@@ -924,19 +924,9 @@ RHI_API void RHISetMobilePreviewFeatureLevel(ERHIFeatureLevel::Type MobilePrevie
 
 bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
 {
-	static bool bForceFeatureLevelES2 = !GIsEditor && FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES2"));
 	static bool bForceFeatureLevelES3_1 = !GIsEditor && (FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")));
 
-	if (bForceFeatureLevelES2)
-	{
-		if (!UE_BUILD_SHIPPING)
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("RHI", "ES2Deprecated", "Warning: FeatureLevel ES2 is deprecated, please use FeatureLevel ES3.1."));
-		}
-
-		PreviewFeatureLevelOUT = ERHIFeatureLevel::ES2;
-	}
-	else if (bForceFeatureLevelES3_1)
+	if (bForceFeatureLevelES3_1)
 	{
 		PreviewFeatureLevelOUT = ERHIFeatureLevel::ES3_1;
 	}
@@ -977,7 +967,7 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 		OutRTInfo.ColorRenderTarget[Index].MipIndex = ColorRenderTargets[Index].MipIndex;
 		++OutRTInfo.NumColorRenderTargets;
 
-		OutRTInfo.bClearColor |= (LoadAction == ERenderTargetLoadAction::EClear);
+		OutRTInfo.bClearColor |= (LoadAction == ERenderTargetLoadAction::EClear) || (IsOpenGLPlatform(GMaxRHIShaderPlatform) && LoadAction == ERenderTargetLoadAction::ENoAction);
 
 		ensure(!OutRTInfo.bHasResolveAttachments || ColorRenderTargets[Index].ResolveTarget);
 		if (ColorRenderTargets[Index].ResolveTarget)
@@ -1149,8 +1139,6 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_PCD3D_ES3_1: return TEXT("PCD3D_ES3_1");
 	case SP_OPENGL_SM5: return TEXT("OPENGL_SM5");
 	case SP_OPENGL_PCES3_1: return TEXT("OPENGL_PCES3_1");
-	case SP_OPENGL_ES2_ANDROID: return TEXT("OPENGL_ES2_ANDROID");
-	case SP_OPENGL_ES2_WEBGL: return TEXT("OPENGL_ES2_WEBGL");
 	case SP_OPENGL_ES31_EXT: return TEXT("OPENGL_ES31_EXT");
 	case SP_OPENGL_ES3_1_ANDROID: return TEXT("OPENGL_ES3_1_ANDROID");
 	case SP_PS4: return TEXT("PS4");
@@ -1171,17 +1159,19 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_VULKAN_SM5: return TEXT("VULKAN_SM5");
 	case SP_VULKAN_SM5_LUMIN: return TEXT("VULKAN_SM5_LUMIN");
 
+	case SP_OPENGL_ES2_ANDROID_REMOVED:
+	case SP_OPENGL_ES2_WEBGL_REMOVED:
 	case SP_OPENGL_ES2_IOS_REMOVED:
 	case SP_VULKAN_SM4_REMOVED:
 	case SP_PCD3D_SM4_REMOVED:
 	case SP_OPENGL_SM4_REMOVED:
-	case SP_PCD3D_ES2_DEPRECATED:
-	case SP_OPENGL_PCES2_DEPRECATED:
-	case SP_METAL_MACES2_DEPRECATED:
+	case SP_PCD3D_ES2_REMOVED:
+	case SP_OPENGL_PCES2_REMOVED:
+	case SP_METAL_MACES2_REMOVED:
 		return TEXT("");
 
 	default:
-		if (Platform >= SP_StaticPlatform_First && Platform <= SP_StaticPlatform_Last)
+		if (FStaticShaderPlatformNames::IsStaticPlatform(Platform))
 		{
 			return FStaticShaderPlatformNames::Get().GetShaderPlatform(Platform).ToString();
 		}
@@ -1255,10 +1245,17 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsRenderTargetWriteMask = GetSectionBool(Section, "bSupportsRenderTargetWriteMask");
 	Info.bSupportsRayTracing = GetSectionBool(Section, "bSupportsRayTracing");
 	Info.bSupportsRayTracingMissShaderBindings = GetSectionBool(Section, "bSupportsRayTracingMissShaderBindings");
+	Info.bSupportsRayTracingIndirectInstanceData = GetSectionBool(Section, "bSupportsRayTracingIndirectInstanceData");
 	Info.bSupportsGPUSkinCache = GetSectionBool(Section, "bSupportsGPUSkinCache");
 	Info.bSupportsByteBufferComputeShaders = GetSectionBool(Section, "bSupportsByteBufferComputeShaders");
 	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
-
+	Info.bSupportsPrimitiveShaders = GetSectionBool(Section, "bSupportsPrimitiveShaders");
+	Info.bSupportsUInt64ImageAtomics = GetSectionBool(Section, "bSupportsUInt64ImageAtomics");
+	Info.bSupportsTemporalHistoryUpscale = GetSectionBool(Section, "bSupportsTemporalHistoryUpscale");
+	Info.bSupportsRTIndexFromVS = GetSectionBool(Section, "bSupportsRTIndexFromVS");
+	Info.bSupportsWaveOperations = GetSectionBool(Section, "bSupportsWaveOperations");
+	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
+	Info.bRequiresExplicit128bitRT = GetSectionBool(Section, "bRequiresExplicit128bitRT");
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
 	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");
 }

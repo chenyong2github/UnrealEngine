@@ -573,7 +573,7 @@ bool UMagicLeapMusicServiceFunctionLibrary::GetCurrentTrackMetadata(FMagicLeapMu
     bool bSuccess = false;
 #if WITH_MLSDK
     MLMusicServiceMetadata OutMetadata;
-    MLResult Result = MLMusicServiceGetMetadata(&OutMetadata);
+    MLResult Result = MLMusicServiceGetMetadataForIndex(0, &OutMetadata);
     bSuccess = (Result == MLResult_Ok);
     if (bSuccess)
     {
@@ -582,7 +582,7 @@ bool UMagicLeapMusicServiceFunctionLibrary::GetCurrentTrackMetadata(FMagicLeapMu
     }
     else
     {
-        UE_LOG(LogMusicServiceFunctionLibrary, Error, TEXT("MLMusicServiceGetMetadata failed with error %s!"), UTF8_TO_TCHAR(MLGetResultString(Result)));
+        UE_LOG(LogMusicServiceFunctionLibrary, Error, TEXT("MLMusicServiceGetMetadataForIndex failed with error %s!"), UTF8_TO_TCHAR(MLGetResultString(Result)));
     }
 #endif // WITH_MLSDK
     return bSuccess;

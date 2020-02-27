@@ -18,6 +18,16 @@ const uint32 NUM_FRAMES_TO_WAIT_FOR_RESOURCE_DELETE = 2;
 #define VULKAN_FAKE_MEMORY_LIMIT 0llu /// set to # of GB to fake out of memory when hitting limit.
 
 
+DECLARE_STATS_GROUP(TEXT("Vulkan Memory"), STATGROUP_VulkanMemory, STATCAT_Advanced);
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Dedicated Memory"), STAT_VulkanDedicatedMemory, STATGROUP_VulkanMemory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("NonDedicated Memory"), STAT_VulkanNonDedicatedMemory, STATGROUP_VulkanMemory, );
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("FOldResourceHeap Pages"), STAT_VulkanOldResourceHeapPages, STATGROUP_VulkanMemory);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("FOldResourceHeap Allocations"), STAT_VulkanOldResourceHeapAllocations, STATGROUP_VulkanMemory);
+DEFINE_STAT(STAT_VulkanDedicatedMemory);
+DEFINE_STAT(STAT_VulkanNonDedicatedMemory);
+
+
+
 #if UE_BUILD_DEBUG
 RENDERCORE_API	void DumpRenderTargetPoolMemory(FOutputDevice& OutputDevice);
 #endif
@@ -229,10 +239,14 @@ namespace VulkanRHI
 		{
 			((VkMemoryDedicatedAllocateInfoKHR*)DedicatedAllocateInfo)->pNext = Info.pNext;
 			Info.pNext = DedicatedAllocateInfo;
+			INC_DWORD_STAT_BY(STAT_VulkanDedicatedMemory, AllocationSize);
 		}
-#else
-		check(!DedicatedAllocateInfo);
+		else
 #endif
+		{
+			INC_DWORD_STAT_BY(STAT_VulkanNonDedicatedMemory, AllocationSize);
+			check(!DedicatedAllocateInfo);
+		}
 
 		VkDeviceMemory Handle;
 		VkResult Result;
@@ -307,6 +321,12 @@ namespace VulkanRHI
 		NewAllocation->bCanBeMapped = ((MemoryProperties.memoryTypes[MemoryTypeIndex].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 		NewAllocation->bIsCoherent = ((MemoryProperties.memoryTypes[MemoryTypeIndex].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		NewAllocation->bIsCached = ((MemoryProperties.memoryTypes[MemoryTypeIndex].propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) == VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+#if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
+		NewAllocation->bDedicatedMemory = DedicatedAllocateInfo != 0;
+#else
+		NewAllocation->bDedicatedMemory = 0;
+
+#endif
 #if VULKAN_MEMORY_TRACK_FILE_LINE
 		NewAllocation->File = File;
 		NewAllocation->Line = Line;
@@ -351,7 +371,15 @@ namespace VulkanRHI
 #if VULKAN_FAKE_MEMORY_LIMIT
 		GDeviceMemAllocated -= Allocation->Size;
 #endif
+		if (Allocation->bDedicatedMemory)
+		{
+			DEC_DWORD_STAT_BY(STAT_VulkanDedicatedMemory, Allocation->Size);
+		}
+		else
+		{
 
+			DEC_DWORD_STAT_BY(STAT_VulkanNonDedicatedMemory, Allocation->Size);
+		}
 		VulkanRHI::vkFreeMemory(DeviceHandle, Allocation->Handle, VULKAN_CPU_ALLOCATOR);
 
 #if VULKAN_USE_LLM
@@ -687,10 +715,15 @@ namespace VulkanRHI
 		CaptureCallStack(Callstack);
 #endif
 		//UE_LOG(LogVulkanRHI, Display, TEXT("*** OldResourceAlloc HeapType %d PageID %d Handle %p Offset %d Size %d @ %s %d"), InOwner->GetOwner()->GetMemoryTypeIndex(), InOwner->GetID(), InDeviceMemoryAllocation->GetHandle(), InAllocationOffset, InAllocationSize, ANSI_TO_TCHAR(InFile), InLine);
+
+		INC_DWORD_STAT(STAT_VulkanOldResourceHeapAllocations);
+
+
 	}
 
 	FOldResourceAllocation::~FOldResourceAllocation()
 	{
+		DEC_DWORD_STAT(STAT_VulkanOldResourceHeapAllocations);
 		Owner->ReleaseAllocation(this);
 	}
 
@@ -734,10 +767,12 @@ namespace VulkanRHI
 		FullRange.Offset = 0;
 		FullRange.Size = MaxSize;
 		FRange::Add(FreeList, FullRange);
+		INC_DWORD_STAT(STAT_VulkanOldResourceHeapPages);
 	}
 
 	FOldResourceHeapPage::~FOldResourceHeapPage()
 	{
+		DEC_DWORD_STAT(STAT_VulkanOldResourceHeapPages);
 		check(!DeviceMemoryAllocation);
 	}
 
@@ -2196,10 +2231,11 @@ namespace VulkanRHI
 		FVulkanQueue* Queue = Device->GetGraphicsQueue();
 
 		FEntry Entry;
-		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
-		Entry.Handle = Handle;
 		Entry.StructureType = Type;
+		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
 		Entry.FrameNumber = GVulkanRHIDeletionFrameNumber;
+
+		Entry.Handle = Handle;
 
 		{
 			FScopeLock ScopeLock(&CS);
@@ -2211,6 +2247,25 @@ namespace VulkanRHI
 				});
 			checkf(ExistingEntry == nullptr, TEXT("Attempt to double-delete resource, FDeferredDeletionQueue::EType: %d, Handle: %llu"), (int32)Type, Handle);
 #endif
+
+			Entries.Add(Entry);
+		}
+	}
+
+	void FDeferredDeletionQueue::EnqueueResourceAllocation(TRefCountPtr<VulkanRHI::FOldResourceAllocation> ResourceAllocation)
+	{
+		FVulkanQueue* Queue = Device->GetGraphicsQueue();
+
+		FEntry Entry;
+		Entry.StructureType = EType::ResourceAllocation;
+		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
+		Entry.FrameNumber = GVulkanRHIDeletionFrameNumber;
+
+		Entry.Handle = VK_NULL_HANDLE;
+		Entry.ResourceAllocation = ResourceAllocation;
+
+		{
+			FScopeLock ScopeLock(&CS);
 
 			Entries.Add(Entry);
 		}
@@ -2252,6 +2307,9 @@ namespace VulkanRHI
 				VKSWITCH(ShaderModule);
 				VKSWITCH(Event);
 #undef VKSWITCH
+				case EType::ResourceAllocation:
+					Entry->ResourceAllocation.SafeRelease();
+					break;
 				default:
 					check(0);
 					break;
@@ -2413,7 +2471,8 @@ namespace VulkanRHI
 
 	FSemaphore::FSemaphore(FVulkanDevice& InDevice) :
 		Device(InDevice),
-		SemaphoreHandle(VK_NULL_HANDLE)
+		SemaphoreHandle(VK_NULL_HANDLE),
+		bExternallyOwned(false)
 	{
 		// Create semaphore
 		VkSemaphoreCreateInfo CreateInfo;
@@ -2423,10 +2482,19 @@ namespace VulkanRHI
 		VERIFYVULKANRESULT(VulkanRHI::vkCreateSemaphore(Device.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &SemaphoreHandle));
 	}
 
+	FSemaphore::FSemaphore(FVulkanDevice& InDevice, const VkSemaphore& InExternalSemaphore) :
+		Device(InDevice),
+		SemaphoreHandle(InExternalSemaphore),
+		bExternallyOwned(true)
+	{}
+
 	FSemaphore::~FSemaphore()
 	{
 		check(SemaphoreHandle != VK_NULL_HANDLE);
-		Device.GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Semaphore, SemaphoreHandle);
+		if (!bExternallyOwned)
+		{
+			Device.GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Semaphore, SemaphoreHandle);
+		}
 		SemaphoreHandle = VK_NULL_HANDLE;
 	}
 }

@@ -26,7 +26,7 @@ public:
 	void SetPenTouchDelegate(const FMagicLeapTabletOnPenTouchDelegateMulti& PenTouchDelegate);
 	void SetRingTouchDelegate(const FMagicLeapTabletOnRingTouchDelegateMulti& RingTouchDelegate);
 	void SetButtonDownDelegate(const FMagicLeapTabletOnButtonDownDelegateMulti& ButtonDownDelegate);
-	void SetButtonUpDelegate(const FMagicLeapTabletOnButtonUpDelegateMulti& ButtonDownDelegate);
+	void SetButtonUpDelegate(const FMagicLeapTabletOnButtonUpDelegateMulti& ButtonUpDelegate);
 
 private:
 	FTickerDelegate TickDelegate;

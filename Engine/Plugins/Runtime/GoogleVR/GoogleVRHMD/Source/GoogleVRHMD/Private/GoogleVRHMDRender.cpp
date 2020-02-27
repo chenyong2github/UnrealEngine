@@ -577,7 +577,7 @@ void FGoogleVRHMDCustomPresent::BeginRendering(const gvr_mat4f& RenderingHeadPos
 		gvr_frame_bind_buffer(CurrentFrame, 0);
 
 		// API returns framebuffer resource, but we need the texture resource for the pipeline
-		check(PLATFORM_USES_ES2); // Some craziness will only work on OpenGL platforms.
+		check(PLATFORM_USES_GLES); // Some craziness will only work on OpenGL platforms.
 		GLint TextureId = 0;
 		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &TextureId);
 		//override the texture set in custom present to the texture id we just bind so that unreal could render to it.

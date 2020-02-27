@@ -216,43 +216,43 @@ private:
 	EShaderFrequency Frequency;
 };
 
-class RHI_VTABLE FRHIGraphicsShader : public FRHIShader
+class FRHIGraphicsShader : public FRHIShader
 {
 public:
 	explicit FRHIGraphicsShader(EShaderFrequency InFrequency) : FRHIShader(InFrequency) {}
 };
 
-class RHI_VTABLE FRHIVertexShader : public FRHIGraphicsShader
+class FRHIVertexShader : public FRHIGraphicsShader
 {
 public:
 	FRHIVertexShader() : FRHIGraphicsShader(SF_Vertex) {}
 };
 
-class RHI_VTABLE FRHIHullShader : public FRHIGraphicsShader
+class FRHIHullShader : public FRHIGraphicsShader
 {
 public:
 	FRHIHullShader() : FRHIGraphicsShader(SF_Hull) {}
 };
 
-class RHI_VTABLE FRHIDomainShader : public FRHIGraphicsShader
+class FRHIDomainShader : public FRHIGraphicsShader
 {
 public:
 	FRHIDomainShader() : FRHIGraphicsShader(SF_Domain) {}
 };
 
-class RHI_VTABLE FRHIPixelShader : public FRHIGraphicsShader
+class FRHIPixelShader : public FRHIGraphicsShader
 {
 public:
 	FRHIPixelShader() : FRHIGraphicsShader(SF_Pixel) {}
 };
 
-class RHI_VTABLE FRHIGeometryShader : public FRHIGraphicsShader
+class FRHIGeometryShader : public FRHIGraphicsShader
 {
 public:
 	FRHIGeometryShader() : FRHIGraphicsShader(SF_Geometry) {}
 };
 
-class RHI_VTABLE FRHIRayTracingShader : public FRHIShader
+class FRHIRayTracingShader : public FRHIShader
 {
 public:
 	explicit FRHIRayTracingShader(EShaderFrequency InFrequency) : FRHIShader(InFrequency) {}

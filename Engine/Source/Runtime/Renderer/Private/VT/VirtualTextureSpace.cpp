@@ -280,7 +280,8 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 				TexCreate_None,
 				TexCreate_RenderTargetable | TexCreate_ShaderResource,
 				false,
-				NumPageTableLevels);
+				NumPageTableLevels,
+				false /* InAutowritable */);
 
 			TRefCountPtr<IPooledRenderTarget> RenderTarget;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, RenderTarget, TextureNames[TextureIndex]);
@@ -391,6 +392,14 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 		RHIUnlockVertexBuffer(UpdateBuffer);
 	}
 
+	TArray<FRHITexture*, SceneRenderingAllocator> TexturesToTransition;
+	TexturesToTransition.SetNumUninitialized(GetNumPageTableTextures());
+	for (int32 i = 0; i < TexturesToTransition.Num(); ++i)
+	{
+		TexturesToTransition[i] = PageTable[i].RenderTarget->GetRenderTargetItem().TargetableTexture;
+	}
+	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, TexturesToTransition.GetData(), TexturesToTransition.Num());
+
 	// Draw
 	SCOPED_DRAW_EVENT(RHICmdList, PageTableUpdate);
 
@@ -411,7 +420,11 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 	{
 		const uint32 TextureIndex = LayerIndex / LayersPerPageTableTexture;
 		const uint32 LayerInTexture = LayerIndex % LayersPerPageTableTexture;
-		FSceneRenderTargetItem& PageTableTarget = PageTable[TextureIndex].RenderTarget->GetRenderTargetItem();
+
+		FTextureEntry& PageTableEntry = PageTable[TextureIndex];
+		check(PageTableEntry.RenderTarget != nullptr);
+
+		FSceneRenderTargetItem& PageTableTarget = PageTableEntry.RenderTarget->GetRenderTargetItem();
 
 		// Use color write mask to update the proper page table entry for this layer
 		FRHIBlendState* BlendStateRHI = nullptr;

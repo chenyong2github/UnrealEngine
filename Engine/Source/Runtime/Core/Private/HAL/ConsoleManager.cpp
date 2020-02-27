@@ -2121,15 +2121,6 @@ static TAutoConsoleVariable<int32> CVarMobileSkyLightPermutation(
 	TEXT("2: Generate only skylight permutations"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarMobileHDR32bppMode(
-	TEXT("r.MobileHDR32bppMode"),
-	0,
-	TEXT("0: If 32bpp is required mobile HDR will use best suited 32 bpp mode. (default)\n")
-	TEXT("1: Force Mobile 32bpp HDR with mosaic encoding.\n")
-	TEXT("2: Force Mobile 32bpp HDR with RGBE encoding mode. (device must support framebuffer fetch)\n")
-	TEXT("3: Force Mobile 32bpp HDR with direct RGBA8 rendering."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarMobileForceFullPrecisionInPS(
 	TEXT("r.Mobile.ForceFullPrecisionInPS"),
 	0,
@@ -2330,6 +2321,14 @@ static TAutoConsoleVariable<int32> CVarAllowStaticLighting(
 	1,
 	TEXT("Whether to allow any static lighting to be generated and used, like lightmaps and shadowmaps.\n")
 	TEXT("Games that only use dynamic lighting should set this to 0 to save some static lighting overhead."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+// Changing this causes a full shader recompile
+static TAutoConsoleVariable<int32> CVarAnisotropicBRDF(
+	TEXT("r.AnisotropicBRDF"),
+	0,
+	TEXT("Whether anisotropic BRDF is enabled. Default = 0\n")
+	TEXT("Note: base pass will only use the anisotropic BRDF if r.BasePassOutputsVelocity = 0"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarNormalMaps(
@@ -2717,7 +2716,7 @@ static TAutoConsoleVariable<int32> CVarDisableOpenGLES31Support(
 	0,
 	TEXT("Disable support for OpenGLES 3.1 API. (Android Only)\n")
 	TEXT("  0 = OpenGLES 3.1 API will be used (providing device and project supports it) [default]\n")
-	TEXT("  1 = OpenGLES 3.1 will be disabled, OpenGL ES2 fall back will be used."),
+	TEXT("  1 = OpenGLES 3.1 will be disabled, Vulkan will be used."),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarDisableAndroidGLASTCSupport(

@@ -26,6 +26,8 @@ CREATE_FUNCTION_SHIM(ml_mediacodec, MLResult, MLMediaCodecSetSurfaceHint)
 #define MLMediaCodecSetSurfaceHint ::MLSDK_API::MLMediaCodecSetSurfaceHintShim
 CREATE_FUNCTION_SHIM(ml_mediacodec, MLResult, MLMediaCodecConfigure)
 #define MLMediaCodecConfigure ::MLSDK_API::MLMediaCodecConfigureShim
+CREATE_FUNCTION_SHIM(ml_mediacodec, MLResult, MLMediaCodecConfigureWithSurface)
+#define MLMediaCodecConfigureWithSurface ::MLSDK_API::MLMediaCodecConfigureWithSurfaceShim
 CREATE_FUNCTION_SHIM(ml_mediacodec, MLResult, MLMediaCodecStart)
 #define MLMediaCodecStart ::MLSDK_API::MLMediaCodecStartShim
 CREATE_FUNCTION_SHIM(ml_mediacodec, MLResult, MLMediaCodecStop)

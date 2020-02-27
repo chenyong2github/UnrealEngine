@@ -35,18 +35,6 @@ float ComputeHistogramMax(Texture2D HistogramTexture)
 	return Max;
 }
 
-uint ComputeAdvice(float3 HDRColor)
-{
-	float Lum = max(HDRColor.r, max(HDRColor.g, HDRColor.b));
-
-	if(Lum < EyeAdaptation_MinAverageLuminance)
-	{
-		return 1;
-	}
-
-	return 0;
-}
-
 float ComputePlaceInHistogram(float3 HDRColor)
 {
 	float LogLuminance = log2(dot(HDRColor,float3(1.0f,1.0f,1.0f))/3.0f);
@@ -75,54 +63,10 @@ float ComputePlaceInHistogram(float3 HDRColor)
 	return Percentile;
 }
 
-uint ComputeAdviceUV(float2 UV)
-{
-	float3 HDRColor = Texture2DSample(HDRSceneColorTexture, HDRSceneColorSampler, UV).rgb;
-	
-	return ComputeAdvice(HDRColor);
-}
-
-// to highlight areas that have unrealistic materials
-void HighlightAdvice(inout float3 OutColor, float2 UV, int2 PixelPos)
-{
-	uint AdviceInner = ComputeAdviceUV(UV);
-	uint AdviceOuter = 0;
-
-	bool SpecialDotInArea = ((PixelPos.x + PixelPos.y) % 6) == 0 && ((PixelPos.x - PixelPos.y) % 6) == 0;
-	
-	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 1,  0) * Input_ExtentInverse));
-	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 0,  1) * Input_ExtentInverse));
-	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2(-1,  0) * Input_ExtentInverse));
-	AdviceOuter = max(AdviceOuter, ComputeAdviceUV(UV + float2( 0, -1) * Input_ExtentInverse));
-
-	uint Advice = (AdviceInner == AdviceOuter && !SpecialDotInArea) ? 0 : AdviceOuter;
-
-	FLATTEN if(Advice)
-	{
-		 FLATTEN if(Advice == 1)
-		 {
-			 // heavy shading cost
-			 OutColor = float3(0, 0, 0.8f);
-		 }
-		 else
-		 FLATTEN if(Advice == 2)
-		 {
-			 // warning
-			 OutColor = float3(0.8f, 0.8f, 0);
-		 }
-		 else // if(Advice == 3)
-		 {
-			 // error
-			 OutColor = float3(1, 0, 0);
-		 }
-	}
-}
-
 bool InUnitBox(float2 UV)
 {
 	return UV.x >= 0 && UV.y >= 0 && UV.y < 1 && UV.y < 1;
 }
-
 
 // @param x 0=cold..1=hot
 float3 Colorize(float x)
@@ -196,6 +140,10 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	// retrieve the exposure scale and target exposure scale from the eye-adaptation buffer.
 	float EyeAdaptationResult = EyeAdaptationTexture.Load(int3(0, 0, 0)).r;
 	float EyeAdaptationTarget = EyeAdaptationTexture.Load(int3(0, 0, 0)).g;
+
+	float EyeAdaptationAverageSceneLuminance = EyeAdaptationTexture.Load(int3(0, 0, 0)).z;
+	float EyeAdaptationExposureBiasOnly = EyeAdaptationTexture.Load(int3(0, 0, 0)).w;
+	float EyeAdaptationResultWithoutExposureBias = EyeAdaptationResult / EyeAdaptationExposureBiasOnly;
 
 	int2 OutputViewportCenter = (int2)(Output_ViewportMin + Output_ViewportSize / 2);
 
@@ -277,29 +225,6 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		}
 	}
 
-// removing this for now
-/*
-	// background is the scene color
-	float2 PIPTopLeft = float2(.6, .2);
-	float2 PIPBottomRight = float2(.9, .5);
-	float2 PIPUV = (ViewLocalUV - PIPTopLeft) / (PIPBottomRight - PIPTopLeft);
-
-	if (PIPUV.x == saturate(PIPUV.x) && PIPUV.y == saturate(PIPUV.y))
-	{
-		// Remap from (0, 0) - (1, 1) to ViewportRect / BufferSize
-		PIPUV = PIPUV * Input_ViewportSize * Input_ExtentInverse + Input_UVViewportBilinearMin;
-		float4 SceneColor = Texture2DSample(HDRSceneColorTexture, HDRSceneColorSampler, PIPUV);
-	#if USE_PREEXPOSURE
-		SceneColor.xyz *= View.OneOverPreExposure;
-	#endif
-		float LuminanceVal = max(SceneColor.r, max(SceneColor.g, SceneColor.b));
-		OutColor = float4(Colorize(ComputeHistogramPositionFromLuminance(LuminanceVal)), 1.0f);
-	}
-	else
-	{
-		OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
-	}
-*/
 	if (EyeAdaptation_VisualizeDebugType == 0)
 	{
 		OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
@@ -328,17 +253,10 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	}
 
 	// Compute and apply weight value at this location 
-	float WeightSlope = EyeAdaptation_WeightSlope;
 	float2 NdPos = Output_ViewportSizeInverse * (PixelPos.xy - Output_ViewportMin);
-	//float weight = AdaptationWeight(NdPos.x, WeightSlope) * AdaptationWeight(NdPos.y, WeightSlope);
 	float weight = AdaptationWeightTexture(NdPos);
 
-	//OutColor *= max(weight, 0.05f);  
-
 	float2 IDAreaLocalUV = ViewLocalUV * 2 + float2(-1, 0);
-
-	// not fully functional yet
-	//	HighlightAdvice(OutColor.rgb, UV, PixelPos);
 
 	// left top of the border
 	const int2 HistogramLeftTop = int2(Output_ViewportMin.x + 64, Output_ViewportMax.y - 128 - 32);
@@ -399,7 +317,6 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		OutColor.xyz = lerp(OutColor.xyz, Colorize(InsetUV.x), 0.5f);
 	}
 
-	//if (false)
 	{
 		// HDR luminance >0
 		float LuminanceVal = ComputeLuminanceFromHistogramPosition(InsetUV.x);
@@ -412,7 +329,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	}
 
 	{
-		float ValuePx = ComputeHistogramPositionFromLuminance(EyeAdaptation_ExposureCompensation / EyeAdaptationTarget)  * HistogramSize.x ;
+		float ValuePx = ComputeHistogramPositionFromLuminance(EyeAdaptationAverageSceneLuminance/.18f)  * HistogramSize.x ;
 		if(abs(InsetPx.x - ValuePx) < 3)
 		{
 			// blue line to show the clamped percentil
@@ -422,12 +339,12 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 	// eye adaptation without bias
 	{
-		const float OneOverEyeAdaptationResult = EyeAdaptation_ExposureCompensation / EyeAdaptationResult;
+		const float OneOverEyeAdaptationResult = 1.0f/EyeAdaptationResultWithoutExposureBias;
 
 		const float EyeAdaptationValue = ComputeHistogramPositionFromLuminance(OneOverEyeAdaptationResult);
 		const float ValuePx = EyeAdaptationValue * HistogramSize.x;
 
-		const float EyeAdaptationEV100 = log2(OneOverEyeAdaptationResult/EyeAdaptation_LuminanceMax);
+		const float EyeAdaptationEV100 = log2(OneOverEyeAdaptationResult);
 
 		PrintSmallFloatWithSign(PixelPos, OutColor.xyz, float3(1.0, 0.0, 1.0), HistogramLeftTop + int2(ValuePx + - 6 * 8 - 3, 1), EyeAdaptationEV100);
 

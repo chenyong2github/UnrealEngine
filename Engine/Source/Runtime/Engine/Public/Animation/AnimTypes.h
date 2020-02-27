@@ -280,7 +280,7 @@ public:
  * which has its Notify method called and passed to the animation.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_VTABLE FAnimNotifyEvent : public FAnimLinkableElement
+struct FAnimNotifyEvent : public FAnimLinkableElement
 {
 	GENERATED_USTRUCT_BODY()
 

@@ -151,6 +151,7 @@ FSceneViewState::FSceneViewState()
 	, TimerQueryPool(RHICreateRenderQueryPool(RQT_AbsoluteTime, FLatentGPUTimer::NumBufferedFrames * 2 * 2 * 2))
 	, TranslucencyTimer(TimerQueryPool)
 	, SeparateTranslucencyTimer(TimerQueryPool)
+	, SeparateTranslucencyModulateTimer(TimerQueryPool)
 {
 	UniqueID = FSceneViewState_UniqueID.Increment();
 	OcclusionFrameCounter = 0;
@@ -233,7 +234,7 @@ FSceneViewState::FSceneViewState()
 		ENQUEUE_RENDER_COMMAND(InitializeSceneViewStateRWBuffer)(
 			[this](FRHICommandList&)
 			{
-				TotalRayCountBuffer->Initialize(sizeof(uint32), 1, PF_R32_UINT);
+				TotalRayCountBuffer->Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_SourceCopy);
 			});
 	}
 	bReadbackInitialized = false;
@@ -306,22 +307,22 @@ FPixelInspectorData::FPixelInspectorData()
 		RenderTargetBufferSceneColor[i] = nullptr;
 		RenderTargetBufferHDR[i] = nullptr;
 		RenderTargetBufferA[i] = nullptr;
-		RenderTargetBufferBCDE[i] = nullptr;
+		RenderTargetBufferBCDEF[i] = nullptr;
 	}
 }
 
-void FPixelInspectorData::InitializeBuffers(FRenderTarget* BufferFinalColor, FRenderTarget* BufferSceneColor, FRenderTarget* BufferDepth, FRenderTarget* BufferHDR, FRenderTarget* BufferA, FRenderTarget* BufferBCDE, int32 BufferIndex)
+void FPixelInspectorData::InitializeBuffers(FRenderTarget* BufferFinalColor, FRenderTarget* BufferSceneColor, FRenderTarget* BufferDepth, FRenderTarget* BufferHDR, FRenderTarget* BufferA, FRenderTarget* BufferBCDEF, int32 BufferIndex)
 {
 	RenderTargetBufferFinalColor[BufferIndex] = BufferFinalColor;
 	RenderTargetBufferDepth[BufferIndex] = BufferDepth;
 	RenderTargetBufferSceneColor[BufferIndex] = BufferSceneColor;
 	RenderTargetBufferHDR[BufferIndex] = BufferHDR;
 	RenderTargetBufferA[BufferIndex] = BufferA;
-	RenderTargetBufferBCDE[BufferIndex] = BufferBCDE;
+	RenderTargetBufferBCDEF[BufferIndex] = BufferBCDEF;
 
-	check(RenderTargetBufferBCDE[BufferIndex] != nullptr);
+	check(RenderTargetBufferBCDEF[BufferIndex] != nullptr);
 	
-	FIntPoint BufferSize = RenderTargetBufferBCDE[BufferIndex]->GetSizeXY();
+	FIntPoint BufferSize = RenderTargetBufferBCDEF[BufferIndex]->GetSizeXY();
 	check(BufferSize.X == 4 && BufferSize.Y == 1);
 
 	if (RenderTargetBufferA[BufferIndex] != nullptr)
@@ -604,7 +605,7 @@ SIZE_T FScene::GetSizeBytes() const
 		+ WindSources.GetAllocatedSize()
 		+ SpeedTreeVertexFactoryMap.GetAllocatedSize()
 		+ SpeedTreeWindComputationMap.GetAllocatedSize()
-		+ LightOctree.GetSizeBytes()
+		+ LocalShadowCastingLightOctree.GetSizeBytes()
 		+ PrimitiveOctree.GetSizeBytes();
 }
 
@@ -1049,17 +1050,21 @@ public:
 			FPrimitiveSceneInfo* PrimInfo = *It;
 			FPrimitiveSceneProxy* Proxy = PrimInfo->Proxy;
 			const FBoxSphereBounds& Bounds = Proxy->GetBounds();
+			const FPrimitiveSceneInfoCompact PrimitiveSceneInfoCompact(PrimInfo);
 
-			for (FSceneLightOctree::TConstElementBoxIterator<> LightIt(Scene->LightOctree, FBoxCenterAndExtent(Bounds));
+			// Find local lights that affect the primitive in the light octree.
+			for (FSceneLightOctree::TConstElementBoxIterator<SceneRenderingAllocator> LightIt(Scene->LocalShadowCastingLightOctree, Bounds.GetBox());
 				LightIt.HasPendingElements();
 				LightIt.Advance())
 			{
-				const FLightSceneInfoCompact& LightInfo = LightIt.GetCurrentElement();
-
-				if (LightInfo.AffectsPrimitive(Bounds, Proxy))
-				{
-					FLightPrimitiveInteraction::Create(LightInfo.LightSceneInfo, PrimInfo);
-				}
+				const FLightSceneInfoCompact& LightSceneInfoCompact = LightIt.GetCurrentElement();
+				LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
+			}
+			// Also loop through non-local (directional) shadow-casting lights
+			for (int32 LightID : Scene->DirectionalShadowCastingLightIDs)
+			{
+				const FLightSceneInfoCompact& LightSceneInfoCompact = Scene->Lights[LightID];
+				LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
 			}
 		}
 
@@ -1088,7 +1093,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	AtmosphericFog(NULL)
 ,	SkyAtmosphere(NULL)
 ,	PrecomputedVisibilityHandler(NULL)
-,	LightOctree(FVector::ZeroVector,HALF_WORLD_MAX)
+,	LocalShadowCastingLightOctree(FVector::ZeroVector,HALF_WORLD_MAX)
 ,	PrimitiveOctree(FVector::ZeroVector,HALF_WORLD_MAX)
 ,	bRequiresHitProxies(bInRequiresHitProxies)
 ,	bIsEditorScene(bInIsEditorScene)
@@ -3169,6 +3174,16 @@ void FScene::UpdateStaticDrawLists()
 		});
 }
 
+void FScene::UpdateCachedRenderStates(FPrimitiveSceneProxy* SceneProxy)
+{
+	check(IsInRenderingThread());
+
+	if (SceneProxy->GetPrimitiveSceneInfo())
+	{
+		SceneProxy->GetPrimitiveSceneInfo()->BeginDeferredUpdateStaticMeshes();
+	}
+}
+
 /**
  * @return		true if hit proxies should be rendered in this scene.
  */
@@ -3434,9 +3449,8 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 		(*It).LightSceneInfo->Proxy->ApplyWorldOffset(InOffset);
 	}
 
-	// Lights octree
 	FlushAsyncLightPrimitiveInteractionCreation();
-	LightOctree.ApplyOffset(InOffset, /*bGlobalOctee*/ true);
+	LocalShadowCastingLightOctree.ApplyOffset(InOffset, /*bGlobalOctee*/ true);
 
 	// Cached preshadows
 	for (auto It = CachedPreshadows.CreateIterator(); It; ++It)
@@ -3565,10 +3579,10 @@ void FScene::OnLevelRemovedFromWorld(UWorld* InWorld, bool bIsLightingScenario)
 }
 
 #if WITH_EDITOR
-bool FScene::InitializePixelInspector(FRenderTarget* BufferFinalColor, FRenderTarget* BufferSceneColor, FRenderTarget* BufferDepth, FRenderTarget* BufferHDR, FRenderTarget* BufferA, FRenderTarget* BufferBCDE, int32 BufferIndex)
+bool FScene::InitializePixelInspector(FRenderTarget* BufferFinalColor, FRenderTarget* BufferSceneColor, FRenderTarget* BufferDepth, FRenderTarget* BufferHDR, FRenderTarget* BufferA, FRenderTarget* BufferBCDEF, int32 BufferIndex)
 {
 	//Initialize the buffers
-	PixelInspectorData.InitializeBuffers(BufferFinalColor, BufferSceneColor, BufferDepth, BufferHDR, BufferA, BufferBCDE, BufferIndex);
+	PixelInspectorData.InitializeBuffers(BufferFinalColor, BufferSceneColor, BufferDepth, BufferHDR, BufferA, BufferBCDEF, BufferIndex);
 	//return true when the interface is implemented
 	return true;
 }
@@ -4149,17 +4163,21 @@ void FScene::CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* P
 	{
 		FMemMark MemStackMark(FMemStack::Get());
 		const FBoxSphereBounds& Bounds = PrimitiveInfo->Proxy->GetBounds();
+		const FPrimitiveSceneInfoCompact PrimitiveSceneInfoCompact(PrimitiveInfo);
 
-		for (FSceneLightOctree::TConstElementBoxIterator<SceneRenderingAllocator> LightIt(LightOctree, FBoxCenterAndExtent(Bounds));
+		// Find local lights that affect the primitive in the light octree.
+		for (FSceneLightOctree::TConstElementBoxIterator<SceneRenderingAllocator> LightIt(LocalShadowCastingLightOctree, Bounds.GetBox());
 			LightIt.HasPendingElements();
 			LightIt.Advance())
 		{
-			const FLightSceneInfoCompact& LightInfo = LightIt.GetCurrentElement();
-
-			if (LightInfo.AffectsPrimitive(Bounds, PrimitiveInfo->Proxy))
-			{
-				FLightPrimitiveInteraction::Create(LightInfo.LightSceneInfo, PrimitiveInfo);
-			}
+			const FLightSceneInfoCompact& LightSceneInfoCompact = LightIt.GetCurrentElement();
+			LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
+		}
+		// Also loop through non-local (directional) shadow-casting lights
+		for (int32 LightID : DirectionalShadowCastingLightIDs)
+		{
+			const FLightSceneInfoCompact& LightSceneInfoCompact = Lights[LightID];
+			LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
 		}
 	}
 	else

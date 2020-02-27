@@ -9,6 +9,12 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="Flex/Bison Generated">
+      <UniqueIdentifier>{622b88b6-a6de-4e55-a9cd-16762711af53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Grammar">
+      <UniqueIdentifier>{8712747e-f502-48c7-bbaa-869035de1c61}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\hlslcc_lib\hlslcc.h">
@@ -26,9 +32,6 @@
     <ClInclude Include="..\..\..\src\hlslcc_lib\glcpp.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\hlslcc_lib\glcpp-parse.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\src\hlslcc_lib\glsl_parser_extras.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -39,9 +42,6 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\hlslcc_lib\hash_table.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\hlslcc_lib\hlsl_parser.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\hlslcc_lib\imports.h">
@@ -130,6 +130,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\src\hlslcc_lib\HlslccDefinitions.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\hlslcc_lib\hlsl_parser.h">
+      <Filter>Flex/Bison Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\hlslcc_lib\glcpp-parse.h">
+      <Filter>Flex/Bison Generated</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -357,29 +363,29 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\src\hlslcc_lib\glcpp-lex.l">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\..\src\hlslcc_lib\glcpp-parse.y">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\..\src\hlslcc_lib\hlsl_lexer.ll">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\..\src\hlslcc_lib\hlsl_parser.yy">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="..\..\..\src\hlslcc_lib\glcpp-lex.inl">
-      <Filter>Source Files</Filter>
+      <Filter>Flex/Bison Generated</Filter>
     </None>
     <None Include="..\..\..\src\hlslcc_lib\glcpp-parse.inl">
-      <Filter>Source Files</Filter>
+      <Filter>Flex/Bison Generated</Filter>
     </None>
     <None Include="..\..\..\src\hlslcc_lib\hlsl_lexer.inl">
-      <Filter>Source Files</Filter>
+      <Filter>Flex/Bison Generated</Filter>
     </None>
     <None Include="..\..\..\src\hlslcc_lib\hlsl_parser.inl">
-      <Filter>Source Files</Filter>
+      <Filter>Flex/Bison Generated</Filter>
+    </None>
+    <None Include="..\..\..\src\hlslcc_lib\hlsl_parser.yy">
+      <Filter>Grammar</Filter>
+    </None>
+    <None Include="..\..\..\src\hlslcc_lib\hlsl_lexer.ll">
+      <Filter>Grammar</Filter>
+    </None>
+    <None Include="..\..\..\src\hlslcc_lib\glcpp-parse.y">
+      <Filter>Grammar</Filter>
+    </None>
+    <None Include="..\..\..\src\hlslcc_lib\glcpp-lex.l">
+      <Filter>Grammar</Filter>
     </None>
   </ItemGroup>
 </Project>

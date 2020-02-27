@@ -136,7 +136,7 @@ inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
 	// Only D3D SM5, PS4 and Metal SM5 supports Instanced Stereo
 	return Platform == EShaderPlatform::SP_PCD3D_SM5 || Platform == EShaderPlatform::SP_PS4 || Platform == EShaderPlatform::SP_METAL_SM5 || Platform == EShaderPlatform::SP_METAL_SM5_NOTESS
-		|| FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
+		|| Platform == EShaderPlatform::SP_PCD3D_ES3_1 || FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
 }
 
 inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
@@ -218,8 +218,7 @@ inline RHI_API bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Pla
  **/
 inline RHI_API bool RHISupportsWaveOperations(const FStaticShaderPlatform Platform)
 {
-	// Currently SM6 shaders are treated as an extension of SM5.
-	return Platform == SP_PCD3D_SM5;
+	return FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Platform);
 }
 
 /** True if the given shader platform supports a render target write mask */
@@ -317,6 +316,9 @@ extern RHI_API bool GRHISupportsQuadTopology;
 /** true if the RHI supports rectangular topology (PT_RectList). */
 extern RHI_API bool GRHISupportsRectTopology;
 
+/** true if the RHI supports primitive shaders. */
+extern RHI_API bool GRHISupportsPrimitiveShaders;
+
 /** true if the RHI supports 64 bit uint atomics. */
 extern RHI_API bool GRHISupportsAtomicUInt64;
 
@@ -373,9 +375,6 @@ extern RHI_API bool GRHISupportsDepthUAV;
 
 /** True if the RHI and current hardware supports efficient AsyncCompute (by default we assume false and later we can enable this for more hardware) */
 extern RHI_API bool GSupportsEfficientAsyncCompute;
-
-/** True if the RHI supports 'GetHDR32bppEncodeModeES2' shader intrinsic. */
-extern RHI_API bool GSupportsHDR32bppEncodeModeIntrinsic;
 
 /** True if the RHI supports getting the result of occlusion queries when on a thread other than the render thread */
 extern RHI_API bool GSupportsParallelOcclusionQueries;
@@ -525,6 +524,10 @@ extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 /** Whether or not the RHI supports shader wave operations (shader model 6.0). */
 extern RHI_API bool GRHISupportsWaveOperations;
 
+/** Specifies the minimum and maximum number of lanes in the SIMD wave that this GPU can support. I.e. 32 on NVIDIA, 64 on AMD. Values are in range [4..128]. */
+extern RHI_API int32 GRHIMinimumWaveSize;
+extern RHI_API int32 GRHIMaximumWaveSize;
+
 /** Whether or not the RHI supports an RHI thread.
 Requirements for RHI thread
 * Microresources (those in RHIStaticStates.h) need to be able to be created by any thread at any time and be able to work with a radically simplified rhi resource lifecycle. CreateSamplerState, CreateRasterizerState, CreateDepthStencilState, CreateBlendState
@@ -561,6 +564,9 @@ extern RHI_API EPixelFormat GRHIHDRDisplayOutputFormat;
 
 /** Counter incremented once on each frame present. Used to support game thread synchronization with swap chain frame flips. */
 extern RHI_API uint64 GRHIPresentCounter;
+
+/** True if the RHI supports setting the render target array index from any shader stage */
+extern RHI_API bool GRHISupportsArrayIndexFromAnyShader;
 
 /** Called once per frame only from within an RHI. */
 extern RHI_API void RHIPrivateBeginFrame();
@@ -618,14 +624,6 @@ extern RHI_API void GetShadingPathName(ERHIShadingPath::Type InShadingPath, FStr
 /** Creates an FName for the given shading path. */
 extern RHI_API void GetShadingPathName(ERHIShadingPath::Type InShadingPath, FName& OutName);
 
-
-inline FArchive& operator <<(FArchive& Ar, EResourceLockMode& LockMode)
-{
-	uint32 Temp = LockMode;
-	Ar << Temp;
-	LockMode = (EResourceLockMode)Temp;
-	return Ar;
-}
 
 /** to customize the RHIReadSurfaceData() output */
 class FReadSurfaceDataFlags
@@ -850,21 +848,6 @@ struct FSamplerStateInitializerRHI
 	int32 MaxAnisotropy;
 	uint32 BorderColor;
 	TEnumAsByte<ESamplerCompareFunction> SamplerComparisonFunction;
-
-	friend FArchive& operator<<(FArchive& Ar,FSamplerStateInitializerRHI& SamplerStateInitializer)
-	{
-		Ar << SamplerStateInitializer.Filter;
-		Ar << SamplerStateInitializer.AddressU;
-		Ar << SamplerStateInitializer.AddressV;
-		Ar << SamplerStateInitializer.AddressW;
-		Ar << SamplerStateInitializer.MipBias;
-		Ar << SamplerStateInitializer.MinMipLevel;
-		Ar << SamplerStateInitializer.MaxMipLevel;
-		Ar << SamplerStateInitializer.MaxAnisotropy;
-		Ar << SamplerStateInitializer.BorderColor;
-		Ar << SamplerStateInitializer.SamplerComparisonFunction;
-		return Ar;
-	}
 };
 
 struct FRasterizerStateInitializerRHI
@@ -1075,17 +1058,6 @@ struct FViewportBounds
 	FViewportBounds(float InTopLeftX, float InTopLeftY, float InWidth, float InHeight, float InMinDepth = 0.0f, float InMaxDepth = 1.0f)
 		:TopLeftX(InTopLeftX), TopLeftY(InTopLeftY), Width(InWidth), Height(InHeight), MinDepth(InMinDepth), MaxDepth(InMaxDepth)
 	{
-	}
-
-	friend FArchive& operator<<(FArchive& Ar,FViewportBounds& ViewportBounds)
-	{
-		Ar << ViewportBounds.TopLeftX;
-		Ar << ViewportBounds.TopLeftY;
-		Ar << ViewportBounds.Width;
-		Ar << ViewportBounds.Height;
-		Ar << ViewportBounds.MinDepth;
-		Ar << ViewportBounds.MaxDepth;
-		return Ar;
 	}
 };
 
@@ -1312,7 +1284,6 @@ enum ERHITextureSRVOverrideSRGBType
 {
 	SRGBO_Default,
 	SRGBO_ForceDisable,
-	SRGBO_ForceEnable,
 };
 
 struct FRHITextureSRVCreateInfo
@@ -1405,15 +1376,6 @@ struct FResolveRect
 	bool IsValid() const
 	{
 		return X1 >= 0 && Y1 >= 0 && X2 - X1 > 0 && Y2 - Y1 > 0;
-	}
-
-	friend FArchive& operator<<(FArchive& Ar,FResolveRect& ResolveRect)
-	{
-		Ar << ResolveRect.X1;
-		Ar << ResolveRect.Y1;
-		Ar << ResolveRect.X2;
-		Ar << ResolveRect.Y2;
-		return Ar;
 	}
 };
 
@@ -1528,17 +1490,6 @@ struct FUpdateTextureRegion2D
 	,	Width(InWidth)
 	,	Height(InHeight)
 	{}
-
-	friend FArchive& operator<<(FArchive& Ar,FUpdateTextureRegion2D& Region)
-	{
-		Ar << Region.DestX;
-		Ar << Region.DestY;
-		Ar << Region.SrcX;
-		Ar << Region.SrcY;
-		Ar << Region.Width;
-		Ar << Region.Height;
-		return Ar;
-	}
 };
 
 /** specifies an update region for a texture */
@@ -1585,20 +1536,6 @@ struct FUpdateTextureRegion3D
 		, Height(InSourceSize.Y)
 		, Depth(InSourceSize.Z)
 	{}
-
-	friend FArchive& operator<<(FArchive& Ar,FUpdateTextureRegion3D& Region)
-	{
-		Ar << Region.DestX;
-		Ar << Region.DestY;
-		Ar << Region.DestZ;
-		Ar << Region.SrcX;
-		Ar << Region.SrcY;
-		Ar << Region.SrcZ;
-		Ar << Region.Width;
-		Ar << Region.Height;
-		Ar << Region.Depth;
-		return Ar;
-	}
 };
 
 struct FRHIDispatchIndirectParameters

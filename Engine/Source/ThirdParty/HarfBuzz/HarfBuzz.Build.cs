@@ -134,9 +134,5 @@ public class HarfBuzz : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, VSVersionFolderName, BuildTypeFolderName, "harfbuzz.lib"));
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, BuildTypeFolderName, "libharfbuzz.a"));
-		}
 	}
 }

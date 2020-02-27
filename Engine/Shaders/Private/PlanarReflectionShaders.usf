@@ -14,7 +14,7 @@ SamplerState SceneColorInputSampler;
 
 float4 SampleSceneColorInput(float2 UV)
 {
-	return Decode32BPPHDR(Texture2DSampleLevel(SceneColorInputTexture, SceneColorInputSampler, UV, 0));
+	return Texture2DSampleLevel(SceneColorInputTexture, SceneColorInputSampler, UV, 0);
 }
 
 float GaussianWeight1d(float u, float KernelRadius)
@@ -109,7 +109,7 @@ void PrefilterPlanarReflectionPS(
 	{
 		float4 SceneColorValue = SampleSceneColorInput(BufferUV);
 
-		#if (ES2_PROFILE || ES3_1_PROFILE)
+		#if (ES3_1_PROFILE)
 			// when mesh draw command pipline is active mobile scene color contains depth in the alpha channel, any value > 1.0 has been written to.
 			if( SceneColorValue.a > 1.0)
 			{

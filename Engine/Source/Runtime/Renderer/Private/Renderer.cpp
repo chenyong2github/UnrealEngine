@@ -94,7 +94,7 @@ void FRendererModule::InitializeSystemTextures(FRHICommandListImmediate& RHICmdL
 	GSystemTextures.InitializeTextures(RHICmdList, GMaxRHIFeatureLevel);
 }
 
-void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& SceneView, FMeshBatch& Mesh, bool bIsHitTesting, const FHitProxyId& HitProxyId)
+void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& SceneView, FMeshBatch& Mesh, bool bIsHitTesting, const FHitProxyId& HitProxyId, bool bUse128bitRT)
 {
 	if (!GUsingNullRHI)
 	{
@@ -231,7 +231,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				DrawRenderState.SetPassUniformBuffer(BasePassUniformBuffer);
 				
 				DrawDynamicMeshPass(View, RHICmdList,
-					[Scene, &View, &DrawRenderState, &Mesh](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+					[Scene, &View, &DrawRenderState, &Mesh, bUse128bitRT](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 				{
 					FBasePassMeshProcessor PassMeshProcessor(
 						Scene,
@@ -239,7 +239,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 						&View,
 						DrawRenderState,
 						DynamicMeshPassContext,
-						FBasePassMeshProcessor::EFlags::None,
+						bUse128bitRT ? FBasePassMeshProcessor::EFlags::bRequires128bitRT : FBasePassMeshProcessor::EFlags::None,
 						ETranslucencyPass::TPT_AllTranslucency);
 					
 					const uint64 DefaultBatchElementMask = ~0ull;
@@ -311,7 +311,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 					DrawRenderState.SetPassUniformBuffer(BasePassUniformBuffer);
 					
 					DrawDynamicMeshPass(View, RHICmdList,
-						[Scene, &View, &DrawRenderState, &Mesh](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+						[Scene, &View, &DrawRenderState, &Mesh, bUse128bitRT](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 					{
 						FBasePassMeshProcessor PassMeshProcessor(
 							Scene,
@@ -319,7 +319,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 							&View,
 							DrawRenderState,
 							DynamicMeshPassContext,
-							FBasePassMeshProcessor::EFlags::None);
+							bUse128bitRT ? FBasePassMeshProcessor::EFlags::bRequires128bitRT : FBasePassMeshProcessor::EFlags::None);
 						
 						const uint64 DefaultBatchElementMask = ~0ull;
 						PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, nullptr);

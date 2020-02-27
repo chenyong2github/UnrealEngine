@@ -96,7 +96,6 @@
 	<!-- Hololens Architectures -->
 	<Property Name="HoloLensArchitectures" Value="x64+arm64+multi"/>
 
-	<Property Name="AndroidGPUArchitectures" Value="es2"/>
 	<Property Name="LuminGPUArchitectures" Value="es2"/>
 	
 	<!-- Compile flags for Windows Game binaries -->

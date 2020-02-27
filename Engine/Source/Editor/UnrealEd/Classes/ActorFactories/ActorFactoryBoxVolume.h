@@ -12,7 +12,7 @@ class AActor;
 struct FAssetData;
 
 UCLASS(MinimalAPI, config = Editor, collapsecategories, hidecategories = Object)
-class UNREALED_VTABLE UActorFactoryBoxVolume : public UActorFactoryVolume
+class UActorFactoryBoxVolume : public UActorFactoryVolume
 {
 	GENERATED_UCLASS_BODY()
 

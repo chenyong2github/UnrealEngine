@@ -17,7 +17,7 @@ CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLPersistentCoordinateFrame
 #define MLPersistentCoordinateFrameTrackerCreate ::MLSDK_API::MLPersistentCoordinateFrameTrackerCreateShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLPersistentCoordinateFrameGetCount)
 #define MLPersistentCoordinateFrameGetCount ::MLSDK_API::MLPersistentCoordinateFrameGetCountShim
-CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLPersistentCoordinateFrameGetAll)
+CREATE_DEPRECATED_MSG_SHIM(ml_perception_client, MLResult, MLPersistentCoordinateFrameGetAll, "Replaced by MLPersistentCoordinateFrameGetAllEx.")
 #define MLPersistentCoordinateFrameGetAll ::MLSDK_API::MLPersistentCoordinateFrameGetAllShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLPersistentCoordinateFrameGetAllEx)
 #define MLPersistentCoordinateFrameGetAllEx ::MLSDK_API::MLPersistentCoordinateFrameGetAllExShim

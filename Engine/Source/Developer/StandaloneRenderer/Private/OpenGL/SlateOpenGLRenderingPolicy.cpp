@@ -157,12 +157,12 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 	// OpenGL state toggles
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
-#if !PLATFORM_USES_ES2 && !PLATFORM_LINUX
+#if !PLATFORM_USES_GLES && !PLATFORM_LINUX
 	glEnable(GL_TEXTURE_2D);
 #endif
 
 	// Set up alpha testing
-#if !PLATFORM_USES_ES2 && !PLATFORM_LINUX
+#if !PLATFORM_USES_GLES && !PLATFORM_LINUX
 	glEnable(GL_ALPHA_TEST);
 	glAlphaFunc( GL_GREATER, 0.0f );
 #endif
@@ -198,7 +198,7 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 			glEnable( GL_BLEND );
 		}
 
-#if !PLATFORM_USES_ES2
+#if !PLATFORM_USES_GLES
 		if( EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::Wireframe) )
 		{
 			glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
@@ -232,7 +232,7 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 			uint32 RepeatU = EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileU) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 			uint32 RepeatV = EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileV) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 
-#if PLATFORM_USES_ES2
+#if PLATFORM_USES_GLES
 			if(!FMath::IsPowerOfTwo(Texture->GetWidth()) || !FMath::IsPowerOfTwo(Texture->GetHeight()))
 			{
 				RepeatU = GL_CLAMP_TO_EDGE;
@@ -316,7 +316,7 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 #define GL_INDEX_FORMAT GL_UNSIGNED_SHORT
 #endif
 
-#if PLATFORM_USES_ES2
+#if PLATFORM_USES_GLES
 		glDrawElements(GetOpenGLPrimitiveType(RenderBatch.GetDrawPrimitiveType()), RenderBatch.GetNumIndices(), GL_INDEX_FORMAT, (void*)StartIndex);
 #else
 		// Draw all elements in batch

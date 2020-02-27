@@ -258,8 +258,12 @@ public:
 		ParseCommandLine(GetMutableDefault<UUdpMessagingSettings>(), FCommandLine::Get());
 
 		// register application events
-		FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationHasReactivated);
-		FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationWillDeactivate);
+		const UUdpMessagingSettings& Settings = *GetDefault<UUdpMessagingSettings>();
+		if (Settings.bStopServiceWhenAppDeactivates)
+		{
+			FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationHasReactivated);
+			FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationWillDeactivate);
+		}
 
 		RestartServices();
 

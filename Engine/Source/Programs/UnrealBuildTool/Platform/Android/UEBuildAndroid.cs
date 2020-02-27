@@ -179,7 +179,7 @@ namespace UnrealBuildTool
 		{
 			string[] BoolKeys = new string[] {
 				"bBuildForArmV7", "bBuildForArm64", "bBuildForX86", "bBuildForX8664", 
-				"bBuildForES2", "bBuildForES31", "bBuildWithHiddenSymbolVisibility", "bUseNEONForArmV7", "bSaveSymbols"
+				"bBuildForES31", "bBuildWithHiddenSymbolVisibility", "bUseNEONForArmV7", "bSaveSymbols"
 			};
 			string[] StringKeys = new string[] {
 				"NDKAPILevelOverride"

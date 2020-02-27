@@ -524,7 +524,13 @@ void FVulkanPendingGfxState::InternalUpdateDynamicStates(FVulkanCmdBuffer* Cmd)
 	if (bNeedsUpdateViewport)
 	{
 		ensure(Viewport.width > 0 || Viewport.height > 0);
-		VulkanRHI::vkCmdSetViewport(Cmd->GetHandle(), 0, 1, &Viewport);
+
+		// Flip viewport on Y-axis to be uniform between HLSLcc and DXC generated SPIR-V shaders (requires VK_KHR_maintenance1 extension)
+		VkViewport FlippedViewport = Viewport;
+		FlippedViewport.y += FlippedViewport.height;
+		FlippedViewport.height = -FlippedViewport.height;
+		VulkanRHI::vkCmdSetViewport(Cmd->GetHandle(), 0, 1, &FlippedViewport);
+
 		FMemory::Memcpy(Cmd->CurrentViewport, Viewport);
 		Cmd->bHasViewport = true;
 	}

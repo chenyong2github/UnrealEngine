@@ -700,25 +700,10 @@ public:
 
 			// OpenGL ES 2.0
 			UE_CLOG(!bOpenGL3x, LogCore, Fatal, TEXT("OpenGL ES 3 Required."));
-			{
-				DeviceSpecs.AndroidProperties.GLES2RHIState.MaxTextureDimensions = 2048;
-				DeviceSpecs.AndroidProperties.GLES2RHIState.MaxShadowDepthBufferSizeX = 1024;
-				DeviceSpecs.AndroidProperties.GLES2RHIState.MaxShadowDepthBufferSizeY = 1024;
-				DeviceSpecs.AndroidProperties.GLES2RHIState.MaxCubeTextureDimensions = 512;
-				DeviceSpecs.AndroidProperties.GLES2RHIState.SupportsRenderTargetFormat_PF_G8 = true;
-				DeviceSpecs.AndroidProperties.GLES2RHIState.SupportsRenderTargetFormat_PF_FloatRGBA = DeviceInfo->GLESExtensions.Contains(TEXT("GL_EXT_color_buffer_half_float"));
-				DeviceSpecs.AndroidProperties.GLES2RHIState.SupportsMultipleRenderTargets = false;
-			}
 		} // FScopeLock ExportLock released
 
 		// create a JSon object from the above structure
 		TSharedPtr<FJsonObject> JsonObject = FJsonObjectConverter::UStructToJsonObject<FPIEPreviewDeviceSpecifications>(DeviceSpecs);
-
-		// if device does not support OpenGL 3.x avoid exporting anything about it
-		if (!bOpenGL3x)
-		{
-			JsonObject->RemoveField("GLES31RHIState");
-		}
 
 		// remove IOS fields
 		JsonObject->RemoveField("IOSProperties");

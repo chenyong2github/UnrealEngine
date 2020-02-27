@@ -9,8 +9,7 @@
 namespace MagicLeap
 {
 	IAppEventHandler::IAppEventHandler(const TArray<EMagicLeapPrivilege>& InRequiredPrivilegeIDs)
-	: OnPrivilegeEvent(nullptr)
-	, OnAppShutDownHandler(nullptr)
+	: OnAppShutDownHandler(nullptr)
 	, OnAppTickHandler(nullptr)
 	, OnAppPauseHandler(nullptr)
 	, OnAppResumeHandler(nullptr)
@@ -46,7 +45,7 @@ namespace MagicLeap
 			FScopeLock Lock(&CriticalSection);
 			RequiredPrivilege = RequiredPrivileges[PrivilegeID];
 		}
-		
+
 		if (RequiredPrivilege.State == EPrivilegeState::NotYetRequested || RequiredPrivilege.State == EPrivilegeState::Pending)
 		{
 			// Attempt a quick check first. Note that MLPrivilegesCheckPrivilege will return denied if the privilege has never been requested.
@@ -55,7 +54,7 @@ namespace MagicLeap
 			{
 				RequiredPrivilege.State = EPrivilegeState::Granted;
 				UE_LOG(LogMagicLeap, Log, TEXT("Privilege '%s' was granted."), *MagicLeap::MLPrivilegeToString(RequiredPrivilege.PrivilegeID));
-			} 
+			}
 			else if (bBlocking)
 			{
 				Result = MLPrivilegesRequestPrivilege(MagicLeap::UnrealToMLPrivilege(PrivilegeID));
@@ -131,6 +130,22 @@ namespace MagicLeap
 		return PrivilegeStateString;
 	}
 
+	bool IAppEventHandler::AddPrivilegeEventHandler(EMagicLeapPrivilege PrivilegeID, FRequiredPrivilege::FPrivilegeEventHandler&& InOnPrivilegeEvent)
+	{
+		FScopeLock Lock(&CriticalSection);
+		FRequiredPrivilege* RequiredPrivilege = RequiredPrivileges.Find(PrivilegeID);
+		if (RequiredPrivilege)
+		{
+			RequiredPrivilege->EventHandler = MoveTemp(InOnPrivilegeEvent);
+			return true;
+		}
+
+#if WITH_MLSDK
+		UE_LOG(LogMagicLeap, Error, TEXT("Failed to resolve Privilege '%s' in required privileges list!"), *MagicLeap::MLPrivilegeToString(PrivilegeID));
+#endif // WITH_MLSDK
+		return false;
+	}
+
 	void IAppEventHandler::OnAppShutDown()
 	{
 		if (OnAppShutDownHandler)
@@ -150,7 +165,7 @@ namespace MagicLeap
 
 		bAllPrivilegesInSync = true;
 
-		for(auto& ItRequiredPrivilege : RequiredPrivileges)
+		for (auto& ItRequiredPrivilege : RequiredPrivileges)
 		{
 			FRequiredPrivilege& RequiredPrivilege = ItRequiredPrivilege.Value;
 			if (RequiredPrivilege.State == EPrivilegeState::NotYetRequested)
@@ -193,9 +208,9 @@ namespace MagicLeap
 				}
 				}
 
-				if (Result != MLResult_Pending && OnPrivilegeEvent)
+				if (Result != MLResult_Pending && RequiredPrivilege.EventHandler)
 				{
-					OnPrivilegeEvent(RequiredPrivilege);
+					RequiredPrivilege.EventHandler(RequiredPrivilege);
 				}
 			}
 		}
@@ -230,10 +245,5 @@ namespace MagicLeap
 		{
 			OnAppResumeHandler();
 		}
-	}
-
-	bool IAppEventHandler::AsyncDestroy()
-	{
-		return FAppFramework::AsyncDestroy(this);
 	}
 }

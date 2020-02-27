@@ -24,6 +24,7 @@ SOculusPlatformToolWidget::SOculusPlatformToolWidget()
 	LogTextUpdated = false;
 	ActiveUploadButton = true;
 	Options2DCollapsed = true;
+	RequestUploadButtonActive = true;
 	OptionsRedistPackagesCollapsed = true;
 
 	EnableUploadButtonDel.BindRaw(this, &SOculusPlatformToolWidget::EnableUploadButton);
@@ -42,6 +43,12 @@ void SOculusPlatformToolWidget::Tick(const FGeometry& AllottedGeometry, const do
 	{
 		ToolConsoleLog->SetText(FText::FromString(LogText));
 		LogTextUpdated = false;
+	}
+
+	if (RequestUploadButtonActive != ActiveUploadButton)
+	{
+		ActiveUploadButton = RequestUploadButtonActive;
+		BuildButtonToolbar(ButtonToolbar);
 	}
 }
 
@@ -66,13 +73,16 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 	BuildButtonToolbar(ButtonToolbar);
 	BuildExpansionFileBox(ExpansionFilesSettings);
 
-	if (PlatformSettings->GetTargetPlatform() == (uint8)EOculusPlatformTarget::Rift)
+	if (PlatformSettings != NULL)
 	{
-		BuildRiftOptionalFields(OptionalSettings);
-	}
-	else
-	{
-		OptionalSettings.Get()->ClearChildren();
+		if (PlatformSettings->GetTargetPlatform() == (uint8)EOculusPlatformTarget::Rift)
+		{
+			BuildRiftOptionalFields(OptionalSettings);
+		}
+		else
+		{
+			OptionalSettings.Get()->ClearChildren();
+		}
 	}
 
 	ChildSlot
@@ -175,6 +185,11 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 
 void SOculusPlatformToolWidget::BuildGeneralSettingsBox(TSharedPtr<SVerticalBox> box)
 {
+	if (PlatformSettings == NULL)
+	{
+		return;
+	}
+
 	box.Get()->ClearChildren();
 
 	BuildTextComboBoxField(GeneralSettingsBox, LOCTEXT("TargetPlatform", "Target Platform"),
@@ -378,6 +393,11 @@ void SOculusPlatformToolWidget::BuildButtonToolbar(TSharedPtr<SHorizontalBox> bo
 
 void SOculusPlatformToolWidget::BuildRiftOptionalFields(TSharedPtr<SVerticalBox> box)
 {
+	if (PlatformSettings == NULL)
+	{
+		return;
+	}
+
 	box.Get()->ClearChildren();
 
 	// Add Launch Parameter Field
@@ -491,6 +511,11 @@ void SOculusPlatformToolWidget::BuildRedistPackagesBox(TSharedPtr<SVerticalBox> 
 
 void SOculusPlatformToolWidget::BuildExpansionFileBox(TSharedPtr<SVerticalBox> box)
 {
+	if (PlatformSettings == NULL)
+	{
+		return;
+	}
+
 	ExpansionFilesSettings.Get()->ClearChildren();
 
 	if (PlatformSettings->GetTargetPlatform() == (uint8)EOculusPlatformTarget::Rift)
@@ -608,6 +633,11 @@ void SOculusPlatformToolWidget::BuildAssetConfigBox(TSharedPtr<SVerticalBox> box
 
 bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 {
+	if (PlatformSettings == NULL)
+	{
+		return false;
+	}
+
 	// Build the args string that will be passed to the CLI. Print all errors that occur to the log.
 	bool success = true;
 
@@ -794,8 +824,7 @@ bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 
 void SOculusPlatformToolWidget::EnableUploadButton(bool enabled)
 {
-	ActiveUploadButton = enabled;
-	BuildButtonToolbar(ButtonToolbar);
+	RequestUploadButtonActive = enabled;
 }
 
 void SOculusPlatformToolWidget::LoadConfigSettings()
@@ -1085,11 +1114,11 @@ FReply SOculusPlatformToolWidget::OnClearLaunchFilePath()
 
 FReply SOculusPlatformToolWidget::OnSelect2DLaunchPath()
 {
+
 	if (PlatformSettings != NULL)
 	{
 		TSharedPtr<SWindow> parentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
 		const void* parentWindowHandle = (parentWindow.IsValid() && parentWindow->GetNativeWindow().IsValid()) ? parentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
-
 		TArray<FString> path;
 		FString defaultPath = PlatformSettings->OculusRift2DLaunchPath.IsEmpty() ? FPaths::ProjectContentDir() : PlatformSettings->OculusRift2DLaunchPath;
 		if (FDesktopPlatformModule::Get()->OpenFileDialog(parentWindowHandle, "Choose 2D Launch File", defaultPath, defaultPath, "Executables (*.exe)|*.exe", EFileDialogFlags::None, path))
@@ -1131,11 +1160,11 @@ FReply SOculusPlatformToolWidget::OnCancelUpload()
 
 FReply SOculusPlatformToolWidget::OnSelectLanguagePacksPath()
 {
+
 	if (PlatformSettings != NULL)
 	{
 		TSharedPtr<SWindow> parentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
 		const void* parentWindowHandle = (parentWindow.IsValid() && parentWindow->GetNativeWindow().IsValid()) ? parentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
-
 		FString path;
 		FString defaultPath = PlatformSettings->GetLanguagePacksPath().IsEmpty() ? FPaths::ProjectContentDir() : PlatformSettings->GetLanguagePacksPath();
 		if (FDesktopPlatformModule::Get()->OpenDirectoryDialog(parentWindowHandle, "Choose Language Packs Directory", defaultPath, path))
@@ -1161,11 +1190,11 @@ FReply SOculusPlatformToolWidget::OnClearLanguagePacksPath()
 
 FReply SOculusPlatformToolWidget::OnSelectExpansionFilesPath()
 {
+
 	if (PlatformSettings != NULL)
 	{
 		TSharedPtr<SWindow> parentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
 		const void* parentWindowHandle = (parentWindow.IsValid() && parentWindow->GetNativeWindow().IsValid()) ? parentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
-
 		FString path;
 		FString defaultPath = PlatformSettings->GetExpansionFilesPath().IsEmpty() ? FPaths::ProjectContentDir() : PlatformSettings->GetExpansionFilesPath();
 		if (FDesktopPlatformModule::Get()->OpenDirectoryDialog(parentWindowHandle, "Choose Expansion Files Directory", defaultPath, path))
@@ -1489,11 +1518,14 @@ void FPlatformLoadRedistPackagesTask::DoWork()
 	}
 
 	// Check to see if our stored copy of redist packages is outdated
-	if (LoadedPackages.Num() > PlatformSettings->OculusRedistPackages.Num())
+	if (PlatformSettings != NULL)
 	{
-		PlatformSettings->OculusRedistPackages = LoadedPackages;
-		PlatformSettings->SaveConfig();
-		UpdateLogText.Execute(SOculusPlatformToolWidget::LogText + LOCTEXT("FinishRedistLoad", "Finished updating redistributable packages.\n").ToString());
+		if (LoadedPackages.Num() > PlatformSettings->OculusRedistPackages.Num())
+		{
+			PlatformSettings->OculusRedistPackages = LoadedPackages;
+			PlatformSettings->SaveConfig();
+			UpdateLogText.Execute(SOculusPlatformToolWidget::LogText + LOCTEXT("FinishRedistLoad", "Finished updating redistributable packages.\n").ToString());
+		}
 	}
 }
 

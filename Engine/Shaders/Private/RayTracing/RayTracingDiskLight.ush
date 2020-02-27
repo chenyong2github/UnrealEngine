@@ -14,7 +14,7 @@ bool GenerateDiskLightOcclusionRay(
 )
 {
 	RayOrigin = WorldPosition;
-	RayDirection = 0.0;
+	RayDirection = float3(0,0,0);
 	RayTMin = 0.01;
 	RayTMax = RayTMin;
 

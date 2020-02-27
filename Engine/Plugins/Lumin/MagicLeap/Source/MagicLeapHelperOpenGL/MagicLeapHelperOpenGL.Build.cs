@@ -16,12 +16,13 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"Engine",
 					"RenderCore",
-					"RHI"
+					"RHI",
+					"MLSDK"
 				});
 
 			// TODO: Explore linking Unreal modules against a commong header and
 			// having a runtime dll linking against the library according to the platform.
-			if (Target.Platform != UnrealTargetPlatform.Mac)
+			if (Target.Platform != UnrealTargetPlatform.Mac && Target.Platform != UnrealTargetPlatform.IOS)
 			{
 				PrivateDependencyModuleNames.Add("OpenGLDrv");
 				string EngineSourceDirectory = "../../../../Source";

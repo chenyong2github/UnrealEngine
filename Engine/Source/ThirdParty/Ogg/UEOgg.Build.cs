@@ -110,9 +110,5 @@ public class UEOgg : ModuleRules
         {
             PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "tvos", "libogg.a"));
         }
-        else if (Target.Platform == UnrealTargetPlatform.Switch)
-        {
-            PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Switch", "NX64", "Ogg_Switch_Static.a"));
-        }
     }
 }

@@ -37,28 +37,13 @@
 // enough to ensure that the GPU is rarely blocked by residency work
 #define RESIDENCY_PIPELINE_DEPTH	6
 
-#if PLATFORM_XBOXONE
-	#define ENABLE_RESIDENCY_MANAGEMENT				0
-	#define ASYNC_DEFERRED_DELETION					0
-	#define ASYNC_DEFERRED_DELETION					0
-	#define PIPELINE_STATE_FILE_LOCATION			FPaths::ProjectContentDir()
-	#define USE_PIX									XBOXONE_PROFILING_ENABLED
-
-	// The number of sampler descriptors with the maximum value of 2048
-	// If the heap type is unbounded the number could be increased to avoid rollovers.
-	#define ENABLE_UNBOUNDED_SAMPLER_DESCRIPTORS	0
-	#define NUM_SAMPLER_DESCRIPTORS					D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE
-
-	// Xbox doesn't have DXGI but common code needs this defined for headers
-	#define DXGI_QUERY_VIDEO_MEMORY_INFO			int
-
-#elif PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#define ENABLE_RESIDENCY_MANAGEMENT				1
 	#define ASYNC_DEFERRED_DELETION					1
 	#define PIPELINE_STATE_FILE_LOCATION			FPaths::ProjectSavedDir()
 	#define USE_PIX									D3D12_PROFILING_ENABLED
 #else
-	#error	Unknown platform!
+	#include "D3D12RHIPlatformPublic.h"
 #endif
 
 

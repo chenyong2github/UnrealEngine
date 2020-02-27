@@ -7,11 +7,11 @@
 #include "/Engine/Private/VertexFactoryCommon.ush"
 #include "NiagaraVFParticleAccess.usf"
 
-#define USE_PARTICLE_POSITION ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_POSITION)
-#define USE_PARTICLE_VELOCITY ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_VELOCITY)
-#define USE_PARTICLE_TIME ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_TIME)
-#define USE_PARTICLE_RANDOM ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_RANDOM)
-#define USE_PARTICLE_TRANSFORM ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_TRANSFORM)
+#define USE_PARTICLE_POSITION (NEEDS_PARTICLE_POSITION)
+#define USE_PARTICLE_VELOCITY (NEEDS_PARTICLE_VELOCITY)
+#define USE_PARTICLE_TIME (NEEDS_PARTICLE_TIME)
+#define USE_PARTICLE_RANDOM (NEEDS_PARTICLE_RANDOM)
+#define USE_PARTICLE_TRANSFORM (NEEDS_PARTICLE_TRANSFORM)
 
 #if NIAGARA_LOOSEPARAM_BINDING
 	Buffer<float> NiagaraParticleDataPosition;
@@ -101,7 +101,7 @@ struct FVertexFactoryInterpolantsVSToPS
 	float4 SubUV1AndLerp : TEXCOORD2;
 #else
 	#if  NUM_TEX_COORD_INTERPOLATORS
-			#if (ES2_PROFILE || ES3_1_PROFILE)
+			#if (ES3_1_PROFILE)
 				// Avoid dependent texture fetches, put all UVs in xy
 				float2	TexCoords[ NUM_TEX_COORD_INTERPOLATORS] : TEXCOORD0;
 			#else
@@ -255,7 +255,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.Particle.SubUVCoords[1] = Interpolants.SubUV1AndLerp.xy;
 	Result.Particle.SubUVLerp = Interpolants.SubUV1AndLerp.z;
 #elif  NUM_TEX_COORD_INTERPOLATORS
-	#if (ES2_PROFILE || ES3_1_PROFILE)
+	#if (ES3_1_PROFILE)
 		UNROLL
 		for( int CoordinateIndex = 0; CoordinateIndex <  NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++ )
 		{
@@ -843,7 +843,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 		Interpolants.SubUV0AndTexCoord0.zw = 0;
 	#endif
 #elif  NUM_TEX_COORD_INTERPOLATORS
-	#if (ES2_PROFILE || ES3_1_PROFILE)
+	#if (ES3_1_PROFILE)
 		GetMaterialCustomizedUVs(VertexParameters, Interpolants.TexCoords);
 	#else
 		// Ensure the unused components of the last packed texture coordinate are initialized.

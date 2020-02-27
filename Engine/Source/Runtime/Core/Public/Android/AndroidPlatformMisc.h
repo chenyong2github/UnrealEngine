@@ -273,7 +273,11 @@ public:
 
 	// Window access is locked by the game thread before preinit and unlocked here after RHIInit (PlatformCreateDynamicRHI). 
 	static void UnlockAndroidWindow();
-
+	
+	/**
+	 * Returns whether or not a 16 bit index buffer should be promoted to 32 bit on load, needed for some Android devices
+	 */
+	static bool Expand16BitIndicesTo32BitOnLoad();
 private:
     static EDeviceScreenOrientation DeviceOrientation;
 };

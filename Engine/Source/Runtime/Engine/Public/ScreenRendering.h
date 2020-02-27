@@ -123,6 +123,80 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
 };
 
+/**
+ * A pixel shader for rendering a textured screen element with mip maps.
+ */
+class FScreenPSMipLevel : public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FScreenPSMipLevel, Global, ENGINE_API);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+
+	FScreenPSMipLevel(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+		InTexture.Bind(Initializer.ParameterMap, TEXT("InTexture"), SPF_Mandatory);
+		InTextureSampler.Bind(Initializer.ParameterMap, TEXT("InTextureSampler"));
+		InMipLevelParameter.Bind(Initializer.ParameterMap, TEXT("MipLevel"));
+	}
+	FScreenPSMipLevel() {}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, int MipLevel = 0)
+	{
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, Texture);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), InMipLevelParameter, MipLevel);
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI, int MipLevel = 0)
+	{
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), InMipLevelParameter, MipLevel);
+	}
+
+private:
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, InMipLevelParameter);
+};
+
+/**
+* A pixel shader for rendering a textured screen element with mip maps.
+*/
+class FScreenPSsRGBSourceMipLevel : public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FScreenPSsRGBSourceMipLevel, Global, ENGINE_API);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+
+	FScreenPSsRGBSourceMipLevel(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+		InTexture.Bind(Initializer.ParameterMap, TEXT("InTexture"), SPF_Mandatory);
+		InTextureSampler.Bind(Initializer.ParameterMap, TEXT("InTextureSampler"));
+		InMipLevelParameter.Bind(Initializer.ParameterMap, TEXT("MipLevel"));
+	}
+	FScreenPSsRGBSourceMipLevel() {}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, int MipLevel = 0)
+	{
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, Texture);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), InMipLevelParameter, MipLevel);
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI, int MipLevel = 0)
+	{
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), InMipLevelParameter, MipLevel);
+	}
+
+private:
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, InMipLevelParameter);
+};
+
 class FScreenPS_OSE : public FGlobalShader
 {
     DECLARE_EXPORTED_SHADER_TYPE(FScreenPS_OSE,Global,ENGINE_API);

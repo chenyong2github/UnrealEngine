@@ -474,7 +474,7 @@ static const TCHAR* GDefaultMaterialNames[MD_MAX] =
 	// User Interface 
 	TEXT("engine-ini:/Script/Engine.Engine.DefaultMaterialName"),
 	// Virtual Texture
-	TEXT("engine-ini:/Script/Engine.Engine.DefaultVirtualTextureMaterialName"),
+	TEXT("engine-ini:/Script/Engine.Engine.DefaultMaterialName"),
 };
 
 void UMaterialInterface::InitDefaultMaterials()
@@ -1167,9 +1167,6 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 {
 #if WITH_EDITOR
 	bool bShouldRecacheMaterialExpressions = false;
-	const bool bES2Preview = false;
-	//ERHIFeatureLevel::Type FeatureLevelsToUpdate[2] = { InFeatureLevel, ERHIFeatureLevel::ES2 };
-	//int32 NumFeatureLevelsToUpdate = bES2Preview ? 2 : 1;
 	ERHIFeatureLevel::Type FeatureLevelsToUpdate[1] = { InFeatureLevel };
 	int32 NumFeatureLevelsToUpdate = 1;
 	
@@ -3213,7 +3210,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	}
 #endif // #if WITH_EDITOR
 
-	static_assert(MP_MAX == 30, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
+	static_assert(MP_MAX == 32, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
 
 	if (Ar.UE4Ver() < VER_UE4_MATERIAL_MASKED_BLENDMODE_TIDY)
 	{
@@ -3420,34 +3417,38 @@ void UMaterial::PostLoad()
 
 #if WITH_EDITORONLY_DATA
 	const int32 UE4Ver = GetLinkerUE4Version();
-	DoMaterialAttributeReorder(&DiffuseColor_DEPRECATED, UE4Ver);
-	DoMaterialAttributeReorder(&SpecularColor_DEPRECATED, UE4Ver);
-	DoMaterialAttributeReorder(&BaseColor, UE4Ver);
-	DoMaterialAttributeReorder(&Metallic, UE4Ver);
-	DoMaterialAttributeReorder(&Specular, UE4Ver);
-	DoMaterialAttributeReorder(&Roughness, UE4Ver);
-	DoMaterialAttributeReorder(&Normal, UE4Ver);
-	DoMaterialAttributeReorder(&EmissiveColor, UE4Ver);
-	DoMaterialAttributeReorder(&Opacity, UE4Ver);
-	DoMaterialAttributeReorder(&OpacityMask, UE4Ver);
-	DoMaterialAttributeReorder(&WorldPositionOffset, UE4Ver);
-	DoMaterialAttributeReorder(&WorldDisplacement, UE4Ver);
-	DoMaterialAttributeReorder(&TessellationMultiplier, UE4Ver);
-	DoMaterialAttributeReorder(&SubsurfaceColor, UE4Ver);
-	DoMaterialAttributeReorder(&ClearCoat, UE4Ver);
-	DoMaterialAttributeReorder(&ClearCoatRoughness, UE4Ver);
-	DoMaterialAttributeReorder(&AmbientOcclusion, UE4Ver);
-	DoMaterialAttributeReorder(&Refraction, UE4Ver);
-	DoMaterialAttributeReorder(&CustomizedUVs[0], UE4Ver);
-	DoMaterialAttributeReorder(&CustomizedUVs[1], UE4Ver);
-	DoMaterialAttributeReorder(&CustomizedUVs[2], UE4Ver);
-	DoMaterialAttributeReorder(&CustomizedUVs[3], UE4Ver);
-	DoMaterialAttributeReorder(&CustomizedUVs[4], UE4Ver);
-	DoMaterialAttributeReorder(&CustomizedUVs[5], UE4Ver);
-	DoMaterialAttributeReorder(&CustomizedUVs[6], UE4Ver);
-	DoMaterialAttributeReorder(&CustomizedUVs[7], UE4Ver);
-	DoMaterialAttributeReorder(&PixelDepthOffset, UE4Ver);
-	DoMaterialAttributeReorder(&ShadingModelFromMaterialExpression, UE4Ver);
+	const int32 RenderObjVer = GetLinkerCustomVersion(FRenderingObjectVersion::GUID);
+
+	DoMaterialAttributeReorder(&DiffuseColor_DEPRECATED, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&SpecularColor_DEPRECATED, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&BaseColor, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&Metallic, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&Specular, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&Roughness, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&Anisotropy, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&Normal, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&Tangent, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&EmissiveColor, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&Opacity, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&OpacityMask, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&WorldPositionOffset, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&WorldDisplacement, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&TessellationMultiplier, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&SubsurfaceColor, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&ClearCoat, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&ClearCoatRoughness, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&AmbientOcclusion, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&Refraction, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[0], UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[1], UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[2], UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[3], UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[4], UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[5], UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[6], UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[7], UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&PixelDepthOffset, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&ShadingModelFromMaterialExpression, UE4Ver, RenderObjVer);
 #endif // WITH_EDITORONLY_DATA
 
 	if (!IsDefaultMaterial())
@@ -3896,7 +3897,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 		{
 			return Refraction.IsConnected();
 		}
-
+	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableSeparateTranslucency)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableResponsiveAA)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bScreenSpaceReflections)
@@ -4758,7 +4759,9 @@ FExpressionInput* UMaterial::GetExpressionInputForProperty(EMaterialProperty InP
 		case MP_Metallic:				return &Metallic;
 		case MP_Specular:				return &Specular;
 		case MP_Roughness:				return &Roughness;
+		case MP_Anisotropy:				return &Anisotropy;
 		case MP_Normal:					return &Normal;
+		case MP_Tangent:				return &Tangent;
 		case MP_WorldPositionOffset:	return &WorldPositionOffset;
 		case MP_WorldDisplacement:		return &WorldDisplacement;
 		case MP_TessellationMultiplier:	return &TessellationMultiplier;
@@ -5291,6 +5294,7 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 		case MP_Metallic:				return Metallic.CompileWithDefault(Compiler, Property);
 		case MP_Specular:				return Specular.CompileWithDefault(Compiler, Property);
 		case MP_Roughness:				return Roughness.CompileWithDefault(Compiler, Property);
+		case MP_Anisotropy:				return Anisotropy.CompileWithDefault(Compiler, Property);
 		case MP_TessellationMultiplier:	return TessellationMultiplier.CompileWithDefault(Compiler, Property);
 		case MP_CustomData0:			return ClearCoat.CompileWithDefault(Compiler, Property);
 		case MP_CustomData1:			return ClearCoatRoughness.CompileWithDefault(Compiler, Property);
@@ -5300,6 +5304,7 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 		case MP_BaseColor:				return BaseColor.CompileWithDefault(Compiler, Property);
 		case MP_SubsurfaceColor:		return SubsurfaceColor.CompileWithDefault(Compiler, Property);
 		case MP_Normal:					return Normal.CompileWithDefault(Compiler, Property);
+		case MP_Tangent:				return Tangent.CompileWithDefault(Compiler, Property);
 		case MP_WorldPositionOffset:	return WorldPositionOffset.CompileWithDefault(Compiler, Property);
 		case MP_WorldDisplacement:		return WorldDisplacement.CompileWithDefault(Compiler, Property);
 		case MP_PixelDepthOffset:		return PixelDepthOffset.CompileWithDefault(Compiler, Property);
@@ -5547,6 +5552,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bHasRefraction,
 	bool bUsesShadingModelFromMaterialExpression)
 {
+	static const auto CVarAnisotropicBRDF = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AnisotropicBRDF"));
+	bool bAnisotropicBRDF = CVarAnisotropicBRDF && CVarAnisotropicBRDF->GetValueOnAnyThread();
+	
 	if (Domain == MD_PostProcess)
 	{
 		return InProperty == MP_EmissiveColor || (bBlendableOutputAlpha && InProperty == MP_Opacity);
@@ -5559,9 +5567,11 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	else if (Domain == MD_RuntimeVirtualTexture)
 	{
 		return InProperty == MP_BaseColor 
-			|| InProperty == MP_Roughness 
+			|| InProperty == MP_Roughness
+			|| (InProperty == MP_Anisotropy && bAnisotropicBRDF)
 			|| InProperty == MP_Specular 
-			|| InProperty == MP_Normal 
+			|| InProperty == MP_Normal
+			|| (InProperty == MP_Tangent && bAnisotropicBRDF)
 			|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode) && BlendMode != BLEND_Modulate);
 	}
 	else if (Domain == MD_DeferredDecal)
@@ -5720,7 +5730,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		|| TranslucencyLightingMode == TLM_VolumetricDirectional
 		|| TranslucencyLightingMode == TLM_VolumetricPerVertexNonDirectional
 		|| TranslucencyLightingMode == TLM_VolumetricPerVertexDirectional;
-
+	
 	bool Active = true;
 
 	switch (InProperty)
@@ -5750,12 +5760,18 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	case MP_Roughness:
 		Active = ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
+	case MP_Anisotropy:
+		Active = bAnisotropicBRDF && ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
+		break;
 	case MP_Metallic:
 		// Subsurface models store opacity in place of Metallic in the GBuffer
 		Active = ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_Normal:
 		Active = (ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsNonDirectionalTranslucencyLightingMode)) || bHasRefraction;
+		break;
+	case MP_Tangent:
+		Active = bAnisotropicBRDF && ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_SubsurfaceColor:
 		Active = ShadingModels.HasAnyShadingModel({ MSM_Subsurface, MSM_PreintegratedSkin, MSM_TwoSidedFoliage, MSM_Cloth });

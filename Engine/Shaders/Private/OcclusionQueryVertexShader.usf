@@ -15,13 +15,13 @@ float4 StencilingGeometryPosAndScale;
 void Main(
 	in float4 InPosition : ATTRIBUTE0,
 	out float4 OutPosition : SV_POSITION
-#if MOBILE_MULTI_VIEW
+#if MOBILE_MULTI_VIEW && !INSTANCED_STEREO
 	, in uint InViewId : SV_ViewID
-	, out uint OutViewId : SV_ViewID
+	, out uint OutViewId : VIEW_ID
 #endif
 	)
 {
-#if MOBILE_MULTI_VIEW
+#if MOBILE_MULTI_VIEW && !INSTANCED_STEREO
 	OutViewId = InViewId;
 
 	// Make the triangles degenerate if we're not targeting this view.
@@ -38,7 +38,7 @@ void Main(
 	float3 TransformedPosition = InPosition.xyz * StencilingGeometryPosAndScale.w + StencilingGeometryPosAndScale.xyz;
 	OutPosition = mul(float4(TransformedPosition, 1), View.TranslatedWorldToClip);
 
-#if OUTPUT_GAMMA_SPACE && (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
+#if OUTPUT_GAMMA_SPACE && (COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
 	OutPosition.y *= -1;
 #endif
 }

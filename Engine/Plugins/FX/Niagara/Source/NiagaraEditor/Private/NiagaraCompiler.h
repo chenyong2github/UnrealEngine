@@ -42,7 +42,7 @@ public:
 	virtual ~FHlslNiagaraCompiler() {}
 
 	//Begin INiagaraCompiler Interface
-	virtual int32 CompileScript(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, FNiagaraTranslatorOutput *TranslatorOutput, FString& TranslatedHLSL) override;
+	virtual int32 CompileScript(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput *TranslatorOutput, FString& TranslatedHLSL) override;
 	virtual TOptional<FNiagaraCompileResults> GetCompileResult(int32 JobID, bool bWait = false) override;
 
 	virtual void Error(FText ErrorText) override;

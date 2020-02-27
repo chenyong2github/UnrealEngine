@@ -107,9 +107,5 @@ public class Vorbis : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "XboxOne", "VS" + VersionName.ToString(), "libvorbis_static.lib"));
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-        {
-            PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Switch", "Release", "Switch_Static_Vorbis.a"));
-		}
 	}
 }

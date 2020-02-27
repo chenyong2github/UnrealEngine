@@ -441,29 +441,7 @@ private:
 		}
 		static ENamedThreads::Type GetDesiredThread()
 		{
-			if ((PLATFORM_XBOXONE || PLATFORM_PS4) && ENamedThreads::bHasHighPriorityThreads)
-			{
-				if (PLATFORM_PS4 && ENamedThreads::bHasBackgroundThreads) // on the PS4, background threads can use the 7th core, so lets put it to work.
-				{
-					int32 CoreRand = FMath::RandRange(0, 6);
-					if (CoreRand < 2)
-					{
-						return ENamedThreads::AnyBackgroundThreadNormalTask;
-					}
-					else if (CoreRand < 4)
-					{
-						return ENamedThreads::AnyHiPriThreadNormalTask;
-					}
-				}
-				else
-				{
-					if (FMath::RandRange(0, 1))
-					{
-						return ENamedThreads::AnyHiPriThreadNormalTask;
-					}
-				}
-			}
-			return ENamedThreads::AnyThread;
+			return FPlatformProcess::GetDesiredThreadForUObjectReferenceCollector();
 		}
 		static ESubsequentsMode::Type GetSubsequentsMode()
 		{
@@ -530,21 +508,7 @@ public:
 				ENamedThreads::Type NormalThreadName = ENamedThreads::AnyNormalThreadNormalTask;
 				ENamedThreads::Type BackgroundThreadName = ENamedThreads::AnyBackgroundThreadNormalTask;
 
-#if ((PLATFORM_PS4 && USE_7TH_CORE) || PLATFORM_XBOXONE)
-				if (NumBackgroundThreads)
-				{
-					NumBackgroundThreads = 7 - NumThreads;
-				}
-#elif PLATFORM_PS4
-				if (NumBackgroundThreads)
-				{
-					NumBackgroundThreads = 6 - NumThreads;
-				}
-#elif PLATFORM_ANDROID
-				// On devices with overridden affinity only HiPri threads can run on big cores
-				NormalThreadName = ENamedThreads::AnyHiPriThreadHiPriTask; 
-				NumBackgroundThreads = 0; // run on single group
-#endif
+				FPlatformProcess::ModifyThreadAssignmentForUObjectReferenceCollector(NumThreads, NumBackgroundThreads, NormalThreadName, BackgroundThreadName);
 				int32 NumTasks = NumThreads + NumBackgroundThreads;
 
 				check(NumTasks > 0);

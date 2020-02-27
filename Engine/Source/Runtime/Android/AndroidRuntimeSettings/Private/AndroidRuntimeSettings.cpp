@@ -43,7 +43,7 @@ UAndroidRuntimeSettings::UAndroidRuntimeSettings(const FObjectInitializer& Objec
 	, TextureFormatPriority_ATC(0.5f)
 	, TextureFormatPriority_ASTC(0.9f)
 {
-	bBuildForES2 = !bBuildForES2 && !bBuildForES31 && !bSupportsVulkan;
+	bBuildForES31 = bBuildForES31 || !bSupportsVulkan;
 }
 
 void UAndroidRuntimeSettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
@@ -61,7 +61,7 @@ void UAndroidRuntimeSettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 
 void UAndroidRuntimeSettings::HandlesRGBHWSupport()
 {
-	const bool SupportssRGB = !bBuildForES2 && PackageForOculusMobile.Num() > 0;
+	const bool SupportssRGB = PackageForOculusMobile.Num() > 0;
 	URendererSettings* const Settings = GetMutableDefault<URendererSettings>();
 	static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseHWsRGBEncoding"));
 
@@ -103,7 +103,6 @@ void UAndroidRuntimeSettings::PostEditChangeProperty(struct FPropertyChangedEven
 	if (PropertyChangedEvent.Property != nullptr)
 	{
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bSupportsVulkan) ||
-			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES2) ||
 			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31))
 		{
 			// Supported shader formats changed so invalidate cache
@@ -221,7 +220,6 @@ void UAndroidRuntimeSettings::PostInitProperties()
 		UpdateDefaultConfigFile();
 	}
 
-	// Enable ES2 if no GPU arch is selected. (as can be the case with the removal of ESDeferred) 
 	EnsureValidGPUArch();
 	HandlesRGBHWSupport();
 }
@@ -229,7 +227,7 @@ void UAndroidRuntimeSettings::PostInitProperties()
 void UAndroidRuntimeSettings::EnsureValidGPUArch()
 {
 	// Ensure that at least one GPU architecture is supported
-	if (!bBuildForES2 && !bSupportsVulkan && !bBuildForES31)
+	if (!bSupportsVulkan && !bBuildForES31)
 	{
 		bBuildForES31 = true;
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31)), GetDefaultConfigFilename());

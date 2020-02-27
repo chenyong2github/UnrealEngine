@@ -234,8 +234,7 @@ public:
 	{
 		OutSection = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
 		InBoolKeys.Add(TEXT("bBuildForArmV7")); InBoolKeys.Add(TEXT("bBuildForArm64")); InBoolKeys.Add(TEXT("bBuildForX86"));
-		InBoolKeys.Add(TEXT("bBuildForX8664")); InBoolKeys.Add(TEXT("bBuildForES2"));
-		InBoolKeys.Add(TEXT("bBuildForES31")); InBoolKeys.Add(TEXT("bBuildWithHiddenSymbolVisibility"));
+		InBoolKeys.Add(TEXT("bBuildForX8664")); InBoolKeys.Add(TEXT("bBuildForES31")); InBoolKeys.Add(TEXT("bBuildWithHiddenSymbolVisibility"));
 		InBoolKeys.Add(TEXT("bUseNEONForArmV7")); InBoolKeys.Add(TEXT("bSaveSymbols"));
 		InStringKeys.Add(TEXT("NDKAPILevel"));
 	}
@@ -252,6 +251,7 @@ public:
 		return DeviceLostEvent;
 	}
 
+	virtual bool ShouldExpandTo32Bit(const uint16* Indices, const int32 NumIndices) const override;
 	//~ End ITargetPlatform Interface
 
 	virtual void InitializeDeviceDetection();
@@ -281,7 +281,6 @@ protected:
 	virtual FAndroidTargetDevicePtr CreateTargetDevice(const ITargetPlatform& InTargetPlatform, const FString& InSerialNumber, const FString& InAndroidVariant) const;
 
 	// query for rene3ring mode support
-	bool SupportsES2() const;
 	bool SupportsES31() const;
 	bool SupportsAEP() const;
 	bool SupportsVulkan() const;

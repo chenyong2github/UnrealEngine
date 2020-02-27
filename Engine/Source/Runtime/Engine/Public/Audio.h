@@ -92,6 +92,14 @@ struct FWaveInstance;
 struct FReverbSettings;
 struct FSampleLoop;
 
+namespace Audio
+{
+	/**
+	 * Typed identifier for Audio Device Id
+	 */
+	using FDeviceId = uint32;
+}
+
 enum ELoopingMode
 {
 	/** One shot sound */
@@ -449,7 +457,7 @@ inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }
 	FSoundBuffer.
 -----------------------------------------------------------------------------*/
 
-class ENGINE_VTABLE FSoundBuffer
+class FSoundBuffer
 {
 public:
 	FSoundBuffer(class FAudioDevice * InAudioDevice)
@@ -525,7 +533,7 @@ public:
 FSoundSource.
 -----------------------------------------------------------------------------*/
 
-class ENGINE_VTABLE FSoundSource
+class FSoundSource
 {
 public:
 	/** Constructor */

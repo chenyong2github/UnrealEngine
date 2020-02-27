@@ -29,7 +29,7 @@ namespace RuntimeVirtualTexture
 		static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 		{
 			return UseVirtualTexturing(GetMaxSupportedFeatureLevel(Parameters.Platform)) &&
-				(Parameters.MaterialParameters.MaterialDomain == MD_RuntimeVirtualTexture || Parameters.MaterialParameters.bHasRuntimeVirtualTextureOutput);
+				(Parameters.MaterialParameters.MaterialDomain == MD_RuntimeVirtualTexture || Parameters.MaterialParameters.bHasRuntimeVirtualTextureOutput || Parameters.MaterialParameters.bIsDefaultMaterial);
 		}
 
 		static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1028,6 +1028,14 @@ namespace RuntimeVirtualTexture
 		// Execute the graph
 		GraphBuilder.Execute();
 
+		FRHITexture* TexturesToTransition[] =
+		{
+			OutputTexture0 ? OutputTexture0->GetTexture2D() : nullptr,
+			OutputTexture1 ? OutputTexture1->GetTexture2D() : nullptr,
+			OutputTexture2 ? OutputTexture2->GetTexture2D() : nullptr
+		};
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, TexturesToTransition, UE_ARRAY_COUNT(TexturesToTransition));
+
 		// Copy to final destination
 		if (GraphSetup.OutputAlias0 != nullptr && OutputTexture0 != nullptr)
 		{
@@ -1055,6 +1063,8 @@ namespace RuntimeVirtualTexture
 
 			RHICmdList.CopyTexture(GraphOutputTexture2->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture2->GetTexture2D(), Info);
 		}
+
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, TexturesToTransition, UE_ARRAY_COUNT(TexturesToTransition));
 
 		View->CachedViewUniformShaderParameters.Reset();
 	}

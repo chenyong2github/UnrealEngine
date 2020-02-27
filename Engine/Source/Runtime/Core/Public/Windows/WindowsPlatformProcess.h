@@ -220,5 +220,7 @@ private:
 	static void* LoadLibraryWithSearchPaths(const FString& FileName, const TArray<FString>& SearchPaths);
 };
 
-
+#if WINDOWS_USE_FEATURE_PLATFORMPROCESS_CLASS
 typedef FWindowsPlatformProcess FPlatformProcess;
+#endif
+

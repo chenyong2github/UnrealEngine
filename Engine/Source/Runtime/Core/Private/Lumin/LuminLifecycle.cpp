@@ -35,6 +35,8 @@ void FLuminLifecycle::Initialize()
 	LifecycleCallbacks.on_device_active = OnDeviceActive_Handler;
 	LifecycleCallbacks.on_device_reality = OnDeviceReality_Handler;
 	LifecycleCallbacks.on_device_standby = OnDeviceStandby_Handler;
+	LifecycleCallbacks.on_focus_lost = OnFocusLost_Handler;
+	LifecycleCallbacks.on_focus_gained = OnFocusGained_Handler;
 
 	LifecycleState = MLLifecycleInitEx(&LifecycleCallbacks, nullptr);
 
@@ -273,6 +275,36 @@ void FLuminLifecycle::OnDeviceStandby_Handler(void* ApplicationContext)
 #endif // PLATFORM_LUMIN
 		}, TStatId(), nullptr, ENamedThreads::GameThread);
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
+	}
+}
+
+void FLuminLifecycle::OnFocusLost_Handler(void* ApplicationContext, MLLifecycleFocusLostReason reason)
+{
+	UE_LOG(LogLifecycle, Log, TEXT("FLuminLifecycle : Input focus lost."));
+	if (FTaskGraphInterface::IsRunning())
+	{
+		FGraphEventRef FocusLostTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
+		{
+#if PLATFORM_LUMIN
+			FLuminDelegates::FocusLostDelegate.Broadcast(reason);
+#endif // PLATFORM_LUMIN
+		}, TStatId(), nullptr, ENamedThreads::GameThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(FocusLostTask);
+	}
+}
+
+void FLuminLifecycle::OnFocusGained_Handler(void* ApplicationContext)
+{
+	UE_LOG(LogLifecycle, Log, TEXT("FLuminLifecycle : Input focus gained."));
+	if (FTaskGraphInterface::IsRunning())
+	{
+		FGraphEventRef FocusGainedTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
+		{
+#if PLATFORM_LUMIN
+			FLuminDelegates::FocusGainedDelegate.Broadcast();
+#endif // PLATFORM_LUMIN
+		}, TStatId(), nullptr, ENamedThreads::GameThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(FocusGainedTask);
 	}
 }
 

@@ -38,6 +38,15 @@ static TAutoConsoleVariable<int32> GStandardValidationCvar(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> GGPUValidationCvar(
+	TEXT("r.Vulkan.GPUValidation"),
+	0,
+	TEXT("2 to use enable GPU assised validation AND extra binding slot when using validation layers, or\n")
+	TEXT("1 to use enable GPU assised validation when using validation layers, or\n")
+	TEXT("0 to not use (default)"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 #if VULKAN_ENABLE_DRAW_MARKERS
 	#define RENDERDOC_LAYER_NAME				"VK_LAYER_RENDERDOC_Capture"
 #endif
@@ -301,6 +310,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 	const int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
 	if (!bVkTrace && VulkanValidationOption > 0)
 	{
+		bool bSkipStandard = false;
 		bool bStandardAvailable = false;
 		if (GStandardValidationCvar.GetValueOnAnyThread() != 0)
 		{
@@ -313,7 +323,13 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 				}
 				else
 				{
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
+					//#todo-rco: We don't package DLLs so if this fails it means no DLL was found anywhere, so don't try to load standard validation layers
+					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s;  Do you have the Vulkan SDK Installed?"), TEXT(STANDARD_VALIDATION_LAYER_NAME));
+					bSkipStandard = true;
+#else
 					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s; trying individual layers..."), TEXT(STANDARD_VALIDATION_LAYER_NAME));
+#endif
 				}
 			}
 			else
@@ -330,7 +346,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 			}
 		}
 
-		if (!bStandardAvailable)
+		if (!bStandardAvailable && !bSkipStandard)
 		{
 			// Verify that all requested debugging device-layers are available
 			for (uint32 LayerIndex = 0; GIndividualValidationLayers[LayerIndex] != nullptr; ++LayerIndex)
@@ -409,6 +425,16 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		{
 			OutInstanceExtensions.Add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 		}
+	}
+
+	if (VulkanValidationOption > 0 && !bVkTrace)
+	{
+#if VULKAN_HAS_VALIDATION_FEATURES
+		if (FindLayerExtensionInList(GlobalLayerExtensions, VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME) && GGPUValidationCvar.GetValueOnAnyThread() != 0)
+		{
+			OutInstanceExtensions.Add(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+		}
+#endif
 	}
 #endif
 
@@ -721,6 +747,8 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasMemoryPriority = 0;
 #endif
 
+	HasEXTFragmentDensityMap = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
+
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 	HasDriverProperties = HasExtension(DeviceExtensions, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
 #endif
@@ -730,6 +758,8 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 #if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
 	HasEXTFullscreenExclusive = HasExtension(DeviceExtensions, VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
 #endif
+
+	HasKHRImageFormatList = HasExtension(DeviceExtensions, VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
 }
 
 void FVulkanDynamicRHI::SetupValidationRequests()
