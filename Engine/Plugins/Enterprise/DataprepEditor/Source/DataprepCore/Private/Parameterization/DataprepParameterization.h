@@ -60,14 +60,6 @@ struct FValueTypeValidationData
 	}
 };
 
-//template<> struct TStructOpsTypeTraits<FValueTypeValidationData> : public TStructOpsTypeTraitsBase2<FValueTypeValidationData>
-//{
-//	enum
-//	{
-//		WithSerializer = true
-//	};
-//};
-
 /**
  * The parameterization binding is a struct that hold an object and the property path to the parameterized property
  * It also hold a array to validate the that value type of the parameterized property didn't change since it's creation
@@ -101,16 +93,6 @@ struct FDataprepParameterizationBinding
 	// Value Type Validation Array. This is the result of a depth first search on the parametrized property
 	//UPROPERTY() // @todo FProp: do we need this to be an FProp? (is this struct being serialized)
 	FValueTypeValidationData ValueTypeValidationData;
-
-	bool Serialize(FArchive& Ar);
-};
-
-template<> struct TStructOpsTypeTraits<FDataprepParameterizationBinding> : public TStructOpsTypeTraitsBase2<FDataprepParameterizationBinding>
-{
-	enum
-	{
-		WithSerializer = true
-	};
 };
 
 uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding);
