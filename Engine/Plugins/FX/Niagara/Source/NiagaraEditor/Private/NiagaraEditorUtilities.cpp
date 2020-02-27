@@ -2032,4 +2032,36 @@ void FNiagaraEditorUtilities::WarnWithToastAndLog(FText WarningMessage)
 	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
 }
 
+FName FNiagaraEditorUtilities::GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName)
+{
+	if (StaticFindObject(ObjectClass, Outer, *CandidateName) == nullptr)
+	{
+		return *CandidateName;
+	}
+	else
+	{
+		FString BaseCandidateName;
+		int32 LastUnderscoreIndex;
+		int32 NameIndex = 0;
+		if (CandidateName.FindLastChar('_', LastUnderscoreIndex) && LexTryParseString(NameIndex, *CandidateName.RightChop(LastUnderscoreIndex + 1)))
+		{
+			BaseCandidateName = CandidateName.Left(LastUnderscoreIndex);
+			NameIndex++;
+		}
+		else
+		{
+			BaseCandidateName = CandidateName;
+			NameIndex = 1;
+		}
+
+		FString UniqueCandidateName = FString::Printf(TEXT("%s_%02i"), *BaseCandidateName, NameIndex);
+		while (StaticFindObject(ObjectClass, Outer, *UniqueCandidateName) != nullptr)
+		{
+			NameIndex++;
+			UniqueCandidateName = FString::Printf(TEXT("%s_%02i"), *BaseCandidateName, NameIndex);
+		}
+		return *UniqueCandidateName;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

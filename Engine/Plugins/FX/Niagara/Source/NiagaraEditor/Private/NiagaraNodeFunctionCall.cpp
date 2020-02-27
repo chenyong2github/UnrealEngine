@@ -756,7 +756,7 @@ void UNiagaraNodeFunctionCall::SubsumeExternalDependencies(TMap<const UObject*, 
 
 void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const
 {
-	if (FunctionScript && FunctionScript->GetOutermost() != this->GetOutermost())
+	if (FunctionScript)
 	{
 		UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionScript->GetSource());
 		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraGraph>(Source->NodeGraph);

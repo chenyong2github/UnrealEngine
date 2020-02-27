@@ -9,6 +9,8 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "Widgets/SNiagaraCurveEditor.h"
 #include "Widgets/SNiagaraSystemScript.h"
@@ -415,6 +417,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	RegenerateMenusAndToolbars();
 
 	bChangesDiscarded = false;
+	bScratchPadChangesDiscarded = false;
 }
 
 FName FNiagaraSystemToolkit::GetToolkitFName() const
@@ -1367,12 +1370,45 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 
 	SystemViewModel->NotifyPreClose();
 
+	bool bHasUnappliedScratchPadChanges = false;
+	for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadViewModel : SystemViewModel->GetScriptScratchPadViewModel()->GetScriptViewModels())
+	{
+		if (ScratchPadViewModel->CanApplyChanges())
+		{
+			bHasUnappliedScratchPadChanges = true;
+			break;
+		}
+	}
+
+	if (bScratchPadChangesDiscarded == false && bHasUnappliedScratchPadChanges)
+	{
+		// find out the user wants to do with their dirty scratch pad scripts.
+		EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel,
+			NSLOCTEXT("NiagaraEditor", "UnsavedScratchPadScriptsPrompt", "Would you like to apply changes to scratch pad scripts? (No will discard unapplied changes)"));
+
+		switch (YesNoCancelReply)
+		{
+		case EAppReturnType::Yes:
+			for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadViewModel : SystemViewModel->GetScriptScratchPadViewModel()->GetScriptViewModels())
+			{
+				ScratchPadViewModel->ApplyChanges();
+			}
+			break;
+		case EAppReturnType::No:
+			bScratchPadChangesDiscarded = true;
+			break;
+		case EAppReturnType::Cancel:
+			return false;
+			break;
+		}
+	}
+
 	if (SystemToolkitMode == ESystemToolkitMode::Emitter)
 	{
 		TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel();
 		if (bChangesDiscarded == false && (EmitterViewModel->GetEmitter()->GetChangeId() != LastSyncedEmitterChangeId || bEmitterThumbnailUpdated))
 		{
-			// find out the user wants to do with this dirty NiagaraScript
+			// find out the user wants to do with this dirty emitter.
 			EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel,
 				FText::Format(
 					NSLOCTEXT("UnrealEd", "Prompt_NiagaraEmitterEditorClose", "Would you like to apply changes to this Emitter to the original Emitter?\n{0}\n(No will lose all changes!)"),
@@ -1391,6 +1427,7 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 				break;
 			case EAppReturnType::Cancel:
 				// don't exit
+				bScratchPadChangesDiscarded = false;
 				return false;
 			}
 		}
