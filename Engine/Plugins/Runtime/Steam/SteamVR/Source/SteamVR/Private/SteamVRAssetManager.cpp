@@ -696,22 +696,8 @@ int32 FSteamVRAssetManager::GetDeviceId(EControllerHand ControllerHand)
 			DesiredDeviceClass = vr::ETrackedDeviceClass::TrackedDeviceClass_TrackingReference;
 			break;
 
-		case EControllerHand::Special_1:
-		case EControllerHand::Special_2:
-		case EControllerHand::Special_3:
-		case EControllerHand::Special_4:
-		case EControllerHand::Special_5:
-		case EControllerHand::Special_6:
-		case EControllerHand::Special_7:
-		case EControllerHand::Special_8:
-		case EControllerHand::Special_9:
-		case EControllerHand::Special_10:
-		case EControllerHand::Special_11:
-			DesiredDeviceClass = vr::ETrackedDeviceClass::TrackedDeviceClass_GenericTracker;
-			break;
-
 		default:
-			// DesiredDeviceClass = TrackedDeviceClass_Invalid => returns -1
+			DesiredDeviceClass = vr::ETrackedDeviceClass::TrackedDeviceClass_GenericTracker;
 			break;
 		}
 
