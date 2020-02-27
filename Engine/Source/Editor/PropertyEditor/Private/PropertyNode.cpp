@@ -2182,7 +2182,23 @@ void FPropertyNode::ProcessSeenFlagsForFavorites(void)
 void FPropertyNode::NotifyPreChange( FProperty* PropertyAboutToChange, FNotifyHook* InNotifyHook )
 {
 	TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain( PropertyAboutToChange );
+	NotifyPreChangeInternal(PropertyChain, PropertyAboutToChange, InNotifyHook);
+}
 
+void FPropertyNode::NotifyPreChange( FProperty* PropertyAboutToChange, FNotifyHook* InNotifyHook, const TSet<UObject*>& AffectedInstances )
+{
+	TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain( PropertyAboutToChange, AffectedInstances );
+	NotifyPreChangeInternal(PropertyChain, PropertyAboutToChange, InNotifyHook);
+}
+
+void FPropertyNode::NotifyPreChange( FProperty* PropertyAboutToChange, FNotifyHook* InNotifyHook, TSet<UObject*>&& AffectedInstances )
+{
+	TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain( PropertyAboutToChange, MoveTemp(AffectedInstances) );
+	NotifyPreChangeInternal(PropertyChain, PropertyAboutToChange, InNotifyHook);
+}
+
+void FPropertyNode::NotifyPreChangeInternal( TSharedRef<FEditPropertyChain> PropertyChain, FProperty* PropertyAboutToChange, FNotifyHook* InNotifyHook )
+{
 	// Call through to the property window's notify hook.
 	if( InNotifyHook )
 	{
@@ -2524,6 +2540,20 @@ TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InP
 	return PropertyChain;
 }
 
+TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InProperty, const TSet<UObject*>& InAffectedArchetypeInstances )
+{
+	TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain(InProperty);
+	PropertyChain->SetAffectedArchetypeInstances(InAffectedArchetypeInstances);
+	return PropertyChain;
+}
+
+TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InProperty, TSet<UObject*>&& InAffectedArchetypeInstances )
+{
+	TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain(InProperty);
+	PropertyChain->SetAffectedArchetypeInstances(MoveTemp(InAffectedArchetypeInstances));
+	return PropertyChain;
+}
+
 FPropertyChangedEvent& FPropertyNode::FixPropertiesInEvent(FPropertyChangedEvent& Event)
 {
 	ensure(Event.Property);
@@ -2601,14 +2631,18 @@ bool FPropertyNode::IsFilterAcceptable(const TArray<FString>& InAcceptableNames,
 	return bCompleteMatchFound;
 }
 
-void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, const void* OriginalContainerAddr, EPropertyArrayChangeType::Type ChangeType, int32 Index, TMap<UObject*, bool>* PropagationResult, int32 SwapIndex /*= INDEX_NONE*/)
+void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, const void* OriginalContainerAddr, EPropertyArrayChangeType::Type ChangeType, int32 Index, int32 SwapIndex /*= INDEX_NONE*/)
+{
+	TArray<UObject*> AffectedInstances;
+	GatherInstancesAffectedByContainerPropertyChange(ModifiedObject, OriginalContainerAddr, ChangeType, AffectedInstances);
+	PropagateContainerPropertyChange(ModifiedObject, OriginalContainerAddr, AffectedInstances, ChangeType, Index, SwapIndex);
+}
+
+void FPropertyNode::GatherInstancesAffectedByContainerPropertyChange(UObject* ModifiedObject, const void* OriginalContainerAddr, EPropertyArrayChangeType::Type ChangeType, TArray<UObject*>& OutAffectedInstances)
 {
 	check(OriginalContainerAddr);
 
 	FProperty* NodeProperty = GetProperty();
-	FArrayProperty* ArrayProperty = NULL;
-	FSetProperty* SetProperty = NULL;
-	FMapProperty* MapProperty = NULL;
 
 	FPropertyNode* ParentPropertyNode = GetParentNode();
 	
@@ -2623,19 +2657,13 @@ void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, c
 		ConvertedProperty = NodeProperty->GetOwner<FProperty>();
 	}
 
-	ArrayProperty = CastField<FArrayProperty>(ConvertedProperty);
-	SetProperty = CastField<FSetProperty>(ConvertedProperty);
-	MapProperty = CastField<FMapProperty>(ConvertedProperty);
-
-	check(ArrayProperty || SetProperty || MapProperty);
-
 	TArray<UObject*> ArchetypeInstances, ObjectsToChange;
 	FPropertyNode* SubobjectPropertyNode = NULL;
 	UObject* Object = ModifiedObject;
 
 	if (Object->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{
-		// Object is a default suobject, collect all instances.
+		// Object is a default subobject, collect all instances.
 		Object->GetArchetypeInstances(ArchetypeInstances);
 	}
 	else if (Object->HasAnyFlags(RF_DefaultSubObject) && Object->GetOuter()->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
@@ -2696,114 +2724,12 @@ void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, c
 
 					checkf(false, TEXT("PropagateContainerPropertyChange tried to propagate a change onto itself!"));
 				}
-				
+
 				const bool bIsDefaultContainerContent = ConvertedProperty->Identical(OriginalContainerAddr, Addr);
-
-				// Return instance changes result to caller
-				if (PropagationResult != nullptr)
+				if (bIsDefaultContainerContent)
 				{
-					PropagationResult->Add(ActualObjToChange, bIsDefaultContainerContent);
+					OutAffectedInstances.Add(ActualObjToChange);
 				}
-
-				if (ArrayProperty)
-				{
-					FScriptArrayHelper ArrayHelper(ArrayProperty, Addr);
-
-					// Check if the original value was the default value and change it only then
-					if (bIsDefaultContainerContent)
-					{
-						int32 ElementToInitialize = -1;
-						switch (ChangeType)
-						{
-						case EPropertyArrayChangeType::Add:
-							ElementToInitialize = ArrayHelper.AddValue();
-							break;
-						case EPropertyArrayChangeType::Clear:
-							ArrayHelper.EmptyValues();
-							break;
-						case EPropertyArrayChangeType::Insert:
-							ArrayHelper.InsertValues(ArrayIndex, 1);
-							ElementToInitialize = ArrayIndex;
-							break;
-						case EPropertyArrayChangeType::Delete:
-							ArrayHelper.RemoveValues(ArrayIndex, 1);
-							break;
-						case EPropertyArrayChangeType::Duplicate:
-							ArrayHelper.InsertValues(ArrayIndex, 1);
-							// Copy the selected item's value to the new item.
-							NodeProperty->CopyCompleteValue(ArrayHelper.GetRawPtr(ArrayIndex), ArrayHelper.GetRawPtr(ArrayIndex + 1));
-							Object->InstanceSubobjectTemplates();
-							break;
-						case EPropertyArrayChangeType::Swap:
-							if (SwapIndex != INDEX_NONE)
-							{
-								ArrayHelper.SwapValues(Index, SwapIndex);
-							}
-							break;
-						}
-					}
-				}	// End Array
-
-				else if (SetProperty)
-				{
-					FScriptSetHelper SetHelper(SetProperty, Addr);
-
-					// Check if the original value was the default value and change it only then
-					if (bIsDefaultContainerContent)
-					{
-						int32 ElementToInitialize = -1;
-						switch (ChangeType)
-						{
-						case EPropertyArrayChangeType::Add:
-							ElementToInitialize = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
-							SetHelper.Rehash();
-							break;
-						case EPropertyArrayChangeType::Clear:
-							SetHelper.EmptyElements();
-							break;
-						case EPropertyArrayChangeType::Insert:
-							check(false);	// Insert is not supported for sets
-							break;
-						case EPropertyArrayChangeType::Delete:
-							SetHelper.RemoveAt(SetHelper.FindInternalIndex(ArrayIndex));
-							SetHelper.Rehash();
-							break;
-						case EPropertyArrayChangeType::Duplicate:
-							check(false);	// Duplicate not supported on sets
-							break;
-						}
-					}
-				}	// End Set
-				else if (MapProperty)
-				{
-					FScriptMapHelper MapHelper(MapProperty, Addr);
-
-					// Check if the original value was the default value and change it only then
-					if (bIsDefaultContainerContent)
-					{
-						int32 ElementToInitialize = -1;
-						switch (ChangeType)
-						{
-						case EPropertyArrayChangeType::Add:
-							ElementToInitialize = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
-							MapHelper.Rehash();
-							break;
-						case EPropertyArrayChangeType::Clear:
-							MapHelper.EmptyValues();
-							break;
-						case EPropertyArrayChangeType::Insert:
-							check(false);	// Insert is not supported for maps
-							break;
-						case EPropertyArrayChangeType::Delete:
-							MapHelper.RemoveAt(MapHelper.FindInternalIndex(ArrayIndex));
-							MapHelper.Rehash();
-							break;
-						case EPropertyArrayChangeType::Duplicate:
-							check(false);	// Duplicate is not supported for maps
-							break;
-						}
-					}
-				}	// End Map
 			}
 		}
 
@@ -2817,6 +2743,154 @@ void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, c
 				ArchetypeInstances.RemoveAt(i--);
 			}
 		}
+	}
+}
+
+void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, const void* OriginalContainerAddr, const TArray<UObject*>& AffectedInstances, EPropertyArrayChangeType::Type ChangeType, int32 Index, int32 SwapIndex /*= INDEX_NONE*/)
+{
+	check(OriginalContainerAddr);
+
+	FProperty* NodeProperty = GetProperty();
+
+	FPropertyNode* ParentPropertyNode = GetParentNode();
+	
+	FProperty* ConvertedProperty = NULL;
+
+	if (ChangeType == EPropertyArrayChangeType::Add || ChangeType == EPropertyArrayChangeType::Clear)
+	{
+		ConvertedProperty = NodeProperty;
+	}
+	else
+	{
+		ConvertedProperty = NodeProperty->GetOwner<FProperty>();
+	}
+
+	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ConvertedProperty);
+	FSetProperty* SetProperty = CastField<FSetProperty>(ConvertedProperty);
+	FMapProperty* MapProperty = CastField<FMapProperty>(ConvertedProperty);
+
+	check(ArrayProperty || SetProperty || MapProperty);
+
+	FPropertyNode* SubobjectPropertyNode = NULL;
+
+	UObject* Object = ModifiedObject;
+
+	if (Object->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
+	{
+		// Object is a default subobject
+	}
+	else if (Object->HasAnyFlags(RF_DefaultSubObject) && Object->GetOuter()->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
+	{
+		// Object is a default subobject of a default object. Get the subobject property node and use its owner instead.
+		for (SubobjectPropertyNode = FindObjectItemParent(); SubobjectPropertyNode && !SubobjectPropertyNode->GetProperty(); SubobjectPropertyNode = SubobjectPropertyNode->GetParentNode());
+		if (SubobjectPropertyNode != NULL)
+		{
+			// Switch the object to the owner default object
+			Object = Object->GetOuter();	
+		}
+	}
+	
+	for (UObject* InstanceToChange : AffectedInstances)
+	{
+		uint8* Addr = NULL;
+
+		if (ChangeType == EPropertyArrayChangeType::Add || ChangeType == EPropertyArrayChangeType::Clear)
+		{
+			Addr = GetValueBaseAddressFromObject(InstanceToChange);
+		}
+		else
+		{
+			Addr = ParentPropertyNode->GetValueBaseAddressFromObject(InstanceToChange);
+		}
+
+		if (ArrayProperty)
+		{
+			FScriptArrayHelper ArrayHelper(ArrayProperty, Addr);
+
+			int32 ElementToInitialize = -1;
+			switch (ChangeType)
+			{
+			case EPropertyArrayChangeType::Add:
+				ElementToInitialize = ArrayHelper.AddValue();
+				break;
+			case EPropertyArrayChangeType::Clear:
+				ArrayHelper.EmptyValues();
+				break;
+			case EPropertyArrayChangeType::Insert:
+				ArrayHelper.InsertValues(ArrayIndex, 1);
+				ElementToInitialize = ArrayIndex;
+				break;
+			case EPropertyArrayChangeType::Delete:
+				ArrayHelper.RemoveValues(ArrayIndex, 1);
+				break;
+			case EPropertyArrayChangeType::Duplicate:
+				ArrayHelper.InsertValues(ArrayIndex, 1);
+				// Copy the selected item's value to the new item.
+				NodeProperty->CopyCompleteValue(ArrayHelper.GetRawPtr(ArrayIndex), ArrayHelper.GetRawPtr(ArrayIndex + 1));
+				Object->InstanceSubobjectTemplates();
+				break;
+			case EPropertyArrayChangeType::Swap:
+				if (SwapIndex != INDEX_NONE)
+				{
+					ArrayHelper.SwapValues(Index, SwapIndex);
+				}
+				break;
+			}
+		}	// End Array
+
+		else if (SetProperty)
+		{
+			FScriptSetHelper SetHelper(SetProperty, Addr);
+
+			int32 ElementToInitialize = -1;
+			switch (ChangeType)
+			{
+			case EPropertyArrayChangeType::Add:
+				ElementToInitialize = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
+				SetHelper.Rehash();
+				break;
+			case EPropertyArrayChangeType::Clear:
+				SetHelper.EmptyElements();
+				break;
+			case EPropertyArrayChangeType::Insert:
+				check(false);	// Insert is not supported for sets
+				break;
+			case EPropertyArrayChangeType::Delete:
+				SetHelper.RemoveAt(SetHelper.FindInternalIndex(ArrayIndex));
+				SetHelper.Rehash();
+				break;
+			case EPropertyArrayChangeType::Duplicate:
+				check(false);	// Duplicate not supported on sets
+				break;
+			}
+		}	// End Set
+		else if (MapProperty)
+		{
+			FScriptMapHelper MapHelper(MapProperty, Addr);
+
+			// Check if the original value was the default value and change it only then
+			int32 ElementToInitialize = -1;
+			switch (ChangeType)
+			{
+			case EPropertyArrayChangeType::Add:
+				ElementToInitialize = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
+				MapHelper.Rehash();
+				break;
+			case EPropertyArrayChangeType::Clear:
+				MapHelper.EmptyValues();
+				break;
+			case EPropertyArrayChangeType::Insert:
+				check(false);	// Insert is not supported for maps
+				break;
+			case EPropertyArrayChangeType::Delete:
+				MapHelper.RemoveAt(MapHelper.FindInternalIndex(ArrayIndex));
+				MapHelper.Rehash();
+				break;
+			case EPropertyArrayChangeType::Duplicate:
+				check(false);	// Duplicate is not supported for maps
+				break;
+			}
+		}	// End Map
 	}
 }
 
