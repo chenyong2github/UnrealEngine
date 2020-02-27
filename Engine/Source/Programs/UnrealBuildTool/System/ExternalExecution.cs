@@ -46,9 +46,14 @@ namespace UnrealBuildTool
 		FailedDueToHeaderChange = 4,
 
 		/// <summary>
+		/// Compilation failed due to the engine modules needing to be rebuilt
+		/// </summary>
+		FailedDueToEngineChange = 5,
+
+		/// <summary>
 		/// Compilation failed due to compilation errors
 		/// </summary>
-		OtherCompilationError = 5,
+		OtherCompilationError = 6,
 
 		/// <summary>
 		/// Compilation is not supported in the current build
