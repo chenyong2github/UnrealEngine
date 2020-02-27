@@ -118,9 +118,9 @@ public:
 	void Initialize();
 
 	/** IDetailRootObjectCustomization interface */
-	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject, const TSharedPtr<ITableRow>& InTableRow) override;
-	virtual bool IsObjectVisible(const UObject* InRootObject) const override;
-	virtual bool ShouldDisplayHeader(const UObject* InRootObject) const override;
+	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const FDetailsObjectSet& InRootObjectSet, const TSharedPtr<ITableRow>& InTableRow) override;
+	virtual bool AreObjectsVisible(const FDetailsObjectSet& InRootObjectSet) const override;
+	virtual bool ShouldDisplayHeader(const FDetailsObjectSet& InRootObjectSet) const override;
 	virtual EExpansionArrowUsage GetExpansionArrowUsage() const override { return EExpansionArrowUsage::Custom; }
 private:
 	void OnSelectedSectionChanged();

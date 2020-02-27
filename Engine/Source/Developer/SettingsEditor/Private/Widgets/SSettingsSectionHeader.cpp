@@ -528,17 +528,17 @@ void FSettingsDetailRootObjectCustomization::Initialize()
 	OnSelectedSectionChanged();
 }
 
-TSharedPtr<SWidget> FSettingsDetailRootObjectCustomization::CustomizeObjectHeader(const UObject* InRootObject, const TSharedPtr<ITableRow>& InTableRow)
+TSharedPtr<SWidget> FSettingsDetailRootObjectCustomization::CustomizeObjectHeader(const FDetailsObjectSet& InRootObjectSet, const TSharedPtr<ITableRow>& InTableRow)
 {
-	return SNew(SSettingsSectionHeader, InRootObject, Model, DetailsView.Pin(), InTableRow);
+	return SNew(SSettingsSectionHeader, InRootObjectSet.RootObjects[0], Model, DetailsView.Pin(), InTableRow);
 }
 
-bool FSettingsDetailRootObjectCustomization::IsObjectVisible(const UObject* InRootObject) const
+bool FSettingsDetailRootObjectCustomization::AreObjectsVisible(const FDetailsObjectSet& InRootObjectSet) const
 {
-	return SelectedSectionObject == nullptr || SelectedSectionObject == InRootObject || DetailsView.Pin()->HasActiveSearch();
+	return SelectedSectionObject == nullptr || SelectedSectionObject == InRootObjectSet.RootObjects[0] || DetailsView.Pin()->HasActiveSearch();
 }
 
-bool FSettingsDetailRootObjectCustomization::ShouldDisplayHeader(const UObject* InRootObject) const
+bool FSettingsDetailRootObjectCustomization::ShouldDisplayHeader(const FDetailsObjectSet& InRootObjects) const
 {
 	return true;
 }
