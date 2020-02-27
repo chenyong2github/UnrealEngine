@@ -32,9 +32,13 @@ namespace EMenuItemType
 class UNREALED_API SEditorViewportToolbarMenu : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS( SEditorViewportToolbarMenu ){}
+	SLATE_BEGIN_ARGS( SEditorViewportToolbarMenu )
+		: _MenuStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.MenuButton"))
+	{}
 		/** We need to know about the toolbar we are in */
 		SLATE_ARGUMENT( TSharedPtr<class SViewportToolBar>, ParentToolBar );
+		/** Style to use */
+		SLATE_STYLE_ARGUMENT(FButtonStyle, MenuStyle)
 		/** The label to show in the menu */
 		SLATE_ATTRIBUTE( FText, Label )
 		/** Optional icon to display next to the label */

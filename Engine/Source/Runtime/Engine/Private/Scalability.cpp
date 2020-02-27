@@ -401,6 +401,35 @@ float GetResolutionScreenPercentage()
 	return CVar->GetFloat();
 }
 
+FText GetScalabilityNameFromQualityLevel(int32 QualityLevel)
+{
+#define LOCTEXT_NAMESPACE "EngineScalabiltySettings"
+	static const FText NamesLow(LOCTEXT("QualityLowLabel", "Low"));
+	static const FText NamesMedium(LOCTEXT("QualityMediumLabel", "Medium"));
+	static const FText NamesHigh(LOCTEXT("QualityHighLabel", "High"));
+	static const FText NamesEpic(LOCTEXT("QualityEpicLabel", "Epic"));
+	static const FText NamesCine(LOCTEXT("QualityCineLabel", "Cinematic"));
+
+	switch (QualityLevel)
+	{
+	case 0:
+		return NamesLow;
+	case 1:
+		return NamesMedium;
+	case 2:
+		return NamesHigh;
+	case 3: 
+		return NamesEpic;
+	case 4:
+		return NamesCine;
+	default:
+		ensureMsgf(false, TEXT("Scalability Level %d needs a display name"), QualityLevel);
+		return FText::GetEmpty();
+	}
+
+#undef LOCTEXT_NAMESPACE
+}
+
 static void SetResolutionQualityLevel(float InResolutionQualityLevel)
 {
 	InResolutionQualityLevel = FMath::Clamp(InResolutionQualityLevel, Scalability::MinResolutionScale, Scalability::MaxResolutionScale);
@@ -821,6 +850,21 @@ int32 FQualityLevels::GetSingleQualityLevel() const
 	}
 
 	return -1;
+}
+
+int32 FQualityLevels::GetMinQualityLevel() const
+{
+	int32 Level = ViewDistanceQuality;
+
+	Level = FMath::Min(Level, AntiAliasingQuality);
+	Level = FMath::Min(Level, ShadowQuality);
+	Level = FMath::Min(Level, PostProcessQuality);
+	Level = FMath::Min(Level, TextureQuality);
+	Level = FMath::Min(Level, EffectsQuality);
+	Level = FMath::Min(Level, FoliageQuality);
+	Level = FMath::Min(Level, ShadingQuality);
+
+	return Level;
 }
 
 void FQualityLevels::SetViewDistanceQuality(int32 Value)

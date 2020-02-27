@@ -73,6 +73,10 @@ namespace Scalability
 		// @param Value -1:custom, 0:low, 1:medium, 2:high, 3:epic, 4:cinematic
 		int32 GetSingleQualityLevel() const;
 
+		// Returns the minimum set quality level from all settings
+		// @param Value -1:custom, 0:low, 1:medium, 2:high, 3:epic, 4:cinematic
+		int32 GetMinQualityLevel() const;
+
 		// Sets view distance quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 		void SetViewDistanceQuality(int32 Value);
@@ -165,6 +169,9 @@ namespace Scalability
 
 	/** Returns the current screen percentage */
 	ENGINE_API float GetResolutionScreenPercentage();
+
+	/** Returns a human readable name for a scalability quality level */
+	ENGINE_API FText GetScalabilityNameFromQualityLevel(int32 QualityLevel);
 
 #if WITH_EDITOR
 	/** Set an Editor preview scalability platform */
