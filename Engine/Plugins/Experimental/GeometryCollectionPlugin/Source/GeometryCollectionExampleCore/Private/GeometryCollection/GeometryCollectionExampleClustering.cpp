@@ -1686,7 +1686,7 @@ namespace GeometryCollectionExample
 	void RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes()
 	{
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
-		InitMaterialToZero(PhysicalMaterial);
+		InitMaterialToZero(PhysicalMaterial.Get());
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(0, 0, 100));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = GeometryCollectionToGeometryDynamicCollection(RestCollection.Get(), (uint8)EObjectStateTypeEnum::Chaos_Object_Dynamic);
@@ -1765,7 +1765,6 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
 		delete PhysObject;
-
 		
 	}
 	template void RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes<float>();
@@ -1774,7 +1773,7 @@ namespace GeometryCollectionExample
 	void RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode()
 	{
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
-		InitMaterialToZero(PhysicalMaterial);
+		InitMaterialToZero(PhysicalMaterial.Get());
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoParents_TwoBodies(FVector(0, 0, 100));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = GeometryCollectionToGeometryDynamicCollection(RestCollection.Get(), (uint8)EObjectStateTypeEnum::Chaos_Object_Dynamic);
@@ -1868,7 +1867,7 @@ namespace GeometryCollectionExample
 	void RigidBodies_ClusterTest_RemoveOnFracture()
 	{
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
-		InitMaterialToZero(PhysicalMaterial);
+		InitMaterialToZero(PhysicalMaterial.Get());
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)), FVector(1.0));
 		RestCollection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, 10, 10)), FVector(1.0)));

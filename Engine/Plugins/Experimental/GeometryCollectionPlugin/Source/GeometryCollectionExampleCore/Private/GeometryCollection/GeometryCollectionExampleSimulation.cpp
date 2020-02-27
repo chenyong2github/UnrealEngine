@@ -3,6 +3,7 @@
 #include "GeometryCollection/GeometryCollectionExampleSimulation.h"
 #include "GeometryCollection/GeometryCollectionExampleUtility.h"
 #include "GeometryCollection/GeometryCollectionExampleSimulationObject.h"
+#include "GeometryCollection/GeometryCollectionExampleFramework.h"
 
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
@@ -27,7 +28,28 @@ namespace GeometryCollectionExample
 {
 	
 	template<class T>
-	void RigidBodiesFallingUnderGravity()
+	void RigidBodies_SingleFallingUnderGravity()
+	{
+		GeometryCollectionWrapper* Collection = NewSimulationObject<GeometryType::GeometryCollectionWithSingleCube>()->As<GeometryCollectionWrapper>();
+
+		Framework<T> UnitTest;
+		UnitTest.AddSimulationObject(Collection);
+		UnitTest.Initialize();
+		UnitTest.Advance();
+
+		{ // test results
+			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z), SMALL_THRESHOLD); // rest never touched
+			EXPECT_EQ(Collection->DynamicCollection->Transform.Num(), 1); // simulated is falling
+			EXPECT_LT(Collection->DynamicCollection->Transform[0].GetTranslation().Z, 0.f);
+			EXPECT_NEAR(Collection->DynamicCollection->Transform[0].GetTranslation().Z, -980.f * UnitTest.Dt * UnitTest.Dt, 1e-2);// we seem to be twice gravity
+		}
+	}
+	template void RigidBodies_SingleFallingUnderGravity<float>();
+
+
+
+	template<class T>
+	void RigidBodiesCollidingWithSolverFloor()
 	{
 		float Dt = 1 / 24.;
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -36,74 +58,10 @@ namespace GeometryCollectionExample
 		//
 		//  Rigid Body Setup
 		//
-
-		InitCollectionsParameters InitParams = 
-		{ 
-			FTransform::Identity,	// RestCenter
-			FVector(1.0),			// RestScale
-			nullptr,				// RestInitFunc
-			(int32)EObjectStateTypeEnum::Chaos_Object_Dynamic // DynamicStateDefault
-		};
-
-		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr; // Allocated and zero'ed
-		TSharedPtr<FGeometryCollection> RestCollection = nullptr;				// GeometryCollection::MakeCubeElement(InitParams)
-		TSharedPtr<FGeometryDynamicCollection> GTDynamicCollection = nullptr;		// New'ed w/copy of RestCollection Transform, Parent, Children, SimulationType, and StatusFlags attrs.
-		InitCollections(PhysicalMaterial, RestCollection, GTDynamicCollection, InitParams);
-
-		//
-		// Sim Initialization
-		//
-		
-		// Creates FGeometryCollectionPhysicsProxy with GTDynamicCollection, and 
-		// an InitFunc that sets FSimulationParametes's RestCollection and 
-		// DynamicCollection pointers.  Calls FGeometryCollectionPhysicsProx::Initialize().
-		FGeometryCollectionPhysicsProxy* PhysObject = RigidBodySetup(PhysicalMaterial, RestCollection, GTDynamicCollection);
-
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
-		Solver->RegisterObject(PhysObject);
-		// no floor
-		Solver->SetEnabled(true);
-		PhysObject->ActivateBodies();
-
-		Solver->AddDirtyProxy(PhysObject);
-		Solver->PushPhysicsState(Module->GetDispatcher());
-
-		Solver->AdvanceSolverBy(Dt);
-
-		// Calls BufferPhysicsResults(), FlipBuffer(), and PullFromPhysicsState() on each proxy.
-		FinalizeSolver(*Solver);
-
-		// never touched
-		TManagedArray<FTransform>& RestTransform = RestCollection->Transform;
-		EXPECT_LT(FMath::Abs(RestTransform[0].GetTranslation().Z), SMALL_THRESHOLD);
-
-
-		// simulated
-		TManagedArray<FTransform>& Transform = GTDynamicCollection->Transform;
-		EXPECT_EQ(Transform.Num(), 1);
-		EXPECT_LT(Transform[0].GetTranslation().Z, 0.f);
-
-		float TwiceGravityDisplacement = /* 0.5* */-980.f * Dt * Dt; // we seem to be twice gravity
-		EXPECT_NEAR(Transform[0].GetTranslation().Z, TwiceGravityDisplacement, 1e-2);
-
-		FChaosSolversModule::GetModule()->DestroySolver(Solver);
-		
-		delete PhysObject;
-	}
-	template void RigidBodiesFallingUnderGravity<float>();
-
-
-
-	template<class T>
-	void RigidBodiesCollidingWithSolverFloor()
-	{
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
-		//
-		//  Rigid Body Setup
-		//
 		InitCollectionsParameters InitParams = { FTransform::Identity, FVector(1.0), nullptr, (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic };
 		InitCollections(PhysicalMaterial, RestCollection, DynamicCollection, InitParams);
 				
@@ -115,9 +73,8 @@ namespace GeometryCollectionExample
 		FGeometryCollectionPhysicsProxy* PhysObject = RigidBodySetup(PhysicalMaterial, RestCollection, DynamicCollection, CustomFunc);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
-#endif
+
 		////Solver->SetHasFloor(true);
 		////Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
