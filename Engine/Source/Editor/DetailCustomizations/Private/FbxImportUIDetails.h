@@ -14,10 +14,18 @@ class IDetailLayoutBuilder;
 class IDetailPropertyRow;
 class IPropertyHandle;
 
-enum ConflictDialogType
+enum EConflictDialogType
 {
 	Conflict_Material,
 	Conflict_Skeleton
+};
+
+UENUM()
+enum class EMaterialImportMethod : int32 
+{
+	CreateNewMaterials  UMETA(DisplayName = "Create New Materials", ToolTip = "A new material will be created from the imported data."),
+	CreateNewInstancedMaterials UMETA(DisplayName = "Create New Instanced Materials", Tooltip = "A new material instance of the specified base material will be created and set with the imported material data."),
+	DoNotCreateMaterialString UMETA(DisplayName = "Do Not Create Material", Tooltip = "No materials will be created from the import data."),
 };
 
 class FFbxImportUIDetails : public IDetailCustomization, public FEditorUndoClient
@@ -81,7 +89,8 @@ public:
 	void OnOpacityTextureColor(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo);
 	FReply MaterialBaseParamClearAllProperties();
 
-	void OnMaterialImportMethodChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo);
+	int32 GetMaterialImportMethodValue() const;
+	void OnMaterialImportMethodChanged(int32 Value, ESelectInfo::Type SelectInfo);
 	
 	TWeakObjectPtr<UFbxImportUI> ImportUI;		// The UI data object being customised
 	IDetailLayoutBuilder* CachedDetailBuilder;	// The detail builder for this cusomtomisation
@@ -101,7 +110,7 @@ private:
 	bool GetVertexOverrideColorEnabledState() const;
 	bool GetSkeletalMeshVertexOverrideColorEnabledState() const;
 
-	FReply ShowConflictDialog(ConflictDialogType DialogType);
+	FReply ShowConflictDialog(EConflictDialogType DialogType);
 	bool ShowCompareResult();
 
 	/** LOD group options. */
@@ -115,8 +124,7 @@ private:
 	TSharedPtr<IPropertyHandle> VertexColorImportOptionHandle;
 	TSharedPtr<IPropertyHandle> SkeletalMeshVertexColorImportOptionHandle;
 
-	TArray< TSharedPtr< FString > > ImportMethodNames;
-	TSharedPtr<class STextComboBox> MaterialImportMethodComboBox;
+	EMaterialImportMethod SelectedMaterialImportMethod;
 	bool bShowBaseMaterialUI;
 
 	TArray< TSharedPtr< FString > > BaseColorNames;

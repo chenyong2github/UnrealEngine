@@ -23,9 +23,12 @@ public:
 
 		ChildSlot
 		[
-			SNew(SEnumCombobox, Enum)
-			.CurrentValue(this, &SNiagaraEnumParameterEditor::GetValue) 
-			.OnEnumSelectionChanged(SEnumCombobox::FOnEnumSelectionChanged::CreateSP(this, &SNiagaraEnumParameterEditor::ValueChanged))
+			SNew(SEnumComboBox, Enum)
+			.CurrentValue(this, &SNiagaraEnumParameterEditor::GetValue)
+			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+			.ContentPadding(FMargin(2, 0))
+			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+			.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateSP(this, &SNiagaraEnumParameterEditor::ValueChanged))
 		];
 	}
 
