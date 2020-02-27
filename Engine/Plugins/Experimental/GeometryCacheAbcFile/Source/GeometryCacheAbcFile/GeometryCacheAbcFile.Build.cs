@@ -22,8 +22,9 @@ public class GeometryCacheAbcFile : ModuleRules
 			new string[] {
 				"PropertyEditor",
 				"Slate",
-				"SlateCore"
-			}
-		);
+				"SlateCore",
+                "UnrealEd"
+            }
+        );
 	}
 }
