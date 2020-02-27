@@ -414,6 +414,4 @@ namespace Chaos
 #include "Chaos/PBDCollisionConstraints.h"
 #if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API Chaos::TPBDConstraintColorRule<Chaos::TPBDCollisionConstraints<float, 3>>;
-#else
-template class Chaos::TPBDConstraintColorRule<Chaos::TPBDCollisionConstraints<float, 3>>;
 #endif
