@@ -128,8 +128,7 @@ void UMovieSceneCameraCutSection::PostEditChangeProperty(FPropertyChangedEvent& 
 	{
 		if (UMovieSceneCameraCutTrack* Track = GetTypedOuter<UMovieSceneCameraCutTrack>())
 		{
-			TArray<UMovieSceneSection*> Sections = Track->GetAllSections();
-			MovieSceneHelpers::FixupConsecutiveSections(Sections, *this, false, true, Track->bCanBlend);
+			Track->OnSectionMoved(*this, EPropertyChangeType::ValueSet);
 		}
 	}
 }
