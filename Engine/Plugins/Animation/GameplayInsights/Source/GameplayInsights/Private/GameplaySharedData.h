@@ -38,6 +38,9 @@ public:
 	// Get the timing view session
 	Insights::ITimingViewSession& GetTimingViewSession() { return *TimingViewSession; }
 
+	// Check the validity of the analysis session
+	bool IsAnalysisSessionValid() const { return AnalysisSession != nullptr; }
+
 	// Enumerate object tracks
 	void EnumerateObjectTracks(TFunctionRef<void(const TSharedRef<FObjectEventsTrack>&)> InCallback) const;
 
