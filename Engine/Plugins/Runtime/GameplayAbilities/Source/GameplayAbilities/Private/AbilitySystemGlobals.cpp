@@ -47,7 +47,7 @@ void UAbilitySystemGlobals::InitGlobalData()
 	GetGameplayTagResponseTable();
 	InitGlobalTags();
 
-	TargetDataStructCache.InitForType(FGameplayAbilityTargetData::StaticStruct());
+	InitTargetDataScriptStructCache();
 
 	// Register for PreloadMap so cleanup can occur on map transitions
 	FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UAbilitySystemGlobals::HandlePreLoadMap);
@@ -229,6 +229,11 @@ UFunction* UAbilitySystemGlobals::GetGameplayCueFunction(const FGameplayTag& Chi
 	}
 
 	return nullptr;
+}
+
+void UAbilitySystemGlobals::InitTargetDataScriptStructCache()
+{
+	TargetDataStructCache.InitForType(FGameplayAbilityTargetData::StaticStruct());
 }
 
 // --------------------------------------------------------------------
@@ -508,6 +513,8 @@ void UAbilitySystemGlobals::NonShipping_ApplyGlobalAbilityScaler_Duration(float&
 
 void FNetSerializeScriptStructCache::InitForType(UScriptStruct* InScriptStruct)
 {
+	ScriptStructs.Reset();
+
 	// Find all script structs of this type and add them to the list
 	// (not sure of a better way to do this but it should only happen once at startup)
 	for (TObjectIterator<UScriptStruct> It; It; ++It)
