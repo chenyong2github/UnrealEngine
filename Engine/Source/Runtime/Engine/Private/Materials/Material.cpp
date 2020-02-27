@@ -4760,6 +4760,18 @@ bool UMaterial::UpdateLightmassTextureTracking()
 	return bTexturesHaveChanged;
 }
 
+int32 UMaterial::GetLayerParameterIndex(EMaterialParameterAssociation Association, UMaterialFunctionInterface* LayerFunction) const
+{
+	int32 Index = INDEX_NONE;
+	switch (Association)
+	{
+	case BlendParameter: Index = CachedExpressionData.DefaultLayerBlends.Find(LayerFunction); break;
+	case LayerParameter: Index = CachedExpressionData.DefaultLayers.Find(LayerFunction); break;
+	default: checkNoEntry(); break;
+	}
+	return Index;
+}
+
 #if WITH_EDITOR
 FExpressionInput* UMaterial::GetExpressionInputForProperty(EMaterialProperty InProperty)
 {
