@@ -6733,14 +6733,7 @@ bool UMaterialExpressionMaterialAttributeLayers::IsNamedParameter(const FHashedM
 {
 	if (ParameterInfo.Name == ParameterName)
 	{
-		OutLayers.Layers = GetLayers();
-		OutLayers.Blends = GetBlends();
-		OutLayers.LayerStates = GetLayerStates();
-#if WITH_EDITOR
-		OutLayers.RestrictToLayerRelatives = GetShouldFilterLayers();
-		OutLayers.RestrictToBlendRelatives = GetShouldFilterBlends();
-		OutLayers.LayerNames = GetLayerNames();
-#endif
+		OutLayers = (ParamLayers != nullptr) ? *ParamLayers : DefaultLayers;
 		OutExpressionGuid = ExpressionGUID;
 		return true;
 	}
@@ -12465,6 +12458,9 @@ void FMaterialLayersFunctions::ID::AppendKeyString(FString& KeyString) const
 // FMaterialLayersFunctions
 ///////////////////////////////////////////////////////////////////////////////
 
+const FGuid FMaterialLayersFunctions::UninitializedParentGuid(0u, 0u, 0u, 0u);
+const FGuid FMaterialLayersFunctions::NoParentGuid(1u, 0u, 0u, 0u);
+
 const FMaterialLayersFunctions::ID FMaterialLayersFunctions::GetID() const
 {
 	FMaterialLayersFunctions::ID Result;
@@ -12540,6 +12536,255 @@ void FMaterialLayersFunctions::SerializeForDDC(FArchive& Ar)
 	}
 	Ar << KeyString_DEPRECATED;
 }
+
+void FMaterialLayersFunctions::PostSerialize(const FArchive& Ar)
+{
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading())
+	{
+		check(LayerGuids.Num() == ParentLayerGuids.Num());
+		if (LayerGuids.Num() != Layers.Num())
+		{
+			const int32 NumLayers = Layers.Num();
+			LayerGuids.Empty(NumLayers);
+			ParentLayerGuids.Empty(NumLayers);
+			for (int32 i = 0; i < NumLayers; ++i)
+			{
+				LayerGuids.Add(FGuid::NewGuid());
+				ParentLayerGuids.Add(UninitializedParentGuid);
+			}
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+}
+
+void FMaterialLayersFunctions::AppendBlendedLayer()
+{
+	Layers.AddDefaulted();
+	Blends.AddDefaulted();
+	LayerStates.Add(true);
+#if WITH_EDITOR
+	FText LayerName = FText::Format(LOCTEXT("LayerPrefix", "Layer {0}"), Layers.Num() - 1);
+	LayerNames.Add(LayerName);
+	RestrictToLayerRelatives.Add(false);
+	RestrictToBlendRelatives.Add(false);
+	LayerGuids.Add(FGuid::NewGuid());
+	ParentLayerGuids.Add(NoParentGuid);
+#endif
+}
+
+void FMaterialLayersFunctions::AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, const FGuid& ParentGuid)
+{
+	check(ParentGuid != UninitializedParentGuid);
+	const int32 LayerIndex = Layers.Num();
+
+	Layers.Add(Source.Layers[SourceLayerIndex]);
+	if (LayerIndex > 0)
+	{
+		Blends.Add(Source.Blends[SourceLayerIndex - 1]);
+	}
+	LayerStates.Add(Source.LayerStates[SourceLayerIndex]);
+#if WITH_EDITOR
+	LayerNames.Add(Source.LayerNames[SourceLayerIndex]);
+	RestrictToLayerRelatives.Add(Source.RestrictToLayerRelatives[SourceLayerIndex]);
+	if (LayerIndex > 0)
+	{
+		RestrictToBlendRelatives.Add(Source.RestrictToBlendRelatives[SourceLayerIndex - 1]);
+	}
+	LayerGuids.Add(Source.LayerGuids[SourceLayerIndex]);
+	ParentLayerGuids.Add(ParentGuid);
+#endif
+}
+
+void FMaterialLayersFunctions::InsertLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, const FGuid& ParentGuid, int32 LayerIndex)
+{
+	check(ParentGuid != UninitializedParentGuid);
+	check(LayerIndex > 0);
+	Layers.Insert(Source.Layers[SourceLayerIndex], LayerIndex);
+	Blends.Insert(Source.Blends[SourceLayerIndex - 1], LayerIndex - 1);
+	LayerStates.Insert(Source.LayerStates[SourceLayerIndex], LayerIndex);
+#if WITH_EDITOR
+	LayerNames.Insert(Source.LayerNames[SourceLayerIndex], LayerIndex);
+	RestrictToLayerRelatives.Insert(Source.RestrictToLayerRelatives[SourceLayerIndex], LayerIndex);
+	RestrictToBlendRelatives.Insert(Source.RestrictToBlendRelatives[SourceLayerIndex - 1], LayerIndex - 1);
+	LayerGuids.Insert(Source.LayerGuids[SourceLayerIndex], LayerIndex);
+	ParentLayerGuids.Insert(ParentGuid, LayerIndex);
+#endif
+}
+
+void FMaterialLayersFunctions::RemoveBlendedLayerAt(int32 Index)
+{
+	if (Layers.IsValidIndex(Index))
+	{
+		check(Layers.IsValidIndex(Index) && Blends.IsValidIndex(Index - 1) && LayerStates.IsValidIndex(Index));
+		Layers.RemoveAt(Index);
+		Blends.RemoveAt(Index - 1);
+		LayerStates.RemoveAt(Index);
+#if WITH_EDITOR
+		check(LayerNames.IsValidIndex(Index) && RestrictToLayerRelatives.IsValidIndex(Index) && RestrictToBlendRelatives.IsValidIndex(Index - 1));
+
+		const FGuid& ParentGuid = ParentLayerGuids[Index];
+		if (ParentGuid != NoParentGuid && ParentGuid != UninitializedParentGuid)
+		{
+			// Save the parent guid as explicitly deleted, so it's not added back
+			check(!DeletedParentLayerGuids.Contains(ParentGuid));
+			DeletedParentLayerGuids.Add(ParentGuid);
+		}
+
+		LayerNames.RemoveAt(Index);
+		RestrictToLayerRelatives.RemoveAt(Index);
+		RestrictToBlendRelatives.RemoveAt(Index - 1);
+		LayerGuids.RemoveAt(Index);
+		ParentLayerGuids.RemoveAt(Index);
+#endif //WITH_EDITOR
+	}
+}
+
+void FMaterialLayersFunctions::MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLayerIndex)
+{
+	check(SrcLayerIndex > 0);
+	check(DstLayerIndex > 0);
+	if (SrcLayerIndex != DstLayerIndex)
+	{
+		Layers.Swap(SrcLayerIndex, DstLayerIndex);
+		Blends.Swap(SrcLayerIndex - 1, DstLayerIndex - 1);
+		LayerStates.Swap(SrcLayerIndex, DstLayerIndex);
+#if WITH_EDITOR
+		LayerNames.Swap(SrcLayerIndex, DstLayerIndex);
+		RestrictToLayerRelatives.Swap(SrcLayerIndex, DstLayerIndex);
+		RestrictToBlendRelatives.Swap(SrcLayerIndex - 1, DstLayerIndex - 1);
+		LayerGuids.Swap(SrcLayerIndex, DstLayerIndex);
+		// Disconnect layers from parent when they're moved at the instance level
+		if (ParentLayerGuids[SrcLayerIndex] != NoParentGuid)
+		{
+			check(ParentLayerGuids[SrcLayerIndex] != UninitializedParentGuid);
+			DeletedParentLayerGuids.Add(ParentLayerGuids[SrcLayerIndex]);
+			ParentLayerGuids[SrcLayerIndex] = NoParentGuid;
+		}
+		if (ParentLayerGuids[DstLayerIndex] != NoParentGuid)
+		{
+			check(ParentLayerGuids[DstLayerIndex] != UninitializedParentGuid);
+			DeletedParentLayerGuids.Add(ParentLayerGuids[DstLayerIndex]);
+			ParentLayerGuids[DstLayerIndex] = NoParentGuid;
+		}
+#endif //WITH_EDITOR
+	}
+}
+
+#if WITH_EDITORONLY_DATA
+void FMaterialLayersFunctions::CopyGuidsToParent()
+{
+	ParentLayerGuids = LayerGuids;
+}
+
+bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Parent, TArray<int32>& OutRemapLayerIndices)
+{
+	check(LayerGuids.Num() == Layers.Num());
+	check(ParentLayerGuids.Num() == Layers.Num());
+
+	FMaterialLayersFunctions ResolvedLayers;
+	TArray<int32> ResolvedLayerIndices;
+
+	// Start with base layer
+	ResolvedLayers.Empty();
+	ResolvedLayers.AddLayerCopy(*this, 0, NoParentGuid);
+
+	for (int32 ParentLayerIndex = 1; ParentLayerIndex < Parent.Layers.Num(); ++ParentLayerIndex)
+	{
+		const FGuid& ParentGuid = Parent.LayerGuids[ParentLayerIndex];
+		if (DeletedParentLayerGuids.Contains(ParentGuid))
+		{
+			// Layer was deleted
+			ResolvedLayers.DeletedParentLayerGuids.Add(ParentGuid);
+			continue;
+		}
+
+		int32 LayerIndex = ParentLayerGuids.Find(ParentGuid);
+		if (LayerIndex == INDEX_NONE)
+		{
+			// Check to see if we have any layers with parents that haven't been initialized yet, that match this parent layer
+			for (int32 CheckLayerIndex = 1; CheckLayerIndex < Layers.Num(); ++CheckLayerIndex)
+			{
+				if (Layers[CheckLayerIndex] == Parent.Layers[ParentLayerIndex] &&
+					Blends[CheckLayerIndex - 1] && Parent.Blends[CheckLayerIndex - 1] &&
+					ParentLayerGuids[CheckLayerIndex] == UninitializedParentGuid)
+				{
+					ParentLayerGuids[CheckLayerIndex] = ParentGuid;
+					LayerIndex = CheckLayerIndex;
+					break;
+				}
+			}
+		}
+
+		if (LayerIndex != INDEX_NONE)
+		{
+			// We have a copy of the layer from the parent, use that
+			check(LayerIndex != 0); // should not find layer 0
+			check(!ResolvedLayerIndices.Contains(LayerIndex));
+			ResolvedLayers.AddLayerCopy(*this, LayerIndex, ParentGuid);
+			ResolvedLayers.LayerNames[ParentLayerIndex] = Parent.LayerNames[ParentLayerIndex]; // Copy (potentially) updated name from parent
+			ResolvedLayerIndices.Add(LayerIndex);
+		}
+		else
+		{
+			// New layer added from parent
+			ResolvedLayers.AddLayerCopy(Parent, ParentLayerIndex, ParentGuid);
+		}
+	}
+
+	// Insert any layers that aren't linked to parent
+	for (int32 LayerIndex = 1; LayerIndex < Layers.Num(); ++LayerIndex)
+	{
+		const FGuid& ParentGuid = ParentLayerGuids[LayerIndex];
+		if (ParentGuid != NoParentGuid)
+		{
+			continue;
+		}
+
+		if (ResolvedLayerIndices.Contains(LayerIndex))
+		{
+			// already added this layer
+			continue;
+		}
+
+		// Layer doesn't exist in parent, merge it in
+		int32 PrevLayerIndex = FMath::Min(LayerIndex - 1, ResolvedLayers.Layers.Num() - 1);
+		while (PrevLayerIndex > 0)
+		{
+			if (ResolvedLayers.LayerGuids[PrevLayerIndex] == LayerGuids[PrevLayerIndex])
+			{
+				break;
+			}
+			--PrevLayerIndex;
+		}
+
+		ResolvedLayers.InsertLayerCopy(*this, LayerIndex, NoParentGuid, PrevLayerIndex + 1);
+	}
+
+	OutRemapLayerIndices.SetNumUninitialized(Layers.Num());
+	OutRemapLayerIndices[0] = 0;
+
+	bool bUpdatedLayers = Layers.Num() != ResolvedLayers.Layers.Num() ||
+		DeletedParentLayerGuids.Num() != ResolvedLayers.DeletedParentLayerGuids.Num();
+
+	for (int32 PrevLayerIndex = 1; PrevLayerIndex < Layers.Num(); ++PrevLayerIndex)
+	{
+		const FGuid& LayerGuid = LayerGuids[PrevLayerIndex];
+		const int32 LayerIndex = ResolvedLayers.LayerGuids.Find(LayerGuid);
+		OutRemapLayerIndices[PrevLayerIndex] = LayerIndex;
+		if (PrevLayerIndex != LayerIndex)
+		{
+			bUpdatedLayers = true;
+		}
+	}
+
+	if (bUpdatedLayers)
+	{
+		*this = MoveTemp(ResolvedLayers);
+	}
+	return bUpdatedLayers;
+}
+#endif // WITH_EDITORONLY_DATA
 
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionMaterialFunctionCall
