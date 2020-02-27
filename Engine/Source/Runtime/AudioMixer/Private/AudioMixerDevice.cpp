@@ -985,27 +985,92 @@ namespace Audio
 #endif // WITH_EDITOR
 	}
 
-	void FMixerDevice::SetSubmixOutputVolume(USoundSubmix* InSoundSubmix, float NewVolume)
+	void FMixerDevice::SetSubmixWetDryLevel(USoundSubmix* InSoundSubmix, float InOutputVolume, float InWetLevel, float InDryLevel)
 	{
 		if (!IsInAudioThread())
 		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetSubmixOutputVolume"), STAT_AudioSetSubmixOutputVolume, STATGROUP_AudioThreadCommands);
-
 			FMixerDevice* MixerDevice = this;
-			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, NewVolume]()
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, InOutputVolume, InWetLevel, InDryLevel]()
 			{
-				CSV_SCOPED_TIMING_STAT(Audio, SetSubmixOutputVolume);
-				MixerDevice->SetSubmixOutputVolume(InSoundSubmix, NewVolume);
-			}, GET_STATID(STAT_AudioSetSubmixOutputVolume));
+				MixerDevice->SetSubmixWetDryLevel(InSoundSubmix, InOutputVolume, InWetLevel, InDryLevel);
+			});
 			return;
 		}
 
-		FMixerSubmixPtr MixerSubmix = GetSubmixInstance(InSoundSubmix).Pin();
-		if (MixerSubmix.IsValid())
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		if (MixerSubmixPtr.IsValid())
 		{
-			AudioRenderThreadCommand([MixerSubmix, NewVolume]()
+			AudioRenderThreadCommand([MixerSubmixPtr, InOutputVolume, InWetLevel, InDryLevel]()
 			{
-				MixerSubmix->SetDynamicOutputVolume(NewVolume);
+				MixerSubmixPtr->SetOutputVolume(InOutputVolume);
+				MixerSubmixPtr->SetWetLevel(InWetLevel);
+				MixerSubmixPtr->SetDryLevel(InDryLevel);
+			});
+		}
+	}
+
+	void FMixerDevice::SetSubmixOutputVolume(USoundSubmix* InSoundSubmix, float InOutputVolume)
+	{
+		if (!IsInAudioThread())
+		{
+			FMixerDevice* MixerDevice = this;
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, InOutputVolume]()
+			{
+				MixerDevice->SetSubmixOutputVolume(InSoundSubmix, InOutputVolume);
+			});
+			return;
+		}
+
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		if (MixerSubmixPtr.IsValid())
+		{
+			AudioRenderThreadCommand([MixerSubmixPtr, InOutputVolume]()
+			{
+				MixerSubmixPtr->SetOutputVolume(InOutputVolume);
+			});
+		}
+	}
+
+	void FMixerDevice::SetSubmixWetLevel(USoundSubmix* InSoundSubmix, float InWetLevel)
+	{
+		if (!IsInAudioThread())
+		{
+			FMixerDevice* MixerDevice = this;
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, InWetLevel]()
+			{
+				MixerDevice->SetSubmixWetLevel(InSoundSubmix, InWetLevel);
+			});
+			return;
+		}
+
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		if (MixerSubmixPtr.IsValid())
+		{
+			AudioRenderThreadCommand([MixerSubmixPtr, InWetLevel]()
+			{
+				MixerSubmixPtr->SetWetLevel(InWetLevel);
+			});
+		}
+	}
+
+	void FMixerDevice::SetSubmixDryLevel(USoundSubmix* InSoundSubmix, float InDryLevel)
+	{
+		if (!IsInAudioThread())
+		{
+			FMixerDevice* MixerDevice = this;
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, InDryLevel]()
+			{
+				MixerDevice->SetSubmixDryLevel(InSoundSubmix, InDryLevel);
+			});
+			return;
+		}
+
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		if (MixerSubmixPtr.IsValid())
+		{
+			AudioRenderThreadCommand([MixerSubmixPtr, InDryLevel]()
+			{
+				MixerSubmixPtr->SetDryLevel(InDryLevel);
 			});
 		}
 	}
@@ -1124,14 +1189,14 @@ namespace Audio
 
 		FMixerSubmixPtr SubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
 
-		if (!bIsMasterSubmix)
-		{
-			RebuildSubmixLinks(*InSoundSubmix, SubmixPtr);
-		}
-
 		if (bInit)
 		{
 			InitSoundfieldAndEndpointDataForSubmix(*InSoundSubmix, SubmixPtr, true);
+		}
+
+		if (!bIsMasterSubmix)
+		{
+			RebuildSubmixLinks(*InSoundSubmix, SubmixPtr);
 		}
 	}
 

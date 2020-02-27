@@ -10,7 +10,7 @@
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "Templates/SharedPointer.h"
-
+#include "AudioDynamicParameter.h"
 
 // Forward Declarations
 class FOnSubmixEnvelopeBP;
@@ -86,11 +86,14 @@ namespace Audio
 		// Removes the given submix from this submix's children
 		void RemoveChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr);
 
-		// Sets the static output volume of the submix
-		void SetOutputVolume(float InVolume);
+		// Sets the output level of the submix
+		void SetOutputVolume(float InOutputLevel);
 
-		// Sets the dynamic output volume
-		void SetDynamicOutputVolume(float InVolume);
+		// Sets the static output volume of the submix
+		void SetDryLevel(float InDryLevel);
+
+		// Sets the wet level of the submix
+		void SetWetLevel(float InWetLevel);
 
 		// Gets the submix channels channels
 		int32 GetSubmixChannels() const;
@@ -421,15 +424,12 @@ namespace Audio
 
 		FEndpointData EndpointData;
 		
-
-		// The output volume of the submix set via the USoundSubmix property. Can be set in the editor.
-		float InitializedOutputVolume;
-		
-		// The current dynamic output volume
-		float OutputVolume;
-		
-		// The target dynamic output volume
+		float CurrentOutputVolume;
 		float TargetOutputVolume;
+		float CurrentWetLevel;
+		float TargetWetLevel;
+		float CurrentDryLevel;
+		float TargetDryLevel;
 
 		// Envelope following data
 		float EnvelopeValues[AUDIO_MIXER_MAX_OUTPUT_CHANNELS];
@@ -442,6 +442,9 @@ namespace Audio
 		
 		// This buffer is used to downmix the submix output to mono before submitting it to the SpectrumAnalyzer.
 		AlignedFloatBuffer MonoMixBuffer;
+
+		// The dry channel buffer
+		AlignedFloatBuffer DryChannelBuffer;
 
 		// Submix command queue to shuffle commands from audio thread to audio render thread.
 		TQueue<TFunction<void()>> CommandQueue;
@@ -460,9 +463,6 @@ namespace Audio
 
 		// Whether or not this submix is muted.
 		uint8 bIsBackgroundMuted : 1;
-
-		// Whether or not to apply a volume scale to output
-		uint8 bApplyOutputVolumeScale : 1;
 
 		// Bool set to true when envelope following is enabled
 		FThreadSafeBool bIsEnvelopeFollowing;

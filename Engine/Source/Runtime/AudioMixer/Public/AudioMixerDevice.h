@@ -107,8 +107,11 @@ namespace Audio
 		// Updates submix instances with new properties
 		virtual void UpdateSubmixProperties(USoundSubmixBase* InSubmix) override;
 		
-		// Sets the submix output volume dynamically
-		virtual void SetSubmixOutputVolume(USoundSubmix* InSubmix, float NewVolume) override;
+		// Submix wet/dry settings
+		void SetSubmixWetDryLevel(USoundSubmix* InSoundSubmix, float InOutputVolume, float InWetLevel, float InDryLevel) override;
+		void SetSubmixOutputVolume(USoundSubmix* InSoundSubmix, float InOutputVolume) override;
+		void SetSubmixWetLevel(USoundSubmix* InSoundSubmix, float InWetLevel) override;
+		void SetSubmixDryLevel(USoundSubmix* InSoundSubmix, float InDryLevel) override;
 
 		// Submix recording callbacks:
 		virtual void StartRecording(USoundSubmix* InSubmix, float ExpectedRecordingDuration) override;
@@ -117,12 +120,12 @@ namespace Audio
 		virtual void PauseRecording(USoundSubmix* InSubmix);
 		virtual void ResumeRecording(USoundSubmix* InSubmix);
 
-		/** Submix envelope following */
+		// Submix envelope following
 		virtual void StartEnvelopeFollowing(USoundSubmix* InSubmix) override;
 		virtual void StopEnvelopeFollowing(USoundSubmix* InSubmix) override;
 		virtual void AddEnvelopeFollowerDelegate(USoundSubmix* InSubmix, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP) override;
 
-		/** Submix Spectrum Analysis */
+		// Submix Spectrum Analysis
 		virtual void StartSpectrumAnalysis(USoundSubmix* InSubmix, const Audio::FSpectrumAnalyzerSettings& InSettings) override;
 		virtual void StopSpectrumAnalysis(USoundSubmix* InSubmix) override;
 		virtual void GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes);

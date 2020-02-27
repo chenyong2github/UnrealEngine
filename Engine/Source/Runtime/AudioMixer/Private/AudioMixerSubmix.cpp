@@ -19,14 +19,6 @@ FAutoConsoleVariableRef CVarRecoverRecordingOnShutdown(
 	TEXT("0: Disabled, 1: Enabled"),
 	ECVF_Default);
 
-static int32 AllowInitOnAudioRenderThreadCVar = 0;
-FAutoConsoleVariableRef CVarAllowInitOnAudioRenderThread(
-	TEXT("au.AllowInitOnAudioRenderThread"),
-	RecoverRecordingOnShutdownCVar,
-	TEXT("When set to 1, we will initialize the submix on the audio render thread.\n")
-	TEXT("0: Disabled, 1: Enabled"),
-	ECVF_Default);
-
 namespace Audio
 {
 	// Unique IDs for mixer submixes
@@ -38,13 +30,15 @@ namespace Audio
 		, MixerDevice(InMixerDevice)
 		, NumChannels(0)
 		, NumSamples(0)
-		, InitializedOutputVolume(1.0f)
-		, OutputVolume(1.0f)
+		, CurrentOutputVolume(1.0f)
 		, TargetOutputVolume(1.0f)
+		, CurrentWetLevel(1.0f)
+		, TargetWetLevel(1.0f)
+		, CurrentDryLevel(0.0f)
+		, TargetDryLevel(0.0f)
 		, EnvelopeNumChannels(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
-		, bApplyOutputVolumeScale(false)
 		, OwningSubmixObject(nullptr)
 	{
 	}
@@ -80,17 +74,10 @@ namespace Audio
 			else if (bAllowReInit)
 			{
 				check(OwningSubmixObject == InSoundSubmix);
-				if (AllowInitOnAudioRenderThreadCVar)
-				{
-					SubmixCommand([this]()
-					{
-						InitInternal();
-					});
-				}
-				else
+				SubmixCommand([this]()
 				{
 					InitInternal();
-				}
+				});
 			}
 		}
 	}
@@ -103,13 +90,15 @@ namespace Audio
 
 		if (const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
 		{
-			// Set the initialized output volume
-			InitializedOutputVolume = FMath::Clamp(SoundSubmix->OutputVolume, 0.0f, 1.0f);
+			CurrentOutputVolume = FMath::Clamp(SoundSubmix->OutputVolume, 0.0f, 1.0f);
+			TargetOutputVolume = CurrentOutputVolume;
 
-			if (!FMath::IsNearlyEqual(InitializedOutputVolume, 1.0f))
-			{
-				bApplyOutputVolumeScale = true;
-			}
+			// Set the initialized output volume
+			CurrentWetLevel = FMath::Clamp(SoundSubmix->WetLevel, 0.0f, 1.0f);
+			TargetWetLevel = CurrentWetLevel;
+
+			CurrentDryLevel = FMath::Clamp(SoundSubmix->DryLevel, 0.0f, 1.0f);
+			TargetDryLevel = CurrentDryLevel;
 
 			for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
 			{
@@ -118,10 +107,10 @@ namespace Audio
 					// Create a new effect instance using the preset
 					FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
 				
-				FSoundEffectSubmixInitData InitData;
-				InitData.DeviceID = MixerDevice->DeviceID;
-				InitData.SampleRate = MixerDevice->GetSampleRate();
-				InitData.PresetSettings = nullptr;
+					FSoundEffectSubmixInitData InitData;
+					InitData.DeviceID = MixerDevice->DeviceID;
+					InitData.SampleRate = MixerDevice->GetSampleRate();
+					InitData.PresetSettings = nullptr;
 
 					// Now set the preset
 					SubmixEffect->Init(InitData);
@@ -725,7 +714,7 @@ namespace Audio
 			{
 				return;
 			}
-			
+
 			//Decode soundfield to interleaved float audio.
 			FSoundfieldDecoderInputData DecoderInput =
 			{
@@ -790,8 +779,29 @@ namespace Audio
 				const FMixerSourceVoice* MixerSourceVoice = MixerSourceVoiceIter.Key;
 				const float SendLevel = MixerSourceVoiceIter.Value.SendLevel;
 
-				
+
 				MixerSourceVoice->MixOutputBuffers(NumChannels, SendLevel, InputBuffer);
+			}
+		}
+
+		DryChannelBuffer.Reset();
+
+		// Check if we need to allocate a dry buffer
+		if (!FMath::IsNearlyEqual(CurrentDryLevel, TargetDryLevel) || !FMath::IsNearlyZero(CurrentDryLevel))
+		{
+			DryChannelBuffer.Append(InputBuffer);
+
+			// If we've already set the volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetDryLevel, CurrentDryLevel))
+			{
+
+				Audio::MultiplyBufferByConstantInPlace(DryChannelBuffer, TargetDryLevel);
+			}
+			else
+			{
+				// To avoid popping, we do a fade on the buffer to the target volume
+				Audio::FadeBufferFast(DryChannelBuffer, CurrentDryLevel, TargetDryLevel);
+				CurrentDryLevel = TargetDryLevel;
 			}
 		}
 
@@ -858,14 +868,14 @@ namespace Audio
 					Audio::MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
 				}
 
-				FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float)*NumSamples);
+				FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float) * NumSamples);
 			}
 		}
 
 		// If we're muted, memzero the buffer. Note we are still doing all the work to maintain buffer state between mutings.
 		if (bIsBackgroundMuted)
 		{
-			FMemory::Memzero((void*)BufferPtr, sizeof(float)*NumSamples);
+			FMemory::Memzero((void*)BufferPtr, sizeof(float) * NumSamples);
 		}
 
 		// If we are recording, Add out buffer to the RecordingData buffer:
@@ -899,7 +909,7 @@ namespace Audio
 
 			// Perform envelope following per channel
 			FScopeLock EnvelopeScopeLock(&EnvelopeCriticalSection);
-			FMemory::Memset(EnvelopeValues, sizeof(float)*AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+			FMemory::Memset(EnvelopeValues, sizeof(float) * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 
 			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 			{
@@ -920,27 +930,40 @@ namespace Audio
 		}
 
 		// Don't necessarily need to do this if the user isn't using this feature
-		if (bApplyOutputVolumeScale)
+		if (!FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel) || !FMath::IsNearlyEqual(CurrentWetLevel, 1.0f))
 		{
-			const float TargetVolumeProduct = TargetOutputVolume * InitializedOutputVolume;
-			const float OutputVolumeProduct = OutputVolume * InitializedOutputVolume;
-
 			// If we've already set the volume, only need to multiply by constant
-			if (FMath::IsNearlyEqual(TargetVolumeProduct, OutputVolumeProduct))
+			if (FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel))
 			{
-				Audio::MultiplyBufferByConstantInPlace(OutAudioBuffer, OutputVolumeProduct);
+				Audio::MultiplyBufferByConstantInPlace(OutAudioBuffer, TargetWetLevel);
 			}
 			else
 			{
 				// To avoid popping, we do a fade on the buffer to the target volume
-				Audio::FadeBufferFast(OutAudioBuffer, OutputVolumeProduct, TargetVolumeProduct);
-				OutputVolume = TargetOutputVolume;
+				Audio::FadeBufferFast(OutAudioBuffer, CurrentWetLevel, TargetWetLevel);
+				CurrentWetLevel = TargetWetLevel;
+			}
+		}
 
-				// No longer need to multiply the output buffer if we're now at 1.0
-				if (FMath::IsNearlyEqual(OutputVolume * InitializedOutputVolume, 1.0f))
-				{
-					bApplyOutputVolumeScale = false;
-				}
+		// Check to see if need to mix together the dry and wet buffers
+		if (DryChannelBuffer.Num())
+		{
+			Audio::MixInBufferFast(DryChannelBuffer, OutAudioBuffer);
+		}
+
+		// Now apply the output volume
+		if (!FMath::IsNearlyEqual(TargetOutputVolume, CurrentOutputVolume) || !FMath::IsNearlyEqual(CurrentOutputVolume, 1.0f))
+		{
+			// If we've already set the output volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetOutputVolume, CurrentOutputVolume))
+			{
+				Audio::MultiplyBufferByConstantInPlace(OutAudioBuffer, TargetOutputVolume);
+			}
+			else
+			{
+				// To avoid popping, we do a fade on the buffer to the target volume
+				Audio::FadeBufferFast(OutAudioBuffer, CurrentOutputVolume, TargetOutputVolume);
+				CurrentOutputVolume = TargetOutputVolume;
 			}
 		}
 
@@ -1460,24 +1483,19 @@ namespace Audio
 		}
 	}
 
-	void FMixerSubmix::SetDynamicOutputVolume(float InVolume)
+	void FMixerSubmix::SetOutputVolume(float InOutputVolume)
 	{
-		InVolume = FMath::Clamp(InVolume, 0.0f, 1.0f);
-		if (!FMath::IsNearlyEqual(InVolume, TargetOutputVolume))
-		{
-			TargetOutputVolume = InVolume;
-			bApplyOutputVolumeScale = true;
-		}
+		TargetOutputVolume = FMath::Clamp(InOutputVolume, 0.0f, 1.0f);
 	}
 
-	void FMixerSubmix::SetOutputVolume(float InVolume)
+	void FMixerSubmix::SetDryLevel(float InDryLevel)
 	{
-		InVolume = FMath::Clamp(InVolume, 0.0f, 1.0f);
-		if (!FMath::IsNearlyEqual(InitializedOutputVolume, InVolume))
-		{
-			InitializedOutputVolume = InVolume;
-			bApplyOutputVolumeScale = true;
-		}
+		TargetDryLevel = FMath::Clamp(InDryLevel, 0.0f, 1.0f);
+	}
+
+	void FMixerSubmix::SetWetLevel(float InWetLevel)
+	{
+		TargetWetLevel = FMath::Clamp(InWetLevel, 0.0f, 1.0f);
 	}
 
 	void FMixerSubmix::BroadcastEnvelope()
