@@ -16,16 +16,7 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			if (Target.Platform == UnrealTargetPlatform.Switch)
-			{
-				PublicDependencyModuleNames.AddRange(
-					new string[]
-					{
-						"PlatformCryptoSwitch",
-					}
-					);
-			}
-			else if (DefaultToSSL)
+			if (DefaultToSSL)
 			{
 				PublicDependencyModuleNames.AddRange(
 					new string[]
