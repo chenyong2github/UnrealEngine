@@ -192,6 +192,7 @@ bool FAudioThread::Init()
 void FAudioThread::Exit()
 {
 	GAudioThreadId = 0;
+	FPlatformProcess::TeardownAudioThread();
 }
 
 uint32 FAudioThread::Run()
