@@ -67,11 +67,15 @@ EDSBitmapType FDatasmithMaxMatHelper::GetTextureClass(Texmap* InTexMap)
 
 	if (InTexMap != nullptr)
 	{
+		MSTR ClassName;
+		InTexMap->GetClassName(ClassName);
+
 		if (InTexMap->ClassID() == RBITMAPCLASS)
 		{
 			Type = EDSBitmapType::RegularBitmap;
 		}
-		else if (InTexMap->ClassID() == AUTODESKBITMAPCLASS)
+		//Somehow, there are multiple autodesk map classes using the same ClassID, we only support Autodesk Bitmap.
+		else if (InTexMap->ClassID() == AUTODESKBITMAPCLASS && FCString::Stricmp(ClassName, TEXT("Autodesk Bitmap")) == 0)
 		{
 			Type = EDSBitmapType::AutodeskBitmap;
 		}
