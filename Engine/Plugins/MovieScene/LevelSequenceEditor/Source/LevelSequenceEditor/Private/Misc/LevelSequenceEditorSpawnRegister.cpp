@@ -82,12 +82,6 @@ UObject* FLevelSequenceEditorSpawnRegister::SpawnObject(FMovieSceneSpawnable& Sp
 		}
 	}
 
-	// Mark the UI dirty so that editors that use the spawnable template's components can regenerate (ie. TransformTrackEditor)
-	if (WeakSequencer.IsValid())
-	{
-		WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
-	}
-
 	return NewObject;
 }
 
