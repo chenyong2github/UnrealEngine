@@ -159,30 +159,41 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 		return false;
 	}
 
-	if ( MeshComponent->GetNumMaterials() > 0 || UsdPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments ) )
+	const bool bHasMaterialAttribute = UsdPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments );
+
+	if ( MeshComponent->GetNumMaterials() > 0 || bHasMaterialAttribute )
 	{
-		if ( pxr::UsdAttribute UEMaterialsAttribute = UsdPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignments, pxr::SdfValueTypeNames->StringArray ) )
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::VtArray< std::string > UEMaterials;
+
+		bool bHasUEMaterialAssignements = false;
+
+		for ( int32 MaterialIndex = 0; MaterialIndex < MeshComponent->GetNumMaterials(); ++MaterialIndex )
 		{
-			FScopedUsdAllocs UsdAllocs;
-
-			pxr::VtArray< std::string > UEMaterials = UsdUtils::GetUsdValue< pxr::VtArray< std::string > >( UEMaterialsAttribute );
-			UEMaterials.clear();
-
-			for ( int32 MaterialIndex = 0; MaterialIndex < MeshComponent->GetNumMaterials(); ++MaterialIndex )
+			if ( UMaterialInterface* AssignedMaterial = MeshComponent->GetMaterial( MaterialIndex ) )
 			{
-				if ( UMaterialInterface* AssignedMaterial = MeshComponent->GetMaterial( MaterialIndex ) )
+				FString AssignedMaterialPathName;
+				if ( AssignedMaterial->GetOutermost() != GetTransientPackage() )
 				{
-					FString AssignedMaterialPathName;
-					if ( AssignedMaterial->GetOutermost() != GetTransientPackage() )
-					{
-						AssignedMaterialPathName = AssignedMaterial->GetPathName();
-					}
-
-					UEMaterials.push_back( UnrealToUsd::ConvertString( *AssignedMaterialPathName ).Get() );
+					AssignedMaterialPathName = AssignedMaterial->GetPathName();
+					bHasUEMaterialAssignements = true;
 				}
-			}
 
-			UEMaterialsAttribute.Set( UEMaterials );
+				UEMaterials.push_back( UnrealToUsd::ConvertString( *AssignedMaterialPathName ).Get() );
+			}
+		}
+
+		if ( bHasUEMaterialAssignements )
+		{
+			if ( pxr::UsdAttribute UEMaterialsAttribute = UsdPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignments, pxr::SdfValueTypeNames->StringArray ) )
+			{
+				UEMaterialsAttribute.Set( UEMaterials );
+			}
+		}
+		else if ( bHasMaterialAttribute )
+		{
+			UsdPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
 		}
 	}
 
