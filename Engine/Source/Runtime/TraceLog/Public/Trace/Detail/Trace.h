@@ -6,15 +6,21 @@
 
 #if UE_TRACE_ENABLED
 
+namespace Trace
+{
+	class FChannel;
+};
+
 #define TRACE_PRIVATE_CHANNEL_DECLARE(LinkageType, ChannelName) \
-	LinkageType Trace::FChannel ChannelName;
+	static Trace::FChannel ChannelName##Object; \
+	LinkageType Trace::FChannel& ChannelName = ChannelName##Object;
 
 #define TRACE_PRIVATE_CHANNEL_IMPL(ChannelName) \
 	struct F##ChannelName##Registrator \
 	{ \
 		F##ChannelName##Registrator() \
 		{ \
-			ChannelName.Initialize(#ChannelName); \
+			ChannelName##Object.Initialize(#ChannelName); \
 		} \
 	}; \
 	static F##ChannelName##Registrator ChannelName##Reg = F##ChannelName##Registrator();
@@ -23,12 +29,12 @@
 	TRACE_PRIVATE_CHANNEL_DECLARE(static, ChannelName) \
 	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName)
 
-#define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ...) \
-	__VA_ARGS__ TRACE_PRIVATE_CHANNEL_DECLARE(extern, ChannelName)
-
 #define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName) \
 	TRACE_PRIVATE_CHANNEL_DECLARE(, ChannelName) \
 	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName)
+
+#define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ...) \
+	__VA_ARGS__ extern Trace::FChannel& ChannelName;
 
 #define TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr) \
 	bool(ChannelsExpr)

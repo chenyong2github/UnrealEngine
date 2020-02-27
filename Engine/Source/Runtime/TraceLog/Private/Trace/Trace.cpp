@@ -4,6 +4,7 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Trace/Detail/Channel.h"
 #include "Trace/Detail/EventDef.h"
 
 namespace Trace
