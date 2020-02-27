@@ -190,12 +190,14 @@ void SDataprepGraphTrackNode::UpdateGraphNode()
 		const int32 ActionsCount = DataprepAsset->GetActionCount();
 		ActionNodes.Empty(ActionsCount);
 		ActionNodes.SetNum(ActionsCount);
+		EdGraphActionNodes.Reset(ActionsCount);
 
-		for(int32 Index = 0; Index < DataprepAsset->GetActionCount(); ++Index)
+		for(int32 Index = 0; Index < ActionsCount; ++Index)
 		{
 			if(UDataprepActionAsset* ActionAsset = DataprepAsset->GetAction(Index))
 			{
-				UDataprepGraphActionNode* NewActionNode = NewObject<UDataprepGraphActionNode>( EdGraph, UDataprepGraphActionNode::StaticClass(), NAME_None, RF_Transactional );
+				EdGraphActionNodes.Emplace(NewObject<UDataprepGraphActionNode>( EdGraph, UDataprepGraphActionNode::StaticClass(), NAME_None, RF_Transactional ));
+				UDataprepGraphActionNode* NewActionNode = EdGraphActionNodes.Last().Get();
 
 				NewActionNode->CreateNewGuid();
 				NewActionNode->PostPlacedNewNode();
@@ -424,7 +426,6 @@ void SDataprepGraphTrackNode::OnStartNodeDrag(const TSharedRef<SDataprepGraphAct
 	LastDragScreenSpacePosition = FSlateApplication::Get().GetCursorPos();
 	const FGeometry& DesktopGeometry = GetOwnerPanel()->GetPersistentState().DesktopGeometry;
 	FVector2D DragLocalPosition = DesktopGeometry.AbsoluteToLocal( LastDragScreenSpacePosition );
-	DragOrdinate = DragLocalPosition.Y;
 
 	SGraphPanel* GraphPanel = OwnerGraphPanelPtr.Pin().Get();
 	ensure(GraphPanel);

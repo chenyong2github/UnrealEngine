@@ -79,6 +79,19 @@ UDataprepActionAsset::~UDataprepActionAsset()
 #endif //WITH_EDITOR
 }
 
+void UDataprepActionAsset::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	Super::PostTransacted(TransactionEvent);
+
+	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
+	{
+		if (TransactionEvent.GetChangedProperties().Contains(TEXT("Steps")))
+		{
+			OnStepsOrderChanged.Broadcast();
+		}
+	}
+}
+
 void UDataprepActionAsset::Execute(const TArray<UObject*>& InObjects)
 {
 	ContextPtr = MakeShareable( new FDataprepActionContext() );
@@ -184,6 +197,7 @@ int32 UDataprepActionAsset::AddStep(const UDataprepActionStep* InActionStep)
 	{
 		Modify();
 		UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this );
+		ActionStep->SetFlags(EObjectFlags::RF_Transactional);
 		Steps.Add( ActionStep );
 		OnStepsOrderChanged.Broadcast();
 		return Steps.Num() - 1;
@@ -208,6 +222,7 @@ int32 UDataprepActionAsset::AddSteps(const TArray<const UDataprepActionStep*>& I
 			if(InActionStep)
 			{
 				UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this );
+				ActionStep->SetFlags(EObjectFlags::RF_Transactional);
 				Steps.Add( ActionStep );
 			}
 		}
@@ -261,6 +276,7 @@ bool UDataprepActionAsset::InsertStep(const UDataprepActionStep* InActionStep, i
 	{
 		Modify();
 		UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this);
+		ActionStep->SetFlags(EObjectFlags::RF_Transactional);
 		Steps.Insert( ActionStep, Index );
 		OnStepsOrderChanged.Broadcast();
 		return true;
@@ -292,6 +308,7 @@ bool UDataprepActionAsset::InsertSteps(const TArray<const UDataprepActionStep*>&
 			if(InActionStep)
 			{
 				UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this );
+				ActionStep->SetFlags(EObjectFlags::RF_Transactional);
 				Steps.Insert( ActionStep, Index );
 			}
 		}
@@ -416,10 +433,38 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 {
 	if ( Steps.IsValidIndex( Index ) )
 	{
-		Modify();
+		return RemoveSteps({ Index });
+	}
 
-		if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this ) )
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::RemoveStep: The Index is out of range") );
+	return false;
+}
+
+bool UDataprepActionAsset::RemoveSteps(const TArray<int32>& Indices)
+{
+	if(Indices.Num() == 0)
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::RemoveSteps: Empty array") );
+		return false;
+	}
+
+	UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this );
+	if(DataprepAsset == nullptr)
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::RemoveSteps: No Dataprep asset") );
+		return false;
+	}
+
+	bool bSuccesfulRemoval = false;
+
+	Modify();
+
+	for(int32 Index : Indices)
+	{
+		if ( Steps.IsValidIndex( Index ) )
 		{
+			bSuccesfulRemoval = true;
+
 			if ( UDataprepParameterization* Parameterization = DataprepAsset->GetDataprepParameterization() )
 			{
 				TArray< UObject* > Objects;
@@ -436,15 +481,19 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 
 				Parameterization->RemoveBindingFromObjects( ParameterizableObjects );
 			}
-		}
 
-		OnStepsAboutToBeRemoved.Broadcast( Steps[Index]->GetStepObject() );
-		Steps.RemoveAt( Index );
+			OnStepsAboutToBeRemoved.Broadcast( Steps[Index]->GetStepObject() );
+			Steps.RemoveAt( Index );
+		}
+	}
+
+	if(bSuccesfulRemoval)
+	{
 		OnStepsOrderChanged.Broadcast();
 		return true;
 	}
 
-	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::RemoveStep: The Index is out of range") );
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::RemoveSteps: Invalid array of step indices") );
 	return false;
 }
 
