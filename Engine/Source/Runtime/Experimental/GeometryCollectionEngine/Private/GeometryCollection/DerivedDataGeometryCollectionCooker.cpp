@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "GeometryCollection/DerivedDataGeometryCollectionCooker.h"
+#include "Chaos/Core.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "Serialization/MemoryWriter.h"
@@ -88,7 +90,7 @@ const TCHAR* FDerivedDataGeometryCollectionCooker::GetVersionString() const
 FString FDerivedDataGeometryCollectionCooker::GetPluginSpecificCacheKeySuffix() const
 {
 
-	return FString::Printf(TEXT("%s_%s_%d"), *GeometryCollection.GetIdGuid().ToString(), *GeometryCollection.GetStateGuid().ToString(), FDestructionObjectVersion::Type::LatestVersion);
+	return FString::Printf(TEXT("%s_%s_%s_%d"), *Chaos::ChaosVersionString, *GeometryCollection.GetIdGuid().ToString(), *GeometryCollection.GetStateGuid().ToString(), FDestructionObjectVersion::Type::LatestVersion);
 }
 
 
