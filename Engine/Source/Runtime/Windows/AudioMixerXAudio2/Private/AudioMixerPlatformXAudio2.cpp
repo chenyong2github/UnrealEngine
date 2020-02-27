@@ -923,11 +923,16 @@ namespace Audio
 				DllName = GetNextDllToTry(DllName);
 				if (DllName != NAME_None)
 				{
+					UE_LOG(LogAudioMixer, Warning, TEXT("Xaudio 2.9: Failed to create Master Voice. Attempting fallback DLL"));
 					TeardownHardware();
 					if (InitializeHardware())
 					{
 						return OpenAudioStream(Params);
 					}
+				}
+				else
+				{
+					UE_LOG(LogAudioMixer, Warning, TEXT("Xaudio 2.9: Failed to create Master Voice. Out of DLL fallbacks"));
 				}
 			}
 #endif //PLATFORM_WINDOWS
@@ -982,6 +987,7 @@ namespace Audio
 
 	bool FMixerPlatformXAudio2::StartAudioStream()
 	{
+		UE_LOG(LogAudioMixer, Log, TEXT("FMixerPlatformXAudio2::StartAudioStream() called"));
 		// Start generating audio with our output source voice
 		BeginGeneratingAudio();
 
@@ -1009,6 +1015,8 @@ namespace Audio
 			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 was not initialized."));
 			return false;
 		}
+
+		UE_LOG(LogAudioMixer, Log, TEXT("FMixerPlatformXAudio2::StopAudioStream() called"));
 
 		check(XAudio2System);
 
@@ -1065,7 +1073,7 @@ namespace Audio
 			return true;
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("Resetting audio stream to device id %s"), *InNewDeviceId);
+		UE_LOG(LogAudioMixer, Log, TEXT("Resetting audio stream to device id %s"), *InNewDeviceId);
 
 		if (bIsUsingNullDevice)
 		{
@@ -1226,6 +1234,12 @@ namespace Audio
 
 			// Submit buffer to the output streaming voice
 			OutputAudioStreamSourceVoice->SubmitSourceBuffer(&XAudio2Buffer);
+
+			if(!FirstBufferSubmitted)
+			{
+				UE_LOG(LogAudioMixer, Display, TEXT("FMixerPlatformXAudio2::SubmitBuffer() called for the first time"));
+				FirstBufferSubmitted = true;
+			}
 		}
 	}
 

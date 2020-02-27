@@ -340,6 +340,11 @@ namespace Audio
 				return AudioMixerPlatform->StartAudioStream();
 			}
 		}
+		else if (AudioMixerPlatform)
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Failed to Open audio stream"));
+		}
+
 		return false;
 	}
 
