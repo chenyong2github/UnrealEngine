@@ -12,9 +12,11 @@
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepFilter.h"
+#include "SelectionSystem/DataprepSelectionTransform.h"
 #include "Widgets/DataprepGraph/SDataprepActionSteps.h"
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
+#include "Widgets/DataprepGraph/SDataprepSelectionTransform.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 #include "Widgets/DataprepGraph/SDataprepOperation.h"
 
@@ -101,6 +103,11 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 			{
 				UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
 				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepFilter, *Filter, StepData) );
+			}
+			else if (StepType == UDataprepSelectionTransform::StaticClass())
+			{
+				UDataprepSelectionTransform* SelectionTransform = static_cast<UDataprepSelectionTransform*>( StepObject );
+				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepSelectionTransform, SelectionTransform, StepData) );
 			}
 
 			if(ActionStepBlockPtr.IsValid())
