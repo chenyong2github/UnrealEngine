@@ -768,8 +768,7 @@ namespace DatasmithRevitExporter
 				{
 					if (!InWorldTransform.IsIdentity)
 					{
-						PivotTransform = PivotTransform * InWorldTransform;
-						InWorldTransform = PivotTransform;
+						InWorldTransform = PivotTransform * InWorldTransform;
 					}
 					else
 					{
