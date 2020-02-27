@@ -378,5 +378,8 @@ private:
 
 	// Clean up transient stub functions
 	void DestroyAnimGraphStubFunctions();
+
+	// Expands split pins for a graph
+	void ExpandSplitPins(UEdGraph* InGraph);
 };
 
