@@ -61,6 +61,12 @@
     </Compile>
     <Compile Include="AnalyzeThirdPartyLibs.Automation.cs" />
     <Compile Include="ArchiveCommand.Automation.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkBuild.Automation.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkBuildTests.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkCookTask.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkNopCompileTask.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkSingleCompileTask.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkTaskBase.cs" />
     <Compile Include="FinalizeInstalledBuild.cs" />
     <Compile Include="BuildHlslcc.Automation.cs" />
     <Compile Include="ParseMsvcTimingInfo.cs" />
