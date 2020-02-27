@@ -11,52 +11,25 @@
 #include "Interfaces/IDMXProtocolRDM.h"
 #include "Interfaces/IDMXProtocolTransport.h"
 
-class FDMXProtocolDeviceManager;
-class FDMXProtocolInterfaceManager;
-class FDMXProtocolPortManager;
-class FDMXProtocolUniverseManager;
-
-DMXPROTOCOL_API DECLARE_LOG_CATEGORY_EXTERN(LogDMXProtocol, Log, All);
-
-DECLARE_STATS_GROUP(TEXT("DMXProtocol"), STATGROUP_DMXProtocol, STATCAT_Advanced);
-
-#ifndef DMXPROTOCOL_LOG_PREFIX
-#define DMXPROTOCOL_LOG_PREFIX TEXT("DMX: ")
-#endif
-
-#define UE_LOG_DMXPROTOCOL(Verbosity, Format, ...) \
-{ \
-	UE_LOG(LogDMXProtocol, Verbosity, TEXT("%s%s"), DMXPROTOCOL_LOG_PREFIX, *FString::Printf(Format, ##__VA_ARGS__)); \
-}
-
-#define UE_CLOG_DMXPROTOCOL(Conditional, Verbosity, Format, ...) \
-{ \
-	UE_CLOG(Conditional, LogDMXProtocol, Verbosity, TEXT("%s%s"), DMXPROTOCOL_LOG_PREFIX, *FString::Printf(Format, ##__VA_ARGS__)); \
-}
-
 /**
- * Generic protocol interface, it should be inherited by all protocol implementations.
+ * Delegate used when downloading of message contents has completed
+ *
+ * @param LocalUserNum the controller number of the associated user that made the request
+ * @param bWasSuccessful true if the async action completed without error, false if there was an error
+ * @param MessageId unique id of the message downloaded
+ * @param ErrorStr string representing the error condition
  */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkInterfaceChanged, const FString&);
+typedef FOnNetworkInterfaceChanged::FDelegate FOnNetworkInterfaceChangedDelegate;
+
+struct FDMXUniverse;
+
+/**  Generic protocol interface, it should be inherited by all protocol implementations. */
 class DMXPROTOCOL_API IDMXProtocol 
 	: public IDMXProtocolBase
 	, public IDMXProtocolRDM
 {
 public:
-	virtual ~IDMXProtocol() {}
-
-	/**
-	 * If protocol exists return the pointer otherwise it create a new protocol first and then return the pointer.
-	 * @param  InProtocolName Name of the requested protocol
-	 * @return Return the pointer to protocol
-	 */
-	template <class TProtocol>
-	static TProtocol* Get(const FName& ProtocolName = NAME_None)
-	{
-		static const FName DMXProtocolModuleName = TEXT("DMXProtocol");
-		FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>(DMXProtocolModuleName);
-		return static_cast<TProtocol*>(DMXProtocolModule.GetProtocol(ProtocolName));
-	}
-
 	static const TMap<FName, IDMXProtocolFactory*>& GetProtocolFactories()
 	{
 		static const FName DMXProtocolModuleName = TEXT("DMXProtocol");
@@ -64,12 +37,39 @@ public:
 		return DMXProtocolModule.GetProtocolFactories();
 	}
 
+	static const TMap<FName, TSharedPtr<IDMXProtocol>>& GetProtocols()
+	{
+		static const FName DMXProtocolModuleName = TEXT("DMXProtocol");
+		FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>(DMXProtocolModuleName);
+		return DMXProtocolModule.GetProtocols();
+	}
+
+	static const TArray<FName>& GetProtocolNames()
+	{
+		const TMap<FName, IDMXProtocolFactory*>& Protocols = GetProtocolFactories();
+		static TArray<FName> ProtocolNames;
+		Protocols.GenerateKeyArray(ProtocolNames);
+		return ProtocolNames;
+	}
+
+	static FName GetFirstProtocolName()
+	{
+		const TMap<FName, IDMXProtocolFactory*>& ProtocolFactories = IDMXProtocol::GetProtocolFactories();
+
+		for (const auto& Itt : ProtocolFactories)
+		{
+			return Itt.Key;
+		}
+
+		return FName();
+	}
+
 	/**
 	 * If protocol exists return the pointer otherwise it create a new protocol first and then return the pointer.
 	 * @param  InProtocolName Name of the requested protocol
 	 * @return Return the pointer to protocol
 	 */
-	static IDMXProtocol* Get(const FName& ProtocolName = NAME_None)
+	static TSharedPtr<IDMXProtocol> Get(const FName& ProtocolName = NAME_None)
 	{
 		static const FName DMXProtocolModuleName = TEXT("DMXProtocol");
 		FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>(DMXProtocolModuleName);
@@ -80,7 +80,7 @@ public:
 	 * Get the Protocol Name
 	 * @return Return FName of the protocol
 	 */
-	virtual FName GetProtocolName() const = 0;
+	virtual const FName& GetProtocolName() const = 0;
 	
 	/**
 	 * Get the Protocol Sender Interface
@@ -90,44 +90,10 @@ public:
 	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const = 0;
 
 	/**
-	 * Get the device manager for a protocol instance
-	 * The device manager is responsible for hold and searches the physical devices
-	 * Physical devices are nodes, controllers, consoles
-	 * @return Return the pointer to DeviceManager
-	 */
-	virtual TSharedPtr<FDMXProtocolDeviceManager> GetDeviceManager() const = 0;
-	
-	/**
-	 * Get the interface manager for a protocol instance
-	 * The interface is the way how protocol interacts with Unreal Engine
-	 * This could be done with ethernet, serial or fake communication
-	 * @return Return the pointer to InterfaceManager
-	 */
-	virtual TSharedPtr<FDMXProtocolInterfaceManager> GetInterfaceManager() const = 0;
-
-	/**
-	 * Get the port manager for a protocol instance
-	 * Port managers are responsible for hold the configuration instances of physical ports
-	 */
-	virtual TSharedPtr<FDMXProtocolPortManager> GetPortManager() const = 0;
-	
-	/**
-	 * Get the universe manager for a protocol instance
-	 * Universe managers hold the buffers of DMX for particular universes
-	 * @return Return the pointer to UniverseManager
-	 */
-	virtual TSharedPtr<FDMXProtocolUniverseManager> GetUniverseManager() const = 0;
-
-	/**
 	 * Get the protocol settings
 	 * @return Return the pointer to Protocol Settings
 	 */
 	virtual TSharedPtr<FJsonObject> GetSettings() const = 0;
-
-	/**
-	 * Reloads the protocol instance
-	 */
-	virtual void Reload() = 0;
 
 	/**
 	 * Whether protocol enabled
@@ -136,21 +102,89 @@ public:
 	virtual bool IsEnabled() const = 0;
 
 	/**
+	 * Add universe to the manager
+	 * @param  FJsonObject universe settings, such as UniverseID, Subnet, etc.
+	 * This is unique to each protocol implementation
+	 * @return Return the pointer to universe
+	 */
+	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) = 0;
+
+	/**
+	 * Collects the universes related to a UniverseManger Entity and add them to
+	 * the protocol to be used for communication.
+	 * @param Universes The list of universes from the Entity.
+	 */
+	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) = 0;
+
+	/**
+	 * Remove Universe from the Protocol Universe Manager.
+	 * @param  InUniverseId unique number of universe
+	 * @return Return true if it was successfully removed
+	 */
+	virtual bool RemoveUniverseById(uint32 InUniverseId) = 0;
+
+	/**  Remove all universes from protocol manager */
+	virtual void RemoveAllUniverses() = 0;
+
+	/**
+	 * Getting Universe from the Protocol Universe Manager.
+	 * @param  InUniverseId unique number of universe
+	 * @return Return the pointer to the universe, or nullptr if there is no Universe by the given ID
+	 */
+	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const = 0;
+
+	/**
+	 * Get current amount of universes in the Map
+	 * @return Return amount of universes in the Map
+	 */
+	virtual uint32 GetUniversesNum() const = 0;
+
+	/**
+	 * Get minimum supported universe ID for protocol
+	 * @return Minimum supported universe ID for protocol
+	 */
+	virtual uint16 GetMinUniverseID() const = 0;
+	
+	/**
+	 * Get maximum supported universes in protocol
+	 * @return Maximum supported universes in protocol
+	 */
+	virtual uint16 GetMaxUniverses() const = 0;
+
+	/**
 	 * Sets the DMX fragment for a particular universe
 	 * @param  UniverseID ID of universe to send
 	 * @param  DMXFragment Map of DMX channel  and values
-	 * @param  bShouldSend whether it should be sent or just store in the universe buffer
+	 * @return Return the status of sending
 	 */
-	virtual void SetDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment, bool bShouldSend = true) = 0;
+	virtual EDMXSendResult SendDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) = 0;
 
 	/**
-	 * Send DMX to physical device port
+	 * Sets the DMX fragment for a particular universe
+	 * Create protocol Universe if it does not exist
 	 * @param  UniverseID ID of universe to send
-	 * @param  PortID Physical port ID
-	 * @param  DMXBuffer DMX buffer to sent
-	 * @return Return true if DMX buffer included in the send queue
+	 * @param  DMXFragment Map of DMX channel  and values
+	 * @return Return the status of sending
 	 */
-	virtual bool SendDMX(uint16 UniverseID, uint8 PortID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const = 0;
+	virtual EDMXSendResult SendDMXFragmentCreate(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) = 0;
+
+	/**
+	 * Gets the final protocol universe ID to send
+	 * This is implemented protocol-specific offset
+	 * @param  UniverseID ID of universe to send
+	 * @return Return final Universe ID for sending
+	 */
+	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const = 0;
+
+	/**
+	 * Called on input universe.
+	 * Parameters represent: Protocol Name, UniverseID and Buffer
+	 */
+	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseInputUpdateEvent, FName, uint16, const TArray<uint8>&);
+	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() = 0;
+
+public:
+	static FOnNetworkInterfaceChanged OnNetworkInterfaceChanged;
 };
 
 
