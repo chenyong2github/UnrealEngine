@@ -1904,7 +1904,7 @@ bool UNiagaraScript::SynchronizeExecutablesWithMaster(const UNiagaraScript* Scri
 
 void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 {
-	UE_LOG(LogNiagara, Verbose, TEXT("InvalidateCompileResults Script:%s Reason:%s"), *GetPathName());
+	UE_LOG(LogNiagara, Verbose, TEXT("InvalidateCompileResults Script:%s Reason:%s"), *GetPathName(), *Reason);
 	CachedScriptVM.Reset();
 	ScriptResource.Invalidate();
 	CachedScriptVMId.Invalidate();
