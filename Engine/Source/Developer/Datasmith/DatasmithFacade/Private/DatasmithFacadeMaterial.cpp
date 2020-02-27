@@ -66,7 +66,7 @@ void FDatasmithFacadeMaterial::AddTexture(
 	if (!FString(InTextureFilePath).IsEmpty())
 	{
 		// Make Datasmith texture name from file name.
-		FString FileName = FDatasmithUtils::SanitizeFileName(FPaths::GetBaseFilename(InTextureFilePath));
+		FString FileName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(InTextureFilePath));
 		FString TextureName = FString::Printf(TEXT("%ls_%d"), *FileName, int(InTextureMode));
 
 		// Create a new Datasmith material texture property.
