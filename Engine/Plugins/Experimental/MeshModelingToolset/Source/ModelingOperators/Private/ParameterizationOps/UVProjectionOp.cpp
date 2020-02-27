@@ -86,8 +86,8 @@ void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 	{	
 		// All cases in this branch require normals 
 		// compute normals on the transformed vertices
-		TArray<FVector3d> TransformedNormals; TransformedNormals.SetNumUninitialized(ResultMesh->TriangleCount());
-		ParallelFor(ResultMesh->TriangleCount(), [this, &TransformedVertices, &TransformedNormals](int32 TriangleID)
+		TArray<FVector3d> TransformedNormals; TransformedNormals.SetNumUninitialized(ResultMesh->MaxTriangleID());
+		ParallelFor(ResultMesh->MaxTriangleID(), [this, &TransformedVertices, &TransformedNormals](int32 TriangleID)
 		{
 			if (ResultMesh->IsTriangle(TriangleID))
 			{
