@@ -121,6 +121,10 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 					if (NiagaraComponent->IsActive())
 					{
 						NiagaraComponent->DeactivateImmediate();
+						if (NiagaraComponent->GetSystemInstance() != nullptr)
+						{
+							NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+						}
 					}
 				}
 			}
@@ -163,6 +167,10 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 					if (NiagaraComponent->IsActive())
 					{
 						NiagaraComponent->DeactivateImmediate();
+						if (NiagaraComponent->GetSystemInstance() != nullptr)
+						{
+							NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+						}
 					}
 				}
 			}
