@@ -51,6 +51,11 @@
 #if PX_ANDROID
 	// If cmath is included after math.h, it will undefine isfinite. If that's the case, use the version in the std namespace instead.
 	#ifndef isfinite
+	#ifdef PLATFORM_ANDROID_NDK_VERSION
+		#if PLATFORM_ANDROID_NDK_VERSION >= 200200
+			#include <cmath>
+		#endif
+	#endif
 		using std::isfinite;
 	#endif
 #endif
