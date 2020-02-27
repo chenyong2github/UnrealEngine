@@ -173,7 +173,7 @@ FProperty* FComponentEditorUtils::GetPropertyForEditableNativeComponent(const UA
 	// Note: We aren't concerned with whether the component is marked editable - the component itself is responsible for determining which of its properties are editable	
 	UObject* ComponentOuter = (NativeComponent ? NativeComponent->GetOuter() : nullptr);
 	UClass* OwnerClass = (ComponentOuter ? ComponentOuter->GetClass() : nullptr);
-	AActor* OwnerCDO = (OwnerClass ? CastChecked<AActor>(OwnerClass->GetDefaultObject()) : nullptr);
+	UObject* OwnerCDO = (OwnerClass ? OwnerClass->GetDefaultObject() : nullptr);
 
 	if (OwnerClass != nullptr)
 	{
