@@ -16,10 +16,13 @@
 #include "Landscape.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
+#include "Logging/LogMacros.h"
 #include "Misc/MapErrors.h"
 #include "EngineModule.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeTools"
+
+DEFINE_LOG_CATEGORY(LogLandscapeTools);
 
 const int32 FNoiseParameter::Permutations[256] =
 {
@@ -103,8 +106,8 @@ public:
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
 		// Invert when holding Shift
-		//UE_LOG(LogLandscape, Log, TEXT("bInvert = %d"), bInvert);
 		bool bInvert = InteractorPositions.Last().bModifierPressed;
+		UE_LOG(LogLandscapeTools, VeryVerbose, TEXT("bInvert = %d"), bInvert);
 
 		if (bIsWhitelistMode)
 		{
@@ -389,8 +392,8 @@ public:
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
 		// Invert when holding Shift
-		//UE_LOG(LogLandscape, Log, TEXT("bInvert = %d"), bInvert);
 		bool bInvert = InteractorPositions.Last().bModifierPressed;
+		UE_LOG(LogLandscapeTools, VeryVerbose, TEXT("bInvert = %d"), bInvert);
 
 		// Get list of verts to update
 		FLandscapeBrushData BrushInfo = Brush->ApplyBrush(InteractorPositions);
