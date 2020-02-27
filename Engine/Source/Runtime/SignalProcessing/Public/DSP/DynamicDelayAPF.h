@@ -48,7 +48,7 @@ namespace Audio
 	private:
 		// Feedback/Feedforward gain coefficient
 		FLinearEase G;
-		float EaseTimeInSec{ 2.0f };
+		float EaseTimeInSec;
 		int32 MinDelay;
 		int32 MaxDelay;
 		int32 NumDelaySamples;
