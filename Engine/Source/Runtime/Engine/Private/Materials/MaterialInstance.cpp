@@ -3055,8 +3055,8 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 {
 	UMaterial* BaseMaterial = GetMaterial();
 #if WITH_EDITOR
-	BaseMaterial->UpdateCachedExpressionData();
-	UpdateCachedLayerParameters();
+	check(!HasAnyFlags(RF_NeedPostLoad));
+	check(!BaseMaterial->HasAnyFlags(RF_NeedPostLoad));
 #endif
 
 	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
