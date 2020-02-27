@@ -453,11 +453,6 @@ void FPaintModeSettingsCustomization::OnPaintTypeChanged(IDetailLayoutBuilder* L
 	LayoutBuilder->ForceRefreshDetails();
 }
 
-TSharedPtr<SWidget> FPaintModeSettingsRootObjectCustomization::CustomizeObjectHeader(const UObject* InRootObject)
-{
-	return SNullWidget::NullWidget;
-}
-
 TSharedRef<SHorizontalBox> CreateColorChannelWidget(TSharedRef<IPropertyHandle> ChannelProperty)
 {
 	return SNew(SHorizontalBox)

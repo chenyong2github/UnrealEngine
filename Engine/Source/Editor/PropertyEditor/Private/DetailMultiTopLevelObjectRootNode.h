@@ -33,8 +33,8 @@ private:
 	const FSlateBrush* GetBackgroundImage() const;
 
 private:
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 private:
 	EExpansionArrowUsage ExpansionArrowUsage;
 	SHorizontalBox::FSlot* ContentSlot = nullptr;
@@ -44,17 +44,17 @@ private:
 class FDetailMultiTopLevelObjectRootNode : public FDetailTreeNode, public TSharedFromThis<FDetailMultiTopLevelObjectRootNode>
 {
 public:
-	FDetailMultiTopLevelObjectRootNode( const FDetailNodeList& InChildNodes, const TSharedPtr<IDetailRootObjectCustomization>& RootObjectCustomization, IDetailsViewPrivate* InDetailsView, const UObject& InRootObject );
+	FDetailMultiTopLevelObjectRootNode(const FDetailNodeList& InChildNodes, const TSharedPtr<IDetailRootObjectCustomization>& RootObjectCustomization, IDetailsViewPrivate* InDetailsView, const FObjectPropertyNode* RootNode);
 private:
-	virtual IDetailsViewPrivate* GetDetailsView() const override{ return DetailsView; }
-	virtual void OnItemExpansionChanged( bool bIsExpanded, bool bShouldSaveState ) override {}
-	virtual bool ShouldBeExpanded() const override { return true; }
+	virtual IDetailsViewPrivate* GetDetailsView() const override { return DetailsView; }
+	virtual void OnItemExpansionChanged(bool bIsExpanded, bool bShouldSaveState) override;
+	virtual bool ShouldBeExpanded() const override;
 	virtual ENodeVisibility GetVisibility() const override;
-	virtual TSharedRef< ITableRow > GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem) override;
+	virtual TSharedRef<ITableRow> GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem) override;
 	virtual bool GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const override;
-	virtual void GetChildren(FDetailNodeList& OutChildren )  override;
-	virtual void FilterNode( const FDetailFilter& InFilter ) override;
-	virtual void Tick( float DeltaTime ) override {}
+	virtual void GetChildren(FDetailNodeList& OutChildren)  override;
+	virtual void FilterNode(const FDetailFilter& InFilter) override;
+	virtual void Tick(float DeltaTime) override {}
 	virtual bool ShouldShowOnlyChildren() const override;
 	virtual FName GetNodeName() const override { return NodeName; }
 	virtual EDetailNodeType GetNodeType() const override { return EDetailNodeType::Object; }
@@ -65,8 +65,10 @@ private:
 	FDetailNodeList ChildNodes;
 	IDetailsViewPrivate* DetailsView;
 	TWeakPtr<IDetailRootObjectCustomization> RootObjectCustomization;
-	const TWeakObjectPtr<UObject> RootObject;
+	FDetailsObjectSet RootObjectSet;
+	const UClass* CommonBaseClass;
 	FName NodeName;
 	bool bShouldBeVisible;
+	bool bHasFilterStrings;
 	bool bShouldShowOnlyChildren;
 };
