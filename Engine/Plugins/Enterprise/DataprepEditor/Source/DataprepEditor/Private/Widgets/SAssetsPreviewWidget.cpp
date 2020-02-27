@@ -384,6 +384,17 @@ namespace AssetPreviewWidget
 		}
 		AssetSubPath.ReplaceCharInline(TEXT('/'), TEXT('.'));
 		AssetSubPath.ParseIntoArray(ItemsName, TEXT("."), true);
+
+		// Check that asset's name is not repeated twice at the end
+		if(ItemsName.Num() > 1)
+		{
+			const int32 LastIndex = ItemsName.Num() - 1;
+			if(ItemsName[LastIndex] == ItemsName[LastIndex - 1])
+			{
+				ItemsName.RemoveAt(LastIndex, 1, false);
+			}
+		}
+
 		return ItemsName;
 	}
 
