@@ -9,14 +9,17 @@ class IPhysicsProxyBase; // WTF - not in Chaos?
 
 namespace Chaos
 {
+	class FPBDRigidsEvolutionGBF;
+	using FPBDRigidsEvolution = FPBDRigidsEvolutionGBF;
 
 	class CHAOS_API FPhysicsSolverBase
 	{
 	public:
 
-		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn)
-			: BufferMode(BufferingModeIn)
-		{}
+		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn);
+		~FPhysicsSolverBase();
+		FPhysicsSolverBase(const FPhysicsSolverBase&) = delete;
+		FPhysicsSolverBase(FPhysicsSolverBase&&);
 		
 		void ChangeBufferMode(EMultiBufferMode InBufferMode);
 
@@ -28,6 +31,9 @@ namespace Chaos
 		{
 			DirtyProxiesSet.Remove(ProxyBaseIn);
 		}
+
+		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
+		FPBDRigidsEvolution* GetEvolution() const { return MEvolution.Get(); }
 
 #if CHAOS_CHECKED
 		void SetDebugName(const FName& Name)
@@ -50,5 +56,9 @@ namespace Chaos
 #if CHAOS_CHECKED
 			FName DebugName;
 #endif
+			//TODO: Make more extensible
+			TUniquePtr<FPBDRigidsEvolution> MEvolution;
+
+			void SetEvolution(TUniquePtr<FPBDRigidsEvolution>&& Evolution);
 	};
 }
