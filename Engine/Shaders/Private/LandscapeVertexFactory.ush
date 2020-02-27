@@ -304,8 +304,12 @@ FLandscapeTexCoords GetLandscapeTexCoords(FVertexFactoryInput Input, FVertexFact
 
 	Result.LayerTexCoord.xy = Intermediates.LocalPosition.xy + LandscapeParameters.SubsectionSizeVertsLayerUVPan.zw + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.ww;
 #if USING_TESSELLATION
+#if FIXED_GRID
+	Result.LayerTexCoord.zw = 0;
+#else
 	Result.LayerTexCoord.z = LandscapeContinuousLODParameters.SectionTessellationFalloffC[GetComponentLinearIndex()];
 	Result.LayerTexCoord.w = LandscapeContinuousLODParameters.SectionTessellationFalloffK[GetComponentLinearIndex()];
+#endif
 #endif
 
 	Result.WeightMapTexCoord	= Intermediates.LocalPosition.xy * LandscapeParameters.WeightmapUVScaleBias.xy + LandscapeParameters.WeightmapUVScaleBias.zw + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.zz;
