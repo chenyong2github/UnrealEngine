@@ -656,8 +656,6 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 
 void SDataprepDetailsView::OnPropertyChanged(const FPropertyChangedEvent& InEvent)
 {
-	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( DetailedObject );
-
 	if( TrackedProperties.Contains( InEvent.Property ) )
 	{
 		ForceRefresh();
@@ -916,7 +914,7 @@ void SDataprepDetailsView::Construct()
 		UDataprepAsset* DataprepAsset = FDataprepParameterizationUtils::GetDataprepAssetForParameterization( DetailedObject );
 		if ( DataprepAsset )
 		{
-			OnDataprepParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsChanged.AddSP( this, &SDataprepDetailsView::OnDataprepParameterizationStatusForObjectsChanged );
+			OnDataprepParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsStatusChanged.AddSP( this, &SDataprepDetailsView::OnDataprepParameterizationStatusForObjectsChanged );
 		}
 
 		if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
@@ -983,7 +981,7 @@ SDataprepDetailsView::~SDataprepDetailsView()
 
 	if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
 	{
-		DataprepAsset->OnParameterizedObjectsChanged.Remove( OnDataprepParameterizationStatusForObjectsChangedHandle );
+		DataprepAsset->OnParameterizedObjectsStatusChanged.Remove( OnDataprepParameterizationStatusForObjectsChangedHandle );
 	}
 }
 

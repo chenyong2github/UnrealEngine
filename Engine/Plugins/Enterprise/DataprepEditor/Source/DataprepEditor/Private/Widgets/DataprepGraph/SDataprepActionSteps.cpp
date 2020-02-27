@@ -5,7 +5,6 @@
 #include "DataprepActionAsset.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorStyle.h"
-#include "DataprepEditorUtils.h"
 #include "DataprepOperation.h"
 #include "SchemaActions/DataprepAllMenuActionCollector.h"
 #include "SchemaActions/DataprepDragDropOp.h"
@@ -210,7 +209,6 @@ void SDataprepActionSteps::Construct(const FArguments& InArgs, UDataprepActionAs
 void SDataprepActionSteps::OnStepsOrderChanged()
 {
 	Refresh();
-	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( DataprepActionPtr.Get() );
 }
 
 void SDataprepActionSteps::Refresh()

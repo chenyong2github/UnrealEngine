@@ -6,12 +6,10 @@
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorUtils.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
-#include "SchemaActions/DataprepFetcherMenuActionCollector.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepStringFilter.h"
 #include "SelectionSystem/DataprepStringsArrayFilter.h"
 #include "Widgets/DataprepGraph/DataprepActionWidgetsUtils.h"
-#include "Widgets/DataprepGraph/SDataprepFetcherSelector.h"
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/Parameterization/SDataprepParameterizationLinkIcon.h"
 
@@ -59,7 +57,7 @@ void SDataprepStringFilter<FilterType>::Construct(const FArguments& InArgs, Filt
 			UserStringParameterizationActionData = MakeShared<FDataprepParametrizationActionData>( *DataprepAsset, InFilter, PropertyChain);
 		}
 
-		OnParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsChanged.AddSP( this, &SDataprepStringFilter<FilterType>::OnParameterizationStatusForObjectsChanged );
+		OnParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsStatusChanged.AddSP( this, &SDataprepStringFilter<FilterType>::OnParameterizationStatusForObjectsChanged );
 	}
 
 	UpdateVisualDisplay();
@@ -70,7 +68,7 @@ SDataprepStringFilter<FilterType>::~SDataprepStringFilter()
 {
 	if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( Filter ) )
 	{
-		DataprepAsset->OnParameterizedObjectsChanged.Remove( OnParameterizationStatusForObjectsChangedHandle );
+		DataprepAsset->OnParameterizedObjectsStatusChanged.Remove( OnParameterizationStatusForObjectsChangedHandle );
 	}
 }
 
@@ -235,8 +233,6 @@ void SDataprepStringFilter<FilterType>::OnSelectedCriteriaChanged(TSharedPtr<FLi
 		FPropertyChangedEvent EditPropertyChangeEvent( Property, EPropertyChangeType::ValueSet );
 		FPropertyChangedChainEvent EditChangeChainEvent( EditChain, EditPropertyChangeEvent );
 		Filter->PostEditChangeChainProperty( EditChangeChainEvent );
-
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 	}
 }
 
@@ -282,7 +278,6 @@ void SDataprepStringFilter<FilterType>::OnUserStringComitted(const FText& NewTex
 		FPropertyChangedChainEvent EditChangeChainEvent( EditChain, EditPropertyChangeEvent );
 		Filter->PostEditChangeChainProperty( EditChangeChainEvent );
 
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 		OldUserString = NewUserString;
 	}
 }
