@@ -1071,9 +1071,9 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 
 	for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel : GetSystemViewModel()->GetScriptScratchPadViewModel()->GetScriptViewModels())
 	{
-		if (MatchesInputType(ScratchPadScriptViewModel->GetScript()))
+		if (MatchesInputType(ScratchPadScriptViewModel->GetOriginalScript()))
 		{
-			AvailableDynamicInputs.Add(ScratchPadScriptViewModel->GetScript());
+			AvailableDynamicInputs.Add(ScratchPadScriptViewModel->GetOriginalScript());
 		}
 	}
 }
@@ -1127,10 +1127,11 @@ void UNiagaraStackFunctionInput::SetScratch()
 	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchScriptViewModel = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScript(ENiagaraScriptUsage::DynamicInput, SourceScript->GetUsage(), InputType);
 	if (ScratchScriptViewModel.IsValid())
 	{
-		SetDynamicInput(ScratchScriptViewModel->GetScript());
+		SetDynamicInput(ScratchScriptViewModel->GetOriginalScript());
+		GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::ScratchPadTabID);
+		GetSystemViewModel()->GetScriptScratchPadViewModel()->SetActiveScriptViewModel(ScratchScriptViewModel.ToSharedRef());
 		ScratchScriptViewModel->SetIsPendingRename(true);
 	}
-	GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::ScratchPadTabID);
 }
 
 TSharedPtr<const FStructOnScope> UNiagaraStackFunctionInput::GetLocalValueStruct()
@@ -1766,7 +1767,7 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			{
 				UNiagaraScript* ClipboardScript = ClipboardFunctionInput.Dynamic->Script->IsAsset()
 					? ClipboardFunctionInput.Dynamic->Script
-					: GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionInput.Dynamic->Script)->GetScript();
+					: GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionInput.Dynamic->Script)->GetOriginalScript();
 				SetDynamicInput(ClipboardScript, ClipboardFunctionInput.Dynamic->FunctionName);
 
 				TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;

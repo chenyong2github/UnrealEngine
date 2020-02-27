@@ -121,6 +121,9 @@ public:
 
 	UPROPERTY()
 	TArray<const UNiagaraRendererProperties*> Renderers;
+
+	UPROPERTY()
+	TArray<const UNiagaraScript*> Scripts;
 };
 
 class FNiagaraClipboard
