@@ -57,6 +57,8 @@ public:
 	virtual FMovieSceneTrackRowSegmentBlenderPtr GetRowSegmentBlender() const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
 
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+
 private:
 
 	/** List of all master audio sections */
