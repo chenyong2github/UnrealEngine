@@ -73,6 +73,14 @@ public:
 	static void GetCloudAnchor(UARPin* ARPin, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor);
 
 	///**
+	// * Get list of all CloudAnchors.
+	// *
+	// * @param OutCloudAnchors 	The cloud spatial anchors
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))	
+	static void GetCloudAnchors(TArray<UAzureCloudSpatialAnchor*>& OutCloudAnchors);
+
+	///**
 	// * Save the pin to the cloud.
 	// * This will start a Latent Action to save the ARPin to the Azure Spatial Anchors cloud service.
 	// *
