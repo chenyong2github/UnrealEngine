@@ -1249,6 +1249,7 @@ public:
 		InRHICmdList.DrawPrimitive(0, PrimitiveCount, 1);
 
 		InRHICmdList.EndRenderPass();
+		InRHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ViewFamily.RenderTarget->GetRenderTargetTexture());
 
 		VertexDeclaration.ReleaseResource();
 		VertexBufferResource.ReleaseResource();
