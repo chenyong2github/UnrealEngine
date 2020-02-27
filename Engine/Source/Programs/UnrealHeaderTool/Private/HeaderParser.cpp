@@ -1064,6 +1064,7 @@ namespace
 			}
 			break;
 
+			case ECheckedMetadataSpecifier::ExpandBoolAsExecs:
 			case ECheckedMetadataSpecifier::ExpandEnumAsExecs:
 			{
 				if (UFunction* Function = Field.Get<UFunction>())
