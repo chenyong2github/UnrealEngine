@@ -132,6 +132,17 @@ void FDisplayClusterRenderManager::EndSession()
 		RenderDevicePtr = nullptr;
 	}
 #endif
+
+	ConfigPath.Reset();
+	ClusterNodeId.Reset();
+	
+	bWindowAdjusted = false;
+
+	RenderDeviceFactories.Reset();
+	SyncPolicyFactories.Reset();
+	SyncPolicy.Reset();
+	ProjectionPolicyFactories.Reset();
+	PostProcessOperations.Reset();
 }
 
 bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
