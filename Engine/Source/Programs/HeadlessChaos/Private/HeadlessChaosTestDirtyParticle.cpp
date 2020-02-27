@@ -18,61 +18,48 @@ namespace ChaosTest
 	GTEST_TEST(DirtyParticleTests,Basic)
 	{
 		FDirtyPropertiesManager DirtyPropertiesPool;
-		FDirtyIdx Idx = DirtyPropertiesPool.WriteX(FVec3(1,1,1));
-		FDirtyIdx Idx2 = DirtyPropertiesPool.WriteX(FVec3(2,1,1));
-		FDirtyIdx Idx3 = DirtyPropertiesPool.WriteInvM(3);
+		FDirtyProperties DirtyParticle1;
+		DirtyParticle1.WriteX(DirtyPropertiesPool, FVec3(1,1,1));
+		DirtyParticle1.WriteInvM(DirtyPropertiesPool, 3);
 
+		FDirtyProperties DirtyParticle2;
+		DirtyParticle2.WriteX(DirtyPropertiesPool, FVec3(2,1,1));
 
-		EXPECT_EQ(Idx.Property, EParticleProperty::X);
-		EXPECT_EQ(Idx.Entry, 0);
-		EXPECT_EQ(DirtyPropertiesPool.ReadX(Idx),FVec3(1,1,1));
+		//properties are dirty
+		EXPECT_TRUE(DirtyParticle1.IsDirty(EParticleFlags::X));
+		EXPECT_TRUE(DirtyParticle1.IsDirty(EParticleFlags::InvM));
 
+		EXPECT_TRUE(DirtyParticle2.IsDirty(EParticleFlags::X));
 
-		EXPECT_EQ(Idx2.Property, EParticleProperty::X);
-		EXPECT_EQ(Idx2.Entry, 1);
-		EXPECT_EQ(DirtyPropertiesPool.ReadX(Idx2),FVec3(2,1,1));
+		//untouched properties are clean
+		EXPECT_FALSE(DirtyParticle2.IsDirty(EParticleFlags::InvM));
 
+		//values were saved
+		EXPECT_EQ(DirtyParticle1.ReadX(DirtyPropertiesPool), FVec3(1,1,1));
+		EXPECT_EQ(DirtyParticle1.ReadInvM(DirtyPropertiesPool), 3);
+		EXPECT_EQ(DirtyParticle2.ReadX(DirtyPropertiesPool), FVec3(2,1,1));
+		
+		EXPECT_EQ(DirtyParticle1.PopX(DirtyPropertiesPool),FVec3(1,1,1));
+		EXPECT_FALSE(DirtyParticle1.IsDirty(EParticleFlags::X));
 
-		EXPECT_EQ(Idx3.Property, EParticleProperty::InvM);
-		EXPECT_EQ(Idx3.Entry, 0);
-		EXPECT_EQ(DirtyPropertiesPool.ReadInvM(Idx3),3);
+		//make sure we are not leaking shared ptrs
+		TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> Ptr(new TSphere<FReal,3>(FVec3(0), 0));
+		DirtyParticle1.WriteGeometry(DirtyPropertiesPool, Ptr);
+		TWeakPtr<FImplicitObject,ESPMode::ThreadSafe> WeakPtr(Ptr);
+		Ptr = nullptr;
 
+		EXPECT_TRUE(WeakPtr.IsValid());	//still around because dirty pool is holding on to it
+		{
+			TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> Geom = DirtyParticle1.PopGeometry(DirtyPropertiesPool);
+			EXPECT_TRUE(WeakPtr.IsValid());	//Popped the geometry but still holding on to it
+		}
 
-		//release second x proprty
-		DirtyPropertiesPool.FreeProperty(Idx2);
+		EXPECT_FALSE(WeakPtr.IsValid());	//Finished with popped geometry so shared ptr goes away
+		
 
-		//get another x property, should be same idx as Idx2 because we reuse indices
-		FDirtyIdx Idx4 = DirtyPropertiesPool.WriteX(FVec3(4,1,1));
-		EXPECT_EQ(Idx4,Idx2);
-
-		EXPECT_EQ(DirtyPropertiesPool.ReadX(Idx4),FVec3(4,1,1));
-
-		//using higher level api
-		//pretend we have a particle with V and Mass as dirty
-
-		//create a dirty properties instance to push to other thread
-		FDirtyProperties DirtyParticle;
-
-		FDirtyIdx VIdx0 = DirtyPropertiesPool.WriteV(FVec3(5,1,1));
-		DirtyParticle.DirtyProperty(VIdx0);
-		DirtyParticle.DirtyProperty(DirtyPropertiesPool.WriteM(6));
-
-		//Other thread can see the dirty properties and read them
-		EXPECT_TRUE(DirtyParticle.IsDirty(EParticleFlags::V));
-		EXPECT_TRUE(DirtyParticle.IsDirty(EParticleFlags::M));
-		//Other values are clean
-		EXPECT_FALSE(DirtyParticle.IsDirty(EParticleFlags::X));
-
-		//read the values
-		EXPECT_EQ(DirtyParticle.ReadV(DirtyPropertiesPool),FVec3(5,1,1));
-		EXPECT_EQ(DirtyParticle.ReadM(DirtyPropertiesPool),6);
-
-		DirtyParticle.Clean(DirtyPropertiesPool);
-
-		//verify that we really cleaned the resource
-		FDirtyIdx VIdx1 = DirtyPropertiesPool.WriteV(FVec3(5,1,1));
-		EXPECT_EQ(VIdx1,VIdx0);
-
+		//If we haven't popped everything we call this
+		DirtyParticle1.Clean(DirtyPropertiesPool);
+		DirtyParticle2.Clean(DirtyPropertiesPool);
 	}
 }
 
