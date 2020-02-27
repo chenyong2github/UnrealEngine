@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/ConstraintHandle.h"
-#include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDConstraintContainer.h"
-#include "Chaos/CollisionResolutionTypes.h"
 #include "Framework/BufferedData.h"
 
 #include <memory>
@@ -76,6 +77,7 @@ public:
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintBase = TCollisionConstraintBase<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
+ 	using FSweptPointContactConstraint = TRigidBodySweptPointContactConstraint<T, d>;
 	using FMultiPointContactConstraint = TRigidBodyMultiPointContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
 	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
@@ -99,6 +101,14 @@ public:
 	void DisableHandles();
 
 	/**
+	 * Set the solver method to use in the Apply step
+	 */
+	void SetApplyType(ECollisionApplyType InApplyType)
+	{
+		ApplyType = InApplyType;
+	}
+
+	/**
 	*  Add the constraint to the container. 
 	*
 	*  @todo(chaos) : Collision Constraints 
@@ -108,6 +118,7 @@ public:
 	*  then delete the InConstraint. 
 	*/
 	void AddConstraint(const TRigidBodyPointContactConstraint<FReal, 3>& InConstraint);
+	void AddConstraint(const TRigidBodySweptPointContactConstraint<FReal, 3>& InConstraint);
 	void AddConstraint(const TRigidBodyMultiPointContactConstraint<FReal, 3>& InConstraint);
 
 	/**
@@ -171,7 +182,7 @@ public:
 	// Simple Rule API
 	//
 
-	void Apply(const T Dt, const int32 It, const int32 NumIts);
+	bool Apply(const T Dt, const int32 It, const int32 NumIts);
 	bool ApplyPushOut(const T Dt, const int32 It, const int32 NumIts);
 
 	//
@@ -179,7 +190,7 @@ public:
 	//
 	// @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
 
-	void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
+	bool Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 	bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, 
 		const TSet<const TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
 
@@ -260,7 +271,7 @@ public:
 
 	int32 NumConstraints() const
 	{
-		return PointConstraints.Num() + IterativeConstraints.Num();
+		return PointConstraints.Num() + SweptPointConstraints.Num() + IterativeConstraints.Num();
 	}
 
 	FHandles& GetConstraintHandles()
@@ -297,6 +308,7 @@ private:
 	const TPBDRigidsSOAs<T,d>& Particles;
 
 	TArray<FPointContactConstraint> PointConstraints;
+	TArray<FSweptPointContactConstraint> SweptPointConstraints;
 	TArray<FMultiPointContactConstraint> IterativeConstraints;
 
 #if CHAOS_COLLISION_PERSISTENCE_ENABLED
@@ -315,6 +327,7 @@ private:
 	bool bUseCCD;
 	bool bEnableCollisions;
 	bool bHandlesEnabled;
+	ECollisionApplyType ApplyType;
 
 	int32 LifespanCounter;
 

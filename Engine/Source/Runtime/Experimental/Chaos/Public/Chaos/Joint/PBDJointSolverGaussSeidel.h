@@ -247,6 +247,13 @@ namespace Chaos
 			const FReal Angle,
 			FReal& Lambda);
 
+		FJointSolverResult ApplyLockedRotationConstraints(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const bool bApplyTwist,
+			const bool bApplySwing);
+
 		FJointSolverResult ApplyTwistConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
@@ -279,7 +286,15 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		// One Swing axis is free, and the other limited or locked. This applies the lock/limit: Body1 Twist axis is confined to space between two cones.
+		// One Swing axis is free, and the other locked. This applies the lock: Body1 Twist axis is confined to a plane.
+		FJointSolverResult ApplySingleLockedSwingConstraint(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const bool bUseSoftLimit);
+
+		// One Swing axis is free, and the other limited. This applies the limit: Body1 Twist axis is confined to space between two cones.
 		FJointSolverResult ApplyDualConeSwingConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,

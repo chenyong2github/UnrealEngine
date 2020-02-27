@@ -186,35 +186,35 @@ namespace ChaosTest {
 
 	TEST(ConstraintHandleTests, DISABLED_CollisionConstraintHandle)
 	{
-		CollisionConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		CollisionConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}
 
 	TEST(ConstraintHandleTests, JointConstraintHandle)
 	{
-		JointConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		JointConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}
 
 	TEST(ConstraintHandleTests, PositionConstraintHandles)
 	{
-		PositionConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		PositionConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}
 
 	TEST(ConstraintHandleTests, RigidSpringConstraintHandles)
 	{
-		RigidSpringConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		RigidSpringConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}
 
 	TEST(ConstraintHandleTests, RigidDynamicSpringConstraintHandles)
 	{
-		RigidDynamicSpringConstraintHandles<Chaos::TPBDRigidsEvolutionGBF<FReal, 3>>();
+		RigidDynamicSpringConstraintHandles<Chaos::FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}

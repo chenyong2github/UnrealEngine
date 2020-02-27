@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Joint/PBDJointSolverGaussSeidel.h"
+#include "Chaos/Joint/ChaosJointLog.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/Utilities.h"
-#include "ChaosLog.h"
 #include "ChaosStats.h"
 #if INTEL_ISPC
 #include "PBDJointSolverGaussSeidel.ispc.generated.h"
@@ -19,6 +19,9 @@ const bool bChaos_Joint_ISPC_Enabled = true;
 bool bChaos_Joint_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bChaos_Joint_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Joint Solver"));
 #endif
+
+float Chaos_Joint_DegenerateRotationLimit = -0.998f;	// Cos(176deg)
+FAutoConsoleVariableRef CVarChaosJointDegenerateRotationLimit(TEXT("p.Chaos.Joint.DegenerateRotationLimit"), Chaos_Joint_DegenerateRotationLimit, TEXT("Cosine of the swing angle that is considered degerenerate (default Cos(176deg))"));
 
 namespace Chaos
 {
@@ -135,12 +138,14 @@ namespace Chaos
 		Xs[1] = Ps[1] + Qs[1] * XLs[1].GetTranslation();
 		Rs[0] = Qs[0] * XLs[0].GetRotation();
 		Rs[1] = Qs[1] * XLs[1].GetRotation();
+		Rs[1].EnforceShortestArcWith(Rs[0]);
 	}
 
 	void FJointSolverGaussSeidel::UpdateDerivedState(const int32 BodyIndex)
 	{
 		Xs[BodyIndex] = Ps[BodyIndex] + Qs[BodyIndex] * XLs[BodyIndex].GetTranslation();
 		Rs[BodyIndex] = Qs[BodyIndex] * XLs[BodyIndex].GetRotation();
+		Rs[1].EnforceShortestArcWith(Rs[0]);
 	}
 
 
@@ -222,9 +227,25 @@ namespace Chaos
 	{
 		FJointSolverResult NetResult;
 
-		NetResult += ApplyPositionConstraints(Dt, SolverSettings, JointSettings);
+		bool bHasPositionConstraints =
+			(JointSettings.LinearMotionTypes[0] != EJointMotionType::Free)
+			|| (JointSettings.LinearMotionTypes[1] != EJointMotionType::Free)
+			|| (JointSettings.LinearMotionTypes[2] != EJointMotionType::Free);
 
-		NetResult += ApplyRotationConstraints(Dt, SolverSettings, JointSettings);
+		bool bHasRotationConstraints =
+			(JointSettings.AngularMotionTypes[0] != EJointMotionType::Free)
+			|| (JointSettings.AngularMotionTypes[1] != EJointMotionType::Free)
+			|| (JointSettings.AngularMotionTypes[2] != EJointMotionType::Free);
+
+		if (bHasPositionConstraints)
+		{
+			NetResult += ApplyPositionConstraints(Dt, SolverSettings, JointSettings);
+		}
+
+		if (bHasRotationConstraints)
+		{
+			NetResult += ApplyRotationConstraints(Dt, SolverSettings, JointSettings);
+		}
 
 		return NetResult;
 	}
@@ -237,9 +258,31 @@ namespace Chaos
 	{
 		FJointSolverResult NetResult;
 
-		NetResult += ApplyPositionDrives(Dt, SolverSettings, JointSettings);
+		bool bHasPositionDrives = 
+			JointSettings.bLinearPositionDriveEnabled[0]
+			|| JointSettings.bLinearPositionDriveEnabled[1]
+			|| JointSettings.bLinearPositionDriveEnabled[2]
+			|| JointSettings.bLinearVelocityDriveEnabled[0]
+			|| JointSettings.bLinearVelocityDriveEnabled[1]
+			|| JointSettings.bLinearVelocityDriveEnabled[2];
 
-		NetResult += ApplyRotationDrives(Dt, SolverSettings, JointSettings);
+		bool bHasRotationDrives = 
+			JointSettings.bAngularTwistPositionDriveEnabled
+			|| JointSettings.bAngularTwistVelocityDriveEnabled
+			|| JointSettings.bAngularSwingPositionDriveEnabled
+			|| JointSettings.bAngularSwingVelocityDriveEnabled
+			|| JointSettings.bAngularSLerpPositionDriveEnabled
+			|| JointSettings.bAngularSLerpVelocityDriveEnabled;
+
+		if (bHasPositionDrives)
+		{
+			NetResult += ApplyPositionDrives(Dt, SolverSettings, JointSettings);
+		}
+
+		if (bHasRotationDrives)
+		{
+			NetResult += ApplyRotationDrives(Dt, SolverSettings, JointSettings);
+		}
 
 		return NetResult;
 	}
@@ -274,8 +317,19 @@ namespace Chaos
 		bool bTwistSoft = JointSettings.bSoftTwistLimitsEnabled;
 		bool bSwingSoft = JointSettings.bSoftSwingLimitsEnabled;
 
+		// If the twist axes are opposing, we cannot decompose the orientation into swing and twist angles, so just give up
+		const FVec3 Twist0 = Rs[0] * FJointConstants::TwistAxis();
+		const FVec3 Twist1 = Rs[1] * FJointConstants::TwistAxis();
+		const FReal Twist01Dot = FVec3::DotProduct(Twist0, Twist1);
+		const bool bDegenerate = (Twist01Dot < Chaos_Joint_DegenerateRotationLimit);
+		if (bDegenerate)
+		{
+			UE_LOG(LogChaosJoint, VeryVerbose, TEXT(" Degenerate rotation at Swing %f deg"), FMath::RadiansToDegrees(FMath::Acos(Twist01Dot)));
+		}
+
 		// Apply twist constraint
-		if (SolverSettings.bEnableTwistLimits)
+		// NOTE: Cannot calculate twist angle at 180degree swing
+		if (SolverSettings.bEnableTwistLimits && !bDegenerate)
 		{
 			if (TwistMotion == EJointMotionType::Limited)
 			{
@@ -283,11 +337,15 @@ namespace Chaos
 			}
 			else if (TwistMotion == EJointMotionType::Locked)
 			{
-				NetResult += ApplyTwistConstraint(Dt, SolverSettings, JointSettings, false);
+				// Covered below
+			}
+			else if (TwistMotion == EJointMotionType::Free)
+			{
 			}
 		}
 
 		// Apply swing constraints
+		// NOTE: Cannot separate swing angles at 180degree swing (but we can still apply locks)
 		if (SolverSettings.bEnableSwingLimits)
 		{
 			if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
@@ -296,38 +354,60 @@ namespace Chaos
 			}
 			else if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Locked))
 			{
-				NetResult += ApplyDualConeSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
-				NetResult += ApplySwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, bSwingSoft);
+				NetResult += ApplySingleLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
+				if (!bDegenerate)
+				{
+					NetResult += ApplySwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, bSwingSoft);
+				}
 			}
 			else if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Free))
 			{
-				NetResult += ApplyDualConeSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, bSwingSoft);
+				if (!bDegenerate)
+				{
+					NetResult += ApplyDualConeSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, bSwingSoft);
+				}
 			}
 			else if ((Swing1Motion == EJointMotionType::Locked) && (Swing2Motion == EJointMotionType::Limited))
 			{
-				NetResult += ApplyDualConeSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
-				NetResult += ApplySwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, bSwingSoft);
+				NetResult += ApplySingleLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
+				if (!bDegenerate)
+				{
+					NetResult += ApplySwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, bSwingSoft);
+				}
 			}
 			else if ((Swing1Motion == EJointMotionType::Locked) && (Swing2Motion == EJointMotionType::Locked))
 			{
-				NetResult += ApplySwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
-				NetResult += ApplySwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
+				// Covered below
 			}
 			else if ((Swing1Motion == EJointMotionType::Locked) && (Swing2Motion == EJointMotionType::Free))
 			{
-				NetResult += ApplyDualConeSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
+				NetResult += ApplySingleLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
 			}
 			else if ((Swing1Motion == EJointMotionType::Free) && (Swing2Motion == EJointMotionType::Limited))
 			{
-				NetResult += ApplyDualConeSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, bSwingSoft);
+				if (!bDegenerate)
+				{
+					NetResult += ApplyDualConeSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, bSwingSoft);
+				}
 			}
 			else if ((Swing1Motion == EJointMotionType::Free) && (Swing2Motion == EJointMotionType::Locked))
 			{
-				NetResult += ApplyDualConeSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
+				NetResult += ApplySingleLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
 			}
 			else if ((Swing1Motion == EJointMotionType::Free) && (Swing2Motion == EJointMotionType::Free))
 			{
 			}
+		}
+
+		// Note: single-swing locks are already handled above so we only need to do something here if both are locked
+		bool bLockedTwist = SolverSettings.bEnableTwistLimits 
+			&& (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked);
+		bool bLockedSwing = SolverSettings.bEnableSwingLimits 
+			&& (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Locked) 
+			&& (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Locked);
+		if (bLockedTwist || bLockedSwing)
+		{
+			NetResult += ApplyLockedRotationConstraints(Dt, SolverSettings, JointSettings, bLockedTwist, bLockedSwing);
 		}
 
 		return NetResult;
@@ -614,6 +694,7 @@ namespace Chaos
 
 		const FRotation3 DQ = (FRotation3::FromElements(Stiffness * DR, 0) * Qs[BodyIndex]) * (FReal)0.5;
 		Qs[BodyIndex] = (Qs[BodyIndex] + DQ).GetNormalized();
+		Qs[1].EnforceShortestArcWith(Qs[0]);
 	}
 
 
@@ -644,6 +725,7 @@ namespace Chaos
 		Ps[BodyIndex] += Stiffness * DP;
 		const FRotation3 DQ = (FRotation3::FromElements(Stiffness * DR, 0) * Qs[BodyIndex]) * (FReal)0.5;
 		Qs[BodyIndex] = (Qs[BodyIndex] + DQ).GetNormalized();
+		Qs[1].EnforceShortestArcWith(Qs[0]);
 	}
 
 
@@ -925,6 +1007,37 @@ namespace Chaos
 	//
 	//
 
+	FJointSolverResult FJointSolverGaussSeidel::ApplyLockedRotationConstraints(
+		const FReal Dt,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings,
+		const bool bApplyTwist,
+		const bool bApplySwing)
+	{
+		FVec3 Axis0, Axis1, Axis2;
+		FPBDJointUtilities::GetLockedAxes(Rs[0], Rs[1], Axis0, Axis1, Axis2);
+
+		const FRotation3 R01 = Rs[0].Inverse() * Rs[1];
+
+		FJointSolverResult NetResult;
+		if (bApplyTwist)
+		{
+			FReal TwistStiffness = FPBDJointUtilities::GetTwistStiffness(SolverSettings, JointSettings);
+			ApplyRotationConstraint(TwistStiffness, Axis0, R01.X);
+			NetResult += FJointSolverResult::MakeActive();
+		}
+
+		if (bApplySwing)
+		{
+			FReal SwingStiffness = FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
+			ApplyRotationConstraint(SwingStiffness, Axis1, R01.Y);
+			ApplyRotationConstraint(SwingStiffness, Axis2, R01.Z);
+			NetResult += FJointSolverResult::MakeActive();
+			NetResult += FJointSolverResult::MakeActive();
+		}
+
+		return NetResult;
+	}
 
 	FJointSolverResult FJointSolverGaussSeidel::ApplyTwistConstraint(
 		const FReal Dt,
@@ -948,7 +1061,7 @@ namespace Chaos
 			DTwistAngle = TwistAngle + TwistAngleMax;
 		}
 
-		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    SoftTwist Angle %f [Limit %f]"), FMath::RadiansToDegrees(TwistAngle), FMath::RadiansToDegrees(TwistAngleMax));
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    SoftTwist Angle %f [Limit %f]"), FMath::RadiansToDegrees(TwistAngle), FMath::RadiansToDegrees(TwistAngleMax));
 
 		// Apply twist correction
 		if (FMath::Abs(DTwistAngle) > 0)
@@ -1029,7 +1142,7 @@ namespace Chaos
 			DSwingAngle = SwingAngle + SwingAngleMax;
 		}
 
-		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Cone Angle %f [Limit %f]"), FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(SwingAngleMax));
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Cone Angle %f [Limit %f]"), FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(SwingAngleMax));
 
 		// Apply swing correction to each body
 		if (FMath::Abs(DSwingAngle) > 0)
@@ -1091,6 +1204,43 @@ namespace Chaos
 	}
 
 
+	FJointSolverResult FJointSolverGaussSeidel::ApplySingleLockedSwingConstraint(
+		const FReal Dt,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings,
+		const EJointAngularConstraintIndex SwingConstraintIndex,
+		const bool bUseSoftLimit)
+	{
+		// NOTE: SwingAxis is not normalized in this mode. It has length Sin(SwingAngle).
+		// Likewise, the SwingAngle is actually Sin(SwingAngle)
+		FVec3 SwingAxis;
+		FReal SwingAngle;
+		FPBDJointUtilities::GetLockedSwingAxisAngle(Rs[0], Rs[1], SwingConstraintIndex, SwingAxis, SwingAngle);
+
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    LockedSwing%d Angle %f [Tolerance %f]"), (SwingConstraintIndex == EJointAngularConstraintIndex::Swing1) ? 1 : 2, FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(AngleTolerance));
+
+		// Apply swing correction
+		FReal DSwingAngle = SwingAngle;
+		if (FMath::Abs(DSwingAngle) > AngleTolerance)
+		{
+			if (bUseSoftLimit)
+			{
+				const FReal SoftSwingStiffness = FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings);
+				const FReal SoftSwingDamping = FPBDJointUtilities::GetSoftSwingDamping(SolverSettings, JointSettings);
+				const bool bAccelerationMode = FPBDJointUtilities::GetAngularSoftAccelerationMode(SolverSettings, JointSettings);
+				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, SwingSoftLambda);
+			}
+			else
+			{
+				const FReal SwingStiffness = FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
+				ApplyRotationConstraint(SwingStiffness, SwingAxis, DSwingAngle);
+			}
+			return FJointSolverResult::MakeActive();
+		}
+		return FJointSolverResult::MakeSolved();
+	}
+
+
 	FJointSolverResult FJointSolverGaussSeidel::ApplyDualConeSwingConstraint(
 		const FReal Dt,
 		const FPBDJointSolverSettings& SolverSettings,
@@ -1114,7 +1264,7 @@ namespace Chaos
 			DSwingAngle = SwingAngle + SwingAngleMax;
 		}
 
-		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Swing%d Angle %f [Limit %f]"), (SwingConstraintIndex == EJointAngularConstraintIndex::Swing1) ? 1 : 2, FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(SwingAngleMax));
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    DualConeSwing%d Angle %f [Limit %f]"), (SwingConstraintIndex == EJointAngularConstraintIndex::Swing1) ? 1 : 2, FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(SwingAngleMax));
 
 		// Apply swing correction
 		if (FMath::Abs(DSwingAngle) > 0)
@@ -1160,7 +1310,7 @@ namespace Chaos
 			DSwingAngle = SwingAngle + SwingAngleMax;
 		}
 
-		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Swing%d Angle %f [Limit %f]"), (SwingConstraintIndex == EJointAngularConstraintIndex::Swing1) ? 1 : 2, FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(SwingAngleMax));
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Swing%d Angle %f [Limit %f]"), (SwingConstraintIndex == EJointAngularConstraintIndex::Swing1) ? 1 : 2, FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(SwingAngleMax));
 
 		// Apply swing correction
 		if (FMath::Abs(DSwingAngle) > 0)
@@ -1261,7 +1411,7 @@ namespace Chaos
 		FReal LinearStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 		const FVec3 CX = Xs[DIndex] - Xs[KIndex];
 
-		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    PointKD Delta %f [Limit %f]"), CX.Size(), PositionTolerance);
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    PointKD Delta %f [Limit %f]"), CX.Size(), PositionTolerance);
 
 		if (CX.SizeSquared() > PositionTolerance * PositionTolerance)
 		{
@@ -1304,7 +1454,7 @@ namespace Chaos
 		FReal LinearStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 		const FVec3 CX = Xs[1] - Xs[0];
 
-		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    PointKD Delta %f [Limit %f]"), CX.Size(), PositionTolerance);
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    PointKD Delta %f [Limit %f]"), CX.Size(), PositionTolerance);
 
 		if (CX.SizeSquared() > PositionTolerance * PositionTolerance)
 		{

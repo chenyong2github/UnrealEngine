@@ -551,7 +551,7 @@ void FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(const FPhysicsActorHandl
 	}
 	else
 	{
-		ensureMsgf(false, TEXT("Can only set kinematic state of underlying dynamic particles"));
+		CHAOS_ENSURE_MSG(false, TEXT("Can only set kinematic state of underlying dynamic particles"));
 	}
 }
 
@@ -818,7 +818,7 @@ void FPhysInterface_Chaos::AddAngularVelocityInRadians_AssumesLocked(const FPhys
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			const Chaos::FMatrix33 WorldI = Chaos::Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->I());
+			const Chaos::FMatrix33 WorldI = Chaos::FParticleUtilitiesXR::GetWorldInertia(Rigid);
 			AddAngularImpulseInRadians_AssumesLocked(InActorReference, WorldI * InAngularVelocityDeltaRad);
 		}
 	}
@@ -1776,33 +1776,17 @@ bool CalculateMassPropertiesOfImplicitType(
 				return false;
 			}
 		else*/ 
-		if (ImplicitObject->GetType(true) & Chaos::ImplicitObjectType::Transformed)
-		{
-			// TODO:  This all very wrong, but is wrong in the same way as scaled. Rotation/Translation are ignored though. The three methods on Transformed no implemented.
-			// Only adding this to hack around CastHelper, as TransformedImplicit is very not supported in that path.
-			const Chaos::TImplicitObjectTransformed<FReal, 3>& Object = ImplicitObject->template GetObjectChecked<Chaos::TImplicitObjectTransformed<FReal, 3>>();
-
-
-			OutMassProperties.Volume = Object.GetVolume();
-			OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
-			OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
-			OutMassProperties.CenterOfMass = Object.GetCenterOfMass();
-			OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
-			return true;
-		}
-		else
-		{
-			//question: is LocalTM enough to merge these two branches?
-			Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
+		
+		//todo: Still need to handle scaled
+		Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
 			{
 				OutMassProperties.Volume = Object.GetVolume();
 				OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
 				OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
-				OutMassProperties.CenterOfMass = Object.GetCenterOfMass();
-				OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+				OutMassProperties.CenterOfMass = LocalTM.TransformPosition(Object.GetCenterOfMass());
+				OutMassProperties.RotationOfMass = LocalTM.GetRotation();
 			});
-			return true;
-		}
+		return true;
 	}
 	return false;
 }
@@ -1838,7 +1822,7 @@ void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(physx::PxM
 	Chaos::PMatrix<float, 3, 3> Tensor;
 	if (MassPropertiesList.Num())
 	{
-		Tensor = Chaos::Combine<float, 3>(MassPropertiesList).InertiaTensor;
+		Tensor = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList,  InDensityKGPerCM).InertiaTensor;
 	}
 	else 
 	{
