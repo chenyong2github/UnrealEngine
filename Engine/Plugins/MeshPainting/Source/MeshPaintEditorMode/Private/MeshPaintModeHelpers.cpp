@@ -128,7 +128,7 @@ void UMeshPaintModeHelpers::SetRealtimeViewport(bool bRealtime)
 		FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
 		if (Viewport.IsPerspective())
 		{
-			if (!bRealtime)
+			if (bRealtime)
 			{
 				Viewport.SetRealtimeOverride(bRealtime, NSLOCTEXT("MeshPaint", "RealtimeOverrideMessage_MeshPaint", "Mesh Paint"));
 			}
