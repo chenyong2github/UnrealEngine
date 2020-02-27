@@ -207,65 +207,15 @@ void FDatasmithDeltaGenImporter::ParseAuxFiles(const FString& FBXPath)
 	}
 }
 
-void FDatasmithDeltaGenImporter::FetchAOTexture(const FString& MeshName, TSharedPtr<FDatasmithFBXSceneMaterial>& Material)
-{
-	if (ImportOptions->TextureDirs.Num() == 0 || ImportOptions->ShadowTextureMode == EShadowTextureMode::Ignore)
-	{
-		return;
-	}
-
-	// FNames because they're case insensitive
-	// I've only ever seen .bmp shadow textures, but I haven't seen anything saying they can't be anything else
-	const static TSet<FName> ImageExtensions{ TEXT("bmp"), TEXT("jpg"), TEXT("png"), TEXT("jpeg"), TEXT("tiff"), TEXT("tga") };
-
-	// Find all filepaths for images that are in a texture folder and have the mesh name as part of the filename
-	TArray<FString> PotentialTextures;
-	for (const FDirectoryPath& Dir : ImportOptions->TextureDirs)
-	{
-		TArray<FString> Textures;
-		IFileManager::Get().FindFiles(Textures, *Dir.Path, TEXT(""));
-
-		for (const FString& Texture : Textures)
-		{
-			FName Extension = FName(*FPaths::GetExtension(Texture));
-
-			if (ImageExtensions.Contains(Extension) && Texture.Contains(MeshName))
-			{
-				PotentialTextures.Add( Dir.Path / Texture );
-			}
-		}
-	}
-
-	if (PotentialTextures.Num() == 0)
-	{
-		return;
-	}
-
-	FString AOTexPath = PotentialTextures[0];
-	if (PotentialTextures.Num() > 1)
-	{
-		UE_LOG(LogDatasmithDeltaGenImport, Log, TEXT("Found more than one candidate for an AO texture for mesh '%s'. The texture '%s' will be used, but moving or renaming the texture would prevent this."), *MeshName, *AOTexPath);
-	}
-
-	FDatasmithFBXSceneMaterial::FTextureParams& Tex = Material->TextureParams.FindOrAdd(TEXT("TexAO"));
-	Tex.Path = AOTexPath;
-}
-
 bool FDatasmithDeltaGenImporter::ProcessScene()
 {
 	FDatasmithDeltaGenSceneProcessor Processor(IntermediateScene.Get());
 
-	// We need to create AO textures before we merge as they depend on the name of the mesh itself,
-	// and we only want to add this AO texture to the one material used by that mesh
+	Processor.FindDuplicatedMaterials();
+
 	if (ImportOptions->ShadowTextureMode != EShadowTextureMode::Ignore)
 	{
-		for (TSharedPtr<FDatasmithFBXSceneNode>& Node : IntermediateScene->GetAllNodes())
-		{
-			for (TSharedPtr<FDatasmithFBXSceneMaterial>& Material : Node->Materials)
-			{
-				FetchAOTexture(Node->Mesh->Name, Material);
-			}
-		}
+		Processor.SetupAOTextures(ImportOptions->TextureDirs);
 	}
 
 	Processor.RemoveLightMapNodes();
@@ -275,8 +225,6 @@ bool FDatasmithDeltaGenImporter::ProcessScene()
 	Processor.SplitLightNodes();
 
 	Processor.DecomposePivots(TmlTimelines);
-
-	Processor.FindDuplicatedMaterials();
 
 	if (ImportOptions->bRemoveInvisibleNodes)
 	{
