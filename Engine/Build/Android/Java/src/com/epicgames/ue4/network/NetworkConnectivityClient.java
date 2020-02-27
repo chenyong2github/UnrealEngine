@@ -6,8 +6,17 @@ import android.content.Context;
 import android.support.annotation.NonNull;
 
 public interface NetworkConnectivityClient {
-	public interface Listener {
-		void onNetworkAvailable();
+    public enum NetworkTransportType {
+        WIFI,
+        VPN,
+        ETHERNET,
+        CELLULAR,
+        BLUETOOTH,
+        UNKNOWN
+    }
+
+    public interface Listener {
+        void onNetworkAvailable(NetworkTransportType networkTransportType);
 
 		void onNetworkLost();
 	}
