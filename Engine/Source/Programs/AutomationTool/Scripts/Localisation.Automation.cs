@@ -356,6 +356,9 @@ class Localize : BuildCommand
 				if (RunResult != null)
 				{
 					RunResult.WaitForExit();
+					RunResult.OnProcessExited();
+					RunResult.DisposeProcess();
+					
 					if (RunResult.ExitCode == 0)
 					{
 						LogInformation("The localization commandlet for '{0}' exited with code 0.", ProjectInfo.ProjectName);
