@@ -82,6 +82,11 @@ void UControlRigLayerInstance::AddControlRigTrack(int32 ControlRigID, UControlRi
 	GetProxyOnGameThread<FControlRigLayerInstanceProxy>().AddControlRigTrack(ControlRigID, InControlRig);
 }
 
+bool UControlRigLayerInstance::HasControlRigTrack(int32 ControlRigID)
+{
+	return GetProxyOnGameThread<FControlRigLayerInstanceProxy>().HasControlRigTrack(ControlRigID);
+}
+
 void UControlRigLayerInstance::UpdateControlRigTrack(int32 ControlRigID, float Weight, const FControlRigIOSettings& InputSettings, bool bExecute)
 {
 	GetProxyOnGameThread<FControlRigLayerInstanceProxy>().UpdateControlRigTrack(ControlRigID, Weight, InputSettings, bExecute);
