@@ -1141,3 +1141,8 @@ TArray<FTimeSynthSpectralData> UTimeSynthComponent::GetSpectralData() const
 	return TArray<FTimeSynthSpectralData>();
 }
 
+int32 UTimeSynthComponent::GetMaxActiveClipLimit() const
+{
+	return CurrentPoolSize;
+}
+
