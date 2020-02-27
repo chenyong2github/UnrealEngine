@@ -17,5 +17,13 @@ public class GeometryCacheAbcFile : ModuleRules
 				"RHI"
 			}
 		);
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"PropertyEditor",
+				"Slate",
+				"SlateCore"
+			}
+		);
 	}
 }
