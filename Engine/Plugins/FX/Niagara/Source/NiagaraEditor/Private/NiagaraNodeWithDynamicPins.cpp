@@ -9,7 +9,6 @@
 #include "ToolMenus.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
-#include "SNiagaraGraphPinAdd.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
 #include "SNiagaraParameterMapView.h"
