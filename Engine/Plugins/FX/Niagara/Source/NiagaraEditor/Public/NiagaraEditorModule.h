@@ -121,7 +121,39 @@ public:
 
 	FNiagaraClipboard& GetClipboard() const;
 
+	template<typename T>
+	void EnqueueObjectForDeferredDestruction(TSharedRef<T> InObjectToDestruct)
+	{
+		TDeferredDestructionContainer<T>* ObjectInContainer = new TDeferredDestructionContainer<T>(InObjectToDestruct);
+		EnqueueObjectForDeferredDestructionInternal(ObjectInContainer);
+	}
+
 private:
+	class FDeferredDestructionContainerBase
+	{
+	public:
+		virtual ~FDeferredDestructionContainerBase()
+		{
+		}
+	};
+
+	template<typename T>
+	class TDeferredDestructionContainer : public FDeferredDestructionContainerBase
+	{
+	public:
+		TDeferredDestructionContainer(TSharedRef<const T> InObjectToDestruct)
+			: ObjectToDestuct(InObjectToDestruct)
+		{
+		}
+
+		virtual ~TDeferredDestructionContainer()
+		{
+			ObjectToDestuct.Reset();
+		}
+
+		TSharedPtr<const T> ObjectToDestuct;
+	};
+
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
 	void OnPreGarbageCollection();
@@ -139,6 +171,10 @@ private:
 
 	void TestCompileScriptFromConsole(const TArray<FString>& Arguments);
 	void ReinitializeStyle();
+
+	void EnqueueObjectForDeferredDestructionInternal(FDeferredDestructionContainerBase* InObjectToDestruct);
+
+	bool DeferredDestructObjects(float InDeltaTime);
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -196,4 +232,6 @@ private:
 	IConsoleCommand* ReinitializeStyleCommand;
 
 	TMap<int32, TSharedPtr<FHlslNiagaraCompiler>> ActiveCompilations;
+
+	TArray<TSharedRef<const FDeferredDestructionContainerBase>> EnqueuedForDeferredDestruction;
 };
