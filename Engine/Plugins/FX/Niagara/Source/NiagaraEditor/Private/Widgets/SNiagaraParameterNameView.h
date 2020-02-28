@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "Widgets/SCompoundWidget.h"
+
 struct FNiagaraScriptVariableAndViewInfo;
 struct FSlateFontInfo;
 struct FCreateWidgetForActionData;
