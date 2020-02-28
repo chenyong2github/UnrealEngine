@@ -490,8 +490,16 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 
 			WeakControlRigEditing->SetFlags(RF_Transactional);
 			WeakControlRigEditing->Modify();
+			//in level editor only transact if we have at least one control selected, in editor we only select CR stuff so always transact
+			if (IsInLevelEditor())
+			{
+				bIsTransacting = (AreRigElementSelectedAndMovable() && ManipulationLayer != nullptr);
+			}
+			else
+			{
+				bIsTransacting = true;
+			}
 		}
-		bIsTransacting = true;
 		bManipulatorMadeChange = false;
 
 		return bIsTransacting;
