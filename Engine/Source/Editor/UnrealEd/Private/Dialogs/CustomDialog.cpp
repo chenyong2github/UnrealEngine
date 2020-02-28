@@ -26,6 +26,8 @@ void SCustomDialog::Construct(const FArguments& InArgs)
 
 	check(InArgs._Buttons.Num() > 0);
 	
+	OnClosed = InArgs._OnClosed;
+
 	TSharedPtr<SHorizontalBox> ContentBox;
 	TSharedPtr<SHorizontalBox> ButtonBox;
 
@@ -148,7 +150,12 @@ int SCustomDialog::ShowModal()
 
 void SCustomDialog::Show()
 {
-	FSlateApplication::Get().AddWindow(StaticCastSharedRef<SWindow>(this->AsShared()), true);
+	TSharedRef<SWindow> Window = FSlateApplication::Get().AddWindow(StaticCastSharedRef<SWindow>(this->AsShared()), true);
+
+	if (OnClosed.IsBound())
+	{
+		Window->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>& Window) { OnClosed.Execute(); });
+	}
 }
 
 /** Handle the button being clicked */
