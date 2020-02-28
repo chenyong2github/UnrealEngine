@@ -119,7 +119,9 @@ public:
 
 	ENGINE_API void ResetChaosConvexMesh();
 
-	ENGINE_API void ComputeChaosConvexIndices();
+	ENGINE_API void ComputeChaosConvexIndices(bool bForceCompute = false);
+
+	ENGINE_API TArray<int32> GetChaosConvexIndices() const;
 #endif
 
 	/** Get current transform applied to convex mesh vertices */
