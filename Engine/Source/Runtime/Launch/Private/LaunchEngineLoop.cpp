@@ -5420,16 +5420,26 @@ bool FEngineLoop::AppInit( )
 					ModulesList += FString::Printf(TEXT("  (+%d others, see log for details)\n"), IncompatibleFiles.Num() - NumModulesToDisplay);
 				}
 
-				ModulesList += TEXT("\nWould you like to rebuild them now?");
-
 				// If we're running with -stdout, assume that we're a non interactive process and about to fail
 				if (FApp::IsUnattended() || FParse::Param(FCommandLine::Get(), TEXT("stdout")))
 				{
 					return false;
 				}
 
+				// If there are any engine modules that need building, force the user to build through the IDE
+				for (const FString& IncompatibleFile : IncompatibleFiles)
+				{
+					if (FPaths::IsUnderDirectory(IncompatibleFile, FPaths::EngineDir()))
+					{
+						FString CompileForbidden = ModulesList + TEXT("\nEngine modules cannot be compiled at runtime. Please build through your IDE.");
+						FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *CompileForbidden, TEXT("Missing Modules"));
+						return false;
+					}
+				}
+
 				// Ask whether to compile before continuing
-				if (FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *ModulesList, *FString::Printf(TEXT("Missing %s Modules"), FApp::GetProjectName())) == EAppReturnType::No)
+				FString CompilePrompt = ModulesList + TEXT("\nWould you like to rebuild them now?");
+				if (FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *CompilePrompt, *FString::Printf(TEXT("Missing %s Modules"), FApp::GetProjectName())) == EAppReturnType::No)
 				{
 					return false;
 				}
