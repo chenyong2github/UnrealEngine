@@ -12,7 +12,7 @@
 #include "Widgets/Input/SComboBox.h"
 
 /** Widget allowing the user to create new gameplay tags */
-class GAMEPLAYTAGSEDITOR_VTABLE SAddNewGameplayTagWidget : public SCompoundWidget
+class SAddNewGameplayTagWidget : public SCompoundWidget
 {
 public:
 

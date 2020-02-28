@@ -19,7 +19,7 @@ struct FMovieSceneObjectCache;
  * Abstract base class for movie scene animations (C++ version).
  */
 UCLASS(MinimalAPI, Config = Engine, BlueprintType)
-class MOVIESCENE_VTABLE UMovieSceneSequence
+class UMovieSceneSequence
 	: public UMovieSceneSignedObject
 {
 public:

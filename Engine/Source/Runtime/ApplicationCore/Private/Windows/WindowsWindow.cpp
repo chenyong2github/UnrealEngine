@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Windows/WindowsWindow.h"
+
+#if WINDOWS_USE_FEATURE_WINDOW
+
 #include "Math/UnrealMathUtility.h"
 #include "HAL/UnrealMemory.h"
 #include "Containers/UnrealString.h"
@@ -1179,3 +1182,5 @@ HRESULT STDCALL FWindowsWindow::Drop( __RPC__in_opt IDataObject *DataObjectPoint
 		return 0;
 	}
 }
+
+#endif

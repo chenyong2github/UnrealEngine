@@ -100,7 +100,7 @@ float GetIndirectOcclusion(float2 ScreenUV, FGBufferData GBufferData)
 	return IndirectOcclusion;
 }
 
-float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, inout float OutDirectionalLightShadow)
+FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, inout float OutDirectionalLightShadow)
 {
 	float4 DynamicShadowFactors = 1;
 
@@ -108,7 +108,9 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		DynamicShadowFactors = GetForwardDynamicShadowFactors(ScreenUV);
 	#endif
 
-	float3 DirectLighting = 0;
+	FDeferredLightingSplit DirectLighting;
+	DirectLighting.DiffuseLighting = 0;
+	DirectLighting.SpecularLighting = 0;
 
 	float SpecularScale = 1;
 #if TRANSLUCENCY_ANY_VOLUMETRIC
@@ -163,12 +165,13 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 			float4 LightAttenuation = float4(DynamicShadowFactor.x, DynamicShadowFactor.x, 1, 1);
 		#endif
 
-		float3 NewLighting = GetDynamicLighting(WorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, OutDirectionalLightShadow).xyz;
+		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(WorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, OutDirectionalLightShadow);
 
 		FLATTEN
 		if ((DirectionalLightData.DirectionalLightShadowMapChannelMask >> 8) & LightingChannelMask)
 		{
-			DirectLighting += NewLighting;
+			DirectLighting.DiffuseLighting += NewLighting.DiffuseLighting;
+			DirectLighting.SpecularLighting += NewLighting.SpecularLighting;
 		}
 	}
 
@@ -216,20 +219,26 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 		float4 LightAttenuation = float4(1, 1, DynamicShadowing.x, DynamicShadowing.x);
 		float SurfaceShadow = 1.0f;
-		float3 NewLighting = GetDynamicLighting(WorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, SurfaceShadow).xyz;
+		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(WorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, SurfaceShadow);
 
 		FLATTEN
 		if ((LightTypeAndPackedShadowMapChannelMask >> 8) & LightingChannelMask)
 		{
-			DirectLighting += NewLighting;
+			DirectLighting.DiffuseLighting += NewLighting.DiffuseLighting;
+			DirectLighting.SpecularLighting += NewLighting.SpecularLighting;
 		}
 	}
 
 #endif
 
-	// For debugging
-	//DirectLighting = CulledLightsGrid.NumLocalLights / (float)ForwardLightData.MaxCulledLightsPerCell;
 	return DirectLighting;
+}
+
+float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, inout float OutDirectionalLightShadow)
+{
+	FDeferredLightingSplit Ret = GetForwardDirectLightingSplit(GridIndex, WorldPosition, CameraVector, GBufferData, ScreenUV, PrimitiveId, EyeIndex, Dither, OutDirectionalLightShadow);
+
+	return Ret.DiffuseLighting.rgb + Ret.SpecularLighting.rgb;
 }
 
 float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPosition, float SceneDepth, float3 WorldNormal, uint EyeIndex)

@@ -173,7 +173,7 @@ enum ERenamePinResult
  * Abstract base class of all blueprint graph nodes.
  */
 UCLASS(abstract, MinimalAPI)
-class BLUEPRINTGRAPH_VTABLE UK2Node : public UEdGraphNode
+class UK2Node : public UEdGraphNode
 {
 	GENERATED_UCLASS_BODY()
 

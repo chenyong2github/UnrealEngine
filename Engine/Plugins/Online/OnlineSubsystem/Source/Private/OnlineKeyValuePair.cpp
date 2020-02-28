@@ -479,6 +479,25 @@ void FVariantData::GetValue(TSharedPtr<FJsonObject>& OutData) const
 }
 
 /**
+* Copies the data after verifying the type
+*
+* @param OutData out value that receives the copied data
+*/
+void FVariantData::GetValue(TArray<TSharedPtr<FJsonValue>>& OutData) const
+{
+	if (Type == EOnlineKeyValuePairDataType::Json)
+	{
+		FString SerializedData;
+		auto Reader = TJsonReaderFactory<TCHAR>::Create(Value.AsTCHAR);
+		if (!FJsonSerializer::Deserialize(Reader, OutData))
+		{
+			UE_LOG_ONLINE(Warning, TEXT("Invalid serialized json in FVariantData: %s, Error: %s"),
+				Value.AsTCHAR, *Reader->GetErrorMessage());
+		}
+	}
+}
+
+/**
  * Cleans up the existing data and sets the type to EOnlineKeyValuePairDataType::Empty
  */
 void FVariantData::Empty()

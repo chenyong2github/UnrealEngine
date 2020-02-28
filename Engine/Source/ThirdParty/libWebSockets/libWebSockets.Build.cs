@@ -13,7 +13,6 @@ public class libWebSockets : ModuleRules
 				Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Platform == UnrealTargetPlatform.PS4 ||
-				Target.Platform == UnrealTargetPlatform.Switch ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
 				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64;
@@ -27,7 +26,9 @@ public class libWebSockets : ModuleRules
 
 	protected virtual string ConfigName { get { return (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release"; } }
 	
-	protected virtual bool bRequireOpenSSL { get { return Target.Platform != UnrealTargetPlatform.Switch; } }
+	protected virtual bool bRequireOpenSSL { get { return true; } }
+
+	protected virtual string DefaultLibraryName { get { return "libwebsockets.a"; } }
 
 	protected virtual string IncludeDirectory
 	{
@@ -96,7 +97,7 @@ public class libWebSockets : ModuleRules
 		else
 		{
 			PublicIncludePaths.Add(IncludeDirectory);
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryDirectory, "libwebsockets.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryDirectory, DefaultLibraryName));
 		}
 
 		if (bRequireOpenSSL)

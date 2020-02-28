@@ -85,13 +85,13 @@ void FOculusAudioLibraryManager::Shutdown()
 
 bool FOculusAudioLibraryManager::LoadDll()
 {
-	// PAS TODO: support middleware on android
-#if PLATFORM_WINDOWS
-	if (!OculusAudioDllHandle)
+	if (OculusAudioDllHandle == nullptr)
 	{
 		const TCHAR* WWISE_DLL_NAME = TEXT("OculusSpatializerWwise");
 		const TCHAR* FMOD_DLL_NAME = TEXT("OculusSpatializerFMOD");
-		const TCHAR* UE4_DLL_NAME = TEXT("ovraudio64");
+		const TCHAR* UE4_DLL_NAME = (sizeof(void*) == 4) ? TEXT("ovraudio32") : TEXT("ovraudio64");
+
+#if PLATFORM_WINDOWS 
 
 #if WITH_EDITOR
 		const FString WwisePath = FPaths::ProjectDir() / FString::Printf(TEXT("Binaries/Win64/"));
@@ -131,12 +131,37 @@ bool FOculusAudioLibraryManager::LoadDll()
 		UE_LOG(LogAudio, Display, TEXT("Attempting to load Oculus Spatializer DLL: %s (from %s)"), *Path, DLL_NAME);
 
 		FPlatformProcess::PushDllDirectory(*Path);
-		OculusAudioDllHandle = FPlatformProcess::GetDllHandle(*(Path + DLL_NAME)); // FIXME: support win32
+		OculusAudioDllHandle = FPlatformProcess::GetDllHandle(*(Path + DLL_NAME));
 		FPlatformProcess::PopDllDirectory(*Path);
+
+#elif PLATFORM_ANDROID
+		FString Path = TEXT("lib");
+		OculusAudioDllHandle = FPlatformProcess::GetDllHandle(*(Path + WWISE_DLL_NAME + ".so"));
+		if (OculusAudioDllHandle != nullptr)
+		{
+			UE_LOG(LogAudio, Display, TEXT("%s found, using the Wwise version of the Oculus Audio UE4 integration"), WWISE_DLL_NAME);
+			return true;
+		}
+		OculusAudioDllHandle = FPlatformProcess::GetDllHandle(*(Path + FMOD_DLL_NAME + ".so"));
+		if (OculusAudioDllHandle != nullptr)
+		{
+			UE_LOG(LogAudio, Display, TEXT("%s found, using the FMOD version of the Oculus Audio UE4 integration"), FMOD_DLL_NAME);
+			return true;
+		}
+		OculusAudioDllHandle = FPlatformProcess::GetDllHandle(*(Path + UE4_DLL_NAME + ".so"));
+		if (OculusAudioDllHandle != nullptr)
+		{
+			UE_LOG(LogAudio, Display, TEXT("Middleware plugins not found, %s found, assuming native UE4 AudioMixer"), UE4_DLL_NAME);
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogAudio, Error, TEXT("Unable to load Oculus Audio UE4 integratiton"), UE4_DLL_NAME);
+		}
+#endif
 
 		return (OculusAudioDllHandle != nullptr);
 	}
-#endif
 	return true;
 }
 
@@ -155,7 +180,7 @@ bool FOculusAudioLibraryManager::UpdatePluginContext(float DeltaTime)
 {
 	ovrAudioContext Context = GetPluginContext();
 	ovrResult Result = OVRA_CALL(ovrAudio_UpdateRoomModel)(Context, 1.0f);
-	check(Result == ovrSuccess);
+	check(Result == ovrSuccess || Result == ovrError_AudioUninitialized);
 
 	UOculusAudioSettings* settings = GetMutableDefault<UOculusAudioSettings>();
 	Result = OVRA_CALL(ovrAudio_SetPropagationQuality)(Context, settings->PropagationQuality);

@@ -781,7 +781,7 @@ namespace UnrealBuildTool
 			// UserDir/.../User*.ini
 			new ConfigLayer { Path = "{USER}/Unreal Engine/Engine/Config/User{TYPE}.ini" },
 			// Project/User*.ini
-			new ConfigLayer { Path = "{PROJECT}/Config/User{TYPE}.ini" },
+			new ConfigLayer { Path = "{PROJECT}/User{TYPE}.ini" },
 		};
 
 		static ConfigLayerExpansion[] ConfigLayerExpansions =

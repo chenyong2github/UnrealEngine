@@ -31,6 +31,12 @@ bool FTargetPlatformBase::UsesBasePassVelocity() const
 	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
+bool FTargetPlatformBase::UsesAnisotropicBRDF() const
+{
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
+	return CVar && CVar->GetInt();
+}
+
 bool FTargetPlatformBase::UsesSelectiveBasePassOutputs() const
 {
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
@@ -40,6 +46,12 @@ bool FTargetPlatformBase::UsesSelectiveBasePassOutputs() const
 bool FTargetPlatformBase::UsesDistanceFields() const
 {
 	return true;
+}
+
+bool FTargetPlatformBase::UsesRayTracing() const
+{
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
+	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
 float FTargetPlatformBase::GetDownSampleMeshDistanceFieldDivider() const

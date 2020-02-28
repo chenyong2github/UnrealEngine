@@ -78,12 +78,18 @@ void MainCS(
 				// Weighted blend between the two buckets.
 				float Weight1 = frac(fBucket);
 				float Weight0 = 1.0f - Weight1;
-			
-				// Accumulate the weight to the nearby history buckets.
-				if (Bucket0 != 0)
+
+				// When EyeAdaptation_BlackHistogramBucketInfluence=.0, we will ignore the last bucket. The main use
+				// case is so the black background pixels in the editor have no effect. But if we have cases where
+				// pixel values can actually be black, we want to set EyeAdaptation_LastHistogramBucketInfluence=1.0.
+				// This value is controlled by the cvar "r.EyeAdaptation.BlackHistogramBucketInfluence"
+				if (Bucket0 == 0)
 				{
-					SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0 * ScreenWeight;
+					Weight0 *= EyeAdaptation_BlackHistogramBucketInfluence;
 				}
+
+				// Accumulate the weight to the nearby history buckets.
+				SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0 * ScreenWeight;
 				SharedHistogram[Bucket1][GroupThreadId.x][GroupThreadId.y] += Weight1 * ScreenWeight;
 			}
 		}

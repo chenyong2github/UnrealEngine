@@ -6,6 +6,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 
+#if WINDOWS_USE_FEATURE_DYNAMIC_RHI
+
 static const TCHAR* GLoadedRHIModuleName;
 
 static bool ShouldPreferD3D12()
@@ -58,7 +60,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 	// command line overrides
 	bool bForceSM5 = FParse::Param(FCommandLine::Get(), TEXT("sm5"));
 	bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
-	bool bForceOpenGL = FWindowsPlatformMisc::VerifyWindowsVersion(6, 0) == false || FParse::Param(FCommandLine::Get(), TEXT("opengl")) || FParse::Param(FCommandLine::Get(), TEXT("opengl3")) || FParse::Param(FCommandLine::Get(), TEXT("opengl4"));
+	bool bForceOpenGL = FPlatformMisc::VerifyWindowsVersion(6, 0) == false || FParse::Param(FCommandLine::Get(), TEXT("opengl")) || FParse::Param(FCommandLine::Get(), TEXT("opengl3")) || FParse::Param(FCommandLine::Get(), TEXT("opengl4"));
 	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || (bForceSM5 && !bForceVulkan && !bForceOpenGL);
 	bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
 	DesiredFeatureLevel = ERHIFeatureLevel::Num;
@@ -296,3 +298,5 @@ const TCHAR* GetSelectedDynamicRHIModuleName(bool bCleanup)
 		return RHIModuleName;
 	}
 }
+
+#endif //WINDOWS_USE_FEATURE_DYNAMIC_RHI

@@ -7,7 +7,7 @@
 #include "StandaloneRendererPlatformHeaders.h"
 
 // not needed with ES2
-#if !PLATFORM_USES_ES2
+#if !PLATFORM_USES_GLES
 
 #if PLATFORM_WINDOWS
 // buffers

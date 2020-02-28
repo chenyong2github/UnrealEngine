@@ -608,16 +608,8 @@ FRHIBlendState* FProjectedShadowInfo::GetBlendStateForProjection(
 		{
 			if (bMobileModulatedProjections)
 			{
-				bool bEncodedHDR = GetMobileHDRMode() == EMobileHDRMode::EnabledRGBE;
-				if (bEncodedHDR)
-				{
-					BlendState = TStaticBlendState<>::GetRHI();
-				}
-				else
-				{
-					// Color modulate shadows, ignore alpha.
-					BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();
-				}
+				// Color modulate shadows, ignore alpha.
+				BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();
 			}
 			else
 			{
@@ -1783,7 +1775,7 @@ bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmed
 
 void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList)
 {
-	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows || (!IsMobileHDR() && (ShaderPlatform != SP_OPENGL_ES2_WEBGL)))
+	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows)
 	{
 		return;
 	}

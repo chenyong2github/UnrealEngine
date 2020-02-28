@@ -51,7 +51,7 @@ public:
 	inline void SetStorageBuffer(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanStructuredBuffer* StructuredBuffer)
 	{
 		check(StructuredBuffer && (StructuredBuffer->GetBufferUsageFlags() & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-		MarkDirty(DSWriter[DescriptorSet].WriteStorageBuffer(BindingIndex, *StructuredBuffer->GetBufferAllocation(), StructuredBuffer->GetOffset(), StructuredBuffer->GetSize()));
+		MarkDirty(DSWriter[DescriptorSet].WriteStorageBuffer(BindingIndex, *StructuredBuffer->GetBufferAllocation(), StructuredBuffer->GetOffset(), StructuredBuffer->GetCurrentSize()));
 	}
 
 	inline void SetUAVTexelBufferViewState(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanBufferView* View)

@@ -942,6 +942,8 @@ FORCEINLINE_DEBUGGABLE D3D_PRIMITIVE_TOPOLOGY TranslatePrimitiveType(EPrimitiveT
 	}
 }
 
+#pragma warning(push)
+#pragma warning(disable: 4063)
 FORCEINLINE_DEBUGGABLE D3D12_PRIMITIVE_TOPOLOGY_TYPE D3D12PrimitiveTypeToTopologyType(D3D_PRIMITIVE_TOPOLOGY PrimitiveType)
 {
 	switch (PrimitiveType)
@@ -973,6 +975,7 @@ FORCEINLINE_DEBUGGABLE D3D12_PRIMITIVE_TOPOLOGY_TYPE D3D12PrimitiveTypeToTopolog
 		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
 	}
 }
+#pragma warning(pop)
 
 static void TranslateRenderTargetFormats(
 	const FGraphicsPipelineStateInitializer &PsoInit,

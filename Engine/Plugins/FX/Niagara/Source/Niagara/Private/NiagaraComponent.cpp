@@ -775,13 +775,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 {
 	bAwaitingActivationDueToNotReady = false;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (IsES2Platform(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]))
-	{
-		GbSuppressNiagaraSystems = 1;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	if (GbSuppressNiagaraSystems != 0)
 	{
 		OnSystemComplete();

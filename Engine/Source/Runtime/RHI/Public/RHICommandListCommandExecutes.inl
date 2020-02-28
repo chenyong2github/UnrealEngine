@@ -317,6 +317,18 @@ void FRHICommandDispatchIndirectComputeShader::Execute(FRHICommandListBase& CmdL
 	INTERNAL_DECORATOR_COMPUTE(RHIDispatchIndirectComputeShader)(ArgumentBuffer, ArgumentOffset);
 }
 
+void FRHICommandBeginUAVOverlap::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(BeginUAVOverlap);
+	INTERNAL_DECORATOR(RHIBeginUAVOverlap)();
+}
+
+void FRHICommandEndUAVOverlap::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(EndUAVOverlap);
+	INTERNAL_DECORATOR(RHIEndUAVOverlap)();
+}
+
 void FRHICommandAutomaticCacheFlushAfterComputeShader::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(AutomaticCacheFlushAfterComputeShader);

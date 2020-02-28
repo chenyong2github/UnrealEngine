@@ -27,7 +27,7 @@ public:
 
 	virtual bool SupportsPlatform(const FString& PlatformName) override
 	{
-		return PlatformName == FString(TEXT("Windows")) || PlatformName == FString(TEXT("Android"));
+		return	PlatformName == FString(TEXT("Windows")) || PlatformName == FString(TEXT("Android"));
 	}
 
 	virtual UClass* GetCustomSpatializationSettingsClass() const override { return UOculusAudioSourceSettings::StaticClass(); }
@@ -47,10 +47,10 @@ public:
 		return DisplayName;
 	}
 
-    virtual bool SupportsPlatform(const FString& PlatformName) override
+	virtual bool SupportsPlatform(const FString& PlatformName) override
 	{
-		return PlatformName == FString(TEXT("Windows"));
-    }
+		return	PlatformName == FString(TEXT("Windows")) || PlatformName == FString(TEXT("Android"));
+	}
 
 	virtual TAudioReverbPtr CreateNewReverbPlugin(FAudioDevice* OwningDevice) override;
 	//~ End IAudioReverbFactory

@@ -30,14 +30,13 @@ MobileSceneCaptureRendering.cpp - Mobile specific scene capture code.
 #include "GenerateMips.h"
 
 /**
-* Shader set for the copy of scene color to capture target, decoding mosaic or RGBE encoded HDR image as part of a
-* copy operation. Alpha channel will contain opacity information. (Determined from depth buffer content)
+* Shader set for the copy of scene color to capture target, alpha channel will contain opacity information. (Determined from depth buffer content)
 */
 
 // Use same defines as deferred for capture source defines,
 extern const TCHAR* GShaderSourceModeDefineName[];
 
-template<bool bDemosaic, ESceneCaptureSource CaptureSource>
+template<ESceneCaptureSource CaptureSource>
 class FMobileSceneCaptureCopyPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FMobileSceneCaptureCopyPS, Global)
@@ -57,7 +56,6 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("MOBILE_FORCE_DEPTH_TEXTURE_READS"), 1u);
-		OutEnvironment.SetDefine(TEXT("DECODING_MOSAIC"), bDemosaic ? 1u : 0u);
 		const TCHAR* DefineName = GShaderSourceModeDefineName[CaptureSource];
 		if (DefineName)
 		{
@@ -80,9 +78,7 @@ private:
 
 /**
 * A vertex shader for rendering a textured screen element.
-* Additional texcoords are used when demosaic is required.
 */
-template<bool bDemosaic>
 class FMobileSceneCaptureCopyVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FMobileSceneCaptureCopyVS, Global)
@@ -99,7 +95,6 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		OutEnvironment.SetDefine(TEXT("DECODING_MOSAIC"), bDemosaic ? 1u : 0u);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FIntPoint& SourceTexSize)
@@ -116,10 +111,8 @@ public:
 };
 
 #define IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCENETYPE) \
-typedef FMobileSceneCaptureCopyPS<false,SCENETYPE> FMobileSceneCaptureCopyPS##SCENETYPE;\
-typedef FMobileSceneCaptureCopyPS<true,SCENETYPE> FMobileSceneCaptureCopyPS_Mosaic##SCENETYPE;\
+typedef FMobileSceneCaptureCopyPS<SCENETYPE> FMobileSceneCaptureCopyPS##SCENETYPE;\
 IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyPS##SCENETYPE, TEXT("/Engine/Private/MobileSceneCapture.usf"), TEXT("MainCopyPS"), SF_Pixel); \
-IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyPS_Mosaic##SCENETYPE, TEXT("/Engine/Private/MobileSceneCapture.usf"), TEXT("MainCopyPS"), SF_Pixel);
 
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorHDR);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_FinalColorLDR);
@@ -127,15 +120,14 @@ IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorHDRNoAlpha);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorSceneDepth);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneDepth);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_DeviceDepth);
-IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyVS<false>, TEXT("/Engine/Private/MobileSceneCapture.usf"), TEXT("MainCopyVS"), SF_Vertex);
-IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyVS<true>, TEXT("/Engine/Private/MobileSceneCapture.usf"), TEXT("MainCopyVS"), SF_Vertex);
+IMPLEMENT_SHADER_TYPE(, FMobileSceneCaptureCopyVS, TEXT("/Engine/Private/MobileSceneCapture.usf"), TEXT("MainCopyVS"), SF_Vertex);
  
 
-template <bool bDemosaic, ESceneCaptureSource CaptureSource>
+template <ESceneCaptureSource CaptureSource>
 static TShaderRef<FShader> SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FViewInfo& View, const FIntPoint& SourceTexSize, FRHITexture* SourceTextureRHI)
 {
-	TShaderMapRef<FMobileSceneCaptureCopyVS<bDemosaic>> VertexShader(View.ShaderMap);
-	TShaderMapRef<FMobileSceneCaptureCopyPS<bDemosaic, CaptureSource>> PixelShader(View.ShaderMap);
+	TShaderMapRef<FMobileSceneCaptureCopyVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FMobileSceneCaptureCopyPS<CaptureSource>> PixelShader(View.ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
@@ -148,23 +140,22 @@ static TShaderRef<FShader> SetCaptureToTargetShaders(FRHICommandListImmediate& R
 	return VertexShader;
 }
 
-template <bool bDemosaic>
 static TShaderRef<FShader> SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ESceneCaptureSource CaptureSource, FViewInfo& View, const FIntPoint& SourceTexSize, FRHITexture* SourceTextureRHI)
 {
 	switch (CaptureSource)
 	{
 		case SCS_SceneColorHDR:
-			return SetCaptureToTargetShaders<bDemosaic, SCS_SceneColorHDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
+			return SetCaptureToTargetShaders<SCS_SceneColorHDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_FinalColorLDR:
-			return SetCaptureToTargetShaders<bDemosaic, SCS_FinalColorLDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
+			return SetCaptureToTargetShaders<SCS_FinalColorLDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_SceneColorHDRNoAlpha:
-			return SetCaptureToTargetShaders<bDemosaic, SCS_SceneColorHDRNoAlpha>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
+			return SetCaptureToTargetShaders<SCS_SceneColorHDRNoAlpha>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_SceneColorSceneDepth:
-			return SetCaptureToTargetShaders<bDemosaic, SCS_SceneColorSceneDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
+			return SetCaptureToTargetShaders<SCS_SceneColorSceneDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_SceneDepth:
-			return SetCaptureToTargetShaders<bDemosaic, SCS_SceneDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
+			return SetCaptureToTargetShaders<SCS_SceneDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_DeviceDepth:
-			return SetCaptureToTargetShaders<bDemosaic, SCS_DeviceDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
+			return SetCaptureToTargetShaders<SCS_DeviceDepth>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		default:
 			checkNoEntry();
 			return TShaderRef<FShader>();
@@ -225,16 +216,7 @@ static void CopyCaptureToTarget(
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 
-		const bool bUsingDemosaic = IsMobileHDRMosaic();
-		TShaderRef<FShader> VertexShader;
-		if (bUsingDemosaic)
-		{
-			VertexShader = SetCaptureToTargetShaders<true>(RHICmdList, GraphicsPSOInit, CaptureSource, View, SourceTexSize, SourceTextureRHI);
-		}
-		else
-		{
-			VertexShader = SetCaptureToTargetShaders<false>(RHICmdList, GraphicsPSOInit, CaptureSource, View, SourceTexSize, SourceTextureRHI);
-		}
+		TShaderRef<FShader> VertexShader = SetCaptureToTargetShaders(RHICmdList, GraphicsPSOInit, CaptureSource, View, SourceTexSize, SourceTextureRHI);
 
 		if (bNeedsFlippedRenderTarget)
 		{
@@ -335,7 +317,8 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	const FString& EventName,
 	const FResolveParams& ResolveParams,
 	bool bGenerateMips,
-	const FGenerateMipsParams& GenerateMipsParams)
+	const FGenerateMipsParams& GenerateMipsParams,
+	bool bDisableFlipCopyGLES)
 {
 	FMemMark MemStackMark(FMemStack::Get());
 
@@ -349,9 +332,10 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 #else
 		SCOPED_DRAW_EVENT(RHICmdList, UpdateSceneCaptureContentMobile_RenderThread);
 #endif
+		FViewInfo& View = SceneRenderer->Views[0];
 
 		const bool bIsMobileHDR = IsMobileHDR();
-		const bool bRHINeedsFlip = RHINeedsToSwitchVerticalAxis(GMaxRHIShaderPlatform);
+		const bool bRHINeedsFlip = RHINeedsToSwitchVerticalAxis(GMaxRHIShaderPlatform) && bDisableFlipCopyGLES;
 		// note that GLES code will flip the image when:
 		//	bIsMobileHDR && SceneCaptureSource == SCS_FinalColorLDR (flip performed during post processing)
 		//	!bIsMobileHDR (rendering is flipped by vertex shader)
@@ -394,7 +378,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 			FlippedPooledRenderTarget.GetReference()
 			? FlippedPooledRenderTarget.GetReference()->GetRenderTargetItem().TargetableTexture->GetTexture2D()
 			: nullptr);
-		FViewInfo& View = SceneRenderer->Views[0];
+
 		// We don't support screen percentage in scene capture.
 		FIntRect ViewRect = View.UnscaledViewRect;
 		FIntRect UnconstrainedViewRect = View.UnconstrainedViewRect;

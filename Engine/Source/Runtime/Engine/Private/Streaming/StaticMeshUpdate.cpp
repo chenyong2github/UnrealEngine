@@ -54,7 +54,6 @@ FStaticMeshUpdate::FStaticMeshUpdate(UStaticMesh* InMesh, int32 InRequestedMips)
 
 void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread(UStaticMesh* Mesh, FStaticMeshLODResources& LODResource)
 {
-	LODResource.ConditionalForce16BitIndexBuffer(GMaxRHIShaderPlatform, Mesh);
 	FStaticMeshVertexBuffers& VBs = LODResource.VertexBuffers;
 	TangentsVertexBuffer = VBs.StaticMeshVertexBuffer.CreateTangentsRHIBuffer_RenderThread();
 	TexCoordVertexBuffer = VBs.StaticMeshVertexBuffer.CreateTexCoordRHIBuffer_RenderThread();
@@ -75,7 +74,6 @@ void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread(U
 
 void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_Async(UStaticMesh* Mesh, FStaticMeshLODResources& LODResource)
 {
-	LODResource.ConditionalForce16BitIndexBuffer(GMaxRHIShaderPlatform, Mesh);
 	FStaticMeshVertexBuffers& VBs = LODResource.VertexBuffers;
 	TangentsVertexBuffer = VBs.StaticMeshVertexBuffer.CreateTangentsRHIBuffer_Async();
 	TexCoordVertexBuffer = VBs.StaticMeshVertexBuffer.CreateTexCoordRHIBuffer_Async();

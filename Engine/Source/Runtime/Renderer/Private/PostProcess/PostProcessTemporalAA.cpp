@@ -11,6 +11,13 @@
 
 namespace
 {
+
+inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
+{
+	return (IsPCPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsTemporalHistoryUpscale(Platform))
+		&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+}
+
 const int32 GTemporalAATileSizeX = 8;
 const int32 GTemporalAATileSizeY = 8;
 
@@ -141,8 +148,8 @@ class FTemporalAACS : public FGlobalShader
 
 		if (PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::MainSuperSampling)
 		{
-			// Super sampling is only high end PC SM5 functionality.
-			if (!IsPCPlatform(Parameters.Platform))
+			// Super sampling is only available in certain configurations.
+			if (!DoesPlatformSupportTemporalHistoryUpscale(Parameters.Platform))
 			{
 				return false;
 			}
@@ -326,13 +333,15 @@ bool IsTemporalAASceneDownsampleAllowed(const FViewInfo& View)
 
 float GetTemporalAAHistoryUpscaleFactor(const FViewInfo& View)
 {
-	// We only support history upscale on PC with feature level SM5+
-	if (!IsPCPlatform(View.GetShaderPlatform()) || !IsFeatureLevelSupported(View.GetShaderPlatform(), ERHIFeatureLevel::SM5))
+	float UpscaleFactor = 1.0f;
+
+	// We only support history upscale in certain configurations.
+	if (DoesPlatformSupportTemporalHistoryUpscale(View.GetShaderPlatform()))
 	{
-		return 1.0f;
+		UpscaleFactor = FMath::Clamp(CVarTemporalAAHistorySP.GetValueOnRenderThread() / 100.0f, 1.0f, 2.0f);
 	}
 
-	return FMath::Clamp(CVarTemporalAAHistorySP.GetValueOnRenderThread() / 100.0f, 1.0f, 2.0f);
+	return UpscaleFactor;
 }
 
 FIntPoint FTAAPassParameters::GetOutputExtent() const

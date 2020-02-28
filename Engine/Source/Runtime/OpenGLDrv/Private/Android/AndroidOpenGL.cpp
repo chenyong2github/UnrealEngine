@@ -3,121 +3,15 @@
 #include "CoreMinimal.h"
 #include "Android/AndroidPlatform.h"
 
-#if USE_ANDROID_OPENGL && !PLATFORM_ANDROIDESDEFERRED
+#if USE_ANDROID_OPENGL
 
 #include "OpenGLDrvPrivate.h"
 #include "AndroidOpenGL.h"
 #include "OpenGLDrvPrivate.h"
-#include "OpenGLES2.h"
+#include "OpenGLES.h"
 #include "Android/AndroidWindow.h"
 #include "AndroidOpenGLPrivate.h"
 #include "Android/AndroidPlatformMisc.h"
-
-PFNEGLGETSYSTEMTIMENVPROC eglGetSystemTimeNV_p = NULL;
-PFNEGLCREATESYNCKHRPROC eglCreateSyncKHR_p = NULL;
-PFNEGLDESTROYSYNCKHRPROC eglDestroySyncKHR_p = NULL;
-PFNEGLCLIENTWAITSYNCKHRPROC eglClientWaitSyncKHR_p = NULL;
-PFNEGLGETSYNCATTRIBKHRPROC eglGetSyncAttribKHR_p = NULL;
-
-// Occlusion Queries
-PFNGLGENQUERIESEXTPROC 					glGenQueriesEXT = NULL;
-PFNGLDELETEQUERIESEXTPROC 				glDeleteQueriesEXT = NULL;
-PFNGLISQUERYEXTPROC 					glIsQueryEXT = NULL;
-PFNGLBEGINQUERYEXTPROC 					glBeginQueryEXT = NULL;
-PFNGLENDQUERYEXTPROC 					glEndQueryEXT = NULL;
-PFNGLGETQUERYIVEXTPROC 					glGetQueryivEXT = NULL;
-PFNGLGETQUERYOBJECTUIVEXTPROC 			glGetQueryObjectuivEXT = NULL;
-
-PFNGLQUERYCOUNTEREXTPROC				glQueryCounterEXT = NULL;
-PFNGLGETQUERYOBJECTUI64VEXTPROC			glGetQueryObjectui64vEXT = NULL;
-
-// Offscreen MSAA rendering
-PFNBLITFRAMEBUFFERNVPROC				glBlitFramebufferNV = NULL;
-PFNGLDISCARDFRAMEBUFFEREXTPROC			glDiscardFramebufferEXT = NULL;
-PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC	glFramebufferTexture2DMultisampleEXT = NULL;
-PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC	glRenderbufferStorageMultisampleEXT = NULL;
-
-PFNGLPUSHGROUPMARKEREXTPROC				glPushGroupMarkerEXT = NULL;
-PFNGLPOPGROUPMARKEREXTPROC				glPopGroupMarkerEXT = NULL;
-PFNGLLABELOBJECTEXTPROC					glLabelObjectEXT = NULL;
-PFNGLGETOBJECTLABELEXTPROC				glGetObjectLabelEXT = NULL;
-
-PFNGLMAPBUFFEROESPROC					glMapBufferOESa = NULL;
-PFNGLUNMAPBUFFEROESPROC					glUnmapBufferOESa = NULL;
-
-PFNGLTEXSTORAGE2DPROC					glTexStorage2D = NULL;
-PFNGLTEXSTORAGE3DPROC					glTexStorage3D = NULL;
-
-// KHR_debug
-PFNGLDEBUGMESSAGECONTROLKHRPROC			glDebugMessageControlKHR = NULL;
-PFNGLDEBUGMESSAGEINSERTKHRPROC			glDebugMessageInsertKHR = NULL;
-PFNGLDEBUGMESSAGECALLBACKKHRPROC		glDebugMessageCallbackKHR = NULL;
-PFNGLGETDEBUGMESSAGELOGKHRPROC			glDebugMessageLogKHR = NULL;
-PFNGLGETPOINTERVKHRPROC					glGetPointervKHR = NULL;
-PFNGLPUSHDEBUGGROUPKHRPROC				glPushDebugGroupKHR = NULL;
-PFNGLPOPDEBUGGROUPKHRPROC				glPopDebugGroupKHR = NULL;
-PFNGLOBJECTLABELKHRPROC					glObjectLabelKHR = NULL;
-PFNGLGETOBJECTLABELKHRPROC				glGetObjectLabelKHR = NULL;
-PFNGLOBJECTPTRLABELKHRPROC				glObjectPtrLabelKHR = NULL;
-PFNGLGETOBJECTPTRLABELKHRPROC			glGetObjectPtrLabelKHR = NULL;
-
-PFNGLDRAWELEMENTSINSTANCEDPROC			glDrawElementsInstanced = NULL;
-PFNGLDRAWARRAYSINSTANCEDPROC			glDrawArraysInstanced = NULL;
-
-PFNGLGENVERTEXARRAYSPROC 				glGenVertexArrays = NULL;
-PFNGLBINDVERTEXARRAYPROC 				glBindVertexArray = NULL;
-PFNGLMAPBUFFERRANGEPROC					glMapBufferRange = NULL;
-PFNGLUNMAPBUFFERPROC					glUnmapBuffer = NULL;
-PFNGLCOPYBUFFERSUBDATAPROC				glCopyBufferSubData = NULL;
-PFNGLDRAWARRAYSINDIRECTPROC				glDrawArraysIndirect = NULL;
-PFNGLDRAWELEMENTSINDIRECTPROC			glDrawElementsIndirect = NULL;
-
-PFNGLVERTEXATTRIBDIVISORPROC			glVertexAttribDivisor = NULL;
-
-PFNGLUNIFORM4UIVPROC					glUniform4uiv = NULL;
-PFNGLTEXIMAGE3DPROC						glTexImage3D = NULL;
-PFNGLTEXSUBIMAGE3DPROC					glTexSubImage3D = NULL;
-PFNGLCOMPRESSEDTEXIMAGE3DPROC			glCompressedTexImage3D = NULL;
-PFNGLCOMPRESSEDTEXSUBIMAGE3DPROC		glCompressedTexSubImage3D = NULL;
-PFNGLCOPYTEXSUBIMAGE3DPROC				glCopyTexSubImage3D = NULL;
-PFNGLCLEARBUFFERFIPROC					glClearBufferfi = NULL;
-PFNGLCLEARBUFFERFVPROC					glClearBufferfv = NULL;
-PFNGLCLEARBUFFERIVPROC					glClearBufferiv = NULL;
-PFNGLCLEARBUFFERUIVPROC					glClearBufferuiv = NULL;
-PFNGLREADBUFFERPROC						glReadBuffer = NULL;
-PFNGLDRAWBUFFERSPROC					glDrawBuffers = NULL;
-PFNGLTEXBUFFEREXTPROC					glTexBufferEXT = NULL;
-PFNGLTEXBUFFERRANGEEXTPROC				glTexBufferRangeEXT = NULL;
-PFNGLCOPYIMAGESUBDATAPROC				glCopyImageSubData = nullptr;
-
-PFNGLGETPROGRAMBINARYOESPROC            glGetProgramBinary = NULL;
-PFNGLPROGRAMBINARYOESPROC               glProgramBinary = NULL;
-
-PFNGLBINDBUFFERRANGEPROC				glBindBufferRange = NULL;
-PFNGLBINDBUFFERBASEPROC					glBindBufferBase = NULL;
-PFNGLGETUNIFORMBLOCKINDEXPROC			glGetUniformBlockIndex = NULL;
-PFNGLUNIFORMBLOCKBINDINGPROC			glUniformBlockBinding = NULL;
-PFNGLVERTEXATTRIBIPOINTERPROC			glVertexAttribIPointer = NULL;
-PFNGLBLITFRAMEBUFFERPROC				glBlitFramebuffer = NULL;
-
-PFNGLGENSAMPLERSPROC					glGenSamplers = NULL;
-PFNGLDELETESAMPLERSPROC					glDeleteSamplers = NULL;
-PFNGLSAMPLERPARAMETERIPROC				glSamplerParameteri = NULL;
-PFNGLBINDSAMPLERPROC					glBindSampler = NULL;
-PFNGLPROGRAMPARAMETERIPROC				glProgramParameteri = NULL;
-
-PFNGLMEMORYBARRIERPROC					glMemoryBarrier = NULL;
-PFNGLDISPATCHCOMPUTEPROC				glDispatchCompute = NULL;
-PFNGLDISPATCHCOMPUTEINDIRECTPROC		glDispatchComputeIndirect = NULL;
-PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture = NULL;
-
-PFNGLDELETESYNCPROC						glDeleteSync = NULL;
-PFNGLFENCESYNCPROC						glFenceSync = NULL;
-PFNGLISSYNCPROC							glIsSync = NULL;
-PFNGLCLIENTWAITSYNCPROC					glClientWaitSync = NULL;
-
-PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC glFramebufferTextureMultiviewOVR = NULL;
-PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC glFramebufferTextureMultisampleMultiviewOVR = NULL;
 
 PFNeglPresentationTimeANDROID eglPresentationTimeANDROID_p = NULL;
 PFNeglGetNextFrameIdANDROID eglGetNextFrameIdANDROID_p = NULL;
@@ -132,13 +26,8 @@ PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC glFramebufferFetchBarrierQCOM = NULL;
 int32 FAndroidOpenGL::GLMajorVerion = 0;
 int32 FAndroidOpenGL::GLMinorVersion = 0;
 
-GLint FAndroidOpenGL::MaxComputeTextureImageUnits = -1;
-GLint FAndroidOpenGL::MaxComputeUniformComponents = -1;
-
-GLint FAndroidOpenGL::MaxComputeUAVUnits = -1;
-GLint FAndroidOpenGL::MaxPixelUAVUnits = -1;
-GLint FAndroidOpenGL::MaxCombinedUAVUnits = 0;
-
+bool FAndroidOpenGL::bSupportsImageExternal = false;
+bool FAndroidOpenGL::bRequiresAdrenoTilingHint = false;
 
 static TAutoConsoleVariable<int32> CVarEnableAdrenoTilingHint(
 	TEXT("r.Android.EnableAdrenoTilingHint"),
@@ -306,12 +195,10 @@ bool PlatformInitOpenGL()
 		GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bBuildForES31"), bBuildForES31, GEngineIni);
 
 		const bool bSupportsFloatingPointRTs = FAndroidMisc::SupportsFloatingPointRenderTargets();
-		const bool bES20Fallback = !bSupportsFloatingPointRTs || !!CVarDisableES31->GetValueOnAnyThread();
 
-		if (bBuildForES31 && bES31Supported && !bES20Fallback)
+		if (bBuildForES31 && bES31Supported)
 		{
-			FAndroidOpenGL::CurrentFeatureLevelSupport = FAndroidOpenGL::GLMinorVersion >= 2 ? FAndroidOpenGL::EFeatureLevelSupport::ES32 : FAndroidOpenGL::EFeatureLevelSupport::ES31;
-			// shut down existing ES2 egl.
+			FOpenGLES::CurrentFeatureLevelSupport = FAndroidOpenGL::GLMinorVersion >= 2 ? FOpenGLES::EFeatureLevelSupport::ES32 : FOpenGLES::EFeatureLevelSupport::ES31;
 			UE_LOG(LogRHI, Log, TEXT("App is packaged for OpenGL ES 3.1 and an ES %d.%d-capable device was detected. Reinitializing OpenGL ES with a %d.%d context."),
 				FAndroidOpenGL::GLMajorVerion, FAndroidOpenGL::GLMinorVersion, FAndroidOpenGL::GLMajorVerion, FAndroidOpenGL::GLMinorVersion);
 
@@ -321,48 +208,23 @@ bool PlatformInitOpenGL()
 		}
 		else
 		{
-			FAndroidOpenGL::CurrentFeatureLevelSupport = FAndroidOpenGL::EFeatureLevelSupport::ES2;
-
 			FString Message = TEXT("");
-			if (bBuildForES31)
+
+			if (bES31Supported)
 			{
-				Message = TEXT("App is packaged for OpenGL ES 3.1 but device has not met all the requirements for ES 3.1 :\n");
-				if (CVarDisableES31->GetValueOnAnyThread())
+				Message.Append(TEXT("This device does not support Vulkan but the app was not packaged with ES 3.1 support."));
+				if (FAndroidMisc::GetAndroidBuildVersion() < 26)
 				{
-					Message.Append(TEXT("	ES 3.1 support was disabled via r.Android.DisableOpenGLES31Support\n"));
+					Message.Append(TEXT(" Updating to a newer Android version may resolve this issue."));
 				}
-				Message.Append(TEXT("	Device has OpenGL ES 3.1 support: "));
-				Message.Append(bES31Supported ? TEXT("Yes\n") : TEXT("NO\n"));
-
-				Message.Append(TEXT("	Floating point render target support: "));
-				Message.Append(bSupportsFloatingPointRTs ? TEXT("Yes\n") : TEXT("NO\n"));
-
-				UE_LOG(LogRHI, Log, TEXT("%s"), *Message);
+				FPlatformMisc::LowLevelOutputDebugString(*Message);
+				FAndroidMisc::MessageBoxExt(EAppMsgType::Ok, *Message, TEXT("Unable to run on this device!"));
 			}
-
-			bool bBuildForES2 = false;
-			GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bBuildForES2"), bBuildForES2, GEngineIni);
-			// If we're here and there's no ES2 data then we're in trouble.
-			if (!bBuildForES2)
+			else
 			{
-				if (bES31Supported)
-				{
-					Message.Append(TEXT("This device does not support Vulkan but the app was not packaged with either OpenGL ES 2 or ES 3.1 support."));
-					if (FAndroidMisc::GetAndroidBuildVersion() < 26)
-					{
-						Message.Append(TEXT(" Updating to a newer Android version may resolve this issue."));
-					}
-					FPlatformMisc::LowLevelOutputDebugString(*Message);
-					FAndroidMisc::MessageBoxExt(EAppMsgType::Ok, *Message, TEXT("Unable to run on this device!"));
-					checkf(bBuildForES2, TEXT("This device does not support Vulkan but the app was not packaged with either OpenGL ES 2 or ES 3.1 support."));
-				}
-				else
-				{
-					Message.Append(TEXT("This device only supports OpenGL ES 2 but the app was not packaged with ES2 support."));
-					FPlatformMisc::LowLevelOutputDebugString(*Message);
-					FAndroidMisc::MessageBoxExt(EAppMsgType::Ok, *Message, TEXT("Unable to run on this device!"));
-					checkf(bBuildForES2, TEXT("This device does not support Vulkan but the app was not packaged with either OpenGL ES 2 or ES 3.1 support."));
-				}
+				Message.Append(TEXT("This device only supports OpenGL ES 2/3 which is not supported, only supports ES 3.1+ "));
+				FPlatformMisc::LowLevelOutputDebugString(*Message);
+				FAndroidMisc::MessageBoxExt(EAppMsgType::Ok, *Message, TEXT("Unable to run on this device!"));
 			}
 		}
 	}
@@ -585,7 +447,7 @@ void PlatformGetNewRenderQuery(GLuint* OutQuery, uint64* OutQueryContext)
 	VERIFY_GL_SCOPE();
 
 #if !VIRTUALIZE_QUERIES
-	FOpenGLES2::GenQueries(1, OutQuery);
+	FOpenGLES::GenQueries(1, OutQuery);
 	//glGenQueriesEXT(1, OutQuery);
 #if CHECK_QUERY_ERRORS
 	Err = glGetError();
@@ -870,22 +732,7 @@ void FAndroidOpenGL::EndQuery(GLenum QueryType)
 #endif
 }
 
-
-
-bool FAndroidOpenGL::bUseHalfFloatTexStorage = false;
-bool FAndroidOpenGL::bSupportsTextureBuffer = false;
-bool FAndroidOpenGL::bUseES30ShadingLanguage = false;
-bool FAndroidOpenGL::bES30Support = false;
-bool FAndroidOpenGL::bES31Support = false;
-bool FAndroidOpenGL::bHasHardwareHiddenSurfaceRemoval = false;
-bool FAndroidOpenGL::bSupportsMobileMultiView = false;
-bool FAndroidOpenGL::bSupportsImageExternal = false;
-bool FAndroidOpenGL::bRequiresAdrenoTilingHint = false;
-
 FAndroidOpenGL::EImageExternalType FAndroidOpenGL::ImageExternalType = FAndroidOpenGL::EImageExternalType::None;
-GLint FAndroidOpenGL::MaxMSAASamplesTileMem = 1;
-
-FAndroidOpenGL::EFeatureLevelSupport FAndroidOpenGL::CurrentFeatureLevelSupport = FAndroidOpenGL::EFeatureLevelSupport::Invalid;
 
 extern bool AndroidThunkCpp_GetMetaDataBoolean(const FString& Key);
 extern FString AndroidThunkCpp_GetMetaDataString(const FString& Key);
@@ -920,195 +767,14 @@ void FAndroidOpenGL::EnableAdrenoTilingModeHint(bool bEnable)
 
 void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 {
-	FOpenGLES2::ProcessExtensions(ExtensionsString);
-
 	FString VersionString = FString(ANSI_TO_TCHAR((const ANSICHAR*)glGetString(GL_VERSION)));
 	FString SubVersionString;
-	bES30Support = VersionString.Split(TEXT("OpenGL ES 3."), nullptr, &SubVersionString);
-	bES31Support = bES30Support && FCString::Atoi(*SubVersionString) >= 1;
+	bool hasES3 = VersionString.Split(TEXT("OpenGL ES 3."), nullptr, &SubVersionString);
+	bES31Support = hasES3 && FCString::Atoi(*SubVersionString) >= 1;
 
-	if (bES30Support || bES31Support)
-	{
-		bSupportsOcclusionQueries = true;
-	}
-
-	// Disable ASTC if requested by device profile
-	static const auto CVarDisableASTC = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Android.DisableASTCSupport"));
-	if (bSupportsASTC && CVarDisableASTC->GetValueOnAnyThread())
-	{
-		bSupportsASTC = false;
-		FAndroidGPUInfo::Get().RemoveTargetPlatform(TEXT("Android_ASTC"));
-		UE_LOG(LogRHI, Log, TEXT("ASTC was disabled via r.OpenGL.DisableASTCSupport"));
-	}
-
-	// Get procedures
-	if (bSupportsOcclusionQueries || SupportsDisjointTimeQueries())
-	{
-		if (bES30Support || bES31Support)
-		{
-			glGenQueriesEXT        = (PFNGLGENQUERIESEXTPROC)       ((void*)eglGetProcAddress("glGenQueries"));
-			glDeleteQueriesEXT     = (PFNGLDELETEQUERIESEXTPROC)    ((void*)eglGetProcAddress("glDeleteQueries"));
-			glIsQueryEXT           = (PFNGLISQUERYEXTPROC)          ((void*)eglGetProcAddress("glIsQuery"));
-			glBeginQueryEXT        = (PFNGLBEGINQUERYEXTPROC)       ((void*)eglGetProcAddress("glBeginQuery"));
-			glEndQueryEXT          = (PFNGLENDQUERYEXTPROC)         ((void*)eglGetProcAddress("glEndQuery"));
-			glGetQueryivEXT        = (PFNGLGETQUERYIVEXTPROC)       ((void*)eglGetProcAddress("glGetQueryiv"));
-			glGetQueryObjectuivEXT = (PFNGLGETQUERYOBJECTUIVEXTPROC)((void*)eglGetProcAddress("glGetQueryObjectuiv"));
-		}
-		else
-		{
-			glGenQueriesEXT        = (PFNGLGENQUERIESEXTPROC)       ((void*)eglGetProcAddress("glGenQueriesEXT"));
-			glDeleteQueriesEXT     = (PFNGLDELETEQUERIESEXTPROC)    ((void*)eglGetProcAddress("glDeleteQueriesEXT"));
-			glIsQueryEXT           = (PFNGLISQUERYEXTPROC)          ((void*)eglGetProcAddress("glIsQueryEXT"));
-			glBeginQueryEXT        = (PFNGLBEGINQUERYEXTPROC)       ((void*)eglGetProcAddress("glBeginQueryEXT"));
-			glEndQueryEXT          = (PFNGLENDQUERYEXTPROC)         ((void*)eglGetProcAddress("glEndQueryEXT"));
-			glGetQueryivEXT        = (PFNGLGETQUERYIVEXTPROC)       ((void*)eglGetProcAddress("glGetQueryivEXT"));
-			glGetQueryObjectuivEXT = (PFNGLGETQUERYOBJECTUIVEXTPROC)((void*)eglGetProcAddress("glGetQueryObjectuivEXT"));
-		}
-
-		if (SupportsDisjointTimeQueries())
-		{
-			glQueryCounterEXT			= (PFNGLQUERYCOUNTEREXTPROC)		((void*)eglGetProcAddress("glQueryCounterEXT"));
-			glGetQueryObjectui64vEXT	= (PFNGLGETQUERYOBJECTUI64VEXTPROC)	((void*)eglGetProcAddress("glGetQueryObjectui64vEXT"));
-
-			// If EXT_disjoint_timer_query wasn't found, NV_timer_query might be available
-			if (glQueryCounterEXT == NULL)
-			{
-				glQueryCounterEXT = (PFNGLQUERYCOUNTEREXTPROC)eglGetProcAddress("glQueryCounterNV");
-			}
-			if (glGetQueryObjectui64vEXT == NULL)
-			{
-				glGetQueryObjectui64vEXT = (PFNGLGETQUERYOBJECTUI64VEXTPROC)eglGetProcAddress("glGetQueryObjectui64vNV");
-			}
-		}
-	}
-
-	glDiscardFramebufferEXT = (PFNGLDISCARDFRAMEBUFFEREXTPROC)((void*)eglGetProcAddress("glDiscardFramebufferEXT"));
-	glPushGroupMarkerEXT = (PFNGLPUSHGROUPMARKEREXTPROC)((void*)eglGetProcAddress("glPushGroupMarkerEXT"));
-	glPopGroupMarkerEXT = (PFNGLPOPGROUPMARKEREXTPROC)((void*)eglGetProcAddress("glPopGroupMarkerEXT"));
-
-	if (ExtensionsString.Contains(TEXT("GL_EXT_DEBUG_LABEL")))
-	{
-		glLabelObjectEXT = (PFNGLLABELOBJECTEXTPROC)((void*)eglGetProcAddress("glLabelObjectEXT"));
-		glGetObjectLabelEXT = (PFNGLGETOBJECTLABELEXTPROC)((void*)eglGetProcAddress("glGetObjectLabelEXT"));
-	}
-
-	if (ExtensionsString.Contains(TEXT("GL_EXT_multisampled_render_to_texture")))
-	{
-		glFramebufferTexture2DMultisampleEXT = (PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC)((void*)eglGetProcAddress("glFramebufferTexture2DMultisampleEXT"));
-		glRenderbufferStorageMultisampleEXT = (PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC)((void*)eglGetProcAddress("glRenderbufferStorageMultisampleEXT"));
-		glGetIntegerv(GL_MAX_SAMPLES_EXT, &MaxMSAASamplesTileMem);
-		MaxMSAASamplesTileMem = FMath::Max<GLint>(MaxMSAASamplesTileMem, 1);
-		UE_LOG(LogRHI, Log, TEXT("Support for %dx MSAA detected"), MaxMSAASamplesTileMem);
-	}
-	else
-	{
-		// indicates RHI supports on-chip MSAA but this device does not.
-		MaxMSAASamplesTileMem = 1;
-	}
-
-	if (bES31Support)
-	{
-		GET_GL_INT(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, 0, MaxComputeTextureImageUnits);
-		GET_GL_INT(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, 0, MaxComputeUniformComponents);
-		
-		LOG_AND_GET_GL_INT(GL_MAX_COMBINED_IMAGE_UNIFORMS, 0, MaxCombinedUAVUnits);
-		LOG_AND_GET_GL_INT(GL_MAX_COMPUTE_IMAGE_UNIFORMS, 0, MaxComputeUAVUnits);
-		LOG_AND_GET_GL_INT(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, 0, MaxPixelUAVUnits);
-
-		// clamp UAV units to a sensible limit
-		MaxCombinedUAVUnits = FMath::Min(MaxCombinedUAVUnits, 8);
-		MaxComputeUAVUnits = FMath::Min(MaxComputeUAVUnits, MaxCombinedUAVUnits);
-		MaxPixelUAVUnits = FMath::Min(MaxPixelUAVUnits, MaxCombinedUAVUnits);
-	}
-
-	bSupportsETC2 = bES30Support;
-	bUseES30ShadingLanguage = bES30Support;
+	FOpenGLES::ProcessExtensions(ExtensionsString);
 
 	FString RendererString = FString(ANSI_TO_TCHAR((const ANSICHAR*)glGetString(GL_RENDERER)));
-
-	// Common GPU types
-	const bool bIsNvidiaBased = RendererString.Contains(TEXT("NVIDIA"));
-	const bool bIsPoverVRBased = RendererString.Contains(TEXT("PowerVR"));
-	const bool bIsAdrenoBased = RendererString.Contains(TEXT("Adreno"));
-	const bool bIsMaliBased = RendererString.Contains(TEXT("Mali"));
-
-	// Check for external image support for different ES versions
-	ImageExternalType = EImageExternalType::None;
-
-	static const auto CVarOverrideExternalTextureSupport = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Android.OverrideExternalTextureSupport"));
-	const int32 OverrideExternalTextureSupport = CVarOverrideExternalTextureSupport->GetValueOnAnyThread();
-	switch (OverrideExternalTextureSupport)
-	{
-		case 1:
-			ImageExternalType = EImageExternalType::None;
-			break;
-
-		case 2:
-			ImageExternalType = EImageExternalType::ImageExternal100;
-			break;
-
-		case 3:
-			ImageExternalType = EImageExternalType::ImageExternal300;
-			break;	
-
-		case 4:
-			ImageExternalType = EImageExternalType::ImageExternalESSL300;
-			break;
-
-		case 0:
-		default:
-			// auto-detect by extensions (default)
-			bool bHasImageExternal = ExtensionsString.Contains(TEXT("GL_OES_EGL_image_external ")) || ExtensionsString.EndsWith(TEXT("GL_OES_EGL_image_external"));
-			bool bHasImageExternalESSL3 = ExtensionsString.Contains(TEXT("OES_EGL_image_external_essl3"));
-			if (bHasImageExternal || bHasImageExternalESSL3)
-			{
-				ImageExternalType = EImageExternalType::ImageExternal100;
-				if (bUseES30ShadingLanguage)
-				{
-					if (bHasImageExternalESSL3)
-					{
-						ImageExternalType = EImageExternalType::ImageExternalESSL300;
-					}
-					else
-					{
-						// Adreno 5xx can do essl3 even without extension in list
-						if (bIsAdrenoBased && RendererString.Contains(TEXT("(TM) 5")))
-						{
-							ImageExternalType = EImageExternalType::ImageExternalESSL300;
-						}
-					}
-				}
-				if (bIsNvidiaBased)
-				{
-					// Nvidia needs version 100 even though it supports ES3
-					ImageExternalType = EImageExternalType::ImageExternal100;
-				}
-			}
-			break;
-	}
-	switch (ImageExternalType)
-	{
-		case EImageExternalType::None:
-			UE_LOG(LogRHI, Log, TEXT("Image external disabled"));
-			break;
-
-		case EImageExternalType::ImageExternal100:
-			UE_LOG(LogRHI, Log, TEXT("Image external enabled: ImageExternal100"));
-			break;
-
-		case EImageExternalType::ImageExternal300:
-			UE_LOG(LogRHI, Log, TEXT("Image external enabled: ImageExternal300"));
-			break;
-
-		case EImageExternalType::ImageExternalESSL300:
-			UE_LOG(LogRHI, Log, TEXT("Image external enabled: ImageExternalESSL300"));
-			break;
-
-		default:
-			ImageExternalType = EImageExternalType::None;
-			UE_LOG(LogRHI, Log, TEXT("Image external disabled; unknown type"));
-	}
-	bSupportsImageExternal = ImageExternalType != EImageExternalType::None;
 
 	if (RendererString.Contains(TEXT("SGX 540")))
 	{
@@ -1116,6 +782,12 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		bSupportsPackedDepthStencil = false;
 		bRequiresTexture2DPrecisionHack = true;
 	}
+
+	// Common GPU types
+	const bool bIsNvidiaBased = RendererString.Contains(TEXT("NVIDIA"));
+	const bool bIsPoverVRBased = RendererString.Contains(TEXT("PowerVR"));
+	const bool bIsAdrenoBased = RendererString.Contains(TEXT("Adreno"));
+	const bool bIsMaliBased = RendererString.Contains(TEXT("Mali"));
 
 	if (bIsPoverVRBased)
 	{
@@ -1142,121 +814,13 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		UE_CLOG(bRequiresAdrenoTilingHint, LogRHI, Log, TEXT("Enabling Adreno tiling hint."));
 	}
 
-	if (bES30Support)
+	// Disable ASTC if requested by device profile
+	static const auto CVarDisableASTC = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Android.DisableASTCSupport"));
+	if (bSupportsASTC && CVarDisableASTC->GetValueOnAnyThread())
 	{
-		glDrawElementsInstanced = (PFNGLDRAWELEMENTSINSTANCEDPROC)((void*)eglGetProcAddress("glDrawElementsInstanced"));
-		glDrawArraysInstanced = (PFNGLDRAWARRAYSINSTANCEDPROC)((void*)eglGetProcAddress("glDrawArraysInstanced"));
-		glVertexAttribDivisor = (PFNGLVERTEXATTRIBDIVISORPROC)((void*)eglGetProcAddress("glVertexAttribDivisor"));
-		glUniform4uiv = (PFNGLUNIFORM4UIVPROC)((void*)eglGetProcAddress("glUniform4uiv"));
-		glTexImage3D = (PFNGLTEXIMAGE3DPROC)((void*)eglGetProcAddress("glTexImage3D"));
-		glTexSubImage3D = (PFNGLTEXSUBIMAGE3DPROC)((void*)eglGetProcAddress("glTexSubImage3D"));
-		glCompressedTexImage3D = (PFNGLCOMPRESSEDTEXIMAGE3DPROC)((void*)eglGetProcAddress("glCompressedTexImage3D"));
-		glCompressedTexSubImage3D = (PFNGLCOMPRESSEDTEXSUBIMAGE3DPROC)((void*)eglGetProcAddress("glCompressedTexSubImage3D"));
-		glCopyTexSubImage3D = (PFNGLCOPYTEXSUBIMAGE3DPROC)((void*)eglGetProcAddress("glCopyTexSubImage3D"));
-		glClearBufferfi = (PFNGLCLEARBUFFERFIPROC)((void*)eglGetProcAddress("glClearBufferfi"));
-		glClearBufferfv = (PFNGLCLEARBUFFERFVPROC)((void*)eglGetProcAddress("glClearBufferfv"));
-		glClearBufferiv = (PFNGLCLEARBUFFERIVPROC)((void*)eglGetProcAddress("glClearBufferiv"));
-		glClearBufferuiv = (PFNGLCLEARBUFFERUIVPROC)((void*)eglGetProcAddress("glClearBufferuiv"));
-		glDrawBuffers = (PFNGLDRAWBUFFERSPROC)((void*)eglGetProcAddress("glDrawBuffers"));
-		glReadBuffer = (PFNGLREADBUFFERPROC)((void*)eglGetProcAddress("glReadBuffer"));
-
-		glMapBufferRange = (PFNGLMAPBUFFERRANGEPROC)((void*)eglGetProcAddress("glMapBufferRange"));
-		glCopyBufferSubData = (PFNGLCOPYBUFFERSUBDATAPROC)((void*)eglGetProcAddress("glCopyBufferSubData"));
-		glUnmapBuffer = (PFNGLUNMAPBUFFERPROC)((void*)eglGetProcAddress("glUnmapBuffer"));
-		glBindBufferRange = (PFNGLBINDBUFFERRANGEPROC)((void*)eglGetProcAddress("glBindBufferRange"));
-		glBindBufferBase = (PFNGLBINDBUFFERBASEPROC)((void*)eglGetProcAddress("glBindBufferBase"));
-		glGetUniformBlockIndex = (PFNGLGETUNIFORMBLOCKINDEXPROC)((void*)eglGetProcAddress("glGetUniformBlockIndex"));
-		glUniformBlockBinding = (PFNGLUNIFORMBLOCKBINDINGPROC)((void*)eglGetProcAddress("glUniformBlockBinding"));
-		glVertexAttribIPointer = (PFNGLVERTEXATTRIBIPOINTERPROC)((void*)eglGetProcAddress("glVertexAttribIPointer"));
-		glBlitFramebuffer = (PFNGLBLITFRAMEBUFFERPROC)(void*)eglGetProcAddress("glBlitFramebuffer");
-
-		glGenSamplers = (PFNGLGENSAMPLERSPROC)((void*)eglGetProcAddress("glGenSamplers"));
-		glDeleteSamplers = (PFNGLDELETESAMPLERSPROC)((void*)eglGetProcAddress("glDeleteSamplers"));
-		glSamplerParameteri = (PFNGLSAMPLERPARAMETERIPROC)((void*)eglGetProcAddress("glSamplerParameteri"));
-		glBindSampler = (PFNGLBINDSAMPLERPROC)((void*)eglGetProcAddress("glBindSampler"));
-		glProgramParameteri = (PFNGLPROGRAMPARAMETERIPROC)((void*)eglGetProcAddress("glProgramParameteri"));
-
-		glTexStorage3D = (PFNGLTEXSTORAGE3DPROC)((void*)eglGetProcAddress("glTexStorage3D"));
-		
-		glDeleteSync = (PFNGLDELETESYNCPROC)((void*)eglGetProcAddress("glDeleteSync"));
-		glFenceSync = (PFNGLFENCESYNCPROC)((void*)eglGetProcAddress("glFenceSync"));
-		glIsSync = (PFNGLISSYNCPROC)((void*)eglGetProcAddress("glIsSync"));
-		glClientWaitSync = (PFNGLCLIENTWAITSYNCPROC)((void*)eglGetProcAddress("glClientWaitSync"));
-
-		// Required by the ES3 spec
-		bSupportsTextureFloat = true;
-		bSupportsTextureHalfFloat = true;
-		bSupportsRGB10A2 = true;
-		bSupportsVertexHalfFloat = true;
-		bSupportsStandardDerivativesExtension = true;
-
-		// According to https://www.khronos.org/registry/gles/extensions/EXT/EXT_color_buffer_float.txt
-		bSupportsColorBufferHalfFloat = (bSupportsColorBufferHalfFloat || bSupportsColorBufferFloat);
-
-		GSupportsDepthRenderTargetWithoutColorRenderTarget = true;
-	}
-
-	if (bES30Support)
-	{
-		// Mobile multi-view setup
-		const bool bMultiViewSupport = ExtensionsString.Contains(TEXT("GL_OVR_multiview"));
-		const bool bMultiView2Support = ExtensionsString.Contains(TEXT("GL_OVR_multiview2"));
-		const bool bMultiViewMultiSampleSupport = ExtensionsString.Contains(TEXT("GL_OVR_multiview_multisampled_render_to_texture"));
-		if (bMultiViewSupport && bMultiView2Support && bMultiViewMultiSampleSupport)
-		{
-			glFramebufferTextureMultiviewOVR = (PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC)((void*)eglGetProcAddress("glFramebufferTextureMultiviewOVR"));
-			glFramebufferTextureMultisampleMultiviewOVR = (PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC)((void*)eglGetProcAddress("glFramebufferTextureMultisampleMultiviewOVR"));
-
-			bSupportsMobileMultiView = (glFramebufferTextureMultiviewOVR != NULL) && (glFramebufferTextureMultisampleMultiviewOVR != NULL);
-
-			// Just because the driver declares multi-view support and hands us valid function pointers doesn't actually guarantee the feature works...
-			if (bSupportsMobileMultiView)
-			{
-				UE_LOG(LogRHI, Log, TEXT("Device supports mobile multi-view."));
-			}
-		}
-	}
-
-	if (bES31Support)
-	{
-		glDrawArraysIndirect = (PFNGLDRAWARRAYSINDIRECTPROC)((void*)eglGetProcAddress("glDrawArraysIndirect"));
-		glDrawElementsIndirect = (PFNGLDRAWELEMENTSINDIRECTPROC)((void*)eglGetProcAddress("glDrawElementsIndirect"));
-		bSupportsTextureBuffer = ExtensionsString.Contains(TEXT("GL_EXT_texture_buffer"));
-		if (bSupportsTextureBuffer)
-		{
-			glTexBufferEXT = (PFNGLTEXBUFFEREXTPROC)((void*)eglGetProcAddress("glTexBufferEXT"));
-			glTexBufferRangeEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRangeEXT"));
-		}
-
-		GSupportsDepthRenderTargetWithoutColorRenderTarget = true;
-
-		//
-		glMemoryBarrier = (PFNGLMEMORYBARRIERPROC)((void*)eglGetProcAddress("glMemoryBarrier"));
-		glDispatchCompute = (PFNGLDISPATCHCOMPUTEPROC)((void*)eglGetProcAddress("glDispatchCompute"));
-		glDispatchComputeIndirect = (PFNGLDISPATCHCOMPUTEINDIRECTPROC)((void*)eglGetProcAddress("glDispatchComputeIndirect"));
-		glBindImageTexture = (PFNGLBINDIMAGETEXTUREPROC)((void*)eglGetProcAddress("glBindImageTexture"));
-	}
-
-	if (bES30Support || bIsAdrenoBased)
-	{
-		// Attempt to find ES 3.0 glTexStorage2D if we're on an ES 3.0 device
-		glTexStorage2D = (PFNGLTEXSTORAGE2DPROC)((void*)eglGetProcAddress("glTexStorage2D"));
-		if( glTexStorage2D != NULL )
-		{
-			bUseHalfFloatTexStorage = true;
-		}
-		else
-		{
-			// need to disable GL_EXT_color_buffer_half_float support because we have no way to allocate the storage and the driver doesn't work without it.
-			UE_LOG(LogRHI,Warning,TEXT("Disabling support for GL_EXT_color_buffer_half_float as we cannot bind glTexStorage2D"));
-			bSupportsColorBufferHalfFloat = false;
-		}
-	}
-
-	//@todo android: need GMSAAAllowed	 ?
-	if (bSupportsNVFrameBufferBlit)
-	{
-		glBlitFramebufferNV = (PFNBLITFRAMEBUFFERNVPROC)((void*)eglGetProcAddress("glBlitFramebufferNV"));
+		bSupportsASTC = false;
+		FAndroidGPUInfo::Get().RemoveTargetPlatform(TEXT("Android_ASTC"));
+		UE_LOG(LogRHI, Log, TEXT("ASTC was disabled via r.OpenGL.DisableASTCSupport"));
 	}
 
 	//On Android, there are problems compiling shaders with textureCubeLodEXT calls in the glsl code,
@@ -1266,26 +830,83 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	// disable swizzled render targets on Android
 	bSupportsBGRA8888RenderTarget = false;
 
-	if (IsES31Usable())
-	{
-		// ES3.1 requires sRGB texture sampling, these formats do not support it
-		bSupportsATITC = false;
-		bSupportsPVRTC = false;
-	}
+	// Check for external image support for different ES versions
+	ImageExternalType = EImageExternalType::None;
 
-	// Set lowest possible limits for texture units, to avoid extra work in GL RHI
-	if (bES30Support)
+	static const auto CVarOverrideExternalTextureSupport = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Android.OverrideExternalTextureSupport"));
+	const int32 OverrideExternalTextureSupport = CVarOverrideExternalTextureSupport->GetValueOnAnyThread();
+	switch (OverrideExternalTextureSupport)
 	{
-		MaxTextureImageUnits = FMath::Min(MaxTextureImageUnits, 16);
-		MaxVertexTextureImageUnits = FMath::Min(MaxVertexTextureImageUnits, 16);
-		MaxCombinedTextureImageUnits = FMath::Min(MaxCombinedTextureImageUnits, 32);
+	case 1:
+		ImageExternalType = EImageExternalType::None;
+		break;
+
+	case 2:
+		ImageExternalType = EImageExternalType::ImageExternal100;
+		break;
+
+	case 3:
+		ImageExternalType = EImageExternalType::ImageExternal300;
+		break;
+
+	case 4:
+		ImageExternalType = EImageExternalType::ImageExternalESSL300;
+		break;
+
+	case 0:
+	default:
+		// auto-detect by extensions (default)
+		bool bHasImageExternal = ExtensionsString.Contains(TEXT("GL_OES_EGL_image_external ")) || ExtensionsString.EndsWith(TEXT("GL_OES_EGL_image_external"));
+		bool bHasImageExternalESSL3 = ExtensionsString.Contains(TEXT("OES_EGL_image_external_essl3"));
+		if (bHasImageExternal || bHasImageExternalESSL3)
+		{
+			ImageExternalType = EImageExternalType::ImageExternal100;
+			if (bUseES30ShadingLanguage)
+			{
+				if (bHasImageExternalESSL3)
+				{
+					ImageExternalType = EImageExternalType::ImageExternalESSL300;
+				}
+				else
+				{
+					// Adreno 5xx can do essl3 even without extension in list
+					if (bIsAdrenoBased && RendererString.Contains(TEXT("(TM) 5")))
+					{
+						ImageExternalType = EImageExternalType::ImageExternalESSL300;
+					}
+				}
+			}
+			if (bIsNvidiaBased)
+			{
+				// Nvidia needs version 100 even though it supports ES3
+				ImageExternalType = EImageExternalType::ImageExternal100;
+			}
+		}
+		break;
 	}
-	else // ES2
+	switch (ImageExternalType)
 	{
-		MaxTextureImageUnits = FMath::Min(MaxTextureImageUnits, 8);
-		MaxVertexTextureImageUnits = 0;
-		MaxCombinedTextureImageUnits = FMath::Min(MaxCombinedTextureImageUnits, 8);
+	case EImageExternalType::None:
+		UE_LOG(LogRHI, Log, TEXT("Image external disabled"));
+		break;
+
+	case EImageExternalType::ImageExternal100:
+		UE_LOG(LogRHI, Log, TEXT("Image external enabled: ImageExternal100"));
+		break;
+
+	case EImageExternalType::ImageExternal300:
+		UE_LOG(LogRHI, Log, TEXT("Image external enabled: ImageExternal300"));
+		break;
+
+	case EImageExternalType::ImageExternalESSL300:
+		UE_LOG(LogRHI, Log, TEXT("Image external enabled: ImageExternalESSL300"));
+		break;
+
+	default:
+		ImageExternalType = EImageExternalType::None;
+		UE_LOG(LogRHI, Log, TEXT("Image external disabled; unknown type"));
 	}
+	bSupportsImageExternal = ImageExternalType != EImageExternalType::None;
 
 	// check for supported texture formats if enabled
 	bool bCookOnTheFly = false;
@@ -1420,7 +1041,7 @@ bool FAndroidMisc::SupportsShaderFramebufferFetch()
 
 bool FAndroidMisc::SupportsES30()
 {
-	return FAndroidGPUInfo::Get().bES30Support;
+	return true;
 }
 
 void FAndroidMisc::GetValidTargetPlatforms(TArray<FString>& TargetPlatformNames)

@@ -169,7 +169,7 @@ void MainPS(
 
 	// can be optimized
 	float4 SvPosition = Input.Position;
-	float2 ViewportUV = (SvPosition - PostProcessOutput_ViewportMin) * PostProcessOutput_ViewportSizeInverse;
+	float2 ViewportUV = (SvPosition.xy - PostProcessOutput_ViewportMin.xy) * PostProcessOutput_ViewportSizeInverse.xy;
 
 #if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
@@ -378,8 +378,6 @@ void MainPS(
 #if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 #if OUTPUT_GAMMA_SPACE
 	FullSceneColor.rgb = sqrt(FullSceneColor.rgb);
-#elif OUTPUT_MOBILE_HDR
-	FullSceneColor = Encode32BPPHDR(FullSceneColor, SvPosition);
 #endif
 #endif
 	OutColor = FullSceneColor;

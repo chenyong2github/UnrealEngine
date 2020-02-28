@@ -409,7 +409,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 
 extern void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float OrthoWidth, float InNearClippingPlane, FMatrix& ProjectionMatrix);
 
-extern void SetupViewVamilyForSceneCapture(
+extern void SetupViewFamilyForSceneCapture(
 	FSceneViewFamily& ViewFamily,
 	USceneCaptureComponent* SceneCaptureComponent,
 	const TArrayView<const FSceneCaptureViewInfo> Views,
@@ -526,7 +526,7 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 		// Uses the exact same secondary view fraction on the planar reflection as the main viewport.
 		ViewFamily.SecondaryViewFraction = MainSceneRenderer.ViewFamily.SecondaryViewFraction;
 
-		SetupViewVamilyForSceneCapture(
+		SetupViewFamilyForSceneCapture(
 			ViewFamily,
 			CaptureComponent,
 			SceneCaptureViewInfo, CaptureComponent->MaxViewDistanceOverride,

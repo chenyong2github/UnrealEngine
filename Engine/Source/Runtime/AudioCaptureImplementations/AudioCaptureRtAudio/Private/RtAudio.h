@@ -3,7 +3,7 @@
 
 #include "AudioCaptureCore.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_XBOXONE
+#if PLATFORM_MICROSOFT || PLATFORM_MAC
 /************************************************************************/
 /*! \class RtAudio
     \brief Realtime audio i/o C++ classes.
@@ -63,7 +63,7 @@
 #undef __WINDOWS_WASAPI__
 #endif
 
-#elif PLATFORM_XBOXONE
+#elif PLATFORM_MICROSOFT
 
 // On Xbox, we use WASAPI.
 #include "Windows/WindowsHWrapper.h"

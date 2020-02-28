@@ -151,7 +151,7 @@ void FMagicLeapMediaPlayer::Close()
 
 					if (Params.TextureData->PreviousNativeBuffer != 0 && MLHandleIsValid(Params.TextureData->PreviousNativeBuffer))
 					{
-						Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, Params.TextureData->PreviousNativeBuffer);
+						Params.MediaPlayer->ReleaseNativeBuffer_RenderThread(Params.MediaPlayerHandle, Params.TextureData->PreviousNativeBuffer);
 					}
 
 					Params.TextureData->VideoTexturePool.Empty();
@@ -185,7 +185,7 @@ void FMagicLeapMediaPlayer::Close()
 
 					if (Params.TextureData->PreviousNativeBuffer != 0 && MLHandleIsValid(Params.TextureData->PreviousNativeBuffer))
 					{
-						Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, Params.TextureData->PreviousNativeBuffer);
+						Params.MediaPlayer->ReleaseNativeBuffer_RenderThread(Params.MediaPlayerHandle, Params.TextureData->PreviousNativeBuffer);
 					}
 
 					Params.MediaPlayer->TriggerResetAndDestroy();
@@ -624,19 +624,19 @@ void FMagicLeapMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 				{
 					auto TextureDataPtr = Params.TextureData.Pin();
 			
-					if (!Params.MediaPlayer->RenderThreadIsBufferAvailable(Params.MediaPlayerHandle))
+					if (!Params.MediaPlayer->IsBufferAvailable_RenderThread(Params.MediaPlayerHandle))
 					{
 						return;
 					}
 
 					if (TextureDataPtr->PreviousNativeBuffer != 0 && MLHandleIsValid(TextureDataPtr->PreviousNativeBuffer))
 					{
-						Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, TextureDataPtr->PreviousNativeBuffer);
+						Params.MediaPlayer->ReleaseNativeBuffer_RenderThread(Params.MediaPlayerHandle, TextureDataPtr->PreviousNativeBuffer);
 						TextureDataPtr->PreviousNativeBuffer = 0;
 					}
 
 					MLHandle NativeBuffer = ML_INVALID_HANDLE;
-					if (!Params.MediaPlayer->RenderThreadGetNativeBuffer(Params.MediaPlayerHandle, NativeBuffer, TextureDataPtr->bIsVideoTextureValid))
+					if (!Params.MediaPlayer->GetNativeBuffer_RenderThread(Params.MediaPlayerHandle, NativeBuffer, TextureDataPtr->bIsVideoTextureValid))
 					{
 						return;
 					}
@@ -704,7 +704,7 @@ void FMagicLeapMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 				{
 					auto TextureDataPtr = Params.TextureData.Pin();
 
-					if (!Params.MediaPlayer->RenderThreadIsBufferAvailable(Params.MediaPlayerHandle))
+					if (!Params.MediaPlayer->IsBufferAvailable_RenderThread(Params.MediaPlayerHandle))
 					{
 						return;
 					}
@@ -728,13 +728,13 @@ void FMagicLeapMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 					// MLHandle because Unreal's uint64 is 'unsigned long long *' whereas uint64_t for the C-API is 'unsigned long *'
 					// TODO: Fix the Unreal types for the above comment.
 					MLHandle nativeBuffer = ML_INVALID_HANDLE;
-					if (!Params.MediaPlayer->RenderThreadGetNativeBuffer(Params.MediaPlayerHandle, nativeBuffer, TextureDataPtr->bIsVideoTextureValid))
+					if (!Params.MediaPlayer->GetNativeBuffer_RenderThread(Params.MediaPlayerHandle, nativeBuffer, TextureDataPtr->bIsVideoTextureValid))
 					{
 						return;
 					}
 
 					int32 CurrentFramePosition = 0;
-					if (!Params.MediaPlayer->RenderThreadGetCurrentPosition(Params.MediaPlayerHandle, CurrentFramePosition))
+					if (!Params.MediaPlayer->GetCurrentPosition_RenderThread(Params.MediaPlayerHandle, CurrentFramePosition))
 					{
 						return;
 					}
@@ -745,7 +745,7 @@ void FMagicLeapMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 
 					if (TextureDataPtr->PreviousNativeBuffer != 0 && MLHandleIsValid(TextureDataPtr->PreviousNativeBuffer))
 					{
-						Params.MediaPlayer->RenderThreadReleaseNativeBuffer(Params.MediaPlayerHandle, TextureDataPtr->PreviousNativeBuffer);
+						Params.MediaPlayer->ReleaseNativeBuffer_RenderThread(Params.MediaPlayerHandle, TextureDataPtr->PreviousNativeBuffer);
 					}
 					TextureDataPtr->PreviousNativeBuffer = nativeBuffer;
 
@@ -1203,9 +1203,9 @@ bool FMagicLeapMediaPlayer::GetMediaPlayerState(uint16 FlagToPoll) const
 	return FlagToPoll & StateFlags;
 }
 
-bool FMagicLeapMediaPlayer::RenderThreadIsBufferAvailable(MLHandle InMediaPlayerHandle)
+bool FMagicLeapMediaPlayer::IsBufferAvailable_RenderThread(MLHandle InMediaPlayerHandle)
 {
-	ensureMsgf(IsInRenderingThread(), TEXT("RenderThreadIsBufferAvailable called outside of render thread"));
+	ensureMsgf(IsInRenderingThread(), TEXT("IsBufferAvailable_RenderThread called outside of render thread"));
 	uint16_t StateFlags = 0;
 	MLResult Result = MLMediaPlayerPollStates(InMediaPlayerHandle, MLMediaPlayerPollingStateFlag_IsBufferAvailable, &StateFlags);
 	if (Result != MLResult_Ok)
@@ -1217,9 +1217,9 @@ bool FMagicLeapMediaPlayer::RenderThreadIsBufferAvailable(MLHandle InMediaPlayer
 	return MLMediaPlayerPollingStateFlag_IsBufferAvailable & StateFlags;
 }
 
-bool FMagicLeapMediaPlayer::RenderThreadGetNativeBuffer(const MLHandle InMediaPlayerHandle, MLHandle& NativeBuffer, bool& OutIsVideoTextureValid)
+bool FMagicLeapMediaPlayer::GetNativeBuffer_RenderThread(const MLHandle InMediaPlayerHandle, MLHandle& NativeBuffer, bool& OutIsVideoTextureValid)
 {
-	ensureMsgf(IsInRenderingThread(), TEXT("RenderThreadGetNativeBuffer called outside of render thread"));
+	ensureMsgf(IsInRenderingThread(), TEXT("GetNativeBuffer_RenderThread called outside of render thread"));
 	MLResult Result = MLMediaPlayerAcquireNextAvailableBuffer(InMediaPlayerHandle, &NativeBuffer);
 	if (Result != MLResult_Ok)
 	{
@@ -1249,9 +1249,9 @@ bool FMagicLeapMediaPlayer::RenderThreadGetNativeBuffer(const MLHandle InMediaPl
 	return true;
 }
 
-bool FMagicLeapMediaPlayer::RenderThreadReleaseNativeBuffer(const MLHandle InMediaPlayerHandle, MLHandle NativeBuffer)
+bool FMagicLeapMediaPlayer::ReleaseNativeBuffer_RenderThread(const MLHandle InMediaPlayerHandle, MLHandle NativeBuffer)
 {
-	ensureMsgf(IsInRenderingThread(), TEXT("RenderThreadReleaseNativeBuffer called outside of render thread"));
+	ensureMsgf(IsInRenderingThread(), TEXT("ReleaseNativeBuffer_RenderThread called outside of render thread"));
 	MLResult Result = MLMediaPlayerReleaseBuffer(InMediaPlayerHandle, NativeBuffer);
 	if (Result != MLResult_Ok)
 	{
@@ -1262,9 +1262,9 @@ bool FMagicLeapMediaPlayer::RenderThreadReleaseNativeBuffer(const MLHandle InMed
 	return true;
 }
 
-bool FMagicLeapMediaPlayer::RenderThreadGetCurrentPosition(const MLHandle InMediaPlayerHandle, int32& CurrentPosition)
+bool FMagicLeapMediaPlayer::GetCurrentPosition_RenderThread(const MLHandle InMediaPlayerHandle, int32& CurrentPosition)
 {
-	ensureMsgf(IsInRenderingThread(), TEXT("RenderThreadGetCurrentPosition called outside of render thread"));
+	ensureMsgf(IsInRenderingThread(), TEXT("GetCurrentPosition_RenderThread called outside of render thread"));
 	MLResult Result = MLMediaPlayerGetCurrentPosition(InMediaPlayerHandle, &CurrentPosition);
 	if (Result != MLResult_Ok)
 	{

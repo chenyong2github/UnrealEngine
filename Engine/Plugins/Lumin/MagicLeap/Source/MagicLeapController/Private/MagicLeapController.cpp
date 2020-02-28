@@ -12,6 +12,7 @@
 #include "MagicLeapPluginUtil.h"
 #include "TouchpadGesturesComponent.h"
 #include "AssetData.h"
+#include "MagicLeap/Private/MagicLeapHMD.h"
 #if PLATFORM_LUMIN
 #include "Lumin/LuminApplication.h"
 #endif //PLATFORM_LUMIN
@@ -522,8 +523,7 @@ void FMagicLeapController::InitializeInputCallbacks()
 			const auto ControllerHand = Controller->ControllerMapper.GetHandForInputControllerIndex(controller_id);
 			if (ControllerHand != EControllerHand::ControllerHand_Count)
 			{
-				Controller->PendingButtonEvents.Enqueue(MakeTuple(MLToUnrealButton(ControllerHand, button), true));
-				Controller->PendingButtonEvents.Enqueue(MakeTuple(MLToUnrealButtonLegacy(ControllerHand, button), true));
+				Controller->EnqueueButton(ControllerHand, button, true);
 			}
 		}
 	};
@@ -536,13 +536,23 @@ void FMagicLeapController::InitializeInputCallbacks()
 			const auto ControllerHand = Controller->ControllerMapper.GetHandForInputControllerIndex(controller_id);
 			if (ControllerHand != EControllerHand::ControllerHand_Count)
 			{
-				Controller->PendingButtonEvents.Enqueue(MakeTuple(MLToUnrealButton(ControllerHand, button), false));
-				Controller->PendingButtonEvents.Enqueue(MakeTuple(MLToUnrealButtonLegacy(ControllerHand, button), false));
+				Controller->EnqueueButton(ControllerHand, button, false);
 			}
 		}
 	};
 #endif //WITH_MLSDK
 }
+
+#if WITH_MLSDK
+void FMagicLeapController::EnqueueButton(EControllerHand ControllerHand, MLInputControllerButton Button, bool bIsPressed)
+{
+	auto CurrentButton = MLToUnrealButton(ControllerHand, Button);
+	if (!CurrentButton.IsNone())
+	{
+		PendingButtonEvents.Enqueue(MakeTuple(CurrentButton, bIsPressed));
+	}
+}
+#endif //WITH_MLSDK
 
 void FMagicLeapController::Tick(float DeltaTime)
 {
@@ -713,12 +723,12 @@ void FMagicLeapController::CreateEntityTracker()
 		break;
 	}
 
-	Result = MLControllerCreate(ControllerConfig, &ControllerTracker);
+	Result = MLControllerCreateEx(&ControllerConfig, &ControllerTracker);
 
 	if (Result != MLResult_Ok)
 	{
 		UE_LOG(LogMagicLeapController, Error,
-			TEXT("MLControllerCreate failed with error %s."),
+			TEXT("MLControllerCreateEx failed with error %s."),
 			UTF8_TO_TCHAR(MLGetResultString(Result)));
 		ControllerTracker = ML_INVALID_HANDLE;
 
@@ -726,25 +736,7 @@ void FMagicLeapController::CreateEntityTracker()
 		TrackingMode = EMagicLeapControllerTrackingMode::InputService;
 	}
 
-#if PLATFORM_LUMIN
-	// On-platform we pull the input tracker from LuminApplication
-	InputTracker = static_cast<FLuminApplication *>
-		(FSlateApplication::Get().GetPlatformApplication().Get())->GetInputTracker();
-#else
-	// For ML Remote (PIE) we need to create the input tracker here,
-	// as LuminApplication is not created.
-	MLInputConfiguration InputConfig = { };
-
-	InputConfig.dof[0] = InputConfig.dof[1] = ControllerDof;
-
-	Result = MLInputCreate(&InputConfig, &InputTracker);
-	if (Result != MLResult_Ok)
-	{
-		UE_LOG(LogMagicLeapController, Error,
-			TEXT("MLInputCreate failed with error %s."),
-			UTF8_TO_TCHAR(MLGetResultString(Result)));
-	}
-#endif //PLATFORM_LUMIN
+	InputTracker = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->InputTracker;
 
 	// Set controller button/touchpad callbacks on valid input tracker
 	if (MLHandleIsValid(InputTracker))
@@ -767,18 +759,6 @@ void FMagicLeapController::CreateEntityTracker()
 void FMagicLeapController::DestroyEntityTracker()
 {
 #if WITH_MLSDK
-#if !PLATFORM_LUMIN
-	if (MLHandleIsValid(InputTracker))
-	{
-		MLResult Result = MLInputDestroy(InputTracker);
-		if (Result != MLResult_Ok)
-		{
-			UE_LOG(LogMagicLeapController, Error,
-				TEXT("MLInputDestroy failed with error %s!"),
-				UTF8_TO_TCHAR(MLGetResultString(Result)));
-		}
-	}
-#endif //PLATFORM_LUMIN
 	InputTracker = ML_INVALID_HANDLE;
 
 	if (MLHandleIsValid(ControllerTracker))
@@ -951,12 +931,10 @@ void FMagicLeapController::UpdateControllerStateFromInputTracker(const IMagicLea
 			if (CurrControllerState.bTouchActive[0] && !PrevControllerState.bTouchActive[0])
 			{
 				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTrackpadButton(Hand), true));
-				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTrackpadButtonLegacy(Hand), true));
 			}
 			else if (PrevControllerState.bTouchActive[0] && !CurrControllerState.bTouchActive[0])
 			{
 				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTrackpadButton(Hand), false));
-				PendingButtonEvents.Enqueue(MakeTuple(MLTouchToUnrealTrackpadButtonLegacy(Hand), false));
 			}
 
 			// Touch1 activate/deactivate
@@ -978,13 +956,11 @@ void FMagicLeapController::UpdateControllerStateFromInputTracker(const IMagicLea
 			if (IsTriggerKeyPressing)
 			{
 				PendingButtonEvents.Enqueue(MakeTuple(MLTriggerToUnrealTriggerKey(Hand), true));
-				PendingButtonEvents.Enqueue(MakeTuple(MLTriggerToUnrealTriggerKeyLegacy(Hand), true));
 				CurrControllerState.bTriggerKeyPressing = true;
 			}
 			else if (IsTriggerKeyReleasing)
 			{
 				PendingButtonEvents.Enqueue(MakeTuple(MLTriggerToUnrealTriggerKey(Hand), false));
-				PendingButtonEvents.Enqueue(MakeTuple(MLTriggerToUnrealTriggerKeyLegacy(Hand), false));
 				CurrControllerState.bTriggerKeyPressing = false;
 			}
 		}
@@ -1327,42 +1303,27 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 	{
 		checkf(PrevControllerState != nullptr, TEXT("Unpossible"));
 
+		MagicLeap::EnableInput EnableInputFromHMD;
+		// fixes unreferenced parameter error for Windows package builds.
+		(void)EnableInputFromHMD;
+
 		// Analog touch coords
 		// Touch 0 maps to ML Trackpad
 		// Touch 1 maps to ML Touch1
 		if (CurrControllerState->bTouchActive[0])
 		{
-			MagicLeap::EnableInput EnableInputFromHMD;
-			// fixes unreferenced parameter error for Windows package builds.
-			(void)EnableInputFromHMD;
-
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 0),
 				DeviceIndex, CurrControllerState->TouchPosAndForce[0].X);
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 1),
 				DeviceIndex, CurrControllerState->TouchPosAndForce[0].Y);
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 2),
 				DeviceIndex, CurrControllerState->TouchPosAndForce[0].Z);
-
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 0),
-				DeviceIndex, CurrControllerState->TouchPosAndForce[0].X);
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 1),
-				DeviceIndex, CurrControllerState->TouchPosAndForce[0].Y);
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 2),
-				DeviceIndex, CurrControllerState->TouchPosAndForce[0].Z);
 		}
 		else
 		{
-			MagicLeap::EnableInput EnableInputFromHMD;
-			// fixes unreferenced parameter error for Windows package builds.
-			(void)EnableInputFromHMD;
-
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 0), DeviceIndex, 0.0f);
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 1), DeviceIndex, 0.0f);
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxis(Hand, 2), DeviceIndex, 0.0f);
-
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 0), DeviceIndex, 0.0f);
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 1), DeviceIndex, 0.0f);
-			MessageHandler->OnControllerAnalog(MLTouchToUnrealTrackpadAxisLegacy(Hand, 2), DeviceIndex, 0.0f);
 		}
 
 		// Analog touch coords
@@ -1370,10 +1331,6 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 		// Touch 1 is currently not available (we have nothing to map it to)
 		if (CurrControllerState->bTouchActive[1])
 		{
-			MagicLeap::EnableInput EnableInputFromHMD;
-			// fixes unreferenced parameter error for Windows package builds.
-			(void)EnableInputFromHMD;
-
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 0),
 				DeviceIndex, CurrControllerState->TouchPosAndForce[1].X);
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 1),
@@ -1383,10 +1340,6 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 }
 		else
 		{
-			MagicLeap::EnableInput EnableInputFromHMD;
-			// fixes unreferenced parameter error for Windows package builds.
-			(void)EnableInputFromHMD;
-
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 0), DeviceIndex, 0.0f);
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 1), DeviceIndex, 0.0f);
 			MessageHandler->OnControllerAnalog(MLTouchToUnrealTouch1Axis(Hand, 2), DeviceIndex, 0.0f);
@@ -1395,13 +1348,7 @@ void FMagicLeapController::SendControllerEventsForHand(EControllerHand Hand)
 		// Analog trigger
 		if (CurrControllerState->TriggerAnalog != PrevControllerState->TriggerAnalog)
 		{
-			MagicLeap::EnableInput EnableInputFromHMD;
-			// fixes unreferenced parameter error for Windows package builds.
-			(void)EnableInputFromHMD;
-
 			MessageHandler->OnControllerAnalog(MLTriggerToUnrealTriggerAxis(Hand),
-				DeviceIndex, CurrControllerState->TriggerAnalog);
-			MessageHandler->OnControllerAnalog(MLTriggerToUnrealTriggerAxisLegacy(Hand),
 				DeviceIndex, CurrControllerState->TriggerAnalog);
 		}
 	}

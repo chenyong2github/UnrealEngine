@@ -595,7 +595,7 @@ void UGameUserSettings::PreloadResolutionSettings()
 		GConfig->GetBool(*GameUserSettingsCategory, TEXT("bUseHDRDisplayOutput"), bUseHDR, GGameUserSettingsIni);
 	}
 
-#if !PLATFORM_XBOXONE
+#if !PLATFORM_MANAGES_HDR_SETTING
 	if ( IsHDRAllowed() )
 	{
 		// Set the user-preference HDR switch
@@ -913,7 +913,7 @@ void UGameUserSettings::EnableHDRDisplayOutput(bool bEnable, int32 DisplayNits /
 		}
 
 		// Update final requested state for saved config
-#if !PLATFORM_PS4 && !PLATFORM_XBOXONE
+#if !PLATFORM_PS4 && !PLATFORM_USES_FIXED_HDR_SETTING
 		// Do not override the user setting on console (we rely on the OS setting)
 		bUseHDRDisplayOutput = bEnable;
 #endif

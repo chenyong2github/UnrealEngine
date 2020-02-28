@@ -56,8 +56,6 @@ float GetMaxShaderComplexityCount(ERHIFeatureLevel::Type FeatureLevel)
 {
 	switch (FeatureLevel)
 	{
-	case ERHIFeatureLevel::ES2:
-		return GEngine->MaxES2PixelShaderAdditiveComplexityCount;
 	case ERHIFeatureLevel::ES3_1:
 		return GEngine->MaxES3PixelShaderAdditiveComplexityCount;
 	default:

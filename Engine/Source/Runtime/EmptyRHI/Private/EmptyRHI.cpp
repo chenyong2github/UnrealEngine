@@ -41,7 +41,7 @@ FEmptyDynamicRHI::FEmptyDynamicRHI()
 // 	GMaxCubeTextureDimensions = 16384;
 // 	GMaxTextureArrayLayers = 8192;
 
-//	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_NumPlatforms;
+//	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
 //	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_NumPlatforms;
 //	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4] = SP_NumPlatforms;
 //	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = ;

@@ -292,7 +292,7 @@ bool CompareValueArraysByExpressionGUID(const TArray<T>& InA, const TArray<T>& I
 
 
 UCLASS(abstract, BlueprintType,MinimalAPI)
-class ENGINE_VTABLE UMaterialInstance : public UMaterialInterface
+class UMaterialInstance : public UMaterialInterface
 {
 	GENERATED_UCLASS_BODY()
 

@@ -150,10 +150,11 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
 	 *
 	 * Notes: Load and store action are on purpose without default values, to force the user to not forget one of these.
 	 */
-	FRenderTargetBinding(FRDGTexture* InTexture, ERenderTargetLoadAction InLoadAction, uint8 InMipIndex = 0)
+	FRenderTargetBinding(FRDGTexture* InTexture, ERenderTargetLoadAction InLoadAction, uint8 InMipIndex = 0, int32 InArraySlice = -1)
 		: Texture(InTexture)
 		, LoadAction(InLoadAction)
 		, MipIndex(InMipIndex)
+		, ArraySlice(InArraySlice)
 	{
 		check(Validate());
 	}
@@ -170,6 +171,10 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
 	{
 		return MipIndex;
 	}
+	FORCEINLINE int32 GetArraySlice() const
+	{
+		return ArraySlice;
+	}
 
 private:
 	/** All parameters required to bind a render target deferred. This are purposefully private to
@@ -178,6 +183,7 @@ private:
 	TAlignedShaderParameterPtr<FRDGTexture*> Texture;
 	ERenderTargetLoadAction		LoadAction		= ERenderTargetLoadAction::ENoAction;
 	uint8						MipIndex		= 0;
+	int32						ArraySlice		= -1;
 
 	RENDERCORE_API bool Validate() const;
 };

@@ -45,6 +45,10 @@ struct FMaterialProxySettings
 	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere, meta = (DisplayAfter="bRoughnessMap", ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1", editcondition = "!bRoughnessMap"))
 	float RoughnessConstant;
 
+	// Constant value to use for the Anisotropy property
+	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere, meta = (DisplayAfter="bAnisotropyMap", ClampMin = "-1", ClampMax = "1", UIMin = "-1", UIMax = "1", editcondition = "!bAnisotropyMap"))
+	float AnisotropyConstant;
+
 	// Constant value to use for the Specular property
 	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere, meta = (DisplayAfter="bSpecularMap", ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1", editcondition = "!bSpecularMap"))
 	float SpecularConstant;
@@ -80,6 +84,10 @@ struct FMaterialProxySettings
 	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere)
 	uint8 bNormalMap:1;
 
+	// Whether to generate a texture for the Tangent property
+	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere)
+	uint8 bTangentMap:1;
+
 	// Whether to generate a texture for the Metallic property
 	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere)
 	uint8 bMetallicMap:1;
@@ -87,6 +95,10 @@ struct FMaterialProxySettings
 	// Whether to generate a texture for the Roughness property
 	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere)
 	uint8 bRoughnessMap:1;
+
+	// Whether to generate a texture for the Anisotropy property
+	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere)
+	uint8 bAnisotropyMap:1;
 
 	// Whether to generate a texture for the Specular property
 	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere)
@@ -116,6 +128,10 @@ struct FMaterialProxySettings
 	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta = (ClampMin = "1", UIMin = "1"))
 	FIntPoint NormalTextureSize;
 
+	// Override Tangent texture size
+	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta = (ClampMin = "1", UIMin = "1"))
+	FIntPoint TangentTextureSize;
+
 	// Override Metallic texture size
 	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta = (ClampMin = "1", UIMin = "1"))
 	FIntPoint MetallicTextureSize;
@@ -123,6 +139,10 @@ struct FMaterialProxySettings
 	// Override Roughness texture size
 	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta = (ClampMin = "1", UIMin = "1"))
 	FIntPoint RoughnessTextureSize;
+
+	// Override Anisotropy texture size
+	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta = (ClampMin = "1", UIMin = "1"))
+	FIntPoint AnisotropyTextureSize;
 
 	// Override Specular texture size
 	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta = (ClampMin = "1", UIMin = "1"))
@@ -149,6 +169,7 @@ struct FMaterialProxySettings
 		, GutterSpace(4.0f)
 		, MetallicConstant(0.0f)
 		, RoughnessConstant(0.5f)
+		, AnisotropyConstant(0.0f)
 		, SpecularConstant(0.5f)
 		, OpacityConstant(1.0f)
 		, OpacityMaskConstant(1.0f)
@@ -158,8 +179,10 @@ struct FMaterialProxySettings
 		, BlendMode(BLEND_Opaque)
 		, bAllowTwoSidedMaterial(true)
 		, bNormalMap(true)
+		, bTangentMap(false)
 		, bMetallicMap(false)
 		, bRoughnessMap(false)
+		, bAnisotropyMap(false)
 		, bSpecularMap(false)
 		, bEmissiveMap(false)
 		, bOpacityMap(false)
@@ -167,8 +190,10 @@ struct FMaterialProxySettings
 		, bAmbientOcclusionMap(false)
 		, DiffuseTextureSize(1024, 1024)
 		, NormalTextureSize(1024, 1024)
+		, TangentTextureSize(1024, 1024)
 		, MetallicTextureSize(1024, 1024)
 		, RoughnessTextureSize(1024, 1024)
+		, AnisotropyTextureSize(1024, 1024)
 		, SpecularTextureSize(1024, 1024)
 		, EmissiveTextureSize(1024, 1024)
 		, OpacityTextureSize(1024, 1024)
@@ -183,10 +208,13 @@ struct FMaterialProxySettings
 			&& TextureSizingType == Other.TextureSizingType
 			&& GutterSpace == Other.GutterSpace
 			&& bNormalMap == Other.bNormalMap
+			&& bTangentMap == Other.bTangentMap
 			&& MetallicConstant == Other.MetallicConstant
 			&& bMetallicMap == Other.bMetallicMap
 			&& RoughnessConstant == Other.RoughnessConstant
 			&& bRoughnessMap == Other.bRoughnessMap
+			&& AnisotropyConstant == Other.AnisotropyConstant
+			&& bAnisotropyMap == Other.bAnisotropyMap
 			&& SpecularConstant == Other.SpecularConstant
 			&& bSpecularMap == Other.bSpecularMap
 			&& bEmissiveMap == Other.bEmissiveMap
@@ -198,6 +226,7 @@ struct FMaterialProxySettings
 			&& NormalTextureSize == Other.NormalTextureSize
 			&& MetallicTextureSize == Other.MetallicTextureSize
 			&& RoughnessTextureSize == Other.RoughnessTextureSize
+			&& AnisotropyTextureSize == Other.AnisotropyTextureSize
 			&& EmissiveTextureSize == Other.EmissiveTextureSize
 			&& OpacityTextureSize == Other.OpacityTextureSize
 			&& OpacityMaskTextureSize == Other.OpacityMaskTextureSize

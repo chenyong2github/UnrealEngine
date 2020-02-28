@@ -5,57 +5,59 @@
 
 bool UMagicLeapContactsFunctionLibrary::Startup()
 {
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->Startup();
+	return GetMagicLeapContactsPlugin().Startup();
 }
 
 bool UMagicLeapContactsFunctionLibrary::Shutdown()
 {
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->Shutdown();
+	return GetMagicLeapContactsPlugin().Shutdown();
 }
 
-FGuid UMagicLeapContactsFunctionLibrary::AddContactAsync(const FMagicLeapContact& Contact, const FSingleContactResultDelegate& InResultDelegate)
+FGuid UMagicLeapContactsFunctionLibrary::AddContactAsync(const FMagicLeapContact& Contact, const FMagicLeapSingleContactResultDelegate& InResultDelegate)
 {
-	FSingleContactResultDelegateMulti ResultDelegate;
+	FMagicLeapSingleContactResultDelegateMulti ResultDelegate;
 	ResultDelegate.Add(InResultDelegate);
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->AddContactAsync(Contact, ResultDelegate);
+	return GetMagicLeapContactsPlugin().AddContactAsync(Contact, ResultDelegate);
 }
 
-FGuid UMagicLeapContactsFunctionLibrary::EditContactAsync(const FMagicLeapContact& Contact, const FSingleContactResultDelegate& InResultDelegate)
+FGuid UMagicLeapContactsFunctionLibrary::EditContactAsync(const FMagicLeapContact& Contact, const FMagicLeapSingleContactResultDelegate& InResultDelegate)
 {
-	FSingleContactResultDelegateMulti ResultDelegate;
+	FMagicLeapSingleContactResultDelegateMulti ResultDelegate;
 	ResultDelegate.Add(InResultDelegate);
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->EditContactAsync(Contact, ResultDelegate);
+	return GetMagicLeapContactsPlugin().EditContactAsync(Contact, ResultDelegate);
 }
 
-FGuid UMagicLeapContactsFunctionLibrary::DeleteContactAsync(const FMagicLeapContact& Contact, const FSingleContactResultDelegate& InResultDelegate)
+FGuid UMagicLeapContactsFunctionLibrary::DeleteContactAsync(const FMagicLeapContact& Contact, const FMagicLeapSingleContactResultDelegate& InResultDelegate)
 {
-	FSingleContactResultDelegateMulti ResultDelegate;
+	FMagicLeapSingleContactResultDelegateMulti ResultDelegate;
 	ResultDelegate.Add(InResultDelegate);
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->DeleteContactAsync(Contact, ResultDelegate);
+	return GetMagicLeapContactsPlugin().DeleteContactAsync(Contact, ResultDelegate);
 }
 
-FGuid UMagicLeapContactsFunctionLibrary::RequestContactsAsync(const FMultipleContactsResultDelegate& InResultDelegate)
+FGuid UMagicLeapContactsFunctionLibrary::RequestContactsAsync(const FMagicLeapMultipleContactsResultDelegate& InResultDelegate, int32 MaxNumResults)
 {
-	FMultipleContactsResultDelegateMulti ResultDelegate;
+	FMagicLeapMultipleContactsResultDelegateMulti ResultDelegate;
 	ResultDelegate.Add(InResultDelegate);
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->RequestContactsAsync(ResultDelegate);
+	return GetMagicLeapContactsPlugin().RequestContactsAsync(ResultDelegate, MaxNumResults);
 }
 
-FGuid UMagicLeapContactsFunctionLibrary::SearchContactsAsync(const FString& Query, EMagicLeapContactsSearchField SearchField, const FMultipleContactsResultDelegate& InResultDelegate)
+FGuid UMagicLeapContactsFunctionLibrary::SelectContactsAsync(const FMagicLeapMultipleContactsResultDelegate& InResultDelegate, int32 MaxNumResults, EMagicLeapContactsSearchField SearchField)
 {
-	FMultipleContactsResultDelegateMulti ResultDelegate;
+	FMagicLeapMultipleContactsResultDelegateMulti ResultDelegate;
 	ResultDelegate.Add(InResultDelegate);
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->SearchContactsAsync(Query, SearchField, ResultDelegate);
+	return GetMagicLeapContactsPlugin().SelectContactsAsync(ResultDelegate, MaxNumResults, SearchField);
 }
 
-bool UMagicLeapContactsFunctionLibrary::CancelRequest(const FGuid& RequestHandle)
+FGuid UMagicLeapContactsFunctionLibrary::SearchContactsAsync(const FString& Query, EMagicLeapContactsSearchField SearchField, const FMagicLeapMultipleContactsResultDelegate& InResultDelegate)
 {
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->CancelRequest(RequestHandle);
+	FMagicLeapMultipleContactsResultDelegateMulti ResultDelegate;
+	ResultDelegate.Add(InResultDelegate);
+	return GetMagicLeapContactsPlugin().SearchContactsAsync(Query, SearchField, ResultDelegate);
 }
 
-bool UMagicLeapContactsFunctionLibrary::SetLogDelegate(const FContactsLogMessage& InLogDelegate)
+bool UMagicLeapContactsFunctionLibrary::SetLogDelegate(const FMagicLeapContactsLogMessage& InLogDelegate)
 {
-	FContactsLogMessageMulti LogDelegate;
+	FMagicLeapContactsLogMessageMulti LogDelegate;
 	LogDelegate.Add(InLogDelegate);
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->SetLogDelegate(LogDelegate);
+	return GetMagicLeapContactsPlugin().SetLogDelegate(LogDelegate);
 }

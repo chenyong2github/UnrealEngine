@@ -19,10 +19,6 @@ OculusAudioSpatializationAudioMixer::OculusAudioSpatializationAudioMixer()
 
 OculusAudioSpatializationAudioMixer::~OculusAudioSpatializationAudioMixer()
 {
-	if (TickDelegateHandle.IsValid())
-	{
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
-	}
 }
 
 void OculusAudioSpatializationAudioMixer::ClearContext()
@@ -85,6 +81,10 @@ void OculusAudioSpatializationAudioMixer::ApplyOculusAudioSettings(const UOculus
 
 void OculusAudioSpatializationAudioMixer::Shutdown()
 {
+	if (TickDelegateHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	}
 }
 
 bool OculusAudioSpatializationAudioMixer::IsSpatializationEffectInitialized() const
@@ -95,7 +95,11 @@ bool OculusAudioSpatializationAudioMixer::IsSpatializationEffectInitialized() co
 void OculusAudioSpatializationAudioMixer::OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, USpatializationPluginSourceSettingsBase* InSettings)
 {
 	FScopeLock ScopeLock(&ContextLock);
-	check(Context != nullptr);
+	if (Context == nullptr)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Oculus Audio Error - Context uninitialized. Sound %s (id=%d) will not play!"), *AudioComponentUserId.ToString(), SourceId);
+		return;
+	}
 
 	if (InSettings != nullptr) 
 	{

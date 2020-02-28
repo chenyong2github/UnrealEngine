@@ -10,6 +10,7 @@
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
 #include "LightmapUniformShaderParameters.h"
+#include "UnifiedBuffer.h"
 
 /** 
  * The uniform shader parameters associated with a primitive. 
@@ -213,6 +214,7 @@ struct FPrimitiveSceneShaderData
 
 	FPrimitiveSceneShaderData()
 	{
+		static_assert(FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s == FScatterUploadBuffer::PrimitiveDataStrideInFloat4s,"");
 		Setup(GetIdentityPrimitiveParameters());
 	}
 
@@ -227,9 +229,13 @@ struct FPrimitiveSceneShaderData
 	ENGINE_API static uint16 GetPrimitivesPerTextureLine();
 };
 
-class ENGINE_VTABLE FSinglePrimitiveStructured : public FRenderResource
+class FSinglePrimitiveStructured : public FRenderResource
 {
 public:
+
+	FSinglePrimitiveStructured()
+		: ShaderPlatform(SP_NumPlatforms)
+	{}
 
 	ENGINE_API virtual void InitRHI() override;
 

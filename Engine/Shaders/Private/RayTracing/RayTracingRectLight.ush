@@ -19,13 +19,13 @@ bool GenerateRectLightOcclusionRay(
 )
 {
 	RayOrigin = WorldPosition;
-	RayDirection = 0;
+	RayDirection = float3(0,0,0);
 	RayTMin = 0.0;
 	RayTMax = 0.0;
 	RayPdf = 0.0;
 
-	float3 Tangent;
-	float3 BiTangent;
+	float3 Tangent = float3(0,0,0);
+	float3 BiTangent = float3(0,0,0);
 	GetRectLightTangents(LightParameters, /* out */ Tangent, /* out */ BiTangent);
 	float2 LightDimensions = GetRectLightDimensions(LightParameters);
 	

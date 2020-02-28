@@ -27,7 +27,7 @@ void FMagicLeapXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RH
 		// update to use render projection matrix
 		// Set the near clipping plane to GNearClippingPlane which is clamped to the minimum value allowed for the device. (ref: MLGraphicsGetRenderTargets())
 		// #todo: Roll UpdateProjectionMatrix into UpdateViewMatrix?
-		FMatrix RenderInfoProjectionMatrix = MagicLeap::ToUEProjectionMatrix(Frame.FrameInfo.virtual_camera_info_array.virtual_cameras[EyeIdx].projection, GNearClippingPlane);
+		FMatrix RenderInfoProjectionMatrix = MagicLeap::ToUEProjectionMatrix(Frame.FrameInfo.virtual_cameras[EyeIdx].projection, GNearClippingPlane);
 
 		View.UpdateProjectionMatrix(RenderInfoProjectionMatrix);
 	}

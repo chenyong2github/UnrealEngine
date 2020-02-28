@@ -97,7 +97,10 @@ void URuntimeVirtualTextureComponent::SetTransformToBounds()
 			{
 				const FTransform ComponentToActor = PrimitiveComponent->GetComponentTransform() * WorldToLocal;
 				FBoxSphereBounds LocalSpaceComponentBounds = PrimitiveComponent->CalcBounds(ComponentToActor);
-				BoundBox += LocalSpaceComponentBounds.GetBox();
+				if (LocalSpaceComponentBounds.GetBox().GetVolume() > 0.f)
+				{
+					BoundBox += LocalSpaceComponentBounds.GetBox();
+				}
 			}
 		}
 

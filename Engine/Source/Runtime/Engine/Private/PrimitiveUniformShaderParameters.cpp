@@ -36,7 +36,8 @@ void FSinglePrimitiveStructured::UploadToGPU()
 	{
 		void* LockedData = nullptr;
 
-		if (!GPUSceneUseTexture2D(ShaderPlatform != SP_NumPlatforms ? ShaderPlatform : GMaxRHIShaderPlatform))
+		EShaderPlatform SafeShaderPlatform = ShaderPlatform < SP_NumPlatforms ? ShaderPlatform : GMaxRHIShaderPlatform;
+		if (!GPUSceneUseTexture2D(SafeShaderPlatform))
 		{
 			LockedData = RHILockStructuredBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
 			FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));

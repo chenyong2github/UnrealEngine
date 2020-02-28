@@ -188,9 +188,8 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 	// this function will be called every time the feature level will be updated and some textures require a minimum feature level to exist
 	// the below declared variable (CurrentFeatureLevel) will guard against reinitialization of those textures already created in a previous call
 	// if FeatureLevelInitializedTo has its default value (ERHIFeatureLevel::Num) it means that setup was never performed and all textures are invalid
-	// thus CurrentFeatureLevel will be set to ERHIFeatureLevel::ES2 to validate all 'is valid' branching conditions below
-	// this should change if we add any ERHIFeatureLevel::ES2 dependent textures here!
-	ERHIFeatureLevel::Type CurrentFeatureLevel = FeatureLevelInitializedTo == ERHIFeatureLevel::Num ? ERHIFeatureLevel::ES2 : FeatureLevelInitializedTo;
+	// thus CurrentFeatureLevel will be set to ERHIFeatureLevel::ES2_REMOVED to validate all 'is valid' branching conditions below
+    ERHIFeatureLevel::Type CurrentFeatureLevel = FeatureLevelInitializedTo == ERHIFeatureLevel::Num ? ERHIFeatureLevel::ES2_REMOVED : FeatureLevelInitializedTo;
 
 		// Create the SobolSampling texture
 	if (CurrentFeatureLevel < ERHIFeatureLevel::ES3_1 && InFeatureLevel >= ERHIFeatureLevel::ES3_1 && GPixelFormats[PF_R16_UINT].Supported)

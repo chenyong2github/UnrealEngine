@@ -586,7 +586,8 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.bHideSymbolsByDefault)
 			{
-				Result += " -fvisibility=hidden";
+				Result += " -fvisibility-ms-compat";
+				Result += " -fvisibility-inlines-hidden";
 			}
 
 			if (String.IsNullOrEmpty(ClangPath))

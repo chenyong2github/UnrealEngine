@@ -220,18 +220,6 @@ public class APEX : ModuleRules
 
 			LibraryFormatString = "{0}.lib";
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			bIsApexStaticallyLinked = true;
-			bHasApexLegacy = false;
-
-			ApexLibDir = Path.Combine(ApexLibDir, "Switch");
-
-			ApexLibraries.Add("NvParameterized{0}");
-			ApexLibraries.Add("RenderDebug{0}");
-
-			LibraryFormatString = "lib{0}.a";
-		}
 
 		PublicDefinitions.Add("APEX_UE4=1");
 

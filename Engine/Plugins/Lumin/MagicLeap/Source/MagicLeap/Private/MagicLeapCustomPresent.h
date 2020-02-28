@@ -33,6 +33,7 @@ public:
 	float RecommendedFarClippingPlane;
 	float StabilizationDepth;
 	bool bBeginFrameSucceeded;
+	bool bFrameRenderingInProgress;
 
 #if WITH_MLSDK
 	MLSnapshot* Snapshot;
@@ -58,6 +59,7 @@ public:
 		, RecommendedFarClippingPlane(FarClippingPlane)
 		, StabilizationDepth(1000.0f) // 10m
 		, bBeginFrameSucceeded(false)
+		, bFrameRenderingInProgress(false)
 #if WITH_MLSDK
 		, Snapshot(nullptr)
 		, ProjectionType(MLGraphicsProjectionType_ReversedInfiniteZ)
@@ -71,7 +73,7 @@ public:
 
 		MagicLeap::ResetClipExtentsInfoArray(UpdateInfoArray);
 		MLGraphicsFrameInfoInit(&FrameInfo);
-		MagicLeap::ResetVirtualCameraInfoArray(FrameInfo.virtual_camera_info_array);
+		MagicLeap::ResetFrameInfo(FrameInfo);
 #endif //WITH_MLSDK
 	}
 };
@@ -103,7 +105,6 @@ protected:
 	FMagicLeapHMD* Plugin;
 	bool bNotifyLifecycleOfFirstPresent;
 	bool bCustomPresentIsSet;
-	uint32 PlatformAPILevel;
 	volatile int64 HFOV;
 	volatile int64 VFOV;
 

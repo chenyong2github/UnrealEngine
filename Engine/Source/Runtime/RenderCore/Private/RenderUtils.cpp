@@ -268,6 +268,27 @@ FTextureWithSRV* GBlackTextureWithUAV = new TGlobalResource<FColoredTexture<0,0,
 
 FVertexBufferWithSRV* GEmptyVertexBufferWithUAV = new TGlobalResource<FEmptyVertexBuffer>;
 
+class FWhiteVertexBuffer : public FVertexBufferWithSRV
+{
+public:
+	virtual void InitRHI() override
+	{
+		// Create the texture RHI.  		
+		FRHIResourceCreateInfo CreateInfo(TEXT("WhiteVertexBuffer"));
+
+		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+
+		FVector4* BufferData = (FVector4*)RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4), RLM_WriteOnly);
+		*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		RHIUnlockVertexBuffer(VertexBufferRHI);
+
+		// Create a view of the buffer
+		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F);
+	}
+};
+
+FVertexBufferWithSRV* GWhiteVertexBufferWithSRV = new TGlobalResource<FWhiteVertexBuffer>;
+
 /**
  * Bulk data interface for providing a single black color used to initialize a
  * volume texture.
@@ -1098,11 +1119,17 @@ static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlat
 RENDERCORE_API uint64 GBasePassVelocityPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBasePassVelocityPlatformMask must be large enough to support all shader platforms");
 
+RENDERCORE_API uint64 GAnisotropicBRDFPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GAnisotropicBRDFPlatformMask) * 8, "GAnisotropicBRDFPlatformMask must be large enough to support all shader platforms");
+
 RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
 
 RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
+
+RENDERCORE_API uint64 GRayTracingPlaformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GRayTracingPlaformMask) * 8, "GRayTracingPlaformMask must be large enough to support all shader platforms");
 
 RENDERCORE_API void RenderUtilsInit()
 {
@@ -1123,6 +1150,12 @@ RENDERCORE_API void RenderUtilsInit()
 		GBasePassVelocityPlatformMask = ~0ull;
 	}
 
+	static const IConsoleVariable* AnisotropicBRDFCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
+	if (AnisotropicBRDFCVar && AnisotropicBRDFCVar->GetInt())
+	{
+		GAnisotropicBRDFPlatformMask = ~0ull;
+	}
+
 	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
 	if (SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt())
 	{
@@ -1133,6 +1166,12 @@ RENDERCORE_API void RenderUtilsInit()
 	if (DistanceFieldsCVar && DistanceFieldsCVar->GetInt())
 	{
 		GDistanceFieldsPlatformMask = ~0ull;
+	}
+
+	static IConsoleVariable* RayTracingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
+	if (RayTracingCVar && RayTracingCVar->GetInt())
+	{
+		GRayTracingPlaformMask = ~0ull;
 	}
 
 #if WITH_EDITOR
@@ -1175,6 +1214,15 @@ RENDERCORE_API void RenderUtilsInit()
 					GBasePassVelocityPlatformMask &= ~Mask;
 				}
 
+				if (TargetPlatform->UsesAnisotropicBRDF())
+				{
+					GAnisotropicBRDFPlatformMask |= Mask;
+				}
+				else
+				{
+					GAnisotropicBRDFPlatformMask &= ~Mask;
+				}
+
 				if (TargetPlatform->UsesSelectiveBasePassOutputs())
 				{
 					GSelectiveBasePassOutputsPlatformMask |= Mask;
@@ -1191,6 +1239,15 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GDistanceFieldsPlatformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->UsesRayTracing())
+				{
+					GRayTracingPlaformMask |= Mask;
+				}
+				else
+				{
+					GRayTracingPlaformMask &= ~Mask;
 				}
 			}
 		}

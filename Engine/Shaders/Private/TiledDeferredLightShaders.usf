@@ -347,6 +347,7 @@ void TiledDeferredLightingMain(
 		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_CLOTH, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
 		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_EYE, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
 		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_SINGLELAYERWATER, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		// SHADINGMODELID_THIN_TRANSLUCENT - skipping because it can not be opaque
 #else // !USE_PASS_PER_SHADING_MODEL
 		ExecuteShadingLoops(CompositedLighting, ScreenSpaceData, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
 #endif // USE_PASS_PER_SHADING_MODEL

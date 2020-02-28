@@ -10,7 +10,7 @@ public class NVAPI : ModuleRules
         string nvApiPath = Target.UEThirdPartySourceDirectory + "NVIDIA/nvapi/";
         PublicSystemIncludePaths.Add(nvApiPath);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
 		{
             string nvApiLibPath = nvApiPath + "amd64/";
             PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi64.lib");

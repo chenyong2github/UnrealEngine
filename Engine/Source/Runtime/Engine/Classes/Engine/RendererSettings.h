@@ -11,6 +11,8 @@
 
 #include "RendererSettings.generated.h"
 
+enum class ESkinCacheDefaultBehavior : uint8;
+
 struct FPropertyChangedEvent;
 
 /**
@@ -317,7 +319,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true,
 		ConsoleVariable = "r.ClearCoatNormal",
 		ToolTip = "Use a separate normal map for the bottom layer of a clear coat material. This is a higher quality feature that is expensive."))
-		uint32 bClearCoatEnableSecondNormal : 1;
+	uint32 bClearCoatEnableSecondNormal : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
+		DisplayName = "Use anisotropic BRDF (Beta)",
+		ConsoleVariable = "r.AnisotropicBRDF", 
+		EditCondition = "!bBasePassOutputsVelocity || bAnisotropicBRDF && bBasePassOutputsVelocity",
+		ConfigRestartRequired = true,
+		ToolTip = "Uses an anisotropic BRDF for default lit and clear coat surface materials. Changing this setting requires restarting the editor.\n\nNote: can only be enabled if 'Output velocities during base pass' (r.BasePassOutputsVelocity) is disabled."))
+	uint32 bAnisotropicBRDF : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = Reflections, meta = (
 		ConsoleVariable = "r.ReflectionCaptureResolution", DisplayName = "Reflection Capture Resolution",
@@ -441,6 +451,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	TEnumAsByte<EAutoExposureMethodUI::Type> DefaultFeatureAutoExposure; 
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
+		ConsoleVariable = "r.DefaultFeature.AutoExposure.Bias", DisplayName = "Auto Exposure Bias",
+		ToolTip = "Default Value for auto exposure bias."))
+	float DefaultFeatureAutoExposureBias;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange", DisplayName = "Extend default luminance range in Auto Exposure settings",
 		ToolTip = "Whether the default values for AutoExposure should support an extended range of scene luminance. Also changes the exposure settings to be expressed in EV100.",
 		ConfigRestartRequired=true))
@@ -530,10 +545,21 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	TEnumAsByte<EClearSceneOptions::Type> ClearSceneMethod;
 
 	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
-		ConsoleVariable="r.BasePassOutputsVelocity", DisplayName="Accurate velocities from Vertex Deformation",
-		ToolTip="Enables materials with time-based World Position Offset and/or World Displacement to output accurate velocities. This incurs a performance cost. If this is disabled, those materials will not output velocities. Changing this setting requires restarting the editor.",
-		ConfigRestartRequired=true))
+		DisplayName="Output velocities during base pass",
+		ConsoleVariable="r.BasePassOutputsVelocity",
+		EditCondition = "!bAnisotropicBRDF || bAnisotropicBRDF && bBasePassOutputsVelocity",
+		ConfigRestartRequired = true,
+		ToolTip="Enables emitting velocity during Base Pass rendering. Changing this setting requires restarting the editor.\n\nNote: can only be enabled if 'Use anisotropic BRDF' (r.AnisotropicBRDF) is disabled.\nNote: enabling this behaves as if 'Output velocities due to vertex deformation' (r.VertexDeformationOutputsVelocity) is also enabled."
+		))
 	uint32 bBasePassOutputsVelocity:1;
+	
+	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
+		DisplayName="Output velocities due to vertex deformation",
+		ConsoleVariable="r.VertexDeformationOutputsVelocity",
+		EditCondition = "!bBasePassOutputsVelocity",
+		ToolTip="Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. This incurs a performance cost and can be quite significant if many objects are using WPO, such as a forest of trees - in that case consider 'Output velocities during base pass' (r.BasePassOutputsVelocity) and disabling this option."
+		))
+	uint32 bVertexDeformationOutputsVelocity:1;
 
 	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
 		ConsoleVariable="r.SelectiveBasePassOutputs", DisplayName="Selectively output to the GBuffer rendertargets",
@@ -692,13 +718,23 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bSupportSkyAtmosphereAffectsHeightFog : 1;
 
 	/**
-	"Skincache allows a compute shader to skin once each vertex, save those results into a new buffer and reuse those calculations when later running the depth, base and velocity passes. This also allows opting into the 'recompute tangents' for skinned mesh instance feature. Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."
+	"Skin cache allows a compute shader to skin once each vertex, save those results into a new buffer and reuse those calculations when later running the depth, base and velocity passes. This also allows opting into the 'recompute tangents' for skinned mesh instance feature. Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
-		ConsoleVariable = "r.SkinCache.CompileShaders", DisplayName = "Support Compute Skincache",
+		ConsoleVariable = "r.SkinCache.CompileShaders", DisplayName = "Support Compute Skin Cache",
 		ToolTip = "Cannot be disabled while Ray Tracing is enabled as it is then required.",
 		ConfigRestartRequired = true))
-		uint32 bSupportSkinCacheShaders : 1;
+	uint32 bSupportSkinCacheShaders : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
+		ConsoleVariable = "r.SkinCache.DefaultBehavior", DisplayName = "Default Skin Cache Behavior",
+		ToolTip = "Default behavior if all skeletal meshes are included/excluded from the skin cache. If Ray Tracing is enabled, will force inclusive behavior."))
+	ESkinCacheDefaultBehavior DefaultSkinCacheBehavior;
+
+	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
+		ConsoleVariable = "r.SkinCache.SceneMemoryLimitInMB", DisplayName = "Maximum memory for Compute Skin Cache per world (MB)",
+		ToolTip = "Maximum amount of memory (in MB) per world/scene allowed for the Compute Skin Cache to generate output vertex data and recompute tangents."))
+	float SkinCacheSceneMemoryLimitInMB;
 
 	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
 		ConsoleVariable = "r.Mobile.EnableStaticAndCSMShadowReceivers", DisplayName = "Support Combined Static and CSM Shadowing",
@@ -744,11 +780,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Generate shaders for primitives to receive lighting from movable spotlights. This incurs an additional cost when processing movable lights. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
 		uint32 bMobileAllowMovableSpotlights : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
-		ConsoleVariable = "r.SkinCache.SceneMemoryLimitInMB", DisplayName = "Maximum memory for Compute Skincache per world (MB)",
-		ToolTip = "Maximum amount of memory (in MB) per world/scene allowed for the Compute Skincache to generate output vertex data and recompute tangents."))
-		float SkinCacheSceneMemoryLimitInMB;
 
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
 		ConsoleVariable = "r.GPUSkin.Support16BitBoneIndex", DisplayName = "Support 16-bit Bone Index",

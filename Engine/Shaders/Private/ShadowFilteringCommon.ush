@@ -252,8 +252,56 @@ void FetchRowOfThreeAfterFour(float2 Sample00TexelCenter, float VerticalOffset, 
 	Values1 = CalculateOcclusion(Values1, Settings);
 }
 
+float Manual3x3PCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
+{
+	// medium quality, 4x4 samples, using and not using gather4
+	{
+		float2 TexelPos = ShadowPosition * Settings.ShadowBufferSize.xy - 0.5f;	// bias to be consistent with texture filtering hardware
+		float2 Fraction = frac(TexelPos);
+		float2 TexelCenter = floor(TexelPos) + 0.5f;	// bias to get reliable texel center content
+		{
+			float2 Sample00TexelCenter = TexelCenter - float2(1, 1);
+
+			float4 SampleValues0, SampleValues1, SampleValues2, SampleValues3;
+
+#if FEATURE_GATHER4
+			float2 SamplePos = TexelCenter * Settings.ShadowBufferSize.zw;	// bias to get reliable texel center content
+			SampleValues0 = CalculateOcclusion(Settings.ShadowDepthTexture.Gather(Settings.ShadowDepthTextureSampler, SamplePos, int2(-1, -1)), Settings);
+			SampleValues1 = CalculateOcclusion(Settings.ShadowDepthTexture.Gather(Settings.ShadowDepthTextureSampler, SamplePos, int2(1, -1)), Settings);
+			SampleValues2 = CalculateOcclusion(Settings.ShadowDepthTexture.Gather(Settings.ShadowDepthTextureSampler, SamplePos, int2(-1, 1)), Settings);
+			SampleValues3 = CalculateOcclusion(Settings.ShadowDepthTexture.Gather(Settings.ShadowDepthTextureSampler, SamplePos, int2(1, 1)), Settings);
+			return PCF3x3gather(Fraction, SampleValues0, SampleValues1, SampleValues2, SampleValues3);
+#else // FEATURE_GATHER4 
+			FetchRowOfFour(Sample00TexelCenter, 0, SampleValues0, Settings);
+			FetchRowOfFour(Sample00TexelCenter, 1, SampleValues1, Settings);
+			FetchRowOfFour(Sample00TexelCenter, 2, SampleValues2, Settings);
+			FetchRowOfFour(Sample00TexelCenter, 3, SampleValues3, Settings);
+			return PCF3x3(Fraction, SampleValues0, SampleValues1, SampleValues2, SampleValues3);
+#endif // FEATURE_GATHER4
+		}
+	}
+}
+
 // break this out for forward rendering as it's not part of ManualPCF's set of shadowquality settings.
 float Manual2x2PCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
+{
+	float2 TexelPos = ShadowPosition * Settings.ShadowBufferSize.xy;
+	float2 Fraction = frac(TexelPos);
+	float2 TexelCenter = floor(TexelPos) + 0.5f;	// bias to get reliable texel center content
+	
+	float2 Sample00TexelCenter = TexelCenter - float2(1, 1);
+
+	float3 SamplesValues0, SamplesValues1, SamplesValues2;
+
+	FetchRowOfThree(Sample00TexelCenter, 0, SamplesValues0, Settings);
+	FetchRowOfThree(Sample00TexelCenter, 1, SamplesValues1, Settings);
+	FetchRowOfThree(Sample00TexelCenter, 2, SamplesValues2, Settings);
+	
+	return PCF2x2(Fraction, SamplesValues0, SamplesValues1, SamplesValues2);
+}
+
+// break this out for forward rendering as it's not part of ManualPCF's set of shadowquality settings.
+float Manuax2PCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
 {
 	float2 TexelPos = ShadowPosition * Settings.ShadowBufferSize.xy;
 	float2 Fraction = frac(TexelPos);
@@ -307,32 +355,7 @@ float ManualPCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
 	// low quality, 2x2 samples, using and not using gather4
 	return Manual1x1PCF(ShadowPosition, Settings);
 #elif SHADOW_QUALITY == 3
-	// medium quality, 4x4 samples, using and not using gather4
-	{
-		float2 TexelPos = ShadowPosition * Settings.ShadowBufferSize.xy - 0.5f;	// bias to be consistent with texture filtering hardware
-		float2 Fraction = frac(TexelPos);
-		float2 TexelCenter = floor(TexelPos) + 0.5f;	// bias to get reliable texel center content
-		{
-			float2 Sample00TexelCenter = TexelCenter - float2(1, 1);
-
-			float4 SampleValues0, SampleValues1, SampleValues2, SampleValues3;
-
-#if FEATURE_GATHER4
-			float2 SamplePos = TexelCenter * Settings.ShadowBufferSize.zw;	// bias to get reliable texel center content
-			SampleValues0 = CalculateOcclusion(Settings.ShadowDepthTexture.Gather(ShadowDepthTextureSampler, SamplePos, int2(-1, -1)), Settings);
-			SampleValues1 = CalculateOcclusion(Settings.ShadowDepthTexture.Gather(ShadowDepthTextureSampler, SamplePos, int2(1, -1)), Settings);
-			SampleValues2 = CalculateOcclusion(Settings.ShadowDepthTexture.Gather(ShadowDepthTextureSampler, SamplePos, int2(-1, 1)), Settings);
-			SampleValues3 = CalculateOcclusion(Settings.ShadowDepthTexture.Gather(ShadowDepthTextureSampler, SamplePos, int2(1, 1)), Settings);
-			return PCF3x3gather(Fraction, SampleValues0, SampleValues1, SampleValues2, SampleValues3);
-#else // FEATURE_GATHER4 
-			FetchRowOfFour(Sample00TexelCenter, 0, SampleValues0, Settings);
-			FetchRowOfFour(Sample00TexelCenter, 1, SampleValues1, Settings);
-			FetchRowOfFour(Sample00TexelCenter, 2, SampleValues2, Settings);
-			FetchRowOfFour(Sample00TexelCenter, 3, SampleValues3, Settings);
-			return PCF3x3(Fraction, SampleValues0, SampleValues1, SampleValues2, SampleValues3);
-#endif // FEATURE_GATHER4
-		}
-	}
+	return Manual3x3PCF(ShadowPosition, Settings);
 #elif FEATURE_GATHER4
 	// high quality, 6x6 samples, using gather4
 	{

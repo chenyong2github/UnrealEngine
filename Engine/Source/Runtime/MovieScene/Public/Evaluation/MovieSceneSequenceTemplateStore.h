@@ -25,7 +25,7 @@ struct IMovieSceneSequenceTemplateStore
 /**
  * Implementation of a template store that just returns UMovieSceneSequence::PrecompiledEvaluationTemplate
  */
-struct MOVIESCENE_VTABLE FMovieSceneSequencePrecompiledTemplateStore : IMovieSceneSequenceTemplateStore
+struct FMovieSceneSequencePrecompiledTemplateStore : IMovieSceneSequenceTemplateStore
 {
 	MOVIESCENE_API virtual FMovieSceneEvaluationTemplate& AccessTemplate(UMovieSceneSequence& Sequence);
 };

@@ -519,6 +519,47 @@ void FMagicLeapHandTracking::BuildKeypointMaps()
 	SourceToHandMap.Add(RightPinkyFingerDIP_Name, &RightHand);
 	SourceToHandMap.Add(RightPinkyFingerPIP_Name, &RightHand);
 	SourceToHandMap.Add(RightPinkyFingerMCP_Name, &RightHand);
+
+	KeypointToLeftHandSource.Reserve(EMagicLeapHandTrackingKeypointCount);
+	KeypointToRightHandSource.Reserve(EMagicLeapHandTrackingKeypointCount);
+	SourceToKeypoint.Reserve(EMagicLeapHandTrackingKeypointCount * 2);
+
+#define ADD_KEY_POINT(Keypoint, KeypointName) \
+	KeypointToLeftHandSource.Add(Keypoint, Left##KeypointName##_Name); \
+	KeypointToRightHandSource.Add(Keypoint, Right##KeypointName##_Name); \
+	SourceToKeypoint.Add(Left##KeypointName##_Name, Keypoint); \
+	SourceToKeypoint.Add(Right##KeypointName##_Name, Keypoint);
+
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Hand_Center, HandCenter)
+
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Wrist_Center, WristCenter);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Wrist_Ulnar,  WristUlnar);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Wrist_Radial, WristRadial);
+
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Thumb_Tip, ThumbTip);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Thumb_IP,  ThumbIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Thumb_MCP, ThumbMCP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Thumb_CMC, ThumbCMC);
+
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Index_Tip, IndexFingerTip);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Index_DIP, IndexFingerDIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Index_PIP, IndexFingerPIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Index_MCP, IndexFingerMCP);
+
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Middle_Tip, MiddleFingerTip);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Middle_DIP, MiddleFingerDIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Middle_PIP, MiddleFingerPIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Middle_MCP, MiddleFingerMCP);
+
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Ring_Tip, RingFingerTip);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Ring_DIP, RingFingerDIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Ring_PIP, RingFingerPIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Ring_MCP, RingFingerMCP);
+
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Pinky_Tip, PinkyFingerTip);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Pinky_DIP, PinkyFingerDIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Pinky_PIP, PinkyFingerPIP);
+	ADD_KEY_POINT(EMagicLeapHandTrackingKeypoint::Pinky_MCP, PinkyFingerMCP);
 }
 
 FMagicLeapHandTracking::FHandState::FHandState()
@@ -780,8 +821,8 @@ void FMagicLeapHandTracking::SendControllerEvents()
 #if WITH_MLSDK
 	if (bIsHandTrackingStateValid)
 	{
-		const MLHandTrackingData& CurrentHandTrackingData = GetCurrentHandTrackingData();
-		const MLHandTrackingData& OldHandTrackingData = GetPreviousHandTrackingData();
+		const auto& CurrentHandTrackingData = GetCurrentHandTrackingData();
+		const auto& OldHandTrackingData = GetPreviousHandTrackingData();
 
 		SendControllerEventsForHand(CurrentHandTrackingData.left_hand_state, OldHandTrackingData.left_hand_state, LeftStaticGestureMap);
 		SendControllerEventsForHand(CurrentHandTrackingData.right_hand_state, OldHandTrackingData.right_hand_state, RightStaticGestureMap);
@@ -790,7 +831,7 @@ void FMagicLeapHandTracking::SendControllerEvents()
 }
 
 #if WITH_MLSDK
-void FMagicLeapHandTracking::SendControllerEventsForHand(const MLHandTrackingHandState& NewHandState, const MLHandTrackingHandState& OldHandState, const TArray<FName>& GestureMap)
+void FMagicLeapHandTracking::SendControllerEventsForHand(const MLHandTrackingHandStateEx& NewHandState, const MLHandTrackingHandStateEx& OldHandState, const TArray<FName>& GestureMap)
 {
 	const int32 GestureIndex = static_cast<int32>(NewHandState.keypose);
 	const float OldConfidence = OldHandState.keypose_confidence[OldHandState.keypose];
@@ -832,6 +873,22 @@ bool FMagicLeapHandTracking::IsGamepadAttached() const
 	return MLHandleIsValid(HandTracker);
 #else
 	return false;
+#endif //WITH_MLSDK
+}
+
+void FMagicLeapHandTracking::CreateEntityTracker()
+{
+#if WITH_MLSDK
+	// Zero-out structs
+	FMemory::Memset(&HandTrackingDatas, 0, sizeof(HandTrackingDatas));
+
+	// Initialize gesture data to default values.
+	HandTrackingDatas[0].left_hand_state.keypose = MLHandTrackingKeyPose_NoHand;
+	HandTrackingDatas[0].right_hand_state.keypose = MLHandTrackingKeyPose_NoHand;
+	HandTrackingDatas[1].left_hand_state.keypose = MLHandTrackingKeyPose_NoHand;
+	HandTrackingDatas[1].right_hand_state.keypose = MLHandTrackingKeyPose_NoHand;
+
+	GestureConfidenceThresholds.AddZeroed(static_cast<int32>(MLHandTrackingKeyPose_Count));
 #endif //WITH_MLSDK
 }
 
@@ -974,6 +1031,51 @@ float FMagicLeapHandTracking::GetGestureConfidenceThreshold(EMagicLeapHandTracki
 		return GestureConfidenceThresholds[static_cast<int32>(Gesture)];
 	}
 	return 0.0f;
+}
+
+bool FMagicLeapHandTracking::GetMotionSourceForHandKeypoint(EControllerHand Hand, EMagicLeapHandTrackingKeypoint Keypoint, FName& OutMotionSource)
+{
+	if (Hand == EControllerHand::Left)
+	{
+		FName* MotionSource = KeypointToLeftHandSource.Find(Keypoint);
+		if (!MotionSource)
+		{
+			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Failed to resolve motion source for left hand key point %d"), static_cast<int32>(Keypoint));
+			return false;
+		}
+
+		OutMotionSource = *MotionSource;
+		return true;
+	}
+
+	if (Hand == EControllerHand::Right)
+	{
+		FName* MotionSource = KeypointToRightHandSource.Find(Keypoint);
+		if (!MotionSource)
+		{
+			UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Failed to resolve motion source for right hand key point %d"), static_cast<int32>(Keypoint));
+			return false;
+		}
+
+		OutMotionSource = *MotionSource;
+		return true;
+	}
+
+	UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Failed to resolve motion source for hand %d"), static_cast<int32>(Hand));
+	return false;
+}
+
+bool FMagicLeapHandTracking::GetHandKeypointForMotionSource(FName MotionSource, EMagicLeapHandTrackingKeypoint& OutKeypoint)
+{
+	EMagicLeapHandTrackingKeypoint* Keypoint = SourceToKeypoint.Find(MotionSource);
+	if (!Keypoint)
+	{
+		UE_LOG(LogMagicLeapHandTracking, Error, TEXT("Failed to resolve keypoint for motion source for hand %s"), *MotionSource.ToString());
+		return false;
+	}
+
+	OutKeypoint = *Keypoint;
+	return true;
 }
 
 namespace MagicLeapHandTracking
@@ -1128,7 +1230,7 @@ void FMagicLeapHandTracking::UpdateTrackerData()
 	if (MLHandleIsValid(HandTracker))
 	{
 		CurrentHandTrackingDataIndex = 1 - CurrentHandTrackingDataIndex;
-		MLResult Result = MLHandTrackingGetData(HandTracker, &HandTrackingDatas[CurrentHandTrackingDataIndex]);
+		MLResult Result = MLHandTrackingGetDataEx(HandTracker, &HandTrackingDatas[CurrentHandTrackingDataIndex]);
 		if (Result != MLResult_Ok)
 		{
 			bIsHandTrackingStateValid = false;
@@ -1145,7 +1247,7 @@ void FMagicLeapHandTracking::UpdateTrackerData()
 	}
 	if (bIsHandTrackingStateValid && IMagicLeapPlugin::Get().IsMagicLeapHMDValid())
 	{
-		const MLHandTrackingData& HandTrackingData = GetCurrentHandTrackingData();
+		const auto& HandTrackingData = GetCurrentHandTrackingData();
 
 		LeftHand.Gesture = TranslateGestureEnum(HandTrackingData.left_hand_state.keypose);
 		RightHand.Gesture = TranslateGestureEnum(HandTrackingData.right_hand_state.keypose);
@@ -1165,8 +1267,9 @@ void FMagicLeapHandTracking::UpdateCurrentHandTrackerTransforms()
 	{
 		IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::Get();
 
-		const MLHandTrackingData& HandTrackingData = GetCurrentHandTrackingData();
+		const auto& HandTrackingData = GetCurrentHandTrackingData();
 
+		LeftHand.IsHoldingControl = HandTrackingData.left_hand_state.is_holding_control;
 		if (LeftHand.Gesture != EMagicLeapHandTrackingGesture::NoHand)
 		{
 			LeftHand.HandCenterNormalized = MagicLeap::ToFVector(HandTrackingData.left_hand_state.hand_center_normalized, 1.0f);
@@ -1178,6 +1281,7 @@ void FMagicLeapHandTracking::UpdateCurrentHandTrackerTransforms()
 
 			MagicLeapHandTracking::FetchHandTransforms(MLPlugin, HandTrackingStaticData.left, LeftHand, TEXT("left hand"));
 		}
+		RightHand.IsHoldingControl = HandTrackingData.right_hand_state.is_holding_control;
 		if (RightHand.Gesture != EMagicLeapHandTrackingGesture::NoHand)
 		{
 			RightHand.HandCenterNormalized = MagicLeap::ToFVector(HandTrackingData.right_hand_state.hand_center_normalized, 1.0f);
@@ -1237,8 +1341,6 @@ void FMagicLeapHandTracking::AddKeys()
 	LeftStaticGestureMap[MLHandTrackingKeyPose_Thumb] = FMagicLeapGestureKeyNames::Left_Thumb_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_L] = FMagicLeapGestureKeyNames::Left_L_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_OpenHand] = FMagicLeapGestureKeyNames::Left_OpenHand_Name;
-	// DEPRECATED
-	LeftStaticGestureMap[MLHandTrackingKeyPose_OpenHandBack] = FMagicLeapGestureKeyNames::Left_OpenHandBack_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_Ok] = FMagicLeapGestureKeyNames::Left_Ok_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_C] = FMagicLeapGestureKeyNames::Left_C_Name;
 	LeftStaticGestureMap[MLHandTrackingKeyPose_NoPose] = FMagicLeapGestureKeyNames::Left_NoPose_Name;
@@ -1251,8 +1353,6 @@ void FMagicLeapHandTracking::AddKeys()
 	RightStaticGestureMap[MLHandTrackingKeyPose_Thumb] = FMagicLeapGestureKeyNames::Right_Thumb_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_L] = FMagicLeapGestureKeyNames::Right_L_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_OpenHand] = FMagicLeapGestureKeyNames::Right_OpenHand_Name;
-	// DEPRECATED
-	RightStaticGestureMap[MLHandTrackingKeyPose_OpenHandBack] = FMagicLeapGestureKeyNames::Right_OpenHandBack_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_Ok] = FMagicLeapGestureKeyNames::Right_Ok_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_C] = FMagicLeapGestureKeyNames::Right_C_Name;
 	RightStaticGestureMap[MLHandTrackingKeyPose_NoPose] = FMagicLeapGestureKeyNames::Right_NoPose_Name;

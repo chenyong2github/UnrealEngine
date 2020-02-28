@@ -26,14 +26,13 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num Cached Elements"), STAT_SlateNumCach
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PreFill Buffers RT"), STAT_SlatePreFullBufferRTTime, STATGROUP_Slate, SLATECORE_API);
 
-#define SLATE_USE_32BIT_INDICES !PLATFORM_USES_ES2
+#define SLATE_USE_32BIT_INDICES !PLATFORM_USES_GLES
 
 #if SLATE_USE_32BIT_INDICES
 typedef uint32 SlateIndex;
 #else
 typedef uint16 SlateIndex;
 #endif
-
 /**
  * Draw primitive types                   
  */

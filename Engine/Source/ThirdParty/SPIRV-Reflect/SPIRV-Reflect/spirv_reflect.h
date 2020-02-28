@@ -69,7 +69,19 @@ typedef enum SpvReflectResult {
   SPV_REFLECT_RESULT_ERROR_SPIRV_SET_NUMBER_OVERFLOW,
   SPV_REFLECT_RESULT_ERROR_SPIRV_INVALID_STORAGE_CLASS,
   SPV_REFLECT_RESULT_ERROR_SPIRV_RECURSION,
+  SPV_REFLECT_RESULT_ERROR_SPIRV_INVALID_INSTRUCTION,
+  SPV_REFLECT_RESULT_ERROR_SPIRV_UNEXPECTED_BLOCK_DATA,
+  SPV_REFLECT_RESULT_ERROR_SPIRV_INVALID_BLOCK_MEMBER_REFERENCE,
 } SpvReflectResult;
+
+/*! @enum SpvReflectReturnFlagBits
+
+*/
+typedef enum SpvReflectReturnFlagBits {
+  SPV_REFLECT_RETURN_FLAG_SAMPLER_IMAGE_USAGE = 0x00000001,
+} SpvReflectReturnFlagBits;
+
+typedef uint32_t SpvReflectReturnFlags;
 
 /*! @enum SpvReflectTypeFlagBits
 
@@ -139,6 +151,16 @@ typedef enum SpvReflectFormat {
   SPV_REFLECT_FORMAT_R32G32B32A32_SINT   = 108, // = VK_FORMAT_R32G32B32A32_SINT
   SPV_REFLECT_FORMAT_R32G32B32A32_SFLOAT = 109, // = VK_FORMAT_R32G32B32A32_SFLOAT
 } SpvReflectFormat;
+
+/*! @enum SpvReflectVariableFlagBits
+
+*/
+enum SpvReflectVariableFlagBits{
+  SPV_REFLECT_VARIABLE_FLAGS_NONE   = 0x00000000,
+  SPV_REFLECT_VARIABLE_FLAGS_UNUSED = 0x00000001,
+};
+
+typedef uint32_t SpvReflectVariableFlags;
 
 /*! @enum SpvReflectDescriptorType
 
@@ -268,10 +290,15 @@ typedef struct SpvReflectInterfaceVariable {
   SpvBuiltIn                          built_in;
   SpvReflectNumericTraits             numeric;
   SpvReflectArrayTraits               array;
+
   uint32_t                            member_count;
   struct SpvReflectInterfaceVariable* members;
 
   SpvReflectFormat                    format;
+
+  // List of variables that are used in conjunction with this variable (used for samplers that are used with one or more images)
+  uint32_t                            sampled_image_count;
+  struct SpvReflectInterfaceVariable**sampled_image_refs;
 
   // NOTE: SPIR-V shares type references for variables
   //       that have the same underlying type. This means
@@ -297,6 +324,8 @@ typedef struct SpvReflectBlockVariable {
   SpvReflectDecorationFlags         decoration_flags;
   SpvReflectNumericTraits           numeric;
   SpvReflectArrayTraits             array;
+  SpvReflectVariableFlags           flags;
+
   uint32_t                          member_count;
   struct SpvReflectBlockVariable*   members;
 
@@ -307,26 +336,30 @@ typedef struct SpvReflectBlockVariable {
 
 */
 typedef struct SpvReflectDescriptorBinding {
-  uint32_t                            spirv_id;
-  const char*                         name;
-  uint32_t                            binding;
-  uint32_t                            input_attachment_index;
-  uint32_t                            set;
-  SpvReflectDescriptorType            descriptor_type;
-  SpvReflectResourceType              resource_type;
-  SpvReflectImageTraits               image;
-  SpvReflectBlockVariable             block;
-  SpvReflectBindingArrayTraits        array;
-  uint32_t                            count;
-  uint32_t                            accessed;
-  uint32_t                            uav_counter_id;
-  struct SpvReflectDescriptorBinding* uav_counter_binding;
+  uint32_t                              spirv_id;
+  const char*                           name;
+  uint32_t                              binding;
+  uint32_t                              input_attachment_index;
+  uint32_t                              set;
+  SpvReflectDescriptorType              descriptor_type;
+  SpvReflectResourceType                resource_type;
+  SpvReflectImageTraits                 image;
+  SpvReflectBlockVariable               block;
+  SpvReflectBindingArrayTraits          array;
+  uint32_t                              count;
+  uint32_t                              accessed;
+  uint32_t                              uav_counter_id;
+  struct SpvReflectDescriptorBinding*   uav_counter_binding;
 
-  SpvReflectTypeDescription*          type_description;
+  SpvReflectTypeDescription*            type_description;
+
+  // Bindings this binding is used with (only for samplers)
+  uint32_t                              usage_binding_count;
+  struct SpvReflectDescriptorBinding**  usage_bindings;
 
   struct {
-    uint32_t                          binding;
-    uint32_t                          set;
+    uint32_t                            binding;
+    uint32_t                            set;
   } word_offset;
 } SpvReflectDescriptorBinding;
 
@@ -360,7 +393,7 @@ typedef struct SpvReflectEntryPoint {
 
   SpvExecutionModel                 spirv_execution_model;
   SpvReflectShaderStageFlagBits     shader_stage;
-	
+
   /* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
   uint32_t							execution_modes_count;
   SpvReflectExecutionMode*			execution_modes;
@@ -378,7 +411,23 @@ typedef struct SpvReflectEntryPoint {
   uint32_t*                         used_uniforms;
   uint32_t                          used_push_constant_count;
   uint32_t*                         used_push_constants;
+
+  struct {
+    uint32_t                        name;
+  } word_offset;
+  struct {
+    uint32_t                        name;
+  } word_count;
+  uint32_t                          name_length_with_terminator;
 } SpvReflectEntryPoint;
+
+/*! @struct SpvReflectBindingAssociation
+
+*/
+typedef struct SpvReflectBindingAssociation {
+  SpvReflectDescriptorBinding*  resource;
+  size_t                        usage_binding_count;
+} SpvReflectBindingAssociation;
 
 /*! @struct SpvReflectShaderModule
 
@@ -405,7 +454,7 @@ typedef struct SpvReflectShaderModule {
   SpvReflectInterfaceVariable*      output_variables;
   uint32_t                          push_constant_block_count;
   SpvReflectBlockVariable*          push_constant_blocks;
-	
+
   /* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
   uint32_t							execution_modes_count;
   SpvReflectExecutionMode*			execution_modes;
@@ -418,7 +467,11 @@ typedef struct SpvReflectShaderModule {
 
     size_t                          type_description_count;
     SpvReflectTypeDescription*      type_descriptions;
-  } * _internal;
+
+    SpvReflectBindingAssociation*   binding_associations;
+    size_t                          binding_association_count;
+    SpvReflectDescriptorBinding**   usage_bindings;
+  } *_internal;
 
 } SpvReflectShaderModule;
 
@@ -431,13 +484,15 @@ extern "C" {
  @param  size      Size in bytes of SPIR-V code.
  @param  p_code    Pointer to SPIR-V code.
  @param  p_module  Pointer to an instance of SpvReflectShaderModule.
+ @param  flags     Flags to enable/disable individual reflection passes.
  @return           SPV_REFLECT_RESULT_SUCCESS on success.
 
 */
 SpvReflectResult spvReflectCreateShaderModule(
   size_t                   size,
   const void*              p_code,
-  SpvReflectShaderModule*  p_module
+  SpvReflectShaderModule*  p_module,
+  SpvReflectReturnFlags    flags
 );
 
 SPV_REFLECT_DEPRECATED("renamed to spvReflectCreateShaderModule")
@@ -1315,6 +1370,27 @@ SpvReflectResult spvReflectChangeOutputVariableLocation(
 );
 
 
+/*! @fn spvReflectChangeEntryPointName
+ @brief  Assign a new name to the specified entry point.
+		 In addition to updating the reflection data, this function modifies
+		 the underlying SPIR-V bytecode. The updated code can be retrieved
+		 with spvReflectGetCode().
+		 It is the caller's responsibility to avoid assigning the same
+		 name to multiple entry points.
+ @param  p_module  Pointer to an instance of SpvReflectShaderModule.
+ @param  index     Pointer to the output variable to update.
+ @param  new_name  The new name to assign to the specified entry point.
+ @return           If successful, returns SPV_REFLECT_RESULT_SUCCESS.
+                   Otherwise, the error code indicates the cause of
+                   the failure.
+*/
+SpvReflectResult spvReflectChangeEntryPointName(
+  SpvReflectShaderModule* p_module,
+  uint32_t                index,
+  const char*             new_name
+);
+
+
 /*! @fn spvReflectSourceLanguage
 
  @param  source_lang  The source language code.
@@ -1340,9 +1416,9 @@ namespace spv_reflect {
 class ShaderModule {
 public:
   ShaderModule();
-  ShaderModule(size_t size, const void* p_code);
-  ShaderModule(const std::vector<uint8_t>& code);
-  ShaderModule(const std::vector<uint32_t>& code);
+  ShaderModule(size_t size, const void* p_code, SpvReflectReturnFlags flags = 0);
+  ShaderModule(const std::vector<uint8_t>& code, SpvReflectReturnFlags flags = 0);
+  ShaderModule(const std::vector<uint32_t>& code, SpvReflectReturnFlags flags = 0);
   ~ShaderModule();
 
   SpvReflectResult GetResult() const;
@@ -1422,6 +1498,7 @@ public:
   SpvReflectResult ChangeDescriptorSetNumber(const SpvReflectDescriptorSet* p_set, uint32_t new_set_number = SPV_REFLECT_SET_NUMBER_DONT_CHANGE);
   SpvReflectResult ChangeInputVariableLocation(const SpvReflectInterfaceVariable* p_input_variable, uint32_t new_location);
   SpvReflectResult ChangeOutputVariableLocation(const SpvReflectInterfaceVariable* p_output_variable, uint32_t new_location);
+  SpvReflectResult ChangeEntryPointName(uint32_t index, const char* new_name);
 
 private:
   mutable SpvReflectResult  m_result = SPV_REFLECT_RESULT_NOT_READY;
@@ -1445,10 +1522,11 @@ inline ShaderModule::ShaderModule() {}
   @param  p_code
 
 */
-inline ShaderModule::ShaderModule(size_t size, const void* p_code) {
+inline ShaderModule::ShaderModule(size_t size, const void* p_code, SpvReflectReturnFlags flags) {
   m_result = spvReflectCreateShaderModule(size,
                                           p_code,
-                                          &m_module);
+                                          &m_module,
+                                          flags);
 }
 
 /*! @fn ShaderModule
@@ -1456,10 +1534,11 @@ inline ShaderModule::ShaderModule(size_t size, const void* p_code) {
   @param  code
   
 */
-inline ShaderModule::ShaderModule(const std::vector<uint8_t>& code) {
+inline ShaderModule::ShaderModule(const std::vector<uint8_t>& code, SpvReflectReturnFlags flags) {
   m_result = spvReflectCreateShaderModule(code.size(),
                                           code.data(),
-                                          &m_module);
+                                          &m_module,
+                                          flags);
 }
 
 /*! @fn ShaderModule
@@ -1467,10 +1546,11 @@ inline ShaderModule::ShaderModule(const std::vector<uint8_t>& code) {
   @param  code
   
 */
-inline ShaderModule::ShaderModule(const std::vector<uint32_t>& code) {
+inline ShaderModule::ShaderModule(const std::vector<uint32_t>& code, SpvReflectReturnFlags flags) {
   m_result = spvReflectCreateShaderModule(code.size() * sizeof(uint32_t),
                                           code.data(),
-                                          &m_module);
+                                          &m_module,
+                                          flags);
 }
 
 /*! @fn  ~ShaderModule
@@ -1580,8 +1660,8 @@ inline SpvReflectResult ShaderModule::EnumerateDescriptorBindings(
 ) const
 {
   m_result = spvReflectEnumerateDescriptorBindings(&m_module,
-                                                    p_count,
-                                                    pp_bindings);
+                                                   p_count,
+                                                   pp_bindings);
   return m_result;
 }
 
@@ -1996,10 +2076,10 @@ inline const SpvReflectInterfaceVariable* ShaderModule::GetEntryPointOutputVaria
 ) const
 {
   return spvReflectGetEntryPointOutputVariableByLocation(
-      &m_module,
-      entry_point,
-      location,
-      p_result);
+    &m_module,
+    entry_point,
+    location,
+    p_result);
 }
 inline const SpvReflectInterfaceVariable* ShaderModule::GetEntryPointOutputVariableBySemantic(
   const char*       entry_point,
@@ -2008,10 +2088,10 @@ inline const SpvReflectInterfaceVariable* ShaderModule::GetEntryPointOutputVaria
 ) const
 {
   return spvReflectGetEntryPointOutputVariableBySemantic(
-      &m_module,
-      entry_point,
-      semantic,
-      p_result);
+    &m_module,
+    entry_point,
+    semantic,
+    p_result);
 }
 
 
@@ -2046,9 +2126,9 @@ inline const SpvReflectBlockVariable* ShaderModule::GetEntryPointPushConstantBlo
 ) const
 {
   return spvReflectGetEntryPointPushConstantBlock(
-      &m_module,
-      entry_point,
-      p_result);
+    &m_module,
+    entry_point,
+    p_result);
 }
 
 
@@ -2122,6 +2202,22 @@ inline SpvReflectResult ShaderModule::ChangeOutputVariableLocation(
   return spvReflectChangeOutputVariableLocation(&m_module,
                                                 p_output_variable,
                                                 new_location);
+}
+
+/*! @fn ChangeEntryPointName
+
+  @param  index
+  @param  new_name
+  @return
+
+ */
+
+inline SpvReflectResult ShaderModule::ChangeEntryPointName(uint32_t index, const char* new_name)
+{
+  return spvReflectChangeEntryPointName(
+    &m_module,
+    index,
+    new_name);
 }
 
 } // namespace spv_reflect

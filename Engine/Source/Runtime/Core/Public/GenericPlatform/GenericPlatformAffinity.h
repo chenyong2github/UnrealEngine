@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/EnumClassFlags.h"
 
 #define		MAKEAFFINITYMASK1(x)					(1<<x)
 #define		MAKEAFFINITYMASK2(x,y)					((1<<x)+(1<<y))
@@ -28,6 +29,14 @@ enum EThreadPriority
 	TPri_SlightlyBelowNormal,
 	TPri_TimeCritical
 };
+
+enum class EThreadCreateFlags : int8
+{
+	None = 0,
+	SMTExclusive = (1 << 0),
+};
+
+ENUM_CLASS_FLAGS(EThreadCreateFlags);
 
 class FGenericPlatformAffinity
 {
@@ -98,10 +107,20 @@ public:
 	{
 		return TPri_Normal;
 	}
+
+	static EThreadCreateFlags GetRenderingThreadFlags()
+	{
+		return EThreadCreateFlags::None;
+	}
 	
 	static EThreadPriority GetRHIThreadPriority()
 	{
 		return TPri_SlightlyBelowNormal;
+	}
+
+	static EThreadCreateFlags GetRHIThreadFlags()
+	{
+		return EThreadCreateFlags::None;
 	}
 };
 

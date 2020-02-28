@@ -479,6 +479,14 @@ public:
 		return DeviceLostEvent;
 	}
 
+	virtual bool UsesRayTracing() const override
+	{
+		bool bEnableRayTracing = false;
+		GConfig->GetBool(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("bEnableRayTracing"), bEnableRayTracing, GEngineIni);
+
+		return bEnableRayTracing;
+	}
+
 	//~ End ITargetPlatform Interface
 
 private:

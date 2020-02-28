@@ -53,6 +53,8 @@ void FSteamVRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList,
 		VSize = SrcRect.Height() / SrcTextureHeight;
 	}
 
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SrcTexture);
+
 	// #todo-renderpasses Possible optimization here - use DontLoad if we will immediately clear the entire target
 	FRHIRenderPassInfo RPInfo(DstTexture, ERenderTargetActions::Load_Store);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyTexture"));

@@ -176,6 +176,7 @@
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionSine.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 #include "Materials/MaterialExpressionSobol.h"
 #include "Materials/MaterialExpressionSpeedTree.h"
 #include "Materials/MaterialExpressionSphereMask.h"
@@ -212,6 +213,7 @@
 #include "Materials/MaterialExpressionVertexColor.h"
 #include "Materials/MaterialExpressionVertexInterpolator.h"
 #include "Materials/MaterialExpressionVertexNormalWS.h"
+#include "Materials/MaterialExpressionVertexTangentWS.h"
 #include "Materials/MaterialExpressionViewProperty.h"
 #include "Materials/MaterialExpressionViewSize.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
@@ -713,12 +715,14 @@ void UMaterialExpression::Serialize(FStructuredArchive::FRecord Record)
 	SCOPED_LOADTIMER(UMaterialExpression::Serialize);
 	Super::Serialize(Record);
 
+	Record.GetUnderlyingArchive().UsingCustomVersion(FRenderingObjectVersion::GUID);
+
 #if WITH_EDITORONLY_DATA
 	const TArray<FExpressionInput*> Inputs = GetInputs();
 	for (int32 InputIndex = 0; InputIndex < Inputs.Num(); ++InputIndex)
 	{
 		FExpressionInput* Input = Inputs[InputIndex];
-		DoMaterialAttributeReorder(Input, Record.GetUnderlyingArchive().UE4Ver());
+		DoMaterialAttributeReorder(Input, Record.GetUnderlyingArchive().UE4Ver(), Record.GetUnderlyingArchive().CustomVer(FRenderingObjectVersion::GUID));
 	}
 #endif // WITH_EDITORONLY_DATA
 }
@@ -5384,10 +5388,10 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 	int32 Ret = INDEX_NONE;
 	UMaterialExpression* Expression = nullptr;
 
- 	static_assert(MP_MAX == 30, 
+ 	static_assert(MP_MAX == 32, 
 		"New material properties should be added to the end of the inputs for this expression. \
 		The order of properties here should match the material results pins, the make material attriubtes node inputs and the mapping of IO indices to properties in GetMaterialPropertyFromInputOutputIndex().\
-		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttriubtesReorder().\
+		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttributeReorder().\
 		");
 
 	EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(Compiler->GetMaterialAttribute());
@@ -5398,10 +5402,12 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 	case MP_Metallic: Ret = Metallic.Compile(Compiler); Expression = Metallic.Expression; break;
 	case MP_Specular: Ret = Specular.Compile(Compiler); Expression = Specular.Expression; break;
 	case MP_Roughness: Ret = Roughness.Compile(Compiler); Expression = Roughness.Expression; break;
+	case MP_Anisotropy: Ret = Anisotropy.Compile(Compiler); Expression = Anisotropy.Expression; break;
 	case MP_EmissiveColor: Ret = EmissiveColor.Compile(Compiler); Expression = EmissiveColor.Expression; break;
 	case MP_Opacity: Ret = Opacity.Compile(Compiler); Expression = Opacity.Expression; break;
 	case MP_OpacityMask: Ret = OpacityMask.Compile(Compiler); Expression = OpacityMask.Expression; break;
 	case MP_Normal: Ret = Normal.Compile(Compiler); Expression = Normal.Expression; break;
+	case MP_Tangent: Ret = Tangent.Compile(Compiler); Expression = Tangent.Expression; break;
 	case MP_WorldPositionOffset: Ret = WorldPositionOffset.Compile(Compiler); Expression = WorldPositionOffset.Expression; break;
 	case MP_WorldDisplacement: Ret = WorldDisplacement.Compile(Compiler); Expression = WorldDisplacement.Expression; break;
 	case MP_TessellationMultiplier: Ret = TessellationMultiplier.Compile(Compiler); Expression = TessellationMultiplier.Expression; break;
@@ -5469,7 +5475,7 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialAttributes);
 	
- 	static_assert(MP_MAX == 30, 
+ 	static_assert(MP_MAX == 32, 
 		"New material properties should be added to the end of the outputs for this expression. \
 		The order of properties here should match the material results pins, the make material attriubtes node inputs and the mapping of IO indices to properties in GetMaterialPropertyFromInputOutputIndex().\
 		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttriubtesReorder().\
@@ -5480,10 +5486,12 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 	Outputs.Add(FExpressionOutput(TEXT("Metallic"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Specular"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Anisotropy"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("EmissiveColor"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Opacity"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("OpacityMask"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Normal"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Tangent"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("WorldPositionOffset"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("WorldDisplacement"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("TessellationMultiplier"), 1, 1, 0, 0, 0));
@@ -5520,10 +5528,12 @@ void UMaterialExpressionBreakMaterialAttributes::Serialize(FStructuredArchive::F
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // Metallic
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // Specular
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // Roughness
+		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // Anisotropy
 		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // EmissiveColor
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // Opacity
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // OpacityMask
 		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // Normal
+		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // Tangent
 		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // WorldPositionOffset
 		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // WorldDisplacement
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // TessellationMultiplier
@@ -5551,32 +5561,34 @@ static void BuildPropertyToIOIndexMap()
 {
 	if (PropertyToIOIndexMap.Num() == 0)
 	{
-		PropertyToIOIndexMap.Add(MP_BaseColor, 0);
-		PropertyToIOIndexMap.Add(MP_Metallic, 1);
-		PropertyToIOIndexMap.Add(MP_Specular, 2);
-		PropertyToIOIndexMap.Add(MP_Roughness, 3);
-		PropertyToIOIndexMap.Add(MP_EmissiveColor, 4);
-		PropertyToIOIndexMap.Add(MP_Opacity, 5);
-		PropertyToIOIndexMap.Add(MP_OpacityMask, 6);
-		PropertyToIOIndexMap.Add(MP_Normal, 7);
-		PropertyToIOIndexMap.Add(MP_WorldPositionOffset, 8);
-		PropertyToIOIndexMap.Add(MP_WorldDisplacement, 9);
-		PropertyToIOIndexMap.Add(MP_TessellationMultiplier, 10);
-		PropertyToIOIndexMap.Add(MP_SubsurfaceColor, 11);
-		PropertyToIOIndexMap.Add(MP_CustomData0, 12);
-		PropertyToIOIndexMap.Add(MP_CustomData1, 13);
-		PropertyToIOIndexMap.Add(MP_AmbientOcclusion, 14);
-		PropertyToIOIndexMap.Add(MP_Refraction, 15);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs0, 16);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs1, 17);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs2, 18);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs3, 19);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs4, 20);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs5, 21);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs6, 22);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs7, 23);
-		PropertyToIOIndexMap.Add(MP_PixelDepthOffset, 24);
-		PropertyToIOIndexMap.Add(MP_ShadingModel, 25);
+		PropertyToIOIndexMap.Add(MP_BaseColor,				0);
+		PropertyToIOIndexMap.Add(MP_Metallic,				1);
+		PropertyToIOIndexMap.Add(MP_Specular,				2);
+		PropertyToIOIndexMap.Add(MP_Roughness,				3);
+		PropertyToIOIndexMap.Add(MP_Anisotropy,				4);
+		PropertyToIOIndexMap.Add(MP_EmissiveColor,			5);
+		PropertyToIOIndexMap.Add(MP_Opacity,				6);
+		PropertyToIOIndexMap.Add(MP_OpacityMask,			7);
+		PropertyToIOIndexMap.Add(MP_Normal,					8);
+		PropertyToIOIndexMap.Add(MP_Tangent,				9);
+		PropertyToIOIndexMap.Add(MP_WorldPositionOffset,	10);
+		PropertyToIOIndexMap.Add(MP_WorldDisplacement,		11);
+		PropertyToIOIndexMap.Add(MP_TessellationMultiplier, 12);
+		PropertyToIOIndexMap.Add(MP_SubsurfaceColor,		13);
+		PropertyToIOIndexMap.Add(MP_CustomData0,			14);
+		PropertyToIOIndexMap.Add(MP_CustomData1,			15);
+		PropertyToIOIndexMap.Add(MP_AmbientOcclusion,		16);
+		PropertyToIOIndexMap.Add(MP_Refraction,				17);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs0,			18);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs1,			19);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs2,			20);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs3,			21);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs4,			22);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs5,			23);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs6,			24);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs7,			25);
+		PropertyToIOIndexMap.Add(MP_PixelDepthOffset,		26);
+		PropertyToIOIndexMap.Add(MP_ShadingModel,			27);
 	}
 }
 
@@ -8258,7 +8270,7 @@ void UMaterialExpressionFeatureLevelSwitch::Serialize(FStructuredArchive::FRecor
 	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_RENAME_SM3_TO_ES3_1)
 	{
 		// Copy the ES2 input to SM3 (since SM3 will now become ES3_1 and we don't want broken content)
-		Inputs[ERHIFeatureLevel::ES3_1] = Inputs[ERHIFeatureLevel::ES2];
+		Inputs[ERHIFeatureLevel::ES3_1] = Inputs[ERHIFeatureLevel::ES2_REMOVED];
 	}
 
 	if (UnderlyingArchive.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::RemovedSM4)
@@ -15046,6 +15058,42 @@ void UMaterialExpressionVertexNormalWS::GetCaption(TArray<FString>& OutCaptions)
 }
 #endif // WITH_EDITOR
 
+UMaterialExpressionVertexTangentWS::UMaterialExpressionVertexTangentWS(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Vectors;
+		FText NAME_Coordinates;
+		FConstructorStatics()
+			: NAME_Vectors(LOCTEXT("Vectors", "Vectors"))
+			, NAME_Coordinates(LOCTEXT("Coordinates", "Coordinates"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Vectors);
+	MenuCategories.Add(ConstructorStatics.NAME_Coordinates);
+
+	bShaderInputData = true;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionVertexTangentWS::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->VertexTangent();
+}
+
+void UMaterialExpressionVertexTangentWS::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("VertexTangentWS"));
+}
+#endif // WITH_EDITOR
+
 UMaterialExpressionPixelNormalWS::UMaterialExpressionPixelNormalWS(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -17107,9 +17155,68 @@ FString UMaterialExpressionSingleLayerWaterMaterialOutput::GetDisplayName() cons
 	return TEXT("Single Layer Water Material");
 }
 
+/////////////////////////// THIN TRANSLUCENT
 
 
+UMaterialExpressionThinTranslucentMaterialOutput::UMaterialExpressionThinTranslucentMaterialOutput(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_ThinTranslucent;
+		FConstructorStatics()
+			: NAME_ThinTranslucent(LOCTEXT("ThinTranslucent", "ThinTranslucent"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
 
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_ThinTranslucent);
+#endif
+
+#if WITH_EDITOR
+	Outputs.Reset();
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionThinTranslucentMaterialOutput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 CodeInput = INDEX_NONE;
+
+	// Generates function names GetSingleLayerWaterMaterialOutput{index} used in BasePixelShader.usf.
+	if (OutputIndex == 0)
+	{
+		CodeInput = TransmittanceColor.IsConnected() ? TransmittanceColor.Compile(Compiler) : Compiler->Constant3(0.5f, 0.5f, 0.5f);
+	}
+
+	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
+}
+
+void UMaterialExpressionThinTranslucentMaterialOutput::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Thin Translucent Material")));
+}
+
+#endif // WITH_EDITOR
+
+int32 UMaterialExpressionThinTranslucentMaterialOutput::GetNumOutputs() const
+{
+	return 1;
+}
+
+FString UMaterialExpressionThinTranslucentMaterialOutput::GetFunctionName() const
+{
+	return TEXT("GetThinTranslucentMaterialOutput");
+}
+
+FString UMaterialExpressionThinTranslucentMaterialOutput::GetDisplayName() const
+{
+	return TEXT("Thin Translucent Material");
+}
 
 
 

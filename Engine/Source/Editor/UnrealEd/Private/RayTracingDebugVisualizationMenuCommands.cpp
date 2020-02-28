@@ -51,6 +51,8 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 	RayTracingDebugModeNames.Add(LOCTEXT("HitKind", "HitKind"));
 	RayTracingDebugModeNames.Add(LOCTEXT("Barycentrics", "Barycentrics"));
 	RayTracingDebugModeNames.Add(LOCTEXT("PrimaryRays", "PrimaryRays"));
+	RayTracingDebugModeNames.Add(LOCTEXT("World Tangent", "World Tangent"));
+	RayTracingDebugModeNames.Add(LOCTEXT("Anisotropy", "Anisotropy"));
 
 	for ( int32 RayTracingDebugIndex = 0; RayTracingDebugIndex < RayTracingDebugModeNames.Num(); ++RayTracingDebugIndex)
 	{

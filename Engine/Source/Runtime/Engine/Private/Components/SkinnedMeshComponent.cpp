@@ -1408,6 +1408,41 @@ bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FNam
 	return false;
 }
 
+bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
+{
+	static const IConsoleVariable* CVarDefaultGPUSkinCacheBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.DefaultBehavior"));
+
+	bool bIsRayTracing = IsRayTracingEnabled();
+
+	bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
+
+	if (!SkeletalMesh)
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bGlobalDefault);
+	}
+
+	FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LodIdx);
+	if (!LodInfo)
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bGlobalDefault);
+	}
+
+	bool bLodEnabled = LodInfo->SkinCacheUsage == ESkinCacheUsage::Auto ?
+		bGlobalDefault :
+		LodInfo->SkinCacheUsage == ESkinCacheUsage::Enabled;
+
+	if (!SkinCacheUsage.IsValidIndex(LodIdx))
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bLodEnabled);
+	}
+
+	bool bComponentEnabled = SkinCacheUsage[LodIdx] == ESkinCacheUsage::Auto ? 
+		bLodEnabled :
+		SkinCacheUsage[LodIdx] == ESkinCacheUsage::Enabled;
+
+	return GEnableGPUSkinCache && (bIsRayTracing || bComponentEnabled);
+}
+
 void USkinnedMeshComponent::GetBoneNames(TArray<FName>& BoneNames)
 {
 	if (SkeletalMesh == NULL)
@@ -3702,7 +3737,7 @@ void USkinnedMeshComponent::HandleFeatureLevelChanged(ERHIFeatureLevel::Type InF
 		}
 	}
 }
-#endif // WITH_EDITORONLY_DATA
+#endif
 
 void FAnimUpdateRateParameters::SetTrailMode(float DeltaTime, uint8 UpdateRateShift, int32 NewUpdateRate, int32 NewEvaluationRate, bool bNewInterpSkippedFrames)
 {

@@ -6,7 +6,7 @@
 
 #include "Common.ush"
 
-#if (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1)
+#if COMPILER_GLSL_ES3_1
 TextureExternal InTexture;
 #else
 Texture2D InTexture;

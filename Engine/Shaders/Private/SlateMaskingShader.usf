@@ -28,10 +28,10 @@ VertexToPixelInterpolants MainVS(in uint InPosition : ATTRIBUTE0)
 
 	VOut.Position = mul(WorldPosition, ViewProjection);
 
-#if (ES2_PROFILE && COMPILER_GLSL_ES2) || (ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
+#if (ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
 	// @todo-mobile: Fix this in the projection matrix
 	VOut.Position.y *= SwitchVerticalAxisMultiplier;
-#endif //(ES2_PROFILE && COMPILER_GLSL_ES2) || (ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
+#endif //(ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
 
 	return VOut;
 }

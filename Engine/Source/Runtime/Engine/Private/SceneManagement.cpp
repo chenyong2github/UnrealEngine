@@ -674,8 +674,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 {
 	FMemory::Memzero(*this);
 
-	FRHITexture* BlackVolume = (GBlackVolumeTexture &&  GBlackVolumeTexture->TextureRHI) ? GBlackVolumeTexture->TextureRHI : GBlackTexture->TextureRHI; // for es2, this might need to be 2d
-	FRHITexture* BlackUintVolume = (GBlackUintVolumeTexture &&  GBlackUintVolumeTexture->TextureRHI) ? GBlackUintVolumeTexture->TextureRHI : GBlackTexture->TextureRHI; // for es2, this might need to be 2d
+	FRHITexture* BlackVolume = (GBlackVolumeTexture &&  GBlackVolumeTexture->TextureRHI) ? GBlackVolumeTexture->TextureRHI : GBlackTexture->TextureRHI;
+	FRHITexture* BlackUintVolume = (GBlackUintVolumeTexture &&  GBlackUintVolumeTexture->TextureRHI) ? GBlackUintVolumeTexture->TextureRHI : GBlackTexture->TextureRHI;
 	check(GBlackVolumeTexture);
 
 	MaterialTextureBilinearClampedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -856,6 +856,22 @@ void GetLightmapClusterResourceParameters(
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
 	const bool bUseVirtualTextures = bAllowHighQualityLightMaps && (CVar->GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
 
+	Parameters.LightMapTexture = GBlackTexture->TextureRHI;
+	Parameters.SkyOcclusionTexture = GWhiteTexture->TextureRHI;
+	Parameters.AOMaterialMaskTexture = GBlackTexture->TextureRHI;
+	Parameters.StaticShadowTexture = GWhiteTexture->TextureRHI;
+	Parameters.VTLightMapTexture = GBlackTextureWithSRV->ShaderResourceViewRHI;
+	Parameters.VTLightMapTexture_1 = GBlackTextureWithSRV->ShaderResourceViewRHI;
+	Parameters.VTSkyOcclusionTexture = GWhiteTextureWithSRV->ShaderResourceViewRHI;
+	Parameters.VTAOMaterialMaskTexture = GBlackTextureWithSRV->ShaderResourceViewRHI;
+	Parameters.VTStaticShadowTexture = GWhiteTextureWithSRV->ShaderResourceViewRHI;
+	Parameters.LightmapVirtualTexturePageTable0 = GBlackTexture->TextureRHI;
+	Parameters.LightmapVirtualTexturePageTable1 = GBlackTexture->TextureRHI;
+	Parameters.LightMapSampler = GBlackTexture->SamplerStateRHI;
+	Parameters.SkyOcclusionSampler = GWhiteTexture->SamplerStateRHI;
+	Parameters.AOMaterialMaskSampler = GBlackTexture->SamplerStateRHI;
+	Parameters.StaticShadowTextureSampler = GWhiteTexture->SamplerStateRHI;
+
 	if (bUseVirtualTextures)
 	{
 		// this is sometimes called with NULL input to initialize default buffer
@@ -863,34 +879,34 @@ void GetLightmapClusterResourceParameters(
 		if (VirtualTexture && AllocatedVT)
 		{
 			// Bind VT here
-			Parameters.LightMapTexture = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::HqLayer0);
-			Parameters.LightMapTexture_1 = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::HqLayer1);
+			Parameters.VTLightMapTexture = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::HqLayer0, false);
+			Parameters.VTLightMapTexture_1 = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::HqLayer1, false);
 
 			if (VirtualTexture->HasLayerForType(ELightMapVirtualTextureType::SkyOcclusion))
 			{
-				Parameters.SkyOcclusionTexture = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::SkyOcclusion);
+				Parameters.VTSkyOcclusionTexture = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::SkyOcclusion, false);
 			}
 			else
 			{
-				Parameters.SkyOcclusionTexture = GWhiteTexture->TextureRHI;
+				Parameters.VTSkyOcclusionTexture = GWhiteTextureWithSRV->ShaderResourceViewRHI;
 			}
 
 			if (VirtualTexture->HasLayerForType(ELightMapVirtualTextureType::AOMaterialMask))
 			{
-				Parameters.AOMaterialMaskTexture = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::AOMaterialMask);
+				Parameters.VTAOMaterialMaskTexture = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::AOMaterialMask, false);
 			}
 			else
 			{
-				Parameters.AOMaterialMaskTexture = GBlackTexture->TextureRHI;
+				Parameters.VTAOMaterialMaskTexture = GBlackTextureWithSRV->ShaderResourceViewRHI;
 			}
 
 			if (VirtualTexture->HasLayerForType(ELightMapVirtualTextureType::ShadowMask))
 			{
-				Parameters.StaticShadowTexture = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::ShadowMask);
+				Parameters.VTStaticShadowTexture = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::ShadowMask, false);
 			}
 			else
 			{
-				Parameters.StaticShadowTexture = GWhiteTexture->TextureRHI;
+				Parameters.VTStaticShadowTexture = GWhiteTextureWithSRV->ShaderResourceViewRHI;
 			}
 
 			FRHITexture* PageTable0 = AllocatedVT->GetPageTableTexture(0u);
@@ -911,27 +927,12 @@ void GetLightmapClusterResourceParameters(
 			Parameters.AOMaterialMaskSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
 			Parameters.StaticShadowTextureSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
 		}
-		else
-		{
-			Parameters.LightMapTexture = GBlackTexture->TextureRHI;
-			Parameters.LightMapTexture_1 = GBlackTexture->TextureRHI;
-			Parameters.SkyOcclusionTexture = GWhiteTexture->TextureRHI;
-			Parameters.AOMaterialMaskTexture = GBlackTexture->TextureRHI;
-			Parameters.StaticShadowTexture = GWhiteTexture->TextureRHI;
-			Parameters.LightmapVirtualTexturePageTable0 = GBlackTexture->TextureRHI;
-			Parameters.LightmapVirtualTexturePageTable1 = GBlackTexture->TextureRHI;
-			Parameters.LightMapSampler = GBlackTexture->SamplerStateRHI;
-			Parameters.SkyOcclusionSampler = GWhiteTexture->SamplerStateRHI;
-			Parameters.AOMaterialMaskSampler = GBlackTexture->SamplerStateRHI;
-			Parameters.StaticShadowTextureSampler = GWhiteTexture->SamplerStateRHI;
-		}
 	}
 	else
 	{
 		const UTexture2D* LightMapTexture = Input.LightMapTextures[bAllowHighQualityLightMaps ? 0 : 1];
 
 		Parameters.LightMapTexture = LightMapTexture ? LightMapTexture->TextureReference.TextureReferenceRHI.GetReference() : GBlackTexture->TextureRHI;
-		Parameters.LightMapTexture_1 = GBlackTexture->TextureRHI;
 		Parameters.SkyOcclusionTexture = Input.SkyOcclusionTexture ? Input.SkyOcclusionTexture->TextureReference.TextureReferenceRHI.GetReference() : GWhiteTexture->TextureRHI;
 		Parameters.AOMaterialMaskTexture = Input.AOMaterialMaskTexture ? Input.AOMaterialMaskTexture->TextureReference.TextureReferenceRHI.GetReference() : GBlackTexture->TextureRHI;
 

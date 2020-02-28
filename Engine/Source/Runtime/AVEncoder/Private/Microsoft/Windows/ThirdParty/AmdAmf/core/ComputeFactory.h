@@ -49,7 +49,7 @@ namespace amf
 #define AMF_AUDIO_CONVOLUTION_SAMPLE_RATE       L"ConvolutionSampleRate"            // amf_int64, sample rate
 
 #if defined(__cplusplus)
-    class AMF_NO_VTABLE AMFComputeDevice  : public AMFPropertyStorage
+    class AMFComputeDevice  : public AMFPropertyStorage
     {
     public:
         AMF_DECLARE_IID(0xb79d7cf6, 0x2c5c, 0x4deb, 0xb8, 0x96, 0xa2, 0x9e, 0xbe, 0xa6, 0xe3, 0x97);
@@ -105,7 +105,7 @@ namespace amf
 #endif // #if defined(__cplusplus)
     //----------------------------------------------------------------------------------------------
 #if defined(__cplusplus)
-    class AMF_NO_VTABLE AMFComputeFactory : public AMFInterface
+    class AMFComputeFactory : public AMFInterface
     {
     public:
         AMF_DECLARE_IID(0xe3c24bd7, 0x2d83, 0x416c, 0x8c, 0x4e, 0xfd, 0x13, 0xca, 0x86, 0xf4, 0xd0);

@@ -29,6 +29,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWmrHmd, Log, All);
 
+#define eSSP_THIRD_CAMERA_EYE 3
+
 namespace WindowsMixedReality
 {
 	// Plugin for stereo rendering on Windows Mixed Reality devices.
@@ -118,7 +120,35 @@ namespace WindowsMixedReality
 		virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual class IStereoLayers* GetStereoLayers() override;
-		virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override { return (bStereoRequested) ? 2 : 1; }
+		
+		virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override 
+		{ 
+			return (bStereoRequested) ? 3 : 1; 
+		}
+
+		virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const override
+		{
+			if (!bStereoRequested)
+				return EStereoscopicPass::eSSP_FULL;
+
+			return static_cast<EStereoscopicPass>(eSSP_LEFT_EYE + ViewIndex);
+		}
+
+		virtual uint32 GetViewIndexForPass(EStereoscopicPass StereoPassType) const override
+		{
+			switch (StereoPassType)
+			{
+			case eSSP_LEFT_EYE:
+			case eSSP_FULL:
+				return 0;
+
+			case eSSP_RIGHT_EYE:
+				return 1;
+
+			default:
+				return StereoPassType - eSSP_LEFT_EYE;
+			}
+		}
 
 		virtual bool HasHiddenAreaMesh() const override;
 		virtual void DrawHiddenAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
@@ -183,6 +213,8 @@ namespace WindowsMixedReality
 
 		FTexture2DRHIRef remappedDepthTexture = nullptr;
 		ID3D11Texture2D* stereoDepthTexture = nullptr;
+		// For third camera
+		ID3D11Texture2D* monoDepthTexture = nullptr;
 		const float farPlaneDistance = 650.0f;
 
 		bool bNeedReallocateDepthTexture = false;
@@ -204,8 +236,10 @@ namespace WindowsMixedReality
 			FTransform LeftTransform = FTransform::Identity;
 			FTransform RightTransform = FTransform::Identity;
 			FTransform HeadTransform = FTransform::Identity;
+			FTransform ThirdCameraTransform = FTransform::Identity;
 			FMatrix ProjectionMatrixR = FMatrix::Identity;
 			FMatrix ProjectionMatrixL = FMatrix::Identity;
+			FMatrix ProjectionMatrixThirdCamera = FMatrix::Identity;
 			bool bPositionalTrackingUsed = false;
 
 		};
@@ -300,13 +334,14 @@ namespace WindowsMixedReality
 		bool SupportsHandTracking();
 		bool SupportsHandedness();
 		bool GetControllerOrientationAndPosition(HMDHand hand, FRotator & OutOrientation, FVector & OutPosition);
-		bool GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition);
+		bool GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition, float& OutRadius);
 		bool PollInput();
 		bool PollHandTracking();
 
 		HMDInputPressState GetPressState(
 			HMDHand hand,
-			HMDInputControllerButtons button);
+			HMDInputControllerButtons button,
+			bool onlyRegisterClicks = true);
 		float GetAxisPosition(
 			HMDHand hand,
 			HMDInputControllerAxes axis);
@@ -327,6 +362,13 @@ namespace WindowsMixedReality
 		// Remoting
 		void ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, bool isHoloLens1);
 		void DisconnectFromRemoteHoloLens();
+	private:
+#if WITH_EDITOR
+#if WITH_WINDOWS_MIXED_REALITY
+		void UpdateRemotingStatus();
+		HMDRemotingConnectionState prevState = HMDRemotingConnectionState::Undefined;
+#endif
+#endif
 
 	public:
 #if WITH_WINDOWS_MIXED_REALITY

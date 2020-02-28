@@ -377,6 +377,16 @@ namespace AutomationTool
 		{
 			return LocalPath;
 		}
+
+		/// <summary>
+		/// Update the build agenda for this platform
+		/// </summary>
+		/// <param name="Agenda">Agenda to update</param>
+		/// <param name="ExtraBuildProducts">Any additional files that will be created</param>
+		public virtual void MakeAgenda(UE4Build.BuildAgenda Agenda, List<string> ExtraBuildProducts)
+		{
+		}
+
 		/// <summary>
 		/// Returns a list of the compiler produced debug file extensions
 		/// </summary>

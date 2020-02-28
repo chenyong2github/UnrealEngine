@@ -124,7 +124,9 @@ void FJpegImageWrapper::Compress(int32 Quality)
 		CompressedData.Reset(RawData.Num());
 		CompressedData.AddUninitialized(RawData.Num());
 
-		int OutBufferSize = CompressedData.Num();
+		// Note: OutBufferSize intentionally uses int64_t type as that's what jpge::compress_image_to_jpeg_file_in_memory expects.
+		// UE4 int64 type is not compatible with int64_t on all compilers (int64_t may be `long`, while int64 is `long long`).
+		int64_t OutBufferSize = CompressedData.Num();
 
 		jpge::params Parameters;
 		Parameters.m_quality = Quality;
@@ -133,7 +135,7 @@ void FJpegImageWrapper::Compress(int32 Quality)
 		
 		check(bSuccess);
 
-		CompressedData.RemoveAt(OutBufferSize, CompressedData.Num() - OutBufferSize);
+		CompressedData.RemoveAt((int64)OutBufferSize, CompressedData.Num() - (int64)OutBufferSize);
 	}
 }
 

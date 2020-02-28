@@ -138,9 +138,9 @@ void Main(
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
-			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepth,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
+			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
 			OneOverPreExposure, Output.BasePassInterpolants.VertexFog);
 	}
 #endif

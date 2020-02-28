@@ -187,8 +187,12 @@ void TonemapCommonVS(
 #endif
 
 #if EYEADAPTATION_EXPOSURE_FIX == 1
-	// texture can be GWhiteTexture which is 1x1. It's important we don't read outside bounds.
-	OutExposureScaleVignette.x = EyeAdaptation.Load(int3(0, 0, 0)).x;
+	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+		// texture can be GWhiteTexture which is 1x1. It's important we don't read outside bounds.
+		OutExposureScaleVignette.x = EyeAdaptation.Load(int3(0, 0, 0)).x;
+	#else
+		OutExposureScaleVignette.x = EyeAdaptationBuffer[0].x;
+	#endif
 #else
 	// If eye adaptation is disabled (e.g. fixed exposure level ) or  not available.  
 	OutExposureScaleVignette.x = DefaultEyeExposure;
@@ -325,7 +329,7 @@ float2 ComputeCounterStepForTileDebugging(float4 SvPosition, int2 TileSize, out 
 
 half3 LookupSceneColor(float2 SceneUV, int2 PixelOffset)
 {
-#if (ES2_PROFILE && COMPILER_GLSL_ES2) || (ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
+#if (ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
 	// slower but always works
 	// to prevent "error: Texture offset not supported on GLSL ES"
 	return Texture2DSample(ColorTexture, ColorSampler, SceneUV + PixelOffset * Color_ExtentInverse).rgb;
@@ -504,7 +508,7 @@ float4 TonemapCommonPS(
 
 	#if USE_GAMMA_ONLY
 
-		#if FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 // On mobile ExposureScale applied in base pass PS
+		#if FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1 // On mobile ExposureScale applied in base pass PS
 			SceneColor.rgb *= ExposureScale;
 		#endif
 		OutColor.rgb = pow(SceneColor.rgb, InverseGamma.x);
@@ -522,7 +526,7 @@ float4 TonemapCommonPS(
 
 		#if USE_BLOOM
 			float2 BloomUV = clamp(UV, Bloom_UVViewportBilinearMin, Bloom_UVViewportBilinearMax);
-			#if ES2_PROFILE || ES3_1_PROFILE
+			#if ES3_1_PROFILE
 				BloomUV = FullViewUV.xy;
 			#endif
 			float4 CombinedBloom = Texture2DSample(BloomTexture, BloomSampler, BloomUV);
@@ -703,7 +707,7 @@ void MainVS_ES2(
 	out float4 OutTexCoord : TEXCOORD0,
 	out float4 OutFineDofGrain : TEXCOORD1,
 	out float4 OutFullViewUV : TEXCOORD2,
-	out float2 OutVignette : TEXCOORD3,
+	out float3 OutVignetteExposureScale : TEXCOORD3,
 	out float2 OutTexCoords[4] : TEXCOORD4,
 	out float4 OutFringeTexCoords : FRINGE_COORDS,
 	out float4 OutPosition : SV_POSITION
@@ -712,6 +716,14 @@ void MainVS_ES2(
 #if NEEDTOSWITCHVERTICLEAXIS
 	// This is currently the last pass, so flip the texture on V to match D3D
 	InTexCoord.y = 1.0-InTexCoord.y;
+#endif
+
+#if EYEADAPTATION_EXPOSURE_FIX == 1
+	// texture can be GWhiteTexture which is 1x1. It's important we don't read outside bounds.
+	OutVignetteExposureScale.z = EyeAdaptationBuffer[0].x;
+#else
+	// If eye adaptation is disabled (e.g. fixed exposure level ) or  not available.  
+	OutVignetteExposureScale.z = DefaultEyeExposure;
 #endif
 
 	DrawRectangle(InPosition, InTexCoord, OutPosition, OutTexCoord.xy);
@@ -737,7 +749,7 @@ void MainVS_ES2(
 	OutTexCoords[3] = OutTexCoord.xy + PostprocessInput0Size.zw * float2( 0, 1);
 
 	// Scale vignette to always be a circle with consistent corner intensity.
-	OutVignette.xy = VignetteSpace(InPosition.xy);
+	OutVignetteExposureScale.xy = VignetteSpace(InPosition.xy);
 
 	// Compute fringe tex coord offsets
 	BRANCH
@@ -797,7 +809,7 @@ void MainPS_ES2(
 	in float4 UVAndScreenPos : TEXCOORD0,
 	in float4 FineDofGrain : TEXCOORD1,
 	in float4 FullViewUV : TEXCOORD2,
-	in float2 InVignette : TEXCOORD3,
+	in float3 InVignetteExposureScale : TEXCOORD3,
 	in float2 InTexCoords[4] : TEXCOORD4,
 	in float4 InFringeTexCoords : FRINGE_COORDS,
 	#if USE_32BPP_HDR
@@ -810,6 +822,12 @@ void MainPS_ES2(
 	float2 ScreenSpacePos = UVAndScreenPos.zw;
 
 	half4 SceneColor;
+
+#if USE_PREEXPOSURE
+	const float OneOverPreExposure = View.OneOverPreExposure;
+#else
+	const float OneOverPreExposure = 1.f;
+#endif
 	
 #if !USE_32BPP_HDR
 	BRANCH
@@ -877,12 +895,6 @@ void MainPS_ES2(
 			// Try to kill negatives and NaNs here
 			SceneColor.rgb = max(SceneColor.rgb, 0);
 		#endif
-			
-		#if USE_32BPP_HDR
-		{
-			SceneColor = Decode32BPPHDR(SceneColor, SvPosition, PostprocessInput0, PostprocessInput0Sampler, InTexCoords);
-		}
-		#endif
 
 		#if !USE_DOF
 			// Set so temporal AA shader knows everything is in focus.
@@ -890,14 +902,12 @@ void MainPS_ES2(
 		#endif
 
 		// Match PC naming.
-		half3 LinearColor = SceneColor.rgb;
+		half3 LinearColor = SceneColor.rgb * OneOverPreExposure;
 
-		#if EYEADAPTATION_EXPOSURE_FIX != 1
-			LinearColor *= DefaultEyeExposure;
-		#endif
+		float ExposureScale = InVignetteExposureScale.z;
 		
 		#if USE_32BPP_HDR && USE_VIGNETTE
-			LinearColor.rgb *= ComputeVignetteMask( InVignette, TonemapperParams.x );
+			LinearColor.rgb *= ComputeVignetteMask(InVignetteExposureScale.xy, TonemapperParams.x );
 			LinearColor = max(LinearColor, float3(0, 0, 0));
 		#endif
 
@@ -905,17 +915,11 @@ void MainPS_ES2(
 		#if (USE_BLOOM || USE_LIGHT_SHAFTS || USE_VIGNETTE)
 		{
 			half4 CombinedBloomSunVignette = Texture2DSample(PostprocessInput1, PostprocessInput1Sampler, FullViewUV.xy);
-			#if USE_32BPP_HDR
-				if (GetHDR32bppEncodeMode() == HDR_ENCODE_RGBE)
-				{
-					CombinedBloomSunVignette.rgb = Decode32BPPHDR(CombinedBloomSunVignette).rgb;
-					LinearColor.rgb = LinearColor.rgb + CombinedBloomSunVignette.rgb;
-				}
-			#else
-				LinearColor.rgb = LinearColor.rgb * CombinedBloomSunVignette.a + CombinedBloomSunVignette.rgb;
-			#endif
+			LinearColor.rgb = LinearColor.rgb * CombinedBloomSunVignette.a + CombinedBloomSunVignette.rgb * OneOverPreExposure;
 		}
 		#endif
+
+		LinearColor *= ExposureScale;
 
 		#if USE_GRAIN_INTENSITY
 			// Needs to go before tonemapping.

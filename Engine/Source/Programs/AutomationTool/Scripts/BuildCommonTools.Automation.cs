@@ -156,6 +156,13 @@ public class BuildCommonTools : BuildCommand
 			Agenda.AddTarget("XboxOnePDBFileUtil", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
 		}
 
+		// Platform extensions
+		foreach (UnrealBuildTool.UnrealTargetPlatform UBTPlatform in Platforms)
+		{
+			AutomationTool.Platform AutomationPlatform = Platform.GetPlatform(UBTPlatform);
+			AutomationPlatform.MakeAgenda(Agenda, ExtraBuildProducts);
+		}
+
 		return Agenda;
 	}
 }

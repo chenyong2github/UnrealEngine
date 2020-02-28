@@ -27,15 +27,15 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 	float AerialPerspectiveVolumeDepthResolutionInv,
 	float AerialPerspectiveVolumeDepthResolution,
 	float AerialPerspectiveVolumeStartDepth,
-	float AerialPerspectiveVolumeDepthSliceLength,
-	float AerialPerspectiveVolumeDepthSliceLengthInv,
+	float AerialPerspectiveVolumeDepthSliceLengthKm,
+	float AerialPerspectiveVolumeDepthSliceLengthKmInv,
 	float OneOverExposure)
 {
 	float2 ScreenUv = (NDC.xy / NDC.ww) * float2(0.5f, -0.5f) + 0.5f;
 
 	float tDepth = max(0.0f, length(SampledWorldPos - CameraWorldPos) - AerialPerspectiveVolumeStartDepth);
 
-	float LinearSlice = tDepth * AerialPerspectiveVolumeDepthSliceLengthInv;
+	float LinearSlice = tDepth * AerialPerspectiveVolumeDepthSliceLengthKmInv;
 	float LinearW = LinearSlice * AerialPerspectiveVolumeDepthResolutionInv; // Depth slice coordinate in [0,1]
 	float NonLinW = sqrt(LinearW); // Squared distribution
 	float NonLinSlice = NonLinW * AerialPerspectiveVolumeDepthResolution;
@@ -76,8 +76,8 @@ float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 	float AerialPerspectiveVolumeDepthResolutionInv,
 	float AerialPerspectiveVolumeDepthResolution,
 	float AerialPerspectiveVolumeStartDepth,
-	float AerialPerspectiveVolumeDepthSliceLength,
-	float AerialPerspectiveVolumeDepthSliceLengthInv,
+	float AerialPerspectiveVolumeDepthSliceLengthKm,
+	float AerialPerspectiveVolumeDepthSliceLengthKmInv,
 	float OneOverExposure, float4 FogToApplyOver)
 {
 	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
@@ -86,8 +86,8 @@ float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 		AerialPerspectiveVolumeDepthResolutionInv,
 		AerialPerspectiveVolumeDepthResolution,
 		AerialPerspectiveVolumeStartDepth,
-		AerialPerspectiveVolumeDepthSliceLength,
-		AerialPerspectiveVolumeDepthSliceLengthInv,
+		AerialPerspectiveVolumeDepthSliceLengthKm,
+		AerialPerspectiveVolumeDepthSliceLengthKmInv,
 		OneOverExposure);
 
 	float4 FinalFog;
@@ -170,6 +170,29 @@ float3x3 GetSkyViewLutReferential(in float3 WorldPos, in float3 ViewForward, in 
 	return LocalReferencial;
 }
 
+float3 GetAtmosphereTransmittance(
+	float3 WorldPos, float3 WorldDir, float BottomRadius, float TopRadius,
+	Texture2D<float4> TransmittanceLutTexture, SamplerState TransmittanceLutTextureSampler)
+{
+	// For each view height entry, transmittance is only stored from zenith to horizon. Earth shadow is not accounted for.
+	// It does not contain earth shadow in order to avoid texel linear interpolation artefact when LUT is low resolution.
+	// As such, at the most shadowed point of the LUT when close to horizon, pure black with earth shadow is never hit.
+	// That is why we analytically compute the virtual planet shadow here.
+	const float2 Sol = RayIntersectSphere(WorldPos, WorldDir, float4(float3(0.0f, 0.0f, 0.0f), BottomRadius));
+	if (Sol.x > 0.0f || Sol.y > 0.0f)
+	{
+		return 0.0f;
+	}
+
+	const float PHeight = length(WorldPos);
+	const float3 UpVector = WorldPos / PHeight;
+	const float LightZenithCosAngle = dot(WorldDir, UpVector);
+	float2 TransmittanceLutUv;
+	getTransmittanceLutUvs(PHeight, LightZenithCosAngle, BottomRadius, TopRadius, TransmittanceLutUv);
+	const float3 TransmittanceToLight = Texture2DSampleLevel(TransmittanceLutTexture, TransmittanceLutTextureSampler, TransmittanceLutUv, 0.0f).rgb;
+	return TransmittanceToLight;
+}
+
 float3 GetLightDiskLuminance(
 	float3 WorldPos, float3 WorldDir, float BottomRadius, float TopRadius,
 	Texture2D<float4> TransmittanceLutTexture, SamplerState TransmittanceLutTextureSampler,
@@ -179,12 +202,8 @@ float3 GetLightDiskLuminance(
 	const float CosHalfApex = AtmosphereLightDiscCosHalfApexAngle;
 	if (ViewDotLight > CosHalfApex)
 	{
-		const float PHeight = length(WorldPos);
-		const float3 UpVector = WorldPos / PHeight;
-		const float LightZenithCosAngle = dot(WorldDir, UpVector);
-		float2 TransmittanceLutUv;
-		getTransmittanceLutUvs(PHeight, LightZenithCosAngle, BottomRadius, TopRadius, TransmittanceLutUv);
-		const float3 TransmittanceToLight = Texture2DSampleLevel(TransmittanceLutTexture, TransmittanceLutTextureSampler, TransmittanceLutUv, 0.0f).rgb;
+		const float3 TransmittanceToLight = GetAtmosphereTransmittance(
+			WorldPos, WorldDir, BottomRadius, TopRadius, TransmittanceLutTexture, TransmittanceLutTextureSampler);
 
 		return TransmittanceToLight * AtmosphereLightDiscLuminance;
 	}

@@ -4,7 +4,9 @@
 #include "IMagicLeapHelperOpenGLPlugin.h"
 #include "Engine/Engine.h"
 
-#if !PLATFORM_MAC
+#include "Lumin/CAPIShims/LuminAPIGraphics.h"
+
+#if PLATFORM_SUPPORTS_VULKAN
 #include "OpenGLDrv.h"
 #endif
 
@@ -17,14 +19,14 @@ IMPLEMENT_MODULE(FMagicLeapHelperOpenGLPlugin, MagicLeapHelperOpenGL);
 
 void FMagicLeapHelperOpenGL::CopyImageSubData(uint32 SrcName, int32 SrcLevel, int32 SrcX, int32 SrcY, int32 SrcZ, uint32 DstName, int32 DstLevel, int32 DstX, int32 DstY, int32 DstZ, int32 SrcWidth, int32 SrcHeight, int32 SrcDepth)
 {
-#if !PLATFORM_MAC
+#if PLATFORM_SUPPORTS_VULKAN
 	FOpenGL::CopyImageSubData(SrcName, GL_TEXTURE_2D, SrcLevel, SrcX, SrcY, SrcZ, DstName, GL_TEXTURE_2D_ARRAY, DstLevel, DstX, DstY, DstZ, SrcWidth, SrcHeight, SrcDepth);
 #endif
 }
 
 void FMagicLeapHelperOpenGL::BlitImage(uint32 SrcFBO, uint32 SrcName, int32 SrcLevel, int32 SrcX0, int32 SrcY0, int32 SrcX1, int32 SrcY1, uint32 DstFBO, uint32 DstName, int32 DstLevel, int32 DstX0, int32 DstY0, int32 DstX1, int32 DstY1)
 {
-#if !PLATFORM_MAC
+#if PLATFORM_SUPPORTS_VULKAN
 	GLint CurrentFB = 0;
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &CurrentFB);
 

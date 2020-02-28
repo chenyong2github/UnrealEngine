@@ -36,7 +36,7 @@ enum class ECurveTableMode : uint8
  * Imported spreadsheet table as curves.
  */
 UCLASS(MinimalAPI)
-class ENGINE_VTABLE UCurveTable
+class UCurveTable
 	: public UObject
 	, public FCurveOwnerInterface
 {

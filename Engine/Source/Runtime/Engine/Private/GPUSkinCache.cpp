@@ -52,6 +52,14 @@ static TAutoConsoleVariable<int32> CVarEnableGPUSkinCache(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarDefaultGPUSkinCacheBehavior(
+	TEXT("r.SkinCache.DefaultBehavior"),
+	(int32)ESkinCacheDefaultBehavior::Inclusive,
+	TEXT("Default behavior if all skeletal meshes are included/excluded from the skin cache. If Ray Tracing is enabled, will imply Inclusive.\n")
+	TEXT(" Exclusive ( 0): All skeletal meshes are excluded from the skin cache. Each must opt in individually.\n")
+	TEXT(" Inclusive ( 1): All skeletal meshes are included into the skin cache. Each must opt out individually. (default)")
+	);
+
 int32 GSkinCacheRecomputeTangents = 2;
 TAutoConsoleVariable<int32> CVarGPUSkinCacheRecomputeTangents(
 	TEXT("r.SkinCache.RecomputeTangents"),
@@ -170,13 +178,7 @@ public:
 			BatchElementsUserData[Index].Section = Index;
 		}
 
-		FSkinWeightVertexBuffer* WeightBuffer = GPUSkin->GetSkinWeightVertexBuffer(LOD);
-		BoneInfluenceType = WeightBuffer->GetBoneInfluenceType();
-		bUse16BitBoneIndex = WeightBuffer->Use16BitBoneIndex();
-		InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
-		InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
-		InputWeightStreamSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
-		InputWeightLookupStreamSRV = WeightBuffer->GetLookupVertexBuffer()->GetSRV();
+		UpdateSkinWeightBuffer();
 	}
 
 	~FGPUSkinCacheEntry()
@@ -306,6 +308,17 @@ public:
 	bool IsValid(FSkeletalMeshObjectGPUSkin* InSkin) const
 	{
 		return GPUSkin == InSkin && GPUSkin->GetLOD() == LOD;
+	}
+
+	void UpdateSkinWeightBuffer()
+	{
+		FSkinWeightVertexBuffer* WeightBuffer = GPUSkin->GetSkinWeightVertexBuffer(LOD);
+		BoneInfluenceType = WeightBuffer->GetBoneInfluenceType();
+		bUse16BitBoneIndex = WeightBuffer->Use16BitBoneIndex();
+		InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
+		InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
+		InputWeightStreamSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
+		InputWeightLookupStreamSRV = WeightBuffer->GetLookupVertexBuffer()->GetSRV();
 	}
 
 	void SetupSection(int32 SectionIndex, FGPUSkinCache::FRWBuffersAllocation* InPositionAllocation, FSkelMeshRenderSection* Section, const FMorphVertexBuffer* MorphVertexBuffer, const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer,
@@ -662,9 +675,6 @@ void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandList& RHICmdList)
 
 	if (RayTracingGeometriesToUpdate.Num())
 	{
-		// Flush any remaining pending resource barriers before performing BVH updates
-		TransitionAllToReadable(RHICmdList);
-
 		TArray<FAccelerationStructureBuildParams> Updates;
 		for (const FRayTracingGeometry* RayTracingGeometry : RayTracingGeometriesToUpdate)
 		{
@@ -1563,6 +1573,14 @@ void FGPUSkinCache::InvalidateAllEntries()
 FCachedGeometrySection FGPUSkinCache::GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 sectionIndex)
 {
 	return InOutEntry ? InOutEntry->GetCachedGeometry(sectionIndex) : FCachedGeometrySection();
+}
+
+void FGPUSkinCache::UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry)
+{
+	if (Entry)
+	{
+		Entry->UpdateSkinWeightBuffer();
+	}
 }
 
 void FGPUSkinCache::CVarSinkFunction()

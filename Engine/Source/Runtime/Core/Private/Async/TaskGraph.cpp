@@ -48,6 +48,10 @@ static int32 GNumWorkerThreadsToIgnore = 0;
 	#define CREATE_BACKGROUND_TASK_THREADS (0)
 #endif
 
+#if !defined(YIELD_BETWEEN_TASKS)
+	#define YIELD_BETWEEN_TASKS 0
+#endif
+
 namespace ENamedThreads
 {
 	CORE_API TAtomic<Type> FRenderThreadStatics::RenderThread(ENamedThreads::GameThread); // defaults to game and is set and reset by the render thread itself
@@ -1024,7 +1028,7 @@ private:
 				continue;
 			}
 			TestRandomizedThreads();
-#if PLATFORM_XBOXONE || PLATFORM_WINDOWS
+#if YIELD_BETWEEN_TASKS
 			// the Win scheduler is ill behaved and will sometimes let BG tasks run even when other tasks are ready....kick the scheduler between tasks
 			if (!bDidStall && PriorityIndex == (ENamedThreads::BackgroundThreadPriority >> ENamedThreads::ThreadPriorityShift))
 			{

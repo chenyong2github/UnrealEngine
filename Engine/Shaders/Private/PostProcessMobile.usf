@@ -6,6 +6,8 @@
 
 #include "Common.ush"
 #include "PostProcessCommon.ush"
+#include "PostprocessHistogramCommon.ush"
+#include "ScreenPass.ush"
 
 // Point on circle.
 float2 Circle(float Start, float Points, float Point) 
@@ -78,17 +80,6 @@ half2 SunConstDepthMaskScaleBias()
 	return half2(Scale,-DepthMin * Scale);
 }
 
-// Note: alpha is preserved when no encoding is active.
-half4 HDREncode(half4 color)
-{
-	return Encode32BPPHDR(color, half2(0, 0));
-}
-
-half3 HDRDecode(half4 encodedhdr)
-{
-	return Decode32BPPHDR(encodedhdr).rgb;
-}
-
 //
 // Convert depth in alpha into combined circle of confusion and sun intensity.
 //
@@ -106,21 +97,25 @@ void SunMaskVS_ES2(
 
 void SunMaskPS_ES2(
 	float4 InUVPos : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out half OutSunShaftAndDof : SV_Target0
+#if !ES2_USE_DEPTHTEXTURE
+	, out half4 OutColor : SV_Target1
+#endif
 	)
 {
-	OutColor = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVPos.xy);
+	half4 SceneColor = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVPos.xy);
 
 	#if ES2_USE_DEPTHTEXTURE
 		half InDepth = CalcSceneDepth(InUVPos.xy);
 	#else
-		half InDepth = OutColor.a;
+		half InDepth = SceneColor.a;
+		OutColor = SceneColor;
 	#endif
 	
 	#if ES2_USE_SUN
 		half2 DepthMaskScaleBias = SunConstDepthMaskScaleBias();
 		half FarAmount = saturate(InDepth * DepthMaskScaleBias.x + DepthMaskScaleBias.y);
-		half3 SunAmount = OutColor.rgb * SunColorApertureDiv2.rgb;
+		half3 SunAmount = SceneColor.rgb * SunColorApertureDiv2.rgb;
 	
 		half2 Pos = InUVPos.zw * 0.5 + 0.5;
 		half EdgeMask = 1.0f - Pos.x * (1.0f - Pos.x) * Pos.y * (1.0f - Pos.y) * 8.0f;
@@ -128,14 +123,13 @@ void SunMaskPS_ES2(
 	
 		FarAmount *= 1.0-EdgeMask;
 	
-		OutColor.a = min(min(SunAmount.r, SunAmount.g), SunAmount.b) * FarAmount;
+		OutSunShaftAndDof = min(min(SunAmount.r, SunAmount.g), SunAmount.b) * FarAmount;
 	#else
-		OutColor.a = 0.0;
+		OutSunShaftAndDof = 0.0;
 	#endif
 
 	#if ES2_USE_DOF
-//		OutColor.a += Coc(InDepth);
-		OutColor.a += Coc2(InDepth);
+		OutSunShaftAndDof += Coc2(InDepth);
 	#endif
 }
 
@@ -148,7 +142,7 @@ void PreTonemapMSAA_ES2(
 	out half4 OutColor : SV_Target0
 	)
 {
-#if (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1) || (METAL_PROFILE && !MAC)
+#if (COMPILER_GLSL_ES3_1) || (METAL_PROFILE && !MAC)
 	// On-chip pre-tonemap before MSAA resolve.
 	OutColor = FramebufferFetchES2();
 	OutColor.rgb *= rcp(OutColor.r*0.299 + OutColor.g*0.587 + OutColor.b*0.114 + 1.0);
@@ -176,158 +170,143 @@ void BloomVS_ES2(
 }
 
 void BloomPS_ES2(
-	float2 InUVs[4] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	float2 InUVs[4] : TEXCOORD0
+#if ES2_USE_BLOOM
+
+	, out half4 OutColor : SV_Target0
+
+	#if ES2_USE_DOF || ES2_USE_SUN
+
+		,out half OutSunShaftAndDof : SV_Target1
+
+		#if ES2_USE_EYEADAPTATION
+			, out half OutEyeAdaptation : SV_Target2
+		#endif
+
+	#else
+
+		#if ES2_USE_EYEADAPTATION
+			, out half OutEyeAdaptation : SV_Target1
+		#endif
+
+	#endif
+
+
+#else
+
+	#if ES2_USE_DOF || ES2_USE_SUN
+
+		, out half OutSunShaftAndDof : SV_Target0
+
+		#if ES2_USE_EYEADAPTATION
+			, out half OutEyeAdaptation : SV_Target1
+		#endif
+
+	#else
+
+		#if ES2_USE_EYEADAPTATION
+			, out half OutEyeAdaptation : SV_Target0
+		#endif
+
+	#endif
+
+#endif
 	)
 {
+	half3 AverageColor = 0.0f;
+#if ES2_USE_BLOOM || ES2_USE_SUN || ES2_USE_EYEADAPTATION
 	half4 C0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]);
 	half4 C1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]);
 	half4 C2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]);
 	half4 C3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]);
 
-	C0.rgb = HDRDecode(C0);
-	C1.rgb = HDRDecode(C1);
-	C2.rgb = HDRDecode(C2);
-	C3.rgb = HDRDecode(C3);
+	C0.rgb = C0;
+	C1.rgb = C1;
+	C2.rgb = C2;
+	C3.rgb = C3;
 
 	// Output color is average.
-	OutColor.rgb = (C0.rgb * 0.25) + (C1.rgb * 0.25) + (C2.rgb * 0.25) + (C3.rgb * 0.25);
+	AverageColor.rgb = (C0.rgb * 0.25) + (C1.rgb * 0.25) + (C2.rgb * 0.25) + (C3.rgb * 0.25);
 
 	#if ES2_USE_MSAA
 		// This should really happen before the average, instead doing after average as optimization.
-		OutColor.rgb *= rcp(OutColor.r*(-0.299) + OutColor.g*(-0.587) + OutColor.b*(-0.114) + 1.0);
+		AverageColor.rgb *= rcp(AverageColor.r*(-0.299) + AverageColor.g*(-0.587) + AverageColor.b*(-0.114) + 1.0);
 	#endif
 
 	// Try to kill negatives and NaNs here
-	OutColor.rgb = max(OutColor.rgb, 0);
+	AverageColor.rgb = max(AverageColor.rgb, 0);
 
-	// Trim bloom and sunshafts black level.
-	half TotalLuminance = Luminance(OutColor.rgb);
-	half BloomLuminance = TotalLuminance - BloomThreshold;
-	half Amount = saturate(BloomLuminance * 0.5f);
-	OutColor.rgb *= Amount;
+	
+	#if ES2_USE_BLOOM || ES2_USE_SUN
+		// Trim bloom and sunshafts black level.
+		half TotalLuminance = Luminance(AverageColor.rgb);
+		half BloomLuminance = TotalLuminance - BloomThreshold;
+		half Amount = saturate(BloomLuminance * 0.5f);
+	#endif
 
-	// In the case of both DOF and SUN,
-	// Split out alpha back into dual components (circle of confusion size and sun amount).
+	#if ES2_USE_BLOOM 
+		OutColor.rgb = AverageColor;
+		OutColor.rgb *= Amount;
+		OutColor.a = 0;
+
+		OutColor = OutColor;
+	#endif
+#endif
+
+#if ES2_USE_DOF || ES2_USE_SUN
+	half A0 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[0]).r;
+	half A1 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[1]).r;
+	half A2 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[2]).r;
+	half A3 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3]).r;
+#endif
+
+// In the case of both DOF and SUN,
+// Split out alpha back into dual components (circle of confusion size and sun amount).
+// Expand {near to in-focus} {0.0 to 0.5} to {0.0 to 1.0} for near DOF diolation.
+// Must keep 1.0 the in-focus here (sunshaft pass will use this data).
+
+#if ES2_USE_DOF
 	// Expand {near to in-focus} {0.0 to 0.5} to {0.0 to 1.0} for near DOF diolation.
 	// Must keep 1.0 the in-focus here (sunshaft pass will use this data).
+	half Coc0 = saturate(A0*2.0);
+	half Coc1 = saturate(A1*2.0);
+	half Coc2 = saturate(A2*2.0);
+	half Coc3 = saturate(A3*2.0);
 
-	#if ES2_USE_DOF
-		// Expand {near to in-focus} {0.0 to 0.5} to {0.0 to 1.0} for near DOF diolation.
-		// Must keep 1.0 the in-focus here (sunshaft pass will use this data).
-		half Coc0 = saturate(C0.a*2.0);
-		half Coc1 = saturate(C1.a*2.0);
-		half Coc2 = saturate(C2.a*2.0);
-		half Coc3 = saturate(C3.a*2.0);
+	// Take min of COC (which is maximum near radius).
+	OutSunShaftAndDof = min(min(Coc0,Coc1),min(Coc2,Coc3));
 
-		// Take min of COC (which is maximum near radius).
-		OutColor.a = min(min(Coc0,Coc1),min(Coc2,Coc3));
+	// Improve the quality of near diolation.
+	OutSunShaftAndDof = 1.0 - OutSunShaftAndDof;
+	OutSunShaftAndDof *= OutSunShaftAndDof;
+	OutSunShaftAndDof = 1.0 - OutSunShaftAndDof;
+#elif ES2_USE_SUN
+	OutSunShaftAndDof = 0.0f;
+#endif
 
-		// Improve the quality of near diolation.
-		OutColor.a = 1.0 - OutColor.a;
-		OutColor.a *= OutColor.a;
-		OutColor.a = 1.0 - OutColor.a;
-	#else
-		OutColor.a = 0.0;
+#if ES2_USE_SUN
+	half Sun0 = max(0.0, A0-1.0);
+	half Sun1 = max(0.0, A1-1.0);
+	half Sun2 = max(0.0, A2-1.0);
+	half Sun3 = max(0.0, A3-1.0);
+
+	// Take average of sun intensity and adjust by bloom threshold.
+	Amount *= 0.25;
+	OutSunShaftAndDof += (Sun0 * Amount) + (Sun1 * Amount) + (Sun2 * Amount) + (Sun3 * Amount);
+#endif
+
+#if ES2_USE_EYEADAPTATION
+
+	#if USE_PREEXPOSURE
+		AverageColor.xyz *= View.OneOverPreExposure;
 	#endif
 
-	#if ES2_USE_SUN
-		half Sun0 = max(0.0, C0.a-1.0);
-		half Sun1 = max(0.0, C1.a-1.0);
-		half Sun2 = max(0.0, C2.a-1.0);
-		half Sun3 = max(0.0, C3.a-1.0);
+	const half Intensity = max(dot(AverageColor, half3(1.0f, 1.0f, 1.0f) / 3.0f), EyeAdaptation_LuminanceMin);
+	const float LogIntensity = clamp(log2(Intensity), -10.0f, 20.0f);
 
-		// Take average of sun intensity and adjust by bloom threshold.
-		Amount *= 0.25;
-		OutColor.a += (Sun0 * Amount) + (Sun1 * Amount) + (Sun2 * Amount) + (Sun3 * Amount);
-	#endif
-
-	OutColor = HDREncode(OutColor);
-}
-
-
-
-
-// 
-// Bloom Setup Small - Downsample 1/16 Area
-//
-
-void BloomSmallVS_ES2(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 InTexCoord : ATTRIBUTE1,
-	out float4 OutTexCoords[8] : TEXCOORD0,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-
-	DrawRectangle(InPosition, InTexCoord, OutPosition, InTexCoord);
-	
-	float Start = 2.0/14.0;
-	float Scale = 0.66 * 4.0 * 2.0;
-
-	OutTexCoords[0].xy = InTexCoord.xy;
-	OutTexCoords[0].zw = InTexCoord.xy + Circle(Start, 14.0, 0.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[1].xy = InTexCoord.xy + Circle(Start, 14.0, 1.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[1].zw = InTexCoord.xy + Circle(Start, 14.0, 2.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[2].xy = InTexCoord.xy + Circle(Start, 14.0, 3.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[2].zw = InTexCoord.xy + Circle(Start, 14.0, 4.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[3].xy = InTexCoord.xy + Circle(Start, 14.0, 5.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[3].zw = InTexCoord.xy + Circle(Start, 14.0, 6.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[4].xy = InTexCoord.xy + Circle(Start, 14.0, 7.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[4].zw = InTexCoord.xy + Circle(Start, 14.0, 8.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[5].xy = InTexCoord.xy + Circle(Start, 14.0, 9.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[5].zw = InTexCoord.xy + Circle(Start, 14.0, 10.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[6].xy = InTexCoord.xy + Circle(Start, 14.0, 11.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[6].zw = InTexCoord.xy + Circle(Start, 14.0, 12.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[7].xy = InTexCoord.xy + Circle(Start, 14.0, 13.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[7].zw = float2(0.0, 0.0);
-}
-
-void BloomSmallPS_ES2(
-	float4 InUVs[8] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
-	)
-{
-	half3 N0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).rgb;
-	half3 N1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).rgb;
-	half3 N2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).rgb;
-	half3 N3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).rgb;
-	half3 N4 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).rgb;
-	half3 N5 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).rgb;
-	half3 N6 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).rgb;
-	half3 N7 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).rgb;
-	half3 N8 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4].xy).rgb;
-	half3 N9 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4].zw).rgb;
-	half3 N10 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5].xy).rgb;
-	half3 N11 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5].zw).rgb;
-	half3 N12 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6].xy).rgb;
-	half3 N13 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6].zw).rgb;
-	half3 N14 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[7].xy).rgb;
-
-	float W = 1.0/15.0;
-	OutColor.rgb = 
-		(N0 * W) +
-		(N1 * W) +
-		(N2 * W) +
-		(N3 * W) +
-		(N4 * W) +
-		(N5 * W) +
-		(N6 * W) +
-		(N7 * W) +
-		(N8 * W) +
-		(N9 * W) +
-		(N10 * W) +
-		(N11 * W) +
-		(N12 * W) +
-		(N13 * W) +
-		(N14 * W);
-
-	// Trim bloom black level.
-	half TotalLuminance = Luminance(OutColor.rgb);
-	half BloomLuminance = TotalLuminance - BloomThreshold;
-	half Amount = saturate(BloomLuminance * 0.5f);
-	OutColor.rgb *= Amount;
-	OutColor.a = 0;
+	// Store log intensity in the alpha channel: scale to 0,1 range.
+	OutEyeAdaptation = EyeAdaptation_HistogramScale * LogIntensity + EyeAdaptation_HistogramBias;
+#endif
 }
 
 
@@ -393,24 +372,22 @@ void BloomDownPS_ES2(
 	half4 N14 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[7].xy).rgba;
 	float W = 1.0/15.0;
 	OutColor.rgb = 
-		(HDRDecode(N0) * W) +
-		(HDRDecode(N1) * W) +
-		(HDRDecode(N2) * W) +
-		(HDRDecode(N3) * W) +
-		(HDRDecode(N4) * W) +
-		(HDRDecode(N5) * W) +
-		(HDRDecode(N6) * W) +
-		(HDRDecode(N7) * W) +
-		(HDRDecode(N8) * W) +
-		(HDRDecode(N9) * W) +
-		(HDRDecode(N10) * W) +
-		(HDRDecode(N11) * W) +
-		(HDRDecode(N12) * W) +
-		(HDRDecode(N13) * W) +
-		(HDRDecode(N14) * W);
+		(N0 * W) +
+		(N1 * W) +
+		(N2 * W) +
+		(N3 * W) +
+		(N4 * W) +
+		(N5 * W) +
+		(N6 * W) +
+		(N7 * W) +
+		(N8 * W) +
+		(N9 * W) +
+		(N10 * W) +
+		(N11 * W) +
+		(N12 * W) +
+		(N13 * W) +
+		(N14 * W);
 	OutColor.a = 0;
-
-	OutColor = HDREncode(OutColor);
 }
 
 
@@ -467,23 +444,23 @@ void BloomUpPS_ES2(
 	out half4 OutColor : SV_Target0
 	)
 {
-	half3 A0 = HDRDecode(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).rgba);
-	half3 A1 = HDRDecode(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).rgba);
-	half3 A2 = HDRDecode(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).rgba);
-	half3 A3 = HDRDecode(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).rgba);
-	half3 A4 = HDRDecode(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).rgba);
-	half3 A5 = HDRDecode(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).rgba);
-	half3 A6 = HDRDecode(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).rgba);
-	half3 A7 = HDRDecode(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).rgba);
+	half3 A0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).rgba;
+	half3 A1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).rgba;
+	half3 A2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).rgba;
+	half3 A3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).rgba;
+	half3 A4 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).rgba;
+	half3 A5 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).rgba;
+	half3 A6 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).rgba;
+	half3 A7 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).rgba;
 
-	half3 B0 = HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3].zw).rgba);
-	half3 B1 = HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].xy).rgba);
-	half3 B2 = HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].zw).rgba);
-	half3 B3 = HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].xy).rgba);
-	half3 B4 = HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].zw).rgba);
-	half3 B5 = HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[6].xy).rgba);
-	half3 B6 = HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[6].zw).rgba);
-	half3 B7 = HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[7].xy).rgba);
+	half3 B0 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3].zw).rgba;
+	half3 B1 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].xy).rgba;
+	half3 B2 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].zw).rgba;
+	half3 B3 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].xy).rgba;
+	half3 B4 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].zw).rgba;
+	half3 B5 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[6].xy).rgba;
+	half3 B6 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[6].zw).rgba;
+	half3 B7 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[7].xy).rgba;
 
 	// A is the same size source.
 	half3 WA = BloomTintA.rgb;
@@ -508,8 +485,6 @@ void BloomUpPS_ES2(
 		B6 * WB + 
 		B7 * WB;
 	OutColor.a = 0;
-
-	OutColor = HDREncode(OutColor);
 }
 
 
@@ -541,18 +516,18 @@ void DofNearVS_ES2(
 void DofNearPS_ES2(
 	float2 InUVs2 : TEXCOORD0,
 	float4 InUVs[4] : TEXCOORD1,
-	out half4 OutColor : SV_Target0
+	out half OutColor : SV_Target0
 	)
 {
-	half N0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs2).a;
-	half N1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).a;
-	half N2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).a;
-	half N3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).a;
-	half N4 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).a;
-	half N5 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).a;
-	half N6 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).a;
-	half N7 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).a;
-	half N8 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).a;
+	half N0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs2).r;
+	half N1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).r;
+	half N2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).r;
+	half N3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).r;
+	half N4 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).r;
+	half N5 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).r;
+	half N6 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).r;
+	half N7 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).r;
+	half N8 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).r;
 
 	// Remove sunshaft intensity component and reverse.
 	#if ES2_USE_SUN
@@ -581,8 +556,7 @@ void DofNearPS_ES2(
 	// The first sample is 1/4 the size as the rest of the samples.
 	half Out = (N0 * 0.25 + N1 + N2 + N3 + N4 + N5 + N6 + N7 + N8) / 8.25;
 	if(Out > 0.0) Out = sqrt(Out);
-	OutColor.r = Out;
-	OutColor.gba = 0;
+	OutColor = Out;
 }
 
 
@@ -857,20 +831,19 @@ half SunUnBias(half A)
 
 void SunAlphaPS_ES2(
 	float2 InUVs[8] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out half OutColor : SV_Target0
 	)
 {
-	OutColor.r = 
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]).a) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]).a) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]).a) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]).a) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4]).a) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5]).a) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6]).a) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[7]).a) * 0.125;
-	OutColor.r = HighlightCompression(OutColor.r);
-	OutColor.gba = 0;
+	OutColor = 
+		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]).r) * 0.125 +
+		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]).r) * 0.125 +
+		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]).r) * 0.125 +
+		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]).r) * 0.125 +
+		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4]).r) * 0.125 +
+		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5]).r) * 0.125 +
+		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6]).r) * 0.125 +
+		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[7]).r) * 0.125;
+	OutColor = HighlightCompression(OutColor);
 }
 
 
@@ -905,10 +878,10 @@ void SunBlurVS_ES2(
 
 void SunBlurPS_ES2(
 	float2 InUVs[8] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out half OutColor : SV_Target0
 	)
 {
-	OutColor.r = 
+	OutColor = 
 		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]).r * 0.125 +
 		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]).r * 0.125 +
 		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]).r * 0.125 +
@@ -917,7 +890,6 @@ void SunBlurPS_ES2(
 		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5]).r * 0.125 +
 		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6]).r * 0.125 +
 		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[7]).r * 0.125;
-	OutColor.gba = 0;
 }
 
 
@@ -982,15 +954,15 @@ void SunMergePS_ES2(
 		float Scale2 = 1.0/7.0;
 
 		half3 Bloom2 = (
-			HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVVignette.xy).rgba) *Scale1 +
-			HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[0].xy).rgba) * Scale2 +
-			HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[1].xy).rgba) * Scale2 +
-			HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[2].xy).rgba) * Scale2 +
-			HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3].xy).rgba) * Scale2 +
-			HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].xy).rgba) * Scale2 +
-			HDRDecode(PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].xy).rgba) * Scale2) * rcp(Scale1 * 1.0 + Scale2 * 6.0);
+			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVVignette.xy).rgba *Scale1 +
+			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[0].xy).rgba * Scale2 +
+			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[1].xy).rgba * Scale2 +
+			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[2].xy).rgba * Scale2 +
+			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3].xy).rgba * Scale2 +
+			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].xy).rgba * Scale2 +
+			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].xy).rgba * Scale2) * rcp(Scale1 * 1.0 + Scale2 * 6.0);
 
-		OutColor.rgb = HDRDecode(PostprocessInput2.Sample(PostprocessInput2Sampler, InUVVignette.xy));
+		OutColor.rgb = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVVignette.xy);
 
 		// Have 5 layers on mobile.
 		float Scale3 = 1.0/5.0;	
@@ -1023,8 +995,6 @@ void SunMergePS_ES2(
 
 	OutColor.a = Vignette;
 	OutColor.rgb *= OutColor.a;
-
-	OutColor = HDREncode(OutColor);
 }
 
 #undef SUN_P0
@@ -1034,89 +1004,6 @@ void SunMergePS_ES2(
 #undef SUN_P4
 #undef SUN_P5
 #undef SUN_P6
-
-
-
-
-//
-// Sun merge pass without sun but for small bloom final pass and vignette only.
-//
-
-void SunMergeSmallVS_ES2(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 InTexCoord : ATTRIBUTE1,
-	out float4 OutTexCoordVignette : TEXCOORD0,
-	out float2 OutTexCoords[6] : TEXCOORD1,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-	DrawRectangle(InPosition, InTexCoord, OutPosition, InTexCoord);
-	OutTexCoordVignette.xy = InTexCoord.xy;
-	OutTexCoordVignette.zw =  VignetteSpace(OutPosition.xy);
-
-	float Start;
-	float Scale;
-
-	Start = 2.0/6.0;
-	Scale = 0.66/2.0;
-	Scale *= 8.0;
-
-	OutTexCoords[0] = InTexCoord.xy + Circle(Start, 6.0, 0.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[1] = InTexCoord.xy + Circle(Start, 6.0, 1.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[2] = InTexCoord.xy + Circle(Start, 6.0, 2.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[3] = InTexCoord.xy + Circle(Start, 6.0, 3.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[4] = InTexCoord.xy + Circle(Start, 6.0, 4.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[5] = InTexCoord.xy + Circle(Start, 6.0, 5.0) * Scale * PostprocessInput0Size.zw;
-}
-
-float3 BloomColor2;
-
-void SunMergeSmallPS_ES2(
-	float4 InUVVignette : TEXCOORD0,
-	float2 InUVs[6] : TEXCOORD1,
-	out half4 OutColor : SV_Target0
-	)
-{
-	float Scale1 = 1.0/7.0;
-
-	float Scale2 = 1.0/7.0;
-
-	half3 Bloom1 = (
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVVignette.xy).rgb * Scale1 + 
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).rgb * Scale2 + 
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).rgb * Scale2 +
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).rgb * Scale2 + 
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).rgb * Scale2 + 
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4].xy).rgb * Scale2 + 
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5].xy).rgb * Scale2) * rcp(Scale1 * 1.0 + Scale2 * 6.0);
-
-	OutColor.rgb = (
-		PostprocessInput1.Sample(PostprocessInput1Sampler, InUVVignette.xy).rgb * Scale1 + 
-		PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[0].xy).rgb * Scale2 + 
-		PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[1].xy).rgb * Scale2 +
-		PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[2].xy).rgb * Scale2 + 
-		PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3].xy).rgb * Scale2 + 
-		PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].xy).rgb * Scale2 + 
-		PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].xy).rgb * Scale2) * rcp(Scale1 * 1.0 + Scale2 * 6.0);
-
-	OutColor.rgb *= BloomColor2;
-
-	OutColor.rgb += Bloom1 * BloomColor;
-
-	// Have 5 layers on mobile (actually only 2 in this shader).
-	OutColor.rgb *= 1.0/5.0;
-
-	// Adjusting for area difference in layers vs PC.
-	OutColor.rgb *= 1.0/4.0;
-
-	half Vignette = ComputeVignetteMask(InUVVignette.zw, SunColorVignetteIntensity.a);
-
-	OutColor.a = Vignette;
-	OutColor.rgb *= OutColor.a;
-}
-
-
-
 
 //
 // Average results of bloom/sunshaft/vignette for 2 frames (used for temporal AA).
@@ -1228,3 +1115,395 @@ void AaPS_ES2(
 	OutColor.a = 0;
 }
 
+// EyeAdaptation
+
+Buffer<float4> EyeAdaptationBuffer;
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+
+static const float FLOAT_PRECISION = 1e+5;
+
+static const float INV_FLOAT_PRECISION = 1e-5;
+
+#if CLEAR_UAV_UINT_COMPUTE_SHADER
+uint NumEntries;
+
+uint ClearValue;
+RWTexture2D<uint> UAV;
+
+[numthreads(64, 1, 1)]
+void ClearUAVUIntCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId.x < NumEntries)
+	{
+		UAV[DispatchThreadId.xy] = ClearValue;
+	}
+}
+#endif
+
+#if AVERAGE_LUMINANCE_COMPUTE_SHADER || HISTOGRAM_COMPUTE_SHADER
+
+float4 SourceSizeAndInvSize;
+
+#endif
+
+#if AVERAGE_LUMINANCE_COMPUTE_SHADER
+
+RWBuffer<uint> OutputUIntBuffer;
+
+groupshared float2 SharedLuminance[THREADGROUP_SIZEX * THREADGROUP_SIZEY];
+
+// Each thread group processes LoopX * LoopY texels of the input.
+const static uint2 TileSize = uint2(LOOP_SIZEX, LOOP_SIZEY) * 2; // Multiply 2 because we use bilinear sampler
+
+const static uint ThreadGroupSize = THREADGROUP_SIZEX * THREADGROUP_SIZEY;
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void AverageLuminance_MainCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID,
+	uint GroupIndex : SV_GroupIndex)
+{
+	// Top left input texel for this group.
+	uint2 LeftTop = DispatchThreadId.xy * TileSize;
+
+	uint2 Tile, TexelPos;
+	half2 BufferUV;
+	float Weight;
+
+	SharedLuminance[GroupIndex] = float2(0.0f,0.0f);
+
+	LOOP for (uint y = 0; y < LOOP_SIZEY; ++y)
+	{
+		LOOP for (uint x = 0; x < LOOP_SIZEX; ++x)
+		{
+			Tile = uint2(x, y) * 2; // Multiply 2 because we use bilinear sampler
+			TexelPos = LeftTop + Tile;
+
+			if (TexelPos.x < SourceSizeAndInvSize.x && TexelPos.y < SourceSizeAndInvSize.y)
+			{
+				BufferUV = (half2)TexelPos + half2(1.0f, 1.0f); // offset pixel pos by 1 to use bilinear filter
+				BufferUV = BufferUV * SourceSizeAndInvSize.zw;
+
+				Weight = max(AdaptationWeightTexture(BufferUV), 0.05f);
+
+				SharedLuminance[GroupIndex].x += Texture2DSample(InputTexture, InputSampler, BufferUV).x * Weight;
+				SharedLuminance[GroupIndex].y += Weight;
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	UNROLL for (uint cutoff = (ThreadGroupSize >> 1); cutoff > 0; cutoff >>= 1)
+	{
+		if (GroupIndex < cutoff)
+		{
+			SharedLuminance[GroupIndex] += SharedLuminance[GroupIndex + cutoff];
+		}
+
+		if (cutoff > 4) // https://www.anandtech.com/show/12834/arm-announces-the-mali-g76-scaling-up-bifrost/2 said 4 is the wavefront for bifrost mali gpu
+		{
+			GroupMemoryBarrierWithGroupSync();
+		}
+	}
+
+	if (GroupIndex <= 1)
+	{
+		float NormalizeFactor = SourceSizeAndInvSize.z * SourceSizeAndInvSize.w * 4.0f; // multiply 4 because bilinear filter, so sample only the 1/4 resolustion
+
+		uint2 LuminanceInt = SharedLuminance[0] * NormalizeFactor * FLOAT_PRECISION;
+
+		InterlockedAdd(OutputUIntBuffer[GroupIndex], LuminanceInt[GroupIndex]);
+	}
+}
+
+#endif
+
+Buffer<uint> LogLuminanceWeightBuffer;
+
+float4 BasicEyeAdaptation_ES2()
+{
+	float LogLumSum = LogLuminanceWeightBuffer[0];
+	float WeightSum = LogLuminanceWeightBuffer[1];
+
+	float LogLumAve = WeightSum == 0.0f ? 1.0f : (LogLumSum / WeightSum);
+	// Correct for [0,1] scaling
+	LogLumAve = (LogLumAve - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale;
+
+	// Convert LogLuminanceAverage to Average Intensity
+	const float AverageSceneLuminance = exp2(LogLumAve);
+
+	const float MiddleGreyExposureCompensation = EyeAdaptation_ExposureCompensationSettings * EyeAdaptation_ExposureCompensationCurve * EyeAdaptation_GreyMult;// we want the average luminance remapped to 0.18, not 1.0
+
+	const float ClampedLumAve = clamp(AverageSceneLuminance, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
+	
+	// The Exposure Scale (and thus intensity) used in the previous frame
+	const float ExposureScaleOld = EyeAdaptationBuffer[0].x;
+
+	const float LuminanceAveOld = MiddleGreyExposureCompensation / (ExposureScaleOld != 0.0f ? ExposureScaleOld : 1.0f);
+
+	// Time-based expoential blend of the intensity to allow the eye adaptation to ramp up over a few frames.
+	const float SmoothedLuminance = ComputeEyeAdaptation(LuminanceAveOld, ClampedLumAve, EyeAdaptation_DeltaWorldTime);
+
+	const float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedLuminance);
+
+	const float TargetExposureScale = 1.0f / max(0.0001f, ClampedLumAve);
+
+	float4 OutColor;
+
+	// Output the number that will rescale the image intensity
+	OutColor.x = MiddleGreyExposureCompensation * SmoothedExposureScale;
+
+	// Output the target value
+	OutColor.y = MiddleGreyExposureCompensation * TargetExposureScale;
+
+	OutColor.z = AverageSceneLuminance;
+
+	OutColor.w = MiddleGreyExposureCompensation / EyeAdaptation_GreyMult;
+
+	return OutColor;
+}
+
+#if BASIC_EYEADAPTATION_COMPUTE_SHADER
+RWBuffer<float4> OutputBuffer;
+
+[numthreads(1, 1, 1)]
+void BasicEyeAdaptationCS_ES2()
+{
+	OutputBuffer[0] = BasicEyeAdaptation_ES2();
+}
+
+#endif
+
+const static float InvHistogramSize = 1.0f / (float)HISTOGRAM_SIZE;
+
+const static  float InvHistogramSizeMinusOne = 1.0f / (float)(HISTOGRAM_SIZE - 1);
+
+
+#if HISTOGRAM_COMPUTE_SHADER
+// Output histogram texture (UAV)
+RWBuffer<uint> RWHistogramBuffer;
+
+const static uint QUARTER_HISTOGRAM_SIZE = HISTOGRAM_SIZE / 4;
+
+// Each thread group processes LoopX * LoopY texels of the input.
+const static uint2 TileSize = uint2(LOOP_SIZEX, LOOP_SIZEY) * 2; // Multiply 2 because we use bilinear sampler
+
+const static uint ThreadGroupSize = THREADGROUP_SIZEX * THREADGROUP_SIZEY;
+
+// THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms of the size HISTOGRAM_SIZE
+groupshared float4 SharedHistogram[(HISTOGRAM_SIZE / 4) * THREADGROUP_SIZEX * THREADGROUP_SIZEY];
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void Histogram_MainCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+    uint3 GroupThreadId : SV_GroupThreadID,
+	uint GroupIndex: SV_GroupIndex)
+{
+	// todo: can be cleared more efficiently
+	// clear all THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms
+	UNROLL for (uint i = 0; i < QUARTER_HISTOGRAM_SIZE; ++i)
+	{
+		SharedHistogram[i * ThreadGroupSize + GroupIndex] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+	
+//	GroupMemoryBarrierWithGroupSync();
+
+	// Top left input texel for this group.
+	uint2 LeftTop = DispatchThreadId.xy * TileSize;
+
+	uint HistogramSizeMinusOne = HISTOGRAM_SIZE - 1;
+	uint2 Tile, TexelPos;
+	float2 BufferUV;
+	float LogLuminance, ScreenWeight, fBucket, Weight1, Weight0;
+	uint x, y, Bucket0, Bucket1;
+
+	// Accumulate all pixels into THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms
+	LOOP for (y = 0; y < LOOP_SIZEY; ++y)
+	{
+		LOOP for (x = 0; x < LOOP_SIZEX; ++x)
+		{
+			Tile = uint2(x, y) * 2; // Multiply 2 because we use bilinear sampler
+			TexelPos = LeftTop + Tile;
+
+			if(TexelPos.x < SourceSizeAndInvSize.x && TexelPos.y < SourceSizeAndInvSize.y)
+			{
+				BufferUV = (float2)TexelPos + float2(1.0f, 1.0f); // offset pixel pos by 1 to use bilinear filter
+				BufferUV = BufferUV * SourceSizeAndInvSize.zw;
+
+				LogLuminance = Texture2DSample(InputTexture, InputSampler, BufferUV).x;
+				ScreenWeight = AdaptationWeightTexture(BufferUV);
+
+				// Map the normalized histogram position into texels.
+				fBucket = LogLuminance * HistogramSizeMinusOne;// * 0.9999f;
+
+				// Find two discrete buckets that straddle the continuous histogram position.
+				Bucket0 = (uint)(fBucket);
+				Bucket1 = Bucket0 + 1;
+
+//				Bucket0 = min(Bucket0, HistogramSizeMinusOne);
+				Bucket1 = min(Bucket1, HistogramSizeMinusOne);
+
+				// Weighted blend between the two buckets.
+				Weight1 = frac(fBucket);
+				Weight0 = 1.0f - Weight1;
+			
+				// When EyeAdaptation_BlackHistogramBucketInfluence=.0, we will ignore the last bucket. The main use
+				// case is so the black background pixels in the editor have no effect. But if we have cases where
+				// pixel values can actually be black, we want to set EyeAdaptation_LastHistogramBucketInfluence=1.0.
+				// This value is controlled by the cvar "r.EyeAdaptation.BlackHistogramBucketInfluence"
+				if (Bucket0 == 0)
+				{
+					Weight0 *= EyeAdaptation_BlackHistogramBucketInfluence;
+				}
+
+				// Accumulate the weight to the nearby history buckets.
+				SharedHistogram[(Bucket0 / 4) * ThreadGroupSize + GroupIndex][Bucket0 % 4] += Weight0 * ScreenWeight;
+				SharedHistogram[(Bucket1 / 4) * ThreadGroupSize + GroupIndex][Bucket1 % 4] += Weight1 * ScreenWeight;
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	UNROLL for (uint cutoff = (ThreadGroupSize >> 1); cutoff > 0; cutoff >>= 1)
+	{
+		if (GroupIndex < cutoff)
+		{
+			UNROLL for (uint i = 0; i < QUARTER_HISTOGRAM_SIZE; ++i)
+			{
+				uint HistogramThreadIndex = i * ThreadGroupSize;
+				SharedHistogram[HistogramThreadIndex + GroupIndex] += SharedHistogram[HistogramThreadIndex + GroupIndex + cutoff];
+			}
+		}
+
+		if (cutoff > 4) // https://www.anandtech.com/show/12834/arm-announces-the-mali-g76-scaling-up-bifrost/2 said 4 is the wavefront for bifrost mali gpu
+		{
+			GroupMemoryBarrierWithGroupSync();
+		}
+	}
+
+	if (GroupIndex < HISTOGRAM_SIZE / 2) // The maximum number of InterlockedAdd to be executed concurrently must be less than 32, or it will don't work properly even on pc
+	{
+		float NormalizeFactor = SourceSizeAndInvSize.z * SourceSizeAndInvSize.w * 4.0f; // multiply 4 because bilinear filter, so sample only the 1/4 resolustion
+
+		uint4 LuminanceInt = SharedHistogram[(GroupIndex / 2) * ThreadGroupSize] * NormalizeFactor * FLOAT_PRECISION;
+
+		uint HistogramIndex = GroupIndex * 2;
+		uint LuminanceIntIndex = (GroupIndex % 2) * 2;
+		InterlockedAdd(RWHistogramBuffer[HistogramIndex], LuminanceInt[LuminanceIntIndex]);
+		InterlockedAdd(RWHistogramBuffer[HistogramIndex + 1], LuminanceInt[LuminanceIntIndex + 1]);
+	}
+}
+
+#endif
+
+#if HISTOGRAM_EYEADAPTATION_COMPUTE_SHADER
+groupshared float SharedHistogram[HISTOGRAM_SIZE];
+
+float GetHistogramBucket_Mobile(uint BucketIndex)
+{
+	return SharedHistogram[BucketIndex];
+}
+
+float ComputeHistogramSum_Mobile()
+{
+	float Sum = 0;
+
+	for (uint i = 0; i < HISTOGRAM_SIZE; ++i)
+	{
+		Sum += GetHistogramBucket_Mobile(i);
+	}
+
+	return Sum;
+}
+
+// @param MinFractionSum e.g. ComputeHistogramSum() * 0.5f for 50% percentil
+// @param MaxFractionSum e.g. ComputeHistogramSum() * 0.9f for 90% percentil
+float ComputeAverageLuminanceWithoutOutlier_Mobile(float MinFractionSum, float MaxFractionSum)
+{
+	float2 SumWithoutOutliers = 0;
+
+	UNROLL for (uint i = 0; i < HISTOGRAM_SIZE; ++i)
+	{
+		float LocalValue = GetHistogramBucket_Mobile(i);
+
+		// remove outlier at lower end
+		float Sub = min(LocalValue, MinFractionSum);
+		LocalValue = LocalValue - Sub;
+		MinFractionSum -= Sub;
+		MaxFractionSum -= Sub;
+
+		// remove outlier at upper end
+		LocalValue = min(LocalValue, MaxFractionSum);
+		MaxFractionSum -= LocalValue;
+
+		float LogLuminanceAtBucket = ComputeLogLuminanceFromHistogramPosition(float(i) * InvHistogramSizeMinusOne);
+
+		SumWithoutOutliers += float2(LogLuminanceAtBucket, 1) * LocalValue;
+	}
+
+	//return SumWithoutOutliers.x / max(0.0001f, SumWithoutOutliers.y);
+	float AvgLogLuminance = SumWithoutOutliers.x / max(0.0001f, SumWithoutOutliers.y);
+
+	return exp2(AvgLogLuminance);
+}
+
+float ComputeEyeAdaptationExposure_Mobile()
+{
+	const float HistogramSum = ComputeHistogramSum_Mobile();
+	const float AverageSceneLuminance = ComputeAverageLuminanceWithoutOutlier_Mobile(HistogramSum * EyeAdaptation_ExposureLowPercent, HistogramSum * EyeAdaptation_ExposureHighPercent);
+	const float LumAve = AverageSceneLuminance;
+	
+	return LumAve;
+}
+
+Buffer<uint> HistogramBuffer;
+
+RWBuffer<float4> OutputBuffer;
+
+[numthreads(1, 1, 1)]
+void HistogramEyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	UNROLL for (uint i = 0; i < HISTOGRAM_SIZE; ++i)
+	{
+		SharedHistogram[i] = HistogramBuffer[i];
+	}
+
+	float4 OutColor = 0;
+
+	const float AverageSceneLuminance = ComputeEyeAdaptationExposure_Mobile();
+
+	const float TargetAverageLuminance = clamp(AverageSceneLuminance, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
+	
+	const float InvGreyMult = 5.5555555556f; // 1.0f/0.18f
+
+	// White point luminance is target luminance divided by 0.18 (18% grey).
+	const float TargetExposure = TargetAverageLuminance * InvGreyMult;
+
+	const float OldExposureScale = EyeAdaptationBuffer[0].x;
+
+	const float MiddleGreyExposureCompensation = EyeAdaptation_ExposureCompensationSettings * EyeAdaptation_ExposureCompensationCurve; // we want the average luminance remapped to 0.18, not 1.0
+	const float OldExposure = MiddleGreyExposureCompensation / (OldExposureScale != 0 ? OldExposureScale : 1.0f);
+
+	// eye adaptation changes over time
+	const float EstimatedExposure = ComputeEyeAdaptation(OldExposure, TargetExposure, EyeAdaptation_DeltaWorldTime);
+
+	// maybe make this an option to avoid hard clamping when transitioning between different exposure volumes?
+	const float SmoothedExposure = clamp(EstimatedExposure, EyeAdaptation_MinAverageLuminance * InvGreyMult, EyeAdaptation_MaxAverageLuminance * InvGreyMult);
+
+	const float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedExposure);
+	const float TargetExposureScale =   1.0f / max(0.0001f, TargetExposure);
+
+	OutColor.x = MiddleGreyExposureCompensation * SmoothedExposureScale;
+	OutColor.y = MiddleGreyExposureCompensation * TargetExposureScale;
+	OutColor.z = AverageSceneLuminance;
+	OutColor.w = MiddleGreyExposureCompensation;
+
+	OutputBuffer[0] = OutColor;
+}
+#endif

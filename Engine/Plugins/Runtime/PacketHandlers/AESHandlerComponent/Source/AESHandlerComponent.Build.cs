@@ -5,7 +5,9 @@ using System.IO;
 
 public class AESHandlerComponent : ModuleRules
 {
-    public AESHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
+	protected virtual bool DefaultToSSL { get { return true; } }
+
+	public AESHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
@@ -46,7 +48,7 @@ public class AESHandlerComponent : ModuleRules
 				}
 				);
 		}
-		else
+		else if (DefaultToSSL)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]

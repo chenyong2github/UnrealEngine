@@ -13,7 +13,7 @@
 /**
 * Standard implementation
 **/
-struct CORE_VTABLE FGenericWidePlatformString : public FGenericPlatformString
+struct FGenericWidePlatformString : public FGenericPlatformString
 {
 	template <typename CharType>
 	static inline CharType* Strupr(CharType* Dest, SIZE_T DestCount)

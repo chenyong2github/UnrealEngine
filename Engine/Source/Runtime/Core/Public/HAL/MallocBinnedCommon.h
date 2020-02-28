@@ -10,6 +10,15 @@
 #define BINNEDCOMMON_MAX_LISTED_SMALL_POOL_SIZE	28672
 #define BINNEDCOMMON_NUM_LISTED_SMALL_POOLS	49
 
+#if !defined(BINNEDCOMMON_USE_SEPARATE_VM_PER_POOL)
+	#if PLATFORM_WINDOWS
+		#define BINNEDCOMMON_USE_SEPARATE_VM_PER_POOL (1)
+	#else
+		#define BINNEDCOMMON_USE_SEPARATE_VM_PER_POOL (0)
+	#endif
+#endif
+
+
 class FBitTree
 {
 	uint64* Bits; // one bits in middle layers mean "all allocated"
@@ -69,7 +78,7 @@ struct FArenaParams
 	uint8 MaxGlobalBundles = 32;
 	uint8 MinimumAlignmentShift = 4;
 	uint8 PoolCount;
-	bool bUseSeparateVMPerPool = !!(PLATFORM_XBOXONE || PLATFORM_WINDOWS);
+	bool bUseSeparateVMPerPool = !!(BINNEDCOMMON_USE_SEPARATE_VM_PER_POOL);
 	bool bPerThreadCaches = true;
 	bool bUseStandardSmallPoolSizes = true;
 	bool bAttemptToAlignSmallBocks = true;

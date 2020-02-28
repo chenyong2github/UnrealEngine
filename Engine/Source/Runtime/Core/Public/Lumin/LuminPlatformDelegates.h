@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
 #include "Lumin/LuminPlatformFile.h"
+#include "Lumin/CAPIShims/LuminAPILifecycle.h"
 
 class CORE_API FLuminDelegates
 {
@@ -18,8 +19,11 @@ public:
 	static FLuminAppStartupArgumentsDelegate LuminAppReceivedStartupArgumentsDelegate;
 
 	DECLARE_MULTICAST_DELEGATE(FLuminApplicationLifetimeDelegate);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FLuminApplicationLifetimeFocusLostDelegate, MLLifecycleFocusLostReason);
 
 	static FLuminApplicationLifetimeDelegate DeviceHasReactivatedDelegate;
 	static FLuminApplicationLifetimeDelegate DeviceWillEnterRealityModeDelegate;
 	static FLuminApplicationLifetimeDelegate DeviceWillGoInStandbyDelegate;
+	static FLuminApplicationLifetimeFocusLostDelegate FocusLostDelegate;
+	static FLuminApplicationLifetimeDelegate FocusGainedDelegate;
 };

@@ -44,7 +44,7 @@ void Main(
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace);
 
-#if (ES2_PROFILE || ES3_1_PROFILE) 
+#if (ES3_1_PROFILE) 
 	// Mobile specific: 
 	// distortion primtitives rendered without depth testing
 	// discard pixels that are hidden by comparing them to scene depth stored in SceneColor.A
@@ -71,12 +71,12 @@ void Main(
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;
 
-#if (ES2_PROFILE || ES3_1_PROFILE) && (!WEBGL)
+#if (ES3_1_PROFILE)
 	// sample depth from SceneColor.A on Mobile
 	float DistortSceneDepth = CalcFullSceneColor(DistortBufferUV).a; 
 #else
 	float DistortSceneDepth = CalcSceneDepth(DistortBufferUV);
-#endif // (ES2_PROFILE || ES3_1_PROFILE) 
+#endif // (ES3_1_PROFILE) 
 
 	// Post process UV distortion according to depth
 	PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, DistortSceneDepth, BufferUVDistortion, Refraction);

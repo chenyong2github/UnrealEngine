@@ -63,6 +63,7 @@ void FSkyPassMeshProcessor::Process(
 		FeatureLevel,
 		bRenderAtmosphericFog,
 		bRenderSkylight,
+		false,
 		SkyPassShaders.HullShader,
 		SkyPassShaders.DomainShader,
 		SkyPassShaders.VertexShader,

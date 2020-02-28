@@ -114,8 +114,11 @@ public:
 	/** Update Simulated Positions & Normals from APEX Clothing actor */
 	bool UpdateClothSimulationData(USkinnedMeshComponent* InMeshComponent);
 
+	// Whether this LOD is allowed to use the skin cache feature
+	uint8 bIsSkinCacheAllowed : 1;
+
 #if RHI_RAYTRACING
-	bool bAnySegmentUsesWorldPositionOffset;
+	uint8 bAnySegmentUsesWorldPositionOffset : 1;
 #endif
 };
 

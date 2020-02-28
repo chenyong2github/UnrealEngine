@@ -1273,7 +1273,6 @@ TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
 	MenuBuilder.BeginSection("MaterialEditorFeaturePreview", LOCTEXT("MaterialFeatureHeading", "Feature Level"));
 	{
 		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_All);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES2);
 		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES31);
 		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM4);
 		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM5);
@@ -2306,7 +2305,6 @@ void FMaterialEditor::UpdateMaterialInfoList()
 void FMaterialEditor::UpdateGraphNodeStates()
 {
 	const FMaterialResource* ErrorMaterialResource = PreviewExpression ? ExpressionPreviewMaterial->GetMaterialResource(GMaxRHIFeatureLevel) : Material->GetMaterialResource(GMaxRHIFeatureLevel);
-	const FMaterialResource* ErrorMaterialResourceES2 = NULL;
 
 	bool bUpdatedErrorState = false;
 	bool bToggledVisibleState = bPreviewFeaturesChanged;
@@ -2330,8 +2328,7 @@ void FMaterialEditor::UpdateGraphNodeStates()
 		if (MaterialNode)
 		{
 			MaterialNode->bIsPreviewExpression = (PreviewExpression == MaterialNode->MaterialExpression);
-			MaterialNode->bIsErrorExpression = (ErrorMaterialResource->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE)
-												|| (ErrorMaterialResourceES2 && ErrorMaterialResourceES2->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE);
+			MaterialNode->bIsErrorExpression = (ErrorMaterialResource->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE);
 
 			if (MaterialNode->bIsErrorExpression && !MaterialNode->bHasCompilerMessage)
 			{
@@ -2535,11 +2532,6 @@ void FMaterialEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::Num),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::Num));
-	ToolkitCommands->MapAction(
-		Commands.FeatureLevel_ES2,
-		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::ES2),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::ES2));
 	ToolkitCommands->MapAction(
 		Commands.FeatureLevel_ES31,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::ES3_1),
@@ -3322,6 +3314,7 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(UEdGraphPin* TargetPin)
 			case MP_Metallic:
 			case MP_Specular:
 			case MP_Roughness:
+			case MP_Anisotropy:
 			case MP_TessellationMultiplier:
 			case MP_CustomData0:
 			case MP_CustomData1:
@@ -3329,7 +3322,8 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(UEdGraphPin* TargetPin)
 			case MP_Refraction:
 			case MP_PixelDepthOffset:
 			case MP_ShadingModel:
-			case MP_OpacityMask: return UMaterialExpressionScalarParameter::StaticClass();
+			case MP_OpacityMask:
+				return UMaterialExpressionScalarParameter::StaticClass();
 
 			case MP_WorldPositionOffset:
 			case MP_WorldDisplacement:
@@ -3337,7 +3331,9 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(UEdGraphPin* TargetPin)
 			case MP_BaseColor:
 			case MP_SubsurfaceColor:
 			case MP_SpecularColor:
-			case MP_Normal:	return UMaterialExpressionVectorParameter::StaticClass();
+			case MP_Normal:
+			case MP_Tangent:
+				return UMaterialExpressionVectorParameter::StaticClass();
 		}
 	}
 	else if (OtherPinNode)

@@ -9,6 +9,7 @@
 #include "PropertyHandle.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 #include "WindowsMixedRealityRuntimeSettings.h"
 #include "WindowsMixedRealityStatics.h"
@@ -22,6 +23,10 @@ TSharedRef<IDetailCustomization> FWindowsMixedRealityDetails::MakeInstance()
 
 void FWindowsMixedRealityDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+	statusTextWidget = SNew(STextBlock);
+
+	UWindowsMixedRealityRuntimeSettings::Get()->OnRemotingStatusChanged.BindSP(this, &FWindowsMixedRealityDetails::SetStatusText);
+	
 	IDetailCategoryBuilder& remotingCategory = DetailBuilder.EditCategory(TEXT("Holographic Remoting"));
 	remotingCategory.AddCustomRow(LOCTEXT("Connect Button", "Connect Button"))
 		[
@@ -37,6 +42,11 @@ void FWindowsMixedRealityDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 			.Text(LOCTEXT("Disconnect", "Disconnect"))
 			.OnClicked_Raw(this, &FWindowsMixedRealityDetails::OnDisconnectButtonClicked)
 			.IsEnabled_Raw(this, &FWindowsMixedRealityDetails::AreButtonsEnabled)
+		];
+		
+	remotingCategory.AddCustomRow(LOCTEXT("Status Text", "Status Text"))
+		[
+			statusTextWidget.ToSharedRef()
 		];
 }
 
@@ -67,6 +77,17 @@ bool FWindowsMixedRealityDetails::AreButtonsEnabled() const
 {
 	UWindowsMixedRealityRuntimeSettings* settings = UWindowsMixedRealityRuntimeSettings::Get();
 	return settings->bEnableRemotingForEditor;
+}
+
+void FWindowsMixedRealityDetails::SetStatusText(FString message, FLinearColor statusColor)
+{
+	if (statusTextWidget == nullptr)
+	{
+		return;
+	}
+
+	statusTextWidget->SetText(FText::FromString(message));
+	statusTextWidget->SetColorAndOpacity(FSlateColor(statusColor));
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -17,7 +17,7 @@ CREATE_FUNCTION_SHIM(ml_screens, MLResult, MLScreensReleaseWatchHistoryThumbnail
 #define MLScreensReleaseWatchHistoryThumbnail ::MLSDK_API::MLScreensReleaseWatchHistoryThumbnailShim
 CREATE_FUNCTION_SHIM(ml_screens, MLResult, MLScreensReleaseWatchHistoryList)
 #define MLScreensReleaseWatchHistoryList ::MLSDK_API::MLScreensReleaseWatchHistoryListShim
-CREATE_DEPRECATED_MSG_SHIM(ml_screens, MLResult, MLScreensReleaseScreenInfoList, "Replaced by MLScreensReleaseScreenInfoListEx.")
+CREATE_FUNCTION_SHIM(ml_screens, MLResult, MLScreensReleaseScreenInfoList)
 #define MLScreensReleaseScreenInfoList ::MLSDK_API::MLScreensReleaseScreenInfoListShim
 CREATE_FUNCTION_SHIM(ml_screens, MLResult, MLScreensReleaseScreenInfoListEx)
 #define MLScreensReleaseScreenInfoListEx ::MLSDK_API::MLScreensReleaseScreenInfoListExShim
@@ -35,7 +35,7 @@ CREATE_FUNCTION_SHIM(ml_screens, MLResult, MLScreensGetScreenInfo)
 #define MLScreensGetScreenInfo ::MLSDK_API::MLScreensGetScreenInfoShim
 CREATE_FUNCTION_SHIM(ml_screens, MLResult, MLScreensUpdateScreenInfo)
 #define MLScreensUpdateScreenInfo ::MLSDK_API::MLScreensUpdateScreenInfoShim
-CREATE_DEPRECATED_MSG_SHIM(ml_screens, MLResult, MLScreensGetScreenInfoList, "Replaced by MLScreensGetScreenInfoListEx.")
+CREATE_FUNCTION_SHIM(ml_screens, MLResult, MLScreensGetScreenInfoList)
 #define MLScreensGetScreenInfoList ::MLSDK_API::MLScreensGetScreenInfoListShim
 CREATE_FUNCTION_SHIM(ml_screens, MLResult, MLScreensGetScreenInfoListEx)
 #define MLScreensGetScreenInfoListEx ::MLSDK_API::MLScreensGetScreenInfoListExShim

@@ -10,12 +10,7 @@
 
 half3 FrameBufferDecalBlendOp(half4 Source)
 {
-#if (COMPILER_GLSL_ES2)
-	half4 Dest = FramebufferFetchES2();
-	Dest.rgb = Decode32BPPHDR(Dest).rgb;
-#else
 	half4 Dest = half4(0, 0, 0, 0);
-#endif
     
 #if DECAL_BLEND_MODE == DECALBLENDMODEID_STAIN
 	return (Source.rgb*Dest.rgb) + (Dest.rgb*(1.0 - Source.a));
@@ -40,18 +35,6 @@ void DecalCommonOutput(inout FPixelShaderIn In, inout FPixelShaderOut Out, float
 	#if DECAL_BLEND_MODE != DECALBLENDMODEID_NORMAL
 		Out.MRT[0].xyz *= View.PreExposure;
 	#endif
-#endif
-
-#if (ES2_PROFILE || ES3_1_PROFILE)
-#if (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1) || (MOBILE_EMULATION)
-	// Do decal blending if encoding requires it.
-	if (GetHDR32bppEncodeMode() == HDR_ENCODE_RGBE)
-	{
-		Out.MRT[0].rgb = FrameBufferDecalBlendOp(Out.MRT[0]);
-	}
- 	// do 32bpp hdr encoding for mobile if required.
-	Out.MRT[0] = Encode32BPPHDR(Out.MRT[0], In.SvPosition.xy);
-#endif
 #endif
 
 #if DECAL_RENDERTARGET_COUNT > 1

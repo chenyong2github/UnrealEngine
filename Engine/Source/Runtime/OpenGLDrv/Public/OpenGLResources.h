@@ -51,7 +51,7 @@ namespace OpenGLConsoleVariables
 	extern int32 bUseBufferDiscard;
 };
 
-#if PLATFORM_WINDOWS || PLATFORM_ANDROIDESDEFERRED || PLATFORM_LUMINGL4
+#if PLATFORM_WINDOWS || PLATFORM_LUMINGL4
 #define RESTRICT_SUBDATA_SIZE 1
 #else
 #define RESTRICT_SUBDATA_SIZE 0
@@ -1354,10 +1354,6 @@ public:
 	{
 		return bIsAliased != 0;
 	}
-
-#if PLATFORM_ANDROIDESDEFERRED // Flithy hack to workaround radr://16011763
-	GLuint GetOpenGLFramebuffer(uint32 ArrayIndices, uint32 MipmapLevels);
-#endif
 
 	void AliasResources(FOpenGLTextureBase* Texture)
 	{

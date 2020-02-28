@@ -6,6 +6,12 @@
 FMagicLeapImageTrackerModule::FMagicLeapImageTrackerModule()
 : Runnable(nullptr)
 {
+	IMagicLeapPlugin::Get().RegisterMagicLeapTrackerEntity(this);
+}
+
+FMagicLeapImageTrackerModule::~FMagicLeapImageTrackerModule()
+{
+	IMagicLeapPlugin::Get().UnregisterMagicLeapTrackerEntity(this);
 }
 
 void FMagicLeapImageTrackerModule::StartupModule()
@@ -27,12 +33,23 @@ void FMagicLeapImageTrackerModule::ShutdownModule()
 	{
 		delete InRunnable;
 	});
-
 	IModuleInterface::ShutdownModule();
+}
+
+void FMagicLeapImageTrackerModule::DestroyTracker()
+{
+	DestroyEntityTracker();
+}
+
+void FMagicLeapImageTrackerModule::DestroyEntityTracker()
+{
+	Runnable->Stop();
 }
 
 bool FMagicLeapImageTrackerModule::Tick(float DeltaTime)
 {
+	if (!Runnable->IsRunning()) return true;
+
 	FMagicLeapImageTrackerTask CompletedTask;
 	if (Runnable->TryGetCompletedTask(CompletedTask))
 	{
@@ -48,6 +65,7 @@ bool FMagicLeapImageTrackerModule::Tick(float DeltaTime)
 		case FMagicLeapImageTrackerTask::EType::TargetCreateSucceeded:
 		{
 			ImageTrackerTarget.OnSetImageTargetSucceeded.Broadcast();
+			ImageTrackerTarget.SetImageTargetSucceededDelegate.ExecuteIfBound(ImageTrackerTarget);
 		}
 		break;
 		}
@@ -69,7 +87,7 @@ void FMagicLeapImageTrackerModule::SetTargetAsync(const FMagicLeapImageTrackerTa
 
 bool FMagicLeapImageTrackerModule::RemoveTargetAsync(const FString& TargetName)
 {
-	return Runnable->RemoveTargetAsync(TargetName);
+	return Runnable->IsRunning() ? Runnable->RemoveTargetAsync(TargetName) : true;
 }
 
 uint32 FMagicLeapImageTrackerModule::GetMaxSimultaneousTargets() const
@@ -92,10 +110,14 @@ void FMagicLeapImageTrackerModule::SetImageTrackerEnabled(bool bEnabled)
 	Runnable->SetImageTrackerEnabled(bEnabled);
 }
 
+bool FMagicLeapImageTrackerModule::IsTracked(const FString& TargetName) const
+{
+	return Runnable->IsTracked(TargetName);
+}
+
 bool FMagicLeapImageTrackerModule::TryGetRelativeTransform(const FString& TargetName, FVector& OutLocation, FRotator& OutRotation)
 {
 	return Runnable->TryGetRelativeTransformMainThread(TargetName, OutLocation, OutRotation);
 }
-
 
 IMPLEMENT_MODULE(FMagicLeapImageTrackerModule, MagicLeapImageTracker);

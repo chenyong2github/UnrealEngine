@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "RawIndexBuffer.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
@@ -142,6 +143,7 @@ FRawStaticIndexBuffer::FRawStaticIndexBuffer(bool InNeedsCPUAccess)
 	: IndexStorage(InNeedsCPUAccess)
 	, CachedNumIndices(-1)
 	, b32Bit(false)
+	, bShouldExpandTo32Bit(false)
 {
 }
 
@@ -266,11 +268,42 @@ void FRawStaticIndexBuffer::GetCopy(TArray<uint32>& OutIndices) const
 	}
 }
 
+void FRawStaticIndexBuffer::ExpandTo32Bit()
+{
+	if (b32Bit)
+		return;
+
+	b32Bit = true;
+	bool bAllowCpuAccess = IndexStorage.GetAllowCPUAccess();
+	TResourceArray<uint8, INDEXBUFFER_ALIGNMENT> CopyIndex(bAllowCpuAccess);
+	CopyIndex.Empty(sizeof(uint32) * CachedNumIndices);
+	CopyIndex.AddUninitialized(sizeof(uint32) * CachedNumIndices);
+
+	uint16* SrcIndices16Bit = (uint16*)IndexStorage.GetData();
+	uint32* DstIndices32Bit = (uint32*)CopyIndex.GetData();
+	for (int32 i = 0; i < CachedNumIndices; ++i)
+	{
+		DstIndices32Bit[i] = SrcIndices16Bit[i];
+	}
+
+	IndexStorage.Empty();
+	IndexStorage = MoveTemp(CopyIndex);
+}
+
 const uint16* FRawStaticIndexBuffer::AccessStream16() const
 {
 	if (!b32Bit)
 	{
 		return reinterpret_cast<const uint16*>(IndexStorage.GetData());
+	}
+	return nullptr;
+}
+
+const uint32* FRawStaticIndexBuffer::AccessStream32() const
+{
+	if (b32Bit)
+	{
+		return reinterpret_cast<const uint32*>(IndexStorage.GetData());
 	}
 	return nullptr;
 }
@@ -340,13 +373,30 @@ void FRawStaticIndexBuffer::Serialize(FArchive& Ar, bool bNeedsCPUAccess)
 		IndexStorage.Empty(NumIndices * IndexStride);
 		IndexStorage.AddUninitialized(NumIndices * IndexStride);
 		FMemory::Memcpy(IndexStorage.GetData(),LegacyIndices.GetData(),IndexStorage.Num());
+		CachedNumIndices = IndexStorage.Num() / (b32Bit ? 4 : 2);
 	}
 	else
 	{
 		Ar << b32Bit;
 		IndexStorage.BulkSerialize(Ar);
+		CachedNumIndices = IndexStorage.Num() / (b32Bit ? 4 : 2);
+
+		if (Ar.IsCooking() && (CachedNumIndices > 0) && !b32Bit)
+		{
+			bShouldExpandTo32Bit = Ar.CookingTarget()->ShouldExpandTo32Bit((const uint16*)IndexStorage.GetData(), CachedNumIndices);
+		}
+		else
+		{
+			bShouldExpandTo32Bit = false;
+		}
+
+		Ar << bShouldExpandTo32Bit;
+
+		if (Ar.IsLoading() && (CachedNumIndices > 0) && bShouldExpandTo32Bit && FPlatformMisc::Expand16BitIndicesTo32BitOnLoad())
+		{
+			ExpandTo32Bit();
+		}
 	}
-	CachedNumIndices = IndexStorage.Num() / (b32Bit ? 4 : 2);
 }
 
 void FRawStaticIndexBuffer::SerializeMetaData(FArchive& Ar)

@@ -4,6 +4,8 @@
 #include "Engine/Engine.h"
 #include "ISpectatorScreenController.h"
 #include "IXRTrackingSystem.h"
+#include "StereoRendering.h"
+#include "StereoRenderTargetManager.h"
 #include "SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineUtils.h"
@@ -17,6 +19,10 @@
 #include "OculusMR_State.h"
 #include "OculusMR_CastingCameraActor.h"
 #include "AudioDevice.h"
+#if PLATFORM_ANDROID
+#include "VulkanRHIBridge.h"
+#include "VulkanRHIPrivate.h"
+#endif
 
 #if WITH_EDITOR
 #include "Editor.h" // for FEditorDelegates::PostPIEStarted
@@ -397,6 +403,26 @@ void FOculusMRModule::ChangeCaptureState()
 		{
 			UE_LOG(LogMR, Log, TEXT("Activating MR Capture"))
 			bActivated = true;
+
+			// UE resizes the main scene color and depth targets to the maximum dimensions of all rendertargets,
+			// which causes rendering issues if it doesn't match the compositor-allocated eye textures. This is
+			// a hacky fix by making sure that the scene capture rendertarget is no larger than the eye.
+			int frameWidth;
+			int frameHeight;
+			ovrp_Media_GetMrcFrameSize(&frameWidth, &frameHeight);
+			uint32 maxWidth = frameWidth / 2;
+			uint32 maxHeight = frameHeight;
+			IStereoRenderTargetManager* const StereoRenderTargetManager = GEngine->StereoRenderingDevice->GetRenderTargetManager();
+			if (StereoRenderTargetManager)
+			{
+				StereoRenderTargetManager->CalculateRenderTargetSize(*(FViewport*)GEngine->GameViewport->GetGameViewport(), maxWidth, maxHeight);
+			}
+			maxWidth *= 2;
+			frameWidth = frameWidth > maxWidth ? maxWidth : frameWidth;
+			frameHeight = frameHeight > maxHeight ? maxHeight : frameHeight;
+			ovrp_Media_SetMrcFrameSize(frameWidth, frameHeight);
+			UE_LOG(LogMR, Log, TEXT("MRC Frame width: %d height %d"), frameWidth, frameHeight);
+
 			SetupInGameCapture();
 		}
 	}
@@ -438,18 +464,46 @@ void FOculusMRModule::OnInitialWorldCreated(UWorld* NewWorld)
 	if (FOculusHMDModule::Get().PreInit() && OVRP_SUCCESS(ovrp_InitializeMixedReality()))
 	{
 		ovrpBool mrcEnabled;
+
 		if (OVRP_SUCCESS(ovrp_Media_Initialize()))
 		{
 			UE_LOG(LogMR, Log, TEXT("MRC Initialized"));
+
 			if (OVRP_SUCCESS(ovrp_Media_IsMrcEnabled(&mrcEnabled)) && mrcEnabled == ovrpBool_True)
 			{
 				UE_LOG(LogMR, Log, TEXT("MRC Enabled"));
+
+				// Find a free queue index for vulkan
+				if (IsVulkanPlatform(GMaxRHIShaderPlatform))
+				{
+					unsigned int queueIndex = 0;
+					ExecuteOnRenderThread([&queueIndex]()
+					{
+						ExecuteOnRHIThread([&queueIndex]()
+						{
+							FVulkanDevice* VulkanDevice = VulkanRHIBridge::GetDevice((FVulkanDynamicRHI*)GDynamicRHI);
+							int gfxIndex = VulkanDevice->GetGraphicsQueue() ? VulkanDevice->GetGraphicsQueue()->GetQueueIndex() : -1;
+							if (gfxIndex == queueIndex) {
+								++queueIndex;
+							}
+						});
+					});
+					ovrp_Media_SetAvailableQueueIndexVulkan(queueIndex);
+				}
+
+				// We use the upside down scenecapture in GLES for performance (one less copy)
+				if (IsOpenGLPlatform(GMaxRHIShaderPlatform))
+				{
+					ovrp_Media_SetMrcFrameImageFlipped(ovrpBool_True);
+				}
+
 				ovrp_Media_SetMrcInputVideoBufferType(ovrpMediaInputVideoBufferType_TextureHandle);
-				ovrp_Media_SetMrcFrameImageFlipped(IsAndroidOpenGLESPlatform(GMaxRHIShaderPlatform));
 				ovrp_Media_SetMrcFrameInverseAlpha(ovrpBool_True);
+
 				FAudioDeviceHandle AudioDevice = FAudioDevice::GetMainAudioDevice();
 				float SampleRate = AudioDevice->GetSampleRate();
 				ovrp_Media_SetMrcAudioSampleRate((int)SampleRate);
+
 				InitMixedRealityCapture();
 				OnWorldCreated(NewWorld);
 			}

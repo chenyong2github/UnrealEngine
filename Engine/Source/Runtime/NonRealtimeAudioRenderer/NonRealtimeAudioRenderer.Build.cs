@@ -35,11 +35,6 @@ namespace UnrealBuildTool.Rules
 					"libOpus",
 					"UELibSampleRate"
 					);
-
-            if (Target.Platform == UnrealTargetPlatform.XboxOne)
-            {
-                PrivateDependencyModuleNames.Add("XMA2");
-            }
         }
 	}
 }

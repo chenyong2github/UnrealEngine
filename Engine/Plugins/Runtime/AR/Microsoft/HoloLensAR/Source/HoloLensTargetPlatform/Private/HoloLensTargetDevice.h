@@ -10,9 +10,14 @@
 #include "HAL/PlatformProcess.h"
 #include "Interfaces/ITargetDevice.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "IHoloLensDeviceDetectorModule.h"
+#include "IHoloLensDeviceDetector.h"
+
+#if WITH_ENGINE
+#include "Engine/EngineTypes.h"
+#endif
 
 #include "Windows/AllowWindowsPlatformTypes.h"
+
 
 /**
  * Implements a HoloLens target device.
@@ -23,133 +28,79 @@ class FHoloLensTargetDevice
 public:
 
 	/**
-	 * Creates and initializes a new device for the specified target platform.
-	 *
-	 * @param InTargetPlatform - The target platform.
-	 */
-	FHoloLensTargetDevice(const ITargetPlatform& InTargetPlatform, const FHoloLensDeviceInfo& InInfo)
-		: TargetPlatform(InTargetPlatform)
-		, Info(InInfo)
-	{ }
+	* Creates and initializes a new device for the specified target platform.
+	*
+	* @param InTargetPlatform - The target platform.
+	*/
+	FHoloLensTargetDevice(const ITargetPlatform& InTargetPlatform, const FHoloLensDeviceInfo& InInfo);
 
+	~FHoloLensTargetDevice();
 
-	virtual bool Connect() override
-	{
-		return Info.bCanDeployTo;
-	}
+	virtual bool Connect() override;
 
 	virtual bool Deploy(const FString& SourceFolder, FString& OutAppId) override;
 
-	virtual void Disconnect() override
-	{ }
+	virtual void Disconnect() override;
 
-	virtual ETargetDeviceTypes GetDeviceType() const override
-	{
-		if (Info.DeviceTypeName == HoloLensDeviceTypes::HoloLens)
-		{
-			return ETargetDeviceTypes::HMD;
-		}
-		else if (Info.DeviceTypeName == HoloLensDeviceTypes::HoloLensEmulation)
-		{
-			return ETargetDeviceTypes::Desktop;
-		}
-		return ETargetDeviceTypes::Indeterminate;
-	}
+	virtual ETargetDeviceTypes GetDeviceType() const override;
 
-	virtual FTargetDeviceId GetId() const override
-	{
-		if (Info.IsLocal())
-		{
-			return FTargetDeviceId(TargetPlatform.PlatformName(), Info.HostName);
-		}
-		// This is what gets handed off to UAT, so we need to supply the
-		// actual Device Portal url instead of just the host name
-		return FTargetDeviceId(TargetPlatform.PlatformName(), Info.WdpUrl);
-	}
+	virtual FTargetDeviceId GetId() const override;
 
-	virtual FString GetName() const override
-	{
-		return Info.HostName + TEXT(" (HoloLens)");
-	}
+	virtual FString GetName() const override;
 
-	virtual FString GetOperatingSystemName() override
-	{
-		return FString::Printf(TEXT("HoloLens (%s)"), *Info.DeviceTypeName.ToString());
-	}
+	virtual FString GetOperatingSystemName() override;
 
-	virtual int32 GetProcessSnapshot(TArray<FTargetDeviceProcessInfo>& OutProcessInfos) override
-	{
-		return 0;
-	}
+	virtual bool GetProcessSnapshotAsync(TFunction<void(const TArray<FTargetDeviceProcessInfo>&)> CompleteHandler) override;
 
-	virtual const class ITargetPlatform& GetTargetPlatform() const override
-	{
-		return TargetPlatform;
-	}
+	virtual int32 GetProcessSnapshot(TArray<FTargetDeviceProcessInfo>& OutProcessInfos) override { return 0; }
 
-	virtual bool GetUserCredentials(FString& OutUserName, FString& OutUserPassword) override
-	{
-		return false;
-	}
+	virtual const class ITargetPlatform& GetTargetPlatform() const override;
 
-	virtual bool IsConnected()
-	{
-		// @todo JoeG - Add a connected device check here
-		return Info.bCanDeployTo;
-	}
+	virtual bool GetUserCredentials(FString& OutUserName, FString& OutUserPassword) override;
 
-	virtual bool IsDefault() const override
-	{
-		return Info.HostName == FPlatformProcess::ComputerName();
-	}
+	virtual bool IsConnected();
 
-	virtual bool Launch(const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId) override;
+	virtual bool IsDefault() const override;
 
-	virtual bool PowerOff(bool Force) override
-	{
-		// @todo JoeG - Add support if HL2 supports this
-		return false;
-	}
+	virtual bool Launch(const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId);
 
-	virtual bool PowerOn() override
-	{
-		// @todo JoeG - Add support if HL2 supports this
-		return false;
-	}
+	virtual bool PowerOff(bool Force) override;
 
-	virtual bool Reboot(bool bReconnect = false) override
-	{
-		// @todo JoeG - Add support if HL2 supports this
-		return false;
-	}
+	virtual bool PowerOn() override;
+
+	virtual bool Reboot(bool bReconnect = false) override;
 
 	virtual bool Run(const FString& ExecutablePath, const FString& Params, uint32* OutProcessId) override;
 
-	virtual void SetUserCredentials( const FString& UserName, const FString& UserPassword ) override { }
+	virtual void SetUserCredentials(const FString& UserName, const FString& UserPassword) override;
 
-	virtual bool SupportsFeature(ETargetDeviceFeatures Feature) const override
-	{
-		// @todo JoeG - Add support if HL2 supports this
-		return false;
-	}
+	virtual bool SupportsFeature(ETargetDeviceFeatures Feature) const override;
 
-	virtual bool SupportsSdkVersion(const FString& VersionString) const override
-	{
-		// @todo JoeG - Add support for this check
-		return false;
-	}
+	virtual bool SupportsSdkVersion(const FString& VersionString) const override;
 
-	virtual bool TerminateProcess(const int64 ProcessId) override
-	{
-		// @todo JoeG - Add support if HL2 supports this
-		return false;
-	}
+	virtual bool TerminateProcess(const int64 ProcessId) override;
+
+	virtual bool TerminateLaunchedProcess(const FString & ProcessIdentifier) override;
 
 private:
+
+	TSharedPtr<class IHttpRequest> GenerateRequest() const;
+
+	void StartHeartBeat();
+
+#if WITH_ENGINE
+	FTimerHandle TimerHandle;
+#endif
+
+	TSharedPtr<class IHttpRequest> HeartBeatRequest;
+	FCriticalSection CriticalSection;
+
 	// Holds a reference to the device's target platform.
 	const ITargetPlatform& TargetPlatform;
 
 	FHoloLensDeviceInfo Info;
+
+	volatile bool IsDeviceConnected;
 };
 
 typedef TSharedPtr<FHoloLensTargetDevice, ESPMode::ThreadSafe> FHoloLensDevicePtr;

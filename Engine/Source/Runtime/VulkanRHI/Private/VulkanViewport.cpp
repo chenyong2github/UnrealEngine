@@ -377,6 +377,9 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		AttachmentTextureViews.Add(RTView);
 		AttachmentViewsToDelete.Add(RTView.View);
 
+		// Created a view to the surface memory... need to addref allocation so it doesn't get freed from under us
+		ResourceAllocationsToDelete.Add(Texture->Surface.GetResourceAllocation());
+
 		++NumColorAttachments;
 
 		if (InRTInfo.bHasResolveAttachments)
@@ -476,6 +479,12 @@ void FVulkanFramebuffer::Destroy(FVulkanDevice& Device)
 		DEC_DWORD_STAT(STAT_VulkanNumImageViews);
 		Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::ImageView, AttachmentViewsToDelete[Index]);
 	}
+
+	for (int32 Index = 0; Index < ResourceAllocationsToDelete.Num(); ++Index)
+	{
+		Queue.EnqueueResourceAllocation(ResourceAllocationsToDelete[Index]);
+	}
+	ResourceAllocationsToDelete.Empty();
 
 	DEC_DWORD_STAT(STAT_VulkanNumFrameBuffers);
 }

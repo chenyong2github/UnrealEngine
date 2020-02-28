@@ -194,32 +194,6 @@ protected:
 	uint32 SortedIndicesOffset;
 };
 
-
-class NIAGARAVERTEXFACTORIES_API FNiagaraMeshVertexFactoryEmulatedInstancing : public FNiagaraMeshVertexFactory
-{
-	DECLARE_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactoryEmulatedInstancing);
-
-public:
-	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
-	FNiagaraMeshVertexFactoryEmulatedInstancing(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
-		: FNiagaraMeshVertexFactory(InType, InFeatureLevel)
-	{}
-
-	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
-	FNiagaraMeshVertexFactoryEmulatedInstancing()
-		: FNiagaraMeshVertexFactory()
-	{}
-
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
-
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FNiagaraMeshVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_INSTANCED"), TEXT("0"));
-	}
-};
-
 inline FNiagaraMeshVertexFactory* ConstructNiagaraMeshVertexFactory()
 {
 	return new FNiagaraMeshVertexFactory();

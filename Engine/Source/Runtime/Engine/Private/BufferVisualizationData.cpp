@@ -39,6 +39,16 @@ void FBufferVisualizationData::Initialize()
 			{
 				for (FConfigSection::TIterator It(*MaterialSection); It; ++It)
 				{
+					FString EnabledCVar;
+					if (FParse::Value(*It.Value().GetValue(), TEXT("Display="), EnabledCVar, true))
+					{
+						IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*EnabledCVar);
+						if (CVar && !CVar->GetBool())
+						{
+							continue;
+						}
+					}
+
 					FString MaterialName;
 					if( FParse::Value( *It.Value().GetValue(), TEXT("Material="), MaterialName, true ) )
 					{
@@ -100,8 +110,12 @@ void FBufferVisualizationData::ConfigureConsoleCommand()
 	ConsoleDocumentationOverviewTargets = TEXT("Specify the list of post process materials that can be used in the buffer visualization overview. Put nothing between the commas to leave a gap.\n\n\tChoose from:\n");
 	ConsoleDocumentationOverviewTargets += AvailableVisualizationMaterials;
 
+	static const IConsoleVariable* CVarAnisotropicBRDF = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
+
 	IConsoleManager::Get().RegisterConsoleVariable(TEXT("r.BufferVisualizationOverviewTargets"),
-		TEXT("BaseColor,Specular,SubsurfaceColor,WorldNormal,SeparateTranslucencyRGB,,,Opacity,SeparateTranslucencyA,,,,SceneDepth,Roughness,Metallic,ShadingModel,,SceneDepthWorldUnits,SceneColor,PreTonemapHDRColor,PostTonemapHDRColor"), 
+		(CVarAnisotropicBRDF && CVarAnisotropicBRDF->GetBool()) ?
+			TEXT("BaseColor,Specular,SubsurfaceColor,WorldNormal,SeparateTranslucencyRGB,,,WorldTangent,SeparateTranslucencyA,,,Opacity,SceneDepth,Roughness,Metallic,ShadingModel,,SceneDepthWorldUnits,SceneColor,PreTonemapHDRColor,PostTonemapHDRColor") :
+			TEXT("BaseColor,Specular,SubsurfaceColor,WorldNormal,SeparateTranslucencyRGB,,,,SeparateTranslucencyA,,,Opacity,SceneDepth,Roughness,Metallic,ShadingModel,,SceneDepthWorldUnits,SceneColor,PreTonemapHDRColor,PostTonemapHDRColor"),
 		*ConsoleDocumentationOverviewTargets,
 		ECVF_Default);
 }

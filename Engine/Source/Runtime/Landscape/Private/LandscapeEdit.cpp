@@ -6006,16 +6006,10 @@ static void GetAllMobileRelevantLayerNames(TSet<FName>& OutLayerNames, UMaterial
 	TArray<FMaterialParameterInfo> ParameterInfos;
 	TArray<FGuid> ParameterIds;
 
-	TArray<UMaterialExpression*> ES2MobileExpressions;
-	InMaterial->GetAllReferencedExpressions(ES2MobileExpressions, nullptr, ERHIFeatureLevel::ES2);
 	TArray<UMaterialExpression*> ES31Expressions;
 	InMaterial->GetAllReferencedExpressions(ES31Expressions, nullptr, ERHIFeatureLevel::ES3_1);
 
-	TArray<UMaterialExpression*> MobileExpressions = MoveTemp(ES2MobileExpressions);
-	for (UMaterialExpression* Expression : ES31Expressions)
-	{
-		MobileExpressions.AddUnique(Expression);
-	}
+	TArray<UMaterialExpression*> MobileExpressions = MoveTemp(ES31Expressions);
 
 	for (UMaterialExpression* Expression : MobileExpressions)
 	{

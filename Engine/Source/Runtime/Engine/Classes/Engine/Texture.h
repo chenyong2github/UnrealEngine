@@ -619,7 +619,7 @@ struct FTextureFormatSettings
 };
 
 UCLASS(abstract, MinimalAPI, BlueprintType)
-class ENGINE_VTABLE UTexture : public UStreamableRenderAsset, public IInterface_AssetUserData
+class UTexture : public UStreamableRenderAsset, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 

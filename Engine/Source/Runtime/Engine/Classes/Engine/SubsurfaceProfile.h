@@ -16,25 +16,25 @@ struct FSubsurfaceProfileStruct
 	/**
 	* It should match The base color of the corresponding material as much as possible.
 	*/
-	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.01", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel))
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.01", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel, editcondition = "bEnableBurley"))
 	FLinearColor SurfaceAlbedo;
 
 	/**
 	* Controls how far light goes into the subsurface in the Red, Green and Blue channel. It is scaled by Mean Free path distance.
 	*/
-	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.001", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel))
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.001", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel, editcondition = "bEnableBurley"))
 		FLinearColor MeanFreePathColor; //MeanFreePathLength;
 	
 	/**
 	* Subsurface mean free path distance in world/unreal units (cm)
 	*/
-	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BluePrintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0"))
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BluePrintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0", editcondition = "bEnableBurley"))
 		float MeanFreePathDistance;
 
 	/**
 	* Control the scale of world/unreal units (cm)
 	*/
-	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0"))
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0", editcondition = "bEnableBurley"))
 		float WorldUnitScale;
 
 	/**
@@ -44,7 +44,7 @@ struct FSubsurfaceProfileStruct
 	bool  bEnableBurley;
 
 	/** in world/unreal units (cm) */
-	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "1000.0"))
+	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "1000.0", editcondition = "!bEnableBurley"))
 	float ScatterRadius;
 
 	/**
@@ -52,7 +52,7 @@ struct FSubsurfaceProfileStruct
 	* can be seen as a per-channel mix factor between the original image,
 	* and the SSS-filtered image (called "strength" in SeparableSSS, default there: 0.48, 0.41, 0.28)
 	*/
-	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel))
+	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel, editcondition = "!bEnableBurley"))
 	FLinearColor SubsurfaceColor;
 
 	/**
@@ -60,7 +60,7 @@ struct FSubsurfaceProfileStruct
 	* produced by the subsurface scattering events, can be used to fine tune the color of the gradients
 	* (called "falloff" in SeparableSSS, default there: 1, 0.37, 0.3)
 	*/
-	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel))
+	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel, editcondition = "!bEnableBurley"))
 	FLinearColor FalloffColor;
 
 	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel))

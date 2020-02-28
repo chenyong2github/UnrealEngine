@@ -8,7 +8,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
-#if !PLATFORM_CPU_ARM_FAMILY && !PLATFORM_XBOXONE
+#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 	#include "amd_ags.h"
 #endif
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -127,7 +127,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 
 	bool bDeviceCreated = false;
-#if !PLATFORM_CPU_ARM_FAMILY && !PLATFORM_XBOXONE
+#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 	if (IsRHIDeviceAMD() && OwningRHI->GetAmdAgsContext())
 	{
 		auto* CVarShaderDevelopmentMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderDevelopmentMode"));
@@ -187,6 +187,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		D3D12_FEATURE_DATA_D3D12_OPTIONS1 Features = {};
 		RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &Features, sizeof(Features));
 		GRHISupportsWaveOperations = Features.WaveOps;
+		GRHIMinimumWaveSize = Features.WaveLaneCountMin;
+		GRHIMaximumWaveSize = Features.WaveLaneCountMax;
 	}
 
 #if ENABLE_RESIDENCY_MANAGEMENT

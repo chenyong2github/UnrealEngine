@@ -16,7 +16,7 @@
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#include "Windows/AllowWindowsPlatformTypes.h"
 #else
-	#include "XboxOne/XboxOneAllowPlatformTypes.h"
+	#include "XboxCommonAllowPlatformTypes.h"
 #endif
 
 
@@ -145,7 +145,7 @@ namespace MfMedia
 #if !PLATFORM_HOLOLENS
 			if ((SubType == MFVideoFormat_H264) || (SubType == MFVideoFormat_H264_ES))
 			{
-				if (!FWindowsPlatformMisc::VerifyWindowsVersion(6, 1) /*Win7*/)
+				if (!FPlatformMisc::VerifyWindowsVersion(6, 1) /*Win7*/)
 				{
 					UE_LOG(LogMfMedia, Warning, TEXT("H264 video type requires Windows 7 or newer (your version is %s)"), *FPlatformMisc::GetOSVersion());
 					return NULL;
@@ -154,9 +154,9 @@ namespace MfMedia
 
 			if ((SubType == MFVideoFormat_HEVC) || (SubType == MFVideoFormat_HEVC_ES))
 			{
-				if (!FWindowsPlatformMisc::VerifyWindowsVersion(10, 0) /*Win10*/)
+				if (!FPlatformMisc::VerifyWindowsVersion(10, 0) /*Win10*/)
 				{
-					if (!FWindowsPlatformMisc::VerifyWindowsVersion(6, 2) /*Win8*/)
+					if (!FPlatformMisc::VerifyWindowsVersion(6, 2) /*Win8*/)
 					{
 						UE_LOG(LogMfMedia, Warning, TEXT("HEVC video type requires Windows 10 or newer (your version is %s"), *FPlatformMisc::GetOSVersion());
 						return NULL;
@@ -893,7 +893,7 @@ namespace MfMedia
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#include "Windows/HideWindowsPlatformTypes.h"
 #else
-	#include "XboxOne/XboxOneHidePlatformTypes.h"
+	#include "XboxCommonHidePlatformTypes.h"
 #endif
 
 #endif //MFMEDIA_SUPPORTED_PLATFORM

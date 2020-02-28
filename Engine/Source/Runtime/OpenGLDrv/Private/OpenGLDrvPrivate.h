@@ -522,10 +522,6 @@ inline bool OpenGLShaderPlatformNeedsBindLocation(const EShaderPlatform InShader
 		case SP_OPENGL_ES3_1_ANDROID:
 		case SP_OPENGL_PCES3_1:
 			return false;
-
-		case SP_OPENGL_ES2_ANDROID:
-		case SP_OPENGL_ES2_WEBGL:
-			return true;
 		default:
 			check(IsOpenGLPlatform(InShaderPlatform));
 			checkf(false, TEXT("invalid shader platform (%d)"), int(InShaderPlatform));
@@ -551,8 +547,6 @@ inline bool OpenGLShaderPlatformSeparable(const EShaderPlatform InShaderPlatform
 
 		case SP_OPENGL_ES31_EXT:
 		case SP_OPENGL_ES3_1_ANDROID:
-		case SP_OPENGL_ES2_ANDROID:
-		case SP_OPENGL_ES2_WEBGL:
 			return false;
 		default:
 			check(IsOpenGLPlatform(InShaderPlatform));

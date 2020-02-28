@@ -31,7 +31,18 @@ struct FCustomInput
 
 	UPROPERTY()
 	FExpressionInput Input;
+};
 
+USTRUCT()
+struct FCustomDefine
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = CustomInput)
+	FString DefineName;
+
+	UPROPERTY(EditAnywhere, Category = CustomInput)
+	FString DefineValue;
 };
 
 UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
@@ -51,6 +62,11 @@ class UMaterialExpressionCustom : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionCustom)
 	TArray<struct FCustomInput> Inputs;
 
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionCustom)
+	TArray<struct FCustomDefine> AdditionalDefines;
+
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionCustom)
+	TArray<FString> IncludeFilePaths;
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR

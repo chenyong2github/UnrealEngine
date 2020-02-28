@@ -39,13 +39,21 @@ struct FMobileShadingBasePassVSToPS
 void Main(
 	FVertexFactoryInput Input
 	, out FMobileShadingBasePassVSOutput Output
-#if MOBILE_MULTI_VIEW
+#if INSTANCED_STEREO
+	, uint InstanceId : SV_InstanceID
+	, out uint LayerIndex : SV_RenderTargetArrayIndex
+#elif MOBILE_MULTI_VIEW
 	, in uint ViewId : SV_ViewID
 #endif
 	)
 {
-#if MOBILE_MULTI_VIEW
-#if (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
+#if INSTANCED_STEREO
+	const uint EyeIndex = GetEyeIndex(InstanceId);
+	ResolvedView = ResolveView(EyeIndex);
+	LayerIndex = EyeIndex;
+	Output.BasePassInterpolants.MultiViewId = float(EyeIndex);
+#elif MOBILE_MULTI_VIEW
+#if (COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
 	const int MultiViewId = int(ViewId);
 	ResolvedView = ResolveView(uint(MultiViewId));
 	Output.BasePassInterpolants.MultiViewId = float(MultiViewId);
@@ -102,9 +110,9 @@ void Main(
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
-			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepth,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
+			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
 			OneOverPreExposure, VertexFog);
 	}
 #endif
@@ -130,7 +138,7 @@ void Main(
 	VertexFactoryPackInterpolants(Output.FactoryInterpolants, PackedInterps);
 #endif // PACK_INTERPOLANTS
 
-#if !OUTPUT_MOBILE_HDR && (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
+#if !OUTPUT_MOBILE_HDR && (COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
 	Output.Position.y *= -1;
 #endif
 }

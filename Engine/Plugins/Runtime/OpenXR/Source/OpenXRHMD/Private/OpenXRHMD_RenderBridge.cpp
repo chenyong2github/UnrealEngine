@@ -198,14 +198,9 @@ public:
 			FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
 			XR_ENSURE(xrGetVulkanGraphicsDeviceKHR(Instance, System, DynamicRHI->GetInstance(), &Gpu));
 
-			VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
-			VkPhysicalDeviceProperties2KHR GpuProps2;
-			ZeroVulkanStruct(GpuProps2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
-			GpuProps2.pNext = &GpuIdProps;
-			ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
-			VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &GpuProps2);
-
-			AdapterLuid = reinterpret_cast<const uint64&>(GpuIdProps.deviceLUID);
+			const VkPhysicalDeviceIDPropertiesKHR& vkPhysicalDeviceIDProperties = DynamicRHI->GetDevice()->GetDeviceIdProperties();
+			check(vkPhysicalDeviceIDProperties.deviceLUIDValid);
+			AdapterLuid = reinterpret_cast<const uint64&>(vkPhysicalDeviceIDProperties.deviceLUID);
 		}
 		return AdapterLuid;
 	}

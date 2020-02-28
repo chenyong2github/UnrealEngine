@@ -3,8 +3,8 @@
 set -x
 set -eu
 
-ToolChainVersion=v15
-LLVM_VERSION=8.0.1
+ToolChainVersion=v16
+LLVM_VERSION=9.0.1
 LLVM_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}
 
 ToolChainVersionName="${ToolChainVersion}_clang-${LLVM_VERSION}-centos7"
@@ -54,7 +54,7 @@ done
 
 # Build clang
 LLVM=llvm-${LLVM_VERSION}
-CLANG=cfe-${LLVM_VERSION}
+CLANG=clang-${LLVM_VERSION}
 LLD=lld-${LLVM_VERSION}
 COMPILER_RT=compiler-rt-${LLVM_VERSION}
 

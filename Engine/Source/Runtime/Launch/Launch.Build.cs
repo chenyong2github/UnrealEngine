@@ -70,16 +70,18 @@ public class Launch : ModuleRules
 					"MRMesh",
 			});
 
-			if ((Target.Platform == UnrealTargetPlatform.Win32) ||
-				(Target.Platform == UnrealTargetPlatform.Win64))
+			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				DynamicallyLoadedModuleNames.AddRange(new string[] {
+					"WindowsPlatformFeatures",
+				});
+			}
+
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				DynamicallyLoadedModuleNames.AddRange(new string[] {
 					"AudioMixerXAudio2",
-					"D3D11RHI",
-					"D3D12RHI",
 					"XAudio2",
-					"WindowsPlatformFeatures",
-					"GameplayMediaEncoder",
 				});
 			}
 			else if (Target.Platform == UnrealTargetPlatform.HoloLens)
@@ -268,6 +270,13 @@ public class Launch : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
+			// Clang 9.0.1 lld seems to end up having issues with resolving EditorStyle
+			// when dealing with circular dependencies on SourceControl module
+			if (Target.bBuildEditor == true)
+			{
+				PrivateDependencyModuleNames.Add("EditorStyle");
+			}
+
 			PrivateDependencyModuleNames.Add("UnixCommonStartup");
 		}
 

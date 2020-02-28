@@ -678,10 +678,14 @@ class FShadowMap;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapResourceClusterShaderParameters,ENGINE_API)
 	SHADER_PARAMETER_TEXTURE(Texture2D, LightMapTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D, LightMapTexture_1) // VT
 	SHADER_PARAMETER_TEXTURE(Texture2D, SkyOcclusionTexture) 
 	SHADER_PARAMETER_TEXTURE(Texture2D, AOMaterialMaskTexture) 
 	SHADER_PARAMETER_TEXTURE(Texture2D, StaticShadowTexture)
+	SHADER_PARAMETER_SRV(Texture2D<float4>, VTLightMapTexture) // VT
+	SHADER_PARAMETER_SRV(Texture2D<float4>, VTLightMapTexture_1) // VT
+	SHADER_PARAMETER_SRV(Texture2D<float4>, VTSkyOcclusionTexture) // VT
+	SHADER_PARAMETER_SRV(Texture2D<float4>, VTAOMaterialMaskTexture) // VT
+	SHADER_PARAMETER_SRV(Texture2D<float4>, VTStaticShadowTexture) // VT
 	SHADER_PARAMETER_SAMPLER(SamplerState, LightMapSampler) 
 	SHADER_PARAMETER_SAMPLER(SamplerState, SkyOcclusionSampler) 
 	SHADER_PARAMETER_SAMPLER(SamplerState, AOMaterialMaskSampler) 
@@ -1115,6 +1119,8 @@ public:
 	float GetHeightFogContribution() const { return HeightFogContribution; }
 
 	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
+
+	void UpdateTransform(const FTransform& ComponentTransform, uint8 TranformMode) { AtmosphereSetup.UpdateTransform(ComponentTransform, TranformMode); }
 
 	FVector GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const;
 
@@ -2333,6 +2339,7 @@ struct FRayTracingMaterialGatheringContext
 	const class FScene* Scene;
 	const FSceneView* ReferenceView;
 	const FSceneViewFamily& ReferenceViewFamily;
+	FRHICommandListImmediate& RHICmdList;
 
 	FRayTracingMeshResourceCollector& RayTracingMeshResourceCollector;
 	TArray<FRayTracingDynamicGeometryUpdateParams> DynamicRayTracingGeometriesToUpdate;

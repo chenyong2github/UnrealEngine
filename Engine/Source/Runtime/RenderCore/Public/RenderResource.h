@@ -11,6 +11,7 @@
 #include "RHI.h"
 #include "RenderCore.h"
 #include "Serialization/MemoryLayout.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 /** Number of frames after which unused global resource allocations will be discarded. */
 extern int32 GGlobalBufferNumFramesUnusedThresold;
@@ -579,14 +580,8 @@ FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform Shader
 {
 	if (RHISupportsRayTracingShaders(ShaderPlatform))
 	{
-		// r.RayTracing is a read-only CVar. UE needs to be restarted to effectively change it
-		auto GetRayTracingCVarValue = []()
-		{
-			auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
-			return CVar && CVar->GetInt() > 0;
-		};
-		static const bool bRayTracingEnabled = GetRayTracingCVarValue();
-		return bRayTracingEnabled;
+		extern RENDERCORE_API uint64 GRayTracingPlaformMask;
+		return !!(GRayTracingPlaformMask & (1ull << ShaderPlatform));
 	}
 	else
 	{
@@ -600,14 +595,7 @@ FORCEINLINE bool IsRayTracingEnabled()
 {
 	if (GRHISupportsRayTracing)
 	{
-		// r.RayTracing is a read-only CVar. UE needs to be restarted to effectively change it
-		auto GetRayTracingCVarValue = []()
-		{
-			auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
-			return CVar && CVar->GetInt() > 0;
-		};
-		static const bool bRayTracingEnabled = GetRayTracingCVarValue();
-		return bRayTracingEnabled;
+		return ShouldCompileRayTracingShadersForProject(GMaxRHIShaderPlatform);
 	}
 	else
 	{
@@ -615,22 +603,22 @@ FORCEINLINE bool IsRayTracingEnabled()
 	}
 }
 
-#if RHI_RAYTRACING
-
 /** A ray tracing geometry resource */
 class RENDERCORE_API FRayTracingGeometry : public FRenderResource
 {
 public:
-	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
-	FRayTracingGeometryInitializer Initializer;
+	TResourceArray<uint8> RawData;
 
 	/** Default constructor. */
 	FRayTracingGeometry()
-		: RayTracingGeometryRHI(NULL)
 	{}
 
 	/** Destructor. */
 	virtual ~FRayTracingGeometry() {}
+
+#if RHI_RAYTRACING
+	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
+	FRayTracingGeometryInitializer Initializer;
 
 	// FRenderResource interface.
 	virtual void ReleaseRHI() override
@@ -646,6 +634,15 @@ public:
 
 	virtual void InitRHI() override
 	{
+		if (!IsRayTracingEnabled())
+			return;
+
+		check(RawData.Num() == 0 || Initializer.OfflineData == nullptr);
+		if (RawData.Num())
+		{
+			Initializer.OfflineData = &RawData;
+		}
+
 		bool bAllSegmentsAreValid = true;
 		for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 		{
@@ -656,22 +653,27 @@ public:
 			}
 		}
 
-		if (Initializer.IndexBuffer && bAllSegmentsAreValid && IsRayTracingEnabled())
+		if (Initializer.IndexBuffer && bAllSegmentsAreValid)
 		{
 			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
-			FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);
+			if (Initializer.OfflineData == nullptr)
+			{
+				FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);
+			}
 		}
 	}
+
+
+#endif
 };
 
+#if RHI_RAYTRACING
 class RENDERCORE_API FRayTracingScene : public FRenderResource
 {
 public:
 	FRayTracingSceneRHIRef RayTracingSceneRHI = nullptr;
 
 	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingScene"); }
-
-	
 
 	virtual void ReleaseRHI()
 	{
@@ -875,3 +877,19 @@ private:
 	uint32 NextBoundShaderStateIndex;
 	FCriticalSection BoundShaderStateHistoryLock;
 };
+
+/**Note, this should only be used when a platform requires special shader compilation for 32 bit pixel format render targets.
+Does not replace pixel format associations across the board**/
+
+FORCEINLINE bool PlatformRequires128bitRT(EPixelFormat PixelFormat)
+{
+	switch (PixelFormat)
+	{
+	case PF_R32_FLOAT:
+	case PF_G32R32F:
+	case PF_A32B32G32R32F:
+		return FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(GMaxRHIShaderPlatform);
+	default:
+		return false;
+	}
+}

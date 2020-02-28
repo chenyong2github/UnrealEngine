@@ -28,6 +28,9 @@ public:
 	/** Returns connection delay */
 	int32 GetConnectionRetryDelay() const;
 
+	/** Returns whether to stop the transport service when the application deactivates */
+	bool ShouldStopServiceWhenAppDeactivates() const;
+
 private:
 
 	/** Whether the TCP transport channel is enabled */
@@ -57,4 +60,8 @@ private:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = Transport)
 	int32 ConnectionRetryDelay;
+
+	/** Whether to stop the transport service when the application deactivates, and restart it when the application is reactivated */
+	UPROPERTY(config)
+	bool bStopServiceWhenAppDeactivates = true;
 };

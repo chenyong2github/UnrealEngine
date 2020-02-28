@@ -409,6 +409,7 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::CopyDataTypeForPassthroughFactory
 	DestDataType.PositionComponentSRV = Data.PositionComponentSRV;
 	DestDataType.TangentsSRV = Data.TangentsSRV;
 	DestDataType.ColorComponentsSRV = Data.ColorComponentsSRV;
+	DestDataType.ColorIndexMask = Data.ColorIndexMask;
 	DestDataType.TextureCoordinatesSRV = Data.TextureCoordinatesSRV;
 	DestDataType.LightMapCoordinateIndex = Data.LightMapCoordinateIndex;
 	DestDataType.NumTexCoords = Data.NumTexCoords;

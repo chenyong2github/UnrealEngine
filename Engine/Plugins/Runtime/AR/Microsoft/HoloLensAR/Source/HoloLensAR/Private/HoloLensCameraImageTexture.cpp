@@ -54,6 +54,32 @@ TGlobalResource<FHoloLensCameraImageConversionVertexDeclaration> GHoloLensCamera
  * A dummy vertex buffer to bind when rendering. This prevents some D3D debug warnings
  * about zero-element input layouts but is not strictly required.
  */
+class FDummyIndexBuffer :
+	public FIndexBuffer
+{
+public:
+
+	virtual void InitRHI() override
+	{
+		// Setup index buffer
+		int NumIndices = 6;
+		FRHIResourceCreateInfo CreateInfo;
+		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NumIndices, BUF_Static, CreateInfo);
+		void* VoidPtr = RHILockIndexBuffer(IndexBufferRHI, 0, sizeof(uint16) * NumIndices, RLM_WriteOnly);
+		uint16* pIndices = reinterpret_cast<uint16*>(VoidPtr);
+
+		pIndices[0] = 0;
+		pIndices[1] = 1;
+		pIndices[2] = 2;
+		pIndices[3] = 0;
+		pIndices[4] = 2;
+		pIndices[5] = 3;
+
+		RHIUnlockIndexBuffer(IndexBufferRHI);
+	}
+};
+TGlobalResource<FDummyIndexBuffer> GHoloLensCameraImageConversionIndexBuffer;
+
 class FDummyVertexBuffer :
 	public FVertexBuffer
 {
@@ -65,7 +91,6 @@ public:
 		void* BufferData = nullptr;
 		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(FVector4) * 4, BUF_Static, CreateInfo, BufferData);
 		FVector4* DummyContents = (FVector4*)BufferData;
-//@todo - joeg do I need a quad's worth?
 		DummyContents[0] = FVector4(0.f, 0.f, 0.f, 0.f);
 		DummyContents[1] = FVector4(1.f, 0.f, 0.f, 0.f);
 		DummyContents[2] = FVector4(0.f, 1.f, 0.f, 0.f);
@@ -91,7 +116,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 };
 
@@ -126,7 +151,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 private:
@@ -149,9 +174,6 @@ public:
 		: LastFrameNumber(0)
 		, Owner(InOwner)
 	{
-		CameraImage = Owner->CameraImage;
-		// We've taken ownership so we can release the owner's copy
-		InOwner->CameraImage = nullptr;
 	}
 
 	virtual ~FHoloLensCameraImageResource()
@@ -169,10 +191,27 @@ public:
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 
 		bool bDidConvert = false;
-		if (CameraImage != nullptr)
+		if (CameraImageHandle != INVALID_HANDLE_VALUE)
 		{
+			// Open the shared texture from the HoloLens camera on Unreal's d3d device.
+			ID3D11Device* D3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+			TComPtr<ID3D11DeviceContext> D3D11DeviceContext = nullptr;
+			D3D11Device->GetImmediateContext(&D3D11DeviceContext);
+			if (D3D11DeviceContext == nullptr)
+			{
+				CloseHandle(CameraImageHandle);
+				CameraImageHandle = INVALID_HANDLE_VALUE;
+
+				return;
+			}
+
+			TComPtr<ID3D11Texture2D> cameraImageTexture;
+			TComPtr<IDXGIResource1> cameraImageResource(NULL);
+			((ID3D11Device1*)D3D11Device)->OpenSharedResource1(CameraImageHandle, __uuidof(IDXGIResource1), (void**)&cameraImageResource);
+			cameraImageResource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&cameraImageTexture));
+
 			D3D11_TEXTURE2D_DESC Desc;
-			CameraImage->GetDesc(&Desc);
+			cameraImageTexture->GetDesc(&Desc);
 
 			Size.X = Desc.Width;
 			Size.Y = Desc.Height;
@@ -190,13 +229,14 @@ public:
 				RHICreateTargetableShaderResource2D(Size.X, Size.Y, PF_B8G8R8A8, 1, TexCreate_Dynamic, TexCreate_RenderTargetable, false, CreateInfo, DecodedTextureRef, DummyTexture2DRHI);
 			}
 
-			if (PerformCopy())
+			if (PerformCopy(cameraImageTexture, D3D11DeviceContext))
 			{
 				PerformConversion();
 				bDidConvert = true;
 			}
 			// Now that the conversion is done, we can get rid of our refs
-			CameraImage = nullptr;
+			CloseHandle(CameraImageHandle);
+			CameraImageHandle = INVALID_HANDLE_VALUE;
 			CopyTextureRef.SafeRelease();
 		}
 
@@ -217,7 +257,11 @@ public:
 	virtual void ReleaseRHI() override
 	{
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-		CameraImage = nullptr;
+		if (CameraImageHandle != INVALID_HANDLE_VALUE)
+		{
+			CloseHandle(CameraImageHandle);
+			CameraImageHandle = INVALID_HANDLE_VALUE;
+		}
 		CopyTextureRef.SafeRelease();
 		DecodedTextureRef.SafeRelease();
 		FTextureResource::ReleaseRHI();
@@ -236,44 +280,38 @@ public:
 	}
 
 	/** Render thread update of the texture so we don't get 2 updates per frame on the render thread */
-	void Init_RenderThread(TComPtr<ID3D11Texture2D> InImage)
+	void Init_RenderThread(HANDLE handle)
 	{
 		check(IsInRenderingThread());
 		if (LastFrameNumber != GFrameNumber)
 		{
 			LastFrameNumber = GFrameNumber;
 			ReleaseRHI();
-			CameraImage = InImage;
+			CameraImageHandle = handle;
 			InitRHI();
 		}
 	}
 
 private:
 	/** Copy CameraImage to our CopyTextureRef using the GPU */
-	bool PerformCopy()
+	bool PerformCopy(const TComPtr<ID3D11Texture2D>& texture, const TComPtr<ID3D11DeviceContext>& context)
 	{
 		// These must already be prepped
-		if (CameraImage == nullptr || !CopyTextureRef.IsValid())
+		if (texture == nullptr 
+			|| context == nullptr
+			|| !CopyTextureRef.IsValid())
 		{
 			return false;
 		}
 		// Get the underlying interface for the texture we are copying to
-		ID3D11Resource* CopyTexture = reinterpret_cast<ID3D11Resource*>(CopyTextureRef->GetNativeResource());
+		TComPtr<ID3D11Resource> CopyTexture = reinterpret_cast<ID3D11Resource*>(CopyTextureRef->GetNativeResource());
 		if (CopyTexture == nullptr)
 		{
 			return false;
 		}
 
-		// Get the immediate context so we can copy immediately
-		ID3D11Device* D3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-		TComPtr<ID3D11DeviceContext> D3D11DeviceContext = nullptr;
-		D3D11Device->GetImmediateContext(&D3D11DeviceContext);
-		if (D3D11DeviceContext == nullptr)
-		{
-			return false;
-		}
-		// Do the copy to our texture
-		D3D11DeviceContext->CopyResource(CopyTexture, CameraImage);
+		context->CopyResource(CopyTexture.Get(), texture);
+
 		return true;
 	}
 
@@ -314,7 +352,7 @@ private:
 
 			RHICmdList.SetStreamSource(0, GHoloLensCameraImageConversionVertexBuffer.VertexBufferRHI, 0);
 			RHICmdList.SetViewport(0, 0, 0.f, Size.X, Size.Y, 1.f);
-			RHICmdList.DrawPrimitive(0, 2, 1);
+			RHICmdList.DrawIndexedPrimitive(GHoloLensCameraImageConversionIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2, 1);
 		}
 		RHICmdList.EndRenderPass();
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DecodedTextureRef);
@@ -324,7 +362,7 @@ private:
 	FIntPoint Size;
 
 	/** The raw camera image from the HoloLens which we copy to our texture to allow it to be quickly released */
-	TComPtr<ID3D11Texture2D> CameraImage;
+	HANDLE CameraImageHandle = INVALID_HANDLE_VALUE;
 	/** The nv12 texture that we copy into so we don't block the camera from being able to send frames */
 	FTexture2DRHIRef CopyTextureRef;
 	/** The texture that we actually render with which is populated via a shader that converts nv12 to rgba */
@@ -342,20 +380,12 @@ UHoloLensCameraImageTexture::UHoloLensCameraImageTexture(const FObjectInitialize
 	: Super(ObjectInitializer)
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	, LastUpdateFrame(0)
-	, CameraImage(nullptr)
 #endif
 {
 }
 
 void UHoloLensCameraImageTexture::BeginDestroy()
 {
-#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
-	if (CameraImage != nullptr)
-	{
-		CameraImage->Release();
-		CameraImage = nullptr;
-	}
-#endif
 	Super::BeginDestroy();
 }
 
@@ -370,28 +400,31 @@ FTextureResource* UHoloLensCameraImageTexture::CreateResource()
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 /** Forces the reconstruction of the texture data and conversion from Nv12 to RGB */
-void UHoloLensCameraImageTexture::Init(ID3D11Texture2D* InCameraImage)
+void UHoloLensCameraImageTexture::Init(void* handle)
 {
 	// It's possible that we get more than one queued thread update per game frame
 	// Skip any additional frames because it will cause the recursive flush rendering commands ensure
 	if (LastUpdateFrame != GFrameCounter)
 	{
 		LastUpdateFrame = GFrameCounter;
-		CameraImage = InCameraImage;
 		if (Resource != nullptr)
 		{
-			TComPtr<ID3D11Texture2D> LambdaTexture = CameraImage;
 			FHoloLensCameraImageResource* LambdaResource = static_cast<FHoloLensCameraImageResource*>(Resource);
 			ENQUEUE_RENDER_COMMAND(Init_RenderThread)(
-				[LambdaResource, LambdaTexture](FRHICommandListImmediate&)
+				[LambdaResource, handle](FRHICommandListImmediate&)
 			{
-				LambdaResource->Init_RenderThread(LambdaTexture);
+				LambdaResource->Init_RenderThread(handle);
 			});
 		}
 		else
 		{
 			// This should end up only being called once, the first time we get a texture update
 			UpdateResource();
+			if (handle != INVALID_HANDLE_VALUE)
+			{
+				CloseHandle((HANDLE)handle);
+				handle = INVALID_HANDLE_VALUE;
+			}
 		}
 	}
 }

@@ -1896,6 +1896,7 @@ struct FRelevancePacket
 	bool bUsesCustomDepthStencil;
 	bool bSceneHasSkyMaterial;
 	bool bHasSingleLayerWaterMaterial;
+	bool bHasTranslucencySeparateModulation;
 
 	FRelevancePacket(
 		FRHICommandListImmediate& InRHICmdList,
@@ -1935,6 +1936,7 @@ struct FRelevancePacket
 		, bUsesCustomDepthStencil(false)
 		, bSceneHasSkyMaterial(false)
 		, bHasSingleLayerWaterMaterial(false)
+		, bHasTranslucencySeparateModulation(false)
 	{
 	}
 
@@ -1949,6 +1951,7 @@ struct FRelevancePacket
 		CombinedShadingModelMask = 0;
 		bSceneHasSkyMaterial = 0;
 		bHasSingleLayerWaterMaterial = 0;
+		bHasTranslucencySeparateModulation = 0;
 		bUsesGlobalDistanceField = false;
 		bUsesLightingChannels = false;
 		bTranslucentSurfaceLighting = false;
@@ -2035,6 +2038,11 @@ struct FRelevancePacket
 					{
 						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterDOF, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
 					}
+
+					if (ViewRelevance.bSeparateTranslucencyModulate)
+					{
+						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterDOFModulate, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
+					}
 				}
 				else // Otherwise, everything is rendered in a single bucket. This is not related to whether DOF is currently enabled or not.
 				{
@@ -2056,6 +2064,7 @@ struct FRelevancePacket
 			bUsesCustomDepthStencil |= ViewRelevance.bUsesCustomDepthStencil;
 			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
 			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
+			bHasTranslucencySeparateModulation |= ViewRelevance.bSeparateTranslucencyModulate;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2338,6 +2347,11 @@ struct FRelevancePacket
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAfterDOF);
 								}
+
+								if (ViewRelevance.bSeparateTranslucencyModulate)
+								{
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAfterDOFModulate);
+								}
 							}
 							else
 							{
@@ -2416,6 +2430,7 @@ struct FRelevancePacket
 		WriteView.bUsesSceneDepth |= bUsesSceneDepth;
 		WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
 		WriteView.bHasSingleLayerWaterMaterial |= bHasSingleLayerWaterMaterial;
+		WriteView.bHasTranslucencySeparateModulation |= bHasTranslucencySeparateModulation;
 		VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
@@ -2764,6 +2779,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			{
 				PassMask.Set(EMeshPass::TranslucencyAfterDOF);
 				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAfterDOF] += NumElements;
+			}
+
+			if (ViewRelevance.bSeparateTranslucencyModulate)
+			{
+				PassMask.Set(EMeshPass::TranslucencyAfterDOFModulate);
+				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAfterDOFModulate] += NumElements;
 			}
 		}
 		else

@@ -2402,7 +2402,8 @@ namespace UnrealBuildTool
 			return GlobalContext.StringVariables["Output"];
 		}
 
-		public void Init(List<string> Architectures, bool bDistribution, string EngineDirectory, string BuildDirectory, string ProjectDirectory, string Configuration, bool bIsEmbedded)
+		public void Init(List<string> Architectures, bool bDistribution, string EngineDirectory, string BuildDirectory, string ProjectDirectory, string Configuration, bool bIsEmbedded,
+			bool bPerArchBuildDir=false, Dictionary<string, string> ArchRemapping = null)
 		{
 			GlobalContext.BoolVariables["Distribution"] = bDistribution;
 			GlobalContext.BoolVariables["IsEmbedded"] = bIsEmbedded;
@@ -2439,6 +2440,26 @@ namespace UnrealBuildTool
 
 			foreach (string Arch in Architectures)
 			{
+				if (bPerArchBuildDir)
+				{
+					String ActiveArch = Arch;
+					if (ArchRemapping != null && ArchRemapping.ContainsKey(ActiveArch))
+					{
+						ActiveArch = ArchRemapping[ActiveArch];
+					}
+					String ArchBuildDirectory = Path.Combine(GlobalContext.StringVariables["BuildDir"], ActiveArch.Replace("-", "_"));
+					String ArchBuildDir = ArchBuildDirectory.Replace("\\", "/");
+					String ArchAbsBuildDir = Path.GetFullPath(ArchBuildDir).Replace("\\", "/");
+
+					// add it to all the architecture contexts (overrides global context)
+					for (int Index = 1; Index <= ContextIndex; Index++)
+					{
+						UPLContext ArchContext = Contexts[Arch + "_" + Index];
+						ArchContext.StringVariables["BuildDir"] = ArchBuildDir;
+						ArchContext.StringVariables["AbsBuildDir"] = ArchAbsBuildDir;
+					}
+				}
+
 				Log.TraceInformation("UPL Init: {0}", Arch);
 				ProcessPluginNode(Arch, "init", "");
 			}

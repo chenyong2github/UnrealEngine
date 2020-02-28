@@ -16,17 +16,21 @@ class USkyAtmosphereComponent;
 
 struct FAtmosphereSetup
 {
-	float BottomRadius;
-	float TopRadius;
+	ENGINE_API static const float CmToSkyUnit;
+	ENGINE_API static const float SkyUnitToCm;
+
+	FVector PlanetCenterKm;			// In sky unit (kilometers)
+	float BottomRadiusKm;			// idem
+	float TopRadiusKm;				// idem
 
 	float MultiScatteringFactor;
 
-	FLinearColor RayleighScattering;
+	FLinearColor RayleighScattering;// Unit is 1/km
 	float RayleighDensityExpScale;
 
-	FLinearColor MieScattering;
-	FLinearColor MieExtinction;
-	FLinearColor MieAbsorption;
+	FLinearColor MieScattering;		// Unit is 1/km
+	FLinearColor MieExtinction;		// idem
+	FLinearColor MieAbsorption;		// idem
 	float MieDensityExpScale;
 	float MiePhaseG;
 
@@ -44,6 +48,8 @@ struct FAtmosphereSetup
 	ENGINE_API FAtmosphereSetup(const USkyAtmosphereComponent& SkyAtmosphereComponent);
 
 	ENGINE_API FLinearColor GetTransmittanceAtGroundLevel(const FVector& SunDirection) const;
+
+	ENGINE_API void UpdateTransform(const FTransform& ComponentTransform, uint8 TranformMode);
 };
 
 

@@ -24,6 +24,14 @@ public class VulkanShaderFormat : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "HLSLCC");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "GlsLang");
 
+		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"ShaderConductor",
+				"SPIRVReflect"
+			);
+		}
+
 		if (Target.Platform != UnrealTargetPlatform.Win64 &&
 			Target.Platform != UnrealTargetPlatform.Win32 &&
 			Target.Platform != UnrealTargetPlatform.Android &&
@@ -34,5 +42,11 @@ public class VulkanShaderFormat : ModuleRules
 		}
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PublicDelayLoadDLLs.Add("dxcompiler_sc.dll");
+			PublicDelayLoadDLLs.Add("ShaderConductor.dll");
+		}
 	}
 }

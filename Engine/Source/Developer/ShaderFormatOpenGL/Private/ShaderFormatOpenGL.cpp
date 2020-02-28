@@ -9,8 +9,6 @@
 #include "ShaderCore.h"
 
 static FName NAME_GLSL_430(TEXT("GLSL_430"));
-static FName NAME_GLSL_ES2(TEXT("GLSL_ES2"));
-static FName NAME_GLSL_ES2_WEBGL(TEXT("GLSL_ES2_WEBGL"));
 static FName NAME_GLSL_150_ES3_1(TEXT("GLSL_150_ES31"));
 static FName NAME_GLSL_310_ES_EXT(TEXT("GLSL_310_ES_EXT"));
 static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
@@ -20,15 +18,13 @@ class FShaderFormatGLSL : public IShaderFormat
 	enum
 	{
 		/** Version for shader format, this becomes part of the DDC key. */
-		UE_SHADER_GLSL_VER = 88,
+		UE_SHADER_GLSL_VER = 89,
 	};
 
 	void CheckFormat(FName Format) const
 	{
 		check(	Format == NAME_GLSL_430 || 
-				Format == NAME_GLSL_ES2 || 
 				Format == NAME_GLSL_150_ES3_1 ||
-                Format == NAME_GLSL_ES2_WEBGL ||
 				Format == NAME_GLSL_310_ES_EXT ||
 				Format == NAME_GLSL_ES3_1_ANDROID
 			);
@@ -40,9 +36,7 @@ public:
 		CheckFormat(Format);
 		uint32 GLSLVersion = 0;
 		if (Format == NAME_GLSL_430
-			|| Format == NAME_GLSL_ES2
 			|| Format == NAME_GLSL_150_ES3_1
-			|| Format == NAME_GLSL_ES2_WEBGL
 			|| Format == NAME_GLSL_310_ES_EXT
 			|| Format == NAME_GLSL_ES3_1_ANDROID)
 		{
@@ -58,8 +52,6 @@ public:
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
 		OutFormats.Add(NAME_GLSL_430);
-		OutFormats.Add(NAME_GLSL_ES2);
-		OutFormats.Add(NAME_GLSL_ES2_WEBGL);
 		OutFormats.Add(NAME_GLSL_150_ES3_1);
 		OutFormats.Add(NAME_GLSL_310_ES_EXT);
 		OutFormats.Add(NAME_GLSL_ES3_1_ANDROID);
@@ -70,14 +62,6 @@ public:
 		if (Format == NAME_GLSL_430)
 		{
 			return GLSL_430;
-		}
-		else if (Format == NAME_GLSL_ES2)
-		{
-			return GLSL_ES2;
-		}
-		else if (Format == NAME_GLSL_ES2_WEBGL )
-		{
-			return GLSL_ES2_WEBGL;
 		}
 		else if (Format == NAME_GLSL_150_ES3_1)
 		{
@@ -107,26 +91,6 @@ public:
 		FOpenGLFrontend Frontend;
 		// the frontend will run the cross compiler
 		Frontend.CompileShader(Input, Output, WorkingDirectory, Version);
-
-		if (Version == GLSL_ES2 || Version == GLSL_ES2_WEBGL)
-		{
-			if (Input.DumpDebugInfoPath != TEXT("") && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath))
-			{
-				FShaderCompilerInput ES2Input = Input;
-				ES2Input.DumpDebugInfoPath = ES2Input.DumpDebugInfoPath.Replace(
-					TEXT("GLSL_150_ES2"), 
-					(Version == GLSL_ES2 ? TEXT("GLSL_ES2") : TEXT("GLSL_ES2_WEBGL")),
-					ESearchCase::CaseSensitive);
-				
-				if (!IFileManager::Get().DirectoryExists(*ES2Input.DumpDebugInfoPath))
-				{
-					verifyf(IFileManager::Get().MakeDirectory(*ES2Input.DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *ES2Input.DumpDebugInfoPath);
-				}
-
-				FShaderCompilerOutput ES2Output;
-				Frontend.CompileShader(ES2Input, ES2Output, WorkingDirectory, Version == GLSL_ES2_WEBGL ? GLSL_ES2_WEBGL : GLSL_ES2);
-			}
-		}
 	}
 
 	virtual const TCHAR* GetPlatformIncludeDirectory() const

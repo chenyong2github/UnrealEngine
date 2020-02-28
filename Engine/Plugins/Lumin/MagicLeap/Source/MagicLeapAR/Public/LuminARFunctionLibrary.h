@@ -42,20 +42,8 @@ public:
 	 *
 	 * @return	A EARSessionStatus enum that describes the session status.
 	 */
-	UFUNCTION(BlueprintPure, Category = "LuminAR|MotionTracking", meta = (Keywords = "luminar session"))
+	UFUNCTION(BlueprintPure, Category = "LuminAR|MotionTracking", meta = (DeprecatedFunction, DeprecationMessage = "Use GetTrackingQuality() & GetHeadTrackingMapEvents()", Keywords = "luminar session"))
 	static ELuminARTrackingState GetTrackingState();
-
-	///**
-	// * Gets the latest tracking pose in Unreal world space of the ARCore device.
-	// *
-	// * Note that ARCore motion tracking has already integrated with HMD and the motion controller interface.
-	// * Use this function only if you need to implement your own tracking component.
-	// *
-	// * @param OutPose		The latest device pose.
-	// * @return				True if the pose is updated successfully for this frame.
-	// */
-	//UFUNCTION(BlueprintPure, Category = "LuminAR|MotionTracking", meta = (Keywords = "luminar pose transform"))
-	//static void GetPose(FTransform& OutPose);
 
 	/**
 	 * Traces a ray from the user's device in the direction of the given location in the camera
@@ -70,13 +58,26 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LuminAR|LineTrace", meta = (WorldContext = "WorldContextObject", Keywords = "luminar raycast hit"))
 	static bool LuminARLineTrace(UObject* WorldContextObject, const FVector2D& ScreenPosition, TSet<ELuminARLineTraceChannel> TraceChannels, TArray<FARTraceResult>& OutHitResults);
+};
 
+UCLASS()
+class MAGICLEAPAR_API ULuminARImageTrackingFunctionLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
 
+public:
 	/**
-	 * Gets the latest light estimation.
+	 * Create a LuminARCandidateImage object and add it to the ARCandidateImageList of the given \c UARSessionConfig object.
 	 *
-	 * @param OutLightEstimate		The struct that describes the latest light estimation.
+	 * Note that you need to restart the AR session with the \c UARSessionConfig you are adding to to make the change take effect.
+	 *
+	 * On ARCore platform, you can leave the PhysicalWidth to 0 if you don't know the physical size of the image or
+	 * the physical size is dynamic. And this function takes time to perform non-trivial image processing (20ms - 30ms),
+	 * and should be run on a background thread.
+	 *
+	 * @return A \c ULuminARCandidateImage Object pointer if the underlying ARPlatform added the candidate image at runtime successfully.
+	 *		  Return nullptr otherwise.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "LuminAR|LightEstimation", meta = (Keywords = "luminar light ambient"))
-	static void GetLightEstimation(FLuminARLightEstimate& OutLightEstimate);
+	UFUNCTION(BlueprintCallable, Category = "LuminAR|Image Tracking", meta = (Keywords = "lumin ar augmentedreality augmented reality candidate image"))
+	static ULuminARCandidateImage* AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary);
 };

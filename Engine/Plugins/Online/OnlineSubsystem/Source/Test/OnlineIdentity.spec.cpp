@@ -1222,9 +1222,9 @@ void FOnlineIdentitySpec::Define()
 						{
 							TestEqual("Verify that bLoginWasSuccessful returns as: True", bLoginWasSuccessful, true);
 
-							FPlatformUserId PlatformId = -1;
+							FPlatformUserId PlatformId = PLATFORMUSERID_NONE;
 							PlatformId = OnlineIdentity->GetPlatformUserIdFromUniqueNetId(LoginUserId);
-							TestNotEqual("Verify that the PlatformId is populated", PlatformId, -1);
+							TestNotEqual("Verify that the PlatformId is populated", PlatformId, PLATFORMUSERID_NONE);
 
 							TestDone.Execute();
 						}));

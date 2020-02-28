@@ -266,6 +266,13 @@ struct FMeshBatch
 		return Mat->IsDeferredDecal();
 	}
 
+	FORCEINLINE bool IsDualBlend(ERHIFeatureLevel::Type InFeatureLevel) const
+	{
+		const FMaterial* Mat = MaterialRenderProxy->GetMaterial(InFeatureLevel);
+
+		return Mat->IsDualBlendingEnabled(GShaderPlatformForFeatureLevel[InFeatureLevel]);
+	}
+
 	FORCEINLINE bool UseForHairStrands(ERHIFeatureLevel::Type InFeatureLevel) const
 	{
 		if (ERHIFeatureLevel::SM5 != InFeatureLevel)

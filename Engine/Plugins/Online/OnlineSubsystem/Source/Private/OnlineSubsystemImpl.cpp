@@ -546,3 +546,118 @@ bool FOnlineSubsystemImpl::HandleSessionExecCommands(UWorld* InWorld, const TCHA
 
 	return bWasHandled;
 }
+
+IOnlineGroupsPtr FOnlineSubsystemImpl::GetGroupsInterface() const
+{
+	return nullptr;
+}
+
+IOnlinePartyPtr FOnlineSubsystemImpl::GetPartyInterface() const
+{
+	return nullptr;
+}
+
+IOnlineSharedCloudPtr FOnlineSubsystemImpl::GetSharedCloudInterface() const
+{
+	return nullptr;
+}
+
+IOnlineUserCloudPtr FOnlineSubsystemImpl::GetUserCloudInterface() const
+{
+	return nullptr;
+}
+
+IOnlineEntitlementsPtr FOnlineSubsystemImpl::GetEntitlementsInterface() const
+{
+	return nullptr;
+}
+
+IOnlineLeaderboardsPtr FOnlineSubsystemImpl::GetLeaderboardsInterface() const
+{
+	return nullptr;
+}
+
+IOnlineVoicePtr FOnlineSubsystemImpl::GetVoiceInterface() const
+{
+	return nullptr;
+}
+
+IOnlineExternalUIPtr FOnlineSubsystemImpl::GetExternalUIInterface() const
+{
+	return nullptr;
+}
+
+IOnlineTimePtr FOnlineSubsystemImpl::GetTimeInterface() const
+{
+	return nullptr;
+}
+
+IOnlineIdentityPtr FOnlineSubsystemImpl::GetIdentityInterface() const
+{
+	return nullptr;
+}
+
+IOnlineTitleFilePtr FOnlineSubsystemImpl::GetTitleFileInterface() const
+{
+	return nullptr;
+}
+
+IOnlineStoreV2Ptr FOnlineSubsystemImpl::GetStoreV2Interface() const
+{
+	return nullptr;
+}
+
+IOnlinePurchasePtr FOnlineSubsystemImpl::GetPurchaseInterface() const
+{
+	return nullptr;
+}
+
+IOnlineEventsPtr FOnlineSubsystemImpl::GetEventsInterface() const
+{
+	return nullptr;
+}
+
+IOnlineAchievementsPtr FOnlineSubsystemImpl::GetAchievementsInterface() const
+{
+	return nullptr;
+}
+
+IOnlineSharingPtr FOnlineSubsystemImpl::GetSharingInterface() const
+{
+	return nullptr;
+}
+
+IOnlineUserPtr FOnlineSubsystemImpl::GetUserInterface() const
+{
+	return nullptr;
+}
+
+IOnlineMessagePtr FOnlineSubsystemImpl::GetMessageInterface() const
+{
+	return nullptr;
+}
+
+IOnlinePresencePtr FOnlineSubsystemImpl::GetPresenceInterface() const
+{
+	return nullptr;
+}
+
+IOnlineChatPtr FOnlineSubsystemImpl::GetChatInterface() const
+{
+	return nullptr;
+}
+
+IOnlineStatsPtr FOnlineSubsystemImpl::GetStatsInterface() const
+{
+	return nullptr;
+}
+
+IOnlineGameActivityPtr FOnlineSubsystemImpl::GetGameActivityInterface() const
+{
+	return nullptr;
+}
+
+IOnlineGameItemStatsPtr FOnlineSubsystemImpl::GetGameItemStatsInterface() const
+{
+	return nullptr;
+}

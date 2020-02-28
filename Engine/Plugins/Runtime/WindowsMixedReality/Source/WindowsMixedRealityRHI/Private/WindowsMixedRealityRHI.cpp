@@ -10,9 +10,9 @@
 #include "MixedRealityInterop.h"
 
 
-#if PLATFORM_HOLOLENS
-static WindowsMixedReality::MixedRealityInterop hmd;
-#endif
+#include "WindowsMixedRealityInteropLoader.h"
+
+static WindowsMixedReality::MixedRealityInterop* HMD = nullptr;
 
 bool FWindowsMixedRealityRHIModule::SupportsDynamicReloading()
 { 
@@ -23,6 +23,14 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 {
 	LUID id = {0,0};
 
+	if (!HMD)
+	{
+		HMD = WindowsMixedReality::LoadInteropLibrary();
+		if (!HMD)
+		{
+			return;
+		}
+	}
 #if PLATFORM_HOLOLENS
 	if (HoloSpace)
 	{
@@ -30,7 +38,7 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 	}
 
 	HoloSpace = HolographicSpace::CreateForCoreWindow(CoreWindow::GetForCurrentThread());
-	hmd.SetHolographicSpace(HoloSpace);
+	HMD->SetHolographicSpace(HoloSpace);
 	id =
 	{
 		HoloSpace->PrimaryAdapterId.LowPart,
@@ -101,6 +109,14 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 
 }
 
+void FWindowsMixedRealityRHIModule::ShutdownModule()
+{
+	delete HMD;
+	HMD = nullptr;
+}
+
+
+
 bool FWindowsMixedRealityRHIModule::IsSupported()
 {
 #if PLATFORM_HOLOLENS
@@ -119,7 +135,7 @@ bool FWindowsMixedRealityRHIModule::IsSupported()
 		return false;
 	}
 #endif
-	return true;
+	return HMD != nullptr;
 }
 
 

@@ -12,30 +12,6 @@
 
 #define LOCTEXT_NAMESPACE "FHoloLensTargetPlatformModule"
 
-class HoloLensTargetPlatform : public FHoloLensTargetPlatform
-{
-public:
-	HoloLensTargetPlatform()
-	{
-	}
-
-	virtual FText GetVariantDisplayName() const override
-	{
-		return LOCTEXT("HoloLensVariantDisplayName", "HoloLens");
-	}
-
-	virtual float GetVariantPriority() const override
-	{
-		return 1.0f;
-	}
-
-protected:
-	virtual bool SupportsDevice(FName DeviceType, bool DeviceIs64Bits)
-	{
-		return true;
-	}
-};
-
 
 
 /**
@@ -71,7 +47,7 @@ public:
 		{
 			//@todo HoloLens: Check for SDK?
 
-			HoloLensTargetSingleton = new HoloLensTargetPlatform();
+			HoloLensTargetSingleton = new FHoloLensTargetPlatform();
 		}
 		
 		return HoloLensTargetSingleton;
