@@ -91,7 +91,7 @@ public:
 	/** Updates from HoloLens or iOS */
 	void UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices);
 
-	void SetEnableMeshOcclusion(bool bEnable) { bEnableOcclusion = bEnable; }
+	void SetEnableMeshOcclusion(bool bEnable);
 	bool GetEnableMeshOcclusion() const { return bEnableOcclusion; }
 	void SetUseWireframe(bool bUseWireframe) { bUseWireframeForNoMaterial = bUseWireframe; }
 	bool GetUseWireframe() const { return bUseWireframeForNoMaterial; }
