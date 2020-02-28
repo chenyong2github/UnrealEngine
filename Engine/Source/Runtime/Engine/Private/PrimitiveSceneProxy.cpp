@@ -316,7 +316,11 @@ HHitProxy* FPrimitiveSceneProxy::CreateHitProxies(UPrimitiveComponent* Component
 		}
 		else
 		{
+#if WITH_EDITORONLY_DATA
+			ActorHitProxy = new HActor(Component->GetOwner(), Component, Component->HitProxyPriority);
+#else
 			ActorHitProxy = new HActor(Component->GetOwner(), Component);
+#endif
 		}
 		OutHitProxies.Add(ActorHitProxy);
 		return ActorHitProxy;
