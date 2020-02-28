@@ -1715,7 +1715,7 @@ namespace UnrealBuildTool
 			List<UEBuildBinary> BuildBinaries = Binaries;
 			if (SingleFileToCompile != null)
 			{
-				BuildBinaries = Binaries.Where(x => x.Modules.Any(y => SingleFileToCompile.IsUnderDirectory(y.ModuleDirectory))).ToList();
+				BuildBinaries = Binaries.Where(x => x.Modules.Any(y => y.ContainsFile(SingleFileToCompile))).ToList();
 				if (BuildBinaries.Count == 0)
 				{
 					throw new BuildException("Couldn't find any module containing {0} in {1}.", SingleFileToCompile, TargetName);
