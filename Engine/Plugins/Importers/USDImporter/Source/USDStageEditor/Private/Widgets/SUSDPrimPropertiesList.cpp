@@ -240,10 +240,10 @@ void SUsdPrimPropertyRow::SetUsdPrimProperty( const TSharedPtr< FUsdPrimProperty
 
 TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget(const TAttribute<FText>& Attribute)
 {
-	return SNew(STextBlock)
-	.Text(Attribute)
-	.Font(FEditorStyle::GetFontStyle(UsdPrimPropertiesListConstants::NormalFont))
-	.Margin(UsdPrimPropertiesListConstants::RightRowPadding);
+	return SNew( STextBlock )
+	.Text( Attribute )
+	.Font( FEditorStyle::GetFontStyle( UsdPrimPropertiesListConstants::NormalFont ) )
+	.Margin( UsdPrimPropertiesListConstants::RightRowPadding );
 }
 
 void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const TCHAR* InPrimPath )
@@ -357,6 +357,14 @@ void SUsdPrimPropertiesList::GeneratePropertiesList( const TCHAR* InPrimPath )
 			pxr::VtValue VtValue;
 			PrimAttribute.Get( &VtValue, TimeCode );
 			FString AttributeValue = UsdToUnreal::ConvertString( pxr::TfStringify( VtValue ).c_str() );
+
+			// STextBlock can get very slow calculating its desired size for very long string so chop it if needed
+			const int32 MaxValueLength = 300;
+			if ( AttributeValue.Len() > MaxValueLength )
+			{
+				AttributeValue.LeftInline( MaxValueLength );
+				AttributeValue.Append( TEXT("...") );
+			}
 
 			PrimAttributeProperty.Value = MoveTemp( AttributeValue );
 			PrimProperties.Add( MakeSharedUnreal< FUsdPrimProperty >( MoveTemp( PrimAttributeProperty ) ) );
