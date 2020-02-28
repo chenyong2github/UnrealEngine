@@ -131,6 +131,21 @@ void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FData
 		case FDataprepAssetChangeType::ActionAdded:
 		case FDataprepAssetChangeType::ActionRemoved:
 		{
+			TArray<UEdGraphNode*> ToDelete;
+			TArray<UEdGraphNode*>& Nodes = GetCurrentGraph()->Nodes;
+			for(UEdGraphNode* NodeObject : Nodes)
+			{
+				if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+				{
+					ToDelete.Add(NodeObject);
+				}
+			}
+
+			for(UEdGraphNode* NodeObject : ToDelete)
+			{
+				Nodes.Remove(NodeObject);
+			}
+
 			TrackGraphNodePtr.Reset();
 			bIsComplete = false;
 			NotifyGraphChanged();
@@ -422,9 +437,10 @@ bool SDataprepGraphEditor::CanRenameNode() const
 
 void SDataprepGraphEditor::DeleteSelectedNodes()
 {
-	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	TArray<int32> ActionsToDelete;
+	TSet<UDataprepActionAsset*> ActionAssets;
 	for(UObject* NodeObject : SelectedNodes)
 	{
 		if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
@@ -432,20 +448,80 @@ void SDataprepGraphEditor::DeleteSelectedNodes()
 			if (ActionNode->CanUserDeleteNode() && ActionNode->GetDataprepActionAsset())
 			{
 				ActionsToDelete.Add(ActionNode->GetExecutionOrder());
+				ActionAssets.Add(ActionNode->GetDataprepActionAsset());
 			}
 		}
 	}
 
+	UEdGraph* EdGraph = GetCurrentGraph();
+
+	TMap<UDataprepActionAsset*, TArray<int32>> StepsToDelete;
+	for(UObject* NodeObject : SelectedNodes)
+	{
+		if (UDataprepGraphActionStepNode* ActionStepNode = Cast<UDataprepGraphActionStepNode>(NodeObject))
+		{
+			UDataprepActionAsset* ActionAsset = ActionStepNode->GetDataprepActionAsset();
+			if (ActionStepNode->CanUserDeleteNode() && ActionAsset && !ActionAssets.Contains(ActionAsset))
+			{
+				TArray<int32>& ToDelete = StepsToDelete.FindOrAdd(ActionAsset);
+				ToDelete.Add(ActionStepNode->GetStepIndex());
+
+				// Delete action if all its steps are deleted
+				if(ActionAsset->GetStepsCount() == ToDelete.Num())
+				{
+					StepsToDelete.Remove(ActionAsset);
+					int32 Index = DataprepAssetPtr->GetActionIndex(ActionAsset);
+					ensure(Index != INDEX_NONE);
+					ActionsToDelete.Add(Index);
+
+					TArray<class UEdGraphNode*>& Nodes = EdGraph->Nodes;
+					for(Index = 0; Index < Nodes.Num(); ++Index)
+					{
+						if(UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(Nodes[Index]))
+						{
+							if(ActionNode->GetDataprepActionAsset() == ActionAsset)
+							{
+								SelectedNodes.Add(Nodes[Index]);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	FScopedTransaction Transaction(FGenericCommands::Get().Delete->GetDescription());
+	bool bTransactionSuccessful = true;
+
 	if(ActionsToDelete.Num() > 0)
 	{
-		FScopedTransaction Transaction(FGenericCommands::Get().Delete->GetDescription());
+		bTransactionSuccessful &= DataprepAssetPtr->RemoveActions(ActionsToDelete);
+	}
 
-		bool bTransactionSuccessful = DataprepAssetPtr->RemoveActions(ActionsToDelete);
-
-		if (!bTransactionSuccessful)
+	if(StepsToDelete.Num() > 0)
+	{
+		for(TPair<UDataprepActionAsset*, TArray<int32>>& Entry : StepsToDelete)
 		{
-			Transaction.Cancel();
+			if(UDataprepActionAsset* ActionAsset = Entry.Key)
+			{
+				bTransactionSuccessful &= ActionAsset->RemoveSteps(Entry.Value);
+			}
 		}
+	}
+
+	TArray<UEdGraphNode*>& Nodes = EdGraph->Nodes;
+	for(UObject* NodeObject : SelectedNodes)
+	{
+		if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+		{
+			Nodes.Remove(ActionNode);
+		}
+	}
+
+	if (!bTransactionSuccessful)
+	{
+		Transaction.Cancel();
 	}
 }
 
@@ -456,8 +532,8 @@ bool SDataprepGraphEditor::CanDeleteNodes() const
 	for (UObject* NodeObject : SelectedNodes)
 	{
 		// If any nodes allow deleting, then do not disable the delete option
-		UEdGraphNode* Node = Cast<UDataprepGraphActionNode>(NodeObject);
-		if (Node->CanUserDeleteNode())
+		UEdGraphNode* Node = Cast<UEdGraphNode>(NodeObject);
+		if (Node && Node->CanUserDeleteNode())
 		{
 			return true;
 			break;

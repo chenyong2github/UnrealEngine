@@ -120,6 +120,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(10.f, 0.f, 10.f, 0.f)
 		[
 			SNew(SBorder)
 			.BorderBackgroundColor( this, &SDataprepGraphActionStepNode::GetDragAndDropColor )

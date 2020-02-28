@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SGraphNode.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SDataprepGraphTrackNode;
@@ -12,6 +13,7 @@ class SDataprepGraphActionStepNode;
 class SVerticalBox;
 class UDataprepActionAsset;
 class UDataprepGraphActionNode;
+class UDataprepGraphActionStepNode;
 
 /**
  * The SDataprepGraphActionNode class is the SGraphNode associated
@@ -90,4 +92,7 @@ private:
 
 	/** Index of insert widget to be highlighted */
 	int32 InsertIndex;
+
+	/** Array of strong pointers to the UEdGraphNodes created for the action's steps */
+	TArray<TStrongObjectPtr<UDataprepGraphActionStepNode>> EdGraphStepNodes;
 };
