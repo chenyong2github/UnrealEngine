@@ -37,6 +37,7 @@
 SCREEN_PASS_TEXTURE_VIEWPORT(Color)
 SCREEN_PASS_TEXTURE_VIEWPORT(Bloom)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToBloom)
 
 // 64x64 tiling noise texture, optimized to have mostly high frequency content
 Texture2D NoiseTexture;
@@ -525,7 +526,7 @@ float4 TonemapCommonPS(
 		half3 LinearColor = SceneColor.rgb * ColorScale0.rgb;
 
 		#if USE_BLOOM
-			float2 BloomUV = Bloom_UVViewportMin + UV * Bloom_UVViewportSize;			
+			float2 BloomUV = ColorToBloom_Scale * UV + ColorToBloom_Bias;
 			BloomUV = clamp(BloomUV, Bloom_UVViewportBilinearMin, Bloom_UVViewportBilinearMax);
 			#if ES3_1_PROFILE
 				BloomUV = FullViewUV.xy;
