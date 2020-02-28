@@ -3,8 +3,11 @@
 #include "AbcImportUtilities.h"
 #include "Stats/StatsMisc.h"
 
+#include "AbcFile.h"
 #include "AbcImporter.h"
 #include "AbcPolyMesh.h"
+#include "AssetRegistryModule.h"
+#include "Materials/Material.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -1544,6 +1547,56 @@ void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 Fra
 
 	// Generate the mesh data for this sample
 	AbcImporterUtilities::GeometryCacheDataForMeshSample(MeshData, &MergedSample, 0);
+}
+
+UMaterialInterface* AbcImporterUtilities::RetrieveMaterial(FAbcFile& AbcFile, const FString& MaterialName, UObject* InParent, EObjectFlags Flags)
+{
+	UMaterialInterface* Material = nullptr;
+	UMaterialInterface** CachedMaterial = AbcFile.GetMaterialByName(MaterialName);
+	if (CachedMaterial)
+	{
+		Material = *CachedMaterial;
+		// Material could have been deleted if we're overriding/reimporting an asset
+		if (Material->IsValidLowLevel())
+		{
+			if (Material->GetOuter() == GetTransientPackage())
+			{
+				UMaterial* ExistingTypedObject = FindObject<UMaterial>(InParent, *MaterialName);
+				if (!ExistingTypedObject)
+				{
+					// This is in for safety, as we do not expect this to happen
+					UObject* ExistingObject = FindObject<UObject>(InParent, *MaterialName);
+					if (ExistingObject)
+					{
+						return nullptr;
+					}
+
+					Material->Rename(*MaterialName, InParent);				
+					Material->SetFlags(Flags);
+					FAssetRegistryModule::AssetCreated(Material);
+				}
+				else
+				{
+					ExistingTypedObject->PreEditChange(nullptr);
+					Material = ExistingTypedObject;
+				}
+			}
+		}
+		else
+		{
+			// In this case recreate the material
+			Material = NewObject<UMaterial>(InParent, *MaterialName);
+			Material->SetFlags(Flags);
+			FAssetRegistryModule::AssetCreated(Material);
+		}
+	}
+	else
+	{
+		Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		check(Material);
+	}
+
+	return Material;
 }
 
 #undef LOCTEXT_NAMESPACE // "AbcImporterUtilities"
