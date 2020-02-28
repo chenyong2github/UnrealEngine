@@ -58,6 +58,9 @@ public:
 		/** Content for the dialog */
 		SLATE_ARGUMENT(TSharedPtr<SWidget>, DialogContent)
 
+		/** Event triggered when the dialog is closed, either because one of the buttons is pressed, or the windows is closed. */
+		SLATE_EVENT(FSimpleDelegate, OnClosed)
+
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -77,4 +80,6 @@ private:
 
 	/** The index of the button that was pressed last. */
 	int LastPressedButton = -1;
+
+	FSimpleDelegate OnClosed;
 };
