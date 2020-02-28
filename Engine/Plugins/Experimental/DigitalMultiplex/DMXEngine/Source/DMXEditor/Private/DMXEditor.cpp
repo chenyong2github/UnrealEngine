@@ -205,7 +205,7 @@ bool FDMXEditor::InvokeEditorTabFromEntityType(TSubclassOf<UDMXEntity> InEntityC
 		FName CurrentTab = FGlobalTabmanager::Get()->GetActiveTab()->GetLayoutIdentifier().TabType;
 		if (!CurrentTab.IsEqual(TargetTabId))
 		{
-			TabManager->InvokeTab(MoveTemp(TargetTabId));
+			TabManager->TryInvokeTab(MoveTemp(TargetTabId));
 		}
 		
 		return true;

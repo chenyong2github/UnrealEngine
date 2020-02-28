@@ -1460,7 +1460,7 @@ void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, boo
 		}
 		else
 		{
-			LevelEditorTabManager->InvokeTab(LevelEditorTabIds::LevelEditorToolBox);
+			LevelEditorTabManager->TryInvokeTab(LevelEditorTabIds::LevelEditorToolBox);
 		}
 	}
 }
