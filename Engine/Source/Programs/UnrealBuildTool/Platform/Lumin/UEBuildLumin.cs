@@ -270,12 +270,11 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("WITH_OGGVORBIS=1");
 
 			DirectoryReference MLSDKDir = new DirectoryReference(Environment.GetEnvironmentVariable("MLSDK"));
-			CompileEnvironment.SystemIncludePaths.Add(DirectoryReference.Combine(MLSDKDir, "lumin/stl/gnu-libstdc++/include"));
-			CompileEnvironment.SystemIncludePaths.Add(DirectoryReference.Combine(MLSDKDir, "lumin/stl/gnu-libstdc++/include/aarch64-linux-android"));
+			CompileEnvironment.SystemIncludePaths.Add(DirectoryReference.Combine(MLSDKDir, "lumin/stl/libc++/include"));
 			CompileEnvironment.SystemIncludePaths.Add(DirectoryReference.Combine(MLSDKDir, "include"));
 
 			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lib/lumin"));
-			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lumin/stl/gnu-libstdc++/lib"));
+			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lumin/stl/libc++/lib"));
 
 			LinkEnvironment.AdditionalLibraries.Add("GLESv2");
 			LinkEnvironment.AdditionalLibraries.Add("EGL");
@@ -283,6 +282,7 @@ namespace UnrealBuildTool
 			LinkEnvironment.AdditionalLibraries.Add("ml_lifecycle");
 			LinkEnvironment.AdditionalLibraries.Add("ml_ext_logging");
 			LinkEnvironment.AdditionalLibraries.Add("ml_dispatch");
+			//LinkEnvironment.AdditionalLibraries.Add("android_support");
 		}
 
 		public override bool ShouldCreateDebugInfo(ReadOnlyTargetRules Target)

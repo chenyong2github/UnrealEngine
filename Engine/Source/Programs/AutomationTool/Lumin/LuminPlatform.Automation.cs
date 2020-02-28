@@ -611,7 +611,7 @@ public class LuminPlatform : Platform
 			StringBuilder Builder = new StringBuilder();
 
 			Builder.AppendLine("OPTIONS=\\");
-			Builder.AppendLine("stl/libgnustl\\");
+			Builder.AppendLine("stl/libc++\\");
 			Builder.AppendLine(string.Format("package/debuggable/{0}", Params.Distribution ? "off" : "on"));
 
 			// Use .package file for mpk signing so that the user can override that if needed with the MLCERT env var.
