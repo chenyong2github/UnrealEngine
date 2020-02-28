@@ -12,27 +12,7 @@ void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TS
 	OwnerTreeNode = InOwnerTreeNode;
 	ExpansionArrowUsage = InArgs._ExpansionArrowUsage;
 
-	ChildSlot
-	[	
-		SNew( SBox )
-		.Padding( FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ) )
-		[
-			SNew( SHorizontalBox )
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 2.0f, 2.0f, 2.0f)
-			.AutoWidth()
-			[
-				SNew( SExpanderArrow, SharedThis(this) )
-				.Visibility(ExpansionArrowUsage == EExpansionArrowUsage::Default ? EVisibility::Visible : EVisibility::Collapsed)
-			]
-			+SHorizontalBox::Slot()
-			.Expose(ContentSlot)
-			[
-				SNullWidget::NullWidget
-			]
-		]
-	];
+
 
 	STableRow< TSharedPtr< FDetailTreeNode > >::ConstructInternal(
 		STableRow::FArguments()
@@ -45,10 +25,38 @@ void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TS
 
 void SDetailMultiTopLevelObjectTableRow::SetContent(TSharedRef<SWidget> InContent)
 {
-	(*ContentSlot)
-	[
-		InContent
-	];
+	if (ExpansionArrowUsage == EExpansionArrowUsage::Default)
+	{
+		ChildSlot
+		[
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+				.AutoWidth()
+				[
+					SNew(SExpanderArrow, SharedThis(this))
+					.Visibility(ExpansionArrowUsage == EExpansionArrowUsage::Default ? EVisibility::Visible : EVisibility::Collapsed)
+				]
+				+ SHorizontalBox::Slot()
+				.Expose(ContentSlot)
+				[
+					InContent
+				]
+			]
+		];
+	}
+	else
+	{
+		ChildSlot
+		[
+			InContent
+		];
+	}
+	
 }
 
 const FSlateBrush* SDetailMultiTopLevelObjectTableRow::GetBackgroundImage() const
@@ -216,7 +224,7 @@ bool FDetailMultiTopLevelObjectRootNode::ShouldShowOnlyChildren() const
 
 void FDetailMultiTopLevelObjectRootNode::GenerateWidget_Internal(FDetailWidgetRow& OutRow, TSharedPtr<SDetailMultiTopLevelObjectTableRow> TableRowWidget) const
 {
-	TSharedPtr<SWidget> HeaderWidget;
+	TSharedPtr<SWidget> HeaderWidget = SNullWidget::NullWidget;
 	if (RootObjectCustomization.IsValid() && RootObjectSet.RootObjects.Num())
 	{
 		HeaderWidget = RootObjectCustomization.Pin()->CustomizeObjectHeader(RootObjectSet, TableRowWidget);
