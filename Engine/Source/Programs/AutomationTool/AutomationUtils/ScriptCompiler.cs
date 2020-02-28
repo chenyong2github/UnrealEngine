@@ -30,9 +30,9 @@ namespace AutomationTool
 	/// <summary>
 	/// Compiles and loads script assemblies.
 	/// </summary>
-	public class ScriptCompiler
+	public static class ScriptCompiler
 	{
-		private Dictionary<string, Type> ScriptCommands;
+		private static Dictionary<string, Type> ScriptCommands;
 #if DEBUG
 		const string BuildConfig = "Debug";
 #else
@@ -40,16 +40,12 @@ namespace AutomationTool
 #endif
 		const string DefaultScriptsDLLName = "AutomationScripts.Automation.dll";
 
-		public ScriptCompiler()
-		{
-		}
-
 		/// <summary>
 		/// Finds and/or compiles all script files and assemblies.
 		/// </summary>
 		/// <param name="ScriptsForProjectFileName">Path to the current project. May be null, in which case we compile scripts for all projects.</param>
 		/// <param name="AdditionalScriptsFolders">Additional script fodlers to look for source files in.</param>
-		public void FindAndCompileAllScripts(string ScriptsForProjectFileName, List<string> AdditionalScriptsFolders)
+		public static void FindAndCompileAllScripts(string ScriptsForProjectFileName, List<string> AdditionalScriptsFolders)
 		{
 			// Find all the project files
 			List<FileReference> ProjectFiles = FindAutomationProjects(ScriptsForProjectFileName, AdditionalScriptsFolders);
@@ -76,15 +72,15 @@ namespace AutomationTool
 			}
 
 			// Load everything
-			List<Assembly> ScriptAssemblies = LoadAutomationAssemblies(Projects);
+			Assemblies = LoadAutomationAssemblies(Projects);
 
 			// Setup platforms
-			Platform.InitializePlatforms(ScriptAssemblies.ToArray());
+			Platform.InitializePlatforms(Assemblies.ToArray());
 
 			// Instantiate all the automation classes for interrogation
 			Log.TraceVerbose("Creating commands.");
 			ScriptCommands = new Dictionary<string, Type>(StringComparer.InvariantCultureIgnoreCase);
-			foreach (Assembly CompiledScripts in ScriptAssemblies)
+			foreach (Assembly CompiledScripts in Assemblies)
 			{
 				try
 				{
@@ -469,9 +465,15 @@ namespace AutomationTool
 			return DirectoryReference.Combine(CommandUtils.EngineDirectory, "Binaries", "DotNET", "AutomationScripts");
 		}
 
-		public Dictionary<string, Type> Commands
+		public static Dictionary<string, Type> Commands
 		{
 			get { return ScriptCommands; }
+		}
+
+		public static List<Assembly> Assemblies
+		{
+			get;
+			private set;
 		}
 	}
 }
