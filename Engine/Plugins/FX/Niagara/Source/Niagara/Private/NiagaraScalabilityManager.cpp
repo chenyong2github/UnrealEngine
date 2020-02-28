@@ -42,16 +42,21 @@ void FNiagaraScalabilityManager::AddReferencedObjects(FReferenceCollector& Colle
 void FNiagaraScalabilityManager::PreGarbageCollectBeginDestroy()
 {
 	//After the GC has potentially nulled out references to the components we were tracking we clear them out here.
-	//This should only be in the case where MarkPendingKill() is called directly. Typical component destruction will unregister in OnComponentDestroyed().
+	//This should only be in the case where MarkPendingKill() is called directly. Typical component destruction will unregister in OnComponentDestroyed() or OnUnregister().
 	//Components then just clear their handle in BeginDestroy knowing they've already been removed from the manager.
 	//I would prefer some pre BeginDestroy() callback into the component in which I could cleanly unregister with the manager in all cases but I don't think that's possible.
 	int32 CompIdx = ManagedComponents.Num();
 	while (--CompIdx >= 0)
 	{
-		if (ManagedComponents[CompIdx] == nullptr)
+		UNiagaraComponent* Comp = ManagedComponents[CompIdx];
+		if (Comp == nullptr)
 		{
 			//UE_LOG(LogNiagara, Warning, TEXT("Unregister from PreGCBeginDestroy @%d/%d - %s"), CompIdx, ManagedComponents.Num(), *EffectType->GetName());
 			UnregisterAt(CompIdx);
+		}
+		else if (Comp->IsPendingKillOrUnreachable())
+		{
+			Unregister(Comp);
 		}
 	}
 }
