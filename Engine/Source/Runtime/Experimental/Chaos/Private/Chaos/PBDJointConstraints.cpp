@@ -509,7 +509,7 @@ namespace Chaos
 			}
 		}
 
-		//UE_LOG(LogChaosJoint, Warning, TEXT("Apply %d / %d Active %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Apply %d / %d Active %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
 
 		if (PostApplyCallback != nullptr)
 		{
@@ -533,7 +533,7 @@ namespace Chaos
 			}
 		}
 
-		//UE_LOG(LogChaosJoint, Warning, TEXT("Push  %d / %d Active %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("PushOut  %d / %d Active %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
 
 		if (PostProjectCallback != nullptr)
 		{
