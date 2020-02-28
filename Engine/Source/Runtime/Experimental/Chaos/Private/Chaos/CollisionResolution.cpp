@@ -29,7 +29,7 @@ DECLARE_CYCLE_STAT(TEXT("Collisions::GJK"), STAT_Collisions_GJK, STATGROUP_Chaos
 #define SCOPE_CYCLE_COUNTER_GJK()
 #endif
 
-//PRAGMA_DISABLE_OPTIMIZATION_ACTUAL
+//PRAGMA_DISABLE_OPTIMIZATION
 
 
 // If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to resample phi and normal.
