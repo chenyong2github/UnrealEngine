@@ -1271,7 +1271,7 @@ void ApplyGlobalUniformBuffers(
 	const TArray<FRHIUniformBuffer*>& UniformBuffers)
 {
 	checkf(LayoutHashes.Num() == Slots.Num(), TEXT("Shader %s, LayoutHashes %d, Slots %d"),
-		*Shader->ShaderName, LayoutHashes.Num(), Slots.Num());
+		Shader->GetShaderName(), LayoutHashes.Num(), Slots.Num());
 
 	for (int32 BufferIndex = 0; BufferIndex < Slots.Num(); ++BufferIndex)
 	{
