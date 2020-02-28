@@ -673,8 +673,8 @@ void FArchiveFileReaderGeneric::Seek( int64 InPos )
 	checkf(InPos <= Size, TEXT("Attempted to seek past the end of file (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 
 	int64 SeekPos;
-	const bool bIsPosInsideBufferWindow = (InPos < BufferBase) || (InPos >= (BufferBase + BufferArray.Num()));
-	if (bIsPosInsideBufferWindow)
+	const bool bIsPosOutsideBufferWindow = (InPos < BufferBase) || (InPos >= (BufferBase + BufferArray.Num()));
+	if (bIsPosOutsideBufferWindow)
 	{
 		SeekPos = InPos;
 	}
