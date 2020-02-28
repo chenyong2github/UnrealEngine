@@ -177,11 +177,8 @@ namespace Chaos
 		TSharedPtr<FEvent> PrevEvent, CurrentEvent;
 	};
 
-
-
-
-	FPBDRigidsSolver::FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn)
-		: Super(BufferingModeIn)
+	FPBDRigidsSolver::FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner)
+		: Super(BufferingModeIn, InOwner)
 		, CurrentFrame(0)
 		, MTime(0.0)
 		, MLastDt(0.0)

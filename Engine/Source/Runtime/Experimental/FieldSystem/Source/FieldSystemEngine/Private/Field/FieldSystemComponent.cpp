@@ -140,33 +140,41 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 		checkSlow(PhysicsDispatcher); // Should always have one of these
 
 		// Assemble a list of compatible solvers
-		TArray<Chaos::FPhysicsSolver*> SolverList;
+		TArray<Chaos::FPhysicsSolver*> SupportedSolverList;
 		if(SupportedSolvers.Num() > 0)
 		{
 			for(TSoftObjectPtr<AChaosSolverActor>& SolverActorPtr : SupportedSolvers)
 			{
 				if(AChaosSolverActor* CurrActor = SolverActorPtr.Get())
 				{
-					SolverList.Add(CurrActor->GetSolver());
+					SupportedSolverList.Add(CurrActor->GetSolver());
 				}
 			}
 		}
 
-		PhysicsDispatcher->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand, ChaosModule = this->ChaosModule, SolverList]()
+		TArray<Chaos::FPhysicsSolver*> WorldSolverList;
+		WorldSolverList = ChaosModule->GetSolversMutable(GetWorld());
+
+		// #BGTODO Currently all commands will end up actually executing a frame late. That's because this command has to be logged as a global command
+		// so we don't end up with multiple solver threads writing to the proxy. We need a better way to buffer up multi-solver commands so they can be
+		// executed in parallel and then move those commands to the respective solver queues to fix the frame delay.
+		if(WorldSolverList.Num() > 0)
 		{
-			const int32 NumFilterSolvers = SolverList.Num();
-			const TArray<Chaos::FPhysicsSolver*>& Solvers = ChaosModule->GetSolvers();
-
-			for(Chaos::FPhysicsSolver* Solver : Solvers)
+			PhysicsDispatcher->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand, ChaosModule = this->ChaosModule, SupportedSolverList, WorldSolvers = MoveTemp(WorldSolverList)]()
 			{
-				const bool bSolverValid = NumFilterSolvers == 0 || SolverList.Contains(Solver);
+				const int32 NumFilterSolvers = SupportedSolverList.Num();
 
-				if(Solver->Enabled() && Solver->HasActiveParticles() && bSolverValid)
+				for(Chaos::FPhysicsSolver* Solver : WorldSolvers)
 				{
-					PhysicsProxy->BufferCommand(Solver, NewCommand);
+					const bool bSolverValid = NumFilterSolvers == 0 || SupportedSolverList.Contains(Solver);
+
+					if(Solver->Enabled() && Solver->HasActiveParticles() && bSolverValid)
+					{
+						PhysicsProxy->BufferCommand(Solver, NewCommand);
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 }
 

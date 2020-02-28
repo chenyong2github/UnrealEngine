@@ -10,6 +10,7 @@ DEFINE_STAT(STAT_IntegrateSolver);
 DEFINE_STAT(STAT_SyncProxies);
 DEFINE_STAT(STAT_PhysCommands);
 DEFINE_STAT(STAT_TaskCommands);
+DEFINE_STAT(STAT_WaitGlobalCommands);
 DEFINE_STAT(STAT_KinematicUpdate);
 DEFINE_STAT(STAT_BeginFrame);
 DEFINE_STAT(STAT_EndFrame);

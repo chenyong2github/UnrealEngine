@@ -4,31 +4,53 @@
 
 
 #include "Async/TaskGraphInterfaces.h"
-#include "Dispatcher.h"
 #include "Chaos/Declares.h"
 
 class FChaosSolversModule;
 
+namespace Chaos
+{
+	class IDispatcher;
+}
+
 /**
  * Task responsible for handling a full frame update for physics under the TaskGraph threading
- * mode.
+ * mode. Multiple ways to construct this for various situations depending on the subset
+ * of solvers the caller wishes to update.
  */
 class CHAOSSOLVERS_API FPhysicsTickTask
 {
 public:
 
+	/** Construct a task that will tick all solvers in the solver module */
+	FPhysicsTickTask(FGraphEventRef& InCompletionEvent, float InDt);
+	/** Construct a task that will tick the provided solver (or all solvers in the module if nullptr passed) */
 	FPhysicsTickTask(FGraphEventRef& InCompletionEvent, Chaos::FPhysicsSolver* InPhysicsSolver, float InDt);
+	/** Construct a task to tick the provided list of solvers */
+	FPhysicsTickTask(FGraphEventRef& InCompletionEvent, const TArray<Chaos::FPhysicsSolver*>& InSolverList, float InDt);
 
+	/** Task API */
 	TStatId GetStatId() const;
 	static ENamedThreads::Type GetDesiredThread();
 	static ESubsequentsMode::Type GetSubsequentsMode();
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+	/** End Task API */
 
 private:
 
+	/** Any prerequisites when this task was constructed for the solver ticks to obey */
+	FGraphEventArray SolverTaskPrerequisites;
+
+	/** An event to dispatch once completed to signal the calling thread */
 	FGraphEventRef CompletionEvent;
+
+	/** Solver module containing master solver lists */
 	FChaosSolversModule* Module;
-	Chaos::FPhysicsSolver* PhysicsSolver;
+
+	/** The solvers this task will tick */
+	TArray<Chaos::FPhysicsSolver*> SolverList;
+
+	/** Delta time for the solver tick */
 	float Dt;
 };
 
