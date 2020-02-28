@@ -558,7 +558,7 @@ bool FAssetRegistryState::HasAssets(const FName PackagePath) const
 	return FoundAssetArray && FoundAssetArray->Num() > 0;
 }
 
-bool FAssetRegistryState::GetAssets(const FARFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const
+bool FAssetRegistryState::GetAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const
 {
 	return EnumerateAssets(Filter, PackageNamesToSkip, [&OutAssetData](const FAssetData& AssetData)
 	{
@@ -567,29 +567,23 @@ bool FAssetRegistryState::GetAssets(const FARFilter& Filter, const TSet<FName>& 
 	});
 }
 
-bool FAssetRegistryState::EnumerateAssets(const FARFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const
+bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const
 {
 	// Verify filter input. If all assets are needed, use EnumerateAllAssets() instead.
-	if (!IsFilterValid(Filter, false) || Filter.IsEmpty())
+	if (Filter.IsEmpty() || !IsFilterValid(Filter))
 	{
 		return false;
 	}
-
-	// Prepare a set of each filter component for fast searching
-	TSet<FName> FilterPackageNames(Filter.PackageNames);
-	TSet<FName> FilterPackagePaths(Filter.PackagePaths);
-	TSet<FName> FilterClassNames(Filter.ClassNames);
-	TSet<FName> FilterObjectPaths(Filter.ObjectPaths);
 
 	// Form a set of assets matched by each filter
 	TArray<TSet<FAssetData*>> DiskFilterSets;
 
 	// On disk package names
-	if (FilterPackageNames.Num())
+	if (Filter.PackageNames.Num() > 0)
 	{
 		TSet<FAssetData*>& PackageNameFilter = DiskFilterSets[DiskFilterSets.AddDefaulted()];
 
-		for (FName PackageName : FilterPackageNames)
+		for (FName PackageName : Filter.PackageNames)
 		{
 			const TArray<FAssetData*>* PackageAssets = CachedAssetsByPackageName.Find(PackageName);
 
@@ -601,11 +595,11 @@ bool FAssetRegistryState::EnumerateAssets(const FARFilter& Filter, const TSet<FN
 	}
 
 	// On disk package paths
-	if (FilterPackagePaths.Num())
+	if (Filter.PackagePaths.Num() > 0)
 	{
 		TSet<FAssetData*>& PathFilter = DiskFilterSets[DiskFilterSets.AddDefaulted()];
 
-		for (FName PackagePath : FilterPackagePaths)
+		for (FName PackagePath : Filter.PackagePaths)
 		{
 			const TArray<FAssetData*>* PathAssets = CachedAssetsByPath.Find(PackagePath);
 
@@ -617,11 +611,11 @@ bool FAssetRegistryState::EnumerateAssets(const FARFilter& Filter, const TSet<FN
 	}
 
 	// On disk classes
-	if (FilterClassNames.Num())
+	if (Filter.ClassNames.Num() > 0)
 	{
 		TSet<FAssetData*>& ClassFilter = DiskFilterSets[DiskFilterSets.AddDefaulted()];
 
-		for (FName ClassName : FilterClassNames)
+		for (FName ClassName : Filter.ClassNames)
 		{
 			const TArray<FAssetData*>* ClassAssets = CachedAssetsByClass.Find(ClassName);
 
@@ -633,11 +627,11 @@ bool FAssetRegistryState::EnumerateAssets(const FARFilter& Filter, const TSet<FN
 	}
 
 	// On disk object paths
-	if (FilterObjectPaths.Num())
+	if (Filter.ObjectPaths.Num() > 0)
 	{
 		TSet<FAssetData*>& ObjectPathsFilter = DiskFilterSets[DiskFilterSets.AddDefaulted()];
 
-		for (FName ObjectPath : FilterObjectPaths)
+		for (FName ObjectPath : Filter.ObjectPaths)
 		{
 			FAssetData* AssetDataPtr = CachedAssetsByObjectPath.FindRef(ObjectPath);
 
@@ -649,7 +643,7 @@ bool FAssetRegistryState::EnumerateAssets(const FARFilter& Filter, const TSet<FN
 	}
 
 	// On disk tags and values
-	if (Filter.TagsAndValues.Num())
+	if (Filter.TagsAndValues.Num() > 0)
 	{
 		TSet<FAssetData*>& TagAndValuesFilter = DiskFilterSets[DiskFilterSets.AddDefaulted()];
 
@@ -1647,49 +1641,14 @@ bool FAssetRegistryState::RemovePackageData(FName PackageName)
 	return false;
 }
 
-bool FAssetRegistryState::IsFilterValid(const FARFilter& Filter, bool bAllowRecursion)
+bool FAssetRegistryState::IsFilterValid(const FARCompiledFilter& Filter)
 {
-	for (int32 NameIdx = 0; NameIdx < Filter.PackageNames.Num(); ++NameIdx)
-	{
-		if (Filter.PackageNames[NameIdx] == NAME_None)
-		{
-			return false;
-		}
-	}
-
-	for (int32 PathIdx = 0; PathIdx < Filter.PackagePaths.Num(); ++PathIdx)
-	{
-		if (Filter.PackagePaths[PathIdx] == NAME_None)
-		{
-			return false;
-		}
-	}
-
-	for (int32 ObjectPathIdx = 0; ObjectPathIdx < Filter.ObjectPaths.Num(); ++ObjectPathIdx)
-	{
-		if (Filter.ObjectPaths[ObjectPathIdx] == NAME_None)
-		{
-			return false;
-		}
-	}
-
-	for (int32 ClassIdx = 0; ClassIdx < Filter.ClassNames.Num(); ++ClassIdx)
-	{
-		if (Filter.ClassNames[ClassIdx] == NAME_None)
-		{
-			return false;
-		}
-	}
-
-	for (auto FilterTagIt = Filter.TagsAndValues.CreateConstIterator(); FilterTagIt; ++FilterTagIt)
-	{
-		if (FilterTagIt.Key() == NAME_None)
-		{
-			return false;
-		}
-	}
-
-	if (!bAllowRecursion && Filter.IsRecursive())
+	if (Filter.PackageNames.Contains(NAME_None) ||
+		Filter.PackagePaths.Contains(NAME_None) ||
+		Filter.ObjectPaths.Contains(NAME_None) || 
+		Filter.ClassNames.Contains(NAME_None) ||
+		Filter.TagsAndValues.Contains(NAME_None)
+		)
 	{
 		return false;
 	}
