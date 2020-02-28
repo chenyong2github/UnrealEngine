@@ -7,6 +7,7 @@
 #include "EdGraphSchema_K2.h"
 #include "K2Node_AddComponent.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Styling/SlateIconFinder.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "ComponentAssetBroker.h"
@@ -79,7 +80,7 @@ UBlueprintComponentNodeSpawner* UBlueprintComponentNodeSpawner::Create(const FCo
 		return NodeSpawner;
 	}
 
-	if (ComponentClass->HasAnyClassFlags(CLASS_Abstract) || !ComponentClass->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent))
+	if (!FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(ComponentClass))
 	{
 		// loaded class that is marked as abstract or not spawnable, don't create an entry:
 		return nullptr;
