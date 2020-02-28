@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/ConstraintHandle.h"
-#include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDConstraintContainer.h"
-#include "Chaos/CollisionResolutionTypes.h"
 #include "Framework/BufferedData.h"
 
 #include <memory>
@@ -97,6 +98,14 @@ public:
 	 * Put the container in "no handles" mode for use with simple solver. Must be called when empty of constraints (ideally right after creation).
 	 */
 	void DisableHandles();
+
+	/**
+	 * Set the solver method to use in the Apply step
+	 */
+	void SetApplyType(ECollisionApplyType InApplyType)
+	{
+		ApplyType = InApplyType;
+	}
 
 	/**
 	*  Add the constraint to the container. 
@@ -315,6 +324,7 @@ private:
 	bool bUseCCD;
 	bool bEnableCollisions;
 	bool bHandlesEnabled;
+	ECollisionApplyType ApplyType;
 
 	int32 LifespanCounter;
 
