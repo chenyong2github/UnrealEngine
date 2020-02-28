@@ -118,7 +118,8 @@ namespace nDisplayLauncher.Cluster
 					"LogDisplayClusterNetwork {8}, " +
 					"LogDisplayClusterNetworkMsg {9}, " +
 					"LogDisplayClusterRender {10}, " +
-					"LogDisplayClusterBlueprint {11}"
+					"LogDisplayClusterRenderSync {11}, " +
+					"LogDisplayClusterBlueprint {12}"
 					, SelectedVerbocityPlugin
 					, SelectedVerbocityEngine
 					, SelectedVerbocityConfig
@@ -130,6 +131,7 @@ namespace nDisplayLauncher.Cluster
 					, SelectedVerbocityNetwork
 					, SelectedVerbocityNetworkMsg
 					, SelectedVerbocityRender
+					, SelectedVerbocityRenderSync
 					, SelectedVerbocityBlueprint);
 
 				commandCmd = string.Format("{0} -LogCmds=\"{1}\"", commandCmd, LogCmds);

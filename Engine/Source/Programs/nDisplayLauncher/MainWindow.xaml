@@ -592,6 +592,7 @@
 						<RowDefinition Height="Auto" />
 						<RowDefinition Height="Auto" />
 						<RowDefinition Height="Auto" />
+						<RowDefinition Height="Auto" />
 						<RowDefinition Height="*" />
 					</Grid.RowDefinitions>
 					<Grid.ColumnDefinitions>
@@ -637,6 +638,9 @@
 
 					<Label Grid.Row="11" Grid.Column="0" Content="Render" />
 					<ComboBox Grid.Row="11" Grid.Column="1" x:Name="ctrlLogRender" SelectedItem="{Binding SelectedVerbocityRender}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+
+					<Label Grid.Row="12" Grid.Column="0" Content="RenderSync" />
+					<ComboBox Grid.Row="12" Grid.Column="1" x:Name="ctrlLogRenderSync" SelectedItem="{Binding SelectedVerbocityRenderSync}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="0" Grid.Column="3" Content="For each:" />
 					<Button x:Name="ctrlBtnSetVerbosityAll" Grid.Row="1" Grid.Column="3" Content="All" Click="ctrlBtnSetVerbosityAll_Click" />
