@@ -226,7 +226,7 @@ private:
 	 * All assets tracked for this editor.
 	 */
 	TArray<TWeakObjectPtr<UObject>> Assets;
-	TSet<TWeakObjectPtr<UObject>> CachedAssets;
+	TSet<FSoftObjectPath> CachedAssets;
 
 	/**
 	 * The world used to preview the inputs
