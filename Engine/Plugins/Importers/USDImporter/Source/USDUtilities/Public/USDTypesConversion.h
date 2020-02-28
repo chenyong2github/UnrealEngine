@@ -62,6 +62,11 @@ namespace UsdToUnreal
 		return FName( UsdString.Get().c_str() );
 	}
 
+	static FString ConvertToken(const pxr::TfToken& Token)
+	{
+		return UsdToUnreal::ConvertString(Token.GetString());
+	}
+
 	static FLinearColor ConvertColor( const pxr::GfVec3f& InValue )
 	{
 		return FLinearColor( InValue[0], InValue[1], InValue[2] );
