@@ -3,6 +3,7 @@
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "ViewModels/Stack/NiagaraStackPropertyRow.h"
 #include "NiagaraNode.h"
+#include "NiagaraEditorModule.h"
 
 #include "Modules/ModuleManager.h"
 #include "IPropertyRowGenerator.h"
@@ -65,6 +66,11 @@ void UNiagaraStackObject::FinalizeInternal()
 	if (PropertyRowGenerator.IsValid())
 	{
 		PropertyRowGenerator->OnRowsRefreshed().RemoveAll(this);
+		PropertyRowGenerator->SetObjects(TArray<UObject*>());
+
+		// Enqueue the row generator for destruction because stack entries might be finalized during the system view model tick
+		// and you can't destruct tickables while other tickables are being ticked.
+		FNiagaraEditorModule::Get().EnqueueObjectForDeferredDestruction(PropertyRowGenerator.ToSharedRef());
 		PropertyRowGenerator.Reset();
 	}
 	Super::FinalizeInternal();
