@@ -5575,12 +5575,21 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 		RequireSymbol(TEXT(')'), Token.Identifier);
 
 		FClassMetaData* ClassData = GetCurrentClassData();
-		if (!ClassData)
+		if (!ClassData || ClassData->ParsedInterface == EParsedInterface::NotAnInterface)
 		{
 			FString CurrentClassName = GetCurrentClass()->GetName();
 			FError::Throwf(TEXT("Could not find the associated 'U%s' class while parsing 'I%s' - it could be missing or malformed"), *CurrentClassName, *CurrentClassName);
 		}
 
+		if (ClassData->ParsedInterface == EParsedInterface::ParsedIInterface)
+		{
+			FString CurrentClassName = GetCurrentClass()->GetName();
+			FError::Throwf(TEXT("Duplicate IInterface definition found while parsing 'I%s'"), *CurrentClassName);
+		}
+
+		check(ClassData->ParsedInterface == EParsedInterface::ParsedUInterface);
+
+		ClassData->ParsedInterface = EParsedInterface::ParsedIInterface;
 		ClassData->GeneratedBodyMacroAccessSpecifier = CurrentAccessSpecifier;
 		ClassData->SetInterfaceGeneratedBodyLine(InputLine);
 
@@ -6550,6 +6559,7 @@ void FHeaderParser::CompileInterfaceDeclaration(FClasses& AllClasses)
 	FClassMetaData* ClassData = GScriptHelper.AddClassData(InterfaceClass, CurrentSrcFile);
 	check(ClassData);
 
+	ClassData->ParsedInterface = EParsedInterface::ParsedUInterface;
 	ClassData->SetPrologLine(PrologFinishLine);
 
 	// Register the metadata
@@ -8458,6 +8468,8 @@ ECompilationResult::Type FHeaderParser::ParseHeader(FClasses& AllClasses, FUnrea
 			const FString ExpectedHeaderName = CurrentSrcFile->GetGeneratedHeaderFilename();
 			FError::Throwf(TEXT("Expected an include at the top of the header: '#include \"%s\"'"), *ExpectedHeaderName);
 		}
+
+		GScriptHelper.CheckForNoIInterfaces();
 	}
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	catch( TCHAR* ErrorMsg )
