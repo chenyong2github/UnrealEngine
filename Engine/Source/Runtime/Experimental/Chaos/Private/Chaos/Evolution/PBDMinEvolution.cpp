@@ -136,8 +136,11 @@ namespace Chaos
 				Particle.PreV() = Particle.V();
 				Particle.PreW() = Particle.W();
 
+				const FVec3 XCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
+				const FRotation3 RCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
+
 				// Calculate new velocities from forces, torques and drag
-				const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R(), Particle.InvI());
+				const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, Particle.InvI());
 				const FVec3 DV = Particle.InvM() * (Particle.F() * Dt + Particle.LinearImpulse());
 				const FVec3 DW = WorldInvI * (Particle.Torque() * Dt + Particle.AngularImpulse());
 				const FReal LinearDrag = FMath::Max(FReal(0), FReal(1) - (Particle.LinearEtherDrag() * Dt));
@@ -145,12 +148,10 @@ namespace Chaos
 				const FVec3 V = LinearDrag * (Particle.V() + DV);
 				const FVec3 W = AngularDrag * (Particle.W() + DW);
 
-				FVec3 PCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
-				FRotation3 QCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
-				PCoM = PCoM + V * Dt;
-				QCoM = FRotation3::IntegrateRotationWithAngularVelocity(QCoM, W, Dt);
+				const FVec3 PCoM = XCoM + V * Dt;
+				const FRotation3 QCoM = FRotation3::IntegrateRotationWithAngularVelocity(RCoM, W, Dt);
 
-				// Update particle state (forces are zeroed at the end of the frame)
+				// Update particle state (forces are not zeroed until the end of the frame)
 				FParticleUtilitiesPQ::SetCoMWorldTransform(&Particle, PCoM, QCoM);
 				Particle.V() = V;
 				Particle.W() = W;

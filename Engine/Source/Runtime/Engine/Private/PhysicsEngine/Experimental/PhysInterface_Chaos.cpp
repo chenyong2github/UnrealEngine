@@ -818,7 +818,7 @@ void FPhysInterface_Chaos::AddAngularVelocityInRadians_AssumesLocked(const FPhys
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			const Chaos::FMatrix33 WorldI = Chaos::Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->I());
+			const Chaos::FMatrix33 WorldI = Chaos::FParticleUtilitiesXR::GetWorldInertia(Rigid);
 			AddAngularImpulseInRadians_AssumesLocked(InActorReference, WorldI * InAngularVelocityDeltaRad);
 		}
 	}
