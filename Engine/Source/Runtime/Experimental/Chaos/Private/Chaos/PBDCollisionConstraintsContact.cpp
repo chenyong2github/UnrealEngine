@@ -74,6 +74,8 @@ namespace Chaos
 
 			if (RelativeNormalVelocity < 0) // ignore separating constraints
 			{
+				*IterationParameters.NeedsAnotherIteration = true;
+
 				FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : FMatrix33(0);
 				FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : FMatrix33(0);
 				FMatrix33 Factor =
@@ -240,6 +242,8 @@ namespace Chaos
 
 			if (Contact.Phi < 0)
 			{
+				*IterationParameters.NeedsAnotherIteration = true;
+			
 				FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
 				FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
 				FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : FMatrix33(0);
@@ -428,11 +432,6 @@ namespace Chaos
 				return AccumulatedImpulse;
 			}
 
-			if (IterationParameters.NeedsAnotherIteration)
-			{
-				*IterationParameters.NeedsAnotherIteration = true;
-			}
-
 			FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : FMatrix33(0);
 			FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : FMatrix33(0);
 			FVec3 VectorToPoint1 = Contact.Location - P0;
@@ -450,6 +449,8 @@ namespace Chaos
 			const FReal RelativeVelocityDotNormal = FVec3::DotProduct(RelativeVelocity, Contact.Normal);
 			if (RelativeVelocityDotNormal < 0)
 			{
+				*IterationParameters.NeedsAnotherIteration = true;
+			
 				const FVec3 ImpulseNumerator = -FVec3::DotProduct(RelativeVelocity, Contact.Normal) * Contact.Normal * ScalingFactor;
 				const FVec3 FactorContactNormal = Factor * Contact.Normal;
 				FReal ImpulseDenominator = FVec3::DotProduct(Contact.Normal, FactorContactNormal);

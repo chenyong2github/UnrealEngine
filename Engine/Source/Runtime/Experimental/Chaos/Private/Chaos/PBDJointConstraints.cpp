@@ -491,7 +491,7 @@ namespace Chaos
 	//
 	//////////////////////////////////////////////////////////////////////////
 
-	void FPBDJointConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
+	bool FPBDJointConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
 
@@ -515,6 +515,9 @@ namespace Chaos
 		{
 			PostApplyCallback(Dt, Handles);
 		}
+
+		// TODO: Return true only if more iteration are needed
+		return true;
 	}
 
 	bool FPBDJointConstraints::ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts)
@@ -555,7 +558,7 @@ namespace Chaos
 	//
 	//////////////////////////////////////////////////////////////////////////
 
-	void FPBDJointConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
+	bool FPBDJointConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
 
@@ -590,6 +593,9 @@ namespace Chaos
 		{
 			PostApplyCallback(Dt, SortedConstraintHandles);
 		}
+
+		// TODO: Return true only if more iteration are needed
+		return true;
 	}
 
 	
