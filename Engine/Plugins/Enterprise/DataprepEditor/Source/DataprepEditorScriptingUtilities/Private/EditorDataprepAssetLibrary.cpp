@@ -91,7 +91,7 @@ bool UEditorDataprepAssetLibrary::ExecuteDataprep(UDataprepAssetInterface* Datap
 
 		switch (LogReportingMethod)
 		{
-		case EDataprepReportMethod::StandartLog:
+		case EDataprepReportMethod::StandardLog:
 		case EDataprepReportMethod::SameFeedbackAsEditor:
 			Logger = MakeShared<FDataprepCoreUtils::FDataprepLogger>();
 			break;
@@ -102,7 +102,7 @@ bool UEditorDataprepAssetLibrary::ExecuteDataprep(UDataprepAssetInterface* Datap
 
 		switch (ProgressReportingMethod)
 		{
-		case EDataprepReportMethod::StandartLog:
+		case EDataprepReportMethod::StandardLog:
 			Reporter = MakeShared<FDataprepCoreUtils::FDataprepProgressTextReporter>();
 			break;
 		case EDataprepReportMethod::SameFeedbackAsEditor:
