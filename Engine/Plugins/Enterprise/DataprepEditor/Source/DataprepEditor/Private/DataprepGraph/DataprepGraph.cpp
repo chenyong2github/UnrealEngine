@@ -54,12 +54,6 @@ void FDataprepEditor::CreateGraphEditor()
 			]
 		];
 
-		SGraphEditor::FGraphEditorEvents Events;
-		//Events.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FDataprepEditor::OnPipelineEditorSelectionChanged);
-		//Events.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &FDataprepEditor::OnCreatePipelineActionMenu);
-		//Events.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &FDataprepEditor::OnNodeVerifyTitleCommit);
-		//Events.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FDataprepEditor::OnNodeTitleCommitted);
-
 		FName UniqueGraphName = MakeUniqueObjectName( GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("DataprepGraph", "Graph").ToString()) ) );
 		DataprepGraph = TStrongObjectPtr<UDataprepGraph>( NewObject< UDataprepGraph >(GetTransientPackage(), UniqueGraphName) );
 		DataprepGraph->Schema = UDataprepGraphSchema::StaticClass();
@@ -69,8 +63,7 @@ void FDataprepEditor::CreateGraphEditor()
 		GraphEditor = SNew(SDataprepGraphEditor, DataprepAsset)
 			.Appearance(AppearanceInfo)
 			.TitleBar(TitleBarWidget)
-			.GraphToEdit(DataprepGraph.Get())
-			.GraphEvents(Events);
+			.GraphToEdit(DataprepGraph.Get());
 	}
 }
 
