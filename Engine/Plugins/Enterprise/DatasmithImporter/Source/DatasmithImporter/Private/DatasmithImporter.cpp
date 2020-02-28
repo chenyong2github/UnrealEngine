@@ -110,8 +110,10 @@ namespace DatasmithImporterImpl
 
 		if ( !ExistingAsset )
 		{
-			FString DestinationPackagePath = UPackageTools::SanitizePackageName( FPaths::Combine( DestinationPath, SourceAsset->GetName() ) );
-			FString DestinationAssetPath = DestinationPackagePath + TEXT(".") + UPackageTools::SanitizePackageName( SourceAsset->GetName() );
+			const FString AssetName = SourceAsset->GetName();
+			bool bPathIsComplete = AssetName == FPaths::GetBaseFilename( DestinationPath );
+			FString DestinationPackagePath = UPackageTools::SanitizePackageName( bPathIsComplete ? DestinationPath : FPaths::Combine( DestinationPath, AssetName ) );
+			FString DestinationAssetPath = DestinationPackagePath + TEXT(".") + UPackageTools::SanitizePackageName( AssetName );
 
 			ExistingAsset = FDatasmithImporterUtils::FindObject<UObject>( nullptr, DestinationAssetPath );
 
