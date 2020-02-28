@@ -131,6 +131,8 @@ namespace DatasmithMaxVRayTexmapToUEPbrImpl
 					VRayDirtParameters.UnoccludedMap.Weight = ParamBlock2->GetFloat( ParamDefinition.ID, GetCOREInterface()->GetTime() ) / 100.f;
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return VRayDirtParameters;
