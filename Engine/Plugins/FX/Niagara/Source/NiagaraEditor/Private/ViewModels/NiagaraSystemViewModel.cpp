@@ -516,6 +516,11 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 		SendLastCompileMessageJobs();
 	}
 
+	if (!SystemScriptViewModel.IsValid())
+	{
+		return;
+	}
+
 	if (bForceAutoCompileOnce || (GetDefault<UNiagaraEditorSettings>()->GetAutoCompile() && bCanAutoCompile))
 	{
 		bool bRecompile = false;
