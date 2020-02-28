@@ -7,6 +7,7 @@
 #include "EngineGlobals.h"
 #include "Sound/SoundSubmixSend.h"
 #include "UObject/UObjectIterator.h"
+#include "DSP/Dsp.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -38,10 +39,29 @@ USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 	, AmbisonicsPluginSettings(nullptr)
 	, EnvelopeFollowerAttackTime(10)
 	, EnvelopeFollowerReleaseTime(500)
+	, GainMode(EGainParamMode::Linear)
 	, OutputVolume(1.0f)
+	, WetLevel(1.0f)
+	, DryLevel(0.0f)
+#if WITH_EDITOR
+	, OutputVolumeDB(0.0f)
+	, WetLevelDB(0.0f)
+	, DryLevelDB(-120.0f)
+#endif
 {
 }
 
+void USoundSubmix::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	OutputVolumeDB = Audio::ConvertToDecibels(OutputVolume);
+	WetLevelDB = Audio::ConvertToDecibels(WetLevel);
+	DryLevelDB = Audio::ConvertToDecibels(DryLevel);
+#endif
+
+}
 
 UEndpointSubmix::UEndpointSubmix(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -236,19 +256,90 @@ void USoundSubmix::SetSubmixOutputVolume(const UObject* WorldContextObject, floa
 		AudioDevice->SetSubmixOutputVolume(this, InOutputVolume);
 	}
 }
+
 #if WITH_EDITOR
 void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.Property != nullptr)
 	{
 		static const FName NAME_OutputVolume(TEXT("OutputVolume"));
+		static const FName NAME_WetLevel(TEXT("WetLevel"));
+		static const FName NAME_DryLevel(TEXT("DryLevel"));
+		static const FName NAME_OutputVolumeDB(TEXT("OutputVolumeDB"));
+		static const FName NAME_WetLevelDB(TEXT("WetLevelDB"));
+		static const FName NAME_DryLevelDB(TEXT("DryLevelDB"));
 
-		if (PropertyChangedEvent.Property->GetFName() == NAME_OutputVolume)
+		FName ChangedPropName = PropertyChangedEvent.Property->GetFName();
+
+		bool bUpdateSubmixGain = false;
+
+		if (ChangedPropName == NAME_OutputVolume)
 		{
-			FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
-			if (AudioDeviceManager)
+			OutputVolumeDB = Audio::ConvertToDecibels(OutputVolume);
+			bUpdateSubmixGain = true;
+		}
+		else if (ChangedPropName == NAME_WetLevel)
+		{
+			DryLevelDB = Audio::ConvertToDecibels(DryLevel);
+			bUpdateSubmixGain = true;
+		}
+		else if (ChangedPropName == NAME_DryLevel)
+		{
+			WetLevelDB = Audio::ConvertToDecibels(OutputVolume);
+			bUpdateSubmixGain = true;
+		}
+		else if (ChangedPropName == NAME_OutputVolumeDB)
+		{
+			if (OutputVolumeDB <= -120.f)
 			{
-				AudioDeviceManager->UpdateSubmix(this);
+				OutputVolume = 0.0f;
+			}
+			else
+			{
+				OutputVolume = Audio::ConvertToLinear(OutputVolumeDB);
+			}
+			bUpdateSubmixGain = true;
+		}
+		else if (ChangedPropName == NAME_WetLevelDB)
+		{
+			if (WetLevelDB <= -120.f)
+			{
+				WetLevel = 0.0f;
+			}
+			else
+			{
+				WetLevel = Audio::ConvertToLinear(WetLevelDB);
+			}
+			bUpdateSubmixGain = true;
+		}
+		else if (ChangedPropName == NAME_DryLevelDB)
+		{
+			if (DryLevelDB <= -120.0f)
+			{
+				DryLevel = 0.0f;
+			}
+			else
+			{
+				DryLevel = Audio::ConvertToLinear(DryLevelDB);
+			}
+			bUpdateSubmixGain = true;
+		}
+
+		// Force the properties to be initialized for this SoundSubmix on all active audio devices
+		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
+		{
+			if (bUpdateSubmixGain)
+			{
+//				AudioDeviceManager->UpdateSubmix(this);
+
+				const float NewOutputVolume = OutputVolume;
+				const float NewWetLevel = WetLevel;
+				const float NewDryLevel = DryLevel;
+				USoundSubmix* SoundSubmix = this;
+				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, NewOutputVolume, NewWetLevel, NewDryLevel](Audio::FDeviceId Id, FAudioDevice* Device)
+				{
+					Device->SetSubmixWetDryLevel(SoundSubmix, NewOutputVolume, NewWetLevel, NewDryLevel);
+				});
 			}
 		}
 	}
@@ -340,14 +431,14 @@ void USoundSubmixBase::PreEditChange(FProperty* PropertyAboutToChange)
 
 void USoundSubmixBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	// Whether or not we need to reinit the submix. Not all properties require reinitialization.
-	bool bReinitSubmix = true;
+	if (!GEngine)
+	{
+		return;
+	}
 
 	if (PropertyChangedEvent.Property != nullptr)
 	{
 		static const FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
-		static const FName NAME_ParentSubmix(TEXT("ParentSubmix"));
-		static const FName NAME_OutputVolume(TEXT("OutputVolume"));
 
 		if (PropertyChangedEvent.Property->GetFName() == NAME_ChildSubmixes)
 		{
@@ -388,15 +479,12 @@ void USoundSubmixBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 					}
 				}
 			}
-				}
-			}
 
-	if (GEngine)
-	{
-		// Force the properties to be initialized for this SoundSubmix on all active audio devices
-		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
-		{
-			AudioDeviceManager->RegisterSoundSubmix(this);
+			// Force the properties to be initialized for this SoundSubmix on all active audio devices
+			if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
+			{
+				AudioDeviceManager->RegisterSoundSubmix(this);
+			}
 		}
 	}
 
@@ -444,13 +532,21 @@ void USoundSubmixWithParentBase::SetParentSubmix(USoundSubmixBase* InParentSubmi
 		}
 }
 
+#if WITH_EDITOR
 void USoundSubmixWithParentBase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	if (!GEngine)
+	{
+		return;
+	}
+
 	if (PropertyChangedEvent.Property != nullptr)
 	{
 		static const FName NAME_ParentSubmix(TEXT("ParentSubmix"));
 
-		if (PropertyChangedEvent.Property->GetFName() == NAME_ParentSubmix)
+		FName ChangedPropName = PropertyChangedEvent.Property->GetFName();
+
+		if (ChangedPropName == NAME_ParentSubmix)
 		{
 			// Add this sound class to the parent class if it's not already added
 			if (ParentSubmix)
@@ -474,15 +570,12 @@ void USoundSubmixWithParentBase::PostEditChangeProperty(struct FPropertyChangedE
 			}
 
 			Modify();
-		}
-	}
 
-	if (GEngine)
-	{
-		// Force the properties to be initialized for this SoundSubmix on all active audio devices
-		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
-		{
-			AudioDeviceManager->RegisterSoundSubmix(this);
+			// Force the properties to be initialized for this SoundSubmix on all active audio devices
+			if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
+			{
+				AudioDeviceManager->RegisterSoundSubmix(this);
+			}
 		}
 	}
 
@@ -498,6 +591,7 @@ void USoundSubmixWithParentBase::PostDuplicate(EDuplicateMode::Type DuplicateMod
 
 	Super::PostDuplicate(DuplicateMode);
 }
+#endif
 
 void USoundSubmixBase::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
