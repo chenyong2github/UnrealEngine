@@ -1147,6 +1147,11 @@ void UNiagaraComponent::DestroyInstance()
 	//UE_LOG(LogNiagara, Log, TEXT("DestroyInstance: %u - %s"), this, *Asset->GetName());
 	SetActiveFlag(false);
 
+	// Before we can destory the instance, we need to deactivate it.
+	if (SystemInstance)
+	{
+		SystemInstance->Deactivate(true);
+	}
 	UnregisterWithScalabilityManager();
 	
 	// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
