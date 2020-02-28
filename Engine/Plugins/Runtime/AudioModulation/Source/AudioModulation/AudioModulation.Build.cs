@@ -24,6 +24,17 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"Slate",
+						"SlateCore",
+					}
+				);
+			}
+
 			PublicDefinitions.Add("WITH_AUDIOMODULATION=1");
 		}
 	}
