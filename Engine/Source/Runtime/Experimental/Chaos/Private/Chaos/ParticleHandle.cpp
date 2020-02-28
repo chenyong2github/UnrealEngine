@@ -26,10 +26,11 @@ namespace Chaos
 			}
 		}
 
-		if (MGeometry)
+		auto& Geometry = MGeometry.Read();
+		if (Geometry)
 		{
 			int32 CurrentShapeIndex = INDEX_NONE;
-			if (const auto* Union = MGeometry->template GetObject<FImplicitObjectUnion>())
+			if (const auto* Union = Geometry->template GetObject<FImplicitObjectUnion>())
 			{
 				for (const TUniquePtr<FImplicitObject>& ImplicitObject : Union->GetObjects())
 				{
@@ -51,15 +52,15 @@ namespace Chaos
 			}
 			else 
 			{
-				if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(MGeometry.Get()))
+				if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(Geometry.Get()))
 				{
-					if (ImplicitShapeMap.Contains(MGeometry.Get()))
+					if (ImplicitShapeMap.Contains(Geometry.Get()))
 					{
-						ImplicitShapeMap.Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[MGeometry.Get()]));
+						ImplicitShapeMap.Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[Geometry.Get()]));
 					}
 					else if (ImplicitShapeMap.Contains(ImplicitChildObject))
 					{
-						ImplicitShapeMap.Add(MGeometry.Get(), CopyTemp(ImplicitShapeMap[ImplicitChildObject]));
+						ImplicitShapeMap.Add(Geometry.Get(), CopyTemp(ImplicitShapeMap[ImplicitChildObject]));
 					}
 				}
 			}
