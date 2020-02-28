@@ -85,12 +85,14 @@ class FOcclusionRGS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
 		SHADER_PARAMETER(float, NormalBias)
 		SHADER_PARAMETER(uint32, LightingChannelMask)
 		SHADER_PARAMETER(uint32, ShadowMaskType)
 		SHADER_PARAMETER(FIntRect, LightScissor)
 		SHADER_PARAMETER(FIntPoint, PixelOffset)
+		SHADER_PARAMETER(uint32, bUseHairVoxel)
 
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -101,6 +103,7 @@ class FOcclusionRGS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWOcclusionMaskUAV)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWRayDistanceUAV)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FVirtualVoxelParameters, VirtualVoxel)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -155,8 +158,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	const IScreenSpaceDenoiser::FShadowRayTracingConfig& RayTracingConfig,
 	const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
 	const bool bSubPixelShadowMask,
-	FRDGTextureRef HairCategorizationTexture,
-	FRDGTextureRef HairLightChannelMaskTexture,
+	const FHairStrandsOcclusionResources* HairResources,
 	FRDGTextureUAV* OutShadowMaskUAV,
 	FRDGTextureUAV* OutRayHitDistanceUAV)
 #if RHI_RAYTRACING
@@ -216,7 +218,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 
 	// Ray generation pass for shadow occlusion.
 	{
-		const bool bUseHairLighting = HairCategorizationTexture != nullptr;
+		const bool bUseHairLighting =
+			HairResources != nullptr &&
+			HairResources->CategorizationTexture != nullptr &&
+			HairResources->LightChannelMaskTexture != nullptr &&
+			HairResources->VoxelResources != nullptr;
+
 		FOcclusionRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOcclusionRGS::FParameters>();
 		PassParameters->RWOcclusionMaskUAV = OutShadowMaskUAV;
 		PassParameters->RWRayDistanceUAV = OutRayHitDistanceUAV;
@@ -229,16 +236,18 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		PassParameters->SceneTextures = SceneTextures;
 		PassParameters->LightScissor = ScissorRect;
 		PassParameters->PixelOffset = PixelOffset;
-		PassParameters->ShadowMaskType = bUseHairLighting ? (bSubPixelShadowMask ? 1 : 0) : 0;
-		PassParameters->HairCategorizationTexture = HairCategorizationTexture;
-		if (!PassParameters->HairCategorizationTexture)
+		PassParameters->ShadowMaskType = bUseHairLighting && bSubPixelShadowMask ? 1 : 0;
+		if (bUseHairLighting)
 		{
-			PassParameters->HairCategorizationTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-		}
-		PassParameters->HairLightChannelMaskTexture = HairLightChannelMaskTexture;
-		if (!PassParameters->HairLightChannelMaskTexture)
-		{
-			PassParameters->HairLightChannelMaskTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+			PassParameters->bUseHairVoxel = IsHairRayTracingEnabled() ? 0 : 1;
+			PassParameters->HairCategorizationTexture = HairResources->CategorizationTexture;
+			PassParameters->HairLightChannelMaskTexture = HairResources->LightChannelMaskTexture;
+			PassParameters->VirtualVoxel = HairResources->VoxelResources->UniformBuffer;
+
+			if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
+			{
+				ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
+			}
 		}
 		FOcclusionRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOcclusionRGS::FLightTypeDim>(LightSceneProxy->GetLightType());

@@ -28,6 +28,7 @@ RWBuffer<uint4> OutSimDeformedPositionBuffer;
 #define DEFORMATION_NORMAL_DIRECTION 2
 #define DEFORMATION_OFFSET_GUIDE 3
 #define DEFORMATION_OFFSET_GUIDE_DYNAMIC 4
+#define DEFORMATION_OFFSET_GUIDE_GLOBAL 5
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_DYNAMIC
 
@@ -56,6 +57,12 @@ float3 DeformGuideByTriangle(
 	return WorldDeformedGuidePoint;
 }
 
+#endif
+
+#if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_GLOBAL
+uint SampleCount;
+Buffer<float4>  RestSamplePositionsBuffer;
+Buffer<float4>  MeshSampleWeightsBuffer;
 #endif
 
 float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
@@ -100,6 +107,21 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
 
 	return DeformGuideByTriangle(VertexIndex, RestTriangle, DeformedTriangle, RootBarycentric) - SimDeformedOffset;
 #endif
+
+#if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_GLOBAL
+	const float3 RestControlPoint = Pos + SimRestOffset;
+	float3 ControlPoint = RestControlPoint;
+
+	// Apply rbf interpolation from the samples set
+	for(int i = 0; i < SampleCount; ++i)
+	{
+		const float3 PositionDelta = RestControlPoint - RestSamplePositionsBuffer[i];
+		const float FunctionValue = sqrt( dot(PositionDelta,PositionDelta)+1);
+		ControlPoint += FunctionValue * MeshSampleWeightsBuffer[i].xyz;
+	}
+	return ControlPoint - SimDeformedOffset;
+#endif
+
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]

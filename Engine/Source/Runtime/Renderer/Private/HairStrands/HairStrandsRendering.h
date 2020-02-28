@@ -39,11 +39,8 @@ enum class EHairStrandsInterpolationType
 void RunHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList, 
 	EWorldType::Type WorldType, 
+	const class FGPUSkinCache* GPUSkinCache,
 	const struct FShaderDrawDebugData* DebugShaderData,
 	FGlobalShaderMap* ShaderMap, 
 	EHairStrandsInterpolationType Type,
 	FHairStrandClusterData* ClusterData);
-
-void RunHairStrandsBindingQueries(
-	FRHICommandListImmediate& RHICmdList,
-	TShaderMap<FGlobalShaderType>* ShaderMap);
