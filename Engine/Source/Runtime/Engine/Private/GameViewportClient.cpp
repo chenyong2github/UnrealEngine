@@ -3820,17 +3820,10 @@ bool UGameViewportClient::IsSimulateInEditorViewport() const
 	return GameViewport ? GameViewport->GetPlayInEditorIsSimulate() : false;
 }
 
-#if WITH_EDITOR
-void UGameViewportClient::SetPlayInEditorUseMouseForTouch(bool bInUseMouseForTouch)
-{
-	bUseMouseForTouchInEditor = bInUseMouseForTouch;
-}
-#endif
-
 bool UGameViewportClient::GetUseMouseForTouch() const
 {
 #if WITH_EDITOR
-	return bUseMouseForTouchInEditor || GetDefault<UInputSettings>()->bUseMouseForTouch;
+	return GetDefault<ULevelEditorPlaySettings>()->UseMouseForTouch || GetDefault<UInputSettings>()->bUseMouseForTouch;
 #else
 	return GetDefault<UInputSettings>()->bUseMouseForTouch;
 #endif
