@@ -951,6 +951,16 @@ namespace InstallBundleUtil
 			}			
 		}
 
+		void FPersistentStatContainerBase::RemoveSessionStats(const FString& SessionName)
+		{
+			SessionPersistentStatMap.Remove(SessionName);
+		}
+	
+		void FPersistentStatContainerBase::RemoveBundleStats(FName BundleName)
+		{
+			PerBundlePersistentStatMap.Remove(BundleName);
+		}
+	
 		void FPersistentStatContainerBase::StartBundlePersistentStatTracking(FName BundleName, const FString& ExpectedAnalyticsID /* = FString() */, bool bForceResetStatData /* = false */)
 		{
 			//Use the base expected analytics ID if one was not passed in
@@ -984,7 +994,7 @@ namespace InstallBundleUtil
 			}
 		}
 
-		void FPersistentStatContainerBase::StopSessionPersistentStatTracking(FString SessionName, bool bStopAllActiveTimers /* = true */)
+		void FPersistentStatContainerBase::StopSessionPersistentStatTracking(const FString& SessionName, bool bStopAllActiveTimers /* = true */)
 		{
 			FSessionPersistentStats* FoundSessionStats = SessionPersistentStatMap.Find(SessionName);
 			if (nullptr != FoundSessionStats)
@@ -1028,7 +1038,7 @@ namespace InstallBundleUtil
 			OnTimerStartedForStat(FoundBundleStats, TimerToStart);
 		}
 
-		void FPersistentStatContainerBase::StartSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToStart)
+		void FPersistentStatContainerBase::StartSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToStart)
 		{
 			FSessionPersistentStats& FoundSessionStats = SessionPersistentStatMap.FindOrAdd(SessionName, FSessionPersistentStats(SessionName));
 			FoundSessionStats.StartTimingStat(TimerToStart);
@@ -1046,7 +1056,7 @@ namespace InstallBundleUtil
 			OnTimerStoppedForStat(FoundBundleStats, TimerToStop);
 		}
 
-		void FPersistentStatContainerBase::StopSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToStop)
+		void FPersistentStatContainerBase::StopSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToStop)
 		{
 			FSessionPersistentStats& FoundSessionStats = SessionPersistentStatMap.FindOrAdd(SessionName, FSessionPersistentStats(SessionName));
 			FoundSessionStats.StopTimingStat(TimerToStop);
@@ -1060,7 +1070,7 @@ namespace InstallBundleUtil
 			FoundBundleStats.UpdateTimingStat(TimerToUpdate);
 		}
 
-		void FPersistentStatContainerBase::UpdateSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToUpdate)
+		void FPersistentStatContainerBase::UpdateSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToUpdate)
 		{
 			FSessionPersistentStats& FoundSessionStats = SessionPersistentStatMap.FindOrAdd(SessionName, FSessionPersistentStats(SessionName));
 			FoundSessionStats.UpdateTimingStat(TimerToUpdate);
@@ -1074,7 +1084,7 @@ namespace InstallBundleUtil
 			ensureAlwaysMsgf(FoundBundleStats.IsActive(), TEXT("Invalid attempt to increment %s on bundle %s that hasn't yet had StartBundlePersistentStatTracking called on it! Should always start tracking before using persistent stats!"), *LexToString(CounterToUpdate), *(BundleName.ToString()));
 		}
 
-		void FPersistentStatContainerBase::IncrementSessionPersistentCounter(FString SessionName, ECountStatNames CounterToUpdate)
+		void FPersistentStatContainerBase::IncrementSessionPersistentCounter(const FString& SessionName, ECountStatNames CounterToUpdate)
 		{
 			FSessionPersistentStats& FoundSessionStats = SessionPersistentStatMap.FindOrAdd(SessionName, FSessionPersistentStats(SessionName));
 			FoundSessionStats.IncrementCountStat(CounterToUpdate);
