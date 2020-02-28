@@ -745,10 +745,10 @@ void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, F
 	const bool bDedicatedThread = PhysDispatcher->GetMode() == Chaos::EThreadingMode::DedicatedThread;
 
 	// Remove the object from the solver
-	PhysDispatcher->EnqueueCommandImmediate([InObject, InSolver, bDedicatedThread](Chaos::FPersistentPhysicsTask* PhysThread)
+	PhysDispatcher->EnqueueCommandImmediate(InSolver, [InObject, bDedicatedThread](Chaos::FPBDRigidsSolver* InnerSolver)
 	{
 #if CHAOS_PARTICLEHANDLE_TODO
-		InSolver->UnregisterObject(InObject);
+		InnerSolver->UnregisterObject(InObject);
 #endif
 		InObject->OnRemoveFromScene();
 
