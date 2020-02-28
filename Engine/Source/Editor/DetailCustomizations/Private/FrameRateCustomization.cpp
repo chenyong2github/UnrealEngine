@@ -25,28 +25,27 @@ TSharedRef<IPropertyTypeCustomization> FFrameRateCustomization::MakeInstance()
 void FFrameRateCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	StructPropertyHandle = InPropertyHandle;
+
+	TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
+
+	HeaderRow.NameContent()
+		[
+			StructPropertyHandle->CreatePropertyNameWidget()
+		]
+
+	.ValueContent()
+		[
+			SNew(SFrameRatePicker)
+			.Font(CustomizationUtils.GetRegularFont())
+		.HasMultipleValues(this, &FFrameRateCustomization::HasMultipleValues)
+		.Value(this, &FFrameRateCustomization::GetFirstFrameRate)
+		.OnValueChanged(this, &FFrameRateCustomization::SetFrameRate)
+		].IsEnabled(MakeAttributeLambda([=] { return !InPropertyHandle->IsEditConst() && PropertyUtils->IsPropertyEditingEnabled(); }));
 }
 
 
 void FFrameRateCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
-
-	FDetailWidgetRow& CustomRow = ChildBuilder.AddCustomRow(StructPropertyHandle->GetPropertyDisplayName());
-
-	CustomRow.NameContent()
-	[
-		StructPropertyHandle->CreatePropertyNameWidget()
-	];
-
-	CustomRow.ValueContent()
-	[
-		SNew(SFrameRatePicker)
-		.Font(CustomizationUtils.GetRegularFont())
-		.HasMultipleValues(this, &FFrameRateCustomization::HasMultipleValues)
-		.Value(this, &FFrameRateCustomization::GetFirstFrameRate)
-		.OnValueChanged(this, &FFrameRateCustomization::SetFrameRate)
-	].IsEnabled(MakeAttributeLambda([=] { return !InPropertyHandle->IsEditConst() && PropertyUtils->IsPropertyEditingEnabled(); }));
 }
 
 
