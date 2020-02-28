@@ -294,7 +294,7 @@ namespace UnrealBuildTool
 
 			// set up the path to our toolchains
 			ClangPath = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/clang++" + ExeExtension));
-			if (NDKDefineInt < 210000)
+			if (NDKDefineInt < 210000 || ForceLDLinker())
 			{
 				// use ld before r21
 				ArPathArm = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/arm-linux-androideabi-4.9", ArchitecturePath, @"bin/armv7a-linux-androideabi-ar" + ExeExtension));
@@ -399,6 +399,13 @@ namespace UnrealBuildTool
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
 			bool bBuild = false;
 			return CompileEnvironment.Configuration == CppConfiguration.Shipping && (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildWithHiddenSymbolVisibility", out bBuild) && bBuild);
+		}
+
+		private bool ForceLDLinker()
+		{
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
+			bool bForceLDLinker = false;
+			return Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bForceLDLinker", out bForceLDLinker) && bForceLDLinker;
 		}
 
 		public override void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
@@ -824,7 +831,6 @@ namespace UnrealBuildTool
 			Result += " -no-canonical-prefixes";
 			Result += " -Wl,-shared,-Bsymbolic";
 			Result += " -Wl,--no-undefined";
-			Result += " -Wl,-no-pie";
 			if (bEnableGcSections)
 			{
 				Result += " -Wl,-gc-sections"; // Enable garbage collection of unused input sections. works best with -ffunction-sections, -fdata-sections
@@ -835,7 +841,7 @@ namespace UnrealBuildTool
 				Result += " -Wl,--strip-debug";
 			}
 
-			bool bUseLLD = NDKDefineInt >= 210000;
+			bool bUseLLD = NDKDefineInt >= 210000 && !ForceLDLinker();
 			bool bAllowLdGold = true;
 			if (Architecture == "-arm64")
 			{
@@ -870,6 +876,8 @@ namespace UnrealBuildTool
 
 			if (bUseLLD)
 			{
+				Result += " -Wl,-no-pie";
+
 				// use lld as linker (requires llvm-strip)
 				Result += " -fuse-ld=lld";
 			}
