@@ -238,7 +238,6 @@ private:
 	bool bPaused;
 	bool bOpened;
 	bool bReady;
-	bool bPreOptimizing;
     int32 PausedCount;
 	FShaderCachePrecompileContext ShaderCachePrecompileContext;
 	
