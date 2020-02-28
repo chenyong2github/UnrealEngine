@@ -80,6 +80,24 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 		SerializeImp(Ar);
 	}
 
+	/** Do the simplest thing possible to estimate the volume bounded by 
+	 * the zero'th isocontour of the level set. 
+	 */
+	T ApproximateNegativeMaterial() const
+	{
+		const TVector<T,d>& CellDim = MGrid.Dx();
+		const T QuarterCellVolume = CellDim.Product() * 0.25;
+		T Volume = 0.0;
+		for (int32 Idx = 0; Idx < MPhi.Num(); ++Idx)
+		{
+			if (MPhi[Idx] <= 0.0)
+			{
+				Volume += QuarterCellVolume;
+			}
+		}
+		return Volume;
+	}
+
 	bool ComputeMassProperties(T& OutVolume, TVector<T, d>& OutCOM, PMatrix<T,d,d>& OutInertia, TRotation<T, d>& OutRotationOfMass) const;
 
 	T ComputeLevelSetError(const TParticles<T, d>& InParticles, const TArray<TVector<T, 3>>& Normals, const TTriangleMesh<T>& Mesh, T& AngleError, T& MaxDistError);
