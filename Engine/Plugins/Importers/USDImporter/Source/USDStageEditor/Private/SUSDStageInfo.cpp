@@ -9,6 +9,7 @@
 #include "EditorDirectories.h"
 #include "EditorStyleSet.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -18,15 +19,16 @@
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/stage.h"
+#include "pxr/usd/usdGeom/metrics.h"
 
 #include "USDIncludesEnd.h"
 
 
 #define LOCTEXT_NAMESPACE "UsdStageInfo"
 
-void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* UsdStageActor )
+void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdStageActor )
 {
-	RefreshStageInfos( UsdStageActor );
+	RefreshStageInfos( InUsdStageActor );
 
 	ChildSlot
 	[
@@ -43,14 +45,38 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* UsdStag
 			.Text( this, &SUsdStageInfo::GetRootLayerDisplayName )
 			.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) )
 		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Left)
+		[
+			SNew( SHorizontalBox )
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Bottom)
+			.Padding(2.f, 2.f)
+			[
+				SNew( STextBlock )
+				.Text( LOCTEXT( "MetersPerUnit", "Meters per unit" ) )
+			]
+			+SHorizontalBox::Slot()
+			.Padding(2.f, 2.f)
+			[
+				SNew( SEditableTextBox )
+				.HintText( LOCTEXT( "Unset", "Unset" ) )
+				.Text( this, &SUsdStageInfo::GetMetersPerUnit )
+				.OnTextCommitted( this, &SUsdStageInfo::OnMetersPerUnitCommitted )
+			]
+		]
 	];
 }
 
-void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* UsdStageActor )
+void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* InUsdStageActor )
 {
+	UsdStageActor = InUsdStageActor;
 	StageInfos.RootLayerDisplayName = LOCTEXT( "NoUsdStage", "No Stage Available" );
 
-	if ( !UsdStageActor )
+	if ( !InUsdStageActor )
 	{
 		return;
 	}
@@ -59,6 +85,41 @@ void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* UsdStageActor )
 	{
 		TUsdStore< std::string > UsdDisplayName = UsdStage->GetRootLayer()->GetDisplayName();
 		StageInfos.RootLayerDisplayName = FText::FromString( UsdToUnreal::ConvertString( UsdDisplayName.Get() ) );
+
+		if ( pxr::UsdGeomStageHasAuthoredMetersPerUnit( UsdStage ) )
+		{
+			StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
+		}
+		else
+		{
+			StageInfos.MetersPerUnit.Reset();
+		}
+	}
+}
+
+FText SUsdStageInfo::GetMetersPerUnit() const
+{
+	if ( StageInfos.MetersPerUnit )
+	{
+		return FText::FromString( LexToSanitizedString( StageInfos.MetersPerUnit.GetValue() ) );
+	}
+	else
+	{
+		return FText();
+	}
+}
+
+void SUsdStageInfo::OnMetersPerUnitCommitted( const FText& InUnitsPerMeterText, ETextCommit::Type InCommitInfo )
+{
+	if ( UsdStageActor.IsValid() )
+	{
+		float MetersPerUnit = 0.01f;
+		LexFromString( MetersPerUnit, *InUnitsPerMeterText.ToString() );
+
+		MetersPerUnit = FMath::Clamp( MetersPerUnit, 0.001f, 1000.f );
+
+		UsdUtils::SetUsdStageMetersPerUnit( UsdStageActor->GetUsdStage(), MetersPerUnit );
+		RefreshStageInfos( UsdStageActor.Get() );
 	}
 }
 
