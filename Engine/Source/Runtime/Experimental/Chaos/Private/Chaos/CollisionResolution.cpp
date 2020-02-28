@@ -2338,6 +2338,10 @@ namespace Chaos
 			}
 			Dir /= Length;
 
+			// Attempt to get rid of invalid static analysis warnings
+			check(Implicit0 || Implicit0Type == ImplicitObjectType::Unknown);
+			check(Implicit1 || Implicit1Type == ImplicitObjectType::Unknown);
+
 			if (Implicit0Type == TBox<FReal, 3>::StaticType() && Implicit1Type == THeightField<FReal>::StaticType())
 			{
 				return GetPairTOIHackImpl<TBox<FReal, 3>>(*Implicit0->template GetObject<TBox<FReal, 3>>(), StartTransform0, *Implicit1->template GetObject<THeightField<FReal>>(), Transform1, Dir, Length, OutTOI, OutNormal, OutPhi);
