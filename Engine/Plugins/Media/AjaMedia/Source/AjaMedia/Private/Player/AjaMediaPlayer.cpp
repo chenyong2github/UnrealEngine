@@ -68,9 +68,8 @@ FAjaMediaPlayer::FAjaMediaPlayer(IMediaEventSink& InEventSink)
 	, bUseVideo(false)
 	, bVerifyFrameDropCount(true)
 	, InputChannel(nullptr)
-	, SupportedSampleTypes(static_cast<EMediaIOSampleType>(static_cast<uint8>(EMediaIOSampleType::Video) | static_cast<uint8>(EMediaIOSampleType::Audio) | static_cast<uint8>(EMediaIOSampleType::Metadata)))
+	, SupportedSampleTypes(EMediaIOSampleType::None)
 {
-	Samples->EnableTimedDataChannels(SupportedSampleTypes);
 }
 
 
@@ -190,6 +189,12 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 		AjaOptions.bUseKey = false;
 		AjaOptions.bBurnTimecode = false;
 		AjaOptions.BurnTimecodePercentY = 80;
+
+		//Adjust supported sample types based on what's being captured
+		SupportedSampleTypes = AjaOptions.bUseVideo ? EMediaIOSampleType::Video : EMediaIOSampleType::None;
+		SupportedSampleTypes |= AjaOptions.bUseAudio ? EMediaIOSampleType::Audio : EMediaIOSampleType::None;
+		SupportedSampleTypes |= AjaOptions.bUseAncillary ? EMediaIOSampleType::Metadata : EMediaIOSampleType::None;
+		Samples->EnableTimedDataChannels(this, SupportedSampleTypes);
 	}
 
 	bVerifyFrameDropCount = Options->GetMediaOption(AjaMediaOption::LogDropFrame, true);
@@ -239,6 +244,9 @@ void FAjaMediaPlayer::Close()
 	AudioSamplePool->Reset();
 	MetadataSamplePool->Reset();
 	TextureSamplePool->Reset();
+
+	//Disable all our channels from the monitor
+	Samples->EnableTimedDataChannels(this, EMediaIOSampleType::None);
 
 	AjaThreadCurrentAncSample.Reset();
 	AjaThreadCurrentAncF2Sample.Reset();
