@@ -18,6 +18,13 @@ static FAutoConsoleVariableRef CVarWholeSceneShadowUnbuiltInteractionThreshold(
 	ECVF_RenderThreadSafe
 	);
 
+static int32 GRecordInteractionShadowPrimitives = 1;
+FAutoConsoleVariableRef CVarRecordInteractionShadowPrimitives(
+	TEXT("r.Shadow.RecordInteractionShadowPrimitives"),
+	GRecordInteractionShadowPrimitives,
+	TEXT(""),
+	ECVF_RenderThreadSafe);
+
 void FLightSceneInfoCompact::Init(FLightSceneInfo* InLightSceneInfo)
 {
 	LightSceneInfo = InLightSceneInfo;
@@ -36,7 +43,8 @@ void FLightSceneInfoCompact::Init(FLightSceneInfo* InLightSceneInfo)
 }
 
 FLightSceneInfo::FLightSceneInfo(FLightSceneProxy* InProxy, bool InbVisible)
-	: DynamicInteractionOftenMovingPrimitiveList(NULL)
+	: bRecordInteractionShadowPrimitives(!!GRecordInteractionShadowPrimitives && InProxy->GetLightType() != ELightComponentType::LightType_Directional)
+	, DynamicInteractionOftenMovingPrimitiveList(NULL)
 	, DynamicInteractionStaticPrimitiveList(NULL)
 	, Proxy(InProxy)
 	, Id(INDEX_NONE)
@@ -156,6 +164,8 @@ void FLightSceneInfo::Detach()
 {
 	check(IsInRenderingThread());
 
+	InteractionShadowPrimitives.Empty();
+
 	// implicit linked list. The destruction will update this "head" pointer to the next item in the list.
 	while(DynamicInteractionOftenMovingPrimitiveList)
 	{
@@ -215,6 +225,15 @@ bool FLightSceneInfo::ShouldRenderLight(const FViewInfo& View) const
 bool FLightSceneInfo::IsPrecomputedLightingValid() const
 {
 	return (bPrecomputedLightingIsValid && NumUnbuiltInteractions < GWholeSceneShadowUnbuiltInteractionThreshold) || !Proxy->HasStaticShadowing();
+}
+
+const TArray<FLightPrimitiveInteraction*>* FLightSceneInfo::GetInteractionShadowPrimitives(bool bSync) const
+{
+	if (bSync)
+	{
+		Scene->FlushAsyncLightPrimitiveInteractionCreation();
+	}
+	return bRecordInteractionShadowPrimitives ? &InteractionShadowPrimitives : nullptr;
 }
 
 FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionOftenMovingPrimitiveList(bool bSync) const
