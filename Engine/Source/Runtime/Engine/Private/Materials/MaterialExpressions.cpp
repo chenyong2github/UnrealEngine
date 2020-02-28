@@ -12460,6 +12460,7 @@ void FMaterialLayersFunctions::ID::AppendKeyString(FString& KeyString) const
 
 const FGuid FMaterialLayersFunctions::UninitializedParentGuid(0u, 0u, 0u, 0u);
 const FGuid FMaterialLayersFunctions::NoParentGuid(1u, 0u, 0u, 0u);
+const FGuid FMaterialLayersFunctions::BackgroundGuid(2u, 0u, 0u, 0u);
 
 const FMaterialLayersFunctions::ID FMaterialLayersFunctions::GetID() const
 {
@@ -12548,10 +12549,17 @@ void FMaterialLayersFunctions::PostSerialize(const FArchive& Ar)
 			const int32 NumLayers = Layers.Num();
 			LayerGuids.Empty(NumLayers);
 			ParentLayerGuids.Empty(NumLayers);
-			for (int32 i = 0; i < NumLayers; ++i)
+
+			if (NumLayers > 0)
 			{
-				LayerGuids.Add(FGuid::NewGuid());
-				ParentLayerGuids.Add(UninitializedParentGuid);
+				LayerGuids.Add(BackgroundGuid);
+				ParentLayerGuids.Add(NoParentGuid);
+
+				for (int32 i = 1; i < NumLayers; ++i)
+				{
+					LayerGuids.Add(FGuid::NewGuid());
+					ParentLayerGuids.Add(UninitializedParentGuid);
+				}
 			}
 		}
 	}
