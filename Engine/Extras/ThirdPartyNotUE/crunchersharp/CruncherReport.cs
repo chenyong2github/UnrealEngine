@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using Microsoft.VisualBasic.FileIO;
 
 namespace CruncherSharp
@@ -11,7 +9,7 @@ namespace CruncherSharp
 		public CruncherReport(string PDBFile, string CSVFile)
 		{
 			m_CruncherData = new CruncherData();
-			string result = m_CruncherData.loadDataFromPdb(PDBFile);
+			string result = m_CruncherData.LoadDataFromPdb(PDBFile);
 			if (result != null)
 			{
 				System.Console.WriteLine(result);
@@ -40,7 +38,7 @@ namespace CruncherSharp
 				}
 				else
 				{
-					if (Info.m_size > SymbolToValidate.Item2)
+					if (Info.Size > SymbolToValidate.Item2)
 					{
 						string Larger = "WARNING: Symbol '"
 										+ SymbolToValidate.Item1
@@ -49,13 +47,13 @@ namespace CruncherSharp
 										+ " bytes with "
 										+ SymbolToValidate.Item3
 										+ " bytes of padding, however it is "
-										+ Info.m_size
+										+ Info.Size
 										+ " bytes with "
-										+ Info.m_padding
+										+ Info.Padding
 										+ " bytes of padding. Inspect symbol to ensure no unneeded size regressions have occurred and update expected symbol size csv as needed.";
 						System.Console.WriteLine(Larger);
 					}
-					else if (Info.m_size < SymbolToValidate.Item2)
+					else if (Info.Size < SymbolToValidate.Item2)
 					{
 						string Smaller = "Symbol '"
 										+ SymbolToValidate.Item1
@@ -64,9 +62,9 @@ namespace CruncherSharp
 										+ " bytes with "
 										+ SymbolToValidate.Item3
 										+ " bytes of padding, however it is "
-										+ Info.m_size
+										+ Info.Size
 										+ " bytes with "
-										+ Info.m_padding
+										+ Info.Padding
 										+ " bytes of padding. Consider updating symbol size csv as to maintain size savings.";
 						System.Console.WriteLine(Smaller);
 					}

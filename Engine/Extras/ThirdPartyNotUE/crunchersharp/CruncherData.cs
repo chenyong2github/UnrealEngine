@@ -3,26 +3,28 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using Dia2Lib;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CruncherSharp
-{			
-    public static class LocationType
-    {
-        public static uint IsNull       = 0;
-        public static uint IsThisRel    = 4;
-        public static uint IsBitField   = 6;
-    }
-
+{
+	/**
+	* Contains data loaded from the PDB symbols 
+	*/
     public class CruncherData
     {
-        public CruncherData()
+		IDiaDataSource m_source;
+		IDiaSession m_session;
+		Dictionary<string, SymbolInfo> m_symbols = new Dictionary<string, SymbolInfo>();
+		public DataTable m_table = null;
+
+		public CruncherData()
         {
 			m_table = CreateDataTable();
         }
 
-		public string loadDataFromPdb(string FileName)
+		/**
+		* @brief	Attempt to load the PDB file from the given file location and populate the data table on the left 
+		*/
+		public string LoadDataFromPdb(string FileName)
 		{
 			m_symbols.Clear();
             Stopwatch watch;
@@ -60,34 +62,34 @@ namespace CruncherSharp
 			return null;
 		}
 
-        DataTable CreateDataTable()
+		/**
+		* @brief	Create the data table that displays on the left hand side of the screen
+		*			where each symbol name will be displayed, along with it's summary.
+		*/
+        private static DataTable CreateDataTable()
         {
             DataTable table = new DataTable("Symbols");
 
-            DataColumn column = new DataColumn();
-            column.ColumnName = "Symbol";
-            column.ReadOnly = true;
-            table.Columns.Add(column);
-            column = new DataColumn();
-            column.ColumnName = "Size";
-            column.ReadOnly = true;
-            column.DataType = System.Type.GetType("System.Int32");
-            table.Columns.Add(column);
-            column = new DataColumn();
-            column.ColumnName = "Padding";
-            column.ReadOnly = true;
-            column.DataType = System.Type.GetType("System.Int32");
-            table.Columns.Add(column);
-            column = new DataColumn();
-            column.ColumnName = "Padding/Size";
-            column.ReadOnly = true;
-            column.DataType = System.Type.GetType("System.Double");
-            table.Columns.Add(column);
+			table.Columns.Add(
+				new DataColumn("Symbol") { ReadOnly = true }
+			);
 
+			table.Columns.Add(
+				new DataColumn("Size", System.Type.GetType("System.Int32")) { ReadOnly = true }
+			);
+
+			table.Columns.Add(
+				new DataColumn("Padding", System.Type.GetType("System.Int32")) { ReadOnly = true }
+			);
+
+			table.Columns.Add(
+				new DataColumn("Padding/Size", System.Type.GetType("System.Double")) { ReadOnly = true }
+			);
+            
             return table;
         }
 
-        void PopulateDataTable(DataTable table, IDiaEnumSymbols symbols)
+        private void PopulateDataTable(DataTable table, IDiaEnumSymbols symbols)
         {
             table.Rows.Clear();
 
@@ -96,24 +98,22 @@ namespace CruncherSharp
             {
                 if (sym.length > 0 && !HasSymbol(sym.name))
                 {
-                    SymbolInfo info = new SymbolInfo(sym.name, "", sym.length, 0);
-                    info.ProcessChildren(sym);
+                    SymbolInfo info = new SymbolInfo(sym.name, "", sym.length, 0, sym);
 
                     long totalPadding = info.CalcTotalPadding();
 
                     DataRow row = table.NewRow();
                     string symbolName = sym.name;
                     row["Symbol"] = symbolName;
-                    row["Size"] = info.m_size;
+                    row["Size"] = info.Size;
                     row["Padding"] = totalPadding;
-                    row["Padding/Size"] = (double)totalPadding / info.m_size;
+                    row["Padding/Size"] = (double)totalPadding / info.Size;
                     table.Rows.Add(row);
 
-                    m_symbols.Add(info.m_name, info);
+                    m_symbols.Add(info.Name, info);
                 }
             }
 			table.EndLoadData();
-
         }
 
         public bool HasSymbol(string name)
@@ -128,187 +128,30 @@ namespace CruncherSharp
             return info;
         }
 
-        IDiaDataSource m_source;
-        IDiaSession m_session;
-        Dictionary<string, SymbolInfo> m_symbols = new Dictionary<string, SymbolInfo>();
-        public DataTable m_table = null;
-
         public void dumpSymbolInfo(System.IO.TextWriter tw, SymbolInfo info)
         {
-            tw.WriteLine("Symbol: " + info.m_name);
-            tw.WriteLine("Size: " + info.m_size.ToString());
+            tw.WriteLine("Symbol: " + info.Name);
+            tw.WriteLine("Size: " + info.Size.ToString());
             tw.WriteLine("Total padding: " + info.CalcTotalPadding().ToString());
             tw.WriteLine("Members");
             tw.WriteLine("-------");
 
-            foreach (SymbolInfo child in info.m_children)
+            foreach (SymbolInfo child in info.Children)
             {
-                if (child.m_padding > 0)
+                if (child.Padding > 0)
                 {
-                    long paddingOffset = child.m_offset - child.m_padding;
-                    tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", "****Padding", paddingOffset, child.m_padding));
+                    long paddingOffset = child.Offset - child.Padding;
+                    tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", "****Padding", paddingOffset, child.Padding));
                 }
 
-                tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", child.m_name, child.m_offset, child.m_size));
+                tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", child.Name, child.Offset, child.Size));
             }
             // Final structure padding.
-            if (info.m_padding > 0)
+            if (info.Padding > 0)
             {
-                long paddingOffset = (long)info.m_size - info.m_padding;
-                tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", "****Padding", paddingOffset, info.m_padding));
+                long paddingOffset = (long)info.Size - info.Padding;
+                tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", "****Padding", paddingOffset, info.Padding));
             }
         }
 	}
-
-	public class SymbolInfo
-	{
-        public SymbolInfo()
-        {
-
-        }
-
-        public SymbolInfo(string name, string typeName, ulong size, long offset)
-        {
-            Set(name, typeName, size, offset);
-        }
-
-        public void Set(string name, string typeName, ulong size, long offset)
-        {
-            m_name = name;
-            m_typeName = typeName;
-            m_size = size;
-            m_offset = offset;
-            m_IsBase = m_name.IndexOf("Base: ") == 0;
-        }
-
-        public void ProcessChildren(IDiaSymbol symbol)
-		{
-			IDiaEnumSymbols children;
-			symbol.findChildren(SymTagEnum.SymTagNull, null, 0, out children);
-
-			foreach (IDiaSymbol child in children)
-			{
-				SymbolInfo childInfo;
-				if (ProcessChild(child, out childInfo))
-				{
-					AddChild(childInfo);
-				}
-			}
-			// Sort children by offset, recalc padding.
-			// Sorting is not needed normally (for data fields), but sometimes base class order is wrong.
-			if (HasChildren)
-			{
-				m_children.Sort(CompareOffsets);
-				for (int i = 0; i < m_children.Count; ++i)
-				{
-					SymbolInfo child = m_children[i];
-					child.m_padding = CalcPadding(child.m_offset, i);
-				}
-				m_padding = CalcPadding((long)m_size, m_children.Count);
-			}
-		}
-
-		private bool ProcessChild(IDiaSymbol symbol, out SymbolInfo info)
-		{
-			info = new SymbolInfo();
-			if (symbol.isStatic != 0 || (symbol.symTag != (uint)SymTagEnum.SymTagData && symbol.symTag != (uint)SymTagEnum.SymTagBaseClass))
-			{
-				return false;
-			}
-			if (symbol.locationType != LocationType.IsThisRel && symbol.locationType != LocationType.IsNull && symbol.locationType != LocationType.IsBitField)
-			{
-				return false;
-			}
-
-			ulong len = symbol.length;
-			IDiaSymbol typeSymbol = symbol.type;
-			if (typeSymbol != null)
-			{
-				len = typeSymbol.length;
-			}
-
-			string symbolName = symbol.name;
-			if (symbol.symTag == (uint)SymTagEnum.SymTagBaseClass)
-			{
-				symbolName = "Base: " + symbolName;
-			}
-
-			info.Set(symbolName, (typeSymbol != null ? typeSymbol.name : ""), len, symbol.offset);
-
-			return true;
-		}
-
-		private long CalcPadding(long offset, int index)
-		{
-			long padding = 0;
-			if (HasChildren && index > 0)
-			{
-				SymbolInfo lastInfo = m_children[index - 1];
-				padding = offset - (lastInfo.m_offset + (long)lastInfo.m_size);
-			}
-			return padding > 0 ? padding : 0;
-		}
-
-		public bool HasChildren { get { return m_children != null; } }
-		
-        public long CalcTotalPadding()
-		{
-			long totalPadding = m_padding;
-			if (HasChildren)
-			{
-				foreach (SymbolInfo info in m_children)
-				{
-					totalPadding += info.m_padding;
-				}
-			}
-			return totalPadding;
-		}
-		
-        private void AddChild(SymbolInfo child)
-		{
-			if (m_children == null)
-			{
-				m_children = new List<SymbolInfo>();
-			}
-			m_children.Add(child);
-		}
-
-		private static int CompareOffsets(SymbolInfo x, SymbolInfo y)
-		{
-			// Base classes have to go first.
-			if (x.IsBase && !y.IsBase)
-			{
-				return -1;
-			}
-			if (!x.IsBase && y.IsBase)
-			{
-				return 1;
-			}
-
-			if (x.m_offset == y.m_offset)
-			{
-				return (x.m_size == y.m_size ? 0 : (x.m_size < y.m_size) ? -1 : 1);
-			}
-			else
-			{
-				return (x.m_offset < y.m_offset) ? -1 : 1;
-			}
-		}
-
-		public string m_name;
-		public string m_typeName;
-
-        private bool m_IsBase;
-        public bool IsBase { get { return m_IsBase; } }
-
-        /** Total size of this symbol in bytes */
-		public ulong m_size;
-        
-        /** Offset of this symbol in bytes */
-		public long m_offset;
-
-		/** Total padding of this symbol in bytes */
-        public long m_padding;
-		public List<SymbolInfo> m_children;
-	};
 }

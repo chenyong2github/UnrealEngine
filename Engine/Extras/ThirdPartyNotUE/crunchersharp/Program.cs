@@ -28,7 +28,7 @@ namespace CruncherSharp
 			{
 				Application.EnableVisualStyles();
 				Application.SetCompatibleTextRenderingDefault(false);
-				Application.Run(new CruncherSharp());
+				Application.Run(new CruncherSharp_Form());
 			}
         }
     }
