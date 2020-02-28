@@ -690,13 +690,8 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 								UVMapIndex : FBXUVs.LayerElementUV[UVLayerIndex]->GetIndexArray().GetAt(UVMapIndex);
 
 							FbxVector2	UVVector = FBXUVs.LayerElementUV[UVLayerIndex]->GetDirectArray().GetAt(UVIndex);
-							const float U = static_cast<float>(UVVector[0]);
-							const float V = static_cast<float>(UVVector[1]);
-							const float VTile = FMath::FloorToFloat(V);
-							const float VOffset = V - VTile;
-
-							FinalUVVector.X = U;
-							FinalUVVector.Y = VTile + (1.f - VOffset);   //flip the Y of UVs for DirectX
+							FinalUVVector.X = static_cast<float>(UVVector[0]);
+							FinalUVVector.Y = 1.f - static_cast<float>(UVVector[1]);   //flip the Y of UVs for DirectX
 						}
 						VertexInstanceUVs.Set(AddedVertexInstanceId, UVLayerIndex, FinalUVVector);
 					}
