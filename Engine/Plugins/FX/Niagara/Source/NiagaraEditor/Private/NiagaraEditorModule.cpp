@@ -129,6 +129,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "Containers/Ticker.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -1420,6 +1421,21 @@ void FNiagaraEditorModule::ReinitializeStyle()
 {
 	FNiagaraEditorStyle::Shutdown();
 	FNiagaraEditorStyle::Initialize();
+}
+
+void FNiagaraEditorModule::EnqueueObjectForDeferredDestructionInternal(FDeferredDestructionContainerBase* InObjectToDestruct)
+{
+	if (EnqueuedForDeferredDestruction.Num() == 0)
+	{
+		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FNiagaraEditorModule::DeferredDestructObjects));
+	}
+	EnqueuedForDeferredDestruction.Add(MakeShareable<FDeferredDestructionContainerBase>(InObjectToDestruct));
+}
+
+bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
+{
+	EnqueuedForDeferredDestruction.Empty();
+	return false;
 }
 
 PRAGMA_ENABLE_OPTIMIZATION
