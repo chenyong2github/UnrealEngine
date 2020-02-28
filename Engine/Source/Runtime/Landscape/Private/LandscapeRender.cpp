@@ -3802,7 +3802,10 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(ERHIFeatureLevel::Type InFeatur
 		}
 	}
 
-	TMap<uint64, INDEX_TYPE> VertexMap;
+	TArray<INDEX_TYPE> VertexToIndexMap;
+	VertexToIndexMap.AddUninitialized(FMath::Square(SubsectionSizeVerts * NumSubsections));
+	FMemory::Memset(VertexToIndexMap.GetData(), 0xff, NumVertices * sizeof(INDEX_TYPE));
+
 	INDEX_TYPE VertexCount = 0;
 	int32 SubsectionSizeQuads = SubsectionSizeVerts - 1;
 
@@ -3823,7 +3826,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(ERHIFeatureLevel::Type InFeatur
 
 		if (InFeatureLevel <= ERHIFeatureLevel::ES3_1)
 		{
-			// ES2 version
+			// mobile version shares vertices across LODs to save memory
 			float MipRatio = (float)SubsectionSizeQuads / (float)LodSubsectionSizeQuads; // Morph current MIP to base MIP
 
 			for (int32 SubY = 0; SubY < NumSubsections; SubY++)
@@ -3838,91 +3841,40 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(ERHIFeatureLevel::Type InFeatur
 					MaxIndex = 0;
 					MinIndex = MAX_int32;
 
-					for (int32 y = 0; y < LodSubsectionSizeQuads; y++)
+					for (int32 Y = 0; Y < LodSubsectionSizeQuads; Y++)
 					{
-						for (int32 x = 0; x < LodSubsectionSizeQuads; x++)
+						for (int32 X = 0; X < LodSubsectionSizeQuads; X++)
 						{
-							int32 x0 = FMath::RoundToInt((float)x * MipRatio);
-							int32 y0 = FMath::RoundToInt((float)y * MipRatio);
-							int32 x1 = FMath::RoundToInt((float)(x + 1) * MipRatio);
-							int32 y1 = FMath::RoundToInt((float)(y + 1) * MipRatio);
+							INDEX_TYPE QuadIndices[4];
 
-							FLandscapeVertexRef V00(x0, y0, SubX, SubY);
-							FLandscapeVertexRef V10(x1, y0, SubX, SubY);
-							FLandscapeVertexRef V11(x1, y1, SubX, SubY);
-							FLandscapeVertexRef V01(x0, y1, SubX, SubY);
-
-							uint64 Key00 = V00.MakeKey();
-							uint64 Key10 = V10.MakeKey();
-							uint64 Key11 = V11.MakeKey();
-							uint64 Key01 = V01.MakeKey();
-
-							INDEX_TYPE i00;
-							INDEX_TYPE i10;
-							INDEX_TYPE i11;
-							INDEX_TYPE i01;
-
-							INDEX_TYPE* KeyPtr = VertexMap.Find(Key00);
-							if (KeyPtr == nullptr)
+							for (int32 CornerId = 0; CornerId < 4; CornerId++)
 							{
-								i00 = VertexCount++;
-								VertexMap.Add(Key00, i00);
-							}
-							else
-							{
-								i00 = *KeyPtr;
+								const int32 CornerX = FMath::RoundToInt((float)(X + (CornerId & 1)) * MipRatio);
+								const int32 CornerY = FMath::RoundToInt((float)(Y + (CornerId >> 1)) * MipRatio);
+								const FLandscapeVertexRef VertexRef(CornerX, CornerY, SubX, SubY);
+
+								const INDEX_TYPE VertexIndex = FLandscapeVertexRef::GetVertexIndex(VertexRef, NumSubsections, SubsectionSizeVerts);
+								if (VertexToIndexMap[VertexIndex] == INDEX_TYPE(-1))
+								{
+									VertexToIndexMap[VertexIndex] = QuadIndices[CornerId] = VertexCount++;
+								}
+								else
+								{
+									QuadIndices[CornerId] = VertexToIndexMap[VertexIndex];
+								}
+
+								// update the min/max index ranges
+								MaxIndex = FMath::Max<int32>(MaxIndex, QuadIndices[CornerId]);
+								MinIndex = FMath::Min<int32>(MinIndex, QuadIndices[CornerId]);
 							}
 
-							KeyPtr = VertexMap.Find(Key10);
-							if (KeyPtr == nullptr)
-							{
-								i10 = VertexCount++;
-								VertexMap.Add(Key10, i10);
-							}
-							else
-							{
-								i10 = *KeyPtr;
-							}
+							SubIndices.Add(QuadIndices[0]);
+							SubIndices.Add(QuadIndices[3]);
+							SubIndices.Add(QuadIndices[1]);
 
-							KeyPtr = VertexMap.Find(Key11);
-							if (KeyPtr == nullptr)
-							{
-								i11 = VertexCount++;
-								VertexMap.Add(Key11, i11);
-							}
-							else
-							{
-								i11 = *KeyPtr;
-							}
-
-							KeyPtr = VertexMap.Find(Key01);
-							if (KeyPtr == nullptr)
-							{
-								i01 = VertexCount++;
-								VertexMap.Add(Key01, i01);
-							}
-							else
-							{
-								i01 = *KeyPtr;
-							}
-
-							// Update the min/max index ranges
-							MaxIndex = FMath::Max<int32>(MaxIndex, i00);
-							MinIndex = FMath::Min<int32>(MinIndex, i00);
-							MaxIndex = FMath::Max<int32>(MaxIndex, i10);
-							MinIndex = FMath::Min<int32>(MinIndex, i10);
-							MaxIndex = FMath::Max<int32>(MaxIndex, i11);
-							MinIndex = FMath::Min<int32>(MinIndex, i11);
-							MaxIndex = FMath::Max<int32>(MaxIndex, i01);
-							MinIndex = FMath::Min<int32>(MinIndex, i01);
-
-							SubIndices.Add(i00);
-							SubIndices.Add(i11);
-							SubIndices.Add(i10);
-
-							SubIndices.Add(i00);
-							SubIndices.Add(i01);
-							SubIndices.Add(i11);
+							SubIndices.Add(QuadIndices[0]);
+							SubIndices.Add(QuadIndices[2]);
+							SubIndices.Add(QuadIndices[3]);
 						}
 					}
 
@@ -3938,7 +3890,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(ERHIFeatureLevel::Type InFeatur
 		}
 		else
 		{
-			// non-ES2 version
+			// non-mobile version
 			int32 SubOffset = 0;
 			for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 			{
