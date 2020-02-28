@@ -158,7 +158,7 @@ public:
 	 * @param OnSelectionChanged Delegate fired when selection is changed
 	 * @return The new widget
 	 */
-	static TSharedRef<SWidget> MakeEnumComboBox(const UEnum* Enum, TAttribute<int32> CurrentValue, SEnumCombobox::FOnEnumSelectionChanged OnSelectionChanged);
+	static TSharedRef<SWidget> MakeEnumComboBox(const UEnum* Enum, TAttribute<int32> CurrentValue, SEnumComboBox::FOnEnumSelectionChanged OnSelectionChanged);
 
 
 	/**
