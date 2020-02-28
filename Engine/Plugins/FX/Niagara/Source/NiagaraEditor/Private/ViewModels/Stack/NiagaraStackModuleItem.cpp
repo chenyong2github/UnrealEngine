@@ -1147,7 +1147,6 @@ FText UNiagaraStackModuleItem::GetDeleteTransactionText() const
 void UNiagaraStackModuleItem::Delete()
 {
 	checkf(CanMoveAndDelete(), TEXT("This module can't be deleted"));
-
 	const FNiagaraEmitterHandle* EmitterHandle = GetEmitterViewModel().IsValid()
 		? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(GetSystemViewModel()->GetSystem(), *GetEmitterViewModel()->GetEmitter())
 		: nullptr;
