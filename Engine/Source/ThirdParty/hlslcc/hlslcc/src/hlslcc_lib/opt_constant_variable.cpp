@@ -60,10 +60,9 @@ public:
 	ir_constant_variable_visitor();
 	virtual ~ir_constant_variable_visitor();
 	
-	virtual ir_visitor_status visit_enter(ir_dereference_variable *);
-	virtual ir_visitor_status visit(ir_variable *);
-	virtual ir_visitor_status visit_enter(ir_assignment *);
-	virtual ir_visitor_status visit_enter(ir_call *);
+	virtual ir_visitor_status visit(ir_variable *) override;
+	virtual ir_visitor_status visit_enter(ir_assignment *) override;
+	virtual ir_visitor_status visit_enter(ir_call *) override;
 
 	hash_table* ht;
 	exec_list list;
@@ -104,13 +103,6 @@ ir_visitor_status ir_constant_variable_visitor::visit(ir_variable *ir)
 	return visit_continue;
 }
 
-/* Skip derefs of variables so that we can detect declarations. */
-ir_visitor_status ir_constant_variable_visitor::visit_enter(ir_dereference_variable *ir)
-{
-	(void)ir;
-	return visit_continue_with_parent;
-}
-
 ir_visitor_status ir_constant_variable_visitor::visit_enter(ir_assignment *ir)
 {
 	ir_constant *constval;
@@ -133,6 +125,28 @@ ir_visitor_status ir_constant_variable_visitor::visit_enter(ir_assignment *ir)
 	ir_variable *var = ir->whole_variable_written();
 	if (!var)
 		return visit_continue;
+
+	// This avoid this pattern that fails:
+	//
+	//	int SimulationStageIndex;
+	//	RWBuffer<float> RWOutputFloat;
+	//	[numthreads(32, 1, 1)]
+	//	void SimulateMainComputeCS(float f : TEXCOORD)
+	//	{
+	//		if (SimulationStageIndex != 0)
+	//		{
+	//			f = 0;
+	//		}
+
+	//		RWOutputFloat[0] = f;
+	//	}
+	// The optimizer doesn't take into consideration the argument from the function could has an initial value. This causes
+	// other consequences such as some expressions can't get removed. We might need to make sure that has no other side effects.
+
+	if (var->mode == ir_var_in)
+	{
+		return visit_continue;
+	}
 
 	constval = ir->rhs->constant_expression_value();
 	if (!constval)
