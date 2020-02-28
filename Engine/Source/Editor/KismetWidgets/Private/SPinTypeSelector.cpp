@@ -907,8 +907,9 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 
 	FilteredTypeTreeRoot = TypeTreeRoot;
 
-	if( !MenuContent.IsValid() )
+	if( !MenuContent.IsValid() || (bForSecondaryType != bMenuContentIsSecondary) )
 	{
+		bMenuContentIsSecondary = bForSecondaryType;
 		// Pre-build the tree view and search box as it is needed as a parameter for the context menu's container.
 		SAssignNew(TypeTreeView, SPinTypeTreeView)
 			.TreeItemsSource(&FilteredTypeTreeRoot)
@@ -947,11 +948,17 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 			];
 			
 
-			TypeComboButton->SetMenuContentWidgetToFocus(FilterTextBox);
+		if (bForSecondaryType)
+		{
 			if (SecondaryTypeComboButton.IsValid())
 			{
 				SecondaryTypeComboButton->SetMenuContentWidgetToFocus(FilterTextBox);
 			}
+		}
+		else
+		{
+			TypeComboButton->SetMenuContentWidgetToFocus(FilterTextBox);
+		}
 	}
 	else
 	{
