@@ -177,6 +177,17 @@ public:
 		return nullptr;
 	};
 
+	template<typename T>
+	const TManagedArray<T>* FindAttribute(FName Name, FName Group) const
+	{
+		if (HasAttribute(Name, Group))
+		{
+			FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+			return static_cast<TManagedArray<T>*>(Map[Key].Value);
+		}
+		return nullptr;
+	};
+
 	/**
 	* Returns attribute access of Type(T) from the group
 	* @param Name - The name of the attribute
