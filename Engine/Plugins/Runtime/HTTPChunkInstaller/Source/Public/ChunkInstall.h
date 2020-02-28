@@ -117,15 +117,15 @@ public:
 // 					// bump the read prioritiy 
 // 					++PakReadOrder;
 // 				}
-				if (FCoreDelegates::OnMountPak.IsBound())
+				if (FCoreDelegates::MountPak.IsBound())
 				{
-					auto bSuccess = FCoreDelegates::OnMountPak.Execute(PakFiles[PakIndex], PakReadOrder, nullptr);
+					auto bSuccess = FCoreDelegates::MountPak.Execute(PakFiles[PakIndex], PakReadOrder);
 #if !UE_BUILD_SHIPPING
 					if (!bSuccess)
 					{
 						// This can fail because of the sandbox system - which the pak system doesn't understand.
 						auto SandboxedPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*PakFiles[PakIndex]);
-						bSuccess = FCoreDelegates::OnMountPak.Execute(SandboxedPath, PakReadOrder, nullptr);
+						bSuccess = FCoreDelegates::MountPak.Execute(SandboxedPath, PakReadOrder);
 					}
 #endif
 					MountedPaks.Add(PakFiles[PakIndex]);
