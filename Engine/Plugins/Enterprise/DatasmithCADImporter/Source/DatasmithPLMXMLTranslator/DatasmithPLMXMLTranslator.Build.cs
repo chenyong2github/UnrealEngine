@@ -27,9 +27,9 @@ namespace UnrealBuildTool.Rules
 
 					"DatasmithCore",
 
-                    "CADInterfaces",
                     "CADLibrary",
 					"CADTools",
+					"DatasmithCoreTechParametricSurfaceData",
 					"DatasmithCADTranslator", // for DatasmithMeshBuilder
                     "DatasmithTranslator",
                     "DatasmithDispatcher",
