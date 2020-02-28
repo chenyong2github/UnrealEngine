@@ -142,7 +142,7 @@ void FPhysTestSerializer::SetPhysicsData(physx::PxScene& Scene)
 #endif
 }
 
-void FPhysTestSerializer::SetPhysicsData(Chaos::TPBDRigidsEvolutionGBF<float,3>& Evolution)
+void FPhysTestSerializer::SetPhysicsData(Chaos::FPBDRigidsEvolutionGBF& Evolution)
 {
 	bDiskDataIsChaos = true;
 	Data.Empty();
@@ -330,11 +330,11 @@ void FPhysTestSerializer::CreateChaosData()
 			++Idx;
 		}
 
-		ChaosEvolution = MakeUnique<TPBDRigidsEvolutionGBF<float, 3>>(Particles);
+		ChaosEvolution = MakeUnique<FPBDRigidsEvolutionGBF>(Particles);
 	}
 	else
 	{
-		ChaosEvolution = MakeUnique<TPBDRigidsEvolutionGBF<float, 3>>(Particles);
+		ChaosEvolution = MakeUnique<FPBDRigidsEvolutionGBF>(Particles);
 
 		FMemoryReader Ar(Data);
 		FChaosArchive ChaosAr(Ar);
