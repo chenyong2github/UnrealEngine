@@ -956,8 +956,9 @@ void FMatinee::InitMatinee(const EToolkitMode::Type Mode, const TSharedPtr< clas
 			// If there is a director group, set the perspective viewports to realtime automatically.
 			if(LevelVC->IsPerspective() && LevelVC->AllowsCinematicControl())
 			{				
-				//Ensure Realtime is turned on and store the original setting so we can restore it later.
-				LevelVC->SetRealtime(true, true);
+				//Ensure Realtime is turned on temporarily
+				const bool bShouldBeRealtime = true;
+				LevelVC->SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_Matinee", "Matinee"));
 			}
 		}
 	}
@@ -2084,8 +2085,7 @@ void FMatinee::OnClose()
 			// Turn off realtime when exiting.
 			if( LevelVC->IsPerspective() && LevelVC->AllowsCinematicControl() )
 			{				
-				//Specify true so RestoreRealtime will allow us to disable Realtime if it was original disabled
-				LevelVC->RestoreRealtime(true);
+				LevelVC->RemoveRealtimeOverride();
 			}
 		}
 	}

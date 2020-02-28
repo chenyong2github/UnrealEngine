@@ -358,8 +358,6 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, bForceAudioRealtime(false)
 	, RealTimeUntilFrameNumber(0)
 	, bIsRealtime(false)
-	, bStoredRealtime(false)
-	, bStoredShowStats(false)
 	, bShowStats(false)
 	, bHasAudioFocus(false)
 	, bShouldCheckHitProxy(false)
@@ -486,50 +484,52 @@ FEditorViewportClient::~FEditorViewportClient()
 	}
 }
 
+void FEditorViewportClient::SetRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)
+{
+	PreviousRealtimeOverrideState = TempRealtimeOverride;
+	TempRealtimeOverride = TPair<bool, FText>(bShouldBeRealtime, SystemDisplayName);
+
+	bShouldInvalidateViewportWidget = true;
+}
+
+void FEditorViewportClient::RemoveRealtimeOverride()
+{
+	TempRealtimeOverride = PreviousRealtimeOverrideState;
+	PreviousRealtimeOverrideState.Reset();
+	bShouldInvalidateViewportWidget = true;
+}
+
 bool FEditorViewportClient::ToggleRealtime()
 {
 	SetRealtime(!bIsRealtime);
 	return bIsRealtime;
 }
 
+void FEditorViewportClient::SetRealtime(bool bInRealtime)
+{
+	bIsRealtime = bInRealtime;
+	bShouldInvalidateViewportWidget = true;
+}
+
+FText FEditorViewportClient::GetRealtimeOverrideMessage() const
+{
+	return TempRealtimeOverride.IsSet() ? TempRealtimeOverride.GetValue().Value : FText::GetEmpty();
+}
+
 void FEditorViewportClient::SetRealtime(bool bInRealtime, bool bStoreCurrentValue)
 {
-	if (bStoreCurrentValue)
-	{
-		//Cache the Realtime and ShowStats flags
-		bStoredRealtime = bIsRealtime;
-		bStoredShowStats = bShowStats;
-	}
-
-	bIsRealtime = bInRealtime;
-
-	if (!bIsRealtime)
-	{
-		SetShowStats(false);
-	}
-	else
-	{
-		bShouldInvalidateViewportWidget = true;
-	}
+	SetRealtime(bInRealtime);
 }
 
 void FEditorViewportClient::RestoreRealtime(const bool bAllowDisable)
 {
-	if (bAllowDisable)
-	{
-		bIsRealtime = bStoredRealtime;
-		bShowStats = bStoredShowStats;
-	}
-	else
-	{
-		bIsRealtime |= bStoredRealtime;
-		bShowStats |= bStoredShowStats;
-	}
+	RemoveRealtimeOverride();
+}
 
-	if (bIsRealtime)
-	{
-		bShouldInvalidateViewportWidget = true;
-	}
+void FEditorViewportClient::SaveRealtimeStateToConfig(bool& ConfigVar) const
+{
+	// Note, this should not ever look at anything but the true realtime state.  No overrides etc.
+	ConfigVar = bIsRealtime;
 }
 
 void FEditorViewportClient::SetShowStats(bool bWantStats)
@@ -2085,7 +2085,7 @@ void FEditorViewportClient::HandleViewportStatEnabled(const TCHAR* InName)
 	if (GStatProcessingViewportClient == this)
 	{
 		SetShowStats(true);
-		SetRealtime(true);
+		SetRealtimeOverride(true, LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
 		SetStatEnabled(InName, true);
 	}
 }
@@ -2098,7 +2098,7 @@ void FEditorViewportClient::HandleViewportStatDisabled(const TCHAR* InName)
 		if (SetStatEnabled(InName, false) == 0)
 		{
 			SetShowStats(false);
-			// Note: we can't disable realtime as we don't know the setting it was previously
+			RemoveRealtimeOverride();
 		}
 	}
 }
@@ -2109,8 +2109,8 @@ void FEditorViewportClient::HandleViewportStatDisableAll(const bool bInAnyViewpo
 	if (bInAnyViewport || GStatProcessingViewportClient == this)
 	{
 		SetShowStats(false);
-		// Note: we can't disable realtime as we don't know the setting it was previously
 		SetStatEnabled(NULL, false, true);
+		RemoveRealtimeOverride();
 	}
 }
 
@@ -5197,11 +5197,6 @@ bool FEditorViewportClient::IsSetShowCollisionChecked() const
 	return EngineShowFlags.Collision;
 }
 
-void FEditorViewportClient::SetRealtimePreview()
-{
-	SetRealtime(!IsRealtime());
-	Invalidate();
-}
 
 void FEditorViewportClient::SetViewMode(EViewModeIndex InViewModeIndex)
 {
