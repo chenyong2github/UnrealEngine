@@ -115,13 +115,15 @@ struct DATASMITHIMPORTER_API FDatasmithImporter
 	 * Also finalizes the parent material for instances when it's under the same path as the SourceMaterial.
 	 *
 	 * @param SourceMaterial		The material to finalize.
-	 * @param MaterialsFolderPath	The path where to put the final material, if we don't have an ExistingMaterial
+	 * @param MaterialFolderPath	The path where to put the final material, if we don't have an ExistingMaterial
+	 * @param MaterialFolderPath	The transient path of the imported scene, used to finalize parent materials.
+	 * @param MaterialFolderPath	The root folder where we want to import the scene, used to finalize parent materials.
 	 * @param ExistingMaterial		An optional existing material on which we will finalize over.
 	 * @param ReferencesToRemap		A map of migrated objects. If SourceMaterial refers to any key objects, those references will be replaced by the corresponding map value.
 	 *
 	 * @return The resulting material
 	 */
-	static UObject* FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialsFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap = nullptr );
+	static UObject* FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialFolderPath, const TCHAR* TransientFolderPath, const TCHAR* RootFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap = nullptr );
 
 	/**
 	 * Imports the actors
