@@ -34,44 +34,60 @@ enum class ETimedDataMonitorEvaluationState : uint8
 
 
 /**
+ * Exponential running mean calculator. Gives better result than incremental running mean when parameters change
+ */
+struct FExponentialMeanVarianceTracker
+{
+	FExponentialMeanVarianceTracker()
+	{
+		Reset();
+	}
+
+	void Reset();
+	void Update(float NewValue, float MeanOffset);
+
+	/** Current number of samples used for the running average and variance */
+	int32 SampleCount = 0;
+	
+	/** Last sample value used for statistics */
+	float LastValue = 0.0f;
+	
+	/** Current running mean */
+	float CurrentMean = 0.0f;
+	
+	/** Current running variance */
+	float CurrentVariance = 0.0f;
+	
+	/** Current standard deviation */
+	float CurrentSTD = 0.0f;
+	
+	/** Weight given to new samples. A bigger value means new data will weight more in the calculation. Won't filter if data oscillates a lot. */
+	float Alpha = 0.0f;
+};
+
+/**
  * Structure to facilitate calculating running mean and variance of evaluation distance to buffered samples for a channel
  */
 struct FTimedDataChannelEvaluationStatistics
 {
+	void CacheSettings(ETimedDataInputEvaluationType EvaluationType, float TimeOffset, int32 BufferSize);
 	void Update(float DistanceToOldest, float DistanceToNewest);
 	void Reset();
+	
+	FExponentialMeanVarianceTracker NewestSampleDistanceTracker;
+	FExponentialMeanVarianceTracker OldestSampleDistanceTracker;
 
-	/** Current number of samples used for the running average and variance */
-	int32 SampleCount = 0;
+	/** Last evaluation type of our input */
+	ETimedDataInputEvaluationType CachedEvaluationType;
 
-	/** Last distance from evaluation time to oldest sample used for statistics */
-	float LastDistanceToOldest = 0.0f;
+	/** Last Offset associated with this channel */
+	float CachedOffset = 0.0f;
 
-	/** Last distance from evaluation time to newest sample used for statistics */
-	float LastDistanceToNewest = 0.0f;
+	/** Last buffer size associated with this channel */
+	int32 CachedBufferSize = 0;
 
-	/** Running average of the distance between last evaluation time and oldest sample in the buffer */
-	float IncrementalAverageOldestDistance = 0.0f;
-
-	/** Running average of the distance between last evaluation time and newest sample in the buffer */
-	float IncrementalAverageNewestDistance = 0.0f;
-
-	/** Running variance of the distance between last evaluation time and oldest sample in the buffer */
-	float IncrementalVarianceDistanceNewest = 0.0f;
-
-	/** Running variance of the distance between last evaluation time and newest sample in the buffer */
-	float IncrementalVarianceDistanceOldest = 0.0f;
-
-	/** Standard deviation of the distance between last evaluation time and oldest sample in the buffer */
-	float DistanceToNewestSTD = 0.0f;
-
-	/** Standard deviation of the distance between last evaluation time and newest sample in the buffer */
-	float DistanceToOldestSTD = 0.0f;
-
-	/** Internal counters of squared distance to average to be able to compute running variance */
-	double SumSquaredDistanceNewest = 0.0;
-	double SumSquaredDistanceOldest = 0.0;
-
+	/** Offset to be applied for the next tick. Used to feedforward mean tracker */
+	float NextTickOffset = 0.0f;
 };
 
 
@@ -83,7 +99,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTimedDataIdentifierListChangedSignature);
  * 
  */
 UCLASS()
-class TIMEDDATAMONITOR_API UTimedDataMonitorSubsystem : public UEngineSubsystem, public FTickableGameObject
+class TIMEDDATAMONITOR_API UTimedDataMonitorSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 
@@ -115,13 +131,11 @@ public:
 	virtual void Deinitialize() override;
 	//~ End USubsystem implementation
 
-	//~ Begin FTickableGameObject implementation
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override;
-	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
-	virtual bool IsTickableWhenPaused() const override { return true; }
-	virtual bool IsTickableInEditor() const override { return true; }
-	//~ End FTickableGameObject implementation
+	/** Used to cache global (Engine TimecodeProvider) frame delay for the current frame. */
+	void BeginFrameCallback();
+
+	/** Used to update statistics once all TimedData are processed. i.e. MediaIO is processed after tickables. */
+	void EndFrameCallback();
 
 public:
 	/** Delegate of when an element is added or removed. */
@@ -137,6 +151,9 @@ public:
 
 	/** Get the interface for a specific channel identifier. */
 	ITimedDataInputChannel* GetTimedDataChannel(const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Get offset applied to global evaluation time. Only works when a Timecode Provider is used */
+	float GetEvaluationTimeOffsetInSeconds(ETimedDataInputEvaluationType EvaluationType);
 
 	/** Get the current evaluation time. */
 	static double GetEvaluationTime(ETimedDataInputEvaluationType EvaluationType);
@@ -348,9 +365,27 @@ private:
 	/** Update internal statistics for each enabled channel */
 	void UpdateEvaluationStatistics();
 
+	/** Starts logging stats for each channel to be dumped in a file */
+	void UpdateStatFileLoggingState();
+
+	/** Adds a log entry for a given channel */
+	void AddStatisticLogEntry(const TPair<FTimedDataMonitorChannelIdentifier, FTimeDataChannelItem>& ChannelEntry);
+
 private:
 	bool bRequestSourceListRebuilt = false;
 	TMap<FTimedDataMonitorInputIdentifier, FTimeDataInputItem> InputMap;
 	TMap<FTimedDataMonitorChannelIdentifier, FTimeDataChannelItem> ChannelMap;
 	FSimpleMulticastDelegate OnIdentifierListChanged_Delegate;
+	float CachedTimecodeProviderFrameDelayInSeconds = 0.0f;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	struct FChannelStatisticLogging
+	{
+		FString ChannelName;
+		TArray<FString> Entries;
+	};
+
+	bool bHasStatFileLoggingStarted = false;
+	TMap<FTimedDataMonitorChannelIdentifier, FChannelStatisticLogging> StatLoggingMap;
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 };
