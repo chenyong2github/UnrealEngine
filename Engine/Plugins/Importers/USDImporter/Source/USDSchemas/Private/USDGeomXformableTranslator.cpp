@@ -95,7 +95,7 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 
 	// Create mesh description (Async)
 	constexpr bool bIsAsyncTask = true;
-	Do( bIsAsyncTask, 
+	Do( bIsAsyncTask,
 		[ this ]() -> bool
 		{
 			MeshDescription = UsdGeomXformableTranslatorImpl::LoadMeshDescription( pxr::UsdGeomXformable( Schema.Get() ), Context->PurposesToLoad, pxr::UsdTimeCode( Context->Time ) );
@@ -149,23 +149,6 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents()
 
 	USceneComponent* RootComponent = CreateComponents( ComponentType );
 
-	if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( RootComponent ) )
-	{
-		UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ) ) );
-
-		if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
-		{
-			if ( StaticMeshComponent->IsRegistered() )
-			{
-				StaticMeshComponent->UnregisterComponent();
-			}
-
-			StaticMeshComponent->SetStaticMesh( PrimStaticMesh );
-
-			StaticMeshComponent->RegisterComponent();
-		}
-	}
-
 	return RootComponent;
 }
 
@@ -174,7 +157,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 	TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
 
 	const bool bNeedsActor =
-		( 
+		(
 			Context->ParentComponent == nullptr ||
 			Prim.Get().IsPseudoRoot() ||
 			Prim.Get().IsModel() ||
@@ -272,6 +255,28 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 	if ( SceneComponent )
 	{
 		UsdToUnreal::ConvertXformable( Schema.Get().GetPrim().GetStage(), pxr::UsdGeomXformable( Schema.Get() ), *SceneComponent, pxr::UsdTimeCode( Context->Time ) );
+
+		// If the user modified a mesh parameter (e.g. vertex color), the hash will be different and it will become a separate asset
+		// so we must check for this and assign the new StaticMesh
+		if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( SceneComponent ) )
+		{
+			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ) ) );
+
+			if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
+			{
+				// Need to make sure the mesh's resources are initialized here as it may have just been built in another thread
+				PrimStaticMesh->InitResources();
+
+				if ( StaticMeshComponent->IsRegistered() )
+				{
+					StaticMeshComponent->UnregisterComponent();
+				}
+
+				StaticMeshComponent->SetStaticMesh( PrimStaticMesh );
+
+				StaticMeshComponent->RegisterComponent();
+			}
+		}
 	}
 }
 
@@ -299,7 +304,7 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 
 			TArray< TUsdStore< pxr::UsdPrim > > ChildXformPrims = UsdUtils::GetAllPrimsOfType( Schema.Get().GetPrim(), pxr::TfType::Find< pxr::UsdGeomXformable >() );
 
-			for ( const TUsdStore< pxr::UsdPrim >& ChildXformPrim : ChildXformPrims ) 
+			for ( const TUsdStore< pxr::UsdPrim >& ChildXformPrim : ChildXformPrims )
 			{
 				if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( Context, pxr::UsdTyped( ChildXformPrim.Get() ) ) )
 				{

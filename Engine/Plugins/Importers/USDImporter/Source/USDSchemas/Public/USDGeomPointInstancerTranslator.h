@@ -17,8 +17,8 @@ class USDSCHEMAS_API FUsdGeomPointInstancerTranslator : public FUsdGeomXformable
 {
 public:
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
-	
-	virtual USceneComponent* CreateComponents() override;
+
+	virtual void UpdateComponents( USceneComponent* SceneComponent ) override;
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return CollapsingType == FUsdSchemaTranslator::ECollapsingType::Components; }
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return false; }
 };
