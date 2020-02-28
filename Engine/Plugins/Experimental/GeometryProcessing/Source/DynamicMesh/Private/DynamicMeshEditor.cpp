@@ -590,7 +590,7 @@ bool FDynamicMeshEditor::ReinsertSubmesh(const FDynamicSubmesh3& Region, FOption
 
 
 		int new_tid = Mesh->AppendTriangle(new_t, gid);
-		ensure(new_tid != FDynamicMesh3::InvalidID && new_tid != FDynamicMesh3::NonManifoldID);
+		ensure(new_tid >= 0);
 		if (!Mesh->IsTriangle(new_tid))
 		{
 			bAllOK = false;

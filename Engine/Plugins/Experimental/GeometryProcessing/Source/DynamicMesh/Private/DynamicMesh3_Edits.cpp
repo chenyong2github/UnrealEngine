@@ -205,6 +205,20 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 		return NonManifoldID;
 	}
 
+	// if all edges were already present, check for duplicate triangle
+	if (e0 != InvalidID && e1 != InvalidID && e2 != InvalidID)
+	{
+		// check if the triangle attached to edge e0 (tv[0] - tv[1]) also contains tv[2]
+		int e0i = 4 * e0;
+		int ti = 3 * Edges[e0i + 2];
+		if (Triangles[ti] == tv[2] || Triangles[ti + 1] == tv[2] || Triangles[ti + 2] == tv[2])
+		{
+			return DuplicateTriangleID;
+		}
+		// there's no other triangle on the edge to check -- if there were, we would have already returned NonManifoldID
+		checkSlow(Edges[e0i + 3] == InvalidID);
+	}
+
 	bool bHasGroups = HasTriangleGroups();  // have to check before changing .triangles
 
 	// now safe to insert triangle
