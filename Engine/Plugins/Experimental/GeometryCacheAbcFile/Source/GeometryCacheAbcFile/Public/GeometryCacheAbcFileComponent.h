@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbcImportSettings.h"
 #include "GeometryCacheComponent.h"
 
 #include "GeometryCacheAbcFileComponent.generated.h"
@@ -15,10 +16,21 @@ class GEOMETRYCACHEABCFILE_API UGeometryCacheAbcFileComponent : public UGeometry
 {
 	GENERATED_BODY()
 
+	UGeometryCacheAbcFileComponent();
+
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Alembic", meta = (FilePathFilter = "Alembic files (*.abc)|*.abc"))
 	FFilePath AlembicFilePath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
+	FAbcSamplingSettings SamplingSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
+	FAbcMaterialSettings MaterialSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
+	FAbcConversionSettings ConversionSettings;
 
 public:
 #if WITH_EDITOR
@@ -33,6 +45,10 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	//~ End UPrimitiveComponent Interface.
 
+	void ReloadAbcFile();
+
 protected:
 	void InitializeGeometryCache();
+
+	UAbcImportSettings* AbcSettings;
 };
