@@ -816,7 +816,8 @@ public:
 
 	~FD3D12ShaderResourceView()
 	{
-		check(bInitialized);
+		// Non-resident mesh LODs can lead to null SRVs being created
+		check(bInitialized || !GetParentDevice_Unsafe());
 		FD3D12BaseShaderResourceView::Remove();
 	}
 
