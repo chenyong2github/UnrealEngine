@@ -15,6 +15,11 @@ DECLARE_LOG_CATEGORY_EXTERN(LogGameplayDebug, Log, All);
 class FCanvasItem;
 struct FCanvasIcon;
 
+namespace FGameplayDebuggerUtils
+{
+	bool GAMEPLAYDEBUGGER_API IsAuthority(UWorld* World);
+}
+
 class GAMEPLAYDEBUGGER_API FGameplayDebuggerCanvasContext
 {
 public:
