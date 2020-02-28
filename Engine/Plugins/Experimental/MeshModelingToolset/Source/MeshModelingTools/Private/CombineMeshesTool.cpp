@@ -193,6 +193,12 @@ void UCombineMeshesTool::UpdateAssets()
 			FDynamicMesh3 ComponentDMesh;
 			Converter.Convert(ComponentTarget->GetMesh(), ComponentDMesh);
 
+			FTransform3d XF = (FTransform3d)(ComponentTarget->GetWorldTransform() * ToAccum);
+			if (XF.GetDeterminant() < 0)
+			{
+				ComponentDMesh.ReverseOrientation(false);
+			}
+
 			// update material IDs to account for combined material set
 			FDynamicMeshMaterialAttribute* MatAttrib = ComponentDMesh.Attributes()->GetMaterialID();
 			for (int TID : ComponentDMesh.TriangleIndicesItr())
@@ -202,7 +208,6 @@ void UCombineMeshesTool::UpdateAssets()
 
 			FDynamicMeshEditor Editor(&AccumulateDMesh);
 			FMeshIndexMappings IndexMapping;
-			FTransform3d XF = (FTransform3d)(ComponentTarget->GetWorldTransform() * ToAccum);
 			Editor.AppendMesh(&ComponentDMesh, IndexMapping, 
 				[&XF](int Unused, const FVector3d P) { return XF.TransformPosition(P); },
 				[&XF](int Unused, const FVector3d N) { return XF.TransformNormal(N); });

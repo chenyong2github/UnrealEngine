@@ -119,6 +119,11 @@ public:
 		Scale3D = ScaleIn;
 	}
 
+	RealType GetDeterminant()
+	{
+		return Scale3D.X * Scale3D.Y * Scale3D.Z;
+	}
+
 	/**
 	 * @return inverse of this transform
 	 */
