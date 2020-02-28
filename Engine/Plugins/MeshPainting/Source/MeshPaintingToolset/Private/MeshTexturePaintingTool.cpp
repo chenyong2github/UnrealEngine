@@ -16,6 +16,7 @@
 #include "MeshPaintingToolsetTypes.h"
 #include "CanvasItem.h"
 #include "ScopedTransaction.h"
+#include "BaseGizmos/BrushStampIndicator.h"
 
 #define LOCTEXT_NAMESPACE "MeshTextureBrush"
 
@@ -65,17 +66,25 @@ void UMeshTexturePaintingToolProperties::SaveProperties(UInteractiveTool* SaveFr
 	PropertyCache->PaintColor = this->PaintColor;
 	PropertyCache->EraseColor = this->EraseColor;
 	PropertyCache->bEnableFlow = this->bEnableFlow;
+	PropertyCache->bWriteRed = this->bWriteRed;
+	PropertyCache->bWriteGreen = this->bWriteGreen;
+	PropertyCache->bWriteBlue = this->bWriteBlue;
+	PropertyCache->bWriteRed = this->bWriteRed;
 	PropertyCache->bOnlyFrontFacingTriangles = this->bOnlyFrontFacingTriangles;
 }
 
 void UMeshTexturePaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
 {
 	UBrushBaseProperties::RestoreProperties(RestoreToTool);
-	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
+	UMeshTexturePaintingToolProperties* PropertyCache = GetPropertyCache<UMeshTexturePaintingToolProperties>();
 	this->PaintColor = PropertyCache->PaintColor;
 	this->EraseColor = PropertyCache->EraseColor;
 	this->bEnableFlow = PropertyCache->bEnableFlow;
 	this->bOnlyFrontFacingTriangles = PropertyCache->bOnlyFrontFacingTriangles;
+	this->bWriteRed = PropertyCache->bWriteRed;
+	this->bWriteGreen = PropertyCache->bWriteGreen;
+	this->bWriteBlue = PropertyCache->bWriteBlue;
+	this->bWriteRed = PropertyCache->bWriteRed;
 }
 
 UMeshTexturePaintingTool::UMeshTexturePaintingTool()
@@ -110,11 +119,12 @@ void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
+	Super::Render(RenderAPI);
+	FToolDataVisualizer Draw;
+	Draw.BeginFrame(RenderAPI);
 	if (MeshToolManager && LastBestHitResult.Component != nullptr)
 	{
-		Super::Render(RenderAPI);
-		FToolDataVisualizer Draw;
-		Draw.BeginFrame(RenderAPI);
+		BrushStampIndicator->bDrawIndicatorLines = true;
 		static float WidgetLineThickness = 1.0f;
 		static FLinearColor VertexPointColor = FLinearColor::White;
 		static FLinearColor	HoverVertexPointColor = FLinearColor(0.3f, 1.0f, 0.3f);
@@ -143,8 +153,12 @@ void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 				const float ComponentSpaceSquaredBrushRadius = ComponentSpaceBrushRadius * ComponentSpaceBrushRadius;
 			}
 		}
-		Draw.EndFrame();
 	}
+	else
+	{
+		BrushStampIndicator->bDrawIndicatorLines = false;
+	}
+	Draw.EndFrame();
 	UpdateResult();
 
 }
@@ -1229,5 +1243,31 @@ int32 UMeshTexturePaintingTool::GetNumberOfPendingPaintChanges() const
 	return Result;
 }
 
+bool UMeshTexturePaintingTool::ShouldFilterTextureAsset(const FAssetData& AssetData) const
+{
+	return !(PaintableTextures.ContainsByPredicate([=](const FPaintableTexture& Texture) { return Texture.Texture->GetFullName() == AssetData.GetFullName(); }));
+}
+
+void UMeshTexturePaintingTool::PaintTextureChanged(const FAssetData& AssetData)
+{
+	UTexture2D* Texture = Cast<UTexture2D>(AssetData.GetAsset());
+	if (Texture)
+	{
+		// Loop through our list of textures and see which one the user wants to select
+		for (int32 TargetIndex = 0; TargetIndex < TexturePaintTargetList.Num(); TargetIndex++)
+		{
+			FTextureTargetListInfo& TextureTarget = TexturePaintTargetList[TargetIndex];
+			if (TextureTarget.TextureData == Texture)
+			{
+				TextureTarget.bIsSelected = true;
+				TextureProperties->UVChannel = TextureTarget.UVChannelIndex;
+			}
+			else
+			{
+				TextureTarget.bIsSelected = false;
+			}
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

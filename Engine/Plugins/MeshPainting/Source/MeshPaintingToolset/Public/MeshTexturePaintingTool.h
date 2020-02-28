@@ -135,6 +135,8 @@ public:
 	/** Returns the number of texture that require a commit. */
 	int32 GetNumberOfPendingPaintChanges() const;
 
+	bool ShouldFilterTextureAsset(const FAssetData& AssetData) const;
+	void PaintTextureChanged(const FAssetData& AssetData);
 protected:
 	virtual void SetAdditionalPaintParameters(FMeshPaintParameters& InPaintParameters) {};
 	virtual void FinishPainting();
