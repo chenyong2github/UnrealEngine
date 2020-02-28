@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidSpringConstraints.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
 namespace Chaos
@@ -146,39 +147,39 @@ namespace Chaos
 	{
 		const FConstrainedParticlePair& Constraint = Constraints[ConstraintIndex];
 
-		TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Constraint[0]->CastToRigidParticle();
-		TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Constraint[1]->CastToRigidParticle();
-		const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
-		const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+		TGenericParticleHandle<FReal, 3> Particle0 = Constraints[ConstraintIndex][0];
+		TGenericParticleHandle<FReal, 3> Particle1 = Constraints[ConstraintIndex][1];
+		const bool bIsRigidDynamic0 = Particle0->IsDynamic();
+		const bool bIsRigidDynamic1 = Particle1->IsDynamic();
 
 		check((bIsRigidDynamic0 && bIsRigidDynamic1) || (!bIsRigidDynamic0 && bIsRigidDynamic1) || (bIsRigidDynamic0 && bIsRigidDynamic1));
 
-		// @todo(ccaulfield): see if we can eliminate the need for all these ifs
-		const TRotation<FReal, 3> & Q0 = bIsRigidDynamic0 ? PBDRigid0->Q() : Constraint[0]->R();
-		const TRotation<FReal, 3> & Q1 = bIsRigidDynamic1 ? PBDRigid1->Q() : Constraint[1]->R();
-		const FVec3 & P0 = bIsRigidDynamic0 ? PBDRigid0->P() : Constraint[0]->X();
-		const FVec3 & P1 = bIsRigidDynamic1 ? PBDRigid1->P() : Constraint[1]->X();
-
-		const FVec3 WorldSpaceX1 = Q0.RotateVector(Distances[ConstraintIndex][0]) + P0;
-		const FVec3 WorldSpaceX2 = Q1.RotateVector(Distances[ConstraintIndex][1]) + P1;
-		const FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : FMatrix33(0);
-		const FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : FMatrix33(0);
+		const FVec3 WorldSpaceX1 = Particle0->Q().RotateVector(Distances[ConstraintIndex][0]) + Particle0->P();
+		const FVec3 WorldSpaceX2 = Particle1->Q().RotateVector(Distances[ConstraintIndex][1]) + Particle1->P();
 		const FVec3 Delta = GetDelta(ConstraintIndex, WorldSpaceX1, WorldSpaceX2);
 
 		if (bIsRigidDynamic0)
 		{
-			const FVec3 Radius = WorldSpaceX1 - PBDRigid0->P();
-			PBDRigid0->P() += PBDRigid0->InvM() * Delta;
-			PBDRigid0->Q() += TRotation<FReal, 3>::FromElements(WorldSpaceInvI1 * FVec3::CrossProduct(Radius, Delta), 0.f) * PBDRigid0->Q() * FReal(0.5);
-			PBDRigid0->Q().Normalize();
+			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+			const FMatrix33 WorldSpaceInvI1 = Utilities::ComputeWorldSpaceInertia(Q0, Particle0->InvI());
+			const FVec3 Radius = WorldSpaceX1 - P0;
+			P0 += Particle0->InvM() * Delta;
+			Q0 += TRotation<FReal, 3>::FromElements(WorldSpaceInvI1 * FVec3::CrossProduct(Radius, Delta), 0.f) * Q0 * FReal(0.5);
+			Q0.Normalize();
+			FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
 		}
 
 		if (bIsRigidDynamic1)
 		{
-			const FVec3 Radius = WorldSpaceX2 - PBDRigid1->P();
-			PBDRigid1->P() -= PBDRigid1->InvM() * Delta;
-			PBDRigid1->Q() += TRotation<FReal, 3>::FromElements(WorldSpaceInvI2 * FVec3::CrossProduct(Radius, -Delta), 0.f) * PBDRigid1->Q() * FReal(0.5);
-			PBDRigid1->Q().Normalize();
+			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+			const FMatrix33 WorldSpaceInvI2 = Utilities::ComputeWorldSpaceInertia(Q1, Particle1->InvI());
+			const FVec3 Radius = WorldSpaceX2 - P1;
+			P1 -= Particle1->InvM() * Delta;
+			Q1 += TRotation<FReal, 3>::FromElements(WorldSpaceInvI2 * FVec3::CrossProduct(Radius, -Delta), 0.f) * Q1 * FReal(0.5);
+			Q1.Normalize();
+			FParticleUtilities::SetCoMWorldTransform(Particle1, P1, Q1);
 		}
 	}
 }

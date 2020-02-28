@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
 using namespace Chaos;
@@ -121,46 +122,44 @@ TVector<T, d> TPBDRigidDynamicSpringConstraints<T, d>::GetDelta(const TVector<T,
 template<class T, int d>
 void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 ConstraintIndex) const
 {
-	TGeometryParticleHandle<T, d>* Static0 = Constraints[ConstraintIndex][0];
-	TGeometryParticleHandle<T, d>* Static1 = Constraints[ConstraintIndex][1];
-	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Static0->CastToRigidParticle();
-	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Static1->CastToRigidParticle();
-	const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
-	const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
-
+	TGenericParticleHandle<T, d> Particle0 = Constraints[ConstraintIndex][0];
+	TGenericParticleHandle<T, d> Particle1 = Constraints[ConstraintIndex][1];
+	const bool bIsRigidDynamic0 = Particle0->IsDynamic();
+	const bool bIsRigidDynamic1 = Particle1->IsDynamic();
 	check(bIsRigidDynamic0 || bIsRigidDynamic1);
-	check(!bIsRigidDynamic0|| !bIsRigidDynamic1|| (PBDRigid0->Island() == PBDRigid1->Island()));
 
-	TRotation<T, d>& Q0 = bIsRigidDynamic0 ? PBDRigid0->Q() : Static0->R();
-	TRotation<T, d>& Q1 = bIsRigidDynamic1 ? PBDRigid1->Q() : Static1->R();
-	TVector<T, d>& P0 = bIsRigidDynamic0 ? PBDRigid0->P() : Static0->X();
-	TVector<T, d>& P1 = bIsRigidDynamic1 ? PBDRigid1->P() : Static1->X();
+	TRotation<T, d> Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+	TRotation<T, d> Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+	TVector<T, d> P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+	TVector<T, d> P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
 
 	const int32 NumSprings = SpringDistances[ConstraintIndex].Num();
-	const PMatrix<T, d, d> WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
-	const PMatrix<T, d, d> WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);;
+	const PMatrix<T, d, d> WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, Particle0->InvI()) : PMatrix<T, d, d>(0);
+	const PMatrix<T, d, d> WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, Particle1->InvI()) : PMatrix<T, d, d>(0);;
 	for (int32 SpringIndex = 0; SpringIndex < NumSprings; ++SpringIndex)
 	{
 		const TVector<T, d>& Distance0 = Distances[ConstraintIndex][SpringIndex][0];
 		const TVector<T, d>& Distance1 = Distances[ConstraintIndex][SpringIndex][1];
-		const TVector<T, d> WorldSpaceX1 = Q0.RotateVector(Distance0) + P0;
-		const TVector<T, d> WorldSpaceX2 = Q1.RotateVector(Distance1) + P1;
+		const TVector<T, d> WorldSpaceX1 = Particle0->Q().RotateVector(Distance0) + Particle0->P();
+		const TVector<T, d> WorldSpaceX2 = Particle1->Q().RotateVector(Distance1) + Particle1->P();
 		const TVector<T, d> Delta = GetDelta(WorldSpaceX1, WorldSpaceX2, ConstraintIndex, SpringIndex);
 
 		if (bIsRigidDynamic0)
 		{
 			const TVector<T, d> Radius = WorldSpaceX1 - P0;
-			P0 += PBDRigid0->InvM() * Delta;
+			P0 += Particle0->InvM() * Delta;
 			Q0 += TRotation<T, d>::FromElements(WorldSpaceInvI1 * TVector<T, d>::CrossProduct(Radius, Delta), 0.f) * Q0 * T(0.5);
 			Q0.Normalize();
+			FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
 		}
 
 		if (bIsRigidDynamic1)
 		{
 			const TVector<T, d> Radius = WorldSpaceX2 - P1;
-			P1 -= PBDRigid1->InvM() * Delta;
+			P1 -= Particle1->InvM() * Delta;
 			Q1 += TRotation<T, d>::FromElements(WorldSpaceInvI2 * TVector<T, d>::CrossProduct(Radius, -Delta), 0.f) * Q1 * T(0.5);
 			Q1.Normalize();
+			FParticleUtilities::SetCoMWorldTransform(Particle1, P1, Q1);
 		}
 	}
 }

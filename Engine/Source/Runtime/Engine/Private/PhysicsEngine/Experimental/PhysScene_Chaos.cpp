@@ -1527,7 +1527,7 @@ void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInsta
 				const Chaos::TVector<float, 3> CurrentTorque = Rigid->Torque();
 				if (bAccelChange)
 				{
-					Rigid->SetTorque(CurrentTorque + (Utilities::ComputeWorldSpaceInertia(Rigid->R() * Rigid->RotationOfMass(), Rigid->I()) * Torque));
+					Rigid->SetTorque(CurrentTorque + (FParticleUtilitiesXR::GetWorldInertia(Rigid) * Torque));
 				}
 				else
 				{
