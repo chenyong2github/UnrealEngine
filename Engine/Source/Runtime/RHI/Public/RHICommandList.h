@@ -1643,6 +1643,10 @@ struct FRHICommandWriteGPUFence final : public FRHICommand<FRHICommandWriteGPUFe
 	FORCEINLINE_DEBUGGABLE FRHICommandWriteGPUFence(FRHIGPUFence* InFence)
 		: Fence(InFence)
 	{
+		if (Fence)
+		{
+			Fence->NumPendingWriteCommands.Increment();
+		}
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
