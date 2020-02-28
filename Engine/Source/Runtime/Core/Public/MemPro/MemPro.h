@@ -317,7 +317,7 @@ namespace
 //@EPIC BEGIN: other platforms
 #elif defined(MEMPRO_PLATFORM_SWITCH)
 
-	#include "Switch/MemProSwitch.h"
+	#include "MemPro/MemProSwitch.h"
 
 //@EPIC END
 
