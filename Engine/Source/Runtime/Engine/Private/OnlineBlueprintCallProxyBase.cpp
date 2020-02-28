@@ -10,7 +10,3 @@ UOnlineBlueprintCallProxyBase::UOnlineBlueprintCallProxyBase(const FObjectInitia
 {
 	SetFlags(RF_StrongRefOnFrame);
 }
-
-void UOnlineBlueprintCallProxyBase::Activate()
-{
-}
