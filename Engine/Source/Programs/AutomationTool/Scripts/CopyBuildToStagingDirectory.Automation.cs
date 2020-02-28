@@ -2147,7 +2147,7 @@ public partial class Project : CommandUtils
 
 			bool bCopiedExistingPak = false;
 
-			if (SC.StageTargetPlatform != SC.CookSourcePlatform && Params.TryUsePaksFromDifferentCookSource)
+			if (SC.StageTargetPlatform != SC.CookSourcePlatform && !Params.IgnorePaksFromDifferentCookSource)
 			{
 				// Check to see if we have an existing pak file we can use
 
@@ -2200,7 +2200,7 @@ public partial class Project : CommandUtils
 
 			if (!bCopiedExistingPak)
 			{
-				if (FileReference.Exists(OutputLocation))
+				if (FileReference.Exists(OutputLocation) && !Params.IgnorePaksFromDifferentCookSource)
 				{
 					string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakList_" + OutputLocation.GetFileNameWithoutExtension() + ".txt");
 					if (File.Exists(UnrealPakResponseFileName) && FileReference.GetLastWriteTimeUtc(OutputLocation) > File.GetLastWriteTimeUtc(UnrealPakResponseFileName))
