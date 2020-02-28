@@ -129,6 +129,12 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		OutElements.Append(Elems);
 	}
 
+	SIZE_T GetReserveCount() const
+	{
+		// Optimize for fewer memory allocations.
+		return Elems.Num();
+	}
+
 	template <typename TSQVisitor, typename TQueryFastData>
 	bool RaycastFast(const TVector<T,3>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor) const
 	{
@@ -202,7 +208,6 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 	{
 		Ar << Elems;
 	}
-
 
 	TArray<TPayloadBoundsElement<TPayloadType, T>> Elems;
 	TAABB<T,3> Bounds;
@@ -625,10 +630,19 @@ private:
 	void ReoptimizeTree()
 	{
 		TArray<FElement> AllElements;
+
+		SIZE_T ReserveCount = DirtyElements.Num() + GlobalPayloads.Num();
+		for (const auto& Leaf : Leaves)
+		{
+			ReserveCount += Leaf.GetReserveCount();
+		}
+
+		AllElements.Reserve(ReserveCount);
+
 		AllElements.Append(DirtyElements);
 		AllElements.Append(GlobalPayloads);
 
-		for(auto& Leaf : Leaves)
+		for (auto& Leaf : Leaves)
 		{
 			Leaf.GatherElements(AllElements);
 		}
