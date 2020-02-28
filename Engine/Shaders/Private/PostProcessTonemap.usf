@@ -525,7 +525,8 @@ float4 TonemapCommonPS(
 		half3 LinearColor = SceneColor.rgb * ColorScale0.rgb;
 
 		#if USE_BLOOM
-			float2 BloomUV = clamp(UV, Bloom_UVViewportBilinearMin, Bloom_UVViewportBilinearMax);
+			float2 BloomUV = Bloom_UVViewportMin + UV * Bloom_UVViewportSize;			
+			BloomUV = clamp(BloomUV, Bloom_UVViewportBilinearMin, Bloom_UVViewportBilinearMax);
 			#if ES3_1_PROFILE
 				BloomUV = FullViewUV.xy;
 			#endif
