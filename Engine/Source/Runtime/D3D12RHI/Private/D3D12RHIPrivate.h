@@ -1114,7 +1114,7 @@ public:
 		, pWriteRange(InWriteRange)
 		, pData(nullptr)
 	{
-		VERIFYD3D12RESULT(pResource->Map(Subresource, pReadRange, reinterpret_cast<void**>(&pData)));
+		VERIFYD3D12RESULT_EX(pResource->Map(Subresource, pReadRange, reinterpret_cast<void**>(&pData)), pInResource->GetParentDevice()->GetDevice());
 	}
 
 	explicit FD3D12ScopeMap(ID3D12Resource* pInResource, const uint32 InSubresource, const D3D12_RANGE* InReadRange, const D3D12_RANGE* InWriteRange)
@@ -1124,7 +1124,7 @@ public:
 		, pWriteRange(InWriteRange)
 		, pData(nullptr)
 	{
-		VERIFYD3D12RESULT(pResource->Map(Subresource, pReadRange, reinterpret_cast<void**>(&pData)));
+		VERIFYD3D12RESULT_EX(pResource->Map(Subresource, pReadRange, reinterpret_cast<void**>(&pData)), pInResource->GetDevice());
 	}
 
 	~FD3D12ScopeMap()
