@@ -219,6 +219,7 @@ namespace WindowsMixedReality
 		const float farPlaneDistance = 650.0f;
 
 		bool bNeedReallocateDepthTexture = false;
+		FTexture2DRHIRef CurrentBackBuffer;
 		FTexture2DRHIRef CurrentDepthBuffer;
 		void InitTrackingFrame();
 		TRefCountPtr<FWindowsMixedRealityCustomPresent> mCustomPresent = nullptr;
