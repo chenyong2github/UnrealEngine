@@ -474,6 +474,11 @@ void UNiagaraComponent::SetBoolParameter(FName Parametername, bool Param)
 	SetVariableBool(Parametername, Param);
 }
 
+void UNiagaraComponent::SetIntParameter(FName ParameterName, int Param)
+{
+	SetVariableInt(ParameterName, Param);
+}
+
 void UNiagaraComponent::SetFloatParameter(FName ParameterName, float Param)
 {
 	SetVariableFloat(ParameterName, Param);
