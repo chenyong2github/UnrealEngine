@@ -74,7 +74,10 @@ void UCameraShakeSourceComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
 
 void UCameraShakeSourceComponent::Play()
 {
-	PlayCameraShake(CameraShake);
+	if (ensureMsgf(CameraShake.Get() != nullptr, TEXT("No camera shake was specified on this source!")))
+	{
+		PlayCameraShake(CameraShake);
+	}
 }
 
 void UCameraShakeSourceComponent::PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake)
