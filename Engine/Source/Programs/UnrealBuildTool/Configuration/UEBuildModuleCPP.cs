@@ -1201,11 +1201,6 @@ namespace UnrealBuildTool
 
 		public CppCompileEnvironment CreateCompileEnvironmentForIntellisense(ReadOnlyTargetRules Target, CppCompileEnvironment BaseCompileEnvironment)
 		{
-			if(Name == "Engine")
-			{
-				Console.Write("");
-			}
-
 			CppCompileEnvironment CompileEnvironment = CreateModuleCompileEnvironment(Target, BaseCompileEnvironment);
 			CompileEnvironment = SetupPrecompiledHeaders(Target, null, CompileEnvironment, new List<FileItem>(), new List<Action>());
 			CreateHeaderForDefinitions(CompileEnvironment, IntermediateDirectory, null);
