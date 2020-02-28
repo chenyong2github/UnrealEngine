@@ -339,7 +339,7 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 		AddressY == TA_Wrap ? AM_Wrap : (AddressY == TA_Clamp ? AM_Clamp : AM_Mirror),
 		AM_Wrap
 	);
-	SamplerStateRHI = GetOrCreateSamplerState( SamplerStateInitializer );
+	SamplerStateRHI = RHICreateSamplerState( SamplerStateInitializer );
 }
 
 void FSlateTextureRenderTarget2DResource::ReleaseDynamicRHI()

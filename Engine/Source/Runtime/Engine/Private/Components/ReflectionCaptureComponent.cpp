@@ -680,7 +680,7 @@ public:
 			AM_Clamp,
 			AM_Clamp
 		);
-		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
+		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 
 		INC_MEMORY_STAT_BY(STAT_ReflectionCaptureTextureMemory,CalcTextureSize(Size,Size,Format,NumMips) * 6);
 	}
