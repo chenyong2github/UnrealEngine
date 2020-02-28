@@ -7,6 +7,7 @@
 #include "SoundSourceBusSend.generated.h"
 
 class USoundSourceBus;
+class UAudioBus;
 
 UENUM(BlueprintType)
 enum class ESourceBusSendLevelControlMethod : uint8
@@ -31,40 +32,45 @@ struct ENGINE_API FSoundSourceBusSendInfo
 		Linear: Interpolate between Min and Max Send Levels based on listener distance (between Distance Min and Distance Max)
 		Custom Curve: Use the float curve to map Send Level to distance (0.0-1.0 on curve maps to Distance Min - Distance Max)
 	*/
-	UPROPERTY(EditAnywhere, Category = SourceBusSend)
+	UPROPERTY(EditAnywhere, Category = BusSend)
 	ESourceBusSendLevelControlMethod SourceBusSendLevelControlMethod;
 
-	// The Source Bus to send the audio to
-	UPROPERTY(EditAnywhere, Category = SourceBusSend)
+	// A source Bus to send the audio to. Source buses sonify (make audible) the audio sent to it and are themselves sounds which take up a voice slot in the audio engine.
+	UPROPERTY(EditAnywhere, Category = BusSend)
 	USoundSourceBus* SoundSourceBus;
 
-	// The amount of audio to send to the source bus
-	UPROPERTY(EditAnywhere, Category = SourceBusSend)
+	// An audio bus to send the audio to. Audio buses can be used to route audio to DSP effects or other purposes. E.g. side-chaining, analysis, etc. Audio buses are not audible unless hooked up to a source bus.
+	UPROPERTY(EditAnywhere, Category = BusSend)
+	UAudioBus* AudioBus;
+
+	// The amount of audio to send to the bus.
+	UPROPERTY(EditAnywhere, Category = BusSend)
 	float SendLevel;
 
-	// The amount to send to the Source Bus when sound is located at a distance equal to value specified in the min send distance.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SourceBusSend)
+	// The amount to send to the bus when sound is located at a distance equal to value specified in the min send distance.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BusSend)
 	float MinSendLevel;
 
-	// The amount to send to the Source Bus when sound is located at a distance equal to value specified in the max send distance.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SourceBusSend)
+	// The amount to send to the bus when sound is located at a distance equal to value specified in the max send distance.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BusSend)
 	float MaxSendLevel;
 
-	// The distance at which the Min Send Level is sent to the source bus
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SourceBusSend)
+	// The distance at which the min send Level is sent to the bus
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BusSend)
 	float MinSendDistance;
 
-	// The distance at which the Max Send Level is sent to the source bus
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SourceBusSend)
+	// The distance at which the max send level is sent to the bus
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BusSend)
 	float MaxSendDistance;
 
-	// The custom curve to use for distance-based Source Bus send level.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SourceBusSend)
+	// The custom curve to use for distance-based bus send level.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BusSend)
 	FRuntimeFloatCurve CustomSendLevelCurve;
 
 	FSoundSourceBusSendInfo()
 		: SourceBusSendLevelControlMethod(ESourceBusSendLevelControlMethod::Manual)
 		, SoundSourceBus(nullptr)
+		, AudioBus(nullptr)
 		, SendLevel(0.0f)
 		, MinSendLevel(0.0f)
 		, MaxSendLevel(1.0f)

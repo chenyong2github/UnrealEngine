@@ -179,8 +179,8 @@ struct ENGINE_API FWaveInstance
 	/** Sound submix sends */
 	TArray<FSoundSubmixSendInfo> SoundSubmixSends;
 
-	/** The sound source bus sends. */
-	TArray<FSoundSourceBusSendInfo> SoundSourceBusSends[(int32)EBusSendType::Count];
+	/** The source bus and/or audio bus sends. */
+	TArray<FSoundSourceBusSendInfo> BusSends[(int32)EBusSendType::Count];
 
 	/** Sound effect chain */
 	USoundEffectSourcePresetChain* SourceEffectChain;

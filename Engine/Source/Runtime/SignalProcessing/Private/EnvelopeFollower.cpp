@@ -2,6 +2,7 @@
 
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/Dsp.h"
+#include "DSP/BufferVectorOperations.h"
 
 namespace Audio
 {
@@ -76,15 +77,7 @@ namespace Audio
 
 	float FEnvelopeFollower::ProcessAudio(const float InAudioSample)
 	{
-		// Take the absolute value of the input sample
-		float Sample = FMath::Abs(InAudioSample);
-
-		// If we're not Peak detecting, then square the input
-		if (EnvMode != EPeakMode::Peak)
-		{
-			Sample = Sample * Sample;
-		}
-
+		float Sample = (EnvMode != EPeakMode::Peak) ? InAudioSample * InAudioSample : FMath::Abs(InAudioSample);
 		float TimeSamples = (Sample > CurrentEnvelopeValue) ? AttackTimeSamples : ReleaseTimeSamples;
 		float NewEnvelopeValue = TimeSamples * (CurrentEnvelopeValue - Sample) + Sample;;
 		NewEnvelopeValue = Audio::UnderflowClamp(NewEnvelopeValue);
@@ -94,17 +87,29 @@ namespace Audio
 		return CurrentEnvelopeValue = NewEnvelopeValue;
 	}
 
-	float FEnvelopeFollower::ProcessAudioNonClamped(const float InAudioSample)
+	float FEnvelopeFollower::ProcessAudio(const float* InAudioBuffer, int32 InNumSamples)
 	{
-		// Take the absolute value of the input sample
-		float Sample = FMath::Abs(InAudioSample);
-
-		// If we're not Peak detecting, then square the input
-		if (EnvMode != EPeakMode::Peak)
+		for (int32 SampleIndex = 0; SampleIndex < InNumSamples; ++SampleIndex)
 		{
-			Sample = Sample * Sample;
+			ProcessAudioNonClamped(InAudioBuffer[SampleIndex]);
+		}
+		return FMath::Clamp(CurrentEnvelopeValue, 0.0f, 1.0f);
+	}
+
+	float FEnvelopeFollower::ProcessAudio(const float* InAudioBuffer, float* OutAudioBuffer, int32 InNumSamples)
+	{
+		for (int32 SampleIndex = 0; SampleIndex < InNumSamples; ++SampleIndex)
+		{
+			OutAudioBuffer[SampleIndex] = ProcessAudioNonClamped(InAudioBuffer[SampleIndex]);
 		}
 
+		Audio::BufferRangeClampFast(OutAudioBuffer, InNumSamples, 0.0f, 1.0f);
+		return CurrentEnvelopeValue;
+	}
+
+	float FEnvelopeFollower::ProcessAudioNonClamped(const float InAudioSample)
+	{
+		float Sample = (EnvMode != EPeakMode::Peak) ? InAudioSample * InAudioSample : FMath::Abs(InAudioSample);
 		float TimeSamples = (Sample > CurrentEnvelopeValue) ? AttackTimeSamples : ReleaseTimeSamples;
 		float NewEnvelopeValue = TimeSamples * (CurrentEnvelopeValue - Sample) + Sample;;
 		NewEnvelopeValue = Audio::UnderflowClamp(NewEnvelopeValue);

@@ -343,20 +343,20 @@ void FActiveSound::SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo)
 	SoundSubmixSendsOverride.Add(SubmixSendInfo);
 }
 
-void FActiveSound::SetSourceBusSend(EBusSendType BusSendType, const FSoundSourceBusSendInfo& SourceBusSendInfo)
+void FActiveSound::SetSourceBusSend(EBusSendType BusSendType, const FSoundSourceBusSendInfo& SendInfo)
 {
 	// Override send level if the source bus send is already included in active sound
-	for (FSoundSourceBusSendInfo& Info : SoundSourceBusSendsOverride[(int32)BusSendType])
+	for (FSoundSourceBusSendInfo& Info : BusSendsOverride[(int32)BusSendType])
 	{
-		if (Info.SoundSourceBus == SourceBusSendInfo.SoundSourceBus)
+		if (Info.SoundSourceBus == SendInfo.SoundSourceBus || Info.AudioBus == SendInfo.AudioBus)
 		{
-			Info.SendLevel = SourceBusSendInfo.SendLevel;
+			Info.SendLevel = SendInfo.SendLevel;
 			return;
 		}
 	}
 
 	// Otherwise, add it to the source bus send overrides
-	SoundSourceBusSendsOverride[(int32)BusSendType].Add(SourceBusSendInfo);
+	BusSendsOverride[(int32)BusSendType].Add(SendInfo);
 }
 
 void FActiveSound::Stop()
@@ -398,7 +398,7 @@ void FActiveSound::GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) c
 	}
 }
 
-void FActiveSound::GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const
+void FActiveSound::GetBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const
 {
 	if (Sound)
 	{
@@ -406,12 +406,12 @@ void FActiveSound::GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoun
 		Sound->GetSoundSourceBusSends(BusSendType, OutSends);
 
 		// Loop through the overrides, which may append or override the existing send
-		for (const FSoundSourceBusSendInfo& SendInfo : SoundSourceBusSendsOverride[(int32)BusSendType])
+		for (const FSoundSourceBusSendInfo& SendInfo : BusSendsOverride[(int32)BusSendType])
 		{
 			bool bOverridden = false;
 			for (FSoundSourceBusSendInfo& OutSendInfo : OutSends)
 			{
-				if (OutSendInfo.SoundSourceBus == SendInfo.SoundSourceBus)
+				if (OutSendInfo.SoundSourceBus == SendInfo.SoundSourceBus || OutSendInfo.AudioBus == SendInfo.AudioBus)
 				{
 					OutSendInfo.SendLevel = SendInfo.SendLevel;
 					bOverridden = true;
@@ -535,7 +535,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 
 	for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 	{
-		GetSoundSourceBusSends((EBusSendType)BusSendType, ParseParams.SoundSourceBusSends[BusSendType]);
+		GetBusSends((EBusSendType)BusSendType, ParseParams.BusSends[BusSendType]);
 	}
 
 	// Set up the base source effect chain.

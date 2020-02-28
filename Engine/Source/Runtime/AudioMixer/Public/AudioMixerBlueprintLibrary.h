@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
 #include "Sound/SoundEffectSource.h"
+#include "Sound/AudioBus.h"
 #include "SampleBuffer.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundSubmixSend.h"
@@ -96,19 +97,19 @@ public:
 	static void ClearMasterSubmixEffects(const UObject* WorldContextObject);
 
 	/** Start recording audio. By leaving the Submix To Record field blank, you can record the master output of the game. */
-	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
+	UFUNCTION(BlueprintCallable, Category = "Audio|Recording", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
 	static void StartRecordingOutput(const UObject* WorldContextObject, float ExpectedDuration, USoundSubmix* SubmixToRecord = nullptr);
 	
 	/** Stop recording audio. Path can be absolute, or relative (to the /Saved/BouncedWavFiles folder). By leaving the Submix To Record field blank, you can record the master output of the game.  */
-	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject", DisplayName = "Finish Recording Output", AdvancedDisplay = 4))
+	UFUNCTION(BlueprintCallable, Category = "Audio|Recording", meta = (WorldContext = "WorldContextObject", DisplayName = "Finish Recording Output", AdvancedDisplay = 4))
 	static USoundWave* StopRecordingOutput(const UObject* WorldContextObject, EAudioRecordingExportType ExportType, const FString& Name, FString Path, USoundSubmix* SubmixToRecord = nullptr, USoundWave* ExistingSoundWaveToOverwrite= nullptr);
 
 	/** Pause recording audio, without finalizing the recording to disk. By leaving the Submix To Record field blank, you can record the master output of the game. */
-	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
+	UFUNCTION(BlueprintCallable, Category = "Audio|Recording", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
 	static void PauseRecordingOutput(const UObject* WorldContextObject, USoundSubmix* SubmixToPause = nullptr);
 
 	/** Resume recording audio after pausing. By leaving the Submix To Pause field blank, you can record the master output of the game. */
-	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
+	UFUNCTION(BlueprintCallable, Category = "Audio|Recording", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
 	static void ResumeRecordingOutput(const UObject* WorldContextObject, USoundSubmix* SubmixToPause = nullptr);
 
 	/** Start spectrum analysis of the audio output. By leaving the Submix To Analyze blank, you can analyze the master output of the game. */
@@ -144,16 +145,29 @@ public:
 	static int32 GetNumberOfEntriesInSourceEffectChain(const UObject* WorldContextObject, USoundEffectSourcePresetChain* PresetChain);
 
 	/** Begin loading a sound into the cache so that it can be played immediately. */
-	UFUNCTION(BlueprintCallable, Category = "Sound")
+	UFUNCTION(BlueprintCallable, Category = "Audio|Cache")
 	static void PrimeSoundForPlayback(USoundWave* SoundWave, const FOnSoundLoadComplete OnLoadCompletion);
 
 	/** Begin loading any sounds referenced by a sound cue into the cache so that it can be played immediately. */
-	UFUNCTION(BlueprintCallable, Category = "Sound")
+	UFUNCTION(BlueprintCallable, Category = "Audio|Cache")
 	static void PrimeSoundCueForPlayback(USoundCue* SoundCue);
 
 	/** Trim memory used by the audio cache. Returns the number of megabytes freed. */
-	UFUNCTION(BlueprintCallable, Category = "Sound")
+	UFUNCTION(BlueprintCallable, Category = "Audio|Cache")
 	static float TrimAudioCache(float InMegabytesToFree);
+
+	/** Starts the given audio bus. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Bus", meta = (WorldContext = "WorldContextObject"))
+	static void StartAudioBus(const UObject* WorldContextObject, UAudioBus* AudioBus);
+
+	/** Stops the given audio bus. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Bus", meta = (WorldContext = "WorldContextObject"))
+	static void StopAudioBus(const UObject* WorldContextObject, UAudioBus* AudioBus);
+
+	/** Queries if the given audio bus is active (and audio can be mixed to it). */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Bus", meta = (WorldContext = "WorldContextObject"))
+	static bool IsAudioBusActive(const UObject* WorldContextObject, UAudioBus* AudioBus);
+
 
 private:
 	static void PopulateSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, Audio::FSpectrumAnalyzerSettings &OutSettings);
