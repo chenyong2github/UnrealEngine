@@ -189,6 +189,7 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	//UObject Interface
 	virtual void BeginDestroy()override;
 	virtual bool IsReadyForFinishDestroy()override;
+	virtual void Serialize(FArchive& Ar)override;
 	virtual void PostLoad()override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
