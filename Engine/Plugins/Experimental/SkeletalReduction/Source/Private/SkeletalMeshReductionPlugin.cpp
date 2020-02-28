@@ -1777,6 +1777,13 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	const FSkeletalMeshOptimizationSettings& Settings = LODInfo->ReductionSettings;
 	
 
+	FSkeletalMeshLODModel DstModelBackup;
+	if (!bLODModelAdded)
+	{
+		DstModelBackup.Sections = SkeletalMeshResource.LODModels[LODIndex].Sections;
+		DstModelBackup.UserSectionsData = SkeletalMeshResource.LODModels[LODIndex].UserSectionsData;
+	}
+
 	// Struct to identify important bones.  Vertices associated with these bones
 	// will have additional collapse weight added to them.
 
@@ -1820,54 +1827,52 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		}
 	}
 
-	//Store the sections flags
-	struct FSectionData
+	//We backup only the sections and the user sections data
+	FSkeletalMeshLODModel SrcModelBackup;
+	SrcModelBackup.Sections = SrcModel->Sections;
+	SrcModelBackup.UserSectionsData = SrcModel->UserSectionsData;
+
+	//Restore the source sections data
+	auto RestoreUserSectionsData = [](const FSkeletalMeshLODModel& SourceLODModel, FSkeletalMeshLODModel& DestinationLODModel)
 	{
-		uint16 MaterialIndex;
-		int32 MaterialMap;
-		bool bCastShadow;
-		bool bRecomputeTangent;
-		bool bDisabled;
-		int32 GenerateUpToLodIndex;
-		int32 ChunkedParentSectionIndex;
-		int32 OriginalDataSectionIndex;
-	};
-
-	TMap<int32, FSkelMeshSourceSectionUserData> BackupUserSectionsData;
-	FString BackupLodModelBuildStringID = TEXT("");
-
-
-	
-
-	auto FillSectionMaterialSlot = [&SkeletalMeshResource, &LODIndex, bLODModelAdded](TArray<int32>& SectionMaterialSlot)
-	{
-		SectionMaterialSlot.Empty();
-		if (!bLODModelAdded && SkeletalMeshResource.LODModels.IsValidIndex(LODIndex))
+		//Now restore the reduce section user change and adjust the originalDataSectionIndex to point on the correct UserSectionData
+		TBitArray<> SourceSectionMatched;
+		SourceSectionMatched.Init(false, SourceLODModel.Sections.Num());
+		for (int32 SectionIndex = 0; SectionIndex < DestinationLODModel.Sections.Num(); ++SectionIndex)
 		{
-			int32 SectionNumber = SkeletalMeshResource.LODModels[LODIndex].Sections.Num();
-			for (int32 SectionIndex = 0; SectionIndex < SectionNumber; ++SectionIndex)
+			FSkelMeshSection& Section = DestinationLODModel.Sections[SectionIndex];
+			FSkelMeshSourceSectionUserData& DestinationUserData = FSkelMeshSourceSectionUserData::GetSourceSectionUserData(DestinationLODModel.UserSectionsData, Section);
+			for (int32 SourceSectionIndex = 0; SourceSectionIndex < SourceLODModel.Sections.Num(); ++SourceSectionIndex)
 			{
-				SectionMaterialSlot.Add(SkeletalMeshResource.LODModels[LODIndex].Sections[SectionIndex].OriginalDataSectionIndex);
+				if (SourceSectionMatched[SourceSectionIndex])
+				{
+					continue;
+				}
+				const FSkelMeshSection& SourceSection = SourceLODModel.Sections[SourceSectionIndex];
+				if (const FSkelMeshSourceSectionUserData* SourceUserData = SourceLODModel.UserSectionsData.Find(SourceSection.OriginalDataSectionIndex))
+				{
+					if (Section.MaterialIndex == SourceSection.MaterialIndex)
+					{
+						DestinationUserData = *SourceUserData;
+						SourceSectionMatched[SourceSectionIndex] = true;
+						break;
+					}
+				}
 			}
 		}
+		DestinationLODModel.SyncronizeUserSectionsDataArray();
 	};
+
+	FString BackupLodModelBuildStringID = TEXT("");
 
 	// Unbind any existing clothing assets before we reimport the geometry
 	TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
-	//Get a map of enable/disable sections
-	TArray<int32> OriginalSectionMaterialSlot;
-
 	//Do not play with cloth if the LOD is added
 	if (!bLODModelAdded)
 	{
 		FLODUtilities::UnbindClothingAndBackup(&SkeletalMesh, ClothingBindings, LODIndex);
-	}
-
-	if (!bLODModelAdded)
-	{
-		FSkeletalMeshLODModel& DstBackupSectionLODModel = SkeletalMeshResource.LODModels[LODIndex];
-		BackupLodModelBuildStringID = DstBackupSectionLODModel.BuildStringID;
-		BackupUserSectionsData = DstBackupSectionLODModel.UserSectionsData;
+		//We have to put back the exact UserSectionsData to not invalidate the DDC key
+		BackupLodModelBuildStringID = SkeletalMeshResource.LODModels[LODIndex].BuildStringID;
 	}
 
 	bool bReducingSourceModel = false;
@@ -1876,6 +1881,9 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	{
 		TMap<FString, TArray<FMorphTargetDelta>> TempLODMorphTargetData;
 		SkelResource->OriginalReductionSourceMeshData[BaseLOD]->LoadReductionData(*SrcModel, TempLODMorphTargetData, &SkeletalMesh);
+
+		//Restore the section data state (like disabled...)
+		RestoreUserSectionsData(SrcModelBackup, *SrcModel);
 		//Rebackup the source model since we update it, source always have empty LODMaterial map
 		//If you swap a material ID and after you do inline reduction, you have to remap it again, but not if you reduce and then remap the materialID
 		//this is by design currently
@@ -1887,31 +1895,6 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 
 	check(SrcModel);
-
-	//We backup the section data to put keep the LODModel Section in a good state after the reduction
-	TMap<int32, FSectionData> SrcBackupSectionIndexToSectionData;
-	{
-		FSkeletalMeshLODInfo* BackupLODInfo = SkeletalMesh.GetLODInfo(Settings.BaseLOD);
-		FSkeletalMeshLODModel& LODModelToBackup = *SrcModel;
-		SrcBackupSectionIndexToSectionData.Empty(LODModelToBackup.Sections.Num());
-		for (int32 SectionIndex = 0; SectionIndex < LODModelToBackup.Sections.Num(); ++SectionIndex)
-		{
-			FSectionData& SectionData = SrcBackupSectionIndexToSectionData.FindOrAdd(SectionIndex);
-			SectionData.MaterialIndex = LODModelToBackup.Sections[SectionIndex].MaterialIndex;
-			SectionData.bCastShadow = LODModelToBackup.Sections[SectionIndex].bCastShadow;
-			SectionData.bRecomputeTangent = LODModelToBackup.Sections[SectionIndex].bRecomputeTangent;
-			SectionData.bDisabled = LODModelToBackup.Sections[SectionIndex].bDisabled;
-			SectionData.GenerateUpToLodIndex = LODModelToBackup.Sections[SectionIndex].GenerateUpToLodIndex;
-			SectionData.ChunkedParentSectionIndex = LODModelToBackup.Sections[SectionIndex].ChunkedParentSectionIndex;
-			SectionData.OriginalDataSectionIndex = LODModelToBackup.Sections[SectionIndex].OriginalDataSectionIndex;
-			SectionData.MaterialMap = (BackupLODInfo != nullptr && BackupLODInfo->LODMaterialMap.IsValidIndex(SectionIndex)) ? BackupLODInfo->LODMaterialMap[SectionIndex] : INDEX_NONE;
-			if (SectionData.MaterialMap == SectionData.MaterialIndex)
-			{
-				//Remove any override if the value is the same
-				SectionData.MaterialMap = INDEX_NONE;
-			}
-		}
-	}
 
 	// now try bone reduction process if it's setup
 	TMap<FBoneIndexType, FBoneIndexType> BonesToRemove;
@@ -1985,6 +1968,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 	// Swap out the old model.  
 	FSkeletalMeshImportData RawMesh;
+	bool bPutBackRawMesh = false;
 	ESkeletalMeshGeoImportVersions GeoImportVersion = ESkeletalMeshGeoImportVersions::Before_Versionning;
 	ESkeletalMeshSkinningImportVersions SkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
 	{
@@ -2000,6 +1984,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 			{
 				SkeletalMesh.LoadLODImportedData(LODIndex, RawMesh);
 				SkeletalMesh.GetLODImportedDataVersions(LODIndex, GeoImportVersion, SkinningImportVersion);
+				bPutBackRawMesh = true;
 			}
 			//If the delegate is not bound 
 			if (!Settings.OnDeleteLODModelDelegate.IsBound())
@@ -2018,13 +2003,11 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		{
 			SkeletalMesh.LoadLODImportedData(BaseLOD, RawMesh);
 			SkeletalMesh.GetLODImportedDataVersions(BaseLOD, GeoImportVersion, SkinningImportVersion);
+			bPutBackRawMesh = true;
 		}
 	}
 
-	
-
 	// Reduce LOD model with SrcMesh
-
 	if (ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetImportedBounds(), SkeletalMesh.RefSkeleton, Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel))
 	{
 		FSkeletalMeshLODInfo* ReducedLODInfoPtr = SkeletalMesh.GetLODInfo(LODIndex);
@@ -2047,60 +2030,41 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		// Flag this LOD as having been simplified.
 		ReducedLODInfoPtr->bHasBeenSimplified = true;
 		SkeletalMesh.bHasBeenSimplified = true;
-		
-		//Restore the source sections data
+
+		//Restore the user sections data to what it was. It must be done if we want to avoid changing the DDC key. I.E. UserSectionData is part of the key
+		//DDC key cannot be change during the build
 		{
 			FSkeletalMeshLODModel& ImportedModelLOD = SkeletalMesh.GetImportedModel()->LODModels[LODIndex];
-			TMap<int32, bool> OriginalSectionMatched;
-			OriginalSectionMatched.Reserve(SrcBackupSectionIndexToSectionData.Num());
-			int32 CurrentParentSectionIndex = INDEX_NONE;
-			int32 OriginalSectionIndex = INDEX_NONE;
-			for (int32 SectionIndex = 0; SectionIndex < ImportedModelLOD.Sections.Num(); ++SectionIndex)
-			{
-				FSkelMeshSection& Section = ImportedModelLOD.Sections[SectionIndex];
-				for (auto Kvp : SrcBackupSectionIndexToSectionData)
-				{
-					const int32 SourceSectionIndex = Kvp.Key;
-					bool& SectionMatched = OriginalSectionMatched.FindOrAdd(SourceSectionIndex);
-					if (SectionMatched)
-					{
-						continue;
-					}
-					const FSectionData& SectionData = Kvp.Value;
-					//We use the material index to match the section
-					if (Section.MaterialIndex == SectionData.MaterialIndex)
-					{
-						bool bIsChunkedSection = SectionData.ChunkedParentSectionIndex != INDEX_NONE;
-						if (!bIsChunkedSection)
-						{
-							CurrentParentSectionIndex = SectionIndex;
-							OriginalSectionIndex++;
-						}
-						Section.bCastShadow = SectionData.bCastShadow;
-						Section.bRecomputeTangent = SectionData.bRecomputeTangent;
-						Section.bDisabled = SectionData.bDisabled;
-						Section.GenerateUpToLodIndex = SectionData.GenerateUpToLodIndex;
-						Section.ChunkedParentSectionIndex = bIsChunkedSection ? CurrentParentSectionIndex : INDEX_NONE;
-						//If we reduce inline the source model, we want to use the real source original section
-						Section.OriginalDataSectionIndex = bReducingSourceModel ? SectionData.OriginalDataSectionIndex : OriginalSectionIndex;
-
-						if (!bLODModelAdded)
-						{
-							if (FSkelMeshSourceSectionUserData* BackUpUserSectionData = BackupUserSectionsData.Find(SectionData.OriginalDataSectionIndex))
-							{
-								FSkelMeshSourceSectionUserData& ReducedUserSectionData = ImportedModelLOD.UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
-								ReducedUserSectionData = *BackUpUserSectionData;
-							}
-						}
-
-						SectionMatched = true; //a backup section can be restore only once
-						break;
-					}
-				}
-			}
+			RestoreUserSectionsData(SrcModelBackup, ImportedModelLOD);
 
 			if (!bLODModelAdded)
 			{
+				TBitArray<> SourceSectionMatched;
+				SourceSectionMatched.Init(false, DstModelBackup.Sections.Num());
+				for (int32 SectionIndex = 0; SectionIndex < ImportedModelLOD.Sections.Num(); ++SectionIndex)
+				{
+					FSkelMeshSection& Section = ImportedModelLOD.Sections[SectionIndex];
+					for (int32 SourceSectionIndex = 0; SourceSectionIndex < DstModelBackup.Sections.Num(); ++SourceSectionIndex)
+					{
+						if (SourceSectionMatched[SourceSectionIndex])
+						{
+							continue;
+						}
+						const FSkelMeshSection& SourceSection = DstModelBackup.Sections[SourceSectionIndex];
+						if (const FSkelMeshSourceSectionUserData* SourceUserData = DstModelBackup.UserSectionsData.Find(SourceSection.OriginalDataSectionIndex))
+						{
+							if (Section.MaterialIndex == SourceSection.MaterialIndex)
+							{
+								Section.OriginalDataSectionIndex = SourceSection.OriginalDataSectionIndex;
+								SourceSectionMatched[SourceSectionIndex] = true;
+								break;
+							}
+						}
+					}
+				}
+
+				ImportedModelLOD.UserSectionsData = DstModelBackup.UserSectionsData;
+				ImportedModelLOD.SyncronizeUserSectionsDataArray();
 				//If its an existing LOD put back the buildStringID
 				ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
 			}
@@ -2108,10 +2072,10 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 	else
 	{
+		//TODO: This is not thread safe.
 		FSkeletalMeshLODModel::CopyStructure(NewModel, SrcModel);
 
 		// Do any joint-welding / bone removal.
-
 		if (MeshBoneReductionInterface != NULL && MeshBoneReductionInterface->GetBoneReductionData(&SkeletalMesh, LODIndex, BonesToRemove))
 		{
 			// fix up chunks to remove the bones that set to be removed
@@ -2146,20 +2110,17 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	
 	if (!bLODModelAdded)
 	{
-		//Get the number of enabled section
-		TArray<int32> SectionMaterialSlotAfterReduction;
-		FillSectionMaterialSlot(SectionMaterialSlotAfterReduction);
-
 		//Put back the clothing for this newly reduce LOD
 		if (ClothingBindings.Num() > 0)
 		{
 			FLODUtilities::RestoreClothingFromBackup(&SkeletalMesh, ClothingBindings, LODIndex);
 		}
 	}
-
-	if ((bReducingSourceModel || !bLODModelAdded ) && RawMesh.Points.Num() > 0)
+	if (bPutBackRawMesh)
 	{
+		check((bReducingSourceModel || !bLODModelAdded));
 		//Put back the original import data, we need it to allow inline reduction and skeletal mesh split workflow
+		//It also warranty that we do not change the ddc key
 		SkeletalMesh.SaveLODImportedData(LODIndex, RawMesh);
 		SkeletalMesh.SetLODImportedDataVersions(LODIndex, GeoImportVersion, SkinningImportVersion);
 	}
