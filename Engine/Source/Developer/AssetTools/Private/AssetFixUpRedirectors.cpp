@@ -43,7 +43,7 @@ struct FRedirectorRefs
 };
 
 
-void FAssetFixUpRedirectors::FixupReferencers(const TArray<UObjectRedirector*>& Objects) const
+void FAssetFixUpRedirectors::FixupReferencers(const TArray<UObjectRedirector*>& Objects, const bool bCheckoutDialogPrompt) const
 {
 	// Transform array into TWeakObjectPtr array
 	TArray<TWeakObjectPtr<UObjectRedirector>> ObjectWeakPtrs;
@@ -60,18 +60,18 @@ void FAssetFixUpRedirectors::FixupReferencers(const TArray<UObjectRedirector*>& 
 		{
 			// Open a dialog asking the user to wait while assets are being discovered
 			SDiscoveringAssetsDialog::OpenDiscoveringAssetsDialog(
-				SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateSP(this, &FAssetFixUpRedirectors::ExecuteFixUp, ObjectWeakPtrs)
+				SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateSP(this, &FAssetFixUpRedirectors::ExecuteFixUp, ObjectWeakPtrs, bCheckoutDialogPrompt)
 				);
 		}
 		else
 		{
 			// No need to wait, attempt to fix references now.
-			ExecuteFixUp(ObjectWeakPtrs);
+			ExecuteFixUp(ObjectWeakPtrs, bCheckoutDialogPrompt);
 		}
 	}
 }
 
-void FAssetFixUpRedirectors::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects) const
+void FAssetFixUpRedirectors::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects, const bool bCheckoutDialogPrompt) const
 {
 	TGuardValue<bool> Guard(bIsFixupReferencersInProgress, true);
 
@@ -98,8 +98,8 @@ void FAssetFixUpRedirectors::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirecto
 			TArray<UPackage*> ReferencingPackagesToSave;
 			LoadReferencingPackages(RedirectorRefsList, ReferencingPackagesToSave);
 
-			// Prompt to check out all referencing packages, leave redirectors for assets referenced by packages that are not checked out and remove those packages from the save list.
-			const bool bUserAcceptedCheckout = CheckOutReferencingPackages(RedirectorRefsList, ReferencingPackagesToSave);
+			// Check out all referencing packages, leave redirectors for assets referenced by packages that are not checked out and remove those packages from the save list.
+			const bool bUserAcceptedCheckout = CheckOutReferencingPackages(RedirectorRefsList, ReferencingPackagesToSave, bCheckoutDialogPrompt);
 			if ( bUserAcceptedCheckout )
 			{
 				// If any referencing packages are left read-only, the checkout failed or SCC was not enabled. Trim them from the save list and leave redirectors.
@@ -221,7 +221,7 @@ void FAssetFixUpRedirectors::LoadReferencingPackages(TArray<FRedirectorRefs>& Re
 	}
 }
 
-bool FAssetFixUpRedirectors::CheckOutReferencingPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& InOutReferencingPackagesToSave) const
+bool FAssetFixUpRedirectors::CheckOutReferencingPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& InOutReferencingPackagesToSave, const bool bCheckoutDialogPrompt) const
 {
 	// Prompt to check out all successfully loaded packages
 	bool bUserAcceptedCheckout = true;
@@ -232,7 +232,17 @@ bool FAssetFixUpRedirectors::CheckOutReferencingPackages(TArray<FRedirectorRefs>
 		{
 			TArray<UPackage*> PackagesCheckedOutOrMadeWritable;
 			TArray<UPackage*> PackagesNotNeedingCheckout;
-			bUserAcceptedCheckout = FEditorFileUtils::PromptToCheckoutPackages( false, InOutReferencingPackagesToSave, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout );
+			if (bCheckoutDialogPrompt)
+			{
+				bUserAcceptedCheckout = FEditorFileUtils::PromptToCheckoutPackages( false, InOutReferencingPackagesToSave, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout );
+			}
+			else
+			{
+				const bool bErrorIfAlreadyCheckedOut = false;
+				const bool bConfirmPackageBranchCheckOutStatus = false;
+				FEditorFileUtils::CheckoutPackages(InOutReferencingPackagesToSave, &PackagesCheckedOutOrMadeWritable, bErrorIfAlreadyCheckedOut, bConfirmPackageBranchCheckOutStatus);
+			}
+
 			if ( bUserAcceptedCheckout )
 			{
 				TArray<UPackage*> PackagesThatCouldNotBeCheckedOut = InOutReferencingPackagesToSave;
