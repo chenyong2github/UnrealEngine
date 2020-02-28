@@ -63,7 +63,7 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 			.AutoWidth()
 			[
 				SNew(SComboButton)
-				.HasDownArrow(true)
+				.HasDownArrow(false)
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.OnGetMenuContent(this, &SNiagaraStackModuleItem::RaiseActionMenuClicked)
@@ -72,6 +72,11 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 				.VAlign(VAlign_Center)
 				.Visibility(this, &SNiagaraStackModuleItem::GetRaiseActionMenuVisibility)
 				.IsEnabled(this, &SNiagaraStackModuleItem::GetButtonsEnabled)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("PropertyWindow.Button_AddToArray"))
+				]
 			]
 			// Refresh button
 			+ SHorizontalBox::Slot()
