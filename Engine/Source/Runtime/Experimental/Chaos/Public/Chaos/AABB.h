@@ -31,8 +31,8 @@ namespace Chaos
 		static constexpr int D = d;
 
 		FORCEINLINE TAABB()
-			: MMin()
-			, MMax()
+			: MMin(TVector<T, d>(TNumericLimits<T>::Max()))
+			, MMax(TVector<T, d>(-TNumericLimits<T>::Max()))
 		{
 		}
 
