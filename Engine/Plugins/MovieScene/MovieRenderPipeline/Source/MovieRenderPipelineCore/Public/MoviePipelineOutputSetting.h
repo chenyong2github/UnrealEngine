@@ -82,4 +82,8 @@ public:
 	/** If true the Filmic Tone Curve will not be applied. Disabling this will allow you to export linear data for EXRs. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "File Output")
 	bool bDisableToneCurve;
+
+	/** Should the normal player viewport be visible when rendering? This increases render cost and is only an approximation of what is actually being rendered. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "File Output")
+	bool bHidePreview;
 };

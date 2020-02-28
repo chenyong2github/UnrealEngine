@@ -9,6 +9,16 @@
 #include "Math/Float16.h"
 #include "HAL/PlatformTime.h"
 
+DECLARE_CYCLE_STAT(TEXT("MoviePipeline_SampleReadback"), STAT_SampleReadback, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("OverlapAccumulator_AccumulateSinglePlane"), STAT_AccumulateSinglePlane, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("OverlapAccumulator_InitMemory"), STAT_InitMemory, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("OverlapAccumulator_ZeroPlanes"), STAT_ZeroPlanes, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("OverlapAccumulator_AccumulatePixelData"), STAT_AccumulatePixelData, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("OverlapAccumulator_FetchFull"), STAT_FetchFullImageValue, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("OverlapAccumulator_FetchPixelData8"), STAT_FetchFinalPixelData8bit, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("OverlapAccumulator_FetchPixelData16"), STAT_FetchFinalPixelData16bit, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("OverlapAccumulator_FetchPixelData32"), STAT_FetchFinalPixelData32bit, STATGROUP_MoviePipeline);
+
 void FImageOverlappedPlane::Init(FIntPoint InSize)
 {
 	Size = InSize;
@@ -41,6 +51,8 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 								const TArray<float> & WeightDataX,
 								const TArray<float> & WeightDataY)
 {
+	SCOPE_CYCLE_COUNTER(STAT_AccumulateSinglePlane);
+
 	check(InRawData.Num() == InSize.X * InSize.Y);
 	check(WeightDataX.Num() == InSize.X);
 	check(WeightDataY.Num() == InSize.Y);
@@ -335,6 +347,7 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 
 void FImageOverlappedAccumulator::InitMemory(FIntPoint InPlaneSize, int32 InNumChannels)
 {
+	SCOPE_CYCLE_COUNTER(STAT_InitMemory);
 	PlaneSize.X = InPlaneSize.X;
 	PlaneSize.Y = InPlaneSize.Y;
 	NumChannels = InNumChannels;
@@ -351,6 +364,7 @@ void FImageOverlappedAccumulator::InitMemory(FIntPoint InPlaneSize, int32 InNumC
 
 void FImageOverlappedAccumulator::ZeroPlanes()
 {
+	SCOPE_CYCLE_COUNTER(STAT_ZeroPlanes);
 	check(ChannelPlanes.Num() == NumChannels);
 
 	for (int32 Channel = 0; Channel < NumChannels; Channel++)
@@ -471,6 +485,7 @@ void FImageOverlappedAccumulator::CheckTileSubRect(const TArray64<float>& OutWei
 
 void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InPixelData, FIntPoint InTileOffset, FVector2D InSubpixelOffset, const MoviePipeline::FTileWeight1D & WeightX, const MoviePipeline::FTileWeight1D & WeightY)
 {
+	SCOPE_CYCLE_COUNTER(STAT_AccumulatePixelData);
 	EImagePixelType Fmt = InPixelData.GetType();
 
 	int32 RawNumChan = InPixelData.GetNumChannels();
@@ -729,6 +744,8 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 
 void FImageOverlappedAccumulator::FetchFullImageValue(float Rgba[4], int32 FullX, int32 FullY) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_FetchFullImageValue);
+
 	Rgba[0] = 0.0f;
 	Rgba[1] = 0.0f;
 	Rgba[2] = 0.0f;
@@ -757,6 +774,7 @@ void FImageOverlappedAccumulator::FetchFullImageValue(float Rgba[4], int32 FullX
 
 void FImageOverlappedAccumulator::FetchFinalPixelDataByte(TArray64<FColor> & OutPixelData) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_FetchFinalPixelData8bit);
 	int32 FullSizeX = PlaneSize.X;
 	int32 FullSizeY = PlaneSize.Y;
 	OutPixelData.SetNumUninitialized(FullSizeX * FullSizeY);
@@ -779,6 +797,7 @@ void FImageOverlappedAccumulator::FetchFinalPixelDataByte(TArray64<FColor> & Out
 
 void FImageOverlappedAccumulator::FetchFinalPixelDataHalfFloat(TArray64<FFloat16Color>& OutPixelData) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_FetchFinalPixelData16bit);
 	int32 FullSizeX = PlaneSize.X;
 	int32 FullSizeY = PlaneSize.Y;
 	OutPixelData.SetNumUninitialized(FullSizeX * FullSizeY);
@@ -801,6 +820,7 @@ void FImageOverlappedAccumulator::FetchFinalPixelDataHalfFloat(TArray64<FFloat16
 
 void FImageOverlappedAccumulator::FetchFinalPixelDataLinearColor(TArray64<FLinearColor> & OutPixelData) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_FetchFinalPixelData32bit);
 	int32 FullSizeX = PlaneSize.X;
 	int32 FullSizeY = PlaneSize.Y;
 	OutPixelData.SetNumUninitialized(FullSizeX * FullSizeY);
