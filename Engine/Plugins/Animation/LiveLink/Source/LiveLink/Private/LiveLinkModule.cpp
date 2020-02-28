@@ -2,10 +2,11 @@
 
 #include "LiveLinkModule.h"
 
+#include "Interfaces/IPluginManager.h"
 #include "LiveLinkLogInstance.h"
 #include "LiveLinkPreset.h"
 #include "LiveLinkSettings.h"
-#include "Interfaces/IPluginManager.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkModule"
 
@@ -29,14 +30,14 @@ void FLiveLinkModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
 	LiveLinkMotionController.RegisterController();
 
-	if (ULiveLinkPreset* Preset = GetDefault<ULiveLinkSettings>()->DefaultLiveLinkPreset.LoadSynchronous())
-	{
-		Preset->ApplyToClient();
-	}
+	//Register for engine initialization completed so we can load default preset if any. Presets could depend on plugins loaded at a later stage.
+	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FLiveLinkModule::OnEngineLoopInitComplete);
 }
 
 void FLiveLinkModule::ShutdownModule()
 {
+	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
+
 	HeartbeatEmitter->Exit();
 	DiscoveryManager->Stop();
 	LiveLinkMotionController.UnregisterController();
@@ -57,6 +58,14 @@ void FLiveLinkModule::CreateStyle()
 	const FVector2D Icon16x16(16.0f, 16.0f);
 
 	StyleSet->Set("LiveLinkIcon", new FSlateImageBrush((ContentDir / TEXT("LiveLink_16x")) + TEXT(".png"), Icon16x16));
+}
+
+void FLiveLinkModule::OnEngineLoopInitComplete()
+{
+	if (ULiveLinkPreset* Preset = GetDefault<ULiveLinkSettings>()->DefaultLiveLinkPreset.LoadSynchronous())
+	{
+		Preset->ApplyToClient();
+	}
 }
 
 IMPLEMENT_MODULE(FLiveLinkModule, LiveLink);
