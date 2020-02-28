@@ -59,6 +59,7 @@ public:
 	static TSharedRef<IDetailCustomization> MakeInstance();
 	/** IPropertyTypeCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+	FReply OnSwapColorsClicked(TSharedRef<IPropertyHandle> PaintColor, TSharedRef<IPropertyHandle> EraseColor);
 };
 
 
