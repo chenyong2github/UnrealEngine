@@ -5396,6 +5396,12 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 			.SetPressed(BOX_BRUSH( "Common/SmallRoundedButton", FMargin(7.f/16.f) ))
 		);
 
+		Set("EditorViewportToolBar.MenuButtonWarning", FButtonStyle(Button)
+			.SetNormal(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f), LogColor_Warning_LinearRef))
+			.SetHovered(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f), *LogColor_Warning_LinearRef*FLinearColor(1.1, 1.1, 1.1, 1)))
+			.SetPressed(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f), LogColor_Warning_LinearRef))
+		);
+
 		Set( "EditorViewportToolBar.Button", HoverHintOnly );
 
 		/* Set style structure for "EditorViewportToolBar.Button" ... */
