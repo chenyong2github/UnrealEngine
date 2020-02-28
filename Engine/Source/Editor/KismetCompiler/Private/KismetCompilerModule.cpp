@@ -170,6 +170,7 @@ void FKismet2CompilerModule::RefreshVariables(UBlueprint* Blueprint)
 
 		// cpfuo:
 		UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
+		Params.bNotifyObjectReplacement = true;
 		UEngine::CopyPropertiesForUnrelatedObjects(OldCDO, Blueprint->GeneratedClass->ClassDefaultObject, Params);
 	}
 }

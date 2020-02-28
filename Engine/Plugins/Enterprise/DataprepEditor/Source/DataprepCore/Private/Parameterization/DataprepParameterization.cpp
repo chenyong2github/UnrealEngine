@@ -1377,7 +1377,9 @@ void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateDa
 
 		if ( bMigrateData )
 		{
-			GEngine->CopyPropertiesForUnrelatedObjects( OldClass->GetDefaultObject(), CustomContainerClass->GetDefaultObject() );
+			UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+			Options.bNotifyObjectReplacement = true;
+			UEngine::CopyPropertiesForUnrelatedObjects( OldClass->GetDefaultObject(), CustomContainerClass->GetDefaultObject(), Options );
 		}
 
 		// For the instances
@@ -1399,7 +1401,9 @@ void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateDa
 				
 				if ( bMigrateData )
 				{
-					GEngine->CopyPropertiesForUnrelatedObjects( OldObject, Object );
+					UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+					Options.bNotifyObjectReplacement = true;
+					UEngine::CopyPropertiesForUnrelatedObjects( OldObject, Object, Options );
 				}
 
 				OldToNew.Add( OldObject, Object );

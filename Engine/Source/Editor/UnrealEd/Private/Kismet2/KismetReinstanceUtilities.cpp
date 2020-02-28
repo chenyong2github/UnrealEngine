@@ -1699,7 +1699,9 @@ static void ReplaceObjectHelper(UObject*& OldObject, UClass* OldClass, UObject*&
 
 	InstancedPropertyUtils::FInstancedPropertyMap InstancedPropertyMap;
 	InstancedPropertyUtils::FArchiveInstancedSubObjCollector  InstancedSubObjCollector(OldObject, InstancedPropertyMap);
-	UEditorEngine::CopyPropertiesForUnrelatedObjects(OldObject, NewUObject);
+	UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+	Options.bNotifyObjectReplacement = true;
+	UEditorEngine::CopyPropertiesForUnrelatedObjects(OldObject, NewUObject, Options);
 	InstancedPropertyUtils::FArchiveInsertInstancedSubObjects InstancedSubObjSpawner(NewUObject, InstancedPropertyMap);
 
 	UWorld* RegisteredWorld = nullptr;
@@ -1853,6 +1855,7 @@ static void ReplaceActorHelper(AActor* OldActor, UClass* OldClass, UObject*& New
 	UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
 	Params.bPreserveRootComponent = bPreserveRootComponent;
 	Params.bAggressiveDefaultSubobjectReplacement = true;
+	Params.bNotifyObjectReplacement = true;
 	UEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor, Params);
 
 	// reset properties/streams
@@ -2363,6 +2366,7 @@ void FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(UObject* Ol
 	Params.bCopyDeprecatedProperties = true;
 	Params.bSkipCompilerGeneratedDefaults = true;
 	Params.bClearReferences = bClearExternalReferences;
+	Params.bNotifyObjectReplacement = true;
 	UEngine::CopyPropertiesForUnrelatedObjects(OldObject, NewObject, Params);
 
 	InstancedPropertyUtils::FArchiveInsertInstancedSubObjects InstancedSubObjSpawner(NewObject, InstancedPropertyMap);

@@ -73,9 +73,7 @@ UObject* UControlRigSequence::MakeSpawnableTemplateFromInstance(UObject& InSourc
 {
 	UObject* NewInstance = NewObject<UObject>(MovieScene, InSourceObject.GetClass(), ObjectName);
 
-	UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
-	CopyParams.bNotifyObjectReplacement = false;
-	UEngine::CopyPropertiesForUnrelatedObjects(&InSourceObject, NewInstance, CopyParams);
+	UEngine::CopyPropertiesForUnrelatedObjects(&InSourceObject, NewInstance);
 
 	return NewInstance;
 }
