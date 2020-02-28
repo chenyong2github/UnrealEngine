@@ -123,6 +123,8 @@ namespace Audio
 		// we check whether a new audio device was connected every second or so.
 		float TimeSinceNullDeviceWasLastChecked;
 
+		bool FirstBufferSubmitted{false};
+
 		uint32 bIsInitialized : 1;
 		uint32 bIsDeviceOpen : 1;
 
