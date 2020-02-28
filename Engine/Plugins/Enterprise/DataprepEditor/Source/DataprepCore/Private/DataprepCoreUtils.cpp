@@ -644,4 +644,23 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 	});
 }
 
+bool FDataprepCoreUtils::RemoveSteps(UDataprepActionAsset* ActionAsset, const TArray<int32>& Indices, int32& ActionIndex)
+{
+	ActionIndex = INDEX_NONE;
+
+	UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject(ActionAsset);
+	check(DataprepAsset);
+
+	if(ActionAsset->GetStepsCount() == Indices.Num())
+	{
+		// Find index of source action 
+		ActionIndex = DataprepAsset->GetActionIndex(ActionAsset);
+		ensure(ActionIndex != INDEX_NONE);
+
+		return DataprepAsset->RemoveAction(ActionIndex);
+	}
+
+	return ActionAsset->RemoveSteps( Indices );
+}
+
 #undef LOCTEXT_NAMESPACE
