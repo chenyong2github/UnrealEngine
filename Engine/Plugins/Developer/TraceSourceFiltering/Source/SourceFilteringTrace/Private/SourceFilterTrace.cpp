@@ -86,7 +86,7 @@ void FSourceFilterTrace::OutputClass(const TSubclassOf<UDataSourceFilter> InClas
 
 	DataSourceFilterClasses.Add(Class->GetName(), Class);
 
-	const uint64 Identifier = FObjectTrace::GetObjectId(Class);
+	const uint64 Identifier = TRACE_FILTER_IDENTIFIER(Class);
 	if (!FilterClassIds.Contains(Class))
 	{
 		FilterClassIds.Add(Class, Identifier);
@@ -103,8 +103,8 @@ void FSourceFilterTrace::OutputInstance(const UDataSourceFilter* InFilter)
 	{
 		TRACE_FILTER_CLASS(InFilter->GetClass());
 
-		const uint64 ClassId = FObjectTrace::GetObjectId(InFilter->GetClass());
-		const uint64 InstanceId = FObjectTrace::GetObjectId(InFilter);
+		const uint64 ClassId = TRACE_FILTER_IDENTIFIER(InFilter->GetClass());
+		const uint64 InstanceId = TRACE_FILTER_IDENTIFIER(InFilter);
 		const uint64 SetId = 0;
 
 		FilterInstances.Add(InFilter);
@@ -135,7 +135,7 @@ void FSourceFilterTrace::OutputSet(const UDataSourceFilterSet* InFilterSet)
 {
 	if (InFilterSet)
 	{
-		const uint64 SetId = FObjectTrace::GetObjectId(InFilterSet);
+		const uint64 SetId = TRACE_FILTER_IDENTIFIER(InFilterSet);
 
 		IDToFilter.Add(SetId, InFilterSet);
 
@@ -147,7 +147,7 @@ void FSourceFilterTrace::OutputSet(const UDataSourceFilterSet* InFilterSet)
 
 void FSourceFilterTrace::OutputFilterOperation(const UDataSourceFilter* InFilter, ESourceActorFilterOperation Operation, uint64 Parameter)
 {
-	const uint64 InstanceId = FObjectTrace::GetObjectId(InFilter);
+	const uint64 InstanceId = TRACE_FILTER_IDENTIFIER(InFilter);
 	UE_TRACE_LOG(SourceFilters, FilterOperation, TraceSourceFiltersChannel)
 		<< FilterOperation.InstanceId(InstanceId)
 		<< FilterOperation.Operation((uint8)Operation)
@@ -171,7 +171,7 @@ void FSourceFilterTrace::OutputFilterSettingsValue(const FString& InPropertyName
 
 void FSourceFilterTrace::OutputWorld(const UWorld* InWorld)
 {
-	const uint64 InstanceId = FObjectTrace::GetObjectId(InWorld);
+	const uint64 InstanceId = TRACE_FILTER_IDENTIFIER(InWorld);
 	
 	if (!IDsToWorldInstance.Contains(InstanceId))
 	{
@@ -198,7 +198,7 @@ void FSourceFilterTrace::OutputWorld(const UWorld* InWorld)
 
 void FSourceFilterTrace::OutputWorldOperation(const UWorld* InWorld, EWorldFilterOperation Operation, uint32 Parameter)
 {
-	const uint64 InstanceId = FObjectTrace::GetObjectId(InWorld);
+	const uint64 InstanceId = TRACE_FILTER_IDENTIFIER(InWorld);
 	UE_TRACE_LOG(WorldSourceFilters, WorldOperation, TraceSourceFiltersChannel)
 		<< WorldOperation.InstanceId(InstanceId)
 		<< WorldOperation.Operation((uint8)Operation)
