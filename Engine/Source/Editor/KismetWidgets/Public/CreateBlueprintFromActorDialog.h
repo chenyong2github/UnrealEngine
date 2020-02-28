@@ -50,7 +50,5 @@ private:
 	 * @param InAssetPath		Path of the asset to create
 	 * @param bInHarvest		The mode to use when creating a blueprint from the selected actors
 	 */
-	static void OnCreateBlueprint(const FString& InAssetPath, UClass* ParentClass, ECreateBlueprintFromActorMode CreateMode);
-
-	static TWeakObjectPtr<AActor> ActorOverride;
+	static void OnCreateBlueprint(const FString& InAssetPath, UClass* ParentClass, ECreateBlueprintFromActorMode CreateMode, AActor* ActorToUse);
 };
