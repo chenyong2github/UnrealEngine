@@ -5,11 +5,9 @@
 #include "DataprepAsset.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorUtils.h"
-#include "SchemaActions/DataprepFetcherMenuActionCollector.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepIntegerFilter.h"
 #include "Widgets/DataprepGraph/DataprepActionWidgetsUtils.h"
-#include "Widgets/DataprepGraph/SDataprepFetcherSelector.h"
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/Parameterization/SDataprepParameterizationLinkIcon.h"
 
@@ -94,7 +92,7 @@ void SDataprepIntegerFilter::Construct(const FArguments& InArgs, UDataprepIntege
 			ToValueParameterizationActionData = MakeShared<FDataprepParametrizationActionData>(*DataprepAsset, InFilter, PropertyChain);
 		}
 
-		OnParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsChanged.AddSP( this, &SDataprepIntegerFilter::OnParameterizationStatusForObjectsChanged );
+		OnParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsStatusChanged.AddSP( this, &SDataprepIntegerFilter::OnParameterizationStatusForObjectsChanged );
 	}
 
 	UpdateVisualDisplay();
@@ -104,7 +102,7 @@ SDataprepIntegerFilter::~SDataprepIntegerFilter()
 {
 	if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( Filter ) )
 	{
-		DataprepAsset->OnParameterizedObjectsChanged.Remove( OnParameterizationStatusForObjectsChangedHandle );
+		DataprepAsset->OnParameterizedObjectsStatusChanged.Remove( OnParameterizationStatusForObjectsChangedHandle );
 	}
 }
 
@@ -337,8 +335,6 @@ void SDataprepIntegerFilter::OnSelectedCriteriaChanged(TSharedPtr<FListEntry> Li
 		Filter->SetIntegerMatchingCriteria( IntMatchType );
 
 		SDataprepIntegerFilterUtils::PostEditChainProperty( Filter, TEXT("IntegerMatchingCriteria") );
-
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 	}
 }
 
@@ -396,8 +392,6 @@ void SDataprepIntegerFilter::OnEqualValueComitted(int NewEqualValue, ETextCommit
 		Filter->SetEqualValue( NewEqualValue );
 
 		SDataprepIntegerFilterUtils::PostEditChainProperty( Filter, TEXT("EqualValue") );
-
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 		OldEqualValue = NewEqualValue;
 	}
 }
@@ -439,8 +433,6 @@ void SDataprepIntegerFilter::OnFromValueComitted(int NewFromValue, ETextCommit::
 		Filter->SetFromValue(NewFromValue);
 
 		SDataprepIntegerFilterUtils::PostEditChainProperty(Filter, TEXT("FromValue"));
-
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline(Filter);
 		OldFromValue = NewFromValue;
 	}
 }
@@ -482,8 +474,6 @@ void SDataprepIntegerFilter::OnToValueComitted(int NewToValue, ETextCommit::Type
 		Filter->SetToValue(NewToValue);
 
 		SDataprepIntegerFilterUtils::PostEditChainProperty(Filter, TEXT("ToValue"));
-
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline(Filter);
 		OldToValue = NewToValue;
 	}
 }

@@ -34,11 +34,6 @@ class FDataprepEditorUtils
 {
 public:
 	/**
-	 * Find the the owning dataprep asset of the source object and send a notification to the dataprep editor so it can react when its pipeline is modified
-	 */
-	static void NotifySystemOfChangeInPipeline(UObject* SourceObject);
-
-	/**
 	 * Populate a menu builder with the section made for the parameterization
 	 * @param DataprepAsset the asset that own the object
 	 * @param Object The Object on which we want to modify the parametrization binding
