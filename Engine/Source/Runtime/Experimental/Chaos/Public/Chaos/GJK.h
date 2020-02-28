@@ -586,7 +586,7 @@ namespace Chaos
 					ClosestB = Bs[0];
 				}
 				
-				const TVec3<T> ClosestBInA = StartTM.TransformPosition(ClosestB);
+				const TVec3<T> ClosestBInA = StartPoint + ClosestB;
 				const T InGJKPreDist = FMath::Sqrt(InGJKPreDist2);
 				OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//question: should we just use InGJKPreDist2?
 				const T Penetration = FMath::Clamp<T>(ThicknessA + ThicknessB - InGJKPreDist, 0, TNumericLimits<T>::Max());
