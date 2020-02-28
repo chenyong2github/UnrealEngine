@@ -120,6 +120,7 @@ DEFINE_STAT(STAT_Navigation_ObservedPathsCount);
 DEFINE_STAT(STAT_Navigation_RecastMemory);
 
 CSV_DEFINE_CATEGORY(NavigationSystem, false);
+CSV_DEFINE_CATEGORY(NavTasks, true);
 
 //----------------------------------------------------------------------//
 // consts
@@ -983,6 +984,9 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 			}
 		}
 	}
+
+	CSV_CUSTOM_STAT(NavTasks, NumRemainingTasks, GetNumRemainingBuildTasks(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(NavTasks, NumRunningTasks, GetNumRunningBuildTasks(), ECsvCustomStatOp::Set);
 
 	if (AsyncPathFindingQueries.Num() > 0)
 	{
