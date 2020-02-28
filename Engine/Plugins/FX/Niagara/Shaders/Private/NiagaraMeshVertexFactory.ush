@@ -13,22 +13,6 @@
 #define USE_PARTICLE_RANDOM (NEEDS_PARTICLE_RANDOM)
 #define USE_PARTICLE_TRANSFORM (NEEDS_PARTICLE_TRANSFORM)
 
-#if NIAGARA_LOOSEPARAM_BINDING
-	Buffer<float> NiagaraParticleDataPosition;
-	Buffer<float> NiagaraParticleDataVelocity;
-	Buffer<float> NiagaraParticleDataColor;
-	Buffer<float> NiagaraParticleDataScale;
-	Buffer<float> NiagaraParticleDataTransform;
-	Buffer<float> NiagaraParticleDataNormalizedAge;
-	Buffer<float> NiagaraParticleDataSubImage;
-	Buffer<float> NiagaraParticleDataMaterialRandom;
-	Buffer<float> NiagaraParticleDataMaterialParam0;
-	Buffer<float> NiagaraParticleDataMaterialParam1;
-	Buffer<float> NiagaraParticleDataMaterialParam2;
-	Buffer<float> NiagaraParticleDataMaterialParam3;
-	Buffer<float> NiagaraParticleDataCameraOffset;
-#endif
-
 float3 TransformPosition(float3 InPosition)
 {
 	if (NiagaraMeshVF.bLocalSpace)
@@ -542,7 +526,7 @@ float3 CalculateCameraOffset(FVertexFactoryIntermediates Intermediates, uint Ins
 		return (float3)0.0f;
 	}
 
-	float Offset = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataCameraOffset), NiagaraMeshVF.CameraOffsetDataOffset, InstanceId);
+	float Offset = GetFloat(NiagaraMeshVF.CameraOffsetDataOffset, InstanceId);
 	float3 WorldPosition = TransformPosition(Intermediates.ParticlePosition.xyz);
 	float3 CameraVector = ResolvedView.WorldCameraOrigin - WorldPosition;
 	float3 CameraDir = normalize(CameraVector);
@@ -572,7 +556,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.ParticlePosition = float4(GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataPosition), NiagaraMeshVF.PositionDataOffset, Input.InstanceId), 1);
+		Intermediates.ParticlePosition = float4(GetVec3(NiagaraMeshVF.PositionDataOffset, Input.InstanceId), 1);
 	}
 
 	if (NiagaraMeshVF.ColorDataOffset == -1)
@@ -581,13 +565,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.ParticleColor = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataColor), NiagaraMeshVF.ColorDataOffset, Input.InstanceId);
+		Intermediates.ParticleColor = GetVec4(NiagaraMeshVF.ColorDataOffset, Input.InstanceId);
 	}
 
 	float3 ParticleVelocity = (float3)0.0f;
 	if (NiagaraMeshVF.VelocityDataOffset != -1)
 	{
-		ParticleVelocity = float3(GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataVelocity), NiagaraMeshVF.VelocityDataOffset, Input.InstanceId));
+		ParticleVelocity = float3(GetVec3(NiagaraMeshVF.VelocityDataOffset, Input.InstanceId));
 	}
 
 	// Calculate the particle velocity (NOTE: always do this regardless of NEEDS_PARTICLE_VELOCITY because of velocity facing particles)
@@ -602,7 +586,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam0), NiagaraMeshVF.MaterialParamDataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter = GetVec4(NiagaraMeshVF.MaterialParamDataOffset, Input.InstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 2)
@@ -612,7 +596,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}	
 	else
 	{
-		Intermediates.DynamicParameter1 = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam1), NiagaraMeshVF.MaterialParam1DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter1 = GetVec4(NiagaraMeshVF.MaterialParam1DataOffset, Input.InstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 4)
@@ -622,7 +606,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter2 = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam2), NiagaraMeshVF.MaterialParam2DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter2 = GetVec4(NiagaraMeshVF.MaterialParam2DataOffset, Input.InstanceId);
 	}
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
@@ -632,7 +616,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.DynamicParameter3 = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialParam3), NiagaraMeshVF.MaterialParam3DataOffset, Input.InstanceId);
+		Intermediates.DynamicParameter3 = GetVec4(NiagaraMeshVF.MaterialParam3DataOffset, Input.InstanceId);
 	}
 #endif
 
@@ -643,7 +627,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.RelativeTime = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataNormalizedAge), NiagaraMeshVF.NormalizedAgeDataOffset, Input.InstanceId);
+		Intermediates.RelativeTime = GetFloat(NiagaraMeshVF.NormalizedAgeDataOffset, Input.InstanceId);
 	}
 #endif
 
@@ -654,7 +638,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.ParticleRandom = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataMaterialRandom), NiagaraMeshVF.MaterialRandomDataOffset, Input.InstanceId);
+		Intermediates.ParticleRandom = GetFloat(NiagaraMeshVF.MaterialRandomDataOffset, Input.InstanceId);
 	}
 #endif	
 
@@ -669,7 +653,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	};
 	if(NiagaraMeshVF.TransformDataOffset != -1)
 	{
-		float4 Quat = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataTransform), NiagaraMeshVF.TransformDataOffset, Input.InstanceId);
+		float4 Quat = GetVec4(NiagaraMeshVF.TransformDataOffset, Input.InstanceId);
 		RotationMat = QuatTo3x3(normalize(Quat));
 	}
 	
@@ -677,7 +661,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float3 Scale = (float3)1.0f;
 	if(NiagaraMeshVF.ScaleDataOffset != -1)
 	{
-		Scale = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataScale), NiagaraMeshVF.ScaleDataOffset, Input.InstanceId);		
+		Scale = GetVec3(NiagaraMeshVF.ScaleDataOffset, Input.InstanceId);		
 	}
 	
 	float3x3 ScaleMat = {
@@ -747,7 +731,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	else
 	{
 		// SubUV.
-		float SubImageIndex = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataSubImage), NiagaraMeshVF.SubImageDataOffset, Input.InstanceId);
+		float SubImageIndex = GetFloat(NiagaraMeshVF.SubImageDataOffset, Input.InstanceId);
 		float SubImageLerp = frac(SubImageIndex);
 		float SubImageA = SubImageIndex - SubImageLerp;
 		float SubImageB = SubImageA + 1;
