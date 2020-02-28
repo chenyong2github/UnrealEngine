@@ -12,14 +12,91 @@
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 
 // Engine Includes
-#include "SGraphPanel.h"
+#include "GraphEditorSettings.h"
 #include "NodeFactory.h"
+#include "SGraphPanel.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
+
+class SDataprepGraphActionProxyNode : public SGraphNode
+{
+public:
+	SLATE_BEGIN_ARGS(SDataprepGraphActionStepNode) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedRef<SDataprepGraphActionNode>& InParentNode)
+	{
+		ParentNodePtr = InParentNode;
+		GraphNode = InParentNode->GetNodeObj();
+
+		SetCursor(EMouseCursor::Default);
+		UpdateGraphNode();
+	}
+
+	// SWidget interface
+	// End of SWidget interface
+
+	// SGraphNode interface
+	virtual void UpdateGraphNode() override
+	{
+		this->ContentScale.Bind( this, &SGraphNode::GetContentScale );
+		this->GetOrAddSlot( ENodeZone::Center )
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SVerticalBox)
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SColorBlock)
+				.Color( FLinearColor::Transparent )
+				.Size( TAttribute<FVector2D>::Create(TAttribute<FVector2D>::FGetter::CreateSP( this, &SDataprepGraphActionProxyNode::GetSize ) ) )
+			]
+		];
+	}
+
+	const FSlateBrush* GetShadowBrush(bool bSelected) const
+	{
+		return  FEditorStyle::GetNoBrush();
+	}
+	// End of SGraphNode interface
+
+	FVector2D GetSize()
+	{
+		FVector2D Size(10.f);
+
+		if(SDataprepGraphActionNode* ParentNode = ParentNodePtr.Pin().Get())
+		{
+			Size = ParentNode->GetCachedGeometry().GetLocalSize();
+
+			if(Size == FVector2D::ZeroVector)
+			{
+				Size = ParentNode->GetDesiredSize();
+				if(Size == FVector2D::ZeroVector)
+				{
+					Size.Set(10.f, 10.f);
+				}
+			}
+		}
+
+		return Size;
+	}
+
+	void SetPosition(const FVector2D& Position)
+	{
+		GraphNode->NodePosX = Position.X;
+		GraphNode->NodePosY = Position.Y;
+	}
+
+private:
+	/** Pointer to the SDataprepGraphTrackNode displayed in the graph editor  */
+	TWeakPtr<SDataprepGraphActionNode> ParentNodePtr;
+};
 
 /**
  * The SDataprepEmptyActionStepNode is a helper class that handles drag and drop event at
@@ -55,8 +132,6 @@ public:
 				]
 			]
 		];
-
-		bShowInsertionSlot = false;
 	}
 
 	// SWidget Interface
@@ -68,7 +143,7 @@ public:
 			ParentTrackNodePtr.Pin()->OnDragLeave(DragDropEvent);
 
 			DragActionStepNodeOp->SetHoveredNode(ParentPtr.Pin()->GetNodeObj());
-			bShowInsertionSlot = true;
+			ParentPtr.Pin()->SetHoveredIndex( ParentPtr.Pin()->GetDataprepAction()->GetStepsCount() );
 		}
 
 		SCompoundWidget::OnDragEnter(MyGeometry, DragDropEvent);
@@ -80,7 +155,7 @@ public:
 		if(DragActionStepNodeOp.IsValid() && ParentPtr.IsValid())
 		{
 			DragActionStepNodeOp->SetHoveredNode(ParentPtr.Pin()->GetNodeObj());
-			bShowInsertionSlot = true;
+			ParentPtr.Pin()->SetHoveredIndex( ParentPtr.Pin()->GetDataprepAction()->GetStepsCount() );
 
 			return FReply::Handled();
 		}
@@ -96,15 +171,16 @@ public:
 			DragActionStepNodeOp->SetHoveredNode(nullptr);
 		}
 
-		bShowInsertionSlot = false;
+		ParentPtr.Pin()->SetHoveredIndex( INDEX_NONE );
 
 		SCompoundWidget::OnDragLeave(DragDropEvent);
 	}
 
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
 	{
-		bShowInsertionSlot = false;
-	
+		// Reset dragged index as drag is completed
+		ParentPtr.Pin()->SetDraggedIndex( INDEX_NONE );
+
 		// Process OnDrop if done by FDataprepDragDropOp
 		TSharedPtr<FDataprepDragDropOp> DragActionStepNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 		if (DragActionStepNodeOp.IsValid() && ParentPtr.IsValid())
@@ -122,20 +198,13 @@ public:
 		ParentTrackNodePtr = InParentTrackNode;
 	}
 
-	void ShowInsertionSlot(bool bShow)
-	{
-		bShowInsertionSlot = bShow;
-	}
-
 private:
 	FSlateColor GetBorderBackgroundColor() const
 	{
-		static FLinearColor Hovered = FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop");
-		return bShowInsertionSlot ? Hovered : FLinearColor::Transparent;
+		return ParentPtr.Pin()->GetInsertColor( ParentPtr.Pin()->GetDataprepAction()->GetStepsCount() );
 	}
 
 private:
-	bool bShowInsertionSlot;
 	TWeakPtr<SDataprepGraphActionNode> ParentPtr;
 	TWeakPtr<SDataprepGraphTrackNode> ParentTrackNodePtr;
 };
@@ -146,20 +215,17 @@ void SDataprepGraphActionNode::Construct(const FArguments& InArgs, UDataprepGrap
 	check(DataprepActionPtr.IsValid());
 
 	ExecutionOrder = InActionNode->GetExecutionOrder();
+	DraggedIndex = INDEX_NONE;
+	InsertIndex = INDEX_NONE;
 
 	DataprepActionPtr->GetOnStepsOrderChanged().AddSP(this, &SDataprepGraphActionNode::OnStepsChanged);
 
 	GraphNode = InActionNode;
 
+	ProxyNodePtr = SNew(SDataprepGraphActionProxyNode, SharedThis(this));
+
 	SetCursor(EMouseCursor::ResizeLeftRight);
 	UpdateGraphNode();
-}
-
-void SDataprepGraphActionNode::MoveTo(const FVector2D& DesiredPosition, FNodeSet& NodeFilter)
-{
-	FVector2D NewPosition = ParentTrackNodePtr.IsValid() ? ParentTrackNodePtr.Pin()->ComputeActionNodePosition( DesiredPosition ) : DesiredPosition;
-
-	SGraphNode::MoveTo(NewPosition, NodeFilter);
 }
 
 void SDataprepGraphActionNode::SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode)
@@ -184,6 +250,11 @@ void SDataprepGraphActionNode::UpdateExecutionOrder()
 	ExecutionOrder = Cast<UDataprepGraphActionNode>(GraphNode)->GetExecutionOrder();
 }
 
+void SDataprepGraphActionNode::UpdateProxyNode(const FVector2D& Position)
+{
+	ProxyNodePtr->SetPosition(Position);
+}
+
 TSharedRef<SWidget> SDataprepGraphActionNode::CreateNodeContentArea()
 {
 	if(DataprepActionPtr.IsValid())
@@ -195,26 +266,41 @@ TSharedRef<SWidget> SDataprepGraphActionNode::CreateNodeContentArea()
 		.AutoHeight()
 		[
 			ActionStepListWidgetPtr.ToSharedRef()
-		]
-
-		//+SVerticalBox::Slot()
-		//.AutoHeight()
-		//[
-		//	SNew(SHorizontalBox)
-		//	+SHorizontalBox::Slot()
-		//	.AutoWidth()
-		//	[
-		//		SNew(SColorBlock)
-		//		.Color(FLinearColor::Transparent)
-		//		.Size( FVector2D(200.f, 10.f) )
-		//	]
-		//]
-		;
+		];
 	}
 
 	return 	SNew(STextBlock)
 	.ColorAndOpacity( FSlateColor( FLinearColor::Red ) )
 	.Text( FText::FromString( TEXT("This node doesn't have a dataprep action!") ) );
+}
+
+const FSlateBrush* SDataprepGraphActionNode::GetShadowBrush(bool bSelected) const
+{
+	return  FEditorStyle::GetNoBrush();
+}
+
+int32 SDataprepGraphActionNode::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+{
+	// Since only a proxy is in the graph panel, draw selection outline if applicable 
+	if(SGraphPanel* GraphPanel = GetOwnerPanel().Get())
+	{
+		if (GraphPanel->SelectionManager.SelectedNodes.Contains(GraphNode))
+		{
+			const FSlateBrush* ShadowBrush = FEditorStyle::GetBrush(TEXT("Graph.Node.ShadowSelected"));
+			const FVector2D NodeShadowSize = GetDefault<UGraphEditorSettings>()->GetShadowDeltaSize();
+
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				LayerId,
+				GetPaintSpaceGeometry().ToInflatedPaintGeometry(NodeShadowSize),
+				ShadowBrush,
+				ESlateDrawEffect::None,
+				FLinearColor(1.0f, 1.0f, 1.0f, 1.f)
+			);
+		}
+	}
+
+	return SGraphNode::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 }
 
 FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -243,6 +329,8 @@ void SDataprepGraphActionNode::SetOwner(const TSharedRef<SGraphPanel>& OwnerPane
 	if(!OwnerGraphPanelPtr.IsValid())
 	{
 		SGraphNode::SetOwner(OwnerPanel);
+
+		OwnerPanel->AddGraphNode(SharedThis(ProxyNodePtr.Get()));
 
 		for(TSharedPtr<SDataprepGraphActionStepNode>& ActionStepGraphNode : ActionStepGraphNodes)
 		{
@@ -297,6 +385,32 @@ void SDataprepGraphActionNode::OnDragEnter(const FGeometry& MyGeometry, const FD
 	SGraphNode::OnDragEnter(MyGeometry, DragDropEvent);
 }
 
+FSlateColor SDataprepGraphActionNode::GetInsertColor(int32 Index)
+{
+	static const FSlateColor BackgroundColor = FDataprepEditorStyle::GetColor("DataprepActionStep.BackgroundColor");
+	static const FSlateColor DragAndDrop = FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop");
+
+	return Index == InsertIndex ? DragAndDrop : BackgroundColor;
+}
+
+void SDataprepGraphActionNode::SetDraggedIndex(int32 Index)
+{
+	DraggedIndex = Index;
+	InsertIndex = INDEX_NONE;
+}
+
+void SDataprepGraphActionNode::SetHoveredIndex(int32 Index)
+{
+	if(DraggedIndex == INDEX_NONE || Index == DataprepActionPtr->GetStepsCount())
+	{
+		InsertIndex = Index;
+	}
+	else
+	{
+		InsertIndex = Index > DraggedIndex ? Index + 1 : (Index < DraggedIndex ? Index : INDEX_NONE);
+	}
+}
+
 void SDataprepGraphActionNode::PopulateActionStepListWidget()
 {
 	if(!ActionStepListWidgetPtr.IsValid())
@@ -333,9 +447,7 @@ void SDataprepGraphActionNode::PopulateActionStepListWidget()
 
 		ActionStepNode->Initialize(DataprepAction, Index);
 
-		TSharedPtr<SDataprepGraphActionStepNode> ActionStepGraphNode = StaticCastSharedPtr<SDataprepGraphActionStepNode>(FNodeFactory::CreateNodeWidget(ActionStepNode));
-
-		ActionStepGraphNode->SetParentNode(SharedThis(this));
+		TSharedPtr<SDataprepGraphActionStepNode> ActionStepGraphNode = SNew(SDataprepGraphActionStepNode, ActionStepNode, SharedThis(this));
 
 		if(TrackNodePtr.IsValid())
 		{
@@ -377,6 +489,7 @@ void SDataprepGraphActionNode::OnStepsChanged()
 	if(DataprepActionPtr.IsValid())
 	{
 		PopulateActionStepListWidget();
+		ParentTrackNodePtr.Pin()->RefreshLayout();
 	}
 }
 

@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SDataprepGraphTrackNode;
+class SDataprepGraphActionProxyNode;
 class SDataprepGraphActionStepNode;
 class SVerticalBox;
 class UDataprepActionAsset;
@@ -30,12 +31,13 @@ public:
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 	virtual void SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel) override;
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	// End of SWidget interface
 
 	// SGraphNode interface
-	virtual void MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter ) override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
 	// End of SGraphNode interface
 
 	void SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode);
@@ -44,6 +46,18 @@ public:
 	void UpdateExecutionOrder();
 
 	const UDataprepActionAsset* GetDataprepAction() const { return DataprepActionPtr.Get(); }
+
+	/** Update the proxy node with relative position in track node */
+	void UpdateProxyNode(const FVector2D& Position);
+
+	/** Callback used by insert nodes to determine their background color */
+	FSlateColor GetInsertColor(int32 Index);
+
+	/** Set index of step node being dragged */
+	void SetDraggedIndex(int32 Index);
+
+	/** Set index of step node being hovered */
+	void SetHoveredIndex(int32 Index);
 
 private:
 	/** Callback to handle changes on array of steps in action */
@@ -67,4 +81,13 @@ private:
 
 	/** Array of pointers to the SDataprepGraphActionStepNode representing the associated action's steps */
 	TArray<TSharedPtr<SDataprepGraphActionStepNode>> ActionStepGraphNodes;
+
+	/** Pointer to the proxy SGraphNode inserted in the graph panel */
+	TSharedPtr<SDataprepGraphActionProxyNode> ProxyNodePtr;
+
+	/** Index of step node being dragged */
+	int32 DraggedIndex;
+
+	/** Index of insert widget to be highlighted */
+	int32 InsertIndex;
 };

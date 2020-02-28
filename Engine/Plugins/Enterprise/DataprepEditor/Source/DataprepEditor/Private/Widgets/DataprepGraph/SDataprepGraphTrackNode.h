@@ -89,12 +89,6 @@ public:
 	/** Recompute the boundaries of the graph based on the new size and the new zoom factor */
 	FVector2D Update(const FVector2D& LocalSize, float ZoomAmount);
 
-	/**
-	 * Computes a new position for an action node based on the dimension of the graph
-	 * Mainly keeps the node at the right height
-	 */
-	FVector2D ComputeActionNodePosition(const FVector2D& InPosition);
-
 	void OnControlKeyChanged(bool bControlKeyDown);
 
 	/** Initiates the horizontal drag of an action node */
@@ -133,9 +127,6 @@ private:
 
 	/** Weak pointer to the Dataprep asset holding the displayed actions */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
-
-	/** Size of the section of the track for left padding */
-	FVector2D TrackWidgetOffset;
 
 	/** Range for abscissa of action nodes */
 	FVector2D AbscissaRange;
