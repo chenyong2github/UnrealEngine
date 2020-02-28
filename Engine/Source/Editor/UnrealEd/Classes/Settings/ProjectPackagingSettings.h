@@ -259,6 +259,15 @@ public:
 	bool bShareMaterialShaderCode;
 
 	/** 
+	 * With this option off, the shader code will be stored in the library essentially in a random order,
+	 * squarely the same in which the assets were loaded by the cooker. Enabling this will sort the shaders
+	 * by their hash, which makes the shader library more similar between the builds which can help patching, but
+	 * can adversely affect loading times.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Packaging, meta = (EditCondition = "bShareMaterialShaderCode"))
+	bool bDeterministicShaderCodeOrder;
+
+	/**
 	 * By default shader shader code gets saved into individual platform agnostic files,
 	 * enabling this option will use the platform-specific library format if and only if one is available
 	 * This will reduce overall package size but might increase loading time
