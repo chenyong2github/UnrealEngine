@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 // handle differences between ES2 and full GL shaders
-#if PLATFORM_USES_ES2
+#if PLATFORM_USES_GLES
 precision highp float;
 #else
 // #version 120 at the beginning is added in FSlateOpenGLShader::CompileShader()
@@ -114,14 +114,14 @@ vec3 GammaCorrect(vec3 InColor)
 	vec3 CorrectedColor = InColor;
 	
 	// gamma correct
-	//#if PLATFORM_USES_ES2
+	//#if PLATFORM_USES_GLES
 	//	OutColor.rgb = sqrt( OutColor.rgb );
 	//#else
 	//	OutColor.rgb = pow(OutColor.rgb, vec3(1.0/2.2));
 	//#endif
 	//!(ES2_PROFILE || ES3_1_PROFILE)
 	
-#if !PLATFORM_USES_ES2
+#if !PLATFORM_USES_GLES
 	if( GammaValues.y != 1.0f )
 	{
 		CorrectedColor = ApplyGammaCorrection(CorrectedColor, GammaValues.x);
