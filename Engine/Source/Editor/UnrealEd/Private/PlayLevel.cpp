@@ -1662,6 +1662,7 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 		GameInstancePIEParameters.EditorPlaySettings = PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings;
 		GameInstancePIEParameters.WorldFeatureLevel = PreviewPlatform.GetEffectivePreviewFeatureLevel();
 		GameInstancePIEParameters.NetMode = InNetMode;
+		GameInstancePIEParameters.OverrideMapURL = InRequestParams.GlobalMapOverride;
 
 		PIELoginInfo.GameInstancePIEParameters = GameInstancePIEParameters;
 

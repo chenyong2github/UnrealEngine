@@ -273,8 +273,21 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 	}
 	else
 	{
-		// Standard PIE path: just duplicate the EditorWorld
-		NewWorld = EditorEngine->CreatePIEWorldByDuplication(*WorldContext, EditorEngine->EditorWorld, PIEMapName);
+		if (Params.OverrideMapURL.Len() > 0)
+		{
+			// Attempt to load the target world asset
+			FSoftObjectPath TargetWorld = FSoftObjectPath(Params.OverrideMapURL);
+			UWorld* WorldToDuplicate = Cast<UWorld>(TargetWorld.TryLoad());
+			if (WorldToDuplicate)
+			{
+				NewWorld = EditorEngine->CreatePIEWorldByDuplication(*WorldContext, WorldToDuplicate, PIEMapName);
+			}
+		}
+		else
+		{
+			// Standard PIE path: just duplicate the EditorWorld
+			NewWorld = EditorEngine->CreatePIEWorldByDuplication(*WorldContext, EditorEngine->EditorWorld, PIEMapName);
+		}
 
 		// Duplication can result in unreferenced objects, so indicate that we should do a GC pass after initializing the world context
 		bNeedsGarbageCollection = true;
