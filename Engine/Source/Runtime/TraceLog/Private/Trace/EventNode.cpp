@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include "Trace/Detail/Atomic.h"
+#include "Trace/Detail/LogScope.inl"
 
 namespace Trace {
 namespace Private {
@@ -100,8 +101,8 @@ void FEventNode::Describe() const
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * Info->FieldCount;
 	EventSize += NamesSize;
 
-	FLogInstance LogInstance = Writer_BeginLogNoSync(EventUid, EventSize, false);
-	auto& Event = *(FNewEventEvent*)(LogInstance.Ptr);
+	FLogScope LogScope = FLogScope::Enter<FEventInfo::Flag_NoSync>(EventUid, EventSize);
+	auto& Event = *(FNewEventEvent*)(LogScope.GetPointer());
 
 	// Write event's main properties.
 	Event.EventUid = uint16(Uid);
@@ -141,8 +142,6 @@ void FEventNode::Describe() const
 		const FFieldDesc& Field = Info->Fields[i];
 		WriteName(Field.Name, Field.NameSize);
 	}
-
-	Writer_EndLog(LogInstance);
 }
 
 } // namespace Private
