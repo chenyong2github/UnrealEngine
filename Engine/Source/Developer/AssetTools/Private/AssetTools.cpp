@@ -2050,7 +2050,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 
 					for (UObject* AdditionalResult : Factory->GetAdditionalImportedObjects())
 					{
-						ReturnObjects.Add(Result);
+						ReturnObjects.Add(AdditionalResult);
 					}
 
 					bImportSucceeded = true;
