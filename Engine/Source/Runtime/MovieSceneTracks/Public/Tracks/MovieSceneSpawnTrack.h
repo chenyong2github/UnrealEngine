@@ -58,10 +58,6 @@ public:
 	//~ UObject interface
 	virtual void PostLoad() override;
 
-#if WITH_EDITOR
-	virtual ECookOptimizationFlags GetCookOptimizationFlags() const override;
-#endif
-
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDisplayName() const override;
 #endif
