@@ -63,6 +63,11 @@ void UGeometryCacheAbcFileComponent::ReloadAbcFile()
 		// Also store the number of frames in the cache
 		GeometryCache->SetFrameStartEnd(0, AbcFileTrack->GetEndFrameIndex());
 	}
+	else
+	{
+		GeometryCache = nullptr;
+		AlembicFilePath.FilePath.Empty();
+	}
 
 	MarkRenderStateDirty();
 }
