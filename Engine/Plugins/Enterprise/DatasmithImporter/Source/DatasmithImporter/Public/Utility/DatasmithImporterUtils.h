@@ -170,6 +170,19 @@ public:
 	 */
 	static UObject* StaticDuplicateObject(UObject* SourceObject, UObject* Outer, const FName Name = NAME_None);
 
+	/**
+	 * Specialization of the duplication of a StaticMesh object specifically optimized for datasmith use case.
+	 * This operation invalidate the duplicated SourceStaticMesh and mark it as PendingKill, unless bIgnoreBulkData is True.
+	 *
+	 * @param SourceStaticMesh	the UStaticMesh being copied
+	 * @param Outer				the outer to use for the object
+	 * @param Name				the optional name of the object
+	 * @param bIgnoreBulkData	if True, the SourceStaticMesh's SourceModels BulkDatas won't be copied and SourceStaticMesh will stay valid after the operation.
+	 *
+	 * @return the copied StaticMesh or null if it failed for some reason
+	 */
+	static UStaticMesh* DuplicateStaticMesh(UStaticMesh* SourceStaticMesh, UObject* Outer, const FName Name = NAME_None, bool bIgnoreBulkData = false);
+
 	template< class T >
 	static T* DuplicateObject(T* SourceObject, UObject* Outer, const FName Name = NAME_None)
 	{

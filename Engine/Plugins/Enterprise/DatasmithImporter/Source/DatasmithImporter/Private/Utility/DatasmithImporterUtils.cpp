@@ -1088,17 +1088,10 @@ const TSharedPtr<IDatasmithBaseMaterialElement>& FDatasmithImporterUtils::FDatas
 
 UObject* FDatasmithImporterUtils::StaticDuplicateObject(UObject* SourceObject, UObject* Outer, const FName Name)
 {
-	UStaticMesh* SourceMesh = Cast< UStaticMesh >( SourceObject );
-
-	TArray<FStaticMeshSourceModel> SourceModels;
-	if (SourceMesh)
+	if (UStaticMesh* SourceMesh = Cast< UStaticMesh >(SourceObject))
 	{
-		// Since static mesh can be quite heavy, remove source models for cloning to
-		// reduce useless work. Will be reinserted on the new duplicated asset.
-		SourceModels = MoveTemp(SourceMesh->GetSourceModels());
-
-		// Temporary flag to skip Postload during DuplicateObject
-		SourceMesh->SetFlags(RF_ArchetypeObject);
+		const bool bIgnoreBulkData = false;
+		return DuplicateStaticMesh(SourceMesh, Outer, Name, bIgnoreBulkData);
 	}
 
 	// Duplicate is used only to move our object from its temporary package into its final package replacing any asset
@@ -1106,34 +1099,68 @@ UObject* FDatasmithImporterUtils::StaticDuplicateObject(UObject* SourceObject, U
 	// Since Duplicate has some rather heavy consequence, like calling PostLoad and doing all kind of stuff on an object
 	// that is not even fully initialized yet, we might want to find an alternative way of moving our objects in future
 	// releases but keep it for the current release cycle.
-	UObject* Duplicate = ::DuplicateObject< UObject >( SourceObject, Outer, Name );
+	return ::DuplicateObject< UObject >( SourceObject, Outer, Name );
+}
 
-	if ( SourceMesh )
+UStaticMesh* FDatasmithImporterUtils::DuplicateStaticMesh(UStaticMesh* SourceStaticMesh, UObject* Outer, const FName Name, bool bIgnoreBulkData)
+{
+	TArray<FStaticMeshSourceModel> SourceModels;
+
+	// Since static mesh can be quite heavy, remove source models for cloning to reduce useless work.
+	// Will be reinserted on the new duplicated asset or restored on the SourceStaticMesh if bIgnoreBulkData is true.
+	SourceModels = MoveTemp(SourceStaticMesh->GetSourceModels());
+
+	// Temporary flag to skip Postload during DuplicateObject
+	SourceStaticMesh->SetFlags(RF_ArchetypeObject);
+
+	// Duplicate is used only to move our object from its temporary package into its final package replacing any asset
+	// already at that location. This function also takes care of fixing internal dependencies among the object's children.
+	// Since Duplicate has some rather heavy consequence, like calling PostLoad and doing all kind of stuff on an object
+	// that is not even fully initialized yet, we might want to find an alternative way of moving our objects in future
+	// releases but keep it for the current release cycle.
+	UStaticMesh* DuplicateMesh = ::DuplicateObject< UStaticMesh >(SourceStaticMesh, Outer, Name);
+
+	// Get rid of our temporary flag
+	SourceStaticMesh->ClearFlags(RF_ArchetypeObject);
+	DuplicateMesh->ClearFlags(RF_ArchetypeObject);
+
+	if (bIgnoreBulkData)
 	{
-		UStaticMesh* DuplicateMesh = Cast< UStaticMesh >( Duplicate );
+		//We are not moving the source model bulk data, so we can simply copy the settings used in the DDC key.
+		//That way we also avoid marking the source mesh as pending kill.
+		for (FStaticMeshSourceModel& SourceModel : SourceModels)
+		{
+			FStaticMeshSourceModel& DuplicateSourceModel = DuplicateMesh->AddSourceModel();
+			DuplicateSourceModel.StaticMeshOwner = DuplicateMesh;
 
-		// Get rid of our temporary flag
-		SourceMesh->ClearFlags(RF_ArchetypeObject);
-		DuplicateMesh->ClearFlags(RF_ArchetypeObject);
+			// Apply the SourceMesh settings to the duplicated SourceModels
+			DuplicateSourceModel.BuildSettings = SourceModel.BuildSettings;
+			DuplicateSourceModel.ReductionSettings = SourceModel.ReductionSettings;
+			DuplicateSourceModel.ScreenSize = SourceModel.ScreenSize;
+			DuplicateSourceModel.bImportWithBaseMesh = SourceModel.bImportWithBaseMesh;
+			DuplicateSourceModel.SourceImportFilename = SourceModel.SourceImportFilename;
+		}
 
+		// Move back the source models to the original mesh
+		SourceStaticMesh->GetSourceModels() = MoveTemp(SourceModels);
+	}
+	else
+	{
 		// The source mesh is stripped from it's source model, it is not buildable anymore.
 		// -> MarkPendingKill to avoid use-after-move crash in the StaticMesh::Build()
-		SourceMesh->MarkPendingKill();
+		SourceStaticMesh->MarkPendingKill();
 
 		for (FStaticMeshSourceModel& SourceModel : SourceModels)
 		{
 			// Fixup the new SourceModels owner
 			SourceModel.StaticMeshOwner = DuplicateMesh;
-
-			// Restore settings to the SourceMesh since they are used for diffing templates
-			SourceMesh->AddSourceModel().BuildSettings = SourceModel.BuildSettings;
 		}
 
 		// Apply source models to the duplicated mesh
 		DuplicateMesh->GetSourceModels() = MoveTemp(SourceModels);
 	}
 
-	return Duplicate;
+	return DuplicateMesh;
 }
 
 FScopedLogger::FScopedLogger(FName LogTitle, const FText& LogLabel)
