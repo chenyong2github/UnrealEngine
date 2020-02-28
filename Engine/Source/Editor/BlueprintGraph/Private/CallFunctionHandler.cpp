@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CallFunctionHandler.h"
+
+#include "BlueprintCompilationManager.h"
 #include "UObject/MetaData.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_Event.h"
@@ -633,6 +635,13 @@ UFunction* FKCHandler_CallFunction::FindFunction(FKismetFunctionContext& Context
 
 	if (CallingContext)
 	{
+		// It may be advisable to always do this branch in GetMostUpToDateClass, but
+		// being conservative:
+		if (!FBlueprintCompilationManager::IsGeneratedClassLayoutReady())
+		{
+			CallingContext = FBlueprintEditorUtils::GetMostUpToDateClass(CallingContext);
+		}
+
 		const FName FunctionName = GetFunctionNameFromNode(Node);
 		return CallingContext->FindFunctionByName(FunctionName);
 	}
