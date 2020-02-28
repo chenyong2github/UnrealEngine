@@ -15,24 +15,15 @@ class AZURESPATIALANCHORS_API UAzureCloudSpatialAnchor : public UObject
 	
 public:
 	/**
-	 * Return the AppProperties of this cloud anchor.
+	 * The cloud identifier of this cloud anchor.  Empty if the anchor has not been saved or loaded.
 	 */
-	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Pin")
-	TMap<FString, FString> GetAppProperties() const;
-	
-	/**
-	 * Return the expiration time of this cloud anchor.
-	 */
-	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Pin")
-	FDateTime GetExpiration() const;
+	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pin")
+	FString CloudIdentifier;
+
 
 	/**
-	 * Return the cloud identifier of this cloud anchor.
+	 * The ARPin with which this cloud anchor is associated, or null.  Null could mean we are still trying to load the anchor by ID.
 	 */
-	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Pin")
-	FString GetIdentifier() const;
-
-
 	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pin")
 	UARPin* ARPin;
 };

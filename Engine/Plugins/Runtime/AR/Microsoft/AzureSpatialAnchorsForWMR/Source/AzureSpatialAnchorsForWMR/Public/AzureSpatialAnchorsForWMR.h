@@ -20,15 +20,16 @@ public:
 	virtual void DestroySession() override;
 
 	virtual bool GetCloudAnchor(class UARPin*& InARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor) override;
+	virtual void GetCloudAnchors(TArray<class UAzureCloudSpatialAnchor*>& OutCloudAnchors) override;
 	virtual bool CreateCloudAnchor(class UARPin*& InARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor) override;
 	virtual bool SetCloudAnchorExpiration(class UAzureCloudSpatialAnchor*& InCloudAnchor, int MinutesFromNow) override;
 	virtual bool SaveCloudAnchorAsync_Start(class FPendingLatentAction* LatentAction, class UAzureCloudSpatialAnchor*& InCloudAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
-	virtual bool SaveCloudAnchorAsync_Update(class FPendingLatentAction* LatentAction, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
+	virtual bool SaveCloudAnchorAsync_Update(class FPendingLatentAction* LatentAction, class UAzureCloudSpatialAnchor*& InCloudAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
 	virtual void SaveCloudAnchorAsync_Orphan(class FPendingLatentAction* LatentAction) override;
 	virtual bool DeleteCloudAnchorAsync_Start(class FPendingLatentAction* LatentAction, class UAzureCloudSpatialAnchor*& InCloudAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
 	virtual bool DeleteCloudAnchorAsync_Update(class FPendingLatentAction* LatentAction, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
 	virtual void DeleteCloudAnchorAsync_Orphan(class FPendingLatentAction* LatentAction) override;
-	virtual bool LoadCloudAnchorByIDAsync_Start(class FPendingLatentAction* LatentAction, const FString& InCloudAnchorId, const FString& InLocalAnchorId, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
+	virtual bool LoadCloudAnchorByIDAsync_Start(class FPendingLatentAction* LatentAction, const FString& InCloudAnchorIdentifier, const FString& InLocalAnchorId, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
 	virtual bool LoadCloudAnchorByIDAsync_Update(class FPendingLatentAction* LatentAction, class UARPin*& OutARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
 	virtual void LoadCloudAnchorByIDAsync_Orphan(class FPendingLatentAction* LatentAction) override;
 
