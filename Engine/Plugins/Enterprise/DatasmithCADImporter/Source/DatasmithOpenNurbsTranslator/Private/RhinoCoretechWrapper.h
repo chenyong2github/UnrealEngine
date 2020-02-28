@@ -11,6 +11,7 @@ class ON_Brep;
 class ON_NurbsSurface;
 class ON_BrepFace;
 class ON_BoundingBox;
+class ON_3dVector;
 
 class BRepToKernelIOBodyTranslator
 {
@@ -19,7 +20,7 @@ public:
 		: BRep(InBRep)
 	{}
 
-	CT_OBJECT_ID CreateBody();
+	CT_OBJECT_ID CreateBody(const ON_3dVector& ON_Offset);
 private:
 	CT_OBJECT_ID CreateCTSurface(ON_NurbsSurface& Surface);
 	void CreateCTFace(const ON_BrepFace& Face, CT_LIST_IO& dest);
@@ -50,7 +51,14 @@ public:
 	{
 	}
 
-	CADLibrary::CheckedCTError AddBRep(ON_Brep& brep);
+	/**
+	 * Set BRep to tessellate, offsetting it prior to tessellation(used to set mesh pivot at the center of the surface bounding box)
+	 *
+	 * @param  Brep	a brep to tessellate
+	 * @param  Offset translate brep by this value before tessellating 
+	 */
+	CADLibrary::CheckedCTError AddBRep(ON_Brep& Brep, const ON_3dVector& Offset);
+	
 	static TSharedPtr<FRhinoCoretechWrapper> GetSharedSession(double SceneUnit, double ScaleFactor);
 
 	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);
