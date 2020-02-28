@@ -39,6 +39,7 @@ void FMagicLeapLightEstimationModule::DestroyTracker()
 	{
 		MLResult Result = MLLightingTrackingDestroy(Tracker);
 		UE_CLOG(Result != MLResult_Ok, LogMagicLeapLightEstimation, Error, TEXT("MLLightingTrackingDestroy failed with error %s"), UTF8_TO_TCHAR(MLGetResultString(Result)));
+		Tracker = ML_INVALID_HANDLE;
 	}
 #endif // WITH_MLSDK
 }
