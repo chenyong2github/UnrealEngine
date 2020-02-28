@@ -126,6 +126,33 @@ namespace Chaos
 	}
 
 
+	void FPBDJointUtilities::GetLockedAxes(const FRotation3& R0, const FRotation3& R1, FVec3& Axis0, FVec3& Axis1, FVec3& Axis2)
+	{
+		const FReal W0 = R0.W;
+		const FReal W1 = R1.W;
+		const FVec3 V0 = FVec3(R0.X, R0.Y, R0.Z);
+		const FVec3 V1 = FVec3(R1.X, R1.Y, R1.Z);
+
+		const FVec3 C = V1 * W0 + V0 * W1;
+		const FReal D0 = W0 * W1;
+		const FReal D1 = FVec3::DotProduct(V0, V1);
+		const FReal D = D0 - D1;
+
+		Axis0 = 0.5f * (V0 * V1.X + V1 * V0.X + FVec3(D, C.Z, -C.Y));
+		Axis1 = 0.5f * (V0 * V1.Y + V1 * V0.Y + FVec3(-C.Z, D, C.X));
+		Axis2 = 0.5f * (V0 * V1.Z + V1 * V0.Z + FVec3(C.Y, -C.X, D));
+
+		// Handle degenerate case of 180 deg swing
+		if (FMath::Abs(D0 + D1) < SMALL_NUMBER)
+		{
+			const FReal Epsilon = SMALL_NUMBER;
+			Axis0.X += Epsilon;
+			Axis1.Y += Epsilon;
+			Axis2.Z += Epsilon;
+		}
+	}
+	
+	
 	// @todo(ccaulfield): separate linear soft and stiff
 	FReal FPBDJointUtilities::GetLinearStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
