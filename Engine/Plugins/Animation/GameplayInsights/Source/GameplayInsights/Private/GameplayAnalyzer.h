@@ -19,6 +19,7 @@ public:
 private:
 	enum : uint16
 	{
+		RouteId_World,
 		RouteId_Class,
 		RouteId_Object,
 		RouteId_ObjectEvent,

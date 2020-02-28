@@ -27,7 +27,8 @@ struct FSkeletalMeshPoseMessage
 	uint64 TransformStartIndex = 0;
 	uint64 CurveStartIndex = 0;
 	uint64 ComponentId = 0;	
-	uint64 MeshId = 0;	
+	uint64 MeshId = 0;
+	const TCHAR* MeshName = nullptr;
 	uint16 NumTransforms = 0;
 	uint16 NumCurves = 0;
 	uint16 FrameCounter = 0;
@@ -55,7 +56,6 @@ struct FTickRecordMessage
 	uint16 FrameCounter = 0;
 	bool bLooping = false;
 	bool bIsBlendSpace = false;
-	bool bContinuous = true;
 };
 
 enum class EAnimGraphPhase : uint8
@@ -172,7 +172,7 @@ struct FAnimSequencePlayerMessage
 	int32 NodeId = -1;
 	float Position = 0.0f;
 	float Length = 0.0f;
-	int32 FrameCount = 0;
+	uint16 FrameCounter = 0;
 };
 
 struct FBlendSpacePlayerMessage
@@ -209,6 +209,7 @@ struct FAnimNotifyMessage
 	uint64 AnimInstanceId = 0;
 	uint64 AssetId = 0;
 	uint64 NotifyId = 0;
+	const TCHAR* Name = nullptr;
 	uint32 NameId = 0;
 	float Time = 0.0f; 
 	float Duration = 0.0f;
@@ -223,6 +224,7 @@ struct FAnimMontageMessage
 	uint32 NextSectionNameId = 0;
 	float Weight = 0.0f;
 	float DesiredWeight = 0.0f;
+	uint16 FrameCounter = 0;
 };
 
 class IAnimationProvider : public Trace::IProvider
@@ -243,8 +245,8 @@ public:
 	virtual void GetSkeletalMeshComponentSpacePose(const FSkeletalMeshPoseMessage& InMessage, const FSkeletalMeshInfo& InMeshInfo, FTransform& OutComponentToWorld, TArray<FTransform>& OutTransforms) const = 0;
 	virtual void EnumerateSkeletalMeshCurveIds(uint64 InObjectId, TFunctionRef<void(uint32)> Callback) const = 0;
 	virtual void EnumerateSkeletalMeshCurves(const FSkeletalMeshPoseMessage& InMessage, TFunctionRef<void(const FSkeletalMeshNamedCurve&)> Callback) const = 0;
-	virtual void EnumerateTickRecordTimelines(uint64 InObjectId, TFunctionRef<void(uint64, int32, const TickRecordTimeline&)> Callback) const = 0;
-	virtual bool ReadTickRecordTimeline(uint64 InObjectId, uint64 InAssetId, int32 InNodeId, TFunctionRef<void(const TickRecordTimeline&)> Callback) const = 0;
+	virtual bool ReadTickRecordTimeline(uint64 InObjectId, TFunctionRef<void(const TickRecordTimeline&)> Callback) const = 0;
+	virtual void EnumerateTickRecordIds(uint64 InObjectId, TFunctionRef<void(uint64, int32)> Callback) const = 0;
 	virtual bool ReadAnimGraphTimeline(uint64 InObjectId, TFunctionRef<void(const AnimGraphTimeline&)> Callback) const = 0;
 	virtual bool ReadAnimNodesTimeline(uint64 InObjectId, TFunctionRef<void(const AnimNodesTimeline&)> Callback) const = 0;
 	virtual bool ReadAnimNodeValuesTimeline(uint64 InObjectId, TFunctionRef<void(const AnimNodeValuesTimeline&)> Callback) const = 0;

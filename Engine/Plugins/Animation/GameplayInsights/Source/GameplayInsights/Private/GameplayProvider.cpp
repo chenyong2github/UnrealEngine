@@ -65,6 +65,19 @@ const FClassInfo* FGameplayProvider::FindClassInfo(uint64 InClassId) const
 	return nullptr;
 }
 
+const FClassInfo* FGameplayProvider::FindClassInfo(const TCHAR* InClassPath) const
+{
+	Session.ReadAccessCheck();
+
+	const int32* ClassIndex = ClassPathNameToIndexMap.Find(InClassPath);
+	if (ClassIndex != nullptr)
+	{
+		return &ClassInfos[*ClassIndex];
+	}
+
+	return nullptr;
+}
+
 const FObjectInfo* FGameplayProvider::FindObjectInfo(uint64 InObjectId) const
 {
 	Session.ReadAccessCheck();
@@ -76,6 +89,52 @@ const FObjectInfo* FGameplayProvider::FindObjectInfo(uint64 InObjectId) const
 	}
 
 	return nullptr;
+}
+
+const FWorldInfo* FGameplayProvider::FindWorldInfo(uint64 InObjectId) const
+{
+	Session.ReadAccessCheck();
+
+	const int32* WorldIndex = WorldIdToIndexMap.Find(InObjectId);
+	if (WorldIndex != nullptr)
+	{
+		return &WorldInfos[*WorldIndex];
+	}
+
+	return nullptr;
+}
+
+const FWorldInfo* FGameplayProvider::FindWorldInfoFromObject(uint64 InObjectId) const
+{
+	const FClassInfo* WorldClass = FindClassInfo(TEXT("/Script/Engine.World"));
+	if(WorldClass)
+	{
+		// Traverse outer chain until we find a world
+		const FObjectInfo* ObjectInfo = FindObjectInfo(InObjectId);
+		while (ObjectInfo != nullptr)
+		{
+			if (ObjectInfo->ClassId == WorldClass->Id)
+			{
+				return FindWorldInfo(ObjectInfo->Id);
+			}
+
+			ObjectInfo = FindObjectInfo(ObjectInfo->OuterId);
+		}
+	}
+
+	return nullptr;
+}
+
+bool FGameplayProvider::IsWorld(uint64 InObjectId) const
+{
+	const FClassInfo* WorldClass = FindClassInfo(TEXT("/Script/Engine.World"));
+	if (WorldClass)
+	{
+		const FObjectInfo* ObjectInfo = FindObjectInfo(InObjectId);
+		return ObjectInfo->ClassId == WorldClass->Id;
+	}
+
+	return false;
 }
 
 const FClassInfo& FGameplayProvider::GetClassInfo(uint64 InClassId) const
@@ -138,6 +197,7 @@ void FGameplayProvider::AppendClass(uint64 InClassId, uint64 InSuperId, const TC
 
 		int32 NewClassInfoIndex = ClassInfos.Add(NewClassInfo);
 		ClassIdToIndexMap.Add(InClassId, NewClassInfoIndex);
+		ClassPathNameToIndexMap.Add(NewClassPathName, NewClassInfoIndex);
 	}
 }
 
@@ -200,6 +260,24 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 	Timeline->AppendEvent(InTime, Message);
 
 	Session.UpdateDurationSeconds(InTime);
+}
+
+void FGameplayProvider::AppendWorld(uint64 InObjectId, int32 InPIEInstanceId, uint8 InType, uint8 InNetMode, bool bInIsSimulating)
+{
+	Session.WriteAccessCheck();
+
+	if (WorldIdToIndexMap.Find(InObjectId) == nullptr)
+	{
+		FWorldInfo NewWorldInfo;
+		NewWorldInfo.Id = InObjectId;
+		NewWorldInfo.PIEInstanceId = InPIEInstanceId;
+		NewWorldInfo.Type = (FWorldInfo::EType)InType;
+		NewWorldInfo.NetMode = (FWorldInfo::ENetMode)InNetMode;
+		NewWorldInfo.bIsSimulating = bInIsSimulating;
+
+		int32 NewWorldInfoIndex = WorldInfos.Add(NewWorldInfo);
+		WorldIdToIndexMap.Add(InObjectId, NewWorldInfoIndex);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
