@@ -35,6 +35,11 @@ void UControlRigLayerInstance::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence
 	GetProxyOnGameThread<FControlRigLayerInstanceProxy>().UpdateAnimTrack(InAnimSequence, SequenceId, InFromPosition, InToPosition, Weight, bFireNotifies);
 }
 
+void UControlRigLayerInstance::ConstructNodes()
+{
+	GetProxyOnGameThread<FControlRigLayerInstanceProxy>().ConstructNodes();
+}
+
 void UControlRigLayerInstance::ResetNodes()
 {
 	GetProxyOnGameThread<FControlRigLayerInstanceProxy>().ResetNodes();

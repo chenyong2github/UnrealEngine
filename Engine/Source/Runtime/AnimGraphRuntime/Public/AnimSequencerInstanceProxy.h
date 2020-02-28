@@ -91,6 +91,8 @@ public:
 	/** Reset the pose in this instance*/
 	virtual void ResetPose();
 
+	/** Construct and link the base part of the blend tree */
+	virtual void ConstructNodes();
 protected:
 	/** Find a player of a specified type */
 	template<typename Type>
@@ -104,9 +106,6 @@ protected:
 
 		return nullptr;
 	}
-
-	/** Construct and link the base part of the blend tree */
-	void ConstructNodes();
 
 	/** custom root node for this sequencer player. Didn't want to use RootNode in AnimInstance because it's used with lots of AnimBP functionality */
 	struct FAnimNode_ApplyAdditive SequencerRootNode;

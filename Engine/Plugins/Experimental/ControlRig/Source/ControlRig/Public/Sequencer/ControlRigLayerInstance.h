@@ -32,6 +32,8 @@ public:
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies) override;
 	void RemoveAnimation(int32 SequenceId);
 
+	/** Construct all nodes in this instance */
+	virtual void ConstructNodes() override;
 	/** Reset all nodes in this instance */
 	virtual void ResetNodes() override;
 	/** Reset the pose in this instance*/
