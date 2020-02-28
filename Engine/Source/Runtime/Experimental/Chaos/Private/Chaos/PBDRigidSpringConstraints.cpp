@@ -124,20 +124,22 @@ namespace Chaos
 		return SpringSettings[ConstraintIndex].Stiffness * Delta / CombinedMass;
 	}
 
-	void FPBDRigidSpringConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
+	bool FPBDRigidSpringConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
 	{
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
 			ApplySingle(Dt, ConstraintIndex);
 		}
+		return false;
 	}
 
-	void FPBDRigidSpringConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
+	bool FPBDRigidSpringConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
 		for (FConstraintContainerHandle* ConstraintHandle : InConstraintHandles)
 		{
 			ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
 		}
+		return false;
 	}
 
 	void FPBDRigidSpringConstraints::ApplySingle(const FReal Dt, int32 ConstraintIndex) const

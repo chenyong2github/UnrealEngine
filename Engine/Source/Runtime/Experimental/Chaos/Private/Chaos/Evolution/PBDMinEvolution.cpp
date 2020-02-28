@@ -299,9 +299,15 @@ namespace Chaos
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int32 i = 0; i < NumApplyIterations; ++i)
 		{
+			bool bNeedsAnotherIteration = false;
 			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				ConstraintRule->ApplyConstraints(Dt, i, NumApplyIterations);
+				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, i, NumApplyIterations);
+			}
+
+			if (!bNeedsAnotherIteration)
+			{
+				break;
 			}
 		}
 	}

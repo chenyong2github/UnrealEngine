@@ -15,6 +15,10 @@
 #include "Chaos/SpatialAccelerationCollection.h"
 
 
+extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
+extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
+
+
 // Declaring so it can be friended for tests.
 namespace ChaosTest { void TestPendingSpatialDataHandlePointerConflict(); } 
 
@@ -457,9 +461,15 @@ class TPBDRigidsEvolutionBase
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int i = 0; i < NumIterations; ++i)
 		{
+			bool bNeedsAnotherIteration = false;
 			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				ConstraintRule->ApplyConstraints(Dt, Island, i, NumIterations);
+				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, Island, i, NumIterations);
+			}
+
+			if (ChaosRigidsEvolutionApplyAllowEarlyOutCVar && !bNeedsAnotherIteration)
+			{
+				break;
 			}
 		}
 	}
@@ -629,15 +639,17 @@ protected:
 	void ApplyPushOut(const T Dt, int32 Island)
 	{
 		bool bNeedsAnotherIteration = true;
-		for (int32 It = 0; bNeedsAnotherIteration && (It < NumPushOutIterations); ++It)
+		for (int32 It = 0; It < NumPushOutIterations; ++It)
 		{
 			bNeedsAnotherIteration = false;
 			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				if (ConstraintRule->ApplyPushOut(Dt, Island, It, NumPushOutIterations))
-				{
-					bNeedsAnotherIteration = true;
-				}
+				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, Island, It, NumPushOutIterations);
+			}
+
+			if (ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar && !bNeedsAnotherIteration)
+			{
+				break;
 			}
 		}
 	}

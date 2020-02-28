@@ -50,7 +50,7 @@ namespace Chaos
 		FSimpleConstraintRule(int32 InPriority) : FConstraintRule(InPriority) {}
 
 		virtual void UpdatePositionBasedState(const FReal Dt) {}
-		virtual void ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
+		virtual bool ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
 		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
 	};
 
@@ -81,9 +81,9 @@ namespace Chaos
 			return Constraints.UpdatePositionBasedState(Dt);
 		}
 
-		virtual void ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) override
+		virtual bool ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) override
 		{
-			Constraints.Apply(Dt, It, NumIts);
+			return Constraints.Apply(Dt, It, NumIts);
 		}
 
 		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) override
@@ -114,10 +114,10 @@ namespace Chaos
 		/** Called once per tick to allow constraint containers to create/alter their constraints based on particle position */
 		virtual void UpdatePositionBasedState(const FReal Dt) {}
 
-		/** Apply all corrections for constraints in the specified island */
-		virtual void ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) {}
+		/** Apply all corrections for constraints in the specified island. Return true if more iterations are needed. */
+		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) { return false; }
 
-		/** Apply push out for constraints in the specified island */
+		/** Apply push out for constraints in the specified island. Return true if more iterations are needed. */
 		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) { return false; }
 
 		/** Add all constraints to the connectivity graph */
@@ -191,12 +191,13 @@ namespace Chaos
 		{
 		}
 
-		virtual void ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
+		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
 		{
 			if (IslandConstraintLists[Island].Num())
 			{
-				Constraints.Apply(Dt, GetIslandConstraints(Island), It, NumIts);
+				return Constraints.Apply(Dt, GetIslandConstraints(Island), It, NumIts);
 			}
+			return false;
 		}
 
 		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
@@ -270,9 +271,8 @@ namespace Chaos
 	public:
 		using FConstraints = T_CONSTRAINTS;
 
-		TPBDConstraintColorRule(FConstraints& InConstraints, const int32 InPushOutIterations, int32 InPriority = 0)
+		TPBDConstraintColorRule(FConstraints& InConstraints, int32 InPriority = 0)
 			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>(InConstraints, InPriority)
-			, PushOutIterations(InPushOutIterations)
 		{
 		}
 
@@ -282,11 +282,12 @@ namespace Chaos
 			Constraints.UpdatePositionBasedState(Dt);
 		}
 
-		virtual void ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
+		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
 		{
 			const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
 			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
 			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
+			bool bNeedsMoreIterations = false;
 			for (int32 Level = 0; Level <= MaxLevel; ++Level)
 			{
 				for (int32 Color = 0; Color <= MaxColor; ++Color)
@@ -294,10 +295,12 @@ namespace Chaos
 					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 					{
 						const TArray<typename FConstraints::FConstraintContainerHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
-						Constraints.Apply(Dt, ConstraintHandles, It, NumIts);
+						bNeedsMoreIterations |= Constraints.Apply(Dt, ConstraintHandles, It, NumIts);
 					}
 				}
 			}
+
+			return bNeedsMoreIterations;
 		}
 
 		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& InConstraints)
@@ -372,11 +375,6 @@ namespace Chaos
 			GraphColor.ComputeColor(Island, *ConstraintGraph, ContainerId);
 		}
 
-		void SetPushOutIterations(const int32 InPushOutIterations)
-		{
-			PushOutIterations = InPushOutIterations;
-		}
-
 		template<typename TVisitor>
 		void VisitIslandConstraints(const int32 Island, const TVisitor& Visitor) const
 		{
@@ -408,7 +406,6 @@ namespace Chaos
 		}
 
 		FPBDConstraintColor GraphColor;
-		int32 PushOutIterations;
 	};
 
 }
