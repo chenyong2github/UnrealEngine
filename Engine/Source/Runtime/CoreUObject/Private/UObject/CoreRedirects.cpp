@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/CoreRedirects.h"
+
+#include "UObject/Linker.h"
 #include "UObject/Package.h"
 #include "UObject/PropertyHelper.h"
-#include "UObject/Linker.h"
-#include "Templates/Casts.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Serialization/DeferredMessageLog.h"
+
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/PackageName.h"
+#include "Serialization/DeferredMessageLog.h"
+#include "Templates/Casts.h"
 
 FCoreRedirectObjectName::FCoreRedirectObjectName(const FString& InString)
 {
@@ -600,6 +604,13 @@ bool FCoreRedirects::RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedi
 	TArray<FCoreRedirect> RedirectsToRemove;
 	RedirectsToRemove.Emplace(Type | ECoreRedirectFlags::Category_Removed | Channel, ObjectName, FCoreRedirectObjectName());
 	return RemoveRedirectList(RedirectsToRemove, TEXT("RemoveKnownMissing"));
+}
+
+void FCoreRedirects::ClearKnownMissing(ECoreRedirectFlags Type, ECoreRedirectFlags Channel)
+{
+	check((Channel & ~ECoreRedirectFlags::Option_MissingLoad) == ECoreRedirectFlags::None);
+	ECoreRedirectFlags RedirectFlags = Type | ECoreRedirectFlags::Category_Removed | Channel;
+	RedirectTypeMap.Remove(RedirectFlags);
 }
 
 bool FCoreRedirects::RunTests()

@@ -9,6 +9,8 @@
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
 
+class IPakFile;
+
 /** 
  * Flags describing the type and properties of this redirect
  */
@@ -243,6 +245,8 @@ struct COREUOBJECT_API FCoreRedirects
 	  * @param Channel may be Option_MissingLoad or Option_None; used to distinguish between detected-at-runtime and specified-by-ini
 	  */
 	static bool RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
+
+	static void ClearKnownMissing(ECoreRedirectFlags Type, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
 
 	/** Returns list of names it may have been before */
 	static bool FindPreviousNames(ECoreRedirectFlags Type, const FCoreRedirectObjectName& NewObjectName, TArray<FCoreRedirectObjectName>& PreviousNames);

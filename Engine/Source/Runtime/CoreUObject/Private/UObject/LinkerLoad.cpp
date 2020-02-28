@@ -5323,6 +5323,15 @@ void FLinkerLoad::OnNewFileAdded(const FString& Filename)
 	}
 }
 
+void FLinkerLoad::OnPakFileMounted(const IPakFile& NewlyLoadedContainer)
+{
+	// To be strictly correct we should check every known missing Package to see whether it exists in the PakFile and remove it only if so.
+	// But the cost of that is be relatively high during loading, and the known missing system is for performance only.  So we instead clear the known missing
+	// on every pak file.
+	FCoreRedirects::ClearKnownMissing(ECoreRedirectFlags::Type_Package);
+}
+
+
 
 void FLinkerLoad::AddGameNameRedirect(const FName OldName, const FName NewName)
 {
