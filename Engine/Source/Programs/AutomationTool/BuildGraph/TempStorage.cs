@@ -1137,6 +1137,10 @@ namespace AutomationTool
 			{
 				return true;
 			}
+			if (FileName.StartsWith("lib", StringComparison.OrdinalIgnoreCase) && FileName.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
 			return false;
 		}
 	}
