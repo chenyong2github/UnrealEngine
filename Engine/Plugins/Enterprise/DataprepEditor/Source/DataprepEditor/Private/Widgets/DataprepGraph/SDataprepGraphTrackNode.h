@@ -14,6 +14,7 @@
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
 #include "SGraphNode.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/SWidget.h"
@@ -143,17 +144,8 @@ private:
 	/** Cached of the last position of the cursor as the drag is happening */
 	FVector2D LastDragScreenSpacePosition;
 
-	/** Cached ordinate of the cursor when the drag started */
-	float DragOrdinate;
-
-	/** Execution order of the dragged node when the drag started */
-	int32 OriginalOrder;
-
-	/** Execution order of the dragged node as the drag is happening */
-	int32 CurrentOrder;
-
-	/** Array tracking the new execution order of actions while a drag is happening */
-	TArray<int32> NewActionsOrder;
+	/** Array of strong pointers to the UEdGraphNodes created for the Dataprep asset's actions */
+	TArray<TStrongObjectPtr<UDataprepGraphActionNode>> EdGraphActionNodes;
 
 	friend SDataprepGraphTrackWidget;
 };

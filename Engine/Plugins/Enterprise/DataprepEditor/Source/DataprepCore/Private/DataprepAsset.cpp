@@ -101,7 +101,7 @@ void UDataprepAsset::PostLoad()
 				DataprepRecipeBP->MarkPackageDirty();
 			}
 
-			UpdateActions();
+			UpdateActions(false);
 			bMarkDirty = true;
 		}
 #endif
@@ -408,6 +408,7 @@ TArray<UDataprepActionAsset*> UDataprepAsset::GetCopyOfActions(TMap<UObject*,UOb
 		DuplicationParameter.CreatedObjects = &OutOriginalToCopy;
 
 		UDataprepActionAsset* CopyOfAction = static_cast<UDataprepActionAsset*>( StaticDuplicateObjectEx( DuplicationParameter ) );
+		CopyOfAction->SetFlags(EObjectFlags::RF_Transactional);
 		check( CopyOfAction );
 
 		OutOriginalToCopy.Add( ActionAsset, CopyOfAction );
@@ -474,10 +475,9 @@ void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
 	}
 }
 
-void UDataprepAsset::UpdateActions()
+void UDataprepAsset::UpdateActions(bool bNotify)
 {
-	TSet<UDataprepActionAsset*> ActionSet;
-	ActionSet.Append(ActionAssets);
+	ActionAssets.Empty(ActionAssets.Num());
 
 	UEdGraphPin* NodeOutPin= StartNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
 	if( NodeOutPin && NodeOutPin->LinkedTo.Num() > 0 )
@@ -495,16 +495,16 @@ void UDataprepAsset::UpdateActions()
 				break;
 			}
 			else
-				{
+			{
 				ActionNodesVisited.AddByHash( NodeHash, NextNode );
-				}
+			}
 
 			if(UK2Node_DataprepActionCore* ActionNode = Cast<UK2Node_DataprepActionCore>(NextNode))
 			{
 				if( UDataprepActionAsset* DataprepAction = ActionNode->GetDataprepAction() )
 				{
 					DataprepAction->Rename(nullptr, this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-					ActionSet.Add( DataprepAction );
+					ActionAssets.Add( DataprepAction );
 				}
 			}
 
@@ -528,7 +528,10 @@ void UDataprepAsset::UpdateActions()
 		}
 	}
 
-	ActionAssets = ActionSet.Array();
+	if(bNotify)
+	{
+		OnActionChanged.Broadcast(ActionAssets.Num() > 0 ? ActionAssets[0] : nullptr, FDataprepAssetChangeType::ActionAdded);
+	}
 
 	CachedActionCount = ActionAssets.Num();
 }
@@ -541,6 +544,7 @@ int32 UDataprepAsset::AddAction(const UDataprepActionAsset* InAction)
 		Modify();
 
 		UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
+		Action->SetFlags(EObjectFlags::RF_Transactional);
 		Action->SetLabel( InAction->GetLabel() );
 
 		ActionAssets.Add( Action );
@@ -571,6 +575,7 @@ int32 UDataprepAsset::AddActions(const TArray<const UDataprepActionAsset*>& InAc
 			if(InAction)
 			{
 				UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
+				Action->SetFlags(EObjectFlags::RF_Transactional);
 				Action->SetLabel( InAction->GetLabel() );
 
 				ActionAssets.Add( Action );
@@ -658,6 +663,7 @@ bool UDataprepAsset::InsertAction(const UDataprepActionAsset* InAction, int32 In
 		Modify();
 
 		UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
+		Action->SetFlags(EObjectFlags::RF_Transactional);
 		Action->SetLabel( InAction->GetLabel());
 
 		ActionAssets.Insert( Action, Index );
@@ -697,6 +703,7 @@ bool UDataprepAsset::InsertActions(const TArray<const UDataprepActionAsset*>& In
 			if(InAction)
 			{
 				UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
+				Action->SetFlags(EObjectFlags::RF_Transactional);
 				Action->SetLabel( InAction->GetLabel() );
 
 				ActionAssets.Insert( Action, InsertIndex );

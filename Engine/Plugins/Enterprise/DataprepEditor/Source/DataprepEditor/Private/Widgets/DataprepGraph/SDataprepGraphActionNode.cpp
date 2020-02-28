@@ -122,6 +122,7 @@ public:
 
 			+SVerticalBox::Slot()
 			.AutoHeight()
+			.Padding(10.f, 0.f, 10.f, 0.f)
 			[
 				SNew(SBorder)
 				.BorderBackgroundColor( this, &SDataprepEmptyActionStepNode::GetBorderBackgroundColor )
@@ -428,6 +429,8 @@ void SDataprepGraphActionNode::PopulateActionStepListWidget()
 	UEdGraph* EdGraph = GraphNode->GetGraph();
 	const int32 StepsCount = DataprepAction->GetStepsCount();
 	const UClass* GraphActionStepNodeClass = UDataprepGraphActionStepNode::StaticClass();
+	
+	EdGraphStepNodes.Reset(StepsCount);
 
 	TSharedPtr<SDataprepGraphTrackNode> TrackNodePtr = ParentTrackNodePtr.Pin();
 
@@ -437,7 +440,8 @@ void SDataprepGraphActionNode::PopulateActionStepListWidget()
 
 	for ( int32 Index = 0; Index < StepsCount; ++Index )
 	{
-		UDataprepGraphActionStepNode* ActionStepNode = NewObject<UDataprepGraphActionStepNode>( EdGraph, GraphActionStepNodeClass, NAME_None, RF_Transactional );
+		EdGraphStepNodes.Emplace(NewObject<UDataprepGraphActionStepNode>( EdGraph, GraphActionStepNodeClass, NAME_None, RF_Transactional ));
+		UDataprepGraphActionStepNode* ActionStepNode = EdGraphStepNodes.Last().Get();
 
 		ActionStepNode->CreateNewGuid();
 		ActionStepNode->PostPlacedNewNode();

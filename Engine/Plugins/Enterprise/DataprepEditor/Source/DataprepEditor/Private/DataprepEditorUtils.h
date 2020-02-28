@@ -33,6 +33,13 @@ struct FDataprepParametrizationActionData : public FGCObject
 class FDataprepEditorUtils
 {
 public:
+#ifndef NO_BLUEPRINT
+	/**
+	 * Find the the owning dataprep asset of the source object and send a notification to the dataprep editor so it can react when its pipeline is modified
+	 */
+	static void NotifySystemOfChangeInPipeline(UObject* SourceObject);
+#endif
+
 	/**
 	 * Populate a menu builder with the section made for the parameterization
 	 * @param DataprepAsset the asset that own the object
