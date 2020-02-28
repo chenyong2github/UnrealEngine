@@ -17,6 +17,7 @@ class FLogScope
 public:
 							~FLogScope();
 	constexpr explicit		operator bool () const { return true; }
+	uint8*					GetPointer() const;
 	template <uint32 Flags>
 	static FLogScope		Enter(uint32 Uid, uint32 Size);
 	template <class Action>
