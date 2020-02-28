@@ -19,6 +19,7 @@
 #include "MovieSceneCommonHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequenceBase.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "SequencerTools"
 
@@ -117,6 +118,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetBoundObjects(U
 	// Evaluation needs to occur in order to obtain spawnables
 	FFrameRate Resolution = InSequence->GetMovieScene()->GetTickResolution();
 	TRange<FFrameNumber> SpecifiedRange = InRange.ToNative(Resolution);
+	Player->Play();
 	Player->PlayToFrame(SpecifiedRange.GetLowerBoundValue());
 
 	FMovieSceneSequenceID SequenceId = Player->State.FindSequenceId(InSequence);
@@ -128,6 +130,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetBoundObjects(U
 		BoundObjects.Add(FSequencerBoundObjects(Binding, Player->GetBoundObjects(ObjectBinding)));
 	}
 
+	Player->Stop();
 	InWorld->DestroyActor(OutActor);
 	return BoundObjects;
 }
@@ -146,6 +149,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetObjectBindings
 
 	FFrameRate Resolution = InSequence->GetMovieScene()->GetTickResolution();
 	TRange<FFrameNumber> SpecifiedRange = InRange.ToNative(Resolution);
+	Player->Play();
 	Player->PlayToFrame(SpecifiedRange.GetLowerBoundValue());
 
 	TArray<FSequencerBoundObjects> BoundObjects;
@@ -160,6 +164,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetObjectBindings
 		}
 	}
 
+	Player->Stop();
 	InWorld->DestroyActor(OutActor);
 	return BoundObjects;
 }
@@ -188,10 +193,28 @@ bool USequencerToolsFunctionLibrary::ExportFBX(UWorld* World, ULevelSequence* Se
 	Player->Initialize(Sequence, World->PersistentLevel, Settings, CameraSettings);
 	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
+	bool bDidExport = false;
 	FMovieSceneSequenceTransform RootToLocalTransform;
-	bool bDidExport = MovieSceneToolHelpers::ExportFBX(World, MovieScene, Player, Bindings, NodeNameAdapter, Template, InFBXFileName, RootToLocalTransform);
+
+	FScopedTransaction ExportFBXTransaction(NSLOCTEXT("Sequencer", "ExportFBX", "Export FBX"));
+	{
+		FSpawnableRestoreState SpawnableRestoreState(MovieScene);
+
+		if (SpawnableRestoreState.bWasChanged)
+		{
+			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
+			Player->Play();
+			Player->PlayToFrame(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()));
+		}
+
+		bDidExport = MovieSceneToolHelpers::ExportFBX(World, MovieScene, Player, Bindings, NodeNameAdapter, Template, InFBXFileName, RootToLocalTransform);
+
+	}
+		
+	Player->Stop();
 	Exporter->SetExportOptionsOverride(nullptr);
 	World->DestroyActor(OutActor);
+	
 	return bDidExport;
 }
 
