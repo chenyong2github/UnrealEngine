@@ -745,8 +745,8 @@
 			<Delete Files="$(LocalInstalledDir)\..."/>
 
 			<!-- Define filter and exception properties for the installed build -->
-			<Property Name="CopyInstalledFilter" Value="$(CopyEditorFilter)"/>
-			<Property Name="CopyInstalledExceptions" Value="$(CopyEditorExceptions)"/>
+			<Property Name="CopyInstalledFilter" Value="$(CopyEditorFilterWin64)"/>
+			<Property Name="CopyInstalledExceptions" Value="$(CopyEditorExceptionsWin64)"/>
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Win64" With="#Installed Win64"/>
@@ -770,25 +770,25 @@
 			<Do If="'$(WithAndroid)' == true">
 				<Tag Files="#UE4Game Android" Except="#UE4Game Android Unstripped" With="#Installed Win64"/>
 				<Tag Files="#UE4Game Android Stripped" With="#Saved Output"/>
-				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyAndroidFilter)"/>
+				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyAndroidFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyAndroidExceptions)"/>
 			</Do>
 			<Do If="'$(WithIOS)' == true">
 				<Tag Files="#UE4Game IOS;#Compile UnrealHeaderTool Mac" Except="#UE4Game IOS Unstripped" With="#Installed Win64"/>
 				<Tag Files="#UE4Game IOS Stripped" With="#Saved Output"/>
-				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyIOSFilter)"/>
+				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyIOSFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyIOSExceptions)"/>
 			</Do>
 			<Do If="'$(WithTVOS)' == true">
 				<Tag Files="#UE4Game TVOS" Except="#UE4Game TVOS Unstripped" With="#Installed Win64"/>
 				<Tag Files="#UE4Game TVOS Stripped" With="#Saved Output"/>
-				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyTVOSFilter)"/>
+				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyTVOSFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyTVOSExceptions)"/>
 			</Do>
 			<Do If="'$(WithLinux)' == true">
 				<Tag Files="#UE4Game Linux;#Build Tools Linux" Except="#UE4Game Linux Unstripped" With="#Installed Win64"/>
 				<Tag Files="#UE4Game Linux Stripped" With="#Saved Output"/>
-				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
+				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
 			<Do If="'$(WithLinuxAArch64)' == true">
@@ -907,8 +907,8 @@
 			<Delete Files="$(LocalInstalledDirMac)/..."/>
 
 			<!-- Define filter and exception properties for the installed build -->
-			<Property Name="CopyInstalledFilter" Value="$(CopyEditorFilter)"/>
-			<Property Name="CopyInstalledExceptions" Value="$(CopyEditorExceptions)"/>
+			<Property Name="CopyInstalledFilter" Value="$(CopyEditorFilterMac)"/>
+			<Property Name="CopyInstalledExceptions" Value="$(CopyEditorExceptionsMac)"/>
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Mac" With="#Installed Mac"/>
@@ -926,7 +926,7 @@
 			<Do  If="'$(WithAndroid)' == true">
 				<Tag Files="#UE4Game Android" Except="#UE4Game Android Unstripped" With="#Installed Mac"/>
 				<Tag Files="#UE4Game Android Stripped" With="#Saved Output"/>
-				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyAndroidFilter)"/>
+				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyAndroidFilterMac)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyAndroidExceptions)"/>
 			</Do>
 			<Do If="'$(WithIOS)' == true">
@@ -1024,8 +1024,8 @@
 			<Delete Files="$(LocalInstalledDirLinux)\..."/>
 
 			<!-- Define filter and exception properties for the installed build -->
-			<Property Name="CopyInstalledFilter" Value="$(CopyEditorFilter)"/>
-			<Property Name="CopyInstalledExceptions" Value="$(CopyEditorExceptions)"/>
+			<Property Name="CopyInstalledFilter" Value="$(CopyEditorFilterLinux)"/>
+			<Property Name="CopyInstalledExceptions" Value="$(CopyEditorExceptionsLinux)"/>
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Linux" With="#Installed Linux"/>
