@@ -303,11 +303,11 @@ void STakeRecorderTabContent::StopRecording() const
 }
 
 
-void STakeRecorderTabContent::NewTake()
+void STakeRecorderTabContent::ClearPendingTake()
 {
 	if (TSharedPtr<STakeRecorderPanel> Panel = WeakPanel.Pin())
 	{
-		Panel->NewTake();
+		Panel->ClearPendingTake();
 	}
 }
 
