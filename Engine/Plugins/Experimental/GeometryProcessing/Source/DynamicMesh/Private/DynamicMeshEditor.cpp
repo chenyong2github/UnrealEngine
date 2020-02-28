@@ -381,7 +381,10 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 		}
 
 		FEdgeLoop InnerLoop;
-		InnerLoop.InitializeFromVertices(Mesh, NewVertexLoop, false);
+		if (!ensure(InnerLoop.InitializeFromVertices(Mesh, NewVertexLoop, false)))
+		{
+			return false;
+		}
 		LoopPair.InnerVertices = MoveTemp(InnerLoop.Vertices);
 		LoopPair.InnerEdges = MoveTemp(InnerLoop.Edges);
 		LoopPair.bOuterIncludesIsolatedVertices = bSawBoundaryInLoop;

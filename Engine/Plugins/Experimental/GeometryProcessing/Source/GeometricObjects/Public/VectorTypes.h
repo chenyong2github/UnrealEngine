@@ -551,7 +551,10 @@ struct FVector3
 			X * V2.Y - Y * V2.X);
 	}
 
-	// Angle in Degrees
+	/**
+	 * Assumes this vector and V2 are both already normalized
+	 * @return the angle to vector V2 in degrees
+	 */
 	T AngleD(const FVector3<T>& V2) const
 	{
 		T DotVal = Dot(V2);
@@ -559,7 +562,10 @@ struct FVector3
 		return (T)(acos(ClampedDot) * (T)(180.0 / 3.14159265358979323846));
 	}
 
-	// Angle in Radians
+	/**
+	 * Assumes this vector and V2 are both already normalized
+	 * @return the angle to vector V2 in radians
+	 */
 	T AngleR(const FVector3<T>& V2) const
 	{
 		T DotVal = Dot(V2);
