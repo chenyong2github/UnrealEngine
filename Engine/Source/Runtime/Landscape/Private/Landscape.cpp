@@ -1894,6 +1894,13 @@ void ALandscapeProxy::PostRegisterAllComponents()
 #if WITH_EDITOR
 			if (GIsEditor && !GetWorld()->IsGameWorld())
 			{
+				// Note: This can happen when loading certain cooked assets in an editor
+				// Todo: Determine the root cause of this and fix it at a higher level!
+				if (LandscapeComponents.Num() > 0 && LandscapeComponents[0] == nullptr)
+				{
+					LandscapeComponents.Empty();
+				}
+
 				UpdateCachedHasLayersContent(true);
 
 				// Cache the value at this point as CreateLandscapeInfo (-> RegisterActor) might create/destroy layers content if there was a mismatch between landscape & proxy
