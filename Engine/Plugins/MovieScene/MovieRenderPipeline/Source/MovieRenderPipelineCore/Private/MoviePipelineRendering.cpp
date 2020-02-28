@@ -353,7 +353,7 @@ void UMoviePipeline::RenderFrame()
 				// only allow a spatial jitter if we have more than one sample
 				bool bAllowSpatialJitter = !(NumSpatialSamples == 1 && NumTemporalSamples == 1);
 
-				UE_LOG(LogTemp, Warning, TEXT("FrameIndex: %d HaltonIndex: %d Offset: (%f,%f)"), FrameIndex, HaltonIndex, HaltonOffsetX, HaltonOffsetY);
+				UE_LOG(LogTemp, VeryVerbose, TEXT("FrameIndex: %d HaltonIndex: %d Offset: (%f,%f)"), FrameIndex, HaltonIndex, HaltonOffsetX, HaltonOffsetY);
 				float SpatialShiftX = 0.0f;
 				float SpatialShiftY = 0.0f;
 
@@ -375,7 +375,6 @@ void UMoviePipeline::RenderFrame()
 					float Theta = 2.0f * PI * HaltonOffsetY;
 					float r = Sigma * FMath::Sqrt(-2.0f * FMath::Loge((1.0f - HaltonOffsetX) * InWindow + HaltonOffsetX));
 
-					UE_LOG(LogTemp, Log, TEXT("r: %f t: %f"), r, Theta);
 					SpatialShiftX = r * FMath::Cos(Theta);
 					SpatialShiftY = r * FMath::Sin(Theta);
 				}
