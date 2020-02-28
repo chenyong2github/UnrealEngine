@@ -6,6 +6,7 @@
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraph.h"
+#include "DataprepGraph/DataprepGraphSchema.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
@@ -13,6 +14,14 @@
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 #include "Widgets/DataprepWidgets.h"
 
+#include "EdGraph/EdGraphSchema.h"
+#include "EdGraphNode_Comment.h"
+#include "EdGraphUtilities.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UICommandList.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "Kismet2/Kismet2NameValidators.h"
+#include "ScopedTransaction.h"
 #include "SGraphPanel.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Layout/SBox.h"
@@ -41,10 +50,6 @@ TSharedPtr<class SGraphNode> SDataprepGraphEditorNodeFactory::CreateNode(UEdGrap
 	{
 		return SNew(SDataprepGraphActionNode, ActionNode);
 	}
-	else if (UDataprepGraphActionStepNode* ActionStepNode = Cast<UDataprepGraphActionStepNode>(Node))
-	{
-		return SNew(SDataprepGraphActionStepNode, ActionStepNode);
-	}
 
 	return nullptr;
 }
@@ -72,8 +77,10 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 	check(InDataprepAsset);
 	DataprepAssetPtr = InDataprepAsset;
 
+	BuildCommandList();
+
 	SGraphEditor::FArguments Arguments;
-	Arguments._AdditionalCommands = InArgs._AdditionalCommands;
+	Arguments._AdditionalCommands = GraphEditorCommands;
 	Arguments._TitleBar = InArgs._TitleBar;
 	Arguments._GraphToEdit = InArgs._GraphToEdit;
 	Arguments._GraphEvents = InArgs._GraphEvents;
@@ -335,6 +342,358 @@ FReply SDataprepGraphEditor::OnDrop(const FGeometry& MyGeometry, const FDragDrop
 	}
 
 	return SGraphEditor::OnDrop(MyGeometry, DragDropEvent);
+}
+
+void SDataprepGraphEditor::BuildCommandList()
+{
+	if (!GraphEditorCommands.IsValid())
+	{
+		GraphEditorCommands = MakeShareable(new FUICommandList);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Rename,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::OnRenameNode),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanRenameNode)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().SelectAll,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::SelectAllNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanSelectAllNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::DeleteSelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanDeleteNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Copy,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::CopySelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanCopyNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Cut,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::CutSelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanCutNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Paste,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::PasteNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanPasteNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::DuplicateNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanDuplicateNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::OnCreateComment)
+		);
+	}
+}
+
+void SDataprepGraphEditor::OnRenameNode()
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		UEdGraphNode* SelectedNode = Cast<UEdGraphNode>(*NodeIt);
+		if (SelectedNode != NULL && SelectedNode->bCanRenameNode)
+		{
+			IsNodeTitleVisible(SelectedNode, true);
+			break;
+		}
+	}
+}
+
+bool SDataprepGraphEditor::CanRenameNode() const
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	if ( SelectedNodes.Num() == 1)
+	{
+		if ( UDataprepGraphActionNode* SelectedNode = Cast<UDataprepGraphActionNode>(*SelectedNodes.CreateConstIterator()) )
+		{
+			return SelectedNode->bCanRenameNode;
+		}
+	}
+
+	return false;
+}
+
+void SDataprepGraphEditor::DeleteSelectedNodes()
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	TArray<int32> ActionsToDelete;
+	for(UObject* NodeObject : SelectedNodes)
+	{
+		if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+		{
+			if (ActionNode->CanUserDeleteNode() && ActionNode->GetDataprepActionAsset())
+			{
+				ActionsToDelete.Add(ActionNode->GetExecutionOrder());
+			}
+		}
+	}
+
+	if(ActionsToDelete.Num() > 0)
+	{
+		FScopedTransaction Transaction(FGenericCommands::Get().Delete->GetDescription());
+
+		bool bTransactionSuccessful = DataprepAssetPtr->RemoveActions(ActionsToDelete);
+
+		if (!bTransactionSuccessful)
+		{
+			Transaction.Cancel();
+		}
+	}
+}
+
+bool SDataprepGraphEditor::CanDeleteNodes() const
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	for (UObject* NodeObject : SelectedNodes)
+	{
+		// If any nodes allow deleting, then do not disable the delete option
+		UEdGraphNode* Node = Cast<UDataprepGraphActionNode>(NodeObject);
+		if (Node->CanUserDeleteNode())
+		{
+			return true;
+			break;
+		}
+	}
+
+	return false;
+}
+
+void SDataprepGraphEditor::CopySelectedNodes()
+{
+	// Export the selected nodes and place the text on the clipboard
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	TSet<UObject*> ActionsToCopy;
+
+	for (UObject* NodeObject : SelectedNodes)
+	{
+		if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+		{
+			UDataprepActionAsset* ActionAsset = ActionNode->GetDataprepActionAsset();
+			// Temporarily set DataprepActionAsset's owner as ActionNode to serialize it with the EdGraphNode
+			ActionAsset->Rename(nullptr, ActionNode, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+
+			ActionNode->PrepareForCopying();
+			ActionsToCopy.Add(ActionNode);
+		}
+	}
+
+	if(ActionsToCopy.Num() > 0)
+	{
+		FString ExportedText;
+
+		FEdGraphUtilities::ExportNodesToText(ActionsToCopy, /*out*/ ExportedText);
+		FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+
+		// Restore DataprepActionAssets' owner to the DataprepAsset
+		for (UObject* NodeObject : ActionsToCopy)
+		{
+			if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+			{
+				UDataprepActionAsset* ActionAsset = ActionNode->GetDataprepActionAsset();
+				ActionAsset->Rename(nullptr, DataprepAssetPtr.Get(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			}
+		}
+	}
+}
+
+bool SDataprepGraphEditor::CanCopyNodes() const
+{
+	// If any of the nodes can be duplicated then we should allow copying
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	for (UObject* NodeObject : SelectedNodes)
+	{
+		UDataprepGraphActionNode* Node = Cast<UDataprepGraphActionNode>(NodeObject);
+		if ((Node != NULL) && Node->CanDuplicateNode())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void SDataprepGraphEditor::CutSelectedNodes()
+{
+	CopySelectedNodes();
+	// Cut should only delete nodes that can be duplicated
+	DeleteSelectedDuplicatableNodes();
+}
+
+bool SDataprepGraphEditor::CanCutNodes() const
+{
+	return CanCopyNodes() && CanDeleteNodes();
+}
+
+void SDataprepGraphEditor::PasteNodes()
+{
+	ClearSelectionSet();
+
+	// Grab the text to paste from the clipboard.
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+	// Create temporary graph
+	FName UniqueGraphName = MakeUniqueObjectName( GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("DataprepGraph", "TempGraph").ToString()) ) );
+	TStrongObjectPtr<UDataprepGraph> DataprepGraph = TStrongObjectPtr<UDataprepGraph>( NewObject< UDataprepGraph >(GetTransientPackage(), UniqueGraphName) );
+	DataprepGraph->Schema = UDataprepGraphSchema::StaticClass();
+
+	// Import the nodes
+	// #ueent_wip: The FEdGraphUtilities::ImportNodesFromTex could be replaced
+	TSet<UEdGraphNode*> PastedNodes;
+	FEdGraphUtilities::ImportNodesFromText(DataprepGraph.Get(), TextToImport, /*out*/ PastedNodes);
+
+	TArray<const UDataprepActionAsset*> Actions;
+	for(UEdGraphNode* Node : PastedNodes)
+	{
+		UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(Node);
+		if (ActionNode && ActionNode->CanDuplicateNode() && ActionNode->GetDataprepActionAsset())
+		{
+			Actions.Add(ActionNode->GetDataprepActionAsset());
+		}
+	}
+
+	if(Actions.Num() > 0)
+	{
+		FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
+		if(DataprepAssetPtr->AddActions(Actions) == INDEX_NONE)
+		{
+			Transaction.Cancel();
+		}
+	}
+}
+
+bool SDataprepGraphEditor::CanPasteNodes() const
+{
+	FString ClipboardContent;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+
+	return FEdGraphUtilities::CanImportNodesFromText(GetCurrentGraph(), ClipboardContent);
+}
+
+void SDataprepGraphEditor::DuplicateNodes()
+{
+	// Copy and paste current selection
+	CopySelectedNodes();
+	PasteNodes();
+}
+
+bool SDataprepGraphEditor::CanDuplicateNodes() const
+{
+	return CanCopyNodes();
+}
+
+void SDataprepGraphEditor::DeleteSelectedDuplicatableNodes()
+{
+	// Cache off the old selection
+	const FGraphPanelSelectionSet OldSelectedNodes = GetSelectedNodes();
+
+	// Clear the selection and only select the nodes that can be duplicated
+	FGraphPanelSelectionSet CurrentSelection;
+	ClearSelectionSet();
+
+	FGraphPanelSelectionSet RemainingNodes;
+	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(OldSelectedNodes); SelectedIter; ++SelectedIter)
+	{
+		UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
+		if ((Node != NULL) && Node->CanDuplicateNode())
+		{
+			SetNodeSelection(Node, true);
+		}
+		else
+		{
+			RemainingNodes.Add(Node);
+		}
+	}
+
+	// Delete the nodes which can be duplicated
+	DeleteSelectedNodes();
+
+	// Reselect whatever is left from the original selection after the deletion
+	ClearSelectionSet();
+
+	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(RemainingNodes); SelectedIter; ++SelectedIter)
+	{
+		if (UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter))
+		{
+			SetNodeSelection(Node, true);
+		}
+	}
+}
+
+void SDataprepGraphEditor::OnCreateComment()
+{
+	if (UEdGraph* Graph = GetCurrentGraph())
+	{
+		if (const UEdGraphSchema* Schema = Graph->GetSchema())
+		{
+			// Add menu item for creating comment boxes
+			UEdGraphNode_Comment* CommentTemplate = NewObject<UEdGraphNode_Comment>();
+
+			FVector2D SpawnLocation = GetPasteLocation();
+
+			FSlateRect Bounds;
+			if ( GetBoundsForSelectedNodes(Bounds, 50.0f) )
+			{
+				CommentTemplate->SetBounds(Bounds);
+				SpawnLocation.X = CommentTemplate->NodePosX;
+				SpawnLocation.Y = CommentTemplate->NodePosY;
+			}
+
+			UEdGraphNode* NewNode = FEdGraphSchemaAction_NewNode::SpawnNodeFromTemplate<UEdGraphNode_Comment>(Graph, CommentTemplate, SpawnLocation, /** bSelectNewNode */ true);
+		}
+	}
+}
+
+
+bool SDataprepGraphEditor::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage)
+{
+	bool bValid(false);
+
+	if (NodeBeingChanged && NodeBeingChanged->bCanRenameNode)
+	{
+		// Clear off any existing error message 
+		NodeBeingChanged->ErrorMsg.Empty();
+		NodeBeingChanged->bHasCompilerMessage = false;
+
+		TSharedPtr<INameValidatorInterface> NameEntryValidator = NodeBeingChanged->MakeNameValidator();
+
+		check( NameEntryValidator.IsValid() );
+
+		EValidatorResult VResult = NameEntryValidator->IsValid(NewText.ToString(), true);
+		if (VResult == EValidatorResult::Ok)
+		{
+			bValid = true;
+		}
+		//else if (PipelineView.IsValid())
+		//{
+		//	EValidatorResult Valid = NameEntryValidator->IsValid(NewText.ToString(), false);
+
+		//	NodeBeingChanged->bHasCompilerMessage = true;
+		//	NodeBeingChanged->ErrorMsg = NameEntryValidator->GetErrorString(NewText.ToString(), Valid);
+		//	NodeBeingChanged->ErrorType = EMessageSeverity::Error;
+		//}
+	}
+
+	return bValid;
+}
+
+void SDataprepGraphEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
+{
+	if (NodeBeingChanged)
+	{
+		const FScopedTransaction Transaction(NSLOCTEXT("RenameNode", "RenameNode", "Rename Node"));
+		NodeBeingChanged->Modify();
+		NodeBeingChanged->OnRenameNode(NewText.ToString());
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
