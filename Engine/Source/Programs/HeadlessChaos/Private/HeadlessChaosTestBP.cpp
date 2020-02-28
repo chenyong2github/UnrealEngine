@@ -25,7 +25,7 @@ namespace ChaosTest
 			FChaosArchive Ar(*File);
 
 			TPBDRigidParticles<T, 3> Particles;
-			TPBDRigidsEvolutionGBF<T, 3> Evolution(MoveTemp(Particles));
+			FPBDRigidsEvolutionGBF Evolution(MoveTemp(Particles));
 			Evolution.SerializeForPerfTest(Ar);
 			Evolution.AdvanceOneTimeStep(Dt);
 			Evolution.EndFrame(Dt);
