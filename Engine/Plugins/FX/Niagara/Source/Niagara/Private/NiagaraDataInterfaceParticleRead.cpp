@@ -820,7 +820,8 @@ void UNiagaraDataInterfaceParticleRead::GetNumSpawnedParticles(FVectorVMContext&
 	VectorVM::FExternalFuncRegisterHandler<int32> OutNumSpawned(Context);
 
 	const FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
-	const int32 NumSpawned = EmitterInstance->GetData().GetCurrentData()->GetNumSpawnedInstances();
+	const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();
+	const int32 NumSpawned = CurrentData ? CurrentData->GetNumSpawnedInstances() : 0;
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
@@ -874,7 +875,8 @@ void UNiagaraDataInterfaceParticleRead::GetNumParticles(FVectorVMContext& Contex
 	VectorVM::FExternalFuncRegisterHandler<int32> OutNumParticles (Context);
 
 	const FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
-	const int32 NumParticles = EmitterInstance->GetData().GetCurrentData()->GetNumInstances();
+	const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();
+	const int32 NumParticles = CurrentData ? CurrentData->GetNumInstances() : 0;
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
@@ -1099,36 +1101,39 @@ void UNiagaraDataInterfaceParticleRead::ReadQuat(FVectorVMContext& Context, FNam
 template <typename T>
 T UNiagaraDataInterfaceParticleRead::RetrieveValueWithCheck(FNiagaraEmitterInstance* EmitterInstance, const FNiagaraTypeDefinition& Type, const FName& Attr, const FNiagaraID& ParticleID, bool& bValid)
 {
-	TArray<int32>& IDTable = EmitterInstance->GetData().GetCurrentData()->GetIDTable();
-	if (ParticleID.Index < 0 || ParticleID.Index >= IDTable.Num())
+	T Value = T();
+	bValid = false;
+
+	const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();
+	if (!CurrentData)
 	{
-		bValid = false;
-		return T();
-	}
-	else
-	{
-		FNiagaraVariable ReadVar(Type, Attr);
-		FNiagaraDataSetAccessor<T> ValueData(EmitterInstance->GetData(), ReadVar);
-
-		FNiagaraVariable IDVar(FNiagaraTypeDefinition::GetIDDef(), "ID");
-		FNiagaraDataSetAccessor<FNiagaraID> IDData(EmitterInstance->GetData(), IDVar);
-
-		int32 ParticleIndex = IDTable[ParticleID.Index];
-		T Value = T();
-		bValid = false;
-
-		if (ParticleIndex >= 0)
-		{
-			FNiagaraID ActualID = IDData.GetSafe(ParticleIndex, NIAGARA_INVALID_ID);
-			if (ActualID == ParticleID)
-			{
-				Value = ValueData.GetSafe(ParticleIndex, T());
-				bValid = true;
-			}
-		}
-
 		return Value;
 	}
+
+	const TArray<int32>& IDTable = CurrentData->GetIDTable();
+	if (ParticleID.Index < 0 || ParticleID.Index >= IDTable.Num())
+	{
+		return Value;
+	}
+
+	FNiagaraVariable ReadVar(Type, Attr);
+	FNiagaraDataSetAccessor<T> ValueData(EmitterInstance->GetData(), ReadVar);
+
+	FNiagaraVariable IDVar(FNiagaraTypeDefinition::GetIDDef(), "ID");
+	FNiagaraDataSetAccessor<FNiagaraID> IDData(EmitterInstance->GetData(), IDVar);
+
+	int32 ParticleIndex = IDTable[ParticleID.Index];
+	if (ParticleIndex >= 0)
+	{
+		FNiagaraID ActualID = IDData.GetSafe(ParticleIndex, NIAGARA_INVALID_ID);
+		if (ActualID == ParticleID)
+		{
+			Value = ValueData.GetSafe(ParticleIndex, T());
+			bValid = true;
+		}
+	}
+
+	return Value;
 }
 
 bool UNiagaraDataInterfaceParticleRead::Equals(const UNiagaraDataInterface* Other) const
