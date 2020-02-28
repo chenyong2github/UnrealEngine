@@ -207,31 +207,15 @@ void FHairStrandsVertexFactory::InitRHI()
 	check(IsValidRef(GetDeclaration()));
 }
 
-FVertexFactoryShaderParameters* FHairStrandsVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	if (ShaderFrequency == SF_Vertex)
-	{
-		return new FHairStrandsVertexFactoryShaderParameters();
-	}
-
-	if (ShaderFrequency == SF_Pixel)
-	{
-		return new FHairStrandsVertexFactoryShaderParameters();
-	}
-
-#if RHI_RAYTRACING
-	if (ShaderFrequency == SF_RayHitGroup)
-	{
-		return new FHairStrandsVertexFactoryShaderParameters();
-	}
-#endif // RHI_RAYTRACING
-
-	return NULL;
-}
-
 void FHairStrandsVertexFactory::ReleaseRHI()
 {
 	FVertexFactory::ReleaseRHI();
 }
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Vertex, FHairStrandsVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Pixel, FHairStrandsVertexFactoryShaderParameters);
+#if RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_RayHitGroup, FHairStrandsVertexFactoryShaderParameters);
+#endif // RHI_RAYTRACING
 
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairStrandsVertexFactory,"/Engine/Private/HairStrands/HairStrandsVertexFactory.ush",true,false,true,true,true,true,true);
