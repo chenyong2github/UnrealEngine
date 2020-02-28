@@ -83,10 +83,14 @@ enum class ENiagaraSimTarget : uint8
 UENUM()
 enum class ENiagaraAgeUpdateMode : uint8
 {
-	/** Update the age using the delta time supplied to the tick function. */
+	/** Update the age using the delta time supplied to the component tick function. */
 	TickDeltaTime,
 	/** Update the age by seeking to the DesiredAge. To prevent major perf loss, we clamp to MaxClampTime*/
-	DesiredAge
+	DesiredAge,
+	/** Update the age by tracking changes to the desired age, but when the desired age goes backwards in time,
+	or jumps forwards in time by more than a few steps, the system is reset and simulated forward by a single step.
+	This mode is useful for continuous effects controlled by sequencer. */
+	DesiredAgeNoSeek
 };
 
 
