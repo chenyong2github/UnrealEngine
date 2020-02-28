@@ -162,9 +162,10 @@ struct FMaterialCachedExpressionData
 	GENERATED_USTRUCT_BODY()
 
 #if WITH_EDITOR
-	void UpdateForExpressions(const TArray<UMaterialExpression*>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex);
-	void UpdateForFunction(UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex);
-	void UpdateForLayerFunctions(const FMaterialLayersFunctions& LayerFunctions);
+	/** Returns 'false' if update is incomplete, due to missing expression data (stripped from non-editor build) */
+	bool UpdateForExpressions(const TArray<UMaterialExpression*>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex);
+	bool UpdateForFunction(UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex);
+	bool UpdateForLayerFunctions(const FMaterialLayersFunctions& LayerFunctions);
 #endif // WITH_EDITOR
 
 	void Reset();
