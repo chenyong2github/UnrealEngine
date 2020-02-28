@@ -5882,5 +5882,9 @@ class COREUOBJECT_API UMulticastDelegatePropertyWrapper : public UPropertyWrappe
 	DECLARE_CLASS_INTRINSIC(UMulticastDelegatePropertyWrapper, UPropertyWrapper, CLASS_Transient, TEXT("/Script/CoreUObject"));
 };
 
+class COREUOBJECT_API UMulticastInlineDelegatePropertyWrapper : public UMulticastDelegatePropertyWrapper
+{
+	DECLARE_CLASS_INTRINSIC(UMulticastInlineDelegatePropertyWrapper, UMulticastDelegatePropertyWrapper, CLASS_Transient, TEXT("/Script/CoreUObject"));
+};
 
 #include "UObject/DefineUPropertyMacros.h"
