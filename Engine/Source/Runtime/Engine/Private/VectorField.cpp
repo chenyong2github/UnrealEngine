@@ -306,6 +306,57 @@ void UVectorFieldStatic::UpdateResource()
 	StaticResource->UpdateResource(this); // Will discard the contents of SourceData
 }
 
+// Simple implementation of an accessor struct for grabbing the, now, inited resource on the render thread
+// Impl structure is required because of the private nature of the FVectorFieldResource, which could be
+// resolved...
+struct FVectorFieldTextureAccessorImpl
+{
+	FVectorFieldTextureAccessorImpl(FVectorFieldResource* InResource)
+		: Resource(InResource)
+	{
+	}
+
+	FVectorFieldTextureAccessorImpl(const FVectorFieldTextureAccessorImpl& rhs)
+		: Resource(rhs.Resource)
+	{
+	}
+
+	TRefCountPtr<FVectorFieldResource> Resource;
+};
+
+FVectorFieldTextureAccessor::FVectorFieldTextureAccessor(UVectorField* InVectorField)
+	: Impl(nullptr)
+{
+	if (UVectorFieldStatic* VectorFieldStatic = Cast<UVectorFieldStatic>(InVectorField))
+	{
+		Impl = MakeUnique<FVectorFieldTextureAccessorImpl>(VectorFieldStatic->Resource);
+	}
+}
+
+FVectorFieldTextureAccessor::FVectorFieldTextureAccessor(const FVectorFieldTextureAccessor& rhs)
+	: Impl(nullptr)
+{
+	if (rhs.Impl)
+	{
+		Impl = MakeUnique<FVectorFieldTextureAccessorImpl>(rhs.Impl->Resource);
+	}
+}
+
+FVectorFieldTextureAccessor::~FVectorFieldTextureAccessor()
+{
+
+}
+
+FRHITexture* FVectorFieldTextureAccessor::GetTexture() const
+{
+	if (Impl && Impl->Resource && Impl->Resource->VolumeTextureRHI)
+	{
+		return Impl->Resource->VolumeTextureRHI;
+	}
+
+	return GBlackVolumeTexture->TextureRHI;
+}
+
 #if WITH_EDITOR
 ENGINE_API void UVectorFieldStatic::SetCPUAccessEnabled()
 {
