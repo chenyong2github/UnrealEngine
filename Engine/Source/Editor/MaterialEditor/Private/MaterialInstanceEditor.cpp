@@ -770,7 +770,8 @@ void FMaterialInstanceEditor::CreateInternalWidgets()
 	if (MaterialEditorModule->MaterialLayersEnabled() && !bIsFunctionPreviewMaterial)
 	{
 		MaterialLayersFunctionsInstance = SNew(SMaterialLayersFunctionsInstanceWrapper)
-			.InMaterialEditorInstance(MaterialEditorInstance);
+			.InMaterialEditorInstance(MaterialEditorInstance)
+			.InShowHiddenDelegate(FGetShowHiddenParameters::CreateSP(this, &FMaterialInstanceEditor::GetShowHiddenParameters));
 	}
 }
 
