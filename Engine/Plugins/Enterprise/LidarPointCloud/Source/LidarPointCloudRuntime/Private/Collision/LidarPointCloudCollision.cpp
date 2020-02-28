@@ -458,7 +458,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 				FMemory::Memzero(VoxelizedGrid, NumCellsCu);
 
 				// Calculate voxelized grids
-				for (auto Point = Selection.GetData(), DataEnd = Selection.GetData() + Selection.Num(); Point != DataEnd; ++Point)
+				for (FLidarPointCloudPoint** Point = Selection.GetData(), ** DataEnd = Selection.GetData() + Selection.Num(); Point != DataEnd; ++Point)
 				{
 					// Calculate location relative to sampling bounds
 					FVector Location = (*Point)->Location - SamplingBounds.Min;
@@ -482,7 +482,10 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 	}
 
 	// Sync threads
-	for (auto& ThreadResult : ThreadResults) ThreadResult.Get();
+	for (const TFuture<void>& ThreadResult : ThreadResults)
+	{
+		ThreadResult.Get();
+	}
 
 	FBenchmarkTimer::Log("Collision: Meshing");
 
@@ -535,7 +538,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 		CollisionMesh->Indices.Empty(NumVertices.GetValue() / 3);
 		CollisionMesh->Indices.AddUninitialized(NumVertices.GetValue() / 3);
 		int32 i = 0;
-		for (auto Index = (int32*)CollisionMesh->Indices.GetData(), DataEnd = Index + CollisionMesh->Indices.Num() * 3; Index != DataEnd; ++Index)
+		for (int32* Index = (int32*)CollisionMesh->Indices.GetData(), * DataEnd = Index + CollisionMesh->Indices.Num() * 3; Index != DataEnd; ++Index)
 		{
 			*Index = i++;
 		}

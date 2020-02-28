@@ -45,7 +45,7 @@ public:
 		// Create collision visualization buffers
 		if (Octree->HasCollisionData())
 		{
-			auto CollisionData = Octree->GetCollisionData();
+			const FTriMeshCollisionData* CollisionData = Octree->GetCollisionData();
 			
 			// Release the existing resources, if present
 			VertexBuffer.ReleaseResource();
@@ -218,7 +218,7 @@ public:
 				// Draw selected nodes' bounds
 				if (Component->bDrawNodeBounds)
 				{
-					for (auto& Node : RenderData.Bounds)
+					for (const FBox& Node : RenderData.Bounds)
 					{
 						DrawWireBox(PDI, Node, FColor(72, 72, 255), SDPG_World);
 					}
@@ -304,7 +304,7 @@ public:
 
 		const bool bUsesSprites = Component->PointSize > 0;
 
-		auto BoundsSize = Component->GetPointCloud()->GetBounds().GetSize();
+		FVector BoundsSize = Component->GetPointCloud()->GetBounds().GetSize();
 
 		// Make sure to apply minimum bounds size
 		BoundsSize.X = FMath::Max(BoundsSize.X, 0.001f);
