@@ -1381,6 +1381,7 @@ TSharedPtr<FDatasmithFBXSceneMaterial> FDatasmithFBXFileImporter::ImportMaterial
 			FetchFbxTexture(InMaterial, TEXT("ReflectionColor"), *Material, PathStr);
 			FetchFbxTexture(InMaterial, TEXT("TransparentColor"), *Material, PathStr);
 			FetchFbxTexture(InMaterial, TEXT("EmissiveColor"), *Material, PathStr);
+			FetchFbxTexture(InMaterial, TEXT("Shininess"), *Material, PathStr);
 		}
 	}
 
