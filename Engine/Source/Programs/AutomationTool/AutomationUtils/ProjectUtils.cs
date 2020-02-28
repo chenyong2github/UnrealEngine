@@ -320,8 +320,7 @@ namespace AutomationTool
 			bool bRequiresCookedData = (TargetType != TargetType.Editor);
 			foreach (KeyValuePair<string, PluginInfo> Pair in EnabledPlugins)
 			{
-				ModuleDescriptor[] Modules = Pair.Value.Descriptor.Modules;
-				if (Modules != null)
+				if (Pair.Value.Descriptor.Modules != null)
 				{
 					foreach (ModuleDescriptor Module in Pair.Value.Descriptor.Modules)
 					{
