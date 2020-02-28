@@ -22,6 +22,7 @@ public class TakeRecorder : ModuleRules
 				"LevelSequence",
 				"LevelSequenceEditor",
 				"MovieScene",
+				"MovieSceneTools",
 				"PropertyEditor",
 				"TakesCore",
 				"TimeManagement",

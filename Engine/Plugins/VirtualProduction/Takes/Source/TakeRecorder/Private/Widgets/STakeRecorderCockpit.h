@@ -13,6 +13,7 @@ class ULevelSequence;
 class UTakeMetaData;
 class UTakeRecorder;
 class FUICommandList;
+struct FDigitsTypeInterface;
 
 /**
  * Cockpit UI for defining take meta-data.
@@ -158,4 +159,6 @@ private:
 	FDelegateHandle OnRecordingInitializedHandle, OnRecordingFinishedHandle;
 
 	TSharedPtr<FUICommandList> CommandList;
+
+	TSharedPtr<FDigitsTypeInterface> DigitsTypeInterface;
 };
