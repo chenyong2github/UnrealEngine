@@ -385,7 +385,7 @@ int FMeshBoundaryLoops::FindLeftTurnEdge(int incoming_e, int bowtie_v, TArray<in
 
 		// compute projected angle
 		FVector3d bc = Mesh->GetVertex(bdry_ev.B) - Mesh->GetVertex(bowtie_v);
-		double fAngleS = VectorUtil::PlaneAngleSignedD(ab, bc, n);
+		double fAngleS = -VectorUtil::PlaneAngleSignedD(ab, bc, n);
 
 		// turn left!
 		if (best_angle == TNumericLimits<double>::Max() || fAngleS < best_angle)
