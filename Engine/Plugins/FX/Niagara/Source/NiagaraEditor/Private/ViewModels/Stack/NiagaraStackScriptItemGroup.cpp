@@ -80,9 +80,7 @@ public:
 	{
 		FText Category = LOCTEXT("ExistingParameterModuleCategory", "Set Specific Parameters");
 
-		FString DisplayNameString = FName::NameToDisplayString(ParameterVariable.GetName().ToString(), false);
-		FText DisplayName = FText::FromString(DisplayNameString);
-
+		FText DisplayName = FText::FromName(ParameterVariable.GetName());
 		FText AttributeDescription = FNiagaraConstants::GetAttributeDescription(ParameterVariable);
 		FText Description = FText::Format(LOCTEXT("ExistingParameterModuleDescriptoinFormat", "Description: Set the parameter {0}. {1}"), FText::FromName(ParameterVariable.GetName()), AttributeDescription);
 
