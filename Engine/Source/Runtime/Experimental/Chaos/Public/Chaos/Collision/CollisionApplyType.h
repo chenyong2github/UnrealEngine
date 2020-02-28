@@ -6,7 +6,7 @@ namespace Chaos
 	/**
 	 * What solver method to use for Collision Resolution
 	 */
-	enum ECollisionApplyType
+	enum class ECollisionApplyType
 	{
 		None,
 		Velocity,	// Solve for velocity in the Apply step 
