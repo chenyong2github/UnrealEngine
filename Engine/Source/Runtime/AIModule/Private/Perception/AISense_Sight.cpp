@@ -33,13 +33,35 @@ static const int32 DefaultMaxTracesPerTick = 6;
 static const int32 DefaultMinQueriesPerTimeSliceCheck = 40;
 
 //----------------------------------------------------------------------//
-// helpers
+// CheckIsTargetInSightCone
+//                     R
+//                   *****  
+//              *             *
+//          *                     *
+//       *                           *
+//     *                               *
+// R *                                   * R
+//    \                                 /
+//     \                               /
+//      \                             /
+//       \             X             /
+//        \                         /
+//         \          ***          /
+//          \     *    N    *     /
+//           \ *               * /
+//            N                 N
+// X = Actor Location
+// R = Sight Radius
+// N = Near Clipping Radius
 //----------------------------------------------------------------------//
-FORCEINLINE_DEBUGGABLE bool CheckIsTargetInSightPie(const FPerceptionListener& Listener, const UAISense_Sight::FDigestedSightProperties& DigestedProps, const FVector& TargetLocation, const float SightRadiusSq)
+FORCEINLINE_DEBUGGABLE bool CheckIsTargetInSightCone(const FPerceptionListener& Listener, const UAISense_Sight::FDigestedSightProperties& DigestedProps, const FVector& TargetLocation, const float SightRadiusSq)
 {
-	if (FVector::DistSquared(Listener.CachedLocation, TargetLocation) <= SightRadiusSq) 
+	const FVector& BaseLocation = FMath::IsNearlyZero(DigestedProps.PointOfViewBackwardOffset) ? Listener.CachedLocation : Listener.CachedLocation - Listener.CachedDirection * DigestedProps.PointOfViewBackwardOffset;
+	const FVector ActorToTarget = TargetLocation - BaseLocation;
+	const float DistToTargetSq = ActorToTarget.SizeSquared();
+	if (DistToTargetSq <= SightRadiusSq && DistToTargetSq >= DigestedProps.NearClippingRadiusSq)
 	{
-		const FVector DirectionToTarget = (TargetLocation - Listener.CachedLocation).GetUnsafeNormal();
+		const FVector DirectionToTarget = ActorToTarget.GetUnsafeNormal();
 		return FVector::DotProduct(DirectionToTarget, Listener.CachedDirection) > DigestedProps.PeripheralVisionAngleCos;
 	}
 
@@ -108,8 +130,10 @@ FAISightTarget::FAISightTarget(AActor* InTarget, FGenericTeamId InTeamId)
 //----------------------------------------------------------------------//
 UAISense_Sight::FDigestedSightProperties::FDigestedSightProperties(const UAISenseConfig_Sight& SenseConfig)
 {
-	SightRadiusSq = FMath::Square(SenseConfig.SightRadius);
-	LoseSightRadiusSq = FMath::Square(SenseConfig.LoseSightRadius);
+	SightRadiusSq = FMath::Square(SenseConfig.SightRadius + SenseConfig.PointOfViewBackwardOffset);
+	LoseSightRadiusSq = FMath::Square(SenseConfig.LoseSightRadius + SenseConfig.PointOfViewBackwardOffset);
+	PointOfViewBackwardOffset = SenseConfig.PointOfViewBackwardOffset;
+	NearClippingRadiusSq = FMath::Square(SenseConfig.NearClippingRadius);
 	PeripheralVisionAngleCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(SenseConfig.PeripheralVisionAngleDegrees), 0.f, PI));
 	AffiliationFlags = SenseConfig.DetectionByAffiliation.GetAsFlags();
 	// keep the special value of FAISystem::InvalidRange (-1.f) if it's set.
@@ -117,7 +141,7 @@ UAISense_Sight::FDigestedSightProperties::FDigestedSightProperties(const UAISens
 }
 
 UAISense_Sight::FDigestedSightProperties::FDigestedSightProperties()
-	: PeripheralVisionAngleCos(0.f), SightRadiusSq(-1.f), AutoSuccessRangeSqFromLastSeenLocation(FAISystem::InvalidRange), LoseSightRadiusSq(-1.f), AffiliationFlags(-1)
+	: PeripheralVisionAngleCos(0.f), SightRadiusSq(-1.f), AutoSuccessRangeSqFromLastSeenLocation(FAISystem::InvalidRange), LoseSightRadiusSq(-1.f), PointOfViewBackwardOffset(0.0f), NearClippingRadiusSq(0.0f), AffiliationFlags(-1)
 {}
 
 //----------------------------------------------------------------------//
@@ -299,7 +323,7 @@ float UAISense_Sight::Update()
 					Listener.RegisterStimulus(TargetActor, FAIStimulus(*this, StimulusStrength, SightQuery->LastSeenLocation, Listener.CachedLocation));
 					SightQuery->bLastResult = true;
 				}
-				else if (CheckIsTargetInSightPie(Listener, PropDigest, TargetLocation, SightRadiusSq))
+				else if (CheckIsTargetInSightCone(Listener, PropDigest, TargetLocation, SightRadiusSq))
 				{
 					SIGHT_LOG_SEGMENT(ListenerPtr->GetOwner(), Listener.CachedLocation, TargetLocation, FColor::Green, TEXT("%s"), *(Target.TargetId.ToString()));
 
