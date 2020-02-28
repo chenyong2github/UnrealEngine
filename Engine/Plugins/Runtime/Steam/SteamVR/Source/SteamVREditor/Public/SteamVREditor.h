@@ -60,10 +60,9 @@ public:
 
 private:
 
-	void AddToolbarExtension(FToolBarBuilder& Builder);
-	void AddMenuExtension(FMenuBuilder& Builder);
 	bool AddUniqueAxisMapping(TArray<FInputAxisKeyMapping> ExistingAxisKeys, UInputSettings* InputSettings, FName ActionName, FKey ActionKey);
 	bool AddUniqueActionMapping(TArray<FInputActionKeyMapping> ExistingActionKeys, UInputSettings* InputSettings, FName ActionName, FKey ActionKey);
+	bool ShowSteamVRInputToolbarDropdown();
 
 	TSharedPtr<class FUICommandList> PluginCommands;
 	TSharedRef<SWidget> FillComboButton(TSharedPtr<class FUICommandList> Commands);
