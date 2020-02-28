@@ -440,7 +440,9 @@ void UChildActorComponent::SetChildActorClass(TSubclassOf<AActor> Class, AActor*
 				{
 					if (ActorTemplate == nullptr)
 					{
-						UEngine::CopyPropertiesForUnrelatedObjects(ChildActorTemplate, NewChildActorTemplate);
+						UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+						Options.bNotifyObjectReplacement = true;
+						UEngine::CopyPropertiesForUnrelatedObjects(ChildActorTemplate, NewChildActorTemplate, Options);
 					}
 					ChildActorTemplate->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
 				}
