@@ -148,4 +148,7 @@ public:
 
 	/** Computes the SHA hash of all the attributes values in the MeshDescription. */
 	static FSHAHash ComputeSHAHash(const FMeshDescription& MeshDescription);
+
+	/** Flip the facing for a set of input polygons. */
+	static void FlipPolygons(FMeshDescription& MeshDescription);
 };
