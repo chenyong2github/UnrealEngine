@@ -1039,320 +1039,136 @@ void UAssetRegistryImpl::EnumerateSubPaths(const FName InBasePath, TFunctionRef<
 
 void UAssetRegistryImpl::RunAssetsThroughFilter(TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const
 {
-	if (!Filter.IsEmpty())
-	{
-		TSet<FName> RequestedClassNames;
-		if (Filter.bRecursiveClasses && Filter.ClassNames.Num() > 0)
-		{
-			// First assemble a full list of requested classes from the ClassTree
-			// GetSubClasses includes the base classes
-			GetSubClasses(Filter.ClassNames, Filter.RecursiveClassesExclusionSet, RequestedClassNames);
-		}
-
-		for (int32 AssetDataIdx = AssetDataList.Num() - 1; AssetDataIdx >= 0; --AssetDataIdx)
-		{
-			const FAssetData& AssetData = AssetDataList[AssetDataIdx];
-
-			// Package Names
-			if (Filter.PackageNames.Num() > 0)
-			{
-				bool bPassesPackageNames = false;
-				for (int32 NameIdx = 0; NameIdx < Filter.PackageNames.Num(); ++NameIdx)
-				{
-					if (Filter.PackageNames[NameIdx] == AssetData.PackageName)
-					{
-						bPassesPackageNames = true;
-						break;
-					}
-				}
-
-				if (!bPassesPackageNames)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-
-			// Package Paths
-			if (Filter.PackagePaths.Num() > 0)
-			{
-				bool bPassesPackagePaths = false;
-				if (Filter.bRecursivePaths)
-				{
-					FString AssetPackagePath = AssetData.PackagePath.ToString();
-					for (int32 PathIdx = 0; PathIdx < Filter.PackagePaths.Num(); ++PathIdx)
-					{
-						const FString Path = Filter.PackagePaths[PathIdx].ToString();
-						if (AssetPackagePath.StartsWith(Path))
-						{
-							// Only match the exact path or a path that starts with the target path followed by a slash
-							if (Path.Len() == 1 || Path.Len() == AssetPackagePath.Len() || AssetPackagePath.Mid(Path.Len(), 1) == TEXT("/"))
-							{
-								bPassesPackagePaths = true;
-								break;
-							}
-						}
-					}
-				}
-				else
-				{
-					// Non-recursive. Just request data for each requested path.
-					for (int32 PathIdx = 0; PathIdx < Filter.PackagePaths.Num(); ++PathIdx)
-					{
-						if (Filter.PackagePaths[PathIdx] == AssetData.PackagePath)
-						{
-							bPassesPackagePaths = true;
-							break;
-						}
-					}
-				}
-
-				if (!bPassesPackagePaths)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-
-			// ObjectPaths
-			if (Filter.ObjectPaths.Num() > 0)
-			{
-				bool bPassesObjectPaths = Filter.ObjectPaths.Contains(AssetData.ObjectPath);
-
-				if (!bPassesObjectPaths)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-
-			// Classes
-			if (Filter.ClassNames.Num() > 0)
-			{
-				bool bPassesClasses = false;
-				if (Filter.bRecursiveClasses)
-				{
-					// Now check against each discovered class
-					for (FName ClassName : RequestedClassNames)
-					{
-						if (ClassName == AssetData.AssetClass)
-						{
-							bPassesClasses = true;
-							break;
-						}
-					}
-				}
-				else
-				{
-					// Non-recursive. Just request data for each requested classes.
-					for (int32 ClassIdx = 0; ClassIdx < Filter.ClassNames.Num(); ++ClassIdx)
-					{
-						if (Filter.ClassNames[ClassIdx] == AssetData.AssetClass)
-						{
-							bPassesClasses = true;
-							break;
-						}
-					}
-				}
-
-				if (!bPassesClasses)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-
-			// Tags and values
-			if (Filter.TagsAndValues.Num() > 0)
-			{
-				bool bPassesTags = false;
-				for (auto FilterTagIt = Filter.TagsAndValues.CreateConstIterator(); FilterTagIt; ++FilterTagIt)
-				{
-					bool bAccept;
-					if (!FilterTagIt.Value().IsSet())
-					{
-						// this probably doesn't make sense, but I am preserving the original logic
-						bAccept = AssetData.TagsAndValues.ContainsKeyValue(FilterTagIt.Key(), FString());
-					}
-					else
-					{
-						bAccept = AssetData.TagsAndValues.ContainsKeyValue(FilterTagIt.Key(), FilterTagIt.Value().GetValue());
-					}
-
-					if (bAccept)
-					{
-						bPassesTags = true;
-						break;
-					}
-				}
-
-				if (!bPassesTags)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-		}
-	}
+	RunAssetsThroughFilterImpl(AssetDataList, Filter, EARFilterMode::Inclusive);
 }
-
 
 void UAssetRegistryImpl::UseFilterToExcludeAssets(TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const
 {
-	if (!Filter.IsEmpty())
+	RunAssetsThroughFilterImpl(AssetDataList, Filter, EARFilterMode::Exclusive);
+}
+
+bool UAssetRegistryImpl::IsAssetIncludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const
+{
+	return RunAssetThroughFilterImpl(AssetData, Filter, EARFilterMode::Inclusive);
+}
+
+bool UAssetRegistryImpl::IsAssetExcludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const
+{
+	return RunAssetThroughFilterImpl(AssetData, Filter, EARFilterMode::Exclusive);
+}
+
+bool UAssetRegistryImpl::RunAssetThroughFilterImpl(const FAssetData& AssetData, const FARFilter& Filter, const EARFilterMode FilterMode) const
+{
+	checkf(!Filter.IsRecursive(), TEXT("Filter should have been expanded with ExpandRecursiveFilter before calling this function!"));
+
+	const bool bPassFilterValue = FilterMode == EARFilterMode::Inclusive;
+	if (Filter.IsEmpty())
 	{
-		TSet<FName> RequestedClassNames;
-		if (Filter.bRecursiveClasses && Filter.ClassNames.Num() > 0)
+		return bPassFilterValue;
+	}
+
+	const bool bFilterResult = RunAssetThroughFilterImpl_Unchecked(AssetData, Filter, bPassFilterValue);
+	return bFilterResult == bPassFilterValue;
+}
+
+bool UAssetRegistryImpl::RunAssetThroughFilterImpl_Unchecked(const FAssetData& AssetData, const FARFilter& Filter, const bool bPassFilterValue) const
+{
+	// Package Names
+	if (Filter.PackageNames.Num() > 0)
+	{
+		const bool bPassesPackageNames = Filter.PackageNames.Contains(AssetData.PackageName);
+		if (bPassesPackageNames != bPassFilterValue)
 		{
-			// First assemble a full list of requested classes from the ClassTree
-			// GetSubClasses includes the base classes
-			GetSubClasses(Filter.ClassNames, Filter.RecursiveClassesExclusionSet, RequestedClassNames);
+			return !bPassFilterValue;
 		}
+	}
 
-		for (int32 AssetDataIdx = AssetDataList.Num() - 1; AssetDataIdx >= 0; --AssetDataIdx)
+	// Package Paths
+	if (Filter.PackagePaths.Num() > 0)
+	{
+		const bool bPassesPackagePaths = Filter.PackagePaths.Contains(AssetData.PackagePath);
+		if (bPassesPackagePaths != bPassFilterValue)
 		{
-			const FAssetData& AssetData = AssetDataList[AssetDataIdx];
+			return !bPassFilterValue;
+		}
+	}
 
-			// Package Names
-			if (Filter.PackageNames.Num() > 0)
+	// ObjectPaths
+	if (Filter.ObjectPaths.Num() > 0)
+	{
+		const bool bPassesObjectPaths = Filter.ObjectPaths.Contains(AssetData.ObjectPath);
+		if (bPassesObjectPaths != bPassFilterValue)
+		{
+			return !bPassFilterValue;
+		}
+	}
+
+	// Classes
+	if (Filter.ClassNames.Num() > 0)
+	{
+		const bool bPassesClasses = Filter.ClassNames.Contains(AssetData.AssetClass);
+		if (bPassesClasses != bPassFilterValue)
+		{
+			return !bPassFilterValue;
+		}
+	}
+
+	// Tags and values
+	if (Filter.TagsAndValues.Num() > 0)
+	{
+		bool bPassesTags = false;
+		for (const auto& TagsAndValuePair : Filter.TagsAndValues)
+		{
+			bPassesTags |= TagsAndValuePair.Value.IsSet()
+				? AssetData.TagsAndValues.ContainsKeyValue(TagsAndValuePair.Key, TagsAndValuePair.Value.GetValue())
+				: AssetData.TagsAndValues.Contains(TagsAndValuePair.Key);
+			if (bPassesTags)
 			{
-				bool bPassesPackageNames = false;
-				for (int32 NameIdx = 0; NameIdx < Filter.PackageNames.Num(); ++NameIdx)
-				{
-					if (Filter.PackageNames[NameIdx] == AssetData.PackageName)
-					{
-						bPassesPackageNames = true;
-						break;
-					}
-				}
-
-				if (bPassesPackageNames)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-
-			// Package Paths
-			if (Filter.PackagePaths.Num() > 0)
-			{
-				bool bPassesPackagePaths = false;
-				if (Filter.bRecursivePaths)
-				{
-					FString AssetPackagePath = AssetData.PackagePath.ToString();
-					for (int32 PathIdx = 0; PathIdx < Filter.PackagePaths.Num(); ++PathIdx)
-					{
-						const FString Path = Filter.PackagePaths[PathIdx].ToString();
-						if (AssetPackagePath.StartsWith(Path))
-						{
-							// Only match the exact path or a path that starts with the target path followed by a slash
-							if (Path.Len() == 1 || Path.Len() == AssetPackagePath.Len() || AssetPackagePath.Mid(Path.Len(), 1) == TEXT("/"))
-							{
-								bPassesPackagePaths = true;
-								break;
-							}
-						}
-					}
-				}
-				else
-				{
-					// Non-recursive. Just request data for each requested path.
-					for (int32 PathIdx = 0; PathIdx < Filter.PackagePaths.Num(); ++PathIdx)
-					{
-						if (Filter.PackagePaths[PathIdx] == AssetData.PackagePath)
-						{
-							bPassesPackagePaths = true;
-							break;
-						}
-					}
-				}
-
-				if (bPassesPackagePaths)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-
-			// ObjectPaths
-			if (Filter.ObjectPaths.Num() > 0)
-			{
-				bool bPassesObjectPaths = Filter.ObjectPaths.Contains(AssetData.ObjectPath);
-
-				if (bPassesObjectPaths)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-
-			// Classes
-			if (Filter.ClassNames.Num() > 0)
-			{
-				bool bPassesClasses = false;
-				if (Filter.bRecursiveClasses)
-				{
-					// Now check against each discovered class
-					for (FName ClassName : RequestedClassNames)
-					{
-						if (ClassName == AssetData.AssetClass)
-						{
-							bPassesClasses = true;
-							break;
-						}
-					}
-				}
-				else
-				{
-					// Non-recursive. Just request data for each requested classes.
-					for (int32 ClassIdx = 0; ClassIdx < Filter.ClassNames.Num(); ++ClassIdx)
-					{
-						if (Filter.ClassNames[ClassIdx] == AssetData.AssetClass)
-						{
-							bPassesClasses = true;
-							break;
-						}
-					}
-				}
-
-				if (bPassesClasses)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
-			}
-
-			// Tags and values
-			if (Filter.TagsAndValues.Num() > 0)
-			{
-				bool bPassesTags = false;
-				for (auto FilterTagIt = Filter.TagsAndValues.CreateConstIterator(); FilterTagIt; ++FilterTagIt)
-				{
-					bool bAccept;
-					if (!FilterTagIt.Value().IsSet())
-					{
-						// this probably doesn't make sense, but I am preserving the original logic
-						bAccept = AssetData.TagsAndValues.ContainsKeyValue(FilterTagIt.Key(), FString());
-					}
-					else
-					{
-						bAccept = AssetData.TagsAndValues.ContainsKeyValue(FilterTagIt.Key(), FilterTagIt.Value().GetValue());
-					}
-
-					if (bAccept)
-					{
-						bPassesTags = true;
-						break;
-					}
-				}
-
-				if (!bPassesTags)
-				{
-					AssetDataList.RemoveAt(AssetDataIdx);
-					continue;
-				}
+				break;
 			}
 		}
+		if (bPassesTags != bPassFilterValue)
+		{
+			return !bPassFilterValue;
+		}
+	}
+
+	return bPassFilterValue;
+}
+
+void UAssetRegistryImpl::RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDataList, const FARFilter& Filter, const EARFilterMode FilterMode) const
+{
+	if (Filter.IsEmpty() || !FAssetRegistryState::IsFilterValid(Filter, true))
+	{
+		return;
+	}
+
+	const FARFilter* FilterPtr = &Filter;
+	FARFilter TempExpandedFilter;
+	if (Filter.IsRecursive())
+	{
+		ExpandRecursiveFilter(Filter, TempExpandedFilter);
+		FilterPtr = &TempExpandedFilter;
+	}
+	check(FilterPtr);
+
+	const int32 OriginalArrayCount = AssetDataList.Num();
+	const bool bPassFilterValue = FilterMode == EARFilterMode::Inclusive;
+
+	// Spin the array backwards to minimize the number of elements that are repeatedly moved down
+	for (int32 AssetDataIndex = AssetDataList.Num() - 1; AssetDataIndex >= 0; --AssetDataIndex)
+	{
+		const bool bFilterResult = RunAssetThroughFilterImpl_Unchecked(AssetDataList[AssetDataIndex], *FilterPtr, bPassFilterValue);
+		if (bFilterResult != bPassFilterValue)
+		{
+			AssetDataList.RemoveAt(AssetDataIndex, 1, /*bAllowShrinking*/false);
+			continue;
+		}
+	}
+
+	if (OriginalArrayCount > AssetDataList.Num())
+	{
+		AssetDataList.Shrink();
 	}
 }
 
