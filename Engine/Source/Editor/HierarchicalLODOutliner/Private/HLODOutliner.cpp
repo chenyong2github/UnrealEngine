@@ -1702,7 +1702,13 @@ namespace HLODOutliner
 	void SHLODOutliner::OnLevelActorsRemoved(AActor* InActor)
 	{
 		if (!InActor->IsA<AWorldSettings>())
-		{			
+		{
+			// If actor is a LODActor, make sure it isn't part of the selection array.
+			if (InActor->IsA<ALODActor>())
+			{
+				SelectedLODActors.Remove(InActor);
+			}
+
 			// Remove InActor from LOD actor which contains it
 			for (TArray<TWeakObjectPtr<ALODActor>>& ActorArray : LODLevelActors)
 			{				
