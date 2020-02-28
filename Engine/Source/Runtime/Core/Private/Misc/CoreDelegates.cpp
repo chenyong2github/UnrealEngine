@@ -27,12 +27,16 @@ FCoreDelegates::FOnPreMainInit& FCoreDelegates::GetPreMainInitDelegate()
 }
 
 FCoreDelegates::FOnMountAllPakFiles FCoreDelegates::OnMountAllPakFiles;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCoreDelegates::FOnMountPak FCoreDelegates::OnMountPak;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+FCoreDelegates::FMountPak FCoreDelegates::MountPak;
 FCoreDelegates::FOnUnmountPak FCoreDelegates::OnUnmountPak;
 FCoreDelegates::FOnOptimizeMemoryUsageForMountedPaks FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks;
 
-FCoreDelegates::FOnPakFileMounted FCoreDelegates::OnPakFileMounted;
+FCoreDelegates::FOnPakFileMounted2 FCoreDelegates::OnPakFileMounted2;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FCoreDelegates::FOnPakFileMounted FCoreDelegates::OnPakFileMounted;
 FCoreDelegates::FPakFileMountedDelegate FCoreDelegates::PakFileMountedCallback;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 FCoreDelegates::FNewFileAddedDelegate FCoreDelegates::NewFileAddedDelegate;

@@ -300,7 +300,7 @@ void BeginPreInitTextLocalization()
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("BeginPreInitTextLocalization"), STAT_BeginPreInitTextLocalization, STATGROUP_LoadTime);
 
 	// Bind this delegate before the PAK file loader is created
-	FCoreDelegates::OnPakFileMounted.AddRaw(&FTextLocalizationManager::Get(), &FTextLocalizationManager::OnPakFileMounted);
+	FCoreDelegates::OnPakFileMounted2.AddRaw(&FTextLocalizationManager::Get(), &FTextLocalizationManager::OnPakFileMounted);
 }
 
 void BeginInitTextLocalization()
@@ -849,8 +849,9 @@ void FTextLocalizationManager::RefreshResources()
 	LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
 }
 
-void FTextLocalizationManager::OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId)
+void FTextLocalizationManager::OnPakFileMounted(const IPakFile& PakFile)
 {
+	int32 ChunkId = PakFile.PakGetPakchunkIndex();
 	if (ChunkId == INDEX_NONE || ChunkId == 0)
 	{
 		// Skip non-chunked PAK files, and chunk 0 as that contains the standard localization data
@@ -860,7 +861,7 @@ void FTextLocalizationManager::OnPakFileMounted(const TCHAR* PakFilename, const 
 	// Track this so that full resource refreshes (eg, changing culture) work as expected
 	LocResTextSource->RegisterChunkId(ChunkId);
 
-	UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Request to load localization data for chunk %d (from PAK '%s')"), ChunkId, PakFilename);
+	UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Request to load localization data for chunk %d (from PAK '%s')"), ChunkId, *PakFile.PakGetPakFilename());
 
 	if (!bIsInitialized)
 	{

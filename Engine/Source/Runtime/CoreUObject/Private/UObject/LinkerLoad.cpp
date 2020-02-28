@@ -165,8 +165,8 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					if (NewSubobjName != NAME_None || OldSubobjName != NAME_None)
 					{
 						check(OldSubobjName != NAME_None && OldClassName != NAME_None );
-						FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class, OldClassName.ToString(), OldClassName.ToString());
-						Redirect->ValueChanges.Add(OldSubobjName.ToString(), NewSubobjName.ToString());
+						FCoreRedirect& Redirect = NewRedirects.Emplace_GetRef(ECoreRedirectFlags::Type_Class, OldClassName.ToString(), OldClassName.ToString());
+						Redirect.ValueChanges.Add(OldSubobjName.ToString(), NewSubobjName.ToString());
 					}
 					//instances only
 					else if( bInstanceOnly )
@@ -174,11 +174,11 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 						// If NewClassName is none, register as removed instead
 						if (NewClassName == NAME_None)
 						{
-							FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly | ECoreRedirectFlags::Option_Removed, OldClassName.ToString(), NewClassName.ToString());
+							NewRedirects.Emplace(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly | ECoreRedirectFlags::Category_Removed, OldClassName.ToString(), NewClassName.ToString());
 						}
 						else
 						{
-							FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, OldClassName.ToString(), NewClassName.ToString());
+							NewRedirects.Emplace(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldClassName.ToString(), NewClassName.ToString());
 						}
 					}
 					//objects only on a per-object basis
@@ -195,21 +195,21 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 						}
 						else
 						{
-							FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class, OldClassName.ToString(), NewClassName.ToString());
+							FCoreRedirect& Redirect = NewRedirects.Emplace_GetRef(ECoreRedirectFlags::Type_Class, OldClassName.ToString(), NewClassName.ToString());
 
 							if (!NewClassClass.IsNone() || !NewClassPackage.IsNone())
 							{
-								Redirect->OverrideClassName = FCoreRedirectObjectName(NewClassClass, NAME_None, NewClassPackage);
+								Redirect.OverrideClassName = FCoreRedirectObjectName(NewClassClass, NAME_None, NewClassPackage);
 							}
-							else if (Redirect->NewName.ObjectName.ToString().StartsWith(TEXT("E"), ESearchCase::CaseSensitive))
+							else if (Redirect.NewName.ObjectName.ToString().StartsWith(TEXT("E"), ESearchCase::CaseSensitive))
 							{
 								// This might be an enum, so we have to register it
-								FCoreRedirect* EnumRedirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Enum, OldClassName.ToString(), NewClassName.ToString());
+								NewRedirects.Emplace(ECoreRedirectFlags::Type_Enum, OldClassName.ToString(), NewClassName.ToString());
 							}
 							else
 							{
 								// This might be a struct redirect because many of them were registered incorrectly
-								FCoreRedirect* StructRedirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Struct, OldClassName.ToString(), NewClassName.ToString());
+								NewRedirects.Emplace(ECoreRedirectFlags::Type_Struct, OldClassName.ToString(), NewClassName.ToString());
 							}
 						}
 					}
@@ -222,7 +222,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					FParse::Value( *It.Value().GetValue(), TEXT("OldGameName="), OldGameName );
 					FParse::Value( *It.Value().GetValue(), TEXT("NewGameName="), NewGameName );
 
-					FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package, OldGameName.ToString(), NewGameName.ToString());
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Package, OldGameName.ToString(), NewGameName.ToString());
 				}
 				else if ( It.Key() == TEXT("ActiveStructRedirects") )
 				{
@@ -232,7 +232,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					FParse::Value( *It.Value().GetValue(), TEXT("OldStructName="), OldStructName );
 					FParse::Value( *It.Value().GetValue(), TEXT("NewStructName="), NewStructName );
 
-					FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Struct, OldStructName.ToString(), NewStructName.ToString());
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Struct, OldStructName.ToString(), NewStructName.ToString());
 				}
 				else if ( It.Key() == TEXT("ActivePluginRedirects") )
 				{
@@ -245,7 +245,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					OldPluginName = FString(TEXT("/")) + OldPluginName + FString(TEXT("/"));
 					NewPluginName = FString(TEXT("/")) + NewPluginName + FString(TEXT("/"));
 
-					FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_MatchSubstring, OldPluginName, NewPluginName);
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_MatchSubstring, OldPluginName, NewPluginName);
 				}
 				else if ( It.Key() == TEXT("KnownMissingPackages") )
 				{
@@ -253,7 +253,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 
 					FParse::Value( *It.Value().GetValue(), TEXT("PackageName="), KnownMissingPackage );
 
-					FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_Removed, KnownMissingPackage.ToString(), FString());
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Category_Removed, KnownMissingPackage.ToString(), FString());
 				}
 				else if (It.Key() == TEXT("TaggedPropertyRedirects"))
 				{
@@ -267,7 +267,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 
 					check(ClassName != NAME_None && OldPropertyName != NAME_None && NewPropertyName != NAME_None);
 
-					FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Property, FCoreRedirectObjectName(OldPropertyName, ClassName, NAME_None), FCoreRedirectObjectName(NewPropertyName, ClassName, NAME_None));
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Property, FCoreRedirectObjectName(OldPropertyName, ClassName, NAME_None), FCoreRedirectObjectName(NewPropertyName, ClassName, NAME_None));
 				}
 				else if (It.Key() == TEXT("EnumRedirects"))
 				{
@@ -284,8 +284,8 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					{
 						FParse::Value(*ConfigValue, TEXT("NewEnumEntry="), NewEnumEntry);
 						check(EnumName != NAME_None && OldEnumEntry != NAME_None && NewEnumEntry != NAME_None);
-						FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Enum, EnumName.ToString(), EnumName.ToString());
-						Redirect->ValueChanges.Add(OldEnumEntry.ToString(), NewEnumEntry.ToString());
+						FCoreRedirect& Redirect = NewRedirects.Emplace_GetRef(ECoreRedirectFlags::Type_Enum, EnumName.ToString(), EnumName.ToString());
+						Redirect.ValueChanges.Add(OldEnumEntry.ToString(), NewEnumEntry.ToString());
 					}
 					else if (FParse::Value(*ConfigValue, TEXT("OldEnumSubstring="), OldEnumSubstring))
 					{
@@ -5236,7 +5236,7 @@ TArray<FName> FLinkerLoad::FindPreviousNamesForClass(FString CurrentClassPath, b
 	if (bIsInstance)
 	{
 		OldObjectNames.Empty();
-		if (FCoreRedirects::FindPreviousNames(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, FCoreRedirectObjectName(CurrentClassPath), OldObjectNames))
+		if (FCoreRedirects::FindPreviousNames(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, FCoreRedirectObjectName(CurrentClassPath), OldObjectNames))
 		{
 			for (FCoreRedirectObjectName& OldObjectName : OldObjectNames)
 			{
@@ -5285,7 +5285,7 @@ FName FLinkerLoad::FindNewNameForClass(FName OldClassName, bool bIsInstance)
 	if (bIsInstance)
 	{
 		// Also check instance types
-		NewName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, OldName);
+		NewName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldName);
 
 		if (NewName != OldName)
 		{
@@ -5322,6 +5322,15 @@ void FLinkerLoad::OnNewFileAdded(const FString& Filename)
 		}
 	}
 }
+
+void FLinkerLoad::OnPakFileMounted(const IPakFile& NewlyLoadedContainer)
+{
+	// To be strictly correct we should check every known missing Package to see whether it exists in the PakFile and remove it only if so.
+	// But the cost of that is be relatively high during loading, and the known missing system is for performance only.  So we instead clear the known missing
+	// on every pak file.
+	FCoreRedirects::ClearKnownMissing(ECoreRedirectFlags::Type_Package);
+}
+
 
 
 void FLinkerLoad::AddGameNameRedirect(const FName OldName, const FName NewName)
@@ -5516,9 +5525,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupExportMap()
 			// Never modify the default object instances
 			if (!StrObjectName.StartsWith(DEFAULT_OBJECT_PREFIX))
 			{
-				FCoreRedirectObjectName NewClassInstanceName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, OldClassName);
+				FCoreRedirectObjectName NewClassInstanceName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldClassName);
 
-				bool bClassInstanceDeleted = FCoreRedirects::IsKnownMissing(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, OldClassName);
+				bool bClassInstanceDeleted = FCoreRedirects::IsKnownMissing(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldClassName);
 				if (bClassInstanceDeleted)
 				{
 					UE_LOG(LogLinker, Log, TEXT("FLinkerLoad::FixupExportMap() - Pkg<%s> [Obj<%s> Cls<%s> ClsPkg<%s>] -> removed"), *LinkerRoot->GetName(),

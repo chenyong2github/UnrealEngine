@@ -334,7 +334,7 @@ UObject* UPackFactory::FactoryCreateBinary
 
 	UObject* ReturnAsset = nullptr;
 
-	if (PakFile.IsValid())
+	if (PakFile.IsValid() && PakFile.HasFilenames())
 	{
 		static FString ContentFolder(TEXT("/Content/"));
 		FString ContentDestinationRoot = FPaths::ProjectContentDir();
@@ -358,9 +358,11 @@ UObject* UPackFactory::FactoryCreateBinary
 		TArray<FString> WrittenSourceFiles;
 
 		// Process the config files and identify if we have source files
-		for (FPakFile::FFileIterator It(PakFile); It; ++It, ++FileCount)
+		for (FPakFile::FPakEntryIterator It(PakFile); It; ++It, ++FileCount)
 		{
-			if (It.Filename().StartsWith(TEXT("Config/")) || It.Filename().Contains(TEXT("/Config/")))
+			const FString* EntryFilename = It.TryGetFilename();
+			check(EntryFilename);
+			if (EntryFilename->StartsWith(TEXT("Config/")) || EntryFilename->Contains(TEXT("/Config/")))
 			{
 				const FPakEntry& Entry = It.Info();
 				PakReader.Seek(Entry.Offset);
@@ -375,11 +377,11 @@ UObject* UPackFactory::FactoryCreateBinary
 				}
 				else
 				{
-					UE_LOG(LogPackFactory, Error, TEXT("Serialized hash mismatch for \"%s\"."), *It.Filename());
+					UE_LOG(LogPackFactory, Error, TEXT("Serialized hash mismatch for \"%s\"."), **EntryFilename);
 					ErrorCount++;
 				}
 			}
-			else if (!ConfigParameters.bContainsSource && (It.Filename().StartsWith(TEXT("Source/")) || It.Filename().Contains(TEXT("/Source/"))))
+			else if (!ConfigParameters.bContainsSource && (EntryFilename ->StartsWith(TEXT("Source/")) || EntryFilename->Contains(TEXT("/Source/"))))
 			{
 				ConfigParameters.bContainsSource = true;
 			}
@@ -457,16 +459,18 @@ UObject* UPackFactory::FactoryCreateBinary
 		}
 
 		// Process everything else and copy out to disk
-		for (FPakFile::FFileIterator It(PakFile); It; ++It, ++FileCount)
+		for (FPakFile::FPakEntryIterator It(PakFile); It; ++It, ++FileCount)
 		{
+			const FString* EntryFilename = It.TryGetFilename();
+			check(EntryFilename);
 			// config files already handled
-			if (It.Filename().StartsWith(TEXT("Config/")) || It.Filename().Contains(TEXT("/Config/")))
+			if (EntryFilename->StartsWith(TEXT("Config/")) || EntryFilename->Contains(TEXT("/Config/")))
 			{
 				continue;
 			}
 
 			// Media and manifest files don't get written out as part of the install
-			if (It.Filename().Contains(TEXT("manifest.json")) || It.Filename().StartsWith(TEXT("Media/")) || It.Filename().Contains(TEXT("/Media/")))
+			if (EntryFilename->Contains(TEXT("manifest.json")) || EntryFilename->StartsWith(TEXT("Media/")) || EntryFilename->Contains(TEXT("/Media/")))
 			{
 				continue;
 			}
@@ -478,9 +482,9 @@ UObject* UPackFactory::FactoryCreateBinary
 
 			if (EntryInfo == Entry)
 			{
-				if (It.Filename().StartsWith(TEXT("Source/")) || It.Filename().Contains(TEXT("/Source/")))
+				if (EntryFilename->StartsWith(TEXT("Source/")) || EntryFilename->Contains(TEXT("/Source/")))
 				{
-					FString DestFilename = It.Filename();
+					FString DestFilename = *EntryFilename;
 					if (DestFilename.StartsWith(TEXT("Source/")))
 					{
 						DestFilename.RightChopInline(7, false);
@@ -495,7 +499,7 @@ UObject* UPackFactory::FactoryCreateBinary
 					}
 
 					DestFilename = SourceModuleInfo.ModuleSourcePath / DestFilename;
-					UE_LOG(LogPackFactory, Log, TEXT("%s (%ld) -> %s"), *It.Filename(), Entry.Size, *DestFilename);
+					UE_LOG(LogPackFactory, Log, TEXT("%s (%ld) -> %s"), **EntryFilename, Entry.Size, *DestFilename);
 
 					FString SourceContents;
 					PackFactoryHelper::ExtractFileToString(Entry, PakReader, CopyBuffer, PersistentCompressionBuffer, SourceContents, PakFile);
@@ -522,7 +526,7 @@ UObject* UPackFactory::FactoryCreateBinary
 				}
 				else
 				{
-					FString DestFilename = It.Filename();
+					FString DestFilename = *EntryFilename;
 					if (DestFilename.StartsWith(TEXT("Content/")))
 					{
 						DestFilename.RightChopInline(8, false);
@@ -536,7 +540,7 @@ UObject* UPackFactory::FactoryCreateBinary
 						}
 					}
 					DestFilename = ContentDestinationRoot / DestFilename;
-					UE_LOG(LogPackFactory, Log, TEXT("%s (%ld) -> %s"), *It.Filename(), Entry.Size, *DestFilename);
+					UE_LOG(LogPackFactory, Log, TEXT("%s (%ld) -> %s"), **EntryFilename, Entry.Size, *DestFilename);
 
 					TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileWriter(*DestFilename));
 
@@ -554,7 +558,7 @@ UObject* UPackFactory::FactoryCreateBinary
 			}
 			else
 			{
-				UE_LOG(LogPackFactory, Error, TEXT("Serialized hash mismatch for \"%s\"."), *It.Filename());
+				UE_LOG(LogPackFactory, Error, TEXT("Serialized hash mismatch for \"%s\"."), **EntryFilename);
 				ErrorCount++;
 			}
 		}
@@ -762,7 +766,14 @@ UObject* UPackFactory::FactoryCreateBinary
 	}
 	else
 	{
-		UE_LOG(LogPackFactory, Warning, TEXT("Invalid pak file."));
+		if (!PakFile.IsValid())
+		{
+			UE_LOG(LogPackFactory, Warning, TEXT("Invalid pak file."));
+		}
+		else
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Pakfiles were loaded without Filenames, creation aborted."));
+		}
 	}
 
 	return ReturnAsset;

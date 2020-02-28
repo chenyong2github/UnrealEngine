@@ -10,6 +10,7 @@
 #include "UObject/Linker.h"
 
 class FLinkerPlaceholderBase;
+class IPakFile;
 class ULinkerPlaceholderExportObject;
 struct FScopedSlowTask;
 struct FUntypedBulkData;
@@ -251,6 +252,8 @@ public:
 	 * 
 	 */
 	COREUOBJECT_API static void OnNewFileAdded(const FString& Filename);
+
+	COREUOBJECT_API static void OnPakFileMounted(const IPakFile& PakFile);
 
 	/** 
 	 * Checks if the linker has any objects in the export table that require loading.
