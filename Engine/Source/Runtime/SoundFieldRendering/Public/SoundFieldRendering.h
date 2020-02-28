@@ -15,11 +15,6 @@ SOUNDFIELDRENDERING_API ISoundfieldEncodingSettingsProxy& GetAmbisonicsSourceDef
 class SOUNDFIELDRENDERING_API FAmbisonicsSoundfieldBuffer : public ISoundfieldAudioPacket
 {
 public:
-	FAmbisonicsSoundfieldBuffer()
-		: NumChannels(0)
-		, Rotation(FQuat::Identity)
-	{}
-
 	// Interleaved audio buffer for all vector parts of the ambisonics stream.
 	Audio::AlignedFloatBuffer AudioBuffer;
 
@@ -30,6 +25,13 @@ public:
 
 	// This is the rotation of the ambisonics source.
 	FQuat Rotation;
+	FQuat PreviousRotation;
+
+	FAmbisonicsSoundfieldBuffer()
+		: NumChannels(0)
+		, Rotation(FQuat::Identity)
+		, PreviousRotation(FQuat::Identity)
+	{}
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual TUniquePtr<ISoundfieldAudioPacket> Duplicate() const override;
