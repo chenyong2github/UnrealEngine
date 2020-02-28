@@ -381,7 +381,7 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 			if( DataprepAssetInterfacePtr->IsA<UDataprepAsset>() )
 			{
 				TWeakObjectPtr<UDataprepAsset> DataprepAsset = static_cast<UDataprepAsset*>( DataprepAssetInterfacePtr.Get() );
-				OnParameterizationWasEdited = DataprepAsset->OnParameterizedObjectsChanged.AddLambda( [ParameterizationDetailsView, DataprepAsset](const TSet<UObject*>* Objects )
+				OnParameterizationWasEdited = DataprepAsset->OnParameterizedObjectsStatusChanged.AddLambda( [ParameterizationDetailsView, DataprepAsset](const TSet<UObject*>* Objects )
 				{
 					if( Objects && Objects->Contains(DataprepAsset->GetParameterizationObject()) )
 					{
@@ -603,7 +603,7 @@ SDataprepAssetView::~SDataprepAssetView()
 			if ( DataprepAssetInterfacePtr->IsA<UDataprepAsset>() )
 			{
 				TWeakObjectPtr<UDataprepAsset> DataprepAsset = static_cast<UDataprepAsset*>( DataprepAssetInterfacePtr.Get() );
-				DataprepAsset->OnParameterizedObjectsChanged.Remove( OnParameterizationWasEdited );
+				DataprepAsset->OnParameterizedObjectsStatusChanged.Remove( OnParameterizationWasEdited );
 			}
 		}
 	}

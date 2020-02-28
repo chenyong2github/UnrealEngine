@@ -30,7 +30,6 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual void DestroyNode() override;
-	virtual void NodeConnectionListChanged() override;
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
 	// End EdGraphNode interface

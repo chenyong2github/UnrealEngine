@@ -15,6 +15,7 @@
 #include "UObject/Package.h"
 
 class UDataprepAsset;
+class UDataprepActionAsset;
 class UDataprepAssetInterface;
 class UDataprepParameterizableObject;
 struct FScopedSlowTask;
@@ -29,6 +30,12 @@ public:
 	 * @return nullptr if the object is not a part of a dataprep asset
 	 */
 	static UDataprepAsset* GetDataprepAssetOfObject(UObject* Object);
+
+	/**
+	 * Return the dataprep action asset that own the object, if the object is part of a dataprep action asset
+	 * @return nullptr if the object is not a part of a dataprep action asset
+	 */
+	static UDataprepActionAsset* GetDataprepActionAssetOf(UObject* Object);
 
 	/** Delete the objects and do the manipulation required to safely delete the assets */
 	static void PurgeObjects(TArray<UObject*> Objects);

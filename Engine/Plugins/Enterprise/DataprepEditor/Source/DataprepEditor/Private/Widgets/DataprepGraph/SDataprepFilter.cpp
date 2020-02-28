@@ -3,7 +3,6 @@
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
 
 #include "DataprepEditorStyle.h"
-#include "DataprepEditorUtils.h"
 #include "SelectionSystem/DataprepBoolFilter.h"
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepFloatFilter.h"
@@ -150,7 +149,15 @@ void SDataprepFilter::InverseFilter()
 	{
 		FScopedTransaction Transaction( LOCTEXT("InverseFilterTransaction", "Inverse the filter") );
 		Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
+
+		FProperty* Property = Filter->GetClass()->FindPropertyByName( TEXT("bIsExcludingResult") );
+		check( Property );
+		FEditPropertyChain EditChain;
+		EditChain.AddHead( Property );
+		EditChain.SetActivePropertyNode( Property );
+		FPropertyChangedEvent EditPropertyChangeEvent( Property, EPropertyChangeType::ValueSet );
+		FPropertyChangedChainEvent EditChangeChainEvent( EditChain, EditPropertyChangeEvent );
+		Filter->PostEditChangeChainProperty( EditChangeChainEvent );
 	}
 }
 

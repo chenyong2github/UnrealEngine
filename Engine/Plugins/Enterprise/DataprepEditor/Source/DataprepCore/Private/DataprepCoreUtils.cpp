@@ -6,6 +6,7 @@
 #include "DataprepAssetUserData.h"
 #endif
 
+#include "DataprepActionAsset.h"
 #include "DataprepAsset.h"
 #include "DataprepAssetInterface.h"
 #include "DataprepContentConsumer.h"
@@ -51,6 +52,20 @@ UDataprepAsset* FDataprepCoreUtils::GetDataprepAssetOfObject(UObject* Object)
 		if ( UDataprepAsset::StaticClass() == Object->GetClass() )
 		{
 			return static_cast<UDataprepAsset*>( Object );
+		}
+		Object = Object->GetOuter();
+	}
+
+	return nullptr;
+}
+
+UDataprepActionAsset* FDataprepCoreUtils::GetDataprepActionAssetOf(UObject* Object)
+{
+	while (Object)
+	{
+		if (UDataprepActionAsset::StaticClass() == Object->GetClass())
+		{
+			return static_cast<UDataprepActionAsset*>(Object);
 		}
 		Object = Object->GetOuter();
 	}
