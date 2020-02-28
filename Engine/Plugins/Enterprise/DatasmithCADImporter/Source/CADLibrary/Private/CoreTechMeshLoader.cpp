@@ -27,16 +27,22 @@ bool CoreTechMeshLoader::LoadFile(const FString& FileName, FMeshDescription& Mes
 		return false;
 	}
 
-	Result = Repair(MainObjectID, ImportParameters.StitchingTechnique);
+	if (ImportParameters.StitchingTechnique != StitchingNone)
+	{
+		Result = Repair(MainObjectID, StitchingHeal);
+	}
 	Result = SetCoreTechTessellationState(ImportParameters);
 
-	bool bNeedSwapOrientation = ImportParameters.StitchingTechnique != EStitchingTechnique::StitchingSew ? MeshParameters.bNeedSwapOrientation : false;
+	bool bNeedSwapOrientation = ImportParameters.StitchingTechnique != EStitchingTechnique::StitchingNone ? MeshParameters.bNeedSwapOrientation : false;
 
-	// Parse CoreTech model's hierarchy to collect body objects.
-	ExtractComponent(MainObjectID);
+	uint32 BodiesNum;
+	Result = CT_KERNEL_IO::AskNbObjectsType(BodiesNum, CT_BODY_TYPE);
+	if (Result != IO_OK)
+	{
+		return false;
+	}
 
-	// Nothing useful in the file, abort
-	if (BodySet.Num() == 0)
+	if (BodiesNum == 0)
 	{
 		return false;
 	}

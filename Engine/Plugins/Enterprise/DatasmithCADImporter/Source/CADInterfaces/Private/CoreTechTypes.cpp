@@ -91,6 +91,59 @@ namespace CADLibrary
 		return CT_KERNEL_IO::AskTesselationParameters(max_face_sag, max_face_length, max_face_angle, max_curve_sag, max_curve_length, max_curve_angle, high_quality, vertex_type, normal_type, texture_type);
 	}
 
+	void GetAllBodies(CT_OBJECT_ID NodeId, TArray<CT_OBJECT_ID>& OutBodies)
+	{
+		CT_OBJECT_TYPE type;
+		CT_IO_ERROR Result = CT_OBJECT_IO::AskType(NodeId, type);
+		if (Result != IO_OK)
+		{
+			return;
+		}
+
+		switch (type)
+		{
+		case CT_ASSEMBLY_TYPE:
+		case CT_PART_TYPE:
+		case CT_COMPONENT_TYPE:
+		{
+			CT_LIST_IO Children;
+			Result = CT_COMPONENT_IO::AskChildren(NodeId, Children);
+			if (Result != IO_OK)
+			{
+				return;
+			}
+
+			// Iterate over the instances and call some function on each
+			Children.IteratorInitialize();
+			CT_OBJECT_ID Child;
+			while ((Child = Children.IteratorIter()) != 0)
+			{
+				GetAllBodies(Child, OutBodies);
+			}
+			break;
+		}
+
+		case CT_INSTANCE_TYPE:
+		{
+			CT_OBJECT_ID ChildId;
+			Result = CT_INSTANCE_IO::AskChild(NodeId, ChildId);
+			if (Result != IO_OK)
+			{
+				return;
+			}
+
+			GetAllBodies(ChildId, OutBodies);
+			break;
+		}
+
+		case CT_BODY_TYPE:
+		{
+			OutBodies.Add(NodeId);
+			break;
+		}
+		}
+	}
+
 	CT_IO_ERROR Repair(CT_OBJECT_ID MainObjectID, EStitchingTechnique StitchingTechnique, CT_DOUBLE SewingToleranceFactor)
 	{
 		switch (StitchingTechnique)
@@ -101,14 +154,25 @@ namespace CADLibrary
 			return CT_REPAIR_IO::Sew(MainObjectID, SewingToleranceFactor, CT_SEW_CREATE_BODIES_BY_TOPOLOGY);
 		}
 
+		// sew disconnected faces back together
+		// to be sure that there is no topology modification, this function has to be called body by body.
+		// CT_REPAIR_IO::Sew is prefered to CT_REPAIR_IO::heal because CT_REPAIR_IO::heal is too restricive
 		case EStitchingTechnique::StitchingHeal:
 		{
-			// Heal disconnected faces back together
-			CT_UINT32 StitchingToleranceFactor = 0; // topo only if deformation=0, factor of 'tolerance' value
-			CT_LOGICAL   OnlyVisible = CT_TRUE;
-			CT_LOGICAL   MergeBeforeHealing = CT_FALSE;
-			CT_LOGICAL   RemoveTinyObjects = CT_TRUE;
-			return CT_REPAIR_IO::Heal(MainObjectID, StitchingToleranceFactor, OnlyVisible, MergeBeforeHealing, RemoveTinyObjects);
+			uint32 BodiesNum;
+			CT_IO_ERROR Result = CT_KERNEL_IO::AskNbObjectsType(BodiesNum, CT_BODY_TYPE);
+			if (Result != IO_OK)
+			{
+				return Result;
+			}
+
+			TArray<CT_OBJECT_ID> OutBodies;
+			OutBodies.Reserve(BodiesNum);
+			GetAllBodies(MainObjectID, OutBodies);
+			for (CT_OBJECT_ID BodyId : OutBodies)
+			{
+				CT_REPAIR_IO::Sew(BodyId, SewingToleranceFactor, CT_SEW_CREATE_BODIES_BY_LAYER);
+			}
 		}
 		}
 		return CT_IO_ERROR::IO_OK;
