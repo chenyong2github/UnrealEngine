@@ -95,10 +95,12 @@ class SMaterialLayersFunctionsInstanceWrapper : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SMaterialLayersFunctionsInstanceWrapper)
-		: _InMaterialEditorInstance(nullptr)
+		: _InMaterialEditorInstance(nullptr),
+		_InShowHiddenDelegate()
 	{}
 
 	SLATE_ARGUMENT(UMaterialEditorInstanceConstant*, InMaterialEditorInstance)
+	SLATE_ARGUMENT(FGetShowHiddenParameters, InShowHiddenDelegate)
 
 	SLATE_END_ARGS()
 	void Refresh();
@@ -122,6 +124,7 @@ public:
 
 	SLATE_ARGUMENT(UMaterialEditorInstanceConstant*, InMaterialEditorInstance)
 	SLATE_ARGUMENT(SMaterialLayersFunctionsInstanceWrapper*, InWrapper)
+	SLATE_ARGUMENT(FGetShowHiddenParameters, InShowHiddenDelegate)
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
@@ -162,6 +165,8 @@ public:
 	void UpdateThumbnailMaterial(TEnumAsByte<EMaterialParameterAssociation> InAssociation, int32 InIndex, bool bAlterBlendIndex = false);
 	FReply OnThumbnailDoubleClick(const FGeometry& Geometry, const FPointerEvent& MouseEvent, EMaterialParameterAssociation InAssociation, int32 InIndex);
 	bool IsOverriddenExpression(class UDEditorParameterValue* Parameter, int32 InIndex);
+
+	FGetShowHiddenParameters GetShowHiddenDelegate() const;
 protected:
 
 	void ShowSubParameters(TSharedPtr<FSortedParamData> ParentParameter);
@@ -180,6 +185,9 @@ private:
 
 	bool bLayerIsolated;
 
+	/** Delegate to call to determine if hidden parameters should be shown */
+	FGetShowHiddenParameters ShowHiddenDelegate;
+
 };
 
 class UMaterialEditorPreviewParameters;
@@ -188,10 +196,12 @@ class SMaterialLayersFunctionsMaterialWrapper : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SMaterialLayersFunctionsMaterialWrapper)
-		: _InMaterialEditorInstance(nullptr)
+		: _InMaterialEditorInstance(nullptr),
+		_InShowHiddenDelegate()
 	{}
 
 	SLATE_ARGUMENT(UMaterialEditorPreviewParameters*, InMaterialEditorInstance)
+	SLATE_ARGUMENT(FGetShowHiddenParameters, InShowHiddenDelegate)
 
 	SLATE_END_ARGS()
 	void Refresh();
@@ -209,10 +219,12 @@ class SMaterialLayersFunctionsMaterialTree : public STreeView<TSharedPtr<FSorted
 	friend class SMaterialLayersFunctionsMaterialTreeItem;
 public:
 	SLATE_BEGIN_ARGS(SMaterialLayersFunctionsMaterialTree)
-		: _InMaterialEditorInstance(nullptr)
+		: _InMaterialEditorInstance(nullptr),
+		_InShowHiddenDelegate()
 	{}
 
 	SLATE_ARGUMENT(UMaterialEditorPreviewParameters*, InMaterialEditorInstance)
+	SLATE_ARGUMENT(FGetShowHiddenParameters, InShowHiddenDelegate)
 
 	SLATE_END_ARGS()
 
@@ -234,6 +246,9 @@ public:
 
 	/** Object that stores all of the possible parameters we can edit */
 	UMaterialEditorPreviewParameters* MaterialEditorInstance;
+
+	/** Delegate to call to determine if hidden parameters should be shown */
+	FGetShowHiddenParameters ShowHiddenDelegate;
 
 	/** Builds the custom parameter groups category */
 	void CreateGroupsWidget();
