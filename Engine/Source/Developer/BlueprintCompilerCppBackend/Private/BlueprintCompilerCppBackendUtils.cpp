@@ -613,7 +613,7 @@ bool FEmitHelper::MetaDataCanBeNative(const FName MetaDataName, FFieldVariant Fi
 	{
 		return false;
 	}
-	if (MetaDataName == TEXT("ExpandEnumAsExecs"))	// applicable to editor only
+	if (MetaDataName == TEXT("ExpandEnumAsExecs") || MetaDataName == TEXT("ExpandBoolAsExecs"))	// applicable to editor only
 	{
 		return false;
 	}
