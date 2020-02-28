@@ -140,7 +140,9 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		}
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		FThreadState& ThreadState = GetThreadState(ThreadId);
-		ThreadState.EnterExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")), &Export, Trace::LoadTimeProfilerObjectEventType_Create);
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+		ThreadState.EnterExportScope(Time, &Export, Trace::LoadTimeProfilerObjectEventType_Create);
 		break;
 	}
 	case RouteId_EndCreateExport:
@@ -149,15 +151,21 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		FThreadState& ThreadState = GetThreadState(ThreadId);
-		uint64 ObjectPtr = EventData.GetValue<uint64>("Object");
-		Trace::FPackageExportInfo* Export = ThreadState.GetCurrentExportScope();
-		if (Export)
+		if (ensure(ThreadState.GetCurrentExportScopeEventType() == Trace::LoadTimeProfilerObjectEventType_Create))
 		{
-			ExportsMap.Add(ObjectPtr, Export);
-			const Trace::FClassInfo* ObjectClass = GetClassInfo(EventData.GetValue<uint64>("Class"));
-			Export->Class = ObjectClass;
+			Trace::FPackageExportInfo* Export = ThreadState.GetCurrentExportScope();
+			if (Export)
+			{
+				uint64 ObjectPtr = EventData.GetValue<uint64>("Object");
+				ExportsMap.Add(ObjectPtr, Export);
+				const Trace::FClassInfo* ObjectClass = GetClassInfo(EventData.GetValue<uint64>("Class"));
+				Export->Class = ObjectClass;
+			}
+
+			uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+			double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+			ThreadState.LeaveExportScope(Time);
 		}
-		ThreadState.LeaveExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
 		break;
 	}
 	case RouteId_BeginSerializeExport:
@@ -181,16 +189,21 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 			}
 		}
 		FThreadState& ThreadState = GetThreadState(ThreadId);
-		ThreadState.EnterExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")), Export, Trace::LoadTimeProfilerObjectEventType_Serialize);
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+		ThreadState.EnterExportScope(Time, Export, Trace::LoadTimeProfilerObjectEventType_Serialize);
 		break;
 	}
 	case RouteId_EndSerializeExport:
 	{
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		FThreadState& ThreadState = GetThreadState(ThreadId);
+		if (ensure(ThreadState.GetCurrentExportScopeEventType() == Trace::LoadTimeProfilerObjectEventType_Serialize))
 		{
 			Trace::FAnalysisSessionEditScope _(Session);
-			ThreadState.LeaveExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+			uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+			double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+			ThreadState.LeaveExportScope(Time);
 		}
 		break;
 	}
@@ -202,7 +215,9 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		FThreadState& ThreadState = GetThreadState(ThreadId);
 		{
 			Trace::FAnalysisSessionEditScope _(Session);
-			ThreadState.EnterExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")), Export, Trace::LoadTimeProfilerObjectEventType_PostLoad);
+			uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+			double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+			ThreadState.EnterExportScope(Time, Export, Trace::LoadTimeProfilerObjectEventType_PostLoad);
 		}
 		break;
 	}
@@ -210,9 +225,12 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	{
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		FThreadState& ThreadState = GetThreadState(ThreadId);
+		if (ensure(ThreadState.GetCurrentExportScopeEventType() == Trace::LoadTimeProfilerObjectEventType_PostLoad))
 		{
 			Trace::FAnalysisSessionEditScope _(Session);
-			ThreadState.LeaveExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+			uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+			double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+			ThreadState.LeaveExportScope(Time);
 		}
 		break;
 	}
@@ -278,6 +296,7 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 			GroupState->bIsClosed = true;
 			if (GroupState->LoadRequest && GroupState->ActiveRequestsCount == 0)
 			{
+				Trace::FAnalysisSessionEditScope _(Session);
 				GroupState->LoadRequest->EndTime = Context.SessionContext.TimestampFromCycle(GroupState->LatestEndCycle);
 			}
 		}
@@ -304,7 +323,8 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 			if (AsyncPackage->PackageInfo)
 			{
 				Trace::FAnalysisSessionEditScope _(Session);
-				AsyncPackage->LoadHandle = LoadTimeProfilerProvider.BeginLoadPackage(*AsyncPackage->PackageInfo, Context.SessionContext.TimestampFromCycle(AsyncPackage->LoadStartCycle));
+				double Time = Context.SessionContext.TimestampFromCycle(AsyncPackage->LoadStartCycle);
+				AsyncPackage->LoadHandle = LoadTimeProfilerProvider.BeginLoadPackage(*AsyncPackage->PackageInfo, Time);
 			}
 		}
 		break;
@@ -319,7 +339,8 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 			if (AsyncPackage->PackageInfo && AsyncPackage->LoadHandle != uint64(-1))
 			{
 				Trace::FAnalysisSessionEditScope _(Session);
-				LoadTimeProfilerProvider.EndLoadPackage(AsyncPackage->LoadHandle, Context.SessionContext.TimestampFromCycle(AsyncPackage->LoadEndCycle));
+				double Time = Context.SessionContext.TimestampFromCycle(AsyncPackage->LoadEndCycle);
+				LoadTimeProfilerProvider.EndLoadPackage(AsyncPackage->LoadHandle, Time);
 			}
 		}
 		break;
@@ -372,7 +393,8 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		uint64 BatchId = EventData.GetValue<uint64>("BatchId");
 
-		uint64 BatchHandle = LoadTimeProfilerProvider.BeginIoDispatcherBatch(BatchId, Context.SessionContext.TimestampFromCycle(Cycle));
+		double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+		uint64 BatchHandle = LoadTimeProfilerProvider.BeginIoDispatcherBatch(BatchId, Time);
 		ActiveBatchesMap.Add(BatchId, BatchHandle);
 
 		break;
@@ -387,7 +409,8 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		if (FindBatchHandle)
 		{
 			Trace::FAnalysisSessionEditScope _(Session);
-			LoadTimeProfilerProvider.EndIoDispatcherBatch(*FindBatchHandle, Context.SessionContext.TimestampFromCycle(Cycle), TotalSize);
+			double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+			LoadTimeProfilerProvider.EndIoDispatcherBatch(*FindBatchHandle, Time, TotalSize);
 		}
 
 		break;
@@ -399,17 +422,22 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		FThreadState& ThreadState = GetThreadState(ThreadId);
 		Trace::ELoadTimeProfilerObjectEventType EventType = static_cast<Trace::ELoadTimeProfilerObjectEventType>(EventData.GetValue<uint8>("EventType"));
-		if (Export)
-		{
-			ThreadState.EnterExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")), Export, EventType);
-		}
+		//EventType = static_cast<Trace::ELoadTimeProfilerObjectEventType>(99); // debug
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+		ThreadState.EnterExportScope(Time, Export, EventType);
 		break;
 	}
 	case RouteId_EndObjectScope:
 	{
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		FThreadState& ThreadState = GetThreadState(ThreadId);
-		ThreadState.LeaveExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+		//if (ensure(ThreadState.GetCurrentExportScopeEventType() == static_cast<Trace::ELoadTimeProfilerObjectEventType>(99))) // debug
+		{
+			uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+			double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+			ThreadState.LeaveExportScope(Time);
+		}
 		break;
 	}
 	case RouteId_AsyncPackageLinkerAssociation:
@@ -440,6 +468,7 @@ void FAsyncLoadingTraceAnalyzer::FThreadState::EnterExportScope(double Time, con
 
 void FAsyncLoadingTraceAnalyzer::FThreadState::LeaveExportScope(double Time)
 {
+	check(CpuScopeStackDepth > 0);
 	FScopeStackEntry& StackEntry = CpuScopeStack[--CpuScopeStackDepth];
 	CpuTimeline->AppendEndEvent(Time);
 	if (CpuScopeStackDepth > 0)
@@ -449,6 +478,19 @@ void FAsyncLoadingTraceAnalyzer::FThreadState::LeaveExportScope(double Time)
 	else
 	{
 		CurrentEvent = Trace::FLoadTimeProfilerCpuEvent();
+	}
+}
+
+Trace::ELoadTimeProfilerObjectEventType FAsyncLoadingTraceAnalyzer::FThreadState::GetCurrentExportScopeEventType()
+{
+	if (CpuScopeStackDepth > 0)
+	{
+		FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth - 1];
+		return StackEntry.Event.EventType;
+	}
+	else
+	{
+		return Trace::ELoadTimeProfilerObjectEventType::LoadTimeProfilerObjectEventType_None;
 	}
 }
 

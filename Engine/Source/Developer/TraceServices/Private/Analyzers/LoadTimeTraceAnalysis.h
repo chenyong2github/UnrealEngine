@@ -77,6 +77,7 @@ private:
 
 		void EnterExportScope(double Time, const Trace::FPackageExportInfo* ExportInfo, Trace::ELoadTimeProfilerObjectEventType EventType);
 		void LeaveExportScope(double Time);
+		Trace::ELoadTimeProfilerObjectEventType GetCurrentExportScopeEventType();
 		Trace::FPackageExportInfo* GetCurrentExportScope();
 	};
 
