@@ -5,6 +5,11 @@
 #include "Misc/Char.h"
 #include "GenericPlatform/GenericPlatformString.h"
 #include "GenericPlatform/GenericPlatformStricmp.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <tchar.h>
 
 /**
 * Microsoft specific implementation 
@@ -54,6 +59,11 @@ struct FMicrosoftPlatformString : public FGenericPlatformString
 	static FORCEINLINE int32 Strlen( const WIDECHAR* String )
 	{
 		return _tcslen( String );
+	}
+
+	static FORCEINLINE int32 Strnlen( const WIDECHAR* String, SIZE_T StringSize )
+	{
+		return _tcsnlen( String, StringSize );
 	}
 
 	static FORCEINLINE const WIDECHAR* Strstr( const WIDECHAR* String, const WIDECHAR* Find)
@@ -163,6 +173,11 @@ struct FMicrosoftPlatformString : public FGenericPlatformString
 		return strlen( String ); 
 	}
 
+	static FORCEINLINE int32 Strnlen( const ANSICHAR* String, SIZE_T StringSize )
+	{
+		return strnlen( String, StringSize );
+	}
+
 	static FORCEINLINE const ANSICHAR* Strstr( const ANSICHAR* String, const ANSICHAR* Find)
 	{
 		return strstr(String, Find);
@@ -238,6 +253,11 @@ struct FMicrosoftPlatformString : public FGenericPlatformString
 	static FORCEINLINE int32 Strlen( const UCS2CHAR* String )
 	{
 		return _tcslen( (const WIDECHAR*)String );
+	}
+
+	static FORCEINLINE int32 Strnlen( const UCS2CHAR* String, SIZE_T StringSize )
+	{
+		return _tcsnlen( (const WIDECHAR*)String, StringSize );
 	}
 };
 

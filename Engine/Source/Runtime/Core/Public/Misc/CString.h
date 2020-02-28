@@ -271,7 +271,15 @@ struct TCString
 	 * strlen wrapper
 	 */
 	static FORCEINLINE int32 Strlen( const CharType* String );
-	
+
+	/**
+	 * Calculate the length of the string up to the given size.
+	 * @param String A possibly-null-terminated string in a character array with a size of at least StringSize.
+	 * @param StringSize The maximum number of characters to read from String.
+	 * @return Length The smaller of StringSize and the number of characters in String before a null character.
+	 */
+	static FORCEINLINE int32 Strnlen( const CharType* String, SIZE_T StringSize );
+
 	/**
 	 * strstr wrapper
 	 */
@@ -697,6 +705,12 @@ template <typename T> FORCEINLINE
 int32 TCString<T>::Strlen( const CharType* String ) 
 {
 	return FPlatformString::Strlen(String);
+}
+
+template <typename T> FORCEINLINE
+int32 TCString<T>::Strnlen( const CharType* String, SIZE_T StringSize ) 
+{
+	return FPlatformString::Strnlen(String, StringSize);
 }
 
 template <typename T> FORCEINLINE
