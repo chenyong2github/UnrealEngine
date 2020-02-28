@@ -819,7 +819,7 @@ void FEditorModeTools::SpawnOrUpdateModeToolbar()
 		}
 		else if (ToolkitHost.IsValid())
 		{
-			ToolkitHost.Pin()->GetTabManager()->InvokeTab(EditorModeToolbarTabName);
+			ToolkitHost.Pin()->GetTabManager()->TryInvokeTab(EditorModeToolbarTabName);
 		}
 	}
 }

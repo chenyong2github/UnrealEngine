@@ -946,7 +946,7 @@ void FBehaviorTreeEditor::BindCommonCommands()
 
 void FBehaviorTreeEditor::SearchTree()
 {
-	TabManager->InvokeTab(FBehaviorTreeEditorTabs::SearchID);
+	TabManager->TryInvokeTab(FBehaviorTreeEditorTabs::SearchID);
 	FindResults->FocusForUse();
 }
 

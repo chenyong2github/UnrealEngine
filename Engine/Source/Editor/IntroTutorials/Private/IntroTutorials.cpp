@@ -416,7 +416,7 @@ void FIntroTutorials::SummonTutorialBrowser()
 	if(TutorialRoot.IsValid())
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
-		TutorialBrowserDockTab = LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(FTabId("TutorialsBrowser"));
+		TutorialBrowserDockTab = LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("TutorialsBrowser"));
 	}
 }
 

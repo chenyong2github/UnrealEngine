@@ -41,12 +41,12 @@ public:
 
 	virtual void InvokeSessionFrontend(FName SubTabToActivate = NAME_None) override
 	{
-		FGlobalTabmanager::Get()->InvokeTab(SessionFrontendTabName);
+		FGlobalTabmanager::Get()->TryInvokeTab(SessionFrontendTabName);
 		if ( WeakFrontend.IsValid() )
 		{
 			if ( SubTabToActivate != NAME_None )
 			{
-				WeakFrontend.Pin()->GetTabManager()->InvokeTab(SubTabToActivate);
+				WeakFrontend.Pin()->GetTabManager()->TryInvokeTab(SubTabToActivate);
 			}
 		}
 	}

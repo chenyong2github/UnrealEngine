@@ -76,7 +76,7 @@ TSharedRef<SDockTab> FPLUGIN_NAMEModule::OnSpawnPluginTab(const FSpawnTabArgs& S
 
 void FPLUGIN_NAMEModule::PluginButtonClicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(PLUGIN_NAMETabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(PLUGIN_NAMETabName);
 }
 
 void FPLUGIN_NAMEModule::RegisterMenus()

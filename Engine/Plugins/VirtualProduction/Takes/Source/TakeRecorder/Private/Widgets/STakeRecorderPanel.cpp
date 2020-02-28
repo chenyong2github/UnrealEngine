@@ -870,7 +870,7 @@ void STakeRecorderPanel::ToggleTakeBrowserCheckState(ECheckBoxState CheckState)
 	}
 	else 
 	{
-		TakesBrowserTab = LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(ITakeRecorderModule::TakesBrowserTabName);
+		TakesBrowserTab = LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(ITakeRecorderModule::TakesBrowserTabName);
 
 		bool bAllowLockedBrowser =  true;
 		bool bFocusContentBrowser = false;

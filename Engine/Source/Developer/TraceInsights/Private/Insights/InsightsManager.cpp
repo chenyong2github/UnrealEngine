@@ -156,8 +156,8 @@ bool FInsightsManager::Tick(float DeltaTime)
 
 			if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId))
 			{
-				FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
-				FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
+				FGlobalTabmanager::Get()->TryInvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
+				FGlobalTabmanager::Get()->TryInvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
 			}
 
 			ActivateTimingInsightsTab();
@@ -225,13 +225,13 @@ void FInsightsManager::SpawnAndActivateTabs()
 	// Open Timing Insights tab.
 	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::TimingProfilerTabId))
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::TimingProfilerTabId);
+		FGlobalTabmanager::Get()->TryInvokeTab(FInsightsManagerTabs::TimingProfilerTabId);
 	}
 
 	// Open Asset Loading Insights tab.
 	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId))
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::LoadingProfilerTabId);
+		FGlobalTabmanager::Get()->TryInvokeTab(FInsightsManagerTabs::LoadingProfilerTabId);
 	}
 
 	// Close the existing Networking Insights tabs.

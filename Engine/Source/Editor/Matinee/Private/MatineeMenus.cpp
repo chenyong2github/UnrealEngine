@@ -1194,7 +1194,7 @@ void FMatinee::OnCreateCameraActorAtCurrentCameraLocation()
 /** Called when the "Launch Custom Preview Viewport" is pressed */
 void FMatinee::OnLaunchRecordingViewport()
 {
-	FGlobalTabmanager::Get()->InvokeTab( FName("RecordingViewport") );
+	FGlobalTabmanager::Get()->TryInvokeTab( FName("RecordingViewport") );
 }
 
 TSharedRef<SDockTab> FMatinee::SpawnRecordingViewport( const FSpawnTabArgs& Args )

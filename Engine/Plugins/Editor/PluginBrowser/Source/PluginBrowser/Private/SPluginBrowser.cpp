@@ -390,7 +390,7 @@ void SPluginBrowser::BreadcrumbTrail_OnCrumbClicked( const TSharedPtr<FPluginCat
 
 FReply SPluginBrowser::HandleNewPluginButtonClicked() const
 {
-	FGlobalTabmanager::Get()->InvokeTab( FPluginBrowserModule::PluginCreatorTabName );
+	FGlobalTabmanager::Get()->TryInvokeTab( FPluginBrowserModule::PluginCreatorTabName );
 
 	return FReply::Handled();
 }

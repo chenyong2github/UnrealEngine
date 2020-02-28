@@ -1100,10 +1100,10 @@ void SLogWidget::AddLine(ELogType InLogType, TSharedRef<FString> LogLine, FSlate
 			// If the tab is not presently open, open it now
 			if (!CurTabInfo->bTabOpen && LogTabManager.IsValid())
 			{
-				LogTabManager->InvokeTab(CurTabInfo->TabIdName);
+				LogTabManager->TryInvokeTab(CurTabInfo->TabIdName);
 
 				// The new tab has stolen focus, now restore the old tabs focus
-				LogTabManager->InvokeTab(ActiveTab->TabIdName);
+				LogTabManager->TryInvokeTab(ActiveTab->TabIdName);
 
 				CurTabInfo->bTabOpen = true;
 			}
@@ -1145,7 +1145,7 @@ void SLogWidget::AddLine(ELogType InLogType, TSharedRef<FString> LogLine, FSlate
 	// If a focus change is required, perform it
 	if (FocusTab.IsValid() && LogTabManager.IsValid())
 	{
-		LogTabManager->InvokeTab(FocusTab->TabIdName);
+		LogTabManager->TryInvokeTab(FocusTab->TabIdName);
 	}
 }
 

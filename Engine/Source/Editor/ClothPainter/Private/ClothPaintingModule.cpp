@@ -185,7 +185,7 @@ TSharedPtr<SClothPaintTab> FClothPaintingModule::GetActiveClothTab(TWeakPtr<ISke
 
 	if(bInvoke)
 	{
-		TabManager->InvokeTab(FTabId(FClothPaintTabSummoner::TabName));
+		TabManager->TryInvokeTab(FTabId(FClothPaintTabSummoner::TabName));
 	}
 
 	// If we can't summon this tab we will have spawned a placeholder which we can not cast as done below,

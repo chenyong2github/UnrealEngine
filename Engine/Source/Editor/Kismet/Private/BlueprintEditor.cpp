@@ -869,7 +869,7 @@ void FBlueprintEditor::SummonSearchUI(bool bSetFindWithinBlueprint, FString NewS
 		|| !GetDefault<UBlueprintEditorSettings>()->bHostFindInBlueprintsInGlobalTab)
 	{
 		FindResultsToUse = FindResults;
-		TabManager->InvokeTab(FBlueprintEditorTabs::FindResultsID);
+		TabManager->TryInvokeTab(FBlueprintEditorTabs::FindResultsID);
 	}
 	else
 	{
@@ -884,7 +884,7 @@ void FBlueprintEditor::SummonSearchUI(bool bSetFindWithinBlueprint, FString NewS
 
 void FBlueprintEditor::SummonFindAndReplaceUI()
 {
-	TabManager->InvokeTab(FBlueprintEditorTabs::ReplaceNodeReferencesID);
+	TabManager->TryInvokeTab(FBlueprintEditorTabs::ReplaceNodeReferencesID);
 }
 
 void FBlueprintEditor::EnableSCSPreview(bool bEnable)
@@ -1008,7 +1008,7 @@ void FBlueprintEditor::OnComponentDoubleClicked(TSharedPtr<class FSCSEditorTreeN
 	TSharedPtr<SDockTab> OwnerTab = Inspector->GetOwnerTab();
 	if ( OwnerTab.IsValid() )
 	{
-		GetTabManager()->InvokeTab(FBlueprintEditorTabs::SCSViewportID);
+		GetTabManager()->TryInvokeTab(FBlueprintEditorTabs::SCSViewportID);
 	}
 }
 
@@ -1979,7 +1979,7 @@ void FBlueprintEditor::RegisterApplicationModes(const TArray<UBlueprint*>& InBlu
 
 				if ( bShouldOpenInComponentsMode && CanAccessComponentsMode() )
 				{
-					TabManager->InvokeTab(FBlueprintEditorTabs::SCSViewportID);
+					TabManager->TryInvokeTab(FBlueprintEditorTabs::SCSViewportID);
 				}
 			}
 		}
@@ -2249,7 +2249,7 @@ void FBlueprintEditor::PostLayoutBlueprintEditorInitialization()
 		// If we have a warning/error, open output log.
 		if (!Blueprint->IsUpToDate() || (Blueprint->Status == BS_UpToDateWithWarnings))
 		{
-			TabManager->InvokeTab(FBlueprintEditorTabs::CompilerResultsID);
+			TabManager->TryInvokeTab(FBlueprintEditorTabs::CompilerResultsID);
 		}
 	}
 
@@ -3929,7 +3929,7 @@ void FBlueprintEditor::DumpMessagesToCompilerLog(const TArray<TSharedRef<FTokeni
 	
 	if (!bEditorMarkedAsClosed && bForceMessageDisplay && GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode)
 	{
-		TabManager->InvokeTab(FBlueprintEditorTabs::CompilerResultsID);
+		TabManager->TryInvokeTab(FBlueprintEditorTabs::CompilerResultsID);
 	}
 }
 
@@ -8131,7 +8131,7 @@ void FBlueprintEditor::RefreshStandAloneDefaultsEditor()
 
 void FBlueprintEditor::RenameNewlyAddedAction(FName InActionName)
 {
-	TabManager->InvokeTab(FBlueprintEditorTabs::MyBlueprintID);
+	TabManager->TryInvokeTab(FBlueprintEditorTabs::MyBlueprintID);
 	TryInvokingDetailsTab(/*Flash*/false);
 
 	if (MyBlueprintWidget.IsValid())
@@ -9279,7 +9279,7 @@ void FBlueprintEditor::TryInvokingDetailsTab(bool bFlash)
 				if ( !Inspector.IsValid() || !Inspector->GetOwnerTab().IsValid() || Inspector->GetOwnerTab()->GetDockArea().IsValid() )
 				{
 					// Show the details panel if it doesn't exist.
-					TabManager->InvokeTab(FBlueprintEditorTabs::DetailsID);
+					TabManager->TryInvokeTab(FBlueprintEditorTabs::DetailsID);
 
 					if ( bFlash )
 					{

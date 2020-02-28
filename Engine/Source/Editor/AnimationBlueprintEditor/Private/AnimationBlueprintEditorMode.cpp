@@ -187,7 +187,7 @@ void FAnimationBlueprintEditorMode::PostActivateMode()
 		// If we are a derived anim blueprint always show the overrides tab
 		if(UAnimBlueprint::FindRootAnimBlueprint(AnimBlueprint))
 		{
-			MyBlueprintEditor.Pin()->GetTabManager()->InvokeTab(AnimationBlueprintEditorTabs::AssetOverridesTab);
+			MyBlueprintEditor.Pin()->GetTabManager()->TryInvokeTab(AnimationBlueprintEditorTabs::AssetOverridesTab);
 		}
 	}
 
