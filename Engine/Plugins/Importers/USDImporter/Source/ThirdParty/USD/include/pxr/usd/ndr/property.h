@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef NDR_PROPERTY_H
-#define NDR_PROPERTY_H
+#ifndef PXR_USD_NDR_PROPERTY_H
+#define PXR_USD_NDR_PROPERTY_H
 
 /// \file ndr/property.h
 
@@ -175,4 +175,4 @@ protected:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // NDR_PROPERTY_H
+#endif // PXR_USD_NDR_PROPERTY_H

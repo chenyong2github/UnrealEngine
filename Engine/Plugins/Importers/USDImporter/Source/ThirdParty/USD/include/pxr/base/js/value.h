@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef JS_VALUE_H
-#define JS_VALUE_H
+#ifndef PXR_BASE_JS_VALUE_H
+#define PXR_BASE_JS_VALUE_H
 
 /// \file js/value.h
 
@@ -293,4 +293,4 @@ inline bool JsValue::IsArrayOf() const
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // JS_VALUE_H
+#endif // PXR_BASE_JS_VALUE_H

@@ -197,13 +197,13 @@ AUsdStageActor::AUsdStageActor()
 		);
 
 	UsdListener.OnLayersChanged.AddLambda(
-		[&](const pxr::SdfLayerChangeListMap& ChangeMap)
+		[&](const pxr::SdfLayerChangeListVec& ChangeVec)
 		{
 			// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
 			// might propagate timecodes through all level sequences
-			for (const std::pair<pxr::SdfLayerHandle, pxr::SdfChangeList>& ChangeMapItem : ChangeMap)
+			for (const std::pair<pxr::SdfLayerHandle, pxr::SdfChangeList>& ChangeVecItem : ChangeVec)
 			{
-				const pxr::SdfChangeList::EntryList& ChangeList = ChangeMapItem.second.GetEntryList();
+				const pxr::SdfChangeList::EntryList& ChangeList = ChangeVecItem.second.GetEntryList();
 				for (const std::pair<pxr::SdfPath, pxr::SdfChangeList::Entry>& Change : ChangeList)
 				{
 					const pxr::SdfChangeList::Entry::_Flags& Flags = Change.second.flags;

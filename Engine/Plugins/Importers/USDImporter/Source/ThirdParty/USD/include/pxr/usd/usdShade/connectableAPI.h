@@ -131,7 +131,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDSHADE_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -143,7 +143,7 @@ private:
 
     // override SchemaBase virtuals.
     USDSHADE_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // ===================================================================== //
@@ -161,7 +161,7 @@ protected:
     /// Returns true if the given prim is compatible with this API schema,
     /// i.e. if it is a valid shader or a node-graph.
     USDSHADE_API
-    virtual bool _IsCompatible() const override;
+    bool _IsCompatible() const override;
     
 public:
 
@@ -383,57 +383,23 @@ public:
         return ConnectToSource(output.GetProperty(), sourceOutput);
     }
 
-private:
-    /// \deprecated 
-    /// Provided for use by UsdRiLookAPI and UsdRiMaterialAPI to author 
-    /// old-style interface attribute connections, which require the 
-    /// \p renderTarget argument. 
-    /// 
-    static bool _ConnectToSource(
-        UsdProperty const &shadingProp,
-        UsdShadeConnectableAPI const &source, 
-        TfToken const &sourceName, 
-        TfToken const &renderTarget,
-        UsdShadeAttributeType const sourceType=UsdShadeAttributeType::Output,
-        SdfValueTypeName typeName=SdfValueTypeName());
-
-protected:
-    // Befriend UsdRiLookAPI and UsdRiMaterialAPI temporarily to assist in the
-    // transition to the new shading encoding.
-    friend class UsdRiLookAPI;
-    friend class UsdRiMaterialAPI;
-    
-    /// \deprecated
-    /// Connect the given shading property to the given source input. 
-    /// 
-    /// Provided for use by UsdRiLookAPI and UsdRiMaterialAPI to author 
-    /// old-style interface attribute connections, which require the 
-    /// \p renderTarget argument. 
-    /// 
-    USDSHADE_API
-    static bool _ConnectToSource(UsdProperty const &shadingProp, 
-                                UsdShadeInput const &sourceInput,
-                                TfToken const &renderTarget);
-    
-public:
 
     /// Finds the source of a connection for the given shading property.
     /// 
-    /// \p shadingProp is the input shading property which is typically an 
-    /// attribute, but can be a relationship in the case of a terminal on a 
-    /// material.
+    /// \p shadingProp is the shading attribute qhose connection we want to
+    /// interrogate.
     /// \p source is an output parameter which will be set to the source 
     /// connectable prim.
-    /// \p sourceName will be set to the name of the source shading property, 
-    /// which could be the parameter name, output name or the interface 
-    /// attribute name. This does not include the namespace prefix associated 
-    /// with the source type. 
-    /// \p sourceType will have the type of the source shading property.
+    /// \p sourceName will be set to the name of the source shading attribute, 
+    /// which may be an input or an output, as specified by \p sourceType
+    /// \p sourceType will have the type of the source shading property, i.e.
+    /// whether it is an \c Input or \c Output
     ///
     /// \return 
-    /// \c true if the shading property is connected to a valid, defined source.
-    /// \c false if the shading property is not connected to a single, valid 
-    /// source. 
+    /// \c true if the shading property is connected to a valid, defined source
+    /// attribute.
+    /// \c false if the shading property is not connected to a single, defined 
+    /// source attribute. 
     /// 
     /// \note The python wrapping for this method returns a 
     /// (source, sourceName, sourceType) tuple if the parameter is connected, 
@@ -580,18 +546,6 @@ public:
     static bool ClearSource(UsdShadeOutput const &output) {
         return ClearSource(output.GetProperty());
     }
-
-    /// \deprecated
-    /// 
-    /// Returns whether authoring of bidirectional connections for the old-style 
-    /// interface attributes is enabled. When this returns true, interface 
-    /// attribute connections are authored both ways (using both 
-    /// interfaceRecipientOf: and connectedSourceFor: relationships)
-    /// 
-    /// \note This method exists only for testing equality of the old and new
-    /// encoding of shading networks in USD. 
-    USDSHADE_API
-    static bool AreBidirectionalInterfaceConnectionsEnabled();
 
     /// @}
 

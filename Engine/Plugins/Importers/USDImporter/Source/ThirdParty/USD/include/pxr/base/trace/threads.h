@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef TRACE_THREADS_H
-#define TRACE_THREADS_H
+#ifndef PXR_BASE_TRACE_THREADS_H
+#define PXR_BASE_TRACE_THREADS_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/trace/api.h"
@@ -65,4 +65,4 @@ inline TraceThreadId TraceGetThreadId() {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TRACE_THREADS_H
+#endif // PXR_BASE_TRACE_THREADS_H

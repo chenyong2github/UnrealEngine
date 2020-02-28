@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef WORK_ARENA_DISPATCHER_H
-#define WORK_ARENA_DISPATCHER_H
+#ifndef PXR_BASE_WORK_ARENA_DISPATCHER_H
+#define PXR_BASE_WORK_ARENA_DISPATCHER_H
 
 /// \file work/arenaDispatcher.h
 
@@ -132,4 +132,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // WORK_ARENA_DISPATCHER_H
+#endif // PXR_BASE_WORK_ARENA_DISPATCHER_H

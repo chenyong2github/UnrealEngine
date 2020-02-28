@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_VALUETYPENAME_H
-#define SDF_VALUETYPENAME_H
+#ifndef PXR_USD_SDF_VALUE_TYPE_NAME_H
+#define PXR_USD_SDF_VALUE_TYPE_NAME_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/sdf/api.h"
@@ -207,4 +207,4 @@ SDF_API std::ostream& operator<<(std::ostream&, const SdfValueTypeName& typeName
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_VALUETYPENAME_H
+#endif // PXR_USD_SDF_VALUE_TYPE_NAME_H

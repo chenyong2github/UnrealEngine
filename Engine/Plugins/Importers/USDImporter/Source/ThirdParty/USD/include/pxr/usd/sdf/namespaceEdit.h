@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_NAMESPACEEDIT_H
-#define SDF_NAMESPACEEDIT_H
+#ifndef PXR_USD_SDF_NAMESPACE_EDIT_H
+#define PXR_USD_SDF_NAMESPACE_EDIT_H
 
 /// \file sdf/namespaceEdit.h
 
@@ -30,9 +30,9 @@
 #include "pxr/usd/sdf/api.h"
 #include "pxr/usd/sdf/path.h"
 
-#include <boost/function.hpp>
 #include <boost/operators.hpp>
 
+#include <functional>
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -241,11 +241,11 @@ public:
     }
 
     /// Functor that returns \c true iff an object exists at the given path.
-    typedef boost::function<bool(const SdfPath&)> HasObjectAtPath;
+    typedef std::function<bool(const SdfPath&)> HasObjectAtPath;
 
     /// Functor that returns \c true iff the namespace edit will succeed.
     /// If not it returns \c false and sets the string argument.
-    typedef boost::function<bool(const SdfNamespaceEdit&,std::string*)> CanEdit;
+    typedef std::function<bool(const SdfNamespaceEdit&,std::string*)> CanEdit;
 
     /// Validate the edits and generate a possibly more efficient edit
     /// sequence.  Edits are treated as if they were performed one at time
@@ -298,4 +298,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_NAMESPACEEDIT_H
+#endif // PXR_USD_SDF_NAMESPACE_EDIT_H

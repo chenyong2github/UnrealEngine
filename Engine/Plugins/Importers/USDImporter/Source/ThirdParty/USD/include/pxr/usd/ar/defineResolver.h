@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_DEFINE_RESOLVER_H
-#define AR_DEFINE_RESOLVER_H
+#ifndef PXR_USD_AR_DEFINE_RESOLVER_H
+#define PXR_USD_AR_DEFINE_RESOLVER_H
 
 /// \file ar/defineResolver.h
 /// Macros for defining a custom resolver implementation.
@@ -83,4 +83,4 @@ void Ar_DefineResolver()
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // AR_DEFINE_RESOLVER_H
+#endif // PXR_USD_AR_DEFINE_RESOLVER_H

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_PRIMFLAGS_H
-#define USD_PRIMFLAGS_H
+#ifndef PXR_USD_USD_PRIM_FLAGS_H
+#define PXR_USD_USD_PRIM_FLAGS_H
 
 /// \file usd/primFlags.h
 ///
@@ -591,4 +591,4 @@ UsdTraverseInstanceProxies()
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USD_PRIMFLAGS_H
+#endif // PXR_USD_USD_PRIM_FLAGS_H

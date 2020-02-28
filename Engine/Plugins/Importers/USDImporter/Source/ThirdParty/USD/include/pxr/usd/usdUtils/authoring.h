@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDUTILS_AUTHORING_H_
-#define USDUTILS_AUTHORING_H_
+#ifndef PXR_USD_USD_UTILS_AUTHORING_H
+#define PXR_USD_USD_UTILS_AUTHORING_H
 
 /// \file usdUtils/authoring.h
 ///
@@ -198,4 +198,4 @@ SdfLayerHandleVector UsdUtilsGetDirtyLayers(UsdStagePtr stage,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif /* USDUTILS_AUTHORING_H_ */
+#endif /* PXR_USD_USD_UTILS_AUTHORING_H */

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_ALIGN_H
-#define ARCH_ALIGN_H
+#ifndef PXR_BASE_ARCH_ALIGN_H
+#define PXR_BASE_ARCH_ALIGN_H
 
 /// \file arch/align.h
 /// \ingroup group_arch_Memory
@@ -83,4 +83,4 @@ ArchAlignMemory(void *base)
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif	// ARCH_ALIGN_H 
+#endif	// PXR_BASE_ARCH_ALIGN_H 

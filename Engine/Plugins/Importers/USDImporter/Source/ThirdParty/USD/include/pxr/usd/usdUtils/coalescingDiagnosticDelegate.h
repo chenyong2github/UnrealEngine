@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDUTILS_COALESCING_DIAGNOSTIC_DELEGATE_H
-#define USDUTILS_COALESCING_DIAGNOSTIC_DELEGATE_H
+#ifndef PXR_USD_USD_UTILS_COALESCING_DIAGNOSTIC_DELEGATE_H
+#define PXR_USD_USD_UTILS_COALESCING_DIAGNOSTIC_DELEGATE_H
 
 /// \file usdUtils/coalescingDiagnosticDelegate.h
 ///
@@ -132,4 +132,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USDUTILS_COALESCING_DIAGNOSTIC_DELEGATE_H
+#endif // PXR_USD_USD_UTILS_COALESCING_DIAGNOSTIC_DELEGATE_H

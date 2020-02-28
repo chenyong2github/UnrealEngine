@@ -24,22 +24,30 @@
 #ifndef USDGEOM_GENERATED_XFORMCOMMONAPI_H
 #define USDGEOM_GENERATED_XFORMCOMMONAPI_H
 
+/// \file usdGeom/xformCommonAPI.h
+
 #include "pxr/pxr.h"
 #include "pxr/usd/usdGeom/api.h"
-#include "pxr/usd/usdGeom/xformable.h"
-#include "pxr/usd/usd/schemaBase.h"
+#include "pxr/usd/usd/apiSchemaBase.h"
+#include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
+#include "pxr/usd/usdGeom/tokens.h"
+
+#include "pxr/usd/usdGeom/xformable.h"
+#include "pxr/usd/usdGeom/xformOp.h" 
+
+#include "pxr/base/vt/value.h"
 
 #include "pxr/base/gf/vec3d.h"
 #include "pxr/base/gf/vec3f.h"
+#include "pxr/base/gf/matrix4d.h"
 
 #include "pxr/base/tf/token.h"
 #include "pxr/base/tf/type.h"
 
-#include <vector>
-
 PXR_NAMESPACE_OPEN_SCOPE
 
+class SdfAssetPath;
 
 // -------------------------------------------------------------------------- //
 // XFORMCOMMONAPI                                                             //
@@ -47,15 +55,15 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 /// \class UsdGeomXformCommonAPI
 ///
-/// This class provides API for authoring and retrieving a standard set of 
-/// component transformations which include a scale, a rotation, a 
+/// This class provides API for authoring and retrieving a standard set
+/// of component transformations which include a scale, a rotation, a 
 /// scale-rotate pivot and a translation. The goal of the API is to enhance 
 /// component-wise interchange. It achieves this by limiting the set of allowed 
 /// basic ops and by specifying the order in which they are applied. In addition
 /// to the basic set of ops, the 'resetXformStack' bit can also be set to 
 /// indicate whether the underlying xformable resets the parent transformation 
 /// (i.e. does not inherit it's parent's transformation). 
-///
+/// 
 /// \sa UsdGeomXformCommonAPI::GetResetXformStack()
 /// \sa UsdGeomXformCommonAPI::SetResetXformStack()
 /// 
@@ -77,67 +85,87 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// considered as compatible with this API. Individual SetTranslate(), 
 /// SetRotate(), SetScale() and SetPivot() methods are provided by this API 
 /// to allow such sparse authoring.
-/// 
-/// \note Manipulating the xformOpOrder attribute manually or using the API 
-/// provided in UsdGeomXformable to add or remove xformOps causes the 
-/// UsdGeomXformCommonAPI object to contain invalid or stale information. 
-/// A new UsdGeomXformCommonAPI object must be created with the xformable after 
-/// invoking any operation on the underlying xformable that would cause the 
-/// xformOpOrder to change.
-/// 
-class UsdGeomXformCommonAPI: public UsdSchemaBase
+///
+class UsdGeomXformCommonAPI : public UsdAPISchemaBase
 {
 public:
-    explicit UsdGeomXformCommonAPI(const UsdPrim &prim=UsdPrim())
-        : UsdSchemaBase(prim)
-        , _xformable(UsdGeomXformable(prim))
-        , _computedOpIndices(false)
-        , _translateOpIndex(_InvalidIndex)
-        , _rotateOpIndex(_InvalidIndex)
-        , _scaleOpIndex(_InvalidIndex)
-        , _pivotOpIndex(_InvalidIndex)
+    /// Compile time constant representing what kind of schema this class is.
+    ///
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::NonAppliedAPI;
+
+    /// Construct a UsdGeomXformCommonAPI on UsdPrim \p prim .
+    /// Equivalent to UsdGeomXformCommonAPI::Get(prim.GetStage(), prim.GetPath())
+    /// for a \em valid \p prim, but will not immediately throw an error for
+    /// an invalid \p prim
+    explicit UsdGeomXformCommonAPI(const UsdPrim& prim=UsdPrim())
+        : UsdAPISchemaBase(prim)
     {
-        bool resetsXformStack = false;
-        _xformOps = _xformable.GetOrderedXformOps(&resetsXformStack);
     }
 
-    explicit UsdGeomXformCommonAPI(
-        const UsdGeomXformable& xformable)
-        : UsdSchemaBase(xformable.GetPrim())
-        , _xformable(xformable)
-        , _computedOpIndices(false)
-        , _translateOpIndex(_InvalidIndex)
-        , _rotateOpIndex(_InvalidIndex)
-        , _scaleOpIndex(_InvalidIndex)
-        , _pivotOpIndex(_InvalidIndex)
+    /// Construct a UsdGeomXformCommonAPI on the prim held by \p schemaObj .
+    /// Should be preferred over UsdGeomXformCommonAPI(schemaObj.GetPrim()),
+    /// as it preserves SchemaBase state.
+    explicit UsdGeomXformCommonAPI(const UsdSchemaBase& schemaObj)
+        : UsdAPISchemaBase(schemaObj)
     {
-        bool resetsXformStack = false;
-        _xformOps = _xformable.GetOrderedXformOps(&resetsXformStack);
     }
 
     /// Destructor.
     USDGEOM_API
     virtual ~UsdGeomXformCommonAPI();
 
-    /// Return a UsdGeomXformCommonAPI holding the xformable adhering 
-    /// to this API at \p path on \p stage.  If no prim exists at \p path on
-    /// \p stage, or if the prim at that path does not adhere to this API,
-    /// return an invalid API object.  This is shorthand for the following:
+    /// Return a vector of names of all pre-declared attributes for this schema
+    /// class and all its ancestor classes.  Does not include attributes that
+    /// may be authored by custom/extended methods of the schemas involved.
+    USDGEOM_API
+    static const TfTokenVector &
+    GetSchemaAttributeNames(bool includeInherited=true);
+
+    /// Return a UsdGeomXformCommonAPI holding the prim adhering to this
+    /// schema at \p path on \p stage.  If no prim exists at \p path on
+    /// \p stage, or if the prim at that path does not adhere to this schema,
+    /// return an invalid schema object.  This is shorthand for the following:
     ///
     /// \code
-    /// UsdGeomXformCommonAPI(UsdGeomXformable(stage->GetPrimAtPath(path)));
+    /// UsdGeomXformCommonAPI(stage->GetPrimAtPath(path));
     /// \endcode
     ///
     USDGEOM_API
     static UsdGeomXformCommonAPI
     Get(const UsdStagePtr &stage, const SdfPath &path);
 
+
 protected:
-    /// Returns whether the underlying xformable is compatible with the API.
+    /// Returns the type of schema this class belongs to.
+    ///
+    /// \sa UsdSchemaType
     USDGEOM_API
-    virtual bool _IsCompatible() const override;
+    UsdSchemaType _GetSchemaType() const override;
+
+private:
+    // needs to invoke _GetStaticTfType.
+    friend class UsdSchemaRegistry;
+    USDGEOM_API
+    static const TfType &_GetStaticTfType();
+
+    static bool _IsTypedSchema();
+
+    // override SchemaBase virtuals.
+    USDGEOM_API
+    const TfType &_GetTfType() const override;
 
 public:
+    // ===================================================================== //
+    // Feel free to add custom code below this line, it will be preserved by 
+    // the code generator. 
+    //
+    // Just remember to: 
+    //  - Close the class declaration with }; 
+    //  - Close the namespace with PXR_NAMESPACE_CLOSE_SCOPE
+    //  - Close the include guard with #endif
+    // ===================================================================== //
+    // --(BEGIN CUSTOM CODE)--
 
     /// Enumerates the rotation order of the 3-angle Euler rotation.
     enum RotationOrder {
@@ -147,6 +175,28 @@ public:
         RotationOrderYZX,
         RotationOrderZXY,
         RotationOrderZYX
+    };
+
+    /// Enumerates the categories of ops that can be handled by XformCommonAPI.
+    /// For use with CreateXformOps().
+    enum OpFlags {
+        OpNone = 0,
+        OpTranslate = 1,
+        OpPivot = 2,
+        OpRotate = 4,
+        OpScale = 8,
+    };
+
+    /// Return type for CreateXformOps().
+    /// Stores the op of each type that is present on the prim.
+    /// The order of members in this struct corresponds to the expected op order
+    /// for XformCommonAPI.
+    struct Ops {
+        UsdGeomXformOp translateOp;
+        UsdGeomXformOp pivotOp;
+        UsdGeomXformOp rotateOp;
+        UsdGeomXformOp scaleOp;
+        UsdGeomXformOp inversePivotOp;
     };
 
     /// Set values for the various component xformOps at a given \p time.
@@ -167,7 +217,7 @@ public:
                          const GfVec3f &scale, 
                          const GfVec3f &pivot,
                          RotationOrder rotOrder,
-                         const UsdTimeCode time);
+                         const UsdTimeCode time) const;
 
     /// Retrieve values of the various component xformOps at a given \p time.
     /// Identity values are filled in for the component xformOps that don't
@@ -185,7 +235,7 @@ public:
                          GfVec3f *scale,
                          GfVec3f *pivot,
                          RotationOrder *rotOrder,
-                         const UsdTimeCode time);
+                         const UsdTimeCode time) const;
 
     /// Retrieve values of the various component xformOps at a given \p time.
     /// Identity values are filled in for the component xformOps that don't
@@ -209,7 +259,7 @@ public:
                                        GfVec3f* scale,
                                        GfVec3f* pivot,
                                        UsdGeomXformCommonAPI::RotationOrder* rotOrder,
-                                       const UsdTimeCode time);
+                                       const UsdTimeCode time) const;
 
     /// Returns whether the xformable resets the transform stack. 
     /// i.e., does not inherit the parent transformation.
@@ -224,89 +274,104 @@ public:
     /// Set translation at \p time to \p translation.
     USDGEOM_API
     bool SetTranslate(const GfVec3d &translation, 
-                      const UsdTimeCode time=UsdTimeCode::Default());
+                      const UsdTimeCode time=UsdTimeCode::Default()) const;
 
     /// Set pivot position at \p time to \p pivot.
     USDGEOM_API
     bool SetPivot(const GfVec3f &pivot, 
-                  const UsdTimeCode time=UsdTimeCode::Default());
+                  const UsdTimeCode time=UsdTimeCode::Default()) const;
 
     /// Set rotation at \p time to \p rotation.
     USDGEOM_API
     bool SetRotate(const GfVec3f &rotation, 
                    UsdGeomXformCommonAPI::RotationOrder rotOrder=RotationOrderXYZ,
-                   const UsdTimeCode time=UsdTimeCode::Default());
+                   const UsdTimeCode time=UsdTimeCode::Default()) const;
 
     /// Set scale at \p time to \p scale.
     USDGEOM_API
     bool SetScale(const GfVec3f &scale, 
-                  const UsdTimeCode time=UsdTimeCode::Default());
+                  const UsdTimeCode time=UsdTimeCode::Default()) const;
 
     /// Set whether the xformable resets the transform stack. 
     /// i.e., does not inherit the parent transformation.
     USDGEOM_API
     bool SetResetXformStack(bool resetXformStack) const;
 
+    /// Creates the specified XformCommonAPI-compatible xform ops, or returns
+    /// the existing ops if they already exist. If successful, returns an Ops
+    /// object with all the ops on this prim, identified by type. If the
+    /// requested xform ops couldn't be created or the prim is not
+    /// XformCommonAPI-compatible, returns an Ops object with all invalid ops.
+    ///
+    /// The \p rotOrder is only used if OpRotate is specified. Otherwise,
+    /// it is ignored. (If you don't need to create a rotate op, you might find
+    /// it helpful to use the other overload that takes no rotation order.)
+    USDGEOM_API
+    Ops CreateXformOps(
+        RotationOrder rotOrder,
+        OpFlags op1=OpNone,
+        OpFlags op2=OpNone,
+        OpFlags op3=OpNone,
+        OpFlags op4=OpNone) const;
+
+    /// \overload
+    /// This overload does not take a rotation order. If you specify
+    /// OpRotate, then this overload assumes RotationOrderXYZ or the
+    /// previously-authored rotation order. (If you do need to create a rotate
+    /// op, you might find it helpful to use the other overload that explicitly
+    /// takes a rotation order.)
+    USDGEOM_API
+    Ops CreateXformOps(
+        OpFlags op1=OpNone,
+        OpFlags op2=OpNone,
+        OpFlags op3=OpNone,
+        OpFlags op4=OpNone) const;
+
     /// @}
 
-private:
+    /// \name Computing transforms
+    /// @{
 
-    // Computes and stores op indices in the data members.
-    bool _ComputeOpIndices();
+    /// Return the 4x4 matrix that applies the rotation encoded by rotation
+    /// vector \p rotation using the rotation order \p rotationOrder.
+    ///
+    /// \deprecated Please use the result of ConvertRotationOrderToOpType()
+    /// along with UsdGeomXformOp::GetOpTransform() instead.
+    USDGEOM_API
+    static GfMatrix4d GetRotationTransform(
+            const GfVec3f &rotation,
+            const UsdGeomXformCommonAPI::RotationOrder rotationOrder);
 
-    // Computes and stored op indices if the xformable is compatible.
-    // 
-    // Returns false if the xformable is incompabible or if there was a problem
-    // computing op indices.
-    // 
-    bool _VerifyCompatibility();
+    /// @}
 
-    // Used to determine compatibility.
-    bool _ValidateAndComputeXformOpIndices(int *translateOpIndex=NULL,
-                                           int *pivotOpIndex=NULL,
-                                           int *rotateOpIndex=NULL,
-                                           int *scaleOpIndex=NULL) const;
+    /// Converts the given \p rotOrder to the corresponding value in the
+    /// UsdGeomXformOp::Type enum. For example, RotationOrderYZX corresponds to
+    /// TypeRotateYZX. Raises a coding error if \p rotOrder is not one of the
+    /// named enumerators of RotationOrder.
+    USDGEOM_API
+    static UsdGeomXformOp::Type ConvertRotationOrderToOpType(
+        RotationOrder rotOrder);
 
-    // Convenience functions 
-    bool _HasTranslateOp() const {
-        return TF_VERIFY(_computedOpIndices) &&
-               _translateOpIndex != _InvalidIndex;
-    }
+    /// Converts the given \p opType to the corresponding value in the
+    /// UsdGeomXformCommonAPI::RotationOrder enum. For example, TypeRotateYZX
+    /// corresponds to RotationOrderYZX. Raises a coding error if \p opType is
+    /// not convertible to RotationOrder (i.e., if it isn't a three-axis
+    /// rotation) and returns the default RotationOrderXYZ instead.
+    USDGEOM_API
+    static RotationOrder ConvertOpTypeToRotationOrder(
+        UsdGeomXformOp::Type opType);
 
-    bool _HasRotateOp() const {
-        return TF_VERIFY(_computedOpIndices) &&
-               _rotateOpIndex != _InvalidIndex;
-    }
-    
-    bool _HasScaleOp() const {
-        return TF_VERIFY(_computedOpIndices) &&
-               _scaleOpIndex != _InvalidIndex;
-    }
+    /// Whether the given \p opType has a corresponding value in the
+    /// UsdGeomXformCommonAPI::RotationOrder enum (i.e., whether it is a
+    /// three-axis rotation).
+    USDGEOM_API
+    static bool CanConvertOpTypeToRotationOrder(
+        UsdGeomXformOp::Type opType);
 
-    bool _HasPivotOp () const {
-        return TF_VERIFY(_computedOpIndices) &&
-               _pivotOpIndex != _InvalidIndex;
-    }
-
-private:
-    // The xformable schema object on which this API operates.
-    UsdGeomXformable _xformable;
-
-    static const int _InvalidIndex = -1;
-
-    // Records whether the component xform ops indices have been computed and 
-    // cached in the data members below. This happens the first time 
-    // _IsCompatible is called, which is invoked inside the bool operator.
-    bool _computedOpIndices;
-
-    // Copy of the ordered xform ops.
-    std::vector<UsdGeomXformOp> _xformOps;
-    
-    // Various op indices.
-    int _translateOpIndex;
-    int _rotateOpIndex;
-    int _scaleOpIndex;
-    int _pivotOpIndex;
+protected:
+    /// Returns whether the underlying xformable is compatible with the API.
+    USDGEOM_API
+    bool _IsCompatible() const override;
 };
 
 

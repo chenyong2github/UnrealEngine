@@ -145,9 +145,11 @@ private:
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
+	/** Hash based assets cache */
 	UPROPERTY( NonPIEDuplicateTransient )
 	TMap< FString, UObject* > AssetsCache;
 
+	/** Map of USD Prim Paths to UE assets */
 	UPROPERTY( NonPIEDuplicateTransient )
 	TMap< FString, UObject* > PrimPathsToAssets;
 

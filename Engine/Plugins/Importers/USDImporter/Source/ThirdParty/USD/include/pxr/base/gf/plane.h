@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef GF_PLANE_H
-#define GF_PLANE_H
+#ifndef PXR_BASE_GF_PLANE_H
+#define PXR_BASE_GF_PLANE_H
 
 /// \file gf/plane.h
 /// \ingroup group_gf_BasicGeometry
@@ -212,4 +212,4 @@ GF_API std::ostream& operator<<(std::ostream&, const GfPlane&);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // GF_PLANE_H
+#endif // PXR_BASE_GF_PLANE_H

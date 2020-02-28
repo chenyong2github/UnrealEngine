@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_DENSE_HASH_MAP_H
-#define TF_DENSE_HASH_MAP_H
+#ifndef PXR_BASE_TF_DENSE_HASH_MAP_H
+#define PXR_BASE_TF_DENSE_HASH_MAP_H
 
 /// \file tf/denseHashMap.h
 
@@ -236,6 +236,12 @@ public:
         insert(begin, end);
     }
 
+    /// Construct from an initializer_list.
+    ///
+    TfDenseHashMap(std::initializer_list<value_type> l) {
+        insert(l.begin(), l.end());
+    }
+
     /// Copy Ctor.
     ///
     TfDenseHashMap(const TfDenseHashMap &rhs)
@@ -248,6 +254,14 @@ public:
     ///
     TfDenseHashMap &operator=(TfDenseHashMap rhs) {
         swap(rhs);
+        return *this;
+    }
+
+    /// Assignment from an initializer_list.
+    ///
+    TfDenseHashMap &operator=(std::initializer_list<value_type> l) {
+        clear();
+        insert(l.begin(), l.end());
         return *this;
     }
 
@@ -605,4 +619,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_DENSE_HASH_MAP_H
+#endif // PXR_BASE_TF_DENSE_HASH_MAP_H

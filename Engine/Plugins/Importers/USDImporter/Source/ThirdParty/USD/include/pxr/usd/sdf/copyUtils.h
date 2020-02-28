@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_COPY_UTILS_H
-#define SDF_COPY_UTILS_H
+#ifndef PXR_USD_SDF_COPY_UTILS_H
+#define PXR_USD_SDF_COPY_UTILS_H
 
 /// \file sdf/copyUtils.h
 
@@ -61,6 +61,10 @@ SDF_DECLARE_HANDLES(SdfLayer);
 /// because we don't want SdfCopySpec to impose any policy on how list edits are
 /// made; client code should arrange for relationship targets and connections to
 /// be specified as prepended, appended, deleted, and/or ordered, as needed.
+///
+/// Variant specs may be copied to prim paths and vice versa. When copying a
+/// variant to a prim, the specifier and typename from the variant's parent
+/// prim will be used.
 ///
 /// Attribute connections, relationship targets, inherit and specializes paths,
 /// and internal sub-root references that target an object beneath \p srcPath 
@@ -157,7 +161,7 @@ using SdfShouldCopyChildrenFn = std::function<
 /// with \p srcRootPath to have the prefix \p dstRootPath.
 ///
 /// Existing values in the destination will be overwritten by values in the
-/// source.  Any fields in the deistination that aren't in the source will be
+/// source.  Any fields in the destination that aren't in the source will be
 /// cleared.
 SDF_API
 bool
@@ -174,7 +178,7 @@ SdfShouldCopyValue(
 /// prefixed with \p srcRootPath to have the prefix \p dstRootPath.
 ///
 /// Existing values in the destination will be overwritten by values in the
-/// source.  Any fields in the deistination that aren't in the source will be
+/// source.  Any fields in the destination that aren't in the source will be
 /// cleared.
 SDF_API
 bool
@@ -199,6 +203,10 @@ SdfShouldCopyChildren(
 /// clients may find it convenient to call SdfCreatePrimInLayer before
 /// SdfCopySpec.
 ///
+/// Variant specs may be copied to prim paths and vice versa. When copying a
+/// variant to a prim, the specifier and typename from the variant's parent
+/// prim will be used.
+///
 /// As a special case, if the top-level object to be copied is a relationship
 /// target or a connection, the destination spec must already exist.  That is
 /// because we don't want SdfCopySpec to impose any policy on how list edits are
@@ -217,4 +225,4 @@ SdfCopySpec(
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_COPY_UTILS_H
+#endif // PXR_USD_SDF_COPY_UTILS_H

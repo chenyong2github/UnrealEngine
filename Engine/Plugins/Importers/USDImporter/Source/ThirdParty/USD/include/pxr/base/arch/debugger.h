@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_DEBUGGER_H
-#define ARCH_DEBUGGER_H
+#ifndef PXR_BASE_ARCH_DEBUGGER_H
+#define PXR_BASE_ARCH_DEBUGGER_H
 
 /// \file arch/debugger.h
 /// Routines for interacting with a debugger.
@@ -108,4 +108,4 @@ void ArchAbort(bool logging = true);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_DEBUGGER_H
+#endif // PXR_BASE_ARCH_DEBUGGER_H

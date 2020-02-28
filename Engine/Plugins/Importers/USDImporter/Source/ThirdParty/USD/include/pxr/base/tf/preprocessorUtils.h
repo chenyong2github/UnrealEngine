@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PREPROCESSOR_UTILS_H
-#define TF_PREPROCESSOR_UTILS_H
+#ifndef PXR_BASE_TF_PREPROCESSOR_UTILS_H
+#define PXR_BASE_TF_PREPROCESSOR_UTILS_H
 
 /// \file tf/preprocessorUtils.h
 /// \ingroup group_tf_Preprocessor
@@ -321,4 +321,4 @@ ARCH_PRAGMA_MACRO_TOO_FEW_ARGUMENTS
 #error "TF_MAX_ARITY is larger than _MAX_ARGS"
 #endif
 
-#endif /* TF_PREPROCESSOR_UTILS_H */
+#endif /* PXR_BASE_TF_PREPROCESSOR_UTILS_H */

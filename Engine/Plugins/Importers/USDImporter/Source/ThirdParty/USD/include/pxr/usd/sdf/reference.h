@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_REFERENCE_H
-#define SDF_REFERENCE_H
+#ifndef PXR_USD_SDF_REFERENCE_H
+#define PXR_USD_SDF_REFERENCE_H
 
 /// \file sdf/reference.h
 
@@ -219,4 +219,4 @@ SDF_API std::ostream & operator<<( std::ostream &out,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_REFERENCE_H
+#endif // PXR_USD_SDF_REFERENCE_H

@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef NDR_NODEDISCOVERYRESULT_H
-#define NDR_NODEDISCOVERYRESULT_H
+#ifndef PXR_USD_NDR_NODE_DISCOVERY_RESULT_H
+#define PXR_USD_NDR_NODE_DISCOVERY_RESULT_H
 
 #include "pxr/usd/ndr/declare.h"
 
@@ -44,7 +44,8 @@ struct NdrNodeDiscoveryResult {
         const std::string& resolvedUri,
         const std::string &sourceCode=std::string(),
         const NdrTokenMap &metadata=NdrTokenMap(),
-        const std::string& blindData = std::string()
+        const std::string& blindData=std::string(),
+        const TfToken& subIdentifier=TfToken()
     ) : identifier(identifier),
         version(version),
         name(name),
@@ -55,7 +56,8 @@ struct NdrNodeDiscoveryResult {
         resolvedUri(resolvedUri),
         sourceCode(sourceCode),
         metadata(metadata),
-        blindData(blindData)
+        blindData(blindData),
+        subIdentifier(subIdentifier)
     { }
 
     /// The node's identifier.
@@ -133,10 +135,19 @@ struct NdrNodeDiscoveryResult {
     /// defines the meaning of this data so the discovery plugin must
     /// be written to match.
     std::string blindData;
+
+    /// The subIdentifier is associated with a particular asset and refers to a
+    /// specific definition within the asset.  The asset is the one referred to
+    /// by `NdrRegistry::GetNodeFromAsset()`.  The subIdentifier is not needed
+    /// for all cases where the node definition is not associated with an asset.
+    /// Even if the node definition is associated with an asset, the
+    /// subIdentifier is only needed if the asset specifies multiple definitions
+    /// rather than a single definition.
+    TfToken subIdentifier;
 };
 
 typedef std::vector<NdrNodeDiscoveryResult> NdrNodeDiscoveryResultVec;
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // NDR_NODEDISCOVERYRESULT_H
+#endif // PXR_USD_NDR_NODE_DISCOVERY_RESULT_H

@@ -35,7 +35,7 @@ public:
 	DECLARE_EVENT_TwoParams( FUsdListener, FOnPrimChanged, const FString&, bool );
 	FOnPrimChanged OnPrimChanged;
 
-	DECLARE_EVENT_OneParam( FUsdListener, FOnLayersChanged, const pxr::SdfLayerChangeListMap& );
+	DECLARE_EVENT_OneParam( FUsdListener, FOnLayersChanged, const pxr::SdfLayerChangeListVec& );
 	FOnLayersChanged OnLayersChanged;
 
 	FThreadSafeCounter IsBlocked;

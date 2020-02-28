@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef JS_API_H
-#define JS_API_H
+#ifndef PXR_BASE_JS_API_H
+#define PXR_BASE_JS_API_H
 
 #include "pxr/base/arch/export.h"
 
@@ -44,4 +44,4 @@
 #   define JS_LOCAL ARCH_HIDDEN
 #endif
 
-#endif // JS_API_H
+#endif // PXR_BASE_JS_API_H

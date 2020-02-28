@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PCP_ERRORS_H
-#define PCP_ERRORS_H
+#ifndef PXR_USD_PCP_ERRORS_H
+#define PXR_USD_PCP_ERRORS_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/pcp/api.h"
@@ -96,7 +96,7 @@ public:
     /// the error was encountered.  (Note that some error types
     /// contain an additional site to capture more specific information
     /// about the site of the error.)
-    PcpSite rootSite;
+    PcpSiteStr rootSite;
    
 protected:
     /// Constructor.
@@ -726,9 +726,9 @@ public:
     PCP_API virtual std::string ToString() const;
     
     /// The site where the invalid arc was expressed.
-    PcpSite site;
+    PcpSiteStr site;
     /// The private, invalid target of the arc.
-    PcpSite privateSite;
+    PcpSiteStr privateSite;
 
 private:
     /// Constructor is private. Use New() instead.
@@ -837,7 +837,7 @@ public:
     PCP_API virtual std::string ToString() const;
     
     /// The site where the invalid arc was expressed.
-    PcpSite site;
+    PcpSiteStr site;
     SdfPath unresolvedPath;
     PcpArcType arcType;
 
@@ -852,4 +852,4 @@ void PcpRaiseErrors(const PcpErrorVector &errors);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PCP_ERRORS_H
+#endif // PXR_USD_PCP_ERRORS_H

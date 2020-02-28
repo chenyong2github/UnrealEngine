@@ -30,7 +30,6 @@
 #include "pxr/usd/usd/stageCacheContext.h"
 #include "pxr/usd/usd/usdFileFormat.h"
 #include "pxr/usd/usd/variantSets.h"
-#include "pxr/usd/usdGeom/faceSetAPI.h"
 #include "pxr/usd/usdGeom/mesh.h"
 #include "pxr/usd/usdGeom/metrics.h"
 #include "pxr/usd/usdGeom/modelAPI.h"
@@ -723,11 +722,8 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 	// If the gprim does not have a material faceSet which represents per-face
 	// shader assignments, assign the shading engine to the entire gprim.
 	std::vector<UsdGeomSubset> FaceSubsets = UsdShadeMaterialBindingAPI(Prim).GetMaterialBindSubsets();
-	std::vector<UsdGeomFaceSetAPI> FaceSets = UsdGeomFaceSetAPI::GetFaceSets(Prim);
 
-	bool bHasOldStyleFaceSets = UsdShadeMaterial::HasMaterialFaceSet(Prim);
-
-	if (FaceSubsets.empty() && !bHasOldStyleFaceSets && FaceSets.size() == 0)
+	if (FaceSubsets.empty())
 	{
 		return {};
 	}
@@ -794,15 +790,6 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 		}
 	}
 
-	// Import per-face-set shader bindings.
-	if (bHasOldStyleFaceSets)
-	{
-		UsdGeomFaceSetAPI MaterialFaceSet = UsdShadeMaterial::GetMaterialFaceSet(Prim);
-
-		SdfPathVector BindingTargets;
-		// TODO: ...
-	}
-
 	// TODO: ...
 
 /////////////////////////////////////////////
@@ -822,55 +809,6 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 	// @todo USD/Unreal.  This is probably wrong for multiple face sets.  They don't make a ton of sense for unreal as there can only be one "set" of materials at once and there is no construct in the engine for material sets
 
 	//MaterialNames.Resize(FaceSets)
-	if (FaceSets.size() > 0)
-	{
-		for (int FaceSetIdx = 0; FaceSetIdx < FaceSets.size(); ++FaceSetIdx)
-		{
-			const UsdGeomFaceSetAPI& FaceSet = FaceSets[FaceSetIdx];
-
-			SdfPathVector BindingTargets;
-			FaceSet.GetBindingTargets(&BindingTargets);
-
-
-			UsdStageWeakPtr Stage = Prim.GetStage();
-			for (const SdfPath& Path : BindingTargets)
-			{
-				MaterialNames.Append( Internal::FillMaterialInfo(Path, Stage) );
-			}
-			// Faces must be mutually exclusive
-			if (FaceSet.GetIsPartition())
-			{
-				// Get the list of faces in the face set.  The size of this list determines the number of materials in this set
-				VtIntArray FaceCounts;
-				FaceSet.GetFaceCounts(&FaceCounts, Time);
-
-				// Get the list of global face Indices mapped in this set
-				VtIntArray FaceIndices;
-				FaceSet.GetFaceIndices(&FaceIndices, Time);
-
-				// How far we are into the face Indices list
-				int Offset = 0;
-
-				// Walk each face group in the set
-				for (int FaceCountIdx = 0; FaceCountIdx < FaceCounts.size(); ++FaceCountIdx)
-				{
-					int MaterialIdx = FaceSetIdx * FaceSets.size() + FaceCountIdx;
-
-					// Number of faces with the material index
-					int FaceCount = FaceCounts[FaceCountIdx];
-
-					// Walk each face and map it to the computed material index
-					for (int FaceNum = 0; FaceNum < FaceCount; ++FaceNum)
-					{
-						int Face = FaceIndices[FaceNum + Offset];
-						FaceMaterialIndices[Face] = MaterialIdx;
-					}
-					Offset += FaceCount;
-				}
-			}
-		}
-	}
-	else
 	{
 		// No face sets, find a relationship that defines the material
 		UsdRelationship Relationship = Prim.GetRelationship(UnrealIdentifiers::MaterialRelationship);

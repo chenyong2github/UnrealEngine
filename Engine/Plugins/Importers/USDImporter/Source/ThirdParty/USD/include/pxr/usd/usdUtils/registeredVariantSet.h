@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDUTILS_REGISTEREDVARIANTSET_H
-#define USDUTILS_REGISTEREDVARIANTSET_H
+#ifndef PXR_USD_USD_UTILS_REGISTERED_VARIANT_SET_H
+#define PXR_USD_USD_UTILS_REGISTERED_VARIANT_SET_H
 
 /// \file usdUtils/registeredVariantSet.h
 
@@ -95,4 +95,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif /* USDUTILS_REGISTEREDVARIANTSET_H */
+#endif /* PXR_USD_USD_UTILS_REGISTERED_VARIANT_SET_H */

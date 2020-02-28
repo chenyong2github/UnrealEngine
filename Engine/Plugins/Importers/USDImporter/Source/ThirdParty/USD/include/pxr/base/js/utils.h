@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef JS_UTILS_H
-#define JS_UTILS_H
+#ifndef PXR_BASE_JS_UTILS_H
+#define PXR_BASE_JS_UTILS_H
 
 /// \file js/utils.h
 
@@ -50,4 +50,4 @@ JsOptionalValue JsFindValue(
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // JS_UTILS_H
+#endif // PXR_BASE_JS_UTILS_H
