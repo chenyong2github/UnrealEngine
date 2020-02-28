@@ -158,6 +158,13 @@ public:
 	 */
 	void AddAssetToFileOrderRecursive(const FName& InPackageName, TArray<FName>& OutFileOrder, TSet<FName>& OutEncounteredNames, const TSet<FName>& InPackageNameSet, const TSet<FName>& InTopLevelAssets);
 
+	/**
+	 * Get pakchunk file index from ChunkID
+	 *
+	 * @param ChunkID
+	 * @return Index of target pakchunk file
+	 */
+	int32 GetPakchunkIndex(int32 ChunkId) const;
 
 private:
 
@@ -266,14 +273,6 @@ private:
 	* @param The ID of the chunk to assign it to
 	*/
 	void RemovePackageFromManifest(FName PackageName, int32 ChunkId);
-
-	/**
-	* Get pakchunk file index from ChunkID
-	*
-	* @param ChunkID
-	* @return Index of target pakchunk file
-	*/
-	int32 GetPakchunkIndex(int32 ChunkId);
 
 	/**
 	 * Walks the dependency graph of assets and assigns packages to correct chunks.
