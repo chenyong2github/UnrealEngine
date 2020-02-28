@@ -217,6 +217,11 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, c
 
 FName FSequencerUtilities::GetUniqueName( FName CandidateName, const TArray<FName>& ExistingNames )
 {
+	if (!ExistingNames.Contains(CandidateName))
+	{
+		return CandidateName;
+	}
+
 	FString CandidateNameString = CandidateName.ToString();
 	FString BaseNameString = CandidateNameString;
 	if ( CandidateNameString.Len() >= 3 && CandidateNameString.Right(3).IsNumeric() )
