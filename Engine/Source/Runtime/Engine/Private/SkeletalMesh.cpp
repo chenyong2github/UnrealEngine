@@ -3378,22 +3378,28 @@ void USkeletalMesh::RemoveMeshSection(int32 InLodIndex, int32 InSectionIndex)
 		return;
 	}
 
-	FSkelMeshSection& SectionToRemove = LodModel.Sections[InSectionIndex];
+	FSkelMeshSection& SectionToDisable = LodModel.Sections[InSectionIndex];
+	
+	//Get the UserSectionData
+	FSkelMeshSourceSectionUserData& UserSectionToDisableData = LodModel.UserSectionsData.FindChecked(SectionToDisable.OriginalDataSectionIndex);
 
-	if(SectionToRemove.HasClothingData())
+	if(UserSectionToDisableData.HasClothingData())
 	{
 		// Can't remove this, clothing currently relies on it
 		UE_LOG(LogSkeletalMesh, Warning, TEXT("Failed to remove skeletal mesh section, clothing is currently bound to Lod%d Section %d, unbind clothing before removal."), InLodIndex, InSectionIndex);
 		return;
 	}
 
-	// Valid to remove, dirty the mesh
-	Modify();
-	PreEditChange(nullptr);
-
-	SectionToRemove.bDisabled = true;
-
-	PostEditChange();
+	{
+		//Scope a post edit change
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(this);
+		// Valid to disable, dirty the mesh
+		Modify();
+		PreEditChange(nullptr);
+		//Disable the section
+		UserSectionToDisableData.bDisabled = true;
+		SectionToDisable.bDisabled = true;
+	}
 }
 
 #endif // #if WITH_EDITOR
