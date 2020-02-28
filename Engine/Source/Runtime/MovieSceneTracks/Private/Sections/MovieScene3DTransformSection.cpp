@@ -127,6 +127,10 @@ struct F3DTransformChannelEditorData
 				}
 			}
 		}
+		else if (USceneComponent* SceneComponent = Cast<USceneComponent>(&InObject))
+		{
+			return SceneComponent->GetRelativeTransform().GetTranslation();		
+		}
 		else if (AActor* Actor = Cast<AActor>(&InObject))
 		{
 			if (USceneComponent* RootComponent = Actor->GetRootComponent())
@@ -159,6 +163,10 @@ struct F3DTransformChannelEditorData
 				}
 			}
 		}
+		else if (USceneComponent* SceneComponent = Cast<USceneComponent>(&InObject))
+		{
+			return SceneComponent->GetRelativeRotation();
+		}
 		else if (AActor* Actor = Cast<AActor>(&InObject))
 		{
 			if (USceneComponent* RootComponent = Actor->GetRootComponent())
@@ -190,6 +198,10 @@ struct F3DTransformChannelEditorData
 					return EulerTransform->Scale;
 				}
 			}
+		}
+		else if (USceneComponent* SceneComponent = Cast<USceneComponent>(&InObject))
+		{
+			return SceneComponent->GetRelativeTransform().GetScale3D();
 		}
 		else if (AActor* Actor = Cast<AActor>(&InObject))
 		{
