@@ -214,7 +214,7 @@ class FToolboxModule : public IToolboxModule
 
 	virtual void SummonToolbox() override
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FTabId("DebugTools"));
+		FGlobalTabmanager::Get()->TryInvokeTab(FTabId("DebugTools"));
 	}
 };
 

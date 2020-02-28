@@ -586,7 +586,7 @@ void STimingProfilerWindow::ShowTab(const FName& TabID)
 {
 	if (TabManager->HasTabSpawner(TabID))
 	{
-		TabManager->InvokeTab(TabID);
+		TabManager->TryInvokeTab(TabID);
 	}
 }
 

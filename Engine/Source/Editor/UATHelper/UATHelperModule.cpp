@@ -524,7 +524,7 @@ public:
 
 	static void HandleUatHyperlinkNavigate()
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FName("OutputLog"));
+		FGlobalTabmanager::Get()->TryInvokeTab(FName("OutputLog"));
 	}
 
 	static void HandleUatCancelButtonClicked(TSharedPtr<FMonitoredProcess> PackagerProcess)

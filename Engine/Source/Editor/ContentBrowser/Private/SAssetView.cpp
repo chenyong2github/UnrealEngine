@@ -4530,7 +4530,7 @@ void SAssetView::AssetRenameCommit(const TSharedPtr<FAssetViewItem>& Item, const
 			//Notify the user rename fail and link the output log
 			FNotificationInfo Info(LOCTEXT("RenameAssetsFailed", "Failed to rename assets"));
 			Info.ExpireDuration = 5.0f;
-			Info.Hyperlink = FSimpleDelegate::CreateStatic([](){ FGlobalTabmanager::Get()->InvokeTab(FName("OutputLog")); });
+			Info.Hyperlink = FSimpleDelegate::CreateStatic([](){ FGlobalTabmanager::Get()->TryInvokeTab(FName("OutputLog")); });
 			Info.HyperlinkText = LOCTEXT("ShowOutputLogHyperlink", "Show Output Log");
 			FSlateNotificationManager::Get().AddNotification(Info);
 			

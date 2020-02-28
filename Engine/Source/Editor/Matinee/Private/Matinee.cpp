@@ -259,7 +259,7 @@ void FMatinee::SetCurveTabVisibility(bool Visible)
 	}
 	else if ( !CurveEdTab.IsValid() && Visible )
 	{
-		TabManager->InvokeTab(MatineeCurveEdName);
+		TabManager->TryInvokeTab(MatineeCurveEdName);
 	}
 }
 

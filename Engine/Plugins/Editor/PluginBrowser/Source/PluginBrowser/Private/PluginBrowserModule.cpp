@@ -179,7 +179,7 @@ void FPluginBrowserModule::OnMainFrameLoaded(TSharedPtr<SWindow> InRootWindow, b
 
 void FPluginBrowserModule::OnNewPluginsPopupSettingsClicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(PluginsEditorTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(PluginsEditorTabName);
 	NewPluginsNotification.Pin()->ExpireAndFadeout();
 }
 

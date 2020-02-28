@@ -555,39 +555,40 @@ void SLevelEditor::AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TShared
 
 	if( !bIsReentrant )
 	{
-		TSharedRef<SDockTab> Tab = SNew(SDockTab);
-		Tab = InvokeTab(LevelEditorTabIds::Sequencer);
-
-		// Close the sequence editor after invoking a sequencer tab instead of before so that the existing asset editor doesn't refer to a stale sequencer.
-		if(SequencerAssetEditor.IsValid())
+		TSharedPtr<SDockTab> Tab = TryInvokeTab(LevelEditorTabIds::Sequencer);
+		if(Tab.IsValid())
 		{
-			// Closing the window will invoke this method again but we are handling reopening with a new movie scene ourselves
-			TGuardValue<bool> ReentrantGuard(bIsReentrant, true);
-			// Shutdown cleanly
-			SequencerAssetEditor.Pin()->CloseWindow();
-		}
-
-		if(!FGlobalTabmanager::Get()->OnOverrideDockableAreaRestore_Handler.IsBound())
-		{
-			// Don't allow standard tab closing behavior when the override is active
-			Tab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateStatic(&Local::OnSequencerClosed, TWeakPtr<IAssetEditorInstance>(NewSequencerAssetEditor)));
-		}
-		if(SequencerWidget.IsValid() && NewSequencerAssetEditor.IsValid())
-		{
-			Tab->SetContent(SequencerWidget.ToSharedRef());
-			SequencerWidgetPtr = SequencerWidget;
-			SequencerAssetEditor = NewSequencerAssetEditor;
-			if (FGlobalTabmanager::Get()->OnOverrideDockableAreaRestore_Handler.IsBound())
+			// Close the sequence editor after invoking a sequencer tab instead of before so that the existing asset editor doesn't refer to a stale sequencer.
+			if (SequencerAssetEditor.IsValid())
 			{
-				// @todo vreditor: more general vr editor tab manager should handle windows instead
-				// Close the original tab so we just work with the override window
-				Tab->RequestCloseTab();
+				// Closing the window will invoke this method again but we are handling reopening with a new movie scene ourselves
+				TGuardValue<bool> ReentrantGuard(bIsReentrant, true);
+				// Shutdown cleanly
+				SequencerAssetEditor.Pin()->CloseWindow();
 			}
-		}
-		else
-		{
-			Tab->SetContent(SNullWidget::NullWidget);
-			SequencerAssetEditor.Reset();
+
+			if (!FGlobalTabmanager::Get()->OnOverrideDockableAreaRestore_Handler.IsBound())
+			{
+				// Don't allow standard tab closing behavior when the override is active
+				Tab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateStatic(&Local::OnSequencerClosed, TWeakPtr<IAssetEditorInstance>(NewSequencerAssetEditor)));
+			}
+			if (SequencerWidget.IsValid() && NewSequencerAssetEditor.IsValid())
+			{
+				Tab->SetContent(SequencerWidget.ToSharedRef());
+				SequencerWidgetPtr = SequencerWidget;
+				SequencerAssetEditor = NewSequencerAssetEditor;
+				if (FGlobalTabmanager::Get()->OnOverrideDockableAreaRestore_Handler.IsBound())
+				{
+					// @todo vreditor: more general vr editor tab manager should handle windows instead
+					// Close the original tab so we just work with the override window
+					Tab->RequestCloseTab();
+				}
+			}
+			else
+			{
+				Tab->SetContent(SNullWidget::NullWidget);
+				SequencerAssetEditor.Reset();
+			}
 		}
 	}
 }
@@ -896,10 +897,10 @@ bool SLevelEditor::CanSpawnEditorModeToolboxTab(const FSpawnTabArgs& Args) const
 	return GLevelEditorModeTools().ShouldShowModeToolbox();
 }
 
-TSharedRef<SDockTab> SLevelEditor::InvokeTab( FName TabID )
+TSharedPtr<SDockTab> SLevelEditor::TryInvokeTab( FName TabID )
 {
 	TSharedPtr<FTabManager> LevelEditorTabManager = GetTabManager();
-	return LevelEditorTabManager->InvokeTab(TabID);
+	return LevelEditorTabManager->TryInvokeTab(TabID);
 }
 
 void SLevelEditor::SyncDetailsToSelection()
@@ -932,7 +933,7 @@ void SLevelEditor::SyncDetailsToSelection()
 
 		if(DetailsView->IsUpdatable() && !DetailsView->IsLocked())
 		{
-			InvokeTab(DetailsTabIdentifier);
+			TryInvokeTab(DetailsTabIdentifier);
 			return;
 		}
 	}
@@ -940,7 +941,7 @@ void SLevelEditor::SyncDetailsToSelection()
 	// If we got this far then there were no open details views, so open the first available one
 	if(!FirstClosedDetailsTabIdentifier.IsNone())
 	{
-		InvokeTab(FirstClosedDetailsTabIdentifier);
+		TryInvokeTab(FirstClosedDetailsTabIdentifier);
 	}
 }
 

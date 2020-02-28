@@ -918,7 +918,7 @@ void FMainFrameActionCallbacks::ToggleFullscreen_Execute()
 #if !PLATFORM_MAC && !PLATFORM_LINUX // Fullscreen mode in the editor is currently unsupported on Mac or Linux
 	if ( GIsEditor && FApp::HasProjectName() )
 	{
-		static TWeakPtr<SDockTab> LevelEditorTabPtr = FGlobalTabmanager::Get()->InvokeTab(FTabId("LevelEditor"));
+		static TWeakPtr<SDockTab> LevelEditorTabPtr = FGlobalTabmanager::Get()->TryInvokeTab(FTabId("LevelEditor"));
 		const TSharedPtr<SWindow> LevelEditorWindow = FSlateApplication::Get().FindWidgetWindow( LevelEditorTabPtr.Pin().ToSharedRef() );
 
 		if (LevelEditorWindow->GetWindowMode() == EWindowMode::Windowed)
@@ -1004,7 +1004,7 @@ void FMainFrameActionCallbacks::OpenSlateApp_ViaModule( FName AppName, FName Mod
 
 void FMainFrameActionCallbacks::OpenSlateApp( FName AppName )
 {
-	FGlobalTabmanager::Get()->InvokeTab(FTabId(AppName));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId(AppName));
 }
 
 bool FMainFrameActionCallbacks::OpenSlateApp_IsChecked( FName AppName )
@@ -1144,7 +1144,7 @@ void FMainFrameActionCallbacks::CreditsUnrealEd_Execute()
 
 void FMainFrameActionCallbacks::OpenWidgetReflector_Execute()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FTabId("WidgetReflector"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("WidgetReflector"));
 }
 
 

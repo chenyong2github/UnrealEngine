@@ -1474,7 +1474,7 @@ bool FNiagaraSystemToolkit::OnApplyEnabled() const
 
 void FNiagaraSystemToolkit::OnPinnedCurvesChanged()
 {
-	TabManager->InvokeTab(CurveEditorTabID);
+	TabManager->TryInvokeTab(CurveEditorTabID);
 }
 
 void FNiagaraSystemToolkit::RefreshParameters()
@@ -1514,7 +1514,7 @@ void FNiagaraSystemToolkit::OnSystemSelectionChanged()
 
 void FNiagaraSystemToolkit::OnViewModelRequestFocusTab(FName TabName)
 {
-	GetTabManager()->InvokeTab(TabName);
+	GetTabManager()->TryInvokeTab(TabName);
 }
 
 #undef LOCTEXT_NAMESPACE

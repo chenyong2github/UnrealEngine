@@ -176,7 +176,7 @@ FReply FOculusEditorModule::PluginClickFn(bool text)
 
 void FOculusEditorModule::PluginButtonClicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(OculusPerfTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(OculusPerfTabName);
 }
 
 void FOculusEditorModule::AddMenuExtension(FMenuBuilder& Builder)
@@ -206,13 +206,13 @@ TSharedRef<IDetailCustomization> FOculusHMDSettingsDetailsCustomization::MakeIns
 
 FReply FOculusHMDSettingsDetailsCustomization::PluginClickPerfFn(bool text)
 {
-	FGlobalTabmanager::Get()->InvokeTab(FOculusEditorModule::OculusPerfTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(FOculusEditorModule::OculusPerfTabName);
 	return FReply::Handled();
 }
 
 FReply FOculusHMDSettingsDetailsCustomization::PluginClickPlatFn(bool text)
 {
-	FGlobalTabmanager::Get()->InvokeTab(FOculusEditorModule::OculusPlatToolTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(FOculusEditorModule::OculusPlatToolTabName);
 	return FReply::Handled();
 }
 
