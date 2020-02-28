@@ -1720,6 +1720,12 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		FComponentReregisterContext ReregisterContext(*Iter);
 	}
 
+	// Import bone metadata to AnimSequence
+	for (FbxNode* SkeletonNode : SortedLinks)
+	{
+		ImportNodeCustomProperties(DestSeq, SkeletonNode, true);
+	}
+
 	return true;
 }
 
