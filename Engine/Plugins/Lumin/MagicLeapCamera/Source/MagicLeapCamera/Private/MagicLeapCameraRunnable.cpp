@@ -253,7 +253,7 @@ bool FCameraRunnable::CaptureImageToTexture()
 	MLCameraPlaneInfo& ImageInfo = CameraOutput->planes[0];
 	if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(ImageInfo.data, ImageInfo.size))
 	{
-		TArray64<uint8> RawData;
+		TArray<uint8> RawData;
 		if (ImageWrapper->GetRaw(ImageWrapper->GetFormat(), 8, RawData))
 		{
 			Log(FString::Printf(TEXT("ImageWrapper width=%d height=%d size=%" INT64_FMT), ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), RawData.Num()));
