@@ -13,6 +13,7 @@
 #include "ISequencer.h"
 #include "Logging/TokenizedMessage.h"
 #include "MovieSceneTranslator.h"
+#include "MovieSceneSpawnable.h"
 #include "MovieSceneCaptureSettings.h"
 #include "SEnumCombobox.h"
 #include "Animation/AnimSequence.h"
@@ -375,6 +376,18 @@ public:
 	 * Get the fbx camera name
 	 */
 	static FString GetCameraName(fbxsdk::FbxCamera* InCamera);
+
+};
+
+// Helper to make spawnables persist throughout the export process and then restore properly afterwards
+struct MOVIESCENETOOLS_API FSpawnableRestoreState
+{
+	FSpawnableRestoreState(UMovieScene* MovieScene);
+	~FSpawnableRestoreState();
+
+	bool bWasChanged;
+	TMap<FGuid, ESpawnOwnership> SpawnOwnershipMap;
+	TWeakObjectPtr<UMovieScene> WeakMovieScene;
 };
 
 class FTrackEditorBindingIDPicker : public FMovieSceneObjectBindingIDPicker
