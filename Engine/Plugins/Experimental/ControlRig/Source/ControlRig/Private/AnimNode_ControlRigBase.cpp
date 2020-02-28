@@ -299,6 +299,9 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 				ControlRigCurveMapping.Add(CurveNames[Index], Index);
 			}
 		}
+
+		// re-init when LOD changes
+		ControlRig->Execute(EControlRigState::Init);
 	}
 }
 
