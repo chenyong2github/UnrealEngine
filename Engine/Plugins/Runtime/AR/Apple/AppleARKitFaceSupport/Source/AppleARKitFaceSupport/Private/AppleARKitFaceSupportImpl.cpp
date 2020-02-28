@@ -10,6 +10,7 @@
 #include "AppleARKitFaceSupportModule.h"
 #include "Async/Async.h"
 #include "Engine/TimecodeProvider.h"
+#include "Math/UnrealMathUtility.h"
 
 DECLARE_CYCLE_STAT(TEXT("Conversion"), STAT_FaceAR_Conversion, STATGROUP_FaceAR);
 
@@ -122,7 +123,6 @@ void FAppleARKitFaceSupport::InitRealtimeProviders()
 #endif
 	}
 }
-
 #if SUPPORTS_ARKIT_1_0
 
 ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* SessionConfig, UTimecodeProvider* InProvider)
@@ -174,9 +174,22 @@ TArray<TSharedPtr<FAppleARKitAnchorData>> FAppleARKitFaceSupport::MakeAnchorData
 	const FTimecode& Timecode = TimecodeProvider->GetTimecode();
 	const FFrameRate& FrameRate = TimecodeProvider->GetFrameRate();
 
+	int32 Rate = 1;
+
+	if (FrameRate.IsValid()) // avoids divide by zero when calling FrameRate.AsDecimal()
+	{
+		Rate = int32(FMath::RoundHalfFromZero(FrameRate.AsDecimal()));
+
+		// Just in case it rounded to zero (or negative).
+		if (Rate < 1)
+		{
+			Rate = 1;
+		}
+	}
+
 	for (ARAnchor* Anchor in Anchors)
 	{
-		TSharedPtr<FAppleARKitAnchorData> AnchorData = ::MakeAnchorData(bFaceMirrored, Anchor, AdjustBy, UpdateSetting, Timecode, FrameRate.Numerator);
+		TSharedPtr<FAppleARKitAnchorData> AnchorData = ::MakeAnchorData(bFaceMirrored, Anchor, AdjustBy, UpdateSetting, Timecode, uint32(Rate));
 		if (AnchorData.IsValid())
 		{
 			AnchorList.Add(AnchorData);
@@ -194,18 +207,17 @@ void FAppleARKitFaceSupport::ProcessRealTimePublishers(TSharedPtr<FAppleARKitAnc
     TSharedPtr<FAppleARKitAnchorData> AsyncAnchorCopy = MakeShared<FAppleARKitAnchorData>(*AnchorData);
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, AsyncAnchorCopy]()
 	{
-		FTimecode Timecode = AsyncAnchorCopy->Timecode;
-		uint32 FrameRate = AsyncAnchorCopy->FrameRate;
+		const FQualifiedFrameTime FrameTime(AsyncAnchorCopy->Timecode, FFrameRate(AsyncAnchorCopy->FrameRate, 1));
 		const FARBlendShapeMap& BlendShapes = AsyncAnchorCopy->BlendShapes;
 
 		if (RemoteLiveLinkPublisher.IsValid())
 		{
-			RemoteLiveLinkPublisher->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Timecode, FrameRate, BlendShapes, LocalDeviceId);
+			RemoteLiveLinkPublisher->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, FrameTime, BlendShapes, LocalDeviceId);
 		}
 
 		if (LiveLinkFileWriter.IsValid())
 		{
-			LiveLinkFileWriter->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Timecode, FrameRate, BlendShapes, LocalDeviceId);
+			LiveLinkFileWriter->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, FrameTime, BlendShapes, LocalDeviceId);
 		}
 	});
 }
@@ -230,8 +242,10 @@ void FAppleARKitFaceSupport::PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorDat
 
 	if (LiveLinkSource.IsValid())
 	{
+		const FQualifiedFrameTime FrameTime(Anchor->Timecode, FFrameRate(Anchor->FrameRate, 1));
+
 		FaceTrackingLiveLinkSubjectName = GetMutableDefault<UAppleARKitSettings>()->GetLiveLinkSubjectName();
-        LiveLinkSource->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Anchor->Timecode, Anchor->FrameRate, Anchor->BlendShapes, LocalDeviceId);
+        LiveLinkSource->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, FrameTime, Anchor->BlendShapes, LocalDeviceId);
 	}
 }
 
