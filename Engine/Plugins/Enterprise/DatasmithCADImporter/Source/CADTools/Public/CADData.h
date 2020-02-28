@@ -117,6 +117,7 @@ class CADTOOLS_API FBodyMesh
 public:
 	FBodyMesh(CadId InBodyID = 0) : BodyID(InBodyID)
 	{
+		BBox.Init();
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh);
