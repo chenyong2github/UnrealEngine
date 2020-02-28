@@ -27,6 +27,11 @@ FSoundModulationValue::FSoundModulationValue(float InValue, float InAttackTime, 
 {
 }
 
+void FSoundModulationValue::SetCurrentValue(float InValue)
+{
+	Value = InValue;
+}
+
 float FSoundModulationValue::GetCurrentValue() const
 {
 	// Current does not require update to be called if
