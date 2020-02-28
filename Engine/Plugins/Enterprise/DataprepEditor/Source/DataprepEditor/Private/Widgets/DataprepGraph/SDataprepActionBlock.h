@@ -14,8 +14,16 @@ struct FTextBlockStyle;
  */
 class SDataprepActionBlock : public SCompoundWidget
 {
+#ifndef NO_BLUEPRINT
+	SLATE_BEGIN_ARGS(SDataprepActionBlock)
+	: _IsSimplified(false)
+	{}
+
+		SLATE_ARGUMENT( bool, IsSimplified )
+#else
 	SLATE_BEGIN_ARGS(SDataprepActionBlock) {}
-	SLATE_END_ARGS();
+#endif
+	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<FDataprepSchemaActionContext>& DataprepActionContext);
 
@@ -23,17 +31,27 @@ class SDataprepActionBlock : public SCompoundWidget
 	virtual FVector2D ComputeDesiredSize(float) const override
 	{
 		const FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
-		return FVector2D( 280.f, ChildSize.Y );
+		return FVector2D( FMath::Max(280.f, ChildSize.X) , ChildSize.Y );
 	}
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	// End of SWidget Interface
 
+	/**
+	 * Return the outline color
+	 */
+	virtual FSlateColor GetOutlineColor() const;
+
 public:
 
 	/** Return the block title */
 	TSharedRef<SWidget> GetBlockTitleWidget();
+
+	/**
+	 * Return the title widget
+	 */
+	virtual TSharedRef<SWidget> GetTitleWidget();
 
 #ifndef NO_BLUEPRINT
 	// Temporary boolean to indicate if the widget has been instantiated in a regular BP graph or the simplified one
@@ -42,10 +60,7 @@ public:
 
 protected:
 
-	/**
-	* Return the outline color
-	*/
-	virtual FLinearColor GetOutlineColor() const;
+	void ConstructForSimplified();
 
 	/**
 	 * Return the block title.
@@ -54,14 +69,9 @@ protected:
 	virtual FText GetBlockTitle() const;
 
 	/**
-	 * Return the title widget
-	 */
- 	virtual TSharedRef<SWidget> GetTitleWidget();
-
-	/**
 	 * Get title background widget
 	 */
-	virtual TSharedRef<SWidget> GetTitleBackgroundWidget();
+	TSharedRef<SWidget> GetTitleBackgroundWidget();
 
 	/**
 	 * Return the content widget
@@ -71,7 +81,7 @@ protected:
 	/**
 	 * Get content background widget
 	 */
-	virtual TSharedRef<SWidget> GetContentBackgroundWidget();
+	TSharedRef<SWidget> GetContentBackgroundWidget();
 
 	/**
 	 * Populate the right click menu by overriding this function.

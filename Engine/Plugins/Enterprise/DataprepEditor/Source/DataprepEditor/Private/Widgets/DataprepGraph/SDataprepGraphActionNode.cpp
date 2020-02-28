@@ -16,16 +16,21 @@
 #include "NodeFactory.h"
 #include "SGraphPanel.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
-#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 
 class SDataprepGraphActionProxyNode : public SGraphNode
 {
 public:
-	SLATE_BEGIN_ARGS(SDataprepGraphActionStepNode) {}
+	SLATE_BEGIN_ARGS(SDataprepGraphActionProxyNode) {}
+		SLATE_ARGUMENT( TSharedPtr<SInlineEditableTextBlock>, InlineEditableText )
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<SDataprepGraphActionNode>& InParentNode)
@@ -35,6 +40,8 @@ public:
 
 		SetCursor(EMouseCursor::Default);
 		UpdateGraphNode();
+
+		InlineEditableText = InArgs._InlineEditableText;
 	}
 
 	// SWidget interface
@@ -58,6 +65,20 @@ public:
 				.Size( TAttribute<FVector2D>::Create(TAttribute<FVector2D>::FGetter::CreateSP( this, &SDataprepGraphActionProxyNode::GetSize ) ) )
 			]
 		];
+	}
+
+	virtual FSlateRect GetTitleRect() const override
+	{
+		const FVector2D NodePosition = GetPosition();
+		const FVector2D NodeSize = InlineEditableText.IsValid() ? InlineEditableText->GetDesiredSize() : GetDesiredSize();
+
+		return FSlateRect( NodePosition.X, NodePosition.Y + NodeSize.Y, NodePosition.X + NodeSize.X, NodePosition.Y );
+	}
+
+	/* Helper function to check if node can be renamed */
+	virtual bool IsNameReadOnly () const override
+	{
+		return ParentNodePtr.IsValid() ? ParentNodePtr.Pin()->IsNameReadOnly() : true;
 	}
 
 	const FSlateBrush* GetShadowBrush(bool bSelected) const
@@ -102,8 +123,16 @@ private:
  * The SDataprepEmptyActionStepNode is a helper class that handles drag and drop event at
  * the bottom of the SDataprepGraphActionNode widget
  */
-class SDataprepEmptyActionStepNode : public SCompoundWidget
+class SDataprepEmptyActionStepNode : public SVerticalBox
 {
+	enum EColorType : uint8
+	{
+		TextColor = 0,
+		OuterColor,
+		InnerColor,
+		ColorMaxType
+	};
+
 public:
 	SLATE_BEGIN_ARGS(SDataprepEmptyActionStepNode) {}
 	SLATE_END_ARGS();
@@ -116,20 +145,54 @@ public:
 
 		bIsHovered = false;
 
-		ChildSlot
-		[
-			SNew(SVerticalBox)
+		SVerticalBox::Construct(SVerticalBox::FArguments());
 
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(10.f, 0.f, 10.f, 0.f)
+		TAttribute<FSlateColor> TextColorAndOpacity = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepEmptyActionStepNode::GetColor, EColorType::TextColor));
+		TAttribute<FSlateColor> OuterColorAndOpacity = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepEmptyActionStepNode::GetColor, EColorType::OuterColor));
+		TAttribute<FSlateColor> InnerColorAndOpacity = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepEmptyActionStepNode::GetColor, EColorType::InnerColor));
+
+		AddSlot()
+		.AutoHeight()
+		.Padding(FDataprepEditorStyle::GetMargin( "DataprepActionStep.Padding" ))
+		[
+			SNew(SOverlay)
+
+			+ SOverlay::Slot()
+			.Padding(0.f)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SBorder)
-				.BorderBackgroundColor( this, &SDataprepEmptyActionStepNode::GetBorderBackgroundColor )
-				.BorderImage(FEditorStyle::GetBrush("BTEditor.Graph.BTNode.Body"))
+				SNew(SImage)
+				.ColorAndOpacity(MoveTemp(OuterColorAndOpacity))
+				.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+			]
+
+			+ SOverlay::Slot()
+			.Padding(1.f)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(MoveTemp(InnerColorAndOpacity))
+				.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+			]
+
+			+ SOverlay::Slot()
+			.Padding(10.f)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
 				[
-					SNew(SBox)
-					.HeightOverride(InterStepSpacing)
+					SNew(STextBlock)
+					.Text(LOCTEXT("DataprepEmptyActionStepLabel", "+ Add Step"))
+					.TextStyle( &FDataprepEditorStyle::GetWidgetStyle<FTextBlockStyle>( "DataprepActionBlock.TitleTextBlockStyle" ) )
+					.ColorAndOpacity(MoveTemp(TextColorAndOpacity))
+					.Justification(ETextJustify::Center)
 				]
 			]
 		];
@@ -147,7 +210,7 @@ public:
 			ParentPtr.Pin()->SetHoveredIndex( ParentPtr.Pin()->GetDataprepAction()->GetStepsCount() );
 		}
 
-		SCompoundWidget::OnDragEnter(MyGeometry, DragDropEvent);
+		SVerticalBox::OnDragEnter(MyGeometry, DragDropEvent);
 	}
 
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
@@ -161,7 +224,7 @@ public:
 			return FReply::Handled();
 		}
 
-		return SCompoundWidget::OnDragOver(MyGeometry, DragDropEvent);
+		return SVerticalBox::OnDragOver(MyGeometry, DragDropEvent);
 	}
 
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override
@@ -174,7 +237,7 @@ public:
 
 		ParentPtr.Pin()->SetHoveredIndex( INDEX_NONE );
 
-		SCompoundWidget::OnDragLeave(DragDropEvent);
+		SVerticalBox::OnDragLeave(DragDropEvent);
 	}
 
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
@@ -190,7 +253,7 @@ public:
 			return DragActionStepNodeOp->DroppedOnNode(DragDropEvent.GetScreenSpacePosition(), NodeAddPosition);
 		}
 
-		return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
+		return SVerticalBox::OnDrop(MyGeometry, DragDropEvent);
 	}
 	// End of SWidget Interface
 
@@ -200,9 +263,22 @@ public:
 	}
 
 private:
-	FSlateColor GetBorderBackgroundColor() const
+	FSlateColor GetColor(EColorType Type) const
 	{
-		return ParentPtr.Pin()->GetInsertColor( ParentPtr.Pin()->GetDataprepAction()->GetStepsCount() );
+		static const FLinearColor HoveredColors[EColorType::ColorMaxType] = {
+			FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Text.Hovered"),
+			FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Outer.Hovered"),
+			FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Background.Hovered"),
+		};
+		static const FLinearColor NormalColors[EColorType::ColorMaxType] = {
+			FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Text.Normal"),
+			FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Outer.Normal"),
+			FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Background.Normal"),
+		};
+
+		const int32 EmptyIndex = ParentPtr.Pin()->GetDataprepAction()->GetStepsCount();
+
+		return EmptyIndex == ParentPtr.Pin()->GetHoveredIndex() ? HoveredColors[Type] : NormalColors[Type];
 	}
 
 private:
@@ -223,26 +299,30 @@ void SDataprepGraphActionNode::Construct(const FArguments& InArgs, UDataprepGrap
 
 	GraphNode = InActionNode;
 
-	ProxyNodePtr = SNew(SDataprepGraphActionProxyNode, SharedThis(this));
-
 	SetCursor(EMouseCursor::ResizeLeftRight);
 	UpdateGraphNode();
+
+	ProxyNodePtr = SNew(SDataprepGraphActionProxyNode, SharedThis(this))
+	.InlineEditableText(InlineEditableText);
 }
 
 void SDataprepGraphActionNode::SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode)
 {
 	ParentTrackNodePtr = InParentTrackNode;
 
-	// Update parent track on step widgets
-	for(TSharedPtr<SDataprepGraphActionStepNode>& ActionStepGraphNode : ActionStepGraphNodes)
+	if(ActionStepListWidgetPtr.IsValid())
 	{
-		ActionStepGraphNode->SetParentTrackNode(InParentTrackNode);
-	}
+		// Update parent track on step widgets
+		for(TSharedPtr<SDataprepGraphActionStepNode>& ActionStepGraphNode : ActionStepGraphNodes)
+		{
+			ActionStepGraphNode->SetParentTrackNode(InParentTrackNode);
+		}
 
-	// Update parent on empty bottom widget
-	FChildren* StepListChildren = ActionStepListWidgetPtr->GetChildren();
-	TSharedRef<SDataprepEmptyActionStepNode> EmptyWidgetPtr = StaticCastSharedRef<SDataprepEmptyActionStepNode>(StepListChildren->GetChildAt(StepListChildren->Num() - 1));
-	EmptyWidgetPtr->SetParentTrackNode(InParentTrackNode);
+		// Update parent on empty bottom widget
+		FChildren* StepListChildren = ActionStepListWidgetPtr->GetChildren();
+		TSharedRef<SDataprepEmptyActionStepNode> EmptyWidgetPtr = StaticCastSharedRef<SDataprepEmptyActionStepNode>(StepListChildren->GetChildAt(StepListChildren->Num() - 1));
+		EmptyWidgetPtr->SetParentTrackNode(InParentTrackNode);
+	}
 }
 
 void SDataprepGraphActionNode::UpdateExecutionOrder()
@@ -253,7 +333,158 @@ void SDataprepGraphActionNode::UpdateExecutionOrder()
 
 void SDataprepGraphActionNode::UpdateProxyNode(const FVector2D& Position)
 {
-	ProxyNodePtr->SetPosition(Position);
+	if(ProxyNodePtr.IsValid())
+	{
+		ProxyNodePtr->SetPosition(Position);
+	}
+}
+
+void SDataprepGraphActionNode::UpdateGraphNode()
+{
+	static bool bUseNew = true;
+	if(!bUseNew)
+	{
+		SGraphNode::UpdateGraphNode();
+		return;
+	}
+
+	// Reset SGraphNode members.
+	InputPins.Empty();
+	OutputPins.Empty();
+	RightNodeBox.Reset();
+	LeftNodeBox.Reset();
+
+	this->ContentScale.Bind( this, &SGraphNode::GetContentScale );
+
+	if(!DataprepActionPtr.IsValid())
+	{
+		this->GetOrAddSlot( ENodeZone::Center )
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.ColorAndOpacity( FSlateColor( FLinearColor::Red ) )
+			.Text( FText::FromString( TEXT("This node doesn't have a dataprep action!") ) )
+		];
+
+		return;
+	}
+
+	TAttribute<FText> NodeTitle = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateUObject(GraphNode, &UEdGraphNode::GetNodeTitle, ENodeTitleType::EditableTitle));
+	SAssignNew(InlineEditableText, SInlineEditableTextBlock)
+		.Style(FDataprepEditorStyle::Get(), "DataprepAction.TitleInlineEditableText")
+		.Text(NodeTitle)
+		.OnVerifyTextChanged(this, &SDataprepGraphActionNode::OnVerifyNameTextChanged)
+		.OnTextCommitted(this, &SDataprepGraphActionNode::OnNameTextCommited)
+		.IsReadOnly(this, &SDataprepGraphActionNode::IsNameReadOnly)
+		.IsSelected(this, &SDataprepGraphActionNode::IsSelectedExclusively);
+
+	PopulateActionStepListWidget();
+
+	TAttribute<FMargin> OuterPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphActionNode::GetOuterPadding));
+
+	this->GetOrAddSlot( ENodeZone::Center )
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Center)
+	[
+		SNew(SBox)
+		.WidthOverride(300.f)
+		[
+			SNew(SVerticalBox)
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SOverlay)
+
+				+ SOverlay::Slot()
+				.Padding(OuterPadding)
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				[
+					CreateBackground(FDataprepEditorStyle::GetColor( "DataprepAction.OutlineColor" ))
+				]
+
+				+ SOverlay::Slot()
+				.Padding(FDataprepEditorStyle::GetMargin( "DataprepAction.Body.Padding" ))
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				[
+					CreateBackground(FDataprepEditorStyle::GetColor( "DataprepAction.BackgroundColor" ))
+				]
+
+				+ SOverlay::Slot()
+				.Padding( FDataprepEditorStyle::GetMargin( "DataprepAction.Steps.Padding" ) )
+				.VAlign(VAlign_Top)
+				.HAlign(HAlign_Right)
+				[
+					SNew( SVerticalBox )
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew( SHorizontalBox )
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(5.f, 5.f, 5.f, 2.f)
+						.HAlign(EHorizontalAlignment::HAlign_Center)
+						[
+							InlineEditableText.ToSharedRef()
+						]
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(5.f, 2.f)
+					[
+						SNew( SSeparator )
+						.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+						.Thickness(1.f)
+						.Orientation(EOrientation::Orient_Horizontal)
+						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
+					]
+
+					//The content of the action
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew( SHorizontalBox )
+
+						+ SHorizontalBox::Slot()
+						[
+							ActionStepListWidgetPtr.ToSharedRef()
+						]
+					]
+				]
+			]
+		]
+	];
+}
+
+TSharedRef<SWidget> SDataprepGraphActionNode::CreateBackground(const TAttribute<FSlateColor>& ColorAndOpacity)
+{
+	return SNew(SOverlay)
+
+		+SOverlay::Slot()
+		.VAlign(VAlign_Fill)
+		.HAlign(HAlign_Fill)
+		.Padding(1.f)
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FLinearColor::White)
+			.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+		]
+
+		+SOverlay::Slot()
+		.VAlign(VAlign_Fill)
+		.HAlign(HAlign_Fill)
+		.Padding(0.f)
+		[
+			SNew(SImage)
+			.ColorAndOpacity(ColorAndOpacity)
+			.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+		];
 }
 
 TSharedRef<SWidget> SDataprepGraphActionNode::CreateNodeContentArea()
@@ -283,23 +514,23 @@ const FSlateBrush* SDataprepGraphActionNode::GetShadowBrush(bool bSelected) cons
 int32 SDataprepGraphActionNode::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	// Since only a proxy is in the graph panel, draw selection outline if applicable 
-	if(SGraphPanel* GraphPanel = GetOwnerPanel().Get())
-	{
-		if (GraphPanel->SelectionManager.SelectedNodes.Contains(GraphNode))
-		{
-			const FSlateBrush* ShadowBrush = FEditorStyle::GetBrush(TEXT("Graph.Node.ShadowSelected"));
-			const FVector2D NodeShadowSize = GetDefault<UGraphEditorSettings>()->GetShadowDeltaSize();
+	//if(SGraphPanel* GraphPanel = GetOwnerPanel().Get())
+	//{
+	//	if (GraphPanel->SelectionManager.SelectedNodes.Contains(GraphNode))
+	//	{
+	//		const FSlateBrush* ShadowBrush = FEditorStyle::GetBrush(TEXT("Graph.Node.ShadowSelected"));
+	//		const FVector2D NodeShadowSize = GetDefault<UGraphEditorSettings>()->GetShadowDeltaSize();
 
-			FSlateDrawElement::MakeBox(
-				OutDrawElements,
-				LayerId,
-				GetPaintSpaceGeometry().ToInflatedPaintGeometry(NodeShadowSize),
-				ShadowBrush,
-				ESlateDrawEffect::None,
-				FLinearColor(1.0f, 1.0f, 1.0f, 1.f)
-			);
-		}
-	}
+	//		FSlateDrawElement::MakeBox(
+	//			OutDrawElements,
+	//			LayerId,
+	//			GetPaintSpaceGeometry().ToInflatedPaintGeometry(NodeShadowSize),
+	//			ShadowBrush,
+	//			ESlateDrawEffect::None,
+	//			FLinearColor(1.0f, 1.0f, 1.0f, 1.f)
+	//		);
+	//	}
+	//}
 
 	return SGraphNode::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 }
@@ -412,9 +643,10 @@ void SDataprepGraphActionNode::OnDragEnter(const FGeometry& MyGeometry, const FD
 FSlateColor SDataprepGraphActionNode::GetInsertColor(int32 Index)
 {
 	static const FSlateColor BackgroundColor = FDataprepEditorStyle::GetColor("DataprepActionStep.BackgroundColor");
-	static const FSlateColor DragAndDrop = FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop");
+	static const FSlateColor DragAndDrop = FDataprepEditorStyle::GetColor("DataprepActionStep.Separator.Color")/*FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop")*/;
 
-	return Index == InsertIndex ? DragAndDrop : BackgroundColor;
+
+	return Index == InsertIndex ? DragAndDrop : FLinearColor::Transparent;
 }
 
 void SDataprepGraphActionNode::SetDraggedIndex(int32 Index)
@@ -433,6 +665,16 @@ void SDataprepGraphActionNode::SetHoveredIndex(int32 Index)
 	{
 		InsertIndex = Index > DraggedIndex ? Index + 1 : (Index < DraggedIndex ? Index : INDEX_NONE);
 	}
+}
+
+FMargin SDataprepGraphActionNode::GetOuterPadding() const
+{
+	static const FMargin Selected = FDataprepEditorStyle::GetMargin( "DataprepAction.Outter.Selected.Padding" );
+	static const FMargin Regular = FDataprepEditorStyle::GetMargin( "DataprepAction.Outter.Regular.Padding" );
+
+	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
+
+	return bIsSelected ? Selected : Regular;
 }
 
 void SDataprepGraphActionNode::PopulateActionStepListWidget()
@@ -501,6 +743,7 @@ void SDataprepGraphActionNode::PopulateActionStepListWidget()
 	TSharedPtr<SDataprepEmptyActionStepNode> BottomSlot;
 	ActionStepListWidgetPtr->AddSlot()
 	.AutoHeight()
+	.Padding(0.f, 0.f, 0.f, 10.f)
 	[
 		SAssignNew(BottomSlot, SDataprepEmptyActionStepNode, SharedThis(this))
 	];
