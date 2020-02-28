@@ -23,6 +23,10 @@
 
 #include "USDIncludesStart.h"
 
+#include "pxr/usd/ar/resolver.h"
+#include "pxr/usd/ar/resolverScopedCache.h"
+#include "pxr/usd/sdf/layer.h"
+#include "pxr/usd/sdf/layerUtils.h"
 #include "pxr/usd/usdGeom/mesh.h"
 #include "pxr/usd/usdGeom/subset.h"
 #include "pxr/usd/usdShade/material.h"
@@ -384,7 +388,44 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 namespace UsdGeomMeshConversionImpl
 {
-	UMaterialExpression* ParseInputTexture( pxr::UsdShadeInput& ShadeInput, UMaterial& Material )
+	// Finds the strongest layer contributing to an attribute
+	TUsdStore< pxr::SdfLayerHandle > FindLayerHandle( const pxr::UsdAttribute& Attr, const pxr::UsdTimeCode& Time )
+	{
+		FScopedUsdAllocs UsdAllocs;
+
+		for ( const pxr::SdfPropertySpecHandle& PropertySpec : Attr.GetPropertyStack( Time ) )
+		{
+			if ( PropertySpec->HasDefaultValue() || PropertySpec->GetLayer()->GetNumTimeSamplesForPath( PropertySpec->GetPath() ) > 0 )
+			{
+				return PropertySpec->GetLayer();
+			}
+		}
+
+		return {};
+	}
+
+	// Given an AssetPath, resolve it to an actual file path
+	FString ResolveAssetPath( const TUsdStore< pxr::SdfLayerHandle >& LayerHandle, const FString& AssetPath )
+	{
+		FString AssetPathToResolve = AssetPath;
+		AssetPathToResolve.ReplaceInline( TEXT("<UDIM>"), TEXT("1001") ); // If it's a UDIM path, we replace the UDIM tag with the start tile
+
+		pxr::ArResolverScopedCache ResolverCache;
+		pxr::ArResolver& Resolver = pxr::ArGetResolver();
+
+		const FString RelativePathToResolve = 
+			LayerHandle.Get()
+			? UsdToUnreal::ConvertString( pxr::SdfComputeAssetPathRelativeToLayer( LayerHandle.Get(), UnrealToUsd::ConvertString( *AssetPathToResolve ).Get() ) )
+			: AssetPathToResolve;
+
+		TUsdStore< std::string > ResolvedPathUsd = Resolver.Resolve( UnrealToUsd::ConvertString( *RelativePathToResolve ).Get().c_str() );
+
+		FString ResolvedAssetPath = UsdToUnreal::ConvertString( ResolvedPathUsd.Get() );
+
+		return ResolvedAssetPath;
+	}
+
+	UMaterialExpression* ParseInputTexture( pxr::UsdShadeInput& ShadeInput, UMaterial& Material, TMap< FString, UObject* >& TexturesCache )
 	{
 		UMaterialExpression* Result = nullptr;
 
@@ -402,21 +443,50 @@ namespace UsdGeomMeshConversionImpl
 
 				if ( FileInput )
 				{
-					pxr::SdfAssetPath TexturePath;
-					FileInput.Get< pxr::SdfAssetPath >( &TexturePath );
+					pxr::SdfAssetPath TextureAssetPath;
+					FileInput.Get< pxr::SdfAssetPath >( &TextureAssetPath );
 
 					FScopedUnrealAllocs UnrealAllocs;
 
-					FString TextureFileName = UsdToUnreal::ConvertString( TexturePath.GetResolvedPath() );
-					TextureFileName.RemoveFromStart( TEXT("\\\\?\\") );
+					FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
+					const bool bIsSupportedUdimTexture = TexturePath.Contains( TEXT("<UDIM>") );
+					FPaths::NormalizeFilename( TexturePath );
 
-					FPaths::NormalizeFilename( TextureFileName );
+					FString ResolvedTexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetResolvedPath() );
+					ResolvedTexturePath.RemoveFromStart( TEXT("\\\\?\\") );
+					FPaths::NormalizeFilename( ResolvedTexturePath );
 
-					bool bOutCancelled = false;
-					UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
-					TextureFactory->SuppressImportOverwriteDialog();
+					UTexture2D* Texture2D = Cast< UTexture2D >( TexturesCache.FindRef( TexturePath ) );
 
-					UTexture2D* Texture2D = Cast< UTexture2D >( TextureFactory->FactoryCreateFile( UTexture2D::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, TextureFileName, TEXT(""), GWarn, bOutCancelled ) );
+					if ( !Texture2D && !TexturePath.IsEmpty() )
+					{
+						bool bOutCancelled = false;
+						UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
+						TextureFactory->SuppressImportOverwriteDialog();
+						TextureFactory->bUseHashAsGuid = true;
+
+						if ( bIsSupportedUdimTexture )
+						{
+							FString BaseFileName = FPaths::GetBaseFilename( TexturePath );
+
+							FString BaseFileNameBeforeUdim;
+							FString BaseFileNameAfterUdim;
+							BaseFileName.Split( TEXT("<UDIM>"), &BaseFileNameBeforeUdim, &BaseFileNameAfterUdim );
+
+							FString UdimRegexPattern = FString::Printf( TEXT(R"((%s)(\d{4})(%s))"), *BaseFileNameBeforeUdim, *BaseFileNameAfterUdim );
+							TextureFactory->UdimRegexPattern = MoveTemp( UdimRegexPattern );
+						}
+
+						if ( ResolvedTexturePath.IsEmpty() )
+						{
+							TUsdStore< pxr::SdfLayerHandle > LayerHandle = FindLayerHandle( FileInput.GetAttr(), pxr::UsdTimeCode::EarliestTime() );
+							ResolvedTexturePath = ResolveAssetPath( LayerHandle, TexturePath );
+						}
+
+						Texture2D = Cast< UTexture2D >( TextureFactory->ImportObject( UTexture2D::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, ResolvedTexturePath, TEXT(""), bOutCancelled ) );
+
+						TexturesCache.Add( TexturePath, Texture2D );
+					}
 
 					if ( Texture2D )
 					{
@@ -436,6 +506,12 @@ namespace UsdGeomMeshConversionImpl
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material )
 {
+	TMap< FString, UObject* > TexturesCache;
+	return ConvertMaterial( UsdShadeMaterial, Material, TexturesCache );
+}
+
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, TMap< FString, UObject* >& TexturesCache )
+{
 	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
 	
 	if ( !SurfaceShader )
@@ -445,7 +521,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	bool bHasMaterialInfo = false;
 
-	auto ParseFloatInput = [ &Material, &SurfaceShader ]( const ANSICHAR* InputName, float DefaultValue ) -> UMaterialExpression*
+	auto ParseFloatInput = [ &Material, &SurfaceShader, &TexturesCache ]( const ANSICHAR* InputName, float DefaultValue ) -> UMaterialExpression*
 	{
 		pxr::UsdShadeInput Input = SurfaceShader.GetInput( pxr::TfToken(InputName) );
 		UMaterialExpression* InputExpression = nullptr;
@@ -467,7 +543,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 			}
 			else
 			{
-				InputExpression = UsdGeomMeshConversionImpl::ParseInputTexture( Input, Material );
+				InputExpression = UsdGeomMeshConversionImpl::ParseInputTexture( Input, Material, TexturesCache );
 			}
 		}
 
@@ -496,7 +572,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 			}
 			else
 			{
-				BaseColorExpression = UsdGeomMeshConversionImpl::ParseInputTexture( DiffuseInput, Material );
+				BaseColorExpression = UsdGeomMeshConversionImpl::ParseInputTexture( DiffuseInput, Material, TexturesCache );
 			}
 
 			if ( BaseColorExpression )

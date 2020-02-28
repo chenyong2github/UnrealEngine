@@ -42,13 +42,11 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	if ( Xformable.GetPrim().IsA< pxr::UsdGeomCamera >() )
 	{
-		AdditionalRotation = FRotator( -90.f, 0.f, 0.f );
-		AdditionalRotation = AdditionalRotation + FRotator( 0.f, -90.f, 0.f );
-
+		AdditionalRotation = FRotator( 0.0f, -90.f, 0.0f );
 		UpAxis = pxr::UsdGeomTokens->y; // Cameras are always Y up in USD
 	}
 
-	OutTransform = UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix ) * FTransform( AdditionalRotation );
+	OutTransform = FTransform( AdditionalRotation ) * UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix );
 
 	return true;
 }
@@ -122,7 +120,7 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 
 		bResetXFormStack = false;
 		bool bFoundTransformOp = false;
-	
+
 		std::vector< pxr::UsdGeomXformOp > XFormOps = XForm.GetOrderedXformOps( &bResetXFormStack );
 		for ( const pxr::UsdGeomXformOp& XFormOp : XFormOps )
 		{

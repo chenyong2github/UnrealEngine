@@ -125,6 +125,14 @@ class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsPars
 	UPROPERTY(Transient)
 	uint32 bUseHashAsGuid:1;
 
+	/**
+	 * The pattern to use to match UDIM files to indices. Defaults to match a filename that ends with either .1001 or _1001
+	 * This 1st and 3rd (optional) capture groups are used as the texture name. The 2nd capture group is considered to be the UDIM index.
+	 * ie: (Capture Group 1)(\d{4})( Capture Group 3)
+	 */
+	UPROPERTY(Transient)
+	FString UdimRegexPattern;
+
 public:
 	UTextureFactory(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 

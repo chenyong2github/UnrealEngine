@@ -13,6 +13,7 @@
 #include "USDIncludesEnd.h"
 
 class UStaticMesh;
+class FStaticMeshComponentRecreateRenderStateContext;
 
 PXR_NAMESPACE_OPEN_SCOPE
 	class UsdGeomMesh;
@@ -32,6 +33,9 @@ protected:
 
 	// Outputs
 	UStaticMesh* StaticMesh = nullptr;
+
+	// Required to prevent StaticMesh from being used for drawing while it is being rebuilt
+	TSharedPtr<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContextPtr;
 
 protected:
 	FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema )

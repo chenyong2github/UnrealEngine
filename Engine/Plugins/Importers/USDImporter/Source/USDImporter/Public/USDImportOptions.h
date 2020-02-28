@@ -79,7 +79,7 @@ public:
 #endif
 public:
 	/* Only import prims with these specific purposes from the USD file */
-	UPROPERTY(EditAnywhere, Category = General, meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=General, meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToImport;
 
 	/** If checked, all actors generated will have a world space transform and will not have any attachment hierarchy */

@@ -29,7 +29,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 	{
 		UMaterial* NewMaterial = NewObject< UMaterial >();
 
-		if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial ) )
+		if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetsCache ) )
 		{
 			//UMaterialEditingLibrary::RecompileMaterial( CachedMaterial ); // Too slow
 			NewMaterial->PostEditChange();
