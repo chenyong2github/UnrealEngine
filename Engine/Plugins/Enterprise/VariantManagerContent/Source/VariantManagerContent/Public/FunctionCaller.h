@@ -27,12 +27,6 @@ struct VARIANTMANAGERCONTENT_API FFunctionCaller
 	void PostSerialize(const FArchive& Ar);
 
 	/**
-	 * Check whether the specified function is valid for a movie scene event
-	 * Functions must have either no parameters, or a single, pass-by-value object/interface parameter, with no return parameter.
-	 */
-	static bool IsValidFunction(UFunction* Function);
-
-	/**
 	 * The function that should be called to invoke this event.
 	 * Functions must have either no parameters, or a single, pass-by-value object/interface parameter, with no return parameter.
 	 */

@@ -252,7 +252,7 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 				}
 				else
 				{
-					TooltipText = LOCTEXT("InvalidTooltip", "Function must be valid and have either no input pins or 4 input pins with the correct types:\nThe bound actor's class, Level Variant Sets, Variant Set and Variant");
+					TooltipText = LOCTEXT("InvalidTooltip", "Function must be valid and have either: \n - Zero input pins;\n - One input pin (with type matching the bound actor's class);\n - 4 input pins (with types: the bound actor's class, Level Variant Sets, Variant Set and Variant)");
 				}
 			}
 			else
