@@ -529,6 +529,41 @@ void SDataprepGraphTrackNode::OnControlKeyChanged(bool bControlKeyDown)
 	}
 }
 
+void SDataprepGraphTrackNode::RequestRename(const UEdGraphNode* Node)
+{
+	if(SGraphPanel* GraphPanel = OwnerGraphPanelPtr.Pin().Get())
+	{
+		if(const UDataprepGraphActionNode* ActionEdNode = Cast<UDataprepGraphActionNode>(Node))
+		{
+			int32 ActionIndex = ActionEdNode->GetExecutionOrder();
+			if(ActionNodes.IsValidIndex(ActionIndex))
+			{
+				TSharedPtr<SDataprepGraphActionNode>& ActionNode = ActionNodes[ActionIndex];
+
+				if(ActionNode.IsValid() && !GraphPanel->HasMouseCapture())
+				{
+					FSlateRect TitleRect = ActionNode->GetTitleRect();
+					const FVector2D TopLeft = FVector2D( TitleRect.Left, TitleRect.Top );
+					const FVector2D BottomRight = FVector2D( TitleRect.Right, TitleRect.Bottom );
+
+					bool bTitleVisible = GraphPanel->IsRectVisible( TopLeft, BottomRight );
+					if( !bTitleVisible )
+					{
+						bTitleVisible = GraphPanel->JumpToRect( TopLeft, BottomRight );
+					}
+
+					if( bTitleVisible )
+					{
+						ActionNode->RequestRename();
+						//GraphPanel->JumpToNode(Node, false, true);
+						ActionNode->ApplyRename();
+					}
+				}
+			}
+		}
+	}
+}
+
 void SDataprepGraphTrackWidget::Construct(const FArguments& InArgs, TSharedPtr<SDataprepGraphTrackNode> InTrackNode)
 {
 	TrackNodePtr = InTrackNode;

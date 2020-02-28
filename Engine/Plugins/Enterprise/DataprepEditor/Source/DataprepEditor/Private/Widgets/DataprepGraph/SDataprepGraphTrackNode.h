@@ -110,6 +110,9 @@ public:
 	/** Recomputes the position of each action node */
 	bool RefreshLayout();
 
+	/** Start editing of action asset associated to input EdGraphNode */
+	void RequestRename(const UEdGraphNode* Node);
+
 	/** Miscellaneous values used in the display */
 	// #ueent_wip: Will be moved to the Dataprep editor's style
 	static FMargin NodePadding;
@@ -124,7 +127,7 @@ private:
 	TSharedPtr<SDataprepGraphTrackWidget> TrackWidgetPtr;
 
 	/** Array of action node's widgets */
-	mutable TArray<TSharedPtr<SDataprepGraphActionNode>> ActionNodes;
+	TArray<TSharedPtr<SDataprepGraphActionNode>> ActionNodes;
 
 	/** Weak pointer to the Dataprep asset holding the displayed actions */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
