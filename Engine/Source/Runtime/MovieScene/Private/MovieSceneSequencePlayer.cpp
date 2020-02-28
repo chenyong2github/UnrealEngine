@@ -56,7 +56,6 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, StartTime(0)
 	, DurationFrames(0)
 	, CurrentNumLoops(0)
-	, LastTickGameTimeSeconds(-1.f)
 {
 	PlayPosition.Reset(FFrameTime(0));
 
@@ -233,7 +232,7 @@ void UMovieSceneSequencePlayer::Pause()
 		Status = EMovieScenePlayerStatus::Paused;
 		TimeController->StopPlaying(GetCurrentTime());
 
-		LastTickGameTimeSeconds = -1;
+		LastTickGameTimeSeconds.Reset();
 
 		// Evaluate the sequence at its current time, with a status of 'stopped' to ensure that animated state pauses correctly. (ie. audio sounds should stop/pause)
 		{
@@ -311,7 +310,7 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		}
 
 		CurrentNumLoops = 0;
-		LastTickGameTimeSeconds = -1;
+		LastTickGameTimeSeconds.Reset();
 
 		// Reset loop count on stop so that it doesn't persist to the next call to play
 		PlaybackSettings.LoopCount.Value = 0;
@@ -727,9 +726,9 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 
 		float DeltaTimeForFunction = DeltaSeconds;
 
-		if (LastTickGameTimeSeconds >= 0.f)
+		if (LastTickGameTimeSeconds.IsSet() && LastTickGameTimeSeconds.GetValue() >= 0.f)
 		{
-			DeltaTimeForFunction = CurrentWorldTime - LastTickGameTimeSeconds;
+			DeltaTimeForFunction = CurrentWorldTime - LastTickGameTimeSeconds.GetValue();
 		}
 
 		TimeController->Tick(DeltaTimeForFunction, PlayRate);
@@ -743,7 +742,10 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 		UpdateTimeCursorPosition(NewTime, EUpdatePositionMethod::Play);
 	}
 
-	LastTickGameTimeSeconds = CurrentWorldTime;
+	if (World)
+	{
+		LastTickGameTimeSeconds = CurrentWorldTime;
+	}
 }
 
 void UMovieSceneSequencePlayer::UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method)
