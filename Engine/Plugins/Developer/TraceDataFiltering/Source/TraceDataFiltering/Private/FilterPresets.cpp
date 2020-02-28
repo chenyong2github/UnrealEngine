@@ -32,7 +32,7 @@ void USharedFilterPresetContainer::Save()
 	SharedPresetsContainer->UpdateDefaultConfigFile();
 }
 
-void USharedFilterPresetContainer::GetEnginePresets(TArray<TSharedPtr<IFilterPreset>>& OutPresets)
+void UEngineFilterPresetContainer::GetEnginePresets(TArray<TSharedPtr<IFilterPreset>>& OutPresets)
 {
 	for (FFilterData& FilterData : EnginePresets)
 	{
