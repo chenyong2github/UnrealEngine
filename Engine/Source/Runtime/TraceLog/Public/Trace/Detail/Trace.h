@@ -56,8 +56,9 @@ namespace Trace
 		{ \
 			Important			= Trace::Private::FEventInfo::Flag_Important, \
 			NoSync				= Trace::Private::FEventInfo::Flag_NoSync, \
-			PartialEventFlags	= (0, ##__VA_ARGS__), \
+			PartialEventFlags	= (0, ##__VA_ARGS__) & ~Important, \
 		}; \
+		enum : bool { bIsImportant = ((0, ##__VA_ARGS__) & Important) != 0, }; \
 		static uint32 FORCENOINLINE Initialize() \
 		{ \
 			static const uint32 OnceOnly = [] () \
@@ -99,12 +100,10 @@ namespace Trace
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ...) \
 	if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)) \
-		if (uint32 Uid = LoggerName##EventName##Event.GetUid() ? LoggerName##EventName##Event.GetUid() : F##LoggerName##EventName##Fields::Initialize()) \
 			if (const auto& __restrict EventName = (F##LoggerName##EventName##Fields&)LoggerName##EventName##Event) \
-				if (auto LogScope = Trace::FEventDef::FLogScope( \
-					uint16(Uid), \
+				if (auto LogScope = Trace::Private::TLogScope<decltype(EventName)>::Enter( \
+					LoggerName##EventName##Event.GetUid() ? LoggerName##EventName##Event.GetUid() : F##LoggerName##EventName##Fields::Initialize(), \
 					TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), \
-					F##LoggerName##EventName##Fields::EventFlags, \
 					##__VA_ARGS__)) \
 						LogScope
 

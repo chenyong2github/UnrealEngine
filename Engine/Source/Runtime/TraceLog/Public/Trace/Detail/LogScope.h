@@ -1,0 +1,55 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Trace/Config.h"
+
+#if UE_TRACE_ENABLED
+
+#include "Writer.inl"
+
+namespace Trace {
+namespace Private {
+
+////////////////////////////////////////////////////////////////////////////////
+class FLogScope
+{
+public:
+							~FLogScope();
+	constexpr explicit		operator bool () const { return true; }
+	template <uint32 Flags>
+	static FLogScope		Enter(uint32 Uid, uint32 Size);
+	template <class Action>
+	const FLogScope&		operator << (const Action&) const;
+
+private:
+	FLogInstance			Instance;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+class FImportantLogScope
+	: public FLogScope
+{
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+template <bool>	struct TLogScopeSelector;
+template <>		struct TLogScopeSelector<false>	{ typedef FLogScope Type; };
+template <>		struct TLogScopeSelector<true>	{ typedef FImportantLogScope Type; };
+
+////////////////////////////////////////////////////////////////////////////////
+template <class T> struct TLogScope;
+
+template <class T>
+struct TLogScope<T& __restrict>
+{
+	static auto Enter(uint32 Uid, uint32 Size);
+	static auto Enter(uint32 Uid, uint32 Size, uint32 ExtraBytes);
+};
+
+} // namespace Private
+} // namespace Trace
+
+#endif // UE_TRACE_ENABLED
