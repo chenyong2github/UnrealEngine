@@ -82,16 +82,19 @@ namespace AutomationCommon
 #if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
 
 	/** Gets a path used for automation testing (PNG sent to the AutomationTest folder) */
-	void GetScreenshotPath(const FString& TestName, FString& OutScreenshotName)
+	FString GetScreenshotName(const FString& TestName)
 	{
-		FString PathName = FPaths::AutomationDir() + TestName / FPlatformProperties::IniPlatformName();
+		FString PathName = TestName / FPlatformProperties::IniPlatformName();
 		PathName = PathName + TEXT("/") + GetRenderDetailsString();
 
-		FPaths::MakePathRelativeTo(PathName, *FPaths::ProjectDir());
-
-		OutScreenshotName = FString::Printf(TEXT("%s/%s.png"), *PathName, *FPlatformMisc::GetDeviceId());
+		return FString::Printf(TEXT("%s/%s.png"), *PathName, *FPlatformMisc::GetDeviceId());
 	}
 
+	FString GetLocalPathForScreenshot(const FString& InScreenshotName)
+	{
+		return FPaths::AutomationDir() + InScreenshotName;
+	}
+	
 	FAutomationScreenshotData BuildScreenshotData(const FString& MapOrContext, const FString& TestName, int32 Width, int32 Height)
 	{
 		FAutomationScreenshotData Data;
@@ -131,14 +134,14 @@ namespace AutomationCommon
 		// Device's native resolution (we want to use a hardware dump of the frontbuffer at the native resolution so we compare what we actually output rather than what we think we rendered)
 
 		const FString MapAndTest = MapOrContext + TEXT("/") + Data.Name;
-		AutomationCommon::GetScreenshotPath(MapAndTest, Data.Path);
+		Data.ScreenshotName = GetScreenshotName(MapAndTest);
 
 		return Data;
 	}
 #endif
 
 	/** These save a PNG and get sent over the network */
-	static void SaveWindowAsScreenshot(TSharedRef<SWindow> Window, const FString& FileName)
+	static void SaveWindowAsScreenshot(TSharedRef<SWindow> Window, const FString& ScreenshotName)
 	{
 		TSharedRef<SWidget> WindowRef = Window;
 
@@ -149,7 +152,7 @@ namespace AutomationCommon
 			FAutomationScreenshotData Data;
 			Data.Width = OutImageSize.X;
 			Data.Height = OutImageSize.Y;
-			Data.Path = FileName;
+			Data.ScreenshotName = ScreenshotName;
 			FAutomationTestFramework::Get().OnScreenshotCaptured().ExecuteIfBound(OutImageData, Data);
 		}
 	}
