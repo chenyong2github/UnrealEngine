@@ -209,13 +209,14 @@ public:
 	 * @param BusMix - Mix object to deserialize profile .ini to.
 	 * @param bActivate - If true, activate mix upon loading from profile.
 	 * @param ProfileIndex - Index of profile, allowing multiple profiles to be loaded to single mix object. If <= 0, loads from default profile (no suffix).
+	 * @return Channels - Channel values loaded from profile (empty if profile did not exist or had no values serialized).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Load Control Bus Mix From Profile", meta = (
 		WorldContext = "WorldContextObject",
 		AdvancedDisplay = "2",
 		Keywords = "load deserialize control bus modulation mix modulator ini")
 	)
-	static void LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate = true, int32 ProfileIndex = 0);
+	static UPARAM(DisplayName = "Channels") TArray<FSoundControlBusMixChannel> LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate = true, int32 ProfileIndex = 0);
 
 	/** Sets a mix with the provided channel data if channels provided in active instance proxy of mix. Does not update UObject definition of mix.
 	 * @param Mix - Mix to update
