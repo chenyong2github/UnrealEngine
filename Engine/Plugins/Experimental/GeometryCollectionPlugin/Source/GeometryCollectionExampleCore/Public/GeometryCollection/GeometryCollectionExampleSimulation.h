@@ -8,7 +8,7 @@ namespace GeometryCollectionExample
 {	
 	
 	template<class T>
-	void RigidBodiesFallingUnderGravity();
+	void RigidBodies_SingleFallingUnderGravity();
 
 	template<class T>
 	void RigidBodiesCollidingWithSolverFloor();
