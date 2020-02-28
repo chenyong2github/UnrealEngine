@@ -127,6 +127,7 @@ public:
 
 	virtual void BuildContextMenu( FMenuBuilder& MenuBuilder );
 	virtual bool CanRenameNode() const override;
+	virtual bool ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const override;
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent() override;
 	virtual void GetChildKeyAreaNodesRecursively(TArray<TSharedRef<FSequencerSectionKeyAreaNode>>& OutNodes) const override;
 	virtual FText GetDisplayName() const override;
