@@ -26,11 +26,11 @@
  * Complain if we see this header twice through.
  */
 
-#ifdef TF_INSTANTIATESINGLETON_H
+#ifdef PXR_BASE_TF_INSTANTIATE_SINGLETON_H
 #error This file should only be included once in any given source (.cpp) file.
 #endif
 
-#define TF_INSTANTIATESINGLETON_H
+#define PXR_BASE_TF_INSTANTIATE_SINGLETON_H
 
 /// \file tf/instantiateSingleton.h
 /// \ingroup group_tf_ObjectCreation

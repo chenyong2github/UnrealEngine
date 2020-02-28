@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef TF_PYSTATICTOKENS_H
-#define TF_PYSTATICTOKENS_H
+#ifndef PXR_BASE_TF_PY_STATIC_TOKENS_H
+#define PXR_BASE_TF_PY_STATIC_TOKENS_H
 
 /// \file tf/pyStaticTokens.h
 
@@ -113,4 +113,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYSTATICTOKENS_H
+#endif // PXR_BASE_TF_PY_STATIC_TOKENS_H

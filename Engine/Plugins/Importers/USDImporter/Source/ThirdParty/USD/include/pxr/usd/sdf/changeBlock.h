@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_CHANGEBLOCK_H
-#define SDF_CHANGEBLOCK_H
+#ifndef PXR_USD_SDF_CHANGE_BLOCK_H
+#define PXR_USD_SDF_CHANGE_BLOCK_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/sdf/api.h"
@@ -79,4 +79,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_CHANGEBLOCK_H
+#endif // PXR_USD_SDF_CHANGE_BLOCK_H

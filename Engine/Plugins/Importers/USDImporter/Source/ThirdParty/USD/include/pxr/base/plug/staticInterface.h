@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PLUG_STATICINTERFACE_H
-#define PLUG_STATICINTERFACE_H
+#ifndef PXR_BASE_PLUG_STATIC_INTERFACE_H
+#define PXR_BASE_PLUG_STATIC_INTERFACE_H
 
 /// \file plug/staticInterface.h
 
@@ -72,7 +72,7 @@ protected:
 ///
 /// Typical usage is:
 /// \code
-/// #include "ExtShipped/Core/SomePlugin.h"
+/// #include "path/to/SomePlugin.h"
 /// #include "pxr/base/plug/staticInterface.h"
 ///
 /// static PlugStaticInterface<SomePluginInterface> ptr;
@@ -128,7 +128,7 @@ protected:
 /// interface type must be registered with TfType using
 /// \c PLUG_REGISTER_INTERFACE_SINGLETON_TYPE:
 /// \code
-/// #include "ExtShipped/Core/SomePlugin.h"
+/// #include "path/to/SomePlugin.h"
 /// #include "pxr/base/plug/interfaceFactory.h"
 /// #include <iostream>
 /// class SomePluginImplementation : public SomePluginInterface {
@@ -217,4 +217,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PLUG_STATICINTERFACE_H
+#endif // PXR_BASE_PLUG_STATIC_INTERFACE_H

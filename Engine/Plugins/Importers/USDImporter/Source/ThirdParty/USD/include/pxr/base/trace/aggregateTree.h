@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef TRACE_AGGREGATE_TREE_H
-#define TRACE_AGGREGATE_TREE_H
+#ifndef PXR_BASE_TRACE_AGGREGATE_TREE_H
+#define PXR_BASE_TRACE_AGGREGATE_TREE_H
 
 #include "pxr/pxr.h"
 
@@ -35,6 +35,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 class TraceCollection;
 
 TF_DECLARE_WEAK_AND_REF_PTRS(TraceAggregateTree);
+TF_DECLARE_WEAK_AND_REF_PTRS(TraceEventTree);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// \class TraceAggregateTree
@@ -83,8 +84,11 @@ public:
     /// Removes all data and nodes from the tree.
     TRACE_API void Clear();
 
-    /// Creates new nodes and counter data from data in /p collection.
-    TRACE_API void Append(const TraceCollection& collection);
+    /// Creates new nodes and counter data from data in \p eventTree and \p 
+    /// collection. 
+    TRACE_API void Append(
+        const TraceEventTreeRefPtr& eventTree,
+        const TraceCollection& collection);
 
 private:
     TRACE_API TraceAggregateTree();
@@ -102,4 +106,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TRACE_AGGREGATE_TREE_H
+#endif // PXR_BASE_TRACE_AGGREGATE_TREE_H

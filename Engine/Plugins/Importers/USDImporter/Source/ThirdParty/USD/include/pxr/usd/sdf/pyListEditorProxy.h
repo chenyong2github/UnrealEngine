@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_PYLISTEDITORPROXY_H
-#define SDF_PYLISTEDITORPROXY_H
+#ifndef PXR_USD_SDF_PY_LIST_EDITOR_PROXY_H
+#define PXR_USD_SDF_PY_LIST_EDITOR_PROXY_H
 
 /// \file sdf/pyListEditorProxy.h
 
@@ -258,4 +258,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PYLISTEDITORPROXY_H
+#endif // PXR_USD_SDF_PY_LIST_EDITOR_PROXY_H

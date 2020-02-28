@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_USDC_FILE_FORMAT_H
-#define USD_USDC_FILE_FORMAT_H
+#ifndef PXR_USD_USD_USDC_FILE_FORMAT_H
+#define PXR_USD_USD_USDC_FILE_FORMAT_H
  
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/api.h"
@@ -32,14 +32,12 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-
 #define USD_USDC_FILE_FORMAT_TOKENS   \
     ((Id,      "usdc"))
 
 TF_DECLARE_PUBLIC_TOKENS(UsdUsdcFileFormatTokens, USD_API, USD_USDC_FILE_FORMAT_TOKENS);
 
 TF_DECLARE_WEAK_AND_REF_PTRS(UsdUsdcFileFormat);
-TF_DECLARE_WEAK_AND_REF_PTRS(SdfLayerBase);
 
 /// \class UsdUsdcFileFormat
 ///
@@ -52,31 +50,31 @@ public:
     using string = std::string;
 
     virtual SdfAbstractDataRefPtr InitData(
-        const FileFormatArguments& args) const;
+        const FileFormatArguments& args) const override;
 
-    virtual bool CanRead(const string &file) const;
+    virtual bool CanRead(const string &file) const override;
 
     virtual bool Read(
-        const SdfLayerBasePtr& layerBase,
+        SdfLayer* layer,
         const string& resolvedPath,
-        bool metadataOnly) const;
+        bool metadataOnly) const override;
 
     virtual bool WriteToFile(
-        const SdfLayerBase* layerBase,
+        const SdfLayer& layer,
         const string& filePath,
         const string& comment = string(),
-        const FileFormatArguments& args = FileFormatArguments()) const;
+        const FileFormatArguments& args = FileFormatArguments()) const override;
 
-    virtual bool ReadFromString(const SdfLayerBasePtr& layerBase,
-                                const string& str) const;
+    virtual bool ReadFromString(SdfLayer* layer,
+                                const string& str) const override;
 
-    virtual bool WriteToString(const SdfLayerBase* layerBase,
+    virtual bool WriteToString(const SdfLayer& layer,
                                string* str,
-                               const string& comment = string()) const;
+                               const string& comment = string()) const override;
 
     virtual bool WriteToStream(const SdfSpecHandle &spec,
                                std::ostream& out,
-                               size_t indent) const;
+                               size_t indent) const override;
 
 protected:
     SDF_FILE_FORMAT_FACTORY_ACCESS;
@@ -84,12 +82,8 @@ protected:
     UsdUsdcFileFormat();
     virtual ~UsdUsdcFileFormat();
 
-private:
-    virtual bool _IsStreamingLayer(const SdfLayerBase& layer) const;
-
 };
-
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USD_USDC_FILE_FORMAT_H
+#endif // PXR_USD_USD_USDC_FILE_FORMAT_H

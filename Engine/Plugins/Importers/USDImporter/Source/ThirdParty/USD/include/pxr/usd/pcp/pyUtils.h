@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PCP_PY_UTILS_H
-#define PCP_PY_UTILS_H
+#ifndef PXR_USD_PCP_PY_UTILS_H
+#define PXR_USD_PCP_PY_UTILS_H
 
 #include <boost/python/dict.hpp>
 
@@ -44,4 +44,4 @@ PcpVariantFallbackMapFromPython(
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PCP_PY_UTILS_H
+#endif // PXR_USD_PCP_PY_UTILS_H

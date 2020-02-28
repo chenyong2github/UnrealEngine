@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef SDR_SHADERMETADATAHELPERS_H
-#define SDR_SHADERMETADATAHELPERS_H
+#ifndef PXR_USD_SDR_SHADER_METADATA_HELPERS_H
+#define PXR_USD_SDR_SHADER_METADATA_HELPERS_H
 
 /// \file sdr/shaderMetadataHelpers.h
 
@@ -94,8 +94,20 @@ namespace ShaderMetadataHelpers
     SDR_API
     bool
     IsPropertyAnAssetIdentifier(const NdrTokenMap& metadata);
+
+    /// Determines if the specified property metadata has a 'renderType' that
+    /// indicates the property should be a SdrPropertyTypes->Terminal
+    SDR_API
+    bool
+    IsPropertyATerminal(const NdrTokenMap& metadata);
+
+    /// Gets the "role" from metadata if one is provided. Only returns a value
+    // if it's a valid role as defined by SdrPropertyRole tokens.
+    SDR_API
+    TfToken
+    GetRoleFromMetadata(const NdrTokenMap& metadata);
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDR_SHADERMETADATAHELPERS_H
+#endif // PXR_USD_SDR_SHADER_METADATA_HELPERS_H

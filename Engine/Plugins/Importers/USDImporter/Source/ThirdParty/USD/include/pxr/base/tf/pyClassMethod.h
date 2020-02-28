@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PY_CLASS_METHOD_H
-#define TF_PY_CLASS_METHOD_H
+#ifndef PXR_BASE_TF_PY_CLASS_METHOD_H
+#define PXR_BASE_TF_PY_CLASS_METHOD_H
 
 #include "pxr/pxr.h"
 
@@ -39,7 +39,7 @@ using namespace boost::python;
 
 // Visitor for wrapping functions as Python class methods.
 // See typedef below for docs.
-// This is very simliar to the staticmethod() method on boost::python::class,
+// This is very similar to the staticmethod() method on boost::python::class,
 // except it uses PyClassMethod_New() instead of PyStaticMethod_New().
 struct _TfPyClassMethod : def_visitor<_TfPyClassMethod>
 {
@@ -99,4 +99,4 @@ typedef Tf_PyClassMethod::_TfPyClassMethod TfPyClassMethod;
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PY_CLASS_METHOD_H
+#endif // PXR_BASE_TF_PY_CLASS_METHOD_H

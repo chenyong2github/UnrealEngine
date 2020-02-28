@@ -170,6 +170,10 @@ struct UsdLuxTokensType {
     /// 
     /// UsdLuxLight
     const TfToken normalize;
+    /// \brief "orientToStageUpAxis"
+    /// 
+    ///  This token represents the suffix for a UsdGeomXformOp used to orient a light with the stage's up axis. 
+    const TfToken orientToStageUpAxis;
     /// \brief "portals"
     /// 
     /// UsdLuxDomeLight
@@ -234,6 +238,10 @@ struct UsdLuxTokensType {
     /// 
     /// UsdLuxShapingAPI
     const TfToken shapingIesFile;
+    /// \brief "shaping:ies:normalize"
+    /// 
+    /// UsdLuxShapingAPI
+    const TfToken shapingIesNormalize;
     /// \brief "specular"
     /// 
     /// UsdLuxLight

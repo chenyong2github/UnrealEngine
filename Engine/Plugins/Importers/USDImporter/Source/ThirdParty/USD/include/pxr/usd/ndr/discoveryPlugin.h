@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef NDR_DISCOVERYPLUGIN_H
-#define NDR_DISCOVERYPLUGIN_H
+#ifndef PXR_USD_NDR_DISCOVERY_PLUGIN_H
+#define PXR_USD_NDR_DISCOVERY_PLUGIN_H
 
 /// \file ndr/registry.h
 
@@ -185,4 +185,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // NDR_DISCOVERYPLUGIN_H
+#endif // PXR_USD_NDR_DISCOVERY_PLUGIN_H

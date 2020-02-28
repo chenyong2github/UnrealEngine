@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef NDR_DEBUGCODES_H
-#define NDR_DEBUGCODES_H
+#ifndef PXR_USD_NDR_DEBUG_CODES_H
+#define PXR_USD_NDR_DEBUG_CODES_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/tf/debug.h"
@@ -42,4 +42,4 @@ TF_DEBUG_CODES(
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // NDR_DEBUGCODES_H
+#endif // PXR_USD_NDR_DEBUG_CODES_H

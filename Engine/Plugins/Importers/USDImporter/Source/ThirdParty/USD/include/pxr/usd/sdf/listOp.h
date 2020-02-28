@@ -21,17 +21,17 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_LIST_OP_H
-#define SDF_LIST_OP_H
+#ifndef PXR_USD_SDF_LIST_OP_H
+#define PXR_USD_SDF_LIST_OP_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/sdf/api.h"
 #include "pxr/base/tf/token.h"
 
-#include <boost/function.hpp>
 #include <boost/functional/hash.hpp>
-#include <boost/optional.hpp>
+#include <boost/optional/optional_fwd.hpp>
 
+#include <functional>
 #include <iosfwd>
 #include <list>
 #include <map>
@@ -79,6 +79,20 @@ public:
     typedef ItemType value_type;
     typedef ItemVector value_vector_type;
 
+    /// Create a ListOp in explicit mode with the given \p explicitItems.
+    SDF_API
+    static SdfListOp CreateExplicit(
+        const ItemVector& explicitItems = ItemVector());
+
+    /// Create a ListOp in non-explicit mode with the given 
+    /// \p prependedItems, \p appendedItems, and \p deletedItems
+    SDF_API
+    static SdfListOp Create(
+        const ItemVector& prependedItems = ItemVector(),
+        const ItemVector& appendedItems = ItemVector(),
+        const ItemVector& deletedItems = ItemVector());
+
+    /// Create an empty ListOp in non-explicit mode.
     SDF_API SdfListOp();
 
     SDF_API void Swap(SdfListOp<T>& rhs);
@@ -99,6 +113,9 @@ public:
         }
         return _orderedItems.size() != 0;
     }
+
+    /// Returns \c true if the given item is in any of the item lists.
+    SDF_API bool HasItem(const T& item) const;
 
     /// Returns \c true if the list is explicit.
     bool IsExplicit() const
@@ -162,7 +179,7 @@ public:
     SDF_API void ClearAndMakeExplicit();
 
     /// Callback type for ApplyOperations.
-    typedef boost::function<
+    typedef std::function<
         boost::optional<ItemType>(SdfListOpType, const ItemType&)
     > ApplyCallback;
 
@@ -190,7 +207,7 @@ public:
     ApplyOperations(const SdfListOp<T> &inner) const;
 
     /// Callback type for ModifyOperations.
-    typedef boost::function<
+    typedef std::function<
         boost::optional<ItemType>(const ItemType&)
     > ModifyCallback;
 
@@ -291,8 +308,9 @@ typedef class SdfListOp<TfToken> SdfTokenListOp;
 typedef class SdfListOp<std::string> SdfStringListOp;
 typedef class SdfListOp<class SdfPath> SdfPathListOp;
 typedef class SdfListOp<class SdfReference> SdfReferenceListOp;
+typedef class SdfListOp<class SdfPayload> SdfPayloadListOp;
 typedef class SdfListOp<class SdfUnregisteredValue> SdfUnregisteredValueListOp;
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_LIST_OP_H
+#endif // PXR_USD_SDF_LIST_OP_H

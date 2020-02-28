@@ -53,10 +53,11 @@ class SdfAssetPath;
 /// \class UsdGeomCurves
 ///
 /// Base class for BasisCurves and NurbsCurves.  The BasisCurves
-/// schema is designed to be analagous to RenderMan's RiCurves 
-/// and RiBasis, while the NurbsCurve schema is designed to be 
-/// analgous to  the NURBS curves found in packages like Maya 
-/// and Houdini while retaining their consistency with the 
+/// schema is designed to be analagous to offline renderers' notion
+/// of batched curves (such as the classical RIB definition via
+/// Basis and Curves statements), while the NurbsCurve schema
+/// is designed to be analgous to the NURBS curves found in packages
+/// like Maya and Houdini while retaining their consistency with the 
 /// RenderMan specification for NURBS Patches.
 ///
 class UsdGeomCurves : public UsdGeomPointBased
@@ -114,7 +115,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDGEOM_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -126,7 +127,7 @@ private:
 
     // override SchemaBase virtuals.
     USDGEOM_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -137,10 +138,11 @@ public:
     /// gives the number of such curves, and each element describes the
     /// number of vertices in the corresponding curve
     ///
-    /// \n  C++ Type: VtArray<int>
-    /// \n  Usd Type: SdfValueTypeNames->IntArray
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `int[] curveVertexCounts` |
+    /// | C++ Type | VtArray<int> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->IntArray |
     USDGEOM_API
     UsdAttribute GetCurveVertexCountsAttr() const;
 
@@ -164,10 +166,11 @@ public:
     /// its 'interpolation'.  See \ref SetWidthsInterpolation() .  If 'widths'
     /// and 'primvars:widths' are both specified, the latter has precedence.
     ///
-    /// \n  C++ Type: VtArray<float>
-    /// \n  Usd Type: SdfValueTypeNames->FloatArray
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `float[] widths` |
+    /// | C++ Type | VtArray<float> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->FloatArray |
     USDGEOM_API
     UsdAttribute GetWidthsAttr() const;
 

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PCP_PATH_TRANSLATION_H
-#define PCP_PATH_TRANSLATION_H
+#ifndef PXR_USD_PCP_PATH_TRANSLATION_H
+#define PXR_USD_PCP_PATH_TRANSLATION_H
 
 /// \file pcp/pathTranslation.h
 /// Path translation.
@@ -113,4 +113,4 @@ PcpTranslatePathFromNodeToRootUsingFunction(
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PCP_PATH_TRANSLATION_H
+#endif // PXR_USD_PCP_PATH_TRANSLATION_H

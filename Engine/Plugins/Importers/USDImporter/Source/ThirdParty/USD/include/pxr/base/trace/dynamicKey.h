@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef TRACE_DYNAMIC_KEY_H
-#define TRACE_DYNAMIC_KEY_H
+#ifndef PXR_BASE_TRACE_DYNAMIC_KEY_H
+#define PXR_BASE_TRACE_DYNAMIC_KEY_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/trace/staticKeyData.h"
@@ -84,4 +84,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TRACE_DYNAMIC_KEY_H
+#endif // PXR_BASE_TRACE_DYNAMIC_KEY_H

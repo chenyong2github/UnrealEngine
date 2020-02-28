@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_CLEANUP_ENABLER_H
-#define SDF_CLEANUP_ENABLER_H
+#ifndef PXR_USD_SDF_CLEANUP_ENABLER_H
+#define PXR_USD_SDF_CLEANUP_ENABLER_H
 
 /// \file sdf/cleanupEnabler.h
 
@@ -80,4 +80,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif  // #ifndef SDF_CLEANUP_ENABLER_H
+#endif  // #ifndef PXR_USD_SDF_CLEANUP_ENABLER_H

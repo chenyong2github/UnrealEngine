@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef SDR_REGISTRY_H
-#define SDR_REGISTRY_H
+#ifndef PXR_USD_SDR_REGISTRY_H
+#define PXR_USD_SDR_REGISTRY_H
 
 /// \file sdr/registry.h
 
@@ -81,7 +81,9 @@ public:
     SDR_API
     SdrShaderNodeConstPtr GetShaderNodeFromAsset(
         const SdfAssetPath &shaderAsset,
-        const NdrTokenMap &metadata=NdrTokenMap());
+        const NdrTokenMap &metadata=NdrTokenMap(),
+        const TfToken &subIdentifier=TfToken(),
+        const TfToken &sourceType=TfToken());
 
     /// Wrapper method for NdrRegistry::GetNodeFromSourceCode(). 
     /// Returns a valid SdrShaderNode pointer upon success.
@@ -125,4 +127,4 @@ protected:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDR_REGISTRY_H
+#endif // PXR_USD_SDR_REGISTRY_H

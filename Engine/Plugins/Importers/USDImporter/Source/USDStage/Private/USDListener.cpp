@@ -96,7 +96,7 @@ void FUsdListener::HandleLayersChangedNotice(const pxr::SdfNotice::LayersDidChan
 		return;
 	}
 
-	OnLayersChanged.Broadcast(Notice.GetChangeListMap());
+	OnLayersChanged.Broadcast(Notice.GetChangeListVec());
 }
 
 #endif // #if USE_USD_SDK

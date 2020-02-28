@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_HINTS_H
-#define ARCH_HINTS_H
+#ifndef PXR_BASE_ARCH_HINTS_H
+#define PXR_BASE_ARCH_HINTS_H
 
 #include "pxr/base/arch/defines.h"
 
@@ -48,4 +48,4 @@
 
 #endif
 
-#endif // ARCH_HINTS_H
+#endif // PXR_BASE_ARCH_HINTS_H

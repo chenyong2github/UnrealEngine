@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PY_CALL_H
-#define TF_PY_CALL_H
+#ifndef PXR_BASE_TF_PY_CALL_H
+#define PXR_BASE_TF_PY_CALL_H
 
 /// \file tf/pyCall.h
 /// Utilities for calling python callables.

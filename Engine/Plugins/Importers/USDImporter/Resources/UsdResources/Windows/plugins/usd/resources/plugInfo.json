@@ -175,7 +175,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Binaries/Win64/libusd.dll", 
+            "LibraryPath": "../../../../../Binaries/Win64/usd.dll", 
             "Name": "usd", 
             "ResourcePath": "resources", 
             "Root": "..", 

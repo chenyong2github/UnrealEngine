@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef TRACE_AGGREGATE_NODE_H
-#define TRACE_AGGREGATE_NODE_H
+#ifndef PXR_BASE_TRACE_AGGREGATE_NODE_H
+#define PXR_BASE_TRACE_AGGREGATE_NODE_H
 
 #include "pxr/pxr.h"
 
@@ -40,7 +40,7 @@
 #include "pxr/base/arch/timing.h"
 
 #include <vector>
-#include "pxr/base/tf/hashmap.h"
+#include "pxr/base/tf/denseHashMap.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -204,7 +204,7 @@ private:
         _isRecursionMarker(false), _isRecursionHead(false),
         _isRecursionProcessed(false) {}
 
-    using _ChildDictionary = std::map<TfToken, size_t>;
+    using _ChildDictionary = TfDenseHashMap<TfToken, size_t, TfHash>;
 
     void _MergeRecursive(const TraceAggregateNodeRefPtr &node);
 
@@ -236,12 +236,7 @@ private:
         double exclusive;
     };
 
-    // XXX: Find a data structure that is better than a hash map.
-    //      We could use a vector for fast lookup, but it would be ideal to
-    //      maintain a sparse data structure. Many EventNodes will NOT have
-    //      counter values for specific counter indices. Also, many EventNodes
-    //      will not have counter values at all.
-    using _CounterValues = TfHashMap<int, _CounterValue>;
+    using _CounterValues = TfDenseHashMap<int, _CounterValue, TfHash>;
 
     // The counter values associated with specific counter indices
     _CounterValues _counterValues;
@@ -267,4 +262,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TRACE_AGGREGATE_NODE_H
+#endif // PXR_BASE_TRACE_AGGREGATE_NODE_H

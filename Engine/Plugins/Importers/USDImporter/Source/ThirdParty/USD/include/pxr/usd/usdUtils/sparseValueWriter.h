@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDUTILS_SPARSE_VALUE_WRITER_H
-#define USDUTILS_SPARSE_VALUE_WRITER_H
+#ifndef PXR_USD_USD_UTILS_SPARSE_VALUE_WRITER_H
+#define PXR_USD_USD_UTILS_SPARSE_VALUE_WRITER_H
 
 /// \file usdUtils/sparseValueWriter.h
 ///
@@ -94,7 +94,7 @@ public:
     /// 
     /// \p defaultValue can be unspecified (or left empty) if you don't 
     /// care about authoring a default value. In this case, the sparse authoring
-    /// logic is intialized with the existing authored default value or 
+    /// logic is initialized with the existing authored default value or
     /// the fallback value, if \p attr has one.
     USDUTILS_API
     UsdUtilsSparseAttrValueWriter(const UsdAttribute &attr, 

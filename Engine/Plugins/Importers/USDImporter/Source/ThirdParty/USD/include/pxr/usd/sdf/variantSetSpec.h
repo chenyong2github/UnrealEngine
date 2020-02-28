@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_VARIANTSETSPEC_H
-#define SDF_VARIANTSETSPEC_H
+#ifndef PXR_USD_SDF_VARIANT_SET_SPEC_H
+#define PXR_USD_SDF_VARIANT_SET_SPEC_H
 
 /// \file sdf/variantSetSpec.h
 
@@ -61,8 +61,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 ///
 class SdfVariantSetSpec : public SdfSpec
 {
-    SDF_DECLARE_SPEC(SdfSchema, SdfSpecTypeVariantSet,
-                     SdfVariantSetSpec, SdfSpec);
+    SDF_DECLARE_SPEC(SdfVariantSetSpec, SdfSpec);
 
 public:
     ///

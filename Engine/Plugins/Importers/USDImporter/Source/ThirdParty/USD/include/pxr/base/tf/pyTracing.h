@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYTRACING_H
-#define TF_PYTRACING_H
+#ifndef PXR_BASE_TF_PY_TRACING_H
+#define PXR_BASE_TF_PY_TRACING_H
 
 #include <Python.h>
 
@@ -62,4 +62,4 @@ TF_API void Tf_PyTracingPythonInitialized();
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYTRACING_H
+#endif // PXR_BASE_TF_PY_TRACING_H
