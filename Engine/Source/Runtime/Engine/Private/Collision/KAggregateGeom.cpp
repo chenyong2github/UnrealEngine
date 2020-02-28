@@ -539,6 +539,14 @@ static void AddEdgeIfNotPresent(TArray<int32>& Edges, int32 Edge0, int32 Edge1)
 
 void FKConvexElem::UpdateElemBox()
 {
+#if WITH_CHAOS
+	// Fixup indices in case an operation has invalidated them
+	{
+		IndexData.Reset();
+		ComputeChaosConvexIndices();
+	}
+#endif
+
 	ElemBox.Init();
 	for(int32 j=0; j<VertexData.Num(); j++)
 	{
