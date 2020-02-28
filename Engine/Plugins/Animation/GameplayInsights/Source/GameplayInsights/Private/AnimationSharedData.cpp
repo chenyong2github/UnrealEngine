@@ -467,7 +467,7 @@ void FAnimationSharedData::OnTimeMarkerChanged(Insights::ETimeChangedFlags InFla
 	bTimeMarkerValid = InTimeMarker != std::numeric_limits<double>::infinity();
 	MarkerTime = InTimeMarker;
 
-	if(bTimeMarkerValid)
+	if(bTimeMarkerValid && AnalysisSession != nullptr)
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
