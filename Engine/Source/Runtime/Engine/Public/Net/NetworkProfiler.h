@@ -111,6 +111,8 @@ private:
 	/** Delegate that's fired when tracking stops on the current network profile */
 	FOnNetworkProfileFinished				OnNetworkProfileFinishedDelegate;
 
+	FTimerHandle							AutoStopTimerHandle;
+
 	/** All the data required for writing sent bunches to the profiler stream						*/
 	struct FSendBunchInfo
 	{
@@ -181,6 +183,8 @@ private:
 
 	// Set of names that correspond to Object's whose top level property names have been exported.
 	TSet<FString> ExportedObjects;
+
+	void AutoStopTracking();
 
 public:
 	/**

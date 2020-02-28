@@ -840,6 +840,16 @@ bool FNetworkProfiler::Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice &
 	{
 		EnableTracking( false );
 	} 
+	else if (FParse::Command(&Cmd, TEXT("AUTOSTOP")))
+	{
+		EnableTracking(true);
+
+		// Default to 30secs
+		float AutoStopTime = 30.f;
+		FParse::Value(Cmd, TEXT("TIME="), AutoStopTime);
+
+		InWorld->GetTimerManager().SetTimer(AutoStopTimerHandle, FTimerDelegate::CreateRaw(this, &FNetworkProfiler::AutoStopTracking), AutoStopTime, false);
+	}
 	else 
 	{
 		// Default to toggle
@@ -858,6 +868,14 @@ bool FNetworkProfiler::Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice &
 	}
 
 	return true;
+}
+
+void FNetworkProfiler::AutoStopTracking()
+{
+	if (bIsTrackingEnabled)
+	{
+		EnableTracking(false);
+	}
 }
 
 #endif	//#if USE_NETWORK_PROFILER
