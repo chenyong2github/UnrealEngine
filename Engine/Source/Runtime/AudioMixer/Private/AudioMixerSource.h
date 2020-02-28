@@ -61,6 +61,9 @@ namespace Audio
 
 	private:
 
+		/** Initializes the bus sends. */
+		void InitBusSends(FWaveInstance* InWaveInstance, FMixerSourceVoiceInitParams& InitParams);
+
 		/** Frees any resources for this sound source. */
 		void FreeResources();
 

@@ -481,7 +481,7 @@ namespace Audio
 		}
 
 
-		if (InitData.SoundWave->bIsBus || InitData.SoundWave->bProcedural)
+		if (InitData.SoundWave->bIsSourceBus || InitData.SoundWave->bProcedural)
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("Sound wave decoder does not support buses or procedural sounds."));
 			return false;

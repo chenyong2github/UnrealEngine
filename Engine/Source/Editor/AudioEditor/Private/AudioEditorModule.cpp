@@ -33,6 +33,7 @@
 #include "AssetTypeActions/AssetTypeActions_SoundSubmix.h"
 #include "AssetTypeActions/AssetTypeActions_SoundEffectPreset.h"
 #include "AssetTypeActions/AssetTypeActions_SoundSourceBus.h"
+#include "AssetTypeActions/AssetTypeActions_AudioBus.h"
 #include "Utils.h"
 #include "UObject/UObjectIterator.h"
 #include "Styling/SlateStyle.h"
@@ -161,6 +162,7 @@ public:
 			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundEffectSourcePreset));
 			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundEffectSourcePresetChain));
 			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundSourceBus));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AudioBus));
 		}
 	}
 

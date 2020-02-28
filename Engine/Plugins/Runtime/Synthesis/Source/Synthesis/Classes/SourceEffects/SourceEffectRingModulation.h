@@ -6,6 +6,8 @@
 #include "DSP/RingModulation.h"
 #include "SourceEffectRingModulation.generated.h"
 
+class UAudioBus;
+
 UENUM(BlueprintType)
 enum class ERingModulatorTypeSourceEffect : uint8
 {
@@ -41,12 +43,17 @@ struct SYNTHESIS_API FSourceEffectRingModulationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float WetLevel;
 
+	// Audio bus to use to modulate the effect
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset")
+	UAudioBus* AudioBusModulator;
+
 	FSourceEffectRingModulationSettings()
 		: ModulatorType(ERingModulatorTypeSourceEffect::Sine)
 		, Frequency(100.0f)
 		, Depth(0.5f)
 		, DryLevel(0.0f)
 		, WetLevel(1.0f)
+		, AudioBusModulator(nullptr)
 	{}
 };
 
@@ -64,6 +71,8 @@ public:
 
 protected:
 	Audio::FRingModulation RingModulation;
+	uint32 AudioDeviceId;
+	int32 NumChannels = 0;
 };
 
 UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent))

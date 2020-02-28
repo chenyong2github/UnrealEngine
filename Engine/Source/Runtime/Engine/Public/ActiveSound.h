@@ -132,7 +132,7 @@ struct FSoundParseParameters
 	TArray<FSoundSubmixSendInfo> SoundSubmixSends;
 
 	// The source bus sends to use
-	TArray<FSoundSourceBusSendInfo> SoundSourceBusSends[(int32)EBusSendType::Count];
+	TArray<FSoundSourceBusSendInfo> BusSends[(int32)EBusSendType::Count];
 
 	// Reverb wet-level parameters
 	EReverbSendMethod ReverbSendMethod;
@@ -350,7 +350,7 @@ private:
 	TArray<FSoundSubmixSendInfo> SoundSubmixSendsOverride;
 
 	/** Optional override for the source bus sends for the sound. */
-	TArray<FSoundSourceBusSendInfo> SoundSourceBusSendsOverride[(int32)EBusSendType::Count];
+	TArray<FSoundSourceBusSendInfo> BusSendsOverride[(int32)EBusSendType::Count];
 
 	TMap<UPTRINT, FWaveInstance*> WaveInstances;
 
@@ -639,7 +639,7 @@ public:
 	void GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) const;
 
 	/** Gets the sound source bus sends to use for this sound instance. */
-	void GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const;
+	void GetBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const;
 
 	/* Determines which of the provided listeners is the closest to the sound */
 	int32 FindClosestListener( const TArray<struct FListener>& InListeners ) const;

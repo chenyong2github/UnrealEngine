@@ -340,7 +340,7 @@ public:
 	uint8 bPlayingProcedural : 1;
 
 	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
-	uint8 bIsBus:1;
+	uint8 bIsSourceBus:1;
 
 	/** Set to true for procedural waves that can be processed asynchronously. */
 	uint8 bCanProcessAsync:1;
