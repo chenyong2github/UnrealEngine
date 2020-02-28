@@ -456,7 +456,7 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 					SNew(SExpandableArea)
 					.MaxHeight(320.f)
 					.InitiallyCollapsed(false)
-					.AreaTitle(NSLOCTEXT("SClassPickerDialog", "AllClassesAreaTitle", "Parent Class"))
+					.AreaTitle(NSLOCTEXT("SClassPickerDialog", "ParentClassAreaTitle", "Parent Class"))
 					.OnAreaExpansionChanged(this, &SSCreateBlueprintPicker::OnCustomAreaExpansionChanged)
 					.BodyContent()
 					[

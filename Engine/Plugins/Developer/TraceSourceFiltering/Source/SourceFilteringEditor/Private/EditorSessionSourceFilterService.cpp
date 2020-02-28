@@ -87,7 +87,7 @@ void FEditorSessionSourceFilterService::AddFilterToSet(TSharedRef<const IFilterO
 	FSoftClassPath ClassPath(FilterClassName);
 	if (UClass* Class = ClassPath.TryLoadClass<UDataSourceFilter>())
 	{
-		const FScopedTransaction Transaction(*FEditorSessionSourceFilterService::TransactionContext, LOCTEXT("AddFilter", "Add Filter to Filter Set"), FilterCollection);
+		const FScopedTransaction Transaction(*FEditorSessionSourceFilterService::TransactionContext, LOCTEXT("AddFilterToSet", "Add Filter to Filter Set"), FilterCollection);
 		FilterCollection->Modify();
 
 		FilterCollection->AddFilterOfClassToSet(Class, CastChecked<UDataSourceFilterSet>(FilterSet->GetFilter()));

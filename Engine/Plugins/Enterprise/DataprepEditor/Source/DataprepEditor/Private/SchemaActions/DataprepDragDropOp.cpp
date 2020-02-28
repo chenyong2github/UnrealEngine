@@ -109,17 +109,17 @@ void FDataprepDragDropOp::HoverTargetChanged()
 	else if(Cast<UDataprepGraphActionStepNode>(GetHoveredNode()) != nullptr)
 	{
 		bDropTargetValid = true;
-		DrapDropText = LOCTEXT("CopyDataprepActionStepNode", "Add/Insert step to location");
+		DrapDropText = LOCTEXT("TargetIsDataprepActionNode", "Add/Insert step to location");
 	}
 	else if(Cast<UDataprepGraphActionNode>(GetHoveredNode()) != nullptr)
 	{
 		bDropTargetValid = true;
-		DrapDropText = LOCTEXT("CopyDataprepActionAssetNode", "Add/Insert step to location");
+		DrapDropText = LOCTEXT("TargetIsDataprepActionNode", "Add/Insert step to location");
 	}
 	else if(Cast<UDataprepGraphRecipeNode>(GetHoveredNode()) != nullptr)
 	{
 		bDropTargetValid = true;
-		DrapDropText = LOCTEXT("InsertDataprepActionAssetNode", "Insert action to location");
+		DrapDropText = LOCTEXT("TargetIsDataprepRecipeNode", "Insert action to location");
 	}
 	else if ( UEdGraph* EdGraph = GetHoveredGraph() )
 	{

@@ -214,8 +214,8 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 	if (TimedDataListView::HeaderIdName_Enable == ColumnName)
 	{
 		const FText Tooltip = Item->bIsInput
-			? LOCTEXT("EnabledChannelToolTip", "Toggles all channels from this input.")
-			: LOCTEXT("EnabledChannelToolTip", "Toggles whether this channel will collect stats and be used when calibrating.");
+			? LOCTEXT("ToggleAllChannelsToolTip", "Toggles all channels from this input.")
+			: LOCTEXT("ToggleChannelToolTip", "Toggles whether this channel will collect stats and be used when calibrating.");
 		return SNew(SCheckBox)
 			.Style(FTimedDataMonitorStyle::Get(), "CheckBox.Enable")
 			.ToolTipText(Tooltip)

@@ -15,7 +15,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
-#define LOCTEXT_NAMESPACE "GroomOptions"
+#define LOCTEXT_NAMESPACE "GroomImportOptionsWindow"
 
 void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 {
@@ -47,7 +47,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
-					.Text(LOCTEXT("GroomOptionsWindow_CurrentFile", "Current File: "))
+					.Text(LOCTEXT("CurrentFile", "Current File: "))
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(5, 0, 0, 0)
@@ -87,7 +87,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 			[
 				SNew(SButton)
 				.HAlign(HAlign_Center)
-				.Text(LOCTEXT("GroomOptionsWindow_Cancel", "Cancel"))
+				.Text(LOCTEXT("Cancel", "Cancel"))
 				.OnClicked(this, &SGroomImportOptionsWindow::OnCancel)
 			]
 		]
@@ -159,12 +159,12 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* Import
 
 TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
 {
-	return DisplayOptions(ImportOptions, FilePath, EGroomOptionsVisibility::All, LOCTEXT("GroomOptionsWindow_WindowTitle", "Groom Import Options"), LOCTEXT("GroomOptionsWindow_Import", "Import"));
+	return DisplayOptions(ImportOptions, FilePath, EGroomOptionsVisibility::All, LOCTEXT("WindowTitle", "Groom Import Options"), LOCTEXT("Import", "Import"));
 }
 
 TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayRebuildOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
 {
-	return DisplayOptions(ImportOptions, FilePath, EGroomOptionsVisibility::BuildOptions, LOCTEXT("GroomBuildOptionsWindow_WindowTitle", "Groom Build Options"), LOCTEXT("GroomOptionsWindow_Build", "Build"));
+	return DisplayOptions(ImportOptions, FilePath, EGroomOptionsVisibility::BuildOptions, LOCTEXT("WindowTitle", "Groom Build Options"), LOCTEXT("Build", "Build"));
 }
 
 
