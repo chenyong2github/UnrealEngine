@@ -422,7 +422,7 @@ protected:
 	{
 		if (EnumHasAnyFlags(Flags, EActorIteratorFlags::OnlyActiveLevels))
 		{
-			const bool bIsLevelVisibleOrAssociating = Level->bIsVisible || Level->bIsAssociatingLevel;
+			const bool bIsLevelVisibleOrAssociating = (Level->bIsVisible && !Level->bIsBeingRemoved) || Level->bIsAssociatingLevel || Level->bIsDisassociatingLevel;
 
 			// Only allow iteration of Level if it's in the currently active level collection of the world, or is a static level.
 			const FLevelCollection* const ActorLevelCollection = Level->GetCachedLevelCollection();
