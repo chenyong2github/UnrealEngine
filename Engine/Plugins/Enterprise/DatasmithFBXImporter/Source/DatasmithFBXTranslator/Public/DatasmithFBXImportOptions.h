@@ -15,6 +15,6 @@ class DATASMITHFBXTRANSLATOR_API UDatasmithFBXImportOptions : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=AssetImporting, meta=(DisplayName="Texture folders", ToolTip="Where to look for textures"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AssetImporting, meta=(DisplayName="Texture folders", ToolTip="Where to look for textures"))
 	TArray<FDirectoryPath> TextureDirs;
 };
