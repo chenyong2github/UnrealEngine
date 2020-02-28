@@ -204,7 +204,7 @@ AActor* FDatasmithLightImporter::ImportLightActor( const TSharedRef< IDatasmithL
 	return ImportedLightActor;
 }
 
-USceneComponent* FDatasmithLightImporter::ImportLightComponent( const TSharedRef< IDatasmithLightActorElement >& LightElement, FDatasmithImportContext& ImportContext, UObject* Outer )
+USceneComponent* FDatasmithLightImporter::ImportLightComponent( const TSharedRef< IDatasmithLightActorElement >& LightElement, FDatasmithImportContext& ImportContext, UObject* Outer, FDatasmithActorUniqueLabelProvider& UniqueNameProvider )
 {
 	CreateIESTexture( ImportContext, LightElement );
 
@@ -213,16 +213,16 @@ USceneComponent* FDatasmithLightImporter::ImportLightComponent( const TSharedRef
 	if ( LightElement->IsA(EDatasmithElementType::AreaLight) )
 	{
 		TSharedRef< IDatasmithAreaLightElement > AreaLightElement = StaticCastSharedRef< IDatasmithAreaLightElement >( LightElement );
-		LightComponent = ImportAreaLightComponent( AreaLightElement, ImportContext, Outer );
+		LightComponent = ImportAreaLightComponent( AreaLightElement, ImportContext, Outer, UniqueNameProvider );
 	}
 	else if ( LightElement->IsA( EDatasmithElementType::LightmassPortal ) )
 	{
 		TSharedRef< IDatasmithLightmassPortalElement > LightmassPortalElement = StaticCastSharedRef< IDatasmithLightmassPortalElement >( LightElement );
-		LightComponent = ImportLightmassPortalComponent( LightmassPortalElement, ImportContext, Outer );
+		LightComponent = ImportLightmassPortalComponent( LightmassPortalElement, ImportContext, Outer, UniqueNameProvider );
 	}
 	else if ( LightElement->IsA( EDatasmithElementType::DirectionalLight ) )
 	{
-		USceneComponent* SceneComponent = FDatasmithActorImporter::ImportSceneComponent( UDirectionalLightComponent::StaticClass(), LightElement, ImportContext, Outer );
+		USceneComponent* SceneComponent = FDatasmithActorImporter::ImportSceneComponent( UDirectionalLightComponent::StaticClass(), LightElement, ImportContext, Outer, UniqueNameProvider );
 
 		UDirectionalLightComponent* DirectionalLightComponent = Cast< UDirectionalLightComponent >( SceneComponent );
 
@@ -247,7 +247,7 @@ USceneComponent* FDatasmithLightImporter::ImportLightComponent( const TSharedRef
 
 		if ( LightElement->IsA( EDatasmithElementType::SpotLight ) )
 		{
-			USceneComponent* SceneComponent = FDatasmithActorImporter::ImportSceneComponent( USpotLightComponent::StaticClass(), LightElement, ImportContext, Outer );
+			USceneComponent* SceneComponent = FDatasmithActorImporter::ImportSceneComponent( USpotLightComponent::StaticClass(), LightElement, ImportContext, Outer, UniqueNameProvider );
 
 			USpotLightComponent* SpotLightComponent = Cast< USpotLightComponent >( SceneComponent );
 
@@ -263,7 +263,7 @@ USceneComponent* FDatasmithLightImporter::ImportLightComponent( const TSharedRef
 		}
 		else if ( LightElement->IsA( EDatasmithElementType::PointLight ) )
 		{
-			USceneComponent* SceneComponent = FDatasmithActorImporter::ImportSceneComponent( UPointLightComponent::StaticClass(), LightElement, ImportContext, Outer );
+			USceneComponent* SceneComponent = FDatasmithActorImporter::ImportSceneComponent( UPointLightComponent::StaticClass(), LightElement, ImportContext, Outer, UniqueNameProvider );
 
 			UPointLightComponent* PointLightComponent = Cast< UPointLightComponent >( SceneComponent );
 
@@ -445,7 +445,7 @@ AActor* FDatasmithLightImporter::ImportAreaLightActor( const TSharedRef< IDatasm
 	return AreaLightActor;
 }
 
-USceneComponent* FDatasmithLightImporter::ImportAreaLightComponent( const TSharedRef< IDatasmithAreaLightElement >& AreaLightElement, FDatasmithImportContext& ImportContext, UObject* Outer )
+USceneComponent* FDatasmithLightImporter::ImportAreaLightComponent( const TSharedRef< IDatasmithAreaLightElement >& AreaLightElement, FDatasmithImportContext& ImportContext, UObject* Outer, FDatasmithActorUniqueLabelProvider& UniqueNameProvider )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithLightImporter::ImportAreaLightComponent);
 
@@ -456,7 +456,7 @@ USceneComponent* FDatasmithLightImporter::ImportAreaLightComponent( const TShare
 
 	if ( LightShapeBlueprint )
 	{
-		UChildActorComponent* ChildActorComponent = Cast< UChildActorComponent >( FDatasmithActorImporter::ImportSceneComponent( UChildActorComponent::StaticClass(), AreaLightElement, ImportContext, Outer ) );
+		UChildActorComponent* ChildActorComponent = Cast< UChildActorComponent >( FDatasmithActorImporter::ImportSceneComponent( UChildActorComponent::StaticClass(), AreaLightElement, ImportContext, Outer, UniqueNameProvider ) );
 		ChildActorComponent->SetChildActorClass( TSubclassOf< AActor > ( LightShapeBlueprint->GeneratedClass ) );
 		ChildActorComponent->CreateChildActor();
 
@@ -474,9 +474,9 @@ USceneComponent* FDatasmithLightImporter::ImportAreaLightComponent( const TShare
 	return MainComponent;
 }
 
-ULightmassPortalComponent* FDatasmithLightImporter::ImportLightmassPortalComponent( const TSharedRef< IDatasmithLightmassPortalElement >& LightElement, FDatasmithImportContext& ImportContext, UObject* Outer )
+ULightmassPortalComponent* FDatasmithLightImporter::ImportLightmassPortalComponent( const TSharedRef< IDatasmithLightmassPortalElement >& LightElement, FDatasmithImportContext& ImportContext, UObject* Outer, FDatasmithActorUniqueLabelProvider& UniqueNameProvider )
 {
-	USceneComponent* SceneComponent = FDatasmithActorImporter::ImportSceneComponent( ULightmassPortalComponent::StaticClass(), LightElement, ImportContext, Outer );
+	USceneComponent* SceneComponent = FDatasmithActorImporter::ImportSceneComponent( ULightmassPortalComponent::StaticClass(), LightElement, ImportContext, Outer, UniqueNameProvider );
 
 	SceneComponent->RegisterComponent();
 
