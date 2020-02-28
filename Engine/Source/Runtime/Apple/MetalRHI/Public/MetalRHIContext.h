@@ -223,7 +223,10 @@ public:
 	{
 		IRHICommandContext::RHITransitionResources(DepthStencilMode, DepthTexture);
 	}
-
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture** InTextures, int32 NumTextures) final override
+	{
+		RHITransitionResources(TransitionType, InTextures, NumTextures);
+	}
 	/**
 	 * Compute queue will wait for the fence to be written before continuing.
 	 */
