@@ -89,7 +89,9 @@ void FCrashReportClient::StopBackgroundThread()
 
 FReply FCrashReportClient::CloseWithoutSending()
 {
-	RequestEngineExit(TEXT("FCrashReportClient::CloseWithoutSending()"));
+	bSendData = false;
+	bShouldWindowBeHidden = true;
+	StartTicker();
 	return FReply::Handled();
 }
 
@@ -239,7 +241,15 @@ bool FCrashReportClient::Tick(float UnusedDeltaTime)
 	{
 		return true;
 	}
-	
+
+	if (DiagnoseReportTask)
+	{
+		check(DiagnoseReportTask->IsWorkDone()); // Expected when IsProcessingCallstack() returns false.
+		StopBackgroundThread(); // Free the DiagnoseReportTask
+		FinalizeDiagnoseReportWorker(); // Finalization is done on the game thread to avoid race conditions on DiagnosticText and FormattedDiagnosticText.
+		check(DiagnoseReportTask == nullptr); // Expected after StopBackgroundThread() call.
+	}
+
 	if( bSendData )
 	{
 		if (!FCrashUploadBase::IsInitialized())
@@ -315,7 +325,6 @@ void FCrashReportClient::FinalizeDiagnoseReportWorker()
 	FormattedDiagnosticText = FCrashReportUtil::FormatDiagnosticText( DiagnosticText );
 }
 
-
 bool FCrashReportClient::IsProcessingCallstack() const
 {
 	return DiagnoseReportTask && !DiagnoseReportTask->IsWorkDone();
@@ -328,13 +337,6 @@ FDiagnoseReportWorker::FDiagnoseReportWorker( FCrashReportClient* InCrashReportC
 void FDiagnoseReportWorker::DoWork()
 {
 	CrashReportClient->ErrorReport.DiagnoseReport();
-
-	// Inform the game thread that we are done.
-	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady
-	(
-		FSimpleDelegateGraphTask::FDelegate::CreateRaw( CrashReportClient, &FCrashReportClient::FinalizeDiagnoseReportWorker ),
-		TStatId(), nullptr, ENamedThreads::GameThread
-	);
 }
 
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
