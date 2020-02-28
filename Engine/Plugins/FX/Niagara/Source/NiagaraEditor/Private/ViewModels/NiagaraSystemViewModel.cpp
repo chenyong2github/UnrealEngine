@@ -1689,7 +1689,7 @@ void FNiagaraSystemViewModel::SequencerTimeChanged()
 				// We don't want to reset the current time if we're scrubbing.
 				if (CurrentStatus == EMovieScenePlayerStatus::Playing)
 				{
-					ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
+					ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 				}
 				else
 				{
