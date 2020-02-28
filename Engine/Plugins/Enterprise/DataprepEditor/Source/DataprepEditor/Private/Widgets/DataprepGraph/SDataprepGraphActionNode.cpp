@@ -314,6 +314,28 @@ FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, 
 		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 	}
 
+	// Take ownership of the mouse if right mouse button clicked to display contextual menu
+	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	{
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SDataprepGraphActionNode::OnMouseButtonUp(const FGeometry & MyGeometry, const FPointerEvent & MouseEvent)
+{
+	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	{
+		ensure(OwnerGraphPanelPtr.IsValid());
+
+		const FVector2D Position = MouseEvent.GetScreenSpacePosition();
+		OwnerGraphPanelPtr.Pin()->SummonContextMenu(Position, Position, GraphNode, nullptr, TArray<UEdGraphPin*>());
+
+		// Release mouse capture
+		return FReply::Handled().ReleaseMouseCapture();
+	}
+
 	return FReply::Unhandled();
 }
 
@@ -330,6 +352,7 @@ void SDataprepGraphActionNode::SetOwner(const TSharedRef<SGraphPanel>& OwnerPane
 	if(!OwnerGraphPanelPtr.IsValid())
 	{
 		SGraphNode::SetOwner(OwnerPanel);
+		OwnerPanel->AttachGraphEvents(SharedThis(this));
 
 		OwnerPanel->AddGraphNode(SharedThis(ProxyNodePtr.Get()));
 
