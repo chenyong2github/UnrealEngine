@@ -2975,8 +2975,7 @@ void UInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChanged
 {
 	if(PropertyChangedEvent.Property != NULL)
 	{
-		// Only permit editing archetype or instance if instance was changed by an archetype
-		if (PropertyChangedEvent.Property->GetFName() == "PerInstanceSMData" && (HasAnyFlags(RF_ArchetypeObject|RF_ClassDefaultObject) ||  PropertyChangedEvent.HasArchetypeInstanceChanged(this)))
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UInstancedStaticMeshComponent, PerInstanceSMData))
 		{
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd
 				|| PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
@@ -3003,7 +3002,7 @@ void UInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChanged
 			
 			MarkRenderStateDirty();
 		}
-		else if (PropertyChangedEvent.Property->GetFName() == "Transform")
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FInstancedStaticMeshInstanceData, Transform))
 		{
 			PartialNavigationUpdate(-1);
 			// Force recreation of the render data

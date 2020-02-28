@@ -5100,6 +5100,20 @@ public:
 	bool SetActiveMemberPropertyNode( FProperty* NewActiveMemberProperty );
 
 	/**
+	 * Specify the set of archetype instances that will be affected by the property change.
+	 */
+	template<typename T>
+	void SetAffectedArchetypeInstances( T&& InAffectedInstances )
+	{
+		AffectedInstances = Forward<T>(InAffectedInstances);
+	}
+	
+	/**
+	 * Returns whether the specified archetype instance will be affected by the property change.
+	 */
+	bool IsArchetypeInstanceAffected( UObject* InInstance ) const;
+
+	/**
 	 * Returns the node corresponding to the currently active property.
 	 */
 	TDoubleLinkedListNode* GetActiveNode() const;
@@ -5126,6 +5140,10 @@ protected:
 	 */
 	TDoubleLinkedListNode* ActiveMemberPropertyNode;
 
+	/**
+	 * Archetype instances that will be affected by the property change.
+	 */
+	TSet<UObject*> AffectedInstances;
 
 	/** TDoubleLinkedList interface */
 	/**
@@ -5206,11 +5224,12 @@ struct FPropertyChangedEvent
 	}
 
 	/**
-	 * Saves off map of instance changed result per archetype being set.
+	 * Specify the set of archetype instances that were modified by the property change.
 	 */
-	void SetInstancesChangedResultPerArchetype(TArrayView<const TMap<UObject*, bool>> InInstancesChangedResultPerArchetype)
+	template<typename T>
+	void SetInstancesChanged(T&& InInstancesChanged)
 	{
-		InstancesChangedResultPerArchetype = InInstancesChangedResultPerArchetype;
+		InstancesChanged = Forward<T>(InInstancesChanged);
 	}
 
 	/**
@@ -5233,23 +5252,12 @@ struct FPropertyChangedEvent
 	}
 
 	/**
-	 * Gets the instance changed status of the "current object" based on the instance provided
+	 * Test whether an archetype instance was modified.
 	 * InInstance - The instance we want to know the status.
 	 */
 	bool HasArchetypeInstanceChanged(UObject* InInstance) const
 	{
-		bool Retval = true;
-
-		if (InstancesChangedResultPerArchetype.IsValidIndex(ObjectIteratorIndex))
-		{
-			const bool* ValuePtr = InstancesChangedResultPerArchetype[ObjectIteratorIndex].Find(InInstance);
-			if (ValuePtr)
-			{
-				Retval = *ValuePtr;
-			}
-		}
-
-		return Retval;
+		return InstancesChanged.Contains(InInstance);
 	}
 
 	/**
@@ -5294,7 +5302,7 @@ private:
 	TArrayView<const TMap<FString, int32>> ArrayIndicesPerObject;
 	
 	//In the property window, multiple objects can be selected at once. In this case we want to know if an instance was updated for this operation (used in array/set/map context)
-	TArrayView<const TMap<UObject*, bool>> InstancesChangedResultPerArchetype;
+	TSet<UObject*> InstancesChanged;
 
 	/** List of top level objects being changed */
 	TArrayView<const UObject* const> TopLevelObjects;
