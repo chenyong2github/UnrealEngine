@@ -3,6 +3,7 @@
 #include "DataprepOperationsLibrary.h"
 
 #include "DataprepCoreUtils.h"
+#include "DataprepContentConsumer.h"
 #include "DatasmithAssetUserData.h"
 
 #include "ActorEditorUtils.h"
@@ -908,6 +909,72 @@ void UDataprepOperationsLibrary::FlipFaces(const TSet< UStaticMesh* >& StaticMes
 
 		FStaticMeshOperations::FlipPolygons(*MeshDescription);
 		StaticMesh->CommitMeshDescription(0, Params);
+	}
+}
+
+void UDataprepOperationsLibrary::SetSubOuputLevel(const TArray<UObject*>& SelectedObjects, const FString& SubLevelName)
+{
+	if(SubLevelName.IsEmpty())
+	{
+		return;
+	}
+
+	for (UObject* Object : SelectedObjects)
+	{
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			if (USceneComponent* RootComponent = Actor->GetRootComponent())
+			{
+				if ( RootComponent->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+				{
+					if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( RootComponent ) )
+					{
+						UDataprepConsumerUserData* DataprepContentUserData = AssetUserDataInterface->GetAssetUserData< UDataprepConsumerUserData >();
+
+						if ( !DataprepContentUserData )
+						{
+							EObjectFlags Flags = RF_Public;
+							DataprepContentUserData = NewObject< UDataprepConsumerUserData >( RootComponent, NAME_None, Flags );
+							AssetUserDataInterface->AddAssetUserData( DataprepContentUserData );
+						}
+
+						DataprepContentUserData->AddMarker(UDataprepContentConsumer::RelativeOutput, SubLevelName);
+					}
+				}
+			}
+		}
+	}
+}
+
+void UDataprepOperationsLibrary::SetSubOuputFolder(const TArray<UObject*>& SelectedObjects, const FString& SubFolderName)
+{
+	if(SubFolderName.IsEmpty())
+	{
+		return;
+	}
+
+	for (UObject* Object : SelectedObjects)
+	{
+		const bool bValidObject = Object->HasAnyFlags(RF_Public)
+		&& !Object->IsPendingKill()
+		&& Object->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass());
+
+		if (bValidObject)
+		{
+			if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( Object ) )
+			{
+				UDataprepConsumerUserData* DataprepContentUserData = AssetUserDataInterface->GetAssetUserData< UDataprepConsumerUserData >();
+
+				if ( !DataprepContentUserData )
+				{
+					EObjectFlags Flags = RF_Public;
+					DataprepContentUserData = NewObject< UDataprepConsumerUserData >( Object, NAME_None, Flags );
+					AssetUserDataInterface->AddAssetUserData( DataprepContentUserData );
+				}
+
+				DataprepContentUserData->AddMarker(UDataprepContentConsumer::RelativeOutput, SubFolderName);
+			}
+		}
 	}
 }
 
