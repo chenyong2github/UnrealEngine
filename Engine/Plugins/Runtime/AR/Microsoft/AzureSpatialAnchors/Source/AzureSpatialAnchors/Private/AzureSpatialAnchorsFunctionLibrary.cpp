@@ -2,6 +2,7 @@
 
 #include "AzureSpatialAnchorsFunctionLibrary.h"
 #include "Engine/Engine.h"
+#include "GameFramework/WorldSettings.h"
 #include "IAzureSpatialAnchors.h"
 
 #include "ARPin.h"
