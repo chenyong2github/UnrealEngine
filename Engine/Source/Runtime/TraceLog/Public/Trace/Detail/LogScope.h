@@ -11,6 +11,8 @@
 namespace Trace {
 namespace Private {
 
+struct FWriteBuffer;
+
 ////////////////////////////////////////////////////////////////////////////////
 class FLogScope
 {
@@ -24,7 +26,14 @@ public:
 	const FLogScope&		operator << (const Action&) const;
 
 private:
-	FLogInstance			Instance;
+	template <class T> void	EnterPrelude(uint32 Size, bool bMaybeHasAux);
+	void					Enter(uint32 Uid, uint32 Size, bool bMaybeHasAux);
+	void					EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux);
+	struct
+	{
+		uint8*				Ptr;
+		FWriteBuffer*		Buffer;
+	}						Instance;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

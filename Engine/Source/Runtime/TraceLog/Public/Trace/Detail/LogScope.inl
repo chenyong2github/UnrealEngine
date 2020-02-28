@@ -13,9 +13,13 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
+extern TRACELOG_API uint32 volatile	GLogSerial;
+
+////////////////////////////////////////////////////////////////////////////////
 inline FLogScope::~FLogScope()
 {
-	Writer_EndLog(Instance);
+	FWriteBuffer* Buffer = Instance.Buffer;
+	AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,9 +28,9 @@ inline FLogScope FLogScope::Enter(uint32 Uid, uint32 Size)
 {
 	FLogScope Ret;
 	bool bMaybeHasAux = (Flags & FEventInfo::Flag_MaybeHasAux) != 0;
-	Ret.Instance = (Flags & FEventInfo::Flag_NoSync)
-		?  Writer_BeginLogNoSync(uint16(Uid), uint16(Size), bMaybeHasAux)
-		:  Writer_BeginLog(uint16(Uid), uint16(Size), bMaybeHasAux);
+	(Flags & FEventInfo::Flag_NoSync)
+		?  Ret.EnterNoSync(Uid, Size, bMaybeHasAux)
+		:  Ret.Enter(Uid, Size, bMaybeHasAux);
 	return Ret;
 }
 
@@ -35,6 +39,61 @@ inline uint8* FLogScope::GetPointer() const
 {
 	return Instance.Ptr;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename ActionType>
+inline const FLogScope& FLogScope::operator << (const ActionType& Rhs) const
+{
+	Rhs.Write(Instance.Ptr);
+	return *this;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <class HeaderType>
+inline void FLogScope::EnterPrelude(uint32 Size, bool bMaybeHasAux)
+{
+	uint32 AllocSize = sizeof(HeaderType) + Size + int(bMaybeHasAux);
+
+	FWriteBuffer* Buffer = Writer_GetBuffer();
+	Buffer->Cursor += AllocSize;
+	if (UNLIKELY(Buffer->Cursor > (uint8*)Buffer))
+	{
+		Buffer = Writer_NextBuffer(AllocSize);
+	}
+
+	// The auxilary data null terminator.
+	if (bMaybeHasAux)
+	{
+		Buffer->Cursor[-1] = 0;
+	}
+
+	uint8* Cursor = Buffer->Cursor - Size - int(bMaybeHasAux);
+	Instance = {Cursor, Buffer};
+}
+
+////////////////////////////////////////////////////////////////////////////////
+inline void FLogScope::Enter(uint32 Uid, uint32 Size, bool bMaybeHasAux)
+{
+	EnterPrelude<FEventHeaderSync>(Size, bMaybeHasAux);
+
+	// Event header
+	auto* Header = (uint16*)(Instance.Ptr - sizeof(FEventHeaderSync::SerialHigh)); // FEventHeader1
+	*(uint32*)(Header - 1) = uint32(AtomicIncrementRelaxed(&GLogSerial));
+	Header[-2] = uint16(Size);
+	Header[-3] = uint16(Uid);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+inline void FLogScope::EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux)
+{
+	EnterPrelude<FEventHeader>(Size, bMaybeHasAux);
+
+	// Event header
+	auto* Header = (uint16*)(Instance.Ptr);
+	Header[-1] = uint16(Size);
+	Header[-2] = uint16(Uid);
+}
+
 
 
 
@@ -50,16 +109,6 @@ template <class T>
 auto TLogScope<T& __restrict>::Enter(uint32 Uid, uint32 Size, uint32 ExtraBytes)
 {
 	return Enter(Uid, Size + ExtraBytes);
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename ActionType>
-inline const FLogScope& FLogScope::operator << (const ActionType& Rhs) const
-{
-	Rhs.Write(Instance.Ptr);
-	return *this;
 }
 
 } // namespace Private
