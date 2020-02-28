@@ -8,7 +8,9 @@
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "GeometryCollection/ManagedArray.h"
 #include "GeometryCollection/GeometryCollectionCollisionStructureManager.h"
+#include "Chaos/CollisionFilterData.h"
 #include "Chaos/Framework/BufferedData.h"
+#include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "PBDRigidsSolver.h"
@@ -20,6 +22,10 @@ namespace Chaos
 	template <typename T> struct FClusterCreationParameters;
 }
 
+/**
+ * Buffer structure for communicating simulation state between game and physics 
+ * threads.
+ */
 class FGeometryCollectionResults
 {
 public:
@@ -44,10 +50,19 @@ public:
 	TManagedArray<float> Mass;
 	TManagedArray<FVector> InertiaTensor;
 
+	TManagedArray<int32> ClusterId;
+
 	//TManagedArray<int32> RigidBodyIds;
 	TArray<FTransform> ParticleToWorldTransforms;
 	//TManagedArray<int32> Level;
 	//TManagedArray<int32> StatusFlags;
+
+	TArray<Chaos::FSpatialAccelerationIdx> SpatialIdx;
+	TArray<Chaos::FUniqueIdx> UniqueIdx;
+	TArray<void*> UserData;
+	TArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> SharedGeometry;
+	TArray<TArray<FCollisionFilterData>> ShapeSimData;
+	TArray<TArray<FCollisionFilterData>> ShapeQueryData;
 
 	bool IsObjectDynamic;
 	bool IsObjectLoading;
@@ -90,6 +105,7 @@ public:
 	static FName SimplicialsAttribute;
 	static FName ImplicitsAttribute;
 	static FName SolverParticleHandlesAttribute;
+	static FName SolverClusterHandlesAttribute;
 	static FName GTGeometryParticleAttribute;
 
 	typedef FCollisionStructureManager::FSimplicial FSimplicial;
@@ -147,6 +163,7 @@ public:
 	void ActivateBodies();
 
 	void SyncBeforeDestroy();
+	void OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver);
 	void OnRemoveFromScene();
 
 	Chaos::FParticleData* NewData();
@@ -163,7 +180,11 @@ public:
 
 	void MergeRecordedTracks(const FRecordedTransformTrack& A, const FRecordedTransformTrack& B, FRecordedTransformTrack& Target);
 	FRecordedFrame& InsertRecordedFrame(FRecordedTransformTrack& InTrack, float InTime);
-	void BuildClusters(uint32 CollectionClusterIndex, const TArray<uint32>& CollectionChildIDs, const TArray<uint32>& ChildIDs, const Chaos::FClusterCreationParameters<float> & Parameters);
+	Chaos::TPBDRigidClusteredParticleHandle<float, 3>* BuildClusters(
+		const uint32 CollectionClusterIndex, 
+		TArray<Chaos::TPBDRigidParticleHandle<float, 3>*>& ChildHandles,
+		const TArray<int32>& ChildTransformGroupIndices,
+		const Chaos::FClusterCreationParameters<float> & Parameters);
 	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& Command) { Commands.Add(Command); }
 
 	static void InitializeSharedCollisionStructures(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams);
@@ -181,7 +202,7 @@ public:
 	int32 GetNumAddedParticles() const { return NumParticles; }
 	int32 GetTransformGroupSize() const { return Parameters.DynamicCollection->NumElements(FGeometryCollection::TransformGroup); }
 
-	TManagedArray<Chaos::TPBDGeometryCollectionParticleHandle<float, 3>*>& GetSolverParticleHandles() { return SolverParticleHandles; }
+	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& GetSolverParticleHandles() { return SolverParticleHandles; }
 	void ClearSolverParticleHandles() { SolverParticleHandles.Fill(nullptr); }
 
 	/*
@@ -261,9 +282,11 @@ private:
 	//TUniquePtr<FGeometryDynamicCollection> PTDynamicCollection;
 	FGeometryDynamicCollection PTDynamicCollection;
 
-	//TManagedArray<Chaos::TPBDRigidParticleHandle<float, 3>*> SolverParticleHandles;
-	TManagedArray<Chaos::TPBDGeometryCollectionParticleHandle<float, 3>*> SolverParticleHandles;
-	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTGeometryParticles; // unique arrays for geo, kin, dyn?
+	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverParticleHandles;
+	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverClusterHandles;
+	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTGeometryParticles;
+
+	TMap<Chaos::TPBDRigidParticleHandle<float, 3>*, int32> HandleToTransformGroupIndex;
 
 	TManagedArray<FTransform> MassToLocal;
 	TManagedArray<int32> CollisionMask;
@@ -275,6 +298,8 @@ private:
 	TManagedArray<bool> SimulatableParticles;
 	TManagedArray<TUniquePtr<FSimplicial> > Simplicials; // FSimplicial = Chaos::TBVHParticles<float,3>
 	TManagedArray<Chaos::TSerializablePtr<Chaos::FImplicitObject>> Implicits;
+	//TManagedArray<Chaos::TUniquePtr<Chaos::FImplicitObject>> Implicits;
+	//TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> Implicits;
 	TArray<int32> EndFrameUnparentingBuffer;
 
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry

@@ -41,6 +41,8 @@ FChaosArchive& operator<<(FChaosArchive& Ar, FLargeImplicitObjectUnionData& Larg
 	return Ar;
 }
 
+FImplicitObjectUnion::FImplicitObjectUnion() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union){}
+
 FImplicitObjectUnion::FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects)
 	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
 	, MObjects(MoveTemp(Objects))
@@ -93,68 +95,6 @@ void FImplicitObjectUnion::FindAllIntersectingObjects(TArray < Pair<const FImpli
 	}
 }
 
-TArray<int32> FImplicitObjectUnionClustered::FindAllIntersectingChildren(const TAABB<FReal,3>& LocalBounds) const
-{
-	TArray<int32> IntersectingChildren;
-	if (LargeUnionData) //todo: make this work when hierarchy is not built
-	{
-		IntersectingChildren = LargeUnionData->Hierarchy.FindAllIntersections(LocalBounds);
-		for (int32 i = IntersectingChildren.Num() - 1; i >= 0; --i)
-		{
-			const int32 Idx = IntersectingChildren[i];
-			if (Idx < MOriginalParticleLookupHack.Num())
-			{
-				IntersectingChildren[i] = MOriginalParticleLookupHack[Idx];
-			}
-			else
-			{
-				IntersectingChildren.RemoveAtSwap(i);
-			}
-		}
-		/*for (int32& Idx : IntersectingChildren)
-		{
-			Idx = MOriginalParticleLookupHack[Idx];
-		}*/
-	}
-	else
-	{
-		IntersectingChildren = MOriginalParticleLookupHack;
-	}
-
-	return IntersectingChildren;
-}
-
-TArray<int32> FImplicitObjectUnionClustered::FindAllIntersectingChildren(const TSpatialRay<FReal,3>& LocalRay) const
-{
-	TArray<int32> IntersectingChildren;
-	if (LargeUnionData) //todo: make this work when hierarchy is not built
-	{
-		IntersectingChildren = LargeUnionData->Hierarchy.FindAllIntersections(LocalRay);
-		for (int32 i = IntersectingChildren.Num() - 1; i >= 0; --i)
-		{
-			const int32 Idx = IntersectingChildren[i];
-			if (Idx < MOriginalParticleLookupHack.Num())
-			{
-				IntersectingChildren[i] = MOriginalParticleLookupHack[Idx];
-			}
-			else
-			{
-				IntersectingChildren.RemoveAtSwap(i);
-			}
-		}
-		/*for (int32& Idx : IntersectingChildren)
-		{
-			Idx = MOriginalParticleLookupHack[Idx];
-		}*/
-	}
-	else
-	{
-		IntersectingChildren = MOriginalParticleLookupHack;
-	}
-
-	return IntersectingChildren;
-}
-
 void FImplicitObjectUnion::CacheAllImplicitObjects()
 {
 	TArray < Pair<TSerializablePtr<FImplicitObject>,FRigidTransform3>> SubObjects;
@@ -199,38 +139,71 @@ void FImplicitObjectUnion::Serialize(FChaosArchive& Ar)
 	}
 }
 
-FImplicitObjectUnion::FImplicitObjectUnion() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union){}
 
+FImplicitObjectUnionClustered::FImplicitObjectUnionClustered()
+	: FImplicitObjectUnion()
+{
+	Type = ImplicitObjectType::UnionClustered;
+}
 
-FImplicitObjectUnionClustered::FImplicitObjectUnionClustered(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<int32>& OriginalParticleLookupHack)
-	: FImplicitObjectUnion(MoveTemp(Objects))
+FImplicitObjectUnionClustered::FImplicitObjectUnionClustered(
+	TArray<TUniquePtr<FImplicitObject>>&& Objects, 
+	const TArray<TPBDRigidParticleHandle<FReal, 3>*>& OriginalParticleLookupHack)
+    : FImplicitObjectUnion(MoveTemp(Objects))
 	, MOriginalParticleLookupHack(OriginalParticleLookupHack)
 {
 	Type = ImplicitObjectType::UnionClustered;
-	for (int32 i = 0; i < MObjects.Num(); ++i)
+	check(MOriginalParticleLookupHack.Num() == 0 || MOriginalParticleLookupHack.Num() == MObjects.Num());
+	MCollisionParticleLookupHack.Reserve(FMath::Min(MOriginalParticleLookupHack.Num(), Objects.Num()));
+	for (int32 i = 0; MOriginalParticleLookupHack.Num() > 0 && i < MObjects.Num(); ++i)
 	{
-		check(MOriginalParticleLookupHack.Num() == 0 || MOriginalParticleLookupHack.Num() == MObjects.Num());
-		if (MOriginalParticleLookupHack.Num() > 0)
+		// This whole part sucks, only needed because of how we get union 
+		// children. Need to refactor and enforce no unions of unions.
+		if (const TImplicitObjectTransformed<FReal, 3>* Transformed = 
+			MObjects[i]->template GetObject<const TImplicitObjectTransformed<FReal, 3>>())
 		{
-			//this whole part sucks, only needed because of how we get union children. Need to refactor and enforce no unions of unions
-			if (const TImplicitObjectTransformed<FReal,3>* Transformed = MObjects[i]->template GetObject<const TImplicitObjectTransformed<FReal,3>>())
-			{
-				MCollisionParticleLookupHack.Add(Transformed->GetTransformedObject(), MOriginalParticleLookupHack[i]);
-			}
-			else
-			{
-				ensure(false);	//shouldn't be here
-			}
+			// Map const TImplicitObject<T,d>* to int32, where the latter
+			// was the RigidBodyId
+			MCollisionParticleLookupHack.Add(
+				Transformed->GetTransformedObject(), MOriginalParticleLookupHack[i]);
+		}
+		else
+		{
+			ensure(false);	//shouldn't be here
 		}
 	}
 }
 
 FImplicitObjectUnionClustered::FImplicitObjectUnionClustered(FImplicitObjectUnionClustered&& Other)
-: FImplicitObjectUnion(MoveTemp(Other))
-, MOriginalParticleLookupHack(MoveTemp(MOriginalParticleLookupHack))
-, MCollisionParticleLookupHack(MoveTemp(MCollisionParticleLookupHack))
+	: FImplicitObjectUnion(MoveTemp(Other))
+	, MOriginalParticleLookupHack(MoveTemp(MOriginalParticleLookupHack))
+	, MCollisionParticleLookupHack(MoveTemp(MCollisionParticleLookupHack))
 {
 	Type = ImplicitObjectType::UnionClustered;
 }
 
+TArray<TPBDRigidParticleHandle<FReal, 3>*>
+FImplicitObjectUnionClustered::FindAllIntersectingChildren(const TAABB<FReal, 3>& LocalBounds) const
+{
+	TArray<TPBDRigidParticleHandle<FReal, 3>*> IntersectingChildren;
+	if (LargeUnionData) //todo: make this work when hierarchy is not built
+	{
+		TArray<int32> IntersectingIndices = LargeUnionData->Hierarchy.FindAllIntersections(LocalBounds);
+		IntersectingChildren.Reserve(IntersectingIndices.Num());
+		for (const int32 Idx : IntersectingIndices)
+		{
+			if (MOriginalParticleLookupHack.IsValidIndex(Idx))
+			{
+				IntersectingChildren.Add(MOriginalParticleLookupHack[Idx]);
+			}
+		}
+	}
+	else
+	{
+		IntersectingChildren = MOriginalParticleLookupHack;
+	}
+	return IntersectingChildren;
 }
+
+
+} // namespace Chaos

@@ -36,6 +36,29 @@ FPBDConstraintGraph::FPBDConstraintGraph(const TParticleView<TGeometryParticles<
 	InitializeGraph(Particles);
 }
 
+int32 FPBDConstraintGraph::ReserveParticles(const int32 Num)
+{
+	const int32 NumFree = FreeIndexList.Num();
+	int32 NumToAdd = NumFree - Num; // Can be negative
+	if (NumToAdd > 0)
+	{
+		return 0;
+	}
+	NumToAdd = -NumToAdd; // Flip sign
+	const int32 NumNodes = Nodes.Num();
+	Nodes.SetNum(NumNodes + NumToAdd);
+	FreeIndexList.Reserve(NumToAdd);
+	for (int32 Counter = 0; Counter < NumToAdd; Counter++)
+	{
+		FreeIndexList.Push(NumNodes + Counter);
+	}
+
+	ParticleToNodeIndex.Reserve(ParticleToNodeIndex.Num() + NumToAdd);
+	Visited.Reserve(Visited.Num() + NumToAdd);
+
+	return NumToAdd;
+}
+
 /**
  * Bill added this.
  * Adds new Node to Nodes array when a new particle is created
@@ -43,16 +66,24 @@ FPBDConstraintGraph::FPBDConstraintGraph(const TParticleView<TGeometryParticles<
 
 void FPBDConstraintGraph::ParticleAdd(TGeometryParticleHandle<FReal, 3>* AddedParticle)
 {
-	int32 NewNodeIndex = GetNextNodeIndex();
+	if (ensure(!ParticleToNodeIndex.Contains(AddedParticle)))
+	{
+		const int32 NewNodeIndex = GetNextNodeIndex();
+		FGraphNode& Node = Nodes[NewNodeIndex];
+		ensure(Node.Edges.Num() == 0);
+		ensure(Node.Island == INDEX_NONE);
 
-	FGraphNode& Node = Nodes[NewNodeIndex];
-	ensure(Node.Edges.Num() == 0);
-	ensure(Node.Island == INDEX_NONE);
-	ensure(ParticleToNodeIndex.Find(AddedParticle) == nullptr);
+		Node.Particle = AddedParticle->Handle();
+		check(Node.Particle);
+		ParticleToNodeIndex.Add(Node.Particle, NewNodeIndex);
 
-	Node.Particle = AddedParticle->Handle();
-	ParticleToNodeIndex.Add(Node.Particle, NewNodeIndex);
-	Visited.Add(0);
+		const int32 NewMinNum = NewNodeIndex + 1;
+		const int32 NumToAdd = NewMinNum - Visited.Num();
+		if (NumToAdd > 0)
+			Visited.AddZeroed(NumToAdd);
+		else
+			Visited[NewNodeIndex] = 0;
+	}
 }
 
 /**
@@ -64,7 +95,7 @@ void FPBDConstraintGraph::ParticleRemove(TGeometryParticleHandle<FReal, 3>* Remo
 {
 	if (ParticleToNodeIndex.Contains(RemovedParticle))
 	{
-		int32 NodeIdx = ParticleToNodeIndex[RemovedParticle];
+		const int32 NodeIdx = ParticleToNodeIndex[RemovedParticle];
 		FreeIndexList.Push(NodeIdx);
 
 		FGraphNode& NodeRemoved = Nodes[NodeIdx];
@@ -131,7 +162,13 @@ void FPBDConstraintGraph::InitializeGraph(const TParticleView<TGeometryParticles
 	}
 	else
 	{
-		ensure(NumNonDisabledParticles <= Nodes.Num());
+		if (!ensure(NumNonDisabledParticles <= Nodes.Num()))
+		{
+			for (auto& Particle : Particles)
+			{
+				ParticleAdd(Particle.Handle());
+			}
+		}
 
 		// Update nodes may contain duplicate entries. To process in parallel we either need to prevent that, 
 		// or ensure we only process the first entry of a dupe. We are doing the latter for now...
@@ -208,6 +245,15 @@ void FPBDConstraintGraph::AddConstraint(const uint32 InContainerId, FConstraintH
 	FGraphEdge NewEdge;
 	NewEdge.Data = { InContainerId, InConstraintHandle };
 
+	if (ConstrainedParticles[0] && !ParticleToNodeIndex.Contains(ConstrainedParticles[0]))
+	{
+		ParticleAdd(ConstrainedParticles[0]);
+	}
+	if (ConstrainedParticles[1] && !ParticleToNodeIndex.Contains(ConstrainedParticles[1]))
+	{
+		ParticleAdd(ConstrainedParticles[1]);
+	}
+
 	int32* PNodeIndex0 = (ConstrainedParticles[0])? ParticleToNodeIndex.Find(ConstrainedParticles[0]) : nullptr;
 	int32* PNodeIndex1 = (ConstrainedParticles[1])? ParticleToNodeIndex.Find(ConstrainedParticles[1]) : nullptr;
 	if (ensure(PNodeIndex0 || PNodeIndex1))
@@ -244,6 +290,10 @@ void FPBDConstraintGraph::UpdateIslands(const TParticleView<TPBDRigidParticles<F
 	for (auto& PBDRigid : PBDRigids)
 	{
 		PBDRigid.Island() = INDEX_NONE;
+		if (!ensure(ParticleToNodeIndex.Contains(PBDRigid.Handle())))
+		{
+			ParticleAdd(PBDRigid.Handle());
+		}
 	}
 	ComputeIslands(PBDRigids, Particles);
 }
@@ -279,7 +329,8 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 
 	for (auto& Particle : PBDRigids)
 	{
-		int32 Idx = ParticleToNodeIndex[Particle.Handle()];
+		auto* ParticleHandle = Particle.Handle();
+		int32 Idx = ParticleToNodeIndex[ParticleHandle];  // ryan - FAILS!
 		// selective reset of islands, don't reset if has been visited due to being edge connected to earlier processed node
 		if (Visited[Idx] && Visited[Idx] != VisitToken)
 		{
