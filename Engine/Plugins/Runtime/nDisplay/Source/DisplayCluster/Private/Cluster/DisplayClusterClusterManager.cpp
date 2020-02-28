@@ -165,6 +165,10 @@ void FDisplayClusterClusterManager::EndSession()
 			Controller->Release();
 			Controller.Reset();
 		}
+
+		NodesAmount = 0;
+		ConfigPath.Empty();
+		ClusterNodeId.Empty();
 	}
 }
 
@@ -189,6 +193,16 @@ void FDisplayClusterClusterManager::EndScene()
 			SyncGroupPair.Value.Reset();
 		}
 	}
+
+	{
+		FScopeLock lock(&ClusterEventsCritSec);
+		ClusterEventListeners.Reset(ClusterEventListeners.Num() | 0x7);
+		ClusterEventsPoolMain.Reset();
+		ClusterEventsPoolOut.Reset();
+	}
+
+	NativeInputDataCache.Reset();
+	CurrentWorld = nullptr;
 }
 
 void FDisplayClusterClusterManager::EndFrame(uint64 FrameNum)
