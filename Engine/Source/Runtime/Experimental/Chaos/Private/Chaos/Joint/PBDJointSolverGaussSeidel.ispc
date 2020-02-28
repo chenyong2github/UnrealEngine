@@ -110,14 +110,21 @@ static inline void UpdateDerivedState(uniform FJointSolverGaussSeidel * uniform 
 {
 	M->Xs[Index] = M->Ps[Index] + VectorQuaternionRotateVector(M->Qs[Index], M->XLs[Index].Translation);
 	M->Rs[Index] = VectorQuaternionMultiply2(M->Qs[Index], M->XLs[Index].Rotation);
+
+	const uniform FVector4 Rs1Shortest = VectorQuaternionEnforceShortestArcWith(M->Rs[1], M->Rs[0]);
+	M->Rs[1] = Rs1Shortest;
 }
 
 static inline void UpdateDerivedState(uniform FJointSolverGaussSeidel * uniform M)
 {
 	M->Xs[0] = M->Ps[0] + VectorQuaternionRotateVector(M->Qs[0], M->XLs[0].Translation);
 	M->Xs[1] = M->Ps[1] + VectorQuaternionRotateVector(M->Qs[1], M->XLs[1].Translation);
-	M->Rs[0] = VectorQuaternionMultiply2(M->Qs[0], M->XLs[0].Rotation);
-	M->Rs[1] = VectorQuaternionMultiply2(M->Qs[1], M->XLs[1].Rotation);
+
+	const uniform FVector4 Rs0 = VectorQuaternionMultiply2(M->Qs[0], M->XLs[0].Rotation);
+	const uniform FVector4 Rs1 = VectorQuaternionMultiply2(M->Qs[1], M->XLs[1].Rotation);
+	const uniform FVector4 Rs1Shortest = VectorQuaternionEnforceShortestArcWith(Rs1, Rs0);
+	M->Rs[0] = Rs0;
+	M->Rs[1] = Rs1Shortest;
 }
 
 static inline void ApplyPositionDelta(
@@ -152,7 +159,10 @@ static inline void ApplyRotationDelta(
 
 	const uniform FVector4 QsNorm = VectorNormalizeQuaternion(Qs + DQ);
 
-	M->Qs[1] = QsNorm;
+	M->Qs[Index] = QsNorm;
+
+	const uniform FVector4 Qs1Shortest = VectorQuaternionEnforceShortestArcWith(M->Qs[1], M->Qs[0]);
+	M->Qs[1] = Qs1Shortest;
 }
 
 static inline void ApplyRotationDelta(
