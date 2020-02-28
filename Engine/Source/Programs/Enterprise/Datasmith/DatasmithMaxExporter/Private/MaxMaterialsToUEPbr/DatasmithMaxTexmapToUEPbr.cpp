@@ -128,6 +128,8 @@ namespace DatasmithMaxBitmapToUEPbrImpl
 					RGBTintParameters.Map1.bEnabled = ( ParamBlock2->GetInt( ParamDefinition.ID, GetCOREInterface()->GetTime() ) != 0 );
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return RGBTintParameters;
@@ -173,6 +175,8 @@ namespace DatasmithMaxBitmapToUEPbrImpl
 					MixParameters.MaskMap.bEnabled = ( ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) != 0 );
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return MixParameters;
@@ -260,6 +264,8 @@ namespace DatasmithMaxBitmapToUEPbrImpl
 					NoiseParameters.Size = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime());
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return NoiseParameters;
@@ -812,9 +818,15 @@ IDatasmithMaterialExpression* FDatasmithMaxBitmapToUEPbr::Convert( FDatasmithMax
 
 bool FDatasmithMaxAutodeskBitmapToUEPbr::IsSupported(const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap) const
 {
-	if (InTexmap && InTexmap->ClassID() == AUTODESKBITMAPCLASS)
+	if (InTexmap)
 	{
-		return true;
+		MSTR ClassName;
+		InTexmap->GetClassName(ClassName);
+		//Somehow, there are multiple autodesk map classes using the same ClassID, we only support Autodesk Bitmap.
+		if (InTexmap->ClassID() == AUTODESKBITMAPCLASS && FCString::Stricmp(ClassName, TEXT("Autodesk Bitmap")) == 0)
+		{
+			return true;
+		}
 	}
 
 	return false;
@@ -823,12 +835,16 @@ bool FDatasmithMaxAutodeskBitmapToUEPbr::IsSupported(const FDatasmithMaxMaterial
 IDatasmithMaterialExpression* FDatasmithMaxAutodeskBitmapToUEPbr::Convert(FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap)
 {
 	DatasmithMaxTexmapParser::FAutodeskBitmapParameters AutodeskBitmapParameters = DatasmithMaxTexmapParser::ParseAutodeskBitmap(InTexmap);
-	FScopedBitMapPtr ActualBitmap(AutodeskBitmapParameters.SourceFile->bi, AutodeskBitmapParameters.SourceFile->bm);
-	FString ActualBitmapName = FDatasmithMaxMatWriter::GetActualBitmapName(&ActualBitmap.MapInfo);
-	bool bUseAlphaAsMono = (ActualBitmap.Map->HasAlpha() != 0);
-	bool bIsSRGB = FDatasmithMaxMatHelper::IsSRGB(*ActualBitmap.Map);
+	if (AutodeskBitmapParameters.SourceFile)
+	{
+		FScopedBitMapPtr ActualBitmap(AutodeskBitmapParameters.SourceFile->bi, AutodeskBitmapParameters.SourceFile->bm);
+		FString ActualBitmapName = FDatasmithMaxMatWriter::GetActualBitmapName(&ActualBitmap.MapInfo);
+		bool bUseAlphaAsMono = (ActualBitmap.Map->HasAlpha() != 0);
+		bool bIsSRGB = FDatasmithMaxMatHelper::IsSRGB(*ActualBitmap.Map);
 
-	return FDatasmithMaxTexmapToUEPbrUtils::ConvertBitMap(MaxMaterialToUEPbr, InTexmap, ActualBitmapName, bUseAlphaAsMono, bIsSRGB);
+		return FDatasmithMaxTexmapToUEPbrUtils::ConvertBitMap(MaxMaterialToUEPbr, InTexmap, ActualBitmapName, bUseAlphaAsMono, bIsSRGB);
+	}
+	return nullptr;
 }
 
 bool FDatasmithMaxNormalToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const
