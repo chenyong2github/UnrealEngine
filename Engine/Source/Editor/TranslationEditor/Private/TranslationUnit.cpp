@@ -14,5 +14,11 @@ void UTranslationUnit::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 
 	const FName Name = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
+	if (Name == GET_MEMBER_NAME_CHECKED(UTranslationUnit, Translation))
+	{
+		// Consider modifying the translation to be an implicit review
+		HasBeenReviewed = true;
+	}
+
 	TranslationUnitPropertyChangedEvent.Broadcast(Name);
 }
