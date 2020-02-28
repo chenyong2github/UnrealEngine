@@ -1927,6 +1927,16 @@ UHierarchicalInstancedStaticMeshComponent::~UHierarchicalInstancedStaticMeshComp
 }
 
 #if WITH_EDITOR
+void UHierarchicalInstancedStaticMeshComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	const bool bAsync = false;
+	const bool bForceUpdate = true;
+	// Force because the Outdated Condition will fail (compared values will match)
+	BuildTreeIfOutdated(bAsync, bForceUpdate);
+}
+
 void UHierarchicalInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	if ((PropertyChangedEvent.Property != NULL && PropertyChangedEvent.Property->GetFName() == "InstancingRandomSeed"))
@@ -2663,10 +2673,17 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyEmpty()
 	InstanceCountToRender = 0;
 	InstanceReorderTable.Empty();
 	SortedInstances.Empty();
-	CacheMeshExtendedBounds = FBoxSphereBounds(ForceInitToZero);
-
 	UnbuiltInstanceBoundsList.Empty();
 	BuiltInstanceBounds.Init();
+	CacheMeshExtendedBounds = GetStaticMesh() && GetStaticMesh()->HasValidRenderData() ? GetStaticMesh()->GetBounds() : FBoxSphereBounds(ForceInitToZero);
+	InstanceUpdateCmdBuffer.Reset();
+	if (PerInstanceRenderData.IsValid())
+	{
+		TUniquePtr<FStaticMeshInstanceData> BuiltInstanceData = MakeUnique<FStaticMeshInstanceData>(GVertexElementTypeSupport.IsSupported(VET_Half2));
+		PerInstanceRenderData->UpdateFromPreallocatedData(*BuiltInstanceData);
+		PerInstanceRenderData->HitProxies.Empty();
+		MarkRenderStateDirty();
+	}
 }
 
 void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTree(FClusterBuilder& Builder)
