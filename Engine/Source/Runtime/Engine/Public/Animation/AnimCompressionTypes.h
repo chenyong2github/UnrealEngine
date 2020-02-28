@@ -201,7 +201,9 @@ public:
 
 	UAnimBoneCompressionSettings* BoneCompressionSettings;
 
-	USkeleton* Skeleton;
+	// Data from USkeleton
+	TArray<FTransform> RefLocalPoses;
+	FReferenceSkeleton RefSkeleton;
 
 	TArray<FTrackToSkeletonMap> TrackToSkeletonMapTable;
 
