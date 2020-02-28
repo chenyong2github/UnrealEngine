@@ -145,6 +145,9 @@ struct FSkeletalMeshSkinningData
 	}
 
 private:
+
+	void UpdateBoneTransforms();
+
 	FCriticalSection CriticalSection; 
 	
 	TWeakObjectPtr<USkeletalMeshComponent> MeshComp;
