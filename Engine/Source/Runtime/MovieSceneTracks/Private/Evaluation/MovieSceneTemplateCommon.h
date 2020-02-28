@@ -19,7 +19,7 @@ private:
 /** A token that sets a component's relative transform */
 struct F3DTransformTrackToken
 {
-	F3DTransformTrackToken()
+	F3DTransformTrackToken() : Translation(FVector::ZeroVector), Rotation(FRotator::ZeroRotator), Scale(FVector::OneVector)
 	{
 	}
 
