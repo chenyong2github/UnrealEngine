@@ -48,6 +48,9 @@ enum class EUpdateClockSource : uint8
 	/** Use the audio clock for timing. Does not honor world or actor pause state. */
 	Audio,
 
+	/** Time relative to the timecode provider for timing. Does not honor world or actor pause state. */
+	RelativeTimecode,
+
 	/** Use current timecode provider for timing. Does not honor world or actor pause state. */
 	Timecode,
 
