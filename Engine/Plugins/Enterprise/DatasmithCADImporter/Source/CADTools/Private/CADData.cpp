@@ -76,17 +76,8 @@ FArchive& operator<<(FArchive& Ar, FTessellationData& TessellationData)
 	Ar << TessellationData.NormalArray;
 	Ar << TessellationData.IndexArray;
 	Ar << TessellationData.TexCoordArray;
-	Ar << TessellationData.VertexCount;
-	Ar << TessellationData.NormalCount;
-	Ar << TessellationData.IndexCount;
-	Ar << TessellationData.TexCoordCount;
 
 	Ar << TessellationData.StartVertexIndex;
-
-	Ar << TessellationData.SizeOfVertexType;
-	Ar << TessellationData.SizeOfTexCoordType;
-	Ar << TessellationData.SizeOfNormalType;
-	Ar << TessellationData.SizeOfIndexType;
 
 	Ar << TessellationData.ColorName;
 	Ar << TessellationData.MaterialName;
