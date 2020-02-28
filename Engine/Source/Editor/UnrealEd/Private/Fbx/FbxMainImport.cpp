@@ -513,15 +513,15 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 	}
 }
 
-void FImportedMaterialData::AddImportedMaterial( FbxSurfaceMaterial& FbxMaterial, UMaterialInterface& UnrealMaterial )
+void FImportedMaterialData::AddImportedMaterial( const FbxSurfaceMaterial& FbxMaterial, UMaterialInterface& UnrealMaterial )
 {
 	FbxToUnrealMaterialMap.Add( &FbxMaterial, &UnrealMaterial );
 	ImportedMaterialNames.Add( *UnrealMaterial.GetPathName() );
 }
 
-bool FImportedMaterialData::IsUnique( FbxSurfaceMaterial& FbxMaterial, FName ImportedMaterialName ) const
+bool FImportedMaterialData::IsAlreadyImported( const FbxSurfaceMaterial& FbxMaterial, FName ImportedMaterialName ) const
 {
-	UMaterialInterface* FoundMaterial = GetUnrealMaterial( FbxMaterial );
+	const UMaterialInterface* FoundMaterial = GetUnrealMaterial( FbxMaterial );
 
 	return FoundMaterial != NULL || ImportedMaterialNames.Contains( ImportedMaterialName );
 }

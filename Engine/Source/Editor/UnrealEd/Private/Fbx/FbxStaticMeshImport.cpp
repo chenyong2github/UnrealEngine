@@ -310,18 +310,17 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		TRACE_CPUPROFILER_EVENT_SCOPE(CreateMaterials);
 		
 		TArray<UMaterialInterface*> Materials;
-		if (ImportOptions->bImportMaterials)
+		const bool bForSkeletalMesh = false;
+		
+		FindOrImportMaterialsFromNode(Node, Materials, FBXUVs.UVSets, bForSkeletalMesh);
+		if (!ImportOptions->bImportMaterials && ImportOptions->bImportTextures)
 		{
-			bool bForSkeletalMesh = false;
-			CreateNodeMaterials(Node, Materials, FBXUVs.UVSets, bForSkeletalMesh);
-		}
-		else if (ImportOptions->bImportTextures)
-		{
+			//If we are not importing any new material, we might still want to import new textures.
 			ImportTexturesFromNode(Node);
 		}
 
 		MaterialCount = Node->GetMaterialCount();
-		check(!ImportOptions->bImportMaterials || Materials.Num() == MaterialCount);
+		check(Materials.Num() == MaterialCount);
 	
 		// Used later to offset the material indices on the raw triangle data
 		MaterialIndexOffset = MeshMaterials.Num();
@@ -331,46 +330,14 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 			FFbxMaterial* NewMaterial = new(MeshMaterials) FFbxMaterial;
 			FbxSurfaceMaterial *FbxMaterial = Node->GetMaterial(MaterialIndex);
 			NewMaterial->FbxMaterial = FbxMaterial;
-			if (ImportOptions->bImportMaterials)
+			
+			if (Materials[MaterialIndex])
 			{
 				NewMaterial->Material = Materials[MaterialIndex];
 			}
 			else
 			{
-				FString MaterialFullName = GetMaterialFullName(*FbxMaterial);
-				FString BasePackageName = UPackageTools::SanitizePackageName(FPackageName::GetLongPackagePath(StaticMesh->GetOutermost()->GetName()) / MaterialFullName);
-				FString MaterialPackagePath = BasePackageName + TEXT(".") + MaterialFullName;
-				UMaterialInterface* UnrealMaterialInterface = FindObject<UMaterialInterface>(NULL, *MaterialPackagePath);
-				if (UnrealMaterialInterface == nullptr)
-				{
-					// Try loading the object if its package exists on disk
-					FSoftObjectPath ObjectPath(MaterialPackagePath);
-
-					FString LongPackageName = ObjectPath.GetAssetName().IsEmpty() ? ObjectPath.ToString() : ObjectPath.GetLongPackageName();
-					if (FPackageName::DoesPackageExist(LongPackageName))
-					{
-						UnrealMaterialInterface = Cast<UMaterialInterface>(ObjectPath.TryLoad());
-					}
-				}
-				if (UnrealMaterialInterface == NULL)
-				{
-					//In case we do not found the material we can see if the material is in the material list of the static mesh material
-					FName MaterialFbxFullName = UTF8_TO_TCHAR(MakeName(FbxMaterial->GetName()));
-					for (const FStaticMaterial &StaticMaterial : StaticMesh->StaticMaterials)
-					{
-						if (StaticMaterial.ImportedMaterialSlotName == MaterialFbxFullName)
-						{
-							UnrealMaterialInterface = StaticMaterial.MaterialInterface;
-							break;
-						}
-					}
-				
-					if (UnrealMaterialInterface == NULL)
-					{
-						UnrealMaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
-					}
-				}
-				NewMaterial->Material = UnrealMaterialInterface;
+				NewMaterial->Material = UMaterial::GetDefaultMaterial(MD_Surface);
 			}
 		}
 
