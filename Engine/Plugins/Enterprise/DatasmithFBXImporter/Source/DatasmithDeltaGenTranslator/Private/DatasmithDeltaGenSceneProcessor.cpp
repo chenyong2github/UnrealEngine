@@ -9,6 +9,7 @@
 #include "DatasmithUtils.h"
 
 #include "Factories/TextureFactory.h"
+#include "HAL/FileManager.h"
 
 using TimelineToAnimations = TMap<FDeltaGenTmlDataTimeline*, FDeltaGenTmlDataTimelineAnimation*>;
 
