@@ -7,11 +7,13 @@
 class FDatasmithMesh;
 class FDatasmithMeshExporterImpl;
 class IDatasmithMeshElement;
-struct FMeshDescription;
 
 class DATASMITHEXPORTER_API FDatasmithMeshExporter
 {
 public:
+	FDatasmithMeshExporter();
+	virtual ~FDatasmithMeshExporter();
+
 	/**
 	 * Exports the DatasmithMesh as a UObject.
 	 *
@@ -28,14 +30,9 @@ public:
 	/**
 	 * @return The error that happened during the last export, if any
 	 */
-	FString GetLastError() const { return LastError; }
+	FString GetLastError() const;
 
 private:
-	void PreExport( FDatasmithMesh& DatasmithMesh, const TCHAR* Filepath, const TCHAR* Filename, EDSExportLightmapUV LightmapUV );
-	void PostExport( const FDatasmithMesh& DatasmithMesh, TSharedRef< IDatasmithMeshElement > MeshElement );
 
-	void CreateDefaultUVs( FDatasmithMesh& DatasmithMesh );
-	void RegisterStaticMeshAttributes( FMeshDescription& MeshDescription);
-
-	FString LastError;
+	FDatasmithMeshExporterImpl* Impl;
 };
