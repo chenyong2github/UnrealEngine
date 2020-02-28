@@ -1,6 +1,6 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.5.2)
 
 # CMake script to build ICU
 project(icu)
@@ -32,9 +32,11 @@ set(ICU_IN_LIBRARY_NAME icuin${ICU_LIBRARY_SUFFIX})
 set(ICU_IO_LIBRARY_NAME icuio${ICU_LIBRARY_SUFFIX})
 
 # Put our build output at the same level as this CMake file, so we can easily delete the temporary files and only check-in the final libs
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ICU_BIN_ROOT})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ICU_BIN_ROOT})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ICU_BIN_ROOT})
+if (NOT DEFINED CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ICU_BIN_ROOT})
+	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ICU_BIN_ROOT})
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ICU_BIN_ROOT})
+endif()
 
 # Disable CRT warnings on Windows
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -56,7 +58,12 @@ add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 set(ICU_DT_SOURCES 
 	stubdata.cpp
 	)
-list(TRANSFORM ICU_DT_SOURCES PREPEND ${ICU_SRC_ROOT}/stubdata/)
+set(TEMP_LIST "")
+foreach(SOURCE_FILE ${ICU_DT_SOURCES})
+	list(APPEND TEMP_LIST ${ICU_SRC_ROOT}/stubdata/${SOURCE_FILE})
+endforeach(SOURCE_FILE)
+set(ICU_DT_SOURCES ${TEMP_LIST})
+set(TEMP_LIST "")
 
 # List of source files to compile taken from common/Makefile.in
 set(ICU_UC_SOURCES 
@@ -98,7 +105,12 @@ set(ICU_UC_SOURCES
 	pluralmap.cpp
 	static_unicode_sets.cpp
 	)
-list(TRANSFORM ICU_UC_SOURCES PREPEND ${ICU_SRC_ROOT}/common/)
+set(TEMP_LIST "")
+foreach(SOURCE_FILE ${ICU_UC_SOURCES})
+	list(APPEND TEMP_LIST ${ICU_SRC_ROOT}/common/${SOURCE_FILE})
+endforeach(SOURCE_FILE)
+set(ICU_UC_SOURCES ${TEMP_LIST})
+set(TEMP_LIST "")
 	
 # List of source files to compile taken from i18n/Makefile.in
 set(ICU_IN_SOURCES 
@@ -152,7 +164,12 @@ set(ICU_IN_SOURCES
 	numrange_fluent.cpp numrange_impl.cpp
 	erarules.cpp formattedvalue.cpp formattedval_iterimpl.cpp formattedval_sbimpl.cpp
 	)
-list(TRANSFORM ICU_IN_SOURCES PREPEND ${ICU_SRC_ROOT}/i18n/)
+set(TEMP_LIST "")
+foreach(SOURCE_FILE ${ICU_IN_SOURCES})
+	list(APPEND TEMP_LIST ${ICU_SRC_ROOT}/i18n/${SOURCE_FILE})
+endforeach(SOURCE_FILE)
+set(ICU_IN_SOURCES ${TEMP_LIST})
+set(TEMP_LIST "")
 
 # List of source files to compile taken from io/Makefile.in
 set(ICU_IO_SOURCES 
@@ -160,13 +177,22 @@ set(ICU_IO_SOURCES
 	uscanf.cpp uscanf_p.cpp ustdio.cpp sprintf.cpp sscanf.cpp
 	ustream.cpp ucln_io.cpp
 	)
-list(TRANSFORM ICU_IO_SOURCES PREPEND ${ICU_SRC_ROOT}/io/)
+set(TEMP_LIST "")
+foreach(SOURCE_FILE ${ICU_IO_SOURCES})
+	list(APPEND TEMP_LIST ${ICU_SRC_ROOT}/io/${SOURCE_FILE})
+endforeach(SOURCE_FILE)
+set(ICU_IO_SOURCES ${TEMP_LIST})
+set(TEMP_LIST "")
 
 # Building ICU as a monolithic library?
 if (${BUILD_ICU_MONOLITHIC})
 	# Create the icu (Monolithic) library
 	add_library(${ICU_LIBRARY_NAME} ${ICU_LIBRARY_TYPE} ${ICU_DT_SOURCES} ${ICU_UC_SOURCES} ${ICU_IN_SOURCES} ${ICU_IO_SOURCES})
-	target_compile_features(${ICU_LIBRARY_NAME} PRIVATE cxx_std_11)
+	if (${CMAKE_VERSION} VERSION_LESS 3.12)
+		set_property(TARGET ${ICU_LIBRARY_NAME} PROPERTY CXX_STANDARD 11)
+	else()
+		target_compile_features(${ICU_LIBRARY_NAME} PRIVATE cxx_std_11) 
+	endif()
 	target_compile_definitions(${ICU_LIBRARY_NAME} PRIVATE -DU_COMMON_IMPLEMENTATION -DU_I18N_IMPLEMENTATION -DU_IO_IMPLEMENTATION)
 else()
 	# Create the icudt (Data) library
@@ -175,19 +201,31 @@ else()
 
 	# Create the icuuc (Unicode Common) library
 	add_library(${ICU_UC_LIBRARY_NAME} ${ICU_LIBRARY_TYPE} ${ICU_UC_SOURCES})
-	target_compile_features(${ICU_UC_LIBRARY_NAME} PRIVATE cxx_std_11)
+	if (${CMAKE_VERSION} VERSION_LESS 3.12)
+		set_property(TARGET ${ICU_UC_LIBRARY_NAME} PROPERTY CXX_STANDARD 11)
+	else()
+		target_compile_features(${ICU_UC_LIBRARY_NAME} PRIVATE cxx_std_11)
+	endif()
 	target_compile_definitions(${ICU_UC_LIBRARY_NAME} PRIVATE -DU_COMMON_IMPLEMENTATION)
 	target_link_libraries(${ICU_UC_LIBRARY_NAME} ${ICU_DT_LIBRARY_NAME})
 
 	# Create the icuin (Internationalization) library
 	add_library(${ICU_IN_LIBRARY_NAME} ${ICU_LIBRARY_TYPE} ${ICU_IN_SOURCES})
-	target_compile_features(${ICU_IN_LIBRARY_NAME} PRIVATE cxx_std_11)
+	if (${CMAKE_VERSION} VERSION_LESS 3.12)
+		set_property(TARGET ${ICU_IN_LIBRARY_NAME} PROPERTY CXX_STANDARD 11)
+	else()
+		target_compile_features(${ICU_IN_LIBRARY_NAME} PRIVATE cxx_std_11)
+	endif()
 	target_compile_definitions(${ICU_IN_LIBRARY_NAME} PRIVATE -DU_I18N_IMPLEMENTATION)
 	target_link_libraries(${ICU_IN_LIBRARY_NAME} ${ICU_UC_LIBRARY_NAME})
 
 	# Create the icuio (Input/Output) library
 	add_library(${ICU_IO_LIBRARY_NAME} ${ICU_LIBRARY_TYPE} ${ICU_IO_SOURCES})
-	target_compile_features(${ICU_IO_LIBRARY_NAME} PRIVATE cxx_std_11)
+	if (${CMAKE_VERSION} VERSION_LESS 3.12)
+		set_property(TARGET ${ICU_IO_LIBRARY_NAME} PROPERTY CXX_STANDARD 11)
+	else()
+		target_compile_features(${ICU_IO_LIBRARY_NAME} PRIVATE cxx_std_11)
+	endif()
 	target_compile_definitions(${ICU_IO_LIBRARY_NAME} PRIVATE -DU_IO_IMPLEMENTATION)
 	target_link_libraries(${ICU_IO_LIBRARY_NAME} ${ICU_UC_LIBRARY_NAME} ${ICU_IN_LIBRARY_NAME})
 endif()
