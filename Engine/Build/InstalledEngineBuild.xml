@@ -20,7 +20,7 @@
 	<Property Name="DefaultWithLinux" Value="true"/>
 	<Property Name="DefaultWithLinux" Value="false" If="$(HostPlatformEditorOnly) Or ($(HostPlatformOnly) And '$(HostPlatform)' != 'Linux')"/>
 
-	<Property Name="DefaultWithLinuxAArch64" Value="false"/>
+	<Property Name="DefaultWithLinuxAArch64" Value="true"/>
 	<Property Name="DefaultWithLinuxAArch64" Value="false" If="$(HostPlatformEditorOnly) Or ($(HostPlatformOnly) And '$(HostPlatform)' != 'Linux')"/>
 
 	<Property Name="DefaultWithPlatform" Value="true"/>
