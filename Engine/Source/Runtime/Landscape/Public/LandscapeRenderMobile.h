@@ -123,8 +123,6 @@ public:
 	virtual void CreateRenderThreadResources() override;
 	virtual int32 CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
 
-	uint8 BlendableLayerMask;
-
 	friend class FLandscapeVertexBufferMobile;
 
 	virtual void ApplyMeshElementModifier(FMeshBatchElement& InOutMeshElement, int32 InLodIndex) const override;
