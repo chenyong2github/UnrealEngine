@@ -6,7 +6,7 @@
 
 
 FOSCMessage::FOSCMessage()
-	: Packet(MakeShareable(new FOSCMessagePacket()))
+	: Packet(MakeShared<FOSCMessagePacket>())
 {
 }
 

@@ -24,6 +24,11 @@ void UOSCClient::Connect()
 	ClientProxy.Reset(new FOSCClientProxy(GetName()));
 }
 
+bool UOSCClient::IsActive() const
+{
+	return ClientProxy.IsValid() && ClientProxy->IsActive();
+}
+
 void UOSCClient::GetSendIPAddress(FString& InIPAddress, int32& Port)
 {
 	check(ClientProxy.IsValid());
