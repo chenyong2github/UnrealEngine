@@ -110,7 +110,7 @@ bool FNiagaraEditorEnumTypeUtilities::SetValueFromPinDefaultString(const FString
 	checkf(Enum != nullptr, TEXT("Variable is not an enum type."));
 
 	FNiagaraInt32 EnumValue;
-	EnumValue.Value = (int32)Enum->GetValueByNameString(StringValue, EGetByNameFlags::ErrorIfNotFound);
+	EnumValue.Value = (int32)Enum->GetValueByNameString(StringValue);
 	if(EnumValue.Value != INDEX_NONE)
 	{
 		Variable.AllocateData();
