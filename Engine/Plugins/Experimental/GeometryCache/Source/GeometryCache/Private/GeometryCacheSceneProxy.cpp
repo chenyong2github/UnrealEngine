@@ -65,7 +65,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 
 	// Copy each section
 	const int32 NumTracks = Component->TrackSections.Num();
-	Tracks.AddZeroed(NumTracks);
+	Tracks.Reserve(NumTracks);
 	for (int32 TrackIdx = 0; TrackIdx < NumTracks; TrackIdx++)
 	{
 		FTrackRenderData& SrcSection = Component->TrackSections[TrackIdx];
@@ -73,6 +73,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 
 		const FGeometryCacheTrackSampleInfo& SampleInfo = CurrentTrack->GetSampleInfo(Time, bLooping);
 
+		// Add track only if it has (visible) geometry
 		if (SampleInfo.NumVertices > 0)
 		{
 			FGeomCacheTrackProxy* NewSection = CreateTrackProxy();
@@ -135,7 +136,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 			}
 
 			// Save ref to new section
-			Tracks[TrackIdx] = NewSection;
+			Tracks.Add(NewSection);
 		}
 	}
 
