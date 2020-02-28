@@ -2941,49 +2941,46 @@ FActiveGameplayEffect* FActiveGameplayEffectsContainer::ApplyGameplayEffectSpec(
 	// Register Source and Target non snapshot capture delegates here
 	AppliedEffectSpec.CapturedRelevantAttributes.RegisterLinkedAggregatorCallbacks(AppliedActiveGE->Handle);
 	
-	if (bSetDuration)
+	// Re-calculate the duration, as it could rely on target captured attributes
+	float DefCalcDuration = 0.f;
+	if (AppliedEffectSpec.AttemptCalculateDurationFromDef(DefCalcDuration))
 	{
-		// Re-calculate the duration, as it could rely on target captured attributes
-		float DefCalcDuration = 0.f;
-		if (AppliedEffectSpec.AttemptCalculateDurationFromDef(DefCalcDuration))
+		AppliedEffectSpec.SetDuration(DefCalcDuration, false);
+	}
+	else if (AppliedEffectSpec.Def->DurationMagnitude.GetMagnitudeCalculationType() == EGameplayEffectMagnitudeCalculation::SetByCaller)
+	{
+		AppliedEffectSpec.Def->DurationMagnitude.AttemptCalculateMagnitude(AppliedEffectSpec, AppliedEffectSpec.Duration);
+	}
+
+	const float DurationBaseValue = AppliedEffectSpec.GetDuration();
+
+	// Calculate Duration mods if we have a real duration
+	if (DurationBaseValue > 0.f)
+	{
+		float FinalDuration = AppliedEffectSpec.CalculateModifiedDuration();
+
+		// We cannot mod ourselves into an instant or infinite duration effect
+		if (FinalDuration <= 0.f)
 		{
-			AppliedEffectSpec.SetDuration(DefCalcDuration, false);
+			ABILITY_LOG(Error, TEXT("GameplayEffect %s Duration was modified to %.2f. Clamping to 0.1s duration."), *AppliedEffectSpec.Def->GetName(), FinalDuration);
+			FinalDuration = 0.1f;
 		}
-		else if (AppliedEffectSpec.Def->DurationMagnitude.GetMagnitudeCalculationType() == EGameplayEffectMagnitudeCalculation::SetByCaller)
+
+		AppliedEffectSpec.SetDuration(FinalDuration, true);
+
+		// ABILITY_LOG(Warning, TEXT("SetDuration for %s. Base: %.2f, Final: %.2f"), *NewEffect.Spec.Def->GetName(), DurationBaseValue, FinalDuration);
+
+		// Register duration callbacks with the timer manager
+		if (Owner && bSetDuration)
 		{
-			AppliedEffectSpec.Def->DurationMagnitude.AttemptCalculateMagnitude(AppliedEffectSpec, AppliedEffectSpec.Duration);
-		}
-
-		const float DurationBaseValue = AppliedEffectSpec.GetDuration();
-
-		// Calculate Duration mods if we have a real duration
-		if (DurationBaseValue > 0.f)
-		{
-			float FinalDuration = AppliedEffectSpec.CalculateModifiedDuration();
-
-			// We cannot mod ourselves into an instant or infinite duration effect
-			if (FinalDuration <= 0.f)
+			FTimerManager& TimerManager = Owner->GetWorld()->GetTimerManager();
+			FTimerDelegate Delegate = FTimerDelegate::CreateUObject(Owner, &UAbilitySystemComponent::CheckDurationExpired, AppliedActiveGE->Handle);
+			TimerManager.SetTimer(AppliedActiveGE->DurationHandle, Delegate, FinalDuration, false);
+			if (!ensureMsgf(AppliedActiveGE->DurationHandle.IsValid(), TEXT("Invalid Duration Handle after attempting to set duration for GE %s @ %.2f"), 
+				*AppliedActiveGE->GetDebugString(), FinalDuration))
 			{
-				ABILITY_LOG(Error, TEXT("GameplayEffect %s Duration was modified to %.2f. Clamping to 0.1s duration."), *AppliedEffectSpec.Def->GetName(), FinalDuration);
-				FinalDuration = 0.1f;
-			}
-
-			AppliedEffectSpec.SetDuration(FinalDuration, true);
-
-			// ABILITY_LOG(Warning, TEXT("SetDuration for %s. Base: %.2f, Final: %.2f"), *NewEffect.Spec.Def->GetName(), DurationBaseValue, FinalDuration);
-
-			// Register duration callbacks with the timer manager
-			if (Owner)
-			{
-				FTimerManager& TimerManager = Owner->GetWorld()->GetTimerManager();
-				FTimerDelegate Delegate = FTimerDelegate::CreateUObject(Owner, &UAbilitySystemComponent::CheckDurationExpired, AppliedActiveGE->Handle);
-				TimerManager.SetTimer(AppliedActiveGE->DurationHandle, Delegate, FinalDuration, false);
-				if (!ensureMsgf(AppliedActiveGE->DurationHandle.IsValid(), TEXT("Invalid Duration Handle after attempting to set duration for GE %s @ %.2f"), 
-					*AppliedActiveGE->GetDebugString(), FinalDuration))
-				{
-					// Force this off next frame
-					TimerManager.SetTimerForNextTick(Delegate);
-				}
+				// Force this off next frame
+				TimerManager.SetTimerForNextTick(Delegate);
 			}
 		}
 	}
