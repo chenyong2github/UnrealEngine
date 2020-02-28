@@ -257,7 +257,12 @@ public:
 protected:
 	void BuildTree();
 	void BuildTreeAsync();
+	void ApplyBuildTree(FClusterBuilder& Builder);
+	void ApplyEmpty();
 	void SetPerInstanceLightMapAndEditorData(FStaticMeshInstanceData& PerInstanceData, const TArray<TRefCountPtr<HHitProxy>>& HitProxies);
+
+	void GetInstanceTransforms(TArray<FMatrix>& InstanceTransforms) const;
+	void InitializeInstancingRandomSeed();
 
 	/** Removes specified instances */ 
 	void RemoveInstancesInternal(const int32* InstanceIndices, int32 Num);
