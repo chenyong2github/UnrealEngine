@@ -28,6 +28,8 @@
 
 #define LOCTEXT_NAMESPACE "AutomationTest"
 
+DEFINE_LOG_CATEGORY_STATIC(LogAutomationWorker, Log, All);
+
 IMPLEMENT_MODULE(FAutomationWorkerModule, AutomationWorker);
 
 
@@ -425,23 +427,40 @@ void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FCol
 	{
 		FAutomationWorkerScreenImage* Message = new FAutomationWorkerScreenImage();
 
-		Message->ScreenShotName = FPaths::ProjectDir() / Data.Path;
-		FPaths::MakePathRelativeTo(Message->ScreenShotName, *FPaths::AutomationDir());
+		Message->ScreenShotName = Data.ScreenshotName;
 		Message->ScreenImage = CompressedBitmap;
 		Message->Metadata = Metadata;
+
+		UE_LOG(LogAutomationWorker, Log, TEXT("Sending screenshot %s"), *Message->ScreenShotName);
+
 		MessageEndpoint->Send(Message, TestRequesterAddress);
 	}
 	else
 	{
 		//Save locally
 		const bool bTree = true;
-		IFileManager::Get().MakeDirectory(*FPaths::GetPath(Data.Path), bTree);
-		FFileHelper::SaveArrayToFile(CompressedBitmap, *Data.Path);
+
+		FString LocalFile = AutomationCommon::GetLocalPathForScreenshot(Data.ScreenshotName);
+		FString DirectoryPath = FPaths::GetPath(LocalFile);
+
+		UE_LOG(LogAutomationWorker, Log, TEXT("Saving screenshot %s as %s"),*Data.ScreenshotName, *LocalFile);
+
+		if (!IFileManager::Get().MakeDirectory(*DirectoryPath, bTree))
+		{
+			UE_LOG(LogAutomationWorker, Error, TEXT("Failed to create directory %s for incoming screenshot"), *DirectoryPath);
+			return;
+		}
+
+		if (!FFileHelper::SaveArrayToFile(CompressedBitmap, *LocalFile))
+		{
+			UE_LOG(LogAutomationWorker, Error, TEXT("Failed to save screenshot to %s"), *LocalFile);
+			return;
+		}
 
 		FString Json;
 		if ( FJsonObjectConverter::UStructToJsonObjectString(Metadata, Json) )
 		{
-			FString MetadataPath = FPaths::ChangeExtension(Data.Path, TEXT("json"));
+			FString MetadataPath = FPaths::ChangeExtension(LocalFile, TEXT("json"));
 			FFileHelper::SaveStringToFile(Json, *MetadataPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 		}
 	}

@@ -229,7 +229,7 @@ bool FLoadAllMapsInGameTest::RunTest(const FString& Parameters)
 		//Generate the screen shot name and path
 		FString ScreenshotFileName;
 		const FString LoadAllMapsTestName = FString::Printf(TEXT("LoadAllMaps_Game/%s"), *FPaths::GetBaseFilename(MapName));
-		AutomationCommon::GetScreenshotPath(LoadAllMapsTestName, ScreenshotFileName);
+		ScreenshotFileName = AutomationCommon::GetLocalPathForScreenshot(AutomationCommon::GetScreenshotName(LoadAllMapsTestName));
 
 		//Give the map some time to load
 		ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(1.5f));
