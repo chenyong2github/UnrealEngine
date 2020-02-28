@@ -41,6 +41,13 @@ namespace Chaos
 			FVec3& AxisLocal,
 			FReal& Angle);
 
+		static void GetLockedSwingAxisAngle(
+			const FRotation3& R0,
+			const FRotation3& R1,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			FVec3& Axis,
+			FReal& Angle);
+
 		static void GetDualConeSwingAxisAngle(
 			const FRotation3& R0,
 			const FRotation3& R1,
