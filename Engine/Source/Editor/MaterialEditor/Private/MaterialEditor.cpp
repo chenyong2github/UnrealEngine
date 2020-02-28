@@ -1650,9 +1650,9 @@ void FMaterialEditor::LoadEditorSettings()
 			PreviewViewport->TogglePreviewGrid();
 		}
 
-		if (EditorOptions->bRealtimeMaterialViewport)
+		if (EditorOptions->bRealtimeMaterialViewport && PreviewViewport->GetViewportClient())
 		{
-			PreviewViewport->OnToggleRealtime();
+			PreviewViewport->GetViewportClient()->SetRealtime(true);
 		}
 	}
 	

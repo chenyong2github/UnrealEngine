@@ -1161,12 +1161,11 @@ void MeshPaintHelpers::SetRealtimeViewport(bool bRealtime)
 		{
 			if (bRealtime)
 			{
-				Viewport.SetRealtime(bRealtime, bRememberCurrentState);
+				Viewport.SetRealtimeOverride(bRealtime, NSLOCTEXT("MeshPaint", "RealtimeOverrideMessage_MeshPaint", "Mesh Paint"));
 			}
 			else
 			{
-				const bool bAllowDisable = true;
-				Viewport.RestoreRealtime(bAllowDisable);
+				Viewport.RemoveRealtimeOverride();
 			}
 		}
 	}

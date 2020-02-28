@@ -147,7 +147,7 @@ void SEditorViewport::BindCommands()
 	CommandListRef.MapAction( 
 		Commands.ToggleRealTime,
 		FExecuteAction::CreateSP( this, &SEditorViewport::OnToggleRealtime ),
-		FCanExecuteAction(),
+		FCanExecuteAction::CreateSP(this, &SEditorViewport::CanToggleRealtime),
 		FIsActionChecked::CreateSP(this, &SEditorViewport::IsRealtime));
 
 	CommandListRef.MapAction( 
@@ -425,6 +425,11 @@ void SEditorViewport::OnToggleRealtime()
 	}
 }
 
+
+bool SEditorViewport::CanToggleRealtime() const
+{
+	return !Client->IsRealtimeOverrideSet();
+}
 
 void SEditorViewport::SetRenderDirectlyToWindow( const bool bInRenderDirectlyToWindow )
 {

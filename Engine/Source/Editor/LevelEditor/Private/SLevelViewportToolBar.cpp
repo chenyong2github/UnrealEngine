@@ -504,7 +504,7 @@ static void OnGenerateBookmarkMenu( FMenuBuilder& MenuBuilder , TWeakPtr<class S
 	MenuBuilder.EndSection();
 }
 
-TSharedRef<SWidget> SLevelViewportToolBar::GenerateOptionsMenu() const
+TSharedRef<SWidget> SLevelViewportToolBar::GenerateOptionsMenu() 
 {
 	Viewport.Pin()->OnFloatingButtonClicked();
 
@@ -522,6 +522,25 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateOptionsMenu() const
 		OptionsMenuBuilder.BeginSection("LevelViewportViewportOptions", LOCTEXT("OptionsMenuHeader", "Viewport Options") );
 		{
 			OptionsMenuBuilder.AddMenuEntry( FEditorViewportCommands::Get().ToggleRealTime );
+
+			// Add an option to disable the temporary override if there is one
+			{
+				FUIAction Action;
+				Action.ExecuteAction.BindSP(this, &SLevelViewportToolBar::OnDisableRealtimeOverride);
+				Action.IsActionVisibleDelegate.BindSP(this, &SLevelViewportToolBar::IsRealtimeOverrideToggleVisible);
+
+				TAttribute<FText> Tooltip(this, &SLevelViewportToolBar::GetRealtimeOverrideTooltip);
+
+				OptionsMenuBuilder.AddMenuEntry(
+					LOCTEXT("DisableRealtimeOverride", "Disable Realtime Override"),
+					Tooltip,
+					FSlateIcon(),
+					Action);
+
+				OptionsMenuBuilder.AddMenuSeparator();
+					
+			}
+		
 			OptionsMenuBuilder.AddMenuEntry( FEditorViewportCommands::Get().ToggleStats );
 			OptionsMenuBuilder.AddMenuEntry( FEditorViewportCommands::Get().ToggleFPS );
 			OptionsMenuBuilder.AddMenuEntry( LevelViewportActions.ToggleViewportToolbar );
@@ -1328,6 +1347,34 @@ void SLevelViewportToolBar::CreateViewMenuExtensions(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 }
 
+
+void SLevelViewportToolBar::OnDisableRealtimeOverride()
+{
+	if (TSharedPtr<SLevelViewport> ViewportPinned = Viewport.Pin())
+	{
+		ViewportPinned->GetLevelViewportClient().RemoveRealtimeOverride();
+	}
+}
+
+bool SLevelViewportToolBar::IsRealtimeOverrideToggleVisible() const
+{
+	if (TSharedPtr<SLevelViewport> ViewportPinned = Viewport.Pin())
+	{
+		return ViewportPinned->GetLevelViewportClient().IsRealtimeOverrideSet();
+	}
+
+	return false;
+}
+
+FText SLevelViewportToolBar::GetRealtimeOverrideTooltip() const
+{
+	if (TSharedPtr<SLevelViewport> ViewportPinned = Viewport.Pin())
+	{
+		return FText::Format(LOCTEXT("DisableRealtimeOverrideToolTip", "Realtime is currently overridden by \"{0}\".  Click to remove that override"), ViewportPinned->GetLevelViewportClient().GetRealtimeOverrideMessage());
+	}
+
+	return FText::GetEmpty();
+}
 
 bool SLevelViewportToolBar::IsLandscapeLODSettingChecked(int32 Value) const
 {
