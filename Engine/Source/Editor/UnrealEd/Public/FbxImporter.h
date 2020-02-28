@@ -833,7 +833,6 @@ public:
 
 		UObject* InParent;
 		TArray<FbxNode*> NodeArray;
-		TArray<FbxNode*> BoneNodeArray;
 		FName Name;
 		EObjectFlags Flags;
 		UFbxSkeletalMeshImportData* TemplateImportData;
@@ -1001,14 +1000,6 @@ public:
 	* @param outMeshArray return Fbx meshes
 	*/
 	UNREALED_API void FillFbxMeshArray(FbxNode* Node, TArray<FbxNode*>& outMeshArray, UnFbx::FFbxImporter* FFbxImporter);
-
-	/**
-	* Get all Fbx Skeleton nodes
-	*
-	* @param Node Root node to find skeleton nodes
-	* @param outNodeArray return skeleton nodes
-	*/
-	UNREALED_API void FillFbxSkeletonArray(FbxNode* Node, TArray<FbxNode*>& OutNodeArray);
 
 	/**
 	* Get all Fbx mesh objects not under a LOD group and all LOD group node
@@ -1400,7 +1391,9 @@ public:
 	*
 	* @returns bool*	true if import successfully.
 	*/
-	bool FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport, const TMap<FVector, FColor>& ExistingVertexColorData);
+	bool FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray,
+									FSkeletalMeshImportData* OutData, TArray<FbxNode*>& OutImportedSkeletonLinkNodes, TArray<FName> &LastImportedMaterialNames, 
+									const bool bIsReimport, const TMap<FVector, FColor>& ExistingVertexColorData);
 
 protected:
 
