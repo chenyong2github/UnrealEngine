@@ -124,6 +124,16 @@ UNREALED_API void ComputeBoundingBox(UStaticMesh* StaticMesh, FVector& Center, F
  */	
 UNREALED_API void RefreshCollisionChange(UStaticMesh& StaticMesh);
 
+/**
+ * Refresh Collision Changes for multiple static meshes
+ * 
+ * Collision has been changed, so it will need to recreate physics state to reflect it
+ * Utilities functions to propagate BodySetup change for StaticMesh
+ *
+ * @param	StaticMeshes  Set of StaticMesh that collision has been changed for
+ */
+UNREALED_API void RefreshCollisionChanges(const TArray<UStaticMesh*>& StaticMeshes);
+
 UE_DEPRECATED(4.15, "This version of RefreshCollisionChange is deprecated. Please use RefreshCollisionChange(UStaticMesh&) instead.")
 UNREALED_API void RefreshCollisionChange(const UStaticMesh* StaticMesh);
 	

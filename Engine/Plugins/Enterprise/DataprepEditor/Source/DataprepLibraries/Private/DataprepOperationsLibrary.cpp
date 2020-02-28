@@ -439,22 +439,22 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 
 void UDataprepOperationsLibrary::SetConvexDecompositionCollision(const TArray<UObject*>& SelectedObjects, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, TArray<UObject*>& ModifiedObjects)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UDataprepOperationsLibrary::SetConvexDecompositionCollision)
+
 	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
 
 	// Make sure all static meshes to be processed have render data
 	DataprepOperationsLibraryUtil::FStaticMeshBuilder StaticMeshBuilder(SelectedMeshes);
 
+	TArray<UStaticMesh*> StaticMeshes = SelectedMeshes.Array();
+	StaticMeshes.RemoveAll([](UStaticMesh* StaticMesh) { return StaticMesh == nullptr; });
+
 	// Build complex collision
-	for (UStaticMesh* StaticMesh : SelectedMeshes)
+	UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotification(StaticMeshes, HullCount, MaxHullVerts, HullPrecision, false);
+
+	for (UStaticMesh* StaticMesh : StaticMeshes)
 	{
-		if (StaticMesh)
-		{
-			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
-
-			UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(StaticMesh, HullCount, MaxHullVerts, HullPrecision, false);
-
-			ModifiedObjects.Add( StaticMesh );
-		}
+		ModifiedObjects.Add( StaticMesh );
 	}
 }
 

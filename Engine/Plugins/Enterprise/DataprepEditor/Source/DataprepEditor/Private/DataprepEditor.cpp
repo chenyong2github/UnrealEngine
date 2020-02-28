@@ -698,10 +698,16 @@ void FDataprepEditor::OnExecutePipeline()
 		TGuardValue<bool> IgnoreCloseRequestGuard(bIgnoreCloseRequest, true);
 
 		TSharedPtr< FDataprepCoreUtils::FDataprepFeedbackContext > FeedbackContext(new FDataprepCoreUtils::FDataprepFeedbackContext);
+
+		FFeedbackContext* OldGWarn = GWarn;
+		GWarn = FeedbackContext.Get();
+
 		ActionsContext->SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter( FeedbackContext.ToSharedRef() ) ) );
 		ActionsContext->SetWorld( PreviewWorld.Get() ).SetAssets( Assets );
 
 		DataprepAssetInterfacePtr->ExecuteRecipe( ActionsContext );
+
+		GWarn = OldGWarn;
 
 		// Update list of assets with latest ones
 		Assets = ActionsContext->Assets.Array();

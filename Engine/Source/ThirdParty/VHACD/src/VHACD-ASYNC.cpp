@@ -17,7 +17,7 @@
 namespace VHACD
 {
 
-class MyHACD_API : public VHACD::IVHACD, public VHACD::IVHACD::IUserCallback, VHACD::IVHACD::IUserLogger
+class MyHACD_API : public VHACD::IVHACD, public VHACD::IVHACD::IUserCallback, VHACD::IVHACD::IUserLogger, VHACD::IVHACD::IUserTaskRunner
 {
 public:
 	MyHACD_API(void)
@@ -32,7 +32,18 @@ public:
 		mVHACD->Release();
 	}
 
-	
+	virtual void* StartTask(std::function<void()> func) override
+	{
+		return new std::thread(func);
+	}
+
+	virtual void JoinTask(void* Task) override
+	{
+		std::thread* t = (std::thread*)Task;
+		t->join();
+		delete t;
+	}
+
 	virtual bool Compute(const double* const _points,
 		const uint32_t countPoints,
 		const uint32_t* const _triangles,
@@ -40,8 +51,12 @@ public:
 		const Parameters& _desc) final
 	{
 #if ENABLE_ASYNC
+		VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(_desc.m_profiler, MyHACD_API::Compute)
+
 		Cancel(); // if we previously had a solution running; cancel it.
 		releaseHACD();
+
+		mTaskRunner = _desc.m_taskRunner ? _desc.m_taskRunner : this;
 
 		// We need to copy the input vertices and triangles into our own buffers so we can operate
 		// on them safely from the background thread.
@@ -50,7 +65,7 @@ public:
 		memcpy(mVertices, _points, sizeof(double)*countPoints * 3);
 		memcpy(mIndices, _triangles, sizeof(uint32_t)*countTriangles * 3);
 		mRunning = true;
-		mThread = new std::thread([this, countPoints, countTriangles, _desc]()
+		mTask = mTaskRunner->StartTask([this, countPoints, countTriangles, _desc]()
 		{
 			ComputeNow(mVertices, countPoints, mIndices, countTriangles, _desc);
 			mRunning = false;
@@ -68,6 +83,8 @@ public:
 		const uint32_t countTriangles,
 		const Parameters& _desc) 
 	{
+		VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(_desc.m_profiler, MyHACD_API::ComputeNow);
+
 		uint32_t ret = 0;
 
 		mHullCount	= 0;
@@ -163,11 +180,10 @@ public:
 		{
 			mVHACD->Cancel();	// Set the cancel signal to the base VHACD
 		}
-		if (mThread)
+		if (mTask)
 		{
-			mThread->join();	// Wait for the thread to fully exit before we delete the instance
-			delete mThread;
-			mThread = nullptr;
+			mTaskRunner->JoinTask(mTask);	// Wait for the thread to fully exit before we delete the instance
+			mTask = nullptr;
 			Log("Convex Decomposition thread canceled\n");
 		}
 		mCancel = false; // clear the cancel semaphore
@@ -281,7 +297,7 @@ public:
 
 	// Will compute the center of mass of the convex hull decomposition results and return it
 	// in 'centerOfMass'.  Returns false if the center of mass could not be computed.
-	virtual bool ComputeCenterOfMass(double centerOfMass[3]) const
+	virtual bool ComputeCenterOfMass(double centerOfMass[3]) const override
 	{
 		bool ret = false;
 
@@ -303,8 +319,9 @@ private:
 	VHACD::IVHACD::ConvexHull		*mHulls{ nullptr };
 	VHACD::IVHACD::IUserCallback	*mCallback{ nullptr };
 	VHACD::IVHACD::IUserLogger		*mLogger{ nullptr };
+	VHACD::IVHACD::IUserTaskRunner	*mTaskRunner{ nullptr };
 	VHACD::IVHACD					*mVHACD{ nullptr };
-	std::thread						*mThread{ nullptr };
+	void							*mTask{ nullptr };
 	std::atomic< bool >				mRunning{ false };
 	std::atomic<bool>				mCancel{ false };
 
