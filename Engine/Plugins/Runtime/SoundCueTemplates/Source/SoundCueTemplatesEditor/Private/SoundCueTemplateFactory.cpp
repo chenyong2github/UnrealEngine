@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "SoundCueTemplateFactory.h"
 #include "SoundCueTemplateClassFilter.h"
 
@@ -54,7 +55,7 @@ bool USoundCueTemplateFactory::ConfigureProperties()
 	// Load the classviewer module to display a class picker
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
 
-	TSharedPtr<FSoundCueTemplateAssetParentFilter> Filter = MakeShareable(new FSoundCueTemplateAssetParentFilter);
+	TSharedPtr<FSoundCueTemplateAssetParentFilter> Filter = MakeShared<FSoundCueTemplateAssetParentFilter>();
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_HideDropDown;
 	Filter->AllowedChildrenOfClasses.Add(USoundCueTemplate::StaticClass());
 
@@ -80,6 +81,11 @@ UObject* USoundCueTemplateFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 	{
 		if (USoundCueTemplate* NewSoundCueTemplate = NewObject<USoundCueTemplate>(InParent, SoundCueTemplateClass, Name, Flags))
 		{
+			if (SoundWaves.Num())
+			{
+				NewSoundCueTemplate->AddSoundWaves(SoundWaves);
+			}
+
 			NewSoundCueTemplate->RebuildGraph(*NewSoundCueTemplate);
 			return NewSoundCueTemplate;
 		}

@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -28,6 +29,9 @@ class SOUNDCUETEMPLATES_API USoundCueTemplate : public USoundCue
 public:
 	/** Rebuilds the graph when user-facing properties are changed */
 	void RebuildGraph(USoundCue& SoundCue) const;
+
+	/** Override to initialize a template with array of sound waves from SoundCueFactory */
+	virtual void AddSoundWaves(TArray<TWeakObjectPtr<USoundWave>>& Waves) {}
 
 protected:
 	/**
