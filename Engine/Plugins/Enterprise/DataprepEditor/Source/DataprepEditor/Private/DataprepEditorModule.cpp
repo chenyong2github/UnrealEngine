@@ -129,24 +129,6 @@ public:
 		return SNullWidget::NullWidget;
 	}
 
-	virtual UEdGraphNode* CreateDataprepActionInGraph(UEdGraph& Graph, UDataprepActionAsset*& OutDataprepAction) override
-	{
-		FVector2D NullLocation( EForceInit::ForceInitToZero );
-		UK2Node_DataprepAction* DataprepActionNode = DataprepSchemaActionUtils::SpawnEdGraphNode<UK2Node_DataprepAction>( Graph, NullLocation );
-		DataprepActionNode->CreateDataprepActionAsset();
-		OutDataprepAction = DataprepActionNode->GetDataprepAction();
-		return DataprepActionNode;
-	}
-
-	virtual UEdGraphNode* CreateDataprepActionInGraphByDuplication(UEdGraph& Graph, const UDataprepActionAsset& DataprepAssetToBeDuplicated, UDataprepActionAsset*& OutDataprepAction)
-	{
-		FVector2D NullLocation( EForceInit::ForceInitToZero );
-		UK2Node_DataprepAction* DataprepActionNode = DataprepSchemaActionUtils::SpawnEdGraphNode<UK2Node_DataprepAction>(Graph, NullLocation);
-		DataprepActionNode->DuplicateExistingDataprepActionAsset( DataprepAssetToBeDuplicated );
-		OutDataprepAction = DataprepActionNode->GetDataprepAction();
-		return DataprepActionNode;
-	}
-
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
