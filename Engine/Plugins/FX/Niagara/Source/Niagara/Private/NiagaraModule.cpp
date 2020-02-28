@@ -265,6 +265,9 @@ void INiagaraModule::StartupModule()
 	{
 		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform, InGPUSortManager);
 	}));
+
+	// Needed for NiagaraDataInterfaceAudioSpectrum
+	FModuleManager::Get().LoadModule(TEXT("SignalProcessing"));
 }
 
 void INiagaraModule::ShutdownRenderingResources()

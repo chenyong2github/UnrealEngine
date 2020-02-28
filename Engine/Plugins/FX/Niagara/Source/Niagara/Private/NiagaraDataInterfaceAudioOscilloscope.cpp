@@ -534,51 +534,5 @@ void FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
 	DownsampledBuffer.SetNumZeroed(Resolution * NumChannelsInDownsampledBuffer);
 }
 
-FNiagaraSubmixListener::FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer)
-	: NumChannelsInSubmix(0)
-	, SubmixSampleRate(0)
-	, MixerInput(InMixer.AddNewInput(InNumSamplesToBuffer, 1.0f))
-{
-
-}
-
-FNiagaraSubmixListener::FNiagaraSubmixListener()
-	: NumChannelsInSubmix(0)
-	, SubmixSampleRate(0)
-{
-
-}
-
-FNiagaraSubmixListener::FNiagaraSubmixListener(FNiagaraSubmixListener&& Other)
-{
-	NumChannelsInSubmix = Other.NumChannelsInSubmix;
-	Other.NumChannelsInSubmix = 0;
-
-	SubmixSampleRate = Other.SubmixSampleRate;
-	Other.SubmixSampleRate = 0;
-
-	MixerInput = MoveTemp(Other.MixerInput);
-}
-
-FNiagaraSubmixListener::~FNiagaraSubmixListener()
-{
-}
-
-float FNiagaraSubmixListener::GetSampleRate()
-{
-	return (float) SubmixSampleRate;
-}
-
-int32 FNiagaraSubmixListener::GetNumChannels()
-{
-	return NumChannelsInSubmix;
-}
-
-void FNiagaraSubmixListener::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock)
-{
-	NumChannelsInSubmix = NumChannels;
-	SubmixSampleRate = SampleRate;
-	MixerInput.PushAudio(AudioData, NumSamples);
-}
 
 #undef LOCTEXT_NAMESPACE
