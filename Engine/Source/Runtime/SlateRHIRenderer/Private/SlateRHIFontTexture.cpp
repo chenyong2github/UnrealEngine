@@ -42,7 +42,7 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 		  0,
 		  0
 		);
-		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 		// Create a custom sampler state for using this texture in a deferred pass, where ddx / ddy are discontinuous
 		FSamplerStateInitializerRHI DeferredPassSamplerStateInitializer
@@ -56,7 +56,7 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 		  0,
 		  0
 		);
-		DeferredPassSamplerStateRHI = RHICreateSamplerState(DeferredPassSamplerStateInitializer);
+		DeferredPassSamplerStateRHI = GetOrCreateSamplerState(DeferredPassSamplerStateInitializer);
 
 		INC_MEMORY_STAT_BY(STAT_SlateTextureGPUMemory, Width*Height*GPixelFormats[PixelFormat].BlockBytes);
 	}
