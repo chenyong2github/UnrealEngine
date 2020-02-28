@@ -566,7 +566,7 @@ TFuture<TVariant<TSharedPtr<FConcertActivityStream>, FText>> FDisasterRecoverySe
 		if (!ArchivedSessionId.IsValid()) // Not found?
 		{
 			OnSessionNotFoundInternal(Session->RepositoryId); // The archive was likely deleted. Mark it to be discarded to be cleaned up at the next start up.
-			OnErrorFn(LOCTEXT("ArchivedSessionNotFound", "Session not found."));
+			OnErrorFn(LOCTEXT("SessionNotFound", "Session not found."));
 			return; // 3b - No session.
 		}
 
