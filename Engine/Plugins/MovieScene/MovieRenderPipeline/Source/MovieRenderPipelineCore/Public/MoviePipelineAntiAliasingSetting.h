@@ -4,8 +4,8 @@
 #include "MoviePipelineSetting.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "Engine/Scene.h"
+#include "MoviePipelineUtils.h"
 #include "MoviePipelineAntiAliasingSetting.generated.h"
-
 
 UCLASS(Blueprintable)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineAntiAliasingSetting : public UMoviePipelineSetting
@@ -35,8 +35,14 @@ protected:
 	{
 		Super::ValidateStateImpl();
 
-		if (bOverrideAntiAliasing && (AntiAliasingMethod == EAntiAliasingMethod::AAM_TemporalAA))
+		if (UE::MovieRenderPipeline::GetEffectiveAntiAliasingMethod(this) == EAntiAliasingMethod::AAM_TemporalAA)
 		{
+			if ((TemporalSampleCount*SpatialSampleCount) > 8)
+			{
+				ValidationResults.Add(NSLOCTEXT("MovieRenderPipeline", "AntiAliasing_BetterOffWithoutTAA", "If the product of Temporal and Spatial counts is greater than the number of TAA samples then TAA is ineffective and you should consider overriding AA to None for better quality."));
+				ValidationState = EMoviePipelineValidationState::Warnings;
+			}
+
 			if (SpatialSampleCount % 2 == 0)
 			{
 				ValidationResults.Add(NSLOCTEXT("MovieRenderPipeline", "AntiAliasing_InsufficientJitters", "TAA does not converge when using an even number of samples. Disable TAA or increase sample count."));
