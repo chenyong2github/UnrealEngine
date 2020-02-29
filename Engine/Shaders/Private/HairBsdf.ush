@@ -98,7 +98,7 @@ float3 EvaluateHairMultipleScattering(
 	return TransmittanceData.GlobalScattering * (Fs + TransmittanceData.LocalScattering) * TransmittanceData.OpaqueVisibility;
 }
 
-float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float Backlit, float Area, uint2 Random )
+float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float InBacklit, float Area, uint2 Random )
 {
 	// Strand tangent is oriented from root to tip, while the existing shading code expect tip to root orientation
 	//N = -N;
@@ -110,7 +110,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 
 	//const float3 DiffuseN	= OctahedronToUnitVector( GBuffer.CustomData.xy * 2 - 1 );
 	//const float Backlit	= GBuffer.CustomData.z;
-
+	const float Backlit		= min(InBacklit, GBuffer.CustomData.z);
 #if HAIR_REFERENCE
 	// todo: ClampedRoughness is missing for this code path
 	float3 S = HairShadingRef( GBuffer, L, V, N, Random );

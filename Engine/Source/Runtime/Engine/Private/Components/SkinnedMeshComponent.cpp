@@ -778,15 +778,6 @@ void USkinnedMeshComponent::TickUpdateRate(float DeltaTime, bool bNeedsValidRoot
 	}
 }
 
-void USkinnedMeshComponent::SetMeshObjectCallbackData(FSkeletalMeshObjectCallbackData& InData)
-{
-	MeshObjectCallbackData = InData;
-	if (MeshObject)
-	{
-		MeshObject->SetCallbackData(InData);
-	}
-}
-
 void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	SCOPED_NAMED_EVENT(USkinnedMeshComponent_TickComponent, FColor::Yellow);
@@ -794,12 +785,6 @@ void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 
 	// Tick ActorComponent first.
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// Refresh callback in case MeshObjectCallbackData was updated
-	if (MeshObject)
-	{
-		MeshObject->SetCallbackData(MeshObjectCallbackData);
-	}
 
 	// See if this mesh was rendered recently. This has to happen first because other data will rely on this
 	bRecentlyRendered = (GetLastRenderTime() > GetWorld()->TimeSeconds - 1.0f);

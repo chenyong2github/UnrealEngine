@@ -23,4 +23,8 @@ public:
 	/** Skeletal mesh on which the groom is attached to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = BuildSettings)
 	USkeletalMesh* TargetSkeletalMesh;
+
+	/** Number of points used for the rbf interpolation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = BuildSettings)
+	int32 NumInterpolationPoints;
 };

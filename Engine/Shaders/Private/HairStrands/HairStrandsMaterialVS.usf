@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsVisibilityCommon.ush" 
 #include "../Common.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"

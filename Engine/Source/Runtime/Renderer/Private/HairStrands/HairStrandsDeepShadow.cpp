@@ -157,7 +157,8 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 					AtlasSlotIndex++;
 
 					const bool bIsOrtho = LightType == ELightComponentType::LightType_Directional;
-					const FVector4 HairRenderInfo = PackHairRenderInfo(MinStrandRadiusAtDepth1.Primary, MinStrandRadiusAtDepth1.Primary, 1, bIsOrtho, false);
+					const FVector4 HairRenderInfo = PackHairRenderInfo(MinStrandRadiusAtDepth1.Primary, MinStrandRadiusAtDepth1.Stable, MinStrandRadiusAtDepth1.Primary, 1);
+					const uint32 HairRenderInfoBits = PackHairRenderInfoBits(bIsOrtho, false);
 					
 					// Front depth
 					{
@@ -180,6 +181,7 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 							EHairStrandsRasterPassType::FrontDepth,
 							DomData.AtlasRect,
 							HairRenderInfo,
+							HairRenderInfoBits,
 							DomData.LightDirection,
 							PassParameters);
 					}
@@ -206,6 +208,7 @@ FHairStrandsDeepShadowViews RenderHairStrandsDeepShadows(
 							EHairStrandsRasterPassType::DeepOpacityMap,
 							DomData.AtlasRect,
 							HairRenderInfo,
+							HairRenderInfoBits,
 							DomData.LightDirection,
 							PassParameters);						
 					}
