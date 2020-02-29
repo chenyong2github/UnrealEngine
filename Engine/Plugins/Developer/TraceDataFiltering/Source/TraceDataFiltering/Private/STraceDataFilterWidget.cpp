@@ -21,6 +21,7 @@
 #include "Insights/IUnrealInsightsModule.h"
 #include "Trace/StoreClient.h"
 #include "Trace/SessionTraceFilterService.h"
+#include "EventFilterStyle.h"
 
 #define LOCTEXT_NAMESPACE "STraceDataFilterWidget"
 
@@ -51,7 +52,7 @@ void STraceDataFilterWidget::Construct(const FArguments& InArgs)
 	[		
 		SNew(SBorder)
 		.Padding(4)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FEventFilterStyle::GetBrush("EventFilter.GroupBorder"))
 		[
 			SNew( SVerticalBox )
 
@@ -68,7 +69,7 @@ void STraceDataFilterWidget::Construct(const FArguments& InArgs)
 				[
 					SNew(SComboButton)
 					.Visibility(EVisibility::Visible)
-					.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+					.ComboButtonStyle(FEventFilterStyle::Get(), "EventFilter.ComboButton")
 					.ForegroundColor(FLinearColor::White)
 					.ContentPadding(0.0f)
 					.OnGetMenuContent(this, &STraceDataFilterWidget::MakeAddFilterMenu)
@@ -80,8 +81,8 @@ void STraceDataFilterWidget::Construct(const FArguments& InArgs)
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+							.TextStyle(FEventFilterStyle::Get(), "EventFilter.TextStyle")
+							.Font(FEventFilterStyle::Get().GetFontStyle("FontAwesome.9"))
 							.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
 						]
 						+SHorizontalBox::Slot()
@@ -90,7 +91,7 @@ void STraceDataFilterWidget::Construct(const FArguments& InArgs)
 						.VAlign(VAlign_Center)
 						[
 							SNew( STextBlock )
-							.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+							.TextStyle(FEventFilterStyle::Get(), "EventFilter.TextStyle")
 							.Text( LOCTEXT("PresetsMenuLabel", "Filter Presets") )
 						]
 					]
@@ -118,6 +119,39 @@ void STraceDataFilterWidget::Construct(const FArguments& InArgs)
 					.OnPresetsChanged(this, &STraceDataFilterWidget::OnPresetsChanged)
 					.OnSavePreset(this, &STraceDataFilterWidget::OnSavePreset)
 					.OnHighlightPreset(this, &STraceDataFilterWidget::OnHighlightPreset)
+				]
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SBorder)
+				.BorderImage(FEventFilterStyle::GetBrush("FilterPresets.SessionWarningBorder"))
+				.BorderBackgroundColor(FColor(166,137,0))
+				[
+					SNew(SHorizontalBox)
+					.Visibility_Lambda([this]() -> EVisibility 
+					{
+						return HasValidFilterSession() ? EVisibility::Collapsed : EVisibility::Visible;
+					})
+
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+					[
+						SNew(SImage)
+						.Image(FEventFilterStyle::GetBrush("FilterPresets.WarningIcon"))
+					]
+
+					+SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("NoValidFilterWarning", "Trace Data Filtering requires a connected Live Trace Session"))
+					]
 				]
 			]
 
