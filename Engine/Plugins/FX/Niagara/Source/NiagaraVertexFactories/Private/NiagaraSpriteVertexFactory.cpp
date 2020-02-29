@@ -36,24 +36,7 @@ public:
 		NumCutoutVerticesPerFrame.Bind(ParameterMap, TEXT("NumCutoutVerticesPerFrame"));
 		CutoutGeometry.Bind(ParameterMap, TEXT("CutoutGeometry"));
 
-		NiagaraParticleDataPosition.Bind(ParameterMap, TEXT("NiagaraParticleDataPosition"));
-		NiagaraParticleDataVelocity.Bind(ParameterMap, TEXT("NiagaraParticleDataVelocity"));
-		NiagaraParticleDataColor.Bind(ParameterMap, TEXT("NiagaraParticleDataColor"));
-		NiagaraParticleDataRotation.Bind(ParameterMap, TEXT("NiagaraParticleDataRotation"));
-		NiagaraParticleDataSize.Bind(ParameterMap, TEXT("NiagaraParticleDataSize"));
-		NiagaraParticleDataFacing.Bind(ParameterMap, TEXT("NiagaraParticleDataFacing"));
-		NiagaraParticleDataAlignment.Bind(ParameterMap, TEXT("NiagaraParticleDataAlignment"));
-		NiagaraParticleDataSubImage.Bind(ParameterMap, TEXT("NiagaraParticleDataSubImage"));
-		NiagaraParticleDataCameraOffset.Bind(ParameterMap, TEXT("NiagaraParticleDataCameraOffset"));
-		NiagaraParticleDataUVScale.Bind(ParameterMap, TEXT("NiagaraParticleDataUVScale"));
-		NiagaraParticleDataNormalizedAge.Bind(ParameterMap, TEXT("NiagaraParticleDataNormalizedAge"));
-		NiagaraParticleDataMaterialRandom.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialRandom"));
-		NiagaraParticleDataCustomSorting.Bind(ParameterMap, TEXT("NiagaraParticleDataCustomSorting"));
-		NiagaraParticleDataMaterialParam0.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam0"));
-		NiagaraParticleDataMaterialParam1.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam1"));
-		NiagaraParticleDataMaterialParam2.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam2"));
-		NiagaraParticleDataMaterialParam3.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam3"));
-
+		NiagaraParticleDataFloat.Bind(ParameterMap, TEXT("NiagaraParticleDataFloat"));
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 
 //  		NiagaraParticleDataInt.Bind(ParameterMap, TEXT("NiagaraParticleDataInt"));
@@ -90,23 +73,7 @@ public:
 		ShaderBindings.Add(ParticleAlignmentMode, SpriteVF->GetAlignmentMode());
 		ShaderBindings.Add(ParticleFacingMode, SpriteVF->GetFacingMode());
 
-		ShaderBindings.Add(NiagaraParticleDataPosition, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataVelocity, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataColor, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataRotation, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataSize, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataFacing, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataAlignment, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataSubImage, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataCameraOffset, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataUVScale, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataNormalizedAge, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataMaterialRandom, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataCustomSorting, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataMaterialParam0, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataMaterialParam1, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataMaterialParam2, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(NiagaraParticleDataMaterialParam3, SpriteVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataFloat, SpriteVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(FloatDataStride, SpriteVF->GetFloatDataStride());
 
 		ShaderBindings.Add(SortedIndices, SpriteVF->GetSortedIndicesSRV() ? SpriteVF->GetSortedIndicesSRV() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference());
@@ -122,24 +89,8 @@ private:
 
 		LAYOUT_FIELD(FShaderResourceParameter, CutoutGeometry);
 
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataPosition);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataVelocity);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataColor);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataRotation);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataSize);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFacing);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataAlignment);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataSubImage);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataCameraOffset);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataUVScale);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataNormalizedAge);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialRandom);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataCustomSorting);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam0);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam1);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam2);
-		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam3);
-		LAYOUT_FIELD(FShaderParameter, FloatDataStride);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFloat);
+	LAYOUT_FIELD(FShaderParameter, FloatDataStride);
 
 	//  	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataInt);
 	//  	LAYOUT_FIELD(FShaderParameter, Int32DataOffset);
