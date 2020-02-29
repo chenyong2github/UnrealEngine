@@ -19,9 +19,9 @@ FMoviePipelineMergerOutputFrame& FMoviePipelineOutputMerger::QueueOutputFrame_Ga
 	FScopeLock ScopeLock(&ActiveDataMutex);
 
 	// Ensure this frame hasn't already been entered somehow.
-	check(!ActiveData.Find(CachedOutputState));
+	check(!PendingData.Find(CachedOutputState));
 
-	FMoviePipelineMergerOutputFrame& NewFrame = ActiveData.Add(CachedOutputState);
+	FMoviePipelineMergerOutputFrame& NewFrame = PendingData.Add(CachedOutputState);
 	NewFrame.FrameOutputState = CachedOutputState;
 
 	return NewFrame;
@@ -57,7 +57,7 @@ void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUn
 	// Instead of just finding the result in the TMap with the equality operator, we find it by hand so that we can
 	// ignore certain parts of equality (such as Temporal Sample, as the last sample has a temporal index different
 	// than the first sample!)
-	for (TPair<FMoviePipelineFrameOutputState, FMoviePipelineMergerOutputFrame>& KVP : ActiveData)
+	for (TPair<FMoviePipelineFrameOutputState, FMoviePipelineMergerOutputFrame>& KVP : PendingData)
 	{
 		if (KVP.Key.OutputFrameNumber == InFrameData->OutputState.OutputFrameNumber)
 	 	{
@@ -87,18 +87,7 @@ void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUn
 	{
 		// Transfer ownership from the map to here;
 		FMoviePipelineMergerOutputFrame FinalFrame;
-		ActiveData.RemoveAndCopyValue(InFrameData->OutputState, FinalFrame);
-
-		// Notify the Movie Pipeline that this frame has been completed and can be forwarded to the output containers.
-		TWeakObjectPtr<UMoviePipeline> LocalWeakPipeline = WeakMoviePipeline;
-
-		AsyncTask(ENamedThreads::GameThread, [LocalFinalFrame = MoveTemp(FinalFrame), InFrameData, LocalWeakPipeline]() mutable
-		{
-			if (ensureAlwaysMsgf(LocalWeakPipeline.IsValid(), TEXT("A memory lifespan issue has left an output builder alive without an owning Movie Pipeline.")))
-			{
-				LocalWeakPipeline->OnFrameCompletelyRendered(MoveTemp(LocalFinalFrame), InFrameData);
-			}
-		}
-		);
+		PendingData.RemoveAndCopyValue(InFrameData->OutputState, FinalFrame);
+		FinishedFrames.Enqueue(MoveTemp(FinalFrame));
 	}
 }
