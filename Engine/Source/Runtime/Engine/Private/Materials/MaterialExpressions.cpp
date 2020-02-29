@@ -5872,6 +5872,7 @@ void UMaterialExpressionGetMaterialAttributes::PostLoad()
 	// Verify serialized attributes
 	check(Outputs.Num() == AttributeGetTypes.Num() + 1);
 
+	// Make sure all outputs have up to date display names
 	for (int i = 1; i < Outputs.Num(); ++i)
 	{
 		const FString DisplayName = FMaterialAttributeDefinitionMap::GetDisplayNameForMaterial(AttributeGetTypes[i - 1], Material).ToString();
