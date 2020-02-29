@@ -2563,6 +2563,9 @@ FString FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(c
 		case ENiagaraParameterScope::Engine:
 			return PARAM_MAP_ENGINE_STR;
 			break;
+		case ENiagaraParameterScope::Owner:
+			return PARAM_MAP_ENGINE_OWNER_STR;
+			break;
 		case ENiagaraParameterScope::User:
 			return PARAM_MAP_USER_STR;
 			break;
@@ -2672,7 +2675,14 @@ void FNiagaraStackGraphUtilities::SetParameterMetaDataFromName(const FName& InVa
 		}
 		else if (Namespace == FNiagaraParameterHandle::EmitterNamespace)
 		{
-			OutScope = ENiagaraParameterScope::Emitter;
+			if (Namespace == FNiagaraParameterHandle::OwnerNamespace)
+			{
+				OutScope = ENiagaraParameterScope::Owner;
+			}
+			else
+			{
+				OutScope = ENiagaraParameterScope::Emitter;
+			}
 			bCheckIsInitialValue = true;
 		}
 		else if (Namespace == FNiagaraParameterHandle::ParticleAttributeNamespace)

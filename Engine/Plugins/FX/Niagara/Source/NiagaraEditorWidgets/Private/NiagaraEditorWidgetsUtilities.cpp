@@ -133,6 +133,8 @@ FName FNiagaraStackEditorWidgetsUtilities::GetColorNameForParameterScope(ENiagar
 	switch (ParameterScope) {
 	case ENiagaraParameterScope::Engine:
 		return "NiagaraEditor.Scope.Engine";
+	case ENiagaraParameterScope::Owner:
+		return "NiagaraEditor.Scope.Owner";
 	case ENiagaraParameterScope::User:
 		return "NiagaraEditor.Scope.User";
 	case ENiagaraParameterScope::System:
