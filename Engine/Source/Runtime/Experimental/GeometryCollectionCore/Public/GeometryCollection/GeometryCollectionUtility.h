@@ -9,6 +9,13 @@
 
 namespace GeometryCollection 
 {
+	/***
+	* Add the geometry group to a collection. Mostly for backwards compatibility with older files.
+	*/
+	void
+	GEOMETRYCOLLECTIONCORE_API
+	AddGeometryProperties(FGeometryCollection* Collection);
+
 	/****
 	* MakeMeshElement
 	*   Utility to create an arbitrary triangulated mesh using the FGeometryCollection format.
@@ -125,14 +132,6 @@ namespace GeometryCollection
 	void
 	GEOMETRYCOLLECTIONCORE_API
 	SetupTwoClusteredCubesCollection(FGeometryCollection * Collection);
-
-
-	/***
-	* Add the geometry group to a collection. Mostly for backwards compatibility with older files. 
-	*/
-	void 
-	GEOMETRYCOLLECTIONCORE_API 
-	AddGeometryProperties(FGeometryCollection * Collection);
 
 	/***
 	* Ensure Material indices are setup correctly. Mostly for backwards compatibility with older files. 
