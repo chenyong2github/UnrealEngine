@@ -84,9 +84,6 @@ private:
 	/** Determines the visibility of the viewport. */
 	bool IsVisible() const override;
 
-	/** Callback for updating preview socket meshes if the static mesh or socket has been modified. */
-	void OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
-
 private:
 	/** The parent tab where this viewport resides */
 	TWeakPtr<SDockTab> ParentTab;

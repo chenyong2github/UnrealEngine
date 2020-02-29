@@ -36,7 +36,7 @@ public:
 		const bool bInShouldCloseWindowAfterMenuSelection = true;
 		FMenuBuilder ShowMenuBuilder(bInShouldCloseWindowAfterMenuSelection, ViewportRef->GetCommandList());
 		{
-			auto Commands = FLidarPointCloudEditorCommands::Get();
+			const FLidarPointCloudEditorCommands& Commands = FLidarPointCloudEditorCommands::Get();
 
 			ShowMenuBuilder.AddMenuEntry(Commands.SetShowGrid);
 			ShowMenuBuilder.AddMenuEntry(Commands.SetShowBounds);
@@ -80,8 +80,6 @@ void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(OverlayTextVerticalBox, SVerticalBox)
 		];
-
-	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &SLidarPointCloudEditorViewport::OnObjectPropertyChanged);
 }
 
 SLidarPointCloudEditorViewport::SLidarPointCloudEditorViewport()
@@ -91,7 +89,6 @@ SLidarPointCloudEditorViewport::SLidarPointCloudEditorViewport()
 
 SLidarPointCloudEditorViewport::~SLidarPointCloudEditorViewport()
 {
-	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 	if (EditorViewportClient.IsValid())
 	{
 		EditorViewportClient->Viewport = nullptr;
@@ -119,7 +116,7 @@ void SLidarPointCloudEditorViewport::RefreshViewport()
 
 void SLidarPointCloudEditorViewport::ResetCamera()
 {
-	if (auto EditorViewportClientRawPtr = EditorViewportClient.Get())
+	if (FLidarPointCloudEditorViewportClient* EditorViewportClientRawPtr = EditorViewportClient.Get())
 	{
 		EditorViewportClientRawPtr->ResetCamera();
 	}
@@ -139,7 +136,7 @@ void SLidarPointCloudEditorViewport::PopulateOverlayText(const TArray<FOverlayTe
 {
 	OverlayTextVerticalBox->ClearChildren();
 
-	for (const auto& TextItem : TextItems)
+	for (const FOverlayTextItem& TextItem : TextItems)
 	{
 		OverlayTextVerticalBox->AddSlot()
 			[
@@ -153,18 +150,6 @@ void SLidarPointCloudEditorViewport::PopulateOverlayText(const TArray<FOverlayTe
 bool SLidarPointCloudEditorViewport::IsVisible() const
 {
 	return ViewportWidget.IsValid() && (!ParentTab.IsValid() || ParentTab.Pin()->IsForeground());
-}
-
-void SLidarPointCloudEditorViewport::OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (!ensure(ObjectBeingModified))
-	{
-		return;
-	}
-
-	if (PreviewCloudComponent)
-	{
-	}
 }
 
 TSharedRef<FEditorViewportClient> SLidarPointCloudEditorViewport::MakeEditorViewportClient()

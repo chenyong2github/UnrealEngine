@@ -41,7 +41,7 @@ bool FLidarPointCloudFileIOHandler::ValidateImportSettings(TSharedPtr<FLidarPoin
 		if (ImportSettings->IsGeneric())
 		{
 			// Convert to the specialized settings
-			auto NewSettings = GetImportSettings(ImportSettings->Filename);
+			TSharedPtr<FLidarPointCloudImportSettings> NewSettings = GetImportSettings(ImportSettings->Filename);
 			NewSettings->bImportAll = ImportSettings->bImportAll;
 			ImportSettings = NewSettings;
 		}
@@ -180,7 +180,7 @@ TArray<FString> ULidarPointCloudFileIO::GetSupportedImportExtensions()
 {
 	TArray<FString> Extensions;
 
-	for (auto& Handler : Instance->RegisteredHandlers)
+	for (const TPair<FString, FLidarPointCloudFileIOHandler*>& Handler : Instance->RegisteredHandlers)
 	{
 		if (Handler.Value->SupportsImport())
 		{
@@ -195,7 +195,7 @@ TArray<FString> ULidarPointCloudFileIO::GetSupportedExportExtensions()
 {
 	TArray<FString> Extensions;
 
-	for (auto& Handler : Instance->RegisteredHandlers)
+	for (const TPair<FString, FLidarPointCloudFileIOHandler*>& Handler : Instance->RegisteredHandlers)
 	{
 		if (Handler.Value->SupportsExport())
 		{
