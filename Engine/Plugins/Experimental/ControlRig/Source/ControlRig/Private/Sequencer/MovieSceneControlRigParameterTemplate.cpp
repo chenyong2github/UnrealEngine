@@ -759,7 +759,7 @@ struct TControlRigParameterActuatorVector2D : TMovieSceneBlendingActuator<FContr
 		FVector2DInterrogationData Data;
 		Data.Val = InValue.Value;
 		Data.ParameterName = ParameterName;
-		InterrogationData.Add(FVector2DInterrogationData(Data), UMovieSceneControlRigParameterSection::GetVectorInterrogationKey());
+		InterrogationData.Add(FVector2DInterrogationData(Data), UMovieSceneControlRigParameterSection::GetVector2DInterrogationKey());
 	}
 
 	UControlRig *ControlRig;
