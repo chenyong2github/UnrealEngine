@@ -4,23 +4,31 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
+#include "IMotionController.h"
 #include "Subsystems/EngineSubsystem.h"
+#include "WindowsMixedRealityFunctionLibrary.h"
 #include "WindowsMixedRealityHandTrackingTypes.h"
+#include "Containers/StaticBitArray.h"
+#include "Containers/StaticArray.h"
 
 #include "WindowsMixedRealityInputSimulationEngineSubsystem.generated.h"
 
-UENUM()
-enum class EInputSimulationControllerButtons : uint8
+/** Simulated data for one hand. */
+struct FWindowsMixedRealityInputSimulationHandState
 {
-	Select,
-	Grasp,
-	Menu,
-	Thumbstick,
-	Touchpad,
-	TouchpadIsTouched
-};
+	typedef TStaticArray<FTransform, (uint32)EWMRHandKeypointCount> KeypointTransformArray;
+	typedef TStaticArray<float, (uint32)EWMRHandKeypointCount> KeypointRadiusArray;
+	typedef TStaticBitArray<uint32(EHMDInputControllerButtons::Count)> ButtonStateArray;
 
-const int32 EInputSimulationControllerButtonsCount = static_cast<int32>(EInputSimulationControllerButtons::TouchpadIsTouched) + 1;
+	ETrackingStatus TrackingStatus = ETrackingStatus::NotTracked;
+
+	bool bHasJointPoses = false;
+	KeypointTransformArray KeypointTransforms = KeypointTransformArray(FTransform::Identity);
+	KeypointRadiusArray KeypointRadii = KeypointRadiusArray(1.0f);
+
+	ButtonStateArray IsButtonPressed = ButtonStateArray(false);
+	ButtonStateArray PrevButtonPressed = ButtonStateArray(false);
+};
 
 /** Engine subsystem that stores input simulation data for access by the XR device. */
 UCLASS(ClassGroup = WindowsMixedReality)
@@ -31,33 +39,52 @@ class WINDOWSMIXEDREALITYINPUTSIMULATION_API UWindowsMixedRealityInputSimulation
 
 public:
 
-	struct HandState
-	{
-		bool IsValid = false;
-		
-		FTransform KeypointTransforms[EWMRHandKeypointCount];
-		float KeypointRadii[EWMRHandKeypointCount];
-		
-		bool IsButtonPressed[EInputSimulationControllerButtonsCount] = { false };
-		bool PrevButtonPressed[EInputSimulationControllerButtonsCount] = { false };
-	};
-
-	bool GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const;
-	bool GetHandJointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float& OutRadius) const;
-	void SetHandJointOrientationAndPosition(EControllerHand Hand, EWMRHandKeypoint Keypoint, const FRotator& Orientation, const FVector& Position);
-	void SetHandJointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float Radius);
-	
-	bool IsHandStateValid(EControllerHand Hand) const;
-	void SetHandStateValid(EControllerHand Hand, bool IsValid);
-
-	void SetPressState(EControllerHand Hand, EInputSimulationControllerButtons Button, bool IsPressed);
-	bool GetPressState(EControllerHand Hand, EInputSimulationControllerButtons Button, bool OnlyRegisterClicks, bool& OutPressState) const;
-
 	/** Checks both the user settings and HMD availability to determine if input simulation is enabled.
 	 * Note: The engine subsystem is created before the XRSystem, so it may exist even if a HMD is connected
 	 *       and input simulation is ultimately not used at runtime.
 	 */
-	bool IsInputSimulationEnabled() const;
+	static bool IsInputSimulationEnabled();
+
+	/** Utility function to ensure input simulation is only used when enabled.
+	 * Returns the engine subsystem if it exists and if input simulation is enabled.
+	 */
+	static UWindowsMixedRealityInputSimulationEngineSubsystem* GetInputSimulationIfEnabled();
+		
+	/** True if the HMD has a valid head position vector. */
+	bool HasPositionalTracking() const;
+	/** Orientation of the HMD. */
+	const FQuat& GetHeadOrientation() const;
+	/** Position of the HMD if positional tracking is available. */
+	const FVector& GetHeadPosition() const;
+		
+	/** Current tracking status of a hand. */
+	ETrackingStatus GetControllerTrackingStatus(EControllerHand Hand) const;
+
+	/** Get the transform of a hand joint.
+	 *  Returns true if the output transform is valid.
+	 */
+	bool GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const;
+	/** Get the radius of a hand joint.
+	 *  Returns true if the output radius is valid.
+	 */
+	bool GetHandJointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float& OutRadius) const;
+	
+	/** True if joint transforms are available for a hand. */
+	bool HasJointPoses(EControllerHand Hand) const;
+
+	/** State of buttons and gestures of the hand controller.
+	 * If OnlyRegisterClicks is true only changes from unpressed to pressed will be registered.
+	 * Returns true only if the button state is valid.
+	 */
+	bool GetPressState(EControllerHand Hand, EHMDInputControllerButtons Button, bool OnlyRegisterClicks, bool& OutPressState) const;
+
+	/** Update the simulated data. */
+	void UpdateSimulatedData(
+		bool HasTracking,
+		const FQuat& NewHeadOrientation,
+		const FVector& NewHeadPosition,
+		const FWindowsMixedRealityInputSimulationHandState& LeftHandState,
+		const FWindowsMixedRealityInputSimulationHandState& RightHandState);
 
 	//
 	// USubsystem implementation
@@ -68,14 +95,23 @@ public:
 
 private:
 
-	HandState* GetHandState(EControllerHand Hand);
-	const HandState* GetHandState(EControllerHand Hand) const;
+	/** Utility function for getting the state of a hand. */
+	FWindowsMixedRealityInputSimulationHandState* GetHandState(EControllerHand Hand);
+	/** Utility function for getting the state of a hand. */
+	const FWindowsMixedRealityInputSimulationHandState* GetHandState(EControllerHand Hand) const;
+
+	/** Utility function for updating the state of a hand. */
+	void UpdateSimulatedHandState(EControllerHand Hand, const FWindowsMixedRealityInputSimulationHandState& NewHandState);
 
 private:
 
-	HandState HandStates[2];
+	bool bHasPositionalTracking = false;
+	FQuat HeadOrientation = FQuat::Identity;
+	FVector HeadPosition = FVector::ZeroVector;
 
-	/** Critical section for reading/writing hand states. */
-	mutable FCriticalSection HandStatesCriticalSection;
+	FWindowsMixedRealityInputSimulationHandState HandStates[2];
+
+	/** Lock for accessing simulated data */
+	mutable FRWLock DataMutex;
 
 };
