@@ -8,10 +8,10 @@
 namespace Audio
 {
 	/** Convert a mel frequency to a frequency in hz. */
-	AUDIOMIXER_API float MelToHz(float InMel);
+	SIGNALPROCESSING_API float MelToHz(float InMel);
 
 	/** Convert  a frequency in hz to a mel frequency. */
-	AUDIOMIXER_API float HzToMel(float InHz);
+	SIGNALPROCESSING_API float HzToMel(float InHz);
 
 	/** Normalization methods for a mel transform. */
 	enum class EMelNormalization : uint8
@@ -23,7 +23,7 @@ namespace Audio
 
 	/** Settings for a mel kernel which transforms an linearly space spectrum (e.g. FFT Magnitude)
 	 * to a mel spectrum */
-	struct AUDIOMIXER_API FMelSpectrumKernelSettings
+	struct SIGNALPROCESSING_API FMelSpectrumKernelSettings
 	{
 		int32 NumBands;						//< Number of bands in Mel spectrum
 		float KernelMinCenterFreq;			//< Minimum frequency of lowest mel band.
@@ -40,5 +40,5 @@ namespace Audio
 		{}
 	};
 
-	AUDIOMIXER_API TUniquePtr<FContiguousSparse2DKernelTransform> NewMelSpectrumKernelTransform(const FMelSpectrumKernelSettings& InSettings, const int32 InFFTSize, const float InSampleRate);
+	SIGNALPROCESSING_API TUniquePtr<FContiguousSparse2DKernelTransform> NewMelSpectrumKernelTransform(const FMelSpectrumKernelSettings& InSettings, const int32 InFFTSize, const float InSampleRate);
 }
