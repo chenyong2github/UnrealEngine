@@ -2217,7 +2217,7 @@ namespace UnrealBuildTool
 			List<string> Definitions = new List<string>(GlobalCompileEnvironment.Definitions);
 			foreach(UEBuildModule Module in Binary.Modules)
 			{
-				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), false);
+				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), new List<FileItem>(), false);
 			}
 
 			// Write the header
@@ -3951,7 +3951,7 @@ namespace UnrealBuildTool
 						);
 
 				case ModuleRules.ModuleType.External:
-					return new UEBuildModuleExternal(RulesObject);
+					return new UEBuildModuleExternal(RulesObject, GetModuleIntermediateDirectory(RulesObject));
 
 				default:
 					throw new BuildException("Unrecognized module type specified by 'Rules' object {0}", RulesObject.ToString());
