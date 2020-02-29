@@ -50,4 +50,6 @@ namespace BuildPatchServices
 	 * @return the CloudDir relative delta filename.
 	 */
 	BUILDPATCHSERVICES_API FString GetChunkDeltaFilename(const IBuildManifestRef& SourceManifest, const IBuildManifestRef& DestinationManifest);
+
+	BUILDPATCHSERVICES_API IBuildManifestPtr MergeDeltaManifest(const IBuildManifestRef& Manifest, const IBuildManifestRef& Delta);
 }
