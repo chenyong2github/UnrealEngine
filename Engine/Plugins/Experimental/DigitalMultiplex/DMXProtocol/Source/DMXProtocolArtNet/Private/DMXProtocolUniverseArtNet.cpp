@@ -12,7 +12,7 @@ static const uint8 HIGH_NIBBLE = 0xF0;
 static const uint8 LOW_NIBBLE = 0x0F;
 static const uint8 MAX_NET = 0x7f;
 
-FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(TSharedPtr<IDMXProtocol> InDMXProtocol, const FJsonObject& InSettings)
+FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings)
 	: WeakDMXProtocol(InDMXProtocol)
 {
 	checkf(WeakDMXProtocol.IsValid(), TEXT("DMXProtocol pointer is nullptr"));
@@ -40,7 +40,7 @@ FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(TSharedPtr<IDMXProtocol> 
 }
 
 
-TSharedPtr<IDMXProtocol> FDMXProtocolUniverseArtNet::GetProtocol() const
+IDMXProtocolPtr FDMXProtocolUniverseArtNet::GetProtocol() const
 {
 	return WeakDMXProtocol.Pin();
 }

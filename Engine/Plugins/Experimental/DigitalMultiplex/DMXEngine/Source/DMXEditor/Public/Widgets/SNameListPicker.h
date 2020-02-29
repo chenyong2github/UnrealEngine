@@ -61,6 +61,7 @@ public:
 
 	/**  Slate widget construction method */
 	void Construct(const FArguments& InArgs);
+
 	virtual ~SNameListPicker();
 
 private:
@@ -72,6 +73,16 @@ private:
 	TSharedRef<SWidget> GenerateNameItemWidget(TSharedPtr<FName> InItem);
 	/** Handles a selection change from the combo box */
 	void HandleSelectionChanged(const TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
+
+	TSharedPtr<FName> GetSelectedItemFromCurrentValue() const;
+
+	/**
+	 * Workaround to keep the correct option highlighted in the dropdown menu.
+	 * When code changes the current value of the property this button represents, it's possible
+	 * that the button will keep the previous value highlighted. So we set the currently highlighted
+	 * option every time the menu is opened.
+	 */
+	void UpdateSelectedOption();
 
 private:
 	TWeakPtr<SComboBox<TSharedPtr<FName>>> PickerComboButton;

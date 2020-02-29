@@ -20,13 +20,19 @@ void UDMXEntityController::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void UDMXEntityController::PostLoad()
+{
+	Super::PostLoad();
+	ValidateRangeValues();
+}
+
 #endif // WITH_EDITOR
 
 void UDMXEntityController::ValidateRangeValues()
 {
 	if (DeviceProtocol.IsValid())
 	{
-		const TSharedPtr<IDMXProtocol>& Protocol = DeviceProtocol;
+		const IDMXProtocolPtr& Protocol = DeviceProtocol;
 		const int32 MinUniverseID = Protocol->GetMinUniverseID();
 		const int32 MaxUniverseID = Protocol->GetMaxUniverses();
 

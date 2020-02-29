@@ -15,7 +15,6 @@
 #include "ScopedTransaction.h"
 #include "EdGraphUtilities.h"
 #include "K2Node_CallFunction.h"
-#include "Engine/Engine.h"
 
 #define LOCTEXT_NAMESPACE "UK2Node_GetDMXActiveModeFunctionValues"
 
@@ -108,13 +107,24 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 	Super::ExpandNode(CompilerContext, SourceGraph);
 	const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
 
-	UDMXSubsystem* Subsystem = GEngine->GetEngineSubsystem<UDMXSubsystem>();
+	// First node to execute. GetDMXSubsystem
+	FName GetDMXSubsystemFunctionName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetDMXSubsystem_Callable);
+	UK2Node_CallFunction* DMXSubsystemNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
+	DMXSubsystemNode->FunctionReference.SetExternalMember(GetDMXSubsystemFunctionName, UDMXSubsystem::StaticClass());
+	DMXSubsystemNode->AllocateDefaultPins();
 
-	UEdGraphPin* SelfPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UDMXSubsystem::StaticClass(), UEdGraphSchema_K2::PN_Self);
-	SelfPin->DefaultObject = Subsystem;
+	UEdGraphPin* DMXSubsystemExecPin = DMXSubsystemNode->GetExecPin();
+	UEdGraphPin* DMXSubsystemThenPin = DMXSubsystemNode->GetThenPin();
+	UEdGraphPin* DMXSubsystemResult = DMXSubsystemNode->GetReturnValuePin();
 
-	// Call DMX function map. Always first and always call it
-	// Static C++ function
+	// Hook up inputs
+	CompilerContext.MovePinLinksToIntermediate(*GetExecPin(), *DMXSubsystemExecPin);
+
+	// Hook up outputs
+	UEdGraphPin* LastThenPin = DMXSubsystemThenPin;
+	Schema->TryCreateConnection(LastThenPin, DMXSubsystemThenPin);
+
+	// Second node to execute. GetFunctionsMap
 	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFunctionsMap);
 	UFunction* GetFunctionsMapPointer = FindField<UFunction>(UDMXSubsystem::StaticClass(), FunctionName);
 	check(GetFunctionsMapPointer);
@@ -133,16 +143,17 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 	UEdGraphPin* GetFunctionsMapNodeThenPin = GetFunctionsMapNode->GetThenPin();
 
 	// Hook up inputs
-	CompilerContext.MovePinLinksToIntermediate(*SelfPin, *GetFunctionsMapNodeSelfPin);
-	CompilerContext.MovePinLinksToIntermediate(*GetExecPin(), *GetFunctionsMapNodeExecPin);
+	Schema->TryCreateConnection(GetFunctionsMapNodeSelfPin, DMXSubsystemResult);
 	CompilerContext.MovePinLinksToIntermediate(*GetInputDMXFixturePatchPin(), *GetFunctionsMapNodeInFixturePatchPin);
 	CompilerContext.MovePinLinksToIntermediate(*GetInputDMXProtocolPin(), *GetFunctionsMapNodeSelectedProtocolPin);
 
 	// Hook up outputs
 	CompilerContext.MovePinLinksToIntermediate(*GetOutputFunctionsMapPin(), *GetFunctionsMapNodeOutFunctionsMapPin);
 	CompilerContext.MovePinLinksToIntermediate(*GetOutputIsSuccessPin(), *GetFunctionsMapNodeOutIsSuccessPin);
+	Schema->TryCreateConnection(LastThenPin, GetFunctionsMapNodeExecPin);
+	LastThenPin = GetFunctionsMapNodeThenPin;
 
-	// Call dmx active mode pin functions
+	// Loop GetFunctionsValueName nodes to execute. 
 	if (UserDefinedPins.Num() > 0)
 	{
 		TArray<UEdGraphPin*> IntPairs;
@@ -166,7 +177,6 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 
 		check(IntPairs.Num() == NamePairs.Num());
 
-		UEdGraphPin* LastThenPin = GetFunctionsMapNodeThenPin;
 		bool bResult = false;
 		for (int32 PairIndex = 0; PairIndex < NamePairs.Num(); ++PairIndex)
 		{
@@ -186,7 +196,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 			UEdGraphPin* GetFunctionsValueNodeThenPin = GetFunctionsValueNode->GetThenPin();
 
 			// Input
-			CompilerContext.MovePinLinksToIntermediate(*SelfPin, *GetFunctionsValueSelfPin);
+			Schema->TryCreateConnection(GetFunctionsValueSelfPin, DMXSubsystemResult);
 			CompilerContext.MovePinLinksToIntermediate(*NamePairs[PairIndex], *GetFunctionsValueNodeOutInNamePin);
 
 			// Output
@@ -202,7 +212,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 	}
 	else
 	{
-		CompilerContext.MovePinLinksToIntermediate(*GetThenPin(), *GetFunctionsMapNodeThenPin);
+		CompilerContext.MovePinLinksToIntermediate(*GetThenPin(), *LastThenPin);
 	}
 }
 

@@ -24,10 +24,10 @@ FAutoConsoleCommand FDMXProtocolSACNModule::SendDMXCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(&FDMXProtocolSACNModule::SendDMXCommandHandler)
 );
 
-TSharedPtr<IDMXProtocol> FDMXProtocolFactorySACN::CreateProtocol(const FName & ProtocolName)
+IDMXProtocolPtr FDMXProtocolFactorySACN::CreateProtocol(const FName & ProtocolName)
 {
 	FJsonObject ProtocolSettings;
-	TSharedPtr<IDMXProtocol> ProtocolSACNPtr = MakeShared<FDMXProtocolSACN>(ProtocolName, ProtocolSettings);
+	IDMXProtocolPtr ProtocolSACNPtr = MakeShared<FDMXProtocolSACN, ESPMode::ThreadSafe>(ProtocolName, ProtocolSettings);
 	if (ProtocolSACNPtr->IsEnabled())
 	{
 		if (!ProtocolSACNPtr->Init())
@@ -123,7 +123,7 @@ void FDMXProtocolSACNModule::SendDMXCommandHandler(const TArray<FString>& Args)
 		DMXFragment.Add(Key, Value);
 	}
 
-	TSharedPtr<IDMXProtocol> DMXProtocol = IDMXProtocol::Get(FDMXProtocolSACNModule::NAME_SACN);
+	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolSACNModule::NAME_SACN);
 	if (DMXProtocol.IsValid())
 	{
 		DMXProtocol->SendDMXFragmentCreate(UniverseID, DMXFragment);
