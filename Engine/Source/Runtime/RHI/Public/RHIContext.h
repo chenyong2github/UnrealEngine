@@ -411,6 +411,11 @@ public:
 
 	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
 
+	virtual void RHICalibrateTimers()
+	{
+		/* empty default implementation */
+	}
+
 	virtual void RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
 	{
 		/* empty default implementation */
