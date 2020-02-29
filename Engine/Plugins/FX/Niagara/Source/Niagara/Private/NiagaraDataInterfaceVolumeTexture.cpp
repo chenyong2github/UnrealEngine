@@ -211,7 +211,7 @@ void UNiagaraDataInterfaceVolumeTexture::GetParameterDefinitionHLSL(const FNiaga
 
 struct FNiagaraDataInterfaceParametersCS_VolumeTexture : public FNiagaraDataInterfaceParametersCS
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_VolumeTexture, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_VolumeTexture, NonVirtual);
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
@@ -281,6 +281,8 @@ private:
 	LAYOUT_FIELD(FShaderParameter, Dimensions);
 };
 
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceVolumeTexture, FNiagaraDataInterfaceParametersCS_VolumeTexture);
+
 void UNiagaraDataInterfaceVolumeTexture::PushToRenderThread()
 {
 	FNiagaraDataInterfaceProxyVolumeTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyVolumeTexture>();
@@ -316,11 +318,6 @@ void UNiagaraDataInterfaceVolumeTexture::PushToRenderThread()
 		RT_Proxy->TexDims.Z = DimZ;
 	}
 	);
-}
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceVolumeTexture::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_VolumeTexture();
 }
 
 void UNiagaraDataInterfaceVolumeTexture::SetTexture(UVolumeTexture* InTexture)
