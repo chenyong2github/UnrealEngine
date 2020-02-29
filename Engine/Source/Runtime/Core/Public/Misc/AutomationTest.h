@@ -594,7 +594,8 @@ struct FAutomationScreenshotData
 	bool bIgnoreAntiAliasing;
 	bool bIgnoreColors;
 
-	FString Path;
+	// Name of the screenshot generated from AutomationCommon::GetScreenShotName()
+	FString ScreenshotName;
 
 	FAutomationScreenshotData()
 		: Id()
