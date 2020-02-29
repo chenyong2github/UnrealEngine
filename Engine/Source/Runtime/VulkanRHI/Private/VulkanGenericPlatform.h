@@ -15,6 +15,8 @@ class FVulkanDevice;
 class FVulkanGenericPlatform 
 {
 public:
+	static void SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel);
+
 	static bool IsSupported() { return true; }
 	static void CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId VendorId, const VkPhysicalDeviceProperties& Props) {}
 
