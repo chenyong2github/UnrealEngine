@@ -1607,41 +1607,6 @@ TOptional<FName> FNiagaraStackGraphUtilities::GetNamespaceForScriptUsage(ENiagar
 	}
 }
 
-void FNiagaraStackGraphUtilities::GetOwningEmitterAndScriptForStackNode(UNiagaraNode& StackNode, UNiagaraSystem& OwningSystem, UNiagaraEmitter*& OutEmitter, UNiagaraScript*& OutScript)
-{
-	OutEmitter = nullptr;
-	OutScript = nullptr;
-	UNiagaraNodeOutput* OutputNode = GetEmitterOutputNodeForStackNode(StackNode);
-	if (OutputNode != nullptr)
-	{
-		switch (OutputNode->GetUsage())
-		{
-			case ENiagaraScriptUsage::SystemSpawnScript:
-				OutScript = OwningSystem.GetSystemSpawnScript();
-				break;
-			case ENiagaraScriptUsage::SystemUpdateScript:
-				OutScript = OwningSystem.GetSystemUpdateScript();
-				break;
-			case ENiagaraScriptUsage::EmitterSpawnScript:
-			case ENiagaraScriptUsage::EmitterUpdateScript:
-			case ENiagaraScriptUsage::ParticleSpawnScript:
-			case ENiagaraScriptUsage::ParticleUpdateScript:
-			case ENiagaraScriptUsage::ParticleEventScript:
-				for (const FNiagaraEmitterHandle& EmitterHandle : OwningSystem.GetEmitterHandles())
-				{
-					UNiagaraScriptSource* EmitterSource = CastChecked<UNiagaraScriptSource>(EmitterHandle.GetInstance()->GraphSource);
-					if (EmitterSource->NodeGraph == StackNode.GetNiagaraGraph())
-					{
-						OutEmitter = EmitterHandle.GetInstance();
-						OutScript = OutEmitter->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId());
-						break;
-					}
-				}
-				break;
-		}
-	}
-}
-
 struct FRapidIterationParameterContext
 {
 	FRapidIterationParameterContext()
