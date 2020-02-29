@@ -18,7 +18,7 @@ public:
 
 	bool ProcessCommandBindings(const FKeyEvent& InKeyEvent);
 
-	bool AddEditMenuItems(FMenuBuilder& MenuBuilder);
+	void AddMenuItems(FMenuBuilder& MenuBuilder);
 
 private:
 	void SetupCommands();
@@ -46,6 +46,10 @@ private:
 	FText GetCanDeleteSelectedScriptsToolTip() const;
 
 	void DeleteSelectedScripts() const;
+
+	bool CanApplyChangesToSelectedScripts() const;
+
+	void ApplyChangesToSelectedScripts() const;
 
 private:
 	TSharedRef<FUICommandList> Commands;

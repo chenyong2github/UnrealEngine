@@ -245,7 +245,7 @@ public:
 		// Generate actions for scratch pad modules
 		for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel : SystemViewModel.Pin()->GetScriptScratchPadViewModel()->GetScriptViewModels())
 		{
-			UNiagaraScript* ScratchPadScript = ScratchPadScriptViewModel->GetScript();
+			UNiagaraScript* ScratchPadScript = ScratchPadScriptViewModel->GetOriginalScript();
 			if (ScratchPadScript->Usage == ENiagaraScriptUsage::Module)
 			{
 				TArray<ENiagaraScriptUsage> SupportedUsages = ScratchPadScript->GetSupportedUsageContexts();
@@ -280,9 +280,10 @@ public:
 			TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = SystemViewModel.Pin()->GetScriptScratchPadViewModel()->CreateNewScript(ENiagaraScriptUsage::Module, OutputNode->GetUsage(), FNiagaraTypeDefinition());
 			if (ScratchPadScriptViewModel.IsValid())
 			{
-				ScratchPadScriptViewModel->SetIsPendingRename(true);
-				NewModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ScratchPadScriptViewModel->GetScript(), *OutputNode, TargetIndex);
+				NewModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ScratchPadScriptViewModel->GetOriginalScript(), *OutputNode, TargetIndex);
 				SystemViewModel.Pin()->FocusTab(FNiagaraSystemToolkit::ScratchPadTabID);
+				SystemViewModel.Pin()->GetScriptScratchPadViewModel()->SetActiveScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+				ScratchPadScriptViewModel->SetIsPendingRename(true);
 			}
 		}
 
@@ -1108,7 +1109,7 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 				{
 					UNiagaraScript* ClipboardScript = ClipboardFunction->Script->IsAsset()
 						? ClipboardFunction->Script
-						: GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunction->Script)->GetScript();
+						: GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunction->Script)->GetOriginalScript();
 					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ClipboardFunction->Script, *OutputNode, CurrentPasteIndex);
 				}
 				else

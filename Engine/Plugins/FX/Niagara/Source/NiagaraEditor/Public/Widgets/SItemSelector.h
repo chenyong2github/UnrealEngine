@@ -5,6 +5,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Views/STreeView.h"
+#include "Styling/CoreStyle.h"
 
 enum class EItemSelectorClickActivateMode
 {
@@ -32,6 +33,8 @@ public:
 	SLATE_BEGIN_ARGS(SItemSelector)
 		: _AllowMultiselect(false)
 		, _ClickActivateMode(EItemSelectorClickActivateMode::DoubleClick)
+		, _CategoryRowStyle(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
+		, _ClearSelectionOnClick(true)
 	{}
 		/** The items to display in the item selector. */
 		SLATE_ARGUMENT(TArray<ItemType>, Items)
@@ -49,6 +52,12 @@ public:
 
 		/** Whether or not a single click activates an item. */
 		SLATE_ARGUMENT(EItemSelectorClickActivateMode, ClickActivateMode)
+
+		/** The style to use for category rows. */
+		SLATE_STYLE_ARGUMENT(FTableRowStyle, CategoryRowStyle)
+
+		/** Whether or not the selection should be cleared when an empty area is clicked. */
+		SLATE_ARGUMENT(bool, ClearSelectionOnClick)
 
 		/** An optional delegate to get an array of categories for the specified item. Each category in the returned array represents one level of nested categories. 
 		NOTE: The OnCompareCategoriesForEquality, and OnGenerateWidgetForCategory delegates must be bound if this delegate is bound. */
@@ -498,6 +507,7 @@ public:
 		}
 		DefaultCategoryPaths.Append(InArgs._DefaultCategoryPaths);
 		ClickActivateMode = InArgs._ClickActivateMode;
+		CategoryRowStyle = InArgs._CategoryRowStyle;
 		OnGetCategoriesForItem = InArgs._OnGetCategoriesForItem;
 		OnCompareCategoriesForEquality = InArgs._OnCompareCategoriesForEquality;
 		OnCompareCategoriesForSorting = InArgs._OnCompareCategoriesForSorting;
@@ -543,6 +553,7 @@ public:
 				.OnMouseButtonDoubleClick(this, &SItemSelector::OnMouseDoubleClick)
 				.OnSelectionChanged(this, &SItemSelector::OnTreeSelectionChanged)
 				.TreeItemsSource(ViewModel->GetRootItems())
+				.ClearSelectionOnClick(InArgs._ClearSelectionOnClick)
 			]
 		];
 
@@ -655,6 +666,7 @@ private:
 		{
 			TSharedRef<FItemSelectorItemCategoryViewModel> ItemCategoryViewModel = StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(Item);
 			return SNew(STableRow<TSharedRef<FItemSelectorItemViewModel>>, OwnerTable)
+				.Style(CategoryRowStyle)
 				.ShowSelection(false)
 				[
 					OnGenerateWidgetForCategory.Execute(ItemCategoryViewModel->GetCategory())
@@ -723,6 +735,8 @@ private:
 	TArray<TArray<CategoryType>> DefaultCategoryPaths;
 
 	EItemSelectorClickActivateMode ClickActivateMode;
+
+	const FTableRowStyle* CategoryRowStyle;
 
 	FOnGetCategoriesForItem OnGetCategoriesForItem;
 	FOnCompareCategoriesForEquality OnCompareCategoriesForEquality;
