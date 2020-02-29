@@ -187,7 +187,7 @@ namespace Chaos
 
 			
 			const T PreDist = FMath::Sqrt(PrevDist2);
-			OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//question: should we just use PreDist2?
+			OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//Note1: should we just use PreDist2? //Note2: we can just use -V.GetUnsafeNormal() here instead if it improves accuracy
 			T Penetration = ThicknessA + ThicknessB - PreDist;
 			if (!bNegativePenetrationSupport)
 			{
