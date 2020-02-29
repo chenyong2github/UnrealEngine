@@ -215,9 +215,15 @@ FShaderCodeArchive::FShaderCodeArchive(EShaderPlatform InPlatform, const FString
 FShaderCodeArchive::~FShaderCodeArchive()
 {
 	DEC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, GetSizeBytes());
+	Teardown();
+}
+
+void FShaderCodeArchive::Teardown()
+{
 	if (FileCacheHandle)
 	{
 		delete FileCacheHandle;
+		FileCacheHandle = nullptr;
 	}
 }
 
