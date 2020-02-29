@@ -2,7 +2,6 @@
 
 #include "DMXGraphPanelPinFactory.h"
 #include "K2Node.h"
-#include "K2Node_GetAllFixturesOfType.h"
 #include "EdGraphSchema_K2.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SGraphPin.h"
@@ -18,36 +17,7 @@
 
 TSharedPtr<class SGraphPin> FDMXGraphPanelPinFactory::CreatePin(class UEdGraphPin* InPin) const
 {
-	if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Name)
-	{
-		UObject* Outer = InPin->GetOuter();
-
-		if (UK2Node_DMXBase* K2Node_DMXBase = Cast<UK2Node_DMXBase>(Outer))
-		{
-			const UEdGraphPin* DMXLibraryPin = K2Node_DMXBase->GetClassPin();
-			if (DMXLibraryPin != nullptr)
-			{
-				if (DMXLibraryPin->LinkedTo.Num() == 0)
-				{
-					if (UDMXLibrary* DMXLibrary = Cast<UDMXLibrary>(DMXLibraryPin->DefaultObject))
-					{
-						if (UK2Node_GetAllFixturesOfType * K2Node_GetAllFixturesOfType = Cast<UK2Node_GetAllFixturesOfType>(Outer))
-						{
-							TArray<TSharedPtr<FName>> FixtureTypeList;
-							DMXLibrary->ForEachEntityOfType<UDMXEntityFixtureType>([&FixtureTypeList](UDMXEntityFixtureType* Fixture)
-								{
-									TSharedPtr<FName> NewFixtureType = MakeShared<FName>(FName(*Fixture->GetDisplayName()));
-									FixtureTypeList.Add(NewFixtureType);
-								});
-
-							return SNew(SGraphPinNameList, InPin, FixtureTypeList);
-						}
-					}
-				}
-			}
-		}
-	}
-	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+	if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 	{
 		if (UScriptStruct* PinStructType = Cast<UScriptStruct>(InPin->PinType.PinSubCategoryObject.Get()))
 		{

@@ -7,6 +7,8 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Styling/SlateTypes.h"
 
+#include "DMXProtocolCommon.h"
+
 template<typename NumericType>
 class SSpinBoxVertical;
 class SDMXOutputFaderList;
@@ -44,7 +46,7 @@ public:
 		
 	void SetFaderLabel(const FString& InLabel);
 
-	void AddChannelWidget(const FString& InUniverse, const FString& InChannel, uint16 InUniverseNumber, uint32 InChannelNumber, const TSharedPtr<IDMXProtocol>& DMXProtocol);
+	void AddChannelWidget(const FString& InUniverse, const FString& InChannel, uint16 InUniverseNumber, uint32 InChannelNumber, const IDMXProtocolPtr& DMXProtocol);
 
 	void RemoveAllChannelWidgets();
 

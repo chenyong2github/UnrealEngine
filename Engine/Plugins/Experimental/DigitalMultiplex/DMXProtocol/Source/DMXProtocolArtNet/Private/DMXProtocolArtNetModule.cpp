@@ -20,10 +20,10 @@ FAutoConsoleCommand FDMXProtocolArtNetModule::SendDMXCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(&FDMXProtocolArtNetModule::SendDMXCommandHandler)
 );
 
-TSharedPtr<IDMXProtocol> FDMXProtocolFactoryArtNet::CreateProtocol(const FName & ProtocolName)
+IDMXProtocolPtr FDMXProtocolFactoryArtNet::CreateProtocol(const FName & ProtocolName)
 {
 	FJsonObject ProtocolSettings;
-	TSharedPtr<IDMXProtocol> ProtocolArtNetPtr = MakeShared<FDMXProtocolArtNet>(ProtocolName, ProtocolSettings);
+	IDMXProtocolPtr ProtocolArtNetPtr = MakeShared<FDMXProtocolArtNet, ESPMode::ThreadSafe>(ProtocolName, ProtocolSettings);
 	if (ProtocolArtNetPtr->IsEnabled())
 	{
 		if (!ProtocolArtNetPtr->Init())
@@ -119,7 +119,7 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 		DMXFragment.Add(Key, Value);
 	}
 
-	TSharedPtr<IDMXProtocol> DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
+	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
 	if (DMXProtocol.IsValid())
 	{
 		DMXProtocol->SendDMXFragmentCreate(UniverseID, DMXFragment);
