@@ -48,7 +48,7 @@ namespace DisasterRecoveryUtil
 static const FName RecoveryHubTabName("RecoveryHub");
 
 /**
- * Return the name of the executable hosting disaster recovery service, like 'UnrealDisasterRecoveryService' without the extension.
+ * Return the name of the executable hosting disaster recovery service, like 'UnrealRecoverySvc' without the extension.
  */
 FString GetDisasterRecoveryServiceExeName()
 {
@@ -58,7 +58,7 @@ FString GetDisasterRecoveryServiceExeName()
 	}
 	else
 	{
-		return TEXT("UnrealDisasterRecoveryService");
+		return TEXT("UnrealRecoverySvc");
 	}
 }
 
@@ -327,7 +327,7 @@ private:
 		const FString DisasterRecoveryServicePath = GetDisasterRecoveryServicePath();
 		if (DisasterRecoveryServicePath.IsEmpty())
 		{
-			UE_LOG(LogDisasterRecovery, Warning, TEXT("Disaster Recovery Service application was not found. Disaster Recovery will be disabled! Please build 'UnrealDisasterRecoveryService'."));
+			UE_LOG(LogDisasterRecovery, Warning, TEXT("Disaster Recovery Service application was not found. Disaster Recovery will be disabled! Please build '%s'."), *DisasterRecoveryUtil::GetDisasterRecoveryServiceExeName());
 			return false;
 		}
 
@@ -352,7 +352,7 @@ private:
 		// Started for the first time (not restarted)? Always create the manager (and start the service) even if disaster recovery is disabled (in the settings). This allows the user to import sessions for crash analysis.
 		if (!SessionManager)
 		{
-			// If crash reporter is running out of process, it also hosts disaster recovery server as the '-ConcertServer' param is set when spawning CrashReporterClientEditor. No need to start the UnrealDisasterRecoveryService executable.
+			// If crash reporter is running out of process, it also hosts disaster recovery server as the '-ConcertServer' param is set when spawning CrashReporterClientEditor. No need to start the UnrealRecoverySvc executable.
 			if (!FGenericCrashContext::IsOutOfProcessCrashReporter() && !SpawnDisasterRecoveryServer(RecoveryService::GetRecoveryServerName()))
 			{
 				return; // Failed to spawn the service.
