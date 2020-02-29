@@ -5,6 +5,7 @@
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "Misc/Paths.h"
+#include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
