@@ -50,6 +50,7 @@ public:
 
 	virtual void FixMaterial(UMaterial* Material) { }
 
+	virtual const TArray<FNiagaraVariable>& GetBoundAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 
@@ -80,4 +81,8 @@ public:
 	/** Is motion blur enabled on this renderer or not, the material must also have motion blur enabled. */
 	UPROPERTY(EditAnywhere, Category = "Rendering")
 	bool bMotionBlurEnabled;
+
+protected:
+	// Copy of variables in the attribute binding, updated when GetRequiredAttributes() is called.
+	TArray<FNiagaraVariable> CurrentAttributeBindings;
 };

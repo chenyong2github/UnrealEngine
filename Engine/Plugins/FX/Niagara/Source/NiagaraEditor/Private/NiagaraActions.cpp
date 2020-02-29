@@ -9,6 +9,7 @@
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Layout/WidgetPath.h"
+#include "NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraActions"
 
@@ -37,6 +38,24 @@ FNiagaraParameterAction::FNiagaraParameterAction(const FNiagaraVariable& InParam
 	, ReferenceCollection(InReferenceCollection)
 {
 }
+
+FNiagaraParameterAction::FNiagaraParameterAction(const FNiagaraVariable& InParameter,
+	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID)
+	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords), InSectionID)
+	, Parameter(InParameter)
+{
+}
+
+/************************************************************************/
+/* FNiagaraScriptVarAndViewInfoAction									*/
+/************************************************************************/
+FNiagaraScriptVarAndViewInfoAction::FNiagaraScriptVarAndViewInfoAction(const FNiagaraScriptVariableAndViewInfo& InScriptVariableAndViewInfo,
+	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID)
+	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords), InSectionID)
+	, ScriptVariableAndViewInfo(InScriptVariableAndViewInfo)
+{
+}
+
 
 /************************************************************************/
 /* FNiagaraParameterGraphDragOperation									*/
