@@ -587,10 +587,23 @@ namespace UnrealBuildTool
 		private bool? bWithServerCodeOverride;
 
 		/// <summary>
-		/// When enabled, Push Model Networking will be used on the server. This can help reduce CPU overhead of networking, at the cost of more memory.
+		/// When enabled, Push Model Networking support will be compiled in.
+		/// This can help reduce CPU overhead of networking, at the cost of more memory.
+		/// Always enabled in editor builds.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bWithPushModel = false;
+		public bool bWithPushModel
+		{
+			get
+			{
+				return bWithPushModelOverride ?? (bBuildEditor);
+			}
+			set
+			{
+				bWithPushModelOverride = value;
+			}
+		}
+		private bool? bWithPushModelOverride;
 
 		/// <summary>
 		/// Whether to include stats support even without the engine.
