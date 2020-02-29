@@ -89,13 +89,13 @@ static TSharedPtr<IAnalyticsProviderET> CreateEpicAnalyticsProvider()
 	return FAnalyticsET::Get().CreateAnalyticsProvider(Config);
 }
 
-IAnalyticsProvider& FEngineAnalytics::GetProvider()
+IAnalyticsProviderET& FEngineAnalytics::GetProvider()
 {
 	checkf(bIsInitialized && IsAvailable(), TEXT("FEngineAnalytics::GetProvider called outside of Initialize/Shutdown."));
 
 	return *Analytics.Get();
 }
- 
+
 void FEngineAnalytics::Initialize()
 {
 	checkf(!bIsInitialized, TEXT("FEngineAnalytics::Initialize called more than once."));
