@@ -715,7 +715,7 @@ static bool WasAbnormalShutdown(const FEditorSessionSummarySender& SessionSummar
 	return false;
 }
 
-#endif 
+#endif
 
 void RunCrashReportClient(const TCHAR* CommandLine)
 {
@@ -834,18 +834,18 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 					// Build error report in memory.
 					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryServicePtr.Get(), MonitorPid, CrashContext, MonitorWritePipe);
-
-#if CRASH_REPORT_WITH_RECOVERY
-					if (RecoveryServicePtr && !FPrimaryCrashProperties::Get()->bIsEnsure)
-					{
-						// Shutdown the recovery service, releasing the recovery database file lock (not sharable) as soon as possible to let a new instance take it and offer the user to recover.
-						RecoveryServicePtr.Reset();
-					}
-#endif
-
 					const bool bNoDialog = (CrashContext.UserSettings.bNoDialog || CrashContext.UserSettings.bImplicitSend) && CrashContext.UserSettings.bSendUnattendedBugReports;
 					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, bNoDialog, CrashContext.UserSettings.bImplicitSend);
 
+#if CRASH_REPORT_WITH_RECOVERY
+					// Shut down the recovery service AFTER the UI prompt (if any) because archiving a large session can take several minutes (must be on main thread - UObject stuff). This ensures
+					// the UI is shown in a timely manner, but delays the server shutdown. At next reboot, user may not be able to restore because the session will still be archiving.
+					if (RecoveryServicePtr && !FPrimaryCrashProperties::Get()->bIsEnsure)
+					{
+						// Shutdown the recovery service. This will releases the recovery database file lock (not sharable) and let a new instance take it and offer the user to recover.
+						RecoveryServicePtr.Reset();
+					}
+#endif
 					if (bReportCrashAnalyticInfo)
 					{
 						// If analytics is enabled make sure they are submitted now.
