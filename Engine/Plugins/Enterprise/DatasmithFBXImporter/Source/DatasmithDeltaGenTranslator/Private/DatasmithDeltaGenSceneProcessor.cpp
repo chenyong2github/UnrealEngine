@@ -8,7 +8,7 @@
 #include "DatasmithFBXScene.h"
 #include "DatasmithUtils.h"
 
-#include "Factories\TextureFactory.h"
+#include "Factories/TextureFactory.h"
 
 using TimelineToAnimations = TMap<FDeltaGenTmlDataTimeline*, FDeltaGenTmlDataTimelineAnimation*>;
 
