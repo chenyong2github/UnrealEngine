@@ -256,7 +256,7 @@ DECLARE_CYCLE_STAT(TEXT("After Occlusion Readback"), STAT_CLMM_AfterOcclusionRea
  * @param View - The view for which to update.
  * @param bVisible - Whether the primitive should be visible in the view.
  */
-static void UpdatePrimitiveFadingState(FPrimitiveFadingState& FadingState, FViewInfo& View, bool bVisible)
+static void UpdatePrimitiveFadingStateHelper(FPrimitiveFadingState& FadingState, FViewInfo& View, bool bVisible)
 {
 	if (FadingState.bValid)
 	{
@@ -323,47 +323,70 @@ static void UpdatePrimitiveFadingState(FPrimitiveFadingState& FadingState, FView
 
 bool FViewInfo::IsDistanceCulled( float DistanceSquared, float MinDrawDistance, float InMaxDrawDistance, const FPrimitiveSceneInfo* PrimitiveSceneInfo)
 {
-	float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
-	float FadeRadius = GDisableLODFade ? 0.0f : GDistanceFadeMaxTravel;
-	float MaxDrawDistance = InMaxDrawDistance * MaxDrawDistanceScale;
+	bool bMayBeFading;
+	bool bFadingIn;
+	bool bDistanceCulled = IsDistanceCulled_AnyThread(DistanceSquared, MinDrawDistance, InMaxDrawDistance, PrimitiveSceneInfo, bMayBeFading, bFadingIn);
+
+	if (bMayBeFading)
+	{
+		bDistanceCulled = UpdatePrimitiveFadingState(PrimitiveSceneInfo, bFadingIn);
+	}
+
+	return bDistanceCulled;
+}
+
+bool FViewInfo::IsDistanceCulled_AnyThread(float DistanceSquared, float MinDrawDistance, float InMaxDrawDistance, const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bOutMayBeFading, bool& bOutFadingIn) const
+{
+	const float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
+	const float FadeRadius = GDisableLODFade ? 0.0f : GDistanceFadeMaxTravel;
+	const float MaxDrawDistance = InMaxDrawDistance * MaxDrawDistanceScale;
+	bOutMayBeFading = false;
 
 	// If cull distance is disabled, always show (except foliage)
-	if (Family->EngineShowFlags.DistanceCulledPrimitives
-		&& !PrimitiveSceneInfo->Proxy->IsDetailMesh())
+	if (Family->EngineShowFlags.DistanceCulledPrimitives && !PrimitiveSceneInfo->Proxy->IsDetailMesh())
 	{
 		return false;
 	}
 
 	// The primitive is always culled if it exceeds the max fade distance.
-	if (DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) ||
-		DistanceSquared < FMath::Square(MinDrawDistance))
+	if (DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) || DistanceSquared < FMath::Square(MinDrawDistance))
 	{
 		return true;
 	}
 
 	const bool bDistanceCulled = (DistanceSquared > FMath::Square(MaxDrawDistance));
 	const bool bMayBeFading = (DistanceSquared > FMath::Square(MaxDrawDistance - FadeRadius));
-
-	bool bStillFading = false;
-	if  (!GDisableLODFade && bMayBeFading && State != NULL && !bDisableDistanceBasedFadeTransitions && PrimitiveSceneInfo->Proxy->IsUsingDistanceCullFade())
+	
+	if (!GDisableLODFade && bMayBeFading && State != NULL && !bDisableDistanceBasedFadeTransitions && PrimitiveSceneInfo->Proxy->IsUsingDistanceCullFade())
 	{
-		// Update distance-based visibility and fading state if it has not already been updated.
-		int32 PrimitiveIndex = PrimitiveSceneInfo->GetIndex();
-		FRelativeBitReference PrimitiveBit(PrimitiveIndex);
-		if (PotentiallyFadingPrimitiveMap.AccessCorrespondingBit(PrimitiveBit) == false)
-		{
-			FPrimitiveFadingState& FadingState = ((FSceneViewState*)State)->PrimitiveFadingStates.FindOrAdd(PrimitiveSceneInfo->PrimitiveComponentId);
-			UpdatePrimitiveFadingState(FadingState, *this, !bDistanceCulled);
-			FRHIUniformBuffer* UniformBuffer = FadingState.UniformBuffer;
-			bStillFading = (UniformBuffer != NULL);
-			PrimitiveFadeUniformBuffers[PrimitiveIndex] = UniformBuffer;
-			PrimitiveFadeUniformBufferMap[PrimitiveIndex] = UniformBuffer != nullptr;
-			PotentiallyFadingPrimitiveMap.AccessCorrespondingBit(PrimitiveBit) = true;
-		}
+		// Don't update primitive fading state yet because current thread may be not render thread
+		bOutMayBeFading = true;
+		bOutFadingIn = !bDistanceCulled;
+	}
+
+	return bDistanceCulled && !bOutMayBeFading;
+}
+
+bool FViewInfo::UpdatePrimitiveFadingState(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bFadingIn)
+{
+	// Update distance-based visibility and fading state if it has not already been updated.
+	const int32 PrimitiveIndex = PrimitiveSceneInfo->GetIndex();
+	const FRelativeBitReference PrimitiveBit(PrimitiveIndex);
+	bool bStillFading = false;
+
+	if (!PotentiallyFadingPrimitiveMap.AccessCorrespondingBit(PrimitiveBit))
+	{
+		FPrimitiveFadingState& FadingState = ((FSceneViewState*)State)->PrimitiveFadingStates.FindOrAdd(PrimitiveSceneInfo->PrimitiveComponentId);
+		UpdatePrimitiveFadingStateHelper(FadingState, *this, bFadingIn);
+		FRHIUniformBuffer* UniformBuffer = FadingState.UniformBuffer;
+		bStillFading = UniformBuffer != nullptr;
+		PrimitiveFadeUniformBuffers[PrimitiveIndex] = UniformBuffer;
+		PrimitiveFadeUniformBufferMap[PrimitiveIndex] = UniformBuffer != nullptr;
+		PotentiallyFadingPrimitiveMap.AccessCorrespondingBit(PrimitiveBit) = true;
 	}
 
 	// If we're still fading then make sure the object is still drawn, even if it's beyond the max draw distance
-	return ( bDistanceCulled && !bStillFading );
+	return !bFadingIn && !bStillFading;
 }
 
 FORCEINLINE bool IntersectBox8Plane(const FVector& InOrigin, const FVector& InExtent, const FPlane*PermutedPlanePtr)
@@ -598,7 +621,7 @@ static void UpdatePrimitiveFading(const FScene* Scene, FViewInfo& View)
 			{
 				bool bVisible = View.PrimitiveVisibilityMap.AccessCorrespondingBit(BitIt);
 				FPrimitiveFadingState& FadingState = ViewState->PrimitiveFadingStates.FindOrAdd(Scene->PrimitiveComponentIds[BitIt.GetIndex()]);
-				UpdatePrimitiveFadingState(FadingState, View, bVisible);
+				UpdatePrimitiveFadingStateHelper(FadingState, View, bVisible);
 				FRHIUniformBuffer* UniformBuffer = FadingState.UniformBuffer;
 				if (UniformBuffer && !bVisible)
 				{
