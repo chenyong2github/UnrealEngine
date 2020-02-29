@@ -21,8 +21,17 @@ struct NAVIGATIONSYSTEM_API FNavigationDirtyAreasController
 	uint8 bCanAccumulateDirtyAreas : 1;
 #if !UE_BUILD_SHIPPING
 	uint8 bDirtyAreasReportedWhileAccumulationLocked : 1;
+private:
+	uint8 bCanReportOversizedDirtyArea : 1;
+	uint8 bNavigationBuildLocked : 1;
+
+	/** -1 by default, if set to a positive value dirty area with bounds size over that threshold will be logged */
+	float DirtyAreaWarningSizeThreshold = -1.f;
+
+	bool ShouldReportOversizedDirtyArea() const;
 #endif // !UE_BUILD_SHIPPING
 
+public:
 	FNavigationDirtyAreasController();
 
 	void Reset();
@@ -31,10 +40,24 @@ struct NAVIGATIONSYSTEM_API FNavigationDirtyAreasController
 	void ForceRebuildOnNextTick();
 
 	void Tick(float DeltaSeconds, const TArray<ANavigationData*>& NavDataSet, bool bForceRebuilding = false);
-	void AddArea(const FBox& NewArea, int32 Flags);
+
+	/** Add a dirty area to the queue based on the provided bounds and flags.
+	 * Bounds must be valid and non empty otherwise the request will be ignored and a warning reported.
+	 * Accumulation must be allowed and flags valid otherwise the add is ignored.
+	 *	@param NewArea Bounding box of the affected area
+	 *	@param Flags Indicates the type of modification applied to the area
+	 *	@param ObjectProviderFunc Optional function to retrieve source object that can be use for error reporting
+	 */
+	void AddArea(const FBox& NewArea, const int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc = nullptr);
 	
 	bool IsDirty() const { return GetNumDirtyAreas() > 0; }
 	int32 GetNumDirtyAreas() const { return DirtyAreas.Num(); }
+
+	void OnNavigationBuildLocked();
+	void OnNavigationBuildUnlocked();
+
+	void SetCanReportOversizedDirtyArea(const bool bCanReport);
+	void SetDirtyAreaWarningSizeThreshold(const float Threshold);
 
 #if !UE_BUILD_SHIPPING
 	bool HadDirtyAreasReportedWhileAccumulationLocked() const { return bCanAccumulateDirtyAreas == false && bDirtyAreasReportedWhileAccumulationLocked; }

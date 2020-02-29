@@ -3,6 +3,8 @@
 #include "NavigationDirtyAreasController.h"
 #include "NavigationData.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogNavigationDirtyArea, Warning, All);
+
 //----------------------------------------------------------------------//
 // FNavigationDirtyAreasController
 //----------------------------------------------------------------------//
@@ -10,6 +12,8 @@ FNavigationDirtyAreasController::FNavigationDirtyAreasController()
 	: bCanAccumulateDirtyAreas(true)
 #if !UE_BUILD_SHIPPING
 	, bDirtyAreasReportedWhileAccumulationLocked(false)
+	, bCanReportOversizedDirtyArea(false)
+	, bNavigationBuildLocked(false)
 #endif // !UE_BUILD_SHIPPING
 {
 
@@ -41,16 +45,75 @@ void FNavigationDirtyAreasController::Tick(const float DeltaSeconds, const TArra
 	}
 }
 
-void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, int32 Flags)
+void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc /*= nullptr*/)
 {
-	if (Flags > 0 && bCanAccumulateDirtyAreas && NewArea.IsValid)
+#if !UE_BUILD_SHIPPING
+	// always keep track of reported areas even when filtered out by invalid area as long as flags are valid
+	bDirtyAreasReportedWhileAccumulationLocked = bDirtyAreasReportedWhileAccumulationLocked || (Flags > 0 && !bCanAccumulateDirtyAreas);
+#endif // !UE_BUILD_SHIPPING
+
+	if (!NewArea.IsValid)
+	{
+		UE_LOG(LogNavigationDirtyArea, Warning, TEXT("Skipping dirty area creation because of invalid bounds (object: %s)"), *GetFullNameSafe(ObjectProviderFunc ? ObjectProviderFunc() : nullptr));
+		return;
+	}
+
+	const FVector2D BoundsSize(NewArea.GetSize());
+	if (BoundsSize.IsNearlyZero())
+	{
+		UE_LOG(LogNavigationDirtyArea, Warning, TEXT("Skipping dirty area creation because of empty bounds (object: %s)"), *GetFullNameSafe(ObjectProviderFunc ? ObjectProviderFunc() : nullptr));
+		return;
+	}
+
+#if !UE_BUILD_SHIPPING
+	UE_CLOG(ShouldReportOversizedDirtyArea() && BoundsSize.GetMax() > DirtyAreaWarningSizeThreshold,
+		LogNavigationDirtyArea, Warning, TEXT("Adding an oversized dirty area (object:%s size:%s threshold:%.2f)"),
+		*GetFullNameSafe(ObjectProviderFunc ? ObjectProviderFunc() : nullptr),
+		*BoundsSize.ToString(),
+		DirtyAreaWarningSizeThreshold);
+#endif // !UE_BUILD_SHIPPING
+
+	if (Flags > 0 && bCanAccumulateDirtyAreas)
 	{
 		DirtyAreas.Add(FNavigationDirtyArea(NewArea, Flags));
 	}
+}
+
+void FNavigationDirtyAreasController::OnNavigationBuildLocked()
+{
 #if !UE_BUILD_SHIPPING
-	bDirtyAreasReportedWhileAccumulationLocked = bDirtyAreasReportedWhileAccumulationLocked || (Flags > 0 && !bCanAccumulateDirtyAreas);
+	bNavigationBuildLocked = true;
 #endif // !UE_BUILD_SHIPPING
 }
+
+void FNavigationDirtyAreasController::OnNavigationBuildUnlocked()
+{
+#if !UE_BUILD_SHIPPING
+	bNavigationBuildLocked = false;
+#endif // !UE_BUILD_SHIPPING
+}
+
+void FNavigationDirtyAreasController::SetDirtyAreaWarningSizeThreshold(const float Threshold)
+{
+#if !UE_BUILD_SHIPPING
+	DirtyAreaWarningSizeThreshold = Threshold;
+#endif // !UE_BUILD_SHIPPING
+}
+
+void FNavigationDirtyAreasController::SetCanReportOversizedDirtyArea(bool bCanReport)
+{
+#if !UE_BUILD_SHIPPING
+	bCanReportOversizedDirtyArea = bCanReport;
+#endif // !UE_BUILD_SHIPPING
+}
+
+#if !UE_BUILD_SHIPPING
+bool FNavigationDirtyAreasController::ShouldReportOversizedDirtyArea() const
+{ 
+	return bNavigationBuildLocked == false && bCanReportOversizedDirtyArea && DirtyAreaWarningSizeThreshold >= 0.0f;
+}
+#endif // !UE_BUILD_SHIPPING
+
 
 void FNavigationDirtyAreasController::Reset()
 {
