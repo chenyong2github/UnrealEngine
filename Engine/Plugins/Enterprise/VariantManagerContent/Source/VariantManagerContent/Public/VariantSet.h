@@ -8,9 +8,7 @@
 
 #include "VariantSet.generated.h"
 
-
 class UVariant;
-
 
 UCLASS(BlueprintType)
 class VARIANTMANAGERCONTENT_API UVariantSet : public UObject

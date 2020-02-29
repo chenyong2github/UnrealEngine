@@ -7,13 +7,13 @@
 
 #include "LevelVariantSets.generated.h"
 
-class UVariantSet;
-class ULevelVariantSetsFunctionDirector;
 class ALevelVariantSetsActor;
-class UBlueprintGeneratedClass;
 class UBlueprint;
+class UBlueprintGeneratedClass;
+class ULevelVariantSetsFunctionDirector;
+class UVariantSet;
 
-UCLASS(DefaultToInstanced)
+UCLASS(BlueprintType)
 class VARIANTMANAGERCONTENT_API ULevelVariantSets : public UObject
 {
 	GENERATED_UCLASS_BODY()
