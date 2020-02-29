@@ -11,6 +11,9 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
 #include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#include "EdGraph/EdGraphPin.h"
+#include "NiagaraEditorCommon.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Parameter Panel Entry Parameter Name ViewModel							///
