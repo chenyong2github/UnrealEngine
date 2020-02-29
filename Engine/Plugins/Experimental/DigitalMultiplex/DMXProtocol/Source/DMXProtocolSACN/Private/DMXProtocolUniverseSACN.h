@@ -18,11 +18,11 @@ class DMXPROTOCOLSACN_API FDMXProtocolUniverseSACN
 	, public IDMXNetworkInterface
 {
 public:
-	FDMXProtocolUniverseSACN(TSharedPtr<IDMXProtocol> InDMXProtocol, const FJsonObject& InSettings);
+	FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings);
 	virtual ~FDMXProtocolUniverseSACN();
 
 	//~ Begin IDMXProtocolDevice implementation
-	virtual TSharedPtr<IDMXProtocol> GetProtocol() const override;
+	virtual IDMXProtocolPtr GetProtocol() const override;
 	virtual TSharedPtr<FDMXBuffer> GetInputDMXBuffer() const override;
 	virtual TSharedPtr<FDMXBuffer> GetOutputDMXBuffer() const override;
 	virtual bool SetDMXFragment(const IDMXFragmentMap& DMXFragment) override;
@@ -49,15 +49,13 @@ private:
 	bool HandleReplyPacket(const FArrayReaderPtr & Buffer);
 
 private:
-	TWeakPtr<IDMXProtocol> WeakDMXProtocol;
+	IDMXProtocolPtrWeak WeakDMXProtocol;
 	TSharedPtr<FDMXBuffer> OutputDMXBuffer;
 	TSharedPtr<FDMXBuffer> InputDMXBuffer;
 	uint8 Priority;
 	uint32 UniverseID;
 	bool bIsRDMSupport;
 	TSharedPtr<FJsonObject> Settings;
-
-	mutable FCriticalSection OnDataReceivedCS;
 
 	FSocket* ListeningSocket;
 	TSharedPtr<IDMXProtocolReceiver> SACNReceiver;

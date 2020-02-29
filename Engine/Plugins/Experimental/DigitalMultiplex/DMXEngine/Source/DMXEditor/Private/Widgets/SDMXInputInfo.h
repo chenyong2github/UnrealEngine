@@ -29,7 +29,7 @@ public:
 
 	const TArray<uint8>& GetChannelsValues() const { return ChannelsValues; }
 
-	void ResetUISequanceID() { UISequanceID = 0; }
+	void ResetUISequanceID() { UISequenceID = 0; }
 	
 protected:
 	/** Container widget for all the channels' values */
@@ -53,5 +53,5 @@ protected:
 
 private:
 	/** ID of the sequence on input info widget */
-	uint32 UISequanceID;
+	uint32 UISequenceID;
 }; 

@@ -5,9 +5,11 @@
 #include "DMXProtocolCommon.h"
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolMacros.h"
-#include "Dom/JsonObject.h"
 
+#include "Dom/JsonObject.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "HAL/CriticalSection.h"
+#include "Templates/Atomic.h"
 
 #include "DMXProtocolTypes.generated.h"
 
@@ -35,7 +37,7 @@ enum class EDMXCommunicationTypes : uint8
 	Broadcast UMETA(DisplayName = "Broadcast")
 };
 
-UENUM()
+UENUM(BlueprintType)
 enum class EDMXFixtureSignalFormat : uint8
 {
 	/** Uses 1 channel (byte) and allows subdivision into sub functions */
@@ -62,14 +64,14 @@ public:
 
 	static TArray<FName> GetPossibleValues();
 
-	FDMXProtocolName() = default;
+	FDMXProtocolName();
 	/** Construct from a protocol name */
 	explicit FDMXProtocolName(const FName& InName);
 	/** Construct from a protocol */
-	FDMXProtocolName(TSharedPtr<IDMXProtocol> InProtocol);
+	FDMXProtocolName(IDMXProtocolPtr InProtocol);
 
 	/** Returns the Protocol this name represents */
-	TSharedPtr<IDMXProtocol> GetProtocol() const;
+	IDMXProtocolPtr GetProtocol() const;
 	/** True if it has a valid Protocol name */
 	bool IsValid() const;
 
@@ -78,15 +80,15 @@ public:
 	operator const FName&() const { return Name; }
 
 	//~ DMXProtocol operators
-	operator TSharedPtr<IDMXProtocol>() { return GetProtocol(); }
-	operator const TSharedPtr<IDMXProtocol>() const { return GetProtocol(); }
+	operator IDMXProtocolPtr() { return GetProtocol(); }
+	operator const IDMXProtocolPtr() const { return GetProtocol(); }
 
 	/** Bool (is valid) operator */
 	operator bool() const { return IsValid(); }
 
 	//~ Comparison operators
 	bool operator==(const FDMXProtocolName& Other) const { return Name == Other.Name; }
-	bool operator==(const TSharedPtr<IDMXProtocol>& Other) const { return GetProtocol().Get() == Other.Get(); }
+	bool operator==(const IDMXProtocolPtr& Other) const { return GetProtocol().Get() == Other.Get(); }
 	bool operator==(const FName& Other) const { return Name == Other; }
 };
 
@@ -150,7 +152,7 @@ struct DMXPROTOCOL_API FDMXUniverse
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	uint32 UniverseNumber;
 
-	UPROPERTY(EditAnywhere, meta = (DisplayName = "Address", ClampMin = 0, ClampMax = 512, UIMin = 0, UIMax = 512), Category = "DMX")
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "Address", ClampMin = 1, ClampMax = 512, UIMin = 1, UIMax = 512), Category = "DMX")
 	uint32 Channel;
 
 	UPROPERTY()
@@ -167,16 +169,23 @@ struct DMXPROTOCOL_API FDMXBuffer
 {
 public:
 	FDMXBuffer()
-		: SequanceID(0)
+		: SequenceID(0)
 	{
 		DMXData.AddZeroed(DMX_UNIVERSE_SIZE);
 	}
 
 	/** @return Gets actual SequanceID  */
-	uint32 GetSequanceID() const { return SequanceID; }
+	uint32 GetSequenceID() const { return SequenceID; }
 
-	/** @return editable DMX buffer */
-	TArray<uint8>& GetDMXData() { return DMXData; }
+	/** @return DMX buffer address value */
+	uint8 GetDMXDataAddress(uint32 InAddress) const;
+
+	/**
+	 * Calls InFunction with a reference to the DMX data buffer passed in on a thread-safe manner.
+	 * This method locks execution and calls InFunction as soon as the buffer can be accessed,
+	 * so it's safe to reference locally scoped variables inside InFunction.
+	 */
+	void AccessDMXData(TFunctionRef<void(TArray<uint8>&)> InFunction);
 
 	/**
 	 * Updates the fragment in the DMX buffer
@@ -201,7 +210,10 @@ private:
 	TArray<uint8> DMXData;
 
 	/** Synchronizations sequence id */
-	uint32 SequanceID;
+	TAtomic<uint32> SequenceID;
+
+	/** Mutex to make sure no two threads write to the buffer concurrently */
+	mutable FCriticalSection BufferCritSec;
 };
 
 struct DMXPROTOCOL_API FDMXPacket
