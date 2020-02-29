@@ -112,8 +112,5 @@ private:
 	UPROPERTY()
 	FSoftObjectPath OutputLevelSoftObject;
 
-	UPROPERTY()
-	TSoftObjectPtr<ULevel> OutputLevelSoftPtr_DEPRECATED;
-
 	ULevel* PrimaryLevel;
 };
