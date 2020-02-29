@@ -1044,6 +1044,11 @@ public:
 #if WITH_EDITOR
 private:
 	int32 PostEditChangeStackCounter;
+
+	//When loading a legacy asset (saved before the skeletalmesh build refactor), we need to create the user sections data.
+	//This function should be call only in the PostLoad
+	void CreateUserSectionsDataForLegacyAssets();
+
 public:
 	//We want to avoid calling post edit change multiple time during import and build process.
 
@@ -1076,6 +1081,7 @@ public:
 	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
 
 	void UpdateGenerateUpToData();
+
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;
