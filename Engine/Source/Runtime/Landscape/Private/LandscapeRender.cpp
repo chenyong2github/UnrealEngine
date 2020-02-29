@@ -1515,8 +1515,9 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		GrassBatchParams.AddDefaulted(NumMips);
 		
 		// Grass is being generated using LOD0 material only
+		// It uses the fixed grid vertex factory so it doesn't support XY offsets
 		FMaterialRenderProxy* RenderProxy = AvailableMaterials[LODIndexToMaterialIndex[0]]->GetRenderProxy();
-		GrassMeshBatch.VertexFactory = VertexFactory;
+		GrassMeshBatch.VertexFactory = FixedGridVertexFactory;
 		GrassMeshBatch.MaterialRenderProxy = RenderProxy;
 		GrassMeshBatch.LCI = nullptr;
 		GrassMeshBatch.ReverseCulling = false;
@@ -1538,6 +1539,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		GrassBatchElement->MinVertexIndex = 0;
 		GrassBatchElement->MaxVertexIndex = SharedBuffers->NumVertices - 1;
 
+		// Grass system is also used to bake out heights which are source for collision data when bBakeMaterialPositionOffsetIntoCollision is enabled
 		for (int32 Mip = 1; Mip < NumMips; ++Mip)
 		{
 			const int32 MipSubsectionSizeVerts = SubsectionSizeVerts >> Mip;
@@ -1546,6 +1548,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 			*CollisionBatchElement = *GrassBatchElement;
 			FLandscapeBatchElementParams* CollisionBatchElementParams = &GrassBatchParams[Mip];
 			*CollisionBatchElementParams = *BatchElementParams;
+			CollisionBatchElementParams->CurrentLOD = Mip;
 			CollisionBatchElement->UserData = CollisionBatchElementParams;
 			CollisionBatchElement->NumPrimitives = FMath::Square(NumSubsections) * FMath::Square(MipSubsectionSizeVerts);
 			CollisionBatchElement->FirstIndex = SharedBuffers->GrassIndexMipOffsets[Mip];
@@ -4685,8 +4688,9 @@ public:
 			{
 				// Landscape MICs are only for use with the Landscape vertex factories
 
-				// For now only compile FLandscapeFixedGridVertexFactory for runtime virtual texture page rendering (can change if we need for other cases)
+				// For now only compile FLandscapeFixedGridVertexFactory for grass and runtime virtual texture page rendering (can change if we need for other cases)
 				// Todo: only compile LandscapeXYOffsetVertexFactory if we are using it
+				bool bIsGrassShaderType = Algo::Find(GetGrassShaderTypes(), ShaderType->GetFName()) != nullptr;
 				bool bIsRuntimeVirtualTextureShaderType = Algo::Find(GetRuntimeVirtualTextureShaderTypes(), ShaderType->GetFName()) != nullptr;
 
 				static const FName LandscapeVertexFactory = FName(TEXT("FLandscapeVertexFactory"));
@@ -4704,7 +4708,7 @@ public:
 				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory ||
 					VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactoryMobile)
 				{
-					return bIsRuntimeVirtualTextureShaderType && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
+					return (bIsGrassShaderType || bIsRuntimeVirtualTextureShaderType) && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}
 			}
 		}
@@ -4973,6 +4977,16 @@ public:
 #endif // RHI_RAYTRACING
 		};
 		return ExcludedShaderTypes;
+	}
+
+	static const TArray<FName>& GetGrassShaderTypes()
+	{
+		static const TArray<FName> ShaderTypes =
+		{
+			FName(TEXT("FLandscapeGrassWeightVS")),
+			FName(TEXT("FLandscapeGrassWeightPS")),
+		};
+		return ShaderTypes;
 	}
 
 	static const TArray<FName>& GetRuntimeVirtualTextureShaderTypes()
