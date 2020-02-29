@@ -276,6 +276,7 @@ void FLuminARImplementation::OnStartARSession(UARSessionConfig* SessionConfig)
 	}
 
 	bStartSessionRequested = true;
+	bUpdateTrackedImages = true;
 
 	// TODO : check if this code is needed.
 	// Try recreating the LuminARSession to fix the fatal error.
@@ -332,9 +333,15 @@ void FLuminARImplementation::OnStopARSession()
 		Tracker->DestroyEntityTracker();
 	}
 
+	// Delete the LightEstimateTracker on session end.  It will be recreated, if necessary, on session start.
+	Trackers.Remove(LightEstimateTracker);
+	delete LightEstimateTracker;
+	LightEstimateTracker = nullptr;
+
 	CurrentSessionStatus = EARSessionStatus::NotStarted;
 
 	TargetImageTextures.Empty();
+	TrackableHandleMap.Empty();
 }
 
 FARSessionStatus FLuminARImplementation::OnGetARSessionStatus() const

@@ -80,16 +80,23 @@ void FLuminARTrackedPointResource::UpdateGeometryData(FLuminARImplementation* In
 	bool bPointFoundInEnvironment;
 	const bool bResult = UMagicLeapARPinFunctionLibrary::GetARPinPositionAndOrientation_TrackingSpace(GetNativeHandle(), Position, Orientation, bPointFoundInEnvironment);
 
-	if (!bResult)
-	{
-		// Something bad happend! don't update transform.
-		// We can choose to mark this point's tracking state as "StoppedTracking" based on bPointFoundInEnvironment but that will happen automatically on next tick.
-		return;
-	}
-	const FTransform LocalToTrackingTransform(Orientation, Position);
-
 	const uint32 FrameNum = InARSystemSupport->GetFrameNum();
 	const int64 TimeStamp = InARSystemSupport->GetCameraTimestamp();
+	FTransform LocalToTrackingTransform;
+
+	if (!bResult)
+	{
+		// Something bad happend!
+		// We can choose to mark this point's tracking state as "StoppedTracking" based on bPointFoundInEnvironment but that will happen automatically on next tick.
+
+		// In rare situations (usually at the end of a level transition), blueprint may call functions that require a valid ARSystem even though the above function
+		// may have returned false.  So we still need to update the transform, but we just update it to what it currently is.
+		LocalToTrackingTransform = Point->GetLocalToTrackingTransform();
+	}
+	else
+	{
+		LocalToTrackingTransform = FTransform(Orientation, Position);
+	}
 
 	Point->UpdateTrackedGeometry(InARSystemSupport->GetARSystem(), FrameNum, static_cast<double>(TimeStamp), LocalToTrackingTransform, InARSystemSupport->GetARSystem()->GetAlignmentTransform());
 	Point->SetDebugName(FName(*GetNativeHandle().ToString()));
