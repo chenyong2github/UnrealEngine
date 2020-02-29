@@ -611,11 +611,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 
 				Chaos::TPBDGeometryCollectionParticleHandle<float, 3>* Handle = Handles[NextIdx++];
 
-				if (DynamicState[ Idx ] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
-				{
-					Handle->GTGeometryParticle() = nullptr; // GeometryCollections do not support Game Thread TGeometryParticle
-					RigidsSolver->AddParticleToProxy(Handle, this);
-				}
+				Handle->GTGeometryParticle() = nullptr; // GeometryCollections do not support Game Thread TGeometryParticle
+				RigidsSolver->AddParticleToProxy(Handle, this);
 
 				SolverParticleHandles[Idx] = Handle;
 				HandleToTransformGroupIndex.Add(Handle, Idx);
@@ -2312,9 +2309,6 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
 	// so that it has an updated view.
 	UpdateGeometryCollection(TargetResults);
 
-	// We've updated a buffer.  There's no reason to wait for FGeometryCollectionPhysicsProxy::FlipBuffer()
-	// to be called.  Just flip.
-	PhysToGameInterchange->FlipProducer();
 //#endif // TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 }
 
@@ -2326,6 +2320,8 @@ void FGeometryCollectionPhysicsProxy::FlipBuffer()
 	 * The physics thread has pre-locked an RW lock for this operation so the game thread won't be reading
 	 * the data
 	 */
+
+	PhysToGameInterchange->FlipProducer();
 }
 
 // Called from FPhysScene_ChaosInterface::SyncBodies(), NOT the solver.
