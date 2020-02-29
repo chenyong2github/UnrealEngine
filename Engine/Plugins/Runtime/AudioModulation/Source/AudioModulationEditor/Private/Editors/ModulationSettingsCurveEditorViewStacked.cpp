@@ -40,7 +40,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 	{
 		case EModSettingsEditorCurveOutput::Volume:
 		{
-			Color = FAudioModulationStyle::GetVolumeBusColor();
+			Color = UAudioModulationStyle::GetVolumeBusColor();
 			ShortNameBase = LOCTEXT("ModulationOutputVolumeBus", "Volume");
 			IntentionName = TEXT("AudioVolume");
 		}
@@ -48,7 +48,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 
 		case EModSettingsEditorCurveOutput::Pitch:
 		{
-			Color = FAudioModulationStyle::GetPitchBusColor();
+			Color = UAudioModulationStyle::GetPitchBusColor();
 			ShortNameBase = LOCTEXT("ModulationOutputPitchBus", "Pitch");
 			IntentionName = TEXT("AudioPitch");
 		}
@@ -56,7 +56,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 
 		case EModSettingsEditorCurveOutput::Highpass:
 		{
-			Color = FAudioModulationStyle::GetHPFBusColor();
+			Color = UAudioModulationStyle::GetHPFBusColor();
 			ShortNameBase = LOCTEXT("ModulationOutputHPFBus", "Highpass");
 			IntentionName = TEXT("AudioHPFFreq");
 		}
@@ -64,7 +64,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 
 		case EModSettingsEditorCurveOutput::Lowpass:
 		{
-			Color = FAudioModulationStyle::GetLPFBusColor();
+			Color = UAudioModulationStyle::GetLPFBusColor();
 			ShortNameBase = LOCTEXT("ModulationOutputLPFBus", "Lowpass");
 			IntentionName = TEXT("AudioLPFFreq");
 		}
@@ -72,7 +72,7 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 
 		case EModSettingsEditorCurveOutput::Control:
 		{
-			Color = FAudioModulationStyle::GetControlBusColor();
+			Color = UAudioModulationStyle::GetControlBusColor();
 			ShortNameBase = FText::FromName(*InControlName);
 			IntentionName = TEXT("AudioControlValue");
 		}

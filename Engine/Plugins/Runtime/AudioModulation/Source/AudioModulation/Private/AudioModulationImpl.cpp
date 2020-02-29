@@ -9,6 +9,7 @@
 #include "Engine/Engine.h"
 #include "IAudioExtensionPlugin.h"
 #include "Misc/CoreDelegates.h"
+#include "SoundControlBusMix.h"
 #include "SoundModulatorLFO.h"
 #include "SoundModulationPatch.h"
 #include "SoundModulationProxy.h"
@@ -576,14 +577,18 @@ namespace AudioModulation
 		});
 	}
 
-	void FAudioModulationImpl::LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix)
+	TArray<FSoundControlBusMixChannel> FAudioModulationImpl::LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix)
 	{
-		const FString MixPath = OutBusMix.GetPathName();
+		const FString TempName = FGuid::NewGuid().ToString(EGuidFormats::Short);
+		if (USoundControlBusMix* TempMix = NewObject<USoundControlBusMix>(GetTransientPackage(), *TempName))
+		{
+			const FString MixPath = OutBusMix.GetPathName();
+			AudioModulation::FProfileSerializer::Deserialize(InProfileIndex, *TempMix, &MixPath);
+			UpdateMix(TempMix->Channels, OutBusMix);
+			return TempMix->Channels;
+		}
 
-		USoundControlBusMix* TempMix = NewObject<USoundControlBusMix>(GetTransientPackage(), *FGuid().ToString(EGuidFormats::Short));
-		AudioModulation::FProfileSerializer::Deserialize(InProfileIndex, *TempMix, &MixPath);
-
-		UpdateMix(TempMix->Channels, OutBusMix);
+		return TArray<FSoundControlBusMixChannel>();
 	}
 
 	void FAudioModulationImpl::RunCommandOnAudioThread(TFunction<void()> Cmd)
