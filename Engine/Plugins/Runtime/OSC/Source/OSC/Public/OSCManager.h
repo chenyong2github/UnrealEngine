@@ -22,16 +22,16 @@ class OSC_API UOSCManager : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-	// Creates an OSC Server.  If left empty (or '0'),
+	// Creates an OSC Server.  If ReceiveIPAddress left empty (or '0'),
 	// attempts to use LocalHost IP address. If StartListening set,
 	// immediately begins listening on creation.
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static UOSCServer* CreateOSCServer(FString ReceiveIPAddress, int32 Port, bool bMulticastLoopback, bool bStartListening);
+	static UOSCServer* CreateOSCServer(FString ReceiveIPAddress, int32 Port, bool bMulticastLoopback, bool bStartListening, FString ServerName);
 
-	// Creates an OSC Client.  If left empty (or '0'), attempts to use
+	// Creates an OSC Client.  If SendIPAddress left empty (or '0'), attempts to use
 	// attempts to use LocalHost IP address.
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static UOSCClient* CreateOSCClient(FString SendIPAddress, int32 Port);
+	static UOSCClient* CreateOSCClient(FString SendIPAddress, int32 Port, FString ClientName);
 
 	/** Adds provided message packet to bundle. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC", meta = (DisplayName = "Add OSC Message to Bundle", Keywords = "osc message bundle"))
@@ -46,7 +46,7 @@ public:
 	static UPARAM(DisplayName = "Bundles") TArray<FOSCBundle> GetBundlesFromBundle(const FOSCBundle& Bundle);
 
 	/** Returns message found in bundle at ordered index. */
-	UFUNCTION(BlueprintCallable, Category = "Audio|OSC", meta = (DisplayName = "Get OSC Messages From Bundle", Keywords = "osc bundle message"))
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC", meta = (DisplayName = "Get OSC Message From Bundle At Index", Keywords = "osc bundle message"))
 	static UPARAM(DisplayName = "Message") FOSCMessage GetMessageFromBundle(const FOSCBundle& Bundle, int32 Index, bool& bSucceeded);
 
 	/** Fills array with messages found in bundle. */
@@ -79,11 +79,11 @@ public:
 
 	/** Adds string value to end of OSCMessage */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC", meta = (DisplayName = "Add String to OSC Message", Keywords = "osc message"))
-	static UPARAM(DisplayName = "Message") FOSCMessage& AddString(UPARAM(ref) FOSCMessage& Message, FString Value);
+	static UPARAM(DisplayName = "Message") FOSCMessage& AddString(UPARAM(ref) FOSCMessage& Message, UPARAM(ref) FString Value);
 
 	/** Adds blob value to end of OSCMessage */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC", meta = (DisplayName = "Add Blob to OSC Message", Keywords = "osc message"))
-	static UPARAM(DisplayName = "Message") FOSCMessage& AddBlob(UPARAM(ref) FOSCMessage& Message, TArray<uint8>& Value);
+	static UPARAM(DisplayName = "Message") FOSCMessage& AddBlob(UPARAM(ref) FOSCMessage& Message, const TArray<uint8>& Value);
 
 	/** Adds boolean value to end of OSCMessage */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC", meta = (DisplayName = "Add Bool to OSC Message", Keywords = "osc message"))
