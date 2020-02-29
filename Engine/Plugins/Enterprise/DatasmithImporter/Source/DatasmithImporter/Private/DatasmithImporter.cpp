@@ -1416,7 +1416,7 @@ UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext&
 	return ImportedMaterial;
 }
 
-UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialsFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap)
+UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialFolderPath, const TCHAR* TransientPackagePath, const TCHAR* RootFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeMaterial);
 
@@ -1440,15 +1440,13 @@ UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TC
 				FString SourceMaterialPath = SourceMaterialInstance->GetOutermost()->GetName();
 				FString SourceParentPath = SourceMaterialParent->GetOutermost()->GetName();
 
-				if (SourceParentPath.StartsWith( SourceMaterialPath ) )
+				if ( SourceParentPath.StartsWith( TransientPackagePath ) )
 				{
 					// Simply finalize the source parent material.
 					// Note that the parent material will be overridden on the existing material instance
-					FString DestinationParentPath = SourceParentPath;
-					DestinationParentPath.RemoveFromStart( SourceMaterialPath );
-					DestinationParentPath = MaterialsFolderPath / DestinationParentPath;
+					const FString DestinationParentPath = SourceParentPath.Replace( TransientPackagePath, RootFolderPath, ESearchCase::CaseSensitive );
 
-					FinalizeMaterial( SourceMaterialParent, *DestinationParentPath, nullptr, ReferencesToRemap );
+					FinalizeMaterial( SourceMaterialParent, *DestinationParentPath, TransientPackagePath, RootFolderPath, nullptr, ReferencesToRemap );
 				}
 			}
 		}
@@ -1456,7 +1454,7 @@ UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TC
 
 	UMaterialEditingLibrary::DeleteAllMaterialExpressions( Cast< UMaterial >( ExistingMaterial ) );
 
-	UObject* DestinationMaterial = FinalizeAsset( SourceMaterial, MaterialsFolderPath, ExistingMaterial, ReferencesToRemap );
+	UObject* DestinationMaterial = FinalizeAsset( SourceMaterial, MaterialFolderPath, ExistingMaterial, ReferencesToRemap );
 
 	DatasmithImporterImpl::CompileMaterial( DestinationMaterial );
 
@@ -2446,12 +2444,12 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 			{
 				if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
 				{
-					FinalizeMaterial(MaterialFunctionInfo.Function, *DestinationPackagePath, nullptr, &ReferencesToRemap);
+					FinalizeMaterial(MaterialFunctionInfo.Function, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, nullptr, &ReferencesToRemap);
 				}
 			}
 		}
 
-		ExistingMaterialPtr = FinalizeMaterial(SourceMaterialInterface, *DestinationPackagePath, ExistingMaterial, &ReferencesToRemap);
+		ExistingMaterialPtr = FinalizeMaterial(SourceMaterialInterface, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, ExistingMaterial, &ReferencesToRemap);
 
 		// Add material to array of packages to apply soft object path redirection to
 		if (ExistingMaterialPtr.IsValid())
