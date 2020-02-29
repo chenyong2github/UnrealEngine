@@ -75,7 +75,7 @@ public:
 	 * @return The index of the added action or index none if the action is invalid
 	 * @remark If action is nullptr, a new DataprepActionAsset is simply created
 	 */
-	int32 AddAction(const UDataprepActionAsset* Action);
+	int32 AddAction(const UDataprepActionAsset* Action = nullptr);
 
 	/**
 	 * Add the actions to the Dataprep asset

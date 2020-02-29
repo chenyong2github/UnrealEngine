@@ -209,14 +209,7 @@ UDataprepActionAsset* UEditorDataprepAssetLibrary::AddAction(UDataprepAsset* Dat
 
 	if ( DataprepAsset )
 	{
-
-		UBlueprint* DataprepRecipeBP = DataprepAsset->GetRecipeBP();
-		check( DataprepRecipeBP->UbergraphPages.Num() == 1 );
-		UEdGraph* DataprepGraph = DataprepRecipeBP->UbergraphPages[0];
-
-		UEdGraphNode* NewActionNode = IDataprepEditorModule::Get().CreateDataprepActionInGraph( *DataprepGraph, NewDataprepAction );
-
-		DataprepAsset->AddActionUsingBP( NewActionNode );
+		NewDataprepAction = DataprepAsset->GetAction( DataprepAsset->AddAction() );
 	}
 	else
 	{
@@ -240,12 +233,8 @@ UDataprepActionAsset* UEditorDataprepAssetLibrary::AddActionByDuplication(UDatap
 	}
 	else
 	{
-		UBlueprint* DataprepRecipeBP = DataprepAsset->GetRecipeBP();
-		check(DataprepRecipeBP->UbergraphPages.Num() == 1);
-		UEdGraph* DataprepGraph = DataprepRecipeBP->UbergraphPages[0];
-
-		UEdGraphNode* NewActionNode = IDataprepEditorModule::Get().CreateDataprepActionInGraphByDuplication(*DataprepGraph, *ActionToDuplicate, NewDataprepAction);
-		DataprepAsset->AddActionUsingBP( NewActionNode );
+		uint32 NewActionIndex = DataprepAsset->AddAction( ActionToDuplicate );
+		NewDataprepAction = DataprepAsset->GetAction( NewActionIndex );
 	}
 
 	return NewDataprepAction;
