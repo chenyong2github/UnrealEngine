@@ -272,34 +272,38 @@ struct FConcertAdmin_FindSessionRequest : public FConcertRequestData
 	FConcertSessionVersionInfo VersionInfo;
 };
 
+/** Used to copy a live session or restore an archived one. */
 USTRUCT()
-struct FConcertAdmin_RestoreSessionRequest : public FConcertRequestData
+struct FConcertAdmin_CopySessionRequest : public FConcertRequestData
 {
 	GENERATED_BODY()
 
-	/** The ID of the session to restore (must be an archived session). */
+	/** The ID of the session to copy or restore. It can be a live or an archived session unless bRestoreOnly is true, in which case, the session to copy must be an archived one. */
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	FGuid SessionId;
 
-	/** The name of the restored session to create. */
+	/** The name of the session to create. */
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	FString SessionName;
 
-	/** Information about the owner of the restored session. */
+	/** Information about the owner of the copied session. */
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	FConcertClientInfo OwnerClientInfo;
 
-	/** Settings to apply to the restored session. */
+	/** Settings to apply to the copied session. */
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	FConcertSessionSettings SessionSettings;
 
-	/** Version information of the client requesting the restore. */
+	/** Version information of the client requesting the copy. */
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	FConcertSessionVersionInfo VersionInfo;
 
-	/** The filter controlling which activities from the session should be restored. */
+	/** The filter controlling which activities from the session should be copied over. */
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	FConcertSessionFilter SessionFilter;
+
+	/** True to constrain the session to copy to be an archive (implying a restore operation). */
+	bool bRestoreOnly = false;
 };
 
 USTRUCT()
