@@ -3,6 +3,7 @@
 using Microsoft.Win32;
 using System.IO;
 using Tools.DotNETCommon;
+using UnrealBuildTool;
 
 namespace UnrealBuildTool.Rules
 {
@@ -14,7 +15,9 @@ namespace UnrealBuildTool.Rules
 
 			PublicIncludePaths.Add(ModuleDirectory);
 
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang || Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
+			if (Target.Platform != UnrealBuildTool.UnrealTargetPlatform.Win64 ||
+				Target.WindowsPlatform.Compiler == WindowsCompiler.Clang ||
+				Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
 			{
 				PublicDefinitions.Add("WITH_VISUALSTUDIO_DTE=0");
 			}
