@@ -2,7 +2,6 @@
 
 #include "LiveLinkModule.h"
 
-#include "HAL/PlatformAtomics.h"
 #include "LiveLinkLogInstance.h"
 #include "LiveLinkPreset.h"
 #include "LiveLinkSettings.h"
