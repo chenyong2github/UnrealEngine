@@ -680,16 +680,6 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 	if (bRebuildPropertyMap)
 	{
 		NewClass->PropertyGuids.Reset();
-		// Add any chained parent blueprint map values
-		UBlueprint* ParentBP = Cast<UBlueprint>(Blueprint->ParentClass->ClassGeneratedBy);
-		while (ParentBP)
-		{
-			if (UBlueprintGeneratedClass* ParentBPGC = Cast<UBlueprintGeneratedClass>(ParentBP->GeneratedClass))
-			{
-				NewClass->PropertyGuids.Append(ParentBPGC->PropertyGuids);
-			}
-			ParentBP = Cast<UBlueprint>(ParentBP->ParentClass->ClassGeneratedBy);
-		}
 	}
 
 	for (int32 i = 0; i < Blueprint->NewVariables.Num(); ++i)
