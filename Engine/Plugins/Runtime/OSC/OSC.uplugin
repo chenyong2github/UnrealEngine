@@ -1,9 +1,9 @@
 {
 	"FileVersion" : 3,
 	"Version" : 1,
-	"VersionName" : "1.0",
-	"FriendlyName" : "OSC Support",
-	"Description" : "Allows you to send and receive OSC events through a simple API in either C++ or Blueprints",
+	"VersionName" : "1.1",
+	"FriendlyName" : "OSC (Open Sound Control)",
+	"Description" : "Implements the OSC 1.0 specification, allowing users to send and receive OSC messages and bundles between remote clients or applications.",
 	"Category" : "Input Devices",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",
@@ -12,18 +12,14 @@
 	"SupportURL" : "",
 	"EnabledByDefault" : false,
 	"CanContainContent" : false,
-	"IsBetaVersion" : true,
+	"IsBetaVersion" : false,
 	"Installed" : false,
 	"Modules" :
 	[
 		{
 			"Name": "OSC",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"
-			]
+			"LoadingPhase": "Default"
 		}
 	]
 }

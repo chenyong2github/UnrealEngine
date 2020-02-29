@@ -18,7 +18,8 @@ public:
 	virtual ~FOSCServerProxy() { }
 
 	bool GetMulticastLoopback() const override;
-
+	FString GetIpAddress() const override;
+	int32 GetPort() const override;
 	bool IsActive() const override;
 
 	void Listen(const FString& ServerName) override;
