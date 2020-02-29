@@ -1199,21 +1199,11 @@ namespace UnrealBuildTool
 
 		private static void CopySTL(AndroidToolChain ToolChain, string UE4BuildPath, string UE4Arch, string NDKArch, bool bForDistribution)
 		{
-			string GccVersion = "4.6";
-			if (Directory.Exists(Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/cxx-stl/gnu-libstdc++/4.9")))
-			{
-				GccVersion = "4.9";
-			}
-			else if (Directory.Exists(Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/cxx-stl/gnu-libstdc++/4.8")))
-			{
-				GccVersion = "4.8";
-			}
-
 			// copy it in!
-			string SourceSTLSOName = Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/cxx-stl/gnu-libstdc++/") + GccVersion + "/libs/" + NDKArch + "/libgnustl_shared.so";
-			string FinalSTLSOName = UE4BuildPath + "/jni/" + NDKArch + "/libgnustl_shared.so";
+			string SourceSTLSOName = Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/cxx-stl/llvm-libc++/libs/") +  NDKArch + "/libc++_shared.so";
+			string FinalSTLSOName = UE4BuildPath + "/jni/" + NDKArch + "/libc++_shared.so";
 
-			// check to see if libgnustl_shared.so is newer than last time we copied
+			// check to see if libc++_shared.so is newer than last time we copied
 			bool bFileExists = File.Exists(FinalSTLSOName);
 			TimeSpan Diff = File.GetLastWriteTimeUtc(FinalSTLSOName) - File.GetLastWriteTimeUtc(SourceSTLSOName);
 			if (!bFileExists || Diff.TotalSeconds < -1 || Diff.TotalSeconds > 1)
@@ -3175,7 +3165,7 @@ namespace UnrealBuildTool
 			List<string> GPUArchitectures = ToolChain.GetAllGPUArchitectures();
 
 			// we do not need to really build an engine UE4Game.apk so short-circuit it
-			if (Path.GetFileNameWithoutExtension(OutputPath) == "UE4Game" && OutputPath.Replace("\\", "/").Contains("/Engine/Binaries/Android/") && ProjectName == "UE4Game")
+			if (ProjectName == "UE4Game" && OutputPath.Replace("\\", "/").Contains("/Engine/Binaries/Android/") && Path.GetFileNameWithoutExtension(OutputPath).StartsWith("UE4Game"))
 			{
 				if (!bSkipGradleBuild)
 				{
@@ -3689,7 +3679,7 @@ namespace UnrealBuildTool
 				}
 
 				// after ndk-build is called, we can now copy in the stl .so (ndk-build deletes old files)
-				// copy libgnustl_shared.so to library (use 4.8 if possible, otherwise 4.6)
+				// copy libc++_shared.so to library
 				CopySTL(ToolChain, UE4BuildPath, Arch, NDKArch, bForDistribution);
 				CopyGfxDebugger(UE4BuildPath, Arch, NDKArch);
 				CopyVulkanValidationLayers(UE4BuildPath, Arch, NDKArch, Configuration.ToString());
