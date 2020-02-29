@@ -39,6 +39,8 @@ public:
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	virtual bool IsNameReadOnly () const override { return true; }
+	virtual FSlateRect GetTitleRect() const override { return FSlateRect(); }
 	// End of SGraphNode interface
 
 	int32 GetStepIndex() const { return StepIndex; }
@@ -58,6 +60,10 @@ private:
 	 * Returns a color depending whether the action step is hovered or not
 	 */
 	FSlateColor GetDragAndDropColor() const;
+
+	FSlateColor GetBlockOverlayColor() const;
+
+	FMargin GetBlockPadding();
 
 private:
 	/** Pointer to the widget displaying the actual filter or operation */
