@@ -866,8 +866,6 @@ void UMaterialEditingLibrary::UpdateMaterialFunction(UMaterialFunctionInterface*
 						{
 							MaterialEditor->NotifyExternalMaterialChange();
 						}
-
-						break;
 					}
 				}
 			}
