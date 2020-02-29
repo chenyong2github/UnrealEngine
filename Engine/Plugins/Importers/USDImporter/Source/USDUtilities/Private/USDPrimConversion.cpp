@@ -31,8 +31,6 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::TfToken UpAxis = UsdUtils::GetUsdStageAxis( Stage );
-
 	// Transform
 	pxr::GfMatrix4d UsdMatrix;
 	bool bResetXFormStack = false;
@@ -40,13 +38,15 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	FRotator AdditionalRotation( ForceInit );
 
+	UsdToUnreal::FUsdStageInfo StageInfo( Stage );
+
 	if ( Xformable.GetPrim().IsA< pxr::UsdGeomCamera >() )
 	{
 		AdditionalRotation = FRotator( 0.0f, -90.f, 0.0f );
-		UpAxis = pxr::UsdGeomTokens->y; // Cameras are always Y up in USD
+		StageInfo.UpAxis = pxr::UsdGeomTokens->y; // Cameras are always Y up in USD
 	}
 
-	OutTransform = FTransform( AdditionalRotation ) * UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix );
+	OutTransform = FTransform( AdditionalRotation ) * UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
 
 	return true;
 }
