@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Chaos/SingleParticlePhysicsProxy.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 #include "ChaosStats.h"
 #include "Chaos/Box.h"
@@ -11,7 +11,7 @@
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Framework/MultiBufferResource.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "PhysicsSolver.h"
 
 template< class PARTICLE_TYPE >
 FSingleParticlePhysicsProxy<PARTICLE_TYPE>::FSingleParticlePhysicsProxy(PARTICLE_TYPE* InParticle, FParticleHandle* InHandle, UObject* InOwner, FInitialState InInitialState)
@@ -42,7 +42,7 @@ FSingleParticlePhysicsProxy<PARTICLE_TYPE>::GetInitialState() const
 //
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
 {
 	// move the copied game thread data into the handle
 	if (auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Handle))
@@ -102,45 +102,45 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::
 
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearAccumulatedData()
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearAccumulatedData()
 {
 	Particle->ClearDirtyFlags();
 }
 
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults()
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults()
 {
 	// Move simulation results into the double buffer.
 }
 
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState()
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState()
 {
 	// Move buffered data into the TGeometryParticle
 }
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::IsDirty()
+bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::IsDirty()
 {
 	return Particle->IsDirty();
 }
 
 template< >
-CHAOS_API EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ConcreteType()
+EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ConcreteType()
 {
 	return EPhysicsProxyType::SingleGeometryParticleType;
 }
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::HasAwakeEvent() const
+bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::HasAwakeEvent() const
 {
 	return false;
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearEvents()
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearEvents()
 {
 
 }
@@ -149,7 +149,7 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::
 //
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
 {
 	// move the copied game thread data into the handle
 	if (auto* RigidHandle = static_cast<Chaos::TKinematicGeometryParticleHandle<float, 3>*>(Handle))
@@ -211,43 +211,43 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<flo
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearAccumulatedData()
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearAccumulatedData()
 {
 	Particle->ClearDirtyFlags();
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults()
+CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults()
 {
 	// Move simulation results into the double buffer.
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState()
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState()
 {
 	// Move buffered data into the TKinematicGeometryParticle
 }
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::IsDirty()
+bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::IsDirty()
 {
 	return Particle->IsDirty();
 }
 
 template< >
-CHAOS_API EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ConcreteType()
+EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ConcreteType()
 {
 	return EPhysicsProxyType::SingleKinematicParticleType;
 }
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::HasAwakeEvent() const
+bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::HasAwakeEvent() const
 {
 	return false;
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearEvents()
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearEvents()
 {
 
 }
@@ -257,7 +257,7 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<flo
 //
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
 {
 	// move the copied game thread data into the handle
 	if (auto* RigidHandle = static_cast<Chaos::TPBDRigidParticleHandle<float, 3>*>(Handle))
@@ -415,7 +415,7 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData()
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData()
 {
 	Particle->SetF(Chaos::TVector<float, 3>(0));
 	Particle->SetTorque(Chaos::TVector<float, 3>(0));
@@ -425,7 +425,7 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults()
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults()
 {
 	// Move simulation results into the double buffer.
 	if (Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = static_cast<Chaos::TPBDRigidParticleHandle<float, 3>*>(Handle))
@@ -440,7 +440,7 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState()
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState()
 {
 	// Move buffered data into the TPBDRigidParticle without triggering invalidation of the physics state.
 	if (Particle)
@@ -459,29 +459,29 @@ CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::
 }
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty()
+bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty()
 {
 	return Particle->IsDirty();
 }
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >::HasAwakeEvent() const
+bool FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >::HasAwakeEvent() const
 {
 	return Particle->HasAwakeEvent();
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >::ClearEvents()
+void FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >::ClearEvents()
 {
 	Particle->ClearEvents();
 }
 
 template< >
-CHAOS_API EPhysicsProxyType  FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ConcreteType() 
+EPhysicsProxyType  FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ConcreteType() 
 { 
 	return EPhysicsProxyType::SingleRigidParticleType;
 }
 
-template class CHAOS_API FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >;
-template class CHAOS_API FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >;
-template class CHAOS_API FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float,3> >;
+template class CHAOSSOLVERS_API FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >;
+template class CHAOSSOLVERS_API FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >;
+template class CHAOSSOLVERS_API FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float,3> >;
