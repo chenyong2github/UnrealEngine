@@ -77,6 +77,7 @@ public:
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintBase = TCollisionConstraintBase<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
+ 	using FSweptPointContactConstraint = TRigidBodySweptPointContactConstraint<T, d>;
 	using FMultiPointContactConstraint = TRigidBodyMultiPointContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
 	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
@@ -117,6 +118,7 @@ public:
 	*  then delete the InConstraint. 
 	*/
 	void AddConstraint(const TRigidBodyPointContactConstraint<FReal, 3>& InConstraint);
+	void AddConstraint(const TRigidBodySweptPointContactConstraint<FReal, 3>& InConstraint);
 	void AddConstraint(const TRigidBodyMultiPointContactConstraint<FReal, 3>& InConstraint);
 
 	/**
@@ -269,7 +271,7 @@ public:
 
 	int32 NumConstraints() const
 	{
-		return PointConstraints.Num() + IterativeConstraints.Num();
+		return PointConstraints.Num() + SweptPointConstraints.Num() + IterativeConstraints.Num();
 	}
 
 	FHandles& GetConstraintHandles()
@@ -306,6 +308,7 @@ private:
 	const TPBDRigidsSOAs<T,d>& Particles;
 
 	TArray<FPointContactConstraint> PointConstraints;
+	TArray<FSweptPointContactConstraint> SweptPointConstraints;
 	TArray<FMultiPointContactConstraint> IterativeConstraints;
 
 #if CHAOS_COLLISION_PERSISTENCE_ENABLED

@@ -190,6 +190,33 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
+	void TPBDCollisionConstraints<T, d>::AddConstraint(const TRigidBodySweptPointContactConstraint<FReal, 3>& InConstraint)
+	{
+		int32 Idx = SweptPointConstraints.Add(InConstraint);
+
+		if (bHandlesEnabled)
+		{
+			FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodySweptPointContactConstraint<T, d> >(this, Idx);
+			Handle->GetContact().Timestamp = -INT_MAX; // force point constraints to be deleted.
+
+			SweptPointConstraints[Idx].ConstraintHandle = Handle;
+
+			if(ensure(Handle != nullptr))
+			{			
+				Handles.Add(Handle);
+
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
+				check(!Manifolds.Contains(Handle->GetKey()));
+				Manifolds.Add(Handle->GetKey(), Handle);
+#endif
+			}
+		}
+
+		UpdateConstraintMaterialProperties(SweptPointConstraints[Idx]);
+	}
+
+
+	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::AddConstraint(const TRigidBodyMultiPointContactConstraint<FReal, 3>& InConstraint)
 	{
 		int32 Idx = IterativeConstraints.Add(InConstraint);
@@ -243,6 +270,7 @@ namespace Chaos
 			HandleAllocator.FreeHandle(Handle);
 		}
 		PointConstraints.Reset();
+		SweptPointConstraints.Reset();
 		IterativeConstraints.Reset();
 		Handles.Reset();
 #endif
@@ -312,6 +340,22 @@ namespace Chaos
 			}
 
 		}
+		else if (ConstraintType == FCollisionConstraintBase::FType::SinglePointSwept)
+		{
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
+			if (Idx < SweptPointConstraints.Num() - 1)
+			{
+				// update the handle
+				FConstraintContainerHandleKey Key = FPBDCollisionConstraintHandle::MakeKey(&SweptPointConstraints.Last());
+				Manifolds[Key]->SetConstraintIndex(Idx, ConstraintType);
+			}
+#endif
+			SweptPointConstraints.RemoveAtSwap(Idx);
+			if (bHandlesEnabled && (Idx < SweptPointConstraints.Num()))
+			{
+				SweptPointConstraints[Idx].ConstraintHandle->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePointSwept);
+			}
+		}
 		else if (ConstraintType == FCollisionConstraintBase::FType::MultiPoint)
 		{
 #if CHAOS_COLLISION_PERSISTENCE_ENABLED
@@ -342,7 +386,7 @@ namespace Chaos
 			Manifolds.Remove(KeyToRemove);
 #endif
 			Handles.Remove(Handle);
-			check(Handles.Num() == PointConstraints.Num() + IterativeConstraints.Num());
+			check(Handles.Num() == PointConstraints.Num() + SweptPointConstraints.Num() + IterativeConstraints.Num());
 
 			HandleAllocator.FreeHandle(Handle);
 		}
@@ -428,6 +472,11 @@ namespace Chaos
 				Collisions::ApplySinglePoint(Contact, IterationParameters, ParticleParameters);
 			}
 
+			for (FSweptPointContactConstraint& Contact : SweptPointConstraints)
+			{
+				Collisions::Apply(Contact, IterationParameters, ParticleParameters);
+			}
+
 			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 			{
 				Collisions::ApplyMultiPoint(Contact, IterationParameters, ParticleParameters);
@@ -457,6 +506,11 @@ namespace Chaos
 			for (FPointContactConstraint& Contact : PointConstraints)
 			{
 				Collisions::ApplyPushOutSinglePoint(Contact, TempStatic, IterationParameters, ParticleParameters);
+			}
+
+			for (FSweptPointContactConstraint& Contact : SweptPointConstraints)
+			{
+				Collisions::ApplyPushOut(Contact, TempStatic, IterationParameters, ParticleParameters);
 			}
 
 			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
