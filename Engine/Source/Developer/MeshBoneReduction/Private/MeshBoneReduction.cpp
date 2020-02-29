@@ -473,17 +473,13 @@ public:
 		NewModel->ActiveBoneIndices.Sort();
 		NewModel->RequiredBones.Sort();
 
+		// Call post edit change and re-register skeletal mesh component
 		if (bCallPostEditChange)
 		{
-			SkeletalMesh->PostEditChange();
+			FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(SkeletalMesh);
 		}
 		SkeletalMesh->MarkPackageDirty();
-		
-		//Reregister skinned mesh component if we call post edit change
-		if (bCallPostEditChange)
-		{
-			TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
-		}
+
 		return true;
 	}
 };
