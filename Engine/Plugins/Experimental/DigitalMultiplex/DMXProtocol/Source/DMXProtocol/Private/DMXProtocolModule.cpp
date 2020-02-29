@@ -3,16 +3,59 @@
 #include "DMXProtocolModule.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXProtocolFactory.h"
+#include "DMXProtocolSettings.h"
+
+#if WITH_EDITOR
+#include "ISettingsModule.h"
+#endif
 
 IMPLEMENT_MODULE( FDMXProtocolModule, DMXProtocol );
+DEFINE_LOG_CATEGORY(LogDMXProtocol);
 
 #define LOCTEXT_NAMESPACE "DMXProtocolModule"
 
+/**  IDMXProtocol.h static declarations */
+FOnNetworkInterfaceChanged IDMXProtocol::OnNetworkInterfaceChanged;
+
 const TCHAR* FDMXProtocolModule::BaseModuleName = TEXT("DMXProtocol");
+
+const TMap<FName, TSharedPtr<IDMXProtocol>>& FDMXProtocolModule::GetProtocols() const
+{
+	return DMXProtocols;
+}
+
+void FDMXProtocolModule::StartupModule()
+{
+
+#if WITH_EDITOR
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+	// Register DMX Protocol global settings
+	if (SettingsModule != nullptr)
+	{	
+		SettingsModule->RegisterSettings("Project", "Plugins", "DMX Plugin",
+			LOCTEXT("ProjectSettings_Label", "DMX Plugin"),
+			LOCTEXT("ProjectSettings_Description", "Configure DMX plugin global settings"),
+			GetMutableDefault<UDMXProtocolSettings>()
+		);
+	}
+#endif // WITH_EDITOR
+
+}
 
 void FDMXProtocolModule::ShutdownModule()
 {
 	ShutdownAllDMXProtocols();
+
+#if WITH_EDITOR
+	// Unregister DMX Protocol global settings
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule)
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "DMX Protocol");
+	}
+#endif // WITH_EDITOR
+
 }
 
 static FName GetProtocolModuleName(const FString& ProtocolName)
@@ -46,7 +89,7 @@ void FDMXProtocolModule::RegisterProtocol(const FName& FactoryName, IDMXProtocol
 	}
 	else
 	{
-		UE_LOG_DMXPROTOCOL(Warning, TEXT("Trying to add existing protocol %s"), *FactoryName.ToString());
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Trying to add existing protocol %s"), *FactoryName.ToString());
 	}
 }
 
@@ -59,7 +102,7 @@ void FDMXProtocolModule::UnregisterProtocol(const FName& FactoryName)
 	}
 	else
 	{
-		UE_LOG_DMXPROTOCOL(Warning, TEXT("Trying to remove unexisting protocol %s"), *FactoryName.ToString());
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Trying to remove unexisting protocol %s"), *FactoryName.ToString());
 	}
 }
 
@@ -69,7 +112,7 @@ FDMXProtocolModule& FDMXProtocolModule::Get()
 }
 
 
-IDMXProtocol* FDMXProtocolModule::GetProtocol(const FName InProtocolName)
+TSharedPtr<IDMXProtocol> FDMXProtocolModule::GetProtocol(const FName InProtocolName)
 {
 	TSharedPtr<IDMXProtocol>* DMXProtocolPtr = nullptr;
 	if (!InProtocolName.IsNone())
@@ -94,7 +137,7 @@ IDMXProtocol* FDMXProtocolModule::GetProtocol(const FName InProtocolName)
 					bool* bNotedPreviously = DMXProtocolFailureNotes.Find(InProtocolName);
 					if (!bNotedPreviously || !(*bNotedPreviously))
 					{
-						UE_LOG_DMXPROTOCOL(Warning, TEXT("Unable to create Protocol %s"), *InProtocolName.ToString());
+						UE_LOG_DMXPROTOCOL(Verbose, TEXT("Unable to create Protocol %s"), *InProtocolName.ToString());
 						DMXProtocolFailureNotes.Add(InProtocolName, true);
 					}
 				}
@@ -102,7 +145,7 @@ IDMXProtocol* FDMXProtocolModule::GetProtocol(const FName InProtocolName)
 		}
 	}
 
-	return (DMXProtocolPtr == nullptr) ? nullptr : (*DMXProtocolPtr).Get();
+	return (DMXProtocolPtr == nullptr) ? nullptr : *DMXProtocolPtr;
 }
 
 const TMap<FName, IDMXProtocolFactory*>& FDMXProtocolModule::GetProtocolFactories() const
@@ -122,7 +165,7 @@ void FDMXProtocolModule::ShutdownDMXProtocol(const FName& ProtocolName)
 		}
 		else
 		{
-			UE_LOG_DMXPROTOCOL(Warning, TEXT("DMXProtocol instance %s not found, unable to destroy."), *ProtocolName.ToString());
+			UE_LOG_DMXPROTOCOL(Verbose, TEXT("DMXProtocol instance %s not found, unable to destroy."), *ProtocolName.ToString());
 		}
 	}
 }

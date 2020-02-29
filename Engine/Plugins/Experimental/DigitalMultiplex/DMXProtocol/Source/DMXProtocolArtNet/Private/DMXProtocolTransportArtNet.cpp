@@ -99,7 +99,6 @@ bool FDMXProtocolSenderArtNet::EnqueueOutboundPackage(FDMXPacketPtr Packet)
 
 	WorkEvent->Trigger();
 
-
 	return true;
 }
 
@@ -194,19 +193,19 @@ void FDMXProtocolReceiverArtNet::Update(const FTimespan& SocketWaitTime)
 		return;
 	}
 
-	TSharedRef<FInternetAddr> Sender = SocketSubsystem->CreateInternetAddr();
+    TSharedRef<FInternetAddr> Sender = SocketSubsystem->CreateInternetAddr();
 	uint32 Size;
 
 	while (Socket->HasPendingData(Size))
 	{
-		FArrayReaderPtr Reader = MakeShareable(new FArrayReader(true));
+		FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
 		Reader->SetNumUninitialized(FMath::Min(Size, 65507u));
 
 		int32 Read = 0;
 
-		if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *Sender))
+        if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *Sender))
 		{
-			Reader->RemoveAt(Read, Reader->Num() - Read, false);
+            Reader->RemoveAt(Read, Reader->Num() - Read, false);
 			DMXDataReceiveDelegate.ExecuteIfBound(Reader);
 		}
 	}
