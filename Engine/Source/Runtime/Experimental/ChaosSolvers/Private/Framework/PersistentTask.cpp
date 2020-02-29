@@ -54,7 +54,9 @@ namespace Chaos
 		// Capture solver states from the module by copying the current state. The module
 		// will inject any new solvers with a command.
 		FChaosSolversModule& ChaosModule = FModuleManager::Get().GetModuleChecked<FChaosSolversModule>("ChaosSolvers");
-		Solvers = ChaosModule.GetSolvers();
+		
+		// Might not be what we want here - maybe just all owned solvers? Or non-standalone
+		Solvers = ChaosModule.GetAllSolvers();
 
 #if CHAOS_DEBUG_SUBSTEP
 		// Prepare the debug substepping tasks for all existing solvers

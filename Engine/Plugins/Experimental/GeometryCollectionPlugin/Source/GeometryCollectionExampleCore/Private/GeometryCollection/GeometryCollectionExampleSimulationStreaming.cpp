@@ -26,7 +26,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Streaming_StartSolverEmpty()
 	{
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 
@@ -66,7 +66,7 @@ namespace GeometryCollectionExample
 		typename SimulationObjects<T>::FParameters P;
 		P.CollisionGroup = -1;
 
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		Solver->AdvanceSolverBy(1 / 24.);
@@ -115,7 +115,7 @@ namespace GeometryCollectionExample
 		P.EnableClustering = true;
 		P.ClusterGroupIndex = 1;
 
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		Solver->AdvanceSolverBy(1 / 24.);
