@@ -71,8 +71,28 @@ namespace AutomationTool
 				CompileAutomationProjects(CompileProjects, MsBuildProperties);
 			}
 
+			// Get all the build artifacts
+			BuildProducts = new HashSet<FileReference>();
+
+			HashSet<DirectoryReference> OutputDirs = new HashSet<DirectoryReference>();
+			OutputDirs.Add(DirectoryReference.Combine(CommandUtils.EngineDirectory, "Binaries", "DotNET")); // Don't want any artifacts from this directory (just AutomationTool.exe and AutomationScripts.dll)
+
+			foreach (CsProjectInfo Project in Projects)
+			{
+				DirectoryReference OutputDir;
+				if (!Project.TryGetOutputDir(out OutputDir))
+				{
+					throw new AutomationException("Unable to get output directory for {0}", Project.ProjectPath);
+				}
+
+				if (OutputDirs.Add(OutputDir))
+				{
+					BuildProducts.UnionWith(DirectoryReference.EnumerateFiles(OutputDir));
+				}
+			}
+
 			// Load everything
-			Assemblies = LoadAutomationAssemblies(Projects);
+			List<Assembly> Assemblies = LoadAutomationAssemblies(Projects);
 
 			// Setup platforms
 			Platform.InitializePlatforms(Assemblies.ToArray());
@@ -470,7 +490,7 @@ namespace AutomationTool
 			get { return ScriptCommands; }
 		}
 
-		public static List<Assembly> Assemblies
+		public static HashSet<FileReference> BuildProducts
 		{
 			get;
 			private set;
