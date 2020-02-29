@@ -102,7 +102,7 @@ public:
 	virtual void SetRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) override;
 	virtual bool AreRequiredPluginsAvailable() override;
 #if !IS_MONOLITHIC
-	virtual bool CheckModuleCompatibility( TArray<FString>& OutIncompatibleModules ) override;
+	virtual bool CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules, TArray<FString>& OutIncompatibleEngineModules) override;
 #endif
 	virtual TSharedPtr<IPlugin> FindPlugin(const FString& Name) override;
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPlugins() override;

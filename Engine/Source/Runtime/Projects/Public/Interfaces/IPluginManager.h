@@ -223,10 +223,11 @@ public:
 	/** 
 	 * Checks whether modules for the enabled plug-ins are up to date.
 	 *
-	 * @param OutIncompatibleNames	Array to receive a list of incompatible module names.
+	 * @param OutIncompatibleModules Array to receive a list of incompatible module names.
+	 * @param OutIncompatibleEngineModules Array to receive a list of incompatible engine module names.
 	 * @returns true if the enabled plug-in modules are up to date.
 	 */
-	virtual bool CheckModuleCompatibility( TArray<FString>& OutIncompatibleModules ) = 0;
+	virtual bool CheckModuleCompatibility( TArray<FString>& OutIncompatibleModules, TArray<FString>& OutIncompatibleEngineModules ) = 0;
 #endif
 
 	/**
