@@ -77,9 +77,7 @@ void FSkeletalMeshPoseTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& 
 		{
 			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
 			{
-				static TCHAR Buffer[256];
-				FCString::Snprintf(Buffer, 256, TEXT("%d Bones"), InMessage.NumTransforms);
-				Builder.AddEvent(InStartTime, InEndTime, 0, Buffer);
+				Builder.AddEvent(InStartTime, InEndTime, 0, InMessage.MeshName);
 			});
 		});
 	}
@@ -122,6 +120,8 @@ void FSkeletalMeshPoseTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimi
 
 		Tooltip.AddNameValueTextLine(LOCTEXT("BoneCount", "Bone Count").ToString(), FText::AsNumber(InMessage.NumTransforms).ToString());
 		Tooltip.AddNameValueTextLine(LOCTEXT("CurveCount", "Curve Count").ToString(), FText::AsNumber(InMessage.NumCurves).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("LODIndex", "LOD").ToString(), FText::AsNumber(InMessage.LodIndex).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("EventWorld", "World").ToString(), GetGameplayTrack().GetWorldName(SharedData.GetAnalysisSession()).ToString());
 
 		Tooltip.UpdateLayout();
 	});
@@ -365,7 +365,7 @@ USkeletalMeshComponent* FSkeletalMeshPoseTrack::GetComponent(UWorld* InWorld)
 	return nullptr;
 }
 
-void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime)
+void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime, double InFrameStartTime, double InFrameEndTime)
 {
 	if(SharedData.IsAnalysisSessionValid())
 	{
@@ -382,11 +382,11 @@ void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime)
 				CacheForWorld.Component->SetVisibility(false);
 			}
 
-			AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [this, &CacheForWorld, &AnimationProvider, &GameplayProvider, &InTime](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline, bool bInHasCurves)
+			AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [this, &CacheForWorld, &AnimationProvider, &GameplayProvider, &InFrameStartTime, &InFrameEndTime](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline, bool bInHasCurves)
 			{
-				InTimeline.EnumerateEvents(InTime, InTime, [this, &CacheForWorld, &AnimationProvider, &GameplayProvider, &InTime](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
+				InTimeline.EnumerateEvents(InFrameStartTime, InFrameEndTime, [this, &CacheForWorld, &AnimationProvider, &GameplayProvider, &InFrameStartTime, &InFrameEndTime](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
 				{
-					if((InStartTime <= InTime && InEndTime > InTime))
+					if(InStartTime >= InFrameStartTime && InStartTime <= InFrameEndTime)
 					{
 						const FSkeletalMeshInfo* SkeletalMeshInfo = AnimationProvider->FindSkeletalMeshInfo(InMessage.MeshId);
 						const FObjectInfo* SkeletalMeshObjectInfo = GameplayProvider->FindObjectInfo(InMessage.MeshId);
@@ -395,7 +395,7 @@ void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime)
 							UInsightsSkeletalMeshComponent* Component = CacheForWorld.GetComponent();
 							Component->SetVisibility(bDrawPose);
 
-							if(CacheForWorld.Time != InTime)
+							if(CacheForWorld.Time != InFrameStartTime)
 							{
 								USkeletalMesh* SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(SkeletalMeshObjectInfo->PathName)).LoadSynchronous();
 								if(SkeletalMesh)
@@ -405,7 +405,7 @@ void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime)
 
 								Component->SetPoseFromProvider(*AnimationProvider, InMessage, *SkeletalMeshInfo);
 
-								CacheForWorld.Time = InTime;
+								CacheForWorld.Time = InFrameStartTime;
 							}
 
 							Component->SetDrawDebugSkeleton(bDrawSkeleton);

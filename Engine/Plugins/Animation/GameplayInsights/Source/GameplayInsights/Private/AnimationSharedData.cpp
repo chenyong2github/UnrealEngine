@@ -38,6 +38,7 @@ FAnimationSharedData::FAnimationSharedData(FGameplaySharedData& InGameplayShared
 	, AnalysisSession(nullptr)
 	, MarkerTime(0.0)
 	, bTimeMarkerValid(false)
+	, bMarkerFrameValid(false)
 	, bSkeletalMeshPoseTracksEnabled(true)
 	, bSkeletalMeshCurveTracksEnabled(true)
 	, bTickRecordTracksEnabled(true)
@@ -129,25 +130,17 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 						}
 					});
 
-					AnimationProvider->EnumerateTickRecordTimelines(InObjectInfo.Id, [this, &InObjectInfo, &ObjectEventsTrack, &InTimingViewSession, &GameplayProvider](uint64 InAssetId, int32 InNodeId, const IAnimationProvider::TickRecordTimeline& InTimeline)
+					AnimationProvider->ReadTickRecordTimeline(InObjectInfo.Id, [this, &InObjectInfo, &ObjectEventsTrack, &InTimingViewSession, &GameplayProvider](const IAnimationProvider::TickRecordTimeline& InTimeline)
 					{
-						auto FindTickRecordTrackWithAssetId = [&InAssetId](const FBaseTimingTrack& InTrack)
+						auto FindTickRecordTrackWithAssetId = [](const FBaseTimingTrack& InTrack)
 						{
-							if (InTrack.Is<FAnimationTickRecordsTrack>())
-							{
-								const FAnimationTickRecordsTrack& AnimationTickRecordsTrack = InTrack.As<FAnimationTickRecordsTrack>();
-								return AnimationTickRecordsTrack.GetAssetId() == InAssetId;
-							}
-
-							return false;
+							return InTrack.Is<FAnimationTickRecordsTrack>();
 						};
 
 						TSharedPtr<FAnimationTickRecordsTrack> ExistingAnimationTickRecordsTrack = StaticCastSharedPtr<FAnimationTickRecordsTrack>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindTickRecordTrackWithAssetId));
 						if(!ExistingAnimationTickRecordsTrack.IsValid())
 						{
-							const FObjectInfo* AssetObjectInfo = GameplayProvider->FindObjectInfo(InAssetId);
-							FString AssetName = AssetObjectInfo ? AssetObjectInfo->Name : LOCTEXT("UnknownAsset", "Unknown").ToString();
-							TSharedPtr<FAnimationTickRecordsTrack> AnimationTickRecordsTrack = MakeShared<FAnimationTickRecordsTrack>(*this, InObjectInfo.Id, InAssetId, InNodeId, *AssetName);
+							TSharedPtr<FAnimationTickRecordsTrack> AnimationTickRecordsTrack = MakeShared<FAnimationTickRecordsTrack>(*this, InObjectInfo.Id, InObjectInfo.Name);
 							AnimationTickRecordsTrack->SetVisibilityFlag(bTickRecordTracksEnabled);
 							AnimationTickRecordsTracks.Add(AnimationTickRecordsTrack.ToSharedRef());
 
@@ -474,10 +467,23 @@ void FAnimationSharedData::OnTimeMarkerChanged(Insights::ETimeChangedFlags InFla
 	bTimeMarkerValid = InTimeMarker != std::numeric_limits<double>::infinity();
 	MarkerTime = InTimeMarker;
 
+	if(bTimeMarkerValid)
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*AnalysisSession);
+		bMarkerFrameValid = FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, MarkerTime, MarkerFrame);
+	}
+	else
+	{
+		MarkerFrame = Trace::FFrame();
+		bMarkerFrameValid = false;
+	}
+
 #if WITH_EDITOR
 	for(const TSharedRef<FAnimNodesTrack> AnimNodesTrack : AnimNodesTracks)
 	{
-		AnimNodesTrack->UpdateDebugData(InTimeMarker);
+		AnimNodesTrack->UpdateDebugData(MarkerFrame);
 	}
 
 	InvalidateViewports();
@@ -488,7 +494,7 @@ void FAnimationSharedData::OnTimeMarkerChanged(Insights::ETimeChangedFlags InFla
 	{
 		if(bTimeMarkerValid && PoseTrack->IsPotentiallyDebugged())
 		{
-			PoseTrack->DrawPoses(WorldToUse, MarkerTime);
+			PoseTrack->DrawPoses(WorldToUse, MarkerTime, MarkerFrame.StartTime, MarkerFrame.EndTime);
 		}
 	}
 #endif
@@ -565,9 +571,9 @@ void FAnimationSharedData::DrawPoses(UWorld* InWorld)
 	{
 		if(PoseTrack->IsVisible())
 		{
-			if(bTimeMarkerValid && PoseTrack->ShouldDrawPose())
+			if(bTimeMarkerValid && bMarkerFrameValid && PoseTrack->ShouldDrawPose())
 			{
-				PoseTrack->DrawPoses(InWorld, MarkerTime);
+				PoseTrack->DrawPoses(InWorld, MarkerTime, MarkerFrame.StartTime, MarkerFrame.EndTime);
 			}
 		}
 	}
