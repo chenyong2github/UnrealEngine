@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ViewModels/NiagaraScriptViewModel.h"
+#include "GraphEditAction.h"
 
 class NIAGARAEDITOR_API FNiagaraScratchPadScriptViewModel : public FNiagaraScriptViewModel, public FGCObject
 {
