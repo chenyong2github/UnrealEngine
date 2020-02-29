@@ -472,6 +472,7 @@ namespace Chaos
 
 		FORCEINLINE static TAABB<T, d> EmptyAABB() { return TAABB<T, d>(TVector<T, d>(TNumericLimits<T>::Max()), TVector<T, d>(-TNumericLimits<T>::Max())); }
 		FORCEINLINE static TAABB<T, d> ZeroAABB() { return TAABB<T, d>(TVector<T, d>((T)0), TVector<T, d>((T)0)); }
+		FORCEINLINE static TAABB<T, d> FullAABB() { return TAABB<T, d>(TVector<T, d>(-TNumericLimits<T>::Max()), TVector<T, d>(TNumericLimits<T>::Max())); }
 
 		FORCEINLINE void Serialize(FArchive &Ar) 
 		{
