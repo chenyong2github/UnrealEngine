@@ -48,8 +48,6 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 		TArray<int32> SelectedColumns = Settings->SelectedColumns;
 		FVector2D RGBRange = Settings->RGBRange;
 
-		const bool bAutoCenter = GetDefault<ULidarPointCloudSettings>()->bAutoCenterOnImport;
-
 		// Flags which columns should have data assigned and used
 		TArray<bool> IsColumnPopulated;
 		IsColumnPopulated.AddZeroed(SelectedColumns.Num());
@@ -130,7 +128,7 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 			const int64 MaxBufferSize = GetDefault<ULidarPointCloudSettings>()->MaxImportBufferSize;
 			const float ImportScale = GetDefault<ULidarPointCloudSettings>()->ImportScale;
 
-			bool bFirstPointSet = !bAutoCenter;
+			bool bFirstPointSet = false;
 
 			// Prepare pointers
 			uint8 *Data = (uint8*)FMemory::Malloc(MaxBufferSize);
@@ -236,12 +234,6 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 			FMemory::Free(Data);
 		}
 
-		// Apply re-centering, if selected
-		if (bAutoCenter)
-		{
-			OutImportResults.CenterPoints();
-		}
-
 		Reader->Close();
 
 		return !OutImportResults.IsCancelled();
@@ -270,7 +262,7 @@ bool ULidarPointCloudFileIO_ASCII::HandleExport(const FString& Filename, class U
 
 		for (FLidarPointCloudPoint* Point : Points)
 		{
-			FDoubleVector Location = (PointCloud->OriginalCoordinates + Point->Location) * ExportScale;
+			FDoubleVector Location = (PointCloud->LocationOffset + Point->Location) * ExportScale;
 			Lines.Emplace(FString::Printf(TEXT("%f,%f,%f,%d,%d,%d,%d"), Location.X, -Location.Y, Location.Z, Point->Color.A, Point->Color.R, Point->Color.G, Point->Color.B));
 		}
 

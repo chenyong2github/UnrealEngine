@@ -27,7 +27,7 @@ enum class ELidarPointCloudSelectionMode : uint8
 class FLidarPointCloudEditorViewportClient : public FEditorViewportClient, public TSharedFromThis<FLidarPointCloudEditorViewportClient>
 {
 public:
-	FLidarPointCloudEditorViewportClient(TWeakPtr<FLidarPointCloudEditor> InPointCloudEditor, const TSharedRef<SLidarPointCloudEditorViewport>& InPointCloudEditorViewport, const TSharedRef<FAdvancedPreviewScene>& InPreviewScene, ULidarPointCloud* InPreviewPointCLoud, ULidarPointCloudComponent* InPreviewPointCloudComponent);
+	FLidarPointCloudEditorViewportClient(TWeakPtr<FLidarPointCloudEditor> InPointCloudEditor, const TSharedRef<SLidarPointCloudEditorViewport>& InPointCloudEditorViewport, FAdvancedPreviewScene* InPreviewScene, ULidarPointCloud* InPreviewPointCloud, ULidarPointCloudComponent* InPreviewPointCloudComponent);
 	~FLidarPointCloudEditorViewportClient();
 
 	// FEditorViewportClient interface
@@ -49,14 +49,6 @@ public:
 	virtual FMatrix GetWidgetCoordSystem() const override { return FMatrix::Identity; }
 	virtual ECoordSystem GetWidgetCoordSystemSpace() const override { return COORD_Local; }
 	virtual bool ShouldOrbitCamera() const override;
-
-	/**
-	 *	Updates the point cloud and point cloud component being used in the Point Cloud Editor.
-	 *
-	 *	@param	InPointCloud				The point cloud handled by the editor.
-	 *	@param	InPointCloudComponent		The point cloud component from the viewport's scene.
-	 */
-	void SetPreviewCloud(ULidarPointCloud* InPointCloud, ULidarPointCloudComponent* InPointCloudComponent, bool bResetCamera = true);
 
 	void ResetCamera();
 
@@ -81,10 +73,7 @@ private:
 
 private:
 	/** Component for the point cloud. */
-	ULidarPointCloudComponent* PointCloudComponent;
-
-	/** The point cloud being used in the editor. */
-	ULidarPointCloud* PointCloud;
+	TWeakObjectPtr<ULidarPointCloudComponent> PointCloudComponent;
 
 	/** Pointer back to the PointCloud editor tool that owns us */
 	TWeakPtr<FLidarPointCloudEditor> PointCloudEditorPtr;

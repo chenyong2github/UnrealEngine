@@ -50,25 +50,10 @@ private:
 
 public:
 	/**
-	 * Determines the maximum number of points to be visible on the screen.
-	 * Higher values will produce better image quality, but will require faster hardware.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Performance", meta = (ClampMin = "0"))
-	int32 PointBudget;
-
-	/**
-	 * Determines the preference towards selecting nodes closer to screen center.
-	 * Larger values assign more priority towards screen center.
-	 * 0 to disable.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Performance", meta = (ClampMin = "0.0"))
-	float ScreenCenterImportance;
-
-	/**
 	 * Determines the minimum screen size for the node to be rendered.
 	 * Lower values will produce farther view distance, at the cost of higher CPU usage.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Performance", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Performance", meta = (ClampMin = "0"))
 	float MinScreenSize;
 
 	/**
@@ -159,8 +144,8 @@ private:
 	UPROPERTY(Transient)
 	UMaterialInterface* MasterMaterialMasked;
 
-	/** For asset editor use only */
-	bool bOwnedByEditor;
+	/** Pointer to the viewport client of the owning editor, or null, if this is a game object. */
+	TWeakPtr<FViewportClient> OwningViewportClient;
 
 public:
 	ULidarPointCloudComponent();
@@ -168,7 +153,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Components|LidarPointCloud")
 	ULidarPointCloud* GetPointCloud() const { return PointCloud; }
 
-	FORCEINLINE bool IsOwnedByEditor() const { return bOwnedByEditor; }
+	FORCEINLINE TWeakPtr<FViewportClient> GetOwningViewportClient() const { return OwningViewportClient; }
+	FORCEINLINE bool IsOwnedByEditor() const { return OwningViewportClient.IsValid(); }
 
 	/** Populates the array with the list of points within the given sphere. */
 	void GetPointsInSphere(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FVector& Center, const float& Radius, const bool& bVisibleOnly) { GetPointsInSphere(SelectedPoints, FSphere(Center, Radius), bVisibleOnly); }
@@ -190,35 +176,43 @@ public:
 		}
 	}
 
-	/** Populates the array with copies of points within the given sphere. */
+	/**
+	 * Populates the array with copies of points within the given sphere.
+	 * If ReturnWorldSpace is selected, the points' locations will be converted into absolute value, otherwise they will be relative to the center of the cloud.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	TArray<FLidarPointCloudPoint> GetPointsInSphereAsCopies(const FVector& Center, const float& Radius, const bool& bVisibleOnly)
+	TArray<FLidarPointCloudPoint> GetPointsInSphereAsCopies(FVector Center, float Radius, bool bVisibleOnly, bool bReturnWorldSpace)
 	{
 		TArray<FLidarPointCloudPoint> Points;
-		GetPointsInSphereAsCopies(Points, FSphere(Center, Radius), bVisibleOnly);
+		GetPointsInSphereAsCopies(Points, FSphere(Center, Radius), bVisibleOnly, bReturnWorldSpace);
 		return Points;
 	}
-	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly)
+	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, const bool& bReturnWorldSpace)
 	{
 		if (PointCloud)
 		{
-			PointCloud->GetPointsInSphereAsCopies(SelectedPoints, Sphere.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly);
+			FTransform LocalToWorld = GetLocalToWorld();
+			PointCloud->Octree.GetPointsInSphereAsCopies(SelectedPoints, Sphere.TransformBy(LocalToWorld.Inverse()), bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
 		}
 	}
 
-	/** Populates the array with copies of points within the given box. */
+	/**
+	 * Populates the array with copies of points within the given box.
+	 * If ReturnWorldSpace is selected, the points' locations will be converted into absolute value, otherwise they will be relative to the center of the cloud.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	TArray<FLidarPointCloudPoint> GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly)
+	TArray<FLidarPointCloudPoint> GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly, bool bReturnWorldSpace)
 	{
 		TArray<FLidarPointCloudPoint> Points;
-		GetPointsInBoxAsCopies(Points, FBox(Center - Extent, Center + Extent), bVisibleOnly);
+		GetPointsInBoxAsCopies(Points, FBox(Center - Extent, Center + Extent), bVisibleOnly, bReturnWorldSpace);
 		return Points;
 	}
-	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly)
+	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, const bool& bReturnWorldSpace)
 	{
 		if (PointCloud)
 		{
-			PointCloud->GetPointsInBoxAsCopies(SelectedPoints, Box.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly);
+			FTransform LocalToWorld = GetLocalToWorld();
+			PointCloud->Octree.GetPointsInBoxAsCopies(SelectedPoints, Box.TransformBy(LocalToWorld.Inverse()), bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
 		}
 	}
 
@@ -243,16 +237,23 @@ public:
 	/**
 	 * Performs a raycast test against the point cloud.
 	 * Populates OutHits array with the results.
+	 * If ReturnWorldSpace is selected, the points' locations will be converted into absolute value, otherwise they will be relative to the center of the cloud.
 	 * Returns true it anything has been hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (Keywords = "raycast"))
-	bool LineTraceMulti(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint>& OutHits)
+	bool LineTraceMulti(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, bool bReturnWorldSpace, TArray<FLidarPointCloudPoint>& OutHits)
 	{
-		return PointCloud ? PointCloud->LineTraceMulti(FLidarPointCloudRay(Origin, Direction).TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly, OutHits) : false;
+		return LineTraceMulti(FLidarPointCloudRay(Origin, Direction).TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly, bReturnWorldSpace, OutHits);
 	}
-	bool LineTraceMulti(FLidarPointCloudRay Ray, float Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint>& OutHits)
+	bool LineTraceMulti(FLidarPointCloudRay Ray, float Radius, bool bVisibleOnly, bool bReturnWorldSpace, TArray<FLidarPointCloudPoint>& OutHits)
 	{
-		return PointCloud ? PointCloud->LineTraceMulti(Ray.TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly, OutHits) : false;
+		if (PointCloud)
+		{
+			FTransform LocalToWorld = GetLocalToWorld();
+			return PointCloud->Octree.RaycastMulti(Ray.TransformBy(LocalToWorld.Inverse()), Radius, bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr, OutHits);
+		}
+
+		return false;
 	}
 	bool LineTraceMulti(FLidarPointCloudRay Ray, float Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint*>& OutHits)
 	{
@@ -270,20 +271,6 @@ public:
 		}
 	}
 
-	/**
-	 * Sets visibility of points within the given sphere.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void SetVisibilityOfPointsInSphereAsync(bool bNewVisibility, FVector Center, float Radius) { SetVisibilityOfPointsInSphereAsync(bNewVisibility, FSphere(Center, Radius)); }
-	void SetVisibilityOfPointsInSphereAsync(const bool& bNewVisibility, const FSphere& Sphere)
-	{
-		if (PointCloud)
-		{
-			PointCloud->SetVisibilityOfPointsInSphereAsync(bNewVisibility, Sphere.TransformBy(GetComponentTransform().Inverse()));
-		}
-	}
-
 	/** Sets visibility of points within the given box. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void SetVisibilityOfPointsInBox(bool bNewVisibility, FVector Center, FVector Extent) { SetVisibilityOfPointsInBox(bNewVisibility, FBox(Center - Extent, Center + Extent)); }
@@ -292,20 +279,6 @@ public:
 		if (PointCloud)
 		{
 			PointCloud->SetVisibilityOfPointsInBox(bNewVisibility, Box.TransformBy(GetComponentTransform().Inverse()));
-		}
-	}
-
-	/**
-	 * Sets visibility of points within the given box.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void SetVisibilityOfPointsInBoxAsync(bool bNewVisibility, FVector Center, FVector Extent) { SetVisibilityOfPointsInBoxAsync(bNewVisibility, FBox(Center - Extent, Center + Extent)); }
-	void SetVisibilityOfPointsInBoxAsync(const bool& bNewVisibility, const FBox& Box)
-	{
-		if (PointCloud)
-		{
-			PointCloud->SetVisibilityOfPointsInBoxAsync(bNewVisibility, Box.TransformBy(GetComponentTransform().Inverse()));
 		}
 	}
 
@@ -320,20 +293,6 @@ public:
 		}
 	}
 
-	/**
-	 * Sets visibility of points hit by the given ray.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void SetVisibilityOfPointsByRayAsync(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRayAsync(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
-	void SetVisibilityOfPointsByRayAsync(bool bNewVisibility, FLidarPointCloudRay Ray, float Radius, TFunction<void(void)> CompletionCallback = nullptr)
-	{
-		if (PointCloud)
-		{
-			PointCloud->SetVisibilityOfPointsByRayAsync(bNewVisibility, Ray.TransformBy(GetComponentTransform().Inverse()), Radius, MoveTemp(CompletionCallback));
-		}
-	}
-
 	/** Executes the provided action on each of the points within the given sphere. */
 	void ExecuteActionOnPointsInSphere(TFunction<void(FLidarPointCloudPoint*)> Action, const FVector& Center, const float& Radius, const bool& bVisibleOnly) { ExecuteActionOnPointsInSphere(MoveTemp(Action), FSphere(Center, Radius), bVisibleOnly); }
 	void ExecuteActionOnPointsInSphere(TFunction<void(FLidarPointCloudPoint*)> Action, const FSphere& Sphere, const bool& bVisibleOnly)
@@ -341,19 +300,6 @@ public:
 		if (PointCloud)
 		{
 			PointCloud->ExecuteActionOnPointsInSphere(MoveTemp(Action), Sphere.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly);
-		}
-	}
-
-	/**
-	 * Executes the provided action on each of the points within the given sphere.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	void ExecuteActionOnPointsInSphereAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FVector& Center, const float& Radius, const bool& bVisibleOnly) { ExecuteActionOnPointsInSphereAsync(MoveTemp(Action), FSphere(Center, Radius), bVisibleOnly); }
-	void ExecuteActionOnPointsInSphereAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FSphere& Sphere, const bool& bVisibleOnly)
-	{
-		if (PointCloud)
-		{
-			PointCloud->ExecuteActionOnPointsInSphereAsync(MoveTemp(Action), Sphere.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly);
 		}
 	}
 
@@ -367,37 +313,12 @@ public:
 		}
 	}
 
-	/**
-	 * Executes the provided action on each of the points within the given box.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	void ExecuteActionOnPointsInBoxAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FVector& Center, const FVector& Extent, const bool& bVisibleOnly) { ExecuteActionOnPointsInBoxAsync(MoveTemp(Action), FBox(Center - Extent, Center + Extent), bVisibleOnly); }
-	void ExecuteActionOnPointsInBoxAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FBox& Box, const bool& bVisibleOnly)
-	{
-		if (PointCloud)
-		{
-			PointCloud->ExecuteActionOnPointsInBoxAsync(MoveTemp(Action), Box.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly);
-		}
-	}
-
 	/** Executes the provided action on each of the points hit by the given ray. */
 	void ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, FLidarPointCloudRay Ray, float Radius, bool bVisibleOnly)
 	{
 		if (PointCloud)
 		{
 			PointCloud->ExecuteActionOnPointsByRay(MoveTemp(Action), Ray.TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly);
-		}
-	}
-
-	/**
-	 * Executes the provided action on each of the points hit by the given ray.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	void ExecuteActionOnPointsByRayAsync(TFunction<void(FLidarPointCloudPoint*)> Action, FLidarPointCloudRay Ray, float Radius, bool bVisibleOnly, TFunction<void(void)> CompletionCallback = nullptr)
-	{
-		if (PointCloud)
-		{
-			PointCloud->ExecuteActionOnPointsByRayAsync(MoveTemp(Action), Ray.TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly, MoveTemp(CompletionCallback));
 		}
 	}
 
@@ -434,47 +355,49 @@ public:
 		}
 	}
 	
-	/**
-	 * Removes all points within the given sphere
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
+	/** Removes all points within the given sphere  */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemovePointsInSphere(FVector Center, float Radius, bool bVisibleOnly, bool bRefreshPointsBounds) { RemovePointsInSphere(FSphere(Center, Radius), bVisibleOnly, bRefreshPointsBounds); }
-	void RemovePointsInSphere(const FSphere& Sphere, const bool& bVisibleOnly, bool bRefreshPointsBounds)
+	void RemovePointsInSphere(FVector Center, float Radius, bool bVisibleOnly) { RemovePointsInSphere(FSphere(Center, Radius), bVisibleOnly); }
+	void RemovePointsInSphere(const FSphere& Sphere, const bool& bVisibleOnly)
 	{
 		if (PointCloud)
 		{
-			PointCloud->RemovePointsInSphere(Sphere.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly, bRefreshPointsBounds);
+			PointCloud->RemovePointsInSphere(Sphere.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly);
 		}
 	}
 
-	/**
-	 * Removes all points within the given box
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
+	/** Removes all points within the given box  */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemovePointsInBox(FVector Center, FVector Extent, bool bVisibleOnly, bool bRefreshPointsBounds) { RemovePointsInBox(FBox(Center - Extent, Center + Extent), bVisibleOnly, bRefreshPointsBounds); }
-	void RemovePointsInBox(const FBox& Box, const bool& bVisibleOnly, bool bRefreshPointsBounds)
+	void RemovePointsInBox(FVector Center, FVector Extent, bool bVisibleOnly) { RemovePointsInBox(FBox(Center - Extent, Center + Extent), bVisibleOnly); }
+	void RemovePointsInBox(const FBox& Box, const bool& bVisibleOnly)
 	{
 		if (PointCloud)
 		{
-			PointCloud->RemovePointsInBox(Box.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly, bRefreshPointsBounds);
+			PointCloud->RemovePointsInBox(Box.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly);
 		}
 	}
 
-	/**
-	 * Removes all points hit by the given ray
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
+	/** Removes all points hit by the given ray  */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemovePointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, bool bRefreshPointsBounds) { RemovePointsByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly, bRefreshPointsBounds); }
-	void RemovePointsByRay(FLidarPointCloudRay Ray, float Radius, const bool& bVisibleOnly, bool bRefreshPointsBounds)
+	void RemovePointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { RemovePointsByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
+	void RemovePointsByRay(FLidarPointCloudRay Ray, float Radius, const bool& bVisibleOnly)
 	{
 		if (PointCloud)
 		{
-			PointCloud->RemovePointsByRay(Ray.TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly, bRefreshPointsBounds);
+			PointCloud->RemovePointsByRay(Ray.TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly);
 		}
 	}
+
+	//~ Begin Deprecated
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
+	void SetVisibilityOfPointsInSphereAsync(bool bNewVisibility, FVector Center, float Radius) { SetVisibilityOfPointsInSphere(bNewVisibility, FSphere(Center, Radius)); }
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
+	void SetVisibilityOfPointsInBoxAsync(bool bNewVisibility, FVector Center, FVector Extent) { SetVisibilityOfPointsInBox(bNewVisibility, FBox(Center - Extent, Center + Extent)); }
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
+	void SetVisibilityOfPointsByRayAsync(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRay(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
+	//~ End Deprecated
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Components|LidarPointCloud")
@@ -519,6 +442,16 @@ private:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	// End USceneComponent Interface
 
+	FTransform GetLocalToWorld()
+	{
+		FTransform LocalToWorld = GetComponentTransform();
+		if (PointCloud)
+		{
+			LocalToWorld.AddToTranslation(PointCloud->LocationOffset.ToVector());
+		}
+		return LocalToWorld;
+	}
+
 	void UpdateMaterial();
 
 	void AttachPointCloudListener();
@@ -530,6 +463,6 @@ private:
 
 	friend class FPointCloudSceneProxy;
 #if WITH_EDITOR
-	friend class FLidarPointCloudEditorViewportClient;
+	friend class SLidarPointCloudEditorViewport;
 #endif
 };
