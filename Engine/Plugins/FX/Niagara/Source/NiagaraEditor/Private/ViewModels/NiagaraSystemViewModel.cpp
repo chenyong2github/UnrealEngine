@@ -1309,6 +1309,7 @@ void FNiagaraSystemViewModel::UpdateCompiledDataInterfaces(UNiagaraDataInterface
 			case ENiagaraScriptUsage::ParticleSpawnScript:
 			case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
 			case ENiagaraScriptUsage::ParticleUpdateScript:
+			case ENiagaraScriptUsage::ParticleSimulationStageScript:
 			case ENiagaraScriptUsage::ParticleEventScript:
 				UpdateCompiledDataInterfacesForScript(*OwningScript, OuterInputNode->Input.GetName(), *ChangedDataInterface);
 				break;

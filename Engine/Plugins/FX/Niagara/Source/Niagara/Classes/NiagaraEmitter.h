@@ -17,7 +17,7 @@ class UMaterial;
 class UNiagaraEmitter;
 class UNiagaraEventReceiverEmitterAction;
 class UNiagaraRendererProperties;
-class UNiagaraShaderStageBase;
+class UNiagaraSimulationStageBase;
 class UNiagaraEditorDataBase;
 
 //TODO: Event action that spawns other whole Systems?
@@ -337,17 +337,25 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "bLimitDeltaTime"))
 	float MaxDeltaTimePerTick;
 
-	/** Get the max number of iteration that the CS is going to be launched. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	/** Get the default shader stage index. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bSimulationStagesEnabled || bDeprecatedShaderStagesEnabled", DisplayAfter = "bSimulationStagesEnabled"))
 	uint32 DefaultShaderStageIndex;
 
-	/** Get the max number of iteration that the CS is going to be launched. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	/** Get the number of shader stages that we fire off. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bSimulationStagesEnabled || bDeprecatedShaderStagesEnabled", DisplayAfter = "DefaultShaderStageIndex"))
 	uint32 MaxUpdateIterations;
 
-	/** Get the max number of iteration that the CS is going to be launched. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	/** Get whether or not shaderstages spwn. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bSimulationStagesEnabled || bDeprecatedShaderStagesEnabled", DisplayAfter = "MaxUpdateIterations"))
 	TSet<uint32> SpawnStages;
+
+	/** Get whether or not to use simulation stages. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (DisplayName = "Enable Simulation Stages (Experimental GPU Only)"))
+	uint32 bSimulationStagesEnabled : 1;
+
+	/** Get whether or not to use shader stages. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (DisplayName = "Enable Deprecated Shader Stages (Experimental GPU Only)"))
+	uint32 bDeprecatedShaderStagesEnabled : 1;
 
 	/** Whether to limit the max tick delta time or not. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (InlineEditConditionToggle))
@@ -466,15 +474,15 @@ public:
 
 	void NIAGARA_API RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId);
 
-	NIAGARA_API const TArray<UNiagaraShaderStageBase*>& GetShaderStages() const { return ShaderStages; }
+	NIAGARA_API const TArray<UNiagaraSimulationStageBase*>& GetSimulationStages() const { return SimulationStages; }
 
-	NIAGARA_API UNiagaraShaderStageBase* GetShaderStageById(FGuid ScriptUsageId) const;
+	NIAGARA_API UNiagaraSimulationStageBase* GetSimulationStageById(FGuid ScriptUsageId) const;
 
-	void NIAGARA_API AddShaderStage(UNiagaraShaderStageBase* ShaderStage);
+	void NIAGARA_API AddSimulationStage(UNiagaraSimulationStageBase* SimulationStage);
 
-	void NIAGARA_API RemoveShaderStage(UNiagaraShaderStageBase* ShaderStage);
+	void NIAGARA_API RemoveSimulationStage(UNiagaraSimulationStageBase* SimulationStage);
 
-	void NIAGARA_API MoveShaderStageToIndex(UNiagaraShaderStageBase* ShaderStage, int32 TargetIndex);
+	void NIAGARA_API MoveSimulationStageToIndex(UNiagaraSimulationStageBase* SimulationStage, int32 TargetIndex);
 
 	/* Gets whether or not the supplied event generator id matches an event generator which is shared between the particle spawn and update scrips. */
 	bool IsEventGeneratorShared(FName EventGeneratorId) const;
@@ -537,7 +545,7 @@ private:
 
 	void ScriptRapidIterationParameterChanged();
 
-	void ShaderStageChanged();
+	void SimulationStageChanged();
 
 	void RendererChanged();
 
@@ -573,7 +581,7 @@ private:
 	TArray<FNiagaraEventScriptProperties> EventHandlerScriptProps;
 
 	UPROPERTY(meta = (NiagaraNoMerge))
-	TArray<UNiagaraShaderStageBase*> ShaderStages;
+	TArray<UNiagaraSimulationStageBase*> SimulationStages;
 
 	UPROPERTY()
 	UNiagaraScript* GPUComputeScript;

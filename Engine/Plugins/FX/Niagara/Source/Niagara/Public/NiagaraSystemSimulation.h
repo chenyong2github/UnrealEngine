@@ -303,6 +303,9 @@ protected:
 	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterUpdateParameters;
 	/** Binding to push system attributes into each emitter event parameters. */
 	TArray<TArray<FNiagaraParameterStoreToDataSetBinding>> DataSetToEmitterEventParameters;
+	/** Binding to push system attributes into each emitter gpu parameters. */
+	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterGPUParameters;
+
 
 	/** Direct bindings for Engine variables in System Spawn and Update scripts. */
 	FNiagaraParameterDirectBinding<int32> SpawnNumSystemInstancesParam;

@@ -111,6 +111,37 @@ struct FNiagaraScriptDebuggerInfo
 	TAtomic<bool> bWritten;
 };
 
+USTRUCT()
+struct NIAGARA_API FSimulationStageMetaData
+{
+	GENERATED_USTRUCT_BODY()
+public:
+
+	/** The Data Interface that we iterate over for this stage. If None, then use particles.*/
+	UPROPERTY()
+	FName IterationSource;
+
+	/** Is this stage a spawn-only stage? */
+	UPROPERTY()
+	uint32 bSpawnOnly : 1;
+
+	/** Do we write to particles this stage?*/
+	UPROPERTY()
+	uint32 bWritesParticles : 1;
+
+	/** DataInterfaces that we write to in this stage.*/
+	UPROPERTY()
+	TArray<FName> OutputDestinations;
+
+	/** Index of the simulation stage where we begin iterating. This is meant to encompass iteration count without having an entry for each iteration.*/
+	UPROPERTY()
+	int32 MinStage;
+
+	/** Index of the simulation stage where we end iterating. This is meant to encompass iteration count without having an entry for each iteration.*/
+	UPROPERTY()
+	int32 MaxStage;
+};
+
 
 /** Struct containing all of the data necessary to look up a NiagaraScript's VM executable results from the Derived Data Cache.*/
 USTRUCT()
@@ -313,6 +344,9 @@ public:
 	/** Last known compile status. Lets us determine the latest state of the script byte buffer.*/
 	UPROPERTY()
 	ENiagaraScriptCompileStatus LastCompileStatus;
+
+	UPROPERTY()
+	TArray<FSimulationStageMetaData> SimulationStageMetaData;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
