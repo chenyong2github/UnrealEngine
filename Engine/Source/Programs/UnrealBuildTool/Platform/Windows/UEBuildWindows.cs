@@ -200,6 +200,12 @@ namespace UnrealBuildTool
 		public string ModuleDefinitionFile;
 
 		/// <summary>
+		/// Specifies the path to a manifest file for the linker to embed. Defaults to the manifest in Engine/Build/Windows/Resources. Can be assigned to null
+		/// if the target wants to specify its own manifest.
+		/// </summary>
+		public string ManifestFile;
+
+		/// <summary>
 		/// Enables strict standard conformance mode (/permissive-) in VS2017+.
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
@@ -363,6 +369,8 @@ namespace UnrealBuildTool
 		internal WindowsTargetRules(TargetRules Target)
 		{
 			this.Target = Target;
+
+			ManifestFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "Resources", String.Format("Default-{0}.manifest", Target.Platform)).FullName;
 		}
 	}
 
@@ -460,6 +468,11 @@ namespace UnrealBuildTool
 		public string ModuleDefinitionFile
 		{
 			get { return Inner.ModuleDefinitionFile; }
+		}
+
+		public string ManifestFile
+		{
+			get { return Inner.ManifestFile; }
 		}
 
 		public bool bNeedsLegacyStdioDefinitionsLib
