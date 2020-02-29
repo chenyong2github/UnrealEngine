@@ -1259,7 +1259,7 @@ namespace Chaos
 				return true;
 			}
 
-			return LocalContactPhi<0.f;
+			return false;
 		};
 
 		bool bResult = false;
