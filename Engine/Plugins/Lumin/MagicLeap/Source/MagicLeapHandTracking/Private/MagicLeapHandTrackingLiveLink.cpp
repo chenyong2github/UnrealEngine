@@ -202,7 +202,7 @@ void FMagicLeapHandTracking::UpdateLiveLink()
 		FLiveLinkFrameDataStruct NewLiveLinkRightFrame;
 		NewLiveLinkLeftFrame.InitializeWith(LiveLinkLeftFrame);
 		NewLiveLinkRightFrame.InitializeWith(LiveLinkRightFrame);
-		LiveLinkClient->PushSubjectFrameData_AnyThread(LeftKey, MoveTemp(LiveLinkLeftFrame));
+		LiveLinkClient->PushSubjectFrameData_AnyThread(LeftKey, MoveTemp(NewLiveLinkLeftFrame));
 		LiveLinkClient->PushSubjectFrameData_AnyThread(RightKey, MoveTemp(NewLiveLinkRightFrame));
 	}
 }
