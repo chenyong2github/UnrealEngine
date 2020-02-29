@@ -36,6 +36,7 @@
 #include "USDIncludesStart.h"
 
 #include "pxr/pxr.h"
+#include "pxr/usd/kind/registry.h"
 #include "pxr/usd/sdf/copyUtils.h"
 #include "pxr/usd/sdf/schema.h"
 #include "pxr/usd/usd/editTarget.h"
@@ -565,7 +566,7 @@ void SUsdStage::OnNew()
 
 			// Create default prim
 			pxr::UsdGeomXform RootPrim = pxr::UsdGeomXform::Define( UsdStage, UnrealToUsd::ConvertPath( TEXT("/Root") ).Get() );
-			pxr::UsdModelAPI( RootPrim ).SetKind( pxr::TfToken("component") );
+			pxr::UsdModelAPI( RootPrim ).SetKind( pxr::KindTokens->assembly );
 
 			// Set default prim
 			UsdStage->SetDefaultPrim( RootPrim.GetPrim() );
