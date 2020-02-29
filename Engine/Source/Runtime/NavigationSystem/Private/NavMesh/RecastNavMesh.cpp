@@ -1065,7 +1065,7 @@ bool ARecastNavMesh::GetRandomPointInNavigableRadius(const FVector& Origin, floa
 	{
 		const float RadiusSq = FMath::Square(Radius);
 		TArray<FNavPoly> Polys;
-		const FVector FallbackExtent(Radius, Radius, BIG_NUMBER);
+		const FVector FallbackExtent(Radius, Radius, HALF_WORLD_MAX); //Using HALF_WORLD_MAX instead of BIG_NUMBER, else the box size will be NaN.
 		const FVector BoxOrigin(Origin.X, Origin.Y, 0.f);
 		const FBox Box(BoxOrigin - FallbackExtent, BoxOrigin + FallbackExtent);
 		GetPolysInBox(Box, Polys, Filter, Querier);
