@@ -549,13 +549,13 @@ void FFontEditor::UpdateLayout()
 	switch(Font->FontCacheType)
 	{
 	case EFontCacheType::Offline:
-		TabManager->InvokeTab(TexturePagesViewportTabId);
-		TabManager->InvokeTab(PagePropertiesTabId);
+		TabManager->TryInvokeTab(TexturePagesViewportTabId);
+		TabManager->TryInvokeTab(PagePropertiesTabId);
 		CloseTab(CompositeFontEditorTabId);
 		break;
 
 	case EFontCacheType::Runtime:
-		TabManager->InvokeTab(CompositeFontEditorTabId);
+		TabManager->TryInvokeTab(CompositeFontEditorTabId);
 		CloseTab(TexturePagesViewportTabId);
 		CloseTab(PagePropertiesTabId);
 		break;

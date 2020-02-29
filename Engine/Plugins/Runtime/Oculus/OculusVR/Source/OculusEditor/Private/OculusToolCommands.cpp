@@ -12,7 +12,7 @@ void FOculusToolCommands::RegisterCommands()
 
 void FOculusToolCommands::ShowOculusTool()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FOculusEditorModule::OculusPerfTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(FOculusEditorModule::OculusPerfTabName);
 }
 
 #undef LOCTEXT_NAMESPACE

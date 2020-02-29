@@ -2222,7 +2222,7 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 
 		if (bForceDisplay)
 		{
-			TabManager->InvokeTab(MaterialStatsManager->GetGridOldStatsTabName());
+			TabManager->TryInvokeTab(MaterialStatsManager->GetGridOldStatsTabName());
 		}
 	}
 }
@@ -3295,7 +3295,7 @@ void FMaterialEditor::OnCreateComponentMaskNode()
 
 void FMaterialEditor::OnFindInMaterial()
 {
-	TabManager->InvokeTab(FindTabId);
+	TabManager->TryInvokeTab(FindTabId);
 	FindResults->FocusForUse();
 }
 

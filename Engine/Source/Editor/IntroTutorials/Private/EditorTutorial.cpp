@@ -87,7 +87,7 @@ void UEditorTutorial::HandleTutorialLaunched()
 {
 	FEditorScriptExecutionGuard ScriptGuard;
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(FTabId("TutorialsBrowser"))->RequestCloseTab();
+	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("TutorialsBrowser"))->RequestCloseTab();
 	OnTutorialLaunched();
 }
 

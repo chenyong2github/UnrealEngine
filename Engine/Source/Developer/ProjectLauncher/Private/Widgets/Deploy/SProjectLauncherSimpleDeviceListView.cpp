@@ -127,7 +127,7 @@ bool SProjectLauncherSimpleDeviceListView::HandleDeviceListRowIsEnabled(TSharedP
 
 void SProjectLauncherSimpleDeviceListView::HandleDeviceManagerHyperlinkNavigate() const
 {
-	FGlobalTabmanager::Get()->InvokeTab(FTabId("DeviceManager"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("DeviceManager"));
 }
 
 

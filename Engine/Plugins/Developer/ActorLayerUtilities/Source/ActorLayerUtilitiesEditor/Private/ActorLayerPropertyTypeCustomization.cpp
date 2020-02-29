@@ -202,7 +202,7 @@ void FActorLayerPropertyTypeCustomization::AssignLayer(FName InNewLayer)
 void FActorLayerPropertyTypeCustomization::OpenLayerBrowser()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(FTabId("LevelEditorLayerBrowser"));
+	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("LevelEditorLayerBrowser"));
 }
 
 FReply FActorLayerPropertyTypeCustomization::OnDrop(TSharedPtr<FDragDropOperation> InDragDrop)

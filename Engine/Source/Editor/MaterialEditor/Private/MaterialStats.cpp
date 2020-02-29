@@ -379,7 +379,7 @@ void FMaterialStats::DisplayOldStats(const bool bShow)
 {
 	if (bShow)
 	{
-		MaterialEditor->GetTabManager()->InvokeTab(OldStatsTabId);
+		MaterialEditor->GetTabManager()->TryInvokeTab(OldStatsTabId);
 	}
 	else if (!bShowOldStats && OldStatsTab.IsValid())
 	{
@@ -391,7 +391,7 @@ void FMaterialStats::DisplayStatsGrid(const bool bShow)
 {
 	if (bShow)
 	{
-		MaterialEditor->GetTabManager()->InvokeTab(StatsTabId);
+		MaterialEditor->GetTabManager()->TryInvokeTab(StatsTabId);
 	}
 	else if (!bShowStats && StatsTab.IsValid())
 	{

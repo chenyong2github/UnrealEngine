@@ -677,7 +677,7 @@ void FDataprepEditor::OnCompile()
 			// DATAPREP_TODO: Create tab for compiling error
 			//if (!bEditorMarkedAsClosed && bForceMessageDisplay && GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode)
 			//{
-			//	TabManager->InvokeTab(FBlueprintEditorTabs::CompilerResultsID);
+			//	TabManager->TryInvokeTab(FBlueprintEditorTabs::CompilerResultsID);
 			//}
 		}
 

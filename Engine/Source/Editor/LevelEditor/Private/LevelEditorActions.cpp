@@ -2067,7 +2067,7 @@ bool FLevelEditorActionCallbacks::SaveAnimationFromSkeletalMeshComponent(AActor 
 
 void FLevelEditorActionCallbacks::OpenMergeActor_Clicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FName("MergeActors"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FName("MergeActors"));
 }
 
 void FLevelEditorActionCallbacks::OnKeepSimulationChanges()
@@ -2221,7 +2221,7 @@ void FLevelEditorActionCallbacks::OnFindActorInLevelScript()
 void FLevelEditorActionCallbacks::OnShowWorldProperties( TWeakPtr< SLevelEditor > LevelEditor )
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
-	LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(FName("WorldSettingsTab"));
+	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FName("WorldSettingsTab"));
 }
 
 void FLevelEditorActionCallbacks::OpenContentBrowser()

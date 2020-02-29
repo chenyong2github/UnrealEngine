@@ -309,7 +309,7 @@ void FPropertyEditor::EditConfigHierarchy()
 
 	IConfigEditorModule& ConfigEditorModule = FModuleManager::LoadModuleChecked<IConfigEditorModule>("ConfigEditor");
 	ConfigEditorModule.CreateHierarchyEditor(NodeProperty);
-	FGlobalTabmanager::Get()->InvokeTab(FName(TEXT("ConfigEditor")));
+	FGlobalTabmanager::Get()->TryInvokeTab(FName(TEXT("ConfigEditor")));
 }
 
 void FPropertyEditor::InsertItem()

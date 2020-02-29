@@ -91,7 +91,7 @@ void FUVGenerationToolbar::CreateUVMenu(FMenuBuilder& ParentMenuBuilder, const T
 		{
 			return;
 		}
-		EditorInstance->GetAssociatedTabManager()->InvokeTab(UVGenerationToolTabId);
+		EditorInstance->GetAssociatedTabManager()->TryInvokeTab(UVGenerationToolTabId);
 	});
 	ParentMenuBuilder.AddMenuEntry(
 		LOCTEXT("GenerateUVs", "Generate UVs"),
