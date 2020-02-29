@@ -370,7 +370,7 @@ namespace FControlRigBindingHelper
 			bool bWasCreated = false;
 			if (UControlRigLayerInstance* AnimInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UControlRigLayerInstance>(SkeletalMeshComponent, bWasCreated))
 			{
-				if (bWasCreated)
+				if (bWasCreated || !AnimInstance->HasControlRigTrack(ControlRig->GetUniqueID()))
 				{
 					AnimInstance->RecalcRequiredBones();
 					AnimInstance->AddControlRigTrack(ControlRig->GetUniqueID(), ControlRig);
