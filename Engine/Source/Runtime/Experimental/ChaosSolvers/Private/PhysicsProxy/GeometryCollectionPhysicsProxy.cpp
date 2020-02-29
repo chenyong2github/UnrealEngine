@@ -2081,11 +2081,7 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 	if (!GState)
 	{
 		// This will happen if GameToPhysInterchange hasn't been updated since
-		// the last time GetConsumerBuffer() was called.  At this point, that's 
-		// probably a bug, as the interface code is assuming it needs to lock
-		// to prevent stomping on a double buffer.  We should look into doing 
-		// away with that lock, but for the time being, we'll assert:
-		ensure(false);
+		// the last time GetConsumerBuffer() was called. 
 		return;
 	}
 
