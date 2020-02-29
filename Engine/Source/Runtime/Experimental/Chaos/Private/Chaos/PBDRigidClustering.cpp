@@ -437,10 +437,6 @@ namespace Chaos
 			//NewParticle = MEvolution.CreateClusteredParticles(1)[0]; // calls Evolution.DirtyParticle()
 			NewParticle = MEvolution.CreateClusteredParticles(1)[0]; // calls Evolution.DirtyParticle()
 		}
-		if (!NewParticle->UniqueIdx().IsValid())
-		{
-			NewParticle->SetUniqueIdx(MEvolution.GenerateUniqueIdx());
-		}
 
 		// Must do this so that the constraint graph knows about this particle 
 		// prior to calling CreateIslands().  We could call MEvolution.CreateParticle()
@@ -531,10 +527,6 @@ namespace Chaos
 		if (!NewParticle)
 		{
 			NewParticle = MEvolution.CreateClusteredParticles(1)[0]; // calls Evolution.DirtyParticle()
-		}
-		if (!NewParticle->UniqueIdx().IsValid())
-		{
-			NewParticle->SetUniqueIdx(MEvolution.GenerateUniqueIdx());
 		}
 		MEvolution.CreateParticle(NewParticle);
 		MEvolution.EnableParticle(NewParticle, Parent);
@@ -860,13 +852,6 @@ namespace Chaos
 					}
 					TArray<Chaos::TPBDRigidClusteredParticleHandle<float,3>*> NewClusterHandles = 
 						MEvolution.CreateClusteredParticles(NumNewClusters);
-					for (auto& Handle : NewClusterHandles)
-					{
-						if (!Handle->UniqueIdx().IsValid())
-						{
-							Handle->SetUniqueIdx(MEvolution.GenerateUniqueIdx());
-						}
-					}
 					int32 ClusterHandlesIdx = 0;
 					for (TArray<TPBDRigidParticleHandle<T,d>*>& ConnectedPieces : ConnectedPiecesArray)
 					{
