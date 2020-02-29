@@ -10,11 +10,17 @@
 #include "DataprepContentConsumer.h"
 
 #include "UObject/SoftObjectPath.h"
+#include "UObject/StrongObjectPtr.h"
 
 #include "DatasmithConsumer.generated.h"
 
+namespace DatasmithConsumerDetailsUtil
+{
+	class SLevelProperty;
+}
 class UDatasmithScene;
 class ULevel;
+class UWorld;
 
 UCLASS(Experimental, config = EditorSettings, HideCategories = (DatasmithConsumerInternal))
 class DATASMITHIMPORTER_API UDatasmithConsumer : public UDataprepContentConsumer
@@ -22,24 +28,32 @@ class DATASMITHIMPORTER_API UDatasmithConsumer : public UDataprepContentConsumer
 	GENERATED_BODY()
 
 public:
-	UDatasmithConsumer()
-		: DatasmithScene(nullptr)
-		, PreviousCurrentLevel(nullptr)
-	{
-	}
+	UDatasmithConsumer();
+
+	// UObject interface
+	virtual void PostLoad() override;
+	virtual void PostInitProperties() override;
+	// End of UObject interface
 
 	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal, DuplicateTransient )
 	TSoftObjectPtr<UDatasmithScene> DatasmithScene;
 
 	/** Stores the level used on the last call to UDatasmithConsumer::Run */
 	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal )
-	FString LastLevelName;
+	FString UniqueID;
+
+
+	/** Marker to tag levels, assets and actors processed by the consumer */
+	static const FString ConsumerMarkerID;
 
 	// Begin UDataprepContentConsumer overrides
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
 
 protected:
+	/** Getter/setter on consumer's output level */
+	FString GetOutputLevelPath() const { return OutputLevelSoftObject.GetAssetPathString(); }
+	bool SetOutputLevel(const FString& LevelName);
 
 	virtual bool SetLevelNameImplementation(const FString& InLevelName, FText& OutFailureReason, const bool bIsAutomated) override;
 	virtual bool SetTargetContentFolderImplementation(const FString& InTargetContentFolder, FText& OutFailureReason, const bool bIsAutomated) override;
@@ -51,23 +65,55 @@ protected:
 
 private:
 	/** Temporary code to work with UDataprepContentConsumer */
-	bool BuildContexts( UWorld* ImportWorld );
-
-	/** Returns the level associated to LevelName if it exists */
-	ULevel* FindLevel( const FString& InLevelName );
+	bool BuildContexts();
 
 	/** Move assets if destination package path has changed since last call to UDatasmithConsumer::Run */
 	void UpdateScene();
 
-	/** Move level if destination level's name has changed since last call to UDatasmithConsumer::Run */
-	void MoveLevel();
+	/** Process actors which have been marked with a UDataprepConsumerUserData */
+	void ApplySubLevelDirective();
 
-	/** Set current level to what the user specified */
-	void UpdateLevel();
+	/** Find or add a new level to the target world */
+	ULevel* FindOrAddLevel(const FString& InLevelName);
+
+	/**
+	 * Check if output directives set on assets or actors can be honored
+	 * If some issues are identified, the user is asked to proceed with execution of consumer or not.
+	 * @return True if no issue or user has accepted to continue with execution of consumer
+	 * If in command mode, the default behavior is to continue.
+	 */
+	bool CheckOutputDirectives();
+
+	/** Create the world which will be used to execute the consumer */
+	bool CreateWorld();
+
+	/** Delete the world which was used to execute the consumer */
+	void ClearWorld();
+
+	/** Save all assets and levels */
+	bool FinalizeRun();
+
+	/** Returns true if a umap file can be saved in specified folder with specified name */
+	bool CanCreateLevel( const FString& RequestedFolder, const FString& RequestedName, const bool bShowDialog);
 
 private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;
 	TUniquePtr< FDataprepWorkReporter > ProgressTaskPtr;
 
-	ULevel* PreviousCurrentLevel;
+	/** World used by the consumer to create new output levels */
+	TStrongObjectPtr<UWorld> WorkingWorld;
+
+	/** Indicates if LevelWorld was loaded specifically to execute this consumer */
+	bool bDeleteLevelWorld;
+
+	/** Levels which were loaded in the LevelEditor's world and need to be restored */
+	TArray<FString> LevelsToRestore;
+
+	UPROPERTY()
+	FSoftObjectPath OutputLevelSoftObject;
+
+	UPROPERTY()
+	TSoftObjectPtr<ULevel> OutputLevelSoftPtr_DEPRECATED;
+
+	ULevel* PrimaryLevel;
 };

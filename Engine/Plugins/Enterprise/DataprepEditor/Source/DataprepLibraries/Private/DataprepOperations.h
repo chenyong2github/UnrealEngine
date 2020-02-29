@@ -448,3 +448,57 @@ protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
 };
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Output to Level", ToolTip = "For each actor to process, set the sub-level to move it to.\nThe sub-level is relative to the level specified to the Dataprep consumer.") )
+class UDataprepSetOutputLevel : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+	UDataprepSetOutputLevel()
+	: LevelName(TEXT("MySubLevel"))
+	{
+	}
+
+public:
+	// If true, the screen sizes at which LODs swap are computed automatically
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (DisplayName = "Level Name", ToolTip = "Name of the sub level the actors to be saved to"))
+	FString LevelName;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Experimental, Category = AssetOperation, Meta = (DisplayName="Output to Folder", ToolTip = "For each asset to process, set the sub-folder to save it to.\nThe sub-folder is relative to the folder specified to the Dataprep consumer.") )
+class UDataprepSetOutputFolder : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+	UDataprepSetOutputFolder()
+	: FolderName(TEXT("MySubFolder"))
+	{
+	}
+
+public:
+	// If true, the screen sizes at which LODs swap are computed automatically
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AssetOperation, meta = (DisplayName = "Folder Name", ToolTip = "Name of the sub folder the assets to be saved to"))
+	FString FolderName;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::AssetOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
