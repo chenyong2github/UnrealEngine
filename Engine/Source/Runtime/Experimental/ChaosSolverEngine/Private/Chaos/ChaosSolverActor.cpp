@@ -306,8 +306,7 @@ void AChaosSolverActor::BeginPlay()
 			InSolver->SetCollisionFilterSettings(InCollisionFilterSettings);
 			InSolver->SetBreakingFilterSettings(InBreakingFilterSettings);
 			InSolver->SetTrailingFilterSettings(InTrailingFilterSettings);
-			InSolver->SetHasFloor(InHasFloor);
-			InSolver->SetFloorHeight(InFloorHeight);
+
 #if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 			InSolver->SetMassScale(InMassScale);
 #endif
@@ -504,7 +503,6 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 				PhysDispatcher->EnqueueCommandImmediate(Solver, [InHasFloor = bHasFloor]
 				(Chaos::FPhysicsSolver* InSolver)
 				{
-					InSolver->SetHasFloor(InHasFloor);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, FloorHeight))
@@ -512,7 +510,6 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 				PhysDispatcher->EnqueueCommandImmediate(Solver, [InFloorHeight = FloorHeight]
 				(Chaos::FPhysicsSolver* InSolver)
 				{
-					InSolver->SetFloorHeight(InFloorHeight);
 				});
 			}
 #if TODO_REIMPLEMENT_TIMESTEP_MULTIPLIER

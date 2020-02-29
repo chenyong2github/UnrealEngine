@@ -54,8 +54,8 @@ namespace GeometryCollectionExample
 
 		Chaos::FPBDRigidsSolver* Solver = Module->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
-		Solver->SetHasFloor(false);
-		Solver->SetIsFloorAnalytic(true);
+		// no floor
+		//Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -143,8 +143,8 @@ namespace GeometryCollectionExample
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
-		Solver->SetIsFloorAnalytic(true);
+		// no floor
+		//Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -229,7 +229,7 @@ namespace GeometryCollectionExample
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -316,7 +316,7 @@ namespace GeometryCollectionExample
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -397,7 +397,7 @@ namespace GeometryCollectionExample
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -488,7 +488,7 @@ namespace GeometryCollectionExample
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -558,7 +558,7 @@ namespace GeometryCollectionExample
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -639,7 +639,7 @@ namespace GeometryCollectionExample
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -727,7 +727,7 @@ namespace GeometryCollectionExample
 
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -824,7 +824,7 @@ namespace GeometryCollectionExample
 
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -930,7 +930,7 @@ namespace GeometryCollectionExample
 #endif
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -1039,7 +1039,7 @@ namespace GeometryCollectionExample
 #endif
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 

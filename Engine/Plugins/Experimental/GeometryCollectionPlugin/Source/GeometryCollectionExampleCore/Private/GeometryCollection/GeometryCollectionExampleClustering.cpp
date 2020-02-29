@@ -87,7 +87,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		////Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -179,7 +179,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		////Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -324,7 +324,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -462,7 +462,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -592,7 +592,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -747,7 +747,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -882,7 +882,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -1119,7 +1119,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -1336,7 +1336,7 @@ namespace GeometryCollectionExample
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(PhysObject2);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 		PhysObject2->ActivateBodies();
@@ -1472,7 +1472,7 @@ namespace GeometryCollectionExample
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(PhysObject2);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 		PhysObject2->ActivateBodies();
@@ -1609,7 +1609,7 @@ namespace GeometryCollectionExample
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(PhysObject2);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 		PhysObject2->ActivateBodies();
@@ -1714,7 +1714,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(false);
+
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -1808,7 +1808,6 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -1918,7 +1917,6 @@ namespace GeometryCollectionExample
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
 #endif
-		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -1986,7 +1984,6 @@ namespace GeometryCollectionExample
 
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
-		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(Object->PhysicsProxy.Get());
