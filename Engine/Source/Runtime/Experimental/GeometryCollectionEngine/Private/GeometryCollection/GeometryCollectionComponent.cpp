@@ -109,6 +109,8 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_PointImplicit)
 	, CollisionGroup(0)
 	, CollisionSampleFraction(1.0)
+	, LinearEtherDrag(0.0)
+	, AngularEtherDrag(0.0)
 	, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
 	, InitialLinearVelocity(0.f, 0.f, 0.f)
 	, InitialAngularVelocity(0.f, 0.f, 0.f)
@@ -1107,22 +1109,26 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 
 void UGeometryCollectionComponent::OnCreatePhysicsState()
 {
-#if WITH_PHYSX
+/*#if WITH_PHYSX
 	DummyBodySetup = NewObject<UBodySetup>(this, UBodySetup::StaticClass());
 	DummyBodySetup->AggGeom.BoxElems.Add(FKBoxElem(1.0f));
 	DummyBodyInstance.InitBody(DummyBodySetup, GetComponentToWorld(), this, nullptr);
 	DummyBodyInstance.bNotifyRigidBodyCollision = BodyInstance.bNotifyRigidBodyCollision;
 #endif
-
+*/
 	// Skip the chain - don't care about body instance setup
 	UActorComponent::OnCreatePhysicsState();
 	if (!Simulating) IsObjectLoading = false; // just mark as loaded if we are simulating.
 
-#if WITH_PHYSX
+/*#if WITH_PHYSX
 	DummyBodyInstance.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	DummyBodyInstance.SetResponseToAllChannels(ECR_Block);
 #endif
-
+*/
+	// Static mesh uses an init framework that goes through FBodyInstance.  We
+	// do the same thing, but through the geometry collection proxy and lambdas
+	// defined below.  FBodyInstance doesn't work for geometry collections 
+	// because FBodyInstance manages a single particle, where we have many.
 	if (!PhysicsProxy)
 	{
 #if WITH_EDITOR && WITH_EDITORONLY_DATA
@@ -1135,7 +1141,6 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			RestCollectionMutable->EnsureDataIsCooked();
 		}
 #endif
-
 		const bool bValidWorld = GetWorld() && GetWorld()->IsGameWorld();
 		const bool bValidCollection = DynamicCollection && DynamicCollection->Transform.Num() > 0;
 		if (bValidWorld && bValidCollection)
@@ -1147,6 +1152,10 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				ChaosMaterial->SleepingLinearThreshold = PhysicalMaterial->SleepingLinearVelocityThreshold;
 				ChaosMaterial->SleepingAngularThreshold = PhysicalMaterial->SleepingAngularVelocityThreshold;
 			}
+
+			//
+			// Called from FGeometryCollectionPhysicsProxy::Initialize()
+			//
 			auto InitFunc = [this](FSimulationParameters& InParams)
 			{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1165,6 +1174,8 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				InParams.ClusterConnectionMethod = (Chaos::FClusterCreationParameters<float>::EConnectionMethod)ClusterConnectionType;
 				InParams.CollisionGroup = CollisionGroup;
 				InParams.CollisionSampleFraction = CollisionSampleFraction;
+				InParams.LinearEtherDrag = LinearEtherDrag;
+				InParams.AngularEtherDrag = AngularEtherDrag;
 				InParams.InitialVelocityType = InitialVelocityType;
 				InParams.InitialLinearVelocity = InitialLinearVelocity;
 				InParams.InitialAngularVelocity = InitialAngularVelocity;

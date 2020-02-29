@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Chaos/ParticleHandle.h"
+#include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/Defines.h"
 
 namespace Chaos
@@ -22,8 +24,8 @@ namespace Chaos
 			, bool bCopyCollisionParticlesIn = true
 			, bool bGenerateConnectionGraphIn = true
 			, EConnectionMethod ConnectionMethodIn = EConnectionMethod::PointImplicitAugmentedWithMinimalDelaunay
-			, TBVHParticles<T, 3>* CollisionParticlesIn = nullptr
-			, int32 RigidBodyIndexIn = INDEX_NONE
+			, TBVHParticles<float, 3>* CollisionParticlesIn = nullptr
+			, Chaos::TPBDRigidClusteredParticleHandle<float,3>* ClusterParticleHandleIn = nullptr
 		)
 			: CoillisionThicknessPercent(CoillisionThicknessPercentIn)
 			, MaxNumConnections(MaxNumConnectionsIn)
@@ -32,7 +34,7 @@ namespace Chaos
 			, bGenerateConnectionGraph(bGenerateConnectionGraphIn)
 			, ConnectionMethod(ConnectionMethodIn)
 			, CollisionParticles(CollisionParticlesIn)
-			, RigidBodyIndex(RigidBodyIndexIn)
+			, ClusterParticleHandle(ClusterParticleHandleIn)
 		{}
 
 		T CoillisionThicknessPercent;
@@ -42,6 +44,6 @@ namespace Chaos
 		bool bGenerateConnectionGraph;
 		EConnectionMethod ConnectionMethod;
 		TBVHParticles<T, 3>* CollisionParticles;
-		int32 RigidBodyIndex;
+		Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ClusterParticleHandle;
 	};
 }

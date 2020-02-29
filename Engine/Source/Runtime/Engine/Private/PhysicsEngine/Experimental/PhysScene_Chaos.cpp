@@ -2117,6 +2117,8 @@ void FPhysScene_ChaosInterface::SyncBodies(Chaos::FPhysicsSolver* Solver)
 
 	Chaos::FPBDRigidActiveParticlesBufferAccessor Accessor(Solver->GetActiveParticlesBuffer());
 
+	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
+
 	const Chaos::FPBDRigidActiveParticlesBufferOut* ActiveParticleBuffer = Accessor.GetSolverOutData();
 	for (Chaos::TGeometryParticle<float, 3>* ActiveParticle : ActiveParticleBuffer->ActiveGameThreadParticles)
 	{
@@ -2160,9 +2162,25 @@ void FPhysScene_ChaosInterface::SyncBodies(Chaos::FPhysicsSolver* Solver)
 			else if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
 			{
 				FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
-				Proxy->PullFromPhysicsState();
+				GCProxies.Add(Proxy);
 			}
 		}
+	}
+	for (IPhysicsProxyBase* ProxyBase : ActiveParticleBuffer->PhysicsParticleProxies) 
+	{
+		if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
+		{
+			FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+			GCProxies.Add(Proxy);
+		}
+		else
+		{
+			ensure(false); // Unhandled physics only particle proxy!
+		}
+	}
+	for (auto* GCProxy : GCProxies)
+	{
+		GCProxy->PullFromPhysicsState();
 	}
 	for (const FPhysScenePendingComponentTransform_Chaos& ComponentTransform : PendingTransforms)
 	{
