@@ -177,6 +177,7 @@ EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
 	}
 
 	SecondsPerFrame = TimeStep;
+	FramesPerSecond = TimeStep > 0.f ? 1 / TimeStep : 30;
 	ImportLength = FrameSpan * TimeStep;
 
 	// Calculate time offset from start of import animation range
@@ -483,6 +484,11 @@ const float FAbcFile::GetImportTimeOffset() const
 const float FAbcFile::GetImportLength() const
 {
 	return ImportLength;
+}
+
+const int32 FAbcFile::GetImportNumFrames() const
+{
+	return EndFrameIndex - StartFrameIndex;
 }
 
 const int32 FAbcFile::GetFramerate() const
