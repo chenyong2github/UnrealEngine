@@ -718,26 +718,26 @@ void FMaterialEditorUtilities::BuildTextureStreamingData(UMaterialInterface* Upd
 }
 
 
-void FMaterialEditorUtilities::OnOpenMaterial(FAssetData InMaterial)
+void FMaterialEditorUtilities::OnOpenMaterial(const FAssetData InMaterial)
 {
 	UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(InMaterial.GetAsset());
 	OpenSelectedParentEditor(MaterialInterface);
 }
 
-void FMaterialEditorUtilities::OnOpenFunction(FAssetData InFunction)
+void FMaterialEditorUtilities::OnOpenFunction(const FAssetData InFunction)
 {
 	UMaterialFunctionInterface* MaterialFunctionInterface = Cast<UMaterialFunctionInterface>(InFunction.GetAsset());
 	OpenSelectedParentEditor(MaterialFunctionInterface);
 }
 
-void FMaterialEditorUtilities::OnShowMaterialInContentBrowser(FAssetData InMaterial)
+void FMaterialEditorUtilities::OnShowMaterialInContentBrowser(const FAssetData InMaterial)
 {
 	TArray<UObject*> SyncedObject;
 	SyncedObject.Add(InMaterial.GetAsset());
 	GEditor->SyncBrowserToObjects(SyncedObject);
 }
 
-void FMaterialEditorUtilities::OnShowFunctionInContentBrowser(FAssetData InFunction)
+void FMaterialEditorUtilities::OnShowFunctionInContentBrowser(const FAssetData InFunction)
 {
 	TArray<UObject*> SyncedObject;
 	SyncedObject.Add(InFunction.GetAsset());
