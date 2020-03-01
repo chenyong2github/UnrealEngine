@@ -429,7 +429,7 @@ void FMediaTextureResource::SetupSampler()
 			AM_Wrap
 		);
 
-		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 	}
 }
 
