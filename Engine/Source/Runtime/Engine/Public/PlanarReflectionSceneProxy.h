@@ -41,7 +41,7 @@ public:
 			AM_Clamp,
 			AM_Clamp
 		);
-		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
+		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 
 		FTexture2DRHIRef Texture2DRHI;
 		FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(FLinearColor::Black) };

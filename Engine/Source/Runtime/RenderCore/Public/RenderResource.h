@@ -420,9 +420,6 @@ public:
 		DeferredPassSamplerStateRHI.SafeRelease();
 	}
 	virtual FString GetFriendlyName() const override { return TEXT("FTexture"); }
-
-protected:
-	RENDERCORE_API static FRHISamplerState* GetOrCreateSamplerState(const FSamplerStateInitializerRHI& Initializer);
 };
 
 /** A textures resource that includes an SRV. */
