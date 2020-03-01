@@ -685,11 +685,6 @@ public:
 		check(InSRV->DynamicResource == nullptr);
 		InSRV->DynamicResource = this;
 		DynamicSRVs.Add(InSRV);
-		if (DynamicSRVs.Num() == 4)
-		{
-			static int dbg = 0;
-			dbg++;
-		}
 	}
 
 	void RemoveDynamicSRV(FD3D12BaseShaderResourceView* InSRV)
@@ -699,6 +694,19 @@ public:
 		InSRV->DynamicResource = nullptr;
 		uint32 Removed = DynamicSRVs.Remove(InSRV);
 		check(Removed == 1);
+	}
+
+	void RemoveAllDynamicSRVs()
+	{
+		FScopeLock Lock(&DynamicSRVsCS);
+		for (FD3D12BaseShaderResourceView* DynamicSRV : DynamicSRVs)
+		{
+			if (DynamicSRV != nullptr)
+			{
+				DynamicSRV->DynamicResource = nullptr;
+			}
+		}
+		DynamicSRVs.Reset();
 	}
 
 	void Swap(FD3D12BaseShaderResource& Other)
