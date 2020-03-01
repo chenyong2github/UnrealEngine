@@ -209,6 +209,11 @@ bool SMaterialLayersFunctionsInstanceTree::IsOverriddenExpression(class UDEditor
 	return FMaterialPropertyHelpers::IsOverriddenExpression(Parameter) && FunctionInstance->LayerStates[InIndex];
 }
 
+FGetShowHiddenParameters SMaterialLayersFunctionsInstanceTree::GetShowHiddenDelegate() const
+{
+	return ShowHiddenDelegate;
+}
+
 void  SMaterialLayersFunctionsInstanceTreeItem::OnOverrideParameter(bool NewValue, class UDEditorParameterValue* Parameter)
 {
 	FMaterialPropertyHelpers::OnOverrideParameter(NewValue, Parameter, MaterialEditorInstance);
@@ -559,6 +564,8 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 			.DisplayName(NameOverride)
 			.OverrideResetToDefault(ResetOverride)
 			.EditCondition(IsParamEnabled, FOnBooleanValueChanged::CreateSP(this, &SMaterialLayersFunctionsInstanceTreeItem::OnOverrideParameter, StackParameterData->Parameter));
+
+		WrapperWidget->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FMaterialPropertyHelpers::ShouldShowExpression, StackParameterData->Parameter, MaterialEditorInstance, Tree->GetShowHiddenDelegate())));
 
 		if (VectorParam && VectorParam->bIsUsedAsChannelMask)
 		{
@@ -1055,6 +1062,7 @@ void SMaterialLayersFunctionsInstanceTree::Construct(const FArguments& InArgs)
 	ColumnWidth = 0.5f;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Wrapper = InArgs._InWrapper;
+	ShowHiddenDelegate = InArgs._InShowHiddenDelegate;
 	CreateGroupsWidget();
 
 #ifdef WITH_EDITOR
@@ -1732,7 +1740,8 @@ void SMaterialLayersFunctionsInstanceWrapper::Construct(const FArguments& InArgs
 {
 	NestedTree = SNew(SMaterialLayersFunctionsInstanceTree)
 		.InMaterialEditorInstance(InArgs._InMaterialEditorInstance)
-		.InWrapper(this);
+		.InWrapper(this)
+		.InShowHiddenDelegate(InArgs._InShowHiddenDelegate);
 
 	LayerParameter = NestedTree->FunctionParameter;
 
@@ -2351,7 +2360,8 @@ void SMaterialLayersFunctionsMaterialWrapper::Refresh()
 void SMaterialLayersFunctionsMaterialWrapper::Construct(const FArguments& InArgs)
 {
 	NestedTree = SNew(SMaterialLayersFunctionsMaterialTree)
-		.InMaterialEditorInstance(InArgs._InMaterialEditorInstance);
+		.InMaterialEditorInstance(InArgs._InMaterialEditorInstance)
+		.InShowHiddenDelegate(InArgs._InShowHiddenDelegate);
 
 	LayerParameter = NestedTree->FunctionParameter;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
@@ -2371,7 +2381,7 @@ void SMaterialLayersFunctionsMaterialTree::Construct(const FArguments& InArgs)
 {
 	ColumnWidth = 0.5f;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
-
+	ShowHiddenDelegate = InArgs._InShowHiddenDelegate;
 	CreateGroupsWidget();
 
 	STreeView<TSharedPtr<FSortedParamData>>::Construct(
