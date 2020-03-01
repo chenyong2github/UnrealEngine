@@ -35,8 +35,18 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder & DetailLayout) override;
 
 protected:
+	FText OnGetEntityName() const;
+	void OnEntityNameChanged(const FText& InNewText);
+	void OnEntityNameCommitted(const FText& InNewText, ETextCommit::Type InCommitType);
+
+protected:
 	/** Weak reference to the DMX editor */
 	TWeakPtr<FDMXEditor> DMXEditorPtr;
+
+	/** Custom Name text field to validate input name */
+	TSharedPtr<SEditableTextBox> NameEditableTextBox;
+	/** Handle to the Name property for getting and setting it */
+	TSharedPtr<IPropertyHandle> NamePropertyHandle;
 };
 
 /** Details customization for Controllers */
@@ -146,6 +156,7 @@ private:
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
 	TSharedPtr<IPropertyHandle> DataTypeHandle;
 	TSharedPtr<IPropertyHandle> DefaultValueHandle;
+	TSharedPtr<IPropertyHandle> UseLSBHandle;
 };
 
 /**

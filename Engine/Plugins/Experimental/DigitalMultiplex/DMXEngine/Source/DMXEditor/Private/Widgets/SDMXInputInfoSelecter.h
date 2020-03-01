@@ -28,14 +28,14 @@ public:
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
-	const TSharedRef<SSpinBox<uint16>> GetUniverseField() const { return UniverseIDField.ToSharedRef(); }
+	const TSharedRef<SSpinBox<uint32>> GetUniverseField() const { return UniverseIDField.ToSharedRef(); }
 	const void SetProtocol(const FName& Name) { CurrentProtocol = FDMXProtocolName(Name); };
 
 protected:
 	/** Universe ID value computed using Net, Subnet and Universe values */
 	uint16 CurrentUniverseID;
 	/** Final Universe field widget */
-	TSharedPtr<SSpinBox<uint16>> UniverseIDField;
+	TSharedPtr<SSpinBox<uint32>> UniverseIDField;
 
 	/** The user-selected protocol */
 	FDMXProtocolName CurrentProtocol;
@@ -45,7 +45,7 @@ public:
 	//const FText& GetCurrentDirectionality() const { return CurrentDirectionality; }
 
 	/** Returns the UniverseID value computed from Net, Subnet and Universe values */
-	uint16 GetCurrentUniverseID() const { return CurrentUniverseID; }
+	uint32 GetCurrentUniverseID() const { return CurrentUniverseID; }
 
 	/** Returns the user-selected DMX protocol */
 	FName GetCurrentProtocolName() const { return CurrentProtocol; }
@@ -57,10 +57,10 @@ protected:
 	void HandleProtocolChanged(FName SelectedProtocol);
 
 	/** Handles when the user changes the universe value, including while spinning the value */
-	void HandleUniverseIDChanged(uint16 NewValue);
+	void HandleUniverseIDChanged(uint32 NewValue);
 
 	/** Handles when the user commit the Universe value. Doesn't fire while spinning the value */
-	void HandleUniverseIDValueCommitted(uint16 NewValue, ETextCommit::Type CommitType);
+	void HandleUniverseIDValueCommitted(uint32 NewValue, ETextCommit::Type CommitType);
 
 protected:
 	FOnUniverseSelectionChanged OnUniverseSelectionChanged;

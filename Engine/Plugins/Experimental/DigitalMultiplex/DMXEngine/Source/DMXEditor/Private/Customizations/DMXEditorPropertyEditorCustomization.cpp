@@ -49,8 +49,91 @@ static void CollectChildPropertiesRecursive(TSharedPtr<IPropertyHandle> Node, TA
 
 void FDMXCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
-	// keep Display Name as first property
+	// Customize the Name input field to check for repeated/invalid names
+	NamePropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntity, Name), UDMXEntity::StaticClass());
+	check(NamePropertyHandle->IsValidHandle());
+
+	// Don't allow editing the Name if multiple Entities are selected
+	FString Name;
+	const bool bCanEditName = NamePropertyHandle->GetValue(Name) == FPropertyAccess::Success;
+
+	DetailLayout.EditDefaultProperty(NamePropertyHandle)->CustomWidget()
+		.NameContent()
+		[
+			NamePropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MaxDesiredWidth(250.0f)
+		[
+			SAssignNew(NameEditableTextBox, SEditableTextBox)
+			.Text(this, &FDMXCustomization::OnGetEntityName)
+			.ToolTipText(NamePropertyHandle->GetToolTipText())
+			.OnTextChanged(this, &FDMXCustomization::OnEntityNameChanged)
+			.OnTextCommitted(this, &FDMXCustomization::OnEntityNameCommitted)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.IsEnabled(bCanEditName)
+		];
+
+	// Keep Display Name as first property
 	DetailLayout.EditCategory("Entity Properties", FText::GetEmpty(), ECategoryPriority::Important);
+}
+
+FText FDMXCustomization::OnGetEntityName() const
+{
+	check(NamePropertyHandle && NamePropertyHandle->IsValidHandle());
+
+	FString Name;
+	if (NamePropertyHandle->GetValue(Name) == FPropertyAccess::Success)
+	{
+		return FText::FromString(Name);
+	}
+
+	return LOCTEXT("EntityName_MultipleValues", "Multiple Values");
+}
+
+void FDMXCustomization::OnEntityNameChanged(const FText& InNewText)
+{
+	check(NameEditableTextBox.IsValid() && NamePropertyHandle.IsValid() && NamePropertyHandle->IsValidHandle());
+
+	FString CurrentName;
+	if (NamePropertyHandle->GetValue(CurrentName) != FPropertyAccess::Success)
+	{
+		return;
+	}
+
+	const FString& NewName = InNewText.ToString();
+	if (CurrentName.Equals(NewName))
+	{
+		NameEditableTextBox->SetError(FText::GetEmpty());
+		return;
+	}
+
+	check(DMXEditorPtr.IsValid());
+	TArray<UObject*> SelectedEntities;
+	NamePropertyHandle->GetOuterObjects(SelectedEntities);
+	check(SelectedEntities.Num() > 0);
+
+	FText OutErrorMessage;
+	FDMXEditorUtils::ValidateEntityName(
+		NewName,
+		DMXEditorPtr.Pin()->GetDMXLibrary(),
+		SelectedEntities[0]->GetClass(),
+		OutErrorMessage
+	);
+
+	NameEditableTextBox->SetError(OutErrorMessage);
+}
+
+void FDMXCustomization::OnEntityNameCommitted(const FText& InNewText, ETextCommit::Type InCommitType)
+{
+	check(NameEditableTextBox.IsValid() && NamePropertyHandle.IsValid() && NamePropertyHandle->IsValidHandle());
+
+	if (InCommitType != ETextCommit::OnCleared && !NameEditableTextBox->HasError())
+	{
+		NamePropertyHandle->SetValue(InNewText.ToString());
+	}
+
+	NameEditableTextBox->SetError(FText::GetEmpty());
 }
 
 void FDMXControllersDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
@@ -132,8 +215,6 @@ void FDMXFixtureTypeFunctionsDetails::CustomizeChildren(TSharedRef<IPropertyHand
 				.ValueContent()
 				.MaxDesiredWidth(250.0f)
 				[
-					// The lambdas below are a workaround to avoid ambiguous TSharedFromThis template resolution
-					// that could be both IPropertyTypeCustomization and IDetailCustomization.
 					SAssignNew(NameEditableTextBox, SEditableTextBox)
 					.Text(this, &FDMXFixtureTypeFunctionsDetails::OnGetFunctionName)
 					.ToolTipText(ToolTip)
@@ -249,10 +330,13 @@ void FDMXFixtureFunctionDetails::CustomizeChildren(TSharedRef<IPropertyHandle> I
 	StructPropertyHandle = InStructPropertyHandle;
 
 	DataTypeHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DataType));
-	check(DataTypeHandle);
+	check(DataTypeHandle && DataTypeHandle->IsValidHandle());
 
 	DefaultValueHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DefaultValue));
-	check(DefaultValueHandle);
+	check(DefaultValueHandle && DefaultValueHandle->IsValidHandle());
+
+	UseLSBHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, bUseLSBMode));
+	check(UseLSBHandle && UseLSBHandle->IsValidHandle());
 
 	// Create fields for the individual channels (each byte) that will be displayed depending on the selected DataType
 	AddChannelInputFields(InStructBuilder);
@@ -366,9 +450,27 @@ TOptional<uint8> FDMXFixtureFunctionDetails::GetChannelValue(uint8 Channel) cons
 {
 	TOptional<uint8> RetVal;
 	int64 Value;
-	if (DefaultValueHandle->GetValue(Value) == FPropertyAccess::Success)
+	bool bUseLSBValue;
+	if (DefaultValueHandle->GetValue(Value) == FPropertyAccess::Success
+		&& UseLSBHandle->GetValue(bUseLSBValue) == FPropertyAccess::Success)
 	{
-		const uint8 BytesOffset = (Channel - 1) * 8;
+		uint8 BytesOffset = 0;
+
+		if (!bUseLSBValue)
+		{
+			void* DataTypePtr = nullptr;
+			if (DataTypeHandle->GetValueData(DataTypePtr) == FPropertyAccess::Success)
+			{
+				const EDMXFixtureSignalFormat& DataType = *(EDMXFixtureSignalFormat*)DataTypePtr;
+				const uint8 NumChannels = UDMXEntityFixtureType::NumChannelsToOccupy(DataType);
+				BytesOffset = (NumChannels - Channel) * 8;
+			}
+		}
+		else
+		{
+			BytesOffset = (Channel - 1) * 8;
+		}
+
 		RetVal = Value >> BytesOffset & 0xff;
 	}
 
@@ -397,10 +499,27 @@ EVisibility FDMXFixtureFunctionDetails::GetChannelInputVisibility(uint8 Channel)
 void FDMXFixtureFunctionDetails::HandleChannelValueChanged(uint8 NewValue, uint8 Channel)
 {
 	int64 DefaultValue;
-	if (DefaultValueHandle->GetValue(DefaultValue) == FPropertyAccess::Success)
+	bool bUseLSBValue;
+	if (DefaultValueHandle->GetValue(DefaultValue) == FPropertyAccess::Success
+		&& UseLSBHandle->GetValue(bUseLSBValue) == FPropertyAccess::Success)
 	{
 		uint8* ValueBytes = reinterpret_cast<uint8*>(&DefaultValue);
-		ValueBytes[Channel - 1] = NewValue;
+
+		if (!bUseLSBValue)
+		{
+			void* DataTypePtr = nullptr;
+			if (DataTypeHandle->GetValueData(DataTypePtr) == FPropertyAccess::Success)
+			{
+				const EDMXFixtureSignalFormat& DataType = *(EDMXFixtureSignalFormat*)DataTypePtr;
+				const uint8 NumChannels = UDMXEntityFixtureType::NumChannelsToOccupy(DataType);
+				ValueBytes[NumChannels - Channel] = NewValue;
+			}
+		}
+		else
+		{
+			ValueBytes[Channel - 1] = NewValue;
+		}
+
 		DefaultValueHandle->SetValue(DefaultValue, EPropertyValueSetFlags::InteractiveChange);
 	}
 }
@@ -410,6 +529,7 @@ void FDMXFixtureFunctionDetails::HandleChannelValueCommitted(uint8 NewValue, ETe
 	int64 DefaultValue;
 	if (DefaultValueHandle->GetValue(DefaultValue) == FPropertyAccess::Success)
 	{
+		// We need to set the value without the InteractiveChange flag to register the transaction
 		DefaultValueHandle->SetValue(DefaultValue);
 	}
 }
