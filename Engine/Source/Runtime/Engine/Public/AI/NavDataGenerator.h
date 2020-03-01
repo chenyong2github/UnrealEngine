@@ -19,7 +19,10 @@ public:
 	/** Cancels build, may block until current running async tasks are finished */
 	virtual void CancelBuild() {};
 
-	/**  */
+	/** Ticks navigation build
+	 *  If the generator is set to time sliced rebuild then this function will only get called when
+	 *  there is sufficient time (effectively roughly once in n frames where n is the number of time sliced nav data / generators currently building)
+	 */
 	virtual void TickAsyncBuild(float DeltaSeconds) {};
 	
 	/**  */
@@ -30,6 +33,8 @@ public:
 
 	/** determines whether this generator is performing navigation building actions at the moment*/
 	virtual bool IsBuildInProgress(bool bCheckDirtyToo = false) const { return false; }	
+
+	virtual bool GetTimeSliceData(int32& OutNumRemainingBuildTasks, double& OutCurrentBuildTaskDuration) const { OutNumRemainingBuildTasks = 0; OutCurrentBuildTaskDuration = 0.; return false; }
 
 	/** Returns number of remaining tasks till build is complete
 	 */
