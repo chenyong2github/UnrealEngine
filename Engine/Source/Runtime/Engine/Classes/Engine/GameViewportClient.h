@@ -787,6 +787,11 @@ public:
 		bUseSoftwareCursorWidgets = bInUseSoftwareCursorWidgets;
 	}
 
+	/**
+	* Get whether or not the viewport is currently using software cursor
+	*/
+	bool GetIsUsingSoftwareCursorWidgets() { return bUseSoftwareCursorWidgets; }
+
 #if WITH_EDITOR
 	/** Accessor for delegate called when a game viewport received input key */
 	FOnGameViewportInputKey& OnGameViewportInputKey()
@@ -803,8 +808,14 @@ public:
 
 	void SetVirtualCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* Widget);
 
+	/** Add a cursor to the set based on the enum and a slate widget */
+	void AddSoftwareCursorFromSlateWidget(EMouseCursor::Type InCursorType, TSharedPtr<SWidget> CursorWidgetPtr);
+
 	/** Adds a cursor to the set based on the enum and the class reference to it. */
 	void AddSoftwareCursor(EMouseCursor::Type Cursor, const FSoftClassPath& CursorClass);
+
+	/** Get the slate widget of the current software cursor */
+	TSharedPtr<SWidget> GetSoftwareCursorWidget(EMouseCursor::Type Cursor) const;
 
 	/** Does the viewport client have a software cursor set up for the given enum? */
 	bool HasSoftwareCursor(EMouseCursor::Type Cursor) const;
