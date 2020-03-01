@@ -13,7 +13,6 @@
 #include "AI/NavDataGenerator.h"
 #include "NavMesh/RecastHelpers.h"
 #include "NavDebugTypes.h"
-#include "Math/MovingWindowAverageFast.h"
 
 #if WITH_RECAST
 
@@ -38,6 +37,7 @@ struct FTileCacheCompressor;
 struct FTileCacheAllocator;
 struct FTileGenerationContext;
 class dtNavMesh;
+class FNavRegenTimeSliceManager;
 
 #define MAX_VERTS_PER_POLY	6
 
@@ -191,39 +191,12 @@ struct FRcTileBox
 };
 
 /**
+ * TIME SLICING 
  * The general idea is that any function that handles time slicing internally will be named XXXXTimeSliced
  * and returns a ETimeSliceWorkResult. These functions also call TestTimeSliceFinished() internally when required,
  * IsTimeSliceFinishedCached() can be called externally after they have finished. Non time sliced functions are 
  * managed externally and the calling function should call TestTimeSliceFinished() when necessary.
  */
-struct NAVIGATIONSYSTEM_API FTimeSlicer
-{
-public:
-	FTimeSlicer()
-		: TimeSliceDuration(0.)
-		, TimeSliceStartTime(0.)
-		, bTimeSliceFinishedCached(false)
-	{
-	}
-
-	FTimeSlicer(double SliceDuration)
-		: TimeSliceDuration(SliceDuration)
-		, TimeSliceStartTime(0.)
-		, bTimeSliceFinishedCached(false)
-	{
-	}
-
-	void SetTimeSliceDuration(double SliceDuration);
-	void StartTimeSlice();
-	double GetStartTime() const;
-	bool TestTimeSliceFinished() const;
-	bool IsTimeSliceFinishedCached() const;
-
-private:
-	double TimeSliceDuration;
-	double TimeSliceStartTime;
-	mutable bool bTimeSliceFinishedCached;
-};
 
 /** Return state of calling time sliced functions */
 enum class ETimeSliceWorkResult : uint8
@@ -428,7 +401,7 @@ protected:
 	int32 RasterizeTrianglesTimeSlicedRawGeomIdx;
 	int32 RasterizeTrianglesTimeSlicedInstTransformIdx;
 	TNavStatArray<uint8> RasterizeGeomRecastTriAreas;
-	const FTimeSlicer& TimeSlicer;
+	const FNavRegenTimeSliceManager* TimeSliceManager;
 
 	TUniquePtr<struct FTileCacheAllocator> GenNavDataTimeSlicedAllocator;
 	TUniquePtr<struct FTileGenerationContext> GenNavDataTimeSlicedGenerationContext;
@@ -624,6 +597,13 @@ public:
 	/** Asks generator to update navigation affected by DirtyAreas */
 	virtual void RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas) override;
 	virtual bool IsBuildInProgress(bool bCheckDirtyToo = false) const override;
+
+#if !RECAST_ASYNC_REBUILDING
+	/** returns true if we are time slicing and the data is valid to use false otherwise*/
+	virtual bool GetTimeSliceData(int32& OutNumRemainingBuildTasks, double& OutCurrentBuildTaskDuration) const override;
+#endif
+
+	int32 GetNumRemaningBuildTasksHelper() const { return RunningDirtyTiles.Num() + PendingDirtyTiles.Num() + static_cast<int32>(SyncTimeSlicedData.TileGeneratorSync.IsValid()); }
 	virtual int32 GetNumRemaningBuildTasks() const override;
 	virtual int32 GetNumRunningBuildTasks() const override;
 
@@ -683,7 +663,7 @@ public:
 	static void GetDebugGeometry(const FNavigationRelevantData& EncodedData, FNavDebugMeshData& DebugMeshData);
 #endif  // !UE_BUILD_SHIPPING
 
-	FTimeSlicer& GetTimeSlicer() { return SyncTimeSlicedData.TimeSlicer; }
+	const FNavRegenTimeSliceManager* GetTimeSliceManager() const { return SyncTimeSlicedData.TimeSliceManager; }
 	
 	void SetNextTimeSliceRegenActive(bool bRegenState) { SyncTimeSlicedData.bNextTimeSliceRegenActive = bRegenState; }
 
@@ -841,15 +821,6 @@ protected:
 		FSyncTimeSlicedData();
 
 		double CurrentTileRegenDuration;
-		double MinTimeSliceDuration;
-		double MaxTimeSliceDuration;
-		float RealTimeSecsLastCall; //no need to reset this
-		/** The max real world desired time to Regen all the tiles in PendingDirtyTiles,
-		 *  Note it could take longer than this, as the time slice is clamped per frame between
-		 *	MinTimeSliceDuration and MaxTimeSliceDuration.
-		 */
-		float MaxDesiredTileRegenDuration;
-
 		/** if we are currently using time sliced regen or not - currently an experimental feature.
 		 *  do not manipulate this value directly instead call SetNextTimeSliceRegenState()
 		 */
@@ -874,13 +845,9 @@ protected:
 		/** Used by AddGeneratedTilesTimeSliced */
 		int32 AddGenTilesLayerIndex;
 
-		/** Used to calculate the moving window average of the actual time spent inside functions used to regenerate a a tile, this is processing time not actual time over multiple frames */
-		FMovingWindowAverageFast<double, 128> MovingWindowTileRegenTime;
-		/** Used to calculate the actual moving window delta time */
-		FMovingWindowAverageFast<float, 128> MovingWindowDeltaTime;
 		/** Do not null or Reset this directly instead call ResetTimeSlicedTileGeneratorSync(). The only exception currently is in ProcessTileTasksSyncTimeSliced */
 		TSharedPtr<FRecastTileGenerator> TileGeneratorSync;
-		FTimeSlicer TimeSlicer;
+		FNavRegenTimeSliceManager* TimeSliceManager;
 	};
 
 	FSyncTimeSlicedData SyncTimeSlicedData;
