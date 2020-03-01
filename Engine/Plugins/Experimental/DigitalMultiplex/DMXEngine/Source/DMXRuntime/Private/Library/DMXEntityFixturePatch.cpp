@@ -330,7 +330,8 @@ bool UDMXEntityFixturePatch::IsInControllersRange(const TArray<UDMXEntityControl
 }
 
 UDMXEntityFixturePatch::UDMXEntityFixturePatch()
-	: bAutoAssignAddress(true)
+	: UniverseID(1)
+	, bAutoAssignAddress(true)
 	, ManualStartingAddress(1)
 	, AutoStartingAddress(1)
 	, ActiveMode(0)

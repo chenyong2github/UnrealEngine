@@ -37,7 +37,7 @@ public:
 		return DMXProtocolModule.GetProtocolFactories();
 	}
 
-	static const TMap<FName, TSharedPtr<IDMXProtocol>>& GetProtocols()
+	static const TMap<FName, IDMXProtocolPtr>& GetProtocols()
 	{
 		static const FName DMXProtocolModuleName = TEXT("DMXProtocol");
 		FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>(DMXProtocolModuleName);
@@ -69,7 +69,7 @@ public:
 	 * @param  InProtocolName Name of the requested protocol
 	 * @return Return the pointer to protocol
 	 */
-	static TSharedPtr<IDMXProtocol> Get(const FName& ProtocolName = NAME_None)
+	static IDMXProtocolPtr Get(const FName& ProtocolName = NAME_None)
 	{
 		static const FName DMXProtocolModuleName = TEXT("DMXProtocol");
 		FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>(DMXProtocolModuleName);
