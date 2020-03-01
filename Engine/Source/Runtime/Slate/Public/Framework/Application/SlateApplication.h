@@ -1577,9 +1577,6 @@ private:
 	bool SetUserFocus(FSlateUser& User, const FWidgetPath& InFocusPath, const EFocusCause InCause);
 
 private:
-	/** Signal that a synthesized mouse move will be required after this operation. */
-	void QueueSynthesizedMouseMove(const FInputEvent& SourceEvent);
-
 	/**
 	 * Will be invoked when the size of the geometry of the virtual
 	 * desktop changes (e.g. resolution change or monitors re-arranged)
