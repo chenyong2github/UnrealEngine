@@ -18,6 +18,7 @@
 #include "AI/NavigationSystemConfig.h"
 #include "NavigationOctreeController.h"
 #include "NavigationDirtyAreasController.h"
+#include "Math/MovingWindowAverageFast.h"
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
 #endif // WITH_EDITOR
@@ -93,6 +94,101 @@ namespace ENavigationBuildLock
 		Custom = 1 << 3,
 	};
 }
+
+
+class NAVIGATIONSYSTEM_API FNavRegenTimeSlicer
+{
+public:
+	/** Setup the initial values for a time slice. This can be called on an instance after TestTimeSliceFinished() has returned true and EndTimeSliceAndAdjustDuration() has been called */
+	void SetupTimeSlice(double SliceDuration);
+
+	/** 
+	 *  Starts the time slice, this can be called multiple times as long as EndTimeSliceAndAdjustDuration() is called between each call.
+	 *  StartTimeSlice should not be called after TestTimeSliceFinished() has returned true
+	 */
+	void StartTimeSlice();
+
+	/** 
+	 *  Useful when multiple sections of code need to be timesliced per frame using the same time slice duration that do not necessarily occur concurrently.
+	 *  This ends the time sliced code section and adjusts the RemainingDuration based on the time used between calls to StartTimeSlice and the last call to TestTimeSliceFinished.
+	 *  Note the actual time slice is not tested in this function. Thats done in TestTimeSliceFinished!
+	 *  This can be called multiple times as long as StartTimeSlice() is called before EndTimeSliceAndAdjustDuration().
+	 *  EndTimeSliceAndAdjustDuration can be called after TestTimeSliceFinished() has returned true in this case the RemainingDuration will just be zero
+	 */
+	void EndTimeSliceAndAdjustDuration();
+	double GetStartTime() const { return StartTime; }
+	bool TestTimeSliceFinished() const;
+
+	//* Returns the cached result of calling TestTimeSliceFinished, false by default */
+	bool IsTimeSliceFinishedCached() const { return bTimeSliceFinishedCached; }
+	double GetRemainingDurationFraction() const { return OriginalDuration > 0. ? RemainingDuration / OriginalDuration : 0.; }
+
+protected:
+	double OriginalDuration = 0.;
+	double RemainingDuration = 0.;
+	double StartTime = 0.;
+	mutable double TimeLastTested = 0.;
+	mutable bool bTimeSliceFinishedCached = false;
+};
+
+class NAVIGATIONSYSTEM_API FNavRegenTimeSliceManager
+{
+public:
+	FNavRegenTimeSliceManager();
+
+	void PushTileRegenTime(double NewTime) { MovingWindowTileRegenTime.PushValue(NewTime);  }
+
+	double GetAverageTileRegenTime() const { return MovingWindowTileRegenTime.GetAverage();  }
+
+	double GetAverageDeltaTime() const { return MovingWindowDeltaTime.GetAverage(); }
+
+	bool DoTimeSlicedUpdate() const { return bDoTimeSlicedUpdate; }
+
+	void CalcAverageDeltaTime(uint64 FrameNum);
+
+	void CalcTimeSliceDuration(int32 NumTilesToRegen, const TArray<double>& CurrentTileRegenDurations);
+
+	void SetMinTimeSliceDuration(double NewMinTimeSliceDuration);
+
+	void SetMaxTimeSliceDuration(double NewMaxTimeSliceDuration);
+
+	void SetMaxDesiredTileRegenDuration(float NewMaxDesiredTileRegenDuration);
+
+	int32 GetNavDataIdx() const { return NavDataIdx;  }
+	void SetNavDataIdx(int32 InNavDataIdx) { NavDataIdx = InNavDataIdx; }
+
+	FNavRegenTimeSlicer& GetTimeSlicer() { return TimeSlicer; }
+	const FNavRegenTimeSlicer& GetTimeSlicer() const { return TimeSlicer; }
+
+protected:
+	FNavRegenTimeSlicer TimeSlicer;
+
+	/** Used to calculate the moving window average of the actual time spent inside functions used to regenerate a tile, this is processing time not actual time over multiple frames */
+	FMovingWindowAverageFast<double, 256> MovingWindowTileRegenTime;
+
+	/** Used to calculate the actual moving window delta time */
+	FMovingWindowAverageFast<double, 256> MovingWindowDeltaTime;
+
+	/** If there are enough tiles to process this in the Min Time Slice Duration */
+	double MinTimeSliceDuration;
+
+	/** The max Desired Time Slice Duration */
+	double MaxTimeSliceDuration;
+
+	uint64 FrameNumOld;
+
+	/** The max real world desired time to Regen all the tiles in PendingDirtyTiles,
+	 *  Note it could take longer than this, as the time slice is clamped per frame between
+	 *	MinTimeSliceDuration and MaxTimeSliceDuration.
+	 */
+	float MaxDesiredTileRegenDuration;
+
+	double TimeLastCall;
+
+	int32 NavDataIdx;
+
+	bool bDoTimeSlicedUpdate;
+};
 
 UCLASS(Within=World, config=Engine, defaultconfig)
 class NAVIGATIONSYSTEM_API UNavigationSystemV1 : public UNavigationSystemBase
@@ -360,6 +456,8 @@ public:
 	UCrowdManagerBase* GetCrowdManager() const { return CrowdManager.Get(); }
 
 protected:
+	void CalcTimeSlicedUpdateData(TArray<double>& OutCurrentTimeSlicedBuildTaskDurations, TArray<bool>& OutIsTimeSlicingArray, bool& bOutAnyNonTimeSlicedGenerators, int32& OutNumTimeSlicedRemainingBuildTasks);
+
 	/** spawn new crowd manager */
 	virtual void CreateCrowdManager();
 
@@ -863,6 +961,8 @@ public:
 	//----------------------------------------------------------------------//
 	void CycleNavigationDataDrawn();
 
+	FNavRegenTimeSliceManager& GetNavRegenTimeSliceManager() { return NavRegenTimeSliceManager; }
+
 protected:
 
 	UPROPERTY()
@@ -920,6 +1020,8 @@ protected:
 
 	static TMap<INavLinkCustomInterface*, FWeakObjectPtr> PendingCustomLinkRegistration;
 	TSet<const UClass*> NavAreaClasses;
+
+	FNavRegenTimeSliceManager NavRegenTimeSliceManager;
 
 	/** delegate handler for PostLoadMap event */
 	void OnPostLoadMap(UWorld* LoadedWorld);

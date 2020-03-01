@@ -621,7 +621,10 @@ public:
 	/** Cancels current build  */
 	virtual void CancelBuild();
 
-	/** Ticks navigation build  */
+	/** Ticks navigation build
+	 *  If the generator is set to time sliced rebuild then this function will only get called when 
+	 *  there is sufficient time (effectively roughly once in n frames where n is the number of time sliced nav data generators currently building)
+	 */
 	virtual void TickAsyncBuild(float DeltaSeconds);
 	
 	/** Retrieves navmesh's generator */
