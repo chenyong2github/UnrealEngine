@@ -19,8 +19,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTexture)
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
 
-	/** Use any streaming low mips when rendering in editor. Set true to view and debug the baked streaming low mips. */
+	/** Use any streaming low mips stored in the virtual texture object. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture)
+	bool bUseStreamingLowMips = true;
+
+	/** Use any streaming low mips when rendering in editor. Set true to view and debug the baked streaming low mips. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (EditCondition = "bUseStreamingLowMips"))
 	bool bUseStreamingLowMipsInEditor = false;
 
 	/** Actor to copy the bounds from to set up the transform. */
