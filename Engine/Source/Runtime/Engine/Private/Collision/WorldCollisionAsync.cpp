@@ -215,9 +215,8 @@ namespace
 	FAutoConsoleTaskPriority CPrio_FAsyncTraceTask(
 		TEXT("TaskGraph.TaskPriorities.AsyncTraceTask"),
 		TEXT("Task and thread priority for async traces."),
-		ENamedThreads::BackgroundThreadPriority, // if we have background priority task threads, then use them...
-		ENamedThreads::HighTaskPriority, // .. at normal task priority
-		ENamedThreads::NormalTaskPriority // if we don't have background threads, then use normal priority threads at normal task priority instead
+		ENamedThreads::NormalThreadPriority, // Use Normal thread and normal task priority
+		ENamedThreads::NormalTaskPriority 
 		);
 
 
