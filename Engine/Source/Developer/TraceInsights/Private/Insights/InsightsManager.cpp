@@ -219,7 +219,7 @@ void FInsightsManager::SpawnAndActivateTabs()
 	// Open Session Info tab.
 	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::SessionInfoTabId))
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::SessionInfoTabId);
+		FGlobalTabmanager::Get()->TryInvokeTab(FInsightsManagerTabs::SessionInfoTabId);
 	}
 
 	// Open Timing Insights tab.
