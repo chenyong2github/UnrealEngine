@@ -169,6 +169,37 @@ void FVertexElement::FromString(const FStringView& InSrc)
 	check(Parts.GetData() + PartCount == PartIt);
 }
 
+uint32 GetTypeHash(const FSamplerStateInitializerRHI& Initializer)
+{
+	uint32 Hash = GetTypeHash(Initializer.Filter);
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.AddressU));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.AddressV));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.AddressW));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.MipBias));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.MinMipLevel));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.MaxMipLevel));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.MaxAnisotropy));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.BorderColor));
+	Hash = HashCombine(Hash, GetTypeHash(Initializer.SamplerComparisonFunction));
+	return Hash;
+}
+
+bool operator== (const FSamplerStateInitializerRHI& A, const FSamplerStateInitializerRHI& B)
+{
+	bool bSame = 
+		A.Filter == B.Filter &&
+		A.AddressU == B.AddressU &&
+		A.AddressV == B.AddressV &&
+		A.AddressW == B.AddressW &&
+		A.MipBias == B.MipBias &&
+		A.MinMipLevel == B.MinMipLevel &&
+		A.MaxMipLevel == B.MaxMipLevel &&
+		A.MaxAnisotropy == B.MaxAnisotropy &&
+		A.BorderColor == B.BorderColor &&
+		A.SamplerComparisonFunction == B.SamplerComparisonFunction;
+	return bSame;
+}
+
 uint32 GetTypeHash(const FRasterizerStateInitializerRHI& Initializer)
 {
 	uint32 Hash = GetTypeHash(Initializer.FillMode);
