@@ -1217,7 +1217,7 @@ namespace AutomationTool
 
 			var SpewDelegate = AllowSpew ? null : new ProcessResult.SpewFilterCallbackType(NoSpewFilter);
 
-			return CommandUtils.Run(HostPlatform.Current.P4Exe, (WithClient ? GlobalOptions : GlobalOptionsWithoutClient) + CommandLine, Input, Options:RunOptions, null, SpewDelegate);
+			return CommandUtils.Run(HostPlatform.Current.P4Exe, (WithClient ? GlobalOptions : GlobalOptionsWithoutClient) + CommandLine, Input, Options:RunOptions, SpewFilterCallback:SpewDelegate);
 		}
 
 		/// <summary>
