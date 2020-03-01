@@ -29,13 +29,15 @@ namespace AutomationTool.Benchmark
 	[Help("noxge", "Do a compile without XGE / FASTBuild")]
 	[Help("singlecompile", "Do a single-file compile")]
 	[Help("nopcompile", "Do a nothing-needs-compiled compile")]
+	//[Help("processors=X+Y+Z", "Do noxge builds with these processor counts (default is Env.ProcCount)")]
 	[Help("cook", "Do a cook for the specified platform")]
+	[Help("cookcold", "When cooking clear the local ddc before each run")]
 	[Help("cooknoshaderddc", "Do a cook test with no ddc for shaders")]
 	[Help("cooknoddc", "Do a cook test with nodcc (likely to take 10+ hours with cookfortnite)")]
 	[Help("iterations=<n>", "How many times to perform each test)")]
 	[Help("wait=<n>", "How many seconds to wait between each test)")]
 	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
-	[Help("warmcook", "Before cooking do a non-timed cook to make sure any  DDC is full")]
+	[Help("hotddc", "Before cooking do a non-timed cook to make sure and any remote/local DDCs are full")]
 	[Help("noclean", "Don't build from clean. (Mostly just to speed things up when testing)")]	
 	class BenchmarkBuild : BuildCommand
 	{
@@ -64,7 +66,8 @@ namespace AutomationTool.Benchmark
 			bool DoNoAcceleratedCompile = AllCompile | ParseParam("noxge") | ParseParam("nofastbuild");
 
 			bool DoCookTests = AllThings | ParseParam("cook");
-			bool DoWarmCook = AllThings | ParseParam("warmcook");
+			bool DoColdCook = AllThings | ParseParam("coldcook");
+			bool DoHotDDC = AllThings | ParseParam("hotddc");
 			bool DoNoShaderDDC = AllThings | ParseParam("cooknoshaderddc");
 			bool DoNoDDC = ParseParam("cooknoddc");
 
@@ -99,6 +102,17 @@ namespace AutomationTool.Benchmark
 			else
 			{
 				ClientPlatforms.Add(EditorPlatform);
+			}
+
+			string ProcessorArg = ParseParamValue("processors", "");
+
+			IEnumerable<int> ProcessorCounts = new[] { Environment.ProcessorCount };
+
+			if (!string.IsNullOrEmpty(ProcessorArg))
+			{
+				var ProcessorList = ProcessorArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+				ProcessorCounts = ProcessorList.Select(P => Convert.ToInt32(P));
 			}
 
 			DoAcceleratedCompile = DoAcceleratedCompile && BenchmarkBuildTask.SupportsAcceleration;
@@ -146,13 +160,16 @@ namespace AutomationTool.Benchmark
 
 					if (DoNoAcceleratedCompile)
 					{
-						Tasks.Add(new BenchmarkBuildTask(Project, "Editor", EditorPlatform, CleanFlag | BuildOptions.NoAcceleration));
+						foreach (int ProcessorCount in ProcessorCounts)
+						{
+							Tasks.Add(new BenchmarkBuildTask(Project, "Editor", EditorPlatform, CleanFlag | BuildOptions.NoAcceleration, ProcessorCount));
+						}
+						// do single compilation with these results
 						NoAndSingleCompileOptions |= BuildOptions.NoAcceleration;
 					}
 
 					if (DoNoCompile)
 					{
-						
 						// note, don't clean since we build normally then build a single file
 						Tasks.Add(new BenchmarkNopCompileTask(Project, "Editor", EditorPlatform, NoAndSingleCompileOptions));
 					}
@@ -182,7 +199,11 @@ namespace AutomationTool.Benchmark
 
 						if (DoNoAcceleratedCompile)
 						{
-							Tasks.Add(new BenchmarkBuildTask(Project, TargetName, ClientPlatform, CleanFlag | BuildOptions.NoAcceleration));
+							foreach (int ProcessorCount in ProcessorCounts)
+							{
+								Tasks.Add(new BenchmarkBuildTask(Project, TargetName, ClientPlatform, CleanFlag | BuildOptions.NoAcceleration, ProcessorCount));
+							}
+							// do single compilation with these results
 							NoAndSingleCompileOptions |= BuildOptions.NoAcceleration;
 						}
 
@@ -210,28 +231,37 @@ namespace AutomationTool.Benchmark
 
 					foreach (var ClientPlatform in ClientPlatforms)
 					{
-						CookOptions TaskCookOptions = ClientCookOptions | CookOptions.Clean;
+						CookOptions DefaultCookOptions = ClientCookOptions;
+						CookOptions TaskCookOptions = DefaultCookOptions;
 
-						if (DoWarmCook)
+						if (DoHotDDC)
 						{
-							TaskCookOptions |= CookOptions.WarmCook;
+							// only want to set this for the first cook for a platform
+							TaskCookOptions |= CookOptions.HotDDC;
 						}
 
 						if (DoCookTests)
 						{
 							Tasks.Add(new BenchmarkCookTask(Project, ClientPlatform, TaskCookOptions));
-							TaskCookOptions = ClientCookOptions | CookOptions.Clean;
+							TaskCookOptions = DefaultCookOptions;
+						}
+
+						if (DoColdCook)
+						{
+							Tasks.Add(new BenchmarkCookTask(Project, ClientPlatform, TaskCookOptions | CookOptions.ColdDDC));
+							TaskCookOptions = DefaultCookOptions;
 						}
 
 						if (DoNoShaderDDC)
 						{
 							Tasks.Add(new BenchmarkCookTask(Project, ClientPlatform, TaskCookOptions | CookOptions.NoShaderDDC));
-							TaskCookOptions = ClientCookOptions | CookOptions.Clean;
+							TaskCookOptions = DefaultCookOptions;
 						}
 
 						if (DoNoDDC)
 						{
 							Tasks.Add(new BenchmarkCookTask(Project, ClientPlatform, TaskCookOptions | CookOptions.NoDDC));
+							TaskCookOptions = DefaultCookOptions;
 						}
 					}
 				}
@@ -398,11 +428,9 @@ namespace AutomationTool.Benchmark
 
 			FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
 
-			DirectoryReference SourceDir = DirectoryReference.Combine(ProjectFile.Directory, "Source");
+			ProjectProperties Properties = ProjectUtils.GetProjectProperties(ProjectFile);
 
-			var Files = DirectoryReference.EnumerateFiles(SourceDir, "*Client.Target.cs");
-
-			return Files.Any();
+			return Properties.Targets.Where(T => T.TargetName.Contains("Client")).Any();
 		}
 
 
