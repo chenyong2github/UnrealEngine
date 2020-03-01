@@ -44,7 +44,7 @@ void FTexture2DDynamicResource::InitRHI()
 		SamplerAddressMode,
 		SamplerAddressMode
 	);
-	SamplerStateRHI = GetOrCreateSamplerState( SamplerStateInitializer );
+	SamplerStateRHI = RHICreateSamplerState( SamplerStateInitializer );
 
 	uint32 Flags = 0;
 	if ( Owner->bIsResolveTarget )
