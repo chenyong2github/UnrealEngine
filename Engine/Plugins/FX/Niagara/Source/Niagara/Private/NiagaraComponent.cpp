@@ -587,6 +587,10 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 	check(SystemInstance->IsSolo());
 	if (IsActive() && SystemInstance.Get() && !SystemInstance->IsComplete())
 	{
+		Asset->AddToInstanceCountStat(1, true);
+		INC_DWORD_STAT_BY(STAT_TotalNiagaraSystemInstances, 1);
+		INC_DWORD_STAT_BY(STAT_TotalNiagaraSystemInstancesSolo, 1);
+
 		// If the interfaces have changed in a meaningful way, we need to potentially rebind and update the values.
 		if (OverrideParameters.GetInterfacesDirty())
 		{

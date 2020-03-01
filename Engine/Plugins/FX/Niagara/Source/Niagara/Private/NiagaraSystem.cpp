@@ -1438,7 +1438,7 @@ TStatId UNiagaraSystem::GetStatID(bool bGameThread, bool bConcurrent)const
 	return TStatId();
 }
 
-void UNiagaraSystem::SetInstanceCountStat(int32 NumInstances)const
+void UNiagaraSystem::AddToInstanceCountStat(int32 NumInstances, bool bSolo)const
 {
 #if STATS
 	if (!StatID_GT.IsValidStat())
@@ -1448,8 +1448,16 @@ void UNiagaraSystem::SetInstanceCountStat(int32 NumInstances)const
 
 	if (FThreadStats::IsCollectingData())
 	{
-		FThreadStats::AddMessage(StatID_InstanceCount.GetName(), EStatOperation::Set, int64(NumInstances));
-		TRACE_STAT_SET(StatID_InstanceCount.GetName(), int64(Value));
+		if (bSolo)
+		{
+			FThreadStats::AddMessage(StatID_InstanceCountSolo.GetName(), EStatOperation::Add, int64(NumInstances));
+			TRACE_STAT_ADD(StatID_InstanceCount.GetName(), int64(Value));
+		}
+		else
+		{
+			FThreadStats::AddMessage(StatID_InstanceCount.GetName(), EStatOperation::Add, int64(NumInstances));
+			TRACE_STAT_ADD(StatID_InstanceCount.GetName(), int64(Value));
+		}
 	}
 #endif
 }
@@ -1463,6 +1471,8 @@ void UNiagaraSystem::GenerateStatID()const
 	StatID_RT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT(" [RT_CNC]"));
 
 	StatID_InstanceCount = FDynamicStats::CreateStatIdInt64<FStatGroup_STATGROUP_NiagaraSystemCounts>(GetPathName());
+	StatID_InstanceCountSolo = FDynamicStats::CreateStatIdInt64<FStatGroup_STATGROUP_NiagaraSystemCounts>(GetPathName() + TEXT(" [SOLO]"));
+
 #endif
 }
 
