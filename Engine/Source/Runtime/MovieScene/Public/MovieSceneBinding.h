@@ -137,15 +137,6 @@ struct FMovieSceneBinding
 		Tracks = InTracks;
 	}
 
-#if WITH_EDITOR
-	/**
-	 * Perform cook-time optimization on this object binding
-	 * @param bShouldRemoveObject 		(Out) Boolean that will set to true if this whole binding should be considered redundant.
-	 */
-	void PerformCookOptimization(bool& bShouldRemoveObject);
-
-#endif
-
 #if WITH_EDITORONLY_DATA
 	/**
 	* Get this folder's desired sorting order
