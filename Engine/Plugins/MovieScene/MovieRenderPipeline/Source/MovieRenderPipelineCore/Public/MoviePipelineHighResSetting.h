@@ -3,6 +3,7 @@
 
 #include "MoviePipelineSetting.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "MoviePipelineUtils.h"
 #include "MoviePipelineHighResSetting.generated.h"
 
 UCLASS(Blueprintable)
@@ -62,14 +63,8 @@ public:
 			return;
 		}
 
-		IConsoleVariable* BurleyOverride = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SSS.Burley.NumSamplesOverride"));
-		if (BurleyOverride)
-		{
-			PrevBurleyOverride = BurleyOverride->GetInt();
-
-			int32 NumSamples = bOverrideSubSurfaceScattering ? BurleySampleCount : 0;
-			BurleyOverride->Set(NumSamples, EConsoleVariableFlags::ECVF_SetByConsole);
-		}
+		int32 NumSamples = bOverrideSubSurfaceScattering ? BurleySampleCount : 0;
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PrevBurleyOverride, TEXT("r.SSS.Burley.NumSamplesOverride"), NumSamples, true);
 	}
 
 	virtual void TeardownForPipelineImpl(UMoviePipeline* InPipeline) override
@@ -79,11 +74,8 @@ public:
 			return;
 		}
 
-		IConsoleVariable* BurleyOverride = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SSS.Burley.NumSamplesOverride"));
-		if (BurleyOverride)
-		{
-			BurleyOverride->Set(PrevBurleyOverride, EConsoleVariableFlags::ECVF_SetByConsole);
-		}
+		int32 NumSamples = 0; // Dummy
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PrevBurleyOverride, TEXT("r.SSS.Burley.NumSamplesOverride"), NumSamples, false);
 	}
 
 public:
