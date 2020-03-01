@@ -16,11 +16,11 @@ namespace AutomationTool.Benchmark
 	public enum CookOptions
 	{
 		None = 0,
-		Clean			= 1 << 0,
+		ColdDDC			= 1 << 0,
 		NoDDC			= 1 << 1,
 		NoShaderDDC		= 1 << 2,
 		Client			= 1 << 3,
-		WarmCook		= 1 << 4,
+		HotDDC			= 1 << 4,
 	}
 
 	class BenchmarkCookTask : BenchmarkTaskBase
@@ -65,6 +65,11 @@ namespace AutomationTool.Benchmark
 			{
 				TaskModifiers.Add("noshaderddc");
 			}
+
+			if (Options.HasFlag(CookOptions.ColdDDC))
+			{
+				TaskModifiers.Add("coldddc");
+			}
 		}
 
 		protected override bool PerformPrequisites()
@@ -81,13 +86,13 @@ namespace AutomationTool.Benchmark
 			}
 
 			// Do a cook to make sure the remote ddc is warm?
-			if (Options.HasFlag(CookOptions.WarmCook))
+			if (Options.HasFlag(CookOptions.HotDDC))
 			{
 				// will throw an exception if it fails
 				CommandUtils.RunCommandlet(ProjectFile, "UE4Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} ", CookPlatformName));
 			}
 
-			if (Options.HasFlag(CookOptions.Clean))
+			if (Options.HasFlag(CookOptions.ColdDDC) || Options.HasFlag(CookOptions.NoDDC))
 			{
 				FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
 
