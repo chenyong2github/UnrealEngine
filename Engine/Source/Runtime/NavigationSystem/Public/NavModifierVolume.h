@@ -24,6 +24,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Default)
 	TSubclassOf<UNavArea> AreaClass;
 
+	/** Experimental: if set, the 2D space occupied by the volume box will ignore FillCollisionUnderneathForNavmesh */
+	UPROPERTY(EditAnywhere, Category = Default, AdvancedDisplay)
+	bool bMaskFillCollisionUnderneathForNavmesh;
+
 public:
 	ANavModifierVolume(const FObjectInitializer& ObjectInitializer);
 

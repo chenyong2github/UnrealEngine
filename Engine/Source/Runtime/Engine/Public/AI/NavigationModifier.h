@@ -250,7 +250,14 @@ protected:
 
 struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 {
-	FCompositeNavModifier() : bHasPotentialLinks(false), bAdjustHeight(false), bHasLowAreaModifiers(false), bIsPerInstanceModifier(false), bModifierFillCollisionUnderneathForNavmesh(false) {}
+	FCompositeNavModifier() 
+		: bHasPotentialLinks(false)
+		, bAdjustHeight(false)
+		, bHasLowAreaModifiers(false)
+		, bIsPerInstanceModifier(false)
+		, bFillCollisionUnderneathForNavmesh(false)
+		, bMaskFillCollisionUnderneathForNavmesh(false)
+	{}
 
 	void Shrink();
 	void Reset();
@@ -258,7 +265,9 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 
 	FORCEINLINE bool IsEmpty() const 
 	{ 
-		return (Areas.Num() == 0) && (SimpleLinks.Num() == 0) && (CustomLinks.Num() == 0);
+		return (Areas.Num() == 0) && (SimpleLinks.Num() == 0) && (CustomLinks.Num() == 0) && 
+			!bFillCollisionUnderneathForNavmesh && 
+			!bMaskFillCollisionUnderneathForNavmesh;
 	}
 
 	void Add(const FAreaNavModifier& Area)
@@ -289,7 +298,8 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 		bHasMetaAreas |= Modifiers.bHasMetaAreas; 
 		bAdjustHeight |= Modifiers.HasAgentHeightAdjust();
 		bHasLowAreaModifiers |= Modifiers.HasLowAreaModifiers();
-		bModifierFillCollisionUnderneathForNavmesh |= Modifiers.GetFillCollisionUnderneathForNavmesh();
+		bFillCollisionUnderneathForNavmesh |= Modifiers.GetFillCollisionUnderneathForNavmesh();
+		bMaskFillCollisionUnderneathForNavmesh |= Modifiers.GetMaskFillCollisionUnderneathForNavmesh();
 	}
 
 	void CreateAreaModifiers(const UPrimitiveComponent* PrimComp, const TSubclassOf<UNavAreaBase> AreaClass);
@@ -305,9 +315,10 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 	FORCEINLINE bool HasAreas() const { return Areas.Num() > 0; }
 	FORCEINLINE bool HasLowAreaModifiers() const { return bHasLowAreaModifiers; }
 	FORCEINLINE bool IsPerInstanceModifier() const { return bIsPerInstanceModifier; }
-	FORCEINLINE bool GetFillCollisionUnderneathForNavmesh() const { return bModifierFillCollisionUnderneathForNavmesh; }
-	FORCEINLINE void SetFillCollisionUnderneathForNavmesh(bool bInRejectNavmeshUnderneath) { bModifierFillCollisionUnderneathForNavmesh = bInRejectNavmeshUnderneath; }
-
+	FORCEINLINE bool GetFillCollisionUnderneathForNavmesh() const { return bFillCollisionUnderneathForNavmesh; }
+	FORCEINLINE void SetFillCollisionUnderneathForNavmesh(bool bValue) { bFillCollisionUnderneathForNavmesh = bValue; }
+	FORCEINLINE bool GetMaskFillCollisionUnderneathForNavmesh() const { return bMaskFillCollisionUnderneathForNavmesh; }
+	FORCEINLINE void SetMaskFillCollisionUnderneathForNavmesh(bool bValue) { bMaskFillCollisionUnderneathForNavmesh = bValue; }
 	FORCEINLINE void ReserveForAdditionalAreas(int32 AdditionalElementsCount) { Areas.Reserve(Areas.Num() + AdditionalElementsCount); }
 
 	void MarkPotentialLinks() { bHasPotentialLinks = true; }
@@ -338,5 +349,6 @@ private:
 	uint32 bAdjustHeight : 1;
 	uint32 bHasLowAreaModifiers : 1;
     uint32 bIsPerInstanceModifier : 1;
-	uint32 bModifierFillCollisionUnderneathForNavmesh : 1;
+	uint32 bFillCollisionUnderneathForNavmesh : 1;
+	uint32 bMaskFillCollisionUnderneathForNavmesh : 1;
 };
