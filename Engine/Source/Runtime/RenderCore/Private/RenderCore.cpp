@@ -267,6 +267,19 @@ RENDERCORE_API int32 GetCVarForceLOD()
 	return Ret;
 }
 
+RENDERCORE_API int32 GetCVarForceLOD_AnyThread()
+{
+	int32 Ret = -1;
+
+#if EXPOSE_FORCE_LOD
+	{
+		Ret = CVarForceLOD.GetValueOnAnyThread();
+	}
+#endif // EXPOSE_FORCE_LOD
+
+	return Ret;
+}
+
 RENDERCORE_API int32 GetCVarForceLODShadow()
 {
 	int32 Ret = -1;
@@ -274,6 +287,19 @@ RENDERCORE_API int32 GetCVarForceLODShadow()
 #if EXPOSE_FORCE_LOD
 	{
 		Ret = CVarForceLODShadow.GetValueOnRenderThread();
+	}
+#endif // EXPOSE_FORCE_LOD
+
+	return Ret;
+}
+
+RENDERCORE_API int32 GetCVarForceLODShadow_AnyThread()
+{
+	int32 Ret = -1;
+
+#if EXPOSE_FORCE_LOD
+	{
+		Ret = CVarForceLODShadow.GetValueOnAnyThread();
 	}
 #endif // EXPOSE_FORCE_LOD
 

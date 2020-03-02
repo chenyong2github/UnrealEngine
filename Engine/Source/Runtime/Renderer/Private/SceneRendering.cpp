@@ -75,6 +75,11 @@ bool UseCachedMeshDrawCommands()
 	return CVarCachedMeshDrawCommands.GetValueOnRenderThread() > 0;
 }
 
+bool UseCachedMeshDrawCommands_AnyThread()
+{
+	return CVarCachedMeshDrawCommands.GetValueOnAnyThread() > 0;
+}
+
 static TAutoConsoleVariable<int32> CVarMeshDrawCommandsDynamicInstancing(
 	TEXT("r.MeshDrawCommands.DynamicInstancing"),
 	1,
