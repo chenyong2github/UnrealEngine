@@ -245,14 +245,13 @@ public:
 	TDeferredLightHairVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 		FGlobalShader(Initializer)
 	{
-		MaxResolution.Bind(Initializer.ParameterMap, TEXT("MaxResolution"));
-		NodeGroupSize.Bind(Initializer.ParameterMap, TEXT("NodeGroupSize"));
+		MaxViewportResolution.Bind(Initializer.ParameterMap, TEXT("MaxViewportResolution"));
 		HairVisibilityNodeCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeCount"));
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FHairStrandsVisibilityData* VisibilityData)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
+		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		if (!VisibilityData)
@@ -265,13 +264,11 @@ public:
 			SetTextureParameter(RHICmdList,	ShaderRHI, HairVisibilityNodeCount, VisibilityData->NodeCount->GetRenderTargetItem().ShaderResourceTexture);
 		}
 
-		SetShaderValue(RHICmdList, ShaderRHI, NodeGroupSize, VisibilityData->NodeGroupSize);
-		SetShaderValue(RHICmdList, ShaderRHI, MaxResolution, VisibilityData->SampleLightingViewportResolution);
+		SetShaderValue(RHICmdList, ShaderRHI, MaxViewportResolution, VisibilityData->SampleLightingViewportResolution);
 	}
 
 private:
-	LAYOUT_FIELD(FShaderParameter, MaxResolution);
-	LAYOUT_FIELD(FShaderParameter, NodeGroupSize);
+	LAYOUT_FIELD(FShaderParameter, MaxViewportResolution);
 	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeCount);
 };
 
@@ -2278,9 +2275,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-
 		VertexShader->SetParameters(RHICmdList, View, &HairVisibilityData);
-		PixelShader->SetParameters(RHICmdList, View,  LightSceneInfo, HairShadowMaskTexture, &RenderLightParams);
 		PixelShader->SetParameters(RHICmdList, View,  LightSceneInfo, HairShadowMaskTexture, bHairRenderingEnabled ? &RenderLightParams : nullptr);
 
 		RHICmdList.SetStreamSource(0, nullptr, 0);
