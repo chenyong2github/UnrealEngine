@@ -2738,6 +2738,11 @@ namespace AutomationTool
 			{
 				throw new AutomationException("DiscVersion is required for generating remaster package.");
 			}*/
+
+			if ((IoStore && !SkipIoStore) && (!Pak || SkipPak))
+			{
+				throw new AutomationException("-iostore can only be used with -pak");
+			}
 		}
 
 		protected bool bLogged = false;
