@@ -41,6 +41,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Tracked Total"), STAT_PlatformTrackedTotalLLM, STA
 DECLARE_LLM_MEMORY_STAT(TEXT("Untagged"), STAT_PlatformUntaggedTotalLLM, STATGROUP_LLMPlatform);
 DECLARE_LLM_MEMORY_STAT(TEXT("Untracked"), STAT_PlatformUntrackedLLM, STATGROUP_LLMPlatform);
 DECLARE_LLM_MEMORY_STAT(TEXT("Overhead"), STAT_PlatformOverheadLLM, STATGROUP_LLMPlatform);
+DECLARE_LLM_MEMORY_STAT(TEXT("OS Available"), STAT_PlatformOSAvailableLLM, STATGROUP_LLMPlatform);
 DECLARE_LLM_MEMORY_STAT(TEXT("FMalloc"), STAT_FMallocLLM, STATGROUP_LLMPlatform);
 DECLARE_LLM_MEMORY_STAT(TEXT("FMalloc Unused"), STAT_FMallocUnusedLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("ThreadStack"), STAT_ThreadStackLLM, STATGROUP_LLMFULL);
@@ -662,6 +663,7 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	GetTracker(ELLMTracker::Platform)->SetTagAmount(ELLMTag::PlatformTotal, PlatformProcessMemory, false);
 	GetTracker(ELLMTracker::Platform)->SetTagAmount(ELLMTag::PlatformUntracked, PlatformTotalUntracked, false);
 	GetTracker(ELLMTracker::Platform)->SetTagAmount(ELLMTag::PlatformOverhead, Overhead, true);
+	GetTracker(ELLMTracker::Platform)->SetTagAmount(ELLMTag::PlatformOSAvailable, PlatformStats.AvailablePhysical, false);
 
 	int64 TrackedTotal = GetTracker(ELLMTracker::Default)->GetTagAmount(ELLMTag::TrackedTotal);
 	// remove the Overhead from the default LLM as it's not something anyone needs to investigate when finding what to reduce
