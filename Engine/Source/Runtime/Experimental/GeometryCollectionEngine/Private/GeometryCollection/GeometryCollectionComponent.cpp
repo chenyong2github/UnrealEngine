@@ -218,31 +218,6 @@ void UGeometryCollectionComponent::BeginPlay()
 	// ---------- });
 	//////////////////////////////////////////////////////////////////////////
 
-	if (PhysicsProxy != nullptr)
-	{
-		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-		if (ChaosModule != nullptr)
-		{
-			Chaos::FPhysicsSolver* Solver = nullptr;
-			if (ChaosSolverActor != nullptr)
-			{
-				Solver = ChaosSolverActor->GetSolver();
-			}
-			else if (FPhysScene_Chaos* Scene = GetPhysicsScene())
-			{
-				Solver = Scene->GetSolver();
-			}
-			if (Solver != nullptr)
-			{
-				ChaosModule->GetDispatcher()->EnqueueCommandImmediate(Solver, [InPhysicsProxy = PhysicsProxy](Chaos::FPhysicsSolver* InSolver)
-				{
-					InPhysicsProxy->ActivateBodies();
-				});
-			}
-		}
-	}
-	InitializationState = ESimulationInitializationState::Activated;
-
 	// default current cache time
 	CurrentCacheTime = MAX_flt;
 }
@@ -1153,6 +1128,51 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				ChaosMaterial->SleepingAngularThreshold = PhysicalMaterial->SleepingAngularVelocityThreshold;
 			}
 
+			FSimulationParameters SimulationParameters;
+			{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				SimulationParameters.Name = GetPathName();
+#endif
+				RestCollection->GetSharedSimulationParams(SimulationParameters.Shared);
+				SimulationParameters.RestCollection = RestCollection->GetGeometryCollection().Get();
+				SimulationParameters.Simulating = Simulating;
+				SimulationParameters.EnableClustering = EnableClustering;
+				SimulationParameters.ClusterGroupIndex = EnableClustering ? ClusterGroupIndex : 0;
+				SimulationParameters.MaxClusterLevel = MaxClusterLevel;
+				SimulationParameters.DamageThreshold = DamageThreshold;
+				SimulationParameters.ClusterConnectionMethod = (Chaos::FClusterCreationParameters<float>::EConnectionMethod)ClusterConnectionType;
+				SimulationParameters.CollisionGroup = CollisionGroup;
+				SimulationParameters.CollisionSampleFraction = CollisionSampleFraction;
+				SimulationParameters.LinearEtherDrag = LinearEtherDrag;
+				SimulationParameters.AngularEtherDrag = AngularEtherDrag;
+				SimulationParameters.InitialVelocityType = InitialVelocityType;
+				SimulationParameters.InitialLinearVelocity = InitialLinearVelocity;
+				SimulationParameters.InitialAngularVelocity = InitialAngularVelocity;
+				SimulationParameters.bClearCache = true;
+				SimulationParameters.ObjectType = ObjectType;
+				SimulationParameters.CacheType = CacheParameters.CacheMode;
+				SimulationParameters.ReverseCacheBeginTime = CacheParameters.ReverseCacheBeginTime;
+				SimulationParameters.CollisionData.SaveCollisionData = CacheParameters.SaveCollisionData;
+				SimulationParameters.CollisionData.DoGenerateCollisionData = CacheParameters.DoGenerateCollisionData;
+				SimulationParameters.CollisionData.CollisionDataSizeMax = CacheParameters.CollisionDataSizeMax;
+				SimulationParameters.CollisionData.DoCollisionDataSpatialHash = CacheParameters.DoCollisionDataSpatialHash;
+				SimulationParameters.CollisionData.CollisionDataSpatialHashRadius = CacheParameters.CollisionDataSpatialHashRadius;
+				SimulationParameters.CollisionData.MaxCollisionPerCell = CacheParameters.MaxCollisionPerCell;
+				SimulationParameters.BreakingData.SaveBreakingData = CacheParameters.SaveBreakingData;
+				SimulationParameters.BreakingData.DoGenerateBreakingData = CacheParameters.DoGenerateBreakingData;
+				SimulationParameters.BreakingData.BreakingDataSizeMax = CacheParameters.BreakingDataSizeMax;
+				SimulationParameters.BreakingData.DoBreakingDataSpatialHash = CacheParameters.DoBreakingDataSpatialHash;
+				SimulationParameters.BreakingData.BreakingDataSpatialHashRadius = CacheParameters.BreakingDataSpatialHashRadius;
+				SimulationParameters.BreakingData.MaxBreakingPerCell = CacheParameters.MaxBreakingPerCell;
+				SimulationParameters.TrailingData.SaveTrailingData = CacheParameters.SaveTrailingData;
+				SimulationParameters.TrailingData.DoGenerateTrailingData = CacheParameters.DoGenerateTrailingData;
+				SimulationParameters.TrailingData.TrailingDataSizeMax = CacheParameters.TrailingDataSizeMax;
+				SimulationParameters.TrailingData.TrailingMinSpeedThreshold = CacheParameters.TrailingMinSpeedThreshold;
+				SimulationParameters.TrailingData.TrailingMinVolumeThreshold = CacheParameters.TrailingMinVolumeThreshold;
+				SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
+			}
+
+
 			//
 			// Called from FGeometryCollectionPhysicsProxy::Initialize()
 			//
@@ -1161,48 +1181,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				InParams.Name = GetPathName();
 #endif
-				InParams.RestCollection = RestCollection->GetGeometryCollection().Get();
 				GetInitializationCommands(InParams.InitializationCommands);
-				InParams.InitializationState = InitializationState;
-				InParams.Simulating = Simulating;
-				InParams.WorldTransform = GetComponentToWorld();
-				RestCollection->GetSharedSimulationParams(InParams.Shared);
-				InParams.EnableClustering = EnableClustering;
-				InParams.ClusterGroupIndex = EnableClustering?ClusterGroupIndex:0;
-				InParams.MaxClusterLevel = MaxClusterLevel;
-				InParams.DamageThreshold = DamageThreshold;
-				InParams.ClusterConnectionMethod = (Chaos::FClusterCreationParameters<float>::EConnectionMethod)ClusterConnectionType;
-				InParams.CollisionGroup = CollisionGroup;
-				InParams.CollisionSampleFraction = CollisionSampleFraction;
-				InParams.LinearEtherDrag = LinearEtherDrag;
-				InParams.AngularEtherDrag = AngularEtherDrag;
-				InParams.InitialVelocityType = InitialVelocityType;
-				InParams.InitialLinearVelocity = InitialLinearVelocity;
-				InParams.InitialAngularVelocity = InitialAngularVelocity;
-				InParams.bClearCache = true;
-				InParams.ObjectType = ObjectType;
-				InParams.PhysicalMaterial = MakeSerializable(ChaosMaterial);
-				InParams.CacheType = CacheParameters.CacheMode;
-				InParams.ReverseCacheBeginTime = CacheParameters.ReverseCacheBeginTime;
-				InParams.CollisionData.SaveCollisionData = CacheParameters.SaveCollisionData;
-				InParams.CollisionData.DoGenerateCollisionData = CacheParameters.DoGenerateCollisionData;
-				InParams.CollisionData.CollisionDataSizeMax = CacheParameters.CollisionDataSizeMax;
-				InParams.CollisionData.DoCollisionDataSpatialHash = CacheParameters.DoCollisionDataSpatialHash;
-				InParams.CollisionData.CollisionDataSpatialHashRadius = CacheParameters.CollisionDataSpatialHashRadius;
-				InParams.CollisionData.MaxCollisionPerCell = CacheParameters.MaxCollisionPerCell;
-				InParams.BreakingData.SaveBreakingData = CacheParameters.SaveBreakingData;
-				InParams.BreakingData.DoGenerateBreakingData = CacheParameters.DoGenerateBreakingData;
-				InParams.BreakingData.BreakingDataSizeMax = CacheParameters.BreakingDataSizeMax;
-				InParams.BreakingData.DoBreakingDataSpatialHash = CacheParameters.DoBreakingDataSpatialHash;
-				InParams.BreakingData.BreakingDataSpatialHashRadius = CacheParameters.BreakingDataSpatialHashRadius;
-				InParams.BreakingData.MaxBreakingPerCell = CacheParameters.MaxBreakingPerCell;
-				InParams.TrailingData.SaveTrailingData = CacheParameters.SaveTrailingData;
-				InParams.TrailingData.DoGenerateTrailingData = CacheParameters.DoGenerateTrailingData;
-				InParams.TrailingData.TrailingDataSizeMax = CacheParameters.TrailingDataSizeMax;
-				InParams.TrailingData.TrailingMinSpeedThreshold = CacheParameters.TrailingMinSpeedThreshold;
-				InParams.TrailingData.TrailingMinVolumeThreshold = CacheParameters.TrailingMinVolumeThreshold;
-				InParams.RemoveOnFractureEnabled = InParams.Shared.RemoveOnFractureIndices.Num() > 0;
-
 				UGeometryCollectionCache* Cache = CacheParameters.TargetCache;
 				if(Cache && CacheParameters.CacheMode != EGeometryCollectionCacheType::None)
 				{
@@ -1366,7 +1345,8 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			}
 			// end temporary 
 
-			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, DynamicCollection.Get(), InitFunc, CacheSyncFunc, FinalSyncFunc);
+			SimulationParameters.DynamicCollection = DynamicCollection.Get();
+			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, SimulationParameters, InitFunc, CacheSyncFunc, FinalSyncFunc);
 			FPhysScene_Chaos* Scene = GetPhysicsScene();
 			Scene->AddObject(this, PhysicsProxy);
 

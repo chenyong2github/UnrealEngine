@@ -222,7 +222,6 @@ struct FSimulationParameters
 		, CacheBeginTime(0.0f)
 		, ReverseCacheBeginTime(0.0f)
 		, bClearCache(false)
-		, InitializationState(ESimulationInitializationState::Unintialized)
 		, RemoveOnFractureEnabled(false)
 	{}
 
@@ -255,7 +254,6 @@ struct FSimulationParameters
 		, BreakingData(Other.BreakingData)
 		, TrailingData(Other.TrailingData)
 		, Shared(Other.Shared)
-		, InitializationState(Other.InitializationState)
 		, RemoveOnFractureEnabled(false)
 	{}
 
@@ -311,8 +309,6 @@ struct FSimulationParameters
 	FTrailingDataSimulationParameters TrailingData;
 
 	FSharedSimulationParameters Shared;
-
-	ESimulationInitializationState InitializationState;
 
 	bool RemoveOnFractureEnabled;
 };
