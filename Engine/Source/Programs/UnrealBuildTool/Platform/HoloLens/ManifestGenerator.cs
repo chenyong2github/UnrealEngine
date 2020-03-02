@@ -1155,7 +1155,7 @@ namespace UnrealBuildTool
 					TargetDeviceFamily.Attributes.Append(NameAttribute);
 
 					XmlAttribute MinVersionAttribute = AppxManifestXmlDocument.CreateAttribute("MinVersion");
-					string versionString = CreateStringValue("MinimumPlatformVersion", "Package.Dependencies.TargetDeviceFamily[0].MinVersion", "MinimumPlatformVersion", "MinVersion", "10.0.10240.0");
+					string versionString = CreateStringValue("MinimumPlatformVersion", "Package.Dependencies.TargetDeviceFamily[0].MinVersion", "MinimumPlatformVersion", "MinVersion", "10.0.17763.0");
 					MinVersionAttribute.Value = versionString;
 					TargetDeviceFamily.Attributes.Append(MinVersionAttribute);
 
