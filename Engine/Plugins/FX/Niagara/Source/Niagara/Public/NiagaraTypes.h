@@ -13,6 +13,12 @@ class UNiagaraDataInterfaceBase;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNiagara, Log, Verbose);
 
+// helper methods for basic struct definitions
+struct NIAGARA_API FNiagaraTypeUtilities
+{
+	static FString GetNamespaceStringForScriptParameterScope(const ENiagaraParameterScope& InScope);
+};
+
 // basic type struct definitions
 
 USTRUCT(meta = (DisplayName = "float"))
@@ -463,6 +469,8 @@ enum class ENiagaraParameterScope : uint32
 
 	Local UMETA(Hidden), //Convenience markup for ScopeToString functions, only use in conjunction with ENiagaraScriptParameterUsage::Local.
 
+	Custom UMETA(Hidden), //Convenience markup for expressing parameters using legacy editor mode to freetype namespace and name.
+
 	// insert new scopes before
 	None UMETA(Hidden),
 
@@ -519,6 +527,7 @@ public:
 		, bAddedToNodeGraphDeepCopy(false)
 		, bOutputIsPersistent(false)
 		, bCreatedInSystemEditor(false)
+		, bUseLegacyNameString(false)
 	{};
 public:
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true, SkipForCompileHash = "true"))
@@ -550,12 +559,53 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata", SkipForCompileHash = "true"))
 	TMap<FName, FString> PropertyMetaData;
 
+public:
+	FString GetNamespaceString() const;
+
+	/** Gets the Scope and notifies if it does not apply due to an override being set.
+	 * @params OutScope		The Scope to return;
+	 * @return bool			Whether the returned scope is not overridden. Is false if bUseLegacyNameString is set.
+	 */
+	bool GetScope(ENiagaraParameterScope& OutScope) const;
+	void SetScope(ENiagaraParameterScope InScope) { Scope = InScope; };
+
+	ENiagaraScriptParameterUsage GetUsage() const { return Usage; };
+	void SetUsage(ENiagaraScriptParameterUsage InUsage) { Usage = InUsage; };
+
+	/** Gets the CachedNamespacelessParameterName and notifies if it cannot be returned due to an override being set.
+	 * @params OutName		The Name to return;
+	 * @return bool			Whether the CachedNamespacelessParameterName can be returned. Is false if bUseLegacyNameString is set.
+	 */
+	bool GetParameterName(FName& OutName) const;
+	void SetCachedNamespacelessVariableName(const FName& InVariableName) { CachedNamespacelessVariableName = InVariableName; };
+
+	bool GetWasCreatedInSystemEditor() const { return bCreatedInSystemEditor; };
+	void SetWasCreatedInSystemEditor(bool bWasCreatedInSystemEditor) { bCreatedInSystemEditor = bWasCreatedInSystemEditor; };
+
+	bool GetWasAddedToNodeGraphDeepCopy() const { return bAddedToNodeGraphDeepCopy; };
+	void SetWasAddedToNodeGraphDeepCopy(bool bWasAddedToNodeGraphDeepCopy) { bAddedToNodeGraphDeepCopy = bWasAddedToNodeGraphDeepCopy; };
+
+	bool GetIsStaticSwitch() const { return bIsStaticSwitch; };
+	void SetIsStaticSwitch(bool bInIsStaticSwitch) { bIsStaticSwitch = bInIsStaticSwitch; };
+
+	int32 GetStaticSwitchDefaultValue() const { return StaticSwitchDefaultValue; };
+	void SetStaticSwitchDefaultValue(int32 InStaticSwitchDefaultValue) { StaticSwitchDefaultValue = InStaticSwitchDefaultValue; };
+
+	bool GetOutputIsPersistent() const { return bOutputIsPersistent; };
+	void SetOutputIsPersistent(bool bInOutputIsPersistent) { bOutputIsPersistent = bInOutputIsPersistent; };
+
+	bool GetIsUsingLegacyNameString() const { return bUseLegacyNameString; };
+	void SetIsUsingLegacyNameString(bool bInUseLegacyNameString) { bUseLegacyNameString = bInUseLegacyNameString; };
+
+	void CopyPerScriptMetaData(const FNiagaraVariableMetaData& OtherMetaData);
+
+private:
 	/** Defines the scope of a variable that is an input to a script. */
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	ENiagaraParameterScope Scope;
 
 	/** Defines the usage of a variable as an argument or output relative to the script. */
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	ENiagaraScriptParameterUsage Usage;
 
 	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
@@ -567,20 +617,23 @@ public:
 	int32 StaticSwitchDefaultValue;  // TODO: This should be moved to the UNiagaraScriptVariable in the future
 
 	/** Transient data to mark variables set in the node graph deep copy as having been derived from a module namespace parameter default. */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (SkipForCompileHash = "true"))
 	bool bAddedToNodeGraphDeepCopy;
 
 	/** Only valid if Usage is Output. Marks the associated FNiagaraVariable as Persistent across script runs and therefore should be retained in the Dataset during compilation/translation. */
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	bool bOutputIsPersistent;
 
 	/** Namespace-less name for associated FNiagaraVariable. Edited directly by user and then used to generate full Name of associated FNiagaraVariable. */
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FName CachedNamespacelessVariableName;
 
 	/** Track if the associated parameter was created in the Emitter/System editor. Used to determine whether the associated parameter can be deleted from the Emitter/System editor. */
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	bool bCreatedInSystemEditor;
+
+	UPROPERTY(EditAnywhere, Category = "Custom Name", meta = (ToolTip = "Enable using a legacy custom name string.", SkipForCompileHash = "true"))
+	bool bUseLegacyNameString;
 
 public:
 	FORCEINLINE bool IsInputUsage() const { return Usage == ENiagaraScriptParameterUsage::Input || Usage == ENiagaraScriptParameterUsage::InputOutput; };
