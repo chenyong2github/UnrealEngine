@@ -53,7 +53,7 @@ namespace AutomationTool.Benchmark
 			}
 		}
 
-		public BenchmarkBuildTask(string InProject, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions, int ProcessorCount=0)
+		public BenchmarkBuildTask(string InProject, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions, int CoreCount=0)
 		{
 			bool IsVanillaUE4 = InProject == null || string.Equals(InProject, "UE4", StringComparison.OrdinalIgnoreCase);
 
@@ -80,11 +80,11 @@ namespace AutomationTool.Benchmark
 				TaskModifiers.Add(Arg);
 				Command.Params = new[] { Arg }; // need to also pass it to this
 
-				if (ProcessorCount > 0)
+				if (CoreCount > 0)
 				{
-					TaskModifiers.Add(string.Format("{0}c", ProcessorCount));
+					TaskModifiers.Add(string.Format("{0}c", CoreCount));
 
-					Command.UBTArgs += string.Format(" -ParallelActions={0}", ProcessorCount);
+					Command.UBTArgs += string.Format(" -MaxParallelActions={0}", CoreCount);
 				}
 			}
 			else

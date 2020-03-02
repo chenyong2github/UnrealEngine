@@ -108,6 +108,14 @@ namespace UnrealBuildTool
 		public bool bAllowParallelExecutor = true;
 
 		/// <summary>
+		/// Number of actions that can be executed in parallel. If 0 then code will pick a default based
+		/// on the number of cores available. Only applies to the ParallelExecutor
+		/// </summary>
+		[XmlConfigFile]
+		[CommandLine("-MaxParallelActions")]
+		public int MaxParallelActions = 0;
+
+		/// <summary>
 		/// If true, force header regeneration. Intended for the build machine.
 		/// </summary>
 		[CommandLine("-ForceHeaderGeneration")]

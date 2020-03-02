@@ -33,9 +33,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public HybridExecutor()
+		public HybridExecutor(int InMaxLocalActions)
 		{
-			this.LocalExecutor = new ParallelExecutor();
+			MaxLocalActions = InMaxLocalActions;
+			this.LocalExecutor = new ParallelExecutor(MaxLocalActions);
 			this.RemoteExecutor = new XGE();
 
 			XmlConfig.ApplyTo(this);
