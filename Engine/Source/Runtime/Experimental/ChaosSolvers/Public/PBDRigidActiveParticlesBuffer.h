@@ -29,6 +29,8 @@ namespace Chaos
 		FPBDRigidActiveParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode);
 
 		void CaptureSolverData(FPBDRigidsSolver* Solver);
+
+		void RemoveActiveParticleFromConsumerBuffer(TGeometryParticle<FReal, 3>* Particle);
 	
 	private:
 		const FPBDRigidActiveParticlesBufferOut* GetSolverOutData() const

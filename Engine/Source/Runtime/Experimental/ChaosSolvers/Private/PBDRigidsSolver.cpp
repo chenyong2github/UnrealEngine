@@ -415,6 +415,10 @@ namespace Chaos
 				delete Proxy;
 			}
 
+			// Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state
+			// if this particle was deleted after buffering results. 
+			Solver->GetActiveParticlesBuffer()->RemoveActiveParticleFromConsumerBuffer(Handle->GTGeometryParticle());
+
 			Solver->MParticleToProxy.Remove(Handle);
 
 			// Use the handle to destroy the particle data
