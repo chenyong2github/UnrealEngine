@@ -7,7 +7,7 @@
 
 #include "Engine/World.h"
 
-FUsdPrimTwin& FUsdPrimTwin::AddChild( const FString& InPrimPath )
+UUsdPrimTwin& UUsdPrimTwin::AddChild( const FString& InPrimPath )
 {
 	FScopedUnrealAllocs UnrealAllocs; // Make sure the call to new is done with the UE allocator
 
@@ -15,19 +15,23 @@ FUsdPrimTwin& FUsdPrimTwin::AddChild( const FString& InPrimPath )
 	FString ChildPrimName;
 	InPrimPath.Split( TEXT("/"), &Dummy, &ChildPrimName, ESearchCase::IgnoreCase, ESearchDir::FromEnd );
 
-	TUniquePtr< FUsdPrimTwin >& ChildPrim = Children.Add( ChildPrimName );
+	Modify();
 
-	ChildPrim = MakeUnique< FUsdPrimTwin >();
+	UUsdPrimTwin*& ChildPrim = Children.Add( ChildPrimName );
+
+	ChildPrim = NewObject<UUsdPrimTwin>(this, NAME_None, RF_Transient | RF_Transactional);
 	ChildPrim->PrimPath = InPrimPath;
 
 	return *ChildPrim;
 }
 
-void FUsdPrimTwin::RemoveChild( const TCHAR* InPrimPath )
+void UUsdPrimTwin::RemoveChild( const TCHAR* InPrimPath )
 {
 	FScopedUnrealAllocs UnrealAllocs;
 
-	for ( TMap< FString, TUniquePtr< FUsdPrimTwin > >::TIterator ChildIt = Children.CreateIterator(); ChildIt; ++ChildIt )
+	Modify();
+
+	for ( TMap< FString, UUsdPrimTwin* >::TIterator ChildIt = Children.CreateIterator(); ChildIt; ++ChildIt )
 	{
 		if ( ChildIt->Value->PrimPath == InPrimPath )
 		{
@@ -37,10 +41,16 @@ void FUsdPrimTwin::RemoveChild( const TCHAR* InPrimPath )
 	}
 }
 
-void FUsdPrimTwin::Clear()
+void UUsdPrimTwin::Clear()
 {
 	FScopedUnrealAllocs UnrealAllocs;
 
+	Modify();
+
+	for (const TPair< FString, UUsdPrimTwin* >& Pair : Children)
+	{
+		Pair.Value->Clear();
+	}
 	Children.Empty();
 
 	if ( !PrimPath.IsEmpty() )
@@ -60,17 +70,19 @@ void FUsdPrimTwin::Clear()
 
 	if ( ActorToDestroy && !ActorToDestroy->IsA< AUsdStageActor >() && !ActorToDestroy->IsActorBeingDestroyed() && ActorToDestroy->GetWorld() )
 	{
+		ActorToDestroy->Modify();
 		ActorToDestroy->GetWorld()->DestroyActor( ActorToDestroy );
 		SpawnedActor = nullptr;
 	}
 	else if ( SceneComponent.IsValid() && !SceneComponent->IsBeingDestroyed() )
 	{
+		SceneComponent->Modify();
 		SceneComponent->DestroyComponent();
 		SceneComponent = nullptr;
 	}
 }
 
-FUsdPrimTwin* FUsdPrimTwin::Find( const FString& InPrimPath )
+UUsdPrimTwin* UUsdPrimTwin::Find( const FString& InPrimPath )
 {
 	if ( PrimPath == InPrimPath )
 	{
@@ -98,7 +110,7 @@ FUsdPrimTwin* FUsdPrimTwin::Find( const FString& InPrimPath )
 	{
 		if ( RestOfPrimPathToFind.IsEmpty() )
 		{
-			return Children[ ChildPrimName ].Get();
+			return Children[ ChildPrimName ];
 		}
 		else
 		{
