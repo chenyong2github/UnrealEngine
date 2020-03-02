@@ -206,6 +206,7 @@ namespace NiagaraParameterPanelSectionID
 		SYSTEM,
 		EMITTER,
 		PARTICLES,
+		CUSTOM,
 	};
 
 	FText OnGetSectionTitle(const NiagaraParameterPanelSectionID::Type InSection);

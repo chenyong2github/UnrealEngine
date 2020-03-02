@@ -38,7 +38,7 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 
 	ParameterPanelViewModel->GetOnRefreshed().BindRaw(this, &SNiagaraParameterPanel::Refresh);
 
-	AddParameterButtons.SetNum(NiagaraParameterPanelSectionID::PARTICLES + 1); //@Todo(ng) verify
+	AddParameterButtons.SetNum(NiagaraParameterPanelSectionID::CUSTOM + 1); //@Todo(ng) verify
 
 	// Register all commands for right click on action node
 	FNiagaraParameterPanelCommands::Register();
@@ -96,8 +96,8 @@ void SNiagaraParameterPanel::Tick(const FGeometry& AllottedGeometry, const doubl
 void SNiagaraParameterPanel::AddParameter(FNiagaraVariable NewVariable, const NiagaraParameterPanelSectionID::Type SectionID)
 {
 	FNiagaraVariableMetaData NewVariableMetaData = FNiagaraVariableMetaData();
-	NewVariableMetaData.Scope = NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(SectionID);
-	NewVariableMetaData.Usage = NiagaraParameterPanelSectionID::GetUsageForNewParametersInSection(SectionID);
+	NewVariableMetaData.SetScope(NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(SectionID));
+	NewVariableMetaData.SetUsage(NiagaraParameterPanelSectionID::GetUsageForNewParametersInSection(SectionID));
 
 	ParameterPanelViewModel->AddParameter(NewVariable, NewVariableMetaData);
 
@@ -121,8 +121,28 @@ void SNiagaraParameterPanel::CollectAllActions(FGraphActionListBuilderBase& OutA
 {
 	const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}"); //@todo(ng) move to const static
 
+	auto SortParameterPanelEntries = [](const FNiagaraScriptVariableAndViewInfo& A, const FNiagaraScriptVariableAndViewInfo& B) {
+		if (A.MetaData.GetIsUsingLegacyNameString())
+		{
+			if (B.MetaData.GetIsUsingLegacyNameString())
+			{
+				return A.ScriptVariable.GetName().LexicalLess(B.ScriptVariable.GetName());
+			}
+			return false;
+		}
+		else if (B.MetaData.GetIsUsingLegacyNameString())
+		{
+			return true;
+		}
+		FName AName;
+		FName BName;
+		A.MetaData.GetParameterName(AName);
+		B.MetaData.GetParameterName(BName);
+		return AName.LexicalLess(BName);
+	};
+
 	TArray<FNiagaraScriptVariableAndViewInfo> VarAndViewInfos = ParameterPanelViewModel->GetViewedParameters();
-	VarAndViewInfos.Sort([](const FNiagaraScriptVariableAndViewInfo& A, const FNiagaraScriptVariableAndViewInfo& B) { return A.MetaData.CachedNamespacelessVariableName.LexicalLess(B.MetaData.CachedNamespacelessVariableName); });
+	VarAndViewInfos.Sort(SortParameterPanelEntries);
 	for (const FNiagaraScriptVariableAndViewInfo& VarAndViewInfo : VarAndViewInfos)
 	{
 		const FText Name = FText::FromName(VarAndViewInfo.ScriptVariable.GetName());
@@ -313,7 +333,7 @@ void SNiagaraAddParameterMenu2::Construct(const FArguments& InArgs, TArray<TWeak
 
 	Graphs = InGraphs;
 	NewParameterScope = InNewParameterScope;
-	NewParameterScopeText = FText::FromString(FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(NewParameterScope));
+	NewParameterScopeText = FText::FromString(FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(NewParameterScope));
 
 	ChildSlot
 	[
