@@ -449,7 +449,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				{
 					if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER)
 					{
-						uint RayFlags = 0;
+						// Material gather rays are traced as opaque to find the closest hit.
+						// Shading pass then traces a shortened ray from position right before first opaque hit to handle masked materials, translucency, etc.
+						uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
 						DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 						TraceRay(
 							TLAS,								// AccelerationStructure
