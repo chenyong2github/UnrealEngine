@@ -926,12 +926,6 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 			bool bFoundSupported = false;
 			for (FString Flavor : CookedFlavors)
 			{
-				if (Flavor.Equals(TEXT("ETC1")))
-				{
-					// every device supports ETC1
-					bFoundSupported = true;
-					break;
-				}
 				if (Flavor.Equals(TEXT("ETC2")))
 				{
 					if (FOpenGL::SupportsETC2())
@@ -940,25 +934,9 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 						break;
 					}
 				}
-				if (Flavor.Equals(TEXT("ATC")))
-				{
-					if (FOpenGL::SupportsATITC())
-					{
-						bFoundSupported = true;
-						break;
-					}
-				}
 				if (Flavor.Equals(TEXT("DXT")))
 				{
 					if (FOpenGL::SupportsDXT())
-					{
-						bFoundSupported = true;
-						break;
-					}
-				}
-				if (Flavor.Equals(TEXT("PVRTC")))
-				{
-					if (FOpenGL::SupportsPVRTC())
 					{
 						bFoundSupported = true;
 						break;
@@ -976,11 +954,8 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 
 			if (!bFoundSupported)
 			{
-				FString Message = TEXT("Cooked Flavors: ") + CookedFlavorsString + TEXT("\n\nSupported: ETC1") +
-					(FOpenGL::SupportsETC2() ? TEXT(",ETC2") : TEXT("")) +
-					(FOpenGL::SupportsATITC() ? TEXT(",ATC") : TEXT("")) +
+				FString Message = TEXT("Cooked Flavors: ") + CookedFlavorsString + TEXT("\n\nSupported: ETC2") +
 					(FOpenGL::SupportsDXT() ? TEXT(",DXT") : TEXT("")) +
-					(FOpenGL::SupportsPVRTC() ? TEXT(",PVRTC") : TEXT("")) +
 					(FOpenGL::SupportsASTC() ? TEXT(",ASTC") : TEXT(""));
 
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Error: Unsupported Texture Format\n%s"), *Message);

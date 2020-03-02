@@ -185,15 +185,6 @@ bool FOpenGLES::bSupportsMultisampledRenderToTexture = false;
 /** GL_NV_texture_compression_s3tc, GL_EXT_texture_compression_s3tc */
 bool FOpenGLES::bSupportsDXT = false;
 
-/** GL_IMG_texture_compression_pvrtc */
-bool FOpenGLES::bSupportsPVRTC = false;
-
-/** GL_ATI_texture_compression_atitc, GL_AMD_compressed_ATC_texture */
-bool FOpenGLES::bSupportsATITC = false;
-
-/** GL_OES_compressed_ETC1_RGB8_texture */
-bool FOpenGLES::bSupportsETC1 = false;
-
 /** OpenGL ES 3.0 profile */
 bool FOpenGLES::bSupportsETC2 = false;
 
@@ -353,9 +344,6 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 	bSupportsShaderDepthStencilFetch = ExtensionsString.Contains(TEXT("GL_ARM_shader_framebuffer_fetch_depth_stencil"));
 	bSupportsMultisampledRenderToTexture = ExtensionsString.Contains(TEXT("GL_EXT_multisampled_render_to_texture"));
 	bSupportsDXT = ExtensionsString.Contains(TEXT("GL_NV_texture_compression_s3tc")) || ExtensionsString.Contains(TEXT("GL_EXT_texture_compression_s3tc"));
-	bSupportsPVRTC = ExtensionsString.Contains(TEXT("GL_IMG_texture_compression_pvrtc"));
-	bSupportsATITC = ExtensionsString.Contains(TEXT("GL_ATI_texture_compression_atitc")) || ExtensionsString.Contains(TEXT("GL_AMD_compressed_ATC_texture"));
-	bSupportsETC1 = ExtensionsString.Contains(TEXT("GL_OES_compressed_ETC1_RGB8_texture"));
 	bSupportsVertexArrayObjects = ExtensionsString.Contains(TEXT("GL_OES_vertex_array_object"));
 	bSupportsDiscardFrameBuffer = ExtensionsString.Contains(TEXT("GL_EXT_discard_framebuffer"));
 	bSupportsNVFrameBufferBlit = ExtensionsString.Contains(TEXT("GL_NV_framebuffer_blit"));
@@ -576,13 +564,6 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 		// need to disable GL_EXT_color_buffer_half_float support because we have no way to allocate the storage and the driver doesn't work without it.
 		UE_LOG(LogRHI, Warning, TEXT("Disabling support for GL_EXT_color_buffer_half_float as we cannot bind glTexStorage2D"));
 		bSupportsColorBufferHalfFloat = false;
-	}
-
-	if (IsES31Usable())
-	{
-		// ES3.1 requires sRGB texture sampling, these formats do not support it
-		bSupportsATITC = false;
-		bSupportsPVRTC = false;
 	}
 
 	// Set lowest possible limits for texture units, to avoid extra work in GL RHI

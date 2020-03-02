@@ -724,12 +724,6 @@ void TOpenGLTexture<RHIResourceType>::Resolve(uint32 MipIndex,uint32 ArrayIndex)
 	const uint32 MipSizeY = FMath::Max(this->GetSizeY() >> MipIndex,BlockSizeY);
 	uint32 NumBlocksX = (MipSizeX + BlockSizeX - 1) / BlockSizeX;
 	uint32 NumBlocksY = (MipSizeY + BlockSizeY - 1) / BlockSizeY;
-	if ( PixelFormat == PF_PVRTC2 || PixelFormat == PF_PVRTC4 )
-	{
-		// PVRTC has minimum 2 blocks width and height
-		NumBlocksX = FMath::Max<uint32>(NumBlocksX, 2);
-		NumBlocksY = FMath::Max<uint32>(NumBlocksY, 2);
-	}
 	const uint32 MipBytes = NumBlocksX * NumBlocksY * BlockBytes;
 	
 	const int32 BufferIndex = MipIndex * (bCubemap ? 6 : 1) * this->GetEffectiveSizeZ() + ArrayIndex;
@@ -807,12 +801,6 @@ uint32 TOpenGLTexture<RHIResourceType>::GetLockSize(uint32 InMipIndex, uint32 Ar
 	const uint32 MipSizeY = FMath::Max(this->GetSizeY() >> InMipIndex, BlockSizeY);
 	uint32 NumBlocksX = (MipSizeX + BlockSizeX - 1) / BlockSizeX;
 	uint32 NumBlocksY = (MipSizeY + BlockSizeY - 1) / BlockSizeY;
-	if (PixelFormat == PF_PVRTC2 || PixelFormat == PF_PVRTC4)
-	{
-		// PVRTC has minimum 2 blocks width and height
-		NumBlocksX = FMath::Max<uint32>(NumBlocksX, 2);
-		NumBlocksY = FMath::Max<uint32>(NumBlocksY, 2);
-	}
 	const uint32 MipBytes = NumBlocksX * NumBlocksY * BlockBytes;
 	DestStride = NumBlocksX * BlockBytes;
 	return MipBytes;
@@ -1176,24 +1164,6 @@ void TOpenGLTexture<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 		
 		bool bIsCompressed = GLFormat.bCompressed;
 		GLint internalFormat = GLFormat.InternalFormat[bSRGB];
-#if PLATFORM_ANDROID
-		uint8* DecompressedPointer = nullptr;
-		if (bIsCompressed)
-		{
-			if (!FOpenGL::SupportsETC2() && this->GetFormat() == PF_ETC2_RGBA)
-			{
-				bIsCompressed = false;
-				internalFormat = GL_RGBA;
-
-				DecompressTexture((uint8_t *)LockedBuffer, FMath::Max<uint32>(1, (this->GetSizeX() >> MipIndex)), FMath::Max<uint32>(1, (this->GetSizeY() >> MipIndex)), GLFormat.InternalFormat[bSRGB], &DecompressedPointer);
-				if (!DecompressedPointer)
-				{
-					UE_LOG(LogRHI, Fatal, TEXT("ETC2 texture compression failed for fallback on ETC1 device."));
-				}
-				LockedBuffer = DecompressedPointer;
-			}
-		}
-#endif // PLATFORM_ANDROID
 
 		if (bIsCompressed)
 		{
@@ -1268,12 +1238,6 @@ void TOpenGLTexture<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 			// Unlock "PixelBuffer" and free the temp memory after the texture upload.
 			PixelBuffer->Unlock();
 		}
-#if PLATFORM_ANDROID
-		if (DecompressedPointer)
-		{
-			free(DecompressedPointer);
-		}
-#endif // PLATFORM_ANDROID
 	}
 
 	// No need to restore texture stage; leave it like this,
@@ -1354,12 +1318,6 @@ void TOpenGLTexture<RHIResourceType>::CloneViaPBO( TOpenGLTexture<RHIResourceTyp
 			const uint32 DataSizeY = FMath::Max(MipSizeY,BlockSizeY);
 			uint32 NumBlocksX = (DataSizeX + BlockSizeX - 1) / BlockSizeX;
 			uint32 NumBlocksY = (DataSizeY + BlockSizeY - 1) / BlockSizeY;
-			if ( PixelFormat == PF_PVRTC2 || PixelFormat == PF_PVRTC4 )
-			{
-				// PVRTC has minimum 2 blocks width and height
-				NumBlocksX = FMath::Max<uint32>(NumBlocksX, 2);
-				NumBlocksY = FMath::Max<uint32>(NumBlocksY, 2);
-			}
 
 			const uint32 MipBytes = NumBlocksX * NumBlocksY * BlockBytes;
 			const int32 BufferIndex = DstMipIndex * (bCubemap ? 6 : 1) * this->GetEffectiveSizeZ() + ArrayIndex;

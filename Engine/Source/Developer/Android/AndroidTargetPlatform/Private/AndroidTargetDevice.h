@@ -47,7 +47,7 @@ public:
 	 *
 	 * @param InTargetPlatform - The target platform.
 	 * @param InSerialNumber - The ADB serial number of the target device.
-	 * @param InAndroidVariant - The variant of the Android platform, i.e. ATC, DXT or PVRTC.
+	 * @param InAndroidVariant - The variant of the Android platform, i.e. ETC2, DXT or ASTC.
 	 */
 	FAndroidTargetDevice(const ITargetPlatform& InTargetPlatform, const FString& InSerialNumber, const FString& InAndroidVariant)
 		: AndroidVariant(InAndroidVariant)
@@ -229,7 +229,7 @@ protected:
 
 protected:
 
-	// The variant of the Android platform, i.e. ATC, DXT or PVRTC.
+	// The variant of the Android platform, i.e. ETC2, DXT or ASTC.
 	FString AndroidVariant;
 
 	// Holds a flag indicating whether the device is currently connected.

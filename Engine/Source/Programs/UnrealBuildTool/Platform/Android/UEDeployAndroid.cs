@@ -2151,12 +2151,12 @@ namespace UnrealBuildTool
 			}
 
 			//figure out which texture compressions are supported
-			bool bETC1Enabled, bETC1aEnabled, bETC2Enabled, bDXTEnabled, bATCEnabled, bPVRTCEnabled, bASTCEnabled;
-			bETC1Enabled = bETC1aEnabled = bETC2Enabled = bDXTEnabled = bATCEnabled = bPVRTCEnabled = bASTCEnabled = false;
+			bool bETC2Enabled, bDXTEnabled, bASTCEnabled;
+			bETC2Enabled = bDXTEnabled = bASTCEnabled = false;
 			if (CookFlavor.Length < 1)
 			{
 				//All values supported
-				bETC1Enabled = bETC2Enabled = bDXTEnabled = bATCEnabled = bPVRTCEnabled = bASTCEnabled = true;
+				bETC2Enabled = bDXTEnabled = bASTCEnabled = true;
 			}
 			else
 			{
@@ -2164,31 +2164,15 @@ namespace UnrealBuildTool
 				{
 					case "_Multi":
 						//need to check ini to determine which are supported
-						Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bMultiTargetFormat_ETC1", out bETC1Enabled);
-						Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bMultiTargetFormat_ETC1a", out bETC1aEnabled);
 						Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bMultiTargetFormat_ETC2", out bETC2Enabled);
 						Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bMultiTargetFormat_DXT", out bDXTEnabled);
-						Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bMultiTargetFormat_ATC", out bATCEnabled);
-						Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bMultiTargetFormat_PVRTC", out bPVRTCEnabled);
 						Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bMultiTargetFormat_ASTC", out bASTCEnabled);
-						break;
-					case "_ETC1":
-						bETC1Enabled = true;
-						break;
-					case "_ETC1a":
-						bETC1aEnabled = true;
 						break;
 					case "_ETC2":
 						bETC2Enabled = true;
 						break;
 					case "_DXT":
 						bDXTEnabled = true;
-						break;
-					case "_ATC":
-						bATCEnabled = true;
-						break;
-					case "_PVRTC":
-						bPVRTCEnabled = true;
 						break;
 					case "_ASTC":
 						bASTCEnabled = true;
@@ -2198,17 +2182,13 @@ namespace UnrealBuildTool
 						break;
 				}
 			}
-			bool bSupportingAllTextureFormats = bETC1Enabled && bETC2Enabled && bDXTEnabled && bATCEnabled && bPVRTCEnabled && bASTCEnabled;
+			bool bSupportingAllTextureFormats = bETC2Enabled && bDXTEnabled && bASTCEnabled;
 
 			// If it is only ETC2 we need to skip adding the texture format filtering and instead use ES 3.0 as minimum version (it requires ETC2)
-			bool bOnlyETC2Enabled = (bETC2Enabled && !(bETC1aEnabled || bETC1Enabled || bDXTEnabled || bATCEnabled || bPVRTCEnabled || bASTCEnabled));
+			bool bOnlyETC2Enabled = (bETC2Enabled && !(bDXTEnabled || bASTCEnabled));
 
-			// Store cooked flavors in metadata (ETC1a treated as ETC1)
-			string CookedFlavors = ((bETC1Enabled || bETC1aEnabled) ? "ETC1," : "") +
-									(bETC2Enabled ? "ETC2," : "") +
+			string CookedFlavors = (bETC2Enabled ? "ETC2," : "") +
 									(bDXTEnabled ? "DXT," : "") +
-									(bATCEnabled ? "ATC," : "") +
-									(bPVRTCEnabled ? "PVRTC," : "") +
 									(bASTCEnabled ? "ASTC," : "");
 			CookedFlavors = (CookedFlavors == "") ? "" : CookedFlavors.Substring(0, CookedFlavors.Length - 1);
 
@@ -2501,29 +2481,16 @@ namespace UnrealBuildTool
 				if (!bSupportingAllTextureFormats)
 				{
 					Text.AppendLine("\t<!-- Supported texture compression formats (cooked) -->");
-					if (bETC1Enabled || bETC1aEnabled)
-					{
-						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_OES_compressed_ETC1_RGB8_texture\" />");
-					}
 					if (bETC2Enabled && !bOnlyETC2Enabled)
 					{
 						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_COMPRESSED_RGB8_ETC2\" />");
 						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_COMPRESSED_RGBA8_ETC2_EAC\" />");
-					}
-					if (bATCEnabled)
-					{
-						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_AMD_compressed_ATC_texture\" />");
-						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_ATI_texture_compression_atitc\" />");
 					}
 					if (bDXTEnabled)
 					{
 						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_EXT_texture_compression_dxt1\" />");
 						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_EXT_texture_compression_s3tc\" />");
 						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_NV_texture_compression_s3tc\" />");
-					}
-					if (bPVRTCEnabled)
-					{
-						Text.AppendLine("\t<supports-gl-texture android:name=\"GL_IMG_texture_compression_pvrtc\" />");
 					}
 					if (bASTCEnabled)
 					{
