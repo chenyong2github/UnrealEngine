@@ -36,7 +36,9 @@ private:
 	void OnValueChanged();
 	void OnStaticSwitchValueChanged();
 
-	UEdGraphPin* GetDefaultPin();
+	UEdGraphPin* GetAnyDefaultPin();
+
+	TArray<UEdGraphPin*> GetDefaultPins();
 
 	TWeakPtr<class IDetailLayoutBuilder> CachedDetailBuilder;
 
