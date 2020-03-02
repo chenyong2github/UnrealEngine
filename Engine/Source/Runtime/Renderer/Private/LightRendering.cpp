@@ -1426,6 +1426,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
 									FRDGTextureUAV* SubPixelRayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayDistanceTexture));
 
+									RDG_EVENT_SCOPE(GraphBuilder, "%s Hair Strands", *BatchLightNameWithLevel);
+
 									RenderRayTracingShadows(
 										GraphBuilder,
 										SceneTextures,
