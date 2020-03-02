@@ -115,6 +115,11 @@ void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnable
 {
 	WaitForAsyncTickAndFinalize();
 
+
+	UE_LOG(LogNiagara, Warning, TEXT("SetEmitterEnable: Emitter \"%s\" is not currently implemented."), *EmitterName.ToString());
+	return;
+
+	/*
 	UNiagaraSystem* System = GetSystem();
 	if (System != nullptr)
 	{
@@ -155,7 +160,7 @@ void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnable
 		{
 			UE_LOG(LogNiagara, Log, TEXT("SetEmitterEnable: Emitter \"%s\" was not found in the system's list of emitters!"), *EmitterName.ToString());
 		}
-	}
+	}*/
 }
 
 
