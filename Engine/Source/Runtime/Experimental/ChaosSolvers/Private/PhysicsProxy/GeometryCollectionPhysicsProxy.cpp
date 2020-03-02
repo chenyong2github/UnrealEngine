@@ -530,38 +530,14 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 		//Results.Get(1).WorldBounds = FBoxSphereBounds(BoundingBox);
 	}
 
+	//TArray<FTransform> Transform;
+	//GeometryCollectionAlgo::GlobalMatrices(DynamicCollection->Transform, DynamicCollection->Parent, Transform);
+	//check(DynamicCollection->Transform.Num() == Transform.Num());
+
+	NumParticles = GetTransformGroupSize(); // SimulatableParticles.Count(true);
+	BaseParticleIndex = 0; // Are we always zero indexed now?
+
 	InitializedState = ESimulationInitializationState::Unintialized;
-}
-
-void FGeometryCollectionPhysicsProxy::InitializeBodiesGT()
-{
-	const FGeometryCollection* RestCollection = Parameters.RestCollection;
-	FGeometryDynamicCollection* DynamicCollection = Parameters.DynamicCollection;
-
-	if (Parameters.Simulating &&
-		((InitializedState == ESimulationInitializationState::Unintialized) ||
-		(InitializedState == ESimulationInitializationState::Activated)))
-	{
-		const TManagedArray<int32>& TransformIndex = RestCollection->TransformIndex;
-		const TManagedArray<int32>& BoneMap = RestCollection->BoneMap;
-		const TManagedArray<int32>& Parent = RestCollection->Parent;
-		const TManagedArray<TSet<int32>>& Children = RestCollection->Children;
-		const TManagedArray<int32>& SimulationType = RestCollection->SimulationType;
-		const TManagedArray<FVector>& Vertex = RestCollection->Vertex;
-		const TManagedArray<int32>& DynamicState = DynamicCollection->DynamicState;
-		const TManagedArray<int32>& CollisionGroup = DynamicCollection->CollisionGroup;
-		const TManagedArray<float>& Mass = RestCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
-		const TManagedArray<FVector>& InertiaTensor = RestCollection->GetAttribute<FVector>("InertiaTensor", FTransformCollection::TransformGroup);
-
-		TArray<FTransform> Transform;
-		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection->Transform, DynamicCollection->Parent, Transform);
-		check(DynamicCollection->Transform.Num() == Transform.Num());
-
-		NumParticles = GetTransformGroupSize(); // SimulatableParticles.Count(true);
-		BaseParticleIndex = 0; // Are we always zero indexed now?
-
-		InitializedState = Parameters.InitializationState;
-	}
 }
 
 int32 ReportTooManyChildrenNum = -1;
