@@ -67,6 +67,9 @@ void SPacketView::Reset()
 	bIsStateDirty = true;
 
 	bIsAutoZoomEnabled = true;
+	AutoZoomViewportPos = ViewportX.GetPos();
+	AutoZoomViewportScale = ViewportX.GetScale();
+	AutoZoomViewportSize = 0.0f;
 
 	AnalysisSyncNextTimestamp = 0;
 	ConnectionChangeCount = 0;
@@ -185,7 +188,17 @@ void SPacketView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		}
 	}
 
-	uint64 Time = FPlatformTime::Cycles64();
+	// Disable auto-zoom if viewport's position or scale has changed.
+	if (AutoZoomViewportPos != ViewportX.GetPos() ||
+		AutoZoomViewportScale != ViewportX.GetScale())
+	{
+		bIsAutoZoomEnabled = false;
+	}
+
+	// Update auto-zoom if viewport size has changed.
+	bool bAutoZoom = bIsAutoZoomEnabled && AutoZoomViewportSize != ViewportX.GetSize();
+
+	const uint64 Time = FPlatformTime::Cycles64();
 	if (Time > AnalysisSyncNextTimestamp)
 	{
 		const uint64 WaitTime = static_cast<uint64>(0.1 / FPlatformTime::GetSecondsPerCycle64()); // 100ms
@@ -195,6 +208,7 @@ void SPacketView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		if (Session.IsValid())
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
 			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
 
 			const uint32 NewConnectionChangeCount = NetProfilerProvider.GetConnectionChangeCount();
@@ -202,8 +216,18 @@ void SPacketView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			{
 				ConnectionChangeCount = NewConnectionChangeCount;
 				bIsStateDirty = true;
+
+				if (bIsAutoZoomEnabled)
+				{
+					bAutoZoom = true;
+				}
 			}
 		}
+	}
+
+	if (bAutoZoom)
+	{
+		AutoZoom();
 	}
 
 	if (bIsStateDirty)
@@ -274,14 +298,16 @@ void SPacketView::UpdateState()
 
 	//////////////////////////////////////////////////
 
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	const int32 PreviousMaxValue = ViewportX.GetMaxValue();
+	ViewportX.SetMinMaxInterval(0, 0);
+
 	// Reset stats.
 	PacketSeries->NumAggregatedPackets = 0;
 	NumUpdatedPackets = 0;
 
 	FNetworkPacketSeriesBuilder Builder(*PacketSeries, Viewport);
-
-	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
-	ViewportX.SetMinMaxInterval(0, 0);
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
@@ -405,6 +431,12 @@ void SPacketView::UpdateState()
 	}
 
 	NumUpdatedPackets += Builder.GetNumAddedPackets();
+
+	if (bIsAutoZoomEnabled && ViewportX.GetMaxValue() != PreviousMaxValue)
+	{
+		// Forces auto-zoom to be updated in the next Tick(), like after a viewport resize.
+		AutoZoomViewportSize = 0.0f;
+	}
 
 	Stopwatch.Stop();
 	UpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
@@ -1336,7 +1368,7 @@ void SPacketView::SelectPacketBySequenceNumber(const uint32 InSequenceNumber)
 		{
 			SetSelectedPacket(PacketId);
 		}
-	}	
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1567,29 +1599,11 @@ void SPacketView::ShowContextMenu(const FPointerEvent& MouseEvent)
 
 void SPacketView::ContextMenu_AutoZoom_Execute()
 {
-	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	bIsAutoZoomEnabled = !bIsAutoZoomEnabled;
 
-	bIsAutoZoomEnabled = !(bIsAutoZoomEnabled && ViewportX.GetPos() == 0.0f);
 	if (bIsAutoZoomEnabled)
 	{
-		ViewportX.ScrollAtPos(0.0f);
-
-		// Auto zoom in.
-		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() < ViewportX.GetSize())
-		{
-			ZoomHorizontally(+0.1f, 0.0f);
-			ViewportX.ScrollAtPos(0.0f);
-		}
-
-		// Auto zoom out (until entire session time range fits into view).
-		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() > ViewportX.GetSize())
-		{
-			ZoomHorizontally(-0.1f, 0.0f);
-			ViewportX.ScrollAtPos(0.0f);
-		}
-
-		UpdateHorizontalScrollBar();
-		bIsStateDirty = true;
+		AutoZoom();
 	}
 }
 
@@ -1604,7 +1618,56 @@ bool SPacketView::ContextMenu_AutoZoom_CanExecute()
 
 bool SPacketView::ContextMenu_AutoZoom_IsChecked()
 {
-	return bIsAutoZoomEnabled && Viewport.GetHorizontalAxisViewport().GetPos() == 0.0f;
+	return bIsAutoZoomEnabled;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::AutoZoom()
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	AutoZoomViewportPos = ViewportX.GetMinPos();
+	ViewportX.ScrollAtPos(AutoZoomViewportPos);
+
+	AutoZoomViewportSize = ViewportX.GetSize();
+
+	if (AutoZoomViewportSize > 0.0f &&
+		ViewportX.GetMaxValue() - ViewportX.GetMinValue() > 0)
+	{
+		float DX = ViewportX.GetMaxPos() - ViewportX.GetMinPos();
+
+		// Auto zoom in.
+		while (DX < AutoZoomViewportSize)
+		{
+			const float OldScale = ViewportX.GetScale();
+			ViewportX.RelativeZoomWithFixedOffset(+0.1f, 0.0f);
+			ViewportX.ScrollAtPos(AutoZoomViewportPos);
+			DX = ViewportX.GetMaxPos() - ViewportX.GetMinPos();
+			if (OldScale == ViewportX.GetScale())
+			{
+				break;
+			}
+		}
+
+		// Auto zoom out (until entire session frame range fits into view).
+		while (DX > AutoZoomViewportSize)
+		{
+			const float OldScale = ViewportX.GetScale();
+			ViewportX.RelativeZoomWithFixedOffset(-0.1f, 0.0f);
+			ViewportX.ScrollAtPos(AutoZoomViewportPos);
+			DX = ViewportX.GetMaxPos() - ViewportX.GetMinPos();
+			if (OldScale == ViewportX.GetScale())
+			{
+				break;
+			}
+		}
+	}
+
+	AutoZoomViewportScale = ViewportX.GetScale();
+
+	UpdateHorizontalScrollBar();
+	bIsStateDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

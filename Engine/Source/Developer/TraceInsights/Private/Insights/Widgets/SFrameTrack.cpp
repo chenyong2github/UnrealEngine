@@ -48,6 +48,9 @@ SFrameTrack::~SFrameTrack()
 void SFrameTrack::Reset()
 {
 	Viewport.Reset();
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.SetScaleLimits(0.0001f, 16.0f); // 10000 [sample/px] to 16 [px/sample]
+	ViewportX.SetScale(16.0f);
 	FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 	ViewportY.SetScaleLimits(0.01, 1000000.0);
 	ViewportY.SetScale(1500.0);
@@ -62,7 +65,11 @@ void SFrameTrack::Reset()
 
 	bShowGameFrames = true;
 	bShowRenderingFrames = true;
+
 	bIsAutoZoomEnabled = true;
+	AutoZoomViewportPos = ViewportX.GetPos();
+	AutoZoomViewportScale = ViewportX.GetScale();
+	AutoZoomViewportSize = 0.0f;
 
 	AnalysisSyncNextTimestamp = 0;
 
@@ -147,7 +154,17 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		}
 	}
 
-	uint64 Time = FPlatformTime::Cycles64();
+	// Disable auto-zoom if viewport's position or scale has changed.
+	if (AutoZoomViewportPos != ViewportX.GetPos() ||
+		AutoZoomViewportScale != ViewportX.GetScale())
+	{
+		bIsAutoZoomEnabled = false;
+	}
+
+	// Update auto-zoom if viewport size has changed.
+	bool bAutoZoom = bIsAutoZoomEnabled && AutoZoomViewportSize != ViewportX.GetSize();
+
+	const uint64 Time = FPlatformTime::Cycles64();
 	if (Time > AnalysisSyncNextTimestamp)
 	{
 		const uint64 WaitTime = static_cast<uint64>(0.1 / FPlatformTime::GetSecondsPerCycle64()); // 100ms
@@ -168,29 +185,21 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				if (NumFrames > ViewportX.GetMaxValue())
 				{
 					ViewportX.SetMinMaxInterval(0, NumFrames);
+					UpdateHorizontalScrollBar();
+					bIsStateDirty = true;
 
 					if (bIsAutoZoomEnabled)
 					{
-						if (ViewportX.GetPos() == 0.0f) // only if the view is unchanged
-						{
-							// Auto zoom out (until entire session time range fits into view).
-							while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() > ViewportX.GetSize())
-							{
-								ZoomHorizontally(-0.1f, 0.0f);
-								ViewportX.ScrollAtPos(0.0f);
-							}
-						}
-						else
-						{
-							bIsAutoZoomEnabled = false;
-						}
+						bAutoZoom = true;
 					}
-
-					UpdateHorizontalScrollBar();
-					bIsStateDirty = true;
 				}
 			}
 		}
+	}
+
+	if (bAutoZoom)
+	{
+		AutoZoom();
 	}
 
 	if (bIsStateDirty)
@@ -1099,29 +1108,11 @@ bool SFrameTrack::ContextMenu_ShowRenderingFrames_IsChecked()
 
 void SFrameTrack::ContextMenu_AutoZoom_Execute()
 {
-	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	bIsAutoZoomEnabled = !bIsAutoZoomEnabled;
 
-	bIsAutoZoomEnabled = !(bIsAutoZoomEnabled && ViewportX.GetPos() == 0.0f);
 	if (bIsAutoZoomEnabled)
 	{
-		ViewportX.ScrollAtPos(0.0f);
-
-		// Auto zoom in.
-		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() < ViewportX.GetSize())
-		{
-			ZoomHorizontally(+0.1f, 0.0f);
-			ViewportX.ScrollAtPos(0.0f);
-		}
-
-		// Auto zoom out (until entire session time range fits into view).
-		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() > ViewportX.GetSize())
-		{
-			ZoomHorizontally(-0.1f, 0.0f);
-			ViewportX.ScrollAtPos(0.0f);
-		}
-
-		UpdateHorizontalScrollBar();
-		bIsStateDirty = true;
+		AutoZoom();
 	}
 }
 
@@ -1136,7 +1127,56 @@ bool SFrameTrack::ContextMenu_AutoZoom_CanExecute()
 
 bool SFrameTrack::ContextMenu_AutoZoom_IsChecked()
 {
-	return bIsAutoZoomEnabled && Viewport.GetHorizontalAxisViewport().GetPos() == 0.0f;
+	return bIsAutoZoomEnabled;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFrameTrack::AutoZoom()
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	AutoZoomViewportPos = ViewportX.GetMinPos();
+	ViewportX.ScrollAtPos(AutoZoomViewportPos);
+
+	AutoZoomViewportSize = ViewportX.GetSize();
+
+	if (AutoZoomViewportSize > 0.0f &&
+		ViewportX.GetMaxValue() - ViewportX.GetMinValue() > 0)
+	{
+		float DX = ViewportX.GetMaxPos() - ViewportX.GetMinPos();
+
+		// Auto zoom in.
+		while (DX < AutoZoomViewportSize)
+		{
+			const float OldScale = ViewportX.GetScale();
+			ViewportX.RelativeZoomWithFixedOffset(+0.1f, 0.0f);
+			ViewportX.ScrollAtPos(AutoZoomViewportPos);
+			DX = ViewportX.GetMaxPos() - ViewportX.GetMinPos();
+			if (OldScale == ViewportX.GetScale())
+			{
+				break;
+			}
+		}
+
+		// Auto zoom out (until entire session frame range fits into view).
+		while (DX > AutoZoomViewportSize)
+		{
+			const float OldScale = ViewportX.GetScale();
+			ViewportX.RelativeZoomWithFixedOffset(-0.1f, 0.0f);
+			ViewportX.ScrollAtPos(AutoZoomViewportPos);
+			DX = ViewportX.GetMaxPos() - ViewportX.GetMinPos();
+			if (OldScale == ViewportX.GetScale())
+			{
+				break;
+			}
+		}
+	}
+
+	AutoZoomViewportScale = ViewportX.GetScale();
+
+	UpdateHorizontalScrollBar();
+	bIsStateDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
