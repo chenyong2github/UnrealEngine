@@ -501,6 +501,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 #if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		while (0);
 #endif //!ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+
 		if (ENABLE_TRANSMISSION && bTraceRay && ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
 		{
 			// Snag two variables to fix light sampling for all computations..
@@ -512,6 +513,10 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 			float Eta = TransmissionProfileParams.OneOverIOR;
 			uint RejectionRetryMax = LocalSamplesPerPixel - 1;
 			TransmissionDistance = ComputeDiffuseTransmission(V, WorldPosition, WorldNormal, MeanFreePath, Eta, LightParameters, LightSample, RandSequence, RejectionRetryMax);
+		}
+		else if (ShadingModelID == SHADINGMODELID_EYE)
+		{
+			TransmissionDistance = (LocalSamplesPerPixel > 0) ? Visibility / LocalSamplesPerPixel : Visibility;
 		}
 	}
 
