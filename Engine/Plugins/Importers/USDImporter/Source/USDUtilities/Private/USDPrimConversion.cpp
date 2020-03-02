@@ -113,19 +113,19 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 
 	// Transform
 	pxr::UsdGeomXformable XForm( UsdPrim );
-	if ( XForm )
+	if ( !XForm )
 	{
-		pxr::GfMatrix4d UsdMatrix;
-		bool bResetXFormStack = false;
-		XForm.GetLocalTransformation( &UsdMatrix, &bResetXFormStack );
+		return false;
+	}
 
-		pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( Stage, SceneComponent->GetRelativeTransform() );
+	pxr::GfMatrix4d UsdMatrix;
+	bool bResetXFormStack = false;
+	XForm.GetLocalTransformation( &UsdMatrix, &bResetXFormStack );
 
-		if ( GfIsClose( UsdMatrix, UsdTransform, THRESH_VECTORS_ARE_NEAR ) )
-		{
-			return true;
-		}
+	pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( Stage, SceneComponent->GetRelativeTransform() );
 
+	if ( !GfIsClose( UsdMatrix, UsdTransform, THRESH_VECTORS_ARE_NEAR ) )
+	{
 		bResetXFormStack = false;
 		bool bFoundTransformOp = false;
 
@@ -150,6 +150,17 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 				MatrixXform.Set( UsdTransform );
 			}
 		}
+	}
+
+	// Visibility
+	bool bVisible = SceneComponent->GetVisibleFlag();
+	if ( bVisible )
+	{
+		XForm.MakeVisible();
+	}
+	else
+	{
+		XForm.MakeInvisible();
 	}
 
 	return true;
