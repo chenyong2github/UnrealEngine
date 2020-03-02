@@ -8,7 +8,7 @@
 class AMatineeActor;
 class SWindow;
 
-#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+#if WITH_AUTOMATION_TESTS
 
 ///////////////////////////////////////////////////////////////////////
 // Common Latent commands which are used across test type. I.e. Engine, Network, etc...
@@ -26,7 +26,7 @@ namespace AutomationCommon
 	/** Get a string contains the render mode we are currently in */
 	ENGINE_API FString GetRenderDetailsString();
 
-#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+#if WITH_AUTOMATION_TESTS
 
 	/** Gets a name to be used for this screenshot.  This will return something like 
 		TestName/PlatformName/DeviceName.png. It's important to understand that a screenshot
@@ -52,7 +52,7 @@ namespace AutomationCommon
 #endif
 }
 
-#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+#if WITH_AUTOMATION_TESTS
 
 /**
  * Parameters to the Latent Automation command FTakeEditorScreenshotCommand

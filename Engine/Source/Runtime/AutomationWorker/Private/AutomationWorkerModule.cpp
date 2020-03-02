@@ -414,7 +414,7 @@ void FAutomationWorkerModule::HandlePerformanceDataRetrieved(const FAutomationWo
 #if WITH_ENGINE
 void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FColor>& RawImageData, const FAutomationScreenshotData& Data)
 {
-#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+#if WITH_AUTOMATION_TESTS
 	int32 NewHeight = Data.Height;
 	int32 NewWidth = Data.Width;
 

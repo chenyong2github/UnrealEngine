@@ -19,7 +19,6 @@
 #include "Logging/LogMacros.h"
 #include "UObject/AutomationObjectVersion.h"
 
-#define	WITH_AUTOMATION_TESTS			(WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
 #define	WITH_EDITOR_AUTOMATION_TESTS	(WITH_EDITOR && WITH_AUTOMATION_TESTS)
 
 DEFINE_LOG_CATEGORY_STATIC(LogScreenshotFunctionalTest, Log, Log)
