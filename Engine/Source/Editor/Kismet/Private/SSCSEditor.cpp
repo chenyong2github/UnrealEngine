@@ -6576,7 +6576,6 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 				}
 			}
 
-			// Compile the BP outside of the transaction
 			if (NumChangedProperties > 0)
 			{
 				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
