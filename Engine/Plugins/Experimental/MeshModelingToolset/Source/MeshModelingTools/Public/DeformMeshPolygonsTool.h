@@ -23,7 +23,7 @@
 class FMeshVertexChangeBuilder;
 class FGroupTopologyLaplacianDeformer;
 class FDeformTask;
-struct FConstraintData;
+struct FDeformerVertexConstraintData;
 
 /**
  * ToolBuilder
@@ -149,9 +149,9 @@ public:
 
 //Stores per-vertex data needed by the laplacian deformer object
 //TODO: May be a candidate for a subclass of the FGroupTopologyLaplacianDeformer
-struct FConstraintData
+struct FDeformerVertexConstraintData
 {
-	FConstraintData& operator=(const FConstraintData& other)
+	FDeformerVertexConstraintData& operator=(const FDeformerVertexConstraintData& other)
 	{
 		Position = other.Position;
 		Weight   = other.Weight;
@@ -172,7 +172,7 @@ struct FConstraintData
 *
 *   
 *   // define constraints.  Need Constraints[VertID] to hold the constraints for the corresponding vertex.
-*   TArray<FConstraintData> Constraints;
+*   TArray<FDeformerVertexConstraintData> Constraints;
 *   ....
 *
 *   // populate with the VertexIDs of the vertices that are in the region you wish to deform.  
@@ -222,7 +222,7 @@ public:
 	
 	/** Called by the main thread in the tool, this copies the Constraint buffer right before the task begins on another thread.
 	  * Ensures the FConstrainedMeshDeformer is using correct mesh subset and the selected settings, then updates on change in properties, i.e. weight scheme */
-	void UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme, const FDynamicMesh3& Mesh, const TArray<FConstraintData>& ConstraintArray, const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction, const FRichCurve* Curve);
+	void UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme, const FDynamicMesh3& Mesh, const TArray<FDeformerVertexConstraintData>& ConstraintArray, const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction, const FRichCurve* Curve);
 
 	/** Required by the FAsyncTaskExecutor */
 	void SetAbortSource(bool* bAbort) { bAbortSource = bAbort; };
@@ -249,7 +249,7 @@ private:
 	TArray<FVector3d> SubsetPositionBuffer;
 
 	/** constraint data for each vertex in subset mesh - for use by the deformer*/
-	TArray<FConstraintData> SubsetConstraintBuffer;
+	TArray<FDeformerVertexConstraintData> SubsetConstraintBuffer;
 
 	FRichCurve WeightAttenuationCurve;
 
@@ -349,7 +349,7 @@ public:
 	const TArray<FROIFace>& GetROIFaces() const { return ROIFaces; }
 
 	/** Stores the position of the vertex constraints and corresponding weights for the entire mesh.  This is used as a form of scratch space.*/
-	TArray<FConstraintData> SrcMeshConstraintBuffer;
+	TArray<FDeformerVertexConstraintData> SrcMeshConstraintBuffer;
 
 	/** Array of vertex indices organized in groups of three - basically an index buffer - that defines the subset of the mesh that the deformation task will work on.*/
 	TArray<int32> SubsetIDBuffer;
