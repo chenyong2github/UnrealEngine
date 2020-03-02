@@ -19,13 +19,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatAndroid, Log, All);
  * Macro trickery for supported format names.
  */
 #define ENUM_SUPPORTED_FORMATS(op) \
-	op(ATC_RGB) \
-	op(ATC_RGBA_E) \
-	op(ATC_RGBA_I) \
-	op(AutoATC) \
-	op(ETC1) \
-	op(AutoETC1) \
-	op(AutoETC1a) \
 	op(ETC2_RGB) \
 	op(ETC2_RGBA) \
 	op(AutoETC2)
@@ -64,7 +57,7 @@ static bool CompressImageUsingQonvert(
 	// If block size changes, please update in AndroidETC.cpp in DecompressTexture
 	const int32 BlockSizeX = 4;
 	const int32 BlockSizeY = 4;
-	const int32 BlockBytes = (PixelFormat == PF_ATC_RGBA_E || PixelFormat == PF_ATC_RGBA_I || PixelFormat == PF_ETC2_RGBA) ? 16 : 8;
+	const int32 BlockBytes = (PixelFormat == PF_ETC2_RGBA) ? 16 : 8;
 	const int32 ImageBlocksX = FMath::Max(SizeX / BlockSizeX, 1);
 	const int32 ImageBlocksY = FMath::Max(SizeY / BlockSizeY, 1);
 
@@ -99,23 +92,11 @@ static bool CompressImageUsingQonvert(
 
 	switch (PixelFormat)
 	{
-	case PF_ETC1:
-		DstImg.nFormat = Q_FORMAT_ETC1_RGB8;
-		break;
 	case PF_ETC2_RGB:
 		DstImg.nFormat = Q_FORMAT_ETC2_RGB8;
 		break;
 	case PF_ETC2_RGBA:
 		DstImg.nFormat = Q_FORMAT_ETC2_RGBA8;
-		break;
-	case PF_ATC_RGB:
-		DstImg.nFormat = Q_FORMAT_ATC_RGB;
-		break;
-	case PF_ATC_RGBA_E:
-		DstImg.nFormat = Q_FORMAT_ATC_RGBA_EXPLICIT_ALPHA;
-		break;
-	case PF_ATC_RGBA_I:
-		DstImg.nFormat = Q_FORMAT_ATC_RGBA_INTERPOLATED_ALPHA;
 		break;
 	default:
 		UE_LOG(LogTextureFormatAndroid, Fatal, TEXT("Unsupported EPixelFormat for compression: %u"), (uint32)PixelFormat);
@@ -132,7 +113,7 @@ static bool CompressImageUsingQonvert(
 
 
 /**
- * ATITC and ETC1/2 texture format handler.
+ * ETC2 texture format handler.
  */
 class FTextureFormatAndroid : public ITextureFormat
 {
@@ -174,39 +155,6 @@ class FTextureFormatAndroid : public ITextureFormat
 
 		EPixelFormat CompressedPixelFormat = PF_Unknown;
 
-		if (BuildSettings.TextureFormatName == GTextureFormatNameAutoETC1)
-		{
-			if (bImageHasAlphaChannel)
-			{
-				// ETC1 can't support an alpha channel, store uncompressed
-				OutCompressedImage.SizeX = Image.SizeX;
-				OutCompressedImage.SizeY = Image.SizeY;
-				OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
-				OutCompressedImage.PixelFormat = PF_B8G8R8A8;
-				OutCompressedImage.RawData = Image.RawData;
-				return true;
-			}
-			else
-			{
-				CompressedPixelFormat = PF_ETC1;
-			}
-		}
-		else		
-		if (BuildSettings.TextureFormatName == GTextureFormatNameETC1)
-		{
-			CompressedPixelFormat = PF_ETC1;
-		}
-		else
-		if (BuildSettings.TextureFormatName == GTextureFormatNameAutoETC1a && !bImageHasAlphaChannel)
-		{
-			CompressedPixelFormat = PF_ETC1;
-		}
-		else
-		if (BuildSettings.TextureFormatName == GTextureFormatNameAutoETC1a && bImageHasAlphaChannel)
-		{
-			CompressedPixelFormat = PF_ETC2_RGBA;
-		}
-		else
 		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGB ||
 		   (BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && !bImageHasAlphaChannel))
 		{
@@ -217,23 +165,6 @@ class FTextureFormatAndroid : public ITextureFormat
 		   (BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && bImageHasAlphaChannel))
 		{
 			CompressedPixelFormat = PF_ETC2_RGBA;
-		}
-		else
-		if (BuildSettings.TextureFormatName == GTextureFormatNameATC_RGB || 
-		   (BuildSettings.TextureFormatName == GTextureFormatNameAutoATC && !bImageHasAlphaChannel))
-		{
-			CompressedPixelFormat = PF_ATC_RGB;
-		}
-		else
-		if (BuildSettings.TextureFormatName == GTextureFormatNameATC_RGBA_I ||
-		   (BuildSettings.TextureFormatName == GTextureFormatNameAutoATC && bImageHasAlphaChannel) )
-		{
-			CompressedPixelFormat = PF_ATC_RGBA_I;
-		}
-		else
-		if (BuildSettings.TextureFormatName == GTextureFormatNameATC_RGBA_E)
-		{
-			CompressedPixelFormat = PF_ATC_RGBA_E;
 		}
 
 		check(CompressedPixelFormat != PF_Unknown);
@@ -265,9 +196,6 @@ class FTextureFormatAndroid : public ITextureFormat
 	}
 };
 
-/**
- * Module for ATITC and ETC1/2 texture compression.
- */
 static ITextureFormat* Singleton = NULL;
 
 

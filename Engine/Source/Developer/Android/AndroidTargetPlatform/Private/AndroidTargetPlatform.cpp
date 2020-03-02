@@ -470,12 +470,8 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* InTexture, TArra
 			else if (LayerFormatSettings.CompressionSettings == TC_Normalmap)
 			{
 				if(!bIsCompressionValid) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePOTERROR;
-				else if(FormatCategory == EAndroidTextureFormatCategory::PVRTC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePVRTC4;
 				else if (FormatCategory == EAndroidTextureFormatCategory::DXT) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameDXT5;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ATC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameATC_RGBA_I;
 				else if (FormatCategory == EAndroidTextureFormatCategory::ETC2) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameETC2_RGB;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1a) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1a;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1;
 				else bValidFormat = false;
 			}
 			else if (LayerFormatSettings.CompressionSettings == TC_Displacementmap)
@@ -498,48 +494,32 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* InTexture, TArra
 			{
 				FormatPerLayer[LayerIndex] = AndroidTexFormat::NameG8;
 			}
-			else if (InTexture->bForcePVRTC4 || LayerFormatSettings.CompressionSettings == TC_BC7)
+			else if (LayerFormatSettings.CompressionSettings == TC_BC7)
 			{
 				if (!bIsCompressionValid) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePOTERROR;
-				else if (FormatCategory == EAndroidTextureFormatCategory::PVRTC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePVRTC4;
 				else if (FormatCategory == EAndroidTextureFormatCategory::DXT) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameDXT5;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ATC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameATC_RGBA_I;
 				else if (FormatCategory == EAndroidTextureFormatCategory::ETC2) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC2;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1a) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1a;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1;
 				else bValidFormat = false;
 			}
 			else if (LayerFormatSettings.CompressionNoAlpha)
 			{
 				if (!bIsCompressionValid) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePOTERROR;
-				else if (FormatCategory == EAndroidTextureFormatCategory::PVRTC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePVRTC2;
 				else if (FormatCategory == EAndroidTextureFormatCategory::DXT) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameDXT1;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ATC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameATC_RGB;
 				else if (FormatCategory == EAndroidTextureFormatCategory::ETC2) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameETC2_RGB;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1a) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1a;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameETC1;
 				else bValidFormat = false;
 			}
 			else if (InTexture->bDitherMipMapAlpha)
 			{
 				if (!bIsCompressionValid) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePOTERROR;
-				else if (FormatCategory == EAndroidTextureFormatCategory::PVRTC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePVRTC4;
 				else if (FormatCategory == EAndroidTextureFormatCategory::DXT) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameDXT5;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ATC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameATC_RGBA_I;
 				else if (FormatCategory == EAndroidTextureFormatCategory::ETC2) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC2;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1a) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1a;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1;
 				else bValidFormat = false;
 			}
 			else
 			{
 				if (!bIsCompressionValid) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePOTERROR;
-				else if (FormatCategory == EAndroidTextureFormatCategory::PVRTC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NamePVRTC4;
 				else if (FormatCategory == EAndroidTextureFormatCategory::DXT) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoDXT;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ATC) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoATC;
 				else if (FormatCategory == EAndroidTextureFormatCategory::ETC2) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC2;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1a) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1a;
-				else if (FormatCategory == EAndroidTextureFormatCategory::ETC1) FormatPerLayer[LayerIndex] = AndroidTexFormat::NameAutoETC1;
 				else bValidFormat = false;
 			}
 		}
@@ -568,22 +548,10 @@ void FAndroidTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) con
 
 	auto AddAllTextureFormatIfSupports = [=, &OutFormats](bool bIsNonPOT)
 	{
-		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoPVRTC, OutFormats, bIsNonPOT);
-		AddTextureFormatIfSupports(AndroidTexFormat::NamePVRTC2, OutFormats, bIsNonPOT);
-		AddTextureFormatIfSupports(AndroidTexFormat::NamePVRTC4, OutFormats, bIsNonPOT);
-
 		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoDXT, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NameDXT1, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NameDXT5, OutFormats, bIsNonPOT);
-
-		AddTextureFormatIfSupports(AndroidTexFormat::NameATC_RGB, OutFormats, bIsNonPOT);
-		AddTextureFormatIfSupports(AndroidTexFormat::NameATC_RGBA_I, OutFormats, bIsNonPOT);
-
-		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoETC1, OutFormats, bIsNonPOT);
-		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoETC1a, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoETC2, OutFormats, bIsNonPOT);
-
-		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoATC, OutFormats, bIsNonPOT);
 	};
 
 	AddAllTextureFormatIfSupports(true);

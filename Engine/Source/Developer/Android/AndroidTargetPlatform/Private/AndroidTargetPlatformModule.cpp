@@ -47,12 +47,8 @@ public:
 				bool bIsClient = Type == 1;
 				SinglePlatforms.Add(new FAndroidTargetPlatform(bIsClient));
 				SinglePlatforms.Add(new FAndroid_ASTCTargetPlatform(bIsClient));
-				SinglePlatforms.Add(new FAndroid_ATCTargetPlatform(bIsClient));
 				SinglePlatforms.Add(new FAndroid_DXTTargetPlatform(bIsClient));
-				SinglePlatforms.Add(new FAndroid_ETC1TargetPlatform(bIsClient));
-				SinglePlatforms.Add(new FAndroid_ETC1aTargetPlatform(bIsClient));
 				SinglePlatforms.Add(new FAndroid_ETC2TargetPlatform(bIsClient));
-				SinglePlatforms.Add(new FAndroid_PVRTCTargetPlatform(bIsClient));
 
 				// thse are used in NotifyMultiSelectedFormatsChanged, so track in another array
 				MultiPlatforms.Add(new FAndroid_MultiTargetPlatform(bIsClient));

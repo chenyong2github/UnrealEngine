@@ -2371,19 +2371,6 @@ public class AndroidPlatformMulti : AndroidPlatform
     }
 }
 
-public class AndroidPlatformATC : AndroidPlatform
-{
-    public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
-    {
-		return bIsClientOnly ? "Android_ATCClient" : "Android_ATC";
-	}
-
-	public override TargetPlatformDescriptor GetTargetPlatformDescriptor()
-    {
-        return new TargetPlatformDescriptor(TargetPlatformType, "ATC");
-    }
-}
-
 public class AndroidPlatformDXT : AndroidPlatform
 {
     public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
@@ -2396,32 +2383,6 @@ public class AndroidPlatformDXT : AndroidPlatform
         return new TargetPlatformDescriptor(TargetPlatformType, "DXT");
     }
 }
-
-public class AndroidPlatformETC1 : AndroidPlatform
-{
-    public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
-    {
-		return bIsClientOnly ? "Android_ETC1Client" : "Android_ETC1";
-    }
-
-    public override TargetPlatformDescriptor GetTargetPlatformDescriptor()
-    {
-        return new TargetPlatformDescriptor(TargetPlatformType, "ETC1");
-    }
-}
-
-public class AndroidPlatformETC1a : AndroidPlatform
-{
-    public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
-    {
-        return "Android_ETC1a";
-    }
-    public override TargetPlatformDescriptor GetTargetPlatformDescriptor()
-    {
-        return new TargetPlatformDescriptor(TargetPlatformType, "ETC1a");
-    }
-}
-
 public class AndroidPlatformETC2 : AndroidPlatform
 {
     public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
@@ -2431,18 +2392,6 @@ public class AndroidPlatformETC2 : AndroidPlatform
     public override TargetPlatformDescriptor GetTargetPlatformDescriptor()
     {
         return new TargetPlatformDescriptor(TargetPlatformType, "ETC2");
-    }
-}
-
-public class AndroidPlatformPVRTC : AndroidPlatform
-{
-    public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
-    {
-		return bIsClientOnly ? "Android_PVRTCClient" : "Android_PVRTC";
-    }
-    public override TargetPlatformDescriptor GetTargetPlatformDescriptor()
-    {
-        return new TargetPlatformDescriptor(TargetPlatformType, "PVRTC");
     }
 }
 

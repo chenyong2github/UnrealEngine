@@ -74,20 +74,8 @@ private:
 		{
 			TargetPlatformNames.Add(TEXT("Android_DXT"));
 		}
-		if (ExtensionsString.Contains(TEXT("GL_ATI_texture_compression_atitc")) || ExtensionsString.Contains(TEXT("GL_AMD_compressed_ATC_texture")))
-		{
-			TargetPlatformNames.Add(TEXT("Android_ATC"));
-		}
-		if (ExtensionsString.Contains(TEXT("GL_IMG_texture_compression_pvrtc")))
-		{
-			TargetPlatformNames.Add(TEXT("Android_PVRTC"));
-		}
 		
 		TargetPlatformNames.Add(TEXT("Android_ETC2"));
-
-		// all devices support ETC
-		TargetPlatformNames.Add(TEXT("Android_ETC1a"));
-		TargetPlatformNames.Add(TEXT("Android_ETC1"));
 
 		// finally, generic Android
 		TargetPlatformNames.Add(TEXT("Android"));

@@ -672,9 +672,6 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool SupportsSRGB() { return IsES31Usable(); }
 	static FORCEINLINE bool SupportsRGBA8() { return bSupportsRGBA8; }
 	static FORCEINLINE bool SupportsDXT() { return bSupportsDXT; }
-	static FORCEINLINE bool SupportsPVRTC() { return bSupportsPVRTC; }
-	static FORCEINLINE bool SupportsATITC() { return bSupportsATITC; }
-	static FORCEINLINE bool SupportsETC1() { return bSupportsETC1; }
 	static FORCEINLINE bool SupportsETC2() { return bSupportsETC2; }
 	static FORCEINLINE bool SupportsCombinedDepthStencilAttachment() { return false; }
 	static FORCEINLINE bool SupportsPackedDepthStencil() { return bSupportsPackedDepthStencil; }
@@ -1271,15 +1268,6 @@ protected:
 
 	/** GL_NV_texture_compression_s3tc, GL_EXT_texture_compression_s3tc */
 	static bool bSupportsDXT;
-
-	/** GL_IMG_texture_compression_pvrtc */
-	static bool bSupportsPVRTC;
-
-	/** GL_ATI_texture_compression_atitc, GL_AMD_compressed_ATC_texture */
-	static bool bSupportsATITC;
-
-	/** GL_OES_compressed_ETC1_RGB8_texture */
-	static bool bSupportsETC1;
 
 	/** OpenGL ES 3.0 profile */
 	static bool bSupportsETC2;

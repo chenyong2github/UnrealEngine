@@ -538,7 +538,7 @@ public:
 
 	/**
 	 * Gets the variant display name of this platform.
-	 * eg. For Android: "ETC1", "ETC2", ...
+	 * eg. For Android: "ASTC", "ETC2", ...
 	 *
 	 * @return FText display name for this platform variant.
 	 */
