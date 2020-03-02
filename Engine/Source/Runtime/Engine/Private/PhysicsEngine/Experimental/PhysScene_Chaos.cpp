@@ -559,61 +559,25 @@ Chaos::IDispatcher* FPhysScene_Chaos::GetDispatcher() const
 template<typename ObjectType>
 void AddPhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, Chaos::IDispatcher* InDispatcher)
 {
-	check(IsInGameThread() && InSolver);
-	//const bool bDedicatedThread = ChaosModule->IsPersistentTaskEnabled();
-
-	InObject->SetSolver(InSolver);
-	InObject->Initialize();
-
-	if(/*bDedicatedThread && */InDispatcher)
-	{
-		// Pass the proxy off to the physics thread
-		InDispatcher->EnqueueCommandImmediate(InSolver, [InObject](Chaos::FPhysicsSolver* InnerSolver)
-		{
-#if CHAOS_PARTICLEHANDLE_TODO
-			InnerSolver->RegisterObject(InObject);
-#endif
-		});
-	}
+	ensure(false);
 }
 
 void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FSkeletalMeshPhysicsProxy* InObject)
 {
 	AddToComponentMaps(Component, InObject);
-
 	ensure(false);
-#if 0
-	Chaos::FPhysicsSolver* Solver = GetSolver();
-	Solver->RegisterObject(InObject);
-
-	AddPhysicsProxy(InObject, Solver, GetDispatcher());
-#endif
 }
 
 void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FStaticMeshPhysicsProxy* InObject)
 {
 	AddToComponentMaps(Component, InObject);
-
 	ensure(false);
-#if 0
-	Chaos::FPhysicsSolver* Solver = GetSolver();
-	Solver->RegisterObject(InObject);
-
-	AddPhysicsProxy(InObject, Solver, GetDispatcher());
-#endif
 }
 
 void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryParticlePhysicsProxy* InObject)
 {
 	AddToComponentMaps(Component, InObject);
-
 	ensure(false);
-#if 0
-	Chaos::FPhysicsSolver* Solver = GetSolver();
-	Solver->RegisterObject(InObject);
-
-	AddPhysicsProxy(InObject, Solver, GetDispatcher());
-#endif
 }
 
 void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsProxy* InObject)
@@ -622,8 +586,6 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryCollec
 
 	Chaos::FPhysicsSolver* Solver = GetSolver();
 	Solver->RegisterObject(InObject);
-
-	AddPhysicsProxy(InObject, Solver, GetDispatcher());
 }
 
 void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject)
