@@ -77,12 +77,12 @@ void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
 		return;
 	}
 
-	if (Variable->Metadata.bIsStaticSwitch)
+	if (Variable->Metadata.GetIsStaticSwitch())
 	{
 		if (TypeUtilityStaticSwitchValue && ParameterEditorStaticSwitchValue)
 		{
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-			Variable->Variable.SetValue(Variable->Metadata.StaticSwitchDefaultValue);
+			Variable->Variable.SetValue(Variable->Metadata.GetStaticSwitchDefaultValue());
 			Variable->Variable.CopyTo(ParameterValue->GetStructMemory());
 			ParameterEditorStaticSwitchValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
 		}
@@ -167,7 +167,7 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	DefaultModeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FNiagaraScriptVariableDetails::OnComboValueChanged));
 
 	FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
-	if (Variable->Metadata.bIsStaticSwitch)
+	if (Variable->Metadata.GetIsStaticSwitch())
 	{
 		TypeUtilityStaticSwitchValue = EditorModule.GetTypeUtilities(Variable->Variable.GetType());
 		if (TypeUtilityStaticSwitchValue && TypeUtilityStaticSwitchValue->CanCreateParameterEditor())
@@ -175,7 +175,7 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 			ParameterEditorStaticSwitchValue = TypeUtilityStaticSwitchValue->CreateParameterEditor(Variable->Variable.GetType());
 			
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-			Variable->Variable.SetValue(Variable->Metadata.StaticSwitchDefaultValue);
+			Variable->Variable.SetValue(Variable->Metadata.GetStaticSwitchDefaultValue());
 			Variable->Variable.CopyTo(ParameterValue->GetStructMemory());
 			ParameterEditorStaticSwitchValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
 			ParameterEditorStaticSwitchValue->SetOnValueChanged(SNiagaraParameterEditor::FOnValueChange::CreateSP(this, &FNiagaraScriptVariableDetails::OnStaticSwitchValueChanged));
@@ -241,7 +241,7 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	}
 	
 
-	if (Variable->Metadata.bIsStaticSwitch) {
+	if (Variable->Metadata.GetIsStaticSwitch()) {
 		// Hide metadata UProperties that aren't useful for static switch variables
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.EditCondition));
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.VisibleCondition));
@@ -341,7 +341,7 @@ void FNiagaraScriptVariableDetails::OnStaticSwitchValueChanged()
 		TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 		ParameterEditorStaticSwitchValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
 		Variable->Variable.SetData(ParameterValue->GetStructMemory());
-		Variable->Metadata.StaticSwitchDefaultValue = Variable->Variable.GetValue<int>();
+		Variable->Metadata.SetStaticSwitchDefaultValue(Variable->Variable.GetValue<int>());
 		
 #if WITH_EDITOR
 		if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(Variable->GetOuter()))

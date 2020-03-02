@@ -237,7 +237,7 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 			TOptional<FNiagaraVariableMetaData> MetaData = Graph->GetMetaData(Input);
 			if (MetaData.IsSet())
 			{
-				int32 DefaultValue = MetaData->StaticSwitchDefaultValue;
+				int32 DefaultValue = MetaData->GetStaticSwitchDefaultValue();
 				Input.AllocateData();
 				Input.SetValue<FNiagaraInt32>({ DefaultValue });
 				

@@ -192,12 +192,10 @@ namespace FNiagaraStackGraphUtilities
 
 	void GatherRenamedStackFunctionOutputVariableNames(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldFunctionName, const FString& NewFunctionName, TMap<FName, FName>& OutOldToNewNameMap);
 	void GatherRenamedStackFunctionInputAndOutputVariableNames(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldFunctionName, const FString& NewFunctionName, TMap<FName, FName>& OutOldToNewNameMap);
-	FString GetNamespaceStringForScriptParameterScope(const ENiagaraParameterScope& InScope);
-	FString GetNamespaceStringForScriptParameterMetaData(const FNiagaraVariableMetaData& InMetaData);
 
-	TArray<FName> DecomposeVariableNamespace(const FName& InVarName, FName& OutFriendlyName);
+	TArray<FName> DecomposeVariableNamespace(const FName& InVarNameToken, FName& OutName);
 
-	void SetParameterMetaDataFromName(const FName& InVarName, ENiagaraParameterScope& OutScope, ENiagaraScriptParameterUsage& OutUsage, FName& OutFriendlyName);
+	void GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData);
 
 	FString GetNamespacelessVariableNameString(const FName& InVarName);
 
