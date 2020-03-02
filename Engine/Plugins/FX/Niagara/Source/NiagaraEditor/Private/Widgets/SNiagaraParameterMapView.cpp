@@ -308,10 +308,14 @@ void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable)
 		GraphActionMenu->OnRequestRenameOnActionNode();
 	}
 }
-
-bool SNiagaraParameterMapView::AllowMakeType(const FNiagaraTypeDefinition& InType) const
+bool SNiagaraParameterMapView::AllowMakeTypeGeneric(const FNiagaraTypeDefinition& InType) const
 {
 	return InType != FNiagaraTypeDefinition::GetParameterMapDef();
+}
+
+bool SNiagaraParameterMapView::AllowMakeTypeAttribute(const FNiagaraTypeDefinition& InType) const
+{
+	return InType != FNiagaraTypeDefinition::GetParameterMapDef() && InType != FNiagaraTypeDefinition::GetGenericNumericDef();
 }
 
 void SNiagaraParameterMapView::OnFilterTextChanged(const FText& InFilterText)
@@ -574,9 +578,11 @@ bool SNiagaraParameterMapView::SelectionHasContextMenu() const
 
 TSharedRef<SWidget> SNiagaraParameterMapView::OnGetParameterMenu(const NiagaraParameterMapSectionID::Type InSection)
 {
+	bool bTypeIsAttribute = true; 	// Leaving around the old generic path in case it is needed in the future.
+
 	TSharedRef<SNiagaraAddParameterMenu> MenuWidget = SNew(SNiagaraAddParameterMenu, Graphs)
 		.OnAddParameter(this, &SNiagaraParameterMapView::AddParameter)
-		.OnAllowMakeType(this, &SNiagaraParameterMapView::AllowMakeType)
+		.OnAllowMakeType(this, bTypeIsAttribute ? &SNiagaraParameterMapView::AllowMakeTypeAttribute : &SNiagaraParameterMapView::AllowMakeTypeGeneric)
 		.Section(InSection)
 		.ShowNamespaceCategory(false)
 		.ShowGraphParameters(false)

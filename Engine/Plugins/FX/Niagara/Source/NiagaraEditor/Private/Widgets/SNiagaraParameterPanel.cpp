@@ -108,7 +108,7 @@ void SNiagaraParameterPanel::AddParameter(FNiagaraVariable NewVariable, const Ni
 
 bool SNiagaraParameterPanel::AllowMakeType(const FNiagaraTypeDefinition& InType) const
 {
-	return InType != FNiagaraTypeDefinition::GetParameterMapDef();
+	return InType != FNiagaraTypeDefinition::GetParameterMapDef() && InType != FNiagaraTypeDefinition::GetGenericNumericDef();
 }
 
 TSharedRef<SWidget> SNiagaraParameterPanel::OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData)

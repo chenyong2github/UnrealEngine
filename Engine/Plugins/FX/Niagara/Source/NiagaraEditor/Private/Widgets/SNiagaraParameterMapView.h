@@ -94,8 +94,11 @@ public:
 	static bool IsStaticSwitchParameter(const FNiagaraVariable& Variable, const TArray<TWeakObjectPtr<UNiagaraGraph>>& Graphs);
 
 private:
-	/** Function to bind to SNiagaraAddParameterMenus to filter types we allow creating */
-	bool AllowMakeType(const FNiagaraTypeDefinition& InType) const;
+	/** Function to bind to SNiagaraAddParameterMenus to filter types we allow creating in generic parameters*/
+	bool AllowMakeTypeGeneric(const FNiagaraTypeDefinition& InType) const;
+
+	/** Function to bind to SNiagaraAddParameterMenus to filter types we allow creating for attributes */
+	bool AllowMakeTypeAttribute(const FNiagaraTypeDefinition& InType) const;
 
 	/** Callback when the filter is changed, forces the action tree(s) to filter */
 	void OnFilterTextChanged(const FText& InFilterText);
