@@ -32,6 +32,11 @@ UMaterialInstanceDynamic* UMaterialInstanceDynamic::Create(UMaterialInterface* P
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
 	UObject* Outer = InOuter ? InOuter : GetTransientPackage();
+	if (Name != NAME_None && FindObjectFast<UMaterialInstanceDynamic>(Outer, *Name.ToString(), true) != nullptr)
+	{
+		// If a MID is made with the same name and outer as another, it will overwrite it. To avoid this we will change the name when there is a collision.
+		Name = MakeUniqueObjectName(Outer, UMaterialInstanceDynamic::StaticClass(), Name);
+	}
 	UMaterialInstanceDynamic* MID = NewObject<UMaterialInstanceDynamic>(Outer, Name);
 	MID->SetParentInternal(ParentMaterial, false);
 	return MID;
