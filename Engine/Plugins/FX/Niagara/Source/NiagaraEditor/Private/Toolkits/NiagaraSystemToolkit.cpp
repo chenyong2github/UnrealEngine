@@ -787,6 +787,9 @@ void FNiagaraSystemToolkit::OnThumbnailCaptured(UTexture2D* Thumbnail)
 	{
 		System->MarkPackageDirty();
 		System->ThumbnailImage = Thumbnail;
+		// Broadcast an object property changed event to update the content browser
+		FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(System, EmptyPropertyChangedEvent);
 	}
 	else if (SystemToolkitMode == ESystemToolkitMode::Emitter) 
 	{
@@ -794,6 +797,9 @@ void FNiagaraSystemToolkit::OnThumbnailCaptured(UTexture2D* Thumbnail)
 		UNiagaraEmitter* EditableEmitter = EditableEmitterViewModel->GetEmitter();
 		EditableEmitter->ThumbnailImage = Thumbnail;
 		bEmitterThumbnailUpdated = true;
+		// Broadcast an object property changed event to update the content browser
+		FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(EditableEmitter, EmptyPropertyChangedEvent);
 	}
 }
 
