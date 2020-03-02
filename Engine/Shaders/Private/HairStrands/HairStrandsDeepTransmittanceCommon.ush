@@ -38,7 +38,7 @@ FPackedHairTransmittanceMask PackTransmittanceMask(FHairTransmittanceMask In)
 {
 	FPackedHairTransmittanceMask Out;
 	Out.Transmittance = In.Transmittance;
-	Out.PackedHairCountAndVisibility = min(uint(In.HairCount * 1000), 0x00FFFFFF) | (min(uint(In.Visibility * 0xFF), 0xFF) << 24);
+	Out.PackedHairCountAndVisibility = min(uint(In.HairCount * 1000), uint(0x00FFFFFF)) | (min(uint(In.Visibility * 0xFF), uint(0xFF)) << 24);
 	return Out;
 }
 
