@@ -460,7 +460,10 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
 				for (FNiagaraVariable& Var : History.Variables)
 				{
-					check(Var.GetType() != FNiagaraTypeDefinition::GetGenericNumericDef());
+					if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
+					{
+						UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
+					}
 				}
 			}
 			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
