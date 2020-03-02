@@ -2621,7 +2621,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPED_GPU_STAT(RHICmdList, HairRendering);
 		if (HairDatas)
 		{
-			RenderHairComposeSubPixel(RHICmdList, Views, HairDatas);
+			RenderHairComposition(RHICmdList, Views, HairDatas);
 		}
 
 		if (IsHairStrandsEnable(Scene->GetShaderPlatform()))

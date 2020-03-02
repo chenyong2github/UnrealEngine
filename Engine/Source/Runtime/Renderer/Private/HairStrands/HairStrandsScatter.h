@@ -12,5 +12,4 @@ void AddHairDiffusionPass(
 	const struct FHairStrandsVisibilityData& VisibilityData,
 	const struct FVirtualVoxelResources& VoxelResources,
 	const FRDGTextureRef SceneColorDepth,
-	FRDGTextureRef OutSceneColorSubPixelTexture,
 	FRDGTextureRef OutSceneColorTexture);
