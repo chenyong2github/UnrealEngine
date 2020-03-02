@@ -7,6 +7,9 @@
 #include "HAL/LowLevelMemTracker.h"
 
 #if UE_USE_VERYLARGEPAGEALLOCATOR
+
+CORE_API bool GEnableVeryLargePageAllocator = true;
+
 void FCachedOSVeryLargePageAllocator::Init()
 {
 	Block = FPlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(AddressSpaceToReserve);
@@ -21,8 +24,12 @@ void FCachedOSVeryLargePageAllocator::Init()
 	}
 
 	UsedLargePagesHead = nullptr;
-
 	UsedLargePagesWithSpaceHead = nullptr;
+
+	if (!GEnableVeryLargePageAllocator)
+	{
+		bEnabled = false;
+	}
 }
 
 void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size)
@@ -30,7 +37,8 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size)
 	Size = Align(Size, 4096);
 
 	void* ret = nullptr;
-	if (Size == SizeOfSubPage)
+
+	if (bEnabled && Size == SizeOfSubPage)
 	{
 
 		if (UsedLargePagesWithSpaceHead == nullptr)
