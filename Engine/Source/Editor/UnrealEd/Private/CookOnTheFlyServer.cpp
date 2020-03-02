@@ -7715,7 +7715,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			{
 				using namespace PlatformInfo;
 				// Check all possible flavors 
-				// For example release version could be cooked as Android_ETC1 flavor, but DLC can be made as Android_ETC2
+				// For example release version could be cooked as Android_ASTC flavor, but DLC can be made as Android_ETC2
 				FVanillaPlatformEntry VanillaPlatfromEntry = BuildPlatformHierarchy(PlatformName, EPlatformFilter::CookFlavor);
 				for (const FPlatformInfo* PlatformFlaworInfo : VanillaPlatfromEntry.PlatformFlavors)
 				{
