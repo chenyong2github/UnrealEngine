@@ -12,6 +12,8 @@
 #include "Editor.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineBlueprintLibrary.h"
+#include "MoviePipelinePIEExecutorSettings.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
@@ -21,7 +23,13 @@ FText UMoviePipelinePIEExecutor::GetWindowTitle(const int32 InConfigIndex, const
 	PercentFormatOptions.MinimumIntegralDigits = 2;
 	PercentFormatOptions.MaximumIntegralDigits = 3;
 
-	FText TitleFormatString = LOCTEXT("MoviePreviewWindowTitleFormat", "Movie Pipeline Render (Preview) [{CurrentCount}/{TotalCount} Total] {PercentComplete}% Completed.");
+	float CompletionPercentage = 0.f;
+	if (ActiveMoviePipeline)
+	{
+		CompletionPercentage = UMoviePipelineBlueprintLibrary::GetCompletionPercentage(ActiveMoviePipeline);
+	}
+
+	FText TitleFormatString = LOCTEXT("MoviePreviewWindowTitleFormat", "Movie Pipeline Render (Preview) [Job {CurrentCount}/{TotalCount} Total] Current Job: {PercentComplete}% Completed.");
 	FText WindowTitle = FText::FormatNamed(TitleFormatString, TEXT("CurrentCount"), FText::AsNumber(InConfigIndex + 1), TEXT("TotalCount"), FText::AsNumber(InNumConfigs), TEXT("PercentComplete"), FText::AsNumber(12.f, &PercentFormatOptions));
 	return WindowTitle;
 }
@@ -120,7 +128,20 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	// This Pipeline belongs to the world being created so that they have context for things they execute.
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(ExecutingWorld, PipelineClass);
 	
-	ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+	// We allow users to set a multi-frame delay before we actually run the Initialization function and start thinking.
+	// This solves cases where there are engine systems that need to finish loading before we do anything.
+	const UMoviePipelinePIEExecutorSettings* ExecutorSettings = GetDefault<UMoviePipelinePIEExecutorSettings>();
+
+	if (ExecutorSettings->InitialDelayFrameCount == 0)
+	{
+		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		RemainingInitializationFrames = -1;
+	}
+	else
+	{
+		RemainingInitializationFrames = ExecutorSettings->InitialDelayFrameCount;
+		FCoreDelegates::OnBeginFrame.AddUObject(this, &UMoviePipelinePIEExecutor::DelayedInitializationCounter);
+	}
 
 	// Listen for when the pipeline thinks it has finished.
 	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished);
@@ -128,6 +149,17 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 
 	// Listen for PIE shutdown in case the user hits escape to close it. 
 	FEditorDelegates::EndPIE.AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEEnded);
+}
+
+void UMoviePipelinePIEExecutor::DelayedInitializationCounter()
+{
+	if (RemainingInitializationFrames == 0)
+	{
+		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		FCoreDelegates::OnBeginFrame.RemoveAll(this);
+	}
+
+	RemainingInitializationFrames--;
 }
 
 void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
@@ -151,9 +183,7 @@ void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMov
 
 void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 {
-	// Restore the previous settings.
-	FApp::SetUseFixedTimeStep(bPreviousUseFixedTimeStep);
-	FApp::SetFixedDeltaTime(PreviousFixedTimeStepDelta);
+	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 
 	// If the movie pipeline finishes naturally we unsubscribe from the EndPIE event.
 	// This means that if this gets called, the user has hit escape and wants to cancel.
@@ -166,6 +196,10 @@ void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 		// ToDo: bAnyJobHadFatalError
 		DelayedFinishNotification();
 	}
+	
+		// Restore the previous settings.
+	FApp::SetUseFixedTimeStep(bPreviousUseFixedTimeStep);
+	FApp::SetFixedDeltaTime(PreviousFixedTimeStepDelta);
 }
 
 void UMoviePipelinePIEExecutor::DelayedFinishNotification()

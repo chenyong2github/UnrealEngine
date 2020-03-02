@@ -7,7 +7,7 @@
 #include "Serialization/StructuredArchive.h"
 #include "MoviePipelineQueue.h"
 #include "ObjectTools.h"
-#include "MoviePipelineNewProcessExecutorSettings.h"
+#include "MoviePipelineInProcessExecutorSettings.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "FileHelpers.h"
 #include "MovieRenderPipelineSettings.h"
@@ -84,7 +84,7 @@ void UMoviePipelineNewProcessExecutor::ExecuteImpl(UMoviePipelineQueue* InPipeli
 	FString UnrealURLParams;
 
 	// Append all of our inherited command line arguments from the editor.
-	const UMoviePipelineNewProcessExecutorSettings* ExecutorSettings = GetDefault<UMoviePipelineNewProcessExecutorSettings>();
+	const UMoviePipelineInProcessExecutorSettings* ExecutorSettings = GetDefault<UMoviePipelineInProcessExecutorSettings>();
 
 	CommandLineArgs += ExecutorSettings->InheritedCommandLineArguments;
 	CommandLineArgs += TEXT(" ") + ExecutorSettings->AdditionalCommandLineArguments;
