@@ -77,6 +77,12 @@ void UNiagaraNodeSimTargetSelector::Compile(class FHlslNiagaraTranslator* Transl
 	bool bCPUSim = Translator->IsCompileOptionDefined(TEXT("CPUSim"));
 	bool bGPUSim = Translator->IsCompileOptionDefined(TEXT("GPUComputeSim"));
 
+	if (Translator->GetTargetUsage() >= ENiagaraScriptUsage::Function && Translator->GetTargetUsage() <= ENiagaraScriptUsage::DynamicInput)
+	{
+		// Functions through Dynamic inputs are missing the context, so just use CPU by default.
+		bCPUSim = true;
+	}
+
 
 	int32 VarIdx;
 	if (bCPUSim/*SimulationTarget == ENiagaraSimTarget::CPUSim*/)
