@@ -531,13 +531,32 @@ public:
 	uint8	bAllowDuringConstructionScript:1;
 
 #if WITH_EDITOR
-	/** Determines whether the begin play cycle will run on the spawned actor when in the editor. */
+	/* Determines whether the begin play cycle will run on the spawned actor when in the editor. */
 	uint8	bTemporaryEditorActor:1;
 
-	/* Determines wether or not the actor should be hidden from the Scene Outliner */
+	/* Determines whether or not the actor should be hidden from the Scene Outliner */
 	uint8	bHideFromSceneOutliner:1;
 #endif
-	
+
+	/* Modes that SpawnActor can use the supplied name when it is not None. */
+	enum class ESpawnActorNameMode : uint8
+	{
+		/* Fatal if unavailable, application will assert */
+		Required_Fatal,
+
+		/* Report an error return null if unavailable */
+		Required_ErrorAndReturnNull,
+
+		/* Return null if unavailable */
+		Required_ReturnNull,
+
+		/* If the supplied Name is already in use the generate an unused one using the supplied version as a base */
+		Requested
+	};
+
+	/* In which way should SpawnActor should treat the supplied Name if not none. */
+	ESpawnActorNameMode NameMode;
+
 	/* Flags used to describe the spawned actor/object instance. */
 	EObjectFlags ObjectFlags;		
 };

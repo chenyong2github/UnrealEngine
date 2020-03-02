@@ -563,6 +563,7 @@ void UChildActorComponent::CreateChildActor()
 				Params.bAllowDuringConstructionScript = true;
 				Params.OverrideLevel = (MyOwner ? MyOwner->GetLevel() : nullptr);
 				Params.Name = ChildActorName;
+				Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 				if (ChildActorTemplate && ChildActorTemplate->GetClass() == ChildActorClass)
 				{
 					Params.Template = ChildActorTemplate;
