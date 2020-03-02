@@ -7,6 +7,11 @@
 #include "HAL/PlatformMemory.h"
 #include "HAL/MemoryBase.h"
 
+#ifndef UE_USE_VERYLARGEPAGEALLOCATOR
+#define UE_USE_VERYLARGEPAGEALLOCATOR 0
+#endif
+
+
 // Sizes.
 
 #if STATS

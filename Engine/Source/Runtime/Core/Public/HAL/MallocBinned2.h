@@ -11,6 +11,7 @@
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/Allocators/CachedOSPageAllocator.h"
+#include "HAL/Allocators/CachedOSVeryLargePageAllocator.h"
 #include "HAL/Allocators/PooledVirtualMemoryAllocator.h"
 #include "HAL/PlatformMath.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -249,7 +250,11 @@ class CORE_API FMallocBinned2 final : public FMalloc
 	uint64 NumPoolsPerPage;
 
 #if !PLATFORM_UNIX
+#if UE_USE_VERYLARGEPAGEALLOCATOR
+	FCachedOSVeryLargePageAllocator CachedOSPageAllocator;
+#else
 	TCachedOSPageAllocator<BINNED2_MAX_CACHED_OS_FREES, BINNED2_MAX_CACHED_OS_FREES_BYTE_LIMIT> CachedOSPageAllocator;
+#endif
 #else
 	FPooledVirtualMemoryAllocator CachedOSPageAllocator;
 #endif
@@ -675,6 +680,7 @@ public:
 	virtual void SetupTLSCachesOnCurrentThread() override;
 	virtual void ClearAndDisableTLSCachesOnCurrentThread() override;
 	virtual const TCHAR* GetDescriptiveName() override;
+	virtual void UpdateStats() override;
 	// End FMalloc interface.
 
 	void FlushCurrentThreadCache();
@@ -721,3 +727,4 @@ public:
 		#include "FMemory.inl"
 	#endif
 #endif
+
