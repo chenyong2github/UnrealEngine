@@ -33,7 +33,6 @@ class FHairComposePS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorSubPixelTexture)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -47,8 +46,7 @@ static FRDGTextureRef AddPreScatterComposePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FRDGTextureRef& InCategorizationTexture,
-	const FRDGTextureRef& InSceneColorTexture,
-	const FRDGTextureRef& InSceneColorSubPixelTexture)
+	const FRDGTextureRef& InSceneColorTexture)
 {
 	const FIntPoint Resolution = InSceneColorTexture->Desc.Extent;
 	FRDGTextureRef OutputTexture;
@@ -70,7 +68,6 @@ static FRDGTextureRef AddPreScatterComposePass(
 	FHairComposePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairComposePS::FParameters>();
 	Parameters->CategorizationTexture = InCategorizationTexture;
 	Parameters->SceneColorTexture = InSceneColorTexture;
-	Parameters->SceneColorSubPixelTexture = InSceneColorSubPixelTexture;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
 
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
@@ -161,8 +158,7 @@ static FRDGTextureRef AddScatterPass(
 	const FRDGBufferRef&  InVisibilityNodeData,
 	const FRDGTextureRef& InCategorizationTexture,
 	const FRDGTextureRef& InDiffusionInput,
-	const FRDGTextureRef& OutSceneColorTexture,
-	const FRDGTextureRef& OutSceneColorSubPixelTexture)
+	const FRDGTextureRef& OutSceneColorTexture)
 {
 	if (!VoxelResources.IsValid())
 		return nullptr;
@@ -202,7 +198,7 @@ static FRDGTextureRef AddScatterPass(
 		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
 	}
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutSceneColorTexture, ERenderTargetLoadAction::ELoad);
-	Parameters->RenderTargets[1] = FRenderTargetBinding(OutSceneColorSubPixelTexture, ERenderTargetLoadAction::ELoad);
+//	Parameters->RenderTargets[1] = FRenderTargetBinding(OutSceneColorSubPixelTexture, ERenderTargetLoadAction::ELoad); // TODO
 	Parameters->RenderTargets[2] = FRenderTargetBinding(OutDiffusionOutput, ERenderTargetLoadAction::ENoAction);
 
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
@@ -270,8 +266,7 @@ void AddHairDiffusionPass(
 	const FHairStrandsVisibilityData& VisibilityData,
 	const FVirtualVoxelResources& VoxelResources,
 	const FRDGTextureRef SceneColorDepth,
-	FRDGTextureRef OutSceneColorSubPixelTexture,
-	FRDGTextureRef OutSceneColorTexture)
+	FRDGTextureRef OutLightSampleTexture)
 {
 	const uint32 DiffusionPassCount = FMath::Clamp(GHairStrandsScatter_PassCount, 0, 8);
 	const bool bIsEnabled = DiffusionPassCount > 0 &&
@@ -291,8 +286,7 @@ void AddHairDiffusionPass(
 		GraphBuilder,
 		View,
 		CategorisationTexture,
-		OutSceneColorTexture,
-		OutSceneColorSubPixelTexture);
+		OutLightSampleTexture);
 
 	for (uint32 DiffusionPassIt = 0; DiffusionPassIt < DiffusionPassCount; ++DiffusionPassIt)
 	{
@@ -304,8 +298,8 @@ void AddHairDiffusionPass(
 			NodedData,
 			CategorisationTexture,
 			DiffusionInput,
-			OutSceneColorTexture,
-			OutSceneColorSubPixelTexture);
+			OutLightSampleTexture);
+
 		DiffusionInput = DiffusionOutput;
 	}
 }
