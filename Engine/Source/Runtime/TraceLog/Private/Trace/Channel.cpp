@@ -16,6 +16,17 @@ Trace::FTraceChannel TraceLogChannel;
 namespace Trace {
 
 ///////////////////////////////////////////////////////////////////////////////
+UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Trace, ChannelToggle, Important)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
+UE_TRACE_EVENT_END()
+
+///////////////////////////////////////////////////////////////////////////////
 static FChannel* volatile	GHeadChannel;			// = nullptr;
 static FChannel* volatile	GNewChannelList;		// = nullptr;
 
@@ -129,11 +140,6 @@ void FChannel::Initialize(const ANSICHAR* InChannelName)
 ///////////////////////////////////////////////////////////////////////////////
 void FChannel::Announce() const
 {
-	UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
-		UE_TRACE_EVENT_FIELD(uint32, Id)
-		UE_TRACE_EVENT_FIELD(bool, IsEnabled)
-	UE_TRACE_EVENT_END()
-
 	ANSICHAR Buffer[128];
 	uint32 Count = FMath::Min<uint32>(sizeof(Buffer) - 1, Name.Len);
 	memcpy(Buffer, Name.Ptr, Count);
@@ -167,11 +173,6 @@ void FChannel::ToggleAll(bool bEnabled)
 ///////////////////////////////////////////////////////////////////////////////
 bool FChannel::Toggle(bool bEnabled)
 {
-	UE_TRACE_EVENT_BEGIN(Trace, ChannelToggle, Important)
-		UE_TRACE_EVENT_FIELD(uint32, Id)
-		UE_TRACE_EVENT_FIELD(bool, IsEnabled)
-	UE_TRACE_EVENT_END()
-
 	const bool bWasEnabled = !bDisabled;
 	if (bWasEnabled != bEnabled)
 	{

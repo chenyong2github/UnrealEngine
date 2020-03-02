@@ -550,14 +550,20 @@ static void Writer_ConsumeEvents()
 
 
 ////////////////////////////////////////////////////////////////////////////////
+UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync|Important)
+	UE_TRACE_EVENT_FIELD(uint32, Serial)
+	UE_TRACE_EVENT_FIELD(uint16, Endian)
+	UE_TRACE_EVENT_FIELD(uint8, PointerSize)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN($Trace, Timing, NoSync|Important)
+	UE_TRACE_EVENT_FIELD(uint64, StartCycle)
+	UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
+UE_TRACE_EVENT_END()
+
+////////////////////////////////////////////////////////////////////////////////
 static void Writer_LogHeader()
 {
-	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync|Important)
-		UE_TRACE_EVENT_FIELD(uint32, Serial)
-		UE_TRACE_EVENT_FIELD(uint16, Endian)
-		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
-	UE_TRACE_EVENT_END()
-
 	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
 		<< NewTrace.Serial(uint32(GLogSerial)) // should really atomic-load-relaxed here...
 		<< NewTrace.Endian(0x524d)
@@ -567,11 +573,6 @@ static void Writer_LogHeader()
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_LogTimingHeader()
 {
-	UE_TRACE_EVENT_BEGIN($Trace, Timing, NoSync|Important)
-		UE_TRACE_EVENT_FIELD(uint64, StartCycle)
-		UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
-	UE_TRACE_EVENT_END()
-
 	UE_TRACE_LOG($Trace, Timing, TraceLogChannel)
 		<< Timing.StartCycle(GStartCycle)
 		<< Timing.CycleFrequency(TimeGetFrequency());
