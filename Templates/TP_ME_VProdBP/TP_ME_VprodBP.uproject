@@ -139,6 +139,10 @@
 		{
 			"Name": "VariantManager",
 			"Enabled": true
+		},
+		{
+			"Name": "DMXProtocol",
+			"Enabled": true
 		}
 	]
 }
