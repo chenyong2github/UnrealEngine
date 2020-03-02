@@ -287,6 +287,11 @@ class FHairEnvironmentLightingVS : public FGlobalShader
 		FHairEnvironmentLighting::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("LIGHTING_VS"), 1);
 	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(Parameters.Platform);
+	}
 };
 
 class FHairEnvironmentLightingPS : public FGlobalShader
@@ -304,6 +309,11 @@ class FHairEnvironmentLightingPS : public FGlobalShader
 	{
 		FHairEnvironmentLighting::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("LIGHTING_PS"), 1);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(Parameters.Platform);
 	}
 };
 
