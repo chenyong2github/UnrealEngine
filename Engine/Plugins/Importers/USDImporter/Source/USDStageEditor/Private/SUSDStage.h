@@ -39,7 +39,6 @@ protected:
 	void FillOptionsMenu( FMenuBuilder& MenuBuilder );
 	void FillPayloadsSubMenu( FMenuBuilder& MenuBuilder );
 	void FillPurposesToLoadSubMenu( FMenuBuilder& MenuBuilder );
-	void FillPurposeVisibilitySubMenu( FMenuBuilder& MenuBuilder );
 
 	void OnNew();
 	void OnOpen();
