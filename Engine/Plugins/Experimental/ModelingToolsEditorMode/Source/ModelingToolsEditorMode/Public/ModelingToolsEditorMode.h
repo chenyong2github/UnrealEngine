@@ -161,4 +161,6 @@ protected:
 
 	void ModelingModeShortcutRequested(EModelingModeActionCommands Command);
 	void FocusCameraAtCursorHotkey();
+
+	void ConfigureRealTimeViewportsOverride(bool bEnable);
 };
