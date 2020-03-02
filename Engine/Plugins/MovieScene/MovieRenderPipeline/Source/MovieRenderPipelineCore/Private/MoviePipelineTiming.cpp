@@ -28,6 +28,18 @@ void UMoviePipeline::TickProducingFrames()
 	// We should not be calling this once we have completed all the shots.
 	check(CurrentShotIndex >= 0 && CurrentShotIndex < ShotList.Num());
 
+	// When start up we want to override the engine's Custom Timestep with our own.
+	// This gives us the ability to completely control the engine tick/delta time before the frame
+	// is started so that we don't have to always be thinking of delta times one frame ahead. We need
+	// to do this only once we're ready to set the timestep though, as Initialize can be called as
+	// a result of a OnBeginFrame, meaning that Initialize is called on the frame before TickProducingFrames
+	// so there would be one frame where it used the custom timestep (after initialize) before TPF was called.
+	if (GEngine->GetCustomTimeStep() != CustomTimeStep)
+	{
+		CachedPrevCustomTimeStep = GEngine->GetCustomTimeStep();
+		GEngine->SetCustomTimeStep(CustomTimeStep);
+	}
+
 	// If we're debug stepping one frame at a time, this will return true
 	// and we early out so that we don't end up advancing the pipeline at all.
 	// This handles setting the delta time for us to a fixed number.
