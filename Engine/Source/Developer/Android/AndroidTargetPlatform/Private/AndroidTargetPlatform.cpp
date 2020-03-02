@@ -247,6 +247,16 @@ bool FAndroidTargetPlatform::SupportsVulkan() const
 	return bSupportsVulkan;
 }
 
+bool FAndroidTargetPlatform::SupportsVulkanSM5() const
+{
+	// default to no support for VulkanSM5
+	bool bSupportsMobileVulkanSM5 = false;
+#if WITH_ENGINE
+	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsVulkanSM5"), bSupportsMobileVulkanSM5, GEngineIni);
+#endif
+	return bSupportsMobileVulkanSM5;
+}
+
 bool FAndroidTargetPlatform::SupportsSoftwareOcclusion() const
 {
 	static auto* CVarMobileAllowSoftwareOcclusion = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowSoftwareOcclusion"));
@@ -343,8 +353,10 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 			return SupportsES31() || SupportsVulkan();
 
 		case ETargetPlatformFeatures::HighQualityLightmaps:
-		case ETargetPlatformFeatures::Tessellation:
 		case ETargetPlatformFeatures::DeferredRendering:
+			return SupportsAEP() || SupportsVulkanSM5();
+
+		case ETargetPlatformFeatures::Tessellation:
 			return SupportsAEP();
 
 		case ETargetPlatformFeatures::SoftwareOcclusion:
@@ -368,10 +380,15 @@ void FAndroidTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutForm
 	static FName NAME_GLSL_310_ES_EXT(TEXT("GLSL_310_ES_EXT"));
 	static FName NAME_SF_VULKAN_ES31_ANDROID(TEXT("SF_VULKAN_ES31_ANDROID_NOUB"));
 	static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
+	static FName NAME_SF_VULKAN_SM5_ANDROID(TEXT("SF_VULKAN_SM5_ANDROID"));
 
 	if (SupportsVulkan())
 	{
 		OutFormats.AddUnique(NAME_SF_VULKAN_ES31_ANDROID);
+		if (SupportsVulkanSM5())
+		{
+			OutFormats.AddUnique(NAME_SF_VULKAN_SM5_ANDROID);
+		}
 	}
 
 	if (SupportsES31())
@@ -576,7 +593,7 @@ void FAndroidTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) con
 
 void FAndroidTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const
 {
-	if (SupportsAEP())
+	if (SupportsAEP() || SupportsVulkanSM5())
 	{
 		// use Full HDR with AEP
 		OutFormats.Add(FName(TEXT("FullHDR")));
