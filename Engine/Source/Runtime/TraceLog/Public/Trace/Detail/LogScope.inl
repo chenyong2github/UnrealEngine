@@ -41,10 +41,8 @@ inline uint8* FLogScope::GetPointer() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-template <typename ActionType>
-inline const FLogScope& FLogScope::operator << (const ActionType& Rhs) const
+inline const FLogScope& FLogScope::operator << (bool) const
 {
-	Rhs.Write(Instance.Ptr);
 	return *this;
 }
 
@@ -99,14 +97,14 @@ inline void FLogScope::EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux)
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class T>
-auto TLogScope<T& __restrict>::Enter(uint32 Uid, uint32 Size)
+auto TLogScope<T>::Enter(uint32 Uid, uint32 Size)
 {
 	return TLogScopeSelector<T::bIsImportant>::Type::template Enter<T::EventFlags>(Uid, Size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class T>
-auto TLogScope<T& __restrict>::Enter(uint32 Uid, uint32 Size, uint32 ExtraBytes)
+auto TLogScope<T>::Enter(uint32 Uid, uint32 Size, uint32 ExtraBytes)
 {
 	return Enter(Uid, Size + ExtraBytes);
 }

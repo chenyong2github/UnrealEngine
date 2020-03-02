@@ -80,14 +80,16 @@ namespace Trace
 		Trace::TField<0 /*Index*/, 0 /*Offset*/,
 
 #define TRACE_PRIVATE_EVENT_FIELD(FieldType, FieldName) \
-		FieldType> const FieldName = Trace::FLiteralName(#FieldName); \
+		FieldType> const FieldName##_Field = Trace::FLiteralName(#FieldName); \
+		template <typename... Ts> auto FieldName(Ts... ts) const { FieldName##_Field.Set((uint8*)this, Forward<Ts>(ts)...); return true; } \
 		Trace::TField< \
-			decltype(FieldName)::Index + 1, \
-			decltype(FieldName)::Offset + decltype(FieldName)::Size,
+			decltype(FieldName##_Field)::Index + 1, \
+			decltype(FieldName##_Field)::Offset + decltype(FieldName##_Field)::Size,
 
 #define TRACE_PRIVATE_EVENT_END() \
 		Trace::EventProps> const EventProps_Private = {}; \
-		Trace::TField<0, decltype(EventProps_Private)::Size, Trace::Attachment> const Attachment = {}; \
+		Trace::TField<0, decltype(EventProps_Private)::Size, Trace::Attachment> const Attachment_Field = {}; \
+		template <typename... Ts> auto Attachment(Ts... ts) const { Attachment_Field.Set((uint8*)this, Forward<Ts>(ts)...); return true; } \
 		explicit operator bool () const { return true; } \
 		enum { EventFlags = PartialEventFlags|(decltype(EventProps_Private)::MaybeHasAux ? Trace::Private::FEventInfo::Flag_MaybeHasAux : 0), }; \
 	};
@@ -100,12 +102,12 @@ namespace Trace
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ...) \
 	if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)) \
-			if (const auto& __restrict EventName = (F##LoggerName##EventName##Fields&)LoggerName##EventName##Event) \
-				if (auto LogScope = Trace::Private::TLogScope<decltype(EventName)>::Enter( \
-					LoggerName##EventName##Event.GetUid() ? LoggerName##EventName##Event.GetUid() : F##LoggerName##EventName##Fields::Initialize(), \
-					TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), \
-					##__VA_ARGS__)) \
-						LogScope
+		if (auto LogScope = Trace::Private::TLogScope<F##LoggerName##EventName##Fields>::Enter( \
+			LoggerName##EventName##Event.GetUid() ? LoggerName##EventName##Event.GetUid() : F##LoggerName##EventName##Fields::Initialize(), \
+			TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), \
+			##__VA_ARGS__)) \
+				if (const auto& __restrict EventName = *(F##LoggerName##EventName##Fields*)LogScope.GetPointer()) \
+					LogScope
 
 #else
 

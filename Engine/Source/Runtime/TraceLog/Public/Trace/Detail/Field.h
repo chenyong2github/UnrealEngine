@@ -125,23 +125,17 @@ struct TField<InIndex, InOffset, Type[]>
 
 	static_assert(sizeof(Private::FWriteBuffer::Overflow) >= sizeof(FAuxHeader), "FWriteBuffer::Overflow is not large enough");
 
-	struct FActionable
-	{
-		void Write(uint8* __restrict) const {}
-	};
-
-	const FActionable operator () (Type const* Data, int32 Count) const
+	FORCENOINLINE static void Set(uint8*, Type const* Data, int32 Count)
 	{
 		if (Count > 0)
 		{
 			int32 Size = (Count * sizeof(Type)) & (FAuxHeader::SizeLimit - 1) & ~(sizeof(Type) - 1);
-			Impl((const uint8*)Data, Size);
+			Set((const uint8*)Data, Size);
 		}
-		return {};
 	}
 
 private:
-	FORCENOINLINE void Impl(const uint8* Data, int32 Size) const
+	static void Set(const uint8* Data, int32 Size)
 	{
 		using namespace Private;
 
@@ -202,12 +196,7 @@ struct TField<InIndex, InOffset, Type[Count]>
 {
 	TRACE_PRIVATE_FIELD(InIndex, InOffset, Type[Count]);
 
-	struct FActionable
-	{
-		void Write(uint8* __restrict) const {}
-	};
-
-	const FActionable operator () (Type const* Data, int Count) const
+	static void Set(uint8*, Type const* Data, int Count)
 	{
 	}
 };
@@ -219,18 +208,9 @@ struct TField
 {
 	TRACE_PRIVATE_FIELD(InIndex, InOffset, Type);
 
-	struct FActionable
+	static void Set(uint8* Dest, const Type& __restrict Value)
 	{
-		Type Value;
-		void Write(uint8* __restrict Ptr) const
-		{
-			::memcpy(Ptr + Offset, &Value, Size);
-		}
-	};
-
-	const FActionable operator () (const Type& __restrict Value) const
-	{
-		return { Value };
+		::memcpy(Dest + Offset, &Value, Size);
 	}
 };
 
@@ -259,34 +239,14 @@ template <int InOffset>
 struct TField<0, InOffset, Attachment>
 {
 	template <typename LambdaType>
-	struct FActionableLambda
+	static void Set(uint8* Dest, LambdaType&& Lambda)
 	{
-		LambdaType& Value;
-		void Write(uint8* __restrict Ptr) const
-		{
-			Value(Ptr + InOffset);
-		}
-	};
-
-	template <typename LambdaType>
-	const FActionableLambda<LambdaType> operator () (LambdaType&& Lambda) const
-	{
-		return { Forward<LambdaType>(Lambda) };
+		Lambda(Dest + InOffset);
 	}
 
-	struct FActionableMemcpy
+	static void Set(uint8* Dest, const void* Data, uint32 Size)
 	{
-		const void* Data;
-		uint32 Size;
-		void Write(uint8* __restrict Ptr) const
-		{
-			::memcpy(Ptr + InOffset, Data, Size);
-		}
-	};
-
-	const FActionableMemcpy operator () (const void* Data, uint32 Size) const
-	{
-		return { Data, Size };
+		::memcpy(Dest + InOffset, Data, Size);
 	}
 };
 

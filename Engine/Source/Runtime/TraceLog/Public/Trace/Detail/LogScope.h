@@ -20,10 +20,9 @@ public:
 							~FLogScope();
 	constexpr explicit		operator bool () const { return true; }
 	uint8*					GetPointer() const;
+	const FLogScope&		operator << (bool) const;
 	template <uint32 Flags>
 	static FLogScope		Enter(uint32 Uid, uint32 Size);
-	template <class Action>
-	const FLogScope&		operator << (const Action&) const;
 
 private:
 	template <class T> void	EnterPrelude(uint32 Size, bool bMaybeHasAux);
@@ -50,10 +49,8 @@ template <>		struct TLogScopeSelector<false>	{ typedef FLogScope Type; };
 template <>		struct TLogScopeSelector<true>	{ typedef FImportantLogScope Type; };
 
 ////////////////////////////////////////////////////////////////////////////////
-template <class T> struct TLogScope;
-
 template <class T>
-struct TLogScope<T& __restrict>
+struct TLogScope
 {
 	static auto Enter(uint32 Uid, uint32 Size);
 	static auto Enter(uint32 Uid, uint32 Size, uint32 ExtraBytes);
