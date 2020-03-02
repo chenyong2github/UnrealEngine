@@ -41,7 +41,7 @@ FNiagaraScriptVariableDetails::~FNiagaraScriptVariableDetails()
 	GEditor->UnregisterForUndo(this);
 }
 
-UEdGraphPin* FNiagaraScriptVariableDetails::GetDefaultPin()
+UEdGraphPin* FNiagaraScriptVariableDetails::GetAnyDefaultPin()
 {
 	// TODO: We don't know the usage at this point, so we'll try each script type in order
 	//       This could probably be made much more robust, but works for now.
@@ -59,6 +59,15 @@ UEdGraphPin* FNiagaraScriptVariableDetails::GetDefaultPin()
 		return Pin;
 	}
 	return nullptr;
+}
+
+TArray<UEdGraphPin*> FNiagaraScriptVariableDetails::GetDefaultPins()
+{
+	if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(Variable->GetOuter()))
+	{
+		return Graph->FindParameterMapDefaultValuePins(Variable->Variable.GetName());
+	}
+	return TArray<UEdGraphPin*>();
 }
 
 void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
@@ -80,7 +89,7 @@ void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
 	}
 	else
 	{
-		if (UEdGraphPin* Pin = GetDefaultPin())
+		if (UEdGraphPin* Pin = GetAnyDefaultPin())
 		{
 			if (TypeUtilityValue && ParameterEditorValue)
 			{
@@ -101,6 +110,11 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(const TSharedPtr<IDetailLay
 
 void FNiagaraScriptVariableDetails::OnComboValueChanged()
 {
+	if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(Variable->GetOuter()))
+	{
+		Graph->ScriptVariableChanged(this->Variable->Variable);
+	}
+
 	IDetailLayoutBuilder* DetailBuilderPtr = nullptr;
 	if (TSharedPtr<IDetailLayoutBuilder> LockedDetailBuilder = CachedDetailBuilder.Pin())
 	{
@@ -190,7 +204,7 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		DetailBuilder.HideProperty(DefaultModeHandle);
 		DetailBuilder.AddPropertyToCategory(DefaultModeHandle);
 
-		if (UEdGraphPin* Pin = GetDefaultPin())
+		if (UEdGraphPin* Pin = GetAnyDefaultPin())
 		{
 			TypeUtilityValue = EditorModule.GetTypeUtilities(Variable->Variable.GetType());
 			if (TypeUtilityValue && TypeUtilityValue->CanCreateParameterEditor() && Variable->DefaultMode == ENiagaraDefaultMode::Value)
@@ -251,35 +265,38 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
  
 void FNiagaraScriptVariableDetails::OnValueChanged()
 {
-
-	if (TypeUtilityValue && ParameterEditorValue)
+	if (TypeUtilityValue && ParameterEditorValue && GetDefaultPins().Num() > 0)
 	{
-		if (UEdGraphPin* Pin = GetDefaultPin())
+		FString NewDefaultValue;
+		if (!ParameterEditorValue->CanChangeContinuously())
 		{
-			FString NewDefaultValue;
-			if (!ParameterEditorValue->CanChangeContinuously())
+			const FScopedTransaction Transaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
+			Variable->Modify();
+
+			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
+			ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
+			Variable->Variable.SetData(ParameterValue->GetStructMemory());
+			NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
+
+			for (UEdGraphPin* Pin : GetDefaultPins())
 			{
-				const FScopedTransaction Transaction( NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value" ) );
 				Pin->Modify();
-				Variable->Modify();
-
-				TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-				ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
-				Variable->Variable.SetData(ParameterValue->GetStructMemory());
-				NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
-			}		
-			else
-			{
-				TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-				ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
-				Variable->Variable.SetData(ParameterValue->GetStructMemory());
-				NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
+				GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
 			}
-
-			GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
-			
 		}
-	} 
+		else
+		{
+			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
+			ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
+			Variable->Variable.SetData(ParameterValue->GetStructMemory());
+			NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
+
+			for (UEdGraphPin* Pin : GetDefaultPins())
+			{
+				GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
+			}
+		}
+	}
 }
  
 
@@ -290,22 +307,21 @@ void FNiagaraScriptVariableDetails::OnBeginValueChanged()
 		return;
 	}
 
-	if (TypeUtilityValue && ParameterEditorValue)
+	if (TypeUtilityValue && ParameterEditorValue && GetDefaultPins().Num() > 0)
 	{
-		if (UEdGraphPin* Pin = GetDefaultPin())
-		{
-			GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
-			Variable->Modify();
-			Pin->Modify();
-			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-			ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
-			Variable->Variable.SetData(ParameterValue->GetStructMemory());
+		GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
+		Variable->Modify();
+		TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
+		ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
+		Variable->Variable.SetData(ParameterValue->GetStructMemory());
 
+		for (UEdGraphPin* Pin : GetDefaultPins())
+		{
+			Pin->Modify();
 			FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
 			GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
-
 		}
-	} 
+	}
 }
 
 void FNiagaraScriptVariableDetails::OnEndValueChanged()
