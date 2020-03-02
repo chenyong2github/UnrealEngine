@@ -216,7 +216,7 @@ uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name)
 	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameSize)
 		<< EventSpec.Id(SpecId)
-		<< EventSpec.CharSize(sizeof(TCHAR))
+		<< EventSpec.CharSize(uint8(sizeof(TCHAR)))
 		<< EventSpec.Attachment(Name, NameSize);
 	return SpecId;
 }
@@ -227,7 +227,7 @@ uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name)
 	uint16 NameSize = (uint16)(strlen(Name) + 1);
 	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameSize)
 		<< EventSpec.Id(SpecId)
-		<< EventSpec.CharSize(1)
+		<< EventSpec.CharSize(uint8(1))
 		<< EventSpec.Attachment(Name, NameSize);
 	return SpecId;
 }
