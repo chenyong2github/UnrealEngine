@@ -172,7 +172,6 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	Transform = FMatrix::Identity;
 	TransformInverseTransposed = FMatrix::Identity;
 	PrevTransform = FMatrix::Identity;
-	PrevTransformInverseTransposed = FMatrix::Identity;
 	DeltaSeconds = 0.0f;
 	ChangeId = Interface->ChangeId;
 
@@ -253,7 +252,6 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	if (SafeComponent_GT.IsValid() && Mesh)
 	{
 		PrevTransform = Transform;
-		PrevTransformInverseTransposed = TransformInverseTransposed;
 		Transform = SafeComponent_GT->GetComponentToWorld().ToMatrixWithScale();
 		TransformInverseTransposed = Transform.InverseFast().GetTransposed();
 	}
@@ -362,14 +360,12 @@ bool FNDIStaticMesh_InstanceData::Tick(UNiagaraDataInterfaceStaticMesh* Interfac
 		if (SafeComponent_GT.IsValid() && SafeMesh_GT.IsValid())
 		{
 			PrevTransform = Transform;
-			PrevTransformInverseTransposed = TransformInverseTransposed;
 			Transform = SafeComponent_GT->GetComponentToWorld().ToMatrixWithScale();
 			TransformInverseTransposed = Transform.InverseFast().GetTransposed();
 		}
 		else
 		{
 			PrevTransform = FMatrix::Identity;
-			PrevTransformInverseTransposed = FMatrix::Identity;
 			Transform = FMatrix::Identity;
 			TransformInverseTransposed = FMatrix::Identity;
 		}
