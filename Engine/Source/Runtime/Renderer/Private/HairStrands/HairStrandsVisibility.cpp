@@ -63,6 +63,9 @@ static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRaster(TEXT("r.Ha
 static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRasterMaxPixelCount(TEXT("r.HairStrands.Visibility.ComputeRaster.MaxPixelCount"), GHairStrandsVisibilityComputeRasterMaxPixelCount, TEXT("Define the maximal length rasterize in compute."));
 static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRasterSampleCount(TEXT("r.HairStrands.Visibility.ComputeRaster.SampleCount"), GHairStrandsVisibilityComputeRasterSampleCount, TEXT("Define sample count used in rasterize in compute."));
 
+static float GHairStrandsFullCoverageThreshold = 0.98f;
+static FAutoConsoleVariableRef CVarHairStrandsFullCoverageThreshold(TEXT("r.HairStrands.Visibility.FullCoverageThreshold"), GHairStrandsFullCoverageThreshold, TEXT("Define the coverage threshold at which a pixel is considered fully covered."));
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 namespace HairStrandsVisibilityInternal
@@ -1124,11 +1127,11 @@ class FHairVisibilityPrimitiveIdCompactionCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, OutputResolution)
-		SHADER_PARAMETER(uint32, MaxNodeCount)
-		SHADER_PARAMETER(uint32, MSAASampleCount)
 		SHADER_PARAMETER(FIntPoint, ResolutionOffset)
+		SHADER_PARAMETER(uint32, MaxNodeCount)
 		SHADER_PARAMETER(float, DepthTheshold)
 		SHADER_PARAMETER(float, CosTangentThreshold)
+		SHADER_PARAMETER(float, CoverageThreshold)
 
 		// Available for the MSAA path
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MSAA_DepthTexture)
@@ -1303,6 +1306,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 
 	PassParameters->OutputResolution = Resolution;
 	PassParameters->MaxNodeCount = MaxRenderNodeCount;
+	PassParameters->CoverageThreshold = FMath::Clamp(GHairStrandsFullCoverageThreshold, 0.1f, 1.f);
 	PassParameters->DepthTheshold = FMath::Clamp(GHairStrandsMaterialCompactionDepthThreshold, 0.f, 100.f);
 	PassParameters->CosTangentThreshold = FMath::Cos(FMath::DegreesToRadians(FMath::Clamp(GHairStrandsMaterialCompactionTangentThreshold, 0.f, 90.f)));
 	PassParameters->SceneTexturesStruct = CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleDraw);
