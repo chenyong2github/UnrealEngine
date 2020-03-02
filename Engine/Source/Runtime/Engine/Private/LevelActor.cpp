@@ -384,19 +384,37 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		// Use class's default actor as a template.
 		Template = Class->GetDefaultObject<AActor>();
 	}
-	else if (!Template->HasAnyFlags(RF_ClassDefaultObject))
+	check(Template);
+
+	if (NewActorName.IsNone())
 	{
-		if (NewActorName.IsNone())
+		// If we are using a template object and haven't specified a name, create a name relative to the template, otherwise let the default object naming behavior in Stat
+		if (!Template->HasAnyFlags(RF_ClassDefaultObject))
 		{
 			NewActorName = MakeUniqueObjectName(LevelToSpawnIn, Template->GetClass(), *Template->GetFName().GetPlainNameString());
 		}
-		else if (StaticFindObjectFast(nullptr, LevelToSpawnIn, NewActorName))
+	}
+	else if (StaticFindObjectFast(nullptr, LevelToSpawnIn, NewActorName))
+	{
+		// If the supplied name is already in use, then either fail in the requested manner or determine a new name to use if the caller indicates that's ok
+
+		if (SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Requested)
 		{
-			UE_LOG(LogSpawn, Fatal, TEXT("An actor of name '%s' already exists in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
+			NewActorName = MakeUniqueObjectName(LevelToSpawnIn, Template->GetClass(), *NewActorName.GetPlainNameString());
+		}
+		else
+		{
+			if (SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal)
+			{
+				UE_LOG(LogSpawn, Fatal, TEXT("An actor of name '%s' already exists in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
+			}
+			else if (SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull)
+			{
+				UE_LOG(LogSpawn, Error, TEXT("An actor of name '%s' already exists in level '%s'."), *NewActorName.ToString(), *LevelToSpawnIn->GetFullName());
+			}
 			return nullptr;
 		}
 	}
-	check(Template);
 
 	// See if we can spawn on ded.server/client only etc (check NeedsLoadForClient & NeedsLoadForServer)
 	if(!CanCreateInCurrentContext(Template))
