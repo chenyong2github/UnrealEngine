@@ -1347,6 +1347,9 @@ private:
 
 	/** Utility function that is used to ensure that a World has the correct WorldSettings */
 	void RepairWorldSettings();
+
+	/** Utility function to cleanup streaming levels that point to invalid level packages */
+	void RepairStreamingLevels();
 	
 #if INCLUDE_CHAOS
 	/** Utility function that is used to ensure that a World has the correct ChaosActor */
