@@ -553,84 +553,6 @@ float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, floa
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-#if LIGHTING_CS
-
-uint MaxVisibilityNodeCount;
-StructuredBuffer<uint>	HairVisibilityNodeCoord;
-Buffer<uint4>			IndirectArgsBuffer;
-RWBuffer<float4>		OutLightingBuffer;
-
-#if PERMUTATION_GROUP_SIZE == 0
-#define LIGHTING_GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 1
-#define LIGHTING_GROUP_SIZE 32
-#else
-#error Unknown group size	
-#endif
-
-[numthreads(LIGHTING_GROUP_SIZE, 1, 1)]
-void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	// Note: Use a fixed group count width (HAIR_VISIBILITY_GROUP_COUNT_WIDTH) for avoiding loading the indirect args (to avoid dep. memory fetch)
-	const uint LocalOffset = DispatchThreadId.x + DispatchThreadId.y * LIGHTING_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
-
-	const uint PackedCoord = HairVisibilityNodeCoord[LocalOffset];
-	const uint2 PixelCoord = uint2((PackedCoord & 0xFFFF), ((PackedCoord >> 16) & 0xFFFF));
-	const float2 SvPosition = PixelCoord + float2(0.5f, 0.5f);
-
-	const float2 UV = (PixelCoord + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
-	const float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-
-	if (LocalOffset > MaxVisibilityNodeCount)
-		return;
-
-	const FPackedHairSample PackedSample = HairVisibilityNodeData[LocalOffset];
-	const FHairSample Sample = UnpackHairSample(PackedSample);
-
-	FGBufferData GBuffer;
-	GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
-	GBuffer.WorldNormal = Sample.Tangent;
-	GBuffer.BaseColor = Sample.BaseColor;
-	GBuffer.Roughness = Sample.Roughness;
-	GBuffer.Specular = Sample.Specular;
-	GBuffer.Depth = ConvertFromDeviceZ(Sample.Depth);
-	GBuffer.GBufferAO = 1;
-	GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride,0,Sample.Backlit,0);
-	GBuffer.IndirectIrradiance = 1000000;
-
-	bool bEnabled = true;
-	const bool bIsMacroGroupCompatible = Sample.MacroGroupId == Voxel_MacroGroupId;
-#if USE_SCENE_COLOR
-	bEnabled = Sample.bScatterSceneLighting;
-#endif
-	if (bIsMacroGroupCompatible && bEnabled)
-	{
-		const float SampleCoverage = saturate(From8bitCoverage(Sample.Coverage8bit));
-	#if USE_SCENE_COLOR
-		const float3 SkyLighting = ComputeThinTransmission(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
-	#else
-		const float3 SkyLighting = ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
-	#endif
-
-		FLightAccumulator LightAccumulator = (FLightAccumulator)0;
-		LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, false);
-		float4 OutColor = LightAccumulator_GetResult(LightAccumulator);
-		OutColor.xyz *= SampleCoverage;
-		OutColor.a = SampleCoverage;
-
-		OutLightingBuffer[LocalOffset] = OutColor;
-	}
-	else
-	{
-		OutLightingBuffer[LocalOffset] = 0;
-	}
-}
-
-#endif // LIGHTING_CS
-
-
-
 #if LIGHTING_VS
 
 int2 MaxViewportResolution;
@@ -660,14 +582,6 @@ void MainVS(
 uint MaxVisibilityNodeCount;
 StructuredBuffer<uint>	HairVisibilityNodeCoord;
 Buffer<uint4>			IndirectArgsBuffer;
-
-#if PERMUTATION_GROUP_SIZE == 0
-#define LIGHTING_GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 1
-#define LIGHTING_GROUP_SIZE 32
-#else
-#error Unknown group size	
-#endif
 
 void MainPS(
 	float4 SVPos : SV_POSITION,
