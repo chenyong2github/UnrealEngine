@@ -1372,6 +1372,21 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									RayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
 								}
 
+								FRDGTextureRef SubPixelRayTracingShadowMaskTexture = nullptr;
+								FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = nullptr;
+								if (bUseHairLighting)
+								{
+									FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+										SceneTextures.SceneDepthBuffer->Desc.Extent,
+										PF_FloatRGBA,
+										FClearValueBinding::Black,
+										TexCreate_None,
+										TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+										/* bInForceSeparateTargetAndShaderResource = */ false);
+									SubPixelRayTracingShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("SubPixelRayTracingOcclusion"));
+									SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
+								}
+
 								FString BatchLightNameWithLevel;
 								GetLightNameForDrawEvent(BatchLightSceneInfo.Proxy, BatchLightNameWithLevel);
 
@@ -1381,6 +1396,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								{
 									RDG_EVENT_SCOPE(GraphBuilder, "%s", *BatchLightNameWithLevel);
 
+									// Ray trace the shadow cast by opaque geometries on to hair strands geometries
+									// Note: No denoiser is required on this output, as the hair strands are geometrically noisy, which make it hard to denoise
 									RenderRayTracingShadows(
 										GraphBuilder,
 										SceneTextures,
@@ -1388,62 +1405,18 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 										BatchLightSceneInfo,
 										BatchRayTracingConfig,
 										DenoiserRequirements,
-										false,
 										&HairResources,
 										RayTracingShadowMaskUAV,
-										RayHitDistanceUAV);
-								}
-
-								// Ray trace the shadow cast by opaque geometries on to hair strands geometries
-								// Note: No denoiser is required on this output, as the hair strands are geometrically noisy, and so hard to denoise
-								if (HasHairStrandsClusters(ViewIndex))
-								{
-									//#dxr_todo: support multiview for the batching case
-									FRDGTextureRef SubPixelRayTracingShadowMaskTexture;
+										RayHitDistanceUAV,
+										SubPixelRayTracingShadowMaskUAV);
+									
+									if (HasHairStrandsClusters(ViewIndex))
 									{
-										FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-											SceneTextures.SceneDepthBuffer->Desc.Extent,
-											PF_FloatRGBA,
-											FClearValueBinding::Black,
-											TexCreate_None,
-											TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-											/* bInForceSeparateTargetAndShaderResource = */ false);
-										SubPixelRayTracingShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
+										TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskSubPixelTextures[LightBatchIndex - AttenuationLightStart];
+										check(*RefDestination == nullptr);
+
+										GraphBuilder.QueueTextureExtraction(SubPixelRayTracingShadowMaskTexture, RefDestination);
 									}
-
-									FRDGTextureRef SubPixelRayDistanceTexture;
-									{
-										FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-											SceneTextures.SceneDepthBuffer->Desc.Extent,
-											PF_R16F,
-											FClearValueBinding::Black,
-											TexCreate_None,
-											TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-											/* bInForceSeparateTargetAndShaderResource = */ false);
-										SubPixelRayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
-									}
-
-									FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
-									FRDGTextureUAV* SubPixelRayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayDistanceTexture));
-
-									RDG_EVENT_SCOPE(GraphBuilder, "%s Hair Strands", *BatchLightNameWithLevel);
-
-									RenderRayTracingShadows(
-										GraphBuilder,
-										SceneTextures,
-										View,
-										BatchLightSceneInfo,
-										BatchRayTracingConfig,
-										IScreenSpaceDenoiser::EShadowRequirements::Bailout,
-										true,
-										&HairResources,
-										SubPixelRayTracingShadowMaskUAV,
-										SubPixelRayHitDistanceUAV);
-
-									TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskSubPixelTextures[LightBatchIndex - AttenuationLightStart];
-									check(*RefDestination == nullptr);
-
-									GraphBuilder.QueueTextureExtraction(SubPixelRayTracingShadowMaskTexture, RefDestination);
 								}
 
 								bool bBatchFull = false;
@@ -1546,8 +1519,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 						FRDGTextureUAV* RayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayTracingShadowMaskTexture));
 						FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
 
-
-						FRDGTextureRef SubPixelRayTracingShadowMaskTexture;
+						FRDGTextureRef SubPixelRayTracingShadowMaskTexture = nullptr;
+						FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = nullptr;
+						if (bUseHairLighting)
 						{
 							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
 								SceneTextures.SceneDepthBuffer->Desc.Extent,
@@ -1557,22 +1531,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
 								/* bInForceSeparateTargetAndShaderResource = */ false);
 							SubPixelRayTracingShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
+							SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
 						}
 
-						FRDGTextureRef SubPixelRayDistanceTexture;
-						{
-							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-								SceneTextures.SceneDepthBuffer->Desc.Extent,
-								PF_R16F,
-								FClearValueBinding::Black,
-								TexCreate_None,
-								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-								/* bInForceSeparateTargetAndShaderResource = */ false);
-							SubPixelRayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
-						}
-
-						FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
-						FRDGTextureUAV* SubPixelRayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayDistanceTexture));
 
 						FRDGTextureRef RayTracingShadowMaskTileTexture;
 						{
@@ -1609,10 +1570,10 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								LightSceneInfo,
 								RayTracingConfig,
 								DenoiserRequirements,
-								false,
 								&HairResources,
 								RayTracingShadowMaskUAV,
-								RayHitDistanceUAV);
+								RayHitDistanceUAV,
+								SubPixelRayTracingShadowMaskUAV);
 
 							if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::Bailout)
 							{
@@ -1656,22 +1617,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								GraphBuilder.QueueTextureExtraction(RayTracingShadowMaskTexture, &ScreenShadowMaskTexture);
 							}
 
-							// Ray trace the shadow cast by opaque geometries on to hair strands geometries
-							// Note: No denoiser is required on this output, as the hair strands are geometrically noisy, and so hard to denoise
 							if (HasHairStrandsClusters(ViewIndex))
 							{
-								RenderRayTracingShadows(
-									GraphBuilder,
-									SceneTextures,
-									View,
-									LightSceneInfo,
-									RayTracingConfig,
-									IScreenSpaceDenoiser::EShadowRequirements::Bailout,
-									true,
-									&HairResources,
-									SubPixelRayTracingShadowMaskUAV,
-									SubPixelRayHitDistanceUAV);
-
 								GraphBuilder.QueueTextureExtraction(SubPixelRayTracingShadowMaskTexture, &ScreenShadowMaskSubPixelTexture);
 							}
 						}
