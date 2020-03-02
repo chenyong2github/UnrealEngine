@@ -254,6 +254,9 @@ class UNiagaraGraph : public UEdGraph
 	/** Walk through the graph for an ParameterMapGet nodes and see if any of them specify a default for VariableName.*/
 	UEdGraphPin* FindParameterMapDefaultValuePin(const FName VariableName, ENiagaraScriptUsage InUsage, ENiagaraScriptUsage InParentUsage) const;
 
+	/** Walk through the graph for an ParameterMapGet nodes and find all matching default pins for VariableName, irrespective of usage. */
+	TArray<UEdGraphPin*> FindParameterMapDefaultValuePins(const FName VariableName) const;
+
 	/** Gets the meta-data associated with this variable, if it exists.*/
 	TOptional<FNiagaraVariableMetaData> GetMetaData(const FNiagaraVariable& InVar) const;
 
@@ -340,6 +343,8 @@ class UNiagaraGraph : public UEdGraph
 
 	FDelegateHandle RegisterPinVisualWidgetProvider(FOnGetPinVisualWidget OnGetPinVisualWidget);
 
+	void ScriptVariableChanged(FNiagaraVariable Variable);
+
 protected:
 	void RebuildNumericCache();
 	bool bNeedNumericCacheRebuilt;
@@ -375,6 +380,9 @@ private:
 
 	/** Find all nodes in the graph that can be reached during compilation. */
 	TArray<UEdGraphNode*> FindReachbleNodes() const;
+
+	/** Compares the values on the default pins with the metadata and syncs the two if necessary */
+	void ValidateDefaultPins();
 	
 	/** The current change identifier for this graph overall. Used to sync status with UNiagaraScripts.*/
 	UPROPERTY()
