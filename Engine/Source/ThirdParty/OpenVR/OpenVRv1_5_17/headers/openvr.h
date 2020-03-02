@@ -4357,8 +4357,11 @@ namespace vr
 		VRInputString_All = 0xFFFFFFFF
 	};
 
-#pragma warning( push ) // @epic
+// @epic
+#ifdef _MSC_VER
+#pragma warning( push )
 #pragma warning( disable : 4121 )
+#endif
 	struct InputAnalogActionData_t
 	{
 		/** Whether or not this action is currently available to be bound in the active action set */
@@ -4415,7 +4418,10 @@ namespace vr
 		/** The origin that caused this action's current state */
 		VRInputValueHandle_t activeOrigin;
 	};
-#pragma warning( pop ) // @epic
+// @epic
+#ifdef _MSC_VER
+#pragma warning( pop )
+#endif
 
 	struct InputOriginInfo_t
 	{
