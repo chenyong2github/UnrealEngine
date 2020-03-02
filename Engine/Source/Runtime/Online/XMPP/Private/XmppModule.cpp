@@ -768,6 +768,12 @@ void FXmppModule::RemoveConnection(const FString& UserId)
 	ActiveConnections.Remove(UserId);
 }
 
+bool FXmppModule::Tick(float DeltaTime)
+{
+	ProcessPendingRemovals();
+	return true;
+}
+
 void FXmppModule::ProcessPendingRemovals()
 {
 	if (PendingRemovals.Num() > 0)
