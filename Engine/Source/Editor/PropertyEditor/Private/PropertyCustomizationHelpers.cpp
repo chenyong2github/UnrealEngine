@@ -1089,7 +1089,7 @@ private:
 		FString MaterialSlotDisplayName;
 		SectionItem.MaterialSlotName.ToString(MaterialSlotDisplayName);
 		FString MaterialSlotRemapString = TEXT("");
-		if (SectionItem.DefaultMaterialIndex != SectionItem.MaterialSlotIndex)
+		if (SectionItem.DefaultMaterialIndex != INDEX_NONE && SectionItem.DefaultMaterialIndex != SectionItem.MaterialSlotIndex)
 		{
 			MaterialSlotRemapString = TEXT(" (Modified)");
 		}
