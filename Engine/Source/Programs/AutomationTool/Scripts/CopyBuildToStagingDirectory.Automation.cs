@@ -3029,7 +3029,7 @@ public partial class Project : CommandUtils
 
 	private static bool ShouldCreateIoStoreContainerFiles(ProjectParams Params, DeploymentContext SC)
 	{
-		if (Params.CookOnTheFly || Params.NoClient)
+		if (Params.CookOnTheFly)
 		{
 			return false;
 		}
