@@ -1262,21 +1262,6 @@ bool UGroomAsset::CacheDerivedData(const FGroomBuildSettings* InBuildSettings)
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-static void InitializeGroupInfos(
-	const TArray<UGroomBindingAsset::FHairGroupData>& HairGroupDatas,
-	TArray<FGoomBindingGroupInfo>& GroupInfos)
-{
-	GroupInfos.Empty();
-	for (const UGroomBindingAsset::FHairGroupData& Data : HairGroupDatas)
-	{
-		FGoomBindingGroupInfo& Info = GroupInfos.AddDefaulted_GetRef();
-		Info.SimRootCount	= Data.SimRootData.RootCount;
-		Info.SimLODCount	= Data.SimRootData.MeshProjectionLODs.Num();
-		Info.RenRootCount	= Data.RenRootData.RootCount;
-		Info.RenLODCount	= Data.RenRootData.MeshProjectionLODs.Num();
-	}
-}
-
 FArchive& operator<<(FArchive& Ar, UGroomBindingAsset::FHairGroupData& GroupData)
 {
 	GroupData.SimRootData.Serialize(Ar);
@@ -1367,8 +1352,6 @@ void UGroomBindingAsset::PostLoad()
 {
 	Super::PostLoad();
 
-	InitializeGroupInfos(HairGroupDatas, GroupInfos);
-
 	if (Groom)
 	{
 		// Make sure that the asset initialized its resources first since the component needs them to initialize its own resources
@@ -1393,7 +1376,6 @@ void UGroomBindingAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 	}
 #endif
 	Super::PreSave(TargetPlatform);
-	InitializeGroupInfos(HairGroupDatas, GroupInfos);
 #if WITH_EDITOR
 	OnGroomBindingAssetChanged.Broadcast();
 #endif
@@ -1402,7 +1384,6 @@ void UGroomBindingAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 void UGroomBindingAsset::PostSaveRoot(bool bCleanupIsRequired)
 {
 	Super::PostSaveRoot(bCleanupIsRequired);
-	InitializeGroupInfos(HairGroupDatas, GroupInfos);
 #if WITH_EDITOR
 	OnGroomBindingAssetChanged.Broadcast();
 #endif
