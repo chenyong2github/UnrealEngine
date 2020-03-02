@@ -103,6 +103,13 @@ static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShader
 	}
 	break;
 
+	case SP_VULKAN_SM5_ANDROID:
+	{
+		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Android_Vulkan_SM5_loc", "Android Vulkan SM5");
+		return Description;
+	}
+	break;
+
 	default:
 		break;
 	};

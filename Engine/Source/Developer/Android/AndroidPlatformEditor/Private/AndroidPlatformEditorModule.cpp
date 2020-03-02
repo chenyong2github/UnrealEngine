@@ -95,6 +95,15 @@ class FAndroidPlatformEditorModule
 					AndroidMaterialQualitySettings
 				);
 			}
+			{
+				static FName NAME_SF_VULKAN_SM5_ANDROID(TEXT("SF_VULKAN_SM5_ANDROID"));
+				UShaderPlatformQualitySettings* AndroidMaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(NAME_SF_VULKAN_SM5_ANDROID);
+				SettingsModule->RegisterSettings("Project", "Platforms", "AndroidVulkanSM5Quality",
+					LOCTEXT("AndroidVulkanSM5QualitySettingsName", "Android SM5 Material Quality - Vulkan"),
+					LOCTEXT("AndroidVulkanSM5QualitySettingsDescription", "Settings for Android Vulkan SM5 material quality"),
+					AndroidMaterialQualitySettings
+				);
+			}
 
 		}
 

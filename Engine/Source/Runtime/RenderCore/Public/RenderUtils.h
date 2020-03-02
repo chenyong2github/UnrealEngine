@@ -555,7 +555,7 @@ inline bool IsUsingPerPixelDBufferMask(const FStaticShaderPlatform Platform)
 
 inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatureLevel FeatureLevel)
 {
-	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	if (IsMobilePlatform(Platform))
 	{
 		return MobileSupportsGPUScene(Platform);
 	}
@@ -565,6 +565,7 @@ inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatu
 		//@todo - support GPU Scene management compute shaders on these platforms to get dynamic instancing speedups on the Rendering Thread and RHI Thread
 		&& !IsOpenGLPlatform(Platform)
 		&& !IsSwitchPlatform(Platform)
+		&& !IsVulkanMobileSM5Platform(Platform)
 		// we only check DDSPI for platforms that have been read in - IsValid() can go away once ALL platforms are converted over to this system
 		&& (!FDataDrivenShaderPlatformInfo::IsValid(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform));
 }

@@ -71,6 +71,7 @@ FText FShaderFormatsPropertyDetails::GetFriendlyNameFromRHINameMac(const FString
 			break;
 		case SP_VULKAN_SM5:
 		case SP_VULKAN_SM5_LUMIN:
+		case SP_VULKAN_SM5_ANDROID:
 			FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");
 			break;
 		case SP_VULKAN_PCES3_1:
