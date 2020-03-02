@@ -319,8 +319,8 @@ const TCHAR* const kInjestResourceNames[] = {
 	// ShadowVisibilityMask
 	TEXT("ShadowDenoiserInjest0"),
 	TEXT("ShadowDenoiserInjest1"),
-	nullptr,
-	nullptr,
+	TEXT("ShadowDenoiserInjest2"),
+	TEXT("ShadowDenoiserInjest3"),
 
 	// PolychromaticPenumbraHarmonic
 	nullptr,
@@ -1345,15 +1345,16 @@ static void DenoiseSignalAtConstantPixelDensity(
 			check(Settings.SignalBatchSize >= 1 && Settings.SignalBatchSize <= IScreenSpaceDenoiser::kMaxBatchSize);
 			for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 			{
-				InjestDescs[BatchedSignalId / 2].Format = (BatchedSignalId % 2) ? PF_FloatRGBA : PF_G16R16F;
-				InjestTextureCount = BatchedSignalId / 2 + 1;
+				InjestDescs[BatchedSignalId].Format = PF_FloatRGBA;
+				InjestTextureCount = BatchedSignalId;
 				ReconstructionDescs[BatchedSignalId].Format = PF_FloatRGBA;
 				HistoryDescs[BatchedSignalId].Format = PF_FloatRGBA;
 			}
+			InjestTextureCount = Settings.SignalBatchSize;
 
 			HistoryTextureCountPerSignal = 1;
 			ReconstructionTextureCount = Settings.SignalBatchSize;
-			bHasReconstructionLayoutDifferentFromHistory = true;
+			bHasReconstructionLayoutDifferentFromHistory = false;
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::PolychromaticPenumbraHarmonic)
 		{
