@@ -62,9 +62,6 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
 	UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 
-	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	OnMapChangedHandle = LevelEditorModule.OnMapChanged().AddSP(this, &SUsdStage::OnMapChanged);
-
 	TUsdStore< pxr::UsdStageRefPtr > UsdStage;
 
 	if ( UsdStageActor.IsValid() )
@@ -222,9 +219,6 @@ SUsdStage::~SUsdStage()
 {
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove( OnStageActorPropertyChangedHandle );
 	AUsdStageActor::OnActorLoaded.Remove( OnActorLoadedHandle );
-
-	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditorModule.OnMapChanged().Remove(OnMapChangedHandle);
 
 	ClearStageActorDelegates();
 }
@@ -553,6 +547,11 @@ void SUsdStage::OnNew()
 
 	if ( UsdFilePath )
 	{
+		FScopedTransaction Transaction(FText::Format(
+			LOCTEXT("NewStageTransaction", "Created new USD stage '{0}'"),
+			FText::FromString(UsdFilePath.GetValue())
+		));
+
 		{
 			FScopedUsdAllocs UsdAllocs;
 
@@ -829,11 +828,6 @@ void SUsdStage::OnStageActorPropertyChanged( UObject* ObjectBeingModified, FProp
 			this->UsdStageInfoWidget->RefreshStageInfos( UsdStageActor.Get() );
 		}
 	}
-}
-
-void SUsdStage::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
-{
-	CloseStage();
 }
 
 #endif // #if USE_USD_SDK

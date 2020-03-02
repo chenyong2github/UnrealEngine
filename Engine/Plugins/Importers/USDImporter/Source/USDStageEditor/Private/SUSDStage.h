@@ -75,7 +75,6 @@ protected:
 	FDelegateHandle OnStageChangedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
 	FDelegateHandle OnPrimChangedHandle;
-	FDelegateHandle OnMapChangedHandle;
 
 	FString SelectedPrimPath;
 };
