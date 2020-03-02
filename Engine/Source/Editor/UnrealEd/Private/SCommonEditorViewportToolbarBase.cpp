@@ -14,6 +14,9 @@
 #include "EditorViewportCommands.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "SEditorViewportViewMenu.h"
+#include "Editor/EditorPerformanceSettings.h"
+#include "Scalability.h"
+#include "SScalabilitySettings.h"
 #include "AssetEditorViewportLayout.h"
 #include "SAssetEditorViewport.h"
 
@@ -106,6 +109,21 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
 			.Visibility(this, &SCommonEditorViewportToolbarBase::GetViewModeOptionsVisibility)
 			.OnGetMenuContent(this, &SCommonEditorViewportToolbarBase::GenerateViewModeOptionsMenu)
 		];
+
+	MainBoxPtr->AddSlot()
+		.AutoWidth()
+		.Padding(ToolbarSlotPadding)
+		[
+			// Button to show scalability warnings
+			SNew(SEditorViewportToolbarMenu)
+			.ParentToolBar(SharedThis(this))
+			.Cursor(EMouseCursor::Default)
+			.Label(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningLabel)
+			.MenuStyle(FEditorStyle::Get(), "EditorViewportToolBar.MenuButtonWarning")
+			.OnGetMenuContent(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningMenuContent)
+			.Visibility(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningVisibility)
+			.ToolTipText(LOCTEXT("ScalabilityWarning_ToolTip", "Non-default scalability settings could be affecting what is shown in this viewport.\nFor example you may experience lower visual quality, reduced particle counts, and other artifacts that don't match what the scene would look like when running outside of the editor. Click to make changes."))
+			];
 
 	// Add optional toolbar slots to be added by child classes inherited from this common viewport toolbar
 	ExtendLeftAlignedToolbarSlots(MainBoxPtr, SharedThis(this));
@@ -487,6 +505,33 @@ TSharedRef<SEditorViewportViewMenu> SCommonEditorViewportToolbarBase::MakeViewMe
 	return SNew(SEditorViewportViewMenu, ViewportRef, SharedThis(this))
 		.Cursor(EMouseCursor::Default)
 		.MenuExtenders(GetViewMenuExtender());
+}
+
+FText SCommonEditorViewportToolbarBase::GetScalabilityWarningLabel() const
+{
+	const int32 QualityLevel = Scalability::GetQualityLevels().GetMinQualityLevel();
+	if (QualityLevel >= 0)
+	{
+		return FText::Format(LOCTEXT("ScalabilityWarning", "Scalability: {0}"), Scalability::GetScalabilityNameFromQualityLevel(QualityLevel));
+	}
+
+	return FText::GetEmpty();
+}
+
+EVisibility SCommonEditorViewportToolbarBase::GetScalabilityWarningVisibility() const
+{
+	//This method returns magic numbers. 3 means epic
+	return GetDefault<UEditorPerformanceSettings>()->bEnableScalabilityWarningIndicator && GetShowScalabilityMenu() && Scalability::GetQualityLevels().GetMinQualityLevel() < 3 ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GetScalabilityWarningMenuContent() const
+{
+	return
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		[
+			SNew(SScalabilitySettings)
+		];
 }
 
 #undef LOCTEXT_NAMESPACE

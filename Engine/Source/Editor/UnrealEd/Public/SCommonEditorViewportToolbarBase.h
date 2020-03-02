@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -197,6 +197,13 @@ protected:
 	// Creates the view menu widget (override point for children)
 	virtual TSharedRef<class SEditorViewportViewMenu> MakeViewMenu();
 
+	FText GetScalabilityWarningLabel() const;
+	EVisibility GetScalabilityWarningVisibility() const;
+	TSharedRef<SWidget> GetScalabilityWarningMenuContent() const;
+	virtual bool GetShowScalabilityMenu() const
+	{
+		return false;
+	}
 	/** Called when the FOV slider is adjusted in the perspective viewport */
 	virtual void OnFOVValueChanged(float NewValue) const;
 
