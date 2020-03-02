@@ -731,8 +731,7 @@ void FCompositeNavModifier::Reset()
 	bHasPotentialLinks = false;
 	bAdjustHeight = false;
 	bIsPerInstanceModifier = false;
-	bFillCollisionUnderneathForNavmesh = false;
-	bMaskFillCollisionUnderneathForNavmesh = false;
+	bModifierFillCollisionUnderneathForNavmesh = false;
 }
 
 void FCompositeNavModifier::Empty()
@@ -742,8 +741,7 @@ void FCompositeNavModifier::Empty()
 	CustomLinks.Empty();
 	bHasPotentialLinks = false;
 	bAdjustHeight = false;
-	bFillCollisionUnderneathForNavmesh = false;
-	bMaskFillCollisionUnderneathForNavmesh = false;
+	bModifierFillCollisionUnderneathForNavmesh = false;
 }
 
 FCompositeNavModifier FCompositeNavModifier::GetInstantiatedMetaModifier(const FNavAgentProperties* NavAgent, TWeakObjectPtr<UObject> WeakOwnerPtr) const
