@@ -150,13 +150,6 @@ public:
 	void Reset() { InitializedState = ESimulationInitializationState::Unintialized; }
 
 	/** 
-	 * Initialize rigid body particles on the game thread. 
-	 *
-	 * Called by \c FPBDRigidsSolver::RegisterObject().
-	 */
-	void InitializeBodiesGT();
-
-	/** 
 	 * Finish initialization on the physics thread. 
 	 *
 	 * Called by solver command registered by \c FPBDRigidsSolver::RegisterObject().
