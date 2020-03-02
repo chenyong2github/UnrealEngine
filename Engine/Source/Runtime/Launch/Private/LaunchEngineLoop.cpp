@@ -1312,6 +1312,13 @@ namespace AppLifetimeEventCapture
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPreStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats, STATGROUP_LoadTime);
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats, STATGROUP_LoadTime);
 
+UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
+	UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
+	UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
+	UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
+	UE_TRACE_EVENT_FIELD(uint8, TargetType)
+UE_TRACE_EVENT_END()
+
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
@@ -1445,13 +1452,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
 		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
 		uint8 CommandLineOffset = AddToPayload(CmdLine);
-
-		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
-			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
-			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
-			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
-			UE_TRACE_EVENT_FIELD(uint8, TargetType)
-		UE_TRACE_EVENT_END()
 
 		UE_TRACE_LOG(Diagnostics, Session, TraceLogChannel, PayloadSize)
 			<< Session.AppNameOffset(AppNameOffset)
