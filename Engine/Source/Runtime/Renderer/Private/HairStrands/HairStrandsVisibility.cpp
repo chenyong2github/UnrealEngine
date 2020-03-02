@@ -1164,10 +1164,6 @@ public:
 			PermutationVector.Set<FVisibility>(0);
 			PermutationVector.Set<FMSAACount>(4);
 		}
-		else if (PermutationVector.Get<FViewTransmittance>() == 1)
-		{
-			PermutationVector.Set<FMSAACount>(4);
-		}
 		return PermutationVector;
 	}
 
@@ -1183,10 +1179,6 @@ public:
 			return false;
 		}
 		if (PermutationVector.Get<FPPLL>() > 0 && PermutationVector.Get<FMSAACount>() == 8)
-		{
-			return false;
-		}
-		if (PermutationVector.Get<FViewTransmittance>() > 0 && PermutationVector.Get<FMSAACount>() == 8)
 		{
 			return false;
 		}
