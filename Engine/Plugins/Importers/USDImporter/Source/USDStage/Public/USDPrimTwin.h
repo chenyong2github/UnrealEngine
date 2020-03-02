@@ -12,28 +12,25 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+#include "USDPrimTwin.generated.h"
+
 /** The Unreal equivalent (twin) of a USD prim */
-class FUsdPrimTwin final
+UCLASS(Transient)
+class UUsdPrimTwin final : public UObject
 {
+	GENERATED_BODY()
+
 public:
-	FUsdPrimTwin() = default;
-
-	FUsdPrimTwin( FUsdPrimTwin&& Other ) = default;
-	FUsdPrimTwin& operator=( FUsdPrimTwin&& Other ) = default;
-	FUsdPrimTwin( const FUsdPrimTwin& Other ) = delete;
-	FUsdPrimTwin& operator=( const FUsdPrimTwin& Other ) = delete;
-	~FUsdPrimTwin() { Clear(); }
-
-	FUsdPrimTwin& AddChild( const FString& InPrimPath );
+	UUsdPrimTwin& AddChild( const FString& InPrimPath );
 	void RemoveChild( const TCHAR* InPrimPath );
 
 	void Clear();
 
-	void Iterate( TFunction< void( FUsdPrimTwin& ) > Func, bool bRecursive )
+	void Iterate( TFunction< void( UUsdPrimTwin& ) > Func, bool bRecursive )
 	{
-		for ( TMap< FString, TUniquePtr< FUsdPrimTwin > >::TIterator It = Children.CreateIterator(); It; ++It )
+		for ( TMap< FString, UUsdPrimTwin* >::TIterator It = Children.CreateIterator(); It; ++It )
 		{
-			FUsdPrimTwin* Child = It->Value.Get();
+			UUsdPrimTwin* Child = It->Value;
 
 			Func( *Child );
 
@@ -44,19 +41,22 @@ public:
 		}
 	}
 
-	FUsdPrimTwin* Find( const FString& InPrimPath );
+	UUsdPrimTwin* Find( const FString& InPrimPath );
 
-	DECLARE_EVENT_OneParam( FUsdPrimTwin, FOnUsdPrimTwinDestroyed, const FUsdPrimTwin& );
+	DECLARE_EVENT_OneParam( UUsdPrimTwin, FOnUsdPrimTwinDestroyed, const UUsdPrimTwin& );
 	FOnUsdPrimTwinDestroyed OnDestroyed;
 
 public:
+	UPROPERTY()
 	FString PrimPath;
+
+	UPROPERTY()
 	TWeakObjectPtr< class AActor > SpawnedActor;
+
+	UPROPERTY()
 	TWeakObjectPtr< class USceneComponent > SceneComponent;
 
-	FDelegateHandle AnimationHandle;
-
 private:
-	TMap< FString, TUniquePtr< FUsdPrimTwin > > Children;
-
+	UPROPERTY()
+	TMap< FString, UUsdPrimTwin* > Children;
 };
