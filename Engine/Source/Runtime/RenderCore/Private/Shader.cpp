@@ -1471,6 +1471,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 				}
 			}
 		}
+
+		{
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileHDR"));
+			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobileHDR") : TEXT("");
+		}
 	}
 
 	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
