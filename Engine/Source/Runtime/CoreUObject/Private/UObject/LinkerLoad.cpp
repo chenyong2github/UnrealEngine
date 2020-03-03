@@ -1135,6 +1135,127 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 	}
 }
 
+FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
+{
+#if WITH_EDITOR
+	if (LoadProgressScope)
+	{
+		LoadProgressScope->EnterProgressFrame(1);
+	}
+#endif
+	// Read summary from file.
+	StructuredArchiveRootRecord.GetValue() << SA_VALUE(TEXT("Summary"), Summary);
+
+	// Check tag.
+	if (Summary.Tag != PACKAGE_FILE_TAG)
+	{
+		UE_LOG(LogLinker, Warning, TEXT("The file '%s' contains unrecognizable data, check that it is of the expected type."), *Filename);
+		return LINKER_Failed;
+	}
+
+	// Validate the summary.
+	if (Summary.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
+	{
+		UE_LOG(LogLinker, Warning, TEXT("The file %s was saved by a previous version which is not backwards compatible with this one. Min Required Version: %i  Package Version: %i"), *Filename, (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE4());
+		return LINKER_Failed;
+	}
+	// Don't load packages that are only compatible with an engine version newer than the current one.
+	if (!FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
+	{
+		UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with engine version newer than current and therefore can't be loaded. CurrEngineVersion: %s AssetEngineVersion: %s"), *Filename, *FEngineVersion::Current().ToString(), *Summary.CompatibleWithEngineVersion.ToString());
+		return LINKER_Failed;
+	}
+
+	// Set desired property tag format
+	bool bUseUnversionedProperties = Summary.bUnversioned && CanUseUnversionedPropertySerialization();
+	SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+	Loader->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+
+	if (!FPlatformProperties::RequiresCookedData() && !Summary.SavedByEngineVersion.HasChangelist() && FEngineVersion::Current().HasChangelist())
+	{
+		// This warning can be disabled in ini with [Core.System] ZeroEngineVersionWarning=False
+		static struct FInitZeroEngineVersionWarning
+		{
+			bool bDoWarn;
+			FInitZeroEngineVersionWarning()
+			{
+				if (!GConfig->GetBool(TEXT("Core.System"), TEXT("ZeroEngineVersionWarning"), bDoWarn, GEngineIni))
+				{
+					bDoWarn = true;
+				}
+			}
+			FORCEINLINE operator bool() const { return bDoWarn; }
+		} ZeroEngineVersionWarningEnabled;
+		UE_CLOG(ZeroEngineVersionWarningEnabled, LogLinker, Warning, TEXT("Asset '%s' has been saved with empty engine version. The asset will be loaded but may be incompatible."), *Filename);
+	}
+
+	// Don't load packages that were saved with package version newer than the current one.
+	if ((Summary.GetFileVersionUE4() > GPackageFileUE4Version) || (Summary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUE4Version))
+	{
+		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s) PackageVersion %i, MaxExpected %i : LicenseePackageVersion %i, MaxExpected %i."), *Filename, Summary.GetFileVersionUE4(), GPackageFileUE4Version, Summary.GetFileVersionLicenseeUE4(), GPackageFileLicenseeUE4Version);
+		return LINKER_Failed;
+	}
+
+	// don't load packages that contain editor only data in builds that don't support that and vise versa
+	if (!FPlatformProperties::HasEditorOnlyData() && !(Summary.PackageFlags & PKG_FilterEditorOnly))
+	{
+		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Package contains EditorOnly data which is not supported by the current build."), *Filename);
+		return LINKER_Failed;
+	}
+
+	// don't load packages that contain editor only data in builds that don't support that and vise versa
+	if (FPlatformProperties::HasEditorOnlyData() && !!(Summary.PackageFlags & PKG_FilterEditorOnly))
+	{
+		// This warning can be disabled in ini or project settings
+		if (!GAllowCookedDataInEditorBuilds)
+		{
+			UE_LOG(LogLinker, Warning,
+				TEXT("Unable to load package (%s). Package contains cooked data which is not supported by the current build. Enable 'Allow Cooked Content In The Editor' in Project Settings under 'Engine - Cooker' section to load it."),
+				*Filename);
+			return LINKER_Failed;
+		}
+	}
+
+	if (FPlatformProperties::RequiresCookedData() &&
+		Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0 &&
+		!IsEventDrivenLoaderEnabledInCookedBuilds())
+	{
+		UE_LOG(LogLinker, Fatal, TEXT("Package %s contains preload dependency data but the current build does not support it. Make sure Event Driven Loader is enabled and rebuild the game executable."),
+			*GetArchiveName())
+	}
+
+#if PLATFORM_WINDOWS
+	if (!FPlatformProperties::RequiresCookedData() &&
+		// We can't check the post tag if the file is an EDL cooked package
+		!((Summary.PackageFlags & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
+		&& !IsTextFormat())
+	{
+		// check if this package version stored the 4-byte magic post tag
+		// get the offset of the post tag
+		int64 MagicOffset = TotalSize() - sizeof(uint32);
+		// store the current file offset
+		int64 OriginalOffset = Tell();
+
+		uint32 Tag = 0;
+
+		// seek to the post tag and serialize it
+		Seek(MagicOffset);
+		*this << Tag;
+
+		if (Tag != PACKAGE_FILE_TAG)
+		{
+			UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Post Tag is not valid. File might be corrupted."), *Filename);
+			return LINKER_Failed;
+		}
+
+		// seek back to the position after the package summary
+		Seek(OriginalOffset);
+	}
+#endif
+
+	return LINKER_Loaded;
+}
+
 /**
  * Serializes the package file summary.
  */
@@ -1154,121 +1275,12 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 			GetAsyncLoader()->StartReadingHeader();
 		}
 
-#if WITH_EDITOR
-		if (LoadProgressScope)
+		ELinkerStatus Status = SerializePackageFileSummaryInternal();
+
+		if (Status == LINKER_Failed && bIsAsyncLoader)
 		{
-		LoadProgressScope->EnterProgressFrame(1);
+			GetAsyncLoader()->EndReadingHeader();
 		}
-#endif
-		// Read summary from file.
-		StructuredArchiveRootRecord.GetValue() << SA_VALUE(TEXT("Summary"), Summary);
-
-		// Check tag.
-		if( Summary.Tag != PACKAGE_FILE_TAG )
-		{
-			UE_LOG(LogLinker, Warning, TEXT("The file '%s' contains unrecognizable data, check that it is of the expected type."), *Filename );
-			return LINKER_Failed;
-		}
-
-		// Validate the summary.
-		if( Summary.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
-		{
-			UE_LOG(LogLinker, Warning, TEXT("The file %s was saved by a previous version which is not backwards compatible with this one. Min Required Version: %i  Package Version: %i"), *Filename, (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE4() );
-			return LINKER_Failed;
-		}
-		// Don't load packages that are only compatible with an engine version newer than the current one.
-		if (!FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
-		{
-			UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with engine version newer than current and therefore can't be loaded. CurrEngineVersion: %s AssetEngineVersion: %s"), *Filename, *FEngineVersion::Current().ToString(), *Summary.CompatibleWithEngineVersion.ToString());
-			return LINKER_Failed;
-		}
-		
-		// Set desired property tag format
-		bool bUseUnversionedProperties = Summary.bUnversioned && CanUseUnversionedPropertySerialization();
-		SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
-		Loader->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
-		
-		if (!FPlatformProperties::RequiresCookedData() && !Summary.SavedByEngineVersion.HasChangelist() && FEngineVersion::Current().HasChangelist())
-		{
-			// This warning can be disabled in ini with [Core.System] ZeroEngineVersionWarning=False
-			static struct FInitZeroEngineVersionWarning
-			{
-				bool bDoWarn;
-				FInitZeroEngineVersionWarning()
-				{
-					if (!GConfig->GetBool(TEXT("Core.System"), TEXT("ZeroEngineVersionWarning"), bDoWarn, GEngineIni))
-					{
-						bDoWarn = true;
-					}
-				}
-				FORCEINLINE operator bool() const { return bDoWarn; }
-			} ZeroEngineVersionWarningEnabled;			
-			UE_CLOG(ZeroEngineVersionWarningEnabled, LogLinker, Warning, TEXT("Asset '%s' has been saved with empty engine version. The asset will be loaded but may be incompatible."), *Filename );
-		}
-
-		// Don't load packages that were saved with package version newer than the current one.
-		if( (Summary.GetFileVersionUE4() > GPackageFileUE4Version) || (Summary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUE4Version) )
-		{
-			UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s) PackageVersion %i, MaxExpected %i : LicenseePackageVersion %i, MaxExpected %i."), *Filename, Summary.GetFileVersionUE4(), GPackageFileUE4Version, Summary.GetFileVersionLicenseeUE4(), GPackageFileLicenseeUE4Version );
-			return LINKER_Failed;
-		}
-
-		// don't load packages that contain editor only data in builds that don't support that and vise versa
-		if (!FPlatformProperties::HasEditorOnlyData() && !(Summary.PackageFlags & PKG_FilterEditorOnly))
-		{
-			UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Package contains EditorOnly data which is not supported by the current build."), *Filename );
-			return LINKER_Failed;
-		}
-
-		// don't load packages that contain editor only data in builds that don't support that and vise versa
-		if (FPlatformProperties::HasEditorOnlyData() && !!(Summary.PackageFlags & PKG_FilterEditorOnly))
-		{
-			// This warning can be disabled in ini or project settings
-			if (!GAllowCookedDataInEditorBuilds)
-			{
-				UE_LOG(LogLinker, Warning, 
-					TEXT("Unable to load package (%s). Package contains cooked data which is not supported by the current build. Enable 'Allow Cooked Content In The Editor' in Project Settings under 'Engine - Cooker' section to load it."), 
-					*Filename);
-				return LINKER_Failed;
-			}
-		}
-
-		if (FPlatformProperties::RequiresCookedData() && 
-			Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0 &&
-			!IsEventDrivenLoaderEnabledInCookedBuilds())
-		{
-			UE_LOG(LogLinker, Fatal, TEXT("Package %s contains preload dependency data but the current build does not support it. Make sure Event Driven Loader is enabled and rebuild the game executable."),
-				*GetArchiveName())
-		}
-
-#if PLATFORM_WINDOWS
-		if (!FPlatformProperties::RequiresCookedData() && 
-			// We can't check the post tag if the file is an EDL cooked package
-			!((Summary.PackageFlags & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
-			&& !IsTextFormat())
-		{
-			// check if this package version stored the 4-byte magic post tag
-			// get the offset of the post tag
-			int64 MagicOffset = TotalSize() - sizeof(uint32);
-			// store the current file offset
-			int64 OriginalOffset = Tell();
-
-			uint32 Tag = 0;
-
-			// seek to the post tag and serialize it
-			Seek(MagicOffset);
-			*this << Tag;
-
-			if (Tag != PACKAGE_FILE_TAG)
-			{
-				UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Post Tag is not valid. File might be corrupted."), *Filename);
-				return LINKER_Failed;
-			}
-
-			// seek back to the position after the package summary
-			Seek(OriginalOffset);
-		}
-#endif // PLATFORM_WINDOWS
 
 		ELinkerStatus UpdateStatus = UpdateFromPackageFileSummary();
 		if (UpdateStatus != LINKER_Loaded)
