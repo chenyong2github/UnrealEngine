@@ -59,9 +59,9 @@ private:
 	void OnNewDeviceCreated(Audio::FDeviceId InID);
 	void OnDeviceDestroyed(Audio::FDeviceId InID);
 
-	TMap<Audio::FDeviceId, FNiagaraSubmixListener> SubmixListeners;
+	TMap<Audio::FDeviceId, TUniquePtr<FNiagaraSubmixListener>> SubmixListeners;
 
-	// This 
+	// This mixer is patched into by all instances of FNiagaraSubmixListener in the SubmixListeners map, and is consumed by DownsampleAudioToBuffer().
 	Audio::FPatchMixer PatchMixer;
 
 	USoundSubmix* SubmixRegisteredTo;

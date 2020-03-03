@@ -55,8 +55,8 @@ void FNiagaraDataInterfaceProxyOscilloscope::RegisterToAllAudioDevices()
 		DeviceManager->IterateOverAllDevices([&](Audio::FDeviceId DeviceId, FAudioDevice* InDevice)
 		{
 			check(!SubmixListeners.Contains(DeviceId));
-			FNiagaraSubmixListener& Listener = SubmixListeners.Emplace(DeviceId, FNiagaraSubmixListener(PatchMixer, Resolution * 2));
-			InDevice->RegisterSubmixBufferListener(&Listener, SubmixRegisteredTo);
+			SubmixListeners.Emplace(DeviceId, new FNiagaraSubmixListener(PatchMixer, Resolution * 2, DeviceId, SubmixRegisteredTo));
+			SubmixListeners[DeviceId]->RegisterToSubmix();
 		});
 	}
 }
@@ -69,11 +69,12 @@ void FNiagaraDataInterfaceProxyOscilloscope::UnregisterFromAllAudioDevices(USoun
 		DeviceManager->IterateOverAllDevices([&](Audio::FDeviceId DeviceId, FAudioDevice* InDevice)
 		{
 			check(SubmixListeners.Contains(DeviceId));
-
-			InDevice->UnregisterSubmixBufferListener(&SubmixListeners[DeviceId], Submix);
 			SubmixListeners.Remove(DeviceId);
 		});
 	}
+
+	ensure(SubmixListeners.Num() == 0);
+	SubmixListeners.Reset();
 }
 
 void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateSubmix(USoundSubmix* Submix)
@@ -94,11 +95,8 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnNewDeviceCreated(Audio::FDeviceId
 	if (bIsSubmixListenerRegistered)
 	{
 		check(!SubmixListeners.Contains(InID));
-		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InID);
-		check(DeviceHandle);
-
-		FNiagaraSubmixListener& Listener = SubmixListeners.Emplace(InID, FNiagaraSubmixListener(PatchMixer, Resolution * 2));
-		DeviceHandle->RegisterSubmixBufferListener(&Listener, SubmixRegisteredTo);
+		SubmixListeners.Emplace(InID, new FNiagaraSubmixListener(PatchMixer, Resolution * 2, InID, SubmixRegisteredTo));
+		SubmixListeners[InID]->RegisterToSubmix();
 	}
 }
 
@@ -108,10 +106,6 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnDeviceDestroyed(Audio::FDeviceId 
 	{
 		if (SubmixListeners.Contains(InID))
 		{
-			FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InID);
-			check(DeviceHandle);
-
-			DeviceHandle->UnregisterSubmixBufferListener(&SubmixListeners[InID], SubmixRegisteredTo);
 			SubmixListeners.Remove(InID);
 		}
 	}
@@ -475,8 +469,8 @@ void FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
 
 	for (auto& Listener : SubmixListeners)
 	{
-		NumChannelsInDownsampledBuffer = Listener.Value.GetNumChannels();
-		SourceSampleRate = Listener.Value.GetSampleRate();
+		NumChannelsInDownsampledBuffer = Listener.Value->GetNumChannels();
+		SourceSampleRate = Listener.Value->GetSampleRate();
 
 		if (NumChannelsInDownsampledBuffer != 0)
 		{
