@@ -82,7 +82,7 @@ public:
 	float Height = 10.0f;
 
 	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "0.01", UIMax = "1.0", ClampMin = "0", ClampMax = "100.0"))
-	float RampStartRatio = 0.25f;
+	float RampStartRatio = 0.05f;
 
 
 	UPROPERTY(EditAnywhere, Category = Snapping)
