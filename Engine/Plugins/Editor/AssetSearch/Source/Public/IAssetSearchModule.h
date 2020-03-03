@@ -7,6 +7,7 @@
 #include "Async/Future.h"
 #include "Async/AsyncResult.h"
 #include "SearchSerializer.h"
+#include "Modules/ModuleManager.h"
 
 struct FSearchQuery
 {
