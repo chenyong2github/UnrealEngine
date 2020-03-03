@@ -30,8 +30,17 @@ public:
 	void SetLogErrorAndWarningHandling(TOptional<bool> LogErrorsAreErrors, TOptional<bool> LogWarningsAreErrors)
 	{
 		SetLogErrorAndWarningHandlingToDefault();
-	}
-	
+
+		if (LogErrorsAreErrors.IsSet())
+		{
+			bTreatLogErrorsAsErrors = LogErrorsAreErrors.GetValue();
+		}
+
+		if (LogWarningsAreErrors.IsSet())
+		{
+			bTreatLogWarningsAsErrors = LogWarningsAreErrors.GetValue();
+		}
+	}	
 
 	/**
 	 * Determines if Error logs should be considered test errors
