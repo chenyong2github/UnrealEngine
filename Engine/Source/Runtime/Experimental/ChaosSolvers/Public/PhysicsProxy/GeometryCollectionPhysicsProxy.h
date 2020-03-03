@@ -3,7 +3,7 @@
 #pragma once
 
 #include "GeometryCollection/GeometryCollection.h"
-#include "GeometryCollection/GeometryDynamicCollection.h"
+#include "GeometryCollectionProxyData.h"
 
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "GeometryCollection/ManagedArray.h"
