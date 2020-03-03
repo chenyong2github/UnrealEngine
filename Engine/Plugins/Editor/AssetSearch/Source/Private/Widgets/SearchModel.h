@@ -27,8 +27,12 @@ public:
 	virtual FString GetText() const = 0;
 	virtual FString GetObjectPath() const = 0;
 
+	float GetTotalScore() const { return TotalScore; }
+	float GetMaxScore() const { return MaxScore; }
+
 protected:
-	float Score = 0;
+	float TotalScore = 0;
+	float MaxScore = 0;
 };
 
 class FAssetObjectPropertyNode : public FSearchNode
@@ -67,7 +71,8 @@ public:
 	void Append(const FSearchRecord& InResult)
 	{
 		Properties.Add(MakeShared<FAssetObjectPropertyNode>(InResult));
-		Score += InResult.Score;
+		TotalScore += InResult.Score;
+		MaxScore = FMath::Min(MaxScore, InResult.Score);
 	}
 
 	virtual ESearchNodeType GetType() const override { return ESearchNodeType::Object; }
@@ -113,7 +118,8 @@ public:
 		if (InResult.object_path == AssetPath)
 		{
 			Properties.Add(MakeShared<FAssetObjectPropertyNode>(InResult));
-			Score += InResult.Score;
+			TotalScore += InResult.Score;
+			MaxScore = FMath::Min(MaxScore, InResult.Score);
 			return;
 		}
 
@@ -128,7 +134,8 @@ public:
 			ExistingObject->Append(InResult);
 		}
 
-		Score += InResult.Score;
+		TotalScore += InResult.Score;
+		MaxScore = FMath::Min(MaxScore, InResult.Score);
 
 		SortedObjectArray.Reset();
 		Objects.GenerateValueArray(SortedObjectArray);

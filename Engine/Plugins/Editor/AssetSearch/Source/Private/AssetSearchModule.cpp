@@ -66,9 +66,9 @@ public:
 		return SearchManager->GetStats();
 	}
 
-	virtual bool Search(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback) override
+	virtual void Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback) override
 	{
-		return SearchManager->Search(Query, InCallback);
+		SearchManager->Search(Query, InCallback);
 	}
 
 	virtual void RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer) override

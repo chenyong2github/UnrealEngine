@@ -81,8 +81,10 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 				.FillWidth(1.0f)
 				[
 					SNew(SEditableTextBox)
+					.ClearKeyboardFocusOnCommit(false)
 					.HintText(LOCTEXT("SearchHint", "Search"))
 					.OnTextCommitted(this, &SSearchBrowser::OnSearchTextCommited)
+					.OnTextChanged(this, &SSearchBrowser::OnSearchTextChanged)
 				]
 			]
 
@@ -214,9 +216,28 @@ void SSearchBrowser::RefreshList()
 		Query.Query = FilterText.ToString();
 
 		IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
-		SearchModule.Search(Query, [this](FSearchRecord&& InResult) {
-			AppendResult(MoveTemp(InResult));
-			return true;
+		SearchModule.Search(Query, [this](TArray<FSearchRecord>&& InResults) {
+
+			SearchResults.Reset();
+			SearchResultHierarchy.Reset();
+
+			for (int32 ResultIndex = 0; ResultIndex < InResults.Num(); ResultIndex++)
+			{
+				AppendResult(MoveTemp(InResults[ResultIndex]));
+			}
+
+			for (auto& Entry : SearchResultHierarchy)
+			{
+				SearchResults.Add(Entry.Value);
+
+				SearchTreeView->SetItemExpansion(Entry.Value, true);
+			}
+
+			SearchResults.Sort([](const TSharedPtr<FSearchNode>& A, const TSharedPtr<FSearchNode>& B) {
+				return A->GetMaxScore() < B->GetMaxScore();
+			});
+
+			SearchTreeView->RequestListRefresh();
 		});
 	}
 }
@@ -233,23 +254,30 @@ void SSearchBrowser::AppendResult(FSearchRecord&& InResult)
 	{
 		ExistingAssetNode->Append(InResult);
 	}
-
-	SearchResults.Reset();
-	for (auto& Entry : SearchResultHierarchy)
-	{
-		SearchResults.Add(Entry.Value);
-	}
-
-	SearchTreeView->RequestListRefresh();
-	SearchTreeView->SetItemExpansion(ExistingAssetNode, true);
 }
 
 void SSearchBrowser::OnSearchTextCommited(const FText& InText, ETextCommit::Type InCommitType)
 {
-	FilterText = InText;
-	FilterString = FilterText.ToString();
+	TryRefreshingSearch(InText);
+}
 
-	RefreshList();
+void SSearchBrowser::OnSearchTextChanged(const FText& InText)
+{
+	if (InText.ToString().Len() > 3)
+	{
+		TryRefreshingSearch(InText);
+	}
+}
+
+void SSearchBrowser::TryRefreshingSearch(const FText& InText)
+{
+	if (FilterText.ToString() != InText.ToString())
+	{
+		FilterText = InText;
+		FilterString = FilterText.ToString();
+
+		RefreshList();
+	}
 }
 
 TSharedRef<ITableRow> SSearchBrowser::HandleListGenerateRow(TSharedPtr<FSearchNode> ObjectPtr, const TSharedRef<STableViewBase>& OwnerTable)
