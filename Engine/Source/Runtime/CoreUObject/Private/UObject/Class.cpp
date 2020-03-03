@@ -1591,7 +1591,7 @@ UStruct::~UStruct()
 	// This needs to happen after FinishDestroy which calls DestroyNonNativeProperties
 	// Also, Blueprint generated classes can have DestroyNonNativeProperties called on them after their FinishDestroy has been called
 	// so properties can only be deleted in the destructor
-	DestroyPropertyLinkedList(ChildProperties);
+	DestroyChildPropertiesAndResetPropertyLinks();
 }
 
 IMPLEMENT_FSTRUCTUREDARCHIVE_SERIALIZER(UStruct);
