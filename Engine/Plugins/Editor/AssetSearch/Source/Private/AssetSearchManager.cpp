@@ -47,6 +47,8 @@ FAssetSearchManager::FAssetSearchManager()
 {
 	PendingDatabaseUpdates = 0;
 	PendingDownloads = 0;
+	TotalSearchRecords = 0;
+	LastRecordCountUpdateSeconds = 0;
 }
 
 FAssetSearchManager::~FAssetSearchManager()
@@ -90,6 +92,7 @@ FSearchStats FAssetSearchManager::GetStats() const
 	Stats.Scanning = ProcessAssetQueue.Num();
 	Stats.Downloading = PendingDownloads;
 	Stats.PendingDatabaseUpdates = PendingDatabaseUpdates;
+	Stats.TotalRecords = TotalSearchRecords;
 	return Stats;
 }
 
@@ -375,6 +378,16 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 			continue;
 		}
 		break;
+	}
+
+	if ((FPlatformTime::Seconds() - LastRecordCountUpdateSeconds) > 30)
+	{
+		LastRecordCountUpdateSeconds = FPlatformTime::Seconds();
+
+		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this]() {
+			FScopeLock ScopedLock(&SearchDatabaseCS);
+			TotalSearchRecords = SearchDatabase.GetTotalSearchRecords();
+		});
 	}
 
 	return true;

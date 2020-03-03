@@ -49,6 +49,7 @@ public:
 
 		PREPARE_STATEMENT(Statement_GetAssetIdForAssetPath);
 		PREPARE_STATEMENT(Statement_IsAssetUpToDate);
+		PREPARE_STATEMENT(Statement_GetTotalSearchRecords);
 		PREPARE_STATEMENT(Statement_AddAssetToAssetTable);
 		PREPARE_STATEMENT(Statement_AddAssetProperty);
 		PREPARE_STATEMENT(Statement_DeleteEntriesForAsset);
@@ -107,6 +108,23 @@ public:
 		}
 
 		return false;
+	}
+
+	 SQLITE_PREPARED_STATEMENT(FGetTotalSearchRecords,
+		"SELECT COUNT(rowid) FROM table_asset_properties;",
+		SQLITE_PREPARED_STATEMENT_COLUMNS(int64),
+		SQLITE_PREPARED_STATEMENT_BINDINGS()
+	);
+	private: FGetTotalSearchRecords Statement_GetTotalSearchRecords;
+	public: int64 GetTotalSearchRecords()
+	{
+		int64 OutTotalSearchRecords;
+		if (Statement_GetTotalSearchRecords.BindAndExecuteSingle(OutTotalSearchRecords))
+		{
+			return OutTotalSearchRecords;
+		}
+
+		return INDEX_NONE;
 	}
 
 	SQLITE_PREPARED_STATEMENT(FGetAssetIdForAssetPath,
@@ -689,6 +707,16 @@ bool FAssetSearchDatabase::EnumerateSearchResults(const FSearchQuery& Query, TFu
 	});
 
 	return bSuccess;
+}
+
+int64 FAssetSearchDatabase::GetTotalSearchRecords() const
+{
+	if (ensure(Statements))
+	{
+		return Statements->GetTotalSearchRecords();
+	}
+
+	return INDEX_NONE;
 }
 
 PRAGMA_ENABLE_OPTIMIZATION
