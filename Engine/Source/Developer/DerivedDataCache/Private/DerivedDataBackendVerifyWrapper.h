@@ -48,6 +48,7 @@ public:
 		}
 		return false;
 	}
+
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
@@ -70,7 +71,8 @@ public:
 		}
 		return false;
 	}
-	virtual void PutCachedData(const TCHAR* CacheKey, TArray<uint8>& InData, bool bPutEvenIfExists) override
+
+	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 		bool bAlreadyTested = false;
