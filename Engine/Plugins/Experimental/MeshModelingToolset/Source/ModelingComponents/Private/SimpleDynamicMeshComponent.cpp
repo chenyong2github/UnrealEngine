@@ -50,7 +50,6 @@ USimpleDynamicMeshComponent::USimpleDynamicMeshComponent(const FObjectInitialize
 void USimpleDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescription)
 {
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.bPrintDebugMessages = true;
 	Mesh->Clear();
 	Converter.Convert(MeshDescription, *Mesh);
 	if (TangentsType == EDynamicMeshTangentCalcType::ExternallyCalculated)
