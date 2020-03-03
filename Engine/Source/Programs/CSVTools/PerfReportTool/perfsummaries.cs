@@ -1706,7 +1706,7 @@ namespace PerfSummaries
 
 					if (xStat == null || yStat == null)
 					{
-						throw new Exception("MapOverlaySummary: CSV doesn't contain stat " + overlay.positionStatNames[0] + " and/or " + overlay.positionStatNames[1]);
+						continue;
 					}
 
 					// If a startevent is specified, update the start frame
