@@ -222,10 +222,6 @@ void FAsioStoreCborPeer::OnTraceRead()
 	SendResponse(Builder.Done());
 }
 
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioStoreCborPeer::OnPayload()
 {
