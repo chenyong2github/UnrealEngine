@@ -153,6 +153,10 @@ void UEditMeshPolygonsTool::Setup()
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
 	SelectionMechanic->Setup(this);
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UEditMeshPolygonsTool::OnSelectionModifiedEvent);
+	if (bTriangleMode)
+	{
+		SelectionMechanic->PolyEdgesRenderer.LineThickness = 1.0;
+	}
 
 	// initialize AABBTree
 	MeshSpatial.SetMesh(DynamicMeshComponent->GetMesh());
