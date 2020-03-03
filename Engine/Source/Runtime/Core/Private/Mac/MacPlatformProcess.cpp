@@ -722,37 +722,36 @@ FString FMacPlatformProcess::GetApplicationName( uint32 ProcessId )
 
 bool FMacPlatformProcess::IsSandboxedApplication()
 {
-	// Temporarily disabled as it can take 15 seconds or more to execute this function in Fortnite on a low spec Macs.
-	return false;
-#if 0
-	SCOPED_AUTORELEASE_POOL;
-	
-	bool bIsSandboxedApplication = false;
-
-	SecStaticCodeRef SecCodeObj = nullptr;
-	NSURL* BundleURL = [[NSBundle mainBundle] bundleURL];
-    OSStatus Err = SecStaticCodeCreateWithPath((CFURLRef)BundleURL, kSecCSDefaultFlags, &SecCodeObj);
-	if (SecCodeObj)
+	static const bool bIsSandboxedApplication = []
 	{
+		SCOPED_AUTORELEASE_POOL;
+
+		SecStaticCodeRef SecCodeObj = nullptr;
+		NSURL* BundleURL = [[NSBundle mainBundle] bundleURL];
+		OSStatus Err = SecStaticCodeCreateWithPath((CFURLRef)BundleURL, kSecCSDefaultFlags, &SecCodeObj);
+		if (SecCodeObj == nullptr)
+		{
+			return false;
+		}
+
 		check(Err == errSecSuccess);
-		
+
 		SecRequirementRef SandboxRequirement = nullptr;
 		Err = SecRequirementCreateWithString(CFSTR("entitlement[\"com.apple.security.app-sandbox\"] exists"), kSecCSDefaultFlags, &SandboxRequirement);
 		check(Err == errSecSuccess && SandboxRequirement);
-		
-		Err = SecStaticCodeCheckValidityWithErrors(SecCodeObj, kSecCSDefaultFlags, SandboxRequirement, nullptr);
-		
-		bIsSandboxedApplication = (Err == errSecSuccess);
-		
-		if(SandboxRequirement)
+
+		Err = SecStaticCodeCheckValidityWithErrors(SecCodeObj, kSecCSBasicValidateOnly, SandboxRequirement, nullptr);
+
+		if (SandboxRequirement)
 		{
 			CFRelease(SandboxRequirement);
 		}
 		CFRelease(SecCodeObj);
-	}
-	
+
+		return (Err == errSecSuccess);
+	}();
+
 	return bIsSandboxedApplication;
-#endif
 }
 
 const TCHAR* FMacPlatformProcess::BaseDir()
