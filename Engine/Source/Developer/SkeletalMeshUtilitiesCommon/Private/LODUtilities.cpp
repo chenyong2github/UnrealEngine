@@ -1169,7 +1169,7 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 		LODInfo->LODMaterialMap.Empty();
 		LODInfo->bHasBeenSimplified = false;
 		//Copy the SkeletalMeshLODModel
-		SkeletalMesh->GetImportedModel()->LODModels[LodIndex] = ImportedBaseLODModel;
+		FSkeletalMeshLODModel::CopyStructure(&(SkeletalMesh->GetImportedModel()->LODModels[LodIndex]), &ImportedBaseLODModel);
 		//Copy the morph target deltas
 		bool bInitMorphTargetData = false;
 		for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
