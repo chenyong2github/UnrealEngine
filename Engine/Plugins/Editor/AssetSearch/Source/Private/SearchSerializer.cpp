@@ -7,6 +7,7 @@
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "UObject/UnrealType.h"
 #include "IAssetSearchModule.h"
+#include "UObject/TextProperty.h"
 
 #define LOCTEXT_NAMESPACE "FSearchSerializer"
 
