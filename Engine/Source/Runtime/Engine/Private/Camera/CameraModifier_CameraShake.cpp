@@ -239,6 +239,25 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource(const UCameraS
 	}
 }
 
+void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClassFromSource(TSubclassOf<UCameraShake> ShakeClass, const UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+{
+	for (int32 i = ActiveShakes.Num() - 1; i >= 0; --i)
+	{
+		FActiveCameraShakeInfo ShakeInfo = ActiveShakes[i];  // Copy struct because we might delete it.
+		if (ShakeInfo.ShakeSource.Get() == SourceComponent && 
+				ShakeInfo.ShakeInstance != nullptr && 
+				ShakeInfo.ShakeInstance->GetClass()->IsChildOf(ShakeClass))
+		{
+			ShakeInfo.ShakeInstance->StopShake(bImmediately);
+			if (bImmediately)
+			{
+				ActiveShakes.RemoveAt(i, 1);
+				SaveShakeInExpiredPool(ShakeInfo.ShakeInstance);
+			}
+		}
+	}
+}
+
 void UCameraModifier_CameraShake::RemoveAllCameraShakes(bool bImmediately)
 {
 	// Clean up any active camera shake anims
