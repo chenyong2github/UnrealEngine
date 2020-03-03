@@ -11,7 +11,6 @@
 #include "DataprepParameterizableObject.h"
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
-#include "Parameterization/DataprepParameterization.h"
 #include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepSelectionTransform.h"
@@ -123,7 +122,9 @@ void UDataprepActionAsset::Execute(const TArray<UObject*>& InObjects)
 			else if ( StepType == UDataprepFilter::StaticClass() )
 			{
 				UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
-				OperationContext->Context->Objects = Filter->FilterObjects( OperationContext->Context->Objects );
+
+				TArray<UObject*>& Objects = OperationContext->Context->Objects;
+				OperationContext->Context->Objects = Filter->FilterObjects( TArrayView<UObject*>( Objects.GetData(), Objects.Num() ) );
 			}
 			else if ( StepType == UDataprepSelectionTransform::StaticClass() )
 			{
@@ -467,13 +468,6 @@ bool UDataprepActionAsset::RemoveSteps(const TArray<int32>& Indices)
 		return false;
 	}
 
-	UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this );
-	if(DataprepAsset == nullptr)
-	{
-		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepActionAsset::RemoveSteps: No Dataprep asset") );
-		return false;
-	}
-
 	bool bSuccesfulRemoval = false;
 
 	Modify();
@@ -484,7 +478,7 @@ bool UDataprepActionAsset::RemoveSteps(const TArray<int32>& Indices)
 		{
 			bSuccesfulRemoval = true;
 
-			if ( UDataprepParameterization* Parameterization = DataprepAsset->GetDataprepParameterization() )
+			if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this ) )
 			{
 				TArray< UObject* > Objects;
 				GetObjectsWithOuter( Steps[Index], Objects );
@@ -492,13 +486,13 @@ bool UDataprepActionAsset::RemoveSteps(const TArray<int32>& Indices)
 				ParameterizableObjects.Reserve( Objects.Num() );
 				for ( UObject* Object : Objects )
 				{
-					if ( Object->IsA<UDataprepParameterizableObject>() )
+					if (UDataprepParameterizableObject* ParameterizableObject = Cast<UDataprepParameterizableObject>( Object ) )
 					{
-						ParameterizableObjects.Add( static_cast<UDataprepParameterizableObject*>( Object ) );
+						ParameterizableObjects.Add( ParameterizableObject );
 					}
 				}
 
-				Parameterization->RemoveBindingFromObjects( ParameterizableObjects );
+				UDataprepAsset::FRestrictedToActionAsset::NotifyAssetOfTheRemovalOfSteps( *DataprepAsset, MakeArrayView<UDataprepParameterizableObject*>( ParameterizableObjects.GetData(), ParameterizableObjects.Num() ) );
 			}
 
 			OnStepsAboutToBeRemoved.Broadcast( Steps[Index]->GetStepObject() );
@@ -535,24 +529,23 @@ void UDataprepActionAsset::NotifyDataprepSystemsOfRemoval()
 {
 	if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( this ) )
 	{
-		if ( UDataprepParameterization * Parameterization = DataprepAsset->GetDataprepParameterization() )
+		
+		TArray< UObject* > Objects;
+		TArray< UDataprepParameterizableObject* > ParameterizableObjects;
+		for ( UDataprepActionStep* Step : Steps )
 		{
-			TArray< UObject* > Objects;
-			TArray< UDataprepParameterizableObject* > ParameterizableObjects;
-			for ( UDataprepActionStep* Step : Steps )
+			GetObjectsWithOuter( Step, Objects );
+			ParameterizableObjects.Reserve( Objects.Num() );
+			for ( UObject* Object : Objects )
 			{
-				GetObjectsWithOuter( Step, Objects );
-				ParameterizableObjects.Reserve( Objects.Num() );
-				for ( UObject* Object : Objects )
+				if ( UDataprepParameterizableObject* ParameterizableObject = Cast<UDataprepParameterizableObject>( Object ) )
 				{
-					if ( Object->IsA<UDataprepParameterizableObject>() )
-					{
-						ParameterizableObjects.Add( static_cast<UDataprepParameterizableObject*>( Object ) );
-					}
+					ParameterizableObjects.Add( ParameterizableObject );
 				}
 			}
-			Parameterization->RemoveBindingFromObjects( ParameterizableObjects );
 		}
+
+		UDataprepAsset::FRestrictedToActionAsset::NotifyAssetOfTheRemovalOfSteps( *DataprepAsset, MakeArrayView<UDataprepParameterizableObject*>( ParameterizableObjects.GetData(), ParameterizableObjects.Num() ) );
 	}
 }
 
@@ -572,9 +565,8 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 			SelectedObjects.Add( Object );
 		}
 	}
-	TArray< AActor* > ActorsInWorld;
-	DataprepCorePrivateUtils::GetActorsFromWorld( ContextPtr->WorldPtr.Get(), ActorsInWorld );
-	SelectedObjects.Append( ActorsInWorld );
+
+	FDataprepCoreUtils::GetActorsFromWorld( ContextPtr->WorldPtr.Get(), SelectedObjects );
 
 	OperationContext->DataprepLogger = ContextPtr->LoggerPtr;
 	OperationContext->DataprepProgressReporter = ContextPtr->ProgressReporterPtr;

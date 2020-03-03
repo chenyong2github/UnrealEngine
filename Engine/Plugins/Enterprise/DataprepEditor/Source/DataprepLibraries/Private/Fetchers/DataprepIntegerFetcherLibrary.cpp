@@ -13,7 +13,7 @@
 
 /* UDataprepTriangleCountFetcher methods+
  *****************************************************************************/
-int UDataprepTriangleCountFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
+int32 UDataprepTriangleCountFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
 {
 	bOutFetchSucceded = false;
 
@@ -71,7 +71,7 @@ FText UDataprepTriangleCountFetcher::GetNodeDisplayFetcherName_Implementation() 
 
 /* UDataprepVertexCountFetcher methods+
  *****************************************************************************/
-int UDataprepVertexCountFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
+int32 UDataprepVertexCountFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
 {
 	bOutFetchSucceded = false;
 

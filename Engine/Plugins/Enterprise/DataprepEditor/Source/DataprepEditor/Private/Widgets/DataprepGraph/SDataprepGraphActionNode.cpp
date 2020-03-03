@@ -359,6 +359,7 @@ void SDataprepGraphActionNode::Construct(const FArguments& InArgs, UDataprepGrap
 	DataprepActionPtr->GetOnStepsOrderChanged().AddSP(this, &SDataprepGraphActionNode::OnStepsChanged);
 
 	GraphNode = InActionNode;
+	DataprepEditor = InArgs._DataprepEditor;
 
 	SetCursor(EMouseCursor::ResizeLeftRight);
 	UpdateGraphNode();
@@ -543,7 +544,7 @@ TSharedRef<SWidget> SDataprepGraphActionNode::CreateBackground(const TAttribute<
 		[
 			SNew(SImage)
 			.ColorAndOpacity(FLinearColor::White)
-			.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+			.Image(FDataprepEditorStyle::GetBrush( "DataprepEditor.Node.Body" ))
 		]
 
 		+SOverlay::Slot()
@@ -553,7 +554,7 @@ TSharedRef<SWidget> SDataprepGraphActionNode::CreateBackground(const TAttribute<
 		[
 			SNew(SImage)
 			.ColorAndOpacity(ColorAndOpacity)
-			.Image(FEditorStyle::GetBrush( "Graph.StateNode.Body" ))
+			.Image(FDataprepEditorStyle::GetBrush( "DataprepEditor.Node.Body" ))
 		];
 }
 
@@ -607,17 +608,21 @@ int32 SDataprepGraphActionNode::OnPaint(const FPaintArgs& Args, const FGeometry&
 
 FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	GetOwnerPanel()->SelectionManager.ClickedOnNode(GraphNode, MouseEvent);
 	BorderBackgroundColor.Set(FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop"));
 
 	if( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 	{
+		GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
 		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 	}
 
 	// Take ownership of the mouse if right mouse button clicked to display contextual menu
 	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
 	{
+		if ( !GetOwnerPanel()->SelectionManager.SelectedNodes.Contains( GraphNode ) )
+		{
+			GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+		}
 		return FReply::Handled();
 	}
 
@@ -786,7 +791,8 @@ void SDataprepGraphActionNode::PopulateActionStepListWidget()
 
 		ActionStepNode->Initialize(DataprepAction, Index);
 
-		TSharedPtr<SDataprepGraphActionStepNode> ActionStepGraphNode = SNew(SDataprepGraphActionStepNode, ActionStepNode, SharedThis(this));
+		TSharedPtr<SDataprepGraphActionStepNode> ActionStepGraphNode = SNew(SDataprepGraphActionStepNode, ActionStepNode, SharedThis(this))
+			.DataprepEditor(DataprepEditor);
 
 		if(TrackNodePtr.IsValid())
 		{

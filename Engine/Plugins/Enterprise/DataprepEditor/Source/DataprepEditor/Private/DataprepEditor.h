@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "DataprepGraph/DataprepGraph.h"
-
-#include "DataprepAssetInterface.h"
 #include "DataprepActionAsset.h"
+#include "DataprepAssetInterface.h"
+#include "DataprepGraph/DataprepGraph.h"
+#include "PreviewSystem/DataprepPreviewSystem.h"
 
+#include "CoreMinimal.h"
 #include "EditorUndoClient.h"
 #include "Engine/EngineBaseTypes.h"
 #include "GraphEditor.h"
@@ -19,11 +18,14 @@
 #include "UObject/SoftObjectPath.h"
 #include "UObject/StrongObjectPtr.h"
 
+class UDataprepParameterizableObject;
+
 class FSpawnTabArgs;
 class FTabManager;
 class FUICommandList;
 class IMessageLogListing;
 class IMessageToken;
+class SDataprepGraphEditor;
 class SDockableTab;
 class SGraphEditor;
 class SGraphNodeDetailsWidget;
@@ -110,6 +112,12 @@ public:
 	/** Set the selection of the world items */
 	void SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& NewSelection, EWorldSelectionFrom SelectionFrom = EWorldSelectionFrom::Unknow);
 
+	/** Setup the preview system to observe those steps */
+	void SetPreviewedObjects(const TArrayView<UDataprepParameterizableObject*>& ObservedObjects);
+
+	/** Is the preview system observing this step */
+	bool IsPreviewingStep(const UDataprepParameterizableObject* StepObject) const;
+
 private:
 	void BindCommands();
 	void OnSaveScene();
@@ -189,6 +197,14 @@ private:
 	/** Handles change to the content passed to an action */
 	void OnActionsContextChanged( const UDataprepActionAsset* ActionAsset, bool bWorldChanged, bool bAssetsChanged, const TArray< TWeakObjectPtr<UObject> >& NewAssets );
 
+	/** Update the data used by the preview system */
+	void UpdateDataForPreviewSystem();
+
+	void OnStepObjectsAboutToBeDeleted(const TArrayView<UDataprepParameterizableObject*>& StepObject);
+
+	virtual void PostUndo( bool bSuccess ) override;
+	virtual void PostRedo( bool bSuccess ) override;
+
 private:
 	bool bWorldBuilt;
 	bool bIsFirstRun;
@@ -206,7 +222,7 @@ private:
 	TSharedPtr<SGraphNodeDetailsWidget> DetailsView;
 	TSharedPtr<class SDataprepAssetView > DataprepAssetView;
 	TSharedPtr<SGraphEditor> PipelineView;
-	TSharedPtr<SGraphEditor> GraphEditor;
+	TSharedPtr<SDataprepGraphEditor> GraphEditor;
 
 	TSharedPtr<class ICustomSceneOutliner> SceneOutliner;
 
@@ -257,6 +273,9 @@ private:
 
 	/** Helper member to record classes of assets' sub-objects */
 	TMap<FString, UClass*> SnapshotClassesMap;
+
+	/** Steps Preview System */
+	TSharedRef<FDataprepPreviewSystem> PreviewSystem;
 
 	/**	The tab ids for all the tabs used */
 	static const FName ScenePreviewTabId;
