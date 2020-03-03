@@ -19,3 +19,25 @@ struct FImaginaryReflectionGBufferData
 	// Required for averaging to account for the fact that not all samples may hit a valid imaginary surface
 	uint ValidSamples;
 };
+
+struct FSortedReflectionRay
+{
+	float3	Origin;
+	uint	PixelCoordinates;
+	float3	Direction;
+	uint	DebugSortKey;
+};
+
+uint PackPixelCoordinates(uint2 PixelCoordinates)
+{
+	return (PixelCoordinates.x & 0xFFFF)
+	     | (PixelCoordinates.y << 16);
+}
+
+uint2 UnpackPixelCoordinates(uint PixelCoordinates)
+{
+	return uint2(
+		PixelCoordinates & 0xFFFF,
+		PixelCoordinates >> 16);
+}
+

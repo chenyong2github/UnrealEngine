@@ -1,0 +1,184 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../SceneTextureParameters.ush"
+#include "../ScreenSpaceDenoise/SSDPublic.ush"
+#include "../MortonCode.ush"
+
+#include "RayTracingCommon.ush"
+#include "RayTracingReflectionsCommon.ush"
+
+#define REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE 32
+
+#define NUM_DIRECTION_BINS_X REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE
+#define NUM_DIRECTION_BINS_Y REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE
+#define NUM_DIRECTION_BINS (NUM_DIRECTION_BINS_X*NUM_DIRECTION_BINS_Y)
+
+#if THREADGROUP_SIZE != 1024
+#error This shader requires group size of exactly 1024 threads
+#endif
+
+#if THREADGROUP_SIZE != REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE*REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE
+#error Total number of rays peer tile must be equal to thread group size
+#endif
+
+#if THREADGROUP_SIZE < NUM_DIRECTION_BINS
+#error Total number of bins must be less or equal to thread group size
+#endif
+
+#ifndef DIM_WAVE_OPS
+	#define DIM_WAVE_OPS 0
+#endif
+
+#if DIM_WAVE_OPS
+#define MIN_SUPPORTED_WAVE_SIZE 32
+#define NUM_WAVE_SUMS ((NUM_DIRECTION_BINS+MIN_SUPPORTED_WAVE_SIZE-1) / MIN_SUPPORTED_WAVE_SIZE)
+groupshared uint WaveSums[NUM_WAVE_SUMS];
+#endif
+
+groupshared uint Bins[NUM_DIRECTION_BINS];
+
+// Inputs
+uint2 RayTracingResolution;
+uint2 TileAlignedResolution;
+float ReflectionMaxNormalBias;
+
+// Outputs
+RWStructuredBuffer<FSortedReflectionRay> RayBuffer;
+
+// #todo: refactor ApplyCameraRelativeDepthBias() in RayTracingCommon.ush so that it could be used in this compute shader.
+float ComputeBiasForPosition(float3 V)
+{
+	V = abs(V);
+	return max(max(V.x, V.y), V.z) * 0.01;
+}
+
+uint RayDirectionToBin(float3 Direction, uint2 NumBins)
+{
+	float2 OctDirection = UnitVectorToOctahedron(Direction);
+	uint2 Bin2D = min((uint2)floor(OctDirection * NumBins), NumBins-1);
+	return MortonEncode(Bin2D);
+}
+
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void GenerateReflectionRaysCS(
+	uint DispatchThreadId : SV_DispatchThreadID,
+	uint GroupThreadId : SV_GroupThreadID,
+	uint GroupId : SV_GroupID)
+{
+	if (GroupThreadId < NUM_DIRECTION_BINS)
+	{
+		Bins[GroupThreadId] = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	const uint2 TileSize         = uint2(REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE, REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE);
+	const uint  TileIndex        = GroupId;
+	const uint  RayIndexInTile   = GroupThreadId;
+	const uint2 NumTiles         = TileAlignedResolution / TileSize;
+	const uint2 TileBasePixelPos = uint2(TileIndex % NumTiles.x, TileIndex / NumTiles.x) * TileSize;
+	const uint2 PixelPos         = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
+	const float2 ScreenPos       = ViewportUVToScreenPos((PixelPos.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
+	const float2 UV              = PixelPos.xy * View.BufferSizeAndInvSize.zw;
+	const FGBufferData GBuffer   = GetGBufferDataFromSceneTextures(UV);
+	const float SceneDepth       = GBuffer.Depth;
+
+	const float3 PositionTranslatedWorld = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+	const float3 V                       = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
+
+
+#if GBUFFER_HAS_TANGENT
+	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
+#endif
+	
+	float2 E = Rand1SPPDenoiserInput(PixelPos);
+	
+	const bool bOutputForDenoiser = true; // #todo: pass this in via constants when denoiser is on
+	if (bOutputForDenoiser)
+	{
+		E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
+	}
+	
+	float3x3 TangentBasis = GetTangentBasis(GBuffer.WorldNormal);
+	float3 TangentV       = mul(TangentBasis, V);
+
+	float3 L = (float3)0;
+
+	bool bGlossy = true; // #todo: pass this in via constants (change based on required quality, similar to SSR)
+	if (bGlossy)
+	{
+		float3 H = mul(ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(GBuffer.Roughness), TangentV).xyz, TangentBasis);
+		L = 2 * dot(V, H) * H - V;
+	}
+	else
+	{
+		L = reflect(-V, GBuffer.WorldNormal);
+	}
+
+	FSortedReflectionRay Ray;
+	Ray.Origin = View.WorldCameraOrigin + PositionTranslatedWorld;
+	Ray.Origin += GBuffer.WorldNormal * ComputeBiasForPosition(PositionTranslatedWorld);	
+	Ray.Direction = L;
+
+	uint Bin = RayDirectionToBin(Ray.Direction, uint2(NUM_DIRECTION_BINS_X,NUM_DIRECTION_BINS_Y));
+	if (any(PixelPos >= RayTracingResolution))
+	{
+		Bin = NUM_DIRECTION_BINS - 1;
+	}
+
+	uint SlotForThisThread = 0;
+	InterlockedAdd(Bins[Bin], 1, SlotForThisThread);
+
+	GroupMemoryBarrierWithGroupSync();
+
+#if DIM_WAVE_OPS
+	{
+		const uint WaveIndex = GroupThreadId / WaveGetLaneCount();
+		const uint LaneIndex = WaveGetLaneIndex();
+		uint Value = 0;
+		if (GroupThreadId < NUM_DIRECTION_BINS)
+		{
+			Value = Bins[GroupThreadId];
+			uint ThisWaveSum = WaveActiveSum(Value);
+			if (LaneIndex == 0)
+			{
+				WaveSums[WaveIndex] = ThisWaveSum;
+			}
+		}
+		GroupMemoryBarrierWithGroupSync();
+		if (WaveIndex == 0 && LaneIndex < NUM_WAVE_SUMS)
+		{
+			WaveSums[LaneIndex] = WavePrefixSum(WaveSums[LaneIndex]);
+		}
+		GroupMemoryBarrierWithGroupSync();
+		if (GroupThreadId < NUM_DIRECTION_BINS)
+		{
+			Bins[GroupThreadId] = WaveSums[WaveIndex] + WavePrefixSum(Value);
+		}
+	}
+#else // DIM_WAVE_OPS
+	if (GroupThreadId == 0)
+	{
+		uint Counter = 0;
+		for (uint i = 0; i < NUM_DIRECTION_BINS; i++)
+		{
+			uint NextCounter = Counter + Bins[i];
+			Bins[i] = Counter;
+			Counter = NextCounter;
+		}
+	}
+#endif // DIM_WAVE_OPS
+
+	GroupMemoryBarrierWithGroupSync();
+
+	Ray.PixelCoordinates = PackPixelCoordinates(PixelPos);
+	Ray.DebugSortKey = Bin;
+
+	uint StoreIndex = GroupId * (TileSize.x*TileSize.y) + Bins[Bin] + SlotForThisThread;
+
+	RayBuffer[StoreIndex] = Ray;
+}
+
