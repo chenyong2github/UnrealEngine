@@ -115,7 +115,7 @@ void UDetailsView::OnObjectChanged()
 	}
 	else
 	{
-		AsynBuildContentWidget();
+		BuildContentWidget();
 	}
 }
 
