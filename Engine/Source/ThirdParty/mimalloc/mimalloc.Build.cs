@@ -13,7 +13,15 @@ public class mimalloc : ModuleRules
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
 		{
-            PublicAdditionalLibraries.Add(miPath + "out\\msvc-x64\\Release\\mimalloc-static.lib");
+			if (Target.Configuration == UnrealTargetConfiguration.Debug)
+            {
+				PublicAdditionalLibraries.Add(miPath + "out\\msvc-x64\\Debug\\mimalloc-static.lib");
+			}
+            else 
+			{
+				PublicAdditionalLibraries.Add(miPath + "out\\msvc-x64\\Release\\mimalloc-static.lib");
+			}
+            
             PublicSystemIncludePaths.Add(miPath + "include");
         }
     }
