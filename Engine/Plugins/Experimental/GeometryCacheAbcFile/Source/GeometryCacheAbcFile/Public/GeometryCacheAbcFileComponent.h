@@ -50,5 +50,6 @@ public:
 protected:
 	void InitializeGeometryCache();
 
+	UPROPERTY(Transient)
 	UAbcImportSettings* AbcSettings;
 };
