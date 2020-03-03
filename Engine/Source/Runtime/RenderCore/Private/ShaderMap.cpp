@@ -167,6 +167,11 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 #endif // WITH_EDITOR
 		Ar << bShareCode;
 #if WITH_EDITOR
+		if (Ar.IsCooking())
+		{
+			Code->NotifyShadersCooked(Ar.CookingTarget());
+		}
+
 		if (bShareCode)
 		{
 			FSHAHash ResourceHash = Code->ResourceHash;
@@ -176,7 +181,7 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		else
 #endif // WITH_EDITOR
 		{
-			Code->Serialize(Ar);
+			Code->Serialize(Ar, bLoadedByCookedMaterial);
 		}
 	}
 	else
@@ -239,7 +244,7 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		else
 		{
 			Code = new FShaderMapResourceCode();
-			Code->Serialize(Ar);
+			Code->Serialize(Ar, bLoadedByCookedMaterial);
 			Resource = new FShaderMapResource_InlineCode(GetShaderPlatform(), Code);
 		}
 
