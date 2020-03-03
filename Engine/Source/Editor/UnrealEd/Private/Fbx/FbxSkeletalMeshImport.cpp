@@ -3858,7 +3858,7 @@ void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkelet
 	BaseSkeletalMesh->PreEditChange(NULL);
 
 	// Assign new FSkeletalMeshLODModel to desired slot in selected skeletal mesh.
-	DestImportedResource->LODModels[DesiredLOD] = NewLODModel;
+	FSkeletalMeshLODModel::CopyStructure(&(DestImportedResource->LODModels[DesiredLOD]), &NewLODModel);
 	//Copy the import data into the base skeletalmesh for the imported LOD
 	USkeletalMesh::CopyImportedData(0, InSkeletalMesh, DesiredLOD, BaseSkeletalMesh);
 	
