@@ -122,7 +122,6 @@ void UParameterizeMeshTool::Setup()
 	{
 		FDynamicMesh3 Mesh;
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.bPrintDebugMessages = false;
 		Converter.Convert(InputMesh.Get(), Mesh);
 		bHasGroups = FaceGroupUtil::HasMultipleGroups(Mesh);
 
