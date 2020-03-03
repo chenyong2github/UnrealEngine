@@ -20,6 +20,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "GPUSkinVertexFactory.h"
 #include "UObject/AnimObjectVersion.h"
+#include "Misc/ScopeLock.h"
 
 /*-----------------------------------------------------------------------------
 FSoftSkinVertex
@@ -1103,24 +1104,6 @@ FString FSkeletalMeshLODModel::GetLODModelDeriveDataKey() const
 	return KeySuffix;
 }
 
-bool FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source)
-{
-	if (Source->RawPointIndices.IsLocked() || Source->LegacyRawPointIndices.IsLocked() || Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().IsLocked())
-	{
-		return false;
-	}
-	// Bulk data arrays need to be locked before a copy can be made.
-	Source->RawPointIndices.Lock(LOCK_READ_ONLY);
-	Source->LegacyRawPointIndices.Lock(LOCK_READ_ONLY);
-	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Lock(LOCK_READ_ONLY);
-	*Destination = *Source;
-	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Unlock();
-	Source->RawPointIndices.Unlock();
-	Source->LegacyRawPointIndices.Unlock();
-
-	return true;
-}
-
 void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMeshName, TArray<int32>& LODMaterialMap)
 {
 	int32 LODModelSectionNum = Sections.Num();
@@ -1174,6 +1157,38 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 		//its impossible to have more bone then the maximum allowed
 		ensureMsgf(LastBoneCount <= MaxGPUSkinBones, TEXT("Skeletalmesh(%s) section %d have more bones then its alowed (MaxGPUSkinBones: %d)."), *SkeletalMeshName, LODModelSectionIndex, LastBoneCount);
 	}
+}
+
+void FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source)
+{
+	//The private Lock should always be valid
+	check(Source);
+	check(Destination);
+	check(Source->BulkDataReadMutex);
+	check(Destination->BulkDataReadMutex);
+	//Lock both mutex before touching the bulk data
+	FScopeLock LockSource(Source->BulkDataReadMutex);
+	FScopeLock LockDestination(Destination->BulkDataReadMutex);
+
+
+	FCriticalSection* DestinationBulkDataReadMutex = Destination->BulkDataReadMutex;
+
+	//Empty the Destination BulkData to avoid leaks
+	Destination->RawPointIndices.RemoveBulkData();
+	Destination->LegacyRawPointIndices.RemoveBulkData();
+	Destination->RawSkeletalMeshBulkData_DEPRECATED.EmptyBulkData();
+
+	// Bulk data arrays need to be locked before a copy can be made.
+	Source->RawPointIndices.Lock(LOCK_READ_ONLY);
+	Source->LegacyRawPointIndices.Lock(LOCK_READ_ONLY);
+	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Lock(LOCK_READ_ONLY);
+	*Destination = *Source;
+	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Unlock();
+	Source->RawPointIndices.Unlock();
+	Source->LegacyRawPointIndices.Unlock();
+
+	//Make sure the mutex of the copy is set back to the original destination mutex, we can recycle the pointer.
+	Destination->BulkDataReadMutex = DestinationBulkDataReadMutex;
 }
 
 #endif // WITH_EDITOR
