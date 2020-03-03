@@ -42,6 +42,7 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 	, MTime(0)
 {
 	MCollisionParticles.AddArray(&MCollided);
+	MCollisionParticles.AddArray(&MCollisionParticleGroupIds);
 	MParticles.AddArray(&MParticleGroupIds);
 	MPerGroupDamping.Add(Damping);
 
@@ -58,13 +59,13 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 }
 
 template<class T, int d>
-void TPBDEvolution<T, d>::AddParticles(uint32 Num, uint32 GroupId)
+uint32 TPBDEvolution<T, d>::AddParticles(uint32 Num, uint32 GroupId)
 {
 	// Add new particles
 	const uint32 Offset = MParticles.Size();
 	MParticles.AddParticles(Num);
 
-	// Initialize the new particle's group id
+	// Initialize the new particles' group ids
 	for (uint32 i = Offset; i < MParticles.Size(); ++i)
 	{
 		MParticleGroupIds[i] = GroupId;
@@ -80,6 +81,22 @@ void TPBDEvolution<T, d>::AddParticles(uint32 Num, uint32 GroupId)
 			MPerGroupDamping[i] = MDamping;
 		}
 	}
+	return Offset;
+}
+
+template<class T, int d>
+uint32 TPBDEvolution<T, d>::AddCollisionParticles(uint32 Num, uint32 GroupId)
+{
+	// Add new particles
+	const uint32 Offset = MCollisionParticles.Size();
+	MCollisionParticles.AddParticles(Num);
+
+	// Initialize the new particles' group ids
+	for (uint32 i = Offset; i < MCollisionParticles.Size(); ++i)
+	{
+		MCollisionParticleGroupIds[i] = GroupId;
+	}
+	return Offset;
 }
 
 template<class T, int d>
@@ -90,7 +107,7 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 	TPerParticleEulerStepVelocity<T, d> EulerStepVelocityRule;
 	TPerGroupDampVelocity<T, d> DampVelocityRule(MParticleGroupIds, MPerGroupDamping);
 	TPerParticlePBDEulerStep<T, d> EulerStepRule;
-	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(MCollisionParticles, MCollided, MCollisionThickness, MCoefficientOfFriction);
+	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(MCollisionParticles, MCollided, MParticleGroupIds, MCollisionParticleGroupIds, MCollisionThickness, MCoefficientOfFriction);
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityDampUpdateState);
