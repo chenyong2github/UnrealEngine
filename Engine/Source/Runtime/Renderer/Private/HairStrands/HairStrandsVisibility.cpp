@@ -66,6 +66,10 @@ static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRasterSampleCount
 static float GHairStrandsFullCoverageThreshold = 0.98f;
 static FAutoConsoleVariableRef CVarHairStrandsFullCoverageThreshold(TEXT("r.HairStrands.Visibility.FullCoverageThreshold"), GHairStrandsFullCoverageThreshold, TEXT("Define the coverage threshold at which a pixel is considered fully covered."));
 
+
+static int32 GHairStrandsSortHairSampleByDepth = 0;
+static FAutoConsoleVariableRef CVarHairStrandsSortHairSampleByDepth(TEXT("r.HairStrands.Visibility.SortByDepth"), GHairStrandsSortHairSampleByDepth, TEXT("Sort hair fragment by depth and update their coverage based on ordered transmittance."));
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 namespace HairStrandsVisibilityInternal
@@ -277,6 +281,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMaterialPassParameters, )
 	SHADER_PARAMETER(FIntPoint, MaxResolution)
 	SHADER_PARAMETER(uint32, MaxSampleCount)
 	SHADER_PARAMETER(uint32, NodeGroupSize)
+	SHADER_PARAMETER(uint32, bUpdateSampleCoverage)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, NodeIndex)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, NodeCoord)
 	SHADER_PARAMETER_SRV(StructuredBuffer<FNodeVis>, NodeVis)
@@ -520,6 +525,58 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisibilityMaterialPassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Patch sample coverage
+class FUpdateSampleCoverageCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FUpdateSampleCoverageCS);
+	SHADER_USE_PARAMETER_STRUCT(FUpdateSampleCoverageCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, Resolution)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NodeIndexAndOffset)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairSample>,  InNodeDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FPackedHairSample>, OutNodeDataBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+};
+
+IMPLEMENT_GLOBAL_SHADER(FUpdateSampleCoverageCS, "/Engine/Private/HairStrands/HairStrandsVisibilityComputeSampleCoverage.usf", "MainCS", SF_Compute);
+
+static FRDGBufferRef AddUpdateSampleCoveragePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	const FRDGTextureRef NodeIndexAndOffset,
+	const FRDGBufferRef InNodeDataBuffer)
+{
+	FRDGBufferRef OutNodeDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(InNodeDataBuffer->Desc.BytesPerElement, InNodeDataBuffer->Desc.NumElements), TEXT("HairCompactNodeData"));
+
+	FUpdateSampleCoverageCS::FParameters* Parameters = GraphBuilder.AllocParameters<FUpdateSampleCoverageCS::FParameters>();
+	Parameters->Resolution = NodeIndexAndOffset->Desc.Extent;
+	Parameters->NodeIndexAndOffset = NodeIndexAndOffset;
+	Parameters->InNodeDataBuffer = GraphBuilder.CreateSRV(InNodeDataBuffer);
+	Parameters->OutNodeDataBuffer = GraphBuilder.CreateUAV(OutNodeDataBuffer);
+
+	TShaderMapRef<FUpdateSampleCoverageCS> ComputeShader(View->ShaderMap);
+
+	// Add 64 threads permutation
+	const uint32 GroupSizeX = 8;
+	const uint32 GroupSizeY = 4;
+	const FIntVector DispatchCount = FIntVector(
+		(Parameters->Resolution.X + GroupSizeX-1) / GroupSizeX, 
+		(Parameters->Resolution.Y + GroupSizeY-1) / GroupSizeY, 
+		1);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrandsVisbilityUpdateCoverage"),
+		ComputeShader,
+		Parameters,
+		DispatchCount);
+
+	return OutNodeDataBuffer;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
 struct FMaterialPassOutput
 {
 	static const EPixelFormat VelocityFormat = PF_G16R16;
@@ -531,6 +588,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
+	const bool bUpdateSampleCoverage,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const uint32 NodeGroupSize,
 	FRDGTextureRef CompactNodeIndex,
@@ -576,12 +634,13 @@ static FMaterialPassOutput AddHairMaterialPass(
 		RDG_EVENT_NAME("HairStrandsMaterialPass"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize](FRHICommandListImmediate& RHICmdList)
+		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize, bUpdateSampleCoverage](FRHICommandListImmediate& RHICmdList)
 	{
 		check(RHICmdList.IsInsideRenderPass());
 		check(IsInRenderingThread());
 
 		FMaterialPassParameters MaterialPassParameters;
+		MaterialPassParameters.bUpdateSampleCoverage = bUpdateSampleCoverage ? 1 : 0;
 		MaterialPassParameters.MaxResolution	= Resolution;
 		MaterialPassParameters.NodeGroupSize	= NodeGroupSize;
 		MaterialPassParameters.MaxSampleCount	= MaxNodeCount;
@@ -1231,6 +1290,7 @@ class FHairVisibilityPrimitiveIdCompactionCS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, OutputResolution)
 		SHADER_PARAMETER(FIntPoint, ResolutionOffset)
 		SHADER_PARAMETER(uint32, MaxNodeCount)
+		SHADER_PARAMETER(uint32, bSortSampleByDepth)
 		SHADER_PARAMETER(float, DepthTheshold)
 		SHADER_PARAMETER(float, CosTangentThreshold)
 		SHADER_PARAMETER(float, CoverageThreshold)
@@ -1408,6 +1468,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 
 	PassParameters->OutputResolution = Resolution;
 	PassParameters->MaxNodeCount = MaxRenderNodeCount;
+	PassParameters->bSortSampleByDepth = GHairStrandsSortHairSampleByDepth > 0 ? 1 : 0;
 	PassParameters->CoverageThreshold = FMath::Clamp(GHairStrandsFullCoverageThreshold, 0.1f, 1.f);
 	PassParameters->DepthTheshold = FMath::Clamp(GHairStrandsMaterialCompactionDepthThreshold, 0.f, 100.f);
 	PassParameters->CosTangentThreshold = FMath::Cos(FMath::DegreesToRadians(FMath::Clamp(GHairStrandsMaterialCompactionTangentThreshold, 0.f, 90.f)));
@@ -2546,12 +2607,15 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 
 					if (bIsVisiblityEnable)
 					{
+						const bool bUpdateSampleCoverage = GHairStrandsSortHairSampleByDepth > 0;
+
 						// Evaluate material based on the visiblity pass result
 						// Output both complete sample data + per-sample velocity
 						FMaterialPassOutput PassOutput = AddHairMaterialPass(
 							GraphBuilder,
 							Scene,
 							&View,
+							bUpdateSampleCoverage,
 							MacroGroupDatas,
 							VisibilityData.NodeGroupSize,
 							CompactNodeIndex,
@@ -2568,6 +2632,15 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							CompactNodeData,
 							PassOutput.NodeVelocity,
 							SceneVelocityTexture);
+
+						if (bUpdateSampleCoverage)
+						{
+							PassOutput.NodeData = AddUpdateSampleCoveragePass(
+								GraphBuilder,
+								&View,
+								CompactNodeIndex,
+								PassOutput.NodeData);
+						}
 
 						CompactNodeData = PassOutput.NodeData;
 					}
