@@ -9,6 +9,7 @@
 #include "UObject/Package.h"
 #include "Engine/World.h"
 #include "Templates/SharedPointer.h"
+#include "IAssetSearchModule.h"
 
 enum class ESearchNodeType : uint8
 {

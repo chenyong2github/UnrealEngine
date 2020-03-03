@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IAssetSearchModule.h"
 #include "AssetSearchDatabase.h"
+#include "Containers/Queue.h"
 
 class FRunnableThread;
 
@@ -70,7 +71,7 @@ private:
 		FString DDCKey_IndexDataHash;
 		uint32 DDCHandle;
 	};
-	TArray<FAssetDDCRequest> ProcessDDCQueue;
+	TQueue<FAssetDDCRequest, EQueueMode::Mpsc> ProcessDDCQueue;
 
 	FDelegateHandle TickerHandle;
 
