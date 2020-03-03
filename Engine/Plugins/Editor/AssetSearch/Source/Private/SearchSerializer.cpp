@@ -5,6 +5,8 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
+#include "UObject/UnrealType.h"
+#include "IAssetSearchModule.h"
 
 #define LOCTEXT_NAMESPACE "FSearchSerializer"
 
