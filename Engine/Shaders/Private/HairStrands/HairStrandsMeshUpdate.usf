@@ -13,12 +13,36 @@ uint MeshMaxVertexCount		[MAX_SECTION_COUNT];
 uint MeshIndexOffset		[MAX_SECTION_COUNT];
 uint MeshUVsChannelOffset	[MAX_SECTION_COUNT];
 uint MeshUVsChannelCount	[MAX_SECTION_COUNT];
+uint MeshSectionBufferIndex	[MAX_SECTION_COUNT];
 
-Buffer<uint> MeshIndexBuffer;
-Buffer<float> MeshPositionBuffer;
+Buffer<uint> MeshIndexBuffer0;
+Buffer<uint> MeshIndexBuffer1;
+Buffer<uint> MeshIndexBuffer2;
+Buffer<uint> MeshIndexBuffer3;
+Buffer<uint> MeshIndexBuffer4;
+Buffer<uint> MeshIndexBuffer5;
+Buffer<uint> MeshIndexBuffer6;
+Buffer<uint> MeshIndexBuffer7;
+
+Buffer<float> MeshPositionBuffer0;
+Buffer<float> MeshPositionBuffer1;
+Buffer<float> MeshPositionBuffer2;
+Buffer<float> MeshPositionBuffer3;
+Buffer<float> MeshPositionBuffer4;
+Buffer<float> MeshPositionBuffer5;
+Buffer<float> MeshPositionBuffer6;
+Buffer<float> MeshPositionBuffer7;
 
 #if PERMUTATION_WITHUV == 1
-Buffer<float2> MeshUVsBuffer;
+Buffer<float2> MeshUVsBuffer0;
+Buffer<float2> MeshUVsBuffer1;
+Buffer<float2> MeshUVsBuffer2;
+Buffer<float2> MeshUVsBuffer3;
+Buffer<float2> MeshUVsBuffer4;
+Buffer<float2> MeshUVsBuffer5;
+Buffer<float2> MeshUVsBuffer6;
+Buffer<float2> MeshUVsBuffer7;
+Buffer<float2> MeshUVsBuffer8;
 #endif
 
 uint MaxRootCount;
@@ -27,6 +51,85 @@ Buffer<uint> RootTriangleIndex;
 RWBuffer<float4> OutRootTrianglePosition0;
 RWBuffer<float4> OutRootTrianglePosition1;
 RWBuffer<float4> OutRootTrianglePosition2;
+
+#if PERMUTATION_WITHUV == 1
+FHairMeshTriangleWithUVs GetTriangleData(FHairTriangleIndex TriangleIndex, uint SectionIndex)
+{
+	const uint MeshSectionIndex = MeshSectionBufferIndex[SectionIndex];
+	if (MeshSectionIndex == 0)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer0, MeshUVsBuffer0, MeshIndexBuffer0, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 1)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer1, MeshUVsBuffer1, MeshIndexBuffer1, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 2)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer2, MeshUVsBuffer2, MeshIndexBuffer2, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 3)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer3, MeshUVsBuffer3, MeshIndexBuffer3, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 4)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer4, MeshUVsBuffer4, MeshIndexBuffer4, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 5)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer5, MeshUVsBuffer5, MeshIndexBuffer5, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 6)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer6, MeshUVsBuffer6, MeshIndexBuffer6, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 7)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer7, MeshUVsBuffer7, MeshIndexBuffer7, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	}
+	return (FHairMeshTriangleWithUVs)0;
+}
+#else
+FHairMeshTriangle GetTriangleData(FHairTriangleIndex TriangleIndex, uint SectionIndex)
+{
+	const uint MeshSectionIndex = MeshSectionBufferIndex[SectionIndex];
+	if (MeshSectionIndex == 0)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer0, MeshIndexBuffer0, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 1)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer1, MeshIndexBuffer1, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 2)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer2, MeshIndexBuffer2, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 3)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer3, MeshIndexBuffer3, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 4)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer4, MeshIndexBuffer4, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 5)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer5, MeshIndexBuffer5, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 6)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer6, MeshIndexBuffer6, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	}
+	else if (MeshSectionIndex == 7)
+	{
+		return GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer7, MeshIndexBuffer7, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	}
+	return (FHairMeshTriangle)0;
+}
+
+#endif
 
 [numthreads(128, 1, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -42,13 +145,13 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint SectionIndex = TriangleIndex.SectionIndex;
 
 #if PERMUTATION_WITHUV == 1
-	const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer, MeshUVsBuffer, MeshIndexBuffer, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
+	const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, SectionIndex);
 
 	OutRootTrianglePosition0[RootIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
 	OutRootTrianglePosition1[RootIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
 	OutRootTrianglePosition2[RootIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
 #else
-	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
+	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, SectionIndex);
 
 	OutRootTrianglePosition0[RootIndex] = (float4(Tri.P0, 1));
 	OutRootTrianglePosition1[RootIndex] = (float4(Tri.P1, 1));
