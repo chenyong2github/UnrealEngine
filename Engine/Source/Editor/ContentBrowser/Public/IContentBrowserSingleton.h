@@ -331,6 +331,9 @@ struct FPathPickerConfig
 	/** If true, will allow class folders to be shown in the picker */
 	bool bAllowClassesFolder;
 
+	/** If true, will allow read-only folders to be shown in the picker */
+	bool bAllowReadOnlyFolders;
+
 	/** If true, will add the path specified in DefaultPath to the tree if it doesn't exist already */
 	bool bAddDefaultPath;
 
@@ -338,6 +341,7 @@ struct FPathPickerConfig
 		: bFocusSearchBoxWhenOpened(true)
 		, bAllowContextMenu(true)
 		, bAllowClassesFolder(false)
+		, bAllowReadOnlyFolders(true)
 		, bAddDefaultPath(false)
 	{}
 };
