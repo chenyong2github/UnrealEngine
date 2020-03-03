@@ -420,8 +420,6 @@ class ENGINE_API UMaterialExpression : public UObject
 
 	virtual bool HasConnectedOutputs() const;
 
-#endif // WITH_EDITOR
-
 	/** Checks whether any inputs to this expression create a loop */
 	bool ContainsInputLoop(const bool bStopOnFunctionCall = true);
 
@@ -434,6 +432,7 @@ protected:
 	 * @param VisitedExpressions List of all expression keys that have been visited
 	 */
 	bool ContainsInputLoopInternal(TArray<class FMaterialExpressionKey>& ExpressionStack, TSet<class FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall);
+#endif // WITH_EDITOR
 };
 
 

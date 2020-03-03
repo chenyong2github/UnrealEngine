@@ -151,6 +151,7 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 		return BaseFunction ? BaseFunction->GetDescription() : nullptr;
 	}
 
+#if WITH_EDITOR
 	virtual bool GetReentrantFlag() const override
 	{
 		const UMaterialFunctionInterface* BaseFunction = GetBaseFunction();
@@ -164,6 +165,7 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 			BaseFunction->SetReentrantFlag(bIsReentrant);
 		}
 	}
+#endif // WITH_EDITOR
 
 public:
 	virtual bool OverrideNamedScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue) override;

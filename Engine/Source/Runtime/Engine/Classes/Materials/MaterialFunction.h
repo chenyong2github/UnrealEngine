@@ -74,12 +74,12 @@ class UMaterialFunction : public UMaterialFunctionInterface
 
 	UPROPERTY()
 	TArray<class UMaterialExpressionMaterialFunctionCall*> DependentFunctionExpressionCandidates;
-#endif // WITH_EDITORONLY_DATA
 
 private:
 	/** Transient flag used to track re-entrance in recursive functions like IsDependent. */
 	UPROPERTY(transient)
 	uint8 bReentrantFlag:1;
+#endif // WITH_EDITORONLY_DATA
 
 public:
 	//~ Begin UObject Interface.
@@ -151,8 +151,10 @@ public:
 #endif
 	virtual const FString* GetDescription() const override { return &Description; }
 
+#if WITH_EDITOR
 	virtual bool GetReentrantFlag() const override { return bReentrantFlag; }
 	virtual void SetReentrantFlag(const bool bIsReentrant) override { bReentrantFlag = bIsReentrant; }
+#endif
 	//~ End UMaterialFunctionInterface interface
 
 
