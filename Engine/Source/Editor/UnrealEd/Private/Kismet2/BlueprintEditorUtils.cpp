@@ -4352,6 +4352,32 @@ bool FBlueprintEditorUtils::IsPinTypeValid(const FEdGraphPinType& Type)
 	return true;
 }
 
+void FBlueprintEditorUtils::ValidatePinConnections(const UEdGraphNode* Node, FCompilerResultsLog& MessageLog)
+{
+	if (Node)
+	{
+		const UEdGraphSchema* Schema = Node->GetSchema();
+		check(Schema);
+
+		// Validate that all pins with links are actually set to valid connections.
+		// This is necessary because the user could change the type of the pin 
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin)
+			{
+				for (UEdGraphPin* Link : Pin->LinkedTo)
+				{
+					if (Link && Link != Pin && Schema->CanCreateConnection(Pin, Link).Response == CONNECT_RESPONSE_DISALLOW)
+					{
+						FText const ErrorFormat = LOCTEXT("BadConnection", "Invalid pin connection from '@@' to '@@'. You may have changed the type after the connections were made.");
+						MessageLog.Error(*ErrorFormat.ToString(), Pin, Link);
+					}
+				}
+			}
+		}
+	}
+}
+
 void FBlueprintEditorUtils::GetClassVariableList(const UBlueprint* Blueprint, TSet<FName>& VisibleVariables, bool bIncludePrivateVars) 
 {
 	// Existing variables in the parent class and above, when using the compilation manager the previous SkeletonGeneratedClass will have been cleared when

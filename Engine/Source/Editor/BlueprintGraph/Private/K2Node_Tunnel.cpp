@@ -5,7 +5,7 @@
 #include "K2Node_Composite.h"
 #include "K2Node_MacroInstance.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-
+#include "Kismet2/CompilerResultsLog.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
@@ -17,14 +17,14 @@ UK2Node_Tunnel::UK2Node_Tunnel(const FObjectInitializer& ObjectInitializer)
 
 void UK2Node_Tunnel::DestroyNode()
 {
-	if (InputSinkNode != NULL)
+	if (InputSinkNode != nullptr)
 	{
-		InputSinkNode->OutputSourceNode = NULL;
+		InputSinkNode->OutputSourceNode = nullptr;
 	}
 
-	if (OutputSourceNode != NULL)
+	if (OutputSourceNode != nullptr)
 	{
-		OutputSourceNode->InputSinkNode = NULL;
+		OutputSourceNode->InputSinkNode = nullptr;
 	}
 
 	//@TODO: Should we remove the pins provided by this node from the twinned node(s)?
@@ -183,6 +183,13 @@ void UK2Node_Tunnel::ClearCachedBlueprintData(UBlueprint* Blueprint)
 	MetaData.HasLatentFunctions = INDEX_NONE;
 }
 
+void UK2Node_Tunnel::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const
+{
+	Super::ValidateNodeDuringCompilation(MessageLog);
+	
+	FBlueprintEditorUtils::ValidatePinConnections(this, MessageLog);
+}
+
 UEdGraphPin* UK2Node_Tunnel::CreatePinFromUserDefinition(const TSharedPtr<FUserPinInfo> NewPinInfo)
 {
 	// Create the new pin
@@ -245,7 +252,7 @@ ERenamePinResult UK2Node_Tunnel::RenameUserDefinedPinImpl(const FName OldName, c
 
 	// And do the same on the twinned pin
 	ERenamePinResult TargetNodeResult = ERenamePinResult::ERenamePinResult_Success;
-	UEdGraphNode* TargetNode = ((InputSinkNode != NULL) ? InputSinkNode : OutputSourceNode);
+	UEdGraphNode* TargetNode = ((InputSinkNode != nullptr) ? InputSinkNode : OutputSourceNode);
 	if (UK2Node_Composite* CompositeNode = Cast<UK2Node_Composite>(TargetNode))
 	{
 		TargetNodeResult = CompositeNode->RenameUserDefinedPin(OldName, NewName, bTest);
@@ -262,7 +269,7 @@ UObject* UK2Node_Tunnel::GetJumpTargetForDoubleClick() const
 {
 	// Try to select the other side of a tunnel node
 	UEdGraphNode* TargetNode = GetOutputSource();
-	if (TargetNode == NULL)
+	if (TargetNode == nullptr)
 	{
 		TargetNode = GetInputSink();
 	}
