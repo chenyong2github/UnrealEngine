@@ -142,15 +142,50 @@ void FShaderMapResourceCode::Finalize()
 	ApplyResourceStats(*this);
 }
 
-void FShaderMapResourceCode::Serialize(FArchive& Ar)
+void FShaderMapResourceCode::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 {
 	Ar << ResourceHash;
 	Ar << ShaderHashes;
 	Ar << ShaderEntries;
 	Ar << ShaderCode;
 	check(ShaderEntries.Num() == ShaderHashes.Num());
+#if WITH_EDITORONLY_DATA
+	const bool bSerializePlatformData = !bLoadedByCookedMaterial && (!Ar.IsCooking() || Ar.CookingTarget()->HasEditorOnlyData());
+	if (bSerializePlatformData)
+	{
+		Ar << PlatformDebugEntries;
+		Ar << PlatformDebugData;
+	}
+#endif // WITH_EDITORONLY_DATA
 	ApplyResourceStats(*this);
 }
+
+#if WITH_EDITORONLY_DATA
+void FShaderMapResourceCode::NotifyShadersCooked(const ITargetPlatform* TargetPlatform)
+{
+#if WITH_ENGINE
+	// Notify the platform shader format that this particular shader is being used in the cook.
+	// We discard this data in cooked builds unless Ar.CookingTarget()->HasEditorOnlyData() is true.
+	check(TargetPlatform);
+	if (PlatformDebugEntries.Num())
+	{
+		TArray<FName> ShaderFormatNames;
+		TargetPlatform->GetAllTargetedShaderFormats(ShaderFormatNames);
+		for (FName FormatName : ShaderFormatNames)
+		{
+			const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(FormatName);
+			if (ShaderFormat)
+			{
+				for (const FPlatformDebugEntry& Entry : PlatformDebugEntries)
+				{
+					ShaderFormat->NotifyShaderCooked(MakeArrayView(PlatformDebugData.GetData() + Entry.Offset, Entry.Size), FormatName);
+				}
+			}
+		}
+	}
+#endif // WITH_ENGINE
+}
+#endif // WITH_EDITORONLY_DATA
 
 FShaderMapResourceBuilder::FShaderMapResourceBuilder(FShaderMapResourceCode* InCode) : ShaderHashTable(1024, 256), Code(InCode)
 {
@@ -215,6 +250,19 @@ int32 FShaderMapResourceBuilder::FindOrAddCode(EShaderFrequency InFrequency, con
 
 	return Index;
 }
+
+#if WITH_EDITORONLY_DATA
+void FShaderMapResourceBuilder::AddPlatformDebugData(TConstArrayView<uint8> InPlatformDebugData)
+{
+	if (InPlatformDebugData.Num() > 0)
+	{
+		FShaderMapResourceCode::FPlatformDebugEntry& Entry = Code->PlatformDebugEntries.AddDefaulted_GetRef();
+		Entry.Offset = Code->PlatformDebugData.Num();
+		Entry.Size = InPlatformDebugData.Num();
+		Code->PlatformDebugData.Append(InPlatformDebugData.GetData(), InPlatformDebugData.Num());
+	}
+}
+#endif // WITH_EDITORONLY_DATA
 
 FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShaders)
 	: Platform(InPlatform)
