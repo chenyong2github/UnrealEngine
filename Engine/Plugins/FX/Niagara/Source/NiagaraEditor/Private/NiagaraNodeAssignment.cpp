@@ -40,6 +40,7 @@ bool UNiagaraNodeAssignment::RefreshFromExternalChanges()
 	FunctionScript = nullptr;
 	GenerateScript();
 	ReallocatePins();
+	OnInputsChangedDelegate.Broadcast();
 	return true;
 }
 
@@ -301,7 +302,6 @@ void UNiagaraNodeAssignment::AddParameter(FNiagaraVariable InVar, FString InDefa
 
 	RefreshFromExternalChanges();
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
-	OnInputsChangedDelegate.Broadcast();
 }
 
 void UNiagaraNodeAssignment::RemoveParameter(const FNiagaraVariable& InVar)
@@ -329,7 +329,6 @@ void UNiagaraNodeAssignment::RemoveParameter(const FNiagaraVariable& InVar)
 
 	RefreshFromExternalChanges();
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
-	OnInputsChangedDelegate.Broadcast();
 }
 
 void UNiagaraNodeAssignment::UpdateUsageBitmaskFromOwningScript()
@@ -622,17 +621,24 @@ bool UNiagaraNodeAssignment::SetAssignmentTarget(int32 Idx, const FNiagaraVariab
 	return bRetValue;
 }
 
-bool UNiagaraNodeAssignment::SetAssignmentTargetName(int32 Idx, const FName& InName)
+bool UNiagaraNodeAssignment::RenameAssignmentTarget(FName OldName, FName NewName)
 {
-	check(Idx < AssignmentTargets.Num());
-	if (AssignmentTargets[Idx].GetName() != InName)
+	for (FNiagaraVariable& AssignmentTarget : AssignmentTargets)
 	{
-		AssignmentTargets[Idx].SetName(InName);
-		MarkNodeRequiresSynchronization(__FUNCTION__, true);
-		return true;
+		if (AssignmentTarget.GetName() == OldName)
+		{
+			Modify();
+			if (FunctionScript != nullptr)
+			{
+				FunctionScript->Modify();
+				FunctionScript->GetSource()->Modify();
+			}
+
+			AssignmentTarget.SetName(NewName);
+			return true;
+		}
 	}
 	return false;
 }
-
 
 #undef LOCTEXT_NAMESPACE
