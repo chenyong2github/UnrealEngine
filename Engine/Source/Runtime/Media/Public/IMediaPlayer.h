@@ -305,11 +305,12 @@ public:
 		// Override in child class if needed.
 	}
 
-	enum class FeatureFlag {
+	enum class EFeatureFlag {
 		AllowShutdownOnClose = 0,	//!< Allow player to be shutdown right after 'close' event is received from it
+		UsePlaybackTimingV2,		//!< Use v2 playback timing and AV sync
 	};
 	
-	virtual bool GetPlayerFeatureFlag(FeatureFlag /*flag*/) const
+	virtual bool GetPlayerFeatureFlag(EFeatureFlag /*flag*/) const
 	{
 		// Override in child class if needed.
 		return false;

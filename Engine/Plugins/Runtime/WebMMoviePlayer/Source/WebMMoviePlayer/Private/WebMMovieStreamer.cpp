@@ -282,7 +282,7 @@ bool FWebMMovieStreamer::SendAudio(float InDeltaTime)
 	while (bFoundSample && AudioSample)
 	{
 		FWebMMediaAudioSample* WebMSample = StaticCast<FWebMMediaAudioSample*>(AudioSample.Get());
-		AudioBackend->SendAudio(WebMSample->GetTime(), WebMSample->GetDataBuffer().GetData(), WebMSample->GetDataBuffer().Num());
+		AudioBackend->SendAudio(WebMSample->GetTime().Time, WebMSample->GetDataBuffer().GetData(), WebMSample->GetDataBuffer().Num());
 
 		bFoundSample = Samples->FetchAudio(TimeRange, AudioSample);
 	}

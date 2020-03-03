@@ -79,9 +79,9 @@ FRHITexture* FWebMMediaTextureSample::GetTexture() const
 	return Texture.GetReference();
 }
 
-FTimespan FWebMMediaTextureSample::GetTime() const
+FMediaTimeStamp FWebMMediaTextureSample::GetTime() const
 {
-	return Time;
+	return FMediaTimeStamp(Time);
 }
 
 bool FWebMMediaTextureSample::IsCacheable() const

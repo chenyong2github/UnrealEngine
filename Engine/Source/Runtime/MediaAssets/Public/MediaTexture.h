@@ -22,6 +22,14 @@ class IMediaTextureSample;
 class UMediaPlayer;
 
 
+UENUM()
+enum MediaTextureOutputFormat
+{
+	MTOF_Default					UMETA(DisplayName = "Default (sRGB)"),
+	MTOF_SRGB_LINOUT				UMETA(DisplayName = "sRGB (linear output)"),		// sRGB data, using sRGB texture formats; hence read as linear RGB
+	MTOF_MAX,
+};
+
 /**
  * Implements a texture asset for rendering video tracks from UMediaPlayer assets.
  */
@@ -47,13 +55,20 @@ class MEDIAASSETS_API UMediaTexture
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MediaTexture")
 	FLinearColor ClearColor;
 
-	/** Basic enablement for mip generation. */
+	/** Basic enablement for mip generation (default = false). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaTexture", meta = (DisplayName = "Enable Mipmap generation"))
 	bool EnableGenMips;
 
 	/** The number of mips to use (default = 1). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaTexture", meta=(DisplayName="Total number of Mipmaps to output"))
 	uint8 NumMips;
+
+	/** Enable new style output (default = false). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaTexture", meta = (DisplayName = "Enable new style output"))
+	bool NewStyleOutput;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaTexture", meta = (DisplayName = "Output format (new style)"))
+	TEnumAsByte<enum MediaTextureOutputFormat> OutputFormat;
 
 public:
 

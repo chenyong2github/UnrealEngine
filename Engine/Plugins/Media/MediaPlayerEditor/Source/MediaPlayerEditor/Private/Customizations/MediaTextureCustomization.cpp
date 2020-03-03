@@ -17,9 +17,7 @@ void FMediaTextureCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 	// customize 'Texture' category
 	IDetailCategoryBuilder& MediaTextureCategory = DetailBuilder.EditCategory("MediaTexture");
 	{
-		MediaTextureCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UTexture, CompressionSettings), UTexture::StaticClass());
 		MediaTextureCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UTexture, Filter), UTexture::StaticClass());
-		MediaTextureCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UTexture, SRGB), UTexture::StaticClass());
 	}
 
 	DetailBuilder.HideCategory("Compression");

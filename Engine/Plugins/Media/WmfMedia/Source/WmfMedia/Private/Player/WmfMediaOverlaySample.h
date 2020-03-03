@@ -97,9 +97,9 @@ public:
 		return Text;
 	}
 
-	virtual FTimespan GetTime() const override
+	virtual FMediaTimeStamp GetTime() const override
 	{
-		return Time;
+		return FMediaTimeStamp(Time);
 	}
 
 	virtual EMediaOverlaySampleType GetType() const override

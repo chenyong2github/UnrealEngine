@@ -73,7 +73,7 @@ public:
 				if (Sample.IsValid())
 				{
 					FTimedDataChannelSampleTime& NewSampleTime = CachedSamplesData.Emplace_GetRef();
-					NewSampleTime.PlatformSecond = Sample->GetTime().GetTotalSeconds() - EvaluationSettings.PlayerTimeOffset;
+					NewSampleTime.PlatformSecond = Sample->GetTime().Time.GetTotalSeconds() - EvaluationSettings.PlayerTimeOffset;
 					if (Sample->GetTimecode().IsSet())
 					{
 						NewSampleTime.Timecode = FQualifiedFrameTime(Sample->GetTimecode().GetValue(), EvaluationSettings.FrameRate);
@@ -104,8 +104,8 @@ public:
 				}
 				else //Platform time
 				{
-					NewestSampleInSeconds = Samples[0]->GetTime().GetTotalSeconds() + Duration;
-					OldestSampleInSeconds = Samples[CachedSamplesData.Num() - 1]->GetTime().GetTotalSeconds();
+					NewestSampleInSeconds = Samples[0]->GetTime().Time.GetTotalSeconds() + Duration;
+					OldestSampleInSeconds = Samples[CachedSamplesData.Num() - 1]->GetTime().Time.GetTotalSeconds();
 				}
 
 				//Compute distance to evaluation taking into account duration of our samples for the newest one.
@@ -223,7 +223,7 @@ public:
 			TSharedPtr<SampleType, ESPMode::ThreadSafe> Sample = Samples[SampleCount - 1];
 			if (Sample.IsValid())
 			{
-				return Sample->GetTime();
+				return Sample->GetTime().Time;
 			}
 		}
 
@@ -354,7 +354,7 @@ public:
 			TSharedPtr<SampleType, ESPMode::ThreadSafe> Sample = Samples[SampleCount - 1];
 			if (Sample.IsValid())
 			{
-				const FTimespan SampleTime = Sample->GetTime();
+				const FTimespan SampleTime = Sample->GetTime().Time;
 
 				if (TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
 				{

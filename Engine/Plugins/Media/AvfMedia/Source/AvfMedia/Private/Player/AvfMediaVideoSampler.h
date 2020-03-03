@@ -16,7 +16,7 @@ class FMediaSamples;
 /**
  * Creates samples from video frames.
  */
-class FAvfMediaVideoSampler
+class DLLEXPORT FAvfMediaVideoSampler
 {
 public:
 
