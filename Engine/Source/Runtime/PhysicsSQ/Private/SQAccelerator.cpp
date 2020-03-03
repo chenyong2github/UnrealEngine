@@ -2,6 +2,7 @@
 
 #include "SQAccelerator.h"
 #include "CollisionQueryFilterCallbackCore.h"
+#include "PhysicsCore/Public/PhysicsInterfaceUtilsCore.h"
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "SceneQueryPhysXImp.h"	//todo: use nice platform wrapper
@@ -12,7 +13,6 @@
 #include "Experimental/SceneQueryChaosImp.h"
 #endif
 
-#include "PhysicsInterfaceUtilsCore.h"
 #include "ChaosInterfaceWrapperCore.h"
 #include "Chaos/CastingUtilities.h"
 #include "Chaos/ISpatialAcceleration.h"
@@ -98,8 +98,10 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, QueryFilterDataConcrete(P2UFilterData(QueryFilterData.data))
 		, QueryCallback(InQueryCallback)
 	{
+#if WITH_PHYSX
 		//#TODO - reimplement query flags alternative for Chaos
 		bAnyHit = QueryFilterData.flags & PxQueryFlag::eANY_HIT;
+#endif
 	}
 
 	TSQVisitor(const FTransform& InStartTM, const FVector& InDir, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& InHitBuffer, EHitFlags InOutputFlags,

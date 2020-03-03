@@ -26,6 +26,7 @@ enum class EPhysXMeshCookFlags : uint8;
 
 DECLARE_DELEGATE_OneParam(FOnAsyncPhysicsCookFinished, bool);
 
+#if PHYSICS_INTERFACE_PHYSX
 namespace physx
 {
 	class PxTriangleMesh;
@@ -39,6 +40,7 @@ namespace physx
 	class PxTriangleMesh;
 	class PxTriangleMeshGeometry;
 }
+#endif
 
 #if WITH_CHAOS
 namespace Chaos
@@ -266,7 +268,7 @@ private:
 
 public:
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	/** Physics triangle mesh, created from cooked data in CreatePhysicsMeshes */
 	TArray<physx::PxTriangleMesh*> TriMeshes;
 #endif
@@ -293,7 +295,7 @@ public:
 	UPROPERTY()
 	FVector BuildScale3D;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	/** References the current async cook helper. Used to be able to abort a cook task */
 	FPhysXCookHelper* CurrentCookHelper;
 #endif

@@ -7,7 +7,7 @@
 
 UWheeledVehicleMovementComponent4W::UWheeledVehicleMovementComponent4W(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// grab default values from physx
 	PxVehicleDifferential4WData DefDifferentialSetup;
 	TEnumAsByte<EVehicleDifferential4W::Type> DiffType((uint8)DefDifferentialSetup.mType);
@@ -107,7 +107,7 @@ void UWheeledVehicleMovementComponent4W::PostEditChangeProperty(struct FProperty
 }
 #endif
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 static void GetVehicleDifferential4WSetup(const FVehicleDifferential4WData& Setup, PxVehicleDifferential4WData& PxSetup)
 {
@@ -158,7 +158,7 @@ float FVehicleEngineData::FindPeakTorque() const
 	return PeakTorque;
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 static void GetVehicleEngineSetup(const FVehicleEngineData& Setup, PxVehicleEngineData& PxSetup)
 {
 	PxSetup.mMOI = M2ToCm2(Setup.MOI);
@@ -339,7 +339,7 @@ void UWheeledVehicleMovementComponent4W::UpdateSimulation(float DeltaTime)
 
 void UWheeledVehicleMovementComponent4W::UpdateEngineSetup(const FVehicleEngineData& NewEngineSetup)
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (PVehicleDrive)
 	{
 		PxVehicleEngineData EngineData;
@@ -353,7 +353,7 @@ void UWheeledVehicleMovementComponent4W::UpdateEngineSetup(const FVehicleEngineD
 
 void UWheeledVehicleMovementComponent4W::UpdateDifferentialSetup(const FVehicleDifferential4WData& NewDifferentialSetup)
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (PVehicleDrive)
 	{
 		PxVehicleDifferential4WData DifferentialData;
@@ -367,7 +367,7 @@ void UWheeledVehicleMovementComponent4W::UpdateDifferentialSetup(const FVehicleD
 
 void UWheeledVehicleMovementComponent4W::UpdateTransmissionSetup(const FVehicleTransmissionData& NewTransmissionSetup)
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (PVehicleDrive)
 	{
 		PxVehicleGearsData GearData;
@@ -394,7 +394,7 @@ void BackwardsConvertCm2ToM2(float& val, float defaultValue)
 void UWheeledVehicleMovementComponent4W::Serialize(FArchive & Ar)
 {
 	Super::Serialize(Ar);
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_VEHICLES_UNIT_CHANGE)
 	{
 		PxVehicleEngineData DefEngineData;

@@ -10,7 +10,7 @@
 #include "PhysicsCore.h"
 #include "PhysicsPublicCore.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXPublicCore.h"
 #include "HAL/IConsoleManager.h"
 

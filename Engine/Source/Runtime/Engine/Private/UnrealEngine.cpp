@@ -129,6 +129,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "DynamicResolutionState.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 
 #include "Particles/Spawn/ParticleModuleSpawn.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
@@ -5350,11 +5351,16 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		int32		VertexCountCollision = 0;
 		if(Mesh->BodySetup)
 		{
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 			// Count PhysX trimesh mem usage
 			for (physx::PxTriangleMesh* TriMesh : Mesh->BodySetup->TriMeshes)
 			{
 				VertexCountCollision += TriMesh->getNbVertices();
+			}
+#elif WITH_CHAOS
+			for (auto& TriMesh : Mesh->BodySetup->ChaosTriMeshes)
+			{
+				VertexCountCollision += TriMesh->Particles().Size();
 			}
 #endif
 		}
@@ -5564,11 +5570,16 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		int32 VertexCountCollision = 0;
 		if (Mesh->BodySetup)
 		{
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 			// Count PhysX trimesh mem usage
 			for (physx::PxTriangleMesh* TriMesh : Mesh->BodySetup->TriMeshes)
 			{
 				VertexCountCollision += TriMesh->getNbVertices();
+			}
+#elif WITH_CHAOS
+			for (auto& TriMesh : Mesh->BodySetup->ChaosTriMeshes)
+			{
+				VertexCountCollision += TriMesh->Particles().Size();
 			}
 #endif
 		}

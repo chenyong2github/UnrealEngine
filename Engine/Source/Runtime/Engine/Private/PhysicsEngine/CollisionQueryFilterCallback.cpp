@@ -8,7 +8,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Collision.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXInterfaceWrapper.h"
 #endif
 
@@ -86,7 +86,7 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::CalcQueryHitType(const FCo
 	return ECollisionQueryHitType::None;
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const physx::PxShape& Shape, const physx::PxActor& Actor)
 {
 	//SCOPE_CYCLE_COUNTER(STAT_Collision_PreFilter);
@@ -251,7 +251,7 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FColli
 	}
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit)
 {
 	// Unused in non-sweeps
@@ -281,7 +281,7 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FColli
 	return PostFilterImp(FilterData, bIsOverlap);
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 PxQueryHitType::Enum FCollisionQueryFilterCallback::preFilter(const PxFilterData& filterData, const PxShape* shape, const PxRigidActor* actor, PxHitFlags& queryFlags)
 {

@@ -21,7 +21,7 @@ PxFilterData U2PFilterData(const FCollisionFilterData& FilterData)
 	return PxFilterData(FilterData.Word0, FilterData.Word1, FilterData.Word2, FilterData.Word3);
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 PxShapeFlags BuildPhysXShapeFlags(FBodyCollisionFlags BodyCollisionFlags, bool bPhysicsStatic, bool bIsTriangleMesh)
 {

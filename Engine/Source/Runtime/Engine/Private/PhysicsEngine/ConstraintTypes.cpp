@@ -11,7 +11,7 @@ extern TAutoConsoleVariable<float> CVarConstraintLinearStiffnessScale;
 extern TAutoConsoleVariable<float> CVarConstraintAngularDampingScale;
 extern TAutoConsoleVariable<float> CVarConstraintAngularStiffnessScale;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 enum class ESoftLimitTypeHelper
 {

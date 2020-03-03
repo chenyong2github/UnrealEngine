@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXInterfaceWrapperCore.h"
 #include "PhysXPublic.h"
 #include "Physics/PhysicsInterfaceUtils.h"

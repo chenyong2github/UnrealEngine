@@ -21,10 +21,10 @@
 #include "PlatformInfo.h"
 #include "DesktopPlatformModule.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "IPhysXCooking.h"
 #include "IPhysXCookingModule.h"
-#endif // WITH_PHYSX
+#endif // PHYSICS_INTERFACE_PHYSX
 
 DEFINE_LOG_CATEGORY_STATIC(LogTargetPlatformManager, Log, All);
 
@@ -557,7 +557,7 @@ public:
 		static bool bInitialized = false;
 		static TArray<const IPhysXCooking*> Results;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		if (!bInitialized || bForceCacheUpdate)
 		{
 			bInitialized = true;
@@ -584,14 +584,14 @@ public:
 				}
 			}
 		}
-#endif // WITH_PHYSX
+#endif // PHYSICS_INTERFACE_PHYSX
 
 		return Results;
 	}
 
 	virtual const IPhysXCooking* FindPhysXCooking(FName Name) override
 	{
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX 
 		const TArray<const IPhysXCooking*>& PhysXCooking = GetPhysXCooking();
 
 		for (int32 Index = 0; Index < PhysXCooking.Num(); Index++)
@@ -608,7 +608,7 @@ public:
 				}
 			}
 		}
-#endif // WITH_PHYSX
+#endif // PHYSICS_INTERFACE_PHYSX
 
 		return nullptr;
 	}

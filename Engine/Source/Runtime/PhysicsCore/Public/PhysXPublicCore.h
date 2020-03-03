@@ -9,7 +9,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXIncludes.h"
 #include "PhysicsInterfaceTypesCore.h"
 #include "CollisionShape.h"
