@@ -30,6 +30,8 @@ struct FConstraintBrokenDelegateData
 	int32 ConstraintIndex;
 };
 
+#endif // WITH_PHYSX
+
 class FPhysicsReplication;
 
 /** Interface for the creation of customized physics replication.*/
@@ -39,4 +41,3 @@ public:
 	virtual FPhysicsReplication* Create(FPhysScene* OwningPhysScene) = 0;
 	virtual void Destroy(FPhysicsReplication* PhysicsReplication) = 0;
 };
-#endif // WITH_PHYX

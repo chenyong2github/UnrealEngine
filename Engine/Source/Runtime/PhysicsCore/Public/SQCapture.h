@@ -88,7 +88,7 @@ struct PHYSICSCORE_API FSQCapture
 	TUniquePtr<Chaos::FImplicitObject> ChaosOwnerObject;	//should be private, do not access directly
 	const Chaos::FImplicitObject* ChaosGeometry;
 	TUniquePtr<Chaos::FImplicitObject> SerializableChaosGeometry;
-#if WITH_PHYSX
+#if WITH_CHAOS
 	//for now just use physx hit buffer
 	ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit> ChaosSweepBuffer;
 	TArray<ChaosInterface::FSweepHit> ChaosSweepTouches;
@@ -113,8 +113,10 @@ private:
 	TArray<uint8> GeomData;
 	TArray<uint8> HitData;
 
+#if WITH_PHYSX
 	void CreateChaosDataFromPhysX();
 	void CreateChaosFilterResults();
+#endif
 
 #if WITH_PHYSX
 

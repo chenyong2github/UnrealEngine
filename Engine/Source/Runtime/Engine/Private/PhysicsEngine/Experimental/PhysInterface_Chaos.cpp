@@ -39,13 +39,13 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
 #if WITH_PHYSX
 #include "geometry/PxConvexMesh.h"
 #include "geometry/PxTriangleMesh.h"
 #include "foundation/PxVec3.h"
 #include "extensions/PxMassProperties.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Containers/ArrayView.h"
 #endif
 
@@ -1739,18 +1739,16 @@ void FinishSceneStat()
 {
 }
 
-#if WITH_PHYSX
-
 bool CalculateMassPropertiesOfImplicitType(
 	Chaos::TMassProperties<float, 3>& OutMassProperties,
-	const Chaos::TRigidTransform<float, 3> & WorldTransform,
-	const Chaos::FImplicitObject* ImplicitObject, 
+	const Chaos::TRigidTransform<float, 3>& WorldTransform,
+	const Chaos::FImplicitObject* ImplicitObject,
 	float InDensityKGPerCM)
 {
 	// WIP
 	// @todo : Support center of mass offsets.
 	// @todo : Support Mass space alignment. 
-	
+
 	using namespace Chaos;
 
 	if (ImplicitObject)
@@ -1775,8 +1773,8 @@ bool CalculateMassPropertiesOfImplicitType(
 				OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
 				return false;
 			}
-		else*/ 
-		
+		else*/
+
 		//todo: Still need to handle scaled
 		Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
 			{
@@ -1790,6 +1788,53 @@ bool CalculateMassPropertiesOfImplicitType(
 	}
 	return false;
 }
+
+void FPhysInterface_Chaos::CalculateTMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
+{
+	float TotalMass = 0.f;
+	Chaos::FVec3 TotalCenterOfMass(0.f);
+	TArray< Chaos::TMassProperties<float, 3> > MassPropertiesList;
+	for (const FPhysicsShapeHandle& ShapeHandle : InShapes)
+	{
+		if (const Chaos::TPerShapeData<float, 3>* Shape = ShapeHandle.Shape)
+		{
+			if (const Chaos::FImplicitObject* ImplicitObject = Shape->Geometry.Get())
+			{
+				FTransform WorldTransform(ShapeHandle.ActorRef->R(), ShapeHandle.ActorRef->X());
+				Chaos::TMassProperties<float, 3> MassProperties;
+				if (CalculateMassPropertiesOfImplicitType(MassProperties, WorldTransform, ImplicitObject, InDensityKGPerCM))
+				{
+					MassPropertiesList.Add(MassProperties);
+					TotalMass += MassProperties.Mass;
+					TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
+				}
+			}
+		}
+	}
+
+	if (TotalMass > 0.f)
+	{
+		TotalCenterOfMass /= TotalMass;
+	}
+
+	Chaos::PMatrix<float, 3, 3> Tensor;
+	if (MassPropertiesList.Num())
+	{
+		Tensor = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
+	}
+	else
+	{
+		// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
+		Tensor = Chaos::PMatrix<float, 3, 3>(5.24e5, 5.24e5, 5.24e5);
+		TotalMass = 523.f;
+	}
+
+	OutProperties.InertiaTensor = Tensor;
+	OutProperties.Mass = TotalMass;
+	OutProperties.CenterOfMass = TotalCenterOfMass;
+}
+
+#if WITH_PHYSX
 
 void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(physx::PxMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
 {
