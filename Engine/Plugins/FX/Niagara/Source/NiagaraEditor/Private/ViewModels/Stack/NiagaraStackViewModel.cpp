@@ -351,15 +351,14 @@ void UNiagaraStackViewModel::GetPathForEntry(UNiagaraStackEntry* Entry, TArray<U
 
 void UNiagaraStackViewModel::OnSystemCompiled()
 {
-	RootEntry->RefreshChildren();
-	// when the entries are refreshed, make sure search results are still valid, the stack counts on them
-	OnSearchTextChanged(CurrentSearchText);
+	// Queue a refresh for the next tick because forcing a refresh now can cause entries to be finalized while they're still being used.
+	bRefreshPending = true;
 }
 
 void UNiagaraStackViewModel::OnEmitterCompiled()
 {
-	RootEntry->RefreshChildren();
-	OnSearchTextChanged(CurrentSearchText);
+	// Queue a refresh for the next tick because forcing a refresh now can cause entries to be finalized while they're still being used.
+	bRefreshPending = true;
 }
 
 void UNiagaraStackViewModel::EmitterParentRemoved()
