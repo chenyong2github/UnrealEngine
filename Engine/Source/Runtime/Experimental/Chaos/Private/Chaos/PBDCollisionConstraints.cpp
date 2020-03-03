@@ -212,6 +212,10 @@ namespace Chaos
 			}
 		}
 
+		// Swept constraint may drastically change particle position during Apply, other constraint's
+		// manifolds with particle may be invalidated, so we should update manifolds with this particle even on first apply iteration.
+		AddParticleAlwaysUpdateManifold(InConstraint.Particle[0]);
+
 		UpdateConstraintMaterialProperties(SweptPointConstraints[Idx]);
 	}
 
@@ -272,6 +276,7 @@ namespace Chaos
 		PointConstraints.Reset();
 		SweptPointConstraints.Reset();
 		IterativeConstraints.Reset();
+		ParticlesAlwaysUpdatingManifold.Reset();
 		Handles.Reset();
 #endif
 
@@ -457,29 +462,44 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
+	void TPBDCollisionConstraints<T, d>::AddParticleAlwaysUpdateManifold(const TGeometryParticleHandle<T, d>* Particle)
+	{
+		ParticlesAlwaysUpdatingManifold.Add(Particle);
+	}
+
+	template<typename T, int d>
+	bool TPBDCollisionConstraints<T, d>::ShouldParticleAlwaysUpdateManifold(const TGeometryParticleHandle<T, d>* Particle) const
+	{
+		return ParticlesAlwaysUpdatingManifold.Contains(Particle);
+	}
+
+	template<typename T, int d>
 	bool TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 
 		bool bNeedsAnotherIteration = false;
+		bool bAlwaysUpdateManifold = false;
 		if (MApplyPairIterations > 0)
 		{
 			const Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-			const Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration };
+			const Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration, &bAlwaysUpdateManifold };
 
 			for (FPointContactConstraint& Contact : PointConstraints)
 			{
 				Collisions::ApplySinglePoint(Contact, IterationParameters, ParticleParameters);
 			}
 
-			for (FSweptPointContactConstraint& Contact : SweptPointConstraints)
-			{
-				Collisions::Apply(Contact, IterationParameters, ParticleParameters);
-			}
-
 			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 			{
 				Collisions::ApplyMultiPoint(Contact, IterationParameters, ParticleParameters);
+			}
+
+			// Swept apply may significantly change particle position, invalidating other constraint's manifolds.
+			// We don't update manifolds on first apply iteration, so make sure we apply swept constraints last.
+			for (FSweptPointContactConstraint& Contact : SweptPointConstraints)
+			{
+				Collisions::Apply(Contact, IterationParameters, ParticleParameters);
 			}
 		}
 
@@ -541,9 +561,11 @@ namespace Chaos
 				FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 				check(ConstraintHandle != nullptr);
 
+				TVector<const TGeometryParticleHandle<T, d>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
+				bool bAlwaysUpdateManifold = ShouldParticleAlwaysUpdateManifold(ConstrainedParticles[0]) || ShouldParticleAlwaysUpdateManifold(ConstrainedParticles[1]);
 				bool bNeedsAnotherIteration = false;
 				Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration, &bAlwaysUpdateManifold };
 				Collisions::Apply(ConstraintHandle->GetContact(), IterationParameters, ParticleParameters);
 
 				if (bNeedsAnotherIteration)
