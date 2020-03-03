@@ -35,6 +35,9 @@ namespace UnrealBuildTool.Rules
 
 				var USDLibsDir = "";
 
+				// Always use the official version of IntelTBB
+				string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8/lib/";
+
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=1");
@@ -66,6 +69,7 @@ namespace UnrealBuildTool.Rules
 					{
 						PublicAdditionalLibraries.Add(Path.Combine(USDLibsDir, UsdLib + ".lib"));
 					}
+					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Win64/vc14/tbb.lib"));
 
 					PublicIncludePaths.Add(PythonSourceTPSDir + "/Win64/include");
 					PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python/" + Target.Platform.ToString() + "/libs"));
@@ -89,8 +93,6 @@ namespace UnrealBuildTool.Rules
 							"libplug.so",
 							"libsdf.so",
 							"libsdr.so",
-							"libtbb.so",
-							"libtbbmalloc.so",
 							"libtf.so",
 							"libtrace.so",
 							"libusd.so",
@@ -103,6 +105,9 @@ namespace UnrealBuildTool.Rules
 							"libvt.so",
 							"libwork.so",
 					};
+
+					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so"));
+					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbbmalloc.so"));
 
 					foreach (string UsdLib in USDLibs)
 					{
