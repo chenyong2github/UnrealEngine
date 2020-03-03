@@ -472,8 +472,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 		const float Interp = bInterpolated::Value ? InterpParam.GetAndAdvance() : 1.0f;
 
 		// Determine bone or socket
-		int32 RawBone = BoneParam.GetAndAdvance();
-		int32 Bone = FMath::Clamp(RawBone, 0, BoneAndSocketCount - 1);
+		const int32 RawBone = BoneParam.GetAndAdvance();
+		const int32 Bone = FMath::Clamp(RawBone, 0, BoneAndSocketCount - 1);
 		const bool bIsSocket = Bone >= BoneCount;
 		const int32 Socket = Bone - BoneCount;
 
