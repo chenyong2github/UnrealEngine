@@ -477,7 +477,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 		CookOnTheFlyServer->TickRecompileShaderRequests();
 		GShaderCompilingManager->ProcessAsyncResults(true, false);
 
-		while ( (CookOnTheFlyServer->HasCookRequests() == false) && !IsEngineExitRequested())
+		while ( (CookOnTheFlyServer->HasRemainingWork() == false) && !IsEngineExitRequested())
 		{
 			CookOnTheFlyServer->TickRecompileShaderRequests();
 
@@ -984,68 +984,28 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 				if (bShouldGC )
 				{
-					bool bDidGC = true;
+					bShouldGC = false;
 
-					if ( bPartialGC )
-					{
-						// markup packages 
-						if ( PackagesPerGC < PackagesPerPartialGC )
-						{
-							bDidGC = false;
-						}
-						else
-						{
-							COOK_STAT(FScopedDurationTimer GCTimer(DetailedCookStats::TickLoopGCTimeSec));
-							UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection... partial gc"));
-
-							CookOnTheFlyServer->MarkGCPackagesToKeepForCooker();
+					int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
+					int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
+					UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC? TEXT(" partial gc") : TEXT("")), *GCReason);
+					GCReason = FString();
 
 
-							DumpMemStats();
+					DumpMemStats();
 
-							int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-							int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayNum();
-							CollectGarbage(RF_KeepForCooker, true);
+					COOK_STAT(FScopedDurationTimer GCTimer(DetailedCookStats::TickLoopGCTimeSec));
+					CollectGarbage(RF_NoFlags);
 
-							int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-							int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayNum();
-							UE_LOG(LogCookCommandlet, Display, TEXT("Partial GC before %d available %d after %d available %d"), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
+					int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
+					int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
+					UE_LOG(LogCookCommandlet, Display, TEXT("%s GC before %d available %d after %d available %d"), (bPartialGC ? TEXT("Partial") : TEXT("Full")), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
 
-							DumpMemStats();
-						}
-				
-					}
-					else
-					{
-					
-						bShouldGC = false;
+					DumpMemStats();
 
-						int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-						int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-
-						UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection... (%s)"), *GCReason);
-						GCReason = FString();
-
-
-						DumpMemStats();
-
-						COOK_STAT(FScopedDurationTimer GCTimer(DetailedCookStats::TickLoopGCTimeSec));
-						CollectGarbage(RF_NoFlags);
-
-						int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-						int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-						UE_LOG(LogCookCommandlet, Display, TEXT("Full GC before %d available %d after %d available %d"), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
-
-						DumpMemStats();
-					}
-
-					if ( bDidGC )
-					{
-						NonMapPackageCountSinceLastGC = 0;
-					}
+					NonMapPackageCountSinceLastGC = 0;
 				}
-				
-				
+
 				{
 					COOK_STAT(FScopedDurationTimer RecompileTimer(DetailedCookStats::TickLoopRecompileShaderRequestsTimeSec));
 					CookOnTheFlyServer->TickRecompileShaderRequests();

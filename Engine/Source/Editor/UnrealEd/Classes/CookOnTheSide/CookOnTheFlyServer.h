@@ -20,14 +20,13 @@
 
 class FAssetRegistryGenerator;
 class FAsyncIODelete;
-class ITargetPlatform;
-struct FPropertyChangedEvent;
-class IPlugin;
-class IAssetRegistry;
-
 struct FPackageNameCache;
-struct FPackageTracker;
+struct FPropertyChangedEvent;
+class FReferenceCollector;
 class FSavePackageContext;
+class ITargetPlatform;
+class IAssetRegistry;
+class IPlugin;
 
 enum class ECookInitializationFlags
 {
@@ -102,6 +101,21 @@ ENUM_CLASS_FLAGS(ECookTickFlags);
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCook, Log, All);
 
+namespace UE
+{
+namespace Cook
+{
+	struct FCookerTimer;
+	class FExternalRequests;
+	struct FPackageData;
+	struct FPackageDatas;
+	struct FPackageTracker;
+	struct FPendingCookedPlatformData;
+	struct FPlatformManager;
+	struct FTickStackData;
+}
+}
+
 UCLASS()
 class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorObject, public FExec
 {
@@ -112,8 +126,6 @@ class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorO
 
 public:
 	struct FCookByTheBookOptions;
-	struct FPlatformData;
-	struct FPlatformManager;
 
 private:
 	/** Current cook mode the cook on the fly server is running in */
@@ -122,7 +134,7 @@ private:
 	FString OutputDirectoryOverride;
 
 	FCookByTheBookOptions* CookByTheBookOptions = nullptr;
-	TUniquePtr<FPlatformManager> PlatformManager;
+	TUniquePtr<UE::Cook::FPlatformManager> PlatformManager;
 	FCriticalSection RequestLock;
 
 	//////////////////////////////////////////////////////////////////////////
@@ -180,35 +192,7 @@ private:
 
 	//////////////////////////////////////////////////////////////////////////
 
-	// data about the current packages being processed
-	// stores temporal state like finished cache as an optimization so we don't need to 
-	struct FReentryData
-	{
-		FName FileName;
-		bool bBeginCacheFinished;
-		int BeginCacheCount;
-		bool bFinishedCacheFinished;
-		bool bIsValid;
-		TArray<UObject*> CachedObjectsInOuter;
-		TMap<FName, int32> BeginCacheCallCount;
-
-		FReentryData() : FileName(NAME_None), bBeginCacheFinished(false), BeginCacheCount(0), bFinishedCacheFinished(false), bIsValid(false)
-		{ }
-
-		void Reset( const FName& InFilename )
-		{
-			FileName = InFilename;
-			bBeginCacheFinished = false;
-			BeginCacheCount = 0;
-			bIsValid = false;
-		}
-	};
-
-	mutable TMap<FName, FReentryData> PackageReentryData;
-
-	FReentryData& GetReentryData(const UPackage* Package) const;
-
-	int32 LastCookRequestsCount = 0;
+	int32 LastCookPendingCount = 0;
 	int32 LastCookedPackagesCount = 0;
 	double LastProgressDisplayTime = 0;
 
@@ -261,15 +245,62 @@ private:
 	/* Internal helper for AddCookOnTheFlyPlatform.  Initializing Platforms must be done on the tickloop thread; Platform data is read only on other threads */
 	void AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform* TargetPlatform);
 
-	/* Constructs the PackageNameCache and PackageTracker */
-	void ConstructPackageTracker();
-
 	/* Update polled fields used by CookOnTheFly's network request handlers */
 	void TickNetwork();
+
+	/** Execute operations that need to be done after each Scheduler task, such as checking for new external requests. */
+	void TickCookStatus(UE::Cook::FTickStackData& StackData);
+	enum class ECookAction
+	{
+		Done,		// The cook is complete; no requests remain in any non-idle state
+		Request,    // Process the RequestQueue
+		Save,       // Process the SaveQueue
+		YieldTick,  // Progress is blocked by an async result. Temporarily exit TickCookOnTheSide.
+		Cancel,		// Cancel the current CookByTheBook
+	};
+	/** Inspect all tasks the scheduler could do and return which one it should do. */
+	ECookAction DecideNextCookAction(UE::Cook::FTickStackData& StackData);
+	/** Execute any existing external callbacks and push any existing external cook requests into the RequestQueue. */
+	void PumpExternalRequests(const UE::Cook::FCookerTimer& CookerTimer);
+	/** Load the next package in the RequestQueue and push it on to its next state. */
+	void PumpRequestQueue(UE::Cook::FTickStackData& StackData);
+	/** Try to save all packages in the SaveQueue until blocked or out of time. */
+	void PumpSaveQueue(UE::Cook::FTickStackData& StackData);
+	/** Load the given package and push it on to its next state. */
+	void ProcessLoadQueuePackage(UE::Cook::FPackageData& PackageData, uint32& ResultFlags);
+	/** Mark that the given PackageData failed to load and return it to idle. */
+	void RejectPackageToLoad(UE::Cook::FPackageData& PackageData, const TCHAR* Reason);
+	/**
+	 * Inspect the given package from the PackageTracker and add it to the SaveQueue if the cooker should save it.
+	 *
+	 * @param bUpdatePlatforms If true, then FilterLoadedPackage is being called on all existing packages in order a change to the package filter.  Any InProgress PackageDatas will be demoted to request to update the requested platforms.
+	 */
+	void FilterLoadedPackage(UPackage* Package, bool bUpdatePlatforms);
+	/** Check whether the package filter has change, and if so call FilterLoadedPackage again on each existing package. */
+	void UpdatePackageFilter();
+
+	/**
+	 * Remove all request data about the given platform from any data in the CookOnTheFlyServer.
+	 * Called in response to a platform being removed from the list of session platforms e.g. because it has not been recently used by CookOnTheFly.
+	 * Does not modify Cooked platforms.
+	 */
+	void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform);
+
+	/** Entry/Exit gates for PackageData states, used to enforce state contracts and free unneeded memory. */
+	void EnterIdle(UE::Cook::FPackageData& PackageData);
+	void ExitIdle(UE::Cook::FPackageData& PackageData);
+	void EnterInProgress(UE::Cook::FPackageData& PackageData);
+	void ExitInProgress(UE::Cook::FPackageData& PackageData);
+	void EnterRequest(UE::Cook::FPackageData& PackageData);
+	void ExitRequest(UE::Cook::FPackageData& PackageData);
+	void EnterSave(UE::Cook::FPackageData& PackageData);
+	void ExitSave(UE::Cook::FPackageData& PackageData);
+
 public:
 
 	enum ECookOnTheSideResult
 	{
+		COSR_None					= 0x00000000,
 		COSR_CookedMap				= 0x00000001,
 		COSR_CookedPackage			= 0x00000002,
 		COSR_ErrorLoadingPackage	= 0x00000004,
@@ -368,14 +399,14 @@ public:
 	void CancelCookByTheBook();
 
 	bool IsCookByTheBookRunning() const;
+	/** Report whether the CookOnTheFlyServer is in a cook session, either CookByTheBook or CookOnTheFly. Used to restrict operations when cooking and reduce cputime when not cooking. */
+	bool IsInSession() const;
 
 	/**
 	* Get any packages which are in memory, these were probably required to be loaded because of the current package we are cooking, so we should probably cook them also
 	*/
+	UE_DEPRECATED(4.26, "Unsolicited packages are now added directly to the savequeue and are not marked as unsolicited")
 	TArray<UPackage*> GetUnsolicitedPackages(const TArray<const ITargetPlatform*>& TargetPlatforms) const;
-
-	UE_DEPRECATED(4.25, "Use the version that takes TArray<const ITargetPlatform*> instead")
-	TArray<UPackage*> GetUnsolicitedPackages(const TArray<FName>& TargetPlatformNames) const;
 
 	/**
 	* PostLoadPackageFixup
@@ -396,6 +427,9 @@ public:
 	* Clear all the previously cooked data all cook requests from now on will be considered recook requests
 	*/
 	void ClearAllCookedData();
+
+	/** Demote all PackageDatas in any queue back to Idle, and eliminate any pending requests. Used when canceling a cook. */
+	void CancelAllQueues();
 
 
 	/**
@@ -445,7 +479,13 @@ public:
 
 	bool HasRecompileShaderRequests() const;
 
-	bool HasCookRequests() const;
+	UE_DEPRECATED(4.26, "Use HasRemainingWork instead")
+	bool HasCookRequests() const
+	{
+		return HasRemainingWork();
+	}
+	/** Return whether TickCookOnTheSide needs to take any action for the current session. If not, the session is done. Used for external managers of the cooker to know when to tick it. */
+	bool HasRemainingWork() const;
 	void WaitForRequests(int TimeoutMs);
 
 	uint32 NumConnections() const;
@@ -498,21 +538,24 @@ public:
 	uint64 GetMaxMemoryAllowance() const;
 
 	/** Mark package as keep around for the cooker (don't GC) */
-	void MarkGCPackagesToKeepForCooker();
+	UE_DEPRECATED(4.25, "UCookOnTheFlyServer now uses FGCObject to interact with garbage collection")
+	void MarkGCPackagesToKeepForCooker()
+	{
+	}
 
 	bool HasExceededMaxMemory() const;
 
 	/**
 	* RequestPackage to be cooked
 	*
-	* @param StandardPackageFName name of the package in standard format as returned by FPaths::MakeStandardFilename
+	* @param StandardFileName FileName of the package in standard format as returned by FPaths::MakeStandardFilename
 	* @param TargetPlatforms The TargetPlatforms we want this package cooked for
 	* @param bForceFrontOfQueue should we put this package in the front of the cook queue (next to be processed) or at the end
 	*/
-	bool RequestPackage(const FName& StandardPackageFName, const TArray<const ITargetPlatform*>& TargetPlatforms, const bool bForceFrontOfQueue);
+	bool RequestPackage(const FName& StandardFileName, const TArrayView<const ITargetPlatform* const>& TargetPlatforms, const bool bForceFrontOfQueue);
 
 	UE_DEPRECATED(4.25, "Use Version that takes TArray<const ITargetPlatform*> instead")
-	bool RequestPackage(const FName& StandardPackageFName, const TArray<FName>& TargetPlatformNames, const bool bForceFrontOfQueue);
+	bool RequestPackage(const FName& StandardFileName, const TArrayView<const FName>& TargetPlatformNames, const bool bForceFrontOfQueue);
 
 	/**
 	* RequestPackage to be cooked
@@ -537,7 +580,10 @@ public:
 	* Marks a package as dirty for cook
 	* causes package to be recooked on next request (and all dependent packages which are currently cooked)
 	*/
-	void MarkPackageDirtyForCooker( UPackage *Package );
+	void MarkPackageDirtyForCooker( UPackage *Package, bool bAllowInSession = false );
+
+	/** Helper function for MarkPackageDirtyForCooker. Executes the MarkPackageDirtyForCooker operations that are only safe to execute from the scheduler's designated point for handling external requests. */
+	void MarkPackageDirtyForCookerFromSchedulerThread(const FName& PackageName);
 
 	/**
 	* MaybeMarkPackageAsAlreadyLoaded
@@ -552,6 +598,8 @@ public:
 	* Callbacks from UObject globals
 	*/
 	void PreGarbageCollect();
+	void CookerAddReferencedObjects(FReferenceCollector& Ar);
+	void PostGarbageCollect();
 
 private:
 
@@ -674,20 +722,6 @@ private:
 	// general functions
 
 	/**
-	 * Tries to save all the UPackages in the PackagesToSave list
-	 *  uses the timer to time slice, any packages not saved are requeued in the CookRequests list
-	 *  internal function should not be used externally Call Tick / RequestPackage to initiate
-	 * 
-	 * @param PackageToSave main cooked package to save
-	 * @param InTargetPlatforms list of target platforms names that we want to save this package for and cache UObjects for
-	 * @param Timer FCookerTimer struct which defines the timeslicing behavior 
-	 * @param FirstUnsolicitedPackage first package which was not actually requested, unsolicited packages are prioritized differently, they are saved the same way
-	 * @param Result (in+out) used to modify the result of the operation and add any relevant flags
-	 * @return returns true if and only if we saved the requested package
-	 */
-	bool SaveCookedPackages(UPackage* PackageToSave, const TArray<const ITargetPlatform*>& InTargetPlatforms, struct FCookerTimer& Timer, uint32& CookedPackageCount, uint32& Result);
-
-	/**
 	 * Attempts to update the metadata for a package in an asset registry generator
 	 *
 	 * @param Generator The asset registry generator to update
@@ -754,16 +788,7 @@ private:
 	void TermSandbox();
 
 	/**
-	* GetDependencies
-	* 
-	* @param Packages List of packages to use as the root set for dependency checking
-	* @param Found return value, all objects which package is dependent on
-	*/
-	void GetDependencies( const TSet<UPackage*>& Packages, TSet<UObject*>& Found);
-
-
-	/**
-	* GetDependencies
+	* GetDependentPackages
 	* get package dependencies according to the asset registry
 	* 
 	* @param Packages List of packages to use as the root set for dependency checking
@@ -772,7 +797,7 @@ private:
 	void GetDependentPackages( const TSet<UPackage*>& Packages, TSet<FName>& Found);
 
 	/**
-	* GetDependencies
+	* GetDependentPackages
 	* get package dependencies according to the asset registry
 	*
 	* @param Root set of packages to use when looking for dependencies
@@ -802,21 +827,31 @@ private:
 	/**
 	 * Calls BeginCacheForCookedPlatformData on all UObjects in the package
 	 *
-	 * @param Package the package used to gather all uobjects from
-	 * @param TargetPlatforms target platforms to cache for
+	 * @param PackageData the PackageData used to gather all uobjects from
 	 * @return false if time slice was reached, true if all objects have had BeginCacheForCookedPlatformData called
 	 */
-	bool BeginPackageCacheForCookedPlatformData(UPackage* Package, const TArrayView<const ITargetPlatform* const>& TargetPlatforms, struct FCookerTimer& Timer) const;
+	bool BeginPackageCacheForCookedPlatformData(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
 	
 	/**
 	 * Returns true when all objects in package have all their cooked platform data loaded
 	 *	confirms that BeginCacheForCookedPlatformData is called and will return true after all objects return IsCachedCookedPlatformDataLoaded true
 	 *
-	 * @param Package the package used to gather all uobjects from
-	 * @param TargetPlatforms target platforms to cache for
+	 * @param PackageData the PackageData used to gather all uobjects from
 	 * @return false if time slice was reached, true if all return true for IsCachedCookedPlatformDataLoaded 
 	 */
-	bool FinishPackageCacheForCookedPlatformData(UPackage* Package, const TArrayView<const ITargetPlatform* const>& TargetPlatforms, struct FCookerTimer& Timer) const;
+	bool FinishPackageCacheForCookedPlatformData(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
+
+	/**
+	 * Frees all the memory used to call BeginCacheForCookedPlatformData on all the objects in PackageData.
+	 * If the calls were incomplete because the PackageData's save was cancelled, handles canceling them and leaving any required CancelManagers in GetPendingCookedPlatformDatas
+	 */
+	void ReleaseCookedPlatformData(UE::Cook::FPackageData& PackageData);
+
+	/**
+	 * Poll the GetPendingCookedPlatformDatas and release their resources when they are complete.
+	 * This is done inside of PumpSaveQueue, but is also required after a cancelled cook so that references to the pending objects will be eventually dropped.
+	 */
+	void TickCancels();
 
 	/**
 	* GetCurrentIniVersionStrings gets the current ini version strings for compare against previous cook
@@ -919,14 +954,14 @@ private:
 	/**
 	*	Cook (save) the given package
 	*
-	*	@param	Package				The package to cook/save
+	*	@param	PackageData			The PackageData to cook/save
 	*	@param	SaveFlags			The flags to pass to the SavePackage function
 	*	@param	bOutWasUpToDate		Upon return, if true then the cooked package was cached (up to date)
 	*	@param  TargetPlatforms		Only cook for target platforms which are included in this array
 	*
 	*	@return	ESavePackageResult::Success if packages was cooked
 	*/
-	void SaveCookedPackage(UPackage* Package, uint32 SaveFlags, const TArrayView<const ITargetPlatform* const>& TargetPlatforms, TArray<FSavePackageResultStruct>& SavePackageResults);
+	void SaveCookedPackage(UE::Cook::FPackageData& PackageData, uint32 SaveFlags, const TArrayView<const ITargetPlatform* const>& TargetPlatforms, TArray<FSavePackageResultStruct>& SavePackageResults);
 
 
 	/**
@@ -968,20 +1003,36 @@ private:
 	/** Generates long package names for all files to be cooked */
 	void GenerateLongPackageNames(TArray<FName>& FilesInPath);
 
-
-	void GetDependencies( UPackage* Package, TArray<UPackage*> Dependencies );
+	/** Return the PackageNameCache that is caching FileNames on disk for this CookOnTheFlyServer. */
+	const FPackageNameCache& GetPackageNameCache() const;
 
 	uint32 FullLoadAndSave(uint32& CookedPackageCount);
 
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
 
-	FPackageTracker*	PackageTracker;
-	FPackageNameCache*	PackageNameCache;
+	/** This is set to true when the decision about which packages we need to cook changes because e.g. a platform was added to the sessionplatforms. */
+	bool bPackageFilterDirty = false;
+	/** This is set to true when PumpSaveQueue has detected it is blocked and therefore the CookOnTheFlyServer should do work elsewhere. */
+	bool bIsYieldingSave = false;
+	/** Tracks whether we need to do once-per-process initializations for cookbythebook. */
+	bool bHasRunCookByTheBookBefore = false;
+
+	// These helper structs are all TUniquePtr rather than inline members so that we can keep their headers private.  See class header comments for their purpose.
+	TUniquePtr<UE::Cook::FPackageTracker> PackageTracker;
+	TUniquePtr<UE::Cook::FPackageDatas> PackageDatas;
+	TUniquePtr<UE::Cook::FExternalRequests> ExternalRequests;
 
 	TArray<FSavePackageContext*> SavePackageContexts;
+	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */
+	TArray<UObject*> GCKeepObjects;
+	TArray<FWeakObjectPtr> SavingPackageCachedObjectsInOuter;
+	UE::Cook::FPackageData* SavingPackageData = nullptr;
 
 	// temporary -- should eliminate the need for this. Only required right now because FullLoadAndSave 
 	// accesses maps directly
 	friend FPackageNameCache;
+	friend UE::Cook::FPackageData;
+	friend UE::Cook::FPendingCookedPlatformData;
+	friend UE::Cook::FPlatformManager;
 };
