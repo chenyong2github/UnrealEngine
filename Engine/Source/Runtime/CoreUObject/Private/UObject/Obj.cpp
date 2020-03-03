@@ -86,6 +86,10 @@ static UPackage*			GObjTransientPkg								= NULL;
 	static TArray<FString>			DebugSpikeMarkNames;
 #endif
 
+#if WITH_EDITOR
+	UObject::FAssetRegistryTag::FOnGetObjectAssetRegistryTags UObject::FAssetRegistryTag::OnGetExtraObjectTags;
+#endif // WITH_EDITOR
+
 UObject::UObject( EStaticConstructor, EObjectFlags InFlags )
 : UObjectBaseUtility(InFlags | (!(InFlags & RF_Dynamic) ? (RF_MarkAsNative | RF_MarkAsRootSet) : RF_NoFlags))
 {
@@ -1815,6 +1819,9 @@ void UObject::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	FAssetRegistryTag::GetAssetRegistryTagsFromSearchableProperties(this, OutTags);
 
 #if WITH_EDITOR
+	// Notify external sources that we need tags.
+	FAssetRegistryTag::OnGetExtraObjectTags.Broadcast(this, OutTags);
+
 	// Check if there's a UMetaData for this object that has tags that are requested in the settings to be transferred to the Asset Registry
 	const TSet<FName>& MetaDataTagsForAR = GetMetaDataTagsForAssetRegistry();
 	if (MetaDataTagsForAR.Num() > 0)
