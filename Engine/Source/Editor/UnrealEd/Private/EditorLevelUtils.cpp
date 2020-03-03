@@ -666,20 +666,17 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 	if (bNewWorldSaved)
 	{
 		NewStreamingLevel = AddLevelToWorld(WorldToAddLevelTo, *NewPackageName, LevelStreamingClass);
-		if (NewStreamingLevel != nullptr)
+		NewLevel = NewStreamingLevel->GetLoadedLevel();
+		// If we are moving the selected actors to the new level move them now
+		if (bMoveSelectedActorsIntoNewLevel)
 		{
-			NewLevel = NewStreamingLevel->GetLoadedLevel();
-			// If we are moving the selected actors to the new level move them now
-			if (bMoveSelectedActorsIntoNewLevel)
-			{
-				MoveSelectedActorsToLevel(NewStreamingLevel);
-			}
+			MoveSelectedActorsToLevel(NewStreamingLevel);
+		}
 
-			// Finally make the new level the current one
-			if (WorldToAddLevelTo->SetCurrentLevel(NewLevel))
-			{
-				FEditorDelegates::NewCurrentLevel.Broadcast();
-			}
+		// Finally make the new level the current one
+		if (WorldToAddLevelTo->SetCurrentLevel(NewLevel))
+		{
+			FEditorDelegates::NewCurrentLevel.Broadcast();
 		}
 	}
 
