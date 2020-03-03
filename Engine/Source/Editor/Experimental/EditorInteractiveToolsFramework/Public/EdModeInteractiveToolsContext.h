@@ -98,6 +98,8 @@ protected:
 	FDelegateHandle PreSaveWorldDelegateHandle;
 	// called when a map is changed
 	FDelegateHandle WorldTearDownDelegateHandle;
+	// called when viewport clients change
+	FDelegateHandle ViewportClientListChangedHandle;
 
 	// EdMode implementation of InteractiveToolFramework APIs - see ToolContextInterfaces.h
 	IToolsContextQueriesAPI* QueriesAPI;
@@ -120,7 +122,6 @@ protected:
 	// editor UI state that we set before starting tool and when exiting tool
 	// Currently disabling anti-aliasing during active Tools because it causes PDI flickering
 	bool bHaveSavedEditorState = false;
-	FLevelEditorViewportClient* SavedViewportClient;
 	void SaveEditorStateAndSetForTool();
 	void RestoreEditorState();
 
