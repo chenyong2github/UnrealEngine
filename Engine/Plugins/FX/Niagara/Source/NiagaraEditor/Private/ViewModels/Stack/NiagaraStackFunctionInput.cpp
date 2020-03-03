@@ -1478,67 +1478,46 @@ bool UNiagaraStackFunctionInput::SupportsRename() const
 void UNiagaraStackFunctionInput::OnRenamed(FText NewNameText)
 {
 	FName NewName(*NewNameText.ToString());
-	if (OwningAssignmentNode.IsValid() && InputParameterHandlePath.Num() == 1 && InputParameterHandle.GetName() != NewName)
+	if (InputParameterHandle.GetName() != NewName && OwningAssignmentNode.IsValid())
 	{
+		bool bIsCurrentlyExpanded = GetStackEditorData().GetStackEntryIsExpanded(FNiagaraStackGraphUtilities::GenerateStackModuleEditorDataKey(*OwningAssignmentNode.Get()), false);
+
 		FScopedTransaction ScopedTransaction(LOCTEXT("RenameInput", "Rename this function's input."));
-
-		FInputValues OldInputValues = InputValues;
-		UEdGraphPin* OriginalOverridePin = GetOverridePin();
-
-		// We'll be making changes, so go ahead and keep track of the override pointer if it exists.
-		if (OriginalOverridePin != nullptr)
+		if (ensureMsgf(OwningAssignmentNode->RenameAssignmentTarget(InputParameterHandle.GetName(), NewName), TEXT("Failed to rename assignment node input.")))
 		{
-			OriginalOverridePin->GetOwningNode()->Modify();
-		}
-
-		bool bIsCurrentlyExpanded = GetStackEditorData().GetStackEntryIsExpanded(FNiagaraStackGraphUtilities::GenerateStackModuleEditorDataKey(*OwningAssignmentNode), false);
-
-
-		int32 FoundIdx = OwningAssignmentNode->FindAssignmentTarget(InputParameterHandle.GetName());
-		check(FoundIdx != INDEX_NONE);
-		FNiagaraParameterHandle TargetHandle(OwningAssignmentNode->GetAssignmentTargetName(FoundIdx));
-
-		OwningAssignmentNode->Modify();
-		if (OwningAssignmentNode->FunctionScript != nullptr)
-		{
-			OwningAssignmentNode->FunctionScript->Modify();
-			OwningAssignmentNode->FunctionScript->GetSource()->Modify();
-		}
-		if (OwningAssignmentNode->SetAssignmentTargetName(FoundIdx, NewName))
-		{
-			OwningAssignmentNode->RefreshFromExternalChanges();
-		}
-
-		InputParameterHandle = FNiagaraParameterHandle(InputParameterHandle.GetNamespace(), NewName);
-		InputParameterHandlePath.Empty(1);
-		InputParameterHandlePath.Add(InputParameterHandle);
-		AliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(InputParameterHandle, OwningAssignmentNode.Get());
-		DisplayName = FText::FromName(InputParameterHandle.GetName());
-
-		if (IsRapidIterationCandidate())
-		{
-			FNiagaraVariable OldRapidIterationParameter = RapidIterationParameter;
-			RapidIterationParameter = CreateRapidIterationVariable(AliasedInputParameterHandle.GetParameterHandleString());
-
-			for (TWeakObjectPtr<UNiagaraScript> Script : AffectedScripts)
+			// Fixing up the stack graph and rapid iteration parameters must happen first so that when the stack is refreshed the UI is correct.
+			FNiagaraParameterHandle NewInputParameterHandle = FNiagaraParameterHandle(InputParameterHandle.GetNamespace(), NewName);
+			FNiagaraParameterHandle NewAliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(NewInputParameterHandle, OwningAssignmentNode.Get());
+			UEdGraphPin* OverridePin = GetOverridePin();
+			if (OverridePin != nullptr)
 			{
-				Script->Modify();
-				Script->RapidIterationParameters.RenameParameter(OldRapidIterationParameter, *RapidIterationParameter.GetName().ToString());
+				// If there is an override pin then the only thing that needs to happen is that it's name needs to be updated so that the value it
+				// holds or is linked to stays intact.
+				OverridePin->Modify();
+				OverridePin->PinName = NewAliasedInputParameterHandle.GetParameterHandleString();
+			}
+			else if (IsRapidIterationCandidate())
+			{
+				// Otherwise if this is a valid rapid iteration parameter the values in the affected scripts need to be updated.
+				FNiagaraVariable NewRapidIterationParameter = CreateRapidIterationVariable(NewAliasedInputParameterHandle.GetParameterHandleString());
+				for (TWeakObjectPtr<UNiagaraScript> AffectedScript : AffectedScripts)
+				{
+					if (AffectedScript.IsValid())
+					{
+						AffectedScript->Modify();
+						AffectedScript->RapidIterationParameters.RenameParameter(RapidIterationParameter, *NewRapidIterationParameter.GetName().ToString());
+					}
+				}
 			}
 
-			UE_LOG(LogNiagaraEditor, Log, TEXT("Renaming %s to %s"), *OldRapidIterationParameter.GetName().ToString(), *RapidIterationParameter.GetName().ToString());
-		}
+			// Restore the expanded state with the new editor data key.
+			FString NewStackEditorDataKey = FNiagaraStackGraphUtilities::GenerateStackFunctionInputEditorDataKey(*OwningAssignmentNode.Get(), NewInputParameterHandle);
+			GetStackEditorData().SetStackEntryIsExpanded(NewStackEditorDataKey, bIsCurrentlyExpanded);
 
-		// Go ahead and have the override pin point to the new name instead of the old name..
-		if (OriginalOverridePin != nullptr)
-		{
-			OriginalOverridePin->PinName = AliasedInputParameterHandle.GetParameterHandleString();
+			// This refresh call must come last because it will finalize this input entry which would cause earlier fixup to fail.
+			OwningAssignmentNode->RefreshFromExternalChanges();
+			ensureMsgf(IsFinalized(), TEXT("Input not finalized when renamed."));
 		}
-		
-		StackEditorDataKey = FNiagaraStackGraphUtilities::GenerateStackFunctionInputEditorDataKey(*OwningFunctionCallNode.Get(), InputParameterHandle);
-		GetStackEditorData().SetStackEntryIsExpanded(FNiagaraStackGraphUtilities::GenerateStackModuleEditorDataKey(*OwningAssignmentNode), bIsCurrentlyExpanded);
-
-		CastChecked<UNiagaraGraph>(OwningAssignmentNode->GetGraph())->NotifyGraphNeedsRecompile();
 	}
 }
 
@@ -1925,10 +1904,14 @@ void UNiagaraStackFunctionInput::GetDefaultLocalValueFromDefaultPin(UEdGraphPin*
 	InInputValues.Mode = EValueMode::Local;
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	FNiagaraVariable LocalValueVariable = NiagaraSchema->PinToNiagaraVariable(DefaultPin);
+	InInputValues.LocalStruct = MakeShared<FStructOnScope>(InputType.GetStruct());
 	if (LocalValueVariable.IsDataAllocated())
 	{
-		InInputValues.LocalStruct = MakeShared<FStructOnScope>(InputType.GetStruct());
 		FMemory::Memcpy(InInputValues.LocalStruct->GetStructMemory(), LocalValueVariable.GetData(), InputType.GetSize());
+	}
+	else
+	{
+		InputType.GetStruct()->InitializeStruct(InInputValues.LocalStruct->GetStructMemory());
 	}
 }
 
