@@ -216,35 +216,6 @@ FReply SDataprepActionBlock::OnMouseButtonDown(const FGeometry& MyGeometry, cons
 	}
 #endif
 
-	// Take ownership of the mouse if right mouse button clicked to display contextual menu
-	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
-	{
-		return FReply::Handled();
-	}
-
-	return FReply::Unhandled();
-}
-
-FReply SDataprepActionBlock::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
-	{
-		FMenuBuilder MenuBuilder( true, nullptr );
-		PopulateMenuBuilder( MenuBuilder );
-
-		FWidgetPath WidgetPath = MouseEvent.GetEventPath() ? *MouseEvent.GetEventPath() : FWidgetPath();
-		FSlateApplication::Get().PushMenu(
-			AsShared(),
-			WidgetPath,
-			MenuBuilder.MakeWidget(),
-			MouseEvent.GetScreenSpacePosition(),
-			FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
-		);
-
-		// Release mouse capture
-		return FReply::Handled().ReleaseMouseCapture();
-	}
-
 	return FReply::Unhandled();
 }
 

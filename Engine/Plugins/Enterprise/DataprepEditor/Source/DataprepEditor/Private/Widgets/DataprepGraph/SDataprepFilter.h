@@ -13,17 +13,17 @@ class UDataprepFilter;
 
 struct FDataprepSchemaActionContext;
 
+
 class SDataprepFilter : public SDataprepActionBlock, public FGCObject
 {
 public:
-#ifndef NO_BLUEPRINT
 	SLATE_BEGIN_ARGS(SDataprepFilter)
-	: _IsSimplified(false)
+
+		: _IsSimplified(false)
+		, _IsPreviewed(false)
 	{}
 		SLATE_ARGUMENT( bool, IsSimplified )
-#else
-	SLATE_BEGIN_ARGS(SDataprepFilter) {}
-#endif
+		SLATE_ARGUMENT( bool, IsPreviewed )
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepFilter& InFilter, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext);
@@ -52,4 +52,6 @@ private:
 	TSharedPtr<class SDataprepDetailsView> DetailsView;
 
 	UDataprepFilter* Filter = nullptr;
+
+	bool bIsPreviewed;
 };

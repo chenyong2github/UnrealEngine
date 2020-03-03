@@ -152,6 +152,8 @@ float SDataprepGraphTrackWidget::TrackDesiredHeight = 40.f;
 
 void SDataprepGraphTrackNode::Construct(const FArguments& InArgs, UDataprepGraphRecipeNode* InNode)
 {
+	NodeFactory = InArgs._NodeFactory;
+
 	bNodeDragging = false;
 	SetCursor(EMouseCursor::Default);
 	GraphNode = InNode;
@@ -208,7 +210,17 @@ void SDataprepGraphTrackNode::UpdateGraphNode()
 				NewActionNode->Initialize(ActionAsset, Index);
 
 				// #ueent_wip: Widget is created twice :-(
-				TSharedPtr< SDataprepGraphActionNode > ActionWidgetPtr = StaticCastSharedPtr<SDataprepGraphActionNode>(FNodeFactory::CreateNodeWidget(NewActionNode));
+				TSharedPtr<SGraphNode> ActionGraphNode;
+				if ( FGraphNodeFactory* GraphNodeFactor = NodeFactory.Get() )
+				{
+					ActionGraphNode = GraphNodeFactor->CreateNodeWidget( NewActionNode );
+				}
+				else
+				{
+					ActionGraphNode = FNodeFactory::CreateNodeWidget( NewActionNode );
+				}
+
+				TSharedPtr< SDataprepGraphActionNode > ActionWidgetPtr = StaticCastSharedPtr<SDataprepGraphActionNode>( ActionGraphNode );
 				if(SDataprepGraphActionNode* ActionWidget = ActionWidgetPtr.Get())
 				{
 					if(GraphPanelPtr.IsValid())

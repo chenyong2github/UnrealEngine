@@ -27,16 +27,35 @@ bool UDataprepStringFilter::Filter(const FString& String) const
 	return false;
 }
 
-TArray<UObject*> UDataprepStringFilter::FilterObjects(const TArray<UObject *>& Objects) const
+TArray<UObject*> UDataprepStringFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
 {
 	if ( StringFetcher )
 	{
 		return DataprepSelectionSystemUtils::FilterObjects< UDataprepStringFilter, UDataprepStringFetcher, FString >( *this, *StringFetcher, Objects );
 	}
 
-	ensure(false);
-	UE_LOG(LogDataprepCore, Error, TEXT("UDataprepStringFilter::FilterObjects: There was no Fetcher"));
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepStringFilter::FilterObjects: There was no Fetcher") );
 	return {};
+}
+
+void UDataprepStringFilter::FilterAndGatherInfo(const TArrayView<UObject*>& InObjects, const TArrayView<FDataprepSelectionInfo>& OutFilterResults) const
+{
+	if ( StringFetcher )
+	{
+		return DataprepSelectionSystemUtils::FilterAndGatherInfo< UDataprepStringFilter, UDataprepStringFetcher, FString >( *this, *StringFetcher, InObjects, OutFilterResults );
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepStringFilter::FilterAndGatherInfo: There was no Fetcher") );
+}
+
+void UDataprepStringFilter::FilterAndStoreInArrayView(const TArrayView<UObject*>& InObjects, const TArrayView<bool>& OutFilterResults) const
+{
+	if ( StringFetcher )
+	{
+		return DataprepSelectionSystemUtils::FilterAndStoreInArrayView< UDataprepStringFilter, UDataprepStringFetcher, FString >( *this, *StringFetcher, InObjects, OutFilterResults );
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepStringFilter::FilterAndStoreInArrayView: There was no Fetcher") );
 }
 
 TSubclassOf<UDataprepFetcher> UDataprepStringFilter::GetAcceptedFetcherClass() const

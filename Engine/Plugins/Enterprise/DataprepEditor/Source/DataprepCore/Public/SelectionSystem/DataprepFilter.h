@@ -6,6 +6,7 @@
 
 #include "SelectionSystem/DataprepFetcher.h"
 
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/Class.h"
@@ -13,6 +14,8 @@
 #include "UObject/ObjectMacros.h"
 
 #include "DataprepFilter.generated.h"
+
+struct FDataprepSelectionInfo;
 
 /**
  * The Dataprep Filter a base class for the Dataprep selection system
@@ -30,11 +33,27 @@ public:
 	// End UObject Interface
 
 	/**
-	 * Take a array of object and return the objects that pass the filter
+	 * Take an array of objects and return the objects that pass the filter
 	 * @param Objects The object to filter
 	 * @return The object that passed the filtering
 	 */
-	virtual TArray<UObject*> FilterObjects(const TArray<UObject*>& Objects) const{ return {}; }
+	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject*>& Objects) const { return {}; }
+
+	/**
+	 * Take an array of object and output the result into the arrays
+	 * @param InObjects The object to filter
+	 * @param OutFilterResult Will put true at the same index of the object if it passed the filter
+	 * @param OutFetchedSucces Will put true at the same index of the object if the fetcher fetched a value
+	 * @param OutFetchedLabel Will put a display of information contextual to the filter/fetcher
+	 */
+	virtual void FilterAndGatherInfo(const TArrayView<UObject*>& InObjects, const TArrayView<FDataprepSelectionInfo>& OutFilterResults) const {};
+
+	/**
+	 * Take an array of object and output the result into the result array
+	 * @param InObjects The object to filter
+	 * @param OutFilterResult Will put true at the same index of the object if it has passed the filter
+	 */
+	virtual void FilterAndStoreInArrayView(const TArrayView<UObject*>& InObjects, const TArrayView<bool>& OutFilterResults) const {};
 
 	/**
 	 * Is this filter safe to use in a multi thread execution?
@@ -83,6 +102,14 @@ public:
 	{
 		Modify();
 		bIsExcludingResult = bInIsExcludingResult;
+		FProperty* Property = StaticClass()->FindPropertyByName( GET_MEMBER_NAME_CHECKED( UDataprepFilter, bIsExcludingResult ) );
+		check(Property);
+		FEditPropertyChain EditChain;
+		EditChain.AddHead( Property );
+		EditChain.SetActivePropertyNode( Property );
+		FPropertyChangedEvent EditPropertyChangeEvent( Property, EPropertyChangeType::ValueSet );
+		FPropertyChangedChainEvent EditChangeChainEvent( EditChain, EditPropertyChangeEvent );
+		PostEditChangeChainProperty( EditChangeChainEvent );
 	}
 
 	/**

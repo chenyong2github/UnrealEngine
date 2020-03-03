@@ -34,7 +34,6 @@ class SDataprepActionBlock : public SCompoundWidget
 		return FVector2D( FMath::Max(280.f, ChildSize.X) , ChildSize.Y );
 	}
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	// End of SWidget Interface
 

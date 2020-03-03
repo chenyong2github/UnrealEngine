@@ -221,5 +221,20 @@ public:
 		int32 TaskDepth;
 		TUniquePtr<FFeedbackContextAnsi> FeedbackContext;
 	};
+
+	/**
+	 * Collect on the valid actors in the input World
+	 * @param World			World to parse
+	 * @param OutActors		Actors present in the world
+	 */
+	static void GetActorsFromWorld(const UWorld* World, TArray<UObject*>& OutActors);
+
+	/**
+	 * Collect on the valid actors in the input World
+	 * @param World			World to parse
+	 * @param OutActors		Actors present in the world
+	 */
+	static void GetActorsFromWorld(const UWorld* World, TArray<AActor*>& OutActors);
+
 };
 
