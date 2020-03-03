@@ -5153,6 +5153,10 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 				LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, PatchKeyChain);
 				ApplyEncryptionKeys(PatchKeyChain);
 			}
+			else
+			{
+				PatchKeyChain = KeyChain;
+			}
 
 			UE_LOG(LogPakFile, Display, TEXT("Generating patch from %s."), *CmdLineParameters.SourcePatchPakFilename, true );
 
