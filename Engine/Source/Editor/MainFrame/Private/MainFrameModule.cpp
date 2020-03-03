@@ -238,8 +238,20 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 		// Initialize the main frame window
 		MainFrameHandler->OnMainFrameGenerated( MainTab, RootWindow );
 		
-		// Show the window!
-		MainFrameHandler->ShowMainFrameWindow( RootWindow, bStartImmersive, bStartPIE );
+		if (bDelayedShowMainFrame)
+		{
+			// Setup delegate to show main frame
+			DelayedShowMainFrameDelegate.BindLambda([this, RootWindow, bStartImmersive, bStartPIE]()
+			{
+				// Show the window!
+				MainFrameHandler->ShowMainFrameWindow(RootWindow, bStartImmersive, bStartPIE);
+			});
+		}
+		else
+		{
+			// Show the window!
+			MainFrameHandler->ShowMainFrameWindow(RootWindow, bStartImmersive, bStartPIE);
+		}
 		
 		MRUFavoritesList = new FMainMRUFavoritesList;
 		MRUFavoritesList->ReadFromINI();
@@ -456,6 +468,8 @@ void FMainFrameModule::SetApplicationTitleOverride(const FText& NewOverriddenApp
 
 void FMainFrameModule::StartupModule( )
 {
+	bDelayedShowMainFrame = false;
+
 	MRUFavoritesList = NULL;
 
 	ensureMsgf(!IsRunningGame(), TEXT("The MainFrame module should only be loaded when running the editor.  Code that extends the editor, adds menu items, etc... should not run when running in -game mode or in a non-WITH_EDITOR build"));
@@ -496,6 +510,8 @@ void FMainFrameModule::StartupModule( )
 
 void FMainFrameModule::ShutdownModule( )
 {
+	ClearDelayedShowMainFrameDelegate();
+
 	// Destroy the main frame window
 	TSharedPtr< SWindow > ParentWindow( GetParentWindow() );
 	if( ParentWindow.IsValid() )
