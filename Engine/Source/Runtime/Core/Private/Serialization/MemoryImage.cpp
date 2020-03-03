@@ -251,7 +251,7 @@ void InternalDeleteObjectFromLayout(void* Object, const FTypeLayoutDesc& TypeDes
 	}
 	if (!bIsFrozen)
 	{
-		FMemory::Free(Object);
+		::operator delete(Object);
 	}
 }
 
