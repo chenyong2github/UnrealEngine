@@ -14,7 +14,7 @@ class UDataprepTriangleCountFetcher final : public UDataprepIntegerFetcher
 	GENERATED_BODY()
 public:
 	//~ UDataprepIntegerFetcher interface
-	virtual int Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const final;
+	virtual int32 Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const final;
 	//~ End of UDataprepIntegerFetcher interface
 
 	//~ UDataprepFetcher interface
@@ -29,7 +29,7 @@ class UDataprepVertexCountFetcher final : public UDataprepIntegerFetcher
 	GENERATED_BODY()
 public:
 	//~ UDataprepIntegerFetcher interface
-	virtual int Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const final;
+	virtual int32 Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const final;
 	//~ End of UDataprepIntegerFetcher interface
 
 	//~ UDataprepFetcher interface

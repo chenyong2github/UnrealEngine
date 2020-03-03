@@ -51,13 +51,6 @@ namespace DataprepCorePrivateUtils
 	 */
 	void DeleteRegisteredAsset(UObject* Asset);
 
-	/**
-	 * Collect on the valid actors in the input World
-	 * @param World			World to parse
-	 * @param OutActors		Actors present in the world
-	 */
-	void GetActorsFromWorld( const UWorld* World, TArray<AActor*>& OutActors );
-
 	/** Returns directory where to store temporary files when running Dataprep asset */
 	const FString& GetRootTemporaryDir();
 

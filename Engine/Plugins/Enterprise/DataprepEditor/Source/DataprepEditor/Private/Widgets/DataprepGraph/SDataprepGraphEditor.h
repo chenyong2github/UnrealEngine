@@ -13,11 +13,13 @@
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "NodeFactory.h"
 #include "SGraphNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/SWidget.h"
 
+class FDataprepEditor;
 class FUICommandList;
 class SDataprepGraphActionNode;
 class SDataprepGraphTrackNode;
@@ -27,8 +29,26 @@ class UDataprepAsset;
 class UBlueprint;
 class UEdGraph;
 
-class SDataprepGraphEditorNodeFactory : public FGraphPanelNodeFactory
+class FDataprepGraphNodeFactory : public FGraphNodeFactory, public TSharedFromThis<FDataprepGraphNodeFactory>
 {
+public:
+	virtual ~FDataprepGraphNodeFactory() = default;
+
+	template<class DataprepEditorPtrType>
+	FDataprepGraphNodeFactory(DataprepEditorPtrType&& InDataprepEditor)
+		: DataprepEditor(Forward<DataprepEditorPtrType>(InDataprepEditor))
+	{}
+
+	/** Create a widget for the supplied node */
+	virtual TSharedPtr<SGraphNode> CreateNodeWidget(UEdGraphNode* InNode) override;
+
+private:
+	TWeakPtr<FDataprepEditor> DataprepEditor;
+};
+
+class FDataprepGraphEditorNodeFactory : public FGraphPanelNodeFactory
+{
+public:
 	virtual TSharedPtr<SGraphNode> CreateNode(UEdGraphNode* Node) const override;
 };
 
@@ -49,6 +69,7 @@ public:
 		SLATE_ATTRIBUTE( FGraphAppearanceInfo, Appearance )
 		SLATE_ARGUMENT( UEdGraph*, GraphToEdit )
 		SLATE_ARGUMENT( FGraphEditorEvents, GraphEvents)
+		SLATE_ARGUMENT( TSharedPtr<FDataprepEditor>, DataprepEditor )
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepAsset* InDataprepAsset);
@@ -155,8 +176,10 @@ private:
 	static const float HorizontalPadding;
 
 	/** Factory to create the associated SGraphNode classes for Dataprep graph's UEdGraph classes */
-	static TSharedPtr<SDataprepGraphEditorNodeFactory> NodeFactory;
+	static TSharedPtr<FDataprepGraphEditorNodeFactory> NodeFactory;
 
+	// The dataprep editor that owns the graph
+	TWeakPtr<FDataprepEditor> DataprepEditor;
 
 	friend SDataprepGraphTrackNode;
 };

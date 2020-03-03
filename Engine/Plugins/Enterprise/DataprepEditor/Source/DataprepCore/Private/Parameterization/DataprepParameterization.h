@@ -4,6 +4,7 @@
 
 #include "Parameterization/DataprepParameterizationUtils.h"
 
+#include "Containers/ArrayView.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
@@ -265,7 +266,7 @@ public:
 
 	void RemoveBindedObjectProperty(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain);
 
-	void RemoveBindingFromObjects(TArray<UDataprepParameterizableObject*> Objects);
+	void RemoveBindingFromObjects(const TArrayView<UDataprepParameterizableObject*>& Objects);
 
 	void GetExistingParameterNamesForType(FProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 

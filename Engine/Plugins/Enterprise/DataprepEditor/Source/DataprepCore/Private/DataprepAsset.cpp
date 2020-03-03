@@ -476,6 +476,16 @@ void UDataprepAsset::GetExistingParameterNamesForType(FProperty* Property, bool 
 	Parameterization->GetExistingParameterNamesForType( Property, bIsDescribingFullProperty, OutValidExistingNames, OutInvalidNames );
 }
 
+void UDataprepAsset::FRestrictedToActionAsset::NotifyAssetOfTheRemovalOfSteps(UDataprepAsset& DataprepAsset, const TArrayView<UDataprepParameterizableObject*>& StepObjects)
+{
+	if ( DataprepAsset.Parameterization )
+	{
+		DataprepAsset.Parameterization->RemoveBindingFromObjects( StepObjects );
+	}
+
+	DataprepAsset.OnStepObjectsAboutToBeRemoved.Broadcast( StepObjects );
+}
+
 #ifndef NO_BLUEPRINT
 void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
 {

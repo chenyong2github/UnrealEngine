@@ -30,16 +30,35 @@ bool UDataprepIntegerFilter::Filter(int Integer) const
 	return false;
 }
 
-TArray<UObject*> UDataprepIntegerFilter::FilterObjects(const TArray<UObject*>& Objects) const
+TArray<UObject*> UDataprepIntegerFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
 {
 	if ( IntFetcher )
 	{
-		return DataprepSelectionSystemUtils::FilterObjects< UDataprepIntegerFilter, UDataprepIntegerFetcher, float >( *this, *IntFetcher, Objects );
+		return DataprepSelectionSystemUtils::FilterObjects< UDataprepIntegerFilter, UDataprepIntegerFetcher, int32 >( *this, *IntFetcher, Objects );
 	}
 
-	ensure( false );
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepIntegerFilter::FilterObjects: There was no Fetcher") );
 	return {};
+}
+
+void UDataprepIntegerFilter::FilterAndGatherInfo(const TArrayView<UObject*>& InObjects, const TArrayView<FDataprepSelectionInfo>& OutFilterResults) const
+{
+	if ( IntFetcher )
+	{
+		return DataprepSelectionSystemUtils::FilterAndGatherInfo< UDataprepIntegerFilter, UDataprepIntegerFetcher, int32 >( *this, *IntFetcher, InObjects, OutFilterResults );
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepIntegerFilter::FilterAndGatherInfo: There was no Fetcher") );
+}
+
+void UDataprepIntegerFilter::FilterAndStoreInArrayView(const TArrayView<UObject*>& InObjects, const TArrayView<bool>& OutFilterResults) const
+{
+	if ( IntFetcher )
+	{
+		return DataprepSelectionSystemUtils::FilterAndStoreInArrayView< UDataprepIntegerFilter, UDataprepIntegerFetcher, int32 >( *this, *IntFetcher, InObjects, OutFilterResults );
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepIntegerFilter::FilterAndStoreInArrayView: There was no Fetcher") );
 }
 
 FText UDataprepIntegerFilter::GetFilterCategoryText() const

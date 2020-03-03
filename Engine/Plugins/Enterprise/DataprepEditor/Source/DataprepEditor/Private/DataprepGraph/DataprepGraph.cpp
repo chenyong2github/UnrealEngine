@@ -63,7 +63,8 @@ void FDataprepEditor::CreateGraphEditor()
 		GraphEditor = SNew(SDataprepGraphEditor, DataprepAsset)
 			.Appearance(AppearanceInfo)
 			.TitleBar(TitleBarWidget)
-			.GraphToEdit(DataprepGraph.Get());
+			.GraphToEdit(DataprepGraph.Get())
+			.DataprepEditor( StaticCastSharedRef<FDataprepEditor>( this->AsShared() ) );
 	}
 }
 

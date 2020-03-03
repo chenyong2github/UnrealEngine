@@ -6,6 +6,7 @@
 #include "Misc/Attribute.h"
 #include "SceneOutlinerFwd.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SHeaderRow.h"
 
 // Forward declaration
 template<typename ItemType> class STreeView;
@@ -85,6 +86,12 @@ public:
 
 	/** Return the name/Id of the columns of the scene outliner */
 	virtual TArray<FName> GetColumnIds() const = 0;
+
+	/** Return the sorting mode for the specified ColumnId */
+	virtual EColumnSortMode::Type GetColumnSortMode( const FName ColumnId ) const = 0;
+
+	/** Request that the tree be sorted at a convenient time */
+	virtual void RequestSort() = 0;
 
 	/** Returns true if edit delete can be executed */
 	virtual bool Delete_CanExecute() = 0;

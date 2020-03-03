@@ -7,6 +7,7 @@
 #include "SGraphNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FDataprepEditor;
 class SDataprepActionBlock;
 class SDataprepGraphActionNode;
 class SDataprepGraphTrackNode;
@@ -23,12 +24,14 @@ class SDataprepGraphActionStepNode : public SGraphNode
 {
 public:
 	SLATE_BEGIN_ARGS(SDataprepGraphActionStepNode) {}
+		SLATE_ARGUMENT(TWeakPtr<FDataprepEditor>, DataprepEditor)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode, const TSharedPtr<SDataprepGraphActionNode>& InParent);
 
 	// SWidget interface
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	FReply OnMouseButtonUp( const FGeometry & MyGeometry, const FPointerEvent & MouseEvent ) override;
 	virtual FReply OnMouseMove(const FGeometry& SenderGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	// End of SWidget interface
@@ -77,4 +80,7 @@ private:
 
 	/** Pointer to the SDataprepGraphTrackNode displayed in the graph editor  */
 	TWeakPtr<SDataprepGraphActionNode> ParentNodePtr;
+
+	/** Optional pointer to the dataprep asset */
+	TWeakPtr<FDataprepEditor> DataprepEditor;
 };
