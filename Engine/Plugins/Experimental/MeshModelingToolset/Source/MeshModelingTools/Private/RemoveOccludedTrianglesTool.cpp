@@ -186,7 +186,6 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			OpFactory->PreviewIdx = PreviewIdx;
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3>();
 			FMeshDescriptionToDynamicMesh Converter;
-			Converter.bPrintDebugMessages = true;
 			Converter.Convert(ComponentTargets[TargetIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));

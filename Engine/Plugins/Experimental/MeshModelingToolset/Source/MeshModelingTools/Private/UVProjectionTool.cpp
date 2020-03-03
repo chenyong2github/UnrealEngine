@@ -178,7 +178,6 @@ void UUVProjectionTool::UpdateNumPreviews()
 			OpFactory->ComponentIndex = PreviewIdx;
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3>();
 			FMeshDescriptionToDynamicMesh Converter;
-			Converter.bPrintDebugMessages = true;
 			Converter.Convert(ComponentTargets[PreviewIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
 
 			FVector Center, Extents;

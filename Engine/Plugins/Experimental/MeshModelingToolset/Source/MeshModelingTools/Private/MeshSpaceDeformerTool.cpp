@@ -146,7 +146,6 @@ void UMeshSpaceDeformerTool::Setup()
 	{
 		OriginalDynamicMesh = MakeShared< FDynamicMesh3 >();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.bPrintDebugMessages = false;
 		Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
 	}
 

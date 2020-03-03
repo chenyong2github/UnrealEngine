@@ -72,7 +72,6 @@ void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	// Convert to dynamic mesh
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.bPrintDebugMessages = true;
 	Converter.Convert(&MergedMeshesDescription, *ResultMesh);
 
 	if (Progress->Cancelled())
