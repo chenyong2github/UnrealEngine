@@ -660,9 +660,16 @@ void SLevelViewport::OnDragLeave( const FDragDropEvent& DragDropEvent )
 		LevelViewportClient->DestroyDropPreviewActors();
 	}
 
-	if (DragDropEvent.GetOperation().IsValid())
+	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
+	if (Operation.IsValid())
 	{
-		DragDropEvent.GetOperation()->SetDecoratorVisibility(true);
+		Operation->SetDecoratorVisibility(true);
+
+		if (Operation->IsOfType<FDecoratedDragDropOp>())
+		{
+			TSharedPtr<FDecoratedDragDropOp> DragDropOp = StaticCastSharedPtr<FDecoratedDragDropOp>(Operation);
+			DragDropOp->ResetToDefaultToolTip();
+		}
 	}
 }
 
@@ -752,7 +759,9 @@ bool SLevelViewport::HandleDragObjects(const FGeometry& MyGeometry, const FDragD
 		{
 			// At least one of the assets can't be dropped.
 			Operation->SetCursorOverride(EMouseCursor::SlashedCircle);
-			return false;
+			bValidDrag = false;
+			HintText = DropResult.HintText;
+			break;
 		}
 		else
 		{
