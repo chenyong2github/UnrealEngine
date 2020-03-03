@@ -89,6 +89,9 @@ public class ResonanceAudio : ModuleRules
             PrivateDefinitions.Add("EIGEN_HAS_CXX11_MATH=0");
         }
 
+        // Always use the official version of IntelTBB
+        string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8/lib/";
+
         //Embree support:
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
@@ -97,9 +100,9 @@ public class ResonanceAudio : ModuleRules
             PublicIncludePaths.Add(SDKDir + "include");
             PublicAdditionalLibraries.Add(SDKDir + "lib/embree.2.14.0.lib");
             RuntimeDependencies.Add("$(TargetOutputDir)/embree.2.14.0.dll", SDKDir + "lib/embree.2.14.0.dll");
-            RuntimeDependencies.Add("$(TargetOutputDir)/tbb.dll", SDKDir + "lib/tbb.dll");
-            RuntimeDependencies.Add("$(TargetOutputDir)/tbbmalloc.dll", SDKDir + "lib/tbbmalloc.dll");
-            PublicDefinitions.Add("USE_EMBREE=1");
+            RuntimeDependencies.Add("$(TargetOutputDir)/tbb.dll", IntelTBBLibs + "Win64/vc14/tbb.dll");
+            RuntimeDependencies.Add("$(TargetOutputDir)/tbbmalloc.dll", IntelTBBLibs + "Win64/vc14/tbbmalloc.dll");
+			PublicDefinitions.Add("USE_EMBREE=1");
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
@@ -108,9 +111,8 @@ public class ResonanceAudio : ModuleRules
             PublicIncludePaths.Add(SDKDir + "include");
             PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.2.14.0.dylib");
             RuntimeDependencies.Add("$(TargetOutputDir)/libembree.2.14.0.dylib", SDKDir + "lib/libembree.2.14.0.dylib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.dylib", SDKDir + "lib/libtbb.dylib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/libtbbmalloc.dylib", SDKDir + "lib/libtbbmalloc.dylib");
-
+            RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.dylib", IntelTBBLibs + "Mac/libtbb.dylib");
+            RuntimeDependencies.Add("$(TargetOutputDir)/libtbbmalloc.dylib", IntelTBBLibs + "Mac/libtbbmalloc.dylib");
             PrivateDefinitions.Add("USE_EMBREE=1");
         }
         else
