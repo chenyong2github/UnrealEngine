@@ -43,6 +43,9 @@ public:
 
 	/** Setup a UStaticMesh from an IDatasmithMeshElement. */
 	static void SetupStaticMesh( FDatasmithAssetsImportContext& AssetsContext, TSharedRef< IDatasmithMeshElement > MeshElement, UStaticMesh* StaticMesh, const FDatasmithStaticMeshImportOptions& StaticMeshImportOptions, float LightmapWeight );
+	
+	/** Cleanup any invalid data in mesh descriptions that might cause the editor to crash or behave erratically (i.e. Having vertex position with NaN values). */
+	static void CleanupMeshDescriptions(TArray< FMeshDescription >& MeshDescriptions);
 
 	/** Builds the lightmap UVs and tangents for all the imported meshes. */
 	static void PreBuildStaticMeshes( FDatasmithImportContext& ImportContext );
