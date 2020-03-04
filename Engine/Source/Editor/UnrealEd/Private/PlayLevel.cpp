@@ -1528,12 +1528,6 @@ void UEditorEngine::OnLoginPIEComplete_Deferred(int32 LocalUserNum, bool bWasSuc
 
 void UEditorEngine::OnAllPIEInstancesStarted()
 {
-	// Transfer the Blueprint Debug references to the last client that was created (since that's all we track).
-	if (PlayWorld)
-	{
-		EditorWorld->TransferBlueprintDebugReferences(PlayWorld);
-	}
-
 	GiveFocusToLastClientPIEViewport();
 
 	// Print out a log message stating the overall startup time.
@@ -2653,6 +2647,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 	GameInstance->AddToRoot();
 
 	// Attempt to initialize the GameInstance. This will construct the world.
+	const bool bFirstWorld = !PlayWorld;
 	const FGameInstancePIEResult InitializeResult = GameInstance->InitializeForPlayInEditor(InPIEInstanceIndex, InPIEParameters);
 	if (!InitializeResult.IsSuccess())
 	{
@@ -2783,6 +2778,13 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 	if (InParams.GameModeOverride)
 	{
 		GameInstance->GetWorld()->GetWorldSettings()->DefaultGameMode = InParams.GameModeOverride;
+	}
+
+	// Transfer the Blueprint Debug references to the first client world that is created. This needs to be called before 
+	// GameInstance->StartPlayInEditorGameInstance so that references are transfered by the time BeginPlay is called.
+	if (bFirstWorld && PlayWorld)
+	{
+		EditorWorld->TransferBlueprintDebugReferences(PlayWorld);
 	}
 
 	FGameInstancePIEResult StartResult = FGameInstancePIEResult::Success();
