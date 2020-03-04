@@ -21,9 +21,9 @@ TTriangleMesh<T>::TTriangleMesh()
 {}
 
 template<class T>
-TTriangleMesh<T>::TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx, const int32 EndIdx)
+TTriangleMesh<T>::TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
-	Init(Elements, StartIdx, EndIdx);
+	Init(Elements, StartIdx, EndIdx, CullDegenerateElements);
 }
 
 template<class T>
@@ -39,40 +39,51 @@ TTriangleMesh<T>::~TTriangleMesh()
 {}
 
 template<class T>
-void TTriangleMesh<T>::Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx, const int32 EndIdx)
+void TTriangleMesh<T>::Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
 	MElements = MoveTemp(Elements);
 	MStartIdx = 0;
 	MNumIndices = 0;
-	InitHelper(StartIdx, EndIdx);
+	InitHelper(StartIdx, EndIdx, CullDegenerateElements);
 }
 
 template<class T>
-void TTriangleMesh<T>::Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx, const int32 EndIdx)
+void TTriangleMesh<T>::Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
 	MElements = Elements;
 	MStartIdx = 0;
 	MNumIndices = 0;
-	InitHelper(StartIdx, EndIdx);
+	InitHelper(StartIdx, EndIdx, CullDegenerateElements);
 }
 
 template<class T>
-void TTriangleMesh<T>::InitHelper(const int32 StartIdx, const int32 EndIdx)
+void TTriangleMesh<T>::InitHelper(const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
 	if (MElements.Num())
 	{
-		MStartIdx = MElements[0][0];
-		int32 MaxIdx = MElements[0][0];
-		for (int i = 0; i < MElements.Num(); ++i)
+		MStartIdx = MElements[MElements.Num()-1][0];
+		int32 MaxIdx = MStartIdx;
+		for (int i = MElements.Num()-1; i >= 0 ; --i)
 		{
 			for (int Axis = 0; Axis < 3; ++Axis)
 			{
 				MStartIdx = FMath::Min(MStartIdx, MElements[i][Axis]);
 				MaxIdx = FMath::Max(MaxIdx, MElements[i][Axis]);
 			}
-			check(MElements[i][0] != MElements[i][1]);
-			check(MElements[i][0] != MElements[i][2]);
-			check(MElements[i][1] != MElements[i][2]);
+			if (CullDegenerateElements)
+			{
+				if (MElements[i][0] == MElements[i][1] ||
+					MElements[i][0] == MElements[i][2] ||
+					MElements[i][1] == MElements[i][2])
+				{
+					// It's possible that the order of the triangles might be important.
+					// RemoveAtSwap() changes the order of the array.  I figure that if
+					// you're up for CullDegenerateElements, then triangle reordering is
+					// fair game.
+					MElements.RemoveAtSwap(i);
+				}
+
+			}
 		}
 		// This assumes vertices are contiguous in the vertex buffer. Assumption is held throughout TTriangleMesh
 		MNumIndices = MaxIdx - MStartIdx + 1;
