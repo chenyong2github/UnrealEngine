@@ -277,8 +277,8 @@ bool UNiagaraDataInterfacePressureGrid::InitPerInstanceData(void* PerInstanceDat
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
 		[ThisProxy, RT_OutputShaderStages, RT_IterationShaderStages, InstanceID = SystemInstance->GetId(), ElementCount](FRHICommandListImmediate& CmdList)
 	{
-		ThisProxy->OutputShaderStages = RT_OutputShaderStages;
-		ThisProxy->IterationShaderStages = RT_IterationShaderStages;
+		ThisProxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
+		ThisProxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 		ThisProxy->SetElementCount(ElementCount);
 
 		//ThisProxy->InitializePerInstanceData(InstanceID);
