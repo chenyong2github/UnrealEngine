@@ -205,6 +205,6 @@ void FMoviePipelineFrameOutputState::GetFilenameFormatArguments(FMoviePipelineFo
 	InOutFormatArgs.Arguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
 	InOutFormatArgs.Arguments.Add(TEXT("frame_number_rel"), FrameNumberRel);
 	InOutFormatArgs.Arguments.Add(TEXT("frame_number_shot_rel"), FrameNumberShotRel);
-	InOutFormatArgs.Arguments.Add(TEXT("camera_name"), TEXT("DefaultCameraName"));
-	InOutFormatArgs.Arguments.Add(TEXT("shot_name"), TEXT("DefaultShotName"));
+	InOutFormatArgs.Arguments.Add(TEXT("camera_name"), CameraName.Len() > 0 ? CameraName : TEXT("NoCamera"));
+	InOutFormatArgs.Arguments.Add(TEXT("shot_name"), ShotName.Len() > 0 ? ShotName : TEXT("NoShot"));
 }
