@@ -2097,35 +2097,40 @@ void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 	}
 	else if (Handler->AssetContainsBlueprint(InAssetData))
 	{
-		// Check first for versioned FiB data (latest codepath)
-		FAssetDataTagMapSharedView::FFindTagResult Result = InAssetData.TagsAndValues.FindTag(FBlueprintTags::FindInBlueprintsData);
-		if(Result.IsSet())
+		AddUnloadedBlueprintSearchMetadata(InAssetData);
+	}
+}
+
+void FFindInBlueprintSearchManager::AddUnloadedBlueprintSearchMetadata(const FAssetData& InAssetData)
+{
+	// Check first for versioned FiB data (latest codepath)
+	FAssetDataTagMapSharedView::FFindTagResult Result = InAssetData.TagsAndValues.FindTag(FBlueprintTags::FindInBlueprintsData);
+	if (Result.IsSet())
+	{
+		const FString& FiBVersionedSearchData = Result.GetValue();
+		if (FiBVersionedSearchData.Len() == 0)
 		{
-			const FString& FiBVersionedSearchData = Result.GetValue();
-			if (FiBVersionedSearchData.Len() == 0)
-			{
-				UnindexedAssets.Add(InAssetData.ObjectPath);
-			}
-			else
-			{
-				ExtractUnloadedFiBData(InAssetData, FiBVersionedSearchData, EFiBVersion::FIB_VER_NONE);
-			}
+			UnindexedAssets.Add(InAssetData.ObjectPath);
 		}
 		else
 		{
-			// Check for legacy (unversioned) FiB data
-			FAssetDataTagMapSharedView::FFindTagResult ResultLegacy = InAssetData.TagsAndValues.FindTag("FiB");
-			if (ResultLegacy.IsSet())
-			{
-				ExtractUnloadedFiBData(InAssetData, ResultLegacy.GetValue(), EFiBVersion::FIB_VER_BASE);
-			}
-			// The asset has no FiB data, keep track of it so we can inform the user
-			else
-			{
-				UnindexedAssets.Add(InAssetData.ObjectPath);
-			}
-
+			ExtractUnloadedFiBData(InAssetData, FiBVersionedSearchData, EFiBVersion::FIB_VER_NONE);
 		}
+	}
+	else
+	{
+		// Check for legacy (unversioned) FiB data
+		FAssetDataTagMapSharedView::FFindTagResult ResultLegacy = InAssetData.TagsAndValues.FindTag(FBlueprintTags::UnversionedFindInBlueprintsData);
+		if (ResultLegacy.IsSet())
+		{
+			ExtractUnloadedFiBData(InAssetData, ResultLegacy.GetValue(), EFiBVersion::FIB_VER_BASE);
+		}
+		// The asset has no FiB data, keep track of it so we can inform the user
+		else
+		{
+			UnindexedAssets.Add(InAssetData.ObjectPath);
+		}
+
 	}
 }
 
@@ -2134,9 +2139,9 @@ void FFindInBlueprintSearchManager::ExtractUnloadedFiBData(const FAssetData& InA
 	CSV_SCOPED_TIMING_STAT(FindInBlueprint, ExtractUnloadedFiBData);
 	CSV_CUSTOM_STAT(FindInBlueprint, ExtractUnloadedCountThisFrame, 1, ECsvCustomStatOp::Accumulate);
 
-	// Check whether this asset has already had its search data cached.
+	// Check whether this asset has already had its search data cached. If marked for deletion, we will replace it with a new entry.
 	FSearchData SearchData = GetSearchDataForAssetPath(InAssetData.ObjectPath);
-	if (SearchData.IsValid())
+	if (SearchData.IsValid() && !SearchData.IsMarkedForDeletion())
 	{
 		return;
 	}
@@ -2347,7 +2352,71 @@ void FFindInBlueprintSearchManager::OnAssetLoaded(UObject* InAsset)
 
 void FFindInBlueprintSearchManager::OnBlueprintUnloaded(UBlueprint* InBlueprint)
 {
-	RemoveBlueprintByPath(*InBlueprint->GetPathName());
+	if (InBlueprint)
+	{
+		// Transient objects likely represent trashed or temporary Blueprint assets; we're not going to try and re-index those.
+		if (InBlueprint->HasAnyFlags(RF_Transient))
+		{
+			FScopeLock ScopeLock(&SafeModifyCacheCriticalSection);
+
+			// Invalidate any existing database entry that matches the reference. It's ok if we don't find a match here.
+			for (int32 SearchIdx = 0; SearchIdx < SearchArray.Num(); ++SearchIdx)
+			{
+				if (SearchArray[SearchIdx].Blueprint.Get() == InBlueprint)
+				{
+					// Remove it from the lookup table so it can no longer be found indirectly.
+					SearchMap.Remove(SearchArray[SearchIdx].AssetPath);
+
+					// Stale entries are flagged to be removed later, which happens after a GC pass.
+					SearchArray[SearchIdx].StateFlags |= ESearchDataStateFlags::WasRemoved;
+					break;
+				}
+			}
+
+			return;
+		}
+
+		// Reloaded assets will be re-indexed on load through the registry delegates; there's no need to handle any removal here.
+		if (InBlueprint->HasAnyFlags(RF_NewerVersionExists))
+		{
+			return;
+		}
+
+		// Otherwise, the Blueprint is about to be unloaded. We need to re-index it as an unloaded asset.
+		if(const UObject* AssetObject = GetAssetObject(InBlueprint))
+		{
+			// Mark any existing entry for deletion. This will allow the entry to be updated below.
+			const FName AssetPath = *AssetObject->GetPathName();
+			RemoveBlueprintByPath(AssetPath);
+
+			// Add or update an existing entry to one that represents the data for the asset on disk, and re-index it.
+			if (ensure(AssetRegistryModule != nullptr))
+			{
+				const bool bIncludeOnlyOnDiskAssets = true;
+				FAssetData AssetData = AssetRegistryModule->Get().GetAssetByObjectPath(AssetPath, bIncludeOnlyOnDiskAssets);
+				if (AssetData.IsValid() && AssetData.IsAssetLoaded())
+				{
+					// Re-scan the asset file on disk to ensure that the updated entry will be based on the serialized FiB tag.
+					const FString PackageName = AssetData.PackageName.ToString();
+					if (FPackageName::IsValidLongPackageName(PackageName))
+					{
+						FString PackageFilename;
+						if (FPackageName::DoesPackageExist(PackageName, nullptr, &PackageFilename))
+						{
+							TArray<FString> FilesToScan = { PackageFilename };
+							AssetRegistryModule->Get().ScanModifiedAssetFiles(FilesToScan);
+
+							AssetData = AssetRegistryModule->Get().GetAssetByObjectPath(AssetPath, bIncludeOnlyOnDiskAssets);
+							if (AssetData.IsValid())
+							{
+								AddUnloadedBlueprintSearchMetadata(AssetData);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 void FFindInBlueprintSearchManager::OnHotReload(bool bWasTriggeredAutomatically)
@@ -2746,37 +2815,22 @@ void FFindInBlueprintSearchManager::CleanCache()
 	{
 		// Here it builds the new map/array, clean of deleted content.
 
-		// If the database item is not marked for deletion and not pending kill (if loaded), keep it in the database
-		if (!SearchArray[SearchValuePair.Value].IsMarkedForDeletion() && !(SearchArray[SearchValuePair.Value].Blueprint.IsValid() && SearchArray[SearchValuePair.Value].Blueprint->IsPendingKill()))
+		// If the database item is invalid, marked for deletion, stale or pending kill (if loaded), remove it from the database
+		const bool bEvenIfPendingKill = true;
+		const FSearchData& SearchData = SearchArray[SearchValuePair.Value];
+		if (!SearchData.IsValid()
+			|| SearchData.IsMarkedForDeletion()
+			|| SearchData.Blueprint.IsStale()
+			|| (SearchData.Blueprint.IsValid(bEvenIfPendingKill) && SearchData.Blueprint->IsPendingKill()))
 		{
-			// Build the new map/array
-			NewSearchMap.Add(SearchValuePair.Key, NewSearchArray.Add(MoveTemp(SearchArray[SearchValuePair.Value])) );
+			// Also remove it from the list of loaded assets that require indexing
+			PendingAssets.Remove(SearchData.AssetPath);
+			UnindexedAssets.Remove(SearchData.AssetPath);
 		}
 		else
 		{
-			// Remove it from the list of loaded assets that require indexing
-			PendingAssets.Remove(SearchArray[SearchValuePair.Value].AssetPath);
-
-			// Level Blueprints are destroyed when you open a new level, we need to re-add it as an unloaded asset so long as they were not marked for deletion
-			if (!SearchArray[SearchValuePair.Value].IsMarkedForDeletion() && FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")))
-			{
-				SearchArray[SearchValuePair.Value].Blueprint = nullptr;
-
-				AssetRegistryModule = &FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-				// The asset was not user deleted, so this should usually find the asset. New levels can be deleted if they were not saved
-				FAssetData AssetData = AssetRegistryModule->Get().GetAssetByObjectPath(SearchArray[SearchValuePair.Value].AssetPath);
-				if(AssetData.IsValid())
-				{
-					FAssetDataTagMapSharedView::FFindTagResult ResultLegacy = AssetData.TagsAndValues.FindTag("FiB");
-					if (ResultLegacy.IsSet())
-					{
-						SearchArray[SearchValuePair.Value].Value = ResultLegacy.GetValue();
-					}
-					// Build the new map/array
-					NewSearchMap.Add(SearchValuePair.Key, NewSearchArray.Add(SearchArray[SearchValuePair.Value]) );
-				}
-			}
+			// Build the new map/array
+			NewSearchMap.Add(SearchValuePair.Key, NewSearchArray.Add(SearchData));
 		}
 	}
 

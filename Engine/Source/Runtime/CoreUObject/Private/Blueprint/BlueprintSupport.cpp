@@ -38,6 +38,7 @@ const FName FBlueprintTags::BlueprintDisplayName(TEXT("BlueprintDisplayName"));
 const FName FBlueprintTags::IsDataOnly(TEXT("IsDataOnly"));
 const FName FBlueprintTags::ImplementedInterfaces(TEXT("ImplementedInterfaces"));
 const FName FBlueprintTags::FindInBlueprintsData(TEXT("FiBData"));
+const FName FBlueprintTags::UnversionedFindInBlueprintsData(TEXT("FiB"));
 const FName FBlueprintTags::NumReplicatedProperties(TEXT("NumReplicatedProperties"));
 const FName FBlueprintTags::NumNativeComponents(TEXT("NativeComponents"));
 const FName FBlueprintTags::NumBlueprintComponents(TEXT("BlueprintComponents"));
