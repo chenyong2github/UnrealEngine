@@ -28,6 +28,13 @@ void UMoviePipeline::TickProducingFrames()
 	// We should not be calling this once we have completed all the shots.
 	check(CurrentShotIndex >= 0 && CurrentShotIndex < ShotList.Num());
 
+	if (bShutdownRequested)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[GFrameCounter: %d] Async Shutdown Requested, abandoning remaining work and moving to Finalize."), GFrameCounter);
+		TransitionToState(EMovieRenderPipelineState::Finalize);
+		return;
+	}
+
 	// When start up we want to override the engine's Custom Timestep with our own.
 	// This gives us the ability to completely control the engine tick/delta time before the frame
 	// is started so that we don't have to always be thinking of delta times one frame ahead. We need
@@ -499,10 +506,14 @@ void UMoviePipeline::TickProducingFrames()
 			// If this isn't the last shot, we'll immediately call this function again to just
 			// determine a new setup/seek/etc. on the same engine tick. Otherwise we would have
 			// used a random delta time that didn't actually correlate to anything.
-			if (!ProcessEndOfCameraCut(CurrentShot, CurrentCameraCut))
+			ProcessEndOfCameraCut(CurrentShot, CurrentCameraCut);
+			if (PipelineState == EMovieRenderPipelineState::ProducingFrames)
 			{
 				CachedOutputState.TemporalSampleIndex = -1;
 				TickProducingFrames();
+			}
+			else
+			{
 				return;
 			}
 		}

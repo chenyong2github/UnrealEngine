@@ -47,7 +47,7 @@ enum class EMovieRenderPipelineState : uint8
 	/** All outputs have finished writing to disk or otherwise processing. Additional exports that may have needed information about the produced file can now be run. */
 	Export = 3,
 	/** The pipeline has been shut down. It is an error to shut it down again. */
-	Shutdown = 4,
+	Finished = 4,
 };
 
 /**
