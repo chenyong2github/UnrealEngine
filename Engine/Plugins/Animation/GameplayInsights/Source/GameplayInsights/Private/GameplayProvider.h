@@ -6,6 +6,7 @@
 #include "Model/PointTimeline.h"
 #include "Containers/Map.h"
 #include "Templates/SharedPointer.h"
+#include "Containers/StringView.h"
 
 namespace Trace { class IAnalysisSession; }
 
