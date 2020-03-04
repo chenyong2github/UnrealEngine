@@ -475,3 +475,26 @@ protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
 };
+
+// Customization of the details of the "Output to Folder" operation.
+class FDataprepSetOutputFolderDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDataprepSetOutputFolderDetails>(); };
+
+	/** Called when details should be customized */
+	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+
+private:
+	void FolderName_TextChanged(const FText& Text);
+	void FolderName_TextCommited(const FText& InText, ETextCommit::Type InCommitType);
+
+private:
+	UDataprepSetOutputFolder* Operation = nullptr;
+
+	TSharedPtr<IPropertyHandle> FolderNamePropertyHandle;
+
+	bool bValidFolderName = true;
+
+	TSharedPtr< SEditableTextBox > TextBox;
+};
