@@ -761,8 +761,8 @@ namespace Chaos
 			TPBDRigidClusteredParticleHandle<T, d>* Child = Children[ChildIdx]->CastToClustered();
 			if (!Child)
 				continue;
-			if (ExternalStrainArray && (*ExternalStrainArray)[ChildIdx] ||
-			   !ExternalStrainArray && Child->CollisionImpulses() >= Child->Strain())
+			if ((ExternalStrainArray && (*ExternalStrainArray)[ChildIdx]) ||
+			   (!ExternalStrainArray && Child->CollisionImpulses() >= Child->Strain()))
 			{
 				// The piece that hits just breaks off - we may want more control 
 				// by looking at the edges of this piece which would give us cleaner 

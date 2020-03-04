@@ -39,7 +39,7 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 
 	void Fill(const T& Value)
 	{
-		for (int32 Idx = 0; Idx < Num(); ++Idx)
+		for (int32 Idx = 0; Idx < TArray<T>::Num(); ++Idx)
 		{
 			TArray<T>::operator[](Idx) = Value;
 		}
