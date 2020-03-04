@@ -60,8 +60,9 @@ namespace AudioModulation
 		/* Saves mix to .ini profile for fast iterative development that does not require re-cooking a mix */
 		void SaveMixToProfile(const USoundControlBusMix& InBusMix, const int32 InProfileIndex);
 
-		/* Loads mix from .ini profile for iterative development that does not require re-cooking a mix */
-		void LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix);
+		/* Loads mix from .ini profile for iterative development that does not require re-cooking a mix. Returns copy
+		 * of mix channel values saved in profile. */
+		TArray<FSoundControlBusMixChannel> LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix);
 
 		/*
 		 * Updates mix/mix by filter, modifying the mix instance if it is active. If bInUpdateObject is true,

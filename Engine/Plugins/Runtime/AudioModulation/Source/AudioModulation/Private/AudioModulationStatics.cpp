@@ -351,20 +351,22 @@ void UAudioModulationStatics::SaveMixToProfile(const UObject* WorldContextObject
 	}
 }
 
-void UAudioModulationStatics::LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate, int32 ProfileIndex)
+TArray<FSoundControlBusMixChannel> UAudioModulationStatics::LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate, int32 ProfileIndex)
 {
-	UWorld* World = GetAudioWorld(WorldContextObject);
-	if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
+	if (BusMix)
 	{
-		if (BusMix)
+		UWorld* World = GetAudioWorld(WorldContextObject);
+		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			ModulationImpl->LoadMixFromProfile(ProfileIndex, *BusMix);
 			if (bActivate)
 			{
 				ActivateBusMix(WorldContextObject, BusMix);
 			}
+			return ModulationImpl->LoadMixFromProfile(ProfileIndex, *BusMix);
 		}
 	}
+
+	return TArray<FSoundControlBusMixChannel>();
 }
 
 void UAudioModulationStatics::UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixChannel> Channels)
