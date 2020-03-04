@@ -337,7 +337,7 @@ UTexture2D* UTexturePaintToolset::CreateTempUncompressedTexture(UTexture2D* Sour
 	check(Width > 0 && Height > 0 && RawData.Num() > 0);
 
 	// Allocate the new texture
-	UTexture2D* NewTexture2D = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+	UTexture2D* NewTexture2D = UTexture2D::CreateTransient(Width, Height, GetTempUncompressedTexturePixelFormat());
 
 	// Fill in the base mip for the texture we created
 	uint8* MipData = (uint8*)NewTexture2D->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
