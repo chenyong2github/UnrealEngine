@@ -52,6 +52,15 @@ struct FMovieSceneTimecodeSource
 		, DeltaFrame(FFrameNumber())
 	{}
 
+	FORCEINLINE bool operator==(const FMovieSceneTimecodeSource& Other) const
+	{
+		return Timecode == Other.Timecode && DeltaFrame == Other.DeltaFrame;
+	}
+	FORCEINLINE bool operator!=(const FMovieSceneTimecodeSource& Other) const
+	{
+		return Timecode != Other.Timecode || DeltaFrame != Other.DeltaFrame;
+	}
+
 public:
 
 	/** The global timecode at which this target is based (ie. the timecode at the beginning of the movie scene section when it was recorded) */

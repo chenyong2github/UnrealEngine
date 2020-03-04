@@ -472,8 +472,8 @@ bool UTakeRecorder::Initialize(ULevelSequence* LevelSequenceBase, UTakeRecorderS
 		FTimecode CurrentTime = FApp::GetTimecode();
 		UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
 		FFrameRate FrameRate = MovieScene->GetDisplayRate();
-		FFrameNumber ViewRangeStart = Parameters.Project.bStartAtCurrentTimecode ? CurrentTime.ToFrameNumber(FrameRate) : 0;
-		double ViewRangeStartSeconds = FrameRate.AsSeconds(ViewRangeStart);
+		FFrameNumber ViewRangeStart = CurrentTime.ToFrameNumber(FrameRate);
+		double ViewRangeStartSeconds = Parameters.Project.bStartAtCurrentTimecode ? FrameRate.AsSeconds(ViewRangeStart) : MovieScene->GetPlaybackRange().GetLowerBoundValue() / MovieScene->GetTickResolution();
 		FAnimatedRange NewRange(ViewRangeStartSeconds - 0.5f, ViewRangeStartSeconds + (Range.GetUpperBoundValue() - Range.GetLowerBoundValue()) + 0.5f);
 		Sequencer->SetViewRange(NewRange, EViewRangeInterpolation::Immediate);
 		Sequencer->SetClampRange(Sequencer->GetViewRange());
@@ -768,6 +768,7 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 
 			// Set infinite playback range when starting recording. Playback range will be clamped to the bounds of the sections at the completion of the recording
 			MovieScene->SetPlaybackRange(TRange<FFrameNumber>(PlaybackStartFrame, TNumericLimits<int32>::Max() - 1), false);
+			Sequencer->SetGlobalTime(PlaybackStartFrame);
 		}
 		Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
 	}
