@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class UnrealDisasterRecoveryService : ModuleRules
+public class UnrealRecoverySvc : ModuleRules
 {
-	public UnrealDisasterRecoveryService(ReadOnlyTargetRules Target) : base(Target)
+	public UnrealRecoverySvc(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

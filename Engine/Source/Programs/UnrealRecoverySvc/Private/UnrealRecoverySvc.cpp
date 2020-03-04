@@ -5,7 +5,7 @@
 
 #include "RequiredProgramMainCPPInclude.h"
 
-IMPLEMENT_APPLICATION(UnrealDisasterRecoveryService, "UnrealDisasterRecoveryService");
+IMPLEMENT_APPLICATION(UnrealRecoverySvc, "UnrealRecoverySvc");
 
 /**
  * Application entry point

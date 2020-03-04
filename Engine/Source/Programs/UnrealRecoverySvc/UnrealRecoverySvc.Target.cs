@@ -3,13 +3,13 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-public class UnrealDisasterRecoveryServiceTarget : TargetRules
+public class UnrealRecoverySvcTarget : TargetRules
 {
-	public UnrealDisasterRecoveryServiceTarget(TargetInfo Target) : base(Target)
+	public UnrealRecoverySvcTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Modular;
-		LaunchModuleName = "UnrealDisasterRecoveryService";
+		LaunchModuleName = "UnrealRecoverySvc";
 		AdditionalPlugins.Add("UdpMessaging");
 		AdditionalPlugins.Add("ConcertSyncServer");
 
