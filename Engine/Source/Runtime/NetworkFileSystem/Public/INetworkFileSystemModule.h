@@ -23,7 +23,6 @@ struct FShaderRecompileData
 	TArray<FString>* ModifiedFiles;
 	TArray<uint8>* MeshMaterialMaps;
 	TArray<FString> MaterialsToLoad;
-	TArray<uint8> SerializedShaderResources;
 	bool bCompileChangedShaders;
 
 	FShaderRecompileData() :
@@ -38,7 +37,6 @@ struct FShaderRecompileData
 		ModifiedFiles = Other.ModifiedFiles;
 		MeshMaterialMaps = Other.MeshMaterialMaps;
 		MaterialsToLoad = Other.MaterialsToLoad;
-		SerializedShaderResources = Other.SerializedShaderResources;
 		bCompileChangedShaders = Other.bCompileChangedShaders;
 
 		return *this;

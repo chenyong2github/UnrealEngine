@@ -715,7 +715,6 @@ extern ENGINE_API FString SaveGlobalShaderFile(EShaderPlatform Platform, FString
 * @param PlatformName					Name of the Platform the shaders are compiled for
 * @param OutputDirectory				The directory the compiled data will be stored to
 * @param MaterialsToLoad				List of Materials that need to be loaded and compiled
-* @param SerializedShaderResources		Serialized shader resources
 * @param MeshMaterialMaps				Mesh material maps
 * @param ModifiedFiles					Returns the list of modified files if not NULL
 * @param bCompileChangedShaders		Whether to compile all changed shaders or the specific material that is passed
@@ -725,7 +724,6 @@ extern ENGINE_API void RecompileShadersForRemote(
 	EShaderPlatform ShaderPlatform,
 	const FString& OutputDirectory,
 	const TArray<FString>& MaterialsToLoad,
-	const TArray<uint8>& SerializedShaderResources,
 	TArray<uint8>* MeshMaterialMaps,
 	TArray<FString>* ModifiedFiles,
 	bool bCompileChangedShaders = true);
