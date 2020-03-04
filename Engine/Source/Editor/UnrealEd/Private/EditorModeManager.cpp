@@ -1159,7 +1159,9 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				Toolkit->GetToolPaletteNames(PaletteNames);
 				for(auto Palette : PaletteNames)
 				{
-					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
+					const bool bUniform = true;
+					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false, bUniform);
+					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
 					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
