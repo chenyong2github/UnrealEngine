@@ -29,7 +29,7 @@ static TAutoConsoleVariable<int32> CVarMobileEyeAdaptation(
 	TEXT("EyeAdaptation for mobile platform.\n")
 	TEXT(" 0: Disable\n")
 	TEXT(" 1: Enabled (Default)"),
-	ECVF_ReadOnly);
+	ECVF_RenderThreadSafe);
 
 static EPixelFormat GetHDRPixelFormat()
 {
