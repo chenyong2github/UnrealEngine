@@ -13,8 +13,10 @@ public class mimalloc : ModuleRules
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
 		{
-			if (Target.Configuration == UnrealTargetConfiguration.Debug)
-            {
+			bool bUseDebugCRT = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT;
+
+			if (bUseDebugCRT)
+			{
 				PublicAdditionalLibraries.Add(miPath + "out\\msvc-x64\\Debug\\mimalloc-static.lib");
 			}
             else 
