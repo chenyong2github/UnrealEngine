@@ -226,7 +226,7 @@ private:
 	FRHIBlendState* GetOrCreateBlendState(const FBlendStateInitializerRHI& Initializer);
 	FRHIRasterizerState* GetOrCreateRasterizerState(const FRasterizerStateInitializerRHI& Initializer);
 	FRHIDepthStencilState* GetOrCreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer);
-
+	
 private:
 	static FShaderPipelineCache* ShaderPipelineCache;
 	TArray<CompileJob> ReadTasks;
@@ -242,6 +242,7 @@ private:
 	bool bPaused;
 	bool bOpened;
 	bool bReady;
+	bool bPreOptimizing;
     int32 PausedCount;
 	FShaderCachePrecompileContext ShaderCachePrecompileContext;
 	
