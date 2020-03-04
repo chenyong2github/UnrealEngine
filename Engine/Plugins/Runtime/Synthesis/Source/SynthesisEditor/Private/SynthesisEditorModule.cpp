@@ -12,6 +12,9 @@
 #include "AudioEditorModule.h"
 #include "EpicSynth1PresetBank.h"
 #include "MonoWaveTablePresetBank.h"
+#include "ImpulseResponse.h"
+#include "SoundWaveAssetActionExtenderConvolutionReverb.h"
+#include "ToolMenus.h"
 
 IMPLEMENT_MODULE(FSynthesisEditorModule, SynthesisEditor)
 
@@ -21,14 +24,20 @@ void FSynthesisEditorModule::StartupModule()
 
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ModularSynthPresetBank));
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MonoWaveTableSynthPreset));
+	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ImpulseResponse));
 
 	// Now that we've loaded this module, we need to register our effect preset actions
 	IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
 	AudioEditorModule->RegisterEffectPresetAssetActions();
+
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FSynthesisEditorModule::RegisterMenus));
 }
 
 void FSynthesisEditorModule::ShutdownModule()
 {
 }
 
-
+void FSynthesisEditorModule::RegisterMenus()
+{
+	FSoundWaveAssetActionExtenderConvolutionReverb::RegisterMenus();
+}
