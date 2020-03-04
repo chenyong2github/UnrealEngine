@@ -809,15 +809,18 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 	{
 		VkBufferImageCopy CopyRegion;
 		FMemory::Memzero(CopyRegion);
+		uint32 MipLevel = InFlags.GetMip();
+		uint32 SizeX = FMath::Max(TextureRHI2D->GetSizeX() >> MipLevel, 1u);
+		uint32 SizeY = FMath::Max(TextureRHI2D->GetSizeY() >> MipLevel, 1u);
 		//CopyRegion.bufferOffset = 0;
-		CopyRegion.bufferRowLength = TextureRHI2D->GetSizeX();
-		CopyRegion.bufferImageHeight = TextureRHI2D->GetSizeY();
+		CopyRegion.bufferRowLength = SizeX;
+		CopyRegion.bufferImageHeight = SizeY;
 		CopyRegion.imageSubresource.aspectMask = Texture2D->Surface.GetFullAspectMask();
-		CopyRegion.imageSubresource.mipLevel = InFlags.GetMip();
+		CopyRegion.imageSubresource.mipLevel = MipLevel;
 		//CopyRegion.imageSubresource.baseArrayLayer = 0;
 		CopyRegion.imageSubresource.layerCount = 1;
-		CopyRegion.imageExtent.width = TextureRHI2D->GetSizeX();
-		CopyRegion.imageExtent.height = TextureRHI2D->GetSizeY();
+		CopyRegion.imageExtent.width = SizeX;
+		CopyRegion.imageExtent.height = SizeY;
 		CopyRegion.imageExtent.depth = 1;
 
 		//#todo-rco: Multithreaded!
@@ -825,13 +828,13 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 		bool bHadLayout = (CurrentLayout != VK_IMAGE_LAYOUT_UNDEFINED);
 		if (CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 		{
-			VulkanSetImageLayoutSimple(CmdBuffer->GetHandle(), Texture2D->Surface.Image, CurrentLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+			VulkanSetImageLayoutAllMips(CmdBuffer->GetHandle(), Texture2D->Surface.Image, CurrentLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 		}
 
 		VulkanRHI::vkCmdCopyImageToBuffer(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, StagingBuffer->GetHandle(), 1, &CopyRegion);
 		if (bHadLayout && CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 		{
-			VulkanSetImageLayoutSimple(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentLayout);
+			VulkanSetImageLayoutAllMips(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentLayout);
 		}
 		else
 		{
