@@ -3238,11 +3238,17 @@ void FAnimBlueprintCompilerContext::FPropertyCopyRecord::ValidateFastPath(UClass
 
 			// If the property is not one of the following types or categories, then we ignore the fast
 			// path. This matches the supported copyable types in FExposedValueHandler::Initialize
-			if (!(CastField<FBoolProperty>(DestProperty) ||
-				  CastField<FNameProperty>(DestProperty) ||
-				  CastField<FStructProperty>(DestProperty) ||
-				  CastField<FObjectPropertyBase>(DestProperty) ||
-				  (DestProperty->PropertyFlags & CPF_IsPlainOldData) != 0))
+			FProperty* DestPropertyOrInner = DestProperty;
+			if (FArrayProperty* DestArrayProperty = CastField<FArrayProperty>(DestProperty))
+			{
+				DestPropertyOrInner = DestArrayProperty->Inner;
+			}
+
+			if (!(CastField<FBoolProperty>(DestPropertyOrInner) ||
+				  CastField<FNameProperty>(DestPropertyOrInner) ||
+				  CastField<FStructProperty>(DestPropertyOrInner) ||
+				  CastField<FObjectPropertyBase>(DestPropertyOrInner) ||
+				  (DestPropertyOrInner->PropertyFlags & CPF_IsPlainOldData) != 0))
 			{
 				InvalidateFastPath();
 				return;
