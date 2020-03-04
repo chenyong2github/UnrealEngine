@@ -52,7 +52,13 @@ namespace UnrealBuildTool
 		public string Win10SDKVersionString = null;
 
 		internal Version Win10SDKVersion = null;
-	}
+
+        /// <summary>
+        /// Automatically increment the project version after each build.
+        /// </summary>
+        [ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bAutoIncrementVersion")]
+        public bool bAutoIncrementVersion = false;
+    }
 
 	/// <summary>
 	/// Read-only wrapper for HoloLens-specific target settings
