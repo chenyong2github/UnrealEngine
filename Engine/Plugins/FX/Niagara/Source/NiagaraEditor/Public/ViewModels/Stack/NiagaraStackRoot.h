@@ -10,7 +10,7 @@ class UNiagaraStackSystemSettingsGroup;
 class UNiagaraStackEmitterSettingsGroup;
 class UNiagaraStackScriptItemGroup;
 class UNiagaraStackEventHandlerGroup;
-class UNiagaraStackShaderStagesGroup;
+class UNiagaraStackSimulationStagesGroup;
 class UNiagaraStackRenderItemGroup;
 
 UCLASS()
@@ -64,7 +64,7 @@ private:
 	UNiagaraStackEventHandlerGroup* AddEventHandlerGroup;
 
 	UPROPERTY()
-	UNiagaraStackShaderStagesGroup* AddShaderStageGroup;
+	UNiagaraStackSimulationStagesGroup* AddSimulationStageGroup;
 
 	UPROPERTY()
 	UNiagaraStackRenderItemGroup* RenderGroup;

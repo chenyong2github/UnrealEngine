@@ -201,7 +201,7 @@ struct FNiagaraComputeExecutionContext
 
 	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
 
-	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultShaderStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
+	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultSimulationStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 
@@ -217,7 +217,7 @@ struct FNiagaraComputeExecutionContext
 		// The CPU instance count at the time the GPU count readback was issued. Always bigger or equal to the GPU count.
 		uint32 CPUCount = 0;
 	}  EmitterInstanceReadback;
-
+	
 private:
 	void ResetInternal(NiagaraEmitterInstanceBatcher* Batcher);
 
@@ -231,6 +231,8 @@ public:
 #else
 	FORCEINLINE const TCHAR* GetDebugSimName() const { return TEXT(""); }
 #endif
+
+	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return CombinedParamStore.GetDataInterfaces(); }
 
 	class FNiagaraDataSet *MainDataSet;
 	UNiagaraScript* GPUScript;
@@ -258,7 +260,7 @@ public:
 	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
 	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;
 
-	uint32 DefaultShaderStageIndex;
+	uint32 DefaultSimulationStageIndex;
 	uint32 MaxUpdateIterations;
 	TSet<uint32> SpawnStages;
 
@@ -266,6 +268,13 @@ public:
 
 	/** Temp data used in NiagaraEmitterInstanceBatcher::ExecuteAll() to avoid creating a map per FNiagaraComputeExecutionContext */
 	mutable int32 ScratchIndex = INDEX_NONE;
+
+	TArray < FSimulationStageMetaData> SimStageInfo;
+
+	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
+	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
+	FNiagaraDataInterfaceProxy* FindIterationInterface(const TArray<FNiagaraDataInterfaceProxy*>& InProxies, uint32 SimulationStageIndex) const;
+	const FSimulationStageMetaData* GetSimStageMetaData(uint32 SimulationStageIndex) const;
 
 #if WITH_EDITORONLY_DATA
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackFloat;
@@ -294,6 +303,16 @@ struct FNiagaraDataInterfaceInstanceData
 
 //TODO: Rename FNiagaraGPUEmitterTick?
 
+
+struct FNiagaraSimStageData
+{
+	FNiagaraDataBuffer* Source;
+	FNiagaraDataBuffer* Destination;
+	FNiagaraDataInterfaceProxy* AlternateIterationSource;
+	uint32 SourceCountOffset;
+	uint32 DestinationCountOffset;
+};
+
 struct FNiagaraComputeInstanceData
 {
 	FNiagaraGpuSpawnInfo SpawnInfo;
@@ -304,12 +323,16 @@ struct FNiagaraComputeInstanceData
 	uint8* ExternalParamData = nullptr;
 	FNiagaraComputeExecutionContext* Context = nullptr;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
+	bool bUsesSimStages = false;
+	bool bUsesOldShaderStages = false;
+	TArray<FNiagaraSimStageData, TInlineAllocator<1>> SimStageData;
 
-	//Buffer containing current state that this tick will read from. Initialized at the start of processing this tick on the RT.
-	FNiagaraDataBuffer* CurrentData = nullptr;
-	//Buffer into which we'll write the new simulation state. Initialized at the start of processing this tick on the RT.
-	FNiagaraDataBuffer* DestinationData = nullptr;
+	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
+	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
+	FNiagaraDataInterfaceProxy* FindIterationInterface(uint32 SimulationStageIndex) const;
 };
+
+
 
 /*
 	Represents all the information needed to dispatch a single tick of a FNiagaraSystemInstance.
@@ -342,6 +365,7 @@ public:
 	FORCEINLINE FNiagaraComputeInstanceData* GetInstanceData()const{ return reinterpret_cast<FNiagaraComputeInstanceData*>(InstanceData_ParamData_Packed); }
 
 	uint32 Count;
+	uint32 TotalDispatches;
 	FNiagaraSystemInstanceID SystemInstanceID;
 	FNiagaraDataInterfaceInstanceData* DIInstanceData;
 	uint8* InstanceData_ParamData_Packed;
@@ -350,4 +374,5 @@ public:
 	bool bRequiresEarlyViewData = false;
 	bool bNeedsReset = false;
 	bool bIsFinalTick = false;
+	uint32 NumInstancesWithSimStages = 0;
 };

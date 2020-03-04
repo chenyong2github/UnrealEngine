@@ -10,6 +10,7 @@
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGPUInstanceCountManager.h"
+#include "NiagaraDataInterfaceRW.h"
 
 DECLARE_CYCLE_STAT(TEXT("Register Setup"), STAT_NiagaraSimRegisterSetup, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Context Ticking"), STAT_NiagaraScriptExecContextTick, STATGROUP_Niagara);
@@ -306,7 +307,9 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	int32 TickCount = InSystemInstance->GetTickCount();
 	check(TickCount > 0);
 	bNeedsReset = ( TickCount == 1);
+	NumInstancesWithSimStages = 0;
 
+	TotalDispatches = 0;
 	uint8* GlobalParamData = ParamDataBufferPtr;
 	ParamDataBufferPtr += 2 * sizeof(FNiagaraGlobalParameters);
 	uint8* SystemParamData = ParamDataBufferPtr;
@@ -340,6 +343,21 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			InstanceData->SystemParamData = SystemParamData;
 			InstanceData->OwnerParamData = OwnerParamData;
 			InstanceData->EmitterParamData = ParamDataBufferPtr;
+			UNiagaraEmitter* EmitterRaw = Emitter->GetCachedEmitter();
+			if (EmitterRaw)
+			{
+				InstanceData->bUsesSimStages = EmitterRaw->bSimulationStagesEnabled/* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/;
+				InstanceData->bUsesOldShaderStages = EmitterRaw->bDeprecatedShaderStagesEnabled;
+			}
+			else
+			{
+				InstanceData->bUsesSimStages = false;
+			}
+
+			if (InstanceData->bUsesSimStages || InstanceData->bUsesOldShaderStages)
+			{
+				NumInstancesWithSimStages++;
+			}
 			ParamDataBufferPtr += 2 * sizeof(FNiagaraEmitterParameters);
 			InstanceData->ExternalParamData = ParamDataBufferPtr;
 			ParamDataBufferPtr += ParmSize;
@@ -356,14 +374,20 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
 
+			check(GPUContext->MaxUpdateIterations > 0);
+			InstanceData->SimStageData.AddZeroed(GPUContext->MaxUpdateIterations);
+			TotalDispatches += FMath::Max<int32>(GPUContext->MaxUpdateIterations, 1);
+
 			// @todo-threadsafety Think of a better way to do this!
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
 			InstanceData->DataInterfaceProxies.Reserve(DataInterfaces.Num());
+			//UE_LOG(LogNiagara, Log, TEXT("InitTick %s %d"), GPUContext->GetDebugSimName())
 			for (UNiagaraDataInterface* DI : DataInterfaces)
 			{
 				check(DI->GetProxy());
 				InstanceData->DataInterfaceProxies.Add(DI->GetProxy());
-			}			
+				//UE_LOG(LogNiagara, Log, TEXT("Proxy %p for DI %p"), DI->GetProxy(), DI);
+			}
 		}
 	}
 
@@ -463,20 +487,127 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 	);
 }
 
-void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultShaderStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
+void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultSimulationStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
 {
 #if !UE_BUILD_SHIPPING
 	DebugSimName = InDebugSimName;
 #endif
 	GPUScript = InGPUComputeScript;
 	CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
-	DefaultShaderStageIndex = InDefaultShaderStageIndex;
+	DefaultSimulationStageIndex = InDefaultSimulationStageIndex;
 	MaxUpdateIterations = InMaxUpdateIterations;
 	SpawnStages.Empty();
 
 	SpawnStages.Append(InSpawnStages);
 	
 	HasInterpolationParameters = GPUScript && GPUScript->GetComputedVMCompilationId().HasInterpolatedParameters();
+
+	if (InGPUComputeScript)
+	{
+		FNiagaraVMExecutableData& VMData = InGPUComputeScript->GetVMExecutableData();
+		if (VMData.IsValid() && VMData.SimulationStageMetaData.Num() > 0)
+		{
+
+			SimStageInfo = VMData.SimulationStageMetaData;
+
+			int32 FoundMaxUpdateIterations = SimStageInfo[SimStageInfo.Num() - 1].MaxStage;
+
+			// Some useful debugging code should we need to look up differences between old and new
+			const bool bDebugSimStages = false;
+			if (bDebugSimStages)
+			{
+				UE_LOG(LogNiagara, Log, TEXT("Stored vs:"));
+				bool bPass = FoundMaxUpdateIterations == MaxUpdateIterations;
+				UE_LOG(LogNiagara, Log, TEXT("MaxUpdateIterations: %d vs %d %s"), FoundMaxUpdateIterations, MaxUpdateIterations, bPass ? TEXT("Pass") : TEXT("FAIL!!!!!!!!"));
+
+				int32 NumSpawnFound = 0;
+				bool bMatchesFound = true;
+				for (int32 i = 0; i < SimStageInfo.Num(); i++)
+				{
+					if (SimStageInfo[i].bSpawnOnly)
+					{
+						NumSpawnFound++;
+
+						if (!SpawnStages.Contains(SimStageInfo[i].MinStage))
+						{
+							bMatchesFound = false;
+							UE_LOG(LogNiagara, Log, TEXT("Missing spawn stage: %d FAIL!!!!!!!!!"), SimStageInfo[i].MinStage);
+						}
+					}
+				}
+
+				bPass = SpawnStages.Num() == NumSpawnFound;
+				UE_LOG(LogNiagara, Log, TEXT("SpawnStages.Num(): %d vs %d %s"), NumSpawnFound, SpawnStages.Num(), bPass ? TEXT("Pass") : TEXT("FAIL!!!!!!!!"));
+
+				TArray<FNiagaraVariable> Params;
+				CombinedParamStore.GetParameters(Params);
+				for (FNiagaraVariable& Var : Params)
+				{
+					if (!Var.IsDataInterface())
+						continue;
+
+					UNiagaraDataInterface* DI = CombinedParamStore.GetDataInterface(Var);
+					UNiagaraDataInterfaceRWBase* DIRW = Cast<UNiagaraDataInterfaceRWBase>(DI);
+					if (DIRW)
+					{
+						for (int32 i = 0; i < SimStageInfo.Num(); i++)
+						{
+							if (SimStageInfo[i].IterationSource == Var.GetName())
+							{
+								if (!DIRW->IterationShaderStages.Contains(SimStageInfo[i].MinStage))
+								{
+									UE_LOG(LogNiagara, Log, TEXT("Missing iteration stage for %s: %d FAIL!!!!!!!!!"), *Var.GetName().ToString(), SimStageInfo[i].MinStage);
+								}
+							}
+
+							if (SimStageInfo[i].OutputDestinations.Contains(Var.GetName()))
+							{
+								if (!DIRW->OutputShaderStages.Contains(SimStageInfo[i].MinStage))
+								{
+									UE_LOG(LogNiagara, Log, TEXT("Missing output stage for %s: %d FAIL!!!!!!!!!"), *Var.GetName().ToString(), SimStageInfo[i].MinStage);
+								}
+							}
+						}
+					}
+
+				}
+			}
+
+
+			// Set the values that we are using from compiled data instead...
+			MaxUpdateIterations = SimStageInfo[SimStageInfo.Num() - 1].MaxStage;
+			SpawnStages.Empty();
+
+			for (int32 i = 0; i < SimStageInfo.Num(); i++)
+			{
+				if (SimStageInfo[i].bSpawnOnly)
+				{
+					SpawnStages.Add(SimStageInfo[i].MinStage);
+				}
+			}
+
+			// We need to store the name of each DI source variable here so that we can look it up later when looking for the 
+			// iteration interface.
+			TArray<FNiagaraVariable> Params;
+			CombinedParamStore.GetParameters(Params);
+			for (FNiagaraVariable& Var : Params)
+			{
+				if (!Var.IsDataInterface())
+					continue;
+
+				UNiagaraDataInterface* DI = CombinedParamStore.GetDataInterface(Var);
+				if (DI)
+				{
+					FNiagaraDataInterfaceProxy* Proxy = DI->GetProxy();
+					if (Proxy)
+					{
+						Proxy->SourceDIName = Var.GetName();
+					}
+				}
+			}
+		}
+	}
+
 	
 #if DO_CHECK
 	FNiagaraShaderRef Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
@@ -497,6 +628,87 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 		}
 	}
 #endif
+}
+
+
+const FSimulationStageMetaData* FNiagaraComputeExecutionContext::GetSimStageMetaData(uint32 SimulationStageIndex) const
+{
+	if (SimStageInfo.Num() > 0)
+	{
+		for (int32 i = 0; i < SimStageInfo.Num(); i++)
+		{
+			if (SimulationStageIndex >= (uint32)SimStageInfo[i].MinStage  && SimulationStageIndex < (uint32)SimStageInfo[i].MaxStage)
+			{
+				return &SimStageInfo[i];
+			}
+		}
+	}
+	return nullptr;
+}
+
+bool FNiagaraComputeExecutionContext::IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const
+{
+	const FSimulationStageMetaData* MetaData = GetSimStageMetaData(CurrentStage);
+	if (MetaData && DIProxy && !DIProxy->SourceDIName.IsNone())
+	{
+		if (MetaData->OutputDestinations.Contains(DIProxy->SourceDIName))
+			return true;
+	}
+	else if (DIProxy && SimStageInfo.Num() == 0)
+	{
+		return DIProxy->IsOutputStage_DEPRECATED(CurrentStage);
+	}
+	return false;
+}
+
+bool FNiagaraComputeExecutionContext::IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const
+{
+	const FSimulationStageMetaData* MetaData = GetSimStageMetaData(CurrentStage);
+	if (MetaData && DIProxy && !DIProxy->SourceDIName.IsNone())
+	{
+		if (MetaData->IterationSource.IsNone()) // Per particle iteration...
+			return false;
+
+		if (MetaData->IterationSource == DIProxy->SourceDIName)
+			return true;
+	}
+	else if (DIProxy && SimStageInfo.Num() == 0)
+	{
+		return DIProxy->IsIterationStage_DEPRECATED(CurrentStage);
+	}
+	return false;
+}
+
+FNiagaraDataInterfaceProxy* FNiagaraComputeExecutionContext::FindIterationInterface(const TArray<FNiagaraDataInterfaceProxy*>& InProxies, uint32 CurrentStage) const
+{
+	const FSimulationStageMetaData* MetaData = GetSimStageMetaData(CurrentStage);
+	if (MetaData)
+	{
+		if (MetaData->IterationSource.IsNone()) // Per particle iteration...
+			return nullptr;
+
+		for (FNiagaraDataInterfaceProxy* Proxy : InProxies)
+		{
+			if (Proxy->SourceDIName == MetaData->IterationSource)
+				return Proxy;
+		}
+
+		UE_LOG(LogNiagara, Verbose, TEXT("FNiagaraComputeExecutionContext::FindIterationInterface could not find IterationInterface %s"), *MetaData->IterationSource.ToString());
+
+		return nullptr;
+	}
+	else if (SimStageInfo.Num() == 0)
+	{
+
+		// Fallback to old shader stages
+		for (FNiagaraDataInterfaceProxy* Proxy : InProxies)
+		{
+			if (Proxy->IsIterationStage_DEPRECATED(CurrentStage))
+				return Proxy;
+		}
+	}
+
+	return nullptr;
 }
 
 void FNiagaraComputeExecutionContext::DirtyDataInterfaces()
@@ -587,8 +799,66 @@ void FNiagaraComputeExecutionContext::SetDataToRender(FNiagaraDataBuffer* InData
 
 	DataToRender = InDataToRender;
 
+
 	if (DataToRender)
 	{
 		DataToRender->AddReadRef();
 	}
+}
+
+bool FNiagaraComputeInstanceData::IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const
+{
+	if (bUsesOldShaderStages)
+	{
+		return DIProxy->IsOutputStage_DEPRECATED(CurrentStage);
+	}
+	else if (bUsesSimStages)
+	{
+		return Context->IsOutputStage(DIProxy, CurrentStage);
+	}
+	return false;
+}
+
+bool FNiagaraComputeInstanceData::IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const
+{
+
+	if (bUsesOldShaderStages)
+	{
+		return DIProxy->IsIterationStage_DEPRECATED(CurrentStage);
+	}
+	else if (bUsesSimStages)
+	{
+		return Context->IsIterationStage(DIProxy, CurrentStage);
+	}
+	return false;
+}
+
+FNiagaraDataInterfaceProxy* FNiagaraComputeInstanceData::FindIterationInterface(uint32 SimulationStageIndex) const
+{
+
+	if (bUsesOldShaderStages)
+	{
+		FNiagaraDataInterfaceProxy* IterationInterface = nullptr;
+
+		for (FNiagaraDataInterfaceProxy* Interface : DataInterfaceProxies)
+		{
+			if (Interface->IsIterationStage_DEPRECATED(SimulationStageIndex))
+			{
+				if (IterationInterface)
+				{
+					UE_LOG(LogNiagara, Error, TEXT("Multiple output Data Interfaces found for current stage"));
+				}
+				else
+				{
+					IterationInterface = Interface;
+				}
+			}
+		}
+		return IterationInterface;
+	}
+	else if (bUsesSimStages)
+	{
+		return Context->FindIterationInterface(DataInterfaceProxies, SimulationStageIndex);
+	}
+	return false;
 }

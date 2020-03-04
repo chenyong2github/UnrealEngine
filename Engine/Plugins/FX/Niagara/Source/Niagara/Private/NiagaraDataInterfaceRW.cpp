@@ -78,7 +78,6 @@ UNiagaraDataInterfaceGrid3D::UNiagaraDataInterfaceGrid3D(FObjectInitializer cons
 	, WorldBBoxSize(100., 100., 100.)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());
-	RWProxy = (FNiagaraDataInterfaceProxyRW*) Proxy.Get();
 	PushToRenderThread();
 }
 

@@ -38,7 +38,7 @@
 
 #include "NiagaraFunctionLibrary.h"
 #include "VectorVM.h"
-
+#include "NiagaraSimulationStageBase.h"
 #include "Async/Async.h"
 
 DECLARE_STATS_GROUP(TEXT("Niagara Detailed"), STATGROUP_NiagaraDetailed, STATCAT_Advanced);
@@ -348,6 +348,36 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			Id.bUsesRapidIterationParams = true;
 		}
+
+		if (Emitter->bSimulationStagesEnabled && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript/* TODO limit to just with stages in the future! Leaving like this so what can convert! && Emitter->GetSimulationStages().Num() > 0*/)
+		{
+			Id.AdditionalDefines.Add(TEXT("Emitter.UseSimulationStages"));
+
+			FSHA1 HashState;
+			FNiagaraCompileHashVisitor Visitor(HashState);
+			for (UNiagaraSimulationStageBase* Base : Emitter->GetSimulationStages())
+			{
+				// bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+				if (Base)
+				{
+					Base->AppendCompileHash(&Visitor);
+				}
+			}
+			HashState.Final();
+
+			TArray<uint8> DataHash;
+			DataHash.AddUninitialized(FSHA1::DigestSize);
+			HashState.GetHash(DataHash.GetData());
+
+			FNiagaraCompileHash Hash(DataHash);
+			Id.ReferencedCompileHashes.Add(Hash);
+			Id.DebugReferencedObjects.Add(TEXT("SimulationStageHeaders"));
+
+		}
+		else if (Emitter->bDeprecatedShaderStagesEnabled && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript/* TODO limit to just with stages in the future! Leaving like this so what can convert! && Emitter->GetSimulationStages().Num() > 0*/)
+		{
+			Id.AdditionalDefines.Add(TEXT("Emitter.UseOldShaderStages"));
+		}
 	}
 
 	if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Obj))
@@ -426,13 +456,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		Id.ReferencedCompileHashes.Add(Hash);
 		Id.DebugReferencedObjects.Add(TEXT("RIParams"));
 	}
-
-	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
-	if (UseShaderStagesCVar->GetInt())
-	{
-		Id.AdditionalDefines.Add(TEXT("fx.UseShaderStages"));
-	}
-
+	
 	Source->ComputeVMCompilationId(Id, Usage, UsageId);	
 	
 	if (GNiagaraDumpKeyGen == 1 && Id != LastGeneratedVMId)
@@ -462,6 +486,11 @@ bool UNiagaraScript::ContainsUsage(ENiagaraScriptUsage InUsage) const
 	}
 
 	if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript && IsParticleScript(InUsage))
+	{
+		return true;
+	}
+
+	if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript && InUsage == ENiagaraScriptUsage::ParticleSimulationStageScript)
 	{
 		return true;
 	}
@@ -530,6 +559,7 @@ TOptional<ENiagaraSimTarget> UNiagaraScript::GetSimTarget() const
 	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
 	case ENiagaraScriptUsage::ParticleUpdateScript:
 	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
 	case ENiagaraScriptUsage::ParticleGPUComputeScript:
 		if (UNiagaraEmitter* OwningEmitter = GetTypedOuter<UNiagaraEmitter>())
 		{
@@ -795,7 +825,7 @@ bool UNiagaraScript::IsUsageDependentOn(ENiagaraScriptUsage InUsageA, ENiagaraSc
 
 	// The GPU compute script is always dependent on the other particle scripts.
 	if ((InUsageA == ENiagaraScriptUsage::ParticleGPUComputeScript)
-		&& (InUsageB == ENiagaraScriptUsage::ParticleSpawnScript || InUsageB == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated || InUsageB == ENiagaraScriptUsage::ParticleUpdateScript || InUsageB == ENiagaraScriptUsage::ParticleEventScript))
+		&& (InUsageB == ENiagaraScriptUsage::ParticleSpawnScript || InUsageB == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated || InUsageB == ENiagaraScriptUsage::ParticleUpdateScript || InUsageB == ENiagaraScriptUsage::ParticleEventScript || InUsageB == ENiagaraScriptUsage::ParticleSimulationStageScript))
 	{
 		return true;
 	}
@@ -854,12 +884,12 @@ void UNiagaraScript::PostLoad()
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
-	if (NiagaraVer < FNiagaraCustomVersion::AddShaderStageUsageEnum)
+	if (NiagaraVer < FNiagaraCustomVersion::AddSimulationStageUsageEnum)
 	{
-		uint8 ShaderStageIndex = (uint8)ENiagaraScriptUsage::ParticleShaderStageScript;
+		uint8 SimulationStageIndex = (uint8)ENiagaraScriptUsage::ParticleSimulationStageScript;
 		uint8 MaxIndex = (uint8)ENiagaraScriptUsage::SystemUpdateScript;
 		// Start at the end and shift the bits down to account for the new shader stage bit.
-		for (uint8 CurrentIndex = MaxIndex; CurrentIndex > ShaderStageIndex; CurrentIndex--)
+		for (uint8 CurrentIndex = MaxIndex; CurrentIndex > SimulationStageIndex; CurrentIndex--)
 		{
 			uint8 OldIndex = CurrentIndex - 1;
 			if ((ModuleUsageBitmask & (1 << OldIndex)) != 0)
@@ -872,7 +902,7 @@ void UNiagaraScript::PostLoad()
 			}
 		}
 		// Clear the shader stage bit.
-		ModuleUsageBitmask &= ~(1 << ShaderStageIndex);
+		ModuleUsageBitmask &= ~(1 << SimulationStageIndex);
 	}
 
 	if (Source != nullptr)
@@ -1423,6 +1453,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 			return;
 		}
 
+
 		CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_BeingCreated;
 
 		TArray<TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>> DependentRequests;
@@ -1477,6 +1508,7 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 			CachedScriptVMId = LastGeneratedVMId;
 			return false;
 		}
+
 		INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
 		CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_BeingCreated;
 
@@ -1782,6 +1814,33 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 		if (NewVar.GetName() != Var.GetName())
 		{
 			GetVMExecutableData().Parameters.Parameters[i] = NewVar;
+		}
+	}
+
+	// Sync up any simulation stage name references.
+	for (int32 i = 0; i < GetVMExecutableData().SimulationStageMetaData.Num(); i++)
+	{
+		if (!GetVMExecutableData().SimulationStageMetaData[i].IterationSource.IsNone())
+		{
+			FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), GetVMExecutableData().SimulationStageMetaData[i].IterationSource);
+			FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+			if (NewVar.GetName() != Var.GetName())
+			{
+				GetVMExecutableData().SimulationStageMetaData[i].IterationSource = NewVar.GetName();
+			}
+		}
+
+		for (int32 DestIdx = 0; DestIdx < GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations.Num(); DestIdx++)
+		{
+			if (!GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx].IsNone())
+			{
+				FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx]);
+				FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+				if (NewVar.GetName() != Var.GetName())
+				{
+					GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx] = NewVar.GetName();
+				}
+			}
 		}
 	}
 

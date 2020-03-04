@@ -5,7 +5,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraRendererProperties.h"
-#include "NiagaraShaderStageBase.h"
+#include "NiagaraSimulationStageBase.h"
 #include "NiagaraCustomVersion.h"
 #include "UObject/Package.h"
 #include "UObject/Linker.h"
@@ -264,6 +264,16 @@ UNiagaraEmitter* UNiagaraEmitter::DuplicateWithoutMerging(UObject* InOuter)
 
 void UNiagaraEmitter::Serialize(FArchive& Ar)
 {
+
+	for (UNiagaraSimulationStageBase* Stage : SimulationStages)
+	{
+		ensure(Stage);
+		ensure(Stage->Script);
+		if (!HasAnyFlags(RF_Transient))
+		{
+			ensure(!Stage->Script->HasAnyFlags(RF_Transient));
+		}
+	}
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
@@ -286,11 +296,12 @@ void UNiagaraEmitter::PostLoad()
 		}
 	}
 
-	for (int32 ShaderStageIndex = ShaderStages.Num() - 1; ShaderStageIndex >= 0; --ShaderStageIndex)
+
+	for (int32 SimulationStageIndex = SimulationStages.Num() - 1; SimulationStageIndex >= 0; --SimulationStageIndex)
 	{
-		if (ensureMsgf(ShaderStages[ShaderStageIndex] != nullptr && ShaderStages[ShaderStageIndex]->Script != nullptr, TEXT("Null shader stage, or shader stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), ShaderStageIndex) == false)
+		if (ensureMsgf(SimulationStages[SimulationStageIndex] != nullptr && SimulationStages[SimulationStageIndex]->Script != nullptr, TEXT("Null simulation stage, or simulation stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), SimulationStageIndex) == false)
 		{
-			ShaderStages.RemoveAt(ShaderStageIndex);
+			SimulationStages.RemoveAt(SimulationStageIndex);
 		}
 	}
 
@@ -512,10 +523,10 @@ void UNiagaraEmitter::PostLoad()
 				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 		}
 
-		for (UNiagaraShaderStageBase* ShaderStage : ShaderStages)
+		for (UNiagaraSimulationStageBase* SimulationStage : SimulationStages)
 		{
-			ShaderStage->OnChanged().AddUObject(this, &UNiagaraEmitter::ShaderStageChanged);
-			ShaderStage->Script->RapidIterationParameters.AddOnChangedHandler(
+			SimulationStage->OnChanged().AddUObject(this, &UNiagaraEmitter::SimulationStageChanged);
+			SimulationStage->Script->RapidIterationParameters.AddOnChangedHandler(
 				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 		}
 
@@ -645,9 +656,24 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 			GraphSource->MarkNotSynchronized(TEXT("Emitter Determinism changed."));
 		}
 
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+		bNeedsRecompile = true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bSimulationStagesEnabled))
+	{
+		if (GraphSource != nullptr)
+		{
+			GraphSource->MarkNotSynchronized(TEXT("SimulationStagesEnabled changed."));
+		}
+		bNeedsRecompile = true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeprecatedShaderStagesEnabled))
+	{
+		if (GraphSource != nullptr)
+		{
+			GraphSource->MarkNotSynchronized(TEXT("DeprecatedShaderStagesEnabled changed."));
+		}
+		bNeedsRecompile = true;
+
 	}
 
 	ResolveScalabilitySettings();
@@ -785,11 +811,11 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 
 	if (!bCompilableOnly)
 	{
-		for (int32 i = 0; i < ShaderStages.Num(); i++)
+		for (int32 i = 0; i < SimulationStages.Num(); i++)
 		{
-			if (ShaderStages[i] && ShaderStages[i]->Script)
+			if (SimulationStages[i] && SimulationStages[i]->Script)
 			{
-				OutScripts.Add(ShaderStages[i]->Script);
+				OutScripts.Add(SimulationStages[i]->Script);
 			}
 		}
 	}
@@ -881,9 +907,9 @@ bool UNiagaraEmitter::AreAllScriptAndSourcesSynchronized() const
 		}
 	}
 
-	for (int32 i = 0; i < ShaderStages.Num(); i++)
+	for (int32 i = 0; i < SimulationStages.Num(); i++)
 	{
-		if (ShaderStages[i] && ShaderStages[i]->Script  && ShaderStages[i]->Script->IsCompilable() && !ShaderStages[i]->Script->AreScriptAndSourceSynchronized())
+		if (SimulationStages[i] && SimulationStages[i]->Script  && SimulationStages[i]->Script->IsCompilable() && !SimulationStages[i]->Script->AreScriptAndSourceSynchronized())
 		{
 			return false;
 		}
@@ -1146,19 +1172,19 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	}
 
 	// Copy shader stages
-	for (UNiagaraShaderStageBase*& ShaderStage : ShaderStages)
+	for (UNiagaraSimulationStageBase*& SimulationStage : SimulationStages)
 	{
-		ShaderStage->OnChanged().RemoveAll(this);
-		ShaderStage->Script->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
+		SimulationStage->OnChanged().RemoveAll(this);
+		SimulationStage->Script->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
 	}
-	ShaderStages.Empty();
+	SimulationStages.Empty();
 
-	for (UNiagaraShaderStageBase* MergedShaderStage : MergedEmitter->ShaderStages)
+	for (UNiagaraSimulationStageBase* MergedSimulationStage : MergedEmitter->SimulationStages)
 	{
-		ReouterMergedObject(this, MergedShaderStage);
-		ShaderStages.Add(MergedShaderStage);
-		MergedShaderStage->OnChanged().AddUObject(this, &UNiagaraEmitter::ShaderStageChanged);
-		MergedShaderStage->Script->RapidIterationParameters.AddOnChangedHandler(
+		ReouterMergedObject(this, MergedSimulationStage);
+		SimulationStages.Add(MergedSimulationStage);
+		MergedSimulationStage->OnChanged().AddUObject(this, &UNiagaraEmitter::SimulationStageChanged);
+		MergedSimulationStage->Script->RapidIterationParameters.AddOnChangedHandler(
 			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 	}
 
@@ -1307,52 +1333,52 @@ void UNiagaraEmitter::RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId)
 #endif
 }
 
-UNiagaraShaderStageBase* UNiagaraEmitter::GetShaderStageById(FGuid ScriptUsageId) const
+UNiagaraSimulationStageBase* UNiagaraEmitter::GetSimulationStageById(FGuid ScriptUsageId) const
 {
-	UNiagaraShaderStageBase*const* FoundShaderStagePtr = ShaderStages.FindByPredicate([&ScriptUsageId](UNiagaraShaderStageBase* ShaderStage) { return ShaderStage->Script->GetUsageId() == ScriptUsageId; });
-	return FoundShaderStagePtr != nullptr ? *FoundShaderStagePtr : nullptr;
+	UNiagaraSimulationStageBase*const* FoundSimulationStagePtr = SimulationStages.FindByPredicate([&ScriptUsageId](UNiagaraSimulationStageBase* SimulationStage) { return SimulationStage->Script->GetUsageId() == ScriptUsageId; });
+	return FoundSimulationStagePtr != nullptr ? *FoundSimulationStagePtr : nullptr;
 }
 
-void UNiagaraEmitter::AddShaderStage(UNiagaraShaderStageBase* ShaderStage)
+void UNiagaraEmitter::AddSimulationStage(UNiagaraSimulationStageBase* SimulationStage)
 {
 	Modify();
-	ShaderStages.Add(ShaderStage);
+	SimulationStages.Add(SimulationStage);
 #if WITH_EDITOR
-	ShaderStage->OnChanged().AddUObject(this, &UNiagaraEmitter::ShaderStageChanged);
-	ShaderStage->Script->RapidIterationParameters.AddOnChangedHandler(
+	SimulationStage->OnChanged().AddUObject(this, &UNiagaraEmitter::SimulationStageChanged);
+	SimulationStage->Script->RapidIterationParameters.AddOnChangedHandler(
 		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 	UpdateChangeId(TEXT("Shader stage added"));
 #endif
 }
 
-void UNiagaraEmitter::RemoveShaderStage(UNiagaraShaderStageBase* ShaderStage)
+void UNiagaraEmitter::RemoveSimulationStage(UNiagaraSimulationStageBase* SimulationStage)
 {
 	Modify();
-	bool bRemoved = ShaderStages.Remove(ShaderStage) != 0;
+	bool bRemoved = SimulationStages.Remove(SimulationStage) != 0;
 #if WITH_EDITOR
 	if (bRemoved)
 	{
-		ShaderStage->OnChanged().RemoveAll(this);
-		ShaderStage->Script->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
-		UpdateChangeId(TEXT("Shader stage removed"));
+		SimulationStage->OnChanged().RemoveAll(this);
+		SimulationStage->Script->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
+		UpdateChangeId(TEXT("Simulation stage removed"));
 	}
 #endif
 }
 
-void UNiagaraEmitter::MoveShaderStageToIndex(UNiagaraShaderStageBase* ShaderStageToMove, int32 TargetIndex)
+void UNiagaraEmitter::MoveSimulationStageToIndex(UNiagaraSimulationStageBase* SimulationStageToMove, int32 TargetIndex)
 {
-	int32 CurrentIndex = ShaderStages.IndexOfByKey(ShaderStageToMove);
-	checkf(CurrentIndex != INDEX_NONE, TEXT("Shader stage could not be moved because it is not owned by this emitter."));
+	int32 CurrentIndex = SimulationStages.IndexOfByKey(SimulationStageToMove);
+	checkf(CurrentIndex != INDEX_NONE, TEXT("Simulation stage could not be moved because it is not owned by this emitter."));
 	if (TargetIndex != CurrentIndex)
 	{
 		int32 AdjustedTargetIndex = CurrentIndex < TargetIndex
 			? TargetIndex - 1 // If the current index is less than the target index, the target index needs to be decreased to make up for the item being removed.
 			: TargetIndex;
 
-		ShaderStages.Remove(ShaderStageToMove);
-		ShaderStages.Insert(ShaderStageToMove, AdjustedTargetIndex);
+		SimulationStages.Remove(SimulationStageToMove);
+		SimulationStages.Insert(SimulationStageToMove, AdjustedTargetIndex);
 #if WITH_EDITOR
-		UpdateChangeId("Shader stage moved.");
+		UpdateChangeId("Simulation stage moved.");
 #endif
 	}
 }
@@ -1398,9 +1424,9 @@ void UNiagaraEmitter::ScriptRapidIterationParameterChanged()
 	UpdateChangeId(TEXT("Script rapid iteration parameter changed."));
 }
 
-void UNiagaraEmitter::ShaderStageChanged()
+void UNiagaraEmitter::SimulationStageChanged()
 {
-	UpdateChangeId(TEXT("Shader Stage Changed"));
+	UpdateChangeId(TEXT("Simulation Stage Changed"));
 }
 
 void UNiagaraEmitter::RendererChanged()

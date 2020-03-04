@@ -154,7 +154,7 @@ void FNiagaraDataSet::ReleaseBuffers()
 	GPUNumAllocatedIDs = 0;
 }
 
-FNiagaraDataBuffer& FNiagaraDataSet::BeginSimulate()
+FNiagaraDataBuffer& FNiagaraDataSet::BeginSimulate(bool bResetDestinationData)
 {
 	//CheckCorrectThread();
 	check(DestinationData == nullptr);
@@ -179,8 +179,11 @@ FNiagaraDataBuffer& FNiagaraDataSet::BeginSimulate()
 		checkSlow(DestinationData->IsBeingWritten());
 	}
 
-	DestinationData->SetNumInstances(0);
-	DestinationData->GetIDTable().Reset();
+	if (bResetDestinationData)
+	{
+		DestinationData->SetNumInstances(0);
+		DestinationData->GetIDTable().Reset();
+	}
 
 	return GetDestinationDataChecked();
 }
@@ -652,10 +655,12 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 
 	checkSlow(Owner->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);
 
+	//uint32 OldOffset = GPUInstanceCountBufferOffset;
 	// Release previous entry if any.
 	GPUInstanceCountManager.FreeEntry(GPUInstanceCountBufferOffset);
 	// Get a new entry currently set to 0, since simulation will increment it to the actual instance count.
 	GPUInstanceCountBufferOffset = GPUInstanceCountManager.AcquireEntry();
+	//UE_LOG(LogNiagara, Log, TEXT("AllocateGPU %p GPUInstanceCountBufferOffsetOld: %d New: %d"), this, OldOffset, GPUInstanceCountBufferOffset);
 
 	// ALLOC_CHUNKSIZE must be greater than zero and divisible by the thread group size
 	const uint32 ALLOC_CHUNKSIZE = 4096;

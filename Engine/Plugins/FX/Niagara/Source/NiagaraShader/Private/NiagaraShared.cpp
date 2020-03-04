@@ -53,6 +53,23 @@ NIAGARASHADER_API bool FNiagaraShaderScript::ShouldCache(EShaderPlatform Platfor
 	return true;
 }
 
+NIAGARASHADER_API uint32 FNiagaraShaderScript::GetUseSimStagesDefine() const
+{
+	if (AdditionalDefines.Contains(TEXT("Emitter.UseSimulationStages")))
+	{
+		return 1;
+	}
+	else if (AdditionalDefines.Contains(TEXT("Emitter.UseOldShaderStages")))
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+
 NIAGARASHADER_API void FNiagaraShaderScript::NotifyCompilationFinished()
 {
 	OnCompilationCompleteDelegate.Broadcast();

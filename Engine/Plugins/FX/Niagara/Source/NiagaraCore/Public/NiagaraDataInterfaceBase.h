@@ -31,7 +31,7 @@ struct FNiagaraDataInterfaceSetArgs
 	FNiagaraSystemInstanceID SystemInstance;
 	const NiagaraEmitterInstanceBatcher* Batcher;
 	const FNiagaraComputeInstanceData* ComputeInstanceData;
-	uint32 ShaderStageIndex;
+	uint32 SimulationStageIndex;
 	bool IsOutputStage;
 	bool IsIterationStage;
 };

@@ -50,16 +50,6 @@ static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
 	ECVF_Default
 );
 
-/**
-Use Shader Stages CVar.
-Enable the custom dispatch for multiple shader stages 
-*/
-static TAutoConsoleVariable<int32> CVarUseShaderStages(
-	TEXT("fx.UseShaderStages"), 
-	0, 
-	TEXT("Enable or not the shader stages within Niagara (WIP feature only there for temporary testing)."),
-	ECVF_Default);
-
 static FAutoConsoleVariableRef CVarNiaraGlobalSystemCountScale(
 	TEXT("fx.NiagaraGlobalSystemCountScale"),
 	INiagaraModule::EngineGlobalSystemCountScale,

@@ -1321,6 +1321,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 				int32* ExistingInstanceDataOffset = DataInterfaceInstanceDataOffsets.Find(Interface);
 				if (!ExistingInstanceDataOffset)//Don't add instance data for interfaces we've seen before.
 				{
+					//UE_LOG(LogNiagara, Log, TEXT("Adding DI %p %s %s"), Interface, *Interface->GetClass()->GetName(), *Interface->GetPathName());
 					DataInterfaceInstanceDataOffsets.Add(Interface) = InstanceDataSize;
 					// Assume that some of our data is going to be 16 byte aligned, so enforce that 
 					// all per-instance data is aligned that way.
@@ -1356,6 +1357,12 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 		{
 			CalcInstDataSize(Sim.GetEventExecutionContexts()[i].GetDataInterfaces());
 		}
+
+		if (Sim.GetCachedEmitter() && Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetCachedEmitter()->bSimulationStagesEnabled)
+		{
+			CalcInstDataSize(Sim.GetGPUContext()->GetDataInterfaces());
+		}
+
 
 		//Also force a rebind while we're here.
 		Sim.DirtyDataInterfaces();

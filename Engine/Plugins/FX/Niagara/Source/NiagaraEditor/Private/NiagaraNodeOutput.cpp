@@ -169,6 +169,11 @@ FText UNiagaraNodeOutput::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		}
 		return FText::Format(NSLOCTEXT("NiagaraNodeOutput", "OutputEvent", "Output Event {0}"), EventName);
 	}
+	else if (ScriptType == ENiagaraScriptUsage::ParticleSimulationStageScript)
+	{
+		FText EventName = FText::FromString(ScriptTypeId.ToString());
+		return FText::Format(NSLOCTEXT("NiagaraNodeOutput", "OutputStage", "Output Stage {0}"), EventName);
+	}
 	else if (ScriptType == ENiagaraScriptUsage::Function)
 	{
 		return NSLOCTEXT("NiagaraNodeOutput", "OutputFunction", "Output Function");
