@@ -4,12 +4,15 @@
 
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
+#include "HAL/IConsoleManager.h"
 #include "IMediaEventSink.h"
 #include "IMediaOptions.h"
+#include "ITimeManagementModule.h"
 #include "MediaIOCoreModule.h"
 #include "MediaIOCoreSamples.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
+#include "TimedDataInputCollection.h"
 #include "TimeSynchronizableMediaSource.h"
 
 
@@ -31,6 +34,13 @@ namespace MediaIOCorePlayerDetail
 
 	static const double HighPerformanceClockDelta = ComputeTimeCodeOffset();
 	static bool bLogTimecode = false;
+
+	TAutoConsoleVariable<int32> CVarMediaIOMaxBufferSize(
+		TEXT("MediaIO.TimedDataChannel.MaxBufferSize"),
+		32,
+		TEXT("The max size the MediaIO channels is allowed to set the buffer size."),
+		ECVF_Default
+	);
 
 	static FAutoConsoleCommand CCommandShowTimecode(
 		TEXT("MediaIO.ShowInputTimecode"),
@@ -62,13 +72,13 @@ FMediaIOCorePlayerBase::FMediaIOCorePlayerBase(IMediaEventSink& InEventSink)
 	, CurrentTime(FTimespan::Zero())
 	, EventSink(InEventSink)
 	, VideoFrameRate(30, 1)
-	, Samples(new FMediaIOCoreSamples)
 	, bUseTimeSynchronization(false)
 	, bWarnedIncompatibleFrameRate(false)
 	, FrameDelay(0)
 	, TimeDelay(0.0)
 	, PreviousFrameTimespan(FTimespan::Zero())
 {
+	Samples = new FMediaIOCoreSamples(this);
 }
 
 FMediaIOCorePlayerBase::~FMediaIOCorePlayerBase()
@@ -82,14 +92,19 @@ FMediaIOCorePlayerBase::~FMediaIOCorePlayerBase()
 
 void FMediaIOCorePlayerBase::Close()
 {
-	CurrentState = EMediaState::Closed;
-	CurrentTime = FTimespan::Zero();
-	AudioTrackFormat.NumChannels = 0;
-	AudioTrackFormat.SampleRate = 0;
+	if (CurrentState != EMediaState::Closed)
+	{
+		CurrentState = EMediaState::Closed;
+		CurrentTime = FTimespan::Zero();
+		AudioTrackFormat.NumChannels = 0;
+		AudioTrackFormat.SampleRate = 0;
 
-	Samples->FlushSamples();
-	EventSink.ReceiveMediaEvent(EMediaEvent::TracksChanged);
-	EventSink.ReceiveMediaEvent(EMediaEvent::MediaClosed);
+		Samples->FlushSamples();
+		EventSink.ReceiveMediaEvent(EMediaEvent::TracksChanged);
+		EventSink.ReceiveMediaEvent(EMediaEvent::MediaClosed);
+
+		ITimeManagementModule::Get().GetTimedDataInputCollection().Remove(this);
+	}
 }
 
 FString FMediaIOCorePlayerBase::GetInfo() const
@@ -163,6 +178,8 @@ bool FMediaIOCorePlayerBase::Open(const FString& Url, const IMediaOptions* Optio
 {
 	Close();
 
+	ITimeManagementModule::Get().GetTimedDataInputCollection().Add(this);
+
 	OpenUrl = Url;
 	return ReadMediaOptions(Options);
 }
@@ -204,6 +221,11 @@ void FMediaIOCorePlayerBase::TickTimeManagement()
 	}
 }
 
+void FMediaIOCorePlayerBase::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
+{
+	Samples->CacheSamplesState(GetTime());
+}
+
 /* IMediaCache interface
  *****************************************************************************/
 bool FMediaIOCorePlayerBase::QueryCacheState(EMediaCacheState State, TRangeSet<FTimespan>& OutTimeRanges) const
@@ -238,7 +260,6 @@ int32 FMediaIOCorePlayerBase::GetSampleCount(EMediaCacheState State) const
 
 	return Count;
 }
-
 
 /* IMediaControls interface
  *****************************************************************************/
@@ -440,6 +461,13 @@ bool FMediaIOCorePlayerBase::ReadMediaOptions(const IMediaOptions* Options)
 		VideoTrackFormat.FrameRate = VideoFrameRate.AsDecimal();
 		VideoTrackFormat.TypeName = Options->GetMediaOption(FMediaIOCoreMediaOption::VideoModeName, FString(TEXT("1080p30")));
 	}
+
+	//Setup base sampling settings
+	BaseSettings.EvaluationType = bUseTimeSynchronization ? ETimedDataInputEvaluationType::Timecode : ETimedDataInputEvaluationType::PlatformTime;
+	BaseSettings.FrameRate = VideoFrameRate;
+	BaseSettings.PlayerTimeOffset = MediaIOCorePlayerDetail::HighPerformanceClockDelta;
+	BaseSettings.AbsoluteMaxBufferSize = MediaIOCorePlayerDetail::CVarMediaIOMaxBufferSize.GetValueOnGameThread();
+
 	return true;
 }
 
@@ -460,6 +488,98 @@ bool FMediaIOCorePlayerBase::IsTimecodeLogEnabled()
 #else
 	return false;
 #endif
+}
+
+TArray<ITimedDataInputChannel*> FMediaIOCorePlayerBase::GetChannels() const
+{
+	return Channels;
+}
+
+FText FMediaIOCorePlayerBase::GetDisplayName() const
+{
+	return FText::Format(LOCTEXT("PlayerDisplayName", "{0} - {1}"), FText::FromName(GetPlayerName()), FText::FromString(GetUrl()));
+}
+
+ETimedDataInputEvaluationType FMediaIOCorePlayerBase::GetEvaluationType() const
+{
+	if (bUseTimeSynchronization)
+	{
+		return ETimedDataInputEvaluationType::Timecode;
+	}
+	else
+	{
+		return ETimedDataInputEvaluationType::PlatformTime;
+	}
+}
+
+void FMediaIOCorePlayerBase::SetEvaluationType(ETimedDataInputEvaluationType Evaluation)
+{
+	bool bNewEvaluation = false;
+	switch (Evaluation)
+	{
+	case ETimedDataInputEvaluationType::Timecode:
+		bNewEvaluation = true;
+		break;
+	case ETimedDataInputEvaluationType::PlatformTime:
+	case ETimedDataInputEvaluationType::None:
+	default:
+		bNewEvaluation = false;
+		break;
+	}
+
+	if (bNewEvaluation != bUseTimeSynchronization)
+	{
+		bUseTimeSynchronization = bNewEvaluation;
+		BaseSettings.EvaluationType = bUseTimeSynchronization ? ETimedDataInputEvaluationType::Timecode : ETimedDataInputEvaluationType::PlatformTime;
+		SetupSampleChannels();
+	}
+}
+
+double FMediaIOCorePlayerBase::GetEvaluationOffsetInSeconds() const
+{
+	if (bUseTimeSynchronization)
+	{
+		return ITimedDataInput::ConvertFrameOffsetInSecondOffset(FrameDelay, VideoFrameRate);
+	}
+	else
+	{
+		return TimeDelay;
+	}
+}
+
+void FMediaIOCorePlayerBase::SetEvaluationOffsetInSeconds(double Offset)
+{
+	if (bUseTimeSynchronization)
+	{
+		//Media doesn't support subframes playback (interpolation between frames) so offsets are always in full frame
+		const double FrameOffset = ITimedDataInput::ConvertSecondOffsetInFrameOffset(Offset, VideoFrameRate);
+		FrameDelay = FMath::FloorToInt(FrameOffset);
+	}
+	else
+	{
+		TimeDelay = Offset;
+	}
+}
+
+FFrameRate FMediaIOCorePlayerBase::GetFrameRate() const
+{
+	return VideoFrameRate;
+}
+
+bool FMediaIOCorePlayerBase::IsDataBufferSizeControlledByInput() const
+{
+	//Each channel (audio, video, etc...) can have a different size
+	return false;
+}
+
+void FMediaIOCorePlayerBase::AddChannel(ITimedDataInputChannel* Channel)
+{
+	Channels.AddUnique(Channel);
+}
+
+void FMediaIOCorePlayerBase::RemoveChannel(ITimedDataInputChannel* Channel)
+{
+	Channels.Remove(Channel);
 }
 
 #undef LOCTEXT_NAMESPACE

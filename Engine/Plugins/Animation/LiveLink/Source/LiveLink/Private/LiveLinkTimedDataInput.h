@@ -27,13 +27,13 @@ public:
 	virtual int32 GetDataBufferSize() const override;
 	virtual void SetDataBufferSize(int32 BufferSize) override;
 	virtual bool IsDataBufferSizeControlledByInput() const override { return true; }
+	virtual void AddChannel(ITimedDataInputChannel* Channel) override { Channels.Add(Channel); }
+	virtual void RemoveChannel(ITimedDataInputChannel* Channel) override { Channels.RemoveSingleSwap(Channel); }
 #if WITH_EDITOR
 	virtual const FSlateBrush* GetDisplayIcon() const override;
 #endif
 	//~ End ITimedDataInput API
 
-	void AddChannel(ITimedDataInputChannel* Channel) { Channels.Add(Channel); }
-	void RemoveChannel(ITimedDataInputChannel* Channel) { Channels.RemoveSingleSwap(Channel); }
 
 private:
 	FLiveLinkClient* LiveLinkClient;

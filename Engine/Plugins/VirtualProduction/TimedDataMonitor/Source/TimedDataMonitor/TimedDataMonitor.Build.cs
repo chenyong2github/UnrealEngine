@@ -10,15 +10,12 @@ public class TimedDataMonitor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"SlateCore",
 				"TimeManagement",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Engine",
-				"Projects",
-				"Slate",
 			});
 	}
 }
