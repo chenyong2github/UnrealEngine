@@ -77,7 +77,7 @@ public:
 
 private:
 	TInlineMemoryWriter<Size>	MemoryWriter;
-	FCborWriter					CborWriter = &MemoryWriter;
+	FCborWriter					CborWriter = { &MemoryWriter, ECborEndianness::StandardCompliant };
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -178,7 +178,7 @@ template <typename Type, typename LambdaType>
 inline Type FResponse::GetValue(const char* Key, Type Default, LambdaType&& Lambda) const
 {
 	FMemoryReader MemoryReader(Buffer);
-	FCborReader CborReader(&MemoryReader);
+	FCborReader CborReader(&MemoryReader, ECborEndianness::StandardCompliant);
 	FCborContext Context;
 
 	if (!CborReader.ReadNext(Context) || Context.MajorType() != ECborCode::Map)
