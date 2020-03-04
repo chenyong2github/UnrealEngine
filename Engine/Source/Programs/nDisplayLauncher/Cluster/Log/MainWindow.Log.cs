@@ -71,6 +71,7 @@ namespace nDisplayLauncher
 			TheLauncher.SelectedVerbocityNetwork    = Verbosity;
 			TheLauncher.SelectedVerbocityNetworkMsg = Verbosity;
 			TheLauncher.SelectedVerbocityRender     = Verbosity;
+			TheLauncher.SelectedVerbocityRenderSync = Verbosity;
 			TheLauncher.SelectedVerbocityBlueprint  = Verbosity;
 		}
 	}
