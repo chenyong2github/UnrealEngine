@@ -249,8 +249,6 @@ FCollisionStructureManager::NewImplicitLevelset(
 	{
 		return nullptr;
 	}
-	HalfExtents *= CollisionObjectReduction / 100.f;
-	const float MinExtent = FMath::Min(HalfExtents[0], FMath::Min(HalfExtents[1], HalfExtents[2]));
 	Chaos::TLevelSet<float, 3>* LevelSet = NewLevelset(ErrorReporter, MeshParticles, TriMesh, CollisionBounds, MinRes, MaxRes, CollisionType);
 	if (LevelSet)
 	{
@@ -266,10 +264,16 @@ FCollisionStructureManager::NewImplicitLevelset(
 					"    percentage filled: %g%%"),
 					DomainVolume, FilledVolume, FilledVolume / DomainVolume * 100.0));
 		}
+		HalfExtents *= CollisionObjectReduction / 100.f;
+		const float MinExtent = FMath::Min(HalfExtents[0], FMath::Min(HalfExtents[1], HalfExtents[2]));
 		if (MinExtent > 0)
 		{
 			LevelSet->Shrink(MinExtent);
 		}
+	}
+	else
+	{
+		ErrorReporter.ReportError(TEXT("Level set rasterization failed."));
 	}
 	return LevelSet;
 }
