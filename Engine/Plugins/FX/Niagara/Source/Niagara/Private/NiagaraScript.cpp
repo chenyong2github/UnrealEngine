@@ -1586,6 +1586,31 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 #endif
 }
 
+bool UNiagaraScript::IsEditorOnly() const
+{
+#if WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return false;
+	}
+
+	if (const UNiagaraEmitter* EmitterOwner = Cast<const UNiagaraEmitter>(GetOuter()))
+	{
+		// we want to only cook scripts that are referenced by systems (as opposed to standalone scripts that may be getting
+		// referenced via an emitter's parent, this will also take care of GPUScripts that are created for CPU emitters
+		TArray<UNiagaraScript*> OwnerScripts;
+
+		EmitterOwner->GetScripts(OwnerScripts, false);
+
+		if (!OwnerScripts.Contains(this))
+		{
+			return true;
+		}
+	}
+#endif
+	return Super::IsEditorOnly();
+}
+
 #if WITH_EDITOR
 
 void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform)
