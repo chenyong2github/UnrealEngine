@@ -9,6 +9,7 @@
 #define PARAM_MAP_ENGINE_OWNER_STR TEXT("Engine.Owner.")
 #define PARAM_MAP_ENGINE_SYSTEM_STR TEXT("Engine.System.")
 #define PARAM_MAP_ENGINE_EMITTER_STR TEXT("Engine.Emitter.")
+#define PARAM_MAP_LOCAL_MODULE_STR TEXT("Local.Module.")
 #define PARAM_MAP_USER_STR TEXT("User.")
 #define PARAM_MAP_SYSTEM_STR TEXT("System.")
 #define PARAM_MAP_EMITTER_STR TEXT("Emitter.")
@@ -143,6 +144,30 @@ struct NIAGARA_API FNiagaraConstants
 
 	static const FName InputPinName;
 	static const FName OutputPinName;
+
+
+	/** Reserved Namespace Names and Scope Names */
+	static const FName UserNamespace;
+	static const FName EngineNamespace;
+	static const FName SystemNamespace;
+	static const FName EmitterNamespace;
+	static const FName ParticleAttributeNamespace;
+	static const FName ModuleNamespace;
+	static const FName ParameterCollectionNamespace;
+	static const FString InitialPrefix;
+	static const FName LocalNamespace;
+	static const FName InitialNamespace;
+	static const FName OwnerNamespace;
+
+	static const FName EngineOwnerScopeName;
+	static const FName EngineSystemScopeName;
+	static const FName EngineEmitterScopeName;
+
+	static const FName ScriptTransientScopeName;
+	static const FName ScriptPersistentScopeName;
+	static const FName InputScopeName;
+	static const FName OutputScopeName;
+	static const FName CustomScopeName;
 
 private:
 	static TArray<FNiagaraVariable> SystemParameters;

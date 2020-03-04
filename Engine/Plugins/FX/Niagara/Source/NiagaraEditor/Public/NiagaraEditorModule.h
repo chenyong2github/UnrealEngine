@@ -128,6 +128,9 @@ public:
 		EnqueueObjectForDeferredDestructionInternal(ObjectInContainer);
 	}
 
+	/** Lookup a parameter scope info by name. Returns nullptr if the parameter scope info registered name cannot be found. */
+	static const FNiagaraParameterScopeInfo* FindParameterScopeInfo(const FName& ParameterScopeInfoName);
+
 private:
 	class FDeferredDestructionContainerBase
 	{
@@ -175,6 +178,10 @@ private:
 	void EnqueueObjectForDeferredDestructionInternal(FDeferredDestructionContainerBase* InObjectToDestruct);
 
 	bool DeferredDestructObjects(float InDeltaTime);
+
+	/** Register a parameter scope info to lookup by name. */
+	static void RegisterParameterScopeInfo(const FName& ParameterScopeInfoName, const FNiagaraParameterScopeInfo& ParameterScopeInfo);
+
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -234,4 +241,6 @@ private:
 	TMap<int32, TSharedPtr<FHlslNiagaraCompiler>> ActiveCompilations;
 
 	TArray<TSharedRef<const FDeferredDestructionContainerBase>> EnqueuedForDeferredDestruction;
+
+	static TArray<TPair<FName, FNiagaraParameterScopeInfo>> RegisteredParameterScopeInfos;
 };

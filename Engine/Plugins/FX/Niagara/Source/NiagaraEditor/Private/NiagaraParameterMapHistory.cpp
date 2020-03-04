@@ -1482,8 +1482,7 @@ void FNiagaraParameterMapHistoryWithMetaDataBuilder::FixupHistoryVariableNamespa
 			auto SortVars = [&InHandle, &VariablesToSkip](bool bGatherInputs)->TArray<FNiagaraHistoryVariable> {
 				TArray<FNiagaraHistoryVariable> OutHistoryVars = InHandle.HistoryVariables.FilterByPredicate([&VariablesToSkip, bGatherInputs](const FNiagaraHistoryVariable& HistoryVar)
 				{
-					ENiagaraParameterScope HistoryVarScope;
-					checkf(HistoryVar.VarMetaData->GetScope(HistoryVarScope), TEXT("Tried to process UNiagaraScriptVariable with override namespace set during precompiler namespace fixup!"));
+					const ENiagaraParameterScope HistoryVarScope = HistoryVar.StaticVarMetaData.GetScope();
 					if (HistoryVarScope == ENiagaraParameterScope::User || HistoryVarScope == ENiagaraParameterScope::Engine || HistoryVarScope == ENiagaraParameterScope::ScriptTransient || HistoryVarScope == ENiagaraParameterScope::None)
 					{
 						return false;
@@ -1749,8 +1748,7 @@ void FNiagaraParameterMapHistoryWithMetaDataBuilder::FixupHistoryVariableNamespa
 					auto FindUpstreamVarMatchIdx = [&Handle, &MatchIdx, &CurrentHistoryVar, &CurrentInputVarHandle, &UpstreamSortedHistoryHandle]()->bool {
 						const ENiagaraParameterScope UpstreamScope = UpstreamSortedHistoryHandle->GetScriptScope();
 						ENiagaraParameterScope TargetScope = ENiagaraParameterScope::None;
-						ENiagaraParameterScope CurrentHistoryVarScope;
-						checkf(CurrentHistoryVar.VarMetaData->GetScope(CurrentHistoryVarScope), TEXT("Tried to process UNiagaraScriptVariable with override namespace set during precompiler namespace fixup!"));
+						const ENiagaraParameterScope CurrentHistoryVarScope = CurrentHistoryVar.StaticVarMetaData.GetScope();
 						if (CurrentHistoryVarScope == ENiagaraParameterScope::ScriptPersistent)
 						{
 							// If the current history var is targeting the script alias scope then get the scope of the current history.
@@ -1859,8 +1857,7 @@ void FNiagaraParameterMapHistoryWithMetaDataBuilder::FixupHistoryVariableNamespa
 		{
 			for (FNiagaraHistoryVariable& InputHistoryVar : Handle.InputHistoryVars)
 			{
-				ENiagaraParameterScope InputHistoryVarScope;
-				checkf(InputHistoryVar.VarMetaData->GetScope(InputHistoryVarScope), TEXT("Tried to process UNiagaraScriptVariable with override namespace set during precompiler namespace fixup!"));
+				const ENiagaraParameterScope InputHistoryVarScope = InputHistoryVar.StaticVarMetaData.GetScope();
 				if (InputHistoryVarScope == ENiagaraParameterScope::None)
 				{
 					// Only need to fixup variables that are already in the dataset.
@@ -1881,8 +1878,7 @@ void FNiagaraParameterMapHistoryWithMetaDataBuilder::FixupHistoryVariableNamespa
 
 			for (FNiagaraHistoryVariable& OutputHistoryVar : Handle.OutputHistoryVars)
 			{
-				ENiagaraParameterScope OutputHistoryVarScope;
-				checkf(OutputHistoryVar.VarMetaData->GetScope(OutputHistoryVarScope), TEXT("Tried to process UNiagaraScriptVariable with override namespace set during precompiler namespace fixup!"));
+				const ENiagaraParameterScope OutputHistoryVarScope = OutputHistoryVar.StaticVarMetaData.GetScope();
 				if (OutputHistoryVar.bDoNotDemote)
 				{
 					continue;
@@ -1956,8 +1952,8 @@ FNiagaraParameterMapHistoryHandle::FNiagaraParameterMapHistoryHandle(FNiagaraPar
 	{
 		FNiagaraVariable* Var = &InHistory.Variables[VarIdx];
 		FNiagaraVariable* VarWithOriginalAliasIntact = &InHistory.VariablesWithOriginalAliasesIntact[VarIdx];
-		FNiagaraVariableMetaData* VarMetaData = &InHistory.VariableMetaData[VarIdx];
-		if (VarMetaData->GetIsUsingLegacyNameString() == true)
+		FNiagaraVariableMetaData& VarMetaData = InHistory.VariableMetaData[VarIdx];
+		if (VarMetaData.GetIsUsingLegacyNameString() == true)
 		{
 			// Cannot fixup names of variables using legacy name string mode, skip this entry.
 			continue;
@@ -1987,8 +1983,8 @@ FNiagaraParameterMapHistoryHandle::FNiagaraParameterMapHistoryHandle(FNiagaraPar
 			FNiagaraVariable* PrimaryVarWithOriginalAliasIntact = &InPrimaryHistory.VariablesWithOriginalAliasesIntact[FoundPrimaryVarIdx];
 
 			// Assign the secondary history metadata as it is canonical in regards to parameter linking.
-			FNiagaraVariableMetaData* ScriptVarMetaData = &InSecondaryHistory.VariableMetaData[SecondaryVarIdx];
-			if (ScriptVarMetaData->GetIsUsingLegacyNameString() == true)
+			FNiagaraVariableMetaData& ScriptVarMetaData = InSecondaryHistory.VariableMetaData[SecondaryVarIdx];
+			if (ScriptVarMetaData.GetIsUsingLegacyNameString() == true)
 			{
 				// Cannot fixup names of variables using legacy name string mode, skip this entry.
 				continue;
@@ -2036,4 +2032,10 @@ void FNiagaraHistoryVariable::SetVarWithOriginalAliasName(const FName& NewName)
 {
 	FNiagaraVariable* NonConstVarWithOriginalAlias = const_cast<FNiagaraVariable*>(VarWithOriginalAlias);
 	NonConstVarWithOriginalAlias->SetName(NewName);
+}
+
+FNiagaraStaticVariableMetaData::FNiagaraStaticVariableMetaData(const FNiagaraVariableMetaData& ViewMetaData)
+{
+	ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataScope(ViewMetaData, Scope), TEXT("Tried to get scope for parameter with override name enabled or invalid scope!"));
+	FNiagaraEditorUtilities::GetVariableMetaDataNamespaceString(ViewMetaData, NamespaceString);
 }

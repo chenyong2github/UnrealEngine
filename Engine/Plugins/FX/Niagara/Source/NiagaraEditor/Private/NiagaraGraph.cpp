@@ -369,7 +369,7 @@ void UNiagaraGraph::PostLoad()
 
 			// Resolve the namespace of the variable to a scope, cache the scopeless name in the UI, and set the usage if the name string would force that to occur.
 			FNiagaraVariableMetaData OutMetaData;
-			FNiagaraStackGraphUtilities::GetParameterMetaDataFromName(Var.GetName(), OutMetaData);
+			FNiagaraEditorUtilities::GetParameterMetaDataFromName(Var.GetName(), OutMetaData);
 			ScriptVar->Metadata.CopyPerScriptMetaData(OutMetaData);
 
 			// If the usage is not local or an initial value, select the usage based on the associated input/output pins.
@@ -1086,18 +1086,17 @@ void UNiagaraGraph::AddParameter(FNiagaraVariable& Parameter, const FAddParamete
 			NewScriptVariable->Metadata.SetUsage(Options.NewParameterUsage.GetValue());
 		}
 
-		if (Options.NewParameterScope.IsSet())
+		if (Options.NewParameterScopeName.IsSet())
 		{
 			bSkipRefreshMetaDataScopeAndUsage = true;
-
-			bool bIsInitialValue = false;
-			if (Options.NewParameterUsage.IsSet())
-			{
-				bIsInitialValue = Options.NewParameterUsage == ENiagaraScriptParameterUsage::InitialValueInput;
-			}
+			NewScriptVariable->Metadata.SetScopeName(Options.NewParameterScopeName.GetValue());
 			
-			const FName NewScriptVariableName = FNiagaraStackGraphUtilities::GetVariableNameForScope(NewScriptVariable->Variable.GetName(), Options.NewParameterScope.GetValue(), bIsInitialValue);
-			RenameParameter(NewScriptVariable->Variable, NewScriptVariableName, Options.bIsStaticSwitch, Options.NewParameterScope.GetValue());
+			FString NamespaceString;
+			checkf(FNiagaraEditorUtilities::GetVariableMetaDataNamespaceString(NewScriptVariable->Metadata, NamespaceString), TEXT("Tried to get a name for a new parameter set to use legacy custom name!"));
+			FString NameString = NamespaceString;
+			NameString.Append(FNiagaraEditorUtilities::GetNamespacelessVariableNameString(Parameter.GetName()));
+			const FName NewScriptVariableName = FName(*NameString);
+			RenameParameter(NewScriptVariable->Variable, NewScriptVariableName, Options.bIsStaticSwitch, Options.NewParameterScopeName.GetValue());
 		}
 
 		if (bSkipRefreshMetaDataScopeAndUsage == false && Options.bRefreshMetaDataScopeAndUsage)
@@ -1166,7 +1165,7 @@ void UNiagaraGraph::RemoveParameter(const FNiagaraVariable& Parameter)
 	}
 }
 
-bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bFromStaticSwitch, ENiagaraParameterScope NewScope)
+bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bFromStaticSwitch, FName NewScopeName)
 {
 	// Block rename when already renaming. This prevents recursion when CommitEditablePinName is called on referenced nodes. 
 	if (bIsRenamingParameter)
@@ -1193,10 +1192,10 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 	}
 
 	// Update the OldMetaData which will be applied to the new parameter to synchronize the cached namespace-less name and scope.
-	OldMetaData.SetCachedNamespacelessVariableName(FName(*FNiagaraStackGraphUtilities::GetNamespacelessVariableNameString(NewParameter.GetName())));
-	if (NewScope != ENiagaraParameterScope::None)
+	OldMetaData.SetCachedNamespacelessVariableName(FName(*FNiagaraEditorUtilities::GetNamespacelessVariableNameString(NewParameter.GetName())));
+	if (NewScopeName.IsNone() == false)
 	{
-		OldMetaData.SetScope(NewScope);
+		OldMetaData.SetScopeName(NewScopeName);
 	}
 		
 	// Swap metadata to the new parameter; put the new parameter into VariableToScriptVariable
@@ -2172,7 +2171,7 @@ void UNiagaraGraph::InvalidateCachedParameterData()
 void UNiagaraGraph::GenerateMetaDataForScriptVariable(UNiagaraScriptVariable* InScriptVariable) const
 {
 	FNiagaraVariableMetaData OutMetaData;
-	FNiagaraStackGraphUtilities::GetParameterMetaDataFromName(InScriptVariable->Variable.GetName(), OutMetaData);
+	FNiagaraEditorUtilities::GetParameterMetaDataFromName(InScriptVariable->Variable.GetName(), OutMetaData);
 	InScriptVariable->Metadata.CopyPerScriptMetaData(OutMetaData);
 	UpdateUsageForScriptVariable(InScriptVariable);
 }

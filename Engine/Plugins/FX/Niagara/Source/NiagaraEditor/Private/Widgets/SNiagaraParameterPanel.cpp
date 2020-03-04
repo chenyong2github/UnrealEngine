@@ -96,7 +96,7 @@ void SNiagaraParameterPanel::Tick(const FGeometry& AllottedGeometry, const doubl
 void SNiagaraParameterPanel::AddParameter(FNiagaraVariable NewVariable, const NiagaraParameterPanelSectionID::Type SectionID)
 {
 	FNiagaraVariableMetaData NewVariableMetaData = FNiagaraVariableMetaData();
-	NewVariableMetaData.SetScope(NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(SectionID));
+	NewVariableMetaData.SetScopeName(FNiagaraEditorUtilities::GetScopeNameForParameterScope(NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(SectionID)));
 	NewVariableMetaData.SetUsage(NiagaraParameterPanelSectionID::GetUsageForNewParametersInSection(SectionID));
 
 	ParameterPanelViewModel->AddParameter(NewVariable, NewVariableMetaData);

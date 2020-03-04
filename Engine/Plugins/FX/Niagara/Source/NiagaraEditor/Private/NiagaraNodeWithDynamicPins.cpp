@@ -15,6 +15,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraConstants.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeWithDynamicPins"
 
@@ -282,7 +283,7 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 		AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Input;
 	}
 	// Default scope of new parameters on a pin to Particles, by convention. //@todo(ng) choose based on usage
-	AddParameterOptions.NewParameterScope = ENiagaraParameterScope::Particles;
+	AddParameterOptions.NewParameterScopeName = FNiagaraConstants::ParticleAttributeNamespace;
 	//AddParameterOptions.bMakeParameterNameUnique //@todo(ng) consider
 	
 	UNiagaraGraph* Graph = GetNiagaraGraph();
