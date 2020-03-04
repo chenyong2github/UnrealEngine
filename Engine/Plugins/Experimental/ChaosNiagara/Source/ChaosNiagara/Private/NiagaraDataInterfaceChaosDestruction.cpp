@@ -583,8 +583,10 @@ void GetMeshExtData(FSolverData SolverData,
 				}
 				if (const FGeometryCollectionPhysicsProxy* GeomCollectionPhysicsProxy = GeometryCollectionComponent->GetPhysicsProxy())
 				{
-					const FGeometryCollectionResults& PhysResult = GeomCollectionPhysicsProxy->GetPhysicsResults().GetGameDataForRead();
-					Transform = PhysResult.ParticleToWorldTransforms[ParticleIndex - PhysResult.BaseIndex];
+					if (const FGeometryCollectionResults* PhysResult = GeomCollectionPhysicsProxy->GetConsumerResultsGT())
+					{
+						Transform = PhysResult->ParticleToWorldTransforms[ParticleIndex - PhysResult->BaseIndex];
+					}
 				}
 			}
 		}
