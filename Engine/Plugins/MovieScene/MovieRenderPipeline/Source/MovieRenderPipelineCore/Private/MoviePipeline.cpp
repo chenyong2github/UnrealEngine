@@ -873,7 +873,7 @@ TArray<FMoviePipelineShotInfo> UMoviePipeline::BuildShotListFromSequence(const U
 				const FMovieSceneObjectBindingID& CameraObjectBindingId = CameraCut.CameraCutSection->GetCameraBindingID();
 				if (CameraObjectBindingId.IsValid())
 				{
-					UMovieScene* OwningMovieScene = Cast<UMovieScene>(CameraCut.CameraCutSection->GetOuter());
+					UMovieScene* OwningMovieScene = CameraCut.CameraCutSection->GetTypedOuter<UMovieScene>();
 					if (OwningMovieScene)
 					{
 						FMovieSceneBinding* Binding = OwningMovieScene->FindBinding(CameraObjectBindingId.GetGuid());
