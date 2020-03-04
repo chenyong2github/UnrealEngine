@@ -94,6 +94,26 @@ void UOSCServer::ClearWhitelistedClients()
 	ServerProxy->ClearWhitelistedClients();
 }
 
+FString UOSCServer::GetIpAddress(bool bIncludePort) const
+{
+	check(ServerProxy.IsValid());
+
+	FString Address = ServerProxy->GetIpAddress();
+	if (bIncludePort)
+	{
+		Address += TEXT(":");
+		Address.AppendInt(ServerProxy->GetPort());
+	}
+
+	return Address;
+}
+
+int32 UOSCServer::GetPort() const
+{
+	check(ServerProxy.IsValid());
+	return ServerProxy->GetPort();
+}
+
 TSet<FString> UOSCServer::GetWhitelistedClients() const
 {
 	check(ServerProxy.IsValid());
