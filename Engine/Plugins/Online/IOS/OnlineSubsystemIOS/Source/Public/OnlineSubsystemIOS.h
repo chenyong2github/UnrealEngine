@@ -47,9 +47,7 @@ public:
 	virtual IOnlineIdentityPtr GetIdentityInterface() const override;
 	virtual IOnlineTitleFilePtr GetTitleFileInterface() const override;
 	virtual IOnlineEntitlementsPtr GetEntitlementsInterface() const override;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual IOnlineStorePtr GetStoreInterface() const override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual IOnlineStoreV2Ptr GetStoreV2Interface() const override;
 	virtual IOnlinePurchasePtr GetPurchaseInterface() const override;
 	virtual IOnlineEventsPtr GetEventsInterface() const override;
