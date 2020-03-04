@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IAnalyticsProviderET.h" // NOTE: Consider changing the code to replace IAnalyticProvider.h by IAnalyticProviderET.h
 
 class FEngineSessionManager;
 class IAnalyticsProvider;
@@ -26,7 +27,7 @@ public:
 	 * Return the provider instance. Not valid outside of Initialize/Shutdown calls.
 	 * Note: must check IsAvailable() first else this code will assert if the provider is not valid.
 	 */
-	static ENGINE_API IAnalyticsProvider& GetProvider();
+	static ENGINE_API IAnalyticsProviderET& GetProvider();
 
 	/** Helper function to determine if the provider is valid. */
 	static ENGINE_API bool IsAvailable() { return Analytics.IsValid(); }
