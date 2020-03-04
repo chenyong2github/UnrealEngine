@@ -166,6 +166,22 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 				break;
 			}
 		}
+		else
+		{
+			// Fill the alpha channel when alpha is not supported/enabled.
+			switch (QuantizedPixelData->GetType())
+			{
+			case EImagePixelType::Color:
+				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
+				break;
+			case EImagePixelType::Float16:
+				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FFloat16Color>(1.f));
+				break;
+			case EImagePixelType::Float32:
+				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FLinearColor>(1.f));
+				break;
+			}
+		}
 
 		TileImageTask->PixelData = MoveTemp(QuantizedPixelData);
 		ImageWriteQueue->Enqueue(MoveTemp(TileImageTask));
