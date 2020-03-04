@@ -103,9 +103,9 @@ struct FDisasterRecoveryInfo
 {
 	GENERATED_BODY()
 
-	/** The version of the information. Updated everytime the recovery info file is written. */
+	/** The revision number of the information. Updated everytime the recovery info file is written. */
 	UPROPERTY()
-	uint32 Version = 0;
+	uint32 Revision = 0;
 
 	/** The list of running/crashing/crashed sessions. */
 	UPROPERTY()

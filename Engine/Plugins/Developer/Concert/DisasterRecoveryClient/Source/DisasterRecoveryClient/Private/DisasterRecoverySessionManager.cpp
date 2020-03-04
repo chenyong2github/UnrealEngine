@@ -94,9 +94,9 @@ bool SaveDisasterRecoveryInfo(const FString& Pathname, const FDisasterRecoveryIn
 class ScopedRecoveryInfoExclusiveUpdater
 {
 public:
-	ScopedRecoveryInfoExclusiveUpdater(const FString& InPathname, uint32& OutWrittenVersion)
+	ScopedRecoveryInfoExclusiveUpdater(const FString& InPathname, uint32& OutWrittenRevision)
 		: Pathname(InPathname)
-		, WrittenVersion(OutWrittenVersion)
+		, WrittenRevision(OutWrittenRevision)
 		, SystemWideMutex(GetSystemMutexName()) // Get machine-wide exclusive access to the file during the scope.
 	{
 		LoadDisasterRecoveryInfo(Pathname, RecoveryInfo);
@@ -106,9 +106,9 @@ public:
 	{
 		if (bAutoSave)
 		{
-			RecoveryInfo.Version += 1; // The file is going to be written, increase the version.
+			RecoveryInfo.Revision += 1; // The file is going to be written, increase the revision number.
 			SaveDisasterRecoveryInfo(Pathname, RecoveryInfo);
-			WrittenVersion = RecoveryInfo.Version;
+			WrittenRevision = RecoveryInfo.Revision;
 		}
 	}
 
@@ -117,7 +117,7 @@ public:
 
 private:
 	const FString& Pathname;
-	uint32& WrittenVersion;
+	uint32& WrittenRevision;
 	FSystemWideCriticalSection SystemWideMutex;
 	FDisasterRecoveryInfo RecoveryInfo;
 	bool bAutoSave = true; // By default, automatically save when going out of scope.
@@ -131,7 +131,7 @@ uint32 GetDisasterRecoveryInfoVersion(const FString& InPathname)
 
 	FDisasterRecoveryInfo RecoveryInfo;
 	LoadDisasterRecoveryInfo(InPathname, RecoveryInfo);
-	return RecoveryInfo.Version;
+	return RecoveryInfo.Revision;
 }
 
 /** Migrate the recovery info file from 4.24 to the new format in 4.25. */
@@ -289,18 +289,18 @@ FDisasterRecoverySessionManager::~FDisasterRecoverySessionManager()
 	SyncClient->GetConcertClient()->OnSessionShutdown().RemoveAll(this);
 
 	// Remove this recovery clients from the list of active clients.
-	DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+	DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 	ScopedRecoveryUpdater.Info().ClientProcessIds.RemoveAll([](const int32 ProcessId) { return ProcessId == FPlatformProcess::GetCurrentProcessId(); });
 }
 
 TArray<FGuid> FDisasterRecoverySessionManager::InitAndRotateSessions()
 {
-	DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+	DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 	FDisasterRecoveryInfo& RecoveryInfo = ScopedRecoveryUpdater.Info();
 
 	// If the user is upgrading from 4.24 to 4.25 the name and the format of the recovery info file changed. Try migrating to the new format.
 	FString OldSessionInfo = GetDisasterRecoveryInfoPath() / TEXT("Sessions.json");
-	if (IFileManager::Get().FileExists(*OldSessionInfo) && RecoveryInfo.Version == 0)
+	if (IFileManager::Get().FileExists(*OldSessionInfo) && RecoveryInfo.Revision == 0)
 	{
 		DisasterRecoveryUtil::MigrateSessionInfoFrom_4_24(OldSessionInfo, RecoveryInfo);
 		IFileManager::Get().Delete(*OldSessionInfo);
@@ -416,11 +416,11 @@ void FDisasterRecoverySessionManager::Refresh()
 	};
 
 	bool bSessionUpdated = false;
-	uint32 VersionBefore;
+	uint32 RevisionBefore;
 	{
-		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 		FDisasterRecoveryInfo& RecoveryInfo = ScopedRecoveryUpdater.Info();
-		VersionBefore = RecoveryInfo.Version;
+		RevisionBefore = RecoveryInfo.Revision;
 
 		bSessionUpdated |= UpdateCrashedSessionInfoFn(RecoveryInfo.ActiveSessions);
 		bSessionUpdated |= UpdateCrashedSessionInfoFn(RecoveryInfo.RecentSessions);
@@ -429,7 +429,7 @@ void FDisasterRecoverySessionManager::Refresh()
 		ScopedRecoveryUpdater.SetAutoSave(bSessionUpdated);
 	}
 
-	if (bSessionUpdated || VersionBefore != SessionsCacheVersion) // The file was changed either by the ScopedRecoveryInfoExclusiveUpdater above or by another instance.
+	if (bSessionUpdated || RevisionBefore != SessionsCacheRevision) // The file was changed either by the ScopedRecoveryInfoExclusiveUpdater above or by another instance.
 	{
 		UpdateSessionsCache();
 	}
@@ -444,7 +444,7 @@ void FDisasterRecoverySessionManager::UpdateSessionsCache()
 
 		// Load the session info file (if it exist)
 		DisasterRecoveryUtil::LoadDisasterRecoveryInfo(RecoveryInfoPathname, RecoveryInfo);
-		SessionsCacheVersion = RecoveryInfo.Version;
+		SessionsCacheRevision = RecoveryInfo.Revision;
 	}
 
 	// Remove from the cache the sessions that were removed from the recovery info file (possibly by another instance).
@@ -947,7 +947,7 @@ bool FDisasterRecoverySessionManager::HasInProgressSession() const
 void FDisasterRecoverySessionManager::OnRecoverySessionStartup(TSharedRef<IConcertClientSession> InSession)
 {
 	{
-		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 		FDisasterRecoveryInfo& RecoveryInfo = ScopedRecoveryUpdater.Info();
 
 		// The user had the chance to 'review' the 'pending' candidates, move them to the 'recent' list to not review them again.
@@ -990,7 +990,7 @@ void FDisasterRecoverySessionManager::OnRecoverySessionStartup(TSharedRef<IConce
 void FDisasterRecoverySessionManager::OnRecoverySessionShutdown(TSharedRef<IConcertClientSession> InSession)
 {
 	{
-		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 		FDisasterRecoveryInfo& RecoveryInfo = ScopedRecoveryUpdater.Info();
 
 		// The session ended up normally, move the current session from the 'active' list to the 'recent' list.
@@ -1026,7 +1026,7 @@ void FDisasterRecoverySessionManager::OnRecoverySessionShutdown(TSharedRef<IConc
 void FDisasterRecoverySessionManager::OnSessionNotFoundInternal(const FGuid& RepositoryId)
 {
 	{
-		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 		FDisasterRecoveryInfo& RecoveryInfo = ScopedRecoveryUpdater.Info();
 
 		// Mark the session repository to be discarded.
@@ -1046,7 +1046,7 @@ void FDisasterRecoverySessionManager::OnSessionNotFoundInternal(const FGuid& Rep
 void FDisasterRecoverySessionManager::OnSessionRepositoriesDiscardedInternal(const TArray<FGuid>& DiscardedRepositoryIds)
 {
 	{
-		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 		FDisasterRecoveryInfo& RecoveryInfo = ScopedRecoveryUpdater.Info();
 
 		// If the repository was discarded, the session cannot be restored or visualized anymore, clear it from the session database.
@@ -1074,7 +1074,7 @@ void FDisasterRecoverySessionManager::OnSessionRepositoryMountedInternal(const F
 	int32 ThisProcessId = FPlatformProcess::GetCurrentProcessId();
 
 	{
-		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 		FDisasterRecoveryInfo& RecoveryInfo = ScopedRecoveryUpdater.Info();
 
 		if (FDisasterRecoverySession* Active = RecoveryInfo.ActiveSessions.FindByPredicate([&RepositoryId](const FDisasterRecoverySession& Candidate) { return Candidate.RepositoryId == RepositoryId; }))
@@ -1112,7 +1112,7 @@ void FDisasterRecoverySessionManager::OnSessionRepositoryMountedInternal(const F
 void FDisasterRecoverySessionManager::OnSessionImportedInternal(const TSharedRef<FDisasterRecoverySession>& ImportedSession)
 {
 	{
-		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheVersion);
+		DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
 		ScopedRecoveryUpdater.Info().ImportedSessions.Insert(*ImportedSession, 0); // Most recently import are at front.
 	}
 
@@ -1138,7 +1138,7 @@ void FDisasterRecoverySessionManager::OnSessionRepositoryFilesModified(const TAr
 	{
 		if (FileChangeData.Action == FFileChangeData::EFileChangeAction::FCA_Modified && FileChangeData.Filename.EndsWith(GetDisasterRecoveryInfoFilename()))
 		{
-			if (DisasterRecoveryUtil::GetDisasterRecoveryInfoVersion(RecoveryInfoPathname) != SessionsCacheVersion) // Skip refresh is it wasn't modified by another process.
+			if (DisasterRecoveryUtil::GetDisasterRecoveryInfoVersion(RecoveryInfoPathname) != SessionsCacheRevision) // Skip refresh is it wasn't modified by another process.
 			{
 				Refresh();
 			}
