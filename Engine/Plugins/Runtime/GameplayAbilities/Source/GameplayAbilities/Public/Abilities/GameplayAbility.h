@@ -237,10 +237,14 @@ public:
 	bool IsForRemoteClient() const;
 
 	/** True if the owning actor is locally controlled, true in single player */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = Ability, Meta = (ExpandBoolAsExecs = "ReturnValue"))
 	bool IsLocallyControlled() const;
 
 	/** True if this is the server or single player */
 	bool HasAuthority(const FGameplayAbilityActivationInfo* ActivationInfo) const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = Ability, DisplayName = "HasAuthority", Meta = (ExpandBoolAsExecs = "ReturnValue"))
+	bool K2_HasAuthority() const;
 
 	/** True if we are authority or we have a valid prediciton key that is expected to work */
 	bool HasAuthorityOrPredictionKey(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo* ActivationInfo) const;
