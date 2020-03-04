@@ -314,13 +314,6 @@ public:
 	UPROPERTY()
 	TArray<FSoundControlModulationPatch> Controls;
 
-	// Mixes that will applied and removed when sounds utilizing settings
-	// play and stop respectively. If mix has already been applied manually,
-	// mix will be removed once all sound settings referencing mix stop. Manual
-	// mix activation is ignored if already activated by means of modulation settings.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mixes)
-	TArray<USoundControlBusMix*> Mixes;
-
 #if WITH_EDITOR
 	AUDIOMODULATION_API void OnPostEditChange(UWorld* World);
 
