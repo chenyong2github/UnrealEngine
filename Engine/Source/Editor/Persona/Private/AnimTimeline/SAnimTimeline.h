@@ -88,7 +88,7 @@ private:
 
 	void OnReZeroAnimSequence(int32 FrameIndex);
 
-	void OnShowPopupOfAppendAnimation(bool bBegin);
+	void OnShowPopupOfAppendAnimation(FWidgetPath WidgetPath, bool bBegin);
 
 	void OnSequenceAppendedCalled(const FText & InNewGroupText, ETextCommit::Type CommitInfo, bool bBegin);
 
