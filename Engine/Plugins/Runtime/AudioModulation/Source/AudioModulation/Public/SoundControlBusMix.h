@@ -25,7 +25,7 @@ struct FSoundControlBusMixChannel
 	FSoundControlBusMixChannel(USoundControlBusBase* InBus, const float TargetValue);
 
 	/* Bus controlled by channel. */
-	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadWrite)
 	USoundControlBusBase* Bus;
 
 	/* Value mix is set to. */
@@ -38,7 +38,20 @@ class USoundControlBusMix : public USoundModulatorBase
 {
 	GENERATED_UCLASS_BODY()
 
+protected:
+#if WITH_EDITOR
+	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
+	void LoadMixFromProfile();
+
+	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
+	void SaveMixToProfile();
+#endif // WITH_EDITOR
+
 public:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Transient, Category = Mix)
+	uint32 ProfileIndex;
+#endif // WITH_EDITORONLY_DATA
 
 	virtual void BeginDestroy() override;
 

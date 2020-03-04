@@ -123,6 +123,22 @@ namespace AudioModulation
 		/*
 		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap if it exists, otherwise returns invalid handle.
 		 */
+		static TProxyHandle<IdType, ProxyType, ProxyUObjType> Get(const IdType ObjectId, TMap<IdType, ProxyType>& InProxyMap)
+		{
+			if (ProxyType* Proxy = InProxyMap.Find(ObjectId))
+			{
+				TProxyHandle<IdType, ProxyType, ProxyUObjType> NewHandle(ObjectId, InProxyMap);
+				Proxy->IncRef();
+
+				return MoveTemp(NewHandle);
+			} 
+
+			return TProxyHandle<IdType, ProxyType, ProxyUObjType>();
+		}
+
+		/*
+		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap if it exists, otherwise returns invalid handle.
+		 */
 		static TProxyHandle<IdType, ProxyType, ProxyUObjType> Get(const ProxyUObjType& InObject, TMap<IdType, ProxyType>& InProxyMap)
 		{
 			const IdType ObjectId = static_cast<IdType>(InObject.GetUniqueID());
@@ -131,7 +147,7 @@ namespace AudioModulation
 				TProxyHandle<IdType, ProxyType, ProxyUObjType> NewHandle(ObjectId, InProxyMap);
 				Proxy->IncRef();
 
-				return NewHandle;
+				return MoveTemp(NewHandle);
 			} 
 
 			return TProxyHandle<IdType, ProxyType, ProxyUObjType>();
@@ -247,6 +263,8 @@ namespace AudioModulation
 		{
 		}
 
+		virtual ~TModulatorProxyBase() = default;
+
 		IdType GetId() const
 		{
 			return Id;
@@ -262,14 +280,6 @@ namespace AudioModulation
 
 			return Name;
 		}
-	};
-
-	struct FModulatorBusMixChannelProxy : public TModulatorProxyBase<FBusId>
-	{
-		FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel);
-		FString Address;
-		uint32 ClassId;
-		FSoundModulationValue Value;
 	};
 
 	class FModulatorLFOProxy;
@@ -412,10 +422,19 @@ namespace AudioModulation
 	using FBusProxyMap = TMap<FBusId, FControlBusProxy>;
 	using FBusHandle = TProxyHandle<FBusId, FControlBusProxy, USoundControlBusBase>;
 
+	struct FModulatorBusMixChannelProxy : public TModulatorProxyBase<FBusId>
+	{
+		FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel);
+		FString Address;
+		uint32 ClassId;
+		FSoundModulationValue Value;
+		FBusHandle BusHandle;
+	};
+
 	class FModulatorBusMixProxy : public TModulatorProxyRefType<FBusMixId, FModulatorBusMixProxy, USoundControlBusMix>
 	{
 	public:
-		enum class BusMixStatus : uint8
+		enum class EStatus : uint8
 		{
 			Enabled,
 			Stopping,
@@ -426,7 +445,10 @@ namespace AudioModulation
 
 		FModulatorBusMixProxy& operator =(const USoundControlBusMix& InBusMix);
 
-		bool CanDestroy() const;
+		EStatus GetStatus() const;
+
+		// Resets channel map
+		void Reset();
 
 		void SetEnabled();
 		void SetMix(const TArray<FSoundControlBusMixChannel>& InChannels);
@@ -435,11 +457,12 @@ namespace AudioModulation
 
 		void Update(const float Elapsed, FBusProxyMap& ProxyMap);
 
-		TMap<FBusId, FModulatorBusMixChannelProxy> Channels;
+		using FChannelMap = TMap<FBusId, FModulatorBusMixChannelProxy>;
+		FChannelMap Channels;
 
 	private:
 		void Init(const USoundControlBusMix& InBusMix);
-		BusMixStatus Status;
+		EStatus Status;
 	};
 
 	using FBusMixProxyMap = TMap<FBusMixId, FModulatorBusMixProxy>;
@@ -504,8 +527,6 @@ namespace AudioModulation
 		FModulationPatchProxy Highpass;
 
 		TMap<FName, FModulationPatchProxy> Controls;
-
-		TArray<FBusMixHandle> Mixes;
 	};
 
 	struct FReferencedProxies
