@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AlembicImportFactory.h"
+#include "AssetImportTask.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Editor.h"
@@ -94,6 +95,14 @@ UObject* UAlembicImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPa
 		ShowImportOptionsWindow(Options, UFactory::CurrentFilename, Importer);
 		// Set whether or not the user canceled
 		bOutOperationCanceled = !Options->ShouldImport();
+	}
+	else
+	{
+		UAbcImportSettings* ScriptedSettings = AssetImportTask ? Cast<UAbcImportSettings>(AssetImportTask->Options) : nullptr;
+		if (ScriptedSettings)
+		{
+			ImportSettings = ScriptedSettings;
+		}
 	}
 
 	// Set up message log page name to separate different assets
