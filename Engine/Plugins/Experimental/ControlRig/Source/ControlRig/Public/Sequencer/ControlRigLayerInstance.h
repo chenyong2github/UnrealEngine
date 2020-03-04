@@ -24,6 +24,7 @@ public:
 	void AddControlRigTrack(int32 ControlRigID, UControlRig* InControlRig);
 	void UpdateControlRigTrack(int32 ControlRigID, float Weight, const FControlRigIOSettings& InputSettings, bool bExecute);
 	void RemoveControlRigTrack(int32 ControlRigID);
+	bool HasControlRigTrack(int32 ControlRigID);
 	void ResetControlRigTracks();
 
 	/** Sequencer AnimInstance Interface */
