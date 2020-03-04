@@ -1,5 +1,5 @@
 #include(../../CMake/PlatformScripts/Android/Android.cmake)
-include(D:/Fortnite/Engine/Source/ThirdParty/CMake/PlatformScripts/Android/Android.cmake)
+include($ENV{NDKROOT}/build/cmake/android.toolchain.cmake)
 
 set(SKIP_PRE_BUILD_COMMAND 1)
 

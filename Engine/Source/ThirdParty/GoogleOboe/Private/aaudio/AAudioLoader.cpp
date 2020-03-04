@@ -305,7 +305,8 @@ AAudioLoader::signature_I_PSKPLPL AAudioLoader::load_I_PSKPLPL(const char *funct
 
 // The aaudio_ usage, content and input_preset types were added in NDK 17,
 // which is the first version to support Android Pie (API 28).
-#if __NDK_MAJOR__ >= 17
+//#if __NDK_MAJOR__ >= 17
+#if 0
 
     ASSERT_INT32(aaudio_usage_t);
     ASSERT_INT32(aaudio_content_type_t);
