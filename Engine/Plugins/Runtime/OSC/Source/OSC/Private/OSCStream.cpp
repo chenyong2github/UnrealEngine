@@ -4,21 +4,25 @@
 #include "OSCLog.h"
 
 
+namespace OSC
+{
+	const int32 DefaultWriteStreamSize = 1024;
+} // namespace OSC
+
 FOSCStream::FOSCStream()
 	: Position(0)
+	, bIsReadStream(false)
 {
+	// Set default size to reasonable size to
+	// avoid thrashing with allocations while writing
+	Data.Reserve(OSC::DefaultWriteStreamSize);
 }
 
 FOSCStream::FOSCStream(const uint8* InData, int32 InSize)
 	: Data(InData, InSize)
 	, Position(0)
+	, bIsReadStream(true)
 {
-}
-
-FOSCStream::FOSCStream(int32 InSize)
-	: Position(0)
-{
-	Data.AddZeroed(InSize);
 }
 
 const uint8* FOSCStream::GetData() const
@@ -43,6 +47,7 @@ int32 FOSCStream::GetPosition() const
 
 void FOSCStream::SetPosition(int32 InPosition)
 {
+	check(InPosition <= Data.Num());
 	Position = InPosition;
 }
 
@@ -346,42 +351,46 @@ void FOSCStream::WriteFloat(float Value)
 FString FOSCStream::ReadString()
 {
 	const int32 DataSize = Data.Num();
-	const int32 InitPosition = Position;
-	check(Position < DataSize);
-
-	const ANSICHAR* StrStart = (ANSICHAR*)(&Data[InitPosition]);
-
-	for (; Position < DataSize; Position++)
+	if (HasReachedEnd() || DataSize == 0)
 	{
-		if (Data[Position] == '\0')
-		{
-			break;
-		}
-	}
-
-	if (Position == DataSize)
-	{
-		UE_LOG(LogOSC, Error, TEXT("Invalid string: Terminator not found"));
 		return FString();
 	}
 
-	// Note end for string copy, increment to next read
-	// location, and pad position.
-	const int32 EndPosition = Position;
-	Position++;
-	Position = ((Position + 3) / 4) * 4;
+	// Cache init position index and push along until either at end or character read is null terminator.
+	const int32 InitPosition = GetPosition();
+	while (!HasReachedEnd() && ReadChar() != '\0');
 
-	return FString(EndPosition - InitPosition, StrStart);
+	if (HasReachedEnd() && Data.Last() != '\0')
+	{
+		UE_LOG(LogOSC, Error, TEXT("Invalid string when reading OSCStream: Null terminator '\0' not found"));
+		return FString();
+	}
+
+	// Cache end for string copy, increment to next read
+	// location, and consume pad until next 4-byte boundary.
+	const int32 EndPosition = Position;
+
+	const int32 Count = EndPosition - InitPosition;
+	check(Count > 0);
+
+	const int32 UnboundByteCount = Count % 4;
+	if (UnboundByteCount != 0)
+	{
+		Position += 4 - UnboundByteCount;
+	}
+
+	return FString(Count, (ANSICHAR*)(&Data[InitPosition]));
 }
 
 void FOSCStream::WriteString(const FString& InString)
 {
 	const TArray<TCHAR>& CharArr = InString.GetCharArray();
-	const int32 Count = CharArr.Num();
 
+	int32 Count = CharArr.Num();
 	if (Count == 0)
 	{
 		WriteChar('\0');
+		Count++;
 	}
 	else
 	{
@@ -391,11 +400,17 @@ void FOSCStream::WriteString(const FString& InString)
 		}
 	}
 
-	// Increment & pad string with null terminator
-	const int32 NumPaddingZeros = ((Count + 3) / 4) * 4;
-	for (int32 i = 0; i < NumPaddingZeros - Count; i++)
+	// Increment & pad string with null terminator (String must
+	// be packed into multiple of 4 bytes)
+	check(Count > 0);
+	const int32 UnboundByteCount = Count % 4;
+	if (UnboundByteCount != 0)
 	{
-		WriteChar('\0');
+		const int32 NumPaddingZeros = 4 - UnboundByteCount;
+		for (int32 i = 0; i < NumPaddingZeros; i++)
+		{
+			WriteChar('\0');
+		}
 	}
 }
 
@@ -425,6 +440,7 @@ void FOSCStream::WriteBlob(TArray<uint8>& Blob)
 
 int32 FOSCStream::Read(uint8* Buffer, int32 InSize)
 {
+	check(bIsReadStream);
 	const int32 DataSize = Data.Num();
 	if (InSize == 0 || Position >= DataSize)
 	{
@@ -443,13 +459,28 @@ int32 FOSCStream::Read(uint8* Buffer, int32 InSize)
 
 int32 FOSCStream::Write(const uint8* InBuffer, int32 InSize)
 {
-	if (InSize > 0)
+	check(!bIsReadStream);
+	if (InSize <= 0)
 	{
-		FMemory::Memcpy(&Data[Position], InBuffer, InSize);
-		Position += InSize;
-		return InSize;
+		return 0;
 	}
 
-	return 0;
+	if (Position < Data.Num())
+	{
+		int32 Slack = Data.Num() - Position;
+		if (InSize - Slack > 0)
+		{
+			Data.AddUninitialized(InSize - Slack);
+		}
+	}
+	else
+	{
+		check(Position == Data.Num());
+		Data.AddUninitialized(InSize);
+	}
+
+	FMemory::Memcpy(&Data[Position], InBuffer, InSize);
+	Position += InSize;
+	return InSize;
 }
 

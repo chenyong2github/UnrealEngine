@@ -35,6 +35,8 @@ class OSC_API IOSCServerProxy
 public:
 	virtual ~IOSCServerProxy() { }
 
+	virtual FString GetIpAddress() const = 0;
+	virtual int32 GetPort() const = 0;
 	virtual bool GetMulticastLoopback() const = 0;
 	virtual bool IsActive() const = 0;
 	virtual void Listen(const FString& ServerName) = 0;
@@ -111,6 +113,14 @@ public:
 	/** Clears client whitelist to listen for. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	void ClearWhitelistedClients();
+
+	/** Returns the IP for the server if connected as a string. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	FString GetIpAddress(bool bIncludePort) const;
+
+	/** Returns the port for the server if connected. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	int32 GetPort() const;
 
 	/** Returns set of whitelisted clients. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")

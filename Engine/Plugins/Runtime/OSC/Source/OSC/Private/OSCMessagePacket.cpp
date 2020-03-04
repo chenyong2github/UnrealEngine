@@ -117,7 +117,13 @@ void FOSCMessagePacket::ReadData(FOSCStream& Stream)
 
 	// Read string of tags
 	const FString StreamString = Stream.ReadString();
+
 	const TArray<TCHAR>& TagTypes = StreamString.GetCharArray();
+	if(TagTypes.Num() == 0)
+	{
+		UE_LOG(LogOSC, Error, TEXT("Failed to read message packet with address '%s' from stream: Invalid (Empty) Type Tag"), *Address.GetFullPath());
+		return;
+	}
 
 	// Skip the first argument which is ','
 	for (int32 i = 1; i < TagTypes.Num(); i++)
@@ -165,8 +171,9 @@ void FOSCMessagePacket::ReadData(FOSCStream& Stream)
 			Arguments.Add(FOSCType(FColor(Stream.ReadInt32())));
 			break;
 		case EOSCTypeTag::TERMINATE:
-			Stream.ReadChar();
-			break;
+			// Return on first terminate found. FString GetCharArray can return
+			// an array with multiple terminators.
+			return;
 
 		default:
 			// Argument is not supported 

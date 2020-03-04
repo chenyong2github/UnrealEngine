@@ -7,7 +7,7 @@
 #include "OSCTypes.h"
 
 
-class FOSCBundlePacket : public IOSCPacket
+class OSC_API FOSCBundlePacket : public IOSCPacket
 {
 public:
 	FOSCBundlePacket();
