@@ -3516,13 +3516,11 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
-#if !(PLATFORM_IOS || PLATFORM_TVOS || PLATFORM_ANDROID)
 	// Init HighRes screenshot system, unless running on server
 	if (!IsRunningDedicatedServer())
 	{
 		GetHighResScreenshotConfig().Init();
 	}
-#endif
 
 #else // WITH_ENGINE
 	InitEngineTextLocalization();
