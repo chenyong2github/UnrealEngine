@@ -2212,7 +2212,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				if (ParamMapDefinedAttributesToNamespaceVars.Num() != 0)
 				{
 					HlslOutput += TEXT("\t\tContext.") + TranslationStages[i].PassNamespace + TEXT(".Particles = Context.") + TranslationStages[i - 1].PassNamespace + TEXT(".Particles;\n");
-					if (bUsesAlive)
+					if (TranslationStages[i - 1].bWritesAlive)
 					{
 						HlslOutput += TEXT("\t\tContext.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance = Context.") + TranslationStages[i - 1].PassNamespace + TEXT(".DataInstance;\n");
 					}
@@ -2564,8 +2564,11 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 			OutHlslOutput += TEXT("\t//Begin Transfer of Attributes!\n");
 			if (ParamMapDefinedAttributesToNamespaceVars.Num() != 0)
 			{
-				FString CopyStr = TEXT("\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".Particles = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".Particles;\n");
-				OutHlslOutput += CopyStr;
+				OutHlslOutput += TEXT("\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".Particles = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".Particles;\n");
+				if (TranslationStages[StageIdx].bWritesAlive)
+				{
+					OutHlslOutput += TEXT("\t\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".DataInstance = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".DataInstance;\n");
+				}
 				
 			}
 			OutHlslOutput += TEXT("\t//End Transfer of Attributes!\n\n");
@@ -4003,6 +4006,10 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 			}
 			else
 			{
+				if (Var == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive")))
+				{
+					TranslationStages[ActiveStageIdx].bWritesAlive = true;
+				}
 				AddBodyChunk(ParameterMapInstanceName + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString()), TEXT("{0}"), Var.GetType(), Input, false);
 			}
 		}
@@ -4588,6 +4595,13 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 	if (History.IsPrimaryDataSetOutput(Var, GetTargetUsage())) // Note that data interfaces aren't ever in the primary data set even if the namespace matches.
 	{
 		bIsPerInstanceAttribute = true;
+	}
+
+	// Make sure to leave IsAlive alone if copying over previous stage params.
+	if (Var == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive")) && ActiveStageIdx > 0 && TranslationStages[ActiveStageIdx - 1].bCopyPreviousParams 
+		&& TranslationStages[ActiveStageIdx - 1].bWritesAlive)
+	{
+		bIsPerInstanceAttribute = true; 
 	}
 
 	int32 LastSetChunkIdx = INDEX_NONE;
