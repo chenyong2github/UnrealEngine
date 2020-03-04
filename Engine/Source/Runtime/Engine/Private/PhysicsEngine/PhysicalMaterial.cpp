@@ -28,6 +28,9 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	Restitution = 0.3f;
 	RaiseMassToPower = 0.75f;
 	Density = 1.0f;
+	SleepLinearVelocityThreshold = 0.001f;
+	SleepAngularVelocityThreshold = 0.0087f;
+	SleepCounterThreshold = 0;
 	DestructibleDamageThresholdScale = 1.0f;
 	TireFrictionScale = 1.0f;
 	bOverrideFrictionCombineMode = false;

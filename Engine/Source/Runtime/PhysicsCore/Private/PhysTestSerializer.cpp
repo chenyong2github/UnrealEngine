@@ -339,11 +339,11 @@ void FPhysTestSerializer::CreateChaosData()
 			++Idx;
 		}
 
-		ChaosEvolution = MakeUnique<FPBDRigidsEvolutionGBF>(Particles);
+		ChaosEvolution = MakeUnique<FPBDRigidsEvolutionGBF>(Particles, PhysicalMaterials);
 	}
 	else
 	{
-		ChaosEvolution = MakeUnique<FPBDRigidsEvolutionGBF>(Particles);
+		ChaosEvolution = MakeUnique<FPBDRigidsEvolutionGBF>(Particles, PhysicalMaterials);
 
 		FMemoryReader Ar(Data);
 		FChaosArchive ChaosAr(Ar);
