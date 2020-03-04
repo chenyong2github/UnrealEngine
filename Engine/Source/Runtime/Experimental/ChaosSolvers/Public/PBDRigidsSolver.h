@@ -21,7 +21,7 @@
 #include "Framework/Dispatcher.h"
 #include "Field/FieldSystem.h"
 #include "PBDRigidActiveParticlesBuffer.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
+#include "Chaos/SingleParticlePhysicsProxyFwd.h"
 #include "SolverEventFilters.h"
 
 class FPhysicsSolverAdvanceTask;
@@ -273,9 +273,6 @@ namespace Chaos
 		void SetIsFloorAnalytic(bool bIsAnalytic) { bIsFloorAnalytic = bIsAnalytic; }
 		void SetFloorHeight(float Height) { FloorHeight = Height; }
 
-		/**/
-		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
-		FPBDRigidsEvolution* GetEvolution() const { return MEvolution.Get(); }
 
 		FParticlesType& GetParticles() { return Particles; }
 		const FParticlesType& GetParticles() const { return Particles; }
@@ -357,7 +354,6 @@ namespace Chaos
 		float FloorHeight;
 
 		FParticlesType Particles;
-		TUniquePtr<FPBDRigidsEvolution> MEvolution;
 		TUniquePtr<FEventManager> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FActiveParticlesBuffer> MActiveParticlesBuffer;

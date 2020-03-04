@@ -326,7 +326,7 @@ void FStaticMeshPhysicsProxy::AddForceCallback(FParticlesType& InParticles, cons
 void FStaticMeshPhysicsProxy::OnRemoveFromScene()
 {
 	// Disable the particle we added
-	Chaos::FPhysicsSolver* CurrSolver = GetSolver();
+	Chaos::FPhysicsSolver* CurrSolver = static_cast<Chaos::FPhysicsSolver*>(GetSolver());
 
 	if(CurrSolver && RigidBodyId != INDEX_NONE)
 	{

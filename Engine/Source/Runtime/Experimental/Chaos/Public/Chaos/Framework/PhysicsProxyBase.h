@@ -18,6 +18,11 @@ enum class EPhysicsProxyType
 	SingleRigidParticleType = 7
 };
 
+namespace Chaos
+{
+	class FPhysicsSolverBase;
+}
+
 class IPhysicsProxyBase
 {
 public:
@@ -28,8 +33,7 @@ public:
 
 	virtual UObject* GetOwner() const = 0;
 
-	template< class SOLVER_TYPE = Chaos::FPhysicsSolver>
-	SOLVER_TYPE* GetSolver() const { return static_cast<SOLVER_TYPE*>(Solver); }
+	Chaos::FPhysicsSolverBase* GetSolver() const { return Solver; }
 
 	//Should this be in the public API? probably not
 	template< class SOLVER_TYPE = Chaos::FPhysicsSolver>
@@ -45,9 +49,9 @@ protected:
 	// but no one can delete using a IPhysicsProxyBase*
 	virtual ~IPhysicsProxyBase()
 	{
-		if (GetSolver<Chaos::FPhysicsSolverBase>())
+		if (Solver)
 		{
-			GetSolver<Chaos::FPhysicsSolverBase>()->RemoveDirtyProxy(this);
+			Solver->RemoveDirtyProxy(this);
 		}
 	}
 
