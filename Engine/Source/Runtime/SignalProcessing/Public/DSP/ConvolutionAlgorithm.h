@@ -30,6 +30,21 @@ namespace Audio
 
 		/** Maximum number of samples in an impulse responses. */
 		int32 MaxNumImpulseResponseSamples = 0;
+
+		bool operator==(const FConvolutionSettings& Other)
+		{
+			return bEnableHardwareAcceleration == Other.bEnableHardwareAcceleration
+				&& BlockNumSamples == Other.BlockNumSamples
+				&& NumInputChannels == Other.NumInputChannels
+				&& NumOutputChannels == Other.NumOutputChannels
+				&& NumImpulseResponses == Other.NumImpulseResponses
+				&& MaxNumImpulseResponseSamples == Other.MaxNumImpulseResponseSamples;
+		}
+
+		bool operator!=(const FConvolutionSettings& Other)
+		{
+			return !(*this == Other);
+		}
 	};
 
 
