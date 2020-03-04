@@ -724,7 +724,6 @@ void FNetworkFileServerClientConnection::ProcessToAbsolutePathForWrite( FArchive
 	Out << Filename;
 }
 
-
 bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArchive& Out )
 {
 	// get the list of directories to process
@@ -940,7 +939,21 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	FLocalTimestampDirectoryVisitor Visitor(*Sandbox, DirectoriesToSkip, DirectoriesToNotRecurse, true);
 	for (int32 DirIndex = 0; DirIndex < RootDirectories.Num(); DirIndex++)
 	{
-		Sandbox->IterateDirectory(*RootDirectories[DirIndex], Visitor);
+		bool bIsSubDirOfOtherRootDir = false;
+		for (int32 OtherDirIndex = 0; OtherDirIndex < DirIndex; OtherDirIndex++)
+		{
+			if (OtherDirIndex == DirIndex)
+				continue;
+
+			if (FPaths::IsUnderDirectory(RootDirectories[DirIndex], RootDirectories[OtherDirIndex]))
+			{
+				bIsSubDirOfOtherRootDir = true;
+				break;
+			}
+		}
+
+		if (!bIsSubDirOfOtherRootDir)
+			Sandbox->IterateDirectory(*RootDirectories[DirIndex], Visitor);
 	}
 
 	UE_LOG(LogFileServer, Display, TEXT("Scanned server files, found %d files in %.2f seconds"), Visitor.FileTimes.Num(), FPlatformTime::Seconds() - FileScanStartTime);
@@ -1014,28 +1027,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 		}
 		Out << ContentFolders;
 
-		// Do it again, preventing access to non-cooked files
-		const int32 NUM_EXCLUSION_WILDCARDS = 2;
-		FString ExclusionWildcard[NUM_EXCLUSION_WILDCARDS];
-		ExclusionWildcard[0] = FString(TEXT("*")) + FPackageName::GetAssetPackageExtension(); 
-		ExclusionWildcard[1] = FString(TEXT("*")) + FPackageName::GetMapPackageExtension();
-
-		for (int32 i=0; i < NUM_EXCLUSION_WILDCARDS; ++i)
-		{
-			Sandbox->AddExclusion(*ExclusionWildcard[i]);
-			UE_LOG(LogFileServer, Display, TEXT("Excluding %s from non-sandboxed directories"), 
-				   *ExclusionWildcard[i]);
-		}
-	
-		FLocalTimestampDirectoryVisitor VisitorForCacheDates(*Sandbox, DirectoriesToSkip, DirectoriesToNotRecurse, true);
-
-		for (int32 DirIndex = 0; DirIndex < RootDirectories.Num(); DirIndex++)
-		{
-			Sandbox->IterateDirectory(*RootDirectories[DirIndex], VisitorForCacheDates);
-		}
-	
 		// return the cached files and their timestamps
-		FixedTimes = FixupSandboxPathsForClient(VisitorForCacheDates.FileTimes);
+		// TODO: This second file list is now identical to the first.  This should be cleaned up in the future to not send two lists.
 		Out << FixedTimes;
 	}
 

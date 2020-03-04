@@ -1235,6 +1235,18 @@ void FNetworkPlatformFile::EnsureFileIsLocal(const FString& Filename)
 		return;
 	}
 
+	if (bIsCookable && (FPackageName::GetAssetPackageExtension() == Extension))
+	{
+		// This is meant to handle the fact that FindPackageFileWithoutExtension will attempt to load a *.umap file first as a *.uasset file
+		// Instead of needlessly asking the COTF server to load and cook the map again, this will just see the *.umap in the local cache, and
+		// handle the request for the *.uasset version of the file as being not present.
+		FString AlternatePackageName = FPaths::ChangeExtension(Filename, FPackageName::GetMapPackageExtension());
+		if (InnerPlatformFile->FileExists(*AlternatePackageName))
+		{
+			return;
+		}
+	}
+
 	// send the filename over (cast away const here because we know this << will not modify the string)
 	FNetworkFileArchive Payload(NFS_Messages::SyncFile);
 	Payload << (FString&)Filename;

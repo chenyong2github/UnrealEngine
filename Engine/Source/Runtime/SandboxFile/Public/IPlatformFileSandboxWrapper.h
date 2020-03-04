@@ -364,11 +364,8 @@ public:
 	{
 		FDateTime Result = FDateTime::MinValue();
 		FString UserFilename( *ConvertToSandboxPath( Filename ) );
-		if( LowerLevel->FileExists( *UserFilename ) )
-		{
-			Result = LowerLevel->GetTimeStamp( *UserFilename );
-		}
-		else if (OkForInnerAccess(Filename))
+		Result = LowerLevel->GetTimeStamp( *UserFilename );
+		if( (Result == FDateTime::MinValue()) && OkForInnerAccess(Filename) )
 		{
 			Result = LowerLevel->GetTimeStamp( Filename );
 		}
