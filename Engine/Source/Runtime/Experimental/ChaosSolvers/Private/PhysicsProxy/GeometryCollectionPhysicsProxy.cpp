@@ -587,7 +587,6 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesGT()
 				GTGeometryParticles[Idx] = MoveTemp(Particle); // Particle is now undefined
 				Chaos::TPBDRigidParticle<float, 3>* GTParticle = 
 					GTGeometryParticles[Idx]->CastToRigidParticle();
-				GTParticle->SetUniqueIdx(GetSolver()->GetEvolution()->GenerateUniqueIdx(), false);
 
 				FTransform ParticleTransform = MassToLocal[Idx] * Transform[Idx] * Parameters.WorldTransform;
 				if (GTParticle->ObjectState() == Chaos::EObjectStateType::Dynamic)
@@ -631,6 +630,16 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesGT()
 					}
 				}
 			}
+/*			else
+			{
+				// This is likely a cluster parent.  Create a base particle, until 
+				// we have a reason to include more data.
+
+				TUniquePtr<Chaos::TGeometryParticle<float, 3>> Particle = 
+					Chaos::TGeometryParticle<float, 3>::CreateParticle();
+				GTGeometryParticles[Idx] = MoveTemp(Particle); // Particle is now undefined
+			}
+*/
 		}
 
 		InitializedState = Parameters.InitializationState;
@@ -683,12 +692,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 		// Add entries into simulation array
 		RigidsSolver->GetEvolution()->ReserveParticles(NumSimulatedParticles);
 		TArray<Chaos::TPBDGeometryCollectionParticleHandle<float, 3>*> Handles = 
-			Particles.CreateGeometryCollectionParticles(NumLeafNodes);
-		for (auto& Handle : Handles)
-		{
-			Handle->SetUniqueIdx(GetSolver()->GetEvolution()->GenerateUniqueIdx());
-		}
-
+			RigidsSolver->GetEvolution()->CreateGeometryCollectionParticles(NumLeafNodes);
 
 		int32 NextIdx = 0;
 		for(int32 Idx=0; Idx < SimulatableParticles.Num(); ++Idx)
@@ -913,6 +917,10 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 							RigidChildren, 
 							RigidChildrenTransformGroupIndex, 
 							CreationParameters);
+
+					Chaos::TGeometryParticle<float, 3>* GTParticle = 
+						GTGeometryParticles[TransformGroupIndex].Get();
+					Handle->GTGeometryParticle() = GTParticle;
 
 					SolverClusterHandles[TransformGroupIndex] = Handle;
 					SolverParticleHandles[TransformGroupIndex] = Handle;
@@ -2500,10 +2508,6 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 			ClusterCreationParameters,
 			Implicits[CollectionClusterIndex],
 			&ParticleTM);
-	if (!Parent->UniqueIdx().IsValid())
-	{
-		Parent->SetUniqueIdx(GetSolver()->GetEvolution()->GenerateUniqueIdx());
-	}
 
 	if (ReportNoLevelsetCluster && 
 		Parent->DynamicGeometry())
@@ -3929,9 +3933,6 @@ Chaos::FParticleData* FGeometryCollectionPhysicsProxy::NewData()
 		
 		Buffer.DisabledStates.SetNum(NumParticles);
 
-		Buffer.SpatialIdx.SetNum(NumParticles);
-		Buffer.UniqueIdx.SetNum(NumParticles);
-		Buffer.UserData.SetNum(NumParticles);
 		Buffer.SharedGeometry.SetNum(NumParticles);
 		Buffer.ShapeSimData.SetNum(NumParticles);
 		Buffer.ShapeQueryData.SetNum(NumParticles);
@@ -3943,9 +3944,6 @@ Chaos::FParticleData* FGeometryCollectionPhysicsProxy::NewData()
 			if (GTParticle)
 			{
 				Buffer.DisabledStates[Idx] = false;
-				Buffer.SpatialIdx[Idx] = GTParticle->SpatialIdx();
-				Buffer.UniqueIdx[Idx] = GTParticle->UniqueIdx();
-				Buffer.UserData[Idx] = GTParticle->UserData();
 				Buffer.SharedGeometry[Idx] = GTParticle->GeometrySharedLowLevel();
 
 				for (auto& Shape : GTParticle->ShapesArray())
@@ -4077,10 +4075,6 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 				// TODO Ryan - WorldSpaceBox.ThickenSymmetrically(GState->V());
 				Handle->SetWorldSpaceInflatedBounds(WorldSpaceBox);
 			}
-
-			Handle->SetSpatialIdx(GState->SpatialIdx[Idx]);
-			Handle->SetUniqueIdx(GState->UniqueIdx[Idx]);
-			Handle->SetUserData(GState->UserData[Idx]);
 
 			// TODO Ryan - check dirty flags like TGeometryParticleData::DirtyFlags.
 			// In the mean time, we only set once.

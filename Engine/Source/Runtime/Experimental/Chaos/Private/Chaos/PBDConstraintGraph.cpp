@@ -166,7 +166,8 @@ void FPBDConstraintGraph::InitializeGraph(const TParticleView<TGeometryParticles
 		{
 			for (auto& Particle : Particles)
 			{
-				ParticleAdd(Particle.Handle());
+				if(!ParticleToNodeIndex.Contains(Particle.Handle()))
+					ParticleAdd(Particle.Handle());
 			}
 		}
 
