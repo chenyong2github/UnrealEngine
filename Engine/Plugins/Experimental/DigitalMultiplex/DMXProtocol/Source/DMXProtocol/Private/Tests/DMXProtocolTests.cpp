@@ -6,11 +6,11 @@
 #include "DMXProtocolCommon.h"
 #include "Dom/JsonObject.h"
 
-#include "DMXProtocol.h"
-
+#include "Interfaces/IDMXProtocol.h"
+#include "DMXProtocolTypes.h"
 
 class FDMXProtocolTest
-	: public FDMXProtocol
+	: public IDMXProtocol
 {
 public:
 	//~ Begin IDMXProtocolBase implementation
@@ -20,11 +20,22 @@ public:
 	//~ End IDMXProtocolBase implementation
 
 	//~ Begin IDMXProtocol implementation
+	virtual const FName& GetProtocolName() const override { return ProtocolName;  }
+	virtual TSharedPtr<FJsonObject> GetSettings() const override { return Settings; }
 	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const override { return nullptr; }
-	virtual FName GetProtocolName() const override { return ProtocolName; }
-	virtual void Reload() override {}
-	virtual bool SendDMX(uint16 UniverseID, uint8 PortID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const override { return true; }
+	virtual EDMXSendResult SendDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) override { return EDMXSendResult::Success; }
+	virtual EDMXSendResult SendDMXFragmentCreate(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment) override { return EDMXSendResult::Success; }
+	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const override { return InUniverseID; }
 	virtual bool IsEnabled() const override { return true; }
+	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override { return nullptr; }
+	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) override {}
+	virtual bool RemoveUniverseById(uint32 InUniverseId) override { return true; }
+	virtual void RemoveAllUniverses() override { }
+	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const override { return nullptr; }
+	virtual uint32 GetUniversesNum() const override { return 0; }
+	virtual uint16 GetMinUniverseID() const override { return 0; }
+	virtual uint16 GetMaxUniverses() const override { return 1; }
+	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() override { return OnUniverseInputUpdateEvent; }
 	//~ End IDMXProtocol implementation
 
 	//~ Begin IDMXProtocolRDM implementation
@@ -35,12 +46,15 @@ public:
 	//~ Only the factory makes instances
 	FDMXProtocolTest() = delete;
 	explicit FDMXProtocolTest(FName InProtocolName, FJsonObject& InSettings)
-		: FDMXProtocol(InProtocolName, InSettings)
-		, ProtocolName(InProtocolName)
-	{}
+		: ProtocolName(InProtocolName)
+	{
+		Settings = MakeShared<FJsonObject>(InSettings);
+	}
 
 private:
 	FName ProtocolName;
+	TSharedPtr<FJsonObject> Settings;
+	FOnUniverseInputUpdateEvent OnUniverseInputUpdateEvent;
 };
 
 
@@ -57,14 +71,14 @@ public:
 		{
 			if (!ProtocolArtNetPtr->Init())
 			{
-				UE_LOG_DMXPROTOCOL(Warning, TEXT("TEST Protocol failed to initialize!"));
+				UE_LOG_DMXPROTOCOL(Verbose, TEXT("TEST Protocol failed to initialize!"));
 				ProtocolArtNetPtr->Shutdown();
 				ProtocolArtNetPtr = nullptr;
 			}
 		}
 		else
 		{
-			UE_LOG_DMXPROTOCOL(Warning, TEXT("TEST Protocol disabled!"));
+			UE_LOG_DMXPROTOCOL(Verbose, TEXT("TEST Protocol disabled!"));
 			ProtocolArtNetPtr->Shutdown();
 			ProtocolArtNetPtr = nullptr;
 		}
@@ -125,7 +139,7 @@ bool FDMXProtocolFactoryTest::RunTest(const FString& Parameters)
 	FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
 
 	// Store the protocol pointer
-	IDMXProtocol* CachedProtocol = nullptr;
+	TSharedPtr<IDMXProtocol> CachedProtocol = nullptr;
 
 	// Try to register 3 times
 	TArray<TUniquePtr<IDMXProtocolFactory>> Factories;
@@ -141,7 +155,7 @@ bool FDMXProtocolFactoryTest::RunTest(const FString& Parameters)
 			CachedProtocol = IDMXProtocol::Get(ProtocolName);
 		}
 
-		TestNotNull(TEXT("Protocol should exists"), IDMXProtocol::Get(ProtocolName));
+		TestTrue(TEXT("Protocol should exists"), IDMXProtocol::Get(ProtocolName).IsValid());
 		TestEqual(TEXT("Should return same protocol instance"), CachedProtocol, IDMXProtocol::Get(ProtocolName));
 	}
 	Factories.Empty();
@@ -151,7 +165,7 @@ bool FDMXProtocolFactoryTest::RunTest(const FString& Parameters)
 		TUniquePtr<IDMXProtocolFactory> Factory = MakeUnique<FDMXProtocolFactoryTestFactory>();
 		DMXProtocolModule.RegisterProtocol(ProtocolName, Factory.Get());
 		DMXProtocolModule.UnregisterProtocol(ProtocolName);
-		TestNull(TEXT("Protocol should not exists"), IDMXProtocol::Get(ProtocolName));
+		TestFalse(TEXT("Protocol should not exists"), IDMXProtocol::Get(ProtocolName).IsValid());
 	}
 
 

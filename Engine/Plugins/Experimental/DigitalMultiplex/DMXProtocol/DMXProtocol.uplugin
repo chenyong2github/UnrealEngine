@@ -10,23 +10,44 @@
   "DocsURL": "",
   "MarketplaceURL": "",
   "SupportURL": "",
-  "CanContainContent": true,
+  "CanContainContent": false,
   "IsBetaVersion": true,
   "Modules": [
     {
       "Name": "DMXProtocol",
       "Type": "Runtime",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "PreDefault",
+      "WhitelistPlatforms": 
+      [
+        "Win64",
+        "Win32",
+        "Mac",
+        "Linux"
+      ]
     },
     {
       "Name": "DMXProtocolArtNet",
       "Type": "Runtime",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": 
+      [
+        "Win64",
+        "Win32",
+        "Mac",
+        "Linux"
+      ]
     },
     {
       "Name": "DMXProtocolSACN",
       "Type": "Runtime",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": 
+      [
+        "Win64",
+        "Win32",
+        "Mac",
+        "Linux"
+      ]
     }
   ]
 }

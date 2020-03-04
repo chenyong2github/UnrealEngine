@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/Queue.h"
-#include "Interfaces/IDMXProtocolTransport.h"
+
 #include "DMXProtocolTypes.h"
+#include "Interfaces/IDMXProtocolTransport.h"
+
+#include "Containers/Queue.h"
+#include "HAL/CriticalSection.h"
 
 class FSocket;
 class ISocketSubsystem;
@@ -47,7 +50,6 @@ private:
 	/** Holds the last sent message number. */
 	int32 LastSentPackage;
 
-	/** */
 	mutable FCriticalSection CriticalSection;
 
 	FThreadSafeCounter StopTaskCounter;

@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 
 class DMXPROTOCOL_API IDMXProtocolBase
+	: public TSharedFromThis<IDMXProtocolBase>
 {
 public:
+	virtual ~IDMXProtocolBase() {}
+
 	virtual bool Init() = 0;
 
 	virtual bool Shutdown() = 0;

@@ -10,7 +10,7 @@ struct FDMXProtocolArtNetPacket
 	: public IDMXProtocolPacket
 {
 public:
-	uint8 ID[ARTNET_STRING_SIZE] = "Art-Net";
+	uint8 ID[ARTNET_STRING_SIZE] = DMX_PROTOCOLNAME_ARTNET;
 };
 
 struct FDMXProtocolArtNetDMXPacket
@@ -56,12 +56,12 @@ public:
 	uint8 Priority = 0;
 };
 
-struct FArtNetPacketReply
+struct FDMXProtocolArtNetPacketReply
 	: public FDMXProtocolArtNetPacket
 {
 public:
 	void Serialize(FArchive& Ar);
-	friend FArchive& operator<<(FArchive& Ar, FArtNetPacketReply& Packet);
+	friend FArchive& operator<<(FArchive& Ar, FDMXProtocolArtNetPacketReply& Packet);
 
 public:
 	uint16 OpCode = 0;
