@@ -36,7 +36,6 @@ public:
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 	virtual void SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel) override;
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-	int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	// End of SWidget interface
 
 	// SGraphNode interface
@@ -78,6 +77,8 @@ private:
 
 	FMargin GetOuterPadding() const;
 
+	FText GetBottomWidgetText() const;
+
 private:
 	/** Weak pointer to the associated action asset */
 	TWeakObjectPtr<class UDataprepActionAsset> DataprepActionPtr;
@@ -110,4 +111,8 @@ private:
 	TWeakPtr<FDataprepEditor> DataprepEditor;
 
 	friend SDataprepGraphActionProxyNode;
+
+public:
+	static float DefaultWidth;
+	static float DefaultHeight;
 };

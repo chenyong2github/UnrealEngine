@@ -13,6 +13,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "Layout/SlateRect.h"
 #include "SGraphNode.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -79,6 +80,7 @@ public:
 	virtual void MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter ) override;
 	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	virtual bool ShouldAllowCulling() const override { return false; }
 	// End of SNodePanel::SNode interface
 
 	// SWidget interface
@@ -88,9 +90,6 @@ public:
 
 	UDataprepAsset* GetDataprepAsset() { return DataprepAssetPtr.Get(); }
 	const UDataprepAsset* GetDataprepAsset() const { return DataprepAssetPtr.Get(); }
-
-	/** Recompute the boundaries of the graph based on the new size and the new zoom factor */
-	FVector2D Update(const FVector2D& LocalSize, float ZoomAmount);
 
 	void OnControlKeyChanged(bool bControlKeyDown);
 
@@ -112,14 +111,16 @@ public:
 	/** Recomputes the position of each action node */
 	bool RefreshLayout();
 
+	/** Recompute the boundaries of the graph based on the new size and/or the new zoom factor in graph panel */
+	FSlateRect Update();
+
 	/** Start editing of action asset associated to input EdGraphNode */
 	void RequestRename(const UEdGraphNode* Node);
 
 	void RequestViewportPan(const FVector2D& ScreenSpacePosition);
 
 	/** Miscellaneous values used in the display */
-	// #ueent_wip: Will be moved to the Dataprep editor's style
-	static FMargin NodePadding;
+	static FVector2D TrackAnchor;
 
 protected:
 	// SWidget interface
@@ -136,7 +137,7 @@ private:
 	/** Weak pointer to the Dataprep asset holding the displayed actions */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
-	/** Range for abscissa of action nodes */
+	/** Range for abscissa of action nodes used during drag-and-drop */
 	FVector2D AbscissaRange;
 
 	/** Indicates a drag is happening */
