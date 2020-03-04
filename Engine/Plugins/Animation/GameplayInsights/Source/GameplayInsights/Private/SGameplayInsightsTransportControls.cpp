@@ -92,7 +92,7 @@ FReply SGameplayInsightsTransportControls::OnClick_Forward_Step()
 		const Trace::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
 		if(FirstFrame)
 		{
-			CurrentTime = FirstFrame->StartTime + (double)KINDA_SMALL_NUMBER;
+			CurrentTime = FirstFrame->StartTime + (double)SMALL_NUMBER;
 		}
 	}
 	
@@ -104,7 +104,7 @@ FReply SGameplayInsightsTransportControls::OnClick_Forward_Step()
 			const Trace::FFrame* NextFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, Frame.Index + 1);
 			if(NextFrame)
 			{
-				SetTimeMarker(NextFrame->StartTime + (double)KINDA_SMALL_NUMBER, false);
+				SetTimeMarker(NextFrame->StartTime + (double)SMALL_NUMBER, false);
 			}
 		}
 	}
@@ -125,7 +125,7 @@ FReply SGameplayInsightsTransportControls::OnClick_Forward_End()
 		const Trace::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(ETraceFrameType::TraceFrameType_Game) - 1);
 		if(LastFrame)
 		{
-			SetTimeMarker(LastFrame->StartTime + (double)KINDA_SMALL_NUMBER, true);
+			SetTimeMarker(LastFrame->StartTime + (double)SMALL_NUMBER, true);
 		}
 	}
 
@@ -146,7 +146,7 @@ FReply SGameplayInsightsTransportControls::OnClick_Backward_Step()
 		const Trace::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(TraceFrameType_Game) - 1);
 		if(LastFrame)
 		{
-			CurrentTime = LastFrame->StartTime + (double)KINDA_SMALL_NUMBER;
+			CurrentTime = LastFrame->StartTime + (double)SMALL_NUMBER;
 		}
 	}
 
@@ -158,7 +158,7 @@ FReply SGameplayInsightsTransportControls::OnClick_Backward_Step()
 			const Trace::FFrame* PrevFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, Frame.Index - 1);
 			if(PrevFrame)
 			{
-				SetTimeMarker(PrevFrame->StartTime + (double)KINDA_SMALL_NUMBER, false);
+				SetTimeMarker(PrevFrame->StartTime + (double)SMALL_NUMBER, false);
 			}
 		}
 	}
@@ -177,7 +177,7 @@ FReply SGameplayInsightsTransportControls::OnClick_Backward_End()
 	const Trace::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
 	if(FirstFrame)
 	{
-		SetTimeMarker(FirstFrame->StartTime + (double)KINDA_SMALL_NUMBER, true);
+		SetTimeMarker(FirstFrame->StartTime + (double)SMALL_NUMBER, true);
 	}
 
 	bPlaying = false;
@@ -197,7 +197,7 @@ FReply SGameplayInsightsTransportControls::OnClick_Forward()
 		const Trace::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
 		if(FirstFrame)
 		{
-			SetTimeMarker(FirstFrame->StartTime + (double)KINDA_SMALL_NUMBER, false);
+			SetTimeMarker(FirstFrame->StartTime + (double)SMALL_NUMBER, false);
 		}
 	}
 
@@ -217,7 +217,7 @@ FReply SGameplayInsightsTransportControls::OnClick_Backward()
 		const Trace::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(TraceFrameType_Game) - 1);
 		if(LastFrame)
 		{
-			SetTimeMarker(LastFrame->StartTime + (double)KINDA_SMALL_NUMBER, false);
+			SetTimeMarker(LastFrame->StartTime + (double)SMALL_NUMBER, false);
 		}
 	}
 

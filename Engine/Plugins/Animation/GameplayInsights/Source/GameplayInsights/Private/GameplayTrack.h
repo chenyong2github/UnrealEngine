@@ -11,6 +11,9 @@ namespace GameplayTrackConstants
 
 struct FVariantTreeNode;
 class FGameplaySharedData;
+struct FWorldInfo;
+namespace Trace { class IAnalysisSession; }
+namespace Trace { struct FFrame; }
 
 // Provides parent/child hierarchy structure and the owning object Id
 // Designed as a compositional member of outer timing tracks
@@ -51,6 +54,12 @@ public:
 
 	/** Access indent */
 	uint32 GetIndent() const { return Indent; }
+
+	/** Get the world name for this object */
+	FText GetWorldName(const Trace::IAnalysisSession& InAnalysisSession) const;
+
+	/** Helper function to find a postfix for a world (e.g. "Client 0", "Server" etc.) */
+	static FText GetWorldPostFix(const FWorldInfo& InWorldInfo);
 
 private:
 	/** Outer timing track */
@@ -104,8 +113,9 @@ public:
 
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
-	/** Get all variants at the specified time */
+	/** Get all variants at the specified time/frame */
 	virtual void GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const {}
+	virtual void GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const;
 
 protected:
 	const FGameplaySharedData& GameplaySharedData;

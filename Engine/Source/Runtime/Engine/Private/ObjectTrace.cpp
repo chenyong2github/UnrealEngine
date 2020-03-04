@@ -15,6 +15,9 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "TraceFilter.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 UE_TRACE_CHANNEL(ObjectChannel)
 
@@ -35,6 +38,14 @@ UE_TRACE_EVENT_BEGIN(Object, ObjectEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(uint8, Event)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Object, World, Important)
+	UE_TRACE_EVENT_FIELD(uint64, Id)
+	UE_TRACE_EVENT_FIELD(int32, PIEInstanceId)
+	UE_TRACE_EVENT_FIELD(uint8, Type)
+	UE_TRACE_EVENT_FIELD(uint8, NetMode)
+	UE_TRACE_EVENT_FIELD(bool, IsSimulating)
 UE_TRACE_EVENT_END()
 
 // Object annotations used for tracing
@@ -61,12 +72,26 @@ struct FTracedObjectAnnotation
 // Object annotations used for tracing
 FUObjectAnnotationSparse<FTracedObjectAnnotation, true> GObjectTraceAnnotations;
 
+// Handle used to hook to world tick
+static FDelegateHandle WorldTickStartHandle;
+
 void FObjectTrace::Init()
 {
-	if (FParse::Param(FCommandLine::Get(), TEXT("objecttrace")))
+	WorldTickStartHandle = FWorldDelegates::OnWorldTickStart.AddLambda([](UWorld* InWorld, ELevelTick InTickType, float InDeltaSeconds)
 	{
-		Trace::ToggleChannel(ObjectChannel, true);
-	}
+		if(InTickType == LEVELTICK_All)
+		{
+			if(UObjectTraceWorldSubsystem* Subsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(InWorld))
+			{
+				Subsystem->FrameIndex++;
+			}
+		}
+	});
+}
+
+void FObjectTrace::Destroy()
+{
+	FWorldDelegates::OnWorldTickStart.Remove(WorldTickStartHandle);
 }
 
 uint64 FObjectTrace::GetObjectId(const UObject* InObject)
@@ -102,6 +127,22 @@ uint64 FObjectTrace::GetObjectId(const UObject* InObject)
 	}
 
 	return Id | (OuterId << 32);
+}
+
+uint16 FObjectTrace::GetObjectWorldTickCounter(const UObject* InObject)
+{
+	if(InObject != nullptr)
+	{
+		if(UWorld* World = InObject->GetWorld())
+		{
+			if(UObjectTraceWorldSubsystem* WorldSubsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(World))
+			{
+				return WorldSubsystem->FrameIndex;
+			}
+		}
+	}
+
+	return 0;
 }
 
 void FObjectTrace::OutputClass(const UClass* InClass)
@@ -212,6 +253,36 @@ void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEve
 		<< ObjectEvent.Cycle(FPlatformTime::Cycles64())
 		<< ObjectEvent.Id(GetObjectId(InObject))
 		<< ObjectEvent.Attachment(InEvent, StringBufferSize);
+}
+
+void FObjectTrace::OutputWorld(const UWorld* InWorld)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
+	if (!bChannelEnabled || InWorld == nullptr)
+	{
+		return;
+	}
+
+	if (CANNOT_TRACE_OBJECT(InWorld))
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	bool bIsSimulating = GEditor->bIsSimulatingInEditor;
+#else
+	bool bIsSimulating = false;
+#endif
+
+	UE_TRACE_LOG(Object, World, ObjectChannel)
+		<< World.Id(GetObjectId(InWorld))
+		<< World.PIEInstanceId(InWorld->GetOutermost()->PIEInstanceID)
+		<< World.Type((uint8)InWorld->WorldType)
+		<< World.NetMode((uint8)InWorld->GetNetMode())
+		<< World.IsSimulating(bIsSimulating);
+
+	// Trace object AFTER world info so we dont risk world info not being present in the trace
+	TRACE_OBJECT(InWorld);
 }
 
 #endif

@@ -14,6 +14,7 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
 #include "Fonts/FontMeasure.h"
+#include "TraceServices/Model/Frames.h"
 
 #define LOCTEXT_NAMESPACE "GameplayGraphTrack"
 
@@ -80,34 +81,8 @@ void FGameplayGraphTrack::UpdateTrackHeight(const ITimingTrackUpdateContext& Con
 	const float TimelineDY2 = 2.0f * Viewport.GetLayout().TimelineDY;
 	const float DesiredTrackHeight = FMath::Max(0.0f, ((Viewport.GetLayout().ComputeTrackHeight(NumLanes) - TimelineDY2) * RequestedTrackSizeScale) + TimelineDY2);
 
-	if (CurrentTrackHeight < DesiredTrackHeight)
-	{
-		float NewTrackHeight;
-		if (Viewport.IsDirty(ETimingTrackViewportDirtyFlags::VLayoutChanged))
-		{
-			NewTrackHeight = DesiredTrackHeight;
-		}
-		else
-		{
-			NewTrackHeight = FMath::CeilToFloat(CurrentTrackHeight * 0.9f + DesiredTrackHeight * 0.1f);
-		}
-
-		SetHeight(NewTrackHeight);
-	}
-	else if (CurrentTrackHeight > DesiredTrackHeight)
-	{
-		float NewTrackHeight;
-		if (Viewport.IsDirty(ETimingTrackViewportDirtyFlags::VLayoutChanged))
-		{
-			NewTrackHeight = DesiredTrackHeight;
-		}
-		else
-		{
-			NewTrackHeight = FMath::FloorToFloat(CurrentTrackHeight * 0.9f + DesiredTrackHeight * 0.1f);
-		}
-
-		SetHeight(NewTrackHeight);
-	}
+	// Dont interpolate here, it is too expensive to continually invalidate the track right now
+	SetHeight(DesiredTrackHeight);
 }
 
 void FGameplayGraphTrack::UpdateSeriesInternal(FGameplayGraphSeries& InSeries, const FTimingTrackViewport& InViewport, int32 InActiveSeriesIndex)
@@ -324,6 +299,11 @@ void FGameplayGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		);
 	}
 	MenuBuilder.EndSection();
+}
+
+void FGameplayGraphTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+{ 
+	GetVariantsAtTime(InFrame.StartTime, OutVariants); 
 }
 
 #undef LOCTEXT_NAMESPACE

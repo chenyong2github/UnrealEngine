@@ -37,7 +37,7 @@ public:
 
 #if WITH_EDITOR
 	// Update the debug data for any classes that are running on this track
-	void UpdateDebugData(double InTime);
+	void UpdateDebugData(const Trace::FFrame& InFrame);
 
 	// Get custom debug objects for integration with anim blueprint debugging
 	void GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList);

@@ -330,7 +330,7 @@ void SVariantValueView::RefreshNodes()
 {
 	VariantTreeNodes.Reset();
 
-	OnGetVariantValues.ExecuteIfBound(TimeMarker, VariantTreeNodes);
+	OnGetVariantValues.ExecuteIfBound(Frame, VariantTreeNodes);
 
 	if(VariantTreeNodes.Num() > 0)
 	{

@@ -16,9 +16,10 @@
 INSIGHTS_IMPLEMENT_RTTI(FObjectEventsTrack)
 
 FObjectEventsTrack::FObjectEventsTrack(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: FGameplayTimingEventsTrack(InSharedData, InObjectID, MakeTrackName(InSharedData, InObjectID, InName))
+	: FGameplayTimingEventsTrack(InSharedData, InObjectID, FText::FromString(InName))
 	, SharedData(InSharedData)
 {
+	SetName(MakeTrackName(InSharedData, InObjectID, InName).ToString());
 }
 
 void FObjectEventsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
@@ -40,6 +41,7 @@ void FObjectEventsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 	}
 }
 
+
 void FObjectEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
 	DrawEvents(Context);
@@ -56,6 +58,7 @@ void FObjectEventsTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEv
 
 		Tooltip.AddTitle(FText::FromString(FString(InMessage.Name)).ToString());
 		Tooltip.AddNameValueTextLine(LOCTEXT("EventTime", "Time").ToString(), FText::AsNumber(HoveredTimingEvent.GetStartTime()).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("EventWorld", "World").ToString(), GetGameplayTrack().GetWorldName(SharedData.GetAnalysisSession()).ToString());
 
 		Tooltip.UpdateLayout();
 	});
@@ -104,13 +107,16 @@ void FObjectEventsTrack::FindObjectEvent(const FTimingEventSearchParameters& InP
 		});
 }
 
+
 FText FObjectEventsTrack::MakeTrackName(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName) const
 {
 	FText ClassName = LOCTEXT("UnknownClass", "Unknown");
 
 	const FGameplayProvider* GameplayProvider = InSharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-	if(GameplayProvider)	
+	if(GameplayProvider)
 	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(InSharedData.GetAnalysisSession());
+
 		if(const FObjectInfo* ObjectInfo = GameplayProvider->FindObjectInfo(InObjectID))
 		{
 			if(const FClassInfo* ClassInfo = GameplayProvider->FindClassInfo(ObjectInfo->ClassId))
@@ -118,34 +124,39 @@ FText FObjectEventsTrack::MakeTrackName(const FGameplaySharedData& InSharedData,
 				ClassName = FText::FromString(ClassInfo->Name);
 			}
 		}
+
+		FText ObjectName;
+		if (GameplayProvider->IsWorld(InObjectID))
+		{
+			ObjectName = GetGameplayTrack().GetWorldName(InSharedData.GetAnalysisSession());
+		}
+		else
+		{
+			ObjectName = FText::FromString(InName);
+		}
+
+		return FText::Format(LOCTEXT("ObjectEventsTrackName", "{0} - {1}"), ClassName, ObjectName);
 	}
 
-	return FText::Format(LOCTEXT("ObjectEventsTrackName", "{0} - {1}"), ClassName, FText::FromString(InName));
+	return ClassName;
 }
 
-void FObjectEventsTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+void FObjectEventsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
 {
 	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	if(GameplayProvider)
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData.GetAnalysisSession());
-
 		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName())));
 
 		// object events
-		GameplayProvider->ReadObjectEventsTimeline(GetGameplayTrack().GetObjectId(), [&InTime, &FramesProvider, &Header](const FGameplayProvider::ObjectEventsTimeline& InTimeline)
+		GameplayProvider->ReadObjectEventsTimeline(GetGameplayTrack().GetObjectId(), [&InFrame, &Header](const FGameplayProvider::ObjectEventsTimeline& InTimeline)
 		{
-			// round to nearest frame boundary
-			Trace::FFrame Frame;
-			if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTime, Frame))
+			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [&Header](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
 			{
-				InTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [&Header](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
-				{
-					Header->AddChild(FVariantTreeNode::MakeFloat(FText::FromString(InMessage.Name), InStartTime));
-				});
-			}
+				Header->AddChild(FVariantTreeNode::MakeFloat(FText::FromString(InMessage.Name), InStartTime));
+			});
 		});
 	}
 }

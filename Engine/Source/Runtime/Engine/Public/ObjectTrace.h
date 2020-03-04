@@ -4,12 +4,30 @@
 
 #include "CoreTypes.h"
 #include "Trace/Config.h"
+#include "Subsystems/WorldSubsystem.h"
+
+#include "ObjectTrace.generated.h"
 
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define OBJECT_TRACE_ENABLED 1
 #else
 #define OBJECT_TRACE_ENABLED 0
 #endif
+
+// World subsystem used to track world info
+UCLASS()
+class UObjectTraceWorldSubsystem : public UWorldSubsystem
+{
+	GENERATED_BODY()
+
+	UObjectTraceWorldSubsystem()
+		: FrameIndex(0)
+	{}
+
+public:
+	// The frame index incremented each tick
+	uint16 FrameIndex;
+};
 
 #if OBJECT_TRACE_ENABLED
 
@@ -20,6 +38,9 @@ struct FObjectTrace
 {
 	/** Initialize object tracing */
 	ENGINE_API static void Init();
+
+	/** Shut down object tracing */
+	ENGINE_API static void Destroy();
 
 	/** Helper function to output an object */
 	ENGINE_API static void OutputClass(const UClass* InClass);
@@ -32,6 +53,12 @@ struct FObjectTrace
 
 	/** Helper function to get an object ID from a UObject */
 	ENGINE_API static uint64 GetObjectId(const UObject* InObject);
+
+	/** Helper function to get an object's world's tick counter */
+	ENGINE_API static uint16 GetObjectWorldTickCounter(const UObject* InObject);
+
+	/** Helper function to output a world */
+	ENGINE_API static void OutputWorld(const UWorld* InWorld);
 };
 
 #define TRACE_CLASS(Class) \
@@ -43,10 +70,14 @@ struct FObjectTrace
 #define TRACE_OBJECT_EVENT(Object, Event) \
 	FObjectTrace::OutputObjectEvent(Object, TEXT(#Event));
 
+#define TRACE_WORLD(World) \
+	FObjectTrace::OutputWorld(World);
+
 #else
 
 #define TRACE_CLASS(Class)
 #define TRACE_OBJECT(Object)
 #define TRACE_OBJECT_EVENT(Object, Event)
+#define TRACE_WORLD(World)
 
 #endif
