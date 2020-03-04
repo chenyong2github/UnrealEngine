@@ -1113,7 +1113,7 @@ void UVREditorMode::StartViewport(TSharedPtr<SLevelViewport> Viewport)
 		VRViewportClient.Invalidate(true);
 	}
 
-	if (bActuallyUsingVR)
+	if (bActuallyUsingVR && GEngine->XRSystem.IsValid())
 	{
 		Viewport->EnableStereoRendering( bActuallyUsingVR );
 		Viewport->SetRenderDirectlyToWindow( bActuallyUsingVR );
