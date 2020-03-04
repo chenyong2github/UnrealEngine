@@ -194,8 +194,10 @@ inline Type FResponse::GetValue(const char* Key, Type Default, LambdaType&& Lamb
 			return Default;
 		}
 
-		const char* String = Context.AsCString();
-		bool bIsTarget = (FCStringAnsi::Strcmp(Key, String) == 0);
+		uint32 Length = Context.AsLength();
+		uint32 Offset = uint32(MemoryReader.Tell());
+		auto* String = (const char*)(Buffer.GetData() + Offset - Length);
+		bool bIsTarget = (FCStringAnsi::Strncmp(Key, String, Length) == 0);
 
 		// Read value
 		if (!CborReader.ReadNext(Context))
