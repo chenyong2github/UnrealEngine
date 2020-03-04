@@ -33,11 +33,29 @@ public:
 
 	void Reset();
 
+	int32 NumTransformGroup() const { return Transforms.Num(); }
+
+	void InitArrays(const FGeometryDynamicCollection &Other)
+	{
+		// Managed arrays
+		Transforms.Init(Other.Transform);
+		DynamicState.Init(Other.DynamicState);
+		Parent.Init(Other.Parent);
+		Children.Init(Other.Children);
+		SimulationType.Init(Other.SimulationType);
+		
+		// Arrays
+		const int32 NumTransforms = Other.NumElements(FGeometryCollection::TransformGroup);
+		DisabledStates.SetNumUninitialized(NumTransforms);
+		GlobalTransforms.SetNumUninitialized(NumTransforms);
+		ParticleToWorldTransforms.SetNumUninitialized(NumTransforms);
+	}
+
 	int32 BaseIndex;
 	int32 NumParticlesAdded;
 	TArray<bool> DisabledStates;
-
 	TArray<FMatrix> GlobalTransforms;
+	TArray<FTransform> ParticleToWorldTransforms;
 
 	TManagedArray<int32> TransformIndex;
 
@@ -51,8 +69,6 @@ public:
 	TManagedArray<FVector> InertiaTensor;
 
 	TManagedArray<int32> ClusterId;
-
-	TArray<FTransform> ParticleToWorldTransforms;
 
 	TArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> SharedGeometry;
 	TArray<TArray<FCollisionFilterData>> ShapeSimData;
@@ -211,7 +227,7 @@ public:
 	//
 	void SetCollisionParticlesPerObjectFraction(float CollisionParticlesPerObjectFractionIn) {CollisionParticlesPerObjectFraction = CollisionParticlesPerObjectFractionIn;}
 
-	const FGeometryCollectionResults* GetConsumerResultsGT() { return PhysToGameInterchange->GetConsumerBuffer(); }
+	const FGeometryCollectionResults* GetConsumerResultsGT() { return PhysToGameInterchange->PeekConsumerBuffer(); }
 
 	/*
 	* For Testing ONLY!
@@ -220,7 +236,9 @@ public:
 	const TManagedArray<FTransform>& MassToLocal_GameThreadAccess() const { return MassToLocal; }
 
 protected:
-	void UpdateGeometryCollection(FGeometryCollectionResults& Results);
+	void UpdateGeometryCollection(
+		const FGeometryCollectionResults& Results,
+		FGeometryDynamicCollection* TargetCollection=nullptr);
 
 protected:
 	int32 CalculateHierarchyLevel(FGeometryDynamicCollection* GeometryCollection, int32 TransformIndex);
@@ -335,6 +353,7 @@ private:
 
 	// Double buffer of geom collection result data - TODO (Ryan): deprecated?
 	Chaos::TBufferedData<FGeometryCollectionResults> Results;
+	Chaos::TBufferedData<TArray<FMatrix>> ResultGlobalMatrices;
 
 	// TODO (Ryan) - Currently this is using triple buffers for game-physics and 
 	// physics-game thread communication, but not for any reason other than this 
@@ -345,8 +364,8 @@ private:
 	// currently managing the exchange is built upon.  However, I believe that 
 	// logic locks, and the triple buffer would enable a decoupled lock-free 
 	// paradigm, at least for this component of the handshake.
-	TUniquePtr<Chaos::IBufferResource<FGeometryCollectionResults>> PhysToGameInterchange;
-	TUniquePtr<Chaos::IBufferResource<FGeometryCollectionResults>> GameToPhysInterchange;
+	TUniquePtr<Chaos::FGuardedTripleBuffer<FGeometryCollectionResults>> PhysToGameInterchange;
+	TUniquePtr<Chaos::FGuardedTripleBuffer<FGeometryCollectionResults>> GameToPhysInterchange;
 };
 
 CHAOSSOLVERS_API void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& GeometryCollection, const FSharedSimulationParameters& SharedParams);
