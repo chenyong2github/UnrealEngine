@@ -175,6 +175,9 @@ void UTakeRecorderMicrophoneAudioSource::StopRecording(class ULevelSequence* InS
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 	check(CachedAudioTrack.IsValid());
 
+	FFrameRate TickResolution = MovieScene->GetTickResolution();
+	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
 	if (bReplaceRecordedAudio)
 	{
 		CachedAudioTrack->RemoveAllAnimationData();
@@ -194,10 +197,7 @@ void UTakeRecorderMicrophoneAudioSource::StopRecording(class ULevelSequence* InS
 
 		UMovieSceneAudioSection* NewAudioSection = NewObject<UMovieSceneAudioSection>(CachedAudioTrack.Get(), UMovieSceneAudioSection::StaticClass());
 
-		FFrameRate TickResolution = CachedAudioTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
-		FFrameRate DisplayRate = CachedAudioTrack->GetTypedOuter<UMovieScene>()->GetDisplayRate();
-
-		FFrameNumber RecordStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(TimecodeSource.ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame() : 0;
+		FFrameNumber RecordStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(TimecodeSource.ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
 
 		NewAudioSection->SetSound(RecordedAudio);
 		NewAudioSection->SetRange(TRange<FFrameNumber>(RecordStartFrame, RecordStartFrame + (RecordedAudio->GetDuration() * TickResolution).CeilToFrame()));
