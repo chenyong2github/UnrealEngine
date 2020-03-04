@@ -216,23 +216,6 @@ bool ReloadMaterialResource(
 }
 #endif
 
-static inline SIZE_T AddShaderSize(const TShaderRef<FShader>& Shader, TSet<FShaderResourceId>& UniqueShaderResourceIds)
-{
-	SIZE_T ResourceSize = 0;
-	// @todo fnhack
-//	check(false);
-#if 0
-	FShaderResourceId ResourceId = Shader.GetResourceId();
-	bool bCountedResource = false;
-	UniqueShaderResourceIds.Add(ResourceId, &bCountedResource);
-	if (!bCountedResource)
-	{
-		ResourceSize += Shader.GetResource()->GetSizeBytes();
-	}
-#endif
-	return ResourceSize;
-}
-
 int32 FMaterialCompiler::Errorf(const TCHAR* Format,...)
 {
 	TCHAR	ErrorText[2048];
@@ -1428,10 +1411,6 @@ void FMaterialResource::NotifyCompilationFinished()
 void FMaterialResource::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	TSet<const FMaterialShaderMap*> UniqueShaderMaps;
-	TMap<FShaderId, TShaderRef<FShader>> UniqueShaders;
-	TArray<FShaderPipelineRef> ShaderPipelines;
-	TSet<FShaderResourceId> UniqueShaderResourceIds;
-
 	UniqueShaderMaps.Add(GetGameThreadShaderMap());
 
 	for (TSet<const FMaterialShaderMap*>::TConstIterator It(UniqueShaderMaps); It; ++It)
@@ -1441,37 +1420,15 @@ void FMaterialResource::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSiz
 		{
 			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(MaterialShaderMap->GetFrozenContentSize());
 
-			// Shaders are shared, so only count them in total mode
-			if (CumulativeResourceSize.GetResourceSizeMode() == EResourceSizeMode::EstimatedTotal)
+			const FShaderMapResource* Resource = MaterialShaderMap->GetResource();
+			if (Resource)
 			{
-				MaterialShaderMap->GetShaderList(UniqueShaders);
-				MaterialShaderMap->GetShaderPipelineList(ShaderPipelines);
+				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Resource->GetSizeBytes());
 			}
+
+			// TODO - account for shader code size somehow, either inline or shared code
 		}
 	}
-
-	for (auto& KeyValue : UniqueShaders)
-	{
-		const TShaderRef<FShader>& Shader = KeyValue.Value;
-		if (Shader.IsValid())
-		{
-			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(AddShaderSize(Shader, UniqueShaderResourceIds));
-		}
-	}
-
-	for (const FShaderPipelineRef& Pipeline : ShaderPipelines)
-	{
-		if (Pipeline.IsValid())
-		{
-			for (const TShaderRef<FShader>& Shader : Pipeline.GetShaders())
-			{
-				if (Shader.IsValid())
-				{
-					CumulativeResourceSize.AddDedicatedSystemMemoryBytes(AddShaderSize(Shader, UniqueShaderResourceIds));
-				}
-			}
-		}
-	}	
 }
 
 /**

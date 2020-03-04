@@ -1152,61 +1152,8 @@ void FMaterialShaderMap::RestoreShadersFromMemory(const TArray<uint8>& ShaderDat
 #endif
 }
 
-void FMaterialShaderMap::SaveForRemoteRecompile(FArchive& Ar, const TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > >& CompiledShaderMaps, const TArray<FShaderResourceId>& ClientResourceIds)
+void FMaterialShaderMap::SaveForRemoteRecompile(FArchive& Ar, const TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > >& CompiledShaderMaps)
 {
-	UE_LOG(LogMaterial, Display, TEXT("Looking for unique resources, %d were on client"), ClientResourceIds.Num());	
-	check(false);
-#if 0
-	// first, we look for the unique shader resources
-	TArray<TRefCountPtr<FShaderResource>> UniqueResources;
-	int32 NumSkippedResources = 0;
-
-	for (TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > >::TConstIterator It(CompiledShaderMaps); It; ++It)
-	{
-		const TArray<TRefCountPtr<FMaterialShaderMap> >& ShaderMapArray = It.Value();
-
-		for (int32 Index = 0; Index < ShaderMapArray.Num(); Index++)
-		{
-			FMaterialShaderMap* ShaderMap = ShaderMapArray[Index];
-
-			if (ShaderMap)
-			{
-				// get all shaders in the shader map
-				TMap<FShaderId, TShaderRef<FShader>> ShaderList;
-				ShaderMap->GetShaderList(ShaderList);
-
-				// get the resources from the shaders
-				for (auto& KeyValue : ShaderList)
-				{
-					const TShaderRef<FShader>& Shader = KeyValue.Value;
-					FShaderResourceId ShaderId = Shader.GetResourceId();
-
-					// skip this shader if the Id was already on the client (ie, it didn't change)
-					if (ClientResourceIds.Contains(ShaderId) == false)
-					{
-						// lookup the resource by ID and add it if it's unique
-						UniqueResources.AddUnique(Shader.GetResourceChecked());
-					}
-					else
-					{
-						NumSkippedResources++;
-					}
-				}
-			}
-		}
-	}
-
-	UE_LOG(LogMaterial, Display, TEXT("Sending %d new shader resources, skipped %d existing"), UniqueResources.Num(), NumSkippedResources);
-
-	// now serialize them
-	int32 NumUniqueResources = UniqueResources.Num();
-	Ar << NumUniqueResources;
-
-	for (int32 Index = 0; Index < NumUniqueResources; Index++)
-	{
-		UniqueResources[Index]->SaveCodeToArchive(Ar);
-	}
-
 	// now we serialize a map (for each material), but without inline the resources, since they are above
 	int32 MapSize = CompiledShaderMaps.Num();
 	Ar << MapSize;
@@ -1224,8 +1171,7 @@ void FMaterialShaderMap::SaveForRemoteRecompile(FArchive& Ar, const TMap<FString
 		for (int32 Index = 0; Index < ShaderMapArray.Num(); Index++)
 		{
 			FMaterialShaderMap* ShaderMap = ShaderMapArray[Index];
-
-			if (ShaderMap && NumUniqueResources > 0)
+			if (ShaderMap)
 			{
 				uint8 bIsValid = 1;
 				Ar << bIsValid;
@@ -1238,27 +1184,10 @@ void FMaterialShaderMap::SaveForRemoteRecompile(FArchive& Ar, const TMap<FString
 			}
 		}
 	}
-#endif
 }
 
 void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform, const TArray<FString>& MaterialsForShaderMaps)
 {
-	check(false);
-#if 0// WITH_EDITOR
-	int32 NumResources;
-	Ar << NumResources;
-
-	// KeepAliveReferences keeps resources alive until we are finished serializing in this function
-	TArray<TRefCountPtr<FShaderResource>> KeepAliveReferences;
-	KeepAliveReferences.SetNum(NumResources);
-
-	// load and register the resources
-	for (int32 Index = 0; Index < NumResources; Index++)
-	{
-		// Load the inlined shader resource
-		KeepAliveReferences[Index] = FShaderResource_InlineCode::FindOrLoad(Ar);
-	}
-
 	int32 MapSize;
 	Ar << MapSize;
 
@@ -1323,7 +1252,6 @@ void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sh
 			}
 		}
 	}
-#endif // WITH_EDITOR
 }
 
 void FMaterialShaderMap::FinalizeContent()
@@ -2300,9 +2228,13 @@ uint32 FMaterialShaderMap::GetShaderNum() const
 void FMaterialShaderMap::Register(EShaderPlatform InShaderPlatform)
 {
 	extern int32 GCreateShadersOnLoad;
-	if (GCreateShadersOnLoad && GetShaderPlatform() == InShaderPlatform && GetResource())
+	if (GCreateShadersOnLoad && GetShaderPlatform() == InShaderPlatform)
 	{
-		// TODO
+		FShaderMapResource* ShaderResource = GetResource();
+		if (ShaderResource)
+		{
+			ShaderResource->BeginCreateAllShaders();
+		}
 	}
 
 	if (!bRegistered)

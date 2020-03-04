@@ -3861,16 +3861,6 @@ public:
 		Payload << MaterialsToLoad;
 		uint32 ShaderPlatform = ( uint32 )GMaxRHIShaderPlatform;
 		Payload << ShaderPlatform;
-		check(false); // TODO
-		// tell the other side the Ids we have so it doesn't send back duplicates
-		// (need to serialize this into a TArray since FShaderResourceId isn't known in the file server)
-		//TArray<FShaderResourceId> AllIds;
-		//FShaderResource_InlineCode::GetAllShaderResourceId( AllIds );
-
-		TArray<uint8> SerializedBytes;
-		FMemoryWriter Ar( SerializedBytes );
-		//Ar << AllIds;
-		Payload << SerializedBytes;
 		Payload << bCompileChangedShaders;
 	}
 
@@ -3885,7 +3875,11 @@ public:
 		FlushRenderingCommands();
 
 		// reload the global shaders
-		CompileGlobalShaderMap(true);
+		{
+			extern int32 GCreateShadersOnLoad; // Some platforms rely on global shaders to be created to implement basic RHI functionality
+			TGuardValue<int32> Guard(GCreateShadersOnLoad, 1);
+			CompileGlobalShaderMap(true);
+		}
 
 		// load all the mesh material shaders if any were sent back
 		if (MeshMaterialMaps.Num() > 0)
@@ -4776,7 +4770,6 @@ void RecompileShadersForRemote(
 	EShaderPlatform ShaderPlatformToCompile,
 	const FString& OutputDirectory,
 	const TArray<FString>& MaterialsToLoad,
-	const TArray<uint8>& SerializedShaderResources,
 	TArray<uint8>* MeshMaterialMaps,
 	TArray<FString>* ModifiedFiles,
 	bool bCompileChangedShaders)
@@ -4852,15 +4845,10 @@ void RecompileShadersForRemote(
 					// write the shader compilation info to memory, converting fnames to strings
 					FMemoryWriter MemWriter(*MeshMaterialMaps, true);
 					FNameAsStringProxyArchive Ar(MemWriter);
-
-					// pull the serialized resource ids into an array of resources
-					TArray<FShaderResourceId> ClientResourceIds;
-					check(false); // TODO
-					//FMemoryReader MemReader(SerializedShaderResources, true);
-					//MemReader << ClientResourceIds;
+					Ar.SetCookingTarget(TargetPlatform);
 
 					// save out the shader map to the byte array
-					FMaterialShaderMap::SaveForRemoteRecompile(Ar, CompiledShaderMaps, ClientResourceIds);
+					FMaterialShaderMap::SaveForRemoteRecompile(Ar, CompiledShaderMaps);
 				}
 
 				// save it out so the client can get it (and it's up to date next time)
