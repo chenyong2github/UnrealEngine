@@ -248,6 +248,9 @@ public:
 	// Called when before the application is exiting.
 	static FSimpleMulticastDelegate OnPreExit;
 
+	// Called before the engine exits. Separate from OnPreExit as OnEnginePreExit occurs before shutting down any core modules.
+	static FSimpleMulticastDelegate OnEnginePreExit;
+
 	/** Delegate for gathering up additional localization paths that are unknown to the UE4 core (such as plugins) */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FGatherAdditionalLocResPathsDelegate, TArray<FString>&);
 	static FGatherAdditionalLocResPathsDelegate GatherAdditionalLocResPathsCallback;
