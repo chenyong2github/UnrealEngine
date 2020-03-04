@@ -267,7 +267,7 @@ void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, con
 		{
 			Mat = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
-		BaseMaterialRelevance_GT |= Mat->GetRelevance(FeatureLevel);
+		BaseMaterialRelevance_GT |= Mat->GetRelevance_Concurrent(FeatureLevel);
 	}
 }
 
