@@ -569,7 +569,7 @@ namespace UnrealBuildTool
 			CppStandardVersion Version = CppStandardVersion.Default;
 			foreach (ProjectConfigAndTargetCombination Combination in ProjectConfigAndTargetCombinations)
 			{
-				if (Combination.ProjectTarget.TargetRules != null && Combination.ProjectTarget.TargetRules.CppStandard > Version)
+				if (Combination.ProjectTarget != null && Combination.ProjectTarget.TargetRules != null && Combination.ProjectTarget.TargetRules.CppStandard > Version)
 				{
 					Version = Combination.ProjectTarget.TargetRules.CppStandard;
 				}
