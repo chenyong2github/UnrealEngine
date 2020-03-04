@@ -129,6 +129,8 @@ void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootE
 	RootEntry->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
 	RootEntries.Add(RootEntry);
 
+	bExternalRootEntry = true;
+
 	GEditor->RegisterForUndo(this);
 	StructureChangedDelegate.Broadcast();
 }

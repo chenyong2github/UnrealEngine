@@ -153,6 +153,11 @@ void UNiagaraStackEntry::Initialize(FRequiredEntryData InRequiredEntryData, FStr
 
 void UNiagaraStackEntry::Finalize()
 {
+	if (ensureMsgf(IsFinalized() == false, TEXT("Can not finalize a stack entry more than once.")) == false)
+	{
+		return;
+	}
+
 	FinalizeInternal();
 	checkf(bIsFinalized, TEXT("Parent FinalizeInternal not called from overriden FinalizeInternal"));
 
@@ -162,7 +167,10 @@ void UNiagaraStackEntry::Finalize()
 
 	for (UNiagaraStackEntry* Child : Children)
 	{
-		Child->Finalize();
+		if(Child->GetOuter() == this)
+		{
+			Child->Finalize();
+		}
 	}
 	Children.Empty();
 
@@ -183,9 +191,9 @@ FText UNiagaraStackEntry::GetDisplayName() const
 	return FText();
 }
 
-FText UNiagaraStackEntry::GetOriginalName() const
+TOptional<FText> UNiagaraStackEntry::GetAlternateDisplayName() const
 {
-	return FText();
+	return AlternateDisplayName;
 }
 
 UObject* UNiagaraStackEntry::GetDisplayedObject() const
@@ -365,6 +373,11 @@ const UNiagaraStackEntry::FOnRequestFullRefresh& UNiagaraStackEntry::OnRequestFu
 UNiagaraStackEntry::FOnRequestFullRefresh& UNiagaraStackEntry::OnRequestFullRefreshDeferred()
 {
 	return RequestFullRefreshDeferredDelegate;
+}
+
+UNiagaraStackEntry::FOnAlternateDisplayNameChanged& UNiagaraStackEntry::OnAlternateDisplayNameChanged()
+{
+	return AlternateDisplayNameChangedDelegate;
 }
 
 int32 UNiagaraStackEntry::GetIndentLevel() const
@@ -617,6 +630,21 @@ void UNiagaraStackEntry::RefreshChildren()
 		ErrorChild->OnIssueModified().AddUObject(this, &UNiagaraStackEntry::IssueModified);
 	}
 
+	const FText* NewAlternateName = StackEditorData->GetStackEntryDisplayName(StackEditorDataKey);
+	if (NewAlternateName != nullptr && NewAlternateName->IsEmptyOrWhitespace() == false)
+	{
+		if (AlternateDisplayName.IsSet() == false || NewAlternateName->IdenticalTo(AlternateDisplayName.GetValue()) == false)
+		{
+			AlternateDisplayName = *NewAlternateName;
+			AlternateDisplayNameChangedDelegate.Broadcast();
+		}
+	}
+	else if(AlternateDisplayName.IsSet())
+	{
+		AlternateDisplayName.Reset();
+		AlternateDisplayNameChangedDelegate.Broadcast();
+	}
+
 	PostRefreshChildrenInternal();
 
 	StructureChangedDelegate.Broadcast();
@@ -771,6 +799,16 @@ void UNiagaraStackEntry::OnRenamed(FText NewName)
 
 			GetStackEditorData().Modify();
 			GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), NewName);
+
+			if (NewName.IsEmptyOrWhitespace())
+			{
+				AlternateDisplayName.Reset();
+			}
+			else
+			{
+				AlternateDisplayName = NewName;
+			}
+			AlternateDisplayNameChangedDelegate.Broadcast();
 		}
 	}
 }

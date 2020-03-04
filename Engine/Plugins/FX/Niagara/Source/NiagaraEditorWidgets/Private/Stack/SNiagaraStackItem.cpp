@@ -13,7 +13,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "SNiagaraStackIssueIcon.h"
+#include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackItem"
 
@@ -40,11 +40,15 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 
 	// Display name
 	RowBox->AddSlot()
-	.Padding(2, 0, 2, 0)
-	.VAlign(VAlign_Center)
-	[
-		SNew(SNiagaraStackDisplayName, InItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
-	];
+		.Padding(2, 0, 2, 0)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(DisplayNameWidget, SNiagaraStackDisplayName, InItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
+			.TypeNameStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.TypeNameText")
+		];
+
+	// Allow derived classes to add additional widgets.
+	AddCustomRowWidgets(RowBox);
 
 	// Reset to base button
 	if (Item->SupportsResetToBase())
@@ -104,13 +108,33 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 			SNew(SCheckBox)
 			.IsChecked(this, &SNiagaraStackItem::CheckEnabledStatus)
 			.OnCheckStateChanged(this, &SNiagaraStackItem::OnCheckStateChanged)
+			.IsEnabled(this, &SNiagaraStackItem::GetEnabledCheckBoxEnabled)
 		];
 	}
 
 	ChildSlot
 	[
-		RowBox
+		// Allow derived classes add a container for the row widgets, e.g. a drop target.
+		AddContainerForRowWidgets(RowBox)
 	];
+}
+
+void SNiagaraStackItem::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (Item->GetIsRenamePending())
+	{
+		if (DisplayNameWidget.IsValid())
+		{
+			DisplayNameWidget->StartRename();
+		}
+		Item->SetIsRenamePending(false);
+	}
+	SNiagaraStackEntryWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+}
+
+TSharedRef<SWidget> SNiagaraStackItem::AddContainerForRowWidgets(TSharedRef<SWidget> RowWidgets)
+{
+	return RowWidgets;
 }
 
 EVisibility SNiagaraStackItem::GetResetToBaseButtonVisibility() const
@@ -147,7 +171,9 @@ bool SNiagaraStackItem::GetDeleteButtonEnabled() const
 
 FReply SNiagaraStackItem::DeleteClicked()
 {
-	Item->Delete();
+	TArray<UNiagaraStackEntry*> EntriesToDelete;
+	EntriesToDelete.Add(Item);
+	FNiagaraStackClipboardUtilities::DeleteSelection(EntriesToDelete);
 	return FReply::Handled();
 }
 
@@ -159,6 +185,11 @@ void SNiagaraStackItem::OnCheckStateChanged(ECheckBoxState InCheckState)
 ECheckBoxState SNiagaraStackItem::CheckEnabledStatus() const
 {
 	return Item->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool SNiagaraStackItem::GetEnabledCheckBoxEnabled() const
+{
+	return Item->GetOwnerIsEnabled();
 }
 
 #undef LOCTEXT_NAMESPACE
