@@ -8,7 +8,6 @@
 #include "PhysicsEngine/ConstraintTypes.h"
 #include "PhysicsEngine/ConstraintDrives.h"
 #include "Physics/PhysicsInterfaceCore.h"
-#include "PhysxUserData.h"
 #include "ConstraintInstance.generated.h"
 
 class FMaterialRenderProxy;
@@ -182,7 +181,7 @@ public:
 	/** Get underlying physics engine constraint */
 	const FPhysicsConstraintHandle& GetPhysicsConstraintRef() const;
 
-	FPhysxUserData PhysxUserData;
+	FChaosUserData UserData;
 
 private:
 	/** The component scale passed in during initialization*/

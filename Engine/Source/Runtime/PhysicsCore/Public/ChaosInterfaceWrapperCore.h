@@ -28,7 +28,11 @@ struct FDummyPhysActor {};
 template<typename DummyT>
 struct FDummyCallback {};
 
+#if PHYSICS_INTERFACE_PHYSX
 using FQueryFilterData = PxQueryFilterData;
+#elif WITH_CHAOS
+using FQueryFilterData = FChaosQueryFilterData;
+#endif
 
 /** We use this struct so that if no conversion is needed in another API, we can avoid the copy (if we think that's critical) */
 struct FPhysicsRaycastInputAdapater

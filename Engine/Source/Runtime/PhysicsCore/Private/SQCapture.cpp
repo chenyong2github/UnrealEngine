@@ -4,6 +4,7 @@
 
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "PhysicsInterfaceTypesCore.h"
 
 #include "PhysXSupportCore.h"
 #include "PhysicsPublicCore.h"
@@ -184,7 +185,11 @@ void SerializeQueryFilterData(FArchive& Ar, FQueryFilterData& QueryFilterData)
 	Ar << QueryFilterData.data.word3;
 	uint16 Flags = QueryFilterData.flags;
 	Ar << Flags;
+#if PHYSICS_INTERFACE_PHYSX
 	QueryFilterData.flags = (PxQueryFlags)Flags;
+#else
+	QueryFilterData.flags = (FChaosQueryFlags)Flags;
+#endif
 	Ar << QueryFilterData.clientId;
 }
 

@@ -95,12 +95,17 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, DebugParams(InDebugParams)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
+#if PHYSICS_INTERFACE_PHYSX
 		, QueryFilterDataConcrete(P2UFilterData(QueryFilterData.data))
+#else
+		, QueryFilterDataConcrete(C2UFilterData(QueryFilterData.data))
+#endif
 		, QueryCallback(InQueryCallback)
 	{
-#if WITH_PHYSX
-		//#TODO - reimplement query flags alternative for Chaos
+#if PHYSICS_INTERFACE_PHYSX
 		bAnyHit = QueryFilterData.flags & PxQueryFlag::eANY_HIT;
+#else
+		bAnyHit = QueryFilterData.flags & FChaosQueryFlag::eANY_HIT;
 #endif
 	}
 
@@ -113,13 +118,20 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, DebugParams(InDebugParams)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
+#if PHYSICS_INTERFACE_PHYSX
 		, QueryFilterDataConcrete(P2UFilterData(QueryFilterData.data))
+#else
+		, QueryFilterDataConcrete(C2UFilterData(QueryFilterData.data))
+#endif
 		, QueryGeom(&InQueryGeom)
 		, QueryCallback(InQueryCallback)
 		, StartTM(InStartTM)
 	{
-		//#TODO - reimplement query flags alternative for Chaos
+#if PHYSICS_INTERFACE_PHYSX
 		bAnyHit = QueryFilterData.flags & PxQueryFlag::eANY_HIT;
+#else
+		bAnyHit = QueryFilterData.flags & FChaosQueryFlag::eANY_HIT;
+#endif
 
 		//todo: check THitType is sweep
 	}
@@ -131,13 +143,20 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, DebugParams(InDebugParams)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
+#if PHYSICS_INTERFACE_PHYSX
 		, QueryFilterDataConcrete(P2UFilterData(QueryFilterData.data))
+#else
+		, QueryFilterDataConcrete(C2UFilterData(QueryFilterData.data))
+#endif
 		, QueryGeom(&InQueryGeom)
 		, QueryCallback(InQueryCallback)
 		, StartTM(InWorldTM)
 	{
-		//#TODO - reimplement query flags alternative for Chaos
+#if PHYSICS_INTERFACE_PHYSX
 		bAnyHit = QueryFilterData.flags & PxQueryFlag::eANY_HIT;
+#else
+		bAnyHit = QueryFilterData.flags & FChaosQueryFlag::eANY_HIT;
+#endif
 
 		//todo: check THitType is overlap
 	}
@@ -231,8 +250,12 @@ private:
 			}
 
 			//TODO: use gt particles directly
-			//#TODO alternative to px flags
+#if PHYSICS_INTERFACE_PHYSX
 			ECollisionQueryHitType HitType = QueryFilterData.flags & PxQueryFlag::ePREFILTER ? QueryCallback.PreFilter(QueryFilterDataConcrete, *Shape, *GeometryParticle) : ECollisionQueryHitType::Block;
+#else
+			ECollisionQueryHitType HitType = QueryFilterData.flags & FChaosQueryFlag::ePREFILTER ? QueryCallback.PreFilter(QueryFilterDataConcrete, *Shape, *GeometryParticle) : ECollisionQueryHitType::Block;
+#endif
+
 
 			if (HitType != ECollisionQueryHitType::None)
 			{
@@ -288,7 +311,12 @@ private:
 					//QUICK_SCOPE_CYCLE_COUNTER(SQNarrowHit);
 					FillHitHelper(Hit, Distance, WorldPosition, WorldNormal, FaceIdx, bComputeMTD);
 
+
+#if PHYSICS_INTERFACE_PHYSX
 					HitType = QueryFilterData.flags & PxQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
+#else
+					HitType = QueryFilterData.flags & FChaosQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
+#endif
 
 					if (HitType != ECollisionQueryHitType::None)
 					{
