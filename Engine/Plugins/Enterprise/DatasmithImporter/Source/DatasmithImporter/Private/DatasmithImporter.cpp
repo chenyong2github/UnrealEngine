@@ -1363,14 +1363,16 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 
 	// Meshes part
 	ImportContext.FilteredScene->EmptyMeshes();
+	const bool bSameStaticMeshOptions = ImportContext.Options->BaseOptions.StaticMeshOptions == ImportContext.SceneAsset->AssetImportData->BaseOptions.StaticMeshOptions;
 	const TMap< FName, TSoftObjectPtr< UStaticMesh > >& StaticMeshes = ImportContext.SceneAsset->StaticMeshes;
 	for (int32 MeshIndex = 0; MeshIndex < ImportContext.Scene->GetMeshesCount(); ++MeshIndex)
 	{
 		TSharedRef< IDatasmithMeshElement > MeshElement = ImportContext.Scene->GetMesh( MeshIndex ).ToSharedRef();
-
 		bool bNeedsReimport = true;
 		FString AssetName = MeshElement->GetName();
-		if ( StaticMeshes.Contains( MeshElement->GetName() ) )
+		
+		// If we are reimporting with different options we should not try to skip the reimport.
+		if ( bSameStaticMeshOptions && StaticMeshes.Contains( MeshElement->GetName() ) )
 		{
 			AssetName = StaticMeshes[ MeshElement->GetName() ].ToString();
 			bNeedsReimport = ElementNeedsReimport(AssetName, MeshElement, ImportContext.Options->FilePath );
