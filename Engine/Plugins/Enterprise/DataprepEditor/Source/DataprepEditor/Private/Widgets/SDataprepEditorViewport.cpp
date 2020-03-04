@@ -386,7 +386,13 @@ void SDataprepEditorViewport::UpdateScene()
 						{
 							PreviewMeshComponent->SetMobility(EComponentMobility::Static);
 						}
+						else
+						{
+							PreviewMeshComponent->SetMobility( SceneMeshComponent->Mobility );
+						}
 
+						PreviewMeshComponent->bOverrideLightMapRes = SceneMeshComponent->bOverrideLightMapRes;
+						PreviewMeshComponent->OverriddenLightMapRes = SceneMeshComponent->OverriddenLightMapRes;
 						PreviewMeshComponent->bForceWireframe = bWireframeRenderingMode;
 						PreviewMeshComponent->MeshColorIndex = PerMeshColorIndex % PerMeshColorsCount;
 						++PerMeshColorIndex;
