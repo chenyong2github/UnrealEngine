@@ -860,5 +860,5 @@ FNiagaraDataInterfaceProxy* FNiagaraComputeInstanceData::FindIterationInterface(
 	{
 		return Context->FindIterationInterface(DataInterfaceProxies, SimulationStageIndex);
 	}
-	return false;
+	return nullptr;
 }
