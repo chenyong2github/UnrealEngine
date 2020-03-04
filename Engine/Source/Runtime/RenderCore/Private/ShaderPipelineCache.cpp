@@ -628,13 +628,13 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 				GraphicsInitializer.BoundShaderState.GeometryShaderRHI = GeometryShader;
 			}
 	#endif
-			auto BlendState = RHICmdList.CreateBlendState(PSO.GraphicsDesc.BlendState);
+			auto BlendState = GetOrCreateBlendState(PSO.GraphicsDesc.BlendState);
 			GraphicsInitializer.BlendState = BlendState;
 			
-			auto RasterState = RHICmdList.CreateRasterizerState(PSO.GraphicsDesc.RasterizerState);
+			auto RasterState = GetOrCreateRasterizerState(PSO.GraphicsDesc.RasterizerState);
 			GraphicsInitializer.RasterizerState = RasterState;
 			
-			auto DepthState = RHICmdList.CreateDepthStencilState(PSO.GraphicsDesc.DepthStencilState);
+			auto DepthState = GetOrCreateDepthStencilState(PSO.GraphicsDesc.DepthStencilState);
 			GraphicsInitializer.DepthStencilState = DepthState;
 			
 			for (uint32 i = 0; i < MaxSimultaneousRenderTargets; ++i)
@@ -1513,6 +1513,28 @@ void FShaderPipelineCache::Close(bool bShuttingDown)
 	bOpened = false;
 
 	FPipelineFileCache::ClosePipelineFileCache();
+
+
+	//
+	// Clean up cached RHI resources
+	//
+	for (auto Pair : BlendStateCache)
+	{
+		Pair.Value->Release();
+	}
+	BlendStateCache.Empty();
+	
+	for (auto Pair : RasterizerStateCache)
+	{
+		Pair.Value->Release();
+	}
+	RasterizerStateCache.Empty();
+
+	for (auto Pair : DepthStencilStateCache)
+	{
+		Pair.Value->Release();
+	}
+	DepthStencilStateCache.Empty();
 }
 
 void FShaderPipelineCache::OnShaderLibraryStateChanged(ELibraryState State, EShaderPlatform Platform, FString const& Name)
@@ -1555,4 +1577,53 @@ void FShaderPipelineCache::OnShaderLibraryStateChanged(ELibraryState State, ESha
     // Set the new waiting count that we can actually process.
     FPlatformAtomics::InterlockedExchange(&TotalWaitingTasks, Count);
 	UE_LOG(LogRHI, Display, TEXT("Opened pipeline cache after state change and enqueued %d of %d tasks for precompile."), Count, OrderedCompileTasks.Num());
+}
+
+
+FRHIBlendState* FShaderPipelineCache::GetOrCreateBlendState(const FBlendStateInitializerRHI& Initializer)
+{
+	FRHIBlendState** Found = BlendStateCache.Find(Initializer);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	FBlendStateRHIRef NewState = RHICreateBlendState(Initializer);
+
+	// Add an extra reference so we don't have TRefCountPtr in the maps
+	NewState->AddRef();
+	BlendStateCache.Add(Initializer, NewState);
+	return NewState;
+}
+
+FRHIRasterizerState* FShaderPipelineCache::GetOrCreateRasterizerState(const FRasterizerStateInitializerRHI& Initializer)
+{
+	FRHIRasterizerState** Found = RasterizerStateCache.Find(Initializer);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	FRasterizerStateRHIRef NewState = RHICreateRasterizerState(Initializer);
+
+	// Add an extra reference so we don't have TRefCountPtr in the maps
+	NewState->AddRef();
+	RasterizerStateCache.Add(Initializer, NewState);
+	return NewState;
+}
+
+FRHIDepthStencilState* FShaderPipelineCache::GetOrCreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer)
+{
+	FRHIDepthStencilState** Found = DepthStencilStateCache.Find(Initializer);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	FDepthStencilStateRHIRef NewState = RHICreateDepthStencilState(Initializer);
+
+	// Add an extra reference so we don't have TRefCountPtr in the maps
+	NewState->AddRef();
+	DepthStencilStateCache.Add(Initializer, NewState);
+	return NewState;
 }
