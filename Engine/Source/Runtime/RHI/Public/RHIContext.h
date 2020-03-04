@@ -411,6 +411,11 @@ public:
 
 	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
 
+	virtual void RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
+	{
+		/* empty default implementation */
+	}
+
 	// Used for OpenGL to check and see if any occlusion queries can be read back on the RHI thread. If they aren't ready when we need them, then we end up stalling.
 	virtual void RHIPollOcclusionQueries()
 	{

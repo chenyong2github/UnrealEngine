@@ -237,13 +237,13 @@ public:
 
 	uint64 StartResultMicroseconds;
 	uint64 EndResultMicroseconds;
+
 private:
 	FRHIPooledRenderQuery StartQuery;
 	FRHIPooledRenderQuery EndQuery;
 
 	FName Name;
 	STAT(FName StatName;)
-
 
 #if REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER
 	uint32 FrameNumber;
@@ -258,8 +258,7 @@ private:
 void TraverseEventTree(
 	const TArray<FRealtimeGPUProfilerEvent, TInlineAllocator<100u>>& GpuProfilerEvents,
 	const TArray<TArray<int32>>& GpuProfilerEventChildrenIndices,
-	int32 Root,
-	const uint64 GPUTimestampOffset)
+	int32 Root)
 {
 	uint64 lastStartTime = 0;
 	uint64 lastEndTime = 0;
@@ -270,7 +269,7 @@ void TraverseEventTree(
 	if (Root != 0)
 	{
 		FGpuProfilerTrace::SpecifyEventByName(GpuProfilerEvents[Root].GetName());
-		FGpuProfilerTrace::BeginEventByName(GpuProfilerEvents[Root].GetName(), GpuProfilerEvents[Root].GetFrameNumber(), GpuProfilerEvents[Root].GetStartResultMicroseconds() + GPUTimestampOffset);
+		FGpuProfilerTrace::BeginEventByName(GpuProfilerEvents[Root].GetName(), GpuProfilerEvents[Root].GetFrameNumber(), GpuProfilerEvents[Root].GetStartResultMicroseconds());
 	}
 
 	for (int32 Subroot : GpuProfilerEventChildrenIndices[Root])
@@ -284,13 +283,13 @@ void TraverseEventTree(
 			check(lastStartTime >= GpuProfilerEvents[Root].GetStartResultMicroseconds());
 			check(lastEndTime <= GpuProfilerEvents[Root].GetEndResultMicroseconds());
 		}
-		TraverseEventTree(GpuProfilerEvents, GpuProfilerEventChildrenIndices, Subroot, GPUTimestampOffset);
+		TraverseEventTree(GpuProfilerEvents, GpuProfilerEventChildrenIndices, Subroot);
 	}
 
 	if (Root != 0)
 	{
 		FGpuProfilerTrace::SpecifyEventByName(GpuProfilerEvents[Root].GetName());
-		FGpuProfilerTrace::EndEvent(GpuProfilerEvents[Root].GetEndResultMicroseconds() + GPUTimestampOffset);
+		FGpuProfilerTrace::EndEvent(GpuProfilerEvents[Root].GetEndResultMicroseconds());
 	}
 }
 
@@ -302,11 +301,14 @@ void SanitizeEventTree(
 {
 	GpuProfilerEvents[Root].StartResultMicroseconds = FMath::Max(GpuProfilerEvents[Root].StartResultMicroseconds, MonotonicTime);
 	GpuProfilerEvents[Root].EndResultMicroseconds = FMath::Max(GpuProfilerEvents[Root].EndResultMicroseconds, GpuProfilerEvents[Root].GetStartResultMicroseconds());
+
 	for (int32 Subroot : GpuProfilerEventChildrenIndices[Root])
 	{
 		SanitizeEventTree(GpuProfilerEvents, GpuProfilerEventChildrenIndices, Subroot, MonotonicTime);
 	}
+
 	GpuProfilerEvents[Root].EndResultMicroseconds = FMath::Max(GpuProfilerEvents[Root].EndResultMicroseconds, MonotonicTime);
+
 	MonotonicTime = FMath::Max(MonotonicTime, GpuProfilerEvents[Root].GetEndResultMicroseconds());
 }
 #endif
@@ -507,19 +509,42 @@ public:
 			GpuProfilerEventChildrenIndices[ParentIdx].Add(EventIdx);
 		}
 
-		FGPUTimingCalibrationTimestamp CalibrationTimestamp = FGPUTiming::GetCalibrationTimestamp();
-		const uint64 GPUTimeOffset = CalibrationTimestamp.CPUMicroseconds - CalibrationTimestamp.GPUMicroseconds;
+		FGPUTimingCalibrationTimestamp Timestamp { 0, 0 };
+
+		if (TimestampCalibrationQuery.IsValid())
+		{
+			Timestamp.GPUMicroseconds = TimestampCalibrationQuery->GPUMicroseconds;
+			Timestamp.CPUMicroseconds = TimestampCalibrationQuery->CPUMicroseconds;
+		}
+		
+		if (Timestamp.GPUMicroseconds == 0 || Timestamp.CPUMicroseconds == 0) // Unimplemented platforms, or invalid on the first frame
+		{
+			if (GpuProfilerEvents.Num() > 1)
+			{
+				// Align CPU and GPU frames
+				Timestamp.GPUMicroseconds = GpuProfilerEvents[1].GetStartResultMicroseconds();
+				Timestamp.CPUMicroseconds = FPlatformTime::ToSeconds64(CPUFrameStartTimestamp) * 1000 * 1000;
+			}
+			else
+			{
+				// Fallback to legacy
+				Timestamp = FGPUTiming::GetCalibrationTimestamp();
+			}
+		}
 
 		uint64 MonotonicTime = 0;
 		SanitizeEventTree(GpuProfilerEvents, GpuProfilerEventChildrenIndices, 0, MonotonicTime);
 
-		FGpuProfilerTrace::BeginFrame();
-		TraverseEventTree(GpuProfilerEvents, GpuProfilerEventChildrenIndices, 0, GPUTimeOffset);
+		FGpuProfilerTrace::BeginFrame(Timestamp);
+		TraverseEventTree(GpuProfilerEvents, GpuProfilerEventChildrenIndices, 0);
 		FGpuProfilerTrace::EndFrame();
 #endif
 
 		return true;
 	}
+
+	uint64 CPUFrameStartTimestamp;
+	FTimestampCalibrationQueryRHIRef TimestampCalibrationQuery;
 
 private:
 	struct FGPUEventTimeAggregate
@@ -708,6 +733,10 @@ void FRealtimeGPUProfiler::BeginFrame(FRHICommandListImmediate& RHICmdList)
 {
 	check(bInBeginEndBlock == false);
 	bInBeginEndBlock = true;
+	
+	Frames[WriteBufferIndex]->TimestampCalibrationQuery = new FRHITimestampCalibrationQuery();
+	RHICmdList.CalibrateTimers(Frames[WriteBufferIndex]->TimestampCalibrationQuery);
+	Frames[WriteBufferIndex]->CPUFrameStartTimestamp = FPlatformTime::Cycles64();
 }
 
 bool AreGPUStatsEnabled()

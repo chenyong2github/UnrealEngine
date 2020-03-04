@@ -385,6 +385,8 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 
 FGPUTimingCalibrationTimestamp FD3D12CommandListManager::GetCalibrationTimestamp()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12GetCalibrationTimestamp);
+
 	check(CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE);
 
 	uint64 GPUTimestampFrequency;

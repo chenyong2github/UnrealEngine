@@ -1845,6 +1845,17 @@ FRHICOMMAND_MACRO(FRHICommandEndRenderQuery)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandCalibrateTimers)
+{
+	FRHITimestampCalibrationQuery* CalibrationQuery;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandCalibrateTimers(FRHITimestampCalibrationQuery * CalibrationQuery)
+		: CalibrationQuery(CalibrationQuery)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
 struct FRHICommandSubmitCommandsHintString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandSubmitCommandsHint"); }
@@ -3307,6 +3318,15 @@ public:
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandEndRenderQuery)(RenderQuery);
+	}
+	FORCEINLINE_DEBUGGABLE void CalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
+	{
+		if (Bypass())
+		{
+			GetContext().RHICalibrateTimers(CalibrationQuery);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandCalibrateTimers)(CalibrationQuery);
 	}
 
 	FORCEINLINE_DEBUGGABLE void PollOcclusionQueries()

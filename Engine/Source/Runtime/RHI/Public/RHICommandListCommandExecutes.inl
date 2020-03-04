@@ -498,6 +498,12 @@ void FRHICommandEndRenderQuery::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIEndRenderQuery)(RenderQuery);
 }
 
+void FRHICommandCalibrateTimers::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(CalibrateTimers);
+	INTERNAL_DECORATOR(RHICalibrateTimers)(CalibrationQuery);
+}
+
 void FRHICommandSubmitCommandsHint::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(SubmitCommandsHint);
