@@ -349,7 +349,7 @@ void SDataprepGraphEditor::OnDragEnter(const FGeometry & MyGeometry, const FDrag
 	if (TrackGraphNodePtr.IsValid() && DragNodeOp.IsValid())
 	{
 		// Inform the Drag and Drop operation that we are hovering over this node.
-		DragNodeOp->SetGraphPanel(TrackGraphNodePtr.Pin()->GetOwnerPanel());
+		DragNodeOp->SetTrackNode(TrackGraphNodePtr.Pin());
 	}
 
 	SGraphEditor::OnDragEnter(MyGeometry, DragDropEvent);
@@ -371,8 +371,8 @@ void SDataprepGraphEditor::OnDragLeave(const FDragDropEvent & DragDropEvent)
 	TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if (TrackGraphNodePtr.IsValid() && DragNodeOp.IsValid())
 	{
-		// Inform the Drag and Drop operation that we are hovering over this node.
-		DragNodeOp->SetGraphPanel(TSharedPtr<SGraphPanel>());
+		// Inform the Drag and Drop operation that we are not hovering over this node anymore.
+		DragNodeOp->SetTrackNode(TSharedPtr<SDataprepGraphTrackNode>());
 	}
 
 	SGraphEditor::OnDragLeave(DragDropEvent);
@@ -383,9 +383,6 @@ FReply SDataprepGraphEditor::OnDrop(const FGeometry& MyGeometry, const FDragDrop
 	TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if (TrackGraphNodePtr.IsValid() && DragNodeOp.IsValid())
 	{
-		//const FVector2D NodeAddPosition = (MyGeometry.AbsoluteToLocal( DragDropEvent.GetScreenSpacePosition() ) / LastZoomAmount) + LastLocation;
-		//return DragNodeOp->DroppedOnPanel(SharedThis(this), DragDropEvent.GetScreenSpacePosition(), NodeAddPosition, *GetCurrentGraph()).EndDragDrop();
-
 		return FReply::Handled().EndDragDrop();
 	}
 
