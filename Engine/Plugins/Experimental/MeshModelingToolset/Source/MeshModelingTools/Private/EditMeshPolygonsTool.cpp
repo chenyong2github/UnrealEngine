@@ -639,6 +639,8 @@ void UEditMeshPolygonsTool::Tick(float DeltaTime)
 
 	if (PendingAction != EEditMeshPolygonsToolActions::NoAction)
 	{
+		CancelMeshEditChange();
+
 		if (PendingAction == EEditMeshPolygonsToolActions::Extrude || PendingAction == EEditMeshPolygonsToolActions::Offset)
 		{
 			GetToolManager()->EmitObjectChange(this, MakeUnique<FBeginInteractivePolyEditChange>(CurrentOperationTimestamp), LOCTEXT("PolyMeshEditBeginExtrude", "Extrude"));
