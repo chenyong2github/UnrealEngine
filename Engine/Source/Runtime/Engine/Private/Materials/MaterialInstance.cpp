@@ -4001,6 +4001,7 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 void UMaterialInstance::UpdateCachedLayerParameters()
 {
 	FMaterialCachedExpressionData CachedExpressionData;
+	CachedExpressionData.Reset();
 	if (Parent)
 	{
 		CachedExpressionData.ReferencedTextures = Parent->GetReferencedTextures();
