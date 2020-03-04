@@ -48,7 +48,7 @@ namespace UnrealBuildTool.Rules
 					"UELibSampleRate"
 					);
 
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 			{
 				string PlatformName = Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64";
 
