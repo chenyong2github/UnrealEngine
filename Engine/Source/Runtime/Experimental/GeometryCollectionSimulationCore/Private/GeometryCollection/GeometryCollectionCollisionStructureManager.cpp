@@ -252,9 +252,24 @@ FCollisionStructureManager::NewImplicitLevelset(
 	HalfExtents *= CollisionObjectReduction / 100.f;
 	const float MinExtent = FMath::Min(HalfExtents[0], FMath::Min(HalfExtents[1], HalfExtents[2]));
 	Chaos::TLevelSet<float, 3>* LevelSet = NewLevelset(ErrorReporter, MeshParticles, TriMesh, CollisionBounds, MinRes, MaxRes, CollisionType);
-	if (LevelSet && MinExtent > 0)
+	if (LevelSet)
 	{
-		LevelSet->Shrink(MinExtent);
+		const float DomainVolume = LevelSet->BoundingBox().GetVolume();
+		const float FilledVolume = LevelSet->ApproximateNegativeMaterial();
+		if (FilledVolume < DomainVolume * 0.05)
+		{
+			ErrorReporter.ReportError(
+				*FString::Printf(TEXT(
+					"Level set is small or empty:\n"
+					"    domain volume: %g\n"
+					"    estimated level set volume: %g\n"
+					"    percentage filled: %g%%"),
+					DomainVolume, FilledVolume, FilledVolume / DomainVolume * 100.0));
+		}
+		if (MinExtent > 0)
+		{
+			LevelSet->Shrink(MinExtent);
+		}
 	}
 	return LevelSet;
 }
