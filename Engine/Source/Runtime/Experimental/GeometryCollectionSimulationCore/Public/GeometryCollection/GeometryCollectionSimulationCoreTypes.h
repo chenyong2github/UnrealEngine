@@ -7,6 +7,7 @@
 #include "GeometryCollection/RecordedTransformTrack.h"
 #include "GeometryCollectionSimulationTypes.h"
 #include "Chaos/ClusterCreationParameters.h"
+#include "Chaos/CollisionFilterData.h"
 
 class FGeometryCollection;
 class FGeometryDynamicCollection;
@@ -128,6 +129,9 @@ struct FCollisionDataSimulationParameters
 	bool DoCollisionDataSpatialHash;
 	float CollisionDataSpatialHashRadius;
 	int32 MaxCollisionPerCell;
+
+	FCollisionFilterData QueryData;
+	FCollisionFilterData SimData;
 };
 
 struct FBreakingDataSimulationParameters
@@ -209,6 +213,8 @@ struct FSimulationParameters
 		, ClusterConnectionMethod(Chaos::FClusterCreationParameters<float>::EConnectionMethod::PointImplicit)
 		, CollisionGroup(0)
 		, CollisionSampleFraction(1.0)
+		, LinearEtherDrag(0.0)
+		, AngularEtherDrag(0.0)
 		, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_None)
 		, InitialLinearVelocity(FVector(0))
 		, InitialAngularVelocity(FVector(0))
@@ -235,6 +241,8 @@ struct FSimulationParameters
 		, ClusterConnectionMethod(Other.ClusterConnectionMethod)
 		, CollisionGroup(Other.CollisionGroup)
 		, CollisionSampleFraction(Other.CollisionSampleFraction)
+		, LinearEtherDrag(Other.LinearEtherDrag)
+		, AngularEtherDrag(Other.AngularEtherDrag)
 		, InitialVelocityType(Other.InitialVelocityType)
 		, InitialLinearVelocity(Other.InitialLinearVelocity)
 		, InitialAngularVelocity(Other.InitialAngularVelocity)
@@ -281,6 +289,9 @@ struct FSimulationParameters
 
 	int32 CollisionGroup;
 	float CollisionSampleFraction;
+
+	float LinearEtherDrag;
+	float AngularEtherDrag;
 
 	EInitialVelocityTypeEnum InitialVelocityType;
 	FVector InitialLinearVelocity;

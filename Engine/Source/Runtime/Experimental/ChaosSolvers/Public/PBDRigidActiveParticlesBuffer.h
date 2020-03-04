@@ -15,6 +15,9 @@ namespace Chaos
 	struct CHAOSSOLVERS_API FPBDRigidActiveParticlesBufferOut
 	{
 		TArray<TGeometryParticle<float, 3>*> ActiveGameThreadParticles;
+		// Some particle types (clustered) only exist on the game thread, but we
+		// still need to pull data over via their proxies.
+		TSet<IPhysicsProxyBase*> PhysicsParticleProxies;
 	};
 
 
@@ -51,7 +54,6 @@ namespace Chaos
 
 		// Physics thread to game thread
 		TUniquePtr<IBufferResource<FPBDRigidActiveParticlesBufferOut>> SolverDataOut;
-
 	};
 
 	class FPBDRigidActiveParticlesBufferAccessor

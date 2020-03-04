@@ -237,7 +237,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					if (StateChanged)
 					{
 						// regenerate views
-						CurrentSolver->GetParticles().UpdateGeometryCollectionViews();
+						CurrentSolver->GetParticles().UpdateGeometryCollectionViews(true);
 					}
 
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
@@ -322,7 +322,6 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 				}
 				CommandsToRemove.Add(CommandIndex);
 			}
-#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain))
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
@@ -344,30 +343,40 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 							Command.MetaData
 						};
 
+						// TODO: Chaos, Ryan
+						// As we're allocating a buffer the size of all particles every iteration, 
+						// I suspect this is a performance hit.  It seems like we should add a buffer
+						// that's recycled rather than reallocating.  It could live on the particles
+						// and its lifetime tied to an object that lives in the scope of the object 
+						// that's driving the sampling of the field.
+
 						TArray<float> StrainSamples;
-						StrainSamples.AddUninitialized(SamplesView.Num());
-						for (const ContextIndex& Index : IndicesArray)
-						{
-							StrainSamples[Index.Sample] = 0.f;
-						}
+						// There's 2 ways to think about initializing this array...
+						// Either we have a low number of indices, and the cost of iterating
+						// over the indices in addition to StrainSamples is lower than the
+						// cost of initializing them all, or it's cheaper and potentially 
+						// more cache coherent to just initialize them all.  I'm thinking
+						// the latter may be more likely...
+						StrainSamples.AddZeroed(SamplesView.Num());
+
 						TArrayView<float> FloatBuffer(&StrainSamples[0], StrainSamples.Num());
 						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, FloatBuffer);
 
 						int32 Iterations = 1;
 						if (Command.MetaData.Contains(FFieldSystemMetaData::EMetaType::ECommandData_Iteration))
 						{
-							Iterations = static_cast<FFieldSystemMetaDataIteration*>(Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_Iteration].Get())->Iterations;
+							Iterations = static_cast<FFieldSystemMetaDataIteration*>(
+								Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_Iteration].Get())->Iterations;
 						}
 
 						if (StrainSamples.Num())
 						{
-							CurrentSolver->GetRigidClustering().BreakingModel(StrainSamples);
+							CurrentSolver->GetEvolution()->GetRigidClustering().BreakingModel(&FloatBuffer);
 						}
 					}
 				}
 				CommandsToRemove.Add(CommandIndex);
 			}
-#endif
 			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_Kill))
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Kill);
@@ -1104,7 +1113,8 @@ void FFieldSystemPhysicsProxy::GetParticleHandles(
 	}
 	else if (ResolutionType == EFieldResolutionType::Field_Resolution_Minimal)
 	{
-		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>> &ParticleView = SolverParticles.GetNonDisabledView();
+		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>> &ParticleView = 
+			SolverParticles.GetNonDisabledView();
 		Handles.Reserve(ParticleView.Num());
 		for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)

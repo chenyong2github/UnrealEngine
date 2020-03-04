@@ -280,6 +280,11 @@ namespace Chaos
 		FParticlesType& GetParticles() { return Particles; }
 		const FParticlesType& GetParticles() const { return Particles; }
 
+		void AddParticleToProxy(const Chaos::TGeometryParticleHandle<float, 3>* Particle, IPhysicsProxyBase* Proxy)
+		{ MParticleToProxy.Add(Particle, Proxy); }
+		void RemoveParticleToProxy(const Chaos::TGeometryParticleHandle<float, 3>* Particle)
+		{ MParticleToProxy.Remove(Particle); }
+
 		/**/
 		FEventManager* GetEventManager() { return MEventManager.Get(); }
 

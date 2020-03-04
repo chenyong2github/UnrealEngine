@@ -269,6 +269,16 @@ class FPBDRigidsEvolutionBase
 		return NewParticles;
 	}
 
+	CHAOS_API TArray<TPBDGeometryCollectionParticleHandle<FReal, 3>*> CreateGeometryCollectionParticles(int32 NumParticles,const FUniqueIdx* ExistingIndices = nullptr,  const TPBDRigidParticleParameters<FReal, 3>& Params = TPBDRigidParticleParameters<FReal, 3>())
+	{
+		auto NewParticles = Particles.CreateGeometryCollectionParticles(NumParticles, ExistingIndices, Params);
+		for (auto& Particle : NewParticles)
+		{
+			DirtyParticle(*Particle);
+		}
+		return NewParticles;
+	}
+
 	CHAOS_API void AddForceFunction(FForceRule ForceFunction) { ForceRules.Add(ForceFunction); }
 	CHAOS_API void AddImpulseFunction(FForceRule ImpulseFunction) { ImpulseRules.Add(ImpulseFunction); }
 	CHAOS_API void SetParticleUpdateVelocityFunction(FUpdateVelocityRule ParticleUpdate) { ParticleUpdateVelocity = ParticleUpdate; }
@@ -313,6 +323,17 @@ class FPBDRigidsEvolutionBase
 		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 	}
 
+	CHAOS_API void DisableParticles(TSet<TGeometryParticleHandle<FReal, 3>*> &ParticlesIn)
+	{
+		for (TGeometryParticleHandle<FReal, 3>* Particle : ParticlesIn)
+		{
+			RemoveParticleFromAccelerationStructure(*Particle);
+			Particles.DisableParticle(Particle);
+			ConstraintGraph.DisableParticle(Particle);
+		}
+		RemoveConstraints(ParticlesIn);
+	}
+
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& Particle)
 	{
@@ -338,6 +359,19 @@ class FPBDRigidsEvolutionBase
 		ConstraintGraph.RemoveParticle(Particle);
 		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 		Particles.DestroyParticle(Particle);
+	}
+
+	/**
+	 * Preallocate buffers for creating \p Num particles.
+	 */
+	CHAOS_API void ReserveParticles(const int32 Num)
+	{
+		if (const int32 NumNew = ConstraintGraph.ReserveParticles(Num))
+		{
+			InternalAccelerationQueue.PendingData.Reserve(InternalAccelerationQueue.Num() + NumNew);
+			AsyncAccelerationQueue.PendingData.Reserve(AsyncAccelerationQueue.Num() + NumNew);
+			ExternalAccelerationQueue.PendingData.Reserve(ExternalAccelerationQueue.Num() + NumNew);
+		}
 	}
 
 	CHAOS_API void CreateParticle(TGeometryParticleHandle<FReal, 3>* ParticleAdded)
