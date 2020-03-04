@@ -349,7 +349,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			Id.bUsesRapidIterationParams = true;
 		}
 
-		if (Emitter->bSimulationStagesEnabled && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript/* TODO limit to just with stages in the future! Leaving like this so what can convert! && Emitter->GetSimulationStages().Num() > 0*/)
+		if (Emitter->bSimulationStagesEnabled)
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.UseSimulationStages"));
 
@@ -374,7 +374,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			Id.DebugReferencedObjects.Add(TEXT("SimulationStageHeaders"));
 
 		}
-		else if (Emitter->bDeprecatedShaderStagesEnabled && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript/* TODO limit to just with stages in the future! Leaving like this so what can convert! && Emitter->GetSimulationStages().Num() > 0*/)
+		else if (Emitter->bDeprecatedShaderStagesEnabled)
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.UseOldShaderStages"));
 		}
