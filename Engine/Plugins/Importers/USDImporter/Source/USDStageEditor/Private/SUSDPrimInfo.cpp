@@ -51,36 +51,34 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const TUsdStore< pxr::Us
 		SNew( SVerticalBox )
 
 		+SVerticalBox::Slot()
-		.AutoHeight()
+		.FillHeight( 1.f )
 		[
-			SNew( SVerticalBox )
-
-			+SVerticalBox::Slot()
-			.AutoHeight()
+			SNew( SBox )
+			.Content()
 			[
-				SNew( SBorder )
-				.BorderImage( &FCoreStyle::Get().GetWidgetStyle< FHeaderRowStyle >("TableView.Header").BackgroundBrush )
+				SNew( SVerticalBox )
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew( SBorder )
+					.BorderImage( &FCoreStyle::Get().GetWidgetStyle< FHeaderRowStyle >("TableView.Header").BackgroundBrush )
 				.Padding( UsdPrimInfoWidgetConstants::CategoryHeaderPadding )
 				[
 					SNew( STextBlock )
 					.Font( FEditorStyle::GetFontStyle( TEXT("DetailsView.CategoryFontStyle") ) )
-					.Text( LOCTEXT( "Details", "Details" ) )
+				.Text( LOCTEXT( "Details", "Details" ) )
+				]
+				]
+
+				+SVerticalBox::Slot()
+				.FillHeight( 1.f )
+				[
+					SAssignNew( PropertiesList, SUsdPrimPropertiesList, PrimPath )
 				]
 			]
-
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SAssignNew( PropertiesList, SUsdPrimPropertiesList, PrimPath )
-			]
-
-			+SVerticalBox::Slot()
-			[
-				SNew( SSpacer )
-				.Size( FVector2D( 0.f, 10.f ) )
-			]
 		]
-		
+
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
