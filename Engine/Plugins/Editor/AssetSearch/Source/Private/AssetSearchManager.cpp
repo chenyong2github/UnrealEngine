@@ -14,6 +14,7 @@
 #include "Containers/StringConv.h"
 #include "Containers/Ticker.h"
 #include "Misc/Paths.h"
+#include "HAL/RunnableThread.h"
 
 static bool bIndexUnindexAssetsOnLoad = false;
 FAutoConsoleVariableRef CVarIndexUnindexAssetsOnLoad(
