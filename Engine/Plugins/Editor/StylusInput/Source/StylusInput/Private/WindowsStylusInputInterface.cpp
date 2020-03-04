@@ -101,8 +101,11 @@ IStylusInputDevice* FWindowsStylusInputInterface::GetInputDevice(int32 Index) co
 
 FWindowsStylusInputInterfaceImpl::~FWindowsStylusInputInterfaceImpl()
 {
-	RealTimeStylus->RemoveAllStylusSyncPlugins();
-	RealTimeStylus.Reset();
+	if (RealTimeStylus)
+	{
+		RealTimeStylus->RemoveAllStylusSyncPlugins();
+		RealTimeStylus.Reset();
+	}
 
 	StylusPlugin.Reset();
 
