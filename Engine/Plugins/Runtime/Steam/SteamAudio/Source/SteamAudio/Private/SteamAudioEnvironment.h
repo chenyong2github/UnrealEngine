@@ -44,11 +44,12 @@ namespace SteamAudio
 		FEnvironment();
 		~FEnvironment();
 
-		bool Initialize(UWorld* World, FAudioDevice* InAudioDevice);
+		bool Initialize(UWorld* World, FAudioDevice* InAudioDevice, FString* CurrentLevelName);
 		void Shutdown();
 
-		IPLhandle GetScene() const { return PhononScene; };
+		IPLhandle GetScene() { return PhononScene; };
 		IPLhandle GetEnvironment() const { return PhononEnvironment; };
+		IPLhandle GetComputeDevice() const { return ComputeDevice; };
 		IPLhandle GetEnvironmentalRenderer() const { return EnvironmentalRenderer; }
 		const IPLSimulationSettings& GetSimulationSettings() const { return SimulationSettings; }
 		const IPLRenderingSettings& GetRenderingSettings() const { return RenderingSettings; }

@@ -9,6 +9,7 @@
 #include "PhononMaterialComponent.h"
 
 #include "EngineUtils.h"
+#include "HAL/FileManagerGeneric.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshResources.h"
@@ -47,9 +48,19 @@
 namespace SteamAudio
 {
 	bool LoadSceneFromDisk(UWorld* World, IPLhandle ComputeDevice, const IPLSimulationSettings& SimulationSettings, IPLhandle* PhononScene,
-		FPhononSceneInfo& PhononSceneInfo)
+		FPhononSceneInfo& PhononSceneInfo, FString* CurrentLevelName)
 	{
-		FString MapName = StrippedMapName(World->GetMapName());
+		FString MapName;
+		
+		if (!CurrentLevelName || CurrentLevelName->IsEmpty())
+		{
+			MapName = World->GetMapName();
+		}
+		else
+		{
+			MapName = StrippedMapName(*CurrentLevelName);
+		}
+		
 		FString SceneFileName = RuntimePath + MapName + ".phononscene";
 		FString SceneInfoFileName = EditorOnlyPath + MapName + ".phononsceneinfo";
 		TArray<uint8> SceneData;
@@ -71,7 +82,7 @@ namespace SteamAudio
 		IPLerror Error = iplLoadScene(GlobalContext, SimulationSettings, SceneData.GetData(), SceneData.Num(), ComputeDevice, nullptr, PhononScene);
 		if (Error != IPL_STATUS_SUCCESS)
 		{
-			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to load Phonon scene: error loading file."));
+			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to load Phonon scene: error [%i] loading scene file [%s] with data size [%i]. \n "), (int32) Error, *SceneFileName, SceneData.Num());
 			return false;
 		}
 
@@ -90,13 +101,76 @@ namespace SteamAudio
 		if (SceneInfoFileHandle)
 		{
 			SceneInfoFileHandle->Read((uint8*)&PhononSceneInfo.NumTriangles, 4);
+			SceneInfoFileHandle->Read((uint8*)&PhononSceneInfo.NumDynTriangles, 4);
+			SceneInfoFileHandle->Read((uint8*)&PhononSceneInfo.DataSize, 4);
+			SceneInfoFileHandle->Read((uint8*)&PhononSceneInfo.DynDataSize, 4);
+			delete SceneInfoFileHandle;
+		}
+		else
+		{
+			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to load Phonon scene info: error loading info file."));
+			return false;
+		}
+
+		return true;
+	}
+
+	bool LoadDynamicSceneFromDisk(UWorld* World, IPLhandle ComputeDevice, const IPLSimulationSettings& SimulationSettings, IPLhandle* PhononScene,
+		FPhononSceneInfo& PhononSceneInfo, FString DynamicSceneID)
+	{
+		// Check for supported raytracer
+		if (GetDefault<USteamAudioSettings>()->RayTracer != EIplRayTracerType::EMBREE)
+		{
+			return false;
+		}
+
+		FString SceneFileName = DynamicRuntimePath + DynamicSceneID + ".phononscene";
+		FString SceneInfoFileName = DynamicEditorOnlyPath + DynamicSceneID + ".phononinfo";
+		TArray<uint8> SceneData;
+
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+		IFileHandle* SceneFileHandle = PlatformFile.OpenRead(*SceneFileName);
+		if (SceneFileHandle)
+		{
+			SceneData.SetNum(SceneFileHandle->Size());
+			SceneFileHandle->Read(SceneData.GetData(), SceneFileHandle->Size());
+			delete SceneFileHandle;
+		}
+		else
+		{
+			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to load Dynamic Phonon scene: error reading file. Be sure to export the scene."));
+			return false;
+		}
+
+		IPLerror Error = iplLoadScene(GlobalContext, SimulationSettings, SceneData.GetData(), SceneData.Num(), ComputeDevice, nullptr, PhononScene);
+		if (Error != IPL_STATUS_SUCCESS)
+		{
+			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to load Dynamic Phonon scene: error [%i] loading scene file [%s] with data size [%i]. \n "), (int32)Error, *SceneFileName, SceneData.Num());
+			return false;
+		}
+
+		LoadDynamicScenesInfoFromDisk(World, PhononSceneInfo, DynamicSceneID);
+
+		return true;
+	}
+
+	bool LoadDynamicScenesInfoFromDisk(UWorld* World, FPhononSceneInfo& PhononSceneInfo, FString DynamicSceneID)
+	{
+		FString SceneInfoFileName = DynamicEditorOnlyPath + DynamicSceneID + ".phononinfo";
+
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		IFileHandle* SceneInfoFileHandle = PlatformFile.OpenRead(*SceneInfoFileName);
+		if (SceneInfoFileHandle)
+		{
+			SceneInfoFileHandle->Read((uint8*)&PhononSceneInfo.NumTriangles, 4);
 			SceneInfoFileHandle->Seek(4);
 			SceneInfoFileHandle->Read((uint8*)&PhononSceneInfo.DataSize, 4);
 			delete SceneInfoFileHandle;
 		}
 		else
 		{
-			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to load Phonon scene info: error loading info file."));
+			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to load Dynamic Phonon scene info: error loading info file."));
 			return false;
 		}
 
@@ -113,7 +187,13 @@ namespace SteamAudio
 		TArray<IPLint32>& IplMaterialIndices);
 	static void RegisterStaticMesh(IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
 		TArray<IPLint32>& IplMaterialIndices, IPLhandle* PhononStaticMesh);
+	static void RegisterStaticMeshes(IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices, TArray<IPLhandle>* PhononStaticMeshes);
 	static void GetPhononMaterials(UWorld* World, TArray<IPLMaterial>& IplMaterials);
+	static UPhononMaterialComponent* GetPhononMaterialComponent(AActor* Actor);
+	static uint32 GetMeshVerts(UStaticMeshComponent* StaticMeshComponent, TArray<IPLVector3>& VertexArray, bool bGetRelativeVertexPos = true);
+	static void CalculateVertsTrisMats(AActor* MeshActor, UStaticMeshComponent* MeshComponent, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices);
 
 	//==============================================================================================================================================
 	// High level scene export
@@ -122,7 +202,7 @@ namespace SteamAudio
 	/**
 	 * Loads scene geometry, providing handles to the Phonon scene object and Phonon static meshes.
 	 */
-	bool CreateScene(UWorld* World, IPLhandle* PhononScene, IPLhandle* PhononStaticMesh, uint32& NumSceneTriangles)
+	bool CreateScene(UWorld* World, IPLhandle* PhononScene, IPLhandle* PhononStaticMesh, uint32& NumSceneTriangles, uint32& NumDynSceneTriangles, uint32& DynDataSize, bool CreateDynObjFiles /* =false*/ )
 	{
 		check(World);
 		check(PhononScene);
@@ -132,7 +212,7 @@ namespace SteamAudio
 
 		TPromise<bool> Result;
 
-		AsyncTask(ENamedThreads::GameThread, [World, PhononScene, PhononStaticMesh, &NumSceneTriangles, &Result]()
+		AsyncTask(ENamedThreads::GameThread, [World, PhononScene, PhononStaticMesh, &NumSceneTriangles, &NumDynSceneTriangles, &DynDataSize, CreateDynObjFiles, &Result]()
 		{
 			// Setup simulation settings - we really only care about scene type here, but Beta 17 API throws if ambisonics order > max order,
 			// so just zero the struct for now.
@@ -148,13 +228,22 @@ namespace SteamAudio
 			SceneMaterials.Add(GetDefault<USteamAudioSettings>()->GetDefaultStaticMeshMaterial());
 			SceneMaterials.Add(GetDefault<USteamAudioSettings>()->GetDefaultBSPMaterial());
 			SceneMaterials.Add(GetDefault<USteamAudioSettings>()->GetDefaultLandscapeMaterial());
-
+			
 			// Get IPLMaterials in scene
 			GetPhononMaterials(World, SceneMaterials);
 			UE_LOG(LogSteamAudio, Log, TEXT("Loading Phonon scene found [%i] materials."), SceneMaterials.Num());
+			
+			// Ensure that the SteamAudio paths exist, create them if they don't
+			CheckSceneDirectory(RuntimePath);
+			CheckSceneDirectory(EditorOnlyPath);
 
+			// Create dynamic scene
+			CreateDynamicScene(World, SimulationSettings, SceneMaterials, NumDynSceneTriangles, DynDataSize, CreateDynObjFiles);
+		
+			// Create static scene
 			IPLerror IplResult = iplCreateScene(GlobalContext, nullptr, SimulationSettings, SceneMaterials.Num(),
 				SceneMaterials.GetData(), nullptr, nullptr, nullptr, nullptr, nullptr, PhononScene);
+
 			if (IplResult != IPL_STATUS_SUCCESS)
 			{
 				UE_LOG(LogSteamAudio, Warning, TEXT("Error creating Phonon scene."));
@@ -177,7 +266,7 @@ namespace SteamAudio
 			{
 				LoadBSPGeometry(World, *PhononScene, IplVertices, IplTriangles, IplMaterialIndices);
 			}
-
+			
 			RegisterStaticMesh(*PhononScene, IplVertices, IplTriangles, IplMaterialIndices, PhononStaticMesh);
 			NumSceneTriangles = IplTriangles.Num();
 
@@ -188,6 +277,116 @@ namespace SteamAudio
 		Value.Wait();
 
 		return Value.Get();
+	}
+
+	void CreateDynamicScene(UWorld* World, IPLSimulationSettings SimulationSettings, TArray<IPLMaterial> SceneMaterials, uint32& NumSceneTriangles, uint32& DataSize, bool CreateObjFiles /* =false */)
+	{
+		// Wipe old dynamic scene files for this level (if any)
+		DeleteSceneFiles(World, DynamicRuntimePath);
+		DeleteSceneFiles(World, DynamicEditorOnlyPath);
+
+		for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+		{
+			if (ActorItr && ActorItr->IsValidLowLevelFast())
+			{
+				// Check if the actor's root component is movable and there's a phonon geometry component and at least one static mesh component attached
+				auto PhononGeometryComponent = ActorItr->GetComponentByClass(UPhononGeometryComponent::StaticClass());
+				if (ActorItr->GetRootComponent()
+					&& ActorItr->GetRootComponent()->Mobility == EComponentMobility::Movable
+					&& PhononGeometryComponent
+					&& PhononGeometryComponent->IsValidLowLevelFast()
+					&& ActorItr->GetComponentByClass(UStaticMeshComponent::StaticClass())
+					)
+				{
+					// Go through all static mesh components in this actor
+					TArray<UActorComponent*> Components;
+					ActorItr->GetComponents(UStaticMeshComponent::StaticClass(), Components);
+
+					for (auto ActorItrComponent : Components)
+					{
+						auto DynamicMeshComponent = Cast<UStaticMeshComponent>(ActorItrComponent);
+
+						if (DynamicMeshComponent && DynamicMeshComponent->IsValidLowLevelFast())
+						{
+							UPhononGeometryComponent* DynamicGeometryComponent = nullptr;
+							TArray<USceneComponent*> ChildrenComponents;
+							DynamicMeshComponent->GetChildrenComponents(false, ChildrenComponents);
+
+							// Check if this static mesh component has a Phonon Geometry Component
+							for (auto ChildComponent : ChildrenComponents)
+							{
+								auto ChildPhononGeometryComponent = Cast<UPhononGeometryComponent>(ChildComponent);
+
+								if (ChildPhononGeometryComponent)
+								{
+									DynamicGeometryComponent = ChildPhononGeometryComponent;
+									break;
+								}
+							}
+
+							if (DynamicGeometryComponent)
+							{
+								// Create an iplScene 
+								IPLhandle DynamicPhononScene = nullptr;
+								FString SceneID = World->GetName() + "_" + ActorItr->GetName() + "_" + DynamicMeshComponent->GetName();
+
+								IPLerror IplDynResult = iplCreateScene(GlobalContext, nullptr, SimulationSettings, SceneMaterials.Num(),
+									SceneMaterials.GetData(), nullptr, nullptr, nullptr, nullptr, nullptr, &DynamicPhononScene);
+								if (IplDynResult == IPL_STATUS_SUCCESS)
+								{
+									UE_LOG(LogSteamAudio, Log, TEXT("Dynamic Phonon scene succesfully created for [%s]"), *SceneID);
+								}
+								else
+								{
+									UE_LOG(LogSteamAudio, Warning, TEXT("Error creating Dynamic Phonon scene for [%s]"), *SceneID);
+									continue;
+								}
+
+								// Create and register dynamic meshes to the dynamic scene
+								uint32 DynamicSceneTriangles = 0;
+								TArray<IPLhandle> PhononDynamicMeshes;
+								TArray<IPLVector3> DynIplVertices;
+								TArray<IPLTriangle> DynIplTriangles;
+								TArray<IPLint32> DynIplMaterialIndices;
+
+
+								CalculateVertsTrisMats(*ActorItr, DynamicMeshComponent, DynIplVertices, DynIplTriangles, DynIplMaterialIndices);
+
+								// Register Instanced Mesh to Dynamic Scene
+								RegisterStaticMeshes(DynamicPhononScene, DynIplVertices, DynIplTriangles, DynIplMaterialIndices, &PhononDynamicMeshes);
+
+								// Add tris in this mesh to the total scene tris
+								DynamicSceneTriangles += DynIplTriangles.Num();
+
+								// Finalize and save to disk
+								FPhononSceneInfo DynamicPhononSceneInfo;
+								DynamicPhononSceneInfo.NumTriangles = DynamicSceneTriangles;
+								DynamicPhononSceneInfo.DataSize = iplSaveScene(DynamicPhononScene, nullptr);
+								bool SaveDynSceneSuccessful = SaveDynamicSceneToDisk(World, DynamicPhononScene, DynamicPhononSceneInfo, SceneID, CreateObjFiles);
+
+								// Clean up Dynamic Phonon structures
+								for (IPLhandle PhononDynamicMeshItr : PhononDynamicMeshes)
+								{
+									iplDestroyStaticMesh(&PhononDynamicMeshItr);
+								}
+								iplDestroyScene(&DynamicPhononScene);
+
+								if (SaveDynSceneSuccessful)
+								{
+									DataSize += DynamicPhononSceneInfo.DataSize;
+									NumSceneTriangles += DynamicPhononSceneInfo.NumTriangles;
+									UE_LOG(LogSteamAudio, Log, TEXT("Dynamic scene [%s] with [%i] triangles saved to disk with size [%i]."), *SceneID, DynamicSceneTriangles, DynamicPhononSceneInfo.DataSize);
+								}
+								else
+								{
+									UE_LOG(LogSteamAudio, Warning, TEXT("Unable to save Dynamic scene [%s] with [%i] triangles to disk with size [%i]."), *SceneID, DynamicSceneTriangles, DynamicPhononSceneInfo.DataSize);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	bool SaveFinalizedSceneToDisk(UWorld* World, IPLhandle PhononScene, const FPhononSceneInfo& PhononSceneInfo)
@@ -206,6 +405,55 @@ namespace SteamAudio
 
 		if (SceneFileHandle && SceneInfoHandle)
 		{
+			SceneFileHandle->Write(SceneData.GetData(), PhononSceneInfo.DataSize);
+			delete SceneFileHandle;
+
+			SceneInfoHandle->Write((uint8*)&PhononSceneInfo.NumTriangles, 4);
+			SceneInfoHandle->Write((uint8*)&PhononSceneInfo.NumDynTriangles, 4);
+			SceneInfoHandle->Write((uint8*)&PhononSceneInfo.DataSize, 4);
+			SceneInfoHandle->Write((uint8*)&PhononSceneInfo.DynDataSize, 4);
+			delete SceneInfoHandle;
+		}
+		else
+		{
+			if (SceneFileHandle)
+			{
+				delete SceneFileHandle;
+			}
+
+			if (SceneInfoHandle)
+			{
+				delete SceneInfoHandle;
+			}
+
+			return false;
+		}
+
+		return true;
+	}
+
+
+	bool STEAMAUDIO_API SaveDynamicSceneToDisk(UWorld* World, IPLhandle PhononScene, const FPhononSceneInfo& PhononSceneInfo, FString DynamicSceneID, bool CreateObjFile /* =false */)
+	{
+		// Write Phonon Scene data to byte array
+		TArray<uint8> SceneData;
+		SceneData.SetNum(PhononSceneInfo.DataSize);
+		iplSaveScene(PhononScene, SceneData.GetData());
+
+		// Serialize byte array to disk
+		FString SceneFileName = DynamicRuntimePath + DynamicSceneID + ".phononscene";
+		FString SceneInfoName = DynamicEditorOnlyPath + DynamicSceneID + ".phononinfo";
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		IFileHandle* SceneFileHandle = PlatformFile.OpenWrite(*SceneFileName);
+		IFileHandle* SceneInfoHandle = PlatformFile.OpenWrite(*SceneInfoName);
+
+		if (SceneFileHandle && SceneInfoHandle)
+		{
+			if (CreateObjFile)
+			{
+				iplSaveSceneAsObj(PhononScene, TCHAR_TO_ANSI(*(DynamicEditorOnlyPath + DynamicSceneID + ".obj")));
+			}
+
 			SceneFileHandle->Write(SceneData.GetData(), PhononSceneInfo.DataSize);
 			delete SceneFileHandle;
 
@@ -231,6 +479,41 @@ namespace SteamAudio
 		return true;
 	}
 
+	bool STEAMAUDIO_API CheckSceneDirectory(FString DirectoryPath)
+	{
+		IFileManager& FileManager = FFileManagerGeneric::Get();
+		if (!FileManager.DirectoryExists(*DirectoryPath))
+		{
+			FileManager.MakeDirectory(*DirectoryPath);
+			return false;
+		}
+		
+		return true;
+	}
+
+	void STEAMAUDIO_API DeleteSceneFiles(UWorld * World, FString FilePath)
+	{
+		IFileManager& FileManager = FFileManagerGeneric::Get();
+		if (CheckSceneDirectory(FilePath))
+		{
+			TArray<FString> FoundFiles;
+			FileManager.FindFiles(FoundFiles, *FilePath);
+
+			for (auto FoundFile : FoundFiles)
+			{
+				FString FileToDelete = FilePath + FoundFile;
+				//UE_LOG(LogSteamAudio, Warning, TEXT("Checking for file [%s]"), *FileToDelete);
+
+				if (FoundFile.Left(World->GetName().Len()).Equals(World->GetName(), ESearchCase::IgnoreCase) 
+					&& FileManager.Delete(*FileToDelete, true, true, true)
+					)
+				{
+					UE_LOG(LogSteamAudio, Log, TEXT("Deleted old scene file [%s]"), *FileToDelete);
+				}
+			}
+		}
+	}
+
 	//==============================================================================================================================================
 	// Utilities for adding/removing Phonon Geometry components
 	//==============================================================================================================================================
@@ -244,12 +527,7 @@ namespace SteamAudio
 
 		for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
 		{
-			// Check if there's already a phonon geometry component in this actor
-			if (ActorItr->GetComponentByClass(UPhononGeometryComponent::StaticClass()))
-			{
-				continue;
-			}
-
+			
 			// Go through any static mesh components found in this actor
 			TArray<UActorComponent*> Components;
 			ActorItr->GetComponents(UStaticMeshComponent::StaticClass(), Components);
@@ -262,17 +540,35 @@ namespace SteamAudio
 	
 					// Check if this static mesh can affect audio
 					if (StaticMeshComp
-						&& StaticMeshComp->IsValidLowLevelFast()
-						&& StaticMeshComp->Mobility != EComponentMobility::Movable
-						&& StaticMeshComp->GetStaticMesh()
-						&& StaticMeshComp->GetStaticMesh()->HasValidRenderData()
+						&& StaticMeshComp->IsValidLowLevel()
 						&& !StaticMeshComp->IsVisualizationComponent()
 						)
 					{
-						// Add phonon geometry object
-						auto PhononGeometryComponent = NewObject<UPhononGeometryComponent>(*ActorItr);
-						PhononGeometryComponent->RegisterComponent();
-						ActorItr->AddInstanceComponent(PhononGeometryComponent);
+						// Check if there's already a phonon geometry component attached to this static mesh component
+						TArray<USceneComponent*> ChildrenComponents;
+						StaticMeshComp->GetChildrenComponents(true, ChildrenComponents);
+						bool bAlreadyHavePhononGeomComponent = false;
+						
+						for (auto ChildComponent : ChildrenComponents)
+						{
+							auto* PhononGeomComp = Cast<UPhononGeometryComponent>(ChildComponent);
+							
+							if (PhononGeomComp && PhononGeomComp->IsValidLowLevelFast())
+							{
+								bAlreadyHavePhononGeomComponent = true;
+								break;
+							}
+						}
+
+						// If there isn't, create and attach a new phonon geometry component to this static mesh
+						if (!bAlreadyHavePhononGeomComponent)
+						{
+							// Add phonon geometry object
+							auto PhononGeometryComponent = NewObject<UPhononGeometryComponent>(*ActorItr);
+							PhononGeometryComponent->AttachToComponent(StaticMeshComp, FAttachmentTransformRules::KeepRelativeTransform);
+							PhononGeometryComponent->RegisterComponent();
+							ActorItr->AddInstanceComponent(PhononGeometryComponent);
+						}
 					}
 				}
 			}
@@ -303,13 +599,13 @@ namespace SteamAudio
 	/**
 	 * Populates VertexArray with the given mesh's vertices. Converts from UE4 coords to Phonon coords. Returns the number of vertices added.
 	 */
-	static uint32 GetMeshVerts(TActorIterator<AStaticMeshActor>& AStaticMeshItr, TArray<IPLVector3>& VertexArray)
+	static uint32 GetMeshVerts(UStaticMeshComponent* StaticMeshComponent, TArray<IPLVector3>& VertexArray, bool bGetRelativeVertexPos /*= true*/)
 	{
-		check(AStaticMeshItr->GetStaticMeshComponent()->GetStaticMesh()->HasValidRenderData());
+		check(StaticMeshComponent->GetStaticMesh()->HasValidRenderData());
 
 		uint32 NumVerts = 0;
 
-		FStaticMeshLODResources& LODModel = AStaticMeshItr->GetStaticMeshComponent()->GetStaticMesh()->RenderData->LODResources[0];
+		FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[0];
 		auto Indices = LODModel.IndexBuffer.GetArrayView();
 
 		for (const FStaticMeshSection& Section : LODModel.Sections)
@@ -320,7 +616,9 @@ namespace SteamAudio
 				for (auto v = 2; v > -1; v--)
 				{
 					auto i = Indices[BaseIndex + v];
-					auto vtx = AStaticMeshItr->ActorToWorld().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i));
+					auto vtx = bGetRelativeVertexPos ? StaticMeshComponent->GetComponentTransform().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i))
+						: LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i);
+
 					VertexArray.Add(UnrealToPhononIPLVector3(vtx));
 					NumVerts++;
 				}
@@ -348,6 +646,9 @@ namespace SteamAudio
 		return false;
 	}
 
+	/**
+	 * Walks up the actor attachment chain, checking for a Phonon Material component.
+	 */
 	static UPhononMaterialComponent* GetPhononMaterialComponent(AActor* Actor)
 	{
 		auto CurrentActor = Actor;
@@ -364,6 +665,48 @@ namespace SteamAudio
 	}
 
 	/**
+	 * Calculates a mesh's vertices, tris and retries phonon material indices for a given actor
+	 */
+	static void CalculateVertsTrisMats(AActor* MeshActor, UStaticMeshComponent* MeshComponent, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices)
+	{
+		check(MeshActor);
+		check(MeshComponent);
+
+		int32 StartVertexIdx = IplVertices.Num();
+		int32 NumMeshVerts = MeshComponent->Mobility == EComponentMobility::Movable ? GetMeshVerts(MeshComponent, IplVertices, false) : GetMeshVerts(MeshComponent, IplVertices);
+		int32 NumMeshTriangles = NumMeshVerts / 3;
+
+		for (int32 i = 0; i < NumMeshTriangles; ++i)
+		{
+			IPLTriangle IplTriangle;
+			IplTriangle.indices[0] = StartVertexIdx + i * 3;
+			IplTriangle.indices[1] = StartVertexIdx + i * 3 + 2;
+			IplTriangle.indices[2] = StartVertexIdx + i * 3 + 1;
+			IplTriangles.Add(IplTriangle);
+		}
+
+		auto PhononMaterialComponent = GetPhononMaterialComponent(MeshActor);
+		auto MaterialIndex = 0;
+
+		if (PhononMaterialComponent)
+		{
+			MaterialIndex = PhononMaterialComponent->MaterialIndex;
+		}
+		else
+		{
+			// The default static mesh material is always registered at size(MaterialPresets)
+			MaterialIndex = MaterialPresets.Num();
+		}
+
+		for (auto i = 0; i < NumMeshTriangles; ++i)
+		{
+			IplMaterialIndices.Add(MaterialIndex);
+			//UE_LOG(LogSteamAudio, Warning, TEXT("Phonon scene Material Index Added [%i]"), MaterialIndex);
+		}
+	}
+
+	/**
 	 * Loads any static mesh actors.
 	 */
 	static void LoadStaticMeshActors(UWorld* World, IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
@@ -377,45 +720,53 @@ namespace SteamAudio
 		for (TActorIterator<AStaticMeshActor> AStaticMeshItr(World); AStaticMeshItr; ++AStaticMeshItr)
 		{
 			// Only consider static mesh actors that have both an acoustic geometry component attached and valid render data
-			if (IsActorPhononGeometry(*AStaticMeshItr) && AStaticMeshItr->GetStaticMeshComponent()->GetStaticMesh() &&
-				AStaticMeshItr->GetStaticMeshComponent()->GetStaticMesh()->HasValidRenderData())
+			if (IsActorPhononGeometry(*AStaticMeshItr) 
+				&& AStaticMeshItr->GetStaticMeshComponent()->Mobility != EComponentMobility::Movable
+				&& AStaticMeshItr->GetStaticMeshComponent()->GetStaticMesh() 
+				&& AStaticMeshItr->GetStaticMeshComponent()->GetStaticMesh()->HasValidRenderData()
+				)
 			{
-				auto PhononGeometryComponent = static_cast<UPhononGeometryComponent*>(
-					AStaticMeshItr->GetComponentByClass(UPhononGeometryComponent::StaticClass()));
-
-				int32 StartVertexIdx = IplVertices.Num();
-				int32 NumMeshVerts = GetMeshVerts(AStaticMeshItr, IplVertices);
-				int32 NumMeshTriangles = NumMeshVerts / 3;
-
-				for (int32 i = 0; i < NumMeshTriangles; ++i)
-				{
-					IPLTriangle IplTriangle;
-					IplTriangle.indices[0] = StartVertexIdx + i * 3;
-					IplTriangle.indices[1] = StartVertexIdx + i * 3 + 2;
-					IplTriangle.indices[2] = StartVertexIdx + i * 3 + 1;
-					IplTriangles.Add(IplTriangle);
-				}
-
-				auto PhononMaterialComponent = GetPhononMaterialComponent(*AStaticMeshItr);
-				auto MaterialIndex = 0;
-
-				if (PhononMaterialComponent)
-				{
-					MaterialIndex = PhononMaterialComponent->MaterialIndex;
-				}
-				else
-				{
-					// The default static mesh material is always registered at size(MaterialPresets)
-					MaterialIndex = MaterialPresets.Num();
-				}
-
-				for (auto i = 0; i < NumMeshTriangles; ++i)
-				{
-					IplMaterialIndices.Add(MaterialIndex);
-					//UE_LOG(LogSteamAudio, Warning, TEXT("Phonon scene Material Index Added [%i]"), MaterialIndex);
-				}
+				CalculateVertsTrisMats(*AStaticMeshItr, AStaticMeshItr->GetStaticMeshComponent(), IplVertices, IplTriangles, IplMaterialIndices);
 			}
 		}
+	}
+
+	/**
+	 * Loads any static mesh actors, adding any Phonon static meshes to the provided array.
+	 */
+	static uint32 LoadDynamicMeshes(AActor* DynamicActor, IPLhandle PhononScene)
+	{
+		check(DynamicActor);
+		check(PhononScene);
+
+		TArray<IPLVector3> IplVertices;
+		TArray<IPLTriangle> IplTriangles;
+		TArray<IPLint32> IplMaterialIndices;
+
+		// Go through all static mesh components in this actor
+		TArray<UActorComponent*> Components;
+		DynamicActor->GetComponents(UStaticMeshComponent::StaticClass(), Components);
+		for (auto StaticMeshComp : Components)
+		{
+			auto StaticMeshComponent = Cast<UStaticMeshComponent>(StaticMeshComp);
+
+			// Only consider dynamic static meshes that have a static mesh already assigned and have valid render data
+			if (StaticMeshComponent
+				&& StaticMeshComponent->IsValidLowLevelFast()
+				&& StaticMeshComponent->Mobility == EComponentMobility::Movable
+				&& StaticMeshComponent->GetStaticMesh()
+				&& StaticMeshComponent->GetStaticMesh()->HasValidRenderData()
+				&& !StaticMeshComponent->IsVisualizationComponent()
+				)
+			{
+				CalculateVertsTrisMats(DynamicActor, StaticMeshComponent, IplVertices, IplTriangles, IplMaterialIndices);
+			}
+		}
+
+		// Register a new static mesh with Phonon
+		//RegisterStaticMesh(PhononScene, IplVertices, IplTriangles, IplMaterialIndices, PhononStaticMeshes);
+
+		return IplTriangles.Num();
 	}
 
 	//==============================================================================================================================================
@@ -560,6 +911,33 @@ namespace SteamAudio
 				UE_LOG(LogSteamAudio, Warning, TEXT("Error adding a new object to the Phonon scene."));
 				return;
 			}
+		}
+		else
+		{
+			UE_LOG(LogSteamAudio, Warning, TEXT("Skipping mesh registration because no vertices were found."));
+		}
+	}
+
+	/**
+	 * Registers a new static mesh with Phonon, adding its handle to the provided array of static meshes.
+	 */
+	static void RegisterStaticMeshes(IPLhandle PhononScene, TArray<IPLVector3>& IplVertices, TArray<IPLTriangle>& IplTriangles,
+		TArray<IPLint32>& IplMaterialIndices, TArray<IPLhandle>* PhononStaticMeshes)
+	{
+		if (IplVertices.Num() > 0)
+		{
+			UE_LOG(LogSteamAudio, Log, TEXT("Registering new mesh with %d triangles."), IplTriangles.Num());
+
+			IPLhandle IplStaticMesh = nullptr;
+			auto IplResult = iplCreateStaticMesh(PhononScene, IplVertices.Num(), IplTriangles.Num(), IplVertices.GetData(), IplTriangles.GetData(),
+				IplMaterialIndices.GetData(), &IplStaticMesh);
+			if (IplResult != IPL_STATUS_SUCCESS)
+			{
+				UE_LOG(LogSteamAudio, Warning, TEXT("Error adding a new object to the acoustic scene."));
+				return;
+			}
+
+			PhononStaticMeshes->Add(IplStaticMesh);
 		}
 		else
 		{
