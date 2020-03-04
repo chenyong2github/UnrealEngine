@@ -91,6 +91,11 @@ void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepC
 				if( UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification( StaticMesh, TessellationSettings, false, OutReason ) )
 				{
 					ModifiedStaticMeshes.Add( StaticMesh );
+					if (!OutReason.IsEmpty())
+					{
+						FText WarningMsg = FText::Format(LOCTEXT("DataprepTessellationOperation_TessellationCompletedWithWarning", "{0}"), OutReason);
+						LogInfo(WarningMsg);
+					}
 				}
 				else
 				{
