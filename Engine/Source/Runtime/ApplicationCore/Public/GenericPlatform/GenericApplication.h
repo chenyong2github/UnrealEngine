@@ -551,6 +551,7 @@ public:
 
 	virtual bool IsAllowedToRender() const { return true; }
 
+	virtual void FinishedInputThisFrame() {}
 public:
 
 	const TSharedPtr< ICursor > Cursor;

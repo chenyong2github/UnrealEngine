@@ -71,6 +71,14 @@ FAutoConsoleVariableRef	CVarPreventDuplicateMouseEventsForTouch(
 	TEXT("Hack to get around multiple mouse events being triggered for touch events on Windows 7 and lower.  Enabling this will prevent pen tablets from working on windows 7 since until we switch to the windows 8 sdk (and can use WM_POINTER* events) we cannot detect the difference")
 );
 
+
+static int32 EnableRawInputSimulationOverRDP = false;
+FAutoConsoleVariableRef	CVarEnableRawInputSimulationOverRDP(
+	TEXT("Slate.EnableRawInputSimulationOverRDP"),
+	EnableRawInputSimulationOverRDP,
+	TEXT("")
+);
+
 const FIntPoint FWindowsApplication::MinimizedWindowPosition(-32000,-32000);
 
 FWindowsApplication* WindowsApplication = nullptr;
@@ -427,36 +435,58 @@ void* FWindowsApplication::GetCapture( void ) const
 
 void FWindowsApplication::SetHighPrecisionMouseMode( const bool Enable, const TSharedPtr< FGenericWindow >& InWindow )
 {
-	HWND hwnd = NULL;
-	DWORD flags = RIDEV_REMOVE;
-	bUsingHighPrecisionMouseInput = Enable;
-
-	if ( Enable )
+	if (EnableRawInputSimulationOverRDP && FPlatformMisc::IsRemoteSession())
 	{
-		flags = 0;
-
-		if ( InWindow.IsValid() )
+		if(Enable)
 		{
-			hwnd = (HWND)InWindow->GetOSWindowHandle(); 
+			bUsingHighPrecisionMouseInput = true;
+			bSimulatingHighPrecisionMouseInputForRDP = true;
+
+			POINT CursorPos;
+			BOOL bGotPoint = ::GetCursorPos(&CursorPos);
+
+			CachedPreHighPrecisionMousePosForRDP = FIntPoint(CursorPos.x, CursorPos.y);
+		}
+		else
+		{
+			CachedPreHighPrecisionMousePosForRDP = FIntPoint(INT_MAX, INT_MAX);
+			bSimulatingHighPrecisionMouseInputForRDP = false;
 		}
 	}
 
-	// NOTE: Currently has to be created every time due to conflicts with Direct8 Input used by the wx unrealed
-	RAWINPUTDEVICE RawInputDevice;
+	{
+		
+		HWND hwnd = NULL;
+		DWORD flags = RIDEV_REMOVE;
+		bUsingHighPrecisionMouseInput = Enable;
 
-	//The HID standard for mouse
-	const uint16 StandardMouse = 0x02;
+		if (Enable)
+		{
+			flags = 0;
 
-	RawInputDevice.usUsagePage = 0x01; 
-	RawInputDevice.usUsage = StandardMouse;
-	RawInputDevice.dwFlags = flags;
+			if (InWindow.IsValid())
+			{
+				hwnd = (HWND)InWindow->GetOSWindowHandle();
+			}
+		}
 
-	// Process input for just the window that requested it.  NOTE: If we pass NULL here events are routed to the window with keyboard focus
-	// which is not always known at the HWND level with Slate
-	RawInputDevice.hwndTarget = hwnd; 
+		// NOTE: Currently has to be created every time due to conflicts with Direct8 Input used by the wx unrealed
+		RAWINPUTDEVICE RawInputDevice;
 
-	// Register the raw input device
-	::RegisterRawInputDevices( &RawInputDevice, 1, sizeof( RAWINPUTDEVICE ) );
+		//The HID standard for mouse
+		const uint16 StandardMouse = 0x02;
+
+		RawInputDevice.usUsagePage = 0x01;
+		RawInputDevice.usUsage = StandardMouse;
+		RawInputDevice.dwFlags = flags;
+
+		// Process input for just the window that requested it.  NOTE: If we pass NULL here events are routed to the window with keyboard focus
+		// which is not always known at the HWND level with Slate
+		RawInputDevice.hwndTarget = hwnd;
+
+		// Register the raw input device
+		::RegisterRawInputDevices(&RawInputDevice, 1, sizeof(RAWINPUTDEVICE));
+	}
 }
 
 FPlatformRect FWindowsApplication::GetWorkArea( const FPlatformRect& CurrentWindow ) const
@@ -996,9 +1026,16 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 						const bool IsAbsoluteInput = (Raw->data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE) == MOUSE_MOVE_ABSOLUTE;
 						if( IsAbsoluteInput )
 						{
-							// Since the raw input is coming in as absolute it is likely the user is using a tablet
-							// or perhaps is interacting through a virtual desktop
-							DeferMessage( CurrentNativeEventWindowPtr, hwnd, msg, wParam, lParam, 0, 0, MOUSE_MOVE_ABSOLUTE );
+							if (bSimulatingHighPrecisionMouseInputForRDP)
+							{
+								DeferMessage(CurrentNativeEventWindowPtr, hwnd, WM_MOUSEMOVE, wParam, lParam);
+							}
+							else
+							{
+								// Since the raw input is coming in as absolute it is likely the user is using a tablet
+								// or perhaps is interacting through a virtual desktop
+								DeferMessage(CurrentNativeEventWindowPtr, hwnd, msg, wParam, lParam, 0, 0, MOUSE_MOVE_ABSOLUTE);
+							}
 							return 1;
 						}
 
@@ -1999,6 +2036,17 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 		case WM_MOUSEMOVE:
 			{
 				BOOL Result = false;
+				if (bSimulatingHighPrecisionMouseInputForRDP)
+				{
+					POINT CursorPoint;
+					::GetCursorPos(&CursorPoint);
+					int32 DeltaX = CursorPoint.x - CachedPreHighPrecisionMousePosForRDP.X;
+					int32 DeltaY = CursorPoint.y - CachedPreHighPrecisionMousePosForRDP.Y;
+
+					MessageHandler->OnRawMouseMove(DeltaX, DeltaY);
+
+					Result = true;
+				}
 				if( !bUsingHighPrecisionMouseInput )
 				{
 					Result = MessageHandler->OnMouseMove();
@@ -2558,6 +2606,21 @@ void FWindowsApplication::AddExternalInputDevice(TSharedPtr<IInputDevice> InputD
 	if (InputDevice.IsValid())
 	{
 		ExternalInputDevices.Add(InputDevice);
+	}
+}
+
+void FWindowsApplication::FinishedInputThisFrame()
+{
+	if (bSimulatingHighPrecisionMouseInputForRDP)
+	{
+		MessageHandler->SetCursorPos(FVector2D(CachedPreHighPrecisionMousePosForRDP));
+		//::SetCursorPos(CachedPreHighPrecisionMousePosForRDP.X, CachedPreHighPrecisionMousePosForRDP.Y);
+
+		// SetCursorPos sends a windows message, we dont want to process it as real input so get rid of it
+		// Todo needed?  It is theoretically possible this could remove valid WM_MOUSEMOVE messages that came right after we finished 
+		// processing input
+		MSG msg;
+		while (::PeekMessage(&msg, NULL, WM_MOUSEMOVE, WM_MOUSEMOVE, PM_REMOVE)) {};
 	}
 }
 

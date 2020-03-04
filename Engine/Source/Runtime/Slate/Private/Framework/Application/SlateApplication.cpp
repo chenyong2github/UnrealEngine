@@ -1271,6 +1271,8 @@ void FSlateApplication::FinishedInputThisFrame()
 {
 	const float DeltaTime = GetDeltaTime();
 
+	PlatformApplication->FinishedInputThisFrame();
+	
 	// Any preprocessors are given a chance to process accumulated values (or do whatever other tick things they want)
 	// after we've finished processing all of the input for the frame
 	if (PlatformApplication->Cursor.IsValid())
