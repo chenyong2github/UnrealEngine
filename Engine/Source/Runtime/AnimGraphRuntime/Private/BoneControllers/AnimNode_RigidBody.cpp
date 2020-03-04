@@ -857,7 +857,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		{
 			int32 IndexA = ConstItr.Key().Indices[0];
 			int32 IndexB = ConstItr.Key().Indices[1];
-			if (ensure((IndexA < BodyIndexToActorHandle.Num()) && (IndexB < BodyIndexToActorHandle.Num())))
+			if ((IndexA < BodyIndexToActorHandle.Num()) && (IndexB < BodyIndexToActorHandle.Num()))
 			{
 				if ((BodyIndexToActorHandle[IndexA] != nullptr) && (BodyIndexToActorHandle[IndexB] != nullptr))
 				{
