@@ -29,7 +29,6 @@ public:
 
 	virtual FText GetDisplayName() const override;
 	virtual UObject* GetDisplayedObject() const override;
-	virtual FText GetOriginalName() const override;
 	virtual FText GetTooltipText() const override;
 
 	INiagaraStackItemGroupAddUtilities* GetGroupAddUtilities();
@@ -112,8 +111,6 @@ private:
 	mutable TOptional<bool> bCanMoveAndDeleteCache;
 	bool bIsEnabled;
 	bool bCanRefresh;
-
-	TOptional<FText> CustomDisplayName;
 
 	UPROPERTY()
 	UNiagaraStackModuleItemLinkedInputCollection* LinkedInputCollection;
