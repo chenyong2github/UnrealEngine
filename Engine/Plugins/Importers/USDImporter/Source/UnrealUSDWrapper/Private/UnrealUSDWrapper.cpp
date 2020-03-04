@@ -2,6 +2,7 @@
 
 #include "UnrealUSDWrapper.h"
 
+#include "USDLog.h"
 #include "USDMemory.h"
 
 #include "Modules/ModuleManager.h"
@@ -13,6 +14,7 @@
 #include "pxr/base/gf/rotation.h"
 #include "pxr/base/plug/plugin.h"
 #include "pxr/base/plug/registry.h"
+#include "pxr/base/tf/diagnosticMgr.h"
 #include "pxr/base/tf/errorMark.h"
 #include "pxr/base/tf/getenv.h"
 #include "pxr/base/tf/setenv.h"
@@ -885,9 +887,59 @@ EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mes
 
 	return GeomOrientation;
 }
+#endif // USE_USD_SDK
 
+
+
+DEFINE_LOG_CATEGORY( LogUsd );
+
+#if USE_USD_SDK
+class FUsdDiagnosticDelegate : public pxr::TfDiagnosticMgr::Delegate
+{
+public:
+	virtual ~FUsdDiagnosticDelegate() override {};
+	virtual void IssueError(const pxr::TfError& Error) override
+	{
+		FScopedUsdAllocs Allocs;
+
+		std::string Msg = Error.GetErrorCodeAsString();
+		Msg += ": ";
+		Msg += Error.GetCommentary();
+
+		UE_LOG(LogUsd, Error, TEXT("%s"), ANSI_TO_TCHAR( Msg.c_str() ));
+	}
+	virtual void IssueFatalError(const pxr::TfCallContext& Context, const std::string& Msg) override
+	{
+		UE_LOG(LogUsd, Error, TEXT("%s"), ANSI_TO_TCHAR( Msg.c_str() ));
+	}
+	virtual void IssueStatus(const pxr::TfStatus& Status) override
+	{
+		FScopedUsdAllocs Allocs;
+
+		std::string Msg = Status.GetDiagnosticCodeAsString();
+		Msg += ": ";
+		Msg += Status.GetCommentary();
+
+		UE_LOG(LogUsd, Log, TEXT("%s"), ANSI_TO_TCHAR( Msg.c_str() ));
+	}
+	virtual void IssueWarning(const pxr::TfWarning& Warning) override
+	{
+		FScopedUsdAllocs Allocs;
+
+		std::string Msg = Warning.GetDiagnosticCodeAsString();
+		Msg += ": ";
+		Msg += Warning.GetCommentary();
+
+		UE_LOG(LogUsd, Warning, TEXT("%s"), ANSI_TO_TCHAR( Msg.c_str() ));
+	}
+};
+#else
+class FUsdDiagnosticDelegate { };
+#endif // USE_USD_SDK
+
+TUniquePtr<FUsdDiagnosticDelegate> UnrealUSDWrapper::Delegate = nullptr;
+#if USE_USD_SDK
 bool UnrealUSDWrapper::bInitialized = false;
-
 
 void UnrealUSDWrapper::Initialize( const TArray< FString >& InPluginDirectories )
 {
@@ -948,16 +1000,50 @@ pxr::UsdStageCache& UnrealUSDWrapper::GetUsdStageCache()
 }
 #endif // USE_USD_SDK
 
+void UnrealUSDWrapper::SetupDiagnosticDelegate()
+{
+#if USE_USD_SDK
+	if (Delegate.IsValid())
+	{
+		UnrealUSDWrapper::ClearDiagnosticDelegate();
+	}
+
+	Delegate = MakeUnique<FUsdDiagnosticDelegate>();
+
+	pxr::TfDiagnosticMgr& DiagMgr = pxr::TfDiagnosticMgr::GetInstance();
+	DiagMgr.AddDelegate(Delegate.Get());
+#endif // USE_USD_SDK
+}
+
+void UnrealUSDWrapper::ClearDiagnosticDelegate()
+{
+#if USE_USD_SDK
+	if (!Delegate.IsValid())
+	{
+		return;
+	}
+
+	pxr::TfDiagnosticMgr& DiagMgr = pxr::TfDiagnosticMgr::GetInstance();
+	DiagMgr.RemoveDelegate(Delegate.Get());
+
+	Delegate = nullptr;
+#endif // USE_USD_SDK
+}
+
+
+
 class FUnrealUSDWrapperModule : public IUnrealUSDWrapperModule
 {
 public:
 	virtual void StartupModule() override
 	{
 		FUsdMemoryManager::Initialize();
+		UnrealUSDWrapper::SetupDiagnosticDelegate();
 	}
 
 	virtual void ShutdownModule() override
 	{
+		UnrealUSDWrapper::ClearDiagnosticDelegate();
 		FUsdMemoryManager::Shutdown();
 	}
 
@@ -965,7 +1051,7 @@ public:
 	{
 #if USE_USD_SDK
 		UnrealUSDWrapper::Initialize( InPluginDirectories );
-#endif
+#endif // USE_USD_SDK
 	}
 };
 
