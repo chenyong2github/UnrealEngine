@@ -102,7 +102,7 @@ template <int Size>
 template <int N>
 inline void TPayloadBuilder<Size>::AddInteger(const char (&Name)[N], int64 Value)
 {
-	CborWriter.WriteValue(Name, N);
+	CborWriter.WriteValue(Name, N - 1);
 	CborWriter.WriteValue(Value);
 }
 
@@ -115,8 +115,8 @@ inline void TPayloadBuilder<Size>::AddString(
 	int Length)
 {
 	Length = (Length < 0) ? int32(strlen(Value)) : Length;
-	CborWriter.WriteValue(Name, N);
-	CborWriter.WriteValue(Value, Length + 1);
+	CborWriter.WriteValue(Name, N - 1);
+	CborWriter.WriteValue(Value, Length);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -229,7 +229,7 @@ inline int64 FResponse::GetInteger(const char* Key, int64 Default) const
 template <int N>
 inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Default)[N]) const
 {
-	FAnsiStringView DefaultView(Default, N);
+	FAnsiStringView DefaultView(Default, N - 1);
 	return GetValue(
 		Key,
 		DefaultView,
@@ -239,7 +239,7 @@ inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Defaul
 			{
 				int32 Length = Context.AsLength();
 				const char* Data = (const char*)(Buffer.GetData() + Offset - Length);
-				return FAnsiStringView(Data, Length - 1);
+				return FAnsiStringView(Data, Length);
 			}
 
 			return DefaultView;
