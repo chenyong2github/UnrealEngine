@@ -2,6 +2,7 @@
 
 #include "Framework/Application/SlateUser.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/NavigationConfig.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/SWeakWidget.h"
 
@@ -529,6 +530,21 @@ void FSlateUser::CloseTooltip()
 	if (TooltipWindow && TooltipWindow->IsVisible())
 	{
 		TooltipWindow->HideWindow();
+	}
+}
+
+void FSlateUser::SetUserNavigationConfig(TSharedPtr<FNavigationConfig> InNavigationConfig)
+{
+	if (UserNavigationConfig)
+	{
+		UserNavigationConfig->OnUnregister();
+	}
+
+	UserNavigationConfig = InNavigationConfig;
+	
+	if (InNavigationConfig)
+	{
+		InNavigationConfig->OnRegister();
 	}
 }
 

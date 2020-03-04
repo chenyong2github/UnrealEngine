@@ -11,6 +11,7 @@ class SWindow;
 class ICursor;
 class FDragDropOperation;
 class FMenuStack;
+class FNavigationConfig;
 
 /** Handle to a virtual user of slate. */
 class SLATE_API FSlateVirtualUserHandle
@@ -119,6 +120,9 @@ public:
 
 	const FGestureDetector& GetGestureDetector() const { return GestureDetector; }
 
+	void SetUserNavigationConfig(TSharedPtr<FNavigationConfig> InNavigationConfig);
+	TSharedPtr<FNavigationConfig> GetUserNavigationConfig() const { return UserNavigationConfig; }
+
 SLATE_SCOPE:
 	static TSharedRef<FSlateUser> Create(int32 InUserIndex, TSharedPtr<ICursor> InCursor);
 	
@@ -197,6 +201,9 @@ private:
 
 	/** The cursor this user is in control of. Guaranteed to be valid for all real users, absence implies this is a virtual user. */
 	TSharedPtr<ICursor> Cursor;
+
+	/** SlateUsers can optionally be individually assigned a navigation config to use. This overrides the global nav config that lives on FSlateApplication when valid. */
+	TSharedPtr<FNavigationConfig> UserNavigationConfig;
 
 	/** Whether this user is currently drawing the cursor onscreen each frame */
 	bool bCanDrawCursor = true;
