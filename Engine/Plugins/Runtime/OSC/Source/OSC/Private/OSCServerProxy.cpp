@@ -20,6 +20,11 @@ FOSCServerProxy::FOSCServerProxy(UOSCServer& InServer)
 {
 }
 
+FOSCServerProxy::~FOSCServerProxy()
+{
+	Stop();
+}
+
 void FOSCServerProxy::OnPacketReceived(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint)
 {
 	TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Data->GetData());
