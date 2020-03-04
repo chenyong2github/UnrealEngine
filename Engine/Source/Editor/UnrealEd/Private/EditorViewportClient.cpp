@@ -3698,7 +3698,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	float DeltaTimeSeconds;
 
 	UWorld* World = GetWorld();
-	if (!World || (GetScene() != World->Scene))
+	if (!World || (GetScene() != World->Scene) || UseAppTime()) 
 	{
 		// Use time relative to start time to avoid issues with float vs double
 		TimeSeconds = FApp::GetCurrentTime() - GStartTime;
