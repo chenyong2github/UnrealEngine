@@ -213,6 +213,22 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 	}
 }
 
+FMaterialParameterInfo UMaterialInterface::GetParameterInfo(EMaterialParameterAssociation Association, FName ParameterName, UMaterialFunctionInterface* LayerFunction) const
+{
+	int32 Index = 0;
+	if (Association != GlobalParameter)
+	{
+		check(LayerFunction);
+		Index = GetLayerParameterIndex(Association, LayerFunction);
+		if (Index == INDEX_NONE)
+		{
+			return FMaterialParameterInfo();
+		}
+	}
+
+	return FMaterialParameterInfo(ParameterName, Association, Index);
+}
+
 FMaterialRelevance UMaterialInterface::GetRelevance(ERHIFeatureLevel::Type InFeatureLevel) const
 {
 	// Find the interface's concrete material.
