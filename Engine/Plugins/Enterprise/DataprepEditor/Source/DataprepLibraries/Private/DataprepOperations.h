@@ -496,5 +496,5 @@ private:
 
 	bool bValidFolderName = true;
 
-	TSharedPtr< SEditableTextBox > TextBox;
+	TSharedPtr< class SEditableTextBox > TextBox;
 };
