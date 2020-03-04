@@ -737,7 +737,7 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawChaosTick()
 	const FGeometryCollectionPhysicsProxy* const PhysicsProxy = GeometryCollectionComponent->GetPhysicsProxy();
 	if (PhysicsProxy)
 	{
-		ParticlesData.Sync(static_cast<Chaos::FPhysicsSolver*>(PhysicsProxy->GetSolver()), RigidBodyIds);
+		ParticlesData.Sync(PhysicsProxy->GetSolver(), RigidBodyIds);
 	}
 
 	// Visualize single rigid body

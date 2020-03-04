@@ -1946,7 +1946,7 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(FParticlesType& Particles,
 	if (Commands.Num())
 	{
 		TArray<ContextIndex> IndicesArray;
-		Chaos::FPhysicsSolver* CurrentSolver = static_cast<Chaos::FPhysicsSolver*>(GetSolver());
+		Chaos::FPhysicsSolver* CurrentSolver = GetSolver();
 
 		for (int32 CommandIndex = Commands.Num()-1; 0<=CommandIndex; CommandIndex--)
 		{
@@ -2053,7 +2053,7 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(FParticlesType& Particles,
 	// Process Particle-Particle commands
 	if (Commands.Num())
 	{
-		Chaos::FPhysicsSolver* CurrentSolver = static_cast<Chaos::FPhysicsSolver*>(GetSolver());
+		Chaos::FPhysicsSolver* CurrentSolver = GetSolver();
 
 		//  Generate a Index mapping between the rigid body indices and 
 		//  the particle indices. This allows the geometry collection to

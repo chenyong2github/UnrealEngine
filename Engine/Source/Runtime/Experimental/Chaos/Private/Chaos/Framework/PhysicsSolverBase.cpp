@@ -2,7 +2,6 @@
 
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
 
 namespace Chaos
 {	
@@ -11,15 +10,4 @@ namespace Chaos
 		BufferMode = InBufferMode;
 	}
 
-	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn)
-	: BufferMode(BufferingModeIn)
-	{}
-
-	FPhysicsSolverBase::~FPhysicsSolverBase() = default;
-	FPhysicsSolverBase::FPhysicsSolverBase(FPhysicsSolverBase&&) = default;
-
-	void FPhysicsSolverBase::SetEvolution(TUniquePtr<FPBDRigidsEvolutionGBF>&& Evolution)
-	{
-		MEvolution = MoveTemp(Evolution);
-	}
 }

@@ -380,7 +380,7 @@ void FSkeletalMeshPhysicsProxy::SyncBeforeDestroy()
 void FSkeletalMeshPhysicsProxy::OnRemoveFromScene()
 {
 	// Disable the particle we added
-	Chaos::FPhysicsSolver* CurrSolver = static_cast<Chaos::FPhysicsSolver*>(GetSolver());
+	Chaos::FPhysicsSolver* CurrSolver = GetSolver();
 	if(CurrSolver && RigidBodyIds.Num())
 	{
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES

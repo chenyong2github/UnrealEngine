@@ -6,7 +6,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ErrorReporter.h"
 #include "Chaos/Sphere.h"
-#include "Chaos/SingleParticlePhysicsProxy.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/Utilities.h"
 #include "PBDRigidsSolver.h"
 #include "ChaosSolversModule.h"

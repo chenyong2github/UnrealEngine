@@ -10,7 +10,7 @@
  * the currently supported set of objects.
  */
 
-#include "Chaos/SingleParticlePhysicsProxy.h"
+#include "SingleParticlePhysicsProxy.h"
 #include "FieldSystemPhysicsProxy.h"
 #include "GeometryCollectionPhysicsProxy.h"
 #include "SkeletalMeshPhysicsProxy.h"
