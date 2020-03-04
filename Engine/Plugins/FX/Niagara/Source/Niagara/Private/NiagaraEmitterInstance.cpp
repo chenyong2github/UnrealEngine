@@ -1441,9 +1441,10 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		}
 	}
 
-	// The spawn count and ID acquire tag in FNiagaraDataBuffer are currently only used by the GPU path,
-	// but we'll set them here anyway, to prevent surprises in case someone sees them and decides to use them.
-	Data.GetDestinationDataChecked().SetNumSpawnedInstances(Data.GetSpawnedIDsTable().Num());
+	int32 NumAfterSpawn = Data.GetCurrentDataChecked().GetNumInstances();
+	int32 TotalNumSpawned = NumAfterSpawn - NumBeforeSpawn;
+
+	Data.GetDestinationDataChecked().SetNumSpawnedInstances(TotalNumSpawned);
 	Data.GetDestinationDataChecked().SetIDAcquireTag(Data.GetIDAcquireTag());
 
 	//We're done with this simulation pass.
@@ -1466,8 +1467,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	//Now pull out any debug info we need.
 #if WITH_EDITORONLY_DATA
-	int32 NumAfterSpawn = Data.GetCurrentDataChecked().GetNumInstances();
-	int32 TotalNumSpawned = NumAfterSpawn - NumBeforeSpawn;
 	if (ParentSystemInstance->ShouldCaptureThisFrame())
 	{
 		//Pull out update data.

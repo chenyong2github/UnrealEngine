@@ -37,6 +37,7 @@ public:
 
 	void GetNumSpawnedParticles(FVectorVMContext& Context);
 	void GetSpawnedIDAtIndex(FVectorVMContext& Context);
+	void GetNumParticles(FVectorVMContext& Context);
 	void ReadFloat(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadVector2(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadVector3(FVectorVMContext& Context, FName AttributeToRead);
