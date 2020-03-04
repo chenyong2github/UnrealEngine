@@ -6,6 +6,7 @@
 #include "Curves/RichCurve.h"
 #include "DSP/Amp.h"
 #include "DSP/ReverbFast.h"
+#include "DSP/BufferVectorOperations.h"
 #include "Sound/SoundEffectSubmix.h"
 
 #include "AudioMixerSubmixEffectReverbFast.generated.h"
@@ -136,6 +137,8 @@ private:
 
 	// Level of wet/dry signal on current buffer
 	Audio::FWetDry CurrentWetDry;
+
+	Audio::AlignedFloatBuffer WetInputBuffer;
 
 	// Curve which maps old reverb times to new decay value
 	FRichCurve DecayCurve;
