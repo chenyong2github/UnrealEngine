@@ -19,50 +19,50 @@
 
 namespace DataprepPreviewUtils
 {
-	struct FPreviewVariantComarator
+	struct FPreviewVariantComparator
 	{
-		FPreviewVariantComarator(FDataprepPreviewProcessingResult& InCallingObject)
+		FPreviewVariantComparator(FDataprepPreviewProcessingResult& InCallingObject)
 			: Caller( InCallingObject )
 		{}
 
-		EDataprepPreviewResultComparaison operator()(const FEmptyVariantState&)
+		EDataprepPreviewResultComparison operator()(const FEmptyVariantState&)
 		{
-			return EDataprepPreviewResultComparaison::Equal;
+			return EDataprepPreviewResultComparison::Equal;
 		}
 
-		EDataprepPreviewResultComparaison operator()(int32 Value)
+		EDataprepPreviewResultComparison operator()(int32 Value)
 		{
 			int32 CallerValue = Caller.FetchedData.Get<int32>();
 			if ( CallerValue == Value )
 			{
-				return EDataprepPreviewResultComparaison::Equal;
+				return EDataprepPreviewResultComparison::Equal;
 			}
-			return CallerValue > Value ? EDataprepPreviewResultComparaison::BiggerThan : EDataprepPreviewResultComparaison::SmallerThan;
+			return CallerValue > Value ? EDataprepPreviewResultComparison::BiggerThan : EDataprepPreviewResultComparison::SmallerThan;
 		}
 
-		EDataprepPreviewResultComparaison operator()(float Value)
+		EDataprepPreviewResultComparison operator()(float Value)
 		{
 			float CallerValue = Caller.FetchedData.Get<float>();
 			if ( CallerValue == Value )
 			{
-				return EDataprepPreviewResultComparaison::Equal;
+				return EDataprepPreviewResultComparison::Equal;
 			}
-			return CallerValue > Value ? EDataprepPreviewResultComparaison::BiggerThan : EDataprepPreviewResultComparaison::SmallerThan;
+			return CallerValue > Value ? EDataprepPreviewResultComparison::BiggerThan : EDataprepPreviewResultComparison::SmallerThan;
 		}
 
-		EDataprepPreviewResultComparaison operator()(const FString& Value)
+		EDataprepPreviewResultComparison operator()(const FString& Value)
 		{
 			const FString& CallerValue = Caller.FetchedData.Get<FString>();
 			int32 CompareResult = CallerValue.Compare( Value );
 			if ( CompareResult == 0 )
 			{
-				return EDataprepPreviewResultComparaison::Equal;
+				return EDataprepPreviewResultComparison::Equal;
 			}
-			return CompareResult > 0 ? EDataprepPreviewResultComparaison::BiggerThan : EDataprepPreviewResultComparaison::SmallerThan;
+			return CompareResult > 0 ? EDataprepPreviewResultComparison::BiggerThan : EDataprepPreviewResultComparison::SmallerThan;
 		}
 
 		template<class T>
-		EDataprepPreviewResultComparaison operator()(T) = delete;
+		EDataprepPreviewResultComparison operator()(T) = delete;
 
 		FDataprepPreviewProcessingResult& Caller;
 	};
@@ -137,14 +137,14 @@ namespace DataprepPreviewUtils
 
 const int32 FDataprepPreviewSystem::IncrementalCount = 2000;
 
-EDataprepPreviewResultComparaison FDataprepPreviewProcessingResult::CompareFetchedDataTo(const FDataprepPreviewProcessingResult& Other)
+EDataprepPreviewResultComparison FDataprepPreviewProcessingResult::CompareFetchedDataTo(const FDataprepPreviewProcessingResult& Other)
 {
 	if ( FetchedData.GetIndex() != Other.FetchedData.GetIndex() )
 	{
-		return EDataprepPreviewResultComparaison::Equal;
+		return EDataprepPreviewResultComparison::Equal;
 	}
 
-	return Visit( DataprepPreviewUtils::FPreviewVariantComarator( *this ), Other.FetchedData );
+	return Visit( DataprepPreviewUtils::FPreviewVariantComparator( *this ), Other.FetchedData );
 }
 
 FText FDataprepPreviewProcessingResult::GetFetchedDataAsText() const

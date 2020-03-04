@@ -26,7 +26,7 @@ enum class EDataprepPreviewStatus : uint8
 	// There is assumption on the order of these so that the expression Pass > Failed return true
 };
 
-enum class EDataprepPreviewResultComparaison : uint8
+enum class EDataprepPreviewResultComparison : uint8
 {
 	SmallerThan,
 	Equal,
@@ -41,7 +41,7 @@ struct FDataprepPreviewProcessingResult
 		, FetchedData()
 	{}
 
-	EDataprepPreviewResultComparaison CompareFetchedDataTo(const FDataprepPreviewProcessingResult& Other);
+	EDataprepPreviewResultComparison CompareFetchedDataTo(const FDataprepPreviewProcessingResult& Other);
 
 	FText GetFetchedDataAsText() const;
 

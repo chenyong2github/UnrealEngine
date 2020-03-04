@@ -46,7 +46,7 @@ FName FDataprepPreviewOutlinerColumn::GetColumnID()
 
 SHeaderRow::FColumn::FArguments FDataprepPreviewOutlinerColumn::ConstructHeaderRowColumn()
 {
-	CachedPreviewData->GetOnPreviewIsDoneProcessing().AddSP( this, &FDataprepPreviewOutlinerColumn::OnPreviewSytemIsDoneProcessing );
+	CachedPreviewData->GetOnPreviewIsDoneProcessing().AddSP( this, &FDataprepPreviewOutlinerColumn::OnPreviewSystemIsDoneProcessing );
 
 	return SHeaderRow::Column( GetColumnID() )
 		.DefaultLabel( LOCTEXT("Preview_HeaderText", "Preview") )
@@ -103,14 +103,14 @@ void FDataprepPreviewOutlinerColumn::SortItems(TArray<SceneOutliner::FTreeItemPt
 				{
 					if ( FirstPreviewData->Status == SecondPreviewData->Status && FirstPreviewData->CurrentProcessingIndex == SecondPreviewData->CurrentProcessingIndex )
 					{
-						EDataprepPreviewResultComparaison Comparaison = FirstPreviewData->CompareFetchedDataTo( *SecondPreviewData );
-						if ( Comparaison != EDataprepPreviewResultComparaison::Equal )
+						EDataprepPreviewResultComparison Comparaison = FirstPreviewData->CompareFetchedDataTo( *SecondPreviewData );
+						if ( Comparaison != EDataprepPreviewResultComparison::Equal )
 						{
 							if ( SortMode == EColumnSortMode::Descending )
 							{
-								return Comparaison == EDataprepPreviewResultComparaison::BiggerThan;
+								return Comparaison == EDataprepPreviewResultComparison::BiggerThan;
 							}
-							return Comparaison == EDataprepPreviewResultComparaison::SmallerThan;
+							return Comparaison == EDataprepPreviewResultComparison::SmallerThan;
 						}
 					}
 					else if ( FirstPreviewData->Status == EDataprepPreviewStatus::Pass )
@@ -135,7 +135,7 @@ void FDataprepPreviewOutlinerColumn::SortItems(TArray<SceneOutliner::FTreeItemPt
 		// If all else fail filter by name (always Ascending)
 		int32 SortPriorityFirst = First->GetTypeSortPriority();
 		int32 SortPrioritySecond = Second->GetTypeSortPriority();
-		if ( SortPriorityFirst != SortPriorityFirst )
+		if ( SortPriorityFirst != SortPrioritySecond )
 		{
 			return SortPriorityFirst < SortPrioritySecond;
 		}
@@ -144,7 +144,7 @@ void FDataprepPreviewOutlinerColumn::SortItems(TArray<SceneOutliner::FTreeItemPt
 	});
 }
 
-void FDataprepPreviewOutlinerColumn::OnPreviewSytemIsDoneProcessing()
+void FDataprepPreviewOutlinerColumn::OnPreviewSystemIsDoneProcessing()
 {
 	if ( TSharedPtr<ISceneOutliner> SceneOutliner = WeakSceneOutliner.Pin() )
 	{

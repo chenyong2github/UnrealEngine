@@ -32,7 +32,7 @@ public:
 
 private:
 	// Request a sort refresh if this column was the one doing the sorting
-	void OnPreviewSytemIsDoneProcessing();
+	void OnPreviewSystemIsDoneProcessing();
 
 	TWeakPtr<ISceneOutliner> WeakSceneOutliner;
 

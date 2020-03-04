@@ -15,11 +15,6 @@
 
 namespace DataprepSelectionSystemUtils
 {
-	// Overload the function LexToString to support LexToString(const TArray<FString>&)
-	using ::LexToString;
-	FString LexToString(const TArray<FString>& StringArray);
-
-
 	template< class FilterClass, class FetcherClass, class FetchedDataType>
 	void DoFiltering(const FilterClass& Filter, const FetcherClass& Fetcher, const TArrayView<UObject*>& Objects, TFunctionRef<void (int32 Index, bool bFetchSucceded, const FetchedDataType& FetchedData)> FilteringFunction)
 	{
