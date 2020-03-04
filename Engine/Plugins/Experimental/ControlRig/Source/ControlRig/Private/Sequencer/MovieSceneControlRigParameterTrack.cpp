@@ -59,6 +59,11 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateNewSection()
 		
 		for (const FRigControl& RigControl : SortedControls)
 		{
+			if (!RigControl.bAnimatable)
+			{
+				continue;
+			}
+
 			switch (RigControl.ControlType)
 			{
 				case ERigControlType::Float:
@@ -407,6 +412,17 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 	{
 		ControlRig->Initialize();
 		ControlRig->CreateRigControlsForCurveContainer();
+		for (UMovieSceneSection * Section: Sections)
+		{
+			if (Section)
+			{
+				UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section);
+				if (CRSection)
+				{
+					CRSection->ReconstructChannelProxy(true);
+				}
+			}
+		}
 	}
 }
 

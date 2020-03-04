@@ -233,7 +233,8 @@ void UControlRigVectorControlProxy::SetKey(const IPropertyHandle& KeyedPropertyH
 void UControlRigVector2DControlProxy::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVector2DControlProxy, Vector2D))
+	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVector2DControlProxy, Vector2D))
+		|| ((PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVector2DControlProxy, Vector2D))))
 	{
 		if (RigControl && ControlRig.IsValid())
 		{
@@ -341,48 +342,48 @@ void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlR
 	UControlRigControlsProxy* Proxy = FindProxy(Name);
 	if (!Proxy && RigControl != nullptr)
 	{
-		switch(RigControl->ControlType)
+		switch (RigControl->ControlType)
 		{
-			case ERigControlType::Transform:
-			{
-				Proxy = NewObject<UControlRigTransformControlProxy>(GetTransientPackage(), NAME_None);
-				break;
+		case ERigControlType::Transform:
+		{
+			Proxy = NewObject<UControlRigTransformControlProxy>(GetTransientPackage(), NAME_None);
+			break;
 
-			}
-			case ERigControlType::TransformNoScale:
-			{
-				Proxy = NewObject<UControlRigTransformNoScaleControlProxy>(GetTransientPackage(), NAME_None);
-				break;
+		}
+		case ERigControlType::TransformNoScale:
+		{
+			Proxy = NewObject<UControlRigTransformNoScaleControlProxy>(GetTransientPackage(), NAME_None);
+			break;
 
-			}
-			case ERigControlType::Float:
-			{
-				Proxy = NewObject<UControlRigFloatControlProxy>(GetTransientPackage(), NAME_None);
-				break;
+		}
+		case ERigControlType::Float:
+		{
+			Proxy = NewObject<UControlRigFloatControlProxy>(GetTransientPackage(), NAME_None);
+			break;
 
-			}
-			case ERigControlType::Position:
-			case ERigControlType::Rotator:
-			case ERigControlType::Scale:
-			{
-				Proxy = NewObject<UControlRigVectorControlProxy>(GetTransientPackage(), NAME_None);
-				break;
+		}
+		case ERigControlType::Position:
+		case ERigControlType::Rotator:
+		case ERigControlType::Scale:
+		{
+			Proxy = NewObject<UControlRigVectorControlProxy>(GetTransientPackage(), NAME_None);
+			break;
 
-			}
-			case ERigControlType::Vector2D:
-			{
-				Proxy = NewObject<UControlRigVector2DControlProxy>(GetTransientPackage(), NAME_None);
-				break;
+		}
+		case ERigControlType::Vector2D:
+		{
+			Proxy = NewObject<UControlRigVector2DControlProxy>(GetTransientPackage(), NAME_None);
+			break;
 
-			}
-			case ERigControlType::Bool:
-			{
-				Proxy = NewObject<UControlRigBoolControlProxy>(GetTransientPackage(), NAME_None);
-				break;
+		}
+		case ERigControlType::Bool:
+		{
+			Proxy = NewObject<UControlRigBoolControlProxy>(GetTransientPackage(), NAME_None);
+			break;
 
-			}
-			default:
-				break;
+		}
+		default:
+			break;
 		}
 		if (Proxy)
 		{
@@ -410,7 +411,7 @@ void UControlRigDetailPanelControlProxies::RemoveProxy(const FName& Name)
 
 void UControlRigDetailPanelControlProxies::RemoveAllProxies()
 {
-	for (TPair<FName, UControlRigControlsProxy * >Pair: AllProxies)
+	for (TPair<FName, UControlRigControlsProxy * >Pair : AllProxies)
 	{
 		UControlRigControlsProxy* ExistingProxy = Pair.Value;
 		ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
@@ -427,7 +428,7 @@ void UControlRigDetailPanelControlProxies::RecreateAllProxies(UControlRig* InCon
 	for (const FRigControl& RigControl : Controls)
 	{
 		FRigControl* PRigControl = const_cast<FRigControl*>(&RigControl);
-		if(PRigControl->bGizmoEnabled)
+		if(PRigControl->bGizmoEnabled && PRigControl->bAnimatable)
 		{
 			AddProxy(RigControl.Name, InControlRig, PRigControl);
 		}
