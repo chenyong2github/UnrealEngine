@@ -226,25 +226,7 @@ void SDataprepGraphEditor::CacheDesiredSize(float InLayoutScaleMultiplier)
 		{
 			bIsComplete = TrackGraphNodePtr.Pin()->RefreshLayout();
 			bMustRearrange = true;
-			// Force a change of viewpoint to update the canvas.
-			SetViewLocation(FVector2D(0.f, -TopPadding), 1.f);
 		}
-	}
-}
-
-void SDataprepGraphEditor::UpdateBoundaries(const FVector2D& LocalSize, float ZoomAmount)
-{
-	if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
-	{
-		CachedTrackNodeSize = TrackGraphNode->Update(LocalSize, ZoomAmount);
-	}
-
-	ViewLocationRangeOnY.Set( -TopPadding, -TopPadding );
-
-	const float DesiredVisualHeight = CachedTrackNodeSize.Y * ZoomAmount;
-	if(LocalSize.Y < DesiredVisualHeight)
-	{
-		ViewLocationRangeOnY.Y = DesiredVisualHeight - LocalSize.Y;
 	}
 }
 
@@ -277,70 +259,57 @@ void SDataprepGraphEditor::Tick(const FGeometry& AllottedGeometry, const double 
 
 void SDataprepGraphEditor::UpdateLayout( const FVector2D& LocalSize, const FVector2D& Location, float ZoomAmount )
 {
-	if(LastZoomAmount != ZoomAmount)
+	if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
 	{
-		UpdateBoundaries( LocalSize, ZoomAmount );
-	}
-
-	if( !LocalSize.Equals(LastLocalSize) )
-	{
-		bMustRearrange = true;
-
-		UpdateBoundaries( LocalSize, ZoomAmount );
-
-		LastLocalSize = LocalSize;
-
-		// Force a re-compute of the view location
-		LastLocation = -Location;
-	}
-
-	if( !Location.Equals(LastLocation) )
-	{
-		FVector2D ComputedLocation( LastLocation );
-
-		if(Location.X != LastLocation.X)
+		if(LastZoomAmount != ZoomAmount)
 		{
-			const float ActualWidth = LocalSize.X / ZoomAmount;
-			const float MaxInX = CachedTrackNodeSize.X > ActualWidth ? CachedTrackNodeSize.X - ActualWidth : 0.f;
-			ComputedLocation.X = Location.X < 0.f ? 0.f : Location.X >= MaxInX ? MaxInX : Location.X;
+			WorkingArea = TrackGraphNode->Update();
 		}
 
-		if(Location.Y != LastLocation.Y)
+		if( !LocalSize.Equals(LastLocalSize) )
 		{
-			// Keep same visual Y position if only zoom has changed
-			// Assumption: user cannot zoom in or out and move the canvas at the same time
-			if(LastZoomAmount != ZoomAmount)
+			bMustRearrange = true;
+
+			WorkingArea = TrackGraphNode->Update();
+
+			LastLocalSize = LocalSize;
+
+			// Force a re-compute of the view location
+			LastLocation = -Location;
+		}
+
+		if( !Location.Equals(LastLocation) )
+		{
+			FVector2D ComputedLocation(Location);
+
+			FVector2D PanelSize = LocalSize / ZoomAmount;
+			FVector2D WorkingSize = WorkingArea.GetSize();
+
+			if(Location.X != LastLocation.X)
 			{
-				ComputedLocation.Y = LastLocation.Y * LastZoomAmount / ZoomAmount;
+				const float Delta = WorkingSize.X - PanelSize.X;
+				const float MaxRight =  Delta > 0.f ? WorkingArea.Left + Delta : WorkingArea.Left;
+				ComputedLocation.X = ComputedLocation.X < WorkingArea.Left ? WorkingArea.Left : (ComputedLocation.X >= MaxRight ? MaxRight : ComputedLocation.X);
 			}
-			else
+
+			if(Location.Y != LastLocation.Y)
 			{
-				const float ActualPositionInY = Location.Y * ZoomAmount;
-				if(ActualPositionInY <= ViewLocationRangeOnY.X )
-				{
-					ComputedLocation.Y = ViewLocationRangeOnY.X / ZoomAmount;
-				}
-				else if( ActualPositionInY > ViewLocationRangeOnY.Y )
-				{
-					ComputedLocation.Y = ViewLocationRangeOnY.Y / ZoomAmount;
-				}
-				else
-				{
-					ComputedLocation.Y = Location.Y;
-				}
+				const float Delta = WorkingSize.Y - PanelSize.Y;
+				const float MaxBottom =  Delta > 0.f ? WorkingArea.Top + Delta : WorkingArea.Top;
+				ComputedLocation.Y = ComputedLocation.Y < WorkingArea.Top ? WorkingArea.Top : (ComputedLocation.Y >= MaxBottom ? MaxBottom : ComputedLocation.Y);
+			}
+
+			LastLocation = Location;
+
+			if(ComputedLocation != Location)
+			{
+				SetViewLocation( ComputedLocation, ZoomAmount );
+				LastLocation = ComputedLocation;
 			}
 		}
 
-		LastLocation = Location;
-
-		if(ComputedLocation != Location)
-		{
-			SetViewLocation( ComputedLocation, ZoomAmount );
-			LastLocation = ComputedLocation;
-		}
+		LastZoomAmount = ZoomAmount;
 	}
-
-	LastZoomAmount = ZoomAmount;
 }
 
 void SDataprepGraphEditor::OnDragEnter(const FGeometry & MyGeometry, const FDragDropEvent & DragDropEvent)

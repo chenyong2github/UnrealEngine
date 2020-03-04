@@ -13,6 +13,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "Layout/SlateRect.h"
 #include "NodeFactory.h"
 #include "SGraphNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -131,9 +132,6 @@ private:
 	/** Recompute the layout of the displayed graph after a pan, resize and/or zoom */
 	void UpdateLayout( const FVector2D& LocalSize, const FVector2D& Location, float ZoomAmount );
 
-	/** Recompute the boundaries of a the displayed graph */
-	void UpdateBoundaries(const FVector2D& LocalSize, float ZoomAmount);
-
 	void BuildCommandList();
 
 private:
@@ -152,11 +150,8 @@ private:
 	/** Last zoom factor applied to the graph's canvas */
 	float LastZoomAmount;
 
-	/** Indicates min and max of ordinates in canvas */
-	FVector2D ViewLocationRangeOnY;
-
-	/** Size of graph being displayed */
-	mutable FVector2D CachedTrackNodeSize;
+	/** Dimensions of pipeline being displayed */
+	FSlateRect WorkingArea;
 
 	/** Size of graph being displayed */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
@@ -178,7 +173,7 @@ private:
 	/** Factory to create the associated SGraphNode classes for Dataprep graph's UEdGraph classes */
 	static TSharedPtr<FDataprepGraphEditorNodeFactory> NodeFactory;
 
-	// The dataprep editor that owns the graph
+	// The Dataprep editor that owns the graph
 	TWeakPtr<FDataprepEditor> DataprepEditor;
 
 	friend SDataprepGraphTrackNode;

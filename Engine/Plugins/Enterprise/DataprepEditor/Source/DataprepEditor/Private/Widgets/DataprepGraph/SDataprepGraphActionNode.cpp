@@ -26,6 +26,9 @@
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 
+float SDataprepGraphActionNode::DefaultWidth = 300.f;
+float SDataprepGraphActionNode::DefaultHeight = 100.f;
+
 class SDataprepGraphActionProxyNode : public SGraphNode
 {
 public:
@@ -85,11 +88,15 @@ public:
 	{
 		return  FEditorStyle::GetNoBrush();
 	}
+
+	virtual bool ShouldAllowCulling() const override { return false; }
 	// End of SGraphNode interface
 
 	FVector2D GetSize()
 	{
-		FVector2D Size(10.f);
+		static FVector2D DefaultSize(SDataprepGraphActionNode::DefaultWidth, SDataprepGraphActionNode::DefaultHeight);
+
+		FVector2D Size(DefaultSize);
 
 		if(SDataprepGraphActionNode* ParentNode = ParentNodePtr.Pin().Get())
 		{
@@ -100,7 +107,7 @@ public:
 				Size = ParentNode->GetDesiredSize();
 				if(Size == FVector2D::ZeroVector)
 				{
-					Size.Set(10.f, 10.f);
+					Size = DefaultSize;
 				}
 			}
 		}
@@ -540,16 +547,6 @@ TSharedRef<SWidget> SDataprepGraphActionNode::CreateBackground(const TAttribute<
 		+SOverlay::Slot()
 		.VAlign(VAlign_Fill)
 		.HAlign(HAlign_Fill)
-		.Padding(1.f)
-		[
-			SNew(SImage)
-			.ColorAndOpacity(FLinearColor::White)
-			.Image(FDataprepEditorStyle::GetBrush( "DataprepEditor.Node.Body" ))
-		]
-
-		+SOverlay::Slot()
-		.VAlign(VAlign_Fill)
-		.HAlign(HAlign_Fill)
 		.Padding(0.f)
 		[
 			SNew(SImage)
@@ -580,30 +577,6 @@ TSharedRef<SWidget> SDataprepGraphActionNode::CreateNodeContentArea()
 const FSlateBrush* SDataprepGraphActionNode::GetShadowBrush(bool bSelected) const
 {
 	return  FEditorStyle::GetNoBrush();
-}
-
-int32 SDataprepGraphActionNode::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
-{
-	// Since only a proxy is in the graph panel, draw selection outline if applicable 
-	//if(SGraphPanel* GraphPanel = GetOwnerPanel().Get())
-	//{
-	//	if (GraphPanel->SelectionManager.SelectedNodes.Contains(GraphNode))
-	//	{
-	//		const FSlateBrush* ShadowBrush = FEditorStyle::GetBrush(TEXT("Graph.Node.ShadowSelected"));
-	//		const FVector2D NodeShadowSize = GetDefault<UGraphEditorSettings>()->GetShadowDeltaSize();
-
-	//		FSlateDrawElement::MakeBox(
-	//			OutDrawElements,
-	//			LayerId,
-	//			GetPaintSpaceGeometry().ToInflatedPaintGeometry(NodeShadowSize),
-	//			ShadowBrush,
-	//			ESlateDrawEffect::None,
-	//			FLinearColor(1.0f, 1.0f, 1.0f, 1.f)
-	//		);
-	//	}
-	//}
-
-	return SGraphNode::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 }
 
 FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -843,6 +816,7 @@ void SDataprepGraphActionNode::PopulateActionStepListWidget()
 	.Padding(0.f, 0.f, 0.f, 10.f)
 	[
 		SAssignNew(BottomSlot, SDataprepEmptyActionStepNode, SharedThis(this))
+		.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP( this, &SDataprepGraphActionNode::GetBottomWidgetText ) ))
 	];
 
 	if(TrackNodePtr.IsValid())
@@ -858,6 +832,24 @@ void SDataprepGraphActionNode::OnStepsChanged()
 		PopulateActionStepListWidget();
 		ParentTrackNodePtr.Pin()->RefreshLayout();
 	}
+}
+
+FText SDataprepGraphActionNode::GetBottomWidgetText() const
+{
+	if(InsertIndex == DataprepActionPtr->GetStepsCount())
+	{
+		FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
+		if(ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown() || DraggedIndex == INDEX_NONE)
+		{
+			return LOCTEXT("DataprepEmptyActionStepCopyLabel", "Add Step");
+		}
+		else
+		{
+			return LOCTEXT("DataprepEmptyActionStepMoveLabel", "Move Step");
+		}
+	}
+
+	return LOCTEXT("DataprepEmptyActionStepNoLabel", ".....");
 }
 
 #undef LOCTEXT_NAMESPACE
