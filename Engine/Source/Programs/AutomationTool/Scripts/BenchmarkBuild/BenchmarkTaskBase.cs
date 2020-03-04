@@ -53,7 +53,14 @@ namespace AutomationTool.Benchmark
 		/// Return a name for this task for reporting
 		/// </summary>
 		/// <returns></returns>
-		public abstract string GetTaskName();
+		public string TaskName { get; set; }
+
+		/// <summary>
+		/// A list of modifiers that can be considered when
+		/// </summary>
+		protected List<string> TaskModifiers { get { return InternalModifiers; }  }
+
+		private readonly List<string> InternalModifiers = new List<string>();
 
 		/// <summary>
 		/// Run the task. Performs any prerequisites, then the actual task itself
@@ -91,7 +98,7 @@ namespace AutomationTool.Benchmark
 			
 			if (Failed)
 			{
-				Log.TraceError("{0} failed. {1}", GetTaskName(), FailureString);
+				Log.TraceError("{0} failed. {1}", GetFullTaskName(), FailureString);
 			}
 		}
 
@@ -102,12 +109,28 @@ namespace AutomationTool.Benchmark
 		{
 			if (!Failed)
 			{
-				Log.TraceInformation("Task {0}:\t\t\t\t{1}", GetTaskName(), TaskTime.ToString(@"hh\:mm\:ss"));
+				Log.TraceInformation("Task {0}:\t\t\t\t{1}", GetFullTaskName(), TaskTime.ToString(@"hh\:mm\:ss"));
 			}
 			else
 			{
-				Log.TraceInformation("Task {0}::\t\t\t\tFailed. {1}", GetTaskName(), FailureString);
+				Log.TraceInformation("Task {0}::\t\t\t\tFailed. {1}", GetFullTaskName(), FailureString);
 			}
+		}
+
+		/// <summary>
+		/// Returns a full name to use in reporting and logging
+		/// </summary>
+		/// <returns></returns>
+		public string GetFullTaskName()
+		{
+			string Name = TaskName;
+
+			if (TaskModifiers.Count > 0)
+			{
+				Name = string.Format("{0} ({1})", Name, string.Join(" ", TaskModifiers));
+			}
+
+			return Name;
 		}
 	}
 }

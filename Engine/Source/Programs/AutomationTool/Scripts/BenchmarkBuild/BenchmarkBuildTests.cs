@@ -15,7 +15,7 @@ namespace AutomationTool.Benchmark
 	{
 		None = 0,
 		Clean = 1 << 0,
-		NoXGE = 1 << 1,
+		NoAcceleration = 1 << 1,
 	}
 
 	/// <summary>
@@ -23,15 +23,33 @@ namespace AutomationTool.Benchmark
 	/// </summary>
 	class BenchmarkBuildTask : BenchmarkTaskBase
 	{
-		protected string TaskName;
-
 		private BuildTarget Command;
 
-		public static bool SupportsXGE
+		public static bool SupportsAcceleration
 		{
 			get
 			{
-				return BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64;
+				return BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 ||
+					(BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac);
+			}
+		}
+
+		public static string AccelerationName
+		{
+			get
+			{
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+				{
+					return "XGE";
+				}
+				else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+				{
+					return "FASTBuild";
+				}
+				else
+				{
+					return "none";
+				}
 			}
 		}
 
@@ -50,27 +68,24 @@ namespace AutomationTool.Benchmark
 			Command.NoTools = true;
 			Command.Clean = InOptions.HasFlag(BuildOptions.Clean);
 
-			List<string> Args = new List<string>();
+			Command.UBTArgs = "";
 
-			bool WithXGE = !InOptions.HasFlag(BuildOptions.NoXGE);
+			bool WithAccel = !InOptions.HasFlag(BuildOptions.NoAcceleration);
 
-			if (!WithXGE || !SupportsXGE)
+			if (!WithAccel || !SupportsAcceleration)
 			{
-				Args.Add("NoXGE");
-				TaskName += " (noxge)";
+				string Arg = string.Format("No{0}", AccelerationName);
+
+				Command.UBTArgs += " -" + Arg;
+				TaskModifiers.Add(Arg);
+				Command.Params = new[] { Arg };	// need to also pass it to this
 			}
 			else
 			{
-				TaskName += " (xge)";
-			}
-
-			Command.Params = Args.ToArray();
+				TaskModifiers.Add(AccelerationName);
+			}			
 		}
 
-		public override string GetTaskName()
-		{
-			return TaskName;
-		}
 
 		protected override bool PerformTask()
 		{

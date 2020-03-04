@@ -23,7 +23,7 @@ namespace AutomationTool.Benchmark
 		{
 			PreTask = new BenchmarkBuildTask(InProject, InTarget, InPlatform, InOptions);
 			SourceFile = InSourceFile;
-			TaskName = TaskName + " (singlecompile)";
+			TaskModifiers.Add("singlecompile");
 		}
 
 		protected override bool PerformPrequisites()

@@ -19,23 +19,24 @@ namespace AutomationTool.Benchmark
 	[Help("Example2: RunUAT BenchmarkBuild -allcompile -project=UE4+EngineTest -platform=PS4")]
 	[Help("Example3: RunUAT BenchmarkBuild -editor -client -cook -cooknoshaderddc -cooknoddc -xge -noxge -singlecompile -nopcompile -project=UE4+QAGame+EngineTest -platform=WIn64+PS4+XboxOne+Switch -iterations=3")]
 	[Help("preview", "List everything that will run but don't do it")]
-	[Help("project=project", "Do tests on the specified projec(s)t. E.g. -project=FortniteGame+QAGame")]
+	[Help("project=<name>", "Do tests on the specified projec(s)t. E.g. -project=UE4+FortniteGame+QAGame")]
 	[Help("all", "Run all the things (except noddc)")]
 	[Help("allcompile", "Run all the compile things")]
-	[Help("editor", "Include the editor for compile tests")]
-	[Help("client", "Include a client for comple tests")]	
-	[Help("platform=platform", "Specify the platform(s) to use for client compilation/cooking, if empty the local platform be used if -client or -cook is specified")]
-	[Help("xge", "Compile with XGE")]
-	[Help("noxge", "Compile without XGE")]
-	[Help("singlecompile", "Do single-file compile")]
-	[Help("nopcompile", "Do nothing-needs-compiled compile")]
+	[Help("editor", "Build an editor for compile tests")]
+	[Help("client", "Build a client for comple tests (see -platform)")]	
+	[Help("platform=<p1+p2>", "Specify the platform(s) to use for client compilation/cooking, if empty the local platform be used if -client or -cook is specified")]
+	[Help("xge", "Do a compile with XGE / FASTBuild")]
+	[Help("noxge", "Do a compile without XGE / FASTBuild")]
+	[Help("singlecompile", "Do a single-file compile")]
+	[Help("nopcompile", "Do a nothing-needs-compiled compile")]
 	[Help("cook", "Do a cook for the specified platform")]
 	[Help("cooknoshaderddc", "Do a cook test with no ddc for shaders")]
 	[Help("cooknoddc", "Do a cook test with nodcc (likely to take 10+ hours with cookfortnite)")]
-	[Help("iterations=n", "How many times to perform each step)")]
-	[Help("wait=n", "How many seconds to wait between each step)")]
-	[Help("warmcook", "Do a cook that doesn't count to make sure any remote DDC is full")]
-	[Help("noclean", "Don't build from clean. Mostly just to speed things up when testing")]
+	[Help("iterations=<n>", "How many times to perform each test)")]
+	[Help("wait=<n>", "How many seconds to wait between each test)")]
+	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
+	[Help("warmcook", "Before cooking do a non-timed cook to make sure any  DDC is full")]
+	[Help("noclean", "Don't build from clean. (Mostly just to speed things up when testing)")]	
 	class BenchmarkBuild : BuildCommand
 	{
 		protected List<BenchmarkTaskBase> Tasks = new List<BenchmarkTaskBase>();
@@ -59,8 +60,8 @@ namespace AutomationTool.Benchmark
 			bool DoBuildClientTests = AllCompile | ParseParam("client");
 			bool DoNoCompile = AllCompile | ParseParam("nopcompile");
 			bool DoSingleCompile = AllCompile | ParseParam("singlecompile");
-			bool DoXGE = AllCompile | ParseParam("xge");
-			bool DoNoXGE = AllCompile | ParseParam("noxge");
+			bool DoAcceleratedCompile = AllCompile | ParseParam("xge") | ParseParam("fastbuild");
+			bool DoNoAcceleratedCompile = AllCompile | ParseParam("noxge") | ParseParam("nofastbuild");
 
 			bool DoCookTests = AllThings | ParseParam("cook");
 			bool DoWarmCook = AllThings | ParseParam("warmcook");
@@ -70,6 +71,8 @@ namespace AutomationTool.Benchmark
 			bool NoClean = ParseParam("noclean");
 			int TimeBetweenTasks = ParseParamInt("wait", 10);
 			int NumLoops = ParseParamInt("iterations", 1);
+
+			string FileName = ParseParamValue("filename", string.Format("{0}_Results.csv", Environment.MachineName));
 
 			// We always build the editor for the platform we're running on
 			UnrealTargetPlatform EditorPlatform = BuildHostPlatform.Current.Platform;
@@ -98,7 +101,7 @@ namespace AutomationTool.Benchmark
 				ClientPlatforms.Add(EditorPlatform);
 			}
 
-			DoXGE = DoXGE && BenchmarkBuildTask.SupportsXGE;
+			DoAcceleratedCompile = DoAcceleratedCompile && BenchmarkBuildTask.SupportsAcceleration;
 
 			// Set this based on whether the user specified -noclean
 			BuildOptions CleanFlag = NoClean ? BuildOptions.None : BuildOptions.Clean;
@@ -134,21 +137,24 @@ namespace AutomationTool.Benchmark
 
 				if (DoBuildEditorTests)
 				{
-					if (DoXGE)
+					BuildOptions NoAndSingleCompileOptions = BuildOptions.None;
+
+					if (DoAcceleratedCompile)
 					{
 						Tasks.Add(new BenchmarkBuildTask(Project, "Editor", EditorPlatform, CleanFlag));
 					}
 
-					if (DoNoXGE)
+					if (DoNoAcceleratedCompile)
 					{
-						Tasks.Add(new BenchmarkBuildTask(Project, "Editor", EditorPlatform, CleanFlag | BuildOptions.NoXGE));
+						Tasks.Add(new BenchmarkBuildTask(Project, "Editor", EditorPlatform, CleanFlag | BuildOptions.NoAcceleration));
+						NoAndSingleCompileOptions |= BuildOptions.NoAcceleration;
 					}
 
 					if (DoNoCompile)
 					{
 						
 						// note, don't clean since we build normally then build a single file
-						Tasks.Add(new BenchmarkNopCompileTask(Project, "Editor", EditorPlatform, BuildOptions.None));
+						Tasks.Add(new BenchmarkNopCompileTask(Project, "Editor", EditorPlatform, NoAndSingleCompileOptions));
 					}
 
 					if (DoSingleCompile)
@@ -156,7 +162,7 @@ namespace AutomationTool.Benchmark
 						FileReference SourceFile = FindProjectSourceFile(Project);
 
 						// note, don't clean since we build normally then build again
-						Tasks.Add(new BenchmarkSingleCompileTask(Project, "Editor", EditorPlatform, SourceFile, BuildOptions.None));
+						Tasks.Add(new BenchmarkSingleCompileTask(Project, "Editor", EditorPlatform, SourceFile, NoAndSingleCompileOptions));
 					}
 				}
 
@@ -167,20 +173,23 @@ namespace AutomationTool.Benchmark
 
 					foreach (var ClientPlatform in ClientPlatforms)
 					{
-						if (DoXGE)
+						BuildOptions NoAndSingleCompileOptions = BuildOptions.None;
+
+						if (DoAcceleratedCompile)
 						{
 							Tasks.Add(new BenchmarkBuildTask(Project, TargetName, ClientPlatform, CleanFlag));
 						}
 
-						if (DoNoXGE)
+						if (DoNoAcceleratedCompile)
 						{
-							Tasks.Add(new BenchmarkBuildTask(Project, TargetName, ClientPlatform, CleanFlag | BuildOptions.NoXGE));
+							Tasks.Add(new BenchmarkBuildTask(Project, TargetName, ClientPlatform, CleanFlag | BuildOptions.NoAcceleration));
+							NoAndSingleCompileOptions |= BuildOptions.NoAcceleration;
 						}
 
 						if (DoNoCompile)
 						{
 							// note, don't clean since we build normally then build again
-							Tasks.Add(new BenchmarkNopCompileTask(Project, TargetName, ClientPlatform, BuildOptions.NoXGE));
+							Tasks.Add(new BenchmarkNopCompileTask(Project, TargetName, ClientPlatform, NoAndSingleCompileOptions));
 						}
 
 						if (DoSingleCompile)
@@ -188,7 +197,7 @@ namespace AutomationTool.Benchmark
 							FileReference SourceFile = FindProjectSourceFile(Project);
 
 							// note, don't clean since we build normally then build a single file
-							Tasks.Add(new BenchmarkSingleCompileTask(Project, TargetName, ClientPlatform, SourceFile, BuildOptions.None));
+							Tasks.Add(new BenchmarkSingleCompileTask(Project, TargetName, ClientPlatform, SourceFile, NoAndSingleCompileOptions));
 						}
 					}
 				}
@@ -232,7 +241,7 @@ namespace AutomationTool.Benchmark
 
 			foreach (var Task in Tasks)
 			{
-				Log.TraceInformation("{0}", Task.GetTaskName());
+				Log.TraceInformation("{0}", Task.GetFullTaskName());
 			}
 
 			if (!Preview)
@@ -249,16 +258,17 @@ namespace AutomationTool.Benchmark
 				{
 					foreach (var Task in Tasks)
 					{
-						Log.TraceInformation("Starting task {0} (Pass {1})", Task.GetTaskName(), i+1);
+						Log.TraceInformation("Starting task {0} (Pass {1})", Task.GetFullTaskName(), i+1);
 
 						Task.Run();
 
-						Log.TraceInformation("Task {0} took {1}", Task.GetTaskName(), Task.TaskTime.ToString(@"hh\:mm\:ss"));
+						Log.TraceInformation("Task {0} took {1}", Task.GetFullTaskName(), Task.TaskTime.ToString(@"hh\:mm\:ss"));
 
 						Results[Task].Add(Task.TaskTime);
 
-						WriteCSVResults();
+						WriteCSVResults(FileName);
 
+						Log.TraceInformation("Waiting {0} secs until next task", TimeBetweenTasks);
 						Thread.Sleep(TimeBetweenTasks * 1000);
 					}
 				}
@@ -297,7 +307,7 @@ namespace AutomationTool.Benchmark
 						AvgTimeString = string.Format(" (Avg: {0})", AvgTime.ToString(@"hh\:mm\:ss"));
 					}					
 
-					Log.TraceInformation("Task {0}:\t{1}{2}", Task.GetTaskName(), TimeString, AvgTimeString);
+					Log.TraceInformation("Task {0}:\t{1}{2}", Task.GetFullTaskName(), TimeString, AvgTimeString);
 				}
 				Log.TraceInformation("**********************************************************************");
 
@@ -305,7 +315,7 @@ namespace AutomationTool.Benchmark
 
 				Log.TraceInformation("Total benchmark time: {0}",  Elapsed.ToString(@"hh\:mm\:ss"));
 
-				WriteCSVResults();
+				WriteCSVResults(FileName);
 			}
 
 			return ExitCode.Success;
@@ -315,9 +325,8 @@ namespace AutomationTool.Benchmark
 		/// Writes our current result to a CSV file. It's expected that this function is called multiple times so results are
 		/// updated as we go
 		/// </summary>
-		void WriteCSVResults()
+		void WriteCSVResults(string FileName)
 		{
-			FileReference FileName = FileReference.Combine(CommandUtils.EngineDirectory, "..", string.Format("{0}_Benchmark.csv", Environment.MachineName));
 
 			Log.TraceInformation("Writing results to {0}", FileName);
 
@@ -325,8 +334,8 @@ namespace AutomationTool.Benchmark
 			{
 				List<string> Lines = new List<string>();
 
-				// first line is machine name,,Iteration 1, Iteration 2 etc
-				string FirstLine = string.Format("{0},", Environment.MachineName);
+				// first line is machine name,CPU count,Iteration 1, Iteration 2 etc
+				string FirstLine = string.Format("{0},{1}", Environment.MachineName, Environment.ProcessorCount);
 
 				if (Tasks.Count() > 0)
 				{
@@ -347,7 +356,7 @@ namespace AutomationTool.Benchmark
 				foreach (var Task in Tasks)
 				{
 					// start with Name, StartTime
-					string Line = string.Format("{0},{1}", Task.GetTaskName(), Task.StartTime.ToString("yyyy-dd-MM HH:mm:ss"));
+					string Line = string.Format("{0},{1}", Task.GetFullTaskName(), Task.StartTime.ToString("yyyy-dd-MM HH:mm:ss"));
 
 					// now append all iteration times
 					foreach (TimeSpan TaskTime in Results[Task])
@@ -366,7 +375,7 @@ namespace AutomationTool.Benchmark
 					Lines.Add(Line);
 				}
 
-				File.WriteAllLines(FileName.FullName, Lines.ToArray());
+				File.WriteAllLines(FileName, Lines.ToArray());
 			}
 			catch (Exception Ex)
 			{
