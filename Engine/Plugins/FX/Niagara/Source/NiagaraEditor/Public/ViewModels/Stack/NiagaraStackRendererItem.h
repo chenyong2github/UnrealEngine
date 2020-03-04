@@ -44,6 +44,8 @@ public:
 	virtual FText GetDeleteTransactionText() const override;
 	virtual void Delete();
 
+	virtual bool SupportsRename() const override { return true; }
+
 	bool HasBaseRenderer() const;
 
 	virtual bool SupportsChangeEnabled() const override { return true; }

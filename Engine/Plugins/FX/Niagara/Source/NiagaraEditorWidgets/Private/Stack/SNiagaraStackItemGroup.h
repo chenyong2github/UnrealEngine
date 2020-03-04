@@ -23,6 +23,8 @@ private:
 
 	bool GetDeleteButtonIsEnabled() const;
 
+	EVisibility GetDeleteButtonVisibility() const;
+
 	FReply DeleteClicked();
 
 private:

@@ -94,6 +94,7 @@ public:
 	DECLARE_DELEGATE_RetVal_TwoParams(TOptional<FDropRequestResponse>, FOnRequestDrop, const UNiagaraStackEntry& /*TargetEntry*/, const FDropRequest& /*DropRequest*/);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnFilterChild, const UNiagaraStackEntry&);
 	DECLARE_DELEGATE(FStackIssueFixDelegate);
+	DECLARE_MULTICAST_DELEGATE(FOnAlternateDisplayNameChanged);
 
 public:
 	struct NIAGARAEDITOR_API FExecutionCategoryNames
@@ -225,7 +226,7 @@ public:
 
 	virtual FText GetDisplayName() const;
 
-	virtual FText GetOriginalName() const;
+	TOptional<FText> GetAlternateDisplayName() const;
 
 	virtual UObject* GetDisplayedObject() const;
 
@@ -291,6 +292,8 @@ public:
 	const FOnRequestFullRefresh& OnRequestFullRefreshDeferred() const;
 
 	FOnRequestFullRefresh& OnRequestFullRefreshDeferred();
+
+	FOnAlternateDisplayNameChanged& OnAlternateDisplayNameChanged();
 
 	void RefreshChildren();
 
@@ -447,6 +450,8 @@ private:
 
 	FOnRequestFullRefresh RequestFullRefreshDeferredDelegate;
 
+	FOnAlternateDisplayNameChanged AlternateDisplayNameChangedDelegate;
+
 	TArray<FOnFilterChild> ChildFilters;
 
 	UPROPERTY()
@@ -476,6 +481,8 @@ private:
 	mutable TOptional<bool> bHasBaseEmitterCache;
 
 	bool bOwnerIsEnabled;
+
+	TOptional<FText> AlternateDisplayName;
 
 	int32 TotalNumberOfInfoIssues;
 	int32 TotalNumberOfWarningIssues;
