@@ -7,8 +7,6 @@
 #include "DetailWidgetRow.h"
 #include "EditorStyleSet.h"
 #include "IAudioExtensionPlugin.h"
-#include "IDetailChildrenBuilder.h"
-#include "IDetailPropertyRow.h"
 #include "SoundModulationPatch.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
