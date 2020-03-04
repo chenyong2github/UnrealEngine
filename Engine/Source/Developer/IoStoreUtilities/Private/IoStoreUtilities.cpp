@@ -3085,15 +3085,22 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 			if (!ParsePakResponseFile(*ResponseFilePath, ContainerSpec.SourceFiles))
 			{
+				UE_LOG(LogIoStore, Error, TEXT("Failed to parse Pak response file '%s'"), *ResponseFilePath);
 				return -1;
 			}
 		}
 
-		UE_LOG(LogIoStore, Display, TEXT("Searching for cooked files..."));
+		UE_LOG(LogIoStore, Display, TEXT("Searching for cooked assets in folder '%s'"), *CookedDirectory);
 		FCookedFileStatMap CookedFileStatMap;
 		FCookedFileVisitor CookedFileVistor(CookedFileStatMap);
 		IFileManager::Get().IterateDirectoryStatRecursively(*CookedDirectory, CookedFileVistor);
-		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), CookedFileStatMap.Num());
+		UE_LOG(LogIoStore, Display, TEXT("Found '%d' assets"), CookedFileStatMap.Num());
+
+		if (CookedFileStatMap.Num() == 0)
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed find cooked assets in folder '%s'"), *CookedDirectory);
+			return -1;
+		}
 
 		int32 ReturnValue = CreateTarget(*OutputDirectory, *CookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerFileOpenOrderMap);
 		if (ReturnValue != 0)
