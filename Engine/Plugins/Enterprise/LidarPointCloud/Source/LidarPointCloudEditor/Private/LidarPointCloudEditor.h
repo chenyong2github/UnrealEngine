@@ -69,6 +69,8 @@ public:
 	bool IsEditMode() const { return bEditMode; }
 
 private:
+	bool ConfirmCollisionChange();
+
 	TSharedRef<SWidget> BuildPointCloudStatistics();
 
 	/** Builds the Point Cloud Editor toolbar. */
@@ -81,6 +83,8 @@ private:
 
 	/** Called when the owned cloud is rebuilt */
 	void OnPointCloudRebuilt();
+
+	void OnPreSaveCleanup();
 
 	void Extract();
 	void ExtractCopy();

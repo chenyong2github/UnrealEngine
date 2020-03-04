@@ -19,34 +19,33 @@
 
 //////////////////////////////////////////////////////////// Base Buffer
 
+TGlobalResource<FLidarPointCloudRenderBuffer> GLidarPointCloudRenderBuffer;
+TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
+TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;
+
 void FLidarPointCloudBuffer::Resize(const uint32& RequestedCapacity)
 {
 	// This must be called from Rendering thread
 	check(IsInRenderingThread());
 
-	if (Capacity < RequestedCapacity)
+	if (Capacity != RequestedCapacity)
 	{
-		// Apply some slack to limit number of rebuilds
-		uint32 NewCapacity = Slack > 0 ? RequestedCapacity * (1 + Slack) : RequestedCapacity;
-
 		if (GetDefault<ULidarPointCloudSettings>()->bLogBufferExpansion)
 		{
-			PC_LOG("Resizing %s: %u => %u", *GetFriendlyName(), Capacity, NewCapacity);
+			PC_LOG("Resizing %s: %u => %u", *GetFriendlyName(), Capacity, RequestedCapacity);
 		}
 
 		Release();
-		Capacity = NewCapacity;
+		Capacity = RequestedCapacity;
 		Initialize();
 	}
 }
 
-//////////////////////////////////////////////////////////// Index Buffer
-
-FLidarPointCloudIndexBuffer::~FLidarPointCloudIndexBuffer()
+FLidarPointCloudBuffer::~FLidarPointCloudBuffer()
 {
 	FRenderCommandFence Fence;
 
-	ENQUEUE_RENDER_COMMAND(ReleasePointCloudIndexBuffer)(
+	ENQUEUE_RENDER_COMMAND(ReleaseLidarPointCloudRenderBuffer)(
 		[this](FRHICommandListImmediate& RHICmdList)
 		{
 			Release();
@@ -55,6 +54,8 @@ FLidarPointCloudIndexBuffer::~FLidarPointCloudIndexBuffer()
 	Fence.BeginFence();
 	Fence.Wait();
 }
+
+//////////////////////////////////////////////////////////// Index Buffer
 
 void FLidarPointCloudIndexBuffer::InitRHI()
 {
@@ -91,17 +92,17 @@ void FLidarPointCloudIndexBuffer::InitRHI()
 
 //////////////////////////////////////////////////////////// Structured Buffer
 
-void FLidarPointCloudStructuredBuffer::Initialize()
+void FLidarPointCloudRenderBuffer::InitRHI()
 {
 	// This must be called from Rendering thread
 	check(IsInRenderingThread());
 
 	FRHIResourceCreateInfo CreateInfo;
-	Buffer = RHICreateStructuredBuffer(ElementSize, ElementSize * Capacity, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
-	SRV = RHICreateShaderResourceView(Buffer);
+	Buffer = RHICreateVertexBuffer(ElementSize * Capacity, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
+	SRV = RHICreateShaderResourceView(Buffer, ElementSize, PF_R32_FLOAT);
 }
 
-void FLidarPointCloudStructuredBuffer::Release()
+void FLidarPointCloudRenderBuffer::ReleaseRHI()
 {
 	// This must be called from Rendering thread
 	check(IsInRenderingThread());
@@ -113,234 +114,6 @@ void FLidarPointCloudStructuredBuffer::Release()
 	}
 
 	SRV.SafeRelease();
-}
-
-//////////////////////////////////////////////////////////// Instance Buffer
-
-void FLidarPointCloudInstanceBuffer::Reset()
-{
-	NewNumInstances = 0;
-	Nodes.Reset();
-}
-
-uint32 FLidarPointCloudInstanceBuffer::UpdateData(bool bUseClassification)
-{
-	// Populate buffer only if there is any data to populate with
-	if (NewNumInstances)
-	{
-		// Rebuild resource if the new data size is greater than the current buffer can accommodate
-		// 17 bytes per point, element size set to 4 bytes - estimated 4.3 elements per point
-		StructuredBuffer.Resize(NewNumInstances * 4.3);
-
-		FColor SelectionColor = FColor::White;
-
-#if WITH_EDITOR
-		SelectionColor = GetDefault<UEditorStyleSettings>()->SelectionColor.ToFColor(false);
-#endif
-
-		// Send new data
-		uint8* BufferStart = (uint8*)RHILockStructuredBuffer(StructuredBuffer.Buffer, 0, StructuredBuffer.GetSize(), RLM_WriteOnly);
-		uint8* BufferCurrent = BufferStart;
-		const FLidarPointCloudPoint* DataPointer = nullptr;
-
-		if (bOwnedByEditor)
-		{
-			if (bUseClassification)
-			{
-				for (auto Node : Nodes)
-				{
-					const auto DataNode = Node->DataNode;
-					for (FLidarPointCloudPoint* Data = DataNode->AllocatedPoints.GetData(), *DataEnd = Data + DataNode->AllocatedPoints.Num(); Data != DataEnd; ++Data)
-					{
-						if (!Data->bVisible)
-						{
-							break;
-						}
-
-						FMemory::Memcpy(BufferCurrent, Data, 12);
-						BufferCurrent += 12;
-
-						if (Data->bSelected)
-						{
-							FMemory::Memcpy(BufferCurrent, &SelectionColor, 4);
-						}
-						else
-						{
-							FColor ClassificationColor(Data->ClassificationID, Data->ClassificationID, Data->ClassificationID, Data->Color.A);
-							FMemory::Memcpy(BufferCurrent, &ClassificationColor, 4);
-						}
-
-						BufferCurrent += 4;
-					}
-
-					for (FLidarPointCloudPoint* Data = DataNode->PaddingPoints.GetData(), *DataEnd = Data + DataNode->PaddingPoints.Num(); Data != DataEnd; ++Data)
-					{
-						if (!Data->bVisible)
-						{
-							break;
-						}
-
-						FMemory::Memcpy(BufferCurrent, Data, 12);
-						BufferCurrent += 12;
-
-						if (Data->bSelected)
-						{
-							FMemory::Memcpy(BufferCurrent, &SelectionColor, 4);
-						}
-						else
-						{
-							FColor ClassificationColor(Data->ClassificationID, Data->ClassificationID, Data->ClassificationID, Data->Color.A);
-							FMemory::Memcpy(BufferCurrent, &ClassificationColor, 4);
-						}
-
-						BufferCurrent += 4;
-					}
-				}
-			}
-			else
-			{
-				for (auto Node : Nodes)
-				{
-					const auto DataNode = Node->DataNode;
-					for (FLidarPointCloudPoint* Data = DataNode->AllocatedPoints.GetData(), *DataEnd = Data + DataNode->AllocatedPoints.Num(); Data != DataEnd; ++Data)
-					{
-						if (!Data->bVisible)
-						{
-							break;
-						}
-
-						if (Data->bSelected)
-						{
-							FMemory::Memcpy(BufferCurrent, Data, 12);
-							BufferCurrent += 12;
-
-							FMemory::Memcpy(BufferCurrent, &SelectionColor, 4);
-							BufferCurrent += 4;
-						}
-						else
-						{
-							FMemory::Memcpy(BufferCurrent, Data, 16);
-							BufferCurrent += 16;
-						}
-					}
-
-					for (FLidarPointCloudPoint* Data = DataNode->PaddingPoints.GetData(), *DataEnd = Data + DataNode->PaddingPoints.Num(); Data != DataEnd; ++Data)
-					{
-						if (!Data->bVisible)
-						{
-							break;
-						}
-
-						if (Data->bSelected)
-						{
-							FMemory::Memcpy(BufferCurrent, Data, 12);
-							BufferCurrent += 12;
-
-							FMemory::Memcpy(BufferCurrent, &SelectionColor, 4);
-							BufferCurrent += 4;
-						}
-						else
-						{
-							FMemory::Memcpy(BufferCurrent, Data, 16);
-							BufferCurrent += 16;
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			if (bUseClassification)
-			{
-				for (auto Node : Nodes)
-				{
-					const auto DataNode = Node->DataNode;
-					for (FLidarPointCloudPoint* Data = DataNode->AllocatedPoints.GetData(), *DataEnd = Data + DataNode->AllocatedPoints.Num(); Data != DataEnd; ++Data)
-					{
-						if (!Data->bVisible)
-						{
-							break;
-						}
-
-						FMemory::Memcpy(BufferCurrent, Data, 12);
-						BufferCurrent += 12;
-
-						FColor ClassificationColor(Data->ClassificationID, Data->ClassificationID, Data->ClassificationID, Data->Color.A);
-						FMemory::Memcpy(BufferCurrent, &ClassificationColor, 4);
-						BufferCurrent += 4;
-					}
-
-					for (FLidarPointCloudPoint* Data = DataNode->PaddingPoints.GetData(), *DataEnd = Data + DataNode->PaddingPoints.Num(); Data != DataEnd; ++Data)
-					{
-						if (!Data->bVisible)
-						{
-							break;
-						}
-
-						FMemory::Memcpy(BufferCurrent, Data, 12);
-						BufferCurrent += 12;
-
-						FColor ClassificationColor(Data->ClassificationID, Data->ClassificationID, Data->ClassificationID, Data->Color.A);
-						FMemory::Memcpy(BufferCurrent, &ClassificationColor, 4);
-						BufferCurrent += 4;
-					}
-				}
-			}
-			else
-			{
-				for (auto Node : Nodes)
-				{
-					const auto DataNode = Node->DataNode;
-					for (FLidarPointCloudPoint* Data = DataNode->AllocatedPoints.GetData(), *DataEnd = Data + DataNode->AllocatedPoints.Num(); Data != DataEnd; ++Data)
-					{
-						if (!Data->bVisible)
-						{
-							break;
-						}
-
-						FMemory::Memcpy(BufferCurrent, Data, 16);
-						BufferCurrent += 16;
-					}
-
-					for (FLidarPointCloudPoint* Data = DataNode->PaddingPoints.GetData(), *DataEnd = Data + DataNode->PaddingPoints.Num(); Data != DataEnd; ++Data)
-					{
-						if (!Data->bVisible)
-						{
-							break;
-						}
-
-						FMemory::Memcpy(BufferCurrent, Data, 16);
-						BufferCurrent += 16;
-					}
-				}
-			}
-		}
-
-		// Calculates the actual number of instances copied to the buffer (accounts for the invisible points)
-		NewNumInstances = (BufferCurrent - BufferStart) / 16;
-
-		// Send Scale data
-		for (auto Node : Nodes)
-		{
-			FMemory::Memset(BufferCurrent, Node->VirtualDepth, Node->DataNode->GetNumVisiblePoints());
-			BufferCurrent += Node->DataNode->GetNumVisiblePoints();
-		}
-		RHIUnlockStructuredBuffer(StructuredBuffer.Buffer);
-	}
-
-	return NumInstances = NewNumInstances;
-}
-
-void FLidarPointCloudInstanceBuffer::AddNode(const FLidarPointCloudTraversalOctreeNode* Node)
-{
-	Nodes.Add(Node);
-	NewNumInstances += Node->DataNode->GetNumVisiblePoints();
-}
-
-void FLidarPointCloudInstanceBuffer::Release()
-{
-	Nodes.Empty();
-	NumInstances = 0;
 }
 
 //////////////////////////////////////////////////////////// User Data
@@ -360,6 +133,8 @@ void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterM
 {
 	BINDPARAM(DataBuffer);
 	BINDPARAM(IndexDivisor);
+	BINDPARAM(FirstElementIndex);
+	BINDPARAM(LocationOffset);
 	BINDPARAM(VDMultiplier);
 	BINDPARAM(SizeOffset);
 	BINDPARAM(RootCellSize);
@@ -368,7 +143,6 @@ void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterM
 	BINDPARAM(ViewRightVector);
 	BINDPARAM(ViewUpVector);
 	BINDPARAM(BoundsSize);
-	BINDPARAM(BoundsOffset);
 	BINDPARAM(ElevationColorBottom);
 	BINDPARAM(ElevationColorTop);
 	BINDPARAM(bUseCircle);
@@ -391,6 +165,8 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 
 	SETSRVPARAM(DataBuffer);
 	SETPARAM(IndexDivisor);
+	SETPARAM(FirstElementIndex);
+	SETPARAM(LocationOffset);
 	SETPARAM(VDMultiplier);
 	SETPARAM(SizeOffset);
 	SETPARAM(RootCellSize);
@@ -399,7 +175,6 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(ViewRightVector);
 	SETPARAM(ViewUpVector);
 	SETPARAM(BoundsSize);
-	SETPARAM(BoundsOffset);
 	SETPARAM(ElevationColorBottom);
 	SETPARAM(ElevationColorTop);
 	SETPARAM(bUseCircle);
@@ -415,25 +190,9 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(ClassificationColors);
 }
 
-FLidarPointCloudVertexFactory::~FLidarPointCloudVertexFactory()
-{
-	FRenderCommandFence Fence;
-
-	FVertexFactory* VertexFactory = this;
-
-	ENQUEUE_RENDER_COMMAND(ReleasePointCloudIndexBuffer)(
-		[VertexFactory](FRHICommandListImmediate& RHICmdList)
-		{
-			VertexFactory->ReleaseResource();
-		});
-
-	Fence.BeginFence();
-	Fence.Wait();
-}
-
 bool FLidarPointCloudVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (IsPCPlatform(Parameters.Platform) && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && 
+	return (IsPCPlatform(Parameters.Platform) && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
 		Parameters.MaterialParameters.MaterialDomain == MD_Surface && Parameters.MaterialParameters.bIsUsedWithLidarPointCloud) || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
 }
 

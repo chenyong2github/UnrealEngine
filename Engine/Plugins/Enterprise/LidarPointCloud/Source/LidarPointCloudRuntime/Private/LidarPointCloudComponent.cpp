@@ -19,8 +19,6 @@
 
 ULidarPointCloudComponent::ULidarPointCloudComponent()
 	: CustomMaterial(nullptr)
-	, PointBudget(1000000)
-	, ScreenCenterImportance(0.0f)
 	, MinScreenSize(0.05f)
 	, PointSize(1.0f)
 	, ColorSource(ELidarPointCloudColorationMode::Data)
@@ -39,7 +37,7 @@ ULidarPointCloudComponent::ULidarPointCloudComponent()
 	, MaxDepth(-1)
 	, bDrawNodeBounds(false)
 	, Material(nullptr)
-	, bOwnedByEditor(false)
+	, OwningViewportClient(nullptr)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	Mobility = EComponentMobility::Movable;
@@ -56,7 +54,7 @@ ULidarPointCloudComponent::ULidarPointCloudComponent()
 
 FBoxSphereBounds ULidarPointCloudComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	return PointCloud ? PointCloud->GetPointsBounds().TransformBy(LocalToWorld) : USceneComponent::CalcBounds(LocalToWorld);
+	return PointCloud ? PointCloud->GetBounds().TransformBy(LocalToWorld) : USceneComponent::CalcBounds(LocalToWorld);
 }
 
 void ULidarPointCloudComponent::UpdateMaterial()
@@ -99,11 +97,14 @@ void ULidarPointCloudComponent::OnPointCloudRebuilt()
 	UpdateBounds();
 	UpdateMaterial();
 
-	if (ClassificationColors.Num() == 0)
+	if (PointCloud)
 	{
-		for (uint8& Classification : PointCloud->GetClassificationsImported())
+		if (ClassificationColors.Num() == 0)
 		{
-			ClassificationColors.Emplace(Classification, FLinearColor::White);
+			for (uint8& Classification : PointCloud->GetClassificationsImported())
+			{
+				ClassificationColors.Emplace(Classification, FLinearColor::White);
+			}
 		}
 	}
 }

@@ -54,8 +54,8 @@ public:
 
 void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 {
-	PreviewScene->SetFloorVisibility(false, true);
-	PreviewScene->SetEnvironmentVisibility(false);
+	PreviewScene.SetFloorVisibility(false, true);
+	PreviewScene.SetEnvironmentVisibility(false);
 
 	PointCloudEditorPtr = InArgs._PointCloudEditor;
 
@@ -63,9 +63,13 @@ void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 
 	CurrentViewMode = VMI_Lit;
 
+	PreviewCloudComponent = NewObject<ULidarPointCloudComponent>();
+
 	SEditorViewport::Construct(SEditorViewport::FArguments());
 
-	PreviewCloudComponent = NewObject<ULidarPointCloudComponent>((UObject*)GetTransientPackage(), NAME_None, RF_Transient);
+	FComponentReregisterContext ReregisterContext(PreviewCloudComponent);
+
+	PreviewScene.AddComponent(PreviewCloudComponent, FTransform::Identity);
 
 	SetPreviewCloud(PointCloud);
 
@@ -81,7 +85,7 @@ void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 }
 
 SLidarPointCloudEditorViewport::SLidarPointCloudEditorViewport()
-	: PreviewScene(MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues(), FLT_MAX)))
+	: PreviewScene(FPreviewScene::ConstructionValues(), FLT_MAX)
 {
 }
 
@@ -91,6 +95,13 @@ SLidarPointCloudEditorViewport::~SLidarPointCloudEditorViewport()
 	if (EditorViewportClient.IsValid())
 	{
 		EditorViewportClient->Viewport = nullptr;
+	}
+
+	if (PreviewCloudComponent)
+	{
+		PreviewScene.RemoveComponent(PreviewCloudComponent);
+		PreviewCloudComponent->SetPointCloud(nullptr);
+		PreviewCloudComponent = nullptr;
 	}
 }
 
@@ -117,25 +128,11 @@ void SLidarPointCloudEditorViewport::ResetCamera()
 void SLidarPointCloudEditorViewport::SetPreviewCloud(ULidarPointCloud* InPointCloud)
 {
 	// Set the new preview point cloud.
-	FComponentReregisterContext ReregisterContext(PreviewCloudComponent);
 	PreviewCloudComponent->SetPointCloud(InPointCloud);
+	PreviewCloudComponent->OwningViewportClient = TWeakPtr<FViewportClient>(EditorViewportClient);
+	PreviewCloudComponent->MarkRenderStateDirty();
 
-	PreviewScene->AddComponent(PreviewCloudComponent, FTransform::Identity);
-
-	EditorViewportClient->SetPreviewCloud(InPointCloud, PreviewCloudComponent);
-}
-
-void SLidarPointCloudEditorViewport::UpdatePreviewCloud(ULidarPointCloud* InPointCloud, bool bResetCamera/*= true*/)
-{
-	if (PreviewCloudComponent)
-	{
-		PreviewScene->RemoveComponent(PreviewCloudComponent);
-		PreviewCloudComponent = nullptr;
-	}
-
-	PreviewCloudComponent = NewObject<ULidarPointCloudComponent>();
-
-	SetPreviewCloud(InPointCloud);
+	ResetCamera();
 }
 
 void SLidarPointCloudEditorViewport::PopulateOverlayText(const TArray<FOverlayTextItem>& TextItems)
@@ -172,7 +169,7 @@ void SLidarPointCloudEditorViewport::OnObjectPropertyChanged(UObject* ObjectBein
 
 TSharedRef<FEditorViewportClient> SLidarPointCloudEditorViewport::MakeEditorViewportClient()
 {
-	EditorViewportClient = MakeShareable(new FLidarPointCloudEditorViewportClient(PointCloudEditorPtr, SharedThis(this), PreviewScene.ToSharedRef(), PointCloud, nullptr));
+	EditorViewportClient = MakeShareable(new FLidarPointCloudEditorViewportClient(PointCloudEditorPtr, SharedThis(this), &PreviewScene, PointCloud, PreviewCloudComponent));
 
 	EditorViewportClient->bSetListenerPosition = false;
 

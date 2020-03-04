@@ -65,6 +65,21 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Performance)
 	int32 ExportBatchSize;
 
+	/**
+	 * Enabling this will allocate larger portion of the available point budget to the viewport with focus.
+	 * May improve asset editing experience, if the scenes are busy.
+	 * Disable, if you are experiencing visual glitches.
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Performance)
+	bool bPrioritizeActiveViewport;
+
+	/**
+	 * Enabling this will compress data when saving the assets.
+	 * May introduce delay when streaming points on slower machines.
+	 */
+	UPROPERTY(config, EditAnywhere, Category=IO)
+	bool bUseCompression;
+
 	/** Affects the size of per-thread data for the meshing algorithm. */
 	UPROPERTY(config, EditAnywhere, Category=Collision)
 	int32 MeshingBatchSize;
