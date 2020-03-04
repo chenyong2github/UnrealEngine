@@ -83,6 +83,11 @@ FSoundFieldDecoder::FSoundFieldDecoder()
 
 void FSoundFieldDecoder::DecodeAudioDirectlyToDeviceOutputPositions(const FAmbisonicsSoundfieldBuffer& InputData, const FSoundfieldSpeakerPositionalData& OutputPositions, Audio::AlignedFloatBuffer& OutputData)
 {
+	if (InputData.NumChannels == 0 || InputData.AudioBuffer.Num() == 0)
+	{
+		FMemory::Memzero(OutputData.GetData(), OutputData.Num() * sizeof(float));
+		return;
+	}
 
 	constexpr const float DEG_2_RAD = PI / 180.0f;
 
@@ -278,6 +283,7 @@ void FSoundFieldDecoder::DecodeAudioToSevenOneAndDownmixToDevice(const FAmbisoni
 {
 	if (InputData.NumChannels == 0 || InputData.AudioBuffer.Num() == 0)
 	{
+		FMemory::Memzero(OutputData.GetData(), OutputData.Num() * sizeof(float));
 		return;
 	}
 
@@ -323,7 +329,8 @@ void FSoundFieldDecoder::DecodeAudioToSevenOneAndDownmixToDevice(const FAmbisoni
 	check(NumVirtualChannels == 9); // if this has changed, it breaks our assumptions for fast gain indexing
 
 	// get listener orientation in spherical coordinates
-	FVector2D ListenerRotationSphericalCoord = OutputPositions.Rotation.Vector().UnitCartesianToSpherical();
+	FQuat RelativeRotation = OutputPositions.Rotation * InputData.Rotation.Inverse();
+	FVector2D ListenerRotationSphericalCoord = RelativeRotation.Vector().UnitCartesianToSpherical();
 	FSphericalHarmonicCalculator::AdjustUESphericalCoordinatesForAmbisonics(ListenerRotationSphericalCoord);
 
 	// Set up output buffer for virtual speaker positions
@@ -338,7 +345,7 @@ void FSoundFieldDecoder::DecodeAudioToSevenOneAndDownmixToDevice(const FAmbisoni
 	{
 		CurrentSpeakerGains = TargetSpeakerGains;
 		TargetSpeakerGains = FoaVirtualSpeakerWordLockedGains;
-		FVector ListenerRot = OutputPositions.Rotation.Euler();
+		FVector ListenerRot = RelativeRotation.Euler();
 		FoaRotationInPlace(TargetSpeakerGains, ListenerRot.X, -ListenerRot.Y, ListenerRot.Z);
 
 		// If we just switched to this decode method (from direct to device), we need to initialize CurrentSpeakerGains size
