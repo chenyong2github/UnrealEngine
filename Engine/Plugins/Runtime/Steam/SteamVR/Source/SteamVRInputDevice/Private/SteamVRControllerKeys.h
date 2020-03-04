@@ -93,3 +93,38 @@ namespace CosmosKeys
 	const FKey Cosmos_Right_Thumbstick_Right("Cosmos_Right_Thumbstick_Right");
 }
 
+namespace InputKeys
+{
+	// Valve Index - Additional input keys not implemented in OpenXR yet
+	const FKey ValveIndex_Left_Trackpad_Up_Touch( "ValveIndex_Left_Trackpad_Up_Touch" );
+	const FKey ValveIndex_Left_Trackpad_Down_Touch( "ValveIndex_Left_Trackpad_Down_Touch" );
+	const FKey ValveIndex_Left_Trackpad_Left_Touch( "ValveIndex_Left_Trackpad_Left_Touch" );
+	const FKey ValveIndex_Left_Trackpad_Right_Touch( "ValveIndex_Left_Trackpad_Right_Touch" );
+
+	const FKey ValveIndex_Right_Trackpad_Up_Touch( "ValveIndex_Right_Trackpad_Up_Touch" );
+	const FKey ValveIndex_Right_Trackpad_Down_Touch( "ValveIndex_Right_Trackpad_Down_Touch" );
+	const FKey ValveIndex_Right_Trackpad_Left_Touch( "ValveIndex_Right_Trackpad_Left_Touch" );
+	const FKey ValveIndex_Right_Trackpad_Right_Touch( "ValveIndex_Right_Trackpad_Right_Touch" );
+
+	// HTC Vive - Additional input keys not implemented in OpenXR yet
+	const FKey Vive_Left_Trackpad_Up_Touch( "Vive_Left_Trackpad_Up_Touch" );
+	const FKey Vive_Left_Trackpad_Down_Touch( "Vive_Left_Trackpad_Down_Touch" );
+	const FKey Vive_Left_Trackpad_Left_Touch( "Vive_Left_Trackpad_Left_Touch" );
+	const FKey Vive_Left_Trackpad_Right_Touch( "Vive_Left_Trackpad_Right_Touch" );
+
+	const FKey Vive_Right_Trackpad_Up_Touch( "Vive_Right_Trackpad_Up_Touch" );
+	const FKey Vive_Right_Trackpad_Down_Touch( "Vive_Right_Trackpad_Down_Touch" );
+	const FKey Vive_Right_Trackpad_Left_Touch( "Vive_Right_Trackpad_Left_Touch" );
+	const FKey Vive_Right_Trackpad_Right_Touch( "Vive_Right_Trackpad_Right_Touch" );
+
+	// Windows Mixed Reality - Additional input keys not implemented in OpenXR yet
+	const FKey MixedReality_Left_Trackpad_Up_Touch( "MixedReality_Left_Trackpad_Up_Touch" );
+	const FKey MixedReality_Left_Trackpad_Down_Touch( "MixedReality_Left_Trackpad_Down_Touch" );
+	const FKey MixedReality_Left_Trackpad_Left_Touch( "MixedReality_Left_Trackpad_Left_Touch" );
+	const FKey MixedReality_Left_Trackpad_Right_Touch( "MixedReality_Left_Trackpad_Right_Touch" );
+
+	const FKey MixedReality_Right_Trackpad_Up_Touch( "MixedReality_Right_Trackpad_Up_Touch" );
+	const FKey MixedReality_Right_Trackpad_Down_Touch( "MixedReality_Right_Trackpad_Down_Touch" );
+	const FKey MixedReality_Right_Trackpad_Left_Touch( "MixedReality_Right_Trackpad_Left_Touch" );
+	const FKey MixedReality_Right_Trackpad_Right_Touch( "MixedReality_Right_Trackpad_Right_Touch" );
+}
