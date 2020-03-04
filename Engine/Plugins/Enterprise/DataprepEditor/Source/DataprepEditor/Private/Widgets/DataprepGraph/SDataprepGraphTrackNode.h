@@ -115,6 +115,8 @@ public:
 	/** Start editing of action asset associated to input EdGraphNode */
 	void RequestRename(const UEdGraphNode* Node);
 
+	void RequestViewportPan(const FVector2D& ScreenSpacePosition);
+
 	/** Miscellaneous values used in the display */
 	// #ueent_wip: Will be moved to the Dataprep editor's style
 	static FMargin NodePadding;
