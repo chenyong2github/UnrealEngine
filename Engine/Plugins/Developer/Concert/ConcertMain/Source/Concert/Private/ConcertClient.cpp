@@ -79,7 +79,7 @@ public:
 private:
 	FText GetAutoConnectionCanceledMessage() const
 	{
-		return FText::Format(LOCTEXT("AutoJoinSessionCanceled", "Auto-Connection to Session '{0}' Canceled."), FText::AsCultureInvariant(Settings->DefaultSessionName));
+		return FText::Format(LOCTEXT("AutoJoinSessionCanceled", "Connection to Session '{0}' Canceled."), FText::AsCultureInvariant(Settings->DefaultSessionName));
 	}
 
 	TUniquePtr<FAsyncTaskNotification> MakeAutoConnectNotification()
