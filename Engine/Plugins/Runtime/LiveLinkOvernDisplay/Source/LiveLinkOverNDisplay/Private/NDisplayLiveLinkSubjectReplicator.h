@@ -77,6 +77,12 @@ protected:
 	/** Only used on slaves, handles this frame data for a subject. If a new subject is handled, the associated VirtualSubject will be created */
 	void ProcessLiveLinkData_Slave(EFrameType FrameType, const FLiveLinkSubjectKey& SubjectKey, FLiveLinkFrameDataStruct& FrameData);
 
+	/** For slave only, remove tracked subjets, add ourself as a source  */
+	void ReInitializeVirtualSource();
+
+	/** If our source is removed (could happen if a new preset is applied), reinitialize ourself to stay awake */
+	void OnLiveLinkSourceRemoved(FGuid SourceGuid);
+
 private:
 
 	/** Cached LiveLinkClient when modular feature is registered */
