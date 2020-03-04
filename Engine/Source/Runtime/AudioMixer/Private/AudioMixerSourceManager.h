@@ -9,7 +9,6 @@
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSubmix.h"
 #include "AudioMixerBus.h"
-#include "AudioMixerDevice.h"
 #include "DSP/InterpolatedOnePole.h"
 #include "DSP/Filter.h"
 #include "DSP/InterpolatedOnePole.h"
@@ -47,6 +46,8 @@ namespace Audio
 		}
 	};
 
+	typedef TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixPtr;
+	typedef TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixWeakPtr;
 
 	class ISourceListener
 	{
@@ -252,6 +253,8 @@ namespace Audio
 		// Returned nonnull pointers are only guaranteed to be valid on the audio mixer render thread.
 		const ISoundfieldAudioPacket* GetEncodedOutput(const int32 SourceId, const FSoundfieldEncodingKey& InKey) const;
 
+		const FQuat GetListenerRotation(const int32 SourceId) const;
+
 		void SetSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& SubmixSend);
 		void SetBusSendInfo(const int32 SourceId, EBusSendType InBusSendType, FMixerBusSend& BusSend);
 
@@ -380,13 +383,20 @@ namespace Audio
 
 		struct FSourceDownmixData
 		{
+			// cached parameters for encoding to a soundfield format.
+			FSoundfieldSpeakerPositionalData PositionalData;
+			FQuat SourceRotation;
+
 			// Output data, after computing a block of sample data, this is read back from mixers
 			Audio::AlignedFloatBuffer ReverbPluginOutputBuffer;
 			Audio::AlignedFloatBuffer* PostEffectBuffers;
 
-			// Data needed for outputting to submixes for each channel configuration.
+			// Data needed for outputting to submixes for the default channel configuration for the output device.
 			FSubmixChannelData DeviceSubmixInfo;
-			
+
+			// Whether this source's output is being sent to a device submix (i.e. a USoundSubmix).
+			bool bIsSourceBeingSentToDeviceSubmix;
+
 			TMap<FSoundfieldEncodingKey, FSubmixSoundfieldData> EncodedSoundfieldDownmixes;
 			TArray<Audio::FChannelPositionInfo> InputChannelPositions;
 
@@ -395,19 +405,18 @@ namespace Audio
 			uint32 NumDeviceChannels;
 			uint8 bIsInitialDownmix : 1;
 
-			// cached parameters for encoding to a soundfield format.
-			FSoundfieldSpeakerPositionalData PositionalData;
-
 			// If this source is an ambisonics source, we use this to downmix the source to our output.
 			TUniquePtr<ISoundfieldDecoderStream> AmbisonicsDecoder;
 
 			FSourceDownmixData(uint32 SourceNumChannels, uint32 NumDeviceOutputChannels, uint32 InNumFrames)
-				: PostEffectBuffers(nullptr)
+				: SourceRotation(FQuat::Identity)
+				, PostEffectBuffers(nullptr)
 				, DeviceSubmixInfo(FSubmixChannelData(SourceNumChannels, NumDeviceOutputChannels, InNumFrames))
+				, bIsSourceBeingSentToDeviceSubmix(false)
 				, NumInputChannels(SourceNumChannels)
 				, NumFrames(InNumFrames)
 				, NumDeviceChannels(NumDeviceOutputChannels)
-				, bIsInitialDownmix(true)
+				, bIsInitialDownmix(true) 
 			{
 			}
 
@@ -419,6 +428,7 @@ namespace Audio
 
 			void ResetData(const uint32 InNumInputChannels, int32 InNumDeviceChannels)
 			{
+				bIsSourceBeingSentToDeviceSubmix = false;
 				NumDeviceChannels = InNumDeviceChannels;
 				NumInputChannels = InNumInputChannels;
 				PostEffectBuffers = nullptr;
@@ -427,6 +437,8 @@ namespace Audio
 				EncodedSoundfieldDownmixes.Reset();
 				AmbisonicsDecoder.Reset();
 				bIsInitialDownmix = true;
+
+				PositionalData.Rotation = FQuat::Identity;
 			}
 		};
 

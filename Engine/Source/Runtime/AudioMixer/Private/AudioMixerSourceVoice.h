@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "AudioMixerDevice.h"
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSourceManager.h"
 
@@ -100,6 +99,9 @@ namespace Audio
 
 		// For soundfield conversions, get the encoded audio.
 		const ISoundfieldAudioPacket* GetEncodedOutput(const FSoundfieldEncodingKey& InKey) const;
+
+		// This will return the listener rotation used for this source voice.
+		const FQuat GetListenerRotationForVoice() const;
 
 		// Sets the submix send levels
 		void SetSubmixSendInfo(FMixerSubmixWeakPtr Submix, const float SendLevel);

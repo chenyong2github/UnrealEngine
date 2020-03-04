@@ -651,6 +651,7 @@ namespace Audio
 			SourceInfo.bUseHRTFSpatializer = InitParams.bUseHRTFSpatialization;
 			SourceInfo.bIsExternalSend = InitParams.bIsExternalSend;
 			SourceInfo.bIsVorbis = InitParams.bIsVorbis;
+			SourceInfo.bIsAmbisonics = InitParams.bIsAmbisonics;
 			SourceInfo.AudioComponentID = InitParams.AudioComponentID;
 			SourceInfo.bIsAmbisonics = InitParams.bIsAmbisonics;
 
@@ -844,7 +845,8 @@ namespace Audio
 					}
 					else
 					{
-						FSubmixChannelData& SubmixChannelInfo = GetChannelInfoForDevice(DownmixData);
+						// Flag this source as needing to downmix its audio.
+						DownmixData.bIsSourceBeingSentToDeviceSubmix = true;
 					}
 				}
 			}
@@ -1745,7 +1747,8 @@ namespace Audio
 			FAmbisonicsSoundfieldBuffer AmbiBuffer;
 			AmbiBuffer.AudioBuffer = MoveTemp(*DownmixData.PostEffectBuffers);
 			AmbiBuffer.NumChannels = DownmixData.NumInputChannels;
-			AmbiBuffer.Rotation = DownmixData.PositionalData.Rotation;
+			AmbiBuffer.PreviousRotation = AmbiBuffer.Rotation;
+			AmbiBuffer.Rotation = DownmixData.SourceRotation;
 
 			DownmixData.PositionalData.NumChannels = DownmixData.NumDeviceChannels;
 			DownmixData.PositionalData.ChannelPositions = MixerDevice->GetDefaultPositionMap(DownmixData.NumDeviceChannels);
@@ -1819,7 +1822,8 @@ namespace Audio
 			FAmbisonicsSoundfieldBuffer AmbiBuffer;
 			AmbiBuffer.AudioBuffer = MoveTemp(*DownmixData.PostEffectBuffers);
 			AmbiBuffer.NumChannels = DownmixData.NumInputChannels;
-			AmbiBuffer.Rotation = DownmixData.PositionalData.Rotation;
+			AmbiBuffer.PreviousRotation = AmbiBuffer.Rotation;
+			AmbiBuffer.Rotation = DownmixData.SourceRotation;
 
 			DownmixData.PositionalData.NumChannels = DownmixData.NumDeviceChannels;
 			DownmixData.PositionalData.ChannelPositions = MixerDevice->GetDefaultPositionMap(DownmixData.NumDeviceChannels);
@@ -1889,7 +1893,6 @@ namespace Audio
 
 		// First, build our SoundfieldSpeakerPositionalData out of our SpatializationParams.
 		DownmixData.PositionalData.NumChannels = DownmixData.NumInputChannels;
-		DownmixData.PositionalData.Rotation = InSource.SpatParams.EmitterWorldRotation;
 		
 		// Build our input channel positions from the Spatialization params if this is a 3D source, otherwise use the default channel positions.
 		DownmixData.InputChannelPositions.Reset();
@@ -1942,12 +1945,15 @@ namespace Audio
 
 			SoundfieldData.EncodedPacket->Reset();
 
-			// If this is an ambisonics source, transcode it. Otherwise, encode the source.
+			// If this is an ambisonics source, transcode it, or if this is going to an ambisonics submix, simply forward the buffer. Otherwise, encode the source 
+			// to whatever soundfield format the destination submix is.
 			if (SoundfieldData.AmbiTranscoder)
 			{
 				FAmbisonicsSoundfieldBuffer AmbiBuffer;
 				AmbiBuffer.AudioBuffer = MoveTemp(*DownmixData.PostEffectBuffers);
 				AmbiBuffer.NumChannels = DownmixData.NumInputChannels;
+				AmbiBuffer.PreviousRotation = AmbiBuffer.Rotation;
+				AmbiBuffer.Rotation = DownmixData.SourceRotation;
 
 				SoundfieldData.AmbiTranscoder->Transcode(AmbiBuffer, GetAmbisonicsSourceDefaultSettings(), *SoundfieldData.EncodedPacket, *SoundfieldData.EncoderSettings);
 				*DownmixData.PostEffectBuffers = MoveTemp(AmbiBuffer.AudioBuffer);
@@ -1966,10 +1972,14 @@ namespace Audio
 			}
 			else if (SoundfieldData.bIsUnrealAmbisonicsSubmix)
 			{
+				ensure(InSource.bIsAmbisonics);
+
 				FAmbisonicsSoundfieldBuffer& OutputPacket = DowncastSoundfieldRef<FAmbisonicsSoundfieldBuffer>(*SoundfieldData.EncodedPacket);
-				// Fixme: This is an array copy. Can we serve DownmixData.PostEffectBuffers directly to this soundfield?
+				// Fixme: This is an array copy. Can we serve DownmixData.PostEffectBuffers directly to this soundfield, then return it back at the end of the render loop?
 				OutputPacket.AudioBuffer = *DownmixData.PostEffectBuffers;
 				OutputPacket.NumChannels = DownmixData.NumInputChannels;
+				OutputPacket.PreviousRotation = OutputPacket.Rotation;
+				OutputPacket.Rotation = DownmixData.SourceRotation;
 			}
 		}
 	}
@@ -2241,15 +2251,20 @@ namespace Audio
 			}
 
 			DownmixData.PositionalData.Rotation = SourceInfo.SpatParams.ListenerOrientation;
+			DownmixData.SourceRotation = SourceInfo.SpatParams.EmitterWorldRotation;
 
-			if (SourceInfo.bIs3D && !DownmixData.bIsInitialDownmix)
+			// If we are sending audio to a non-soundfield submix, we downmix audio to the device configuration here.
+			if (DownmixData.bIsSourceBeingSentToDeviceSubmix)
 			{
-				ComputeDownmix3D(DownmixData, MixerDevice);
-			}
-			else
-			{
-				ComputeDownmix2D(DownmixData, MixerDevice);
-				DownmixData.bIsInitialDownmix = false;
+				if (SourceInfo.bIs3D && !DownmixData.bIsInitialDownmix)
+				{
+					ComputeDownmix3D(DownmixData, MixerDevice);
+				}
+				else
+				{
+					ComputeDownmix2D(DownmixData, MixerDevice);
+					DownmixData.bIsInitialDownmix = false;
+				}
 			}
 
 			if (DownmixData.EncodedSoundfieldDownmixes.Num())
@@ -2308,11 +2323,11 @@ namespace Audio
 		if (SendLevel > 0.0f)
 		{
 			const FSourceInfo& SourceInfo = SourceInfos[SourceId];
+			const FSourceDownmixData& DownmixData = DownmixDataArray[SourceId];
 
 			// Don't need to mix into submixes if the source is paused
-			if (!SourceInfo.bIsPaused && !SourceInfo.bIsDone && SourceInfo.bIsPlaying)
+			if (!SourceInfo.bIsPaused && !SourceInfo.bIsDone && SourceInfo.bIsPlaying && DownmixData.bIsSourceBeingSentToDeviceSubmix)
 			{
-				const FSourceDownmixData& DownmixData = DownmixDataArray[SourceId];
 				const FSubmixChannelData& ChannelInfo = GetChannelInfoForDevice(DownmixData);
 
 				const float* RESTRICT SourceOutputBufferPtr = ChannelInfo.OutputBuffer.GetData();
@@ -2343,6 +2358,12 @@ namespace Audio
 		}
 
 		return nullptr;
+	}
+
+	const FQuat FMixerSourceManager::GetListenerRotation(const int32 SourceId) const
+	{
+		const FSourceDownmixData& DownmixData = DownmixDataArray[SourceId];
+		return DownmixData.PositionalData.Rotation;
 	}
 
 	void FMixerSourceManager::UpdateDeviceChannelCount(const int32 InNumOutputChannels)
