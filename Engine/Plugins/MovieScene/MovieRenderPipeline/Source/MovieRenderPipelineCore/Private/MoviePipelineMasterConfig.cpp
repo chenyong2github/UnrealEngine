@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+ // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePipelineMasterConfig.h"
 #include "MovieScene.h"
@@ -164,6 +164,28 @@ FFrameRate UMoviePipelineMasterConfig::GetEffectiveFrameRate(const ULevelSequenc
 	}
 
 	return FFrameRate();
+}
+
+
+TRange<FFrameNumber> UMoviePipelineMasterConfig::GetEffectivePlaybackRange(const ULevelSequence* InSequence) const
+{
+	UMoviePipelineOutputSetting* OutputSettings = FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSettings);
+	check(InSequence);
+
+	// Check to see if they overrode the frame rate.
+	if (OutputSettings->bUseCustomPlaybackRange)
+	{
+		// Convert the custom playback range from frames to ticks.
+		FFrameNumber StartTick = FFrameRate::TransformTime(FFrameTime(FFrameNumber(OutputSettings->CustomStartFrame)), InSequence->GetMovieScene()->GetDisplayRate(), InSequence->GetMovieScene()->GetTickResolution()).FloorToFrame();
+		FFrameNumber EndTick = FFrameRate::TransformTime(FFrameTime(FFrameNumber(OutputSettings->CustomEndFrame)), InSequence->GetMovieScene()->GetDisplayRate(), InSequence->GetMovieScene()->GetTickResolution()).FloorToFrame();
+
+		// [Inclusive, Exclusive)
+		return TRange<FFrameNumber>(StartTick, EndTick);
+	}
+
+	// Pull it from the sequence if they didn't.
+	return InSequence->GetMovieScene()->GetPlaybackRange();
 }
 
 

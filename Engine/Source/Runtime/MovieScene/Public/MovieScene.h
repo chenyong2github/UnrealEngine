@@ -584,7 +584,7 @@ public:
 	UMovieSceneTrack* AddCameraCutTrack( TSubclassOf<UMovieSceneTrack> TrackClass );
 	
 	/** @return The camera cut track if it exists. */
-	UMovieSceneTrack* GetCameraCutTrack();
+	UMovieSceneTrack* GetCameraCutTrack() const;
 
 	/** Removes the camera cut track if it exists. */
 	void RemoveCameraCutTrack();

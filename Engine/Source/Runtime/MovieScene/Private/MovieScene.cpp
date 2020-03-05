@@ -904,7 +904,7 @@ UMovieSceneTrack* UMovieScene::AddCameraCutTrack( TSubclassOf<UMovieSceneTrack> 
 }
 
 
-UMovieSceneTrack* UMovieScene::GetCameraCutTrack()
+UMovieSceneTrack* UMovieScene::GetCameraCutTrack() const
 {
 	return CameraCutTrack;
 }
