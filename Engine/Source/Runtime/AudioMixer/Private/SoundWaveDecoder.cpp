@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundWaveDecoder.h"
+#include "Engine/Public/AudioThread.h"
+#include "Misc/ScopeTryLock.h"
 #include "AudioThread.h"
 #include "AudioDecompress.h"
 #include "AudioMixer.h"
@@ -26,6 +28,8 @@ namespace Audio
 
 	FDecodingSoundSource::~FDecodingSoundSource()
 	{
+		FScopeLock Lock(&DtorCritSec);
+
 		if (MixerSourceBuffer.IsValid())
 		{
 			MixerSourceBuffer->OnEndGenerate();
@@ -152,6 +156,15 @@ namespace Audio
 
 	void FDecodingSoundSource::ReadFrame()
 	{
+		if (!MixerSourceBuffer.IsValid() || !SourceInfo.CurrentPCMBuffer.IsValid())
+		{
+			SourceInfo.bIsLastBuffer = true;
+			return;
+		}
+
+		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe>MixerSourceBufferLocal = MixerSourceBuffer;
+		TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe>CurrentPCMBufferLocal = SourceInfo.CurrentPCMBuffer;
+
 		bool bNextFrameOutOfRange = (SourceInfo.CurrentFrameIndex + 1) >= SourceInfo.CurrentAudioChunkNumFrames;
 		bool bCurrentFrameOutOfRange = SourceInfo.CurrentFrameIndex >= SourceInfo.CurrentAudioChunkNumFrames;
 
@@ -163,30 +176,41 @@ namespace Audio
 			{
 				bReadCurrentFrame = false;
 
-				const float* AudioData = SourceInfo.CurrentPCMBuffer->AudioData.GetData();
+				const float* AudioData = CurrentPCMBufferLocal->AudioData.GetData();
+
+				if (!AudioData)
+				{
+					SourceInfo.bIsLastBuffer = true;
+					return;
+				}
+
 				const int32 CurrentSampleIndex = SourceInfo.CurrentFrameIndex * SourceInfo.NumSourceChannels;
 
 				for (int32 Channel = 0; Channel < SourceInfo.NumSourceChannels; ++Channel)
 				{
 					SourceInfo.CurrentFrameValues[Channel] = AudioData[CurrentSampleIndex + Channel];
 				}
-			}
 
-			if (SourceInfo.CurrentPCMBuffer.IsValid())
-			{
-				if (SourceInfo.CurrentPCMBuffer->LoopCount == Audio::LOOP_FOREVER && !SourceInfo.CurrentPCMBuffer->bRealTimeBuffer)
+				if (CurrentPCMBufferLocal->LoopCount == Audio::LOOP_FOREVER && !CurrentPCMBufferLocal->bRealTimeBuffer)
 				{
 					SourceInfo.CurrentFrameIndex = FMath::Max(SourceInfo.CurrentFrameIndex - SourceInfo.CurrentAudioChunkNumFrames, 0);
 					break;
 				}
 
-				MixerSourceBuffer->OnBufferEnd();
+				MixerSourceBufferLocal->OnBufferEnd();
 			}
 
-			if (MixerSourceBuffer->GetNumBuffersQueued() > 0)
+			if (MixerSourceBufferLocal->GetNumBuffersQueued() > 0 && (SourceInfo.NumSourceChannels > 0))
 			{
-				SourceInfo.CurrentPCMBuffer = MixerSourceBuffer->GetNextBuffer();
-				SourceInfo.CurrentAudioChunkNumFrames = SourceInfo.CurrentPCMBuffer->AudioData.Num() / SourceInfo.NumSourceChannels;
+				check(MixerSourceBufferLocal.IsValid());
+				CurrentPCMBufferLocal = MixerSourceBufferLocal->GetNextBuffer();
+				if (!CurrentPCMBufferLocal)
+				{
+					SourceInfo.bIsLastBuffer = true;
+					return;
+				}
+
+				SourceInfo.CurrentAudioChunkNumFrames = CurrentPCMBufferLocal->AudioData.Num() / SourceInfo.NumSourceChannels;
 
 				if (bReadCurrentFrame)
 				{
@@ -199,6 +223,7 @@ namespace Audio
 			}
 			else
 			{
+				SourceInfo.bIsLastBuffer = true;
 				return;
 			}
 
@@ -206,26 +231,30 @@ namespace Audio
 			bCurrentFrameOutOfRange = SourceInfo.CurrentFrameIndex >= SourceInfo.CurrentAudioChunkNumFrames;
 		}
 
-		if (SourceInfo.CurrentPCMBuffer.IsValid())
-		{
-			const float* AudioData = SourceInfo.CurrentPCMBuffer->AudioData.GetData();
-			const int32 NextSampleIndex = (SourceInfo.CurrentFrameIndex + 1)  * SourceInfo.NumSourceChannels;
+		const float* AudioData = CurrentPCMBufferLocal->AudioData.GetData();
 
-			if (bReadCurrentFrame)
+		if (!AudioData)
+		{
+			SourceInfo.bIsLastBuffer = true;
+			return;
+		}
+
+		const int32 NextSampleIndex = (SourceInfo.CurrentFrameIndex + 1)  * SourceInfo.NumSourceChannels;
+
+		if (bReadCurrentFrame)
+		{
+			const int32 CurrentSampleIndex = SourceInfo.CurrentFrameIndex * SourceInfo.NumSourceChannels;
+			for (int32 Channel = 0; Channel < SourceInfo.NumSourceChannels; ++Channel)
 			{
-				const int32 CurrentSampleIndex = SourceInfo.CurrentFrameIndex * SourceInfo.NumSourceChannels;
-				for (int32 Channel = 0; Channel < SourceInfo.NumSourceChannels; ++Channel)
-				{
-					SourceInfo.CurrentFrameValues[Channel] = AudioData[CurrentSampleIndex + Channel];
-					SourceInfo.NextFrameValues[Channel] = AudioData[NextSampleIndex + Channel];
-				}
+				SourceInfo.CurrentFrameValues[Channel] = AudioData[CurrentSampleIndex + Channel];
+				SourceInfo.NextFrameValues[Channel] = AudioData[NextSampleIndex + Channel];
 			}
-			else
+		}
+		else
+		{
+			for (int32 Channel = 0; Channel < SourceInfo.NumSourceChannels; ++Channel)
 			{
-				for (int32 Channel = 0; Channel < SourceInfo.NumSourceChannels; ++Channel)
-				{
-					SourceInfo.NextFrameValues[Channel] = AudioData[NextSampleIndex + Channel];
-				}
+				SourceInfo.NextFrameValues[Channel] = AudioData[NextSampleIndex + Channel];
 			}
 		}
 	}
@@ -266,10 +295,23 @@ namespace Audio
 				SourceInfo.CurrentFrameAlpha -= 1.0f;
 			}
 
+
+			if (!SourceInfo.CurrentPCMBuffer.IsValid() || !MixerSourceBuffer.IsValid())
+			{
+				bReadFrame = false;
+				SourceInfo.bIsLastBuffer = true;
+				break;
+			}
+
 			if (bReadFrame)
 			{
 				ReadFrame();
+				if (SourceInfo.bIsLastBuffer)
+				{
+					break;
+				}
 			}
+
 
 			const float CurrentVolumeScale = SourceInfo.VolumeParam.Update();
 
@@ -303,7 +345,9 @@ namespace Audio
 
 	bool FDecodingSoundSource::GetAudioBuffer(const int32 InNumFrames, const int32 InNumChannels, AlignedFloatBuffer& OutAudioBuffer)
 	{
-		if (!bInitialized)
+		FScopeTryLock Lock(&DtorCritSec);
+
+		if (!bInitialized || !Lock.IsLocked())
 		{
 			return false;
 		}
@@ -357,7 +401,6 @@ namespace Audio
 						BufferPtr[OutputSampleIndex++] = 0.5f * (ScratchBufferPtr[InputSampleIndex] + ScratchBufferPtr[InputSampleIndex + 1]);
 					}
 				}
-
 			}
 		}
 
