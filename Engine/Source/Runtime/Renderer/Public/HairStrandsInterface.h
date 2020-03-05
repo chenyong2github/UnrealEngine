@@ -93,6 +93,7 @@ public:
 		float HairRadius = 0;
 		float HairLength = 0;
 		float HairDensity = 0;
+		bool bUseStableRasterization = false;
 		FTransform LocalToWorldTransform;
 	};
 	VertexFactoryInput VFInput;
