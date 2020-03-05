@@ -699,6 +699,7 @@ void UMeshPaintMode::UpdateCachedVertexDataSize()
 			}
 		}
 	}
+	bRecacheVertexDataSize = false;
 }
 
 

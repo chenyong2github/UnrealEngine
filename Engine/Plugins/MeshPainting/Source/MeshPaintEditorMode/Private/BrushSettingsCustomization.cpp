@@ -26,6 +26,7 @@
 #include "MeshPaintMode.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "MeshPaintModeHelpers.h"
+#include "MeshTexturePaintingTool.h"
 
 #define LOCTEXT_NAMESPACE "MeshPaintCustomization"
 
@@ -326,9 +327,6 @@ void FWeightPaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 {
 	FVertexPaintingSettingsCustomization::CustomizeDetails(DetailLayout);
 
-	TMap<FName, TSharedRef<IPropertyHandle>> CustomizedProperties;
-	TMap<FName, TSharedRef<IPropertyHandle>> Properties;
-
 	TSharedRef<IPropertyHandle> WeightTypeProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshWeightPaintingToolProperties, TextureWeightType));
 	TSharedRef<IPropertyHandle> PaintWeightProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshWeightPaintingToolProperties, PaintTextureWeightIndex));
 	TSharedRef<IPropertyHandle> EraseWeightProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshWeightPaintingToolProperties, EraseTextureWeightIndex));
@@ -379,6 +377,41 @@ TSharedRef<IDetailCustomization> FTexturePaintingSettingsCustomization::MakeInst
 void FTexturePaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	IDetailCategoryBuilder& BrushCategory = DetailLayout.EditCategory(TEXT("Brush"), FText::GetEmpty(), ECategoryPriority::Important);
+	TSharedRef<IPropertyHandle> UVChannel = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTexturePaintingToolProperties, UVChannel));
+	UVChannel->MarkHiddenByCustomization();
+	IDetailCategoryBuilder& ColorCategory = DetailLayout.EditCategory(TEXT("TexturePainting"));
+	ColorCategory.AddCustomRow(LOCTEXT("TexturePaintingUVLabel", "Texture Painting UV Channel"))
+		.NameContent()
+		[
+			UVChannel->CreatePropertyNameWidget()
+		]
+	.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+		[
+			SNew(SNumericEntryBox<int32>)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.AllowSpin(true)
+			.Value_Lambda([]() -> int32 { return UMeshPaintMode::GetTextureToolProperties() ? UMeshPaintMode::GetTextureToolProperties()->UVChannel : 0; })
+			.MinValue(0)
+			.MaxValue_Lambda([]() -> int32 { return Cast<UMeshToolManager>(UMeshPaintMode::GetMeshPaintMode()->GetToolManager())->GetMaxUVIndexToPaint(); })
+			.OnValueChanged(SNumericEntryBox<int32>::FOnValueChanged::CreateLambda([=](int32 Value) { 
+				if (UMeshPaintMode::GetTextureToolProperties())
+				{
+					UMeshPaintMode::GetTextureToolProperties()->UVChannel = Value;
+				}
+				}))
+			.OnValueCommitted(SNumericEntryBox<int32>::FOnValueCommitted::CreateLambda([](int32 Value, ETextCommit::Type CommitType) {
+					if (UMeshPaintMode::GetTextureToolProperties())
+					{
+						UMeshPaintMode::GetTextureToolProperties()->UVChannel = Value;
+					}
+				}))
+			]
+		];
+
 }
 
 #undef LOCTEXT_NAMESPACE

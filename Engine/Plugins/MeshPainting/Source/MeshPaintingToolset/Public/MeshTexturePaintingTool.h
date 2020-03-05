@@ -46,27 +46,27 @@ class MESHPAINTINGTOOLSET_API UMeshTexturePaintingToolProperties : public UBrush
 public:
 	UMeshTexturePaintingToolProperties();
 
-	/** Color used for Applying Vertex Color Painting */
-	UPROPERTY(EditAnywhere, Category = VertexPainting)
+	/** Color used for Applying Texture Color Painting */
+	UPROPERTY(EditAnywhere, Category = TexturePainting)
 	FLinearColor PaintColor;
 
-	/** Color used for Erasing Vertex Color Painting */
-	UPROPERTY(EditAnywhere, Category = VertexPainting)
+	/** Color used for Erasing Texture Color Painting */
+	UPROPERTY(EditAnywhere, Category = TexturePainting)
 	FLinearColor EraseColor;
 
-	/** Whether or not to apply Vertex Color Painting to the Red Channel */
+	/** Whether or not to apply Texture Color Painting to the Red Channel */
 	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (DisplayName = "Red"))
 	bool bWriteRed;
 
-	/** Whether or not to apply Vertex Color Painting to the Green Channel */
+	/** Whether or not to apply Texture Color Painting to the Green Channel */
 	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (DisplayName = "Green"))
 	bool bWriteGreen;
 
-	/** Whether or not to apply Vertex Color Painting to the Blue Channel */
+	/** Whether or not to apply Texture Color Painting to the Blue Channel */
 	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (DisplayName = "Blue"))
 	bool bWriteBlue;
 
-	/** Whether or not to apply Vertex Color Painting to the Alpha Channel */
+	/** Whether or not to apply Texture Color Painting to the Alpha Channel */
 	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (DisplayName = "Alpha"))
 	bool bWriteAlpha;
 
@@ -164,6 +164,10 @@ private:
 private:
 	UPROPERTY(Transient)
 	UMeshTexturePaintingToolProperties* TextureProperties;
+
+	UPROPERTY(Transient)
+	TArray<const UTexture*> Textures;
+
 	/** Flag for whether or not we are currently painting */
 	bool bArePainting;
 	bool bDoRestoreRenTargets;
@@ -180,24 +184,30 @@ private:
 	TMap<UMeshComponent*, FInstanceTexturePaintSettings> ComponentToTexturePaintSettingsMap;
 
 	/** Temporary render target used to draw incremental paint to */
+	UPROPERTY(Transient)
 	UTextureRenderTarget2D* BrushRenderTargetTexture;
 
 	/** Temporary render target used to store a mask of the affected paint region, updated every time we add incremental texture paint */
+	UPROPERTY(Transient)
 	UTextureRenderTarget2D* BrushMaskRenderTargetTexture;
 
 	/** Temporary render target used to store generated mask for texture seams, we create this by projecting object triangles into texture space using the selected UV channel */
+	UPROPERTY(Transient)
 	UTextureRenderTarget2D* SeamMaskRenderTargetTexture;
 
 	/** Stores data associated with our paint target textures */
+	UPROPERTY(Transient)
 	TMap< UTexture2D*, FPaintTexture2DData > PaintTargetData;
 
 	/** Texture paint: Will hold a list of texture items that we can paint on */
 	TArray<FTextureTargetListInfo> TexturePaintTargetList;
 
 	/** Texture paint: The mesh components that we're currently painting */
+	UPROPERTY(Transient)
 	UMeshComponent* TexturePaintingCurrentMeshComponent;
 
 	/** The original texture that we're painting */
+	UPROPERTY(Transient)
 	UTexture2D* PaintingTexture2D;
 
 	/** True if we need to generate a texture seam mask used for texture dilation */

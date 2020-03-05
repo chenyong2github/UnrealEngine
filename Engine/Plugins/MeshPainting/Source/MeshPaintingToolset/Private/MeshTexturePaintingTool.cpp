@@ -61,21 +61,21 @@ UMeshTexturePaintingToolProperties::UMeshTexturePaintingToolProperties()
 void UMeshTexturePaintingToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
 {
 	UBrushBaseProperties::SaveProperties(SaveFromTool);
-// 	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
-// 	PropertyCache->PaintColor = this->PaintColor;
-// 	PropertyCache->EraseColor = this->EraseColor;
-// 	PropertyCache->bEnableFlow = this->bEnableFlow;
-// 	PropertyCache->bOnlyFrontFacingTriangles = this->bOnlyFrontFacingTriangles;
+	UMeshTexturePaintingToolProperties* PropertyCache = GetPropertyCache<UMeshTexturePaintingToolProperties>();
+	PropertyCache->PaintColor = this->PaintColor;
+	PropertyCache->EraseColor = this->EraseColor;
+	PropertyCache->bEnableFlow = this->bEnableFlow;
+	PropertyCache->bOnlyFrontFacingTriangles = this->bOnlyFrontFacingTriangles;
 }
 
 void UMeshTexturePaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
 {
 	UBrushBaseProperties::RestoreProperties(RestoreToTool);
-// 	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
-// 	this->PaintColor = PropertyCache->PaintColor;
-// 	this->EraseColor = PropertyCache->EraseColor;
-// 	this->bEnableFlow = PropertyCache->bEnableFlow;
-// 	this->bOnlyFrontFacingTriangles = PropertyCache->bOnlyFrontFacingTriangles;
+	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
+	this->PaintColor = PropertyCache->PaintColor;
+	this->EraseColor = PropertyCache->EraseColor;
+	this->bEnableFlow = PropertyCache->bEnableFlow;
+	this->bOnlyFrontFacingTriangles = PropertyCache->bOnlyFrontFacingTriangles;
 }
 
 UMeshTexturePaintingTool::UMeshTexturePaintingTool()
@@ -122,7 +122,6 @@ void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		static const FLinearColor NormalLineColor(0.3f, 1.0f, 0.3f);
 		const FLinearColor BrushCueColor = (bArePainting ? FLinearColor(1.0f, 1.0f, 0.3f) : FLinearColor(0.3f, 1.0f, 0.3f));
  		const FLinearColor InnerBrushCueColor = (bArePainting ? FLinearColor(0.5f, 0.5f, 0.1f) : FLinearColor(0.1f, 0.5f, 0.1f));
-		//const float PointDrawSize = VertexProperties->VertexPreviewSize;
 		// Draw trace surface normal
 		const FVector NormalLineEnd(LastBestHitResult.Location + LastBestHitResult.Normal * NormalLineSize);
 		Draw.DrawLine(FVector(LastBestHitResult.Location), NormalLineEnd, NormalLineColor, WidgetLineThickness);
@@ -131,7 +130,7 @@ void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		{
 			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
 
-			if (MeshAdapter->IsValid() /*&& bRenderVertices*/ && MeshAdapter->SupportsVertexPaint())
+			if (MeshAdapter->IsValid() && MeshAdapter->SupportsVertexPaint())
 			{
 				const FMatrix ComponentToWorldMatrix = MeshAdapter->GetComponentToWorldMatrix();
 				FViewCameraState CameraState;
@@ -142,19 +141,6 @@ void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 				// @todo MeshPaint: Input vector doesn't work well with non-uniform scale
 				const float ComponentSpaceBrushRadius = ComponentToWorldMatrix.InverseTransformVector(FVector(BrushProperties->BrushRadius, 0.0f, 0.0f)).Size();
 				const float ComponentSpaceSquaredBrushRadius = ComponentSpaceBrushRadius * ComponentSpaceBrushRadius;
-
-			//	const TArray<FVector>& InRangeVertices = MeshAdapter->SphereIntersectVertices(ComponentSpaceSquaredBrushRadius, ComponentSpaceBrushPosition, ComponentSpaceCameraPosition, VertexProperties->bOnlyFrontFacingTriangles);
-
-// 				for (const FVector& Vertex : InRangeVertices)
-// 				{
-// 					const FVector WorldPositionVertex = ComponentToWorldMatrix.TransformPosition(Vertex);
-// 					if ((LastBestHitResult.Location - WorldPositionVertex).Size() <= BrushProperties->BrushRadius)
-// 					{
-// 						const float VisualBiasDistance = 0.15f;
-// 						const FVector VertexVisualPosition = WorldPositionVertex + LastBestHitResult.Normal * VisualBiasDistance;
-// 						Draw.DrawPoint(VertexVisualPosition, HoverVertexPointColor, PointDrawSize, SDPG_World);
-// 					}
-// 				}
 			}
 		}
 		Draw.EndFrame();
@@ -183,10 +169,10 @@ void UMeshTexturePaintingTool::Tick(float DeltaTime)
 		bStampPending = false;
 
 		// flow
-// 		if (bInDrag && VertexProperties && VertexProperties->bEnableFlow)
-// 		{
-// 			bStampPending = true;
-// 		}
+		if (bInDrag && TextureProperties && TextureProperties->bEnableFlow)
+		{
+			bStampPending = true;
+		}
 	}
 }
 
@@ -231,7 +217,7 @@ void UMeshTexturePaintingTool::CacheSelectionData()
 		MeshToolManager->ClearPaintableMeshComponents();
 
 		//Determine LOD level to use for painting(can only paint on LODs in vertex mode)
-		const int32 PaintLODIndex = 0;//ColorProperties->bPaintOnSpecificLOD ? ColorProperties->LODIndex : 0;
+		const int32 PaintLODIndex = 0;
 		//Determine UV channel to use while painting textures
 		const int32 UVChannel = 0;
 
@@ -386,7 +372,7 @@ bool UMeshTexturePaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVe
 
 			if (MeshAdapter->SupportsTexturePaint())
 			{
-				TArray<const UTexture*> Textures;
+				Textures.Empty();
 				const UTexture2D* TargetTexture2D = TextureProperties->PaintTexture;
 				if (TargetTexture2D)
 				{
