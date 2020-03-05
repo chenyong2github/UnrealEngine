@@ -122,7 +122,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of platforms supported by this plugin. This list will be copied to any plugin reference from a project file, to allow filtering entire plugins from staged builds.
 		/// </summary>
-		public UnrealTargetPlatform[] SupportedTargetPlatforms;
+		public List<UnrealTargetPlatform> SupportedTargetPlatforms;
 
 		/// <summary>
 		/// List of programs supported by this plugin.
@@ -132,7 +132,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of all modules associated with this plugin
 		/// </summary>
-		public ModuleDescriptor[] Modules;
+		public List<ModuleDescriptor> Modules;
 
 		/// <summary>
 		/// List of all localization targets associated with this plugin
@@ -187,7 +187,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Additional plugins that this plugin depends on
 		/// </summary>
-		public PluginReferenceDescriptor[] Plugins;
+		public List<PluginReferenceDescriptor> Plugins;
 
 		/// <summary>
 		/// Private constructor. This object should not be created directly; read it from disk using FromFile() instead.
@@ -252,7 +252,7 @@ namespace UnrealBuildTool
 				string[] SupportedTargetPlatformNames;
 				if (RawObject.TryGetStringArrayField("SupportedTargetPlatforms", out SupportedTargetPlatformNames))
 				{
-					SupportedTargetPlatforms = Array.ConvertAll(SupportedTargetPlatformNames, x => UnrealTargetPlatform.Parse(x));
+					SupportedTargetPlatforms = Array.ConvertAll(SupportedTargetPlatformNames, x => UnrealTargetPlatform.Parse(x)).ToList();
 				}
 			}
 			catch (BuildException Ex)
@@ -265,7 +265,7 @@ namespace UnrealBuildTool
 			JsonObject[] ModulesArray;
 			if (RawObject.TryGetObjectArrayField("Modules", out ModulesArray))
 			{
-				Modules = Array.ConvertAll(ModulesArray, x => ModuleDescriptor.FromJsonObject(x));
+				Modules = Array.ConvertAll(ModulesArray, x => ModuleDescriptor.FromJsonObject(x)).ToList();
 			}
 
 			JsonObject[] LocalizationTargetsArray;
@@ -301,7 +301,7 @@ namespace UnrealBuildTool
 			JsonObject[] PluginsArray;
 			if(RawObject.TryGetObjectArrayField("Plugins", out PluginsArray))
 			{
-				Plugins = Array.ConvertAll(PluginsArray, x => PluginReferenceDescriptor.FromJsonObject(x));
+				Plugins = Array.ConvertAll(PluginsArray, x => PluginReferenceDescriptor.FromJsonObject(x)).ToList();
 			}
 		}
 
@@ -394,7 +394,7 @@ namespace UnrealBuildTool
 				Writer.WriteValue("ExplicitlyLoaded", bExplicitlyLoaded);
 			}
 
-			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Length > 0)
+			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Count > 0)
 			{
 				Writer.WriteStringArrayField("SupportedTargetPlatforms", SupportedTargetPlatforms.Select<UnrealTargetPlatform, string>(x => x.ToString()).ToArray());
 			}
@@ -408,7 +408,7 @@ namespace UnrealBuildTool
 				Writer.WriteValue("bIsPluginExtension", bIsPluginExtension);
 			}
 
-			ModuleDescriptor.WriteArray(Writer, "Modules", Modules);
+			ModuleDescriptor.WriteArray(Writer, "Modules", Modules.ToArray());
 
 			LocalizationTargetDescriptor.WriteArray(Writer, "LocalizationTargets", LocalizationTargets);
 
@@ -422,7 +422,7 @@ namespace UnrealBuildTool
 				PostBuildSteps.Write(Writer, "PostBuildSteps");
 			}
 
-			PluginReferenceDescriptor.WriteArray(Writer, "Plugins", Plugins);
+			PluginReferenceDescriptor.WriteArray(Writer, "Plugins", Plugins.ToArray());
 		}
 
 		/// <summary>
@@ -432,7 +432,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the plugin should be enabled</returns>
 		public bool SupportsTargetPlatform(UnrealTargetPlatform Platform)
 		{
-			return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Length == 0 || SupportedTargetPlatforms.Contains(Platform);
+			return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Count == 0 || SupportedTargetPlatforms.Contains(Platform);
 		}
 	}
 }

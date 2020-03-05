@@ -3237,7 +3237,8 @@ namespace UnrealBuildTool
 							UEBuildModuleCPP Module = FindOrCreateCppModuleByName(ModuleInfo.Name, PluginReferenceChain);
 							if(!Instance.Modules.Contains(Module))
 							{
-								if (!Module.RulesFile.IsUnderDirectory(Info.Directory))
+								// This could be in a child plugin so scan thorugh those as well
+								if (!Module.RulesFile.IsUnderDirectory(Info.Directory) && !Info.ChildFiles.Any(ChildFile => Module.RulesFile.IsUnderDirectory(ChildFile.Directory)))
 								{
 									throw new BuildException("Plugin '{0}' (referenced via {1}) does not contain the '{2}' module, but lists it in '{3}'.", Info.Name, ReferenceChain, ModuleInfo.Name, Info.File);
 								}
@@ -3322,14 +3323,22 @@ namespace UnrealBuildTool
 			}
 
 			// Construct the output paths for this target's executable
-			DirectoryReference OutputDirectory;
-			if (bCompileMonolithic || !bUseSharedBuildEnvironment)
+			DirectoryReference OutputDirectory = UnrealBuildTool.EngineDirectory;
+
+			bool bOutputToPlatformExtensionDirectory = Rules.File.IsUnderDirectory(UnrealBuildTool.EnginePlatformExtensionsDirectory) || Rules.File.IsUnderDirectory(UnrealBuildTool.ProjectPlatformExtensionsDirectory(ProjectDirectory));
+			bool bOutputToProjectDirectory = (bCompileMonolithic || !bUseSharedBuildEnvironment) && (ProjectDirectory != UnrealBuildTool.EngineDirectory);
+			
+			if (bOutputToPlatformExtensionDirectory && bOutputToProjectDirectory)
+			{
+				OutputDirectory = UnrealBuildTool.GetAllProjectDirectories(ProjectDirectory).First(x => x != ProjectDirectory && Rules.File.IsUnderDirectory(x));
+			}
+			else if(bOutputToPlatformExtensionDirectory)
+			{
+				OutputDirectory = UnrealBuildTool.GetAllEngineDirectories().First(x => x != UnrealBuildTool.EngineDirectory && Rules.File.IsUnderDirectory(x));
+			} 
+			else if (bOutputToProjectDirectory)
 			{
 				OutputDirectory = ProjectDirectory;
-			}
-			else
-			{
-				OutputDirectory = UnrealBuildTool.EngineDirectory;
 			}
 
 			bool bCompileAsDLL = Rules.bShouldCompileAsDLL && bCompileMonolithic;

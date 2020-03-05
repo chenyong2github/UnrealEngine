@@ -44,12 +44,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If enabled, list of platforms for which the plugin should be enabled (or all platforms if blank).
 		/// </summary>
-		public UnrealTargetPlatform[] WhitelistPlatforms;
+		public List<UnrealTargetPlatform> WhitelistPlatforms;
 
 		/// <summary>
 		/// If enabled, list of platforms for which the plugin should be disabled.
 		/// </summary>
-		public UnrealTargetPlatform[] BlacklistPlatforms;
+		public List<UnrealTargetPlatform> BlacklistPlatforms;
 
 		/// <summary>
 		/// If enabled, list of target configurations for which the plugin should be enabled (or all target configurations if blank).
@@ -74,7 +74,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The list of supported platforms for this plugin. This field is copied from the plugin descriptor, and supplements the user's whitelisted and blacklisted platforms.
 		/// </summary>
-		public UnrealTargetPlatform[] SupportedTargetPlatforms;
+		public List<UnrealTargetPlatform> SupportedTargetPlatforms;
 
 		/// <summary>
 		/// Constructor
@@ -110,11 +110,11 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteValue("MarketplaceURL", MarketplaceURL);
 			}
-			if(WhitelistPlatforms != null && WhitelistPlatforms.Length > 0)
+			if(WhitelistPlatforms != null && WhitelistPlatforms.Count > 0)
 			{
 				Writer.WriteStringArrayField("WhitelistPlatforms", WhitelistPlatforms.Select(x => x.ToString()).ToArray());
 			}
-			if(BlacklistPlatforms != null && BlacklistPlatforms.Length > 0)
+			if(BlacklistPlatforms != null && BlacklistPlatforms.Count > 0)
 			{
 				Writer.WriteStringArrayField("BlacklistPlatforms", BlacklistPlatforms.Select(x => x.ToString()).ToArray());
 			}
@@ -134,7 +134,7 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteEnumArrayField("BlacklistTargets", BlacklistTargets);
 			}
-			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Length > 0)
+			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Count > 0)
 			{
 				Writer.WriteStringArrayField("SupportedTargetPlatforms", SupportedTargetPlatforms.Select(x => x.ToString()).ToArray());
 			}
@@ -193,15 +193,15 @@ namespace UnrealBuildTool
 				// convert string array to UnrealTargetPlatform arrays
 				if (WhitelistPlatformNames != null)
 				{
-					Descriptor.WhitelistPlatforms = WhitelistPlatformNames.Select(x => UnrealTargetPlatform.Parse(x)).ToArray();
+					Descriptor.WhitelistPlatforms = WhitelistPlatformNames.Select(x => UnrealTargetPlatform.Parse(x)).ToList();
 				}
 				if (BlacklistPlatformNames != null)
 				{
-					Descriptor.BlacklistPlatforms = BlacklistPlatformNames.Select(x => UnrealTargetPlatform.Parse(x)).ToArray();
+					Descriptor.BlacklistPlatforms = BlacklistPlatformNames.Select(x => UnrealTargetPlatform.Parse(x)).ToList();
 				}
 				if (SupportedTargetPlatformNames != null)
 				{
-					Descriptor.SupportedTargetPlatforms = SupportedTargetPlatformNames.Select(x => UnrealTargetPlatform.Parse(x)).ToArray();
+					Descriptor.SupportedTargetPlatforms = SupportedTargetPlatformNames.Select(x => UnrealTargetPlatform.Parse(x)).ToList();
 				}
 			}
 			catch (BuildException Ex)
@@ -225,7 +225,7 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
-			if (WhitelistPlatforms != null && WhitelistPlatforms.Length > 0 && !WhitelistPlatforms.Contains(Platform))
+			if (WhitelistPlatforms != null && WhitelistPlatforms.Count > 0 && !WhitelistPlatforms.Contains(Platform))
 			{
 				return false;
 			}
@@ -287,7 +287,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the plugin for this target platform</returns>
 		public bool IsSupportedTargetPlatform(UnrealTargetPlatform Platform)
 		{
-			return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Length == 0 || SupportedTargetPlatforms.Contains(Platform);
+			return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Count == 0 || SupportedTargetPlatforms.Contains(Platform);
 		}
 	}
 }

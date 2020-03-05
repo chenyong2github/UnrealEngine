@@ -372,50 +372,105 @@ namespace UnrealBuildTool
 			UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(PlatformName);
 
 			// merge the supported platforms
-			if (Parent.Descriptor.SupportedTargetPlatforms != null)
+			if (Child.Descriptor.SupportedTargetPlatforms != null)
 			{
-				List<UnrealTargetPlatform> SupportedTargetPlatforms = Parent.Descriptor.SupportedTargetPlatforms.ToList();
-				if (Child.Descriptor.SupportedTargetPlatforms != null && Child.Descriptor.SupportedTargetPlatforms.Length > 0)
+				if (Parent.Descriptor.SupportedTargetPlatforms == null)
 				{
-					SupportedTargetPlatforms = SupportedTargetPlatforms.Union(Child.Descriptor.SupportedTargetPlatforms).ToList();
+					Parent.Descriptor.SupportedTargetPlatforms = Child.Descriptor.SupportedTargetPlatforms;
 				}
-				else if (!Parent.Descriptor.SupportedTargetPlatforms.Contains(Platform))
+				else
 				{
-					SupportedTargetPlatforms.Add(Platform);
+					Parent.Descriptor.SupportedTargetPlatforms = Parent.Descriptor.SupportedTargetPlatforms.Union(Child.Descriptor.SupportedTargetPlatforms).ToList();
 				}
-				Parent.Descriptor.SupportedTargetPlatforms = SupportedTargetPlatforms.ToArray();
 			}
 
-			// make sure we are whitelisted for any modules we list, if the parent had a whitelist
+			// make sure we are whitelisted for any modules we list
 			if (Child.Descriptor.Modules != null)
 			{
-				foreach (ModuleDescriptor ChildModule in Child.Descriptor.Modules)
+				if (Parent.Descriptor.Modules == null)
 				{
-					ModuleDescriptor ParentModule = Parent.Descriptor.Modules.FirstOrDefault(x => x.Name.Equals(ChildModule.Name) && x.Type == ChildModule.Type);
-					if (ParentModule != null)
+					Parent.Descriptor.Modules = Child.Descriptor.Modules;
+				}
+				else
+				{
+					foreach (ModuleDescriptor ChildModule in Child.Descriptor.Modules)
 					{
-						// merge white/blacklists (if the parent had a list, and child didn't specify a list, just add the child platform to the parent list - for white and black!)
-						if (ParentModule.WhitelistPlatforms != null && ParentModule.WhitelistPlatforms.Length > 0)
+						ModuleDescriptor ParentModule = Parent.Descriptor.Modules.FirstOrDefault(x => x.Name.Equals(ChildModule.Name) && x.Type == ChildModule.Type);
+						if (ParentModule != null)
 						{
-							List<UnrealTargetPlatform> Whitelist = ParentModule.WhitelistPlatforms.ToList();
-							if (ChildModule.WhitelistPlatforms != null && ChildModule.WhitelistPlatforms.Length > 0)
+							// merge white/blacklists (if the parent had a list, and child didn't specify a list, just add the child platform to the parent list - for white and black!)
+							if (ChildModule.WhitelistPlatforms != null)
 							{
-								Whitelist.AddRange(ChildModule.WhitelistPlatforms);
+								if (ParentModule.WhitelistPlatforms == null)
+								{
+									ParentModule.WhitelistPlatforms = ChildModule.WhitelistPlatforms;
+								}
+								else
+								{
+									ParentModule.WhitelistPlatforms = ParentModule.WhitelistPlatforms.Union(ChildModule.WhitelistPlatforms).ToList();
+								}
 							}
-							else
+							if (ChildModule.BlacklistPlatforms != null)
 							{
-								Whitelist.Add(Platform);
+								if (ParentModule.BlacklistPlatforms == null)
+								{
+									ParentModule.BlacklistPlatforms = ChildModule.BlacklistPlatforms;
+								}
+								else
+								{
+									ParentModule.BlacklistPlatforms = ParentModule.BlacklistPlatforms.Union(ChildModule.BlacklistPlatforms).ToList();
+								}
 							}
-							ParentModule.WhitelistPlatforms = Whitelist.ToArray();
 						}
-						if (ParentModule.BlacklistPlatforms != null && ParentModule.BlacklistPlatforms.Length > 0)
+						else
 						{
-							if (ChildModule.BlacklistPlatforms != null && ChildModule.BlacklistPlatforms.Length > 0)
+							Parent.Descriptor.Modules.Add(ChildModule);
+						}
+					}
+				}
+			}
+
+			// make sure we are whitelisted for any plugins we list
+			if (Child.Descriptor.Plugins != null)
+			{
+				if (Parent.Descriptor.Plugins == null)
+				{
+					Parent.Descriptor.Plugins = Child.Descriptor.Plugins;
+				}
+				else
+				{ 
+					foreach (PluginReferenceDescriptor ChildPluginReference in Child.Descriptor.Plugins)
+					{
+						PluginReferenceDescriptor ParentPluginReference = Parent.Descriptor.Plugins.FirstOrDefault(x => x.Name.Equals(ChildPluginReference.Name));
+						if (ParentPluginReference != null)
+						{
+							// merge white/blacklists (if the parent had a list, and child didn't specify a list, just add the child platform to the parent list - for white and black!)
+							if (ChildPluginReference.WhitelistPlatforms != null)
 							{
-								List<UnrealTargetPlatform> Blacklist = ParentModule.BlacklistPlatforms.ToList();
-								Blacklist.AddRange(ChildModule.BlacklistPlatforms);
-								ParentModule.BlacklistPlatforms = Blacklist.ToArray();
+								if (ParentPluginReference.WhitelistPlatforms == null)
+								{
+									ParentPluginReference.WhitelistPlatforms = ChildPluginReference.WhitelistPlatforms;
+								}
+								else 
+								{
+									ParentPluginReference.WhitelistPlatforms = ParentPluginReference.WhitelistPlatforms.Union(ChildPluginReference.WhitelistPlatforms).ToList();
+								}
 							}
+							if (ChildPluginReference.BlacklistPlatforms != null)
+							{
+								if (ParentPluginReference.BlacklistPlatforms == null)
+								{
+									ParentPluginReference.BlacklistPlatforms = ChildPluginReference.BlacklistPlatforms;
+								}
+								else
+								{
+									ParentPluginReference.BlacklistPlatforms = ParentPluginReference.BlacklistPlatforms.Union(ChildPluginReference.BlacklistPlatforms).ToList();
+								}
+							}
+						}
+						else
+						{
+							Parent.Descriptor.Plugins.Add(ChildPluginReference);
 						}
 					}
 				}
