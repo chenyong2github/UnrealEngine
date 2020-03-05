@@ -89,7 +89,12 @@ static FString GetErrorString(HRESULT Result)
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 FName GetNextDllToTry(FName Current = NAME_None) 
 {
-	static const TArray<FName> kDllsToTry = { TEXT("xaudio2_9redist.dll"), TEXT("XAudio2_7.dll") };
+#if PLATFORM_64BITS
+	static const FString XAudio2_9Redist = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Windows/XAudio2_9/x64/xaudio2_9redist.dll");
+#else
+	static const FString XAudio2_9Redist = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Windows/XAudio2_9/x86/xaudio2_9redist.dll");
+#endif
+	static const TArray<FName> kDllsToTry = { *XAudio2_9Redist, TEXT("XAudio2_7.dll") };
 	int32 Index = kDllsToTry.IndexOfByKey(Current);
 	
 	// This behaves like a link list of names. 
