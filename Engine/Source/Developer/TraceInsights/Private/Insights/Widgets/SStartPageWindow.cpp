@@ -851,27 +851,28 @@ TSharedRef<SWidget> SStartPageWindow::ConstructTraceStoreDirectoryPanel()
 
 	+ SVerticalBox::Slot()
 	.AutoHeight()
-	.HAlign(HAlign_Left)
+	.HAlign(HAlign_Fill)
 	.Padding(0.0f, 0.0f)
 	[
 		SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
 		.Padding(0.0f, 0.0f)
+		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
 			.Text(this, &SStartPageWindow::GetTraceStoreDirectory)
-			.Justification(ETextJustify::Right)
 		]
 
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("ExploreTraceStoreDirButton", "..."))
+			.Text(LOCTEXT("ExploreTraceStoreDirButton", "Explore"))
 			.ToolTipText(LOCTEXT("ExploreTraceStoreDirButtonToolTip", "Explore the Trace Store Directory"))
 			.OnClicked(this, &SStartPageWindow::ExploreTraceStoreDirectory_OnClicked)
 		]
@@ -1608,7 +1609,7 @@ void SStartPageWindow::LoadTraceFile(const FString& InTraceFile)
 
 		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
-		FString CmdLine = TEXT("-TraceFile=\"") + InTraceFile + TEXT("\"");
+		FString CmdLine = TEXT("-OpenTraceFile=\"") + InTraceFile + TEXT("\"");
 
 		constexpr bool bLaunchDetached = true;
 		constexpr bool bLaunchHidden = false;
@@ -1648,7 +1649,7 @@ void SStartPageWindow::LoadTrace(uint32 InTraceId)
 		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
 		const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
-		FString CmdLine = FString::Printf(TEXT("-TraceId=%d -StorePort=%d"), InTraceId, StorePort);
+		FString CmdLine = FString::Printf(TEXT("-OpenTraceId=%d -StorePort=%d"), InTraceId, StorePort);
 
 		constexpr bool bLaunchDetached = true;
 		constexpr bool bLaunchHidden = false;

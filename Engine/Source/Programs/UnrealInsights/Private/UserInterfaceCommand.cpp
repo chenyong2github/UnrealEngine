@@ -110,11 +110,11 @@ void FUserInterfaceCommand::Run()
 
 		if (bBrowserMode)
 		{
-			bBrowserMode = FCString::Strifind(FCommandLine::Get(), TEXT("-TraceId=")) == nullptr;
+			bBrowserMode = FCString::Strifind(FCommandLine::Get(), TEXT("-OpenTraceId=")) == nullptr;
 		}
 		if (bBrowserMode)
 		{
-			bBrowserMode = FCString::Strifind(FCommandLine::Get(), TEXT("-TraceFile=")) == nullptr;
+			bBrowserMode = FCString::Strifind(FCommandLine::Get(), TEXT("-OpenTraceFile=")) == nullptr;
 		}
 
 		if (bBrowserMode && !CheckSessionBrowserSingleInstance())
@@ -222,7 +222,7 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 	const uint32 MaxPath = FPlatformMisc::GetMaxPathLength();
 
 	uint32 TraceId = 0;
-	bool bUseTraceId = FParse::Value(FCommandLine::Get(), TEXT("-TraceId="), TraceId);
+	bool bUseTraceId = FParse::Value(FCommandLine::Get(), TEXT("-OpenTraceId="), TraceId);
 
 	TCHAR* StoreHost = new TCHAR[MaxPath + 1];
 	FCString::Strcpy(StoreHost, MaxPath, TEXT("127.0.0.1"));
@@ -259,7 +259,7 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 	{
 		TCHAR* TraceFile = new TCHAR[MaxPath + 1];
 		TraceFile[0] = 0;
-		bool bUseTraceFile = FParse::Value(FCommandLine::Get(), TEXT("-TraceFile="), TraceFile, MaxPath, true);
+		bool bUseTraceFile = FParse::Value(FCommandLine::Get(), TEXT("-OpenTraceFile="), TraceFile, MaxPath, true);
 
 		if (bUseTraceFile)
 		{
