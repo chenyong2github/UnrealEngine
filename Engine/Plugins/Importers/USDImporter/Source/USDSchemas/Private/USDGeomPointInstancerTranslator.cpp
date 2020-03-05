@@ -37,7 +37,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 			return false;
 		}
 
-		pxr::TfToken UpAxis = UsdUtils::GetUsdStageAxis( Stage );
+		UsdToUnreal::FUsdStageInfo StageInfo( Stage );
 
 		int32 Index = 0;
 
@@ -47,7 +47,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 		{
 			if ( ProtoIndices[ Index ] == ProtoIndex )
 			{
-				FTransform InstanceTransform = UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix );
+				FTransform InstanceTransform = UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
 
 				HismComponent.AddInstance( InstanceTransform );
 			}

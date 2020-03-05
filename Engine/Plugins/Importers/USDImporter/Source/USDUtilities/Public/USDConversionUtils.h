@@ -45,22 +45,11 @@ namespace UsdUtils
 		return Value;
 	}
 
-	static pxr::TfToken GetUsdStageAxis(pxr::UsdStageRefPtr Stage)
-	{
-		if (Stage->HasAuthoredMetadata(pxr::UsdGeomTokens->upAxis))
-		{
-			pxr::TfToken Axis = pxr::UsdGeomTokens->z;
-			Stage->GetMetadata(pxr::UsdGeomTokens->upAxis, &Axis);
-			return Axis;
-		}
+	USDUTILITIES_API pxr::TfToken GetUsdStageAxis( const pxr::UsdStageRefPtr& Stage );
+	USDUTILITIES_API void SetUsdStageAxis( const pxr::UsdStageRefPtr& Stage, pxr::TfToken Axis );
 
-		return pxr::UsdGeomTokens->z;
-	}
-
-	static void SetUsdStageAxis( pxr::UsdStageRefPtr Stage, pxr::TfToken Axis )
-	{
-		Stage->SetMetadata( pxr::UsdGeomTokens->upAxis, Axis );
-	}
+	USDUTILITIES_API float GetUsdStageMetersPerUnit( const pxr::UsdStageRefPtr& Stage );
+	USDUTILITIES_API void SetUsdStageMetersPerUnit( const pxr::UsdStageRefPtr& Stage, float MetersPerUnit );
 
 	inline bool HasCompositionArcs( const pxr::UsdPrim& Prim )
 	{

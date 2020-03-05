@@ -67,10 +67,12 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 	if (bJointTransformsComputed)
 	{
 		UsdStageWeakPtr Stage = SkeletonQuery.GetSkeleton().GetPrim().GetStage();
+		const UsdToUnreal::FUsdStageInfo StageInfo(Stage);
+
 		for (uint32 Index = 0; Index < UsdBoneTransforms.size(); ++Index)
 		{
 			const GfMatrix4d& UsdMatrix = UsdBoneTransforms[Index];
-			FTransform BoneTransform = UsdToUnreal::ConvertMatrix( UsdUtils::GetUsdStageAxis( Stage ), UsdMatrix );
+			FTransform BoneTransform = UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
 			BoneTransforms.Add(BoneTransform);
 		}
 	}
@@ -126,9 +128,9 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 		GeomBindingAttribute.Get(&GeomBindingTransform, UsdTimeCode::Default());
 	}
 
-	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( SkinningPrim.GetStage() );
+	const UsdToUnreal::FUsdStageInfo StageInfo( SkinningPrim.GetStage() );
 
-	FTransform GeomTransform = UsdToUnreal::ConvertMatrix(StageUpAxis, GeomBindingTransform);
+	FTransform GeomTransform = UsdToUnreal::ConvertMatrix(StageInfo, GeomBindingTransform);
 
 	// Ref. FFbxImporter::FillSkelMeshImporterFromFbx
 	UsdGeomMesh UsdMesh = UsdGeomMesh(SkinningPrim);
@@ -151,7 +153,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 			const GfVec3f& Point = UsdPoints[PointIndex];
 
 			// Convert the USD vertex to Unreal and apply the GeomBindTransform to it
-			FVector Pos = UsdToUnreal::ConvertVector(StageUpAxis, Point);
+			FVector Pos = UsdToUnreal::ConvertVector(StageInfo, Point);
 			Pos = GeomTransform.TransformPosition(Pos);
 
 			SkelMeshImportData.Points[PointIndex + NumExistingPoints] = Pos;

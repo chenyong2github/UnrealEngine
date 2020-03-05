@@ -70,7 +70,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdStageRefPtr Stage = UsdMesh.GetPrim().GetStage();
-	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( Stage );
+	const UsdToUnreal::FUsdStageInfo StageInfo( Stage );
 
 	const double TimeCodeValue = TimeCode.GetValue();
 
@@ -100,7 +100,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 			{
 				const GfVec3f& Point = PointsArray[ LocalPointIndex ];
 
-				FVector Position = AdditionalTransform.TransformPosition( UsdToUnreal::ConvertVector( StageUpAxis, Point ) );
+				FVector Position = AdditionalTransform.TransformPosition( UsdToUnreal::ConvertVector( StageInfo, Point ) );
 
 				FVertexID AddedVertexId = MeshDescription.CreateVertex();
 				MeshDescriptionVertexPositions[ AddedVertexId ] = Position;
@@ -278,7 +278,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 					if ( NormalIndex < Normals.size() )
 					{
 						const GfVec3f& Normal = Normals[NormalIndex];
-						FVector TransformedNormal = AdditionalTransform.TransformVector( UsdToUnreal::ConvertVector( StageUpAxis, Normal ) ).GetSafeNormal();
+						FVector TransformedNormal = AdditionalTransform.TransformVector( UsdToUnreal::ConvertVector( StageInfo, Normal ) ).GetSafeNormal();
 
 						MeshDescriptionNormals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
 					}

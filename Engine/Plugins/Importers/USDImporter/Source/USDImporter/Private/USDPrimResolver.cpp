@@ -232,7 +232,7 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 					SpawnedActor = ImportContext.World->SpawnActor( AActor::StaticClass() );
 				}
 
-				const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( *ImportContext.Stage );
+				const UsdToUnreal::FUsdStageInfo StageInfo( *ImportContext.Stage );
 
 				int32 AssetIndex = 0;
 				for ( UObject* ImportedAsset : ImportedAssets )
@@ -255,7 +255,7 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 					for ( int32 ParentPrimIndex = ParentPrims.Num() - 1; ParentPrimIndex >= 0; --ParentPrimIndex )
 					{
 						ParentPrim = ParentPrims[ ParentPrimIndex ];
-						LocalTransform = UsdToUnreal::ConvertMatrix( StageUpAxis, IUsdPrim::GetLocalTransform( ParentPrim ) ) * LocalTransform;
+						LocalTransform = UsdToUnreal::ConvertMatrix( StageInfo, IUsdPrim::GetLocalTransform( ParentPrim ) ) * LocalTransform;
 					}
 
 					FName ComponentBaseName = *UsdToUnreal::ConvertString( UsdAssetPrimToImport.Prim.Get().GetName().GetString().c_str() );
@@ -268,7 +268,7 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 					// Don't add the prim transform if its the same prim used for the actor as it's already accounted for in the ActorTransform
 					if ( UsdAssetPrimToImport.Prim.Get() != SpawnData.ActorPrim.Get() )
 					{
-						LocalTransform = UsdToUnreal::ConvertMatrix( StageUpAxis, IUsdPrim::GetLocalTransform( UsdAssetPrimToImport.Prim.Get() ) ) * LocalTransform;
+						LocalTransform = UsdToUnreal::ConvertMatrix( StageInfo, IUsdPrim::GetLocalTransform( UsdAssetPrimToImport.Prim.Get() ) ) * LocalTransform;
 					}
 
 					StaticMeshComponent->SetRelativeTransform( LocalTransform );
@@ -453,7 +453,7 @@ void UUSDPrimResolver::FindActorsToSpawn_Recursive(FUSDSceneImportContext& Impor
 
 		FName PrimName = UsdToUnreal::ConvertName(Prim.Get().GetName().GetString());
 		SpawnData.ActorName = PrimName;
-		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( UsdUtils::GetUsdStageAxis( *ImportContext.Stage ), IUsdPrim::GetLocalTransform( *Prim ) );
+		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( UsdToUnreal::FUsdStageInfo( *ImportContext.Stage ), IUsdPrim::GetLocalTransform( *Prim ) );
 		SpawnData.AttachParentPrim = ParentPrim;
 		SpawnData.ActorPrim = Prim;
 

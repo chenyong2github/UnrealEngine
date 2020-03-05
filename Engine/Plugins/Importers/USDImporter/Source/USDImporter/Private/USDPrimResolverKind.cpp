@@ -64,7 +64,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 			UE_LOG(LogUsd, Log, TEXT("Adding %s Actor with %d meshes"), *PrimName.ToString(), SpawnData.AssetsToImport.Num());
 		}
 
-		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( UsdUtils::GetUsdStageAxis( *ImportContext.Stage ), IUsdPrim::GetLocalTransform( *Prim ) );
+		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( UsdToUnreal::FUsdStageInfo( *ImportContext.Stage ), IUsdPrim::GetLocalTransform( *Prim ) );
 		SpawnData.ActorPrim = Prim;
 		SpawnData.ActorName = PrimName;
 		SpawnData.AttachParentPrim = GroupParent;
@@ -86,7 +86,7 @@ void UUSDPrimResolverKind::FindActorsToSpawn_Recursive(FUSDSceneImportContext& I
 		SpawnData.ActorPrim = Prim;
 		SpawnData.ActorName = PrimName;
 
-		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( UsdUtils::GetUsdStageAxis( *ImportContext.Stage ), IUsdPrim::GetLocalTransform( *Prim ) );
+		SpawnData.WorldTransform = UsdToUnreal::ConvertMatrix( UsdToUnreal::FUsdStageInfo( *ImportContext.Stage ), IUsdPrim::GetLocalTransform( *Prim ) );
 		SpawnData.AttachParentPrim = GroupParent;
 
 		// New parent of all children is this prim

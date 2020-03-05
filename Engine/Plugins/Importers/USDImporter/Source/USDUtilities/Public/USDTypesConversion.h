@@ -23,6 +23,18 @@
 
 namespace UsdToUnreal
 {
+	struct FUsdStageInfo
+	{
+		pxr::TfToken UpAxis = pxr::UsdGeomTokens->z;
+		float MetersPerUnit = 0.01f;
+
+		explicit FUsdStageInfo( const pxr::UsdStageRefPtr& Stage )
+		{
+			UpAxis = UsdUtils::GetUsdStageAxis( Stage );
+			MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( Stage );
+		}
+	};
+
 	static FString ConvertString( const std::string& InString )
 	{
 		return FString( ANSI_TO_TCHAR( InString.c_str() ) );
@@ -62,9 +74,9 @@ namespace UsdToUnreal
 		return FName( UsdString.Get().c_str() );
 	}
 
-	static FString ConvertToken(const pxr::TfToken& Token)
+	static FString ConvertToken( const pxr::TfToken& Token )
 	{
-		return UsdToUnreal::ConvertString(Token.GetString());
+		return UsdToUnreal::ConvertString( Token.GetString() );
 	}
 
 	static FLinearColor ConvertColor( const pxr::GfVec3f& InValue )
@@ -87,11 +99,17 @@ namespace UsdToUnreal
 		return FVector( InValue[0], InValue[1], InValue[2] );
 	}
 
-	static FVector ConvertVector( const pxr::TfToken& UpAxis, const pxr::GfVec3f& InValue )
+	static FVector ConvertVector( const FUsdStageInfo& StageInfo, const pxr::GfVec3f& InValue )
 	{
 		FVector Value = ConvertVector( InValue );
 
-		const bool bIsZUp = ( UpAxis == pxr::UsdGeomTokens->z );
+		const float UEMetersPerUnit = 0.01f;
+		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
+		{
+			Value *= StageInfo.MetersPerUnit / UEMetersPerUnit;
+		}
+
+		const bool bIsZUp = ( StageInfo.UpAxis == pxr::UsdGeomTokens->z );
 
 		if ( bIsZUp )
 		{
@@ -158,12 +176,18 @@ namespace UsdToUnreal
 		return UnrealMatrix;
 	}
 
-	static FTransform ConvertMatrix( const pxr::TfToken& UpAxis, const pxr::GfMatrix4d& InMatrix )
+	static FTransform ConvertMatrix( const FUsdStageInfo& StageInfo, const pxr::GfMatrix4d& InMatrix )
 	{
 		FMatrix Matrix = ConvertMatrix( InMatrix );
 		FTransform Transform( Matrix );
 
-		Transform = ConvertTransform( UpAxis == pxr::UsdGeomTokens->z, Transform );
+		Transform = ConvertTransform( StageInfo.UpAxis == pxr::UsdGeomTokens->z, Transform );
+
+		const float UEMetersPerUnit = 0.01f;
+		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
+		{
+			Transform.ScaleTranslation( StageInfo.MetersPerUnit / UEMetersPerUnit );
+		}
 
 		return Transform;
 	}
