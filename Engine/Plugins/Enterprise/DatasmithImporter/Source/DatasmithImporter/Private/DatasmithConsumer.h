@@ -20,6 +20,7 @@ namespace DatasmithConsumerDetailsUtil
 }
 class UDatasmithScene;
 class ULevel;
+class UPackage;
 class UWorld;
 
 UCLASS(Experimental, config = EditorSettings, HideCategories = (DatasmithConsumerInternal))
@@ -71,7 +72,7 @@ private:
 	void UpdateScene();
 
 	/** Process actors which have been marked with a UDataprepConsumerUserData */
-	void ApplySubLevelDirective();
+	void ApplySubLevelDirective(const TArray<UPackage*>& PackagesToCheck);
 
 	/** Find or add a new level to the target world */
 	ULevel* FindOrAddLevel(const FString& InLevelName);
