@@ -606,9 +606,10 @@ FMoviePipelineShotInfo CreateShotFromMovieScene(const UMovieScene* InMovieScene,
 			NewRange.Section = CameraCutSection;
 		}
 	}
-	else
+
+	if(IntersectedRanges.Num() == 0)
 	{
-		// No camera cut track was found inside. We'll treat the whole shot as the desired range.
+		// No camera cut track (or section) was found inside. We'll treat the whole shot as the desired range.
 		FCameraCutRange& NewRange = IntersectedRanges.AddDefaulted_GetRef();
 		NewRange.Range = InIntersectionRange;
 		NewRange.Section = nullptr;
