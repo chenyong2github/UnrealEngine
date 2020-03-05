@@ -220,6 +220,11 @@
 #include "StudioAnalytics.h"
 #include "Engine/LevelScriptActor.h"
 
+#if WITH_CHAOS
+#include "ChaosSolversModule.h"
+#endif
+
+
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
 #define LOCTEXT_NAMESPACE "UnrealEd.Editor"
@@ -1488,6 +1493,15 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 	bool bAWorldTicked = false;
 	ELevelTick TickType = IsRealtime ? LEVELTICK_ViewportsOnly : LEVELTICK_TimeOnly;
+
+#if WITH_CHAOS
+	// Before we begin ticking any of our worlds, dispatch the global command lists and queues for physics
+	FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
+	if(ensure(ChaosModule))
+	{
+		ChaosModule->DispatchGlobalCommands();
+	}
+#endif
 
 	if( bShouldTickEditorWorld )
 	{ 

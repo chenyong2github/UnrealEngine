@@ -211,7 +211,7 @@ private:
 
 		FSpacialDebugDraw DrawInterface(WorldPtr);
 
-		const TArray<FPhysicsSolver*>& Solvers = ChaosModule->GetSolvers();
+		const TArray<FPhysicsSolver*>& Solvers = ChaosModule->GetAllSolvers();
 
 		for(FPhysicsSolver* Solver : Solvers)
 		{
@@ -390,7 +390,9 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 	check(ChaosModule);
 
-	SceneSolver = ChaosModule->CreateSolver(false
+	UWorld* WorldPtr = SolverActor.Get() ? SolverActor->GetWorld() : nullptr;
+
+	SceneSolver = ChaosModule->CreateSolver(WorldPtr
 #if CHAOS_CHECKED
 	, DebugName
 #endif
@@ -566,10 +568,10 @@ void AddPhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, Chao
 	if(/*bDedicatedThread && */InDispatcher)
 	{
 		// Pass the proxy off to the physics thread
-		InDispatcher->EnqueueCommandImmediate([InObject, InSolver](Chaos::FPersistentPhysicsTask* PhysThread)
+		InDispatcher->EnqueueCommandImmediate(InSolver, [InObject](Chaos::FPhysicsSolver* InnerSolver)
 		{
 #if CHAOS_PARTICLEHANDLE_TODO
-			InSolver->RegisterObject(InObject);
+			InnerSolver->RegisterObject(InObject);
 #endif
 		});
 	}
@@ -635,19 +637,21 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhy
 
 	if (Chaos::IDispatcher* Dispatcher = GetDispatcher())
 	{
-		for (Chaos::FPhysicsSolver* Solver : ChaosModule->GetSolvers())
+		TArray<Chaos::FPhysicsSolver*> WorldSolverList = ChaosModule->GetSolversMutable(Component->GetWorld());
+
+		for(Chaos::FPhysicsSolver* Solver : WorldSolverList)
 		{
-			if (true || Solver->HasActiveParticles())
+			if(true || Solver->HasActiveParticles())
 			{
 				Solver->RegisterObject(InObject);
 
-				if (/*bDedicatedThread && */Dispatcher)
+				if(/*bDedicatedThread && */Dispatcher)
 				{
 					// Pass the proxy off to the physics thread
 					Dispatcher->EnqueueCommandImmediate([InObject, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
-					{
-						InSolver->RegisterObject(InObject);
-					});
+						{
+							InSolver->RegisterObject(InObject);
+						});
 				}
 			}
 		}
@@ -839,19 +843,21 @@ void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
 
 	if (Chaos::IDispatcher* Dispatcher = GetDispatcher())
 	{
-		for (Chaos::FPhysicsSolver* Solver : ChaosModule->GetSolvers())
+		TArray<Chaos::FPhysicsSolver*> SolverList = ChaosModule->GetSolversMutable(CurrSceneSolver->GetOwner());
+		
+		for(Chaos::FPhysicsSolver* Solver : SolverList)
 		{
-			if (true || Solver->HasActiveParticles())
+			if(true || Solver->HasActiveParticles())
 			{
 				Solver->RegisterObject(InObject);
 
-				if (/*bDedicatedThread && */Dispatcher)
+				if(/*bDedicatedThread && */Dispatcher)
 				{
 					// Pass the proxy off to the physics thread
 					Dispatcher->EnqueueCommandImmediate([InObject, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
-					{
-						InSolver->UnregisterObject(InObject);
-					});
+						{
+							InSolver->UnregisterObject(InObject);
+						});
 				}
 			}
 		}
@@ -1876,9 +1882,15 @@ void FPhysScene_ChaosInterface::StartFrame()
 			OnPhysScenePreTick.Broadcast(this, Dt);
 			OnPhysSceneStep.Broadcast(this, Dt);
 
+			TArray<Chaos::FPhysicsSolver*> SolverList;
+			SolverModule->GetSolversMutable(GetOwningWorld(), SolverList);
+			
 			if (FPhysicsSolver* Solver = GetSolver())
 			{
 				Solver->PushPhysicsState(Dispatcher);
+
+				// Make sure our solver is in the list
+				SolverList.AddUnique(Solver);
 			}
 
 			FGraphEventRef SimulationCompleteEvent = FGraphEvent::CreateGraphEvent();
@@ -1886,7 +1898,7 @@ void FPhysScene_ChaosInterface::StartFrame()
 			// Need to fire off a parallel task to handle running physics commands and
 			// ticking the scene while the engine continues on until TG_EndPhysics
 			// (this should happen in TG_StartPhysics)
-			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, GetSolver(), Dt);
+			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, SolverList, Dt);
 
 			// Setup post simulate tasks
 			if (PhysicsTickTask.GetReference())
@@ -1980,12 +1992,16 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		//flush queue so we can merge the two threads
 		Dispatcher->Execute();
 
-		// Make a list of solvers to process. This is just our solver if we have one,
-		// and if not then it's all solvers in the solvers module.
-		const TArray<FPhysicsSolver*>& SolverList
-			= (GetSolver() == nullptr)
-			? SolverModule->GetSolvers()
-			: [&]() { TArray<FPhysicsSolver*> Solvers; Solvers.Init(GetSolver(), 1); return Solvers; }();
+		// Make a list of solvers to process. This is a list of all solvers registered to our world
+		// And our internal base scene solver.
+		TArray<Chaos::FPhysicsSolver*> SolverList;
+		SolverModule->GetSolversMutable(GetOwningWorld(), SolverList);
+
+		if(FPhysicsSolver* Solver = GetSolver())
+		{
+			// Make sure our solver is in the list
+			SolverList.AddUnique(Solver);
+		}
 
 		// flush solver queues
 		for (FPhysicsSolver* Solver : SolverList)
@@ -2234,29 +2250,40 @@ void FPhysScene_ChaosInterface::CompleteSceneSimulation(ENamedThreads::Type Curr
 
 		check(Module);
 
-		const TArray<FPhysicsSolver*>& SolverList = Module->GetSolvers();
-		TArray<FPhysicsSolver*> ActiveSolvers;
-		ActiveSolvers.Reserve(SolverList.Num());
+		TArray<FPhysicsSolver*> SolverList = Module->GetSolversMutable(GetOwningWorld());
+		FPhysicsSolver* SceneSolver = GetSolver();
 
-		// #BG calculate active solver list once as we dispatch our first task
-		for(FPhysicsSolver* Solver : SolverList)
+		TArray<FPhysicsSolver*> ActiveSolvers;
+
+		if(SolverList.Num() > 0)
 		{
-			if(Solver->HasActiveParticles())
+			ActiveSolvers.Reserve(SolverList.Num());
+
+			// #BG calculate active solver list once as we dispatch our first task
+			for(FPhysicsSolver* Solver : SolverList)
 			{
-				ActiveSolvers.Add(Solver);
+				if(Solver->HasActiveParticles())
+				{
+					ActiveSolvers.Add(Solver);
+				}
 			}
+		}
+
+		if(SceneSolver && SceneSolver->HasActiveParticles())
+		{
+			ActiveSolvers.AddUnique(SceneSolver);
 		}
 
 		const int32 NumActiveSolvers = ActiveSolvers.Num();
 
 		PhysicsParallelFor(NumActiveSolvers, [&](int32 Index)
-		{
-			FPhysicsSolver* Solver = ActiveSolvers[Index];
+			{
+				FPhysicsSolver* Solver = ActiveSolvers[Index];
 
-			Solver->GetActiveParticlesBuffer()->CaptureSolverData(Solver);
-			Solver->BufferPhysicsResults();
-			Solver->FlipBuffers();
-		});
+				Solver->GetActiveParticlesBuffer()->CaptureSolverData(Solver);
+				Solver->BufferPhysicsResults();
+				Solver->FlipBuffers();
+			});
 	}
 }
 

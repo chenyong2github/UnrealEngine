@@ -83,7 +83,7 @@ namespace GeometryCollectionExample
 	void Event_Handler()
 	{
 		Chaos::FEventManager EventManager(Chaos::EMultiBufferMode::Single);
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 
 		MyEventHandler HandlerTest(EventManager);
 		MyEventHandler AnotherHandlerTest(EventManager);

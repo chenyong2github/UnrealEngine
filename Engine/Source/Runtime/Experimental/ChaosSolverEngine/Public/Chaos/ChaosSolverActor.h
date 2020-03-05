@@ -169,7 +169,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	void SetAsCurrentWorldSolver();
 
-	/** Controles whether the solver is able to simulate particles it controls */
+	/** Controls whether the solver is able to simulate particles it controls */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	virtual void SetSolverActive(bool bActive);
 
@@ -189,6 +189,8 @@ public:
 #endif
 	virtual void PostRegisterAllComponents() override;
 	
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
 

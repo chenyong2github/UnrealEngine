@@ -20,13 +20,48 @@ FAutoConsoleTaskPriority CPrio_FPhysicsTickTask(
 FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, Chaos::FPhysicsSolver* InPhysicsSolver, float InDt)
 	: CompletionEvent(InCompletionEvent)
 	, Module(nullptr)
-	, PhysicsSolver(InPhysicsSolver)
 	, Dt(InDt)
 {
+	check(IsInGameThread());
+
 	Module = FChaosSolversModule::GetModule();
 
 	check(Module);
 	checkSlow(Module->GetDispatcher() && Module->GetDispatcher()->GetMode() == EChaosThreadingMode::TaskGraph);
+
+	if(InPhysicsSolver)
+	{
+		SolverList.Reset(1);
+		SolverList.Add(InPhysicsSolver);
+	}
+	else
+	{
+		SolverList = Module->GetAllSolvers();
+	}
+
+	Module->GetSolverUpdatePrerequisites(SolverTaskPrerequisites);
+}
+
+FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, const TArray<Chaos::FPhysicsSolver*>& InSolverList, float InDt)
+	: CompletionEvent(InCompletionEvent)
+	, Module(nullptr)
+	, Dt(InDt)
+{
+	check(IsInGameThread());
+
+	Module = FChaosSolversModule::GetModule();
+
+	check(Module);
+	checkSlow(Module->GetDispatcher() && Module->GetDispatcher()->GetMode() == EChaosThreadingMode::TaskGraph);
+
+	SolverList = InSolverList;
+	Module->GetSolverUpdatePrerequisites(SolverTaskPrerequisites);
+}
+
+FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, float InDt)
+	: FPhysicsTickTask(InCompletionEvent, nullptr, InDt)
+{
+
 }
 
 TStatId FPhysicsTickTask::GetStatId() const
@@ -48,16 +83,6 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 {
 	using namespace Chaos;
 
-	// The command task runs the two global command queues prior to us running the 
-	// per-solver commands and the solver advance
-	FGraphEventRef CommandsTask = TGraphTask<FPhysicsCommandsTask>::CreateTask().ConstructAndDispatchWhenReady();
-
-	// Otherwise get a full list of solvers from the solvers module.
-	const TArray<FPhysicsSolver*>& SolverList
-		= (PhysicsSolver == nullptr)
-		? Module->GetSolvers()
-		: [&]() { TArray<FPhysicsSolver*> Solvers; Solvers.Init(PhysicsSolver, 1); return Solvers; }();
-
 
 	// List of active solvers (assume all are active for single alloc)
 	TArray<FPhysicsSolver*> ActiveSolvers;
@@ -73,12 +98,8 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 
 	const int32 NumActiveSolvers = ActiveSolvers.Num();
 
-	// Prereqs for the solver task to run
-	FGraphEventArray SolverTaskPrerequisites;
 	// Prereqs for the final completion task to run (collection of all the solver tasks)
 	FGraphEventArray CompletionTaskPrerequisites;
-	// Solver tasks have to depend on the global command queues running before them
-	SolverTaskPrerequisites.Add(CommandsTask);
 
 	// For each solver spawn a new solver advance task (which will run the per-solver command buffer and then advance the solver)
 	// Record the task reference as a prerequisite for the completion

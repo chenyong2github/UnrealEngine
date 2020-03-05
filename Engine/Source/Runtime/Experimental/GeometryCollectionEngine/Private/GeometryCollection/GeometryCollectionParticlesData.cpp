@@ -27,7 +27,7 @@ TGeometryCollectionParticlesData<T, d>::TGeometryCollectionParticlesData()
 
 template<class T, int d>
 //void TGeometryCollectionParticlesData<T, d>::Sync(const Chaos::FPhysicsSolver* Solver, const TManagedArray<int32>& RigidBodyIds)
-void TGeometryCollectionParticlesData<T, d>::Sync(const Chaos::FPhysicsSolver* Solver, const TManagedArray<FGuid>& RigidBodyIds)
+void TGeometryCollectionParticlesData<T, d>::Sync(Chaos::FPhysicsSolver* Solver, const TManagedArray<FGuid>& RigidBodyIds)
 {
 	// No point in calling twice the sync function within the same frame
 	if (!ensureMsgf(SyncFrame != GFrameCounter, TEXT("Sync should not happen twice during the same tick.")))
@@ -54,7 +54,7 @@ void TGeometryCollectionParticlesData<T, d>::Sync(const Chaos::FPhysicsSolver* S
 			Chaos::IDispatcher* const PhysicsDispatcher = ChaosModule->GetDispatcher();
 			check(PhysicsDispatcher);
 
-			PhysicsDispatcher->EnqueueCommandImmediate([this, Solver, &RigidBodyIds]()
+			PhysicsDispatcher->EnqueueCommandImmediate(Solver, [this, &RigidBodyIds](Chaos::FPhysicsSolver* InSolver)
 			{
 				// Iterate through all data
 				FData& Data = BufferedData.GetPhysicsDataForWrite();
@@ -63,7 +63,7 @@ void TGeometryCollectionParticlesData<T, d>::Sync(const Chaos::FPhysicsSolver* S
 					// Only sync required infos
 					if (Data.RequiredDataFlags[DataIndex])
 					{
-						Data.Copy(EGeometryCollectionParticlesData(DataIndex), Solver, RigidBodyIds);
+						Data.Copy(EGeometryCollectionParticlesData(DataIndex), InSolver, RigidBodyIds);
 					}
 					else
 					{
