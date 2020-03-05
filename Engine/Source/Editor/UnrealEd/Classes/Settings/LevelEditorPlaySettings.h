@@ -543,7 +543,8 @@ public:
 	// End of UObject interface
 
 #if WITH_EDITOR
-	void SwapSafeZoneTypes();
+	// Recalculates and broadcasts safe zone size changes based on device to emulate and r.DebugSafeZone.TitleRatio values.
+	void UpdateCustomSafeZones();
 #endif
 
 	FMargin CalculateCustomUnsafeZones(TArray<FVector2D>& CustomSafeZoneStarts, TArray<FVector2D>& CustomSafeZoneDimensions, FString& DeviceType, FVector2D PreviewSize);

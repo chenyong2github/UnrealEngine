@@ -77,7 +77,10 @@ public:
 	UPROPERTY(Config)
 	int32 MaxSplitscreenPlayers = 4;
 
-	/** if true then the title safe border is drawn */
+	/** if true then the title safe border is drawn
+	  * @deprecated - Use the cvar "r.DebugSafeZone.Mode=1".
+	  */
+	UE_DEPRECATED(4.26, "Use the cvar \"r.DebugSafeZone.Mode=1\".")
 	uint32 bShowTitleSafeZone:1;
 
 	/** If true, this viewport is a play in editor viewport */
@@ -115,8 +118,10 @@ public:
 	UFUNCTION(exec)
 	virtual void SSSwapControllers();
 
-	/** Exec for toggling the display of the title safe area */
-	UFUNCTION(exec)
+	/** Exec for toggling the display of the title safe area
+	  * @deprecated Use the cvar "r.DebugSafeZone.Mode=1".
+	  */
+	UFUNCTION(exec, meta = (DeprecatedFunction, DeprecationMessage = "Use the cvar \"r.DebugSafeZone.Mode=1.\""))
 	virtual void ShowTitleSafeArea();
 
 	/** Sets the player which console commands will be executed in the context of. */
@@ -438,7 +443,7 @@ public:
 	bool CalculateDeadZoneForAllSides( ULocalPlayer* LPlayer, UCanvas* Canvas, float& fTopSafeZone, float& fBottomSafeZone, float& fLeftSafeZone, float& fRightSafeZone, bool bUseMaxPercent = false );
 
 	/**  
-	 * Draw the safe area using the current TitleSafeZone settings. 
+	 * Draws the safe area using the current r.DebugSafeZone.Mode=1 when there is not a valid PlayerController HUD.
 	 * 
 	 * @param Canvas	Canvas on which to draw
 	 */
