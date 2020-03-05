@@ -205,6 +205,18 @@ AUsdStageActor::AUsdStageActor()
 				const pxr::SdfChangeList::EntryList& ChangeList = ChangeVecItem.second.GetEntryList();
 				for (const std::pair<pxr::SdfPath, pxr::SdfChangeList::Entry>& Change : ChangeList)
 				{
+					for (const pxr::SdfChangeList::Entry::SubLayerChange& SubLayerChange : Change.second.subLayerChanges)
+					{
+						const pxr::SdfChangeList::SubLayerChangeType ChangeType = SubLayerChange.second;
+						if (ChangeType == pxr::SdfChangeList::SubLayerChangeType::SubLayerAdded ||
+							ChangeType == pxr::SdfChangeList::SubLayerChangeType::SubLayerRemoved)
+						{
+							UE_LOG(LogUsd, Verbose, TEXT("Reloading animations because layer '%s' was added/removed"), *UsdToUnreal::ConvertString(SubLayerChange.first));
+							ReloadAnimations();
+							return;
+						}
+					}
+
 					const pxr::SdfChangeList::Entry::_Flags& Flags = Change.second.flags;
 					if (Flags.didReloadContent)
 					{
@@ -586,8 +598,11 @@ void AUsdStageActor::ReloadAnimations()
 
 	if ( HasAutorithyOverStage() )
 	{
-		// The sequencer won't update on its own, so let's at least force it closed
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
+		if (LevelSequence)
+		{
+			// The sequencer won't update on its own, so let's at least force it closed
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
+		}
 
 		LevelSequence = nullptr;
 		SubLayerLevelSequencesByIdentifier.Reset();
