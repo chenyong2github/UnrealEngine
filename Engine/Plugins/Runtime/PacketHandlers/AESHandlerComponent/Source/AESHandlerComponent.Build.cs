@@ -39,15 +39,6 @@ public class AESHandlerComponent : ModuleRules
 				}
 				);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"PlatformCryptoSwitch",
-				}
-				);
-		}
 		else if (DefaultToSSL)
 		{
 			PublicDependencyModuleNames.AddRange(
