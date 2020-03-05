@@ -58,9 +58,9 @@ FTransform URuntimeVirtualTextureComponent::GetVirtualTextureTransform() const
 bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
 {
 #if WITH_EDITOR
-	return bUseStreamingLowMipsInEditor;
+	return bUseStreamingLowMips && bUseStreamingLowMipsInEditor;
 #else
-	return true;
+	return bUseStreamingLowMips;
 #endif
 }
 
