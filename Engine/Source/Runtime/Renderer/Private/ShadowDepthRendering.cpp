@@ -40,7 +40,7 @@
 #include "VisualizeTexture.h"
 #include "GPUScene.h"
 
-DECLARE_GPU_STAT_NAMED(ShadowDepths, TEXT("Shadow Depths"));
+DECLARE_GPU_DRAWCALL_STAT_NAMED(ShadowDepths, TEXT("Shadow Depths"));
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters, "ShadowDepthPass");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters, "MobileShadowDepthPass");

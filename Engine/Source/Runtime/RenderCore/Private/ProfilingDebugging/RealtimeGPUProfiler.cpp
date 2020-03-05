@@ -837,7 +837,7 @@ void FRealtimeGPUProfiler::PopEvent(FRHICommandListImmediate& RHICmdList)
 /*-----------------------------------------------------------------------------
 FScopedGPUStatEvent
 -----------------------------------------------------------------------------*/
-void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName)
+void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, int32* InNumDrawCallsPtr)
 {
 	check(IsInRenderingThread());
 	if (!AreGPUStatsEnabled())
@@ -850,6 +850,20 @@ void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name
 	{
 		RHICmdList = (FRHICommandListImmediate*)&InRHICmdList;
 		FRealtimeGPUProfiler::Get()->PushEvent(*RHICmdList, Name, StatName);
+
+		check(InNumDrawCallsPtr != nullptr);
+		if ((*InNumDrawCallsPtr)!=-1)
+		{
+			NumDrawCallsPtr = InNumDrawCallsPtr;
+
+			RHICmdList->EnqueueLambda
+			(
+				[InNumDrawCallsPtr](FRHICommandListImmediate& InRHICmdList)
+				{
+					GCurrentNumDrawCallsRHIPtr = InNumDrawCallsPtr;
+				}
+			);
+		}
 	}
 }
 
@@ -863,6 +877,17 @@ void FScopedGPUStatEvent::End()
 	if (RHICmdList != nullptr)
 	{
 		FRealtimeGPUProfiler::Get()->PopEvent(*RHICmdList);
+		
+		if (NumDrawCallsPtr != nullptr)
+		{
+			RHICmdList->EnqueueLambda
+			(
+				[](FRHICommandListImmediate& InRHICmdList)
+				{
+					GCurrentNumDrawCallsRHIPtr = &GCurrentNumDrawCallsRHI;
+				}
+			);
+		}
 	}
 }
 #endif // HAS_GPU_STATS
