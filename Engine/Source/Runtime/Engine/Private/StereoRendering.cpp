@@ -105,3 +105,17 @@ bool IStereoRendering::DeviceIsAnAdditionalView(const FSceneView& View)
 {
 	return View.StereoPass > EStereoscopicPass::eSSP_RIGHT_EYE;
 }
+
+uint32 IStereoRendering::GetLODViewIndex()
+{
+	if (GEngine->StereoRenderingDevice.IsValid())
+	{
+		return GEngine->StereoRenderingDevice->DeviceGetLODViewIndex();
+	}
+	return 0;
+}
+
+uint32 IStereoRendering::DeviceGetLODViewIndex() const
+{
+	return 0;
+}
