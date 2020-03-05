@@ -36,6 +36,14 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "LevelEditor.h"
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h"
+#include "ISettingsModule.h"
+#include "SteamVREditorSettings.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "Widgets/Input/SButton.h"
+#include "DetailWidgetRow.h"
+#include "Runtime/Core/Public/CoreGlobals.h"
+#include "Runtime/Core/Public/Misc/ConfigCacheIni.h"
 
 static const FName SteamVREditorTabName("SteamVREditor");
 
@@ -43,6 +51,8 @@ static const FName SteamVREditorTabName("SteamVREditor");
 
 void FSteamVREditorModule::StartupModule()
 {
+	RegisterSettings();
+
 	FSteamVREditorStyle::Initialize();
 	FSteamVREditorStyle::ReloadTextures();
 
@@ -309,16 +319,27 @@ void FSteamVREditorModule::AddMenuExtension(FMenuBuilder& Builder)
 
 void FSteamVREditorModule::AddToolbarExtension(FToolBarBuilder& Builder)
 {
-	FSteamVREditorStyle MenuStyle = FSteamVREditorStyle();
-	MenuStyle.Initialize();
+	// Only show the toolbar button if enabled by the user for this project.  Setting is under Project Settings > PLugins > SteamVR now instead.
+	bool bShowSteamVrInputToolbarButton;
+	if (GConfig->GetBool(TEXT("/Script/SteamVREditor.SteamVREditorSettings"), TEXT("bShowSteamVrInputToolbarButton"), bShowSteamVrInputToolbarButton, GEditorIni) && bShowSteamVrInputToolbarButton)
+	{
+		FSteamVREditorStyle MenuStyle = FSteamVREditorStyle();
+		MenuStyle.Initialize();
 
-	Builder.AddComboButton(
-		FUIAction(FExecuteAction::CreateRaw(this, &FSteamVREditorModule::PluginButtonClicked)),
-		FOnGetContent::CreateRaw(this, &FSteamVREditorModule::FillComboButton, PluginCommands),
-		LOCTEXT("SteamVRInputBtn", "SteamVR Input"),
-		LOCTEXT("SteamVRInputBtnTootlip", "SteamVR Input"),
-		FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.PluginAction")
-	);
+		static const FName SteamVRInputSectionName = FName("SteamVR Input");
+
+		Builder.BeginSection(SteamVRInputSectionName);
+
+		Builder.AddComboButton(
+			FUIAction(FExecuteAction::CreateRaw(this, &FSteamVREditorModule::PluginButtonClicked)),
+			FOnGetContent::CreateRaw(this, &FSteamVREditorModule::FillComboButton, PluginCommands),
+			LOCTEXT("SteamVRInputBtn", "SteamVR Input"),
+			LOCTEXT("SteamVRInputBtnTootlip", "SteamVR Input"),
+			FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.PluginAction")
+		);
+
+		Builder.EndSection();
+	}
 }
 
 TSharedRef<SWidget> FSteamVREditorModule::FillComboButton(TSharedPtr<class FUICommandList> Commands)
@@ -334,6 +355,121 @@ TSharedRef<SWidget> FSteamVREditorModule::FillComboButton(TSharedPtr<class FUICo
 	return MenuBuilder.MakeWidget();
 }
 
-#undef LOCTEXT_NAMESPACE
+void FSteamVREditorModule::RegisterSettings()
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->RegisterSettings("Project", "Plugins", "SteamVR",
+			LOCTEXT("SteamVREditorSettingsName", "SteamVR"),
+			LOCTEXT("SteamVREditorSettingsDescription", "Configure the SteamVR plugin"),
+			GetMutableDefault<USteamVREditorSettings>()
+		);
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout(USteamVREditorSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSteamVRSettingsDetailsCustomization::MakeInstance));
+	}
+}
+
+void FSteamVREditorModule::UnregisterSettings()
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "SteamVR");
+	}
+}
+
 	
 IMPLEMENT_MODULE(FSteamVREditorModule, SteamVREditor)
+
+TSharedRef<IDetailCustomization> FSteamVRSettingsDetailsCustomization::MakeInstance()
+{
+	return MakeShareable(new FSteamVRSettingsDetailsCustomization);
+}
+
+void FSteamVRSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+{
+	
+	IDetailCategoryBuilder& CategoryBuilder = DetailLayout.EditCategory("SteamVR Input", FText::GetEmpty());
+	CategoryBuilder.AddCustomRow(LOCTEXT("SteamVR Input Category", "SteamVR Input"))
+		.WholeRowContent()
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(2)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Regenerate Action Manifest", "Regenerate Action Manifest"))
+		.OnClicked_Raw(this, &FSteamVRSettingsDetailsCustomization::RegenActionManifest)
+		]
+	+ SHorizontalBox::Slot().FillWidth(8)
+		]
+	+ SVerticalBox::Slot().AutoHeight().Padding(2)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Regenerate Controller Bindings", "Regenerate Controller Bindings"))
+		.OnClicked_Raw(this, &FSteamVRSettingsDetailsCustomization::RegenerateControllerBindings)
+		]
+	+ SHorizontalBox::Slot().FillWidth(8)
+		]
+
+	+ SVerticalBox::Slot().AutoHeight().Padding(2)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Reload Action Manifest", "Reload Action Manifest"))
+		.OnClicked_Raw(this, &FSteamVRSettingsDetailsCustomization::ReloadActionManifest)
+		]
+	+ SHorizontalBox::Slot().FillWidth(8)
+		]
+
+	+ SVerticalBox::Slot().AutoHeight().Padding(2)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Launch SteamVR Bindings Dashboard", "Launch SteamVR Bindings Dashboard"))
+		.OnClicked_Raw(this, &FSteamVRSettingsDetailsCustomization::LaunchBindingsURL)
+		]
+	+ SHorizontalBox::Slot().FillWidth(8)
+		]
+
+		];
+}
+
+FReply FSteamVRSettingsDetailsCustomization::RegenActionManifest()
+{
+	FSteamVREditorModule& SteamVREditorModule = FModuleManager::LoadModuleChecked<FSteamVREditorModule>("SteamVREditor");
+	SteamVREditorModule.JsonRegenerateActionManifest();
+	return FReply::Handled();
+}
+
+FReply FSteamVRSettingsDetailsCustomization::RegenerateControllerBindings()
+{
+	FSteamVREditorModule& SteamVREditorModule = FModuleManager::LoadModuleChecked<FSteamVREditorModule>("SteamVREditor");
+	SteamVREditorModule.JsonRegenerateControllerBindings();
+	return FReply::Handled();
+}
+
+FReply FSteamVRSettingsDetailsCustomization::ReloadActionManifest()
+{
+	FSteamVREditorModule& SteamVREditorModule = FModuleManager::LoadModuleChecked<FSteamVREditorModule>("SteamVREditor");
+	SteamVREditorModule.ReloadActionManifest();
+	return FReply::Handled();
+}
+
+FReply FSteamVRSettingsDetailsCustomization::LaunchBindingsURL()
+{
+	FSteamVREditorModule& SteamVREditorModule = FModuleManager::LoadModuleChecked<FSteamVREditorModule>("SteamVREditor");
+	SteamVREditorModule.LaunchBindingsURL();
+	return FReply::Handled();
+}
+
+#undef LOCTEXT_NAMESPACE

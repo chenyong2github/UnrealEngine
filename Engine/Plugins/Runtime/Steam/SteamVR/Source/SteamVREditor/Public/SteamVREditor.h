@@ -32,6 +32,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "Modules/ModuleManager.h"
 #include "SteamVRInputDeviceFunctionLibrary.h"
+#include "IDetailCustomization.h"
 
 class FToolBarBuilder;
 class FMenuBuilder;
@@ -54,6 +55,9 @@ public:
 	void LaunchBindingsURL();
 	void AddSampleInputs();
 
+	void RegisterSettings();
+	void UnregisterSettings();
+
 private:
 
 	void AddToolbarExtension(FToolBarBuilder& Builder);
@@ -64,4 +68,20 @@ private:
 	TSharedPtr<class FUICommandList> PluginCommands;
 	TSharedRef<SWidget> FillComboButton(TSharedPtr<class FUICommandList> Commands);
 
+};
+
+class FSteamVRSettingsDetailsCustomization : public IDetailCustomization
+{
+public:
+	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+	// IDetailCustomization interface
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+	// End of IDetailCustomization interface
+
+	FReply RegenActionManifest();
+	FReply RegenerateControllerBindings();
+	FReply ReloadActionManifest();
+	FReply LaunchBindingsURL();
 };
