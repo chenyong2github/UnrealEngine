@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Crc.h"
+
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "GeometryCollection/GeometryCollectionCollisionStructureManager.h"
 
 /*
 * Managed arrays for simulation data used by the GeometryCollectionProxy
@@ -56,16 +58,39 @@ public:
 	FGeometryDynamicCollection(FGeometryDynamicCollection&&) = delete;
 	FGeometryDynamicCollection& operator=(FGeometryDynamicCollection&&) = delete;
 
-
 	typedef FTransformDynamicCollection Super;
 
 	static const FName ActiveAttribute;
 	static const FName CollisionGroupAttribute;
+	static const FName CollisionMaskAttribute;
 	static const FName DynamicStateAttribute;
-
+	static const FName ImplicitsAttribute;
+	static const FName ShapesQueryDataAttribute;
+	static const FName ShapesSimDataAttribute;
+	static const FName SharedGeometryAttribute;
+	static const FName SharedImplicitsAttribute;
+	static const FName SimplicialsAttribute;
+	static const FName SolverParticleHandlesAttribute;
+	static const FName SolverClusterHandlesAttribute;
 
 	// Transform Group
 	TManagedArray<bool> Active;
 	TManagedArray<int32> CollisionGroup;
+	TManagedArray<int32> CollisionMask;
+	TManagedArray<int32> CollisionStructureID;
 	TManagedArray<int32> DynamicState;
+	TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> Implicits;
+	TManagedArray<FVector> InitialAngularVelocity;
+	TManagedArray<FVector> InitialLinearVelocity;
+	TManagedArray<FTransform> MassToLocal;
+	//TManagedArray<TArray<FCollisionFilterData>> ShapeQueryData;
+	//TManagedArray<TArray<FCollisionFilterData>> ShapeSimData;
+	//TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> SharedGeometry;
+	//TManagedArray<TSharedPtr<FCollisionStructureManager::FSimplicial> > Simplicials;
+	TManagedArray<bool> SimulatableParticles;
+	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverClusterHandles;
+	TManagedArray<Chaos::TPBDRigidParticleHandle<float, 3>*> SolverClusterID; // Rename to ClusterParent?
+	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverParticleHandles;
+
+
 };
