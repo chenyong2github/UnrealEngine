@@ -496,7 +496,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 					}
 				}
 
-				for (TGeometryParticleHandle<FReal, 3>* Particle : NewIslandParticles[Island])
+				for (TGeometryParticleHandle<FReal, 3>* Particle : NewIslandParticles[OtherIsland])
 				{
 					if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle())
 					{
