@@ -65,12 +65,12 @@ struct FAndroidCrashInfo
 	bool bInitialized = false;
 } GAndroidCrashInfo;
 
-const FString FAndroidCrashContext::GetCrashDirectoryName()
+const FString FAndroidCrashContext::GetGlobalCrashDirectoryPath()
 {
 	return FString(GAndroidCrashInfo.TargetDirectory);
 }
 
-void FAndroidCrashContext::GetCrashDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize])
+void FAndroidCrashContext::GetGlobalCrashDirectoryPath(char(&DirectoryNameOUT)[CrashReportMaxPathSize])
 {
 	FCStringAnsi::Strncpy(DirectoryNameOUT, GAndroidCrashInfo.TargetDirectory, CrashReportMaxPathSize);
 }
@@ -272,7 +272,7 @@ FAndroidCrashContext::FAndroidCrashContext(ECrashContextType InType, const TCHAR
 	}
 	else
 	{
-		GetCrashDirectoryName(ReportDirectory);
+		GetGlobalCrashDirectoryPath(ReportDirectory);
 	}
 }
 
