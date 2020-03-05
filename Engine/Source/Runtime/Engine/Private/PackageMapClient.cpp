@@ -27,6 +27,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "Components/ChildActorComponent.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "GameFramework/Controller.h"
 
 #if WITH_EDITOR
 #include "UObject/ObjectRedirector.h"
@@ -38,6 +39,8 @@
 
 static const int GUID_PACKET_NOT_ACKED	= -2;		
 static const int GUID_PACKET_ACKED		= -1;		
+
+CSV_DEFINE_CATEGORY(PackageMap, true);
 
 /**
  * Don't allow infinite recursion of InternalLoadObject - an attacker could
@@ -51,20 +54,36 @@ static TAutoConsoleVariable<int32> CVarReservedNetGuidSize(TEXT("net.ReservedNet
 extern FAutoConsoleVariableRef CVarEnableMultiplayerWorldOriginRebasing;
 extern TAutoConsoleVariable<int32> CVarFilterGuidRemapping;
 
-static float GGuidCacheTrackAsyncLoadingGUIDTreshold = 0.f;
+static float GGuidCacheTrackAsyncLoadingGUIDThreshold = 0.f;
 static FAutoConsoleVariableRef CVarTrackAsyncLoadingGUIDTreshold(
 	TEXT("net.TrackAsyncLoadingGUIDThreshold"),
-	GGuidCacheTrackAsyncLoadingGUIDTreshold,
+	GGuidCacheTrackAsyncLoadingGUIDThreshold,
 	TEXT("When > 0, any objects that take longer than the threshold to async load will be tracked."
 		" Threshold in seconds, @see FNetGUIDCache::ConsumeDelinquencyAnalytics. Used for Debugging and Analytics")
 );
 
-static float GPackageMapTrackQueuedActorTreshold = 0.f;
+static float GGuidCacheTrackAsyncLoadingGUIDThresholdOwner = 0.f;
+static FAutoConsoleVariableRef CVarTrackAsyncLoadingGUIDThresholdOwner(
+	TEXT("net.TrackAsyncLoadingGUIDThresholdOwner"),
+	GGuidCacheTrackAsyncLoadingGUIDThresholdOwner,
+	TEXT("When > 0, if the Net Connection's owning Controller or Pawn is waiting on Async Loads for longer than this"
+		" threshold, we will fire a CSV Event to track it. Used for Debugging and Profiling")
+);
+
+static float GPackageMapTrackQueuedActorThreshold = 0.f;
 static FAutoConsoleVariableRef CVarTrackQueuedActorTreshold(
 	TEXT("net.TrackQueuedActorThreshold"),
-	GPackageMapTrackQueuedActorTreshold,
+	GPackageMapTrackQueuedActorThreshold,
 	TEXT("When > 0, any actors that spend longer than the threshold with queued bunches will be tracked."
 		" Threshold in seconds, @see UPackageMap::ConsumeDelinquencyAnalytics. Used for Debugging and Analytics")
+);
+
+static float GPackageMapTrackQueuedActorThresholdOwner = 0.f;
+static FAutoConsoleVariableRef CVarTrackQueuedActorOwnerThreshold(
+	TEXT("net.TrackQueuedActorThresholdOwner"),
+	GPackageMapTrackQueuedActorThresholdOwner,
+	TEXT("When > 0, if the Net Connection's owning Controller or Pawn has Queued Bunches for longer than this"
+		" threshold, we will fire a CSV Event to track it. Used for Debugging and Profiling")
 );
 
 static int32 GDelinquencyNumberOfTopOffendersToTrack = 10;
@@ -2217,7 +2236,7 @@ void UPackageMapClient::SetHasQueuedBunches(const FNetworkGUID& NetGUID, bool bH
 {
 	if (bHasQueuedBunches)
 	{
-		if (GPackageMapTrackQueuedActorTreshold > 0.f)
+		if (GPackageMapTrackQueuedActorThreshold > 0.f)
 		{
 			if (UNetDriver const * const NetDriver = ((Connection) ? Connection->GetDriver() : nullptr))
 			{
@@ -2231,24 +2250,47 @@ void UPackageMapClient::SetHasQueuedBunches(const FNetworkGUID& NetGUID, bool bH
 	{
 		double StartTime = 0.f;
 
+		const bool bNormalQueueEnabled = GPackageMapTrackQueuedActorThreshold > 0.f;
+		
+#if CSV_PROFILER		
+		const bool bOwnerQueueEnabled = GPackageMapTrackQueuedActorThresholdOwner > 0.f;
+#else
+		constexpr bool bOwnerQueueEnabled = false;
+#endif		
+
 		// We try to remove the value regardless of whether or not the CVar is on.
 		// That way if it's toggled on and off, we don't end up wasting resources.
 		// If it is disabled with entries in DelinquentQueuedActors, it will be up
 		// to clients to clear out the map by calling ConsumeDelinquencyAnalytics.
 		if (CurrentQueuedBunchNetGUIDs.RemoveAndCopyValue(NetGUID, StartTime) &&
-			GPackageMapTrackQueuedActorTreshold &&
+			(bNormalQueueEnabled || bOwnerQueueEnabled) &&
 			GuidCache)
 		{
 			if (UNetDriver const * const NetDriver = ((Connection) ? Connection->GetDriver() : nullptr))
 			{
 				const double QueuedTime = NetDriver->GetElapsedTime() - StartTime;
-				if (QueuedTime > GPackageMapTrackQueuedActorTreshold)
+				const bool bAboveNormalQueuedTime = bNormalQueueEnabled && QueuedTime > GPackageMapTrackQueuedActorThreshold;
+				const bool bAboveOwnerQueuedTime = bOwnerQueueEnabled && QueuedTime > GPackageMapTrackQueuedActorThresholdOwner;
+
+				if (bAboveNormalQueuedTime || bAboveOwnerQueuedTime)
 				{
 					if (FNetGuidCacheObject const * const CacheObject = GuidCache->ObjectLookup.Find(NetGUID))
 					{
 						if (UObject const * const Object = CacheObject->Object.Get())
 						{
-							DelinquentQueuedActors.DelinquentQueuedActors.Emplace(Object->GetClass()->GetFName(), QueuedTime);
+							const FName ObjectClass = Object->GetClass()->GetFName();
+
+							if (bAboveNormalQueuedTime)
+							{
+								DelinquentQueuedActors.DelinquentQueuedActors.Emplace(ObjectClass, QueuedTime);
+							}
+
+#if CSV_PROFILER
+							if (bAboveOwnerQueuedTime && GuidCache->IsTrackingOwnerOrPawn())
+							{
+								CSV_EVENT(PackageMap, TEXT("Owner Net Stall Queued Actor (QueueTime=%.2f)"), *ObjectClass.ToString(), QueuedTime);
+							}
+#endif
 						}
 					}
 				}
@@ -2878,6 +2920,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		UE_LOG(LogNetPackageMap, Log, TEXT("ValidateAsyncLoadingPackage: Already async loading package. Path: %s, NetGUID: %s"), *CacheObject.PathName.ToString(), *NetGUID.ToString());
 	}
+	
+#if CSV_PROFILER
+	PendingLoadRequest.bWasRequestedByOwnerOrPawn |= IsTrackingOwnerOrPawn();
+#endif
 }
 
 void FNetGUIDCache::StartAsyncLoadingPackage(FNetGuidCacheObject& CacheObject, const FNetworkGUID NetGUID, const bool bWasAlreadyAsyncLoading)
@@ -2887,7 +2933,13 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PendingAsyncPackages.Add(CacheObject.PathName, NetGUID);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	PendingAsyncLoadRequests.Emplace(CacheObject.PathName, FPendingAsyncLoadRequest(NetGUID, Driver->GetElapsedTime()));
+	FPendingAsyncLoadRequest LoadRequest(NetGUID, Driver->Driver->GetElapsedTime());
+	
+#if CSV_PROFILER
+	LoadRequest.bWasRequestedByOwnerOrPawn = IsTrackingOwnerOrPawn();
+#endif
+
+	PendingAsyncLoadRequests.Emplace(CacheObject.PathName, MoveTemp(LoadRequest));
 
 	DelinquentAsyncLoads.MaxConcurrentAsyncLoads = FMath::Max<uint32>(DelinquentAsyncLoads.MaxConcurrentAsyncLoads, PendingAsyncLoadRequests.Num());
 
@@ -2939,11 +2991,21 @@ void FNetGUIDCache::AsyncPackageCallback(const FName& PackageName, UPackage * Pa
 		// This won't be the exact amount of time that we spent loading the package, but should
 		// give us a close enough estimate (within a frame time).
 		const double LoadTime = (Driver->GetElapsedTime() - PendingLoadRequest->RequestStartTime);
-		if (GGuidCacheTrackAsyncLoadingGUIDTreshold > 0.f &&
-			LoadTime >= GGuidCacheTrackAsyncLoadingGUIDTreshold)
+		if (GGuidCacheTrackAsyncLoadingGUIDThreshold > 0.f &&
+			LoadTime >= GGuidCacheTrackAsyncLoadingGUIDThreshold)
 		{
 			DelinquentAsyncLoads.DelinquentAsyncLoads.Emplace(PackageName, LoadTime);
 		}
+
+#if CSV_PROFILER
+		if (PendingLoadRequest->bWasRequestedByOwnerOrPawn &&
+			GGuidCacheTrackAsyncLoadingGUIDThresholdOwner > 0.f &&
+			LoadTime >= GGuidCacheTrackAsyncLoadingGUIDThresholdOwner &&
+			Driver->ServerConnection)
+		{
+			CSV_EVENT(PackageMap, TEXT("Owner Net Stall Async Load (Package=%s|LoadTime=%.2f)"), *PackageName.ToString(), LoadTime);
+		}
+#endif
 
 		PendingAsyncLoadRequests.Remove(PackageName);
 
@@ -3716,3 +3778,54 @@ FAutoConsoleCommand	ListNetGUIDExportsCommand(
 	);
 
 // ----------------------------------------------------------------
+
+#if CSV_PROFILER
+bool FNetGUIDCache::IsTrackingOwnerOrPawn() const
+{
+	return TrackingOwnerOrPawnHelper && TrackingOwnerOrPawnHelper->IsOwnerOrPawn();
+}
+
+FNetGUIDCache::FIsOwnerOrPawnHelper::FIsOwnerOrPawnHelper(
+	FNetGUIDCache* InGuidCache,
+	const AActor* InConnectionActor,
+	const AActor* InChannelActor)
+
+	: GuidCache(InGuidCache)
+	, ConnectionActor(InConnectionActor)
+	, ChannelActor(InChannelActor)
+{
+	if (GuidCache)
+	{
+		GuidCache->TrackingOwnerOrPawnHelper = this;
+	}
+}
+
+FNetGUIDCache::FIsOwnerOrPawnHelper::~FIsOwnerOrPawnHelper()
+{
+	if (GuidCache)
+	{
+		GuidCache->TrackingOwnerOrPawnHelper = nullptr;
+	}
+}
+
+bool FNetGUIDCache::FIsOwnerOrPawnHelper::IsOwnerOrPawn() const
+{
+	if (CachedResult == INDEX_NONE)
+	{
+		bool bIsOwnerOrPawn = false;
+		if (ChannelActor && ConnectionActor)
+		{
+			bIsOwnerOrPawn = (ChannelActor == ConnectionActor);
+			if (!bIsOwnerOrPawn)
+			{
+				const AController* Controller = Cast<AController>(ConnectionActor);
+				bIsOwnerOrPawn = Controller ? (Controller->GetPawn() == ChannelActor) : false;
+			}
+		}
+
+		CachedResult = bIsOwnerOrPawn ? 1 : 0;
+	}
+
+	return !!CachedResult;
+}
+#endif

@@ -317,6 +317,10 @@ private:
 
 		FNetworkGUID NetGUID;
 		double RequestStartTime;
+
+#if CSV_PROFILER
+		bool bWasRequestedByOwnerOrPawn = false;
+#endif
 	};
 
 	/** Set of packages that are currently pending Async loads, referenced by package name. */
@@ -336,6 +340,53 @@ private:
 	 * pending guids. 
 	 */
 	TMap<FNetworkGUID, TWeakPtr<FQueuedBunchObjectReference>> QueuedBunchObjectReferences;
+
+#if CSV_PROFILER
+public:
+
+	bool IsTrackingOwnerOrPawn() const;
+
+	struct FIsOwnerOrPawnHelper
+	{
+	private:
+		friend class UActorChannel;
+
+		FIsOwnerOrPawnHelper(
+			class FNetGUIDCache* const InGuidCache,
+			const class AActor* InConnectionActor,
+			const class AActor* ChannelActor);
+
+	public:
+
+		~FIsOwnerOrPawnHelper();
+
+		bool IsOwnerOrPawn() const;
+
+	private:
+
+		class FNetGUIDCache* const GuidCache;
+		const class AActor* ConnectionActor;
+		const class AActor* ChannelActor;
+		mutable int8 CachedResult = INDEX_NONE;
+
+		// No copying, moving, or constructing off stack.
+		// References or pointers to this class should never be kept alive.
+		FIsOwnerOrPawnHelper(const FIsOwnerOrPawnHelper&) = delete;
+		FIsOwnerOrPawnHelper(FIsOwnerOrPawnHelper&&) = delete;
+
+		FIsOwnerOrPawnHelper& operator=(const FIsOwnerOrPawnHelper&) = delete;
+		FIsOwnerOrPawnHelper& operator=(FIsOwnerOrPawnHelper&&) = delete;
+
+		void* operator new (size_t) = delete;
+		void* operator new[](size_t) = delete;
+		void operator delete (void *) = delete;
+		void operator delete[](void*) = delete;
+	};
+
+private:
+
+	FIsOwnerOrPawnHelper* TrackingOwnerOrPawnHelper = nullptr;
+#endif
 };
 
 class ENGINE_API FPackageMapAckState
