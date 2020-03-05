@@ -5,7 +5,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Views/STreeView.h"
-#include "Styling/CoreStyle.h"
+#include "EditorStyleSet.h"
 
 enum class EItemSelectorClickActivateMode
 {
