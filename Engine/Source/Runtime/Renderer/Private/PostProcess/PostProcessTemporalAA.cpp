@@ -121,6 +121,8 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthBufferSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneVelocityBufferSampler)
 
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, StencilTexture)
+
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		
 		// Temporal upsample specific parameters.
@@ -512,6 +514,8 @@ FTAAOutputs AddTemporalAAPass(
 		PassParameters->SceneTextures = SceneTextures;
 		PassParameters->SceneDepthBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->SceneVelocityBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+		PassParameters->StencilTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneTextures.SceneDepthBuffer, PF_X24_G8));
 
 		// We need a valid velocity buffer texture. Use black (no velocity) if none exists.
 		if (!PassParameters->SceneTextures.SceneVelocityBuffer)

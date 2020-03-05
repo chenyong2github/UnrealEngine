@@ -465,6 +465,8 @@ SamplerState SceneDepthBufferSampler;
 Texture2D SceneVelocityBuffer;
 SamplerState SceneVelocityBufferSampler;
 
+Texture2D<uint2> StencilTexture;
+
 Texture2D HistoryBuffer0;
 Texture2D HistoryBuffer1;
 SamplerState HistoryBuffer0Sampler;
@@ -1902,7 +1904,7 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 			const uint kResponsiveStencilMask = 1 << 3;
 			
 			int2 SceneStencilUV = (int2)trunc(InputParams.NearestBufferUV * InputSceneColorSize.xy);
-			uint SceneStencilRef = SceneDepthBuffer.Load(int3(SceneStencilUV, 0)) STENCIL_COMPONENT_SWIZZLE;
+			uint SceneStencilRef = StencilTexture.Load(int3(SceneStencilUV, 0)) STENCIL_COMPONENT_SWIZZLE;
 
 			InputParams.bIsResponsiveAAPixel = (SceneStencilRef & kResponsiveStencilMask) ? 1.f : 0.f;
 		}
