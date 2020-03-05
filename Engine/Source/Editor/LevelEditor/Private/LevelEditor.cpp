@@ -217,7 +217,7 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		{
 			// In legacy mode this toolbox should always be open
 			static const FTabId ToolboxTabId("LevelEditorToolBox");
-			LevelEditorTabManager->InvokeTab(ToolboxTabId);
+			LevelEditorTabManager->TryInvokeTab(ToolboxTabId);
 
 			// In legacy mode the standalone placement browser tab should not be opened
 			static const FTabId PlacementBrowserTabId("PlacementBrowser");

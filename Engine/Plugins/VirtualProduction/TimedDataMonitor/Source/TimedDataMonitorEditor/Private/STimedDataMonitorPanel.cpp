@@ -655,7 +655,7 @@ bool STimedDataMonitorPanel::IsResetEvaluationChecked() const
 
 FReply STimedDataMonitorPanel::OnShowBuffersClicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FTabId(Utilities::NAME_TimedDataMonitorBuffers));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId(Utilities::NAME_TimedDataMonitorBuffers));
 	return FReply::Handled();
 }
 

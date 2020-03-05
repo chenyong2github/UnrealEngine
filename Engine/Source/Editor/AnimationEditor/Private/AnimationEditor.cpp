@@ -451,7 +451,7 @@ TSharedPtr<SDockTab> FAnimationEditor::OpenNewAnimationDocumentTab(UAnimationAss
 		// Invoke the preview tab if this is a montage
 		if(InAnimAsset->IsA<UAnimMontage>())
 		{
-			TabManager->InvokeTab(AnimationEditorTabs::AnimMontageSectionsTab);
+			TabManager->TryInvokeTab(AnimationEditorTabs::AnimMontageSectionsTab);
 			OnSectionsChanged.Broadcast();
 		}
 		else
