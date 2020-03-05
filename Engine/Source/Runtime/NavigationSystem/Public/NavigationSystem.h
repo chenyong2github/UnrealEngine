@@ -168,9 +168,6 @@ public:
 	uint32 bSkipAgentHeightCheckWhenPickingNavData:1;
 
 protected:
-	
-	UPROPERTY(EditDefaultsOnly, Category = "NavigationSystem", config)
-	ENavDataGatheringModeConfig DataGatheringMode;
 
 	/** If set to true navigation will be generated only around registered "navigation enforcers"
 	*	This has a range of consequences (including how navigation octree operates) so it needs to
@@ -179,11 +176,18 @@ protected:
 	*	@see RegisterNavigationInvoker
 	*/
 	UPROPERTY(EditDefaultsOnly, Category = "Navigation Enforcing", config)
-	uint32 bGenerateNavigationOnlyAroundNavigationInvokers : 1;
-	
+	uint32 bGenerateNavigationOnlyAroundNavigationInvokers:1;
+
 	/** Minimal time, in seconds, between active tiles set update */
 	UPROPERTY(EditAnywhere, Category = "Navigation Enforcing", meta = (ClampMin = "0.1", UIMin = "0.1", EditCondition = "bGenerateNavigationOnlyAroundNavigationInvokers"), config)
 	float ActiveTilesUpdateInterval;
+
+	UPROPERTY(EditDefaultsOnly, Category = "NavigationSystem", config)
+	ENavDataGatheringModeConfig DataGatheringMode;
+
+	/** -1 by default, if set to a positive value dirty areas with any dimensions in 2d over the threshold created at runtime will be logged */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = NavigationSystem, meta = (ClampMin = "-1.0", UIMin = "-1.0"))
+	float DirtyAreaWarningSizeThreshold;
 
 	UPROPERTY(config, EditAnywhere, Category = Agents)
 	TArray<FNavDataConfig> SupportedAgents;
@@ -779,8 +783,14 @@ public:
 	/** adds BSP collisions of currently streamed in levels to octree */
 	void InitializeLevelCollisions();
 
+	enum class ELockRemovalRebuildAction
+	{
+		Rebuild,
+		RebuildIfNotInEditor,
+		NoRebuild
+	};
 	void AddNavigationBuildLock(uint8 Flags);
-	void RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor = false);
+	void RemoveNavigationBuildLock(uint8 Flags, const ELockRemovalRebuildAction RebuildAction = ELockRemovalRebuildAction::Rebuild);
 
 	void SetNavigationOctreeLock(bool bLock);
 
@@ -1074,6 +1084,9 @@ public:
 	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
 	uint8 bDirtyAreasReportedWhileAccumulationLocked : 1;
 #endif // !UE_BUILD_SHIPPING
+
+	UE_DEPRECATED(4.26, "This version of RemoveNavigationBuildLock is deprecated. Please use the new version")
+	void RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor) { RemoveNavigationBuildLock(Flags, bSkipRebuildInEditor ? ELockRemovalRebuildAction::RebuildIfNotInEditor : ELockRemovalRebuildAction::Rebuild);}
 };
 
 //----------------------------------------------------------------------//

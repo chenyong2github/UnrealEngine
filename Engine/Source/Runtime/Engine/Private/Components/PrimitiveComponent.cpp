@@ -2440,7 +2440,8 @@ bool UPrimitiveComponent::IsNavigationRelevant() const
 
 FBox UPrimitiveComponent::GetNavigationBounds() const
 {
-	return Bounds.GetBox();
+	// Return invalid box when retrieving NavigationBounds before they are being computed at component registration
+	return bRegistered ? Bounds.GetBox() : FBox(ForceInit);
 }
 
 //////////////////////////////////////////////////////////////////////////

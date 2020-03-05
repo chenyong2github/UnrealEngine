@@ -258,6 +258,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	, bTickWhilePaused(false)
 	, bWholeWorldNavigable(false)
 	, bSkipAgentHeightCheckWhenPickingNavData(false)
+	, DirtyAreaWarningSizeThreshold(-1.0f)
 	, OperationMode(FNavigationSystemRunMode::InvalidMode)
 	, NavBuildingLockFlags(0)
 	, InitialNavBuildingLockFlags(0)
@@ -555,6 +556,8 @@ void UNavigationSystemV1::PostInitProperties()
 			FNavDataConfig& SupportedAgentConfig = SupportedAgents[AgentIndex];
 			SetSupportedAgentsNavigationClass(AgentIndex, SupportedAgentConfig.GetNavDataClass<ANavigationData>());
 		}
+
+		DefaultDirtyAreasController.SetDirtyAreaWarningSizeThreshold(DirtyAreaWarningSizeThreshold);
 	
 		if (bInitialBuildingLocked)
 		{
@@ -715,7 +718,6 @@ void UNavigationSystemV1::OnBeginTearingDown()
 
 void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 {
-	static const bool bSkipRebuildInEditor = true;
 	OperationMode = Mode;
 	DoInitialSetup();
 	
@@ -747,7 +749,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 
 		if (OperationMode == FNavigationSystemRunMode::EditorMode)
 		{
-			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, bSkipRebuildInEditor);
+			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 		}
 	}
 	else
@@ -809,7 +811,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 		if (OperationMode == FNavigationSystemRunMode::EditorMode)
 		{
 			// don't lock navigation building in editor
-			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, bSkipRebuildInEditor);
+			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 		}
 
 		// See if any of registered navigation data needs NavOctree
@@ -865,6 +867,9 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 	{
 		DefaultDirtyAreasController.DirtyAreas.Empty();
 	}
+
+	// Report oversized dirty areas only in game mode
+	DefaultDirtyAreasController.SetCanReportOversizedDirtyArea(Mode == FNavigationSystemRunMode::GameMode);
 
 	bWorldInitDone = true;
 	OnNavigationInitDone.Broadcast();
@@ -1030,8 +1035,7 @@ void UNavigationSystemV1::SetNavigationAutoUpdateEnabled(bool bNewEnable, UNavig
 
 			if (bCurrentIsEnabled)
 			{
-				const bool bSkipRebuildsInEditor = false;
-				NavSystem->RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor, bSkipRebuildsInEditor);
+				NavSystem->RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor);
 			}
 			else
 			{
@@ -3259,37 +3263,50 @@ void UNavigationSystemV1::OnPIEEnd()
 	{
 		bAsyncBuildPaused = false;
 		// there's no need to request while navigation rebuilding just because PIE has ended
-		RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor, /*bSkipRebuildInEditor=*/true);
+		RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 	}
 }
 
 void UNavigationSystemV1::AddNavigationBuildLock(uint8 Flags)
 {
+	const bool bWasLocked = IsNavigationBuildingLocked();
+
 	NavBuildingLockFlags |= Flags;
 
-	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::AddNavigationBuildLock IsLocked=%s"), IsNavigationBuildingLocked() ? TEXT("true") : TEXT("false"));
+	const bool bIsLocked = IsNavigationBuildingLocked();
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::AddNavigationBuildLock WasLocked=%s IsLocked=%s"), *LexToString(bWasLocked), *LexToString(bIsLocked));
+	if (!bWasLocked && bIsLocked)
+	{
+		DefaultDirtyAreasController.OnNavigationBuildLocked();
+	}
 }
 
-void UNavigationSystemV1::RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor)
+void UNavigationSystemV1::RemoveNavigationBuildLock(uint8 Flags, const ELockRemovalRebuildAction RebuildAction /*= ELockRemovalRebuildAction::Rebuild*/)
 {
 	const bool bWasLocked = IsNavigationBuildingLocked();
 
 	NavBuildingLockFlags &= ~Flags;
 
 	const bool bIsLocked = IsNavigationBuildingLocked();
-	const bool bSkipRebuild = (OperationMode == FNavigationSystemRunMode::EditorMode) && bSkipRebuildInEditor;
-
-	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::RemoveNavigationBuildLock bWasLocked=%s IsLocked=%s"), bWasLocked ? TEXT("true") : TEXT("false"), bIsLocked ? TEXT("true") : TEXT("false"));
-
-	if (bWasLocked && !bIsLocked && !bSkipRebuild)
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::RemoveNavigationBuildLock WasLocked=%s IsLocked=%s"), *LexToString(bWasLocked), *LexToString(bIsLocked));
+	if (bWasLocked && !bIsLocked)
 	{
-		RebuildAll();
+		DefaultDirtyAreasController.OnNavigationBuildUnlocked();
+
+		const bool bRebuild = 
+			(RebuildAction == ELockRemovalRebuildAction::RebuildIfNotInEditor && (OperationMode != FNavigationSystemRunMode::EditorMode)) || 
+			(RebuildAction == ELockRemovalRebuildAction::Rebuild);
+		
+		if (bRebuild)
+		{
+			RebuildAll();
+		}
 	}
 }
 
 void UNavigationSystemV1::SetNavigationOctreeLock(bool bLock)
 {
-	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::SetNavigationOctreeLock IsLocked=%s"), bLock ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::SetNavigationOctreeLock IsLocked=%s"), *LexToString(bLock));
 
 	DefaultOctreeController.SetNavigationOctreeLock(bLock);
 }
@@ -3550,7 +3567,7 @@ void UNavigationSystemV1::OnHotReload(bool bWasTriggeredAutomatically)
 
 		if (bInitialBuildingLocked)
 		{
-			RemoveNavigationBuildLock(ENavigationBuildLock::InitialLock, /*bSkipRebuildInEditor=*/true);
+			RemoveNavigationBuildLock(ENavigationBuildLock::InitialLock, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 		}
 	}
 }
