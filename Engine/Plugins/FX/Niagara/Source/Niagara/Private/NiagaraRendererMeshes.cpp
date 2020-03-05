@@ -449,7 +449,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					}
 					else
 					{
-						CollectorResources.VertexFactory->SetParticleData(FNiagaraRenderer::GetDummyFloatBuffer().SRV, 0);
+						CollectorResources.VertexFactory->SetParticleData(FNiagaraRenderer::GetDummyFloatBuffer(), 0);
 					}
 				}
 
