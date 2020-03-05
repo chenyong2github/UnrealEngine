@@ -66,7 +66,7 @@ public:
 		SLATE_EVENT(FOnParameterRenamed, OnParameterRenamed)
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, const TSharedPtr<INiagaraParameterNameViewModel>& InParameterNameViewModel);
+	void Construct(const FArguments& InArgs, const TSharedPtr<class INiagaraParameterNameViewModel>& InParameterNameViewModel);
 
 protected:
 	TSharedPtr<INiagaraParameterNameViewModel> ParameterNameViewModel;
