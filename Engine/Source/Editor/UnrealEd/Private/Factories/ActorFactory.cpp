@@ -1414,8 +1414,8 @@ bool UActorFactoryBlueprint::CanCreateActorFrom( const FAssetData& AssetData, FT
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-		const FString ObjectPath = FPackageName::ExportTextPathToObjectPath(*ParentClassPath);
-		const FName ParentClassPathFName = FName( *FPackageName::ObjectPathToObjectName(ObjectPath) );
+		const FStringView ObjectPath = FPackageName::ExportTextPathToObjectPath(FStringView(ParentClassPath));
+		const FName ParentClassPathFName = FName( FPackageName::ObjectPathToObjectName(ObjectPath) );
 		TArray<FName> AncestorClassNames;
 		AssetRegistry.GetAncestorClassNames(ParentClassPathFName, AncestorClassNames);
 

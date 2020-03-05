@@ -305,7 +305,7 @@ void FGraphNodeClassHelper::OnAssetRemoved(const struct FAssetData& AssetData)
 	if (AssetData.GetTagValue(FBlueprintTags::GeneratedClassPath, AssetClassName))
 	{
 		ConstructorHelpers::StripObjectClass(AssetClassName);
-		AssetClassName = FPackageName::ObjectPathToObjectName(*AssetClassName);
+		AssetClassName = FPackageName::ObjectPathToObjectName(AssetClassName);
 
 		TSharedPtr<FGraphNodeClassNode> Node = FindBaseClassNode(RootNode, AssetClassName);
 		if (Node.IsValid() && Node->ParentNode.IsValid())
