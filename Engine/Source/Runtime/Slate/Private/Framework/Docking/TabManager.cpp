@@ -1658,7 +1658,7 @@ TSharedPtr<SDockTab> FTabManager::SpawnTab(const FTabId& TabId, const TSharedPtr
 			bSpawningAllowedBySpawner = Spawner->CanSpawnTab.Execute(FSpawnTabArgs(ParentWindow, TabId));
 		}
 
-		if (bSpawningAllowedBySpawner && !Spawner->SpawnedTabPtr.IsValid())
+		if (bSpawningAllowedBySpawner && (!Spawner->SpawnedTabPtr.IsValid() || Spawner->OnFindTabToReuse.IsBound()))
 		{
 			NewTabWidget = Spawner->OnSpawnTab.Execute(FSpawnTabArgs(ParentWindow, TabId));
 			NewTabWidget->SetLayoutIdentifier(TabId);
