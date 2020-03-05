@@ -114,6 +114,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "MeshMergeModule.h"
 
+#include "Animation/SkinWeightProfile.h"
 
 DEFINE_LOG_CATEGORY(LogMeshUtilities);
 /*------------------------------------------------------------------------------
@@ -4066,8 +4067,8 @@ public:
 					InfluenceCount = FMath::Min<uint32>(InfluenceCount, MAX_TOTAL_INFLUENCES);
 					if (InfluenceCount > EXTRA_BONE_INFLUENCES && !FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(InfluenceCount))
 					{
-						InfluenceCount = EXTRA_BONE_INFLUENCES;
 						UE_LOG(LogSkeletalMesh, Warning, TEXT("Skeletal mesh of %d bone influences requires unlimited bone influence mode on. Influence truncated to %d."), InfluenceCount, EXTRA_BONE_INFLUENCES);
+						InfluenceCount = EXTRA_BONE_INFLUENCES;
 					}
 
 					// Setup the vertex influences.
@@ -5746,6 +5747,8 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 
 		// Determine how many influences each skinweight can contain
 		const int32 NumInfluences = TargetLODModel.GetMaxBoneInfluences();
+		InOutSkinWeightOverrideData.NumWeightsPerVertex = NumInfluences;
+
 
 		TArray<FRawSkinWeight> UniqueWeights;
 		for (int32 VertexIndex = 0; VertexIndex < TargetVertices.Num(); ++VertexIndex)
@@ -5783,31 +5786,22 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 				// If one hasn't been added yet, create a new one
 				if (OverrideIndex == INDEX_NONE)
 				{
-					FRuntimeSkinWeightProfileData::FSkinWeightOverrideInfo& DeltaOverride = InOutSkinWeightOverrideData.OverridesInfo.AddDefaulted_GetRef();
-
-					// Store offset into array and total number of influences to read
-					DeltaOverride.InfluencesOffset = InOutSkinWeightOverrideData.Weights.Num();
-					DeltaOverride.NumInfluences = 0;
+					OverrideIndex = UniqueWeights.Num();
 
 					// Write out non-zero weighted influences only
 					for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
 					{
-						if (SourceSkinWeight.InfluenceWeights[InfluenceIndex] > 0)
-						{
-							const uint32 Index = SourceSkinWeight.InfluenceBones[InfluenceIndex] << 16;
-							const uint32 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
-							const uint32 Value = Index | Weight;
+						const FBoneIndexType Index = SourceSkinWeight.InfluenceBones[InfluenceIndex];
+						const uint8 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
 
-							InOutSkinWeightOverrideData.Weights.Add(Value);
-							++DeltaOverride.NumInfluences;
-						}
+						InOutSkinWeightOverrideData.BoneIDs.Add(Index);
+						InOutSkinWeightOverrideData.BoneWeights.Add(Weight);
 					}
 
-					OverrideIndex = InOutSkinWeightOverrideData.OverridesInfo.Num() - 1;
 					UniqueWeights.Add(SourceSkinWeight);
 				}
 
-				InOutSkinWeightOverrideData.VertexIndexOverrideIndex.Add(VertexIndex, OverrideIndex);
+				InOutSkinWeightOverrideData.VertexIndexToInfluenceOffset.Add(VertexIndex, OverrideIndex);
 			}
 		}
 	}

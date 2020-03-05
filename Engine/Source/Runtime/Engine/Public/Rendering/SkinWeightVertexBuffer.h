@@ -290,6 +290,8 @@ public:
 	void SetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex, uint8 BoneWeight);
 	void ResetVertexBoneWeights(uint32 VertexWeightOffset, uint32 VertexInfluenceCount);
 
+	void CopyDataFromBuffer(const TArrayView<const FSkinWeightInfo>& SkinWeightData);
+
 	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
 	FVertexBufferRHIRef CreateRHIBuffer_RenderThread();
 	FVertexBufferRHIRef CreateRHIBuffer_Async();
@@ -317,6 +319,13 @@ public:
 		{
 			Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
 		}
+	}
+
+	bool IsWeightDataValid() const;
+
+	FSkinWeightInfo* GetWeightData() const
+	{
+		return (FSkinWeightInfo*)Data;
 	}
 
 protected:
@@ -390,6 +399,8 @@ public:
 	FSkinWeightVertexBuffer& operator=(const TArray<FSkinWeightInfo>& InWeights);
 	void GetSkinWeights(TArray<FSkinWeightInfo>& OutVertices) const;
 	FSkinWeightInfo GetVertexSkinWeights(uint32 VertexIndex) const;
+
+	void CopySkinWeightInfoData(const TArrayView<const FSkinWeightInfo>& SkinWeightData);
 
 	friend FArchive& operator<<(FArchive& Ar, FSkinWeightVertexBuffer& VertexBuffer);
 

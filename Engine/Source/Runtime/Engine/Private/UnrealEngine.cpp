@@ -234,6 +234,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "ObjectTrace.h"
 #include "StudioAnalytics.h"
 #include "TraceFilter.h"
+#include "Animation/SkinWeightProfileManager.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
@@ -278,6 +279,8 @@ void FEngineModule::StartupModule()
 #if TRACE_FILTERING_ENABLED
 	FTraceFilter::Init();
 #endif
+
+	FSkinWeightProfileManager::OnStartup();
 }
 
 void FEngineModule::ShutdownModule()
@@ -291,6 +294,8 @@ void FEngineModule::ShutdownModule()
 #endif
 
 	FParticleSystemWorldManager::OnShutdown();
+
+	FSkinWeightProfileManager::OnShutdown();
 }
 
 /* Global variables
@@ -2201,7 +2206,7 @@ void UEngine::ReinitializeCustomTimeStep()
 	{
 		if (bIsCurrentCustomTimeStepInitialized)
 		{
-			CustomTimeStep->Shutdown(this);
+		CustomTimeStep->Shutdown(this);
 		}
 		bIsCurrentCustomTimeStepInitialized = CustomTimeStep->Initialize(this);
 	}
@@ -2220,7 +2225,7 @@ bool UEngine::SetCustomTimeStep(UEngineCustomTimeStep* InCustomTimeStep)
 		CustomTimeStep = InCustomTimeStep && !InCustomTimeStep->IsPendingKill() ? InCustomTimeStep : nullptr;
 
 		if (CustomTimeStep)
-		{
+			{
 			bIsCurrentCustomTimeStepInitialized = CustomTimeStep->Initialize(this);
 		}
 		OnCustomTimeStepChanged().Broadcast();
@@ -2235,7 +2240,7 @@ void UEngine::ReinitializeTimecodeProvider()
 	{
 		if (bIsCurrentTimecodeProviderInitialized)
 		{
-			Provider->Shutdown(this);
+	Provider->Shutdown(this);
 		}
 		bIsCurrentTimecodeProviderInitialized = Provider->Initialize(this);
 	}
@@ -2244,7 +2249,7 @@ void UEngine::ReinitializeTimecodeProvider()
 bool UEngine::SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider)
 {
 	if (InTimecodeProvider != TimecodeProvider)
-	{
+			{
 		if (TimecodeProvider && bIsCurrentTimecodeProviderInitialized)
 		{
 			TimecodeProvider->Shutdown(this);
@@ -2254,7 +2259,7 @@ bool UEngine::SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider)
 		TimecodeProvider = InTimecodeProvider && !InTimecodeProvider->IsPendingKill() ? InTimecodeProvider : nullptr;
 
 		if (TimecodeProvider)
-		{
+			{
 			bIsCurrentTimecodeProviderInitialized = TimecodeProvider->Initialize(this);
 		}
 		OnTimecodeProviderChanged().Broadcast();
@@ -2420,12 +2425,12 @@ static void LoadCustomTimeStep(UEngine* Engine)
 static void LoadTimecodeProvider(UEngine* Engine)
 {
 	if (Engine->TimecodeProviderClassName.IsValid())
-	{
+{
 		if (UClass* TimecodeProviderClass = Engine->TimecodeProviderClassName.TryLoadClass<UTimecodeProvider>())
-		{
+	{
 			UTimecodeProvider* NewTimecodeProvider = NewObject<UTimecodeProvider>(Engine, TimecodeProviderClass);
 			if (!Engine->SetTimecodeProvider(NewTimecodeProvider))
-			{
+		{
 				UE_LOG(LogEngine, Warning, TEXT("InitializeTimecodeProvider - Failed to intialize TimecodeProvider '%s'."), *NewTimecodeProvider->GetPathName());
 			}
 		}
@@ -3358,7 +3363,7 @@ void UEngine::SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentContr
 
 APlayerController* UEngine::GetFirstLocalPlayerController(const UWorld* InWorld)
 {
-	const FWorldContext& Context = GetWorldContextFromWorldChecked(InWorld);
+	const FWorldContext &Context = GetWorldContextFromWorldChecked(InWorld);
 
 	return (Context.OwningGameInstance ? Context.OwningGameInstance->GetFirstLocalPlayerController(InWorld) : nullptr);
 }
@@ -5008,13 +5013,13 @@ bool UEngine::HandleKismetEventCommand(UWorld* InWorld, const TCHAR* Cmd, FOutpu
 			const bool bIsCDOOwnedArchtype = IsCDOOwnedArchtype(Obj);
 			if (!bIsCDOOwnedArchtype)
 			{
-				UWorld const* const ObjWorld = Obj->GetWorld();
-				if (ObjWorld == InWorld)
-				{
-					const bool bSucceeded = Obj->CallFunctionByNameWithArguments(Cmd, Ar, nullptr, true);
-					NumInstanceCallsSucceeded += bSucceeded ? 1 : 0;
-				}
+			UWorld const* const ObjWorld = Obj->GetWorld();
+			if (ObjWorld == InWorld)
+			{
+				const bool bSucceeded = Obj->CallFunctionByNameWithArguments(Cmd, Ar, nullptr, true);
+				NumInstanceCallsSucceeded += bSucceeded ? 1 : 0;
 			}
+		}
 		}
 
 		Ar.Logf(TEXT("Called '%s' on everything in the world and %d instances succeeded"), Cmd, NumInstanceCallsSucceeded);
@@ -9306,8 +9311,8 @@ void UEngine::ClearOnScreenDebugMessages()
 	{	
 		// Because some components add their message in concurrent work, we need a CS here.
 		FScopeLock ScopeLock(&GOnScreenMessageCS);
-		ScreenMessages.Empty();
-		PriorityScreenMessages.Empty();
+	ScreenMessages.Empty();
+	PriorityScreenMessages.Empty();
 	}
 #endif // !UE_BUILD_SHIPPING
 }
@@ -10121,54 +10126,54 @@ float UEngine::DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCa
 		if (PriorityScreenMessages.Num() > 0)
 		{
 			FCanvasTextItem MessageTextItem(FVector2D(0, 0), FText::GetEmpty(), GetSmallFont(), FLinearColor::White);
-			MessageTextItem.EnableShadow(FLinearColor::Black);
+		MessageTextItem.EnableShadow(FLinearColor::Black);
 			for (int32 PrioIndex = PriorityScreenMessages.Num() - 1; PrioIndex >= 0; PrioIndex--)
-			{
+		{
 				FScreenMessageString& Message = PriorityScreenMessages[PrioIndex];
-				if (YPos < MaxYPos)
+			if (YPos < MaxYPos)
+			{
+				MessageTextItem.Text = FText::FromString(Message.ScreenMessage);
+				MessageTextItem.SetColor(Message.DisplayColor);
+				MessageTextItem.Scale = Message.TextScale;
+				Canvas->DrawItem(MessageTextItem, FVector2D(MessageX, YPos));
+				YPos += MessageTextItem.DrawnSize.Y * 1.15f;
+			}
+			if (!HasUpdatedScreenDebugMessages.IsSet())
+			{
+				Message.CurrentTimeDisplayed += World->GetDeltaSeconds();
+				if (Message.CurrentTimeDisplayed >= Message.TimeToDisplay)
 				{
-					MessageTextItem.Text = FText::FromString(Message.ScreenMessage);
-					MessageTextItem.SetColor(Message.DisplayColor);
-					MessageTextItem.Scale = Message.TextScale;
-					Canvas->DrawItem(MessageTextItem, FVector2D(MessageX, YPos));
-					YPos += MessageTextItem.DrawnSize.Y * 1.15f;
-				}
-				if (!HasUpdatedScreenDebugMessages.IsSet())
-				{
-					Message.CurrentTimeDisplayed += World->GetDeltaSeconds();
-					if (Message.CurrentTimeDisplayed >= Message.TimeToDisplay)
-					{
 						PriorityScreenMessages.RemoveAt(PrioIndex);
-					}
 				}
 			}
 		}
+	}
 
 		if (ScreenMessages.Num() > 0)
-		{
+	{
 			FCanvasTextItem MessageTextItem(FVector2D(0, 0), FText::GetEmpty(), GetSmallFont(), FLinearColor::White);
-			MessageTextItem.EnableShadow(FLinearColor::Black);
+		MessageTextItem.EnableShadow(FLinearColor::Black);
 			for (TMap<int32, FScreenMessageString>::TIterator MsgIt(ScreenMessages); MsgIt; ++MsgIt)
+		{
+			FScreenMessageString& Message = MsgIt.Value();
+			if (YPos < MaxYPos)
 			{
-				FScreenMessageString& Message = MsgIt.Value();
-				if (YPos < MaxYPos)
+				MessageTextItem.Text = FText::FromString(Message.ScreenMessage);
+				MessageTextItem.SetColor(Message.DisplayColor);
+				MessageTextItem.Scale = Message.TextScale;
+				Canvas->DrawItem(MessageTextItem, FVector2D(MessageX, YPos));
+				YPos += MessageTextItem.DrawnSize.Y * 1.15f;
+			}
+			if (!HasUpdatedScreenDebugMessages.IsSet())
+			{
+				Message.CurrentTimeDisplayed += World->GetDeltaSeconds();
+				if (Message.CurrentTimeDisplayed >= Message.TimeToDisplay)
 				{
-					MessageTextItem.Text = FText::FromString(Message.ScreenMessage);
-					MessageTextItem.SetColor(Message.DisplayColor);
-					MessageTextItem.Scale = Message.TextScale;
-					Canvas->DrawItem(MessageTextItem, FVector2D(MessageX, YPos));
-					YPos += MessageTextItem.DrawnSize.Y * 1.15f;
-				}
-				if (!HasUpdatedScreenDebugMessages.IsSet())
-				{
-					Message.CurrentTimeDisplayed += World->GetDeltaSeconds();
-					if (Message.CurrentTimeDisplayed >= Message.TimeToDisplay)
-					{
-						MsgIt.RemoveCurrent();
-					}
+					MsgIt.RemoveCurrent();
 				}
 			}
 		}
+	}
 	}
 	// Flag variable that the update has already been done this frame
 	HasUpdatedScreenDebugMessages = true;
@@ -15991,29 +15996,29 @@ int32 UEngine::RenderStatTimecode(UWorld* World, FViewport* Viewport, FCanvas* C
 	const UTimecodeProvider* Provider = GetTimecodeProvider();
 	if (Provider)
 	{
-		ETimecodeProviderSynchronizationState State = Provider->GetSynchronizationState();
-		FString ProviderName = Provider->GetName();
-		float CharWidth, CharHeight;
-		Font->GetCharSize(TEXT(' '), CharWidth, CharHeight);
-		int32 NewX = X - Font->GetStringSize(*ProviderName) - (int32)CharWidth;
-		switch (State)
-		{
-		case ETimecodeProviderSynchronizationState::Closed:
-			Canvas->DrawShadowedString(NewX, Y, *FString::Printf(TEXT("%s TC: Closed"), *ProviderName), Font, FColor::Red);
-			break;
-		case ETimecodeProviderSynchronizationState::Error:
-			Canvas->DrawShadowedString(NewX, Y, *FString::Printf(TEXT("%s TC: Error"), *ProviderName), Font, FColor::Red);
-			break;
-		case ETimecodeProviderSynchronizationState::Synchronized:
-			Canvas->DrawShadowedString(NewX, Y, *FString::Printf(TEXT("%s TC: Synchronized"), *ProviderName), Font, FColor::Green);
-			break;
-		case ETimecodeProviderSynchronizationState::Synchronizing:
-			Canvas->DrawShadowedString(NewX, Y, *FString::Printf(TEXT("%s TC: Synchronizing"), *ProviderName), Font, FColor::Yellow);
-			break;
-		default:
-			check(false);
-			break;
-		}
+	ETimecodeProviderSynchronizationState State = Provider->GetSynchronizationState();
+	FString ProviderName = Provider->GetName();
+	float CharWidth, CharHeight;
+	Font->GetCharSize(TEXT(' '), CharWidth, CharHeight);
+	int32 NewX = X - Font->GetStringSize(*ProviderName) - (int32)CharWidth;
+	switch (State)
+	{
+	case ETimecodeProviderSynchronizationState::Closed:
+		Canvas->DrawShadowedString(NewX, Y, *FString::Printf(TEXT("%s TC: Closed"), *ProviderName), Font, FColor::Red);
+		break;
+	case ETimecodeProviderSynchronizationState::Error:
+		Canvas->DrawShadowedString(NewX, Y, *FString::Printf(TEXT("%s TC: Error"), *ProviderName), Font, FColor::Red);
+		break;
+	case ETimecodeProviderSynchronizationState::Synchronized:
+		Canvas->DrawShadowedString(NewX, Y, *FString::Printf(TEXT("%s TC: Synchronized"), *ProviderName), Font, FColor::Green);
+		break;
+	case ETimecodeProviderSynchronizationState::Synchronizing:
+		Canvas->DrawShadowedString(NewX, Y, *FString::Printf(TEXT("%s TC: Synchronizing"), *ProviderName), Font, FColor::Yellow);
+		break;
+	default:
+		check(false);
+		break;
+	}
 	}
 	Y += RowHeight;
 	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("TC: %s"), *FApp::GetTimecode().ToString()), Font, FColor::Green);

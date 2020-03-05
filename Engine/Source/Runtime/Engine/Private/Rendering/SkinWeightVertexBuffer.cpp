@@ -184,7 +184,7 @@ FVertexBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Internal()
 		// Create the vertex buffer.
 		FResourceArrayInterface* ResourceArray = LookupData ? LookupData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
+		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
 		CreateInfo.bWithoutNativeResource = !LookupData;
 
@@ -394,7 +394,7 @@ FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Internal()
 		// Create the vertex buffer.
 		FResourceArrayInterface* ResourceArray = WeightData ? WeightData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
+		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
 		CreateInfo.bWithoutNativeResource = !WeightData;
 
@@ -419,6 +419,11 @@ FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_RenderThread()
 FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
+}
+
+bool FSkinWeightDataVertexBuffer::IsWeightDataValid() const
+{
+	return WeightData != nullptr;
 }
 
 void FSkinWeightDataVertexBuffer::InitRHI()
@@ -590,6 +595,11 @@ void FSkinWeightDataVertexBuffer::ResetVertexBoneWeights(uint32 VertexWeightOffs
 	}
 }
 
+void FSkinWeightDataVertexBuffer::CopyDataFromBuffer(const TArrayView<const FSkinWeightInfo>& SkinWeightData)
+{
+	Init(SkinWeightData.Num() * GetMaxBoneInfluences(), SkinWeightData.Num());
+	FMemory::Memcpy(Data, SkinWeightData.GetData(), GetVertexDataSize());
+}
 
 /*-----------------------------------------------------------------------------
 FSkinWeightVertexBuffer
@@ -903,4 +913,9 @@ FSkinWeightInfo FSkinWeightVertexBuffer::GetVertexSkinWeights(uint32 VertexIndex
 		OutVertex.InfluenceWeights[InfluenceIdx] = GetBoneWeight(VertexIndex, InfluenceIdx);
 	}
 	return OutVertex;
+}
+
+void FSkinWeightVertexBuffer::CopySkinWeightInfoData(const TArrayView<const FSkinWeightInfo>& SkinWeightData)
+{
+	DataVertexBuffer.CopyDataFromBuffer(SkinWeightData);
 }
