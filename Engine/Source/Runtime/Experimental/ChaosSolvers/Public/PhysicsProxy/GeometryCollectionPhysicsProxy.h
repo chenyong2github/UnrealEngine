@@ -299,7 +299,6 @@ protected:
 		int32 TransformIndex) const;
 
 	void CreateDynamicAttributes();
-	void InitializeKinematics(const TManagedArray<int32>& ObjectType);
 	void InitializeRemoveOnFracture(FParticlesType& Particles, const TManagedArray<int32>& DynamicState);
 	void PushKinematicStateToSolver(FParticlesType& Particles);
 
