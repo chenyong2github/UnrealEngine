@@ -107,8 +107,46 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			UE_LOG(LogD3D12RHI, Fatal, TEXT("The debug interface requires the D3D12 SDK Layers. Please install the Graphics Tools for Windows. See: https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features"));
 		}
 	}
+	// Two ways to enable GPU crash debugging, command line or the r.GPUCrashDebugging variable
+	// Note: If intending to change this please alert game teams who use this for user support.
+	// GPU crash debugging will enable DRED and Aftermath if available
+	bool bGPUCrashDebugging = false;
+	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
+	{
+		bGPUCrashDebugging = true;
+	}
+	else
+	{
+		static IConsoleVariable* GPUCrashDebugging = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
+		if (GPUCrashDebugging)
+		{
+			bGPUCrashDebugging = GPUCrashDebugging->GetInt() > 0;
+		}
+	}
+	
+	// Setup DRED if requested
+	if (bGPUCrashDebugging || FParse::Param(FCommandLine::Get(), TEXT("dred")))
+	{
+		ID3D12DeviceRemovedExtendedDataSettings* DredSettings = nullptr;
+		HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&DredSettings));
+
+		// Can fail if not on correct Windows Version - needs 1903 or newer
+		if (SUCCEEDED(hr))
+		{
+			// Turn on AutoBreadcrumbs and Page Fault reporting
+			DredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			DredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+
+			UE_LOG(LogD3D12RHI, Log, TEXT("[DRED] Dred enabled"));
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("[DRED] DRED requested but interface was not found, error: %x. DRED only works on Windows 10 1903+."), hr);
+		}
+	}
 
 	UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off"));
+
 #endif // PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && D3D12_PROFILING_ENABLED)
 
 	bool bDeviceCreated = false;
@@ -228,22 +266,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 #endif // D3D12_RHI_RAYTRACING
 
 #if NV_AFTERMATH
-	// Two ways to enable aftermath, command line or the r.GPUCrashDebugging variable
-	// Note: If intending to change this please alert game teams who use this for user support.
-	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
-	{
-		GDX12NVAfterMathEnabled = true;
-	}
-	else
-	{
-		static IConsoleVariable* GPUCrashDebugging = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
-		if (GPUCrashDebugging)
-		{
-			GDX12NVAfterMathEnabled = GPUCrashDebugging->GetInt();
-		}
-	}
-
-	if (GDX12NVAfterMathEnabled)
+	// Enable aftermath when GPU crash debugging is enabled
+	if (bGPUCrashDebugging || GDX12NVAfterMathEnabled)
 	{
 		if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 		{
@@ -252,6 +276,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath enabled and primed"));
 				SetEmitDrawEvents(true);
+				GDX12NVAfterMathEnabled = 1;
 			}
 			else
 			{
