@@ -208,6 +208,15 @@ void UK2Node_Tunnel::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageL
 	}
 }
 
+void UK2Node_Tunnel::FixupPinStringDataReferences(FArchive* SavingArchive)
+{
+	Super::FixupPinStringDataReferences(SavingArchive);
+	if (SavingArchive)
+	{
+		UpdateUserDefinedPinDefaultValues();
+	}
+}
+
 UEdGraphPin* UK2Node_Tunnel::CreatePinFromUserDefinition(const TSharedPtr<FUserPinInfo> NewPinInfo)
 {
 	// Create the new pin
