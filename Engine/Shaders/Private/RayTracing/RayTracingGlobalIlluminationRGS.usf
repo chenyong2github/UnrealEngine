@@ -26,6 +26,7 @@ uint MaxBounces;
 uint UpscaleFactor;
 float MaxRayDistanceForGI;
 float MaxRayDistanceForAO;
+float MaxShadowDistance;
 float NextEventEstimationSamples;
 float DiffuseThreshold;
 uint EvalSkyLight;
@@ -235,6 +236,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				{
 					RayDesc LightRay;
 					GenerateLightRay(Ray, LightId, LightUV, LightRay);
+					LightRay.TMax = min(LightRay.TMax, MaxShadowDistance);
 					ApplyPositionBias(LightRay, Payload.WorldNormal, MaxNormalBias);
 
 					// Trace visibility ray
