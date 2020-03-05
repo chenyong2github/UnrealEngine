@@ -168,6 +168,7 @@ struct ENGINE_API FMaterialLayersFunctions
 
 	static const FGuid UninitializedParentGuid;
 	static const FGuid NoParentGuid;
+	static const FGuid BackgroundGuid;
 		
 	FMaterialLayersFunctions()
 	{
@@ -178,7 +179,10 @@ struct ENGINE_API FMaterialLayersFunctions
 		FText LayerName = FText(LOCTEXT("Background", "Background"));
 		LayerNames.Add(LayerName);
 		RestrictToLayerRelatives.Add(false);
-		LayerGuids.Add(FGuid::NewGuid());
+		// Use a consistent Guid for the background layer
+		// This layer never needs to resolve, so doesn't need to be unique
+		// Default constructor assigning different guids will break FStructUtils::AttemptToFindUninitializedScriptStructMembers
+		LayerGuids.Add(BackgroundGuid);
 		ParentLayerGuids.Add(NoParentGuid);
 #endif
 	}
