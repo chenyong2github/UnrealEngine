@@ -273,7 +273,7 @@ void UGatherTextFromMetaDataCommandlet::GatherTextFromUObjects(const TArray<FStr
 		}
 
 		FString SourceFilePath;
-		if (!FSourceCodeNavigation::FindModulePath(FieldPackage, SourceFilePath))
+		if (!FSourceCodeNavigation::FindClassHeaderPath(Field, SourceFilePath))
 		{
 			continue;
 		}
