@@ -1967,6 +1967,7 @@ public:
 		, SubpassIndex(0)
 		, bDepthBounds(false)
 		, bMultiView(false)
+		, bHasFragmentDensityAttachment(false)
 		, Flags(0)
 	{
 		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
@@ -1995,7 +1996,8 @@ public:
 		uint8						InSubpassIndex,
 		uint16						InFlags,
 		bool						bInDepthBounds,
-		bool						bInMultiView
+		bool						bInMultiView,
+		bool						bHasFragmentDensityAttachment
 		)
 		: BoundShaderState(InBoundShaderState)
 		, BlendState(InBlendState)
@@ -2018,6 +2020,7 @@ public:
 		, SubpassIndex(InSubpassIndex)
 		, bDepthBounds(bInDepthBounds)
 		, bMultiView(bInMultiView)
+		, bHasFragmentDensityAttachment(bHasFragmentDensityAttachment)
 		, Flags(InFlags)
 	{
 	}
@@ -2041,6 +2044,7 @@ public:
 			PrimitiveType != rhs.PrimitiveType ||
 			bDepthBounds != rhs.bDepthBounds ||
 			bMultiView != rhs.bMultiView ||
+			bHasFragmentDensityAttachment != rhs.bHasFragmentDensityAttachment ||
 			RenderTargetsEnabled != rhs.RenderTargetsEnabled ||
 			RenderTargetFormats != rhs.RenderTargetFormats || 
 			RenderTargetFlags != rhs.RenderTargetFlags || 
@@ -2102,6 +2106,7 @@ public:
 	uint8							SubpassIndex;
 	bool							bDepthBounds;
 	bool							bMultiView;
+	bool							bHasFragmentDensityAttachment;
 	
 	// Note: these flags do NOT affect compilation of this PSO.
 	// The resulting object is invariant with respect to whatever is set here, they are

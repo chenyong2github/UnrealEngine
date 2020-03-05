@@ -270,6 +270,7 @@ public:
 			, 0
 			, bDepthBounds
 			, bMultiView
+			, bHasFragmentDensityAttachment
 		);
 	}
 
@@ -296,6 +297,7 @@ public:
 			ImmutableSamplerState != rhs.ImmutableSamplerState ||
 			bDepthBounds != rhs.bDepthBounds ||
 			bMultiView != rhs.bMultiView ||
+			bHasFragmentDensityAttachment != rhs.bHasFragmentDensityAttachment ||
 			PrimitiveType != rhs.PrimitiveType)
 		{
 			return false;
@@ -362,6 +364,7 @@ public:
 			COMPARE_FIELD(DepthStencilState)
 			COMPARE_FIELD(bDepthBounds)
 			COMPARE_FIELD(bMultiView)
+			COMPARE_FIELD(bHasFragmentDensityAttachment)
 			COMPARE_FIELD(PrimitiveType)
 		COMPARE_FIELD_END;
 
@@ -392,6 +395,7 @@ public:
 			COMPARE_FIELD(DepthStencilState)
 			COMPARE_FIELD(bDepthBounds)
 			COMPARE_FIELD(bMultiView)
+			COMPARE_FIELD(bHasFragmentDensityAttachment)
 			COMPARE_FIELD(PrimitiveType)
 			COMPARE_FIELD_END;
 
@@ -415,7 +419,8 @@ public:
 	// all data members and at the end of the structure.
 	bool							bDepthBounds = false;
 	bool							bMultiView = false;
-	uint8							Padding[2] = {};
+	bool							bHasFragmentDensityAttachment = false;
+	uint8							Padding[1] = {};
 
 	EPrimitiveType			PrimitiveType;
 };
