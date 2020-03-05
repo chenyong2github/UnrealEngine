@@ -2551,8 +2551,10 @@ FProperty* FPropertyHandleBase::GetMetaDataProperty() const
 		if( PropertyNode->GetArrayIndex() != INDEX_NONE )
 		{
 			TSharedPtr<FPropertyNode> ParentNode = PropertyNode->GetParentNodeSharedPtr();
-			check(ParentNode.IsValid());
-			MetaDataProperty = ParentNode->GetProperty();
+			if (ParentNode)
+			{
+				MetaDataProperty = ParentNode->GetProperty();
+			}
 		}
 	}
 
