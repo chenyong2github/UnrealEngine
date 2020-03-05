@@ -5040,16 +5040,8 @@ int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiag
 	}
 
 	//If we get here then this is a new data interface.
-	FName DataInterfaceName;
-	if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var.GetName().ToString()))
-	{
-		FNiagaraVariable AliasedVar = ActiveHistoryForFunctionCalls.ResolveAliases(Var);
-		DataInterfaceName = AliasedVar.GetName();
-	}
-	else
-	{
-		DataInterfaceName = Var.GetName();
-	}
+	const FString* EmitterAlias = ActiveHistoryForFunctionCalls.GetEmitterAlias();
+	FName DataInterfaceName = GetDataInterfaceName(Var.GetName(), EmitterAlias != nullptr ? *EmitterAlias : FString(), bAddParameterMapRead);
 
 	int32 Idx = CompilationOutput.ScriptData.DataInterfaceInfo.IndexOfByPredicate([&](const FNiagaraScriptDataInterfaceCompileInfo& OtherInfo)
 	{
@@ -5071,7 +5063,6 @@ int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiag
 	}
 	else
 	{
-		check(CompilationOutput.ScriptData.DataInterfaceInfo[Idx].Name == Var.GetName());
 		check(CompilationOutput.ScriptData.DataInterfaceInfo[Idx].Type == Var.GetType());
 	}
 
@@ -6145,6 +6136,24 @@ FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctio
 		SigStr += TEXT("_") + Specifier.Key.ToString() + Specifier.Value.ToString().Replace(TEXT("."), TEXT(""));
 	}
 	return GetSanitizedSymbolName(SigStr);
+}
+
+FName FHlslNiagaraTranslator::GetDataInterfaceName(FName BaseName, const FString& UniqueEmitterName, bool bIsParameterMapDataInterface)
+{
+	if (UniqueEmitterName.IsEmpty() == false)
+	{
+		if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(BaseName.ToString()))
+		{
+			return FNiagaraParameterMapHistory::ResolveEmitterAlias(BaseName, UniqueEmitterName);
+		}
+		else if(bIsParameterMapDataInterface == false)
+		{
+			// Don't mangle the parameter map reads for emitter scripts because they are from the system or user parameter stores and
+			// they won't bind correctly.
+			return *(UniqueEmitterName + TEXT(".") + BaseName.ToString());
+		}
+	}
+	return BaseName;
 }
 
 FString FHlslNiagaraTranslator::GetFunctionSignature(const FNiagaraFunctionSignature& Sig)
