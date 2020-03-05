@@ -160,9 +160,23 @@ public:
 		RowData->bHasPayload = UsdPrim.Get().HasPayload();
 		RowData->bIsLoaded = UsdPrim.Get().IsLoaded();
 
+		bool bOldVisibility = RowData->bIsVisible;
 		if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( UsdPrim.Get() ) )
 		{
 			RowData->bIsVisible = ( UsdGeomImageable.ComputeVisibility() != pxr::UsdGeomTokens->invisible );
+		}
+
+		// If our visibility was enabled, it may be that the visibilities of all of our parents were enabled to accomplish
+		// the target change, so we need to refresh them too. This happens when we manually change visibility on
+		// a USceneComponent and write that to the USD Stage, for example
+		if ( bOldVisibility == false && RowData->bIsVisible )
+		{
+			FUsdStageTreeItem* Item = ParentItem;
+			while ( Item )
+			{
+				Item->RefreshData(false);
+				Item = Item->ParentItem;
+			}
 		}
 
 		if ( bRefreshChildren )

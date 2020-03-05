@@ -510,26 +510,6 @@ EUsdPurpose IUsdPrim::GetPurpose( const UsdPrim& Prim, bool bComputed )
 	return EUsdPurpose::Default;
 }
 
-UNREALUSDWRAPPER_API FName IUsdPrim::GetPurposeName(EUsdPurpose Purpose)
-{
-	switch (Purpose)
-	{
-	case EUsdPurpose::Proxy:
-		return TEXT("ProxyPurpose");
-		break;
-	case EUsdPurpose::Render:
-		return TEXT("RenderPurpose");
-		break;
-	case EUsdPurpose::Guide:
-		return TEXT("GuidePurpose");
-		break;
-	default:
-		break;
-	}
-
-	return TEXT("DefaultPurpose");
-}
-
 bool IUsdPrim::HasGeometryData(const UsdPrim& Prim)
 {
 	return UsdGeomMesh(Prim) ? true : false;
