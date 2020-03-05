@@ -1309,7 +1309,7 @@ bool FPluginManager::AreRequiredPluginsAvailable()
 }
 
 #if !IS_MONOLITHIC
-bool FPluginManager::CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules)
+bool FPluginManager::CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules, TArray<FString>& OutIncompatibleEngineModules)
 {
 	if(!ConfigureEnabledPlugins())
 	{
@@ -1320,8 +1320,15 @@ bool FPluginManager::CheckModuleCompatibility(TArray<FString>& OutIncompatibleMo
 	for(const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
 	{
 		const TSharedRef< FPlugin > &Plugin = PluginPair.Value;
-		if (Plugin->bEnabled && !FModuleDescriptor::CheckModuleCompatibility(Plugin->Descriptor.Modules, OutIncompatibleModules))
+
+		TArray<FString> IncompatibleModules;
+		if (Plugin->bEnabled && !FModuleDescriptor::CheckModuleCompatibility(Plugin->Descriptor.Modules, IncompatibleModules))
 		{
+			OutIncompatibleModules.Append(IncompatibleModules);
+			if (Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine)
+			{
+				OutIncompatibleEngineModules.Append(IncompatibleModules);
+			}
 			bResult = false;
 		}
 	}
