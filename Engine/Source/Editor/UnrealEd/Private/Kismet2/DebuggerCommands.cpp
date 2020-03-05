@@ -2035,12 +2035,12 @@ void FInternalPlayWorldCommandCallbacks::PlayInSettings_Clicked()
 
 void FInternalPlayWorldCommandCallbacks::OpenProjectLauncher_Clicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FTabId("ProjectLauncher"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("ProjectLauncher"));
 }
 
 void FInternalPlayWorldCommandCallbacks::OpenDeviceManager_Clicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FTabId("DeviceManager"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("DeviceManager"));
 }
 
 void FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_Clicked()

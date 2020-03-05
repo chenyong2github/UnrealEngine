@@ -287,7 +287,7 @@ void UVREditorMode::Enter()
 	// Switch us back to placement mode and close any open sequencer windows
 	FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Placement);
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(FTabId("Sequencer"))->RequestCloseTab();
+	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("Sequencer"))->RequestCloseTab();
 
 	// Setup our avatar
 	if (AvatarActor == nullptr)

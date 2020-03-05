@@ -383,7 +383,7 @@ void SSCSEditorViewport::ToggleIsSimulateEnabled()
 	{
 		if ( GetDefault<UBlueprintEditorSettings>()->bShowViewportOnSimulate )
 		{
-			BlueprintEditorPtr.Pin()->GetTabManager()->InvokeTab(FBlueprintEditorTabs::SCSViewportID);
+			BlueprintEditorPtr.Pin()->GetTabManager()->TryInvokeTab(FBlueprintEditorTabs::SCSViewportID);
 		}
 	}
 

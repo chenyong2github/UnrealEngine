@@ -125,7 +125,7 @@ void FWorldTreeItem::OnDrop(FDragDropPayload& DraggedObjects, UWorld& InWorld, c
 void FWorldTreeItem::OpenWorldSettings() const
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
-	LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(FName("WorldSettingsTab"));	
+	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FName("WorldSettingsTab"));	
 }
 
 }		// namespace SceneOutliner

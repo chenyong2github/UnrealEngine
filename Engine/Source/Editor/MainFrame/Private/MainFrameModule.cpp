@@ -228,7 +228,7 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 		TSharedPtr<SDockTab> MainTab;
 		if ( bLevelEditorIsMainTab )
 		{
-			MainTab = FGlobalTabmanager::Get()->InvokeTab( FTabId("LevelEditor") );
+			MainTab = FGlobalTabmanager::Get()->TryInvokeTab( FTabId("LevelEditor") );
 
 			// make sure we only allow the message log to be shown when we have a level editor main tab
 			FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>(TEXT("MessageLog"));

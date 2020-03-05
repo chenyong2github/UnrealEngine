@@ -1049,7 +1049,7 @@ void SWidgetReflector::SetUIMode(const EWidgetReflectorUIMode InNewMode)
 
 		if (CurrentUIMode == EWidgetReflectorUIMode::Snapshot)
 		{
-			TabManager->InvokeTab(WidgetReflectorTabID::SnapshotWidgetPicker);
+			TabManager->TryInvokeTab(WidgetReflectorTabID::SnapshotWidgetPicker);
 		}
 		else
 		{
@@ -1738,7 +1738,7 @@ void SWidgetReflector::HandleReflectorTreeSelectionChanged( TSharedPtr<FWidgetRe
 
 	if (SelectedWidgetObjects.Num() > 0)
 	{
-		TabManager->InvokeTab(WidgetReflectorTabID::WidgetDetails);
+		TabManager->TryInvokeTab(WidgetReflectorTabID::WidgetDetails);
 		if (PropertyViewPtr.IsValid())
 		{
 			PropertyViewPtr->SetObjects(SelectedWidgetObjects);

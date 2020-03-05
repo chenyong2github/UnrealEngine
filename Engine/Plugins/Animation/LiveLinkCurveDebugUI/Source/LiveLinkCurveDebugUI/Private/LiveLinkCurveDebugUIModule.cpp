@@ -184,7 +184,7 @@ void FLiveLinkCurveDebugUIModule::ShutdownModule()
 void FLiveLinkCurveDebugUIModule::DisplayThroughTab()
 {
 	check(bHasRegisteredTabSpawners);
-	FGlobalTabmanager::Get()->InvokeTab(FTabId("LiveLinkCurveDebug"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("LiveLinkCurveDebug"));
 }
 
 TSharedPtr<SLiveLinkCurveDebugUI> FLiveLinkCurveDebugUIModule::CreateDebugWidget()

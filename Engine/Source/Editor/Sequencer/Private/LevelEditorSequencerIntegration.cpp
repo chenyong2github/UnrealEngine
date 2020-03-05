@@ -1018,7 +1018,7 @@ void FLevelEditorSequencerIntegration::DetachOutlinerColumn()
 		{
 			if (LevelEditorTabManager->GetOwnerTab().IsValid())
 			{
-				LevelEditorTabManager->InvokeTab(FName("LevelEditorSceneOutliner"))->RequestCloseTab();			
+				LevelEditorTabManager->TryInvokeTab(FName("LevelEditorSceneOutliner"))->RequestCloseTab();			
 			}
 		}
 		
@@ -1026,7 +1026,7 @@ void FLevelEditorSequencerIntegration::DetachOutlinerColumn()
 		{
 			if (LevelEditorTabManager->GetOwnerTab().IsValid())
 			{
-				LevelEditorTabManager->InvokeTab(FName("LevelEditorSceneOutliner"));
+				LevelEditorTabManager->TryInvokeTab(FName("LevelEditorSceneOutliner"));
 			}
 		}
 	}

@@ -449,7 +449,7 @@ bool FAssetEditorToolkit::CloseWindow()
 
 void FAssetEditorToolkit::InvokeTab(const FTabId& TabId)
 {
-	GetTabManager()->InvokeTab(TabId);
+	GetTabManager()->TryInvokeTab(TabId);
 }
 
 TSharedPtr<class FTabManager> FAssetEditorToolkit::GetAssociatedTabManager()

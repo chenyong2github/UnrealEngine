@@ -1339,7 +1339,7 @@ void FTranslationEditor::ImportFromPoFile(FString FileToImport)
 		{
 			DataManager->LoadFromArchive(DataManager->GetAllTranslationsArray(), true, true);
 
-			TabManager->InvokeTab(ChangedOnImportTabId);
+			TabManager->TryInvokeTab(ChangedOnImportTabId);
 			ChangedOnImportPropertyTable->SetObjects((TArray<UObject*>&)DataManager->GetChangedOnImportArray());
 			// Need to re-add the columns we want to display
 			ChangedOnImportPropertyTable->AddColumn((TWeakFieldPtr<FProperty>)FindField<FProperty>(UTranslationUnit::StaticClass(), "Source"));
@@ -1397,7 +1397,7 @@ void FTranslationEditor::OnFilterTextCommitted(const FText& InFilterText, ETextC
 
 void FTranslationEditor::OpenSearchTab_Execute()
 {
-	TabManager->InvokeTab(SearchTabId);
+	TabManager->TryInvokeTab(SearchTabId);
 }
 
 FReply FTranslationEditor::OnGetHistoryButtonClicked()

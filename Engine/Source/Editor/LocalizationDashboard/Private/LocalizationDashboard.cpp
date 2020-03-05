@@ -248,7 +248,7 @@ void FLocalizationDashboard::Terminate()
 
 void FLocalizationDashboard::Show()
 {
-	FGlobalTabmanager::Get()->InvokeTab(TabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(TabName);
 }
 
 TWeakPtr<SDockTab> FLocalizationDashboard::ShowTargetEditorTab(ULocalizationTarget* const LocalizationTarget)

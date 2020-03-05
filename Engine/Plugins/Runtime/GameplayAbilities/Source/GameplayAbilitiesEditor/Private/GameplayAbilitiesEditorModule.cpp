@@ -179,7 +179,7 @@ void FGameplayAbilitiesEditorModule::StartupModule()
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-		LevelEditorTabManager->InvokeTab(FName("GameplayCueApp"));
+		LevelEditorTabManager->TryInvokeTab(FName("GameplayCueApp"));
 	}
 #endif // WITH_HOT_RELOAD
 
@@ -198,7 +198,7 @@ void FGameplayAbilitiesEditorModule::HandleNotify_OpenAssetInEditor(FString Asse
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-		LevelEditorTabManager->InvokeTab(FName("GameplayCueApp"));
+		LevelEditorTabManager->TryInvokeTab(FName("GameplayCueApp"));
 	}
 
 	//UE_LOG(LogTemp, Display, TEXT("HandleNotify_OpenAssetInEditor!!! %s %d"), *AssetName, AssetType);
@@ -215,7 +215,7 @@ void FGameplayAbilitiesEditorModule::HandleNotify_FindAssetInEditor(FString Asse
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-		LevelEditorTabManager->InvokeTab(FName("GameplayCueApp"));
+		LevelEditorTabManager->TryInvokeTab(FName("GameplayCueApp"));
 	}
 
 	//UE_LOG(LogTemp, Display, TEXT("HandleNotify_FindAssetInEditor!!! %s %d"), *AssetName, AssetType);

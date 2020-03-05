@@ -98,8 +98,8 @@ class FMerge : public IMerge
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-	virtual TSharedRef<SDockTab> GenerateMergeWidget(const UBlueprint& Object, TSharedRef<FBlueprintEditor> Editor) override;
-	virtual TSharedRef<SDockTab> GenerateMergeWidget(const UBlueprint* BaseAsset, const UBlueprint* RemoteAsset, const UBlueprint* LocalAsset, const FOnMergeResolved& MergeResolutionCallback, TSharedRef<FBlueprintEditor> Editor) override;
+	virtual TSharedPtr<SDockTab> GenerateMergeWidget(const UBlueprint& Object, TSharedRef<FBlueprintEditor> Editor) override;
+	virtual TSharedPtr<SDockTab> GenerateMergeWidget(const UBlueprint* BaseAsset, const UBlueprint* RemoteAsset, const UBlueprint* LocalAsset, const FOnMergeResolved& MergeResolutionCallback, TSharedRef<FBlueprintEditor> Editor) override;
 	virtual bool PendingMerge(const UBlueprint& BlueprintObj) const override;
 	//virtual FOnMergeResolved& OnMergeResolved() const override;
 
@@ -114,7 +114,7 @@ void FMerge::StartupModule()
 	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
 
 
-	// Registering a nomad spawner that spawns an empty dock tab on purpose - allows us to call InvokeTab() using our TabId later and set the content. (see GenerateMergeWidget())
+	// Registering a nomad spawner that spawns an empty dock tab on purpose - allows us to call TryInvokeTab() using our TabId later and set the content. (see GenerateMergeWidget())
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(MergeToolTabId, FOnSpawnTab::CreateStatic([] (const FSpawnTabArgs&) { return SNew(SDockTab); }))
 		.SetDisplayName(NSLOCTEXT("MergeTool", "TabTitle", "Merge Tool"))
 		.SetTooltipText(NSLOCTEXT("MergeTool", "TooltipText", "Used to display several versions of a blueprint that need to be merged into a single version."))
@@ -128,15 +128,22 @@ void FMerge::ShutdownModule()
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MergeToolTabId);
 }
 
-TSharedRef<SDockTab> FMerge::GenerateMergeWidget(const UBlueprint& Object, TSharedRef<FBlueprintEditor> Editor)
+TSharedPtr<SDockTab> FMerge::GenerateMergeWidget(const UBlueprint& Object, TSharedRef<FBlueprintEditor> Editor)
 {
-	auto ActiveTabPtr = ActiveTab.Pin();
+	TSharedPtr<SDockTab> ActiveTabPtr = ActiveTab.Pin();
 	if( ActiveTabPtr.IsValid() )
 	{
 		// just bring the tab to the foreground:
-		auto CurrentTab = FGlobalTabmanager::Get()->InvokeTab(MergeToolTabId);
-		check( CurrentTab == ActiveTabPtr );
-		return ActiveTabPtr.ToSharedRef();
+		TSharedPtr<SDockTab> CurrentTab = FGlobalTabmanager::Get()->TryInvokeTab(MergeToolTabId);
+		if (CurrentTab.IsValid())
+		{
+			check(CurrentTab == ActiveTabPtr);
+			return ActiveTabPtr;
+		}
+		else
+		{
+			return nullptr;
+		}
 	}
 
 	// merge the local asset with the depot, SCC provides us with the last common revision as
@@ -182,30 +189,44 @@ TSharedRef<SDockTab> FMerge::GenerateMergeWidget(const UBlueprint& Object, TShar
 		}
 	}
 
-	TSharedRef<SDockTab> Tab =  FGlobalTabmanager::Get()->InvokeTab(MergeToolTabId);
-	Tab->SetContent(Contents.ToSharedRef());
-	ActiveTab = Tab;
-	return Tab;
+	TSharedPtr<SDockTab> Tab = FGlobalTabmanager::Get()->TryInvokeTab(MergeToolTabId);
+	if (Tab.IsValid())
+	{
+		Tab->SetContent(Contents.ToSharedRef());
+		ActiveTab = Tab;
+	}
 
+	return Tab;
 }
 
-TSharedRef<SDockTab> FMerge::GenerateMergeWidget(const UBlueprint* BaseBlueprint, const UBlueprint* RemoteBlueprint, const UBlueprint* LocalBlueprint, const FOnMergeResolved& MergeResolutionCallback, TSharedRef<FBlueprintEditor> Editor)
+TSharedPtr<SDockTab> FMerge::GenerateMergeWidget(const UBlueprint* BaseBlueprint, const UBlueprint* RemoteBlueprint, const UBlueprint* LocalBlueprint, const FOnMergeResolved& MergeResolutionCallback, TSharedRef<FBlueprintEditor> Editor)
 {
 	if (ActiveTab.IsValid())
 	{
 		TSharedPtr<SDockTab> ActiveTabPtr = ActiveTab.Pin();
 		// just bring the tab to the foreground:
-		TSharedRef<SDockTab> CurrentTab = FGlobalTabmanager::Get()->InvokeTab(MergeToolTabId);
-		check(CurrentTab == ActiveTabPtr);
-		return ActiveTabPtr.ToSharedRef();
+		TSharedPtr<SDockTab> CurrentTab = FGlobalTabmanager::Get()->TryInvokeTab(MergeToolTabId);
+		if (CurrentTab.IsValid())
+		{
+			check(CurrentTab == ActiveTabPtr);
+			return ActiveTabPtr;
+		}
+		else
+		{
+			return nullptr;
+		}
 	}
 
 	// @TODO: pipe revision info through
 	TSharedPtr<SWidget> TabContents = GenerateMergeTabContents(Editor, BaseBlueprint, FRevisionInfo::InvalidRevision(), RemoteBlueprint, FRevisionInfo::InvalidRevision(), LocalBlueprint, MergeResolutionCallback);
 
-	TSharedRef<SDockTab> Tab = FGlobalTabmanager::Get()->InvokeTab(MergeToolTabId);
-	Tab->SetContent(TabContents.ToSharedRef());
-	ActiveTab = Tab;
+	TSharedPtr<SDockTab> Tab = FGlobalTabmanager::Get()->TryInvokeTab(MergeToolTabId);
+	if (Tab.IsValid())
+	{
+		Tab->SetContent(TabContents.ToSharedRef());
+		ActiveTab = Tab;
+	}
+
 	return Tab;
 }
 

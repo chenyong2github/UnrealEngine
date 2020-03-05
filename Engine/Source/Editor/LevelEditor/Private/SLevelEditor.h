@@ -77,7 +77,7 @@ public:
 	 * Given a tab ID, summons a new tab in the position saved in the current layout, or in a default position.
 	 * @return the invoked tab
 	 */
-	TSharedRef<SDockTab> InvokeTab( FName TabID );
+	TSharedPtr<SDockTab> TryInvokeTab( FName TabID );
 
 	/**
 	 * Sync the details panel to the current selection

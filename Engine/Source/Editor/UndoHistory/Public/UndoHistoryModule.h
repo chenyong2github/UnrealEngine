@@ -25,7 +25,7 @@ public:
 
 	static void ExecuteOpenUndoHistory()
 	{
-		FGlobalTabmanager::Get()->InvokeTab(UndoHistoryTabName);
+		FGlobalTabmanager::Get()->TryInvokeTab(UndoHistoryTabName);
 	}
 
 private:

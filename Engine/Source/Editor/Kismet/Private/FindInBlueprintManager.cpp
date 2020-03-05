@@ -3404,10 +3404,16 @@ TSharedPtr<SFindInBlueprints> FFindInBlueprintSearchManager::OpenGlobalFindResul
 		const FName GlobalTabId = GlobalFindResultsTabIDs[Idx];
 		if (!OpenGlobalTabIDs.Contains(GlobalTabId))
 		{
-			TSharedRef<SDockTab> NewTab = FGlobalTabmanager::Get()->InvokeTab(GlobalTabId);
-			TSharedRef<SFindInBlueprints> NewFindTab = StaticCastSharedRef<SFindInBlueprints>(NewTab->GetContent());
-
-			return NewFindTab;
+			TSharedPtr<SDockTab> NewTab = FGlobalTabmanager::Get()->TryInvokeTab(GlobalTabId);
+			if (NewTab.IsValid())
+			{
+				TSharedRef<SFindInBlueprints> NewFindTab = StaticCastSharedRef<SFindInBlueprints>(NewTab->GetContent());
+				return NewFindTab;
+			}
+			else
+			{
+				break;
+			}
 		}
 	}
 
@@ -3430,7 +3436,7 @@ TSharedPtr<SFindInBlueprints> FFindInBlueprintSearchManager::GetGlobalFindResult
 
 	if (FindResultsToUse.IsValid())
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FindResultsToUse->GetHostTabId());
+		FGlobalTabmanager::Get()->TryInvokeTab(FindResultsToUse->GetHostTabId());
 	}
 	else
 	{

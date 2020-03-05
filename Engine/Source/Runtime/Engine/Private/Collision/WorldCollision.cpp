@@ -461,7 +461,7 @@ public:
 #if ENABLE_COLLISION_ANALYZER
 		if (FParse::Command(&Cmd, TEXT("CANALYZER")))
 		{
-			FGlobalTabmanager::Get()->InvokeTab(FName(TEXT("CollisionAnalyzerApp")));
+			FGlobalTabmanager::Get()->TryInvokeTab(FName(TEXT("CollisionAnalyzerApp")));
 			return true;
 		}
 #endif // ENABLE_COLLISION_ANALYZER

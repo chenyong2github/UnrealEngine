@@ -647,7 +647,7 @@ TSharedRef<SDockTab> FAssetManagerEditorModule::SpawnSizeMapTab(const FSpawnTabA
 
 void FAssetManagerEditorModule::OpenAssetAuditUI(TArray<FAssetData> SelectedAssets)
 {
-	FGlobalTabmanager::Get()->InvokeTab(AssetAuditTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(AssetAuditTabName);
 
 	if (AssetAuditUI.IsValid())
 	{
@@ -657,7 +657,7 @@ void FAssetManagerEditorModule::OpenAssetAuditUI(TArray<FAssetData> SelectedAsse
 
 void FAssetManagerEditorModule::OpenAssetAuditUI(TArray<FAssetIdentifier> SelectedIdentifiers)
 {
-	FGlobalTabmanager::Get()->InvokeTab(AssetAuditTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(AssetAuditTabName);
 
 	if (AssetAuditUI.IsValid())
 	{
@@ -667,7 +667,7 @@ void FAssetManagerEditorModule::OpenAssetAuditUI(TArray<FAssetIdentifier> Select
 
 void FAssetManagerEditorModule::OpenAssetAuditUI(TArray<FName> SelectedPackages)
 {
-	FGlobalTabmanager::Get()->InvokeTab(AssetAuditTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(AssetAuditTabName);
 
 	if (AssetAuditUI.IsValid())
 	{
@@ -679,9 +679,11 @@ void FAssetManagerEditorModule::OpenReferenceViewerUI(const TArray<FAssetIdentif
 {
 	if (SelectedIdentifiers.Num() > 0)
 	{
-		TSharedRef<SDockTab> NewTab = FGlobalTabmanager::Get()->InvokeTab(ReferenceViewerTabName);
-		TSharedRef<SReferenceViewer> ReferenceViewer = StaticCastSharedRef<SReferenceViewer>(NewTab->GetContent());
-		ReferenceViewer->SetGraphRootIdentifiers(SelectedIdentifiers, ReferenceViewerParams);
+		if (TSharedPtr<SDockTab> NewTab = FGlobalTabmanager::Get()->TryInvokeTab(ReferenceViewerTabName))
+		{
+			TSharedRef<SReferenceViewer> ReferenceViewer = StaticCastSharedRef<SReferenceViewer>(NewTab->GetContent());
+			ReferenceViewer->SetGraphRootIdentifiers(SelectedIdentifiers, ReferenceViewerParams);
+		}
 	}
 }
 
@@ -711,9 +713,11 @@ void FAssetManagerEditorModule::OpenSizeMapUI(TArray<FAssetIdentifier> SelectedI
 {
 	if (SelectedIdentifiers.Num() > 0)
 	{
-		TSharedRef<SDockTab> NewTab = FGlobalTabmanager::Get()->InvokeTab(SizeMapTabName);
-		TSharedRef<SSizeMap> SizeMap = StaticCastSharedRef<SSizeMap>(NewTab->GetContent());
-		SizeMap->SetRootAssetIdentifiers(SelectedIdentifiers);
+		if (TSharedPtr<SDockTab> NewTab = FGlobalTabmanager::Get()->TryInvokeTab(SizeMapTabName))
+		{
+			TSharedRef<SSizeMap> SizeMap = StaticCastSharedRef<SSizeMap>(NewTab->GetContent());
+			SizeMap->SetRootAssetIdentifiers(SelectedIdentifiers);
+		}
 	}
 }
 
@@ -746,10 +750,12 @@ void FAssetManagerEditorModule::OpenShaderCookStatistics(TArray<FName> SelectedP
 	static const FName LevelEditorStatsViewerTab("LevelEditorStatsViewer");
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModuleName);
 	TSharedPtr<FTabManager> TabManager = LevelEditorModule.GetLevelEditorTabManager();
-	TSharedRef<SDockTab> Tab = TabManager->InvokeTab(LevelEditorStatsViewerTab);
-	TSharedRef<SWidget> Content = Tab->GetContent();
-	IStatsViewer* StatsView = (IStatsViewer*)&*Content;
-	StatsView->SwitchAndFilterPage(EStatsPage::ShaderCookerStats, CommonPath, FString("Path"));
+	if (TSharedPtr<SDockTab> Tab = TabManager->TryInvokeTab(LevelEditorStatsViewerTab))
+	{
+		TSharedRef<SWidget> Content = Tab->GetContent();
+		IStatsViewer* StatsView = (IStatsViewer*)&*Content;
+		StatsView->SwitchAndFilterPage(EStatsPage::ShaderCookerStats, CommonPath, FString("Path"));
+	}
 }
 
 void FAssetManagerEditorModule::GetAssetDataInPaths(const TArray<FString>& Paths, TArray<FAssetData>& OutAssetData)

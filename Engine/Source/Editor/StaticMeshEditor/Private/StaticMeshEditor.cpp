@@ -342,7 +342,7 @@ void FStaticMeshEditor::GenerateSecondaryToolbar()
 	if (!Tab)
 	{
 		// By default, the tab is closed but we want it to be opened when it is populated
-		Tab = TSharedPtr<SDockTab>(TabManager->InvokeTab(SecondaryToolbarTabId));
+		Tab = TSharedPtr<SDockTab>(TabManager->TryInvokeTab(SecondaryToolbarTabId));
 	}
 
 	// Override the display name if it was set
@@ -352,7 +352,7 @@ void FStaticMeshEditor::GenerateSecondaryToolbar()
 	}
 
 	// But have the focus on the default toolbar
-	TabManager->InvokeTab(GetToolbarTabId());
+	TabManager->TryInvokeTab(GetToolbarTabId());
 }
 
 void FStaticMeshEditor::AddSecondaryToolbarExtender(TSharedPtr<FExtender> Extender)
@@ -2215,7 +2215,7 @@ FEditorViewportClient& FStaticMeshEditor::GetViewportClient()
 
 void FStaticMeshEditor::OnConvexDecomposition()
 {
-	TabManager->InvokeTab(CollisionTabId);
+	TabManager->TryInvokeTab(CollisionTabId);
 }
 
 bool FStaticMeshEditor::OnRequestClose()

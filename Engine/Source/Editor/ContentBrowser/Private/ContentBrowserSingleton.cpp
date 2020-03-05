@@ -549,7 +549,7 @@ void FContentBrowserSingleton::FocusContentBrowser(const TSharedPtr<SContentBrow
 		TSharedPtr<FTabManager> TabManager = Browser->GetTabManager();
 		if ( TabManager.IsValid() )
 		{
-			TabManager->InvokeTab(Browser->GetInstanceName());
+			TabManager->TryInvokeTab(Browser->GetInstanceName());
 		}
 	}
 }
@@ -585,11 +585,11 @@ FName FContentBrowserSingleton::SummonNewBrowser(bool bAllowLockedBrowsers)
 		const TWeakPtr<FTabManager>& TabManagerToInvoke = BrowserToLastKnownTabManagerMap.FindRef(NewTabName);
 		if ( TabManagerToInvoke.IsValid() )
 		{
-			TabManagerToInvoke.Pin()->InvokeTab(NewTabName);
+			TabManagerToInvoke.Pin()->TryInvokeTab(NewTabName);
 		}
 		else
 		{
-			FGlobalTabmanager::Get()->InvokeTab(NewTabName);
+			FGlobalTabmanager::Get()->TryInvokeTab(NewTabName);
 		}
 	}
 	else
