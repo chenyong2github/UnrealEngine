@@ -95,6 +95,14 @@ public:
 	 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="MediaCapture")
 	bool bResizeSourceBuffer;
+
+	/**
+	 * When the application enters responsive mode, skip the frame capture.
+	 * The application can enter responsive mode on mouse down, viewport resize, ...
+	 * That is to ensure responsiveness in low FPS situations.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="MediaCapture")
+	bool bSkipFrameWhenRunningExpensiveTasks;
 };
 
 
@@ -222,6 +230,7 @@ protected:
 		FTimecode SourceFrameTimecode;
 		FFrameRate SourceFrameTimecodeFramerate;
 		uint32 SourceFrameNumberRenderThread;
+		uint32 SourceFrameNumber;
 	};
 
 	/**
@@ -302,6 +311,7 @@ private:
 	TArray<FCaptureFrame> CaptureFrames;
 	int32 CurrentResolvedTargetIndex;
 	int32 NumberOfCaptureFrame;
+	int32 CaptureRequestCount;
 	EMediaCaptureState MediaState;
 
 	UPROPERTY(Transient)
