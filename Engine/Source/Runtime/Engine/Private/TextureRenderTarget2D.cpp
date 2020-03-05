@@ -516,7 +516,7 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 		Owner->AddressY == TA_Wrap ? AM_Wrap : (Owner->AddressY == TA_Clamp ? AM_Clamp : AM_Mirror),
 		AM_Wrap
 	);
-	SamplerStateRHI = RHICreateSamplerState( SamplerStateInitializer );
+	SamplerStateRHI = GetOrCreateSamplerState( SamplerStateInitializer );
 }
 
 /**
