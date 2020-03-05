@@ -68,9 +68,11 @@ class SMaterialParametersOverviewPanel : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SMaterialParametersOverviewPanel)
 		: _InMaterialEditorInstance(nullptr)
+		, _InGenerator()
 	{}
 
 	SLATE_ARGUMENT(UMaterialEditorPreviewParameters*, InMaterialEditorInstance)
+	SLATE_ARGUMENT(TSharedPtr<class IPropertyRowGenerator>, InGenerator)
 	SLATE_END_ARGS()
 	void Refresh();
 	void Construct(const FArguments& InArgs);
@@ -90,6 +92,7 @@ private:
 	TSharedPtr<class SMaterialParametersOverviewTree> NestedTree;
 
 	TSharedPtr<class SScrollBar> ExternalScrollbar;
+	TWeakPtr<class IPropertyRowGenerator> Generator;
 };
 
 // ********* SMaterialParametersOverviewTree *******
@@ -129,9 +132,6 @@ public:
 	void CreateGroupsWidget();
 
 	TWeakPtr<SMaterialParametersOverviewPanel> GetOwner() { return Owner; }
-
-	TSharedPtr<class IPropertyRowGenerator> GetGenerator() { return Generator; }
-
 	bool HasAnyParameters() const { return bHasAnyParameters; }
 
 protected:
@@ -148,8 +148,6 @@ private:
 	float ColumnWidth;
 
 	TWeakPtr<SMaterialParametersOverviewPanel> Owner;
-
-	TSharedPtr<class IPropertyRowGenerator> Generator;
 
 	bool bHasAnyParameters;
 

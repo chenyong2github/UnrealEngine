@@ -772,6 +772,7 @@ private:
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 	void OnFinishedChangingParametersFromOverview(const FPropertyChangedEvent& PropertyChangedEvent);
+	void GeneratorRowsRefreshed();
 private:
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap< FName, TWeakPtr<class SDockableTab> > SpawnedToolPanels;
@@ -888,4 +889,6 @@ private:
 
 	/** List of children used to populate the inheritance list chain. */
 	TArray< FAssetData > FunctionChildList;
+
+	TSharedPtr<class IPropertyRowGenerator> Generator;
 };

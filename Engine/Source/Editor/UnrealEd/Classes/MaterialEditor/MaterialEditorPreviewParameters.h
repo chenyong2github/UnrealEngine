@@ -39,6 +39,14 @@ public:
 	UPROPERTY()
 	class UMaterial* OriginalMaterial;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<class UMaterialInstanceConstant*> StoredLayerPreviews;
+
+	UPROPERTY()
+	TArray<class UMaterialInstanceConstant*> StoredBlendPreviews;
+#endif
+
 	//~ Begin UObject Interface.
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
