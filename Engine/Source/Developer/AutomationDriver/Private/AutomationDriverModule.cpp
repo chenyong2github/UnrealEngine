@@ -60,6 +60,11 @@ public:
 			RealApplication.ToSharedRef(),
 			FPassThroughMessageHandlerFactoryFactory::Create());
 
+		if (AutomatedApplication.IsValid())
+		{
+			AutomatedApplication->AllowPlatformMessageHandling();
+		}
+		
 		FSlateApplication::Get().SetPlatformApplication(AutomatedApplication.ToSharedRef());
 	}
 
@@ -69,6 +74,8 @@ public:
 		{
 			return;
 		}
+
+		AutomatedApplication->DisablePlatformMessageHandling();
 
 		FSlateApplication::Get().SetPlatformApplication(RealApplication.ToSharedRef());
 		RealApplication->SetMessageHandler(RealMessageHandler.ToSharedRef());
