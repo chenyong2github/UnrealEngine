@@ -20,6 +20,7 @@
 #include "SequencerNodeSortingMethods.h"
 #include "SequencerTrackFilters.h"
 #include "Channels/MovieSceneChannel.h"
+#include "ScopedTransaction.h"
 
 FSequencerNodeTree::~FSequencerNodeTree()
 {
@@ -647,6 +648,8 @@ void FSequencerNodeTree::ToggleSelectedNodesSolo()
 		}
 	}
 
+	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "ToggleSolo", "Toggle Solo"));
+
 	MovieScene->Modify();
 
 	for (const TSharedRef<const FSequencerDisplayNode> Node : Sequencer.GetSelection().GetSelectedOutlinerNodes())
@@ -739,6 +742,8 @@ void FSequencerNodeTree::ToggleSelectedNodesMute()
 			break;
 		}
 	}
+
+	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "ToggleMute", "Toggle Mute"));
 
 	MovieScene->Modify();
 
