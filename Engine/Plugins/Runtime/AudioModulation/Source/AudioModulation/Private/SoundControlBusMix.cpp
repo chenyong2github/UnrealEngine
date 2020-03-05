@@ -94,27 +94,24 @@ void USoundControlBusMix::SaveMixToProfile()
 
 namespace AudioModulation
 {
-	FModulatorBusMixChannelProxy::FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel)
+	FModulatorBusMixChannelProxy::FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel, FAudioModulationImpl& InModulationImpl)
 		: TModulatorProxyBase<FBusId>(Channel.Bus->GetName(), Channel.Bus->GetUniqueID())
 		, Address(Channel.Bus->Address)
 		, ClassId(Channel.Bus->GetClass()->GetUniqueID())
 		, Value(Channel.Value)
+		, BusHandle(FBusHandle::Create(*Channel.Bus, InModulationImpl.RefProxies.Buses, InModulationImpl))
 	{
-		check(Channel.Bus);
-		AudioModulation::FAudioModulationImpl* ModulationImpl = UAudioModulationStatics::GetModulationImpl(Channel.Bus->GetWorld());
-		check(ModulationImpl);
-		BusHandle = FBusHandle::Create(*Channel.Bus, ModulationImpl->RefProxies.Buses);
 	}
 
-	FModulatorBusMixProxy::FModulatorBusMixProxy(const USoundControlBusMix& InBusMix)
-		: TModulatorProxyRefType(InBusMix.GetName(), InBusMix.GetUniqueID())
+	FModulatorBusMixProxy::FModulatorBusMixProxy(const USoundControlBusMix& InBusMix, FAudioModulationImpl& InModulationImpl)
+		: TModulatorProxyRefType(InBusMix.GetName(), InBusMix.GetUniqueID(), InModulationImpl)
 	{
-		Init(InBusMix);
+		SetEnabled(InBusMix);
 	}
 
 	FModulatorBusMixProxy& FModulatorBusMixProxy::operator =(const USoundControlBusMix& InBusMix)
 	{
-		Init(InBusMix);
+		SetEnabled(InBusMix);
 
 		return *this;
 	}
@@ -129,7 +126,7 @@ namespace AudioModulation
 		Channels.Reset();
 	}
 
-	void FModulatorBusMixProxy::Init(const USoundControlBusMix& InBusMix)
+	void FModulatorBusMixProxy::SetEnabled(const USoundControlBusMix& InBusMix)
 	{
 		FChannelMap CachedChannels = Channels;
 		Channels.Reset();
@@ -139,14 +136,16 @@ namespace AudioModulation
 		{
 			if (Channel.Bus)
 			{
-				auto BusId = static_cast<const AudioModulation::FBusId>(Channel.Bus->GetUniqueID());
-				
-				FModulatorBusMixChannelProxy ChannelProxy(Channel);
+				auto BusId = static_cast<const FBusId>(Channel.Bus->GetUniqueID());
+
+				check(ModulationImpl);
+				FModulatorBusMixChannelProxy ChannelProxy(Channel, *ModulationImpl);
+
 				if (const FModulatorBusMixChannelProxy* CachedChannel = CachedChannels.Find(BusId))
 				{
 					ChannelProxy.Value.SetCurrentValue(CachedChannel->Value.GetCurrentValue());
 				}
-				
+
 				Channels.Emplace(BusId, ChannelProxy);
 			}
 			else
@@ -205,11 +204,6 @@ namespace AudioModulation
 				ChannelProxy.Value.ReleaseTime = InValue.ReleaseTime;
 			}
 		}
-	}
-
-	void FModulatorBusMixProxy::SetEnabled()
-	{
-		Status = EStatus::Enabled;
 	}
 
 	void FModulatorBusMixProxy::SetStopping()
