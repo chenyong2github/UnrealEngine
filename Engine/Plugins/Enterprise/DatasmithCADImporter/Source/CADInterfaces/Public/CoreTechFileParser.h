@@ -133,7 +133,7 @@ protected:
 	bool bNeedSaveCTFile = false;
 
 	const FImportParameters& ImportParameters;
-	bool bSewRequired;
+	bool bFixTopoRequired;
 };
 
 #endif // CAD_INTERFACE
