@@ -9,7 +9,9 @@ uint			DispatchCountX;
 uint			MaxRasterCount;
 uint			FrameIdMod8;
 uint			MacroGroupId;
+uint			ResolutionMultiplier;
 int2			OutputResolution;
+uint			HairMaterialId;
 float			HairStrandsVF_Radius;
 float			HairStrandsVF_Length;
 float			HairStrandsVF_Density;
@@ -22,6 +24,11 @@ Buffer<uint4>	HairStrandsVF_PositionBuffer;
 Texture2D<float> SceneDepthTexture;
 RWTexture2D<uint> OutHairCountTexture;
 RWTexture2D<uint> OutDepthTexture;
+RWTexture2D<uint2> OutVisibilityTexture;
+
+// Add permutation for Nvidia/AMD/other
+#define NV_SHADER_EXTN_SLOT u7
+#include "/Engine/Shared/ThirdParty/NVIDIA/nvHLSLExtns.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // Helping functions 
@@ -59,7 +66,8 @@ void Swap(inout float3 V0, inout float3 V1)
 bool IsVisible(float3 SP)
 {
 	const float DeviceZ = SP.z;
-	return DeviceZ > SceneDepthTexture.Load(uint3(SP.xy, 0)); // InverseZ
+	const uint2 SceneCoord = SP.xy / ResolutionMultiplier;
+	return DeviceZ > SceneDepthTexture.Load(uint3(SceneCoord, 0)); // InverseZ
 }
 
 bool IsInScreen(int2 C)
@@ -67,7 +75,7 @@ bool IsInScreen(int2 C)
 	return C.x >= 0 && C.x < OutputResolution.x && C.y >= 0 && C.y < OutputResolution.y;
 }
 
-void Rasterize(int2 Coords, float Ratio, float Depth, float Coverage)
+void Rasterize(int2 Coords, float Ratio, float Depth, uint PrimitiveId, float Coverage)
 {
 	if (IsInScreen(Coords))
 	{
@@ -75,7 +83,12 @@ void Rasterize(int2 Coords, float Ratio, float Depth, float Coverage)
 		const uint IntCoverage = Ratio * Coverage * CoveragePrecision;
 
 		InterlockedAdd(OutHairCountTexture[uint2(Coords)], IntCoverage);
-		InterlockedMax(OutDepthTexture[uint2(Coords)], asuint(Depth));
+//		InterlockedMax(OutDepthTexture[uint2(Coords)], asuint(Depth));
+
+		uint2 PackedVisibility;
+		PackedVisibility.x = PackHairVisSample(PrimitiveId, HairMaterialId);
+		PackedVisibility.y = asuint(Depth);
+		NvInterlockedMaxUint64(OutVisibilityTexture, Coords, PackedVisibility);
 	}
 }
 
@@ -208,7 +221,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		int2 Coord = PX0 + (bLower ? int2(0, 0) : int2(0, 1));
 		Coord = bIsSteep ? Coord.yx : Coord.xy;
 		const float Ratio = bLower ? 1 - FracY : FracY;
-		Rasterize(Coord, Ratio * XGap, SP0.z, Coverage0);
+		Rasterize(Coord, Ratio * XGap, SP0.z, VertexIndex, Coverage0);
 
 		DeltaY = End.y + GradientY; // first y-intersection for the main loop
 		DeltaZ = SP1.z + GradientZ; // This is not perspective correct. Interpolate linear depth instead
@@ -230,7 +243,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		int2 Coord = PX1 + (bLower ? int2(0, 0) : int2(0, 1));
 		Coord = bIsSteep ? Coord.yx : Coord.xy;
 		const float Ratio = bLower ? 1 - FracY : FracY;
-		Rasterize(Coord, Ratio * XGap, SP1.z, Coverage1);
+		Rasterize(Coord, Ratio * XGap, SP1.z, VertexIndex, Coverage1);
 	}
 
 	// Inner points
@@ -250,7 +263,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 
 		int2 Coord = int2(i, floor(DeltaY)) + (bLower ? int2(0, 0) : int2(0, 1));
 		Coord = bIsSteep ? Coord.yx : Coord.xy;
-		Rasterize(Coord, Ratio, Depth /*DeltaZ*/, Coverage);
+		Rasterize(Coord, Ratio, Depth /*DeltaZ*/, VertexIndex, Coverage);
 
 		DeltaY += GradientY;
 		DeltaZ += GradientZ;
