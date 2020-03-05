@@ -228,6 +228,13 @@ public:
 		MeshTypeToImport = bImportAsSkeletal ? FBXIT_SkeletalMesh : FBXIT_StaticMesh;
 	}
 
+	/* We want to change the last dialog state but not the CDO, so we cannot call UObject::SaveConfig here.
+	 * The problem is the class is use to store the import settings with the imported asset and the serialization
+	 * is serializing the diff with the CDO. Data will be lost if the CDO change.
+	*/
+	static void SaveOptions(UObject* ObjectToSaveOptions);
+	static void LoadOptions(UObject* ObjectToLoadOptions);
+
 	/* Whether this UI is construct for a reimport */
 	bool bIsReimport;
 	

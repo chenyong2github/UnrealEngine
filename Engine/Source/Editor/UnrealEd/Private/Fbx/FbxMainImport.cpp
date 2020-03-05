@@ -294,26 +294,26 @@ FBXImportOptions* GetImportOptions( UnFbx::FFbxImporter* FbxImporter, UFbxImport
 			}
 		}
 
-		ImportUI->SaveConfig();
+		UFbxImportUI::SaveOptions(ImportUI);
 
 		if( ImportUI->StaticMeshImportData )
 		{
-			ImportUI->StaticMeshImportData->SaveOptions();
+			UFbxImportUI::SaveOptions(ImportUI->StaticMeshImportData);
 		}
 
 		if( ImportUI->SkeletalMeshImportData )
 		{
-			ImportUI->SkeletalMeshImportData->SaveOptions();
+			UFbxImportUI::SaveOptions(ImportUI->SkeletalMeshImportData);
 		}
 
 		if( ImportUI->AnimSequenceImportData )
 		{
-			ImportUI->AnimSequenceImportData->SaveOptions();
+			UFbxImportUI::SaveOptions(ImportUI->AnimSequenceImportData);
 		}
 
 		if( ImportUI->TextureImportData )
 		{
-			ImportUI->TextureImportData->SaveOptions();
+			UFbxImportUI::SaveOptions(ImportUI->TextureImportData);
 		}
 
 		if (FbxOptionWindow->ShouldImport())
