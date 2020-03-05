@@ -153,7 +153,7 @@ void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 {
 	// Restore the previous settings.
 	FApp::SetUseFixedTimeStep(bPreviousUseFixedTimeStep);
-	FApp::SetFixedDeltaTime(bPreviousUseFixedTimeStep);
+	FApp::SetFixedDeltaTime(PreviousFixedTimeStepDelta);
 
 	// If the movie pipeline finishes naturally we unsubscribe from the EndPIE event.
 	// This means that if this gets called, the user has hit escape and wants to cancel.
