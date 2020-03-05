@@ -70,6 +70,7 @@ public:
 	static const FString InitialPrefix;
 	static const FName LocalNamespace;
 	static const FName InitialNamespace;
+	static const FName OwnerNamespace;
 
 private:
 	FName ParameterHandleName;

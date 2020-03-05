@@ -449,6 +449,8 @@ enum class ENiagaraParameterScope : uint32
 
 	Engine,
 
+	Owner,
+
 	System,
 
 	Emitter,
