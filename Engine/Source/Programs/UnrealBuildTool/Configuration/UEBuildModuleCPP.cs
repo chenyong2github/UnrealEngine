@@ -159,6 +159,24 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Determines if a file is part of the given module
+		/// </summary>
+		/// <param name="Location">Path to the file</param>
+		/// <returns>True if the file is part of this module</returns>
+		public override bool ContainsFile(FileReference Location)
+		{
+			if (base.ContainsFile(Location))
+			{
+				return true;
+			}
+			if (GeneratedCodeDirectory != null && Location.IsUnderDirectory(GeneratedCodeDirectory))
+			{
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
 		/// Add the default include paths for this module to its settings
 		/// </summary>
 		private void AddDefaultIncludePaths()
@@ -294,7 +312,7 @@ namespace UnrealBuildTool
 				InputFiles.CCFiles.RemoveAll(x => x.Location != SingleFileToCompile);
 				InputFiles.CFiles.RemoveAll(x => x.Location != SingleFileToCompile);
 
-				if(InputFiles.CPPFiles.Count == 0 && InputFiles.CCFiles.Count == 0 && InputFiles.CFiles.Count == 0)
+				if(InputFiles.CPPFiles.Count == 0 && InputFiles.CCFiles.Count == 0 && InputFiles.CFiles.Count == 0 && !ContainsFile(SingleFileToCompile))
 				{
 					return new List<FileItem>();
 				}
@@ -397,7 +415,7 @@ namespace UnrealBuildTool
 			}
 
 			// Compile all the generated CPP files
-			if (GeneratedCodeWildcard != null && !CompileEnvironment.bHackHeaderGenerator && SingleFileToCompile == null)
+			if (GeneratedCodeWildcard != null && !CompileEnvironment.bHackHeaderGenerator)
 			{
 				string[] GeneratedFiles = Directory.GetFiles(Path.GetDirectoryName(GeneratedCodeWildcard), Path.GetFileName(GeneratedCodeWildcard));
 				if(GeneratedFiles.Length > 0)
@@ -428,9 +446,10 @@ namespace UnrealBuildTool
 					foreach (string GeneratedFilename in GeneratedFiles)
 					{
 						FileItem GeneratedCppFileItem = FileItem.GetItemByPath(GeneratedFilename);
-
-						// @todo ubtmake: Check for ALL other places where we might be injecting .cpp or .rc files for compiling without caching CachedCPPIncludeInfo first (anything platform specific?)
-						GeneratedFileItems.Add(GeneratedCppFileItem);
+						if (SingleFileToCompile == null || GeneratedCppFileItem.Location == SingleFileToCompile)
+						{
+							GeneratedFileItems.Add(GeneratedCppFileItem);
+						}
 					}
 
 					if (bModuleUsesUnityBuild)
