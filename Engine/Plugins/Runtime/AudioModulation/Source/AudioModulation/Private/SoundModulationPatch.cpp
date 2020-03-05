@@ -317,13 +317,5 @@ namespace AudioModulation
 		{
 			Controls.Add(Patch.Control, FModulationPatchProxy(Patch, OutRefProxies));
 		}
-
-		for (const USoundControlBusMix* Mix : Settings.Mixes)
-		{
-			if (Mix)
-			{
-				Mixes.Add(FBusMixHandle::Create(*Mix, OutRefProxies.BusMixes));
-			}
-		}
 	}
 } // namespace AudioModulation
