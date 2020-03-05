@@ -135,6 +135,8 @@ struct DATASMITHFBXTRANSLATOR_API FDatasmithFBXSceneMaterial
 	TMap<FString, float> ScalarParams;
 	TMap<FString, bool> BoolParams;
 	TMap<FString, FTextureParams> TextureParams;
+
+	TArray<TWeakPtr<FDatasmithFBXSceneMaterial>> ClonedMaterials;
 };
 
 struct DATASMITHFBXTRANSLATOR_API FDatasmithFBXSceneMesh

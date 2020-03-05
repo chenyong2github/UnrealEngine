@@ -52,8 +52,6 @@ private:
 
 	TSharedPtr<IDatasmithBaseMaterialElement> ConvertMaterial(const TSharedPtr<FDatasmithFBXSceneMaterial>& Material);
 
-	void FetchAOTexture(const FString& MeshName, TSharedPtr<FDatasmithFBXSceneMaterial>& Material);
-
 	TSharedPtr<IDatasmithLevelSequenceElement> ConvertAnimationTimeline(const FDeltaGenTmlDataTimeline& TmlTimeline);
 
 private:

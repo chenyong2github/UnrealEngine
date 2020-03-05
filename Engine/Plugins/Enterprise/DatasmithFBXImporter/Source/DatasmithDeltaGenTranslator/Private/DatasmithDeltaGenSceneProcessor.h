@@ -5,6 +5,7 @@
 #include "DatasmithFBXSceneProcessor.h"
 
 #include "CoreTypes.h"
+#include "Engine\EngineTypes.h"
 
 struct FDatasmithFBXScene;
 struct FDeltaGenTmlDataTimeline;
@@ -13,6 +14,12 @@ class FDatasmithDeltaGenSceneProcessor : public FDatasmithFBXSceneProcessor
 {
 public:
 	FDatasmithDeltaGenSceneProcessor(FDatasmithFBXScene* InScene);
+
+	/**
+	 * Fetches AO textures matching corresponding mesh names, and assigns them to materials used for each node.
+	 * May create additional materials, as we may have to clone material instances to use different AO textures per mesh.
+	 */
+	void SetupAOTextures(const TArray<FDirectoryPath>& TextureFolders);
 
 	/**
 	 * Decompose all scene nodes with nonzero rotation and scaling pivots
