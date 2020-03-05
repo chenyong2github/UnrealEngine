@@ -690,12 +690,12 @@ void SMaterialParametersOverviewTree::CreateGroupsWidget()
 						}
 					}
 
-				NonLayerProperty.Parameter = Parameter;
-				NonLayerProperty.ParameterGroup = ParameterGroup;
-				NonLayerProperty.UnsortedName = Parameter->ParameterInfo.Name;
+					NonLayerProperty.Parameter = Parameter;
+					NonLayerProperty.ParameterGroup = ParameterGroup;
+					NonLayerProperty.UnsortedName = Parameter->ParameterInfo.Name;
 
-				DeferredSearches.Add(ParameterValueProperty);
-				UnsortedParameters.Add(NonLayerProperty);
+					DeferredSearches.Add(ParameterValueProperty);
+					UnsortedParameters.Add(NonLayerProperty);
 				}
 			}
 		}
