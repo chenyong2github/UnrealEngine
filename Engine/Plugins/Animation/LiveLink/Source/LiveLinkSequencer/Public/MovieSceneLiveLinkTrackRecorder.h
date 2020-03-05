@@ -47,7 +47,7 @@ public:
 
 public:
 	//we don't call UMovieSceneTrackRecorder::CreateTrack or CreateTrackImpl since that expects an  ObjectToRecord and a GUID which isn't needed.
-	void CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecoe, UMovieSceneTrackRecorderSettings* InSettingsObject);
+	void CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecode, bool bDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject);
 	void AddContentsToFolder(UMovieSceneFolder* InFolder);
 	void SetReduceKeys(bool bInReduce) { bReduceKeys = bInReduce; }
 
@@ -69,6 +69,9 @@ private:
 
 	/** Whether or not we use timecode time or world time*/
 	bool bUseSourceTimecode;
+
+	/** Whether to discard livelink samples with timecode that occurs before the start of recording*/
+	bool bDiscardSamplesBeforeStart;
 
 	/** Role of the subject we will record*/
 	TSubclassOf<ULiveLinkRole> SubjectRole;

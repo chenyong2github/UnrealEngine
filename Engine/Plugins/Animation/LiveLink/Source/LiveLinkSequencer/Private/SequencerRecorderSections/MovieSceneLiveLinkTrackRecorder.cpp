@@ -37,12 +37,13 @@ static void AlwaysRecordLiveLinkTimecodeSinkFunction()
 
 static FAutoConsoleVariableSink CVarAlwaysRecoredLiveLinkSink(FConsoleCommandDelegate::CreateStatic(&AlwaysRecordLiveLinkTimecodeSinkFunction));
 
-void UMovieSceneLiveLinkTrackRecorder::CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecoe, UMovieSceneTrackRecorderSettings* InSettingsObject)
+void UMovieSceneLiveLinkTrackRecorder::CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecode, bool bInDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject)
 {
 	MovieScene = InMovieScene;
 	SubjectName = InSubjectName;
 	bSaveSubjectSettings = bInSaveSubjectSettings;
-	bUseSourceTimecode = bInAlwaysUseTimecoe;
+	bUseSourceTimecode = bInAlwaysUseTimecode;
+	bDiscardSamplesBeforeStart = bInDiscardSamplesBeforeStart;
 	CreateTracks();
 }
 
@@ -262,7 +263,7 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				}
 
 				// For clarity, only record values that are after the start frame since frames could have been buffered before recording started.
-				if (FrameNumber >= MovieSceneSection->GetInclusiveStartFrame())
+				if (FrameNumber >= MovieSceneSection->GetInclusiveStartFrame() || !bDiscardSamplesBeforeStart)
 				{
 					MovieSceneSection->RecordFrame(FrameNumber, Frame);
 				}
