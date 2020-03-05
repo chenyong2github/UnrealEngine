@@ -439,7 +439,7 @@ int FUsdAttribute::GetArraySize( const pxr::UsdAttribute& Attribute )
 	return Value.IsArrayValued() ? (int)Value.GetArraySize() : -1;
 
 }
-EUsdPurpose IUsdPrim::GetPurpose( const UsdPrim& Prim )
+EUsdPurpose IUsdPrim::GetPurpose( const UsdPrim& Prim, bool bComputed )
 {
 	UsdGeomImageable Geom(Prim);
 	if (Geom)
@@ -448,7 +448,21 @@ EUsdPurpose IUsdPrim::GetPurpose( const UsdPrim& Prim )
 		// "If the purpose of </RootPrim> is set to "render", then the effective purpose
 		// of </RootPrim/ChildPrim> will be "render" even if that prim has a different
 		// authored value for purpose."
-		const TfToken Purpose = Geom.ComputePurpose();
+		TfToken Purpose;
+		if (bComputed)
+		{
+			Purpose = Geom.ComputePurpose();
+		}
+		else
+		{
+			pxr::UsdAttribute PurposeAttr = Prim.GetAttribute(pxr::UsdGeomTokens->purpose);
+
+			pxr::VtValue Value;
+			PurposeAttr.Get(&Value);
+
+			Purpose = Value.Get<pxr::TfToken>();
+		}
+
 		if (Purpose == pxr::UsdGeomTokens->proxy)
 		{
 			return EUsdPurpose::Proxy;
@@ -539,11 +553,28 @@ TfToken IUsdPrim::GetKind(const pxr::UsdPrim& Prim)
 	else
 	{
 		// Prim is not a model, read kind directly from metadata
-		static TfToken KindMetaDataToken("kind");
+		const TfToken KindMetaDataToken("kind");
 		Prim.GetMetadata(KindMetaDataToken, &KindType);
 	}
 
 	return KindType;
+}
+
+bool IUsdPrim::SetKind(const pxr::UsdPrim& Prim, const pxr::TfToken& Kind)
+{
+	UsdModelAPI Model(Prim);
+	if (Model)
+	{
+		if (!Model.SetKind(Kind))
+		{
+			const TfToken KindMetaDataToken("kind");
+			return Prim.SetMetadata(KindMetaDataToken, Kind);
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 pxr::GfMatrix4d IUsdPrim::GetLocalTransform(const pxr::UsdPrim& Prim)

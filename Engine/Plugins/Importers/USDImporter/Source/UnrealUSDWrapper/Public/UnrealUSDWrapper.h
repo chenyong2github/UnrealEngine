@@ -207,14 +207,16 @@ class IUsdPrim
 {
 public:
 #if USE_USD_SDK
-	static UNREALUSDWRAPPER_API EUsdPurpose GetPurpose(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API EUsdPurpose GetPurpose(const pxr::UsdPrim& Prim, bool bComputed = true);
 	static UNREALUSDWRAPPER_API FName GetPurposeName(EUsdPurpose Purpose);
 
 	static UNREALUSDWRAPPER_API bool HasGeometryData(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API bool HasGeometryDataOrLODVariants(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API int GetNumLODs(const pxr::UsdPrim& Prim);
+
 	static UNREALUSDWRAPPER_API bool IsKindChildOf(const pxr::UsdPrim& Prim, const std::string& InBaseKind);
 	static UNREALUSDWRAPPER_API pxr::TfToken GetKind(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API bool SetKind(const pxr::UsdPrim& Prim, const pxr::TfToken& Kind);
 
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalTransform(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim );
