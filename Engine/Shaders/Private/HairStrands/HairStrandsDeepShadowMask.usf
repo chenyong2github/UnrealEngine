@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsVoxelPageCommonStruct.ush"
+#include "HairStrandsDeepShadowCommonStruct.ush"
 
 #include "../Common.ush"
 #include "../CommonViewUniformBuffer.ush"
@@ -29,10 +30,14 @@
   #include "HairStrandsVoxelPageTraversal.ush"
 #endif
 
-float4x4			DeepShadow_WorldToLightTransform;
+StructuredBuffer<FDeepShadowTransform> DeepShadow_WorldToLightTransformBuffer;
+uint				DeepShadow_bIsGPUDriven;
+
+float4x4			DeepShadow_CPUWorldToLightTransform;
 uint				DeepShadow_IsWholeSceneLight;
 int2				DeepShadow_SlotResolution;
 int2				DeepShadow_SlotOffset;
+uint				DeepShadow_SlotIndex;
 uint				DeepShadow_KernelType;
 float				DeepShadow_DepthBiasScale;
 float				DeepShadow_DensityScale;
@@ -76,7 +81,17 @@ float3 TotWorldPosition(float2 UV, float Depth)
 
 float3 ToLightPosition(float3 WorldPosition)
 {
-    float4 LightPos = mul(float4(WorldPosition,1), DeepShadow_WorldToLightTransform);
+	float4x4 WorldToLightTransform = 0;
+	if (DeepShadow_bIsGPUDriven > 0)
+	{
+		WorldToLightTransform = DeepShadow_WorldToLightTransformBuffer.Load(DeepShadow_SlotIndex).WorldToClip;
+	}
+	else
+	{
+		WorldToLightTransform = DeepShadow_CPUWorldToLightTransform;
+	}
+
+    float4 LightPos = mul(float4(WorldPosition,1), WorldToLightTransform);
 	LightPos.xyz/= LightPos.w;
     const float2 LightUV = (LightPos.xy + float(1).xx) * 0.5f;
     return float3(LightUV.x, 1-LightUV.y, LightPos.z);

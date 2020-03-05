@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsVoxelPageCommonStruct.ush"
+#include "HairStrandsDeepShadowCommonStruct.ush"
+
 #include "../Common.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
@@ -95,7 +97,7 @@ void Main(
 #if MESH_RENDER_MODE == MESH_RENDER_VOXEL
 	float4x4 WorldToClipMatrix = VoxelRasterPass.WorldToClipMatrix;
 #elif MESH_RENDER_MODE == MESH_RENDER_DEPTH || MESH_RENDER_MODE == MESH_RENDER_DOM
-	float4x4 WorldToClipMatrix = DeepRasterPass.WorldToClipMatrix;
+	float4x4 WorldToClipMatrix = DeepRasterPass.CPU_WorldToClipMatrix;
 #endif
 
 #ifdef VF_STRAND_HAIR	
@@ -116,6 +118,17 @@ void Main(
 		WorldToClipMatrix			= VoxelizationViewInfo.WorldToClip;
 		HairViewInfo.ViewForward	= VoxelizationViewInfo.ViewForward;
 		ViewportScale				= VoxelizationViewInfo.RasterResolution / float2(VoxelRasterPass.ViewportResolution);
+	}
+	#endif
+
+	#if MESH_RENDER_MODE == MESH_RENDER_DEPTH || MESH_RENDER_MODE == MESH_RENDER_DOM
+	if (HairRenderInfo.bIsGPUDriven)
+	{
+		const uint AtlasSlotIndex = DeepRasterPass.AtlasSlotIndex;
+		FDeepShadowViewInfo DeepShadowViewInfo = DeepRasterPass.DeepShadowViewInfoBuffer.Load(AtlasSlotIndex);
+		WorldToClipMatrix			= DeepShadowViewInfo.WorldToClip;
+		HairViewInfo.ViewForward	= DeepShadowViewInfo.ViewForward;
+		HairViewInfo.RadiusAtDepth1 = DeepShadowViewInfo.MinRadiusAtDepth1;
 	}
 	#endif
 

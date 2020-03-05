@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsVoxelPageCommonStruct.ush"
+#include "HairStrandsDeepShadowCommonStruct.ush"
 
 #include "../Common.ush"
 #include "../CommonViewUniformBuffer.ush"
@@ -49,8 +50,11 @@ float3 ToWorldPosition(float2 UV, float Depth)
 // Need to match FDeepShadowData::MaxMacroGroupCount in HairRendering.h
 #define MAX_HAIR_MACROGROUP_COUNT 16 
 
+StructuredBuffer<FDeepShadowTransform> DeepShadow_WorldToLightTransformBuffer;
+uint				DeepShadow_bIsGPUDriven;
+
 uint2				DeepShadow_Resolution;
-float4x4			DeepShadow_WorldToLightTransforms[MAX_HAIR_MACROGROUP_COUNT];
+float4x4			DeepShadow_CPUWorldToLightTransforms[MAX_HAIR_MACROGROUP_COUNT];
 float3				LightDirection;
 uint				LightChannelMask;
 uint				MaxVisibilityNodeCount;
@@ -61,7 +65,7 @@ float				LightRadius;
 float				DeepShadow_KernelAperture;
 uint				DeepShadow_KernelType;
 uint				DeepShadow_DebugMode;
-int4				DeepShadow_AtlasSlotOffsets[MAX_HAIR_MACROGROUP_COUNT];
+int4				DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[MAX_HAIR_MACROGROUP_COUNT];
 Texture2D<float>	DeepShadow_FrontDepthTexture;
 Texture2D<float4>	DeepShadow_DomTexture;
 
@@ -130,11 +134,19 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		GBuffer.Roughness = Sample.Roughness;
 
 		const uint MacroGroupIndex = clamp(Sample.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);
-		const int2 DeepShadowOffset = DeepShadow_AtlasSlotOffsets[MacroGroupIndex].xy;
-		const float4x4 WorldToLightTransform = DeepShadow_WorldToLightTransforms[MacroGroupIndex];
+		const int3 SlotOffset_SlotIndex = DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[MacroGroupIndex].xyz;
+		float4x4 WorldToLightTransform = 0;
+		if (DeepShadow_bIsGPUDriven > 0)
+		{
+			WorldToLightTransform = DeepShadow_WorldToLightTransformBuffer.Load(SlotOffset_SlotIndex.z).WorldToClip;
+		}	
+		else
+		{
+			WorldToLightTransform = DeepShadow_CPUWorldToLightTransforms[MacroGroupIndex];
+		}
 		
 		FTransmittanceSettings Settings;
-		Settings.DeepShadowOffset = DeepShadowOffset;
+		Settings.DeepShadowOffset = SlotOffset_SlotIndex.xy;
 		Settings.DeepShadowResolution = DeepShadow_Resolution;
 		Settings.WorldToLightTransform = WorldToLightTransform;
 		Settings.LightDirection = LightDirection;

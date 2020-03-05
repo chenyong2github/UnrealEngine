@@ -8,6 +8,16 @@ struct FHairAABB
 	float3 Max;
 };
 
+float3 GetCenter(const FHairAABB In)
+{
+	return (In.Min + In.Max) * 0.5f;
+}
+
+float3 GetExtents(const FHairAABB In)
+{
+	return (In.Max - In.Min) * 0.5f;
+}
+
 FHairAABB InitHairAABB()
 {
 	FHairAABB O;
