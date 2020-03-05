@@ -584,6 +584,7 @@ namespace Audio
 
 		// Set to true when the audio source manager should pump the command queue
 		FThreadSafeBool bPumpQueue;
+		uint64 LastPumpTimeInCycles = 0;
 
 		friend class FMixerSourceVoice;
 	};
