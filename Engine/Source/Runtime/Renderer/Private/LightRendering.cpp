@@ -976,7 +976,6 @@ void FDeferredShadingSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo
 void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsDatas* HairDatas)
 {
 	const bool bUseHairLighting = HairDatas != nullptr;
-	const FHairStrandsDeepShadowViews* InDeepShadowViews = HairDatas ? &HairDatas->DeepShadowViews : nullptr;
 	const FHairStrandsVisibilityViews* InHairVisibilityViews = HairDatas ? &HairDatas->HairVisibilityViews : nullptr;
 	auto HasHairStrandsClusters = [bUseHairLighting, HairDatas](int32 ViewIndex)
 	{

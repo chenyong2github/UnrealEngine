@@ -25,7 +25,6 @@
 /// Hold all the hair strands data
 struct FHairStrandsDatas
 {
-	FHairStrandsDeepShadowViews DeepShadowViews;
 	FHairStrandsVisibilityViews HairVisibilityViews;
 	FHairStrandsMacroGroupViews MacroGroupsPerViews;
 };

@@ -4,6 +4,10 @@
 #include "../PostProcessCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 
+//////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_VISUALIZEDOM
+
 float DomScale = 1;
 float2 DomAtlasOffset;
 float2 DomAtlasScale;
@@ -90,7 +94,7 @@ void VisualizeDomPS(
 
 	OutColor = float4(Color, 1);
 }
-#endif
+#endif // PERMUTATION_OUTPUT_TYPE == 0
 
 // Display screen space rect for vizualizing projected viewrect of each hair macro group
 #if PERMUTATION_OUTPUT_TYPE == 1
@@ -114,4 +118,81 @@ void VisualizeDomPS(
 
 	OutColor = float4(Color, 1);
 }
-#endif
+#endif // PERMUTATION_OUTPUT_TYPE == 1
+
+#endif // SHADER_VISUALIZEDOM
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_DOMINFO
+
+#include "../ShaderPrintCommon.ush"
+#include "../ShaderDrawDebug.ush"
+#include "../Matrices.ush"
+#include "HairStrandsDeepShadowCommonStruct.ush"
+#include "HairStrandsAABBCommon.ush"
+
+uint AllocatedSlotCount;
+uint MacroGroupCount;
+
+Buffer<int>	MacroGroupAABBBuffer;
+StructuredBuffer<FDeepShadowTransform> ShadowWorldToLightTransformBuffer;
+
+[numthreads(1, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId.x > 0)
+	{
+		return;
+	}
+
+	for (uint MacroGroupIt = 0; MacroGroupIt < MacroGroupCount; ++MacroGroupIt)
+	{
+		const FHairAABB Bound = ReadHairAABB(MacroGroupIt, MacroGroupAABBBuffer);
+		AddAABB(Bound.Min, Bound.Max, float4(1, 0.5f, 0, 1));
+	}
+
+	const float FrustumColor = float4(0.5f, 1, 0, 1);
+	for (uint SlotIt = 0; SlotIt < AllocatedSlotCount; ++SlotIt)
+	{
+		const float4x4 WorldToClip = ShadowWorldToLightTransformBuffer[SlotIt].WorldToClip;
+		const float4x4 ClipToWorld = Inverse(WorldToClip);
+
+		float4 P01 = float4(-1, -1, 0, 1);
+		float4 P11 = float4(-1,  1, 0, 1);
+		float4 P21 = float4( 1,  1, 0, 1);
+		float4 P31 = float4( 1, -1, 0, 1);
+
+		float4 P00 = float4(-1, -1, 1, 1);
+		float4 P10 = float4(-1,  1, 1, 1);
+		float4 P20 = float4( 1,  1, 1, 1);
+		float4 P30 = float4( 1, -1, 1, 1);
+
+		P00 = mul(P00, ClipToWorld); P00 /= P00.w; 
+		P10 = mul(P10, ClipToWorld); P10 /= P10.w; 
+		P20 = mul(P20, ClipToWorld); P20 /= P20.w; 
+		P30 = mul(P30, ClipToWorld); P30 /= P30.w; 
+
+		P01 = mul(P01, ClipToWorld); P01 /= P01.w;
+		P11 = mul(P11, ClipToWorld); P11 /= P11.w;
+		P21 = mul(P21, ClipToWorld); P21 /= P21.w;
+		P31 = mul(P31, ClipToWorld); P31 /= P31.w;
+
+		AddLine(P00, P10, FrustumColor, FrustumColor);
+		AddLine(P10, P20, FrustumColor, FrustumColor);
+		AddLine(P20, P30, FrustumColor, FrustumColor);
+		AddLine(P30, P00, FrustumColor, FrustumColor);
+
+		AddLine(P00, P01, FrustumColor, FrustumColor);
+		AddLine(P10, P11, FrustumColor, FrustumColor);
+		AddLine(P20, P21, FrustumColor, FrustumColor);
+		AddLine(P30, P31, FrustumColor, FrustumColor);
+
+		AddLine(P01, P11, FrustumColor, FrustumColor);
+		AddLine(P11, P21, FrustumColor, FrustumColor);
+		AddLine(P21, P31, FrustumColor, FrustumColor);
+		AddLine(P31, P01, FrustumColor, FrustumColor);
+	}
+}
+#endif // SHADER_DOMINFO
