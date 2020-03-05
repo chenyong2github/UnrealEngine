@@ -25,6 +25,7 @@ public:
 
 	void ApplicationPauseDelegate();
 	void ApplicationResumeDelegate();
+	void OnApplicationStart();
 	void OnApplicationShutdown();
 
 	void OnDeviceActive();
