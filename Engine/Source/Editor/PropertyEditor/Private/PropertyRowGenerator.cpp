@@ -188,17 +188,79 @@ TSharedPtr<IDetailTreeNode> FPropertyRowGenerator::FindTreeNode(TSharedPtr<IProp
 {
 	if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
 	{
-		for (const TSharedPtr<IDetailTreeNode>& RootNode : RootTreeNodes)
+		TArray<TSharedPtr<IDetailTreeNode>> NodesToCheck;
+		NodesToCheck.Append(RootTreeNodes);
+		TSharedPtr<FPropertyNode> PropertyNodeWeAreAfter = StaticCastSharedPtr<FPropertyHandleBase>(PropertyHandle)->GetPropertyNode();
+
+		TArray<TSharedRef<IDetailTreeNode>> Children;
+		while(NodesToCheck.Num())
 		{
-			TSharedPtr<IDetailTreeNode> Node = FindTreeNodeRecursive(RootNode, PropertyHandle);
-			if (Node.IsValid())
+			TSharedPtr<IDetailTreeNode> Node = NodesToCheck.Pop(false);
+			TSharedPtr<FDetailTreeNode> TreeNodeImpl = StaticCastSharedPtr<FDetailTreeNode>(Node);
+			TSharedPtr<FPropertyNode> PropertyNode = TreeNodeImpl->GetPropertyNode();
+
+			if (UNLIKELY(PropertyNode.IsValid() && PropertyNode == PropertyNodeWeAreAfter))
 			{
 				return Node;
 			}
+
+			Node->GetChildren(Children);	// will nix the existing Children contents
+			NodesToCheck.Append(Children);
 		}
 	}
-
 	return nullptr;
+}
+
+TArray<TSharedPtr<IDetailTreeNode>> FPropertyRowGenerator::FindTreeNodes(TArray<TSharedPtr<IPropertyHandle>> PropertyHandles) const
+{
+	TArray<TSharedPtr<IDetailTreeNode>> NodesToCheck;
+	NodesToCheck.Append(RootTreeNodes);
+	TArray<TSharedPtr<FPropertyNode>> PropertyNodesWeAreAfter;
+
+	for(TSharedPtr<IPropertyHandle>& Handle: PropertyHandles)
+	{
+		PropertyNodesWeAreAfter.Add(StaticCastSharedPtr<FPropertyHandleBase>(Handle)->GetPropertyNode());
+	}
+	TArray<TSharedPtr<IDetailTreeNode>> Results;
+	Results.AddDefaulted(PropertyHandles.Num());
+
+	int32 NumNotFound = Results.Num();
+
+	TArray<TSharedRef<IDetailTreeNode>> Children;
+	while (NodesToCheck.Num())
+	{
+		TSharedPtr<IDetailTreeNode> Node = NodesToCheck.Pop(false);
+		TSharedPtr<FDetailTreeNode> TreeNodeImpl = StaticCastSharedPtr<FDetailTreeNode>(Node);
+		TSharedPtr<FPropertyNode> PropertyNode = TreeNodeImpl->GetPropertyNode();
+
+		if (PropertyNode.IsValid())
+		{
+			// check if any is one that we're after
+			for (int Idx = 0, NumResults = Results.Num(); Idx < NumResults; ++Idx)
+			{
+				if (!Results[Idx].IsValid())
+				{
+					if (UNLIKELY(PropertyNode == PropertyNodesWeAreAfter[Idx]))
+					{
+						Results[Idx] = Node;
+						--NumNotFound;
+						// assume no duplicates and break?
+					}
+				}
+			}
+
+			check(NumNotFound >= 0);
+			if (NumNotFound == 0)
+			{
+				break;
+			}
+		}
+
+		Node->GetChildren(Children);	// will nix the existing Children contents
+		NodesToCheck.Append(Children);
+	}
+
+	return Results;
 }
 
 void FPropertyRowGenerator::RegisterInstancedCustomPropertyLayout(UStruct* Class, FOnGetDetailCustomizationInstance DetailLayoutDelegate)
