@@ -15,9 +15,10 @@
 #include "MoviePipelineOutputSetting.h"
 #include "Containers/UnrealString.h"
 #include "Misc/StringFormatArg.h"
+#include "MoviePipelineOutputBase.h"
+#include "MoviePipelineImageQuantization.h"
 
 // Forward Declare
-static void ValidateOutputFormatString(FString& InOutFilenameFormatString, const bool bIncludeRenderPass);
 static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(FImagePixelData* InPixelData);
 
 
@@ -84,6 +85,7 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 
 		TUniquePtr<FImagePixelData> QuantizedPixelData = nullptr;
 		
+
 		switch (OutputFormat)
 		{
 		case EImageFormat::PNG:
@@ -92,7 +94,7 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 		{
 			// All three of these formats only support 8 bit data, so we need to take the incoming buffer type,
 			// copy it into a new 8-bit array and optionally apply a little noise to the data to help hide gradient banding.
-			QuantizedPixelData = QuantizePixelDataTo8bpp(RenderPassData.Value.Get());
+			QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(RenderPassData.Value.Get(), 8);
 			break;
 		}
 		case EImageFormat::EXR:
@@ -111,8 +113,9 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
 			// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
 			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() - (BurnInImageData ? 1 : 0) > 1;
+			const bool bTestFrameNumber = true;
 
-			ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass);
+			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
 
 			// Create specific data that needs to override 
 			FStringFormatNamedArguments FormatOverrides;
@@ -174,142 +177,3 @@ void UMoviePipelineImageSequenceOutputBase::GetFilenameFormatArguments(FMoviePip
 	InOutFormatArgs.Arguments.Add(TEXT("render_pass"), TEXT("RenderPassName"));
 }
 
-static void ValidateOutputFormatString(FString& InOutFilenameFormatString, const bool bIncludeRenderPass)
-{
-	// If there is more than one file being written for this frame, make sure they uniquely identify.
-	if (bIncludeRenderPass)
-	{
-		if (!InOutFilenameFormatString.Contains(TEXT("{render_pass}"), ESearchCase::IgnoreCase))
-		{
-			InOutFilenameFormatString += TEXT("{render_pass}");
-		}
-	}
-
-	// Ensure there is a frame number in the output string somewhere to uniquely identify individual files in an image sequence.
-	FString FrameNumberIdentifiers[] = { TEXT("{frame_number}"), TEXT("{frame_number_shot}"), TEXT("{frame_number_rel}"), TEXT("{frame_number_shot_rel}") };
-	int32 FrameNumberIndex = INDEX_NONE;
-	for (const FString& Identifier : FrameNumberIdentifiers)
-	{
-		FrameNumberIndex = InOutFilenameFormatString.Find(Identifier, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-		if(FrameNumberIndex != INDEX_NONE)
-		{
-			break;
-		}
-	}
-
-	// We want to insert a {file_dup} before the frame number. This instructs the name resolver to put the (2) before
-	// the frame number, so that they're still properly recognized as image sequences by other software. It will resolve
-	// to "" if not needed.
-	if (FrameNumberIndex == INDEX_NONE)
-	{
-		// Automatically append {frame_number} so the files are uniquely identified.
-		InOutFilenameFormatString.Append(TEXT("{file_dup}.{frame_number}"));
-	}
-	else
-	{
-		// The user had already specified a frame number identifier, so we need to insert the
-		// file_dup tag before it.
-		InOutFilenameFormatString.InsertAt(FrameNumberIndex, TEXT("{file_dup}"));
-	}
-}
-
-static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(FImagePixelData* InPixelData)
-{
-	TUniquePtr<FImagePixelData> QuantizedPixelData = nullptr;
-
-	FIntPoint RawSize = InPixelData->GetSize();
-	int32 RawNumChannels = InPixelData->GetNumChannels();
-
-	// Look at our incoming bit depth
-	switch (InPixelData->GetBitDepth())
-	{
-	case 8:
-	{
-		// No work actually needs to be done, hooray! We'll copy the data though so that when it gets moved
-		// into the ImageWriteTask the original data can be passed to another output container.
-		QuantizedPixelData = InPixelData->CopyImageData();
-		break;
-	}
-	case 16:
-	{
-		TArray<FColor> ClampedPixels;
-		ClampedPixels.SetNum(RawSize.X * RawSize.Y);
-
-		int64 SizeInBytes = 0;
-		const void* SrcRawDataPtr = nullptr;
-		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
-
-		const uint16* RawDataPtr = static_cast<const uint16*>(SrcRawDataPtr);
-
-		// Copy pixels to new array
-		for (int32 Y = 0; Y < RawSize.Y; Y++)
-		{
-			for (int32 X = 0; X < RawSize.X; X++)
-			{
-				FColor* DestColor = &ClampedPixels.GetData()[int64(Y)*int64(RawSize.X) + int64(X)];
-				FLinearColor SrcColor;
-				for (int32 ChanIter = 0; ChanIter < 4; ChanIter++)
-				{
-					FFloat16 Value;
-					Value.Encoded = RawDataPtr[(int64(Y)*int64(RawSize.X) + int64(X))*int64(RawNumChannels) + int64(ChanIter)];
-
-					switch (ChanIter)
-					{
-					case 0: SrcColor.R = Value; break;
-					case 1: SrcColor.G = Value; break;
-					case 2: SrcColor.B = Value; break;
-					case 3: SrcColor.A = Value; break;
-					}
-				}
-				// convert to FColor using sRGB conversion
-				*DestColor = SrcColor.ToFColor(true);
-			}
-		}
-
-		QuantizedPixelData = MakeUnique<TImagePixelData<FColor>>(RawSize, TArray64<FColor>(MoveTemp(ClampedPixels)));
-	}
-	case 32:
-	{
-		TArray<FColor> ClampedPixels;
-		ClampedPixels.SetNum(RawSize.X * RawSize.Y);
-
-		int64 SizeInBytes = 0;
-		const void* SrcRawDataPtr = nullptr;
-		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
-
-		const float* RawDataPtr = static_cast<const float*>(SrcRawDataPtr);
-
-		// Copy pixels to new array
-		for (int32 Y = 0; Y < RawSize.Y; Y++)
-		{
-			for (int32 X = 0; X < RawSize.X; X++)
-			{
-				FColor* DestColor = &ClampedPixels.GetData()[int64(Y)*int64(RawSize.X) + int64(X)];
-				FLinearColor SrcColor;
-				for (int32 ChanIter = 0; ChanIter < 4; ChanIter++)
-				{
-					float Value = RawDataPtr[(int64(Y)*int64(RawSize.X) + int64(X))*int64(RawNumChannels) + int64(ChanIter)];
-
-					switch (ChanIter)
-					{
-					case 0: SrcColor.R = Value; break;
-					case 1: SrcColor.G = Value; break;
-					case 2: SrcColor.B = Value; break;
-					case 3: SrcColor.A = Value; break;
-					}
-				}
-				// convert to FColor using sRGB conversion
-				*DestColor = SrcColor.ToFColor(true);
-			}
-		}
-
-		QuantizedPixelData = MakeUnique<TImagePixelData<FColor>>(RawSize, TArray64<FColor>(MoveTemp(ClampedPixels)));
-		break;
-	}
-
-	default:
-		check(false);
-	}
-
-	return QuantizedPixelData;
-}
