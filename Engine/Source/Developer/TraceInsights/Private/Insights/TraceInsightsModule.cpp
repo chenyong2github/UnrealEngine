@@ -317,11 +317,12 @@ void FTraceInsightsModule::AddAreaForSessionViewer(TSharedRef<FTabManager::FLayo
 			// In editor, we default to all tabs closed.
 			->AddTab(FInsightsManagerTabs::SessionInfoTabId, ETabState::ClosedTab)
 			->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab)
+			->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::ClosedTab)
 #else
 			->AddTab(FInsightsManagerTabs::SessionInfoTabId, ETabState::OpenedTab)
 			->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::OpenedTab)
+			->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::OpenedTab)
 #endif
-			->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::ClosedTab)
 			->AddTab(FInsightsManagerTabs::NetworkingProfilerTabId, ETabState::ClosedTab)
 			->SetForegroundTab(FTabId(FInsightsManagerTabs::TimingProfilerTabId))
 		)
