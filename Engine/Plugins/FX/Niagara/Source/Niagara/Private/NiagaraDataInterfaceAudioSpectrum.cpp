@@ -112,7 +112,7 @@ void FNiagaraDataInterfaceProxySpectrum::ResizeCQT(float InMinimumFrequency, flo
 
 		if (NewFFTSize != OriginalFFTSize)
 		{
-			ResizeSlidingBuffer(NumChannels, NewFFTSize);
+			ResizeWindow(NumChannels, NewFFTSize);
 		}
 
 	}
@@ -179,6 +179,7 @@ void FNiagaraDataInterfaceProxySpectrum::PostDataToGPU()
 
 			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
 			{
+				
 				int32 Pos = ChannelIndex * NumBands;
 				FPlatformMemory::Memcpy(&BufferData[Pos], ChannelSpectrumBuffers[ChannelIndex].GetData(), NumBytesInChannelBuffer);
 			}
@@ -222,16 +223,17 @@ void FNiagaraDataInterfaceProxySpectrum::UpdateSpectrum()
 	// Grab audio from buffer.
 	int32 NumSamplesToPop = GetNumSamplesAvailable();
 	NumSamplesToPop -= (NumSamplesToPop % NumChannels);
-
+	PopBuffer.Reset();
+	
 	if (NumSamplesToPop > 0)
 	{
-		PopBuffer.Reset();
+		
 		PopBuffer.AddUninitialized(NumSamplesToPop);
 
 		bool bUseLatestAudio = false;
-		PopAudio(PopBuffer.GetData(), NumSamplesToPop, bUseLatestAudio);
+		int32 NumPopped = PopAudio(PopBuffer.GetData(), NumSamplesToPop, bUseLatestAudio);
 	}
-
+	
 	// If we're in a bad internal state, give up here.	
 	if (!FFTAlgorithm.IsValid() || !CQTKernel.IsValid())
 	{
@@ -239,7 +241,7 @@ void FNiagaraDataInterfaceProxySpectrum::UpdateSpectrum()
 	}
 
 	// Run sliding window over available audio.
-	FSlidingWindow SlidingWindow(*SlidingBuffer, PopBuffer, InterleavedWindowBuffer);
+	FSlidingWindow SlidingWindow(*SlidingBuffer, PopBuffer, InterleavedBuffer);
 
 	int32 NumWindows = 0;
 	for (Audio::AlignedFloatBuffer& InterleavedWindow : SlidingWindow)
@@ -257,11 +259,14 @@ void FNiagaraDataInterfaceProxySpectrum::UpdateSpectrum()
 		NumWindows++;
 
 		// Run deinterleave view over window.
-		FDeinterleaveView DeinterleaveView(InterleavedWindow, WindowBuffer, NumChannels);
+		FDeinterleaveView DeinterleaveView(InterleavedWindow, DeinterleavedBuffer, NumChannels);
 		for(FChannel Channel : DeinterleaveView)
 		{
+			Audio::ArrayMultiplyInPlace(WindowBuffer, Channel.Values);
+
 			// Perform FFT
 			FMemory::Memcpy(FFTInputBuffer.GetData(), Channel.Values.GetData(), sizeof(float) * Channel.Values.Num());
+
 			FFTAlgorithm->ForwardRealToComplex(FFTInputBuffer.GetData(), FFTOutputBuffer.GetData());
 
 			// Transflate FFTOutput to power spectrum
@@ -290,7 +295,7 @@ void FNiagaraDataInterfaceProxySpectrum::UpdateSpectrum()
 
 			Audio::ArrayMultiplyByConstantInPlace(Buffer, LinearScale);
 
-			Audio::ArrayPowerToDecibelInPlace(Buffer);
+			Audio::ArrayPowerToDecibelInPlace(Buffer, NoiseFloorDb);
 
 			Audio::ArraySubtractByConstantInPlace(Buffer, NoiseFloorDb);
 
@@ -315,7 +320,7 @@ void FNiagaraDataInterfaceProxySpectrum::SetAudioFormat(int32 InNumChannels, flo
 	{
 		int32 FFTSize = FFTAlgorithm.IsValid() ? FFTAlgorithm->Size() : 0;
 
-		ResizeSlidingBuffer(InNumChannels, FFTSize);
+		ResizeWindow(InNumChannels, FFTSize);
 	}
 
 	NumChannels = InNumChannels;
@@ -340,10 +345,19 @@ void FNiagaraDataInterfaceProxySpectrum::ResizeSpectrumBuffer(int32 InNumChannel
 	}
 }
 
-void FNiagaraDataInterfaceProxySpectrum::ResizeSlidingBuffer(int32 InNumChannels, int32 InFFTSize)
+void FNiagaraDataInterfaceProxySpectrum::ResizeWindow(int32 InNumChannels, int32 InFFTSize)
 {
-	int32 NumWindowSamples = FMath::Max(1, InFFTSize);
-	NumWindowSamples = FMath::Min(NumWindowSamples, 1024);
+	int32 NumWindowFrames = FMath::Max(1, InFFTSize);
+
+	NumWindowFrames = FMath::Min(NumWindowFrames, 1024);
+
+	WindowBuffer.Reset();
+	WindowBuffer.AddUninitialized(NumWindowFrames);
+
+	Audio::GenerateBlackmanWindow(WindowBuffer.GetData(), NumWindowFrames, 1, true);
+
+	int32 NumWindowSamples = NumWindowFrames;
+
 	if (InNumChannels > 0)
 	{
 		NumWindowSamples *= InNumChannels;
@@ -353,6 +367,7 @@ void FNiagaraDataInterfaceProxySpectrum::ResizeSlidingBuffer(int32 InNumChannels
 	int32 NumHopSamples = FMath::Max(1, NumWindowSamples / 2);
 
 	SlidingBuffer = MakeUnique<FSlidingBuffer>(NumWindowSamples, NumHopSamples);
+
 }
 
 void FNiagaraDataInterfaceProxySpectrum::ResizeAudioTransform(float InMinimumFrequency, float InMaximumFrequency, float InSampleRate, int32 InNumBands)
@@ -532,8 +547,8 @@ Audio::FFFTSettings FNiagaraDataInterfaceProxySpectrum::GetFFTSettings(float InM
 
 UNiagaraDataInterfaceAudioSpectrum::UNiagaraDataInterfaceAudioSpectrum(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, Resolution(128)
-	, MinimumFrequency(40.f)
+	, Resolution(512)
+	, MinimumFrequency(55.f)
 	, MaximumFrequency(10000.f)
 	, NoiseFloorDb(-60.f)
 	
@@ -615,16 +630,21 @@ bool UNiagaraDataInterfaceAudioSpectrum::GetFunctionHLSL(const FNiagaraDataInter
 			void {FunctionName}(float In_NormalizedPosition, int In_ChannelIndex, out float Out_Val)
 			{
 				float FrameIndex = In_NormalizedPosition * {SpectrumResolution};
+				int MaxIndex = {SpectrumResolution} - 1;
 				int LowerIndex = floor(FrameIndex);
-				LowerIndex = LowerIndex < {SpectrumResolution} ? LowerIndex : {SpectrumResolution} - 1.0;
-				int UpperIndex =  LowerIndex < {SpectrumResolution} ? LowerIndex + 1.0 : LowerIndex;
+				LowerIndex = LowerIndex < {SpectrumResolution} ? LowerIndex : MaxIndex;
+				LowerIndex = LowerIndex >= 0 ? LowerIndex : 0;
+				int UpperIndex =  LowerIndex < MaxIndex ? LowerIndex + 1 : LowerIndex;
 				float Fraction = FrameIndex - LowerIndex;
+				Fraction = Fraction > 1.0 ? 1.0 : Fraction;
+				Fraction = Fraction < 0.0 ? 0.0 : Fraction;
 				float LowerValue = {SpectrumBuffer}.Load(In_ChannelIndex * {SpectrumResolution} + LowerIndex);
 				float UpperValue = {SpectrumBuffer}.Load(In_ChannelIndex * {SpectrumResolution} + UpperIndex);
 
 				Out_Val = lerp(LowerValue, UpperValue, Fraction);
 			}
 		)");
+
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FStringFormatArg(FunctionInfo.InstanceName)},
 			{TEXT("ChannelCount"), FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol)},

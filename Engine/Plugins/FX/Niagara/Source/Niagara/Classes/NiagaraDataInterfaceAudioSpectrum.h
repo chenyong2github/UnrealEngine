@@ -7,6 +7,7 @@
 #include "DSP/ConstantQ.h"
 #include "DSP/FFTAlgorithm.h"
 #include "DSP/FloatArrayMath.h"
+#include "DSP/AudioFFT.h"
 #include "NiagaraDataInterfaceAudio.h"
 #include "NiagaraDataInterfaceAudioSpectrum.generated.h"
 
@@ -77,7 +78,7 @@ private:
 	void ResizeCQT(float InMinimumFrequency, float InMaximumFrequency, int32 InNumBands);
 	void ResizeSpectrumBuffer(int32 InNumChannels, int32 InNumBands);
 	void ResizeAudioTransform(float InMinimumFrequency, float InMaximumFrequency, float InSampleRate, int32 InNumBands);
-	void ResizeSlidingBuffer(int32 InNumChannels, int32 InFFTSize);
+	void ResizeWindow(int32 InNumChannels, int32 InFFTSize);
 
 
 	// Get settings 
@@ -107,12 +108,13 @@ private:
 	TUniquePtr<Audio::FContiguousSparse2DKernelTransform> CQTKernel;
 	TUniquePtr<Audio::IFFTAlgorithm> FFTAlgorithm;
 
-	Audio::AlignedFloatBuffer InterleavedWindowBuffer;
-	Audio::AlignedFloatBuffer WindowBuffer;
+	Audio::AlignedFloatBuffer InterleavedBuffer;
+	Audio::AlignedFloatBuffer DeinterleavedBuffer;
 	Audio::AlignedFloatBuffer FFTInputBuffer;
 	Audio::AlignedFloatBuffer FFTOutputBuffer;
 	Audio::AlignedFloatBuffer PowerSpectrumBuffer;
 	Audio::AlignedFloatBuffer SpectrumBuffer;
+	Audio::AlignedFloatBuffer WindowBuffer;
 
 	// Handle for the SRV used by the generated HLSL.
 	FReadBuffer GPUBuffer;
