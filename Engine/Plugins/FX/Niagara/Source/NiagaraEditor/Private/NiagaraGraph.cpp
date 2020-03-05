@@ -110,6 +110,11 @@ void UNiagaraGraph::RemoveOnGraphNeedsRecompileHandler(FDelegateHandle Handle)
 	OnGraphNeedsRecompile.Remove(Handle);
 }
 
+void UNiagaraGraph::MutableAddParameter(FNiagaraVariable& Parameter, const FAddParameterOptions Options) const
+{
+	const_cast<UNiagaraGraph*>(this)->AddParameter(Parameter, Options);
+}
+
 void UNiagaraGraph::NotifyGraphChanged(const FEdGraphEditAction& InAction)
 {
 	InvalidateCachedParameterData();
@@ -343,7 +348,7 @@ void UNiagaraGraph::PostLoad()
 		}
 	}
 
-	if (NiagaraVer < FNiagaraCustomVersion::PrecompileNamespaceFixup)
+	if (NiagaraVer < FNiagaraCustomVersion::PrecompileNamespaceFixup2)
 	{
 		// Collect all input and output pins to infer usages of variables they reference.
 		const TMap<FNiagaraVariable, FInputPinsAndOutputPins> VarToPinsMap = CollectVarsToInOutPinsMap();
@@ -2152,11 +2157,10 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		}
 		for (const FString& RegisterName : RegisterNames)
 		{
+			FAddParameterOptions AddParameterOptions = FAddParameterOptions();
+			AddParameterOptions.bRefreshMetaDataScopeAndUsage = true;
 			FNiagaraVariable Parameter = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), *RegisterName);
-			if (ParameterToReferencesMap.Find(Parameter) == nullptr)
-			{
-				ParameterToReferencesMap.Add(Parameter, false);
-			}
+			MutableAddParameter(Parameter, AddParameterOptions);
 		}
 	}
 

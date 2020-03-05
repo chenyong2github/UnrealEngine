@@ -1958,6 +1958,12 @@ FNiagaraParameterMapHistoryHandle::FNiagaraParameterMapHistoryHandle(FNiagaraPar
 			// Cannot fixup names of variables using legacy name string mode, skip this entry.
 			continue;
 		}
+		else if (VarMetaData.GetScopeName().IsNone())
+		{
+			// cannot make history variables for variables with metadata without a scope name. Log this for tracking and skip this entry.
+			UE_LOG(LogNiagaraEditor, Display, TEXT("Variable MetaData added to ParameterMapHistoryHandle had empty Scope Name. Variable: %s"), *Var->GetName().ToString());
+			continue;
+		}
 		HistoryVariables.Add(FNiagaraHistoryVariable(Var, VarWithOriginalAliasIntact, VarMetaData));
 	}
 }
@@ -1987,6 +1993,12 @@ FNiagaraParameterMapHistoryHandle::FNiagaraParameterMapHistoryHandle(FNiagaraPar
 			if (ScriptVarMetaData.GetIsUsingLegacyNameString() == true)
 			{
 				// Cannot fixup names of variables using legacy name string mode, skip this entry.
+				continue;
+			}
+			else if (ScriptVarMetaData.GetScopeName().IsNone())
+			{
+				// cannot make history variables for variables with metadata without a scope name. Log this for tracking and skip this entry.
+				UE_LOG(LogNiagaraEditor, Display, TEXT("Variable MetaData added to ParameterMapHistoryHandle had empty Scope Name. Variable: %s"), *SecondaryVar.GetName().ToString());
 				continue;
 			}
 			HistoryVariables.Add(FNiagaraHistoryVariable(PrimaryVar, PrimaryVarWithOriginalAliasIntact, ScriptVarMetaData));
