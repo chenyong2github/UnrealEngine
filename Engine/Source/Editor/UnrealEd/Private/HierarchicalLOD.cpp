@@ -37,6 +37,7 @@
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "IMeshReductionManagerModule.h"
 #include "Engine/HLODProxy.h"
+#include "Engine/LevelStreaming.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLODGenerator, Log, All);
 
