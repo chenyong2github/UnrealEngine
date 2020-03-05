@@ -361,7 +361,7 @@ void FMaterialShader::SetParameters(
 		{
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 			FMobileSceneTextureUniformParameters UniformParameters;
-			SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, true, true, UniformParameters);
+			SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, true, SceneContext.bCustomDepthIsValid, UniformParameters);
 			if (View.GetEyeAdaptationBuffer())
 			{
 				UniformParameters.EyeAdaptationBuffer = View.GetEyeAdaptationBuffer()->SRV;
