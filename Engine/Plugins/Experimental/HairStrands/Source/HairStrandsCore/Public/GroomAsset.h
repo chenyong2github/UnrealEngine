@@ -681,7 +681,7 @@ public:
 		Submitted,
 		Completed
 	};
-	EQueryStatus QueryStatus = EQueryStatus::None;
+	volatile EQueryStatus QueryStatus = EQueryStatus::None;
 
 	/** Initialize resources. */
 	void InitResource();
