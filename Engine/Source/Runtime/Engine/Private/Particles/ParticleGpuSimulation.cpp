@@ -2917,8 +2917,7 @@ public:
 
 				const bool bTranslucent = RendersWithTranslucentMaterial();
 				const bool bAllowSorting = FXConsoleVariables::bAllowGPUSorting
-					&& FeatureLevel == ERHIFeatureLevel::SM5
-					// && RHISupportsComputeShaders(ViewFamily.GetShaderPlatform())
+					&& RHISupportsComputeShaders(ViewFamily.GetShaderPlatform())
 					&& bTranslucent;
 
 				// Iterate over views and assign parameters for each.
