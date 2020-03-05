@@ -5,10 +5,10 @@
 #include "DatasmithFBXSceneProcessor.h"
 
 #include "CoreTypes.h"
-#include "Engine\EngineTypes.h"
 
 struct FDatasmithFBXScene;
 struct FDeltaGenTmlDataTimeline;
+struct FDirectoryPath;
 
 class FDatasmithDeltaGenSceneProcessor : public FDatasmithFBXSceneProcessor
 {
