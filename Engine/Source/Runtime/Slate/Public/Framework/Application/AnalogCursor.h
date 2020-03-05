@@ -59,6 +59,9 @@ public:
 protected:
 
 	virtual bool IsRelevantInput(const FInputEvent& InputEvent) const;
+	virtual bool IsRelevantInput(const FKeyEvent& KeyEvent) const;
+	virtual bool IsRelevantInput(const FAnalogInputEvent& AnalogInputEvent) const;
+	virtual bool IsRelevantInput(const FPointerEvent& MouseEvent) const;
 
 	/** Getter */
 	FORCEINLINE const FVector2D& GetAnalogValues( EAnalogStick Stick = EAnalogStick::Left ) const

@@ -277,6 +277,21 @@ bool FAnalogCursor::IsRelevantInput(const FInputEvent& InputEvent) const
 	return GetOwnerUserIndex() == InputEvent.GetUserIndex();
 }
 
+bool FAnalogCursor::IsRelevantInput(const FKeyEvent& KeyEvent) const
+{
+	return IsRelevantInput(static_cast<FInputEvent>(KeyEvent));
+}
+
+bool FAnalogCursor::IsRelevantInput(const FAnalogInputEvent& AnalogInputEvent) const
+{
+	return IsRelevantInput(static_cast<FInputEvent>(AnalogInputEvent));
+}
+
+bool FAnalogCursor::IsRelevantInput(const FPointerEvent& MouseEvent) const
+{
+	return IsRelevantInput(static_cast<FInputEvent>(MouseEvent));
+}
+
 void FAnalogCursor::ClearAnalogValues()
 {
 	AnalogValues[static_cast<uint8>(EAnalogStick::Left)] = FVector2D::ZeroVector;
