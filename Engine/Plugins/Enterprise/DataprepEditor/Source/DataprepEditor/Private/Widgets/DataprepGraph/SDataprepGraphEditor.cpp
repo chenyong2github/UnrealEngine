@@ -624,7 +624,7 @@ void SDataprepGraphEditor::PasteNodes()
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
 
 	// Create temporary graph
-	FName UniqueGraphName = MakeUniqueObjectName( GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("DataprepGraph", "TempGraph").ToString()) ) );
+	FName UniqueGraphName = MakeUniqueObjectName( GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("DataprepTempGraph", "TempGraph").ToString()) ) );
 	TStrongObjectPtr<UDataprepGraph> DataprepGraph = TStrongObjectPtr<UDataprepGraph>( NewObject< UDataprepGraph >(GetTransientPackage(), UniqueGraphName) );
 	DataprepGraph->Schema = UDataprepGraphSchema::StaticClass();
 

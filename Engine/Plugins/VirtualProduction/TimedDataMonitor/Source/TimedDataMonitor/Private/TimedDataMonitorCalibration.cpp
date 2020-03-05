@@ -780,6 +780,3 @@ FTimedDataMonitorTimeCorrectionResult FTimedDataMonitorCalibration::ApplyTimeCor
 	Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Retry_IncreaseBufferSize;
 	return Result;
 }
-
-
-#undef LOCTEXT_NAMESPACE

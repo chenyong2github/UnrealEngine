@@ -418,7 +418,7 @@ void FNiagaraUserParameterBindingCustomization::OnActionSelected(const TArray< T
 
 void FNiagaraUserParameterBindingCustomization::ChangeSource(FName InVarName)
 {
-	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeParameterSource", " Change User Parameter Source to \"{0}\" "), FText::FromName(InVarName)));
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeUserParameterSource", " Change User Parameter Source to \"{0}\" "), FText::FromName(InVarName)));
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
 	for (UObject* Obj : Objects)
@@ -627,7 +627,7 @@ void FNiagaraDataInterfaceBindingCustomization::OnActionSelected(const TArray< T
 
 void FNiagaraDataInterfaceBindingCustomization::ChangeSource(FName InVarName)
 {
-	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeParameterSource", " Change Data Interface Source to \"{0}\" "), FText::FromName(InVarName)));
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeDataParameterSource", " Change Data Interface Source to \"{0}\" "), FText::FromName(InVarName)));
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
 	for (UObject* Obj : Objects)

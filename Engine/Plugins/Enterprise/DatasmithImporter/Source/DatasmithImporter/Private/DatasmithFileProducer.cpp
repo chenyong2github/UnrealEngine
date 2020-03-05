@@ -825,7 +825,7 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 
 		if( !FileProducer->Produce( Context, OutAssets ) )
 		{
-			FText ErrorReport = FText::Format( LOCTEXT( "DatasmithDirProducer_Failed", "Failed to load {0} ..."), FText::FromString( FileName ) );
+			FText ErrorReport = FText::Format( LOCTEXT( "DatasmithDirProducer_FailedLoad", "Failed to load {0} ..."), FText::FromString( FileName ) );
 			LogError( ErrorReport );
 		}
 	}
@@ -957,7 +957,7 @@ bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakOb
 
 	if (!FFileHelper::SaveStringToFile(Buffer, *PlmXmlFileName, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
 	{
-		FText ErrorReport = FText::Format(LOCTEXT("DatasmithDirProducer_Failed", "Failed to create PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
+		FText ErrorReport = FText::Format(LOCTEXT("DatasmithPlmXmlProducer_FailedCreate", "Failed to create PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
 		LogError(ErrorReport);
 		return false;
 	}
@@ -973,7 +973,7 @@ bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakOb
 
 	if (!FileProducer->Produce(Context, OutAssets))
 	{
-		FText ErrorReport = FText::Format(LOCTEXT("DatasmithDirProducer_Failed", "Failed to produce assets with PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
+		FText ErrorReport = FText::Format(LOCTEXT("DatasmithPlmXmlProducer_FailedProduce", "Failed to produce assets with PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
 		LogError(ErrorReport);
 		return false;
 	}

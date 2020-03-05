@@ -579,7 +579,7 @@ void FDMXEntityDragDropOperation::HoverTargetChanged()
 			if (bValidDropTarget)
 			{
 				SetFeedbackMessageOK(FText::Format(
-					LOCTEXT("ReorderAndSetProperty", "Reorder {0} before '{1}'\nSet {2} = '{3}'"),
+					LOCTEXT("ReorderBeforeAndSetProperty", "Reorder {0} before '{1}'\nSet {2} = '{3}'"),
 					DraggedLabel,
 					HoveredEntity->GetDisplayName(),
 					PropertyChangeName,
@@ -601,7 +601,7 @@ void FDMXEntityDragDropOperation::HoverTargetChanged()
 		{
 			// Reordering between entities of same category is fine
 			SetFeedbackMessageOK(FText::Format(
-				LOCTEXT("ReorderEntities", "Reorder {0} before '{1}'"),
+				LOCTEXT("ReorderBeforeOther", "Reorder {0} before '{1}'"),
 				DraggedLabel,
 				HoveredEntity->GetDisplayName()
 			));
