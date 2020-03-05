@@ -126,6 +126,9 @@ public:
 	/** call this to notify the editor that the edited material changed from outside */
 	virtual void NotifyExternalMaterialChange() {}
 
+	/** Fills inheritance drop down menu */
+	virtual void GenerateInheritanceMenu(class UToolMenu* Menu) {};
+
 private:
 	FMaterialEditorClosedEvent MaterialEditorClosedEvent;
 	FRegisterTabSpawnersEvent RegisterTabSpawnersEvent;

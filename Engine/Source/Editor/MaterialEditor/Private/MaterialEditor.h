@@ -22,6 +22,7 @@
 #include "UObject/WeakFieldPtr.h"
 
 struct FAssetData;
+struct FToolMenuSection;
 class FCanvas;
 class FMaterialCompiler;
 class FScopedTransaction;
@@ -275,6 +276,8 @@ public:
 	virtual FText GetToolkitName() const override;
 	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
+	virtual void InitToolMenuContext(struct FToolMenuContext& MenuContext) override;
+
 
 	/** @return the documentation location for this editor */
 	virtual FString GetDocumentationLink() const override
@@ -392,7 +395,7 @@ public:
 	virtual void GetBoundsForNode(const UEdGraphNode* InNode, class FSlateRect& OutRect, float InPadding) const override;
 	virtual FMatExpressionPreview* GetExpressionPreview(UMaterialExpression* InExpression) override;
 	virtual void DeleteNodes(const TArray<class UEdGraphNode*>& NodesToDelete) override;
-
+	virtual void GenerateInheritanceMenu(class UToolMenu* Menu) override;
 
 	void UpdateStatsMaterials();
 
@@ -413,6 +416,9 @@ public:
 
 	/** Rebuilds the inheritance list for this material. */
 	void RebuildInheritanceList();
+
+	/** Add entry to hierarchy menu */
+	static void AddInheritanceMenuEntry(FToolMenuSection& Section, const FAssetData& AssetData, bool bIsFunctionPreviewMaterial);
 
 public:
 	/** Set to true when modifications have been made to the material */
@@ -545,6 +551,7 @@ protected:
 private:
 	/** Builds the toolbar widget for the material editor */
 	void ExtendToolbar();
+	void RegisterToolBar();
 
 	/** Creates the toolbar buttons. Bound by ExtendToolbar*/
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);

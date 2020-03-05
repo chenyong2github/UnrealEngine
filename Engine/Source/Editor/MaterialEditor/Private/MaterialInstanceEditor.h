@@ -111,6 +111,9 @@ public:
 	/** call this to notify the editor that the edited material changed from outside */
 	virtual void NotifyExternalMaterialChange() override;
 
+	// IMaterial Editor Interface
+	virtual void GenerateInheritanceMenu(class UToolMenu* Menu) override;
+
 protected:
 	//~ FAssetEditorToolkit interface
 	virtual void SaveAsset_Execute() override;
@@ -158,8 +161,6 @@ private:
 	void RegisterToolBar();
 	/** Builds the toolbar widget for the material editor */
 	void ExtendToolbar();
-
-	void GenerateInheritanceMenu(UToolMenu* Menu);
 
 	/** If re-initializing for a material function instance re-generate the proxy materials */
 	void ReInitMaterialFunctionProxies();
