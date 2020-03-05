@@ -12,27 +12,10 @@
 #include "Editor.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "MoviePipelineQueue.h"
-#include "MoviePipelineBlueprintLibrary.h"
 #include "MoviePipelinePIEExecutorSettings.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
-FText UMoviePipelinePIEExecutor::GetWindowTitle(const int32 InConfigIndex, const int32 InNumConfigs) const
-{
-	FNumberFormattingOptions PercentFormatOptions;
-	PercentFormatOptions.MinimumIntegralDigits = 2;
-	PercentFormatOptions.MaximumIntegralDigits = 3;
-
-	float CompletionPercentage = 0.f;
-	if (ActiveMoviePipeline)
-	{
-		CompletionPercentage = UMoviePipelineBlueprintLibrary::GetCompletionPercentage(ActiveMoviePipeline);
-	}
-
-	FText TitleFormatString = LOCTEXT("MoviePreviewWindowTitleFormat", "Movie Pipeline Render (Preview) [Job {CurrentCount}/{TotalCount} Total] Current Job: {PercentComplete}% Completed.");
-	FText WindowTitle = FText::FormatNamed(TitleFormatString, TEXT("CurrentCount"), FText::AsNumber(InConfigIndex + 1), TEXT("TotalCount"), FText::AsNumber(InNumConfigs), TEXT("PercentComplete"), FText::AsNumber(12.f, &PercentFormatOptions));
-	return WindowTitle;
-}
 
 void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 {
@@ -40,7 +23,6 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 
 	// Create a Slate window to hold our preview.
 	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
-		.Title_UObject(this, &UMoviePipelinePIEExecutor::GetWindowTitle, CurrentPipelineIndex, Queue->GetJobs().Num())
 		.ClientSize(FVector2D(1280, 720))
 		.AutoCenter(EAutoCenter::PrimaryWorkArea)
 		.UseOSWindowBorder(true)
@@ -51,6 +33,7 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 		.SupportsMinimize(true)
 		.SizingRule(ESizingRule::UserSized);
 
+	WeakCustomWindow = CustomWindow;
 	FSlateApplication::Get().AddWindow(CustomWindow);
 
 	// Initialize our own copy of the Editor Play settings which we will adjust defaults on.
@@ -132,6 +115,13 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	// This solves cases where there are engine systems that need to finish loading before we do anything.
 	const UMoviePipelinePIEExecutorSettings* ExecutorSettings = GetDefault<UMoviePipelinePIEExecutorSettings>();
 
+	// We tick each frame to update the Window Title, and kick off latent pipeling initialization.
+	FCoreDelegates::OnBeginFrame.AddUObject(this, &UMoviePipelinePIEExecutor::OnTick);
+
+	// Listen for when the pipeline thinks it has finished.
+	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished);
+	ActiveMoviePipeline->OnMoviePipelineErrored().AddUObject(this, &UMoviePipelinePIEExecutor::OnPipelineErrored);
+	
 	if (ExecutorSettings->InitialDelayFrameCount == 0)
 	{
 		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
@@ -140,32 +130,37 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	else
 	{
 		RemainingInitializationFrames = ExecutorSettings->InitialDelayFrameCount;
-		FCoreDelegates::OnBeginFrame.AddUObject(this, &UMoviePipelinePIEExecutor::DelayedInitializationCounter);
 	}
-
-	// Listen for when the pipeline thinks it has finished.
-	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished);
-	ActiveMoviePipeline->OnMoviePipelineErrored().AddUObject(this, &UMoviePipelinePIEExecutor::OnPipelineErrored);
-
+	
 	// Listen for PIE shutdown in case the user hits escape to close it. 
 	FEditorDelegates::EndPIE.AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEEnded);
 }
 
-void UMoviePipelinePIEExecutor::DelayedInitializationCounter()
+void UMoviePipelinePIEExecutor::OnTick()
 {
-	if (RemainingInitializationFrames == 0)
+	if (RemainingInitializationFrames >= 0)
 	{
-		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
-		FCoreDelegates::OnBeginFrame.RemoveAll(this);
+		if (RemainingInitializationFrames == 0)
+		{
+			ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		}
+
+		RemainingInitializationFrames--;
 	}
 
-	RemainingInitializationFrames--;
+	FText WindowTitle = GetWindowTitle();
+	TSharedPtr<SWindow> CustomWindow = WeakCustomWindow.Pin();
+	if (CustomWindow)
+	{
+		CustomWindow->SetTitle(WindowTitle);
+	}
 }
 
 void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
 {
 	// Unsubscribe to the EndPIE event so we don't think the user canceled it.
 	FEditorDelegates::EndPIE.RemoveAll(this);
+	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 
 	if (ActiveMoviePipeline)
 	{

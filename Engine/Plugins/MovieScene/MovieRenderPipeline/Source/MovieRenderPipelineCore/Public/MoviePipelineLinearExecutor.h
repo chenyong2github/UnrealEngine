@@ -35,7 +35,7 @@ protected:
 
 	virtual void StartPipelineByIndex(int32 InPipelineIndex);
 	virtual void Start(const UMoviePipelineExecutorJob* InJob) {}
-
+	virtual FText GetWindowTitle();
 public:
 	virtual void OnIndividualPipelineFinished(UMoviePipeline* /* FinishedPipeline */);
 	virtual void OnExecutorFinishedImpl();
