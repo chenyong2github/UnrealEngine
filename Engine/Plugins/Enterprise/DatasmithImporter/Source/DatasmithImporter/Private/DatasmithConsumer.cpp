@@ -731,6 +731,13 @@ bool UDatasmithConsumer::SetLevelNameImplementation(const FString& InLevelName, 
 		return false;
 	}
 
+	int32 Index;
+	if(InLevelName.FindChar( L'.', Index) || InLevelName.FindChar( L'/', Index))
+	{
+		OutReason = LOCTEXT( "DatasmithConsumer_IsAPath", "Path or relative path is not accepted as a folder name. Please enter a valid name." );
+		return false;
+	}
+
 	FString SanitizedName = ObjectTools::SanitizeObjectName(InLevelName);
 	if(SanitizedName != InLevelName)
 	{
@@ -852,6 +859,13 @@ bool UDatasmithConsumer::SetTargetContentFolderImplementation(const FString& InT
 	{
 		// #ueent_todo: This is weird it happens in some cases to investigate
 		return true;
+	}
+
+	if(InTargetContentFolder.StartsWith( TEXT("..")))
+	{
+		const FText Message = LOCTEXT( "DatasmithConsumer_RelativePath", "Relative path is not accepted as level name. Please enter a valid name." );
+		LogInfo(Message);
+		return false;
 	}
 
 	if(!CanCreateLevel(InTargetContentFolder, LevelName, !bIsAutomated && !IsRunningCommandlet()))
