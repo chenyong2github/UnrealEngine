@@ -26,21 +26,21 @@ public:
 	// *
 	// * @return (Boolean)  True if a session has been created (even if it already existed).
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
 	static bool CreateSession();
 
 	///**
 	// * Configure the ASA session.  
 	// * This will take effect when the next session is started.
 	// * 
-	// * @param AccountId      The ARPin to save.
-	// * @param AccountKey		The ARPin hosting result.
-	// * @param LogVerbosity	A new instance of UCloudARPin created using the input ARPinToHost.
+	// * @param AccountId      The Azure Spatial Anchor Account ID.
+	// * @param AccountKey		The Azure Spatial Anchor Account Key.
+	// * @param LogVerbosity	Logging verbosity for the Azure Spatial Anchor api.
 	// *
 	// * @return (Boolean)  True if the session configuration was set.
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	static bool ConfigSession(const FString& AccountId, const FString& AccountKey, EAzureSpatialAnchorsLogVerbosity LogVerbosity);
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static bool ConfigSession(const FString& AccountId, const FString& AccountKey, const FCoarseLocalizationSettings CoarseLocalizationSettings, EAzureSpatialAnchorsLogVerbosity LogVerbosity);
 
 	///**
 	// * Start a Session running.  
@@ -48,19 +48,19 @@ public:
 	// *
 	// * @return (Boolean)  True if a session has been started (even if it was already started).
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
 	static bool StartSession();
 
 	///**
 	// * The session will stop, it can be started again.
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
 	static bool StopSession();
 
 	///**
 	// * The session will be destroyed.
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
 	static bool DestroySession();
 
 	///**
@@ -69,7 +69,7 @@ public:
 	// * @param ARPin      The ARPin who's cloud anchor we hope to get.
 	// * @param OutAzureCloudSpatialAnchor	The cloud spatial anchor, or null.
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
 	static void GetCloudAnchor(UARPin* ARPin, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor);
 
 	///**
@@ -77,7 +77,7 @@ public:
 	// *
 	// * @param OutCloudAnchors 	The cloud spatial anchors
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))	
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))	
 	static void GetCloudAnchors(TArray<UAzureCloudSpatialAnchor*>& OutCloudAnchors);
 
 	///**
@@ -88,10 +88,10 @@ public:
 	// * @param InMinutesFromNow      The expiration time of the cloud pin.  <= 0 means no expiration.
 	// * @param OutAzureCloudSpatialAnchor  The Cloud anchor handle.
 	// * @param OutResult	Result of the Save attempt.
-	// * @param OutErrorString	Additional information about the OUtResult (may be empty).
+	// * @param OutErrorString	Additional information about the OutResult (often empty).
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	static void SavePinToCloud(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, int InMinutesFromNow, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static void SavePinToCloud(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, FDateTime ExpirationTime, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
 
 	///**
 	// * Delete the cloud anchor in the cloud.
@@ -99,22 +99,120 @@ public:
 	// *
 	// * @param CloudSpatialAnchor      The Cloud anchor to delete.
 	// * @param OutResult	Result of the Delete attempt.
-	// * @param OutErrorString	Additional information about the OutResult (may be empty).
+	// * @param OutErrorString	Additional information about the OutResult (often empty).
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
 	static void DeleteCloudAnchor(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UAzureCloudSpatialAnchor* CloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
 
 	///**
 	// * Load a pin from the cloud..
 	// * This will start a Latent Action to load a cloud anchor and create a pin for it.
 	// *
-	// * @param CloudId						The Id of the cloud anchor we will try to load.
+	// * @param CloudIdentifier				The Azure Cloud Spatial Anchor Identifier of the cloud anchor we will try to load.
 	// * @param PinId						Specify the name of the Pin to load into.  Will fail if a pin of this name already exists.  If empty an auto-generated id will be used.
 	// * @param OutARPin					Filled in with the pin created, if successful.
-	// * @param OutAzureCloudSpatialAnchor	Filled in with the cloud spatial anchor created, if successful.
+	// * @param OutAzureCloudSpatialAnchor	Filled in with the UE4 representation of the cloud spatial anchor created, if successful.
 	// * @param OutResult					The Result enumeration.
-	// * @param OutErrorString				Additional informatiuon about the OutResult (may be empty).
+	// * @param OutErrorString				Additional informatiuon about the OutResult (often empty).
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static void LoadCloudAnchor(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, FString CloudIdentifier, FString PinId, UARPin*& OutARPin, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+
+
+	// Advanced CloudAnchor api.  More flexibility, more steps to go through, more ways to go wrong.
+
+	///**
+	// * Create a cloud anchor for the pin.  This is not yet stored in the cloud.
+	// *
+	// * @param ARPin      The ARPin to create an anchor for.
+	// * @param OutAzureCloudSpatialAnchor  The Cloud anchor handle. (null if fails)
+	// * @param OutResult					The Result enumeration.
+	// * @param OutErrorString				Additional informatiuon about the OutResult (often empty).
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static void CreateCloudAnchor(UARPin* ARPin, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+
+	///**
+	// * Save the cloud anchor to the cloud.
+	// * This will start a Latent Action to save the AzureCloudSpatialAnchor to the Azure Spatial Anchors cloud service.
+	// *
+	// * @param InAzureCloudSpatialAnchor      The AzureCloudSpatialAnchor to save.
+	// * @param OutResult	The Result enumeration.
+	// * @param OutErrorString	Additional information about the OutResult (often empty).
 	// */
 	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	static void LoadCloudAnchor(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, FString CloudId, FString PinId, UARPin*& OutARPin, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+	static void SaveCloudAnchor(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UAzureCloudSpatialAnchor* InAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+
+	///**
+	// * Save the cloud anchor's properties to the cloud.
+	// * This will start a Latent Action to save the AzureCloudSpatialAnchor properties to the Azure Spatial Anchors cloud service.
+	// * This can fail if another client updates the anchor.  If that happens you will have to call RefreshCloudAnchorProperties to get the updated values before you might UpdateCloudAnchorProperties sucessfully.
+	// *
+	// * @param InAzureCloudSpatialAnchor      The AzureCloudSpatialAnchor to update.
+	// * @param OutResult	The Result enumeration.
+	// * @param OutErrorString	Additional information about the OutResult (often empty).
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static void UpdateCloudAnchorProperties(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UAzureCloudSpatialAnchor*& InAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+
+	///**
+	// * Get the latest cloud anchor properties from the cloud.
+	// * This will start a Latent Action to fetch the AzureCloudSpatialAnchor's propertiesfrom the Azure Spatial Anchors cloud service.
+	// *
+	// * @param InAzureCloudSpatialAnchor      The AzureCloudSpatialAnchor to refresh.
+	// * @param OutResult	The Result enumeration.
+	// * @param OutErrorString	Additional information about the OutResult (often empty).
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static void RefreshCloudAnchorProperties(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UAzureCloudSpatialAnchor*& InAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+
+	/////**
+	//// * Get the AzureCloudSpatialAnchor with properties by ID, even if it is not yet located.
+	//// * This will start a Latent Action to fetch the AzureCloudSpatialAnchor's properties from the Azure Spatial Anchors cloud service even if it has not been located yet.
+	//// *
+	//// * @param CloudIdentifier      The cloud identifier who's anchor we are trying to get.
+	//// * @param InAzureCloudSpatialAnchor      The AzureCloudSpatialAnchor to refresh.
+	//// * @param OutResult	The Result enumeration.
+	//// * @param OutErrorString	Additional information about the OutResult (often empty).
+	//// */
+	//UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	//DISABLED IMPLEMENTATION NOT COMPLETE
+	//static void GetCloudAnchorProperties(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, FString CloudIdentifier, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+
+
+	///**
+	// * Start a 'Watcher' searching for azure cloud spatial anchors as specified in the locate criteria.  Results will be returned by TODO
+	// *
+	// * @param InLocateCriteria      Structure describing the watcher we wish to start.
+	// * @param OutWatcherIdentifier   The ID of the created watcher.
+	// * @param OutResult	The Result enumeration.
+	// * @param OutErrorString	Additional information about the OutResult (often empty).
+	// */
+	//UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	//DISABLED IMPLEMENTATION NOT COMPLETE
+	static void CreateWatcher(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, int32& OutWatcherIdentifier, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+
+
+	///**
+	// * Stop the specified Watcher looking for anchors, if it still exists.  
+	// *
+	// * @param InWatcherIdentifier      The identifier of the watcher we are trying to stop.
+	// *
+	// * @return (Boolean)  True if the watcher existed.  False if it did not.
+	// */
+	//UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	//DISABLED IMPLEMENTATION NOT COMPLETE
+	static bool StopWatcher(int32 InWatcherIdentifier);
+
+	///**
+	// * Create an ARPin around an already existing cloud anchor. 
+	// *
+	// * @param PinId      The name of the pin we want created.
+	// * @param InAzureCloudSpatialAnchor  The cloud anchor we will create the pin around.
+	// * @param OutARPin The pin that was created, or null.
+	// *
+	// * @return (Boolean)  True if we were able to create.
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static bool CreateARPinAroundAzureCloudSpatialAnchor(FString PinId, UAzureCloudSpatialAnchor* InAzureCloudSpatialAnchor, UARPin*& OutARPin);
 };
