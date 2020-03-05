@@ -1321,6 +1321,17 @@ static void InternalProcessGroomBindingTask(FRHICommandListImmediate& RHICmdList
 		Resource.RenRootResources->InitRHI();
 	}
 
+	TArray<FGoomBindingGroupInfo>& OutGroupInfos = BindingAsset->GroupInfos;
+	OutGroupInfos.Empty();
+	for (const UGroomBindingAsset::FHairGroupData& Data : OutHairGroupDatas)
+	{
+		FGoomBindingGroupInfo& Info = OutGroupInfos.AddDefaulted_GetRef();
+		Info.SimRootCount	= Data.SimRootData.RootCount;
+		Info.SimLODCount	= Data.SimRootData.MeshProjectionLODs.Num();
+		Info.RenRootCount	= Data.RenRootData.RootCount;
+		Info.RenLODCount	= Data.RenRootData.MeshProjectionLODs.Num();
+	}
+
 	FHairStrandsProjectionHairData RenProjectionDatas;
 	FHairStrandsProjectionHairData SimProjectionDatas;
 	const uint32 GroupCount = OutHairGroupResources.Num();
