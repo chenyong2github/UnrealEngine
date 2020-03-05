@@ -34,7 +34,7 @@ void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& I
 #if WITH_EDITOR
 		InSession.AddOverlayWidget(
 			SNew(SOverlay)
-			.Visibility(EVisibility::SelfHitTestInvisible)
+			.Visibility_Lambda([PerSessionData](){ return PerSessionData->GameplaySharedData->IsAnalysisSessionValid() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
 			+SOverlay::Slot()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Bottom)
