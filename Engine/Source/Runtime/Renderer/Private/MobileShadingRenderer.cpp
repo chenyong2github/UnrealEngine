@@ -352,6 +352,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		const FViewInfo& View = Views[0];
 		// We want to wait for the extension jobs only when the view is being actually rendered for the first time
 		Scene->UniformBuffers.UpdateViewUniformBuffer(View, false);
+		UpdateDepthPrepassUniformBuffer(RHICmdList, View);
 		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
 		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
 		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
@@ -1098,6 +1099,14 @@ void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
 	FMobileReflectionCaptureShaderParameters Parameters;
 	SetupMobileSkyReflectionUniformParameters(SkyLight, Parameters);
 	Scene->UniformBuffers.MobileSkyReflectionUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+}
+
+void FMobileSceneRenderer::UpdateDepthPrepassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	FSceneTexturesUniformParameters SceneTextureParameters;
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, ESceneTextureSetupMode::None, SceneTextureParameters);
+	Scene->UniformBuffers.DepthPassUniformBuffer.UpdateUniformBufferImmediate(SceneTextureParameters);
 }
 
 void FMobileSceneRenderer::CreateDirectionalLightUniformBuffers(FViewInfo& View)

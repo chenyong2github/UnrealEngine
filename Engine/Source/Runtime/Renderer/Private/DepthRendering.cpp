@@ -788,24 +788,22 @@ void FMobileSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHICmdList)
 
 			SCOPED_GPU_MASK(RHICmdList, !View.IsInstancedStereoPass() ? View.GPUMask : (Views[0].GPUMask | Views[1].GPUMask));
 			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+			if (!View.ShouldRenderView())
+			{
+				continue;
+			}
 
-			TUniformBufferRef<FSceneTexturesUniformParameters> PassUniformBuffer;
-			CreateDepthPassUniformBuffer(RHICmdList, View, PassUniformBuffer);
+			if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+			{
+				UpdateDepthPrepassUniformBuffer(RHICmdList, View);
+			}
 
-			FMeshPassProcessorRenderState DrawRenderState(View, PassUniformBuffer);
-
+			FMeshPassProcessorRenderState DrawRenderState(View, Scene->UniformBuffers.DepthPassUniformBuffer);
 			SetupDepthPassState(DrawRenderState);
 
-			if (View.ShouldRenderView())
-			{
-				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+			SetupPrePassView(RHICmdList, View, this);
 
-				{
-					SetupPrePassView(RHICmdList, View, this);
-
-					View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList);
-				}
-			}
+			View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList);
 		}
 	}
 }
