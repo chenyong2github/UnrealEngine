@@ -100,7 +100,7 @@ void FSkyTextureCubeResource::InitRHI()
 			AM_Clamp,
 			AM_Clamp
 		);
-		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
+		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 	}
 }
 

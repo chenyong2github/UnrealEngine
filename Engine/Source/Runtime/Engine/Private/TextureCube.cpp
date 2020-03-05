@@ -239,7 +239,7 @@ public:
 			AM_Clamp,
 			AM_Clamp
 		);
-		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
+		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 
 		// Set the greyscale format flag appropriately.
 		EPixelFormat PixelFormat = Owner->GetPixelFormat();

@@ -466,7 +466,7 @@ public:
 			AM_Wrap,
 			AM_Wrap
 		);
-		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
+		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 	}
 
 	virtual void ReleaseRHI() override

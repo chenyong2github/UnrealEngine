@@ -849,8 +849,6 @@ struct FSamplerStateInitializerRHI
 	uint32 BorderColor;
 	TEnumAsByte<ESamplerCompareFunction> SamplerComparisonFunction;
 
-	RHI_API friend uint32 GetTypeHash(const FSamplerStateInitializerRHI& Initializer);
-	RHI_API friend bool operator== (const FSamplerStateInitializerRHI& A, const FSamplerStateInitializerRHI& B);
 };
 
 struct FRasterizerStateInitializerRHI
