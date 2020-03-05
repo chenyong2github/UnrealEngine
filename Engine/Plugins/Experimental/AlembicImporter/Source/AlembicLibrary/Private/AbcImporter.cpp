@@ -636,6 +636,10 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		Sequence->SequenceLength = AbcFile->GetImportLength();
 		Sequence->ImportFileFramerate = AbcFile->GetFramerate();
 		Sequence->ImportResampleFramerate = AbcFile->GetFramerate();
+
+		// Add 1 because of the way AnimSequence computes its framerate
+		Sequence->SetRawNumberOfFrame(AbcFile->GetImportNumFrames() + 1);
+
 		int32 ObjectIndex = 0;
 		uint32 TriangleOffset = 0;
 		uint32 WedgeOffset = 0;
