@@ -1055,61 +1055,19 @@ struct FMetalArgumentDesc
 class FMetalUniformBuffer : public FRHIUniformBuffer, public FMetalRHIBuffer
 {
 public:
-
-	struct Argument
-	{
-		Argument() {}
-		Argument(FMetalBuffer const& InBuffer, mtlpp::ResourceUsage const InUsage) : Buffer(InBuffer), Usage(InUsage) {}
-		Argument(FMetalTexture const& InTexture, mtlpp::ResourceUsage const InUsage) : Texture(InTexture), Usage(InUsage) {}
-		Argument(FMetalSampler const& InSampler) : Sampler(InSampler), Usage(mtlpp::ResourceUsage::Read) {}
-		
-		FMetalBuffer Buffer;
-		FMetalTexture Texture;
-		FMetalSampler Sampler;
-		mtlpp::ResourceUsage Usage;
-	};
-	
-	struct FMetalIndirectArgumentBuffer
-	{
-		FMetalIndirectArgumentBuffer();
-		~FMetalIndirectArgumentBuffer();
-		
-		int64 UpdateNum; // The resource & declarations have been updated
-		int64 UpdateEnc; // The IAB encoder needs to be updated.
-		int64 UpdateIAB; // The IAB needs to be updated.
-		TArray<FMetalArgumentDesc> IndirectArgumentsDecl;
-		TArray<Argument> IndirectArgumentResources;
-		TArray<uint32> IndirectBufferSizes;
-		FMetalIAB* IndirectArgumentBuffer;
-		TMap<TBitArray<>, FMetalIAB*> Tier1IABs;
-		FRWLock Mutex;
-	};
-	
 	// Constructor
 	FMetalUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
 
 	// Destructor 
-	virtual ~FMetalUniformBuffer();
+    virtual ~FMetalUniformBuffer() {}
 	
 	void const* GetData();
 
-	void InitIAB();
-	void UpdateIAB();
-	void UpdateTextureReference(FRHITextureReference* ModifiedRef);
 	void UpdateResourceTable(TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
 	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
-	FMetalIAB* UploadIAB(class FMetalContext* Ctx, TBitArray<> const& Bitmask, mtlpp::ArgumentEncoder const& Encoder);
-	FMetalIndirectArgumentBuffer& GetIAB();
 	
 	/** Resource table containing RHI references. */
 	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
-	TMap<FRHITextureReference*, TBitArray<>> TextureReferences;
-	EUniformBufferUsage UniformUsage;
-	FMetalIndirectArgumentBuffer* IAB;
-	TArray<EUniformBufferBaseType> ResourceTypes;
-	int64 UpdateNum;
-	uint32 NumResources;
-	uint32 ConstantSize;
 };
 
 

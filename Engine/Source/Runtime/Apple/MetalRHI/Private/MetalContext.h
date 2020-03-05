@@ -190,9 +190,6 @@ public:
 	void ReleaseTexture(FMetalSurface* Surface, FMetalTexture& Texture);
 	void ReleaseTexture(FMetalTexture& Texture);
 	void ReleaseFence(FMetalFence* Fence);
-	void RegisterUB(FMetalUniformBuffer* UB);
-	void UpdateIABs(FRHITextureReference* ModifiedRef);
-	void UnregisterUB(FMetalUniformBuffer* UB);
 	
 	void BeginFrame();
 	void FlushFreeList(bool const bFlushFences = true);
