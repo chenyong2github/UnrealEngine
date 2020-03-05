@@ -1792,10 +1792,6 @@ bool FSteamVRHMD::Startup()
 			PixelDensity = FMath::Clamp(PixelDensityCVar->GetFloat(), PixelDensityMin, PixelDensityMax);
 		}
 
-		// disable vsync
-		static IConsoleVariable* CVSyncVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSync"));
-		CVSyncVar->Set(false);
-
 		// enforce finishcurrentframe
 		static IConsoleVariable* CFCFVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.finishcurrentframe"));
 		CFCFVar->Set(false);
