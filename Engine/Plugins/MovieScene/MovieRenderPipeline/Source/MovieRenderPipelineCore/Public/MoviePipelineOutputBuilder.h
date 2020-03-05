@@ -2,6 +2,7 @@
 
 #pragma once
 #include "MovieRenderPipelineDataTypes.h"
+#include "Containers/Queue.h"
 
 // Forward Declares
 struct FImagePixelData;
@@ -22,12 +23,13 @@ public:
 	void OnCompleteRenderPassDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
 	void OnSingleSampleDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
 
+	TQueue<FMoviePipelineMergerOutputFrame> FinishedFrames;
 private:
 	/** The Movie Pipeline that owns us. */
 	TWeakObjectPtr<UMoviePipeline> WeakMoviePipeline;
 
 	/** Data that is expected but not fully available yet. */
-	TMap<FMoviePipelineFrameOutputState, FMoviePipelineMergerOutputFrame> ActiveData;
+	TMap<FMoviePipelineFrameOutputState, FMoviePipelineMergerOutputFrame> PendingData;
 
 	/** Mutex that protects adding/updating/removing from ActiveData */
 	FCriticalSection ActiveDataMutex;

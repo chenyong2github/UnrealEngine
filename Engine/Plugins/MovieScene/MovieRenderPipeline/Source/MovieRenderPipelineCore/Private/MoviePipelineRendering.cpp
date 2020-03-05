@@ -185,6 +185,9 @@ void UMoviePipeline::RenderFrame()
 	// the render thread uses it.
 	FlushAsyncEngineSystems();
 
+	// Send any output frames that have been completed since the last render.
+	ProcessOutstandingFinishedFrames();
+
 	FMoviePipelineShotInfo& CurrentShot = ShotList[CurrentShotIndex];
 	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
 	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
@@ -435,19 +438,19 @@ void UMoviePipeline::RenderFrame()
 			}
 		}
 	}
-	
-	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Pre-FlushRenderingCommands"), GFrameCounter);
-	// FlushRenderingCommands();
-	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Post-FlushRenderingCommands"), GFrameCounter);
 }
 
-void UMoviePipeline::OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData)
+void UMoviePipeline::ProcessOutstandingFinishedFrames()
 {
-	UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Data required for output available! Frame: %d"), GFrameCounter, OutputFrame.FrameOutputState.OutputFrameNumber);
-	
-	for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
+	while (!OutputBuilder->FinishedFrames.IsEmpty())
 	{
-		OutputContainer->OnRecieveImageData(&OutputFrame);
+		FMoviePipelineMergerOutputFrame OutputFrame;
+		OutputBuilder->FinishedFrames.Dequeue(OutputFrame);
+
+		for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
+		{
+			OutputContainer->OnRecieveImageData(&OutputFrame);
+		}
 	}
 }
 

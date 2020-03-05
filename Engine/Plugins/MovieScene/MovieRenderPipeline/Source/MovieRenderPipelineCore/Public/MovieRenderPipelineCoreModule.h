@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Stats/Stats2.h"
 #include "Modules/ModuleInterface.h"
 
 // Forward Declare
