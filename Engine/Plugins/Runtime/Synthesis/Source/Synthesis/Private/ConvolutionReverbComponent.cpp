@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
 #include "ConvolutionReverbComponent.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/ConvolutionAlgorithm.h"
