@@ -19,7 +19,7 @@
 static TAutoConsoleVariable<int32> CVarMobileSupportBloomSetupRareCases(
 	TEXT("r.Mobile.MobileSupportBloomSetupRareCases"),
 	0,
-	TEXT("0: Don't generate permutations for BloomSetup rare cases. (default, like Sun+MSAA, Dof+MSAA, EyeAdaptaion+MSAA, and any of their combinations)\n")
+	TEXT("0: Don't generate permutations for BloomSetup rare cases. (default, like Sun+MetalMSAAHDRDecode, Dof+MetalMSAAHDRDecode, EyeAdaptaion+MetalMSAAHDRDecode, and any of their combinations)\n")
 	TEXT("1: Generate permutations for BloomSetup rare cases. "),
 	ECVF_ReadOnly);
 
@@ -30,6 +30,8 @@ static TAutoConsoleVariable<int32> CVarMobileEyeAdaptation(
 	TEXT(" 0: Disable\n")
 	TEXT(" 1: Enabled (Default)"),
 	ECVF_RenderThreadSafe);
+
+IMPLEMENT_GLOBAL_SHADER(FMSAADecodeAndCopyRectPS_ES2, "/Engine/Private/PostProcessMobile.usf", "MSAADecodeAndCopyRectPS", SF_Pixel);
 
 static EPixelFormat GetHDRPixelFormat()
 {
@@ -70,14 +72,10 @@ bool IsMobileEyeAdaptationEnabled(const FViewInfo& View)
 // 8 = EyeAdaptation
 
 //Following variations should only be generated on IOS, only IOS has to do PreTonemapMSAA if MSAA is enabled.
-// 17 = Bloom + MSAA
-// 19 = Bloom + SunShaft + MSAA
-// 21 = Bloom + Dof + MSAA
-// 23 = Bloom + Dof + SunShaft + MSAA
-// 25 = Bloom + EyeAdaptation + MSAA
-// 27 = Bloom + SunShaft + EyeAdaptation + MSAA
-// 29 = Bloom + Dof + EyeAdaptation + MSAA
-// 31 = Bloom + SunShaft + Dof + EyeAdaptation + MSAA
+// 17 = Bloom + MetalMSAAHDRDecode
+// 21 = Bloom + Dof + MetalMSAAHDRDecode
+// 25 = Bloom + EyeAdaptation + MetalMSAAHDRDecode
+// 29 = Bloom + Dof + EyeAdaptation + MetalMSAAHDRDecode
 
 //Following variations are rare cases, depends on CVarMobileSupportBloomSetupRareCases
 // 2 = SunShaft
@@ -88,6 +86,21 @@ bool IsMobileEyeAdaptationEnabled(const FViewInfo& View)
 // 12 = Dof + EyeAdaptation
 // 14 = SunShaft + Dof + EyeAdaptation
 
+// 20 = Dof + MetalMSAAHDRDecode
+// 24 = EyeAdaptation + MetalMSAAHDRDecode
+// 28 = Dof + EyeAdaptation + MetalMSAAHDRDecode
+
+//Any variations with SunShaft + MetalMSAAHDRDecode should be not generated, because SceneColor has been decoded at SunMask pass
+// 19 = Bloom + SunShaft + MetalMSAAHDRDecode
+// 23 = Bloom + Dof + SunShaft + MetalMSAAHDRDecode
+// 27 = Bloom + SunShaft + EyeAdaptation + MetalMSAAHDRDecode
+// 31 = Bloom + SunShaft + Dof + EyeAdaptation + MetalMSAAHDRDecode
+
+// 18 = SunShaft + MetalMSAAHDRDecode
+// 22 = Dof + SunShaft + MetalMSAAHDRDecode
+// 26 = SunShaft + EyeAdaptation + MetalMSAAHDRDecode
+// 30 = SunShaft + Dof + EyeAdaptation + MetalMSAAHDRDecode
+
 
 // Remove the variation from this list if it should not be a rare case or enable the CVarMobileSupportBloomSetupRareCases for full cases.
 bool IsValidBloomSetupVariation(uint32 Variation)
@@ -96,25 +109,33 @@ bool IsValidBloomSetupVariation(uint32 Variation)
 		Variation == 2 ||
 		Variation == 4 ||
 		Variation == 6 ||
+
 		Variation == 10 ||
 		Variation == 12 ||
-		Variation == 14;
+		Variation == 14 ||
+		
+		Variation == 20 || 
+		Variation == 24 || 
+		Variation == 28;
 
 	return !bIsRareCases || CVarMobileSupportBloomSetupRareCases.GetValueOnAnyThread() != 0;
 }
 
-bool IsValidBloomSetupVariation(uint32 UseBloom, uint32 UseSun, uint32 UseDof, uint32 UseEyeAdaptation)
+bool IsValidBloomSetupVariation(bool bUseBloom, bool bUseSun, bool bUseDof, bool bUseEyeAdaptation)
 {
-	uint32 Variation = UseBloom | (UseSun << 1) | (UseDof << 2) | (UseEyeAdaptation << 3);
+	uint32 Variation = bUseBloom	? 1 << 0 : 0;
+	Variation |= bUseSun			? 1 << 1 : 0;
+	Variation |= bUseDof			? 1 << 2 : 0;
+	Variation |= bUseEyeAdaptation	? 1 << 3 : 0;
 	return IsValidBloomSetupVariation(Variation);
 }
 
-uint32 GetBloomSetupOutputNum(uint32 UseBloom, uint32 UseSun, uint32 UseDof, uint32 UseEyeAdaptation)
+uint32 GetBloomSetupOutputNum(bool bUseBloom, bool bUseSun, bool bUseDof, bool bUseEyeAdaptation)
 {
-	bool bValidVariation = IsValidBloomSetupVariation(UseBloom, UseSun, UseDof, UseEyeAdaptation);
+	bool bValidVariation = IsValidBloomSetupVariation(bUseBloom, bUseSun, bUseDof, bUseEyeAdaptation);
 
 	//if the variation is invalid, always use bloom permutation
-	return ((!bValidVariation || UseBloom) ? 1 : 0) + ((UseSun || UseDof) ? 1 : 0) + (UseEyeAdaptation ? 1 : 0);
+	return ((!bValidVariation || bUseBloom) ? 1 : 0) + ((bUseSun || bUseDof) ? 1 : 0) + (bUseEyeAdaptation ? 1 : 0);
 }
 
 //
@@ -155,64 +176,91 @@ public:
 
 IMPLEMENT_SHADER_TYPE(, FPostProcessBloomSetupVS_ES2, TEXT("/Engine/Private/PostProcessMobile.usf"), TEXT("BloomVS_ES2"), SF_Vertex);
 
-template <uint32 Variation>
+
 class FPostProcessBloomSetupPS_ES2 : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessBloomSetupPS_ES2, Global);
+public:
+	DECLARE_GLOBAL_SHADER(FPostProcessBloomSetupPS_ES2);
+	SHADER_USE_PARAMETER_STRUCT(FPostProcessBloomSetupPS_ES2, FGlobalShader);
+
+	class FUseBloomDim :				SHADER_PERMUTATION_BOOL("ES2_USE_BLOOM");
+	class FUseSunDim :					SHADER_PERMUTATION_BOOL("ES2_USE_SUN");
+	class FUseDofDim :					SHADER_PERMUTATION_BOOL("ES2_USE_DOF");
+	class FUseEyeAdaptationDim :		SHADER_PERMUTATION_BOOL("ES2_USE_EYEADAPTATION");
+	class FUseMetalMSAAHDRDecodeDim :	SHADER_PERMUTATION_BOOL("METAL_MSAA_HDR_DECODE");
+
+	using FPermutationDomain = TShaderPermutationDomain<
+		FUseBloomDim,
+		FUseSunDim,
+		FUseDofDim,
+		FUseEyeAdaptationDim,
+		FUseMetalMSAAHDRDecodeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, BloomThreshold)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+		SHADER_PARAMETER_TEXTURE(Texture2D, PostprocessInput0)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PostprocessInput0Sampler)
+		SHADER_PARAMETER_TEXTURE(Texture2D, PostprocessInput1)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PostprocessInput1Sampler)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		bool bValidVariation = IsValidBloomSetupVariation(Variation);
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		return !IsConsolePlatform(Parameters.Platform) && 
+		auto bUseBloomDim = PermutationVector.Get<FUseBloomDim>();
+
+		auto bUseSunDim = PermutationVector.Get<FUseSunDim>();
+
+		auto bUseDofDim = PermutationVector.Get<FUseDofDim>();
+
+		auto bUseEyeAdaptationDim = PermutationVector.Get<FUseEyeAdaptationDim>();
+
+		auto bUseMetalMSAAHDRDecodeDim = PermutationVector.Get<FUseMetalMSAAHDRDecodeDim>();
+
+		bool bValidVariation = IsValidBloomSetupVariation(bUseBloomDim, bUseSunDim, bUseDofDim, bUseEyeAdaptationDim);
+
+		return IsMobilePlatform(Parameters.Platform) && 
 			// Exclude rare cases if CVarMobileSupportBloomSetupRareCases is 0
-			(bValidVariation || CVarMobileSupportBloomSetupRareCases.GetValueOnAnyThread() != 0) && 
-			// IOS should generate all valid variations, other mobile platform should exclude MSAA permu
-			(IsMetalMobilePlatform(Parameters.Platform) || (Variation&16) == 0);
+			(bValidVariation) && 
+			// IOS should generate all valid variations except SunShaft + MetalMSAAHDRDecode, other mobile platform should exclude MetalMSAAHDRDecode permutation
+			(!bUseMetalMSAAHDRDecodeDim || (IsMetalMobilePlatform(Parameters.Platform) && !bUseSunDim));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		CA_SUPPRESS(6313);
-		OutEnvironment.SetDefine(TEXT("ES2_USE_MSAA"), (Variation & 16) ? (uint32)1 : (uint32)0);
-		CA_SUPPRESS(6313);
-		OutEnvironment.SetDefine(TEXT("ES2_USE_EYEADAPTATION"), (Variation & 8) ? (uint32)1 : (uint32)0);
-		CA_SUPPRESS(6313);
-		OutEnvironment.SetDefine(TEXT("ES2_USE_DOF"), (Variation & 4) ? (uint32)1 : (uint32)0);
-		CA_SUPPRESS(6313);
-		OutEnvironment.SetDefine(TEXT("ES2_USE_SUN"), (Variation & 2) ? (uint32)1 : (uint32)0);
-		CA_SUPPRESS(6313);
-		OutEnvironment.SetDefine(TEXT("ES2_USE_BLOOM"), (Variation & 1) ? (uint32)1 : (uint32)0);
 	}
 
-	FPostProcessBloomSetupPS_ES2() {}
-
-public:
-	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
-
-	/** Initialization constructor. */
-	FPostProcessBloomSetupPS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
+	static FPermutationDomain RemapPermutationVector(FPermutationDomain PermutationVector, bool bValidVariation)
 	{
-		Bindings.BindForLegacyShaderParameters(this, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
-		PostprocessParameter.Bind(Initializer.ParameterMap);
+		if (!bValidVariation)
+		{
+			//Use the permutation with Bloom
+			PermutationVector.Set<FUseBloomDim>(true);
+		}
+		return PermutationVector;
 	}
 
-	void SetPS(const FRenderingCompositePassContext& Context, const TShaderRef<FPostProcessBloomSetupPS_ES2>& Shader)
+	static FPermutationDomain BuildPermutationVector(bool bInUseBloom, bool bInUseSun, bool bInUseDof, bool bInUseEyeAdaptation, bool bInUseMetalMSAAHDRDecode)
+	{
+		FPermutationDomain PermutationVector;
+		PermutationVector.Set<FUseBloomDim>(bInUseBloom);
+		PermutationVector.Set<FUseSunDim>(bInUseSun);
+		PermutationVector.Set<FUseDofDim>(bInUseDof);
+		PermutationVector.Set<FUseEyeAdaptationDim>(bInUseEyeAdaptation);
+		PermutationVector.Set<FUseMetalMSAAHDRDecodeDim>(bInUseMetalMSAAHDRDecode);
+		return RemapPermutationVector(PermutationVector, IsValidBloomSetupVariation(bInUseBloom, bInUseSun, bInUseDof, bInUseEyeAdaptation));
+	}
+public:
+
+	void SetPS(const FRenderingCompositePassContext& Context, const TShaderRef<FPostProcessBloomSetupPS_ES2>& Shader, FRHITexture* PostprocessInput0, FRHITexture* PostprocessInput1)
 	{
 		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
 
 		const FPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
-
-		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
 		FParameters ShaderParameters;
 
@@ -220,48 +268,25 @@ public:
 		ShaderParameters.BloomThreshold = Settings.BloomThreshold;
 		ShaderParameters.View = Context.View.ViewUniformBuffer;
 
+		ShaderParameters.PostprocessInput0 = PostprocessInput0;
+		ShaderParameters.PostprocessInput0Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+		ShaderParameters.PostprocessInput1 = PostprocessInput1;
+		ShaderParameters.PostprocessInput1Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 		SetShaderParameters(Context.RHICmdList, Shader, ShaderRHI, ShaderParameters);
 	}
 };
 
-#define BLOOMSETUPPS_VARIATION(A) \
-typedef FPostProcessBloomSetupPS_ES2<A> FPostProcessBloomSetupPS_ES2_##A; \
-IMPLEMENT_SHADER_TYPE(template<>,FPostProcessBloomSetupPS_ES2_##A,TEXT("/Engine/Private/PostProcessMobile.usf"),TEXT("BloomPS_ES2"),SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FPostProcessBloomSetupPS_ES2, "/Engine/Private/PostProcessMobile.usf", "BloomPS_ES2", SF_Pixel);
 
-BLOOMSETUPPS_VARIATION(1)
-BLOOMSETUPPS_VARIATION(3)
-BLOOMSETUPPS_VARIATION(5)
-BLOOMSETUPPS_VARIATION(7)
-BLOOMSETUPPS_VARIATION(9)
-BLOOMSETUPPS_VARIATION(11)
-BLOOMSETUPPS_VARIATION(13)
-BLOOMSETUPPS_VARIATION(15)
-BLOOMSETUPPS_VARIATION(17)
-BLOOMSETUPPS_VARIATION(2)
-BLOOMSETUPPS_VARIATION(4)
-BLOOMSETUPPS_VARIATION(6)
-BLOOMSETUPPS_VARIATION(8)
-BLOOMSETUPPS_VARIATION(10)
-BLOOMSETUPPS_VARIATION(12)
-BLOOMSETUPPS_VARIATION(14)
-BLOOMSETUPPS_VARIATION(19)
-BLOOMSETUPPS_VARIATION(21)
-BLOOMSETUPPS_VARIATION(23)
-BLOOMSETUPPS_VARIATION(25)
-BLOOMSETUPPS_VARIATION(27)
-BLOOMSETUPPS_VARIATION(29)
-BLOOMSETUPPS_VARIATION(31)
-
-#undef BLOOMSETUPPS_VARIATION
-
-template <uint32 Variation>
-void FRCPassPostProcessBloomSetupES2::SetShaderAndExecute(FRenderingCompositePassContext& Context)
+void FRCPassPostProcessBloomSetupES2::Process(FRenderingCompositePassContext& Context)
 {
 	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessBloomSetup);
 
 	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
 	FIntPoint PrePostSourceViewportSize = PrePostSourceViewportRect.Size();
-	
+
 	uint32 DstX = FMath::DivideAndRoundUp(PrePostSourceViewportSize.X, 4);
 	uint32 DstY = FMath::DivideAndRoundUp(PrePostSourceViewportSize.Y, 4);
 
@@ -275,7 +300,7 @@ void FRCPassPostProcessBloomSetupES2::SetShaderAndExecute(FRenderingCompositePas
 
 	FIntPoint SrcSize;
 	FIntRect SrcRect;
-	if(bUseViewRectSource)
+	if (bUseViewRectSource)
 	{
 		// Mobile with framebuffer fetch uses view rect as source.
 		const FViewInfo& View = Context.View;
@@ -296,7 +321,7 @@ void FRCPassPostProcessBloomSetupES2::SetShaderAndExecute(FRenderingCompositePas
 	const FSceneRenderTargetItem* DestRenderTarget1 = nullptr;
 	const FSceneRenderTargetItem* DestRenderTarget2 = nullptr;
 
-	uint32 OutputNum = GetBloomSetupOutputNum(UseBloom, UseSun, UseDof, UseEyeAdaptation);
+	uint32 OutputNum = GetBloomSetupOutputNum(bUseBloom, bUseSun, bUseDof, bUseEyeAdaptation);
 	if (OutputNum > 1)
 	{
 		DestRenderTarget1 = &PassOutputs[1].RequestSurface(Context);
@@ -317,12 +342,16 @@ void FRCPassPostProcessBloomSetupES2::SetShaderAndExecute(FRenderingCompositePas
 
 	FRHIRenderPassInfo RPInfo(NumRenderTargets, RenderTargets, ERenderTargetActions::DontLoad_Store);
 
-	bool bIsValidVariation = IsValidBloomSetupVariation(UseBloom, UseSun, UseDof, UseEyeAdaptation);
+	bool bIsValidVariation = IsValidBloomSetupVariation(bUseBloom, bUseSun, bUseDof, bUseEyeAdaptation);
 
 	if (!bIsValidVariation)
 	{
 		RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::DontLoad_DontStore;
 	}
+
+	FRHITexture* InputRenderTarget0 = GetInput(ePId_Input0)->GetOutput()->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+
+	FRHITexture* InputRenderTarget1 = GetInput(ePId_Input1)->IsValid() ? GetInput(ePId_Input1)->GetOutput()->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture : nullptr;
 
 	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessBloomSetupES2"));
 	{
@@ -335,7 +364,8 @@ void FRCPassPostProcessBloomSetupES2::SetShaderAndExecute(FRenderingCompositePas
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 		TShaderMapRef<FPostProcessBloomSetupVS_ES2> VertexShader(Context.GetShaderMap());
-		TShaderMapRef<FPostProcessBloomSetupPS_ES2<Variation> > PixelShader(Context.GetShaderMap());
+		auto ShaderPermutationVector = FPostProcessBloomSetupPS_ES2::BuildPermutationVector(bUseBloom, bUseSun, bUseDof, bUseEyeAdaptation, bUseMetalMSAAHDRDecode);
+		TShaderMapRef<FPostProcessBloomSetupPS_ES2> PixelShader(Context.GetShaderMap(), ShaderPermutationVector);
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
@@ -345,7 +375,7 @@ void FRCPassPostProcessBloomSetupES2::SetShaderAndExecute(FRenderingCompositePas
 		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
 
 		VertexShader->SetVS(Context);
-		PixelShader->SetPS(Context, PixelShader);
+		PixelShader->SetPS(Context, PixelShader, InputRenderTarget0, InputRenderTarget1);
 
 		DrawRectangle(
 			Context.RHICmdList,
@@ -369,69 +399,9 @@ void FRCPassPostProcessBloomSetupES2::SetShaderAndExecute(FRenderingCompositePas
 	}
 }
 
-void FRCPassPostProcessBloomSetupES2::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessBloomSetup);
-
-	uint32 Variation = UseBloom | (UseSun << 1) | (UseDof << 2) | (UseEyeAdaptation << 3) | (UseMSAA << 4);
-	bool bMobileSupportBloomSetupRareCasesOff = CVarMobileSupportBloomSetupRareCases.GetValueOnRenderThread() == 0;
-
-
-#define SET_SHADER_SINGLE_CASE(ShaderCase) \
-		case ShaderCase: \
-			SetShaderAndExecute<ShaderCase>(Context);\
-		break
-
-#define SET_SHADER_CASE(ShaderCase, FallBackCase) \
-		case ShaderCase: \
-		if (bMobileSupportBloomSetupRareCasesOff)		\
-		{						\
-			SetShaderAndExecute<FallBackCase>(Context);\
-		} \
-		else \
-		{ \
-			SetShaderAndExecute<ShaderCase>(Context);\
-		} \
-		break
-
-	switch (Variation)
-	{
-		SET_SHADER_SINGLE_CASE(1); // Bloom
-		SET_SHADER_SINGLE_CASE(3); // Bloom + SunShaft
-		SET_SHADER_SINGLE_CASE(5); // Bloom + Dof
-		SET_SHADER_SINGLE_CASE(7); // Bloom + Dof + SunShaft
-		SET_SHADER_SINGLE_CASE(9); // Bloom + EyeAdaptation
-		SET_SHADER_SINGLE_CASE(11); // Bloom + SunShaft + EyeAdaptation
-		SET_SHADER_SINGLE_CASE(13); // Bloom + Dof + EyeAdaptation
-		SET_SHADER_SINGLE_CASE(15); // Bloom + SunShaft + Dof + EyeAdaptation
-		SET_SHADER_SINGLE_CASE(8); // EyeAdaptation
-
-		//Following cases only for IOS platform
-		SET_SHADER_SINGLE_CASE(17); // Bloom + MSAA
-		SET_SHADER_SINGLE_CASE(19); // Bloom + SunShaft + MSAA
-		SET_SHADER_SINGLE_CASE(21); // Bloom + Dof + MSAA
-		SET_SHADER_SINGLE_CASE(23); // Bloom + Dof + SunShaft + MSAA
-		SET_SHADER_SINGLE_CASE(25); // Bloom + EyeAdaptation + MSAA
-		SET_SHADER_SINGLE_CASE(27); // Bloom + SunShaft + EyeAdaptation + MSAA
-		SET_SHADER_SINGLE_CASE(29); // Bloom + Dof + EyeAdaptation + MSAA
-		SET_SHADER_SINGLE_CASE(31); // Bloom + SunShaft + Dof + EyeAdaptation + MSAA
-
-		//Following rare cases could fall back to Bloom, depends on CVarMobileSupportBloomSetupRareCases
-		SET_SHADER_CASE(2, 3); // SunShaft
-		SET_SHADER_CASE(4, 5); // Dof
-		SET_SHADER_CASE(6, 7); // SunShaft + Dof
-		
-		SET_SHADER_CASE(10, 11); // SunShaft + EyeAdaptation
-		SET_SHADER_CASE(12, 13); // Dof + EyeAdaptation
-		SET_SHADER_CASE(14, 15); // SunShaft + Dof + EyeAdaptation
-	}
-#undef SET_SHADER_CASE
-#undef SET_SHADER_SINGLE_CASE
-}
-
 FPooledRenderTargetDesc FRCPassPostProcessBloomSetupES2::ComputeOutputDesc(EPassOutputId InPassOutputId) const
 {
-	bool bIsValidVariation = IsValidBloomSetupVariation(UseBloom, UseSun, UseDof, UseEyeAdaptation);
+	bool bIsValidVariation = IsValidBloomSetupVariation(bUseBloom, bUseSun, bUseDof, bUseEyeAdaptation);
 
 	FPooledRenderTargetDesc Ret;
 	Ret.Depth = 0;
@@ -447,7 +417,7 @@ FPooledRenderTargetDesc FRCPassPostProcessBloomSetupES2::ComputeOutputDesc(EPass
 
 	Ret.bForceSeparateTargetAndShaderResource = false;
 	
-	if (!bIsValidVariation || UseBloom)
+	if (!bIsValidVariation || bUseBloom)
 	{
 		Ret.Format = InPassOutputId == ePId_Output0 ? PF_FloatR11G11B10 : PF_R16F;
 	}
@@ -799,32 +769,51 @@ FPooledRenderTargetDesc FRCPassPostProcessBloomUpES2::ComputeOutputDesc(EPassOut
 // SUN MASK
 //
 
-template <uint32 UseSunDofDepth>
 class FPostProcessSunMaskPS_ES2 : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessSunMaskPS_ES2, Global);
+public:
+	DECLARE_GLOBAL_SHADER(FPostProcessSunMaskPS_ES2);
+	SHADER_USE_PARAMETER_STRUCT(FPostProcessSunMaskPS_ES2, FGlobalShader);
+
+	class FUseSunDim :					SHADER_PERMUTATION_BOOL("ES2_USE_SUN");
+	class FUseDofDim :					SHADER_PERMUTATION_BOOL("ES2_USE_DOF");
+	class FUseDepthTextureDim :			SHADER_PERMUTATION_BOOL("ES2_USE_DEPTHTEXTURE");
+	class FUseMetalMSAAHDRDecodeDim :	SHADER_PERMUTATION_BOOL("METAL_MSAA_HDR_DECODE");
+
+	using FPermutationDomain = TShaderPermutationDomain<
+		FUseSunDim,
+		FUseDofDim, 
+		FUseDepthTextureDim,
+		FUseMetalMSAAHDRDecodeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector4, SunColorApertureDiv2)
 		SHADER_PARAMETER_STRUCT_REF(FMobileSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_UAV(RWTexture2D<half4>, OutputTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, PostprocessInput0)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PostprocessInput0Sampler)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return !IsConsolePlatform(Parameters.Platform);
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		auto bUseSunDim = PermutationVector.Get<FUseSunDim>();
+
+		auto bUseDofDim = PermutationVector.Get<FUseDofDim>();
+
+		auto bUseMetalMSAAHDRDecodeDim = PermutationVector.Get<FUseMetalMSAAHDRDecodeDim>();
+
+		return IsMobilePlatform(Parameters.Platform) && 
+				// Only generate shaders with SunShaft and/or Dof
+				(bUseSunDim || bUseDofDim) && 
+				// Only generated MetalMSAAHDRDecode shaders for SunShaft
+				(!bUseMetalMSAAHDRDecodeDim || (bUseSunDim && IsMetalMobilePlatform(Parameters.Platform)));
 	}	
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		CA_SUPPRESS(6313);
-		OutEnvironment.SetDefine(TEXT("ES2_USE_DEPTHTEXTURE"), (UseSunDofDepth & 4) ? (uint32)1 : (uint32)0);
-		CA_SUPPRESS(6313);
-		OutEnvironment.SetDefine(TEXT("ES2_USE_SUN"), (UseSunDofDepth & 2) ? (uint32)1 : (uint32)0);
-		CA_SUPPRESS(6313);
-		OutEnvironment.SetDefine(TEXT("ES2_USE_DOF"), (UseSunDofDepth & 1) ? (uint32)1 : (uint32)0);
 		
 		// This post-processor has a 1-Dimensional color attachment for SV_Target0
 		OutEnvironment.SetDefine(TEXT("SUBPASS_COLOR0_ATTACHMENT_DIM"), 1);
@@ -838,23 +827,34 @@ class FPostProcessSunMaskPS_ES2 : public FGlobalShader
 		}
 	}
 
-	FPostProcessSunMaskPS_ES2() {}
-
-public:
-	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
-
-	FPostProcessSunMaskPS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
+	static FPermutationDomain RemapPermutationVector(FPermutationDomain PermutationVector)
 	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		Bindings.BindForLegacyShaderParameters(this, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
+		auto UseSunDim = PermutationVector.Get<FUseSunDim>();
+
+		if (!UseSunDim)
+		{
+			// Don't use MetalMSAAHDRDecode permutation without SunShaft
+			PermutationVector.Set<FUseMetalMSAAHDRDecodeDim>(false);
+		}
+
+		return PermutationVector;
 	}
 
-	void SetPS(const FRenderingCompositePassContext& Context, const TShaderRef<FPostProcessSunMaskPS_ES2>& Shader)
+	static FPermutationDomain BuildPermutationVector(bool bInUseSun, bool bInUseDof, bool bInUseDepthTexture, bool bInUseMetalMSAAHDRDecode)
+	{
+		FPermutationDomain PermutationVector;
+		PermutationVector.Set<FUseSunDim>(bInUseSun);
+		PermutationVector.Set<FUseDofDim>(bInUseDof);
+		PermutationVector.Set<FUseDepthTextureDim>(bInUseDepthTexture);
+		PermutationVector.Set<FUseMetalMSAAHDRDecodeDim>(bInUseMetalMSAAHDRDecode);
+		return RemapPermutationVector(PermutationVector);
+	}
+
+public:
+
+	void SetPS(const FRenderingCompositePassContext& Context, const TShaderRef<FPostProcessSunMaskPS_ES2>& Shader, FRHITexture* PostprocessInput0)
 	{
 		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
-
-		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
 
 		FParameters ShaderParameters;
 
@@ -867,16 +867,14 @@ public:
 		ShaderParameters.SunColorApertureDiv2.Z = Context.View.LightShaftColorMask.B;
 		ShaderParameters.SunColorApertureDiv2.W = GetMobileDepthOfFieldScale(Context.View) * 0.5f;
 
+		ShaderParameters.PostprocessInput0 = PostprocessInput0;
+		ShaderParameters.PostprocessInput0Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 		SetShaderParameters(Context.RHICmdList, Shader, ShaderRHI, ShaderParameters);
 	}
 };
 
-// #define avoids a lot of code duplication
-#define SUNMASK_PS_ES2(A) typedef FPostProcessSunMaskPS_ES2<A> FPostProcessSunMaskPS_ES2_##A; \
-	IMPLEMENT_SHADER_TYPE(template<>,FPostProcessSunMaskPS_ES2_##A,TEXT("/Engine/Private/PostProcessMobile.usf"),TEXT("SunMaskPS_ES2"), SF_Pixel);
-
-SUNMASK_PS_ES2(0)  SUNMASK_PS_ES2(1)  SUNMASK_PS_ES2(2)  SUNMASK_PS_ES2(3) SUNMASK_PS_ES2(4)  SUNMASK_PS_ES2(5)  SUNMASK_PS_ES2(6)  SUNMASK_PS_ES2(7)
-#undef SUNMASK_PS_ES2
+IMPLEMENT_GLOBAL_SHADER(FPostProcessSunMaskPS_ES2, "/Engine/Private/PostProcessMobile.usf", "SunMaskPS_ES2", SF_Pixel);
 
 
 class FPostProcessSunMaskVS_ES2 : public FGlobalShader
@@ -909,9 +907,10 @@ public:
 
 IMPLEMENT_SHADER_TYPE(,FPostProcessSunMaskVS_ES2,TEXT("/Engine/Private/PostProcessMobile.usf"),TEXT("SunMaskVS_ES2"),SF_Vertex);
 
-template <uint32 UseSunDofDepth>
-void FRCPassPostProcessSunMaskES2::SetShaderAndExecute(const FRenderingCompositePassContext& Context)
+void FRCPassPostProcessSunMaskES2::Process(FRenderingCompositePassContext& Context)
 {
+	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessSunMask);
+
 	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
 
 	uint32 DstX = FMath::Max(1, PrePostSourceViewportSize.X);
@@ -935,15 +934,12 @@ void FRCPassPostProcessSunMaskES2::SetShaderAndExecute(const FRenderingComposite
 // TODO: This won't work with scaled views.
 	SrcRect = View.ViewRect;
 
-	CA_SUPPRESS(6313);
-	uint32 UseDepth = (UseSunDofDepth & 4) ? 1 : 0;
-
 	const FSceneRenderTargetItem& DestRenderTarget0 = PassOutputs[0].RequestSurface(Context);
 	const FSceneRenderTargetItem* DestRenderTarget1 = nullptr;
 
 	int32 NumRenderTargets = 1;
 
-	if (!UseDepth)
+	if (!bUseDepthTexture)
 	{
 		DestRenderTarget1 = &PassOutputs[1].RequestSurface(Context);
 		NumRenderTargets += 1;
@@ -954,6 +950,8 @@ void FRCPassPostProcessSunMaskES2::SetShaderAndExecute(const FRenderingComposite
 		DestRenderTarget0.TargetableTexture,
 		DestRenderTarget1 != nullptr ? DestRenderTarget1->TargetableTexture : nullptr
 	};
+
+	FRHITexture* InputRenderTarget = GetInput(ePId_Input0)->GetOutput()->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
 
 	FRHIRenderPassInfo RPInfo(NumRenderTargets, RenderTargets, ERenderTargetActions::DontLoad_Store);
 
@@ -966,7 +964,8 @@ void FRCPassPostProcessSunMaskES2::SetShaderAndExecute(const FRenderingComposite
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 	TShaderMapRef<FPostProcessSunMaskVS_ES2> VertexShader(Context.GetShaderMap());
-	TShaderMapRef<FPostProcessSunMaskPS_ES2<UseSunDofDepth> > PixelShader(Context.GetShaderMap());
+	auto ShaderPermutationVector = FPostProcessSunMaskPS_ES2::BuildPermutationVector(bUseSun, bUseDof, bUseDepthTexture, bUseMetalMSAAHDRDecode);
+	TShaderMapRef<FPostProcessSunMaskPS_ES2> PixelShader(Context.GetShaderMap(), ShaderPermutationVector);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
@@ -976,7 +975,7 @@ void FRCPassPostProcessSunMaskES2::SetShaderAndExecute(const FRenderingComposite
 	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
 
 	VertexShader->SetVS(Context);
-	PixelShader->SetPS(Context, PixelShader);
+	PixelShader->SetPS(Context, PixelShader, InputRenderTarget);
 
 	DrawRectangle(
 		Context.RHICmdList,
@@ -997,31 +996,6 @@ void FRCPassPostProcessSunMaskES2::SetShaderAndExecute(const FRenderingComposite
 		{
 			Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTargets[i]);
 		}
-	}
-}
-
-void FRCPassPostProcessSunMaskES2::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessSunMask);
-
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	const FViewInfo& View = Context.View;
-	uint32 UseSun = Context.View.bLightShaftUse ? 1 : 0;
-	uint32 UseDof = (GetMobileDepthOfFieldScale(Context.View) > 0.0f) ? 1 : 0;
-	uint32 UseDepth = (InputDesc != NULL && InputDesc->Format == PF_FloatR11G11B10) ? 1 : 0;
-	uint32 UseSunDofDepth = (UseDepth << 2) | (UseSun << 1) | UseDof;
-
-	switch (UseSunDofDepth)
-	{
-	case 0: SetShaderAndExecute<0>(Context); break;
-	case 1: SetShaderAndExecute<1>(Context); break;
-	case 2: SetShaderAndExecute<2>(Context); break;
-	case 3: SetShaderAndExecute<3>(Context); break;
-	case 4: SetShaderAndExecute<4>(Context); break;
-	case 5: SetShaderAndExecute<5>(Context); break;
-	case 6: SetShaderAndExecute<6>(Context); break;
-	case 7: SetShaderAndExecute<7>(Context); break;
 	}
 }
 

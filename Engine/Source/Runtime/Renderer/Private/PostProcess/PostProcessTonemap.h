@@ -81,6 +81,8 @@ struct FTonemapInputs
 	// Whether to leave the final output in HDR.
 	bool bOutputInHDR = false;
 
+	bool bMetalMSAAHDRDecode = false;
+
 	FRHIShaderResourceView* EyeAdaptationBuffer = nullptr;
 };
 
@@ -94,7 +96,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 class FRCPassPostProcessTonemap : public TRenderingCompositePassBase<4, 1>
 {
 public:
-	FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bDoEyeAdaptation, bool bHDROutput);
+	FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bDoEyeAdaptation, bool bHDROutput, bool bMetalMSAAHDRDecode);
 
 	virtual void Process(FRenderingCompositePassContext& Context) override;
 	virtual void Release() override { delete this; }
@@ -105,6 +107,7 @@ public:
 private:
 	bool bDoEyeAdaptation;
 	bool bHDROutput;
+	bool bMetalMSAAHDRDecode;
 };
 
 // derives from TRenderingCompositePassBase<InputCount, OutputCount>
@@ -114,7 +117,7 @@ private:
 class FRCPassPostProcessTonemapES2 : public TRenderingCompositePassBase<4, 1>
 {
 public:
-	FRCPassPostProcessTonemapES2(const FViewInfo& View, bool bInUsedFramebufferFetch, bool bInSRGBAwareTarget, bool bInDoEyeAdaptation);
+	FRCPassPostProcessTonemapES2(const FViewInfo& View, bool bInUsedFramebufferFetch, bool bInSRGBAwareTarget, bool bInDoEyeAdaptation, bool bMetalMSAAHDRDecode);
 
 	// interface FRenderingCompositePass ---------
 
@@ -130,4 +133,5 @@ private:
 	bool bUsedFramebufferFetch;
 	bool bSRGBAwareTarget;
 	bool bDoEyeAdaptation;
+	bool bMetalMSAAHDRDecode;
 };

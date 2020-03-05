@@ -109,10 +109,14 @@ void SunMaskPS_ES2(
 		half InDepth = CalcSceneDepth(InUVPos.xy);
 	#else
 		half InDepth = SceneColor.a;
-		OutColor = SceneColor;
 	#endif
 	
 	#if ES2_USE_SUN
+
+		#if METAL_MSAA_HDR_DECODE
+			SceneColor.rgb *= rcp(SceneColor.r*(-0.299) + SceneColor.g*(-0.587) + SceneColor.b*(-0.114) + 1.0);
+		#endif
+
 		half2 DepthMaskScaleBias = SunConstDepthMaskScaleBias();
 		half FarAmount = saturate(InDepth * DepthMaskScaleBias.x + DepthMaskScaleBias.y);
 		half3 SunAmount = SceneColor.rgb * SunColorApertureDiv2.rgb;
@@ -131,6 +135,10 @@ void SunMaskPS_ES2(
 	#if ES2_USE_DOF
 		OutSunShaftAndDof += Coc2(InDepth);
 	#endif
+
+	#if !ES2_USE_DEPTHTEXTURE
+		OutColor = SceneColor;
+	#endif
 }
 
 //
@@ -146,6 +154,21 @@ void PreTonemapMSAA_ES2(
 	// On-chip pre-tonemap before MSAA resolve.
 	OutColor = FramebufferFetchES2();
 	OutColor.rgb *= rcp(OutColor.r*0.299 + OutColor.g*0.587 + OutColor.b*0.114 + 1.0);
+#endif
+}
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+
+void MSAADecodeAndCopyRectPS(
+	noperspective float4 UVAndScreenPos : TEXCOORD0,
+	out half4 OutColor : SV_Target0
+	)
+{
+#if (METAL_PROFILE && !MAC)
+	float2 UV = UVAndScreenPos.xy;
+	OutColor = Texture2DSample(InputTexture, InputSampler, UV);
+	OutColor.rgb *= rcp(OutColor.r*(-0.299) + OutColor.g*(-0.587) + OutColor.b*(-0.114) + 1.0);
 #endif
 }
 
@@ -228,7 +251,7 @@ void BloomPS_ES2(
 	// Output color is average.
 	AverageColor.rgb = (C0.rgb * 0.25) + (C1.rgb * 0.25) + (C2.rgb * 0.25) + (C3.rgb * 0.25);
 
-	#if ES2_USE_MSAA
+	#if METAL_MSAA_HDR_DECODE
 		// This should really happen before the average, instead doing after average as optimization.
 		AverageColor.rgb *= rcp(AverageColor.r*(-0.299) + AverageColor.g*(-0.587) + AverageColor.b*(-0.114) + 1.0);
 	#endif
@@ -1118,9 +1141,6 @@ void AaPS_ES2(
 // EyeAdaptation
 
 Buffer<float4> EyeAdaptationBuffer;
-
-Texture2D InputTexture;
-SamplerState InputSampler;
 
 static const float FLOAT_PRECISION = 1e+5;
 

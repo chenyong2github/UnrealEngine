@@ -1636,6 +1636,12 @@ float EyeAdaptationLookup()
 }
 #endif
 
+//The post-process material needs to decode the scene color since it's encoded at PreTonemapMSAA if MSAA enabled on MetalMobilePlatorm 
+//The POST_PROCESS_MATERIAL_BEFORE_TONEMAP is 1 for both BL_BeforeTranslucency and BL_BeforeTonemapping post-process materials
+#if FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1 && POST_PROCESS_MATERIAL && POST_PROCESS_MATERIAL_BEFORE_TONEMAP && METAL_PROFILE
+uint bMetalMSAAHDRDecode;
+#endif
+
 #if NEEDS_SCENE_TEXTURES
 
 #if SHADING_PATH_MOBILE
@@ -1660,8 +1666,12 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 		MaterialFloat4 Input0 = Texture2DSample(PostProcessInput_0_Texture, PostProcessInput_0_SharedSampler, UV);
 		#if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 			#if METAL_PROFILE
-				// If MSAA is in use undo PreTonemapMSAA, it is reapplied at the end of post process material
-				Input0.rgb = lerp(Input0.rgb, Input0.rgb * rcp(Input0.r*(-0.299) + Input0.g*(-0.587) + Input0.b*(-0.114) + 1.0), ResolvedView.IsMobileMSAA);
+				// Decode the input color since the color is encoded for MSAA 
+				// The decode instructions might be able to skip with dynamic branch
+				if (bMetalMSAAHDRDecode)
+				{
+					Input0.rgb = Input0.rgb * rcp(Input0.r*(-0.299) + Input0.g*(-0.587) + Input0.b*(-0.114) + 1.0);
+				}
 			#endif
 		#endif
 		// We need to preserve original SceneColor Alpha as it's used by tonemapper on mobile
