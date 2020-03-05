@@ -9,6 +9,8 @@
 
 #define LOCTEXT_NAMESPACE "MessageLog"
 
+int32 FMessageLogListingViewModel::NextNotificationId = 0;
+
 FMessageLogListingViewModel::~FMessageLogListingViewModel()
 {
 	check(MessageLogListingModel.IsValid());
@@ -86,6 +88,27 @@ const TSharedPtr<FTokenizedMessage>  FMessageLogListingViewModel::GetMessageAtIn
 const TArray< TSharedRef< class FMessageFilter> >& FMessageLogListingViewModel::GetMessageFilters() const
 {
 	return MessageFilters;
+}
+
+void FMessageLogListingViewModel::DismissNotification(int32 NotificationId)
+{
+	int32 NotificationIndex = OpenNotifications.IndexOfByPredicate([NotificationId](const FOpenNotification& N) { return N.NotificationId == NotificationId; });
+	if (NotificationIndex != INDEX_NONE)
+	{
+		TSharedPtr<SNotificationItem> NotificationItem = OpenNotifications[NotificationIndex].NotificationItem.Pin();
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->ExpireAndFadeout();
+		}
+
+		OpenNotifications.RemoveAtSwap(NotificationIndex);
+	}
+}
+
+void FMessageLogListingViewModel::OpenMessageLogFromNotification(int32 NotificationId)
+{
+	DismissNotification(NotificationId);
+	OpenMessageLog();
 }
 
 void FMessageLogListingViewModel::OpenMessageLog( )
@@ -288,13 +311,35 @@ void FMessageLogListingViewModel::NotifyIfAnyMessages( const FText& Message, EMe
 
 		FNotificationInfo ErrorNotification(NotificationMessage);
 		ErrorNotification.Image = FEditorStyle::GetBrush(FTokenizedMessage::GetSeverityIconName(HighestSeverityPresent(0)));
-		ErrorNotification.bFireAndForget = true;
-		ErrorNotification.Hyperlink = FSimpleDelegate::CreateSP(this, &FMessageLogListingViewModel::OpenMessageLog);
-		ErrorNotification.HyperlinkText = LOCTEXT("ShowMessageLogHyperlink", "Show Message Log");
-		ErrorNotification.ExpireDuration = 8.0f; // Need this message to last a little longer than normal since the user may want to "Show Log"
-		ErrorNotification.bUseThrobber = true;
 
-		FSlateNotificationManager::Get().AddNotification(ErrorNotification);
+		if (NumMessagesPresent(0, EMessageSeverity::Error) > 0)
+		{
+			int32 NotificationId = NextNotificationId++;
+
+			ErrorNotification.bFireAndForget = false;
+			ErrorNotification.bUseThrobber = false;
+			ErrorNotification.FadeOutDuration = 0.f;
+			ErrorNotification.ExpireDuration = 0.f;
+			ErrorNotification.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("DismissMessageButton", "Dismiss"), FText(), FSimpleDelegate::CreateSP(this, &FMessageLogListingViewModel::DismissNotification, NotificationId)));
+			ErrorNotification.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("ShowMessageLogButton", "Show Message Log"), FText(), FSimpleDelegate::CreateSP(this, &FMessageLogListingViewModel::OpenMessageLogFromNotification, NotificationId)));
+
+			TSharedPtr<SNotificationItem> NewNotificationItem = FSlateNotificationManager::Get().AddNotification(ErrorNotification);
+			if (NewNotificationItem.IsValid())
+			{
+				NewNotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+				OpenNotifications.Emplace(NotificationId, NewNotificationItem);
+			}
+		}
+		else
+		{
+			ErrorNotification.bFireAndForget = true;
+			ErrorNotification.Hyperlink = FSimpleDelegate::CreateSP(this, &FMessageLogListingViewModel::OpenMessageLog);
+			ErrorNotification.HyperlinkText = LOCTEXT("ShowMessageLogHyperlink", "Show Message Log");
+			ErrorNotification.ExpireDuration = 14.0f; // Need this message to last a little longer than normal since the user may want to "Show Log"
+			ErrorNotification.bUseThrobber = true;
+
+			FSlateNotificationManager::Get().AddNotification(ErrorNotification);
+		}
 	}
 }
 
