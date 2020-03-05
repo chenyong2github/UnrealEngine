@@ -20,7 +20,8 @@ float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
 Buffer<uint4>	HairStrandsVF_PositionBuffer;
 
 Texture2D<float> SceneDepthTexture;
-RWTexture2D<uint> OutTexture;
+RWTexture2D<uint> OutHairCountTexture;
+RWTexture2D<uint> OutDepthTexture;
 
 ///////////////////////////////////////////////////////////////////////////
 // Helping functions 
@@ -73,7 +74,8 @@ void Rasterize(int2 Coords, float Ratio, float Depth, float Coverage)
 		const float CoveragePrecision = 1000.f;
 		const uint IntCoverage = Ratio * Coverage * CoveragePrecision;
 
-		InterlockedAdd(OutTexture[uint2(Coords)], IntCoverage);
+		InterlockedAdd(OutHairCountTexture[uint2(Coords)], IntCoverage);
+		InterlockedMax(OutDepthTexture[uint2(Coords)], asuint(Depth));
 	}
 }
 
@@ -143,7 +145,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 
 
 	const float3 WP0  = mul(float4(CP0.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
-	float4 NDC0 = mul(float4(WP0, 1), View.WorldToClip);
+	const float4 NDC0 = mul(float4(WP0, 1), View.WorldToClip);
 
 	const float3 WP1  = mul(float4(CP1.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
 	const float4 NDC1 = mul(float4(WP1, 1), View.WorldToClip);
@@ -209,7 +211,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		Rasterize(Coord, Ratio * XGap, SP0.z, Coverage0);
 
 		DeltaY = End.y + GradientY; // first y-intersection for the main loop
-		DeltaZ = SP1.z + GradientY; // This is not perspective correct. Interpolate linear depth instead
+		DeltaZ = SP1.z + GradientZ; // This is not perspective correct. Interpolate linear depth instead
 	}
 
 	// Second point
@@ -233,7 +235,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 
 	// Inner points
 	const uint MaxIteration = 64;	
-	const float PixelCount = PX1.x - (PX0.x + 1);
+	const float PixelCount = abs(PX1.x - (PX0.x + 1));
 	for (int i = PX0.x + 1, j = 0; i < PX1.x && j < MaxIteration; ++i, ++j)
 	{
 		const float S = float(j) / PixelCount;
@@ -242,9 +244,13 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		const float Ratio = bLower ? 1 - FracY : FracY;
 		const float Coverage = lerp(Coverage0, Coverage1, S);
 
+		const float DC_Z = lerp(NDC0.z, NDC1.z, S);
+		const float DC_W = lerp(NDC0.w, NDC1.w, S);
+		const float Depth = DC_Z / DC_W;
+
 		int2 Coord = int2(i, floor(DeltaY)) + (bLower ? int2(0, 0) : int2(0, 1));
 		Coord = bIsSteep ? Coord.yx : Coord.xy;
-		Rasterize(Coord, Ratio, DeltaZ, Coverage);
+		Rasterize(Coord, Ratio, Depth /*DeltaZ*/, Coverage);
 
 		DeltaY += GradientY;
 		DeltaZ += GradientZ;
