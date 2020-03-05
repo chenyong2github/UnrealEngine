@@ -126,6 +126,8 @@ void UMeshInspectorTool::Setup()
 	UMeshAnalysisProperties* MeshAnalysis = NewObject<UMeshAnalysisProperties>(this);
 	MeshAnalysis->Update(*PreviewMesh->GetPreviewDynamicMesh(), ComponentTarget->GetWorldTransform());
 	AddToolPropertySource(MeshAnalysis);
+
+	UpdateVisualization();
 }
 
 
@@ -286,8 +288,13 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	GetToolManager()->PostInvalidation();
+	UpdateVisualization();
+}
+
+void UMeshInspectorTool::UpdateVisualization()
+{
 	PreviewMesh->EnableWireframe(Settings->bWireframe);
-	
+
 	MaterialSettings->UpdateMaterials();
 	UMaterialInterface* OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	if (OverrideMaterial == nullptr)

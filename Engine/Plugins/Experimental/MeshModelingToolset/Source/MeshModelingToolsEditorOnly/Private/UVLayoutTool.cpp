@@ -120,13 +120,7 @@ void UUVLayoutTool::Setup()
 	MaterialSettings->RestoreProperties(this);
 	AddToolPropertySource(MaterialSettings);
 
-	// initialize the PreviewMesh+BackgroundCompute object
-	UpdateNumPreviews();
-	
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Preview->InvalidateResult();
-	}
+	UpdateVisualization();
 }
 
 
@@ -243,14 +237,19 @@ void UUVLayoutTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 void UUVLayoutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	// if we don't know what changed, or we know checker density changed, update checker material
+	UpdateVisualization();
+}
+
+void UUVLayoutTool::UpdateVisualization()
+{
 	MaterialSettings->UpdateMaterials();
+	UpdateNumPreviews();
 	for (int PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
 	{
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[PreviewIdx];
 		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	}
-	
-	UpdateNumPreviews();
+
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Preview->InvalidateResult();

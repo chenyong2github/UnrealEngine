@@ -164,6 +164,7 @@ protected:
 	FViewCameraState CameraState;
 
 	void UpdateNumPreviews();
+	void UpdateVisualization();
 
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 };

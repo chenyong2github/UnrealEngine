@@ -79,7 +79,6 @@ void UExistingMeshMaterialProperties::SaveProperties(UInteractiveTool* SaveFromT
 	PropertyCache->MaterialMode = this->MaterialMode;
 	PropertyCache->CheckerDensity = this->CheckerDensity;
 	PropertyCache->OverrideMaterial = this->OverrideMaterial;
-	PropertyCache->CheckerMaterial = this->CheckerMaterial;
 }
 
 void UExistingMeshMaterialProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
@@ -88,7 +87,7 @@ void UExistingMeshMaterialProperties::RestoreProperties(UInteractiveTool* Restor
 	this->MaterialMode = PropertyCache->MaterialMode;
 	this->CheckerDensity = PropertyCache->CheckerDensity;
 	this->OverrideMaterial = PropertyCache->OverrideMaterial;
-	this->CheckerMaterial = PropertyCache->CheckerMaterial;
+	this->Setup();
 }
 
 void UMeshEditingViewProperties::SaveProperties(UInteractiveTool* SaveFromTool)
@@ -104,8 +103,6 @@ void UMeshEditingViewProperties::RestoreProperties(UInteractiveTool* RestoreToTo
 	this->bShowWireframe = PropertyCache->bShowWireframe;
 	this->MaterialMode = PropertyCache->MaterialMode;
 }
-
-
 
 
 #undef LOCTEXT_NAMESPACE
