@@ -530,7 +530,7 @@ private:
 	bool bSimulatingHighPrecisionMouseInputForRDP = false;
 
 	FIntPoint CachedPreHighPrecisionMousePosForRDP = FIntPoint::ZeroValue;
-
+	FIntPoint LastCursorPoint = FIntPoint::ZeroValue;
 };
 
 
