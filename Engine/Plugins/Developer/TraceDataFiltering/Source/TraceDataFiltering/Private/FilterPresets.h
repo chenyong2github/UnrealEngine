@@ -110,7 +110,6 @@ class USharedFilterPresetContainer : public UObject
 
 	friend struct FFilterPresetHelpers;
 public:
-	void GetEnginePresets(TArray<TSharedPtr<IFilterPreset>>& OutPresets);
 	void GetSharedUserPresets(TArray<TSharedPtr<IFilterPreset>>& OutPresets);
 
 	static void AddFilterData(const FFilterData& InFilterData);
@@ -119,7 +118,17 @@ public:
 protected:
 	UPROPERTY(Config)
 	TArray<FFilterData> SharedPresets;
+};
 
+UCLASS(Config = TraceDataFilters, DefaultConfig)
+class UEngineFilterPresetContainer : public UObject
+{
+	GENERATED_BODY()
+
+	friend struct FFilterPresetHelpers;
+public:
+	void GetEnginePresets(TArray<TSharedPtr<IFilterPreset>>& OutPresets);
+protected:
 	UPROPERTY(Config)
 	TArray<FFilterData> EnginePresets;
 };
