@@ -11,17 +11,19 @@ int2 PixelCoord;
 int2 MaxResolution;
 uint FastResolveMask;
 uint HairMacroGroupCount;
+uint MaxSampleCount;
 uint2 GroupSize; 
 
+Texture2D<float> HairCountTexture;
 Texture2D<uint4> CategorizationTexture;
 Texture2D<uint2> DepthStencilTexture;
 SamplerState LinearSampler;
 Texture2D<uint> HairVisibilityNodeOffsetAndCount;
-StructuredBuffer<FNodeData> HairVisibilityNodeData;
+StructuredBuffer<FPackedHairSample> HairVisibilityNodeData;
 
 Buffer<int> HairMacroGroupAABBBuffer;
 
-#define MATERIAL_DATA 0
+#define MATERIAL_DATA 1
 #define DETAIL_DATA 1
 
 [numthreads(1, 1, 1)]
@@ -49,6 +51,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	if (!bIsValid)
 		return;
 
+	const float ViewHairCount = HairCountTexture.Load(uint3(PixelPos, 0));
+
 	const float2 OriginalPos = PixelPos / float2(MaxResolution);
 	float2 Pos = OriginalPos;
 
@@ -57,15 +61,9 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	for (uint SampleIt0 = 0; SampleIt0 < NodeDesc.Count; SampleIt0++)
 	{
 		const uint LocalOffset = NodeDesc.Offset + SampleIt0;
-		const FNodeData NodeData = HairVisibilityNodeData[LocalOffset];
-		float			SampleDepth;
-		FVisibilityData SampleVisData;
-		float3			SampleBaseColor;
-		float			SampleRoughness;
-		float			SampleSpecular;
-		uint			SampleLightChannelMask;
-		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLightChannelMask);
-		Total8BitCoverage += SampleVisData.Coverage8bit;
+		const FPackedHairSample NodeData = HairVisibilityNodeData[LocalOffset];
+		const FHairSample Sample = UnpackHairSample(NodeData);
+		Total8BitCoverage += Sample.Coverage8bit;
 	}
 
 	// Pixel coord
@@ -110,7 +108,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrintSymbol(Pos, _L_);
 	Pos = ShaderPrintSymbol(Pos, _E_);
 	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, uint(HAIR_VISIBILITY_MAXSAMPLECOUNT));
+	Pos = ShaderPrint(Pos, MaxSampleCount);
 
 	Pos = ShaderPrintNewline(Pos);
 	Pos.x = OriginalPos.x;
@@ -124,6 +122,23 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrintSymbol(Pos, _E_);
 	Pos = ShaderPrintSymbol(Pos, _SPC_);
 	Pos = ShaderPrint(Pos, CatData.SampleCount);
+
+	Pos = ShaderPrintNewline(Pos);
+	Pos.x = OriginalPos.x;
+
+	// Accurate coverage (if coverage pass is activated)
+	Pos = ShaderPrintSymbol(Pos, _H_);
+	Pos = ShaderPrintSymbol(Pos, _A_);
+	Pos = ShaderPrintSymbol(Pos, _I_);
+	Pos = ShaderPrintSymbol(Pos, _R_);
+	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Pos = ShaderPrintSymbol(Pos, _C_);
+	Pos = ShaderPrintSymbol(Pos, _O_);
+	Pos = ShaderPrintSymbol(Pos, _U_);
+	Pos = ShaderPrintSymbol(Pos, _N_);
+	Pos = ShaderPrintSymbol(Pos, _T_);
+	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Pos = ShaderPrint(Pos, ViewHairCount);
 
 	Pos = ShaderPrintNewline(Pos);
 	Pos.x = OriginalPos.x;
@@ -229,14 +244,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
 	{
 		const uint LocalOffset = NodeDesc.Offset + SampleIt;
-		const FNodeData NodeData = HairVisibilityNodeData[LocalOffset];
-		float			SampleDepth;
-		FVisibilityData SampleVisData;
-		float3			SampleBaseColor;
-		float			SampleRoughness;
-		float			SampleSpecular;
-		uint			SampleLightChannelMask;
-		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLightChannelMask);
+		const FPackedHairSample NodeData = HairVisibilityNodeData[LocalOffset];		
+		const FHairSample Sample = UnpackHairSample(NodeData);
 
 		// Base Color
 		Pos = ShaderPrintSymbol(Pos, _MINUS_);
@@ -277,7 +286,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintSymbol(Pos, _O_);
 		Pos = ShaderPrintSymbol(Pos, _R_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, SampleBaseColor);
+		Pos = ShaderPrint(Pos, Sample.BaseColor);
 		
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;
@@ -294,11 +303,41 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintSymbol(Pos, _S_);
 		Pos = ShaderPrintSymbol(Pos, _S_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, SampleRoughness);
+		Pos = ShaderPrint(Pos, Sample.Roughness);
 
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;
 
+		// Specular
+		Pos = ShaderPrintSymbol(Pos, _DOT_);
+		Pos = ShaderPrintSymbol(Pos, _S_);
+		Pos = ShaderPrintSymbol(Pos, _P_);
+		Pos = ShaderPrintSymbol(Pos, _E_);
+		Pos = ShaderPrintSymbol(Pos, _C_);
+		Pos = ShaderPrintSymbol(Pos, _U_);
+		Pos = ShaderPrintSymbol(Pos, _L_);
+		Pos = ShaderPrintSymbol(Pos, _A_);
+		Pos = ShaderPrintSymbol(Pos, _R_);
+		Pos = ShaderPrintSymbol(Pos, _SPC_);
+		Pos = ShaderPrint(Pos, Sample.Specular);
+
+		Pos = ShaderPrintNewline(Pos);
+		Pos.x = OriginalPos.x;
+
+		// Backlit
+		Pos = ShaderPrintSymbol(Pos, _DOT_);
+		Pos = ShaderPrintSymbol(Pos, _B_);
+		Pos = ShaderPrintSymbol(Pos, _A_);
+		Pos = ShaderPrintSymbol(Pos, _C_);
+		Pos = ShaderPrintSymbol(Pos, _K_);
+		Pos = ShaderPrintSymbol(Pos, _L_);
+		Pos = ShaderPrintSymbol(Pos, _I_);
+		Pos = ShaderPrintSymbol(Pos, _T_);
+		Pos = ShaderPrintSymbol(Pos, _SPC_);
+		Pos = ShaderPrint(Pos, Sample.Backlit);
+
+		Pos = ShaderPrintNewline(Pos);
+		Pos.x = OriginalPos.x;
 
 		// Tangent
 		Pos = ShaderPrintSymbol(Pos, _DOT_);
@@ -310,7 +349,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintSymbol(Pos, _N_);
 		Pos = ShaderPrintSymbol(Pos, _T_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, SampleVisData.Tangent);
+		Pos = ShaderPrint(Pos, Sample.Tangent);
 
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;
@@ -329,7 +368,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintSymbol(Pos, _V_);
 		Pos = ShaderPrintSymbol(Pos, _E_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, SampleVisData.PrimitiveId);
+		Pos = ShaderPrint(Pos, Sample.PrimitiveId);
 
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;
@@ -351,13 +390,12 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintSymbol(Pos, _I_);
 		Pos = ShaderPrintSymbol(Pos, _D_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, SampleVisData.MacroGroupId);
+		Pos = ShaderPrint(Pos, Sample.MacroGroupId);
 
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;		
 
-
-		// Ligtht channel mask
+		// Light channel mask
 		Pos = ShaderPrintSymbol(Pos, _DOT_);
 		Pos = ShaderPrintSymbol(Pos, _L_);
 		Pos = ShaderPrintSymbol(Pos, _I_);
@@ -374,9 +412,30 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintSymbol(Pos, _L_);
 		Pos = ShaderPrintSymbol(Pos, _S_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, (SampleLightChannelMask & 0x1) ? 1u : 0u);
-		Pos = ShaderPrint(Pos, (SampleLightChannelMask & 0x2) ? 1u : 0u);
-		Pos = ShaderPrint(Pos, (SampleLightChannelMask & 0x4) ? 1u : 0u);
+		Pos = ShaderPrint(Pos, (Sample.LightChannelMask & 0x1) ? 1u : 0u);
+		Pos = ShaderPrint(Pos, (Sample.LightChannelMask & 0x2) ? 1u : 0u);
+		Pos = ShaderPrint(Pos, (Sample.LightChannelMask & 0x4) ? 1u : 0u);
+
+		Pos = ShaderPrintNewline(Pos);
+		Pos.x = OriginalPos.x;
+
+		// Scene lighting scatter
+		Pos = ShaderPrintSymbol(Pos, _DOT_);
+		Pos = ShaderPrintSymbol(Pos, _S_);
+		Pos = ShaderPrintSymbol(Pos, _C_);
+		Pos = ShaderPrintSymbol(Pos, _A_);
+		Pos = ShaderPrintSymbol(Pos, _T_);
+		Pos = ShaderPrintSymbol(Pos, _T_);
+		Pos = ShaderPrintSymbol(Pos, _E_);
+		Pos = ShaderPrintSymbol(Pos, _R_);
+		Pos = ShaderPrintSymbol(Pos, _SPC_);
+		Pos = ShaderPrintSymbol(Pos, _S_);
+		Pos = ShaderPrintSymbol(Pos, _C_);
+		Pos = ShaderPrintSymbol(Pos, _E_);
+		Pos = ShaderPrintSymbol(Pos, _N_);
+		Pos = ShaderPrintSymbol(Pos, _E_);
+		Pos = ShaderPrintSymbol(Pos, _SPC_);
+		Pos = ShaderPrint(Pos, Sample.bScatterSceneLighting ? 1u : 0u);
 
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;
@@ -393,7 +452,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintSymbol(Pos, _G_);
 		Pos = ShaderPrintSymbol(Pos, _E_);
 		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, SampleVisData.Coverage8bit);
+		Pos = ShaderPrint(Pos, Sample.Coverage8bit);
 
 		Pos = ShaderPrintNewline(Pos);
 		Pos.x = OriginalPos.x;

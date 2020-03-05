@@ -51,9 +51,18 @@ struct FHairGroupDesc
 	/** The targeted budget of hair vertex per pixel. Cluster strands will be decimated based on that. Used when r.HairStrands.Cluster.Culling = 1. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Performance", AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "6.0", SliderExponent = 1))
 	float LodAverageVertexPerPixel;
+
 	/** Bias the selected LOD. A value >0 will progressively select lower detailed lods. Used when r.HairStrands.Cluster.Culling = 1. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = "Performance", AdvancedDisplay, meta = (ClampMin = "-1.0", ClampMax = "1.0", UIMin = "-1.0", UIMax = "1.0", SliderExponent = 1))
 	float LodBias;
+
+	/** Insure the hair does not alias. When enable, group of hairs might appear thicker. Isolated hair should remain thin. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	bool bUseStableRasterization;
+
+	/** Light hair with the scene color. This is used for vellus/short hair to bring light from the surrounding surface, like skin. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	bool bScatterSceneLighting;
 
 	// Contructor used to initialised new values
 	FHairGroupDesc()
@@ -63,10 +72,19 @@ struct FHairGroupDesc
 
 	void ReInit()
 	{
+		// Filled in by groom asset
+		HairCount = 0;	// Read only
+		GuideCount = 0;	// Read only
+		HairLength = 0;	// Read only
+		HairWidth = 0;	// Can be overridden by user
+
 		HairRaytracingRadiusScale = 1.0f;
 		HairRootScale = 1.0f;
 		HairTipScale = 1.0f;
 		HairClipLength = 1.0f;
+		HairShadowDensity = 1.0f;
+		bUseStableRasterization = false;
+		bScatterSceneLighting = false;
 
 		LodAverageVertexPerPixel = 3.0f; // Good for quality on heavy assets
 		LodBias = 0.0f;

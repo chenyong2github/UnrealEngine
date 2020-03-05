@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
+
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
 #include "../DeferredShadingCommon.ush"
@@ -28,8 +30,6 @@
 RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWOcclusionMaskUAV;
 RWTexture2D<float> RWRayDistanceUAV;
-Texture2D<uint4> HairCategorizationTexture;
-Texture2D<uint> HairLightChannelMaskTexture;
 
 uint ShadowMaskType;
 uint LightingChannelMask;
@@ -37,6 +37,85 @@ uint SamplesPerPixel;
 float NormalBias;
 int4 LightScissor;
 int2 PixelOffset;
+
+#if USE_HAIR_LIGHTING
+#define VOXEL_TRAVERSAL_DEBUG 0
+#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
+//#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
+
+#include "../HairStrands/HairStrandsVoxelPageCommon.ush"
+#include "../HairStrands/HairStrandsVoxelPageTraversal.ush"
+
+uint				bUseHairVoxel;
+Texture2D<uint4>	HairCategorizationTexture;
+Texture2D<uint>		HairLightChannelMaskTexture;
+
+float TraverseHair(uint2 PixelCoord, float3 RayOrigin, float3 RayDirection, float InMinT)
+{
+	float HitT = InMinT;
+
+	// Depth bias
+	// Origin is shifted 2 voxels away towards the light + a constant bias of the size of the voxel
+	const float3 Random = 0.5;// GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8);
+	{
+		const float MaxVoxelSize = VirtualVoxel.VoxelWorldSize;
+		const float3 DepthBias = MaxVoxelSize * (2 * RayDirection + Random);
+		RayOrigin += DepthBias;
+	}
+
+	#if VOXEL_TRAVERSAL_DEBUG
+	const bool bDebugEnabled = PixelCoord.x == GetCursorPos().x && PixelCoord.y == GetCursorPos().y;
+	#else
+	const bool bDebugEnabled = false;
+	#endif
+
+	FHairTraversalResult Result = InitHairTraversalResult();
+
+	const float DistanceThreshold = 1000.0f; 
+	const float CoverageThreshold = 0.995f; // When Coverage is high, we do not trace shadow on opaque since hair/fur is covering the background.
+
+	FVirtualVoxelCommonDesc CommonDesc;
+	CommonDesc.PageCountResolution = VirtualVoxel.PageCountResolution;
+	CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
+	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
+	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
+
+	const float3 P0 = RayOrigin;
+	const float3 P1 = RayOrigin + RayDirection * (HitT>=0 ? min(HitT, DistanceThreshold) : DistanceThreshold);
+
+	for (uint MacroGroupId = 0; MacroGroupId < VirtualVoxel.NodeDescCount; ++MacroGroupId)
+	{
+		const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
+		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+
+		FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
+		TraversalSettings.DensityScale = VirtualVoxel.DensityScale;
+		TraversalSettings.CountThreshold = 1;
+		TraversalSettings.DistanceThreshold = DistanceThreshold;
+		TraversalSettings.bDebugEnabled = bDebugEnabled;
+		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
+		TraversalSettings.Random = Random;
+		TraversalSettings.bUseOpaqueVisibility = false;
+
+		Result = ComputeHairCountVirtualVoxel(
+			P0,
+			P1,
+			CommonDesc,
+			NodeDesc,
+			VirtualVoxel.PageIndexBuffer,
+			VirtualVoxel.PageTexture,
+			TraversalSettings);
+
+		if (Result.HitT >= 0)
+		{
+			const float WorldHitT = DistanceThreshold * Result.HitT;
+			HitT = HitT >= 0 ? min(HitT, WorldHitT) : WorldHitT;
+		}
+	}
+
+	return HitT;
+}
+#endif
 
 bool GenerateOcclusionRay(
 	FLightShaderParameters LightParameters,
@@ -301,6 +380,13 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 				RayFlags,
 				RaytracingMask,
 				Ray);
+
+			#if USE_HAIR_LIGHTING
+			if (ShadowMaskType != ShadowMaskType_Hair && bUseHairVoxel)
+			{
+				MinimalPayload.HitT = TraverseHair(PixelCoord, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
+			}
+			#endif
 
 			RayCount += 1.0;
 			Visibility += MinimalPayload.IsMiss() ? 1.0 : 0.0;

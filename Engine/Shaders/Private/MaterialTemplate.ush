@@ -13,6 +13,7 @@
 #include "/Engine/Private/CircleDOFCommon.ush"
 #include "/Engine/Private/GlobalDistanceFieldShared.ush"
 #include "/Engine/Private/SceneData.ush"
+#include "/Engine/Private/HairShadingCommon.ush"
 
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"
@@ -1086,6 +1087,11 @@ float MaterialExpressionGetHairRoughness(FMaterialPixelParameters Parameters)
 float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters)
 {
 	return Parameters.TangentToWorld[2];
+}
+
+float3 MaterialExpressionGetHairColorFromMelanin(float Melanin, float Redness, float3 DyeColor)
+{
+	return GetHairColorFromMelanin(Melanin, Redness, DyeColor);
 }
 
 float4 MaterialExpressionAtmosphericFog(FMaterialPixelParameters Parameters, float3 AbsoluteWorldPosition)

@@ -19,6 +19,9 @@ static FAutoConsoleVariableRef CVarHairLocalScattering(TEXT("r.HairStrands.Compo
 static float GStrandHairRasterizationScale = 0.5f; // For no AA without TAA, a good value is: 1.325f (Empirical)
 static FAutoConsoleVariableRef CVarStrandHairRasterizationScale(TEXT("r.HairStrands.RasterizationScale"), GStrandHairRasterizationScale, TEXT("Rasterization scale to snap strand to pixel"), ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static float GStrandHairStableRasterizationScale = 1.0f; // For no AA without TAA, a good value is: 1.325f (Empirical)
+static FAutoConsoleVariableRef CVarStrandHairStableRasterizationScale(TEXT("r.HairStrands.StableRasterizationScale"), GStrandHairStableRasterizationScale, TEXT("Rasterization scale to snap strand to pixel for 'stable' hair option. This value can't go below 1."), ECVF_Scalability | ECVF_RenderThreadSafe);
+
 static float GStrandHairVelocityRasterizationScale = 1.5f; // Tuned based on heavy motion example (e.g., head shaking)
 static FAutoConsoleVariableRef CVarStrandHairMaxRasterizationScale(TEXT("r.HairStrands.VelocityRasterizationScale"), GStrandHairVelocityRasterizationScale, TEXT("Rasterization scale to snap strand to pixel under high velocity"), ECVF_Scalability | ECVF_RenderThreadSafe);
 
@@ -89,8 +92,10 @@ FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
 	// Scales strand to covers a bit more than a pixel and insure at least one sample point is hit
 	const float PrimaryRasterizationScale = OverrideStrandHairRasterizationScale > 0 ? OverrideStrandHairRasterizationScale : GStrandHairRasterizationScale;
 	const float VelocityRasterizationScale = OverrideStrandHairRasterizationScale > 0 ? OverrideStrandHairRasterizationScale : GStrandHairVelocityRasterizationScale;
+	const float StableRasterizationScale = FMath::Max(1.f, GStrandHairStableRasterizationScale);
 	Out.Primary = InternalMinRadiusAtDepth1(PrimaryRasterizationScale);
 	Out.Velocity = InternalMinRadiusAtDepth1(VelocityRasterizationScale);
+	Out.Stable = InternalMinRadiusAtDepth1(StableRasterizationScale);
 
 	return Out;
 }
@@ -110,7 +115,7 @@ void ComputeWorldToLightClip(
 	const float MaxZ = FMath::Max(0.2f, FVector::Distance(LightPosition, SphereBound.Center)) + SphereBound.W;
 
 	const float StrandHairRasterizationScale = GStrandHairShadowRasterizationScale ? GStrandHairShadowRasterizationScale : GStrandHairRasterizationScale;
-
+	const float StrandHairStableRasterizationScale = FMath::Max(GStrandHairStableRasterizationScale, 1.0f);
 	MinStrandRadiusAtDepth1 = FMinHairRadiusAtDepth1();
 	WorldToClipTransform = FMatrix::Identity;
 	if (LightType == LightType_Directional)
@@ -119,7 +124,10 @@ void ComputeWorldToLightClip(
 		FReversedZOrthoMatrix OrthoMatrix(SphereRadius, SphereRadius, 1.f / (2 * SphereRadius), 0);
 		FLookAtMatrix LookAt(SphereBound.Center - LightDirection * SphereRadius, SphereBound.Center, FVector(0, 0, 1));
 		WorldToClipTransform = LookAt * OrthoMatrix;
-		MinStrandRadiusAtDepth1.Primary = StrandHairRasterizationScale * SphereRadius / FMath::Min(ShadowResolution.X, ShadowResolution.Y);
+
+		const float RadiusAtDepth1 = SphereRadius / FMath::Min(ShadowResolution.X, ShadowResolution.Y);
+		MinStrandRadiusAtDepth1.Stable = RadiusAtDepth1 * StrandHairStableRasterizationScale;
+		MinStrandRadiusAtDepth1.Primary = RadiusAtDepth1 * StrandHairRasterizationScale;
 		MinStrandRadiusAtDepth1.Velocity = MinStrandRadiusAtDepth1.Primary;
 	}
 	else if (LightType == LightType_Spot || LightType == LightType_Point)
@@ -245,24 +253,27 @@ FIntPoint GetVendorOptimalGroupSize2D()
 
 FVector4 PackHairRenderInfo(
 	float PrimaryRadiusAtDepth1,
+	float StableRadiusAtDepth1,
 	float VelocityRadiusAtDepth1,
-	float VelocityMagnitudeScale,
-	bool bIsOrtho,
-	bool bIsGPUDriven)
+	float VelocityMagnitudeScale)
+{
+	FVector4 Out;
+	Out.X = PrimaryRadiusAtDepth1;
+	Out.Y = StableRadiusAtDepth1;
+	Out.Z = VelocityRadiusAtDepth1;
+	Out.W = VelocityMagnitudeScale;
+	return Out;
+}
+
+uint32 PackHairRenderInfoBits(
+	bool  bIsOrtho,
+	bool  bIsGPUDriven)
 {
 	uint32 BitField = 0;
 	BitField |= bIsOrtho ? 0x1 : 0;
 	BitField |= bIsGPUDriven ? 0x2 : 0;
-
-	FVector4 Out;
-	Out.X = PrimaryRadiusAtDepth1;
-	Out.Y = VelocityRadiusAtDepth1;
-	Out.Z = VelocityMagnitudeScale;
-	Out.W = *((float*)(&BitField));
-
-	return Out;
+	return BitField;
 }
-
 FHairStrandsProjectionMeshData ExtractMeshData(FSkeletalMeshRenderData* RenderData)
 {
 	FHairStrandsProjectionMeshData MeshData;

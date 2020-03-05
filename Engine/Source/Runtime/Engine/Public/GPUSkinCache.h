@@ -85,6 +85,28 @@ struct FGPUSkinBatchElementUserData
 	int32 Section;
 };
 
+struct FCachedGeometry
+{
+	struct Section
+	{
+		FRHIShaderResourceView* PositionBuffer = nullptr;
+		FRHIShaderResourceView* UVsBuffer = nullptr;
+		FRHIShaderResourceView* IndexBuffer = nullptr;
+		uint32 UVsChannelOffset = 0;
+		uint32 UVsChannelCount = 0;
+		uint32 NumPrimitives = 0;
+		uint32 VertexBaseIndex = 0;
+		uint32 IndexBaseIndex = 0;
+		uint32 TotalVertexCount = 0;
+		uint32 TotalIndexCount = 0;
+		uint32 SectionIndex = 0;
+		int32 LODIndex = 0;
+	};
+
+	int32 LODIndex = 0;
+	TArray<Section> Sections;
+};
+
 class FGPUSkinCache
 {
 public:
@@ -104,7 +126,8 @@ public:
 	ENGINE_API FGPUSkinCache(bool bInRequiresMemoryLimit);
 	ENGINE_API ~FGPUSkinCache();
 
-	struct FCachedGeometrySection GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 SectionId);
+	ENGINE_API FCachedGeometry GetCachedGeometry(uint32 ComponentId) const;
+	FCachedGeometry::Section GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 SectionId);
 	void UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry);
 
 	void ProcessEntry(FRHICommandListImmediate& RHICmdList, FGPUBaseSkinVertexFactory* VertexFactory,

@@ -113,12 +113,12 @@ static void AddHairMacroGroupAABBPass(
 	}
 }
 
-static bool DoesGroupExists(uint32 ResourceId, FHairStrandsMacroGroupData::TPrimitiveGroups& PrimitivesGroups)
+static bool DoesGroupExists(uint32 ResourceId, uint32 GroupIndex, const FHairStrandsMacroGroupData::TPrimitiveGroups& PrimitivesGroups)
 {
 	// Simple linear search as the expected number of groups is supposed to be low (<10)
-	for (FHairStrandsMacroGroupData::PrimitiveGroup& Group : PrimitivesGroups)
+	for (const FHairStrandsMacroGroupData::PrimitiveGroup& Group : PrimitivesGroups)
 	{
-		if (Group.ResourceId == ResourceId)
+		if (Group.GroupIndex == GroupIndex && Group.ResourceId == ResourceId)
 		{
 			return true;
 		}
@@ -179,7 +179,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 							PrimitiveInfo.GroupIndex = HairGroupPublicData->GetGroupIndex();
 							check(PrimitiveInfo.GroupIndex < 32); // Sanity check
 
-							const bool bAlreadyExists = DoesGroupExists(PrimitiveInfo.ResourceId, MacroGroup.PrimitivesGroups);
+							const bool bAlreadyExists = DoesGroupExists(PrimitiveInfo.ResourceId, PrimitiveInfo.GroupIndex, MacroGroup.PrimitivesGroups);
 							if (!bAlreadyExists)
 							{
 								FHairStrandsMacroGroupData::PrimitiveGroup& PrimitiveGroup = MacroGroup.PrimitivesGroups.AddZeroed_GetRef();
@@ -210,7 +210,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 						PrimitiveInfo.GroupIndex = HairGroupPublicData->GetGroupIndex();
 						check(PrimitiveInfo.GroupIndex < 32); // Sanity check
 
-						const bool bAlreadyExists = DoesGroupExists(PrimitiveInfo.ResourceId, MacroGroup.PrimitivesGroups);
+						const bool bAlreadyExists = DoesGroupExists(PrimitiveInfo.ResourceId, PrimitiveInfo.GroupIndex, MacroGroup.PrimitivesGroups);
 						if (!bAlreadyExists)
 						{
 							FHairStrandsMacroGroupData::PrimitiveGroup& PrimitiveGroup = MacroGroup.PrimitivesGroups.AddZeroed_GetRef();
@@ -255,4 +255,10 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 	}
 
 	return MacroGroupsViews;
+}
+
+bool FHairStrandsMacroGroupData::PrimitiveInfo::IsCullingEnable() const
+{
+	const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(MeshBatchAndRelevance.Mesh->Elements[0].VertexFactoryUserData);
+	return HairGroupPublicData->GetCullingResultAvailable();
 }

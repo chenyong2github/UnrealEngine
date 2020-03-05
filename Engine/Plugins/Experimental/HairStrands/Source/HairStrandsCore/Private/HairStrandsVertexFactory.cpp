@@ -53,6 +53,8 @@ public:
 	LAYOUT_FIELD(FShaderParameter, PreviousPositionOffset);
 	LAYOUT_FIELD(FShaderParameter, Density);
 	LAYOUT_FIELD(FShaderParameter, Culling);
+	LAYOUT_FIELD(FShaderParameter, StableRasterization);
+	LAYOUT_FIELD(FShaderParameter, ScatterSceneLighing);
 
 	LAYOUT_FIELD(FShaderResourceParameter, PositionBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, PreviousPositionBuffer);
@@ -71,6 +73,8 @@ public:
 		PreviousPositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionOffset"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));	
 		Culling.Bind(ParameterMap, TEXT("HairStrandsVF_CullingEnable"));
+		StableRasterization.Bind(ParameterMap, TEXT("HairStrandsVF_bUseStableRasterization"));
+		ScatterSceneLighing.Bind(ParameterMap, TEXT("HairStrandsVF_bScatterSceneLighing"));
 
 		PositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PositionBuffer"));
 		PreviousPositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionBuffer"));
@@ -109,6 +113,8 @@ public:
 		BindParam(ShaderBindings, PositionOffset, VF->GetPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, PreviousPositionOffset, VF->GetPreviousPositionOffset(GroupIndex));
 		BindParam(ShaderBindings, Density, VF->GetHairDensity(GroupIndex));
+		BindParam(ShaderBindings, StableRasterization, VF->UseStableRasterization(GroupIndex) ? 1u : 0u);
+		BindParam(ShaderBindings, ScatterSceneLighing, VF->UseScatterSceneLighting(GroupIndex) ? 1u : 0u);
 		
 		FShaderResourceViewRHIRef CulledDispatchVertexIdsSRV = GDummyCulledDispatchVertexIdsBuffer.SRVUint;
 		FShaderResourceViewRHIRef CulledCompactedRadiusScaleBufferSRV = GDummyCulledDispatchVertexIdsBuffer.SRVFloat;
@@ -207,15 +213,39 @@ void FHairStrandsVertexFactory::InitRHI()
 	check(IsValidRef(GetDeclaration()));
 }
 
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Vertex,		FHairStrandsVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Pixel,		FHairStrandsVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Compute,		FHairStrandsVertexFactoryShaderParameters);
+#if RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_RayHitGroup,	FHairStrandsVertexFactoryShaderParameters);
+#endif
+
+FVertexFactoryShaderParameters* FHairStrandsVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
+{
+	if (ShaderFrequency == SF_Vertex)
+	{
+		return new FHairStrandsVertexFactoryShaderParameters();
+	}
+
+	if (ShaderFrequency == SF_Pixel)
+	{
+		return new FHairStrandsVertexFactoryShaderParameters();
+	}
+
+#if RHI_RAYTRACING
+	if (ShaderFrequency == SF_RayHitGroup)
+	{
+		return new FHairStrandsVertexFactoryShaderParameters();
+	}
+#endif // RHI_RAYTRACING
+
+	return NULL;
+}
+
 void FHairStrandsVertexFactory::ReleaseRHI()
 {
 	FVertexFactory::ReleaseRHI();
 }
 
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Vertex, FHairStrandsVertexFactoryShaderParameters);
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Pixel, FHairStrandsVertexFactoryShaderParameters);
-#if RHI_RAYTRACING
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_RayHitGroup, FHairStrandsVertexFactoryShaderParameters);
-#endif // RHI_RAYTRACING
-
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairStrandsVertexFactory,"/Engine/Private/HairStrands/HairStrandsVertexFactory.ush",true,false,true,true,true,true,true);
+

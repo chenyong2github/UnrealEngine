@@ -3,12 +3,16 @@
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
 
-uint MeshSectionIndex;
-uint MeshMaxIndexCount;
-uint MeshMaxVertexCount;
-uint MeshIndexOffset;
-uint MeshUVsChannelOffset;
-uint MeshUVsChannelCount;
+#ifndef MAX_SECTION_COUNT
+#error MAX_SECTION_COUNT needs to be defined
+#endif
+
+uint MaxSectionCount;
+uint MeshMaxIndexCount		[MAX_SECTION_COUNT];
+uint MeshMaxVertexCount		[MAX_SECTION_COUNT];
+uint MeshIndexOffset		[MAX_SECTION_COUNT];
+uint MeshUVsChannelOffset	[MAX_SECTION_COUNT];
+uint MeshUVsChannelCount	[MAX_SECTION_COUNT];
 
 Buffer<uint> MeshIndexBuffer;
 Buffer<float> MeshPositionBuffer;
@@ -32,17 +36,19 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		return;
 	
 	const FHairTriangleIndex TriangleIndex = DecodeTriangleIndex(RootTriangleIndex[RootIndex]);
-	if (TriangleIndex.SectionIndex != MeshSectionIndex)
+	if (TriangleIndex.SectionIndex >= MaxSectionCount)
 		return;
 
+	const uint SectionIndex = TriangleIndex.SectionIndex;
+
 #if PERMUTATION_WITHUV == 1
-	const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer, MeshUVsBuffer, MeshIndexBuffer, MeshIndexOffset, MeshMaxIndexCount, MeshMaxVertexCount, MeshUVsChannelOffset, MeshUVsChannelCount);
+	const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer, MeshUVsBuffer, MeshIndexBuffer, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex], MeshUVsChannelOffset[SectionIndex], MeshUVsChannelCount[SectionIndex]);
 
 	OutRootTrianglePosition0[RootIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
 	OutRootTrianglePosition1[RootIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
 	OutRootTrianglePosition2[RootIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
 #else
-	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset, MeshMaxIndexCount, MeshMaxVertexCount);
+	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex.TriangleIndex, MeshPositionBuffer, MeshIndexBuffer, MeshIndexOffset[SectionIndex], MeshMaxIndexCount[SectionIndex], MeshMaxVertexCount[SectionIndex]);
 
 	OutRootTrianglePosition0[RootIndex] = (float4(Tri.P0, 1));
 	OutRootTrianglePosition1[RootIndex] = (float4(Tri.P1, 1));

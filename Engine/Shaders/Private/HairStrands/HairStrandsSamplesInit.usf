@@ -1,0 +1,28 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "../Common.ush"
+
+uint MaxVertexCount;
+Buffer<float> VertexPositionsBuffer;
+
+uint MaxSampleCount;
+Buffer<uint> SampleIndicesBuffer;
+RWBuffer<float4> OutSamplePositionsBuffer;
+
+[numthreads(128, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{ 
+	const uint SampleIndex = DispatchThreadId.x;
+	if (SampleIndex >= MaxSampleCount) 
+		return;
+
+	const int VertexIndex = SampleIndicesBuffer[SampleIndex];
+	if (VertexIndex >= MaxVertexCount) 
+		return;
+
+	float3 SamplePosition = float3(0,0,0);
+	SamplePosition.x = VertexPositionsBuffer.Load(VertexIndex*3 + 0);
+	SamplePosition.y = VertexPositionsBuffer.Load(VertexIndex*3 + 1);
+	SamplePosition.z = VertexPositionsBuffer.Load(VertexIndex*3 + 2);
+
+	OutSamplePositionsBuffer[SampleIndex] = float4(SamplePosition,1);
+}

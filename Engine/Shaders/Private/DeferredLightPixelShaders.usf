@@ -106,7 +106,7 @@ uint GetLightingChannelMask(float2 UV)
 
 Texture2D<uint4> HairCategorizationTexture;
 Texture2D<uint> HairVisibilityNodeOffsetAndCount;
-StructuredBuffer<FNodeData> HairVisibilityNodeData;
+StructuredBuffer<FPackedHairSample> HairVisibilityNodeData;
 
 Texture2D<float4> ScreenShadowMaskSubPixelTexture;
 
@@ -155,37 +155,31 @@ void ComputeHairLighting(
 	for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
 	{
 		const uint LocalOffset = NodeDesc.Offset + SampleIt;
-		const FNodeData NodeData = HairVisibilityNodeData[LocalOffset];
-		float			SampleDepth;
-		FVisibilityData SampleVisData;
-		float3			SampleBaseColor;
-		float			SampleRoughness;
-		float			SampleSpecular;
-		uint			SampleLightChannelMask;
-		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLightChannelMask);
+		const FPackedHairSample NodeData = HairVisibilityNodeData[LocalOffset];
+		const FHairSample Sample = UnpackHairSample(NodeData);
 
 	#if USE_LIGHTING_CHANNELS
-		if (!(SampleLightChannelMask & DeferredLightUniforms.LightingChannelMask))
+		if (!(Sample.LightChannelMask & DeferredLightUniforms.LightingChannelMask))
 		{
 			continue;
 		}
 	#endif
 
 		// Inject material data from the visibility/mini-gbuffer for hair
-		const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
+		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
 		FScreenSpaceData HairScreenSpaceData;
 		HairScreenSpaceData.AmbientOcclusion = 1;
-		HairScreenSpaceData.GBuffer.WorldNormal = SampleVisData.Tangent;
-		HairScreenSpaceData.GBuffer.BaseColor = SampleBaseColor;
-		HairScreenSpaceData.GBuffer.Roughness = SampleRoughness;
+		HairScreenSpaceData.GBuffer.WorldNormal = Sample.Tangent;
+		HairScreenSpaceData.GBuffer.BaseColor = Sample.BaseColor;
+		HairScreenSpaceData.GBuffer.Roughness = Sample.Roughness;
 		HairScreenSpaceData.GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
 		HairScreenSpaceData.GBuffer.DiffuseColor = 0;
 		HairScreenSpaceData.GBuffer.SpecularColor = 0;
-		HairScreenSpaceData.GBuffer.Specular = SampleSpecular;
+		HairScreenSpaceData.GBuffer.Specular = Sample.Specular;
 		HairScreenSpaceData.GBuffer.Metallic = 0;
-		HairScreenSpaceData.GBuffer.Depth = SampleDepth;
+		HairScreenSpaceData.GBuffer.Depth = SceneDepth;
 		HairScreenSpaceData.GBuffer.GBufferAO = 1;
-		HairScreenSpaceData.GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride, 0, 0, 0);;
+		HairScreenSpaceData.GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);
 		HairScreenSpaceData.GBuffer.IndirectIrradiance = 0;
 		HairScreenSpaceData.GBuffer.PrecomputedShadowFactors = 1;
 
@@ -227,7 +221,7 @@ void ComputeHairLighting(
 
 		const float4 LinearColor = Radiance * Attenuation;
 		const float4 PercepualColor = LinearToPerceptual(LinearColor);
-		const float LocalCoverage = From8bitCoverage(SampleVisData.Coverage8bit);
+		const float LocalCoverage = From8bitCoverage(Sample.Coverage8bit);
 		LocalColor += PercepualColor * LocalCoverage;
 	}
 	const float PixelCoverage = saturate(CatData.PixelCoverage);

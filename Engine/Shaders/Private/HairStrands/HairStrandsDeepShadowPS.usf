@@ -55,66 +55,26 @@ void MainDom(
 
 #define DEBUG_OUTPUT 0
 
-#if DEBUG_OUTPUT == 1
-	#define REGISTER_OUT_0 u1
-	#define REGISTER_OUT_1 u2
-	#define REGISTER_OUT_2 u3
-	#define REGISTER_OUT_3 u4
-	#define REGISTER_OUT_4 u5
-#else
-	#define REGISTER_OUT_0 u0
-	#define REGISTER_OUT_1 u1
-	#define REGISTER_OUT_2 u2
-	#define REGISTER_OUT_3 u3
-	#define REGISTER_OUT_4 u4
-#endif
-
-#if VF_STRAND_HAIR
-  #if SM5_PROFILE && COMPILER_HLSL
-	RWTexture3D<uint> DensityTexture  : register(REGISTER_OUT_0);
-
-	#if SUPPORT_TANGENT_PROPERTY == 1
-	RWTexture3D<uint> TangentXTexture : register(REGISTER_OUT_1);
-	RWTexture3D<uint> TangentYTexture : register(REGISTER_OUT_2);
-	RWTexture3D<uint> TangentZTexture : register(REGISTER_OUT_3);
-	#endif
-
-	#if SUPPORT_MATERIAL_PROPERTY == 1
-	RWTexture3D<uint> MaterialTexture : register(REGISTER_OUT_4);
-	#endif
-  #else
-	RWTexture3D<uint> DensityTexture;
-
-	#if SUPPORT_TANGENT_PROPERTY == 1
-	RWTexture3D<uint> TangentXTexture;
-	RWTexture3D<uint> TangentYTexture;
-	RWTexture3D<uint> TangentZTexture;
-	#endif
-
-	#if SUPPORT_MATERIAL_PROPERTY == 1
-	RWTexture3D<uint> MaterialTexture;
-	#endif
-  #endif
-#endif 
-
 void MainVoxel(
 #if SUPPORT_TANGENT_PROPERTY == 1 || SUPPORT_MATERIAL_PROPERTY == 1 
 	FVertexFactoryInterpolantsVSToPS Interpolants,
 #endif
 	in float4 SvPosition : SV_Position,
-	in float4 PixelPosition : TEXCOORD6,
-	in float HairCoverage: CUSTOM_COVERAGE
+	in float4 WorldPositon_Coverage : TEXCOORD6
 #if DEBUG_OUTPUT
 ,	out uint OutColor : SV_Target0 // For debug purpose only
 #endif
 )
 {
+	const float3 WorldPosition = WorldPositon_Coverage.xyz;
+	const float HairCoverage = WorldPositon_Coverage.w;
+
 #if VF_STRAND_HAIR  
   #if SUPPORT_SPARSE	
 	const FPackedVirtualVoxelNodeDesc PackedNode = VoxelRasterPass.VirtualVoxel.NodeDescBuffer[VoxelRasterPass.MacroGroupId];
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VoxelRasterPass.VirtualVoxel.PageResolution);
 
-	const int3 VoxelCoord = PositionToCoord(PixelPosition.xyz, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.VirtualResolution);
+	const int3 VoxelCoord = PositionToCoord(WorldPosition.xyz, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.VirtualResolution);
 	if (VoxelCoord.x >= 0 || VoxelCoord.y >= 0 || VoxelCoord.z >= 0 ||
 		VoxelCoord.x < int(NodeDesc.VirtualResolution.x) || 
 		VoxelCoord.y < int(NodeDesc.VirtualResolution.y) || 
@@ -135,7 +95,7 @@ void MainVoxel(
 
 				const float HairCount			= HairCoverage;
 				const float VoxelFixPointScale	= GetVoxelDensityFixPointScale();
-				InterlockedAdd(DensityTexture[PageVoxelCoord], HairCount * VoxelFixPointScale);
+				InterlockedAdd(VoxelRasterPass.DensityTexture[PageVoxelCoord], HairCount * VoxelFixPointScale);
 
 				#if DEBUG_OUTPUT
 				OutColor = 0xFF;
@@ -152,7 +112,7 @@ void MainVoxel(
 		}
 	}
   #else
-	const int3 VoxelCoord = (PixelPosition.xyz - VoxelRasterPass.VoxelMinAABB) / (VoxelRasterPass.VoxelMaxAABB - VoxelRasterPass.VoxelMinAABB) * VoxelRasterPass.VoxelResolution;
+	const int3 VoxelCoord = (WorldPosition.xyz - VoxelRasterPass.VoxelMinAABB) / (VoxelRasterPass.VoxelMaxAABB - VoxelRasterPass.VoxelMinAABB) * VoxelRasterPass.VoxelResolution;
 		 
 	if (VoxelCoord.x >= 0 || VoxelCoord.y >= 0 || VoxelCoord.z >= 0 ||
 		VoxelCoord.x < int(VoxelRasterPass.VoxelResolution.x) || 
@@ -161,15 +121,15 @@ void MainVoxel(
 	{
 		const float HairCount = HairCoverage;
 		const float VoxelFixPointScale = GetVoxelDensityFixPointScale();
-		InterlockedAdd(DensityTexture[VoxelCoord], HairCount * VoxelFixPointScale);
+		InterlockedAdd(VoxelRasterPass.DensityTexture[VoxelCoord], HairCount * VoxelFixPointScale);
 
 		#if SUPPORT_TANGENT_PROPERTY == 1
 		const half3 Tangent = GetTangentToWorld2(Interpolants).xyz;
 		const uint3 Tangent8bits = QuantizeTo8Bits(Tangent);
 
-		InterlockedAdd(TangentXTexture[VoxelCoord], Tangent8bits.x);
-		InterlockedAdd(TangentYTexture[VoxelCoord], Tangent8bits.y);
-		InterlockedAdd(TangentZTexture[VoxelCoord], Tangent8bits.z);
+		InterlockedAdd(VoxelRasterPass.TangentXTexture[VoxelCoord], Tangent8bits.x);
+		InterlockedAdd(VoxelRasterPass.TangentYTexture[VoxelCoord], Tangent8bits.y);
+		InterlockedAdd(VoxelRasterPass.TangentZTexture[VoxelCoord], Tangent8bits.z);
 		#endif	
 
 		#if SUPPORT_MATERIAL_PROPERTY == 1
@@ -187,7 +147,7 @@ void MainVoxel(
 			const float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 			const float Roughness = GetMaterialRoughness(PixelMaterialInputs);
 			const uint EncodedBaseColorAndRoughness = EncodeBaseColorAndRoughness(BaseColor, Roughness);
-			InterlockedMax(MaterialTexture[VoxelCoord], EncodedBaseColorAndRoughness);
+			InterlockedMax(VoxelRasterPass.MaterialTexture[VoxelCoord], EncodedBaseColorAndRoughness);
 		}
 		#endif
 

@@ -382,7 +382,10 @@ void MainMarkSectionIdCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint VertexIndex = MeshIndexBuffer[Index + MeshIndexOffset];
 	if (VertexIndex < MeshMaxVertexCount)
 	{
-		OutVertexSectionId[VertexIndex] = MeshSectionId;
+		// Use atomic min as a vertex can belong to several sections. Since 
+		// currently one of the assumption is that the transfered section will 
+		// be section 0, this works fine.
+		InterlockedMin(OutVertexSectionId[VertexIndex], MeshSectionId);
 	}
 }
 

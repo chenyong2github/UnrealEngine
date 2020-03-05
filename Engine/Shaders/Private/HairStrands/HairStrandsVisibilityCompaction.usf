@@ -28,7 +28,6 @@ float CosTangentThreshold;
 
 uint2 OutputResolution;
 uint MaxNodeCount;
-uint HairVisibilityMSAASampleCount;
 uint2 ResolutionOffset;
 
 RWTexture2D<uint> OutCompactNodeCounter;
@@ -36,7 +35,7 @@ RWTexture2D<uint> OutCompactNodeIndex;
 #if PERMUTATION_VISIBILITY
 	RWStructuredBuffer<FNodeVis> OutCompactNodeData;
 #else
-	RWStructuredBuffer<FNodeData> OutCompactNodeData;
+	RWStructuredBuffer<FPackedHairSample> OutCompactNodeData;
 #endif
 RWStructuredBuffer<uint> OutCompactNodeCoord;
 RWTexture2D<uint4> OutCategorizationTexture;
@@ -56,6 +55,10 @@ RWTexture2D<uint4> OutCategorizationTexture;
 
 groupshared uint AllocationNodeCount;
 groupshared uint AllocationNodeOffset;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PPLL
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if PERMUTATION_PPLL
 #define PPLL_MAX_RENDER_NODE_COUNT PERMUTATION_PPLL
@@ -102,19 +105,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		uint NodeIndex = FirstNodeIndex;
 		while (NodeIndex != 0xFFFFFFFF)
 		{
-			FPPLLNodeData PPLLNode = PPLLNodeData[NodeIndex];
+			const FPPLLNodeData PPLLNode = PPLLNodeData[NodeIndex];
+			const uint Coverage8bit		 = GetCoverage8Bits(PPLLNode);
+			const float Coverage		 = From8bitCoverage(Coverage8bit);
 
-			// Decode data we need
-			float			Depth = 0.0f;
-			FVisibilityData	VisibilityData = (FVisibilityData)0;
-			float3			BaseColor = 0.0f;
-			float			Roughness = 0.0f;
-			float			Specular = 0;
-			uint			LightChannelMask = 0;
-			uint			Coverage16bit = 0;
-			DecodeNodeData(ConvertToNodeData(PPLLNode, Coverage16bit), Depth, VisibilityData, BaseColor, Roughness, Specular, LightChannelMask);
-
-			const float Coverage = From8bitCoverage(VisibilityData.Coverage8bit);
 			TotalTransmittance *= 1.0f - Coverage;
 
 			int InsertPos;
@@ -145,7 +139,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 				// Insert new node
 				SortedIndex[InsertPos] = NodeIndex;
-				SortedDepth[InsertPos] = Depth;
+				SortedDepth[InsertPos] = PPLLNode.Depth;
 
 				PixelNodeCount++;
 			}
@@ -181,20 +175,11 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		float ValidPixelSampleTotalCoverage = 0.0f;
 		float SortedCoverage[PPLL_MAX_RENDER_NODE_COUNT];
 		float TotalSortedTransmittance = 1.0f;
-		for (int i = 0; i < PixelRenderNodecount; ++i)
+		for (uint i = 0; i < PixelRenderNodecount; ++i)
 		{
-			const uint NodePPLLIndex = SortedIndex[i];
-			FPPLLNodeData PPLLNode = PPLLNodeData[NodePPLLIndex];
-
-			// Decode data we need
-			float			Depth = 0.0f;
-			FVisibilityData	VisibilityData = (FVisibilityData)0;
-			float3			BaseColor = 0.0f;
-			float			Roughness = 0.0f;
-			float			Specular = 0;
-			uint			LightChannelMask = 0;
-			float			Coverage16bit = 0;
-			DecodeNodeData(ConvertToNodeData(PPLLNode, Coverage16bit), Depth, VisibilityData, BaseColor, Roughness, Specular, LightChannelMask);
+			const uint NodePPLLIndex	 = SortedIndex[i];
+			const FPPLLNodeData PPLLNode = PPLLNodeData[NodePPLLIndex];
+			const uint Coverage16bit	 = GetCoverage16Bits(PPLLNode);
 
 			const float Coverage = From16bitCoverage(Coverage16bit);
 
@@ -210,35 +195,23 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		//////////
 		// Third pass: write out compact nodes for rendering
-		for (uint i = 0; i < PixelRenderNodecount; ++i)
+		for (uint j = 0; j < PixelRenderNodecount; ++j)
 		{
-			const uint NodePPLLIndex = SortedIndex[i];
+			const uint NodePPLLIndex = SortedIndex[j];
 			uint Coverage16bit = 0;
 			FPPLLNodeData PPLLNode = PPLLNodeData[NodePPLLIndex];
-			FNodeData OutNodeData = ConvertToNodeData(PPLLNode, Coverage16bit);
-			float			Depth = 0.0f;
-			FVisibilityData	VisibilityData = (FVisibilityData)0;
-			float3			BaseColor = 0.0f;
-			float			Roughness = 0.0f;
-			float			Specular = 0.0f;
-			uint			LightChannelMask = 0;
-			DecodeNodeData(OutNodeData, Depth, VisibilityData, BaseColor, Roughness, Specular, LightChannelMask);
 
 			// Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
-			uint Coverage8bit = To8bitCoverage(SortedCoverage[i] / float(ValidPixelSampleTotalCoverage));
 			// Patch the coverage on the out node
-			VisibilityData.Coverage8bit = Coverage8bit;
-			OutNodeData = ConvertToNodeData(Depth, VisibilityData, BaseColor, Roughness, Specular, LightChannelMask);
+			const float PatchedCoverage8bit = To8bitCoverage(SortedCoverage[j] / float(ValidPixelSampleTotalCoverage));
+			FPackedHairSample OutNodeData = ConvertToPackedHairSample(PPLLNode, PatchedCoverage8bit);
 
-			Categorization.TotalCoverage8bit += Coverage8bit;
+			Categorization.TotalCoverage8bit += PatchedCoverage8bit;
 			Categorization.ClosestDepth = max(Categorization.ClosestDepth, OutNodeData.Depth); // Inverse-Z
 
-
-
-			// TODOAGREGATE if last, Create FVisibilityData and FNodeData from aggregated  data
-			//FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular)
-			OutCompactNodeData[OffsetInStorage + i] = OutNodeData;
-			OutCompactNodeCoord[OffsetInStorage + i] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
+			// TODOAGREGATE if last, Create FPackedHairSample from aggregated  data
+			OutCompactNodeData[OffsetInStorage + j] = OutNodeData;
+			OutCompactNodeCoord[OffsetInStorage + j] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
 
 
 
@@ -286,24 +259,37 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 }
 
 
-#else // PERMUTATION_PPLL //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#else // PERMUTATION_PPLL
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MSAA visiblity buffer
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FSampleSetDesc
+{
+	uint   UniqueSampleCount;
+	uint   ValidSampleCount;
+	uint   HairSampleCount;
+};
+
+#ifndef PERMUTATION_MSAACOUNT
+	#error PERMUTATION_MSAACOUNT is not defined
+#endif
 
 #if PERMUTATION_VISIBILITY
 
 void ComputeUniqueSamplesWithoutDepthTest(
-	inout uint3 OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
+	inout uint3 OutSamples[PERMUTATION_MSAACOUNT],
 	inout FSampleSetDesc OutSet,
 	const uint2 PixelCoord,
-	const uint SampleCount,
 	const float OpaqueDepth,
-	Texture2DMS<uint, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_IDTexture,
-	Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_DepthTexture)
+	Texture2DMS<uint, PERMUTATION_MSAACOUNT>  InMSAA_IDTexture,
+	Texture2DMS<float, PERMUTATION_MSAACOUNT>  InMSAA_DepthTexture)
 {
 	OutSet.UniqueSampleCount = 0;
 	OutSet.ValidSampleCount = 0;
 
-	OutSet.HairSampleCount = clamp(SampleCount, 0, HAIR_VISIBILITY_MAXSAMPLECOUNT);
+	OutSet.HairSampleCount = PERMUTATION_MSAACOUNT;
 	const uint InvalidSample = 0xFFFF;
 
 	float ClosestDepth = 0; // Inverse-Z
@@ -351,12 +337,8 @@ void ComputeUniqueSamplesWithoutDepthTest(
 	}
 }
 
-#ifndef HAIR_VISIBILITY_MAXSAMPLECOUNT
-#error HAIR_VISIBILITY_MAXSAMPLECOUNT is not defined
-#endif
-
-Texture2DMS<uint, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_IDTexture;
-Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_DepthTexture;
+Texture2DMS<uint, PERMUTATION_MSAACOUNT> MSAA_IDTexture;
+Texture2DMS<float, PERMUTATION_MSAACOUNT> MSAA_DepthTexture;
 
 #if PERMUTATION_VIEWTRANSMITTANCE == 1
 Texture2D<float> ViewTransmittanceTexture;
@@ -372,18 +354,17 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	}
 
 	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
-	if (HairVisibilityMSAASampleCount == 0 || PixelCoord.x >= OutputResolution.x || PixelCoord.y >= OutputResolution.y)
+	if (PixelCoord.x >= OutputResolution.x || PixelCoord.y >= OutputResolution.y)
 		PixelCoord = uint2(0, 0);
 
 	FSampleSetDesc SampleDesc;
 
 	const float OpaqueDepth = SceneTexturesStruct.SceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
-	uint3 Samples[HAIR_VISIBILITY_MAXSAMPLECOUNT];		// x:PrimitiveId|MaterialId, y:Weight, z:SampleIt
+	uint3 Samples[PERMUTATION_MSAACOUNT];		// x:PrimitiveId|MaterialId, y:Weight, z:SampleIt
 	ComputeUniqueSamplesWithoutDepthTest(
 		Samples,
 		SampleDesc,
 		PixelCoord,
-		HairVisibilityMSAASampleCount,
 		OpaqueDepth,
 		MSAA_IDTexture, 
 		MSAA_DepthTexture);
@@ -411,7 +392,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		{
 			for (uint OutIndex = 0; OutIndex < NodeDesc.Count; ++OutIndex)
 			{
-				const FVisSample VisSample = DecodeVisSample(Samples[OutIndex].x);
+				const FHairVisSample VisSample = UnpackHairVisSample(Samples[OutIndex].x);
 
 				// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
 				FNodeVis OutNodeVis;
@@ -436,7 +417,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 #if PERMUTATION_VIEWTRANSMITTANCE == 1
 	Categorization.PixelCoverage = 1.0f - ViewTransmittanceTexture.Load(uint3(PixelCoord, 0));
 #else
-	Categorization.PixelCoverage = SampleDesc.ValidSampleCount / float(HAIR_VISIBILITY_MAXSAMPLECOUNT);
+	Categorization.PixelCoverage = SampleDesc.ValidSampleCount / float(PERMUTATION_MSAACOUNT);
 #endif
 
 	OutCompactNodeIndex[PixelCoord] = EncodeNodeDesc(NodeDesc);
@@ -445,28 +426,31 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 #else // PERMUTATION_VISIBILITY
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MSAA buffer
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void ComputeUniqueSamplesWithoutDepthTest(
-	inout uint3 OutSamples[HAIR_VISIBILITY_MAXSAMPLECOUNT],
+	inout uint3 OutSamples[PERMUTATION_MSAACOUNT],
 	inout FSampleSetDesc OutSet,
 	const uint2 PixelCoord,
-	const uint SampleCount,
 	const float OpaqueDepth,
-	Texture2DMS<uint4, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_IDTexture,
-	Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT>  InMSAA_DepthTexture)
+	Texture2DMS<uint2, PERMUTATION_MSAACOUNT>  InMSAA_IDTexture,
+	Texture2DMS<float, PERMUTATION_MSAACOUNT>  InMSAA_DepthTexture)
 {
 	OutSet.UniqueSampleCount = 0;
 	OutSet.ValidSampleCount = 0;
 
-	OutSet.HairSampleCount = clamp(SampleCount, 0, HAIR_VISIBILITY_MAXSAMPLECOUNT);
+	OutSet.HairSampleCount = PERMUTATION_MSAACOUNT;
 	const uint InvalidSample = 0xFFFF;
 
 #if PERMUTATION_MATERIAL_COMPACTION == 1
-	float4 UniqueTangentAndDepths[HAIR_VISIBILITY_MAXSAMPLECOUNT];
+	float4 UniqueTangentAndDepths[PERMUTATION_MSAACOUNT];
 #endif
 	float ClosestDepth = 0; // Inverse-Z
 	for (uint SampleIt = 0; SampleIt < OutSet.HairSampleCount; ++SampleIt)
 	{
-		const uint4 EncodedData = InMSAA_IDTexture.Load(PixelCoord, SampleIt);
+		const uint2 EncodedData = InMSAA_IDTexture.Load(PixelCoord, SampleIt);
 		const bool bIsValid = IsValidHairData(EncodedData);
 		if (!bIsValid)
 			continue;
@@ -481,17 +465,22 @@ void ComputeUniqueSamplesWithoutDepthTest(
 		const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
 	#endif
 
-		const FVisibilityData VisibilityData = DecodeVisibilityData(EncodedData);
+		uint PrimitiveId;
+		uint MacroGroupId;
+		uint Coverage8bit;
+		float3 Tangent;
+
+		UnpackHairMRT0(EncodedData, PrimitiveId, MacroGroupId, Coverage8bit, Tangent);
 		bool bAlreadyExist = false;
 		for (uint UniqueIt = 0; UniqueIt < OutSet.UniqueSampleCount; ++UniqueIt)
 		{
 		#if PERMUTATION_MATERIAL_COMPACTION == 1
 			const bool bIsSimilar  = 
-				VisibilityData.PrimitiveId == OutSamples[UniqueIt].x ||
-				(abs(dot(UniqueTangentAndDepths[UniqueIt].xyz, VisibilityData.Tangent)) > CosTangentThreshold &&
+				PrimitiveId == OutSamples[UniqueIt].x ||
+				(abs(dot(UniqueTangentAndDepths[UniqueIt].xyz, Tangent)) > CosTangentThreshold &&
 					abs(UniqueTangentAndDepths[UniqueIt].w - SceneDepth) < DepthTheshold);
 		#else
-			const bool bIsSimilar = VisibilityData.PrimitiveId == OutSamples[UniqueIt].x;
+			const bool bIsSimilar = PrimitiveId == OutSamples[UniqueIt].x;
 		#endif
 
 			if (bIsSimilar)
@@ -510,10 +499,10 @@ void ComputeUniqueSamplesWithoutDepthTest(
 		if (!bAlreadyExist)
 		{
 		#if PERMUTATION_MATERIAL_COMPACTION == 1
-			UniqueTangentAndDepths[OutSet.UniqueSampleCount] = float4(VisibilityData.Tangent, SceneDepth);
+			UniqueTangentAndDepths[OutSet.UniqueSampleCount] = float4(Tangent, SceneDepth);
 		#endif
 
-			OutSamples[OutSet.UniqueSampleCount].x = VisibilityData.PrimitiveId;
+			OutSamples[OutSet.UniqueSampleCount].x = PrimitiveId;
 			OutSamples[OutSet.UniqueSampleCount].y = 1;
 			OutSamples[OutSet.UniqueSampleCount].z = SampleIt;
 			++OutSet.UniqueSampleCount;
@@ -521,17 +510,13 @@ void ComputeUniqueSamplesWithoutDepthTest(
 	}
 }
 
-#ifndef HAIR_VISIBILITY_MAXSAMPLECOUNT
-#error HAIR_VISIBILITY_MAXSAMPLECOUNT is not defined
-#endif
-
-Texture2DMS<uint4, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_IDTexture;
-Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_DepthTexture;
-Texture2DMS<float4,HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_MaterialTexture;
-Texture2DMS<float4,HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_AttributeTexture;
+Texture2DMS<uint2, PERMUTATION_MSAACOUNT> MSAA_IDTexture;
+Texture2DMS<float, PERMUTATION_MSAACOUNT> MSAA_DepthTexture;
+Texture2DMS<float4,PERMUTATION_MSAACOUNT> MSAA_MaterialTexture;
+Texture2DMS<float4,PERMUTATION_MSAACOUNT> MSAA_AttributeTexture;
 
 #if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
-Texture2DMS<float2, HAIR_VISIBILITY_MAXSAMPLECOUNT> MSAA_VelocityTexture;
+Texture2DMS<float2, PERMUTATION_MSAACOUNT> MSAA_VelocityTexture;
 #endif
 
 #if PERMUTATION_VIEWTRANSMITTANCE == 1
@@ -548,18 +533,17 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	}
 
 	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
-	if (HairVisibilityMSAASampleCount == 0 || PixelCoord.x >= OutputResolution.x || PixelCoord.y >= OutputResolution.y)
+	if (PixelCoord.x >= OutputResolution.x || PixelCoord.y >= OutputResolution.y)
 		PixelCoord = uint2(0, 0);
 
 	FSampleSetDesc SampleDesc;
 
 	const float OpaqueDepth = SceneTexturesStruct.SceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
-	uint3 Samples[HAIR_VISIBILITY_MAXSAMPLECOUNT]; // x:PrimitiveId, y:Weight, z:SampleIndex
+	uint3 Samples[PERMUTATION_MSAACOUNT]; // x:PrimitiveId, y:Weight, z:SampleIndex
 	ComputeUniqueSamplesWithoutDepthTest(
 		Samples,
 		SampleDesc,
 		PixelCoord,
-		HairVisibilityMSAASampleCount,
 		OpaqueDepth,
 		MSAA_IDTexture, 
 		MSAA_DepthTexture);
@@ -605,32 +589,21 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 				const uint SampleIt = Samples[OutIndex].z;
 
 				// Read all material data
-				// #hair_todo: simplify the encoding. technically we don't need to decompress the visibility data, 
-				// as we only need to patch the weight
-				// #hair_todo: merge similar sample
-				FNodeData OutNodeData;
+				FPackedHairSample OutNodeData;
 				{
-					const float SampleDepth = MSAA_DepthTexture.Load(PixelCoord, SampleIt);
-					const uint4 EncodedData = MSAA_IDTexture.Load(PixelCoord, SampleIt);
-					FVisibilityData VisibilityData = DecodeVisibilityData(EncodedData);
+					FHairSample HairSample;
+					HairSample.Depth = MSAA_DepthTexture.Load(PixelCoord, SampleIt);
+
+					UnpackHairMRT0(MSAA_IDTexture.Load(PixelCoord, SampleIt), HairSample.PrimitiveId, HairSample.MacroGroupId, HairSample.Coverage8bit, HairSample.Tangent);
+					UnpackHairMRT1(MSAA_MaterialTexture.Load(PixelCoord, SampleIt), HairSample.BaseColor, HairSample.Roughness);
+					UnpackHairMRT2(MSAA_AttributeTexture.Load(PixelCoord, SampleIt), HairSample.Specular, HairSample.LightChannelMask, HairSample.Backlit, HairSample.bScatterSceneLighting);
+
 					// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
-					VisibilityData.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.ValidSampleCount));
-					Categorization.TotalCoverage8bit += VisibilityData.Coverage8bit;
-					Categorization.ClosestDepth = max(Categorization.ClosestDepth, SampleDepth); // Inverse-Z
+					HairSample.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.ValidSampleCount));
+					Categorization.TotalCoverage8bit += HairSample.Coverage8bit;
+					Categorization.ClosestDepth = max(Categorization.ClosestDepth, HairSample.Depth); // Inverse-Z
 
-					float4 BaseColorAndRoughness = MSAA_MaterialTexture.Load(PixelCoord, SampleIt);
-					BaseColorAndRoughness.xyz = BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz; // Cheap gamma encoding since this is encoded into 8bit target
-					const float2 SpecularAndLigthChannelMask = MSAA_AttributeTexture.Load(PixelCoord, SampleIt).xy;
-					const float Specular = SpecularAndLigthChannelMask.x;
-					const uint LightChannelMask = SpecularAndLigthChannelMask.y * 0xFF;
-
-					OutNodeData = ConvertToNodeData(
-						SampleDepth,
-						VisibilityData,
-						BaseColorAndRoughness.xyz,
-						BaseColorAndRoughness.w,
-						Specular,
-						LightChannelMask);
+					OutNodeData = PackHairSample(HairSample);
 
 					#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
 					const float2 EncodedVelocity = MSAA_VelocityTexture.Load(PixelCoord, SampleIt);
@@ -640,10 +613,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 					#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
 					const float2 EncodedVelocity = MSAA_VelocityTexture.Load(PixelCoord, SampleIt);
-					if (ClosestDepth < SampleDepth) // Inverse-Z
+					if (ClosestDepth < HairSample.Depth) // Inverse-Z
 					{
 						ClosestEncodedVelocity = EncodedVelocity;
-						ClosestDepth = SampleDepth;
+						ClosestDepth = HairSample.Depth;
 					}
 
 					#endif
@@ -668,7 +641,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			#if PERMUTATION_VIEWTRANSMITTANCE == 1
 			Categorization.PixelCoverage = 1.0f - ViewTransmittanceTexture.Load(uint3(PixelCoord,0));
 			#else
-			Categorization.PixelCoverage = SampleDesc.ValidSampleCount / float(HAIR_VISIBILITY_MAXSAMPLECOUNT);
+			Categorization.PixelCoverage = SampleDesc.ValidSampleCount / float(PERMUTATION_MSAACOUNT);
 			#endif
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG

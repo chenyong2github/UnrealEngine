@@ -12,6 +12,7 @@
 #include "Engine/EngineTypes.h"
 #include "Shader.h"
 #include "RenderResource.h"
+#include "RenderGraphResources.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Misc/Helpers
@@ -36,13 +37,11 @@ enum class EHairStrandsDebugMode : uint8
 /// Return the active debug view mode
 RENDERER_API EHairStrandsDebugMode GetHairStrandsDebugStrandsMode();
 
-/// Return the number of sample subsample count used for the visibility pass
-RENDERER_API uint32 GetHairVisibilitySampleCount();
-
 struct FMinHairRadiusAtDepth1
 {
 	float Primary = 1;
 	float Velocity = 1;
+	float Stable = 1;
 };
 
 /// Compute the strand radius at a distance of 1 meter
@@ -85,6 +84,18 @@ public:
 	FRWBuffer& GetCulledVertexRadiusScaleBuffer() { return CulledVertexRadiusScaleBuffer; }
 	bool GetCullingResultAvailable() const { return bCullingResultAvailable; }
 	void SetCullingResultAvailable(bool b) { bCullingResultAvailable = b; }
+
+	struct VertexFactoryInput 
+	{
+		FShaderResourceViewRHIRef HairPositionBuffer = nullptr;
+		FVector HairPositionOffset = FVector::ZeroVector;
+		uint32 VertexCount = 0;
+		float HairRadius = 0;
+		float HairLength = 0;
+		float HairDensity = 0;
+		FTransform LocalToWorldTransform;
+	};
+	VertexFactoryInput VFInput;
 
 private:
 
@@ -155,6 +166,7 @@ typedef void(*THairStrandsResetInterpolationFunction)(
 typedef void (*THairStrandsInterpolationFunction)(
 	FRHICommandListImmediate& RHICmdList, 
 	const struct FShaderDrawDebugData* ShaderDrawData,
+	const FTransform& LocalToWorld,
 	struct FHairStrandsInterpolationInput* Input, 
 	struct FHairStrandsInterpolationOutput* Output, 
 	struct FHairStrandsProjectionHairData& RenHairProjection,
@@ -221,6 +233,15 @@ struct FHairStrandsProjectionHairData
 		FRWBuffer* DeformedRootTrianglePosition0Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition1Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition2Buffer = nullptr;
+
+		// Samples to be used for rbf mesh interpolatrion
+		uint32 SampleCount = 0;
+		FRWBuffer* MeshInterpolationWeightsBuffer = nullptr;
+		FRWBuffer* MeshSampleIndicesBuffer = nullptr;
+
+		FRWBuffer* RestSamplePositionsBuffer = nullptr;
+		FRWBuffer* DeformedSamplePositionsBuffer = nullptr;
+		FRWBuffer* MeshSampleWeightsBuffer = nullptr;
 	};
 
 	struct HairGroup
@@ -251,14 +272,14 @@ struct FHairStrandsPrimitiveResources
 	TArray<FHairGroup> Groups;
 };
 
-FHairStrandsPrimitiveResources GetHairStandsPrimitiveResources(uint64 Id);
+FHairStrandsPrimitiveResources GetHairStandsPrimitiveResources(uint32 ComponentId);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug infos
 
 struct FHairStrandsDebugInfo
 {
-	uint64 Id = 0;
+	uint32 ComponentId = 0;
 	EWorldType::Type WorldType = EWorldType::None;
 
 	struct HairGroup
@@ -269,6 +290,8 @@ struct FHairStrandsDebugInfo
 		uint32 CurveCount = 0;
 
 		bool bHasSkinInterpolation = false;
+		bool bHasBinding = false;
+		bool bHasSimulation = false;
 		uint32 LODCount = 0;
 	};
 	TArray<HairGroup> HairGroups;
@@ -300,7 +323,8 @@ struct FHairStrandsProjectionDebugInfo
 // Registrations
 
 RENDERER_API void RegisterHairStrands(
-	uint64 Id,
+	uint32 ComponentId,
+	uint32 SkeletalComponentId,
 	EWorldType::Type WorldType,
 	const FHairStrandsInterpolationData& E,
 	const FHairStrandsProjectionHairData& RenProjection,
@@ -309,29 +333,30 @@ RENDERER_API void RegisterHairStrands(
 	const FHairStrandsDebugInfo& DebugInfo,
 	const FHairStrandsProjectionDebugInfo& DebugProjectionInfo);
 
-RENDERER_API void UnregisterHairStrands(uint64 Id);
+RENDERER_API void UnregisterHairStrands(uint32 ComponentId);
 
 RENDERER_API bool UpdateHairStrands(
-	uint64 Id,
+	uint32 ComponentId,
 	EWorldType::Type NewWorldType);
 
 RENDERER_API bool UpdateHairStrands(
-	uint64 Id,
+	uint32 ComponentId,
 	EWorldType::Type WorldType,
 	const FTransform& HairLocalToWorld,
 	const FHairStrandsProjectionHairData& RenProjection,
 	const FHairStrandsProjectionHairData& SimProjection);
 
 RENDERER_API bool UpdateHairStrands(
-	uint64 Id,
+	uint32 ComponentId,
 	EWorldType::Type WorldType,
 	const FTransform& HairLocalToWorld,
 	const FTransform& MeshLocalToWorld);
 
-RENDERER_API bool UpdateHairStrands(
-	uint64 Id, 
-	EWorldType::Type WorldType, 
-	const class FSkeletalMeshObject* MeshObject);
+RENDERER_API bool UpdateHairStrandsDebugInfo(
+	uint32 ComponentId,
+	EWorldType::Type WorldType,
+	const uint32 GroupIt,
+	const bool bSimulationEnable);
 
 RENDERER_API bool IsHairStrandsSupported(const EShaderPlatform Platform);
 bool IsHairStrandsEnable(EShaderPlatform Platform);
@@ -369,11 +394,23 @@ RENDERER_API void RunProjection(
 	FHairStrandsProjectionHairData& RenProjectionHairData,
 	FHairStrandsProjectionHairData& SimProjectionHairData);
 
+RENDERER_API FHairStrandsProjectionMeshData ExtractMeshData(class FSkeletalMeshRenderData* RenderData);
+FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(struct FHairStrandsRootResource* In);
+
 typedef void (*TBindingProcess)(FRHICommandListImmediate& RHICmdList, void* Asset);
 RENDERER_API void EnqueueGroomBindingQuery(void* Asset, TBindingProcess BindingProcess);
-void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, class FGlobalShaderMap* ShaderMap);
-bool HasHairStrandsProjectionQuery(EShaderPlatform Platform);
 
-RENDERER_API FHairStrandsProjectionMeshData ExtractMeshData(class FSkeletalMeshRenderData* RenderData);
 
-FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(struct FHairStrandsRootResource* In);
+struct FFollicleInfo
+{
+	enum EChannel {R = 0, G = 1, B = 2, A = 3};
+
+	uint32 GroomId = ~0;
+	EChannel Channel = R;
+	uint32 KernelSizeInPixels = 0;
+};
+
+RENDERER_API void EnqueueFollicleMaskUpdateQuery(const TArray<FFollicleInfo>& Infos, class UTexture2D* OutTexture);
+
+void RunHairStrandsProcess(FRHICommandListImmediate& RHICmdList, class FGlobalShaderMap* ShaderMap); 
+bool HasHairStrandsProcess(EShaderPlatform Platform);

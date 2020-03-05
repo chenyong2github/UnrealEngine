@@ -37,7 +37,8 @@ struct FHairStrandsMacroGroupData
 		FMeshBatchAndRelevance MeshBatchAndRelevance;
 		uint32 MaterialId;
 		uint32 ResourceId;
-		uint32 GroupIndex;
+		uint32 GroupIndex;		
+		bool IsCullingEnable() const;
 	};
 	typedef TArray<PrimitiveInfo, SceneRenderingAllocator> TPrimitiveInfos;
 

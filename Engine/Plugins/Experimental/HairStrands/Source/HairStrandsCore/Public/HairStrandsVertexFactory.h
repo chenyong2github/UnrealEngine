@@ -66,6 +66,8 @@ public:
 	inline FRHIShaderResourceView* GetMaterialSRV(uint32 GroupIndex) const			{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairMaterialBuffer; }
 	inline FRHIShaderResourceView* GetTangentSRV(uint32 GroupIndex) const			{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairTangentBuffer; }
 
+	inline bool  UseStableRasterization(uint32 GroupIndex) const					{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.bUseStableRasterization; };
+	inline bool  UseScatterSceneLighting(uint32 GroupIndex) const					{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.bScatterSceneLighting; };
 	inline float GetMaxStrandRadius(uint32 GroupIndex) const						{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairRadius; };
 	inline float GetMaxStrandLength(uint32 GroupIndex) const						{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairLength; };
 	inline float GetHairDensity(uint32 GroupIndex) const							{ check(Data.InterpolationOutput); return Data.InterpolationOutput->HairGroups[GroupIndex].VFInput.HairDensity; };

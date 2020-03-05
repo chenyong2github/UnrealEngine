@@ -46,6 +46,18 @@ const FString UNiagaraDataInterfacePressureGrid::WorldInverseName(TEXT("WorldInv
 
 struct FNDIPressureGridParametersName
 {
+	FNDIPressureGridParametersName(const FString& Suffix)
+	{
+		GridCurrentBufferName = UNiagaraDataInterfacePressureGrid::GridCurrentBufferName + Suffix;
+		GridDestinationBufferName = UNiagaraDataInterfacePressureGrid::GridDestinationBufferName + Suffix;
+
+		GridSizeName = UNiagaraDataInterfacePressureGrid::GridSizeName + Suffix;
+		GridOriginName = UNiagaraDataInterfacePressureGrid::GridOriginName + Suffix;
+
+		WorldTransformName = UNiagaraDataInterfacePressureGrid::WorldTransformName + Suffix;
+		WorldInverseName = UNiagaraDataInterfacePressureGrid::WorldInverseName + Suffix;
+	}
+
 	FString GridCurrentBufferName;
 	FString GridDestinationBufferName;
 
@@ -55,16 +67,6 @@ struct FNDIPressureGridParametersName
 	FString WorldTransformName;
 	FString WorldInverseName;
 };
-
-static void GetNiagaraDataInterfaceParametersName(FNDIPressureGridParametersName& Names, const FString& Suffix)
-{
-	Names.GridCurrentBufferName = UNiagaraDataInterfacePressureGrid::GridCurrentBufferName + Suffix;
-	Names.GridDestinationBufferName = UNiagaraDataInterfacePressureGrid::GridDestinationBufferName + Suffix;
-	Names.GridSizeName = UNiagaraDataInterfacePressureGrid::GridSizeName + Suffix;
-	Names.GridOriginName = UNiagaraDataInterfacePressureGrid::GridOriginName + Suffix;
-	Names.WorldTransformName = UNiagaraDataInterfacePressureGrid::WorldTransformName + Suffix;
-	Names.WorldInverseName = UNiagaraDataInterfacePressureGrid::WorldInverseName + Suffix;
-}
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -154,8 +156,7 @@ struct FNDIPressureGridParametersCS : public FNiagaraDataInterfaceParametersCS
 
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		FNDIPressureGridParametersName ParamNames;
-		GetNiagaraDataInterfaceParametersName(ParamNames, *ParameterInfo.DataInterfaceHLSLSymbol);
+		FNDIPressureGridParametersName ParamNames(ParameterInfo.DataInterfaceHLSLSymbol);
 
 		GridCurrentBuffer.Bind(ParameterMap, *ParamNames.GridCurrentBufferName);
 		GridDestinationBuffer.Bind(ParameterMap, *ParamNames.GridDestinationBufferName);
@@ -719,8 +720,7 @@ void UNiagaraDataInterfacePressureGrid::UpdateGridTransform(FVectorVMContext& Co
 
 bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	FNDIPressureGridParametersName ParamNames;
-	GetNiagaraDataInterfaceParametersName(ParamNames, ParamInfo.DataInterfaceHLSLSymbol);
+	FNDIPressureGridParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
 
 	TMap<FString, FStringFormatArg> ArgsSample = {
 		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
@@ -946,16 +946,18 @@ inline void ClearBuffer(FNDIPressureGridBuffer* CurrentGridBuffer, FNDIPressureG
 			[DestinationGridBufferUAV, CurrentGridBufferSRV, CurrentGridBufferUAV, LocalGridSize, LocalCopyPressure]
 		(FRHICommandListImmediate& RHICmdListImm)
 		{
-			FRDGBuilder GraphBuilder(RHICmdListImm);
-
 			RHICmdListImm.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, DestinationGridBufferUAV);
 			RHICmdListImm.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CurrentGridBufferUAV);
+
+			RHICmdListImm.ClearUAVUint(DestinationGridBufferUAV, FUintVector4(0,0,0,0));
+
+		/*	FRDGBuilder GraphBuilder(RHICmdListImm);
 
 			AddClearPressureGridPass(
 				GraphBuilder,
 				CurrentGridBufferSRV, DestinationGridBufferUAV, LocalGridSize, LocalCopyPressure);
 
-			GraphBuilder.Execute();
+			GraphBuilder.Execute();*/
 		});
 	}
 }

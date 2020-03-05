@@ -529,8 +529,7 @@ private:
 		const IScreenSpaceDenoiser::FShadowRayTracingConfig& RayTracingConfig,
 		const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
 		const bool bSubPixelShadowMask,
-		FRDGTextureRef HairCategorizationTexture,
-		FRDGTextureRef HairLightChannelMaskTexture,
+		const struct FHairStrandsOcclusionResources* HairResources,
 		FRDGTextureUAV* OutShadowMaskUAV,
 		FRDGTextureUAV* OutRayHitDistanceUAV);
 

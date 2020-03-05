@@ -14,20 +14,85 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "GroomAsset.h"
 
 #define LOCTEXT_NAMESPACE "GroomImportOptionsWindow"
+
+static int32 GHairStrandsImportValidation = 1;
+static FAutoConsoleVariableRef CVarHairStrandsImportValidation(TEXT("r.HairStrands.ImportValidation"), GHairStrandsImportValidation, TEXT("Enable/Disable hair strands validation at import time"));
+
+bool RunGroomAssetValidation()
+{
+	return GHairStrandsImportValidation > 0;
+}
+
+enum class EHairDescriptionStatus
+{
+	Valid,
+	NoGroup,
+	NoCurve,
+	Unknown
+};
+
+static EHairDescriptionStatus GetStatus(UGroomHairGroupsPreview* Description)
+{
+	if (Description)
+	{
+		for (const FGroomHairGroupPreview& Group : Description->Groups)
+		{
+			if (Group.CurveCount == 0)
+				return EHairDescriptionStatus::NoCurve;
+		}
+
+		if (Description->Groups.Num() == 0)
+		{
+			return EHairDescriptionStatus::NoGroup;
+		}
+		return EHairDescriptionStatus::Valid;
+	}
+	else
+	{
+		return EHairDescriptionStatus::Unknown;
+	}
+}
 
 void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 {
 	ImportOptions = InArgs._ImportOptions;
+	GroupsPreview = InArgs._GroupsPreview;
 	WidgetWindow = InArgs._WidgetWindow;
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetObject(ImportOptions);
+	
+	DetailsView2 = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailsView2->SetObject(GroupsPreview);
+
+	
+	const EHairDescriptionStatus Status = GetStatus(GroupsPreview);
+
+	FText ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText", "Unknown");
+	FLinearColor ValidationColor(1,1,1);
+	if (Status == EHairDescriptionStatus::Valid)
+	{
+		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText", "Valid");
+		ValidationColor = FLinearColor(0, 0.80f, 0, 1);
+	}
+	else if (Status == EHairDescriptionStatus::NoCurve)
+	{
+		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText", "Invalid. Some groups have 0 curves.");
+		ValidationColor = FLinearColor(0.80f, 0, 0, 1);
+	}
+	else if (Status == EHairDescriptionStatus::NoGroup)
+	{
+		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText", "Invalid. The groom does not contain any group.");
+		ValidationColor = FLinearColor(1, 0, 0, 1);
+	}
 
 	this->ChildSlot
 	[
@@ -62,10 +127,46 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		]
 
 		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(3))
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
+					.Text(LOCTEXT("GroomOptionsWindow_StatusFile", "Status File: "))
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(5, 0, 0, 0)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+					.Text(ValidationText)
+					.ColorAndOpacity(ValidationColor)
+				]
+			]
+		]
+
+		+ SVerticalBox::Slot()
 		.Padding(2)
 		.MaxHeight(500.0f)
 		[
 			DetailsView->AsShared()
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)		
+		[
+			DetailsView2->AsShared()
 		]
 
 		+ SVerticalBox::Slot()
@@ -96,6 +197,19 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 
 bool SGroomImportOptionsWindow::CanImport()  const
 {
+	if (GroupsPreview)
+	{
+		for (const FGroomHairGroupPreview& Group : GroupsPreview->Groups)
+		{
+			if (Group.CurveCount == 0)
+				return false;
+		}
+
+		if (GroupsPreview->Groups.Num() == 0)
+		{
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -109,7 +223,7 @@ enum class EGroomOptionsVisibility : uint8
 
 ENUM_CLASS_FLAGS(EGroomOptionsVisibility);
 
-TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* ImportOptions, const FString& FilePath, EGroomOptionsVisibility VisibilityFlag, FText WindowTitle, FText InButtonLabel)
+TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* ImportOptions, const FString& FilePath, const FProcessedHairDescription* ProcessedDescription, EGroomOptionsVisibility VisibilityFlag, FText WindowTitle, FText InButtonLabel)
 {
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(WindowTitle)
@@ -134,11 +248,29 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* Import
 		}
 	}
 
+	// Convert the process hair description into hair groups
+	UGroomHairGroupsPreview* GroupsPreview = nullptr;
+	if (ProcessedDescription)
+	{
+		GroupsPreview = NewObject<UGroomHairGroupsPreview>();
+		for (TPair<int32, FProcessedHairDescription::FHairGroup> HairGroupIt : ProcessedDescription->HairGroups)
+		{
+			const FProcessedHairDescription::FHairGroup& Group = HairGroupIt.Value;
+			const FHairGroupInfo& GroupInfo = Group.Key;
+
+			FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
+			OutGroup.GroupID = GroupInfo.GroupID;
+			OutGroup.CurveCount = GroupInfo.NumCurves;
+			OutGroup.GuideCount = GroupInfo.NumGuides;
+		}
+	}
+
 	FString FileName = FPaths::GetCleanFilename(FilePath);
 	Window->SetContent
 	(
 		SAssignNew(OptionsWindow, SGroomImportOptionsWindow)
 		.ImportOptions(ImportOptions)
+		.GroupsPreview(GroupsPreview)
 		.WidgetWindow(Window)
 		.FullPath(FText::FromString(FileName))
 		.ButtonLabel(InButtonLabel)
@@ -157,14 +289,14 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* Import
 	return OptionsWindow;
 }
 
-TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
+TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, const FString& FilePath, const FProcessedHairDescription* ProcessedDescription)
 {
-	return DisplayOptions(ImportOptions, FilePath, EGroomOptionsVisibility::All, LOCTEXT("ImportOptions", "Groom Import Options"), LOCTEXT("Import", "Import"));
+	return DisplayOptions(ImportOptions, FilePath, ProcessedDescription, EGroomOptionsVisibility::All, LOCTEXT("WindowTitle", "Groom Import Options"), LOCTEXT("Import", "Import"));
 }
 
 TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayRebuildOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
 {
-	return DisplayOptions(ImportOptions, FilePath, EGroomOptionsVisibility::BuildOptions, LOCTEXT("RebuildOptions", "Groom Build Options"), LOCTEXT("Build", "Build"));
+	return DisplayOptions(ImportOptions, FilePath, nullptr, EGroomOptionsVisibility::BuildOptions, LOCTEXT("WindowTitle", "Groom Build Options"), LOCTEXT("Build", "Build"));
 }
 
 

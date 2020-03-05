@@ -42,6 +42,7 @@ void AddHairDeepShadowRasterPass(
 	const EHairStrandsRasterPassType ShadowPassType,
 	const FIntRect& ViewportRect,
 	const FVector4& HairRenderInfo,
+	const uint32 HairRenderInfoBits,
 	const FVector& LightDirection,
 	FHairDeepShadowRasterPassParameters* PassParameters);
 
@@ -74,5 +75,6 @@ void AddHairVoxelizationRasterPass(
 	const EHairStrandsRasterPassType ShadowPassType,
 	const FIntRect& ViewportRect,
 	const FVector4& HairRenderInfo,
+	const uint32 HairRenderInfoBits,
 	const FVector& RasterDirection,
 	FHairVoxelizationRasterPassParameters* PassParameters);

@@ -151,7 +151,7 @@ TSharedPtr<SGroomCreateBindingOptionsWindow> SGroomCreateBindingOptionsWindow::D
 	return DisplayOptions(BindingOptions, EGroomBindingOptionsVisibility::BuildOptions, LOCTEXT("WindowTitle", "Groom Binding Options"), LOCTEXT("Build", "Create"));
 }
 
-static UObject* InternalCreateNewBindAsset(FName InAssetName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh)
+static UObject* InternalCreateNewBindAsset(FName InAssetName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
 {
 	if (!TargetSkelMesh)
 	{
@@ -196,6 +196,8 @@ static UObject* InternalCreateNewBindAsset(FName InAssetName, UObject* InParent,
 		NewAsset->Groom = GroomAsset;
 		NewAsset->SourceSkeletalMesh = SourceSkelMesh;
 		NewAsset->TargetSkeletalMesh = TargetSkelMesh;
+		NewAsset->HairGroupDatas.Reserve(GroomAsset->HairGroupsData.Num());
+		NewAsset->NumInterpolationPoints = NumInterpolationPoints;
 		NewAsset->MarkPackageDirty();
 
 		// Notify the asset registry
@@ -206,14 +208,14 @@ static UObject* InternalCreateNewBindAsset(FName InAssetName, UObject* InParent,
 	return nullptr;
 }
 
-UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh)
+UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
 {
 	if (!GroomAsset || !TargetSkelMesh)
 	{
 		return nullptr;
 	}
 
-	UObject* BindingAsset = InternalCreateNewBindAsset(NAME_None, nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh);
+	UObject* BindingAsset = InternalCreateNewBindAsset(NAME_None, nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
 
 	if (BindingAsset)
 	{

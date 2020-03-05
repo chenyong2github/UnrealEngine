@@ -8,6 +8,7 @@
 #include "HairStrandsRendering.h"
 #include "HairStrandsMeshProjection.h"
 
+#include "GPUSkinCache.h"
 #include "SkeletalRenderPublic.h"
 #include "SceneRendering.h"
 #include "SystemTextures.h"
@@ -16,6 +17,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogHairRendering, Log, All);
 
 static int32 GHairStrandsRenderingEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrandsRenderingEnable(TEXT("r.HairStrands.Enable"), GHairStrandsRenderingEnable, TEXT("Enable/Disable hair strands rendering"));
+
+static int32 GHairStrandsRaytracingEnable = 1;
+static FAutoConsoleVariableRef CVarHairStrandsRaytracingEnable(TEXT("r.HairStrands.Raytracing"), GHairStrandsRaytracingEnable, TEXT("Enable/Disable hair strands raytracing (fallback onto raster techniques"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -55,7 +59,7 @@ void FHairGroupPublicData::ReleaseRHI()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometrySection& In, const FTransform& InTransform)
+inline FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry::Section& In, const FTransform& InTransform)
 {
 	FHairStrandsProjectionMeshData::Section Out;
 	Out.IndexBuffer = In.IndexBuffer;
@@ -88,26 +92,36 @@ struct FHairStrandsManager
 {
 	struct Element
 	{
-		uint64 Id = 0;
+		uint32 ComponentId = 0;
+		uint32 SkeletalComponentId = 0;
 		EWorldType::Type WorldType = EWorldType::None;
 		FHairStrandsDebugInfo DebugInfo;
 		FHairStrandsPrimitiveResources PrimitiveResources;
 		FHairStrandsInterpolationData InterpolationData;
 		FHairStrandsProjectionHairData RenProjectionHairDatas;
 		FHairStrandsProjectionHairData SimProjectionHairDatas;
-		FCachedGeometry CachedGeometry;
 		FTransform SkeletalLocalToWorld;
-		const FSkeletalMeshObject* MeshObject = nullptr;
+		FTransform LocalToWorld;
 		FHairStrandsProjectionDebugInfo DebugProjectionInfo;
 		int32 FrameLODIndex = -1;
 	};
+
+	// TODO change this array to a queue update, in order make processing/update thread safe.
 	TArray<Element> Elements;
+
+	FHairStrandsManager()
+	{
+		// Reserve a large a mount of object to avoid any potential memory reallocation, which 
+		// could cause some thread safety issue. This is a workaround against the non-thread-safe array
+		Elements.Reserve(64);
+	}
 };
 
 FHairStrandsManager GHairManager;
 
 void RegisterHairStrands(
-	uint64 Id, 
+	uint32 ComponentId,
+	uint32 SkeletalComponentId, 
 	EWorldType::Type WorldType,
 	const FHairStrandsInterpolationData& InterpolationData, 
 	const FHairStrandsProjectionHairData& RenProjectionDatas,
@@ -118,7 +132,7 @@ void RegisterHairStrands(
 {
 	for (int32 Index = 0; Index < GHairManager.Elements.Num(); ++Index)
 	{
-		if (GHairManager.Elements[Index].Id == Id && GHairManager.Elements[Index].WorldType == WorldType)
+		if (GHairManager.Elements[Index].ComponentId == ComponentId && GHairManager.Elements[Index].WorldType == WorldType)
 		{
 			// Component already registered. This should not happen. 
 			UE_LOG(LogHairRendering, Warning, TEXT("Component already register. This should't happen. Please report this to a rendering engineer."))
@@ -127,27 +141,49 @@ void RegisterHairStrands(
 	}
 
 	FHairStrandsManager::Element& E =  GHairManager.Elements.AddDefaulted_GetRef();
-	E.Id = Id;
+	E.ComponentId = ComponentId;
+	E.SkeletalComponentId = SkeletalComponentId;
 	E.WorldType = WorldType;
 	E.InterpolationData = InterpolationData;
 	E.RenProjectionHairDatas = RenProjectionDatas;
 	E.SimProjectionHairDatas = SimProjectionDatas;
 	E.SkeletalLocalToWorld = FTransform::Identity;
+	E.LocalToWorld = FTransform::Identity;
 	E.PrimitiveResources = PrimitiveResources;
 	E.DebugInfo = DebugInfo;
 	E.DebugProjectionInfo = DebugProjectionInfo;
 }
 
+bool UpdateHairStrandsDebugInfo(
+	uint32 ComponentId,
+	EWorldType::Type WorldType,
+	const uint32 GroupIt,
+	const bool bSimulationEnable)
+{
+	for (FHairStrandsManager::Element& E : GHairManager.Elements)
+	{
+		if (E.ComponentId != ComponentId || E.WorldType != WorldType || GroupIt >= uint32(E.DebugInfo.HairGroups.Num()))
+			continue;
+
+		E.DebugInfo.HairGroups[GroupIt].bHasSimulation = bSimulationEnable;
+		return true;
+	}
+
+	return false;
+}
+
 bool UpdateHairStrands(
-	uint64 Id, 
+	uint32 ComponentId,
 	EWorldType::Type WorldType, 
 	const FTransform& HairLocalToWorld, 
 	const FTransform& SkeletalLocalToWorld)
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
-		if (E.Id != Id || E.WorldType != WorldType)
+		if (E.ComponentId != ComponentId || E.WorldType != WorldType)
 			continue;
+
+		E.LocalToWorld = HairLocalToWorld;
 
 		for (FHairStrandsProjectionHairData::HairGroup& ProjectionData : E.RenProjectionHairDatas.HairGroups)
 		{
@@ -165,12 +201,12 @@ bool UpdateHairStrands(
 }
 
 bool UpdateHairStrands(
-	uint64 Id, 
+	uint32 ComponentId,
 	EWorldType::Type NewWorldType)
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
-		if (E.Id != Id)
+		if (E.ComponentId != ComponentId)
 			continue;
 
 		E.WorldType = NewWorldType;
@@ -181,7 +217,7 @@ bool UpdateHairStrands(
 }
 
 bool UpdateHairStrands(
-	uint64 Id,
+	uint32 ComponentId,
 	EWorldType::Type WorldType,
 	const FTransform& HairLocalToWorld,
 	const FHairStrandsProjectionHairData& RenProjectionDatas,
@@ -189,8 +225,10 @@ bool UpdateHairStrands(
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
-		if (E.Id != Id || E.WorldType != WorldType)
+		if (E.ComponentId != ComponentId || E.WorldType != WorldType)
 			continue;
+
+		E.LocalToWorld = HairLocalToWorld;
 
 		E.RenProjectionHairDatas = RenProjectionDatas;
 		for (FHairStrandsProjectionHairData::HairGroup& ProjectionData : E.RenProjectionHairDatas.HairGroups)
@@ -208,31 +246,14 @@ bool UpdateHairStrands(
 	return false;
 }
 
-bool UpdateHairStrands(
-	uint64 Id,
-	EWorldType::Type WorldType,
-	const FSkeletalMeshObject* MeshObject)
-{
-	for (FHairStrandsManager::Element& E : GHairManager.Elements)
-	{
-		if (E.Id != Id || E.WorldType != WorldType)
-			continue;
-
-		E.MeshObject = MeshObject;
-		return true;
-	}
-
-	return false;
-}
-
-void UnregisterHairStrands(uint64 Id)
+void UnregisterHairStrands(uint32 ComponentId)
 {
 	for (int32 Index=0;Index< GHairManager.Elements.Num();++Index)
 	{
-		if (GHairManager.Elements[Index].Id == Id)
+		if (GHairManager.Elements[Index].ComponentId == ComponentId)
 		{
 			GHairManager.Elements[Index] = GHairManager.Elements[GHairManager.Elements.Num()-1];
-			GHairManager.Elements.SetNum(GHairManager.Elements.Num() - 1);
+			GHairManager.Elements.SetNum(GHairManager.Elements.Num() - 1, false);
 		}
 	}
 }
@@ -294,6 +315,7 @@ void RunProjection(
 void RunHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList, 
 	EWorldType::Type WorldType, 
+	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
 	FGlobalShaderMap* ShaderMap, 
 	EHairStrandsInterpolationType Type,
@@ -301,24 +323,27 @@ void RunHairStrandsInterpolation(
 {
 	check(IsInRenderingThread());
 
-	// Update geometry cached based on GPU Skin output
-	for (FHairStrandsManager::Element& E : GHairManager.Elements)
-	{
-		if (E.WorldType != WorldType)
-			continue;
+	DECLARE_GPU_STAT(HairStrandsInterpolation);
+	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolation);
+	SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolation);
 
-		E.CachedGeometry = E.MeshObject ? E.MeshObject->GetCachedGeometry() : FCachedGeometry();
-	}
-	
 	// Update dynamic mesh triangles
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
 		E.FrameLODIndex = -1;
-		if (E.WorldType != WorldType || E.CachedGeometry.Sections.Num() == 0)
+		if (E.WorldType != WorldType)
 			continue;
 	
+		FCachedGeometry CachedGeometry;
+		if (SkinCache)
+		{
+			CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
+		}
+		if (CachedGeometry.Sections.Num() == 0)
+			continue;
+
 		FHairStrandsProjectionMeshData::LOD MeshDataLOD;
-		for (FCachedGeometrySection Section : E.CachedGeometry.Sections)
+		for (FCachedGeometry::Section& Section : CachedGeometry.Sections)
 		{
 			// Ensure all mesh's sections have the same LOD index
 			if (E.FrameLODIndex < 0) E.FrameLODIndex = Section.LODIndex;
@@ -344,6 +369,26 @@ void RunHairStrandsInterpolation(
 				UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData);
 			}
 		}
+
+		for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
+		{
+			if (EHairStrandsInterpolationType::SimulationStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
+			{
+				InitHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData);
+				UpdateHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
+				//InterpolateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
+			}
+		}
+
+		/*for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
+		{
+			if (EHairStrandsInterpolationType::RenderStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
+			{
+				InitHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData);
+				UpdateHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
+				InterpolateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
+			}
+		}*/
 		GraphBuilder.Execute();
 	}
 
@@ -372,14 +417,16 @@ void RunHairStrandsInterpolation(
 
 			if (E.InterpolationData.Input && E.InterpolationData.Output && E.InterpolationData.Function)
 			{
-				E.InterpolationData.Function(RHICmdList, ShaderDrawData, E.InterpolationData.Input, E.InterpolationData.Output, E.RenProjectionHairDatas, E.SimProjectionHairDatas, E.FrameLODIndex, ClusterData);
+				E.InterpolationData.Function(RHICmdList, ShaderDrawData, E.LocalToWorld, E.InterpolationData.Input, E.InterpolationData.Output, E.RenProjectionHairDatas, E.SimProjectionHairDatas, E.FrameLODIndex, ClusterData);
 			}
 		}
 	}
 }
 
-void GetGroomInterpolationData(const EWorldType::Type WorldType, 
-	const EHairStrandsProjectionMeshType MeshtType,
+void GetGroomInterpolationData(
+	const EWorldType::Type WorldType, 
+	const EHairStrandsProjectionMeshType MeshType,
+	const FGPUSkinCache* SkinCache,
 	FHairStrandsProjectionMeshData::LOD& OutGeometries)
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
@@ -387,12 +434,16 @@ void GetGroomInterpolationData(const EWorldType::Type WorldType,
 		if (E.WorldType != WorldType)
 			continue;
 
-		if (MeshtType == EHairStrandsProjectionMeshType::DeformedMesh || MeshtType == EHairStrandsProjectionMeshType::RestMesh)
+		FCachedGeometry CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
+		if (CachedGeometry.Sections.Num() == 0)
+			continue;
+
+		if (MeshType == EHairStrandsProjectionMeshType::DeformedMesh || MeshType == EHairStrandsProjectionMeshType::RestMesh)
 		{
-			for (FCachedGeometrySection Section : E.CachedGeometry.Sections)
+			for (FCachedGeometry::Section Section : CachedGeometry.Sections)
 			{			
 				FHairStrandsProjectionMeshData::Section OutSection = ConvertMeshSection(Section, E.SkeletalLocalToWorld);
-				if (MeshtType == EHairStrandsProjectionMeshType::RestMesh)
+				if (MeshType == EHairStrandsProjectionMeshType::RestMesh)
 				{
 					// If the mesh has some mesh-tranferred data, we display that otherwise we use the rest data
 					const bool bHasTransferData = E.FrameLODIndex < E.DebugProjectionInfo.TransferredPositions.Num();
@@ -409,29 +460,36 @@ void GetGroomInterpolationData(const EWorldType::Type WorldType,
 			}
 		}
 
-		if (MeshtType == EHairStrandsProjectionMeshType::TargetMesh && E.DebugProjectionInfo.TargetMeshData.LODs.Num() > 0)
+		if (MeshType == EHairStrandsProjectionMeshType::TargetMesh && E.DebugProjectionInfo.TargetMeshData.LODs.Num() > 0)
 		{
 			OutGeometries = E.DebugProjectionInfo.TargetMeshData.LODs[0];
 		}
 
-		if (MeshtType == EHairStrandsProjectionMeshType::SourceMesh && E.DebugProjectionInfo.SourceMeshData.LODs.Num() > 0)
+		if (MeshType == EHairStrandsProjectionMeshType::SourceMesh && E.DebugProjectionInfo.SourceMeshData.LODs.Num() > 0)
 		{
 			OutGeometries = E.DebugProjectionInfo.SourceMeshData.LODs[0];
 		}
 	}
 }
 
-void GetGroomInterpolationData(const EWorldType::Type WorldType, const bool bRenderData, FHairStrandsProjectionHairData& Out, TArray<int32>& OutLODIndices)
+void GetGroomInterpolationData(
+	const EWorldType::Type WorldType, 
+	EHairStrandsInterpolationType StrandsType,
+	const FGPUSkinCache* SkinCache,
+	FHairStrandsProjectionHairData& Out, TArray<int32>& OutLODIndices)
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
 		if (E.WorldType != WorldType)
 			continue;
 
-		const bool bHasDynamicMesh = E.CachedGeometry.Sections.Num() > 0;
+		FCachedGeometry CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
+		if (CachedGeometry.Sections.Num() == 0)
+			continue;
+		const bool bHasDynamicMesh = CachedGeometry.Sections.Num() > 0;
 		if (bHasDynamicMesh)
 		{
-			if (bRenderData)
+			if (StrandsType == EHairStrandsInterpolationType::RenderStrands)
 			{
 				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
 				{
@@ -439,7 +497,7 @@ void GetGroomInterpolationData(const EWorldType::Type WorldType, const bool bRen
 					OutLODIndices.Add(E.FrameLODIndex);
 				}
 			}
-			else
+			else if (StrandsType == EHairStrandsInterpolationType::SimulationStrands)
 			{
 				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
 				{
@@ -458,12 +516,12 @@ FHairStrandsDebugInfos GetHairStandsDebugInfos()
 	{
 		FHairStrandsDebugInfo& Info = Infos.AddDefaulted_GetRef();
 		Info = E.DebugInfo;
-		Info.Id = E.Id;
+		Info.ComponentId = E.ComponentId;
 		Info.WorldType = E.WorldType;
 
 		const uint32 GroupCount = Info.HairGroups.Num();
 		for (uint32 GroupIt=0; GroupIt < GroupCount; ++GroupIt)
-		{
+		{		
 			FHairStrandsDebugInfo::HairGroup& GroupInfo = Info.HairGroups[GroupIt];
 			if (GroupIt < uint32(E.RenProjectionHairDatas.HairGroups.Num()))
 			{
@@ -482,11 +540,11 @@ FHairStrandsDebugInfos GetHairStandsDebugInfos()
 	return Infos;
 }
 
-FHairStrandsPrimitiveResources GetHairStandsPrimitiveResources(uint64 Id)
+FHairStrandsPrimitiveResources GetHairStandsPrimitiveResources(uint32 ComponentId)
 {
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
 	{
-		if (E.Id != Id)
+		if (E.ComponentId != ComponentId)
 			continue;
 
 		return E.PrimitiveResources;
@@ -502,9 +560,10 @@ bool IsHairStrandsEnable(EShaderPlatform Platform)
 		GHairStrandsRenderingEnable == 1 && 
 		GHairManager.Elements.Num() > 0; 
 }
+
 bool IsHairRayTracingEnabled()
 {
-	return IsRayTracingEnabled();
+	return IsRayTracingEnabled() && GHairStrandsRaytracingEnable;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -521,15 +580,7 @@ void EnqueueGroomBindingQuery(void* Asset, TBindingProcess BindingProcess)
 	GBindingQueries.Enqueue({ Asset, BindingProcess });
 }
 
-bool HasHairStrandsProjectionQuery(EShaderPlatform Platform)
-{
-	return
-		IsHairStrandsSupported(Platform) &&
-		GHairStrandsRenderingEnable == 1 &&
-		!GBindingQueries.IsEmpty();
-}
-
-void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap)
+static void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap)
 {
 	FBindingQuery Q;
 	while (GBindingQueries.Dequeue(Q))
@@ -539,4 +590,124 @@ void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, FGlobalS
 			Q.BindingProcess(RHICmdList, Q.Asset);
 		}
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FFollicleQuery
+{
+	static const uint32 MaxInfoCount = 16;
+	FFollicleInfo Infos[MaxInfoCount];
+	uint32 InfoCount = 0;
+	UTexture2D* OutTexture = nullptr;
+};
+TQueue<FFollicleQuery> GFollicleQueries;
+
+void EnqueueFollicleMaskUpdateQuery(const TArray<FFollicleInfo>& Infos, UTexture2D* OutTexture)
+{
+	if (!OutTexture)
+	{
+		return;
+	}
+
+	FFollicleQuery Q;
+	Q.OutTexture = OutTexture;
+	for (const FFollicleInfo& Info : Infos)
+	{
+		if (Q.InfoCount >= FFollicleQuery::MaxInfoCount)
+		{
+			return;
+		}
+		Q.Infos[Q.InfoCount++] = Info;
+	}
+	GFollicleQueries.Enqueue(Q);
+}
+
+static void RunFolliculeMaskGeneration(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap)
+{
+	struct FFollicleElement
+	{
+		FHairStrandsManager::Element* E = nullptr;
+		FFollicleInfo::EChannel Channel = FFollicleInfo::R;
+		uint32 KernelSizeInPixels = 0;
+	};
+
+	FFollicleQuery Q;
+	while (GFollicleQueries.Dequeue(Q))
+	{
+		// TODO deduplicate queries (compute hash?)
+
+		// Filter valid/ready groom
+		TArray<FFollicleElement> Elements;
+		Elements.Reserve(Q.InfoCount);
+		for (uint32 InfoIt=0; InfoIt <Q.InfoCount;++InfoIt)
+		{
+			for (FHairStrandsManager::Element& E : GHairManager.Elements)
+			{
+				if (E.ComponentId == Q.Infos[InfoIt].GroomId && E.FrameLODIndex >= 0)
+				{
+					Elements.Add({ &E, Q.Infos[InfoIt].Channel, Q.Infos[InfoIt].KernelSizeInPixels });
+				}
+			}
+		}
+
+		// Generate texture
+		if (Elements.Num() > 0)
+		{
+			TRefCountPtr<IPooledRenderTarget> OutMaskTexture;
+
+			const uint32 MipCount = Q.OutTexture->GetNumMips();
+			const FIntPoint Resolution(Q.OutTexture->Resource->GetSizeX(), Q.OutTexture->Resource->GetSizeY());
+			FRDGBuilder GraphBuilder(RHICmdList);
+			FRDGTextureRef FollicleMaskTexture = nullptr;
+			for (FFollicleElement& E : Elements)
+			{
+				GenerateFolliculeMask(
+					GraphBuilder,
+					ShaderMap,
+					Resolution,
+					MipCount,
+					E.KernelSizeInPixels,
+					uint32(E.Channel),
+					E.E->FrameLODIndex,
+					E.E->RenProjectionHairDatas,
+					FollicleMaskTexture);
+			}
+
+			AddComputeMipsPass(GraphBuilder, ShaderMap, FollicleMaskTexture);
+
+			GraphBuilder.QueueTextureExtraction(FollicleMaskTexture, &OutMaskTexture);
+			GraphBuilder.Execute();
+
+			check(FollicleMaskTexture->Desc.Format == Q.OutTexture->GetPixelFormat());
+
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.NumMips = MipCount;
+			RHICmdList.CopyTexture(
+				OutMaskTexture->GetRenderTargetItem().ShaderResourceTexture,
+				Q.OutTexture->Resource->TextureRHI,
+				CopyInfo);
+		}
+	}
+}
+
+void RunHairStrandsProcess(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap)
+{
+	if (!GFollicleQueries.IsEmpty())
+	{
+		RunFolliculeMaskGeneration(RHICmdList, ShaderMap);
+	}
+
+	if (!GBindingQueries.IsEmpty())
+	{
+		RunHairStrandsBindingQueries(RHICmdList, ShaderMap);
+	}
+}
+
+bool HasHairStrandsProcess(EShaderPlatform Platform)
+{
+	return
+		IsHairStrandsSupported(Platform) &&
+		GHairStrandsRenderingEnable == 1 &&
+		(!GBindingQueries.IsEmpty() || !GFollicleQueries.IsEmpty());
 }

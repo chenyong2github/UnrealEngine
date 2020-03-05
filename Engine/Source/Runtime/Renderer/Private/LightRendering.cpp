@@ -908,14 +908,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 		return HairDatas && ViewIndex < HairDatas->MacroGroupsPerViews.Views.Num() && HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas.Num() > 0;
 	};
 
-	struct FHairStrandsTextures
+	auto GetHairStrandsResources = [HairDatas](int32 ViewIndex, FRDGBuilder& GraphBuilder)
 	{
-		FRDGTextureRef CategorizationTexture = nullptr;
-		FRDGTextureRef LightChannelMaskTexture = nullptr;
-	};
-	auto GetHairStrandsTextures = [HairDatas](int32 ViewIndex, FRDGBuilder& GraphBuilder)
-	{
-		FHairStrandsTextures Out;
+		FHairStrandsOcclusionResources Out;
 		if (HairDatas && ViewIndex < HairDatas->HairVisibilityViews.HairDatas.Num())
 		{
 			if (HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture)
@@ -926,6 +921,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			{
 				Out.LightChannelMaskTexture = GraphBuilder.RegisterExternalTexture(HairDatas->HairVisibilityViews.HairDatas[ViewIndex].LightChannelMaskTexture);
 			}
+
+			Out.VoxelResources = &HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources;
 		}
 		return Out;
 	};
@@ -1172,12 +1169,12 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			const bool bDoShadowDenoisingBatching = DenoiserMode != 0 && MaxDenoisingBatchSize > 1;
 
 			//#dxr_todo: support multiview for the batching case
-			const bool dDoShadowBatching = (bDoShadowDenoisingBatching || MaxRTShadowBatchSize > 1) && Views.Num() == 1;
+			const bool bDoShadowBatching = (bDoShadowDenoisingBatching || MaxRTShadowBatchSize > 1) && Views.Num() == 1;
 
 			// Optimisations: batches all shadow ray tracing denoising. Definitely could be smarter to avoid high VGPR pressure if this entire
 			// function was converted to render graph, and want least intrusive change as possible. So right not it trades render target memory pressure
 			// for denoising perf.
-			if (RHI_RAYTRACING && dDoShadowBatching)
+			if (RHI_RAYTRACING && bDoShadowBatching)
 			{
 				const uint32 ViewIndex = 0;
 				FViewInfo& View = Views[ViewIndex];
@@ -1255,7 +1252,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 						const bool bDenoiserCompatible = !LightRequiresDenosier(LightSceneInfo) || IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder == DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
 
 						const bool bWantsBatchedShadow = OcclusionType == FLightOcclusionType::Raytraced && 
-							dDoShadowBatching &&
+							bDoShadowBatching &&
 							bDenoiserCompatible &&
 							SortedLightInfo.SortKey.Fields.bShadowed && 
 							!ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
@@ -1375,12 +1372,13 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									RayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
 								}
 
+								FString BatchLightNameWithLevel;
+								GetLightNameForDrawEvent(BatchLightSceneInfo.Proxy, BatchLightNameWithLevel);
+
 								FRDGTextureUAV* RayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayTracingShadowMaskTexture));
 								FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
-								FHairStrandsTextures HairTextures = GetHairStrandsTextures(ViewIndex, GraphBuilder);
+								FHairStrandsOcclusionResources HairResources = GetHairStrandsResources(ViewIndex, GraphBuilder);
 								{
-									FString BatchLightNameWithLevel;
-									GetLightNameForDrawEvent(BatchLightSceneInfo.Proxy, BatchLightNameWithLevel);
 									RDG_EVENT_SCOPE(GraphBuilder, "%s", *BatchLightNameWithLevel);
 
 									RenderRayTracingShadows(
@@ -1391,8 +1389,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 										BatchRayTracingConfig,
 										DenoiserRequirements,
 										false,
-										HairTextures.CategorizationTexture,
-										HairTextures.LightChannelMaskTexture,
+										&HairResources,
 										RayTracingShadowMaskUAV,
 										RayHitDistanceUAV);
 								}
@@ -1437,8 +1434,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 										BatchRayTracingConfig,
 										IScreenSpaceDenoiser::EShadowRequirements::Bailout,
 										true,
-										HairTextures.CategorizationTexture,
-										HairTextures.LightChannelMaskTexture,
+										&HairResources,
 										SubPixelRayTracingShadowMaskUAV,
 										SubPixelRayHitDistanceUAV);
 
@@ -1603,7 +1599,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
 							}
 
-							FHairStrandsTextures HairTextures = GetHairStrandsTextures(ViewIndex, GraphBuilder);
+							FHairStrandsOcclusionResources HairResources = GetHairStrandsResources(ViewIndex, GraphBuilder);
 							RenderRayTracingShadows(
 								GraphBuilder,
 								SceneTextures,
@@ -1612,8 +1608,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								RayTracingConfig,
 								DenoiserRequirements,
 								false,
-								HairTextures.CategorizationTexture,
-								HairTextures.LightChannelMaskTexture,
+								&HairResources,
 								RayTracingShadowMaskUAV,
 								RayHitDistanceUAV);
 
@@ -1671,8 +1666,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									RayTracingConfig,
 									IScreenSpaceDenoiser::EShadowRequirements::Bailout,
 									true,
-									HairTextures.CategorizationTexture,
-									HairTextures.LightChannelMaskTexture,
+									&HairResources,
 									SubPixelRayTracingShadowMaskUAV,
 									SubPixelRayHitDistanceUAV);
 

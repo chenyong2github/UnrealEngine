@@ -82,7 +82,7 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 		EyeIndex);
 }
 
-StructuredBuffer<FNodeData> HairVisibilityNodeData;
+StructuredBuffer<FPackedHairSample> HairVisibilityNodeData;
 
 Texture3D<float4>			HairScatteringLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
@@ -487,8 +487,9 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// Average weighting
 		#if 1
 		{
+			const float Backlit = GBuffer.CustomData.z;
 			HairAverageEnergy Energy = SampleHairEnergyLUT(HairEnergyLUTTexture, HairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
-			ColorTT.rgb *= Energy.A_TT * TransmittanceMask.Transmittance * TransmittanceMask.Visibility;
+			ColorTT.rgb *= Energy.A_TT * TransmittanceMask.Transmittance * TransmittanceMask.Visibility * Backlit;
 		}
 		#endif	
 
@@ -514,9 +515,44 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	return -min(-Color.rgb, 0.0);
 }
 
+#if USE_SCENE_COLOR
+Texture2D<float4> SceneColorTexture;
+Texture2D<uint4> HairCategorizationTexture;
+
+float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId)
+{
+#if USE_PREEXPOSURE
+	const float PreExposure = View.PreExposure;
+#else
+	const float PreExposure = 1.f;
+#endif
+	const float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
+	const float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
+	const uint2  PixelPosition = SvPosition - ResolvedView.ViewRectMin.xy;
+
+	const float3 V = -CameraToPixel;
+	const float3 T = GBuffer.WorldNormal;
+
+	const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelPosition, 0)));
+	const float PixelCoverage = min(CatData.PixelCoverage, 1);
+	
+	// The scene color is attenuated propertionnaly to the hair coverage. In order to retrieve the actual lighting buffer 
+	// value, we divide by the hair coverage
+	const float4 OccludedLuminance = SceneColorTexture.Load(uint3(PixelPosition, 0));
+	const float4 Luminance = OccludedLuminance / PixelCoverage;
+	
+	const float SinViewAngle = dot(T, V);
+	const HairAverageScattering Energy = SampleHairLUT(HairScatteringLUTTexture, HairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
+	float3 Color = Energy.A_front * Luminance * PixelCoverage;
+	Color *= PreExposure;
+
+	return -min(-Color, 0.0);
+}
+
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if COMPUTESHADER
 uint MaxVisibilityNodeCount;
 StructuredBuffer<uint>	HairVisibilityNodeCoord;
 Buffer<uint4>			IndirectArgsBuffer;
@@ -546,31 +582,33 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (LocalOffset > MaxVisibilityNodeCount)
 		return;
 
-	const FNodeData NodeData = HairVisibilityNodeData[LocalOffset];
-	float			SampleDepth;
-	FVisibilityData SampleVisData;
-	float3			SampleBaseColor;
-	float			SampleRoughness;
-	float			SampleSpecular;
-	uint			SampleLigthChannelMask;
-	DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLigthChannelMask);
+	const FPackedHairSample PackedSample = HairVisibilityNodeData[LocalOffset];
+	const FHairSample Sample = UnpackHairSample(PackedSample);
 
 	FGBufferData GBuffer;
 	GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
-	GBuffer.WorldNormal = SampleVisData.Tangent;
-	GBuffer.BaseColor = SampleBaseColor;
-	GBuffer.Roughness = SampleRoughness;
-	GBuffer.Specular = SampleSpecular;
-	GBuffer.Depth = ConvertFromDeviceZ(SampleDepth);
+	GBuffer.WorldNormal = Sample.Tangent;
+	GBuffer.BaseColor = Sample.BaseColor;
+	GBuffer.Roughness = Sample.Roughness;
+	GBuffer.Specular = Sample.Specular;
+	GBuffer.Depth = ConvertFromDeviceZ(Sample.Depth);
 	GBuffer.GBufferAO = 1;
-	GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride,0,0,0);
+	GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride,0,Sample.Backlit,0);
 	GBuffer.IndirectIrradiance = 1000000;
 
-	const bool bIsMacroGroupCompatible = SampleVisData.MacroGroupId == Voxel_MacroGroupId;
-	if (bIsMacroGroupCompatible)
+	bool bEnabled = true;
+	const bool bIsMacroGroupCompatible = Sample.MacroGroupId == Voxel_MacroGroupId;
+#if USE_SCENE_COLOR
+	bEnabled = Sample.bScatterSceneLighting;
+#endif
+	if (bIsMacroGroupCompatible && bEnabled)
 	{
-		const float SampleCoverage = saturate(From8bitCoverage(SampleVisData.Coverage8bit));
-		const float3 SkyLighting = ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, SampleVisData.PrimitiveId);
+		const float SampleCoverage = saturate(From8bitCoverage(Sample.Coverage8bit));
+	#if USE_SCENE_COLOR
+		const float3 SkyLighting = ComputeThinTransmission(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
+	#else
+		const float3 SkyLighting = ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
+	#endif
 
 		FLightAccumulator LightAccumulator = (FLightAccumulator)0;
 		LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, false);
@@ -585,4 +623,3 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		OutLightingBuffer[LocalOffset] = 0;
 	}
 }
-#endif

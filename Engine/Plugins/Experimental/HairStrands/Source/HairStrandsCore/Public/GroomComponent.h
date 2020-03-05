@@ -48,8 +48,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
 	bool	bCreateNiagaraComponent;
 
-	/** Boolean to check when animation has been loaded */
+	/** Boolean to check when the simulation should be reset */
 	bool bResetSimulation;
+
+	/** Boolean to check when the simulation should be initialized */
+	bool bInitSimulation;
 
 	/** Previous bone matrix to compare the difference and decide to reset or not the simulation */
 	FMatrix	PrevBoneMatrix;
@@ -108,12 +111,16 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	void ValidateMaterials(bool bMapCheck) const;
 	void Invalidate();
+	void InvalidateAndRecreate();
 #endif
 
+	void SetStableRasterization(bool bEnable);
 	void SetGroomAsset(UGroomAsset* Asset);
 	void SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding);
 	void SetHairLengthScale(float Scale);
+	void SetHairRootScale(float Scale);
 	void SetHairWidth(float HairWidth);
+	void SetScatterSceneLighting(bool Enable);
 	void SetBinding(bool bBind);
 	void SetBinding(UGroomBindingAsset* InBinding);
 
@@ -168,9 +175,11 @@ private:
 
 	class USkeletalMeshComponent* RegisteredSkeletalMeshComponent;
 	FVector SkeletalPreviousPositionOffset;
-	bool bIsGroomAssetCallbackRegistered;	
+	bool bIsGroomAssetCallbackRegistered;
+	bool bIsGroomBindingAssetCallbackRegistered;
 
-	void InitResources();
+	EWorldType::Type GetWorldType() const; 
+	void InitResources(bool bIsBindingReloading=false);
 	void ReleaseResources();
 	void UpdateHairGroupsDescAndInvalidateRenderState();
 

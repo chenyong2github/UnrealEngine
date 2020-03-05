@@ -28,6 +28,8 @@ struct FHairStrandsVisibilityData
 	TRefCountPtr<IPooledRenderTarget> PPLLNodeCounterTexture;
 	TRefCountPtr<IPooledRenderTarget> PPLLNodeIndexTexture;
 	TRefCountPtr<FPooledRDGBuffer>	  PPLLNodeDataBuffer;
+	uint32							  MaxPPLLNodePerPixelCount = 0;
+	uint32							  MaxPPLLNodeCount = 0;
 
 	TRefCountPtr<IPooledRenderTarget> TileIndexTexture;
 	TRefCountPtr<FPooledRDGBuffer>	  TileBuffer;
@@ -35,6 +37,7 @@ struct FHairStrandsVisibilityData
 	const uint32					  TileSize = 8;
 	const uint32					  TileThreadGroupSize = 32;
 
+	uint32							  MaxSampleCount = 8;
 	TRefCountPtr<IPooledRenderTarget> NodeIndex;
 	TRefCountPtr<FPooledRDGBuffer>	  NodeData;
 	FShaderResourceViewRHIRef		  NodeDataSRV;
@@ -59,9 +62,5 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 	TRefCountPtr<IPooledRenderTarget> VelocityTexture,
 	const struct FHairStrandsMacroGroupViews& MacroGroupViews);
 
-void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVector4& OutHairRenderInfo);
-
-
-uint32 GetPPLLMeanListElementCountPerPixel();
-uint32 GetPPLLMaxTotalListElementCount(FIntPoint Resolution);
+void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVector4& OutHairRenderInfo, uint32& OutHairRenderInfoBits);
 

@@ -23,6 +23,14 @@
 #include "EditorFramework/AssetImportData.h"
 #endif
 
+static int32 GHairStrandsLoadAsset = 1;
+static FAutoConsoleVariableRef CVarHairStrandsLoadAsset(TEXT("r.HairStrands.LoadAsset"), GHairStrandsLoadAsset, TEXT("Allow groom asset to be loaded"));
+
+bool IsHairStrandsAssetLoadingEnable()
+{
+	return GHairStrandsLoadAsset > 0;
+}
+
 template<typename BufferType>
 void UploadDataToBuffer(BufferType& OutBuffer, uint32 DataSizeInBytes, void* InCpuData)
 {
@@ -190,16 +198,12 @@ private:
 	TArray<FCluster> ClusterInfo;
 };
 
-FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(const FHairGroupData& GroupData)
+FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(const FHairStrandsDatas& RenStrandsData)
 {
-	const FHairStrandsDatas& SimStrandsData = GroupData.HairSimulationData;
-	const FHairStrandsDatas& RenStrandsData = GroupData.HairRenderData;
-	const FHairStrandsInterpolationDatas& InterpolationData = GroupData.HairInterpolationData;
 	const uint32 RenCurveCount = RenStrandsData.GetNumCurves();
-	const uint32 SimCurveCount = SimStrandsData.GetNumCurves();
 	const uint32 PointCount = RenStrandsData.GetNumPoints();
 
-
+	check(PointCount);
 	// Allocate look up arrays for as many hair vertices as needed.
 	VertexCount = PointCount;
 	VertexToClusterIdArray.SetNum(PointCount);
@@ -207,8 +211,8 @@ FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(const FHa
 
 	// Allocate cluster per voxel containing contains >=1 render curve root
 	const uint32 VoxelcountAlongLargerSide = 256; // TODO expose in UI
-	const float VoxelCentimeterSize = GroupData.HairRenderData.BoundingBox.GetSize().GetAbsMax() / VoxelcountAlongLargerSide;
-	FClusterGrid ClusterGrid(VoxelCentimeterSize, GroupData.HairRenderData.BoundingBox.Min, GroupData.HairRenderData.BoundingBox.Max);
+	const float VoxelCentimeterSize = RenStrandsData.BoundingBox.GetSize().GetAbsMax() / VoxelcountAlongLargerSide;
+	FClusterGrid ClusterGrid(VoxelCentimeterSize, RenStrandsData.BoundingBox.Min, RenStrandsData.BoundingBox.Max);
 
 	for (uint32 RenCurveIndex = 0; RenCurveIndex < RenCurveCount; ++RenCurveIndex)
 	{
@@ -369,8 +373,8 @@ RootData(InRootData)
 	PopulateFromRootData();
 }
 
-FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount):
-	RootData(HairStrandsDatas, LODCount)
+FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples):
+	RootData(HairStrandsDatas, LODCount, NumSamples)
 {
 	PopulateFromRootData();
 }
@@ -384,6 +388,7 @@ void FHairStrandsRootResource::PopulateFromRootData()
 
 		LOD.LODIndex = MeshProjectionLOD.LODIndex;
 		LOD.Status = FHairStrandsProjectionHairData::LODData::EStatus::Invalid;
+		LOD.SampleCount = MeshProjectionLOD.SampleCount;
 	}
 }
 
@@ -432,6 +437,28 @@ void FHairStrandsRootResource::InitRHI()
 				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition2Buffer);
 			}
 
+			GPUData.SampleCount = CPUData.SampleCount;
+			const bool bHasValidCPUWeights = CPUData.MeshSampleIndicesBuffer.Num() > 0;
+			if(bHasValidCPUWeights)
+			{
+				check(CPUData.MeshInterpolationWeightsBuffer.Num() == CPUData.SampleCount * CPUData.SampleCount);
+				check(CPUData.MeshSampleIndicesBuffer.Num() == CPUData.SampleCount);
+				check(CPUData.RestSamplePositionsBuffer.Num() == CPUData.SampleCount);
+
+				CreateBuffer<FHairStrandsWeightFormat>(CPUData.MeshInterpolationWeightsBuffer, GPUData.MeshInterpolationWeightsBuffer);
+				CreateBuffer<FHairStrandsIndexFormat>(CPUData.MeshSampleIndicesBuffer, GPUData.MeshSampleIndicesBuffer);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestSamplePositionsBuffer, GPUData.RestSamplePositionsBuffer);
+			}
+			else
+			{
+				CreateBuffer<FHairStrandsWeightFormat>(CPUData.SampleCount * CPUData.SampleCount, GPUData.MeshInterpolationWeightsBuffer);
+				CreateBuffer<FHairStrandsIndexFormat>(CPUData.SampleCount, GPUData.MeshSampleIndicesBuffer);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.SampleCount, GPUData.RestSamplePositionsBuffer);
+			}
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.SampleCount, GPUData.DeformedSamplePositionsBuffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.SampleCount, GPUData.MeshSampleWeightsBuffer);
+
+
 			// Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle 
 			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.DeformedRootTrianglePosition0Buffer);
 			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.DeformedRootTrianglePosition1Buffer);
@@ -445,7 +472,7 @@ void FHairStrandsRootResource::ReleaseRHI()
 	RootPositionBuffer.Release();
 	RootNormalBuffer.Release();
 	VertexToCurveIndexBuffer.Release();
-
+	
 	for (FMeshProjectionLOD& GPUData : MeshProjectionLODs)
 	{
 		GPUData.Status = FHairStrandsProjectionHairData::LODData::EStatus::Invalid;
@@ -457,6 +484,12 @@ void FHairStrandsRootResource::ReleaseRHI()
 		GPUData.DeformedRootTrianglePosition0Buffer.Release();
 		GPUData.DeformedRootTrianglePosition1Buffer.Release();
 		GPUData.DeformedRootTrianglePosition2Buffer.Release();
+		GPUData.SampleCount = 0;
+		GPUData.MeshInterpolationWeightsBuffer.Release();
+		GPUData.MeshSampleIndicesBuffer.Release();
+		GPUData.RestSamplePositionsBuffer.Release();
+		GPUData.DeformedSamplePositionsBuffer.Release();
+		GPUData.MeshSampleWeightsBuffer.Release();
 	}
 	MeshProjectionLODs.Empty();
 }
@@ -468,7 +501,7 @@ FHairStrandsRootData::FHairStrandsRootData()
 
 }
 
-FHairStrandsRootData::FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount):
+FHairStrandsRootData::FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples):
 	RootCount(HairStrandsDatas ? HairStrandsDatas->GetNumCurves() : 0)
 {
 	if (!HairStrandsDatas)
@@ -515,12 +548,17 @@ FHairStrandsRootData::FHairStrandsRootData(const FHairStrandsDatas* HairStrandsD
 		RootPositionBuffer[CurveIndex] = P;
 		RootNormalBuffer[CurveIndex] = N;
 	}
+	check(NumSamples.Num() == LODCount);
 
 	MeshProjectionLODs.SetNum(LODCount);
 	uint32 LODIndex = 0;
 	for (FMeshProjectionLOD& MeshProjectionLOD : MeshProjectionLODs)
 	{
+		MeshProjectionLOD.SampleCount = NumSamples[LODIndex];
 		MeshProjectionLOD.LODIndex = LODIndex++;
+		MeshProjectionLOD.MeshInterpolationWeightsBuffer.Empty();
+		MeshProjectionLOD.MeshSampleIndicesBuffer.Empty();
+		MeshProjectionLOD.RestSamplePositionsBuffer.Empty();
 	}
 }
 
@@ -553,6 +591,20 @@ FArchive& operator<<(FArchive& Ar, FHairStrandsRootData::FMeshProjectionLOD& LOD
 	Ar << LOD.RestRootTrianglePosition0Buffer;
 	Ar << LOD.RestRootTrianglePosition1Buffer;
 	Ar << LOD.RestRootTrianglePosition2Buffer;
+
+	Ar << LOD.SampleCount;
+	Ar << LOD.MeshInterpolationWeightsBuffer;
+	Ar << LOD.MeshSampleIndicesBuffer;
+	Ar << LOD.RestSamplePositionsBuffer;
+
+	//Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	/*if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::GroomAssetWithRbfWeights)
+	{
+		Ar << LOD.SampleCount;
+		Ar << LOD.MeshInterpolationWeightsBuffer;
+		Ar << LOD.MeshSampleIndicesBuffer;
+		Ar << LOD.RestSamplePositionsBuffer;
+	}*/
 	return Ar;
 }
 
@@ -678,6 +730,8 @@ void UGroomAsset::Serialize(FArchive& Ar)
 UGroomAsset::UGroomAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bIsInitialized = false;
+
 	HairToGuideDensity = 0.1f;
 
 	SimulatedGroup = 0;
@@ -728,6 +782,8 @@ UGroomAsset::UGroomAsset(const FObjectInitializer& ObjectInitializer)
 
 void UGroomAsset::InitResource()
 {
+	bIsInitialized = true;
+
 	for (FHairGroupData& GroupData : HairGroupsData)
 	{
 		GroupData.HairStrandsRestResource = new FHairStrandsRestResource(GroupData.HairRenderData.RenderData, GroupData.HairRenderData.BoundingBox.GetCenter());
@@ -737,6 +793,35 @@ void UGroomAsset::InitResource()
 		GroupData.HairSimulationRestResource = new FHairStrandsRestResource(GroupData.HairSimulationData.RenderData, GroupData.HairSimulationData.BoundingBox.GetCenter());
 
 		BeginInitResource(GroupData.HairSimulationRestResource);
+
+		GroupData.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.HairRenderData);
+		
+		BeginInitResource(GroupData.ClusterCullingResource);
+
+		GroupData.HairInterpolationResource = new FHairStrandsInterpolationResource(GroupData.HairInterpolationData.RenderData, GroupData.HairSimulationData);
+
+		BeginInitResource(GroupData.HairInterpolationResource); 
+	}
+
+	// Sanity check
+	const uint32 GroupCount = HairGroupsData.Num();
+	if (HairGroupsInfo.Num() == GroupCount)
+	{
+		for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+		{
+			if (HairGroupsData[GroupIt].HairRenderData.GetNumCurves() != HairGroupsInfo[GroupIt].NumCurves)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The groom asset (%s) has inconsistent data. Curves count differs between data and description (%d vs. %d). Please reimport it."), *GetName(), HairGroupsData[GroupIt].HairRenderData.GetNumCurves(), HairGroupsInfo[GroupIt].NumCurves);
+			}
+			if (HairGroupsData[GroupIt].HairSimulationData.GetNumCurves() != HairGroupsInfo[GroupIt].NumGuides)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The groom asset (%s) has inconsistent data. Guides count different between data and description (%d vs. %d). Please reimport it."), *GetName(), HairGroupsData[GroupIt].HairSimulationData.GetNumCurves(), HairGroupsInfo[GroupIt].NumGuides);
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The groom asset (%s) has inconsistent data. Group count differs between data and description (%d vs. %d). Please reimport it."), *GetName(), HairGroupsData.Num(), HairGroupsInfo.Num());
 	}
 }
 
@@ -753,11 +838,22 @@ void UGroomAsset::UpdateResource()
 		{
 			BeginUpdateResourceRHI(GroupData.HairSimulationRestResource);
 		}
+
+		if (GroupData.ClusterCullingResource)
+		{
+			BeginUpdateResourceRHI(GroupData.ClusterCullingResource);
+		}
+
+		if (GroupData.HairInterpolationResource)
+		{
+			BeginUpdateResourceRHI(GroupData.HairInterpolationResource);
+		}
 	}
 }
 
 void UGroomAsset::ReleaseResource()
 {
+	bIsInitialized = false;
 	for (FHairGroupData& GroupData : HairGroupsData)
 	{
 		if (GroupData.HairStrandsRestResource)
@@ -782,6 +878,30 @@ void UGroomAsset::ReleaseResource()
 				delete InResource;
 			});
 			GroupData.HairSimulationRestResource = nullptr;
+		}
+
+		if (GroupData.ClusterCullingResource)
+		{
+			FHairStrandsClusterCullingResource* InResource = GroupData.ClusterCullingResource;
+			ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
+				[InResource](FRHICommandList& RHICmdList)
+			{
+				InResource->ReleaseResource();
+				delete InResource;
+			});
+			GroupData.ClusterCullingResource = nullptr;
+		}
+
+		if (GroupData.HairInterpolationResource)
+		{
+			FHairStrandsInterpolationResource* InResource = GroupData.HairInterpolationResource;
+			ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
+				[InResource](FRHICommandList& RHICmdList)
+			{
+				InResource->ReleaseResource();
+				delete InResource;
+			});
+			GroupData.HairInterpolationResource = nullptr;
 		}
 	}
 }
@@ -818,7 +938,7 @@ void UGroomAsset::PostLoad()
 		FGroomBuilder::BuildData(this, Settings);
 	}
 
-	if (!IsTemplate())
+	if (!IsTemplate() && IsHairStrandsAssetLoadingEnable())
 	{
 		InitResource();
 	}
@@ -1167,6 +1287,7 @@ FArchive& operator<<(FArchive& Ar, UGroomBindingAsset::FHairGroupData& GroupData
 void UGroomBindingAsset::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
+
 	Ar << HairGroupDatas;
 }
 
@@ -1214,6 +1335,22 @@ void UGroomBindingAsset::ReleaseResource()
 		}
 		HairGroupResources.Empty();
 	}
+
+	// Process resources to be deleted (should happen only in editor)
+	FHairGroupResource ResourceToDelete;
+	while (HairGroupResourcesToDelete.Dequeue(ResourceToDelete))
+	{
+		FHairStrandsRootResource* InSimRootResources = ResourceToDelete.SimRootResources;
+		FHairStrandsRootResource* InRenRootResources = ResourceToDelete.RenRootResources;
+		ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
+			[InSimRootResources, InRenRootResources](FRHICommandList& RHICmdList)
+		{
+			InSimRootResources->ReleaseResource();
+			InRenRootResources->ReleaseResource();
+			delete InSimRootResources;
+			delete InRenRootResources;
+		});
+	}
 }
 
 void UGroomBindingAsset::Reset()
@@ -1232,6 +1369,15 @@ void UGroomBindingAsset::PostLoad()
 
 	InitializeGroupInfos(HairGroupDatas, GroupInfos);
 
+	if (Groom)
+	{
+		// Make sure that the asset initialized its resources first since the component needs them to initialize its own resources
+		Groom->ConditionalPostLoad();
+
+		// Sanity check. This function will report back warnings/issues into the log for user.
+		UGroomBindingAsset::IsCompatible(Groom, this);
+	}
+
 	if (!IsTemplate())
 	{
 		InitResource();
@@ -1240,20 +1386,169 @@ void UGroomBindingAsset::PostLoad()
 
 void UGroomBindingAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+#if WITH_EDITOR
+	while (QueryStatus == EQueryStatus::Submitted)
+	{
+		FPlatformProcess::Sleep(1);
+	}
+#endif
 	Super::PreSave(TargetPlatform);
 	InitializeGroupInfos(HairGroupDatas, GroupInfos);
+#if WITH_EDITOR
+	OnGroomBindingAssetChanged.Broadcast();
+#endif
 }
 
 void UGroomBindingAsset::PostSaveRoot(bool bCleanupIsRequired)
 {
 	Super::PostSaveRoot(bCleanupIsRequired);
 	InitializeGroupInfos(HairGroupDatas, GroupInfos);
+#if WITH_EDITOR
+	OnGroomBindingAssetChanged.Broadcast();
+#endif
 }
 
 void UGroomBindingAsset::BeginDestroy()
 {
 	ReleaseResource();
 	Super::BeginDestroy();
+}
+
+bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const UGroomBindingAsset* InBinding)
+{
+	if (InBinding && InSkeletalMesh)
+	{
+		if (!InBinding->TargetSkeletalMesh)
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) does not have a target skeletal mesh. Falling back onto non-binding version."), *InBinding->GetName());
+			return false;
+		}
+		
+		// TODO: need something better to assess that skeletal meshes match. In the mean time, string comparison. 
+		// Since they can be several instances of a skeletalMesh asset (??), a numerical suffix is sometime added to the name (e.g., SkeletalName_0).
+		// This is why we are using substring comparison.
+		//if (InSkeletalMesh->GetPrimaryAssetId() != InBinding->TargetSkeletalMesh->GetPrimaryAssetId())
+		if (!InSkeletalMesh->GetName().Contains(InBinding->TargetSkeletalMesh->GetName()))
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not reference the same skeletal asset (BindingAsset's skeletal:%s vs. Attached skeletal:%s). The binding asset will not be used."),
+				*InBinding->GetName(),
+				*InBinding->TargetSkeletalMesh->GetName(),
+				*InSkeletalMesh->GetName());
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBindingAsset* InBinding)
+{
+	if (InBinding && InGroom)
+	{
+		if (!InBinding->Groom)
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) does not reference a groom. Falling back onto non-binding version."), *InBinding->GetName());
+			return false;
+		}
+
+		if (InGroom->GetPrimaryAssetId() != InBinding->Groom->GetPrimaryAssetId())
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%) does not reference the same groom asset (BindingAsset's groom:%s vs. Groom:%s). The binding asset will not be used."), 
+				*InBinding->GetName(),
+				*InBinding->Groom->GetName(),
+				*InGroom->GetName());
+			return false;
+		}
+
+		if (InGroom->HairGroupsInfo.Num() != InBinding->GroupInfos.Num())
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same number of groups (%d vs. %d) than the groom (%s). The binding asset will not be used."), 
+				*InBinding->GetName(), 
+				InGroom->HairGroupsInfo.Num(), 
+				InBinding->GroupInfos.Num(), 
+				*InGroom->GetName());
+			return false;
+		}
+
+		for (uint32 GroupIt = 0, GroupCount = InGroom->HairGroupsInfo.Num(); GroupIt < GroupCount; ++GroupIt)
+		{
+			{
+				const uint32 GroomCount = InGroom->HairGroupsInfo[GroupIt].NumGuides;
+				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].SimRootCount;
+
+				if (GroomCount != BindingCount)
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same guides in group %d (%d vs. %d) than the groom (%s). The binding asset will not be used."), 
+						*InBinding->GetName(), 
+						GroupIt,
+						GroomCount,
+						BindingCount,
+						*InGroom->GetName());
+					return false;
+				}
+			}
+
+			{
+				const uint32 GroomCount = InGroom->HairGroupsInfo[GroupIt].NumCurves;
+				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].RenRootCount;
+
+				if (GroomCount != BindingCount)
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same curves in group %d (%d vs. %d) than the groom (%s). The binding asset will not be used."), 
+						*InBinding->GetName(), 
+						GroupIt, 
+						GroomCount,
+						BindingCount,
+						*InGroom->GetName());
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
+bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding, bool bIsBindingReloading)
+{
+	if (InBinding)
+	{
+		if (!InBinding->Groom)
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) does not reference a groom. Falling back onto non-binding version."), *InBinding->GetName());
+			return false;
+		}
+
+		if (const UPackage* Package = InBinding->GetOutermost())
+		{
+			if (Package->IsDirty() && !bIsBindingReloading)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) is not saved and will be considered as invalid. Falling back onto non-binding version."), *InBinding->GetName());
+				return false;
+			}
+		}
+
+		if (InBinding->GroupInfos.Num() == 0)
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) does not contain any groups. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->Groom->GetName());
+			return false;
+		}
+
+		for (const FGoomBindingGroupInfo& Info : InBinding->GroupInfos)
+		{
+			if (Info.SimRootCount == 0)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) has group with 0 guides. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->Groom->GetName());
+				return false;
+			}
+
+			if (Info.RenRootCount == 0)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) has group with 0 curves. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->Groom->GetName());
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 #if WITH_EDITOR
@@ -1265,4 +1560,21 @@ void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 }
 #endif // WITH_EDITOR
 
+bool FProcessedHairDescription::IsValid() const
+{
+	for (TPair<int32, FProcessedHairDescription::FHairGroup> HairGroupIt : HairGroups)
+	{
+		const FProcessedHairDescription::FHairGroup& Group = HairGroupIt.Value;
+		const FHairGroupInfo& GroupInfo = Group.Key;
+		if (GroupInfo.NumCurves == 0)
+		{
+			return false;
+		}
+	}
+
+	return 	HairGroups.Num() > 0;
+}
+
+
+#undef LOCTEXT_NAMESPACE
 
