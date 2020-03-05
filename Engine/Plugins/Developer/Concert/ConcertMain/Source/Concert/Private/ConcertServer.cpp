@@ -167,7 +167,7 @@ void FConcertServer::Startup()
 		// Add Session connection handling
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_CreateSessionRequest, FConcertAdmin_SessionInfoResponse>(this, &FConcertServer::HandleCreateSessionRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_FindSessionRequest, FConcertAdmin_SessionInfoResponse>(this, &FConcertServer::HandleFindSessionRequest);
-		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_RestoreSessionRequest, FConcertAdmin_SessionInfoResponse>(this, &FConcertServer::HandleRestoreSessionRequest);
+		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_CopySessionRequest, FConcertAdmin_SessionInfoResponse>(this, &FConcertServer::HandleCopySessionRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_ArchiveSessionRequest, FConcertAdmin_ArchiveSessionResponse>(this, &FConcertServer::HandleArchiveSessionRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_RenameSessionRequest, FConcertAdmin_RenameSessionResponse>(this, &FConcertServer::HandleRenameSessionRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_DeleteSessionRequest, FConcertAdmin_DeleteSessionResponse>(this, &FConcertServer::HandleDeleteSessionRequest);
@@ -265,7 +265,7 @@ void FConcertServer::Shutdown()
 		// Session connection
 		ServerAdminEndpoint->UnregisterRequestHandler<FConcertAdmin_CreateSessionRequest>();
 		ServerAdminEndpoint->UnregisterRequestHandler<FConcertAdmin_FindSessionRequest>();
-		ServerAdminEndpoint->UnregisterRequestHandler<FConcertAdmin_RestoreSessionRequest>();
+		ServerAdminEndpoint->UnregisterRequestHandler<FConcertAdmin_CopySessionRequest>();
 		ServerAdminEndpoint->UnregisterRequestHandler<FConcertAdmin_ArchiveSessionRequest>();
 		ServerAdminEndpoint->UnregisterRequestHandler<FConcertAdmin_RenameSessionRequest>();
 		ServerAdminEndpoint->UnregisterRequestHandler<FConcertAdmin_DeleteSessionRequest>();
@@ -284,14 +284,12 @@ void FConcertServer::Shutdown()
 
 	// Destroy the live sessions
 	{
-		const bool bAutoArchiveOnShutdown = true;
-
 		TArray<FGuid> LiveSessionIds;
 		LiveSessions.GetKeys(LiveSessionIds);
 		for (const FGuid& LiveSessionId : LiveSessionIds)
 		{
-			bool bDeleteSessionData = true;
-			if (bAutoArchiveOnShutdown)
+			bool bDeleteSessionData = false;
+			if (Settings->bAutoArchiveOnShutdown)
 			{
 				bDeleteSessionData = ArchiveLiveSession(LiveSessionId, FString(), AutoArchiveSessionFilter).IsValid();
 			}
@@ -414,35 +412,66 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateSession(const FConcertSe
 
 TSharedPtr<IConcertServerSession> FConcertServer::RestoreSession(const FGuid& SessionId, const FConcertSessionInfo& SessionInfo, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason)
 {
-	if (!SessionInfo.SessionId.IsValid() || SessionInfo.SessionName.IsEmpty())
+	if (ArchivedSessions.Contains(SessionId))
 	{
-		OutFailureReason = LOCTEXT("Error_RestoreSession_EmptySessionIdOrName", "Empty session ID or name");
-		UE_LOG(LogConcert, Error, TEXT("An attempt to restore a session was made, but the session info was missing an ID or name!"));
-		return nullptr;
+		return CopySession(SessionId, SessionInfo, SessionFilter, OutFailureReason);
 	}
 
-	if (!Settings->ServerSettings.bIgnoreSessionSettingsRestriction && SessionInfo.VersionInfos.Num() == 0)
+	OutFailureReason = FText::Format(LOCTEXT("Error_RestoreSession_NotFound", "Session '{0}' not found"), FText::AsCultureInvariant(SessionId.ToString()));
+	UE_LOG(LogConcert, Error, TEXT("An attempt to restore session '%s' was made, but that session could not be found!"), *SessionId.ToString());
+	return nullptr;
+}
+
+TSharedPtr<IConcertServerSession> FConcertServer::CopySession(const FGuid& SrcSessionId, const FConcertSessionInfo& NewSessionInfo, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason)
+{
+	if (!NewSessionInfo.SessionId.IsValid() || NewSessionInfo.SessionName.IsEmpty())
 	{
-		OutFailureReason = LOCTEXT("Error_RestoreSession_EmptyVersionInfo", "Empty version info");
-		UE_LOG(LogConcert, Error, TEXT("An attempt to restore a session was made, but the session info was missing version info!"));
+		OutFailureReason = LOCTEXT("Error_CopySession_EmptySessionIdOrName", "Empty session ID or name");
+		UE_LOG(LogConcert, Error, TEXT("An attempt to copy a session was made, but the session info was missing an ID or name!"));
 		return nullptr;
 	}
-
-	if (LiveSessions.Contains(SessionInfo.SessionId))
+	else if (!Settings->ServerSettings.bIgnoreSessionSettingsRestriction && NewSessionInfo.VersionInfos.Num() == 0)
 	{
-		OutFailureReason = FText::Format(LOCTEXT("Error_RestoreSession_AlreadyExists", "Session '{0}' already exists"), FText::AsCultureInvariant(SessionInfo.SessionId.ToString()));
-		UE_LOG(LogConcert, Error, TEXT("An attempt to restore a session with ID '%s' was made, but that session already exists!"), *SessionInfo.SessionId.ToString());
+		OutFailureReason = LOCTEXT("Error_CopySession_EmptyVersionInfo", "Empty version info");
+		UE_LOG(LogConcert, Error, TEXT("An attempt to copy a session was made, but the session info was missing version info!"));
 		return nullptr;
 	}
-
-	if (GetLiveSessionIdByName(SessionInfo.SessionName).IsValid())
+	else if (LiveSessions.Contains(NewSessionInfo.SessionId))
 	{
-		OutFailureReason = FText::Format(LOCTEXT("Error_RestoreSession_AlreadyExists", "Session '{0}' already exists"), FText::AsCultureInvariant(SessionInfo.SessionName));
-		UE_LOG(LogConcert, Error, TEXT("An attempt to restore a session with name '%s' was made, but that session already exists!"), *SessionInfo.SessionName);
+		OutFailureReason = FText::Format(LOCTEXT("Error_CopySession_AlreadyExists", "Session '{0}' already exists"), FText::AsCultureInvariant(NewSessionInfo.SessionId.ToString()));
+		UE_LOG(LogConcert, Error, TEXT("An attempt to copy a session with ID '%s' was made, but that session already exists!"), *NewSessionInfo.SessionId.ToString());
 		return nullptr;
 	}
+	else if (GetLiveSessionIdByName(NewSessionInfo.SessionName).IsValid())
+	{
+		OutFailureReason = FText::Format(LOCTEXT("Error_CopySession_AlreadyExists", "Session '{0}' already exists"), FText::AsCultureInvariant(NewSessionInfo.SessionName));
+		UE_LOG(LogConcert, Error, TEXT("An attempt to copy a session with name '%s' was made, but that session already exists!"), *NewSessionInfo.SessionName);
+		return nullptr;
+	}
+	else if (ArchivedSessions.Contains(SrcSessionId))
+	{
+		return RestoreArchivedSession(SrcSessionId, NewSessionInfo, SessionFilter, OutFailureReason);
+	}
+	else if (TSharedPtr<IConcertServerSession> LiveSession = LiveSessions.FindRef(SrcSessionId))
+	{
+		// Copy the live session in the default repository (where new sessions should be created), unless it is unset.
+		const FConcertSessionInfo& LiveSessionInfo = LiveSession->GetSessionInfo();
+		const FConcertServerSessionRepository& CopySessionRepository = DefaultSessionRepository.IsSet() ? DefaultSessionRepository.GetValue() : GetSessionRepository(LiveSession->GetSessionInfo().SessionId);
+		if (EventSink->CopySession(*this, LiveSession.ToSharedRef(), CopySessionRepository.GetSessionWorkingDir(NewSessionInfo.SessionId), SessionFilter))
+		{
+			UE_LOG(LogConcert, Display, TEXT("Live session '%s' (%s) was copied as '%s' (%s)"), *LiveSessionInfo.SessionName, *LiveSessionInfo.SessionId.ToString(), *NewSessionInfo.SessionName, *NewSessionInfo.SessionId.ToString());
+			return CreateLiveSession(NewSessionInfo, CopySessionRepository);
+		}
+		else
+		{
+			UE_LOG(LogConcert, Error, TEXT("An attempt to copy a session '%s' was made, but failed!"), *SrcSessionId.ToString());
+			return nullptr;
+		}
+	}
 
-	return RestoreArchivedSession(SessionId, SessionInfo, SessionFilter, OutFailureReason);
+	OutFailureReason = FText::Format(LOCTEXT("Error_CopySession_NotFound", "Session '{0}' not found"), FText::AsCultureInvariant(SrcSessionId.ToString()));
+	UE_LOG(LogConcert, Error, TEXT("An attempt to copy a session '%s' was made, but that session could not be found!"), *SrcSessionId.ToString());
+	return nullptr;
 }
 
 void FConcertServer::RecoverSessions(const FConcertServerSessionRepository& InRepository, bool bCleanupExpiredSessions)
@@ -1017,12 +1046,12 @@ TFuture<FConcertAdmin_SessionInfoResponse> FConcertServer::HandleFindSessionRequ
 	return FConcertAdmin_SessionInfoResponse::AsFuture(MoveTemp(ResponseData));
 }
 
-TFuture<FConcertAdmin_SessionInfoResponse> FConcertServer::HandleRestoreSessionRequest(const FConcertMessageContext& Context)
+TFuture<FConcertAdmin_SessionInfoResponse> FConcertServer::HandleCopySessionRequest(const FConcertMessageContext& Context)
 {
-	const FConcertAdmin_RestoreSessionRequest* Message = Context.GetMessage<FConcertAdmin_RestoreSessionRequest>();
+	const FConcertAdmin_CopySessionRequest* Message = Context.GetMessage<FConcertAdmin_CopySessionRequest>();
 
 	// Restore the server session
-	FText RestoreFailureReason;
+	FText FailureReason;
 	TSharedPtr<IConcertServerSession> NewServerSession;
 	{
 		FConcertSessionInfo SessionInfo = CreateSessionInfo();
@@ -1032,7 +1061,9 @@ TFuture<FConcertAdmin_SessionInfoResponse> FConcertServer::HandleRestoreSessionR
 		SessionInfo.SessionName = Message->SessionName;
 		SessionInfo.Settings = Message->SessionSettings;
 		SessionInfo.VersionInfos.Add(Message->VersionInfo);
-		NewServerSession = RestoreSession(Message->SessionId, SessionInfo, Message->SessionFilter, RestoreFailureReason);
+		NewServerSession = Message->bRestoreOnly ?
+			RestoreSession(Message->SessionId, SessionInfo, Message->SessionFilter, FailureReason) :
+			CopySession(Message->SessionId, SessionInfo, Message->SessionFilter, FailureReason);
 	}
 
 	// We have a valid session if it succeeded
@@ -1045,8 +1076,8 @@ TFuture<FConcertAdmin_SessionInfoResponse> FConcertServer::HandleRestoreSessionR
 	else
 	{
 		ResponseData.ResponseCode = EConcertResponseCode::Failed;
-		ResponseData.Reason = RestoreFailureReason;
-		UE_LOG(LogConcert, Display, TEXT("Session restoration failed. (User: %s, Reason: %s)"), *Message->OwnerClientInfo.UserName, *ResponseData.Reason.ToString());
+		ResponseData.Reason = FailureReason;
+		UE_LOG(LogConcert, Display, TEXT("Session copy failed. (User: %s, Reason: %s)"), *Message->OwnerClientInfo.UserName, *ResponseData.Reason.ToString());
 	}
 
 	return FConcertAdmin_SessionInfoResponse::AsFuture(MoveTemp(ResponseData));

@@ -735,8 +735,9 @@ void FConcertLocalEndpoint::SendKeepAlives(const FDateTime& UtcNow)
 		FConcertRemoteEndpointPtr RemoteEndpoint = RemoteEndpointPair.Value;
 		check(RemoteEndpoint.IsValid());
 
-		// if no message have been sent to this endpoint for a quarter of the timeout span, send a keep alive
-		if (!RemoteEndpoint->GetEndpointTimeoutSpan().IsZero() && RemoteEndpoint->GetLastSentMessageTime() + (RemoteEndpoint->GetEndpointTimeoutSpan() * 0.25f) <= UtcNow)
+		// if no message have been sent to this endpoint for some time, send a keep alive to ensure the UDP nodes re-registered if MessageBus decided to unregister them.
+		FTimespan KeepAliveSpan = RemoteEndpoint->GetEndpointTimeoutSpan().IsZero() ? FTimespan(0, 0, 10) : RemoteEndpoint->GetEndpointTimeoutSpan() * 0.25f;
+		if (RemoteEndpoint->GetLastSentMessageTime() + KeepAliveSpan <= UtcNow)
 		{
 			SendKeepAlive(RemoteEndpoint.ToSharedRef(), UtcNow);
 		}

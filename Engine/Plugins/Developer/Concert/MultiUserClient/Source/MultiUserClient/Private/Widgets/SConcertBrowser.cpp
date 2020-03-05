@@ -465,7 +465,7 @@ void FConcertBrowserController::RestoreSession(const FGuid& ServerAdminEndpointI
 	TWeakPtr<IConcertClient, ESPMode::ThreadSafe> WeakClient = ConcertClient;
 	auto OnAcceptRestoreFn = [WeakClient, ServerAdminEndpointId, SessionId, RestoredName, SessionFilter](TSharedPtr<FConcertClientSessionActivity> SelectedRecoveryActivity)
 	{
-		FConcertRestoreSessionArgs RestoreSessionArgs;
+		FConcertCopySessionArgs RestoreSessionArgs;
 		RestoreSessionArgs.bAutoConnect = true;
 		RestoreSessionArgs.SessionId = SessionId;
 		RestoreSessionArgs.SessionName = RestoredName;

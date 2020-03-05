@@ -287,10 +287,6 @@ FDisasterRecoverySessionManager::~FDisasterRecoverySessionManager()
 
 	SyncClient->GetConcertClient()->OnSessionStartup().RemoveAll(this);
 	SyncClient->GetConcertClient()->OnSessionShutdown().RemoveAll(this);
-
-	// Remove this recovery clients from the list of active clients.
-	DisasterRecoveryUtil::ScopedRecoveryInfoExclusiveUpdater ScopedRecoveryUpdater(RecoveryInfoPathname, SessionsCacheRevision);
-	ScopedRecoveryUpdater.Info().ClientProcessIds.RemoveAll([](const int32 ProcessId) { return ProcessId == FPlatformProcess::GetCurrentProcessId(); });
 }
 
 TArray<FGuid> FDisasterRecoverySessionManager::InitAndRotateSessions()
@@ -306,12 +302,22 @@ TArray<FGuid> FDisasterRecoverySessionManager::InitAndRotateSessions()
 		IFileManager::Get().Delete(*OldSessionInfo);
 	}
 
-	// Remove dead recovery clients from the list of active clients.
-	RecoveryInfo.ClientProcessIds.RemoveAll([](const int32 ProcessId) { return !DisasterRecoveryUtil::IsRecoveryClientProcessRunning(ProcessId);});
+	// Remove dead/crashed recovery clients from the list of active clients.
+	RecoveryInfo.Clients.RemoveAll([this](const FDisasterRecoveryClientInfo& ClientInfo)
+	{
+		if (!DisasterRecoveryUtil::IsRecoveryClientProcessRunning(ClientInfo.ClientProcessId))
+		{
+			// Clean up the temporary directory left behind by this client (it can use lot of disk space).
+			FString ClientTempDir = FPaths::ProjectIntermediateDir() / TEXT("Concert") / Role / ClientInfo.ClientAppId.ToString(); // See FConcertClientPaths (inaccessible from here).
+			IFileManager::Get().DeleteDirectory(*ClientTempDir, /*bRequireExists*/false, /*Tree*/true);
+			return true;
+		}
+		return false; // The client is sill running, don't remove it.
+	});
 
 	// Add this recovery client to the list of active clients.
-	RecoveryInfo.ClientProcessIds.Add(FPlatformProcess::GetCurrentProcessId());
-	DisasterRecoveryClientCount = RecoveryInfo.ClientProcessIds.Num();
+	RecoveryInfo.Clients.Add(FDisasterRecoveryClientInfo{FPlatformProcess::GetCurrentProcessId(), FApp::GetInstanceId()});
+	DisasterRecoveryClientCount = RecoveryInfo.Clients.Num();
 
 	// Unmap repositories that doesn't exist anymore on disk. User might have manually deleted the directories.
 	auto UnmapDeletedRepositoriesFn = [&RecoveryInfo](TArray<FDisasterRecoverySession>& Sessions)
@@ -526,8 +532,8 @@ TFuture<bool> FDisasterRecoverySessionManager::HasRecoverableCandidates()
 			continue; // Don't prompt the user to recover when the debugger was attached. User likely stopped the debugging in the middle of a session and is likely not interested to recover.
 		}
 
-		// Unreviewed crashes are obvious candidates. For a live session, if its repository cannot be mounted by this process, it will be eliminated, but if can, it means that
-		// the 'out-of-process' crash reporter has caught a crash, archived and unmounted the session even if the owned process is still active from OS point of view.
+		// Unreviewed crashes are obvious candidates. For a live session (owner process is still alive), if its repository cannot be mounted by this process, it will be eliminated, but if can,
+		// it means that the 'out-of-process' crash reporter caught a crash and unmounted the session repository even if the owned process is still active from OS point of view.
 		if (Candidate->IsUnreviewedCrash() || (Candidate->IsLive() && Candidate->ClientProcessId != FPlatformProcess::GetCurrentProcessId()))
 		{
 			Candidates.Add(Candidate);
@@ -561,33 +567,33 @@ TFuture<TVariant<TSharedPtr<FConcertActivityStream>, FText>> FDisasterRecoverySe
 		Promise->EmplaceValue(TInPlaceType<FText>(), ErrorMsg); // Could not load the session activities.
 	};
 
-	auto OnArchiveIdLookupResultFn = [this, OnErrorFn, Session, Promise](const FGuid& ArchivedSessionId)
+	auto OnSessionIdLookupResultFn = [this, OnErrorFn, Session, Promise](const FGuid& ResultSessionId)
 	{
-		if (!ArchivedSessionId.IsValid()) // Not found?
+		if (!ResultSessionId.IsValid()) // Not found?
 		{
-			OnSessionNotFoundInternal(Session->RepositoryId); // The archive was likely deleted. Mark it to be discarded to be cleaned up at the next start up.
+			OnSessionNotFoundInternal(Session->RepositoryId); // The session was likely deleted. Mark it to be discarded to be cleaned up at the next start up.
 			OnErrorFn(LOCTEXT("SessionNotFound", "Session not found."));
 			return; // 3b - No session.
 		}
 
 		// 3a- Return the activity stream on the session.
-		TSharedPtr<FConcertActivityStream> ActivityStream = MakeShared<FConcertActivityStream>(SyncClient->GetConcertClient(), ServerAdminEndpointId, ArchivedSessionId, /*bInIncludeActivityDetails*/true);
+		TSharedPtr<FConcertActivityStream> ActivityStream = MakeShared<FConcertActivityStream>(SyncClient->GetConcertClient(), ServerAdminEndpointId, ResultSessionId, /*bInIncludeActivityDetails*/true);
 		return Promise->EmplaceValue(TInPlaceType<TSharedPtr<FConcertActivityStream>>(), ActivityStream);
 	};
 
-	auto OnRepositoryMountedFn = [this, Session, OnErrorFn, OnArchiveIdLookupResultFn]()
+	auto OnRepositoryMountedFn = [this, Session, OnErrorFn, OnSessionIdLookupResultFn]()
 	{
 		OnSessionRepositoryMountedInternal(Session->RepositoryId); // Update internal state.
 
-		// 2- Find the archived session by name and retrieve its ID.
+		// 2- Find the session by name and retrieve its ID.
 		TaskExecutor.Enqueue(MakeShared<FLookupDisasterRecoverySessionIdTask>(
 			[this](){ return SyncClient->GetConcertClient()->GetServerSessions(ServerAdminEndpointId); },
 			Session->SessionName,
-			OnArchiveIdLookupResultFn,
+			OnSessionIdLookupResultFn,
 			OnErrorFn));
 	};
 
-	// 1- Mount the session repository, the server will reload the archived session in memory. (Create the mount point if it doesn't exist in case its for an imported session the server has not seen yet)
+	// 1- Mount the session repository, the server will reload the session in memory. (Create the mount point if it doesn't exist in case its for an imported session the server has not seen yet)
 	TaskExecutor.Enqueue(MakeShared<FMountDisasterRecoverySessionRepositoryTask>(
 		[this, Session]() { return SyncClient->GetConcertClient()->MountSessionRepository(ServerAdminEndpointId, Session->RepositoryRootDir, Session->RepositoryId, /*bCreateIfNotExist*/true, /*bAsDefault*/false); },
 		OnRepositoryMountedFn,
@@ -807,7 +813,7 @@ TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::RestoreAndJoinSessi
 	TSharedPtr<TPromise<TPair<bool, FText>>> Promise = MakeShared<TPromise<TPair<bool, FText>>>();
 	FString SessionName = RecoveryService::MakeSessionName(); // This follow the convention used in CrachReportClientEditor.
 	FGuid RepositoryId = FGuid::NewGuid(); // The repository for this session.
-	TSharedPtr<FGuid> ArchivedSessionId = MakeShared<FGuid>(); // Will hold the ID of the session to restore (once found).
+	TSharedPtr<FGuid> SrcSessionId = MakeShared<FGuid>(); // Will hold the ID of the session to restore (once found).
 
 	// Remember the current session info.
 	CurrentSessionRepositoryId = RepositoryId;
@@ -844,7 +850,7 @@ TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::RestoreAndJoinSessi
 		}
 	};
 
-	auto OnNewSessionRepositoryMountedFn = [this, Promise, RepositoryId, ThroughActivity, SessionName, ArchivedSessionId, OnSessionRestoredFn, OnErrorFn]()
+	auto OnNewSessionRepositoryMountedFn = [this, Promise, RepositoryId, ThroughActivity, SessionName, SrcSessionId, OnSessionRestoredFn, OnErrorFn]()
 	{
 		OnSessionRepositoryMountedInternal(RepositoryId); // Update internal state.
 
@@ -854,25 +860,25 @@ TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::RestoreAndJoinSessi
 			return;
 		}
 
-		FConcertRestoreSessionArgs RestoreArgs;
-		RestoreArgs.ArchiveNameOverride = SessionName;
-		RestoreArgs.bAutoConnect = true; // Join the session once restored.
-		RestoreArgs.SessionId = *ArchivedSessionId;
-		RestoreArgs.SessionFilter.ActivityIdUpperBound = ThroughActivity->Activity.ActivityId;
-		RestoreArgs.SessionFilter.bOnlyLiveData = false; // Reapply all activities.
-		RestoreArgs.SessionFilter.bIncludeIgnoredActivities = false; // Don't restore ignored activities. (Like MultiUser activities recorded in a DisasterRecovery session)
-		RestoreArgs.SessionName = SessionName;
+		FConcertCopySessionArgs CopyArgs;
+		CopyArgs.ArchiveNameOverride = SessionName;
+		CopyArgs.bAutoConnect = true; // Join the session once copied.
+		CopyArgs.SessionId = *SrcSessionId; // The session to copy.
+		CopyArgs.SessionFilter.ActivityIdUpperBound = ThroughActivity->Activity.ActivityId;
+		CopyArgs.SessionFilter.bOnlyLiveData = false; // Reapply all activities.
+		CopyArgs.SessionFilter.bIncludeIgnoredActivities = false; // Don't restore ignored activities. (Like MultiUser activities recorded in a DisasterRecovery session)
+		CopyArgs.SessionName = SessionName;
 
-		// 4 - Create a new session from the archive (restore) and join it.
+		// 4 - Create a new session from the source one and join it.
 		TaskExecutor.Enqueue(MakeShared<FCreateAndJoinDisasterRecoverySessionTask>(
-			[this, RestoreArgs = MoveTemp(RestoreArgs)](){ return SyncClient->GetConcertClient()->RestoreSession(ServerAdminEndpointId, RestoreArgs); },
+			[this, CopyArgs = MoveTemp(CopyArgs)](){ return SyncClient->GetConcertClient()->CopySession(ServerAdminEndpointId, CopyArgs); },
 			SyncClient,
 			SessionName,
 			OnSessionRestoredFn,
 			OnErrorFn));
 	};
 
-	auto OnArchiveIdLookupResultFn = [this, Promise, RepositoryId, ArchivedSessionId, Session, OnNewSessionRepositoryMountedFn, OnErrorFn](const FGuid& InArchivedSessionId)
+	auto OnSessionIdLookupResultFn = [this, Promise, RepositoryId, SrcSessionId, Session, OnNewSessionRepositoryMountedFn, OnErrorFn](const FGuid& InSrcSessionId)
 	{
 		if (RepositoryId != CurrentSessionRepositoryId) // Was aborted?
 		{
@@ -880,14 +886,14 @@ TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::RestoreAndJoinSessi
 			return;
 		}
 
-		if (!InArchivedSessionId.IsValid()) // Not found?
+		if (!InSrcSessionId.IsValid()) // Not found?
 		{
-			OnSessionNotFoundInternal(Session->RepositoryId); // The archive was likely deleted. Mark it to be discarded at the next start up.
-			OnErrorFn(LOCTEXT("ArchivedSessionNotFound", "Archived session not found."));
+			OnSessionNotFoundInternal(Session->RepositoryId); // The session was likely deleted. Mark its repository to be discarded at the next start up.
+			OnErrorFn(LOCTEXT("SessionNotFound", "Session not found."));
 			return;
 		}
 
-		*ArchivedSessionId = InArchivedSessionId; // Store the session ID for the next task above.
+		*SrcSessionId = InSrcSessionId; // Store the session ID for the next task above.
 
 		// 3- Mount a new repository to contain the new session (a new session is created from the one to restore).
 		TaskExecutor.Enqueue(MakeShared<FMountDisasterRecoverySessionRepositoryTask>(
@@ -896,9 +902,9 @@ TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::RestoreAndJoinSessi
 			OnErrorFn));
 	};
 
-	auto OnArchiveRepositoryMountedFn = [this, Promise, RepositoryId, Session, OnErrorFn, OnArchiveIdLookupResultFn]()
+	auto OnSrcRepositoryMountedFn = [this, Promise, RepositoryId, Session, OnErrorFn, OnSessionIdLookupResultFn]()
 	{
-		OnSessionRepositoryMountedInternal(Session->RepositoryId); // The archived session repository was mounted. Update internal state.
+		OnSessionRepositoryMountedInternal(Session->RepositoryId); // The session repository was mounted. Update internal state.
 
 		if (RepositoryId != CurrentSessionRepositoryId) // Was aborted?
 		{
@@ -906,18 +912,18 @@ TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::RestoreAndJoinSessi
 			return;
 		}
 
-		// 2- Search the archived session by name and retreive its ID.
+		// 2- Search the session by name and retreive its ID.
 		TaskExecutor.Enqueue(MakeShared<FLookupDisasterRecoverySessionIdTask>(
 			[this](){ return SyncClient->GetConcertClient()->GetServerSessions(ServerAdminEndpointId); },
 			Session->SessionName,
-			OnArchiveIdLookupResultFn,
+			OnSessionIdLookupResultFn,
 			OnErrorFn));
 	};
 
-	// 1- Mount the repository containing the archived session, the server will reload the archived session.
+	// 1- Mount the repository containing the session to restore, the server will reload the sessions in that repository.
 	TaskExecutor.Enqueue(MakeShared<FMountDisasterRecoverySessionRepositoryTask>(
 		[this, Session]() { return SyncClient->GetConcertClient()->MountSessionRepository(ServerAdminEndpointId, Session->RepositoryRootDir, Session->RepositoryId, /*bCreateIfNotExist*/false, /*bAsDefault*/false); },
-		OnArchiveRepositoryMountedFn,
+		OnSrcRepositoryMountedFn,
 		OnErrorFn));
 
 	return Promise->GetFuture();
