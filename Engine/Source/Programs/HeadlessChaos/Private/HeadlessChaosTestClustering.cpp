@@ -24,6 +24,7 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitCluster()
 	{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 		TPBDRigidsSOAs<T, 3> Particles;
 		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
@@ -59,12 +60,15 @@ namespace ChaosTest {
 		EXPECT_TRUE(Normal.Equals(TVector<T, 3>{(T)1, (T)0, (T)0}));
 
 		//EXPECT_TRUE(Evolution.GetParticles().Geometry(2)->IsConvex());  we don't actually guarantee this
+#endif
 	}
 	template void ImplicitCluster<float>();
 
 	template<class T>
 	void FractureCluster()
 	{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+
 		TPBDRigidsSOAs<T, 3> Particles;
 		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
@@ -174,12 +178,14 @@ namespace ChaosTest {
 			EXPECT_TRUE(bFoundInNonDisabled);
 			EXPECT_TRUE(ClusteredParticles.V(BoxID).Equals(InitialVelocity));
 		}
+#endif
 	}
 	template void FractureCluster<float>();
 
 	template<class T>
 	void PartialFractureCluster()
 	{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 		TPBDRigidsSOAs<T, 3> Particles;
 		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
@@ -267,6 +273,7 @@ namespace ChaosTest {
 				EXPECT_TRUE(Evolution.GetIslandParticles(Island).Contains(ClusteredParticles.Handle(BoxID)) == false);
 			}
 		}
+#endif
 	}
 	template void PartialFractureCluster<float>();
 
