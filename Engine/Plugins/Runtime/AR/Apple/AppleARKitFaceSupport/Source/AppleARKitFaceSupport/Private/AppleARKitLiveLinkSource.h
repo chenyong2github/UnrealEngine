@@ -345,16 +345,14 @@ public:
 	}
 
 	/**
-	 * Adds a FTimecode to the buffer
-	 */
-	friend inline FNboSerializeToBuffer& operator<<(FNboSerializeToBuffer& Ar,const FTimecode& Timecode)
+	* Adds a FQualifiedFrameTime to the buffer
+	*/
+	friend inline FNboSerializeToBuffer& operator<<(FNboSerializeToBuffer& Ar, const FQualifiedFrameTime& FrameTime)
 	{
-		Ar << Timecode.Hours;
-		Ar << Timecode.Minutes;
-		Ar << Timecode.Seconds;
-		Ar << Timecode.Frames;
-		uint8 Drop = Timecode.bDropFrameFormat ? 1 : 0;
-		Ar << Drop;
+		Ar << FrameTime.Time.FrameNumber.Value;
+		Ar << FrameTime.Time.GetSubFrame();
+		Ar << FrameTime.Rate.Numerator;
+		Ar << FrameTime.Rate.Denominator;
 		return Ar;
 	}
 
@@ -632,17 +630,20 @@ public:
 	}
 
 	/**
-	 * Reads a FTimecode from the buffer
+	 * Reads a FQualifiedFrameTime from the buffer
 	 */
-	friend inline FNboSerializeFromBuffer& operator>>(FNboSerializeFromBuffer& Ar,FTimecode& Timecode)
+	friend inline FNboSerializeFromBuffer& operator>>(FNboSerializeFromBuffer& Ar, FQualifiedFrameTime& FrameTime)
 	{
-		Ar >> Timecode.Hours;
-		Ar >> Timecode.Minutes;
-		Ar >> Timecode.Seconds;
-		Ar >> Timecode.Frames;
-		uint8 Drop = 0;
-		Ar >> Drop;
-		Timecode.bDropFrameFormat = Drop > 0 ? true : false;
+		int32 FrameNumber;
+		float SubFrame;
+
+		Ar >> FrameNumber;
+		Ar >> SubFrame;
+		Ar >> FrameTime.Rate.Numerator;
+		Ar >> FrameTime.Rate.Denominator;
+
+		FrameTime.Time = FFrameTime(FrameNumber, SubFrame);
+
 		return Ar;
 	}
 
@@ -764,7 +765,7 @@ public:
 	virtual ~FAppleARKitLiveLinkRemotePublisher();
 
 	// IARKitBlendShapePublisher interface
-	virtual void PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
+	virtual void PublishBlendShapes(FName SubjectName, const FQualifiedFrameTime& FrameTime, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
 	// End IARKitBlendShapePublisher
 
 	bool InitSendSocket();
@@ -794,20 +795,18 @@ protected:
 
 	struct FFaceTrackingFrame
 	{
-		FFaceTrackingFrame(const FTimecode& InTimecode, uint32 InFrameRate, const FARBlendShapeMap& InBlendShapes)
-			: Timecode(InTimecode)
-			, FrameRate(InFrameRate)
+		FFaceTrackingFrame(const FQualifiedFrameTime& InFrameTime, const FARBlendShapeMap& InBlendShapes)
+			: FrameTime(InFrameTime)
 			, BlendShapes(InBlendShapes)
 		{
 		}
 
-		FTimecode Timecode;
-		uint32 FrameRate;
+		FQualifiedFrameTime FrameTime;
 		FARBlendShapeMap BlendShapes;
 	};
 
 	// IARKitBlendShapePublisher interface
-	virtual void PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
+	virtual void PublishBlendShapes(FName SubjectName, const FQualifiedFrameTime& FrameTime, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
 	// End IARKitBlendShapePublisher
 
 	//~ FSelfRegisteringExec
@@ -888,7 +887,7 @@ private:
 	// End ILiveLinkSource
 
 	// IARKitBlendShapePublisher interface
-	virtual void PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
+	virtual void PublishBlendShapes(FName SubjectName, const FQualifiedFrameTime& FrameTime, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
 	// End IARKitBlendShapePublisher
 
 	// Update static data property names from blend shape map. Should only happen once per subject name. Pushes static data to livelink to register subject
