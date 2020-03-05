@@ -7,6 +7,9 @@
 #include "DataprepOperation.h"
 
 #include "DataprepOperationsLibrary.h"
+#include "AssetData.h"
+
+#include "IDetailCustomization.h"
 
 //
 #include "DataprepEditingOperations.generated.h"
@@ -170,10 +173,42 @@ public:
 		return FDataprepOperationCategories::ActorOperation;
 	}
 
+	void SetAsset(UObject* Asset);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation)
-	UStaticMesh* StaticMesh;
+	UObject* SelectedAsset;
 
 protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
+};
+
+class FDataprepSpawnActorsAtLocationDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef< IDetailCustomization > MakeDetails() 
+	{ 
+		return MakeShared<FDataprepSpawnActorsAtLocationDetails>(); 
+	};
+
+	FDataprepSpawnActorsAtLocationDetails() : DataprepOperation(nullptr) {}
+	
+	/** Called when details should be customized */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+private:
+	const FAssetData& GetAssetData() const;
+	TSharedRef<SWidget> CreateWidget();
+	TSharedRef<SWidget> GenerateAssetPicker();
+	FText OnGetComboTextValue() const;
+	FText GetObjectToolTip() const;
+	void OnAssetSelectedFromPicker(const struct FAssetData& AssetData);
+	void OnAssetEnterPressedInPicker(const TArray<FAssetData>& InSelectedAssets);
+
+private:
+	TSharedPtr<class SMenuAnchor> AssetPickerAnchor;
+	UDataprepSpawnActorsAtLocation* DataprepOperation;
+
+	/** Cached AssetData of object selected */
+	mutable FAssetData CachedAssetData;
 };
