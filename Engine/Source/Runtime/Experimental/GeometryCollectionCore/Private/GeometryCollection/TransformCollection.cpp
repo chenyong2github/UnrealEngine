@@ -53,6 +53,16 @@ void FTransformCollection::Serialize(Chaos::FChaosArchive& Ar)
 
 }
 
+FTransformCollection FTransformCollection::SingleTransform(const FTransform& TransformRoot)
+{
+	FTransformCollection TransformCollection;
+	TransformCollection.AddElements(1, FTransformCollection::TransformGroup);
+	TransformCollection.Transform[0] = TransformRoot;
+	TransformCollection.Parent[0] = Invalid;
+	return TransformCollection;
+}
+
+
 int32 FTransformCollection::AppendTransform(const FTransformCollection & Element, const FTransform& TransformRoot)
 {
 	check(Element.NumElements(FTransformCollection::TransformGroup) > 0);
