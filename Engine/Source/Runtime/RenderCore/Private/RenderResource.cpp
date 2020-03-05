@@ -78,8 +78,6 @@ void FRenderResource::InitResource()
 	check(IsInRenderingThread());
 	if (ListIndex == INDEX_NONE)
 	{
-		check(!IsEngineExitRequested());
-
 		TArray<FRenderResource*>& ResourceList = GetResourceList();
 		TArray<int32>& FreeIndicesList = GetFreeIndicesList();
 
