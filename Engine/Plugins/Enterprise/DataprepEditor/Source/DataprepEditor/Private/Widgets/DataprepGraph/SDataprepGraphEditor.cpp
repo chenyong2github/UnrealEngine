@@ -420,9 +420,9 @@ void SDataprepGraphEditor::OnRenameNode()
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
 		UEdGraphNode* SelectedNode = Cast<UEdGraphNode>(*NodeIt);
-		if (SelectedNode != NULL && SelectedNode->bCanRenameNode)
+		if (SelectedNode != NULL && SelectedNode->bCanRenameNode && TrackGraphNodePtr.IsValid())
 		{
-			IsNodeTitleVisible(SelectedNode, true);
+			TrackGraphNodePtr.Pin()->RequestRename(SelectedNode);
 			break;
 		}
 	}

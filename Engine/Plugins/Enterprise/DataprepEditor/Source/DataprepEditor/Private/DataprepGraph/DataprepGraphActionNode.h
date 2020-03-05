@@ -82,7 +82,7 @@ public:
 	const UDataprepActionAsset* GetDataprepActionAsset() const { return DataprepActionAsset; }
 	UDataprepActionAsset* GetDataprepActionAsset() { return DataprepActionAsset; }
 
-	int32 GetExecutionOrder() { return ExecutionOrder; }
+	int32 GetExecutionOrder() const { return ExecutionOrder; }
 
 protected:
 	UPROPERTY()
