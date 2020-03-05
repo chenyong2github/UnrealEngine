@@ -133,6 +133,9 @@ protected:
 	/** TRUE when the right mouse button is pressed, keeps from handling a right click that does not begin in the widget */
 	bool bIsRightMousePressed;
 
+	/** true if GetMenuContent was last called with bForSecondaryType == true */
+	bool bMenuContentIsSecondary = false;
+
 	/** Whether the selector is using the compact or full mode, or not a selector at all, but just the type image.*/
 	ESelectorType SelectorType;
 
