@@ -1,112 +1,63 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ILiveLinkModule.h"
+#include "LiveLinkModule.h"
 
-#include "Features/IModularFeatures.h"
-#include "Interfaces/IPluginManager.h"
-#include "LiveLinkMotionController.h"
-
-#include "LiveLinkMessageBusDiscoveryManager.h"
-
-#include "LiveLinkClient.h"
+#include "HAL/PlatformAtomics.h"
 #include "LiveLinkLogInstance.h"
-#include "LiveLinkDebugCommand.h"
-#include "LiveLinkHeartbeatEmitter.h"
 #include "LiveLinkPreset.h"
 #include "LiveLinkSettings.h"
 
-#include "Styling/SlateStyle.h"
-
-
-/**
- * Implements the Messaging module.
- */
-
 #define LOCTEXT_NAMESPACE "LiveLinkModule"
 
+FLiveLinkClient* FLiveLinkModule::StaticLiveLinkClient = nullptr;
 
-class FLiveLinkModule
-	: public ILiveLinkModule
+FLiveLinkModule::FLiveLinkModule()
+	: LiveLinkClient()
+	, LiveLinkMotionController(LiveLinkClient)
+	, HeartbeatEmitter(MakeUnique<FLiveLinkHeartbeatEmitter>())
+	, DiscoveryManager(MakeUnique<FLiveLinkMessageBusDiscoveryManager>())
+	, LiveLinkDebugCommand(MakeUnique<FLiveLinkDebugCommand>(LiveLinkClient))
 {
-public:
-	FLiveLinkClient LiveLinkClient;
-	FLiveLinkMotionController LiveLinkMotionController;
-	TSharedPtr<FSlateStyleSet> StyleSet;
-	FString ContentDir;
+}
 
-	FLiveLinkModule()
-		: LiveLinkClient()
-		, LiveLinkMotionController(LiveLinkClient)
-		, HeartbeatEmitter(MakeUnique<FLiveLinkHeartbeatEmitter>())
-		, DiscoveryManager(MakeUnique<FLiveLinkMessageBusDiscoveryManager>())
-		, LiveLinkDebugCommand(MakeUnique<FLiveLinkDebugCommand>(LiveLinkClient))
+void FLiveLinkModule::StartupModule()
+{
+	FLiveLinkLogInstance::CreateInstance();
+	CreateStyle();
+
+	StaticLiveLinkClient = &LiveLinkClient;
+	IModularFeatures::Get().RegisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
+	LiveLinkMotionController.RegisterController();
+
+	if (ULiveLinkPreset* Preset = GetDefault<ULiveLinkSettings>()->DefaultLiveLinkPreset.LoadSynchronous())
 	{
-		CreateStyle();
+		Preset->ApplyToClient();
 	}
+}
 
-	// IModuleInterface interface
+void FLiveLinkModule::ShutdownModule()
+{
+	HeartbeatEmitter->Exit();
+	DiscoveryManager->Stop();
+	LiveLinkMotionController.UnregisterController();
+	
+	IModularFeatures::Get().UnregisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
+	StaticLiveLinkClient = nullptr;
 
-	virtual void StartupModule() override
-	{
-		FLiveLinkLogInstance::CreateInstance();
-		IModularFeatures::Get().RegisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
-		LiveLinkMotionController.RegisterController();
+	FLiveLinkLogInstance::DestroyInstance();
+}
 
-		if (ULiveLinkPreset* Preset = GetDefault<ULiveLinkSettings>()->DefaultLiveLinkPreset.LoadSynchronous())
-		{
-			Preset->ApplyToClient();
-		}
-	}
+void FLiveLinkModule::CreateStyle()
+{
+	static FName LiveLinkStyle(TEXT("LiveLinkCoreStyle"));
+	StyleSet = MakeShared<FSlateStyleSet>(LiveLinkStyle);
 
-	virtual void ShutdownModule() override
-	{
-		HeartbeatEmitter->Exit();
-		DiscoveryManager->Stop();
-		LiveLinkMotionController.UnregisterController();
-		IModularFeatures::Get().UnregisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
-		FLiveLinkLogInstance::DestroyInstance();
-	}
+	FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
 
-	virtual bool SupportsDynamicReloading() override
-	{
-		return false;
-	}
+	const FVector2D Icon16x16(16.0f, 16.0f);
 
-	virtual TSharedPtr<FSlateStyleSet> GetStyle() override
-	{
-		return StyleSet;
-	}
-
-	virtual FLiveLinkHeartbeatEmitter& GetHeartbeatEmitter() override
-	{
-		return *HeartbeatEmitter;
-	}
-
-	virtual FLiveLinkMessageBusDiscoveryManager& GetMessageBusDiscoveryManager() override
-	{
-		return *DiscoveryManager;
-	}
-
-private:
-	void CreateStyle()
-	{
-		static FName LiveLinkStyle(TEXT("LiveLinkCoreStyle"));
-		StyleSet = MakeShared<FSlateStyleSet>(LiveLinkStyle);
-
-		ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
-
-		const FVector2D Icon16x16(16.0f, 16.0f);
-
-		StyleSet->Set("LiveLinkIcon", new FSlateImageBrush((ContentDir / TEXT("LiveLink_16x")) + TEXT(".png"), Icon16x16));
-	}
-
-private:
-	TUniquePtr<FLiveLinkHeartbeatEmitter> HeartbeatEmitter;
-	TUniquePtr<FLiveLinkMessageBusDiscoveryManager> DiscoveryManager;
-
-	/** Handler for LiveLink debug command. */
-	TUniquePtr<FLiveLinkDebugCommand> LiveLinkDebugCommand;
-};
+	StyleSet->Set("LiveLinkIcon", new FSlateImageBrush((ContentDir / TEXT("LiveLink_16x")) + TEXT(".png"), Icon16x16));
+}
 
 IMPLEMENT_MODULE(FLiveLinkModule, LiveLink);
 
