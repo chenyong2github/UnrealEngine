@@ -543,6 +543,7 @@ static bool TryAndCreateMaterialInput( UMaterial* UnrealMaterial, EMaterialKind:
 		UnrealMaterial->Normal.Expression = UnrealTextureExpression;
 	}
 
+
 	return true;
 }
 
@@ -634,6 +635,9 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture( UTexture* U
 		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Emissive, EmissiveTexture, UnrealMaterial->EmissiveColor, HSpace, VSpace * 1 );
 		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Normal, NormalTexture, UnrealMaterial->Normal, HSpace, VSpace * 2 );
 	}
+
+	UnrealMaterial->PreEditChange(nullptr);
+	UnrealMaterial->PostEditChange();
 
 	// Notify the asset registry
 	FAssetRegistryModule::AssetCreated( UnrealMaterial );
