@@ -2537,8 +2537,6 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 					FRHIShaderResourceView* TransformsSRV = Instance.GPUTransformsSRV.GetReference();
 
 					CopyRayTracingGPUInstances(RHICmdList, NumTransforms, DescOffset, TransformsSRV, InstancesDescUAV);
-
-					Instance.GPUTransformsSRV.GetReference()->Release();					
 				}
 
 				DescOffset += NumTransforms;
