@@ -72,6 +72,7 @@
     <Compile Include="ParseMsvcTimingInfo.cs" />
     <Compile Include="StashTarget.cs" />
     <Compile Include="BlameKeyword.Automation.cs" />
+    <Compile Include="BuildCMakeLib.Automation.cs" />
     <Compile Include="BuildCommonTools.Automation.cs" />
     <Compile Include="BuildCookRun.Automation.cs" />
     <Compile Include="BuildDerivedDataCache.Automation.cs" />

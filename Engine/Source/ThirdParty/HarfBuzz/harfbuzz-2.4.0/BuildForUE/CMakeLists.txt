@@ -13,9 +13,11 @@ option(USE_INTEL_ATOMIC_PRIMITIVES "Platform needs to define HAVE_INTEL_ATOMIC_P
 option(USE_STUB_GETENV "Platform needs to define stub getenv as it doesn't have its own version" FALSE)
 
 # Put our build output one level up so we can easily delete the temporary files and only check-in the final libs
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
+if (NOT DEFINED CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
+	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
+endif()
 
 # Gather up all the HarfBuzz source files
 file(GLOB HARFBUZZ_SRC_FILES 
