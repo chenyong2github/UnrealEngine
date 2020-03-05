@@ -181,7 +181,7 @@
 #define FORCE_FLOATS 0
 #endif
 
-#if (!(COMPILER_GLSL_ES3_1 || METAL_PROFILE) || FORCE_FLOATS)
+#if (!(ES3_1_PROFILE || METAL_PROFILE) || FORCE_FLOATS)
 	// Always use floats when using the ES3/METAL compiler, because platforms not optimized for lower precision, 
 	// And we don't want potential side effects on other platforms
 	#define half float
