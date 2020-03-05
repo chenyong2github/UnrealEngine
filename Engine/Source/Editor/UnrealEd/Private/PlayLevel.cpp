@@ -1709,7 +1709,7 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 		}
 
 		// Only count non-dedicated instances as clients so that our indexes line up for log-ins.
-		if (!GameInstancePIEParameters.bRunAsDedicated)
+		if (!GameInstancePIEParameters.bRunAsDedicated && PlayInEditorSessionInfo.IsSet())
 		{
 			PlayInEditorSessionInfo->NumClientInstancesCreated++;
 		}
