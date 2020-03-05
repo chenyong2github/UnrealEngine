@@ -194,6 +194,15 @@ UEdGraphPin* UK2Node_FunctionResult::CreatePinFromUserDefinition(const TSharedPt
 	return Pin;
 }
 
+void UK2Node_FunctionResult::FixupPinStringDataReferences(FArchive* SavingArchive)
+{
+	Super::FixupPinStringDataReferences(SavingArchive);
+	if (SavingArchive)
+	{
+		UpdateUserDefinedPinDefaultValues();
+	}
+}
+
 FNodeHandlingFunctor* UK2Node_FunctionResult::CreateNodeHandler(FKismetCompilerContext& CompilerContext) const
 {
 	return new FKCHandler_FunctionResult(CompilerContext);
