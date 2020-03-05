@@ -2088,7 +2088,7 @@ public partial class Project : CommandUtils
 
 			bool bCopiedExistingPak = false;
 
-			if (SC.StageTargetPlatform != SC.CookSourcePlatform)
+			if (SC.StageTargetPlatform != SC.CookSourcePlatform && Params.TryUsePaksFromDifferentCookSource)
 			{
 				// Check to see if we have an existing pak file we can use
 
