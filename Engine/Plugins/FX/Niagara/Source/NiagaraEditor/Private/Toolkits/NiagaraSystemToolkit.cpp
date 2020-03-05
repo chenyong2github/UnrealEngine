@@ -14,7 +14,8 @@
 #include "Widgets/SNiagaraSystemScript.h"
 #include "Widgets/SNiagaraSystemViewport.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
-#include "Widgets/SNiagaraParameterMapView.h"
+#include "Widgets/SNiagaraParameterMapView.h" //@todo(ng) cleanup
+#include "Widgets/SNiagaraParameterPanel.h"
 #include "Widgets/SNiagaraSpreadsheetView.h"
 #include "Widgets/SNiagaraGeneratedCodeView.h"
 #include "Widgets/SNiagaraScriptGraph.h"
@@ -53,6 +54,7 @@
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "NiagaraScriptSourceBase.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -64,6 +66,7 @@ const FName FNiagaraSystemToolkit::SequencerTabID(TEXT("NiagaraSystemEditor_Sequ
 const FName FNiagaraSystemToolkit::SystemScriptTabID(TEXT("NiagaraSystemEditor_SystemScript"));
 const FName FNiagaraSystemToolkit::SystemDetailsTabID(TEXT("NiagaraSystemEditor_SystemDetails"));
 const FName FNiagaraSystemToolkit::SystemParametersTabID(TEXT("NiagaraSystemEditor_SystemParameters"));
+const FName FNiagaraSystemToolkit::SystemParametersTabID2(TEXT("NiagaraSystemEditor_SystemParameters2"));
 const FName FNiagaraSystemToolkit::SelectedEmitterStackTabID(TEXT("NiagaraSystemEditor_SelectedEmitterStack"));
 const FName FNiagaraSystemToolkit::SelectedEmitterGraphTabID(TEXT("NiagaraSystemEditor_SelectedEmitterGraph"));
 const FName FNiagaraSystemToolkit::DebugSpreadsheetTabID(TEXT("NiagaraSystemEditor_DebugAttributeSpreadsheet"));
@@ -119,6 +122,13 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 	InTabManager->RegisterTabSpawner(SystemParametersTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameters))
 		.SetDisplayName(LOCTEXT("SystemParameters", "Parameters"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+
+	if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 > 0)
+	{
+		InTabManager->RegisterTabSpawner(SystemParametersTabID2, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameters2))
+			.SetDisplayName(LOCTEXT("SystemParameters2", "Parameters2"))
+			.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+	}
 
 	InTabManager->RegisterTabSpawner(SelectedEmitterStackTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SelectedEmitterStack))
 		.SetDisplayName(LOCTEXT("SelectedEmitterStacks", "Selected Emitters"))
@@ -208,6 +218,8 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 
 	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 	SystemViewModel->Initialize(*System, SystemOptions);
+	ParameterPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterPanelViewModel>(SystemViewModel.ToSharedRef());
+	ParameterPanelViewModel->InitBindings();
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemToolkitMode = ESystemToolkitMode::System;
 
@@ -277,6 +289,8 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 	SystemViewModel->Initialize(*System, SystemOptions);
+	ParameterPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterPanelViewModel>(SystemViewModel);
+	ParameterPanelViewModel->InitBindings();
 	SystemViewModel->GetEditorData().SetOwningSystemIsPlaceholder(true, *System);
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
@@ -518,7 +532,25 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters(const FSpa
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SAssignNew(ParameterMapView, SNiagaraParameterMapView, ObjectSelections, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands())
+			SAssignNew(ParameterMapView, SNiagaraParameterMapView, ObjectSelections, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands()) //@todo(ng) cleanup
+		];
+	RefreshParameters();
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters2(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == SystemParametersTabID2);
+
+
+	TArray<TSharedRef<FNiagaraObjectSelection>> ObjectSelections;
+	ObjectSelections.Add(ObjectSelectionForParameterMapView.ToSharedRef());
+
+	TSharedRef<SDockTab> SpawnedTab =
+		SNew(SDockTab)
+		[
+			SAssignNew(ParameterPanel, SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
 		];
 	RefreshParameters();
 

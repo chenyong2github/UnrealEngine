@@ -22,6 +22,12 @@ void FNiagaraStandaloneScriptViewModel::Initialize(UNiagaraScript* InScript, UNi
 	SendLastCompileMessageJobs(SourceScript);
 }
 
+UNiagaraScript* FNiagaraStandaloneScriptViewModel::GetStandaloneScript()
+{
+	checkf(Scripts.Num() == 1, TEXT("StandaloneScriptViewModel did not have exactly one script!"));
+	return Scripts[0].Get();
+}
+
 void FNiagaraStandaloneScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript)
 {
 	FNiagaraScriptViewModel::OnVMScriptCompiled(InScript);

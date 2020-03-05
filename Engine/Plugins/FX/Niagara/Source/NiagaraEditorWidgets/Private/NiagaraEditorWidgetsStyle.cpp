@@ -250,6 +250,13 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 
 	Style->Set("NiagaraEditor.ScratchPad.HeaderColor", FLinearColor(FColor(48, 48, 48)));
 
+	Style->Set("NiagaraEditor.Scope.Engine", FLinearColor(FColor(230, 102, 102)));
+	Style->Set("NiagaraEditor.Scope.User", FLinearColor(FColor(114, 226, 254)));
+	Style->Set("NiagaraEditor.Scope.System", FLinearColor(FColor(1, 202, 252)));
+	Style->Set("NiagaraEditor.Scope.Emitter", FLinearColor(FColor(241, 99, 6)));
+	Style->Set("NiagaraEditor.Scope.Particles", FLinearColor(FColor(131, 218, 9)));
+	Style->Set("NiagaraEditor.Scope.ScriptPersistent", FLinearColor(FColor(255, 247, 77)));
+	Style->Set("NiagaraEditor.Scope.ScriptTransient", FLinearColor(FColor(255, 247, 77)));
 
 	return Style;
 }

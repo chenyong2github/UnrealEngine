@@ -50,4 +50,5 @@ public:
 
 	static const FName SourcePinName;
 	static const FName DestPinName;
+	static const FName AddPinName;
 };

@@ -41,13 +41,18 @@ public:
 	virtual void CollectAddPinActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin);
 
 	/** Request a new pin. */
-	void AddParameter(FNiagaraVariable Parameter, UEdGraphPin* AddPin);
+	void AddParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin);
+	void AddParameter(FNiagaraVariable Parameter, const struct UNiagaraGraph::FAddParameterOptions AddParameterOptions);
 
+	/** Request a new pin and assign MetaData to the newly generated UNiagaraScriptVariable. */
+//	void AddParameterAndSetMetaData(FNiagaraVariable& Parameter, const FNiagaraVariableMetaData& ParameterMetaData, UEdGraphPin* AddPin);
 protected:
 	virtual bool AllowDynamicPins() const { return true; }
 
 	/** Creates an add pin on the node for the specified direction. */
 	void CreateAddPin(EEdGraphPinDirection Direction);
+
+	void UpdateAddedPinMetaData(const UEdGraphPin* AddedPin);
 
 	/** Called when a new typed pin is added by the user. */
 	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin) { }
@@ -74,6 +79,9 @@ protected:
 	virtual void MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToMove);
 
 	virtual bool OnVerifyTextChanged(const FText& NewText, FText& OutMessage) { return true; };
+
+	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
+	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_MAX; };
 
 private:
 

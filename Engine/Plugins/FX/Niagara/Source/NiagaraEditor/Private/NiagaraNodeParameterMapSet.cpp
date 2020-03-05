@@ -57,6 +57,11 @@ bool UNiagaraNodeParameterMapSet::IsPinNameEditableUponCreation(const UEdGraphPi
 	}
 }
 
+void UNiagaraNodeParameterMapSet::RemoveDynamicPin(UEdGraphPin* Pin)
+{
+	// Call NiagaraNodeWithDynamicPins::RemoveDynamicPin() instead of base class to fixup the associated pin variable's metadata.
+	Super::RemoveDynamicPin(Pin);
+}
 
 bool UNiagaraNodeParameterMapSet::VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const
 {
@@ -91,6 +96,7 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(*NewPin->GetName(), Names);
 		NewPin->PinName = NewUniqueName;
 		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
+		UpdateAddedPinMetaData(NewPin);
 	}
 
 	if (!NewPin->PersistentGuid.IsValid())

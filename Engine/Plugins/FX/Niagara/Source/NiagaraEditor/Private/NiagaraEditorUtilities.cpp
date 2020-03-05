@@ -1838,6 +1838,60 @@ void FNiagaraEditorUtilities::CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterH
 	}
 }
 
+void FNiagaraEditorUtilities::GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex)
+{
+	switch (InUsage) //@todo(ng) fix numeric scheme Execution Index needing to continuously increment
+	{
+	case ENiagaraScriptUsage::SystemSpawnScript:
+		OutRunIndex = 0;
+		OutExecutionIndex = 0;
+		break;
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+		OutRunIndex = 0;
+		OutExecutionIndex = 1;
+		break;
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+		OutRunIndex = 2;
+		OutExecutionIndex = 2;
+		break;
+	case ENiagaraScriptUsage::SystemUpdateScript:
+		OutRunIndex = 1;
+		OutExecutionIndex = 0;
+		break;
+	case ENiagaraScriptUsage::EmitterUpdateScript:
+		OutRunIndex = 1;
+		OutExecutionIndex = 1;
+		break;
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleGPUComputeScript:
+		OutRunIndex = 2;
+		OutExecutionIndex = 3;
+		break;
+	case ENiagaraScriptUsage::ParticleEventScript:
+		OutRunIndex = 2;
+		OutExecutionIndex = 4;
+		break;
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
+		//@todo(ng) implement getter for shader stages; for now same as particle update
+		
+		OutRunIndex = 2;
+		OutExecutionIndex = 4;
+		break;
+	case ENiagaraScriptUsage::DynamicInput:
+	case ENiagaraScriptUsage::Function:
+	case ENiagaraScriptUsage::Module:
+		OutRunIndex = INDEX_NONE;
+		OutExecutionIndex = INDEX_NONE;
+		break;
+	default:
+		checkf(false, TEXT("No execution index implemented for usage!"));
+		OutRunIndex = INDEX_NONE;
+		OutExecutionIndex = INDEX_NONE;
+		break;
+	}
+}
+
 bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBuilder, const TSharedPtr<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModelPtr)
 {
 	if (EmitterHandleViewModelPtr.IsValid())

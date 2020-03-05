@@ -81,21 +81,29 @@ protected:
 		UNiagaraNode* ParentNode = Cast<UNiagaraNode>(this->GraphPinObj->GetOwningNode());
 		if (ParentNode && ParentNode->IsPinNameEditable(this->GraphPinObj))
 		{
-			CreatedTextBlock = SNew(SInlineEditableTextBlock)
-				.Style(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
-				.Text(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinLabel)
-				.Visibility(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinVisibility)
-				.ColorAndOpacity(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinTextColor)
-				.OnVerifyTextChanged(this, &TNiagaraGraphPinEditableName<BaseClass>::OnVerifyTextChanged)
-				.OnTextCommitted(this, &TNiagaraGraphPinEditableName<BaseClass>::OnTextCommitted);
-
-			TSharedRef<SWidget> EditableTextBlock = CreatedTextBlock.ToSharedRef();
-
-			if (ParentNode->IsPinNameEditableUponCreation(this->GraphPinObj))
+			UNiagaraGraph* NiagaraGraph = ParentNode->GetNiagaraGraph();
+			if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 > 0 && NiagaraGraph->IsPinVisualWidgetProviderRegistered())
 			{
-				bPendingRename = true;
+				return NiagaraGraph->GetPinVisualWidget(this->GraphPinObj);
 			}
-			return EditableTextBlock;
+			else
+			{
+				CreatedTextBlock = SNew(SInlineEditableTextBlock)
+					.Style(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
+					.Text(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinLabel)
+					.Visibility(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinVisibility)
+					.ColorAndOpacity(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinTextColor)
+					.OnVerifyTextChanged(this, &TNiagaraGraphPinEditableName<BaseClass>::OnVerifyTextChanged)
+					.OnTextCommitted(this, &TNiagaraGraphPinEditableName<BaseClass>::OnTextCommitted);
+
+				TSharedRef<SWidget> EditableTextBlock = CreatedTextBlock.ToSharedRef();
+
+				if (ParentNode->IsPinNameEditableUponCreation(this->GraphPinObj))
+				{
+					bPendingRename = true;
+				}
+				return EditableTextBlock;
+			}
 		}
 		else
 		{

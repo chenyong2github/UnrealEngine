@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "NiagaraParameterMapHistory.h"
 
 #include "NiagaraEditorCommon.h"
@@ -22,13 +23,29 @@
 #include "NiagaraNodeStaticSwitch.h"
 
 #include "NiagaraScriptVariable.h"
+#include "NiagaraNodeParameterMapSet.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraEditor"
 
+static int32 GNiagaraLogNamespaceFixup = 0;
+static FAutoConsoleVariableRef CVarNiagaraLogNamespaceFixup(
+	TEXT("fx.NiagaraLogNamespaceFixup"),
+	GNiagaraLogNamespaceFixup,
+	TEXT("Log matched variables and pin name changes in precompile. \n"),
+	ECVF_Default
+);
+
+static int32 GNiagaraForcePrecompilerCullDataset = 0;
+static FAutoConsoleVariableRef CVarNiagaraForcePrecompilerCullDataset(
+	TEXT("fx.NiagaraForcePrecompilerCullDataset"),
+	GNiagaraForcePrecompilerCullDataset,
+	TEXT("Force the precompiler process to cull unused Dataset parameters. \n"),
+	ECVF_Default
+);
 
 FNiagaraParameterMapHistory::FNiagaraParameterMapHistory() 
 {
-	
+	OriginatingScriptUsage = ENiagaraScriptUsage::Function;
 }
 
 void FNiagaraParameterMapHistory::GetValidNamespacesForReading(const UNiagaraScript* InScript, TArray<FString>& OutputNamespaces)
@@ -174,7 +191,11 @@ int32 FNiagaraParameterMapHistory::FindVariable(const FName& VariableName, const
 	return FoundIdx;
 }
 
-int32 FNiagaraParameterMapHistory::AddVariable(const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin)
+int32 FNiagaraParameterMapHistory::AddVariable(
+	  const FNiagaraVariable& InVar
+	, const FNiagaraVariable& InAliasedVar
+	, const UEdGraphPin* InPin
+	, TOptional<FNiagaraVariableMetaData> InMetaData /*= TOptional<FNiagaraVariableMetaData>()*/)
 {
 	FNiagaraVariable Var = InVar;
 	
@@ -186,6 +207,11 @@ int32 FNiagaraParameterMapHistory::AddVariable(const FNiagaraVariable& InVar, co
 		PerVariableWarnings.AddDefaulted(1);
 		PerVariableWriteHistory.AddDefaulted(1);
 		PerVariableReadHistory.AddDefaulted(1);
+		if (InMetaData.IsSet())
+		{
+			VariableMetaData.Add(InMetaData.GetValue());
+			check(Variables.Num() == VariableMetaData.Num());
+		}
 
 		if (InPin != nullptr)
 		{
@@ -925,12 +951,13 @@ bool FNiagaraParameterMapHistoryBuilder::InTopLevelFunctionCall(ENiagaraScriptUs
 }
 
 
-void FNiagaraParameterMapHistoryBuilder::EnterFunction(const FString& InNodeName, const UNiagaraScript* InScript, const UNiagaraNode* Node)
+void FNiagaraParameterMapHistoryBuilder::EnterFunction(const FString& InNodeName, const UNiagaraScript* InScript, const UNiagaraGraph* InGraph, const UNiagaraNode* Node)
 {
 	if (InScript != nullptr )
 	{
 		RegisterNodeVisitation(Node);
 		CallingContext.Push(Node);
+		CallingGraphContext.Push(InGraph);
 		PinToParameterMapIndices.Emplace();
 		FunctionNameContextStack.Emplace(*InNodeName);
 		BuildCurrentAliases();
@@ -947,6 +974,7 @@ void FNiagaraParameterMapHistoryBuilder::ExitFunction(const FString& InNodeName,
 	if (InScript != nullptr)
 	{
 		CallingContext.Pop();
+		CallingGraphContext.Pop();
 		PinToParameterMapIndices.Pop();
 		FunctionNameContextStack.Pop();
 		BuildCurrentAliases();
@@ -954,10 +982,11 @@ void FNiagaraParameterMapHistoryBuilder::ExitFunction(const FString& InNodeName,
 	}
 }
 
-void FNiagaraParameterMapHistoryBuilder::EnterEmitter(const FString& InEmitterName, const UNiagaraNode* Node)
+void FNiagaraParameterMapHistoryBuilder::EnterEmitter(const FString& InEmitterName, const UNiagaraGraph* InGraph, const UNiagaraNode* Node)
 {
 	RegisterNodeVisitation(Node);
 	CallingContext.Push(Node);
+	CallingGraphContext.Push(InGraph);
 	EmitterNameContextStack.Emplace(*InEmitterName);
 	BuildCurrentAliases();
 
@@ -987,6 +1016,7 @@ void FNiagaraParameterMapHistoryBuilder::EnterEmitter(const FString& InEmitterNa
 void FNiagaraParameterMapHistoryBuilder::ExitEmitter(const FString& InEmitterName, const UNiagaraNode* Node)
 {
 	CallingContext.Pop();
+	CallingGraphContext.Pop();
 	EmitterNameContextStack.Pop();
 	BuildCurrentAliases();
 	ContextuallyVisitedNodes.Pop();
@@ -1131,7 +1161,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableWrite(int32 ParamMapIdx,
 	FNiagaraVariable AliasedVar = Var;
 	Var = ResolveAliases(Var);
 
-	return Histories[ParamMapIdx].AddVariable(Var,AliasedVar, InPin);
+	return AddVariableToHistory(Histories[ParamMapIdx], Var, AliasedVar, InPin);
 }
 
 int32 FNiagaraParameterMapHistoryBuilder::HandleVariableWrite(int32 ParameterMapIndex, const FNiagaraVariable& Var)
@@ -1144,7 +1174,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableWrite(int32 ParameterMap
 	}
 	FNiagaraVariable ResolvedVar = ResolveAliases(Var);
 
-	return Histories[ParameterMapIndex].AddVariable(ResolvedVar, Var, nullptr);
+	return AddVariableToHistory(Histories[ParameterMapIndex], ResolvedVar, Var, nullptr);
 }
 
 int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, const UEdGraphPin* InPin, bool RegisterReadsAsVariables, const UEdGraphPin* InDefaultPin, bool bFilterForCompilation, bool& OutUsedDefault)
@@ -1177,44 +1207,28 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 	{
 		if (RegisterReadsAsVariables)
 		{
-			OutUsedDefault = false;
 			if (InDefaultPin)
 			{
-				OutUsedDefault = true;
 				VisitInputPin(InDefaultPin, Cast<UNiagaraNode>(InDefaultPin->GetOwningNode()), bFilterForCompilation);
-				FoundIdx = Histories[ParamMapIdx].FindVariable(Var.GetName(), Var.GetType());
 			}
 
-			if (FoundIdx == -1)
-			{
-				FoundIdx = Histories[ParamMapIdx].Variables.Add(Var);
-				Histories[ParamMapIdx].VariablesWithOriginalAliasesIntact.Add(AliasedVar);
-				Histories[ParamMapIdx].PerVariableWarnings.AddDefaulted(1);
-				Histories[ParamMapIdx].PerVariableWriteHistory.AddDefaulted(1);
-				Histories[ParamMapIdx].PerVariableReadHistory.AddDefaulted(1);
+			FoundIdx = AddVariableToHistory(Histories[ParamMapIdx], Var, AliasedVar, InDefaultPin);
 
-				// Add the default binding as well to the parameter history, if used.
-				if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(InPin->GetOwningNode()->GetGraph()))
+			// Add the default binding as well to the parameter history, if used.
+			if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(InPin->GetOwningNode()->GetGraph()))
+			{
+				UNiagaraScriptVariable* Variable = Graph->GetScriptVariable(AliasedVar);
+				if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding && Variable->DefaultBinding.IsValid())
 				{
-					UNiagaraScriptVariable* Variable = Graph->GetScriptVariable(AliasedVar);
-					if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding && Variable->DefaultBinding.IsValid())
-					{
-						int FoundIdxBinding = Histories[ParamMapIdx].Variables.Add(FNiagaraVariable(Var.GetType(), Variable->DefaultBinding.GetName()));
-						Histories[ParamMapIdx].VariablesWithOriginalAliasesIntact.Add(FNiagaraVariable(Var.GetType(), Variable->DefaultBinding.GetName()));
-						Histories[ParamMapIdx].PerVariableWarnings.AddDefaulted(1);
-						Histories[ParamMapIdx].PerVariableWriteHistory.AddDefaulted(1);
-						Histories[ParamMapIdx].PerVariableReadHistory.AddDefaulted(1);
-						
-						Histories[ParamMapIdx].PerVariableReadHistory[FoundIdxBinding].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InDefaultPin, nullptr));
-					}
+					FNiagaraVariable TempVar = FNiagaraVariable(Var.GetType(), Variable->DefaultBinding.GetName());
+					int32 FoundIdxBinding = AddVariableToHistory(Histories[ParamMapIdx], TempVar, TempVar, nullptr);
+
+					Histories[ParamMapIdx].PerVariableReadHistory[FoundIdxBinding].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InDefaultPin, nullptr));
 				}
 			}
+
 			Histories[ParamMapIdx].PerVariableReadHistory[FoundIdx].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InPin, nullptr));
 
-			if (InDefaultPin && OutUsedDefault)
-			{
-				Histories[ParamMapIdx].PerVariableWriteHistory[FoundIdx].Add(InDefaultPin);				
-			}
 		}
 		check(Histories[ParamMapIdx].Variables.Num() == Histories[ParamMapIdx].PerVariableWarnings.Num());
 		check(Histories[ParamMapIdx].Variables.Num() == Histories[ParamMapIdx].PerVariableWriteHistory.Num());
@@ -1335,14 +1349,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleExternalVariableRead(int32 Param
 
 		if (Var.IsValid())
 		{
-			FoundIdx = Histories[ParamMapIdx].Variables.Add(Var);
-			Histories[ParamMapIdx].VariablesWithOriginalAliasesIntact.Add(AliasedVar);
-			Histories[ParamMapIdx].PerVariableWarnings.AddDefaulted(1);
-			Histories[ParamMapIdx].PerVariableWriteHistory.AddDefaulted(1);
-			Histories[ParamMapIdx].PerVariableReadHistory.AddDefaulted(1);
-			check(Histories[ParamMapIdx].Variables.Num() == Histories[ParamMapIdx].PerVariableWarnings.Num());
-			check(Histories[ParamMapIdx].Variables.Num() == Histories[ParamMapIdx].PerVariableWriteHistory.Num());
-			check(Histories[ParamMapIdx].Variables.Num() == Histories[ParamMapIdx].PerVariableReadHistory.Num());
+			FoundIdx = AddVariableToHistory(Histories[ParamMapIdx], Var, AliasedVar, nullptr);
 		}
 		else
 		{
@@ -1359,6 +1366,11 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleExternalVariableRead(int32 Param
 	return FoundIdx;
 }
 
+
+int32 FNiagaraParameterMapHistoryBuilder::AddVariableToHistory(FNiagaraParameterMapHistory& History, const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin)
+{
+	return History.AddVariable(InVar, InAliasedVar, InPin);
+}
 
 void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 {
@@ -1429,3 +1441,610 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 }
 
 #undef LOCTEXT_NAMESPACE
+
+void FNiagaraParameterMapHistoryWithMetaDataBuilder::FixupHistoryVariableNamespaces(TArray<FNiagaraParameterMapHistoryHandle>& InHistoryHandles, bool bCullDatasetOutputs)
+{
+	if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 == 0)
+	{
+		return;
+	}
+
+	struct FMatchedVariableInfo
+	{
+	public:
+		FMatchedVariableInfo(const FName& InEmitterAliasedName, const FName& InName, const FNiagaraTypeDefinition& InTypeDef)
+			: EmitterAliasedName(InEmitterAliasedName)
+			, Name(InName)
+			, TypeDef(InTypeDef)
+		{};
+
+		const FName& GetEmitterAliasedName() const { return EmitterAliasedName; };
+		const FName& GetName() const { return Name; };
+		const FNiagaraTypeDefinition& GetTypeDef() const { return TypeDef; };
+
+	private:
+		const FName EmitterAliasedName;
+		const FName Name;
+		const FNiagaraTypeDefinition TypeDef;
+	};
+
+	struct FSortedHistoryHandle
+	{
+		FSortedHistoryHandle()
+		{
+			Handle = nullptr;
+		}
+
+		FSortedHistoryHandle(FNiagaraParameterMapHistoryHandle& InHandle, const TArray<FNiagaraVariable>& VariablesToSkip, const TArray<FNiagaraVariable>& VariablesToNotDemote)
+		{
+			Handle = &InHandle;
+
+			auto SortVars = [&InHandle, &VariablesToSkip](bool bGatherInputs)->TArray<FNiagaraHistoryVariable> {
+				TArray<FNiagaraHistoryVariable> OutHistoryVars = InHandle.HistoryVariables.FilterByPredicate([&VariablesToSkip, bGatherInputs](const FNiagaraHistoryVariable& HistoryVar)
+				{
+					ENiagaraParameterScope HistoryScope = HistoryVar.VarMetaData->Scope;
+					if (HistoryScope == ENiagaraParameterScope::User || HistoryScope == ENiagaraParameterScope::Engine || HistoryScope == ENiagaraParameterScope::ScriptTransient || HistoryScope == ENiagaraParameterScope::None)
+					{
+						return false;
+					}
+					else if (HistoryVar.VarMetaData->Usage == ENiagaraScriptParameterUsage::Input && HistoryVar.VarMetaData->Scope == ENiagaraParameterScope::Input)
+					{
+						// Inputs are equivalent to module namespace, these should not change.
+						return false;
+					}
+					else if (VariablesToSkip.Contains(*HistoryVar.VarWithOriginalAlias))
+					{
+						return false;
+					}
+
+					if (HistoryVar.VarMetaData->bAddedToNodeGraphDeepCopy == false)
+					{
+						FNiagaraParameterHandle VarHandle = FNiagaraParameterHandle(HistoryVar.VarWithOriginalAlias->GetName());
+						if (VarHandle.GetNamespace().ToString().Contains(TRANSLATOR_SET_VARIABLES_STR))
+						{
+							return false;
+						}
+					}
+					
+					if (bGatherInputs)
+					{
+						return HistoryVar.VarMetaData->Usage == ENiagaraScriptParameterUsage::Input || HistoryVar.VarMetaData->Usage == ENiagaraScriptParameterUsage::InputOutput || HistoryVar.VarMetaData->bAddedToNodeGraphDeepCopy;
+					}
+					else
+					{
+						return HistoryVar.VarMetaData->Usage == ENiagaraScriptParameterUsage::Output || HistoryVar.VarMetaData->Usage == ENiagaraScriptParameterUsage::InputOutput;
+					}
+					return false;
+				});
+				return OutHistoryVars;
+			};
+
+			auto MarkDoNotDemoteVars = [&VariablesToNotDemote](TArray<FNiagaraHistoryVariable>& VarsToMark) {
+				TArray<FName> VariableNamesToNotDemote;
+				for (const FNiagaraVariable& VariableToNotDemote : VariablesToNotDemote)
+				{
+					VariableNamesToNotDemote.Add( FNiagaraParameterHandle(VariableToNotDemote.GetName() ).GetName() );
+				}
+
+				for (FNiagaraHistoryVariable& VarToMark : VarsToMark)
+				{
+					if (VariableNamesToNotDemote.Contains(FNiagaraParameterHandle( VarToMark.VarWithOriginalAlias->GetName() ).GetName() ) )
+					{
+						VarToMark.bDoNotDemote = true;
+					}
+				}
+			};
+
+			OutputHistoryVars = SortVars(false);
+			InputHistoryVars = SortVars(true);
+			MarkDoNotDemoteVars(OutputHistoryVars);
+// 			ResolveScriptAliasParameters(OutputHistoryVars);
+// 			ResolveScriptAliasParameters(InputHistoryVars);
+		}
+
+		TArray<FNiagaraHistoryVariable> OutputHistoryVars;
+		TArray<FNiagaraHistoryVariable> InputHistoryVars;
+		FNiagaraParameterMapHistoryHandle* Handle;
+
+		const int32 GetScriptExecutionIndex() const { return Handle->GetScriptExecutionIndex(); };
+		const int32 GetScriptRunIndex() const { return Handle->GetScriptRunIndex(); };
+		const ENiagaraParameterScope GetScriptScope() const { return Handle->GetScriptScope(); };
+		const FName& GetEmitterUniqueName() const { return Handle->GetEmitterUniqueName(); };
+		const bool IsSystemHistoryHandle() const { return Handle->IsSystemHistoryHandle(); };
+		const ENiagaraScriptUsage GetOriginatingScriptUsage() const { return Handle->GetOriginatingScriptUsage(); };
+
+// 		void ResolveScriptAliasParameters(TArray<FNiagaraHistoryVariable>& VarsToResolve)
+// 		{
+// 			const ENiagaraParameterScope HistoryScope = Handle->GetScriptScope();
+// 			const FString HistoryScopeString = FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(HistoryScope);
+// 			for (FNiagaraHistoryVariable& HistoryVar : VarsToResolve)
+// 			{
+// 				if (HistoryVar.VarMetaData->Scope == ENiagaraParameterScope::ScriptAlias)
+// 				{
+// 					HistoryVar.SetVarWithOriginalAliasName()
+// 					FNiagaraParameterHandle HistoryVarParameterHandle = FNiagaraParameterHandle(HistoryVar.Var->GetName());
+// 
+// 					FString FixedNamespaceString = FString();
+// 					FixedNamespaceString.Append(HistoryScopeString);
+// 					FixedNamespaceString.Append(HistoryVarParameterHandle.GetName().ToString());
+// 					FName FixedNamespaceName = FName(*FixedNamespaceString);
+// 					HistoryVar.Var->SetName(FixedNamespaceName);
+// 				}
+// 			}
+// 		}
+	};
+
+	auto GenerateInitialVarsToSkip = [](TArray<FNiagaraVariable>& Vars)->TArray<FNiagaraVariable> {
+		TArray<FNiagaraVariable> InitialVars = Vars;
+		for (FNiagaraVariable& InitialVar : InitialVars)
+		{
+			FNiagaraParameterHandle InitialVarHandle = FNiagaraParameterHandle(InitialVar.GetName());
+			FName NewCopyVarName = FName(*(InitialVarHandle.GetNamespace().ToString() + "." + PARAM_MAP_INITIAL_STR + InitialVarHandle.GetName().ToString()));
+			InitialVar.SetName(NewCopyVarName);
+		}
+		return InitialVars;
+	};
+
+
+	TArray<FSortedHistoryHandle> SortedHandles;
+	TArray<FNiagaraVariable> EmitterScopeRendererVars;
+	TArray<TArray<FNiagaraVariable>> PerHistoryParticleScopeRendererVars;
+	PerHistoryParticleScopeRendererVars.AddDefaulted(InHistoryHandles.Num());
+
+	for (int HandleIdx = 0; HandleIdx < InHistoryHandles.Num(); ++HandleIdx)
+	{
+		const FNiagaraParameterMapHistoryHandle& Handle = InHistoryHandles[HandleIdx];
+		for (const FNiagaraVariable& Var : Handle.GetRequiredRendererVariables())
+		{
+			FNiagaraParameterHandle VarHandle = FNiagaraParameterHandle(Var.GetName());
+			if (VarHandle.IsParticleAttributeHandle())
+			{
+				PerHistoryParticleScopeRendererVars[HandleIdx].Add(Var);
+			}
+			else
+			{
+				EmitterScopeRendererVars.Add(Var);
+			}
+		}
+	}
+
+	TArray<FNiagaraVariable> EngineVarsToSkip = FNiagaraConstants::GetEngineConstants();
+	EngineVarsToSkip.Add(SYS_PARAM_INSTANCE_ALIVE);
+	EngineVarsToSkip.Add(SYS_PARAM_PARTICLES_ID);
+	EngineVarsToSkip.Add(SYS_PARAM_PARTICLES_UNIQUE_ID);
+
+	for (int HandleIdx = 0; HandleIdx < InHistoryHandles.Num(); ++HandleIdx)
+	{
+		FNiagaraParameterMapHistoryHandle& Handle = InHistoryHandles[HandleIdx];
+		checkf(Handle.GetScriptExecutionIndex() != INDEX_NONE || Handle.GetScriptRunIndex() != INDEX_NONE, TEXT("Bad handle in arguments!"));
+		TArray<FNiagaraVariable> VarsToSkip;
+		TArray<FNiagaraVariable> VarsToNotDemote;
+		VarsToNotDemote.Append(EmitterScopeRendererVars);
+		VarsToNotDemote.Append(PerHistoryParticleScopeRendererVars[HandleIdx]);
+		VarsToSkip.Append(GenerateInitialVarsToSkip(VarsToNotDemote));
+		VarsToSkip.Append(EngineVarsToSkip);
+		
+		FSortedHistoryHandle HistoryHandle = FSortedHistoryHandle(Handle, VarsToSkip, VarsToNotDemote);
+		SortedHandles.Add(HistoryHandle);
+	}
+
+	// If an input variable is matched with an output variable upstream, then add the variable name and top level scope to this array for fixing up additional input variables that exist further downstream.
+	TArray<FMatchedVariableInfo> MatchedUpstreamVariableInfos;
+
+	// Sort the history handles in order of their script execution as we want to record the upstream histories during iteration.
+	SortedHandles.Sort([](const FSortedHistoryHandle& A, const FSortedHistoryHandle& B) {
+		if (A.GetScriptRunIndex() < B.GetScriptRunIndex())
+		{
+			return true;
+		}
+		else if (A.GetScriptRunIndex() == B.GetScriptRunIndex() && A.GetScriptExecutionIndex() < B.GetScriptExecutionIndex())
+		{
+			return true;
+		}
+		return false;
+	});
+
+	TArray<FSortedHistoryHandle*> ValidUpstreamHandles;
+
+	auto GetValidUpstreamHandles = [&SortedHandles](FSortedHistoryHandle& TargetHandle)->TArray<FSortedHistoryHandle*> {
+		TArray<FSortedHistoryHandle*> OutHandles;
+		bool bPerEmitter = TargetHandle.IsSystemHistoryHandle();
+
+		for(FSortedHistoryHandle& PotentialHandle : SortedHandles)
+		{
+			if (bPerEmitter && PotentialHandle.GetEmitterUniqueName() != TargetHandle.GetEmitterUniqueName())
+			{
+				continue;
+			}
+
+			if (PotentialHandle.GetScriptRunIndex() == TargetHandle.GetScriptRunIndex())
+			{
+				if (PotentialHandle.GetScriptExecutionIndex() < TargetHandle.GetScriptExecutionIndex())
+				{
+					OutHandles.Add(&PotentialHandle);
+				}
+			}
+			else if (PotentialHandle.GetScriptRunIndex() < TargetHandle.GetScriptRunIndex())
+			{
+				if (PotentialHandle.GetScriptExecutionIndex() <= TargetHandle.GetScriptExecutionIndex())
+				{
+					OutHandles.Add(&PotentialHandle);
+				}
+			}
+		}
+
+		// Sort in reverse execution order to walk up execution history from the target history.
+		OutHandles.Sort([](const FSortedHistoryHandle& A, const FSortedHistoryHandle& B) {
+			if (A.GetScriptRunIndex() > B.GetScriptRunIndex())
+			{
+				return true;
+			}
+			else if (A.GetScriptRunIndex() == B.GetScriptRunIndex() && A.GetScriptExecutionIndex() > B.GetScriptExecutionIndex())
+			{
+				return true;
+			}
+			return false;
+		});
+
+		return OutHandles;
+	};
+
+	// Fix names of module namespace parameters that share names with other parameters in the same scope (e.g. InitializeParticle.Position and Particles.Position)
+	TMap<uint32, TArray<FSortedHistoryHandle*>> ExecutionIdxToSortedHandlesMap;
+	for (FSortedHistoryHandle& Handle : SortedHandles)
+	{
+		ExecutionIdxToSortedHandlesMap.FindOrAdd(Handle.GetScriptExecutionIndex()).Add(&Handle);
+	}
+
+	for (auto Iter = ExecutionIdxToSortedHandlesMap.CreateConstIterator(); Iter; ++Iter)
+	{
+		TArray<FSortedHistoryHandle*> PerExecIdxSortedHandles = Iter.Value();
+		TArray<FNiagaraHistoryVariable> ModuleHistoryVars;
+		TArray<FNiagaraHistoryVariable> InputAndOutputVars;
+		for (FSortedHistoryHandle* Handle : PerExecIdxSortedHandles)
+		{
+			ModuleHistoryVars.Append(Handle->OutputHistoryVars.FilterByPredicate([](const FNiagaraHistoryVariable& HistoryVar) {return HistoryVar.VarMetaData->bAddedToNodeGraphDeepCopy; }));
+			InputAndOutputVars.Append(Handle->InputHistoryVars);
+			InputAndOutputVars.Append(Handle->OutputHistoryVars.FilterByPredicate([](const FNiagaraHistoryVariable& HistoryVar) {return HistoryVar.VarMetaData->bAddedToNodeGraphDeepCopy == false; }));
+		}
+
+		TMap<FName, uint32> ModuleCollisionNameCounts;
+		for (FNiagaraHistoryVariable& ModuleHistoryVar : ModuleHistoryVars)
+		{
+			if (InputAndOutputVars.ContainsByPredicate([&ModuleHistoryVar](const FNiagaraHistoryVariable& TargetHistoryVar) {
+				return FNiagaraParameterHandle(ModuleHistoryVar.VarWithOriginalAlias->GetName()).GetName() == FNiagaraParameterHandle(TargetHistoryVar.VarWithOriginalAlias->GetName()).GetName();
+			}))
+			{
+				if (GNiagaraLogNamespaceFixup > 0)
+					UE_LOG(LogNiagaraEditor, Display, TEXT("Fixed aliased node graph deep copy param: %s"), *ModuleHistoryVar.VarWithOriginalAlias->GetName().ToString());
+				uint32& ModuleCollisionNameCount = ModuleCollisionNameCounts.FindOrAdd(ModuleHistoryVar.VarWithOriginalAlias->GetName());
+				++(ModuleCollisionNameCount);
+
+				FString ModuleNameString = ModuleHistoryVar.VarWithOriginalAlias->GetName().ToString();
+				ModuleNameString += LexToString(ModuleCollisionNameCount);
+				ModuleHistoryVar.SetVarWithOriginalAliasName(FName(*ModuleNameString));
+			}
+		}
+	}
+
+
+	// Track names of parameters we demote to ensure we do not have name aliases.
+	TMap<FName, uint32> DemotedNameCounts;
+
+	for (FSortedHistoryHandle& Handle : SortedHandles)
+	{ 
+		TArray<FSortedHistoryHandle*> UpstreamHandles = GetValidUpstreamHandles(Handle);
+		for (FSortedHistoryHandle* UpstreamSortedHistoryHandle : UpstreamHandles)
+		{
+			checkf(Handle.GetScriptExecutionIndex() != INDEX_NONE || Handle.GetScriptRunIndex() != INDEX_NONE, TEXT("Tried to access invalid handle from array!"));
+
+			for (int VarIdx = Handle.InputHistoryVars.Num() - 1; VarIdx > -1; --VarIdx)
+			{
+				// First check that we have not already established a link upstream.	
+				FNiagaraHistoryVariable& CurrentHistoryVar = Handle.InputHistoryVars[VarIdx];
+				FNiagaraParameterHandle CurrentInputVarHandle = FNiagaraParameterHandle(CurrentHistoryVar.VarWithOriginalAlias->GetName());
+
+				const FMatchedVariableInfo* UpstreamVarInfo = MatchedUpstreamVariableInfos.FindByPredicate(
+					[&CurrentInputVarHandle, &CurrentHistoryVar](const FMatchedVariableInfo& UpstreamVarInfo)
+				{ return CurrentHistoryVar.Var->GetType() == UpstreamVarInfo.GetTypeDef() && CurrentInputVarHandle.GetName() == UpstreamVarInfo.GetName(); }
+				);
+
+				if (UpstreamVarInfo != nullptr)
+				{
+					// There was already a match upstream, fix the variable and pin names.
+					FNiagaraVariable* MatchedInputVar = CurrentHistoryVar.Var;
+					const FNiagaraVariable* MatchedInputVarWithOriginalAlias = CurrentHistoryVar.VarWithOriginalAlias;
+					FName TargetName = UpstreamVarInfo->GetName();
+
+					if(GNiagaraLogNamespaceFixup > 0)
+						UE_LOG(LogNiagaraEditor, Display, TEXT("Matched Already Linked Input: %s | New Name: %s"), *MatchedInputVar->GetName().ToString(), *TargetName.ToString());
+
+					MatchedInputVar->SetName(TargetName);
+					Handle.Handle->FixupReadHistoryPinNames(MatchedInputVarWithOriginalAlias, TargetName);
+					Handle.InputHistoryVars.RemoveAt(VarIdx);
+				}
+				else
+				{
+					// This variable has not already been linked upstream, search for a potential link upstream.
+					int32 MatchIdx = INDEX_NONE;
+
+					auto FindUpstreamVarMatchIdx = [&Handle, &MatchIdx, &CurrentHistoryVar, &CurrentInputVarHandle, &UpstreamSortedHistoryHandle]()->bool {
+						const ENiagaraParameterScope UpstreamScope = UpstreamSortedHistoryHandle->GetScriptScope();
+						ENiagaraParameterScope TargetScope = ENiagaraParameterScope::None;
+						if (CurrentHistoryVar.VarMetaData->bAddedToNodeGraphDeepCopy)
+						{
+							// If the current history var is at the node graph deep copy level, it can link to any output, so the target scope is always that of the upstream history.
+							TargetScope = UpstreamScope;
+						}
+						else if (CurrentHistoryVar.VarMetaData->Scope == ENiagaraParameterScope::ScriptPersistent)
+						{
+							// If the current history var is targeting the script alias scope then get the scope of the current history.
+							TargetScope = Handle.GetScriptScope();
+						}
+						else
+						{
+							TargetScope = CurrentHistoryVar.VarMetaData->Scope;
+						}
+
+						MatchIdx = UpstreamSortedHistoryHandle->OutputHistoryVars.IndexOfByPredicate(
+							[&CurrentHistoryVar, &CurrentInputVarHandle, &TargetScope, &UpstreamScope](const FNiagaraHistoryVariable& UpstreamHistoryVar){
+							return TargetScope == UpstreamScope &&
+								CurrentHistoryVar.Var->GetType() == UpstreamHistoryVar.Var->GetType() &&
+								CurrentInputVarHandle.GetName() == FNiagaraParameterHandle(UpstreamHistoryVar.VarWithOriginalAlias->GetName()).GetName(); 
+						});
+
+						return MatchIdx != INDEX_NONE;
+					};
+
+					if (FindUpstreamVarMatchIdx())
+					{
+						// Found a match upstream. Continue checking for upstream matches, recording those matches if they occur and fixing those matches' variable and pin names. Then fix the current history variable's name and pin names.
+						FString FixedNamespaceString = FString();
+						FixedNamespaceString.Append(FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(UpstreamSortedHistoryHandle->GetScriptScope()));
+						FixedNamespaceString.Append(CurrentInputVarHandle.GetName().ToString());
+						FName FixedNamespaceName = FName(*FixedNamespaceString);
+
+						FString FixedEmitterAliasNamespaceString = FString();
+						FixedEmitterAliasNamespaceString.Append(UpstreamSortedHistoryHandle->GetEmitterUniqueName().ToString() + TEXT("."));
+						FixedEmitterAliasNamespaceString.Append(CurrentInputVarHandle.GetName().ToString());
+						FName FixedEmitterAliasNamespaceName = FName(*FixedEmitterAliasNamespaceString);
+
+						FName TargetFixedName;
+						if (UpstreamSortedHistoryHandle->GetScriptScope() == ENiagaraParameterScope::Emitter && Handle.GetScriptScope() != ENiagaraParameterScope::Emitter)
+						{
+							// If reading an Emitter parameter and not in the Emitter namespace, use the aliased name.
+							TargetFixedName = FixedEmitterAliasNamespaceName;
+						}
+						else
+						{
+							TargetFixedName = FixedNamespaceName;
+						}
+						
+						do {
+							// Fix the upstream matched output var's name and associated written pin names. Record the match to MatchedUpstreamVariables, and remove the history var from OutputHistoryVars.
+							FNiagaraHistoryVariable& MatchedHistoryOutputVar = UpstreamSortedHistoryHandle->OutputHistoryVars[MatchIdx];
+							FNiagaraVariable* MatchedOutputVar = MatchedHistoryOutputVar.Var;
+							const FNiagaraVariable* MatchedOutputVarWithOriginalAlias = MatchedHistoryOutputVar.VarWithOriginalAlias;
+
+							if (GNiagaraLogNamespaceFixup > 0)
+								UE_LOG(LogNiagaraEditor, Display, TEXT("Matched Output: %s | New Name: %s"), *MatchedOutputVar->GetName().ToString(), *TargetFixedName.ToString());
+
+							MatchedOutputVar->SetName(TargetFixedName);
+							UpstreamSortedHistoryHandle->Handle->FixupWrittenHistoryPinNames(MatchedOutputVarWithOriginalAlias, TargetFixedName);
+
+							// Record the upstream match in case there are additional downstream parameters to match to.
+							FMatchedVariableInfo MatchedVariableInfo = FMatchedVariableInfo(FixedEmitterAliasNamespaceName, FixedNamespaceName, MatchedHistoryOutputVar.Var->GetType());
+							MatchedUpstreamVariableInfos.Add(MatchedVariableInfo);
+
+							UpstreamSortedHistoryHandle->OutputHistoryVars.RemoveAtSwap(MatchIdx);
+						} while (FindUpstreamVarMatchIdx());
+
+						FNiagaraVariable* MatchedInputVar = CurrentHistoryVar.Var;
+						const FNiagaraVariable* MatchedInputVarWithOriginalAlias = CurrentHistoryVar.VarWithOriginalAlias;
+						if (GNiagaraLogNamespaceFixup > 0)
+							UE_LOG(LogNiagaraEditor, Display, TEXT("Matched Input: %s | New Name: %s"), *MatchedInputVar->GetName().ToString(), *FixedNamespaceName.ToString());
+						MatchedInputVar->SetName(FixedNamespaceName);
+						Handle.Handle->FixupReadHistoryPinNames(MatchedInputVarWithOriginalAlias, FixedNamespaceName);
+						Handle.InputHistoryVars.RemoveAt(VarIdx);
+					}
+				}
+			}
+		}
+	}
+
+	
+	if (GNiagaraForcePrecompilerCullDataset > 0 || bCullDatasetOutputs)
+	{
+		// Now change the namespace of any remaining unlinked inputs and outputs to one outside the dataset
+		auto ChangeVariableNamespace = [&DemotedNameCounts](FNiagaraVariable* InVar, const FString& InNewNamespaceString)->FName {
+			FString NewNameString = FString();
+			NewNameString.Append(InNewNamespaceString);
+			FName InVarName = InVar->GetName();
+			FString InVarNameString = InVarName.ToString();
+
+			uint32* DemotedNameCount = DemotedNameCounts.Find(InVarName);
+			if (DemotedNameCount == nullptr)
+			{
+				DemotedNameCounts.Add(InVarName) = 1;
+			}
+			else
+			{
+				InVarNameString += LexToString(*DemotedNameCount);
+				++(*DemotedNameCount);
+			}
+
+			NewNameString.Append(InVarNameString);
+			FName NewName = FName(*NewNameString);
+			InVar->SetName(NewName);
+			return NewName;
+		};
+
+
+		for (FSortedHistoryHandle& Handle : SortedHandles)
+		{
+			for (FNiagaraHistoryVariable& InputHistoryVar : Handle.InputHistoryVars)
+			{
+				if (InputHistoryVar.VarMetaData->Scope == ENiagaraParameterScope::None)
+				{
+					// Only need to fixup variables that are already in the dataset.
+					continue;
+				}
+				else if (InputHistoryVar.VarMetaData->Usage == ENiagaraScriptParameterUsage::InputOutput)
+				{
+					//@todo these may be culled if the param map write history does not link the input and output pins in any way
+					continue;
+				}
+
+				if (GNiagaraLogNamespaceFixup > 0)
+					UE_LOG(LogNiagaraEditor, Display, TEXT("Unmatched Input: %s"), *InputHistoryVar.VarWithOriginalAlias->GetName().ToString());
+				FName NewName = ChangeVariableNamespace(InputHistoryVar.Var, PARAM_MAP_INTERMEDIATE_STR);
+				Handle.Handle->FixupReadHistoryPinNames(InputHistoryVar.VarWithOriginalAlias, NewName);
+				Handle.Handle->FixupWrittenHistoryPinNames(InputHistoryVar.VarWithOriginalAlias, NewName);
+			}
+
+			for (FNiagaraHistoryVariable& OutputHistoryVar : Handle.OutputHistoryVars)
+			{
+				if (OutputHistoryVar.bDoNotDemote)
+				{
+					continue;
+				}
+				else if (OutputHistoryVar.VarMetaData->Scope == ENiagaraParameterScope::None)
+				{
+					// Only need to fixup variables that are already in the dataset.
+					continue;
+				}
+				else if (OutputHistoryVar.VarMetaData->Usage == ENiagaraScriptParameterUsage::InputOutput)
+				{
+					//@todo these may be culled if the param map write history does not link the input and output pins in any way
+					continue;
+				}
+				else if (OutputHistoryVar.VarMetaData->Usage == ENiagaraScriptParameterUsage::Output && OutputHistoryVar.VarMetaData->bOutputIsPersistent)
+				{
+					if (Handle.InputHistoryVars.ContainsByPredicate([&OutputHistoryVar](const FNiagaraHistoryVariable& InputHistoryVar) {return InputHistoryVar.VarWithOriginalAlias == OutputHistoryVar.VarWithOriginalAlias; }))
+					{
+						// Skip unmatched persistent outputs that are inputs to the same history as they must remain in the dataset to be persistent.
+						continue;
+					}
+				}
+
+				if (GNiagaraLogNamespaceFixup > 0)
+					UE_LOG(LogNiagaraEditor, Display, TEXT("Unmatched Output: %s"), *OutputHistoryVar.VarWithOriginalAlias->GetName().ToString());
+				FName NewName = ChangeVariableNamespace(OutputHistoryVar.Var, PARAM_MAP_INTERMEDIATE_STR);
+				Handle.Handle->FixupReadHistoryPinNames(OutputHistoryVar.VarWithOriginalAlias, NewName);
+				Handle.Handle->FixupWrittenHistoryPinNames(OutputHistoryVar.VarWithOriginalAlias, NewName);
+			}
+		}
+	}
+}
+
+int32 FNiagaraParameterMapHistoryWithMetaDataBuilder::AddVariableToHistory(FNiagaraParameterMapHistory& History, const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin)
+{
+	TOptional<FNiagaraVariableMetaData> MetaData = CallingGraphContext.Last()->GetMetaData(InAliasedVar);
+	if (MetaData.IsSet())
+	{
+		if (CallingGraphContext.Num() == 1)
+		{
+			// Mark vars added to the node graph deep copy to fixup name during precompile, and allow linking downstream even if their scope is local.
+			MetaData->bAddedToNodeGraphDeepCopy = true;
+		}
+		return History.AddVariable(InVar, InAliasedVar, InPin, MetaData);
+	}
+	UE_LOG(LogNiagaraEditor, Warning, TEXT("Variable added to parameter map history did not have metadata! Variable: %s"), *InVar.GetName().ToString());
+	TOptional<FNiagaraVariableMetaData> BlankMetaData = FNiagaraVariableMetaData();
+	return History.AddVariable(InVar, InAliasedVar, InPin, BlankMetaData);
+}
+
+FNiagaraParameterMapHistoryHandle::FNiagaraParameterMapHistoryHandle()
+{
+	ScriptExecutionIndex = INDEX_NONE;
+	ScriptRunIndex = INDEX_NONE;
+	Scope = ENiagaraParameterScope::None;
+	HistoryVariables.Empty();
+	EmitterUniqueName = FName();
+}
+
+FNiagaraParameterMapHistoryHandle::FNiagaraParameterMapHistoryHandle(FNiagaraParameterMapHistory& InHistory, const TArray<FNiagaraVariable>& InRequiredRendererVariables, const FName InEmitterUniqueName /*= FName()*/)
+{
+	History = &InHistory;
+	RequiredRendererVariables = InRequiredRendererVariables;
+	EmitterUniqueName = InEmitterUniqueName;
+
+	Scope = FNiagaraStackGraphUtilities::GetScopeForScriptUsage(InHistory.OriginatingScriptUsage);
+	const FString HistoryScopeString = FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(Scope);
+	FNiagaraEditorUtilities::GetScriptRunAndExecutionIndexFromUsage(InHistory.OriginatingScriptUsage, ScriptRunIndex, ScriptExecutionIndex);
+
+	for (int VarIdx = 0; VarIdx < InHistory.Variables.Num(); ++VarIdx)
+	{
+		FNiagaraVariable* Var = &InHistory.Variables[VarIdx];
+		FNiagaraVariable* VarWithOriginalAliasIntact = &InHistory.VariablesWithOriginalAliasesIntact[VarIdx];
+		FNiagaraVariableMetaData* VarMetaData = &InHistory.VariableMetaData[VarIdx];
+		HistoryVariables.Add(FNiagaraHistoryVariable(Var, VarWithOriginalAliasIntact, VarMetaData));
+	}
+}
+
+//** Constructs a history handle as a view of a secondary history to a primary history. e.g. the primary history encompasses all parameters in a system and the secondary history only has parameters for a single emitter. //
+FNiagaraParameterMapHistoryHandle::FNiagaraParameterMapHistoryHandle(FNiagaraParameterMapHistory& InPrimaryHistory, FNiagaraParameterMapHistory& InSecondaryHistory, const TArray<FNiagaraVariable>& InRequiredRendererVariables, const FName InEmitterUniqueName /*= FName()*/)
+{
+	History = &InPrimaryHistory;
+	RequiredRendererVariables = InRequiredRendererVariables;
+	EmitterUniqueName = InEmitterUniqueName;
+
+	Scope = FNiagaraStackGraphUtilities::GetScopeForScriptUsage(InSecondaryHistory.OriginatingScriptUsage);
+	const FString HistoryScopeString = FNiagaraStackGraphUtilities::GetNamespaceStringForScriptParameterScope(Scope);
+	FNiagaraEditorUtilities::GetScriptRunAndExecutionIndexFromUsage(InSecondaryHistory.OriginatingScriptUsage, ScriptRunIndex, ScriptExecutionIndex);
+
+	for (int32 SecondaryVarIdx = 0; SecondaryVarIdx < InSecondaryHistory.Variables.Num(); ++SecondaryVarIdx)
+	{
+		FNiagaraVariable& SecondaryVar = InSecondaryHistory.Variables[SecondaryVarIdx];
+		int32 FoundPrimaryVarIdx = InPrimaryHistory.Variables.IndexOfByPredicate([SecondaryVar](const FNiagaraVariable& PrimaryVar) {return SecondaryVar == PrimaryVar; });
+		if (FoundPrimaryVarIdx != INDEX_NONE)
+		{
+			FNiagaraVariable* PrimaryVar = &InPrimaryHistory.Variables[FoundPrimaryVarIdx];
+			FNiagaraVariable* PrimaryVarWithOriginalAliasIntact = &InPrimaryHistory.VariablesWithOriginalAliasesIntact[FoundPrimaryVarIdx];
+
+			// Assign the secondary history metadata as it is canonical in regards to parameter linking.
+			FNiagaraVariableMetaData* ScriptVarMetaData = &InSecondaryHistory.VariableMetaData[SecondaryVarIdx];
+			HistoryVariables.Add(FNiagaraHistoryVariable(PrimaryVar, PrimaryVarWithOriginalAliasIntact, ScriptVarMetaData));
+		}
+	}
+}
+
+void FNiagaraParameterMapHistoryHandle::FixupWrittenHistoryPinNames(int32& VarIdx, const FName& NewName)
+{
+	for (const UEdGraphPin* Pin : History->PerVariableWriteHistory[VarIdx])
+	{
+		UEdGraphPin* NonConstPin = const_cast<UEdGraphPin*>(Pin);
+		if (GNiagaraLogNamespaceFixup > 0)
+			UE_LOG(LogNiagaraEditor, Display, TEXT("Fixed map set input pin: %s"), *NonConstPin->PinName.ToString());
+		NonConstPin->PinName = NewName;
+	}
+}
+
+void FNiagaraParameterMapHistoryHandle::FixupWrittenHistoryPinNames(const FNiagaraVariable* AssociatedVar, const FName& NewName)
+{
+	int32 VarIdx = GetSourceVariableHistoryIndex(AssociatedVar);
+	FixupWrittenHistoryPinNames(VarIdx, NewName);
+}
+
+void FNiagaraParameterMapHistoryHandle::FixupReadHistoryPinNames(int32& VarIdx, const FName& NewName)
+{
+	for (TTuple<const UEdGraphPin*, const UEdGraphPin*>& PinTuple : History->PerVariableReadHistory[VarIdx])
+	{
+		UEdGraphPin* Pin = const_cast<UEdGraphPin*>(PinTuple.Key);
+		if (GNiagaraLogNamespaceFixup > 0)
+			UE_LOG(LogNiagaraEditor, Display, TEXT("Fixed map get output pin: %s"), *Pin->PinName.ToString());
+		Pin->PinName = NewName;
+	}
+}
+
+void FNiagaraParameterMapHistoryHandle::FixupReadHistoryPinNames(const FNiagaraVariable* AssociatedVar, const FName& NewName)
+{
+	int32 VarIdx = GetSourceVariableHistoryIndex(AssociatedVar);
+	FixupReadHistoryPinNames(VarIdx, NewName);
+}
+
+void FNiagaraHistoryVariable::SetVarWithOriginalAliasName(const FName& NewName)
+{
+	FNiagaraVariable* NonConstVarWithOriginalAlias = const_cast<FNiagaraVariable*>(VarWithOriginalAlias);
+	NonConstVarWithOriginalAlias->SetName(NewName);
+}

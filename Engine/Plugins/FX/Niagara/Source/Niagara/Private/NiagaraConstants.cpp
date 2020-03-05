@@ -20,6 +20,9 @@ TMap<FNiagaraVariable, FNiagaraVariable> FNiagaraConstants::AttrDefaultsValueMap
 TMap<FNiagaraVariable, FNiagaraVariable> FNiagaraConstants::AttrDataSetKeyMap;
 TArray<FNiagaraVariable> FNiagaraConstants::EngineManagedAttributes;
 
+const FName FNiagaraConstants::InputPinName("InputPin");
+const FName FNiagaraConstants::OutputPinName("OutputPin");
+
 void FNiagaraConstants::Init()
 {
 	if (SystemParameters.Num() == 0)

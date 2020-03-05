@@ -466,6 +466,7 @@ public:
 	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const { return CachedScriptVMId; }
 #endif
 
+
 	void SetUsage(ENiagaraScriptUsage InUsage) { Usage = InUsage; }
 	ENiagaraScriptUsage GetUsage() const { return Usage; }
 
@@ -526,6 +527,7 @@ public:
 	static bool NIAGARA_API ConvertUsageToGroup(ENiagaraScriptUsage InUsage, ENiagaraScriptGroup& OutGroup);
 
 #if WITH_EDITORONLY_DATA
+	NIAGARA_API TArray<ENiagaraParameterScope> GetUnsupportedParameterScopes() const;
 	NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContexts() const;
 	static NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContextsForBitmask(int32 InModuleUsageBitmask);
 #endif
@@ -567,16 +569,15 @@ public:
 	void CacheShadersForResources(EShaderPlatform ShaderPlatform, FNiagaraShaderScript *ResourceToCache, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile = false, bool bCooking=false);
 #endif // WITH_EDITOR
 	FNiagaraShaderScript* AllocateResource();
-	FNiagaraShaderScript *GetRenderThreadScript()
-	{
-		return &ScriptResource;
-	}
-	const FNiagaraShaderScript *GetRenderThreadScript() const
+	FNiagaraShaderScript* GetRenderThreadScript()
 	{
 		return &ScriptResource;
 	}
 
-	
+	const FNiagaraShaderScript* GetRenderThreadScript() const
+	{
+		return &ScriptResource;
+	}
 
 	FComputeShaderRHIRef GetScriptShader() 
 	{

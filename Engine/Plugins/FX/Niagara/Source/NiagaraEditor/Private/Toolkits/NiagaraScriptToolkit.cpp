@@ -15,6 +15,7 @@
 #include "SNiagaraParameterCollection.h"
 #include "UObject/Package.h"
 #include "SNiagaraParameterMapView.h"
+#include "SNiagaraParameterPanel.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSystem.h"
 #include "BusyCursor.h"
@@ -47,6 +48,7 @@
 #include "NiagaraMessageManager.h"
 #include "NiagaraStandaloneScriptViewModel.h"
 #include "NiagaraMessageLogViewModel.h"
+#include "NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptToolkit"
 
@@ -56,6 +58,7 @@ const FName FNiagaraScriptToolkit::NodeGraphTabId(TEXT("NiagaraEditor_NodeGraph"
 const FName FNiagaraScriptToolkit::ScriptDetailsTabId(TEXT("NiagaraEditor_ScriptDetails"));
 const FName FNiagaraScriptToolkit::SelectedDetailsTabId(TEXT("NiagaraEditor_SelectedDetails"));
 const FName FNiagaraScriptToolkit::ParametersTabId(TEXT("NiagaraEditor_Parameters"));
+const FName FNiagaraScriptToolkit::ParametersTabId2(TEXT("NiagaraEditor_Paramters2"));
 const FName FNiagaraScriptToolkit::StatsTabId(TEXT("NiagaraEditor_Stats"));
 const FName FNiagaraScriptToolkit::MessageLogTabID(TEXT("NiagaraEditor_MessageLog"));
 
@@ -97,6 +100,13 @@ void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 	InTabManager->RegisterTabSpawner(ParametersTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters))
 		.SetDisplayName(LOCTEXT("ParametersTab", "Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef);
+
+	if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 > 0)
+	{
+		InTabManager->RegisterTabSpawner(ParametersTabId2, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters2))
+			.SetDisplayName(LOCTEXT("ParametersTab2", "Parameters2"))
+			.SetGroup(WorkspaceMenuCategoryRef);
+	}
 		
 	InTabManager->RegisterTabSpawner(StatsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabStats))
 		.SetDisplayName(LOCTEXT("StatsTab", "Stats"))
@@ -116,6 +126,7 @@ void FNiagaraScriptToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(ScriptDetailsTabId);
 	InTabManager->UnregisterTabSpawner(SelectedDetailsTabId);
 	InTabManager->UnregisterTabSpawner(ParametersTabId);
+	InTabManager->UnregisterTabSpawner(ParametersTabId2);
 	InTabManager->UnregisterTabSpawner(StatsTabId);
 }
 
@@ -149,6 +160,8 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 
 	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(DisplayName, ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, MessageLogGuidKey));
 	ScriptViewModel->Initialize(EditedNiagaraScript, OriginalNiagaraScript);
+	ParameterPanelViewModel = MakeShareable(new FNiagaraScriptToolkitParameterPanelViewModel(ScriptViewModel));
+	ParameterPanelViewModel->InitBindings();
 
 	OnEditedScriptGraphChangedHandle = ScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
 		FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptToolkit::OnEditedScriptGraphChanged));
@@ -376,6 +389,19 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptParameters(const FSpaw
 		SNew(SDockTab)
 		[
 			SNew(SNiagaraParameterMapView, Array, SNiagaraParameterMapView::EToolkitType::SCRIPT, GetToolkitCommands())
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptParameters2(const FSpawnTabArgs& Args)
+{
+	checkf(Args.GetTabId().TabType == ParametersTabId2, TEXT("Wrong tab ID in NiagaraScriptToolkit"));
+
+	TSharedRef<SDockTab> SpawnedTab =
+		SNew(SDockTab)
+		[
+			SNew(SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
 		];
 
 	return SpawnedTab;

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 
 NIAGARAEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraEditor, All, All);
@@ -133,4 +132,92 @@ private:
 	const TSharedPtr<INiagaraScriptGraphFocusInfo> ScriptGraphFocusInfo;
 };
 
+/** Convenience wrapper for generating entries for scope enum combo boxes in SNiagaraParameterNameView. */
+struct FScopeIsEnabledAndTooltip
+{
+	FScopeIsEnabledAndTooltip()
+		: bEnabled(true)
+		, Tooltip()
+	{};
 
+	FScopeIsEnabledAndTooltip(bool bInEnabled, FText InTooltip)
+		: bEnabled(bInEnabled)
+		, Tooltip(InTooltip)
+	{};
+
+	bool bEnabled;
+	FText Tooltip;
+};
+
+/** Helper struct for passing along info on parameters and how to display them in SNiagaraParameterNameView */
+struct FNiagaraScriptVariableAndViewInfo
+{
+	FNiagaraScriptVariableAndViewInfo() {}
+	FNiagaraScriptVariableAndViewInfo(const FNiagaraVariable& InScriptVariable, const FNiagaraVariableMetaData& InScriptVariableMetaData)
+		: bIsSelectionRelevant(false)
+	{
+		ScriptVariable = InScriptVariable;
+		MetaData = InScriptVariableMetaData;
+	};
+
+	FNiagaraScriptVariableAndViewInfo(const FNiagaraVariable& InScriptVariable, const FNiagaraVariableMetaData& InMetaData, const TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num>& InParameterScopeToDisplayInfo)
+		: ParameterScopeToDisplayInfo(InParameterScopeToDisplayInfo)
+		, bIsSelectionRelevant(false)
+	{
+		ScriptVariable = InScriptVariable;
+		MetaData = InMetaData;
+	};
+
+	FNiagaraScriptVariableAndViewInfo(const FNiagaraScriptVariableAndViewInfo& Other)
+		: ScriptVariable(Other.ScriptVariable)
+		, MetaData(Other.MetaData)
+		, ParameterScopeToDisplayInfo(Other.ParameterScopeToDisplayInfo)
+		, bIsSelectionRelevant(Other.bIsSelectionRelevant)
+	{};
+
+	FNiagaraVariable ScriptVariable;
+	FNiagaraVariableMetaData MetaData;
+
+	// Array indexed by ENiagaraParameterScope value containing info on how to present each scope in a ComboBox.
+	TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num> ParameterScopeToDisplayInfo;
+
+	// Whether this entry is related to the current selection state, e.g. if a module is selected in the Stack, mark this entry if ScriptVariable is a member of that module.
+	bool bIsSelectionRelevant;
+};
+
+/* Legacy style Namespace::Type Enum for Parameter Panel section management. */
+namespace NiagaraParameterPanelSectionID
+{
+	enum Type
+	{
+		NONE = 0,
+
+		// Group A, for contextual information when editing scripts
+		INPUTS,
+		REFERENCES,
+		OUTPUTS,
+		LOCALS,
+		INITIALVALUES,
+
+		// Group B, for contextual information when editing systems
+		ENGINE,
+		USER,
+		SYSTEM,
+		EMITTER,
+		PARTICLES,
+	};
+
+	FText OnGetSectionTitle(const NiagaraParameterPanelSectionID::Type InSection);
+	static const NiagaraParameterPanelSectionID::Type GetSectionForScope(ENiagaraParameterScope InScope);
+	static const NiagaraParameterPanelSectionID::Type GetSectionForParameterMetaData(const FNiagaraVariableMetaData& MetaData);
+	ENiagaraParameterScope GetScopeForNewParametersInSection(NiagaraParameterPanelSectionID::Type InSection);
+	ENiagaraScriptParameterUsage GetUsageForNewParametersInSection(NiagaraParameterPanelSectionID::Type InSection);
+
+}
+
+class FNiagaraEditorCommonCVar
+{
+public:
+	static int32 GNiagaraEnableParameterPanel2;
+	static FAutoConsoleVariableRef CVarEnableParameterPanel2;
+};

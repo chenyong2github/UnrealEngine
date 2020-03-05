@@ -135,6 +135,37 @@ void UNiagaraLightRendererProperties::FixMaterial(UMaterial* Material)
 {
 }
 
+const TArray<FNiagaraVariable>& UNiagaraLightRendererProperties::GetBoundAttributes()
+{
+	CurrentAttributeBindings.Reset();
+
+	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
+	AttributeBindings.Add(&LightRenderingEnabledBinding);
+	AttributeBindings.Add(&LightExponentBinding);
+	AttributeBindings.Add(&PositionBinding);
+	AttributeBindings.Add(&ColorBinding);
+	AttributeBindings.Add(&RadiusBinding);
+	AttributeBindings.Add(&VolumetricScatteringBinding);
+
+	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
+	{
+		if (AttributeBinding->BoundVariable.IsValid())
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->BoundVariable);
+		}
+		else if (AttributeBinding->DataSetVariable.IsValid())
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->DataSetVariable);
+		}
+		else
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->DefaultValueIfNonExistent);
+		}
+	}
+
+	return CurrentAttributeBindings;
+}
+
 #endif // WITH_EDITORONLY_DATA
 
 #undef LOCTEXT_NAMESPACE

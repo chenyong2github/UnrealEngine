@@ -11,8 +11,8 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Layout/SBox.h"
-#include "SNiagaraParameterMapView.h"
 #include "Framework/Application/SlateApplication.h"
+#include "SNiagaraParameterPanel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraGraphPinAdd"
 
@@ -68,12 +68,14 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 	{
 		TArray<TWeakObjectPtr<UNiagaraGraph>> Graphs;
 		Graphs.Add(OwningNode->GetNiagaraGraph());
-		TSharedRef<SNiagaraAddParameterMenu> MenuWidget = SNew(SNiagaraAddParameterMenu, Graphs)
-			.OnAddParameter_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::AddParameter, GetPinObj()) // For non custom actions
+
+		// Creating a new parameter from a graph pin always defaults to Particles scope.
+		TSharedRef<SNiagaraAddParameterMenu2> MenuWidget = SNew(SNiagaraAddParameterMenu2, Graphs, ENiagaraParameterScope::Particles)
+			.OnAddParameter_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::AddParameter, (const UEdGraphPin*)GetPinObj())
 			.OnCollectCustomActions_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::CollectAddPinActions, GetPinObj())
 			.OnAllowMakeType_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::AllowNiagaraTypeForAddPin)
 			.IsParameterRead(GraphPinObj ? GraphPinObj->Direction == EGPD_Output : true);
-		
+
 		AddButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
 		return MenuWidget;
 	}
@@ -81,7 +83,6 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 	{
 		return SNullWidget::NullWidget;
 	}
-
 }
 
 #undef LOCTEXT_NAMESPACE

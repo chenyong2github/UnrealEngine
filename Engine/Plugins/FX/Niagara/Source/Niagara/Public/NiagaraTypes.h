@@ -10,6 +10,7 @@
 #include "NiagaraTypes.generated.h"
 
 class UNiagaraDataInterfaceBase;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogNiagara, Log, Verbose);
 
 // basic type struct definitions
@@ -439,6 +440,52 @@ public:
 };
 
 
+UENUM()
+enum class ENiagaraParameterScope : uint32
+{
+	Input,
+
+	User,
+
+	Engine,
+
+	System,
+
+	Emitter,
+
+	Particles,
+
+	ScriptPersistent UMETA(Hidden), //@todo(ng) hiding until autotest verification is made.
+
+	ScriptTransient,
+
+	Local UMETA(Hidden), //Convenience markup for ScopeToString functions, only use in conjunction with ENiagaraScriptParameterUsage::Local.
+
+	// insert new scopes before
+	None UMETA(Hidden),
+
+	Num UMETA(Hidden)
+};
+
+UENUM()
+enum class ENiagaraScriptParameterUsage : uint32
+{
+	Input,
+
+	Output,
+
+	Local,
+
+	InputOutput,
+
+	InitialValueInput,
+
+	// insert new script parameter usages before
+	None UMETA(Hidden),
+	
+	Num UMETA(Hidden)
+};
+
 /** Defines options for conditionally editing and showing script inputs in the UI. */
 USTRUCT()
 struct NIAGARA_API FNiagaraInputConditionMetadata
@@ -463,10 +510,14 @@ public:
 		: bAdvancedDisplay(false)
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
+		, Scope(ENiagaraParameterScope::None)
+		, Usage(ENiagaraScriptParameterUsage::None)
 		, bIsStaticSwitch(false)
 		, StaticSwitchDefaultValue(0)
-	{
-	}
+		, bAddedToNodeGraphDeepCopy(false)
+		, bOutputIsPersistent(false)
+		, bCreatedInSystemEditor(false)
+	{};
 public:
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true, SkipForCompileHash = "true"))
 	FText Description;
@@ -497,6 +548,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata", SkipForCompileHash = "true"))
 	TMap<FName, FString> PropertyMetaData;
 
+	/** Defines the scope of a variable that is an input to a script. */
+	UPROPERTY()
+	ENiagaraParameterScope Scope;
+
+	/** Defines the usage of a variable as an argument or output relative to the script. */
+	UPROPERTY()
+	ENiagaraScriptParameterUsage Usage;
+
 	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
 	UPROPERTY()
 	bool bIsStaticSwitch; // TODO: This should be moved to the UNiagaraScriptVariable in the future
@@ -504,6 +563,26 @@ public:
 	/** The default value to use when creating new pins or stack entries for a static switch parameter */
 	UPROPERTY()
 	int32 StaticSwitchDefaultValue;  // TODO: This should be moved to the UNiagaraScriptVariable in the future
+
+	/** Transient data to mark variables set in the node graph deep copy as having been derived from a module namespace parameter default. */
+	UPROPERTY(Transient)
+	bool bAddedToNodeGraphDeepCopy;
+
+	/** Only valid if Usage is Output. Marks the associated FNiagaraVariable as Persistent across script runs and therefore should be retained in the Dataset during compilation/translation. */
+	UPROPERTY()
+	bool bOutputIsPersistent;
+
+	/** Namespace-less name for associated FNiagaraVariable. Edited directly by user and then used to generate full Name of associated FNiagaraVariable. */
+	UPROPERTY()
+	FName CachedNamespacelessVariableName;
+
+	/** Track if the associated parameter was created in the Emitter/System editor. Used to determine whether the associated parameter can be deleted from the Emitter/System editor. */
+	UPROPERTY()
+	bool bCreatedInSystemEditor;
+
+public:
+	FORCEINLINE bool IsInputUsage() const { return Usage == ENiagaraScriptParameterUsage::Input || Usage == ENiagaraScriptParameterUsage::InputOutput; };
+	FORCEINLINE bool IsInputOrLocalUsage() const { return Usage == ENiagaraScriptParameterUsage::Input || Usage == ENiagaraScriptParameterUsage::InputOutput || Usage == ENiagaraScriptParameterUsage::InitialValueInput || Usage == ENiagaraScriptParameterUsage::Local; };
 };
 
 USTRUCT()
@@ -749,6 +828,8 @@ public:
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
 
+	static UEnum* GetParameterScopeEnum() { return ParameterScopeEnum; }
+
 	static const FNiagaraTypeDefinition& GetCollisionEventDef() { return CollisionEventDef; }
 
 	static bool IsScalarDefinition(const FNiagaraTypeDefinition& Type);
@@ -804,6 +885,8 @@ private:
 	static UEnum* ScriptUsageEnum;
 	static UEnum* ExecutionStateEnum;
 	static UEnum* ExecutionStateSourceEnum;
+
+	static UEnum* ParameterScopeEnum;
 
 	static UScriptStruct* ParameterMapStruct;
 	static UScriptStruct* IDStruct;

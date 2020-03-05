@@ -28,6 +28,7 @@
 const FName UNiagaraNodeParameterMapBase::ParameterPinSubCategory("ParameterPin");
 const FName UNiagaraNodeParameterMapBase::SourcePinName("Source");
 const FName UNiagaraNodeParameterMapBase::DestPinName("Dest");
+const FName UNiagaraNodeParameterMapBase::AddPinName("Add");
 
 UNiagaraNodeParameterMapBase::UNiagaraNodeParameterMapBase() 
 	: UNiagaraNodeWithDynamicPins()
@@ -70,7 +71,7 @@ TArray<FNiagaraParameterMapHistory> UNiagaraNodeParameterMapBase::GetParameterMa
 	Builder.RegisterEncounterableVariables(EncounterableVariables);
 	if (!EmitterNameOverride.IsEmpty())
 	{
-		Builder.EnterEmitter(EmitterNameOverride, nullptr);
+		Builder.EnterEmitter(EmitterNameOverride, InGraphEnd->GetNiagaraGraph(), nullptr);
 	}
 
 	if (bLimitToOutputScriptType)
@@ -210,7 +211,7 @@ void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const F
 			Names.Add(Pin->GetFName());
 		}
 	}
-	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(*RenamedPin->GetName(), Names);
+	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(*RenamedPin->GetName(), Names); //@todo(ng) remove
 
 	FNiagaraTypeDefinition VarType = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToTypeDefinition(RenamedPin);
 	FNiagaraVariable Var(VarType, *OldName);

@@ -96,8 +96,7 @@ public:
 
 	TArray<FNiagaraParameterMapHistory>& GetPrecomputedHistories() { return PrecompiledHistories; }
 	const TArray<FNiagaraParameterMapHistory>& GetPrecomputedHistories() const { return PrecompiledHistories; }
-	class UNiagaraGraph* GetPrecomputedNodeGraph() { return NodeGraphDeepCopy; }
-	const class UNiagaraGraph* GetPrecomputedNodeGraph() const { return NodeGraphDeepCopy; }
+	virtual const class UNiagaraGraph* GetPrecomputedNodeGraph() const { return NodeGraphDeepCopy; }
 	const FString& GetUniqueEmitterName() const { return EmitterUniqueName; }
 	void VisitReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver);
 	void DeepCopyGraphs(UNiagaraScriptSource* ScriptSource, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver);
@@ -147,6 +146,10 @@ public:
 	};
 	TMap<const UNiagaraGraph*, TArray<FunctionData>> PreprocessedFunctions;
 	TArray<UNiagaraGraph*> ClonedGraphs;
+
+	// Copy of the variables that are required by Renderers if this is a compile request for an Emitter. 
+	TArray<FNiagaraVariable> RequiredRendererVariables;
+
 protected:
 	void VisitReferencedGraphsRecursive(UNiagaraGraph* InGraph, const FCompileConstantResolver& ConstantResolver);
 };

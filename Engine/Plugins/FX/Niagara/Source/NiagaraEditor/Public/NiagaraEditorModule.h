@@ -41,6 +41,7 @@ public:
 	virtual TSharedRef<SWidget> CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const = 0;
 	virtual TSharedRef<SWidget> CreateScriptScratchPad(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const = 0;
 	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
+	virtual FLinearColor GetColorForParameterScope(ENiagaraParameterScope ParameterScope) const = 0;
 };
 
 extern int32 GbShowFastPathOptions;
