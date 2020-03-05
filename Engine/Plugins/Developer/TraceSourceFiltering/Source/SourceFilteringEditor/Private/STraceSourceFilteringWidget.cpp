@@ -167,7 +167,14 @@ void STraceSourceFilteringWidget::ConstructMenuBox()
 		.OnGetMenuContent(FOnGetContent::CreateLambda([OnFilterClassPicked, this]()
 		{
 			FMenuBuilder MenuBuilder(true, TSharedPtr<FUICommandList>(), SessionFilterService->GetExtender());
-			MenuBuilder.AddWidget(SessionFilterService->GetFilterPickerWidget(FOnFilterClassPicked::CreateLambda(OnFilterClassPicked)), FText::GetEmpty(), true, false);
+			
+			MenuBuilder.BeginSection(FName("FilterPicker"));
+			{
+				MenuBuilder.AddWidget(SessionFilterService->GetFilterPickerWidget(FOnFilterClassPicked::CreateLambda(OnFilterClassPicked)), FText::GetEmpty(), true, false);
+			}
+			MenuBuilder.EndSection();
+			
+
 			return MenuBuilder.MakeWidget();
 		}))
 		.ButtonContent()
