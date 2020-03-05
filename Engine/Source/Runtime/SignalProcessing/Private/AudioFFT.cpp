@@ -537,10 +537,10 @@ namespace Audio
 			virtual int32 Size() const override { return FFTSize; }
 
 			// Scaling applied when performing forward FFT.
-			virtual EFFTScaling ForwardScaling() const { return EFFTScaling::None; }
+			virtual EFFTScaling ForwardScaling() const { return EFFTScaling::MultipliedBySqrtFFTSize; }
 
 			/* Scaling applied when performing inverse FFT. */
-			virtual EFFTScaling InverseScaling() const { return EFFTScaling::None; }
+			virtual EFFTScaling InverseScaling() const { return EFFTScaling::DividedBySqrtFFTSize; }
 
 			
 			// ForwardRealToComplex
