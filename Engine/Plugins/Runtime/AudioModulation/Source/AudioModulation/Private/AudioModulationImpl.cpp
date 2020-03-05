@@ -94,7 +94,7 @@ namespace AudioModulation
 			{
 				if (SourceSetting.GetId() == SettingsId)
 				{
-					SourceSetting = FModulationSettingsProxy(*Settings, RefProxies);
+					SourceSetting = FModulationSettingsProxy(*Settings, RefProxies, *this);
 				}
 			}
 
@@ -102,7 +102,7 @@ namespace AudioModulation
 			{
 				if (Pair.Value.GetId() == SettingsId)
 				{
-					Pair.Value = FModulationSettingsProxy(*Settings, RefProxies);
+					Pair.Value = FModulationSettingsProxy(*Settings, RefProxies, *this);
 				}
 			}
 		});
@@ -117,7 +117,7 @@ namespace AudioModulation
 		if (!SoundSettings.Contains(SoundId))
 		{
 			const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&InSettings);
-			SoundSettings.Add(SoundId, FModulationSettingsProxy(*Settings, RefProxies));
+			SoundSettings.Add(SoundId, FModulationSettingsProxy(*Settings, RefProxies, *this));
 		}
 	}
 
@@ -127,7 +127,7 @@ namespace AudioModulation
 
 		if (const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&InSettings))
 		{
-			SourceSettings[InSourceId] = FModulationSettingsProxy(*Settings, RefProxies);
+			SourceSettings[InSourceId] = FModulationSettingsProxy(*Settings, RefProxies, *this);
 		}
 	}
 
@@ -178,7 +178,7 @@ namespace AudioModulation
 					NewProxy.InitLFOs(*BusPtr.Get(), RefProxies.LFOs);
 				};
 
-				FBusHandle BusHandle = FBusHandle::Create(*BusPtr.Get(), RefProxies.Buses, OnCreate);
+				FBusHandle BusHandle = FBusHandle::Create(*BusPtr.Get(), RefProxies.Buses, *this, OnCreate);
 				ManuallyActivatedBuses.Add(MoveTemp(BusHandle));
 			}
 		});
@@ -195,11 +195,11 @@ namespace AudioModulation
 				FBusMixHandle BusMixHandle = FBusMixHandle::Get(*BusMixPtr.Get(), RefProxies.BusMixes);
 				if (BusMixHandle.IsValid())
 				{
-					BusMixHandle.FindProxy().SetEnabled();
+					BusMixHandle.FindProxy().SetEnabled(*BusMixPtr.Get());
 				}
 				else
 				{
-					BusMixHandle = FBusMixHandle::Create(*BusMixPtr.Get(), RefProxies.BusMixes);
+					BusMixHandle = FBusMixHandle::Create(*BusMixPtr.Get(), RefProxies.BusMixes, *this);
 				}
 
 				ManuallyActivatedBusMixes.Add(MoveTemp(BusMixHandle));
@@ -215,7 +215,7 @@ namespace AudioModulation
 		{
 			if (LFOPtr.IsValid())
 			{
-				FLFOHandle LFOHandle = FLFOHandle::Create(*LFOPtr.Get(), RefProxies.LFOs);
+				FLFOHandle LFOHandle = FLFOHandle::Create(*LFOPtr.Get(), RefProxies.LFOs, *this);
 				ManuallyActivatedLFOs.Add(MoveTemp(LFOHandle));
 			}
 		});
@@ -317,7 +317,7 @@ namespace AudioModulation
 		check(IsInAudioThread());
 
 		const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&SettingsBase);
-		FModulationPatchProxy VolumePatch(Settings->Volume, RefProxies);
+		FModulationPatchProxy VolumePatch(Settings->Volume, RefProxies, *this);
 
 		return CalculateModulationValue(VolumePatch);
 	}
@@ -330,7 +330,7 @@ namespace AudioModulation
 			if (BusPtr.IsValid())
 			{
 				const USoundControlBusBase& Bus = *BusPtr.Get();
-				FBusHandle BusHandle = FBusHandle::Create(Bus, RefProxies.Buses);
+				FBusHandle BusHandle = FBusHandle::Create(Bus, RefProxies.Buses, *this);
 				ManuallyActivatedBuses.Remove(MoveTemp(BusHandle));
 			}
 		});
@@ -362,7 +362,7 @@ namespace AudioModulation
 			if (LFOPtr.IsValid())
 			{
 				const USoundBusModulatorLFO& LFO = *LFOPtr.Get();
-				FLFOHandle LFOHandle = FLFOHandle::Create(LFO, RefProxies.LFOs);
+				FLFOHandle LFOHandle = FLFOHandle::Create(LFO, RefProxies.LFOs, *this);
 				ManuallyActivatedLFOs.Remove(MoveTemp(LFOHandle));
 			}
 		});

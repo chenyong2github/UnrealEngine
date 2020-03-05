@@ -54,8 +54,8 @@ namespace AudioModulation
 		LFO.Start();
 	}
 
-	FModulatorLFOProxy::FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO)
-		: TModulatorProxyRefType(InLFO.GetName(), InLFO.GetUniqueID())
+	FModulatorLFOProxy::FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO, FAudioModulationImpl& InModulationImpl)
+		: TModulatorProxyRefType(InLFO.GetName(), InLFO.GetUniqueID(), InModulationImpl)
 		, Offset(InLFO.Offset)
 		, Value(1.0f)
 		, bBypass(InLFO.bBypass)
