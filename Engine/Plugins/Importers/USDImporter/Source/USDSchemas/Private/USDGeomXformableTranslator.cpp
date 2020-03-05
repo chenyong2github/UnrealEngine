@@ -50,6 +50,15 @@ namespace UsdGeomXformableTranslatorImpl
 					continue;
 				}
 
+				// Ignore invisible prims
+				if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( ChildPrim ) )
+				{
+					if ( UsdGeomImageable.ComputeVisibility() == pxr::UsdGeomTokens->invisible )
+					{
+						continue;
+					}
+				}
+
 				FTransform ChildTransform = CurrentTransform;
 
 				if ( pxr::UsdGeomXformable ChildXformable = pxr::UsdGeomXformable( ChildPrim ) )
@@ -288,11 +297,6 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 				StaticMeshComponent->RegisterComponent();
 			}
 		}
-
-		// Set purpose as a tag so its visibility can be toggled later
-		TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
-		SceneComponent->ComponentTags.RemoveAll([&](const FName& Tag){ return Tag.ToString().EndsWith(TEXT("Purpose")); });
-		SceneComponent->ComponentTags.Add(IUsdPrim::GetPurposeName(IUsdPrim::GetPurpose(Prim.Get())));
 	}
 }
 
