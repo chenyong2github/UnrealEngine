@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
+#ifdef __USING_OLD_STUB_CODE__
 
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
@@ -1185,6 +1185,531 @@ void FGeometryCollectionPhysicsProxy::InitializeRemoveOnFracture(FParticlesType&
 		}
 	}
 	*/
+}
+
+void FGeometryCollectionPhysicsProxy::AddCollisionToCollisionData(FRecordedFrame* ExistingFrame, const FParticlesType& Particles, const Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint& Constraint)
+{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+	const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = GetSolver()->GetRigidClustering().GetClusterIdsArray();
+	const TMap<uint32, TUniquePtr<TArray<uint32>>>& ParentToChildrenMap = GetSolver()->GetRigidClustering().GetChildrenMap();
+	const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping = GetSolver()->GetPhysicsProxyReverseMapping();
+
+	int32 NewIdx = ExistingFrame->Collisions.Add(FSolverCollisionData());
+	FSolverCollisionData& Collision = ExistingFrame->Collisions[NewIdx];
+
+	Collision.Location = Constraint.Location;
+	Collision.AccumulatedImpulse = Constraint.AccumulatedImpulse;
+	Collision.Normal = Constraint.Normal;
+	Collision.Velocity1 = Particles.V(Constraint.ParticleIndex);
+	Collision.Velocity2 = Particles.V(Constraint.LevelsetIndex);
+	Collision.AngularVelocity1 = Particles.W(Constraint.ParticleIndex);
+	Collision.AngularVelocity2 = Particles.W(Constraint.LevelsetIndex);
+	Collision.Mass1 = Particles.M(Constraint.ParticleIndex);
+	Collision.Mass2 = Particles.M(Constraint.LevelsetIndex);
+	Collision.ParticleIndex = Constraint.ParticleIndex;
+	Collision.LevelsetIndex = Constraint.LevelsetIndex;
+
+	// If Constraint.ParticleIndex is a cluster store an index for a mesh in this cluster
+	if (ClusterIdsArray[Constraint.ParticleIndex].NumChildren > 0)
+	{
+		int32 ParticleIndexMesh = GetSolver()->GetParticleIndexMesh(ParentToChildrenMap, Constraint.ParticleIndex);
+		ensure(ParticleIndexMesh != INDEX_NONE);
+		Collision.ParticleIndexMesh = ParticleIndexMesh;
+	}
+	// If Constraint.LevelsetIndex is a cluster store an index for a mesh in this cluster
+	if (ClusterIdsArray[Constraint.LevelsetIndex].NumChildren > 0)
+	{
+		int32 LevelsetIndexMesh = GetSolver()->GetParticleIndexMesh(ParentToChildrenMap, Constraint.LevelsetIndex);
+		ensure(LevelsetIndexMesh != INDEX_NONE);
+		Collision.LevelsetIndexMesh = LevelsetIndexMesh;
+	}
+#endif
+}
+
+void FGeometryCollectionPhysicsProxy::UpdateCollisionData(const FParticlesType& Particles, const FCollisionConstraintsType& CollisionRule, FRecordedFrame* ExistingFrame)
+{
+	ExistingFrame->Collisions.Reset();
+
+	if (Parameters.CollisionData.SaveCollisionData && ExistingFrame->Timestamp > 0.f && Parameters.CollisionData.CollisionDataSizeMax > 0)
+	{
+#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
+		const TArray<Chaos::TPBDCollisionConstraints<float, 3>::FRigidBodyContactConstraint>& AllConstraintsArray = CollisionRule.GetAllConstraints();
+		if (AllConstraintsArray.Num() > 0)
+		{
+			const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping = GetSolver()->GetPhysicsProxyReverseMapping();
+
+			TArray<Chaos::TPBDCollisionConstraints<float, 3>::FRigidBodyContactConstraint> ConstraintsArray;
+			ConstraintsArray.SetNumUninitialized(AllConstraintsArray.Num());
+
+			FBox BoundingBox(ForceInitToZero);
+			int32 NumConstraints = 0;
+			for (int32 Idx = 0; Idx < AllConstraintsArray.Num(); ++Idx)
+			{
+				// Check if the collision is for this PhysicsProxy
+				IPhysicsProxyBase* PhysicsProxy = PhysicsProxyReverseMapping[AllConstraintsArray[Idx].ParticleIndex].PhysicsProxy;
+				if (PhysicsProxy == this)
+				{
+					if (ensure(!AllConstraintsArray[Idx].AccumulatedImpulse.ContainsNaN()))
+					{
+						if (!AllConstraintsArray[Idx].AccumulatedImpulse.IsZero())
+						{
+							if (ensure(!AllConstraintsArray[Idx].Location.ContainsNaN() &&
+								!AllConstraintsArray[Idx].Normal.ContainsNaN()) &&
+								!Particles.V(AllConstraintsArray[Idx].ParticleIndex).ContainsNaN() &&
+								!Particles.V(AllConstraintsArray[Idx].LevelsetIndex).ContainsNaN() &&
+								!Particles.W(AllConstraintsArray[Idx].ParticleIndex).ContainsNaN() &&
+								!Particles.W(AllConstraintsArray[Idx].LevelsetIndex).ContainsNaN())
+							{
+								BoundingBox += AllConstraintsArray[Idx].Location;
+
+								ConstraintsArray[NumConstraints] = AllConstraintsArray[Idx];
+								NumConstraints++;
+							}
+						}
+					}
+				}
+			}
+
+			ConstraintsArray.SetNum(NumConstraints);
+
+			if (ConstraintsArray.Num() > 0)
+			{
+				if (Parameters.CollisionData.DoCollisionDataSpatialHash &&
+					Parameters.CollisionData.CollisionDataSpatialHashRadius > 0.f &&
+					ConstraintsArray.Num() > 1 &&
+					(BoundingBox.GetExtent().X > 0.f || BoundingBox.GetExtent().Y > 0.f || BoundingBox.GetExtent().Z > 0.f))
+				{
+					// Validate Parameters.CollisionData.CollisionDataSpatialHashRadius
+					// CellSize must be smaller than the smallest bbox extent
+					float SpatialHashRadius = Parameters.CollisionData.CollisionDataSpatialHashRadius;
+					TArray<float> ExtentArray = { BoundingBox.GetExtent().X , BoundingBox.GetExtent().Y, BoundingBox.GetExtent().Z };
+					ExtentArray.Sort();
+					if (ExtentArray[0] != 0.f)
+					{
+						if (2.f * SpatialHashRadius > ExtentArray[0])
+						{
+							SpatialHashRadius = 0.5f * ExtentArray[0];
+						}
+					}
+					else
+					{
+						if (ExtentArray[1] != 0.f)
+						{
+							if (2.f * SpatialHashRadius > ExtentArray[1])
+							{
+								SpatialHashRadius = 0.5f * ExtentArray[1];
+							}
+						}
+						else
+						{
+							if (2.f * SpatialHashRadius > ExtentArray[2])
+							{
+								SpatialHashRadius = 0.5f * ExtentArray[2];
+							}
+						}
+					}
+
+					// Spatial hash the constraints
+					TMultiMap<int32, int32> HashTableMap;
+					ComputeHashTable(ConstraintsArray, BoundingBox, HashTableMap, SpatialHashRadius);
+
+					TArray<int32> UsedCellsArray;
+					HashTableMap.GetKeys(UsedCellsArray);
+
+					int32 NumCollisionsThisFrame = 0;
+					for (int32 IdxCell = 0; IdxCell < UsedCellsArray.Num(); ++IdxCell)
+					{
+						TArray<int32> ConstraintsInCellArray;
+						HashTableMap.MultiFind(UsedCellsArray[IdxCell], ConstraintsInCellArray);
+
+						int32 NumConstraintsToGetFromCell = FMath::Min(Parameters.CollisionData.MaxCollisionPerCell, ConstraintsInCellArray.Num());
+						for (int32 IdxConstraint = 0; IdxConstraint < NumConstraintsToGetFromCell; ++IdxConstraint)
+						{
+							AddCollisionToCollisionData(ExistingFrame, Particles, ConstraintsArray[ConstraintsInCellArray[IdxConstraint]]);
+						}
+					}
+
+					if (ExistingFrame->Collisions.Num() > Parameters.CollisionData.CollisionDataSizeMax)
+					{
+						TArray<FSolverCollisionData> CollisionsArray1;
+
+						float FInc = (float)ExistingFrame->Collisions.Num() / (float)Parameters.CollisionData.CollisionDataSizeMax;
+
+						CollisionsArray1.SetNumUninitialized(Parameters.CollisionData.CollisionDataSizeMax);
+						for (int32 IdxCollision = 0; IdxCollision < Parameters.CollisionData.CollisionDataSizeMax; ++IdxCollision)
+						{
+							int32 NewIdx = FMath::FloorToInt((float)IdxCollision * FInc);
+							CollisionsArray1[IdxCollision] = ExistingFrame->Collisions[NewIdx];
+						}
+
+						ExistingFrame->Collisions.SetNumUninitialized(Parameters.CollisionData.CollisionDataSizeMax);
+						for (int32 IdxCollision = 0; IdxCollision < Parameters.CollisionData.CollisionDataSizeMax; ++IdxCollision)
+						{
+							ExistingFrame->Collisions[IdxCollision] = CollisionsArray1[IdxCollision];
+						}
+					}
+				}
+				else
+				{
+					if (ConstraintsArray.Num() <= Parameters.CollisionData.CollisionDataSizeMax)
+					{
+						for (int32 IdxConstraint = 0; IdxConstraint < ConstraintsArray.Num(); ++IdxConstraint)
+						{
+							AddCollisionToCollisionData(ExistingFrame, Particles, ConstraintsArray[IdxConstraint]);
+						}
+					}
+					else
+					{
+						float FInc = (float)ConstraintsArray.Num() / (float)Parameters.CollisionData.CollisionDataSizeMax;
+
+						for (int32 IdxConstraint = 0; IdxConstraint < Parameters.CollisionData.CollisionDataSizeMax; ++IdxConstraint)
+						{
+							int32 Idx = FMath::FloorToInt((float)IdxConstraint * FInc);
+
+							AddCollisionToCollisionData(ExistingFrame, Particles, ConstraintsArray[Idx]);
+						}
+					}
+				}
+			}
+		}
+#endif
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::AddBreakingToBreakingData(FRecordedFrame* ExistingFrame, const FParticlesType& Particles, const Chaos::TBreakingData<float, 3>& Breaking)
+{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+	const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = GetSolver()->GetRigidClustering().GetClusterIdsArray();
+	const TMap<uint32, TUniquePtr<TArray<uint32>>>& ParentToChildrenMap = GetSolver()->GetRigidClustering().GetChildrenMap();
+	const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping = GetSolver()->GetPhysicsProxyReverseMapping();
+
+	int32 NewIdx = ExistingFrame->Breakings.Add(FSolverBreakingData());
+	FSolverBreakingData& NewBreaking = ExistingFrame->Breakings[NewIdx];
+
+	NewBreaking.Location = Breaking.Location;
+	NewBreaking.Velocity = Particles.V(Breaking.ParticleIndex);
+	NewBreaking.AngularVelocity = Particles.W(Breaking.ParticleIndex);
+	NewBreaking.Mass = Particles.M(Breaking.ParticleIndex);
+	NewBreaking.ParticleIndex = Breaking.ParticleIndex;
+
+	// If Breaking.ParticleIndex is a cluster store an index for a mesh in this cluster
+	if (ClusterIdsArray[Breaking.ParticleIndex].NumChildren > 0)
+	{
+		int32 ParticleIndexMesh = GetSolver()->GetParticleIndexMesh(ParentToChildrenMap, Breaking.ParticleIndex);
+		ensure(ParticleIndexMesh != INDEX_NONE);
+		NewBreaking.ParticleIndexMesh = ParticleIndexMesh;
+	}
+#endif
+}
+
+void FGeometryCollectionPhysicsProxy::UpdateBreakingData(const FParticlesType& Particles, FRecordedFrame* ExistingFrame)
+{
+	ExistingFrame->Breakings.Reset();
+
+	if (Parameters.BreakingData.SaveBreakingData && ExistingFrame->Timestamp > 0.f && Parameters.BreakingData.BreakingDataSizeMax > 0)
+	{
+#if TODO_REIMPLEMENT_GETALLCLUSTERBREAKINGS
+		const TArray<Chaos::TBreakingData<float, 3>>& AllBreakingsArray = GetSolver()->GetAllClusterBreakings();
+		if (AllBreakingsArray.Num() > 0)
+		{
+			const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping = GetSolver()->GetPhysicsProxyReverseMapping();
+
+			TArray<Chaos::TBreakingData<float, 3>> BreakingsArray;
+			BreakingsArray.SetNumUninitialized(AllBreakingsArray.Num());
+
+			FBox BoundingBox(ForceInitToZero);
+			int32 NumBreakings = 0;
+			for (int32 Idx = 0; Idx < AllBreakingsArray.Num(); ++Idx)
+			{
+				// Check if the breaking is for this PhysicsProxy
+				IPhysicsProxyBase* PhysicsProxy = PhysicsProxyReverseMapping[AllBreakingsArray[Idx].ParticleIndex].PhysicsProxy;
+				if (PhysicsProxy == this)
+				{
+					if (ensure(!AllBreakingsArray[Idx].Location.ContainsNaN() &&
+						!Particles.V(AllBreakingsArray[Idx].ParticleIndex).ContainsNaN() &&
+						!Particles.W(AllBreakingsArray[Idx].ParticleIndex).ContainsNaN()))
+					{
+						BoundingBox += AllBreakingsArray[Idx].Location;
+
+						BreakingsArray[NumBreakings] = AllBreakingsArray[Idx];
+						NumBreakings++;
+					}
+				}
+			}
+
+			BreakingsArray.SetNum(NumBreakings);
+
+			if (BreakingsArray.Num() > 0)
+			{
+				if (Parameters.BreakingData.DoBreakingDataSpatialHash &&
+					Parameters.BreakingData.BreakingDataSpatialHashRadius > 0.f &&
+					BreakingsArray.Num() > 1 &&
+					(BoundingBox.GetExtent().X > 0.f || BoundingBox.GetExtent().Y > 0.f || BoundingBox.GetExtent().Z > 0.f))
+				{
+					// Validate Parameters.CollisionData.CollisionDataSpatialHashRadius
+					// CellSize must be smaller than the smallest bbox extent
+					float SpatialHashRadius = Parameters.BreakingData.BreakingDataSpatialHashRadius;
+					TArray<float> ExtentArray = { BoundingBox.GetExtent().X , BoundingBox.GetExtent().Y, BoundingBox.GetExtent().Z };
+					ExtentArray.Sort();
+					if (ExtentArray[0] != 0.f)
+					{
+						if (2.f * SpatialHashRadius > ExtentArray[0])
+						{
+							SpatialHashRadius = 0.5f * ExtentArray[0];
+						}
+					}
+					else
+					{
+						if (ExtentArray[1] != 0.f)
+						{
+							if (2.f * SpatialHashRadius > ExtentArray[1])
+							{
+								SpatialHashRadius = 0.5f * ExtentArray[1];
+							}
+						}
+						else
+						{
+							if (2.f * SpatialHashRadius > ExtentArray[2])
+							{
+								SpatialHashRadius = 0.5f * ExtentArray[2];
+							}
+						}
+					}
+
+					// Spatial hash the constraints
+					TMultiMap<int32, int32> HashTableMap;
+					ComputeHashTable(BreakingsArray, BoundingBox, HashTableMap, SpatialHashRadius);
+
+					TArray<int32> UsedCellsArray;
+					HashTableMap.GetKeys(UsedCellsArray);
+
+					for (int32 IdxCell = 0; IdxCell < UsedCellsArray.Num(); ++IdxCell)
+					{
+						TArray<int32> BreakingsInCellArray;
+						HashTableMap.MultiFind(UsedCellsArray[IdxCell], BreakingsInCellArray);
+
+						int32 NumBreakingsToGetFromCell = FMath::Min(Parameters.BreakingData.MaxBreakingPerCell, BreakingsInCellArray.Num());
+						for (int32 IdxBreaking = 0; IdxBreaking < NumBreakingsToGetFromCell; ++IdxBreaking)
+						{
+							AddBreakingToBreakingData(ExistingFrame, Particles, BreakingsArray[BreakingsInCellArray[IdxBreaking]]);
+						}
+					}
+
+					if (ExistingFrame->Breakings.Num() > Parameters.BreakingData.BreakingDataSizeMax)
+					{
+						TArray<FSolverBreakingData> BreakingsArray1;
+
+						float FInc = (float)ExistingFrame->Breakings.Num() / (float)Parameters.BreakingData.BreakingDataSizeMax;
+
+						BreakingsArray1.SetNumUninitialized(Parameters.BreakingData.BreakingDataSizeMax);
+						for (int32 IdxBreaking = 0; IdxBreaking < Parameters.BreakingData.BreakingDataSizeMax; ++IdxBreaking)
+						{
+							int32 NewIdx = FMath::FloorToInt((float)IdxBreaking * FInc);
+							BreakingsArray1[IdxBreaking] = ExistingFrame->Breakings[NewIdx];
+						}
+
+						ExistingFrame->Breakings.SetNumUninitialized(Parameters.BreakingData.BreakingDataSizeMax);
+						for (int32 IdxBreaking = 0; IdxBreaking < Parameters.BreakingData.BreakingDataSizeMax; ++IdxBreaking)
+						{
+							ExistingFrame->Breakings[IdxBreaking] = BreakingsArray1[IdxBreaking];
+						}
+					}
+				}
+				else
+				{
+					if (BreakingsArray.Num() <= Parameters.BreakingData.BreakingDataSizeMax)
+					{
+						for (int32 IdxBreaking = 0; IdxBreaking < BreakingsArray.Num(); ++IdxBreaking)
+						{
+							AddBreakingToBreakingData(ExistingFrame, Particles, BreakingsArray[IdxBreaking]);
+						}
+					}
+					else
+					{
+						float FInc = (float)BreakingsArray.Num() / (float)Parameters.BreakingData.BreakingDataSizeMax;
+
+						for (int32 IdxBreaking = 0; IdxBreaking < Parameters.BreakingData.BreakingDataSizeMax; ++IdxBreaking)
+						{
+							int32 Idx = FMath::FloorToInt((float)IdxBreaking * FInc);
+
+							AddBreakingToBreakingData(ExistingFrame, Particles, BreakingsArray[Idx]);
+						}
+					}
+				}
+			}
+		}
+#endif
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::UpdateTrailingData(const FParticlesType& Particles, FRecordedFrame* ExistingFrame)
+{
+	ExistingFrame->Trailings.Reset();
+
+	if (Parameters.TrailingData.SaveTrailingData && ExistingFrame->Timestamp > 0.f && Parameters.TrailingData.TrailingDataSizeMax > 0)
+	{
+		const float TrailingMinSpeedThresholdSquared = Parameters.TrailingData.TrailingMinSpeedThreshold * Parameters.TrailingData.TrailingMinSpeedThreshold;
+
+		// Find previous frame trailing data
+		int32 LastKey = RecordedTracks.FindLastKeyBefore(ExistingFrame->Timestamp);
+		if (LastKey != INDEX_NONE)
+		{
+			FRecordedFrame& PrevFrame = RecordedTracks.Records[LastKey];
+			if (PrevFrame.Trailings.Num() > 0)
+			{
+				for (FSolverTrailingData& Trailing : PrevFrame.Trailings)
+				{
+					if (Particles.ObjectState(Trailing.ParticleIndex) != Chaos::EObjectStateType::Sleeping &&
+						!Particles.Disabled(Trailing.ParticleIndex) &&
+						Particles.V(Trailing.ParticleIndex).SizeSquared() >= TrailingMinSpeedThresholdSquared)
+					{
+						ExistingFrame->Trailings.Add(Trailing);
+					}
+				}
+			}
+		}
+
+		if (ExistingFrame->Trailings.Num() < Parameters.TrailingData.TrailingDataSizeMax)
+		{
+#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
+			const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping = GetSolver()->GetPhysicsProxyReverseMapping();
+			const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = GetSolver()->GetRigidClustering().GetClusterIdsArray();
+			const TMap<uint32, TUniquePtr<TArray<uint32>>>& ParentToChildrenMap = GetSolver()->GetRigidClustering().GetChildrenMap();
+
+			TArray<FSolverTrailingData> AllTrailings;
+			for (int32 IdxParticle = 0; IdxParticle < (int32)Particles.Size(); ++IdxParticle)
+			{
+				// Check if the particle is for this PhysicsProxy
+				IPhysicsProxyBase* PhysicsProxy = PhysicsProxyReverseMapping[IdxParticle].PhysicsProxy;
+				if (PhysicsProxy == this)
+				{
+					if (ensure(FMath::IsFinite(Particles.InvM(IdxParticle))))
+					{
+						if (Particles.ObjectState(IdxParticle) != Chaos::EObjectStateType::Sleeping &&
+							!Particles.Disabled(IdxParticle) &&
+							Particles.InvM(IdxParticle) != 0.f)
+						{
+							if (Particles.Geometry(IdxParticle) && 
+								Particles.Geometry(IdxParticle)->HasBoundingBox())
+							{
+								if (ensure(!Particles.X(IdxParticle).ContainsNaN()) &&
+									!Particles.V(IdxParticle).ContainsNaN() &&
+									!Particles.W(IdxParticle).ContainsNaN() &&
+									FMath::IsFinite(Particles.M(IdxParticle)))
+								{
+									Chaos::TAABB<float, 3> BoundingBox = Particles.Geometry(IdxParticle)->BoundingBox();
+									Chaos::TVector<float, 3> Extents = BoundingBox.Extents();
+									float Volume = Extents[0] * Extents[1] * Extents[2];
+									float SpeedSquared = Particles.V(IdxParticle).SizeSquared();
+
+									if (SpeedSquared >= TrailingMinSpeedThresholdSquared &&
+										Volume > Parameters.TrailingData.TrailingMinVolumeThreshold)
+									{
+										FSolverTrailingData TrailingData(Particles.X(IdxParticle),
+											Particles.V(IdxParticle),
+											Particles.W(IdxParticle),
+											Particles.M(IdxParticle),
+											IdxParticle,
+											INDEX_NONE);
+
+										// If IdxParticle is a cluster store an index for a mesh in this cluster
+										if (ClusterIdsArray[IdxParticle].NumChildren > 0)
+										{
+											int32 ParticleIndexMesh = GetSolver()->GetParticleIndexMesh(ParentToChildrenMap, IdxParticle);
+											ensure(ParticleIndexMesh != INDEX_NONE);
+											TrailingData.ParticleIndexMesh = ParticleIndexMesh;
+										}
+
+										FSetElementId Id = ExistingFrame->Trailings.FindId(TrailingData);
+										if (!Id.IsValidId())
+										{
+											AllTrailings.Add(TrailingData);
+										}
+										else
+										{
+											ExistingFrame->Trailings[Id].Location = Particles.X(IdxParticle);
+											ExistingFrame->Trailings[Id].Velocity = Particles.V(IdxParticle);
+											ExistingFrame->Trailings[Id].AngularVelocity = Particles.W(IdxParticle);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (AllTrailings.Num() > 0)
+			{
+				int32 NumTrailingsToAdd = Parameters.TrailingData.TrailingDataSizeMax - ExistingFrame->Trailings.Num();
+
+				if (AllTrailings.Num() <= NumTrailingsToAdd)
+				{
+					for (int32 IdxTrailing = 0; IdxTrailing < AllTrailings.Num(); ++IdxTrailing)
+					{
+						ExistingFrame->Trailings.Add(AllTrailings[IdxTrailing]);
+					}
+				}
+				else
+				{
+					float FInc = (float)AllTrailings.Num() / (float)(NumTrailingsToAdd);
+
+					for (int32 IdxTrailing = 0; IdxTrailing < NumTrailingsToAdd; ++IdxTrailing)
+					{
+						int32 Idx = FMath::FloorToInt((float)IdxTrailing * FInc);
+						ExistingFrame->Trailings.Add(AllTrailings[Idx]);
+					}
+				}
+			}
+#endif
+		}
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::UpdateRecordedState(float SolverTime, const TManagedArray<int32>& InRigidBodyID, const TManagedArray<int32>& InCollectionClusterID, const Chaos::TArrayCollectionArray<bool>& InInternalCluster, const FParticlesType& Particles, const FCollisionConstraintsType& CollisionRule)
+{
+	FRecordedFrame* ExistingFrame = RecordedTracks.FindRecordedFrame(SolverTime);
+
+	if(!ExistingFrame)
+	{
+		ExistingFrame = &InsertRecordedFrame(RecordedTracks, SolverTime);
+	}
+
+	ExistingFrame->Reset(InRigidBodyID.Num());
+	ExistingFrame->Timestamp = SolverTime;
+
+	// Collision
+	UpdateCollisionData(Particles, CollisionRule, ExistingFrame);
+
+	// Breaking
+	UpdateBreakingData(Particles, ExistingFrame);
+
+	// Trailing
+	UpdateTrailingData(Particles, ExistingFrame);
+
+	ParallelFor(InRigidBodyID.Num(), [&](int32 Index)
+	{
+		const int32 ExternalIndex = InRigidBodyID[Index];
+
+		if(ExternalIndex >= 0)
+		{
+			FTransform& NewTransform = ExistingFrame->Transforms[Index];
+
+			NewTransform.SetTranslation(Particles.X(ExternalIndex));
+			NewTransform.SetRotation(Particles.R(ExternalIndex));
+			NewTransform.SetScale3D(FVector(1.0f));
+
+			int32 ClusterParentIndex = InCollectionClusterID[Index];
+			if (ClusterParentIndex != INDEX_NONE && InInternalCluster[ClusterParentIndex])
+			{
+				ExistingFrame->DisabledFlags[Index] = Particles.Disabled(ClusterParentIndex);
+			}
+			else
+			{
+				ExistingFrame->DisabledFlags[Index] = Particles.Disabled(ExternalIndex);
+			}
+		}
+	});
 }
 
 void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver)
@@ -2471,6 +2996,56 @@ void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollecti
 	FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(ErrorReporter, GeometryCollection, SharedParams);
 }
 
+void FGeometryCollectionPhysicsProxy::MergeRecordedTracks(const FRecordedTransformTrack& A, const FRecordedTransformTrack& B, FRecordedTransformTrack& Target)
+{
+	const int32 NumAKeys = A.Records.Num();
+	const int32 NumBKeys = B.Records.Num();
+
+	if(NumAKeys == 0)
+	{
+		Target = B;
+		return;
+	}
+
+	if(NumBKeys == 0)
+	{
+		Target = A;
+		return;
+	}
+
+	// We have to copy the tracks to a local cache here because Target could point at either A or B.
+	FRecordedTransformTrack TempMergedTrack = A;
+
+	// Expand to hold all the keys
+	TempMergedTrack.Records.Reserve(NumAKeys + NumBKeys);
+
+	// Insert B frames into the merged set
+	for(int32 BKeyIndex = 0; BKeyIndex < NumBKeys; ++BKeyIndex)
+	{
+		const FRecordedFrame& BFrame = B.Records[BKeyIndex];
+		int32 KeyBefore = TempMergedTrack.FindLastKeyBefore(BFrame.Timestamp);
+
+		TempMergedTrack.Records.Insert(BFrame, KeyBefore + 1);
+	}
+
+	// Copy to target
+	Target = TempMergedTrack;
+}
+
+FRecordedFrame& FGeometryCollectionPhysicsProxy::InsertRecordedFrame(FRecordedTransformTrack& InTrack, float InTime)
+{
+	// Can't just throw on the end, might need to insert
+	const int32 BeforeNewIndex = InTrack.FindLastKeyBefore(InTime);
+
+	if(BeforeNewIndex == InTrack.Records.Num() - 1)
+	{
+		InTrack.Records.AddDefaulted();
+		return InTrack.Records.Last();
+	}
+
+	const int32 NewRecordIndex = InTrack.Records.Insert(FRecordedFrame(), BeforeNewIndex + 1);
+	return InTrack.Records[NewRecordIndex];
+}
 
 
 //==============================================================================
@@ -2525,7 +3100,7 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(FParticlesType& Particles,
 						TArrayView<int32> DynamicStateView(&(Collection->DynamicState[0]), Collection->DynamicState.Num());
 						static_cast<const FFieldNode<int32> *>(Command.RootNode.Get())->Evaluate(Context, DynamicStateView);
 
-						//PushKinematicStateToSolver(Particles);
+						PushKinematicStateToSolver(Particles);
 					}
 				}
 				Commands.RemoveAt(CommandIndex);
@@ -2758,7 +3333,1037 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsS
 }
 
 
+//==============================================================================
+// DEPRECATED
+//==============================================================================
 
+
+void FGeometryCollectionPhysicsProxy::UpdateKinematicBodiesCallback(const FParticlesType& Particles, const float Dt, const float Time, FKinematicProxy& Proxy)
+{
+	check(false); // not currently called
+#if TODO_REIMPLEMENT_KINEMATIC_PROXY
+
+	SCOPE_CYCLE_COUNTER(STAT_KinematicUpdate);
+		FGeometryDynamicCollection* Collection = Parameters.DynamicCollection;
+		check(Collection);
+
+		bool bIsCachePlaying = Parameters.IsCachePlaying();
+		bool bIsReverseCachePlaying = Parameters.IsCacheRecording() && Parameters.ReverseCacheBeginTime != 0 && Parameters.ReverseCacheBeginTime < Time;
+		if ((!bIsCachePlaying && !bIsReverseCachePlaying) || !Parameters.RecordedTrack)
+		{
+			return;
+		}
+
+		bool bFirst = !Proxy.Ids.Num();
+		if (bFirst)
+		{
+			Proxy.Position.Reset(RigidBodyID.Num());
+			Proxy.Rotation.Reset(RigidBodyID.Num());
+			Proxy.NextPosition.Reset(RigidBodyID.Num());
+			Proxy.NextRotation.Reset(RigidBodyID.Num());
+
+			Proxy.Position.AddUninitialized(RigidBodyID.Num());
+			Proxy.Rotation.AddUninitialized(RigidBodyID.Num());
+			Proxy.NextPosition.AddUninitialized(RigidBodyID.Num());
+			Proxy.NextRotation.AddUninitialized(RigidBodyID.Num());
+
+			for (int32 i = 0; i < RigidBodyID.Num(); ++i)
+			{
+				Proxy.Ids.Add(RigidBodyID[i]);
+
+				// Initialise to rest state
+				const int32 RbId = Proxy.Ids.Last();
+				Proxy.Position[i] = RbId != INDEX_NONE ? Particles.X(RbId) : FVector::ZeroVector;
+				Proxy.Rotation[i] = RbId != INDEX_NONE ? Particles.R(RbId) : FQuat::Identity;
+				Proxy.NextPosition[i] = Proxy.Position[i];
+				Proxy.NextRotation[i] = Proxy.Rotation[i];
+			}
+		}
+
+		if (bIsCachePlaying && !bIsReverseCachePlaying && (Time < Parameters.CacheBeginTime || !Parameters.RecordedTrack->IsTimeValid(Time)))
+		{
+			return;
+		}
+
+		float ReverseTime = Parameters.RecordedTrack->GetLastTime() - Time + Parameters.ReverseCacheBeginTime;
+		if (bIsReverseCachePlaying && !Parameters.RecordedTrack->IsTimeValid(ReverseTime))
+		{
+			return;
+		}
+
+		const FRecordedFrame* FirstFrame = nullptr;
+		const FRecordedFrame* SecondFrame = nullptr;
+		float PlaybackTime = bIsReverseCachePlaying ? ReverseTime : Time;
+		Parameters.RecordedTrack->GetFramesForTime(PlaybackTime, FirstFrame, SecondFrame);
+
+		if (FirstFrame && !SecondFrame)
+		{
+			// Only one frame to take information from (simpler case)
+			const int32 NumActives = FirstFrame->TransformIndices.Num();
+
+			// Actives
+			Chaos::PhysicsParallelFor(NumActives, [&](int32 Index)
+			{
+				const int32 InternalIndex = FirstFrame->TransformIndices[Index];
+				if (InternalIndex >= RigidBodyID.Num() || InternalIndex < 0)
+				{
+					UE_LOG(UGCC_LOG, Error, 
+						TEXT("%s: Cache index %d out of range: [%d, %d).  Regenerate the cache."),
+						*Parameters.Name, InternalIndex, 0, RigidBodyID.Num());
+					return;
+				}
+				const int32 ExternalIndex = RigidBodyID[InternalIndex];
+
+				if (ExternalIndex != INDEX_NONE && Particles.InvM(ExternalIndex) == 0.0f && !Particles.Disabled(ExternalIndex))
+				{
+					const FTransform& ParticleTransform = FirstFrame->Transforms[Index];
+					Proxy.Position[InternalIndex] = Particles.X(ExternalIndex);
+					Proxy.Rotation[InternalIndex] = Particles.R(ExternalIndex);
+					Proxy.NextPosition[InternalIndex] = ParticleTransform.GetTranslation();
+					Proxy.NextRotation[InternalIndex] = ParticleTransform.GetRotation();
+				}
+			});
+		}
+		else if (FirstFrame && SecondFrame)
+		{
+			// Both frames valid, second frame has all the indices we need
+			const int32 NumActives = SecondFrame->TransformIndices.Num();
+
+			const float Alpha = (PlaybackTime - FirstFrame->Timestamp) / (SecondFrame->Timestamp - FirstFrame->Timestamp);
+			check(0 <= Alpha && Alpha <= 1.0f);
+
+			Chaos::PhysicsParallelFor(NumActives, [&](int32 Index)
+			{
+				const int32 InternalIndex = SecondFrame->TransformIndices[Index];
+				if (InternalIndex >= RigidBodyID.Num() || InternalIndex < 0)
+				{
+					UE_LOG(UGCC_LOG, Error, 
+						TEXT("%s: Cache index %d out of range: [%d, %d).  Regenerate the cache."),
+						*Parameters.Name, InternalIndex, 0, RigidBodyID.Num());
+					return;
+				}
+				const int32 ExternalIndex = RigidBodyID[InternalIndex];
+				const int32 PreviousIndexSlot = Index < SecondFrame->PreviousTransformIndices.Num() ? SecondFrame->PreviousTransformIndices[Index] : INDEX_NONE;
+
+				if (ExternalIndex != INDEX_NONE && Particles.InvM(ExternalIndex) == 0.0f && !Particles.Disabled(ExternalIndex))
+				{
+					if (PreviousIndexSlot != INDEX_NONE)
+					{
+						Proxy.Position[InternalIndex] = Proxy.NextPosition[InternalIndex];
+						Proxy.Rotation[InternalIndex] = Proxy.NextRotation[InternalIndex];
+
+						FTransform BlendedTM;
+						BlendedTM.Blend(FirstFrame->Transforms[PreviousIndexSlot], SecondFrame->Transforms[Index], Alpha);
+
+						Proxy.NextPosition[InternalIndex] = BlendedTM.GetTranslation();
+						Proxy.NextRotation[InternalIndex] = BlendedTM.GetRotation();
+					}
+					else
+					{
+						// NewActive case
+						Proxy.Position[InternalIndex] = Proxy.NextPosition[InternalIndex];
+						Proxy.Rotation[InternalIndex] = Proxy.NextRotation[InternalIndex];
+
+						FTransform BlendedTM;
+						BlendedTM.Blend(FTransform(Particles.R(ExternalIndex), Particles.X(ExternalIndex), FVector::OneVector), SecondFrame->Transforms[Index], Alpha);
+
+						Proxy.NextPosition[InternalIndex] = BlendedTM.GetTranslation();
+						Proxy.NextRotation[InternalIndex] = BlendedTM.GetRotation();
+					}
+				}
+			});
+			// #BGallagher Handle new inactives. If it's a cluster parent and it's fully disabled we'll need to decluster it here.
+		}
+#endif
+}
+
+void FGeometryCollectionPhysicsProxy::StartFrameCallback(const float Dt, const float Time)
+{
+	SCOPE_CYCLE_COUNTER(STAT_GeomBeginFrame);
+#if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
+	if (InitializedState == ESimulationInitializationState::Initialized)
+	{
+		// Reverse playback only plays back what we just recorded.  So, the condition 
+		// is, "are we in record mode, but ready to play back what we've recorded?"
+		const bool bIsReverseCachePlaying = Parameters.IsCacheRecording() && Parameters.ReverseCacheBeginTime != 0 && Time > Parameters.ReverseCacheBeginTime;
+		if (Parameters.IsCachePlaying() || bIsReverseCachePlaying)
+		{
+			// Update the enabled/disabled state for kinematic particles for the upcoming frame
+			Chaos::FPhysicsSolver* ThisSolver = GetSolver();
+			Chaos::FPhysicsSolver::FParticlesType& Particles = ThisSolver->GetRigidParticles();
+
+			if (!Parameters.RecordedTrack)
+			{
+				if (!ensure(Parameters.CacheType == EGeometryCollectionCacheType::Record))
+				{
+					return;
+				}
+				Parameters.RecordedTrack = new FRecordedTransformTrack();
+				Parameters.bOwnsTrack = true;
+			}
+			if (Parameters.bClearCache && bIsReverseCachePlaying)
+			{
+				check(!CommitRecordedStateCallback);
+				*const_cast<FRecordedTransformTrack*>(Parameters.RecordedTrack) = FRecordedTransformTrack::ProcessRawRecordedData(RecordedTracks);
+				Parameters.bClearCache = false;
+			}
+
+			bool bParticlesUpdated = false;
+
+			const float ThisFrameTime = bIsReverseCachePlaying ? (Parameters.RecordedTrack->GetLastTime() - Time + Parameters.ReverseCacheBeginTime) : Time;
+			if (!Parameters.RecordedTrack->IsTimeValid(ThisFrameTime))
+			{
+				// Invalid cache time, nothing to update
+				return;
+			}
+
+			FCriticalSection ParticleUpdateLock;
+			const int32 NumMappings = RigidBodyID.Num();
+			Chaos::PhysicsParallelFor(NumMappings, [&](int32 InternalParticleIndex)
+				//for(int32 Index = 0; Index < NumMappings; ++Index)
+			{
+				const int32 ExternalParticleIndex = RigidBodyID[InternalParticleIndex];
+
+				if (ExternalParticleIndex == INDEX_NONE)
+				{
+					return;
+				}
+
+				if (Particles.InvM(ExternalParticleIndex) != 0)
+				{
+					return;
+				}
+
+				// We need to check a window of Now - Dt to Now and see if we ever activated in that time.
+				// This is for short activations because if we miss one then the playback will be incorrect
+				const bool bShouldBeDisabled = !Parameters.RecordedTrack->GetWasActiveInWindow(InternalParticleIndex, ThisFrameTime, bIsReverseCachePlaying ? (ThisFrameTime - Dt) : (ThisFrameTime + Dt));
+				const bool bDisabledNow = Particles.Disabled(ExternalParticleIndex);
+				if (bDisabledNow != bShouldBeDisabled)
+				{
+					Particles.SetDisabledLowLevel(ExternalParticleIndex, bShouldBeDisabled);
+					ParticleUpdateLock.Lock();
+					if (!bShouldBeDisabled)
+					{
+						Particles.SetObjectState(ExternalParticleIndex, Chaos::EObjectStateType::Kinematic);
+						if (!ensure(ThisSolver->ActiveIndices().Find(ExternalParticleIndex) == nullptr))
+						{
+							bParticlesUpdated = true;
+						}
+						else if(!bParticlesUpdated)
+						{
+							ThisSolver->NonDisabledIndices().Add(ExternalParticleIndex);
+							ThisSolver->ActiveIndices().Add(ExternalParticleIndex);
+						}
+					}
+					else
+					{
+						if (!ensure(ThisSolver->ActiveIndices().Find(ExternalParticleIndex) != nullptr))
+						{
+							bParticlesUpdated = true;
+						}
+						else if(!bParticlesUpdated)
+						{
+							ThisSolver->NonDisabledIndices().Remove(ExternalParticleIndex);
+							ThisSolver->ActiveIndices().Remove(ExternalParticleIndex);
+						}
+					}
+					ParticleUpdateLock.Unlock();
+				}
+
+			});
+
+			// Do not add collisions if reverse
+			if (!bIsReverseCachePlaying)
+			{
+				const FRecordedFrame* RecordedFrame = Parameters.RecordedTrack->FindRecordedFrame(ThisFrameTime);
+				if (RecordedFrame == nullptr)
+				{
+					const int32 Index = Parameters.RecordedTrack->FindLastKeyBefore(ThisFrameTime);
+					if (Index > 0 && Index < Parameters.RecordedTrack->Records.Num())
+					{
+						RecordedFrame = &Parameters.RecordedTrack->Records[Index];
+					}
+				}
+
+				if (RecordedFrame)
+				{
+					// Collisions
+					if (Parameters.CollisionData.DoGenerateCollisionData && ThisFrameTime > 0.f && Parameters.CollisionData.CollisionDataSizeMax > 0)
+					{
+						if (RecordedFrame->Collisions.Num() > 0)
+						{
+							Chaos::FPhysicsSolver::FCollisionDataArray& AllCollisionsDataArray = ThisSolver->GetAllCollisionsDataArray();
+							TMap<IPhysicsProxyBase*, TArray<int32>>& AllCollisionsIndicesByPhysicsProxy = ThisSolver->GetAllCollisionsIndicesByPhysicsProxy();
+
+							if (!AllCollisionsIndicesByPhysicsProxy.Contains(this))
+							{
+								AllCollisionsIndicesByPhysicsProxy.Add(this, TArray<int32>());
+							}
+
+							for (int32 Idx = 0; Idx < RecordedFrame->Collisions.Num(); ++Idx)
+							{
+								// Check if the particle is still kinematic
+								if (RecordedFrame->Collisions[Idx].ParticleIndex < 0 ||
+									(RecordedFrame->Collisions[Idx].ParticleIndex >= 0 && RecordedFrame->Collisions[Idx].ParticleIndex < static_cast<int32>(Particles.Size()) && Particles.ObjectState(RecordedFrame->Collisions[Idx].ParticleIndex) == Chaos::EObjectStateType::Kinematic))
+								{
+									const int32 NewIdx = AllCollisionsDataArray.Add(Chaos::TCollisionData<float, 3>());
+									Chaos::TCollisionData<float, 3>& AllCollisionsDataArrayItem = AllCollisionsDataArray[NewIdx];
+
+									AllCollisionsDataArrayItem.Location = RecordedFrame->Collisions[Idx].Location;
+									AllCollisionsDataArrayItem.AccumulatedImpulse = RecordedFrame->Collisions[Idx].AccumulatedImpulse;
+									AllCollisionsDataArrayItem.Normal = RecordedFrame->Collisions[Idx].Normal;
+									AllCollisionsDataArrayItem.Velocity1 = RecordedFrame->Collisions[Idx].Velocity1;
+									AllCollisionsDataArrayItem.Velocity2 = RecordedFrame->Collisions[Idx].Velocity2;
+									AllCollisionsDataArrayItem.AngularVelocity1 = RecordedFrame->Collisions[Idx].AngularVelocity1;
+									AllCollisionsDataArrayItem.AngularVelocity2 = RecordedFrame->Collisions[Idx].AngularVelocity2;
+									AllCollisionsDataArrayItem.Mass1 = RecordedFrame->Collisions[Idx].Mass1;
+									AllCollisionsDataArrayItem.Mass2 = RecordedFrame->Collisions[Idx].Mass2;
+#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
+									AllCollisionsDataArrayItem.ParticleIndex = RecordedFrame->Collisions[Idx].ParticleIndex;
+#endif
+									AllCollisionsDataArrayItem.LevelsetIndex = RecordedFrame->Collisions[Idx].LevelsetIndex;
+									AllCollisionsDataArrayItem.ParticleIndexMesh = RecordedFrame->Collisions[Idx].ParticleIndexMesh;
+									AllCollisionsDataArrayItem.LevelsetIndexMesh = RecordedFrame->Collisions[Idx].LevelsetIndexMesh;
+
+									AllCollisionsIndicesByPhysicsProxy[this].Add(NewIdx);
+								}
+							}
+						}
+					}
+
+					// Breaking
+					if (Parameters.BreakingData.DoGenerateBreakingData && ThisFrameTime > 0.f && Parameters.BreakingData.BreakingDataSizeMax > 0)
+					{
+						if (RecordedFrame->Breakings.Num() > 0)
+						{
+							Chaos::FPhysicsSolver::FBreakingDataArray& AllBreakingsDataArray = ThisSolver->GetAllBreakingsDataArray();
+							TMap<IPhysicsProxyBase*, TArray<int32>>& AllBreakingsIndicesByPhysicsProxy = ThisSolver->GetAllBreakingsIndicesByPhysicsProxy();
+
+							if (!AllBreakingsIndicesByPhysicsProxy.Contains(this))
+							{
+								AllBreakingsIndicesByPhysicsProxy.Add(this, TArray<int32>());
+							}
+
+							for (int32 Idx = 0; Idx < RecordedFrame->Breakings.Num(); ++Idx)
+							{
+								// Check if the particle is still kinematic
+								if (RecordedFrame->Breakings[Idx].ParticleIndex < 0 ||
+									(RecordedFrame->Breakings[Idx].ParticleIndex >= 0 && RecordedFrame->Breakings[Idx].ParticleIndex < static_cast<int32>(Particles.Size()) && Particles.ObjectState(RecordedFrame->Breakings[Idx].ParticleIndex) == Chaos::EObjectStateType::Kinematic))
+								{
+									const int32 NewIdx = AllBreakingsDataArray.Add(Chaos::TBreakingData<float, 3>());
+									Chaos::TBreakingData<float, 3>& AllBreakingsDataArrayItem = AllBreakingsDataArray[NewIdx];
+
+									AllBreakingsDataArrayItem.Location = RecordedFrame->Breakings[Idx].Location;
+									AllBreakingsDataArrayItem.Velocity = RecordedFrame->Breakings[Idx].Velocity;
+									AllBreakingsDataArrayItem.AngularVelocity = RecordedFrame->Breakings[Idx].AngularVelocity;
+									AllBreakingsDataArrayItem.Mass = RecordedFrame->Breakings[Idx].Mass;
+#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
+									AllBreakingsDataArrayItem.ParticleIndex = RecordedFrame->Breakings[Idx].ParticleIndex;
+#endif
+									AllBreakingsDataArrayItem.ParticleIndexMesh = RecordedFrame->Breakings[Idx].ParticleIndexMesh;
+
+									AllBreakingsIndicesByPhysicsProxy[this].Add(NewIdx);
+								}
+							}
+						}
+					}
+
+					// Trailing
+					if (Parameters.TrailingData.DoGenerateTrailingData && ThisFrameTime > 0.f && Parameters.TrailingData.TrailingDataSizeMax > 0)
+					{
+						if (RecordedFrame->Trailings.Num() > 0)
+						{
+							Chaos::FPhysicsSolver::FTrailingDataArray& AllTrailingsDataArray = ThisSolver->GetAllTrailingsDataArray();
+							TMap<IPhysicsProxyBase*, TArray<int32>>& AllTrailingsIndicesByPhysicsProxy = ThisSolver->GetAllTrailingsIndicesByPhysicsProxy();
+
+							if (!AllTrailingsIndicesByPhysicsProxy.Contains(this))
+							{
+								AllTrailingsIndicesByPhysicsProxy.Add(this, TArray<int32>());
+							}
+
+							for (const FSolverTrailingData& Trailing : RecordedFrame->Trailings)
+							{
+								// Check if the particle is still kinematic
+								if (Trailing.ParticleIndex < 0 ||
+									(Trailing.ParticleIndex >= 0 && Trailing.ParticleIndex < static_cast<int32>(Particles.Size()) && Particles.ObjectState(Trailing.ParticleIndex) == Chaos::EObjectStateType::Kinematic))
+								{
+									const int32 NewIdx = AllTrailingsDataArray.Add(Chaos::TTrailingData<float, 3>());
+									Chaos::TTrailingData<float, 3>& AllTrailingsDataArrayItem = AllTrailingsDataArray[NewIdx];
+
+									AllTrailingsDataArrayItem.Location = Trailing.Location;
+									AllTrailingsDataArrayItem.Velocity = Trailing.Velocity;
+									AllTrailingsDataArrayItem.AngularVelocity = Trailing.AngularVelocity;
+									AllTrailingsDataArrayItem.Mass = Trailing.Mass;
+#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
+									AllTrailingsDataArrayItem.ParticleIndex = Trailing.ParticleIndex;
+#endif
+									AllTrailingsDataArrayItem.ParticleIndexMesh = Trailing.ParticleIndexMesh;
+
+									AllTrailingsIndicesByPhysicsProxy[this].Add(NewIdx);
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (bParticlesUpdated)
+			{
+				ThisSolver->InitializeFromParticleData(0);
+			}
+		}
+	}
+#endif
+}
+
+void FGeometryCollectionPhysicsProxy::EndFrameCallback(const float EndFrame)
+{
+	check(false); // not currently called
+#if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
+	if (InitializedState == ESimulationInitializationState::Initialized)
+	{
+		FGeometryDynamicCollection* Collection = Parameters.DynamicCollection;
+		check(Collection);
+
+		ProxySimDuration += EndFrame;
+
+		if(Collection->HasAttribute("RigidBodyID", FGeometryCollection::TransformGroup))
+		{
+			//
+			//  Update transforms for the simulated transforms
+			//
+			TManagedArray<int32>& CollectionClusterID = SolverClusterID;
+			TManagedArray<FTransform>& Transform = Collection->Transform;
+			TManagedArray<int32>& Parent = Collection->Parent;
+			TManagedArray<TSet<int32>>& Children = Collection->Children;
+			TManagedArray<int32>& SimulationType = Collection->SimulationType;
+
+			TManagedArray<int32>& DynamicState = Collection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup);
+
+			Chaos::TPBDRigidParticles<float, 3>& Particles = GetSolver()->GetRigidParticles();
+			const Chaos::TPBDCollisionConstraints<float, 3>& CollisionRule = GetSolver()->GetCollisionConstraints();
+			const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterID = GetSolver()->GetRigidClustering().GetClusterIdsArray();
+			const Chaos::TArrayCollectionArray<Chaos::TRigidTransform<float, 3>>& ClusterChildToParentMap = GetSolver()->GetRigidClustering().GetChildToParentMap();
+			const Chaos::TArrayCollectionArray<bool>& InternalCluster = GetSolver()->GetRigidClustering().GetInternalClusterArray();
+
+			//Particles X and R are aligned with center of mass and inertia principal axes.
+			//Renderer doesn't know about this and simply does ActorToWorld * GeomToActor * LocalSpaceVerts
+			//In proper math multiplication order:
+			//ParticleToWorld = ActorToWorld * GeomToActor * MassToLocal
+			//GeomToWorld = ActorToWorld * GeomToActor
+			//=> GeomToWorld = ParticleToWorld * MassToLocal.Inv()
+			//=> GeomToActor = ActorToWorld.Inv() * ParticleToWorld * MassToLocal.Inv()
+			const int32 TransformSize = Collection->NumElements(FGeometryCollection::TransformGroup);
+			const FTransform& ActorToWorld = Parameters.WorldTransform;
+
+			// It's not worth shrinking the EndFrameUnparentingBuffer array, at least until the solver supports deleting bodies.
+			if (EndFrameUnparentingBuffer.Num() < TransformSize)
+			{
+				EndFrameUnparentingBuffer.Init(-1, TransformSize);
+			}
+
+			{
+				for (int32 TransformGroupIndex = 0; TransformGroupIndex < TransformSize; ++TransformGroupIndex)
+				{
+					const int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
+					if (RigidBodyIndex != INDEX_NONE)
+					{
+						// Update the transform and parent hierarchy of the active rigid bodies. Active bodies can be either
+						// rigid geometry defined from the leaf nodes of the collection, or cluster bodies that drive an entire
+						// branch of the hierarchy within the GeometryCollection.
+						// - Active bodies are directly driven from the global position of the corresponding
+						//   rigid bodies within the solver ( cases where RigidBodyID[TransformGroupIndex] is not disabled ). 
+						// - Deactivated bodies are driven from the transforms of their active parents. However the solver can
+						//   take ownership of the parents during the simulation, so it might be necessary to force deactivated
+						//   bodies out of the collections hierarchy during the simulation.  
+						if (!Particles.Disabled(RigidBodyID[TransformGroupIndex]))
+						{
+							// Update the transform of the active body. The active body can be either a single rigid
+							// or a collection of rigidly attached geometries (Clustering). The cluster is represented as a
+							// single transform in the GeometryCollection, and all children are stored in the local space
+							// of the parent cluster.
+							// ... When setting cluster transforms it is expected that the MassToLocal is identity.
+							//     Cluster initialization will set the vertices in the MassSpace of the rigid body.
+							// ... When setting individual rigid bodies that are not clustered, the MassToLocal will be 
+							//     non-Identity, and will reflect the difference between the geometric center of the geometry
+							//     and that corresponding rigid bodies center of mass. 
+							const FTransform ParticleToWorld(Particles.R(RigidBodyIndex), Particles.X(RigidBodyIndex));
+							// GeomToActor = ActorToWorld.Inv() * ParticleToWorld * MassToLocal.Inv();
+							Transform[TransformGroupIndex] = MassToLocal[TransformGroupIndex].GetRelativeTransformReverse(ParticleToWorld).GetRelativeTransform(ActorToWorld);
+							Transform[TransformGroupIndex].NormalizeRotation();
+
+							// dynamic state is also updated by the solver during field interaction. 
+							if (!Particles.Sleeping(RigidBodyIndex))
+							{
+								if (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Kinematic)
+								{
+									DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+								}
+								else if (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Static)
+								{
+									DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Static;
+								}
+								else
+								{
+									DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Dynamic;
+								}
+							}
+
+							// Force all enabled rigid bodies out of the transform hierarchy
+							if (Parent[TransformGroupIndex] != INDEX_NONE)
+							{
+								const int32 ParentIndex = Parent[TransformGroupIndex];
+								// Children in the hierarchy are stored in a TSet, which is not thread safe.  So we retain
+								// indices to remove afterwards.
+								EndFrameUnparentingBuffer[TransformGroupIndex] = ParentIndex;
+							}
+
+							// When a leaf node rigid body is removed from a cluster the rigid
+							// body will become active and needs its clusterID updated. This just
+							// syncs the clusterID all the time. 
+							CollectionClusterID[TransformGroupIndex] = ClusterID[RigidBodyIndex].Id;
+						}
+						else if (Particles.Disabled(RigidBodyIndex))
+						{
+							// dynamic state is also updated by the solver during field interaction. 
+							if (!Particles.Sleeping(RigidBodyIndex))
+							{
+								if (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Kinematic)
+								{
+									DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+								}
+								else if (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Static)
+								{
+									DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Static;
+								}
+								else
+								{
+									DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Dynamic;
+								}
+							}
+
+							// The rigid body parent cluster has changed within the solver, and its
+							// parent body is not tracked within the geometry collection. So we need to
+							// pull the rigid bodies out of the transform hierarchy, and just drive
+							// the positions directly from the solvers cluster particle. 
+							if (CollectionClusterID[TransformGroupIndex] != ClusterID[RigidBodyIndex].Id)
+							{
+								// Force all driven rigid bodies out of the transform hierarchy
+								if (Parent[TransformGroupIndex] != INDEX_NONE)
+								{
+									const int32 ParentIndex = Parent[TransformGroupIndex];
+									// Children in the hierarchy are stored in a TSet, which is not thread safe.  So we retain
+									// indices to remove afterwards.
+									EndFrameUnparentingBuffer[TransformGroupIndex] = ParentIndex;
+								}
+								CollectionClusterID[TransformGroupIndex] = ClusterID[RigidBodyIndex].Id;
+							}
+
+							// Disabled rigid bodies that have valid cluster parents, and have been re-indexed by the
+							// solver ( As in, They were re-clustered outside of the geometry collection), These clusters 
+							// will need to be rendered based on the clusters position. 
+							const int32 ClusterParentIndex = CollectionClusterID[TransformGroupIndex];
+							if (ClusterParentIndex != INDEX_NONE)
+							{
+								if (InternalCluster[ClusterParentIndex])
+								{
+									const FTransform ClusterChildToWorld = ClusterChildToParentMap[RigidBodyIndex] * FTransform(Particles.R(ClusterParentIndex), Particles.X(ClusterParentIndex));
+									if (Parameters.IsCacheRecording())
+									{
+										Particles.X(RigidBodyIndex) = ClusterChildToWorld.GetTranslation();
+										Particles.R(RigidBodyIndex) = ClusterChildToWorld.GetRotation();
+									}
+									// GeomToActor = ActorToWorld.Inv() * ClusterChildToWorld * MassToLocal.Inv();
+									Transform[TransformGroupIndex] = MassToLocal[TransformGroupIndex].GetRelativeTransformReverse(ClusterChildToWorld).GetRelativeTransform(ActorToWorld);
+									Transform[TransformGroupIndex].NormalizeRotation();
+								}
+							}
+						}
+					}
+				}
+			}
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < TransformSize; TransformGroupIndex++)
+			{
+				const int32 ParentIndex = EndFrameUnparentingBuffer[TransformGroupIndex];
+				if (ParentIndex >= 0)
+				{
+					// We reuse EndFrameUnparentingBuffer potentially without reinitialization, so reset this index to -1 before it gets paged out.
+					EndFrameUnparentingBuffer[TransformGroupIndex] = -1;
+
+					Children[ParentIndex].Remove(TransformGroupIndex);
+					Parent[TransformGroupIndex] = INDEX_NONE;
+				}
+			}
+
+			//
+			//  Set rest cache on simulated object.
+			//
+			if (Parameters.IsCacheRecording())
+			{
+				check(!UpdateRecordedStateCallback);
+				UpdateRecordedState(ProxySimDuration, RigidBodyID, CollectionClusterID, InternalCluster, Particles, CollisionRule);
+			}
+
+			// one way trigger from non-simulating to simulating
+			if (!IsObjectDynamic)
+			{
+				const Chaos::TArrayCollectionArray<bool>& ExternalID = GetSolver()->GetRigidClustering().GetInternalClusterArray();
+
+				for (int32 TransformGroupIndex = 0; TransformGroupIndex < TransformSize; TransformGroupIndex++)
+				{
+					const int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
+					if (RigidBodyIndex != INDEX_NONE)
+					{
+						bool HasBeenRemoved = (PTDynamicCollection.StatusFlags[TransformGroupIndex] & FGeometryCollection::FS_RemoveOnFracture) && Particles.Disabled(RigidBodyIndex) && ClusterID[RigidBodyIndex].Id == INDEX_NONE;
+
+						if (HasBeenRemoved || !Particles.Disabled(RigidBodyIndex))
+						{
+							if (DynamicState[TransformGroupIndex] != (int32)EObjectStateTypeEnum::Chaos_Object_Static)
+							{
+								IsObjectDynamic = true;
+								break;
+							}
+						}
+						else
+						{
+							const int32 ParentClusterID = ClusterID[RigidBodyIndex].Id;
+							if (ParentClusterID != INDEX_NONE && ExternalID[ParentClusterID]
+								&& Particles.ObjectState(ParentClusterID) != Chaos::EObjectStateType::Static)
+							{
+								IsObjectDynamic = true;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			// Can't change visibility right now so setting scale to zero instead
+			// only process if enabled on this object (ones with glass), most will skip over
+			if (Parameters.RemoveOnFractureEnabled && IsObjectDynamic)
+			{
+				for (int32 TransformGroupIndex = 0; TransformGroupIndex < TransformSize; TransformGroupIndex++)
+				{
+					const int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
+					if (RigidBodyIndex != INDEX_NONE)
+					{
+						if ((PTDynamicCollection.StatusFlags[TransformGroupIndex] & FGeometryCollection::FS_RemoveOnFracture)
+							&& Particles.Disabled(RigidBodyIndex) && ClusterID[RigidBodyIndex].Id == INDEX_NONE)
+						{
+							PTDynamicCollection.Transform[TransformGroupIndex].SetScale3D(FVector::ZeroVector);
+						}
+					}
+				}
+			}
+		}
+
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+		{
+			IsObjectLoading = GetSolver()->GetRigidClustering().NumberOfPendingClusters() != 0;
+		}
+#endif
+	}
+	Commands.Empty();
+#endif
+
+}
+
+void FGeometryCollectionPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
+{
+	check(false); // This function is deprecated and should never be called.
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+
+	const FGeometryCollection* RestCollection = Parameters.RestCollection;
+	FGeometryDynamicCollection* DynamicCollection = Parameters.DynamicCollection;
+	check(DynamicCollection);
+	
+	if (Parameters.Simulating && 
+		((InitializedState == ESimulationInitializationState::Unintialized) || 
+		 (InitializedState == ESimulationInitializationState::Activated)))
+	{
+		Chaos::FPhysicsSolver* ThisSolver = GetSolver();
+		Chaos::TArrayCollectionArray<int32>& ClusterGroupIndex = ThisSolver->GetRigidClustering().GetClusterGroupIndexArray();
+		Chaos::TArrayCollectionArray<float>& StrainArray = ThisSolver->GetRigidClustering().GetStrainArray();
+		const float StrainDefault = Parameters.DamageThreshold.Num() ? Parameters.DamageThreshold[0] : 0;
+
+		const TManagedArray<int32>& TransformIndex = RestCollection->TransformIndex;
+		const TManagedArray<int32>& BoneMap = RestCollection->BoneMap;
+		const TManagedArray<int32>& Parent = RestCollection->Parent;
+		const TManagedArray<TSet<int32>>& Children = RestCollection->Children;
+		const TManagedArray<int32>& SimulationType = RestCollection->SimulationType;
+		const TManagedArray<FVector>& Vertex = RestCollection->Vertex;
+		const TManagedArray<int32>& DynamicState = DynamicCollection->DynamicState;
+		const TManagedArray<int32>& CollisionGroup = DynamicCollection->CollisionGroup;
+		const TManagedArray<float>& Mass = RestCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
+		const TManagedArray<FVector>& InertiaTensor = RestCollection->GetAttribute<FVector>("InertiaTensor", FTransformCollection::TransformGroup);
+
+		TArray<FTransform> Transform;
+		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection->Transform, DynamicCollection->Parent, Transform);
+		check(DynamicCollection->Transform.Num() == Transform.Num());
+
+		// count particles to add
+		int NumSimulatedParticles = 0;
+		for (int32 Index = 0; Index < SimulatableParticles.Num(); Index++)
+		{
+			if (SimulatableParticles[Index] == true)
+			{
+				NumSimulatedParticles++;
+			}
+		}
+
+		// Add entries into simulation array
+		int NumRigids = Particles.Size();
+		BaseParticleIndex = NumRigids;
+		Particles.AddParticles(NumSimulatedParticles);
+		for (int32 Index = 0, NextId = 0; Index < SimulatableParticles.Num(); Index++)
+		{
+			if (SimulatableParticles[Index] == true)
+			{
+				RigidBodyID[Index] = NumRigids + NextId++;
+			}
+		}
+
+		// Add the rigid bodies
+		//for (int32 Index = 0; Index < TransformIndex.Num(); Index++)
+		const int32 NumGeometries = DynamicCollection->NumElements(FGeometryCollection::GeometryGroup);
+		ParallelFor(NumGeometries, [&](int32 GeometryIndex)
+		{
+			const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
+			if (SimulatableParticles[TransformGroupIndex] == true)
+			{
+				const int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
+				const FTransform WorldTransform = MassToLocal[TransformGroupIndex] * Transform[TransformGroupIndex] * Parameters.WorldTransform;
+
+				PopulateSimulatedParticle(Particles, Parameters.Shared, nullptr,// Simplicials[TransformGroupIndex].Get(),
+					Implicits[TransformGroupIndex], ThisSolver->GetMassScale() * Mass[TransformGroupIndex], ThisSolver->GetMassScale() * InertiaTensor[TransformGroupIndex],
+					RigidBodyIndex, WorldTransform, (uint8)EObjectStateTypeEnum::Chaos_Object_Dynamic, CollisionGroup[TransformGroupIndex]);
+				ClusterGroupIndex[RigidBodyIndex] = Parameters.ClusterGroupIndex;
+				Particles.CollisionParticles(RigidBodyIndex).Reset(Simplicials[TransformGroupIndex].Release());
+				if (Particles.CollisionParticles(RigidBodyIndex))
+				{
+					int32 NumCollisionParticles = Particles.CollisionParticles(RigidBodyIndex)->Size();
+					int32 CollisionParticlesSize = FMath::Max(0, FMath::Min(int(NumCollisionParticles*CollisionParticlesPerObjectFraction), NumCollisionParticles));
+					Particles.CollisionParticles(RigidBodyIndex)->Resize(CollisionParticlesSize);
+				}
+
+				StrainArray[RigidBodyIndex] = StrainDefault;
+				GetSolver()->SetPhysicsMaterial(RigidBodyIndex, Parameters.PhysicalMaterial);
+			}
+
+		});
+
+		for (FFieldSystemCommand & Cmd : Parameters.InitializationCommands)
+		{
+			if (Cmd.MetaData.Contains(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution)) Cmd.MetaData.Remove(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution);
+			FFieldSystemMetaDataProcessingResolution* ResolutionData = new FFieldSystemMetaDataProcessingResolution(EFieldResolutionType::Field_Resolution_Maximum);
+			Cmd.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr< FFieldSystemMetaDataProcessingResolution >(ResolutionData));
+			Commands.Add(Cmd);
+		}
+		Parameters.InitializationCommands.Empty();
+		ProcessCommands(Particles, GetSolver()->GetSolverTime());
+
+		ParallelFor(NumGeometries, [&](int32 GeometryIndex)
+		{
+			const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
+			if (SimulatableParticles[TransformGroupIndex] == true)
+			{
+				const int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
+
+				if (Parameters.InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
+				{
+					InitialLinearVelocity[TransformGroupIndex] = Parameters.InitialLinearVelocity;
+					InitialAngularVelocity[TransformGroupIndex] = Parameters.InitialAngularVelocity;
+					if (DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
+					{
+						Particles.V(RigidBodyIndex) = Parameters.InitialLinearVelocity;
+						Particles.W(RigidBodyIndex) = Parameters.InitialAngularVelocity;
+					}
+				}
+			}
+		});
+
+		// InitializeKinematics
+		if (Parameters.DynamicCollection)
+		{
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < GetTransformGroupSize(); ++TransformGroupIndex)
+			{
+				if (Chaos::TPBDRigidParticleHandle<float, 3>* Handle = SolverParticleHandles[TransformGroupIndex])
+				{
+					// this is being initialized to Static, can't change from static to sleeping
+					Handle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+
+					if (DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic)
+					{
+						Handle->SetObjectState(Chaos::EObjectStateType::Kinematic);
+					}
+					else if (DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Static)
+					{
+						Handle->SetObjectState(Chaos::EObjectStateType::Static);
+					}
+					else if (DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Sleeping)
+					{
+						Handle->SetObjectState(Chaos::EObjectStateType::Sleeping);
+					}
+				}
+			}
+		}
+
+		InitializeRemoveOnFracture(Particles, DynamicState);
+
+		// #BG Temporary - don't cluster when playing back. Needs to be changed when kinematics are per-proxy to support
+		// kinematic to dynamic transition for clusters.
+		if (Parameters.EnableClustering)// && Parameters.CacheType != EGeometryCollectionCacheType::Play)
+		{
+			const TArray<int32> RecursiveOrder = ComputeRecursiveOrder(*RestCollection);
+
+			// num clusters
+			uint32 NumClusters=0;
+			TArray<bool> SubTreeContainsSimulatableParticle;
+			SubTreeContainsSimulatableParticle.SetNum(RecursiveOrder.Num());
+			for (const int32 TransformGroupIndex : RecursiveOrder)
+			{
+				if (Children[TransformGroupIndex].Num() > 0)
+				{
+					SubTreeContainsSimulatableParticle[TransformGroupIndex] = false;
+
+					TArray<uint32> RigidChildren, CollectionChildren;
+					for (const int32 ChildIndex : Children[TransformGroupIndex])
+					{
+						if(SubTreeContainsSimulatableParticle[ChildIndex])
+						{
+							NumClusters++;
+							SubTreeContainsSimulatableParticle[TransformGroupIndex] = true;
+							break;
+						}
+					}
+				}
+				else
+				{
+					SubTreeContainsSimulatableParticle[TransformGroupIndex] = (RigidBodyID[TransformGroupIndex] != INDEX_NONE);
+				}
+			}
+
+			const int32 ClusterStartIndex = Particles.Size();
+			Particles.AddParticles(NumClusters);
+
+			int32 ClusterRigidBodyId = ClusterStartIndex;
+			for (const int32 TransformGroupIndex : RecursiveOrder)
+			{
+				TArray<uint32> RigidChildren, CollectionChildren;
+				for (const int32 ChildIndex : Children[TransformGroupIndex])
+				{
+					if (RigidBodyID[ChildIndex] != INDEX_NONE)
+					{
+						RigidChildren.Add(RigidBodyID[ChildIndex]);
+						CollectionChildren.Add(ChildIndex);
+					}
+				}
+				if (RigidChildren.Num())
+				{
+					if (ReportTooManyChildrenNum >= 0 && RigidChildren.Num() > ReportTooManyChildrenNum)
+					{
+						UE_LOG(LogChaos, Warning, TEXT("Too many children (%d) in a single cluster:%s"), RigidChildren.Num(), *Parameters.Name);
+					}
+
+					RigidBodyID[TransformGroupIndex] = ClusterRigidBodyId;
+					Chaos::FClusterCreationParameters<float> CreationParameters;
+					CreationParameters.RigidBodyIndex = RigidBodyID[TransformGroupIndex];
+					BuildClusters(TransformGroupIndex, CollectionChildren, RigidChildren, CreationParameters);
+					ClusterRigidBodyId++;
+				}
+			}
+		}
+
+		NumParticles = Particles.Size() - BaseParticleIndex;
+
+		// Set Connectivity
+		const int32 NumTransforms = DynamicCollection->NumElements(FGeometryCollection::TransformGroup);
+		ParallelFor(NumTransforms, [&](int32 TransformGroupIndex)
+		{
+			if (Children[TransformGroupIndex].Num() > 0)
+			{
+				if (RigidBodyID[TransformGroupIndex] != INDEX_NONE)
+				{
+					GetSolver()->GetRigidClustering().GenerateConnectionGraph(RigidBodyID[TransformGroupIndex]);
+				}
+			}
+		});
+
+		// If we're recording and want to start immediately caching then we should cache the rest state
+		if (Parameters.IsCacheRecording() && Parameters.CacheBeginTime == 0.0f)
+		{
+			if (UpdateRecordedStateCallback)
+			{
+				UpdateRecordedStateCallback(0.0f, RigidBodyID, Particles, GetSolver()->GetCollisionConstraints());
+			}
+		}
+
+
+		if (InitializedState == ESimulationInitializationState::Activated)
+		{
+			//
+			//  Activated bodies has already been called so we are good to go.
+			//
+			InitializedState = ESimulationInitializationState::Initialized;
+
+			if (Parameters.EnableClustering && Parameters.ClusterGroupIndex)
+			{
+				GetSolver()->GetRigidClustering().IncrementPendingClusterCounter(Parameters.ClusterGroupIndex);
+				GetSolver()->GetRigidClustering().DecrementPendingClusterCounter(Parameters.ClusterGroupIndex);
+			}
+		}
+		else if (InitializedState == ESimulationInitializationState::Unintialized)
+		{
+
+			//
+			//  Activated bodies has not been called, se we are waiting 
+			//  to become active. Deactivate all bodies, and wait for
+			//  ActivatedBodies to be called, and defer the cluster initialization
+			//
+			InitializedState = ESimulationInitializationState::Created;
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; TransformGroupIndex++)
+			{
+				const int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
+				if (RigidBodyIndex != INDEX_NONE)
+				{
+					if (!Particles.Disabled(RigidBodyIndex))
+					{
+						PendingActivationList.Add(TransformGroupIndex);
+						GetSolver()->GetEvolution()->DisableParticle(RigidBodyIndex);
+					}
+				}
+			}
+
+			//
+			//  Clustering needs to advertise its group id to the cluster so
+			//  that the group is not initialized before all the bodies are
+			//  loaded and created. 
+			//
+			if (Parameters.EnableClustering && Parameters.ClusterGroupIndex )
+			{
+				GetSolver()->GetRigidClustering().IncrementPendingClusterCounter(Parameters.ClusterGroupIndex);
+			}
+		}
+		else
+		{
+			// unknown initialization state in creation callback
+			ensure(false);
+		}
+	}
+#endif
+}
+
+
+void FGeometryCollectionPhysicsProxy::BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32>& ParticleIDReverseMap)
+{
+	/*
+	for (int32 Index = 0; Index < RigidBodyID.Num(); Index++)
+	{
+		const int32 RigidBodyIndex = RigidBodyID[Index];
+		if (RigidBodyIndex != INDEX_NONE)
+		{
+			PhysicsProxyReverseMap[RigidBodyIndex] = { this, EPhysicsProxyType::GeometryCollectionType };
+			ParticleIDReverseMap[RigidBodyIndex] = Index;
+		}
+	}
+	*/
+}
+
+void FGeometryCollectionPhysicsProxy::PushKinematicStateToSolver(FParticlesType& Particles)
+{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+	if (InitializedState == ESimulationInitializationState::Initialized)
+	{
+		FGeometryDynamicCollection* Collection = Parameters.DynamicCollection;
+		if (Collection->Transform.Num())
+		{
+			TManagedArray<int32>& DynamicState = Collection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup);
+
+			TSet<int32> ClustersToUpdate;
+			const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterID = GetSolver()->GetRigidClustering().GetClusterIdsArray();
+
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < DynamicState.Num(); TransformGroupIndex++)
+			{
+				if (RigidBodyID[TransformGroupIndex] != INDEX_NONE)
+				{
+					int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
+					if (DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic
+						&& (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Kinematic || Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Static)
+						&& FLT_EPSILON < Particles.M(RigidBodyIndex))
+					{
+						Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Dynamic);
+
+						if (Parameters.InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
+						{
+							Particles.V(RigidBodyIndex) = Chaos::TVector<float, 3>(InitialLinearVelocity[TransformGroupIndex]);
+							Particles.W(RigidBodyIndex) = Chaos::TVector<float, 3>(InitialAngularVelocity[TransformGroupIndex]);
+						}
+
+						if (!Particles.Disabled(RigidBodyIndex) && Particles.Sleeping(RigidBodyIndex))
+						{
+							Particles.SetSleeping(RigidBodyIndex, false);
+							GetSolver()->ActiveIndices().Add(RigidBodyIndex);
+						}
+						else
+						{
+							if (ClusterID[RigidBodyIndex].Id != INDEX_NONE)
+							{
+								int32 ActiveClusterIndex = GetSolver()->GetRigidClustering().GetActiveClusterIndex(RigidBodyIndex);
+								if (ActiveClusterIndex != INDEX_NONE)
+								{
+									ClustersToUpdate.Add(ActiveClusterIndex);
+								}
+							}
+						}
+					}
+					else if ((DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic)
+						&& (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Dynamic)
+						&& FLT_EPSILON < Particles.M(RigidBodyIndex))
+					{
+						Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Kinematic);
+
+						if (ClusterID[RigidBodyIndex].Id != INDEX_NONE)
+						{
+							int32 ActiveClusterIndex = GetSolver()->GetRigidClustering().GetActiveClusterIndex(RigidBodyIndex);
+							if (ActiveClusterIndex != INDEX_NONE)
+							{
+								ClustersToUpdate.Add(ActiveClusterIndex);
+							}
+						}
+					}
+					else if ((DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Static)
+						&& (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Dynamic)
+						&& FLT_EPSILON < Particles.M(RigidBodyIndex))
+					{
+						Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Static);
+
+						if (ClusterID[RigidBodyIndex].Id != INDEX_NONE)
+						{
+							int32 ActiveClusterIndex = GetSolver()->GetRigidClustering().GetActiveClusterIndex(RigidBodyIndex);
+							if (ActiveClusterIndex != INDEX_NONE)
+							{
+								ClustersToUpdate.Add(ActiveClusterIndex);
+							}
+						}
+					}
+					else if ((DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Sleeping)
+						&& (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Dynamic))
+					{
+						Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Sleeping);
+						GetSolver()->ActiveIndices().Remove(RigidBodyIndex);
+					}
+					else if ((DynamicState[TransformGroupIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
+						&& (Particles.ObjectState(RigidBodyIndex) == Chaos::EObjectStateType::Sleeping))
+					{
+						Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Dynamic);
+						GetSolver()->ActiveIndices().Add(RigidBodyIndex);
+					}
+				}
+			}
+		}
+	}
+#endif
+}
 
 void FGeometryCollectionPhysicsProxy::ParameterUpdateCallback(FParticlesType& Particles, const float Time)
 {
@@ -2768,6 +4373,41 @@ void FGeometryCollectionPhysicsProxy::ParameterUpdateCallback(FParticlesType& Pa
 	if (Collection->Transform.Num())
 	{
 		ProcessCommands(Particles, Time);
+
+
+#ifndef TODO_REIMPLEMENT_RIGID_CACHING
+		if (Parameters.RecordedTrack)
+		{
+			float ReverseTime = Parameters.RecordedTrack->GetLastTime() - Time + Parameters.ReverseCacheBeginTime;
+			// @todo(mlentine): We shouldn't need to do this every frame
+			if (Parameters.IsCacheRecording() && Time > Parameters.ReverseCacheBeginTime&& Parameters.ReverseCacheBeginTime != 0 && Parameters.RecordedTrack->IsTimeValid(ReverseTime))
+			{
+				for (int32 Index = 0; Index < RigidBodyID.Num(); Index++)
+				{
+					int32 RigidBodyIndex = RigidBodyID[Index];
+
+					// Check index, will be invalid for cluster parents.
+					if (RigidBodyIndex != INDEX_NONE)
+					{
+						Particles.InvM(RigidBodyIndex) = 0.f;
+						Particles.InvI(RigidBodyIndex) = Chaos::PMatrix<float, 3, 3>(0.f);
+					}
+				}
+			}
+		}
+#endif
 	}
 }
+
+void FGeometryCollectionPhysicsProxy::DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs)
+{
+
+}
+
+void FGeometryCollectionPhysicsProxy::AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex)
+{
+	// gravity forces managed directly on the solver for now
+}
+#endif
+
 
