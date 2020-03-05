@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,6 +9,7 @@ using System.Web.Script.Serialization;
 using UnrealBuildTool;
 using Tools.DotNETCommon;
 using System.Linq;
+using System.Reflection;
 
 namespace AutomationTool
 {
@@ -1314,14 +1315,7 @@ namespace AutomationTool
 		public void AddUATFilesToBuildProducts()
 		{
 			// Find all DLLs (scripts and their dependencies)
-			const string ScriptsPostfix = ".dll";
             var DotNetOutputLocation = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Engine", "Binaries", "DotNET");
-			var UATScriptsLocation = CommandUtils.CombinePaths(DotNetOutputLocation, "AutomationScripts");
-			var UATScripts = Directory.GetFiles(UATScriptsLocation, "*" + ScriptsPostfix, SearchOption.AllDirectories);
-			if (CommandUtils.IsNullOrEmpty(UATScripts))
-			{
-				throw new UE4BuildException("No automation scripts found in {0}. Cannot add UAT files to the build products.", UATScriptsLocation);
-			}
 
 			var UATFiles = new List<string>(new string[] 
 					{
@@ -1345,8 +1339,9 @@ namespace AutomationTool
 			}
 
 			// All scripts are expected to exist in DotNET/AutomationScripts subfolder.
-			foreach (var UATScriptFilePath in UATScripts)
+			foreach (Assembly ScriptAssembly in ScriptCompiler.Assemblies)
 			{
+				string UATScriptFilePath = ScriptAssembly.Location;
 				if (!CommandUtils.FileExists_NoExceptions(UATScriptFilePath))
 				{
 					throw new UE4BuildException("Cannot add UAT to the build products because {0} does not exist.", UATScriptFilePath);

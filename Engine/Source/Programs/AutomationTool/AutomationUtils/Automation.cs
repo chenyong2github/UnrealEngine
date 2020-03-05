@@ -409,11 +409,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 		}
 
 		/// <summary>
-		/// Compiler with all scripts
-		/// </summary>
-		public static ScriptCompiler Compiler { get; set; }
-
-		/// <summary>
 		/// Main method.
 		/// </summary>
 		/// <param name="Arguments">Command line</param>
@@ -478,10 +473,9 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			ProjectUtils.CleanupFolders();
 
 			// Compile scripts.
-			Compiler = new ScriptCompiler();
 			using(TelemetryStopwatch ScriptCompileStopwatch = new TelemetryStopwatch("ScriptCompile"))
 			{
-				Compiler.FindAndCompileAllScripts(OutScriptsForProjectFileName, AdditionalScriptsFolders);
+				ScriptCompiler.FindAndCompileAllScripts(OutScriptsForProjectFileName, AdditionalScriptsFolders);
 			}
 
 			if (GlobalCommandLine.CompileOnly)
@@ -492,18 +486,18 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 
 			if (GlobalCommandLine.List)
 			{
-				ListAvailableCommands(Compiler.Commands);
+				ListAvailableCommands(ScriptCompiler.Commands);
 				return ExitCode.Success;
 			}
 
 			if (GlobalCommandLine.Help)
 			{
-				DisplayHelp(CommandsToExecute, Compiler.Commands);
+				DisplayHelp(CommandsToExecute, ScriptCompiler.Commands);
 				return ExitCode.Success;
 			}
 
 			// Enable or disable P4 support
-			CommandUtils.InitP4Support(CommandsToExecute, Compiler.Commands);
+			CommandUtils.InitP4Support(CommandsToExecute, ScriptCompiler.Commands);
 			if (CommandUtils.P4Enabled)
 			{
 				Log.TraceLog("Setting up Perforce environment.");
@@ -512,7 +506,7 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			}
 
 			// Find and execute commands.
-			ExitCode Result = Execute(CommandsToExecute, Compiler.Commands);
+			ExitCode Result = Execute(CommandsToExecute, ScriptCompiler.Commands);
 			if (TelemetryFile != null)
 			{
 				Directory.CreateDirectory(Path.GetDirectoryName(TelemetryFile));
