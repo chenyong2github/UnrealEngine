@@ -1010,7 +1010,7 @@ void ALODActor::UpdateSubActorLODParents()
 {
 	for (AActor* Actor : SubActors)
 	{	
-		if(Actor)
+		if (Actor && !Actor->IsPendingKillPending())
 		{
 			UStaticMeshComponent* LODComponent = GetLODComponentForActor(Actor);
 			Actor->SetLODParent(LODComponent, LODComponent->MinDrawDistance);
