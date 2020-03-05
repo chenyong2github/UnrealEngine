@@ -1197,7 +1197,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset"),
 			NAME_None,
-			"SaveAllLevels"
+			FName("SaveAllLevels")
 		));
 
 		// Source control buttons
