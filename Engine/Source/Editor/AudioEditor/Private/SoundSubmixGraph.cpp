@@ -91,7 +91,7 @@ void USoundSubmixGraph::LinkSoundSubmixes()
 					ChildSubmix->Modify();
 					if (USoundSubmixWithParentBase* SubmixWithParent = CastChecked<USoundSubmixWithParentBase>(ChildSubmix))
 					{
-						SubmixWithParent = nullptr;
+						SubmixWithParent->ParentSubmix = nullptr;
 					}
 				}
 			}
