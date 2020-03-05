@@ -126,7 +126,7 @@ const TCHAR* FStrProperty::ImportText_Internal( const TCHAR* Buffer, void* Data,
 			ErrorText->Logf(TEXT("Missing terminating '\"' in string property value: %s"), Start);
 			return NULL;
 		}
-		*(FString*)Data = Temp;
+		*(FString*)Data = MoveTemp(Temp);
 	}
 	return Buffer;
 }
