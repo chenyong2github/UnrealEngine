@@ -5,6 +5,7 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "SceneTypes.h"
 #include "SceneView.h"
+#include "UObject/GCObject.h"
 #include "MoviePipelineDeferredPasses.generated.h"
 
 class UTextureRenderTarget2D;
@@ -46,7 +47,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineSetupView, FSceneViewFamily
 
 namespace MoviePipeline
 {
-	struct FDeferredRenderEnginePass : public FMoviePipelineEnginePass
+	struct FDeferredRenderEnginePass : public FMoviePipelineEnginePass, FGCObject
 	{
 		FDeferredRenderEnginePass()
 			: FMoviePipelineEnginePass(FMoviePipelinePassIdentifier(TEXT("MainDeferredPass")))
@@ -56,6 +57,10 @@ namespace MoviePipeline
 		virtual void Setup(TWeakObjectPtr<UMoviePipeline> InOwningPipeline, const FMoviePipelineRenderPassInitSettings& InInitSettings) override;
 		virtual void RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState) override;
 		virtual void Teardown() override;
+
+		// FGCObject Interface
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		// ~FGCObject Interface
 
 		FMoviePipelineSampleReady BackbufferReadyDelegate;
 		FMoviePipelineSetupView SetupViewDelegate;

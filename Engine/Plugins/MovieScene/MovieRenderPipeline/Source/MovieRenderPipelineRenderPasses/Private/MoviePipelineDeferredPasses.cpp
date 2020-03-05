@@ -59,12 +59,26 @@ namespace MoviePipeline
 	{
 		FMoviePipelineEnginePass::Teardown();
 
+		FSceneViewStateInterface* Ref = ViewState.GetReference();
+		if (Ref)
+		{
+			Ref->ClearMIDPool();
+		}
+		ViewState.Destroy();
+
 		if (TileRenderTarget.IsValid())
 		{
 			TileRenderTarget->RemoveFromRoot();
 		}
-
-		ViewState.Destroy();
+	}
+	
+	void FDeferredRenderEnginePass::AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		FSceneViewStateInterface* Ref = ViewState.GetReference();
+		if (Ref)
+		{
+			Ref->AddReferencedObjects(Collector);
+		}
 	}
 
 	void FDeferredRenderEnginePass::RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState)
