@@ -303,7 +303,7 @@ public:
 class NIAGARAEDITOR_API FHlslNiagaraTranslationStage
 {
 public:
-	FHlslNiagaraTranslationStage(ENiagaraScriptUsage InScriptUsage, FGuid InUsageId) : ScriptUsage(InScriptUsage), UsageId(InUsageId), OutputNode(nullptr), bInterpolatePreviousParams(false), bCopyPreviousParams(true), ChunkModeIndex((ENiagaraCodeChunkMode)-1), IterationSource(), bSpawnOnly(false){}
+	FHlslNiagaraTranslationStage(ENiagaraScriptUsage InScriptUsage, FGuid InUsageId) : ScriptUsage(InScriptUsage), UsageId(InUsageId), OutputNode(nullptr), bInterpolatePreviousParams(false), bCopyPreviousParams(true), ChunkModeIndex((ENiagaraCodeChunkMode)-1), IterationSource(), bSpawnOnly(false), bUsesAlive(false){}
 
 	ENiagaraScriptUsage ScriptUsage;
 	FGuid UsageId;
@@ -318,6 +318,7 @@ public:
 	int32 NumIterationsThisStage = 1;
 	int32 SourceSimStage = -1;
 	bool bSpawnOnly;
+	bool bUsesAlive;
 };
 
 class NIAGARAEDITOR_API FHlslNiagaraTranslator
