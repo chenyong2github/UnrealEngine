@@ -44,7 +44,7 @@ namespace UnrealBuildTool
 		/// Specifies the file to use for logging.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public string BaseLogFileName = "../Programs/UnrealBuildTool/Log.txt";
+		public string BaseLogFileName;
 
 		/// <summary>
 		/// Whether to skip checking for files identified by the junk manifest.
@@ -97,8 +97,14 @@ namespace UnrealBuildTool
 			// Read the XML configuration files
 			XmlConfig.ApplyTo(this);
 
+			// Fixup the log path if it wasn't overridden by a config file
+			if (BaseLogFileName == null)
+			{
+				BaseLogFileName = FileReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool", "Log.txt").FullName;
+			}
+
 			// Create the log file, and flush the startup listener to it
-			if(!Arguments.HasOption("-NoLog") && !Log.HasFileWriter())
+			if (!Arguments.HasOption("-NoLog") && !Log.HasFileWriter())
 			{
 				FileReference LogFile = new FileReference(BaseLogFileName);
 				foreach(string LogSuffix in Arguments.GetValues("-LogSuffix="))
