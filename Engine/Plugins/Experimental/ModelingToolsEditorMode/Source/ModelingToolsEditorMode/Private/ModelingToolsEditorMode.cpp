@@ -91,8 +91,35 @@ void FModelingToolsEditorMode::ActorSelectionChangeNotify()
 
 bool FModelingToolsEditorMode::ProcessEditDelete()
 {
-	return ToolsContext->ProcessEditDelete();
+	if (ToolsContext->ProcessEditDelete())
+	{
+		return true;
+	}
+
+	// for now we disable deleting in an Accept-style tool because it can result in crashes if we are deleting target object
+	if ( GetToolManager()->HasAnyActiveTool() && GetToolManager()->GetActiveTool(EToolSide::Mouse)->HasAccept() )
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("CannotDeleteWarning", "Cannot delete objects while this Tool is active"), EToolMessageLevel::UserWarning);
+		return true;
+	}
+
+	return false;
 }
+
+
+bool FModelingToolsEditorMode::ProcessEditCut()
+{
+	// for now we disable deleting in an Accept-style tool because it can result in crashes if we are deleting target object
+	if (GetToolManager()->HasAnyActiveTool() && GetToolManager()->GetActiveTool(EToolSide::Mouse)->HasAccept())
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("CannotCutWarning", "Cannot cut objects while this Tool is active"), EToolMessageLevel::UserWarning);
+		return true;
+	}
+	return false;
+}
+
 
 
 bool FModelingToolsEditorMode::CanAutoSave() const
