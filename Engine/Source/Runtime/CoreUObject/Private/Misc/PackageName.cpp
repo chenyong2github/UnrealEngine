@@ -1476,6 +1476,11 @@ bool FPackageName::ParseExportTextPath(FStringView InExportTextPath, FStringView
 	return false;
 }
 
+bool FPackageName::ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath)
+{
+	return ParseExportTextPath(FStringView(InExportTextPath), OutClassName, OutObjectPath);
+}
+
 FStringView FPackageName::ExportTextPathToObjectPath(FStringView InExportTextPath)
 {
 	FStringView ObjectPath;
@@ -1498,6 +1503,11 @@ FString FPackageName::ExportTextPathToObjectPath(const FString& InExportTextPath
 	
 	// Could not parse the export text path. Could already be an object path, just return it back.
 	return InExportTextPath;
+}
+
+const TCHAR* FPackageName::ExportTextPathToObjectPath(const TCHAR* InExportTextPath)
+{
+	return ExportTextPathToObjectPath(FStringView(InExportTextPath)).GetData();
 }
 
 FString FPackageName::ObjectPathToPackageName(const FString& InObjectPath)

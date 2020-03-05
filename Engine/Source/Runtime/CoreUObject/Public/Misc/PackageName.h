@@ -435,10 +435,7 @@ public:
 	 */
 	static bool ParseExportTextPath(FStringView InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
 	static bool ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath);	
-	static bool ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath)
-	{
-		return ParseExportTextPath(FStringView(InExportTextPath), OutClassName, OutObjectPath);
-	}
+	static bool ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
 
 
 	/** 
@@ -449,6 +446,7 @@ public:
 	 */
 	static FStringView	ExportTextPathToObjectPath(FStringView InExportTextPath);
 	static FString		ExportTextPathToObjectPath(const FString& InExportTextPath);
+	static const TCHAR*	ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
 
 	/** 
 	 * Returns the name of the package referred to by the specified object path
