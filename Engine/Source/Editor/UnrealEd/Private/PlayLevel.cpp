@@ -1063,6 +1063,8 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		UE_LOG(LogPlayLevel, Warning, TEXT("%s"), *ErrorMsg.ToString());
 		FMessageLog(NAME_CategoryPIE).Warning(ErrorMsg);
 		FMessageLog(NAME_CategoryPIE).Open();
+		
+		CancelRequestPlaySession();
 		return;
 	}
 
