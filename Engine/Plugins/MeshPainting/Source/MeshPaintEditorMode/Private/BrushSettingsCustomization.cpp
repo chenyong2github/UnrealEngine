@@ -53,6 +53,8 @@ TSharedRef<IDetailCustomization> FVertexPaintingSettingsCustomization::MakeInsta
 
 void FVertexPaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {	
+
+	IDetailCategoryBuilder& BrushCategory = DetailLayout.EditCategory(TEXT("Brush"), FText::GetEmpty(), ECategoryPriority::Important);
 	IDetailCategoryBuilder& VertexCategory = DetailLayout.EditCategory(TEXT("VertexPainting"));
 
 	VertexCategory.AddCustomRow(NSLOCTEXT("VertexPaintSettings", "InstanceColorSize", "Instance Color Size"))
@@ -366,6 +368,17 @@ void FWeightPaintingSettingsCustomization::OnTextureWeightTypeChanged(TSharedRef
 	EraseWeightProperty->GetValue(Value);
 	Value = FMath::Clamp<uint8>(Value, 0, EnumValue - 1);
 	EraseWeightProperty->SetValue(Value);
+}
+
+
+TSharedRef<IDetailCustomization> FTexturePaintingSettingsCustomization::MakeInstance()
+{
+	return MakeShareable(new FTexturePaintingSettingsCustomization);
+}
+
+void FTexturePaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+{
+	IDetailCategoryBuilder& BrushCategory = DetailLayout.EditCategory(TEXT("Brush"), FText::GetEmpty(), ECategoryPriority::Important);
 }
 
 #undef LOCTEXT_NAMESPACE

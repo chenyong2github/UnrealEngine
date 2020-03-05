@@ -52,6 +52,14 @@ protected:
 
 };
 
+
+class FTexturePaintingSettingsCustomization : public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+};
 // class FTexturePaintSettingsCustomization : public IPropertyTypeCustomization
 // {
 // public:
