@@ -76,7 +76,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 	
 	const EHairDescriptionStatus Status = GetStatus(GroupsPreview);
 
-	FText ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText", "Unknown");
+	FText ValidationText;
 	FLinearColor ValidationColor(1,1,1);
 	if (Status == EHairDescriptionStatus::Valid)
 	{
@@ -92,6 +92,10 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 	{
 		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText", "Invalid. The groom does not contain any group.");
 		ValidationColor = FLinearColor(1, 0, 0, 1);
+	}
+	else
+	{
+		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText", "Unknown");
 	}
 
 	this->ChildSlot
@@ -291,12 +295,12 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* Import
 
 TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, const FString& FilePath, const FProcessedHairDescription* ProcessedDescription)
 {
-	return DisplayOptions(ImportOptions, FilePath, ProcessedDescription, EGroomOptionsVisibility::All, LOCTEXT("WindowTitle", "Groom Import Options"), LOCTEXT("Import", "Import"));
+	return DisplayOptions(ImportOptions, FilePath, ProcessedDescription, EGroomOptionsVisibility::All, LOCTEXT("GroomImportWindowTitle", "Groom Import Options"), LOCTEXT("Import", "Import"));
 }
 
 TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayRebuildOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
 {
-	return DisplayOptions(ImportOptions, FilePath, nullptr, EGroomOptionsVisibility::BuildOptions, LOCTEXT("WindowTitle", "Groom Build Options"), LOCTEXT("Build", "Build"));
+	return DisplayOptions(ImportOptions, FilePath, nullptr, EGroomOptionsVisibility::BuildOptions, LOCTEXT("GroomRebuildWindowTitle ", "Groom Build Options"), LOCTEXT("Build", "Build"));
 }
 
 

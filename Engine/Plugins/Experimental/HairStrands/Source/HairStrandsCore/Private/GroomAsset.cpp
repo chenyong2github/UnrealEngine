@@ -1576,5 +1576,3 @@ bool FProcessedHairDescription::IsValid() const
 }
 
 
-#undef LOCTEXT_NAMESPACE
-
