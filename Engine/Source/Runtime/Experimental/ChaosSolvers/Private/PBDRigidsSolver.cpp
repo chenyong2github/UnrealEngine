@@ -664,20 +664,11 @@ namespace Chaos
 		auto Cmd = [Proxy, Solver](Chaos::FPersistentPhysicsTask* PhysThread)
 		{
 			auto* Evolution = Solver->GetEvolution();
-			TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Handles = 
-				Proxy->GetSolverParticleHandles();
-			for (auto* Handle : Handles)
-			{
-				if (Handle)
-					Evolution->DirtyParticle(*Handle);
-			}
+			TArray<FGeometryCollectionPhysicsProxy::FClusterHandle*>& Handles = Proxy->GetSolverParticleHandles();
+			for (auto* Handle : Handles) if (Handle) Evolution->DirtyParticle(*Handle);
 			Proxy->PushToPhysicsState(nullptr);
 		};
-
-		if (Dispatcher)
-			Dispatcher->EnqueueCommandImmediate(Cmd);
-		else
-			Cmd(nullptr);
+		if (Dispatcher) Dispatcher->EnqueueCommandImmediate(Cmd);  else Cmd(nullptr);
 		Proxy->ClearAccumulatedData();
 		Solver->RemoveDirtyProxy(Proxy);
 	}
