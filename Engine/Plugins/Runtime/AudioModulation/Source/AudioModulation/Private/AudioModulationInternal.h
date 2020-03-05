@@ -106,9 +106,9 @@ namespace AudioModulation
 
 	private:
 		FAudioModulationDebugger Debugger;
+#endif // !UE_BUILD_SHIPPING
 
 		friend FModulatorBusMixChannelProxy;
-#endif // !UE_BUILD_SHIPPING
 	};
 } // namespace AudioModulation
 
