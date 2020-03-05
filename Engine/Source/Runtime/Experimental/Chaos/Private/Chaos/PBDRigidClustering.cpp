@@ -466,9 +466,10 @@ namespace Chaos
 		{
 			MChildren.Add(NewParticle, MoveTemp(Children));
 		}
-
 		const TArray<TPBDRigidParticleHandle<T, d>*>& ChildrenArray = MChildren[NewParticle];
 		TSet<TPBDRigidParticleHandle<T, d>*> ChildrenSet(ChildrenArray);
+
+		// Disable the children
 		MEvolution.DisableParticles(reinterpret_cast<TSet<TGeometryParticleHandle<T, d>*>&>(ChildrenSet));
 
 		bool bClusterIsAsleep = true;
@@ -483,7 +484,7 @@ namespace Chaos
 				// Cluster group id 0 means "don't union with other things"
 				// TODO: Use INDEX_NONE instead of 0?
 				ClusteredChild->SetClusterGroupIndex(0);
-				ClusteredChild->ClusterIds().Id = NewParticle; // ClusterId needs to change?
+				ClusteredChild->ClusterIds().Id = NewParticle;
 				NewParticle->Strains() += ClusteredChild->Strains();
 
 				NewParticle->SetCollisionImpulses(
@@ -768,7 +769,11 @@ namespace Chaos
 				// by looking at the edges of this piece which would give us cleaner 
 				// breaks (this approach produces more rubble)
 				RemoveChildLambda(Child);
-				Children.RemoveAtSwap(ChildIdx);
+
+				// Remove from the children array without freeing memory yet. 
+				// We're looping over Children and it'd be silly to free the array
+				// 1 entry at a time.
+				Children.RemoveAtSwap(ChildIdx, 1, false);
 
 				if (Child->ToBeRemovedOnFracture())
 				{
@@ -792,11 +797,15 @@ namespace Chaos
 
 		if (bChildrenChanged)
 		{
+			if (Children.Num() == 0)
+			{
+				// Free the memory if we can do so cheaply (no data copies).
+				Children.Empty(); 
+			}
+
 			if (UseConnectivity)
 			{
-				//cluster may have contained forests so find the connected pieces and cluster them together
-				TSet<TPBDRigidParticleHandle<T,d>*> PotentialActivatedChildren;
-				PotentialActivatedChildren.Append(Children);
+				// The cluster may have contained forests, so find the connected pieces and cluster them together.
 
 				//first update the connected graph of the children we already removed
 				for (TPBDRigidParticleHandle<T,d>* Child : ActivatedChildren)
@@ -804,23 +813,30 @@ namespace Chaos
 					RemoveNodeConnections(Child);
 				}
 
-				if (PotentialActivatedChildren.Num())
+				if (Children.Num())
 				{
 					TArray<TArray<TPBDRigidParticleHandle<T,d>*>> ConnectedPiecesArray;
-					//traverse connectivity and see how many connected pieces we have
-					TSet<TPBDRigidParticleHandle<T,d>*> ProcessedChildren;
-					for (TPBDRigidParticleHandle<T,d>* PotentialActivatedChild : PotentialActivatedChildren)
-					{
-						if (!ProcessedChildren.Contains(PotentialActivatedChild))
-						{
-							ConnectedPiecesArray.AddDefaulted();
-							TArray<TPBDRigidParticleHandle<T,d>*>& ConnectedPieces = ConnectedPiecesArray.Last();
 
-							TArray<TPBDRigidParticleHandle<T,d>*> ProcessingQueue;
+					{ // tmp scope
+
+						//traverse connectivity and see how many connected pieces we have
+						TSet<TPBDRigidParticleHandle<T, d>*> ProcessedChildren;
+						ProcessedChildren.Reserve(Children.Num());
+
+						for (TPBDRigidParticleHandle<T, d>* PotentialActivatedChild : Children)
+						{
+							if (ProcessedChildren.Contains(PotentialActivatedChild))
+							{
+								continue;
+							}
+							ConnectedPiecesArray.AddDefaulted();
+							TArray<TPBDRigidParticleHandle<T, d>*>& ConnectedPieces = ConnectedPiecesArray.Last();
+
+							TArray<TPBDRigidParticleHandle<T, d>*> ProcessingQueue;
 							ProcessingQueue.Add(PotentialActivatedChild);
 							while (ProcessingQueue.Num())
 							{
-								TPBDRigidParticleHandle<T,d>* Child = ProcessingQueue.Pop();
+								TPBDRigidParticleHandle<T, d>* Child = ProcessingQueue.Pop();
 								if (!ProcessedChildren.Contains(Child))
 								{
 									ProcessedChildren.Add(Child);
@@ -835,7 +851,7 @@ namespace Chaos
 								}
 							}
 						}
-					}
+					} // tmp scope
 
 					int32 NumNewClusters = 0;
 					for (TArray<TPBDRigidParticleHandle<T,d>*>& ConnectedPieces : ConnectedPiecesArray)
@@ -890,7 +906,7 @@ namespace Chaos
 
 			//disable cluster
 			DisableCluster(ClusteredParticle);
-		}
+		} // bChildrenChanged
 
 		return ActivatedChildren;
 	}

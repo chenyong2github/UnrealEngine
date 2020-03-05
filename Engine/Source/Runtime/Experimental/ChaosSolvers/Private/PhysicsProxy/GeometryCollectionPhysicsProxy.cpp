@@ -889,10 +889,10 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 				}
 			}
 
-			// We've likely chagned the state of leaf nodes, which are geometry
+			// We've likely changed the state of leaf nodes, which are geometry
 			// collection particles.  Update which particle views they belong in,
 			// as well as views of clustered particles.
-			Particles.UpdateGeometryCollectionViews(true);
+			Particles.UpdateGeometryCollectionViews(true); 
 
 			// Set cluster connectivity.  TPBDRigidClustering::CreateClusterParticle() 
 			// will optionally do this, but we switch that functionality off in BuildClusters().
@@ -2100,7 +2100,11 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 
 			Handle->SetX(ParticleTransform.GetTranslation());
 			Handle->SetR(ParticleTransform.GetRotation());
-			Handle->SetDisabled(GState->DisabledStates[Idx]);
+
+			// Particle disabled states are initialized on the physics thread, so 
+			// we don't want to pull this from the game thread
+
+			//Handle->SetDisabled(GState->DisabledStates[Idx]); ryan - fix this!
 
 			Handle->SetLinearEtherDrag(Parameters.LinearEtherDrag);
 			Handle->SetAngularEtherDrag(Parameters.AngularEtherDrag);
@@ -2158,6 +2162,7 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 		}
 	}
 }
+
 void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
 {
 	/**
