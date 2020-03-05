@@ -275,7 +275,7 @@ void SDMXFader::SetFaderLabel(const FString& InLabel)
 	CustomFaderLabel->SetText(FText::FromString(InLabel));
 }
 
-void SDMXFader::AddChannelWidget(const FString& InUniverse, const FString& InChannel, uint16 InUniverseNumber, uint32 InChannelNumber, const TSharedPtr<IDMXProtocol>& InDMXProtocol)
+void SDMXFader::AddChannelWidget(const FString& InUniverse, const FString& InChannel, uint16 InUniverseNumber, uint32 InChannelNumber, const IDMXProtocolPtr& InDMXProtocol)
 {
 	TSharedPtr<SDMXFaderChannel> NewChannel = SNew(SDMXFaderChannel)
 		.DMXEditor(WeakDMXEditor)
@@ -347,7 +347,7 @@ void SDMXFader::HandleFaderChanged(uint8 NewValue)
 		{
 			if (WeakFaderEntity.Get())
 			{
-				TSharedPtr<IDMXProtocol> DMXProtocol = WeakFaderEntity->DeviceProtocol;
+				IDMXProtocolPtr DMXProtocol = WeakFaderEntity->DeviceProtocol;
 				if (DMXProtocol.IsValid())
 				{
 					IDMXFragmentMap DMXFragmentMap;

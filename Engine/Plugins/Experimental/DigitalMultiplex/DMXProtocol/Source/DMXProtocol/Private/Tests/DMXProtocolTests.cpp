@@ -63,10 +63,10 @@ private:
 class FDMXProtocolFactoryTestFactory : public IDMXProtocolFactory
 {
 public:
-	virtual TSharedPtr<IDMXProtocol> CreateProtocol(const FName& ProtocolName) override
+	virtual IDMXProtocolPtr CreateProtocol(const FName& ProtocolName) override
 	{
 		FJsonObject ProtocolSettings;
-		TSharedPtr<IDMXProtocol> ProtocolArtNetPtr = MakeShared<FDMXProtocolTest>(ProtocolName, ProtocolSettings);
+		IDMXProtocolPtr ProtocolArtNetPtr = MakeShared<FDMXProtocolTest, ESPMode::ThreadSafe>(ProtocolName, ProtocolSettings);
 		if (ProtocolArtNetPtr->IsEnabled())
 		{
 			if (!ProtocolArtNetPtr->Init())
@@ -139,7 +139,7 @@ bool FDMXProtocolFactoryTest::RunTest(const FString& Parameters)
 	FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
 
 	// Store the protocol pointer
-	TSharedPtr<IDMXProtocol> CachedProtocol = nullptr;
+	IDMXProtocolPtr CachedProtocol = nullptr;
 
 	// Try to register 3 times
 	TArray<TUniquePtr<IDMXProtocolFactory>> Factories;

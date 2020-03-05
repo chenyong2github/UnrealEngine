@@ -9,7 +9,7 @@ class IDMXProtocolUniverse
 public:
 	virtual ~IDMXProtocolUniverse() {}
 
-	virtual TSharedPtr<IDMXProtocol> GetProtocol() const = 0;
+	virtual IDMXProtocolPtr GetProtocol() const = 0;
 	virtual TSharedPtr<FDMXBuffer> GetInputDMXBuffer() const = 0;
 	virtual TSharedPtr<FDMXBuffer> GetOutputDMXBuffer() const = 0;
 	virtual bool SetDMXFragment(const IDMXFragmentMap& DMXFragment) = 0;

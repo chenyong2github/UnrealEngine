@@ -200,7 +200,7 @@ void SDMXOutputFaderList::SetFaderProperties(const TSharedPtr<SDMXFader>& InFade
 		TransferCreatedFaderObjectProperties(InFaderObject, WeakFaderTemplate);
 	}
 
-	TSharedPtr<IDMXProtocol> DMXProtocol = InFaderObject->DeviceProtocol;
+	IDMXProtocolPtr DMXProtocol = InFaderObject->DeviceProtocol;
 
 	InFaderWidget->SetFaderLabel(InFaderObject->GetDisplayName());
 	for (const FDMXUniverse& Universe : InFaderObject->Universes)

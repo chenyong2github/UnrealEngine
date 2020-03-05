@@ -19,7 +19,7 @@ FOnNetworkInterfaceChanged IDMXProtocol::OnNetworkInterfaceChanged;
 
 const TCHAR* FDMXProtocolModule::BaseModuleName = TEXT("DMXProtocol");
 
-const TMap<FName, TSharedPtr<IDMXProtocol>>& FDMXProtocolModule::GetProtocols() const
+const TMap<FName, IDMXProtocolPtr>& FDMXProtocolModule::GetProtocols() const
 {
 	return DMXProtocols;
 }
@@ -112,9 +112,9 @@ FDMXProtocolModule& FDMXProtocolModule::Get()
 }
 
 
-TSharedPtr<IDMXProtocol> FDMXProtocolModule::GetProtocol(const FName InProtocolName)
+IDMXProtocolPtr FDMXProtocolModule::GetProtocol(const FName InProtocolName)
 {
-	TSharedPtr<IDMXProtocol>* DMXProtocolPtr = nullptr;
+	IDMXProtocolPtr* DMXProtocolPtr = nullptr;
 	if (!InProtocolName.IsNone())
 	{
 		DMXProtocolPtr = DMXProtocols.Find(InProtocolName);
@@ -126,7 +126,7 @@ TSharedPtr<IDMXProtocol> FDMXProtocolModule::GetProtocol(const FName InProtocolN
 			{
 				UE_LOG_DMXPROTOCOL(Log, TEXT("Creating protocol instance for: %s"), *InProtocolName.ToString());
 
-				TSharedPtr<IDMXProtocol> NewProtocol = (*DMXProtocolFactory)->CreateProtocol(InProtocolName);
+				IDMXProtocolPtr NewProtocol = (*DMXProtocolFactory)->CreateProtocol(InProtocolName);
 				if (NewProtocol.IsValid())
 				{
 					DMXProtocols.Add(InProtocolName, NewProtocol);
@@ -157,7 +157,7 @@ void FDMXProtocolModule::ShutdownDMXProtocol(const FName& ProtocolName)
 {
 	if (!ProtocolName.IsNone())
 	{
-		TSharedPtr<IDMXProtocol> DMXProtocol;
+		IDMXProtocolPtr DMXProtocol;
 		DMXProtocols.RemoveAndCopyValue(ProtocolName, DMXProtocol);
 		if (DMXProtocol.IsValid())
 		{
@@ -172,7 +172,7 @@ void FDMXProtocolModule::ShutdownDMXProtocol(const FName& ProtocolName)
 
 void FDMXProtocolModule::ShutdownAllDMXProtocols()
 {
-	for (TMap<FName, TSharedPtr<IDMXProtocol>>::TIterator It = DMXProtocols.CreateIterator(); It; ++It)
+	for (TMap<FName, IDMXProtocolPtr>::TIterator It = DMXProtocols.CreateIterator(); It; ++It)
 	{
 		It->Value->Shutdown();
 	}

@@ -127,8 +127,6 @@ private:
 	TSharedPtr<IDMXProtocolSender> ArtNetSender;
 	TSharedPtr<IDMXProtocolReceiver> ArtNetReceiver;
 
-	mutable FCriticalSection OnDataReceivedCS;
-
 	/** Holds the network socket used to transport packages. */
 	FSocket* BroadcastSocket;
 

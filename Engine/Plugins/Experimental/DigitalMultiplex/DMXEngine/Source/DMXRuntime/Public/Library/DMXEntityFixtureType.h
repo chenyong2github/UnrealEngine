@@ -62,6 +62,21 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "5"), Category = "DMX")
 	EDMXFixtureSignalFormat DataType;
 
+	/**
+	 * Least Significant Byte mode makes the individual bytes (channels) of the function be
+	 * interpreted with the first bytes being the lowest part of the number.
+	 * 
+	 * E.g., given a 16 bit function with two channel values set to [0, 1],
+	 * they would be interpreted as the binary number 00000001 00000000, which means 256.
+	 * The first byte (0) became the lowest part in binary form and the following byte (1), the highest.
+	 * 
+	 * Most Fixtures use MSB (Most Significant Byte) mode, which interprets bytes as highest first.
+	 * In MSB mode, the example above would be interpreted in binary as 00000000 00000001, which means 1.
+	 * The first byte (0) became the highest part in binary form and the following byte (1), the lowest.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "DMX")
+	bool bUseLSBMode;
+
 	FDMXFixtureFunction()
 		: FunctionName()
 		, Description()
@@ -119,19 +134,42 @@ public:
 	TArray<FDMXFixtureMode> Modes;
 
 public:
+#if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = "Fixture Settings")
 	void SetModesFromDMXImport(UDMXImport* DMXImportAsset);
 
-	static void SetFunctionSize(FDMXFixtureMode& InMode, FDMXFixtureFunction& InFunction, uint8 Size);
+	static void SetFunctionSize(FDMXFixtureFunction& InFunction, uint8 Size);
+#endif // WITH_EDITOR
 
 	/** Gets the last channel occupied by the Function */
 	static uint8 GetFunctionLastChannel(const FDMXFixtureFunction& Function);
+
+	/**
+	 * Return true if a Function's occupied channels are within the Mode's Channel Span.
+	 * Optionally add an offset to the function address
+	 */
+	static bool IsFunctionInModeRange(const FDMXFixtureFunction& InFunction, const FDMXFixtureMode& InMode, int32 ChannelOffset = 0);
 
 	static void ClampDefaultValue(FDMXFixtureFunction& InFunction);
 
 	static uint8 NumChannelsToOccupy(EDMXFixtureSignalFormat DataType);
 
 	static uint32 ClampValueToDataType(EDMXFixtureSignalFormat DataType, uint32 InValue);
+
+	static uint32 GetDataTypeMaxValue(EDMXFixtureSignalFormat DataType);
+
+	//~ Conversions to/from Bytes, Int and Normalized Float values.
+	static void FunctionValueToBytes(const FDMXFixtureFunction& InFunction, uint32 InValue, uint8* OutBytes);
+	static void IntToBytes(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, uint32 InValue, uint8* OutBytes);
+
+	static uint32 BytesToFunctionValue(const FDMXFixtureFunction& InFunction, const uint8* InBytes);
+	static uint32 BytesToInt(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, const uint8* InBytes);
+
+	static void FunctionNormalizedValueToBytes(const FDMXFixtureFunction& InFunction, float InValue, uint8* OutBytes);
+	static void NormalizedValueToBytes(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, float InValue, uint8* OutBytes);
+
+	static float BytesToFunctionNormalizedValue(const FDMXFixtureFunction& InFunction, const uint8* InBytes);
+	static float BytesToNormalizedValue(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, const uint8* InBytes);
 
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;

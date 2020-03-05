@@ -16,38 +16,17 @@
     {
       "Name": "DMXProtocol",
       "Type": "Runtime",
-      "LoadingPhase": "PreDefault",
-      "WhitelistPlatforms": 
-      [
-        "Win64",
-        "Win32",
-        "Mac",
-        "Linux"
-      ]
+      "LoadingPhase": "PreDefault"
     },
     {
       "Name": "DMXProtocolArtNet",
       "Type": "Runtime",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": 
-      [
-        "Win64",
-        "Win32",
-        "Mac",
-        "Linux"
-      ]
+      "LoadingPhase": "Default"
     },
     {
       "Name": "DMXProtocolSACN",
       "Type": "Runtime",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": 
-      [
-        "Win64",
-        "Win32",
-        "Mac",
-        "Linux"
-      ]
+      "LoadingPhase": "Default"
     }
   ]
 }

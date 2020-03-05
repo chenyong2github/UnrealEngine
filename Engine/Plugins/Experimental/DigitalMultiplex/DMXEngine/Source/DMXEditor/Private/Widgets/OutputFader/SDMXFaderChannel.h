@@ -27,7 +27,7 @@ public:
 	SLATE_ARGUMENT(FText, InText)
 	SLATE_ARGUMENT(uint16, UniverseNumber)
 	SLATE_ARGUMENT(uint32, ChannelNumber)
-	SLATE_ARGUMENT(TWeakPtr<IDMXProtocol>, DMXProtocol)
+	SLATE_ARGUMENT(IDMXProtocolPtrWeak, DMXProtocol)
 
 	SLATE_END_ARGS()
 
@@ -42,7 +42,7 @@ public:
 
 	uint32 GetChannelNumber() const { return ChannelNumber; }
 
-	const TSharedPtr<IDMXProtocol> GetProtocol() const { return WeakDMXProtocol.Pin(); }
+	const IDMXProtocolPtr GetProtocol() const { return WeakDMXProtocol.Pin(); }
 
 private:
 	/** Pointer back to the DMXEditor tool that owns us */
@@ -56,7 +56,7 @@ private:
 
 	uint32 ChannelNumber;
 
-	TWeakPtr<IDMXProtocol> WeakDMXProtocol;
+	IDMXProtocolPtrWeak WeakDMXProtocol;
 };
 
 #undef LOCTEXT_NAMESPACE

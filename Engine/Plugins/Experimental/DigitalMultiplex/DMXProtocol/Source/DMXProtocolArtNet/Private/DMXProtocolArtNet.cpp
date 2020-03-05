@@ -310,11 +310,20 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 Port
 
 	// ArtNet DMX packet
 	FDMXProtocolArtNetDMXPacket ArtNetDMXPacket;
-	if (DMXBuffer->GetDMXData().Num() == ARTNET_DMX_LENGTH)
-	{
-		FMemory::Memcpy(ArtNetDMXPacket.Data, DMXBuffer->GetDMXData().GetData(), ARTNET_DMX_LENGTH);
-	}
-	else
+	bool bBufferSizeIsWrong = false;
+	DMXBuffer->AccessDMXData([&ArtNetDMXPacket, &bBufferSizeIsWrong](TArray<uint8>& InData)
+		{
+			if (InData.Num() == ARTNET_DMX_LENGTH)
+			{
+				FMemory::Memcpy(ArtNetDMXPacket.Data, InData.GetData(), ARTNET_DMX_LENGTH);
+			}
+			else
+			{
+				bBufferSizeIsWrong = true;
+			}
+		});
+
+	if (bBufferSizeIsWrong)
 	{
 		return EDMXSendResult::ErrorSizeBuffer;
 	}
@@ -503,8 +512,6 @@ bool FDMXProtocolArtNet::TransmitRDM(uint32 InUniverseID, const TArray<uint8>& D
 
 void FDMXProtocolArtNet::OnDataReceived(const FArrayReaderPtr& Buffer)
 {
-	FScopeLock Lock(&OnDataReceivedCS);
-
 	// It will be more handlers
 	switch (ArtNet::GetPacketType(Buffer))
 	{
@@ -558,24 +565,30 @@ bool FDMXProtocolArtNet::HandleDataPacket(const FArrayReaderPtr & Buffer)
 	// Write data to input DMX buffer universe if exists
 	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(ArtNetDMXPacket.Universe);
 
+	bool bSetDataSuccessful = false;
 	if (Universe.IsValid() && Universe->GetInputDMXBuffer().IsValid())
 	{
-		// Make sure we copy same amount of data
-		if (Universe->GetInputDMXBuffer()->GetDMXData().Num() == ARTNET_DMX_LENGTH)
-		{
-			Universe->GetInputDMXBuffer()->SetDMXBuffer(ArtNetDMXPacket.Data, ARTNET_DMX_LENGTH);
-
-			OnUniverseInputUpdateEvent.Broadcast(GetProtocolName(), ArtNetDMXPacket.Universe, Universe->GetInputDMXBuffer()->GetDMXData());
-			return true;
-		}
-		else
-		{
-			UE_LOG_DMXPROTOCOL(Error, TEXT("%s:Size of incoming DMX buffer is wrong"), NetworkErrorMessagePrefix);
-			return false;
-		}
+		Universe->GetInputDMXBuffer()->AccessDMXData([this, &ArtNetDMXPacket, &Universe, &bSetDataSuccessful](TArray<uint8>& InData)
+			{
+				// Make sure we copy same amount of data
+				if (InData.Num() == ARTNET_DMX_LENGTH)
+				{
+					Universe->GetInputDMXBuffer()->SetDMXBuffer(ArtNetDMXPacket.Data, ARTNET_DMX_LENGTH);
+					OnUniverseInputUpdateEvent.Broadcast(GetProtocolName(), ArtNetDMXPacket.Universe, InData);
+					bSetDataSuccessful = true;
+				}
+				else
+				{
+					UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong. Expected size: %d. Current: %d")
+						, NetworkErrorMessagePrefix
+						, ARTNET_DMX_LENGTH
+						, InData.Num());
+					bSetDataSuccessful = false;
+				}
+			});
 	}
-
-	return false;
+	
+	return bSetDataSuccessful;
 }
 
 bool FDMXProtocolArtNet::HandleTodRequest(const FArrayReaderPtr & Buffer)

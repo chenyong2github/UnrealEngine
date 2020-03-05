@@ -36,8 +36,8 @@ public:
 	void SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> ChannelValuesMap, EDMXSendResult& OutResult);
 
 	/**  Return reference to array of Fixture Patch objects of a given type. */
-	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "FixtureType"))
-	void GetAllFixturesOfType(const UDMXLibrary* DMXLibrary, const FName& FixtureType, TArray<UDMXEntityFixturePatch*>& OutResult);
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "FixtureType"))
+	void GetAllFixturesOfType(const FDMXEntityFixtureTypeRef& FixtureType, TArray<UDMXEntityFixturePatch*>& OutResult);
 
 	/**  Return reference to array of Fixture Patch objects of a given category. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
@@ -91,9 +91,58 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	TArray<UDMXLibrary*> GetAllDMXLibraries();
 
-	/**  Return integer given an array of bytes. The first 4 bytes in the array will be used for the conversion. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
-	int32 BytesToInt(const TArray<uint8>& Bytes);
+	/**
+	 * Return integer given an array of bytes. Up to the first 4 bytes in the array will be used for the conversion.
+	 * @param bUseLSB	Least Significant Byte mode makes the individual bytes (channels) of the function be
+	 *					interpreted with the first bytes being the lowest part of the number.
+	 *					Most Fixtures use MSB (Most Significant Byte).
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX")
+	int32 BytesToInt(const TArray<uint8>& Bytes, bool bUseLSB = false) const;
+
+	/**
+	 * Return normalized value given an array of bytes. Up to the first 4 bytes in the array will be used for the conversion.
+	 * @param bUseLSB	Least Significant Byte mode makes the individual bytes (channels) of the function be
+	 *					interpreted with the first bytes being the lowest part of the number.
+	 *					Most Fixtures use MSB (Most Significant Byte).
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX", meta = (Keywords = "float"))
+	float BytesToNormalizedValue(const TArray<uint8>& Bytes, bool bUseLSB = false) const;
+
+	/**
+	 * Return the Bytes format of Value in the desired Signal Format.
+	 * @param bUseLSB	Least Significant Byte mode makes the individual bytes (channels) of the function be
+	 *					interpreted with the first bytes being the lowest part of the number.
+	 *					Most Fixtures use MSB (Most Significant Byte).
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX", meta = (Keywords = "float"))
+	void NormalizedValueToBytes(float InValue, EDMXFixtureSignalFormat InSignalFormat, TArray<uint8>& Bytes, bool bUseLSB = false) const;
+
+	/**
+	 * Return the Bytes format of Value in the desired Signal Format.
+	 * @param bUseLSB	Least Significant Byte mode makes the individual bytes (channels) of the function be
+	 *					interpreted with the first bytes being the lowest part of the number.
+	 *					Most Fixtures use MSB (Most Significant Byte).
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX")
+	void IntValueToBytes(int32 InValue, EDMXFixtureSignalFormat InSignalFormat, TArray<uint8>& Bytes, bool bUseLSB = false) const;
+
+	/**
+	 * Return the normalized value of an Int value from the specified Signal Format.
+	 * @param bUseLSB	Least Significant Byte mode makes the individual bytes (channels) of the function be
+	 *					interpreted with the first bytes being the lowest part of the number.
+	 *					Most Fixtures use MSB (Most Significant Byte).
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX", meta = (Keywords = "float"))
+	float IntToNormalizedValue(int32 InValue, EDMXFixtureSignalFormat InSignalFormat) const;
+
+	/**
+	 * Return the normalized value of an Int value from a Fixture Patch function.
+	 * @return	The normalized value of the passed in Int using the Function's signal format.
+	 *			-1.0 if the Function is not found in the Fixture Patch.
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX", meta = (Keywords = "float"))
+	float GetNormalizedFunctionValue(UDMXEntityFixturePatch* InFixturePatch, FName InFunctionName, int32 InValue) const;
 
 	/**
 	 * Creates a literal UDMXEntityFixturePatch reference
@@ -122,18 +171,27 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InName, InFunctionsMap"), Category = "DMX")
 	int32 GetFunctionsValue(const FName& InName, const TMap<FName, int32>& InFunctionsMap);
 
+	/** Get a DMX Subsystem, pure version */
+	UFUNCTION(BlueprintPure, Category = "DMX Subsystem", meta = (BlueprintInternalUseOnly = "true"))
+	static UDMXSubsystem* GetDMXSubsystem_Pure();
+
+	/** Get a DMX Subsystem, callable version */
+	UFUNCTION(BlueprintCallable, Category = "DMX Subsystem", meta = (BlueprintInternalUseOnly = "true"))
+	static UDMXSubsystem* GetDMXSubsystem_Callable();
+
 	UPROPERTY(BlueprintAssignable, Category = "DMX")
 	FProtocolReceivedDelegate OnProtocolReceived;
 
 public:
 	//~ USubsystem interface begin
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	//~ USubsystem interface end
 
 private:
-
-	// This function is a delegate for when protocols have input updates
-	UFUNCTION()
-	void BufferReceivedBroadcast(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values);
-
+	/**
+	 * Stores DelegateHandles for each Protocol's UniverseInputUpdate event.
+	 * That way we can unbind them when this subsystem is being destroyed and prevent crashes.
+	 */
+	TMap<FName, FDelegateHandle> UniverseInputUpdateHandles;
 };

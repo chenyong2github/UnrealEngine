@@ -9,7 +9,7 @@ TArray<FName> FDMXProtocolName::GetPossibleValues()
 	return IDMXProtocol::GetProtocolNames();
 }
 
-FDMXProtocolName::FDMXProtocolName(TSharedPtr<IDMXProtocol> InProtocol)
+FDMXProtocolName::FDMXProtocolName(IDMXProtocolPtr InProtocol)
 {
 	if (InProtocol.IsValid())
 	{
@@ -21,7 +21,19 @@ FDMXProtocolName::FDMXProtocolName(const FName& InName)
 	: Name(InName)
 {}
 
-TSharedPtr<IDMXProtocol> FDMXProtocolName::GetProtocol() const
+FDMXProtocolName::FDMXProtocolName()
+{
+	// GetFirstProtocolName depends on the FDMXProtocolModule.
+	// This can be called on CDO creation, when the module might not be available yet.
+	// So we first check if it is available.
+	const IModuleInterface* DMXProtocolModule = FModuleManager::Get().GetModule(FDMXProtocolModule::BaseModuleName);
+	if (DMXProtocolModule != nullptr)
+	{
+		Name = IDMXProtocol::GetFirstProtocolName();
+	}
+}
+
+IDMXProtocolPtr FDMXProtocolName::GetProtocol() const
 {
 	if (Name.IsNone())
 	{
@@ -83,8 +95,22 @@ FName UDMXNameContainersConversions::Conv_DMXFixtureCategoryToName(const FDMXFix
 	return InFixtureCategory.Name;
 }
 
+uint8 FDMXBuffer::GetDMXDataAddress(uint32 InAddress) const
+{
+	FScopeLock BufferLock(&BufferCritSec);
+	return DMXData[InAddress];
+}
+
+void FDMXBuffer::AccessDMXData(TFunctionRef<void(TArray<uint8>&)> InFunction)
+{
+	FScopeLock BufferLock(&BufferCritSec);
+	InFunction(DMXData);
+}
+
 bool FDMXBuffer::SetDMXFragment(const IDMXFragmentMap & InDMXFragment)
 {
+	FScopeLock BufferLock(&BufferCritSec);
+
 	for (const TPair<uint32, uint8>& It : InDMXFragment)
 	{
 		if (It.Key <= (DMX_UNIVERSE_SIZE) && It.Key > 0)
@@ -98,13 +124,15 @@ bool FDMXBuffer::SetDMXFragment(const IDMXFragmentMap & InDMXFragment)
 	}
 
 	// Increase Sequence
-	SequanceID++;
+	SequenceID++;
 
 	return true;
 }
 
 bool FDMXBuffer::SetDMXBuffer(const uint8* InBuffer, uint32 InSize)
 {
+	FScopeLock BufferLock(&BufferCritSec);
+
 	if (InSize <= (DMX_UNIVERSE_SIZE) && InSize > 0)
 	{
 		FMemory::Memcpy(DMXData.GetData(), InBuffer, InSize);
@@ -115,7 +143,7 @@ bool FDMXBuffer::SetDMXBuffer(const uint8* InBuffer, uint32 InSize)
 	}
 
 	// Increase Sequence
-	SequanceID++;
+	SequenceID++;
 
 	return true;
 }

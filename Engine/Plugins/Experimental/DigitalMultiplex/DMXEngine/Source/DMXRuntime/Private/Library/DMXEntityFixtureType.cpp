@@ -6,6 +6,7 @@
 #include "Library/DMXImport.h"
 #include "Library/DMXImportGDTF.h"
 
+#if WITH_EDITOR
 void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 {
 	if (DMXImportAsset == nullptr || !DMXImportAsset->IsValidLowLevelFast())
@@ -29,18 +30,70 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 			FDMXFixtureMode& Mode = Modes[Modes.Emplace()];
 			Mode.ModeName = AssetMode.Name.ToString();
 
+			// We'll keep the functions addresses from the GDTF file.
+			// For that we need to keep track of the latest occupied address after adding each function.
+			int32 LastOccupiedAddress = 0;
+
 			for (const FDMXImportGDTFDMXChannel& ModeChannel : AssetMode.DMXChannels)
 			{
 				FDMXFixtureFunction& Function = Mode.Functions[Mode.Functions.Emplace()];
 				Function.FunctionName = ModeChannel.LogicalChannel.ChannelFunction.Name.ToString();
-				SetFunctionSize(Mode, Function, ModeChannel.Offset.Num());
 				Function.DefaultValue = ModeChannel.Default.Value;
+
+				if (ModeChannel.Offset.Num() > 0)
+				{
+					// Compute number of used addresses in the function as the interval
+					// between the lowest and highest addresses (inclusive)
+					int32 AddressMin = DMX_MAX_ADDRESS;
+					int32 AddressMax = 0;
+					for (const int32& Address : ModeChannel.Offset)
+					{
+						AddressMin = FMath::Min(AddressMin, Address);
+						AddressMax = FMath::Max(AddressMax, Address);
+					}
+					const int32 NumUsedAddresses = FMath::Clamp(AddressMax - AddressMin + 1, 1, DMX_MAX_FUNCTION_SIZE);
+
+					SetFunctionSize(Function, NumUsedAddresses);
+
+					// AddressMin is the first address this function occupies. If it's not 1 after the
+					// latest occupied channel, this function is offset, skipping some addresses.
+					if (AddressMin > LastOccupiedAddress + 1)
+					{
+						Function.ChannelOffset = AddressMin - LastOccupiedAddress - 1;
+					}
+
+					// Offsets represent the value bytes in MSB format. If they are in reverse order,
+					// it means this Function uses LSB format.
+					// We need at least 2 offsets to compare. Otherwise, we leave the function as MSB,
+					// which is most Fixtures' standard bit format.
+					if (ModeChannel.Offset.Num() > 1)
+					{
+						Function.bUseLSBMode = ModeChannel.Offset[0] > ModeChannel.Offset[1];
+					}
+					else
+					{
+						Function.bUseLSBMode = false;
+					}
+
+					// Update occupied addresses
+					LastOccupiedAddress += Function.ChannelOffset + NumChannelsToOccupy(Function.DataType);
+				}
+				else
+				{
+					SetFunctionSize(Function, 1);
+
+					// Update occupied addresses
+					++LastOccupiedAddress;
+				}
 			}
+
+			// Compute mode channel span from functions' addresses and sizes
+			UpdateModeChannelProperties(Mode);
 		}
 	}
 }
 
-void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureMode& InMode, FDMXFixtureFunction& InFunction, uint8 Size)
+void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureFunction& InFunction, uint8 Size)
 {
 	//Get New Data Type
 	EDMXFixtureSignalFormat NewDataType;
@@ -62,41 +115,26 @@ void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureMode& InMode, FDMXFixture
 		break;
 	}
 
-#if WITH_EDITOR
-	//Update UI
 	InFunction.DataType = NewDataType;
-	UpdateModeChannelProperties(InMode);
 	ClampDefaultValue(InFunction);
-#endif // WITH_EDITOR
 }
+
+#endif // WITH_EDITOR
 
 uint8 UDMXEntityFixtureType::GetFunctionLastChannel(const FDMXFixtureFunction& Function)
 {
 	return Function.Channel + UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType) - 1;
 }
 
+bool UDMXEntityFixtureType::IsFunctionInModeRange(const FDMXFixtureFunction& InFunction, const FDMXFixtureMode& InMode, int32 ChannelOffset /*= 0*/)
+{
+	const int32 LastChannel = GetFunctionLastChannel(InFunction);
+	return LastChannel <= InMode.ChannelSpan && LastChannel + ChannelOffset <= DMX_MAX_ADDRESS;
+}
+
 void UDMXEntityFixtureType::ClampDefaultValue(FDMXFixtureFunction& InFunction)
 {
-	int64& DefaultValue = InFunction.DefaultValue;
-	switch (InFunction.DataType)
-	{
-	case EDMXFixtureSignalFormat::E8BitSubFunctions:
-	case EDMXFixtureSignalFormat::E8Bit:
-		DefaultValue = FMath::Clamp(DefaultValue, (int64)0, (int64)MAX_uint8);
-		break;
-	case EDMXFixtureSignalFormat::E16Bit:
-		DefaultValue = FMath::Clamp(DefaultValue, (int64)0, (int64)MAX_uint16);
-		break;
-	case EDMXFixtureSignalFormat::E24Bit:
-		DefaultValue = FMath::Clamp(DefaultValue, (int64)0, (int64)0xFFFFFF);
-		break;
-	case EDMXFixtureSignalFormat::E32Bit:
-		DefaultValue = FMath::Clamp(DefaultValue, (int64)0, (int64)MAX_uint32);
-		break;
-	default:
-		checkNoEntry();
-		break;
-	}
+	InFunction.DefaultValue = ClampValueToDataType(InFunction.DataType, FMath::Min(InFunction.DefaultValue, (int64)MAX_uint32));
 }
 
 uint8 UDMXEntityFixtureType::NumChannelsToOccupy(EDMXFixtureSignalFormat DataType)
@@ -143,6 +181,116 @@ uint32 UDMXEntityFixtureType::ClampValueToDataType(EDMXFixtureSignalFormat DataT
 		break;
 	}
 	return InValue;
+}
+
+uint32 UDMXEntityFixtureType::GetDataTypeMaxValue(EDMXFixtureSignalFormat DataType)
+{
+	switch (DataType)
+	{
+	case EDMXFixtureSignalFormat::E8BitSubFunctions:
+	case EDMXFixtureSignalFormat::E8Bit:
+		return MAX_uint8;
+	case EDMXFixtureSignalFormat::E16Bit:
+		return MAX_uint16;
+	case EDMXFixtureSignalFormat::E24Bit:
+		return 0xFFFFFF;
+	case EDMXFixtureSignalFormat::E32Bit:
+		return MAX_uint32;
+	default:
+		checkNoEntry();
+		return 0;
+	}
+}
+
+void UDMXEntityFixtureType::FunctionValueToBytes(const FDMXFixtureFunction& InFunction, uint32 InValue, uint8* OutBytes)
+{
+	IntToBytes(InFunction.DataType, InFunction.bUseLSBMode, InValue, OutBytes);
+}
+
+void UDMXEntityFixtureType::IntToBytes(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, uint32 InValue, uint8* OutBytes)
+{
+	// Make sure the input value is in the valid range for the data type
+	InValue = ClampValueToDataType(InSignalFormat, InValue);
+
+	// Number of bytes we'll have to manipulate
+	const uint8 NumBytes = NumChannelsToOccupy(InSignalFormat);
+
+	if (NumBytes == 1)
+	{
+		OutBytes[0] = (uint8)InValue;
+		return;
+	}
+
+	// To avoid branching in the loop, we'll decide before it on which byte to start
+	// and which direction to go, depending on the Function's bit endianness.
+	const int8 ByteIndexStep = bUseLSB ? 1 : -1;
+	int8 OutByteIndex = bUseLSB ? 0 : NumBytes - 1;
+
+	for (uint8 ValueByte = 0; ValueByte < NumBytes; ++ValueByte)
+	{
+		OutBytes[OutByteIndex] = InValue >> 8 * ValueByte & 0xFF;
+		OutByteIndex += ByteIndexStep;
+	}
+}
+
+uint32 UDMXEntityFixtureType::BytesToFunctionValue(const FDMXFixtureFunction& InFunction, const uint8* InBytes)
+{
+	return BytesToInt(InFunction.DataType, InFunction.bUseLSBMode, InBytes);
+}
+
+uint32 UDMXEntityFixtureType::BytesToInt(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, const uint8* InBytes)
+{
+	// Number of bytes we'll read
+	const uint8 NumBytes = NumChannelsToOccupy(InSignalFormat);
+
+	if (NumBytes == 1)
+	{
+		return *InBytes;
+	}
+
+	// To avoid branching in the loop, we'll decide before it on which byte to start
+	// and which direction to go, depending on the Function's bit endianness.
+	const int8 ByteIndexStep = bUseLSB ? 1 : -1;
+	int8 InByteIndex = bUseLSB ? 0 : NumBytes - 1;
+
+	uint32 Result = 0;
+	for (uint8 ValueByte = 0; ValueByte < NumBytes; ++ValueByte)
+	{
+		Result += InBytes[InByteIndex] << 8 * ValueByte;
+		InByteIndex += ByteIndexStep;
+	}
+
+	return Result;
+}
+
+void UDMXEntityFixtureType::FunctionNormalizedValueToBytes(const FDMXFixtureFunction& InFunction, float InValue, uint8* OutBytes)
+{
+	NormalizedValueToBytes(InFunction.DataType, InFunction.bUseLSBMode, InValue, OutBytes);
+}
+
+void UDMXEntityFixtureType::NormalizedValueToBytes(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, float InValue, uint8* OutBytes)
+{
+	// Make sure InValue is in the range [0.0 ... 1.0]
+	InValue = FMath::Clamp(InValue, 0.0f, 1.0f);
+
+	const uint32 IntValue = GetDataTypeMaxValue(InSignalFormat) * InValue;
+
+	// Get the individual bytes from the computed IntValue
+	IntToBytes(InSignalFormat, bUseLSB, IntValue, OutBytes);
+}
+
+float UDMXEntityFixtureType::BytesToFunctionNormalizedValue(const FDMXFixtureFunction& InFunction, const uint8* InBytes)
+{
+	return BytesToNormalizedValue(InFunction.DataType, InFunction.bUseLSBMode, InBytes);
+}
+
+float UDMXEntityFixtureType::BytesToNormalizedValue(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, const uint8* InBytes)
+{
+	// Get the value represented by the individual bytes
+	const float Value = BytesToInt(InSignalFormat, bUseLSB, InBytes);
+
+	// Normalize it
+	return Value / GetDataTypeMaxValue(InSignalFormat);
 }
 
 #if WITH_EDITOR

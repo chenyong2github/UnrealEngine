@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 class DMXPROTOCOL_API IDMXProtocolBase
-	: public TSharedFromThis<IDMXProtocolBase>
+	: public TSharedFromThis<IDMXProtocolBase, ESPMode::ThreadSafe>
 {
 public:
 	virtual ~IDMXProtocolBase() {}

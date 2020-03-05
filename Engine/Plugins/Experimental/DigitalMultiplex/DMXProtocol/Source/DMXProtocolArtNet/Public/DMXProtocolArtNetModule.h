@@ -12,7 +12,7 @@
 class FDMXProtocolFactoryArtNet : public IDMXProtocolFactory
 {
 public:
-	virtual TSharedPtr<IDMXProtocol> CreateProtocol(const FName& ProtocolName) override;
+	virtual IDMXProtocolPtr CreateProtocol(const FName& ProtocolName) override;
 };
 
 

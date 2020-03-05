@@ -13,8 +13,8 @@ class FNodeHandlingFunctor;
 class FKismetCompilerContext;
 class UDMXEntityFixturePatch;
 
-UCLASS(MinimalApi)
-class UK2Node_GetDMXFixturePatch
+UCLASS()
+class DMXBLUEPRINTGRAPH_API UK2Node_GetDMXFixturePatch
 	: public UK2Node
 {
 	GENERATED_BODY()

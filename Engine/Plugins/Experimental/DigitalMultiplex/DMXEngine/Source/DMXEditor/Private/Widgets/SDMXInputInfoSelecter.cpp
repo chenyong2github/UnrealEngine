@@ -94,7 +94,7 @@ void SDMXInputInfoSelecter::Construct(const FArguments& InArgs)
 			.Padding(PaddingKeyVal, 0, 0, 0)
 			.AutoWidth()
 			[
-				SAssignNew(UniverseIDField, SSpinBox<uint16>)
+				SAssignNew(UniverseIDField, SSpinBox<uint32>)
 				.Value(this, &SDMXInputInfoSelecter::GetCurrentUniverseID)
 				.OnValueChanged(this, &SDMXInputInfoSelecter::HandleUniverseIDChanged)
 				.OnValueCommitted(this, &SDMXInputInfoSelecter::HandleUniverseIDValueCommitted)
@@ -153,19 +153,19 @@ void SDMXInputInfoSelecter::HandleProtocolChanged(FName SelectedProtocol)
 	ProtocolSettings->SaveConfig();
 }
 
-void SDMXInputInfoSelecter::HandleUniverseIDChanged(uint16 NewValue)
+void SDMXInputInfoSelecter::HandleUniverseIDChanged(uint32 NewValue)
 {
-	if (CurrentUniverseID != NewValue)
+	if (CurrentUniverseID != (uint16)NewValue)
 	{
-		CurrentUniverseID = NewValue;
+		CurrentUniverseID = FMath::Clamp(NewValue, (uint32)0u, (uint32)MAX_uint16);
 	}
 }
 
-void SDMXInputInfoSelecter::HandleUniverseIDValueCommitted(uint16 NewValue, ETextCommit::Type CommitType)
+void SDMXInputInfoSelecter::HandleUniverseIDValueCommitted(uint32 NewValue, ETextCommit::Type CommitType)
 {
-	if (CurrentUniverseID != NewValue)
+	if (CurrentUniverseID != (uint16)NewValue)
 	{
-		CurrentUniverseID = NewValue;
+		CurrentUniverseID = FMath::Clamp(NewValue, (uint32)0u, (uint32)MAX_uint16);;
 	}
 
 	// Update stored settings

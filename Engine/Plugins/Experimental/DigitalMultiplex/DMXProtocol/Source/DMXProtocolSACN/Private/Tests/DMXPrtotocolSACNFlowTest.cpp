@@ -49,9 +49,9 @@ bool DMXPrtotocolSACNBasicFlowTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Incoming ACNPacketIdentifier should be the same"), ExpectedInentifier.Equals(IncomingInentifier));
 	}
 
-	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[0], InputDMXBuffer->GetDMXData()[FixtureChannels[0] - 1]);
-	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[1], InputDMXBuffer->GetDMXData()[FixtureChannels[1] - 1]);
-	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[2], InputDMXBuffer->GetDMXData()[FixtureChannels[2] - 1]);
+	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[0], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[0] - 1));
+	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[1], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[1] - 1));
+	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[2], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[2] - 1));
 
 	// Send DMX fragment 2
 	DMXFragmentMap.Add(FixtureChannels[3], FixtureValues[3]);
@@ -60,9 +60,9 @@ bool DMXPrtotocolSACNBasicFlowTest::RunTest(const FString& Parameters)
 	DMXProtocol->SendDMXFragment(Universe->GetUniverseID(), DMXFragmentMap);
 	FPlatformProcess::Sleep(0.2f);
 
-	TestEqual(TEXT("Old value DMX input should be the same"), FixtureValues[0], InputDMXBuffer->GetDMXData()[FixtureChannels[0] - 1]);
-	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[4], InputDMXBuffer->GetDMXData()[FixtureChannels[4] - 1]);
-	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[5], InputDMXBuffer->GetDMXData()[FixtureChannels[5] - 1]);
+	TestEqual(TEXT("Old value DMX input should be the same"), FixtureValues[0], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[0] - 1));
+	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[4], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[4] - 1));
+	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[5], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[5] - 1));
 
 	// @TODO Implement test cases for Discovery
 	TArray<uint16> Universes;
@@ -108,9 +108,9 @@ bool FDMXPrtotocolSACNConsoleCommandsTest::RunTest(const FString& Parameters)
 	FPlatformProcess::Sleep(0.2f);
 
 	TSharedPtr<FDMXBuffer> InputDMXBuffer = Universe->GetInputDMXBuffer();
-	TestEqual(TEXT("Incoming buffer should be same"), Values[0][1], InputDMXBuffer->GetDMXData()[Values[0][0] - 1]);
-	TestEqual(TEXT("Incoming buffer should be same"), Values[1][1], InputDMXBuffer->GetDMXData()[Values[1][0] - 1]);
-	TestEqual(TEXT("Incoming buffer should be same"), Values[2][1], InputDMXBuffer->GetDMXData()[Values[2][0] - 1]);
+	TestEqual(TEXT("Incoming buffer should be same"), Values[0][1], InputDMXBuffer->GetDMXDataAddress(Values[0][0] - 1));
+	TestEqual(TEXT("Incoming buffer should be same"), Values[1][1], InputDMXBuffer->GetDMXDataAddress(Values[1][0] - 1));
+	TestEqual(TEXT("Incoming buffer should be same"), Values[2][1], InputDMXBuffer->GetDMXDataAddress(Values[2][0] - 1));
 
 	return true;
 }

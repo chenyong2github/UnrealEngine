@@ -32,5 +32,6 @@ enum EDMUniverseDirection
 #define DMX_MAX_FINALUNIVERSE 32768
 #define DMX_MAX_ADDRESS 512
 #define DMX_MAX_VALUE 255
+#define DMX_MAX_FUNCTION_SIZE ((int32)sizeof(int32))
 
 #define DMX_K2_CATEGORY_NAME "DMX"

@@ -11,10 +11,10 @@ class DMXPROTOCOLARTNET_API FDMXProtocolUniverseArtNet
 	: public IDMXProtocolUniverse
 {
 public:
-	FDMXProtocolUniverseArtNet(TSharedPtr<IDMXProtocol> InDMXProtocol, const FJsonObject& InSettings);
+	FDMXProtocolUniverseArtNet(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings);
 
 	//~ Begin IDMXProtocolDevice implementation
-	virtual TSharedPtr<IDMXProtocol> GetProtocol() const override;
+	virtual IDMXProtocolPtr GetProtocol() const override;
 	virtual TSharedPtr<FDMXBuffer> GetInputDMXBuffer() const override;
 	virtual TSharedPtr<FDMXBuffer> GetOutputDMXBuffer() const override;
 	virtual bool SetDMXFragment(const IDMXFragmentMap& DMXFragment) override;
@@ -68,7 +68,7 @@ private:
 	bool SetUniverse(uint8 InUniverse);
 
 private:
-	TWeakPtr<IDMXProtocol> WeakDMXProtocol;
+	IDMXProtocolPtrWeak WeakDMXProtocol;
 	TSharedPtr<FDMXBuffer> OutputDMXBuffer;
 	TSharedPtr<FDMXBuffer> InputDMXBuffer;
 	uint8 Priority;

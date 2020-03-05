@@ -13,5 +13,5 @@ public:
 	 * It creates only one instance of Protocol. There is the condition to check in DMXProtocolModule
 	 * @return Return the pointer to protocol
 	 */
-	virtual TSharedPtr<IDMXProtocol> CreateProtocol(const FName& ProtocolName) = 0;
+	virtual IDMXProtocolPtr CreateProtocol(const FName& ProtocolName) = 0;
 };
