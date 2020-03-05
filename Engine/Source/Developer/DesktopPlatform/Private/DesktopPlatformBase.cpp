@@ -576,7 +576,7 @@ bool FDesktopPlatformBase::CompileGameProject(const FString& RootDir, const FStr
 	}
 
 	// Append any other options
-	Arguments += " -Progress -NoHotReloadFromIDE";
+	Arguments += " -Progress -NoEngineChanges -NoHotReloadFromIDE";
 
 	// Run UBT
 	bool bResult = RunUnrealBuildTool(LOCTEXT("CompilingProject", "Compiling project..."), RootDir, Arguments, Warn);
