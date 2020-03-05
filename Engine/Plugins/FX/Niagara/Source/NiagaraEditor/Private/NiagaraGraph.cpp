@@ -137,6 +137,24 @@ void UNiagaraGraph::PostLoad()
 {
 	Super::PostLoad();
 
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+
+	if (NiagaraVer < FNiagaraCustomVersion::FixNullScriptVariables)
+	{
+		for (auto It = VariableToScriptVariable.CreateIterator(); It; ++It)
+		{
+			FNiagaraVariable Var = It.Key();
+			UNiagaraScriptVariable* ScriptVar = It.Value();
+
+			if (ScriptVar == nullptr)
+			{
+				ScriptVar = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this));
+				GenerateMetaDataForScriptVariable(ScriptVar);
+				UE_LOG(LogNiagaraEditor, Display, TEXT("Fixed null UNiagaraScriptVariable | variable %s | asset path %s"), *Var.GetName().ToString(), *GetPathName());
+			}
+		}
+	}
+
 	for (FNiagaraGraphScriptUsageInfo& CachedUsageInfoItem : CachedUsageInfo)
 	{
 		CachedUsageInfoItem.PostLoad(this);
@@ -219,10 +237,7 @@ void UNiagaraGraph::PostLoad()
 	{
 		SetFlags(RF_Transactional);
 	}
-
-	// Migrate input condition metadata
-	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
-
+	
 	FString FullPathName = GetPathName();
 	FString PathName;
 	int ColonPos;
@@ -234,7 +249,7 @@ void UNiagaraGraph::PostLoad()
 	}
 	// UE_LOG(LogNiagaraEditor, Log, TEXT("PostLoad %s"), *FullPathName);
 
-
+	// Migrate input condition metadata
 	if (NiagaraVer < FNiagaraCustomVersion::MetaDataAndParametersUpdate)
 	{
 		int NumMigrated = 0;

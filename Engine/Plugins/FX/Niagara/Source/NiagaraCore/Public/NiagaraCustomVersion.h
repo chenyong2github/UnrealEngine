@@ -144,6 +144,8 @@ struct FNiagaraCustomVersion
 
 		PrecompileNamespaceFixup, // Promote parameters used across script executions to the Dataset, and Demote unused parameters.
 
+		FixNullScriptVariables, // Postload fixup in UNiagaraGraph to fixup VariableToScriptVariable map entries being null. 
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,
