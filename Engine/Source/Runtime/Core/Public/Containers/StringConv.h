@@ -754,7 +754,7 @@ public:
 		else
 		{
 			// Normal codepoint
-			*(OutputIterator++) = Codepoint;
+			*(OutputIterator++) = (ToType)Codepoint;
 		}
 
 		return UE_PTRDIFF_TO_INT32(OutputIterator - OutputIteratorStartPosition);
@@ -1159,16 +1159,31 @@ typedef TStringConversion<FUTF8ToTCHAR_Convert> FUTF8ToTCHAR;
 
 // special handling for platforms still using a 32-bit TCHAR
 #if PLATFORM_TCHAR_IS_4_BYTES
+
 typedef TStringConversion<TUTF32ToUTF16_Convert<TCHAR, UTF16CHAR>> FTCHARToUTF16;
 typedef TStringConversion<TUTF16ToUTF32_Convert<UTF16CHAR, TCHAR>> FUTF16ToTCHAR;
 #define TCHAR_TO_UTF16(str) (UTF16CHAR*)FTCHARToUTF16((const TCHAR*)str).Get()
 #define UTF16_TO_TCHAR(str) (TCHAR*)FUTF16ToTCHAR((const UTF16CHAR*)str).Get()
+
+static_assert(sizeof(TCHAR) == sizeof(UTF32CHAR), "TCHAR and UTF32CHAR are expected to be the same size for inline conversion! PLATFORM_TCHAR_IS_4_BYTES is not configured correctly for this platform.");
+typedef TStringPointer<TCHAR, UTF32CHAR> FTCHARToUTF32;
+typedef TStringPointer<UTF32CHAR, TCHAR> FUTF32ToTCHAR;
+#define TCHAR_TO_UTF32(str) (UTF32CHAR*)(str)
+#define UTF32_TO_TCHAR(str) (TCHAR*)(str)
+
 #else
+
 static_assert(sizeof(TCHAR) == sizeof(UTF16CHAR), "TCHAR and UTF16CHAR are expected to be the same size for inline conversion! PLATFORM_TCHAR_IS_4_BYTES is not configured correctly for this platform.");
 typedef TStringPointer<TCHAR, UTF16CHAR> FTCHARToUTF16;
 typedef TStringPointer<UTF16CHAR, TCHAR> FUTF16ToTCHAR;
 #define TCHAR_TO_UTF16(str) (UTF16CHAR*)(str)
 #define UTF16_TO_TCHAR(str) (TCHAR*)(str)
+
+typedef TStringConversion<TUTF16ToUTF32_Convert<TCHAR, UTF32CHAR>> FTCHARToUTF32;
+typedef TStringConversion<TUTF32ToUTF16_Convert<UTF32CHAR, TCHAR>> FUTF32ToTCHAR;
+#define TCHAR_TO_UTF32(str) (UTF32CHAR*)FTCHARToUTF32((const TCHAR*)str).Get()
+#define UTF32_TO_TCHAR(str) (TCHAR*)FUTF32ToTCHAR((const UTF32CHAR*)str).Get()
+
 #endif
 
 // special handling for going from char16_t to wchar_t for third party libraries that need wchar_t
