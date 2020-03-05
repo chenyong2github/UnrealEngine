@@ -489,10 +489,10 @@ namespace Audio
 		void ReadNextBuffer();
 
 		/** Reset the fade state (use if reusing audio platform interface, e.g. in main audio device. */
-		void FadeIn();
+		virtual void FadeIn();
 
 		/** Start a fadeout. Prevents pops during shutdown. */
-		void FadeOut();
+		virtual void FadeOut();
 
 		/** Returns the last error generated. */
 		FString GetLastError() const { return LastError; }
