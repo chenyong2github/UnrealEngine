@@ -2279,6 +2279,7 @@ public:
 	virtual FGraphEventRef PreloadShaderMap(int32 ShaderMapIndex) { return FGraphEventRef(); }
 
 	virtual TRefCountPtr<FRHIShader> CreateShader(int32 ShaderIndex) { return nullptr; }
+	virtual void Teardown() {};
 
 protected:
 	EShaderPlatform Platform;

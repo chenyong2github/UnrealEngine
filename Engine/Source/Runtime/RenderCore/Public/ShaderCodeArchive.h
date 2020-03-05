@@ -151,6 +151,7 @@ public:
 	virtual FGraphEventRef PreloadShaderMap(int32 ShaderMapIndex) override;
 
 	virtual TRefCountPtr<FRHIShader> CreateShader(int32 Index) override;
+	virtual void Teardown() override;
 
 protected:
 	FShaderCodeArchive(EShaderPlatform InPlatform, const FString& InLibraryDir, const FString& InLibraryName);
