@@ -704,8 +704,9 @@ static inline void FastHashName(wchar_t Name[17], uint64 Hash)
 {
 	for (int32 i = 0; i < 16; i++)
 	{
-		Name[i] = (Hash & 0xF) + 'A';
-		Hash >>= 4;
+		Hash = (Hash << 4) | (Hash >> 60); // rol
+		auto Ch = (Hash & 0xF);
+		Name[i] = Ch + ((Ch < 10)? '0' : 'A' - 10);
 	}
 	Name[16] = 0;
 }
@@ -730,7 +731,7 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 		HRESULT hr = CreatePipelineStateFromStream(*PSO, pDevice2, &StreamDesc, static_cast<ID3D12PipelineLibrary1*>(CreationArgs->Library), Name);	// Static cast to ID3D12PipelineLibrary1 since we already checked for ID3D12Device2.
 		if (FAILED(hr))
 		{
-			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Graphics PSO with hash %s"), Name);
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Graphics PSO with hash 0x%s"), Name);
 
 			DumpShaderAsm(Stream.VS, TEXT("VS"));
 			DumpShaderAsm(Stream.GS, TEXT("GS"));
@@ -745,7 +746,7 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 		HRESULT hr = CreatePipelineState(*PSO, Adapter->GetD3DDevice(), &Desc, CreationArgs->Library, Name);
 		if (FAILED(hr))
 		{
-			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Graphics PSO with hash %s"), Name);
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Graphics PSO with hash 0x%s"), Name);
 
 			DumpShaderAsm(Desc.VS, TEXT("VS"));
 			DumpShaderAsm(Desc.GS, TEXT("GS"));
@@ -776,7 +777,7 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 		HRESULT hr = CreatePipelineStateFromStream(*PSO, pDevice2, &StreamDesc, static_cast<ID3D12PipelineLibrary1*>(CreationArgs->Library), Name);	// Static cast to ID3D12PipelineLibrary1 since we already checked for ID3D12Device2.
 		if (FAILED(hr))
 		{
-			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Compute PSO with hash %s"), Name);
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Compute PSO with hash 0x%s"), Name);
 
 			DumpShaderAsm(Stream.CS, TEXT("CS"));
 		}
@@ -787,7 +788,7 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 		HRESULT hr = CreatePipelineState(*PSO, Adapter->GetD3DDevice(), &Desc, CreationArgs->Library, Name);
 		if (FAILED(hr))
 		{
-			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Compute PSO with hash %s"), Name);
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create Compute PSO with hash 0x%s"), Name);
 
 			DumpShaderAsm(Desc.CS, TEXT("CS"));
 		}
