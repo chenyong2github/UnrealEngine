@@ -138,7 +138,8 @@ public:
 		: _AllowCreatingNew(true)
 		, _ShowGraphParameters(true)
 		, _AutoExpandMenu(false)
-		, _IsParameterRead(true) {}
+		, _IsParameterRead(true)
+		, _NewParameterScope(ENiagaraParameterScope::Particles) {}
 		SLATE_EVENT(FOnAddParameter, OnAddParameter)
 		SLATE_EVENT(FOnCollectCustomActions, OnCollectCustomActions)
 		SLATE_EVENT(FOnAllowMakeType, OnAllowMakeType)
@@ -146,9 +147,10 @@ public:
 		SLATE_ATTRIBUTE(bool, ShowGraphParameters)
 		SLATE_ATTRIBUTE(bool, AutoExpandMenu)
 		SLATE_ATTRIBUTE(bool, IsParameterRead)
+		SLATE_ARGUMENT(ENiagaraParameterScope, NewParameterScope)
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, TArray<TWeakObjectPtr<UNiagaraGraph>> InGraphs, ENiagaraParameterScope InNewParameterScope);
+	void Construct(const FArguments& InArgs, TArray<TWeakObjectPtr<UNiagaraGraph>> InGraphs);
 
 	TSharedRef<SEditableTextBox> GetSearchBox();
 
