@@ -30,7 +30,7 @@ void SDataprepFilter::Construct(const FArguments& InArgs, UDataprepFilter& InFil
 	TAttribute<FText> TooltipTextAttribute = MakeAttributeSP( this, &SDataprepFilter::GetTooltipText );
 	SetToolTipText( TooltipTextAttribute );
 
-	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments(), InDataprepActionContext );
+	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments().IsSimplified(InArgs._IsSimplified), InDataprepActionContext );
 }
 
 void SDataprepFilter::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -44,9 +44,10 @@ void SDataprepFilter::Tick(const FGeometry& AllottedGeometry, const double InCur
 	}
 }
 
-FLinearColor SDataprepFilter::GetOutlineColor() const
+FSlateColor SDataprepFilter::GetOutlineColor() const
 {
-	return FDataprepEditorStyle::GetColor( "DataprepActionStep.Filter.OutlineColor" );
+	static const FSlateColor OutlineColor = FDataprepEditorStyle::GetColor( "DataprepActionStep.Filter.OutlineColor" );
+	return OutlineColor;
 }
 
 FText SDataprepFilter::GetBlockTitle() const

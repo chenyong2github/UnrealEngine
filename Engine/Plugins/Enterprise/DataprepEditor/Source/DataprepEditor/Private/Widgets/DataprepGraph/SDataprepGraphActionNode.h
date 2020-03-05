@@ -38,6 +38,7 @@ public:
 	// End of SWidget interface
 
 	// SGraphNode interface
+	virtual void UpdateGraphNode() override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
@@ -59,8 +60,11 @@ public:
 	/** Set index of step node being dragged */
 	void SetDraggedIndex(int32 Index);
 
-	/** Set index of step node being hovered */
+	/** Get/Set index of step node being hovered */
+	int32 GetHoveredIndex() { return InsertIndex; }
 	void SetHoveredIndex(int32 Index);
+
+	static TSharedRef<SWidget> CreateBackground(const TAttribute<FSlateColor>& ColorAndOpacity);
 
 private:
 	/** Callback to handle changes on array of steps in action */
@@ -68,6 +72,8 @@ private:
 
 	/** Reconstructs the list of widgets associated with the action's steps */
 	void PopulateActionStepListWidget();
+
+	FMargin GetOuterPadding() const;
 
 private:
 	/** Weak pointer to the associated action asset */
@@ -96,4 +102,6 @@ private:
 
 	/** Array of strong pointers to the UEdGraphNodes created for the action's steps */
 	TArray<TStrongObjectPtr<UDataprepGraphActionStepNode>> EdGraphStepNodes;
+
+	friend SDataprepGraphActionProxyNode;
 };

@@ -14,7 +14,10 @@ struct FDataprepSchemaActionContext;
 
 class SDataprepSelectionTransform : public SDataprepActionBlock, public FGCObject
 {
-	SLATE_BEGIN_ARGS(SDataprepSelectionTransform) {}
+	SLATE_BEGIN_ARGS(SDataprepSelectionTransform)
+	: _IsSimplified(false)
+	{}
+		SLATE_ARGUMENT( bool, IsSimplified )
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UDataprepSelectionTransform* InTransform, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext);
@@ -22,7 +25,7 @@ class SDataprepSelectionTransform : public SDataprepActionBlock, public FGCObjec
 protected:
 
 	// SDataprepActionBlock interface
-	virtual FLinearColor GetOutlineColor() const override;
+	virtual FSlateColor GetOutlineColor() const override;
 	virtual FText GetBlockTitle() const override;
 	virtual TSharedRef<SWidget> GetContentWidget() override;
 	//~ end of SDataprepActionBlock interface
