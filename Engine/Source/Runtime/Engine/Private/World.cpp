@@ -3225,7 +3225,7 @@ void FStreamingLevelsToConsider::EndConsideration()
 	{
 		// For any streaming level that was added or had its priority changed while we were considering the
 		// streaming levels go through and ensure they are correctly in the map and sorted to the correct location
-		TMap<ULevelStreaming*, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
+		TSortedMap<ULevelStreaming*, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
 		for (const TPair<ULevelStreaming*,EProcessReason>& LevelToProcessPair : LevelsToProcessCopy)
 		{
 			if (ULevelStreaming* StreamingLevel = LevelToProcessPair.Key)
