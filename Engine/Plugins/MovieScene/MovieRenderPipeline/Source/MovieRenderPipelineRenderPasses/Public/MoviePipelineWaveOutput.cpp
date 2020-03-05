@@ -28,6 +28,8 @@ void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 		return;
 	}
 
+	ActiveWriters.Reset();
+
 	// There should be no active submixes by the time we finalize - they should all have been converted to recorded samples.
 	check(GetPipeline()->GetAudioState().ActiveSubmixes.Num() == 0);
 
@@ -130,13 +132,21 @@ void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 			FileFolder = FinalFilePath.Left(LastFolderSeparator);
 			FileName = FinalFilePath.RightChop(LastFolderSeparator + 1);
 		}
+
+		const bool bIsRelativePath = FPaths::IsRelative(FileFolder);
+		if (bIsRelativePath)
+		{
+			FileFolder = FPaths::ConvertRelativePathToFull(FileFolder);
+		}
 		
 		OutstandingWrites++;
-		Audio::FSoundWavePCMWriter Writer;
-		Writer.BeginWriteToWavFile(SampleBuffer, FileName, FileFolder, [this]()
+		TUniquePtr<Audio::FSoundWavePCMWriter> Writer = MakeUnique<Audio::FSoundWavePCMWriter>();
+		Writer->BeginWriteToWavFile(SampleBuffer, FileName, FileFolder, [this]()
 		{
 			this->OutstandingWrites--;
 		});
+
+		ActiveWriters.Add(MoveTemp(Writer));
 	}
 }
 
