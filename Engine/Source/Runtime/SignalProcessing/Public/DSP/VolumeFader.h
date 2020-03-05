@@ -26,7 +26,7 @@ namespace Audio
 
 
 	/** Control-rate fader for managing volume fades of various standard shapes. */
-	class AUDIOMIXER_API FVolumeFader
+	class SIGNALPROCESSING_API FVolumeFader
 	{
 	public:
 		FVolumeFader();

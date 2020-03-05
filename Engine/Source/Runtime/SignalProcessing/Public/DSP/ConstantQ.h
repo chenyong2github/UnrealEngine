@@ -16,7 +16,7 @@ namespace Audio
 	};
 
 	/** Settings for Pseudo Constant Q Kernel generation. */
-	struct AUDIOMIXER_API FPseudoConstantQKernelSettings
+	struct SIGNALPROCESSING_API FPseudoConstantQKernelSettings
 	{
 		int32 NumBands;									//< Total number of resulting constant Q bands.
 		float NumBandsPerOctave;							//< Number of bands to space within an octave.
@@ -50,6 +50,6 @@ namespace Audio
 	 *
 	 *  Returns a TUniquePtr to a FContiguousSparse2DKernelTransform.
 	 */
-	AUDIOMIXER_API TUniquePtr<FContiguousSparse2DKernelTransform> NewPseudoConstantQKernelTransform(const FPseudoConstantQKernelSettings& InSettings, const int32 InFFTSize, const float InSampleRate);
+	SIGNALPROCESSING_API TUniquePtr<FContiguousSparse2DKernelTransform> NewPseudoConstantQKernelTransform(const FPseudoConstantQKernelSettings& InSettings, const int32 InFFTSize, const float InSampleRate);
 
 }
