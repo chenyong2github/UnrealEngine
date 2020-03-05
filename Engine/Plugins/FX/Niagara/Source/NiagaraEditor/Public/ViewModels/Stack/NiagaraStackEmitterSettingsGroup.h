@@ -33,6 +33,8 @@ protected:
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
+	virtual void RefreshIssues(TArray<FStackIssue>& NewIssues);
+
 private:
 	void EmitterPropertiesChanged();
 
