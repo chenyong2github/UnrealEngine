@@ -208,9 +208,6 @@ void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneV
 
 UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if WITH_EDITOR
-	, bShowTitleSafeZone(true)
-#endif
 	, EngineShowFlags(ESFIM_Game)
 	, CurrentBufferVisualizationMode(NAME_None)
 	, HighResScreenshotDialog(NULL)
@@ -295,9 +292,6 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 
 UGameViewportClient::UGameViewportClient(FVTableHelper& Helper)
 	: Super(Helper)
-#if WITH_EDITOR
-	, bShowTitleSafeZone(true)
-#endif
 	, EngineShowFlags(ESFIM_Game)
 	, CurrentBufferVisualizationMode(NAME_None)
 	, HighResScreenshotDialog(NULL)
@@ -2033,12 +2027,8 @@ bool UGameViewportClient::IsOrtho() const
 void UGameViewportClient::PostRender(UCanvas* Canvas)
 {
 #if WITH_EDITOR
-	if(bShowTitleSafeZone)
-	{
-		DrawTitleSafeArea(Canvas);
-	}
+	DrawTitleSafeArea(Canvas);
 #endif
-
 	// Draw the transition screen.
 	DrawTransition(Canvas);
 }
@@ -2080,9 +2070,19 @@ void UGameViewportClient::SSSwapControllers()
 
 void UGameViewportClient::ShowTitleSafeArea()
 {
-#if !UE_BUILD_SHIPPING
-	bShowTitleSafeZone = !bShowTitleSafeZone;
-#endif
+	static IConsoleVariable* DebugSafeZoneModeCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DebugSafeZone.Mode"));
+	if (DebugSafeZoneModeCvar)
+	{
+		const int32 DebugSafeZoneMode = DebugSafeZoneModeCvar->GetInt();
+		if (DebugSafeZoneMode != 1)
+		{
+			DebugSafeZoneModeCvar->Set(1);
+		}
+		else
+		{
+			DebugSafeZoneModeCvar->Set(0);
+		}
+	}
 }
 
 void UGameViewportClient::SetConsoleTarget(int32 PlayerIndex)
@@ -2507,18 +2507,35 @@ bool UGameViewportClient::CalculateDeadZoneForAllSides( ULocalPlayer* LPlayer, U
 void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 {
 #if WITH_EDITOR
+	// If we have a valid player hud, then the title area has already rendered.
+	APlayerController* FirstPlayerController = GetWorld()->GetFirstPlayerController();
+	if (FirstPlayerController && FirstPlayerController->GetHUD())
+	{
+		return;
+	}
+
+	// If r.DebugSafeZone.Mode isn't set to draw title area, don't draw it.
+	static IConsoleVariable* SafeZoneModeCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DebugSafeZone.Mode"));
+	if (SafeZoneModeCvar && (SafeZoneModeCvar->GetInt() != 1))
+	{
+		return;
+	}
+
 	FMargin SafeZone;
 	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
 
 	float Width, Height;
 	GetPixelSizeOfScreen(Width, Height, Canvas, 0);
 
-	const FLinearColor UnsafeZoneColor(1.0f, 0.0f, 0.0f, 0.25f);
+	FLinearColor UnsafeZoneColor(1.0f, 0.0f, 0.0f, 0.25f);
+	static IConsoleVariable* AlphaCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DebugSafeZone.OverlayAlpha"));
+	if (AlphaCvar)
+	{
+		UnsafeZoneColor.A = AlphaCvar->GetFloat();
+	}
+
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, GWhiteTexture, UnsafeZoneColor);
 	TileItem.BlendMode = SE_BLEND_Translucent;
-
-	// Command line override used by mobile PIE.
-	static bool bDrawUnSafeZones = FParse::Param(FCommandLine::Get(), TEXT("DrawUnSafeZones"));
 
 	// CalculateSafeZoneValues() can be slow, so we only want to run it if we have boundaries to draw
 	if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.f)
@@ -2545,7 +2562,7 @@ void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 		TileItem.Size = FVector2D(SafeZone.Right, HeightOfSides);
 		Canvas->DrawItem(TileItem);
 	}
-	else if (!FSlateApplication::Get().GetCustomSafeZone().GetDesiredSize().IsZero() || bDrawUnSafeZones)
+	else if (!FSlateApplication::Get().GetCustomSafeZone().GetDesiredSize().IsZero())
 	{
 		ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
 		PlaySettings->CalculateCustomUnsafeZones(PlaySettings->CustomUnsafeZoneStarts, PlaySettings->CustomUnsafeZoneDimensions, PlaySettings->DeviceToEmulate, FVector2D(Width, Height));

@@ -587,8 +587,12 @@ protected:
 	{
 		FDisplayMetrics DisplayMetrics;
 		GetDisplayMetrics(DisplayMetrics);
-		CustomSafeZoneRatio = FMargin();
-		OnDebugSafeZoneChanged.Broadcast(FMargin(), false);
+
+		if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.0f)
+		{
+			CustomSafeZoneRatio = FMargin();
+			OnDebugSafeZoneChanged.Broadcast(FMargin(), false);
+		}
 	}
 #endif
 
