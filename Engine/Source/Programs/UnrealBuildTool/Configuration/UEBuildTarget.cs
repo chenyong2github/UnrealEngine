@@ -2067,24 +2067,7 @@ namespace UnrealBuildTool
 			FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
 			FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
 
-			Action CopyAction = new Action(ActionType.BuildProject);
-			CopyAction.CommandDescription = "Copy";
-			CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
-			if(BuildHostPlatform.Current.ShellType == ShellType.Cmd)
-			{
-				CopyAction.CommandArguments = String.Format("/C \"copy /Y \"{0}\" \"{1}\" 1>nul\"", SourceFile, TargetFile);
-			}
-			else
-			{
-				CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
-			}
-			CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-			CopyAction.PrerequisiteItems.Add(SourceFileItem);
-			CopyAction.ProducedItems.Add(TargetFileItem);
-			CopyAction.DeleteItems.Add(TargetFileItem);
-			CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
-			CopyAction.bCanExecuteRemotely = false;
-			Actions.Add(CopyAction);
+			Actions.Add(Action.CreateCopyAction(SourceFileItem, TargetFileItem));
 
 			return TargetFileItem;
 		}

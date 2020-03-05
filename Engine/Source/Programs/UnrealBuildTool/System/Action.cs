@@ -367,6 +367,34 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Creates an action which copies a file from one location to another
+		/// </summary>
+		/// <param name="SourceFile">The source file location</param>
+		/// <param name="TargetFile">The target file location</param>
+		/// <returns>File item for the output file</returns>
+		public static Action CreateCopyAction(FileItem SourceFile, FileItem TargetFile)
+		{
+			Action CopyAction = new Action(ActionType.BuildProject);
+			CopyAction.CommandDescription = "Copy";
+			CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
+			if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
+			{
+				CopyAction.CommandArguments = String.Format("/C \"copy /Y \"{0}\" \"{1}\" 1>nul\"", SourceFile.AbsolutePath, TargetFile.AbsolutePath);
+			}
+			else
+			{
+				CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.AbsolutePath, TargetFile.AbsolutePath);
+			}
+			CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			CopyAction.PrerequisiteItems.Add(SourceFile);
+			CopyAction.ProducedItems.Add(TargetFile);
+			CopyAction.DeleteItems.Add(TargetFile);
+			CopyAction.StatusDescription = TargetFile.Location.GetFileName();
+			CopyAction.bCanExecuteRemotely = false;
+			return CopyAction;
+		}
+
+		/// <summary>
 		/// Creates an action which calls UBT recursively
 		/// </summary>
 		/// <param name="Type">Type of the action</param>
