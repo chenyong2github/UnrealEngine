@@ -32,7 +32,7 @@ namespace GeometryCollectionExample {
 	TSharedPtr<FGeometryCollection>	CreateClusteredBody_ThreeByTwo_ThreeTransform(FVector Position);
 	TSharedPtr<FGeometryCollection>	CreateClusteredBody_FracturedGeometry(FVector Position = FVector(0));
 
-	void InitMaterialToZero(TUniquePtr<Chaos::FChaosPhysicsMaterial> const &PhysicalMaterial);
+	void InitMaterialToZero(Chaos::FChaosPhysicsMaterial * PhysicalMaterial);
 
 	using FCollectionInitFunc = TFunction<void(TSharedPtr<FGeometryCollection>&)>;
 	struct InitCollectionsParameters
@@ -45,6 +45,13 @@ namespace GeometryCollectionExample {
 
 	void InitCollections(
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> &PhysicalMaterial,
+		TSharedPtr<FGeometryCollection>& RestCollection,
+		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
+		InitCollectionsParameters& InitParams
+	);
+
+	void InitCollections(
+		TSharedPtr<Chaos::FChaosPhysicsMaterial>& PhysicalMaterial,
 		TSharedPtr<FGeometryCollection>& RestCollection,
 		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
 		InitCollectionsParameters& InitParams

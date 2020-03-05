@@ -154,7 +154,7 @@ namespace GeometryCollectionExample
 	void Solver_ValidateReverseMapping()
 	{
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
-		InitMaterialToZero(PhysicalMaterial);
+		InitMaterialToZero(PhysicalMaterial.Get());
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		//Solver->SetHasFloor(true);
@@ -215,7 +215,7 @@ namespace GeometryCollectionExample
 	void CommonInit(int32 NumObjects, bool UseClusters, Chaos::FPBDRigidsSolver** SolverInOut, TUniquePtr<Chaos::FChaosPhysicsMaterial>& PhysicalMaterial, TArray<TSharedPtr<FGeometryCollection>>& RestArray, TArray<TSharedPtr<FGeometryDynamicCollection>>& DynamicArray)
 	{
 		PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
-		InitMaterialToZero(PhysicalMaterial);
+		InitMaterialToZero(PhysicalMaterial.Get());
 
 		*SolverInOut = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Chaos::FPBDRigidsSolver* Solver = *SolverInOut;
