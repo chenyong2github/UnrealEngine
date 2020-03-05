@@ -379,41 +379,6 @@ FVoiceChatDeviceInfo FVivoxVoiceChatUser::GetDefaultOutputDeviceInfo() const
 	return DeviceInfo;
 }
 
-void FVivoxVoiceChatUser::Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate)
-{
-	VivoxVoiceChat.Connect(Delegate);
-}
-
-void FVivoxVoiceChatUser::Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate)
-{
-	VivoxVoiceChat.Disconnect(Delegate);
-}
-
-bool FVivoxVoiceChatUser::IsConnecting() const
-{
-	return VivoxVoiceChat.IsConnecting();
-}
-
-bool FVivoxVoiceChatUser::IsConnected() const
-{
-	return VivoxVoiceChat.IsConnected();
-}
-
-FOnVoiceChatConnectedDelegate& FVivoxVoiceChatUser::OnVoiceChatConnected()
-{
-	return VivoxVoiceChat.OnVoiceChatConnected();
-}
-
-FOnVoiceChatDisconnectedDelegate& FVivoxVoiceChatUser::OnVoiceChatDisconnected()
-{
-	return VivoxVoiceChat.OnVoiceChatDisconnected();
-}
-
-FOnVoiceChatReconnectedDelegate& FVivoxVoiceChatUser::OnVoiceChatReconnected()
-{
-	return VivoxVoiceChat.OnVoiceChatReconnected();
-}
-
 void FVivoxVoiceChatUser::Login(FPlatformUserId PlatformId, const FString& PlayerName, const FString& Credentials, const FOnVoiceChatLoginCompleteDelegate& Delegate)
 {
 	FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
@@ -1010,6 +975,11 @@ bool FVivoxVoiceChatUser::IsInitialized()
 	return VivoxVoiceChat.IsInitialized();
 }
 
+bool FVivoxVoiceChatUser::IsConnected()
+{
+	return VivoxVoiceChat.IsConnected();
+}
+
 bool FVivoxVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if NO_LOGGING
@@ -1196,22 +1166,6 @@ bool FVivoxVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 			SetOutputDeviceId(FString());
 			return true;
 		}
-	}
-	else if (FParse::Command(&Cmd, TEXT("CONNECT")))
-	{
-		Connect(FOnVoiceChatConnectCompleteDelegate::CreateLambda([](const FVoiceChatResult& Result)
-		{
-			UE_LOG(LogVivoxVoiceChat, Log, TEXT("VIVOX CONNECT result:%s"), *LexToString(Result));
-		}));
-		return true;
-	}
-	else if (FParse::Command(&Cmd, TEXT("DISCONNECT")))
-	{
-		Disconnect(FOnVoiceChatDisconnectCompleteDelegate::CreateLambda([](const FVoiceChatResult& Result)
-		{
-			UE_LOG(LogVivoxVoiceChat, Log, TEXT("VIVOX DISCONNECT result:%s"), *LexToString(Result));
-		}));
-		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("LOGIN")))
 	{
@@ -2323,6 +2277,22 @@ bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 		else if (FParse::Command(&Cmd, TEXT("UNINITIALIZE")))
 		{
 			Uninitialize();
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("CONNECT")))
+		{
+			Connect(FOnVoiceChatConnectCompleteDelegate::CreateLambda([](const FVoiceChatResult& Result)
+			{
+				UE_LOG(LogVivoxVoiceChat, Log, TEXT("VIVOX CONNECT result:%s"), *LexToString(Result));
+			}));
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("DISCONNECT")))
+		{
+			Disconnect(FOnVoiceChatDisconnectCompleteDelegate::CreateLambda([](const FVoiceChatResult& Result)
+			{
+				UE_LOG(LogVivoxVoiceChat, Log, TEXT("VIVOX DISCONNECT result:%s"), *LexToString(Result));
+			}));
 			return true;
 		}
 		else if (FParse::Command(&Cmd, TEXT("CREATEUSER")))

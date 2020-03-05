@@ -351,51 +351,6 @@ public:
 	virtual FVoiceChatDeviceInfo GetDefaultOutputDeviceInfo() const = 0;
 
 	/**
-	 * Connect to a voice server
-	 *
-	 * @param Delegate delegate called once connect completes
-	 */
-	virtual void Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate) = 0;
-
-	/**
-	 * Disconnect from a voice server
-	 *
-	 * @param Delegate delegate called once disconnect completes
-	 */
-	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) = 0;
-
-	/**
-	* Are we connecting to the voice server?
-	*
-	* @return true if we are connecting to the voice server
-	*/
-	virtual bool IsConnecting() const = 0;
-
-	/**
-	 * Are we connected to the voice server?
-	 *
-	 * @return true if we are connected to the voice server
-	 */
-	virtual bool IsConnected() const = 0;
-
-	/**
-	 * Delegate triggered when we are connected to voice chat
-	 */
-	virtual FOnVoiceChatConnectedDelegate& OnVoiceChatConnected() = 0;
-
-	/**
-	 * Delegate triggered when we are disconnected from voice chat
-	 */
-	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() = 0;
-
-	/**
-	 * Delegate triggered when we are reconnected to voice chat in cases where the underlying implementation disconnected
-	 * and then reconnected. This is most commonly seen when an application resumes after being suspended. If the disconnect
-	 * is unexpected, OnVoiceChatDisconnected will be called instead.
-	 */
-	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() = 0;
-
-	/**
 	 * Login to the connected voice server
 	 *
 	 * @param PlatformId Platform user Id for the player logging in
@@ -687,6 +642,51 @@ public:
 	 * @return true if voice chat is initialized
 	 */
 	virtual bool IsInitialized() const = 0;
+
+	/**
+	 * Connect to a voice server
+	 *
+	 * @param Delegate delegate called once connect completes
+	 */
+	virtual void Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate) = 0;
+
+	/**
+	 * Disconnect from a voice server
+	 *
+	 * @param Delegate delegate called once disconnect completes
+	 */
+	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) = 0;
+
+	/**
+	* Are we connecting to the voice server?
+	*
+	* @return true if we are connecting to the voice server
+	*/
+	virtual bool IsConnecting() const = 0;
+
+	/**
+	 * Are we connected to the voice server?
+	 *
+	 * @return true if we are connected to the voice server
+	 */
+	virtual bool IsConnected() const = 0;
+
+	/**
+	 * Delegate triggered when we are connected to voice chat
+	 */
+	virtual FOnVoiceChatConnectedDelegate& OnVoiceChatConnected() = 0;
+
+	/**
+	 * Delegate triggered when we are disconnected from voice chat
+	 */
+	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() = 0;
+
+	/**
+	 * Delegate triggered when we are reconnected to voice chat in cases where the underlying implementation disconnected
+	 * and then reconnected. This is most commonly seen when an application resumes after being suspended. If the disconnect
+	 * is unexpected, OnVoiceChatDisconnected will be called instead.
+	 */
+	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() = 0;
 
 	/**
 	 * Allocate an interface for an additional user // TODO: document limitations
