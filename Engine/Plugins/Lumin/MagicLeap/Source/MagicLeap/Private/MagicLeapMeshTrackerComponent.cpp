@@ -460,6 +460,8 @@ void UMagicLeapMeshTrackerComponent::ConnectMRMesh(UMRMeshComponent* InMRMeshPtr
 	{
 		InMRMeshPtr->SetConnected(true);
 		MRMesh = InMRMeshPtr;
+		// Enabling occlusion on the MRMesh prevents flickering due to an unknown UE4 issue.
+		MRMesh->SetEnableMeshOcclusion(true);
 		Impl->OnClearDelegateHandle = MRMesh->OnClear().AddRaw(Impl, &FMagicLeapMeshTrackerImpl::OnClear);
 	}
 }
