@@ -41,5 +41,8 @@ public class UnrealCEFSubProcessTarget : TargetRules
 
 		// Epic Games Launcher needs to run on OS X 10.9, so CEFSubProcess needs this as well
 		bEnableOSX109Support = true;
+
+		// Already a manifest specified through resource file
+		WindowsPlatform.ManifestFile = null;
 	}
 }
