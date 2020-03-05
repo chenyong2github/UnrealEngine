@@ -28,8 +28,18 @@ namespace AutomationCommon
 
 #if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
 
-	/** Gets a path used for automation testing (PNG sent to the AutomationTest folder) */
-	ENGINE_API void GetScreenshotPath(const FString& TestName, FString& OutScreenshotName);
+	/** Gets a name to be used for this screenshot.  This will return something like 
+		TestName/PlatformName/DeviceName.png. It's important to understand that a screenshot
+		generated on a device will likely have a different absolute path than the editor so this
+		name should be used with	*/
+	ENGINE_API FString GetScreenshotName(const FString& TestName);
+
+	/** 
+	This function takes the result of GetScreenshotName and will return the complete path to where a
+	screenshot can/should be found on the local device. This cannot reliably be used when communicating between
+	the editor and a test worker!
+	*/
+	ENGINE_API FString GetLocalPathForScreenshot(const FString& InScreenshotName);
 
 	ENGINE_API FAutomationScreenshotData BuildScreenshotData(const FString& MapOrContext, const FString& TestName, int32 Width, int32 Height);
 

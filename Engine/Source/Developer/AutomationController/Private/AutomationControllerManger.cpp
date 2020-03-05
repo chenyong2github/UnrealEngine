@@ -1036,8 +1036,20 @@ void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWor
 
 	bool bTree = true;
 	FString FileName = ScreenshotIncomingFolder / Message.ScreenShotName;
-	IFileManager::Get().MakeDirectory(*FPaths::GetPath(FileName), bTree);
-	FFileHelper::SaveArrayToFile(Message.ScreenImage, *FileName);
+
+	FString DirectoryPath = FPaths::GetPath(FileName);
+
+	if (!IFileManager::Get().MakeDirectory(*DirectoryPath, bTree))
+	{
+		UE_LOG(LogAutomationController, Error, TEXT("Failed to create directory %s for incoming screenshot"), *DirectoryPath);
+		return;
+	}
+	
+	if (!FFileHelper::SaveArrayToFile(Message.ScreenImage, *FileName))
+	{
+		UE_LOG(LogAutomationController, Error, TEXT("Failed to save screenshot to %s"), *FileName);
+		return;
+	}
 
 	// TODO Automation There is identical code in, Engine\Source\Runtime\AutomationWorker\Private\AutomationWorkerModule.cpp,
 	// need to move this code into common area.

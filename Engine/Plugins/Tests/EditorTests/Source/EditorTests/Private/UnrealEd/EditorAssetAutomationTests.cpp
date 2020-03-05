@@ -962,7 +962,7 @@ namespace ImportExportAssetHelper
 			{
 				FString ScreenshotName;
 				const FString TestName = FString::Printf(TEXT("AssetImportExport/Screenshots/%s"), *ImportedAsset->GetName());
-				AutomationCommon::GetScreenshotPath(TestName, ScreenshotName);
+				ScreenshotName = AutomationCommon::GetScreenshotName(TestName);
 
 				TSharedRef<SWidget> WindowRef = ActiveWindow.ToSharedRef();
 
@@ -973,7 +973,7 @@ namespace ImportExportAssetHelper
 					FAutomationScreenshotData Data;
 					Data.Width = OutImageSize.X;
 					Data.Height = OutImageSize.Y;
-					Data.Path = ScreenshotName;
+					Data.ScreenshotName = ScreenshotName;
 					FAutomationTestFramework::Get().OnScreenshotCaptured().ExecuteIfBound(OutImageData, Data);
 				}
 
