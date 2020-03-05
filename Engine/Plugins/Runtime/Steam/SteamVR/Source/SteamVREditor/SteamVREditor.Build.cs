@@ -50,7 +50,8 @@ public class SteamVREditor : ModuleRules
                 "SteamVRInput",
                 "SteamVRInputDevice",
                 "BlueprintGraph",
-                "AnimGraph"
+                "AnimGraph",
+				"ToolMenus"
             }
 			);
 

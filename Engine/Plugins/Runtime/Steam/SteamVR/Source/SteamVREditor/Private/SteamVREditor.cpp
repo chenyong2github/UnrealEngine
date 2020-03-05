@@ -44,6 +44,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "DetailWidgetRow.h"
 #include "Runtime/Core/Public/CoreGlobals.h"
 #include "Runtime/Core/Public/Misc/ConfigCacheIni.h"
+#include "ToolMenus.h"
 
 static const FName SteamVREditorTabName("SteamVREditor");
 
@@ -96,16 +97,41 @@ void FSteamVREditorModule::StartupModule()
 		FExecuteAction::CreateRaw(this, &FSteamVREditorModule::AddSampleInputs),
 		FCanExecuteAction());
 
+	FSteamVREditorStyle MenuStyle = FSteamVREditorStyle();
+	MenuStyle.Initialize();
+
+	UToolMenu* ToolBar = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar");
+	FToolMenuSection& Section = ToolBar->FindOrAddSection("Settings");
+	Section.AddEntry(FToolMenuEntry::InitComboButton(
+		"SteamVR Input",
+		FUIAction(
+			FExecuteAction(),
+			FCanExecuteAction(),
+			FGetActionCheckState(),
+			FIsActionButtonVisible::CreateRaw(this, &FSteamVREditorModule::ShowSteamVRInputToolbarDropdown)
+		),
+		FOnGetContent::CreateRaw(this, &FSteamVREditorModule::FillComboButton, PluginCommands),
+		LOCTEXT("SteamVRInputBtn", "SteamVR Input"),
+		LOCTEXT("SteamVRInputBtnTootlip", "SteamVR Input"),
+		FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.PluginAction")
+	));
+}
+
+bool FSteamVREditorModule::ShowSteamVRInputToolbarDropdown()
+{
 	// Only add the toolbar if SteamVR is the currently active tracking system
 	static FName SystemName(TEXT("SteamVR"));
 	if (GEngine && GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetSystemName() == SystemName))
 	{
-		TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-		ToolbarExtender->AddToolBarExtension("Settings", EExtensionHook::After, PluginCommands, FToolBarExtensionDelegate::CreateRaw(this, &FSteamVREditorModule::AddToolbarExtension));
-
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
+		// Only show the toolbar button if enabled by the user for this project.  Setting is under Project Settings > PLugins > SteamVR now instead.
+		bool bShowSteamVrInputToolbarButton;
+		if (GConfig->GetBool(TEXT("/Script/SteamVREditor.SteamVREditorSettings"), TEXT("bShowSteamVrInputToolbarButton"), bShowSteamVrInputToolbarButton, GEditorIni) && bShowSteamVrInputToolbarButton)
+		{
+			return true;
+		}
 	}
+	
+	return false;
 }
 
 void FSteamVREditorModule::ShutdownModule()
@@ -310,36 +336,6 @@ bool FSteamVREditorModule::AddUniqueActionMapping(TArray<FInputActionKeyMapping>
 	}
 
 	return false;
-}
-
-void FSteamVREditorModule::AddMenuExtension(FMenuBuilder& Builder)
-{
-	Builder.AddMenuEntry(FSteamVREditorCommands::Get().PluginAction);
-}
-
-void FSteamVREditorModule::AddToolbarExtension(FToolBarBuilder& Builder)
-{
-	// Only show the toolbar button if enabled by the user for this project.  Setting is under Project Settings > PLugins > SteamVR now instead.
-	bool bShowSteamVrInputToolbarButton;
-	if (GConfig->GetBool(TEXT("/Script/SteamVREditor.SteamVREditorSettings"), TEXT("bShowSteamVrInputToolbarButton"), bShowSteamVrInputToolbarButton, GEditorIni) && bShowSteamVrInputToolbarButton)
-	{
-		FSteamVREditorStyle MenuStyle = FSteamVREditorStyle();
-		MenuStyle.Initialize();
-
-		static const FName SteamVRInputSectionName = FName("SteamVR Input");
-
-		Builder.BeginSection(SteamVRInputSectionName);
-
-		Builder.AddComboButton(
-			FUIAction(FExecuteAction::CreateRaw(this, &FSteamVREditorModule::PluginButtonClicked)),
-			FOnGetContent::CreateRaw(this, &FSteamVREditorModule::FillComboButton, PluginCommands),
-			LOCTEXT("SteamVRInputBtn", "SteamVR Input"),
-			LOCTEXT("SteamVRInputBtnTootlip", "SteamVR Input"),
-			FSlateIcon(FSteamVREditorStyle::GetStyleSetName(), "SteamVREditor.PluginAction")
-		);
-
-		Builder.EndSection();
-	}
 }
 
 TSharedRef<SWidget> FSteamVREditorModule::FillComboButton(TSharedPtr<class FUICommandList> Commands)
