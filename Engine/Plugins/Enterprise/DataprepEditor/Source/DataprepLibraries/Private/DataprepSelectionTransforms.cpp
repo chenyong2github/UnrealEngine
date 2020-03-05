@@ -85,4 +85,67 @@ void UDataprepReferenceSelectionTransform::OnExecution_Implementation(const TArr
 	OutObjects.Append(Assets.Array());
 }
 
+void UDataprepHierarchySelectionTransform::OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects)
+{
+	TArray<AActor*> ActorsToVisit;
+
+	for (UObject* Object : InObjects)
+	{
+		if (!ensure(Object) || Object->IsPendingKill())
+		{
+			continue;
+		}
+
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			TArray<AActor*> Children;
+			Actor->GetAttachedActors( Children );
+
+			ActorsToVisit.Append( Children );
+		}
+	}
+
+	TSet<UObject*> NewSelection;
+
+	while ( ActorsToVisit.Num() > 0)
+	{
+		AActor* VisitedActor = ActorsToVisit.Pop();
+		if (VisitedActor == nullptr)
+		{
+			continue;
+		}
+
+		NewSelection.Add(VisitedActor);
+
+		if(SelectionPolicy == EDataprepHierarchySelectionPolicy::AllDescendants)
+		{
+			// Continue with children
+			TArray<AActor*> Children;
+			VisitedActor->GetAttachedActors( Children );
+
+			ActorsToVisit.Append( Children );
+		}
+	}
+
+	OutObjects.Append(NewSelection.Array());
+
+	if (bOutputCanIncludeInput)
+	{
+		OutObjects.Reserve( OutObjects.Num() + InObjects.Num());
+
+		for (UObject* Object : InObjects)
+		{
+			if (!ensure(Object) || Object->IsPendingKill())
+			{
+				continue;
+			}
+
+			if (AActor* Actor = Cast< AActor >(Object))
+			{
+				OutObjects.Add(Object);
+			}
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -45,8 +45,10 @@ void UDataprepAsset::PostLoad()
 {
 	UDataprepAssetInterface::PostLoad();
 
+#ifndef NO_BLUEPRINT
 	check(DataprepRecipeBP);
 	DataprepRecipeBP->OnChanged().AddUObject( this, &UDataprepAsset::OnDataprepBlueprintChanged );
+#endif
 
 	// Move content of deprecated properties to the corresponding new ones.
 	if(HasAnyFlags(RF_WasLoaded))
@@ -154,6 +156,15 @@ void UDataprepAsset::PostEditUndo()
 	OnActionChanged.Broadcast(nullptr, (ActionAssets.Num() == CachedActionCount) ? FDataprepAssetChangeType::ActionMoved : FDataprepAssetChangeType::ActionRemoved);
 
 	CachedActionCount = ActionAssets.Num();
+}
+
+void UDataprepAsset::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	UDataprepAssetInterface::PostDuplicate(DuplicateMode);
+
+	// Make sure the output level does not override the one from the original
+	FText OutReason;
+	Output->SetLevelName(GetName() + "_MAP", OutReason);
 }
 
 const UDataprepActionAsset* UDataprepAsset::GetAction(int32 Index) const
@@ -468,11 +479,13 @@ void UDataprepAsset::GetExistingParameterNamesForType(FProperty* Property, bool 
 #ifndef NO_BLUEPRINT
 void UDataprepAsset::OnDataprepBlueprintChanged( UBlueprint* InBlueprint )
 {
+#if 0
 	if(InBlueprint == DataprepRecipeBP)
 	{
 		UpdateActions();
 		OnChanged.Broadcast( FDataprepAssetChangeType::RecipeModified );
 	}
+#endif
 }
 
 void UDataprepAsset::UpdateActions(bool bNotify)

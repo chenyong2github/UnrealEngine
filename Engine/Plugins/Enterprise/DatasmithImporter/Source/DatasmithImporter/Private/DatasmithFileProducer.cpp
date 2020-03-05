@@ -423,7 +423,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 
 		UDatasmithContentBlueprintLibrary* DatasmithContentLibrary = Cast< UDatasmithContentBlueprintLibrary >( UDatasmithContentBlueprintLibrary::StaticClass()->GetDefaultObject() );
 
-		auto MoveAsset = [&DatasmithContentLibrary, &AssetRedirectorMap, &PackagesToCheck](UObject* Object, UPackage* NewPackage, bool bCheckPackage)
+		auto MoveAsset = [&](UObject* Object, UPackage* NewPackage, bool bCheckPackage)
 		{
 			if(Object->GetOutermost()->GetName() != NewPackage->GetName())
 			{
@@ -432,9 +432,9 @@ void UDatasmithFileProducer::PreventNameCollision()
 				Object->Rename( nullptr, NewPackage, REN_DontCreateRedirectors | REN_NonTransactional );
 
 				// Replace unique name id with hash of package path to avoid asset's name collision
-				FString DatasmithUniqueId = DatasmithContentLibrary->GetDatasmithUserDataValueForKey( Object, UDatasmithAssetUserData::UniqueIdMetaDataKey );
-				const FString ObjectPath = Object->GetPathName();
-				FString NewUniqueId = FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectPath), ObjectPath.Len() * sizeof(TCHAR) );
+				const FString DatasmithUniqueId = DatasmithContentLibrary->GetDatasmithUserDataValueForKey( Object, UDatasmithAssetUserData::UniqueIdMetaDataKey );
+				const FString ObjectIdent = DatasmithUniqueId + DatasmithScenePtr->GetName() + Object->GetName() + Object->GetClass()->GetName();
+				FString NewUniqueId = FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectIdent), ObjectIdent.Len() * sizeof(TCHAR) );
 
 				UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(Object, *(FString(TEXT("Old")) + UDatasmithAssetUserData::UniqueIdMetaDataKey), DatasmithUniqueId );
 				UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(Object, UDatasmithAssetUserData::UniqueIdMetaDataKey, NewUniqueId );

@@ -7,13 +7,37 @@
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
 
+#include "Engine/AssetUserData.h"
 #include "Engine/World.h"
 
 #include "DataprepContentConsumer.generated.h"
 
+/**
+ * A UDataprepConsumerUserData is used to mark an asset or an actor to be respectively moved to a sub-folder or sub-level
+ * A DataprepContentConsumer is not obligated to honor this marker 
+ */
+UCLASS(BlueprintType, meta = (ScriptName = "DataprepConsumerUserData", DisplayName = "Dataprep Consumer User Data"))
+class DATAPREPCORE_API UDataprepConsumerUserData : public UAssetUserData
+{
+	GENERATED_BODY()
+
+public:
+	void AddMarker(const FString& MarkerName, const FString& Value)
+	{
+		Markers.FindOrAdd(MarkerName) = Value;
+	}
+
+	const FString& GetMarker(const FString& MarkerName) const;
+
+protected:
+	/** Map for Dataprep entities to store data consumable or not by a consumer */
+	UPROPERTY()
+	TMap<FString,FString> Markers;
+};
+
 struct FDataprepConsumerContext
 {
-	FDataprepConsumerContext() {}
+	FDataprepConsumerContext() : bSilentMode(false) {}
 
 	FDataprepConsumerContext& SetWorld( UWorld* InWorld )
 	{ 
@@ -60,6 +84,12 @@ struct FDataprepConsumerContext
 
 	/** Hold onto the logger that the consumer should use to log messages */
 	TSharedPtr<  IDataprepLogger > LoggerPtr;
+
+	/**
+	 * Indicates the execution of the consumer must be silent
+	 * This member is true when executed in headless mode
+	 */
+	bool bSilentMode;
 };
 
 /**
@@ -163,6 +193,9 @@ public:
 	{
 		return OnChanged;
 	}
+
+	/** Name of marker to be used by consumers to indicate specific output for assets or actors */
+	static const FString RelativeOutput;
 
 protected:
 

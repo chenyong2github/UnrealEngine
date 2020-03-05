@@ -326,17 +326,9 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 		}
 		case EDataprepCategory::Consumers:
 		{
-			ConsumerWidget = SNew( SDataprepConsumerWidget )
-				.DataprepConsumer( DataprepAssetInterfacePtr->GetConsumer() )
-				.ColumnSizeData( ColumnSizeData );
-
 			TSharedPtr< SVerticalBox > ConsumerContainer = SNew( SVerticalBox )
 				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					ConsumerWidget.ToSharedRef()
-				]
-				+ SVerticalBox::Slot()
+				.Padding(10.0f, 5.0f, 0.0f, 5.0f)
 				.AutoHeight()
 				[
 					SNew( SDataprepDetailsView )
@@ -637,12 +629,7 @@ void SDataprepAssetView::OnDataprepAssetChanged(FDataprepAssetChangeType ChangeT
 {
 	if( UDataprepAssetInterface* DataprepAsset = DataprepAssetInterfacePtr.Get() )
 	{
-		if(ChangeType == FDataprepAssetChangeType::ConsumerModified)
-		{
-			// Update the widget holding the consumer
-			ConsumerWidget->SetDataprepConsumer( DataprepAsset->GetConsumer() );
-		}
-		else if( ChangeType == FDataprepAssetChangeType::ProducerModified ||
+		if( ChangeType == FDataprepAssetChangeType::ProducerModified ||
 			ChangeType == FDataprepAssetChangeType::ProducerAdded ||
 			ChangeType == FDataprepAssetChangeType::ProducerRemoved )
 		{
