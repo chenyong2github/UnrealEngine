@@ -285,7 +285,7 @@ private:
 	bool bEnableRemeshing;
 	double InitialEdgeLength;
 
-	FSubRegionRemesher MakeRemesher(FDynamicMesh3* Mesh, FDynamicMeshOctree3* Octree);
+	void ConfigureRemesher(FSubRegionRemesher&);
 
 	bool bInDrag;
 

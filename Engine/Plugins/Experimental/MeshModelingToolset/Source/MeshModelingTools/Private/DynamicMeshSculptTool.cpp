@@ -1333,10 +1333,12 @@ Free	TRUE	TRUE		FALSE				FALSE
 Ignore	TRUE	TRUE		FALSE				TRUE
 */
 
-FSubRegionRemesher
-UDynamicMeshSculptTool::MakeRemesher(FDynamicMesh3* Mesh, FDynamicMeshOctree3* Octree)
+void
+UDynamicMeshSculptTool::ConfigureRemesher(FSubRegionRemesher& Remesher)
 {
-	FSubRegionRemesher Remesher(Mesh);
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
+
 	double TargetEdgeLength = RemeshProperties->RelativeSize * InitialEdgeLength;
 	Remesher.SetTargetEdgeLength(TargetEdgeLength);
 
@@ -1348,7 +1350,7 @@ UDynamicMeshSculptTool::MakeRemesher(FDynamicMesh3* Mesh, FDynamicMeshOctree3* O
 	{
 		Remesher.MinEdgeLength = TargetEdgeLength * 0.1;
 
-		Remesher.CustomSmoothSpeedF = [this, &UseSmoothing](const FDynamicMesh3& Mesh, int vID)
+		Remesher.CustomSmoothSpeedF = [this, UseSmoothing](const FDynamicMesh3& Mesh, int vID)
 		{
 			FVector3d Pos = Mesh.GetVertex(vID);
 			double Falloff = CalculateBrushFalloff(Pos.Distance((FVector3d)LastBrushPosLocal));
@@ -1399,14 +1401,14 @@ UDynamicMeshSculptTool::MakeRemesher(FDynamicMesh3* Mesh, FDynamicMeshOctree3* O
 			Remesher.SetExternalConstraints(MoveTemp(Constraints));
 		}
 	}
-	return Remesher;
 }
 
 void UDynamicMeshSculptTool::RemeshROIPass()
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
-	FSubRegionRemesher Remesher = MakeRemesher(Mesh, Octree);
+	FSubRegionRemesher Remesher(Mesh);
+	ConfigureRemesher(Remesher);
 
 	bool bIsUniformSmooth = (Remesher.SmoothType == FRemesher::ESmoothTypes::Uniform);
 	for (int k = 0; k < 5; ++k)
