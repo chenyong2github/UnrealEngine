@@ -117,7 +117,6 @@ public:
 	static FName SharedImplicitsAttribute;
 	static FName SolverParticleHandlesAttribute;
 	static FName SolverClusterHandlesAttribute;
-	static FName GTGeometryParticleAttribute;
 
 	typedef FCollisionStructureManager::FSimplicial FSimplicial;
 
@@ -355,7 +354,6 @@ private:
 
 	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverParticleHandles;
 	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverClusterHandles;
-	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTGeometryParticles;
 
 	TMap<Chaos::TPBDRigidParticleHandle<float, 3>*, int32> HandleToTransformGroupIndex;
 
