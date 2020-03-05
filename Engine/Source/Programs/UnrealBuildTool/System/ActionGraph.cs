@@ -109,6 +109,42 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Checks that there aren't any intermediate files longer than the max allowed path length
+		/// </summary>
+		/// <param name="BuildConfiguration">The build configuration</param>
+		/// <param name="Actions">List of actions in the graph</param>
+		public static void CheckPathLengths(BuildConfiguration BuildConfiguration, IEnumerable<Action> Actions)
+		{
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+			{
+				List<FileReference> Paths = new List<FileReference>();
+				foreach (Action Action in Actions)
+				{
+					foreach (FileItem ProducedItem in Action.ProducedItems)
+					{
+						if (ProducedItem.Location.FullName.Length > UnrealBuildTool.RootDirectory.FullName.Length + BuildConfiguration.MaxNestedPathLength && ProducedItem.Location.IsUnderDirectory(UnrealBuildTool.RootDirectory))
+						{
+							Paths.Add(ProducedItem.Location);
+						}
+					}
+				}
+
+				if (Paths.Count > 0)
+				{
+					StringBuilder Message = new StringBuilder();
+					Message.AppendFormat("Detected paths more than {0} characters below UE root directory. This may cause portability issues due to the 260 character maximum path length on Windows:\n", BuildConfiguration.MaxNestedPathLength);
+					foreach (FileReference Path in Paths)
+					{
+						string RelativePath = Path.MakeRelativeTo(UnrealBuildTool.RootDirectory);
+						Message.AppendFormat("\n[{0} characters] {1}", RelativePath.Length, RelativePath);
+					}
+					Message.AppendFormat("\n\nConsider setting {0} = ... in module *.Build.cs files to use alternative names for intermediate paths.", nameof(ModuleRules.ShortName));
+					Log.TraceWarning(Message.ToString());
+				}
+			}
+		}
+
+		/// <summary>
 		/// Executes a list of actions.
 		/// </summary>
 		public static void ExecuteActions(BuildConfiguration BuildConfiguration, List<Action> ActionsToExecute)

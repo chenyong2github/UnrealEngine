@@ -146,5 +146,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-SkipRulesCompile")]
 		public bool bSkipRulesCompile = false;
+
+		/// <summary>
+		/// Maximum length of a path relative to the root directory. Used on Windows to ensure paths are portable between machines. Defaults to off.
+		/// </summary>
+		public int MaxNestedPathLength = 170;
 	}
 }
