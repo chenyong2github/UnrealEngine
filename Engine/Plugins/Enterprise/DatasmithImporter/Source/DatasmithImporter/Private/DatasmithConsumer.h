@@ -104,14 +104,12 @@ private:
 	/** World used by the consumer to create new output levels */
 	TStrongObjectPtr<UWorld> WorkingWorld;
 
-	/** Indicates if LevelWorld was loaded specifically to execute this consumer */
-	bool bDeleteLevelWorld;
-
-	/** Levels which were loaded in the LevelEditor's world and need to be restored */
-	TArray<FString> LevelsToRestore;
-
 	UPROPERTY()
 	FSoftObjectPath OutputLevelSoftObject;
 
+	/** Level associated with the consumer */
 	ULevel* PrimaryLevel;
+
+	/** Current level used by the global world before executing the consumer */
+	ULevel* OriginalCurrentLevel;
 };

@@ -157,7 +157,7 @@ TArray< ADatasmithSceneActor* > FDatasmithImporterUtils::FindSceneActors( UWorld
 		return TArray< ADatasmithSceneActor* >();
 	}
 
-	auto IsValidSceneActor = [DatasmithScene]( AActor* Actor )
+	auto IsValidSceneActor = [DatasmithScene, World]( AActor* Actor )
 	{
 		ADatasmithSceneActor* NullSceneActor = nullptr;
 
@@ -172,7 +172,8 @@ TArray< ADatasmithSceneActor* > FDatasmithImporterUtils::FindSceneActors( UWorld
 			{
 				if( ADatasmithSceneActor* SceneActor = Cast< ADatasmithSceneActor >( Actor ) )
 				{
-					return SceneActor->Scene == DatasmithScene ? SceneActor : NullSceneActor;
+					// A scene can be used by multiple loaded levels. Only the SceneActors of the current level are valid
+					return (SceneActor->Scene == DatasmithScene && SceneActor->GetLevel() == World->GetCurrentLevel()) ? SceneActor : NullSceneActor;
 				}
 
 				return NullSceneActor;

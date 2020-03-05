@@ -54,6 +54,11 @@ class UDataprepActionStep : public UObject
 
 public:
 
+	UDataprepActionStep()
+		: bIsEnabled(true)
+		, StepObject(nullptr)
+	{}
+
 	// Begin UObject Interface
 	virtual void PostLoad() override;
 	// End UObject Interface
