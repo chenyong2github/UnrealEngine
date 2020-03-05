@@ -14,6 +14,7 @@
 #include "Engine/LevelStreamingAlwaysLoaded.h"
 #include "Engine/World.h"
 #include "Factories/LevelFactory.h"
+#include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
 #include "PropertyCustomizationHelpers.h"
@@ -27,6 +28,25 @@
 
 namespace DatasmithConsumerDetailsUtil
 {
+	// Inspired from ContentBrowserUtils::IsValidObjectPathForCreate
+	bool VerifyObjectName(const FString& ObjectName, FText& OutErrorMessage)
+	{
+		if ( !FFileHelper::IsFilenameValidForSaving(ObjectName, OutErrorMessage) )
+		{
+			// Return false to indicate that the user should enter a new name
+			return false;
+		}
+
+		// Make sure the new name only contains valid characters
+		if ( !FName::IsValidXName( ObjectName, INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS, &OutErrorMessage ) )
+		{
+			// Return false to indicate that the user should enter a new name
+			return false;
+		}
+
+		return true;
+	}
+
 	/** Helper class to force a widget to fill in a space. Copied from SDetailSingleItemRow.cpp */
 	class SConstrainedBox : public SCompoundWidget
 	{
@@ -83,6 +103,7 @@ namespace DatasmithConsumerDetailsUtil
 						.HintText(LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in"))
 						.IsReadOnly(false)
 						.OnTextCommitted(FOnTextCommitted::CreateSP(this, &SFolderProperty::OnTextCommitted))
+						.OnVerifyTextChanged(FOnVerifyTextChanged::CreateSP(this, &SFolderProperty::OnVerifyText))
 					]
 				]
 				+ SHorizontalBox::Slot()
@@ -129,6 +150,89 @@ namespace DatasmithConsumerDetailsUtil
 					}
 				}
 			}
+		}
+
+		// Inspired from ContentBrowserUtils::IsValidFolderPathForCreate
+		bool OnVerifyText(const FText& InText, FText& OutErrorMessage)
+		{
+			FString FolderPath = InText.ToString();
+
+			if( FolderPath.StartsWith( TEXT("/Content") ) )
+			{
+				FolderPath = FolderPath.Replace( TEXT( "/Content" ), TEXT( "/Game" ) );
+			}
+
+			// Check length of the folder name
+			if ( FolderPath.Len() == 0 )
+			{
+				OutErrorMessage = LOCTEXT( "InvalidFolderName_IsTooShort", "Please provide a name for this folder." );
+				return false;
+			}
+
+			if ( FolderPath.Len() > FPlatformMisc::GetMaxPathLength() )
+			{
+				OutErrorMessage = FText::Format( LOCTEXT("InvalidFolderName_TooLongForCooking", "Filename is too long ({0} characters); this may interfere with cooking for consoles. Unreal filenames should be no longer than {1} characters. Filename value: {2}" ),
+					FText::AsNumber(FolderPath.Len()), FText::AsNumber(FPlatformMisc::GetMaxPathLength()), FText::FromString(FolderPath) );
+				return false;
+			}
+
+			if(FolderPath[FolderPath.Len() - 1] == L'/')
+			{
+				return true;
+			}
+
+			FString FolderName = FPaths::GetBaseFilename(FolderPath);
+
+			if(!VerifyObjectName(FolderName, OutErrorMessage))
+			{
+				return false;
+			}
+
+
+			const FString InvalidChars = INVALID_LONGPACKAGE_CHARACTERS TEXT("/[]"); // Slash and Square brackets are invalid characters for a folder name
+
+																					 // See if the name contains invalid characters.
+			FString Char;
+			for( int32 CharIdx = 0; CharIdx < FolderName.Len(); ++CharIdx )
+			{
+				Char = FolderName.Mid(CharIdx, 1);
+
+				if ( InvalidChars.Contains(*Char) )
+				{
+					FString ReadableInvalidChars = InvalidChars;
+					ReadableInvalidChars.ReplaceInline(TEXT("\r"), TEXT(""));
+					ReadableInvalidChars.ReplaceInline(TEXT("\n"), TEXT(""));
+					ReadableInvalidChars.ReplaceInline(TEXT("\t"), TEXT(""));
+
+					OutErrorMessage = FText::Format(LOCTEXT("InvalidFolderName_InvalidCharacters", "A folder name may not contain any of the following characters: {0}"), FText::FromString(ReadableInvalidChars));
+					return false;
+				}
+			}
+
+			if(!FFileHelper::IsFilenameValidForSaving(FolderPath, OutErrorMessage))
+			{
+				return false;
+			}
+
+			FString PathOnDisk;
+			if (!FPackageName::TryConvertLongPackageNameToFilename(FolderPath, PathOnDisk))
+			{
+				OutErrorMessage = FText::Format(LOCTEXT("RenameFolderFailedDiskPath", "Folder path could not be converted to disk path: '{0}'"), FText::FromString(FolderPath));
+				return false;
+			}
+
+			// Make sure we are not creating a folder path that is too long
+			if (PathOnDisk.Len() > FPlatformMisc::GetMaxPathLength() - 32/*MAX_CLASS_NAME_LENGTH*/)
+			{
+				// The full path for the folder is too long
+				OutErrorMessage = FText::Format(LOCTEXT("RenameFolderPathTooLong",
+					"The full path for the folder is too deep, the maximum is '{0}'. Please choose a shorter name for the folder or create it in a shallower folder structure."),
+					FText::AsNumber(FPlatformMisc::GetMaxPathLength() - 32/*MAX_CLASS_NAME_LENGTH*/));
+				// Return false to indicate that the user should enter a new name for the folder
+				return false;
+			}
+
+			return true;
 		}
 
 		void UpdateContentFolderText()
@@ -213,16 +317,12 @@ namespace DatasmithConsumerDetailsUtil
 				.HAlign(EHorizontalAlignment::HAlign_Fill)
 				.Padding(5.0f, 2.5f, 2.0f, 2.5f)
 				[
-					// Trick to force the splitter widget to fill up the space of its parent
-					// Strongly inspired from SDetailSingleItemRow
-					//SNew(SConstrainedBox)
-					//[
-						SAssignNew(LevelTextBox, SEditableTextBox)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.HintText(LOCTEXT("DataprepLevelProperty_HintText", "Set the name of the level to save in"))
-						.IsReadOnly(false)
-						.OnTextCommitted(FOnTextCommitted::CreateSP(this, &SLevelProperty::OnTextCommitted))
-					//]
+					SAssignNew(LevelTextBox, SEditableTextBox)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.HintText(LOCTEXT("DataprepLevelProperty_HintText", "Set the name of the level to save in"))
+					.IsReadOnly(false)
+					.OnTextCommitted(FOnTextCommitted::CreateSP(this, &SLevelProperty::OnTextCommitted))
+					.OnVerifyTextChanged(FOnVerifyTextChanged::CreateSP(this, &SLevelProperty::OnVerifyText))
 				]
 			];
 
@@ -240,6 +340,11 @@ namespace DatasmithConsumerDetailsUtil
 			{
 				LevelTextBox->SetText( TAttribute<FText>() );
 			}
+		}
+
+		bool OnVerifyText(const FText& InText, FText& OutErrorMessage)
+		{
+			return VerifyObjectName(InText.ToString(), OutErrorMessage);
 		}
 
 		void OnTextCommitted( const FText& NewText, ETextCommit::Type CommitType)

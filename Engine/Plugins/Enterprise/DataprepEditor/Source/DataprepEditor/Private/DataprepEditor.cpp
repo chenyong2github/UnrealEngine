@@ -789,8 +789,14 @@ void FDataprepEditor::OnCommitWorld()
 	{
 		UE_LOG( LogDataprepEditor, Error, TEXT("Consumer failed...") );
 
+		// Restore Dataprep's import data
+		RestoreFromSnapshot();
+
 		// Restore 3D viewport
 		SceneViewportView->UpdateScene();
+
+		// Indicates that the pipeline has not been run on the data
+		bIsFirstRun = true;
 
 		return;
 	}

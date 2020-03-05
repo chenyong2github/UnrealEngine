@@ -731,6 +731,13 @@ bool UDatasmithConsumer::SetLevelNameImplementation(const FString& InLevelName, 
 		return false;
 	}
 
+	FString SanitizedName = ObjectTools::SanitizeObjectName(InLevelName);
+	if(SanitizedName != InLevelName)
+	{
+		OutReason = LOCTEXT( "DatasmithConsumer_InValidCharacters", "The level name contains invalid characters. Please enter a valid name." );
+		return false;
+	}
+
 	if(!CanCreateLevel(TargetContentFolder, InLevelName, !bIsAutomated && !IsRunningCommandlet()))
 	{
 		return false;
@@ -761,7 +768,7 @@ bool UDatasmithConsumer::CanCreateLevel(const FString& RequestedFolder, const FS
 
 	if(FDatasmithImporterUtils::CanCreateAsset(AssetPathName, UWorld::StaticClass()) == FDatasmithImporterUtils::EAssetCreationStatus::CS_CanCreate)
 	{
-		if(FDatasmithImporterImpl::CheckAssetPersistenceValidity(FPaths::GetPath(AssetPathName), *ImportContextPtr))
+		if(FDatasmithImporterImpl::CheckAssetPersistenceValidity(ObjectPath.GetLongPackageName(), *ImportContextPtr, FPackageName::GetMapPackageExtension()))
 		{
 			FString PackageFilename;
 			FPackageName::TryConvertLongPackageNameToFilename( ObjectPath.GetLongPackageName(), PackageFilename, FPackageName::GetMapPackageExtension() );
@@ -977,7 +984,7 @@ bool UDatasmithConsumer::CheckOutputDirectives()
 	{
 		if(FDatasmithImporterUtils::CanCreateAsset(AssetPathName, AssetClass) == FDatasmithImporterUtils::EAssetCreationStatus::CS_CanCreate)
 		{
-			return FDatasmithImporterImpl::CheckAssetPersistenceValidity(FPaths::GetPath(AssetPathName), *ImportContext);
+			return FDatasmithImporterImpl::CheckAssetPersistenceValidity(FPaths::GetPath(AssetPathName), *ImportContext, FPackageName::GetAssetPackageExtension());
 		}
 
 		return false;
@@ -989,6 +996,9 @@ bool UDatasmithConsumer::CheckOutputDirectives()
 	CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 
 	bool bCannotCreateAsset = false;
+
+	TSet<FString> AssetPaths;
+	AssetPaths.Reserve(Context.Assets.Num());
 
 	for(const TWeakObjectPtr< UObject >& AssetPtr : Context.Assets)
 	{
@@ -1004,11 +1014,23 @@ bool UDatasmithConsumer::CheckOutputDirectives()
 				{
 					if(!CanCreateAsset(AssetSoftObjectPath.GetAssetPathString(), Asset->GetClass()))
 					{
-						const FTextFormat TextFormat(LOCTEXT( "DatasmithConsumer_CannotCreateAsset", "Cannot create asset {0}. Commit will be aborted" ));
+						const FTextFormat TextFormat(LOCTEXT( "DatasmithConsumer_CannotCreateAsset", "Cannot create asset {0}. Commit will be aborted." ));
 						const FText Message = FText::Format( TextFormat, FText::FromString(AssetSoftObjectPath.GetAssetPathString()) );
 						LogError(Message);
 
 						bCannotCreateAsset = true;
+					}
+					else if(AssetPaths.Contains(AssetSoftObjectPath.GetLongPackageName()))
+					{
+						const FTextFormat TextFormat(LOCTEXT( "DatasmithConsumer_DuplicateAsset", "Cannot create asset {0}. Another asset with the same name will be created in the same folder {1}. Commit will be aborted." ));
+						const FText Message = FText::Format( TextFormat, FText::FromString(AssetSoftObjectPath.GetAssetPathString()), FText::FromString(FPaths::Combine(TargetContentFolder, OutputFolder)) );
+						LogError(Message);
+
+						bCannotCreateAsset = true;
+					}
+					else
+					{
+						AssetPaths.Add(AssetSoftObjectPath.GetLongPackageName());
 					}
 				}
 			}

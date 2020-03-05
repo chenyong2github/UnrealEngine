@@ -56,6 +56,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/UObjectToken.h"
 #include "ObjectTools.h"
@@ -184,7 +185,7 @@ void FDatasmithImporterImpl::CheckAssetPersistenceValidity(UObject* Asset, FData
 	UPackage* Package = Asset->GetOutermost();
 	const FString PackageName = Package->GetName();
 
-	CheckAssetPersistenceValidity(PackageName, ImportContext);
+	CheckAssetPersistenceValidity(PackageName, ImportContext, Asset->IsA<UWorld>() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
 }
 
 /** Set the texture mode on each texture element based on its usage in the materials */
@@ -827,14 +828,14 @@ FDatasmithImporterImpl::FScopedFinalizeActorChanges::~FScopedFinalizeActorChange
 	}
 }
 
-bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& PackageName, FDatasmithImportContext& ImportContext)
+bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& PackageName, FDatasmithImportContext& ImportContext, const FString& Extension)
 {
 	// Check that package can be saved
 	const FString BasePackageFileName = FPackageName::LongPackageNameToFilename( PackageName );
 	const FString AbsolutePathToAsset = FPaths::ConvertRelativePathToFull( BasePackageFileName );
 
 	// Create fake filename of same length of final asset file name to test ability to write
-	const FString FakeAbsolutePathToAsset = AbsolutePathToAsset + TEXT( ".uasset" );
+	const FString FakeAbsolutePathToAsset = AbsolutePathToAsset + Extension;
 
 	bool bValidPersistence = true;
 

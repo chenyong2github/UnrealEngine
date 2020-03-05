@@ -65,7 +65,7 @@ public:
 	 *			- ContentBrowserUtils::IsValidPackageForCooking
 	 * #ueent_todo Make ContentBrowserUtils::IsValidPackageForCooking public. Not game to do it so late in 4.22
 	 */
-	static bool DATASMITHIMPORTER_API CheckAssetPersistenceValidity(const FString& PackageName, FDatasmithImportContext& ImportContext);
+	static bool DATASMITHIMPORTER_API CheckAssetPersistenceValidity(const FString& PackageName, FDatasmithImportContext& ImportContext, const FString& Extension);
 
 	static void CheckAssetPersistenceValidity(UObject* Asset, FDatasmithImportContext& ImportContext);
 
