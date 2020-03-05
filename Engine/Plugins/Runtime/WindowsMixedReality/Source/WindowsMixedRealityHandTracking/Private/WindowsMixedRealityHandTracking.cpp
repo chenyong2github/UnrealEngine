@@ -12,6 +12,7 @@
 #include "Features/IModularFeatures.h"
 #include "IWindowsMixedRealityHandTrackingPlugin.h"
 #include "ILiveLinkClient.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
 
 #if WITH_INPUT_SIMULATION
 #include "WindowsMixedRealityInputSimulationEngineSubsystem.h"
