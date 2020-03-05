@@ -20,6 +20,8 @@ UInteractiveToolManager::UInteractiveToolManager()
 
 	ActiveRightBuilder = nullptr;
 	ActiveRightTool = nullptr;
+
+	ActiveToolChangeTrackingMode = EToolChangeTrackingMode::UndoToExit;
 }
 
 
@@ -64,10 +66,12 @@ bool UInteractiveToolManager::SelectActiveToolType(EToolSide Side, const FString
 		if (Side == EToolSide::Right)
 		{
 			ActiveRightBuilder = Builder;
+			ActiveRightBuilderName = Identifier;
 		}
 		else
 		{
 			ActiveLeftBuilder = Builder;
+			ActiveLeftBuilderName = Identifier;
 		}
 		return true;
 	}
@@ -97,23 +101,56 @@ bool UInteractiveToolManager::ActivateTool(EToolSide Side)
 {
 	check(Side == EToolSide::Left);   // TODO: support right-side tool
 
-	if (ActiveLeftTool != nullptr) 
+	// wrap tool change in a transaction so that deactivate and activate are grouped
+	bool bInTransaction = false;
+	if (ActiveToolChangeTrackingMode == EToolChangeTrackingMode::FullUndoRedo)
+	{
+		BeginUndoTransaction(LOCTEXT("ToolChange", "Change Tool"));
+		bInTransaction = true;
+	}
+
+	if (ActiveLeftTool != nullptr)
 	{
 		DeactivateTool(EToolSide::Left, EToolShutdownType::Accept);
 	}
 
-	if (ActiveLeftBuilder == nullptr) 
+	if (ActiveLeftBuilder == nullptr || ActivateToolInternal(Side) == false)
 	{
+		if (bInTransaction)
+		{
+			EndUndoTransaction();
+		}
 		return false;
 	}
 
+	if (ActiveToolChangeTrackingMode == EToolChangeTrackingMode::FullUndoRedo)
+	{
+		check(TransactionsAPI);
+		TransactionsAPI->AppendChange(this, MakeUnique<FActivateToolChange>(Side, ActiveLeftToolName), LOCTEXT("ActivateToolChange", "Activate Tool"));
+	} 
+	else if (ActiveToolChangeTrackingMode == EToolChangeTrackingMode::UndoToExit)
+	{
+		EmitObjectChange(this, MakeUnique<FBeginToolChange>(), LOCTEXT("ActivateToolChange", "Activate Tool"));
+	}
+
+	if (bInTransaction)
+	{
+		EndUndoTransaction();
+	}
+
+	return true;
+}
+
+
+bool UInteractiveToolManager::ActivateToolInternal(EToolSide Side)
+{
 	// construct input state we will pass to tools
 	FToolBuilderState InputState;
 	QueriesAPI->GetCurrentSelectionState(InputState);
 
 	if (ActiveLeftBuilder->CanBuildTool(InputState) == false)
 	{
-		TransactionsAPI->DisplayMessage( LOCTEXT("ActivateToolCanBuildFailMessage", "UInteractiveToolManager::ActivateTool: CanBuildTool returned false."), EToolMessageLevel::Internal);
+		TransactionsAPI->DisplayMessage(LOCTEXT("ActivateToolCanBuildFailMessage", "UInteractiveToolManager::ActivateTool: CanBuildTool returned false."), EToolMessageLevel::Internal);
 		return false;
 	}
 
@@ -122,6 +159,7 @@ bool UInteractiveToolManager::ActivateTool(EToolSide Side)
 	{
 		return false;
 	}
+	ActiveLeftToolName = ActiveLeftBuilderName;
 
 	ActiveLeftTool->Setup();
 
@@ -132,19 +170,32 @@ bool UInteractiveToolManager::ActivateTool(EToolSide Side)
 
 	OnToolStarted.Broadcast(this, ActiveLeftTool);
 
-	// emit a change so that we can undo to cancel the tool
-	EmitObjectChange(this, MakeUnique<FBeginToolChange>(), LOCTEXT("ActivateToolChange", "Activate Tool"));
-
 	return true;
 }
+
 
 
 void UInteractiveToolManager::DeactivateTool(EToolSide Side, EToolShutdownType ShutdownType)
 {
 	check(Side == EToolSide::Left);   // TODO: support right-side tool
-
 	if (ActiveLeftTool != nullptr)
 	{
+		if (ActiveToolChangeTrackingMode == EToolChangeTrackingMode::FullUndoRedo)
+		{
+			check(TransactionsAPI);
+			TransactionsAPI->AppendChange(this, MakeUnique<FActivateToolChange>(Side, ActiveLeftToolName, ShutdownType), LOCTEXT("DeactivateToolChange", "Deactivate Tool"));
+		}
+
+		DeactivateToolInternal(Side, ShutdownType);
+	}
+}
+
+
+void UInteractiveToolManager::DeactivateToolInternal(EToolSide Side, EToolShutdownType ShutdownType)
+{
+	if (Side == EToolSide::Left)
+	{
+		check(ActiveLeftTool);
 		InputRouter->ForceTerminateSource(ActiveLeftTool);
 
 		ActiveLeftTool->Shutdown(ShutdownType);
@@ -153,12 +204,14 @@ void UInteractiveToolManager::DeactivateTool(EToolSide Side, EToolShutdownType S
 
 		UInteractiveTool* DoneTool = ActiveLeftTool;
 		ActiveLeftTool = nullptr;
+		ActiveLeftToolName.Empty();
 
 		PostInvalidation();
 
 		OnToolEnded.Broadcast(this, DoneTool);
 	}
 }
+
 
 
 bool UInteractiveToolManager::HasActiveTool(EToolSide Side) const
@@ -203,6 +256,10 @@ bool UInteractiveToolManager::CanCancelActiveTool(EToolSide Side)
 
 
 
+void UInteractiveToolManager::ConfigureChangeTrackingMode(EToolChangeTrackingMode ChangeMode)
+{
+	ActiveToolChangeTrackingMode = ChangeMode;
+}
 
 
 
@@ -299,7 +356,7 @@ void FBeginToolChange::Revert(UObject* Object)
 	UInteractiveToolManager* ToolManager = CastChecked<UInteractiveToolManager>(Object);
 	if (ToolManager->HasAnyActiveTool())
 	{
-		ToolManager->DeactivateTool(EToolSide::Left, EToolShutdownType::Cancel);
+		ToolManager->DeactivateToolInternal(EToolSide::Left, EToolShutdownType::Cancel);
 	}
 }
 
@@ -313,6 +370,57 @@ FString FBeginToolChange::ToString() const
 {
 	return FString(TEXT("Begin Tool"));
 }
+
+
+
+
+
+void FActivateToolChange::Apply(UObject* Object)
+{
+	UInteractiveToolManager* ToolManager = CastChecked<UInteractiveToolManager>(Object);
+	if (ToolManager)
+	{
+		if (bIsDeactivate)
+		{
+			ToolManager->DeactivateToolInternal(Side, ShutdownType);
+		}
+		else
+		{
+			ToolManager->SelectActiveToolType(Side, ToolType);
+			ToolManager->ActivateToolInternal(Side);
+		}
+	}
+}
+
+void FActivateToolChange::Revert(UObject* Object)
+{
+	UInteractiveToolManager* ToolManager = CastChecked<UInteractiveToolManager>(Object);
+	if (ToolManager)
+	{
+		if (bIsDeactivate)
+		{
+			ToolManager->SelectActiveToolType(Side, ToolType);
+			ToolManager->ActivateToolInternal(Side);
+		}
+		else
+		{
+			ToolManager->DeactivateToolInternal(Side, ShutdownType);
+		}
+	}
+}
+
+bool FActivateToolChange::HasExpired(UObject* Object) const
+{
+	UInteractiveToolManager* ToolManager = CastChecked<UInteractiveToolManager>(Object);
+	return (ToolManager == nullptr);
+}
+
+FString FActivateToolChange::ToString() const
+{
+	return FString(TEXT("Change Tool"));
+}
+
+
 
 
 
