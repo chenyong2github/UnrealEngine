@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Types/SlateEnums.h"
 
 struct FNiagaraScriptVariableAndViewInfo;
 struct FSlateFontInfo;
