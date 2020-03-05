@@ -23,6 +23,9 @@ struct CORE_API FIOSCrashContext : public FApplePlatformCrashContext
 	
 	/** Creates the crash folder */
 	FString CreateCrashFolder() const;
+
+	/** Converts the PLCrashReporter minidump */
+	static void ConvertMinidump(char const* OutputPath, char const* InputPath);
 };
 
 typedef FIOSCrashContext FPlatformCrashContext;
