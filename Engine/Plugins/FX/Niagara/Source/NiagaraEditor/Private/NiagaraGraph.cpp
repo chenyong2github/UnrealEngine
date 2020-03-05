@@ -144,7 +144,7 @@ void UNiagaraGraph::PostLoad()
 		for (auto It = VariableToScriptVariable.CreateIterator(); It; ++It)
 		{
 			FNiagaraVariable Var = It.Key();
-			UNiagaraScriptVariable* ScriptVar = It.Value();
+			UNiagaraScriptVariable*& ScriptVar = It.Value();
 
 			if (ScriptVar == nullptr)
 			{
