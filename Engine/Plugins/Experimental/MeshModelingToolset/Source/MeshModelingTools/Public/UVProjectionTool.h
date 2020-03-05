@@ -195,6 +195,7 @@ protected:
 	FToolDataVisualizer ProjectionShapeVisualizer;
 
 	void UpdateNumPreviews();
+	void UpdateVisualization();
 
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 
