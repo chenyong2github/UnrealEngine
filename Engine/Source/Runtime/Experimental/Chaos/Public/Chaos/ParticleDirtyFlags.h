@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Framework/PhysicsProxyBase.h"
+#include "Chaos/ChaosArchive.h"
 
 class FName;
 
@@ -55,6 +57,17 @@ struct TParticlePropertyTrait<Type>\
 		DummyFlag
 	};
 #undef PARTICLE_PROPERTY
+
+	constexpr EParticleFlags ParticlePropToFlag(EParticleProperty Prop)
+	{
+		switch(Prop)
+		{
+			#define PARTICLE_PROPERTY(PropName, Type) case PropName: return EParticleFlags::PropName;
+#include "ParticleProperties.inl"
+#undef PARTICLE_PROPERTY
+		default: return (EParticleFlags)0;
+		}
+	}
 
 	class FParticleDirtyFlags
 	{
@@ -261,40 +274,147 @@ public:
 			Idx.bHasEntry = true;
 		}
 	}
+
+	bool IsSet() const
+	{
+		return Idx.bHasEntry;
+	}
 private:
 	FDirtyIdx Idx;
 
 	TRemoteParticleProperty<T>& operator=(const TRemoteParticleProperty<T>& Rhs){}
 };
 
-template <typename T, EParticleFlags Flag>
+struct FParticlePropertiesData
+{
+	template <typename T, EParticleProperty PropertyIdx>
+	TRemoteParticleProperty<T>& GetProperty()
+	{
+		switch(PropertyIdx)
+		{
+#define PARTICLE_PROPERTY(PropName, Type) case EParticleProperty::PropName: return (TRemoteParticleProperty<T>&) PropName;
+#include "ParticleProperties.inl"
+#undef PARTICLE_PROPERTY
+		default: check(false);
+		}
+
+		static TRemoteParticleProperty<T> Error;
+		return Error;
+	}
+
+	FDirtyPropertiesManager* Manager;
+
+	~FParticlePropertiesData()
+	{
+		if(Manager)
+		{
+#define PARTICLE_PROPERTY(PropName, Type) PropName.Clear(*Manager);
+#include "ParticleProperties.inl"
+#undef PARTICLE_PROPERTY
+		}
+	}
+
+#define PARTICLE_PROPERTY(PropName, Type)\
+Type const & Get##PropName() { return PropName.Read(*Manager); };\
+bool Has##PropName() const { return PropName.IsSet(); };
+
+#include "ParticleProperties.inl"
+#undef PARTICLE_PROPERTY
+
+private:
+#define PARTICLE_PROPERTY(PropName, Type) TRemoteParticleProperty<Type> PropName;
+#include "ParticleProperties.inl"
+#undef PARTICLE_PROPERTY
+
+};
+
+template <typename T, EParticleProperty PropName>
 class TParticleProperty
 {
 public:
-	const T& Read() const { return Property; }
-	void Write(const T& Val, TRemoteParticleProperty<T>& Remote, FParticleDirtyFlags& PendingFlush, FParticleDirtyFlags& Dirty, FDirtyPropertiesManager* Manager)
+	TParticleProperty() = default;
+	TParticleProperty(const T& Val)
+		: Property(Val)
 	{
-		Property = Val;
-		if(Manager)
-		{
-			Remote.Write(*Manager, Val);
-			PendingFlush.MarkClean(Flag);
-		}
-		else
-		{
-			PendingFlush.MarkDirty(Flag);
-		}
-
-		Dirty.MarkDirty(Flag);
 	}
 
-	void Flush(TRemoteParticleProperty<T>& Remote,FParticleDirtyFlags& PendingFlush,FDirtyPropertiesManager& Manager)
+	//we don't support this because it could lead to bugs with values not being properly written to remote
+	TParticleProperty(const TParticleProperty<T,PropName>& Rhs) = delete;
+
+	const T& Read() const { return Property; }
+	void Write(const T& Val, bool bInvalidate, FParticlePropertiesData* Remote, FParticleDirtyFlags& Dirty, IPhysicsProxyBase* Proxy)
 	{
-		Remote.Write(Manager, Property);
-		PendingFlush.MarkClean(Flag);
+		Property = Val;
+		WriteImp(bInvalidate, Remote, Dirty, Proxy);
+	}
+
+	template <typename Lambda>
+	void Modify(bool bInvalidate,FParticlePropertiesData* Remote,FParticleDirtyFlags& Dirty,IPhysicsProxyBase* Proxy,const Lambda& LambdaFunc)
+	{
+		LambdaFunc(Property);
+		WriteImp(bInvalidate, Remote, Dirty, Proxy);
+	}
+
+	void InitialFlush(FParticlePropertiesData& Remote,FParticleDirtyFlags& Dirty, IPhysicsProxyBase* Proxy)
+	{
+		if(Dirty.IsDirty(PropertyFlag))
+		{
+			WriteToRemote(Remote,Proxy);
+		}
+	}
+
+	void Serialize(FChaosArchive& Ar)
+	{
+		Ar << Property;
 	}
 
 private:
 	T Property;
+	static constexpr EParticleFlags PropertyFlag = ParticlePropToFlag(PropName);
+
+	void WriteToRemote(FParticlePropertiesData& Remote, IPhysicsProxyBase* Proxy)
+	{
+		Remote.GetProperty<T,PropName>().Write(*Remote.Manager, Property);
+		if(Proxy)
+		{
+			if(FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
+			{
+				PhysicsSolverBase->AddDirtyProxy(Proxy);
+			}
+		}
+	}
+
+	void WriteImp(bool bInvalidate, FParticlePropertiesData* Remote, FParticleDirtyFlags& Dirty, IPhysicsProxyBase* Proxy)
+	{
+		if(bInvalidate)
+		{
+			Dirty.MarkDirty(PropertyFlag);
+			if(Remote)
+			{
+				WriteToRemote(*Remote,Proxy);
+
+			}
+
+			//for now we have to dirty proxy in here because rest of pipeline is still old
+			//todo: remove this once remote data is set, writing to remote should take care of proxy dirtying
+			if(Proxy)
+			{
+				if(FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
+				{
+					PhysicsSolverBase->AddDirtyProxy(Proxy);
+				}
+			}
+		}
+	}
+
+	//we don't support this because it could lead to bugs with values not being properly written to remote
+	TParticleProperty<T,PropName>& operator=(const TParticleProperty<T,PropName>& Rhs) {}
 };
+
+template <typename T, EParticleProperty PropName>
+FChaosArchive& operator<<(FChaosArchive& Ar, TParticleProperty<T, PropName>& Prop)
+{
+	Prop.Serialize(Ar);
+	return Ar;
+}
 }
