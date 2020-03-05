@@ -10,10 +10,9 @@ void SEnumComboBox::Construct(const FArguments& InArgs, const UEnum* InEnum)
 	Enum = InEnum;
 	CurrentValue = InArgs._CurrentValue;
 	check(CurrentValue.IsBound());
-
+	OnEnumSelectionChangedDelegate = InArgs._OnEnumSelectionChanged;
 	OnGetToolTipForValue = InArgs._OnGetToolTipForValue;
 	Font = InArgs._Font;
-
 	bUpdatingSelectionInternally = false;
 
 	for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
@@ -60,15 +59,14 @@ TSharedRef<SWidget> SEnumComboBox::OnGenerateWidget(TSharedPtr<int32> InItem)
 {
 	return SNew(STextBlock)
 		.Font(Font)
-		.Text(this, &SEnumComboBox::GetCurrentValueText)
-		.ToolTipText(this, &SEnumComboBox::GetCurrentValueTooltip);
+		.Text(Enum->GetDisplayNameTextByIndex(*InItem));
 }
 
 void SEnumComboBox::OnComboSelectionChanged(TSharedPtr<int32> InSelectedItem, ESelectInfo::Type SelectInfo)
 {
 	if (bUpdatingSelectionInternally == false)
 	{
-		OnEnumSelectionChanged.ExecuteIfBound(*InSelectedItem, SelectInfo);
+		OnEnumSelectionChangedDelegate.ExecuteIfBound(*InSelectedItem, SelectInfo);
 	}
 }
 
