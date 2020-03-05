@@ -412,23 +412,13 @@ void FStreamableHandle::GetRequestedAssets(TArray<FSoftObjectPath>& AssetList) c
 
 UObject* FStreamableHandle::GetLoadedAsset() const
 {
-	if (HasLoadCompleted())
-	{
-		if (RequestedAssets.Num() > 0)
-		{
-			const FSoftObjectPath& Ref = RequestedAssets[0];
-			// Try manager, should be faster and will handle redirects better
-			return IsActive() ? OwningManager->GetStreamed(Ref) : Ref.ResolveObject();
-		}
+	TArray<UObject *> LoadedAssets;
 
-		// Check child handles
-		for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
-		{
-			if (UObject* LoadedChildAsset = ChildHandle->GetLoadedAsset())
-			{
-				return LoadedChildAsset;
-			}
-		}	
+	GetLoadedAssets(LoadedAssets);
+
+	if (LoadedAssets.Num() > 0)
+	{
+		return LoadedAssets[0];
 	}
 
 	return nullptr;
