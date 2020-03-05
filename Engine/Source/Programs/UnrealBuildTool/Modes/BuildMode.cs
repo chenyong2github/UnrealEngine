@@ -545,7 +545,7 @@ namespace UnrealBuildTool
 			}
 
 			// Guard against a live coding session for this target being active
-			if(HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
+			if (BuildConfiguration.bAllowHotReloadFromIDE && HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
 			{
 				throw new BuildException("Unable to start regular build while Live Coding is active. Press Ctrl+Alt+F11 to trigger a Live Coding compile.");
 			}
