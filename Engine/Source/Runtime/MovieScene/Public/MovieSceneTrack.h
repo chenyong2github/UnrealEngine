@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
 #include "UObject/ObjectMacros.h"
-#include "IMovieSceneTrackInstance.h"
 #include "Misc/Guid.h"
 #include "MovieSceneSignedObject.h"
 #include "MovieSceneSection.h"
