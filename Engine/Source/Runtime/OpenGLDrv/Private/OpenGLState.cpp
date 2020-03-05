@@ -11,46 +11,6 @@
 
 GLint GMaxOpenGLTextureFilterAnisotropic = 1;
 
-// Similar to sizeof(FSamplerStateInitializerRHI), but without any padding added by the compiler
-static uint32 SizeOfSamplerStateInitializer = 0;
-
-static FArchive& operator<<(FArchive& Ar, FSamplerStateInitializerRHI& SamplerStateInitializer)
-{
-	Ar << SamplerStateInitializer.Filter;
-	Ar << SamplerStateInitializer.AddressU;
-	Ar << SamplerStateInitializer.AddressV;
-	Ar << SamplerStateInitializer.AddressW;
-	Ar << SamplerStateInitializer.MipBias;
-	Ar << SamplerStateInitializer.MinMipLevel;
-	Ar << SamplerStateInitializer.MaxMipLevel;
-	Ar << SamplerStateInitializer.MaxAnisotropy;
-	Ar << SamplerStateInitializer.BorderColor;
-	Ar << SamplerStateInitializer.SamplerComparisonFunction;
-	return Ar;
-}
-
-static FORCEINLINE void CalculateSizeOfSamplerStateInitializer()
-{
-	if (SizeOfSamplerStateInitializer == 0)
-	{
-		TArray<uint8> Data;
-		FMemoryWriter Writer(Data);
-		FSamplerStateInitializerRHI State;
-		Writer << State;
-		SizeOfSamplerStateInitializer = Data.Num();
-	}
-}
-
-static bool operator==(const FSamplerStateInitializerRHI& A, const FSamplerStateInitializerRHI& B)
-{
-	return FMemory::Memcmp(&A, &B, SizeOfSamplerStateInitializer) == 0;
-}
-
-static FORCEINLINE uint32 GetTypeHash(const FSamplerStateInitializerRHI& SamplerState)
-{
-	return FCrc::MemCrc_DEPRECATED(&SamplerState, SizeOfSamplerStateInitializer);
-}
-
 // Hash of sampler states, used for caching sampler states and texture objects
 static TMap<FSamplerStateInitializerRHI, FOpenGLSamplerState*> GSamplerStateCache;
 
@@ -270,9 +230,6 @@ FSamplerStateRHIRef FOpenGLDynamicRHI::RHICreateSamplerState(const FSamplerState
 	{
 		return *Found;
 	}
-
-	// Create a new one
-	CalculateSizeOfSamplerStateInitializer();
 
 	FOpenGLSamplerState* SamplerState = new FOpenGLSamplerState;
 

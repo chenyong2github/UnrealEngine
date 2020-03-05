@@ -166,36 +166,6 @@ static EColorWriteMask TranslateWriteMask(MTLColorWriteMask WriteMask)
 	return (EColorWriteMask)Result;
 }
 
-static bool operator==(const FSamplerStateInitializerRHI& Left, const FSamplerStateInitializerRHI& Right)
-{
-	bool bSame = Left.Filter == Right.Filter
-	&& Left.MaxAnisotropy == Right.MaxAnisotropy
-	&& Left.AddressU == Right.AddressU
-	&& Left.AddressV == Right.AddressV
-	&& Left.AddressW == Right.AddressW
-	&& Left.MinMipLevel == Right.MinMipLevel
-	&& Left.MaxMipLevel == Right.MaxMipLevel
-	&& Left.SamplerComparisonFunction == Right.SamplerComparisonFunction
-	&& Left.BorderColor == Right.BorderColor;
-	
-	return bSame;
-}
-
-static uint32 GetTypeHash(const FSamplerStateInitializerRHI& Initializer)
-{
-	uint32 Hash = FCrc::MemCrc32(&Initializer.Filter, sizeof(Initializer.Filter));
-	Hash = FCrc::MemCrc32(&Initializer.MaxAnisotropy, sizeof(Initializer.MaxAnisotropy), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AddressU, sizeof(Initializer.AddressU), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AddressV, sizeof(Initializer.AddressV), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AddressW, sizeof(Initializer.AddressW), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.MinMipLevel, sizeof(Initializer.MinMipLevel), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.MaxMipLevel, sizeof(Initializer.MaxMipLevel), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.SamplerComparisonFunction, sizeof(Initializer.SamplerComparisonFunction), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.BorderColor, sizeof(Initializer.BorderColor), Hash);
-	
-	return Hash;
-}
-
 template <typename InitializerType, typename StateType>
 class FMetalStateObjectCache
 {

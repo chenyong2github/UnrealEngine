@@ -1819,7 +1819,7 @@ void FTexture2DResource::CreateSamplerStates(float MipMapBias)
 	  AM_Wrap,
 	  MipMapBias
 	);
-	SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 	// Create a custom sampler state for using this texture in a deferred pass, where ddx / ddy are discontinuous
 	FSamplerStateInitializerRHI DeferredPassSamplerStateInitializer
@@ -1837,7 +1837,7 @@ void FTexture2DResource::CreateSamplerStates(float MipMapBias)
 	  2
 	);
 
-	DeferredPassSamplerStateRHI = RHICreateSamplerState(DeferredPassSamplerStateInitializer);
+	DeferredPassSamplerStateRHI = GetOrCreateSamplerState(DeferredPassSamplerStateInitializer);
 }
 
 // Recreate the sampler states (used when updating mip map lod bias offset)
@@ -1971,7 +1971,7 @@ void FVirtualTexture2DResource::InitRHI()
 		// This doesn't really matter when sampling the cache texture (as it only has a level 0, so whatever the bias that is sampled) but it does when we sample miptail texture
 		0 // VT currently ignores global mip bias ensure the miptail works the same -> UTexture2D::GetGlobalMipMapLODBias()
 	);
-	SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 	const int32 MaxLevel = VTData->GetNumMips() - FirstMipToUse - 1;
 	check(MaxLevel >= 0);
@@ -2454,7 +2454,7 @@ void FTexture2DArrayResource::InitRHI()
 		SamplerZAddress
 	);
 
-	SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 }
 
 FIncomingTextureArrayDataEntry::FIncomingTextureArrayDataEntry(UTexture2D* InTexture)
