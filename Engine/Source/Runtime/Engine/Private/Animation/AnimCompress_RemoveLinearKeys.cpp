@@ -596,7 +596,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 	const float FrameRate = (float)(LastFrame) / SequenceLength;
 	const float TimePerFrame = SequenceLength / (float)(LastFrame);
 
-	const TArray<FTransform>& RefPose = CompressibleAnimData.Skeleton->GetRefLocalPoses();
+	const TArray<FTransform>& RefPose = CompressibleAnimData.RefLocalPoses;
 	const bool bHasScale =  (ScaleTracks.Num() > 0);
 
 	// make sure the parent key scale is properly bound to 1.0 or more
