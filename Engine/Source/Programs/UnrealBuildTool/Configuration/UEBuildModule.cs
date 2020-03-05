@@ -951,19 +951,23 @@ namespace UnrealBuildTool
 			}
 			Writer.WriteArrayEnd();
 
-			Writer.WriteArrayStart("RuntimeDependencies");
-			foreach(ModuleRules.RuntimeDependency RuntimeDependency in Rules.RuntimeDependencies.Inner)
+			// Don't add runtime dependencies for modules that aren't being linked in. They may reference BinaryOutputDir, which is invalid.
+			if (Binary != null)
 			{
-				Writer.WriteObjectStart();
-				Writer.WriteValue("Path", ExpandPathVariables(RuntimeDependency.Path, BinaryOutputDir, TargetOutputDir));
-				if(RuntimeDependency.SourcePath != null)
+				Writer.WriteArrayStart("RuntimeDependencies");
+				foreach (ModuleRules.RuntimeDependency RuntimeDependency in Rules.RuntimeDependencies.Inner)
 				{
-					Writer.WriteValue("SourcePath", ExpandPathVariables(RuntimeDependency.SourcePath, BinaryOutputDir, TargetOutputDir));
+					Writer.WriteObjectStart();
+					Writer.WriteValue("Path", ExpandPathVariables(RuntimeDependency.Path, BinaryOutputDir, TargetOutputDir));
+					if (RuntimeDependency.SourcePath != null)
+					{
+						Writer.WriteValue("SourcePath", ExpandPathVariables(RuntimeDependency.SourcePath, BinaryOutputDir, TargetOutputDir));
+					}
+					Writer.WriteValue("Type", RuntimeDependency.Type.ToString());
+					Writer.WriteObjectEnd();
 				}
-				Writer.WriteValue("Type", RuntimeDependency.Type.ToString());
-				Writer.WriteObjectEnd();
+				Writer.WriteArrayEnd();
 			}
-			Writer.WriteArrayEnd();
 		}
 
 		/// <summary>

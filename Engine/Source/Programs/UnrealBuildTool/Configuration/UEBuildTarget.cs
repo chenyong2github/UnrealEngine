@@ -2188,14 +2188,11 @@ namespace UnrealBuildTool
 				Writer.WriteArrayEnd();
 
 				Writer.WriteObjectStart("Modules");
-				foreach (UEBuildBinary Binary in Binaries)
+				foreach (UEBuildModule Module in Modules.Values)
 				{
-					foreach (UEBuildModule Module in Binary.Modules)
-					{
-						Writer.WriteObjectStart(Module.Name);
-						Module.ExportJson(Binary.OutputDir, GetExecutableDir(), Writer);
-						Writer.WriteObjectEnd();
-					}
+					Writer.WriteObjectStart(Module.Name);
+					Module.ExportJson(Module.Binary?.OutputDir, GetExecutableDir(), Writer);
+					Writer.WriteObjectEnd();
 				}
 				Writer.WriteObjectEnd();
 
