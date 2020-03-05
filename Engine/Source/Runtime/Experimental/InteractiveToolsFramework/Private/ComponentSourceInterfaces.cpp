@@ -61,40 +61,51 @@ bool FComponentMaterialSet::operator!=(const FComponentMaterialSet& Other) const
 }
 
 
+bool FPrimitiveComponentTarget::IsValid() const
+{
+	return (Component->IsPendingKillOrUnreachable() == false) && Component->IsValidLowLevel();
+}
+
 AActor* FPrimitiveComponentTarget::GetOwnerActor() const
 {
-	return Component->GetOwner();
+	return IsValid() ? Component->GetOwner() : nullptr;
 }
 
 UPrimitiveComponent* FPrimitiveComponentTarget::GetOwnerComponent() const
 {
-	return Component;
+	return IsValid() ? Component : nullptr;
 }
 
 
 void FPrimitiveComponentTarget::SetOwnerVisibility(bool bVisible) const
 {
-	Component->SetVisibility(bVisible);
+	if (IsValid())
+	{
+		Component->SetVisibility(bVisible);
+	}
 }
 
 
 int32 FPrimitiveComponentTarget::GetNumMaterials() const
 {
-	return Component->GetNumMaterials();
+	return IsValid() ? Component->GetNumMaterials() : 0;
 }
 
 UMaterialInterface* FPrimitiveComponentTarget::GetMaterial(int32 MaterialIndex) const
 {
-	return Component->GetMaterial(MaterialIndex);
+	return IsValid() ? Component->GetMaterial(MaterialIndex) : nullptr;
 }
 
 void FPrimitiveComponentTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials) const
 {
-	int32 NumMaterials = Component->GetNumMaterials(); 
-	MaterialSetOut.Materials.SetNum(NumMaterials);
-	for (int32 k = 0; k < NumMaterials; ++k)
+	if (IsValid())
 	{
-		MaterialSetOut.Materials[k] = Component->GetMaterial(k);
+		int32 NumMaterials = Component->GetNumMaterials();
+		MaterialSetOut.Materials.SetNum(NumMaterials);
+		for (int32 k = 0; k < NumMaterials; ++k)
+		{
+			MaterialSetOut.Materials[k] = Component->GetMaterial(k);
+		}
 	}
 }
 
@@ -109,14 +120,13 @@ void FPrimitiveComponentTarget::CommitMaterialSetUpdate(const FComponentMaterial
 
 FTransform FPrimitiveComponentTarget::GetWorldTransform() const
 {
-	//return Component->GetOwner()->GetActorTransform();
-	return Component->GetComponentTransform();
+	return IsValid() ? Component->GetComponentTransform() : FTransform::Identity;
 }
 
 bool FPrimitiveComponentTarget::HitTest(const FRay& WorldRay, FHitResult& OutHit) const
 {
 	FVector End = WorldRay.PointAt(HALF_WORLD_MAX);
-	if (Component->LineTraceComponent(OutHit, WorldRay.Origin, End, FCollisionQueryParams(SCENE_QUERY_STAT(HitTest), true)))
+	if (IsValid() && Component->LineTraceComponent(OutHit, WorldRay.Origin, End, FCollisionQueryParams(SCENE_QUERY_STAT(HitTest), true)))
 	{
 		return true;
 	}
