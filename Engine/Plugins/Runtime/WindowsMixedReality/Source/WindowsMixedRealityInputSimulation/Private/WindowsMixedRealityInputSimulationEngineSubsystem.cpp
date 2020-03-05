@@ -12,123 +12,17 @@
 
 #define LOCTEXT_NAMESPACE "WindowsMixedRealityInputSimulation"
 
-UWindowsMixedRealityInputSimulationEngineSubsystem::HandState* UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandState(EControllerHand Hand)
+UWindowsMixedRealityInputSimulationEngineSubsystem* UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled()
 {
-	if (Hand == EControllerHand::Left)
+	if (!UWindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnabled())
 	{
-		return &HandStates[0];
+		return nullptr;
 	}
-	if (Hand == EControllerHand::Right)
-	{
-		return &HandStates[1];
-	}
-	return nullptr;
+
+	return GEngine->GetEngineSubsystem<UWindowsMixedRealityInputSimulationEngineSubsystem>();
 }
 
-const UWindowsMixedRealityInputSimulationEngineSubsystem::HandState* UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandState(EControllerHand Hand) const
-{
-	return const_cast<UWindowsMixedRealityInputSimulationEngineSubsystem*>(this)->GetHandState(Hand);
-}
-
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const
-{
-	FScopeLock Lock(&HandStatesCriticalSection);
-	if (const HandState* handState = GetHandState(Hand))
-	{
-		if (handState->IsValid)
-		{
-			OutTransform = handState->KeypointTransforms[(int32)Keypoint];
-			return true;
-		}
-	}
-	return false;
-}
-
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float& OutRadius) const
-{
-	FScopeLock Lock(&HandStatesCriticalSection);
-	if (const HandState* handState = GetHandState(Hand))
-	{
-		if (handState->IsValid)
-		{
-			OutRadius = handState->KeypointRadii[(int32)Keypoint];
-			return true;
-		}
-	}
-	return false;
-}
-
-void UWindowsMixedRealityInputSimulationEngineSubsystem::SetHandJointOrientationAndPosition(EControllerHand Hand, EWMRHandKeypoint Keypoint, const FRotator& Orientation, const FVector& Position)
-{
-	FScopeLock Lock(&HandStatesCriticalSection);
-	if (HandState* handState = GetHandState(Hand))
-	{
-		handState->KeypointTransforms[(int32)Keypoint].SetComponents(Orientation.Quaternion(), Position, FVector::OneVector);
-	}
-}
-
-void UWindowsMixedRealityInputSimulationEngineSubsystem::SetHandJointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float Radius)
-{
-	FScopeLock Lock(&HandStatesCriticalSection);
-	if (HandState* handState = GetHandState(Hand))
-	{
-		handState->KeypointRadii[(int32)Keypoint] = Radius;
-	}
-}
-
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::IsHandStateValid(EControllerHand Hand) const
-{
-	FScopeLock Lock(&HandStatesCriticalSection);
-	if (const HandState* handState = GetHandState(Hand))
-	{
-		return handState->IsValid;
-	}
-	return false;
-}
-
-void UWindowsMixedRealityInputSimulationEngineSubsystem::SetHandStateValid(EControllerHand Hand, bool IsValid)
-{
-	FScopeLock Lock(&HandStatesCriticalSection);
-	if (HandState* handState = GetHandState(Hand))
-	{
-		handState->IsValid = IsValid;
-	}
-}
-
-void UWindowsMixedRealityInputSimulationEngineSubsystem::SetPressState(EControllerHand Hand, EInputSimulationControllerButtons Button, bool IsPressed)
-{
-	FScopeLock Lock(&HandStatesCriticalSection);
-	if (HandState* handState = GetHandState(Hand))
-	{
-		handState->PrevButtonPressed[(int32)Button] = handState->IsButtonPressed[(int32)Button];
-		handState->IsButtonPressed[(int32)Button] = IsPressed;
-	}
-}
-
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetPressState(EControllerHand Hand, EInputSimulationControllerButtons Button, bool OnlyRegisterClicks, bool& OutPressState) const
-{
-	FScopeLock Lock(&HandStatesCriticalSection);
-	if (const HandState* handState = GetHandState(Hand))
-	{
-		if (handState->IsValid)
-		{
-			bool IsPressed = handState->IsButtonPressed[(int32)Button];
-			bool WasPressed = handState->PrevButtonPressed[(int32)Button];
-			if (OnlyRegisterClicks)
-			{
-				OutPressState = IsPressed != WasPressed ? IsPressed : false;
-			}
-			else
-			{
-				OutPressState = IsPressed;
-			}
-			return true;
-		}
-	}
-	return false;
-}
-
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnabled() const
+bool UWindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnabled()
 {
 #if WITH_EDITOR
 	// Only use input simulation when enabled
@@ -154,6 +48,141 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnable
 #else
 	return false;
 #endif
+}
+
+bool UWindowsMixedRealityInputSimulationEngineSubsystem::HasPositionalTracking() const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	return bHasPositionalTracking;
+}
+
+const FQuat& UWindowsMixedRealityInputSimulationEngineSubsystem::GetHeadOrientation() const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	return HeadOrientation;
+}
+
+const FVector& UWindowsMixedRealityInputSimulationEngineSubsystem::GetHeadPosition() const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	return HeadPosition;
+}
+
+FWindowsMixedRealityInputSimulationHandState* UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandState(EControllerHand Hand)
+{
+	if (Hand == EControllerHand::Left)
+	{
+		return &HandStates[0];
+	}
+	if (Hand == EControllerHand::Right)
+	{
+		return &HandStates[1];
+	}
+	return nullptr;
+}
+
+const FWindowsMixedRealityInputSimulationHandState* UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandState(EControllerHand Hand) const
+{
+	return const_cast<UWindowsMixedRealityInputSimulationEngineSubsystem*>(this)->GetHandState(Hand);
+}
+
+ETrackingStatus UWindowsMixedRealityInputSimulationEngineSubsystem::GetControllerTrackingStatus(EControllerHand Hand) const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
+	{
+		return handState->TrackingStatus;
+	}
+	return ETrackingStatus::NotTracked;
+}
+
+bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
+	{
+		if (handState->bHasJointPoses)
+		{
+			OutTransform = handState->KeypointTransforms[(int32)Keypoint];
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float& OutRadius) const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
+	{
+		if (handState->bHasJointPoses)
+		{
+			OutRadius = handState->KeypointRadii[(int32)Keypoint];
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UWindowsMixedRealityInputSimulationEngineSubsystem::HasJointPoses(EControllerHand Hand) const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
+	{
+		return handState->bHasJointPoses;
+	}
+	return false;
+}
+
+bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetPressState(EControllerHand Hand, EHMDInputControllerButtons Button, bool OnlyRegisterClicks, bool& OutPressState) const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
+	{
+		bool IsPressed = handState->IsButtonPressed[(int32)Button];
+		bool WasPressed = handState->PrevButtonPressed[(int32)Button];
+
+		OutPressState = IsPressed;
+
+		if (OnlyRegisterClicks)
+		{
+			return IsPressed != WasPressed;
+		}
+		else
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedData(
+	bool HasTracking,
+	const FQuat& NewHeadOrientation,
+	const FVector& NewHeadPosition,
+	const FWindowsMixedRealityInputSimulationHandState& LeftHandState,
+	const FWindowsMixedRealityInputSimulationHandState& RightHandState)
+{
+	FRWScopeLock WriteLock(DataMutex, SLT_Write);
+
+	bHasPositionalTracking = HasTracking;
+	HeadOrientation = NewHeadOrientation;
+	HeadPosition = NewHeadPosition;
+
+	UpdateSimulatedHandState(EControllerHand::Left, LeftHandState);
+	UpdateSimulatedHandState(EControllerHand::Right, RightHandState);
+}
+
+void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedHandState(
+	EControllerHand Hand,
+	const FWindowsMixedRealityInputSimulationHandState& NewHandState)
+{
+	FWindowsMixedRealityInputSimulationHandState* HandStatePtr = GetHandState(Hand);
+	check(HandStatePtr);
+
+	FWindowsMixedRealityInputSimulationHandState::ButtonStateArray WasButtonPressed(HandStatePtr->IsButtonPressed);
+	*HandStatePtr = NewHandState;
+	HandStatePtr->PrevButtonPressed = WasButtonPressed;
 }
 
 bool UWindowsMixedRealityInputSimulationEngineSubsystem::ShouldCreateSubsystem(UObject* Outer) const
