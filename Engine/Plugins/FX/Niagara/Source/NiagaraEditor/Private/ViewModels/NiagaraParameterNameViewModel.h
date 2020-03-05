@@ -5,11 +5,13 @@
 #include "NiagaraEditorCommon.h"
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
+#include "Misc/Attribute.h"
 
 struct FCreateWidgetForActionData;
 class FNiagaraScriptToolkitParameterPanelViewModel;
 class SWidget;
 struct FNiagaraScriptVariableAndViewInfo;
+class UEdGraphPin;
 
 /** Interface for view models to the parameter name view widget. */
 class INiagaraParameterNameViewModel : public TSharedFromThis<INiagaraParameterNameViewModel>

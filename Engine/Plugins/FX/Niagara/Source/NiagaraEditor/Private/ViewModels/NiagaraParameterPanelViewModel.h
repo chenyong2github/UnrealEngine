@@ -7,6 +7,8 @@
 #include "EditorUndoClient.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Input/Events.h"
+#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
 
 class UNiagaraSystem;
 class FNiagaraSystemViewModel;
