@@ -498,8 +498,8 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GMaxTextureDimensions = 16384;
 	GMaxCubeTextureDimensions = 16384;
 	GMaxTextureArrayLayers = 2048;
-	GMaxShadowDepthBufferSizeX = 16384;
-	GMaxShadowDepthBufferSizeY = 16384;
+	GMaxShadowDepthBufferSizeX = GMaxTextureDimensions;
+	GMaxShadowDepthBufferSizeY = GMaxTextureDimensions;
     bSupportsD16 = !FParse::Param(FCommandLine::Get(),TEXT("nometalv2")) && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
     GRHISupportsHDROutput = FPlatformMisc::MacOSXVersionCompare(10,14,4) >= 0 && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
@@ -526,11 +526,11 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
 #endif
-	GMaxTextureDimensions = 4096;
-	GMaxCubeTextureDimensions = 4096;
+	GMaxTextureDimensions = 8192;
+	GMaxCubeTextureDimensions = 8192;
 	GMaxTextureArrayLayers = 2048;
-	GMaxShadowDepthBufferSizeX = 4096;
-	GMaxShadowDepthBufferSizeY = 4096;
+	GMaxShadowDepthBufferSizeX = GMaxTextureDimensions;
+	GMaxShadowDepthBufferSizeY = GMaxTextureDimensions;
 #endif
 	
 	GMaxTextureMipCount = FPlatformMath::CeilLogTwo( GMaxTextureDimensions ) + 1;

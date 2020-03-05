@@ -767,9 +767,64 @@ enum EMetalBufferUsage
 	EMetalBufferUsage_LinearTex = 0x40000000,
 };
 
+class FMetalLinearTextureDescriptor
+{
+public:
+	FMetalLinearTextureDescriptor()
+		: StartElement(0)
+		, NumElements(UINT_MAX)
+		, BytesPerElement(0)
+	{
+		// void
+	}
+
+	FMetalLinearTextureDescriptor(uint32 InStartElement, uint32 InNumElements, uint32 InBytesPerElement)
+		: StartElement(InStartElement)
+		, NumElements(InNumElements)
+		, BytesPerElement(InBytesPerElement)
+	{
+		// void
+	}
+	
+	FMetalLinearTextureDescriptor(const FMetalLinearTextureDescriptor& Other)
+		: StartElement(Other.StartElement)
+		, NumElements(Other.NumElements)
+		, BytesPerElement(Other.BytesPerElement)
+	{
+		// void
+	}
+	
+	~FMetalLinearTextureDescriptor()
+	{
+		// void
+	}
+
+	friend uint32 GetTypeHash(FMetalLinearTextureDescriptor const& Key)
+	{
+		uint32 Hash = GetTypeHash((uint64)Key.StartElement);
+		Hash = HashCombine(Hash, GetTypeHash((uint64)Key.NumElements));
+		Hash = HashCombine(Hash, GetTypeHash((uint64)Key.BytesPerElement));
+		return Hash;
+	}
+
+	bool operator==(FMetalLinearTextureDescriptor const& Other) const
+	{
+		return    StartElement    == Other.StartElement
+		       && NumElements     == Other.NumElements
+		       && BytesPerElement == Other.BytesPerElement;
+	}
+
+	uint32 StartElement;
+	uint32 NumElements;
+	uint32 BytesPerElement;
+};
+
 class FMetalRHIBuffer
 {
 public:
+	using LinearTextureMapKey = TTuple<EPixelFormat, FMetalLinearTextureDescriptor>;
+	using LinearTextureMap = TMap<LinearTextureMapKey, FMetalTexture>;
+	
 	FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InType);
 	virtual ~FMetalRHIBuffer();
 	
@@ -801,17 +856,17 @@ public:
 	/**
 	 * Allocate a linear texture for given format.
 	 */
-	FMetalTexture AllocLinearTexture(EPixelFormat Format, NSUInteger Offset);
+	FMetalTexture AllocLinearTexture(EPixelFormat InFormat, const FMetalLinearTextureDescriptor& InLinearTextureDescriptor);
 	
 	/**
 	 * Get a linear texture for given format.
 	 */
-	ns::AutoReleased<FMetalTexture> CreateLinearTexture(EPixelFormat Format, FRHIResource* InParent, uint32 Offset);
+	ns::AutoReleased<FMetalTexture> CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InParent, const FMetalLinearTextureDescriptor* InLinearTextureDescriptor = nullptr);
 	
 	/**
 	 * Get a linear texture for given format.
 	 */
-	ns::AutoReleased<FMetalTexture> GetLinearTexture(EPixelFormat Format, NSUInteger Offset);
+	ns::AutoReleased<FMetalTexture> GetLinearTexture(EPixelFormat InFormat, const FMetalLinearTextureDescriptor* InLinearTextureDescriptor = nullptr);
 	
 	/**
 	 * Prepare a CPU accessible buffer for uploading to GPU memory
@@ -837,7 +892,7 @@ public:
 	FMetalBuffer CPUBuffer;
 	
 	// The map of linear textures for this vertex buffer - may be more than one due to type conversion.
-	TMap<TTuple<EPixelFormat, uint32>, FMetalTexture> LinearTextures;
+	LinearTextureMap LinearTextures;
 	
 	/** Buffer for small buffers < 4Kb to avoid heap fragmentation. */
 	FMetalBufferData* Data;
@@ -1092,10 +1147,15 @@ public:
 	uint8 Format;
 	uint8 Stride;
 
+	void InitLinearTextureDescriptor(const FMetalLinearTextureDescriptor& InLinearTextureDescriptor);
+
 	FMetalShaderResourceView();
 	~FMetalShaderResourceView();
 	
 	ns::AutoReleased<FMetalTexture> GetLinearTexture(bool const bUAV);
+
+private:
+	FMetalLinearTextureDescriptor* LinearTextureDesc;
 };
 
 

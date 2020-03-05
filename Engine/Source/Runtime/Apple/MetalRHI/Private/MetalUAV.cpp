@@ -9,19 +9,26 @@
 static void ClearUAV(TRHICommandList_RecursiveHazardous<FMetalRHICommandContext>& RHICmdList, FMetalUnorderedAccessView* UnorderedAccessView, const void* ClearValue, bool bFloat);
 
 FMetalShaderResourceView::FMetalShaderResourceView()
-: TextureView(nullptr)
-, Offset(0)
-, MipLevel(0)
-, NumMips(0)
-, Format(0)
-, Stride(0)
+	: TextureView(nullptr)
+	, Offset(0)
+	, MipLevel(0)
+	, NumMips(0)
+	, Format(0)
+	, Stride(0)
+	, LinearTextureDesc(nullptr)
 {
-	
+	// void
 }
 
 FMetalShaderResourceView::~FMetalShaderResourceView()
 {
-	if(TextureView)
+	if (LinearTextureDesc)
+	{
+		delete LinearTextureDesc;
+		LinearTextureDesc = nullptr;
+	}
+	
+	if (TextureView)
 	{
 		FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(SourceTexture);
 		if (Surface)
@@ -29,10 +36,9 @@ FMetalShaderResourceView::~FMetalShaderResourceView()
 			Surface->SRVs.Remove(this);
 		}
 		
-		if(TextureView->Texture)
+		if (TextureView->Texture)
 		{
 			TextureView->Texture = nil;
-			
 			TextureView->MSAATexture = nil;
 		}
 		delete TextureView;
@@ -43,18 +49,25 @@ FMetalShaderResourceView::~FMetalShaderResourceView()
 	SourceTexture = NULL;
 }
 
+void FMetalShaderResourceView::InitLinearTextureDescriptor(const FMetalLinearTextureDescriptor& InLinearTextureDescriptor)
+{
+	check(!LinearTextureDesc);
+	LinearTextureDesc = new FMetalLinearTextureDescriptor(InLinearTextureDescriptor);
+	check(LinearTextureDesc);
+}
+
 ns::AutoReleased<FMetalTexture> FMetalShaderResourceView::GetLinearTexture(bool const bUAV)
 {
 	ns::AutoReleased<FMetalTexture> NewLinearTexture;
 	{
 		if (IsValidRef(SourceVertexBuffer))
 		{
-			NewLinearTexture = SourceVertexBuffer->GetLinearTexture((EPixelFormat)Format, Offset);
+			NewLinearTexture = SourceVertexBuffer->GetLinearTexture((EPixelFormat)Format, LinearTextureDesc);
 			check(NewLinearTexture);
 		}
 		else if (IsValidRef(SourceIndexBuffer))
 		{
-			NewLinearTexture = SourceIndexBuffer->GetLinearTexture((EPixelFormat)Format, Offset);
+			NewLinearTexture = SourceIndexBuffer->GetLinearTexture((EPixelFormat)Format, LinearTextureDesc);
 			check(NewLinearTexture);
 		}
 	}
@@ -156,7 +169,7 @@ FUnorderedAccessViewRHIRef FMetalDynamicRHI::RHICreateUnorderedAccessView(FRHIVe
 	SRV->Format = Format;
 	{
 		check(VertexBuffer->GetUsage() & BUF_UnorderedAccess);
-		VertexBuffer->CreateLinearTexture((EPixelFormat)Format, VertexBuffer, 0);
+		VertexBuffer->CreateLinearTexture((EPixelFormat)Format, VertexBuffer);
 	}
 		
 	// create the UAV buffer to point to the structured buffer's memory
@@ -180,7 +193,7 @@ FUnorderedAccessViewRHIRef FMetalDynamicRHI::RHICreateUnorderedAccessView(FRHIIn
 		SRV->Format = Format;
 		{
 			check(IndexBuffer->GetUsage() & BUF_UnorderedAccess);
-			IndexBuffer->CreateLinearTexture((EPixelFormat)Format, IndexBuffer, 0);
+			IndexBuffer->CreateLinearTexture((EPixelFormat)Format, IndexBuffer);
 		}
 		
 		// create the UAV buffer to point to the structured buffer's memory
@@ -344,7 +357,10 @@ FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView(const FS
 					SRV->Stride = Stride;
 					SRV->Offset = Desc.StartElement * Stride;
 					
-					VertexBuffer->CreateLinearTexture((EPixelFormat)Desc.Format, VertexBuffer, SRV->Offset);
+					FMetalLinearTextureDescriptor LinearTextureDesc(Desc.StartElement, Desc.NumElements, Stride);
+					SRV->InitLinearTextureDescriptor(LinearTextureDesc);
+					
+					VertexBuffer->CreateLinearTexture((EPixelFormat)Desc.Format, VertexBuffer, &LinearTextureDesc);
 				}
 				
 				return SRV;
@@ -395,8 +411,11 @@ FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView(const FS
 					
 					SRV->Offset = Desc.StartElement * Stride;
 					SRV->Stride = Stride;
-						  
-					IndexBuffer->CreateLinearTexture((EPixelFormat)SRV->Format, IndexBuffer, SRV->Offset);
+					
+					FMetalLinearTextureDescriptor LinearTextureDesc(Desc.StartElement, Desc.NumElements, Stride);
+					SRV->InitLinearTextureDescriptor(LinearTextureDesc);
+					
+					IndexBuffer->CreateLinearTexture((EPixelFormat)SRV->Format, IndexBuffer, &LinearTextureDesc);
 				}
 					  
 				return SRV;
