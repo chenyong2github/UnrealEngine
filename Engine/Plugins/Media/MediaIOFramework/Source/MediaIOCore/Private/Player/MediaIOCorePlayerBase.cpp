@@ -553,7 +553,7 @@ void FMediaIOCorePlayerBase::SetEvaluationOffsetInSeconds(double Offset)
 	{
 		//Media doesn't support subframes playback (interpolation between frames) so offsets are always in full frame
 		const double FrameOffset = ITimedDataInput::ConvertSecondOffsetInFrameOffset(Offset, VideoFrameRate);
-		FrameDelay = FMath::FloorToInt(FrameOffset);
+		FrameDelay = FMath::CeilToInt(FrameOffset);
 	}
 	else
 	{
