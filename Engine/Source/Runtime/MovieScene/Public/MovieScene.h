@@ -965,12 +965,6 @@ protected:
 	 */
 	void RemoveBinding(const FGuid& Guid);
 
-#if WITH_EDITOR
-	/** Templated helper for optimizing lists of possessables and spawnables for cook */
-	template<typename T>
-	void OptimizeObjectArray(TArray<T>& ObjectArray);
-#endif
-	
 protected:
 
 	/** Called after this object has been deserialized */
