@@ -107,6 +107,14 @@ void UMoviePipelineBurnInSetting::SetupImpl(TArray<TSharedPtr<MoviePipeline::FMo
 
 void UMoviePipelineBurnInSetting::TeardownImpl() 
 {
+	// If this was transiently added, don't make a burn-in.
+	if (!GetIsUserCustomized() || !IsEnabled())
+	{
+		return;
+	}
+	
+	FlushRenderingCommands();
+
 	if (FSlateApplication::IsInitialized() && VirtualWindow.IsValid())
 	{
 		FSlateApplication::Get().UnregisterVirtualWindow(VirtualWindow.ToSharedRef());
