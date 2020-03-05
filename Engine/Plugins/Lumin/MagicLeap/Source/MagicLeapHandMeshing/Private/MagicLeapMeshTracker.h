@@ -104,6 +104,7 @@ public:
 	bool Destroy();
 	bool ConnectMRMesh(UMRMeshComponent* InMRMeshPtr);
 	bool DisconnectMRMesh(class UMRMeshComponent* InMRMeshPtr);
+	void SetUseWeightedNormals(const bool bInUseWeightedNormals);
 	bool Update();
 	bool RequestMesh();
 	bool GetMeshResult();
@@ -119,12 +120,11 @@ private:
 	MLHandle CurrentMeshRequest;
 #endif //WITH_MLSDK
 	bool bCreating;
+	bool bUseWeightedNormals;
 	// Maps system 128-bit mesh GUIDs to 64-bit brick indices
 	TMap<FGuid, uint64> MeshBrickCache;
 	uint64 MeshBrickIndex;
 	class UMRMeshComponent* MRMesh;
-	// A free list to recycle the CachedMeshData instances.
-	FMLCachedMeshData::SharedPtr CurrentMeshDataCache;
 	TArray<FMLCachedMeshData::SharedPtr> CachedMeshDatas;
 	TArray<FMLCachedMeshData::SharedPtr> FreeCachedMeshDatas;
 	FCriticalSection FreeCachedMeshDatasMutex; //The free list may be pushed/popped from multiple threads.
