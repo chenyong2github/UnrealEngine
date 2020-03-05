@@ -13,6 +13,7 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Containers/Array.h"
 #include "PBDRigidsSolver.h"
 
 namespace Chaos
@@ -106,12 +107,11 @@ private:
  */
 class CHAOSSOLVERS_API FGeometryCollectionPhysicsProxy : public TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData>
 {
-	typedef TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData> Base;
-
 public:
-
-
+	typedef TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData> Base;
 	typedef FCollisionStructureManager::FSimplicial FSimplicial;
+	typedef Chaos::TPBDRigidParticleHandle<float, 3> FParticleHandle;
+	typedef Chaos::TPBDRigidParticleHandle<float, 3> FClusterHandle;
 
 	/** Proxy publics */
 	using FInitFunc = TFunction<void(FSimulationParameters&)>;
@@ -203,8 +203,7 @@ public:
 	void SetCollisionParticlesPerObjectFraction(float CollisionParticlesPerObjectFractionIn) 
 	{CollisionParticlesPerObjectFraction = CollisionParticlesPerObjectFractionIn;}
 
-	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& GetSolverParticleHandles() 
-	{ return GameToPhysInterchange.AccessProducerBuffer()->SolverParticleHandles; }
+	TArray<FClusterHandle*>& GetSolverParticleHandles() { return SolverParticleHandles; }
 
 	const FGeometryCollectionResults* GetConsumerResultsGT() const 
 	{ return PhysToGameInterchange.PeekConsumerBuffer(); }
@@ -264,12 +263,6 @@ protected:
 		EFieldResolutionType ResolutionType, 
 		bool bForce);
 
-	/** The size of the transform group, as reported by the \c DynamicCollection 
-	 * currently stored in \c Parameters. 
-	 */
-	int32 GetTransformGroupSize() const 
-	{ return Parameters.DynamicCollection ? Parameters.DynamicCollection->NumElements(FGeometryCollection::TransformGroup) : 0; }
-
 	/** 
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
 	 * the number of levels until the next parent is \c INDEX_NONE.
@@ -281,26 +274,32 @@ protected:
 	void ProcessCommands(FParticlesType& Particles, const float Time);
 
 private:
+
 	FSimulationParameters Parameters;
+	TArray<FFieldSystemCommand> Commands;
 
-	// Records current dynamic state
-	bool IsObjectDynamic;
-	// Indicate when loaded
-	bool IsObjectLoading;
+	//
+	//  Proxy State Information
+	//
+	int32 NumParticles;
+	int32 BaseParticleIndex;
+	TArray<FParticleHandle*> SolverClusterID;
+	TArray<FClusterHandle*> SolverClusterHandles; // make a TArray of the base clase with type
+	TArray<FClusterHandle*> SolverParticleHandles;// make a TArray of base class and join with above. 
+	TMap<FParticleHandle*, int32> HandleToTransformGroupIndex;
 
-	TMap<Chaos::TPBDRigidParticleHandle<float, 3>*, int32> HandleToTransformGroupIndex;
 
-
-
-
+	//
+	// Buffer Results State Information
+	//
+	bool IsObjectDynamic; // Records current dynamic state
+	bool IsObjectLoading; // Indicate when loaded
 	TArray<int32> EndFrameUnparentingBuffer;
-
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry
 	TArray<FBox> ValidGeometryBoundingBoxes;
 	TArray<int32> ValidGeometryTransformIndices;
 
-	TArray<FFieldSystemCommand> Commands;
-
+#ifdef TODO_REIMPLEMENT_RIGID_CACHING
 	TFunction<void(void)> ResetAnimationCacheCallback;
 	TFunction<void(const TArrayView<FTransform> &)> UpdateTransformsCallback;
 	TFunction<void(const int32 & CurrentFrame, const TManagedArray<int32> & RigidBodyID, const TManagedArray<int32>& Level, const TManagedArray<int32>& Parent, const TManagedArray<TSet<int32>>& Children, const TManagedArray<uint32>& SimulationType, const TManagedArray<uint32>& StatusFlags, const FParticlesType& Particles)> UpdateRestStateCallback;
@@ -308,26 +307,22 @@ private:
 	TFunction<void(FRecordedTransformTrack& InTrack)> CommitRecordedStateCallback;
 
 	// Index of the first particles for this collection in the larger particle array
-	int32 BaseParticleIndex;
-	int32 NumParticles;
-
 	// Time since this object started simulating
 	float ProxySimDuration;
 
-	// bodies waiting to activate on initialization
-	TArray<uint32> PendingActivationList;
+	// Sync frame numbers so we don't do many syncs when physics is running behind
+	uint32 LastSyncCountGT;
 
 	// Storage for the recorded frame information when we're caching the geometry component results.
 	// Synced back to the component with SyncBeforeDestroy
 	FRecordedTransformTrack RecordedTracks;
+#endif
 
 	// Functions to handle engine-side events
 	FInitFunc InitFunc;
 	FCacheSyncFunc CacheSyncFunc;
 	FFinalSyncFunc FinalSyncFunc;
 
-	// Sync frame numbers so we don't do many syncs when physics is running behind
-	uint32 LastSyncCountGT;
 
 	// Per object collision fraction.
 	float CollisionParticlesPerObjectFraction;

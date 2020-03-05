@@ -346,18 +346,19 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	const Chaos::EMultiBufferMode BufferMode)
 	: Base(InOwner)
 	, Parameters(SimulationParameters)
+	, NumParticles(INDEX_NONE)
+	, BaseParticleIndex(INDEX_NONE)
 	, IsObjectDynamic(false)
 	, IsObjectLoading(true)
 
-	, BaseParticleIndex(INDEX_NONE)
-	, NumParticles(INDEX_NONE)
+#if TODO_REIMPLEMENT_RIGID_CACHING
 	, ProxySimDuration(0.0f)
-
+	, LastSyncCountGT(MAX_uint32)
+#endif
 	, InitFunc(InInitFunc)
 	, CacheSyncFunc(InCacheSyncFunc)
 	, FinalSyncFunc(InFinalSyncFunc)
 
-	, LastSyncCountGT(MAX_uint32)
 	, CollisionParticlesPerObjectFraction(CollisionParticlesPerObjectFractionDefault)
 {
 	// We rely on a guarded buffer.
@@ -372,9 +373,7 @@ FAutoConsoleVariableRef CVarReportHighParticleFraction(TEXT("p.gc.ReportHighPart
 
 void FGeometryCollectionPhysicsProxy::Initialize()
 {
-	// Old proxy init
 	check(IsInGameThread());
-
 
 	//
 	// Game thread initilization. 
@@ -388,8 +387,11 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 
 	InitializeDynamicCollection(DynamicCollection, *Parameters.RestCollection, Parameters);
 
-	NumParticles = GetTransformGroupSize(); // SimulatableParticles.Count(true);
+	NumParticles = DynamicCollection.NumElements(FGeometryCollection::TransformGroup);
 	BaseParticleIndex = 0; // Are we always zero indexed now?
+	SolverClusterID.Init(nullptr, NumParticles);
+	SolverClusterHandles.Init(nullptr, NumParticles);
+	SolverParticleHandles.Init(nullptr, NumParticles);
 
 	//	
 	//  Give clients the opportunity to update the parameters before the simualtion is setup. 
@@ -497,7 +499,6 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 	DynamicCollection.CopyMatchingAttributesFrom(RestCollection);
 
 	
-	DynamicCollection.SolverClusterID.Fill(nullptr); 
 
 	//
 	// User defined initial velocities need to be populated. 
@@ -637,10 +638,9 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 	Chaos::FPBDRigidsSolver::FParticlesType& Particles)
 {
 	/*
-	@todo break_everything
-
+	using namespace Chaos;
 	const FGeometryCollection* RestCollection = Parameters.RestCollection;
-	FGeometryDynamicCollection* DynamicCollection = Parameters.DynamicCollection;
+	const FGeometryDynamicCollection& DynamicCollection = *GameToPhysInterchange.GetConsumerBuffer();
 
 	if (Parameters.Simulating)
 	{
@@ -650,17 +650,16 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 		const TManagedArray<TSet<int32>>& Children = RestCollection->Children;
 		const TManagedArray<int32>& SimulationType = RestCollection->SimulationType;
 		const TManagedArray<FVector>& Vertex = RestCollection->Vertex;
-		const TManagedArray<int32>& DynamicState = DynamicCollection->DynamicState;
-		const TManagedArray<int32>& CollisionGroup = DynamicCollection->CollisionGroup;
 		const TManagedArray<float>& Mass = RestCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
 		const TManagedArray<FVector>& InertiaTensor = RestCollection->GetAttribute<FVector>("InertiaTensor", FTransformCollection::TransformGroup);
-
+		const TManagedArray<int32>& DynamicState = DynamicCollection.DynamicState;
+		const TManagedArray<int32>& CollisionGroup = DynamicCollection.CollisionGroup;
+		const TManagedArray<bool>& SimulatableParticles = DynamicCollection.SimulatableParticles;
 		const int32 NumTransforms = GetTransformGroupSize();
 
 		TArray<FTransform> Transform;
-		GeometryCollectionAlgo::GlobalMatrices(
-			DynamicCollection->Transform, DynamicCollection->Parent, Transform);
-		check(DynamicCollection->Transform.Num() == Transform.Num());
+		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection.Transform, DynamicCollection.Parent, Transform);
+		check(DynamicCollection.Transform.Num() == Transform.Num());
 
 		const int NumRigids = 0; // ryan - Since we're doing SOA, we start at zero?
 		BaseParticleIndex = NumRigids;
@@ -708,7 +707,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 		// At the point that we start supporting instancing, this assumption will no longer
 		// hold, and those reverse mappints will be INDEX_NONE.
 
-		const int32 NumGeometries = DynamicCollection->NumElements(FGeometryCollection::GeometryGroup);
+		const int32 NumGeometries = DynamicCollection.NumElements(FGeometryCollection::GeometryGroup);
 		ParallelFor(NumGeometries, [&](int32 GeometryIndex)
 		//for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; ++GeometryIndex)
 		{
@@ -966,7 +965,6 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	TManagedArray<FTransform>& MassToLocal = DynamicCollection.MassToLocal;
 	//TManagedArray<TSharedPtr<FCollisionStructureManager::FSimplicial> >& Simplicials = DynamicCollection.Simplicials;
 	TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>& Implicits = DynamicCollection.Implicits;
-	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& SolverClusterHandles = DynamicCollection.SolverClusterHandles;
 
 	//If we are a root particle use the world transform, otherwise set the relative transform
 	const FTransform CollectionSpaceTransform = GeometryCollectionAlgo::GlobalMatrix(Transform, ParentIndex, CollectionClusterIndex);
@@ -1191,7 +1189,7 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 {
 	const FGeometryDynamicCollection& DynamicCollection = *GameToPhysInterchange.GetConsumerBuffer();
 
-	for (const Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Handle : DynamicCollection.SolverClusterHandles)
+	for (const FClusterHandle* Handle : SolverClusterHandles)
 	{
 		RBDSolver->RemoveParticleToProxy(Handle);
 	}
@@ -1231,7 +1229,9 @@ void FGeometryCollectionPhysicsProxy::SyncBeforeDestroy()
 {
 	if(FinalSyncFunc)
 	{
+#if TODO_REIMPLEMENT_RIGID_CACHING
 		FinalSyncFunc(RecordedTracks);
+#endif
 	}
 }
 
@@ -1727,15 +1727,10 @@ void FGeometryCollectionPhysicsProxy::PullFromPhysicsState()
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::UpdateGeometryCollection(
-	const FGeometryCollectionResults& GCResults,
-	FGeometryDynamicCollection* Collection)
+void FGeometryCollectionPhysicsProxy::UpdateGeometryCollection( const FGeometryCollectionResults& GCResults, FGeometryDynamicCollection* Collection)
 {
-	if (!Collection)
-	{
-		Collection = Parameters.DynamicCollection;
-	}
-	check(Collection);
+	check(IsInGameThread());
+	if (!Collection) return;
 
 	TManagedArray<FTransform>& Transform = Collection->Transform;
 	TManagedArray<int32>& Parent = Collection->Parent;
@@ -1752,13 +1747,13 @@ void FGeometryCollectionPhysicsProxy::UpdateGeometryCollection(
 	//		=> GeomToActor = ActorToWorld.Inv() * ParticleToWorld * MassToLocal.Inv()
 
 	const FTransform& ActorToWorld = Parameters.WorldTransform;
-	const int32 TransformSize = GetTransformGroupSize();
+	const int32 TransformSize = Collection->NumElements(FGeometryCollection::TransformGroup);
 	for (int32 TransformGroupIndex = 0; TransformGroupIndex < TransformSize; ++TransformGroupIndex)
 	{
 		if (!Collection->SimulatableParticles[TransformGroupIndex])
 			continue;
 
-		auto* Handle = Collection->SolverParticleHandles[TransformGroupIndex];
+		auto* Handle = SolverParticleHandles[TransformGroupIndex];
 
 		// dynamic state is also updated by the solver during field interaction. 
 		if(!Handle->Sleeping())
