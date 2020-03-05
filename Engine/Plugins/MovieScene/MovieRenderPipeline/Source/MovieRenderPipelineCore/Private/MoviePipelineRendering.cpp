@@ -307,14 +307,7 @@ void UMoviePipeline::RenderFrame()
 				const bool bCameraCut = CachedOutputState.ShotSamplesRendered == 0;
 				CachedOutputState.ShotSamplesRendered++;
 
-				EAntiAliasingMethod AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA; // temp
-
-				// Anti-aliasing appears to reasonably work with temporal and spatial sampling so we want it on by default 
-				// (otherwise going from 1 sample > 2 is a 4x reduction in quality due to TAA being turned off).
-				if (AntiAliasingSettings->bOverrideAntiAliasing)
-				{
-					AntiAliasingMethod = AntiAliasingSettings->AntiAliasingMethod;
-				}
+				EAntiAliasingMethod AntiAliasingMethod = UE::MovieRenderPipeline::GetEffectiveAntiAliasingMethod(AntiAliasingSettings);
 
 				// Now to check if we have to force it off (at which point we warn the user).
 				bool bMultipleTiles = (TileCount.X > 1) || (TileCount.Y > 1);

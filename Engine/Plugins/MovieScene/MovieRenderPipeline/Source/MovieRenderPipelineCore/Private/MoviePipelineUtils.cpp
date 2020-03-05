@@ -7,6 +7,8 @@
 #include "ARFilter.h"
 #include "AssetData.h"
 #include "UObject/UObjectIterator.h"
+#include "HAL/IConsoleManager.h"
+#include "MoviePipelineAntiAliasingSetting.h"
 
 namespace UE
 {
@@ -46,5 +48,35 @@ namespace UE
 
 			return Classes;
 		}
+	
+		/**
+		* Returns the anti-aliasing setting that we should use. This defaults to the project setting, and then
+		* uses the one specified by the setting if overriden.
+		*/
+		EAntiAliasingMethod GetEffectiveAntiAliasingMethod(const UMoviePipelineAntiAliasingSetting* InSetting)
+		{
+			EAntiAliasingMethod AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
+
+			IConsoleVariable* AntiAliasingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DefaultFeature.AntiAliasing"));
+			if (AntiAliasingCVar)
+			{
+				int32 Value = AntiAliasingCVar->GetInt();
+				if (Value >= 0 && Value < AAM_MAX)
+				{
+					AntiAliasingMethod = (EAntiAliasingMethod)Value;
+				}
+			}
+
+			if (InSetting)
+			{
+				if (InSetting->bOverrideAntiAliasing)
+				{
+					AntiAliasingMethod = InSetting->AntiAliasingMethod;
+				}
+			}
+
+			return AntiAliasingMethod;
+		}
 	}
+
 }
