@@ -14,22 +14,26 @@
 /////////////////////////////////////////////////////////////////////////////////////////
 // Deep shadow global parameters
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterGlobalParameters, )
-	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
+	SHADER_PARAMETER(FMatrix, CPU_WorldToClipMatrix)
 	SHADER_PARAMETER(FVector4, SliceValue)
 	SHADER_PARAMETER(FIntRect, AtlasRect)
 	SHADER_PARAMETER(FIntPoint, ViewportResolution)
+	SHADER_PARAMETER(uint32, AtlasSlotIndex)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float>, FrontDepthTexture)
+	SHADER_PARAMETER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterGlobalParameters, "DeepRasterPass");
 
 static FHairDeepShadowRasterGlobalParameters ConvertToGlobalPassParameter(const FHairDeepShadowRasterPassParameters* In)
 {
 	FHairDeepShadowRasterGlobalParameters Out;
-	Out.WorldToClipMatrix	= In->WorldToClipMatrix;
-	Out.SliceValue			= In->SliceValue;
-	Out.AtlasRect			= In->AtlasRect;
-	Out.ViewportResolution	= In->ViewportResolution;
-	Out.FrontDepthTexture	= In->FrontDepthTexture ? In->FrontDepthTexture->GetRHI() : (FRHITexture*)(GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture);
+	Out.CPU_WorldToClipMatrix	= In->CPU_WorldToClipMatrix;
+	Out.SliceValue				= In->SliceValue;
+	Out.AtlasRect				= In->AtlasRect;
+	Out.ViewportResolution		= In->ViewportResolution;
+	Out.AtlasSlotIndex			= In->AtlasSlotIndex;
+	Out.FrontDepthTexture		= In->FrontDepthTexture ? In->FrontDepthTexture->GetRHI() : (FRHITexture*)(GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture);
+	Out.DeepShadowViewInfoBuffer= In->DeepShadowViewInfoBuffer->GetRHI();
 	return Out;
 }
 
