@@ -620,6 +620,10 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 	// setup the raw bone transformation and find all end effectors
 	for ( int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex )
 	{
+		if (CompressibleAnimData.IsCancelled())
+		{
+			return;
+		}
 		// get the raw world-atoms for this bone
 		UpdateWorldBoneTransformTable(
 			CompressibleAnimData,
@@ -641,6 +645,10 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 	// for each bone...
 	for ( int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex )
 	{
+		if (CompressibleAnimData.IsCancelled())
+		{
+			return;
+		}
 		const FBoneData& Bone = CompressibleAnimData.BoneData[BoneIndex];
 		const int32 ParentBoneIndex = Bone.GetParent();
 
