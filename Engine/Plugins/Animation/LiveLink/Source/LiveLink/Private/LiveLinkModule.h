@@ -5,15 +5,11 @@
 #include "ILiveLinkModule.h"
 
 #include "Features/IModularFeatures.h"
-#include "Interfaces/IPluginManager.h"
-#include "LiveLinkMotionController.h"
-
-#include "LiveLinkMessageBusDiscoveryManager.h"
-
 #include "LiveLinkClient.h"
 #include "LiveLinkDebugCommand.h"
 #include "LiveLinkHeartbeatEmitter.h"
-
+#include "LiveLinkMessageBusDiscoveryManager.h"
+#include "LiveLinkMotionController.h"
 #include "Styling/SlateStyle.h"
 
 /**

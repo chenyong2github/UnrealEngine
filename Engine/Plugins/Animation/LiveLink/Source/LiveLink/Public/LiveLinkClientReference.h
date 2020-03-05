@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 class ILiveLinkClient;
-class IModularFeature;
 
 /** References the live link client */
 struct LIVELINK_API FLiveLinkClientReference
