@@ -916,6 +916,27 @@ void UGameViewportClient::AddSoftwareCursor(EMouseCursor::Type Cursor, const FSo
 	}
 }
 
+void UGameViewportClient::AddSoftwareCursorFromSlateWidget(EMouseCursor::Type InCursorType, TSharedPtr<SWidget> CursorWidgetPtr)
+{
+	if (CursorWidgetPtr.IsValid())
+	{
+		CursorWidgets.Emplace(InCursorType, CursorWidgetPtr);
+	}
+}
+
+TSharedPtr<SWidget> UGameViewportClient::GetSoftwareCursorWidget(EMouseCursor::Type Cursor) const
+{
+	if (CursorWidgets.Contains(Cursor))
+	{
+		const TSharedPtr<SWidget> CursorWidgetPtr = CursorWidgets.FindRef(Cursor);
+		if (CursorWidgetPtr.IsValid())
+		{	
+			return CursorWidgetPtr;
+		}
+	}
+	return nullptr;
+}
+
 bool UGameViewportClient::HasSoftwareCursor(EMouseCursor::Type Cursor) const
 {
 	return CursorWidgets.Contains(Cursor);
