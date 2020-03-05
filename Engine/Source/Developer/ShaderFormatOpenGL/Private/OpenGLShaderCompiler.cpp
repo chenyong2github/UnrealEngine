@@ -867,7 +867,13 @@ void FOpenGLFrontend::BuildShaderOutput(
 			Info.TypeIndex = CrossCompiler::PackedTypeNameToTypeIndex(TypeName);
 			InfoArray.Add(Info);
 		}
-
+		
+		// Sort by TypeIndex as expected by eUB uloading code
+		InfoArray.Sort([](const CrossCompiler::FPackedArrayInfo& A, const CrossCompiler::FPackedArrayInfo& B)
+		{ 
+			return A.TypeIndex < B.TypeIndex; 
+		});
+		
 		Header.Bindings.PackedUniformBuffers.Add(InfoArray);
 	}
 
