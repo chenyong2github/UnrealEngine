@@ -820,6 +820,8 @@ public:
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 };
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineSampleReady, TArray<FFloat16Color>&, FMoviePipelineRenderPassMetrics);
+
 namespace MoviePipeline
 {
 	struct FMoviePipelineRenderPassInitSettings

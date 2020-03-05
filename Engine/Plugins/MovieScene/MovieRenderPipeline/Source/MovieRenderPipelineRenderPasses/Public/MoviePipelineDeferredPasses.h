@@ -5,6 +5,7 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "SceneTypes.h"
 #include "SceneView.h"
+#include "MoviePipelineSurfaceReader.h"
 #include "UObject/GCObject.h"
 #include "MoviePipelineDeferredPasses.generated.h"
 
@@ -29,7 +30,7 @@ protected:
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSettingDisplayName", "Deferred Rendering"); }
 
 
-	void OnBackbufferSampleReady(TArray<FLinearColor> InPixelData, FMoviePipelineRenderPassMetrics InSampleState);
+	void OnBackbufferSampleReady(TArray<FFloat16Color>& InPixelData, FMoviePipelineRenderPassMetrics InSampleState);
 	void OnSetupView(FSceneViewFamily& InViewFamily, FSceneView& InView, const FMoviePipelineRenderPassMetrics& InSampleState);
 
 private:
@@ -42,7 +43,6 @@ private:
 	TArray<TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe>> ImageTileAccumulator;
 };
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineSampleReady, TArray<FLinearColor>, FMoviePipelineRenderPassMetrics);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineSetupView, FSceneViewFamily&, FSceneView&, const FMoviePipelineRenderPassMetrics&);
 
 namespace MoviePipeline
@@ -70,6 +70,9 @@ namespace MoviePipeline
 
 	protected:
 		FSceneViewStateReference ViewState;
+		
+		/** A queue of surfaces that the render targets can be copied to. If no surface is available the game thread should hold off on submitting more samples. */
+		TSharedPtr<FMoviePipelineSurfaceQueue> SurfaceQueue;
 
 		TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget;
 	};
