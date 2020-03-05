@@ -12,6 +12,7 @@
 #include "MeshPaintAdapterFactory.h"
 #include "ToolDataVisualizer.h"
 #include "MeshPaintHelpers.h"
+#include "BaseGizmos/BrushStampIndicator.h"
 
 
 #define LOCTEXT_NAMESPACE "MeshVertexBrush"
@@ -106,11 +107,12 @@ void UMeshVertexPaintingTool::Shutdown(EToolShutdownType ShutdownType)
 void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
-	if (MeshToolManager && LastBestHitResult.Component != nullptr)
+	Super::Render(RenderAPI);
+	FToolDataVisualizer Draw;
+	Draw.BeginFrame(RenderAPI);
+	if (MeshToolManager && LastBestHitResult.Component != nullptr && MeshToolManager->GetPaintableMeshComponents().Num() > 0)
 	{
-		Super::Render(RenderAPI);
-		FToolDataVisualizer Draw;
-		Draw.BeginFrame(RenderAPI);
+		BrushStampIndicator->bDrawIndicatorLines = true;
 		static float WidgetLineThickness = 1.0f;
 		static FLinearColor VertexPointColor = FLinearColor::White;
 		static FLinearColor	HoverVertexPointColor = FLinearColor(0.3f, 1.0f, 0.3f);
@@ -153,8 +155,12 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 				}
 			}
 		}
-		Draw.EndFrame();
 	}
+	else
+	{
+		BrushStampIndicator->bDrawIndicatorLines = false;
+	}
+	Draw.EndFrame();
 	UpdateResult();
 
 }
@@ -672,11 +678,20 @@ UMeshWeightPaintingToolProperties::UMeshWeightPaintingToolProperties()
 void UMeshWeightPaintingToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
 {
 	Super::SaveProperties(SaveFromTool);
+	UMeshWeightPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshWeightPaintingToolProperties>();
+	PropertyCache->TextureWeightType = this->TextureWeightType;
+	PropertyCache->PaintTextureWeightIndex = this->PaintTextureWeightIndex;
+	PropertyCache->EraseTextureWeightIndex = this->EraseTextureWeightIndex;
 }
 
 void UMeshWeightPaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
 {
 	Super::RestoreProperties(RestoreToTool);
+	UMeshWeightPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshWeightPaintingToolProperties>();
+	this->TextureWeightType = PropertyCache->TextureWeightType;
+	this->PaintTextureWeightIndex = PropertyCache->PaintTextureWeightIndex;
+	this->EraseTextureWeightIndex = PropertyCache->EraseTextureWeightIndex;
+
 }
 
 UMeshWeightPaintingTool::UMeshWeightPaintingTool()

@@ -203,7 +203,7 @@ void UMeshPaintMode::BindCommands()
 
 	CommandList->MapAction(Commands.SwitchForeAndBackgroundColor, FExecuteAction::CreateLambda([this]()
 	{
-		UMeshPaintModeHelpers::SwapColors();
+		UMeshPaintModeHelpers::SwapVertexColors();
 	}));
 
 
@@ -292,10 +292,7 @@ void UMeshPaintMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveT
 
 bool UMeshPaintMode::InputAxis(FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime)
 {
-	bool bSelectingOnly = (GetToolManager()->GetActiveTool(EToolSide::Mouse)) ? GetToolManager()->GetActiveTool(EToolSide::Mouse)->IsA<USingleClickTool>() : false;
-
-	// If we are painting (not selecting), don't allow panning with the mouse.
-	return !bSelectingOnly && !InViewportClient->IsAltPressed();
+	return !InViewportClient->IsAltPressed();
 }
 
 void UMeshPaintMode::ActorSelectionChangeNotify()

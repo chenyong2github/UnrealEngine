@@ -765,7 +765,7 @@ void UMeshPaintModeHelpers::RemovePerLODColors(const TArray<UMeshComponent*>& Pa
 	}
 }
 
-void UMeshPaintModeHelpers::SwapColors()
+void UMeshPaintModeHelpers::SwapVertexColors()
 {
 	UMeshVertexPaintingToolProperties* Settings = UMeshPaintMode::GetVertexToolProperties();
 	if (Settings)

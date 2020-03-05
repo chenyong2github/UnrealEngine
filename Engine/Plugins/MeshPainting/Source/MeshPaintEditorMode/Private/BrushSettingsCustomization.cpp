@@ -27,6 +27,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "MeshPaintModeHelpers.h"
 #include "MeshTexturePaintingTool.h"
+#include "ContentBrowserDelegates.h"
 
 #define LOCTEXT_NAMESPACE "MeshPaintCustomization"
 
@@ -161,7 +162,7 @@ FReply FVertexPaintingSettingsCustomization::OnSwapColorsClicked(TSharedRef<IPro
 {
 	FScopedTransaction Transaction(NSLOCTEXT("VertexPaintSettings", "SwapColorsTransation", "Swap paint and erase colors"));
 
-	UMeshPaintModeHelpers::SwapColors();
+	UMeshPaintModeHelpers::SwapVertexColors();
 	UMeshVertexPaintingToolProperties* Settings = UMeshPaintMode::GetVertexToolProperties();
 	if (Settings)
 	{
@@ -377,10 +378,48 @@ TSharedRef<IDetailCustomization> FTexturePaintingSettingsCustomization::MakeInst
 void FTexturePaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	IDetailCategoryBuilder& BrushCategory = DetailLayout.EditCategory(TEXT("Brush"), FText::GetEmpty(), ECategoryPriority::Important);
+	IDetailCategoryBuilder& TextureCategory = DetailLayout.EditCategory(TEXT("TexturePainting"));
+
+	TSharedRef<IPropertyHandle> RedChannel = DetailLayout.GetProperty("bWriteRed", UMeshTexturePaintingToolProperties::StaticClass());
+	RedChannel->MarkHiddenByCustomization();
+	TSharedRef<IPropertyHandle> GreenChannel = DetailLayout.GetProperty("bWriteGreen", UMeshTexturePaintingToolProperties::StaticClass());
+	GreenChannel->MarkHiddenByCustomization();
+	TSharedRef<IPropertyHandle> BlueChannel = DetailLayout.GetProperty("bWriteBlue", UMeshTexturePaintingToolProperties::StaticClass());
+	BlueChannel->MarkHiddenByCustomization();
+	TSharedRef<IPropertyHandle> AlphaChannel = DetailLayout.GetProperty("bWriteAlpha", UMeshTexturePaintingToolProperties::StaticClass());
+	AlphaChannel->MarkHiddenByCustomization();
+	TArray<TSharedRef<IPropertyHandle>> Channels = { RedChannel, GreenChannel, BlueChannel, AlphaChannel };
+	TSharedPtr<SHorizontalBox> ChannelsWidget;
+
+	TextureCategory.AddCustomRow(NSLOCTEXT("VertexPaintSettings", "ChannelLabel", "Channels"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("VertexPaintSettings", "ChannelsLabel", "Channels"))
+			.ToolTipText(NSLOCTEXT("VertexPaintSettings", "ChannelsToolTip", "Colors Channels which should be influenced during Painting."))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		.MaxDesiredWidth(250.0f)
+		[
+			SAssignNew(ChannelsWidget, SHorizontalBox)
+		];
+
+	for (TSharedRef<IPropertyHandle> Channel : Channels)
+	{
+		ChannelsWidget->AddSlot()
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				CreateColorChannelWidget(Channel)
+			];
+	}
+
+
 	TSharedRef<IPropertyHandle> UVChannel = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTexturePaintingToolProperties, UVChannel));
 	UVChannel->MarkHiddenByCustomization();
-	IDetailCategoryBuilder& ColorCategory = DetailLayout.EditCategory(TEXT("TexturePainting"));
-	ColorCategory.AddCustomRow(LOCTEXT("TexturePaintingUVLabel", "Texture Painting UV Channel"))
+
+	TextureCategory.AddCustomRow(LOCTEXT("TexturePaintingUVLabel", "Texture Painting UV Channel"))
 		.NameContent()
 		[
 			UVChannel->CreatePropertyNameWidget()
@@ -412,6 +451,117 @@ void FTexturePaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
 			]
 		];
 
+
+	TSharedRef<IPropertyHandle> TextureProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTexturePaintingToolProperties, PaintTexture));
+	TextureProperty->MarkHiddenByCustomization();
+	TSharedPtr<SHorizontalBox> TextureWidget;
+	FDetailWidgetRow& Row = TextureCategory.AddCustomRow(NSLOCTEXT("TexturePaintSetting", "TextureSearchString", "Texture"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("TexturePaintSettings", "PaintTextureLabel", "Paint Texture"))
+			.ToolTipText(NSLOCTEXT("TexturePaintSettings", "PaintTextureToolTip", "Texture to Apply Painting to."))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		.MaxDesiredWidth(250.0f)
+		[
+			SAssignNew(TextureWidget, SHorizontalBox)
+		];
+
+	/** Use a SObjectPropertyEntryBox to benefit from its functionality */
+		TextureWidget->AddSlot()
+		[
+			SNew(SObjectPropertyEntryBox)
+			.PropertyHandle(TextureProperty)
+			.AllowedClass(UTexture2D::StaticClass())
+			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(Cast<UMeshTexturePaintingTool>(UMeshPaintMode::GetMeshPaintMode()->GetToolManager()->GetActiveTool(EToolSide::Left)), &UMeshTexturePaintingTool::ShouldFilterTextureAsset))
+			.OnObjectChanged(FOnSetObject::CreateUObject(Cast<UMeshTexturePaintingTool>(UMeshPaintMode::GetMeshPaintMode()->GetToolManager()->GetActiveTool(EToolSide::Left)), &UMeshTexturePaintingTool::PaintTextureChanged))
+			.DisplayUseSelected(false)
+			.ThumbnailPool(DetailLayout.GetThumbnailPool())
+		];
+
+		/** Creates a custom widget row containing all color channel flags */
+		TSharedRef<IPropertyHandle> PaintColor = DetailLayout.GetProperty("PaintColor", UMeshTexturePaintingToolProperties::StaticClass());
+		PaintColor->MarkHiddenByCustomization();
+		TSharedRef<IPropertyHandle> EraseColor = DetailLayout.GetProperty("EraseColor", UMeshTexturePaintingToolProperties::StaticClass());
+		EraseColor->MarkHiddenByCustomization();
+
+		// Customize paint color with a swap button
+		{
+			TSharedPtr<SWidget> NameWidget;
+			TSharedPtr<SWidget> ValueWidget;
+
+			IDetailPropertyRow& PaintColorProp = TextureCategory.AddProperty(PaintColor);
+			PaintColorProp.GetDefaultWidgets(NameWidget, ValueWidget, false);
+			FDetailWidgetRow& PaintRow = PaintColorProp.CustomWidget(true);
+			PaintRow.NameContent()
+				[
+					NameWidget.ToSharedRef()
+				];
+
+			PaintRow.ValueContent()
+				.MinDesiredWidth(250)
+				.MaxDesiredWidth(0)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0)
+					.HAlign(HAlign_Left)
+					[
+						SNew(SBox)
+						.WidthOverride(250.f)
+						[
+							ValueWidget.ToSharedRef()
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Center)
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.ToolTipText(NSLOCTEXT("VertexPaintSettings", "SwapColors", "Swap Paint and Erase Colors"))
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						.OnClicked(this, &FTexturePaintingSettingsCustomization::OnSwapColorsClicked, PaintColor, EraseColor)
+						.ContentPadding(0)
+						[
+							SNew(SImage).Image(FEditorStyle::GetBrush("MeshPaint.Swap"))
+						]
+					]
+				];
+		}
+
+		{
+			IDetailPropertyRow& EraseColorProp = TextureCategory.AddProperty(EraseColor);
+
+			TSharedPtr<SWidget> NameWidget;
+			TSharedPtr<SWidget> ValueWidget;
+
+			FDetailWidgetRow& EraseRow = EraseColorProp.CustomWidget(true);
+			EraseRow.ValueContent().MinDesiredWidth(250 - 16.f);
+			EraseColorProp.GetDefaultWidgets(NameWidget, ValueWidget, EraseRow, false);
+		}
+
 }
+
+FReply FTexturePaintingSettingsCustomization::OnSwapColorsClicked(TSharedRef<IPropertyHandle> PaintColor, TSharedRef<IPropertyHandle> EraseColor)
+{
+	UMeshTexturePaintingToolProperties* Settings = UMeshPaintMode::GetTextureToolProperties();
+	if (Settings)
+	{
+		FScopedTransaction Transaction(LOCTEXT("SwapColorsTransation", "Swap paint and erase colors"));
+		Settings->Modify();
+
+		FLinearColor TempPaintColor = Settings->PaintColor;
+		Settings->PaintColor = Settings->EraseColor;
+		Settings->EraseColor = TempPaintColor;
+		PaintColor->NotifyPostChange(EPropertyChangeType::ValueSet);
+		EraseColor->NotifyPostChange(EPropertyChangeType::ValueSet);
+	}
+	return FReply::Handled();
+}
+
 
 #undef LOCTEXT_NAMESPACE
