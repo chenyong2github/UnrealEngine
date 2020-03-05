@@ -707,7 +707,7 @@ private:
 				ENQUEUE_RENDER_COMMAND(FElementInfoCreateLocalVFUniformBuffer)(
 					[UniformBufferPtr, VertexFactory = InVertexFactory, ElementIndex = InElementIndex](FRHICommandListImmediate& RHICmdList)
 				{
-					*UniformBufferPtr = CreateLocalVFUniformBuffer(VertexFactory, ElementIndex, nullptr, 0);
+					*UniformBufferPtr = CreateLocalVFUniformBuffer(VertexFactory, ElementIndex, nullptr, 0, 0);
 				});
 			}
 		}

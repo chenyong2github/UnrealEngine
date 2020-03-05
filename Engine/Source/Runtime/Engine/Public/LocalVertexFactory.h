@@ -17,9 +17,11 @@ struct FMeshBatchElement;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryUniformShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(FIntVector4,VertexFetch_Parameters)
+	SHADER_PARAMETER(int32, PreSkinBaseVertexIndex)
 	SHADER_PARAMETER(uint32,LODLightmapDataIndex)
 	SHADER_PARAMETER_SRV(Buffer<float2>, VertexFetch_TexCoordBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float>, VertexFetch_PositionBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float>, VertexFetch_PreSkinPositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_PackedTangentsBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_ColorComponentsBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -28,7 +30,9 @@ extern TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocal
 	const class FLocalVertexFactory* VertexFactory, 
 	uint32 LODLightmapDataIndex, 
 	class FColorVertexBuffer* OverrideColorVertexBuffer, 
-	int32 BaseVertexIndex);
+	int32 BaseVertexIndex,
+	int32 PreSkinBaseVertexIndex
+	);
 
 /**
  * A vertex factory which simply transforms explicit vertex attributes from local to world space.
@@ -48,6 +52,7 @@ public:
 
 	struct FDataType : public FStaticMeshDataType
 	{
+		FRHIShaderResourceView* PreSkinPositionComponentSRV = nullptr;
 	};
 
 	/**
@@ -98,6 +103,11 @@ public:
 	inline FRHIShaderResourceView* GetPositionsSRV() const
 	{
 		return Data.PositionComponentSRV;
+	}
+
+	inline FRHIShaderResourceView* GetPreSkinPositionSRV() const
+	{
+		return Data.PreSkinPositionComponentSRV ? Data.PreSkinPositionComponentSRV : GNullColorVertexBuffer.VertexBufferSRV;
 	}
 
 	inline FRHIShaderResourceView* GetTangentsSRV() const

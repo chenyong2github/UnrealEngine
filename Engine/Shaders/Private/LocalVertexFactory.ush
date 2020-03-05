@@ -307,6 +307,8 @@ struct FVertexFactoryIntermediates
 	float4 PerInstanceParams;
 #endif	// USE_INSTANCING
 	uint PrimitiveId;
+
+	float3 PreSkinPosition;
 };
 
 #if USE_INSTANCING
@@ -505,7 +507,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.PrevFrameLocalToWorld = GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld;
 #endif	// USE_INSTANCING
 
-	Result.PreSkinnedPosition = Input.Position.xyz;
+	Result.PreSkinnedPosition = Intermediates.PreSkinPosition.xyz;
 	Result.PreSkinnedNormal = TangentToLocal[2]; //TangentBias(Input.TangentZ.xyz);
 
 #if MANUAL_VERTEX_FETCH && NUM_MATERIAL_TEXCOORDS_VERTEX
@@ -802,6 +804,16 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.PerInstanceParams.z = 1;
 	Intermediates.PerInstanceParams.w = 0;
 #endif	// USE_INSTANCING
+
+#if GPUSKIN_PASS_THROUGH
+	uint PreSkinVertexOffset = LocalVF.PreSkinBaseVertexIndex + Input.VertexId * 3;
+	Intermediates.PreSkinPosition.x = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 0];
+	Intermediates.PreSkinPosition.y = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 1];
+	Intermediates.PreSkinPosition.z = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 2];
+#else
+	Intermediates.PreSkinPosition = Input.Position.xyz;
+#endif
+
 	return Intermediates;
 }
 

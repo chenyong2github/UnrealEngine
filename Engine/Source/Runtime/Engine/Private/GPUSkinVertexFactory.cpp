@@ -407,6 +407,7 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::CopyDataTypeForPassthroughFactory
 	DestDataType.TextureCoordinates = Data.TextureCoordinates;
 	DestDataType.ColorComponent = Data.ColorComponent;
 	DestDataType.PositionComponentSRV = Data.PositionComponentSRV;
+	DestDataType.PreSkinPositionComponentSRV = Data.PositionComponentSRV;
 	DestDataType.TangentsSRV = Data.TangentsSRV;
 	DestDataType.ColorComponentsSRV = Data.ColorComponentsSRV;
 	DestDataType.ColorIndexMask = Data.ColorIndexMask;
@@ -691,7 +692,7 @@ bool FGPUSkinPassthroughVertexFactory::ShouldCompilePermutation(const FVertexFac
 		(Parameters.MaterialParameters.bIsUsedWithSkeletalMesh || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
-void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory, struct FRWBuffer* PositionRWBuffer, struct FRWBuffer* TangentRWBuffer)
+void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory, struct FRWBuffer* PositionRWBuffer, class FRHIShaderResourceView* PreSkinPositionSRV, struct FRWBuffer* TangentRWBuffer)
 {
 	// Point this vertex buffer to the RWBuffer
 	PositionVBAlias.VertexBufferRHI = PositionRWBuffer->Buffer;
@@ -708,6 +709,7 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 	{
 		Data.TangentsSRV = TangentRWBuffer ? TangentRWBuffer->SRV : SourceVertexFactory->GetTangentsSRV();
 		Data.PositionComponentSRV = PositionRWBuffer->SRV;
+		Data.PreSkinPositionComponentSRV = PreSkinPositionSRV;
 	}
 
 	Data.TangentBasisComponents[0] = SourceVertexFactory->GetTangentStreamComponent(0);
