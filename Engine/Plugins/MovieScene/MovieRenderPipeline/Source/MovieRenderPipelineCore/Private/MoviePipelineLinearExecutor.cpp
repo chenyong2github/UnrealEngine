@@ -2,6 +2,7 @@
 #include "MoviePipelineLinearExecutor.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineBlueprintLibrary.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineLinearExecutorBase"
 
@@ -70,6 +71,25 @@ void UMoviePipelineLinearExecutorBase::OnExecutorFinishedImpl()
 	// Only say that we're no longer rendering once we've finished all jobs in the executor so the UI doesn't flicker while switching over between jobs.
 	bIsRendering = false;
 	Super::OnExecutorFinishedImpl();
+}
+
+
+FText UMoviePipelineLinearExecutorBase::GetWindowTitle()
+{
+	FNumberFormattingOptions PercentFormatOptions;
+	PercentFormatOptions.MinimumIntegralDigits = 1;
+	PercentFormatOptions.MaximumIntegralDigits = 3;
+	PercentFormatOptions.MaximumFractionalDigits = 0;
+	PercentFormatOptions.RoundingMode = ERoundingMode::HalfFromZero;
+
+	float CompletionPercentage = 0.f;
+	if (ActiveMoviePipeline)
+	{
+		CompletionPercentage = UMoviePipelineBlueprintLibrary::GetCompletionPercentage(ActiveMoviePipeline) * 100.f;
+	}
+
+	FText TitleFormatString = LOCTEXT("MoviePreviewWindowTitleFormat", "Movie Pipeline Render (Preview) [Job {CurrentCount}/{TotalCount} Total] Current Job: {PercentComplete}% Completed.");
+	return FText::FormatNamed(TitleFormatString, TEXT("CurrentCount"), FText::AsNumber(CurrentPipelineIndex + 1), TEXT("TotalCount"), FText::AsNumber(Queue->GetJobs().Num()), TEXT("PercentComplete"), FText::AsNumber(CompletionPercentage, &PercentFormatOptions));
 }
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelineLinearExecutorBase"
