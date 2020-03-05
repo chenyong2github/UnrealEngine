@@ -130,8 +130,8 @@ namespace AudioModulation
 	{
 	}
 
-	FControlBusProxy::FControlBusProxy(const USoundControlBusBase& InBus)
-		: TModulatorProxyRefType(InBus.GetName(), InBus.GetUniqueID())
+	FControlBusProxy::FControlBusProxy(const USoundControlBusBase& InBus, FAudioModulationImpl& InModulationImpl)
+		: TModulatorProxyRefType(InBus.GetName(), InBus.GetUniqueID(), InModulationImpl)
 	{
 		Init(InBus);
 	}
@@ -198,7 +198,8 @@ namespace AudioModulation
 		{
 			if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
 			{
-				LFOHandles.Add(FLFOHandle::Create(*LFO, OutActiveLFOs));
+				check(ModulationImpl);
+				LFOHandles.Add(FLFOHandle::Create(*LFO, OutActiveLFOs, *ModulationImpl));
 			}
 		}
 	}
