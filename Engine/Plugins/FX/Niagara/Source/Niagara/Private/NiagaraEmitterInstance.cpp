@@ -185,7 +185,7 @@ FBox FNiagaraEmitterInstance::GetBounds()
 
 bool FNiagaraEmitterInstance::IsReadyToRun() const
 {
-	if (!CachedEmitter->IsReadyToRun())
+	if (!IsDisabled() && !CachedEmitter->IsReadyToRun())
 	{
 		return false;
 	}
@@ -588,6 +588,11 @@ void FNiagaraEmitterInstance::CheckForErrors()
 
 void FNiagaraEmitterInstance::DirtyDataInterfaces()
 {
+	if (IsDisabled())
+	{
+		return;
+	}
+
 	// Make sure that our function tables need to be regenerated...
 	SpawnExecContext.DirtyDataInterfaces();
 	UpdateExecContext.DirtyDataInterfaces();

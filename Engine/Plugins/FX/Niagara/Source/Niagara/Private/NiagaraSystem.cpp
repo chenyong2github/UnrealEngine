@@ -43,14 +43,6 @@ static FAutoConsoleVariableRef CVarNiagaraForceSystemsToCookOutRapidIterationOnL
 	ECVF_Default
 );
 
-static int GNiagaraVerboseCookOutput = 0;
-static FAutoConsoleVariableRef CVarNiagaraVerboseCookOutput(
-	TEXT("fx.NiagaraVerboseCookOutput"),
-	GNiagaraVerboseCookOutput,
-	TEXT("When enabled UNiagaraSystems generate verbose output on cook."),
-	ECVF_Default
-);
-
 //////////////////////////////////////////////////////////////////////////
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
@@ -97,6 +89,21 @@ void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
 #if WITH_EDITORONLY_DATA
 	WaitForCompilationComplete();
 #endif
+}
+
+bool UNiagaraSystem::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform)const
+{
+	bool bHasAnyEnabledEmitters = false;
+	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
+	{
+		if (EmitterHandle.GetIsEnabled() && EmitterHandle.GetInstance()->Platforms.IsEnabledForPlatform(TargetPlatform->IniPlatformName()))
+		{
+			bHasAnyEnabledEmitters = true;
+			break;
+		}
+	}
+
+	return bHasAnyEnabledEmitters;
 }
 
 #if WITH_EDITOR
@@ -210,66 +217,7 @@ void UNiagaraSystem::RequestCompileForEmitter(UNiagaraEmitter* InEmitter)
 
 void UNiagaraSystem::Serialize(FArchive& Ar)
 {
-	//TODO: Cook out emitters. This requires some wrangling on the compilation side for system scripts.
-// 	//When cooking we clear out any emitters that are disabled entirely or just for the target platform.
-// 	TArray<FNiagaraEmitterHandle> OldEmitters;
-// 	if (Ar.IsCooking())
-// 	{
-// 		OldEmitters = EmitterHandles;
-// 		const ITargetPlatform* Target = Ar.CookingTarget();
-// 		for (FNiagaraEmitterHandle& Handle : EmitterHandles)
-// 		{
-// 			if (Handle.GetIsEnabled() && Handle.GetInstance()->IsEnabledOnPlatform(Target->PlatformName()))
-// 			{
-// 				Handle.ClearEmitter();
-// 			}
-// 		}
-// 	}
-
-	//Some log spam to display emitters we should be cooking out.
-#if WITH_EDITOR && 0
-	if (Ar.IsCooking() && GNiagaraVerboseCookOutput)
-	{
-		TBitArray<TInlineAllocator<8>> EnabledEmitters;
-		EnabledEmitters.Reserve(EmitterHandles.Num());
-		int32 NumEnabled = 0;
-		const ITargetPlatform* Target = Ar.CookingTarget();
-		for (FNiagaraEmitterHandle& Handle : EmitterHandles)
-		{
-			bool bEnabled = Handle.GetInstance()->IsEnabledOnPlatform(Target->PlatformName());
-			EnabledEmitters.Add(bEnabled);
-			if (bEnabled)
-			{
-				NumEnabled++;
-			}
-		}
-
-		if (NumEnabled != EmitterHandles.Num())
-		{
-			UE_LOG(LogNiagara, Log, TEXT("==============================================="));
-			UE_LOG(LogNiagara, Log, TEXT("System has emitters that could be cooked out!"), *GetName());
-
-			for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
-			{
-				if (EnabledEmitters[EmitterIdx] == false)
-				{
-					UE_LOG(LogNiagara, Log, TEXT("%s"), *EmitterHandles[EmitterIdx].GetName().ToString());
-				}
-			}
-			UE_LOG(LogNiagara, Log, TEXT("==============================================="));
-		}
-	}
-
-#endif
-
 	Super::Serialize(Ar);
-
-	//TODO: Cook out emitters. This requires some wrangling on the compilation side for system scripts.
-// 	//Restore old emitters post cook pruning.
-// 	if (Ar.IsCooking())
-// 	{
-// 		EmitterHandles = OldEmitters;
-// 	}
 
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
 
@@ -1534,10 +1482,15 @@ void UNiagaraSystem::OnEffectsQualityChanged()
 
 	for (FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		Handle.GetInstance()->OnEffectsQualityChanged();
+		if (Handle.GetInstance())
+		{
+			Handle.GetInstance()->OnEffectsQualityChanged();
+		}
 	}
 
 	FNiagaraSystemUpdateContext UpdateCtx;
+	UpdateCtx.SetDestroyOnAdd(true);
+	UpdateCtx.SetOnlyActive(true);
 	UpdateCtx.Add(this, true);
 }
 
