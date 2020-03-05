@@ -8,7 +8,6 @@ class FOSCStream
 public:
 	FOSCStream();
 	FOSCStream(const uint8* InData, int32 InSize);
-	FOSCStream(int32 InSize);
 
 	/** Returns the stream buffer data */
 	const uint8* GetData() const;
@@ -92,5 +91,8 @@ private:
 
 	/** Current buffer position. */
 	int32 Position;
+
+	/** Whether stream is used to read (true) or write (false) */
+	bool bIsReadStream;
 };
 

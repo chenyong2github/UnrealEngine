@@ -47,6 +47,16 @@ void FOSCServerProxy::OnPacketReceived(const FArrayReaderPtr& Data, const FIPv4E
 	}, GET_STATID(STAT_OSCServerOnPacketReceived), nullptr, ENamedThreads::GameThread);
 }
 
+FString FOSCServerProxy::GetIpAddress() const
+{
+	return ReceiveIPAddress.ToString();
+}
+
+int32 FOSCServerProxy::GetPort() const
+{
+	return Port;
+}
+
 bool FOSCServerProxy::GetMulticastLoopback() const
 {
 	return bMulticastLoopback;
