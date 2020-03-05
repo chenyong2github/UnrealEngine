@@ -176,6 +176,12 @@ void SAddNewGameplayTagWidget::PopulateTagSources()
 			TagSources.Add(MakeShareable(new FName(Source->SourceName)));
 		}
 	}
+
+	//Set selection to the latest added source
+	if (TagSourcesComboBox != nullptr)
+	{
+		TagSourcesComboBox->SetSelectedItem(TagSources.Last());
+	}	
 }
 
 void SAddNewGameplayTagWidget::Reset(EResetType ResetType)
@@ -245,6 +251,11 @@ void SAddNewGameplayTagWidget::CreateNewGameplayTag()
 
 	// Only support adding tags via ini file
 	if (Manager.ShouldImportTagsFromINI() == false)
+	{
+		return;
+	}
+
+	if (TagSourcesComboBox->GetSelectedItem().Get() == nullptr)
 	{
 		return;
 	}
