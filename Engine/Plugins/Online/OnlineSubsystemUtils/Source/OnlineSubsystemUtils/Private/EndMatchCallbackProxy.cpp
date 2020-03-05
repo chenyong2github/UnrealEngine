@@ -35,7 +35,7 @@ UEndMatchCallbackProxy* UEndMatchCallbackProxy::EndMatch(UObject* WorldContextOb
 
 void UEndMatchCallbackProxy::Activate()
 {
-	FOnlineSubsystemBPCallHelper Helper(TEXT("ConnectToService"), WorldContextObject);
+	FOnlineSubsystemBPCallHelper Helper(TEXT("EndMatch"), WorldContextObject);
 	Helper.QueryIDFromPlayerController(PlayerControllerWeakPtr.Get());
 
 	if (Helper.IsValid())
