@@ -272,47 +272,63 @@ void UNiagaraNodeWithDynamicPins::CollectAddPinActions(FGraphActionListBuilderBa
 
 void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin)
 {
-	FScopedTransaction AddNewPinTransaction(LOCTEXT("AddNewPinTransaction", "Add pin to node"));
-	UNiagaraGraph::FAddParameterOptions AddParameterOptions = UNiagaraGraph::FAddParameterOptions();
-	if (AddPin->Direction == EEdGraphPinDirection::EGPD_Input)
+	if (this->IsA<UNiagaraNodeParameterMapBase>())
 	{
-		AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Output;
+		// Parameter map type nodes create new parameters when adding pins.
+		FScopedTransaction AddNewPinTransaction(LOCTEXT("AddNewPinTransaction", "Add pin to node"));
+		UNiagaraGraph::FAddParameterOptions AddParameterOptions = UNiagaraGraph::FAddParameterOptions();
+		if (AddPin->Direction == EEdGraphPinDirection::EGPD_Input)
+		{
+			AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Output;
+		}
+		else
+		{
+			AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Input;
+		}
+		// Default scope of new parameters on a pin to Particles, by convention. //@todo(ng) choose based on usage
+		AddParameterOptions.NewParameterScopeName = FNiagaraConstants::ParticleAttributeNamespace;
+		//AddParameterOptions.bMakeParameterNameUnique //@todo(ng) consider
+
+		UNiagaraGraph* Graph = GetNiagaraGraph();
+		checkf(Graph != nullptr, TEXT("Failed to get niagara graph when adding pin!"));
+
+		Graph->Modify();
+		Graph->AddParameter(Parameter, AddParameterOptions);
+
+		Modify();
+		UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+		FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
+		Graph->AddParameterReference(Parameter, NewParameterReference);
 	}
 	else
 	{
-		AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Input;
+		RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
 	}
-	// Default scope of new parameters on a pin to Particles, by convention. //@todo(ng) choose based on usage
-	AddParameterOptions.NewParameterScopeName = FNiagaraConstants::ParticleAttributeNamespace;
-	//AddParameterOptions.bMakeParameterNameUnique //@todo(ng) consider
-	
-	UNiagaraGraph* Graph = GetNiagaraGraph();
-	checkf(Graph != nullptr, TEXT("Failed to get niagara graph when adding pin!"));
-	
-	Graph->Modify();
-	Graph->AddParameter(Parameter, AddParameterOptions);
-
-	Modify();
-	UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
-	FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
-	Graph->AddParameterReference(Parameter, NewParameterReference);
 }
 
 void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const struct UNiagaraGraph::FAddParameterOptions AddParameterOptions)
 {
-	UNiagaraGraph* Graph = GetNiagaraGraph();
-	checkf(Graph != nullptr, TEXT("Failed to get niagara graph when adding pin!"));
-
-	Graph->Modify();
-	Graph->AddParameter(Parameter, AddParameterOptions);
-
 	EEdGraphPinDirection NewPinDirection = GetPinDirectionForNewParameters();
 	checkf(NewPinDirection != EGPD_MAX, TEXT("Could not determine direction for new pin! Did you derive a new node from UNiagaraNodeWithDynamicPins?"));
-	
-	Modify();
-	UEdGraphPin* Pin = this->RequestNewTypedPin(NewPinDirection, Parameter.GetType(), Parameter.GetName());
-	FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
-	Graph->AddParameterReference(Parameter, NewParameterReference);
+
+	if (this->IsA<UNiagaraNodeParameterMapBase>())
+	{
+		// Parameter map type nodes create new parameters when adding pins.
+		UNiagaraGraph* Graph = GetNiagaraGraph();
+		checkf(Graph != nullptr, TEXT("Failed to get niagara graph when adding pin!"));
+
+		Graph->Modify();
+		Graph->AddParameter(Parameter, AddParameterOptions);
+
+		Modify();
+		UEdGraphPin* Pin = RequestNewTypedPin(NewPinDirection, Parameter.GetType(), Parameter.GetName());
+		FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
+		Graph->AddParameterReference(Parameter, NewParameterReference);
+	}
+	else
+	{
+		RequestNewTypedPin(NewPinDirection, Parameter.GetType(), Parameter.GetName());
+	}
 }
 
 void UNiagaraNodeWithDynamicPins::RemoveDynamicPin(UEdGraphPin* Pin)
@@ -320,17 +336,21 @@ void UNiagaraNodeWithDynamicPins::RemoveDynamicPin(UEdGraphPin* Pin)
 	RemovePin(Pin);
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
 
-	if (UNiagaraGraph* Graph = GetNiagaraGraph())
+	if (this->IsA<UNiagaraNodeParameterMapBase>())
 	{
-		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-		FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(Pin, false);
-		UNiagaraScriptVariable** PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(PinVariable);
-		if (PinAssociatedScriptVariable != nullptr)
+		// Synchronize parameters if deleting a pin off of a parameter map type node.
+		if (UNiagaraGraph* Graph = GetNiagaraGraph())
 		{
-			bool bShouldRemoveScriptVariable = !Graph->UpdateUsageForScriptVariable(*PinAssociatedScriptVariable);
-			if (bShouldRemoveScriptVariable)
+			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+			FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(Pin, false);
+			UNiagaraScriptVariable** PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(PinVariable);
+			if (PinAssociatedScriptVariable != nullptr)
 			{
-				Graph->RemoveParameter((*PinAssociatedScriptVariable)->Variable);
+				bool bShouldRemoveScriptVariable = !Graph->UpdateUsageForScriptVariable(*PinAssociatedScriptVariable);
+				if (bShouldRemoveScriptVariable)
+				{
+					Graph->RemoveParameter((*PinAssociatedScriptVariable)->Variable);
+				}
 			}
 		}
 	}
