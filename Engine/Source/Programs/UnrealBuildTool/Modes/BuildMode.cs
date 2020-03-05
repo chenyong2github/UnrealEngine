@@ -121,7 +121,13 @@ namespace UnrealBuildTool
 			BuildConfiguration BuildConfiguration = new BuildConfiguration();
 			XmlConfig.ApplyTo(BuildConfiguration);
 			Arguments.ApplyTo(BuildConfiguration);
-			
+
+			// Check the root path length isn't too long
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && UnrealBuildTool.RootDirectory.FullName.Length > BuildConfiguration.MaxRootPathLength)
+			{
+				Log.TraceWarning("Running from a path with a long directory name (\"{0}\" = {1} characters). Root paths shorter than {2} characters are recommended to avoid exceeding maximum path lengths on Windows.", UnrealBuildTool.RootDirectory, UnrealBuildTool.RootDirectory.FullName.Length, BuildConfiguration.MaxRootPathLength);
+			}
+
 			// now that we know the available platforms, we can delete other platforms' junk. if we're only building specific modules from the editor, don't touch anything else (it may be in use).
 			if (!bIgnoreJunk && !UnrealBuildTool.IsEngineInstalled())
 			{
