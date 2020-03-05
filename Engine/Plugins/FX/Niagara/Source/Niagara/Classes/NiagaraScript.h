@@ -386,6 +386,7 @@ public:
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnScriptCompiled, UNiagaraScript*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPropertyChanged, FPropertyChangedEvent& /* PropertyChangedEvent */)
 #endif
 
 private:
@@ -644,6 +645,9 @@ public:
 	/** Callback issued whenever a GPU script compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnScriptCompiled& OnGPUScriptCompiled();
 
+	/** Callback issues whenever post edit changed is called on this script. */
+	NIAGARA_API FOnPropertyChanged& OnPropertyChanged();
+
 	/** External call used to identify the values for a successful VM script compilation. OnVMScriptCompiled will be issued in this case.*/
 	void SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FNiagaraCompileRequestDataBase* InRequestData);
 
@@ -715,6 +719,7 @@ private:
 	/** A multicast delegate which is called whenever the script has been compiled (successfully or not). */
 	FOnScriptCompiled OnVMScriptCompiledDelegate;
 	FOnScriptCompiled OnGPUScriptCompiledDelegate;
+	FOnPropertyChanged OnPropertyChangedDelegate;
 
 	mutable FNiagaraVMExecutableDataId LastReportedVMId;
 

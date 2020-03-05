@@ -8,7 +8,7 @@
 
 void FNiagaraEditorCommands::RegisterCommands()
 {
-	UI_COMMAND(Apply, "Apply", "Push the currently compiled script to the world.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Apply, "Apply", "Apply unsaved changes to the current asset.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(Compile, "Compile", "Compile the current scripts", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(RefreshNodes, "Refresh", "Refreshes the current graph nodes, and updates pins due to external changes.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ResetSimulation, "Reset", "Resets the current simulation", EUserInterfaceActionType::Button, FInputChord(EKeys::SpaceBar));

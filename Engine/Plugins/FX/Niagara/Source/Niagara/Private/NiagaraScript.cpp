@@ -1057,6 +1057,7 @@ void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	}
 
 	CustomAssetRegistryTagCache.Reset();
+	OnPropertyChangedDelegate.Broadcast(PropertyChangedEvent);
 }
 
 #endif
@@ -1923,7 +1924,10 @@ UNiagaraScript::FOnScriptCompiled& UNiagaraScript::OnGPUScriptCompiled()
 	return OnGPUScriptCompiledDelegate;
 }
 
-
+UNiagaraScript::FOnPropertyChanged& UNiagaraScript::OnPropertyChanged()
+{
+	return OnPropertyChangedDelegate;
+}
 
 #endif
 

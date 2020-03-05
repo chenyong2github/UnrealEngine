@@ -182,6 +182,8 @@ private:
 
 	bool bChangesDiscarded;
 
+	bool bScratchPadChangesDiscarded;
+
 public:
 	static const FName ViewportTabID;
 	static const FName CurveEditorTabID;

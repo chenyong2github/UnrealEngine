@@ -31,6 +31,8 @@ public:
 
 	const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& GetScriptViewModels() const;
 
+	const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& GetEditScriptViewModels() const;
+
 	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForScript(UNiagaraScript* InScript);
 
 	const TArray<ENiagaraScriptUsage>& GetAvailableUsages() const;
@@ -39,17 +41,27 @@ public:
 
 	TSharedRef<FNiagaraObjectSelection> GetObjectSelection();
 
-	UNiagaraScript* GetActiveScript();
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetActiveScriptViewModel();
 
-	void SetActiveScript(UNiagaraScript* InActiveScript);
+	void SetActiveScriptViewModel(TSharedRef<FNiagaraScratchPadScriptViewModel> InActiveScriptViewModel);
+
+	void ResetActiveScriptViewModel();
+
+	void CopyActiveScript();
+
+	bool CanPasteScript() const;
+
+	void PasteScript();
 
 	void DeleteActiveScript();
 
 	TSharedPtr<FNiagaraScratchPadScriptViewModel> CreateNewScript(ENiagaraScriptUsage InScriptUsage, ENiagaraScriptUsage InTargetSupportedUsage, FNiagaraTypeDefinition InOutputType);
 
-	TSharedPtr<FNiagaraScratchPadScriptViewModel> CreateNewScriptAsDuplicate(UNiagaraScript* ScriptToDuplicate);
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> CreateNewScriptAsDuplicate(const UNiagaraScript* ScriptToDuplicate);
 
 	FOnScriptViewModelsChanged& OnScriptViewModelsChanged();
+
+	FOnScriptViewModelsChanged& OnEditScriptViewModelsChanged();
 
 	FOnActiveScriptChanged& OnActiveScriptChanged();
 
@@ -60,22 +72,32 @@ public:
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
 
+	void RefreshEditScriptViewModels();
+
 	void ScriptGraphNodeSelectionChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> InScriptViewModelWeak);
 
 	void ScriptViewModelScriptRenamed();
 
+	void ScriptViewModelPinnedChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
+
 private:
 	TSharedPtr<FNiagaraObjectSelection> ObjectSelection;
 
-	UNiagaraScript* ActiveScript;
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> ActiveScriptViewModel;
 
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModelWeak;
 
 	TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>> ScriptViewModels;
 
+	TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>> PinnedScriptViewModels;
+
+	TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>> EditScriptViewModels;
+
 	TArray<ENiagaraScriptUsage> AvailableUsages;
 
 	FOnScriptViewModelsChanged OnScriptViewModelsChangedDelegate;
+
+	FOnScriptViewModelsChanged OnEditScriptViewModelsChangedDelegate;
 
 	FOnActiveScriptChanged OnActiveScriptChangedDelegate;
 
