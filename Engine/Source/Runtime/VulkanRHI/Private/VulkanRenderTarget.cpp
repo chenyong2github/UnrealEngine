@@ -1225,6 +1225,33 @@ void FVulkanCommandListContext::RHITransitionResources(EResourceTransitionAccess
 		if (PendingTransition.Textures.Num() > 0)
 		{
 			PendingTransition.TransitionType = TransitionType;
+			PendingTransition.TransitionPipeline = EResourceTransitionPipeline::EGfxToGfx; // Default to GfxToGfx which is ignored for textures
+			TransitionResources(PendingTransition);
+		}
+	}
+}
+
+void FVulkanCommandListContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture** InTextures, int32 NumTextures)
+{
+	if (NumTextures > 0)
+	{
+		FPendingTransition PendingTransition;
+		for (int32 Index = 0; Index < NumTextures; ++Index)
+		{
+			FRHITexture* RHITexture = InTextures[Index];
+			if (RHITexture)
+			{
+				PendingTransition.Textures.Add(RHITexture);
+
+				FVulkanTextureBase* VulkanTexture = FVulkanTextureBase::Cast(RHITexture);
+				VulkanTexture->OnTransitionResource(*this, TransitionType);
+			}
+		}
+
+		if (PendingTransition.Textures.Num() > 0)
+		{
+			PendingTransition.TransitionType = TransitionType;
+			PendingTransition.TransitionPipeline = TransitionPipeline;
 			TransitionResources(PendingTransition);
 		}
 	}
@@ -1449,6 +1476,27 @@ void FVulkanCommandListContext::TransitionResources(const FPendingTransition& Pe
 			VulkanRHI::FPendingBarrier Barrier;
 			for (int32 Index = 0; Index < PendingTransition.Textures.Num(); ++Index)
 			{
+				// If we are transitioning from compute we need additional pipeline stages
+				// We can ignore the other transition types as their barriers are more explicitly handled elsewhere
+				VkPipelineStageFlags SourceStage = 0, DestStage = 0;
+				switch (PendingTransition.TransitionPipeline)
+				{
+				case EResourceTransitionPipeline::EGfxToGfx:
+				case EResourceTransitionPipeline::EGfxToCompute:
+					break;
+				case EResourceTransitionPipeline::EComputeToGfx:
+					SourceStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+					DestStage = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+					break;
+				case EResourceTransitionPipeline::EComputeToCompute:
+					SourceStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+					DestStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+					break;
+				default:
+					ensureMsgf(0, TEXT("Unknown transition pipeline %d"), (int32)PendingTransition.TransitionPipeline);
+					break;
+				}
+
 				FVulkanTextureBase* VulkanTexture = FVulkanTextureBase::Cast(PendingTransition.Textures[Index]);
 				VkImageLayout& SrcLayout = TransitionAndLayoutManager.FindOrAddLayoutRW(VulkanTexture->Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
 				bool bIsDepthStencil = VulkanTexture->Surface.IsDepthOrStencilAspect();
@@ -1458,7 +1506,7 @@ void FVulkanCommandListContext::TransitionResources(const FPendingTransition& Pe
 
 				int32 BarrierIndex = Barrier.AddImageBarrier(VulkanTexture->Surface.Image, VulkanTexture->Surface.GetFullAspectMask(), VulkanTexture->Surface.GetNumMips(), VulkanTexture->Surface.NumArrayLevels);
 				Barrier.SetTransition(BarrierIndex, VulkanRHI::GetImageLayoutFromVulkanLayout(SrcLayout), VulkanRHI::GetImageLayoutFromVulkanLayout(DstLayout));
-
+				Barrier.AddStages(SourceStage, DestStage);
 				SrcLayout = DstLayout;
 			}
 			//#todo-rco: Temp ensure disabled

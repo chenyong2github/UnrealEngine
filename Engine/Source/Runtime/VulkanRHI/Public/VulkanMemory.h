@@ -1619,6 +1619,12 @@ namespace VulkanRHI
 			}
 		}
 
+		inline void AddStages(uint32_t sourceStages, uint32_t destStages)
+		{
+			SourceStage |= sourceStages;
+			DestStage |= destStages;
+		}
+
 		// This is only valid while no other ImageBarriers are added/removed
 		inline VkImageSubresourceRange& GetSubresource(int32 BarrierIndex)
 		{
