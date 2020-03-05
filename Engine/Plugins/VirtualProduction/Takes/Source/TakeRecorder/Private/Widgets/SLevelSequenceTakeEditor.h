@@ -62,6 +62,8 @@ private:
 	 */
 	void CheckForNewLevelSequence();
 
+	void AddDetails(const TPair<const UClass*, TArray<UObject*> >& Pair, TArray<FObjectKey>& PreviousClasses);
+
 	/**
 	 * Update the details panel for the current selection
 	 */
