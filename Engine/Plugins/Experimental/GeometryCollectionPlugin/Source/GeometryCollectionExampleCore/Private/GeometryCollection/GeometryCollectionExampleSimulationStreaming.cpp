@@ -27,7 +27,7 @@ namespace GeometryCollectionExample
 	void RigidBodies_Streaming_StartSolverEmpty()
 	{
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 
 		Solver->AdvanceSolverBy(1 / 24.);
@@ -67,7 +67,7 @@ namespace GeometryCollectionExample
 		P.CollisionGroup = -1;
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		Solver->AdvanceSolverBy(1 / 24.);
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
@@ -116,7 +116,7 @@ namespace GeometryCollectionExample
 		P.ClusterGroupIndex = 1;
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		Solver->AdvanceSolverBy(1 / 24.);
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES

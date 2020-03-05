@@ -61,7 +61,7 @@ namespace GeometryCollectionExample
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Solver->RegisterObject(PhysObject);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -87,7 +87,7 @@ namespace GeometryCollectionExample
 		EXPECT_NEAR(Transform[0].GetTranslation().Z, TwiceGravityDisplacement, 1e-2);
 
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
-
+		
 		delete PhysObject;
 	}
 	template void RigidBodiesFallingUnderGravity<float>();
@@ -118,8 +118,8 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
-		Solver->SetIsFloorAnalytic(true);
+		////Solver->SetHasFloor(true);
+		////Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -173,8 +173,8 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
-		Solver->SetIsFloorAnalytic(true);
+		//Solver->SetHasFloor(true);
+		//Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -228,8 +228,8 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
-		Solver->SetIsFloorAnalytic(true);
+		//Solver->SetHasFloor(true);
+		//Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -276,8 +276,8 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(false);
-		Solver->SetIsFloorAnalytic(true);
+		// no floor
+		//Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -337,8 +337,8 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(false);
-		Solver->SetIsFloorAnalytic(true);
+		// no floor
+		//Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -395,7 +395,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 

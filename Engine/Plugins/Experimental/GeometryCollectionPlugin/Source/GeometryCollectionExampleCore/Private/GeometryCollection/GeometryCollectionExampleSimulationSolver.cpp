@@ -34,7 +34,7 @@ namespace GeometryCollectionExample
 	void Solver_AdvanceNoObjects()
 	{
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		Solver->AdvanceSolverBy(1 / 24.);
 		FinalizeSolver(*Solver);
@@ -71,7 +71,7 @@ namespace GeometryCollectionExample
 
 		Solver->RegisterObject(PhysObject);
 
-		Solver->SetHasFloor(false);
+		// no floor
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -129,7 +129,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 #endif
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
@@ -157,7 +157,7 @@ namespace GeometryCollectionExample
 		InitMaterialToZero(PhysicalMaterial);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		TArray<TSharedPtr<FGeometryCollection> > RestArray;
 		TArray<TSharedPtr<FGeometryDynamicCollection> > DynamicArray;
@@ -219,7 +219,7 @@ namespace GeometryCollectionExample
 
 		*SolverInOut = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
 		Chaos::FPBDRigidsSolver* Solver = *SolverInOut;
-		Solver->SetHasFloor(true);
+		//Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 
 		for (int32 i = 0; i < NumObjects; i++)
@@ -254,7 +254,7 @@ namespace GeometryCollectionExample
 #if CHAOS_PARTICLEHANDLE_TODO
 			Solver->RegisterObject(PhysObject);
 #endif
-			Solver->SetHasFloor(true);
+			//Solver->SetHasFloor(true);
 			Solver->SetEnabled(true);
 			PhysObject->ActivateBodies();
 
