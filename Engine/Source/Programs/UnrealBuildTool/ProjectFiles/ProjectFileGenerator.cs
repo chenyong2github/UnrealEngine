@@ -433,8 +433,34 @@ namespace UnrealBuildTool
 					VCSharpProjectFile Project = new VCSharpProjectFile(ProjectFile);
 					Project.ShouldBuildForAllSolutionTargets = false;//true;
 					AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
-                    AutomationProjectFiles.Add( Project );
+					AutomationProjectFiles.Add( Project );
 					Folder.ChildProjects.Add( Project );
+
+					if (!ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+					{
+						FileReference PropsFile = new FileReference(ProjectFile.FullName + ".props");
+						CreateAutomationProjectPropsFile(PropsFile);
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Creates a .props file next to each automation project which specifies the path to the engine directory
+		/// </summary>
+		/// <param name="PropsFile">The properties file path</param>
+		void CreateAutomationProjectPropsFile(FileReference PropsFile)
+		{
+			using (FileStream Stream = FileReference.Open(PropsFile, FileMode.Create, FileAccess.Write, FileShare.Read))
+			{
+				using (StreamWriter Writer = new StreamWriter(Stream, Encoding.UTF8))
+				{
+					Writer.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+					Writer.WriteLine("<Project ToolsVersion=\"Current\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
+					Writer.WriteLine("\t<PropertyGroup>");
+					Writer.WriteLine("\t\t<EngineDir Condition=\"'$(EngineDir)' == ''\">{0}</EngineDir>", UnrealBuildTool.EngineDirectory);
+					Writer.WriteLine("\t</PropertyGroup>");
+					Writer.WriteLine("</Project>");
 				}
 			}
 		}
