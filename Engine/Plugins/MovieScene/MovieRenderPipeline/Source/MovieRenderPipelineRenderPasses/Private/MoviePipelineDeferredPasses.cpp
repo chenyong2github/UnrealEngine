@@ -594,7 +594,7 @@ namespace MoviePipeline
 			const double AccumulateEndTime = FPlatformTime::Seconds();
 			const float ElapsedMs = float((AccumulateEndTime - AccumulateBeginTime)*1000.0f);
 
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Accumulation time: %8.2fms"), ElapsedMs);
+			UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Accumulation time: %8.2fms"), ElapsedMs);
 
 		}
 
