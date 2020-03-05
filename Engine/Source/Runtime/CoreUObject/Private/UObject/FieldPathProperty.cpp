@@ -7,6 +7,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/Parse.h"
+#include "UObject/PropertyHelper.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
