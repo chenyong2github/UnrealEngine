@@ -71,6 +71,11 @@ public:
 		SearchManager->Search(Query, InCallback);
 	}
 
+	virtual void ForceIndexOnAssetsMissingIndex() override
+	{
+		SearchManager->ForceIndexOnAssetsMissingIndex();
+	}
+
 	virtual void RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer) override
 	{
 		SearchManager->RegisterIndexer(AssetClassName, Indexer);
