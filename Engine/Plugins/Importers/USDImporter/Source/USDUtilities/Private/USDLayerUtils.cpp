@@ -97,16 +97,10 @@ TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdSt
 	}
 
 	// New layer needs to be created and in the stage layer stack before we can edit it
-	UsdUtils::InsertSubLayer(ParentLayer, LayerFilePath);
+	UsdUtils::InsertSubLayer( ParentLayer, LayerFilePath );
 
 	UsdUtils::StartMonitoringErrors();
 	pxr::UsdEditContext UsdEditContext( UsdStage.Get(), LayerRef );
-	bool bHadErrors = UsdUtils::ShowErrorsAndStopMonitoring();
-
-	if (bHadErrors)
-	{
-		return {};
-	}
 
 	// Create default prim
 	FString PrimPath = TEXT("/") + FPaths::GetBaseFilename( UsdToUnreal::ConvertString( LayerRef->GetDisplayName() ) );
@@ -120,8 +114,12 @@ TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdSt
 		LayerRef->SetDefaultPrim( DefaultPrim.GetPrim().GetName() );
 	}
 
-	// Set up axis
-	UsdUtils::SetUsdStageAxis( UsdStage.Get(), pxr::UsdGeomTokens->z );
+	bool bHadErrors = UsdUtils::ShowErrorsAndStopMonitoring();
+
+	if (bHadErrors)
+	{
+		return {};
+	}
 
 	return TUsdStore< pxr::SdfLayerRefPtr >( LayerRef );
 }
