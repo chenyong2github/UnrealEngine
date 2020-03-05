@@ -29,6 +29,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodiesFallingUnderGravity()
 	{
+		float Dt = 1 / 24.;
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
@@ -41,7 +42,7 @@ namespace GeometryCollectionExample
 			FTransform::Identity,	// RestCenter
 			FVector(1.0),			// RestScale
 			nullptr,				// RestInitFunc
-			(int32)EObjectStateTypeEnum::Chaos_Object_Kinematic // DynamicStateDefault
+			(int32)EObjectStateTypeEnum::Chaos_Object_Dynamic // DynamicStateDefault
 		};
 
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr; // Allocated and zero'ed
@@ -64,27 +65,27 @@ namespace GeometryCollectionExample
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
-		Solver->AddDirtyProxy(PhysObject); // why?
+		Solver->AddDirtyProxy(PhysObject);
 		Solver->PushPhysicsState(Module->GetDispatcher());
 
-		Solver->AdvanceSolverBy(1 / 24.);
+		Solver->AdvanceSolverBy(Dt);
 
 		// Calls BufferPhysicsResults(), FlipBuffer(), and PullFromPhysicsState() on each proxy.
-		//FinalizeSolver(*Solver);
-
-		Solver->BufferPhysicsResults();
-		Solver->FlipBuffers();
-		Solver->UpdateGameThreadStructures();
+		FinalizeSolver(*Solver);
 
 		// never touched
 		TManagedArray<FTransform>& RestTransform = RestCollection->Transform;
 		EXPECT_LT(FMath::Abs(RestTransform[0].GetTranslation().Z), SMALL_THRESHOLD);
 
+
 		// simulated
 		TManagedArray<FTransform>& Transform = GTDynamicCollection->Transform;
 		EXPECT_EQ(Transform.Num(), 1);
-		EXPECT_LT(Transform[0].GetTranslation().Z, 0);
-		
+		EXPECT_LT(Transform[0].GetTranslation().Z, 0.f);
+
+		float TwiceGravityDisplacement = /* 0.5* */-980.f * Dt * Dt; // we seem to be twice gravity
+		EXPECT_NEAR(Transform[0].GetTranslation().Z, TwiceGravityDisplacement, 1e-2);
+
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
 		delete PhysObject;
