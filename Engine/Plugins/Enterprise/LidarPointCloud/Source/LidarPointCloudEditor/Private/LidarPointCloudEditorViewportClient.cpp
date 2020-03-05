@@ -229,8 +229,8 @@ void FLidarPointCloudEditorViewportClient::Draw(const FSceneView* View, FPrimiti
 
 void FLidarPointCloudEditorViewportClient::DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas)
 {
-	auto PointCloudEditor = PointCloudEditorPtr.Pin();
-	auto PointCloudEditorViewport = PointCloudEditorViewportPtr.Pin();
+	TSharedPtr<FLidarPointCloudEditor> PointCloudEditor = PointCloudEditorPtr.Pin();
+	TSharedPtr<SLidarPointCloudEditorViewport> PointCloudEditorViewport = PointCloudEditorViewportPtr.Pin();
 	if (!PointCloudEditor.IsValid() || !PointCloudEditorViewport.IsValid())
 	{
 		return;
@@ -333,7 +333,7 @@ void FLidarPointCloudEditorViewportClient::OnSelectionEnd(const FIntVector4& Sel
 {
 	if (ULidarPointCloudComponent* PointCloudComponentRawPtr = PointCloudComponent.Get())
 	{
-		if (auto Editor = PointCloudEditorPtr.Pin())
+		if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
 		{
 			// Compute a view.
 			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(Viewport, GetScene(), EngineShowFlags).SetRealtimeUpdate(IsRealtime()));

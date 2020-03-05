@@ -67,7 +67,7 @@ uint32 SetLocationAndColorData(uint8* Buffer, const TArray<FLidarPointCloudTrave
 	{
 		if (bUseClassification)
 		{
-			for (auto& Node : Nodes)
+			for (const FLidarPointCloudTraversalOctreeNode* Node : Nodes)
 			{
 				// Skip nodes with no available data
 				if (!Node->DataNode->HasData())
@@ -96,7 +96,7 @@ uint32 SetLocationAndColorData(uint8* Buffer, const TArray<FLidarPointCloudTrave
 		}
 		else
 		{
-			for (auto& Node : Nodes)
+			for (const FLidarPointCloudTraversalOctreeNode* Node : Nodes)
 			{
 				// Skip nodes with no available data
 				if (!Node->DataNode->HasData())
@@ -127,7 +127,7 @@ uint32 SetLocationAndColorData(uint8* Buffer, const TArray<FLidarPointCloudTrave
 	{
 		if (bUseClassification)
 		{
-			for (auto& Node : Nodes)
+			for (const FLidarPointCloudTraversalOctreeNode* Node : Nodes)
 			{
 				// Skip nodes with no available data
 				if (!Node->DataNode->HasData())
@@ -148,7 +148,7 @@ uint32 SetLocationAndColorData(uint8* Buffer, const TArray<FLidarPointCloudTrave
 		}
 		else
 		{
-			for (auto& Node : Nodes)
+			for (const FLidarPointCloudTraversalOctreeNode* Node : Nodes)
 			{
 				// Skip nodes with no available data
 				if (!Node->DataNode->HasData())
@@ -172,7 +172,7 @@ uint32 SetLocationAndColorData(uint8* Buffer, const TArray<FLidarPointCloudTrave
 /** Iterates over the provided nodes and sets scale data */
 void SetScaleData(uint8* Buffer, const TArray<FLidarPointCloudTraversalOctreeNode*>& Nodes)
 {
-	for (auto Node : Nodes)
+	for (const FLidarPointCloudTraversalOctreeNode* Node : Nodes)
 	{
 		// Skip nodes with no available data
 		if (!Node->DataNode->HasData())
@@ -363,7 +363,7 @@ void FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudLOD
 
 		if (SelectionParams.MaxDepth < 0 || CurrentNode->Depth < SelectionParams.MaxDepth)
 		{
-			for (auto& Child : CurrentNode->Children)
+			for (FLidarPointCloudTraversalOctreeNode& Child : CurrentNode->Children)
 			{
 				Nodes.Enqueue(&Child);
 			}
@@ -427,10 +427,10 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 
 		for (int32 i = 0; i < InRegisteredProxies.Num(); ++i)
 		{
-			auto& RegisteredProxy = InRegisteredProxies[i];
+			const FLidarPointCloudLODManager::FRegisteredProxy& RegisteredProxy = InRegisteredProxies[i];
 
 			// Acquire a Shared Pointer from the Weak Pointer and check that it references a valid object
-			if (auto SceneProxyWrapper = RegisteredProxy.SceneProxyWrapper.Pin())
+			if (TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper = RegisteredProxy.SceneProxyWrapper.Pin())
 			{
 				FScopeLock OctreeLock(&RegisteredProxy.PointCloud->Octree.DataLock);
 
@@ -484,7 +484,7 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 	}
 
 	// Used to pass render data updates to render thread
-	auto Buffer = BufferManager.GetFreeBuffer();
+	FLidarPointCloudDataBuffer* Buffer = BufferManager.GetFreeBuffer();
 	TArray<FLidarPointCloudProxyUpdateData> ProxyUpdateData;
 
 	// Build buffer data
@@ -503,12 +503,12 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 
 		for (int32 i = 0; i < SelectedNodesData.Num(); ++i)
 		{
-			auto& RegisteredProxy = InRegisteredProxies[i];
+			const FLidarPointCloudLODManager::FRegisteredProxy& RegisteredProxy = InRegisteredProxies[i];
 
 			// Only calculate if needed
 			if (RegisteredProxy.Component->PointSize > 0)
 			{
-				for (auto Node : SelectedNodesData[i])
+				for (FLidarPointCloudTraversalOctreeNode* Node : SelectedNodesData[i])
 				{
 					Node->CalculateVirtualDepth(RegisteredProxy.TraversalOctree->LevelWeights, RegisteredProxy.TraversalOctree->VirtualDepthMultiplier, RegisteredProxy.Component->PointSizeBias);
 				}
@@ -527,7 +527,7 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 				}
 
 				// Queue nodes to be streamed
-				for (auto Node : SelectedNodesData[i])
+				for (FLidarPointCloudTraversalOctreeNode* Node : SelectedNodesData[i])
 				{
 					RegisteredProxy.PointCloud->Octree.QueueNode(Node->DataNode, BulkDataLifetime);
 				}
@@ -550,7 +550,7 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 			{
 				UpdateData.Bounds.Reset(SelectedNodesData[i].Num());
 
-				for (auto Node : SelectedNodesData[i])
+				for (FLidarPointCloudTraversalOctreeNode* Node : SelectedNodesData[i])
 				{
 					FVector Extent = RegisteredProxy.TraversalOctree->Extents[Node->Depth];
 					UpdateData.Bounds.Emplace(Node->Center - Extent, Node->Center + Extent);
@@ -570,7 +570,7 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 	// Begin streaming data
 	for (int32 i = 0; i < InRegisteredProxies.Num(); ++i)
 	{
-		auto& RegisteredProxy = InRegisteredProxies[i];
+		const FLidarPointCloudLODManager::FRegisteredProxy& RegisteredProxy = InRegisteredProxies[i];
 
 		FScopeLock OctreeLock(&RegisteredProxy.PointCloud->Octree.DataLock);
 		RegisteredProxy.PointCloud->Octree.UnloadOldNodes(CurrentTime);
@@ -634,7 +634,7 @@ void FLidarPointCloudLODManager::PrepareProxies()
 		if (RegisteredProxy.Component->GetPointCloud())
 		{
 			// Acquire a Shared Pointer from the Weak Pointer and check that it references a valid object
-			if (auto SceneProxyWrapper = RegisteredProxy.SceneProxyWrapper.Pin())
+			if (TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper = RegisteredProxy.SceneProxyWrapper.Pin())
 			{
 #if WITH_EDITOR
 				// Avoid doubling the point allocation of the same asset (once in Editor world and once in PIE world)
@@ -661,7 +661,7 @@ void FLidarPointCloudLODManager::PrepareProxies()
 				}
 
 				// If this is an editor component, use its own ViewportClient
-				if (auto Client = RegisteredProxy.Component->GetOwningViewportClient().Pin())
+				if (TSharedPtr<FViewportClient> Client = RegisteredProxy.Component->GetOwningViewportClient().Pin())
 				{
 					// If the ViewData cannot be successfully retrieved from the editor viewport, fall back to using main view
 					if (!RegisteredProxy.ViewData.ComputeFromEditorViewportClient(Client.Get()))

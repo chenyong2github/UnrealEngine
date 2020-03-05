@@ -2,8 +2,8 @@
 
 #pragma once
 
-#define FOR(ElemName, Node) for(auto ElemName = Node->GetPersistentData(), DataEnd = ElemName + Node->GetNumPoints(); ElemName != DataEnd; ++ElemName)
-#define FOR_RO(ElemName, Node) for(auto ElemName = Node->GetData(), DataEnd = ElemName + Node->GetNumPoints(); ElemName != DataEnd; ++ElemName)
+#define FOR(ElemName, Node) for(FLidarPointCloudPoint* ElemName = Node->GetPersistentData(), * DataEnd = ElemName + Node->GetNumPoints(); ElemName != DataEnd; ++ElemName)
+#define FOR_RO(ElemName, Node) for(FLidarPointCloudPoint* ElemName = Node->GetData(), * DataEnd = ElemName + Node->GetNumPoints(); ElemName != DataEnd; ++ElemName)
 
 #define IS_VIS_CHECK_REQUIRED (bVisibleOnly && CurrentNode->NumVisiblePoints < CurrentNode->GetNumPoints())
 
@@ -18,7 +18,11 @@
 	while (Nodes.Dequeue(CurrentNode))\
 	{\
 		{ Action } \
-		for (auto Child : CurrentNode->Children) if (NodeTest) Nodes.Enqueue(Child);\
+		for (FLidarPointCloudOctreeNode* Child : CurrentNode->Children)\
+		{\
+			if (NodeTest)\
+			Nodes.Enqueue(Child);\
+		}\
 	}\
 }
 #define ITERATE_NODES(Action, NodeTest) ITERATE_NODES_BODY(Action, NodeTest,  )
@@ -90,7 +94,10 @@
 			if (!IS_VIS_CHECK_REQUIRED) { FOR##Mode(Point, CurrentNode) { if (POINT_BY_RAY) { Action } } }\
 			else { FOR##Mode(Point, CurrentNode) { if (Point->bVisible && POINT_BY_RAY) { Action } } }\
 \
-			for (auto Child : CurrentNode->Children) Nodes.Enqueue(Child);\
+			for (FLidarPointCloudOctreeNode* Child : CurrentNode->Children)\
+			{\
+				 Nodes.Enqueue(Child);\
+			}\
 		}\
 	}\
 }

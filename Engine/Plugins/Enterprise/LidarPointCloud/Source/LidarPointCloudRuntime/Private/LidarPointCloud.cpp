@@ -672,7 +672,7 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 		}
 
 		// Sync
-		for (auto& ThreadResult : ThreadResults)
+		for (const TFuture<void>& ThreadResult : ThreadResults)
 		{
 			ThreadResult.Get();
 		}
@@ -1069,9 +1069,9 @@ bool ULidarPointCloudBlueprintLibrary::LineTraceSingle(UObject* WorldContextObje
 
 		for (TActorIterator<ALidarPointCloudActor> Itr(World); Itr; ++Itr)
 		{
-			auto Actor = *Itr;
-			auto Component = Actor->GetPointCloudComponent();
-			auto Point = Component->LineTraceSingle(Ray, Radius, bVisibleOnly);
+			ALidarPointCloudActor* Actor = *Itr;
+			ULidarPointCloudComponent* Component = Actor->GetPointCloudComponent();
+			FLidarPointCloudPoint* Point = Component->LineTraceSingle(Ray, Radius, bVisibleOnly);
 			if (Point)
 			{
 				Hit = FLidarPointCloudTraceHit(Actor, Component);
@@ -1094,8 +1094,8 @@ bool ULidarPointCloudBlueprintLibrary::LineTraceMulti(UObject* WorldContextObjec
 
 		for (TActorIterator<ALidarPointCloudActor> Itr(World); Itr; ++Itr)
 		{
-			auto Actor = *Itr;
-			auto Component = Actor->GetPointCloudComponent();
+			ALidarPointCloudActor* Actor = *Itr;
+			ULidarPointCloudComponent* Component = Actor->GetPointCloudComponent();
 
 			FLidarPointCloudTraceHit Hit(Actor, Component);
 			if (Component->LineTraceMulti(Ray, Radius, bVisibleOnly, true, Hit.Points))

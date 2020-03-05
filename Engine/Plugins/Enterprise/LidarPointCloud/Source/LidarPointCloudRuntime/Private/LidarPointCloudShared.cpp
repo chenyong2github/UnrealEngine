@@ -83,12 +83,12 @@ FLidarPointCloudDataBufferManager::FLidarPointCloudDataBufferManager(const int32
 
 FLidarPointCloudDataBufferManager::~FLidarPointCloudDataBufferManager()
 {
-	auto Iterator = &Head;
+	TList<FLidarPointCloudDataBuffer>* Iterator = &Head;
 	while (Iterator)
 	{
 		if (Iterator != &Head)
 		{
-			auto Tmp = Iterator;
+			TList<FLidarPointCloudDataBuffer>* Tmp = Iterator;
 			Iterator = Iterator->Next;
 			delete Tmp;
 		}
@@ -105,7 +105,7 @@ FLidarPointCloudDataBuffer* FLidarPointCloudDataBufferManager::GetFreeBuffer()
 
 	// Find available memory allocation
 	{
-		auto Iterator = &Head;
+		TList<FLidarPointCloudDataBuffer>* Iterator = &Head;
 		while (Iterator)
 		{
 			if (!Iterator->Element.bInUse)
@@ -142,7 +142,7 @@ void FLidarPointCloudDataBufferManager::Resize(const int32& NewBufferSize)
 
 	BufferSize = NewBufferSize;
 
-	auto Iterator = &Head;
+	TList<FLidarPointCloudDataBuffer>* Iterator = &Head;
 	while (Iterator)
 	{
 		Iterator->Element.Resize(NewBufferSize);

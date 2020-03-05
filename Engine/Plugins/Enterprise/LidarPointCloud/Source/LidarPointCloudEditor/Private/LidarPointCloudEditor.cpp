@@ -90,7 +90,7 @@ FLidarPointCloudEditor::~FLidarPointCloudEditor()
 void FLidarPointCloudEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_LidarPointCloudEditor", "LiDAR Point Cloud Editor"));
-	auto WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
+	TSharedRef<FWorkspaceItem> WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
@@ -449,7 +449,7 @@ void FLidarPointCloudEditor::ExtendToolBar()
 	{
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FLidarPointCloudEditor* ThisEditor)
 		{
-			auto Commands = &FLidarPointCloudEditorCommands::Get();
+			const FLidarPointCloudEditorCommands* Commands = &FLidarPointCloudEditorCommands::Get();
 
 			ToolbarBuilder.BeginSection("Camera");
 			{

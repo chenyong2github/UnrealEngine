@@ -303,7 +303,10 @@ bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPt
 				}
 
 				// Sync threads
-				for (auto& ThreadResult : ThreadResults) ThreadResult.Get();
+				for (const TFuture<void>& ThreadResult : ThreadResults)
+				{
+					ThreadResult.Get();
+				}
 
 				// Make sure to progress the counter to the end before returning
 				OutImportResults.IncrementProgressCounter(TotalPointsToRead);
