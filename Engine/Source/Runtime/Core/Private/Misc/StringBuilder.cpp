@@ -98,6 +98,11 @@ FStringBuilderBase&	operator<<(FStringBuilderBase& Builder, const FString& Str)
 	return Builder.Append(*Str, Str.Len());
 }
 
+FStringBuilderBase&	operator+=(FStringBuilderBase& Builder, const FString& Str)
+{
+	return Builder.Append(*Str, Str.Len());
+}
+
 // Instantiate templates once
 
 template class TStringBuilderImpl<ANSICHAR>;

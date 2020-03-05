@@ -973,6 +973,8 @@ inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FName& 
 	return Builder;
 }
 
+CORE_API FStringBuilderBase& operator<<(FStringBuilderBase& Builder, FNameEntryId Id);
+
 /**
  * Equality operator with CharType* on left hand side and FName on right hand side
  * 

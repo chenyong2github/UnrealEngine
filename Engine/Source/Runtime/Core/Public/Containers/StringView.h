@@ -138,6 +138,8 @@ public:
 	inline void		RemovePrefix(SizeType CharCount)	{ DataPtr += CharCount; Size -= CharCount; }
 	/** Modifies the view to remove the given number of characters from the end. */
 	inline void		RemoveSuffix(SizeType CharCount)	{ Size -= CharCount; }
+	/** Resets to an empty view */
+	inline void		Reset()								{ DataPtr = nullptr; Size = 0; }
 
 	// Operations
 
