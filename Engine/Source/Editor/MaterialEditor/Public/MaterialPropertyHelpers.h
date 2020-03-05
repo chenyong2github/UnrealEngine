@@ -41,6 +41,7 @@ struct MATERIALEDITOR_API FSortedParamData
 public:
 	EStackDataType StackDataType;
 
+	UPROPERTY(Transient)
 	class UDEditorParameterValue* Parameter;
 
 	FName PropertyName;
@@ -58,8 +59,11 @@ public:
 	FString NodeKey;
 };
 
+USTRUCT()
 struct FUnsortedParamData
 {
+	GENERATED_USTRUCT_BODY()
+	UPROPERTY(Transient)
 	class UDEditorParameterValue* Parameter;
 	FEditorParameterGroup ParameterGroup;
 	TSharedPtr<class IDetailTreeNode> ParameterNode;
