@@ -463,6 +463,10 @@ namespace Chaos
 				}
 				bExternalReady = true;
 			}
+			else
+			{
+				FlushInternalAccelerationQueue();
+			}
 			
 			// we run the task for both starting a new accel structure as well as for the time-slicing
 			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded);
