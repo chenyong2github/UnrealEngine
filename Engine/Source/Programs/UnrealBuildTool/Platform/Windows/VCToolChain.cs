@@ -1426,6 +1426,75 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
+		public override void GenerateTypeLibraryHeader(CppCompileEnvironment CompileEnvironment, ModuleRules.TypeLibrary TypeLibrary, FileReference OutputFile, List<Action> Actions)
+		{
+			// Create the input file
+			StringBuilder Contents = new StringBuilder();
+			Contents.AppendLine("#include <windows.h>");
+			Contents.AppendLine("#include <unknwn.h>");
+			Contents.AppendLine();
+
+			Contents.AppendFormat("#import \"{0}\"", TypeLibrary.FileName);
+			if (!String.IsNullOrEmpty(TypeLibrary.Attributes))
+			{
+				Contents.Append(' ');
+				Contents.Append(TypeLibrary.Attributes);
+			}
+			Contents.AppendLine();
+
+			FileItem InputFile = FileItem.CreateIntermediateTextFile(OutputFile.ChangeExtension(".cpp"), Contents.ToString());
+
+			// Build the argument list
+			FileItem ObjectFile = FileItem.GetItemByFileReference(OutputFile.ChangeExtension(".obj"));
+
+			List<string> Arguments = new List<string>();
+			Arguments.Add(String.Format("\"{0}\"", InputFile.Location));
+			Arguments.Add("/c");
+			Arguments.Add("/nologo");
+			Arguments.Add(String.Format("/Fo\"{0}\"", ObjectFile.Location));
+
+			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+			{
+				AddIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
+			}
+
+			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
+			{
+				AddSystemIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
+			}
+
+			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
+			{
+				AddSystemIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
+			}
+
+			// Create the compile action. Only mark the object file as an output, because we need to touch the generated header afterwards.
+			Action CompileAction = new Action(ActionType.Compile);
+			CompileAction.CommandDescription = "GenerateTLH";
+			CompileAction.PrerequisiteItems.Add(InputFile);
+			CompileAction.ProducedItems.Add(ObjectFile);
+			CompileAction.DeleteItems.Add(FileItem.GetItemByFileReference(OutputFile));
+			CompileAction.StatusDescription = TypeLibrary.Header;
+			CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			CompileAction.CommandPath = EnvVars.CompilerPath;
+			CompileAction.CommandArguments = String.Join(" ", Arguments);
+			CompileAction.bShouldOutputStatusDescription = (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang);
+			CompileAction.bCanExecuteRemotely = false; // Incompatible with SN-DBS
+			Actions.Add(CompileAction);
+
+			// Touch the output header
+			Action TouchAction = new Action(ActionType.BuildProject);
+			TouchAction.CommandDescription = "Touch";
+			TouchAction.CommandPath = BuildHostPlatform.Current.Shell;
+			TouchAction.CommandArguments = String.Format("/C \"copy /b \"{0}\"+,, \"{0}\" 1>nul:\"", OutputFile.FullName);
+			TouchAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			TouchAction.PrerequisiteItems.Add(ObjectFile);
+			TouchAction.ProducedItems.Add(FileItem.GetItemByFileReference(OutputFile));
+			TouchAction.StatusDescription = OutputFile.GetFileName();
+			TouchAction.bCanExecuteRemotely = false;
+			Actions.Add(TouchAction);
+		}
+
 		/// <summary>
 		/// Macros passed via the command line have their quotes stripped, and are tokenized before being re-stringized by the compiler. This conversion
 		/// back and forth is normally ok, but certain characters such as single quotes must always be paired. Remove any such characters here.
