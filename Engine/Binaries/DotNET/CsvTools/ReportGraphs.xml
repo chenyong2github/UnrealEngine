@@ -67,6 +67,10 @@
 			<statString>GPU/*</statString>
 		</graph>
 
+		<graph title="Niagara Breakdown" showAverages="1" thickness="2" >
+			<statString>Ticks/NiagaraComponent Exclusive/GameThread/Niagara GPU/NiagaraGPUSimulation GPU/NiagaraGPUSorting</statString>
+		</graph>
+
 		<graph title="Ticks Queued" showAverages="0" maxy="0" thickness="4" smooth="0">
 			<statString>Basic/TicksQueued</statString>
 		</graph>
