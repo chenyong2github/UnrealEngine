@@ -249,6 +249,9 @@ private:
 
 	MoviePipeline::FAudioState AudioState;
 
+	/** Cached state of GAreScreenMessagesEnabled. We disable them since some messages are written to the FSceneView directly otherwise. */
+	bool bPrevGScreenMessagesEnabled;
+
 	/** 
 	* Have we hit the callback for the BeginFrame at least once? This solves an issue where the delegates
 	* get registered mid-frame so you end up calling EndFrame before BeginFrame which is undesirable.

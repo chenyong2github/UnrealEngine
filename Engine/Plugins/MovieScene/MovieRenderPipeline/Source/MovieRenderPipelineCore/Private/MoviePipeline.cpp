@@ -103,6 +103,9 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	// for FCoreDelegateS::OnBeginFrame to get called to actually start processing.
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initializing overall Movie Pipeline"), GFrameCounter);
 
+	bPrevGScreenMessagesEnabled = GAreScreenMessagesEnabled;
+	GAreScreenMessagesEnabled = false;
+
 	if (!ensureAlwaysMsgf(InJob, TEXT("MoviePipeline cannot be initialized with null job. Aborting.")))
 	{
 		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingJob", "Job was not specified, movie render is aborting."));
@@ -261,6 +264,8 @@ void UMoviePipeline::Shutdown()
 	}
 
 	TeardownAudioRendering();
+
+	GAreScreenMessagesEnabled = bPrevGScreenMessagesEnabled;
 
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Movie Pipeline completed. Duration: %s"), *(FDateTime::UtcNow() - InitializationTime).ToString());
 	PipelineState = EMovieRenderPipelineState::Shutdown;
