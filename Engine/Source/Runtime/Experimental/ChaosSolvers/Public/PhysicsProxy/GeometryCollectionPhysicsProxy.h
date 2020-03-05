@@ -327,6 +327,13 @@ private:
 	// Per object collision fraction.
 	float CollisionParticlesPerObjectFraction;
 
+	// The Simulation data is copied between the game and physics thread. It is 
+	// expected that the two data sets will diverge, based on how the simulation
+	// uses the data, but at the start of the simulation the PhysicsThreadCollection
+	// is a deep copy from the GameThreadCollection. 
+	FGeometryDynamicCollection PhysicsThreadCollection;
+	FGeometryDynamicCollection GameThreadCollection;
+
 	// Currently this is using triple buffers for game-physics and 
 	// physics-game thread communication, but not for any reason other than this 
 	// is the only implementation we currently have of a guarded buffer - a buffer 
@@ -337,7 +344,7 @@ private:
 	// logic locks, and the triple buffer would enable a decoupled lock-free 
 	// paradigm, at least for this component of the handshake.
 	Chaos::FGuardedTripleBuffer<FGeometryCollectionResults> PhysToGameInterchange;
-	Chaos::FDoubleBuffer<FGeometryDynamicCollection> GameToPhysInterchange;
+
 };
 
 CHAOSSOLVERS_API void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& GeometryCollection, const FSharedSimulationParameters& SharedParams);
