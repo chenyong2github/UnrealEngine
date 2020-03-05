@@ -1265,7 +1265,7 @@ namespace Audio
 		{
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UnregisterSoundSubmix"), STAT_AudioUnregisterSoundSubmix, STATGROUP_AudioThreadCommands);
 
-			TWeakObjectPtr<USoundSubmix> SubmixToUnload = InSoundSubmix;
+			TWeakObjectPtr<USoundSubmixBase> SubmixToUnload = InSoundSubmix;
 			FAudioThread::RunCommandOnAudioThread([this, SubmixToUnload]()
 			{
 				CSV_SCOPED_TIMING_STAT(Audio, UnregisterSubmix);
