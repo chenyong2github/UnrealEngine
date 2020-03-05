@@ -79,3 +79,20 @@ VkResult FVulkanGenericPlatform::Present(VkQueue Queue, VkPresentInfoKHR& Presen
 {
 	return VulkanRHI::vkQueuePresentKHR(Queue, &PresentInfo);
 }
+
+void FVulkanGenericPlatform::SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel)
+{
+	if (!GIsEditor &&
+		(FVulkanPlatform::RequiresMobileRenderer() ||
+			InRequestedFeatureLevel == ERHIFeatureLevel::ES3_1 ||
+			FParse::Param(FCommandLine::Get(), TEXT("featureleveles31"))))
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
+		GMaxRHIShaderPlatform = SP_VULKAN_PCES3_1;
+	}
+	else
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
+		GMaxRHIShaderPlatform = SP_VULKAN_SM5;
+	}
+}

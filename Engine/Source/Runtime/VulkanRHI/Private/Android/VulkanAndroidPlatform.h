@@ -44,6 +44,8 @@
 class FVulkanAndroidPlatform : public FVulkanGenericPlatform
 {
 public:
+	static void SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel);
+
 	static bool LoadVulkanLibrary();
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
 	static void FreeVulkanLibrary();
