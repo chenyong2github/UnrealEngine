@@ -103,6 +103,8 @@ void FD3D12VertexBuffer::ReleaseUnderlyingResource()
 	UpdateBufferStats<FD3D12VertexBuffer>(&ResourceLocation, false);
 	ResourceLocation.Clear();
 	FRHIVertexBuffer::ReleaseUnderlyingResource();
+	RemoveAllDynamicSRVs();
+
 	FD3D12VertexBuffer* NextVB = GetNextObject();
 	if (NextVB)
 	{

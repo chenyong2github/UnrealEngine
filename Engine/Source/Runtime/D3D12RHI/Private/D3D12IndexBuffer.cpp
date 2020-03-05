@@ -77,6 +77,8 @@ void FD3D12IndexBuffer::ReleaseUnderlyingResource()
 	UpdateBufferStats<FD3D12IndexBuffer>(&ResourceLocation, false);
 	ResourceLocation.Clear();
 	FRHIIndexBuffer::ReleaseUnderlyingResource();
+	RemoveAllDynamicSRVs();
+
 	FD3D12IndexBuffer* NextIB = GetNextObject();
 	if (NextIB)
 	{
