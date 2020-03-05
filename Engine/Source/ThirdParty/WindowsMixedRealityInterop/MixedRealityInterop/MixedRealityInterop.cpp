@@ -3787,10 +3787,35 @@ namespace WindowsMixedReality
 				RequestUserPermissionForEyeTracking();
 			});
 
+
 			m_onDisconnectedEventRevoker =
 				m_remoteContext.OnDisconnected(winrt::auto_revoke, [this](winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason failureReason) 
 			{
-				{ std::wstringstream string; string << L"RemotingDisconnectedEvent: Reason: " << static_cast<int>(failureReason); Log(string); }
+				const wchar_t ConnectFailureReasonString[static_cast<int32>(winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::DisconnectRequest) + 1][32] =
+				{
+					L"None",
+					L"Unknown",
+					L"NoServerCertificate",
+					L"HandshakePortBusy",
+					L"HandshakeUnreachable",
+					L"HandshakeConnectionFailed",
+					L"AuthenticationFailed",
+					L"RemotingVersionMismatch",
+					L"IncompatibleTransportProtocols",
+					L"HandshakeFailed",
+					L"TransportPortBusy",
+					L"TransportUnreachable",
+					L"TransportConnectionFailed",
+					L"ProtocolVersionMismatch",
+					L"ProtocolError",
+					L"VideoCodecNotAvailable",
+					L"Canceled",
+					L"ConnectionLost",
+					L"DeviceLost",
+					L"DisconnectRequest"
+				}; 
+
+				{ std::wstringstream string; string << L"RemotingDisconnectedEvent: Reason: " << static_cast<int>(failureReason) << " " << ConnectFailureReasonString[static_cast<int32>(failureReason)]; Log(string); }
 
 				DisconnectFromDevice();
 				{
