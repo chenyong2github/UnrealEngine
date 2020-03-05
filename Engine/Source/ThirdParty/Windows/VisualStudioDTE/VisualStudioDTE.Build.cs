@@ -14,17 +14,24 @@ namespace UnrealBuildTool.Rules
 
 			PublicIncludePaths.Add(ModuleDirectory);
 
-			// In order to support building the plugin on build machines (which may not have the IDE installed), allow using an OLB rather than registered component.
-			string DteOlbPath;
-			if (TryGetDteOlbPath(out DteOlbPath))
+			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang || Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
 			{
-				TypeLibraries.Add(new TypeLibrary(DteOlbPath, "lcid(\"0\") raw_interfaces_only named_guids", "dte80a.tlh"));
-				PublicDefinitions.Add("WITH_VISUALSTUDIO_DTE=1");
+				PublicDefinitions.Add("WITH_VISUALSTUDIO_DTE=0");
 			}
 			else
 			{
-				Log.TraceWarningOnce("Unable to find Visual Studio SDK. Editor integration will be disabled"); 
-				PublicDefinitions.Add("WITH_VISUALSTUDIO_DTE=0");
+				// In order to support building the plugin on build machines (which may not have the IDE installed), allow using an OLB rather than registered component.
+				string DteOlbPath;
+				if (TryGetDteOlbPath(out DteOlbPath))
+				{
+					TypeLibraries.Add(new TypeLibrary(DteOlbPath, "lcid(\"0\") raw_interfaces_only named_guids", "dte80a.tlh"));
+					PublicDefinitions.Add("WITH_VISUALSTUDIO_DTE=1");
+				}
+				else
+				{
+					Log.TraceWarningOnce("Unable to find Visual Studio SDK. Editor integration will be disabled");
+					PublicDefinitions.Add("WITH_VISUALSTUDIO_DTE=0");
+				}
 			}
 		}
 
