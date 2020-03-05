@@ -22,6 +22,7 @@ public:
 	virtual bool VerifyFileAssociations() override { return false; }
 	virtual bool UpdateFileAssociations() override { return false; }
 
+	using FDesktopPlatformBase::RunUnrealBuildTool;
 	virtual bool RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn, int32& OutExitCode) override { OutExitCode = 1;  return false; }
 	virtual bool IsUnrealBuildToolRunning() override { return false; }
 
