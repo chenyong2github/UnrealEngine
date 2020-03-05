@@ -4,7 +4,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Settings/EditorExperimentalSettings.h"
-
+#include "BlueprintActionDatabase.h"
 #include "FindInBlueprintManager.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
@@ -83,6 +83,18 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 		// Enable or disable the feature through the FiB manager.
 		FFindInBlueprintSearchManager::Get().EnableGlobalFindResults(bHostFindInBlueprintsInGlobalTab);
+	}
+
+	bool bShouldRebuildRegistry = false;
+	
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, bExposeDeprecatedFunctions))
+	{
+		bShouldRebuildRegistry = true;
+	}
+
+	if (bShouldRebuildRegistry)
+	{
+		FBlueprintActionDatabase::Get().RefreshAll();
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
