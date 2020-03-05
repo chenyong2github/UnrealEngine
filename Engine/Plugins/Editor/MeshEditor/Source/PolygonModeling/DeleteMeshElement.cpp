@@ -53,7 +53,7 @@ void UDeleteMeshElementCommand::Execute( IMeshEditorModeEditingContract& MeshEdi
 			const bool bDeleteOrphanedEdges = true;
 			const bool bDeleteOrphanedVertices = true;
 			const bool bDeleteOrphanedVertexInstances = true;
-			const bool bDeleteEmptySections = true;
+			const bool bDeleteEmptySections = false;
 
 			// If we deleted the same polygon on multiple selected instances of the same mesh, the polygon could already have been deleted
 			// by the time we get here

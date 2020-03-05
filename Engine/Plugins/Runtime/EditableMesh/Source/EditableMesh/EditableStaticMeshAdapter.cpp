@@ -624,7 +624,6 @@ void UEditableStaticMeshAdapter::OnRebuildRenderMesh( const UEditableMesh* Edita
 
 			StaticMeshSection.FirstIndex = IndexBuffer.Num();
 			StaticMeshSection.NumTriangles = RenderingPolygonGroup.Triangles.GetArraySize();
-			check( RenderingPolygonGroup.Triangles.GetArraySize() <= RenderingPolygonGroup.MaxTriangles );
 
 			const int32 MaterialIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName( PolygonGroupImportedMaterialSlotNames[ PolygonGroupID ] );
 			//check( MaterialIndex != INDEX_NONE );
@@ -682,6 +681,10 @@ void UEditableStaticMeshAdapter::OnRebuildRenderMesh( const UEditableMesh* Edita
 				// No triangles in this section
 				StaticMeshSection.MinVertexIndex = 0;
 				StaticMeshSection.MaxVertexIndex = 0;
+				StaticMeshSection.NumTriangles = 0;
+
+				// Setting this to 0 allows the adapter to allocate more index buffer in OnRetriangulatePolygons (for example, when undoing delete polygons)
+				RenderingPolygonGroup.MaxTriangles = 0;
 			}
 		}
 	}
@@ -1404,6 +1407,12 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 					// Get current number of triangles allocated for this section
 					const int32 MaxTriangles = RenderingPolygonGroup.MaxTriangles;
 					RenderingPolygonGroup.MaxTriangles += NumExtraTriangles;
+
+					// Update the number of triangles in the section when the number of triangles change in the rendering polygon group
+					if (RenderingSection.NumTriangles <  (uint32) RenderingPolygonGroup.MaxTriangles)
+					{
+						RenderingSection.NumTriangles = RenderingPolygonGroup.MaxTriangles;
+					}
 
 					if( !EditableMesh->IsPreviewingSubdivisions() )
 					{
