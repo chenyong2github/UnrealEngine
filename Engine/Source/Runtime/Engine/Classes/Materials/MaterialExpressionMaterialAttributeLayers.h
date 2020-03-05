@@ -44,7 +44,6 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 	}
 
 #if WITH_EDITOR
-
 	const TArray<FText>& GetLayerNames() const
 	{
 		return ParamLayers ? ParamLayers->LayerNames : DefaultLayers.LayerNames;
@@ -59,7 +58,17 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 	{
 		return ParamLayers ? ParamLayers->RestrictToBlendRelatives : DefaultLayers.RestrictToBlendRelatives;
 	}
-#endif
+
+	const TArray<FGuid>& GetLayerGuids() const
+	{
+		return ParamLayers ? ParamLayers->LayerGuids : DefaultLayers.LayerGuids;
+	}
+
+	const TArray<FGuid>& GetParentLayerGuids() const
+	{
+		return ParamLayers ? ParamLayers->ParentLayerGuids : DefaultLayers.ParentLayerGuids;
+	}
+#endif // WITH_EDITOR
 
 	const TArray<bool>& GetLayerStates() const
 	{

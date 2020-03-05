@@ -139,53 +139,6 @@ void SMaterialLayersFunctionsInstanceTreeItem::OnNameChanged(const FText& InText
 	InTree->FunctionInstanceHandle->NotifyPostChange();
 }
 
-
-int32 GetNewParamIndex(EMaterialParameterAssociation InAssociation, int32 InIndex, int32 OriginalIndex, int32 NewIndex, int32 OriginalBlendIndex, int32 NewBlendIndex)
-{
-	int32 ParamIndex = InIndex;
-	int32 OriginalIndexToUse;
-	int32 NewIndexToUse;
-	if (InAssociation == EMaterialParameterAssociation::LayerParameter)
-	{
-		OriginalIndexToUse = OriginalIndex;
-		NewIndexToUse = NewIndex;
-	}
-	else if (InAssociation == EMaterialParameterAssociation::BlendParameter)
-	{
-		OriginalIndexToUse = OriginalBlendIndex;
-		NewIndexToUse = NewBlendIndex;
-	}
-	else
-	{
-		return ParamIndex;
-	}
-
-	if (NewIndexToUse < OriginalIndexToUse)
-	{
-		if (InIndex == OriginalIndexToUse)
-		{
-			ParamIndex = NewIndexToUse;
-		}
-		else if (InIndex >= NewIndexToUse && InIndex < OriginalIndexToUse)
-		{
-			ParamIndex++;
-		}
-	}
-	else if (NewIndexToUse > OriginalIndexToUse)
-	{
-		if (InIndex == OriginalIndexToUse)
-		{
-			ParamIndex = NewIndexToUse;
-		}
-		else if (InIndex <= NewIndexToUse && InIndex > OriginalIndexToUse)
-		{
-			ParamIndex--;
-		}
-	}
-
-	return ParamIndex;
-}
-
 FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEvent& DragDropEvent)
 {
 	if (!bIsHoveredDragTarget)
@@ -213,77 +166,30 @@ FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEven
 		if (SwappingPropertyData != SwappablePropertyData)
 		{
 			int32 OriginalIndex = SwappingPropertyData->ParameterInfo.Index;
+			if (SwappingPropertyData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter)
+			{
+				OriginalIndex++;
+			}
+
 			int32 NewIndex = SwappablePropertyData->ParameterInfo.Index;
-			int32 OriginalBlendIndex = SwappingPropertyData->ParameterInfo.Index - 1;
-			int32 NewBlendIndex = SwappablePropertyData->ParameterInfo.Index;
 			if (SwappablePropertyData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter)
 			{
 				NewIndex++;
 			}
 
-			if (SwappablePropertyData->ParameterInfo.Association != EMaterialParameterAssociation::BlendParameter)
+			if (OriginalIndex != NewIndex)
 			{
-				NewBlendIndex--;
-			}
+				Tree->MaterialEditorInstance->SourceInstance->SwapLayerParameterIndices(OriginalIndex, NewIndex);
 
-
-			for (int32 ParamIt = 0; ParamIt < Tree->MaterialEditorInstance->SourceInstance->ScalarParameterValues.Num(); ParamIt++)
-			{
-				FScalarParameterValue* Param = &Tree->MaterialEditorInstance->SourceInstance->ScalarParameterValues[ParamIt];
-				Param->ParameterInfo.Index = GetNewParamIndex(Param->ParameterInfo.Association, Param->ParameterInfo.Index, OriginalIndex, NewIndex, OriginalBlendIndex, NewBlendIndex);
-			}
-
-			for (int32 ParamIt = 0; ParamIt < Tree->MaterialEditorInstance->SourceInstance->VectorParameterValues.Num(); ParamIt++)
-			{
-				FVectorParameterValue* Param = &Tree->MaterialEditorInstance->SourceInstance->VectorParameterValues[ParamIt];
-				Param->ParameterInfo.Index = GetNewParamIndex(Param->ParameterInfo.Association, Param->ParameterInfo.Index, OriginalIndex, NewIndex, OriginalBlendIndex, NewBlendIndex);
-			}
-
-			for (int32 ParamIt = 0; ParamIt < Tree->MaterialEditorInstance->SourceInstance->TextureParameterValues.Num(); ParamIt++)
-			{
-				FTextureParameterValue* Param = &Tree->MaterialEditorInstance->SourceInstance->TextureParameterValues[ParamIt];
-				Param->ParameterInfo.Index = GetNewParamIndex(Param->ParameterInfo.Association, Param->ParameterInfo.Index, OriginalIndex, NewIndex, OriginalBlendIndex, NewBlendIndex);
-			}
-
-			for (int32 ParamIt = 0; ParamIt < Tree->MaterialEditorInstance->SourceInstance->RuntimeVirtualTextureParameterValues.Num(); ParamIt++)
-			{
-				FRuntimeVirtualTextureParameterValue* Param = &Tree->MaterialEditorInstance->SourceInstance->RuntimeVirtualTextureParameterValues[ParamIt];
-				Param->ParameterInfo.Index = GetNewParamIndex(Param->ParameterInfo.Association, Param->ParameterInfo.Index, OriginalIndex, NewIndex, OriginalBlendIndex, NewBlendIndex);
-			}
-
-			for (int32 ParamIt = 0; ParamIt < Tree->MaterialEditorInstance->SourceInstance->FontParameterValues.Num(); ParamIt++)
-			{
-				FFontParameterValue* Param = &Tree->MaterialEditorInstance->SourceInstance->FontParameterValues[ParamIt];
-				Param->ParameterInfo.Index = GetNewParamIndex(Param->ParameterInfo.Association, Param->ParameterInfo.Index, OriginalIndex, NewIndex, OriginalBlendIndex, NewBlendIndex);
-			}
-
-			if (NewIndex > OriginalIndex)
-			{
-				NewIndex += 1;
-			}
-			if (NewBlendIndex > OriginalBlendIndex)
-			{
-				NewBlendIndex += 1;
-			}
-			TSharedPtr<IPropertyHandle> ParentHandle = Tree->FunctionInstanceHandle;
-			TSharedPtr<IPropertyHandleArray> LayerHandle = ParentHandle->GetChildHandle("Layers")->AsArray();
-			TSharedPtr<IPropertyHandleArray> BlendHandle = ParentHandle->GetChildHandle("Blends")->AsArray();
-			TSharedPtr<IPropertyHandleArray> LayerNameHandle = ParentHandle->GetChildHandle("LayerNames")->AsArray();
-			TSharedPtr<IPropertyHandleArray> LayerFilterHandle = ParentHandle->GetChildHandle("RestrictToLayerRelatives")->AsArray();
-			TSharedPtr<IPropertyHandleArray> BlendFilterHandle = ParentHandle->GetChildHandle("RestrictToBlendRelatives")->AsArray();
-			TSharedPtr<IPropertyHandleArray> LayerStateHandle = ParentHandle->GetChildHandle("LayerStates")->AsArray();
-
-			if (LayerHandle.IsValid() && BlendHandle.IsValid())
-			{
 				// Need to save the moving and target expansion states before swapping
-				bool bOriginalSwappableExpansion = IsItemExpanded();
-				bool bOriginalSwappingExpansion = LayerPtr->IsItemExpanded();
-				LayerHandle->MoveElementTo(OriginalIndex, NewIndex);
-				LayerNameHandle->MoveElementTo(OriginalIndex, NewIndex);
-				LayerFilterHandle->MoveElementTo(OriginalIndex, NewIndex);
-				LayerStateHandle->MoveElementTo(OriginalIndex, NewIndex);
-				BlendHandle->MoveElementTo(OriginalBlendIndex, NewBlendIndex);
-				BlendFilterHandle->MoveElementTo(OriginalBlendIndex, NewBlendIndex);
+				const bool bOriginalSwappableExpansion = IsItemExpanded();
+				const bool bOriginalSwappingExpansion = LayerPtr->IsItemExpanded();
+
+				TArray<void*> StructPtrs;
+				Tree->FunctionInstanceHandle->AccessRawData(StructPtrs);
+				FMaterialLayersFunctions* MaterialLayersFunctions = static_cast<FMaterialLayersFunctions*>(StructPtrs[0]);
+				MaterialLayersFunctions->MoveBlendedLayer(OriginalIndex, NewIndex);
+
 				Tree->OnExpansionChanged(SwappablePropertyData, bOriginalSwappingExpansion);
 				Tree->OnExpansionChanged(SwappingPropertyData, bOriginalSwappableExpansion);
 				Tree->FunctionInstanceHandle->NotifyPostChange();

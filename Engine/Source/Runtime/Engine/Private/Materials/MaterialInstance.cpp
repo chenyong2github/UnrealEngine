@@ -365,6 +365,84 @@ void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const Param
 		});
 }
 
+template<typename ParameterType>
+static void RemapLayerParameterIndicesArray(TArray<ParameterType>& Parameters, const TArray<int32>& RemapLayerIndices)
+{
+	int32 ParameterIndex = 0;
+	while (ParameterIndex < Parameters.Num())
+	{
+		ParameterType& Parameter = Parameters[ParameterIndex];
+		bool bRemovedParameter = false;
+		if (Parameter.ParameterInfo.Association == LayerParameter)
+		{
+			const int32 NewIndex = RemapLayerIndices[Parameter.ParameterInfo.Index];
+			if (NewIndex != INDEX_NONE)
+			{
+				Parameter.ParameterInfo.Index = NewIndex;
+			}
+			else
+			{
+				bRemovedParameter = true;
+			}
+		}
+		else if (Parameter.ParameterInfo.Association == BlendParameter)
+		{
+			const int32 NewIndex = RemapLayerIndices[Parameter.ParameterInfo.Index + 1];
+			if (NewIndex != INDEX_NONE)
+			{
+				Parameter.ParameterInfo.Index = NewIndex - 1;
+			}
+			else
+			{
+				bRemovedParameter = true;
+			}
+		}
+		if (bRemovedParameter)
+		{
+			Parameters.RemoveAt(ParameterIndex);
+		}
+		else
+		{
+			++ParameterIndex;
+		}
+	}
+}
+
+template<typename ParameterType>
+static void SwapLayerParameterIndicesArray(TArray<ParameterType>& Parameters, int32 OriginalIndex, int32 NewIndex)
+{
+	check(OriginalIndex > 0);
+	check(NewIndex > 0);
+
+	for (ParameterType& Parameter : Parameters)
+	{
+		if (Parameter.ParameterInfo.Association == LayerParameter)
+		{
+			if(Parameter.ParameterInfo.Index == OriginalIndex) Parameter.ParameterInfo.Index = NewIndex;
+			else if (Parameter.ParameterInfo.Index == NewIndex) Parameter.ParameterInfo.Index = OriginalIndex;
+		}
+		else if (Parameter.ParameterInfo.Association == BlendParameter)
+		{
+			if (Parameter.ParameterInfo.Index == OriginalIndex - 1) Parameter.ParameterInfo.Index = NewIndex - 1;
+			else if (Parameter.ParameterInfo.Index == NewIndex - 1) Parameter.ParameterInfo.Index = OriginalIndex - 1;
+		}
+	}
+}
+
+void UMaterialInstance::SwapLayerParameterIndices(int32 OriginalIndex, int32 NewIndex)
+{
+	if (OriginalIndex != NewIndex)
+	{
+		SwapLayerParameterIndicesArray(ScalarParameterValues, OriginalIndex, NewIndex);
+		SwapLayerParameterIndicesArray(VectorParameterValues, OriginalIndex, NewIndex);
+		SwapLayerParameterIndicesArray(TextureParameterValues, OriginalIndex, NewIndex);
+		SwapLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, OriginalIndex, NewIndex);
+		SwapLayerParameterIndicesArray(FontParameterValues, OriginalIndex, NewIndex);
+		SwapLayerParameterIndicesArray(StaticParameters.StaticSwitchParameters, OriginalIndex, NewIndex);
+		SwapLayerParameterIndicesArray(StaticParameters.MaterialLayersParameters, OriginalIndex, NewIndex);
+	}
+}
+
 bool UMaterialInstance::UpdateParameters()
 {
 	bool bDirty = false;
@@ -418,6 +496,30 @@ bool UMaterialInstance::UpdateParameters()
 			for (const auto& CustomParameterSetUpdater : CustomParameterSetUpdaters)
 			{
 				bDirty |= CustomParameterSetUpdater.Execute(StaticParameters, ParentMaterial);
+			}
+		}
+
+		if (Parent)
+		{
+			for (FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
+			{
+				FMaterialLayersFunctions ParentLayers;
+				FGuid ParentGuid;
+				if (Parent->GetMaterialLayersParameterValue(LayersParam.ParameterInfo, ParentLayers, ParentGuid))
+				{
+					TArray<int32> RemapLayerIndices;
+					if (LayersParam.Value.ResolveParent(ParentLayers, RemapLayerIndices))
+					{
+						RemapLayerParameterIndicesArray(ScalarParameterValues, RemapLayerIndices);
+						RemapLayerParameterIndicesArray(VectorParameterValues, RemapLayerIndices);
+						RemapLayerParameterIndicesArray(TextureParameterValues, RemapLayerIndices);
+						RemapLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, RemapLayerIndices);
+						RemapLayerParameterIndicesArray(FontParameterValues, RemapLayerIndices);
+						RemapLayerParameterIndicesArray(StaticParameters.StaticSwitchParameters, RemapLayerIndices);
+						RemapLayerParameterIndicesArray(StaticParameters.MaterialLayersParameters, RemapLayerIndices);
+						bDirty = true;
+					}
+				}
 			}
 		}
 	}
@@ -2036,6 +2138,8 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 			ParentParameter.ParameterInfo = ParameterInfo;
 
 			Parent->GetMaterialLayersParameterValue(ParameterInfo, ParentParameter.Value, ExpressionId);
+			ParentParameter.Value.CopyGuidsToParent(); // Set parent guids for layers from parent material
+
 			ParentParameter.ExpressionGUID = ExpressionId;
 			// If the SourceInstance is overriding this parameter, use its settings
 			for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
