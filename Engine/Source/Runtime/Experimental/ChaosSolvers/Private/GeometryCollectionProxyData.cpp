@@ -37,14 +37,39 @@ void FTransformDynamicCollection::Construct()
 
 const FName FGeometryDynamicCollection::ActiveAttribute("Active");
 const FName FGeometryDynamicCollection::CollisionGroupAttribute("CollisionGroup");
+const FName FGeometryDynamicCollection::CollisionMaskAttribute("CollisionMask");
 const FName FGeometryDynamicCollection::DynamicStateAttribute("DynamicState");
-
+const FName FGeometryDynamicCollection::ImplicitsAttribute("Implicits");
+const FName FGeometryDynamicCollection::ShapesQueryDataAttribute("ShapesQueryData");
+const FName FGeometryDynamicCollection::ShapesSimDataAttribute("ShapesSimData");
+const FName FGeometryDynamicCollection::SharedGeometryAttribute("SharedGeometry");
+const FName FGeometryDynamicCollection::SimplicialsAttribute("CollisionParticles");
+const FName FGeometryDynamicCollection::SharedImplicitsAttribute("SharedImplicits");
+const FName FGeometryDynamicCollection::SolverParticleHandlesAttribute("SolverParticleHandles");
+const FName FGeometryDynamicCollection::SolverClusterHandlesAttribute("SolverClusterHandles");
 
 FGeometryDynamicCollection::FGeometryDynamicCollection()
 	: FTransformDynamicCollection()
 {
 	// Transform Group
-	AddExternalAttribute<int32>(FGeometryDynamicCollection::DynamicStateAttribute, FTransformCollection::TransformGroup, DynamicState);
 	AddExternalAttribute<bool>(FGeometryDynamicCollection::ActiveAttribute, FTransformCollection::TransformGroup, Active);
 	AddExternalAttribute<int32>(FGeometryDynamicCollection::CollisionGroupAttribute, FTransformCollection::TransformGroup, CollisionGroup);
+	AddExternalAttribute<int32>(FGeometryDynamicCollection::CollisionMaskAttribute, FTransformCollection::TransformGroup, CollisionMask);
+	AddExternalAttribute("CollisionStructureID", FTransformCollection::TransformGroup, CollisionStructureID);
+	AddExternalAttribute<int32>(FGeometryDynamicCollection::DynamicStateAttribute, FTransformCollection::TransformGroup, DynamicState);
+	AddExternalAttribute(ImplicitsAttribute, FTransformCollection::TransformGroup, Implicits);
+	AddExternalAttribute("InitialAngularVelocity", FTransformCollection::TransformGroup, InitialAngularVelocity);
+	AddExternalAttribute("InitialLinearVelocity", FTransformCollection::TransformGroup, InitialLinearVelocity);
+	AddExternalAttribute("MassToLocal", FTransformCollection::TransformGroup, MassToLocal);
+	//AddExternalAttribute(ShapesQueryDataAttribute, FTransformCollection::TransformGroup, ShapeQueryData);
+	//AddExternalAttribute(ShapesSimDataAttribute, FTransformCollection::TransformGroup, ShapeSimData);
+	//AddExternalAttribute(SharedGeometryAttribute, FTransformCollection::TransformGroup, SharedGeometry);
+	//AddExternalAttribute(SimplicialsAttribute, FTransformCollection::TransformGroup, Simplicials);
+	AddExternalAttribute("SimulatableParticles", FGeometryCollection::TransformGroup, SimulatableParticles);
+	AddExternalAttribute(SolverClusterHandlesAttribute, FTransformCollection::TransformGroup, SolverClusterHandles);
+	AddExternalAttribute("SolverClusterID", FTransformCollection::TransformGroup, SolverClusterID);
+	AddExternalAttribute(SolverParticleHandlesAttribute, FTransformCollection::TransformGroup, SolverParticleHandles);
+
+
+
 }

@@ -70,9 +70,7 @@ public:
 
 	TManagedArray<int32> ClusterId;
 
-	TArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> SharedGeometry;
-	TArray<TArray<FCollisionFilterData>> ShapeSimData;
-	TArray<TArray<FCollisionFilterData>> ShapeQueryData;
+
 
 	bool IsObjectDynamic;
 	bool IsObjectLoading;
@@ -111,12 +109,7 @@ class CHAOSSOLVERS_API FGeometryCollectionPhysicsProxy : public TPhysicsProxy<FG
 	typedef TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData> Base;
 
 public:
-	// collection attributes
-	static FName SimplicialsAttribute;
-	static FName ImplicitsAttribute;
-	static FName SharedImplicitsAttribute;
-	static FName SolverParticleHandlesAttribute;
-	static FName SolverClusterHandlesAttribute;
+
 
 	typedef FCollisionStructureManager::FSimplicial FSimplicial;
 
@@ -211,10 +204,10 @@ public:
 	{CollisionParticlesPerObjectFraction = CollisionParticlesPerObjectFractionIn;}
 
 	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& GetSolverParticleHandles() 
-	{ return SolverParticleHandles; }
+	{ return GameToPhysInterchange.AccessProducerBuffer()->SolverParticleHandles; }
 
 	const FGeometryCollectionResults* GetConsumerResultsGT() const 
-	{ return PhysToGameInterchange ? PhysToGameInterchange->PeekConsumerBuffer() : nullptr; }
+	{ return PhysToGameInterchange.PeekConsumerBuffer(); }
 
 	/** Enqueue a field \p Command to be processed by \c ProcessCommands() or 
 	 * \c FieldForcesUpdateCallback(). 
@@ -286,11 +279,9 @@ protected:
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
 	 * the number of levels until the next parent is \c INDEX_NONE.
 	 */
-	int32 CalculateHierarchyLevel(
-		const FGeometryDynamicCollection* GeometryCollection, 
-		int32 TransformIndex) const;
+	int32 CalculateHierarchyLevel(const FGeometryDynamicCollection& GeometryCollection, int32 TransformIndex) const;
 
-	void CreateDynamicAttributes();
+	static void InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params);
 	void InitializeRemoveOnFracture(FParticlesType& Particles, const TManagedArray<int32>& DynamicState);
 	void PushKinematicStateToSolver(FParticlesType& Particles);
 
@@ -336,28 +327,10 @@ private:
 	// Indicate when loaded
 	bool IsObjectLoading;
 
-	// Dynamic collection on the game thread - used to populate the simulated collection
-	FGeometryDynamicCollection* GTDynamicCollection;
-	// Duplicated dynamic collection for use on the physics thread, copied to the game thread on sync
-	//TUniquePtr<FGeometryDynamicCollection> PTDynamicCollection;
-	FGeometryDynamicCollection PTDynamicCollection;
-
 	TMap<Chaos::TPBDRigidParticleHandle<float, 3>*, int32> HandleToTransformGroupIndex;
 
-	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverParticleHandles;
-	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverClusterHandles;
-	TManagedArray<Chaos::TPBDRigidParticleHandle<float, 3>*> SolverClusterID; // Rename to ClusterParent?
 
-	TManagedArray<FTransform> MassToLocal;
-	TManagedArray<int32> CollisionMask;
-	TManagedArray<int32> CollisionStructureID;
-	TManagedArray<int32> RigidBodyID; // Deprecated.  Not added to dynamic collection.
-	TManagedArray<FVector> InitialAngularVelocity;
-	TManagedArray<FVector> InitialLinearVelocity;
-	TManagedArray<bool> SimulatableParticles;
 
-	TManagedArray<TUniquePtr<FSimplicial> > Simplicials; // FSimplicial = Chaos::TBVHParticles<float,3>
-	TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> Implicits;
 
 	TArray<int32> EndFrameUnparentingBuffer;
 
@@ -375,7 +348,6 @@ private:
 
 	// Index of the first particles for this collection in the larger particle array
 	int32 BaseParticleIndex;
-	// Number of particles added by this collection
 	int32 NumParticles;
 
 	// Time since this object started simulating
@@ -399,10 +371,7 @@ private:
 	// Per object collision fraction.
 	float CollisionParticlesPerObjectFraction;
 
-	// Double buffer of geom collection result data - TODO (Ryan): deprecated?
-	//Chaos::TBufferedData<FGeometryCollectionResults> Results;
-
-	// TODO (Ryan) - Currently this is using triple buffers for game-physics and 
+	// Currently this is using triple buffers for game-physics and 
 	// physics-game thread communication, but not for any reason other than this 
 	// is the only implementation we currently have of a guarded buffer - a buffer 
 	// that tracks it's own state, rather than having other mechanisms determine 
@@ -411,8 +380,8 @@ private:
 	// currently managing the exchange is built upon.  However, I believe that 
 	// logic locks, and the triple buffer would enable a decoupled lock-free 
 	// paradigm, at least for this component of the handshake.
-	TUniquePtr<Chaos::FGuardedTripleBuffer<FGeometryCollectionResults>> PhysToGameInterchange;
-	TUniquePtr<Chaos::FGuardedTripleBuffer<FGeometryCollectionResults>> GameToPhysInterchange;
+	Chaos::FGuardedTripleBuffer<FGeometryCollectionResults> PhysToGameInterchange;
+	Chaos::FDoubleBuffer<FGeometryDynamicCollection> GameToPhysInterchange;
 };
 
 CHAOSSOLVERS_API void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& GeometryCollection, const FSharedSimulationParameters& SharedParams);
