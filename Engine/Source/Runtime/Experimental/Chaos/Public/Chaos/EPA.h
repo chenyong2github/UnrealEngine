@@ -330,12 +330,11 @@ void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEP
 	else
 	{
 		OutDir /= OutPenetration;
-	}
-
-	if (Entry.Distance < 0)
-	{
-		//The origin is on the outside, so the direction is reversed
-		OutDir = -OutDir;
+		if (Entry.Distance < 0)
+		{
+			//The origin is on the outside, so the direction is reversed
+			OutDir = -OutDir;
+		}
 	}
 
 	OutA = TVec3<T>(0);
