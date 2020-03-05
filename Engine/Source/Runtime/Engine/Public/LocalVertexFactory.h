@@ -107,7 +107,7 @@ public:
 
 	inline FRHIShaderResourceView* GetPreSkinPositionSRV() const
 	{
-		return Data.PreSkinPositionComponentSRV ? Data.PreSkinPositionComponentSRV : GNullColorVertexBuffer.VertexBufferSRV;
+		return Data.PreSkinPositionComponentSRV ? Data.PreSkinPositionComponentSRV : GNullColorVertexBuffer.VertexBufferSRV.GetReference();
 	}
 
 	inline FRHIShaderResourceView* GetTangentsSRV() const
