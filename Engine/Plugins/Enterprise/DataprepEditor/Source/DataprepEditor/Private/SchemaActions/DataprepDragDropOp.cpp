@@ -320,26 +320,22 @@ FText FDataprepDragDropOp::GetMessageText()
 
 	if(bDropTargetValid || bCopyRequested)
 	{
-		if(Cast<UDataprepGraphActionStepNode>(GetHoveredNode()) != nullptr)
+		if(GetHoveredNode()->IsA<UDataprepGraphActionStepNode>() || GetHoveredNode()->IsA<UDataprepGraphActionNode>())
 		{
-			LastMessageText = bCopyRequested ? LOCTEXT("CopyDataprepActionStepNode", "Copy step to location") : LOCTEXT("MoveDataprepActionStepNode", "Move step to location");
+			LastMessageText = bCopyRequested ? LOCTEXT("DataprepActionStepNode_Copy", "Copy step to location") : LOCTEXT("DataprepActionStepNode_Move", "Move step to location");
 		}
-		else if(Cast<UDataprepGraphActionNode>(GetHoveredNode()) != nullptr)
+		else if(GetHoveredNode()->IsA<UDataprepGraphRecipeNode>())
 		{
-			LastMessageText = bCopyRequested ? LOCTEXT("CopyDataprepActionAssetNode", "Copy step to location") : LOCTEXT("MoveDataprepActionAssetNode", "Move step to location");
-		}
-		else if(Cast<UDataprepGraphRecipeNode>(GetHoveredNode()) != nullptr)
-		{
-			LastMessageText = LOCTEXT("InsertDataprepActionAssetNode", "Insert action to location");
+			LastMessageText = LOCTEXT("DataprepActionAssetNode_Insert", "Insert action to location");
 		}
 	}
 	else if(GetHoveredNode() != nullptr)
 	{
-		LastMessageText = LOCTEXT("NoSelfMove", "Cannot move to itself");
+		LastMessageText = LOCTEXT("DataprepActionStepNode_NoSelfMove", "Cannot move to itself");
 	}
 	else
 	{
-		LastMessageText = LOCTEXT("NotImplemented", "Operation not implemented yet");
+		LastMessageText = LOCTEXT("DataprepActionStepNode_NotImplemented", "Operation not implemented yet");
 	}
 
 	return LastMessageText;

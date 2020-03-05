@@ -123,7 +123,7 @@ namespace DataprepWidgetUtils
 
 	private:
 		TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
-};
+	};
 
 	TSharedRef<SWidget> CreatePropertyWidget( TSharedPtr<SWidget> NameWidget, TSharedPtr<SWidget> ValueWidget, TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData, float Spacing)
 	{
@@ -629,7 +629,7 @@ void SDataprepDetailsView::Construct()
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-			.Padding(5.0f)
+			.Padding(1.f, 5.0f)
 			[
 				GridPanel.ToSharedRef()
 			]

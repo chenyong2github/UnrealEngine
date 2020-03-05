@@ -133,8 +133,7 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 	bMustRearrange = false;
 
 	LastLocalSize = FVector2D::ZeroVector;
-	LastLocation = FVector2D( 0.f, -TopPadding );
-	LastZoomAmount = 1.f;
+	LastZoomAmount = BIG_NUMBER;
 
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 	bCachedControlKeyDown = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
@@ -142,18 +141,25 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 	SetNodeFactory( MakeShared<FDataprepGraphNodeFactory>( InArgs._DataprepEditor ) );
 }
 
+void SDataprepGraphEditor::NotifyGraphChanged()
+{
+	// Release track node widget as it is about to be re-created
+	TrackGraphNodePtr.Reset();
+	bIsComplete = false;
+
+	// Reset cached size and zoom. No need for location because it is invalidated when size has changed
+	LastLocalSize = FVector2D::ZeroVector;
+	LastZoomAmount = BIG_NUMBER;
+
+	SGraphEditor::NotifyGraphChanged();
+}
+
 // #ueent_toremove: Temp code for the nodes development
 void SDataprepGraphEditor::OnPipelineChanged(UBlueprint* InBlueprint)
 {
 	if (InBlueprint)
 	{
-		TrackGraphNodePtr.Reset();
-		bIsComplete = false;
 		NotifyGraphChanged();
-
-		LastLocalSize = FVector2D::ZeroVector;
-		//LastLocation = FVector2D( BIG_NUMBER );
-		LastZoomAmount = 1.f;
 	}
 }
 
@@ -179,13 +185,8 @@ void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FData
 				Nodes.Remove(NodeObject);
 			}
 
-			TrackGraphNodePtr.Reset();
-			bIsComplete = false;
 			NotifyGraphChanged();
 
-			LastLocalSize = FVector2D::ZeroVector;
-			LastLocation = FVector2D::ZeroVector;
-			LastZoomAmount = 1.f;
 			break;
 		}
 
