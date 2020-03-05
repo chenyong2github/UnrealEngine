@@ -80,7 +80,7 @@ public:
 	 * Called to validate assets from either the UI or a commandlet
 	 * @param bSkipExcludedDirectories If true, will not validate files in excluded directories
 	 * @param bShowIfNoFailures If true, will add notifications for files with no validation and display even if everything passes
-	 * @returns Number of assets with validation failures
+	 * @returns Number of assets with validation failures or warnings
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asset Validation")
 	virtual int32 ValidateAssets(TArray<FAssetData> AssetDataList, bool bSkipExcludedDirectories = true, bool bShowIfNoFailures = true) const;
