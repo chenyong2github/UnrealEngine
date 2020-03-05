@@ -27,6 +27,9 @@ class FCompileConstantResolver;
 
 namespace FNiagaraStackGraphUtilities
 {
+	void MakeLinkTo(UEdGraphPin* PinA, UEdGraphPin* PinB);
+	void BreakAllPinLinks(UEdGraphPin* PinA);
+
 	void RelayoutGraph(UEdGraph& Graph);
 
 	void GetWrittenVariablesForGraph(UEdGraph& Graph, TArray<FNiagaraVariable>& OutWrittenVariables);
