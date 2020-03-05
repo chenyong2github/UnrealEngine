@@ -399,6 +399,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Always save a copy of the libUE4.so with symbols. [Experimental]"))
 	bool bSaveSymbols;
 
+	// Use legacy ld instead of new lld linker.
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Force linking to use ld instead of lld"))
+	bool bForceLDLinker;
+
 	// If selected, the checked architectures will be split into separate .apk files [CURRENTLY FOR FULL SOURCE GAMES ONLY]
 	// @todo android fat binary: Currently, there isn't much utility in merging multiple .so's into a single .apk except for debugging,
 	// but we can't properly handle multiple GPU architectures in a single .apk, so we are disabling the feature for now
