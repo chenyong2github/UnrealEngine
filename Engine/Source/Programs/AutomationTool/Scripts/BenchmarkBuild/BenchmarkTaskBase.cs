@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -131,6 +132,54 @@ namespace AutomationTool.Benchmark
 			}
 
 			return Name;
+		}
+	}
+
+	[Flags]
+	public enum EditorTaskOptions
+	{
+		None = 0,
+		ColdDDC = 1 << 0,
+		NoDDC = 1 << 1,
+		NoShaderDDC = 1 << 2,
+		CookClient = 1 << 3,
+		HotDDC = 1 << 4,
+	}
+
+	abstract class BenchmarkEditorTaskBase : BenchmarkTaskBase
+	{
+		protected void DeleteLocalDDC(FileReference InProjectFile)
+		{
+			List<DirectoryReference> DirsToClear = new List<DirectoryReference>();
+
+			DirectoryReference ProjectDir = InProjectFile.Directory;
+
+			DirsToClear.Add(DirectoryReference.Combine(ProjectDir, "Saved"));
+			DirsToClear.Add(DirectoryReference.Combine(CommandUtils.EngineDirectory, "DerivedDataCache"));
+			DirsToClear.Add(DirectoryReference.Combine(ProjectDir, "DerivedDataCache"));
+
+			string LocalDDC = Environment.GetEnvironmentVariable("UE-LocalDataCachePath");
+
+			if (!string.IsNullOrEmpty(LocalDDC) && Directory.Exists(LocalDDC))
+			{
+				DirsToClear.Add(new DirectoryReference(LocalDDC));
+			}
+
+			foreach (var Dir in DirsToClear)
+			{
+				try
+				{
+					if (DirectoryReference.Exists(Dir))
+					{
+						Log.TraceInformation("Removing {0}", Dir);
+						DirectoryReference.Delete(Dir, true);
+					}
+				}
+				catch (Exception Ex)
+				{
+					Log.TraceWarning("Failed to remove path {0}. {1}", Dir.FullName, Ex.Message);
+				}
+			}
 		}
 	}
 }
