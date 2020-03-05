@@ -563,6 +563,13 @@ public:
 		* may be duplicate frame Source/Effective frame numbers as they find the closest ideal time to the current.
 		*/
 		bool bWasAffectedByTimeDilation;
+
+		void ResetPerFrameData()
+		{
+			MotionBlurFraction = 0.f;
+			FrameDeltaTime = 0.0;
+			bWasAffectedByTimeDilation = false;
+		}
 	};
 
 	FMoviePipelineFrameOutputState()
@@ -614,11 +621,14 @@ public:
 	/** The total number of samples (including warm ups) that have been sent to the GPU for this shot. */
 	int32 ShotSamplesRendered;
 
+	/** What time data should this frame use? Can vary between samples when TemporalSampleCount > 1. */
+	FTimeData TimeData;
+
 	/** INFORMATION BELOW HERE SHOULD NOT GET PERSISTED BETWEEN FRAMES */
 
 	void ResetPerFrameData()
 	{
-		TimeData = FTimeData();
+		TimeData.ResetPerFrameData();
 		bSkipRendering = false;
 		bDiscardRenderResult = false;
 		SourceFrameNumber = 0;
@@ -636,9 +646,6 @@ public:
 		ShotIndex = 0;
 		TemporalSampleCount = 0;
 	}
-
-	/** What time data should this frame use? Can vary between samples when TemporalSampleCount > 1. */
-	FTimeData TimeData;
 
 	/**
 	* If true, then the rendering for this frame should be skipped (ie: nothing submitted to the gpu, and the output merger not told to expect this frame).

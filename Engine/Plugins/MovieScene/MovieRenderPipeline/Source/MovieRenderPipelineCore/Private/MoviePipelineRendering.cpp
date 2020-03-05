@@ -192,12 +192,6 @@ void UMoviePipeline::RenderFrame()
 	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
 	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
 
-	// Capture the camera location if this is a motion blur frame, so that we get camera motion blur on next frame.
-	if (CurrentCameraCut.State == EMovieRenderShotState::MotionBlur)
-	{
-		LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
-		LocalPlayerController->GetPlayerViewPoint(FrameInfo.PrevViewLocation, FrameInfo.PrevViewRotation);
-	}
 
 	// If we don't want to render this frame, then we will skip processing - engine warmup frames,
 	// render every nTh frame, etc. In other cases, we may wish to render the frame but discard the
