@@ -170,9 +170,8 @@ void FPrimaryCrashProperties::UpdateIDs()
 		EpicAccountId = FString();
 	}
 
-	// Add real user name only if log files were allowed since the user name is in the log file and the user consented to sending this information.
-	const bool bSendUserName = FCrashReportCoreConfig::Get().GetSendLogFile() || FEngineBuildSettings::IsInternalBuild();
-	if (bSendUserName)
+	// Only send user name for internal builds
+	if (FEngineBuildSettings::IsInternalBuild())
 	{
 		// Remove periods from user names to match AutoReporter user names
 		// The name prefix is read by CrashRepository.AddNewCrash in the website code
