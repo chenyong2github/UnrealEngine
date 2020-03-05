@@ -21,6 +21,9 @@
 
 namespace OSC
 {
+	static const int32 DefaultClientPort = 8094;
+	static const int32 DefaultServerPort = 8095;
+
 	// Returns true if provided address was null and was able to
 	// override with local host address, false if not.
 	bool GetLocalHostAddress(FString& InAddress)
@@ -65,9 +68,9 @@ namespace OSC
 } // namespace OSC
 
 
-static FAutoConsoleCommand GOSCGetServerDiag(
+static FAutoConsoleCommand GOSCPrintServers(
 	TEXT("osc.servers"),
-	TEXT("Prints diagnostic information pertaining to the current OSC servers to the output log."),
+	TEXT("Prints diagnostic information pertaining to the currently initialized OSC servers objects to the output log."),
 	FConsoleCommandDelegate::CreateStatic(
 		[]()
 		{
@@ -81,13 +84,13 @@ static FAutoConsoleCommand GOSCGetServerDiag(
 				if (UOSCServer* Server = *Itr)
 				{
 					FString ToPrint = TEXT("    ") + Server->GetName();
+					ToPrint.Appendf(TEXT(" (Id: %u"), Server->GetUniqueID());
 					if (UWorld* World = Server->GetWorld())
 					{
-						ToPrint += TEXT("(") + World->GetName() + TEXT(")");
+						ToPrint.Appendf(TEXT(", World: %s"), *World->GetName());
 					}
 
-					ToPrint += TEXT(", ");
-					ToPrint += Server->GetIpAddress(true /* bIncludePort */);
+					ToPrint.Appendf(TEXT(", IP: %s)"), *Server->GetIpAddress(true /* bIncludePort */));
 					ToPrint += Server->IsActive() ? TEXT(" [Active]") : TEXT(" [Inactive]");
 
 					UE_LOG(LogOSC, Display, TEXT("%s"), *ToPrint);
@@ -108,9 +111,110 @@ static FAutoConsoleCommand GOSCGetServerDiag(
 	)
 );
 
-static FAutoConsoleCommand GOSCGetClientDiag(
+static FAutoConsoleCommand GOSCServerConnect(
+	TEXT("osc.server.connect"),
+	TEXT("Connects or reconnects the osc mix server with the provided name\n"
+		"(see \"osc.servers\" for a list of available servers and their respective names). Args:\n"
+		"Name - Object name of server to (re)connect"
+		"Address - IP Address to connect to (default: LocalHost)"
+		"Port - Port to connect to (default: 8095)"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			FString SrvName;
+			if (Args.Num() > 0)
+			{
+				SrvName = Args[0];
+			}
+
+			FString IPAddr;
+			OSC::GetLocalHostAddress(IPAddr);
+			if (Args.Num() > 1)
+			{
+				IPAddr = Args[1];
+			}
+
+			int32 Port = OSC::DefaultServerPort;
+			if (Args.Num() > 2)
+			{
+				Port = FCString::Atoi(*Args[2]);
+			}
+
+			for (TObjectIterator<UOSCServer> Itr; Itr; ++Itr)
+			{
+				if (UOSCServer* Server = *Itr)
+				{
+					if (Server->GetName() == SrvName)
+					{
+						Server->Stop();
+						if (Server->SetAddress(IPAddr, Port))
+						{
+							Server->Listen();
+						}
+						return;
+					}
+				}
+			}
+
+			UE_LOG(LogOSC, Warning, TEXT("Server object with name '%s' not found, (re)connect not performed."), *SrvName);
+		}
+	)
+);
+
+static FAutoConsoleCommand GOSCServerConnectById(
+	TEXT("osc.server.connectById"),
+	TEXT("Connects or reconnects the osc mix server with the provided object id\n"
+		"(see \"osc.servers\" for a list of available servers and their respective ids). Args:\n"
+		"Id - Object Id of client to (re)connect"
+		"Address - IP Address to (re)connect to (default: LocalHost)"
+		"Port - Port to (re)connect to (default: 8095)"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() == 0)
+			{
+				return;
+			}
+
+			const int32 SrvId = FCString::Atoi(*Args[0]);
+
+			FString IPAddr;
+			OSC::GetLocalHostAddress(IPAddr);
+			if (Args.Num() > 1)
+			{
+				IPAddr = Args[1];
+			}
+
+			int32 Port = OSC::DefaultServerPort;
+			if (Args.Num() > 2)
+			{
+				Port = FCString::Atoi(*Args[2]);
+			}
+
+			for (TObjectIterator<UOSCServer> Itr; Itr; ++Itr)
+			{
+				if (UOSCServer* Server = *Itr)
+				{
+					if (Server->GetUniqueID() == SrvId)
+					{
+						Server->Stop();
+						if (Server->SetAddress(IPAddr, Port))
+						{
+							Server->Listen();
+						}
+						return;
+					}
+				}
+			}
+
+			UE_LOG(LogOSC, Warning, TEXT("Server object with id '%u' not found, (re)connect not performed."), SrvId);
+		}
+	)
+);
+
+static FAutoConsoleCommand GOSCPrintClients(
 	TEXT("osc.clients"),
-	TEXT("Prints diagnostic information pertaining to the current OSC clients to the output log."),
+	TEXT("Prints diagnostic information pertaining to the currently initialized OSC client objects to the output log."),
 	FConsoleCommandDelegate::CreateStatic(
 		[]()
 		{
@@ -123,12 +227,11 @@ static FAutoConsoleCommand GOSCGetClientDiag(
 			{
 				if (UOSCClient* Client = *Itr)
 				{
-					FString ToPrint;
-					ToPrint += TEXT("\n    ") + Client->GetName();
-
+					FString ToPrint = TEXT("    ") + Client->GetName();
+					ToPrint.Appendf(TEXT(" (Id: %u"), Client->GetUniqueID());
 					if (UWorld* World = Client->GetWorld())
 					{
-						ToPrint += TEXT("(") + World->GetName() + TEXT(")");
+						ToPrint.Appendf(TEXT(", World: %s"), *World->GetName());
 					}
 
 					FString IPAddrStr;
@@ -137,6 +240,7 @@ static FAutoConsoleCommand GOSCGetClientDiag(
 					ToPrint += TEXT(", ") + IPAddrStr + TEXT(":");
 					ToPrint.AppendInt(Port);
 					ToPrint += Client->IsActive() ? TEXT(" [Active]") : TEXT(" [Inactive]");
+
 					UE_LOG(LogOSC, Display, TEXT("%s"), *ToPrint);
 				}
 			}
@@ -144,47 +248,158 @@ static FAutoConsoleCommand GOSCGetClientDiag(
 	)
 );
 
+static FAutoConsoleCommand GOSCClientConnect(
+	TEXT("osc.client.connect"),
+	TEXT("Connects (or reconnects) the osc mix client with the provided name\n"
+		"(see \"osc.clients\" for a list of available clients and their respective ids). Args:\n"
+		"Name - Object name of client to (re)connect"
+		"Address - IP Address to (re)connect to (default: LocalHost)"
+		"Port - Port to (re)connect to (default: 8094)"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray< FString >& Args)
+		{
+			if (Args.Num() == 0)
+			{
+				return;
+			}
+			const FString CliName = Args[0];
 
-UOSCServer* UOSCManager::CreateOSCServer(FString InReceiveIPAddress, int32 InPort, bool bInMulticastLoopback, bool bInStartListening)
+			FString IPAddr;
+			OSC::GetLocalHostAddress(IPAddr);
+			if (Args.Num() > 1)
+			{
+				IPAddr = Args[1];
+			}
+
+			int32 Port = OSC::DefaultClientPort;
+			if (Args.Num() > 2)
+			{
+				Port = FCString::Atoi(*Args[2]);
+			}
+
+			for (TObjectIterator<UOSCClient> Itr; Itr; ++Itr)
+			{
+				if (UOSCClient* Client = *Itr)
+				{
+					if (Client->GetName() == CliName)
+					{
+						Client->Connect();
+						Client->SetSendIPAddress(IPAddr, Port);
+						return;
+					}
+				}
+			}
+
+			UE_LOG(LogOSC, Warning, TEXT("Client object with name '%s' not found, (re)connect not performed."), *CliName);
+		}
+	)
+);
+
+static FAutoConsoleCommand GOSCClientConnectById(
+	TEXT("osc.client.connectById"),
+	TEXT("Connects (or reconnects) the osc mix client with the provided object id\n"
+		"(see \"osc.clients\" for a list of available clients and their respective ids). Args:\n"
+		"Id - Object Id of client to (re)connect"
+		"Address - IP Address to (re)connect to (default: LocalHost)"
+		"Port - Port to (re)connect to (default: 8094)"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray< FString >& Args)
+		{
+			int32 CliId = INDEX_NONE;
+			if (Args.Num() > 0)
+			{
+				CliId = FCString::Atoi(*Args[0]);
+			}
+
+			FString IPAddr;
+			OSC::GetLocalHostAddress(IPAddr);
+			if (Args.Num() > 1)
+			{
+				IPAddr = Args[1];
+			}
+
+			int32 Port = OSC::DefaultClientPort;
+			if (Args.Num() > 2)
+			{
+				Port = FCString::Atoi(*Args[2]);
+			}
+
+			for (TObjectIterator<UOSCClient> Itr; Itr; ++Itr)
+			{
+				if (UOSCClient* Client = *Itr)
+				{
+					if (Client->GetUniqueID() == CliId)
+					{
+						Client->Connect();
+						Client->SetSendIPAddress(IPAddr, Port);
+						return;
+					}
+				}
+			}
+
+			UE_LOG(LogOSC, Warning, TEXT("Client object with id '%u' not found, (re)connect not performed."), CliId);
+		}
+	)
+);
+
+UOSCServer* UOSCManager::CreateOSCServer(FString InReceiveIPAddress, int32 InPort, bool bInMulticastLoopback, bool bInStartListening, FString ServerName)
 {
 	if (OSC::GetLocalHostAddress(InReceiveIPAddress))
 	{
 		UE_LOG(LogOSC, Display, TEXT("OSCServer ReceiveAddress not specified. Using LocalHost IP: '%s'"), *InReceiveIPAddress);
 	}
 
-	UOSCServer* NewOSCServer = NewObject<UOSCServer>();
-	NewOSCServer->Connect();
-	NewOSCServer->SetMulticastLoopback(bInMulticastLoopback);
-	if (NewOSCServer->SetAddress(InReceiveIPAddress, InPort))
+	if (ServerName.IsEmpty())
 	{
-		if (bInStartListening)
-		{
-			NewOSCServer->Listen();
-		}
-	}
-	else
-	{
-		UE_LOG(LogOSC, Warning, TEXT("Failed to parse ReceiveAddress '%s' for OSCServer."), *InReceiveIPAddress);
+		ServerName = FString::Printf(TEXT("OSCServer_%s"), *FGuid::NewGuid().ToString(EGuidFormats::Short));
 	}
 
-	return NewOSCServer;
+	if (UOSCServer* NewOSCServer = NewObject<UOSCServer>(GetTransientPackage(), FName(*ServerName)))
+	{
+		NewOSCServer->Connect();
+		NewOSCServer->SetMulticastLoopback(bInMulticastLoopback);
+		if (NewOSCServer->SetAddress(InReceiveIPAddress, InPort))
+		{
+			if (bInStartListening)
+			{
+				NewOSCServer->Listen();
+			}
+		}
+		else
+		{
+			UE_LOG(LogOSC, Warning, TEXT("Failed to parse ReceiveAddress '%s' for OSCServer."), *InReceiveIPAddress);
+		}
+
+		return NewOSCServer;
+	}
+
+	return nullptr;
 }
 
-UOSCClient* UOSCManager::CreateOSCClient(FString InSendIPAddress, int32 InPort)
+UOSCClient* UOSCManager::CreateOSCClient(FString InSendIPAddress, int32 InPort, FString ClientName)
 {
 	if (OSC::GetLocalHostAddress(InSendIPAddress))
 	{
 		UE_LOG(LogOSC, Display, TEXT("OSCClient SendAddress not specified. Using LocalHost IP: '%s'"), *InSendIPAddress);
 	}
 
-	UOSCClient* NewOSCClient = NewObject<UOSCClient>();
-	NewOSCClient->Connect();
-	if (!NewOSCClient->SetSendIPAddress(InSendIPAddress, InPort))
+	if (ClientName.IsEmpty())
 	{
-		UE_LOG(LogOSC, Warning, TEXT("Failed to parse SendAddress '%s' for OSCClient. Client unable to send new messages."), *InSendIPAddress);
+		ClientName = FString::Printf(TEXT("OSCClient_%s"), *FGuid::NewGuid().ToString(EGuidFormats::Short));
 	}
 
-	return NewOSCClient;
+	if (UOSCClient* NewOSCClient = NewObject<UOSCClient>(GetTransientPackage(), FName(*ClientName)))
+	{
+		NewOSCClient->Connect();
+		if (!NewOSCClient->SetSendIPAddress(InSendIPAddress, InPort))
+		{
+			UE_LOG(LogOSC, Warning, TEXT("Failed to parse SendAddress '%s' for OSCClient. Client unable to send new messages."), *InSendIPAddress);
+		}
+
+		return NewOSCClient;
+	}
+
+	return nullptr;
 }
 
 FOSCMessage& UOSCManager::ClearMessage(FOSCMessage& OutMessage)
@@ -270,7 +485,7 @@ FOSCMessage& UOSCManager::AddString(FOSCMessage& OutMessage, FString InValue)
 	return OutMessage;
 }
 
-FOSCMessage& UOSCManager::AddBlob(FOSCMessage& OutMessage, TArray<uint8>& OutValue)
+FOSCMessage& UOSCManager::AddBlob(FOSCMessage& OutMessage, const TArray<uint8>& OutValue)
 {
 	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(OutMessage.GetPacket());
 	MessagePacket->GetArguments().Add(FOSCType(OutValue));
