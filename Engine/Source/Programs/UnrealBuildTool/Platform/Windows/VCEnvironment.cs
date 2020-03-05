@@ -162,6 +162,12 @@ namespace UnrealBuildTool
 				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x86));
 				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x64));
 			}
+
+			// Add the Windows SDK directory to the path too, for mt.exe.
+			if (WindowsSdkVersion >= new VersionNumber(10))
+			{
+				AddDirectoryToPath(DirectoryReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), Architecture.ToString()));
+			}
 		}
 
 		/// <summary>
