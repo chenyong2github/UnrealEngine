@@ -218,21 +218,16 @@ public:
 	static void InitializeSharedCollisionStructures(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams);
 	static void InitRemoveOnFracture(FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams);
 
-	static void MergeRecordedTracks(const FRecordedTransformTrack& A, const FRecordedTransformTrack& B, FRecordedTransformTrack& Target);
-	static FRecordedFrame& InsertRecordedFrame(FRecordedTransformTrack& InTrack, float InTime);
-
-	// 
-	// DEPRECATED
-	//
-	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy);
-	void StartFrameCallback(const float InDt, const float InTime);
-	void EndFrameCallback(const float InDt);
-	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper> & PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32> & ParticleIDReverseMap);
-	void CreateRigidBodyCallback(FParticlesType& InOutParticles);
+	void FieldForcesUpdateCallback(Chaos::FPhysicsSolver* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<FVector>& Force, Chaos::TArrayCollectionArray<FVector>& Torque, const float Time);
 	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime);
-	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs);
-	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex);
-	void FieldForcesUpdateCallback(Chaos::FPhysicsSolver* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<FVector> & Force, Chaos::TArrayCollectionArray<FVector> & Torque, const float Time);
+
+	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy) {}
+	void StartFrameCallback(const float InDt, const float InTime) {}
+	void EndFrameCallback(const float InDt) {}
+	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32>& ParticleIDReverseMap) {}
+	void CreateRigidBodyCallback(FParticlesType& InOutParticles) {}
+	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) {}
+	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
 
 protected:
 	/**
@@ -283,41 +278,7 @@ protected:
 
 	static void InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params);
 	void InitializeRemoveOnFracture(FParticlesType& Particles, const TManagedArray<int32>& DynamicState);
-	void PushKinematicStateToSolver(FParticlesType& Particles);
-
 	void ProcessCommands(FParticlesType& Particles, const float Time);
-
-private:
-	void UpdateRecordedState(
-		float SolverTime, 
-		const TManagedArray<int32>& RigidBodyID, 
-		const TManagedArray<int32>& CollectionClusterID, 
-		const Chaos::TArrayCollectionArray<bool>& InternalCluster, 
-		const FParticlesType& Particles, 
-		const FCollisionConstraintsType& CollisionRule);
-
-	void AddCollisionToCollisionData(
-		FRecordedFrame* ExistingFrame, 
-		const FParticlesType& Particles, 
-		const Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint& Constraint);
-
-	void UpdateCollisionData(
-		const FParticlesType& Particles, 
-		const FCollisionConstraintsType& CollisionRule, 
-		FRecordedFrame* ExistingFrame);
-
-	void AddBreakingToBreakingData(
-		FRecordedFrame* ExistingFrame, 
-		const FParticlesType& Particles, 
-		const Chaos::TBreakingData<float, 3>& Breaking);
-
-	void UpdateBreakingData(
-		const FParticlesType& Particles, 
-		FRecordedFrame* ExistingFrame);
-
-	void UpdateTrailingData(
-		const FParticlesType& Particles, 
-		FRecordedFrame* ExistingFrame);
 
 private:
 	FSimulationParameters Parameters;
