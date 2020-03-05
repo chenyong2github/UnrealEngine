@@ -5073,7 +5073,7 @@ class COREUOBJECT_API FEditPropertyChain : public TDoubleLinkedList<FProperty*>
 
 public:
 	/** Constructors */
-	FEditPropertyChain() : ActivePropertyNode(NULL), ActiveMemberPropertyNode(NULL) {}
+	FEditPropertyChain() : ActivePropertyNode(NULL), ActiveMemberPropertyNode(NULL), bFilterAffectedInstances(false) {}
 
 	/**
 	 * Sets the ActivePropertyNode to the node associated with the property specified.
@@ -5102,6 +5102,7 @@ public:
 	template<typename T>
 	void SetAffectedArchetypeInstances( T&& InAffectedInstances )
 	{
+		bFilterAffectedInstances = true;
 		AffectedInstances = Forward<T>(InAffectedInstances);
 	}
 	
@@ -5141,6 +5142,11 @@ protected:
 	 * Archetype instances that will be affected by the property change.
 	 */
 	TSet<UObject*> AffectedInstances;
+
+	/**
+	 * Assume all archetype instances are affected unless a set of affected instances is provided.
+	 */
+	bool bFilterAffectedInstances;
 
 	/** TDoubleLinkedList interface */
 	/**
@@ -5190,6 +5196,7 @@ struct FPropertyChangedEvent
 		, MemberProperty(InProperty)
 		, ChangeType(InChangeType)
 		, ObjectIteratorIndex(INDEX_NONE)
+		, bFilterChangedInstances(false)
 		, TopLevelObjects(InTopLevelObjects)
 	{
 	}
@@ -5200,6 +5207,7 @@ struct FPropertyChangedEvent
 		, MemberProperty(InProperty)
 		, ChangeType(InChangeType)
 		, ObjectIteratorIndex(INDEX_NONE)
+		, bFilterChangedInstances(false)
 	{
 		if (InTopLevelObjects)
 		{
@@ -5226,6 +5234,7 @@ struct FPropertyChangedEvent
 	template<typename T>
 	void SetInstancesChanged(T&& InInstancesChanged)
 	{
+		bFilterChangedInstances = true;
 		InstancesChanged = Forward<T>(InInstancesChanged);
 	}
 
@@ -5254,7 +5263,7 @@ struct FPropertyChangedEvent
 	 */
 	bool HasArchetypeInstanceChanged(UObject* InInstance) const
 	{
-		return InstancesChanged.Contains(InInstance);
+		return !bFilterChangedInstances || InstancesChanged.Contains(InInstance);
 	}
 
 	/**
@@ -5300,6 +5309,9 @@ private:
 	
 	//In the property window, multiple objects can be selected at once. In this case we want to know if an instance was updated for this operation (used in array/set/map context)
 	TSet<UObject*> InstancesChanged;
+
+	//Assume all archetype instances were changed unless a set of changed instances is provided.
+	bool bFilterChangedInstances;
 
 	/** List of top level objects being changed */
 	TArrayView<const UObject* const> TopLevelObjects;

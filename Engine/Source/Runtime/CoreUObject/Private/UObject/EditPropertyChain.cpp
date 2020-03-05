@@ -55,7 +55,7 @@ bool FEditPropertyChain::SetActiveMemberPropertyNode( FProperty* NewActiveMember
 
 bool FEditPropertyChain::IsArchetypeInstanceAffected( UObject* InInstance ) const
 {
-	return AffectedInstances.Contains(InInstance);
+	return !bFilterAffectedInstances || AffectedInstances.Contains(InInstance);
 }
 
 /**
