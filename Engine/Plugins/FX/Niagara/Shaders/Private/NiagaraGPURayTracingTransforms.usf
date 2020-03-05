@@ -63,7 +63,7 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 
 		if (PositionOffset != -1)
 		{
-			InstancePosition = float4(GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataFloat), PositionOffset, InstanceIndex), 1);
+			InstancePosition = float4(GetVec3(PositionOffset, InstanceIndex), 1);
 		}
 
 		float4 Transform1 = float4(1.0f, 0.0f, 0.0f, InstancePosition.x);
@@ -72,7 +72,7 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 
 		if (TransformOffset != -1)
 		{
-			float4 Quat = GetVec4(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataFloat), TransformOffset, InstanceIndex);
+			float4 Quat = GetVec4(TransformOffset, InstanceIndex);
 
 			float4x4 EulerToMat = QuatTo4x4(normalize(Quat));
 			Transform1.xyz = EulerToMat[0].xyz;
@@ -83,7 +83,7 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 		float4x4 ScaleMatrix = float4x4(float4(1.0f, 0.0f, 0.0f, 0.0f), float4(0.0f, 1.0f, 0.0f, 0.0f), float4(0.0f, 0.0f, 1.0f, 0.0f), float4(0.0f, 0.0f, 0.0f, 1.0f));
 		if (ScaleOffset != -1)
 		{
-			float3 Scale = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataFloat), ScaleOffset, InstanceIndex);
+			float3 Scale = GetVec3(ScaleOffset, InstanceIndex);
 
 			ScaleMatrix[0][0] *= Scale.x;
 			ScaleMatrix[1][1] *= Scale.y;
