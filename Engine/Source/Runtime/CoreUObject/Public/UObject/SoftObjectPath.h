@@ -31,12 +31,15 @@ struct COREUOBJECT_API FSoftObjectPath
 	{
 	}
 
-	/** Construct from a path string */
-	FSoftObjectPath(FString PathString)
-	{
-		SetPath(MoveTemp(PathString));
-	}
-
+	/** Construct from a path string. Non-explicit for backwards compatibility. */
+	FSoftObjectPath(const FString& Path)						{ SetPath(FStringView(Path)); }
+	explicit FSoftObjectPath(FWideStringView Path)				{ SetPath(Path); }
+	explicit FSoftObjectPath(FAnsiStringView Path)				{ SetPath(Path); }
+	explicit FSoftObjectPath(FName Path)						{ SetPath(Path); }
+	explicit FSoftObjectPath(const WIDECHAR* Path)				{ SetPath(FWideStringView(Path)); }
+	explicit FSoftObjectPath(const ANSICHAR* Path)				{ SetPath(FAnsiStringView(Path)); }
+	explicit FSoftObjectPath(TYPE_OF_NULLPTR)					{}
+	
 	/** Construct from an asset FName and subobject pair */
 	FSoftObjectPath(FName InAssetPathName, FString InSubPathString)
 		: AssetPathName(InAssetPathName)
@@ -47,6 +50,16 @@ struct COREUOBJECT_API FSoftObjectPath
 	FSoftObjectPath(const UObject* InObject);
 
 	~FSoftObjectPath() {}
+	
+	FSoftObjectPath& operator=(const FSoftObjectPath& Path)	= default;
+	FSoftObjectPath& operator=(FSoftObjectPath&& Path) = default;
+	FSoftObjectPath& operator=(const FString& Path)						{ SetPath(FStringView(Path)); return *this; }
+	FSoftObjectPath& operator=(FWideStringView Path)					{ SetPath(Path); return *this; }
+	FSoftObjectPath& operator=(FAnsiStringView Path)					{ SetPath(Path); return *this; }
+	FSoftObjectPath& operator=(FName Path)								{ SetPath(Path); return *this; }
+	FSoftObjectPath& operator=(const WIDECHAR* Path)					{ SetPath(FWideStringView(Path)); return *this; }
+	FSoftObjectPath& operator=(const ANSICHAR* Path)					{ SetPath(FAnsiStringView(Path)); return *this; }
+	FSoftObjectPath& operator=(TYPE_OF_NULLPTR)							{ Reset(); return *this; }
 
 	/** Returns string representation of reference, in form /package/path.assetname[:subpath] */
 	FString ToString() const;
@@ -94,7 +107,12 @@ struct COREUOBJECT_API FSoftObjectPath
 	}
 
 	/** Sets asset path of this reference based on a string path */
-	void SetPath(FString Path);
+	void SetPath(FWideStringView Path);
+	void SetPath(FAnsiStringView Path);
+	void SetPath(FName Path);
+	void SetPath(const WIDECHAR* Path)			{ SetPath(FWideStringView(Path)); }
+	void SetPath(const ANSICHAR* Path)			{ SetPath(FAnsiStringView(Path)); }
+	void SetPath(const FString& Path)			{ SetPath(FStringView(Path)); }
 
 	/**
 	 * Attempts to load the asset, this will call LoadObject which can be very slow
@@ -149,7 +167,7 @@ struct COREUOBJECT_API FSoftObjectPath
 	{
 		return !(*this == Other);
 	}
-	FSoftObjectPath& operator=(FSoftObjectPath Other);
+
 	bool ExportTextItem(FString& ValueStr, FSoftObjectPath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
 	bool ImportTextItem( const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr );
 	bool SerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructuredArchive::FSlot Slot);
