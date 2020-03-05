@@ -62,3 +62,24 @@ void FastResolvePS(in FScreenVertexOutput Input)
 }
 
 #endif // SHADER_FASTRESOLVE
+
+#if SHADER_PATCH
+
+Texture2D<uint4> CategorisationTexture;
+
+void MainPS(
+	in FScreenVertexOutput Input,
+	out float4 OutGBufferA : SV_Target0,
+	out float4 OutGBufferB : SV_Target1)
+{
+	const uint2 PixelCoord = floor(Input.Position.xy);
+	const FCategorizationData CatData = DecodeCategorizationData(CategorisationTexture.Load(uint3(Input.Position.xy, 0)));
+	if (CatData.PixelCoverage == 0)
+		discard;
+
+	const float3 Tangent = float3(0, 0, 1);
+	OutGBufferA = float4(Tangent, 0);
+	OutGBufferB = float4(0, 0, 0, SHADINGMODELID_HAIR);
+}
+
+#endif // SHADER_PATCH
