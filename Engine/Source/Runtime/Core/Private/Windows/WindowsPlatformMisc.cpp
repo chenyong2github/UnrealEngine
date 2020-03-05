@@ -249,7 +249,7 @@ int32 GetOSVersionsHelper( TCHAR* OutOSVersionLabel, int32 OSVersionLabelLength,
 				}
 				else
 				{
-					OSVersionLabel = TEXT("Windows Server Technical Preview");
+					OSVersionLabel = TEXT("Windows Server 2019");
 				}
 
 				// For Windows 10, get the release number and append that to the string too (eg. 1709 = Fall Creators Update). There doesn't seem to be any good way to get
