@@ -735,30 +735,36 @@ class PosixUidGidTests(unittest.TestCase):
     def test_setuid(self):
         if os.getuid() != 0:
             self.assertRaises(os.error, os.setuid, 0)
+        self.assertRaises(TypeError, os.setuid, 'not an int')
         self.assertRaises(OverflowError, os.setuid, 1<<32)
 
     @unittest.skipUnless(hasattr(os, 'setgid'), 'test needs os.setgid()')
     def test_setgid(self):
         if os.getuid() != 0:
             self.assertRaises(os.error, os.setgid, 0)
+        self.assertRaises(TypeError, os.setgid, 'not an int')
         self.assertRaises(OverflowError, os.setgid, 1<<32)
 
     @unittest.skipUnless(hasattr(os, 'seteuid'), 'test needs os.seteuid()')
     def test_seteuid(self):
         if os.getuid() != 0:
             self.assertRaises(os.error, os.seteuid, 0)
+        self.assertRaises(TypeError, os.seteuid, 'not an int')
         self.assertRaises(OverflowError, os.seteuid, 1<<32)
 
     @unittest.skipUnless(hasattr(os, 'setegid'), 'test needs os.setegid()')
     def test_setegid(self):
         if os.getuid() != 0:
             self.assertRaises(os.error, os.setegid, 0)
+        self.assertRaises(TypeError, os.setegid, 'not an int')
         self.assertRaises(OverflowError, os.setegid, 1<<32)
 
     @unittest.skipUnless(hasattr(os, 'setreuid'), 'test needs os.setreuid()')
     def test_setreuid(self):
         if os.getuid() != 0:
             self.assertRaises(os.error, os.setreuid, 0, 0)
+        self.assertRaises(TypeError, os.setreuid, 'not an int', 0)
+        self.assertRaises(TypeError, os.setreuid, 0, 'not an int')
         self.assertRaises(OverflowError, os.setreuid, 1<<32, 0)
         self.assertRaises(OverflowError, os.setreuid, 0, 1<<32)
 
@@ -774,6 +780,8 @@ class PosixUidGidTests(unittest.TestCase):
     def test_setregid(self):
         if os.getuid() != 0:
             self.assertRaises(os.error, os.setregid, 0, 0)
+        self.assertRaises(TypeError, os.setregid, 'not an int', 0)
+        self.assertRaises(TypeError, os.setregid, 0, 'not an int')
         self.assertRaises(OverflowError, os.setregid, 1<<32, 0)
         self.assertRaises(OverflowError, os.setregid, 0, 1<<32)
 
@@ -898,6 +906,56 @@ class Win32KillTests(unittest.TestCase):
 
     def test_CTRL_BREAK_EVENT(self):
         self._kill_with_event(signal.CTRL_BREAK_EVENT, "CTRL_BREAK_EVENT")
+
+
+@unittest.skipUnless(sys.platform == "win32", "Win32 specific tests")
+class Win32ListdirTests(unittest.TestCase):
+    """Test listdir on Windows."""
+
+    def setUp(self):
+        self.created_paths = []
+        for i in range(2):
+            dir_name = 'SUB%d' % i
+            dir_path = os.path.join(support.TESTFN, dir_name)
+            file_name = 'FILE%d' % i
+            file_path = os.path.join(support.TESTFN, file_name)
+            os.makedirs(dir_path)
+            with open(file_path, 'w') as f:
+                f.write("I'm %s and proud of it. Blame test_os.\n" % file_path)
+            self.created_paths.extend([dir_name, file_name])
+        self.created_paths.sort()
+
+    def tearDown(self):
+        shutil.rmtree(support.TESTFN)
+
+    def test_listdir_no_extended_path(self):
+        """Test when the path is not an "extended" path."""
+        # unicode
+        fs_encoding = sys.getfilesystemencoding()
+        self.assertEqual(
+                sorted(os.listdir(support.TESTFN.decode(fs_encoding))),
+                [path.decode(fs_encoding) for path in self.created_paths])
+
+        # bytes
+        self.assertEqual(
+                sorted(os.listdir(os.fsencode(support.TESTFN))),
+                self.created_paths)
+
+    def test_listdir_extended_path(self):
+        """Test when the path starts with '\\\\?\\'."""
+        # See: http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
+        # unicode
+        fs_encoding = sys.getfilesystemencoding()
+        path = u'\\\\?\\' + os.path.abspath(support.TESTFN.decode(fs_encoding))
+        self.assertEqual(
+                sorted(os.listdir(path)),
+                [path.decode(fs_encoding) for path in self.created_paths])
+
+        # bytes
+        path = b'\\\\?\\' + os.path.abspath(support.TESTFN)
+        self.assertEqual(
+                sorted(os.listdir(path)),
+                self.created_paths)
 
 
 class SpawnTests(unittest.TestCase):

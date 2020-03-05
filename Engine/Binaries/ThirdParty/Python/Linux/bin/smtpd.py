@@ -1,4 +1,4 @@
-#!/usr/local/bin/python2.7
+#!/home/buildmaster/staging/bin/python2.7
 """An RFC 2821 smtp proxy.
 
 Usage: %(program)s [options] [localhost:localport [remotehost:remoteport]]
