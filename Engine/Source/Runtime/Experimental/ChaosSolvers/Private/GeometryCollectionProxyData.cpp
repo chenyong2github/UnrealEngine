@@ -45,8 +45,6 @@ const FName FGeometryDynamicCollection::ShapesSimDataAttribute("ShapesSimData");
 const FName FGeometryDynamicCollection::SharedGeometryAttribute("SharedGeometry");
 const FName FGeometryDynamicCollection::SimplicialsAttribute("CollisionParticles");
 const FName FGeometryDynamicCollection::SharedImplicitsAttribute("SharedImplicits");
-const FName FGeometryDynamicCollection::SolverParticleHandlesAttribute("SolverParticleHandles");
-const FName FGeometryDynamicCollection::SolverClusterHandlesAttribute("SolverClusterHandles");
 
 FGeometryDynamicCollection::FGeometryDynamicCollection()
 	: FTransformDynamicCollection()
@@ -66,9 +64,6 @@ FGeometryDynamicCollection::FGeometryDynamicCollection()
 	AddExternalAttribute(SharedGeometryAttribute, FTransformCollection::TransformGroup, SharedGeometry);
 	//AddExternalAttribute(SimplicialsAttribute, FTransformCollection::TransformGroup, Simplicials);
 	AddExternalAttribute("SimulatableParticles", FGeometryCollection::TransformGroup, SimulatableParticles);
-	AddExternalAttribute(SolverClusterHandlesAttribute, FTransformCollection::TransformGroup, SolverClusterHandles);
-	AddExternalAttribute("SolverClusterID", FTransformCollection::TransformGroup, SolverClusterID);
-	AddExternalAttribute(SolverParticleHandlesAttribute, FTransformCollection::TransformGroup, SolverParticleHandles);
 
 
 

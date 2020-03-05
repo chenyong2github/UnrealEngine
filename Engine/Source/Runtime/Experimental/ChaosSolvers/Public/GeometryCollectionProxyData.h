@@ -70,8 +70,6 @@ public:
 	static const FName SharedGeometryAttribute;
 	static const FName SharedImplicitsAttribute;
 	static const FName SimplicialsAttribute;
-	static const FName SolverParticleHandlesAttribute;
-	static const FName SolverClusterHandlesAttribute;
 
 	// Transform Group
 	TManagedArray<bool> Active;
@@ -88,9 +86,6 @@ public:
 	TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> SharedGeometry;
 	//TManagedArray<TUniquePtr<FCollisionStructureManager::FSimplicial>> Simplicials;
 	TManagedArray<bool> SimulatableParticles;
-	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverClusterHandles;
-	TManagedArray<Chaos::TPBDRigidParticleHandle<float, 3>*> SolverClusterID; // Rename to ClusterParent?
-	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverParticleHandles;
 
 
 };
