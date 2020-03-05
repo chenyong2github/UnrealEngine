@@ -177,9 +177,10 @@ void UOSCServer::EnqueuePacket(TSharedPtr<IOSCPacket> Packet)
 	OSCPackets.Enqueue(Packet);
 }
 
-void UOSCServer::DispatchBundle(const FString& InIPAddress, const FOSCBundle& InBundle)
+void UOSCServer::DispatchBundle(const FString& InIPAddress, uint16 Port, const FOSCBundle& InBundle)
 {
-	OnOscBundleReceived.Broadcast(InBundle);
+	OnOscBundleReceived.Broadcast(InBundle, InIPAddress, Port);
+	OnOscBundleReceivedNative.Broadcast(InBundle, InIPAddress, Port);
 
 	TSharedPtr<FOSCBundlePacket> BundlePacket = StaticCastSharedPtr<FOSCBundlePacket>(InBundle.GetPacket());
 	FOSCBundlePacket::FPacketBundle Packets = BundlePacket->GetPackets();
@@ -187,11 +188,11 @@ void UOSCServer::DispatchBundle(const FString& InIPAddress, const FOSCBundle& In
 	{
 		if (Packet->IsMessage())
 		{
-			DispatchMessage(InIPAddress, FOSCMessage(Packet));
+			DispatchMessage(InIPAddress, Port, FOSCMessage(Packet));
 		}
 		else if (Packet->IsBundle())
 		{
-			DispatchBundle(InIPAddress, FOSCBundle(Packet));
+			DispatchBundle(InIPAddress, Port, FOSCBundle(Packet));
 		}
 		else
 		{
@@ -200,9 +201,11 @@ void UOSCServer::DispatchBundle(const FString& InIPAddress, const FOSCBundle& In
 	}
 }
 
-void UOSCServer::DispatchMessage(const FString& InIPAddress, const FOSCMessage& InMessage)
+void UOSCServer::DispatchMessage(const FString& InIPAddress, uint16 Port, const FOSCMessage& InMessage)
 {
-	OnOscMessageReceived.Broadcast(InMessage);
+	OnOscMessageReceived.Broadcast(InMessage, InIPAddress, Port);
+	OnOscMessageReceivedNative.Broadcast(InMessage, InIPAddress, Port);
+
 	UE_LOG(LogOSC, Verbose, TEXT("Message received from endpoint '%s', OSCAddress of '%s'."), *InIPAddress, *InMessage.GetAddress().GetFullPath());
 
 	for (const TPair<FOSCAddress, FOSCDispatchMessageEvent>& Pair : AddressPatterns)
@@ -210,7 +213,7 @@ void UOSCServer::DispatchMessage(const FString& InIPAddress, const FOSCMessage& 
 		const FOSCDispatchMessageEvent& DispatchEvent = Pair.Value;
 		if (Pair.Key.Matches(InMessage.GetAddress()))
 		{
-			DispatchEvent.Broadcast(Pair.Key, InMessage);
+			DispatchEvent.Broadcast(Pair.Key, InMessage, InIPAddress, Port);
 			UE_LOG(LogOSC, Verbose, TEXT("Message dispatched from endpoint '%s', OSCAddress path of '%s' matched OSCAddress pattern '%s'."),
 				*InIPAddress,
 				*InMessage.GetAddress().GetFullPath(),
@@ -219,18 +222,18 @@ void UOSCServer::DispatchMessage(const FString& InIPAddress, const FOSCMessage& 
 	}
 }
 
-void UOSCServer::OnPacketReceived(const FString& InIPAddress)
+void UOSCServer::OnPacketReceived(const FString& InIPAddress, uint16 Port)
 {
 	TSharedPtr<IOSCPacket> Packet;
 	while (OSCPackets.Dequeue(Packet))
 	{
 		if (Packet->IsMessage())
 		{
-			DispatchMessage(InIPAddress, FOSCMessage(Packet));
+			DispatchMessage(InIPAddress, Port, FOSCMessage(Packet));
 		}
 		else if (Packet->IsBundle())
 		{
-			DispatchBundle(InIPAddress, FOSCBundle(Packet));
+			DispatchBundle(InIPAddress, Port, FOSCBundle(Packet));
 		}
 		else
 		{
