@@ -203,7 +203,7 @@ void FBitWriter::SetOverflowed(int32 LengthBits)
 				LengthBits, (Max-Num), Max);
 	}
 
-	ArIsError = 1;
+	SetError();
 }
 
 void FBitWriter::CountMemory(FArchive& Ar) const
@@ -280,7 +280,15 @@ void FBitWriterMark::Pop( FBitWriter& Writer )
 		checkSlow(End<=Writer.Buffer.Num());
 		FMemory::Memzero( &Writer.Buffer[Start], End-Start );
 	}
-	Writer.ArIsError = Overflowed;
+
+	if (Overflowed)
+	{
+		Writer.SetError();
+	}
+	else
+	{
+		Writer.ClearError();
+	}
 	Writer.Num       = Num;
 }
 

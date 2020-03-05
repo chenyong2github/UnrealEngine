@@ -675,7 +675,7 @@ void FArchiveFileReaderGeneric::Seek( int64 InPos )
 	if (!SeekLowLevel(InPos))
 	{
 		TCHAR ErrorBuffer[1024];
-		ArIsError = true;
+		SetError();
 		UE_LOG(LogFileManager, Error, TEXT("SetFilePointer on %s Failed %lld/%lld: %lld %s"), *Filename, InPos, Size, Pos, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0));
 	}
 
@@ -714,7 +714,7 @@ void FArchiveFileReaderGeneric::CloseLowLevel()
 bool FArchiveFileReaderGeneric::Close()
 {
 	CloseLowLevel();
-	return !ArIsError;
+	return !IsError();
 }
 
 bool FArchiveFileReaderGeneric::InternalPrecache( int64 PrecacheOffset, int64 PrecacheSize )
@@ -746,7 +746,7 @@ bool FArchiveFileReaderGeneric::InternalPrecache( int64 PrecacheOffset, int64 Pr
 		if( Count!=BufferCount )
 		{
 			TCHAR ErrorBuffer[1024];
-			ArIsError = true;
+			SetError();
 			UE_LOG( LogFileManager, Warning, TEXT( "ReadFile failed: Count=%lld BufferCount=%lld Error=%s" ), Count, BufferCount, FPlatformMisc::GetSystemErrorMessage( ErrorBuffer, 1024, 0 ) );
 		}
 	}
@@ -757,7 +757,7 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 {
 	if (Pos + Length > Size)
 	{
-		ArIsError = true;
+		SetError();
 		UE_LOG(LogFileManager, Error, TEXT("Requested read of %d bytes when %d bytes remain (file=%s, size=%d)"), Length, Size-Pos, *Filename, Size);
 		return;
 	}
@@ -776,7 +776,7 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 				if( Count!=Length )
 				{
 					TCHAR ErrorBuffer[1024];
-					ArIsError = true;
+					SetError();
 					UE_LOG( LogFileManager, Warning, TEXT( "ReadFile failed: Count=%lld Length=%lld Error=%s for file %s" ), 
 						Count, Length, FPlatformMisc::GetSystemErrorMessage( ErrorBuffer, 1024, 0 ), *Filename );
 				}
@@ -785,18 +785,18 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 			}
 			if (!InternalPrecache(Pos, MAX_int32))
 			{
-				ArIsError = true;
+				SetError();
 				UE_LOG( LogFileManager, Warning, TEXT( "ReadFile failed during precaching for file %s" ),*Filename );
 				return;
 			}
 			Copy = FMath::Min( Length, BufferBase+BufferArray.Num()-Pos );
 			if( Copy<=0 )
 			{
-				ArIsError = true;
+				SetError();
 				UE_LOG( LogFileManager, Error, TEXT( "ReadFile beyond EOF %lld+%lld/%lld for file %s" ), 
 					Pos, Length, Size, *Filename );
 			}
-			if( ArIsError )
+			if( IsError() )
 			{
 				return;
 			}
@@ -854,7 +854,7 @@ void FArchiveFileWriterGeneric::Seek( int64 InPos )
 	FlushBuffer();
 	if( !SeekLowLevel( InPos ) )
 	{
-		ArIsError = true;
+		SetError();
 		LogWriteError(TEXT("Error seeking file"));
 	}
 	Pos = InPos;
@@ -865,10 +865,10 @@ bool FArchiveFileWriterGeneric::Close()
 	FlushBuffer();
 	if( !CloseLowLevel() )
 	{
-		ArIsError = true;
+		SetError();
 		LogWriteError(TEXT("Error closing file"));
 	}
-	return !ArIsError;
+	return !IsError();
 }
 
 void FArchiveFileWriterGeneric::Serialize( void* V, int64 Length )
@@ -879,7 +879,7 @@ void FArchiveFileWriterGeneric::Serialize( void* V, int64 Length )
 		FlushBuffer();
 		if( !WriteLowLevel( (uint8*)V, Length ) )
 		{
-			ArIsError = true;
+			SetError();
 			LogWriteError(TEXT("Error writing to file"));
 		}
 	}
@@ -916,7 +916,7 @@ bool FArchiveFileWriterGeneric::FlushBuffer()
 		bDidWriteData = WriteLowLevel(BufferArray.GetData(), BufferNum);
 		if (!bDidWriteData)
 		{
-			ArIsError = true;
+			SetError();
 			LogWriteError(TEXT("Error flushing file"));
 		}
 		BufferArray.Reset();

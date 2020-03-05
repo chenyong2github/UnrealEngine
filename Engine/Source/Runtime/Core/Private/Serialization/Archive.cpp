@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/Archive.h"
+#include "Serialization/ArchiveProxy.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/UnrealMemory.h"
 #include "Containers/Array.h"
@@ -9,7 +10,6 @@
 #include "Logging/LogMacros.h"
 #include "Misc/Parse.h"
 #include "UObject/ObjectVersion.h"
-#include "Serialization/ArchiveProxy.h"
 #include "Serialization/NameAsStringProxyArchive.h"
 #include "Misc/CommandLine.h"
 #include "Internationalization/Text.h"
@@ -261,6 +261,22 @@ FString FArchiveState::GetArchiveName() const
 	return TEXT("FArchive");
 }
 
+void FArchiveState::SetError()
+{
+	ArIsError = true;
+}
+
+void FArchiveState::ClearError()
+{
+	ArIsError = false;
+}
+
+void FArchiveState::SetCriticalError()
+{
+	SetError();
+	ArIsCriticalError = true;
+}
+
 void FArchiveState::GetSerializedPropertyChain(TArray<class FProperty*>& OutProperties) const
 {
 	if (SerializedPropertyChain)
@@ -446,7 +462,7 @@ void FArchive::SerializeBool( bool& D )
 	{
 		UE_LOG(LogSerialization, Error, TEXT("Invalid boolean encountered while reading archive %s - stream is most likely corrupted."), *GetArchiveName());
 
-		this->ArIsError = true;
+		this->SetError();
 	}
 	D = !!OldUBoolValue;
 }

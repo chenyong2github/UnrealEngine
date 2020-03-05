@@ -566,7 +566,7 @@ void FInMemoryReplayStreamArchive::Serialize(void* V, int64 Length)
 	{
 		if (Pos + Length > TotalSize())
 		{
-			ArIsError = true;
+			SetError();
 			return;
 		}
 		
@@ -574,7 +574,7 @@ void FInMemoryReplayStreamArchive::Serialize(void* V, int64 Length)
 
 		if (CurrentChunk == nullptr)
 		{
-			ArIsError = true;
+			SetError();
 			return;
 		}
 
@@ -591,7 +591,7 @@ void FInMemoryReplayStreamArchive::Serialize(void* V, int64 Length)
 
 		if (CurrentChunk == nullptr)
 		{
-			ArIsError = true;
+			SetError();
 			return;
 		}
 

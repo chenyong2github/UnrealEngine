@@ -212,7 +212,7 @@ public:
 	FORCEINLINE_DEBUGGABLE void Init( FBitWriter& Writer)
 	{
 		Num = Writer.Num;
-		Overflowed = Writer.ArIsError;
+		Overflowed = Writer.IsError();
 	}
 
 	void Reset()

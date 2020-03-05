@@ -167,7 +167,7 @@ public:
 	}
 	FORCEINLINE_DEBUGGABLE bool AtEnd()
 	{
-		return ArIsError || Pos>=Num;
+		return IsError() || Pos>=Num;
 	}
 	FORCEINLINE_DEBUGGABLE int64 GetNumBytes() const
 	{

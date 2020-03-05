@@ -110,10 +110,21 @@ public:
 		return ArIsError;
 	}
 
-	void SetError()
-	{
-		ArIsError = true;
-	}
+	/**
+	 * Sets ArIsError to true. Also sets error in the proxy archiver if one is wrapping this.
+	 */
+	void SetError();
+
+	/**
+	 * Sets ArIsError to false, this does not clear any CriticalErrors
+	 */
+	void ClearError();
+
+	/**
+	 * Sets the archiver IsCriticalError and IsError to true. Also sets CriticalError in the proxy archiver if one is wrapping this.
+	 */
+	void SetCriticalError();
+
 
 	FORCEINLINE bool IsByteSwapping()
 	{
@@ -621,13 +632,14 @@ protected:
 	/** Whether this archive saves to persistent storage. */
 	uint8 ArIsPersistent : 1;
 
-public:
+private:
 	/** Whether this archive contains errors. */
 	uint8 ArIsError : 1;
 
 	/** Whether this archive contains critical errors. */
 	uint8 ArIsCriticalError : 1;
 
+public:
 	/** Quickly tell if an archive contains script code. */
 	uint8 ArContainsCode : 1;
 
@@ -1499,11 +1511,13 @@ public:
 
 	virtual bool Close()
 	{
-		return !ArIsError;
+		return !IsError();
 	}
 
 	using FArchiveState::GetError;
 	using FArchiveState::SetError;
+	using FArchiveState::ClearError;
+	using FArchiveState::SetCriticalError;
 
 	/**
 	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression

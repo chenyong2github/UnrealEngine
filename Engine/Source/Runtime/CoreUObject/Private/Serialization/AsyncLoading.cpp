@@ -7179,9 +7179,9 @@ FAsyncArchive::~FAsyncArchive()
 
 void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 {
-	if (bWasCancelled || ArIsError)
+	if (bWasCancelled || IsError())
 	{
-		ArIsError = true;
+		SetError();
 		return; // we don't do much with this, the code on the other thread knows how to deal with my request
 	}
 	if (LoadPhase == ELoadPhase::WaitingForSize)
@@ -7190,7 +7190,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 		FileSize = Request->GetSizeResults();
 		if (FileSize < 32)
 		{
-			ArIsError = true;
+			SetError();
 		}
 		else
 		{
@@ -7227,7 +7227,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 		uint8* Mem = Request->GetReadResults();
 		if (!Mem)
 		{
-			ArIsError = true;
+			SetError();
 			FPlatformMisc::MemoryBarrier();
 			LoadPhase = ELoadPhase::WaitingForHeader;
 		}
@@ -7238,7 +7238,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 			Ar << Sum;
 			if (Ar.IsError() || Sum.TotalHeaderSize > FileSize || Sum.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
 			{
-				ArIsError = true;
+				SetError();
 			}
 			else
 			{
@@ -7342,7 +7342,7 @@ bool FAsyncArchive::Close()
 	// Invalidate any precached data and free memory.
 	FlushCache();
 	// Return true if there were NO errors, false otherwise.
-	return !ArIsError;
+	return !IsError();
 }
 
 bool FAsyncArchive::SetCompressionMap(TArray<FCompressedChunk>* InCompressedChunks, ECompressionFlags InCompressionFlags)
@@ -7435,12 +7435,12 @@ void FAsyncArchive::CompleteRead()
 	{
 		FlushPrecacheBlock();
 	}
-	if (!ArIsError)
+	if (!IsError())
 	{
 		uint8* Mem = ReadRequestPtr->GetReadResults();
 		if (!Mem)
 		{
-			ArIsError = true;
+			SetError();
 		}
 		else
 		{
@@ -7627,7 +7627,7 @@ bool FAsyncArchive::PrecacheInternal(int64 RequestOffset, int64 RequestSize, boo
 	}
 	if (ReadRequestSize <= 0)
 	{
-		ArIsError = true;
+		SetError();
 		return true;
 	}
 	double StartTime = FPlatformTime::Seconds();
@@ -7812,7 +7812,7 @@ void FAsyncArchive::StartReadingHeader()
 {
 	//LogItem(TEXT("Start Header"));
 	WaitForIntialPhases();
-	if (!ArIsError)
+	if (!IsError())
 	{
 		if (int32(LoadPhase) < int32(ELoadPhase::WaitingForHeader))
 		{
@@ -7867,7 +7867,7 @@ void CallSerializeHook();
 
 void FAsyncArchive::Serialize(void* Data, int64 Count)
 {
-	if (!Count || ArIsError)
+	if (!Count || IsError())
 	{
 		return;
 	}
@@ -7959,7 +7959,7 @@ void FAsyncArchive::Serialize(void* Data, int64 Count)
 		{
 		WaitRead();
 		}
-		if (ArIsError)
+		if (IsError())
 		{
 			return;
 		}
@@ -7993,7 +7993,7 @@ void FAsyncArchive::Serialize(void* Data, int64 Count)
 		{
 			verify(WaitRead());
 			void* OldRead2 = ReadRequestPtr;
-			if (!ArIsError)
+			if (!IsError())
 			{
 				checkf(AfterBlockOffset >= PrecacheStartPos && AfterBlockOffset + AfterBlockSize <= PrecacheEndPos, 
 					TEXT("Sync After Block Wait ????  %lld %lld     %lld %lld <-  %lld %lld     %lld %lld <-  %lld %lld    %p <- %p <- %p    %lld %lld <-  %lld %lld"), 
@@ -8005,7 +8005,7 @@ void FAsyncArchive::Serialize(void* Data, int64 Count)
 				);
 			}
 		}
-		if (ArIsError)
+		if (IsError())
 		{
 			return;
 		}
