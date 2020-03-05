@@ -3367,22 +3367,18 @@ FScopedPreventAttachedComponentMove::FScopedPreventAttachedComponentMove(USceneC
 		bSavedNonAbsoluteComponent = !(bSavedAbsoluteLocation && bSavedAbsoluteRotation && bSavedAbsoluteScale);
 
 		// These are only going to be changed temporarily and reset, so we'll allow access here.
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// Use absolute (stay in world space no matter what parent does)
 		Owner->bAbsoluteLocation = true;
 		Owner->bAbsoluteRotation = true;
 		Owner->bAbsoluteScale = true;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (bSavedNonAbsoluteComponent && Owner->GetAttachParent())
 		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			// Make RelativeLocation etc relative to the world.
 			Component->ConditionalUpdateComponentToWorld();
 			Owner->RelativeLocation = Owner->GetComponentLocation();
 			Owner->RelativeRotation = Owner->GetComponentRotation();
 			Owner->RelativeScale3D = Owner->GetComponentScale();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 	else
@@ -3397,11 +3393,9 @@ FScopedPreventAttachedComponentMove::~FScopedPreventAttachedComponentMove()
 {
 	if (Owner)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Owner->bAbsoluteLocation = bSavedAbsoluteLocation;
 		Owner->bAbsoluteRotation = bSavedAbsoluteRotation;
 		Owner->bAbsoluteScale = bSavedAbsoluteScale;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (bSavedNonAbsoluteComponent && Owner->GetAttachParent())
 		{
@@ -3509,13 +3503,11 @@ void FScopedMovementUpdate::RevertMove()
 		
 		if (IsTransformDirty())
 		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			// Teleport to start
 			Component->ComponentToWorld = InitialTransform;
 			Component->RelativeLocation = InitialRelativeLocation;
 			Component->RelativeRotation = InitialRelativeRotation;
 			Component->RelativeScale3D = InitialRelativeScale;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			if (!IsDeferringUpdates())
 			{
@@ -3833,18 +3825,14 @@ void USceneComponent::K2_AddWorldTransform(const FTransform& DeltaTransform, boo
 
 void USceneComponent::SetVisibleFlag(const bool bNewVisible)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bVisible = bNewVisible;
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bVisible, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FVector& USceneComponent::GetRelativeLocation_DirectMutable()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeLocation, this);
 	return RelativeLocation;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::SetRelativeLocation_Direct(const FVector NewRelativeLocation)
@@ -3854,10 +3842,8 @@ void USceneComponent::SetRelativeLocation_Direct(const FVector NewRelativeLocati
 
 FRotator& USceneComponent::GetRelativeRotation_DirectMutable()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeRotation, this);
 	return RelativeRotation;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::SetRelativeRotation_Direct(const FRotator NewRelativeRotation)
@@ -3867,10 +3853,8 @@ void USceneComponent::SetRelativeRotation_Direct(const FRotator NewRelativeRotat
 
 FVector& USceneComponent::GetRelativeScale3D_DirectMutable()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, RelativeScale3D, this);
 	return RelativeScale3D;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::SetRelativeScale3D_Direct(const FVector NewRelativeScale3D)
@@ -3880,42 +3864,32 @@ void USceneComponent::SetRelativeScale3D_Direct(const FVector NewRelativeScale3D
 
 void USceneComponent::SetUsingAbsoluteLocation(bool bInAbsoluteLocation)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bAbsoluteLocation = bInAbsoluteLocation;
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteLocation, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::SetUsingAbsoluteRotation(bool bInAbsoluteRotation)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bAbsoluteRotation = bInAbsoluteRotation;
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteRotation, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::SetUsingAbsoluteScale(bool bInAbsoluteScale)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bAbsoluteScale = bInAbsoluteScale;
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, bAbsoluteScale, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::SetAttachParent(USceneComponent* NewAttachParent)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AttachParent = NewAttachParent;
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachParent, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::SetAttachSocketName(FName NewSocketName)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AttachSocketName = NewSocketName;
 	MARK_PROPERTY_DIRTY_FROM_NAME(USceneComponent, AttachSocketName, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USceneComponent::ModifiedAttachChildren()
