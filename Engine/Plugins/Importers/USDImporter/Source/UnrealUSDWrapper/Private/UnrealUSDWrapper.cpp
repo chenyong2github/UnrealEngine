@@ -5,7 +5,10 @@
 #include "USDLog.h"
 #include "USDMemory.h"
 
+#include "Internationalization/Regex.h"
 #include "Modules/ModuleManager.h"
+
+#define LOCTEXT_NAMESPACE "UnrealUSDWrapper"
 
 #if USE_USD_SDK
 
@@ -439,6 +442,33 @@ int FUsdAttribute::GetArraySize( const pxr::UsdAttribute& Attribute )
 	return Value.IsArrayValued() ? (int)Value.GetArraySize() : -1;
 
 }
+
+bool IUsdPrim::IsValidPrimName(const FString& Name, FText& OutReason)
+{
+	if (Name.IsEmpty())
+	{
+		OutReason = LOCTEXT("EmptyStringInvalid", "Empty string is not a valid name!");
+		return false;
+	}
+
+	const FString InvalidCharacters = TEXT("\\W");
+	FRegexPattern RegexPattern( InvalidCharacters );
+	FRegexMatcher RegexMatcher( RegexPattern, Name );
+	if (RegexMatcher.FindNext())
+	{
+		OutReason = LOCTEXT("InvalidCharacter", "Can only use letters, numbers and underscore!");
+		return false;
+	}
+
+	if (Name.Left(1).IsNumeric())
+	{
+		OutReason = LOCTEXT("InvalidFirstCharacter", "First character cannot be a number!");
+		return false;
+	}
+
+	return true;
+}
+
 EUsdPurpose IUsdPrim::GetPurpose( const UsdPrim& Prim, bool bComputed )
 {
 	UsdGeomImageable Geom(Prim);
@@ -1087,3 +1117,5 @@ public:
 };
 
 IMPLEMENT_MODULE_USD(FUnrealUSDWrapperModule, UnrealUSDWrapper);
+
+#undef LOCTEXT_NAMESPACE

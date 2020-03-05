@@ -207,6 +207,8 @@ class IUsdPrim
 {
 public:
 #if USE_USD_SDK
+	static UNREALUSDWRAPPER_API bool IsValidPrimName(const FString& Name, FText& OutReason);
+
 	static UNREALUSDWRAPPER_API EUsdPurpose GetPurpose(const pxr::UsdPrim& Prim, bool bComputed = true);
 	static UNREALUSDWRAPPER_API FName GetPurposeName(EUsdPurpose Purpose);
 
