@@ -81,6 +81,10 @@ FString GAndroidAppType;
 FString GFilePathBase;
 // Obb File Path base - setup during load
 FString GOBBFilePathBase;
+// Obb Main filepath
+FString GOBBMainFilePath;
+// Obb Patch filepath
+FString GOBBPatchFilePath;
 // Internal File Direcory Path (for application) - setup during load
 FString GInternalFilePath;
 // External File Direcory Path (for application) - setup during load
@@ -988,7 +992,17 @@ public:
 				FFileHandleAndroid* OBBFile = static_cast<FFileHandleAndroid*>(new FFileHandleAndroid(*OBBEntry.File, 0, OBBEntry.File->Size()));
 				check(nullptr != OBBFile);
 				ZipResource.AddPatchFile(MakeShareable(OBBFile));
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted OBB in APK: %s"), *GAPKFilename);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted main OBB in APK: %s"), *GAPKFilename);
+
+				// check for optional patch obb in APK
+				if (APKZip.HasEntry("assets/patch.obb.png"))
+				{
+					auto patchOBBEntry = APKZip.GetEntry("assets/patch.obb.png");
+					FFileHandleAndroid* patchOBBFile = static_cast<FFileHandleAndroid*>(new FFileHandleAndroid(*patchOBBEntry.File, 0, patchOBBEntry.File->Size()));
+					check(nullptr != patchOBBFile);
+					ZipResource.AddPatchFile(MakeShareable(patchOBBFile));
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB in APK: %s"), *GAPKFilename);
+				}
 			}
 			else
 			{
@@ -1001,25 +1015,42 @@ public:
 			// For external OBBs we mount the specific OBB files,
 			// main and patch, only. As required by Android specs.
 			// See <http://developer.android.com/google/play/expansion-files.html>
+			// but first checks for overrides of expected OBB file paths if provided
 			FString OBBDir1 = GOBBFilePathBase + FString(TEXT("/Android/obb/") + GPackageName);
 			FString OBBDir2 = GOBBFilePathBase + FString(TEXT("/obb/") + GPackageName);
 			FString MainOBBName = FString::Printf(TEXT("main.%d.%s.obb"), GAndroidPackageVersion, *GPackageName);
 			FString PatchOBBName = FString::Printf(TEXT("patch.%d.%s.obb"), GAndroidPackageVersion, *GPackageName);
-			if (FileExists(*(OBBDir1 / MainOBBName), true))
+
+			if (!GOBBMainFilePath.IsEmpty() && FileExists(*GOBBMainFilePath, true))
+			{
+				MountOBB(*GOBBMainFilePath);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted main OBB: %s"), *GOBBMainFilePath);
+			}
+			else if (FileExists(*(OBBDir1 / MainOBBName), true))
 			{
 				MountOBB(*(OBBDir1 / MainOBBName));
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted main OBB: %s"), *(OBBDir1 / MainOBBName));
 			}
 			else if (FileExists(*(OBBDir2 / MainOBBName), true))
 			{
 				MountOBB(*(OBBDir2 / MainOBBName));
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted main OBB: %s"), *(OBBDir2 / MainOBBName));
 			}
-			if (FileExists(*(OBBDir1 / PatchOBBName), true))
+
+			if (!GOBBPatchFilePath.IsEmpty() && FileExists(*GOBBPatchFilePath, true))
+			{
+				MountOBB(*GOBBPatchFilePath);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB: %s"), *GOBBPatchFilePath);
+			}
+			else if (FileExists(*(OBBDir1 / PatchOBBName), true))
 			{
 				MountOBB(*(OBBDir1 / PatchOBBName));
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB: %s"), *(OBBDir1 / PatchOBBName));
 			}
 			else if (FileExists(*(OBBDir2 / PatchOBBName), true))
 			{
 				MountOBB(*(OBBDir2 / PatchOBBName));
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB: %s"), *(OBBDir2 / PatchOBBName));
 			}
 		}
 
