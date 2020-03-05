@@ -256,10 +256,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category=Tick)
 	uint8 bAllowTickBeforeBeginPlay:1;
 
+private:
 	/** If true then destroy self when "finished", meaning all relevant components report that they are done and no timelines or timers are in flight. */
-	UPROPERTY(BlueprintReadWrite, Category=Actor)
+	UPROPERTY(BlueprintSetter=SetAutoDestroyWhenFinished, Category=Actor)
 	uint8 bAutoDestroyWhenFinished:1;
 
+public:
 	/** If true, all input on the stack below this actor will not be considered */
 	UPROPERTY(EditDefaultsOnly, Category=Input)
 	uint8 bBlockInput:1;
@@ -318,6 +320,11 @@ public:
 	 * @return true if this actor can call RPCs or false if no such owner chain exists
 	 */
 	virtual bool HasLocalNetOwner() const;
+
+	bool GetAutoDestroyWhenFinished() const { return bAutoDestroyWhenFinished; }
+
+	UFUNCTION(BlueprintSetter)
+	void SetAutoDestroyWhenFinished(bool bVal);
 
 protected:
 	/**
