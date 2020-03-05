@@ -63,7 +63,7 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bRestoreOld
 
 			// Create a copy and override to the maximum level for each Scalability category
 			Scalability::FQualityLevels QualityLevels = PreviousQualityLevels;
-			PreviousQualityLevels.SetFromSingleQualityLevelRelativeToMax(0);
+			QualityLevels.SetFromSingleQualityLevelRelativeToMax(0);
 
 			// Apply
 			Scalability::SetQualityLevels(QualityLevels);
