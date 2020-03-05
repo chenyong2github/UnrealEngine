@@ -1281,6 +1281,11 @@ UK2Node* UK2Node::ExpandSplitPin(FKismetCompilerContext* CompilerContext, UEdGra
 
 void UK2Node::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
+	ExpandSplitPins(CompilerContext, SourceGraph);
+}
+
+void UK2Node::ExpandSplitPins(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
+{
 	// We iterate the array in reverse so we can both remove the subpins safely after we've read them and
 	// so we have split nested structs we combine them back together in the right order
 	for (int32 PinIndex=Pins.Num() - 1; PinIndex >= 0; --PinIndex)
