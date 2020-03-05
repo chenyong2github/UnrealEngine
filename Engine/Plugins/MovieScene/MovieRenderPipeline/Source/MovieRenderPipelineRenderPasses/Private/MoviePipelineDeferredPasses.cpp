@@ -345,6 +345,18 @@ namespace MoviePipeline
 			TArray<float> const* CameraAnimPPBlendWeights;
 			LocalPlayerController->PlayerCameraManager->GetCachedPostProcessBlends(CameraAnimPPSettings, CameraAnimPPBlendWeights);
 
+			if (LocalPlayerController->PlayerCameraManager->bEnableFading)
+			{
+				View->OverlayColor = LocalPlayerController->PlayerCameraManager->FadeColor;
+				View->OverlayColor.A = FMath::Clamp(LocalPlayerController->PlayerCameraManager->FadeAmount, 0.f, 1.f);
+			}
+
+			if (LocalPlayerController->PlayerCameraManager->bEnableColorScaling)
+			{
+				FVector ColorScale = LocalPlayerController->PlayerCameraManager->ColorScale;
+				View->ColorScale = FLinearColor(ColorScale.X, ColorScale.Y, ColorScale.Z);
+			}
+
 			FMinimalViewInfo ViewInfo = LocalPlayerController->PlayerCameraManager->GetCameraCachePOV();
 			for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
 			{
