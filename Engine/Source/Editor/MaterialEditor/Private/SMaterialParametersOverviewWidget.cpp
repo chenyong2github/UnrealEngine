@@ -696,6 +696,7 @@ void SMaterialParametersOverviewTree::CreateGroupsWidget()
 
 					DeferredSearches.Add(ParameterValueProperty);
 					UnsortedParameters.Add(NonLayerProperty);
+				}
 			}
 		}
 	}
