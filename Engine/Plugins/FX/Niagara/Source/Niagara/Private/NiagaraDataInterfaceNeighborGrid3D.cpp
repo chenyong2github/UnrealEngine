@@ -513,6 +513,9 @@ void FNiagaraDataInterfaceProxyNeighborGrid3D::PreStage(FRHICommandList& RHICmdL
 
 		SCOPED_DRAW_EVENT(RHICmdList, NiagaraNeighborGrid3DClearNeighborInfo);
 		ERHIFeatureLevel::Type FeatureLevel = Context.Batcher->GetFeatureLevel();
+
+		FRHIUnorderedAccessView* TransitionBuffers[] = { ProxyData->NeighborhoodBuffer.UAV, ProxyData->NeighborhoodCountBuffer.UAV };
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, TransitionBuffers, UE_ARRAY_COUNT(TransitionBuffers));
 		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, ProxyData->NeighborhoodBuffer, -1);
 		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, ProxyData->NeighborhoodCountBuffer, 0);
 	}
