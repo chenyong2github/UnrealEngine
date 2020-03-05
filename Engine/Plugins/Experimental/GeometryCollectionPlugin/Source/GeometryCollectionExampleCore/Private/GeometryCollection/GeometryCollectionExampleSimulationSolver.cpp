@@ -27,10 +27,6 @@
 #define SMALL_THRESHOLD 1e-4
 
 
-// #TODO Lots of duplication in here, anyone making solver or object changes
-// has to go and fix up so many callsites here and they're all pretty much
-// Identical. The similar code should be pulled out
-
 namespace GeometryCollectionExample
 {
 
@@ -51,7 +47,11 @@ namespace GeometryCollectionExample
 	template<class T>
 	void Solver_AdvanceDisabledObjects()
 	{
-		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform::Identity, FVector(1.0));
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		FVector Scale(1);
+		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform::Identity, Scale);
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = GeometryCollectionToGeometryDynamicCollection(RestCollection.Get());
 
 		auto InitFunc = [&RestCollection, &DynamicCollection](FSimulationParameters& InParams)
@@ -68,9 +68,8 @@ namespace GeometryCollectionExample
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
-#endif
+
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
