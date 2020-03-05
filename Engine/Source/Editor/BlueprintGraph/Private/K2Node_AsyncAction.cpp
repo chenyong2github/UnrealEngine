@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Nodes/K2Node_AsyncAction.h"
+#include "K2Node_AsyncAction.h"
 #include "UObject/UnrealType.h"
 
 #include "Kismet/BlueprintAsyncActionBase.h"
