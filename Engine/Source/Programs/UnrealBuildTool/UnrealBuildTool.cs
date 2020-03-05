@@ -123,7 +123,14 @@ namespace UnrealBuildTool
 			{
 				if (CachedEngineProgramSavedDirectory == null)
 				{
-					CachedEngineProgramSavedDirectory = Utils.GetUserSettingDirectory() ?? DirectoryReference.Combine(EngineDirectory, "Programs");
+					if (IsEngineInstalled())
+					{
+						CachedEngineProgramSavedDirectory = Utils.GetUserSettingDirectory() ?? DirectoryReference.Combine(EngineDirectory, "Programs");
+					}
+					else
+					{
+						CachedEngineProgramSavedDirectory = DirectoryReference.Combine(EngineDirectory, "Programs");
+					}
 				}
 				return CachedEngineProgramSavedDirectory;
 			}
