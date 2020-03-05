@@ -352,21 +352,23 @@ private:
 	//TUniquePtr<FGeometryDynamicCollection> PTDynamicCollection;
 	FGeometryDynamicCollection PTDynamicCollection;
 
+	TMap<Chaos::TPBDRigidParticleHandle<float, 3>*, int32> HandleToTransformGroupIndex;
+
 	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverParticleHandles;
 	TManagedArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> SolverClusterHandles;
-
-	TMap<Chaos::TPBDRigidParticleHandle<float, 3>*, int32> HandleToTransformGroupIndex;
+	TManagedArray<Chaos::TPBDRigidParticleHandle<float, 3>*> SolverClusterID; // Rename to ClusterParent?
 
 	TManagedArray<FTransform> MassToLocal;
 	TManagedArray<int32> CollisionMask;
 	TManagedArray<int32> CollisionStructureID;
 	TManagedArray<int32> RigidBodyID; // Deprecated.  Not added to dynamic collection.
-	TManagedArray<int32> SolverClusterID;
 	TManagedArray<FVector> InitialAngularVelocity;
 	TManagedArray<FVector> InitialLinearVelocity;
 	TManagedArray<bool> SimulatableParticles;
+
 	TManagedArray<TUniquePtr<FSimplicial> > Simplicials; // FSimplicial = Chaos::TBVHParticles<float,3>
 	TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> Implicits;
+
 	TArray<int32> EndFrameUnparentingBuffer;
 
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry
