@@ -446,6 +446,21 @@ public:
 	 */
 	void AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, TArray<FViewInfo>* ViewArray, ERHIFeatureLevel::Type FeatureLevel, bool bRecordShadowSubjectForMobileShading);
 
+	uint64 AddSubjectPrimitive_AnyThread(
+		const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact,
+		TArray<FViewInfo>* ViewArray,
+		ERHIFeatureLevel::Type FeatureLevel,
+		struct FAddSubjectPrimitiveStats& OutStats,
+		struct FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const;
+
+	void PresizeSubjectPrimitiveArrays(struct FAddSubjectPrimitiveStats const& Stats);
+
+	void FinalizeAddSubjectPrimitive(
+		struct FAddSubjectPrimitiveOp const& Op,
+		TArray<FViewInfo>* ViewArray,
+		ERHIFeatureLevel::Type FeatureLevel,
+		struct FFinalizeAddSubjectPrimitiveContext& Context);
+
 	/**
 	* @return TRUE if this shadow info has any casting subject prims to render
 	*/
@@ -620,8 +635,26 @@ private:
 		TArray<const FStaticMeshBatch*, SceneRenderingAllocator>& MeshCommandBuildRequests,
 		int32& NumMeshCommandBuildRequestElements);
 
+	void AddCachedMeshDrawCommands_AnyThread(
+		const FScene* Scene,
+		const FStaticMeshBatchRelevance& RESTRICT StaticMeshRelevance,
+		int32 StaticMeshIdx,
+		int32& NumAcceptedStaticMeshes,
+		struct FAddSubjectPrimitiveResult& OutResult,
+		struct FAddSubjectPrimitiveStats& OutStats,
+		struct FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const;
+
 	/** Will return if we should draw the static mesh for the shadow, and will perform lazy init of primitive if it wasn't visible */
 	bool ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool bInCustomDataRelevance, FPrimitiveSceneInfo* InPrimitiveSceneInfo);
+
+	bool ShouldDrawStaticMeshes_AnyThread(
+		FViewInfo& InCurrentView,
+		const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact,
+		bool bMayBeFading,
+		bool bNeedUpdateStaticMeshes,
+		struct FAddSubjectPrimitiveResult& OutResult,
+		struct FAddSubjectPrimitiveStats& OutStats,
+		struct FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const;
 
 	void GetShadowTypeNameForDrawEvent(FString& TypeName) const;
 
