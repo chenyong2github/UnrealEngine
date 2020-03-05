@@ -3764,6 +3764,8 @@ void ALandscape::PostDuplicate(bool bDuplicateForPIE)
 	{
 		// Need to generate new GUID when duplicating
 		LandscapeGuid = FGuid::NewGuid();
+		// This makes sure at least we have a LandscapeInfo mapped for this GUID.
+		CreateLandscapeInfo();
 	}
 
 	Super::PostDuplicate(bDuplicateForPIE);
