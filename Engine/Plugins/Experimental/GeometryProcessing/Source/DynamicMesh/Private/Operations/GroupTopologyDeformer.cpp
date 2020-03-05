@@ -6,6 +6,7 @@
 #include "SegmentTypes.h"
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
+#include "MeshNormals.h"
 
 
 void FGroupTopologyDeformer::Initialize(const FDynamicMesh3* MeshIn, const FGroupTopology* TopologyIn)
@@ -187,6 +188,21 @@ void FGroupTopologyDeformer::CalculateROI(const TArray<int>& HandleGroups, const
 			ModifiedVertices.Add(vid);
 		}
 	}
+
+	if (Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals() != nullptr)
+	{
+		const FDynamicMeshNormalOverlay* Normals = Mesh->Attributes()->PrimaryNormals();
+		for (int32 vid : ModifiedVertices)
+		{
+			for (int32 tid : Mesh->VtxTrianglesItr(vid))
+			{
+				FIndex3i NormalTri = Normals->GetTriangle(tid);
+				ModifiedOverlayNormals.Add(NormalTri.A);
+				ModifiedOverlayNormals.Add(NormalTri.B);
+				ModifiedOverlayNormals.Add(NormalTri.C);
+			}
+		}
+	}
 }
 
 
@@ -314,6 +330,8 @@ void FGroupTopologyDeformer::UpdateSolution(FDynamicMesh3* TargetMesh, const TFu
 			TargetMesh->SetVertex(Face.InteriorVerts[vi], Sum);
 		}
 	});
+
+	FMeshNormals::QuickRecomputeOverlayNormals(*TargetMesh);
 }
 
 

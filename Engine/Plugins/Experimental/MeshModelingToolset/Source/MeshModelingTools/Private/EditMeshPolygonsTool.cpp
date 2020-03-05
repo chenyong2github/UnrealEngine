@@ -486,12 +486,13 @@ void UEditMeshPolygonsTool::OnMultiTransformerTransformUpdate()
 {
 	if (MultiTransformer->InGizmoEdit())
 	{
-		ComputeUpdate_Gizmo();
+		CacheUpdate_Gizmo();
 	}
 }
 
 void UEditMeshPolygonsTool::OnMultiTransformerTransformEnd()
 {
+	bGizmoUpdatePending = false;
 	bSpatialDirty = true;
 	SelectionMechanic->NotifyMeshChanged(false);
 
@@ -572,17 +573,24 @@ void UEditMeshPolygonsTool::UpdateDeformerFromSelection(const FGroupTopologySele
 
 
 
-
+void UEditMeshPolygonsTool::CacheUpdate_Gizmo()
+{
+	LastUpdateGizmoFrame = MultiTransformer->GetCurrentGizmoFrame();
+	LastUpdateGizmoScale = MultiTransformer->GetCurrentGizmoScale();
+	GetToolManager()->PostInvalidation();
+	bGizmoUpdatePending = true;
+}
 
 void UEditMeshPolygonsTool::ComputeUpdate_Gizmo()
 {
-	if (SelectionMechanic->HasSelection() == false)
+	if (SelectionMechanic->HasSelection() == false || bGizmoUpdatePending == false)
 	{
 		return;
 	}
+	bGizmoUpdatePending = false;
 
-	FFrame3d CurFrame = MultiTransformer->GetCurrentGizmoFrame();
-	FVector3d CurScale = MultiTransformer->GetCurrentGizmoScale();
+	FFrame3d CurFrame = LastUpdateGizmoFrame;
+	FVector3d CurScale = LastUpdateGizmoScale;
 	FVector3d TranslationDelta = CurFrame.Origin - InitialGizmoFrame.Origin;
 	FQuaterniond RotateDelta = CurFrame.Rotation - InitialGizmoFrame.Rotation;
 	FVector3d CurScaleDelta = CurScale - InitialGizmoScale;
@@ -607,7 +615,7 @@ void UEditMeshPolygonsTool::ComputeUpdate_Gizmo()
 		// Reset mesh to initial positions.
 		LinearDeformer.ClearSolution(Mesh);
 	}
-	DynamicMeshComponent->FastNotifyPositionsUpdated();
+	DynamicMeshComponent->FastNotifyPositionsUpdated(true);
 	GetToolManager()->PostInvalidation();
 }
 
@@ -623,6 +631,11 @@ void UEditMeshPolygonsTool::Tick(float DeltaTime)
 	LockFrameWatcher.CheckAndUpdate();
 
 	MultiTransformer->Tick(DeltaTime);
+
+	if (bGizmoUpdatePending)
+	{
+		ComputeUpdate_Gizmo();
+	}
 
 	if (bSelectionStateDirty)
 	{
@@ -825,8 +838,8 @@ void UEditMeshPolygonsTool::UpdateChangeFromROI(bool bFinal)
 	}
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	const TSet<int>& ModifiedVertices = LinearDeformer.GetModifiedVertices();
-	ActiveVertexChange->SavePositions(Mesh, ModifiedVertices, !bFinal);
+	ActiveVertexChange->SavePositions(Mesh, LinearDeformer.GetModifiedVertices(), !bFinal);
+	ActiveVertexChange->SaveOverlayNormals(Mesh, LinearDeformer.GetModifiedOverlayNormals(), !bFinal);
 }
 
 
@@ -834,7 +847,7 @@ void UEditMeshPolygonsTool::BeginChange()
 {
 	if (ActiveVertexChange == nullptr)
 	{
-		ActiveVertexChange = new FMeshVertexChangeBuilder();
+		ActiveVertexChange = new FMeshVertexChangeBuilder(true);
 		UpdateChangeFromROI(false);
 	}
 }
