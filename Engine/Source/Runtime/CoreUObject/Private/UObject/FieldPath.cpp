@@ -55,6 +55,8 @@ void FFieldPath::Generate(const TCHAR* InFieldPathString)
 		TCHAR NameBuffer[NAME_SIZE];
 		int32 NameIndex = 0;
 
+		Path.Reset();
+
 		// Construct names
 		while (true)
 		{
