@@ -34,9 +34,8 @@ template<typename SampleType>
 class MEDIAIOCORE_API FMediaIOCoreSampleContainer : public ITimedDataInputChannel
 {
 public:
-	FMediaIOCoreSampleContainer(ITimedDataInput* Owner, FName InChannelName)
-		: Input(Owner)
-		, ChannelName(InChannelName)
+	FMediaIOCoreSampleContainer(FName InChannelName)
+		: ChannelName(InChannelName)
 		, BufferUnderflow(0)
 		, BufferOverflow(0)
 		, FrameDrop(0)
@@ -93,8 +92,15 @@ public:
 				if (EvaluationSettings.EvaluationType == ETimedDataInputEvaluationType::Timecode)
 				{
 					//Compute the distance with Timespan resolution. Going through FQualifiedFrameTime gives a different result (~10ns)
-					NewestSampleInSeconds = Samples[0]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds() + Duration;
-					OldestSampleInSeconds = Samples[CachedSamplesData.Num() - 1]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds();
+					if (Samples[0]->GetTimecode().IsSet())
+					{
+						NewestSampleInSeconds = Samples[0]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds() + Duration;
+					}
+
+					if (Samples[CachedSamplesData.Num() - 1]->GetTimecode().IsSet())
+					{
+						OldestSampleInSeconds = Samples[CachedSamplesData.Num() - 1]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds();
+					}
 				}
 				else //Platform time
 				{
@@ -126,27 +132,23 @@ public:
 	}
 
 	/** Channel is disabled by default. It won't be added to the Timed Data collection if not enabled */
-	void EnableChannel(bool bShouldEnable)
+	void EnableChannel(ITimedDataInput* Input, bool bShouldEnable)
 	{
+		check(Input);
+
 		if (bShouldEnable != bIsChannelEnabled)
 		{
 			bIsChannelEnabled = bShouldEnable;
 
 			if (bIsChannelEnabled)
 			{
-				if (Input)
-				{
-					Input->AddChannel(this);
-				}
+				Input->AddChannel(this);
 				ITimeManagementModule::Get().GetTimedDataInputCollection().Add(this);
 			}
 			else
 			{
 				ITimeManagementModule::Get().GetTimedDataInputCollection().Remove(this);
-				if (Input)
-				{
-					Input->RemoveChannel(this);
-				}
+				Input->RemoveChannel(this);
 			}
 		}
 	}
@@ -374,9 +376,6 @@ public:
 
 
 protected:
-
-	/** Input in which that channel belongs */
-	ITimedDataInput* Input;
 
 	/** Name of this channel */
 	FName ChannelName;

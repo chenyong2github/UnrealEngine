@@ -17,7 +17,6 @@ class IMediaTextureSample;
 /**
  * Bitflags about different types of sample a MediaIO can push
  */
-UENUM()
 enum class EMediaIOSampleType
 {
 	None = 0,
@@ -27,6 +26,7 @@ enum class EMediaIOSampleType
 	Subtitles = 1<<3,
 	Caption = 1<<4,
 };
+ENUM_CLASS_FLAGS(EMediaIOSampleType)
 
 /**
  * General purpose media sample queue.
@@ -35,7 +35,7 @@ enum class EMediaIOSampleType
 class MEDIAIOCORE_API FMediaIOCoreSamples : public IMediaSamples
 {
 public:
-	FMediaIOCoreSamples(ITimedDataInput* ChannelsOwner);
+	FMediaIOCoreSamples();
 	FMediaIOCoreSamples(const FMediaIOCoreSamples&) = delete;
 	FMediaIOCoreSamples& operator=(const FMediaIOCoreSamples&) = delete;
 
@@ -278,7 +278,7 @@ public:
 	void CacheSamplesState(FTimespan PlayerTime);
 
 	/** Enable or disable channels based on bitfield flag */
-	void EnableTimedDataChannels(EMediaIOSampleType SampleTypes);
+	void EnableTimedDataChannels(ITimedDataInput* Input, EMediaIOSampleType SampleTypes);
 
 	/** Initialize our different buffers with player's settings and wheter or not it should be displayed / supported in Timing monitor */
 	void InitializeVideoBuffer(const FMediaIOSamplingSettings& InSettings);

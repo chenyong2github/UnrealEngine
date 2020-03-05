@@ -8,12 +8,12 @@
 #include "IMediaTextureSample.h"
 
 
-FMediaIOCoreSamples::FMediaIOCoreSamples(ITimedDataInput* ChannelsOwner)
-	: VideoSamples(ChannelsOwner, "Video")
-	, AudioSamples(ChannelsOwner, "Audio")
-	, MetadataSamples(ChannelsOwner, "Metadata")
-	, SubtitleSamples(ChannelsOwner, "Subtitles")
-	, CaptionSamples(ChannelsOwner, "Caption")
+FMediaIOCoreSamples::FMediaIOCoreSamples()
+	: VideoSamples("Video")
+	, AudioSamples("Audio")
+	, MetadataSamples("Metadata")
+	, SubtitleSamples("Subtitles")
+	, CaptionSamples("Caption")
 {
 
 }
@@ -27,13 +27,13 @@ void FMediaIOCoreSamples::CacheSamplesState(FTimespan PlayerTime)
 	CaptionSamples.CacheState(PlayerTime);
 }
 
-void FMediaIOCoreSamples::EnableTimedDataChannels(EMediaIOSampleType SampleTypes)
+void FMediaIOCoreSamples::EnableTimedDataChannels(ITimedDataInput* Input, EMediaIOSampleType SampleTypes)
 {
-	VideoSamples.EnableChannel(static_cast<uint8>(SampleTypes) & static_cast<uint8>(EMediaIOSampleType::Video));
-	AudioSamples.EnableChannel(static_cast<uint8>(SampleTypes)& static_cast<uint8>(EMediaIOSampleType::Audio));
-	MetadataSamples.EnableChannel(static_cast<uint8>(SampleTypes)& static_cast<uint8>(EMediaIOSampleType::Metadata));
-	SubtitleSamples.EnableChannel(static_cast<uint8>(SampleTypes)& static_cast<uint8>(EMediaIOSampleType::Subtitles));
-	CaptionSamples.EnableChannel(static_cast<uint8>(SampleTypes)& static_cast<uint8>(EMediaIOSampleType::Caption));
+	VideoSamples.EnableChannel(Input,  EnumHasAnyFlags(SampleTypes, EMediaIOSampleType::Video));
+	AudioSamples.EnableChannel(Input, EnumHasAnyFlags(SampleTypes, EMediaIOSampleType::Audio));
+	MetadataSamples.EnableChannel(Input, EnumHasAnyFlags(SampleTypes, EMediaIOSampleType::Metadata));
+	SubtitleSamples.EnableChannel(Input, EnumHasAnyFlags(SampleTypes, EMediaIOSampleType::Subtitles));
+	CaptionSamples.EnableChannel(Input, EnumHasAnyFlags(SampleTypes, EMediaIOSampleType::Caption));
 }
 
 void FMediaIOCoreSamples::InitializeVideoBuffer(const FMediaIOSamplingSettings& InSettings)

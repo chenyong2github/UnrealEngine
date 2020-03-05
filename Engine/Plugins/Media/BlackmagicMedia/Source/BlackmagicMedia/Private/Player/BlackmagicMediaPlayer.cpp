@@ -399,9 +399,8 @@ FBlackmagicMediaPlayer::FBlackmagicMediaPlayer(IMediaEventSink& InEventSink)
 	, AudioSamplePool(new FBlackmagicMediaAudioSamplePool)
 	, TextureSamplePool(new FBlackmagicMediaTextureSamplePool)
 	, bVerifyFrameDropCount(false)
-	, SupportedSampleTypes(static_cast<EMediaIOSampleType>(static_cast<uint8>(EMediaIOSampleType::Video) | static_cast<uint8>(EMediaIOSampleType::Audio)))
+	, SupportedSampleTypes(EMediaIOSampleType::None)
 {
-	Samples->EnableTimedDataChannels(SupportedSampleTypes);
 }
 
 FBlackmagicMediaPlayer::~FBlackmagicMediaPlayer()
@@ -424,6 +423,9 @@ void FBlackmagicMediaPlayer::Close()
 
 	AudioSamplePool->Reset();
 	TextureSamplePool->Reset();
+
+	//Disable all our channels from the monitor
+	Samples->EnableTimedDataChannels(this, EMediaIOSampleType::None);
 
 	Super::Close();
 }
@@ -488,6 +490,11 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 		const EBlackmagicMediaAudioChannel AudioChannelOption = (EBlackmagicMediaAudioChannel)(Options->GetMediaOption(BlackmagicMediaOption::AudioChannelOption, (int64)EBlackmagicMediaAudioChannel::Stereo2));
 		ChannelOptions.NumberOfAudioChannel = (AudioChannelOption == EBlackmagicMediaAudioChannel::Surround8) ? 8 : 2;
 	}
+
+	//Adjust supported sample types based on what's being captured
+	SupportedSampleTypes = ChannelOptions.bReadVideo ? EMediaIOSampleType::Video : EMediaIOSampleType::None;
+	SupportedSampleTypes |= ChannelOptions.bReadAudio ? EMediaIOSampleType::Audio : EMediaIOSampleType::None;
+	Samples->EnableTimedDataChannels(this, SupportedSampleTypes);
 
 	bVerifyFrameDropCount = Options->GetMediaOption(BlackmagicMediaOption::LogDropFrame, false);
 	const bool bEncodeTimecodeInTexel = TimecodeFormat != EMediaIOTimecodeFormat::None && Options->GetMediaOption(BlackmagicMediaOption::EncodeTimecodeInTexel, false);

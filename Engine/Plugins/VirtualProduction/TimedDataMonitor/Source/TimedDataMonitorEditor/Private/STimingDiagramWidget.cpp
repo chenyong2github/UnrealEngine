@@ -192,7 +192,8 @@ public:
 
 		// Draw evaluation line
 		{
-			FLinearColor EvaluationColor = (EvaluationTime >= MinSampleTime && EvaluationTime <= MaxSampleTime) ? FLinearColor::Green : FLinearColor::Red;
+			const bool bIsInRange = (FMath::IsNearlyEqual(EvaluationTime, MinSampleTime) || EvaluationTime >= MinSampleTime) && (FMath::IsNearlyEqual(EvaluationTime, MaxSampleTime) || EvaluationTime <= MaxSampleTime);
+			FLinearColor EvaluationColor = bIsInRange ? FLinearColor::Green : FLinearColor::Red;
 			FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
 				AllottedGeometry.ToPaintGeometry(FVector2D(LocationOfCenter, 0), FVector2D(1, SizeY)),
 				DarkBrush, ESlateDrawEffect::None,
