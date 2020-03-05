@@ -392,6 +392,8 @@ static TSharedPtr< FWindowsWindow > FindWindowByHWND(const TArray< TSharedRef< F
 
 bool FWindowsApplication::IsCursorDirectlyOverSlateWindow() const
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_STAT_IsCursorDirectlyOverSlateWindow);
+
 	POINT CursorPos;
 	BOOL bGotPoint = ::GetCursorPos(&CursorPos);
 	if (bGotPoint)

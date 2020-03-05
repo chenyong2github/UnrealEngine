@@ -1121,10 +1121,12 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 		IsInGameThread() &&					// We should never allow the slate loading thread to create new windows or interact with the hittest grid
 		!SlateApp.IsUsingHighPrecisionMouseMovment() && // If we are using HighPrecision movement then we can't rely on the OS cursor to be accurate
 		!IsDragDropping() &&				// We must not currently be in the middle of a drag-drop action
-		
-		//@todo DanH: We need to check if OUR cursor is over a slate window, not just the platform cursor. 
-		//		See about adding FPlatformApplication::GetSlateWindowUnderPoint(FVector2D) or something.
-		SlateApp.GetPlatformApplication()->IsCursorDirectlyOverSlateWindow(); // The cursor must be over a Slate window
+		(
+			SlateApp.IsActive() || // Assume we need update if app is active
+			//@todo DanH: We need to check if OUR cursor is over a slate window, not just the platform cursor. 
+			//		See about adding FPlatformApplication::GetSlateWindowUnderPoint(FVector2D) or something.
+			SlateApp.GetPlatformApplication()->IsCursorDirectlyOverSlateWindow() // The cursor must be over a Slate window
+		);
 
 	if (bCheckForTooltipChanges)
 	{
