@@ -8,6 +8,7 @@
 
 class FUniqueNetId;
 struct FOnlineError;
+class FOnlineSessionSearchResult;
 
 /**
  * Players location information for the activity service
