@@ -44,7 +44,7 @@ PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/28.0
 
 retVal=$(type -P "adb")
 if [ $retVal == "" ]; then
-	echo PATH="\"\$PATH:$PLATFORMTOOLS\"" >>~/.bash_profile
+	echo export PATH="\"\$PATH:$PLATFORMTOOLS\"" >>~/.bash_profile
 	echo Added $PLATFORMTOOLS to path
 fi
 
