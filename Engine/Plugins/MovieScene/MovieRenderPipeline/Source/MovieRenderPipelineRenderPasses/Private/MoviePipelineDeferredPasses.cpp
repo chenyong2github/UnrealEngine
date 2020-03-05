@@ -28,6 +28,11 @@
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineAntiAliasingSetting.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MovieRenderPipelineCoreModule.h"
+
+DECLARE_CYCLE_STAT(TEXT("MoviePipeline_SampleReadback"), STAT_SampleReadback, STATGROUP_MoviePipeline);
+DECLARE_CYCLE_STAT(TEXT("MoviePipeline_AccumulateSample_RT"), STAT_AccumulateSample_RenderThread, STATGROUP_MoviePipeline);
+
 
 namespace MoviePipeline
 {
@@ -189,6 +194,8 @@ namespace MoviePipeline
 
 	void ReadBackbufferAndBroadcast_RenderThread(FRHICommandListImmediate &RHICmdList, FRenderTarget* InFromRenderTarget, const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelineSampleReady& OnReadDelegate)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_SampleReadback);
+
 		check(IsInRenderingThread());
 
 		FIntRect SourceRect = FIntRect(0, 0, InFromRenderTarget->GetSizeXY().X, InFromRenderTarget->GetSizeXY().Y);
@@ -208,7 +215,6 @@ namespace MoviePipeline
 	FSceneView* FDeferredRenderEnginePass::CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InSampleState)
 	{
 		APlayerController* LocalPlayerController = GetPipeline()->GetWorld()->GetFirstPlayerController();
-		// GetPipeline()->GetWorld()->GetGameViewport()->bDisableWorldRendering = true;
 
 		int32 TileSizeX = InitSettings.BackbufferResolution.X;
 		int32 TileSizeY = InitSettings.BackbufferResolution.Y;
@@ -521,6 +527,8 @@ namespace MoviePipeline
 {
 	void AccumulateSample_RenderThread(TUniquePtr<FImagePixelData>&& InPixelData, TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData, MoviePipeline::FSampleRenderThreadParams& InParams)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_AccumulateSample_RenderThread);
+
 		check(InPixelData->IsDataWellFormed());
 
 		// Writing tiles can be useful for debug reasons. These get passed onto the output every frame.
@@ -531,6 +539,19 @@ namespace MoviePipeline
 			// The extra copy is unfortunate, but is only the size of a single sample (ie: 1920x1080 -> 17mb)
 			TUniquePtr<FImagePixelData> SampleData = InPixelData->CopyImageData();
 			InParams.OutputMerger->OnSingleSampleDataAvailable_AnyThread(MoveTemp(SampleData), InFrameData);
+		}
+
+		// Optimization! If we don't need the accumulator (no tiling, no supersampling) then we'll skip it and just send it straight to the output stage.
+		// This significantly improves performance in the baseline case.
+		const bool bOneTile = InFrameData->IsFirstTile() && InFrameData->IsLastTile();
+		const bool bOneTS = InFrameData->IsFirstTemporalSample() && InFrameData->IsLastTemporalSample();
+		const bool bOneSS = InFrameData->SampleState.SpatialSampleCount == 1;
+
+		if (bOneTile && bOneTS && bOneSS)
+		{
+			// Send the data directly to the Output Builder and skip the accumulator.
+			InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(InPixelData), InFrameData);
+			return;
 		}
 
 		// For the first sample in a new output, we allocate memory

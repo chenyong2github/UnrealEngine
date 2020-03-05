@@ -20,6 +20,7 @@
 #include "MoviePipelineHighResSetting.h"
 #include "Modules/ModuleManager.h"
 #include "MoviePipelineCameraSetting.h"
+#include "Engine/GameViewportClient.h"
 
 // For flushing async systems
 #include "RendererInterface.h"
@@ -152,6 +153,11 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 	{
 		RenderPass->Setup(ActiveRenderPasses, RenderPassInitSettings);
 		NumOutputPasses++;
+	}
+
+	if (OutputSettings->bHidePreview)
+	{
+		GetWorld()->GetGameViewport()->bDisableWorldRendering = true;
 	}
 
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Engine Passes and %d Output Passes."), ActiveRenderPasses.Num(), NumOutputPasses);
@@ -431,7 +437,7 @@ void UMoviePipeline::RenderFrame()
 	}
 	
 	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Pre-FlushRenderingCommands"), GFrameCounter);
-	FlushRenderingCommands();
+	// FlushRenderingCommands();
 	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Post-FlushRenderingCommands"), GFrameCounter);
 }
 
