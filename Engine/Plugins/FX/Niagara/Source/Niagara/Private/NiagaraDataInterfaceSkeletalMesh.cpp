@@ -117,9 +117,9 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 	if (Usage.NeedsDataImmediately())
 	{
 		check(IsInGameThread());
-		if (CurrBoneRefToLocals().Num() == 0)
+		if (CurrBoneRefToLocals().Num() == 0 || CurrComponentTransforms().Num() == 0 )
 		{
-			SkelComp->CacheRefToLocalMatrices(CurrBoneRefToLocals()); 
+			UpdateBoneTransforms();
 		}
 		
 		//Prime the prev matrices if they're missing.
@@ -128,10 +128,6 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 			PrevBoneRefToLocals() = CurrBoneRefToLocals();
 		}
 
-		if (CurrComponentTransforms().Num() == 0)
-		{
-			CurrComponentTransforms() = SkelComp->GetComponentSpaceTransforms();
-		}
 		if (PrevComponentTransforms().Num() != CurrComponentTransforms().Num())
 		{
 			PrevComponentTransforms() = CurrComponentTransforms();
@@ -187,6 +183,77 @@ bool FSkeletalMeshSkinningData::IsUsed()const
 	return false;
 }
 
+void FSkeletalMeshSkinningData::UpdateBoneTransforms()
+{
+	USkeletalMeshComponent* SkelComp = MeshComp.Get();
+	check(SkelComp);
+
+	const TArray<FTransform>& BaseCompSpaceTransforms = SkelComp->GetComponentSpaceTransforms();
+	TArray<FMatrix>& CurrBones = CurrBoneRefToLocals();
+	TArray<FTransform>& CurrTransforms = CurrComponentTransforms();
+
+	if (USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get())
+	{
+		const USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
+		const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
+		const int32 NumBones = MasterBoneMap.Num();
+
+		check(SkelMesh);
+		if (NumBones == 0)
+		{
+			// This case indicates an invalid master pose component (e.g. no skeletal mesh)
+			CurrBones.Empty(SkelMesh->RefSkeleton.GetNum());
+			CurrBones.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
+			CurrTransforms.Empty(SkelMesh->RefSkeleton.GetNum());
+			CurrTransforms.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
+		}
+		else
+		{
+			CurrBones.SetNumUninitialized(NumBones);
+			CurrTransforms.SetNumUninitialized(NumBones);
+
+			const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
+			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+			{
+				bool bFoundMaster = false;
+				FTransform CompSpaceTransform;
+				if (MasterBoneMap.IsValidIndex(BoneIndex))
+				{
+					const int32 MasterIndex = MasterBoneMap[BoneIndex];
+					if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
+					{
+						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
+						CurrBones[BoneIndex] = SkelMesh->RefBasesInvMatrix[BoneIndex] * MasterTransforms[MasterIndex].ToMatrixWithScale();
+						bFoundMaster = true;
+					}
+				}
+
+				if (!bFoundMaster)
+				{
+					const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
+
+					if (CurrTransforms.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex)
+					{
+						CurrTransforms[BoneIndex] = CurrTransforms[ParentIndex] * SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+					}
+					else
+					{
+						CurrTransforms[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+					}
+
+					CurrBones[BoneIndex] = CurrTransforms[BoneIndex].ToMatrixWithScale();
+
+				}
+			}
+		}
+	}
+	else
+	{
+		SkelComp->CacheRefToLocalMatrices(CurrBones);
+		CurrTransforms = SkelComp->GetComponentSpaceTransforms();
+	}
+}
+
 bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 {
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
@@ -196,57 +263,7 @@ bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 
 	if (BoneMatrixUsers > 0)
 	{
-		TArray<FMatrix>& CurrBones = CurrBoneRefToLocals();
-		if ( USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get() )
-		{
-			const USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
-			const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
-			const int32 NumBones = MasterBoneMap.Num();
-
-			check(SkelMesh);
-			if ( NumBones == 0 )
-			{
-				// This case indicates an invalid master pose component (e.g. no skeletal mesh)
-				CurrBones.Empty(SkelMesh->RefSkeleton.GetNum());
-				CurrBones.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
-			}
-			else
-			{
-				CurrBones.SetNumUninitialized(NumBones);
-
-				const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
-				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
-				{
-					bool bFoundMaster = false;
-					if (MasterBoneMap.IsValidIndex(BoneIndex))
-					{
-						const int32 MasterIndex = MasterBoneMap[BoneIndex];
-						if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
-						{
-							CurrBones[BoneIndex] = MasterTransforms[MasterIndex].ToMatrixWithScale();
-							bFoundMaster = true;
-						}
-					}
-
-					if ( !bFoundMaster )
-					{
-						const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
-
-						CurrBones[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex].ToMatrixWithScale();
-						if ( CurrBones.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex )
-						{
-							CurrBones[BoneIndex] = CurrBones[ParentIndex] * CurrBones[BoneIndex];
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			SkelComp->CacheRefToLocalMatrices(CurrBones);
-		}
-
-		CurrComponentTransforms() = SkelComp->GetComponentSpaceTransforms();
+		UpdateBoneTransforms();
 	}
 
 	//Prime the prev matrices if they're missing.
