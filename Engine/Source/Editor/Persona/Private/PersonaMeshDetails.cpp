@@ -116,6 +116,11 @@ static int32 GetDefaultMaterialIndex(const USkeletalMesh* SkeletalMesh, int32 LO
 	}
 
 	const FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[LODIndex];
+	if (LODIndex > 0)
+	{
+		//Only base LOD is using the default/modified feature
+		return INDEX_NONE;
+	}
 
 	if (LODModel.Sections.IsValidIndex(SectionIndex))
 	{
@@ -4092,8 +4097,8 @@ void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMeshPtr.Get());
 		//When we delete a material slot we must invalidate the DDC because material index is not part of the DDC key by design
-	SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
-	FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
+		SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
+		FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
 
 		int32 NumLODInfos = SkeletalMeshPtr->GetLODNum();
 
@@ -4109,13 +4114,13 @@ void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 					SectionMaterialIndex = LODMaterialMap[SectionIndex];
 				}
 				if (SectionMaterialIndex > MaterialIndex)
-	{
+				{
 					SectionMaterialIndex--;
 				}
 				if (SectionMaterialIndex != Model->LODModels[LODInfoIdx].Sections[SectionIndex].MaterialIndex)
-		{
+				{
 					while(!LODMaterialMap.IsValidIndex(SectionIndex))
-			{
+					{
 						LODMaterialMap.Add(INDEX_NONE);
 					}
 					LODMaterialMap[SectionIndex] = SectionMaterialIndex;
