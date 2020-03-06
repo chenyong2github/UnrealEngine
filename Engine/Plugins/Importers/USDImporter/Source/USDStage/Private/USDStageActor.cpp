@@ -95,34 +95,6 @@ struct FUsdStageActorImpl
 
 		return TranslationContext;
 	}
-
-	/**
-	 * Will recursively scan down the attach children of Parent and toggle each component's
-	 * Visibility based on whether they have the correct tag
-	 */
-	static void RecursivelyToggleVisibility(USceneComponent* Parent, const TSet<FName>& VisiblePurposeNames)
-	{
-		if (!Parent)
-		{
-			return;
-		}
-
-		bool bVisible = false;
-		for (const FName& Tag : Parent->ComponentTags)
-		{
-			if (VisiblePurposeNames.Contains(Tag))
-			{
-				bVisible = true;
-				break;
-			}
-		}
-		Parent->SetVisibility(bVisible, false);
-
-		for (USceneComponent* Child : Parent->GetAttachChildren())
-		{
-			RecursivelyToggleVisibility(Child, VisiblePurposeNames);
-		}
-	}
 };
 
 #endif // #if USE_USD_SDK
@@ -130,7 +102,6 @@ struct FUsdStageActorImpl
 AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
 	, PurposesToLoad((int32) EUsdPurpose::Proxy)
-	, PurposeVisibility((int32)(EUsdPurpose::Proxy | EUsdPurpose::Render | EUsdPurpose::Guide))
 	, Time( 0.0f )
 	, StartTimeCode( 0.f )
 	, EndTimeCode( 100.f )
@@ -175,6 +146,11 @@ AUsdStageActor::AUsdStageActor()
 
 							TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( UsdPrimPath.Get() ) );
 							SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) );
+
+							if ( !SchemaTranslator.IsValid() )
+							{
+								break;
+							}
 						}
 					}
 
@@ -197,8 +173,6 @@ AUsdStageActor::AUsdStageActor()
 					this->UpdatePrim( ComponentsPrimPath.Get(), bResync, *TranslationContext );
 					TranslationContext->CompleteTasks();
 				}
-
-				this->RefreshVisibilityBasedOnPurpose();
 
 				if ( this->HasAutorithyOverStage() )
 				{
@@ -472,12 +446,8 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			LevelSequenceHelper.UpdateLevelSequence( UsdStage );
 		}
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, PurposeVisibility))
-	{
-		RefreshVisibilityBasedOnPurpose();
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, InitialLoadSet) ||
-			 PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, PurposesToLoad))
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, InitialLoadSet ) ||
+		      PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
 	{
 		LoadUsdStage();
 	}
@@ -521,31 +491,6 @@ void AUsdStageActor::OpenUsdStage()
 
 		OnStageChanged.Broadcast();
 	}
-#endif // #if USE_USD_SDK
-}
-
-void AUsdStageActor::RefreshVisibilityBasedOnPurpose()
-{
-#if USE_USD_SDK
-	USceneComponent* Root = GetRootComponent();
-
-	TSet<FName> VisiblePurposeNames{ IUsdPrim::GetPurposeName(EUsdPurpose::Default) };
-	if (EnumHasAllFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Proxy))
-	{
-		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Proxy));
-	}
-	if (EnumHasAllFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Render))
-	{
-		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Render));
-	}
-	if (EnumHasAllFlags((EUsdPurpose)PurposeVisibility, EUsdPurpose::Guide))
-	{
-		VisiblePurposeNames.Add(IUsdPrim::GetPurposeName(EUsdPurpose::Guide));
-	}
-
-	FUsdStageActorImpl::RecursivelyToggleVisibility(Root, VisiblePurposeNames);
-
-	GEditor->RedrawLevelEditingViewports();
 #endif // #if USE_USD_SDK
 }
 
@@ -609,8 +554,6 @@ void AUsdStageActor::LoadUsdStage()
 	SetTime( StartTimeCode );
 
 	GEditor->BroadcastLevelActorListChanged();
-
-	this->RefreshVisibilityBasedOnPurpose();
 
 	OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
 
@@ -762,6 +705,19 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 				else
 				{
 					UnrealToUsd::ConvertSceneComponent( UsdStage, PrimSceneComponent, UsdPrim.Get() );
+				}
+
+				// We want to keep component visibilities in sync with USD, which uses inherited visibilities
+				// To accomplish that while blocking notices we must always propagate component visibility changes
+				if ( PropertyChangedEvent.GetPropertyName() == TEXT( "bVisible" ) )
+				{
+					PrimSceneComponent->SetVisibility( PrimSceneComponent->GetVisibleFlag(), true );
+				}
+
+				// Update stage window in case any of our component changes trigger USD stage changes
+				if ( this->HasAutorithyOverStage() )
+				{
+					this->OnPrimChanged.Broadcast( PrimPath, false );
 				}
 			}
 		}
