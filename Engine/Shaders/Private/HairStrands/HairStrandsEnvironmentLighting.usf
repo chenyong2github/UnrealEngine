@@ -241,9 +241,9 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			float2(0.19984126, 0.78641367),
 			float2(0.14383161, -0.14100790)
 		};
-		const uint SampleCount = clamp(MultipleScatterSampleCount, 1, 16);
+		const uint SampleCount = clamp(MultipleScatterSampleCount, uint(1), uint(16));
 		#else
-		const uint SampleCount = max(MultipleScatterSampleCount, 1);
+		const uint SampleCount = max(MultipleScatterSampleCount, uint(1));
 		#endif
 
 		float2 RandOffset = 0;
