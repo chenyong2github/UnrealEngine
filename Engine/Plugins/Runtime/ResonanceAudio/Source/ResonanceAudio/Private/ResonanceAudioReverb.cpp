@@ -9,6 +9,15 @@
 #include "ResonanceAudioSettings.h"
 #include "Sound/SoundSubmix.h"
 
+static int32 IgnoreUserResonanceSubmixCVar = 1;
+FAutoConsoleVariableRef CVarIgnoreUserResonanceSubmix(
+	TEXT("au.IgnoreUserResonanceSubmix"),
+	IgnoreUserResonanceSubmixCVar,
+	TEXT("When set to 1, the resonance project setting will be bypassed.\n")
+	TEXT("1: Submix Effects are disabled."),
+	ECVF_Default);
+
+
 namespace ResonanceAudio
 {
 	/*********************************************/
@@ -158,7 +167,13 @@ namespace ResonanceAudio
 		const UResonanceAudioSettings* Settings = GetDefault<UResonanceAudioSettings>();
 		check(Settings);
 
-		USoundSubmix* ReverbSubmix = Cast<USoundSubmix>(Settings->OutputSubmix.TryLoad());
+		USoundSubmix* ReverbSubmix = nullptr;
+		
+		if (!IgnoreUserResonanceSubmixCVar)
+		{
+			ReverbSubmix = Cast<USoundSubmix>(Settings->OutputSubmix.TryLoad());
+		}
+
 		if (!ReverbSubmix)
 		{
 			static const FString DefaultSubmixName = TEXT("Resonance Reverb Submix");
