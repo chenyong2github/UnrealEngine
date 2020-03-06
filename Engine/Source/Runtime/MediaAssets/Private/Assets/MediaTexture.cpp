@@ -14,6 +14,7 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 #include "MediaPlayer.h"
+#include "IMediaPlayer.h"
 #include "Misc/MediaTextureResource.h"
 #include "IMediaTextureSample.h"
 
@@ -62,12 +63,15 @@ UMediaTexture::UMediaTexture(const FObjectInitializer& ObjectInitializer)
 	, ClearColor(FLinearColor::Black)
 	, EnableGenMips(false)
 	, NumMips(1)
+	, NewStyleOutput(false)
+	, OutputFormat(MTOF_Default)
 	, DefaultGuid(FGuid::NewGuid())
 	, Dimensions(FIntPoint::ZeroValue)
 	, Size(0)
 	, CachedNextSampleTime(FTimespan::MinValue())
 {
 	NeverStream = true;
+	SRGB = true;
 }
 
 
@@ -150,6 +154,10 @@ FTextureResource* UMediaTexture::CreateResource()
 
 EMaterialValueType UMediaTexture::GetMaterialType() const
 {
+	if (NewStyleOutput)
+	{
+		return MCT_Texture2D;
+	}
 	return EnableGenMips ? MCT_Texture2D : MCT_TextureExternal;
 }
 
@@ -330,15 +338,55 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 
 		if (PlayerActive)
 		{
-			RenderParams.SampleSource = SampleQueue;
+			check(CurrentPlayerPtr->GetPlayerFacade()->GetPlayer());
+
+			if (CurrentPlayerPtr->GetPlayerFacade()->GetPlayer()->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2))
+			{
+				/*
+					We are using the old-style "1sample queue to sink" architecture to actually just pass long only ONE sample at a time from the logic
+					inside the player facade to the sinks. The selection as to what to render this frame is expected to be done earlier
+					this frame on the gamethread, hence only a single output frame is selected and passed along...
+				*/
+				TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+				while (SampleQueue->Dequeue(Sample))
+					;
+
+				if (!Sample.IsValid())
+				{
+					// Player is active (do not clear), but we have no new data
+					// -> we do not need to trigger anything on the renderthread
+					return;
+				}
+
+				RenderParams.TextureSample = Sample;
+
+				RenderParams.Rate = CurrentPlayerPtr->GetRate();
+				RenderParams.Time = Sample->GetTime();
+
+				if (NewStyleOutput)
+				{
+					// For new-style output the sample's sRGB state controls what we output
+					// (FOR NOW: this is too simplified if we have more then Rec703 material)
+					SRGB = Sample->IsOutputSrgb();
+					// Ensure sRGB changes will not trigger rendering the next time around
+					LastSrgb = SRGB;
+				}
+			}
+			else
+			{
+				//
+				// Old style: pass queue along and dequeue only at render time
+				//
+				RenderParams.SampleSource = SampleQueue;
+
+				RenderParams.Rate = CurrentPlayerPtr->GetRate();
+				RenderParams.Time = CurrentPlayerPtr->GetTime();
+			}
 		}
 		else if (!AutoClear)
 		{
 			return; // retain last frame
 		}
-
-		RenderParams.Rate = CurrentPlayerPtr->GetRate();
-		RenderParams.Time = CurrentPlayerPtr->GetTime();
 	}
 	else if (!AutoClear && (CurrentGuid == PreviousGuid))
 	{

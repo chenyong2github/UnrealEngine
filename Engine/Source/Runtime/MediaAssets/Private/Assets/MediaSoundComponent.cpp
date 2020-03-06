@@ -23,6 +23,9 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent Queued"), STAT_M
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(MEDIA_API, MediaStreaming);
 
+
+static const int32 MaxAudioInputSamples = 8;	// accept at most these many samples into our input queue
+
 /* Static initialization
  *****************************************************************************/
 
@@ -127,7 +130,7 @@ void UMediaSoundComponent::UpdatePlayer()
 
 	// We have some audio decoders which are running with a limited amount of pre-allocated audio sample packets. 
 	// When the audio packets are not consumed in the UMediaSoundComponent::OnGenerateAudio method below, these packets are not 
-	// returned to the decooder which then cannot produce more audio samples. 
+	// returned to the decoder which then cannot produce more audio samples. 
 	//
 	// The UMediaSoundComponent::OnGenerateAudio is only called when our parent USynthComponent it active and
 	// this is conrolled by USynthComponent::Start() and USynthComponent::Stop(). We are tracking a state change here.
@@ -135,7 +138,7 @@ void UMediaSoundComponent::UpdatePlayer()
 	{
 		if (IsActive())
 		{
-			const auto NewSampleQueue = MakeShared<FMediaAudioSampleQueue, ESPMode::ThreadSafe>();
+			const auto NewSampleQueue = MakeShared<FMediaAudioSampleQueue, ESPMode::ThreadSafe>(MaxAudioInputSamples);
 			PlayerFacade->AddAudioSampleSink(NewSampleQueue);
 			{
 				FScopeLock Lock(&CriticalSection);
@@ -351,30 +354,37 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 		PinnedSampleQueue = SampleQueue;
 	}
 
+	// We have an input queue and are actively playing?
 	if (PinnedSampleQueue.IsValid() && (CachedRate != 0.0f))
 	{
 		const float Rate = CachedRate.Load();
 		const FTimespan Time = CachedTime.Load();
 
-		FTimespan OutTime = FTimespan::Zero();
-
 		{
 			const uint32 FramesRequested = uint32(NumSamples / NumChannels);
 			uint32 JumpFrame = MAX_uint32;
+			FMediaTimeStamp OutTime = FMediaTimeStamp(FTimespan::Zero());
 			uint32 FramesWritten = Resampler->Generate(OutAudio, OutTime, FramesRequested, Rate, Time, *PinnedSampleQueue, JumpFrame);
 			if (FramesWritten == 0)
 			{
 				return 0; // no samples available
 			}
 
+			// Fill in any gap left as we didn't have enough data
 			if (FramesWritten < FramesRequested)
 			{
 				memset(OutAudio + FramesWritten * NumChannels, 0, (NumSamples - FramesWritten * NumChannels) * sizeof(float));
 			}
+
+			// Update audio time
+			LastPlaySampleTime = OutTime.Time;
+			PinnedSampleQueue->SetAudioTime(FMediaTimeStampSample(OutTime, FPlatformTime::Seconds()));
+
+			SET_FLOAT_STAT(STAT_MediaUtils_MediaSoundComponentSampleTime, OutTime.Time.GetTotalSeconds());
+			SET_DWORD_STAT(STAT_Media_SoundCompQueued, PinnedSampleQueue->Num());
 		}
 
-		LastPlaySampleTime = OutTime;
-
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 		if (bSpectralAnalysisEnabled || bEnvelopeFollowingEnabled)
 		{
@@ -427,10 +437,6 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 				}
 			}
 		}
-
-		SET_FLOAT_STAT(STAT_MediaUtils_MediaSoundComponentSync, FMath::Abs((Time - OutTime).GetTotalMilliseconds()));
-		SET_FLOAT_STAT(STAT_MediaUtils_MediaSoundComponentSampleTime, OutTime.GetTotalMilliseconds());
-		SET_DWORD_STAT(STAT_Media_SoundCompQueued, PinnedSampleQueue->Num());
 	}
 	else
 	{

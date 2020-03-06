@@ -36,7 +36,15 @@ enum class EMediaEvent
 	SeekCompleted,
 
 	/** Media tracks have changed. */
-	TracksChanged
+	TracksChanged,
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+
+	/** Start of internal events not sent out to user code. */
+	Internal_Start,
+
+	/** Player requests purge of outdated video samples from queues. */
+	Internal_PurgeVideoSamplesHint = Internal_Start,
 };
 
 

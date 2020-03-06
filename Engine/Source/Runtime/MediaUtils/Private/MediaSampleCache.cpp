@@ -74,7 +74,7 @@ void FMediaSampleCache::GetCachedAudioSampleRanges(TRangeSet<FTimespan>& OutTime
 
 	for (const TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe>& Sample : AudioSamples)
 	{
-		const FTimespan SampleTime = Sample->GetTime();
+		const FTimespan SampleTime = Sample->GetTime().Time;
 		OutTimeRanges.Add(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration()));
 	}
 }
@@ -86,7 +86,7 @@ void FMediaSampleCache::GetCachedVideoSampleRanges(TRangeSet<FTimespan>& OutTime
 
 	for (const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample : VideoSamples)
 	{
-		const FTimespan SampleTime = Sample->GetTime();
+		const FTimespan SampleTime = Sample->GetTime().Time;
 		OutTimeRanges.Add(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration()));
 	}
 }

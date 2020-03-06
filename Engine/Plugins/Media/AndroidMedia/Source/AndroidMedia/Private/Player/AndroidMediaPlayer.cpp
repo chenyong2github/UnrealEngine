@@ -715,9 +715,18 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 		{
 			TWeakPtr<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe> JavaMediaPlayerPtr;
 			FGuid PlayerGuid;
+			TSharedRef<FAndroidMediaTextureSample, ESPMode::ThreadSafe> VideoSample;
+			TWeakPtr<FMediaSamples, ESPMode::ThreadSafe> Samples;
 		};
 
-		FWriteVideoSampleParams Params = { JavaMediaPlayer, PlayerGuid };
+		auto VideoSample = VideoSamplePool->AcquireShared();
+		const FJavaAndroidMediaPlayer::FVideoTrack VideoTrack = VideoTracks[SelectedVideoTrack];
+		if (!VideoSample->Initialize(VideoTrack.Dimensions, FTimespan::FromSeconds(1.0 / VideoTrack.FrameRate), FTimespan::FromMilliseconds(JavaMediaPlayer->GetCurrentPosition())))
+		{
+			return;
+		}
+			
+		FWriteVideoSampleParams Params = { JavaMediaPlayer, PlayerGuid, VideoSample, Samples };
 
 		ENQUEUE_RENDER_COMMAND(AndroidMediaPlayerWriteVideoSample)(
 			[Params](FRHICommandListImmediate& RHICmdList)
@@ -734,8 +743,9 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 				}
 
 				auto PinnedJavaMediaPlayer = Params.JavaMediaPlayerPtr.Pin();
+				auto PinnedSamples = Params.Samples.Pin();
 
-				if (!PinnedJavaMediaPlayer.IsValid())
+				if (!PinnedJavaMediaPlayer.IsValid() || ! PinnedSamples.IsValid())
 				{
 					return;
 				}
@@ -752,7 +762,11 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 
 					PinnedJavaMediaPlayer->SetVideoTextureValid(true);
 				}
-			});
+
+				// Add a dummy video sample
+				// (actual data flows "on the side" via external texture mechanism)
+				PinnedSamples->AddVideo(Params.VideoSample);
+		});
 	}
 #endif // ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 	else

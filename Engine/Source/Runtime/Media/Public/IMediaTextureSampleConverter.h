@@ -11,5 +11,23 @@
 class IMediaTextureSampleConverter
 {
 public:
-	virtual void Convert(FTexture2DRHIRef InDstTexture) = 0;
+	enum EConverterInfoFlags
+	{
+		ConverterInfoFlags_Default = 0,
+		ConverterInfoFlags_WillCreateOutputTexture = 1 << 0,
+		ConverterInfoFlags_PreprocessOnly = 1 << 1,
+	};
+
+	struct FConversionHints
+	{
+		bool bOutputSRGB;
+		uint8 NumMips;
+	};
+
+	virtual uint32 GetConverterInfoFlags() const
+	{
+		return ConverterInfoFlags_Default;
+	}
+
+	virtual bool Convert(FTexture2DRHIRef & InDstTexture, const FConversionHints & Hints) = 0;
 };

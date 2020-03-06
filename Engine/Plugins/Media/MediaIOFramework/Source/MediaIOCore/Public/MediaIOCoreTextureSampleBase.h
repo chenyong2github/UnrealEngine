@@ -165,9 +165,9 @@ public:
 	}
 #endif //WITH_ENGINE
 
-	virtual FTimespan GetTime() const override
+	virtual FMediaTimeStamp GetTime() const override
 	{
-		return Time;
+		return FMediaTimeStamp(Time);
 	}
 
 	virtual TOptional<FTimecode> GetTimecode() const override

@@ -211,6 +211,6 @@ void FPlayer::OnVideoFrame(const TSharedRef<IMediaTextureSample, ESPMode::Thread
 		FHUDStats::Get().EndToEndLatencyMs.Update(LatencyMs);
 	}
 
-	UE_LOG(PixelPlayer, Verbose, TEXT("(%d) Sending frame for rendering: ts %lld, capture ts %lld, latency %.0f"), RtcTimeMs(), Sample->GetTime().GetTicks(), Sample->GetDuration().GetTicks(), LatencyMs);
+	UE_LOG(PixelPlayer, Verbose, TEXT("(%d) Sending frame for rendering: ts %lld, capture ts %lld, latency %.0f"), RtcTimeMs(), Sample->GetTime().Time.GetTicks(), Sample->GetDuration().GetTicks(), LatencyMs);
 	MediaSamples->AddVideo(Sample);
 }

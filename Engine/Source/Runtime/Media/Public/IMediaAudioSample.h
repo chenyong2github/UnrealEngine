@@ -6,6 +6,7 @@
 #include "Misc/Optional.h"
 #include "Misc/Timecode.h"
 #include "Misc/Timespan.h"
+#include "IMediaTimeSource.h"
 
 
 /**
@@ -103,7 +104,7 @@ public:
 	 * @return Sample time.
 	 * @see GetBuffer, GetChannels, GetDuration, GetFormat, GetFrames, GetSampleRate
 	 */
-	virtual FTimespan GetTime() const = 0;
+	virtual FMediaTimeStamp GetTime() const = 0;
 
 	/**
 	 * Get the sample timecode if available.

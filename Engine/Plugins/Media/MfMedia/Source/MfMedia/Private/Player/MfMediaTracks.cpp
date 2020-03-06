@@ -302,7 +302,7 @@ void FMfMediaTracks::ProcessSample(IMFSample* Sample, HRESULT Status, DWORD Stre
 				if (AudioSample->Initialize(*Format.OutputType, *Sample, Format.Audio.NumChannels, Format.Audio.SampleRate))
 				{
 					Samples->AddAudio(AudioSample);
-					LastAudioSampleTime = AudioSample->GetTime();
+					LastAudioSampleTime = AudioSample->GetTime().Time;
 
 					#if MFMEDIATRACKS_TRACE_SAMPLES
 						UE_LOG(LogMfMedia, VeryVerbose, TEXT("Tracks %p: Audio sample processed: %s"), this, *LastAudioSampleTime.ToString());
@@ -392,7 +392,7 @@ void FMfMediaTracks::ProcessSample(IMFSample* Sample, HRESULT Status, DWORD Stre
 				if (VideoSample->Initialize(*Format.OutputType, *Sample, Format.Video.BufferDim, Format.Video.BufferStride, Format.Video.OutputDim, true))
 				{
 					Samples->AddVideo(VideoSample);
-					LastVideoSampleTime = VideoSample->GetTime();
+					LastVideoSampleTime = VideoSample->GetTime().Time;
 
 					#if MFMEDIATRACKS_TRACE_SAMPLES
 						UE_LOG(LogMfMedia, VeryVerbose, TEXT("Tracks %p: Video sample processed: %s"), this, *LastVideoSampleTime.ToString());
