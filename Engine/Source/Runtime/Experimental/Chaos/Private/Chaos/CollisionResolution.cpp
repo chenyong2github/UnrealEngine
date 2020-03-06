@@ -2551,8 +2551,8 @@ namespace Chaos
 			Dir /= Length;
 
 			// Attempt to get rid of invalid static analysis warnings
-			check(Implicit0 || Implicit0Type == ImplicitObjectType::Unknown);
-			check(Implicit1 || Implicit1Type == ImplicitObjectType::Unknown);
+			check(Implicit0 || (!Implicit0 && Implicit0Type == ImplicitObjectType::Unknown));
+			check(Implicit1 || (!Implicit1 && Implicit1Type == ImplicitObjectType::Unknown));
 
 			if (Implicit0Type == TBox<FReal, 3>::StaticType() && Implicit1Type == THeightField<FReal>::StaticType())
 			{
