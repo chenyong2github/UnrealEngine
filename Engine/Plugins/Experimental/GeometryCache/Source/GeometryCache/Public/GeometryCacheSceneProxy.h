@@ -192,7 +192,7 @@ public:
 	 * @param OutNextFrameIndex - The frame index that follows OutFrameIndex
 	 * @param InterpolationFactor - The interpolation value between the two frame times
 	 */
-	virtual void FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InterpolationFactor);
+	virtual void FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InInterpolationFactor);
 
 	/** MeshData storing information used for rendering this Track */
 	FGeometryCacheMeshData *MeshData;
@@ -201,6 +201,7 @@ public:
 	/** Frame numbers corresponding to MeshData, NextFrameMeshData */
 	int32 FrameIndex;
 	int32 NextFrameIndex;
+	float InterpolationFactor;
 
 	/** Material applied to this Track */
 	TArray<UMaterialInterface*> Materials;
