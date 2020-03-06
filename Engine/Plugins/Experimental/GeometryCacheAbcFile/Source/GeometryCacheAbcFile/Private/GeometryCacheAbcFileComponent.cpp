@@ -7,9 +7,9 @@
 
 #define LOCTEXT_NAMESPACE "GeometryCacheAbcFileComponent"
 
-UGeometryCacheAbcFileComponent::UGeometryCacheAbcFileComponent()
+UGeometryCacheAbcFileComponent::UGeometryCacheAbcFileComponent(const FObjectInitializer& ObjectInitializer)
 {
-	AbcSettings = NewObject<UAbcImportSettings>(this, TEXT("AbcSettings"));
+	AbcSettings = ObjectInitializer.CreateDefaultSubobject<UAbcImportSettings>(this, TEXT("AbcSettings"));
 }
 
 #if WITH_EDITOR
