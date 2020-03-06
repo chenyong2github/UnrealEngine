@@ -287,8 +287,10 @@ extern RENDERCORE_API uint32 GSwapBufferTime;
 
 // shared by renderer and engine, compiles down to a constant in final release
 RENDERCORE_API int32 GetCVarForceLOD();
+RENDERCORE_API int32 GetCVarForceLOD_AnyThread();
 
 RENDERCORE_API int32 GetCVarForceLODShadow();
+RENDERCORE_API int32 GetCVarForceLODShadow_AnyThread();
 
 RENDERCORE_API bool IsHDREnabled();
 
