@@ -1305,19 +1305,27 @@ void APlayerCameraManager::StopAllInstancesOfCameraShake(TSubclassOf<class UCame
 	}
 }
 
-void APlayerCameraManager::StopAllInstancesOfCameraShakeFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
-{
-	if (SourceComponent && CachedCameraShakeMod)
-	{
-		CachedCameraShakeMod->RemoveAllCameraShakesFromSource(SourceComponent, bImmediately);
-	}
-}
-
 void APlayerCameraManager::StopAllCameraShakes(bool bImmediately)
 {
 	if (CachedCameraShakeMod)
 	{
 		CachedCameraShakeMod->RemoveAllCameraShakes(bImmediately);
+	}
+}
+
+void APlayerCameraManager::StopAllInstancesOfCameraShakeFromSource(TSubclassOf<UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+{
+	if (ShakeClass && SourceComponent && CachedCameraShakeMod)
+	{
+		CachedCameraShakeMod->RemoveAllCameraShakesOfClassFromSource(ShakeClass, SourceComponent, bImmediately);
+	}
+}
+
+void APlayerCameraManager::StopAllCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+{
+	if (SourceComponent && CachedCameraShakeMod)
+	{
+		CachedCameraShakeMod->RemoveAllCameraShakesFromSource(SourceComponent, bImmediately);
 	}
 }
 
