@@ -54,6 +54,13 @@ public:
 	virtual TSharedPtr<IDetailTreeNode> FindTreeNode(TSharedPtr<IPropertyHandle> PropertyHandle) const = 0;
 
 	/**
+	* Finds tree nodes by property handles.
+	* 
+	* @return The found tree nodes (in the same order, a pointer will be null if the node cannot be found)
+	*/
+	virtual TArray<TSharedPtr<IDetailTreeNode>> FindTreeNodes(TArray<TSharedPtr<IPropertyHandle>> PropertyHandles) const = 0;
+
+	/**
 	 * Registers a custom detail layout delegate for a specific class in this instance of the generator only
 	 *
 	 * @param Class	The class the custom detail layout is for
