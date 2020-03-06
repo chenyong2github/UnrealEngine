@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Crc.h"
-
+#include "GeometryCollection/ManagedArrayCollection.h"
 
 /*
 * Managed arrays for simulation data used by the GeometryCollectionProxy
