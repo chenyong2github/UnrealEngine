@@ -782,7 +782,7 @@ void UEdMode::Enter()
 	CreateToolkit();
 
 	// set up standard materials
-	StandardVertexColorMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Game/Materials/VertexColor"));
+	StandardVertexColorMaterial = GEngine->VertexColorMaterial;
 
 	BeginPIEDelegateHandle = FEditorDelegates::BeginPIE.AddLambda([this](bool bSimulating)
 	{
