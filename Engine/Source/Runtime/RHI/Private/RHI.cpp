@@ -893,6 +893,7 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 		return NAME_PLATFORM_XBOXONE;
 	case SP_OPENGL_ES31_EXT:
 	case SP_VULKAN_ES3_1_ANDROID:
+	case SP_VULKAN_SM5_ANDROID:
 	case SP_OPENGL_ES3_1_ANDROID:
 		return NAME_PLATFORM_ANDROID;
 	case SP_METAL:
@@ -1297,6 +1298,7 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_VULKAN_PCES3_1: return TEXT("VULKAN_PCES3_1");
 	case SP_VULKAN_SM5: return TEXT("VULKAN_SM5");
 	case SP_VULKAN_SM5_LUMIN: return TEXT("VULKAN_SM5_LUMIN");
+	case SP_VULKAN_SM5_ANDROID: return TEXT("VULKAN_SM5_ANDROID");
 
 	case SP_OPENGL_ES2_ANDROID_REMOVED:
 	case SP_OPENGL_ES2_WEBGL_REMOVED:

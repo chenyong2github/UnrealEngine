@@ -1927,6 +1927,14 @@ static void MakeShaderModelPreviewMenu( UToolMenu* InMenu )
 		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_AndroidVulkanES31);
 	}
 
+	bool bAndroidSupportsMobileVulkanSM5 = false;
+	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsAndroidVulkanSM5"), bAndroidSupportsVulkan, GEngineIni);
+	if (bAndroidSupportsMobileVulkanSM5)
+	{
+		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_AndroidVulkanSM5);
+	}
+
+
 	// iOS
 	bool bIOSSupportsMetal = false;
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsMetal"), bIOSSupportsMetal, GEngineIni);

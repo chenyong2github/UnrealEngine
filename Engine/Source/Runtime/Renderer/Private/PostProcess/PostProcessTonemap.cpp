@@ -1317,7 +1317,7 @@ class FPostProcessTonemapVS_ES2 : public FGlobalShader
 			return false;
 		}
 
-		return !IsConsolePlatform(Parameters.Platform);
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) <= ERHIFeatureLevel::ES3_1;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
