@@ -106,7 +106,20 @@ public:
 	 */
 	virtual void RemoveAllCameraShakesOfClass(TSubclassOf<UCameraShake> ShakeClass, bool bImmediately = true);
 
+	/**
+	 * Stops and removes all camera shakes originating from the given source.
+	 * @param SourceComponent   The shake source.
+	 * @param bImmediately      If true, shake stops right away regardless of blend out settings. If false, shake may blend out according to its settings.
+	 */
 	virtual void RemoveAllCameraShakesFromSource(const UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+
+	/**
+	 * Stops and removes all camera shakes of the given class originating from the given source.
+	 * @param ShakeClasss       The camera shake class to remove.
+	 * @param SourceComponent   The shake source.
+	 * @param bImmediately      If true, shake stops right away regardless of blend out settings. If false, shake may blend out according to its settings.
+	 */
+	virtual void RemoveAllCameraShakesOfClassFromSource(TSubclassOf<UCameraShake> ShakeClass, const UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** 
 	 * Stops and removes all camera shakes from the camera. 

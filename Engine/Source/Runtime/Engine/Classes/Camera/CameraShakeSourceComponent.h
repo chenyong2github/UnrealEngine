@@ -79,6 +79,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
 	void PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake);
 
+	/** Stops a camera shake originating from this source */
+	UFUNCTION(BlueprintCallable, Category = CameraShake)
+	void StopAllCameraShakesOfType(TSubclassOf<UCameraShake> InCameraShake, bool bImmediately = true);
+
 	/** Stops all currently active camera shakes that are originating from this source from all player controllers */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
 	void StopAllCameraShakes(bool bImmediately = true);
