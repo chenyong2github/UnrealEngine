@@ -865,6 +865,15 @@ void UNiagaraSystem::WaitForCompilationComplete()
 	{
 		QueryCompileComplete(true, ActiveCompilations.Num() == 1);
 	}
+
+}
+
+void UNiagaraSystem::InvalidateActiveCompiles()
+{
+	for (FNiagaraSystemCompileRequest& ActiveCompilation : ActiveCompilations)
+	{
+		ActiveCompilation.bIsValid = false;
+	}
 }
 
 bool UNiagaraSystem::PollForCompilationComplete()
@@ -907,7 +916,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		}
 
 		// In the world of do not apply, we're exiting the system completely so let's just kill any active compilations altogether.
-		if (bDoNotApply)
+		if (bDoNotApply || ActiveCompilations[ActiveCompileIdx].bIsValid == false)
 		{
 			ActiveCompilations[ActiveCompileIdx].RootObjects.Empty();
 			ActiveCompilations.RemoveAt(ActiveCompileIdx);

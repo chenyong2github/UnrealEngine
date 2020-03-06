@@ -157,6 +157,11 @@ USTRUCT()
 struct FNiagaraSystemCompileRequest
 {
 	GENERATED_USTRUCT_BODY()
+
+	FNiagaraSystemCompileRequest()
+		: bIsValid(true)
+	{
+	}
 		
 	double StartTime;
 
@@ -166,6 +171,8 @@ struct FNiagaraSystemCompileRequest
 	TArray<FEmitterCompiledScriptPair> EmitterCompiledScriptPairs;
 	
 	TMap<UNiagaraScript*, TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> > MappedData;
+
+	bool bIsValid;
 };
 
 /** Container for multiple emitters that combine together to create a particle system effect.*/
@@ -275,6 +282,9 @@ public:
 
 	/** Blocks until all active compile jobs have finished */
 	void WaitForCompilationComplete();
+
+	/** Invalidates any active compilation requests which will ignore their results. */
+	void InvalidateActiveCompiles();
 
 	/** Delegate called when the system's dependencies have all been compiled.*/
 	FOnSystemCompiled& OnSystemCompiled();
