@@ -7,6 +7,8 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/Archive.h"
+#include "AssetData.h"
 
 class IAssetIndexer;
 
