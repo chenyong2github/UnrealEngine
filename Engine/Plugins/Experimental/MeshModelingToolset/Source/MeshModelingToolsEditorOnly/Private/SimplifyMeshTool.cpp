@@ -148,6 +148,7 @@ void USimplifyMeshTool::Setup()
 		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
 	});
 
+	UpdateVisualization();
 	Preview->InvalidateResult();
 }
 
@@ -226,7 +227,18 @@ void USimplifyMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void USimplifyMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	Preview->InvalidateResult();
+	if ( Property )
+	{
+		if ( ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(USimplifyMeshToolProperties, bShowWireframe) ) ||
+			 ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(USimplifyMeshToolProperties, bShowGroupColors) ) )
+		{
+			UpdateVisualization();
+		}
+		else
+		{
+			Preview->InvalidateResult();
+		}
+	}
 }
 
 void USimplifyMeshTool::UpdateVisualization()

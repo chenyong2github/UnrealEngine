@@ -218,7 +218,18 @@ void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	Preview->InvalidateResult();
+	if ( Property )
+	{
+		if ( ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(URemeshMeshToolProperties, bShowWireframe) ) ||
+			 ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(URemeshMeshToolProperties, bShowGroupColors) ) )
+		{
+			UpdateVisualization();
+		}
+		else
+		{
+			Preview->InvalidateResult();
+		}
+	}
 }
 
 void URemeshMeshTool::UpdateVisualization()
