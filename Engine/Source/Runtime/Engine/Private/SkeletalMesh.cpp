@@ -4081,6 +4081,8 @@ static void SerializeReductionSettingsForDDC(FArchive& Ar, FSkeletalMeshOptimiza
 	Ar << ReductionSettings.NumOfVertPercentage;
 	Ar << ReductionSettings.MaxNumOfTriangles;
 	Ar << ReductionSettings.MaxNumOfVerts;
+	Ar << ReductionSettings.MaxNumOfTrianglesPercentage;
+	Ar << ReductionSettings.MaxNumOfVertsPercentage;
 	Ar << ReductionSettings.MaxDeviationPercentage;
 	Ar << ReductionSettings.ReductionMethod;
 	Ar << ReductionSettings.SilhouetteImportance;
