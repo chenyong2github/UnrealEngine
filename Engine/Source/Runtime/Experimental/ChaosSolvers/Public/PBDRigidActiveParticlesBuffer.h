@@ -26,11 +26,16 @@ namespace Chaos
 		friend class FPBDRigidActiveParticlesBufferAccessor;
 
 	public:
-		FPBDRigidActiveParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode);
+		FPBDRigidActiveParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode, bool bInSingleThreaded);
 
 		void CaptureSolverData(FPBDRigidsSolver* Solver);
 
 		void RemoveActiveParticleFromConsumerBuffer(TGeometryParticle<FReal, 3>* Particle);
+
+		void ReadLock();
+		void ReadUnlock();
+		void WriteLock();
+		void WriteUnlock();
 	
 	private:
 		const FPBDRigidActiveParticlesBufferOut* GetSolverOutData() const
@@ -53,6 +58,7 @@ namespace Chaos
 
 		Chaos::EMultiBufferMode BufferMode;
 		FRWLock ResourceOutLock;
+		bool bUseLock;
 
 		// Physics thread to game thread
 		TUniquePtr<IBufferResource<FPBDRigidActiveParticlesBufferOut>> SolverDataOut;
@@ -64,7 +70,7 @@ namespace Chaos
 		FPBDRigidActiveParticlesBufferAccessor(FPBDRigidActiveParticlesBuffer* InManager) : Manager(InManager)
 		{
 			check(InManager);
-			Manager->ResourceOutLock.ReadLock();
+			Manager->ReadLock();
 		}
 
 		const FPBDRigidActiveParticlesBufferOut* GetSolverOutData() const
@@ -74,7 +80,7 @@ namespace Chaos
 
 		~FPBDRigidActiveParticlesBufferAccessor()
 		{
-			Manager->ResourceOutLock.ReadUnlock();
+			Manager->ReadUnlock();
 		}
 
 	private:
