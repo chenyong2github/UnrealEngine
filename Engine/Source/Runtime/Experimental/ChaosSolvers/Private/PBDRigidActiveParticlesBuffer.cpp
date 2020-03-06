@@ -19,6 +19,14 @@ namespace Chaos
 		ResourceOutLock.WriteUnlock();
 	}
 
+	void FPBDRigidActiveParticlesBuffer::RemoveActiveParticleFromConsumerBuffer(TGeometryParticle<FReal, 3>* Particle)
+	{
+		ResourceOutLock.WriteLock();
+		auto& ActiveGameThreadParticles = SolverDataOut->GetConsumerBufferMutable()->ActiveGameThreadParticles;
+		ActiveGameThreadParticles.RemoveSingleSwap(Particle);
+		ResourceOutLock.WriteUnlock();
+	}
+
 	void FPBDRigidActiveParticlesBuffer::BufferPhysicsResults(FPBDRigidsSolver* Solver)
 	{
 		auto& ActiveGameThreadParticles = SolverDataOut->AccessProducerBuffer()->ActiveGameThreadParticles;
