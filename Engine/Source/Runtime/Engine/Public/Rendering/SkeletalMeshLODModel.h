@@ -14,6 +14,8 @@
 #include "SkeletalMeshTypes.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Animation/SkinWeightProfile.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
 
 //
 //	FSoftSkinVertex
@@ -361,8 +363,43 @@ public:
 		, bIsRawSkeletalMeshBulkDataEmpty(true)
 		, BuildStringID(TEXT(""))
 	{
+		//Allocate the private mutex
+		BulkDataReadMutex = new FCriticalSection();
 	}
 
+	~FSkeletalMeshLODModel()
+	{
+		//Release the allocate resources
+		if(BulkDataReadMutex != nullptr)
+		{
+			delete BulkDataReadMutex;
+			BulkDataReadMutex = nullptr;
+		}
+	}
+
+	/*Empty the skeletal mesh LOD model. Empty copy a default constructed FSkeletalMeshLODModel but will not copy the BulkDataReadMutex which will be the same after*/
+	void Empty()
+	{
+		FCriticalSection* BackupBulkDataReadMutex = BulkDataReadMutex;
+		*this = FSkeletalMeshLODModel();
+		BulkDataReadMutex = BackupBulkDataReadMutex;
+	}
+
+private:
+	//Mutex use by the CopyStructure function. It's a pointer because FCriticalSection privatize the operator= function, which will prevent this class operator= to use the default.
+	//We want to avoid having a custom equal operator that will get deprecated if dev forget to add the new member in this class
+	//The CopyStructure function will copy everything but make sure the destination mutex is set to a new mutex pointer.
+	FCriticalSection* BulkDataReadMutex;
+
+	//Use the static FSkeletalMeshLODModel::CopyStructure function to copy from one instance to another
+	//The reason is we want the copy to be multithread safe and use the BulkDataReadMutex.
+	FSkeletalMeshLODModel& operator=(const FSkeletalMeshLODModel& Other) = default;
+
+	//Use the static FSkeletalMeshLODModel::CreateCopy function to copy from one instance to another
+	//The reason is we want the copy to be multithread safe and use the BulkDataReadMutex.
+	FSkeletalMeshLODModel(const FSkeletalMeshLODModel& Other) = delete;
+
+public:
 	/**
 	* Special serialize function passing the owning UObject along as required by FUnytpedBulkData
 	* serialization.
@@ -437,8 +474,21 @@ public:
 
 	/**
 	* Copy one structure to the other, make sure all bulk data is unlock and the data can be read before copying.
+	*
+	* It also use a private mutex to make sure it's thread safe to copy the same source multiple time in multiple thread.
 	*/
-	static ENGINE_API bool CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source);
+	static ENGINE_API void CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source);
+
+	/**
+	* Create a new FSkeletalMeshLODModel on the heap. Copy data from the "FSkeletalMeshLODModel* Other" to the just created LODModel return the heap allocated LODModel.
+	* This function is thread safe since its use the thread safe CopyStructure function to copy the data from Other.
+	*/
+	static ENGINE_API FSkeletalMeshLODModel* CreateCopy(FSkeletalMeshLODModel* Other)
+	{
+		FSkeletalMeshLODModel* Destination = new FSkeletalMeshLODModel();
+		FSkeletalMeshLODModel::CopyStructure(Destination, Other);
+		return Destination;
+	}
 };
 
 #endif // WITH_EDITOR
