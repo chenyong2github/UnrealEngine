@@ -23,7 +23,7 @@ FText FAndroidProfileWizard::GetDescription() const
 
 namespace AndroidProfileConstants
 {
-	const FString AppPlatformName(TEXT("Android_ETC1"));
+	const FString AppPlatformName(TEXT("Android_ETC2"));
 	const FString AppReleaseName(TEXT("1.0"));
 	const FString DLCName(TEXT("DLC1.0"));
 }

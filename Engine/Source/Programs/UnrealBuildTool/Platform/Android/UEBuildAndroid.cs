@@ -244,10 +244,9 @@ namespace UnrealBuildTool
 					else if (ModuleName == "TargetPlatform")
 					{
 						bBuildShaderFormats = true;
-						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatPVR");
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
-						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatAndroid");    // ATITC, ETC1 and ETC2
+						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatAndroid");  // ETC2 
 						if (Target.bBuildDeveloperTools)
 						{
 							//Rules.DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");	//@todo android: android audio
