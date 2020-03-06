@@ -1785,6 +1785,8 @@ void UEngine::ShutdownAudioDeviceManager()
 
 void UEngine::PreExit()
 {
+	FCoreDelegates::OnEnginePreExit.Broadcast();
+
 #if UE_NET_TRACE_ENABLED
 	FNetTrace::SetTraceVerbosity(0);
 #endif
