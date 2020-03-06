@@ -1,0 +1,166 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+// EDeferredMaterialMode
+#define DEFERRED_MATERIAL_MODE_NONE   0
+#define DEFERRED_MATERIAL_MODE_GATHER 1
+#define DEFERRED_MATERIAL_MODE_SHADE  2
+
+#ifndef DIM_DEFERRED_MATERIAL_MODE
+	#define DIM_DEFERRED_MATERIAL_MODE DEFERRED_MATERIAL_MODE_NONE
+#endif
+
+#include "../Common.ush"
+
+#define SUPPORT_CONTACT_SHADOWS		0
+#define USE_SOURCE_TEXTURE			1
+#define USE_SOURCE_TEXTURE_ARRAY	1
+
+#define LTCMatTexture				RaytracingLightsDataPacked.LTCMatTexture
+#define LTCMatSampler				RaytracingLightsDataPacked.LTCMatSampler
+#define LTCAmpTexture				RaytracingLightsDataPacked.LTCAmpTexture
+#define LTCAmpSampler				RaytracingLightsDataPacked.LTCAmpSampler
+#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF			
+#define PreIntegratedGFSampler		ReflectionStruct.PreIntegratedGFSampler	
+
+#include "../DeferredShadingCommon.ush"
+#include "../DeferredLightingCommon.ush"
+#include "../ReflectionEnvironmentShared.ush"
+#include "../Montecarlo.ush"
+#include "../PathTracing/Utilities/PathTracingRandomSequence.ush" 
+#include "../HeightFogCommon.ush"
+#include "../ScreenSpaceDenoise/SSDPublic.ush"
+#include "../SobolRandom.ush"
+#include "../SceneTextureParameters.ush"
+
+#include "RayTracingCommon.ush"
+#include "RayTracingDeferredShadingCommon.ush"
+#include "RayTracingLightingCommon.ush"
+#include "RayTracingReflectionsCommon.ush"
+#include "RayTracingDeferredMaterials.ush"
+
+uint2 RayTracingResolution;
+uint2 TileAlignedResolution;
+float ReflectionMaxNormalBias;
+
+RWStructuredBuffer<FSortedReflectionRay>        RayBuffer;
+RWStructuredBuffer<FDeferredMaterialPayload>    MaterialBuffer;
+RWTexture2D<float4>                             ColorOutput;
+RWTexture2D<float>                              RayHitDistanceOutput;
+RaytracingAccelerationStructure                 TLAS;
+
+// Buffer of ray intersections aquired during Gather phase and 
+// used during to reduce ray intersection overhead during Shading.
+RWStructuredBuffer<FRayIntersectionBookmark>    BookmarkBuffer;
+
+RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
+{
+	const uint DispatchThreadId = DispatchRaysIndex().x; // This shader is dispatched in 1D configuration
+
+	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
+	DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
+
+#if DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER
+
+	FSortedReflectionRay SortedRay = RayBuffer[DispatchThreadId];
+	DeferredMaterialPayload.PixelCoordinates = DispatchThreadId; // Store the sorted ray index, not packed 2D pixel coordinates
+	const uint2 PixelPos = UnpackPixelCoordinates(SortedRay.PixelCoordinates);
+	if (all(PixelPos < RayTracingResolution))
+	{
+		RayDesc Ray;
+		Ray.TMin      = 0;
+		Ray.TMax      = 1e9;
+		Ray.Origin    = SortedRay.Origin;
+		Ray.Direction = SortedRay.Direction;
+
+		DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
+		FRayIntersectionBookmark Bookmark = (FRayIntersectionBookmark)0;
+
+		TraceDeferredMaterialGatherRay(TLAS,
+			RAY_FLAG_FORCE_OPAQUE, // Masked and transparent materials are currently not supported
+			RAY_TRACING_MASK_OPAQUE,
+			Ray,
+			Bookmark,
+			DeferredMaterialPayload
+		);
+
+		BookmarkBuffer[DispatchThreadId] = Bookmark;
+	}
+
+	MaterialBuffer[DispatchThreadId] = DeferredMaterialPayload;
+
+#elif DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE
+
+	DeferredMaterialPayload = MaterialBuffer[DispatchThreadId];
+
+	// Linear ray index is stored in PixelCoordinates (see DEFERRED_MATERIAL_MODE_GATHER above)
+	const uint SortedRayIndex = DeferredMaterialPayload.PixelCoordinates;
+
+	const FSortedReflectionRay SortedRay = RayBuffer[SortedRayIndex];
+	const uint2 PixelPos = UnpackPixelCoordinates(SortedRay.PixelCoordinates);
+	if (all(PixelPos < RayTracingResolution) && DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
+	{
+		RayDesc Ray;
+		Ray.TMin      = 0;
+		Ray.TMax      = 1e9;
+		Ray.Origin    = SortedRay.Origin;
+		Ray.Direction = SortedRay.Direction;
+
+		FRayIntersectionBookmark Bookmark = BookmarkBuffer[DeferredMaterialPayload.PixelCoordinates];
+
+		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+
+		TraceDeferredMaterialShadingRay(
+			TLAS,
+			RAY_FLAG_FORCE_OPAQUE,
+			RAY_TRACING_MASK_OPAQUE,
+			Ray,
+			Bookmark,
+			PackedPayload);
+
+		float4 ResultColor = (float4)0;
+		float ResultDistance = -1;
+
+		if (PackedPayload.IsHit())
+		{
+			ResultDistance = PackedPayload.HitT;
+
+			bool bShouldDoDirectLighting               = true;
+			bool bShouldDoEmissiveAndIndirectLighting  = true;
+			bool bTopLayerRayTraceSkyLightContribution = false;
+			bool bDecoupleSampleGeneration             = false;
+			uint ReflectedShadowsType                  = 1; // Hard shadows
+			
+			RandomSequence RandSequence; // Not actually used, since hard shadows are forced
+			RandomSequence_Initialize(RandSequence, DispatchThreadId, 0);
+
+			float3 LightingViewDirection = Ray.Direction;
+			float3 RayHitWorldPos = Ray.Origin + Ray.Direction * PackedPayload.HitT;
+			FRayCone RayCone = (FRayCone)0; // Not used
+
+			AccumulateResults(
+				PackedPayload,
+				RayHitWorldPos,
+				LightingViewDirection,
+				TLAS,
+				RandSequence,
+				PixelPos,
+				ReflectionMaxNormalBias,
+				ReflectedShadowsType,
+				bShouldDoDirectLighting,
+				bShouldDoEmissiveAndIndirectLighting,
+				bTopLayerRayTraceSkyLightContribution,
+				bDecoupleSampleGeneration,
+				RayCone,
+				ResultColor.rgb);
+
+			ResultColor.rgb *= View.PreExposure;
+			ResultColor.a = 1;
+		}
+
+		ColorOutput[PixelPos] 			= ResultColor;
+		RayHitDistanceOutput[PixelPos] 	= ResultDistance;
+	}
+
+#endif // DIM_DEFERRED_MATERIAL_MODE
+}
+
