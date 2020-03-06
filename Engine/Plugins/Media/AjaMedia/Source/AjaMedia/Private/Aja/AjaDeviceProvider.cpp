@@ -805,8 +805,11 @@ TArray<FAjaMediaTimecodeReference> FAjaDeviceProvider::GetTimecodeReferences() c
 
 				for (const FCommonFrameRateInfo& FrameRate : AllFrameRates)
 				{
-					DefaultFAjaMediaTimecodeReference.LtcFrameRate = FrameRate.FrameRate;
-					Results.Add(DefaultFAjaMediaTimecodeReference);
+					if (FrameRate.FrameRate.AsDecimal() <= (30.0f + SMALL_NUMBER))
+					{
+						DefaultFAjaMediaTimecodeReference.LtcFrameRate = FrameRate.FrameRate;
+						Results.Add(DefaultFAjaMediaTimecodeReference);
+					}
 				}
 			}
 		}
