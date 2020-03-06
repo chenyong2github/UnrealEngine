@@ -74,6 +74,7 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size)
 
 void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size)
 {
+	Size = Align(Size, 4096);
 	uint64 Index = ((uintptr_t)Ptr - (uintptr_t)AddressSpaceReserved) / SizeOfLargePage;
 	if (Index < (AddressSpaceToReserve / SizeOfLargePage))
 	{
