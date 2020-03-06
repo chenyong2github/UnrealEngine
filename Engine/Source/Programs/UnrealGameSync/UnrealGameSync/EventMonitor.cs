@@ -92,6 +92,11 @@ namespace UnrealGameSync
 		{
 			get
 			{
+				if (BuildType == null)
+				{
+					return "Unknown";
+				}
+
 				int Idx = BuildType.IndexOf(':');
 				if(Idx == -1)
 				{
@@ -108,6 +113,11 @@ namespace UnrealGameSync
 		{
 			get
 			{
+				if (BuildType == null)
+				{
+					return "Unknown";
+				}
+
 				int Idx = BuildType.IndexOf(':');
 				if(Idx == -1)
 				{
