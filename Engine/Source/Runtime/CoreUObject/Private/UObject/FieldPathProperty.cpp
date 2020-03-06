@@ -121,6 +121,7 @@ const TCHAR* FFieldPathProperty::ImportText_Internal( const TCHAR* Buffer, void*
 		// Advance to the next delimiter (comma) or the end of the buffer
 		int32 SeparatorIndex = 0;
 		while (Buffer[SeparatorIndex] != '\0' && Buffer[SeparatorIndex] != ',')
+		{
 	{
 			++SeparatorIndex;
 		}
@@ -140,7 +141,8 @@ const TCHAR* FFieldPathProperty::ImportText_Internal( const TCHAR* Buffer, void*
 			if (!FParse::QuotedString(*PathName, UnquotedPathName))
 			{
 				UE_LOG(LogProperty, Warning, TEXT("FieldPathProperty: Bad quoted string: %s"), *PathName);
-			return nullptr;
+				return nullptr;
+			}
 		}
 			PathName = MoveTemp(UnquotedPathName);
 		}
