@@ -408,6 +408,15 @@ public:
 
 	FTexture2DArrayResource() :
 		SizeX(0),
+		SizeY(0),
+		NumMips(0),
+		NumSlices(0),
+		LODGroup(),
+		Format(PF_Unknown),
+		Filter(SF_Point),
+		SamplerXAddress(AM_Wrap),
+		SamplerYAddress(AM_Wrap),
+		SamplerZAddress(AM_Wrap),
 		bDirty(false),
 		bPreventingReallocation(false)
 	{}
