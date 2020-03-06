@@ -198,7 +198,7 @@ uint32 UDMXEntityFixtureType::GetDataTypeMaxValue(EDMXFixtureSignalFormat DataTy
 		return MAX_uint32;
 	default:
 		checkNoEntry();
-		return 0;
+		return 1;
 	}
 }
 
