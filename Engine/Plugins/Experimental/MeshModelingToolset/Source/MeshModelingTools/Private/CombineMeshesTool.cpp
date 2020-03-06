@@ -189,7 +189,6 @@ void UCombineMeshesTool::UpdateAssets()
 			TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[ComponentIdx];
 
 			FMeshDescriptionToDynamicMesh Converter;
-			Converter.bPrintDebugMessages = true;
 			FDynamicMesh3 ComponentDMesh;
 			Converter.Convert(ComponentTarget->GetMesh(), ComponentDMesh);
 
