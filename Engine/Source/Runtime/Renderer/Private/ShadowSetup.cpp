@@ -1091,7 +1091,7 @@ void FProjectedShadowInfo::AddCachedMeshDrawCommands_AnyThread(
 {
 	const EMeshPass::Type PassType = EMeshPass::CSMShadowDepth;
 	const EShadingPath ShadingPath = Scene->GetShadingPath();
-	const bool bUseCachedMeshCommand = UseCachedMeshDrawCommands()
+	const bool bUseCachedMeshCommand = UseCachedMeshDrawCommands_AnyThread()
 		&& !!(FPassProcessorManager::GetPassFlags(ShadingPath, PassType) & EMeshPassFlags::CachedMeshCommands)
 		&& StaticMeshRelevance.bSupportsCachingMeshDrawCommands;
 
@@ -1276,7 +1276,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 	const int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
 
 	{
-		const int32 ForcedLOD = CurrentView.Family->EngineShowFlags.LOD ? (GetCVarForceLODShadow() != -1 ? GetCVarForceLODShadow() : GetCVarForceLOD()) : -1;
+		const int32 ForcedLOD = CurrentView.Family->EngineShowFlags.LOD ? (GetCVarForceLODShadow_AnyThread() != -1 ? GetCVarForceLODShadow_AnyThread() : GetCVarForceLOD_AnyThread()) : -1;
 		const FLODMask* VisibilePrimitiveLODMask = nullptr;
 
 		if (CurrentView.PrimitivesLODMask[PrimitiveId].ContainsLOD(MAX_int8)) // only calculate it if it's not set
@@ -1597,11 +1597,11 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 		static auto* CVarMobileEnableStaticAndCSMShadowReceivers = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableStaticAndCSMShadowReceivers"));
 		static auto* CVarMobileEnableMovableLightCSMShaderCulling = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableMovableLightCSMShaderCulling"));
 		static auto* CVarMobileCSMShaderCullingMethod = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.Shadow.CSMShaderCullingMethod"));
-		const uint32 MobileCSMCullingMode = CVarMobileCSMShaderCullingMethod->GetValueOnRenderThread() & 0xF;
+		const uint32 MobileCSMCullingMode = CVarMobileCSMShaderCullingMethod->GetValueOnAnyThread() & 0xF;
 		const bool bRecordShadowSubjectsForMobile =
 			(MobileCSMCullingMode == 2 || MobileCSMCullingMode == 3)
-			&& ((CVarMobileEnableMovableLightCSMShaderCulling->GetValueOnRenderThread() && GetLightSceneInfo().Proxy->IsMovable() && GetLightSceneInfo().ShouldRenderViewIndependentWholeSceneShadows())
-				|| (CVarMobileEnableStaticAndCSMShadowReceivers->GetValueOnRenderThread() && GetLightSceneInfo().Proxy->UseCSMForDynamicObjects()));
+			&& ((CVarMobileEnableMovableLightCSMShaderCulling->GetValueOnAnyThread() && GetLightSceneInfo().Proxy->IsMovable() && GetLightSceneInfo().ShouldRenderViewIndependentWholeSceneShadows())
+				|| (CVarMobileEnableStaticAndCSMShadowReceivers->GetValueOnAnyThread() && GetLightSceneInfo().Proxy->UseCSMForDynamicObjects()));
 
 		if (bRecordShadowSubjectsForMobile)
 		{
