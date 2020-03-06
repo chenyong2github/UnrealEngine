@@ -1905,14 +1905,15 @@ void UNiagaraStackFunctionInput::GetDefaultLocalValueFromDefaultPin(UEdGraphPin*
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	FNiagaraVariable LocalValueVariable = NiagaraSchema->PinToNiagaraVariable(DefaultPin);
 	InInputValues.LocalStruct = MakeShared<FStructOnScope>(InputType.GetStruct());
-	if (LocalValueVariable.IsDataAllocated())
+	if (LocalValueVariable.IsDataAllocated() == false)
 	{
-		FMemory::Memcpy(InInputValues.LocalStruct->GetStructMemory(), LocalValueVariable.GetData(), InputType.GetSize());
+		FNiagaraEditorUtilities::ResetVariableToDefaultValue(LocalValueVariable);
 	}
-	else
+	if (ensureMsgf(LocalValueVariable.IsDataAllocated(), TEXT("Neither PinToNiagaraVariable or ResetVariableToDefaultValue generated a value.  Allocating with 0s.")) == false)
 	{
-		InputType.GetStruct()->InitializeStruct(InInputValues.LocalStruct->GetStructMemory());
+		LocalValueVariable.AllocateData();
 	}
+	FMemory::Memcpy(InInputValues.LocalStruct->GetStructMemory(), LocalValueVariable.GetData(), InputType.GetSize());
 }
 
 struct FLinkedHandleOrFunctionNode
