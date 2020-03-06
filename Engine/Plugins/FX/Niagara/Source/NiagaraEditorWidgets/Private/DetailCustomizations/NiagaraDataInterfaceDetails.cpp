@@ -197,6 +197,7 @@ private:
 void FNiagaraDataInterfaceDetailsBase::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	Builder = &DetailBuilder;
+	PropertyUtilitiesWeak = DetailBuilder.GetPropertyUtilities();
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 	DetailBuilder.GetObjectsBeingCustomized(SelectedObjects);
 	check(SelectedObjects.Num() == 1);
@@ -213,10 +214,17 @@ void FNiagaraDataInterfaceDetailsBase::CustomizeDetails(IDetailLayoutBuilder& De
 
 void FNiagaraDataInterfaceDetailsBase::OnDataChanged() // need to only refresh errors, and all will be good
 {
-	if (Builder != nullptr)
+	TSharedPtr<IPropertyUtilities> PropertyUtilities = PropertyUtilitiesWeak.Pin();
+	bool bStillValid =
+		DataInterface.IsValid() &&
+		PropertyUtilities.IsValid() &&
+		PropertyUtilities->GetSelectedObjects().Num() == 1 &&
+		PropertyUtilities->GetSelectedObjects()[0].IsValid() &&
+		PropertyUtilities->GetSelectedObjects()[0].Get() == DataInterface.Get();
+
+	if (bStillValid)
 	{
 		int CurrentErrorCount = DataInterface->GetErrors().Num();
-		
 		if (CurrentErrorCount == 0)
 		{
 			ErrorsCategoryBuilder->SetCategoryVisibility(false);
