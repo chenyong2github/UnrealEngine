@@ -2127,69 +2127,72 @@ void FPhysScene_ChaosInterface::SyncBodies(Chaos::FPhysicsSolver* Solver)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"), STAT_SyncBodies, STATGROUP_Physics);
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 
-	Chaos::FPBDRigidActiveParticlesBufferAccessor Accessor(Solver->GetActiveParticlesBuffer());
-
-	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
-
-	const Chaos::FPBDRigidActiveParticlesBufferOut* ActiveParticleBuffer = Accessor.GetSolverOutData();
-	for (Chaos::TGeometryParticle<float, 3>* ActiveParticle : ActiveParticleBuffer->ActiveGameThreadParticles)
 	{
-		if (IPhysicsProxyBase * ProxyBase = ActiveParticle->Proxy)
+		Chaos::FPBDRigidActiveParticlesBufferAccessor Accessor(Solver->GetActiveParticlesBuffer());
+
+		TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
+
+		const Chaos::FPBDRigidActiveParticlesBufferOut* ActiveParticleBuffer = Accessor.GetSolverOutData();
+		for (Chaos::TGeometryParticle<float, 3>* ActiveParticle : ActiveParticleBuffer->ActiveGameThreadParticles)
 		{
-			if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
+			if (IPhysicsProxyBase * ProxyBase = ActiveParticle->Proxy)
 			{
-				FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> > * Proxy = static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(ProxyBase);
-				Proxy->PullFromPhysicsState();
-
-				if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(ActiveParticle->UserData()))
+				if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
 				{
-					if (BodyInstance->OwnerComponent.IsValid())
+					FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> > * Proxy = static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(ProxyBase);
+					Proxy->PullFromPhysicsState();
+
+					if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(ActiveParticle->UserData()))
 					{
-						UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
-						if (OwnerComponent != nullptr)
+						if (BodyInstance->OwnerComponent.IsValid())
 						{
-							bool bPendingMove = false;
-							if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
+							UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
+							if (OwnerComponent != nullptr)
 							{
-								Chaos::TRigidTransform<float, 3> NewTransform(ActiveParticle->X(), ActiveParticle->R());
-
-								if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+								bool bPendingMove = false;
+								if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
 								{
-									bPendingMove = true;
-									const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
-									const FQuat NewRotation = NewTransform.GetRotation();
-									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, MoveBy, NewRotation, Proxy->HasAwakeEvent()));
-								}
-							}
+									Chaos::TRigidTransform<float, 3> NewTransform(ActiveParticle->X(), ActiveParticle->R());
 
-							if (Proxy->HasAwakeEvent() && !bPendingMove)
-							{
-								PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent));
+									if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+									{
+										bPendingMove = true;
+										const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
+										const FQuat NewRotation = NewTransform.GetRotation();
+										PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, MoveBy, NewRotation, Proxy->HasAwakeEvent()));
+									}
+								}
+
+								if (Proxy->HasAwakeEvent() && !bPendingMove)
+								{
+									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent));
+								}
+								Proxy->ClearEvents();
 							}
-							Proxy->ClearEvents();
 						}
 					}
 				}
+				else if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
+				{
+					FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+					GCProxies.Add(Proxy);
+				}
 			}
-			else if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
+		}
+		for (IPhysicsProxyBase* ProxyBase : ActiveParticleBuffer->PhysicsParticleProxies) 
+		{
+			if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
 			{
 				FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
 				GCProxies.Add(Proxy);
 			}
+			else
+			{
+				ensure(false); // Unhandled physics only particle proxy!
+			}
 		}
 	}
-	for (IPhysicsProxyBase* ProxyBase : ActiveParticleBuffer->PhysicsParticleProxies) 
-	{
-		if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
-		{
-			FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
-			GCProxies.Add(Proxy);
-		}
-		else
-		{
-			ensure(false); // Unhandled physics only particle proxy!
-		}
-	}
+	
 	for (auto* GCProxy : GCProxies)
 	{
 		GCProxy->PullFromPhysicsState();
