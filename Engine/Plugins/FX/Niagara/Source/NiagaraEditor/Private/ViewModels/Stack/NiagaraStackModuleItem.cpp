@@ -989,14 +989,18 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
 			Copy(NewClipboardContent);
 
-			if (ConversionUtility && !ConversionUtility->Convert(OldScript, OldClipboardContent, ModuleScript, InputCollection, NewClipboardContent, FunctionCallNode, ConvertMessage) || !ConvertMessage.IsEmptyOrWhitespace())
+			if (ConversionUtility )
 			{
-				// Notify the end-user about the convert message, but continue the process as they could always undo.
-				FNotificationInfo Msg(FText::Format(LOCTEXT("FixConvertInPlace", "Conversion Note: {0}"), ConvertMessage));
-				Msg.ExpireDuration = 5.0f;
-				Msg.bFireAndForget = true;
-				Msg.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
-				FSlateNotificationManager::Get().AddNotification(Msg);
+				bool bConverted = ConversionUtility->Convert(OldScript, OldClipboardContent, ModuleScript, InputCollection, NewClipboardContent, FunctionCallNode, ConvertMessage);
+				if (!ConvertMessage.IsEmptyOrWhitespace())
+				{
+					// Notify the end-user about the convert message, but continue the process as they could always undo.
+					FNotificationInfo Msg(FText::Format(LOCTEXT("FixConvertInPlace", "Conversion Note: {0}"), ConvertMessage));
+					Msg.ExpireDuration = 5.0f;
+					Msg.bFireAndForget = true;
+					Msg.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
+					FSlateNotificationManager::Get().AddNotification(Msg);
+				}
 			}
 		}
 	}
