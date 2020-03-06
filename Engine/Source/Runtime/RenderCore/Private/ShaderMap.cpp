@@ -267,6 +267,10 @@ void FShaderMapBase::DestroyContent()
 		DEC_DWORD_STAT_BY(STAT_Shaders_NumShadersLoaded, NumFrozenShaders);
 
 		InternalDeleteObjectFromLayout(Content, ContentTypeLayout, FrozenContentSize > 0u);
+		if (FrozenContentSize > 0u)
+		{
+			FMemory::Free(Content);
+		}
 
 		FrozenContentSize = 0u;
 		NumFrozenShaders = 0u;
