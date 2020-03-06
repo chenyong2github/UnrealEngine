@@ -400,7 +400,6 @@ FORCEINLINE constexpr FStringView ParsePropertyToken(const TCHAR* Str, bool Dott
 	} 
 }
 
-
 //
 // Parse a token.
 //
@@ -445,7 +444,6 @@ const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FStringView& Out,
 		Buffer += NumCharsRead;
 
 		// TODO special handling of null-terminator here?
-
 		Out = Temp;
 	}
 	else if (IsValidTokenStart(*Buffer, bDottedNames))
@@ -456,7 +454,7 @@ const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FStringView& Out,
 	else
 	{
 		// Get just one.
-		Out = *Buffer ? FStringView(Buffer, 1) : FStringView();
+		Out = *Buffer ? FStringView(Buffer, 1) : FStringView(TEXT(""));
 	}
 	return Buffer;
 }
