@@ -22,8 +22,10 @@ using namespace Chaos;
 #endif
 
 #include "PhysicsPublicCore.h"
+#include "PhysicsCore.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Serialization/MemoryWriter.h"
 
 FPhysTestSerializer::FPhysTestSerializer()
 	: bDiskDataIsChaos(false)
