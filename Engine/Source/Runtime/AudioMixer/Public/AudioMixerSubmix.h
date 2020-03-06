@@ -473,6 +473,9 @@ namespace Audio
 		// Critical section used for when we are appending recorded data.
 		FCriticalSection RecordingCriticalSection;
 
+		// Critical section for mutation of the effect chain.
+		FCriticalSection EffectChainMutationCriticalSection;
+
 		// Handle back to the owning USoundSubmix. Used when the device is shutdown to prematurely end a recording.
 		const USoundSubmixBase* OwningSubmixObject;
 
