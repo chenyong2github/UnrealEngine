@@ -66,11 +66,6 @@ static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRasterSampleCount
 static float GHairStrandsFullCoverageThreshold = 0.98f;
 static FAutoConsoleVariableRef CVarHairStrandsFullCoverageThreshold(TEXT("r.HairStrands.Visibility.FullCoverageThreshold"), GHairStrandsFullCoverageThreshold, TEXT("Define the coverage threshold at which a pixel is considered fully covered."));
 
-static TAutoConsoleVariable<int32> CVarHairStrandsSplitLighting(
-	TEXT("r.HairStrands.SplitLighting"), 0,
-	TEXT(""),
-	ECVF_RenderThreadSafe);
-
 /////////////////////////////////////////////////////////////////////////////////////////
 
 namespace HairStrandsVisibilityInternal
@@ -2611,8 +2606,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 
 			GraphBuilder.Execute();
 
-			const bool bUseSplitLighting = CVarHairStrandsSplitLighting.GetValueOnRenderThread() >  0;
-			if (bUseSplitLighting)
+			// Allocate buffer for storing all the light samples
 			{			
 				const uint32 SampleTextureResolution = FMath::CeilToInt(FMath::Sqrt(VisibilityData.MaxNodeCount));
 				VisibilityData.SampleLightingViewportResolution = FIntPoint(SampleTextureResolution, SampleTextureResolution);
