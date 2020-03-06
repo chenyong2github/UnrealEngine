@@ -18,6 +18,16 @@ void UNiagaraStackPropertyRow::Initialize(FRequiredEntryData InRequiredEntryData
 	RowStyle = DetailTreeNode->GetNodeType() == EDetailNodeType::Category
 		? EStackRowStyle::ItemCategory
 		: EStackRowStyle::ItemContent;
+	bCannotEditInThisContext = false;
+	if (PropertyHandle.IsValid() && PropertyHandle->GetProperty())
+	{
+		FProperty* Prop = PropertyHandle->GetProperty();
+		FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>(Prop);
+		if (ObjProp && ObjProp->PropertyClass && (ObjProp->PropertyClass->IsChildOf(AActor::StaticClass()) || ObjProp->PropertyClass->IsChildOf(UActorComponent::StaticClass())))
+		{
+			bCannotEditInThisContext = true;
+		}
+	}
 }
 
 TSharedRef<IDetailTreeNode> UNiagaraStackPropertyRow::GetDetailTreeNode() const
@@ -27,6 +37,8 @@ TSharedRef<IDetailTreeNode> UNiagaraStackPropertyRow::GetDetailTreeNode() const
 
 bool UNiagaraStackPropertyRow::GetIsEnabled() const
 {
+	if (bCannotEditInThisContext) 
+		return false;
 	return OwningNiagaraNode == nullptr || OwningNiagaraNode->GetDesiredEnabledState() == ENodeEnabledState::Enabled;
 }
 
