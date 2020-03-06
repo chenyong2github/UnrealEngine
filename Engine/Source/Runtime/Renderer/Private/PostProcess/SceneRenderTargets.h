@@ -280,6 +280,18 @@ public:
 			DownsampledTranslucencyDepthRT.SafeRelease();
 		}
 	}
+
+	void FreeReflectionScratchRenderTargets()
+	{
+		for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(ReflectionColorScratchCubemap); ++Idx)
+		{
+			ReflectionColorScratchCubemap[Idx].SafeRelease();
+		}
+		for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(DiffuseIrradianceScratchCubemap); ++Idx)
+		{
+			DiffuseIrradianceScratchCubemap[Idx].SafeRelease();
+		}
+	}
 	
 	void ResolveSceneDepthTexture(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect);
 

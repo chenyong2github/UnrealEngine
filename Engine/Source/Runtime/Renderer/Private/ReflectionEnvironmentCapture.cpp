@@ -97,6 +97,12 @@ static FAutoConsoleVariableRef CVarReleaseSRVsAfterCubeMipsGen(
 	TEXT("This reduces unnecessary memory allocations and copies when the item is copied around during snapshot creation."),
 	ECVF_RenderThreadSafe);
 
+static int32 GFreeReflectionScratchAfterUse = 0;
+static FAutoConsoleVariableRef CVarFreeReflectionScratchAfterUse(
+	TEXT("r.FreeReflectionScratchAfterUse"),
+	GFreeReflectionScratchAfterUse,
+	TEXT("Free reflection scratch render targets after use."));
+
 bool DoGPUArrayCopy()
 {
 	return GRHISupportsResolveCubemapFaces && CVarReflectionCaptureGPUArrayCopy.GetValueOnAnyThread();
@@ -1672,6 +1678,17 @@ void FScene::UpdateSkyCaptureContents(
 						CopyToSkyTexture(RHICmdList, Scene, OutProcessedTexture);
 					}
 				});
+		}
+
+		if (!!GFreeReflectionScratchAfterUse)
+		{
+			ENQUEUE_RENDER_COMMAND(FreeReflectionScratch)(
+				[](FRHICommandListImmediate& RHICmdList)
+			{
+				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+				SceneContext.FreeReflectionScratchRenderTargets();
+				GRenderTargetPool.FreeUnusedResources();
+			});
 		}
 	}
 }
