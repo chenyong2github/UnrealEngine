@@ -547,18 +547,19 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 {
 	GENERATED_BODY()
 
-	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit, bool bInDestroyOnAdd = false) :bDestroyOnAdd(bInDestroyOnAdd) { Add(System, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
-	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit, bool bInDestroyOnAdd = false) : bDestroyOnAdd(bInDestroyOnAdd) { Add(Emitter, bReInit); }
-	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit, bool bInDestroyOnAdd = false) :bDestroyOnAdd(bInDestroyOnAdd) { Add(Script, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit) : bDestroyOnAdd(false), bOnlyActive(false) { Add(Emitter, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(Script, bReInit); }
 	//FNiagaraSystemUpdateContext(UNiagaraDataInterface* Interface, bool bReinit) : Add(Interface, bReinit) {}
-	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit, bool bInDestroyOnAdd = false) :bDestroyOnAdd(bInDestroyOnAdd) { Add(Collection, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(Collection, bReInit); }
 #endif
 	FNiagaraSystemUpdateContext():bDestroyOnAdd(false){ }
 
 	~FNiagaraSystemUpdateContext();
 
 	void SetDestroyOnAdd(bool bInDestroyOnAdd) { bDestroyOnAdd = bInDestroyOnAdd; }
+	void SetOnlyActive(bool bInOnlyActive) { bOnlyActive = bInOnlyActive; }
 
 	void Add(const UNiagaraSystem* System, bool bReInit);
 #if WITH_EDITORONLY_DATA
@@ -586,6 +587,7 @@ private:
 	TArray<UNiagaraSystem*> SystemSimsToDestroy;
 
 	bool bDestroyOnAdd;
+	bool bOnlyActive;
 	//TODO: When we allow component less systems we'll also want to find and reset those.
 };
 

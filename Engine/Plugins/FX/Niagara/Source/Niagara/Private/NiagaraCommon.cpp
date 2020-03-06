@@ -134,7 +134,11 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 	{
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
-		AddInternal(Comp, bReInit);
+		bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+		if (bIsActive && bOnlyActive)
+		{
+			AddInternal(Comp, bReInit);
+		}
 	}
 }
 
@@ -146,7 +150,11 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 		check(Comp);
 		if (Comp->GetAsset() == System)
 		{
-			AddInternal(Comp, bReInit);
+			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			if (bIsActive && bOnlyActive)
+			{
+				AddInternal(Comp, bReInit);
+			}
 		}
 	}
 }
@@ -161,8 +169,12 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
 		if (SystemInst && SystemInst->UsesEmitter(Emitter))
 		{
-			AddInternal(Comp, bReInit);
-		}		
+			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			if (bIsActive && bOnlyActive)
+			{
+				AddInternal(Comp, bReInit);
+			}
+		}
 	}
 }
 
@@ -175,7 +187,11 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 		UNiagaraSystem* System = Comp->GetAsset();
 		if (System && System->UsesScript(Script))
 		{
-			AddInternal(Comp, bReInit);
+			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			if (bIsActive && bOnlyActive)
+			{
+				AddInternal(Comp, bReInit);
+			}
 		}
 	}
 }
@@ -205,7 +221,11 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
 		if (SystemInst && SystemInst->UsesCollection(Collection))
 		{
-			AddInternal(Comp, bReInit);
+			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			if (bIsActive && bOnlyActive)
+			{
+				AddInternal(Comp, bReInit);
+			}
 		}
 	}
 }

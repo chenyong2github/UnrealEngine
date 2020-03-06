@@ -238,13 +238,15 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
-	bool IsEnabledOnPlatform(const FString& PlatformName);
 #endif
+	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
 	void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual bool IsEditorOnly() const override;
 	//End UObject Interface
+
+	bool IsEnabledOnPlatform(const FString& PlatformName)const;
 
 	/** Toggles whether or not the particles within this emitter are relative to the emitter origin or in global space. */ 
 	UPROPERTY(EditAnywhere, Category = "Emitter")
