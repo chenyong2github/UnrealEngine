@@ -6,12 +6,14 @@
 
 #include "Common.ush"
 
+#if defined(SHADER_RADIAL_LIGHT)
 float4 StencilingGeometryPosAndScale;
 float4 StencilingConeParameters;	// .x NumSides (0 if not cone), .y NumSlices, .z ConeAngle, .w ConeSphereRadius
 float4x4 StencilingConeTransform;
 float3 StencilingPreViewTranslation;
+#endif
 
-#if SHADER_RADIAL_LIGHT == 0
+#if defined(SHADER_RADIAL_LIGHT) && SHADER_RADIAL_LIGHT == 0
 /** Vertex shader for rendering a directional light using a full screen quad. */
 void DirectionalVertexMain(
 	in float2 InPosition : ATTRIBUTE0,
@@ -96,10 +98,9 @@ void RadialVertexMain(
 }
 #endif
 
-#if SHADER_HAIR == 1
+#if defined(SHADER_HAIR) && SHADER_HAIR == 1
 
-uint NodeGroupSize;
-int2 MaxResolution;
+int2 MaxViewportResolution;
 Texture2D<uint> HairVisibilityNodeCount;
 
 void HairVertexMain(
@@ -112,7 +113,7 @@ void HairVertexMain(
 	OutResolution.x = ceil(sqrt(OutNodeCount));
 	OutResolution.y = OutResolution.x;
 
-	const float2 ClipCoord = ((OutResolution + 0.5f) / float2(MaxResolution)) * 2;
+	const float2 ClipCoord = ((OutResolution + 0.5f) / float2(MaxViewportResolution)) * 2;
 
 	const float2 UV = float2(InVertexId & 1, InVertexId >> 1);
 	const float2 Pos = float2(-UV.x, UV.y) * 4 + float2(-1, +1) + float2(ClipCoord.x, -ClipCoord.y);
