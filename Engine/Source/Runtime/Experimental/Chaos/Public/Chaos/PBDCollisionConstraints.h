@@ -165,6 +165,14 @@ public:
 	*/
 	void UpdateManifolds(T Dt);
 
+	/*
+	* Add particle to list of particles that will always update their constraint manifold.
+	*/
+	void AddParticleAlwaysUpdateManifold(const TGeometryParticleHandle<T, d>* Particle);
+
+	bool ShouldParticleAlwaysUpdateManifold(const TGeometryParticleHandle<T, d>* Particle) const;
+
+
 	//
 	// General Rule API
 	//
@@ -300,6 +308,8 @@ private:
 	TArray<FPointContactConstraint> PointConstraints;
 	TArray<FSweptPointContactConstraint> SweptPointConstraints;
 	TArray<FMultiPointContactConstraint> IterativeConstraints;
+
+	TSet<const TGeometryParticleHandle<T, d>*> ParticlesAlwaysUpdatingManifold;
 
 #if CHAOS_COLLISION_PERSISTENCE_ENABLED
 	TMap< FConstraintContainerHandleKey, FConstraintContainerHandle* > Manifolds;

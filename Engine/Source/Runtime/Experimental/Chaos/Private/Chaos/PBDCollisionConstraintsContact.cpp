@@ -342,7 +342,7 @@ namespace Chaos
 				// Collision is already up-to-date on first iteration (we either just detected it, or updated it in DetectCollisions)
 				// @todo(ccaulfield): this is not great - try to do something nicer like a dirty flag on the constraint?
 				// In particular it is not right if the Collisions are not the first constraints to be solved...
-				const bool bNeedCollisionUpdate = (PairIt > 0) || (IterationParameters.Iteration > 0);
+				const bool bNeedCollisionUpdate = (PairIt > 0) || (IterationParameters.Iteration > 0) || (*IterationParameters.AlwaysUpdateManifold);
 				if (bNeedCollisionUpdate)
 				{
 					Collisions::Update(Constraint, ParticleParameters.CullDistance);
@@ -400,8 +400,8 @@ namespace Chaos
 			const FReal PartialDT = Constraint.TimeOfImpact * IterationParameters.Dt;
 			const FReal RemainingDT = (1 - Constraint.TimeOfImpact) * IterationParameters.Dt;
 			const int32 FakeIteration = FMath::Max(IterationParameters.Iteration, 1); // Force Apply to update constraint, as other constraints could've changed P
-			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
-			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration, IterationParameters.AlwaysUpdateManifold };
+			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration, IterationParameters.AlwaysUpdateManifold };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
