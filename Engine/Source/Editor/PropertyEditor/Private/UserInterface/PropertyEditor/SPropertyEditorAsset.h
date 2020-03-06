@@ -268,9 +268,10 @@ private:
 	/** 
 	 * Delegate used to check whether we can drop an object on this widget.
 	 * @param	InObject	The object we are dragging
+	 * @param	OutReason	When returning false, the reason it was not allowed
 	 * @returns true if the object can be dropped
 	 */
-	bool OnAssetDraggedOver( const UObject* InObject ) const;
+	bool OnAssetDraggedOver( const UObject* InObject, FText& OutReason ) const;
 
 	/** 
 	 * Delegate handling dropping an object on this widget
