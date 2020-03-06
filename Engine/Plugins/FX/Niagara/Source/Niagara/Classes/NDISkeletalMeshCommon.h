@@ -63,8 +63,12 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 {
 	FORCEINLINE int32 GetBoneCount(FSkeletalMeshAccessorHelper& Accessor, bool RequiresPrevious) const
 	{
-		const FReferenceSkeleton& RefSkel = Accessor.Mesh->RefSkeleton;
-		return RefSkel.GetNum();
+		if (const USkeletalMesh* Mesh = Accessor.Mesh)
+		{
+			return Mesh->RefSkeleton.GetNum();
+		}
+
+		return 0;
 	}
 
 	FORCEINLINE void GetTriangleIndices(FSkeletalMeshAccessorHelper& Accessor, int32 Tri, int32& Idx0, int32& Idx1, int32& Idx2)
@@ -126,7 +130,12 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 {
 	FORCEINLINE int32 GetBoneCount(FSkeletalMeshAccessorHelper& Accessor, bool RequiresPrevious) const
 	{
-		return Accessor.SkinningData->GetBoneCount(RequiresPrevious);
+		if (const FSkeletalMeshSkinningData* SkinningData = Accessor.SkinningData)
+		{
+			return SkinningData->GetBoneCount(RequiresPrevious);
+		}
+
+		return 0;
 	}
 
 	FORCEINLINE void GetTriangleIndices(FSkeletalMeshAccessorHelper& Accessor, int32 Tri, int32& Idx0, int32& Idx1, int32& Idx2)
@@ -188,7 +197,12 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 {
 	FORCEINLINE int32 GetBoneCount(FSkeletalMeshAccessorHelper& Accessor, bool RequiresPrevious) const
 	{
-		return Accessor.SkinningData->GetBoneCount(RequiresPrevious);
+		if (const FSkeletalMeshSkinningData* SkinningData = Accessor.SkinningData)
+		{
+			return SkinningData->GetBoneCount(RequiresPrevious);
+		}
+
+		return 0;
 	}
 
 	FORCEINLINE void GetTriangleIndices(FSkeletalMeshAccessorHelper& Accessor, int32 Tri, int32& Idx0, int32& Idx1, int32& Idx2)
