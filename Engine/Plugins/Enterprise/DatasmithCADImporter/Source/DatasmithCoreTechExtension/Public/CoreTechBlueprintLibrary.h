@@ -36,7 +36,7 @@ public:
 	 * @param	StaticMesh				Static mesh to re-tessellate.
 	 * @param	TessellationSettings	Tessellation settings to use.
 	 * @param	bApplyChanges			Indicates if change must be notified.
-	 * @param	FailureReason			Text describing the reason of failure.
+	 * @param	FailureReason			Text describing the reason of failure, or a warning if the operation was successful.
 	 * @return True if successful, false otherwise
 	 */
 	UFUNCTION(Category = "Datasmith | Surface Operations" )
