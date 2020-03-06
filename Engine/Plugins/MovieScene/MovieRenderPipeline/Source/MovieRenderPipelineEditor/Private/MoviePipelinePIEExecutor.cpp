@@ -196,10 +196,6 @@ void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 		// ToDo: bAnyJobHadFatalError
 		DelayedFinishNotification();
 	}
-	
-		// Restore the previous settings.
-	FApp::SetUseFixedTimeStep(bPreviousUseFixedTimeStep);
-	FApp::SetFixedDeltaTime(PreviousFixedTimeStepDelta);
 }
 
 void UMoviePipelinePIEExecutor::DelayedFinishNotification()
@@ -209,6 +205,10 @@ void UMoviePipelinePIEExecutor::DelayedFinishNotification()
 	// Null these out now since OnIndividualPipelineFinished might invoke something that causes a GC
 	// and we want them to go away with the GC.
 	ActiveMoviePipeline = nullptr;
+
+	// Restore the previous settings.
+	FApp::SetUseFixedTimeStep(bPreviousUseFixedTimeStep);
+	FApp::SetFixedDeltaTime(PreviousFixedTimeStepDelta);
 	
 	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
 	OnIndividualPipelineFinished(MoviePipeline);
