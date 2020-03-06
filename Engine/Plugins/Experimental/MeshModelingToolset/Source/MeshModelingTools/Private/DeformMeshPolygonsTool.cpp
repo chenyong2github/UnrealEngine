@@ -68,7 +68,7 @@ void UDeformMeshPolygonsTransformProperties::PostEditChangeProperty(FPropertyCha
  */
 
 
-void FConstrainedMeshDeformerTask::UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme, const FDynamicMesh3& SrcMesh, const TArray<FConstraintData>& ConstraintArray, const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction, const FRichCurve* Curve)
+void FConstrainedMeshDeformerTask::UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme, const FDynamicMesh3& SrcMesh, const TArray<FDeformerVertexConstraintData>& ConstraintArray, const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction, const FRichCurve* Curve)
 {
 	bIsNewTransaction = bNewTransaction;
 	SrcMeshMaxVertexID = SrcMesh.MaxVertexID();
@@ -132,7 +132,7 @@ void FConstrainedMeshDeformerTask::DoWork()
 		//Update our deformer's constraints before deforming using the copy of the constraint buffer
 		for (int32 SubsetVertexID = 0; SubsetVertexID < SubsetConstraintBuffer.Num(); ++SubsetVertexID)
 		{
-			FConstraintData& CData = SubsetConstraintBuffer[SubsetVertexID];
+			FDeformerVertexConstraintData& CData = SubsetConstraintBuffer[SubsetVertexID];
 			ConstrainedDeformer->AddConstraint(SubsetVertexID, CData.Weight, CData.Position, CData.bPostFix);
 		}
 
@@ -146,7 +146,7 @@ void FConstrainedMeshDeformerTask::DoWork()
 
 		for (int32 SubsetVertexID = 0; SubsetVertexID < SubsetConstraintBuffer.Num(); ++SubsetVertexID)
 		{
-			FConstraintData& CData = SubsetConstraintBuffer[SubsetVertexID];
+			FDeformerVertexConstraintData& CData = SubsetConstraintBuffer[SubsetVertexID];
 			ConstrainedDeformer->UpdateConstraintPosition(SubsetVertexID, CData.Position, CData.bPostFix);
 		}
 
@@ -276,7 +276,7 @@ void FConstrainedMeshDeformerTask::ApplyAttenuation()
 	for (int32 SubVertexID = 0; SubVertexID < SubsetConstraintBuffer.Num(); ++SubVertexID)
 	{
 
-		FConstraintData& CData = SubsetConstraintBuffer[SubVertexID];
+		FDeformerVertexConstraintData& CData = SubsetConstraintBuffer[SubVertexID];
 		// Update bounding box
 		InPlaceMinMaxElements(Min, Max, CData.Position);
 		
@@ -297,7 +297,7 @@ void FConstrainedMeshDeformerTask::ApplyAttenuation()
 	{
 		if (!Handles.Contains(SubVertexID))
 		{
-			FConstraintData& CData = SubsetConstraintBuffer[SubVertexID];
+			FDeformerVertexConstraintData& CData = SubsetConstraintBuffer[SubVertexID];
 			double T = CData.Position.Distance(FMath::ClosestPointOnSegment((FVector)CData.Position, (FVector)MinHandles, (FVector)MaxHandles)) / ExtentLength;
 			CData.Weight = WeightAttenuationCurve.Eval(T) * LeastWeight;
 		}
@@ -330,7 +330,7 @@ void FGroupTopologyLaplacianDeformer::InitializeConstraintBuffer()
 	
 	for (int32 VertexID : Mesh->VertexIndicesItr())
 	{
-		FConstraintData& CD = SrcMeshConstraintBuffer[VertexID];
+		FDeformerVertexConstraintData& CD = SrcMeshConstraintBuffer[VertexID];
 		CD.Position = Mesh->GetVertex(VertexID); 
 		CD.Weight   = 0.0;
 		CD.bPostFix = false;
@@ -542,7 +542,7 @@ void FGroupTopologyLaplacianDeformer::UpdateSolution(FDynamicMesh3 * TargetMesh,
 	for (int32 VertexID : ModifiedVertices)
 	{
 		//Get the vertex's data from the constraint buffer
-		FConstraintData& CData = SrcMeshConstraintBuffer[VertexID];
+		FDeformerVertexConstraintData& CData = SrcMeshConstraintBuffer[VertexID];
 
 		CData.Position = TargetMesh->GetVertex(VertexID);
 		CData.Weight   = 0.0; //A weight of zero is used to allow this point to move freely when moving the handles
@@ -555,7 +555,7 @@ void FGroupTopologyLaplacianDeformer::UpdateSolution(FDynamicMesh3 * TargetMesh,
 		const FVector3d DeformPos = HandleVertexDeformFunc(TargetMesh, VertexID);
 
 		//Get the vertex's data from the constraint buffer
-		FConstraintData& CData = SrcMeshConstraintBuffer[VertexID];
+		FDeformerVertexConstraintData& CData = SrcMeshConstraintBuffer[VertexID];
 
 		//Set the new vertex data
 		CData.Position = DeformPos;
