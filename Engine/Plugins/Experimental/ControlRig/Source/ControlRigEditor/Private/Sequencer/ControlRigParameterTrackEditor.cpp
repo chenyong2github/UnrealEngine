@@ -1114,7 +1114,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 			{
 				for (const FFloatInterrogationData& Val : InterrogationData.Iterate<FFloatInterrogationData>(UMovieSceneControlRigParameterSection::GetFloatInterrogationKey()))
 				{
-					if ((RigControlName == Val.ParameterName) && (RigControlName == RigControl.Name))
+					if ((Val.ParameterName == RigControl.Name))
 					{
 						pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
 						if (pChannelIndex)
@@ -1136,7 +1136,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 			{
 				for (const FVector2DInterrogationData& Val : InterrogationData.Iterate<FVector2DInterrogationData>(UMovieSceneControlRigParameterSection::GetVector2DInterrogationKey()))
 				{
-					if ((RigControlName == Val.ParameterName) && (RigControlName == RigControl.Name))
+					if ((Val.ParameterName == RigControl.Name))
 					{
 						pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
 						if (pChannelIndex)
@@ -1156,7 +1156,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 			{
 				for (const FVectorInterrogationData& Val : InterrogationData.Iterate<FVectorInterrogationData>(UMovieSceneControlRigParameterSection::GetVectorInterrogationKey()))
 				{
-					if ((RigControlName == Val.ParameterName) && (RigControlName == RigControl.Name))
+					if ((Val.ParameterName == RigControl.Name))
 					{
 						pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
 						if (pChannelIndex)
@@ -1177,7 +1177,8 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 			{
 				for (const FTransformInterrogationData& Val : InterrogationData.Iterate<FTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
 				{
-					if ((RigControlName == Val.ParameterName) && (RigControlName == RigControl.Name))
+
+					if ((Val.ParameterName == RigControl.Name))
 					{
 						pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
 						if (pChannelIndex)

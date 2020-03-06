@@ -8,7 +8,9 @@
 #include "Sequencer/ControlRigBindingTemplate.h"
 #include "Sequencer/MovieSceneControlRigInstanceData.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/ControlRigSortedControls.h"
+
 
 #define LOCTEXT_NAMESPACE "MovieSceneControlParameterRigSection"
 
@@ -678,6 +680,11 @@ void UMovieSceneControlRigParameterSection::Serialize(FArchive& Ar)
 void UMovieSceneControlRigParameterSection::PostEditImport()
 {
 	Super::PostEditImport();
+	if (UMovieSceneControlRigParameterTrack* Track = Cast< UMovieSceneControlRigParameterTrack>(GetOuter()))
+	{
+		ControlRig = Track->GetControlRig();
+	}
+	ReconstructChannelProxy(true);
 }
 
 void UMovieSceneControlRigParameterSection::PostLoad()
