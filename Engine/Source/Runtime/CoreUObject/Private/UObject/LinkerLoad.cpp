@@ -550,7 +550,7 @@ void FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(UObject* OldObject, UObject* 
 
 		// Detach the old object to make room for the new
 		const EObjectFlags OldObjectFlags = OldObject->GetFlags();
-		OldObject->ClearFlags(RF_NeedLoad|RF_NeedPostLoad);
+		OldObject->ClearFlags(RF_NeedLoad|RF_NeedPostLoad|RF_NeedPostLoadSubobjects);
 		OldObject->SetLinker(nullptr, INDEX_NONE, true);
 
 		// Copy flags from the old CDO.
@@ -4514,7 +4514,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 				{
 					// For classes that are about to be regenerated, make sure we register them with the linker, so future references to this linker index will be valid
 					const EObjectFlags OldFlags = Export.Object->GetFlags();
-					Export.Object->ClearFlags(RF_NeedLoad|RF_NeedPostLoad);
+					Export.Object->ClearFlags(RF_NeedLoad|RF_NeedPostLoad|RF_NeedPostLoadSubobjects);
 					Export.Object->SetLinker( this, Index, false );
 					Export.Object->SetFlags(OldFlags);
 				}
