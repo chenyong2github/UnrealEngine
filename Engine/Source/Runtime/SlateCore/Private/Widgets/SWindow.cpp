@@ -500,7 +500,11 @@ FVector2D SWindow::ComputeWindowSizeForContent( FVector2D ContentSize )
 
 TSharedRef<SWidget> SWindow::MakeWindowTitleBar(const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment TitleContentAlignment)
 {
-	return FSlateApplicationBase::Get().MakeWindowTitleBar(Window, nullptr, TitleContentAlignment, TitleBar);
+	FWindowTitleBarArgs Args(Window);
+	Args.CenterContent = CenterContent;
+	Args.CenterContentAlignment = TitleContentAlignment;
+
+	return FSlateApplicationBase::Get().MakeWindowTitleBar(Args, TitleBar);
 }
 
 
@@ -533,7 +537,11 @@ void SWindow::ConstructWindowInternals()
 		SNew( SVerticalBox )
 		.Visibility( EVisibility::SelfHitTestInvisible );
 
-	TSharedRef<SWidget> TitleBarWidget = MakeWindowTitleBar(SharedThis(this), nullptr, GetTitleAlignment());
+	FWindowTitleBarArgs Args(SharedThis(this));
+	Args.CenterContent = nullptr;
+	Args.CenterContentAlignment = GetTitleAlignment();
+
+	TSharedRef<SWidget> TitleBarWidget = FSlateApplicationBase::Get().MakeWindowTitleBar(Args, TitleBar);
 
 	if (bCreateTitleBar)
 	{
