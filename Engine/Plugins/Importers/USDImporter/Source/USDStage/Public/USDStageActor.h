@@ -62,10 +62,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToLoad;
 
-	/* Quickly toggle visibility of prims with specific purposes in the level based on component tags */
-	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
-	int32 PurposeVisibility;
-
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	float GetTime() const { return Time; }
 
@@ -125,8 +121,6 @@ private:
 	void Clear();
 	void OpenUsdStage();
 	void LoadUsdStage();
-
-	void RefreshVisibilityBasedOnPurpose();
 
 #if WITH_EDITOR
 	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);

@@ -356,14 +356,6 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			false,
 			FSlateIcon(),
 			false);
-
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("PurposeVisibility", "Purpose visibility"),
-			LOCTEXT("PurposeVisibility_ToolTip", "Quickly toggle which of the loaded purposes are visible on the stage"),
-			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillPurposeVisibilitySubMenu),
-			false,
-			FSlateIcon(),
-			false);
 	}
 	MenuBuilder.EndSection();
 }
@@ -477,56 +469,6 @@ void SUsdStage::FillPurposesToLoadSubMenu(FMenuBuilder& MenuBuilder)
 					if(AUsdStageActor* StageActor = UsdStageActor.Get())
 					{
 						return EnumHasAllFlags((EUsdPurpose)StageActor->PurposesToLoad, Purpose);
-					}
-					return false;
-				})
-			),
-			NAME_None,
-			EUserInterfaceActionType::Check
-		);
-	};
-
-	AddPurposeEntry(EUsdPurpose::Proxy,  LOCTEXT("ProxyPurpose",  "Proxy"));
-	AddPurposeEntry(EUsdPurpose::Render, LOCTEXT("RenderPurpose", "Render"));
-	AddPurposeEntry(EUsdPurpose::Guide,  LOCTEXT("GuidePurpose",  "Guide"));
-}
-
-void SUsdStage::FillPurposeVisibilitySubMenu(FMenuBuilder& MenuBuilder)
-{
-	auto AddPurposeEntry = [&](const EUsdPurpose& Purpose, const FText& Text)
-	{
-		MenuBuilder.AddMenuEntry(
-			Text,
-			FText::GetEmpty(),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this, Purpose]()
-				{
-					if(AUsdStageActor* StageActor = UsdStageActor.Get())
-					{
-						FScopedTransaction Transaction(FText::Format(
-							LOCTEXT("PurposeVisibilityTransaction", "Change purpose visibility for USD stage actor '{0}'"),
-							FText::FromString(StageActor->GetActorLabel())
-						));
-
-						StageActor->Modify();
-						StageActor->PurposeVisibility = (int32)((EUsdPurpose)StageActor->PurposeVisibility ^ Purpose);
-
-						FPropertyChangedEvent PropertyChangedEvent(
-							FindFieldChecked< FProperty >( StageActor->GetClass(), GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposeVisibility ) )
-						);
-						StageActor->PostEditChangeProperty(PropertyChangedEvent);
-					}
-				}),
-				FCanExecuteAction::CreateLambda([this]()
-				{
-					return UsdStageActor.Get() != nullptr;
-				}),
-				FIsActionChecked::CreateLambda([this, Purpose]()
-				{
-					if(AUsdStageActor* StageActor = UsdStageActor.Get())
-					{
-						return EnumHasAllFlags((EUsdPurpose)StageActor->PurposeVisibility, Purpose);
 					}
 					return false;
 				})
