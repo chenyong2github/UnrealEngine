@@ -51,6 +51,9 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category = "Packaging", AdvancedDisplay, Meta = (DisplayName = "Use Retail Windows Store Environment"))
 	bool bBuildForRetailWindowsStore;
+	
+	UPROPERTY(EditAnywhere, Config, Category = "Packaging")
+	bool bAutoIncrementVersion;
 
 	UPROPERTY(EditAnywhere, config, Category = "Rendering", meta = (DisplayName = "Enable PIX Profiling"))
 	bool bEnablePIXProfiling;
