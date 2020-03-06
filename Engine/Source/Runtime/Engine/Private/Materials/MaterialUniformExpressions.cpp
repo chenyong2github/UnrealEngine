@@ -1286,7 +1286,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				check(GBlackArrayTexture->TextureRHI);
 				*ResourceTableTexturePtr = GBlackArrayTexture->TextureRHI;
 				check(GBlackArrayTexture->SamplerStateRHI);
-				*ResourceTableTexturePtr = GBlackArrayTexture->SamplerStateRHI;
+				*ResourceTableSamplerPtr = GBlackArrayTexture->SamplerStateRHI;
 			}
 		}
 
