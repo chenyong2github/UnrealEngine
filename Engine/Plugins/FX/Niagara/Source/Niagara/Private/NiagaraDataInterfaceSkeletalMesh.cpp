@@ -953,8 +953,8 @@ public:
 				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 			}
 
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightBuffer, InstanceData->MeshSkinWeightBufferSrv);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightLookupBuffer, InstanceData->MeshSkinWeightLookupBufferSrv);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightBuffer, InstanceData->MeshSkinWeightBuffer->GetSRV());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightLookupBuffer, InstanceData->MeshSkinWeightLookupBuffer->GetSRV());
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshWeightStride, InstanceData->MeshWeightStrideByte/4);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshSkinWeightIndexSize, InstanceData->MeshSkinWeightIndexSizeByte);
@@ -1093,9 +1093,8 @@ void FNiagaraDataInterfaceProxySkeletalMesh::ConsumePerInstanceDataFromGameThrea
 	Data.StaticBuffers = SourceData->StaticBuffers;
 	Data.Transform = SourceData->Transform;
 
-	// @todo-threadsafety race here. Need to hold a ref to this buffer on the RT
-	Data.MeshSkinWeightBufferSrv = SourceData->MeshSkinWeightBufferSrv;
-	Data.MeshSkinWeightLookupBufferSrv = SourceData->MeshSkinWeightLookupBufferSrv;
+	Data.MeshSkinWeightBuffer = SourceData->MeshSkinWeightBuffer;
+	Data.MeshSkinWeightLookupBuffer = SourceData->MeshSkinWeightLookupBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1116,9 +1115,8 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 	Data->StaticBuffers = SourceData->MeshGpuSpawnStaticBuffers;
 	Data->Transform = SourceData->Transform;
 
-	// @todo-threadsafety race here. Need to hold a ref to this buffer on the RT
-	Data->MeshSkinWeightBufferSrv = SourceData->MeshSkinWeightBufferSrv;
-	Data->MeshSkinWeightLookupBufferSrv = SourceData->MeshSkinWeightLookupBufferSrv;
+	Data->MeshSkinWeightBuffer = SourceData->MeshSkinWeightBuffer;
+	Data->MeshSkinWeightLookupBuffer = SourceData->MeshSkinWeightLookupBuffer;
 }
 
 USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
@@ -1529,9 +1527,9 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		bUnlimitedBoneInfluences = (BoneInfluenceType == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence);
 		MeshWeightStrideByte = SkinWeightBuffer->GetConstantInfluencesVertexStride();
 		MeshSkinWeightIndexSizeByte = SkinWeightBuffer->GetBoneIndexByteSize();
-		MeshSkinWeightBufferSrv = SkinWeightBuffer->GetDataVertexBuffer()->GetSRV();
+		MeshSkinWeightBuffer = SkinWeightBuffer->GetDataVertexBuffer();
 		//check(MeshSkinWeightBufferSrv->IsValid()); // not available in this stream
-		MeshSkinWeightLookupBufferSrv = SkinWeightBuffer->GetLookupVertexBuffer()->GetSRV();
+		MeshSkinWeightLookupBuffer = SkinWeightBuffer->GetLookupVertexBuffer();
 
 		FSkeletalMeshLODInfo* LODInfo = Mesh->GetLODInfo(LODIndex);
 		bIsGpuUniformlyDistributedSampling = LODInfo->bSupportUniformlyDistributedSampling && bAllRegionsAreAreaWeighting;
