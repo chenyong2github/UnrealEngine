@@ -385,9 +385,34 @@ private:
 		SHADER_PARAMETER_ARRAY(uint32, MeshIndexOffset, [SectionArrayCount])
 		SHADER_PARAMETER_ARRAY(uint32, MeshUVsChannelOffset, [SectionArrayCount])
 		SHADER_PARAMETER_ARRAY(uint32, MeshUVsChannelCount, [SectionArrayCount])
-		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer)
-		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer)
+		SHADER_PARAMETER_ARRAY(uint32, MeshSectionBufferIndex, [SectionArrayCount])
+
+		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer0)
+		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer1)
+		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer2)
+		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer3)
+		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer4)
+		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer5)
+		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer6)
+		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer7)
+
+		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer0)
+		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer1)
+		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer2)
+		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer3)
+		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer4)
+		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer5)
+		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer6)
+		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer7)
+		
+		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer0)
+		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer1)
+		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer2)
+		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer3)
+		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer4)
+		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer5)
+		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer6)
+		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer7)
 
 		SHADER_PARAMETER_SRV(Buffer, RootTriangleIndex)
 		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTrianglePosition0)
@@ -425,19 +450,110 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 	FHairUpdateMeshTriangleCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairUpdateMeshTriangleCS::FParameters>();
 	Parameters->MaxRootCount		= RootData.RootCount;
 	Parameters->MaxSectionCount		= SectionCount;
-	Parameters->MeshPositionBuffer	= MeshData.Sections[0].PositionBuffer;
-	Parameters->MeshIndexBuffer		= MeshData.Sections[0].IndexBuffer;
-	Parameters->MeshUVsBuffer		= MeshData.Sections[0].UVsBuffer;
+
+	const uint32 MaxSectionBufferCount = 8;
+	struct FMeshSectionBuffers
+	{
+		uint32 MeshSectionBufferIndex = 0;
+		FRHIShaderResourceView* PositionBuffer = nullptr;
+		FRHIShaderResourceView* IndexBuffer = nullptr;
+		FRHIShaderResourceView* UVsBuffer = nullptr;
+	};
+	TMap<FRHIShaderResourceView*, FMeshSectionBuffers> UniqueMeshSectionBuffers;
+	uint32 UniqueMeshSectionBufferIndex = 0;
+
+	auto SetMeshSectionBuffers = [Parameters](uint32 UniqueIndex, const FHairStrandsProjectionMeshData::Section& MeshSectionData)
+	{
+		switch (UniqueIndex)
+		{
+		case 0:
+		{
+			Parameters->MeshPositionBuffer0 = MeshSectionData.PositionBuffer;
+			Parameters->MeshIndexBuffer0 = MeshSectionData.IndexBuffer;
+			Parameters->MeshUVsBuffer0 = MeshSectionData.UVsBuffer;
+			break;
+		}
+		case 1:
+		{
+			Parameters->MeshPositionBuffer1 = MeshSectionData.PositionBuffer;
+			Parameters->MeshIndexBuffer1 = MeshSectionData.IndexBuffer;
+			Parameters->MeshUVsBuffer1 = MeshSectionData.UVsBuffer;
+			break;
+		}
+		case 2:
+		{
+			Parameters->MeshPositionBuffer2 = MeshSectionData.PositionBuffer;
+			Parameters->MeshIndexBuffer2 = MeshSectionData.IndexBuffer;
+			Parameters->MeshUVsBuffer2 = MeshSectionData.UVsBuffer;
+			break;
+		}
+		case 3:
+		{
+			Parameters->MeshPositionBuffer3 = MeshSectionData.PositionBuffer;
+			Parameters->MeshIndexBuffer3 = MeshSectionData.IndexBuffer;
+			Parameters->MeshUVsBuffer3 = MeshSectionData.UVsBuffer;
+			break;
+		}
+		case 4:
+		{
+			Parameters->MeshPositionBuffer4 = MeshSectionData.PositionBuffer;
+			Parameters->MeshIndexBuffer4 = MeshSectionData.IndexBuffer;
+			Parameters->MeshUVsBuffer4 = MeshSectionData.UVsBuffer;
+			break;
+		}
+		case 5:
+		{
+			Parameters->MeshPositionBuffer5 = MeshSectionData.PositionBuffer;
+			Parameters->MeshIndexBuffer5 = MeshSectionData.IndexBuffer;
+			Parameters->MeshUVsBuffer5 = MeshSectionData.UVsBuffer;
+			break;
+		}
+		case 6:
+		{
+			Parameters->MeshPositionBuffer6 = MeshSectionData.PositionBuffer;
+			Parameters->MeshIndexBuffer6 = MeshSectionData.IndexBuffer;
+			Parameters->MeshUVsBuffer6 = MeshSectionData.UVsBuffer;
+			break;
+		}
+		case 7:
+		{
+			Parameters->MeshPositionBuffer7 = MeshSectionData.PositionBuffer;
+			Parameters->MeshIndexBuffer7 = MeshSectionData.IndexBuffer;
+			Parameters->MeshUVsBuffer7 = MeshSectionData.UVsBuffer;
+			break;
+		}
+		}
+	};
 
 	check(SectionCount < FHairUpdateMeshTriangleCS::SectionArrayCount);
 	for (int32 SectionIt = 0; SectionIt < SectionCount; ++SectionIt)
 	{
 		const FHairStrandsProjectionMeshData::Section& MeshSectionData = MeshData.Sections[SectionIt];
 		
-		// Sanity check to insure all sections share the same underlying buffer 
-		check(Parameters->MeshPositionBuffer == MeshSectionData.PositionBuffer);
-		check(Parameters->MeshIndexBuffer == MeshSectionData.IndexBuffer);
-		check(Parameters->MeshUVsBuffer == MeshSectionData.UVsBuffer);
+		if (const FMeshSectionBuffers* Buffers = UniqueMeshSectionBuffers.Find(MeshSectionData.PositionBuffer))
+		{
+			// Insure that all buffers actually match
+			check(Buffers->PositionBuffer == MeshSectionData.PositionBuffer);
+			check(Buffers->IndexBuffer == MeshSectionData.IndexBuffer);
+			check(Buffers->UVsBuffer == MeshSectionData.UVsBuffer);
+
+			Parameters->MeshSectionBufferIndex[SectionIt] = Buffers->MeshSectionBufferIndex;
+		}
+		else
+		{
+			// Only support 8 unique different buffer at the moment
+			check(UniqueMeshSectionBufferIndex < MaxSectionBufferCount);
+			SetMeshSectionBuffers(UniqueMeshSectionBufferIndex, MeshSectionData);
+
+			FMeshSectionBuffers& Entry = UniqueMeshSectionBuffers.Add(MeshSectionData.PositionBuffer);
+			Entry.MeshSectionBufferIndex = UniqueMeshSectionBufferIndex;
+			Entry.PositionBuffer = MeshSectionData.PositionBuffer;
+			Entry.IndexBuffer = MeshSectionData.IndexBuffer;
+			Entry.UVsBuffer = MeshSectionData.UVsBuffer;
+
+			Parameters->MeshSectionBufferIndex[SectionIt] = UniqueMeshSectionBufferIndex;
+			++UniqueMeshSectionBufferIndex;
+		}
 
 		Parameters->MeshSectionIndex[SectionIt]		= MeshSectionData.SectionIndex;
 		Parameters->MeshMaxIndexCount[SectionIt]	= MeshSectionData.TotalIndexCount;
@@ -445,6 +561,14 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 		Parameters->MeshIndexOffset[SectionIt]		= MeshSectionData.IndexBaseIndex;
 		Parameters->MeshUVsChannelOffset[SectionIt] = MeshSectionData.UVsChannelOffset;
 		Parameters->MeshUVsChannelCount[SectionIt]	= MeshSectionData.UVsChannelCount;
+	}
+
+	if (MeshData.Sections.Num() > 0)
+	{
+		for (uint32 Index = UniqueMeshSectionBufferIndex; Index < MaxSectionBufferCount; ++Index)
+		{
+			SetMeshSectionBuffers(Index, MeshData.Sections[0]);
+		}
 	}
 
 	Parameters->RootTriangleIndex = LODData.RootTriangleIndexBuffer->SRV;
