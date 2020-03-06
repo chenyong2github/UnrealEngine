@@ -1045,8 +1045,7 @@ void UNavigationSystemV1::CalcTimeSlicedUpdateData(TArray<double>& OutCurrentTim
 	OutNumTimeSlicedRemainingBuildTasks = 0;
 	OutIsTimeSlicingArray.SetNumZeroed(NavDataSet.Num());
 	bOutAnyNonTimeSlicedGenerators = false;
-	OutCurrentTimeSlicedBuildTaskDurations.Empty();
-	OutCurrentTimeSlicedBuildTaskDurations.Reserve(NavDataSet.Num());
+	OutCurrentTimeSlicedBuildTaskDurations.Reset(NavDataSet.Num());
 
 	for (int32 NavDataIdx = 0; NavDataIdx < NavDataSet.Num(); ++NavDataIdx)
 	{
