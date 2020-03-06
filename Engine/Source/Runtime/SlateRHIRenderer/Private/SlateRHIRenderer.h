@@ -148,6 +148,8 @@ struct FViewportInfo : public FRenderResource
 	}	
 };
 
+bool IsMemorylessTexture(const FTexture2DRHIRef& Tex);
+
 struct FFastPathRenderingDataCleanupList
 {
 	TArray<FSlateCachedFastPathRenderingData*, TInlineAllocator<20>> FastPathRenderingDataToRemove;
