@@ -24,6 +24,9 @@
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <objc/runtime.h>
+#if PLATFORM_IOS && defined(__IPHONE_13_0)
+#include <os/proc.h>
+#endif
 #include <CoreFoundation/CFBase.h>
 #include "HAL/LowLevelMemTracker.h"
 #include "Apple/AppleLLM.h"
@@ -260,10 +263,14 @@ FPlatformMemoryStats FApplePlatformMemory::GetStats()
 	static FPlatformMemoryStats MemoryStats;
 	
 	// Gather platform memory stats.
+#if PLATFORM_IOS && defined(__IPHONE_13_0)
+	uint64_t FreeMem = os_proc_available_memory();
+#else
 	vm_statistics Stats;
 	mach_msg_type_number_t StatsSize = sizeof(Stats);
 	host_statistics(mach_host_self(), HOST_VM_INFO, (host_info_t)&Stats, &StatsSize);
 	uint64_t FreeMem = (Stats.free_count + Stats.inactive_count) * MemoryConstants.PageSize;
+#endif
 	MemoryStats.AvailablePhysical = FreeMem;
 	
 	// Just get memory information for the process and report the working set instead
