@@ -40,7 +40,7 @@
 #include "Chaos/XPBDSpringConstraints.h"
 #include "Chaos/XPBDAxialSpringConstraints.h"
 
-#if WITH_PHYSX && !PLATFORM_LUMIN && !PLATFORM_ANDROID
+#if PHYSICS_INTERFACE_PHYSX && !PLATFORM_LUMIN && !PLATFORM_ANDROID
 #include "PhysXIncludes.h"
 #endif
 
@@ -932,7 +932,7 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(const UClothingAssetCommo
 				// Add stub for extracted collision data
 				FClothCollisionPrim_Convex Convex;
 				Convex.BoneIndex = MappedBoneIndex;
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 				// Collision bodies are stored in PhysX specific data structures so they can only be imported if we enable PhysX.
 				const physx::PxConvexMesh* const PhysXMesh = ConvexElem.GetConvexMesh();  // TODO(Kriss.Gossart): Deal with this legacy structure in a different place, so that there's only TConvex
 				const int32 NumPolygons = int32(PhysXMesh->getNbPolygons());
@@ -953,7 +953,7 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(const UClothingAssetCommo
 				// Rebuild surface points
 				Convex.RebuildSurfacePoints();
 
-#elif WITH_CHAOS  // #if WITH_PHYSX
+#elif WITH_CHAOS  // #if PHYSICS_INTERFACE_PHYSX
 				const Chaos::FImplicitObject& ChaosConvexMesh = *ConvexElem.GetChaosConvexMesh();
 				const Chaos::FConvex& ChaosConvex = ChaosConvexMesh.GetObjectChecked<Chaos::FConvex>();
 
@@ -972,7 +972,7 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(const UClothingAssetCommo
 				{
 					Convex.SurfacePoints.Add(ChaosConvex.GetSurfaceParticles().X(ParticleIndex));
 				}
-#endif  // #if WITH_PHYSX #elif WITH_CHAOS
+#endif  // #if PHYSICS_INTERFACE_PHYSX #elif WITH_CHAOS
 
 				// Add extracted collision data
 				ExtractedCollisions.Convexes.Add(Convex);

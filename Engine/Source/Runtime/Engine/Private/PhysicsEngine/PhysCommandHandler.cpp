@@ -6,7 +6,7 @@
 #include "PhysicsPublic.h"
 #include "Physics/PhysicsInterfaceCore.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	#include "PhysicsEngine/PhysXSupport.h"
 #endif
 
@@ -48,8 +48,10 @@ void FPhysCommandHandler::ExecuteCommands()
 #if WITH_PHYSX
 		case PhysCommand::ReleasePScene:
 		{
+#if PHYSICS_INTERFACE_PHYSX
 			physx::PxScene * PScene = Command.Pointer.PScene;
 			PScene->release();
+#endif
 			break;
 		}
 		case PhysCommand::DeleteSimEventCallback:
@@ -102,15 +104,19 @@ void FPhysCommandHandler::ExecuteCommands()
 
 		case PhysCommand::DeleteCPUDispatcher:
 		{
+#if PHYSICS_INTERFACE_PHYSX
 			physx::PxCpuDispatcher * CPUDispatcher = Command.Pointer.CPUDispatcher;
 			delete CPUDispatcher;
+#endif
 			break;
 		}
 
 		case PhysCommand::DeleteMbpBroadphaseCallback:
 		{
+#if PHYSICS_INTERFACE_PHYSX
 			FPhysXMbpBroadphaseCallback* Callback = Command.Pointer.MbpCallback;
 			delete Callback;
+#endif
 			break;
 		}
 #endif
@@ -129,7 +135,7 @@ void FPhysCommandHandler::EnqueueCommand(const FPhysPendingCommand& Command)
 }
 
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 void FPhysCommandHandler::DeferredRelease(physx::PxScene* PScene)
 {
 	check(PScene);

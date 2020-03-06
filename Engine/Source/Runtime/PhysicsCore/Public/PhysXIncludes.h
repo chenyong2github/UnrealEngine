@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 #ifdef PHYSX_API
 #undef PHYSX_API	//Our build system treats PhysX as a module and automatically defines this. PhysX has its own way of defining this.

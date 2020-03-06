@@ -9,7 +9,7 @@
 #include "PhysicsPublicCore.h"
 #include "PhysTestSerializer.h" 
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXToChaosUtil.h"
 #endif
 
@@ -21,7 +21,7 @@ public:
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit) override { /*check(false);*/  return ECollisionQueryHitType::Touch; }
 	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float, 3>& Shape, const Chaos::TGeometryParticle<float, 3>& Actor) override { return Capture.GetFilterResult(&Shape, &Actor); }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit) override { return ECollisionQueryHitType::Touch; }
 	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const physx::PxShape& Shape, physx::PxRigidActor& Actor) override { return Capture.GetFilterResult(&Shape, &Actor); }
 	virtual PxQueryHitType::Enum preFilter(const PxFilterData& filterData, const PxShape* shape, const PxRigidActor* actor, PxHitFlags& queryFlags) override { return U2PCollisionQueryHitType(Capture.GetFilterResult(shape, actor)); }
@@ -46,7 +46,7 @@ FSQCapture::~FSQCapture()
 {
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 PxActor* FSQCapture::GetTransientActor(PxActor* Actor) const
 {
@@ -295,6 +295,7 @@ void FSQCapture::Serialize(Chaos::FChaosArchive& Ar)
 #if WITH_PHYSX
 	if (bDiskDataIsChaos == false)
 	{
+#if PHYSICS_INTERFACE_PHYSX
 		SerializePhysXBuffers(Ar, Version, PhysXSweepBuffer);
 
 		if (Version >= 1)
@@ -303,16 +304,21 @@ void FSQCapture::Serialize(Chaos::FChaosArchive& Ar)
 			SerializePhysXBuffers(Ar, Version, PhysXOverlapBuffer);
 
 			SerializeActorToShapeHitsArray(Ar);
-			SerializeQueryFilterData(Ar, QueryFilterData);
 		}
 
 		if (Ar.IsLoading())
 		{
 			CreatePhysXData();
 		}
+#endif
+		if(Version >= 1)
+		{
+			SerializeQueryFilterData(Ar, QueryFilterData);
+		}
 	}
 #endif
 
+#if WITH_CHAOS
 	if (bDiskDataIsChaos)
 	{
 #if WITH_CHAOS
@@ -330,10 +336,11 @@ void FSQCapture::Serialize(Chaos::FChaosArchive& Ar)
 			ChaosGeometry = SerializableChaosGeometry.Get();
 		}
 	}
+#endif
 
 	if (Ar.IsLoading())
 	{
-#if WITH_PHYSX
+#if 0
 		CreateChaosDataFromPhysX();
 #endif // WITH_PHYSX
 
@@ -365,6 +372,7 @@ void FSQCapture::StartCaptureChaosSweep(const Chaos::FPBDRigidsEvolutionGBF& Evo
 
 void FSQCapture::EndCaptureChaosSweep(const ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& Results)
 {
+#if WITH_CHAOS
 	if (IsInGameThread())
 	{
 		check(SQType == ESQType::Sweep);
@@ -372,6 +380,7 @@ void FSQCapture::EndCaptureChaosSweep(const ChaosInterface::FSQHitBuffer<ChaosIn
 		ChaosSweepBuffer = Results;
 #endif // WITH_CHAOS
 	}
+#endif
 }
 
 void FSQCapture::StartCaptureChaosRaycast(const Chaos::FPBDRigidsEvolutionGBF& Evolution, const FVector& InStartPoint, const FVector& InDir, float InDeltaMag, FHitFlags InOutputFlags, const FQueryFilterData& QueryFilter, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback)
@@ -393,6 +402,7 @@ void FSQCapture::StartCaptureChaosRaycast(const Chaos::FPBDRigidsEvolutionGBF& E
 
 void FSQCapture::EndCaptureChaosRaycast(const ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& Results)
 {
+#if WITH_CHAOS
 	if (IsInGameThread())
 	{
 		check(SQType == ESQType::Raycast);
@@ -400,6 +410,7 @@ void FSQCapture::EndCaptureChaosRaycast(const ChaosInterface::FSQHitBuffer<Chaos
 		ChaosRaycastBuffer = Results;
 #endif // WITH_CHAOS
 	}
+#endif
 }
 
 void FSQCapture::StartCaptureChaosOverlap(const Chaos::FPBDRigidsEvolutionGBF& Evolution, const Chaos::FImplicitObject& InQueryGeom, const FTransform& InStartTM, const FQueryFilterData& QueryFilter, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback)
@@ -420,6 +431,7 @@ void FSQCapture::StartCaptureChaosOverlap(const Chaos::FPBDRigidsEvolutionGBF& E
 
 void FSQCapture::EndCaptureChaosOverlap(const ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& Results)
 {
+#if WITH_CHAOS
 	if (IsInGameThread())
 	{
 		check(SQType == ESQType::Overlap);
@@ -427,6 +439,7 @@ void FSQCapture::EndCaptureChaosOverlap(const ChaosInterface::FSQHitBuffer<Chaos
 		ChaosOverlapBuffer = Results;
 #endif // WITH_CHAOS
 	}
+#endif
 }
 
 void FSQCapture::CaptureChaosFilterResults(const Chaos::FPBDRigidsEvolutionGBF& TransientEvolution, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback)
@@ -451,7 +464,32 @@ void FSQCapture::CaptureChaosFilterResults(const Chaos::FPBDRigidsEvolutionGBF& 
 	}
 }
 
-#if WITH_PHYSX
+template <typename TShape, typename TActor>
+ECollisionQueryHitType GetFilterResultHelper(const TShape* Shape, const TActor* Actor, const TMap<TActor*, TArray<TPair<TShape*, ECollisionQueryHitType>>>& ActorToShapeHitsArray)
+{
+	if (const TArray<TPair<TShape*, ECollisionQueryHitType>>* ActorToPairs = ActorToShapeHitsArray.Find(Actor))
+	{
+		for (const TPair<TShape*, ECollisionQueryHitType>& Pair : *ActorToPairs)
+		{
+			if (Pair.Key == Shape)
+			{
+				return Pair.Value;
+			}
+		}
+	}
+
+	//todo: figure out why this hits - suspect it's related to threading and how we capture an evolution on GT
+	ensure(false);	//should not get here, means we didn't properly capture all filter results
+	return ECollisionQueryHitType::None;
+}
+
+ECollisionQueryHitType FSQCapture::GetFilterResult(const Chaos::TPerShapeData<float, 3>* Shape, const Chaos::TGeometryParticle<float, 3>* Actor) const
+{
+	return GetFilterResultHelper(Shape, Actor, ChaosActorToShapeHitsArray);
+}
+
+
+#if PHYSICS_INTERFACE_PHYSX
 void FSQCapture::StartCapturePhysXSweep(const PxScene& Scene, const PxGeometry& InQueryGeom, const FTransform& InStartTM, const FVector& InDir, float InDeltaMag, FHitFlags InOutputFlags, const FQueryFilterData& QueryFilter, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback)
 {
 	if (IsInGameThread())
@@ -503,7 +541,6 @@ void FSQCapture::StartCapturePhysXOverlap(const PxScene& Scene, const PxGeometry
 	}
 }
 
-#if WITH_PHYSX
 void FSQCapture::CapturePhysXFilterResults(const PxScene& TransientScene, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback)
 {
 	const uint32 NumTransientActors = TransientScene.getNbActors(PxActorTypeFlag::eRIGID_STATIC | PxActorTypeFlag::eRIGID_DYNAMIC);
@@ -538,7 +575,6 @@ void FSQCapture::CapturePhysXFilterResults(const PxScene& TransientScene, const 
 	}
 }
 
-#endif // WITH_PHYSX
 
 template <typename THit>
 void EndCaptureHelper(PhysXInterface::FDynamicHitBuffer<THit>& Dest, const PxHitCallback<THit>& Results)
@@ -589,33 +625,6 @@ void FSQCapture::EndCapturePhysXOverlap(const PxHitCallback<PxOverlapHit>& Resul
 		EndCaptureHelper(PhysXOverlapBuffer, Results);
 	}
 }
-#endif
-
-template <typename TShape, typename TActor>
-ECollisionQueryHitType GetFilterResultHelper(const TShape* Shape, const TActor* Actor, const TMap<TActor*, TArray<TPair<TShape*, ECollisionQueryHitType>>>& ActorToShapeHitsArray)
-{
-	if (const TArray<TPair<TShape*, ECollisionQueryHitType>>* ActorToPairs = ActorToShapeHitsArray.Find(Actor))
-	{
-		for (const TPair<TShape*, ECollisionQueryHitType>& Pair : *ActorToPairs)
-		{
-			if (Pair.Key == Shape)
-			{
-				return Pair.Value;
-			}
-		}
-	}
-
-	//todo: figure out why this hits - suspect it's related to threading and how we capture an evolution on GT
-	ensure(false);	//should not get here, means we didn't properly capture all filter results
-	return ECollisionQueryHitType::None;
-}
-
-ECollisionQueryHitType FSQCapture::GetFilterResult(const Chaos::TPerShapeData<float, 3>* Shape, const Chaos::TGeometryParticle<float, 3>* Actor) const
-{
-	return GetFilterResultHelper(Shape, Actor, ChaosActorToShapeHitsArray);
-}
-
-#if WITH_PHYSX
 
 template <typename THit>
 void FixupBufferPointers(FPhysTestSerializer& PhysSerializer, PhysXInterface::FDynamicHitBuffer<THit>& PhysXBuffer)
@@ -732,7 +741,7 @@ FSQCapture::FPhysXSerializerData::~FPhysXSerializerData()
 
 #endif
 
-#if WITH_PHYSX
+#if 0
 void PhysXQueryHitToChaosQueryHit(ChaosInterface::FQueryHit& ChaosHit, const PxQueryHit& PxHit, const FPhysTestSerializer& Serializer)
 {
 	ChaosHit.Actor = Serializer.PhysXActorToChaosHandle(PxHit.actor);

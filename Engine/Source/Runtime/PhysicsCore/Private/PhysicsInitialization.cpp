@@ -45,7 +45,7 @@ bool InitGamePhysCore()
 	FModuleManager::Get().LoadModule("ChaosSolverEngine");
 #endif
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// Do nothing if SDK already exists
 	if (GPhysXFoundation != nullptr)
 	{
@@ -190,7 +190,7 @@ bool InitGamePhysCore()
 
 void TermGamePhysCore()
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 	FPhysxSharedData::Terminate();
 

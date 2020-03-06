@@ -17,7 +17,7 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "ChaosSolversModule.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	#include "PhysicsEngine/PhysXSupport.h"
 #endif
 
@@ -147,11 +147,9 @@ void UWorld::SetupPhysicsTickFunctions(float DeltaSeconds)
 		return;
 	}
 
-#if WITH_PHYSX
 	
 	// When ticking the main scene, clean up any physics engine resources (once a frame)
 	DeferredPhysResourceCleanup();
-#endif
 
 	// Update gravity in case it changed
 	FVector DefaultGravity( 0.f, 0.f, GetGravityZ() );
@@ -236,7 +234,7 @@ void FEndPhysicsTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickT
 		Target->FinishPhysicsSim();
 	}
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #if PHYSX_MEMORY_VALIDATION
 	static int32 Frequency = 0;
 	if (Frequency++ > 10)
@@ -288,7 +286,6 @@ bool InitGamePhys()
 		PostEngineInitialize();
 	});
 
-#if WITH_PHYSX
 	
 	GPhysCommandHandler = new FPhysCommandHandler();
 	GPreGarbageCollectDelegateHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(GPhysCommandHandler, &FPhysCommandHandler::Flush);
@@ -299,7 +296,6 @@ bool InitGamePhys()
 		DeferredPhysResourceCleanup();
 	});
 	
-#endif // WITH_PHYSX
 
 	// Message to the log that physics is initialised and which interface we are using.
 	UE_LOG(LogInit, Log, TEXT("Physics initialised using underlying interface: %s"), *FPhysicsInterface::GetInterfaceDescription());
@@ -315,14 +311,14 @@ void TermGamePhys()
 		GPostInitHandle.Reset();
 	}
 
-#if WITH_PHYSX
-
+#if PHYSICS_INTERFACE_PHYSX
 	// Do nothing if they were never initialized
 	if(GPhysXFoundation == NULL)
 	{
 		FPhysxSharedData::Terminate();	//early out before TermGamePhysCore so kill this - not sure if this is a real case we even care about
 		return;
 	}
+#endif
 
 	if (GPhysCommandHandler != NULL)
 	{
@@ -331,7 +327,6 @@ void TermGamePhys()
 		delete GPhysCommandHandler;
 		GPhysCommandHandler = NULL;
 	}
-#endif
 
 	TermGamePhysCore();
 }
@@ -342,7 +337,7 @@ void TermGamePhys()
 */
 void DeferredPhysResourceCleanup()
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 	// Release all tri meshes and reset array
 	for(int32 MeshIdx=0; MeshIdx<GPhysXPendingKillTriMesh.Num(); MeshIdx++)

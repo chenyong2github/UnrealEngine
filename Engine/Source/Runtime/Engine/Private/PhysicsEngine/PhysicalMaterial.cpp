@@ -12,7 +12,7 @@
 #include "PhysicalMaterials/PhysicalMaterialPropertyBase.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	#include "PhysicsEngine/PhysXSupport.h"
 #endif // WITH_PHYSX
 
@@ -31,7 +31,7 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	DestructibleDamageThresholdScale = 1.0f;
 	TireFrictionScale = 1.0f;
 	bOverrideFrictionCombineMode = false;
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	PhysxUserData = FPhysxUserData(this);
 #endif
 }

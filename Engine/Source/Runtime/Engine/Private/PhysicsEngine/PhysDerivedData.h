@@ -9,7 +9,7 @@
 #include "Stats/Stats.h"
 #include "PhysDerivedDataPublic.h"
 
-#if WITH_PHYSX && WITH_EDITOR
+#if PHYSICS_INTERFACE_PHYSX && WITH_EDITOR
 #include "DerivedDataPluginInterface.h"
 #include "IPhysXCooking.h"
 

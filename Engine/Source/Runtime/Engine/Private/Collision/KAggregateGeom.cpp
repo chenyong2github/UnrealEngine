@@ -416,7 +416,7 @@ FBox FKConvexElem::CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) co
 
 void FKConvexElem::GetPlanes(TArray<FPlane>& Planes) const
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (ConvexMesh != nullptr)
 	{
 		Planes.Empty();
@@ -435,7 +435,9 @@ void FKConvexElem::GetPlanes(TArray<FPlane>& Planes) const
 			Planes.Add(Plane);
 		}
 	}
-#endif // WITH_PHYSX
+#else
+	CHAOS_ENSURE(false); // TODO Implement in Chaos
+#endif
 }
 
 ///////////////////////////////////////
@@ -774,8 +776,10 @@ FArchive& operator<<(FArchive& Ar,FKConvexElem& Elem)
 		// Initialize the TArray members
 		FMemory::Memzero(&Elem.VertexData, sizeof(Elem.VertexData));
 		FMemory::Memzero(&Elem.ElemBox, sizeof(Elem.ElemBox));
+#if PHYSICS_INTERFACE_PHYSX
 		Elem.ConvexMesh = NULL;
 		Elem.ConvexMeshNegX = NULL;
+#endif
 #if WITH_CHAOS
 		Elem.ChaosConvex.Reset();
 #endif

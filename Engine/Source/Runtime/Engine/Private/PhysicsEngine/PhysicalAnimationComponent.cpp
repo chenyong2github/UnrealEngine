@@ -176,7 +176,7 @@ FTransform UPhysicalAnimationComponent::GetBodyTargetTransform(FName BodyName) c
 {
 	if (SkeletalMeshComponent)
 	{
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		for (int32 DataIdx = 0; DataIdx < DriveData.Num(); ++DataIdx)
 		{
 			const FPhysicalAnimationData& PhysAnimData = DriveData[DataIdx];
@@ -199,6 +199,8 @@ FTransform UPhysicalAnimationComponent::GetBodyTargetTransform(FName BodyName) c
 				break;
 			}
 		}
+#else
+		CHAOS_ENSURE(false);
 #endif
 
 		// if body isn't controlled by physical animation, just return the body position
@@ -270,7 +272,7 @@ void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 		// various anim ticks, before buffers are flipped (which happens in the skel mesh component's post-physics tick)
 		const TArray<FTransform>& SpaceBases = SkeletalMeshComponent->GetEditableComponentSpaceTransforms();
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		FPhysicsCommand::ExecuteWrite(SkeletalMeshComponent, [&]()
 		{
 			TArray<FTransform> LocalTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
@@ -295,6 +297,8 @@ void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 				}
 			}
 		});
+#else
+		CHAOS_ENSURE(false);
 #endif
 	}
 }
@@ -378,7 +382,7 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngineImp()
 					{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
                         CHAOS_ENSURE(false);
-#else
+#elif PHYSICS_INTERFACE_PHYSX
 						if (PxRigidActor* PRigidActor = FPhysicsInterface_PhysX::GetPxRigidActor_AssumesLocked(ChildBody->ActorHandle))
 						{
 							ConstraintInstance->SetRefFrame(EConstraintFrame::Frame1, FTransform::Identity);
@@ -447,7 +451,7 @@ void UPhysicalAnimationComponent::SetStrengthMultiplyer(float InStrengthMultiply
 
 void UPhysicalAnimationComponent::ReleasePhysicsEngine()
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// #PHYS2 On shutdown, SkelMeshComp is null, so we can't lock using that, need to lock based on scene from body
 	//FPhysicsCommand::ExecuteWrite(SkeletalMeshComponent, [&]()
 	//{
@@ -486,7 +490,7 @@ void UPhysicalAnimationComponent::DebugDraw(FPrimitiveDrawInterface* PDI) const
 {
 	for (const FPhysicalAnimationInstanceData& PhysAnimData : RuntimeInstanceData)
 	{
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		if (PhysAnimData.TargetActor)
 		{
 			PDI->DrawPoint(P2UVector(PhysAnimData.TargetActor->getGlobalPose().p), TargetActorColor, 3.f, SDPG_World);
