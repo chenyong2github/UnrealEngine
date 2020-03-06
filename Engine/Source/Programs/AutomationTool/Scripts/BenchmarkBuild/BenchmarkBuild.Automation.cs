@@ -29,7 +29,7 @@ namespace AutomationTool.Benchmark
 	[Help("noxge", "Do a compile without XGE / FASTBuild")]
 	[Help("singlecompile", "Do a single-file compile")]
 	[Help("nopcompile", "Do a nothing-needs-compiled compile")]
-	//[Help("processors=X+Y+Z", "Do noxge builds with these processor counts (default is Env.ProcCount)")]
+	[Help("cores=X+Y+Z", "Do noxge builds with these processor counts (default is Environment.ProcessorCount)")]
 	[Help("cook", "Do a cook for the specified platform")]
 	[Help("cookcold", "When cooking clear the local ddc before each run")]
 	[Help("cooknoshaderddc", "Do a cook test with no ddc for shaders")]
@@ -66,7 +66,7 @@ namespace AutomationTool.Benchmark
 			bool DoNoAcceleratedCompile = AllCompile | ParseParam("noxge") | ParseParam("nofastbuild");
 
 			bool DoCookTests = AllThings | ParseParam("cook");
-			bool DoColdCook = AllThings | ParseParam("coldcook");
+			bool DoColdCook = AllThings | ParseParam("cookcold");
 			bool DoHotDDC = AllThings | ParseParam("hotddc");
 			bool DoNoShaderDDC = AllThings | ParseParam("cooknoshaderddc");
 			bool DoNoDDC = ParseParam("cooknoddc");
@@ -104,7 +104,7 @@ namespace AutomationTool.Benchmark
 				ClientPlatforms.Add(EditorPlatform);
 			}
 
-			string ProcessorArg = ParseParamValue("processors", "");
+			string ProcessorArg = ParseParamValue("cores", "");
 
 			IEnumerable<int> ProcessorCounts = new[] { Environment.ProcessorCount };
 
