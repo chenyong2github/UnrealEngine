@@ -101,7 +101,7 @@ bool NiagaraAll(bool4 b) { return b.x && b.y && b.z && b.w; }
 	// NIAGARA_MAX_GPU_SPAWN_INFOS is set from the shader compiler
 	#define NIAGARA_MAX_GPU_SPAWN_INFOS_V4	((NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4)
 
-	float4	EmitterSpawnInfoOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
+	int4	EmitterSpawnInfoOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
 	float4	EmitterSpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];			// Packed data where x = IntervalDt, y = InterpStartDt, z = Group, w = Start Particle Index
 
 	static int GInterpSpawnIndex;
@@ -128,9 +128,13 @@ bool NiagaraAll(bool4 b) { return b.x && b.y && b.z && b.w; }
 
 		int SpawnInfoIndex = 0;
 		UNROLL
-		for ( int i=0; i < NIAGARA_MAX_GPU_SPAWN_INFOS_V4; ++i )
+		for (int i = 0; i < NIAGARA_MAX_GPU_SPAWN_INFOS_V4; ++i)
 		{
-			SpawnInfoIndex += (int)dot(1.0f, GGPUExecIndex >= EmitterSpawnInfoOffsets[i]);
+			// This returns 0xffffffff for each component when the comparison is true, so we'll do a
+			// bitwise and with 1 to get increment amounts for each spawn info.
+			int4 CompareResults = GGPUExecIndex >= EmitterSpawnInfoOffsets[i];
+			CompareResults = CompareResults & int4(1, 1, 1, 1);
+			SpawnInfoIndex += CompareResults.x + CompareResults.y + CompareResults.z + CompareResults.w;
 		}
 
 		Emitter_SpawnInterval		= EmitterSpawnInfoParams[SpawnInfoIndex].x;
