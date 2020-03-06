@@ -135,7 +135,7 @@ public abstract class BaseLinuxPlatform : Platform
 
 		if (Utils.IsRunningOnMono)
 		{
-			var Result = CommandUtils.Run("sh", string.Format("-c 'chmod +x \\\"{0}\\\"'", IntermediateFile));
+			var Result = CommandUtils.Run("sh", string.Format("-c 'chmod +x \"{0}\"'", IntermediateFile.ToString().Replace("'", "'\"'\"'")));
 			if (Result.ExitCode != 0)
 			{
 				throw new AutomationException(string.Format("Failed to chmod \"{0}\"", IntermediateFile));
