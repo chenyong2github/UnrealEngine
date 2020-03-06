@@ -47,9 +47,6 @@ public:
 
 	/** Applies or removes an override texture to use while rendering the meshes materials */
 	virtual void ApplyOrRemoveTextureOverride(UTexture* SourceTexture, UTexture* OverrideTexture) const = 0;
-
-	/** Reference collecting to prevent GC-ing */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) = 0;
 			
 	/** Returns the vertices for the current LOD index in the Mesh */
 	virtual const TArray<FVector>& GetMeshVertices() const = 0;
