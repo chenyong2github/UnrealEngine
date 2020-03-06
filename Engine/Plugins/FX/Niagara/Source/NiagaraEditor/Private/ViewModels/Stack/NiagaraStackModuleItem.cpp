@@ -136,47 +136,11 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterOutputCollection));
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterLinkedInputCollection));
 	}
-
-	OnEditorDataChanged();
-	GetStackEditorData().OnPersistentDataChanged().AddUObject(this, &UNiagaraStackModuleItem::OnEditorDataChanged);
-}
-
-void UNiagaraStackModuleItem::OnEditorDataChanged()
-{
-	const FText* NewDisplayName = GetStackEditorData().GetStackEntryDisplayName(GetStackEditorDataKey());
-	if (NewDisplayName == nullptr)
-	{
-		CustomDisplayName.Reset();
-	}
-	else
-	{
-		CustomDisplayName = *NewDisplayName;
-	}
 }
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
 {
-	if (IsFinalized())
-	{
-		return FText::FromName(NAME_None);
-	}
-
-	if (CustomDisplayName.IsSet())
-	{
-		return CustomDisplayName.GetValue();
-	}
-	
-	return GetOriginalName();
-}
-
-FText UNiagaraStackModuleItem::GetOriginalName() const
-{
-	if (FunctionCallNode != nullptr)
-	{
-		return FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
-	}
-
-	return FText::FromName(NAME_None);
+	return FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
 }
 
 UObject* UNiagaraStackModuleItem::GetDisplayedObject() const
@@ -1166,7 +1130,6 @@ void UNiagaraStackModuleItem::Delete()
 				GetSystemViewModel()->NotifyDataObjectChanged(InputNode->GetDataInterface());
 			}
 		}
-		Finalize();
 		ModifiedGroupItemsDelegate.Broadcast();
 	}
 }

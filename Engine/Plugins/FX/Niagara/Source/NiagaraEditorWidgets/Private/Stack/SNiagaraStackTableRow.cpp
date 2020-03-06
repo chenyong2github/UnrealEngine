@@ -132,7 +132,7 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 	// Execution sub-category icon
 	+ SHorizontalBox::Slot()
 	.AutoWidth()
-	.Padding(FMargin(1, 1, 4, 1))
+	.Padding(FMargin(1, 1, 2, 1))
 	.VAlign(EVerticalAlignment::VAlign_Center)
 	.HAlign(EHorizontalAlignment::HAlign_Center)
 	[
