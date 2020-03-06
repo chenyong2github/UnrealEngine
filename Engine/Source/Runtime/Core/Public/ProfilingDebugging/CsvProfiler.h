@@ -241,6 +241,8 @@ public:
 
 	CORE_API static void SetMetadata(const TCHAR* Key, const TCHAR* Value);
 
+	static CORE_API int32 RegisterCategory(const FString& Name, bool bEnableByDefault, bool bIsGlobal);
+
 	template <typename FmtType, typename... Types>
 	FORCEINLINE static void RecordEventf(int32 CategoryIndex, const FmtType& Fmt, Types... Args)
 	{
@@ -264,6 +266,7 @@ public:
 	CORE_API int32 GetNumFrameToCaptureOnEvent();
 
 	CORE_API bool EnableCategoryByString(const FString& CategoryName) const;
+	CORE_API void EnableCategoryByIndex(uint32 CategoryIndex, bool bEnable) const;
 
 	/** Per-frame update */
 	CORE_API void BeginFrame();
@@ -302,7 +305,6 @@ public:
 private:
 	CORE_API static void VARARGS RecordEventfInternal(int32 CategoryIndex, const TCHAR* Fmt, ...);
 
-	static CORE_API int32 RegisterCategory(const FString& Name, bool bEnableByDefault, bool bIsGlobal);
 	static int32 GetCategoryIndex(const FString& Name);
 
 	void FinalizeCsvFile();
