@@ -235,6 +235,8 @@ namespace NavigationHelper
 	{
 #if WITH_PHYSX
 		const bool bBodyHasGeometry = (BodySetup.AggGeom.GetElementCount() > 0 || BodySetup.TriMeshes.Num() > 0);
+#elif WITH_CHAOS
+		const bool bBodyHasGeometry = (BodySetup.AggGeom.GetElementCount() > 0 || BodySetup.ChaosTriMeshes.Num() > 0);
 #else
 		const bool bBodyHasGeometry = (BodySetup.AggGeom.GetElementCount() > 0);
 #endif
