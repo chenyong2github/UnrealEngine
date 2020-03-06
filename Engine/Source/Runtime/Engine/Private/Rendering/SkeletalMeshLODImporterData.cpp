@@ -688,7 +688,7 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 	return Ar;
 }
 
-void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, TArray<FRawSkeletalMeshBulkData>& RawSkeltalMeshBulkDatas, UObject* Owner)
+void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, TArray<TSharedRef<FRawSkeletalMeshBulkData>>& RawSkeltalMeshBulkDatas, UObject* Owner)
 {
 	Ar.CountBytes(RawSkeltalMeshBulkDatas.Num() * sizeof(FRawSkeletalMeshBulkData), RawSkeltalMeshBulkDatas.Num() * sizeof(FRawSkeletalMeshBulkData));
 	if (Ar.IsLoading())
@@ -699,9 +699,9 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, TArray<FRawSkeletalMeshBu
 		RawSkeltalMeshBulkDatas.Empty(NewNum);
 		for (int32 Index = 0; Index < NewNum; Index++)
 		{
-			int32 NewEntryIndex = RawSkeltalMeshBulkDatas.AddDefaulted();
+			int32 NewEntryIndex = RawSkeltalMeshBulkDatas.Add(MakeShared<FRawSkeletalMeshBulkData>());
 			check(NewEntryIndex == Index);
-			RawSkeltalMeshBulkDatas[Index].Serialize(Ar, Owner);
+			RawSkeltalMeshBulkDatas[Index].Get().Serialize(Ar, Owner);
 		}
 	}
 	else
@@ -711,7 +711,7 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, TArray<FRawSkeletalMeshBu
 		Ar << Num;
 		for (int32 Index = 0; Index < Num; Index++)
 		{
-			RawSkeltalMeshBulkDatas[Index].Serialize(Ar, Owner);
+			RawSkeltalMeshBulkDatas[Index].Get().Serialize(Ar, Owner);
 		}
 	}
 }
