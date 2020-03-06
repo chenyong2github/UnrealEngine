@@ -839,8 +839,9 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 	
+	UWorld* World = GetWorld();
 	// If the particle system can't ever render (ie on dedicated server or in a commandlet) than do not activate...
-	if (!FApp::CanEverRender())
+	if (!FApp::CanEverRender() || !World || World->IsNetMode(NM_DedicatedServer))
 	{
 		return;
 	}
