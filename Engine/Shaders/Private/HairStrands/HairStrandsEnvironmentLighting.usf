@@ -96,6 +96,7 @@ uint  MultipleScatterSampleCount;
 uint  JitterSphericalIntegration;
 uint  HairComponents;
 float HairDualScatteringRoughnessOverride;
+float TransmissionDensityScaleFactor;
 
 uint  Voxel_MacroGroupId;
 float Voxel_TanConeAngle;
@@ -459,16 +460,15 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			// Compute the number of hair count between light & shading point
 			// For TT, we don't want to abort the hair counting, as this is important to get the proper transmission
 			const float DistanceThresholdTT = 100000;
-			const float DensityScaleFactor = 2;
 			FHairTraversalResult Result;
 			if (bHairUseViewHairCount)
 			{
-				Result.HairCount = HairCountTexture.Load(uint3(SvPosition.xy, 0)) * DensityScaleFactor;
+				Result.HairCount = HairCountTexture.Load(uint3(SvPosition.xy, 0)) * max(TransmissionDensityScaleFactor, 0);
 				Result.Visibility = 1;
 			}
 			else
 			{
-				Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale * DensityScaleFactor, 0, DistanceThresholdTT, false, bDebugEnabled);
+				Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale * TransmissionDensityScaleFactor, 0, DistanceThresholdTT, false, bDebugEnabled);
 			}
 			TransmittanceMask = ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
