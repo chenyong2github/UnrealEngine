@@ -149,6 +149,26 @@ namespace SteamAudio
 				.Padding(4)
 				[
 					SNew(STextBlock)
+					.Text(NSLOCTEXT("SteamAudio", "DynamicSceneTriangles", "Dynamic Scene Triangles"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4)
+				[
+					SNew(STextBlock)
+					.Text(this, &FSteamAudioEdModeToolkit::GetNumDynSceneTrianglesText)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4)
+				[
+					SNew(STextBlock)
 					.Text(NSLOCTEXT("SteamAudio", "SceneDataSize", "Scene Data Size"))
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
@@ -159,6 +179,26 @@ namespace SteamAudio
 					SNew(STextBlock)
 					.Text(this, &FSteamAudioEdModeToolkit::GetSceneDataSizeText)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4)
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("SteamAudio", "DynamicSceneDataSize", "Dynamic Scene Data Size"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4)
+				[
+					SNew(STextBlock)
+					.Text(this, &FSteamAudioEdModeToolkit::GetDynSceneDataSizeText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
 		];
@@ -252,7 +292,7 @@ namespace SteamAudio
 			IPLhandle PhononStaticMesh = nullptr;
 			FPhononSceneInfo PhononSceneInfo;
 
-			if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles))
+			if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles, PhononSceneInfo.NumDynTriangles, PhononSceneInfo.DynDataSize, true))
 			{
 				GEdModeTickable->QueueWorkItem(FWorkItem([](FText& DisplayText) {
 					DisplayText = NSLOCTEXT("SteamAudio", "ErrorExportingOBJ", "Error exporting OBJ.");
@@ -295,7 +335,7 @@ namespace SteamAudio
 			IPLhandle PhononStaticMesh = nullptr;
 			FPhononSceneInfo PhononSceneInfo;
 
-			if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles))
+			if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles, PhononSceneInfo.NumDynTriangles, PhononSceneInfo.DynDataSize))
 			{
 				GEdModeTickable->QueueWorkItem(FWorkItem([](FText& DisplayText) {
 					DisplayText = NSLOCTEXT("SteamAudio", "ErrorExportingScene", "Error exporting scene.");
@@ -351,6 +391,18 @@ namespace SteamAudio
 		return FText::FromString("No .phononscene found");
 	}
 
+	FText FSteamAudioEdModeToolkit::GetNumDynSceneTrianglesText() const
+	{
+		FSteamAudioEditorModule* Module = &FModuleManager::GetModuleChecked<FSteamAudioEditorModule>("SteamAudioEditor");
+		if (Module != nullptr)
+		{
+			auto PhononSceneInfo = Module->GetCurrentPhononSceneInfo();
+			return FText::AsNumber(PhononSceneInfo.NumDynTriangles);
+		}
+
+		return FText::FromString("No .phononscene found");
+	}
+
 	FText FSteamAudioEdModeToolkit::GetSceneDataSizeText() const
 	{
 		FSteamAudioEditorModule* Module = &FModuleManager::GetModuleChecked<FSteamAudioEditorModule>("SteamAudioEditor");
@@ -358,6 +410,18 @@ namespace SteamAudio
 		{
 			auto PhononSceneInfo = Module->GetCurrentPhononSceneInfo();
 			return FText::AsMemory(PhononSceneInfo.DataSize);
+		}
+
+		return FText::FromString("No .phononscene found");
+	}
+
+	FText FSteamAudioEdModeToolkit::GetDynSceneDataSizeText() const
+	{
+		FSteamAudioEditorModule* Module = &FModuleManager::GetModuleChecked<FSteamAudioEditorModule>("SteamAudioEditor");
+		if (Module != nullptr)
+		{
+			auto PhononSceneInfo = Module->GetCurrentPhononSceneInfo();
+			return FText::AsMemory(PhononSceneInfo.DynDataSize);
 		}
 
 		return FText::FromString("No .phononscene found");

@@ -75,7 +75,9 @@ namespace SteamAudio
 
 	FString BasePath;
 	FString RuntimePath;
+	FString DynamicRuntimePath;
 	FString EditorOnlyPath;
+	FString DynamicEditorOnlyPath;
 
 	void* UnrealAlloc(const size_t size, const size_t alignment)
 	{
@@ -169,12 +171,12 @@ namespace SteamAudio
 	 * Given a Unreal transform, convert it to a 4x4 column-major transformation matrix. OutMatrix is assumed to be a contiguous array of
 	 * 16 floats.
 	 */
-	void GetMatrixForTransform(const FTransform& Transform, float* OutMatrix)
+	void GetMatrixForTransform(const FTransform& Transform, float* OutMatrix, bool bOutputRowMajor /* = false */, bool bApplyScale /* = true */)
 	{
 		check(OutMatrix);
 
 		auto PhononTranslation = SteamAudio::UnrealToPhononFVector(Transform.GetTranslation());
-		auto PhononScale = SteamAudio::UnrealToPhononFVector(Transform.GetScale3D());
+		auto PhononScale = SteamAudio::UnrealToPhononFVector(Transform.GetScale3D(), bApplyScale);
 
 		FQuat RotationQuatConverted;
 		RotationQuatConverted.X = -Transform.GetRotation().Y;
@@ -186,14 +188,39 @@ namespace SteamAudio
 		FScaleMatrix ScaleMatrix(PhononScale);
 		auto ConvertedMatrix = (ScaleMatrix * RotationTranslationMatrix).GetTransposed();
 		
-		// Convert row-major to column-major
-		for (int32 i = 0; i < 4; ++i)
+		// Convert to column major if bOutputRowMajor is false, otherwise output column major
+		if (bOutputRowMajor)
 		{
-			for (int32 j = 0; j < 4; ++j)
+			// Row major order (flatten)
+			for (int32 i = 0; i < 4; ++i)
 			{
-				OutMatrix[j * 4 + i] = ConvertedMatrix.M[i][j];
+				for (int32 j = 0; j < 4; ++j)
+				{
+					OutMatrix[i * 4 + j] = ConvertedMatrix.M[i][j];
+				}
+			}		
+		}
+		else
+		{
+			// Column major order (conversion from row major order)
+			for (int32 i = 0; i < 4; ++i)
+			{
+				for (int32 j = 0; j < 4; ++j)
+				{
+					OutMatrix[j * 4 + i] = ConvertedMatrix.M[i][j];
+				}
 			}
 		}
+	}
+
+	IPLMatrix4x4 GetIPLMatrix(float* InMatrix)
+	{
+		check(InMatrix);
+
+		IPLMatrix4x4 PhononMatrix;
+		FMemory::Memcpy(&PhononMatrix, InMatrix, sizeof(PhononMatrix));
+		
+		return PhononMatrix;
 	}
 
 	FString StrippedMapName(const FString& MapName)
