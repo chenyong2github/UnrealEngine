@@ -1783,7 +1783,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 				CHAOS_ENSURE(!IsInstanced(GeomType));
 			}
 
-			FKShapeElem* ShapeElem = FPhysxUserData::Get<FKShapeElem>(FPhysicsInterface::GetUserData(ShapeHandle));
+			FKShapeElem* ShapeElem = FChaosUserData::Get<FKShapeElem>(FPhysicsInterface::GetUserData(ShapeHandle));
 
 			switch (GeomType)
 			{
@@ -3056,7 +3056,7 @@ void FBodyInstance::UpdateMassProperties()
 				for (int32 ShapeIdx = Shapes.Num() - 1; ShapeIdx >= 0; --ShapeIdx)
 				{
 					const FPhysicsShapeHandle& Shape = Shapes[ShapeIdx];
-					const FKShapeElem* ShapeElem = FPhysxUserData::Get<FKShapeElem>(FPhysicsInterface::GetUserData(Shape));
+					const FKShapeElem* ShapeElem = FChaosUserData::Get<FKShapeElem>(FPhysicsInterface::GetUserData(Shape));
 					bool bIsTriangleMesh = FPhysicsInterface::GetShapeType(Shape) == ECollisionShapeType::Trimesh;
 					bool bHasNoMass = ShapeElem && !ShapeElem->GetContributeToMass();
 					if (bIsTriangleMesh || bHasNoMass)

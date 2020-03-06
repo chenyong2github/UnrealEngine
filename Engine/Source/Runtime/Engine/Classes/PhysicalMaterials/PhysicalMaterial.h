@@ -7,7 +7,6 @@
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
 #include "EngineDefines.h"
-#include "PhysxUserData.h"
 #include "Vehicles/TireType.h"
 #include "PhysicsEngine/PhysicsSettingsEnums.h"
 #include "Physics/PhysicsInterfaceCore.h"
@@ -132,7 +131,7 @@ public:
 
 	FPhysicsMaterialHandle MaterialHandle;
 
-	FPhysxUserData PhysxUserData;
+	FChaosUserData UserData;
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR

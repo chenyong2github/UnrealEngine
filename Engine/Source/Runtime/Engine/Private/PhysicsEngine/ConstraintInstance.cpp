@@ -181,9 +181,7 @@ FConstraintInstance::FConstraintInstance()
 	, AngularRotationOffset(ForceInitToZero)
 	, bScaleLinearLimits(true)
 	, AverageMass(0.f)
-#if WITH_PHYSX
-	, PhysxUserData(this)
-#endif
+	, UserData(this)
 	, LastKnownScale(1.f)
 #if WITH_EDITORONLY_DATA
 	, bDisableCollision_DEPRECATED(false)
@@ -378,7 +376,7 @@ bool FConstraintInstance::CreateJoint_AssumesLocked(const FPhysicsActorHandle& I
 		return false;
 	}
 
-	FPhysicsInterface::SetConstraintUserData(ConstraintHandle, &PhysxUserData);
+	FPhysicsInterface::SetConstraintUserData(ConstraintHandle, &UserData);
 
 	return true;
 }
@@ -448,7 +446,7 @@ void FConstraintInstance::InitConstraint_AssumesLocked(const FPhysicsActorHandle
 	OnConstraintBrokenDelegate = InConstraintBrokenDelegate;
 	LastKnownScale = InScale;
 
-	PhysxUserData = FPhysxUserData(this);
+	UserData = FChaosUserData(this);
 
 	// if there's already a constraint, get rid of it first
 	if (ConstraintHandle.IsValid())
