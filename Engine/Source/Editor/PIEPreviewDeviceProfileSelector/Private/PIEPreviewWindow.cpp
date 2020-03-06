@@ -34,7 +34,7 @@ SPIEPreviewWindow::~SPIEPreviewWindow()
 
 TSharedRef<SWidget> SPIEPreviewWindow::MakeWindowTitleBar(const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment)
 {
-	/*TSharedRef<SPIEPreviewWindowTitleBar> */WindowTitleBar = SNew(SPIEPreviewWindowTitleBar, Window, CenterContent, EHorizontalAlignment::HAlign_Center)
+	WindowTitleBar = SNew(SPIEPreviewWindowTitleBar, Window, CenterContent, EHorizontalAlignment::HAlign_Center)
 		.Visibility(EVisibility::SelfHitTestInvisible);
 
 	return WindowTitleBar.ToSharedRef();

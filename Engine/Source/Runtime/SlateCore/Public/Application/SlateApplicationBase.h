@@ -28,6 +28,23 @@ enum class EInvalidateWidgetReason : uint8;
 
 template< typename ObjectType > class TAttribute;
 
+struct FWindowTitleBarArgs
+{
+	FWindowTitleBarArgs(const TSharedRef<SWindow>& InWindow)
+		: Window(InWindow)
+		, CenterContentAlignment(HAlign_Fill)
+	{}
+
+	/** The window to create the title bar for */
+	TSharedRef<SWindow> Window;
+	
+	/** Optional content for the title bar's center (will override window title) */
+	TSharedPtr<SWidget> CenterContent;
+
+	/** The horizontal alignment of the center content. */
+	EHorizontalAlignment CenterContentAlignment;
+};
+
 /**
  * Interface for window title bars.
  */
@@ -384,7 +401,17 @@ public:
 	 * @param OutTitleBar Will hold a pointer to the title bar's interface.
 	 * @return The new title bar widget.
 	 */
-	virtual TSharedRef<SWidget> MakeWindowTitleBar( const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment, TSharedPtr<IWindowTitleBar>& OutTitleBar ) const = 0;
+	UE_DEPRECATED(4.26, "This version of MakeWindowTitleBar has been deprecated. Use the version that takes in an FWindowTitleBarArgs parameter instead.")
+	virtual TSharedRef<SWidget> MakeWindowTitleBar(const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment, TSharedPtr<IWindowTitleBar>& OutTitleBar) const;
+
+	/**
+	 * Creates a title bar for the specified window.
+	 *
+	 * @param InArgs	The creation arguments for the titlebar
+	 * @param OutTitleBar Will hold a pointer to the title bar's interface.
+	 * @return The new title bar widget.
+	 */
+	virtual TSharedRef<SWidget> MakeWindowTitleBar( const FWindowTitleBarArgs& InArgs, TSharedPtr<IWindowTitleBar>& OutTitleBar ) const = 0;
 
 	/**
 	 * Destroying windows has implications on some OSs (e.g. destroying Win32 HWNDs can cause events to be lost).
