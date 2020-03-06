@@ -83,6 +83,11 @@ FSoundFieldDecoder::FSoundFieldDecoder()
 
 void FSoundFieldDecoder::DecodeAudioDirectlyToDeviceOutputPositions(const FAmbisonicsSoundfieldBuffer& InputData, const FSoundfieldSpeakerPositionalData& OutputPositions, Audio::AlignedFloatBuffer& OutputData)
 {
+	if (InputData.NumChannels == 0 || InputData.AudioBuffer.Num() == 0)
+	{
+		FMemory::Memzero(OutputData.GetData(), OutputData.Num() * sizeof(float));
+		return;
+	}
 
 	constexpr const float DEG_2_RAD = PI / 180.0f;
 
@@ -278,6 +283,7 @@ void FSoundFieldDecoder::DecodeAudioToSevenOneAndDownmixToDevice(const FAmbisoni
 {
 	if (InputData.NumChannels == 0 || InputData.AudioBuffer.Num() == 0)
 	{
+		FMemory::Memzero(OutputData.GetData(), OutputData.Num() * sizeof(float));
 		return;
 	}
 

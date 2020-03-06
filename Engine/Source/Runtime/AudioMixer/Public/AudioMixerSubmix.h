@@ -250,6 +250,8 @@ namespace Audio
 		// Encode a source and sum it into the mixed soundfield.
 		void MixInSource(const ISoundfieldAudioPacket& InAudio, const ISoundfieldEncodingSettingsProxy& InSettings, ISoundfieldAudioPacket& PacketToSumTo);
 
+		void UpdateListenerRotation(const FQuat& InRotation);
+
 		// Calls ProcessAudio on the child submix, performs all neccessary conversions and mixes in it's resulting audio.
 		void MixInChildSubmix(FChildSubmixInfo& Child, ISoundfieldAudioPacket& PacketToSumTo);
 

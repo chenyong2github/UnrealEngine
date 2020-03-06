@@ -49,13 +49,27 @@ private:
 	FQuat PreviousRotation = FQuat::Identity;
 
 	FAmbisonicsSoundfieldBuffer RotatedAudio;
+	Audio::AlignedFloatBuffer DecoderOutputBuffer;
 
 public:
 	virtual ~FAmbisonicsSoundfieldDecoder() {};
 
 	virtual void Decode(const FSoundfieldDecoderInputData& InputData, FSoundfieldDecoderOutputData& OutputData) override
 	{
-		DecodeAndMixIn(InputData, OutputData);
+		const FAmbisonicsSoundfieldBuffer& InputAudio = DowncastSoundfieldRef<const FAmbisonicsSoundfieldBuffer>(InputData.SoundfieldBuffer);
+		const FSoundfieldSpeakerPositionalData& OutputPositions = InputData.PositionalData;
+		Audio::AlignedFloatBuffer& OutputAudio = OutputData.AudioBuffer;
+
+		const FAmbisonicsSoundfieldBuffer* AudioToDecode = &InputAudio;
+
+		if (VirtualIntermediateChannelsCvar)
+		{
+			Decoder.DecodeAudioToSevenOneAndDownmixToDevice(*AudioToDecode, OutputPositions, OutputAudio);
+		}
+		else
+		{
+			Decoder.DecodeAudioDirectlyToDeviceOutputPositions(*AudioToDecode, OutputPositions, OutputAudio);
+		}
 	}
 
 
@@ -67,24 +81,19 @@ public:
 
 		const FAmbisonicsSoundfieldBuffer* AudioToDecode = &InputAudio;
 
-		const bool bShouldRotateOutsideOfDecoder = false;
-		if (bShouldRotateOutsideOfDecoder && InputAudio.NumChannels == 4)
-		{
-			RotatedAudio.AudioBuffer.Reset();
-			RotatedAudio.AudioBuffer.AddUninitialized(InputAudio.AudioBuffer.Num());
-			RotatedAudio.NumChannels = InputAudio.NumChannels;
-			FSoundFieldDecoder::RotateFirstOrderAmbisonicsBed(InputAudio, RotatedAudio, OutputPositions.Rotation, PreviousRotation);
-			AudioToDecode = &RotatedAudio;
-		}
+		DecoderOutputBuffer.Reset();
+		DecoderOutputBuffer.AddUninitialized(OutputData.AudioBuffer.Num());
 
 		if (VirtualIntermediateChannelsCvar)
 		{
-			Decoder.DecodeAudioToSevenOneAndDownmixToDevice(*AudioToDecode, OutputPositions, OutputAudio);
+			Decoder.DecodeAudioToSevenOneAndDownmixToDevice(*AudioToDecode, OutputPositions, DecoderOutputBuffer);
 		}
 		else
 		{
-			Decoder.DecodeAudioDirectlyToDeviceOutputPositions(*AudioToDecode, OutputPositions, OutputAudio);
+			Decoder.DecodeAudioDirectlyToDeviceOutputPositions(*AudioToDecode, OutputPositions, DecoderOutputBuffer);
 		}
+
+		Audio::MixInBufferFast(DecoderOutputBuffer, OutputAudio);
 	}
 };
 
@@ -166,7 +175,7 @@ public:
 };
 
 /**
- * Class that sums together two ambisonics streams.
+ * Class that sums an ambisonics stream into an output stream, rotating the ambisonics stream as necessary to get the ambisonics field in world coordinates.
  */
 class FAmbisonicsMixer : public ISoundfieldMixerStream
 {
@@ -181,7 +190,7 @@ public:
 		const FAmbisonicsSoundfieldBuffer& InAudio = DowncastSoundfieldRef<const FAmbisonicsSoundfieldBuffer>(InputData.InputPacket);
 		FAmbisonicsSoundfieldBuffer& OutAudio = DowncastSoundfieldRef<FAmbisonicsSoundfieldBuffer>(PacketToSumTo);
 
-		// Lazily initialize our output packet.
+		// Lazily initialize our output and rotated packet.
 		if (OutAudio.NumChannels == 0)
 		{
 			OutAudio.NumChannels = InAudio.NumChannels;
