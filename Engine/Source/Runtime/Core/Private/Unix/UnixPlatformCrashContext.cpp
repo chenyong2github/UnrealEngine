@@ -23,6 +23,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/StringBuilder.h"
 #include "HAL/PlatformMallocCrash.h"
 #include "Unix/UnixPlatformRealTimeSignals.h"
 #include "Unix/UnixPlatformRunnableThread.h"
@@ -377,6 +378,23 @@ namespace UnixCrashReporterTracker
 	}
 }
 
+void FUnixCrashContext::AddPlatformSpecificProperties() const
+{
+	AddCrashProperty(TEXT("CrashSignal"), Signal);
+
+	ANSICHAR* AnsiSignalName = strsignal(Signal);
+	if (AnsiSignalName != nullptr)
+	{
+		TStringBuilder<32> SignalName;
+		SignalName.AppendAnsi(AnsiSignalName);
+
+		AddCrashProperty(TEXT("CrashSignalName"), *SignalName);
+	}
+	else
+	{
+		AddCrashProperty(TEXT("CrashSignalName"), TEXT("Unknown"));
+	}
+}
 
 void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCrash) const
 {
@@ -715,6 +733,39 @@ extern int32 CORE_API GMaxNumberFileMappingCache;
 extern thread_local const TCHAR* GCrashErrorMessage;
 extern thread_local ECrashContextType GCrashErrorType;
 
+namespace
+{
+	ANSICHAR AnsiInternalBuffer[64] = { 0 };
+
+	// Taken from AndroidPlatformCrashContext.cpp, we need to avoid allocations while in the signal handler
+	const ANSICHAR* ItoANSI(uint64 Val, uint64 Base)
+	{
+		uint64 Index = 62;
+		int32 Pad = 0;
+		Base = FMath::Clamp<uint64>(Base, 2, 16);
+		if (Val)
+		{
+			for (; Val && Index; --Index, Val /= Base, --Pad)
+			{
+				AnsiInternalBuffer[Index] = "0123456789abcdef"[Val % Base];
+			}
+		}
+		else
+		{
+			AnsiInternalBuffer[Index--] = '0';
+			--Pad;
+		}
+
+		while (Pad > 0)
+		{
+			AnsiInternalBuffer[Index--] = '0';
+			--Pad;
+		}
+
+		return &AnsiInternalBuffer[Index + 1];
+	}
+}
+
 /** True system-specific crash handler that gets called first */
 void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 {
@@ -730,12 +781,24 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 	GMaxNumberFileMappingCache = 0;
 
 	ECrashContextType Type;
+	TStringBuilder<128> DefaultErrorMessage;
 	const TCHAR* ErrorMessage;
 
 	if (GCrashErrorMessage == nullptr)
 	{
 		Type = ECrashContextType::Crash;
-		ErrorMessage = TEXT("Caught signal");
+
+		DefaultErrorMessage.Append(TEXT("Caught signal "));
+		DefaultErrorMessage.AppendAnsi(ItoANSI(Signal, 10));
+
+		ANSICHAR* SignalName = strsignal(Signal);
+		if (SignalName != nullptr)
+		{
+			DefaultErrorMessage.Append(TEXT(" "));
+			DefaultErrorMessage.AppendAnsi(SignalName);
+		}
+
+		ErrorMessage = *DefaultErrorMessage;
 	}
 	else
 	{

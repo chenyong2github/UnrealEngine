@@ -107,6 +107,8 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	 */
 	void SetFirstCrashHandlerFrame(uint64* ProgramCounter);
 
+	void AddPlatformSpecificProperties() const;
+
 protected:
 	/**
 	 * Dumps all the data from crash context to the "minidump" report.
