@@ -430,7 +430,6 @@ namespace Chaos
 		GeometryCollectionPhysicsProxies.AddUnique(InProxy);
 		InProxy->SetSolver(this);
 		InProxy->Initialize();
-		InProxy->InitializeBodiesGT();
 		InProxy->NewData(); // Buffers data on the proxy.
 		FParticlesType* InParticles = &GetParticles();
 
