@@ -58,9 +58,10 @@ namespace Chaos
 		}
 
 		void SetAcceleration(const TVector<T, d>& Acceleration)
-		{
-			MAcceleration = Acceleration;
-		}
+		{ MAcceleration = Acceleration; }
+
+		const TVector<T, d>& GetAcceleration() const
+		{ return MAcceleration; }
 
 	private:
 		TVector<T, d> MAcceleration;
