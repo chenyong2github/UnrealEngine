@@ -106,15 +106,17 @@ public:
 
 	void GameThread_SetParent(UMaterialInterface* ParentMaterialInterface);
 
+	void InitMIParameters(struct FMaterialInstanceParameterSet& ParameterSet);
+
 	/**
 	 * Clears all parameters set on this material instance.
 	 */
 	void RenderThread_ClearParameters()
 	{
-		VectorParameterArray.Reset();
-		ScalarParameterArray.Reset();
-		TextureParameterArray.Reset();
-		RuntimeVirtualTextureParameterArray.Reset();
+		VectorParameterArray.Empty();
+		ScalarParameterArray.Empty();
+		TextureParameterArray.Empty();
+		RuntimeVirtualTextureParameterArray.Empty();
 		InvalidateUniformExpressionCache(false);
 	}
 
@@ -198,6 +200,14 @@ template <> FORCEINLINE const TArray<FMaterialInstanceResource::TNamedParameter<
 template <> FORCEINLINE const TArray<FMaterialInstanceResource::TNamedParameter<const UTexture*> >& FMaterialInstanceResource::GetValueArray() const { return TextureParameterArray; }
 template <> FORCEINLINE const TArray<FMaterialInstanceResource::TNamedParameter<const URuntimeVirtualTexture*> >& FMaterialInstanceResource::GetValueArray() const { return RuntimeVirtualTextureParameterArray; }
 
+struct FMaterialInstanceParameterSet
+{
+	TArray<FMaterialInstanceResource::TNamedParameter<float> > ScalarParameters;
+	TArray<FMaterialInstanceResource::TNamedParameter<FLinearColor> > VectorParameters;
+	TArray<FMaterialInstanceResource::TNamedParameter<const UTexture*> > TextureParameters;
+	TArray<FMaterialInstanceResource::TNamedParameter<const URuntimeVirtualTexture*> > RuntimeVirtualTextureParameters;
+};
+	
 /** Finds a parameter by name from the game thread. */
 template <typename ParameterType>
 ParameterType* GameThread_FindParameterByName(TArray<ParameterType>& Parameters, const FHashedMaterialParameterInfo& ParameterInfo)
