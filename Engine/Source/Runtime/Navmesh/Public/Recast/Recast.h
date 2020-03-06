@@ -925,9 +925,12 @@ NAVMESH_API void rcCacheSpans(rcContext* ctx, rcHeightfield& hf, rcSpanCache* ca
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag.
 ///  								[Limit: >= 0] [Units: vx]
+///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE4
+///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE4
 NAVMESH_API void rcRasterizeTriangle(rcContext* ctx, const float* v0, const float* v1, const float* v2,
 						 const unsigned char area, rcHeightfield& solid,
-						 const int flagMergeThr = 1);
+						 const int flagMergeThr = 1, 
+						 const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE4
 
 /// Rasterizes an indexed triangle mesh into the specified heightfield.
 ///  @ingroup recast
@@ -940,10 +943,12 @@ NAVMESH_API void rcRasterizeTriangle(rcContext* ctx, const float* v0, const floa
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
 ///  								[Limit: >= 0] [Units: vx]
-///  @param[in]     int				Flags to change the rasterization behavior		//UE4
+///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE4
+///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE4
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
 						  const int* tris, const unsigned char* areas, const int nt,
-						  rcHeightfield& solid, const int flagMergeThr = 1, const int rasterizationFlags = 0 /*UE4*/);
+						  rcHeightfield& solid, const int flagMergeThr = 1, 
+						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE4
 
 /// Rasterizes an indexed triangle mesh into the specified heightfield.
 ///  @ingroup recast
@@ -956,10 +961,12 @@ NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const 
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
 ///  								[Limit: >= 0] [Units: vx]
-///  @param[in]     int				Flags to change the rasterization behavior		//UE4
+///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE4
+///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE4
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
 						  const unsigned short* tris, const unsigned char* areas, const int nt,
-						  rcHeightfield& solid, const int flagMergeThr = 1, const int rasterizationFlags = 0 /*UE4*/);
+						  rcHeightfield& solid, const int flagMergeThr = 1, 
+						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE4
 
 /// Rasterizes triangles into the specified heightfield.
 ///  @ingroup recast
@@ -970,8 +977,11 @@ NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const 
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
 ///  								[Limit: >= 0] [Units: vx]
+///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE4
+///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE4
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const unsigned char* areas, const int nt,
-						  rcHeightfield& solid, const int flagMergeThr = 1);
+						  rcHeightfield& solid, const int flagMergeThr = 1,
+						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE4
 
 /// Marks non-walkable spans as walkable if their maximum is within @p walkableClimp of a walkable neighbor. 
 ///  @ingroup recast
