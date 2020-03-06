@@ -61,9 +61,9 @@ public:
 		return SampleRate;
 	}
 
-	FTimespan GetTime() const override
+	FMediaTimeStamp GetTime() const override
 	{
-		return Timestamp;
+		return FMediaTimeStamp(Timestamp);
 	}
 
 private:

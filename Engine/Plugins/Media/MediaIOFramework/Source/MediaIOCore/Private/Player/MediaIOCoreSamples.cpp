@@ -103,3 +103,10 @@ void FMediaIOCoreSamples::FlushSamples()
 	SubtitleSamples.FlushSamples();
 	VideoSamples.FlushSamples();
 }
+
+
+bool FMediaIOCoreSamples::PeekVideoSampleTime(FMediaTimeStamp & TimeStamp)
+{
+	// player does not support v2 timing control at this point -> no need for this method, yet
+	return false;
+}

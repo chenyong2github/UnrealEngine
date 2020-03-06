@@ -227,14 +227,16 @@ FTimespan UMediaPlayer::GetTime() const
 	return PlayerFacade->GetTime();
 }
 
-FTimespan UMediaPlayer::GetLastAudioSampleProcessedTime() const
+UMediaTimeStampInfo* UMediaPlayer::GetTimeStamp() const
 {
-	return PlayerFacade->GetLastAudioSampleProcessedTime();
-}
-
-FTimespan UMediaPlayer::GetLastVideoSampleProcessedTime() const
-{
-	return PlayerFacade->GetLastVideoSampleProcessedTime();
+	UMediaTimeStampInfo *TimeStampInfo = NewObject<UMediaTimeStampInfo>();
+	if (TimeStampInfo)
+	{
+		FMediaTimeStamp TimeStamp = PlayerFacade->GetTimeStamp();
+		TimeStampInfo->Time = TimeStamp.Time;
+		TimeStampInfo->SequenceIndex = TimeStamp.SequenceIndex;
+	}
+	return TimeStampInfo;
 }
 
 FText UMediaPlayer::GetTrackDisplayName(EMediaPlayerTrack TrackType, int32 TrackIndex) const

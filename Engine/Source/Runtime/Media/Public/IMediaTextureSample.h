@@ -11,6 +11,7 @@
 #include "Misc/Timecode.h"
 #include "Misc/Timespan.h"
 #include "Templates/SharedPointer.h"
+#include "IMediaTimeSource.h"
 
 #if WITH_ENGINE
 	class FRHITexture;
@@ -183,7 +184,7 @@ public:
 	 * @return Sample time.
 	 * @see GetBuffer, GetDim, GetDuration, GetFormat, GetOutputDim, GetStride, GetTexture
 	 */
-	virtual FTimespan GetTime() const = 0;
+	virtual FMediaTimeStamp GetTime() const = 0;
 
 	/**
 	 * Get the sample timecode if available.

@@ -334,7 +334,7 @@ void FMediaAudioResampler::Flush()
 }
 
 
-uint32 FMediaAudioResampler::Generate(float* Output, FTimespan& OutTime, const uint32 FramesRequested, float Rate, FTimespan Time, FMediaAudioSampleSource& SampleSource, uint32& JumpFrame)
+uint32 FMediaAudioResampler::Generate(float* Output, FMediaTimeStamp& OutTime, const uint32 FramesRequested, float Rate, FTimespan Time, FMediaAudioSampleSource& SampleSource, uint32& JumpFrame)
 {
 	JumpFrame = MAX_uint32;
 	if ((FramesRequested == 0) || (Output == nullptr) || (OutputSampleRate == 0))
@@ -351,10 +351,10 @@ uint32 FMediaAudioResampler::Generate(float* Output, FTimespan& OutTime, const u
 		{
 			double RateDirection = Rate > 0 ? 1 : -1;
 			TRange<FTimespan> ContiguousRange = TRange<FTimespan>::Inclusive(
-				InputTime + InputDuration * 0.5 * RateDirection,
-				InputTime + InputDuration * 1.5 * RateDirection);
+				InputTime.Time + InputDuration * 0.5 * RateDirection,
+				InputTime.Time + InputDuration * 1.5 * RateDirection);
 
-			FTimespan PreviousInputTime = InputTime;
+			FMediaTimeStamp PreviousInputTime = InputTime;
 			FTimespan PreviousInputDuration = InputDuration;
 
 			// fetch next sample
@@ -370,12 +370,12 @@ uint32 FMediaAudioResampler::Generate(float* Output, FTimespan& OutTime, const u
 			}
 
 			// Detect jumps in time (looping, fast forwarding, seeking)
-			bool bIsContiguous = ContiguousRange.Contains(InputTime);
+			bool bIsContiguous = ContiguousRange.Contains(InputTime.Time);
 			if (!bIsContiguous)
 			{
 				JumpFrame = FramesGenerated;
 			}
-			UE_LOG(LogMediaUtils, VeryVerbose, TEXT("[AUDIO DEQUEUE] PlayerTime: %s, SampleTime: %s, Contiguous: %d, Frames: %d"), *Time.ToString(), *InputTime.ToString(), bIsContiguous, NextSample->GetFrames());
+			UE_LOG(LogMediaUtils, VeryVerbose, TEXT("[AUDIO DEQUEUE] PlayerTime: %s, SampleTime: %s, Contiguous: %d, Frames: %d"), *Time.ToString(), *InputTime.Time.ToString(), bIsContiguous, NextSample->GetFrames());
 		}
 
 		check(Input.Num() > 0);
@@ -391,7 +391,8 @@ uint32 FMediaAudioResampler::Generate(float* Output, FTimespan& OutTime, const u
 
 		// calculate output time
 		const float InputOffset = (FrameIndex + FrameAlpha) / InputFrames;
-		OutTime = InputTime + InputOffset * InputDuration;
+		OutTime.Time = InputTime.Time + InputOffset * InputDuration;
+		OutTime.SequenceIndex = InputTime.SequenceIndex;
 
 		// invert buffer if rate reversed
 		if ((Rate * LastRate) < 0.0f)
@@ -621,7 +622,7 @@ void FMediaAudioResampler::ClearInput()
 	InputDuration = FTimespan::Zero();
 	InputFrames = 0;
 	InputSampleRate = 0;
-	InputTime = FTimespan::Zero();
+	InputTime = FMediaTimeStamp(FTimespan::Zero());
 
 	LastRate = 0.0f;
 }

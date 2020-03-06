@@ -12,6 +12,7 @@
 #include "Templates/SharedPointer.h"
 #include "TextureResource.h"
 #include "UnrealClient.h"
+#include "IMediaTimeSource.h"
 
 class FMediaPlayerFacade;
 class IMediaPlayer;
@@ -78,7 +79,10 @@ public:
 		uint8 NumMips;
 
 		/** The time of the video frame to render (in player's clock). */
-		FTimespan Time;
+		FMediaTimeStamp Time;
+
+		/** Explicit texture sample to render - if set time will be ignored */
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> TextureSample;
 	};
 
 	/**
@@ -128,6 +132,8 @@ protected:
 	 */
 	void ConvertSample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips);
 
+	void ConvertTextureToOutput(FRHITexture2D* InputTexture, const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, bool SrgbOutput);
+
 	/**
 	 * Render the given texture sample by using it as or copying it to the render target.
 	 *
@@ -166,6 +172,9 @@ protected:
 
 	/** Copy to local buffer from external texture */
 	void CopyFromExternalTexture(const TSharedPtr <IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FGuid & TextureGUID);
+
+	bool RequiresConversion(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, bool SrgbOutput, uint8 numMips) const;
+	bool RequiresConversion(const FTexture2DRHIRef& SampleTexture, const FIntPoint & OutputDim, bool SrgbOutput, uint8 numMips) const;
 
 private:
 

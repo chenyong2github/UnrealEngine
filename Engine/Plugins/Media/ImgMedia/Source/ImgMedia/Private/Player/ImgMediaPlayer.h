@@ -99,6 +99,7 @@ protected:
 
 	virtual bool FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual void FlushSamples() override;
+	virtual bool PeekVideoSampleTime(FMediaTimeStamp & TimeStamp) override;
 
 protected:
 

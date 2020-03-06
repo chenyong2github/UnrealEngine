@@ -194,7 +194,7 @@ public:
 
 
 /**
- * Pixel shader to convert a NV12 frame to RGBA.
+ * Pixel shader to convert a NV12 frame to RGBA. (from NV12 texture)
  *
  * This shader expects an NV12 frame packed into a single texture in PF_G8 format.
  *
@@ -215,6 +215,36 @@ public:
 	FNV12ConvertPS() { }
 
 	FNV12ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{ }
+
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FIntPoint & TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+};
+
+
+/**
+ * Pixel shader to convert a NV12 frame to RGBA (NV12 data; texture viewed as G8)
+ *
+ * This shader expects an NV12 frame packed into a single texture in PF_G8 format.
+ *
+ * @see http://www.fourcc.org/yuv.php#NV12
+ */
+class FNV12ConvertAsBytesPS
+	: public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FNV12ConvertPS, Global, RENDERCORE_API);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+	}
+
+	FNV12ConvertAsBytesPS() { }
+
+	FNV12ConvertAsBytesPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{ }
 
