@@ -47,21 +47,21 @@ public:
 	 * @param	InData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
 	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
 	 */
-	virtual void PutCachedData(const TCHAR* CacheKey, TArray<uint8>& InData, bool bPutEvenIfExists) override;
+	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 
 	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
 
 	/**
 	 * Save the cache to disk
 	 * @param	Filename	Filename to save
-	 * @return	true if file was saved sucessfully
+	 * @return	true if file was saved successfully
 	 */
 	bool SaveCache(const TCHAR* Filename);
 
 	/**
 	 * Load the cache from disk
 	 * @param	Filename	Filename to load
-	 * @return	true if file was loaded sucessfully
+	 * @return	true if file was loaded successfully
 	 */
 	bool LoadCache(const TCHAR* Filename);
 
@@ -81,9 +81,9 @@ private:
 	{
 		int32 Age;
 		TArray<uint8> Data;
-		FCacheValue(const TArray<uint8>& InData, int32 InAge = 0)
+		FCacheValue(TArrayView<const uint8> InData, int32 InAge = 0)
 			: Age(InAge)
-			, Data(InData)
+			, Data(InData.GetData(), InData.Num())
 		{
 		}
 	};
