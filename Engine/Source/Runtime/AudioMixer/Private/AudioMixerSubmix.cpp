@@ -45,6 +45,7 @@ namespace Audio
 		, CurrentDryLevel(0.0f)
 		, TargetDryLevel(0.0f)
 		, EnvelopeNumChannels(0)
+		, NumSubmixEffects(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
 		, OwningSubmixObject(nullptr)
@@ -110,13 +111,17 @@ namespace Audio
 			CurrentDryLevel = FMath::Clamp(SoundSubmix->DryLevel, 0.0f, 1.0f);
 			TargetDryLevel = CurrentDryLevel;
 
+			NumSubmixEffects = 0;
+
 			for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
 			{
 				if (EffectPreset)
 				{
+					++NumSubmixEffects;
+
 					// Create a new effect instance using the preset
 					FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
-				
+
 					FSoundEffectSubmixInitData InitData;
 					InitData.DeviceID = MixerDevice->DeviceID;
 					InitData.SampleRate = MixerDevice->GetSampleRate();
@@ -272,7 +277,7 @@ namespace Audio
 
 	void FMixerSubmix::RemoveChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr)
 	{
-		TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixStrongPtr  = SubmixWeakPtr.Pin();
+		TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixStrongPtr = SubmixWeakPtr.Pin();
 		if (!SubmixStrongPtr.IsValid())
 		{
 			return;
@@ -303,6 +308,11 @@ namespace Audio
 	}
 
 	int32 FMixerSubmix::GetNumEffects() const
+	{
+		return NumSubmixEffects;
+	}
+
+	int32 FMixerSubmix::GetSizeOfSubmixChain() const
 	{
 		return EffectSubmixChain.Num();
 	}
@@ -353,6 +363,8 @@ namespace Audio
 		Info.PresetId = SubmixPresetId;
 		Info.EffectInstance = InSoundEffectSubmix;
 
+		++NumSubmixEffects;
+
 		EffectSubmixChain.Add(Info);
 	}
 
@@ -369,10 +381,26 @@ namespace Audio
 				// Reset reference to the effect
 				Effect.EffectInstance.Reset();
 				Effect.PresetId = INDEX_NONE;
-				return;
+
+				--NumSubmixEffects;
 			}
 		}
+	}
 
+	void FMixerSubmix::RemoveSoundEffectSubmixAtIndex(int32 InIndex)
+	{
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+		if (InIndex >= 0 && InIndex < EffectSubmixChain.Num())
+		{
+			FSubmixEffectInfo& Effect = EffectSubmixChain[InIndex];
+			if (Effect.EffectInstance.IsValid())
+			{
+				Effect.EffectInstance.Reset();
+				Effect.PresetId = INDEX_NONE;
+				--NumSubmixEffects;
+			}
+		}
 	}
 
 	void FMixerSubmix::ClearSoundEffectSubmixes()
@@ -388,6 +416,7 @@ namespace Audio
 			}
 		}
 
+		NumSubmixEffects = 0;
 		EffectSubmixChain.Reset();
 	}
 

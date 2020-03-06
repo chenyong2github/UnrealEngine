@@ -107,6 +107,9 @@ namespace Audio
 		// Returns the number of wet effects in this submix.
 		int32 GetNumEffects() const;
 
+		// Returns the size of the submix chain. 
+		int32 GetSizeOfSubmixChain() const;
+
 		// Add (if not already added) or sets the amount of the source voice's send amount
 		void AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float SendLevel);
 
@@ -118,6 +121,9 @@ namespace Audio
 
 		/** Removes the submix effect from the effect submix chain. */
 		void RemoveSoundEffectSubmix(uint32 SubmixPresetId);
+
+		/** Removes the submix effect from the effect submix chain at the given submix index. */
+		void RemoveSoundEffectSubmixAtIndex(int32 InIndex);
 
 		/** Clears all submix effects from the effect submix chain. */
 		void ClearSoundEffectSubmixes();
@@ -459,6 +465,9 @@ namespace Audio
 
 		// This buffer is used for recorded output of the submix.
 		AlignedFloatBuffer RecordingData;
+
+		// Returns the number of submix effects
+		int32 NumSubmixEffects;
 
 		// Bool set to true when this submix is recording data.
 		uint8 bIsRecording : 1;

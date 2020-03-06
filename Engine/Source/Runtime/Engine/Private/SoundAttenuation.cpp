@@ -107,7 +107,8 @@ bool FSoundAttenuationSettings::operator==(const FSoundAttenuationSettings& Othe
 			&& HPFFrequencyAtMax		== Other.HPFFrequencyAtMax
 			&& HPFFrequencyAtMin		== Other.HPFFrequencyAtMin
 			&& bEnableLogFrequencyScaling == Other.bEnableLogFrequencyScaling
-			&& bEnableListenerFocus == Other.bEnableListenerFocus
+			&& bEnableSubmixSends 		== Other.bEnableSubmixSends
+			&& bEnableListenerFocus 	== Other.bEnableListenerFocus
 			&& FocusAzimuth				== Other.FocusAzimuth
 			&& NonFocusAzimuth			== Other.NonFocusAzimuth
 			&& FocusDistanceScale		== Other.FocusDistanceScale
