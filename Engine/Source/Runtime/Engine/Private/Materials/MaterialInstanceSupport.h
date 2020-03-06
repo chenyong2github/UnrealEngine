@@ -31,7 +31,9 @@ void RecacheMaterialInstanceUniformExpressions(const UMaterialInterface* ParentM
 class FMICReentranceGuard
 {
 public:
-
+#if !WITH_EDITOR
+	FMICReentranceGuard(const UMaterialInstance* InMaterial) {}
+#else
 	FMICReentranceGuard(const UMaterialInstance* InMaterial)
 	{
 		Material = const_cast<UMaterialInstance*>(InMaterial);
@@ -53,6 +55,7 @@ public:
 
 private:
 	UMaterialInstance* Material;
+#endif // WITH_EDITOR
 };
 
 /**

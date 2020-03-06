@@ -18,8 +18,10 @@ class UMaterialExpressionFeatureLevelSwitch : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput Default;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FExpressionInput Inputs[ERHIFeatureLevel::Num];
+#endif
 
 	//~ Begin UObject Interface.
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;

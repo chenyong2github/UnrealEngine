@@ -15,21 +15,15 @@ class UMaterialExpressionTextureSampleParameterCube : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
-
-
-
-	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
+	//~ Begin UMaterialExpression Interface
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-#endif
 	//~ End UMaterialExpression Interface
 
 	//~ Begin UMaterialExpressionTextureSampleParameter Interface
 	virtual bool TextureIsValid(UTexture* InTexture, FString& OutMessage) override;
 	virtual void SetDefaultTexture() override;
 	//~ End UMaterialExpressionTextureSampleParameter Interface
+#endif // WITH_EDITOR
 };
-
-
-
