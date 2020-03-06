@@ -6,6 +6,9 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableViewBase.h"
+#include "SearchModel.h"
+#include "AssetThumbnail.h"
+#include "Widgets/Views/STreeView.h"
 
 class IDetailsView;
 class ITableRow;
