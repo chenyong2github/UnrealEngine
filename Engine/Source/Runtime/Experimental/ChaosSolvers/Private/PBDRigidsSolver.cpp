@@ -811,9 +811,11 @@ namespace Chaos
 		}
 	}
 
-	// This function is not called.  FPhysScene_ChaosInterface::EndFrame() calls 
+	// This function is not called during normal Engine execution.  
+	// FPhysScene_ChaosInterface::EndFrame() calls 
 	// FPhysScene_ChaosInterface::SyncBodies() instead, and then immediately afterwards 
-	// calls FPBDRigidsSovler::SyncEvents_GameThread().
+	// calls FPBDRigidsSovler::SyncEvents_GameThread().  This function is used by tests,
+	// however.
 	void FPBDRigidsSolver::UpdateGameThreadStructures()
 	{
 		//ensure(IsInGameThread());

@@ -338,10 +338,11 @@ void PopulateSimulatedParticle(
 //==============================================================================
 
 FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
-	UObject* InOwner, 
-	const FSimulationParameters & SimulationParameters,
-	FInitFunc InInitFunc, 
-	FCacheSyncFunc InCacheSyncFunc, 
+	UObject* InOwner,
+	FGeometryDynamicCollection& GameThreadCollectionIn,
+	const FSimulationParameters& SimulationParameters,
+	FInitFunc InInitFunc,
+	FCacheSyncFunc InCacheSyncFunc,
 	FFinalSyncFunc InFinalSyncFunc,
 	const Chaos::EMultiBufferMode BufferMode)
 	: Base(InOwner)
@@ -360,6 +361,8 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	, FinalSyncFunc(InFinalSyncFunc)
 
 	, CollisionParticlesPerObjectFraction(CollisionParticlesPerObjectFractionDefault)
+
+	, GameThreadCollection(GameThreadCollectionIn)
 {
 	// We rely on a guarded buffer.
 	check(BufferMode == Chaos::EMultiBufferMode::TripleGuarded);
@@ -396,13 +399,10 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 	//	
 	//  Give clients the opportunity to update the parameters before the simualtion is setup. 
 	//
-	Parameters.DynamicCollection = &DynamicCollection;
 	if (InitFunc)
 	{
 		InitFunc(Parameters);
 	}
-	Parameters.DynamicCollection = nullptr; // safty setup to prevent usage of the Parameters.DynamicCollection. 
-
 
 	//
 	// Collision vertices down sampling validation.  
@@ -944,7 +944,6 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	check(CollectionClusterIndex != INDEX_NONE);
 	check(ChildHandles.Num() != 0);
 
-	check(Parameters.DynamicCollection);
 	FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 	TManagedArray<int32>& DynamicState = DynamicCollection.DynamicState;
 	TManagedArray<int32>& ParentIndex = DynamicCollection.Parent;
@@ -1659,7 +1658,6 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
 
 	// We pulled state out of particles.  Push results into PTDynamicCollection, 
 	// so that it has an updated view.
-	UpdateGeometryCollection(TargetResults);
 }
 
 void FGeometryCollectionPhysicsProxy::FlipBuffer()
@@ -1686,13 +1684,14 @@ void FGeometryCollectionPhysicsProxy::PullFromPhysicsState()
 	 * Note: A read lock will have been acquired for this - so the physics thread won't force a buffer flip while this
 	 * sync is ongoing
 	 */
-	FGeometryDynamicCollection& DynamicCollection = GameThreadCollection;
 
 	const FGeometryCollectionResults* TargetResultPtr = PhysToGameInterchange.GetConsumerBuffer();
 	if (!TargetResultPtr)
 		return;
 	// Remove const-ness as we're going to do the ExchangeArrays() thing.
 	FGeometryCollectionResults& TR = *const_cast<FGeometryCollectionResults*>(TargetResultPtr);
+
+	FGeometryDynamicCollection& DynamicCollection = GameThreadCollection;
 
 	// We should never be changing the number of entries, this would break other 
 	// attributes in the transform group.
@@ -1721,7 +1720,10 @@ void FGeometryCollectionPhysicsProxy::PullFromPhysicsState()
 void FGeometryCollectionPhysicsProxy::UpdateGeometryCollection( const FGeometryCollectionResults& GCResults, FGeometryDynamicCollection* Collection)
 {
 	check(IsInGameThread());
-	if (!Collection) return;
+	if (!Collection)
+	{
+		Collection = &GameThreadCollection;
+	}
 
 	TManagedArray<FTransform>& Transform = Collection->Transform;
 	TManagedArray<int32>& Parent = Collection->Parent;
@@ -2750,10 +2752,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPhysicsS
 
 void FGeometryCollectionPhysicsProxy::ParameterUpdateCallback(FParticlesType& Particles, const float Time)
 {
-	FGeometryDynamicCollection* Collection = Parameters.DynamicCollection;
-	check(Collection);
-
-	if (Collection->Transform.Num())
+	if (GameThreadCollection.Transform.Num())
 	{
 		ProcessCommands(Particles, Time);
 	}
