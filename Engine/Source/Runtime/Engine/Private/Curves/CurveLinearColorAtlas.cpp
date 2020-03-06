@@ -84,6 +84,11 @@ void UCurveLinearColorAtlas::PostEditChangeProperty(struct FPropertyChangedEvent
 void UCurveLinearColorAtlas::PostLoad()
 {
 #if WITH_EDITOR
+	if (FApp::CanEverRender())
+	{
+		FinishCachePlatformData();
+	}
+
 	for (int32 i = 0; i < GradientCurves.Num(); ++i)
 	{
 		if (GradientCurves[i] != nullptr)
