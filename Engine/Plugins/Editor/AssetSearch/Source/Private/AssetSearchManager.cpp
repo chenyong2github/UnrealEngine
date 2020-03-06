@@ -49,10 +49,14 @@ FAssetSearchManager::FAssetSearchManager()
 	PendingDownloads = 0;
 	TotalSearchRecords = 0;
 	LastRecordCountUpdateSeconds = 0;
+
+	RunThread = false;
 }
 
 FAssetSearchManager::~FAssetSearchManager()
 {
+	RunThread = false;
+
 	{
 		FScopeLock ScopedLock(&SearchDatabaseCS);
 		FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
@@ -84,6 +88,9 @@ void FAssetSearchManager::Start()
 	AssetRegistry.GetAllAssets(ProcessAssetQueue, true);
 
 	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAssetSearchManager::Tick_GameThread), 0);
+
+	RunThread = true;
+	DatabaseThread = FRunnableThread::Create(this, TEXT("UniversalSearch"), 0, TPri_BelowNormal);
 }
 
 FSearchStats FAssetSearchManager::GetStats() const
@@ -111,6 +118,7 @@ void FAssetSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 void FAssetSearchManager::OnObjectSaved(UObject* InObject)
 {
 	check(IsInGameThread());
+
 	if (!GIsCookerLoadingPackage)
 	{
 		StoreIndexForAsset(InObject);
@@ -120,6 +128,7 @@ void FAssetSearchManager::OnObjectSaved(UObject* InObject)
 void FAssetSearchManager::OnAssetLoaded(UObject* InObject)
 {
 	check(IsInGameThread());
+
 	if (bIndexUnindexAssetsOnLoad)
 	{
 		RequestIndexAsset(InObject);
@@ -156,7 +165,8 @@ void FAssetSearchManager::RequestIndexAsset(UObject* InAsset)
 
 	FAssetData AssetData(InAsset);
 	FString AssetJsonDDCKey = TryGetDDCKeyForAsset(InAsset);
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, AssetData, AssetWeakPtr, AssetJsonDDCKey]() {
+
+	UpdateOperations.Enqueue([this, AssetData, AssetWeakPtr, AssetJsonDDCKey]() {
 		FScopeLock ScopedLock(&SearchDatabaseCS);
 		if (!SearchDatabase.IsAssetUpToDate(AssetData, AssetJsonDDCKey))
 		{
@@ -222,7 +232,7 @@ bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAsset)
 	if (!AssetJsonDDCKey.IsEmpty())
 	{
 		PendingDownloads++;
-		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, InAsset, AssetJsonDDCKey]() {
+		FeedOperations.Enqueue([this, InAsset, AssetJsonDDCKey]() {
 			FScopeLock ScopedLock(&SearchDatabaseCS);
 			if (!SearchDatabase.IsAssetUpToDate(InAsset, AssetJsonDDCKey))
 			{
@@ -337,7 +347,7 @@ void FAssetSearchManager::AddOrUpdateAsset(const FAssetData& InAssetData, const 
 	check(IsInGameThread());
 
 	PendingDatabaseUpdates++;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, InAssetData, IndexedJson, DerivedDataKey]() {
+	UpdateOperations.Enqueue([this, InAssetData, IndexedJson, DerivedDataKey]() {
 		FScopeLock ScopedLock(&SearchDatabaseCS);
 		SearchDatabase.AddOrUpdateAsset(InAssetData, IndexedJson, DerivedDataKey);
 		PendingDatabaseUpdates--;
@@ -387,7 +397,7 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 	{
 		LastRecordCountUpdateSeconds = FPlatformTime::Seconds();
 
-		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this]() {
+		ImmediateOperations.Enqueue([this]() {
 			FScopeLock ScopedLock(&SearchDatabaseCS);
 			TotalSearchRecords = SearchDatabase.GetTotalSearchRecords();
 		});
@@ -396,11 +406,33 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 	return true;
 }
 
+uint32 FAssetSearchManager::Run()
+{
+	Tick_DatabaseOperationThread();
+	return 0;
+}
+
+void FAssetSearchManager::Tick_DatabaseOperationThread()
+{
+	while (RunThread)
+	{
+		TFunction<void()> Operation;
+		if (ImmediateOperations.Dequeue(Operation) || FeedOperations.Dequeue(Operation) || UpdateOperations.Dequeue(Operation))
+		{
+			Operation();
+		}
+		else
+		{
+			FPlatformProcess::Sleep(0.1);
+		}
+	}
+}
+
 void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback)
 {
 	check(IsInGameThread());
 
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, Query, InCallback]() {
+	ImmediateOperations.Enqueue([this, Query, InCallback]() {
 
 		TArray<FSearchRecord> Results;
 

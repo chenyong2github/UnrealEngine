@@ -7,6 +7,7 @@
 #include "K2Node_Variable.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Utility/IndexerUtilities.h"
+#include "K2Node_BaseMCDelegate.h"
 
 #define LOCTEXT_NAMESPACE "FBlueprintIndexer"
 
@@ -58,24 +59,15 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 			
 			if (UK2Node_CallFunction* FunctionNode = Cast<UK2Node_CallFunction>(Node))
 			{
-				if (UFunction* TargetFunction = FunctionNode->GetTargetFunction())
-				{
-					Serializer.IndexProperty(TEXT("TargetFunction"), TargetFunction->GetName());
-				}
+				IndexMemberReference(Serializer, FunctionNode->FunctionReference, TEXT("Function"));
 			}
-			if (UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node))
+			else if (UK2Node_BaseMCDelegate* DelegateNode = Cast<UK2Node_BaseMCDelegate>(Node))
 			{
-				const FMemberReference& VariableReference = VariableNode->VariableReference;
-
-				Serializer.IndexProperty(TEXT("MemberName"), VariableReference.GetMemberName().ToString());
-				if (VariableReference.GetMemberGuid().IsValid())
-				{
-					Serializer.IndexProperty(TEXT("MemberGuid"), VariableReference.GetMemberGuid().ToString(EGuidFormats::Digits));
-				}
-				if (UClass* MemberParentClass = VariableReference.GetMemberParentClass())
-				{
-					Serializer.IndexProperty(TEXT("MemberParent"), MemberParentClass->GetPathName());
-				}
+				IndexMemberReference(Serializer, DelegateNode->DelegateReference, TEXT("Delegate"));
+			}
+			else if (UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node))
+			{
+				IndexMemberReference(Serializer, VariableNode->VariableReference, TEXT("Variable"));
 				//Serializer.WriteValue(TEXT("bSelfContext"), VariableReference.IsSelfContext());
 			}
 
@@ -95,6 +87,21 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 
 			Serializer.EndIndexingObject();
 		}
+	}
+}
+
+void FBlueprintIndexer::IndexMemberReference(FSearchSerializer& Serializer, const FMemberReference& MemberReference, const FString& MemberType)
+{
+	Serializer.IndexProperty(MemberType + TEXT("Name"), MemberReference.GetMemberName());
+
+	if (MemberReference.GetMemberGuid().IsValid())
+	{
+		Serializer.IndexProperty(MemberType + TEXT("Guid"), MemberReference.GetMemberGuid().ToString(EGuidFormats::Digits));
+	}
+
+	if (UClass* MemberParentClass = MemberReference.GetMemberParentClass())
+	{
+		Serializer.IndexProperty(MemberType + TEXT("Parent"), MemberParentClass->GetPathName());
 	}
 }
 

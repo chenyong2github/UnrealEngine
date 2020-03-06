@@ -151,6 +151,11 @@ void FSearchSerializer::IndexProperty(const FString& InName, const FText& InValu
 	IndexProperty(*FTextProperty::StaticClass(), nullptr, InName, *FTextInspector::GetSourceString(InValue));
 }
 
+void FSearchSerializer::IndexProperty(const FString& InName, const FName& InValue)
+{
+	IndexProperty(*FNameProperty::StaticClass(), nullptr, InName, InValue.ToString());
+}
+
 void FSearchSerializer::IndexProperty(const FString& InName, const FString& InValue)
 {
 	IndexProperty(*FStrProperty::StaticClass(), nullptr, InName, InValue);
