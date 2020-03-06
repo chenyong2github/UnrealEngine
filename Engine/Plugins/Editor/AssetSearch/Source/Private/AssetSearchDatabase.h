@@ -79,6 +79,11 @@ public:
 	 */
 	bool EnumerateSearchResults(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback);
 
+	/**
+	 * Get the total number of records.
+	 */
+	int64 GetTotalSearchRecords() const;
+
 private:
 	void LogLastError() const;
 
