@@ -1130,6 +1130,18 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 		return !(*this == Other);
 	}
 
+	/** Checks if the types match and either both variables are uninitialized or both hold exactly the same data.*/
+	bool HoldsSameData(const FNiagaraVariable& Other) const
+	{
+		if (TypeDef != Other.TypeDef) {
+			return false;
+		}
+		if (!IsDataAllocated() && !Other.IsDataAllocated()) {
+			return true;
+		}
+		return IsDataAllocated() && Other.IsDataAllocated() && VarData.Num() == Other.VarData.Num() && FMemory::Memcmp(VarData.GetData(), Other.VarData.GetData(), VarData.Num()) == 0;
+	}
+
 	// Var data operations
 	void AllocateData()
 	{

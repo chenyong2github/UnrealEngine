@@ -269,6 +269,9 @@ void UNiagaraGraph::PostLoad()
 			//UE_LOG(LogNiagaraEditor, Log, TEXT("Migrated %d old metadata entries for \"%s\""), NumMigrated, *FullPathName);
 		}
 	}
+
+	// Fix inconsistencies in the default value declaration between graph and metadata
+	ValidateDefaultPins();
 	
 	{
 		// Create a UNiagaraScriptVariable instance for every entry in the parameter map for which there is no existing script variable. 
@@ -279,8 +282,6 @@ void UNiagaraGraph::PostLoad()
 			if (Variable == nullptr)
 			{
 				VarsToAdd.Add(ParameterToReferences.Key);
- 
- 
 			}
 		}
 		for (FNiagaraVariable& Var : VarsToAdd)
@@ -377,6 +378,110 @@ void UNiagaraGraph::PostLoad()
 	}
 
 	InvalidateCachedParameterData();
+}
+
+TArray<UEdGraphPin*> UNiagaraGraph::FindParameterMapDefaultValuePins(const FName VariableName) const
+{
+	TArray<UEdGraphPin*> DefaultPins;
+
+	for (UEdGraphNode* Node : Nodes)
+	{
+		UNiagaraNodeOutput* OutNode = Cast<UNiagaraNodeOutput>(Node);
+		if (!OutNode)
+		{
+			continue;
+		}
+		TArray<UNiagaraNode*> NodesTraversed;
+		BuildTraversal(NodesTraversed, OutNode);
+
+		for (UNiagaraNode* NiagaraNode : NodesTraversed)
+		{
+			UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(NiagaraNode);
+			if (!GetNode)
+			{
+				continue;
+			}
+			TArray<UEdGraphPin*> OutputPins;
+			GetNode->GetOutputPins(OutputPins);
+			for (UEdGraphPin* OutputPin : OutputPins)
+			{
+				if (VariableName != OutputPin->PinName)
+				{
+					continue;
+				}
+				if (UEdGraphPin* Pin = GetNode->GetDefaultPin(OutputPin))
+				{
+					check(Pin->Direction == EEdGraphPinDirection::EGPD_Input);
+					DefaultPins.AddUnique(Pin);
+				}
+			}
+		}
+	}
+	return DefaultPins;
+}
+
+void UNiagaraGraph::ValidateDefaultPins()
+{
+	FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
+	for (auto& MetaData : GetAllMetaData()) {
+		FNiagaraVariable Variable = MetaData.Key;
+		UNiagaraScriptVariable* ScriptVariable = MetaData.Value;
+		if (!ScriptVariable || ScriptVariable->DefaultMode == ENiagaraDefaultMode::Custom) {
+			// If the user selected custom mode they can basically do whatever they want
+			continue;
+		}
+		if (ScriptVariable->Metadata.bIsStaticSwitch) {
+			// We ignore static switch variables as they handle default values differently
+			continue;
+		}
+
+		// Determine if the values set in the graph (which are used for the compilation) are consistent and if necessary update the metadata value
+		TArray<UEdGraphPin*> Pins = FindParameterMapDefaultValuePins(Variable.GetName());
+		bool IsCustom = false;
+		bool IsConsistent = true;
+		bool DefaultInitialized = false;
+		FNiagaraVariable DefaultData;
+		auto TypeUtilityValue = EditorModule.GetTypeUtilities(Variable.GetType());
+		for (UEdGraphPin* Pin : Pins) {
+			if (Pin->LinkedTo.Num() > 0) {
+				IsCustom = true;
+			}
+			else if (!Pin->bHidden && TypeUtilityValue) {
+				FNiagaraVariable ComparisonData = Variable;
+				TypeUtilityValue->SetValueFromPinDefaultString(Pin->DefaultValue, ComparisonData);
+				if (!DefaultInitialized) {
+					DefaultData = ComparisonData;
+					DefaultInitialized = true;
+				}
+				else if (!ComparisonData.HoldsSameData(DefaultData)) {
+					IsConsistent = false;
+				}
+			}
+		}
+
+		if (!IsCustom && !IsConsistent) {
+			UE_LOG(LogNiagaraEditor, Error, TEXT("Niagara graph %s: The default value declaration for the variable '%s' is not consistent between the graph and the metadata.\n  Either change the default mode to 'custom' or check the input pins in the parameter map get node in the graph."),
+				*GetFullName(), *Variable.GetName().ToString());
+			continue;
+		}
+		if (IsCustom) {
+			ScriptVariable->DefaultMode = ENiagaraDefaultMode::Custom;
+		}
+		else {
+			for (UEdGraphPin* Pin : Pins) {
+				Pin->bNotConnectable = true;
+				Pin->bDefaultValueIsReadOnly = true;
+				if (ScriptVariable->DefaultMode == ENiagaraDefaultMode::Binding) {
+					Pin->bHidden = true;
+				}
+
+			}
+			if (DefaultInitialized) {
+				// set default value from pins
+				ScriptVariable->Variable = DefaultData;
+			}
+		}
+	}
 }
 
 void UNiagaraGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -1116,11 +1221,8 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 	SetPerScriptMetaData(NewParameter, OldMetaData);
 
 	// Fixup reference collection and pin names
-	FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(Parameter);
-	int NumReferences = 0;
-	if (ReferenceCollection)
+	if (FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(Parameter))
 	{
-		NumReferences = ReferenceCollection->ParameterReferences.Num();
 		const FText NewNameText = FText::FromName(NewName);
 		FNiagaraGraphParameterReferenceCollection NewReferences = *ReferenceCollection;
 		for (FNiagaraGraphParameterReference& Reference : NewReferences.ParameterReferences)
@@ -1145,6 +1247,42 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 
 	NotifyGraphChanged();
 	return true;
+}
+
+void UNiagaraGraph::ScriptVariableChanged(FNiagaraVariable Variable)
+{
+	UNiagaraScriptVariable** ScriptVariable = GetAllMetaData().Find(Variable);
+	if (!ScriptVariable || !*ScriptVariable || (*ScriptVariable)->Metadata.bIsStaticSwitch) {
+		return;
+	}
+
+	FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
+	auto TypeUtilityValue = EditorModule.GetTypeUtilities(Variable.GetType());
+
+	TArray<UEdGraphPin*> Pins = FindParameterMapDefaultValuePins(Variable.GetName());
+	for (UEdGraphPin* Pin : Pins) {
+		Pin->bHidden = (*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Binding;
+		if ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Custom) {
+			Pin->bNotConnectable = false;
+			Pin->bDefaultValueIsReadOnly = false;
+		}
+		else {
+			Pin->BreakAllPinLinks(true);
+			Pin->bNotConnectable = true;
+			Pin->bDefaultValueIsReadOnly = true;
+
+			if ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Value && !Variable.GetType().IsDataInterface()) {
+				if (!Variable.IsDataAllocated()) {
+					Variable.AllocateData();
+				}
+				FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable);
+				GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
+			}
+		}
+	}
+
+	ValidateDefaultPins();
+	NotifyGraphChanged();
 }
 
 int32 UNiagaraGraph::GetOutputNodeVariableIndex(const FNiagaraVariable& Variable)const
