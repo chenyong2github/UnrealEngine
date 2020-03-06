@@ -1788,11 +1788,11 @@ const FSlateBrush* SMaterialLayersFunctionsMaterialTreeItem::GetBorderImage() co
 	}
 }
 
-void SMaterialLayersFunctionsMaterialTreeItem::RefreshOnRowChange(const FAssetData& AssetData, SMaterialLayersFunctionsInstanceTree* InTree)
+void SMaterialLayersFunctionsMaterialTreeItem::RefreshOnRowChange(const FAssetData& AssetData, SMaterialLayersFunctionsMaterialTree* InTree)
 {
-	if (SMaterialLayersFunctionsInstanceWrapper* Wrapper = InTree->GetWrapper())
+	if (SMaterialLayersFunctionsMaterialWrapper* Wrapper = InTree->GetWrapper())
 	{
-		InTree->CreateGroupsWidget();
+		InTree->CreateGroupsWidget(false);
 	}
 }
 
@@ -2466,7 +2466,7 @@ void SMaterialLayersFunctionsMaterialTree::Construct(const FArguments& InArgs)
 	ColumnWidth = 0.5f;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Wrapper = InArgs._InWrapper;
-	CreateGroupsWidget();
+	CreateGroupsWidget(true);
 
 #ifdef WITH_EDITOR
 	//Fixup for adding new bool arrays to the class
@@ -2560,10 +2560,13 @@ TSharedPtr<class FAssetThumbnailPool> SMaterialLayersFunctionsMaterialTree::GetT
 	return Wrapper->GetGenerator()->GetGeneratedThumbnailPool();
 }
 
-void SMaterialLayersFunctionsMaterialTree::CreateGroupsWidget()
+void SMaterialLayersFunctionsMaterialTree::CreateGroupsWidget(const bool bRegenerateArray)
 {
 	check(MaterialEditorInstance);
-	MaterialEditorInstance->RegenerateArrays();
+	if (bRegenerateArray)
+	{
+		MaterialEditorInstance->RegenerateArrays();
+	}
 	NonLayerProperties.Empty();
 	LayerProperties.Empty();
 	FunctionParameter = nullptr;
@@ -2900,11 +2903,11 @@ void SMaterialLayersFunctionsMaterialTree::ShowSubParameters(TSharedPtr<FSortedP
 	}
 }
 
-void SMaterialLayersFunctionsMaterialWrapper::Refresh()
+void SMaterialLayersFunctionsMaterialWrapper::Refresh(const bool bRegenerateArray)
 {
 	LayerParameter = nullptr;
 	TSharedPtr<SHorizontalBox> HeaderBox;
-	NestedTree->CreateGroupsWidget();
+	NestedTree->CreateGroupsWidget(bRegenerateArray);
 	LayerParameter = NestedTree->FunctionParameter;
 
 	if (LayerParameter != nullptr)
