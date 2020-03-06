@@ -51,6 +51,8 @@ private:
 	void AppendResult(FSearchRecord&& InResult);
 
 	void OnSearchTextCommited(const FText& InText, ETextCommit::Type InCommitType);
+	void OnSearchTextChanged(const FText& InText);
+	void TryRefreshingSearch(const FText& InText);
 
 	TSharedRef<ITableRow> HandleListGenerateRow(TSharedPtr<FSearchNode> TransactionInfo, const TSharedRef<STableViewBase>& OwnerTable);
 	void GetChildrenForInfo(TSharedPtr<FSearchNode> InInfo, TArray< TSharedPtr<FSearchNode> >& OutChildren);

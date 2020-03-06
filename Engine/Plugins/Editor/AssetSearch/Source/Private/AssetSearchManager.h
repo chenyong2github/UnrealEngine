@@ -20,7 +20,7 @@ public:
 
 	FSearchStats GetStats() const;
 
-	bool Search(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback);
+	void Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback);
 
 private:
 	bool Tick_GameThread(float DeltaTime);
