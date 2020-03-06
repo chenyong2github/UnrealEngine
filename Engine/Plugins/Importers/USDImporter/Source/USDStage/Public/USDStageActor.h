@@ -31,6 +31,7 @@ class IMeshBuilderModule;
 class ULevelSequence;
 class UMaterial;
 class UUsdAsset;
+enum class EMapChangeType : uint8;
 enum class EUsdPurpose : int32;
 struct FMeshDescription;
 struct FUsdSchemaTranslationContext;
@@ -127,20 +128,23 @@ private:
 
 	void RefreshVisibilityBasedOnPurpose();
 
-	void OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin );
+#if WITH_EDITOR
+	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
+#endif // WITH_EDITOR
+
+	void OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin );
 
 	void OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
 	bool HasAutorithyOverStage() const;
 
 private:
-	FUsdPrimTwin RootUsdTwin;
+	UPROPERTY(Transient)
+	UUsdPrimTwin* RootUsdTwin;
 
-	TWeakObjectPtr< ALevelSequenceActor > LevelSequenceActor;
-
-	TMultiMap< FString, FDelegateHandle > PrimDelegates;
-
+	UPROPERTY(Transient)
 	TSet< FString > PrimsToAnimate;
 
+	UPROPERTY(Transient)
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
@@ -159,8 +163,8 @@ public:
 	FUsdListener& GetUsdListener() { return UsdListener; }
 	const FUsdListener& GetUsdListener() const { return UsdListener; }
 
-	FUsdPrimTwin* GetOrCreatePrimTwin( const pxr::SdfPath& UsdPrimPath );
-	FUsdPrimTwin* ExpandPrim( const pxr::UsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext );
+	UUsdPrimTwin* GetOrCreatePrimTwin( const pxr::SdfPath& UsdPrimPath );
+	UUsdPrimTwin* ExpandPrim( const pxr::UsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext );
 	void UpdatePrim( const pxr::SdfPath& UsdPrimPath, bool bResync, FUsdSchemaTranslationContext& TranslationContext );
 
 protected:
