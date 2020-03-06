@@ -460,13 +460,10 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 	FSkeletalMeshAccessorHelper Accessor;
 	Accessor.Init<TIntegralConstant<int32, 0>, TIntegralConstant<int32, 0>>(InstData);
 
-	const FReferenceSkeleton& RefSkel = Accessor.Mesh->RefSkeleton;
-
-	const int32 BoneMax = RefSkel.GetNum() - 1;
-	const int32 BoneAndSocketMax = BoneMax + InstData->SpecificSockets.Num();
+	const int32 BoneCount = SkinningHandler.GetBoneCount(Accessor, bInterpolated::Value);
+	const int32 BoneAndSocketCount = BoneCount + InstData->SpecificSockets.Num();
 	float InvDt = 1.0f / InstData->DeltaSeconds;
 
-	const int32 SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
 	const TArray<FTransform>& SpecificSocketCurrTransforms = InstData->GetSpecificSocketsCurrBuffer();
 	const TArray<FTransform>& SpecificSocketPrevTransforms = InstData->GetSpecificSocketsPrevBuffer();
 
@@ -476,17 +473,17 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 
 		// Determine bone or socket
 		int32 RawBone = BoneParam.GetAndAdvance();
-		int32 Bone = FMath::Clamp(RawBone, 0, BoneAndSocketMax);
-		const bool bIsSocket = Bone > BoneMax;
-		const int32 Socket = Bone - SpecificSocketBoneOffset;
+		int32 Bone = FMath::Clamp(RawBone, 0, BoneAndSocketCount - 1);
+		const bool bIsSocket = Bone >= BoneCount;
+		const int32 Socket = Bone - BoneCount;
 
 		FVector Pos;
 		FVector Prev;
 		FVector Velocity;
 
 		// Handle edge cases first...
-		if ((!bIsSocket && Bone >= BoneMax) ||
-			(bIsSocket && (Socket >= SpecificSocketCurrTransforms.Num() || Socket < 0)))
+		if ((!bIsSocket && Bone >= BoneCount) ||
+			(bIsSocket && !SpecificSocketCurrTransforms.IsValidIndex(Socket)))
 		{
 			Pos = FVector::ZeroVector;
 			TransformHandler.TransformPosition(Pos, InstanceTransform);
@@ -607,10 +604,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSpecificSocketBoneAt(FVectorVMContext
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSocketBone(Context);
-	const TArray<FName>& SpecificSocketsArray = InstData->SpecificSockets;
 	const int32 SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
+	const int32 Max = SpecificSockets.Num() - 1;
 
-	int32 Max = SpecificSockets.Num() - 1;
 	if (Max != INDEX_NONE)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)

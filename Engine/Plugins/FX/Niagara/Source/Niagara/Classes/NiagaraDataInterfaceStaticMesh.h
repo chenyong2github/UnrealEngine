@@ -117,8 +117,6 @@ struct FNDIStaticMesh_InstanceData
 
 	//Cached ComponentToWorld from previous tick.
 	FMatrix PrevTransform;
-	//InverseTranspose of above for transforming normals/tangents.
-	FMatrix PrevTransformInverseTransposed;
 
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;

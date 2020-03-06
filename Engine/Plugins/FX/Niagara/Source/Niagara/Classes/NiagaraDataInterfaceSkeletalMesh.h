@@ -95,6 +95,7 @@ struct FSkeletalMeshSkinningData
 		, DeltaSeconds(.0333f)
 		, CurrIndex(0)
 		, BoneMatrixUsers(0)
+		, bForceDataRefresh(false)
 	{}
 
 	void RegisterUser(FSkeletalMeshSkinningDataUsage Usage);
@@ -104,12 +105,24 @@ struct FSkeletalMeshSkinningData
 
 	bool Tick(float InDeltaSeconds, bool bRequirePreskin = true);
 
-	FORCEINLINE FVector GetPosition(int32 LODIndex, int32 VertexIndex)const
+	FORCEINLINE int32 GetBoneCount(bool RequiresPrevious) const
+	{
+		int32 BoneCount = FMath::Min(CurrBoneRefToLocals().Num(), CurrComponentTransforms().Num());
+
+		if (RequiresPrevious)
+		{
+			BoneCount = FMath::Min3(BoneCount, PrevBoneRefToLocals().Num(), PrevComponentTransforms().Num());
+		}
+
+		return BoneCount;
+	}
+
+	FORCEINLINE FVector GetPosition(int32 LODIndex, int32 VertexIndex) const
 	{
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex][VertexIndex];
 	}
 
-	FORCEINLINE FVector GetPreviousPosition(int32 LODIndex, int32 VertexIndex)const
+	FORCEINLINE FVector GetPreviousPosition(int32 LODIndex, int32 VertexIndex) const
 	{
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1][VertexIndex];
 	}
@@ -129,7 +142,17 @@ struct FSkeletalMeshSkinningData
 		return BoneRefToLocals[CurrIndex];
 	}
 
+	FORCEINLINE const TArray<FMatrix>& CurrBoneRefToLocals() const
+	{
+		return BoneRefToLocals[CurrIndex];
+	}
+
 	FORCEINLINE TArray<FMatrix>& PrevBoneRefToLocals()
+	{
+		return BoneRefToLocals[CurrIndex ^ 1];
+	}
+
+	FORCEINLINE const TArray<FMatrix>& PrevBoneRefToLocals() const
 	{
 		return BoneRefToLocals[CurrIndex ^ 1];
 	}
@@ -139,7 +162,17 @@ struct FSkeletalMeshSkinningData
 		return ComponentTransforms[CurrIndex];
 	}
 
+	FORCEINLINE const TArray<FTransform>& CurrComponentTransforms() const
+	{
+		return ComponentTransforms[CurrIndex];
+	}
+
 	FORCEINLINE TArray<FTransform>& PrevComponentTransforms()
+	{
+		return ComponentTransforms[CurrIndex ^ 1];
+	}
+
+	FORCEINLINE const TArray<FTransform>& PrevComponentTransforms() const
 	{
 		return ComponentTransforms[CurrIndex ^ 1];
 	}
@@ -404,8 +437,6 @@ struct FNDISkeletalMesh_InstanceData
 
 	//Cached ComponentToWorld from previous tick.
 	FMatrix PrevTransform;
-	//InverseTranspose of above for transforming normals/tangents.
-	FMatrix PrevTransformInverseTransposed;
 
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;
