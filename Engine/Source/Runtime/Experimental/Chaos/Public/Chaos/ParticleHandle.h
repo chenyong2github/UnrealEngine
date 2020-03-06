@@ -1620,7 +1620,7 @@ public:
 private:
 
 #if CHAOS_CHECKED
-	FName MDebugName;
+	TParticleProperty<FName, EParticleProperty::DebugName> MDebugName;
 #endif
 
 protected:
