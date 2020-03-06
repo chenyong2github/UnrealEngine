@@ -20,6 +20,7 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
+#include "SAnimSequenceCurveEditor.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_Curve"
 
@@ -194,7 +195,12 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curve::GenerateContainerWidgetForTimeline
 	{
 		FRichCurve* Curve = Curves[CurveIndex];
 
-		TUniquePtr<FRichCurveEditorModelRaw> NewCurveModel = MakeUnique<FRichCurveEditorModelRaw>(Curve, GetModel()->GetAnimSequenceBase());
+		FSmartName Name;
+		ERawCurveTrackTypes Type;
+		int32 EditIndex;
+		GetCurveEditInfo(CurveIndex, Name, Type, EditIndex);
+
+		TUniquePtr<FRichCurveEditorModelNamed> NewCurveModel = MakeUnique<FRichCurveEditorModelNamed>(Name, Type, EditIndex, GetModel()->GetAnimSequenceBase());
 		NewCurveModel->SetColor(GetCurveColor(CurveIndex));
 		NewCurveModel->SetIsKeyDrawEnabled(MakeAttributeLambda([](){ return GetDefault<UPersonaOptions>()->bTimelineDisplayCurveKeys; }));
 		CurveEditor->AddCurve(MoveTemp(NewCurveModel));
