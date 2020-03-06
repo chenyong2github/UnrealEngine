@@ -1138,7 +1138,7 @@ void UDataprepParameterization::RemoveBindedObjectProperty(UDataprepParameteriza
 	}
 }
 
-void UDataprepParameterization::RemoveBindingFromObjects(TArray<UDataprepParameterizableObject*> Objects)
+void UDataprepParameterization::RemoveBindingFromObjects(const TArrayView<UDataprepParameterizableObject*>& Objects)
 {
 	Modify();
 	TSet<FName> ParameterPotentiallyRemoved;

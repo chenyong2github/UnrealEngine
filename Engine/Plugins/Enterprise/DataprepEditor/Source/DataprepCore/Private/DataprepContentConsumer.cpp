@@ -2,9 +2,9 @@
 
 #include "DataprepContentConsumer.h"
 
-#include "DataprepAssetUserData.h"
 #include "DataprepAssetInterface.h"
-#include "DataprepCorePrivateUtils.h"
+#include "DataprepAssetUserData.h"
+#include "DataprepCoreUtils.h"
 
 #include "EditorLevelUtils.h"
 #include "Engine/Level.h"
@@ -192,7 +192,7 @@ void UDataprepContentConsumer::AddDataprepAssetUserData()
 	}
 
 	TArray< AActor* > ActorsInWorld;
-	DataprepCorePrivateUtils::GetActorsFromWorld( Context.WorldPtr.Get(), ActorsInWorld );
+	FDataprepCoreUtils::GetActorsFromWorld( Context.WorldPtr.Get(), ActorsInWorld );
 
 	for( AActor* Actor : ActorsInWorld )
 	{

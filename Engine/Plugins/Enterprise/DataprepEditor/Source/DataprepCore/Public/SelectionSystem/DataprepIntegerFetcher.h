@@ -27,7 +27,7 @@ public:
 	 * @return The fetched float
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	int Fetch(const UObject* Object, bool& bOutFetchSucceded) const;
+	int32 Fetch(const UObject* Object, bool& bOutFetchSucceded) const;
 
 	/**
 	 * This function is the same has Fetch, but it's the extension point for an operation defined in c++.
@@ -36,7 +36,7 @@ public:
 	 * @param bOutFetchSucceded If the fetcher managed to retrieve a float from the object this bool must be set to true
 	 * @return The fetched float
 	 */
-	virtual int Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
+	virtual int32 Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
 	{
 		bOutFetchSucceded = false;
 		return {};

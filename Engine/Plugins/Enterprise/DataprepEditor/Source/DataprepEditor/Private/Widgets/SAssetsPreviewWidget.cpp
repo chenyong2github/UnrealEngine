@@ -10,139 +10,57 @@
 #include "SAssetSearchBox.h"
 #include "Misc/PackageName.h"
 
+#include "Math/UnrealMathUtility.h"
 #include "UObject/UObjectBaseUtility.h"
 
 #define LOCTEXT_NAMESPACE "AssetPreviewWidget"
 
 namespace AssetPreviewWidget
 {
-	struct FAssetTreeItem
-	{
-		// This is used to accelerate the construction of the tree in the set assets function
-		TMap< FString, FAssetTreeItemPtr> NameToFolder;
-
-		// Childrens
-		TArray< FAssetTreeItemPtr > Folders;
-		TArray< FAssetTreeItemPtr > Assets;
-
-		FString Name;
-		TWeakObjectPtr< UObject > AssetPtr;
-
-		TWeakPtr< SAssetsPreviewWidget > OwnerWeakPtr;
-
-		// This value is cache for the last result for the filter function
-		bool bPassedFilter;
-
-		void AddFolder(FAssetTreeItemPtr Folder)
-		{
-			if (Folder)
-			{
-				NameToFolder.Add(Folder->Name, Folder);
-				Folders.Add(Folder);
-			}
-		}
-
-		bool IsFolder() const
-		{
-			if (Folders.Num() > 0 || Assets.Num() > 0)
-			{
-				return true;
-			}
-			return false;
-		}
-
-		bool Filter(const FText& FilterText)
-		{
-			bPassedFilter = false;
-			if (FilterText.IsEmpty())
-			{
-				bPassedFilter = true;
-			}
-
-			if (IsFolder())
-			{
-				// A folder pass the filter if one of his child pass the filter
-				for (FAssetTreeItemPtr& Folder : Folders)
-				{
-					bPassedFilter = Folder->Filter(FilterText) || bPassedFilter;
-				}
-				for (FAssetTreeItemPtr& Asset : Assets)
-				{
-					bPassedFilter = Asset->Filter(FilterText) || bPassedFilter;
-				}
-			}
-			else if (!bPassedFilter && OwnerWeakPtr.IsValid())
-			{
-				TArray< FString > FilterStrings;
-				FilterText.ToString().ParseIntoArray(FilterStrings, TEXT(" "));
-
-				TSharedPtr< SAssetsPreviewWidget > OwnerWidget = OwnerWeakPtr.Pin();
-				TArray< FString > ItemsName = OwnerWidget->GetItemsName(AssetPtr);
-
-				// All the keywords must be pass for at least one of the items name in the hierarchy
-				bool bPassKeyWord = false;
-				for (const FString& KeyWord : FilterStrings)
-				{
-					bPassKeyWord = false;
-					for (const FString& ItemName : ItemsName)
-					{
-						if (ItemName.Contains(KeyWord))
-						{
-							bPassKeyWord = true;
-							break;
-						}
-					}
-					if (!bPassKeyWord)
-					{
-						break;
-					}
-				}
-
-				bPassedFilter = bPassKeyWord;
-
-			}
-
-			return bPassedFilter;
-		}
-	};
-
-	/** Represents a row in the AssetPreview's tree view */
-	class SAssetPreviewTableRow : public STableRow<FAssetTreeItemPtr>
+	/** This is the default column of the asset preview it contains the label and icon of the assets and folder */
+	class FAssetPreviewDefaultColumn : public IAssetPreviewColumn
 	{
 	public:
-		SLATE_BEGIN_ARGS(SAssetPreviewTableRow) {}
-		SLATE_END_ARGS()
-
-		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, FAssetTreeItemPtr InItem, TSharedRef< const SAssetsPreviewWidget > InPreviewWidget)
+		virtual uint8 GetCulumnPositionPriorityIndex() const override
 		{
-			FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
-			FolderClosedBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
-			AssetIconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+			return 128;
+		}
 
-			PreviewWidgetWeakPtr = InPreviewWidget;
-			ItemWeakPtr = InItem;
+		virtual FName GetColumnID() const override
+		{
+			return ColumnID;
+		}
+
+		virtual SHeaderRow::FColumn::FArguments ConstructHeaderRowColumn(const TSharedRef<SAssetsPreviewWidget>& PreviewWidget) override
+		{
+			return SHeaderRow::Column( ColumnID )
+				.DefaultLabel( LOCTEXT("AssetLabel_HeaderText", "Asset") )
+				.FillWidth( 5.0f );
+		}
+
+		virtual const TSharedRef< SWidget > ConstructRowWidget(const IAssetTreeItemPtr& TreeItem, const STableRow<IAssetTreeItemPtr>& Row, const TSharedRef<SAssetsPreviewWidget>& PreviewWidget) override
+		{
+			PreviewWidgetWeakPtr = PreviewWidget;
 
 			FSlateColor IconColor(FLinearColor::White);
-			TWeakObjectPtr< UObject > AssetPtr = InItem->AssetPtr;
-			if (AssetPtr.IsValid())
-			{
-				static FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-				TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetPtr->GetClass()).Pin();
 
-				if (AssetTypeActions.IsValid())
+			if ( !TreeItem->IsFolder() )
+			{
+				FAssetTreeAssetItem& AssetItem = static_cast<FAssetTreeAssetItem&>( *TreeItem.Get() );
+				UObject* Asset = AssetItem.AssetPtr.Get();
+				if ( Asset )
 				{
-					IconColor = FSlateColor(AssetTypeActions->GetTypeColor());
+					static FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>( TEXT("AssetTools") );
+					TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass( Asset->GetClass() ).Pin();
+
+					if ( AssetTypeActions.IsValid() )
+					{
+						IconColor = FSlateColor( AssetTypeActions->GetTypeColor() );
+					}
 				}
 			}
 
-			STableRow::Construct(
-				STableRow::FArguments()
-				.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
-				.Cursor(EMouseCursor::Default),
-				OwnerTableView);
-
-
-			TSharedRef< SHorizontalBox > Widget = SNew(SHorizontalBox)
+			return SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(0, 0, 2, 0)
@@ -150,7 +68,7 @@ namespace AssetPreviewWidget
 				[
 					// Item icon
 					SNew(SImage)
-					.Image(this, &SAssetPreviewTableRow::GetIconBrush)
+					.Image( this, &FAssetPreviewDefaultColumn::GetIconBrush, TreeItem )
 					.ColorAndOpacity(IconColor)
 				]
 
@@ -158,41 +76,141 @@ namespace AssetPreviewWidget
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				[
-					SNew(STextBlock)
-					.Text(FText::FromString(*(InItem->Name)))
-					.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTreeItemFont"))
-					.HighlightText(PreviewWidgetWeakPtr.Pin().Get(), &SAssetsPreviewWidget::OnGetHighlightText)
+					SNew( STextBlock )
+					.Text( FText::FromString( *( TreeItem->Name ) ) )
+					.Font( FEditorStyle::GetFontStyle("ContentBrowser.SourceTreeItemFont") )
+					.HighlightText( PreviewWidget, &SAssetsPreviewWidget::OnGetHighlightText )
 				];
-
-			SetContent(Widget);
 		}
 
-	private:
-		const FSlateBrush* GetIconBrush() const
+		const FSlateBrush* GetIconBrush(IAssetTreeItemPtr TreeItem) const
 		{
 			const FSlateBrush* IconBrush = AssetIconBrush;
-			if (ItemWeakPtr.Pin()->IsFolder())
+			if ( TreeItem->IsFolder() )
 			{
-				const bool bExpanded = PreviewWidgetWeakPtr.Pin()->GetTreeView()->IsItemExpanded(ItemWeakPtr.Pin());
-				IconBrush = bExpanded ? FolderOpenBrush : FolderClosedBrush;
+				const bool bExpanded = PreviewWidgetWeakPtr.Pin()->GetTreeView()->IsItemExpanded( TreeItem );
+				return bExpanded ? FolderOpenBrush : FolderClosedBrush;
 			}
 			return IconBrush;
 		}
 
+		virtual void PopulateSearchStrings(const IAssetTreeItemPtr& Item, TArray<FString>& OutSearchStrings, const SAssetsPreviewWidget& AssetPreview) const
+		{
+			if ( !Item->IsFolder() )
+			{
+				OutSearchStrings.Append( AssetPreview.GetItemsName( static_cast<FAssetTreeAssetItem*>( Item.Get() )->AssetPtr ) );
+			}
+		}
+
+		virtual void SortItems(TArray<IAssetTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode) const
+		{
+			if ( SortMode == EColumnSortMode::Ascending )
+			{
+				OutItems.Sort( [](const IAssetTreeItemPtr& First, const IAssetTreeItemPtr& Second) { return First->Name < Second->Name; } );
+			}
+			
+			if ( SortMode == EColumnSortMode::Descending )
+			{
+				OutItems.Sort( [](const IAssetTreeItemPtr& First, const IAssetTreeItemPtr& Second) { return First->Name > Second->Name; } );
+			}
+		}
+
+		static const FName ColumnID;
+
 	private:
 		/** Brushes for the different folder states */
-		const FSlateBrush* FolderOpenBrush;
-		const FSlateBrush* FolderClosedBrush;
-		const FSlateBrush* AssetIconBrush;
+		static const FSlateBrush* FolderOpenBrush;
+		static const FSlateBrush* FolderClosedBrush;
+		static const FSlateBrush* AssetIconBrush;
 
-		FAssetTreeItemWeakPtr ItemWeakPtr;
+		TWeakPtr<SAssetsPreviewWidget> PreviewWidgetWeakPtr;
+	};
+
+	const FName FAssetPreviewDefaultColumn::ColumnID =  FName("DefaultColumn");
+	const FSlateBrush* FAssetPreviewDefaultColumn::FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
+	const FSlateBrush* FAssetPreviewDefaultColumn::FolderClosedBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
+	const FSlateBrush* FAssetPreviewDefaultColumn::AssetIconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+
+
+	/** Represents a row in the AssetPreview's tree view */
+	class SAssetPreviewTableRow : public SMultiColumnTableRow<IAssetTreeItemPtr>
+	{
+	public:
+		SLATE_BEGIN_ARGS(SAssetPreviewTableRow) {}
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, IAssetTreeItemPtr InItem, TSharedRef< SAssetsPreviewWidget > InPreviewWidget)
+		{
+			PreviewWidgetWeakPtr = InPreviewWidget;
+			ItemWeakPtr = InItem;
+
+			SMultiColumnTableRow<IAssetTreeItemPtr>::Construct(
+				STableRow::FArguments()
+				.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+				.Cursor(EMouseCursor::Default),
+				OwnerTableView);
+		}
+
+
+		virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+		{
+			auto ItemPtr = ItemWeakPtr.Pin();
+			if ( !ItemPtr.IsValid() )
+			{
+				return SNullWidget::NullWidget;
+			}
+
+			TSharedRef<SAssetsPreviewWidget> AssetPreview = PreviewWidgetWeakPtr.Pin().ToSharedRef();
+			TSharedRef<SWidget> NewItemWidget = SNullWidget::NullWidget;
+
+			auto Column = AssetPreview->GetColumn( ColumnName );
+			if ( Column.IsValid() )
+			{
+				NewItemWidget = Column->ConstructRowWidget( ItemPtr.ToSharedRef(), *this, AssetPreview );
+			}
+
+			if( ColumnName == FAssetPreviewDefaultColumn::ColumnID )
+			{
+				// The first column gets the tree expansion arrow for this row
+				return
+					SNew( SHorizontalBox )
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(6, 0, 0, 0)
+					[
+						SNew( SExpanderArrow, SharedThis(this) ).IndentAmount(12)
+					]
+
+					+SHorizontalBox::Slot()
+					.FillWidth( 1.0f )
+					[
+						NewItemWidget
+					];
+			}
+			else
+			{
+				// Other columns just get widget content -- no expansion arrow needed
+				return NewItemWidget;
+			}
+		}
+
+	private:
+
+	private:
+		IAssetTreeItemWeakPtr ItemWeakPtr;
 
 		/** Weak reference back to the preview widget that owns us */
-		TWeakPtr< const SAssetsPreviewWidget > PreviewWidgetWeakPtr;
+		TWeakPtr< SAssetsPreviewWidget > PreviewWidgetWeakPtr;
 	};
 
 	void SAssetsPreviewWidget::Construct(const FArguments& InArgs)
 	{
+		HeaderRow = SNew(SHeaderRow)
+			.Visibility( EVisibility::Visible );
+
+		SetupColumns();
+
 		ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -217,12 +235,12 @@ namespace AssetPreviewWidget
 			]
 
 			+ SVerticalBox::Slot()
-			//.AutoHeight()
-			.Padding(2.f)
+			.Padding( 0, 0, 0, 2 )
 			[
-				SAssignNew(TreeView, STreeView< FAssetTreeItemPtr >)
-				.SelectionMode( ESelectionMode::Single )
-				.TreeItemsSource(&FilteredRootItems)
+				SAssignNew(TreeView, STreeView<IAssetTreeItemPtr>)
+				.SelectionMode(ESelectionMode::Single)
+				.TreeItemsSource(&RootItems)
+				.HeaderRow(HeaderRow)
 				.OnGenerateRow(this, &SAssetsPreviewWidget::MakeRowWidget)
 				.OnSetExpansionRecursive(this, &SAssetsPreviewWidget::OnSetExpansionRecursive)
 				.OnGetChildren(this, &SAssetsPreviewWidget::OnGetChildren)
@@ -233,210 +251,168 @@ namespace AssetPreviewWidget
 
 	void SAssetsPreviewWidget::SetAssetsList(const TArray< TWeakObjectPtr< UObject > >& InAssetsList, const FString& InPathToReplace, const FString& InSubstitutePath)
 	{
-		PathToReplace = InPathToReplace;
+		PathPrefixToRemove = InPathToReplace;
 		SubstitutePath = InSubstitutePath;
-		RootItems.Empty();
-		TMap< FString, FAssetTreeItemPtr > NamesToRootItem;
 
 		// Make sure the root dir is displayed as "Content".
 		// This is more descriptive for the end user.
 		TArray<FString> Tokens;
 		const FString StrContent = TEXT("Content");
-		SubstitutePath.ParseIntoArray(Tokens, TEXT("/"));
-		if (Tokens.Num() > 0 && !Tokens[0].Equals(StrContent))
+		SubstitutePath.ParseIntoArray( Tokens, TEXT("/") );
+		if ( Tokens.Num() > 0 && !Tokens[0].Equals( StrContent ) )
 		{
 			const int32 StartChar = SubstitutePath.Find(Tokens[0]);
 			SubstitutePath.RemoveAt(StartChar, Tokens[0].Len(), false);
 			SubstitutePath.InsertAt(StartChar, StrContent);
 		}
 
-		for (const TWeakObjectPtr< UObject >& Asset : InAssetsList)
+
+		UnFilteredAssets.Empty( InAssetsList.Num() );
+		for ( const TWeakObjectPtr< UObject >& Asset : InAssetsList )
 		{
-			if (Asset.Get())
+			if ( Asset.Get() )
 			{
-				TArray< FString > ItemsName = GetItemsName(Asset);
-
-				if (ItemsName.Num() > 0)
-				{
-					FAssetTreeItemPtr LastParent;
-
-					if (ItemsName.Num() > 1)
-					{
-						// Manage the root item
-						{
-							FString ItemName = MoveTemp(ItemsName[0]);
-							FAssetTreeItemPtr RootItem;
-							if (FAssetTreeItemPtr* PtrToTreeItemPtr = NamesToRootItem.Find(ItemName))
-							{
-								RootItem = *PtrToTreeItemPtr;
-							}
-							else
-							{
-								RootItem = MakeShared<FAssetTreeItem>();
-								RootItem->Name = ItemName;
-								RootItem->OwnerWeakPtr = SharedThis(this);
-								RootItems.Add(RootItem);
-								NamesToRootItem.Add(MoveTemp(ItemName), RootItem);
-							}
-							LastParent = MoveTemp(RootItem);
-						}
-
-						//Manage the folders to the asset
-						{
-							const int32 ItemsNameLenghtMinusOne = ItemsName.Num() - 1;
-							for (int32 i = 1; i < ItemsNameLenghtMinusOne; i++)
-							{
-								FString ItemName = MoveTemp(ItemsName[i]);
-								FAssetTreeItemPtr FolderItem;
-								if (FAssetTreeItemPtr* PtrToTreeItemPtr = LastParent->NameToFolder.Find(ItemName))
-								{
-									FolderItem = *PtrToTreeItemPtr;
-								}
-								else
-								{
-									FolderItem = MakeShared<FAssetTreeItem>();
-									FolderItem->Name = MoveTemp(ItemName);
-									FolderItem->OwnerWeakPtr = SharedThis(this);
-									LastParent->AddFolder(FolderItem);
-								}
-
-								LastParent = FolderItem;
-							}
-						}
-					}
-
-					// Create the asset item
-					{
-						FAssetTreeItemPtr AssetItem = MakeShared<FAssetTreeItem>();
-						AssetItem->Name = MoveTemp(ItemsName.Last());
-						AssetItem->AssetPtr = Asset;
-						AssetItem->OwnerWeakPtr = SharedThis(this);
-						LastParent->Assets.Add(AssetItem);
-					}
-				}
+				FAssetTreeAssetItemPtr AssetItem = MakeShared<FAssetTreeAssetItem>();
+				AssetItem->Name = Asset->GetName();
+				AssetItem->AssetPtr = Asset;
+				UnFilteredAssets.Add( MoveTemp( AssetItem ) );
 			}
 		}
 
-		// Sort items in alphabetical order
-		SortRecursive(RootItems);
-
-		FilterAssetsNames();
+		Refresh();
 	}
 
 	void SAssetsPreviewWidget::ClearAssetList()
 	{
-		RootItems.Empty();
-		FilterAssetsNames();
+		UnFilteredAssets.Empty();
+		Refresh();
 	}
 
-	void SAssetsPreviewWidget::FilterAssetsNames()
+	void SAssetsPreviewWidget::RequestSort()
 	{
-		FilteredRootItems.Empty();
+		bIsSortDirty = true;
+	}
 
-		for (FAssetTreeItemPtr& Item : RootItems)
+	void SAssetsPreviewWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+	{
+		if ( bRequestedRefresh )
 		{
-			if (Item->Filter(FilterText))
-			{
-				FilteredRootItems.Add(Item);
-			}
+			RootItems.Empty();
+			NameToRootFolder.Empty();
+			CurrentProcessingAssetIndex = 0;
+			bRequestedRefresh = false;
+			TreeView->RequestListRefresh();
 		}
 
-		TreeView->RequestListRefresh();
+		UpdateColumns();
 
-		ExpandAllFolders();
+		if ( CurrentProcessingAssetIndex < UnFilteredAssets.Num() )
+		{
+			RequestSort();
+
+			const int32 AssetToProccess = FMath::Min<int32>(  UnFilteredAssets.Num() - CurrentProcessingAssetIndex, 500 );
+			int32 Index = 0;
+			while ( Index < AssetToProccess )
+			{
+				FAssetTreeAssetItemPtr& AssetItem = UnFilteredAssets[Index + CurrentProcessingAssetIndex];
+				if ( DoesPassFilter( AssetItem ) )
+				{
+					TArray<FString> Names = GetItemsName( AssetItem->AssetPtr );
+					FAssetTreeFolderItemPtr Parent = FindOrCreateParentsItem( MakeArrayView( Names.GetData(), Names.Num() - 1 ) );
+					Parent->Assets.Add( AssetItem );
+				}
+				++Index;
+			}
+
+			CurrentProcessingAssetIndex += Index;
+		}
+
+		if ( bIsSortDirty )
+		{
+			Sort( RootItems );
+			TreeView->RequestListRefresh();
+			ExpandAllFolders();
+			bIsSortDirty = false;
+		}
+
 	}
 
 	void SAssetsPreviewWidget::ExpandAllFolders()
 	{
-		for (FAssetTreeItemPtr& Item : FilteredRootItems)
+		for ( const IAssetTreeItemPtr& Item : RootItems )
 		{
-			ExpandFolderRecursive(Item);
+			OnSetExpansionRecursive( Item, true );
 		}
 	}
 
-	void SAssetsPreviewWidget::ExpandFolderRecursive(FAssetTreeItemPtr InItem)
+	void SAssetsPreviewWidget::Sort(TArray<IAssetTreeItemPtr>& InItems) const
 	{
-		TreeView->SetItemExpansion(InItem, true);
-		for (FAssetTreeItemPtr& Item : InItem->Folders)
+		if ( const TSharedRef<IAssetPreviewColumn>* ColumnPtr = Columns.Find( SortingColumn ) ) 
 		{
-			ExpandFolderRecursive(Item);
+			const TSharedRef<IAssetPreviewColumn>&  Column = *ColumnPtr;
+			Column->SortItems( InItems, SortingMode );
 		}
 	}
 
-	void SAssetsPreviewWidget::SortRecursive(TArray< FAssetTreeItemPtr >& InItems)
+	FString SAssetsPreviewWidget::GetItemPath(const TWeakObjectPtr<UObject>& Asset) const
 	{
-		InItems.Sort([](const FAssetTreeItemPtr A, const FAssetTreeItemPtr B) { return A->Name.Compare(B->Name) < 0; });
-
-		for (int ItemIndex = 0; ItemIndex < InItems.Num(); ++ItemIndex)
-		{
-			SortRecursive(InItems[ItemIndex]->Folders);
-			SortRecursive(InItems[ItemIndex]->Assets);
-		}
-	}
-
-	TArray< FString > SAssetsPreviewWidget::GetItemsName(TWeakObjectPtr< UObject > Asset) const
-	{
-		TArray< FString > ItemsName;
-		FString AssetSubPath = Asset->GetPathName(nullptr);
-		if(AssetSubPath.RemoveFromStart(PathToReplace) && !SubstitutePath.IsEmpty())
+		FString AssetSubPath = Asset->GetPathName();
+		if ( AssetSubPath.RemoveFromStart( PathPrefixToRemove ) && !SubstitutePath.IsEmpty() )
 		{
 			AssetSubPath = SubstitutePath / AssetSubPath;
 		}
-		AssetSubPath.ReplaceCharInline(TEXT('/'), TEXT('.'));
-		AssetSubPath.ParseIntoArray(ItemsName, TEXT("."), true);
+		return AssetSubPath;
+	}
 
-		// Check that asset's name is not repeated twice at the end
-		if(ItemsName.Num() > 1)
-		{
-			const int32 LastIndex = ItemsName.Num() - 1;
-			if(ItemsName[LastIndex] == ItemsName[LastIndex - 1])
-			{
-				ItemsName.RemoveAt(LastIndex, 1, false);
-			}
-		}
-
+	TArray< FString > SAssetsPreviewWidget::GetItemsName(const TWeakObjectPtr<UObject>& Asset) const
+	{
+		TArray<FString> ItemsName;
+		GetItemPath( Asset ).ParseIntoArray( ItemsName, TEXT("/"), true );
 		return ItemsName;
 	}
 
-	TSharedRef< ITableRow > SAssetsPreviewWidget::MakeRowWidget(FAssetTreeItemPtr InItem, const TSharedRef< STableViewBase >& OwnerTable) const
+	TSharedRef< ITableRow > SAssetsPreviewWidget::MakeRowWidget(IAssetTreeItemPtr InItem, const TSharedRef< STableViewBase >& OwnerTable)
 	{
-		TSharedPtr< SAssetPreviewTableRow > TableRowWidget;
-
-		SAssignNew(TableRowWidget, SAssetPreviewTableRow, OwnerTable, InItem, SharedThis(this));
-
-		return TableRowWidget.ToSharedRef();
+		return SNew( SAssetPreviewTableRow, OwnerTable, InItem, SharedThis(this) );
 	}
 
-	void SAssetsPreviewWidget::OnGetChildren(FAssetTreeItemPtr InParent, TArray< FAssetTreeItemPtr >& OutChildren) const
+	void SAssetsPreviewWidget::OnGetChildren(IAssetTreeItemPtr InParent, TArray<IAssetTreeItemPtr>& OutChildren) const
 	{
-		for (FAssetTreeItemPtr& Folder : InParent->Folders)
+		if ( InParent->IsFolder() )
 		{
-			if (Folder->bPassedFilter)
+			FAssetTreeFolderItem& FolderItem = static_cast<FAssetTreeFolderItem&>( *InParent.Get() );
+			OutChildren.Reserve( FolderItem.Folders.Num() + FolderItem.Assets.Num() );
+
+			Sort( FolderItem.Folders );
+
+			for ( IAssetTreeItemPtr& Folder : FolderItem.Folders )
 			{
-				OutChildren.Add(Folder);
+				OutChildren.Add( Folder );
+			}
+
+			Sort( FolderItem.Assets );
+
+			for ( IAssetTreeItemPtr& Asset : FolderItem.Assets )
+			{
+				OutChildren.Add( Asset );
 			}
 		}
-
-		for (FAssetTreeItemPtr& Asset : InParent->Assets)
-		{
-			if (Asset->bPassedFilter)
-			{
-				OutChildren.Add(Asset);
-			}
-		}
-
 	}
 
 	void SAssetsPreviewWidget::OnSearchBoxChanged(const FText& InSearchText)
 	{
 		FilterText = InSearchText;
-		FilterAssetsNames();
+		FilterStrings.Reset();
+		FilterText.ToString().ParseIntoArray( FilterStrings, TEXT(" ")) ;
+		Refresh();
 	}
 
 	void SAssetsPreviewWidget::OnSearchBoxCommitted(const FText& InSearchText, ETextCommit::Type CommitInfo)
 	{
 		FilterText = InSearchText;
-		FilterAssetsNames();
+		FilterStrings.Empty();
+		FilterText.ToString().ParseIntoArray( FilterStrings, TEXT(" ") );
+		Refresh();
 	}
 
 	FText SAssetsPreviewWidget::OnGetHighlightText() const
@@ -444,28 +420,266 @@ namespace AssetPreviewWidget
 		return FilterText;
 	}
 
-
-	void SAssetsPreviewWidget::OnSetExpansionRecursive(FAssetTreeItemPtr InTreeNode, bool bInIsItemExpanded)
+	TSharedPtr<IAssetPreviewColumn> SAssetsPreviewWidget::GetColumn(FName ColumnID) const
 	{
-		if (InTreeNode.IsValid())
+		if ( const TSharedRef<IAssetPreviewColumn>* Column = Columns.Find(ColumnID))
 		{
-			TreeView->SetItemExpansion(InTreeNode, bInIsItemExpanded);
+			return *Column;
+		}
 
-			for (FAssetTreeItemPtr SubFolder : InTreeNode->Folders)
+		return {};
+	}
+
+	void SAssetsPreviewWidget::AddColumn(TSharedRef<IAssetPreviewColumn> Column)
+	{
+		PendingColumnsToAdd.Add( Column );
+	}
+
+	void SAssetsPreviewWidget::RemoveColumn(FName ColumnID)
+	{
+		PendingColumnsToRemove.Add( ColumnID );
+	}
+
+	void SAssetsPreviewWidget::OnSetExpansionRecursive(IAssetTreeItemPtr InTreeNode, bool bInIsItemExpanded)
+	{
+		if ( InTreeNode.IsValid() && InTreeNode->IsFolder() )
+		{
+			TreeView->SetItemExpansion( InTreeNode, bInIsItemExpanded );
+			FAssetTreeFolderItem& Folder = static_cast<FAssetTreeFolderItem&>( *InTreeNode.Get() );
+			for ( const IAssetTreeItemPtr& SubFolder : Folder.Folders )
 			{
-				OnSetExpansionRecursive(SubFolder, bInIsItemExpanded);
+				OnSetExpansionRecursive( SubFolder, bInIsItemExpanded );
 			}
 		}
 	}
 
-	void SAssetsPreviewWidget::OnSelectionChangedInternal(FAssetTreeItemPtr ItemSelected, ESelectInfo::Type SelectionType)
+	void SAssetsPreviewWidget::OnSelectionChangedInternal(IAssetTreeItemPtr ItemSelected, ESelectInfo::Type SelectionType)
 	{
 		if ( ItemSelected )
-		{	
+		{
 			TSet< UObject* > Selection;
-			Selection.Add( ItemSelected->AssetPtr.Get() );
+			if ( !ItemSelected->IsFolder() )
+			{
+				Selection.Add( static_cast<FAssetTreeAssetItem&>( *ItemSelected.Get() ).AssetPtr.Get() );
+			}
 			OnSelectionChanged().Broadcast( Selection );
 		}
+	}
+
+	EColumnSortMode::Type SAssetsPreviewWidget::GetColumnSortMode(const FName ColumnId) const
+	{
+		if ( SortingColumn == ColumnId )
+		{
+			return SortingMode;
+		}
+
+		return EColumnSortMode::None;
+	}
+
+	void SAssetsPreviewWidget::OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode)
+	{
+		if ( SortPriority == EColumnSortPriority::Primary )
+		{
+			SortingColumn = ColumnId;
+			SortingMode = InSortMode;
+			RequestSort();
+		}
+	}
+
+	void SAssetsPreviewWidget::SetupColumns()
+	{
+		SHeaderRow* HeaderRowPtr = HeaderRow.Get();
+		check( HeaderRowPtr );
+
+		Columns.Add( AssetPreviewWidget::FAssetPreviewDefaultColumn::ColumnID, MakeShared<AssetPreviewWidget::FAssetPreviewDefaultColumn>() );
+
+		SortingColumn = AssetPreviewWidget::FAssetPreviewDefaultColumn::ColumnID;
+		SortingMode = EColumnSortMode::Ascending;
+
+		TSharedRef<SAssetsPreviewWidget> AssetPreviewWidget = StaticCastSharedRef<SAssetsPreviewWidget>( AsShared() );
+		for (const TPair<FName,TSharedRef<IAssetPreviewColumn>>& Pair : Columns )
+		{
+			HeaderRowPtr->AddColumn(
+				Pair.Value->ConstructHeaderRowColumn( AssetPreviewWidget )
+					.SortMode(this, &SAssetsPreviewWidget::GetColumnSortMode, AssetPreviewWidget::FAssetPreviewDefaultColumn::ColumnID)
+					.OnSort(this, &SAssetsPreviewWidget::OnColumnSortModeChanged)
+				);
+		}
+	}
+
+	void SAssetsPreviewWidget::UpdateColumns()
+	{
+		SHeaderRow* HeaderRowPtr = HeaderRow.Get();
+		check( HeaderRowPtr );
+
+		if ( PendingColumnsToRemove.Num() > 0 )
+		{
+			for ( const FName& ColumnToRemove : PendingColumnsToRemove )
+			{
+				HeaderRowPtr->RemoveColumn( ColumnToRemove );
+				Columns.Remove( ColumnToRemove );
+			}
+			PendingColumnsToRemove.Empty();
+		}
+
+
+		if ( PendingColumnsToAdd.Num() > 0 ) 
+		{
+			PendingColumnsToAdd.StableSort([](const TSharedRef<IAssetPreviewColumn>& First, const TSharedRef<IAssetPreviewColumn>& Second) -> bool
+				{
+					return First->GetCulumnPositionPriorityIndex() >= Second->GetCulumnPositionPriorityIndex();
+				});
+
+			TSharedRef<SAssetsPreviewWidget> AssetPreviewWidget = StaticCastSharedRef<SAssetsPreviewWidget>( AsShared() );
+
+			int32 CurrentElementToAddIndex = 0;
+			int32 CurrentPriority = PendingColumnsToAdd[CurrentElementToAddIndex]->GetCulumnPositionPriorityIndex();
+			int32 CurrentColumnIndex = 0;
+			TArray<int32> InsertionIndex;
+			InsertionIndex.Reserve( PendingColumnsToAdd.Num() );
+
+			for (const auto& Pair : Columns)
+			{
+				if ( Pair.Value->GetCulumnPositionPriorityIndex() < CurrentPriority )
+				{
+					InsertionIndex.Add( CurrentElementToAddIndex + CurrentColumnIndex );
+					++CurrentElementToAddIndex;
+					if ( CurrentElementToAddIndex >= PendingColumnsToAdd.Num() )
+					{
+						break;
+					}
+					CurrentPriority = PendingColumnsToAdd[CurrentElementToAddIndex]->GetCulumnPositionPriorityIndex();
+				}
+
+				++CurrentColumnIndex;
+			}
+
+			
+
+			Columns.Reserve( PendingColumnsToAdd.Num() );
+			for ( TSharedRef<IAssetPreviewColumn>& NewColumn : PendingColumnsToAdd )
+			{
+				Columns.Add( NewColumn->GetColumnID(), NewColumn );
+			}
+
+			for (int32 Index = 0; Index < InsertionIndex.Num(); ++Index)
+			{
+				HeaderRowPtr->InsertColumn(
+					PendingColumnsToAdd[Index]->ConstructHeaderRowColumn( AssetPreviewWidget )
+						.SortMode( this, &SAssetsPreviewWidget::GetColumnSortMode, PendingColumnsToAdd[CurrentElementToAddIndex]->GetColumnID() )
+						.OnSort( this, &SAssetsPreviewWidget::OnColumnSortModeChanged )
+					, InsertionIndex[Index]
+					);
+			}
+
+			while (CurrentElementToAddIndex < PendingColumnsToAdd.Num())
+			{
+				HeaderRowPtr->AddColumn(
+					PendingColumnsToAdd[CurrentElementToAddIndex]->ConstructHeaderRowColumn( AssetPreviewWidget )
+					.SortMode( this, &SAssetsPreviewWidget::GetColumnSortMode, PendingColumnsToAdd[CurrentElementToAddIndex]->GetColumnID() )
+					.OnSort( this, &SAssetsPreviewWidget::OnColumnSortModeChanged )
+					);
+				++CurrentElementToAddIndex;
+			}
+
+			PendingColumnsToAdd.Empty();
+
+			Columns.ValueSort([](const TSharedRef<IAssetPreviewColumn>& First, const TSharedRef<IAssetPreviewColumn>& Second) -> bool
+				{
+					return First->GetCulumnPositionPriorityIndex() >= Second->GetCulumnPositionPriorityIndex();
+				}
+			);
+		}
+	}
+
+	void SAssetsPreviewWidget::Refresh()
+	{
+		bRequestedRefresh = true;
+	}
+
+	FAssetTreeFolderItemPtr SAssetsPreviewWidget::FindOrCreateParentsItem(const TArrayView<FString>& ParentNames)
+	{
+		if ( ParentNames.Num() > 0 )
+		{
+			FAssetTreeFolderItemPtr LastParent = nullptr;
+			FString* CurrentParentName = &ParentNames[0];
+			uint32 CurrentHash = GetTypeHash( *CurrentParentName );
+
+			// We are starting from the root
+			if ( FAssetTreeFolderItemPtr* RootPtr = NameToRootFolder.FindByHash( CurrentHash, *CurrentParentName ) )
+			{
+				LastParent = *RootPtr;
+			}
+			else
+			{
+				FAssetTreeFolderItemPtr Root = MakeShared<FAssetTreeFolderItem>();
+				Root->Name = *CurrentParentName;
+				LastParent = Root;
+				RootItems.Add( Root );
+				NameToRootFolder.AddByHash( CurrentHash, *CurrentParentName, MoveTemp( Root ) );
+			}
+
+			check( LastParent );
+
+			for ( int32 Index = 1; Index < ParentNames.Num(); ++Index )
+			{
+				CurrentParentName = &ParentNames[Index];
+				CurrentHash = GetTypeHash( *CurrentParentName );
+				if ( FAssetTreeFolderItemPtr* CurrentPtr = LastParent->NameToFolder.FindByHash( CurrentHash, *CurrentParentName ) )
+				{
+					LastParent = *CurrentPtr;
+				}
+				else
+				{
+					FAssetTreeFolderItemPtr CurrentParent = MakeShared<FAssetTreeFolderItem>();
+					CurrentParent->Name = *CurrentParentName;
+					LastParent->Folders.Add( CurrentParent );
+					LastParent->NameToFolder.AddByHash( CurrentHash, *CurrentParentName, CurrentParent );
+					LastParent = MoveTemp( CurrentParent );
+				}
+			}
+
+			check( LastParent );
+			return LastParent;
+		}
+
+		return {};
+	}
+
+	bool SAssetsPreviewWidget::DoesPassFilter(const FAssetTreeAssetItemPtr& AssetItem) const
+	{
+		if ( FilterStrings.Num() == 0 )
+		{
+			return true;
+		}
+
+		TArray<FString> SearchableStrings;
+		for ( const TPair<FName, TSharedRef<IAssetPreviewColumn>>& Pair : Columns )
+		{
+			Pair.Value->PopulateSearchStrings( AssetItem, SearchableStrings, *this );
+		}
+		
+		// All key word must match against a least one of the provided string
+		bool bPassKeyWord = false;
+		for ( const FString& KeyWord : FilterStrings )
+		{
+			bPassKeyWord = false;
+			for (const FString& String : SearchableStrings)
+			{
+				if ( String.Contains(KeyWord) )
+				{
+					bPassKeyWord = true;
+					break;
+				}
+			}
+
+			if ( !bPassKeyWord )
+			{
+				break;
+			}
+		}
+
+		return bPassKeyWord;
 	}
 }
 

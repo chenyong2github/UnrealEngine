@@ -14,6 +14,7 @@ class SVerticalBox;
 class UDataprepActionAsset;
 class UDataprepGraphActionNode;
 class UDataprepGraphActionStepNode;
+class FDataprepEditor;
 
 /**
  * The SDataprepGraphActionNode class is the SGraphNode associated
@@ -23,6 +24,7 @@ class SDataprepGraphActionNode : public SGraphNode
 {
 public:
 	SLATE_BEGIN_ARGS(SDataprepGraphActionNode) {}
+		SLATE_ARGUMENT(TWeakPtr<FDataprepEditor>, DataprepEditor)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepGraphActionNode* InActionNode);
@@ -102,6 +104,9 @@ private:
 
 	/** Array of strong pointers to the UEdGraphNodes created for the action's steps */
 	TArray<TStrongObjectPtr<UDataprepGraphActionStepNode>> EdGraphStepNodes;
+
+	/** A optional ptr to a dataprep editor */
+	TWeakPtr<FDataprepEditor> DataprepEditor;
 
 	friend SDataprepGraphActionProxyNode;
 };
