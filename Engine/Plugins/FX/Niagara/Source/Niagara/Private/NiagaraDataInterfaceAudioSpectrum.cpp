@@ -76,6 +76,12 @@ float FNiagaraDataInterfaceProxySpectrum::GetSpectrumValue(float InNormalizedPos
 	return FMath::Lerp<float>(Buffer[LowerIndex], Buffer[UpperIndex], Alpha);
 }
 
+int32 FNiagaraDataInterfaceProxySpectrum::GetNumBands() const
+{
+	check(IsInRenderingThread());
+	return NumBands;
+}
+
 
 void FNiagaraDataInterfaceProxySpectrum::UpdateCQT(float InMinimumFrequency, float InMaximumFrequency, int32 InNumBands)
 {
@@ -587,6 +593,8 @@ void UNiagaraDataInterfaceAudioSpectrum::GetFunctions(TArray<FNiagaraFunctionSig
 		NumChannelsSignature.bRequiresContext = false;
 		OutFunctions.Add(NumChannelsSignature);
 	}
+
+
 }
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceAudioSpectrum, GetSpectrumValue);
@@ -648,7 +656,7 @@ bool UNiagaraDataInterfaceAudioSpectrum::GetFunctionHLSL(const FNiagaraDataInter
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FStringFormatArg(FunctionInfo.InstanceName)},
 			{TEXT("ChannelCount"), FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol)},
-			{TEXT("SpectrumResolution"), FStringFormatArg(Resolution)},
+			{TEXT("SpectrumResolution"), FStringFormatArg(ResolutionName + ParamInfo.DataInterfaceHLSLSymbol)},
 			{TEXT("SpectrumBuffer"), FStringFormatArg(GetSpectrumName + ParamInfo.DataInterfaceHLSLSymbol)},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
@@ -676,6 +684,20 @@ bool UNiagaraDataInterfaceAudioSpectrum::GetFunctionHLSL(const FNiagaraDataInter
 	}
 }
 
+bool UNiagaraDataInterfaceAudioSpectrum::Equals(const UNiagaraDataInterface* Other) const
+{
+	bool bIsEqual = Super::Equals(Other);
+
+	const UNiagaraDataInterfaceAudioSpectrum* OtherSpectrum = CastChecked<const UNiagaraDataInterfaceAudioSpectrum>(Other);
+
+	bIsEqual &= OtherSpectrum->Resolution == Resolution;
+	bIsEqual &= OtherSpectrum->MinimumFrequency == MinimumFrequency;
+	bIsEqual &= OtherSpectrum->MaximumFrequency == MaximumFrequency;
+	bIsEqual &= OtherSpectrum->NoiseFloorDb == NoiseFloorDb;
+
+	return bIsEqual;
+}
+
 void UNiagaraDataInterfaceAudioSpectrum::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
@@ -683,11 +705,13 @@ void UNiagaraDataInterfaceAudioSpectrum::GetParameterDefinitionHLSL(const FNiaga
 	static const TCHAR *FormatDeclarations = TEXT(R"(				
 		Buffer<float> {GetSpectrumName};
 		int {NumChannelsName};
+		int {ResolutionName};
 
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {
 		{ TEXT("GetSpectrumName"),    FStringFormatArg(GetSpectrumName + ParamInfo.DataInterfaceHLSLSymbol) },
 		{ TEXT("NumChannelsName"),    FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol) },
+		{ TEXT("ResolutionName"),     FStringFormatArg(ResolutionName  + ParamInfo.DataInterfaceHLSLSymbol) },
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
@@ -699,6 +723,9 @@ struct FNiagaraDataInterfaceParametersCS_AudioSpectrum : public FNiagaraDataInte
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
 		NumChannels.Bind(ParameterMap, *(UNiagaraDataInterfaceAudioSpectrum::NumChannelsName + ParameterInfo.DataInterfaceHLSLSymbol));
+
+		Resolution.Bind(ParameterMap, *(UNiagaraDataInterfaceAudioSpectrum::ResolutionName + ParameterInfo.DataInterfaceHLSLSymbol));
+
 		SpectrumBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceAudioSpectrum::GetSpectrumName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
@@ -712,10 +739,12 @@ struct FNiagaraDataInterfaceParametersCS_AudioSpectrum : public FNiagaraDataInte
 		FReadBuffer& SpectrumBufferSRV = NDI->ComputeAndPostSRV();
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumChannels, NDI->GetNumChannels());
+		SetShaderValue(RHICmdList, ComputeShaderRHI, Resolution, NDI->GetNumBands());
 		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, SpectrumBuffer.GetBaseIndex(), SpectrumBufferSRV.SRV);
 	}
 
 	LAYOUT_FIELD(FShaderParameter, NumChannels);
+	LAYOUT_FIELD(FShaderParameter, Resolution);
 	LAYOUT_FIELD(FShaderResourceParameter,SpectrumBuffer);
 };
 
@@ -778,7 +807,10 @@ void UNiagaraDataInterfaceAudioSpectrum::PostLoad()
 
 bool UNiagaraDataInterfaceAudioSpectrum::CopyToInternal(UNiagaraDataInterface* Destination) const
 {
-	Super::CopyToInternal(Destination);
+	if (!Super::CopyToInternal(Destination))
+	{
+		return false;
+	}
 
 	UNiagaraDataInterfaceAudioSpectrum* CastedDestination = Cast<UNiagaraDataInterfaceAudioSpectrum>(Destination);
 
@@ -788,6 +820,12 @@ bool UNiagaraDataInterfaceAudioSpectrum::CopyToInternal(UNiagaraDataInterface* D
 		CastedDestination->MinimumFrequency = MinimumFrequency;
 		CastedDestination->MaximumFrequency = MaximumFrequency;
 		CastedDestination->NoiseFloorDb = NoiseFloorDb;
+
+		if (!CastedDestination->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			CastedDestination->GetProxyAs<FNiagaraDataInterfaceProxySpectrum>()->UpdateCQT(MinimumFrequency, MaximumFrequency, Resolution);
+			CastedDestination->GetProxyAs<FNiagaraDataInterfaceProxySpectrum>()->UpdateNoiseFloor(NoiseFloorDb);
+		}
 	}
 	
 	return true;
@@ -801,5 +839,7 @@ const FName UNiagaraDataInterfaceAudioSpectrum::GetNumChannelsFunctionName("GetN
 // Global variable prefixes, used in HLSL parameter declarations.
 const FString UNiagaraDataInterfaceAudioSpectrum::GetSpectrumName(TEXT("SpectrumBuffer_"));
 const FString UNiagaraDataInterfaceAudioSpectrum::NumChannelsName(TEXT("NumChannels_"));
+const FString UNiagaraDataInterfaceAudioSpectrum::ResolutionName(TEXT("Resolution_"));
+
 
 #undef LOCTEXT_NAMESPACE
