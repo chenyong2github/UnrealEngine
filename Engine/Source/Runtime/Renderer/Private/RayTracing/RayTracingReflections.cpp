@@ -184,6 +184,11 @@ static TAutoConsoleVariable<int32> CVarRayTracingReflectionsRayTraceSkyLightCont
 	TEXT("Requests ray tracing reflections to use ray traced visibility rays for sky light contribution similar to sky light ray traced shadows. A Sky Light with ray traced shadows enabled must be present for this flag to take effect. (default = 0)"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRayTracingReflectionsExperimentalDeferred(
+	TEXT("r.RayTracing.Reflections.ExperimentalDeferred"),
+	0,
+	TEXT("Whether to use the experimental deferred ray traced reflection rendering algorithm, which only supports a subset of features but runs faster. (default = 0)."),
+	ECVF_RenderThreadSafe);
 
 // ESamplePhase
 enum class ESamplePhase
@@ -383,6 +388,13 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
+	if (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread())
+	{
+		// If deferred reflections technique is used, then we only need to gather its shaders and skip the rest.
+		PrepareRayTracingDeferredReflections(View, Scene, OutRayGenShaders);
+		return;
+	}
+
 	const bool bHybridReflections = ShouldRayTracedReflectionsUseHybridReflections();
 	const bool bSortMaterials = ShouldRayTracedReflectionsSortMaterials(View);
 	const bool bMissShaderLighting = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
@@ -458,6 +470,16 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs)
 #if RHI_RAYTRACING
 {
+	if (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread())
+	{
+		RenderRayTracingDeferredReflections(
+			GraphBuilder,
+			SceneTextures,
+			View,
+			OutDenoiserInputs);
+		return;
+	}
+
 	const uint32 SortTileSize = CVarRayTracingReflectionsSortTileSize.GetValueOnRenderThread();
 	const uint32 EnableTranslucency = GRayTracingReflectionsTranslucency > -1 ? (uint32)GRayTracingReflectionsTranslucency : (uint32)View.FinalPostProcessSettings.RayTracingReflectionsTranslucency;
 
