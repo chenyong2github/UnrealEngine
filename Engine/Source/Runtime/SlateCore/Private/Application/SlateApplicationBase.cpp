@@ -98,6 +98,16 @@ const FHitTesting& FSlateApplicationBase::GetHitTesting() const
 	return HitTesting;
 }
 
+TSharedRef<SWidget> FSlateApplicationBase::MakeWindowTitleBar(const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment, TSharedPtr<IWindowTitleBar>& OutTitleBar) const
+{
+	FWindowTitleBarArgs Args(Window);
+
+	Args.CenterContent = CenterContent;
+	Args.CenterContentAlignment = CenterContentAlignment;
+	
+	return MakeWindowTitleBar(Args, OutTitleBar);
+}
+
 void FSlateApplicationBase::RegisterActiveTimer( const TSharedRef<FActiveTimerHandle>& ActiveTimerHandle )
 {
 	FScopeLock ActiveTimerLock(&ActiveTimerCS);
