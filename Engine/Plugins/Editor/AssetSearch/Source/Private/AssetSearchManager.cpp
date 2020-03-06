@@ -111,7 +111,10 @@ void FAssetSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 void FAssetSearchManager::OnObjectSaved(UObject* InObject)
 {
 	check(IsInGameThread());
-	StoreIndexForAsset(InObject);
+	if (!GIsCookerLoadingPackage)
+	{
+		StoreIndexForAsset(InObject);
+	}
 }
 
 void FAssetSearchManager::OnAssetLoaded(UObject* InObject)
