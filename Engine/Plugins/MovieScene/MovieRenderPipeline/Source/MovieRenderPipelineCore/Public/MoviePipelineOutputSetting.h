@@ -43,10 +43,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition=bUseCustomFrameRate), Category = "File Output")
 	FFrameRate OutputFrameRate;
 	
-	/** Render every Nth frame. ie: Setting this value to 2 renders every other frame. Game Thread is still evaluated on 'skipped' frames for accuracy between renders of different OutputFrameSteps. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(UIMin="1", MinValue="1"), Category = "File Output")
-	int32 OutputFrameStep;
-
 	/** Experimental way to interleave renders between multiple computers. If FrameStep is 5, and each render is offset by 0-4, they'll render a different subset of frames to add up to all. */
 	int32 DEBUG_OutputFrameStepOffset;
 	
@@ -55,16 +51,30 @@ public:
 	bool bOverrideExistingOutput;
 	
 public:
+
+	/**
+	* Top level shot track sections will automatically be expanded by this many frames in both directions, and the resulting
+	* additional time will be rendered as part of that shot. The inner sequence should have sections long enough to cover
+	* this expanded range, otherwise these tracks will not evaluate during handle frames and may produce unexpected results.
+	* This can be used to generate handle frames for traditional non linear editing tools.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0), Category = "Frames")
+	int32 HandleFrameCount;
+
+	/** Render every Nth frame. ie: Setting this value to 2 renders every other frame. Game Thread is still evaluated on 'skipped' frames for accuracy between renders of different OutputFrameSteps. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", MinValue = "1"), Category = "Frames")
+	int32 OutputFrameStep;
+
 	/** If true, override the Playback Range start/end bounds with the bounds specified below.*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Frames")
 	bool bUseCustomPlaybackRange;
 	
 	/** Used when overriding the playback range. In Display Rate frames. If bUseCustomPlaybackRange is false range will come from Sequence. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition=bUseCustomPlaybackRange), Category = "File Output")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition=bUseCustomPlaybackRange), Category = "Frames")
 	int32 CustomStartFrame;
 	
 	/** Used when overriding the playback range. In Display Rate frames. If bUseCustomPlaybackRange is false range will come from Sequence. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition=bUseCustomPlaybackRange), Category = "File Output")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition=bUseCustomPlaybackRange), Category = "Frames")
 	int32 CustomEndFrame;
 
 public:
@@ -80,10 +90,10 @@ public:
 	int32 FrameNumberOffset;
 	
 	/** If true the Filmic Tone Curve will not be applied. Disabling this will allow you to export linear data for EXRs. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "File Output")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Misc")
 	bool bDisableToneCurve;
 
 	/** Should the normal player viewport be visible when rendering? This increases render cost and is only an approximation of what is actually being rendered. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "File Output")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Misc")
 	bool bHidePreview;
 };
