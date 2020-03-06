@@ -16,6 +16,7 @@
 #define LOCTEXT_NAMESPACE "SObjectBrowserTableRow"
 
 class FSearchNode;
+class IAssetRegistry;
 
 /**
  * Implements a row widget for a live uobject.

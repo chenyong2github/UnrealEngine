@@ -12,6 +12,8 @@
 #include "Indexers/BlueprintIndexer.h"
 #include "Indexers/WidgetBlueprintIndexer.h"
 #include "Containers/StringConv.h"
+#include "Containers/Ticker.h"
+#include "Misc/Paths.h"
 
 static bool bIndexUnindexAssetsOnLoad = false;
 FAutoConsoleVariableRef CVarIndexUnindexAssetsOnLoad(
