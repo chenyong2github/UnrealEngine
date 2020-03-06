@@ -17,10 +17,11 @@ class UMaterialExpressionTextureObjectParameter : public UMaterialExpressionText
 {
 	GENERATED_UCLASS_BODY()
 	
+#if WITH_EDITOR
 	//~ Begin UMaterialExpressionTextureSampleParameter Interface
 	virtual bool TextureIsValid(UTexture* InTexture, FString& OutMessage) override;
 	//~ End UMaterialExpressionTextureSampleParameter Interface
-
+#endif
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

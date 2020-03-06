@@ -534,8 +534,10 @@ UMaterialInstance::UMaterialInstance(const FObjectInitializer& ObjectInitializer
 	: Super(ObjectInitializer)
 {
 	bHasStaticPermutationResource = false;
+#if WITH_EDITOR
 	ReentrantFlag[0] = false;
 	ReentrantFlag[1] = false;
+#endif
 	ShadingModels = MSM_Unlit;
 
 	PhysMaterial = nullptr;
