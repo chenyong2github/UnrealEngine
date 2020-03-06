@@ -2195,8 +2195,6 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 	INC_DWORD_STAT(STAT_NumLightsUsingStandardDeferred);
 	SCOPED_CONDITIONAL_DRAW_EVENT(RHICmdList, StandardDeferredLighting_Hair, true);
 	
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 	const bool bHairRenderingEnabled = InTransmittanceMaskData && InHairVisibilityViews && (LightSceneInfo->Proxy->CastsHairStrandsDeepShadow() || IsHairStrandsVoxelizationEnable());
 	if (!bHairRenderingEnabled)
@@ -2204,9 +2202,6 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		return;
 	}
 
-	GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Max, BF_SourceAlpha, BF_DestAlpha>::GetRHI();
-
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
 	const bool bTransmission = LightSceneInfo->Proxy->Transmission();
@@ -2241,6 +2236,11 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		FRHIRenderPassInfo RPInfo(HairVisibilityData.SampleLightingBuffer->GetRenderTargetItem().TargetableTexture, MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore));
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("HairLighting"));
 		RHICmdList.SetViewport(0, 0, 0.0f, HairVisibilityData.SampleLightingViewportResolution.X, HairVisibilityData.SampleLightingViewportResolution.Y, 1.0f);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Max, BF_SourceAlpha, BF_DestAlpha>::GetRHI();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		FDeferredLightPS::FPermutationDomain PermutationVector;
 		if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
