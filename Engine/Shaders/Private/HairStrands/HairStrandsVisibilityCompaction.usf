@@ -24,6 +24,7 @@
 int2 OutputResolution;
 int2 ResolutionOffset;
 uint MaxNodeCount;
+uint bSortSampleByDepth;
 float DepthTheshold; 
 float CosTangentThreshold;
 float CoverageThreshold; // Allow to scale the transmittance to compensate its asymptotic behavior 
@@ -57,6 +58,14 @@ float TransmittanceToCoverage(float InTransmittance)
 
 groupshared uint AllocationNodeCount;
 groupshared uint AllocationNodeOffset;
+
+
+struct FSampleSetDesc
+{
+	uint   UniqueSampleCount;
+	uint   ValidSampleCount;
+	uint   HairSampleCount;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PPLL
@@ -260,28 +269,18 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	OutCategorizationTexture[PixelCoord] = EncodeCategorizationData(Categorization);
 }
 
-
-#else // PERMUTATION_PPLL
+#elif PERMUTATION_VISIBILITY // PERMUTATION_PPLL or PERMUTATION_VISIBILITY or PERMUTATION_MSAA
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MSAA visiblity buffer
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FSampleSetDesc
-{
-	uint   UniqueSampleCount;
-	uint   ValidSampleCount;
-	uint   HairSampleCount;
-};
-
 #ifndef PERMUTATION_MSAACOUNT
 	#error PERMUTATION_MSAACOUNT is not defined
 #endif
 
-#if PERMUTATION_VISIBILITY
-
 void ComputeUniqueSamplesWithoutDepthTest(
-	inout uint3 OutSamples[PERMUTATION_MSAACOUNT],
+	inout uint4 OutSamples[PERMUTATION_MSAACOUNT],
 	inout FSampleSetDesc OutSet,
 	const uint2 PixelCoord,
 	const float OpaqueDepth,
@@ -294,7 +293,6 @@ void ComputeUniqueSamplesWithoutDepthTest(
 	OutSet.HairSampleCount = PERMUTATION_MSAACOUNT;
 	const uint InvalidSample = 0xFFFF;
 
-	float ClosestDepth = 0; // Inverse-Z
 	for (uint SampleIt = 0; SampleIt < OutSet.HairSampleCount; ++SampleIt)
 	{
 		// Note: InMSAA_IDTexture contains both the primitive ID and tha material ID. However 
@@ -315,26 +313,50 @@ void ComputeUniqueSamplesWithoutDepthTest(
 		for (uint UniqueIt = 0; UniqueIt < OutSet.UniqueSampleCount; ++UniqueIt)
 		{
 			const bool bIsSimilar = PrimitiveId == OutSamples[UniqueIt].x;
-
 			if (bIsSimilar)
 			{
 				OutSamples[UniqueIt].y += 1;
-				if (ClosestDepth < SampleDepth)
+
+				// Update the unique sample with the closest depth
+				const uint IntDepth = asuint(SampleDepth);
+				if (IntDepth > OutSamples[UniqueIt].w)
 				{
-					OutSamples[OutSet.UniqueSampleCount].z = SampleIt;
-					ClosestDepth = SampleDepth;
+					OutSamples[UniqueIt].z = SampleIt;
+					OutSamples[UniqueIt].w = asuint(SampleDepth);
 				}
+
 				bAlreadyExist = true;
 				break;
 			}
 		}
-		// todo: always takes the closest depth?
+		
 		if (!bAlreadyExist)
 		{
 			OutSamples[OutSet.UniqueSampleCount].x = PrimitiveId;
 			OutSamples[OutSet.UniqueSampleCount].y = 1;
 			OutSamples[OutSet.UniqueSampleCount].z = SampleIt;
+			OutSamples[OutSet.UniqueSampleCount].w = asuint(SampleDepth);
 			++OutSet.UniqueSampleCount;
+		}
+	}
+
+	// Sort sample from closer to further. This is used later for updating sample coverage 
+	// based on ordered transmittance. See HairStrandsVisibilityComputeSampleCoverage.usf for more details.
+	if (bSortSampleByDepth > 0)
+	{
+		for (uint i = 0; i < OutSet.UniqueSampleCount; ++i)
+		{
+			const uint DepthI = OutSamples[i].w;
+			for (uint j = i+1; j < OutSet.UniqueSampleCount; ++j)
+			{
+				const uint DepthJ = OutSamples[j].w;
+				if (DepthJ > DepthI)
+				{
+					uint4 Temp = OutSamples[i];
+					OutSamples[i] = OutSamples[j];
+					OutSamples[j] = Temp;
+				}
+			}
 		}
 	}
 }
@@ -362,7 +384,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	FSampleSetDesc SampleDesc;
 
 	const float OpaqueDepth = SceneTexturesStruct.SceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
-	uint3 Samples[PERMUTATION_MSAACOUNT];		// x:PrimitiveId|MaterialId, y:Weight, z:SampleIt
+	uint4 Samples[PERMUTATION_MSAACOUNT];		// x:PrimitiveId|MaterialId, y:Weight, z:SampleIt, w:Depth (as uint)
 	ComputeUniqueSamplesWithoutDepthTest(
 		Samples,
 		SampleDesc,
@@ -399,7 +421,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 				// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
 				FNodeVis OutNodeVis;
 				OutNodeVis.PrimitiveId	= VisSample.PrimitiveId;
-				OutNodeVis.Depth		= MSAA_DepthTexture.Load(PixelCoord, Samples[OutIndex].z);
+				OutNodeVis.Depth		= asfloat(Samples[OutIndex].w); // MSAA_DepthTexture.Load(PixelCoord, Samples[OutIndex].z);
 				OutNodeVis.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.ValidSampleCount));
 				OutNodeVis.MaterialId	= VisSample.MaterialId;
 
@@ -426,7 +448,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	OutCategorizationTexture[PixelCoord] = EncodeCategorizationData(Categorization);
 }
 
-#else // PERMUTATION_VISIBILITY
+#else // PERMUTATION_PPLL or PERMUTATION_VISIBILITY or PERMUTATION_MSAA
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MSAA buffer
@@ -667,7 +689,4 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	OutCategorizationTexture[PixelCoord] = EncodeCategorizationData(Categorization);
 }
 
-#endif  // PERMUTATION_VISIBILITY
-#endif // PERMUTATION_PPLL
-
-
+#endif // PERMUTATION_PPLL or PERMUTATION_VISIBILITY or PERMUTATION_MSAA
