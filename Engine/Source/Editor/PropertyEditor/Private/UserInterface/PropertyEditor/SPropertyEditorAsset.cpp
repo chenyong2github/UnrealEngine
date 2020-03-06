@@ -321,7 +321,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	ChildSlot
 	[
 		SNew( SAssetDropTarget )
-		.OnIsAssetAcceptableForDrop( this, &SPropertyEditorAsset::OnAssetDraggedOver )
+		.OnIsAssetAcceptableForDropWithReason( this, &SPropertyEditorAsset::OnAssetDraggedOver )
 		.OnAssetDropped( this, &SPropertyEditorAsset::OnAssetDropped )
 		[
 			SAssignNew( ValueContentBox, SHorizontalBox )	
@@ -1208,7 +1208,7 @@ FSlateColor SPropertyEditorAsset::GetAssetClassColor()
 	return FSlateColor::UseForeground();
 }
 
-bool SPropertyEditorAsset::OnAssetDraggedOver( const UObject* InObject ) const
+bool SPropertyEditorAsset::OnAssetDraggedOver( const UObject* InObject, FText& OutReason ) const
 {
 	if (CanEdit() && InObject != nullptr && InObject->IsA(ObjectClass))
 	{
@@ -1219,7 +1219,7 @@ bool SPropertyEditorAsset::OnAssetDraggedOver( const UObject* InObject ) const
 		{
 			if (CanSetBasedOnCustomClasses(AssetData))
 			{
-				return CanSetBasedOnAssetReferenceFilter(AssetData);
+				return CanSetBasedOnAssetReferenceFilter(AssetData, &OutReason);
 			}
 		}
 	}

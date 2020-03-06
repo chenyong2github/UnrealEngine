@@ -4,6 +4,7 @@
 #include "AssetData.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/ActorDragDropOp.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "AssetSelection.h"
 
 #define LOCTEXT_NAMESPACE "EditorWidgets"
@@ -12,6 +13,7 @@ void SAssetDropTarget::Construct(const FArguments& InArgs )
 {
 	OnAssetDropped = InArgs._OnAssetDropped;
 	OnIsAssetAcceptableForDrop = InArgs._OnIsAssetAcceptableForDrop;
+	OnIsAssetAcceptableForDropWithReason = InArgs._OnIsAssetAcceptableForDropWithReason;
 
 	SDropTarget::Construct(
 		SDropTarget::FArguments()
@@ -42,7 +44,31 @@ bool SAssetDropTarget::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperat
 	if ( Object )
 	{
 		// Check and see if its valid to drop this object
-		if ( OnIsAssetAcceptableForDrop.IsBound() )
+		if (OnIsAssetAcceptableForDropWithReason.IsBound())
+		{
+			FText FailureReason;
+			if (OnIsAssetAcceptableForDropWithReason.Execute(Object, FailureReason))
+			{
+				return true;
+			}
+			else
+			{
+				if (IsDragOver() && !FailureReason.IsEmpty())
+				{
+					if (DragDropOperation.IsValid() && DragDropOperation->IsOfType<FDecoratedDragDropOp>())
+					{
+						TSharedPtr<FDecoratedDragDropOp> DragDropOp = StaticCastSharedPtr<FDecoratedDragDropOp>(DragDropOperation);
+						if (DragDropOp.IsValid())
+						{
+							DragDropOp->SetToolTip(FailureReason, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+						}
+					}
+				}
+
+				return false;
+			}
+		}
+		else if ( OnIsAssetAcceptableForDrop.IsBound() )
 		{
 			return OnIsAssetAcceptableForDrop.Execute(Object);
 		}
@@ -62,6 +88,18 @@ bool SAssetDropTarget::OnIsRecognized(TSharedPtr<FDragDropOperation> DragDropOpe
 	UObject* Object = GetDroppedObject(DragDropOperation, bRecognizedEvent);
 
 	return bRecognizedEvent;
+}
+
+void SAssetDropTarget::OnDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	SDropTarget::OnDragLeave(DragDropEvent);
+
+	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
+	if (Operation.IsValid() && Operation->IsOfType<FDecoratedDragDropOp>())
+	{
+		TSharedPtr<FDecoratedDragDropOp> DragDropOp = StaticCastSharedPtr<FDecoratedDragDropOp>(Operation);
+		DragDropOp->ResetToDefaultToolTip();
+	}
 }
 
 UObject* SAssetDropTarget::GetDroppedObject(TSharedPtr<FDragDropOperation> DragDropOperation, bool& bOutRecognizedEvent) const
