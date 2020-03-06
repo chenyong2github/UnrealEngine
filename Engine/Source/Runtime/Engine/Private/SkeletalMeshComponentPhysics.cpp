@@ -583,7 +583,6 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 	}
 
 	// Set up the map from skelmeshcomp ID to collision disable table
-#if WITH_PHYSX
 	uint32 SkelMeshCompID = GetUniqueID();
 	PhysScene->DeferredAddCollisionDisableTable(SkelMeshCompID, &PhysicsAsset->CollisionDisableTable);
 
@@ -607,7 +606,6 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 	}
 
 	InstantiatePhysicsAsset(*PhysicsAsset, Scale3D, Bodies, Constraints, PhysScene, this, RootBodyIndex, Aggregate);
-#endif // WITH_PHYSX
 
 	// now update root body index because body has BodySetup now
 	SetRootBodyIndex(RootBodyIndex);
@@ -739,7 +737,6 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsse
 				}
 			}
 
-#if WITH_PHYSX
 			// Create physics body instance.
 			FTransform BoneTransform = BoneTransformGetter(BoneIndex);
 
@@ -756,18 +753,14 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsse
 			BodyInst->InitBody(PhysicsAssetBodySetup, BoneTransform, OwningComponent, PhysScene, SpawnParams);
 
 			NameToBodyMap.Add(PhysicsAssetBodySetup->BoneName, BodyInst);
-#endif //WITH_PHYSX
 		}
 	}
 
-#if WITH_PHYSX
 	if(PhysScene && Aggregate.IsValid())
 	{
 		PhysScene->AddAggregateToScene(Aggregate);
 	}
-
-#endif //WITH_PHYSX
-
+	
 	// Create all the OutConstraints.
 	check(OutConstraints.Num() == 0);
 	int32 NumOutConstraints = PhysAsset.ConstraintSetup.Num();
@@ -838,7 +831,6 @@ void USkeletalMeshComponent::TermArticulated()
 {
 	ResetRootBodyIndex();
 
-#if WITH_PHYSX
 	uint32 SkelMeshCompID = GetUniqueID();
 	UWorld* MyWorld = GetWorld();
 	FPhysScene* PhysScene = (MyWorld ? MyWorld->GetPhysicsScene() : nullptr);
@@ -846,7 +838,6 @@ void USkeletalMeshComponent::TermArticulated()
 	{
 		PhysScene->DeferredRemoveCollisionDisableTable(SkelMeshCompID);
 	}
-#endif	//#if WITH_PHYSX
 
 	FPhysicsCommand::ExecuteWrite(this, [&]()
 	{
@@ -873,14 +864,13 @@ void USkeletalMeshComponent::TermArticulated()
 	
 	Bodies.Empty();
 
-#if WITH_PHYSX
 	// releasing Aggregate, it shouldn't contain any Bodies now, because they are released above
 		if(Aggregate.IsValid())
 	{
 			check(FPhysicsInterface::GetNumActorsInAggregate(Aggregate) == 0);
 			FPhysicsInterface::ReleaseAggregate(Aggregate);
 	}
-#endif //WITH_PHYSX
+
 	});
 }
 

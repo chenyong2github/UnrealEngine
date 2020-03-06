@@ -32,18 +32,14 @@ struct FKShapeElem
 	: RestOffset(0.f)
 	, ShapeType(EAggCollisionShape::Unknown)
 	, bContributeToMass(true)
-#if WITH_PHYSX
 	, UserData(this)
-#endif
 	{}
 
 	FKShapeElem(EAggCollisionShape::Type InShapeType)
 	: RestOffset(0.f)
 	, ShapeType(InShapeType)
 	, bContributeToMass(true)
-#if WITH_PHYSX
 	, UserData(this)
-#endif
 	{}
 
 	FKShapeElem(const FKShapeElem& Copy)
@@ -51,9 +47,7 @@ struct FKShapeElem
 	, Name(Copy.Name)
 	, ShapeType(Copy.ShapeType)
 	, bContributeToMass(Copy.bContributeToMass)
-#if WITH_PHYSX
 	, UserData(this)
-#endif
 	{
 	}
 
@@ -72,9 +66,7 @@ struct FKShapeElem
 		return (T*)this;
 	}
 
-#if WITH_PHYSX
 	const FPhysxUserData* GetUserData() const { FPhysxUserData::Set<FKShapeElem>((void*)&UserData, const_cast<FKShapeElem*>(this));  return &UserData; }
-#endif // WITH_PHYSX
 
 	ENGINE_API static EAggCollisionShape::Type StaticShapeType;
 
@@ -118,7 +110,5 @@ private:
 	UPROPERTY(Category=Shape, EditAnywhere)
 	uint8 bContributeToMass : 1;
 
-#if WITH_PHYSX
 	FPhysxUserData UserData;
-#endif // WITH_PHYSX
 };

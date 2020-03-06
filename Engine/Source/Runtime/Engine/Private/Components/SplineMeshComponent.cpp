@@ -913,7 +913,15 @@ UBodySetup* USplineMeshComponent::GetBodySetup()
 	{
 		return BodySetup;
 	}
-#endif // WITH_PHYSX
+#elif WITH_CHAOS
+	// Don't return a body setup that has no collision, it means we are interactively moving the spline and don't want to build collision.
+	// Instead we explicitly build collision with USplineMeshComponent::RecreateCollision()
+	if (BodySetup != NULL && (BodySetup->ChaosTriMeshes.Num() || BodySetup->AggGeom.GetElementCount() > 0))
+	{
+		return BodySetup;
+	}
+#endif // WITH_CHAOS
+
 	return NULL;
 }
 
