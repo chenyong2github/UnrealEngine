@@ -1169,7 +1169,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 		// Calculate spawn information to pass to the RT
 		{
-			static_assert((NIAGARA_MAX_GPU_SPAWN_INFOS == NIAGARA_MAX_GPU_SPAWN_INFOS_V4 * 4) && (NIAGARA_MAX_GPU_SPAWN_INFOS > 0), "NIAGARA_MAX_GPU_SPAWN_INFOS should be greater than zero and a multiple of 4");
+			static_assert(((NIAGARA_MAX_GPU_SPAWN_INFOS % 4) == 0) && (NIAGARA_MAX_GPU_SPAWN_INFOS > 0), "NIAGARA_MAX_GPU_SPAWN_INFOS should be greater than zero and a multiple of 4");
 
 			FNiagaraGpuSpawnInfo& GpuSpawnInfo = GPUExecContext->GpuSpawnInfo_GT;
 			GpuSpawnInfo.EventSpawnTotal = EventSpawnTotal;
@@ -1192,13 +1192,13 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 							break;
 						}
 
-						GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].X = Info.IntervalDt;
-						GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Y = Info.InterpStartDt;
-						reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Z) = Info.SpawnGroup;
-						reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].W) = GpuSpawnInfo.SpawnRateInstances;
+						GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].IntervalDt = Info.IntervalDt;
+						GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].InterpStartDt = Info.InterpStartDt;
+						GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].SpawnGroup = Info.SpawnGroup;
+						GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].GroupSpawnStartIndex = (int32)GpuSpawnInfo.SpawnRateInstances;
 
 						GpuSpawnInfo.SpawnRateInstances += Info.Count;
-						reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NumSpawnInfos] = (float)GpuSpawnInfo.SpawnRateInstances;
+						GpuSpawnInfo.SpawnInfoStartOffsets[NumSpawnInfos] = (int32)GpuSpawnInfo.SpawnRateInstances;
 
 						++NumSpawnInfos;
 					}
@@ -1213,19 +1213,15 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 				}
 			}
 
-			// If we have spawning make sure we clear out the remaining data and leave the end slot as MAX to avoid reading off end of the array on the GPU
-			if ( GpuSpawnInfo.EventSpawnTotal + GpuSpawnInfo.SpawnRateInstances >  0 )
+			// Clear out the remaining data and leave the end slot as MAX to avoid reading off end of the array on the GPU
+			while (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS)
 			{
-				while (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS)
-				{
-					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].X = 0.0f;
-					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Y = 0.0f;
-					reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Z) = 0;
-					reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].W) = GpuSpawnInfo.SpawnRateInstances;
-					reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NumSpawnInfos] = (float)MAX_FLT;
-					++NumSpawnInfos;
-				}
-				reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NIAGARA_MAX_GPU_SPAWN_INFOS - 1] = MAX_FLT;
+				GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].IntervalDt = 0.0f;
+				GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].InterpStartDt = 0.0f;
+				GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].SpawnGroup = 0;
+				GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].GroupSpawnStartIndex = (int32)GpuSpawnInfo.SpawnRateInstances;
+				GpuSpawnInfo.SpawnInfoStartOffsets[NumSpawnInfos] = INT32_MAX;
+				++NumSpawnInfos;
 			}
 		}
 
