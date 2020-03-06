@@ -191,7 +191,7 @@ namespace Chaos
 			T Penetration = ThicknessA + ThicknessB - PreDist;
 			if (!bNegativePenetrationSupport)
 			{
-				Penetration = FMath::Clamp<T>(Penetration, 0, TNumericLimits<T>::Max());
+				if (Penetration < 0.0f) return false;
 			}
 			OutPenetration = Penetration;
 			OutClosestA = ClosestA + OutNormal * ThicknessA;
