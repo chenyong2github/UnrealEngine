@@ -19,6 +19,14 @@ FAutoConsoleVariableRef CVarRecoverRecordingOnShutdown(
 	TEXT("0: Disabled, 1: Enabled"),
 	ECVF_Default);
 
+static int32 BypassAllSubmixEffectsCVar = 1;
+FAutoConsoleVariableRef CVarBypassAllSubmixEffects(
+	TEXT("au.BypassAllSubmixEffects"),
+	BypassAllSubmixEffectsCVar,
+	TEXT("When set to 1, all submix effects will be bypassed.\n")
+	TEXT("1: Submix Effects are disabled."),
+	ECVF_Default);
+
 namespace Audio
 {
 	// Unique IDs for mixer submixes
@@ -327,6 +335,7 @@ namespace Audio
 
 	void FMixerSubmix::AddSoundEffectSubmix(uint32 SubmixPresetId, FSoundEffectSubmixPtr InSoundEffectSubmix)
 	{
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		// Look to see if the submix preset ID is already present
@@ -349,6 +358,7 @@ namespace Audio
 
 	void FMixerSubmix::RemoveSoundEffectSubmix(uint32 SubmixPresetId)
 	{
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		for (FSubmixEffectInfo& Effect : EffectSubmixChain)
@@ -813,7 +823,7 @@ namespace Audio
 
 		{
 			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
-			if (EffectSubmixChain.Num() > 0)
+			if (!BypassAllSubmixEffectsCVar && EffectSubmixChain.Num() > 0)
 			{
 				CSV_SCOPED_TIMING_STAT(Audio, SubmixEffectProcessing);
 
