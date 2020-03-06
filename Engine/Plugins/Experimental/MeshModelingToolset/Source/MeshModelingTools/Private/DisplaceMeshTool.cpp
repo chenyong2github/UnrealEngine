@@ -651,9 +651,8 @@ void UDisplaceMeshTool::StartComputation()
 		if (SubdivideTask)
 		{
 			SubdivideTask->CancelAndDelete();
-			SubdividedMesh = nullptr;
 		}
-		auto SubdivideMeshOp = Subdivider->MakeNewOperator();
+		SubdividedMesh = nullptr;
 		SubdivideTask = new FAsyncTaskExecuterWithAbort<TModelingOpTask<FDynamicMeshOperator>>(Subdivider->MakeNewOperator());
 		SubdivideTask->StartBackgroundTask();
 		bNeedsSubdivided = false;
