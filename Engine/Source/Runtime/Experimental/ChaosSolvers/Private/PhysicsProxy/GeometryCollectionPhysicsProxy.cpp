@@ -103,41 +103,39 @@ bool IsMultithreaded()
 	return false;
 }
 
-Chaos::TTriangleMesh<float>* CreateTriangleMesh(int32 FaceCount, int32 VertexOffset, int32 StartIndex, const TManagedArray<FVector>& Vertex, const TManagedArray<bool>& Visible, const TManagedArray<FIntVector>& Indices, TSet<int32>& VertsAdded)
+Chaos::TTriangleMesh<float>* CreateTriangleMesh(
+	const int32 FaceCount, 
+	const int32 VertexOffset, 
+	const int32 StartIndex, 
+	const TManagedArray<FVector>& Vertex, 
+	const TManagedArray<bool>& Visible, 
+	const TManagedArray<FIntVector>& Indices, 
+	TSet<int32>& VertsAdded)
 {
 	TArray<Chaos::TVector<int32, 3>> Faces;
 	{
 		Faces.Reserve(FaceCount);
-		for(int j = 0; j < FaceCount; j++)
+		for (int j = 0; j < FaceCount; j++)
 		{
-			if(!Visible[j + StartIndex])
+			if (!Visible[j + StartIndex])
 			{
 				continue;
 			}
 
-			// @todo: This should never happen but seems to so we need to make sure these faces are not counted
-			if(Indices[j + StartIndex].X == Indices[j + StartIndex].Y || Indices[j + StartIndex].Z == Indices[j + StartIndex].Y || Indices[j + StartIndex].X == Indices[j + StartIndex].Z)
-			{
-				continue;
-			}
+			// Note: This function used to cull small triangles.  As one of the purposes 
+			// of the tri mesh this function creates is for level set rasterization, we 
+			// don't want to do that.  Keep the mesh intact, which hopefully is water tight.
 
-			//make sure triangle is not degenerate (above only checks indices, we need to check for co-linear etc...)
-			const Chaos::TVector<float, 3>& X = Vertex[Indices[j + StartIndex].X];
-			const Chaos::TVector<float, 3>& Y = Vertex[Indices[j + StartIndex].Y];
-			const Chaos::TVector<float, 3>& Z = Vertex[Indices[j + StartIndex].Z];
-			const Chaos::TVector<float, 3> Cross = Chaos::TVector<float, 3>::CrossProduct(Z - X, Y - X);
-			if(Cross.SizeSquared() >= 1e-2)
+			const FIntVector& Tri = Indices[j + StartIndex];
+			Faces.Add(Chaos::TVector<int32, 3>(Tri.X, Tri.Y, Tri.Z));
+			for (int Axis = 0; Axis < 3; ++Axis)
 			{
-				Faces.Add(Chaos::TVector<int32, 3>(Indices[j + StartIndex].X, Indices[j + StartIndex].Y, Indices[j + StartIndex].Z));
-				for(int Axis = 0; Axis < 3; ++Axis)
-				{
-					VertsAdded.Add(Indices[j + StartIndex][Axis]);
-				}
+				VertsAdded.Add(Tri[Axis]);
 			}
 		}
 	}
 
-	return new Chaos::TTriangleMesh<float>(MoveTemp(Faces));
+	return new Chaos::TTriangleMesh<float>(MoveTemp(Faces)); // Culls geometrically degenerate faces
 }
 
 TArray<int32> ComputeTransformToGeometryMap(const FGeometryCollection& Collection)
@@ -301,24 +299,9 @@ void PopulateSimulatedParticle(
 			{
 				CollisionParticles->X(VertexIndex) = Simplicial->X(VertexIndex);
 
-
-#if 0 
-				// Ryan - this is crashing for Jack with stack:
-				/*
-				Assertion failed : (Index >= 0)& (Index < ArrayNum)[File:E:\4.25\Engine\Source\Runtime\Core\Public\Containers / Array.h][Line:674] Array index out of bounds : 4 from an array of size 4
-					ChaosDestructionDemoEditor_Core!FDebug::OptionallyLogFormattedEnsureMessageReturningFalseImpl()[e:\4.25\engine\source\runtime\core\private\misc\assertionmacros.cpp:491]
-					ChaosDestructionDemoEditor_ChaosSolvers!<lambda_9b5be2529a6e7fa96c17dd5bd4cd785f>::operator()()[e:\4.25\engine\source\runtime\experimental\chaossolvers\private\physicsproxy\geometrycollectionphysicsproxy.cpp:310]
-					ChaosDestructionDemoEditor_ChaosSolvers!PopulateSimulatedParticle()[e:\4.25\engine\source\runtime\experimental\chaossolvers\private\physicsproxy\geometrycollectionphysicsproxy.cpp:310]
-					ChaosDestructionDemoEditor_ChaosSolvers!FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures()[e:\4.25\engine\source\runtime\experimental\chaossolvers\private\physicsproxy\geometrycollectionphysicsproxy.cpp:2825]
-					ChaosDestructionDemoEditor_GeometryCollectionEngine!FDerivedDataGeometryCollectionCooker::Build()[e:\4.25\engine\source\runtime\experimental\geometrycollectionengine\private\geometrycollection\deriveddatageometrycollectioncooker.cpp:37]
-					ChaosDestructionDemoEditor_DerivedDataCache!FDerivedDataCache::FBuildAsyncWorker::DoWork()
-				*/
-				// Removing for now.
-
 				// Make sure the collision particles are at least in the domain 
 				// of the implicit shape.
 				ensure(ImplicitShapeDomain.Contains(CollisionParticles->X(VertexIndex)));
-#endif
 			}
 		}
 
@@ -2621,6 +2604,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			//  Build the simplicial for the rest collection. This will be used later in the DynamicCollection to 
 			//  populate the collision structures of the simulation. 
 			//
+			check(TriMesh);
 			Chaos::TBVHParticles<float, 3> * Simplicial = 
 				FCollisionStructureManager::NewSimplicial(
 					MassSpaceParticles, 
