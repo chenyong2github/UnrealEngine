@@ -1318,10 +1318,6 @@ bool UMaterialExpression::HasConnectedOutputs() const
 	return bIsConnected;
 }
 
-
-#endif // WITH_EDITOR
-
-
 bool UMaterialExpression::ContainsInputLoop(const bool bStopOnFunctionCall /*= true*/)
 {
 	TArray<FMaterialExpressionKey> ExpressionStack;
@@ -1331,7 +1327,6 @@ bool UMaterialExpression::ContainsInputLoop(const bool bStopOnFunctionCall /*= t
 
 bool UMaterialExpression::ContainsInputLoopInternal(TArray<FMaterialExpressionKey>& ExpressionStack, TSet<FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall)
 {
-#if WITH_EDITORONLY_DATA
 	const TArray<FExpressionInput*> Inputs = GetInputs();
 	for (int32 Index = 0; Index < Inputs.Num(); ++Index)
 	{
@@ -1365,13 +1360,16 @@ bool UMaterialExpression::ContainsInputLoopInternal(TArray<FMaterialExpressionKe
 			}
 		}
 	}
-#endif // WITH_EDITORONLY_DATA
+
 	return false;
 }
+#endif // WITH_EDITOR
 
 UMaterialExpressionTextureBase::UMaterialExpressionTextureBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
 	, IsDefaultMeshpaintTexture(false)
+#endif
 {}
 
 #if WITH_EDITOR
@@ -1440,19 +1438,12 @@ FText UMaterialExpressionTextureBase::GetPreviewOverlayText() const
 	}
 }
 
-#endif // WITH_EDITOR
-
 void UMaterialExpressionTextureBase::AutoSetSampleType()
 {
 	if ( Texture )
 	{
 		SamplerType = GetSamplerTypeForTexture( Texture );
 	}
-}
-
-UObject* UMaterialExpressionTextureBase::GetReferencedTexture() const
-{
-	return Texture;
 }
 
 EMaterialSamplerType UMaterialExpressionTextureBase::GetSamplerTypeForTexture(const UTexture* Texture, bool ForceNoVT)
@@ -1490,11 +1481,17 @@ EMaterialSamplerType UMaterialExpressionTextureBase::GetSamplerTypeForTexture(co
 	}
 	return SAMPLERTYPE_Color;
 }
+#endif // WITH_EDITOR
+
+UObject* UMaterialExpressionTextureBase::GetReferencedTexture() const
+{
+	return Texture;
+}
 
 UMaterialExpressionTextureSample::UMaterialExpressionTextureSample(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bShowTextureInputPin(true)
 {
+#if WITH_EDITORONLY_DATA
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
@@ -1506,7 +1503,6 @@ UMaterialExpressionTextureSample::UMaterialExpressionTextureSample(const FObject
 	};
 	static FConstructorStatics ConstructorStatics;
 
-#if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Texture);
 
 	Outputs.Reset();
@@ -1518,14 +1514,14 @@ UMaterialExpressionTextureSample::UMaterialExpressionTextureSample(const FObject
 	Outputs.Add(FExpressionOutput(TEXT("RGBA"), 1, 1, 1, 1, 1));
 
 	bShowOutputNameOnPin = true;
+	bShowTextureInputPin = true;
 	bCollapsed = false;
-#endif // WITH_EDITORONLY_DATA
 
 	MipValueMode = TMVM_None;
-
 	ConstCoordinate = 0;
 	ConstMipValue = INDEX_NONE;
 	AutomaticViewMipBias = true;
+#endif // WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITOR
@@ -1675,9 +1671,6 @@ FName UMaterialExpressionTextureSample::GetInputName(int32 InputIndex) const
 }
 #undef IF_INPUT_RETURN
 
-#endif // WITH_EDITOR
-
-
 /**
  * Verify that the texture and sampler type. Generates a compiler waring if 
  * they do not.
@@ -1735,7 +1728,6 @@ static bool VerifySamplerType(
 	return true;
 }
 
-#if WITH_EDITOR
 int32 UMaterialExpressionTextureSample::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	UMaterialExpression* InputExpression = TextureObject.GetTracedInput().Expression;
@@ -2656,6 +2648,7 @@ UMaterialExpressionAdd::UMaterialExpressionAdd(const FObjectInitializer& ObjectI
 UMaterialExpressionTextureSampleParameter::UMaterialExpressionTextureSampleParameter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
@@ -2669,7 +2662,6 @@ UMaterialExpressionTextureSampleParameter::UMaterialExpressionTextureSampleParam
 	bIsParameterExpression = true;
 	bShowTextureInputPin = false;
 
-#if WITH_EDITORONLY_DATA
 	MenuCategories.Empty();
 	MenuCategories.Add( ConstructorStatics.NAME_Obsolete);
 	SortPriority = 0;
@@ -2785,7 +2777,6 @@ void UMaterialExpressionTextureSampleParameter::ApplyChannelNames()
 		Outputs[4].OutputName = !ChannelNames.A.IsEmpty() ? FName(*ChannelNames.A.ToString()) : Alpha;
 	}
 }
-#endif
 
 bool UMaterialExpressionTextureSampleParameter::TextureIsValid(UTexture* /*InTexture*/, FString& OutMessage)
 {
@@ -2797,6 +2788,7 @@ void UMaterialExpressionTextureSampleParameter::SetDefaultTexture()
 {
 	// Does nothing in the base case...
 }
+#endif // WITH_EDITOR
 
 void UMaterialExpressionTextureSampleParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
 {
@@ -2855,6 +2847,7 @@ UMaterialExpressionTextureObjectParameter::UMaterialExpressionTextureObjectParam
 #endif // WITH_EDITORONLY_DATA
 }
 
+#if WITH_EDITOR
 bool UMaterialExpressionTextureObjectParameter::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
 	if (!InTexture)
@@ -2866,7 +2859,6 @@ bool UMaterialExpressionTextureObjectParameter::TextureIsValid(UTexture* InTextu
 	return true;
 }
 
-#if WITH_EDITOR
 void UMaterialExpressionTextureObjectParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Param Tex Object")); 
@@ -3150,7 +3142,6 @@ void UMaterialExpressionTextureSampleParameter2D::GetCaption(TArray<FString>& Ou
 	OutCaptions.Add(TEXT("Param2D")); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
-#endif // WITH_EDITOR
 
 bool UMaterialExpressionTextureSampleParameter2D::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
@@ -3183,8 +3174,6 @@ void UMaterialExpressionTextureSampleParameter2D::SetDefaultTexture()
 {
 	Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"), nullptr, LOAD_None, nullptr);
 }
-
-#if WITH_EDITOR
 
 bool UMaterialExpressionTextureSampleParameter::MatchesSearchQuery( const TCHAR* SearchQuery )
 {
@@ -3254,7 +3243,6 @@ void UMaterialExpressionTextureSampleParameterCube::GetCaption(TArray<FString>& 
 	OutCaptions.Add(TEXT("ParamCube")); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
-#endif // WITH_EDITOR
 
 bool UMaterialExpressionTextureSampleParameterCube::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
@@ -3276,6 +3264,7 @@ void UMaterialExpressionTextureSampleParameterCube::SetDefaultTexture()
 {
 	Texture = LoadObject<UTextureCube>(nullptr, TEXT("/Engine/EngineResources/DefaultTextureCube.DefaultTextureCube"), nullptr, LOAD_None, nullptr);
 }
+#endif // WITH_EDITOR
 
 //
 //  UMaterialExpressionTextureSampleParameter2DArray
@@ -3323,7 +3312,6 @@ void UMaterialExpressionTextureSampleParameter2DArray::GetCaption(TArray<FString
 	OutCaptions.Add(TEXT("Param2DArray"));
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
-#endif
 
 bool UMaterialExpressionTextureSampleParameter2DArray::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
@@ -3340,6 +3328,7 @@ bool UMaterialExpressionTextureSampleParameter2DArray::TextureIsValid(UTexture* 
 
 	return true;
 }
+#endif // WITH_EDITOR
 
 const TCHAR* UMaterialExpressionTextureSampleParameter2DArray::GetRequirements()
 {
@@ -3392,7 +3381,6 @@ void UMaterialExpressionTextureSampleParameterVolume::GetCaption(TArray<FString>
 	OutCaptions.Add(TEXT("ParamVolume")); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
-#endif // WITH_EDITOR
 
 bool UMaterialExpressionTextureSampleParameterVolume::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
@@ -3414,6 +3402,7 @@ void UMaterialExpressionTextureSampleParameterVolume::SetDefaultTexture()
 {
 	Texture = LoadObject<UVolumeTexture>(nullptr, TEXT("/Engine/EngineResources/DefaultVolumeTexture.DefaultVolumeTexture"), nullptr, LOAD_None, nullptr);
 }
+#endif // WITH_EDITOR
 
 /** 
  * Performs a SubUV operation, which is doing a texture lookup into a sub rectangle of a texture, and optionally blending with another rectangle.  
@@ -3470,14 +3459,12 @@ void UMaterialExpressionTextureSampleParameterSubUV::GetCaption(TArray<FString>&
 {
 	OutCaptions.Add(TEXT("Parameter SubUV"));
 }
-#endif // WITH_EDITOR
 
 bool UMaterialExpressionTextureSampleParameterSubUV::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
 	return UMaterialExpressionTextureSampleParameter2D::TextureIsValid(InTexture, OutMessage);
 }
 
-#if WITH_EDITOR
 int32 UMaterialExpressionAdd::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	// if the input is hooked up, use it, otherwise use the internal constant
@@ -3487,7 +3474,6 @@ int32 UMaterialExpressionAdd::Compile(class FMaterialCompiler* Compiler, int32 O
 
 	return Compiler->Add(Arg1, Arg2);
 }
-
 
 void UMaterialExpressionAdd::GetCaption(TArray<FString>& OutCaptions) const
 {
@@ -8263,6 +8249,10 @@ void UMaterialExpressionFeatureLevelSwitch::Serialize(FStructuredArchive::FRecor
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
 	UnderlyingArchive.UsingCustomVersion(FRenderingObjectVersion::GUID);
 
+#if !WITH_EDITORONLY_DATA
+	FExpressionInput Inputs[ERHIFeatureLevel::Num];
+#endif
+
 	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_RENAME_SM3_TO_ES3_1)
 	{
 		// Copy the ES2 input to SM3 (since SM3 will now become ES3_1 and we don't want broken content)
@@ -11674,7 +11664,9 @@ bool UMaterialFunction::IsDependent(UMaterialFunctionInterface* OtherFunction)
 		return true;
 	}
 
+#if WITH_EDITOR
 	SetReentrantFlag(true);
+#endif
 
 	bool bIsDependent = false;
 	for (int32 ExpressionIndex = 0; ExpressionIndex < FunctionExpressions.Num(); ExpressionIndex++)
@@ -11690,7 +11682,9 @@ bool UMaterialFunction::IsDependent(UMaterialFunctionInterface* OtherFunction)
 		}
 	}
 
+#if WITH_EDITOR
 	SetReentrantFlag(false);
+#endif
 
 	return bIsDependent;
 }
@@ -15583,7 +15577,6 @@ void UMaterialExpressionAntialiasedTextureMask::GetCaption(TArray<FString>& OutC
 	OutCaptions.Add(TEXT("AAMasked Param2D")); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
-#endif // WITH_EDITOR
 
 bool UMaterialExpressionAntialiasedTextureMask::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
@@ -15606,6 +15599,7 @@ void UMaterialExpressionAntialiasedTextureMask::SetDefaultTexture()
 {
 	Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"), nullptr, LOAD_None, nullptr);
 }
+#endif // WITH_EDITOR
 
 //
 //	UMaterialExpressionDecalDerivative

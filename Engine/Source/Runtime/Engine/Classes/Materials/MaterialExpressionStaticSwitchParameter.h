@@ -14,12 +14,13 @@ class UMaterialExpressionStaticSwitchParameter : public UMaterialExpressionStati
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FExpressionInput A;
 
 	UPROPERTY()
 	FExpressionInput B;
-
+#endif
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

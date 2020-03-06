@@ -365,12 +365,18 @@ class UMaterialInstance : public UMaterialInterface
 
 	FORCEINLINE bool GetReentrantFlag() const
 	{
+#if WITH_EDITOR
 		return ReentrantFlag[IsInGameThread() ? 0 : 1];
+#else
+		return false;
+#endif
 	}
 
 	FORCEINLINE void SetReentrantFlag(const bool bValue)
 	{
+#if WITH_EDITOR
 		ReentrantFlag[IsInGameThread() ? 0 : 1] = bValue;
+#endif
 	}
 
 	/** Scalar parameters. */
@@ -408,8 +414,10 @@ class UMaterialInstance : public UMaterialInterface
 
 	FMaterialShadingModelField ShadingModels;
 
-	/** Flag to detect cycles in the material instance graph. */
+#if WITH_EDITOR
+	/** Flag to detect cycles in the material instance graph, this is only used at content creation time where the hierarchy can be changed. */
 	bool ReentrantFlag[2];
+#endif
 
 	/** 
 	 * FMaterialRenderProxy derivative that represent this material instance to the renderer, when the renderer needs to fetch parameter values. 

@@ -19,7 +19,9 @@ class UMaterialExpressionTextureSampleParameter2DArray : public UMaterialExpress
 #endif
 
 	// Begin UMaterialExpressionTextureSampleParameter Interface
+#if WITH_EDITOR
 	virtual bool TextureIsValid( UTexture* InTexture, FString& OutMessage) override;
+#endif
 	virtual const TCHAR* GetRequirements();
 	// End UMaterialExpressionTextureSampleParameter Interface
 };

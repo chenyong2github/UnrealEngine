@@ -14,8 +14,10 @@ class UMaterialExpressionStaticComponentMaskParameter : public UMaterialExpressi
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FExpressionInput Input;
+#endif
 
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter)
 	uint32 DefaultR:1;

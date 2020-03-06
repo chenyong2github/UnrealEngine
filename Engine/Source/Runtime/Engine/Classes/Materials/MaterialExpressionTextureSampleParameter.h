@@ -61,7 +61,6 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	bool SetParameterValue(FName InParameterName, UTexture* InValue);
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	void ApplyChannelNames();
-#endif
 
 	/**
 	 * Return true if the texture is a movie texture
@@ -76,6 +75,7 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	 *	Sets the default texture if none is set
 	 */
 	virtual void SetDefaultTexture();
+#endif // WITH_EDITOR
 
 	virtual FGuid& GetParameterExpressionId() override
 	{
