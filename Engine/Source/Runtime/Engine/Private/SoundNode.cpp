@@ -122,7 +122,7 @@ void USoundNode::PrimeChildWavePlayers(bool bRecurse)
 
 void USoundNode::RetainChildWavePlayers(bool bRecurse)
 {
-	if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	if (!GIsEditor && FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
 	{
 		// Search child nodes for wave players, then prime their waves.
 		for (USoundNode* ChildNode : ChildNodes)
