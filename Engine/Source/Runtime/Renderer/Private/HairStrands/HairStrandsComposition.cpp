@@ -108,91 +108,6 @@ static void AddHairVisibilityComposeSamplePass(
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-class FHairVisibilityComposeSubPixelPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FHairVisibilityComposeSubPixelPS);
-	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityComposeSubPixelPS, FGlobalShader);
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SubPixelColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorisationTexture)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return Parameters.Platform == SP_PCD3D_SM5; }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_SUBCOLOR"), 1);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FHairVisibilityComposeSubPixelPS, "/Engine/Private/HairStrands/HairStrandsVisibilityComposeSubPixelPS.usf", "SubColorPS", SF_Pixel);
-
-static void AddHairVisibilityComposeSubPixelPass(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const FRDGTextureRef& SubPixelColorTexture,
-	const FRDGTextureRef CategorisationTexture,
-	FRDGTextureRef& OutColorTexture,
-	FRDGTextureRef& OutDepthTexture)
-{
-	FHairVisibilityComposeSubPixelPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityComposeSubPixelPS::FParameters>();
-	Parameters->SubPixelColorTexture = SubPixelColorTexture;
-	Parameters->CategorisationTexture = CategorisationTexture;
-	Parameters->RenderTargets[0] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
-	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
-
-	FHairVisibilityComposeSubPixelPS::FPermutationDomain PermutationVector;
-	TShaderMapRef<FHairVisibilityComposeSubPixelPS> PixelShader(View.ShaderMap, PermutationVector);
-	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-	const FIntRect Viewport = View.ViewRect;
-	const FIntPoint Resolution = OutColorTexture->Desc.Extent;
-	const FViewInfo* CapturedView = &View;
-
-	{
-		ClearUnusedGraphResources(PixelShader, Parameters);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairStrandsVisibilityComposeSubSPixel"),
-			Parameters,
-			ERDGPassFlags::Raster,
-			[Parameters, VertexShader, PixelShader, Viewport, Resolution, CapturedView](FRHICommandList& RHICmdList)
-		{
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-
-			// Write stencil value for partially covered pixel, in order to run responsive AA on them
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-			VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
-			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
-			DrawRectangle(
-				RHICmdList,
-				0, 0,
-				Viewport.Width(), Viewport.Height(),
-				Viewport.Min.X, Viewport.Min.Y,
-				Viewport.Width(), Viewport.Height(),
-				Viewport.Size(),
-				Resolution,
-				VertexShader,
-				EDRF_UseTriangleOptimization);
-		});
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 class FHairVisibilityFastResolvePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairVisibilityFastResolvePS);
@@ -384,7 +299,7 @@ static void AddPatchGbufferDataPass(
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void RenderHairComposeSubPixel(
+void RenderHairComposition(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
 	const FHairStrandsDatas* HairDatas)
@@ -394,14 +309,13 @@ void RenderHairComposeSubPixel(
 
 	const FHairStrandsVisibilityViews& HairVisibilityViews = HairDatas->HairVisibilityViews;
 
-	DECLARE_GPU_STAT(HairStrandsComposeSubPixel);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsComposeSubPixel);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsComposeSubPixel);
+	DECLARE_GPU_STAT(HairStrandsComposition);
+	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsComposition);
+	SCOPED_GPU_STAT(RHICmdList, HairStrandsComposition);
 
 	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	FRDGTextureRef SceneColorSubPixelTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneColorSubPixel, TEXT("SceneColorSubPixelTexture"));
 	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 	FRDGTextureRef SceneColorDepth = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDepthTexture"));
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -421,38 +335,23 @@ void RenderHairComposeSubPixel(
 				}
 				const FRDGTextureRef RDGCategorisationTexture = CategorisationTexture ? GraphBuilder.RegisterExternalTexture(CategorisationTexture, TEXT("HairVisibilityCategorisationTexture")) : nullptr;
 
-				AddHairDiffusionPass(
+				// todo: rehook the diffusion pass
+				//AddHairDiffusionPass(
+				//	GraphBuilder,
+				//	View,
+				//	VisibilityData,
+				//	MacroGroupDatas.VirtualVoxelResources,
+				//	SceneColorDepth,
+				//	SceneColorSubPixelTexture,
+				//	SceneColorTexture);
+
+				AddHairVisibilityComposeSamplePass(
 					GraphBuilder,
 					View,
 					VisibilityData,
-					MacroGroupDatas.VirtualVoxelResources,
-					SceneColorDepth,
-					SceneColorSubPixelTexture,
-					SceneColorTexture);
-
-				if (VisibilityData.SampleLightingBuffer)
-				{
-					AddHairVisibilityComposeSamplePass(
-						GraphBuilder,
-						View,
-						VisibilityData,
-						RDGCategorisationTexture,
-						SceneColorTexture,
-						SceneColorDepth);
-				}
-				else
-				{
-					// #hair_todo : compose partially covered hair with transparent surface: this can be done by 
-					// rendering quad(s) covering the hair at the correct depth. This will be sorted with other 
-					// transparent surface, which should make the overall sorting workable
-					AddHairVisibilityComposeSubPixelPass(
-						GraphBuilder,
-						View,
-						SceneColorSubPixelTexture,
-						RDGCategorisationTexture,
-						SceneColorTexture,
-						SceneColorDepth);
-				}
+					RDGCategorisationTexture,
+					SceneColorTexture,
+					SceneColorDepth);
 
 				if (HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture)
 				{
