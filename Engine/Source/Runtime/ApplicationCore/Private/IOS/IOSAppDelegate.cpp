@@ -859,9 +859,9 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 - (UIViewController*) IOSController
 {
-	// walk the responder chain until we get to a non-view, that's the VC
+	// walk the responder chain until we get to a VC
 	UIResponder *Responder = IOSView;
-	while ([Responder isKindOfClass:[UIView class]])
+	while (Responder != nil && ![Responder isKindOfClass:[UIViewController class]])
 	{
 		Responder = [Responder nextResponder];
 	}
