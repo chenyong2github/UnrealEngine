@@ -15,6 +15,8 @@
 #include "Containers/Ticker.h"
 #include "Misc/Paths.h"
 #include "HAL/RunnableThread.h"
+#include "StudioAnalytics.h"
+#include "AnalyticsEventAttribute.h"
 
 static bool bIndexUnindexAssetsOnLoad = false;
 FAutoConsoleVariableRef CVarIndexUnindexAssetsOnLoad(
@@ -432,6 +434,10 @@ void FAssetSearchManager::Tick_DatabaseOperationThread()
 void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback)
 {
 	check(IsInGameThread());
+
+	FStudioAnalytics::ReportEvent(TEXT("AssetSearch"), {
+		FAnalyticsEventAttribute(TEXT("QueryString"), Query.Query)
+	});
 
 	ImmediateOperations.Enqueue([this, Query, InCallback]() {
 
