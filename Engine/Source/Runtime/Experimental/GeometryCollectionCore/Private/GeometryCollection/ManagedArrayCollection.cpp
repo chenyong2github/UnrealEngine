@@ -19,7 +19,7 @@ static const FName GuidName("GUID");
 void FManagedArrayCollection::AddGroup(FName Group)
 {
 	ensure(!GroupInfo.Contains(Group));
-	FGroupInfo info {
+	FGroupInfo info{
 		0
 	};
 	GroupInfo.Add(Group, info);
@@ -77,7 +77,7 @@ TArray<FName> FManagedArrayCollection::GroupNames() const
 bool FManagedArrayCollection::HasAttribute(FName Name, FName Group) const
 {
 	bool bReturnValue = false;
-	for (const TTuple<FKeyType,FValueType>& Entry : Map)
+	for (const TTuple<FKeyType, FValueType>& Entry : Map)
 	{
 		if (Entry.Key.Get<0>() == Name && Entry.Key.Get<1>() == Group)
 		{
@@ -120,10 +120,10 @@ void FManagedArrayCollection::GenerateGuids(FName Group, int32 StartIdx)
 	// we don't need these at runtime in any case, so if we need in the editor later, make sure this is in-editor only
 	if (GIsEditor)
 	{
-	 	for (int32 Idx = StartIdx; Idx < Guids.Num(); ++Idx)
-	 	{
-	 		Guids[Idx] = FGuid::NewGuid();
-	 	}
+		for (int32 Idx = StartIdx; Idx < Guids.Num(); ++Idx)
+		{
+			Guids[Idx] = FGuid::NewGuid();
+		}
 	}
 }
 
@@ -177,7 +177,7 @@ void FManagedArrayCollection::RemoveGroup(FName Group)
 			Entry.Value.GroupIndexDependency = "";
 		}
 	}
-	for (const FName & AttrName : DelList)
+	for (const FName& AttrName : DelList)
 	{
 		Map.Remove(FManagedArrayCollection::MakeMapKey(AttrName, Group));
 	}
@@ -194,7 +194,7 @@ void FManagedArrayCollection::Resize(int32 Size, FName Group)
 		return;
 	}
 
-	ensureMsgf(Size > NumElements(Group),TEXT("Use RemoveElements to shrink a group."));
+	ensureMsgf(Size > NumElements(Group), TEXT("Use RemoveElements to shrink a group."));
 	const int32 StartSize = GroupInfo[Group].Size;
 	for (TTuple<FKeyType, FValueType>& Entry : Map)
 	{
@@ -246,20 +246,6 @@ void FManagedArrayCollection::ReorderElements(FName Group, const TArray<int32>& 
 	}
 }
 
-#if 0	//not needed until we support per instance serialization
-void FManagedArrayCollection::SwapElements(int32 Index1, int32 Index2, FName Group)
-{
-	//todo(ocohen): handle dependent groups
-	for (TTuple<FKeyType, FValueType>& Entry : Map)
-	{
-		if (Entry.Key.Get<1>() == Group)
-		{
-			Entry.Value.Value->Swap(Index1, Index2);
-		}
-	}
-}
-#endif
-
 void FManagedArrayCollection::SetDependency(FName Name, FName Group, FName DependencyGroup)
 {
 	ensure(HasAttribute(Name, Group));
@@ -282,83 +268,38 @@ void FManagedArrayCollection::RemoveDependencyFor(FName Group)
 	}
 }
 
-void FManagedArrayCollection::SyncGroupSizeAndOrder(const FManagedArrayCollection& MasterCollection, FName Group)
+void FManagedArrayCollection::SyncGroupSizeFrom(const FManagedArrayCollection& InCollection, FName Group)
 {
 	if (!HasGroup(Group))
 	{
 		AddGroup(Group);
 	}
 
-	//For now we ignore order and just sync size. Ordering is needed for saving out per instance changes. Will add this soon
-	const int32 GroupSize = MasterCollection.GroupInfo[Group].Size;
-	Resize(GroupSize, Group);
-
-#if 0
-	//We want to lock the group and ensure that the master collection's guids match ours in order and size.
-	//Existing entries with guids must be preserved and simply re-ordered
-	//Entries with mismatching guids will be deleted
-	//New entries will be created to ensure the size is the same.
-
-	const TManagedArray<FGuid>& MasterGuids = MasterCollection.GetAttribute<FGuid>(GuidName, Group);
-	TManagedArray<FGuid>& SlaveGuids = GetAttribute<FGuid>(GuidName, Group);
-	
-	//remove guids that are not in the master list
-	TArray<int32> SortedEntriesToDelete;
-	SortedEntriesToDelete.Reserve(SlaveGuids.Num());
-	for (int32 Idx = 0; Idx < SlaveGuids.Num(); ++Idx)
-	{
-		if (!MasterGuids.Contains(SlaveGuids[Idx]))	//comment: set may help, but it doesn't take TManagedArray directly
-		{
-			SortedEntriesToDelete.Add(Idx);
-		}
-	}
-	RemoveElements(Group, SortedEntriesToDelete);
-	//Slave guids are now a subset of the master guids, but they can be out of order. So we must re-order and add new guids
-	for (int32 Idx = 0; Idx < MasterGuids.Num(); ++Idx)
-	{
-		int32 FoundSlaveIdx = -1;
-		{
-			for (int32 SlaveIdx = 0; SlaveIdx < SlaveGuids.Num(); ++SlaveIdx)
-			{
-				if (MasterGuids[Idx] == SlaveGuids[SlaveIdx])
-				{
-					FoundSlaveIdx = SlaveIdx;
-					break;
-				}
-			}
-		}
-
-		if (FoundSlaveIdx == -1)
-		{
-			//no existing entry, create a new one and set its guid
-			FoundSlaveIdx = NumElements(Group);
-			AddElements(1, Group);
-			SlaveGuids[FoundSlaveIdx] = MasterGuids[Idx];
-		}
-
-		if(FoundSlaveIdx != Idx)
-		{
-			//entry exists, just needs to be re-ordered
-			SwapElements(FoundSlaveIdx, Idx, Group);
-		}
-	}
-#endif
+	Resize(InCollection.GroupInfo[Group].Size, Group);
 }
 
-void FManagedArrayCollection::SyncAllGroups(const FManagedArrayCollection& MasterCollection)
+void FManagedArrayCollection::CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection)
 {
-	for (const auto& Pair : MasterCollection.GroupInfo)
+	for (const auto& Pair : InCollection.GroupInfo)
 	{
-		SyncGroupSizeAndOrder(MasterCollection, Pair.Key);
+		SyncGroupSizeFrom(InCollection, Pair.Key);
 	}
+	for (TTuple<FKeyType, FValueType>& Entry : Map)
+	{
+		if (InCollection.HasAttribute(Entry.Key.Get<0>(), Entry.Key.Get<1>()))
+		{
+			CopyAttribute(InCollection, Entry.Key.Get<0>(), Entry.Key.Get<1>());
+		}
+	}
+
 }
 
-void FManagedArrayCollection::CopyAttribute(const FManagedArrayCollection& MasterCollection, FName Name, FName Group)
+void FManagedArrayCollection::CopyAttribute(const FManagedArrayCollection& InCollection, FName Name, FName Group)
 {
-	SyncGroupSizeAndOrder(MasterCollection, Group);
+	SyncGroupSizeFrom(InCollection, Group);
 	FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
-	
-	const FValueType& OriginalValue = MasterCollection.Map[Key];
+
+	const FValueType& OriginalValue = InCollection.Map[Key];
 	const FValueType& DestValue = Map[Key];	//todo(ocohen): API assumes an AddAttribute is called before copy is done. It'd be nice to handle the case where AddAttribute was not done first
 	check(OriginalValue.ArrayType == DestValue.ArrayType);
 	DestValue.Value->Init(*OriginalValue.Value);
@@ -406,7 +347,7 @@ bool FManagedArrayCollection::HasCycle(FName NewGroup, FName DependencyGroup)
 FString FManagedArrayCollection::ToString() const
 {
 	FString Buffer("");
-	for (FName GroupName : GroupNames()) 
+	for (FName GroupName : GroupNames())
 	{
 		Buffer += GroupName.ToString() + "\n";
 		for (FName AttributeName : AttributeNames(GroupName))
@@ -414,11 +355,11 @@ FString FManagedArrayCollection::ToString() const
 			FKeyType Key = FManagedArrayCollection::MakeMapKey(AttributeName, GroupName);
 			const FValueType& Value = Map[Key];
 
-			const void * PointerAddress = static_cast<const void*>(Value.Value);
+			const void* PointerAddress = static_cast<const void*>(Value.Value);
 			std::stringstream AddressStream;
 			AddressStream << PointerAddress;
 
-			Buffer += GroupName.ToString() + ":" + AttributeName.ToString() + " ["+ FString(AddressStream.str().c_str()) +"]\n";
+			Buffer += GroupName.ToString() + ":" + AttributeName.ToString() + " [" + FString(AddressStream.str().c_str()) + "]\n";
 		}
 	}
 	return Buffer;
@@ -430,7 +371,7 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 	int Version = 4;
 	Ar << Version;
 
-	if(Ar.IsLoading())
+	if (Ar.IsLoading())
 	{
 		//We can't serialize entire tmap in place because we may have new groups. todo(ocohen): baked data should be simpler since all entries exist
 		TMap< FName, FGroupInfo> TmpGroupInfo;
@@ -530,6 +471,6 @@ FArchive& operator<<(FArchive& Ar, FManagedArrayCollection::FValueType& ValueIn)
 		//todo(ocohen): need a better way to enforce this
 		ValueIn.Value->Serialize(static_cast<Chaos::FChaosArchive&>(Ar));
 	}
-	
+
 	return Ar;
 }
