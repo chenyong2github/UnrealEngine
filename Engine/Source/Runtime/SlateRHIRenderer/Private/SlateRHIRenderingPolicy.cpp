@@ -562,6 +562,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 	FRHICommandListImmediate& RHICmdList,
 	FSlateBackBuffer& BackBuffer,
 	FTexture2DRHIRef& ColorTarget,
+	FTexture2DRHIRef& PostProcessTexture,
 	FTexture2DRHIRef& DepthStencilTarget,
 	int32 FirstBatchIndex,
 	const TArray<FSlateRenderBatch>& RenderBatches,
@@ -1133,10 +1134,10 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				const FVector4& QuadPositionData = ShaderParams.PixelParams;
 
 				FPostProcessRectParams RectParams;
-				RectParams.SourceTexture = BackBuffer.GetRenderTargetTexture();
-				RectParams.SourceRect = FSlateRect(0, 0, BackBuffer.GetSizeXY().X, BackBuffer.GetSizeXY().Y);
+				RectParams.SourceTexture = PostProcessTexture->GetTexture2D();
+				RectParams.SourceRect = FSlateRect(0, 0, PostProcessTexture->GetSizeX(), PostProcessTexture->GetSizeY());
 				RectParams.DestRect = FSlateRect(QuadPositionData.X, QuadPositionData.Y, QuadPositionData.Z, QuadPositionData.W);
-				RectParams.SourceTextureSize = BackBuffer.GetSizeXY();
+				RectParams.SourceTextureSize = PostProcessTexture->GetSizeXY();
 
 				RectParams.RestoreStateFunc = [&](FRHICommandListImmediate&InRHICmdList, FGraphicsPipelineStateInitializer& InGraphicsPSOInit) {
 					return UpdateScissorRect(
