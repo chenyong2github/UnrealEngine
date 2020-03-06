@@ -3274,6 +3274,12 @@ bool FCsvProfiler::EnableCategoryByString(const FString& CategoryName) const
 	return false;
 }
 
+void FCsvProfiler::EnableCategoryByIndex(uint32 CategoryIndex, bool bEnable) const
+{
+	check(CategoryIndex < CSV_MAX_CATEGORY_COUNT);
+	GCsvCategoriesEnabled[CategoryIndex] = bEnable;
+}
+
 bool FCsvProfiler::IsCapturing_Renderthread()
 {
 	check(IsInRenderingThread());
