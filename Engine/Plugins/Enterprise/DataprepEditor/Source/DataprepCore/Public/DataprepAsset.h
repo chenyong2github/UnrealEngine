@@ -149,6 +149,19 @@ public:
 	DECLARE_EVENT_TwoParams(UDataprepAsset, FOnDataprepActionAssetChange, UObject* /*The object that was modified*/, FDataprepAssetChangeType)
 	FOnDataprepActionAssetChange& GetOnActionChanged() { return OnActionChanged; }
 
+	/**
+	 * Allow an observer to be notified of the removal of some step from the asset
+	 */
+	DECLARE_EVENT_OneParam(UDataprepAsset, FOnStepObjectsAboutToBeRemoved, const TArrayView<UDataprepParameterizableObject*>&)
+	FOnStepObjectsAboutToBeRemoved& GetOnStepObjectsAboutToBeRemoved() { return OnStepObjectsAboutToBeRemoved; }
+
+	struct FRestrictedToActionAsset
+	{
+	private:
+		friend UDataprepActionAsset;
+		static void NotifyAssetOfTheRemovalOfSteps(UDataprepAsset& DataprepAsset, const TArrayView<UDataprepParameterizableObject*>& StepObjects);
+	};
+
 	bool CreateParameterization();
 
 #ifndef NO_BLUEPRINT
@@ -240,6 +253,7 @@ private:
 
 	FOnDataprepActionAssetChange OnActionChanged;
 
-	int32 CachedActionCount;
+	FOnStepObjectsAboutToBeRemoved OnStepObjectsAboutToBeRemoved;
 
+	int32 CachedActionCount;
 };

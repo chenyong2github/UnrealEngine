@@ -5,6 +5,7 @@
 // Dataprep includes
 #include "DataprepActionAsset.h"
 #include "DataprepCoreUtils.h"
+#include "DataprepEditor.h"
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
@@ -16,9 +17,9 @@
 #include "Widgets/DataprepGraph/SDataprepActionSteps.h"
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
-#include "Widgets/DataprepGraph/SDataprepSelectionTransform.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 #include "Widgets/DataprepGraph/SDataprepOperation.h"
+#include "Widgets/DataprepGraph/SDataprepSelectionTransform.h"
 
 // Engine Includes
 #include "Editor.h"
@@ -42,6 +43,7 @@ void SDataprepGraphActionStepNode::Construct(const FArguments& InArgs, UDataprep
 
 	ParentNodePtr = InParent;
 	GraphNode = InActionStepNode;
+	DataprepEditor = InArgs._DataprepEditor;
 
 	SetCursor(EMouseCursor::ResizeUpDown);
 	UpdateGraphNode();
@@ -114,7 +116,14 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 		if ( UDataprepActionStep* ActionStep = StepData->DataprepActionStepPtr.Get())
 		{
 			UDataprepParameterizableObject* StepObject = ActionStep->GetStepObject();
-			UClass* StepType = FDataprepCoreUtils::GetTypeOfActionStep(StepObject);
+
+			bool bIsPreviewed = false;
+			if (TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin())
+			{
+				bIsPreviewed = DataprepEditorPtr->IsPreviewingStep( StepObject );
+			}
+
+			UClass* StepType = FDataprepCoreUtils::GetTypeOfActionStep( StepObject );
 			if (StepType == UDataprepOperation::StaticClass())
 			{
 				UDataprepOperation* Operation = static_cast<UDataprepOperation*>( StepObject );
@@ -123,7 +132,12 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 			else if (StepType == UDataprepFilter::StaticClass())
 			{
 				UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
-				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepFilter, *Filter, StepData).IsSimplified(true) );
+
+				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( 
+					SNew( SDataprepFilter, *Filter, StepData )
+						.IsPreviewed( bIsPreviewed )
+						.IsSimplified(true)
+					);
 			}
 			else if (StepType == UDataprepSelectionTransform::StaticClass())
 			{
@@ -228,14 +242,38 @@ FSlateColor SDataprepGraphActionStepNode::GetBorderBackgroundColor() const
 
 FReply SDataprepGraphActionStepNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	GetOwnerPanel()->SelectionManager.ClickedOnNode(GraphNode, MouseEvent);
-
 	if ( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 	{
+		GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
 		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 	}
 
+	// Take ownership of the mouse if right mouse button clicked to display contextual menu
+	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	{
+		if ( !GetOwnerPanel()->SelectionManager.SelectedNodes.Contains( GraphNode ) )
+		{
+			GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+		}
+		return FReply::Handled();
+	}
+
 	return SGraphNode::OnMouseButtonDown( MyGeometry, MouseEvent);
+}
+
+FReply SDataprepGraphActionStepNode::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	{
+		ensure(OwnerGraphPanelPtr.IsValid());
+
+		const FVector2D Position = MouseEvent.GetScreenSpacePosition();
+		OwnerGraphPanelPtr.Pin()->SummonContextMenu( Position, Position, GraphNode, nullptr, TArray<UEdGraphPin*>() );
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
 }
 
 FReply SDataprepGraphActionStepNode::OnMouseMove(const FGeometry& SenderGeometry, const FPointerEvent& MouseEvent)

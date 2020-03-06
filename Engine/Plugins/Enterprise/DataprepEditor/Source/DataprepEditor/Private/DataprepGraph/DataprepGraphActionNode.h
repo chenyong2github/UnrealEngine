@@ -54,6 +54,9 @@ protected:
 
 	UPROPERTY()
 	int32 StepIndex;
+
+	// Is this node currently driving the filter preview
+	bool bIsPreviewed = false;
 };
 
 /**

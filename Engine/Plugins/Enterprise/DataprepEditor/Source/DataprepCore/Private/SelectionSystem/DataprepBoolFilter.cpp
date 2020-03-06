@@ -3,8 +3,11 @@
 #include "SelectionSystem/DataprepBoolFilter.h"
 
 #include "DataprepCoreLogCategory.h"
-#include "SelectionSystem/DataprepSelectionSystemUtils.h"
 #include "SelectionSystem/DataprepBoolFetcher.h"
+#include "SelectionSystem/DataprepSelectionSystemStructs.h"
+#include "SelectionSystem/DataprepSelectionSystemUtils.h"
+
+#include "Containers/ArrayView.h"
 
 bool UDataprepBoolFilter::Filter(const bool bResult) const
 {
@@ -12,7 +15,7 @@ bool UDataprepBoolFilter::Filter(const bool bResult) const
 	return bResult;
 }
 
-TArray<UObject*> UDataprepBoolFilter::FilterObjects(const TArray<UObject *>& Objects) const
+TArray<UObject*> UDataprepBoolFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
 {
 	if ( BoolFetcher )
 	{
@@ -21,6 +24,26 @@ TArray<UObject*> UDataprepBoolFilter::FilterObjects(const TArray<UObject *>& Obj
 
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepBoolFilter::FilterObjects: There was no Fetcher") );
 	return {};
+}
+
+void UDataprepBoolFilter::FilterAndGatherInfo(const TArrayView<UObject*>& InObjects, const TArrayView<FDataprepSelectionInfo>& OutFilterResults) const
+{
+	if ( BoolFetcher )
+	{
+		return DataprepSelectionSystemUtils::FilterAndGatherInfo< UDataprepBoolFilter, UDataprepBoolFetcher, bool >( *this, *BoolFetcher, InObjects, OutFilterResults );
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepBoolFilter::FilterAndGatherInfo: There was no Fetcher") );
+}
+
+void UDataprepBoolFilter::FilterAndStoreInArrayView(const TArrayView<UObject *>& InObjects, const TArrayView<bool>& OutFilterResults) const
+{
+	if ( BoolFetcher )
+	{
+		return DataprepSelectionSystemUtils::FilterAndStoreInArrayView< UDataprepBoolFilter, UDataprepBoolFetcher, bool >( *this, *BoolFetcher, InObjects, OutFilterResults );
+	}
+
+	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepBoolFilter::FilterAndStoreInArrayView: There was no Fetcher") );
 }
 
 FText UDataprepBoolFilter::GetFilterCategoryText() const
