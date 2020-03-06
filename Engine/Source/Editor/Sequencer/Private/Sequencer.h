@@ -1193,9 +1193,6 @@ private:
 		the MovieScene data can change many times per frame.) */
 	bool bNeedTreeRefresh;
 
-	/** Stores the playback status to be restored on refresh. */
-	EMovieScenePlayerStatus::Type StoredPlaybackState;
-
 	FSequencerSelection Selection;
 	FSequencerSelectionPreview SelectionPreview;
 

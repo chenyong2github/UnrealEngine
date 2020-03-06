@@ -548,7 +548,6 @@ FSequencer::FSequencer()
 	, bPerspectiveViewportCameraCutEnabled( false )
 	, bIsEditingWithinLevelEditor( false )
 	, bNeedTreeRefresh( false )
-	, StoredPlaybackState( EMovieScenePlayerStatus::Stopped )
 	, NodeTree( MakeShareable( new FSequencerNodeTree( *this ) ) )
 	, bUpdatingSequencerSelection( false )
 	, bUpdatingExternalSelection( false )
@@ -664,8 +663,10 @@ void FSequencer::Tick(float InDeltaTime)
 
 	if (bNeedTreeRefresh || NodeTree->NeedsFilterUpdate())
 	{
-		SelectionPreview.Empty();
+		EMovieScenePlayerStatus::Type StoredPlaybackState = GetPlaybackStatus();
+		SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
 
+		SelectionPreview.Empty();
 		RefreshTree();
 
 		SetPlaybackStatus(StoredPlaybackState);
@@ -2186,14 +2187,13 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 		}
 	}
 
-	StoredPlaybackState = GetPlaybackStatus();
-
 	if ( DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemRemoved ||
 		DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemsChanged ||
 		DataChangeType == EMovieSceneDataChangeType::Unknown )
 	{
 		// When structure items are removed, or we don't know what may have changed, refresh the tree and instances immediately so that the data
 		// is in a consistent state when the UI is updated during the next tick.
+		EMovieScenePlayerStatus::Type StoredPlaybackState = GetPlaybackStatus();
 		SetPlaybackStatus( EMovieScenePlayerStatus::Stopped );
 		SelectionPreview.Empty();
 		RefreshTree();
