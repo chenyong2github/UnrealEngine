@@ -6,6 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Framework/SlateDelegates.h"
+#include "NiagaraEditorWidgetsStyle.h"
 
 class UNiagaraStackViewModel;
 class UNiagaraStackEntry;
@@ -31,13 +32,18 @@ class SNiagaraStackDisplayName : public SNiagaraStackEntryWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraStackDisplayName)
+		: _NameStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.Stack.ItemText"))
+		, _EditableNameStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("NiagaraEditor.Stack.EditableItemText"))
+		, _OriginalNameStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.Stack.SubduedItemText"))
 	{
 		_Clipping = EWidgetClipping::OnDemand;
 	}
-		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TypeNameStyle)
+		SLATE_STYLE_ARGUMENT(FTextBlockStyle, NameStyle)
+		SLATE_STYLE_ARGUMENT(FInlineEditableTextBlockStyle, EditableNameStyle)
+		SLATE_STYLE_ARGUMENT(FTextBlockStyle, OriginalNameStyle)
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UNiagaraStackEntry& InStackEntry, UNiagaraStackViewModel& InStackViewModel, FName InTextStyleName);
+	void Construct(const FArguments& InArgs, UNiagaraStackEntry& InStackEntry, UNiagaraStackViewModel& InStackViewModel);
 
 	~SNiagaraStackDisplayName();
 
@@ -65,9 +71,9 @@ private:
 	void EntryNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
 
 private:
-	FName TextStyleName;
-
-	const FTextBlockStyle* TypeNameStyle;
+	const FTextBlockStyle* NameStyle;
+	const FInlineEditableTextBlockStyle* EditableNameStyle;
+	const FTextBlockStyle* OriginalNameStyle;
 
 	TSharedPtr<SBox> Container;
 
