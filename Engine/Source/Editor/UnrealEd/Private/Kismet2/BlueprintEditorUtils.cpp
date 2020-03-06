@@ -736,7 +736,7 @@ void FBlueprintEditorUtils::PatchNewCDOIntoLinker(UObject* CDO, FLinkerLoad* Lin
 		if( OldCDO != nullptr )
 		{
 			EObjectFlags OldObjectFlags = OldCDO->GetFlags();
-			OldCDO->ClearFlags(RF_NeedLoad|RF_NeedPostLoad);
+			OldCDO->ClearFlags(RF_NeedLoad|RF_NeedPostLoad|RF_NeedPostLoadSubobjects);
 			OldCDO->SetLinker(nullptr, INDEX_NONE);
 			
 			// Copy flags from the old CDO.
