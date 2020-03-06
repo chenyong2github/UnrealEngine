@@ -1539,6 +1539,18 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		ParseParams.ReverbSendLevelDistanceRange = { Settings->ReverbDistanceMin, Settings->ReverbDistanceMax };
 	}
 
+	if (Settings->bEnableSubmixSends)
+	{
+		ParseParams.SubmixSendSettings.Reset();
+		for (const FAttenuationSubmixSendSettings& SendSettings : Settings->SubmixSendSettings)
+		{
+			if (SendSettings.Submix)
+			{
+				ParseParams.SubmixSendSettings.Add(SendSettings);
+			}
+		}
+	}
+
 	check(AudioDevice);
 	FAttenuationListenerData ListenerData = FAttenuationListenerData::Create(*AudioDevice, ListenerIndex, ParseParams.Transform, *Settings);
 

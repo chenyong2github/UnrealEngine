@@ -42,6 +42,7 @@ namespace Audio
 		, OutputVolume(1.0f)
 		, TargetOutputVolume(1.0f)
 		, EnvelopeNumChannels(0)
+		, NumSubmixEffects(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
 		, bApplyOutputVolumeScale(false)
@@ -111,17 +112,21 @@ namespace Audio
 				bApplyOutputVolumeScale = true;
 			}
 
+			NumSubmixEffects = 0;
+
 			for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
 			{
 				if (EffectPreset)
 				{
+					++NumSubmixEffects;
+
 					// Create a new effect instance using the preset
 					FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
-				
-				FSoundEffectSubmixInitData InitData;
-				InitData.DeviceID = MixerDevice->DeviceID;
-				InitData.SampleRate = MixerDevice->GetSampleRate();
-				InitData.PresetSettings = nullptr;
+
+					FSoundEffectSubmixInitData InitData;
+					InitData.DeviceID = MixerDevice->DeviceID;
+					InitData.SampleRate = MixerDevice->GetSampleRate();
+					InitData.PresetSettings = nullptr;
 
 					// Now set the preset
 					SubmixEffect->Init(InitData);
@@ -273,7 +278,7 @@ namespace Audio
 
 	void FMixerSubmix::RemoveChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr)
 	{
-		TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixStrongPtr  = SubmixWeakPtr.Pin();
+		TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixStrongPtr = SubmixWeakPtr.Pin();
 		if (!SubmixStrongPtr.IsValid())
 		{
 			return;
@@ -304,6 +309,11 @@ namespace Audio
 	}
 
 	int32 FMixerSubmix::GetNumEffects() const
+	{
+		return NumSubmixEffects;
+	}
+
+	int32 FMixerSubmix::GetSizeOfSubmixChain() const
 	{
 		return EffectSubmixChain.Num();
 	}
@@ -353,6 +363,8 @@ namespace Audio
 		Info.PresetId = SubmixPresetId;
 		Info.EffectInstance = InSoundEffectSubmix;
 
+		++NumSubmixEffects;
+
 		EffectSubmixChain.Add(Info);
 	}
 
@@ -368,10 +380,26 @@ namespace Audio
 				// Reset reference to the effect
 				Effect.EffectInstance.Reset();
 				Effect.PresetId = INDEX_NONE;
-				return;
+
+				--NumSubmixEffects;
 			}
 		}
+	}
 
+	void FMixerSubmix::RemoveSoundEffectSubmixAtIndex(int32 InIndex)
+	{
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+		if (InIndex >= 0 && InIndex < EffectSubmixChain.Num())
+		{
+			FSubmixEffectInfo& Effect = EffectSubmixChain[InIndex];
+			if (Effect.EffectInstance.IsValid())
+			{
+				Effect.EffectInstance.Reset();
+				Effect.PresetId = INDEX_NONE;
+				--NumSubmixEffects;
+			}
+		}
 	}
 
 	void FMixerSubmix::ClearSoundEffectSubmixes()
@@ -385,13 +413,19 @@ namespace Audio
 			}
 		}
 
+		NumSubmixEffects = 0;
 		EffectSubmixChain.Reset();
 	}
 
 	void FMixerSubmix::ReplaceSoundEffectSubmix(int32 InIndex, int32 InPresetId, FSoundEffectSubmixPtr InEffectInstance)
 	{
-		if (InEffectInstance->GetPreset() != nullptr && InIndex < EffectSubmixChain.Num())
+		if (InEffectInstance->GetPreset() != nullptr)
 		{
+			if (InIndex >= EffectSubmixChain.Num())
+			{
+				EffectSubmixChain.AddDefaulted(InIndex - EffectSubmixChain.Num() + 1);
+			}
+
 			EffectSubmixChain[InIndex].PresetId = InPresetId;
 			EffectSubmixChain[InIndex].EffectInstance = InEffectInstance;
 		}

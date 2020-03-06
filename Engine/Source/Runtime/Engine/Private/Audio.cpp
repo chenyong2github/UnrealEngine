@@ -954,6 +954,14 @@ void FWaveInstance::AddReferencedObjects( FReferenceCollector& Collector )
 		}
 	}
 
+	for (FAttenuationSubmixSendSettings& SubmixSend : SubmixSendSettings)
+	{
+		if (SubmixSend.Submix)
+		{
+			Collector.AddReferencedObject(SubmixSend.Submix);
+		}
+	}
+
 	Collector.AddReferencedObject( SoundClass );
 	NotifyBufferFinishedHooks.AddReferencedObjects( Collector );
 }
