@@ -97,8 +97,13 @@ void FPreLoadFile::KickOffRead()
 
 void* FPreLoadFile::TakeOwnershipOfLoadedData(int64* OutFileSize)
 {
-	check(CompletionEvent != nullptr);
+	if (!CompletionEvent)
+	{
+		// may need to read again, if (re-)requesting data after the initial boot sequence
+		KickOffRead();
+	}
 
+	check(CompletionEvent);
 	if (CompletionEvent->Wait(0) == false)
 	{
 		printf("PreLoadFile %s wasn't ready...\n", TCHAR_TO_ANSI(*Path));
@@ -107,6 +112,7 @@ void* FPreLoadFile::TakeOwnershipOfLoadedData(int64* OutFileSize)
 		CompletionEvent->Wait();
 	}
 	FPlatformProcess::ReturnSynchEventToPool(CompletionEvent);
+	CompletionEvent = nullptr;
 
 	// return the size of Data if needed
 	if (OutFileSize)

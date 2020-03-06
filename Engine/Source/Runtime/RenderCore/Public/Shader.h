@@ -95,11 +95,6 @@ public:
 	}
 };
 
-// TODO - remove me
-class FShaderResourceId
-{
-};
-
 class FShaderParameterInfo
 {
 	DECLARE_TYPE_LAYOUT(FShaderParameterInfo, NonVirtual);
