@@ -57,6 +57,9 @@ private:
 	FCriticalSection SearchDatabaseCS;
 	TAtomic<int32> PendingDatabaseUpdates;
 	TAtomic<int32> PendingDownloads;
+	TAtomic<int64> TotalSearchRecords;
+
+	double LastRecordCountUpdateSeconds;
 
 private:
 	TMap<FName, IAssetIndexer*> Indexers;
