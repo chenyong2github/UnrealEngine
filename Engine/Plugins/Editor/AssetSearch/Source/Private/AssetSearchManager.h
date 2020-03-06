@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IAssetSearchModule.h"
+#include "AssetSearchDatabase.h"
 
 class FRunnableThread;
 
