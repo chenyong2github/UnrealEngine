@@ -138,10 +138,7 @@ public:
 	static FORCEINLINE bool SupportsSRGB()								{ return true; }
 	static FORCEINLINE bool SupportsRGBA8()								{ return true; }
 	static FORCEINLINE bool SupportsDXT()								{ return true; }
-	static FORCEINLINE bool SupportsPVRTC()								{ return false; }
-	static FORCEINLINE bool SupportsATITC()								{ return false; }
 	static FORCEINLINE bool SupportsASTC()								{ return bSupportsASTC; }
-	static FORCEINLINE bool SupportsETC1()								{ return false; }
 	static FORCEINLINE bool SupportsETC2()								{ return false; }
 	static FORCEINLINE bool SupportsFramebufferSRGBEnable()				{ return true; }
 	static FORCEINLINE bool SupportsCombinedDepthStencilAttachment()	{ return true; }
@@ -475,25 +472,6 @@ protected:
 #define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT		0x83F3
 #endif
 
-// http://www.khronos.org/registry/gles/extensions/IMG/IMG_texture_compression_pvrtc.txt
-#if !defined(GL_IMG_texture_compression_pvrtc)
-#define GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG		0x8C00
-#define GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG		0x8C01
-#define GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG		0x8C02
-#define GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG		0x8C03
-#endif
-
-// http://www.khronos.org/registry/gles/extensions/AMD/AMD_compressed_ATC_texture.txt
-#if !defined(GL_ATI_texture_compression_atitc)
-#define GL_ATC_RGB_AMD							0x8C92
-#define GL_ATC_RGBA_EXPLICIT_ALPHA_AMD			0x8C93
-#define GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD		0x87EE
-#endif
-
-#if !defined(GL_OES_compressed_ETC1_RGB8_texture)
-#define GL_ETC1_RGB8_OES                        0x8D64
-#endif
-
 // http://www.opengl.org/registry/specs/EXT/texture_sRGB.txt
 #if !defined(GL_EXT_texture_sRGB)
 #define GL_SRGB_EXT                       0x8C40
@@ -522,13 +500,6 @@ protected:
 #define GL_COMPRESSED_SIGNED_RG_RGTC2     0x8DBE
 #endif
 
-// http://www.khronos.org/registry/gles/extensions/AMD/AMD_compressed_ATC_texture.txt
-#if !defined(GL_ATI_texture_compression_atitc)
-#define GL_ATC_RGB_AMD							0x8C92
-#define GL_ATC_RGBA_EXPLICIT_ALPHA_AMD			0x8C93
-#define GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD		0x87EE
-#endif
-
 /* http://www.khronos.org/registry/gles/extensions/NV/NV_sRGB_formats.txt */
 #if !defined(GL_NV_sRGB_formats)
 #define GL_SLUMINANCE_NV                                        0x8C46
@@ -540,7 +511,6 @@ protected:
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_NV                   0x8C4D
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_NV                   0x8C4E
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_NV                   0x8C4F
-#define GL_ETC1_SRGB8_NV                                        0x88EE
 #endif
 
 // http://www.opengl.org/registry/specs/KHR/texture_compression_astc_ldr.txt

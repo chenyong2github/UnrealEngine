@@ -44,7 +44,7 @@ namespace PlatformInfo
 			/** The flavor generates different output when building (eg, 32 or 64-bit) */
 			BuildFlavor = 1<<0,
 
-			/** The flavor generates different output when cooking (eg, ATC or PVRTC texture format) */
+			/** The flavor generates different output when cooking (eg, ETC2 or ASTC texture format) */
 			CookFlavor = 1<<1,
 		};
 	}
@@ -102,16 +102,16 @@ namespace PlatformInfo
 	/** Information about a given platform */
 	struct FPlatformInfo
 	{
-		/** Name used to identify this platform, eg "Android_ATC" */
+		/** Name used to identify this platform, eg "Android_ETC2" */
 		FName PlatformInfoName;
 
 		/** Name used to find the corresponding ITargetPlatform for this platform (also used by UAT) */
 		FName TargetPlatformName;
 
-		/** Vanilla name for this platform, eg "Android" for "Android_ATC" */
+		/** Vanilla name for this platform, eg "Android" for "Android_ETC2" */
 		FName VanillaPlatformName;
 
-		/** Platform flavor, eg "ATC" for "Android_ATC" */
+		/** Platform flavor, eg "ETC2" for "Android_ETC2" */
 		FName PlatformFlavor;
 
 		/** The friendly (and localized) display name of this platform */

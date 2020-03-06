@@ -1093,21 +1093,6 @@ static void InitRHICapabilitiesForGL()
 			SetupTextureFormat( PF_DXT5,	FOpenGLTextureFormat(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,	GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,		GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
 		}
 	}
-	if ( FOpenGL::SupportsPVRTC() )
-	{
-		SetupTextureFormat( PF_PVRTC2,		FOpenGLTextureFormat(GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG, GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG,	GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
-		SetupTextureFormat( PF_PVRTC4,		FOpenGLTextureFormat(GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG, GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG,	GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
-	}
-	if ( FOpenGL::SupportsATITC() )
-	{
-		SetupTextureFormat( PF_ATC_RGB,		FOpenGLTextureFormat(GL_ATC_RGB_AMD,					 GL_ATC_RGB_AMD,						GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
-		SetupTextureFormat( PF_ATC_RGBA_E,	FOpenGLTextureFormat(GL_ATC_RGBA_EXPLICIT_ALPHA_AMD,	 GL_ATC_RGBA_EXPLICIT_ALPHA_AMD,		GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
-		SetupTextureFormat( PF_ATC_RGBA_I,	FOpenGLTextureFormat(GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD, GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD,	GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
-	}
-	if ( FOpenGL::SupportsETC1() )
-	{
-		SetupTextureFormat( PF_ETC1,		FOpenGLTextureFormat(GL_ETC1_RGB8_OES,					GL_ETC1_RGB8_OES,						GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
-	}
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
 	if ( FOpenGL::SupportsETC2() )
 	{
@@ -1115,12 +1100,6 @@ static void InitRHICapabilitiesForGL()
 		SetupTextureFormat( PF_ETC2_RGBA,		FOpenGLTextureFormat(GL_COMPRESSED_RGBA8_ETC2_EAC,	GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC,		GL_RGBA,		GL_UNSIGNED_BYTE,	true,		false));
 		SetupTextureFormat( PF_ETC2_R11_EAC,	FOpenGLTextureFormat(GL_COMPRESSED_R11_EAC,			GL_COMPRESSED_R11_EAC,						GL_RED,			GL_UNSIGNED_BYTE,	true,		false));
 		SetupTextureFormat( PF_ETC2_RG11_EAC,	FOpenGLTextureFormat(GL_COMPRESSED_RG11_EAC,		GL_COMPRESSED_RG11_EAC,						GL_RG,			GL_UNSIGNED_BYTE,	true,		false));
-
-		// ETC2 is a superset of ETC1 with sRGB support
-		if (FOpenGL::SupportsSRGB())
-		{
-			SetupTextureFormat( PF_ETC1,	FOpenGLTextureFormat(GL_COMPRESSED_RGB8_ETC2, GL_COMPRESSED_SRGB8_ETC2,	GL_RGBA, GL_UNSIGNED_BYTE, true, false));
-		}
 	}
 #endif
 	if (FOpenGL::SupportsASTC())

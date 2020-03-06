@@ -1127,7 +1127,7 @@ bool UTexture2D::HasSameSourceArt(UTexture2D* InTexture)
 
 bool UTexture2D::HasAlphaChannel() const
 {
-	if (PlatformData && (PlatformData->PixelFormat != PF_DXT1) && (PlatformData->PixelFormat != PF_ATC_RGB))
+	if (PlatformData && (PlatformData->PixelFormat != PF_DXT1))
 	{
 		return true;
 	}
