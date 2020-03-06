@@ -3,6 +3,7 @@
 #pragma once
 #include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/UnrealMemory.h"
 #include "Containers/List.h"
 #include "HAL/Allocators/CachedOSPageAllocator.h"
 #include "HAL/PlatformMemory.h"
@@ -25,6 +26,7 @@ class FCachedOSVeryLargePageAllocator
 public:
 
 	FCachedOSVeryLargePageAllocator()
+		: bEnabled(true)
 	{
 		Init();
 	}
@@ -49,6 +51,7 @@ private:
 
 	void Init();
 
+	bool bEnabled;
 	uintptr_t	AddressSpaceReserved;
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
@@ -99,5 +102,5 @@ private:
 	TCachedOSPageAllocator<CACHEDOSVERYLARGEPAGEALLOCATOR_MAX_CACHED_OS_FREES, CACHEDOSVERYLARGEPAGEALLOCATOR_BYTE_LIMIT> CachedOSPageAllocator;
 
 };
-
+CORE_API extern bool GEnableVeryLargePageAllocator;
 #endif // UE_USE_VERYLARGEPAGEALLOCATOR
