@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "",
+	"EngineAssociation": "4.24",
 	"Category": "",
 	"Description": "",
 	"Plugins": [
@@ -59,22 +59,6 @@
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
 				"Win64"
-			]
-		},
-		{
-			"Name": "HoloLensAR",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"HoloLens",
-				"Win64"
-			]
-		},
-		{
-			"Name": "WindowsMixedReality",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"HoloLens"
 			]
 		}
 	]
