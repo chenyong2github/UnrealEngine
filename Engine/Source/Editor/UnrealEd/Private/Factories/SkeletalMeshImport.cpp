@@ -371,12 +371,10 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 		}
 
 		// Copy off the remaining LODs.
-		for (int32 LODModelIndex = 0; LODModelIndex < ImportedResource->LODModels.Num(); ++LODModelIndex)
+		ExistingMeshDataPtr->ExistingLODModels.Empty(ImportedResource->LODModels.Num());
+		for ( int32 LODModelIndex = 0 ; LODModelIndex < ImportedResource->LODModels.Num() ; ++LODModelIndex )
 		{
 			FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[LODModelIndex];
-			LODModel.RawPointIndices.Lock( LOCK_READ_ONLY );
-			LODModel.LegacyRawPointIndices.Lock( LOCK_READ_ONLY );
-			LODModel.RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Lock( LOCK_READ_ONLY );
 			int32 ReductionLODIndex = LODModelIndex + OffsetReductionLODIndex;
 			if (ImportedResource->OriginalReductionSourceMeshData.IsValidIndex(ReductionLODIndex) && !ImportedResource->OriginalReductionSourceMeshData[ReductionLODIndex]->IsEmpty())
 			{
@@ -393,15 +391,10 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 				}
 				ExistingMeshDataPtr->ExistingOriginalReductionSourceMeshData.Add(ReductionLODData);
 			}
+			//Add a new LOD Model to the existing LODModels data
+			ExistingMeshDataPtr->ExistingLODModels.Add(FSkeletalMeshLODModel::CreateCopy(&LODModel));
 		}
-		ExistingMeshDataPtr->ExistingLODModels = ImportedResource->LODModels;
-		for (int32 LODModelIndex = 0; LODModelIndex < ImportedResource->LODModels.Num(); ++LODModelIndex)
-		{
-			FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[LODModelIndex];
-			LODModel.RawPointIndices.Unlock();
-			LODModel.LegacyRawPointIndices.Unlock();
-			LODModel.RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Unlock();
-		}
+		check(ExistingMeshDataPtr->ExistingLODModels.Num() == ImportedResource->LODModels.Num());
 
 		ExistingMeshDataPtr->ExistingLODInfo = ExistingSkelMesh->GetLODInfoArray();
 		ExistingMeshDataPtr->ExistingRefSkeleton = ExistingSkelMesh->RefSkeleton;
@@ -500,8 +493,7 @@ void RestoreDependentLODs(ExistingSkelMeshData* MeshData, USkeletalMesh* Skeleta
 			// reset material maps, it won't work anyway. 
 			ExistLODInfo.LODMaterialMap.Empty();
 
-			FSkeletalMeshLODModel* NewLODModel = new FSkeletalMeshLODModel(ExistLODModel);
-			SkeletalMeshImportedModel->LODModels.Add(NewLODModel);
+			SkeletalMeshImportedModel->LODModels.Add(FSkeletalMeshLODModel::CreateCopy(&ExistLODModel));
 			// add LOD info back
 			SkeletalMesh->AddLODInfo(ExistLODInfo);
 			check(LODIndex < SkeletalMesh->GetLODInfoArray().Num());
@@ -888,8 +880,7 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 					else
 					{
 						//We need to add LODInfo
-						FSkeletalMeshLODModel* NewLODModel = new FSkeletalMeshLODModel(LODModel);
-						SkeletalMeshImportedModel->LODModels.Add(NewLODModel);
+						SkeletalMeshImportedModel->LODModels.Add(FSkeletalMeshLODModel::CreateCopy(&LODModel));
 						SkeletalMesh->AddLODInfo(LODInfo);
 						RestoreReductionSourceData(i, SkeletalMesh->GetLODNum() - 1);
 					}
