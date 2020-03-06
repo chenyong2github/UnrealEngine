@@ -1,10 +1,14 @@
 REM @echo off
+
+
+p4 edit %THIRD_PARTY_CHANGELIST% ..\..\..\Binaries\Win64\dxcompiler_sc.dll
+p4 edit %THIRD_PARTY_CHANGELIST% ..\..\..\Binaries\Win64\ShaderConductor.dll
+p4 edit %THIRD_PARTY_CHANGELIST% ..\..\..\Binaries\Win64\ShaderConductor.pdb
+
 mkdir ..\..\..\..\Intermediate\ShaderConductor
 pushd ..\..\..\..\Intermediate\ShaderConductor
 
 	cmake -G "Visual Studio 15" -T host=x64 -A x64 ..\..\Engine\Source\ThirdParty\ShaderConductor\ShaderConductor
-
-	REM p4 edit %THIRD_PARTY_CHANGELIST% ..\lib\...
 
 	"%ProgramFiles(x86)%\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSbuild.exe" ALL_BUILD.vcxproj /nologo /v:m /p:Platform=x64;Configuration="RelWithDebInfo"
 
