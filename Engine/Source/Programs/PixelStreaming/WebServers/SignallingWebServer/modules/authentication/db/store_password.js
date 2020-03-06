@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 //
-// Usage: node store_password --username <USERNAME> --password <PASSWORD>
+// Usage: npm run store_password -- --username <USERNAME> --password <PASSWORD>
+// 	or from ./modules/authentication/db dir: node store_password.js --username <USERNAME> --password <PASSWORD>
 //
-// There is an optional paramter '--usersFile <USERS_FILEPATH>' that can be used to specify a 
-// different location for the file to save the users to. The default location is './users.json'
+// --usersFile is an optional parameter that can be used to specify a different location for the users database file
+// 		use this if running the command from a different working dir. The default location is './users.json'
+// 		e.g. If running from the SignallingWebServer dir use: --usersFile ./modules/authentication/db/users.json 
 
 const argv = require('yargs').argv;
 const fs = require('fs');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 var username, password;
 var usersFile = './users.json'
