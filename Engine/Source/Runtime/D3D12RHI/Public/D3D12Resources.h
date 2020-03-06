@@ -1016,7 +1016,25 @@ public:
 		if (Barriers.Num())
 		{
 			check(pCommandList);
-			pCommandList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
+#if USE_PIX && PLATFORM_XBOXONE 
+			//there was a bug in the instrumented driver that corrupts the cmdBuffer if more than 2000 Barrieres are submitted at once
+			if (Barriers.Num() > 1900)
+			{
+				int Num = Barriers.Num();
+				D3D12_RESOURCE_BARRIER* Ptr = Barriers.GetData();
+				while (Num > 0)
+				{
+					int DispatchNum = FMath::Min(Num, 1900);
+					pCommandList->ResourceBarrier(DispatchNum, Ptr);
+					Ptr += 1900;
+					Num -= 1900;
+				}
+			}
+			else
+#endif
+			{
+				pCommandList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
+			}
 			Reset();
 		}
 	}
