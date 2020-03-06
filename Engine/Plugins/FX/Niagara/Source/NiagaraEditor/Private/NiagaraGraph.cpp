@@ -1690,11 +1690,10 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 			GpuUsageInfo.BaseId = OldGpuInfo->BaseId;
 		}
 
-		// The gpu script has no graph representation so the hash is empty.  Changes to the gpu script are handled by collecting the compile hashes of it's dependencies.
-		TArray<uint8> DataHash;
-		DataHash.AddZeroed(20);
-		GpuUsageInfo.CompileHash = FNiagaraCompileHash(DataHash);
-		GpuUsageInfo.CompileHashFromGraph = FNiagaraCompileHash(DataHash);
+		// The GPU script has no graph representation, but we still need to fill in the hash, because it's used in the shader map ID.
+		// Just copy the hash from the spawn script.
+		GpuUsageInfo.CompileHash = ParticleSpawnUsageInfo->CompileHash;
+		GpuUsageInfo.CompileHashFromGraph = ParticleSpawnUsageInfo->CompileHashFromGraph;
 
 		NewUsageCache.Add(GpuUsageInfo);
 	}
