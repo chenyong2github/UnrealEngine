@@ -3116,7 +3116,10 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 				for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
 				{
 					FMaterialResource* CurrentResource = Material->MaterialResources[QualityLevelIndex][FeatureLevelIndex];
-					MaterialResourcesToUpdate.Add(CurrentResource);
+					if (CurrentResource)
+					{
+						MaterialResourcesToUpdate.Add(CurrentResource);
+					}
 				}
 			}
 		}
@@ -3172,7 +3175,10 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 					for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
 					{
 						FMaterialResource* CurrentResource = MI->StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-						MaterialResourcesToUpdate.Add(CurrentResource);
+						if (CurrentResource)
+						{
+							MaterialResourcesToUpdate.Add(CurrentResource);
+						}
 					}
 				}
 			}

@@ -2723,8 +2723,11 @@ void UMaterialInstance::GetAllShaderMaps(TArray<FMaterialShaderMap*>& OutShaderM
 		for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
 		{
 			FMaterialResource* CurrentResource = StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-			FMaterialShaderMap* ShaderMap = CurrentResource->GetGameThreadShaderMap();
-			OutShaderMaps.Add(ShaderMap);
+			if (CurrentResource)
+			{
+				FMaterialShaderMap* ShaderMap = CurrentResource->GetGameThreadShaderMap();
+				OutShaderMaps.Add(ShaderMap);
+			}
 		}
 	}
 }
@@ -2775,7 +2778,16 @@ void UMaterialInstance::UpdatePermutationAllocations(FMaterialResourceDeferredDe
 			}
 		}
 #else
-		for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
+		// Initialize only current feature level in a cooked game and all in the editor
+		int32 FeatureLevelMin = 0;
+		int32 FeatureLevelMax = ERHIFeatureLevel::Num;
+		if (FPlatformProperties::RequiresCookedData())
+		{
+			FeatureLevelMin = GMaxRHIFeatureLevel;
+			FeatureLevelMax = GMaxRHIFeatureLevel + 1;
+		}
+		
+		for (int32 FeatureLevelIndex = FeatureLevelMin; FeatureLevelIndex < FeatureLevelMax; FeatureLevelIndex++)
 		{
 			EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevelIndex];
 			TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> > QualityLevelsUsed;
@@ -2843,9 +2855,12 @@ void UMaterialInstance::CacheResourceShadersForRendering()
 			// In cooked build, there is no shader compilation but this is still needed to
 			// register the loaded shadermap
 			ResourcesToCache.Reset();
-			check(StaticPermutationMaterialResources[LocalActiveQL][FeatureLevel]);
-			ResourcesToCache.Add(StaticPermutationMaterialResources[LocalActiveQL][FeatureLevel]);
-			CacheShadersForResources(ShaderPlatform, ResourcesToCache);
+			FMaterialResource* CurrentResource = StaticPermutationMaterialResources[LocalActiveQL][FeatureLevel];
+			if (CurrentResource)
+			{
+				ResourcesToCache.Add(CurrentResource);
+				CacheShadersForResources(ShaderPlatform, ResourcesToCache);
+			}
 		}
 	}
 
