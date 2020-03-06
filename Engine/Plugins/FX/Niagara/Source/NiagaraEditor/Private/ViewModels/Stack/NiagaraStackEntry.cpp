@@ -74,10 +74,10 @@ UNiagaraStackEntry::FStackIssue::FStackIssue(EStackIssueSeverity InSeverity, FTe
 {
 	checkf(ShortDescription.IsEmptyOrWhitespace() == false, TEXT("Short description can not be empty."));
 	//checkf(LongDescription.IsEmptyOrWhitespace() == false, TEXT("Long description can not be empty."));
-	if (LongDescription.IsEmptyOrWhitespace())
-	{
-		LongDescription = ShortDescription;
-	}
+	//if (LongDescription.IsEmptyOrWhitespace())
+	//{
+	//	LongDescription = ShortDescription;
+	//}
 	checkf(InStackEditorDataKey.IsEmpty() == false, TEXT("Stack editor data key can not be empty."));
 }
 
