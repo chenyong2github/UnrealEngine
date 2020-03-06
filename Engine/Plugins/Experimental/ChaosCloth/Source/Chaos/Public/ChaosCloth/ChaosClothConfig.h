@@ -127,6 +127,14 @@ public:
 	// Enable continuous collision detection
 	UPROPERTY()
 	bool bUseContinuousCollisionDetection = false;
+
+	// The amount of linear velocities sent to the local cloth space from the reference bone (the closest bone to the root on which the cloth section has been skinned, or the root itself if none has)
+	UPROPERTY(EditAnywhere, Category = "Velocity Scales", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	FVector LinearVelocityScale = { 1.f, 1.f, 1.f };
+
+	// The amount of angular velocities sent to the local cloth space from the reference bone (the closest bone to the root on which the cloth section has been skinned, or the root itself if none has)
+	UPROPERTY(EditAnywhere, Category = "Velocity Scales", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	float AngularVelocityScale = 1.f;
 };
 
 /**
@@ -182,26 +190,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (InlineEditConditionToggle))
 	bool bUseGravityOverride = false;
 
-	// Scale factor applied to the world gravity when not using the gravity override
-	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "!bUseGravityOverride"))
+	// Scale factor applied to the world gravity and also to the clothing simulation interactor gravity. Does not affect the gravity if set using the override below.
+	UPROPERTY(EditAnywhere, Category = Simulation)
 	float GravityScale = 1.f;
 
 	// The gravitational acceleration vector [cm/s^2]
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "bUseGravityOverride"))
 	FVector Gravity = { 0.f, 0.f, -980.665f };
 
+	// Enable local space simulation to help with floating point precision errors if the character is far away form the world origin
+	UPROPERTY(EditAnywhere, Category = Simulation)
+	bool bUseLocalSpaceSimulation = false;
+
 	// Enable the XPBD constraints that resolve stiffness independently from the number of iterations
 	// Experimental, this feature might be removed without warning, not for production use
 	UPROPERTY(EditAnywhere, Category = "Experimental", meta = (DisplayName="Use XPBD Constraints (Experimental)"))
 	bool bUseXPBDConstraints = false;
-
-	// Enable local space simulation
-	UPROPERTY(EditAnywhere, Category = LocalSpaceSimulation, meta = (DisplayName = "Use Local space simulation"))
-	bool bUseLocalSpaceSimulation = false;
-
-	UPROPERTY(EditAnywhere, Category = LocalSpaceSimulation, meta = (DisplayName = "Component Linear Acc Scale"))
-	FVector ComponentLinearAccScale = { 1.f, 1.f, 1.f };
-
-	UPROPERTY()
-	FVector ComponentLinearAccClamp = { 4000.f, 4000.f, 4000.f };
 };
