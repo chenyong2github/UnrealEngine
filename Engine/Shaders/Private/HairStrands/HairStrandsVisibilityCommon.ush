@@ -219,6 +219,16 @@ FHairSample UnpackHairSample(const FPackedHairSample In)
 	return Out;
 }
 
+void PatchPackedHairSampleCoverage(inout FPackedHairSample Out, uint Coverage8bit)
+{
+	Out.Tangent_Coverage8bit = (Out.Tangent_Coverage8bit & 0x00FFFFFF) | (min(uint(0xFF), Coverage8bit) << 24);
+}
+
+uint GetPackedHairSampleCoverage8bit(in FPackedHairSample In)
+{
+	return 0xFF & (In.Tangent_Coverage8bit>>24);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair categorization
 
