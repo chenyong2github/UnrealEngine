@@ -144,7 +144,8 @@ namespace Audio
 		/** Called within PopAudio. Flushes the PendingNewPatches array into CurrentPatches. During this function, AddNewPatch is blocked. */
 		void ConnectNewPatches();
 
-		/** Called within PopAudio. Removes PendingTapsToDelete from CurrentPatches and ConnectNewPatches. During this function, RemoveTap and AddNewPatch are blocked. */
+		/** Called within PopAudio and MaxNumberOfSamplesThatCanBePopped. Removes PendingTapsToDelete from CurrentPatches and ConnectNewPatches. 
+		 * During this function, RemoveTap and AddNewPatch are blocked. Callers of this function must have CurrentPatchesCritialSection locked. */
 		void CleanUpDisconnectedPatches();
 
 		/** New taps are added here in AddNewPatch, and then are moved to CurrentPatches in ConnectNewPatches. */
