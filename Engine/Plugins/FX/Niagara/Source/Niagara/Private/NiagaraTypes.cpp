@@ -43,21 +43,6 @@ FString FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(const E
 	};
 }
 
-FString FNiagaraVariableMetaData::GetNamespaceString() const
-{
-	checkf(bUseLegacyNameString == false, TEXT("Tried to get namespace string for parameter using legacy name string edit mode!"));
-	if (IsInputOrLocalUsage())
-	{
-		FString NamespaceString = FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(Scope);
-		if (Usage == ENiagaraScriptParameterUsage::InitialValueInput)
-		{
-			NamespaceString.Append(PARAM_MAP_INITIAL_STR);
-		}
-		return NamespaceString;
-	}
-	return PARAM_MAP_OUTPUT_STR;
-}
-
 bool FNiagaraVariableMetaData::GetParameterName(FName& OutName) const
 {
 	if (bUseLegacyNameString)
@@ -68,23 +53,10 @@ bool FNiagaraVariableMetaData::GetParameterName(FName& OutName) const
 	return true;
 }
 
-bool FNiagaraVariableMetaData::GetScope(ENiagaraParameterScope& OutScope) const
-{
-	if (bUseLegacyNameString)
-	{
-		OutScope = ENiagaraParameterScope::Custom;
-		return false;
-	}
-	OutScope = Scope;
-	return true;
-}
-
 void FNiagaraVariableMetaData::CopyPerScriptMetaData(const FNiagaraVariableMetaData& OtherMetaData)
 {
 	SetUsage(OtherMetaData.GetUsage());
-	ENiagaraParameterScope OtherMetaDataScope;
-	OtherMetaData.GetScope(OtherMetaDataScope);
-	SetScope(OtherMetaDataScope);
+	SetScopeName(OtherMetaData.GetScopeName());
 	FName OtherMetaDataName;
 	if (OtherMetaData.GetParameterName(OtherMetaDataName))
 	{

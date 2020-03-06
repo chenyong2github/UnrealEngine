@@ -59,19 +59,6 @@ public:
 
 	bool IsTransientHandle() const;
 
-public:
-	static const FName UserNamespace;
-	static const FName EngineNamespace;
-	static const FName SystemNamespace;
-	static const FName EmitterNamespace;
-	static const FName ParticleAttributeNamespace;
-	static const FName ModuleNamespace;
-	static const FName ParameterCollectionNamespace;
-	static const FString InitialPrefix;
-	static const FName LocalNamespace;
-	static const FName InitialNamespace;
-	static const FName OwnerNamespace;
-
 private:
 	FName ParameterHandleName;
 	FName Name;

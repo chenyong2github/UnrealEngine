@@ -169,7 +169,7 @@ class UNiagaraGraph : public UEdGraph
 	struct FAddParameterOptions
 	{
 		FAddParameterOptions()
-			: NewParameterScope(TOptional<ENiagaraParameterScope>())
+			: NewParameterScopeName(TOptional<FName>())
 			, NewParameterUsage(TOptional<ENiagaraScriptParameterUsage>())
 			, bRefreshMetaDataScopeAndUsage(false)
 			, bIsStaticSwitch(false)
@@ -178,7 +178,7 @@ class UNiagaraGraph : public UEdGraph
 		{};
 
 		/** Optional scope to assign to the new parameter. New scope is force assigned and will ignore any scope that would be assigned if bRefreshMetaDataScopeAndUsage is true. */
-		TOptional<ENiagaraParameterScope> NewParameterScope;
+		TOptional<FName> NewParameterScopeName;
 		/** Optional usage to assign to the new parameter. New usage is force assigned and will ignore any usage that would be assigned if bRefreshMetaDataScopeAndUsage is true.*/
 		TOptional<ENiagaraScriptParameterUsage> NewParameterUsage;
 		/** Whether the new or already existing parameter should refresh its scope and usage. If no scope is assigned, assign a scope from the variable name. Set a new usage depending on associated in/out pins in the graph. */
@@ -292,10 +292,10 @@ class UNiagaraGraph : public UEdGraph
 	* @param Parameter				The target FNiagaraVariable key to lookup the canonical UNiagaraScriptVariable to rename.
 	* @param NewName				The new name to apply.
 	* @param bFromStaticSwitch		Whether the target parameter is from a static switch. Used to determine whether to fixup binding strings.
-	* @param NewScope				The new scope from the FNiagaraVariable's associated FNiagaraVariableMetaData. Used if changing the scope triggered a rename. Applied to the canonical UNiagaraScriptVariable's Metadata.
+	* @param NewScopeName			The new scope name from the FNiagaraVariable's associated FNiagaraVariableMetaData. Used if changing the scope triggered a rename. Applied to the canonical UNiagaraScriptVariable's Metadata.
 	* @return						true if the new name was applied. 
 	*/
-	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bFromStaticSwitch = false, ENiagaraParameterScope NewScope = ENiagaraParameterScope::None);
+	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bFromStaticSwitch = false, FName NewScopeName = FName());
 
 	/** 
 	 * Sets the ENiagaraScriptParameterUsage on the Metadata of a ScriptVariable depending on its pin usage in the node graph (used on input/output pins). 

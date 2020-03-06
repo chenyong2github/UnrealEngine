@@ -876,13 +876,13 @@ FName GetNamespaceForUsage(ENiagaraScriptUsage Usage)
 	case ENiagaraScriptUsage::ParticleUpdateScript:
 	case ENiagaraScriptUsage::ParticleEventScript:
 	case ENiagaraScriptUsage::ParticleSimulationStageScript:
-		return FNiagaraParameterHandle::ParticleAttributeNamespace;
+		return FNiagaraConstants::ParticleAttributeNamespace;
 	case ENiagaraScriptUsage::EmitterSpawnScript:
 	case ENiagaraScriptUsage::EmitterUpdateScript:
-		return FNiagaraParameterHandle::EmitterNamespace;
+		return FNiagaraConstants::EmitterNamespace;
 	case ENiagaraScriptUsage::SystemSpawnScript:
 	case ENiagaraScriptUsage::SystemUpdateScript:
-		return FNiagaraParameterHandle::SystemNamespace;
+		return FNiagaraConstants::SystemNamespace;
 	default:
 		return NAME_None;
 	}
@@ -1549,27 +1549,27 @@ void UNiagaraStackFunctionInput::GetNamespacesForNewParameters(TArray<FName>& Ou
 
 	if (OutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript || OutputNode->GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript)
 	{
-		OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::ParticleAttributeNamespace);
-		OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::EmitterNamespace);
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::ParticleAttributeNamespace);
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
 		if (bIsEditingSystem)
 		{
-			OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::SystemNamespace);
-			OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::UserNamespace);
+			OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
+			OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
 		}
 	}
 	else if (OutputNode->GetUsage() == ENiagaraScriptUsage::EmitterSpawnScript || OutputNode->GetUsage() == ENiagaraScriptUsage::EmitterUpdateScript)
 	{
-		OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::EmitterNamespace);
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
 		if (bIsEditingSystem)
 		{
-			OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::SystemNamespace);
-			OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::UserNamespace);
+			OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
+			OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
 		}
 	}
 	else if ((OutputNode->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript || OutputNode->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript) && bIsEditingSystem)
 	{
-		OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::SystemNamespace);
-		OutNamespacesForNewParameters.Add(FNiagaraParameterHandle::UserNamespace);
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
 	}
 }
 

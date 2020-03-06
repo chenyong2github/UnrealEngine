@@ -15,6 +15,7 @@
 #include "ScopedTransaction.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackSystemPropertiesItem.h"
+#include "NiagaraConstants.h"
 
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreGroup"
@@ -72,10 +73,10 @@ public:
 	virtual void GenerateAddActions(TArray<TSharedRef<INiagaraStackItemGroupAddAction>>& OutAddActions, const FNiagaraStackItemGroupAddOptions& AddProperties) const override
 	{
 		TArray<FNiagaraTypeDefinition> AvailableTypes;
-		FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes, FNiagaraParameterHandle::UserNamespace);
+		FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes, FNiagaraConstants::UserNamespace);
 		for (const FNiagaraTypeDefinition& AvailableType : AvailableTypes)
 		{
-			FNiagaraParameterHandle NewParameterHandle(FNiagaraParameterHandle::UserNamespace, *(TEXT("New") + AvailableType.GetName()));
+			FNiagaraParameterHandle NewParameterHandle(FNiagaraConstants::UserNamespace, *(TEXT("New") + AvailableType.GetName()));
 			FNiagaraVariable NewParameterVariable(AvailableType, NewParameterHandle.GetParameterHandleString());
 			OutAddActions.Add(MakeShared<FParameterStoreGroupAddAction>(NewParameterVariable));
 		}

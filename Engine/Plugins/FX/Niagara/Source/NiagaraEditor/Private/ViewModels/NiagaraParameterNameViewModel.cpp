@@ -31,25 +31,25 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateSco
 		return SNullWidget::NullWidget;
 	}
 
-	ENiagaraParameterScope CachedScope;
-	CachedScriptVarAndViewInfo.MetaData.GetScope(CachedScope);
+	bool bEnableScopeSlotWidget = true;
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch() == false)
+	{
+		if (CachedScriptVarAndViewInfo.MetaData.GetUsage() != ENiagaraScriptParameterUsage::Input)
+		{
+			bEnableScopeSlotWidget = false;
+		}
+
+		ENiagaraParameterScope CachedScope;
+		FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope);
+		if (CachedScope == ENiagaraParameterScope::Local)
+		{
+			bEnableScopeSlotWidget = false;
+		}
+	}
+
 	UEnum* ParameterScopeEnum = FNiagaraTypeDefinition::GetParameterScopeEnum();
 	TSharedPtr< SWidget > ScopeComboBoxWidget;
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-
-	bool bEnableScopeSlotWidget = true;
-	if (CachedScriptVarAndViewInfo.MetaData.GetUsage() != ENiagaraScriptParameterUsage::Input)
-	{
-		bEnableScopeSlotWidget = false;
-	}
-	else if (CachedScope == ENiagaraParameterScope::Local)
-	{
-		bEnableScopeSlotWidget = false;
-	}
-	else if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch())
-	{
-		bEnableScopeSlotWidget = false;
-	}
 
 	SAssignNew(ScopeComboBoxWidget, SBox)
 		.MinDesiredWidth(80.0f) //@todo(ng) tune and make const static
@@ -89,8 +89,12 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateTex
 
 int32 FNiagaraParameterPanelEntryParameterNameViewModel::GetScopeValue() const
 {
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch())
+	{
+		return int32(ENiagaraParameterScope::DISPLAY_ONLY_StaticSwitch);
+	}
 	ENiagaraParameterScope CachedScope;
-	if (ensureMsgf(CachedScriptVarAndViewInfo.MetaData.GetScope(CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
+	if (ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
 	{
 		return (int32)CachedScope;
 	}
@@ -191,7 +195,7 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget
 int32 FNiagaraGraphPinParameterNameViewModel::GetScopeValue() const
 {
 	ENiagaraParameterScope CachedScope;
-	if (ensureMsgf(CachedScriptVarAndViewInfo.MetaData.GetScope(CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
+	if (ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
 	{
 		return (int32)CachedScope;
 	}
