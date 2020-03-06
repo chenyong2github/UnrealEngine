@@ -47,9 +47,13 @@ private:
 	ENiagaraMeshFacingMode FacingMode;
 	uint32 bOverrideMaterials : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
+	uint32 bLockedAxisEnable : 1;
 
 	uint32 bSubImageBlend : 1;
 	FVector2D SubImageSize;
+
+	FVector LockedAxis;
+	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 
 	uint32 MaterialParamValidMask;
 

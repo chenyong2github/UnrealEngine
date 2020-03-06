@@ -37,8 +37,8 @@ namespace VRActionTypes
 	static const FName Modifier( "Modifier" );
 	static const FName Modifier2( "Modifier2" ); //Only used by Oculus
 	static const FName ConfirmRadialSelection( "ConfirmRadialSelection" );
-	static const FName TrackpadPositionX( "TrackpadPositionX" );
-	static const FName TrackpadPositionY( "TrackpadPositionY" );
+	static const FName TrackpadPositionX( "TrackpadPosition_X" );
+	static const FName TrackpadPositionY( "TrackpadPosition_Y" );
 	static const FName TrackpadUp("TrackpadUp");
 	static const FName TrackpadDown("TrackpadDown");
 	static const FName TrackpadRight("TrackpadRight");

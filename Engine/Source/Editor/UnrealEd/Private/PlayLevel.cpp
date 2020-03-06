@@ -121,7 +121,7 @@ DEFINE_LOG_CATEGORY(LogPlayLevel);
 const static FName NAME_CategoryPIE("PIE");
 
 // Forward declare local utility functions
-FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const int32 ClientIndex = -1);
+FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex = -1);
 bool PromptMatineeClose();
 
 
@@ -487,9 +487,8 @@ void UEditorEngine::EndPlayMap()
 		GEngine->StereoRenderingDevice->EnableStereo(false);
 	}
 
-
 	// Restores realtime viewports that have been disabled for PIE.
-	RestoreRealtimeViewports();
+	RemoveViewportsRealtimeOverride();
 
 	// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
 	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
@@ -1050,12 +1049,12 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 
 	// If our settings require us to launch a separate process in any form, we require the user to save
 	// their content so that when the new process reads the data from disk it will match what we have in-editor.
-	const bool bIsExternalMemoryProcess = PlaySessionRequest->SessionDestination != EPlaySessionDestinationType::InProcess;
-
 	bool bUserWantsInProcess;
 	EditorPlaySettings->GetRunUnderOneProcess(bUserWantsInProcess);
 
-	bool bRequestSave = bIsExternalMemoryProcess && !bUserWantsInProcess;
+	const bool bIsInProcess = PlaySessionRequest->SessionDestination == EPlaySessionDestinationType::InProcess && bUserWantsInProcess;
+
+	bool bRequestSave = !bIsInProcess;
 
 	if (bRequestSave && !SaveMapsForPlaySession())
 	{
@@ -1064,6 +1063,8 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		UE_LOG(LogPlayLevel, Warning, TEXT("%s"), *ErrorMsg.ToString());
 		FMessageLog(NAME_CategoryPIE).Warning(ErrorMsg);
 		FMessageLog(NAME_CategoryPIE).Open();
+		
+		CancelRequestPlaySession();
 		return;
 	}
 
@@ -1527,12 +1528,6 @@ void UEditorEngine::OnLoginPIEComplete_Deferred(int32 LocalUserNum, bool bWasSuc
 
 void UEditorEngine::OnAllPIEInstancesStarted()
 {
-	// Transfer the Blueprint Debug references to the last client that was created (since that's all we track).
-	if (PlayWorld)
-	{
-		EditorWorld->TransferBlueprintDebugReferences(PlayWorld);
-	}
-
 	GiveFocusToLastClientPIEViewport();
 
 	// Print out a log message stating the overall startup time.
@@ -1661,6 +1656,7 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 		GameInstancePIEParameters.EditorPlaySettings = PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings;
 		GameInstancePIEParameters.WorldFeatureLevel = PreviewPlatform.GetEffectivePreviewFeatureLevel();
 		GameInstancePIEParameters.NetMode = InNetMode;
+		GameInstancePIEParameters.OverrideMapURL = InRequestParams.GlobalMapOverride;
 
 		PIELoginInfo.GameInstancePIEParameters = GameInstancePIEParameters;
 
@@ -1708,7 +1704,7 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 		}
 
 		// Only count non-dedicated instances as clients so that our indexes line up for log-ins.
-		if (!GameInstancePIEParameters.bRunAsDedicated)
+		if (!GameInstancePIEParameters.bRunAsDedicated && PlayInEditorSessionInfo.IsSet())
 		{
 			PlayInEditorSessionInfo->NumClientInstancesCreated++;
 		}
@@ -1898,7 +1894,10 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 			GameViewport->GetGameViewport()->SetPlayInEditorIsSimulate(false);
 
 			// The editor viewport client wont be visible so temporarily disable it being realtime
-			EditorViewportClient.SetRealtime( false, true );
+			const bool bShouldBeRealtime = false;
+			// Remove any previous override since we already applied a override when entering PIE
+			EditorViewportClient.RemoveRealtimeOverride();
+			EditorViewportClient.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor"));
 
 			if (!SlatePlayInEditorSession.EditorPlayer.IsValid())
 			{
@@ -1941,7 +1940,10 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 			bIsSimulatingInEditor = true;
 
 			// Make sure the viewport is in real-time mode
-			EditorViewportClient.SetRealtime( true );
+			const bool bShouldBeRealtime = true;
+			// Remove any previous override since we already applied a override when entering PIE
+			EditorViewportClient.RemoveRealtimeOverride();
+			EditorViewportClient.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor"));
 
 			// The Simulate window should show stats
 			EditorViewportClient.SetShowStats( true );
@@ -2326,6 +2328,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 		Info.ExpireDuration = 5.0f;
 		Info.bUseLargeFont = true;
 		FSlateNotificationManager::Get().AddNotification(Info);
+		CancelRequestPlaySession();
 		return;
 	}
 
@@ -2333,6 +2336,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	// to close Matinee, we can't PIE.
 	if (!PromptMatineeClose())
 	{
+		CancelRequestPlaySession();
 		return;
 	}
 
@@ -2370,6 +2374,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 
 			FEditorDelegates::EndPIE.Broadcast(InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor);
 			FNavigationSystem::OnPIEEnd(*InWorld);
+			CancelRequestPlaySession();
 			return;
 		}
 		else
@@ -2435,7 +2440,8 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	EditorWorld->bAllowAudioPlayback = false;
 
 	// Can't allow realtime viewports whilst in PIE so disable it for ALL viewports here.
-	DisableRealtimeViewports();
+	const bool bShouldBeRealtime = false;
+	SetViewportsRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverride_PIE", "Play in Editor"));
 
 	// Allow the global config to override our ability to create multiple PIE worlds.
 	if (!GEditor->bAllowMultiplePIEWorlds)
@@ -2569,6 +2575,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 			CreateNewPlayInEditorInstance(InRequestParams, bRunAsDedicated, LocalNetMode);
 
 			// If there was an error creating an instance it will call EndPlay which invalidates the session info.
+			// This also broadcasts the EndPIE event so no need to do that here (to make a matching call to our BeginPIE)
 			if (!PlayInEditorSessionInfo.IsSet())
 			{
 				return;
@@ -2640,6 +2647,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 	GameInstance->AddToRoot();
 
 	// Attempt to initialize the GameInstance. This will construct the world.
+	const bool bFirstWorld = !PlayWorld;
 	const FGameInstancePIEResult InitializeResult = GameInstance->InitializeForPlayInEditor(InPIEInstanceIndex, InPIEParameters);
 	if (!InitializeResult.IsSuccess())
 	{
@@ -2772,6 +2780,13 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 		GameInstance->GetWorld()->GetWorldSettings()->DefaultGameMode = InParams.GameModeOverride;
 	}
 
+	// Transfer the Blueprint Debug references to the first client world that is created. This needs to be called before 
+	// GameInstance->StartPlayInEditorGameInstance so that references are transfered by the time BeginPlay is called.
+	if (bFirstWorld && PlayWorld)
+	{
+		EditorWorld->TransferBlueprintDebugReferences(PlayWorld);
+	}
+
 	FGameInstancePIEResult StartResult = FGameInstancePIEResult::Success();
 	{
 		FTemporaryPlayInEditorIDOverride OverrideIDHelper(InPIEInstanceIndex);
@@ -2801,7 +2816,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 	return GameInstance;
 }
 
-FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const int32 ClientIndex)
+FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex)
 {
 #if PLATFORM_64BITS
 	const FString PlatformBitsString(TEXT("64"));
@@ -2829,7 +2844,17 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 		Args.Add(TEXT("NetMode"), FText::FromString(TEXT("Standalone")));
 	}
 
-	return FText::Format(NSLOCTEXT("UnrealEd", "PlayInEditor_WindowTitleFormat", "{GameName} Preview [NetMode: {NetMode}] ({PlatformBits}-bit/{RHIName})"), Args);
+	if (GEngine->StereoRenderingDevice && GEngine->StereoRenderingDevice.IsValid() && InSessionParams.SessionPreviewTypeOverride == EPlaySessionPreviewType::VRPreview &&
+		GEngine->XRSystem && GEngine->XRSystem.IsValid())
+	{
+		Args.Add(TEXT("XRSystemName"), FText::FromName(GEngine->XRSystem->GetSystemName()));
+	}
+	else
+	{
+		Args.Add(TEXT("XRSystemName"), FText::GetEmpty());
+	}
+
+	return FText::Format(NSLOCTEXT("UnrealEd", "PlayInEditor_WindowTitleFormat", "{GameName} Preview [NetMode: {NetMode}] ({PlatformBits}-bit/{RHIName}) {XRSystemName}"), Args);
 }
 
 void UEditorEngine::TransferEditorSelectionToSIEInstances()
@@ -2896,7 +2921,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	if (!bHasCustomWindow)
 	{
 
-		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InViewportIndex);
+		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams, InViewportIndex);
 		PieWindow = SNew(SWindow)
 			.Title(ViewportName)
 			.ScreenPosition(FVector2D(WindowPosition.X, WindowPosition.Y))

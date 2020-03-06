@@ -18,6 +18,7 @@
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 #include "MaterialCompiler.h"
 #include "RenderUtils.h"
 #include "EngineGlobals.h"
@@ -178,6 +179,11 @@ protected:
 
 	// Uniform expressions used across all material properties
 	TArray<FShaderCodeChunk> UniformExpressions;
+
+	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformVectorExpressions;
+	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformScalarExpressions;
+	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformTextureExpressions[NumMaterialTextureParameterTypes];
+	TArray<TRefCountPtr<FMaterialUniformExpressionExternalTexture>> UniformExternalTextureExpressions;
 
 	/** Parameter collections referenced by this material.  The position in this array is used as an index on the shader parameter. */
 	TArray<UMaterialParameterCollection*> ParameterCollections;
@@ -670,6 +676,7 @@ protected:
 
 	virtual int32 TwoSidedSign() override;
 	virtual int32 VertexNormal() override;
+	virtual int32 VertexTangent() override;
 	virtual int32 PixelNormalWS() override;
 	virtual int32 DDX(int32 X) override;
 	virtual int32 DDY(int32 X) override;

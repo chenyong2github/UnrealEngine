@@ -531,13 +531,32 @@ public:
 	uint8	bAllowDuringConstructionScript:1;
 
 #if WITH_EDITOR
-	/** Determines whether the begin play cycle will run on the spawned actor when in the editor. */
+	/* Determines whether the begin play cycle will run on the spawned actor when in the editor. */
 	uint8	bTemporaryEditorActor:1;
 
-	/* Determines wether or not the actor should be hidden from the Scene Outliner */
+	/* Determines whether or not the actor should be hidden from the Scene Outliner */
 	uint8	bHideFromSceneOutliner:1;
 #endif
-	
+
+	/* Modes that SpawnActor can use the supplied name when it is not None. */
+	enum class ESpawnActorNameMode : uint8
+	{
+		/* Fatal if unavailable, application will assert */
+		Required_Fatal,
+
+		/* Report an error return null if unavailable */
+		Required_ErrorAndReturnNull,
+
+		/* Return null if unavailable */
+		Required_ReturnNull,
+
+		/* If the supplied Name is already in use the generate an unused one using the supplied version as a base */
+		Requested
+	};
+
+	/* In which way should SpawnActor should treat the supplied Name if not none. */
+	ESpawnActorNameMode NameMode;
+
 	/* Flags used to describe the spawned actor/object instance. */
 	EObjectFlags ObjectFlags;		
 };
@@ -757,31 +776,6 @@ private:
 };
 
 USTRUCT()
-struct FLevelStreamingWrapper
-{
-	GENERATED_BODY()
-
-	FLevelStreamingWrapper()
-		: StreamingLevel(nullptr)
-	{}
-
-	FLevelStreamingWrapper(ULevelStreaming* InStreamingLevel)
-		: StreamingLevel(InStreamingLevel)
-	{}
-
-	ULevelStreaming*& Get() { return StreamingLevel; }
-	ULevelStreaming* Get() const { return StreamingLevel; }
-
-
-	bool operator<(const FLevelStreamingWrapper& Other) const;
-	bool operator==(const FLevelStreamingWrapper& Other) const { return StreamingLevel == Other.StreamingLevel; }
-
-private:
-	UPROPERTY()
-	ULevelStreaming* StreamingLevel;
-};
-
-USTRUCT()
 struct FStreamingLevelsToConsider
 {
 	GENERATED_BODY()
@@ -790,20 +784,20 @@ struct FStreamingLevelsToConsider
 		: bStreamingLevelsBeingConsidered(false)
 	{}
 
-	/** Priority sorted array of streaming levels actively being considered. */
-	UPROPERTY()
-	TArray<FLevelStreamingWrapper> StreamingLevels;
-
 private:
 
-	enum class EProcessReason
+	/** Priority sorted array of streaming levels actively being considered. */
+	UPROPERTY()
+	TArray<ULevelStreaming*> StreamingLevels;
+
+	enum class EProcessReason : uint8
 	{
 		Add,
 		Reevaluate
 	};
 
 	/** Streaming levels that had their priority changed or were added to the container while consideration was underway. */
-	TSortedMap<FLevelStreamingWrapper, EProcessReason> LevelsToProcess;
+	TSortedMap<ULevelStreaming*, EProcessReason> LevelsToProcess;
 
 	/** Whether the streaming levels are under active consideration or not */
 	bool bStreamingLevelsBeingConsidered;
@@ -816,6 +810,8 @@ private:
 
 public:
 
+	const TArray<ULevelStreaming*>& GetStreamingLevels() const { return StreamingLevels; }
+
 	void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	void BeginConsideration();
@@ -826,6 +822,9 @@ public:
 
 	/* Remove an element from the container. */
 	bool Remove(ULevelStreaming* StreamingLevel);
+
+	/* Remove the element at a given index from the container. */
+	void RemoveAt(int32 Index);
 
 	/* Returns if an element is in the container. */
 	bool Contains(ULevelStreaming* StreamingLevel) const;
@@ -2425,7 +2424,7 @@ public:
 	 * @param	bRerunConstructionScripts	If we should rerun construction scripts on actors
 	 * @param	bCurrentLevelOnly			If true, affect only the current level.
 	 */
-	void UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly);
+	void UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly, FRegisterComponentContext* Context = nullptr);
 
 	/**
 	 * Updates cull distance volumes for a specified component or a specified actor or all actors
@@ -3169,7 +3168,7 @@ public:
 	 * @param InURL commandline URL
 	 * @param bResetTime (optional) whether the WorldSettings's TimeSeconds should be reset to zero
 	 */
-	void InitializeActorsForPlay(const FURL& InURL, bool bResetTime = true);
+	void InitializeActorsForPlay(const FURL& InURL, bool bResetTime = true, FRegisterComponentContext* Context = nullptr);
 
 	/**
 	 * Start gameplay. This will cause the game mode to transition to the correct state and call BeginPlay on all actors

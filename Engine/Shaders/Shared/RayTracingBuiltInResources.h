@@ -74,7 +74,7 @@ struct FHitGroupSystemRootConstants
 
 #if INCLUDED_FROM_HLSL_CODE
 
-#ifndef PLATFORM_RAY_TRACING_USH
+#ifndef OVERRIDE_RAYTRACINGBUILTINSHADERS_USH
 	#define RT_CONCATENATE2(a, b) a##b
 	#define RT_CONCATENATE(a, b) RT_CONCATENATE2(a, b)
 	#define RT_REGISTER(InType, InIndex, InSpace) register(RT_CONCATENATE(InType, InIndex), RT_CONCATENATE(space, InSpace))
@@ -85,7 +85,7 @@ struct FHitGroupSystemRootConstants
 	#undef RT_REGISTER
 	#undef RT_CONCATENATE
 	#undef RT_CONCATENATE2
-#endif // !PLATFORM_RAY_TRACING_USH
+#endif // !OVERRIDE_RAYTRACINGBUILTINSHADERS_USH
 
 #endif // INCLUDED_FROM_HLSL_CODE
 

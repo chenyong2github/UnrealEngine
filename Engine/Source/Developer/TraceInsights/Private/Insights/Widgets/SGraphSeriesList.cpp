@@ -1,20 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGraphSeriesList.h"
-#include "Widgets/SBoxPanel.h"
+
+#include "EditorFontGlyphs.h"
+#include "EditorStyleSet.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
-#include "EditorFontGlyphs.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Views/SHeaderRow.h"
 
+// Insights
 #include "Insights/ViewModels/GraphSeries.h"
 #include "Insights/ViewModels/GraphTrack.h"
 
 #define LOCTEXT_NAMESPACE "SGraphSeriesList"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SGraphSeriesListEntry
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // A list entry widget for a graph series
 class SGraphSeriesListEntry : public STableRow<TSharedPtr<FGraphSeries>>
@@ -24,12 +30,15 @@ public:
 
 	SLATE_ARGUMENT(TSharedPtr<FGraphSeries>, GraphSeries)
 
+	SLATE_ARGUMENT(TSharedPtr<FGraphTrack>, GraphTrack)
+
 	SLATE_ATTRIBUTE(FText, SearchText)
 
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable)
 	{
+		GraphTrack = InArgs._GraphTrack;
 		GraphSeries = InArgs._GraphSeries;
 		SearchText = InArgs._SearchText;
 
@@ -41,7 +50,7 @@ public:
 		ChildSlot
 		[
 			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(2.0f)
 			.HAlign(HAlign_Center)
@@ -49,7 +58,12 @@ public:
 			[
 				SNew(SCheckBox)
 				.IsChecked_Lambda([this](){ return GraphSeries.Pin()->IsVisible() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-				.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState) { GraphSeries.Pin()->SetVisibility(InCheckBoxState == ECheckBoxState::Checked); })
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState)
+				{
+					GraphSeries.Pin()->SetVisibility(InCheckBoxState == ECheckBoxState::Checked);
+					GraphSeries.Pin()->SetDirtyFlag();
+					GraphTrack.Pin()->SetDirtyFlag();
+				})
 				.Content()
 				[
 					SNew(STextBlock)
@@ -57,7 +71,7 @@ public:
 					.HighlightText(SearchText)
 				]
 			]
-			+SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			.Padding(2.0f)
 			.HAlign(HAlign_Right)
@@ -71,12 +85,19 @@ public:
 		];
 	}
 
+	// The track containing the series we represent
+	TWeakPtr<FGraphTrack> GraphTrack;
+
 	// The series we represent
 	TWeakPtr<FGraphSeries> GraphSeries;
 
 	// The search text to highlight
 	TAttribute<FText> SearchText;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SGraphSeriesList
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SGraphSeriesList::Construct(const FArguments& InArgs, const TSharedRef<FGraphTrack>& InGraphTrack)
 {
@@ -107,35 +128,38 @@ void SGraphSeriesList::Construct(const FArguments& InArgs, const TSharedRef<FGra
 				.IsChecked_Lambda([this]()
 				{
 					int32 NumVisible = 0;
-					for(TSharedPtr<FGraphSeries> Series : FilteredSeries)
+					for (TSharedPtr<FGraphSeries> Series : FilteredSeries)
 					{
-						if(Series->IsVisible())
+						if (Series->IsVisible())
 						{
 							NumVisible++;
 						}
 					}
 
-					if(NumVisible == 0)
+					if (NumVisible == 0)
 					{
 						return ECheckBoxState::Unchecked;
 					}
-					else if(NumVisible == FilteredSeries.Num())
+					else if (NumVisible == FilteredSeries.Num())
 					{
 						return ECheckBoxState::Checked;
 					}
 
 					return ECheckBoxState::Undetermined;
 				})
-				.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState) 
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState)
 				{
 					const bool bVisible = InCheckBoxState != ECheckBoxState::Unchecked;
-					for(TSharedPtr<FGraphSeries> Series : FilteredSeries)
+					for (TSharedPtr<FGraphSeries> Series : FilteredSeries)
 					{
 						Series->SetVisibility(bVisible);
+						Series->SetDirtyFlag();
 					}
+
+					GraphTrack.Pin()->SetDirtyFlag();
 				})
 			]
-			+SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			[
 				// Search box allows for filtering
@@ -143,7 +167,7 @@ void SGraphSeriesList::Construct(const FArguments& InArgs, const TSharedRef<FGra
 				.OnTextChanged_Lambda([this](const FText& InText){ SearchText = InText; RefreshFilter(); })
 			]
 		]
-		+SVerticalBox::Slot()
+		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
 			SNew(SScrollBorder, ListView.ToSharedRef())
@@ -158,20 +182,25 @@ void SGraphSeriesList::Construct(const FArguments& InArgs, const TSharedRef<FGra
 	FSlateApplication::Get().SetUserFocus(0, SearchBox);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<ITableRow> SGraphSeriesList::OnGenerateRow(TSharedPtr<FGraphSeries> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SGraphSeriesListEntry, OwnerTable)
+		.GraphTrack(GraphTrack.Pin())
 		.GraphSeries(Item)
 		.SearchText_Lambda([this](){ return SearchText; });
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SGraphSeriesList::RefreshFilter()
 {
 	FilteredSeries.Reset();
 
-	for(TSharedPtr<FGraphSeries> Series : GraphTrack.Pin()->GetSeries())
+	for (TSharedPtr<FGraphSeries> Series : GraphTrack.Pin()->GetSeries())
 	{
-		if(SearchText.IsEmpty() || Series->GetName().ToString().Contains(SearchText.ToString()))
+		if (SearchText.IsEmpty() || Series->GetName().ToString().Contains(SearchText.ToString()))
 		{
 			FilteredSeries.Add(Series);
 		}
@@ -179,5 +208,7 @@ void SGraphSeriesList::RefreshFilter()
 
 	ListView->RequestListRefresh();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

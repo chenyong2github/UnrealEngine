@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_HASH_H
-#define ARCH_HASH_H
+#ifndef PXR_BASE_ARCH_HASH_H
+#define PXR_BASE_ARCH_HASH_H
 
 /// \file arch/hash.h
 /// Hash functions.
@@ -57,4 +57,4 @@ ARCH_API uint64_t ArchHash64(const char *data, size_t len, uint64_t seed);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_HASH_H
+#endif // PXR_BASE_ARCH_HASH_H

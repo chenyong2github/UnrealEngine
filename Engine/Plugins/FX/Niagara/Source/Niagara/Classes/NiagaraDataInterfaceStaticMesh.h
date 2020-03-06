@@ -99,8 +99,13 @@ protected:
 
 struct FNDIStaticMesh_InstanceData
 {
+	FNDIStaticMesh_InstanceData() : Mesh(nullptr) {}
+
 	 //Cached ptr to component we sample from. 
-	TWeakObjectPtr<USceneComponent> Component;
+	TWeakObjectPtr<USceneComponent> SafeComponent_GT;
+
+	// Cached ptr to the mesh so that we can make sure that we haven't been deleted.
+	TWeakObjectPtr<UStaticMesh> SafeMesh_GT;
 
 	//Cached ptr to actual mesh we sample from. 
 	UStaticMesh* Mesh;
@@ -112,8 +117,6 @@ struct FNDIStaticMesh_InstanceData
 
 	//Cached ComponentToWorld from previous tick.
 	FMatrix PrevTransform;
-	//InverseTranspose of above for transforming normals/tangents.
-	FMatrix PrevTransformInverseTransposed;
 
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;
@@ -161,12 +164,14 @@ class NIAGARA_API UNiagaraDataInterfaceStaticMesh : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	DECLARE_NIAGARA_DI_PARAMETER();
 	
 	/** Mesh used to sample from when not overridden by a source actor from the scene. Also useful for previewing in the editor. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	UStaticMesh* DefaultMesh;
 
-	/** The source actor from which to sample. Takes precedence over the direct mesh. */
+	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	AActor* Source;
 	
@@ -209,7 +214,6 @@ public:
 
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters()const override;
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 

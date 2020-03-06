@@ -5,18 +5,21 @@
 #include "Model/ThreadsPrivate.h"
 #include "Model/BookmarksPrivate.h"
 #include "Model/FramesPrivate.h"
+#include "Model/Channel.h"
 #include "Common/Utils.h"
 
 FMiscTraceAnalyzer::FMiscTraceAnalyzer(Trace::IAnalysisSession& InSession,
 									   Trace::FThreadProvider& InThreadProvider,
 									   Trace::FBookmarkProvider& InBookmarkProvider,
 									   Trace::FLogProvider& InLogProvider,
-									   Trace::FFrameProvider& InFrameProvider)
+									   Trace::FFrameProvider& InFrameProvider,
+									   Trace::FChannelProvider& InChannelProvider)
 	: Session(InSession)
 	, ThreadProvider(InThreadProvider)
 	, BookmarkProvider(InBookmarkProvider)
 	, LogProvider(InLogProvider)
 	, FrameProvider(InFrameProvider)
+	, ChannelProvider(InChannelProvider)
 {
 	Trace::FLogCategory& BookmarkLogCategory = LogProvider.GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
 	BookmarkLogCategory.Name = TEXT("LogBookmark");
@@ -160,9 +163,21 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		}
 		break;
 	}
+	
+
 	}
 
 	return true;
+}
+
+void FMiscTraceAnalyzer::OnChannelAnnounce(const ANSICHAR* ChannelName, uint32 ChannelId)
+{
+	ChannelProvider.AnnounceChannel(ChannelName, ChannelId);
+}
+
+void FMiscTraceAnalyzer::OnChannelToggle(uint32 ChannelId, bool bEnabled)
+{
+	ChannelProvider.UpdateChannel(ChannelId, bEnabled);
 }
 
 FMiscTraceAnalyzer::FThreadState* FMiscTraceAnalyzer::GetThreadState(uint32 ThreadId)

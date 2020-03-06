@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYLOCK_H
-#define TF_PYLOCK_H
+#ifndef PXR_BASE_TF_PY_LOCK_H
+#define PXR_BASE_TF_PY_LOCK_H
 
 #include "pxr/pxr.h"
 
@@ -130,7 +130,7 @@ public:
     /// (Re)acquires GIL and thread state, if previously released.
     TF_API void Acquire();
 
-    /// Explictly releases GIL and thread state.
+    /// Explicitly releases GIL and thread state.
     TF_API void Release();
 
     /// Unlock the GIL temporarily to allow other threads to use python.
@@ -199,4 +199,4 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif // PXR_PYTHON_SUPPORT_ENABLED
 
-#endif // TF_PYLOCK_H
+#endif // PXR_BASE_TF_PY_LOCK_H

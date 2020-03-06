@@ -12,9 +12,6 @@ float2 InvTexSize;
 void MainCopyVS(
 	float2 InPosition	: ATTRIBUTE0,
 	float2 InUV			: ATTRIBUTE1,
-#if DECODING_MOSAIC
-	out float2 OutTexCoords[4] : TEXCOORD4,
-#endif
 	out FScreenVertexOutput Output
 	)
 {
@@ -22,13 +19,6 @@ void MainCopyVS(
 	DrawRectangle( float4( InPosition, 0, 1 ), InUV, Output.Position, UVs);
 	// float2 -> half2
 	Output.UV = UVs;
-
-#if DECODING_MOSAIC
-	OutTexCoords[0] = Output.UV + InvTexSize.xy * float2( 0,-1);
-	OutTexCoords[1] = Output.UV + InvTexSize.xy * float2( 1, 0);
-	OutTexCoords[2] = Output.UV + InvTexSize.xy * float2(-1, 0);
-	OutTexCoords[3] = Output.UV + InvTexSize.xy * float2( 0, 1);
-#endif
 }
 
 
@@ -36,20 +26,12 @@ Texture2D InTexture;
 SamplerState InTextureSampler;
 
 void MainCopyPS(
-#if DECODING_MOSAIC
-	in float2 InTexCoords[4] : TEXCOORD4,
-#endif
 	FScreenVertexOutput Input,
 	out float4 OutColor : SV_Target0
 	)
 {
     float4 EncodedColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
-	// Decode EncodedColor, OutColor will saturate on 8 bit RTs.
-#if DECODING_MOSAIC
-	OutColor = Decode32BPPHDR(EncodedColor, Input.Position, InTexture, InTextureSampler, InTexCoords);
-#else
-	OutColor = Decode32BPPHDR(EncodedColor);
-#endif
+	OutColor = EncodedColor;
 
 	float SceneW = CalcSceneDepth(Input.UV);
 

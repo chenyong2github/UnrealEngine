@@ -53,7 +53,7 @@ void BMPConvertPS(
 }
 
 
-// shader to convert a NV12 texture to RGBA
+// shader to convert a NV12 texture to RGBA (real NV12 texture - DX11)
 void NV12ConvertPS(
 	float4 InPosition : SV_POSITION,
 	float2 InUV : TEXCOORD0,
@@ -62,19 +62,37 @@ void NV12ConvertPS(
 	float2 ScaledUV = InUV * NV12ConvertUB.UVScale;
 
 	float3 YUV;
-	YUV.x = NV12ConvertUB.Texture.Sample(NV12ConvertUB.SamplerB, ScaledUV).x;
+	YUV.x = NV12ConvertUB.SRV_Y.Sample(NV12ConvertUB.SamplerB, ScaledUV).x;
+	YUV.yz = NV12ConvertUB.SRV_UV.Sample(NV12ConvertUB.SamplerP, ScaledUV).xy;
+
+	OutColor.xyz = YuvToRgb(YUV, NV12ConvertUB.ColorTransform, NV12ConvertUB.SrgbToLinear);
+	OutColor.w = 1.0f;
+}
+
+
+// shader to convert a NV12 texture to RGBA (NV12 data, packed into a G8 texture; manually addressed)
+void NV12ConvertAsBytesPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	float2 ScaledUV = InUV * NV12ConvertAsBytesUB.UVScale;
+
+	float3 YUV;
+
+	YUV.x = NV12ConvertAsBytesUB.Texture.Sample(NV12ConvertAsBytesUB.SamplerB, ScaledUV).x;
 
 	ScaledUV.y *= 0.5f;
 	ScaledUV.y += 2.0f / 3.0f;
 
-	uint UVOffs = uint(InUV.x * NV12ConvertUB.OutputWidth / 2.0f) * 2;
-	float UPos = (float(UVOffs * NV12ConvertUB.UVScale.x) + 0.5f) / NV12ConvertUB.OutputWidth;
-	float VPos = (float(UVOffs * NV12ConvertUB.UVScale.x) + 1.5f) / NV12ConvertUB.OutputWidth;
+	uint UVOffs = uint(InUV.x * NV12ConvertAsBytesUB.OutputWidth / 2.0f) * 2;
+	float UPos = (float(UVOffs * NV12ConvertAsBytesUB.UVScale.x) + 0.5f) / NV12ConvertAsBytesUB.OutputWidth;
+	float VPos = (float(UVOffs * NV12ConvertAsBytesUB.UVScale.x) + 1.5f) / NV12ConvertAsBytesUB.OutputWidth;
 
-	YUV.y = NV12ConvertUB.Texture.Sample(NV12ConvertUB.SamplerP, float2(UPos, ScaledUV.y)).x;
-	YUV.z = NV12ConvertUB.Texture.Sample(NV12ConvertUB.SamplerP, float2(VPos, ScaledUV.y)).x;
+	YUV.y = NV12ConvertAsBytesUB.Texture.Sample(NV12ConvertAsBytesUB.SamplerP, float2(UPos, ScaledUV.y)).x;
+	YUV.z = NV12ConvertAsBytesUB.Texture.Sample(NV12ConvertAsBytesUB.SamplerP, float2(VPos, ScaledUV.y)).x;
 
-	OutColor.xyz = YuvToRgb(YUV, NV12ConvertUB.ColorTransform, NV12ConvertUB.SrgbToLinear);
+	OutColor.xyz = YuvToRgb(YUV, NV12ConvertAsBytesUB.ColorTransform, NV12ConvertAsBytesUB.SrgbToLinear);
 	OutColor.w = 1.0f;
 }
 

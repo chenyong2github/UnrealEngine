@@ -24,8 +24,9 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitCluster()
 	{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 		TPBDRigidsSOAs<T, 3> Particles;
-		TPBDRigidsEvolutionGBF<T, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
 		
 		uint32 FirstId = ClusteredParticles.Size();
@@ -59,14 +60,17 @@ namespace ChaosTest {
 		EXPECT_TRUE(Normal.Equals(TVector<T, 3>{(T)1, (T)0, (T)0}));
 
 		//EXPECT_TRUE(Evolution.GetParticles().Geometry(2)->IsConvex());  we don't actually guarantee this
+#endif
 	}
 	template void ImplicitCluster<float>();
 
 	template<class T>
 	void FractureCluster()
 	{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+
 		TPBDRigidsSOAs<T, 3> Particles;
-		TPBDRigidsEvolutionGBF<T, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
 
 		//create a long row of boxes - the depth 0 cluster is the entire row, the depth 1 clusters 4 boxes each, the depth 2 clusters are 1 box each
@@ -174,14 +178,16 @@ namespace ChaosTest {
 			EXPECT_TRUE(bFoundInNonDisabled);
 			EXPECT_TRUE(ClusteredParticles.V(BoxID).Equals(InitialVelocity));
 		}
+#endif
 	}
 	template void FractureCluster<float>();
 
 	template<class T>
 	void PartialFractureCluster()
 	{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 		TPBDRigidsSOAs<T, 3> Particles;
-		TPBDRigidsEvolutionGBF<T, 3> Evolution(Particles);
+		FPBDRigidsEvolutionGBF Evolution(Particles);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
 
 		//create a long row of boxes - the depth 0 cluster is the entire row, the depth 1 clusters 4 boxes each, the depth 2 clusters are 1 box each
@@ -267,6 +273,7 @@ namespace ChaosTest {
 				EXPECT_TRUE(Evolution.GetIslandParticles(Island).Contains(ClusteredParticles.Handle(BoxID)) == false);
 			}
 		}
+#endif
 	}
 	template void PartialFractureCluster<float>();
 

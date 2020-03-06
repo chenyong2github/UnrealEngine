@@ -199,33 +199,6 @@ FGoogleVRController::FGoogleVRController(const TSharedRef< FGenericApplicationMe
 #endif
 
 	// Setup button mappings
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::ApplicationMenu] = FGamepadKeyNames::MotionController_Left_Shoulder;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::ApplicationMenu] = FGamepadKeyNames::MotionController_Right_Shoulder;
-
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::TouchPadLeft] = FGamepadKeyNames::MotionController_Left_FaceButton4;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::TouchPadLeft] = FGamepadKeyNames::MotionController_Right_FaceButton4;
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::TouchPadUp] = FGamepadKeyNames::MotionController_Left_FaceButton1;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::TouchPadUp] = FGamepadKeyNames::MotionController_Right_FaceButton1;
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::TouchPadRight] = FGamepadKeyNames::MotionController_Left_FaceButton2;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::TouchPadRight] = FGamepadKeyNames::MotionController_Right_FaceButton2;
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::TouchPadDown] = FGamepadKeyNames::MotionController_Left_FaceButton3;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::TouchPadDown] = FGamepadKeyNames::MotionController_Right_FaceButton3;
-
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::System] = FGamepadKeyNames::FGamepadKeyNames::SpecialLeft;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::System] = FGamepadKeyNames::FGamepadKeyNames::SpecialRight;
-
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::TriggerPress] = FGamepadKeyNames::MotionController_Left_Trigger;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::TriggerPress] = FGamepadKeyNames::MotionController_Right_Trigger;
-
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::Grip] = FGamepadKeyNames::MotionController_Left_Grip1;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::Grip] = FGamepadKeyNames::MotionController_Right_Grip1;
-
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::TouchPadPress] = FGamepadKeyNames::MotionController_Left_Thumbstick;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::TouchPadPress] = FGamepadKeyNames::MotionController_Right_Thumbstick;
-
-	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::TouchPadTouch] = GoogleVRControllerKeyNames::Touch0;
-	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::TouchPadTouch] = GoogleVRControllerKeyNames::Touch0;
-
 	Buttons[(int32)EControllerHand::Left][EGoogleVRControllerButton::SelectClick] = EKeys::Daydream_Left_Select_Click.GetFName();
 	Buttons[(int32)EControllerHand::Right][EGoogleVRControllerButton::SelectClick] = EKeys::Daydream_Right_Select_Click.GetFName();
 
@@ -430,26 +403,13 @@ void FGoogleVRController::ProcessControllerButtons(int32 ControllerStateIndex)
 	if (ControllerStateIndex == 0 && gvr::ControllerConnectionState::GVR_CONTROLLER_CONNECTED == InstantPreviewControllerState.connection_state)
 	{
 		// Process our known set of buttons
-		CurrentButtonStates[EGoogleVRControllerButton::TouchPadPress] = InstantPreviewControllerState.click_button_state;
-		CurrentButtonStates[EGoogleVRControllerButton::ApplicationMenu] = InstantPreviewControllerState.app_button_state;
-		CurrentButtonStates[EGoogleVRControllerButton::TouchPadTouch] = InstantPreviewControllerState.is_touching;
+		CurrentButtonStates[EGoogleVRControllerButton::TrackpadClick] = InstantPreviewControllerState.click_button_state;
+		CurrentButtonStates[EGoogleVRControllerButton::SelectClick] = InstantPreviewControllerState.app_button_state;
+		CurrentButtonStates[EGoogleVRControllerButton::TrackpadTouch] = InstantPreviewControllerState.is_touching;
 		// The controller's touch positions are in [0,1]^2 coordinate space, we want to be in [-1,1]^2, so translate the touch positions.
 		TranslatedLocation = FVector2D((InstantPreviewControllerState.touch_pos[0] * 2) - 1, (InstantPreviewControllerState.touch_pos[1] * 2) - 1);
-		// OnHold
-		if (InstantPreviewControllerState.is_touching)
+		if (!InstantPreviewControllerState.is_touching)
 		{
-			const FVector2D TouchDir = TranslatedLocation.GetSafeNormal();
-			const FVector2D UpDir(0.f, 1.f);
-			const FVector2D RightDir(1.f, 0.f);
-			const float VerticalDot = TouchDir | UpDir;
-			const float RightDot = TouchDir | RightDir;
-			const bool bPressed = !TouchDir.IsNearlyZero() && CurrentButtonStates[EGoogleVRControllerButton::TouchPadPress];
-			CurrentButtonStates[EGoogleVRControllerButton::TouchPadUp] = bPressed && (VerticalDot <= -DOT_45DEG);
-			CurrentButtonStates[EGoogleVRControllerButton::TouchPadDown] = bPressed && (VerticalDot >= DOT_45DEG);
-			CurrentButtonStates[EGoogleVRControllerButton::TouchPadLeft] = bPressed && (RightDot <= -DOT_45DEG);
-			CurrentButtonStates[EGoogleVRControllerButton::TouchPadRight] = bPressed && (RightDot >= DOT_45DEG);
-		}
-		else {
 			TranslatedLocation.X = 0.0f;
 			TranslatedLocation.Y = 0.0f;
 		}
@@ -464,58 +424,26 @@ void FGoogleVRController::ProcessControllerButtons(int32 ControllerStateIndex)
 			// Process our known set of buttons
 			if (CachedControllerState.GetButtonState(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_CLICK))
 			{
-				CurrentButtonStates[EGoogleVRControllerButton::TouchPadPress] = true;
 				CurrentButtonStates[EGoogleVRControllerButton::TrackpadClick] = true;
 			}
 			else if (CachedControllerState.GetButtonUp(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_CLICK))
 			{
-				CurrentButtonStates[EGoogleVRControllerButton::TouchPadPress] = false;
 				CurrentButtonStates[EGoogleVRControllerButton::TrackpadClick] = false;
-			}
-
-			if (CachedControllerState.GetButtonState(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_HOME))
-			{
-				CurrentButtonStates[EGoogleVRControllerButton::System] = true;
-			}
-			else if (CachedControllerState.GetButtonUp(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_HOME))
-			{
-				CurrentButtonStates[EGoogleVRControllerButton::System] = false;
 			}
 
 			// Note: VolumeUp and VolumeDown Controller states are also ignored as they are reserved
 
 			if (CachedControllerState.GetButtonState(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_APP))
 			{
-				CurrentButtonStates[EGoogleVRControllerButton::ApplicationMenu] = true;
 				CurrentButtonStates[EGoogleVRControllerButton::SelectClick] = true;
 			}
 			else if (CachedControllerState.GetButtonUp(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_APP))
 			{
-				CurrentButtonStates[EGoogleVRControllerButton::ApplicationMenu] = false;
 				CurrentButtonStates[EGoogleVRControllerButton::SelectClick] = false;
-			}
-
-			if (CachedControllerState.GetButtonState(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_RESERVED0))
-			{
-				CurrentButtonStates[EGoogleVRControllerButton::TriggerPress] = true;
-			}
-			else if (CachedControllerState.GetButtonUp(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_RESERVED0))
-			{
-				CurrentButtonStates[EGoogleVRControllerButton::TriggerPress] = false;
-			}
-
-			if (CachedControllerState.GetButtonState(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_RESERVED1))
-			{
-				CurrentButtonStates[EGoogleVRControllerButton::Grip] = true;
-			}
-			else if (CachedControllerState.GetButtonUp(gvr::ControllerButton::GVR_CONTROLLER_BUTTON_RESERVED1))
-			{
-				CurrentButtonStates[EGoogleVRControllerButton::Grip] = false;
 			}
 
 			// Process touches and analog information
 			// OnDown
-			CurrentButtonStates[EGoogleVRControllerButton::TouchPadTouch] = CachedControllerState.IsTouching();
 			CurrentButtonStates[EGoogleVRControllerButton::TrackpadTouch] = CachedControllerState.IsTouching();
 
 			// The controller's touch positions are in [0,1]^2 coordinate space, we want to be in [-1,1]^2, so translate the touch positions.
@@ -527,25 +455,7 @@ void FGoogleVRController::ProcessControllerButtons(int32 ControllerStateIndex)
 				TranslatedLocation = TranslatedLocation / VectorLength;
 			}
 
-			// OnHold
-			if( CachedControllerState.IsTouching() || CachedControllerState.GetTouchUp() )
-			{
-				const FVector2D TouchDir = TranslatedLocation.GetSafeNormal();
-				const FVector2D UpDir(0.f, 1.f);
-				const FVector2D RightDir(1.f, 0.f);
-
-				const float VerticalDot = TouchDir | UpDir;
-				const float RightDot = TouchDir | RightDir;
-
-				const bool bPressed = !TouchDir.IsNearlyZero() && CurrentButtonStates[EGoogleVRControllerButton::TouchPadPress];
-
-				CurrentButtonStates[EGoogleVRControllerButton::TouchPadUp] = bPressed && (VerticalDot <= -DOT_45DEG);
-				CurrentButtonStates[EGoogleVRControllerButton::TouchPadDown] = bPressed && (VerticalDot >= DOT_45DEG);
-				CurrentButtonStates[EGoogleVRControllerButton::TouchPadLeft] = bPressed && (RightDot <= -DOT_45DEG);
-				CurrentButtonStates[EGoogleVRControllerButton::TouchPadRight] = bPressed && (RightDot >= DOT_45DEG);
-			}
-
-			else if(!CachedControllerState.IsTouching())
+			if(!CachedControllerState.IsTouching())
 			{
 				TranslatedLocation.X = 0.0f;
 				TranslatedLocation.Y = 0.0f;
@@ -555,15 +465,11 @@ void FGoogleVRController::ProcessControllerButtons(int32 ControllerStateIndex)
 
 	if (Hand == EControllerHand::Left)
 	{
-		MessageHandler->OnControllerAnalog(FGamepadKeyNames::MotionController_Left_Thumbstick_X, 0, TranslatedLocation.X);
-		MessageHandler->OnControllerAnalog(FGamepadKeyNames::MotionController_Left_Thumbstick_Y, 0, TranslatedLocation.Y);
 		MessageHandler->OnControllerAnalog(EKeys::Daydream_Left_Trackpad_X.GetFName(), 0, TranslatedLocation.X);
 		MessageHandler->OnControllerAnalog(EKeys::Daydream_Left_Trackpad_Y.GetFName(), 0, TranslatedLocation.Y);
 	}
 	if (Hand == EControllerHand::Right)
 	{
-		MessageHandler->OnControllerAnalog(FGamepadKeyNames::MotionController_Right_Thumbstick_X, 0, TranslatedLocation.X);
-		MessageHandler->OnControllerAnalog(FGamepadKeyNames::MotionController_Right_Thumbstick_Y, 0, TranslatedLocation.Y);
 		MessageHandler->OnControllerAnalog(EKeys::Daydream_Right_Trackpad_X.GetFName(), 0, TranslatedLocation.X);
 		MessageHandler->OnControllerAnalog(EKeys::Daydream_Right_Trackpad_Y.GetFName(), 0, TranslatedLocation.Y);
 	}

@@ -31,11 +31,10 @@ class IMeshBuilderModule;
 class ULevelSequence;
 class UMaterial;
 class UUsdAsset;
+enum class EMapChangeType : uint8;
 enum class EUsdPurpose : int32;
 struct FMeshDescription;
 struct FUsdSchemaTranslationContext;
-
-DECLARE_LOG_CATEGORY_EXTERN( LogUsdStage, Log, All );
 
 UENUM()
 enum class EUsdInitialLoadSet
@@ -62,10 +61,6 @@ public:
 	/* Only load prims with these specific purposes from the USD file */
 	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToLoad;
-
-	/* Quickly toggle visibility of prims with specific purposes in the level based on component tags */
-	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
-	int32 PurposeVisibility;
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	float GetTime() const { return Time; }
@@ -100,8 +95,9 @@ public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
 	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
 
-	DECLARE_EVENT( AUsdStageActor, FOnStageChanged );
-	FOnStageChanged OnStageChanged;
+	DECLARE_EVENT( AUsdStageActor, FOnStageActorEvent );
+	FOnStageActorEvent OnStageChanged;
+	FOnStageActorEvent OnActorDestroyed;
 
 	DECLARE_EVENT_TwoParams( AUsdStageActor, FOnPrimChanged, const FString&, bool );
 	FOnPrimChanged OnPrimChanged;
@@ -113,41 +109,44 @@ public:
 	AUsdStageActor();
 	virtual ~AUsdStageActor();
 
+	USDSTAGE_API void Reset() override;
 	void Refresh() const;
 	void ReloadAnimations();
 
 public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
-	virtual void PostRegisterAllComponents() override;
-	virtual void PostLoad() override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 
 private:
 	void Clear();
 	void OpenUsdStage();
 	void LoadUsdStage();
 
-	void RefreshVisibilityBasedOnPurpose();
+#if WITH_EDITOR
+	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
+#endif // WITH_EDITOR
 
-	void OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin );
+	void OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin );
 
 	void OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
 	bool HasAutorithyOverStage() const;
 
 private:
-	FUsdPrimTwin RootUsdTwin;
+	UPROPERTY(Transient)
+	UUsdPrimTwin* RootUsdTwin;
 
-	TWeakObjectPtr< ALevelSequenceActor > LevelSequenceActor;
-
-	TMultiMap< FString, FDelegateHandle > PrimDelegates;
-
+	UPROPERTY(Transient)
 	TSet< FString > PrimsToAnimate;
 
+	UPROPERTY(Transient)
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
+	/** Hash based assets cache */
 	UPROPERTY( NonPIEDuplicateTransient )
 	TMap< FString, UObject* > AssetsCache;
 
+	/** Map of USD Prim Paths to UE assets */
 	UPROPERTY( NonPIEDuplicateTransient )
 	TMap< FString, UObject* > PrimPathsToAssets;
 
@@ -158,8 +157,8 @@ public:
 	FUsdListener& GetUsdListener() { return UsdListener; }
 	const FUsdListener& GetUsdListener() const { return UsdListener; }
 
-	FUsdPrimTwin* GetOrCreatePrimTwin( const pxr::SdfPath& UsdPrimPath );
-	FUsdPrimTwin* ExpandPrim( const pxr::UsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext );
+	UUsdPrimTwin* GetOrCreatePrimTwin( const pxr::SdfPath& UsdPrimPath );
+	UUsdPrimTwin* ExpandPrim( const pxr::UsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext );
 	void UpdatePrim( const pxr::SdfPath& UsdPrimPath, bool bResync, FUsdSchemaTranslationContext& TranslationContext );
 
 protected:

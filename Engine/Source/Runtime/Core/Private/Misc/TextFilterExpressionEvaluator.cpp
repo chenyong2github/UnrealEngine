@@ -515,7 +515,10 @@ void FTextFilterExpressionEvaluator::SetupGrammar()
 	TokenDefinitions.DefineToken(&ConsumeOperator<FOr>);
 	TokenDefinitions.DefineToken(&ConsumeOperator<FAnd>);
 	TokenDefinitions.DefineToken(&ConsumeOperator<FNot>);
-	TokenDefinitions.DefineToken(&ConsumeNumber);
+	if (ExpressionEvaluatorMode == ETextFilterExpressionEvaluatorMode::Complex)
+	{
+		TokenDefinitions.DefineToken(&ConsumeNumber);
+	}
 	TokenDefinitions.DefineToken((ExpressionEvaluatorMode == ETextFilterExpressionEvaluatorMode::Complex) ? &ConsumeComplexText : &ConsumeBasicText);
 
 	Grammar.DefineGrouping<FSubExpressionStart, FSubExpressionEnd>();

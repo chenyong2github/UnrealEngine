@@ -72,7 +72,6 @@ class RENDERCORE_API FShaderPipelineCache : public FTickableObjectRenderThread
 	{
 		FPipelineCacheFileFormatPSO PSO;
 		FShaderPipelineCacheArchive* ReadRequests;
-		TSet<FSHAHash> ShaderCodeReads;
 	};
 
 public:
@@ -224,6 +223,10 @@ private:
     
     void OnShaderLibraryStateChanged(ELibraryState State, EShaderPlatform Platform, FString const& Name);
 
+	FRHIBlendState* GetOrCreateBlendState(const FBlendStateInitializerRHI& Initializer);
+	FRHIRasterizerState* GetOrCreateRasterizerState(const FRasterizerStateInitializerRHI& Initializer);
+	FRHIDepthStencilState* GetOrCreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer);
+	
 private:
 	static FShaderPipelineCache* ShaderPipelineCache;
 	TArray<CompileJob> ReadTasks;
@@ -239,6 +242,7 @@ private:
 	bool bPaused;
 	bool bOpened;
 	bool bReady;
+	bool bPreOptimizing;
     int32 PausedCount;
 	FShaderCachePrecompileContext ShaderCachePrecompileContext;
 	
@@ -269,4 +273,8 @@ private:
 	TSet<uint64> CompletedMasks;
 	float TotalPrecompileWallTime;
 	int64 TotalPrecompileTasks;
+
+	TMap<FBlendStateInitializerRHI, FRHIBlendState*> BlendStateCache;
+	TMap<FRasterizerStateInitializerRHI, FRHIRasterizerState*> RasterizerStateCache;
+	TMap<FDepthStencilStateInitializerRHI, FRHIDepthStencilState*> DepthStencilStateCache;
 };

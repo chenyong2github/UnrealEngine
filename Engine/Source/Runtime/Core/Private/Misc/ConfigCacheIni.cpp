@@ -412,9 +412,8 @@ bool FConfigSection::HandleArrayOfKeyedStructsCommand(FName Key, FString&& Value
 					ExtractPropertyValue(It.Value().GetValue(), StructKeyMatch, ExistingStructValueKey);
 					if (ExistingStructValueKey == StructKeyValueToMatch)
 					{
-						// we matched ther key, so remove the existing line item (Value) and plop in the new one
-						RemoveSingle(Key, It.Value().GetValue());
-						Add(Key, Value);
+						// we matched the key, so replace the existing value in place (so as not to reorder)
+						It.Value() = Value;
 
 						// mark that the key was found and the add has been processed
 						bHandledWithKey = true;
@@ -492,7 +491,7 @@ static bool SaveConfigFileWrapper(const TCHAR* IniFile, const FString& Contents)
 	FCoreDelegates::PreSaveConfigFileDelegate.Broadcast(IniFile, Contents, SavedCount);
 
 	// save it even if a delegate did as well
-	bool bLocalWriteSucceeded = FFileHelper::SaveStringToFile(Contents, IniFile);
+	bool bLocalWriteSucceeded = FFileHelper::SaveStringToFile(Contents, IniFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 
 	// success is based on a delegate or file write working (or both)
 	return SavedCount > 0 || bLocalWriteSucceeded;
@@ -3801,6 +3800,7 @@ void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
 	Ar << GGameIni;
 	Ar << GGameUserSettingsIni;
 	Ar << GRuntimeOptionsIni;
+	Ar << GEngineIni;
 }
 
 void FConfigCacheIni::InitializeConfigSystem()
@@ -3897,7 +3897,9 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FConfigCacheIni::LoadGlobalIniFile(GRuntimeOptionsIni, TEXT("RuntimeOptions"));
 	// Load install bundle config
 	FConfigCacheIni::LoadGlobalIniFile(GInstallBundleIni, TEXT("InstallBundle"));
-	
+	// Load device profiles for current platform
+	FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"));
+
 	// Load user game settings .ini, allowing merging. This also updates the user .ini if necessary.
 #if PLATFORM_PS4
 	FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"), nullptr, false, false, true, *GetGameUserSettingsDir());
@@ -3983,7 +3985,7 @@ bool FConfigCacheIni::LoadLocalIniFile(FConfigFile& ConfigFile, const TCHAR* Ini
 	if (bIsBaseIniName)
 	{
 		// If base ini, try to use an existing GConfig file to set the config directories instead of assuming defaults
-		FConfigFile* BaseConfig = GConfig->FindConfigFileWithBaseName(IniName);
+		FConfigFile* BaseConfig = GConfig ? GConfig->FindConfigFileWithBaseName(IniName) : nullptr;
 		if (BaseConfig)
 		{
 			if (BaseConfig->SourceEngineConfigDir.Len())

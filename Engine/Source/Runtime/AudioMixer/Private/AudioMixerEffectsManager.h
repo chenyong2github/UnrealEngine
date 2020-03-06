@@ -14,8 +14,6 @@ manager for the multi-platform audio mixer device.
 
 namespace Audio
 {
-	class FMixerDevice;
-
 	class FAudioMixerEffectsManager : public FAudioEffectsManager
 	{
 	public:

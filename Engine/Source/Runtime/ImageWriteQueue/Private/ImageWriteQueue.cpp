@@ -243,8 +243,14 @@ void FImageWriteQueue::RecreateThreadPool()
 	// Prevent any other tasks being dispatched
 	FScopeLock ScopeLock(&ThreadPoolMutex);
 
+#if (PLATFORM_IOS || PLATFORM_TVOS || PLATFORM_ANDROID)
+	// To avoid spawning extra threads use global IO thread on mobile 
+	const int32 MaxConcurrency = GIOThreadPool->GetNumThreads();
+#else
 	const int32 ConfiguredMaxConcurrency = CVarImageWriteQueueMaxConcurrency.GetValueOnAnyThread();
 	const int32 MaxConcurrency = ConfiguredMaxConcurrency == -1 ? FPlatformMisc::NumberOfCores() : ConfiguredMaxConcurrency;
+#endif
+
 	if (ThreadPool && MaxConcurrency != ThreadPool->GetNumThreads())
 	{
 		CreateFence().Wait();

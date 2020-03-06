@@ -80,25 +80,32 @@ namespace UnrealBuildTool
 		/// <param name="SearchPattern">Search pattern to match</param>
 		public void AddRepositories(string RepositoryPath, string SearchPattern)
 		{
-			List<string> ToCheck = new List<string>();
-			ToCheck.Add(RepositoryPath);
-			while (ToCheck.Count > 0)
+			if (Directory.Exists(RepositoryPath))
 			{
-				int LastIndex = ToCheck.Count - 1;
-				string CurrentDir = ToCheck[LastIndex];
-				ToCheck.RemoveAt(LastIndex);
-				foreach (string SearchPath in Directory.GetDirectories(CurrentDir))
+				List<string> ToCheck = new List<string>();
+				ToCheck.Add(RepositoryPath);
+				while (ToCheck.Count > 0)
 				{
-					if (SearchPath.Contains(SearchPattern))
+					int LastIndex = ToCheck.Count - 1;
+					string CurrentDir = ToCheck[LastIndex];
+					ToCheck.RemoveAt(LastIndex);
+					foreach (string SearchPath in Directory.GetDirectories(CurrentDir))
 					{
-						Log.TraceInformation("Added repository: {0}", SearchPath);
-						Repositories.Add(SearchPath);
-					}
-					else
-					{
-						ToCheck.Add(SearchPath);
+						if (SearchPath.Contains(SearchPattern))
+						{
+							Log.TraceInformation("Added repository: {0}", SearchPath);
+							Repositories.Add(SearchPath);
+						}
+						else
+						{
+							ToCheck.Add(SearchPath);
+						}
 					}
 				}
+			}
+			else
+			{
+				Log.TraceInformation("AddRepositories: Directory {0} not found; ignored", RepositoryPath);
 			}
 		}
 

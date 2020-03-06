@@ -402,8 +402,7 @@ void FEdModeFoliage::Enter()
 	// Force real-time viewports.  We'll back up the current viewport state so we can restore it when the
 	// user exits this mode.
 	const bool bWantRealTime = true;
-	const bool bRememberCurrentState = true;
-	ForceRealTimeViewports(bWantRealTime, bRememberCurrentState);
+	ForceRealTimeViewports(bWantRealTime);
 
 	if (!Toolkit.IsValid())
 	{
@@ -516,9 +515,7 @@ void FEdModeFoliage::Exit()
 	SphereBrushComponent->UnregisterComponent();
 
 	// Restore real-time viewport state if we changed it
-	const bool bWantRealTime = false;
-	const bool bRememberCurrentState = false;
-	ForceRealTimeViewports(bWantRealTime, bRememberCurrentState);
+	ForceRealTimeViewports(false);
 
 	// Clear the cache (safety, should be empty!)
 	LandscapeLayerCaches.Empty();
@@ -3166,10 +3163,8 @@ bool FEdModeFoliage::GetStaticMeshVertexColorForHit(const UStaticMeshComponent* 
 	const FPositionVertexBuffer& PositionVertexBuffer = LODModel.VertexBuffers.PositionVertexBuffer;
 
 	int32 SectionFirstTriIndex = 0;
-	for (TArray<FStaticMeshSection>::TConstIterator SectionIt(LODModel.Sections); SectionIt; ++SectionIt)
+	for (const FStaticMeshSection& Section : LODModel.Sections)
 	{
-		const FStaticMeshSection& Section = *SectionIt;
-
 		if (Section.bEnableCollision)
 		{
 			int32 NextSectionTriIndex = SectionFirstTriIndex + Section.NumTriangles;
@@ -3957,7 +3952,7 @@ void FEdModeFoliage::ActorSelectionChangeNotify()
 
 
 /** Forces real-time perspective viewports */
-void FEdModeFoliage::ForceRealTimeViewports(const bool bEnable, const bool bStoreCurrentState)
+void FEdModeFoliage::ForceRealTimeViewports(const bool bEnable)
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr< IAssetViewport > ViewportWindow = LevelEditorModule.GetFirstActiveViewport();
@@ -3968,14 +3963,13 @@ void FEdModeFoliage::ForceRealTimeViewports(const bool bEnable, const bool bStor
 		{
 			if (bEnable)
 			{
-				Viewport.SetRealtime(bEnable, bStoreCurrentState);
+				const bool bShouldBeRealtime = true;
+				Viewport.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_Foliage", "Foliage Mode"));
 			}
 			else
 			{
-				const bool bAllowDisable = true;
-				Viewport.RestoreRealtime(bAllowDisable);
+				Viewport.RemoveRealtimeOverride();
 			}
-
 		}
 	}
 }

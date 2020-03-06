@@ -2,6 +2,7 @@
 
 #include "SUSDStageTreeView.h"
 
+#include "UnrealUSDWrapper.h"
 #include "USDLayerUtils.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
@@ -123,7 +124,7 @@ public:
 					bNeedsRefresh = true;
 					break;
 				}
-				
+
 				++ChildIndex;
 			}
 		}
@@ -147,19 +148,11 @@ public:
 
 	void RefreshData( bool bRefreshChildren )
 	{
-		FString PrimName;
-
 		if ( !UsdPrim.Get() )
 		{
-			if ( ParentItem )
-			{
-				ParentItem->RefreshData( true );
-			}
-
-			RowData.Get() = FUsdStageTreeRowData();
 			return;
 		}
-		
+
 		RowData->Name = FText::FromString( UsdToUnreal::ConvertString( UsdPrim.Get().GetName() ) );
 		RowData->bHasCompositionArcs = UsdUtils::HasCompositionArcs( UsdPrim.Get() );
 
@@ -167,9 +160,23 @@ public:
 		RowData->bHasPayload = UsdPrim.Get().HasPayload();
 		RowData->bIsLoaded = UsdPrim.Get().IsLoaded();
 
+		bool bOldVisibility = RowData->bIsVisible;
 		if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( UsdPrim.Get() ) )
 		{
 			RowData->bIsVisible = ( UsdGeomImageable.ComputeVisibility() != pxr::UsdGeomTokens->invisible );
+		}
+
+		// If our visibility was enabled, it may be that the visibilities of all of our parents were enabled to accomplish
+		// the target change, so we need to refresh them too. This happens when we manually change visibility on
+		// a USceneComponent and write that to the USD Stage, for example
+		if ( bOldVisibility == false && RowData->bIsVisible )
+		{
+			FUsdStageTreeItem* Item = ParentItem;
+			while ( Item )
+			{
+				Item->RefreshData(false);
+				Item = Item->ParentItem;
+			}
 		}
 
 		if ( bRefreshChildren )
@@ -193,7 +200,7 @@ public:
 	FUsdStageTreeItem* ParentItem;
 
 	TArray< FUsdStageTreeItemRef > Children;
-	
+
 	TSharedRef< FUsdStageTreeRowData > RowData; // Data model
 };
 
@@ -202,6 +209,9 @@ class FUsdStageNameColumn : public FUsdTreeViewColumn, public TSharedFromThis< F
 public:
 	DECLARE_DELEGATE_TwoParams( FOnPrimNameCommitted, const FUsdStageTreeItemRef&, const FText& );
 	FOnPrimNameCommitted OnPrimNameCommitted;
+
+	DECLARE_DELEGATE_ThreeParams( FOnPrimNameUpdated, const FUsdStageTreeItemRef&, const FText&, FText& );
+	FOnPrimNameUpdated OnPrimNameUpdated;
 
 	TWeakPtr< SUsdStageTreeView > OwnerTree;
 
@@ -220,6 +230,7 @@ public:
 			.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) )
 			.ColorAndOpacity( this, &FUsdStageNameColumn::GetTextColor, TreeItem )
 			.OnTextCommitted( this, &FUsdStageNameColumn::OnTextCommitted, TreeItem )
+			.OnVerifyTextChanged( this, &FUsdStageNameColumn::OnTextUpdated, TreeItem )
 			.IsReadOnly_Lambda( [ TreeItem ]()
 			{
 				return !TreeItem || TreeItem->UsdPrim.Get();
@@ -241,6 +252,18 @@ protected:
 		OnPrimNameCommitted.ExecuteIfBound( TreeItem.ToSharedRef(), InPrimName );
 	}
 
+	bool OnTextUpdated(const FText& InPrimName, FText& ErrorMessage, TSharedPtr< FUsdStageTreeItem > TreeItem)
+	{
+		if (!TreeItem)
+		{
+			return false;
+		}
+
+		OnPrimNameUpdated.ExecuteIfBound( TreeItem.ToSharedRef(), InPrimName, ErrorMessage );
+
+		return ErrorMessage.IsEmpty();
+	}
+
 	FSlateColor GetTextColor( TSharedPtr< FUsdStageTreeItem > TreeItem ) const
 	{
 		FSlateColor TextColor = FLinearColor::White;
@@ -257,7 +280,7 @@ protected:
 				TextColor = FLinearColor( FColor::Orange );
 			}
 		}
-		
+
 		return TextColor;
 	}
 };
@@ -308,14 +331,14 @@ public:
 		}
 
 		TSharedRef< SWidget > Item = SNullWidget::NullWidget;
-		
+
 		if ( bHasPayload )
 		{
 			Item = SNew( SCheckBox )
 					.IsChecked( this, &FUsdStagePayloadColumn::IsChecked, StaticCastSharedPtr< FUsdStageTreeItem >( InTreeItem ) )
 					.OnCheckStateChanged( this, &FUsdStagePayloadColumn::OnCheckedPayload, StaticCastSharedPtr< FUsdStageTreeItem >( InTreeItem ) );
 		}
-		
+
 		return Item;
 	}
 };
@@ -379,7 +402,7 @@ public:
 											SNew( SImage )
 											.Image( this, &FUsdStageVisibilityColumn::GetBrush, TreeItem )
 										];
-		
+
 		return Item;
 	}
 };
@@ -396,7 +419,7 @@ public:
 				.TextStyle( FEditorStyle::Get(), "LargeText" )
 				.Text( TreeItem->RowData, &FUsdStageTreeRowData::GetType )
 				.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) );
-		
+
 		return Item;
 	}
 };
@@ -418,6 +441,22 @@ void SUsdStageTreeView::Construct( const FArguments& InArgs, AUsdStageActor* InU
 
 		this->OnPrimSelected.ExecuteIfBound( SelectedPrimPath );
 	} );
+
+	OnExpansionChanged = FOnExpansionChanged::CreateLambda([this]( const FUsdStageTreeItemPtr& UsdStageTreeItem, bool bIsExpanded)
+	{
+		if (!UsdStageTreeItem)
+		{
+			return;
+		}
+
+		const pxr::UsdPrim& Prim = UsdStageTreeItem->UsdPrim.Get();
+		if (!Prim)
+		{
+			return;
+		}
+
+		TreeItemExpansionStates.Add(UsdToUnreal::ConvertPath(Prim.GetPrimPath()), bIsExpanded);
+	});
 
 	OnPrimSelected = InArgs._OnPrimSelected;
 
@@ -441,6 +480,11 @@ void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 {
 	RootItems.Empty();
 
+	if (UsdStageActor.Get() != InUsdStageActor)
+	{
+		TreeItemExpansionStates.Reset();
+	}
+
 	UsdStageActor = InUsdStageActor;
 
 	if ( !UsdStageActor.IsValid() )
@@ -460,6 +504,8 @@ void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 			}
 		}
 	}
+
+	RestoreExpansionStates();
 }
 
 void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
@@ -488,46 +534,52 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 
 		return {};
 	};
-	
-	bool bNeedsFullRefresh = false;
 
+	// Search for the corresponding tree item to update
+	FUsdStageTreeItemPtr FoundItem = nullptr;
 	for ( FUsdStageTreeItemRef RootItem : this->RootItems )
 	{
 		TUsdStore< pxr::SdfPath > PrimPathToSearch = UsdPrimPath;
 
-		bool bFoundPrimToRefresh = false;
+		FoundItem = FindTreeItemFromPrimPath( PrimPathToSearch, RootItem );
 
-		while ( !bFoundPrimToRefresh )
+		while ( !FoundItem.IsValid() )
 		{
-			if ( FUsdStageTreeItemPtr FoundItem = FindTreeItemFromPrimPath( PrimPathToSearch, RootItem ) )
+			TUsdStore< pxr::SdfPath > ParentPrimPath = PrimPathToSearch.Get().GetParentPath();
+			if ( ParentPrimPath.Get() == PrimPathToSearch.Get() )
 			{
-				FoundItem->RefreshData( true );
-				bFoundPrimToRefresh = true;
-
 				break;
 			}
-			else
-			{
-				TUsdStore< pxr::SdfPath > ParentPrimPath = PrimPathToSearch.Get().GetParentPath();
+			PrimPathToSearch = MoveTemp( ParentPrimPath );
 
-				if ( ParentPrimPath.Get() == PrimPathToSearch.Get() )
-				{
-					break;
-				}
-				else
-				{
-					PrimPathToSearch = MoveTemp( ParentPrimPath );
-				}
-			}
+			FoundItem = FindTreeItemFromPrimPath( PrimPathToSearch, RootItem );
 		}
 
-		if ( !bFoundPrimToRefresh )
+		if (FoundItem.IsValid())
 		{
-			bNeedsFullRefresh = true; // Prim not found, refresh the whole tree
+			break;
 		}
 	}
 
-	if ( bNeedsFullRefresh )
+	if (FoundItem.IsValid())
+	{
+		FoundItem->RefreshData( true );
+
+		// Item doesn't match any prim, needs to be removed
+		if (!FoundItem->UsdPrim.Get())
+		{
+			if (FoundItem->ParentItem)
+			{
+				FoundItem->ParentItem->RefreshData( true );
+			}
+			else
+			{
+				RootItems.Remove(FoundItem.ToSharedRef());
+			}
+		}
+	}
+	// We couldn't find the target prim, do a full refresh instead
+	else
 	{
 		Refresh( UsdStageActor.Get() );
 	}
@@ -546,19 +598,20 @@ void SUsdStageTreeView::SetupColumns()
 	VisibilityColumnArguments.FixedWidth( 24.f );
 
 	AddColumn( TEXT( "Visibility" ), FText(), MakeShared< FUsdStageVisibilityColumn >(), VisibilityColumnArguments );
-	
+
 	{
 		TSharedRef< FUsdStageNameColumn > PrimNameColumn = MakeShared< FUsdStageNameColumn >();
 		PrimNameColumn->OwnerTree = SharedThis( this );
 		PrimNameColumn->bIsMainColumn = true;
 		PrimNameColumn->OnPrimNameCommitted.BindRaw( this, &SUsdStageTreeView::OnPrimNameCommitted );
+		PrimNameColumn->OnPrimNameUpdated.BindRaw( this, &SUsdStageTreeView::OnPrimNameUpdated );
 
 		SHeaderRow::FColumn::FArguments PrimNameColumnArguments;
 		PrimNameColumnArguments.FillWidth( 70.f );
 
 		AddColumn( TEXT("Prim"), LOCTEXT( "Prim", "Prim" ), PrimNameColumn, PrimNameColumnArguments );
 	}
-	
+
 	SHeaderRow::FColumn::FArguments TypeColumnArguments;
 	TypeColumnArguments.FillWidth( 15.f );
 	AddColumn( TEXT("Type"), LOCTEXT( "Type", "Type" ), MakeShared< FUsdStagePrimTypeColumn >(), TypeColumnArguments );
@@ -581,7 +634,7 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnAddPrim ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanExecutePrimAction )
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanAddPrim )
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -683,10 +736,23 @@ void SUsdStageTreeView::OnAddPrim()
 
 	TArray< FUsdStageTreeItemRef > MySelectedItems = GetSelectedItems();
 
-	for ( FUsdStageTreeItemRef SelectedItem : MySelectedItems )
+	// Add a new child prim
+	if (MySelectedItems.Num() > 0)
 	{
-		FUsdStageTreeItemRef TreeItem = MakeShared< FUsdStageTreeItem >( &SelectedItem.Get(), SelectedItem->UsdStage );
-		SelectedItem->Children.Add( TreeItem );
+		for ( FUsdStageTreeItemRef SelectedItem : MySelectedItems )
+		{
+			FUsdStageTreeItemRef TreeItem = MakeShared< FUsdStageTreeItem >( &SelectedItem.Get(), SelectedItem->UsdStage );
+			SelectedItem->Children.Add( TreeItem );
+
+			PendingRenameItem = TreeItem;
+			ScrollItemIntoView( TreeItem );
+		}
+	}
+	// Add a new top-level prim (direct child of the pseudo-root prim)
+	else
+	{
+		FUsdStageTreeItemRef TreeItem = MakeShared< FUsdStageTreeItem >( nullptr, MakeUsdStore<pxr::UsdStageRefPtr>(UsdStageActor->GetUsdStage()) );
+		RootItems.Add( TreeItem );
 
 		PendingRenameItem = TreeItem;
 		ScrollItemIntoView( TreeItem );
@@ -757,6 +823,23 @@ void SUsdStageTreeView::OnClearReferences()
 	}
 }
 
+bool SUsdStageTreeView::CanAddPrim() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	TUsdStore< pxr::UsdStageRefPtr > UsdStage =  UsdStageActor->GetUsdStage();
+
+	if ( !UsdStage.Get() )
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool SUsdStageTreeView::CanExecutePrimAction() const
 {
 	if ( !UsdStageActor.IsValid() )
@@ -787,6 +870,36 @@ bool SUsdStageTreeView::CanExecutePrimAction() const
 	}
 
 	return bHasPrimSpec;
+}
+
+void SUsdStageTreeView::RequestListRefresh()
+{
+	SUsdTreeView< FUsdStageTreeItemRef >::RequestListRefresh();
+	RestoreExpansionStates();
+}
+
+void SUsdStageTreeView::RestoreExpansionStates()
+{
+	std::function<void(const FUsdStageTreeItemRef&)> SetExpansionRecursive = [&](const FUsdStageTreeItemRef& Item)
+	{
+		if (const pxr::UsdPrim& Prim = Item->UsdPrim.Get())
+		{
+			if (bool* bFoundExpansionState = TreeItemExpansionStates.Find(UsdToUnreal::ConvertPath(Prim.GetPrimPath())))
+			{
+				SetItemExpansion(Item, *bFoundExpansionState);
+			}
+		}
+
+		for (const FUsdStageTreeItemRef& Child : Item->Children)
+		{
+			SetExpansionRecursive(Child);
+		}
+	};
+
+	for (const FUsdStageTreeItemRef& RootItem : RootItems)
+	{
+		SetExpansionRecursive(RootItem);
+	}
 }
 
 void SUsdStageTreeView::OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger )
@@ -863,6 +976,20 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdStageTreeItemRef& TreeIte
 {
 	if ( InPrimName.IsEmptyOrWhitespace() )
 	{
+		// Escaped out of initially setting a prim name
+		if (!TreeItem->UsdPrim.Get())
+		{
+			if (FUsdStageTreeItem* Parent = TreeItem->ParentItem)
+			{
+				TreeItem->ParentItem->Children.Remove( TreeItem );
+			}
+			else
+			{
+				RootItems.Remove(TreeItem);
+			}
+
+			RequestTreeRefresh();
+		}
 		return;
 	}
 
@@ -870,7 +997,7 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdStageTreeItemRef& TreeIte
 		FScopedUsdAllocs UsdAllocs;
 
 		pxr::SdfPath ParentPrimPath;
-		
+
 		if ( TreeItem->ParentItem )
 		{
 			ParentPrimPath = TreeItem->ParentItem->UsdPrim.Get().GetPrimPath();
@@ -881,14 +1008,58 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdStageTreeItemRef& TreeIte
 		}
 
 		pxr::SdfPath NewPrimPath = ParentPrimPath.AppendChild( pxr::TfToken( UnrealToUsd::ConvertString( *InPrimName.ToString() ).Get() ) );
-		
+
 		TreeItem->UsdPrim = pxr::UsdGeomXform::Define( TreeItem->UsdStage.Get(), NewPrimPath ).GetPrim();
 
+		// Renamed a child item
 		if ( TreeItem->ParentItem )
 		{
 			TreeItem->ParentItem->Children.Remove( TreeItem );
 
 			RefreshPrim( UsdToUnreal::ConvertPath( TreeItem->ParentItem->UsdPrim.Get().GetPrimPath() ), true );
+		}
+		// Renamed a root item
+		else
+		{
+			RefreshPrim( UsdToUnreal::ConvertPath( TreeItem->UsdPrim.Get().GetPrimPath() ), true );
+		}
+	}
+}
+
+void SUsdStageTreeView::OnPrimNameUpdated(const FUsdStageTreeItemRef& TreeItem, const FText& InPrimName, FText& ErrorMessage)
+{
+	FString NameStr = InPrimName.ToString();
+	IUsdPrim::IsValidPrimName(NameStr, ErrorMessage);
+	if (!ErrorMessage.IsEmpty())
+	{
+		return;
+	}
+
+	{
+		FScopedUsdAllocs Allocs;
+
+		const pxr::UsdStageRefPtr& Stage = TreeItem->UsdStage.Get();
+		if (!Stage)
+		{
+			return;
+		}
+
+		pxr::SdfPath ParentPrimPath;
+		if (TreeItem->ParentItem)
+		{
+			ParentPrimPath = TreeItem->ParentItem->UsdPrim.Get().GetPrimPath();
+		}
+		else
+		{
+			ParentPrimPath = pxr::SdfPath::AbsoluteRootPath();
+		}
+
+		pxr::SdfPath NewPrimPath = ParentPrimPath.AppendChild(pxr::TfToken(UnrealToUsd::ConvertString(*NameStr).Get()));
+		const pxr::UsdPrim& Prim = Stage->GetPrimAtPath(NewPrimPath);
+		if (Prim)
+		{
+			ErrorMessage = LOCTEXT("DuplicatePrimName", "A Prim with this name already exists!");
+			return;
 		}
 	}
 }

@@ -192,7 +192,7 @@ public:
 			Id(-1)
 		{
 			// Clamp to be larger than the texel
-			Radius = FMath::Clamp(GatherInfo.MinDistance * IrradianceCachingSettings.RecordRadiusScale, SampleRadius, IrradianceCachingSettings.MaxRecordRadius);
+			Radius = FMath::Clamp(GatherInfo.MinDistance, SampleRadius, IrradianceCachingSettings.MaxRecordRadius) * IrradianceCachingSettings.RecordRadiusScale;
 			// Use a larger radius to interpolate, which smooths the error
 			InterpolationRadius = Radius * FMath::Max(IrradianceCachingSettings.DistanceSmoothFactor * GeneralSettings.IndirectLightingSmoothness, 1.0f);
 

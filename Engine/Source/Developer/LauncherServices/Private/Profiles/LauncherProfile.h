@@ -1868,6 +1868,7 @@ public:
 		EditorExe = LauncherServicesModule.GetExecutableForCommandlets();
 
 		bNotForLicensees = false;
+		bUseIoStore = false;
 
 		Validate();
 	}
@@ -2332,6 +2333,21 @@ public:
 		return EditorExe;
 	}
 
+	virtual void SetUseIoStore(bool bInUseIoStore) override
+	{
+		bUseIoStore = bInUseIoStore;
+
+		if (bUseIoStore)
+		{
+			SetDeployWithUnrealPak(true);
+		}
+	}
+
+	virtual bool IsUsingIoStore() const override
+	{
+		return bUseIoStore;
+	}
+
 	//~ End ILauncherProfile Interface
 
 protected:
@@ -2466,8 +2482,6 @@ protected:
 
 		}
 
-		
-
 		if (CookMode == ELauncherProfileCookModes::OnTheFly)
 		{
 
@@ -2485,6 +2499,11 @@ protected:
 		if (bArchive && ArchiveDir.IsEmpty())
 		{
 			ValidationErrors.Add(ELauncherProfileValidationErrors::NoArchiveDirectorySpecified);
+		}
+
+		if (bUseIoStore && !DeployWithUnrealPak)
+		{
+			ValidationErrors.Add(ELauncherProfileValidationErrors::IoStoreRequiresPakFiles);
 		}
 
 		ValidatePlatformSDKs();
@@ -2779,6 +2798,9 @@ private:
 
 	// Additional command line parameters to set for the application when it launches
 	FString AdditionalCommandLineParameters;
+
+	// Use I/O store.
+	bool bUseIoStore;
 
 private:
 

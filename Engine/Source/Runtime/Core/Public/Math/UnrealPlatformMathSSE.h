@@ -4,12 +4,20 @@
 
 #include "CoreTypes.h"
 #include "HAL/PlatformMisc.h"
-
 // Code including this header is responsible for including the correct platform-specific header for SSE intrinsics.
 
-#define PLATFORM_ENABLE_SSE4_MATH 0 // Temporarily disable the intrinsics on all platforms to fix the build
+#if !PLATFORM_ENABLE_VECTORINTRINSICS
 
-namespace UnrealPlatformMathSSE
+template<class Base>
+struct TUnrealPlatformMathSSEBase : public Base
+{
+};
+
+#else
+
+namespace UE4
+{
+namespace SSE
 {
 	static FORCEINLINE float InvSqrt(float F)
 	{
@@ -75,47 +83,11 @@ namespace UnrealPlatformMathSSE
 		return _mm_cvtt_ss2si(_mm_set_ss(F));
 	}
 
-	static FORCEINLINE float TruncToFloat(float F)
-	{
-#if PLATFORM_ENABLE_SSE4_MATH
-		return _mm_cvtss_f32(_mm_round_ps(_mm_set_ss(F), 3));
-#else
-		return truncf(F);
-#endif
-	}
-
-	static FORCEINLINE double TruncToDouble(double F)
-	{
-#if PLATFORM_ENABLE_SSE4_MATH
-		return _mm_cvtsd_f64(_mm_round_pd(_mm_set_sd(F), 3));
-#else
-		return trunc(F);
-#endif
-	}
-
 	static FORCEINLINE int32 FloorToInt(float F)
 	{
-		// Note: unlike the Generic solution and the float solution, we implement FloorToInt using a rounding instruction, rather than implementing RoundToInt using a floor instruction.  
+		// Note: unlike the Generic solution and the SSE4 float solution, we implement FloorToInt using a rounding instruction, rather than implementing RoundToInt using a floor instruction.  
 		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
 		return _mm_cvt_ss2si(_mm_set_ss(F + F - 0.5f)) >> 1;
-	}
-
-	static FORCEINLINE float FloorToFloat(float F)
-	{
-#if PLATFORM_ENABLE_SSE4_MATH
-		return _mm_cvtss_f32(_mm_floor_ps(_mm_set_ss(F)));
-#else
-		return floorf(F);
-#endif
-	}
-
-	static FORCEINLINE double FloorToDouble(double F)
-	{
-#if PLATFORM_ENABLE_SSE4_MATH
-		return _mm_cvtsd_f64(_mm_floor_pd(_mm_set_sd(F)));
-#else
-		return floor(F);
-#endif
 	}
 
 	static FORCEINLINE int32 RoundToInt(float F)
@@ -128,39 +100,48 @@ namespace UnrealPlatformMathSSE
 		return _mm_cvt_ss2si(_mm_set_ss(F + F + 0.5f)) >> 1;
 	}
 
-	static FORCEINLINE float RoundToFloat(float F)
+	static FORCEINLINE int32 CeilToInt(float F)
 	{
-		return FloorToFloat(F + 0.5f);
+		// Note: unlike the Generic solution and the SSE4 float solution, we implement CeilToInt using a rounding instruction, rather than a dedicated ceil instruction
+		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
+		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
+	}
+}
+}
+
+template<class Base>
+struct TUnrealPlatformMathSSEBase : public Base
+{
+	static FORCEINLINE int32 TruncToInt(float F)
+	{
+		return UE4::SSE::TruncToInt(F);
 	}
 
-	static FORCEINLINE double RoundToDouble(double F)
+	static FORCEINLINE int32 RoundToInt(float F)
 	{
-		return FloorToDouble(F + 0.5);
+		return UE4::SSE::RoundToInt(F);
+	}
+
+	static FORCEINLINE int32 FloorToInt(float F)
+	{
+		return UE4::SSE::FloorToInt(F);
 	}
 
 	static FORCEINLINE int32 CeilToInt(float F)
 	{
-		// Note: unlike the Generic solution and the float solution, we implement CeilToInt using a rounding instruction, rather than a dedicated ceil instruction
-		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
-		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
+		return UE4::SSE::CeilToInt(F);
 	}
 
-	static FORCEINLINE float CeilToFloat(float F)
+	static FORCEINLINE float InvSqrt(float F)
 	{
-#if PLATFORM_ENABLE_SSE4_MATH
-		return _mm_cvtss_f32(_mm_ceil_ps(_mm_set_ss(F)));
-#else
-		return ceilf(F);
-#endif
-
+		return UE4::SSE::InvSqrt(F);
 	}
 
-	static FORCEINLINE double CeilToDouble(double F)
+	static FORCEINLINE float InvSqrtEst(float F)
 	{
-#if PLATFORM_ENABLE_SSE4_MATH
-		return _mm_cvtsd_f64(_mm_ceil_pd(_mm_set_sd(F)));
-#else
-		return ceil(F);
-#endif
+		return UE4::SSE::InvSqrtEst(F);
 	}
-}
+
+};
+
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS

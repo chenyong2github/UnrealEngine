@@ -39,6 +39,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
 	bool bReplaceExisting;
 
+	/** Replace existing settings when overwriting existing assets  */
+	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
+	bool bReplaceExistingSettings;
+
 	/** Avoid dialogs */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
 	bool bAutomated;

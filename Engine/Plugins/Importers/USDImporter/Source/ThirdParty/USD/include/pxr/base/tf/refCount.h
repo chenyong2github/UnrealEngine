@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_REFCOUNT_H
-#define TF_REFCOUNT_H
+#ifndef PXR_BASE_TF_REF_COUNT_H
+#define PXR_BASE_TF_REF_COUNT_H
 
 /// \file tf/refCount.h
 /// \ingroup group_tf_Memory
@@ -110,4 +110,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_REFCOUNT_H
+#endif // PXR_BASE_TF_REF_COUNT_H

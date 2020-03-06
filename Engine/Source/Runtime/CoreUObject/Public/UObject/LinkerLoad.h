@@ -10,6 +10,7 @@
 #include "UObject/Linker.h"
 
 class FLinkerPlaceholderBase;
+class IPakFile;
 class ULinkerPlaceholderExportObject;
 struct FScopedSlowTask;
 struct FUntypedBulkData;
@@ -251,6 +252,8 @@ public:
 	 * 
 	 */
 	COREUOBJECT_API static void OnNewFileAdded(const FString& Filename);
+
+	COREUOBJECT_API static void OnPakFileMounted(const IPakFile& PakFile);
 
 	/** 
 	 * Checks if the linker has any objects in the export table that require loading.
@@ -835,8 +838,7 @@ private:
 		{
 			Name = FName();
 			BadNameIndexError(NameIndex);
-			ArIsError = true;
-			ArIsCriticalError = true;
+			SetCriticalError();
 		}
 
 		return *this;
@@ -912,9 +914,14 @@ protected: // Daniel L: Made this protected so I can override the constructor an
 	);
 private:
 	/**
-	 * Serializes the package file summary.
+	 * Start the process of serializing the package file summary if needed
 	 */
 	ELinkerStatus SerializePackageFileSummary();
+
+	/**
+	 * Does the actual serialization of  the package file summary.
+	 */
+	ELinkerStatus SerializePackageFileSummaryInternal();
 
 	/**
 	 * Updates the linker, loader and root package with data from the package file summary.

@@ -37,10 +37,18 @@ public:
 	{
 		FAppendSettings()
 			: bMergeVertexColor(true)
+			, bMergeUVChannels{ true }
 			, MergedAssetPivot(0.0f, 0.0f, 0.0f)
 		{}
+
+		enum
+		{
+			MAX_NUM_UV_CHANNELS = 8,
+		};
+
 		FAppendPolygonGroupsDelegate PolygonGroupsDelegate;
 		bool bMergeVertexColor;
+		bool bMergeUVChannels[MAX_NUM_UV_CHANNELS];
 		FVector MergedAssetPivot;
 		TOptional<FTransform> MeshTransform; // Apply a transformation on source mesh (see MeshTransform)
 	};
@@ -69,7 +77,7 @@ public:
 	static void ConvertToRawMesh(const FMeshDescription& SourceMeshDescription, FRawMesh& DestinationRawMesh, const TMap<FName, int32>& MaterialMap);
 
 	/** Convert old FRawMesh format to MeshDescription. */
-	static void ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FMeshDescription& DestinationMeshDescription, const TMap<int32, FName>& MaterialMap);
+	static void ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FMeshDescription& DestinationMeshDescription, const TMap<int32, FName>& MaterialMap, bool bSkipNormalsAndTangents = false);
 
 	static void AppendMeshDescription(const FMeshDescription& SourceMesh, FMeshDescription& TargetMesh, FAppendSettings& AppendSettings);
 
@@ -148,4 +156,7 @@ public:
 
 	/** Computes the SHA hash of all the attributes values in the MeshDescription. */
 	static FSHAHash ComputeSHAHash(const FMeshDescription& MeshDescription);
+
+	/** Flip the facing for a set of input polygons. */
+	static void FlipPolygons(FMeshDescription& MeshDescription);
 };

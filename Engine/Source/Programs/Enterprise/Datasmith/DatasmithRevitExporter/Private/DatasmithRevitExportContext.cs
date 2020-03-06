@@ -15,7 +15,7 @@ using Autodesk.Revit.DB.Visual;
 
 namespace DatasmithRevitExporter
 {
-	// Custom export context for command Export to Unreal Datasmith. 
+	// Custom export context for command Export to Unreal Datasmith.
 	public class FDatasmithRevitExportContext : IPhotoRenderContext
 	{
 		// Revit application information for Datasmith.
@@ -52,7 +52,7 @@ namespace DatasmithRevitExporter
 
 		// List of extra search paths for Revit texture files.
 		private IList<string> ExtraTexturePaths = new List<string>();
-		
+
 		// List of messages generated during the export process.
 		private List<string> MessageList = new List<string>();
 
@@ -140,6 +140,7 @@ namespace DatasmithRevitExporter
 
 			// Create an empty Datasmith scene.
 			DatasmithScene = new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, PRODUCT_NAME, ProductVersion);
+			DatasmithScene.PreExport();
 
 			View3D ViewToExport = RevitDocument.GetElement(InViewNode.ViewId) as View3D;
 			if (!DatasmithFilePaths.TryGetValue(ViewToExport.Id, out CurrentDatasmithFilePath))
@@ -174,7 +175,7 @@ namespace DatasmithRevitExporter
 
 			// Dispose of the Datasmith scene.
 			DatasmithScene = null;
-			
+
 			// Forget the 3D view world transform.
 			WorldTransformStack.Pop();
 		}
@@ -190,7 +191,7 @@ namespace DatasmithRevitExporter
 			{
 				// Keep track of the element being processed.
 				PushElement(CurrentElement, WorldTransformStack.Peek(), "Element Begin");
-			
+
 				// We want to export the element.
 				return RenderNodeAction.Proceed;
 			}
@@ -288,7 +289,7 @@ namespace DatasmithRevitExporter
 			if (LinkedDocument != null)
 			{
 				// Keep track of the linked document being processed.
-				PushDocument(LinkedDocument);
+				PushDocument(LinkedDocument, false);
 			}
 
 			return (CurrentInstanceType != null && LinkedDocument != null) ? RenderNodeAction.Proceed : RenderNodeAction.Skip;
@@ -331,7 +332,7 @@ namespace DatasmithRevitExporter
 			// Forget the current light world transform.
 			WorldTransformStack.Pop();
 		}
-		
+
 		// OnRPC marks the beginning of export of an RPC object.
 		// This method is only called for interface IPhotoRenderContext.
 		public void OnRPC(
@@ -406,12 +407,13 @@ namespace DatasmithRevitExporter
 				CurrentMesh.AddUV(0, (float) uv.U, (float) -uv.V);
 			}
 
+			IList<PolymeshFacet> Facets = InPolymeshNode.GetFacets();
 			// Add the triangle vertex indexes to the Datasmith mesh.
-			foreach (PolymeshFacet facet in InPolymeshNode.GetFacets())
+			foreach (PolymeshFacet facet in Facets)
 			{
 				CurrentMesh.AddTriangle(initialVertexCount + facet.V1, initialVertexCount + facet.V2, initialVertexCount + facet.V3, CurrentMaterialIndex);
 			}
-			
+
 			// Add the triangle vertex normals (in right-handed Z-up coordinates) to the Datasmith mesh.
 			// Normals can be associated with either points or facets of the polymesh.
 			switch (InPolymeshNode.DistributionOfNormals)
@@ -419,21 +421,44 @@ namespace DatasmithRevitExporter
 				case DistributionOfNormals.AtEachPoint:
 				{
 					IList<XYZ> normals = InPolymeshNode.GetNormals();
-					foreach (PolymeshFacet facet in InPolymeshNode.GetFacets())
+					if (MeshPointsTransform != null)
 					{
-						XYZ normal1 = normals[facet.V1];
-						XYZ normal2 = normals[facet.V2];
-						XYZ normal3 = normals[facet.V3];
+						foreach (PolymeshFacet facet in Facets)
+						{
+							XYZ normal1 = MeshPointsTransform.OfVector(normals[facet.V1]);
+							XYZ normal2 = MeshPointsTransform.OfVector(normals[facet.V2]);
+							XYZ normal3 = MeshPointsTransform.OfVector(normals[facet.V3]);
 
-						CurrentMesh.AddNormal((float) normal1.X, (float) normal1.Y, (float) normal1.Z);
-						CurrentMesh.AddNormal((float) normal2.X, (float) normal2.Y, (float) normal2.Z);
-						CurrentMesh.AddNormal((float) normal3.X, (float) normal3.Y, (float) normal3.Z);
+							CurrentMesh.AddNormal((float)normal1.X, (float)normal1.Y, (float)normal1.Z);
+							CurrentMesh.AddNormal((float)normal2.X, (float)normal2.Y, (float)normal2.Z);
+							CurrentMesh.AddNormal((float)normal3.X, (float)normal3.Y, (float)normal3.Z);
+						}
 					}
+					else
+					{
+						foreach (PolymeshFacet facet in Facets)
+						{
+							XYZ normal1 = normals[facet.V1];
+							XYZ normal2 = normals[facet.V2];
+							XYZ normal3 = normals[facet.V3];
+
+							CurrentMesh.AddNormal((float)normal1.X, (float)normal1.Y, (float)normal1.Z);
+							CurrentMesh.AddNormal((float)normal2.X, (float)normal2.Y, (float)normal2.Z);
+							CurrentMesh.AddNormal((float)normal3.X, (float)normal3.Y, (float)normal3.Z);
+						}
+					}
+
 					break;
 				}
 				case DistributionOfNormals.OnePerFace:
 				{
 					XYZ normal = InPolymeshNode.GetNormals()[0];
+
+					if (MeshPointsTransform != null)
+					{
+						normal = MeshPointsTransform.OfVector(normal);
+					}
+
 					for (int i = 0; i < 3 * InPolymeshNode.NumberOfFacets; i++)
 					{
 						CurrentMesh.AddNormal((float) normal.X, (float) normal.Y, (float) normal.Z);
@@ -442,11 +467,24 @@ namespace DatasmithRevitExporter
 				}
 				case DistributionOfNormals.OnEachFacet:
 				{
-					foreach (XYZ normal in InPolymeshNode.GetNormals())
+					if (MeshPointsTransform != null)
 					{
-						CurrentMesh.AddNormal((float) normal.X, (float) normal.Y, (float) normal.Z);
-						CurrentMesh.AddNormal((float) normal.X, (float) normal.Y, (float) normal.Z);
-						CurrentMesh.AddNormal((float) normal.X, (float) normal.Y, (float) normal.Z);
+						foreach (XYZ normal in InPolymeshNode.GetNormals())
+						{
+							XYZ FinalNormal = MeshPointsTransform.OfVector(normal);
+							CurrentMesh.AddNormal((float)FinalNormal.X, (float)FinalNormal.Y, (float)FinalNormal.Z);
+							CurrentMesh.AddNormal((float)FinalNormal.X, (float)FinalNormal.Y, (float)FinalNormal.Z);
+							CurrentMesh.AddNormal((float)FinalNormal.X, (float)FinalNormal.Y, (float)FinalNormal.Z);
+						}
+					}
+					else
+					{
+						foreach (XYZ normal in InPolymeshNode.GetNormals())
+						{
+							CurrentMesh.AddNormal((float)normal.X, (float)normal.Y, (float)normal.Z);
+							CurrentMesh.AddNormal((float)normal.X, (float)normal.Y, (float)normal.Z);
+							CurrentMesh.AddNormal((float)normal.X, (float)normal.Y, (float)normal.Z);
+						}
 					}
 					break;
 				}
@@ -508,12 +546,16 @@ namespace DatasmithRevitExporter
 		}
 
 		private void PushDocument(
-			Document InDocument
+			Document InDocument,
+			bool bInAddLocationActors = true
 		)
 		{
 			DocumentDataStack.Push(new FDocumentData(InDocument, ref MessageList));
 
-			DocumentDataStack.Peek().AddLocationActors(WorldTransformStack.Peek());
+			if (bInAddLocationActors)
+			{
+				DocumentDataStack.Peek().AddLocationActors(WorldTransformStack.Peek());
+			}
 		}
 
 		private void PopDocument()
@@ -726,15 +768,14 @@ namespace DatasmithRevitExporter
 				{
 					if (!InWorldTransform.IsIdentity)
 					{
-						PivotTransform = PivotTransform * InWorldTransform;
-						InWorldTransform = PivotTransform;
+						InWorldTransform = InWorldTransform * PivotTransform;
 					}
 					else
 					{
 						InWorldTransform = PivotTransform;
 					}
-					
-					if (CurrentElement.GetType() == typeof(Wall) 
+
+					if (CurrentElement.GetType() == typeof(Wall)
 						|| CurrentElement.GetType() == typeof(ModelText)
 						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve)))
 					{
@@ -745,7 +786,7 @@ namespace DatasmithRevitExporter
 				CreateMeshActor(InWorldTransform, out ElementMesh, out ElementActor);
 			}
 
-			// Compute orthonormal basis, given the X vector. 
+			// Compute orthonormal basis, given the X vector.
 			static private void ComputeBasis(XYZ BasisX, ref XYZ BasisY, ref XYZ BasisZ)
 			{
 				BasisY = XYZ.BasisZ.CrossProduct(BasisX);
@@ -1369,7 +1410,7 @@ namespace DatasmithRevitExporter
 		{
 			ElementDataStack.Peek().AddLightActor(InWorldTransform, InLightAsset);
 		}
-		
+
 		public void AddRPCActor(
 			Transform InWorldTransform,
 			Asset     InRPCAsset
@@ -1539,7 +1580,7 @@ namespace DatasmithRevitExporter
 			SiteLocation InSiteLocation
 		)
 		{
-			if (!InSiteLocation.IsValidObject)
+			if (InSiteLocation == null || !InSiteLocation.IsValidObject)
 			{
 				return;
 			}

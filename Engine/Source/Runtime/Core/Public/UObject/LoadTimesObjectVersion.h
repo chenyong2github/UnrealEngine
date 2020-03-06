@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-// Custom serialization version for changes made in Dev-Rendering stream
+// Custom serialization version for changes made in LoadTimes stream
 struct CORE_API FLoadTimesObjectVersion
 {
 	enum Type

@@ -18,7 +18,7 @@ public:
 	TEmptyBaseShader()
 	{
 	}
-	TEmptyBaseShader(const TArray<uint8>& InCode);
+	TEmptyBaseShader(TArrayView<const uint8> Code);
 
 	/** Destructor */
 	virtual ~TEmptyBaseShader();

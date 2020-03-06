@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_MALLOCHOOK_H
-#define ARCH_MALLOCHOOK_H
+#ifndef PXR_BASE_ARCH_MALLOC_HOOK_H
+#define PXR_BASE_ARCH_MALLOC_HOOK_H
 
 /// \file arch/mallocHook.h
 /// \ingroup group_arch_Memory
@@ -157,4 +157,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_MALLOCHOOK_H
+#endif // PXR_BASE_ARCH_MALLOC_HOOK_H

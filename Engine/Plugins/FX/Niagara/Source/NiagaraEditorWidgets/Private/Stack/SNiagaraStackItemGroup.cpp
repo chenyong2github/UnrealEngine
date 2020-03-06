@@ -41,6 +41,7 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 			.ToolTipText(this, &SNiagaraStackItemGroup::GetDeleteButtonToolTip)
 			.OnClicked(this, &SNiagaraStackItemGroup::DeleteClicked)
 			.IsEnabled(this, &SNiagaraStackItemGroup::GetDeleteButtonIsEnabled)
+			.Visibility(this, &SNiagaraStackItemGroup::GetDeleteButtonVisibility)
 			.Content()
 			[
 				SNew(STextBlock)
@@ -52,6 +53,7 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.HAlign(HAlign_Right)
+		.Padding(2, 0, 0, 0)
 		[
 			ConstructAddButton()
 		]
@@ -79,6 +81,11 @@ bool SNiagaraStackItemGroup::GetDeleteButtonIsEnabled() const
 {
 	FText UnusedMessage;
 	return Group->TestCanDeleteWithMessage(UnusedMessage);
+}
+
+EVisibility SNiagaraStackItemGroup::GetDeleteButtonVisibility() const
+{
+	return Group->SupportsDelete() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SNiagaraStackItemGroup::DeleteClicked()

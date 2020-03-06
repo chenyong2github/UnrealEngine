@@ -91,8 +91,35 @@ void FModelingToolsEditorMode::ActorSelectionChangeNotify()
 
 bool FModelingToolsEditorMode::ProcessEditDelete()
 {
-	return ToolsContext->ProcessEditDelete();
+	if (ToolsContext->ProcessEditDelete())
+	{
+		return true;
+	}
+
+	// for now we disable deleting in an Accept-style tool because it can result in crashes if we are deleting target object
+	if ( GetToolManager()->HasAnyActiveTool() && GetToolManager()->GetActiveTool(EToolSide::Mouse)->HasAccept() )
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("CannotDeleteWarning", "Cannot delete objects while this Tool is active"), EToolMessageLevel::UserWarning);
+		return true;
+	}
+
+	return false;
 }
+
+
+bool FModelingToolsEditorMode::ProcessEditCut()
+{
+	// for now we disable deleting in an Accept-style tool because it can result in crashes if we are deleting target object
+	if (GetToolManager()->HasAnyActiveTool() && GetToolManager()->GetActiveTool(EToolSide::Mouse)->HasAccept())
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("CannotCutWarning", "Cannot cut objects while this Tool is active"), EToolMessageLevel::UserWarning);
+		return true;
+	}
+	return false;
+}
+
 
 
 bool FModelingToolsEditorMode::CanAutoSave() const
@@ -104,11 +131,11 @@ bool FModelingToolsEditorMode::CanAutoSave() const
 bool FModelingToolsEditorMode::ShouldDrawWidget() const
 { 
 	// allow standard xform gizmo if we don't have an active tool
-	if (ToolsContext != nullptr)
+	if (ToolsContext != nullptr && ToolsContext->ToolManager->HasAnyActiveTool())
 	{
-		return ToolsContext->ToolManager->HasAnyActiveTool() == false;
+		return false;
 	}
-	return true; 
+	return FEdMode::ShouldDrawWidget(); 
 }
 
 bool FModelingToolsEditorMode::UsesTransformWidget() const
@@ -563,6 +590,9 @@ void FModelingToolsEditorMode::Enter()
 	{
 		FModelingToolActionCommands::UpdateToolCommandBinding(Tool, UICommandList, true);
 	});
+
+	// enable realtime viewport override
+	ConfigureRealTimeViewportsOverride(true);
 }
 
 
@@ -583,6 +613,9 @@ void FModelingToolsEditorMode::Exit()
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
+
+	// clear realtime viewport override
+	ConfigureRealTimeViewportsOverride(false);
 
 	// Call base Exit method to ensure proper cleanup
 	FEdMode::Exit();
@@ -638,6 +671,34 @@ bool FModelingToolsEditorMode::GetPivotForOrbit(FVector& OutPivot) const
 	}
 	return false;
 }
+
+
+
+void FModelingToolsEditorMode::ConfigureRealTimeViewportsOverride(bool bEnable)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
+	{
+		TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
+		{
+			if (ViewportWindow.IsValid())
+			{
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+				if (bEnable)
+				{
+					Viewport.SetRealtimeOverride(bEnable, LOCTEXT("RealtimeOverrideMessage_ModelingMode", "Modeling Mode"));
+				}
+				else
+				{
+					Viewport.RemoveRealtimeOverride();
+				}
+			}
+		}
+	}
+}
+
 
 
 #undef LOCTEXT_NAMESPACE

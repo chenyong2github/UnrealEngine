@@ -24,30 +24,30 @@ void UOculusAudioGeometryLandscape::Serialize(FArchive & Ar)
 
 	struct Delta {
 		static size_t Read(void* userData, void* bytes, size_t byteCount) {
-			FArchive* userAr = static_cast<FArchive*>(userData);
-			check(userAr->IsLoading());
+			FArchive* Archive = static_cast<FArchive*>(userData);
+			check(Archive->IsLoading());
 
 			// Check that we are not reading past end of archive..
-			int64 CurrentPosition = userAr->Tell();
-			int64 TotalSize = userAr->TotalSize();
+			int64 CurrentPosition = Archive->Tell();
+			int64 TotalSize = Archive->TotalSize();
 			if ((CurrentPosition + static_cast<int64>(byteCount)) > TotalSize)
 			{
 				return 0;
 			}
 
-			userAr->Serialize(bytes, byteCount);
-			return userAr->GetError() ? 0 : byteCount;
+			Archive->Serialize(bytes, byteCount);
+			return Archive->GetError() ? 0 : byteCount;
 		}
 		static size_t Write(void* userData, const void* bytes, size_t byteCount) {
-			FArchive* userAr = static_cast<FArchive*>(userData);
-			check(userAr->IsSaving());
-			userAr->Serialize(const_cast<void*>(bytes), byteCount);
-			return userAr->GetError() ? 0 : byteCount;
+			FArchive* Archive = static_cast<FArchive*>(userData);
+			check(Archive->IsSaving());
+			Archive->Serialize(const_cast<void*>(bytes), byteCount);
+			return Archive->GetError() ? 0 : byteCount;
 		}
 		static int64_t Seek(void* userData, int64_t seekOffset) {
-			FArchive* userAr = static_cast<FArchive*>(userData);
-			int64 Start = userAr->Tell();
-			userAr->Seek(seekOffset);
+			FArchive* Archive = static_cast<FArchive*>(userData);
+			int64 Start = Archive->Tell();
+			Archive->Seek(seekOffset);
 			return 0;
 		}
 	};
@@ -143,7 +143,7 @@ void UOculusAudioGeometryLandscape::CreateGeometryFromLandscape(ovrAudioContext 
 			}
 		}
 
-		ovrAudioMesh ovrMesh = { { 0 } };
+		ovrAudioMesh ovrMesh = { };
 
 		ovrAudioMeshVertices ovrVertices = { 0 };
 		ovrVertices.vertices = Vertices.GetData();

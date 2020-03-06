@@ -545,18 +545,20 @@ public:
 	 * Array of runtime virtual textures into which we render this landscape.
 	 * The material also needs to be set up to output to a virtual texture.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
 
 	/** 
 	 * Number of mesh levels to use when rendering landscape into runtime virtual texture.
-	 * Set this only if the material used to render the virtual texture requires interpolated vertex data such as height.
-	 * Higher values use more tessellated meshes and are expensive when rendering the runtime virtual texture.
+	 * Lower values reduce vertex count when rendering to the runtime virtual texture but decrease accuracy when using values that require vertex interpolation.
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Num LODs", UIMin = "0", UIMax = "7"))
-	int32 VirtualTextureNumLods = 0;
+	int32 VirtualTextureNumLods = 6;
 
-	/** Bias to the LOD selected for rendering to runtime virtual textures. */
+	/** 
+	 * Bias to the LOD selected for rendering to runtime virtual textures.
+	 * Higher values reduce vertex count when rendering to the runtime virtual texture.
+	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", UIMin = "0", UIMax = "7"))
 	int32 VirtualTextureLodBias = 0;
 
@@ -844,7 +846,9 @@ public:
 	/* Per-frame call to update dynamic grass placement and render grassmaps */
 	FORCEINLINE bool ShouldTickGrass() const
 	{
-		if (!bHasLandscapeGrass)
+		// At runtime if we don't have grass we will never have any so avoid ticking it
+		// In editor we might have a material that didn't have grass and now does so we can't rely on bHasLandscapeGrass.
+		if (!GIsEditor && !bHasLandscapeGrass)
 		{
 			return false;
 		}

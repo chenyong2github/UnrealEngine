@@ -347,6 +347,11 @@ public:
 #endif
 	}
 
+	void SetEnableMeshOcclusion(bool bEnable)
+	{
+		bEnableOcclusion = bEnable;
+	}
+
 private:
 	//~ FPrimitiveSceneProxy
 
@@ -468,7 +473,7 @@ private:
 		Result.bRenderInDepthPass = bEnableOcclusion;
 		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
-		UMaterialInterface::TMicRecursionGuard RecursionGuard;
+		TMicRecursionGuard RecursionGuard;
 		Result.bSeparateTranslucency = MaterialToUse->GetMaterial_Concurrent(RecursionGuard)->bEnableSeparateTranslucency;
 		//MaterialRelevance.SetPrimitiveViewRelevance(Result);
 		return Result;
@@ -991,3 +996,23 @@ void UMRMeshComponent::UpdateMesh(const FVector& InLocation, const FQuat& InRota
 	);
 }
 
+void UMRMeshComponent::SetEnableMeshOcclusion(bool bEnable)
+{
+	bEnableOcclusion = bEnable;
+
+	// Update bEnableOcclusion on the SceneProxy, as well.
+	if (SceneProxy)
+	{
+		UMRMeshComponent* This = this;
+		ENQUEUE_RENDER_COMMAND(FSetEnableMeshOcclusionLambda)(
+			[This,bEnable](FRHICommandListImmediate& RHICmdList)
+			{
+				FMRMeshProxy* MRMeshProxy = static_cast<FMRMeshProxy*>(This->SceneProxy);
+				if (MRMeshProxy)
+				{
+					MRMeshProxy->SetEnableMeshOcclusion(bEnable);
+				}
+			}
+		);
+	}
+}

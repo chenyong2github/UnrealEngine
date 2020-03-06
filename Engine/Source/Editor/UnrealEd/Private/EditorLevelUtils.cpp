@@ -55,12 +55,12 @@ DEFINE_LOG_CATEGORY(LogLevelTools);
 #define LOCTEXT_NAMESPACE "EditorLevelUtils"
 
 
-int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevelStreaming* DestStreamingLevel, bool bWarnAboutReferences)
+int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevelStreaming* DestStreamingLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming)
 {
-	return MoveActorsToLevel(ActorsToMove, DestStreamingLevel ? DestStreamingLevel->GetLoadedLevel() : nullptr, bWarnAboutReferences);
+	return MoveActorsToLevel(ActorsToMove, DestStreamingLevel ? DestStreamingLevel->GetLoadedLevel() : nullptr, bWarnAboutReferences, bWarnAboutRenaming);
 }
 
-int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences)
+int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming)
 {
 	int32 NumMovedActors = 0;
 
@@ -221,7 +221,14 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 					
 				if (RenameData.Num() > 0)
 				{
-					AssetToolsModule.Get().RenameAssetsWithDialog(RenameData);
+					if(bWarnAboutRenaming)
+					{
+						AssetToolsModule.Get().RenameAssetsWithDialog(RenameData);
+					}
+					else
+					{
+						AssetToolsModule.Get().RenameAssets(RenameData);
+					}
 				}
 
 				// Restore new level visibility to previous state

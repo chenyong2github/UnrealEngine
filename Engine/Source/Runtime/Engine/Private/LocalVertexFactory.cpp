@@ -11,6 +11,10 @@
 #include "ShaderParameterUtils.h"
 #include "Rendering/ColorVertexBuffer.h"
 #include "MeshMaterialShader.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
+
+IMPLEMENT_TYPE_LAYOUT(FLocalVertexFactoryShaderParametersBase);
+IMPLEMENT_TYPE_LAYOUT(FLocalVertexFactoryShaderParameters);
 
 class FSpeedTreeWindNullUniformBuffer : public TUniformBuffer<FSpeedTreeUniformParameters>
 {
@@ -36,19 +40,15 @@ void FLocalVertexFactoryShaderParametersBase::Bind(const FShaderParameterMap& Pa
 	bAnySpeedTreeParamIsBound = LODParameter.IsBound() || ParameterMap.ContainsParameterAllocation(TEXT("SpeedTreeData"));
 }
 
-void FLocalVertexFactoryShaderParametersBase::Serialize(FArchive& Ar)
-{
-	Ar << bAnySpeedTreeParamIsBound;
-	Ar << LODParameter;
-}
-
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryUniformShaderParameters, "LocalVF");
 
 TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUniformBuffer(
 	const FLocalVertexFactory* LocalVertexFactory, 
 	uint32 LODLightmapDataIndex, 
 	FColorVertexBuffer* OverrideColorVertexBuffer, 
-	int32 BaseVertexIndex)
+	int32 BaseVertexIndex,
+	int32 PreSkinBaseVertexIndex
+	)
 {
 	FLocalVertexFactoryUniformShaderParameters UniformParameters;
 
@@ -58,6 +58,7 @@ TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUnifo
 	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		UniformParameters.VertexFetch_PositionBuffer = LocalVertexFactory->GetPositionsSRV();
+		UniformParameters.VertexFetch_PreSkinPositionBuffer = LocalVertexFactory->GetPreSkinPositionSRV();
 
 		UniformParameters.VertexFetch_PackedTangentsBuffer = LocalVertexFactory->GetTangentsSRV();
 		UniformParameters.VertexFetch_TexCoordBuffer = LocalVertexFactory->GetTextureCoordinatesSRV();
@@ -75,6 +76,7 @@ TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUnifo
 	}
 	else
 	{
+		UniformParameters.VertexFetch_PreSkinPositionBuffer = GNullColorVertexBuffer.VertexBufferSRV;
 		UniformParameters.VertexFetch_PackedTangentsBuffer = GNullColorVertexBuffer.VertexBufferSRV;
 		UniformParameters.VertexFetch_TexCoordBuffer = GNullColorVertexBuffer.VertexBufferSRV;
 	}
@@ -87,7 +89,10 @@ TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUnifo
 	const int32 NumTexCoords = LocalVertexFactory->GetNumTexcoords();
 	const int32 LightMapCoordinateIndex = LocalVertexFactory->GetLightMapCoordinateIndex();
 	const int32 EffectiveBaseVertexIndex = RHISupportsAbsoluteVertexID(GMaxRHIShaderPlatform) ? 0 : BaseVertexIndex;
+	const int32 EffectivePreSkinBaseVertexIndex = RHISupportsAbsoluteVertexID(GMaxRHIShaderPlatform) ? 0 : PreSkinBaseVertexIndex;
+
 	UniformParameters.VertexFetch_Parameters = {ColorIndexMask, NumTexCoords, LightMapCoordinateIndex, EffectiveBaseVertexIndex};
+	UniformParameters.PreSkinBaseVertexIndex = EffectivePreSkinBaseVertexIndex;
 
 	return TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
 }
@@ -106,7 +111,7 @@ void FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(
 	) const
 {
 	const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
-
+	
 	if (LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel) || UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
 	{
 		if (!VertexFactoryUniformBuffer)
@@ -181,10 +186,10 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 /**
  * Should we cache the material's shadertype on this platform with this vertex factory? 
  */
-bool FLocalVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FLocalVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
 	// Only compile this permutation inside the editor - it's not applicable in games, but occasionally the editor needs it.
-	if (Material->GetMaterialDomain() == MD_UI)
+	if (Parameters.MaterialParameters.MaterialDomain == MD_UI)
 	{
 		return !!WITH_EDITOR;
 	}
@@ -192,18 +197,18 @@ bool FLocalVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, con
 	return true; 
 }
 
-void FLocalVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FLocalVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_SPEEDTREE_WIND"),TEXT("1"));
 
 	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
-	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Platform))
+	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Parameters.Platform))
 	{
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
 	}
 
-	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Type->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)));
-	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), Type->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)) && GPUSceneUseTexture2D(Platform));
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)));
+	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)) && GPUSceneUseTexture2D(Parameters.Platform));
 }
 
 void FLocalVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
@@ -257,6 +262,8 @@ void FLocalVertexFactory::Copy(const FLocalVertexFactory& Other)
 
 void FLocalVertexFactory::InitRHI()
 {
+	SCOPED_LOADTIMER(FLocalVertexFactory_InitRHI);
+
 	// We create different streams based on feature level
 	check(HasValidFeatureLevel());
 
@@ -290,6 +297,7 @@ void FLocalVertexFactory::InitRHI()
 
 			InitDeclaration(StreamElements, InputStreamType);
 		};
+
 		AddDeclaration(EVertexInputStreamType::PositionOnly, false);
 		AddDeclaration(EVertexInputStreamType::PositionAndNormalOnly, true);
 	}
@@ -377,33 +385,20 @@ void FLocalVertexFactory::InitRHI()
 	check(IsValidRef(GetDeclaration()));
 
 	const int32 DefaultBaseVertexIndex = 0;
+	const int32 DefaultPreSkinBaseVertexIndex = 0;
 	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || bCanUseGPUScene)
 	{
-		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex);
+		SCOPED_LOADTIMER(FLocalVertexFactory_InitRHI_CreateLocalVFUniformBuffer);
+		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex, DefaultPreSkinBaseVertexIndex);
 	}
 
 	check(IsValidRef(GetDeclaration()));
 }
 
-FVertexFactoryShaderParameters* FLocalVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	if (ShaderFrequency == SF_Vertex)
-	{
-		return new FLocalVertexFactoryShaderParameters();
-	}
-
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLocalVertexFactory, SF_Vertex, FLocalVertexFactoryShaderParameters);
 #if RHI_RAYTRACING
-	if (ShaderFrequency == SF_RayHitGroup)
-	{
-		return new FLocalVertexFactoryShaderParameters();
-	} 
-	else if (ShaderFrequency == SF_Compute)
-	{
-		return new FLocalVertexFactoryShaderParameters();
-	}
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLocalVertexFactory, SF_RayHitGroup, FLocalVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLocalVertexFactory, SF_Compute, FLocalVertexFactoryShaderParameters);
 #endif // RHI_RAYTRACING
-
-	return NULL;
-}
 
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLocalVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,true);

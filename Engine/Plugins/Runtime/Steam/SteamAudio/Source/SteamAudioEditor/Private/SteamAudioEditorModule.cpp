@@ -85,9 +85,19 @@ namespace SteamAudio
 			PlatformFile.CreateDirectory(*RuntimePath);
 		}
 
+		if (!PlatformFile.DirectoryExists(*DynamicRuntimePath))
+		{
+			PlatformFile.CreateDirectory(*DynamicRuntimePath);
+		}
+
 		if (!PlatformFile.DirectoryExists(*EditorOnlyPath))
 		{
 			PlatformFile.CreateDirectory(*EditorOnlyPath);
+		}
+
+		if (!PlatformFile.DirectoryExists(*DynamicEditorOnlyPath))
+		{
+			PlatformFile.CreateDirectory(*DynamicEditorOnlyPath);
 		}
 
 		// Register detail customizations

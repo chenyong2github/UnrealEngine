@@ -3,6 +3,7 @@
 #include "TutorialStateSettings.h"
 #include "Templates/SubclassOf.h"
 #include "EditorTutorial.h"
+#include "Misc/PackageName.h"
 
 UTutorialStateSettings::UTutorialStateSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -16,11 +17,14 @@ void UTutorialStateSettings::PostInitProperties()
 
 	for(const auto& Progress : TutorialsProgress)
 	{
-		TSubclassOf<UEditorTutorial> TutorialClass = LoadClass<UEditorTutorial>(NULL, *Progress.Tutorial.ToString(), NULL, LOAD_None, NULL);
-		if(TutorialClass != nullptr)
+		if (FPackageName::IsValidObjectPath(*Progress.Tutorial.ToString()))
 		{
-			UEditorTutorial* Tutorial = TutorialClass->GetDefaultObject<UEditorTutorial>();
-			ProgressMap.Add(Tutorial, Progress);
+			TSubclassOf<UEditorTutorial> TutorialClass = LoadClass<UEditorTutorial>(NULL, *Progress.Tutorial.ToString(), NULL, LOAD_None, NULL);
+			if (TutorialClass != nullptr)
+			{
+				UEditorTutorial* Tutorial = TutorialClass->GetDefaultObject<UEditorTutorial>();
+				ProgressMap.Add(Tutorial, Progress);
+			}
 		}
 	}
 }

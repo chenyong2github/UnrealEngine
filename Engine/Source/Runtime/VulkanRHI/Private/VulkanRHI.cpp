@@ -67,6 +67,21 @@ bool GGPUCrashDebuggingEnabled = false;
 extern TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar;
 
 
+#if VULKAN_HAS_VALIDATION_FEATURES
+static inline TArray<VkValidationFeatureEnableEXT> GetValidationFeaturesEnabled()
+{
+	TArray<VkValidationFeatureEnableEXT> Features;
+	Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+	extern TAutoConsoleVariable<int32> GGPUValidationCvar;
+	if (GGPUValidationCvar.GetValueOnAnyThread() > 1)
+	{
+		Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+	}
+
+	return Features;
+}
+#endif
+
 DEFINE_LOG_CATEGORY(LogVulkan)
 
 bool FVulkanDynamicRHIModule::IsSupported()
@@ -76,19 +91,8 @@ bool FVulkanDynamicRHIModule::IsSupported()
 
 FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequestedFeatureLevel)
 {
-	if (!GIsEditor &&
-		(FVulkanPlatform::RequiresMobileRenderer() ||
-			InRequestedFeatureLevel == ERHIFeatureLevel::ES3_1 || InRequestedFeatureLevel == ERHIFeatureLevel::ES2 ||
-			FParse::Param(FCommandLine::Get(), TEXT("featureleveles31")) || FParse::Param(FCommandLine::Get(), TEXT("featureleveles2"))))
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
-		GMaxRHIShaderPlatform = PLATFORM_LUMIN ? SP_VULKAN_ES3_1_LUMIN : (PLATFORM_ANDROID ? SP_VULKAN_ES3_1_ANDROID : SP_VULKAN_PCES3_1);
-	}
-	else
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = (PLATFORM_LUMIN) ? SP_VULKAN_SM5_LUMIN : SP_VULKAN_SM5;
-	}
+	FVulkanPlatform::SetupMaxRHIFeatureLevelAndShaderPlatform(InRequestedFeatureLevel);
+	check(GMaxRHIFeatureLevel != ERHIFeatureLevel::Num);
 
 	GVulkanRHI = new FVulkanDynamicRHI();
 #if ENABLE_RHI_VALIDATION
@@ -254,7 +258,7 @@ void FVulkanDynamicRHI::Init()
 void FVulkanDynamicRHI::PostInit()
 {
 	//work around layering violation
-	TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader();
+	TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
 }
 
 void FVulkanDynamicRHI::Shutdown()
@@ -285,17 +289,7 @@ void FVulkanDynamicRHI::Shutdown()
 		check(!GIsCriticalError);
 
 		// Ask all initialized FRenderResources to release their RHI resources.
-		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			FRenderResource* Resource = *ResourceIt;
-			check(Resource->IsInitialized());
-			Resource->ReleaseRHI();
-		}
-
-		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->ReleaseDynamicRHI();
-		}
+		FRenderResource::ReleaseRHIForAllResources();
 
 		{
 			for (auto& Pair : Device->SamplerMap)
@@ -381,6 +375,23 @@ void FVulkanDynamicRHI::CreateInstance()
 		{ 
 			return Key && !FCStringAnsi::Strcmp(Key, VK_EXT_DEBUG_REPORT_EXTENSION_NAME); 
 		});
+
+#if VULKAN_HAS_VALIDATION_FEATURES
+	bool bHasGPUValidation = InstanceExtensions.ContainsByPredicate([](const ANSICHAR* Key)
+		{
+			return Key && !FCStringAnsi::Strcmp(Key, VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+		});
+	VkValidationFeaturesEXT ValidationFeatures;
+	TArray<VkValidationFeatureEnableEXT> ValidationFeaturesEnabled = GetValidationFeaturesEnabled();
+	if (bHasGPUValidation)
+	{
+		ZeroVulkanStruct(ValidationFeatures, VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT);
+		ValidationFeatures.pNext = InstInfo.pNext;
+		ValidationFeatures.enabledValidationFeatureCount = (uint32)ValidationFeaturesEnabled.Num();
+		ValidationFeatures.pEnabledValidationFeatures = ValidationFeaturesEnabled.GetData();
+		InstInfo.pNext = &ValidationFeatures;
+	}
+#endif
 #endif
 
 	VkResult Result = VulkanRHI::vkCreateInstance(&InstInfo, VULKAN_CPU_ALLOCATOR, &Instance);
@@ -693,7 +704,7 @@ void FVulkanDynamicRHI::InitInstance()
 		//#todo-rco: Add newer Nvidia also
 		GSupportsEfficientAsyncCompute = (Device->GetVendorId() == EGpuVendorId::Amd) && (GRHIAllowAsyncComputeCvar.GetValueOnAnyThread() > 0) && (Device->ComputeContext != Device->ImmediateContext);
 
-		GSupportsVolumeTextureRendering = true;
+		GSupportsVolumeTextureRendering = FVulkanPlatform::SupportsVolumeTextureRendering();
 
 		// Indicate that the RHI needs to use the engine's deferred deletion queue.
 		GRHINeedsExtraDeletionLatency = true;
@@ -997,6 +1008,12 @@ IRHICommandContext* FVulkanDynamicRHI::RHIGetDefaultContext()
 IRHIComputeContext* FVulkanDynamicRHI::RHIGetDefaultAsyncComputeContext()
 {
 	return &Device->GetImmediateComputeContext();
+}
+
+uint64 FVulkanDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
+{
+	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
+	return Limits.minTexelBufferOffsetAlignment;
 }
 
 IRHICommandContextContainer* FVulkanDynamicRHI::RHIGetCommandContextContainer(int32 Index, int32 Num)
@@ -1450,6 +1467,7 @@ void FVulkanBufferView::Create(VkFormat Format, FVulkanResourceMultiBuffer* Buff
 
 	Flags = Buffer->GetBufferUsageFlags() & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
 	check(Flags);
+	check(IsAligned(Offset, Limits.minTexelBufferOffsetAlignment));
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateBufferView(GetParent()->GetInstanceHandle(), &ViewInfo, VULKAN_CPU_ALLOCATOR, &View));
 	

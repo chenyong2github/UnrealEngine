@@ -31,24 +31,30 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::TfToken UpAxis = UsdUtils::GetUsdStageAxis( Stage );
-
 	// Transform
 	pxr::GfMatrix4d UsdMatrix;
 	bool bResetXFormStack = false;
 	Xformable.GetLocalTransformation( &UsdMatrix, &bResetXFormStack, EvalTime );
 
-	FRotator AdditionalRotation( ForceInit );
+	UsdToUnreal::FUsdStageInfo StageInfo( Stage );
 
+	// Extra rotation to match different camera facing direction convention
+	// Note: The camera space is always Y-up, yes, but this is not what this is: This is the camera's transform wrt the stage,
+	// which follows the stage up axis
+	FRotator AdditionalRotation( ForceInit );
 	if ( Xformable.GetPrim().IsA< pxr::UsdGeomCamera >() )
 	{
-		AdditionalRotation = FRotator( -90.f, 0.f, 0.f );
-		AdditionalRotation = AdditionalRotation + FRotator( 0.f, -90.f, 0.f );
-
-		UpAxis = pxr::UsdGeomTokens->y; // Cameras are always Y up in USD
+		if (StageInfo.UpAxis == pxr::UsdGeomTokens->y)
+		{
+			AdditionalRotation = FRotator(0.0f, -90.f, 0.0f);
+		}
+		else
+		{
+			AdditionalRotation = FRotator(-90.0f, -90.f, 0.0f);
+		}
 	}
 
-	OutTransform = UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix ) * FTransform( AdditionalRotation );
+	OutTransform = FTransform( AdditionalRotation ) * UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
 
 	return true;
 }
@@ -107,22 +113,22 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 
 	// Transform
 	pxr::UsdGeomXformable XForm( UsdPrim );
-	if ( XForm )
+	if ( !XForm )
 	{
-		pxr::GfMatrix4d UsdMatrix;
-		bool bResetXFormStack = false;
-		XForm.GetLocalTransformation( &UsdMatrix, &bResetXFormStack );
+		return false;
+	}
 
-		pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( Stage, SceneComponent->GetRelativeTransform() );
+	pxr::GfMatrix4d UsdMatrix;
+	bool bResetXFormStack = false;
+	XForm.GetLocalTransformation( &UsdMatrix, &bResetXFormStack );
 
-		if ( GfIsClose( UsdMatrix, UsdTransform, THRESH_VECTORS_ARE_NEAR ) )
-		{
-			return true;
-		}
+	pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( Stage, SceneComponent->GetRelativeTransform() );
 
+	if ( !GfIsClose( UsdMatrix, UsdTransform, THRESH_VECTORS_ARE_NEAR ) )
+	{
 		bResetXFormStack = false;
 		bool bFoundTransformOp = false;
-	
+
 		std::vector< pxr::UsdGeomXformOp > XFormOps = XForm.GetOrderedXformOps( &bResetXFormStack );
 		for ( const pxr::UsdGeomXformOp& XFormOp : XFormOps )
 		{
@@ -146,6 +152,17 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 		}
 	}
 
+	// Visibility
+	bool bVisible = SceneComponent->GetVisibleFlag();
+	if ( bVisible )
+	{
+		XForm.MakeVisible();
+	}
+	else
+	{
+		XForm.MakeInvisible();
+	}
+
 	return true;
 }
 
@@ -161,30 +178,41 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 		return false;
 	}
 
-	if ( MeshComponent->GetNumMaterials() > 0 || UsdPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments ) )
+	const bool bHasMaterialAttribute = UsdPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments );
+
+	if ( MeshComponent->GetNumMaterials() > 0 || bHasMaterialAttribute )
 	{
-		if ( pxr::UsdAttribute UEMaterialsAttribute = UsdPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignments, pxr::SdfValueTypeNames->StringArray ) )
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::VtArray< std::string > UEMaterials;
+
+		bool bHasUEMaterialAssignements = false;
+
+		for ( int32 MaterialIndex = 0; MaterialIndex < MeshComponent->GetNumMaterials(); ++MaterialIndex )
 		{
-			FScopedUsdAllocs UsdAllocs;
-
-			pxr::VtArray< std::string > UEMaterials = UsdUtils::GetUsdValue< pxr::VtArray< std::string > >( UEMaterialsAttribute );
-			UEMaterials.clear();
-
-			for ( int32 MaterialIndex = 0; MaterialIndex < MeshComponent->GetNumMaterials(); ++MaterialIndex )
+			if ( UMaterialInterface* AssignedMaterial = MeshComponent->GetMaterial( MaterialIndex ) )
 			{
-				if ( UMaterialInterface* AssignedMaterial = MeshComponent->GetMaterial( MaterialIndex ) )
+				FString AssignedMaterialPathName;
+				if ( AssignedMaterial->GetOutermost() != GetTransientPackage() )
 				{
-					FString AssignedMaterialPathName;
-					if ( AssignedMaterial->GetOutermost() != GetTransientPackage() )
-					{
-						AssignedMaterialPathName = AssignedMaterial->GetPathName();
-					}
-
-					UEMaterials.push_back( UnrealToUsd::ConvertString( *AssignedMaterialPathName ).Get() );
+					AssignedMaterialPathName = AssignedMaterial->GetPathName();
+					bHasUEMaterialAssignements = true;
 				}
-			}
 
-			UEMaterialsAttribute.Set( UEMaterials );
+				UEMaterials.push_back( UnrealToUsd::ConvertString( *AssignedMaterialPathName ).Get() );
+			}
+		}
+
+		if ( bHasUEMaterialAssignements )
+		{
+			if ( pxr::UsdAttribute UEMaterialsAttribute = UsdPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignments, pxr::SdfValueTypeNames->StringArray ) )
+			{
+				UEMaterialsAttribute.Set( UEMaterials );
+			}
+		}
+		else if ( bHasMaterialAttribute )
+		{
+			UsdPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
 		}
 	}
 

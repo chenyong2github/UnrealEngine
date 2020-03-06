@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_MAPEDITPROXY_H
-#define SDF_MAPEDITPROXY_H
+#ifndef PXR_USD_SDF_MAP_EDIT_PROXY_H
+#define PXR_USD_SDF_MAP_EDIT_PROXY_H
 
 /// \file sdf/mapEditProxy.h
 
@@ -927,4 +927,4 @@ struct Vt_DefaultValueFactory<SdfMapEditProxy<T, _ValuePolicy> > {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_MAPEDITPROXY_H
+#endif // PXR_USD_SDF_MAP_EDIT_PROXY_H

@@ -1191,20 +1191,33 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// A filter that suppresses all output od stdout/stderr
+		/// </summary>
+		/// <param name="Message"></param>
+		/// <returns></returns>
+		static string NoSpewFilter(string Message)
+		{
+			return null;
+		}
+
+		/// <summary>
 		/// Shortcut to Run but with P4.exe as the program name.
 		/// </summary>
 		/// <param name="CommandLine">Command line</param>
 		/// <param name="Input">Stdin</param>
 		/// <param name="AllowSpew">true for spew</param>
 		/// <returns>Exit code</returns>
-        public IProcessResult P4(string CommandLine, string Input = null, bool AllowSpew = true, bool WithClient = true, bool SpewIsVerbose = false)
+		public IProcessResult P4(string CommandLine, string Input = null, bool AllowSpew = true, bool WithClient = true, bool SpewIsVerbose = false)
 		{
 			CommandUtils.ERunOptions RunOptions = AllowSpew ? CommandUtils.ERunOptions.AllowSpew : CommandUtils.ERunOptions.NoLoggingOfRunCommand;
 			if( SpewIsVerbose )
 			{
 				RunOptions |= CommandUtils.ERunOptions.SpewIsVerbose;
 			}
-            return CommandUtils.Run(HostPlatform.Current.P4Exe, (WithClient ? GlobalOptions : GlobalOptionsWithoutClient) + CommandLine, Input, Options:RunOptions);
+
+			var SpewDelegate = AllowSpew ? null : new ProcessResult.SpewFilterCallbackType(NoSpewFilter);
+
+			return CommandUtils.Run(HostPlatform.Current.P4Exe, (WithClient ? GlobalOptions : GlobalOptionsWithoutClient) + CommandLine, Input, Options:RunOptions, SpewFilterCallback:SpewDelegate);
 		}
 
 		/// <summary>

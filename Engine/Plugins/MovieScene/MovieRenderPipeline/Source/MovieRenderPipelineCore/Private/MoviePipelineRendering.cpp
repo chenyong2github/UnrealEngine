@@ -20,6 +20,7 @@
 #include "MoviePipelineHighResSetting.h"
 #include "Modules/ModuleManager.h"
 #include "MoviePipelineCameraSetting.h"
+#include "Engine/GameViewportClient.h"
 
 // For flushing async systems
 #include "RendererInterface.h"
@@ -154,6 +155,11 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 		NumOutputPasses++;
 	}
 
+	if (OutputSettings->bHidePreview)
+	{
+		GetWorld()->GetGameViewport()->bDisableWorldRendering = true;
+	}
+
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Engine Passes and %d Output Passes."), ActiveRenderPasses.Num(), NumOutputPasses);
 }
 
@@ -179,16 +185,13 @@ void UMoviePipeline::RenderFrame()
 	// the render thread uses it.
 	FlushAsyncEngineSystems();
 
+	// Send any output frames that have been completed since the last render.
+	ProcessOutstandingFinishedFrames();
+
 	FMoviePipelineShotInfo& CurrentShot = ShotList[CurrentShotIndex];
 	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
 	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
 
-	// Capture the camera location if this is a motion blur frame, so that we get camera motion blur on next frame.
-	if (CurrentCameraCut.State == EMovieRenderShotState::MotionBlur)
-	{
-		LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
-		LocalPlayerController->GetPlayerViewPoint(FrameInfo.PrevViewLocation, FrameInfo.PrevViewRotation);
-	}
 
 	// If we don't want to render this frame, then we will skip processing - engine warmup frames,
 	// render every nTh frame, etc. In other cases, we may wish to render the frame but discard the
@@ -304,14 +307,7 @@ void UMoviePipeline::RenderFrame()
 				const bool bCameraCut = CachedOutputState.ShotSamplesRendered == 0;
 				CachedOutputState.ShotSamplesRendered++;
 
-				EAntiAliasingMethod AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA; // temp
-
-				// Anti-aliasing appears to reasonably work with temporal and spatial sampling so we want it on by default 
-				// (otherwise going from 1 sample > 2 is a 4x reduction in quality due to TAA being turned off).
-				if (AntiAliasingSettings->bOverrideAntiAliasing)
-				{
-					AntiAliasingMethod = AntiAliasingSettings->AntiAliasingMethod;
-				}
+				EAntiAliasingMethod AntiAliasingMethod = UE::MovieRenderPipeline::GetEffectiveAntiAliasingMethod(AntiAliasingSettings);
 
 				// Now to check if we have to force it off (at which point we warn the user).
 				bool bMultipleTiles = (TileCount.X > 1) || (TileCount.Y > 1);
@@ -344,7 +340,7 @@ void UMoviePipeline::RenderFrame()
 				// only allow a spatial jitter if we have more than one sample
 				bool bAllowSpatialJitter = !(NumSpatialSamples == 1 && NumTemporalSamples == 1);
 
-				UE_LOG(LogTemp, Warning, TEXT("FrameIndex: %d HaltonIndex: %d Offset: (%f,%f)"), FrameIndex, HaltonIndex, HaltonOffsetX, HaltonOffsetY);
+				UE_LOG(LogTemp, VeryVerbose, TEXT("FrameIndex: %d HaltonIndex: %d Offset: (%f,%f)"), FrameIndex, HaltonIndex, HaltonOffsetX, HaltonOffsetY);
 				float SpatialShiftX = 0.0f;
 				float SpatialShiftY = 0.0f;
 
@@ -366,7 +362,6 @@ void UMoviePipeline::RenderFrame()
 					float Theta = 2.0f * PI * HaltonOffsetY;
 					float r = Sigma * FMath::Sqrt(-2.0f * FMath::Loge((1.0f - HaltonOffsetX) * InWindow + HaltonOffsetX));
 
-					UE_LOG(LogTemp, Log, TEXT("r: %f t: %f"), r, Theta);
 					SpatialShiftX = r * FMath::Cos(Theta);
 					SpatialShiftY = r * FMath::Sin(Theta);
 				}
@@ -429,19 +424,19 @@ void UMoviePipeline::RenderFrame()
 			}
 		}
 	}
-	
-	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Pre-FlushRenderingCommands"), GFrameCounter);
-	FlushRenderingCommands();
-	// UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Post-FlushRenderingCommands"), GFrameCounter);
 }
 
-void UMoviePipeline::OnFrameCompletelyRendered(FMoviePipelineMergerOutputFrame&& OutputFrame, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData)
+void UMoviePipeline::ProcessOutstandingFinishedFrames()
 {
-	UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] Data required for output available! Frame: %d"), GFrameCounter, OutputFrame.FrameOutputState.OutputFrameNumber);
-	
-	for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
+	while (!OutputBuilder->FinishedFrames.IsEmpty())
 	{
-		OutputContainer->OnRecieveImageData(&OutputFrame);
+		FMoviePipelineMergerOutputFrame OutputFrame;
+		OutputBuilder->FinishedFrames.Dequeue(OutputFrame);
+
+		for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
+		{
+			OutputContainer->OnRecieveImageData(&OutputFrame);
+		}
 	}
 }
 

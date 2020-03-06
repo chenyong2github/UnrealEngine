@@ -65,12 +65,12 @@ struct FAndroidCrashInfo
 	bool bInitialized = false;
 } GAndroidCrashInfo;
 
-const FString FAndroidCrashContext::GetCrashDirectoryName()
+const FString FAndroidCrashContext::GetGlobalCrashDirectoryPath()
 {
 	return FString(GAndroidCrashInfo.TargetDirectory);
 }
 
-void FAndroidCrashContext::GetCrashDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize])
+void FAndroidCrashContext::GetGlobalCrashDirectoryPath(char(&DirectoryNameOUT)[CrashReportMaxPathSize])
 {
 	FCStringAnsi::Strncpy(DirectoryNameOUT, GAndroidCrashInfo.TargetDirectory, CrashReportMaxPathSize);
 }
@@ -137,7 +137,7 @@ static void CrashReportFileCopy(const char* DestPath, const char* SourcePath)
 	close(SourceHandle);
 }
 
-void FAndroidCrashContext::StoreCrashInfo() const
+void FAndroidCrashContext::StoreCrashInfo(bool bWriteLog) const
 {
 	char FilePath[CrashReportMaxPathSize] = { 0 };
 	FCStringAnsi::Strcpy(FilePath, ReportDirectory);
@@ -145,12 +145,15 @@ void FAndroidCrashContext::StoreCrashInfo() const
 	FCStringAnsi::Strcat(FilePath, FGenericCrashContext::CrashContextRuntimeXMLNameA);
 	SerializeAsXML(*FString(FilePath)); // CreateFileWriter will also create destination directory.
 
-	// copy log:
-	FCStringAnsi::Strcpy(FilePath, ReportDirectory);
-	FCStringAnsi::Strcat(FilePath, "/");
-	FCStringAnsi::Strcat(FilePath, FCStringAnsi::Strlen(GAndroidCrashInfo.AppName) ? GAndroidCrashInfo.AppName : "UE4");
-	FCStringAnsi::Strcat(FilePath, ".log");
-	CrashReportFileCopy(FilePath, GAndroidCrashInfo.AppLogPath);
+	if(bWriteLog)
+	{
+		// copy log:
+		FCStringAnsi::Strcpy(FilePath, ReportDirectory);
+		FCStringAnsi::Strcat(FilePath, "/");
+		FCStringAnsi::Strcat(FilePath, FCStringAnsi::Strlen(GAndroidCrashInfo.AppName) ? GAndroidCrashInfo.AppName : "UE4");
+		FCStringAnsi::Strcat(FilePath, ".log");
+		CrashReportFileCopy(FilePath, GAndroidCrashInfo.AppLogPath);
+	}
 }
 
 
@@ -265,15 +268,37 @@ FAndroidCrashContext::FAndroidCrashContext(ECrashContextType InType, const TCHAR
 , Info(NULL)
 , Context(NULL)
 {
-	if (GetType() == ECrashContextType::Ensure)
+	switch(GetType())
 	{
-		// create a new report folder.
-		GenerateReportDirectoryName(ReportDirectory);
+		case ECrashContextType::AbnormalShutdown:
+		case ECrashContextType::Ensure:
+			// create a new report folder.
+			GenerateReportDirectoryName(ReportDirectory);
+			break;
+		default:
+			GetGlobalCrashDirectoryPath(ReportDirectory);
+			break;
 	}
-	else
+}
+
+
+void FAndroidCrashContext::SetOverrideCallstack(const FString& OverrideCallstackIN)
+{
+	OverrideCallstack.Reset();
+	TArray<FString> OutArray;
+	OverrideCallstackIN.ParseIntoArrayLines(OutArray);
+
+	for (const FString& Line : OutArray)
 	{
-		GetCrashDirectoryName(ReportDirectory);
+		AppendEscapedXMLString(OverrideCallstack, *Line);
+		OverrideCallstack += TEXT("&#xA;");
+		OverrideCallstack += LINE_TERMINATOR;
 	}
+}
+
+const TCHAR* FAndroidCrashContext::GetCallstackProperty() const
+{
+	return *OverrideCallstack;
 }
 
 void FAndroidCrashContext::CaptureCrashInfo()

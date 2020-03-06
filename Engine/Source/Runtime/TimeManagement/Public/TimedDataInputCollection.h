@@ -41,11 +41,11 @@ public:
 	}
 	
 	/** Add an input channel to the collection. */
-	void Add(ITimedDataInputChannel* Input)
+	void Add(ITimedDataInputChannel* Channel)
 	{
-		if (Input && !Groups.Contains(Input))
+		if (Channel && !Channels.Contains(Channel))
 		{
-			Groups.Add(Input);
+			Channels.Add(Channel);
 			OnCollectionChanged().Broadcast();
 		}
 	}
@@ -53,7 +53,7 @@ public:
 	/** Remove an input channel from the collection. */
 	void Remove(ITimedDataInputChannel* Input)
 	{
-		if (Groups.RemoveSingleSwap(Input) > 0)
+		if (Channels.RemoveSingleSwap(Input) > 0)
 		{
 			OnCollectionChanged().Broadcast();
 		}
@@ -62,7 +62,7 @@ public:
 	/** The list of input channels from the collection. */
 	const TArray<ITimedDataInputChannel*>& GetChannels() const
 	{
-		return Groups;
+		return Channels;
 	}
 
 	/** When an element is added or removed to the collection. */
@@ -74,5 +74,5 @@ public:
 private:
 	FSimpleMulticastDelegate CollectionChanged;
 	TArray<ITimedDataInput*> Inputs;
-	TArray<ITimedDataInputChannel*> Groups;
+	TArray<ITimedDataInputChannel*> Channels;
 };

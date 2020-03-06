@@ -72,9 +72,9 @@ namespace Audio
 		const float BeatDivision = (float)QuantizationSettings.BeatDivision;
 		const float BeatTimeSeconds = 4.0f * QuarterNoteTime / FMath::Max(1.0f, BeatDivision);
 
+		// force a 32second note to be at least a single sample
 		NumFramesPerBeat = (uint32)(BeatTimeSeconds * QuantizationSettings.SampleRate);
-		NumFramesPerBar = QuantizationSettings.BeatsPerBar * NumFramesPerBeat;
-		check(NumFramesPerBar != 0);
+		NumFramesPerBar = FMath::Max(QuantizationSettings.BeatsPerBar * NumFramesPerBeat, 32u);
 
 		for (int32 Index = 0; Index < (int32)EEventQuantization::Count; ++Index)
 		{
@@ -264,7 +264,8 @@ namespace Audio
 
 			// Wrap the frame count back to within the event frame duration range
 			// but keep the phase of the frame
-			State.FrameCount = NextFrameCount - (NumEventsFired * (int32)State.EventFrameDuration);
+			int32 Temp = static_cast<int32>(NextFrameCount) - (NumEventsFired * static_cast<int32>(State.EventFrameDuration));
+			State.FrameCount = FMath::Max(0, Temp);
 		}
 		else
 		{

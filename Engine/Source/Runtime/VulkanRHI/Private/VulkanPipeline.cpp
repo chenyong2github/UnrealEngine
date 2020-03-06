@@ -203,6 +203,11 @@ FVulkanComputePipeline::FVulkanComputePipeline(FVulkanDevice* InDevice)
 
 FVulkanComputePipeline::~FVulkanComputePipeline()
 {
+	if (ComputeShader)
+	{
+		ComputeShader->Release();
+	}
+
 	Device->NotifyDeletedComputePipeline(this);
 	DEC_DWORD_STAT(STAT_VulkanNumComputePSOs);
 }
@@ -214,6 +219,15 @@ FVulkanRHIGraphicsPipelineState::~FVulkanRHIGraphicsPipelineState()
 	SGraphicsRHICount--;
 #endif	
 	DEC_DWORD_STAT(STAT_VulkanNumGraphicsPSOs);
+
+	for (int ShaderStageIndex = 0; ShaderStageIndex < ShaderStage::NumStages; ShaderStageIndex++)
+	{
+		if (VulkanShaders[ShaderStageIndex] != nullptr)
+		{
+			VulkanShaders[ShaderStageIndex]->Release();
+		}
+	}
+
 	Device->PipelineStateCache->NotifyDeletedGraphicsPSO(this);
 	if (bShaderModulesLoaded)
 	{
@@ -1045,7 +1059,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	FGfxPipelineDesc* GfxEntry = &PSO->Desc;
 	if (Shaders[ShaderStage::Pixel] == nullptr && !FVulkanPlatform::SupportsNullPixelShader())
 	{
-		Shaders[ShaderStage::Pixel] = ResourceCast(TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader());
+		Shaders[ShaderStage::Pixel] = ResourceCast(TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader());
 	}
 
 	if (!PSO->bShaderModulesLoaded)
@@ -1116,7 +1130,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 		ShaderStages[PipelineInfo.stageCount].stage = Stage;
 		bHasTessellation = bHasTessellation || ((Stage & (VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT | VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)) != 0);
 		ShaderStages[PipelineInfo.stageCount].module = PSO->ShaderModules[CurrStage];
-		Shaders[ShaderStage]->GetEntryPoint(EntryPoints[PipelineInfo.stageCount]);
+		Shaders[ShaderStage]->GetEntryPoint(EntryPoints[PipelineInfo.stageCount], 24);
 		ShaderStages[PipelineInfo.stageCount].pName = EntryPoints[PipelineInfo.stageCount];
 		PipelineInfo.stageCount++;
 	}
@@ -1622,6 +1636,14 @@ FVulkanRHIGraphicsPipelineState::FVulkanRHIGraphicsPipelineState(FVulkanDevice* 
 #endif
 	VulkanShaders[ShaderStage::Pixel] = static_cast<FVulkanPixelShader*>(PSOInitializer_.BoundShaderState.PixelShaderRHI);
 
+	for (int ShaderStageIndex = 0; ShaderStageIndex < ShaderStage::NumStages; ShaderStageIndex++)
+	{
+		if (VulkanShaders[ShaderStageIndex] != nullptr)
+		{
+			VulkanShaders[ShaderStageIndex]->AddRef();
+		}
+	}
+
 #if VULKAN_PSO_CACHE_DEBUG
 	PixelShaderRHI = PSOInitializer_.BoundShaderState.PixelShaderRHI;
 	VertexShaderRHI = PSOInitializer_.BoundShaderState.VertexShaderRHI;
@@ -1854,7 +1876,6 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::GetOrCreateComputePipe
 	double BeginTime = FPlatformTime::Seconds();
 
 	FVulkanComputePipeline* ComputePipeline = CreateComputePipelineFromShader(ComputeShader);
-	ComputePipeline->ComputeShader = ComputeShader;
 
 	double EndTime = FPlatformTime::Seconds();
 	double Delta = EndTime - BeginTime;
@@ -1878,6 +1899,9 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::CreateComputePipelineF
 {
 	FVulkanComputePipeline* Pipeline = new FVulkanComputePipeline(Device);
 
+	Pipeline->ComputeShader = Shader;
+	Pipeline->ComputeShader->AddRef();
+
 	FVulkanDescriptorSetsLayoutInfo DescriptorSetLayoutInfo;
 	const FVulkanShaderHeader& CSHeader = Shader->GetCodeHeader();
 	FUniformBufferGatherInfo UBGatherInfo;
@@ -1899,7 +1923,7 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::CreateComputePipelineF
 	PipelineInfo.stage.module = ShaderModule;
 	// main_00000000_00000000
 	ANSICHAR EntryPoint[24];
-	Shader->GetEntryPoint(EntryPoint);
+	Shader->GetEntryPoint(EntryPoint, 24);
 	PipelineInfo.stage.pName = EntryPoint;
 	PipelineInfo.layout = ComputeLayout->GetPipelineLayout();
 		

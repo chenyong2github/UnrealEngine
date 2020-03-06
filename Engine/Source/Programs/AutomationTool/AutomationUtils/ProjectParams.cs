@@ -280,6 +280,7 @@ namespace AutomationTool
             this.RunTimeoutSeconds = InParams.RunTimeoutSeconds;
 			this.Clean = InParams.Clean;
 			this.Pak = InParams.Pak;
+			this.IgnorePaksFromDifferentCookSource = InParams.IgnorePaksFromDifferentCookSource;
 			this.IoStore = InParams.IoStore;
 			this.SignPak = InParams.SignPak;
 			this.SignedPak = InParams.SignedPak;
@@ -455,7 +456,9 @@ namespace AutomationTool
 			bool? NoXGE = null,
 			bool? Package = null,
 			bool? Pak = null,
+			bool? IgnorePaksFromDifferentCookSource = null,
 			bool? IoStore = null,
+			bool? SkipIoStore = null,
 			bool? Prereqs = null,
 			string AppLocalDirectory = null,
 			bool? NoBootstrapExe = null,
@@ -628,7 +631,9 @@ namespace AutomationTool
 			}
 			this.PakAlignForMemoryMapping = GetParamValueIfNotSpecified(Command, PakAlignForMemoryMapping, this.PakAlignForMemoryMapping, "PakAlignForMemoryMapping");
 			this.Pak = GetParamValueIfNotSpecified(Command, Pak, this.Pak, "pak");
+			this.IgnorePaksFromDifferentCookSource = GetParamValueIfNotSpecified(Command, IgnorePaksFromDifferentCookSource, this.IgnorePaksFromDifferentCookSource, "IgnorePaksFromDifferentCookSource");
 			this.IoStore = GetParamValueIfNotSpecified(Command, IoStore, this.IoStore, "iostore");
+			this.SkipIoStore = GetParamValueIfNotSpecified(Command, IoStore, this.SkipIoStore, "skipiostore");
 			this.SkipPak = GetParamValueIfNotSpecified(Command, SkipPak, this.SkipPak, "skippak");
 			if (this.SkipPak)
 			{
@@ -765,7 +770,7 @@ namespace AutomationTool
 			// if the user specified -deploy but no folder, set the default
 			if (this.Deploy && string.IsNullOrEmpty(this.DeployFolder))
 			{
-				this.DeployFolder = this.ShortProjectName;
+				this.DeployFolder = UnrealBuildTool.DeployExports.GetDefaultDeployFolder(this.ShortProjectName);
 			}
 			else if (string.IsNullOrEmpty(this.DeployFolder) == false)
 			{
@@ -1189,6 +1194,12 @@ namespace AutomationTool
 		public bool Pak { private set; get; }
 
 		/// <summary>
+		/// Stage: True if we should disable trying to re-use pak files from another staged build when we've specified a different cook source platform
+		/// </summary>
+		[Help("pak", "disable reuse of pak files from the alternate cook source folder, if specified")]
+		public bool IgnorePaksFromDifferentCookSource { get; private set; }
+
+		/// <summary>
 		/// Shared: True if container file(s) should be generated with ZenPak.
 		/// </summary>
 		[Help("iostore", "generate I/O store container file(s)")]
@@ -1250,6 +1261,12 @@ namespace AutomationTool
 		/// </summary>
 		[Help("skippak", "use a pak file, but assume it is already built, implies pak")]
 		public bool SkipPak { private set; get; }
+
+		/// <summary>
+		/// Shared: true if we want to skip iostore, even if -iostore is specified
+		/// </summary>
+		[Help("skipiostore", "override the -iostore commandline option to not run it")]
+		public bool SkipIoStore { private set; get; }
 
 		/// <summary>
 		/// Shared: true if this build is staged, command line: -stage
@@ -1704,6 +1721,11 @@ namespace AutomationTool
 		/// Stage: Specifies a list of extra targets that should be staged along with a client
 		/// </summary>
 		public ParamList<string> ExtraTargetsToStageWithClient = new ParamList<string>();
+
+        /// <summary>
+        /// Stage: Optional callback that a build script can use to modify a deployment context before it is applied
+        /// </summary>
+        public Action<ProjectParams, DeploymentContext> ModifyDeploymentContextCallback = null;
 
         /// <summary>
         /// On Windows, adds an executable to the root of the staging directory which checks for prerequisites being 
@@ -2730,6 +2752,11 @@ namespace AutomationTool
 			{
 				throw new AutomationException("DiscVersion is required for generating remaster package.");
 			}*/
+
+			if ((IoStore && !SkipIoStore) && (!Pak || SkipPak))
+			{
+				throw new AutomationException("-iostore can only be used with -pak");
+			}
 		}
 
 		protected bool bLogged = false;
@@ -2805,7 +2832,9 @@ namespace AutomationTool
 				CommandUtils.LogLog("MapsToCook={0}", MapsToCook.ToString());
 				CommandUtils.LogLog("MapIniSectionsToCook={0}", MapIniSectionsToCook.ToString());
 				CommandUtils.LogLog("Pak={0}", Pak);
+				CommandUtils.LogLog("IgnorePaksFromDifferentCookSource={0}", IgnorePaksFromDifferentCookSource);
 				CommandUtils.LogLog("IoStore={0}", IoStore);
+				CommandUtils.LogLog("SkipIoStore={0}", SkipIoStore);
 				CommandUtils.LogLog("Package={0}", Package);
 				CommandUtils.LogLog("ForcePackageData={0}", ForcePackageData);
 				CommandUtils.LogLog("NullRHI={0}", NullRHI);

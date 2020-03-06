@@ -216,7 +216,7 @@ protected:
 	FTextureRHIRef AliasingSourceTexture;
 };
 
-#if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
+#if PLATFORM_WINDOWS
 struct FD3D12TextureLayout {};
 #endif
 

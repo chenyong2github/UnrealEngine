@@ -3,33 +3,22 @@
 #include "MoviePipeline.h"
 #include "Engine/World.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineInProcessExecutorSettings.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineInProcessExecutor"
 void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 {
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UMoviePipelineInProcessExecutor::OnMapLoadFinished);
-}
 
-void UMoviePipelineInProcessExecutor::UpdateWindowTitle()
-{
-	FNumberFormattingOptions PercentFormatOptions;
-	PercentFormatOptions.MinimumIntegralDigits = 2;
-	PercentFormatOptions.MaximumIntegralDigits = 3;
-
-	FText PercentCompleteText = FText::AsNumber(0.f, &PercentFormatOptions);
-	if (ActiveMoviePipeline)
+	// Force the engine into fixed timestep mode. There may be a global delay on the job that passes a fixed
+	// number of frames, so we want those frames to always pass the same amount of time for determinism. 
+	ULevelSequence* LevelSequence = CastChecked<ULevelSequence>(InJob->Sequence.TryLoad());
+	if (LevelSequence)
 	{
-		float PercentComplete = 12.f;
-		PercentCompleteText = FText::AsNumber(PercentComplete, &PercentFormatOptions);
+		FApp::SetUseFixedTimeStep(true);
+		FApp::SetFixedDeltaTime(InJob->GetConfiguration()->GetEffectiveFrameRate(LevelSequence).AsInterval());
 	}
-
-	FText TitleFormatString = LOCTEXT("WindowTitleFormat", "Movie Pipeline Render (Preview) [{CurrentCount}/{TotalCount} Total] {PercentComplete}% Completed.");
-	FText WindowTitle = FText::FormatNamed(TitleFormatString, 
-		TEXT("CurrentCount"), FText::AsNumber(CurrentPipelineIndex + 1), TEXT("TotalCount"),
-		FText::AsNumber(Queue->GetJobs().Num()), TEXT("PercentComplete"), PercentCompleteText);
-
-	UKismetSystemLibrary::SetWindowTitle(WindowTitle);
 }
 
 void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
@@ -37,6 +26,7 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	// NewWorld can be null if a world is being destroyed.
 	if (!NewWorld)
 	{
+		FCoreDelegates::OnBeginFrame.RemoveAll(this);
 		return;
 	}
 	
@@ -46,18 +36,50 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	UMoviePipelineExecutorJob* CurrentJob = Queue->GetJobs()[CurrentPipelineIndex];
 
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(NewWorld, TargetPipelineClass);
-	ActiveMoviePipeline->Initialize(CurrentJob);
-	UpdateWindowTitle();
 
+	// We allow users to set a multi-frame delay before we actually run the Initialization function and start thinking.
+	// This solves cases where there are engine systems that need to finish loading before we do anything.
+	const UMoviePipelineInProcessExecutorSettings* ExecutorSettings = GetDefault<UMoviePipelineInProcessExecutorSettings>();
+
+	// We tick each frame to update the Window Title, and kick off latent pipeling initialization.
+	FCoreDelegates::OnBeginFrame.AddUObject(this, &UMoviePipelineInProcessExecutor::OnTick);
+	
 	// Listen for when the pipeline thinks it has finished.
 	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelineInProcessExecutor::OnMoviePipelineFinished);
 
 	// Wait until we actually recieved the right map and created the pipeline before saying that we're actively rendering
 	bIsRendering = true;
+	
+	if (ExecutorSettings->InitialDelayFrameCount == 0)
+	{
+		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		RemainingInitializationFrames = -1;
+	}
+	else
+	{
+		RemainingInitializationFrames = ExecutorSettings->InitialDelayFrameCount;	
+	}
+}
+
+void UMoviePipelineInProcessExecutor::OnTick()
+{
+	if (RemainingInitializationFrames >= 0)
+	{
+		if (RemainingInitializationFrames == 0)
+		{
+			ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		}
+
+		RemainingInitializationFrames--;
+	}
+
+	FText WindowTitle = GetWindowTitle();
+	UKismetSystemLibrary::SetWindowTitle(WindowTitle);
 }
 
 void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
 {
+	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 	UMoviePipeline* MoviePipeline = ActiveMoviePipeline;
 
 	if (ActiveMoviePipeline)

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef WORK_SINGULARTASK_H
-#define WORK_SINGULARTASK_H
+#ifndef PXR_BASE_WORK_SINGULAR_TASK_H
+#define PXR_BASE_WORK_SINGULAR_TASK_H
 
 /// \file work/singularTask.h
 
@@ -143,4 +143,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // WORK_SINGULARTASK_H
+#endif // PXR_BASE_WORK_SINGULAR_TASK_H

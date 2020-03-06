@@ -17,7 +17,7 @@ public:
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
-
+	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -39,7 +39,7 @@ FScreenPassTexture AddVisualizeShadingModelPass(FRDGBuilder& GraphBuilder, const
 {
 	check(Inputs.SceneTextures);
 	check(Inputs.SceneColor.IsValid());
-
+	
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
 	if (!Output.IsValid())
@@ -69,7 +69,7 @@ FScreenPassTexture AddVisualizeShadingModelPass(FRDGBuilder& GraphBuilder, const
 
 	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeShadingModels");
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, OutputViewport, InputViewport, *PixelShader, PassParameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, OutputViewport, InputViewport, PixelShader, PassParameters);
 
 	Output.LoadAction = ERenderTargetLoadAction::ELoad;
 
@@ -79,7 +79,7 @@ FScreenPassTexture AddVisualizeShadingModelPass(FRDGBuilder& GraphBuilder, const
 		float Y = 28;
 		const float YStep = 14;
 		const float ColumnWidth = 250;
-
+	
 		FString Line;
 
 		Canvas.DrawShadowedString(X, Y += YStep, TEXT("Visualize ShadingModels"), GetStatsFont(), FLinearColor(1, 1, 1));

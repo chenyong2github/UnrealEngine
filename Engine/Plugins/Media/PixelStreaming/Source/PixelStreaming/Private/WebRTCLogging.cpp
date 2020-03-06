@@ -40,7 +40,7 @@ private:
 	void OnLogMessage(const std::string& message, rtc::LoggingSeverity severity,
 		const char* tag) override
 	{
-#if !UE_BUILD_SHIPPING
+#if !NO_LOGGING
 		static const ELogVerbosity::Type RtcToUE4LogCategoryMap[] =
 		{
 			ELogVerbosity::VeryVerbose,

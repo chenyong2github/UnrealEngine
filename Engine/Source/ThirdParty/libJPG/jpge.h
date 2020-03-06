@@ -5,6 +5,8 @@
 #ifndef JPEG_ENCODER_H
 #define JPEG_ENCODER_H
 
+#include <stdint.h>
+
 namespace jpge
 {
   typedef unsigned char  uint8;
@@ -13,7 +15,7 @@ namespace jpge
   typedef unsigned short uint16;
   typedef unsigned int   uint32;
   typedef unsigned int   uint;
-  
+
   // JPEG chroma subsampling factors. Y_ONLY (grayscale images) and H2V2 (color images) are the most common.
   enum subsampling_t { Y_ONLY = 0, H1V1 = 1, H2V1 = 2, H2V2 = 3 };
 
@@ -48,12 +50,12 @@ namespace jpge
   
   // Writes JPEG image to a file. 
   // num_channels must be 1 (Y) or 3 (RGB), image pitch must be width*num_channels.
-  bool compress_image_to_jpeg_file(const char *pFilename, int width, int height, int num_channels, const uint8 *pImage_data, const params &comp_params = params());
+  bool compress_image_to_jpeg_file(const char *pFilename, int64_t width, int64_t height, int64_t num_channels, const uint8 *pImage_data, const params &comp_params = params());
 
   // Writes JPEG image to memory buffer. 
   // On entry, buf_size is the size of the output buffer pointed at by pBuf, which should be at least ~1024 bytes. 
   // If return value is true, buf_size will be set to the size of the compressed data.
-  bool compress_image_to_jpeg_file_in_memory(void *pBuf, int &buf_size, int width, int height, int num_channels, const uint8 *pImage_data, const params &comp_params = params());
+  bool compress_image_to_jpeg_file_in_memory(void *pBuf, int64_t &buf_size, int64_t width, int64_t height, int64_t num_channels, const uint8 *pImage_data, const params &comp_params = params());
     
   // Output stream abstract class - used by the jpeg_encoder class to write to the output stream. 
   // put_buf() is generally called with len==JPGE_OUT_BUF_SIZE bytes, but for headers it'll be called with smaller amounts.
@@ -61,7 +63,7 @@ namespace jpge
   {
   public:
     virtual ~output_stream() { };
-    virtual bool put_buf(const void* Pbuf, int len) = 0;
+    virtual bool put_buf(const void* Pbuf, int64_t len) = 0;
     template<class T> inline bool put_obj(const T& obj) { return put_buf(&obj, sizeof(T)); }
   };
     
@@ -78,7 +80,7 @@ namespace jpge
     // width, height  - Image dimensions.
     // channels - May be 1, or 3. 1 indicates grayscale, 3 indicates RGB source data.
     // Returns false on out of memory or if a stream write fails.
-    bool init(output_stream *pStream, int width, int height, int src_channels, const params &comp_params = params());
+    bool init(output_stream *pStream, int64_t width, int64_t height, int64_t src_channels, const params &comp_params = params());
     
     const params &get_params() const { return m_params; }
     

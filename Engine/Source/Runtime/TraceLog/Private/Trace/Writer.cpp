@@ -6,51 +6,34 @@
 
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Protocol.h"
+#include "Trace/Detail/Channel.h"
 #include "Trace/Platform.h"
 #include "Trace/Trace.h"
-
-#include "Misc/CString.h"
-#include "Templates/UnrealTemplate.h"
-
-#if PLATFORM_CPU_X86_FAMILY
-	#include <emmintrin.h>
-	#define PLATFORM_YIELD()	_mm_pause()
-#elif PLATFORM_CPU_ARM_FAMILY
-	#define PLATFORM_YIELD()	__builtin_arm_yield();
-#else
-	#error Unsupported architecture!
-#endif
 
 namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 Encode(const void*, int32, void*, int32);
+int32	Encode(const void*, int32, void*, int32);
+void	Writer_UpdateControl();
+void	Writer_InitializeControl();
+void	Writer_ShutdownControl();
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 #define TRACE_PRIVATE_PERF 0
 #if TRACE_PRIVATE_PERF
-UE_TRACE_EVENT_BEGIN($Trace, WorkerThread, Always)
+UE_TRACE_EVENT_BEGIN($Trace, WorkerThread)
 	UE_TRACE_EVENT_FIELD(uint32, Cycles)
+	UE_TRACE_EVENT_FIELD(uint32, BytesReaped)
 	UE_TRACE_EVENT_FIELD(uint32, BytesSent)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN($Trace, Memory, Always)
+UE_TRACE_EVENT_BEGIN($Trace, Memory)
 	UE_TRACE_EVENT_FIELD(uint32, AllocSize)
 UE_TRACE_EVENT_END()
 #endif // TRACE_PRIVATE_PERF
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-inline void Writer_Yield()
-{
-	PLATFORM_YIELD();
-}
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 static uint64 GStartCycle = 0;
@@ -66,80 +49,61 @@ void Writer_InitializeTiming()
 {
 	GStartCycle = TimeGetTimestamp();
 
-	UE_TRACE_EVENT_BEGIN($Trace, Timing, Always|Important)
+	UE_TRACE_EVENT_BEGIN($Trace, Timing, Important)
 		UE_TRACE_EVENT_FIELD(uint64, StartCycle)
 		UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
 	UE_TRACE_EVENT_END()
 
-	UE_TRACE_LOG($Trace, Timing)
+	UE_TRACE_LOG($Trace, Timing, TraceLogChannel)
 		<< Timing.StartCycle(GStartCycle)
 		<< Timing.CycleFrequency(TimeGetFrequency());
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-static bool GInitialized = false;
 
 ////////////////////////////////////////////////////////////////////////////////
-thread_local					FWriteTlsContext TlsContext;
-uint8							FWriteTlsContext::DefaultBuffer[];	// = {}
-UPTRINT volatile				FWriteTlsContext::ThreadIdCounter;	// = 0;
-TRACELOG_API uint32 volatile	GLogSerial;							// = 0;
+static bool						GInitialized;		// = false;
+static FWriteBuffer				GNullWriteBuffer	= { 0, 0, nullptr, nullptr, (uint8*)&GNullWriteBuffer };
+thread_local FWriteBuffer*		GTlsWriteBuffer		= &GNullWriteBuffer;
+TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
-FWriteTlsContext::FWriteTlsContext()
+struct FWriteTlsContext
 {
-	auto* Target = (FWriteBuffer*)DefaultBuffer;
+				~FWriteTlsContext();
+	uint32		GetThreadId();
 
-	static bool Once;
-	if (!Once)
-	{
-		Target->Cursor = DefaultBuffer;
-		Once = true;
-	}
-
-	Buffer = Target;
-
-	// Assign a new id to this thread.
-	for (;; Writer_Yield())
-	{
-		UPTRINT CandidateId = UPTRINT(AtomicLoadRelaxed((void* volatile*)&ThreadIdCounter));
-		UPTRINT NextId = CandidateId + 1;
-		if (AtomicCompareExchangeRelaxed(&ThreadIdCounter, NextId, CandidateId))
-		{
-			ThreadId = uint32(CandidateId);
-			break;
-		}
-	}
-}
+private:
+	uint32		ThreadId = 0;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 FWriteTlsContext::~FWriteTlsContext()
 {
-	if (GInitialized && HasValidBuffer())
+	if (GInitialized && GTlsWriteBuffer != &GNullWriteBuffer)
 	{
-		UPTRINT EtxOffset = ~UPTRINT((uint8*)Buffer - Buffer->Cursor);
-		AtomicStoreRelaxed(&(Buffer->EtxOffset), EtxOffset);
+		UPTRINT EtxOffset = UPTRINT((uint8*)GTlsWriteBuffer - GTlsWriteBuffer->Cursor);
+		AtomicStoreRelaxed(&(GTlsWriteBuffer->EtxOffset), EtxOffset);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FWriteTlsContext::HasValidBuffer() const
+uint32 FWriteTlsContext::GetThreadId()
 {
-	return (UPTRINT(Buffer) != UPTRINT(DefaultBuffer));
-}
+	if (ThreadId)
+	{
+		return ThreadId;
+	}
 
-////////////////////////////////////////////////////////////////////////////////
-inline void FWriteTlsContext::SetBuffer(FWriteBuffer* InBuffer)
-{
-	Buffer = InBuffer;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-inline uint32 FWriteTlsContext::GetThreadId() const
-{
+	static uint32 volatile Counter;
+	ThreadId = AtomicIncrementRelaxed(&Counter) + 1;
 	return ThreadId;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+thread_local FWriteTlsContext	GTlsContext;
 
 
 
@@ -152,7 +116,7 @@ static const uint32						GPoolInitPageSize	= GPoolBlockSize << 5;
 static uint8*							GPoolBase;			// = nullptr;
 T_ALIGN static uint8* volatile			GPoolPageCursor;	// = nullptr;
 T_ALIGN static FWriteBuffer* volatile	GPoolFreeList;		// = nullptr;
-T_ALIGN static FWriteBuffer* volatile	GNextBufferList;	// = nullptr;
+T_ALIGN static FWriteBuffer* volatile	GNewThreadList;		// = nullptr;
 #undef T_ALIGN
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -161,7 +125,7 @@ TRACELOG_API FWriteBuffer* Writer_GetBuffer()
 {
 	// Thread locals and DLLs don't mix so for modular builds we are forced to
 	// export this function to access thread-local variables.
-	return TlsContext.GetBuffer();
+	return GTlsWriteBuffer;
 }
 #endif
 
@@ -176,9 +140,9 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		FWriteBuffer* Owned = AtomicLoadRelaxed(&GPoolFreeList);
 		if (Owned != nullptr)
 		{
-			if (!AtomicCompareExchangeRelaxed(&GPoolFreeList, Owned->Next, Owned))
+			if (!AtomicCompareExchangeRelaxed(&GPoolFreeList, Owned->NextBuffer, Owned))
 			{
-				Writer_Yield();
+				Private::PlatformYield();
 				continue;
 			}
 		}
@@ -196,7 +160,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		{
 			// Someone else is mapping memory so we'll briefly yield and try the
 			// free list again.
-			Writer_Yield();
+			Private::PlatformYield();
 			continue;
 		}
 
@@ -215,15 +179,15 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		for (int i = 2, n = PageGrowth / GPoolBlockSize; i < n; ++i)
 		{
 			auto* Buffer = (FWriteBuffer*)Block;
-			Buffer->Next = (FWriteBuffer*)(Block + GPoolBlockSize);
+			Buffer->NextBuffer = (FWriteBuffer*)(Block + GPoolBlockSize);
 			Block += GPoolBlockSize;
 		}
 
 		// And insert the block list into the freelist. 'Block' is now the last block
-		for (auto* ListNode = (FWriteBuffer*)Block;; Writer_Yield())
+		for (auto* ListNode = (FWriteBuffer*)Block;; Private::PlatformYield())
 		{
-			ListNode->Next = AtomicLoadRelaxed(&GPoolFreeList);
-			if (AtomicCompareExchangeRelease(&GPoolFreeList, (FWriteBuffer*)FirstBlock, ListNode->Next))
+			ListNode->NextBuffer = AtomicLoadRelaxed(&GPoolFreeList);
+			if (AtomicCompareExchangeRelease(&GPoolFreeList, (FWriteBuffer*)FirstBlock, ListNode->NextBuffer))
 			{
 				break;
 			}
@@ -236,19 +200,36 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 	NextBuffer->Cursor += sizeof(uint32); // this is so we can preceed event data with a small header when sending.
 	NextBuffer->Committed = NextBuffer->Cursor;
 	NextBuffer->Reaped = NextBuffer->Cursor;
-	NextBuffer->EtxOffset = 0;
+	NextBuffer->EtxOffset = UPTRINT(0) - sizeof(FWriteBuffer);
+	NextBuffer->NextBuffer = nullptr;
 
-	// Add this next buffer to the active list.
-	for (;; Writer_Yield())
+
+	FWriteBuffer* CurrentBuffer = GTlsWriteBuffer;
+	if (CurrentBuffer == &GNullWriteBuffer)
 	{
-		NextBuffer->Next = AtomicLoadRelaxed(&GNextBufferList);
-		if (AtomicCompareExchangeRelease(&GNextBufferList, NextBuffer, NextBuffer->Next))
+		NextBuffer->ThreadId = GTlsContext.GetThreadId();
+
+		// Add this next buffer to the active list.
+		for (;; Private::PlatformYield())
 		{
-			break;
+			NextBuffer->NextThread = AtomicLoadRelaxed(&GNewThreadList);
+			if (AtomicCompareExchangeRelease(&GNewThreadList, NextBuffer, NextBuffer->NextThread))
+			{
+				break;
+			}
 		}
 	}
+	else
+	{
+		CurrentBuffer->NextBuffer = NextBuffer;
+		NextBuffer->ThreadId = CurrentBuffer->ThreadId;
 
-	TlsContext.SetBuffer(NextBuffer);
+		// Retire current buffer.
+		UPTRINT EtxOffset = UPTRINT((uint8*)(CurrentBuffer) - CurrentBuffer->Cursor);
+		AtomicStoreRelease(&(CurrentBuffer->EtxOffset), EtxOffset);
+	}
+
+	GTlsWriteBuffer = NextBuffer;
 	return NextBuffer;
 }
 
@@ -261,17 +242,13 @@ TRACELOG_API FWriteBuffer* Writer_NextBuffer(int32 Size)
 		return nullptr;
 	}
 
-	FWriteBuffer* Current = TlsContext.GetBuffer();
-
-	// Retire current buffer unless its the initial boot one.
-	if (TlsContext.HasValidBuffer())
+	FWriteBuffer* CurrentBuffer = GTlsWriteBuffer;
+	if (CurrentBuffer != &GNullWriteBuffer)
 	{
-		UPTRINT EtxOffset = ~UPTRINT((uint8*)(Current) - Current->Cursor + Size);
-		AtomicStoreRelease(&(Current->EtxOffset), EtxOffset);
+		CurrentBuffer->Cursor -= Size;
 	}
 
 	FWriteBuffer* NextBuffer = Writer_NextBufferInternal(GPoolPageGrowth);
-	NextBuffer->ThreadId = TlsContext.GetThreadId();
 
 	NextBuffer->Cursor += Size;
 	return NextBuffer;
@@ -392,50 +369,23 @@ enum class EDataState : uint8
 	Partial,			// Passive, but buffers are full so some events are lost
 	Sending,			// Events are being sent to an IO handle
 };
-static FHoldBuffer		GHoldBuffer;		// will init to zero.
-static UPTRINT			GDataHandle;		// = 0
-static EDataState		GDataState;			// = EDataState::Passive
-UPTRINT					GPendingDataHandle;	// = 0
-static FWriteBuffer*	GActiveBufferList;	// = nullptr;
+static FHoldBuffer				GHoldBuffer;		// will init to zero.
+static UPTRINT					GDataHandle;		// = 0
+static EDataState				GDataState;			// = EDataState::Passive
+UPTRINT							GPendingDataHandle;	// = 0
+static FWriteBuffer* __restrict GActiveThreadList;	// = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_ConsumeEvents()
+static uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 {
-	uint64 StartTsc = TimeGetTimestamp();
-	uint32 BytesSent = 0;
-
-	// Claim ownership of the latest chain of sent events.
-	FWriteBuffer* __restrict NextBufferList;
-	for (;; Writer_Yield())
-	{
-		NextBufferList = AtomicLoadRelaxed(&GNextBufferList);
-		if (AtomicCompareExchangeAcquire(&GNextBufferList, (FWriteBuffer*)nullptr, NextBufferList))
-		{
-			break;
-		}
-	}
-
-	struct FRetireList
-	{
-		FWriteBuffer* __restrict Head = nullptr;
-		FWriteBuffer* __restrict Tail = nullptr;
-
-		void Insert(FWriteBuffer* __restrict Buffer)
-		{
-			Buffer->Next = Head;
-			Head = Buffer;
-			Tail = (Tail != nullptr) ? Tail : Head;
-		}
-	};
-
-	auto SendInner = [&] (uint8* __restrict Data, uint32 Size)
+	auto SendInner = [] (uint8* __restrict SendData, uint32 SendSize)
 	{
 		if (GDataState == EDataState::Sending)
 		{
 			// Transmit data to the io handle
 			if (GDataHandle)
 			{
-				if (!IoWrite(GDataHandle, Data, Size))
+				if (!IoWrite(GDataHandle, SendData, SendSize))
 				{
 					IoClose(GDataHandle);
 					GDataHandle = 0;
@@ -444,7 +394,7 @@ static void Writer_ConsumeEvents()
 		}
 		else
 		{
-			GHoldBuffer->Write(Data, Size);
+			GHoldBuffer->Write(SendData, SendSize);
 
 			// Did we overflow? Enter partial mode.
 			bool bOverflown = GHoldBuffer->IsFull();
@@ -455,160 +405,150 @@ static void Writer_ConsumeEvents()
 		}
 	};
 
-	auto Send = [&] (FWriteBuffer* Buffer, uint8* __restrict Data, uint32 Size)
+	struct FPacketBase
 	{
-		BytesSent += Size;
+		uint16 PacketSize;
+		uint16 ThreadId;
+	};
 
-		struct FPacketBase
+	// Smaller buffers usually aren't redundant enough to benefit from being
+	// compressed. They often end up being larger.
+	if (Size <= 384)
+	{
+		static_assert(sizeof(FPacketBase) == sizeof(uint32), "");
+		Data -= sizeof(FPacketBase);
+		Size += sizeof(FPacketBase);
+		auto* Packet = (FPacketBase*)Data;
+		Packet->ThreadId = uint16(ThreadId & 0x7fff);
+		Packet->PacketSize = uint16(Size);
+
+		SendInner(Data, Size);
+		return Size;
+	}
+
+	struct FPacketEncoded
+		: public FPacketBase
+	{
+		uint16	DecodedSize;
+	};
+
+	struct FPacket
+		: public FPacketEncoded
+	{
+		uint8 Data[GPoolBlockSize + 64];
+	};
+
+	FPacket Packet;
+	Packet.ThreadId = 0x8000 | uint16(ThreadId & 0x7fff);
+	Packet.DecodedSize = uint16(Size);
+	Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
+	Packet.PacketSize += sizeof(FPacketEncoded);
+
+	SendInner((uint8*)&Packet, Packet.PacketSize);
+	return Packet.PacketSize;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_ConsumeEvents()
+{
+	struct FRetireList
+	{
+		FWriteBuffer* __restrict Head = nullptr;
+		FWriteBuffer* __restrict Tail = nullptr;
+
+		void Insert(FWriteBuffer* __restrict Buffer)
 		{
-			uint16 PacketSize;
-			uint16 ThreadId;
-		};
-
-		// Smaller buffers usually aren't redundant enough to benefit from being
-		// compressed. They often end up being larger.
-		if (Size > 384)
-		{
-			struct FPacketEncoded
-				: public FPacketBase
-			{
-				uint16	DecodedSize;
-			};
-
-			struct FPacket
-				: public FPacketEncoded
-			{
-				uint8 Data[GPoolBlockSize + 64];
-			};
-
-			FPacket Packet;
-			Packet.ThreadId = 0x8000 | uint16(Buffer->ThreadId & 0x7fff);
-			Packet.DecodedSize = uint16(Size);
-			Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
-			Packet.PacketSize += sizeof(FPacketEncoded);
-
-			SendInner((uint8*)&Packet, Packet.PacketSize);
-		}
-		else
-		{
-			static_assert(sizeof(FPacketBase) == sizeof(uint32), "");
-			Data -= sizeof(FPacketBase);
-			Size += sizeof(FPacketBase);
-			auto* Packet = (FPacketBase*)Data;
-			Packet->ThreadId = uint16(Buffer->ThreadId & 0x7fff);
-			Packet->PacketSize = uint16(Size);
-
-			SendInner(Data, Size);
+			Buffer->NextBuffer = Head;
+			Head = Buffer;
+			Tail = (Tail != nullptr) ? Tail : Head;
 		}
 	};
 
+#if TRACE_PRIVATE_PERF
+	uint64 StartTsc = TimeGetTimestamp();
+	uint32 BytesReaped = 0;
+	uint32 BytesSent = 0;
+#endif
+
+	// Claim ownership of any new thread buffer lists
+	FWriteBuffer* __restrict NewThreadList;
+	for (;; Private::PlatformYield())
+	{
+		NewThreadList = AtomicLoadRelaxed(&GNewThreadList);
+		if (AtomicCompareExchangeAcquire(&GNewThreadList, (FWriteBuffer*)nullptr, NewThreadList))
+		{
+			break;
+		}
+	}
+
 	FRetireList RetireList;
 
-	// Next buffer list is newest first. Retire full ones and build a new list
-	// of buffers that are active (which gets reverse so oldest is first)
-	FWriteBuffer* __restrict NextActiveList = nullptr;
-	FWriteBuffer* __restrict NextRetireList = nullptr;
-	for (FWriteBuffer *__restrict Buffer = NextBufferList, *__restrict NextBuffer;
-		Buffer != nullptr;
-		Buffer = NextBuffer)
+	FWriteBuffer* __restrict ActiveThreadList = GActiveThreadList;
+	GActiveThreadList = nullptr;
+
+	// Now we've two lists of known and new threads. Each of these lists in turn is
+	// a list of that thread's buffers (where it is writing trace events to).
+	for (FWriteBuffer* __restrict Buffer : { ActiveThreadList, NewThreadList })
 	{
-		NextBuffer = Buffer->Next;
-
-		uint8* Committed = AtomicLoadAcquire(&Buffer->Committed);
-		int32 EtxOffset = int32(~AtomicLoadRelaxed(&Buffer->EtxOffset));
-		if ((uint8*)Buffer - EtxOffset > Committed)
+		// For each thread...
+		for (FWriteBuffer* __restrict NextThread; Buffer != nullptr; Buffer = NextThread)
 		{
-			Buffer->Next = NextActiveList;
-			NextActiveList = Buffer;
-		}
-		else
-		{
-			Buffer->Next = NextRetireList;
-			NextRetireList = Buffer;
-		}
-	}
+			NextThread = Buffer->NextThread;
+			uint32 ThreadId = Buffer->ThreadId;
 
-	// Send as much of the active list as we can. Buffers that are full are removed
-	// from the list. Note that the list's oldest-first order is maintained
-	FWriteBuffer* __restrict ActiveListHead = nullptr;
-	FWriteBuffer* __restrict ActiveListTail = nullptr;
-	for (FWriteBuffer *__restrict Buffer = GActiveBufferList, *__restrict NextBuffer;
-		Buffer != nullptr;
-		Buffer = NextBuffer)
-	{
-		NextBuffer = Buffer->Next;
-
-		uint8* __restrict Committed = AtomicLoadAcquire(&Buffer->Committed);
-
-		if (uint32 SizeToReap = uint32(Committed - Buffer->Reaped))
-		{
-			Send(Buffer, Buffer->Reaped, SizeToReap);
-			Buffer->Reaped = Committed;
-		}
-
-		int32 EtxOffset = int32(~AtomicLoadRelaxed(&Buffer->EtxOffset));
-		if ((uint8*)Buffer - EtxOffset == Committed)
-		{
-			RetireList.Insert(Buffer);
-		}
-		else
-		{
-			if (ActiveListTail != nullptr)
+			// For each of the thread's buffers...
+			for (FWriteBuffer* __restrict NextBuffer; Buffer != nullptr; Buffer = NextBuffer)
 			{
-				ActiveListTail->Next = Buffer;
-			}
-			else
-			{
-				ActiveListHead = Buffer;
+				uint8* Committed = AtomicLoadRelaxed(&Buffer->Committed);
+
+				// Send as much as we can.
+				if (uint32 SizeToReap = uint32(Committed - Buffer->Reaped))
+				{
+#if TRACE_PRIVATE_PERF
+					BytesReaped += SizeToReap;
+					BytesSent += /*...*/
+#endif
+					Writer_SendData(ThreadId, Buffer->Reaped, SizeToReap);
+					Buffer->Reaped = Committed;
+				}
+
+				// Is this buffer still in use?
+				int32 EtxOffset = int32(AtomicLoadAcquire(&Buffer->EtxOffset));
+				if ((uint8*)Buffer - EtxOffset > Committed)
+				{
+					break;
+				}
+
+				// Retire the buffer
+				NextBuffer = Buffer->NextBuffer;
+				RetireList.Insert(Buffer);
 			}
 
-			ActiveListTail = Buffer;
-			Buffer->Next = nullptr;
+			if (Buffer != nullptr)
+			{
+				Buffer->NextThread = GActiveThreadList;
+				GActiveThreadList = Buffer;
+			}
 		}
-	}
-
-	// Retire buffers from the next list
-	for (FWriteBuffer *__restrict Buffer = NextRetireList, *__restrict NextBuffer;
-		Buffer != nullptr;
-		Buffer = NextBuffer)
-	{
-		NextBuffer = Buffer->Next;
-
-		RetireList.Insert(Buffer);
-
-		if (uint32 SizeToReap = uint32(Buffer->Committed - Buffer->Reaped))
-		{
-			Send(Buffer, Buffer->Reaped, SizeToReap);
-		}
-	}
-
-	// Append the new active buffers that have been discovered to the active list
-	if (ActiveListTail != nullptr)
-	{
-		GActiveBufferList = ActiveListHead;
-		ActiveListTail->Next = NextActiveList;
-	}
-	else
-	{
-		GActiveBufferList = NextActiveList;
 	}
 
 #if TRACE_PRIVATE_PERF
-	UE_TRACE_LOG($Trace, WorkerThread)
+	UE_TRACE_LOG($Trace, WorkerThread, TraceLogChannel)
 		<< WorkerThread.Cycles(uint32(TimeGetTimestamp() - StartTsc))
+		<< WorkerThread.BytesReaped(BytesReaped);
 		<< WorkerThread.BytesSent(BytesSent);
 
-	UE_TRACE_LOG($Trace, Memory)
+	UE_TRACE_LOG($Trace, Memory, TraceLogChannel)
 		<< Memory.AllocSize(uint32(GPoolPageCursor - GPoolBase));
 #endif // TRACE_PRIVATE_PERF
 
 	// Put the retirees we found back into the system again.
 	if (RetireList.Head != nullptr)
 	{
-		for (FWriteBuffer* ListNode = RetireList.Tail;; Writer_Yield())
+		for (FWriteBuffer* ListNode = RetireList.Tail;; Private::PlatformYield())
 		{
-			ListNode->Next = AtomicLoadRelaxed(&GPoolFreeList);
-			if (AtomicCompareExchangeRelease(&GPoolFreeList, RetireList.Head, ListNode->Next))
+			ListNode->NextBuffer = AtomicLoadRelaxed(&GPoolFreeList);
+			if (AtomicCompareExchangeRelease(&GPoolFreeList, RetireList.Head, ListNode->NextBuffer))
 			{
 				break;
 			}
@@ -667,294 +607,6 @@ static void Writer_UpdateData()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-enum class EControlState : uint8
-{
-	Closed = 0,
-	Listening,
-	Accepted,
-	Failed,
-};
-
-struct FControlCommands
-{
-	enum { Max = 3 };
-	struct
-	{
-		uint32	Hash;
-		void*	Param;
-		void	(*Thunk)(void*, uint32, ANSICHAR const* const*);
-	}			Commands[Max];
-	uint8		Count;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-bool	Writer_SendTo(const ANSICHAR*);
-bool	Writer_WriteTo(const ANSICHAR*);
-uint32	Writer_EventToggle(const ANSICHAR*, bool);
-
-////////////////////////////////////////////////////////////////////////////////
-static FControlCommands	GControlCommands;
-static UPTRINT			GControlListen		= 0;
-static UPTRINT			GControlSocket		= 0;
-static EControlState	GControlState;		// = EControlState::Closed;
-
-////////////////////////////////////////////////////////////////////////////////
-static uint32 Writer_ControlHash(const ANSICHAR* Word)
-{
-	uint32 Hash = 5381;
-	for (; *Word; (Hash = (Hash * 33) ^ *Word), ++Word);
-	return Hash;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static bool Writer_ControlAddCommand(
-	const ANSICHAR* Name,
-	void* Param,
-	void (*Thunk)(void*, uint32, ANSICHAR const* const*))
-{
-	if (GControlCommands.Count >= FControlCommands::Max)
-	{
-		return false;
-	}
-
-	uint32 Index = GControlCommands.Count++;
-	GControlCommands.Commands[Index] = { Writer_ControlHash(Name), Param, Thunk };
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static bool Writer_ControlDispatch(uint32 ArgC, ANSICHAR const* const* ArgV)
-{
-	if (ArgC == 0)
-	{
-		return false;
-	}
-
-	uint32 Hash = Writer_ControlHash(ArgV[0]);
-	--ArgC;
-	++ArgV;
-
-	for (int i = 0, n = GControlCommands.Count; i < n; ++i)
-	{
-		const auto& Command = GControlCommands.Commands[i];
-		if (Command.Hash == Hash)
-		{
-			Command.Thunk(Command.Param, ArgC, ArgV);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static bool Writer_ControlListen()
-{
-	GControlListen = TcpSocketListen(1985);
-	if (!GControlListen)
-	{
-		GControlState = EControlState::Failed;
-		return false;
-	}
-
-	GControlState = EControlState::Listening;
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static bool Writer_ControlAccept()
-{
-	UPTRINT Socket;
-	int Return = TcpSocketAccept(GControlListen, Socket);
-	if (Return <= 0)
-	{
-		if (Return == -1)
-		{
-			IoClose(GControlListen);
-			GControlListen = 0;
-			GControlState = EControlState::Failed;
-		}
-		return false;
-	}
-
-	GControlState = EControlState::Accepted;
-	GControlSocket = Socket;
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void Writer_ControlRecv()
-{
-	// We'll assume that commands are smaller than the canonical MTU so this
-	// doesn't need to be implemented in a reentrant manner (maybe).
-
-	ANSICHAR Buffer[512];
-	ANSICHAR* __restrict Head = Buffer;
-	while (TcpSocketHasData(GControlSocket))
-	{
-		int32 ReadSize = int32(UPTRINT(Buffer + sizeof(Buffer) - Head));
-		int32 Recvd = IoRead(GControlSocket, Head, ReadSize);
-		if (Recvd <= 0)
-		{
-			IoClose(GControlSocket);
-			GControlSocket = 0;
-			GControlState = EControlState::Listening;
-			break;
-		}
-
-		Head += Recvd;
-
-		enum EParseState
-		{
-			CrLfSkip,
-			WhitespaceSkip,
-			Word,
-		} ParseState = EParseState::CrLfSkip;
-
-		uint32 ArgC = 0;
-		const ANSICHAR* ArgV[16];
-
-		const ANSICHAR* __restrict Spent = Buffer;
-		for (ANSICHAR* __restrict Cursor = Buffer; Cursor < Head; ++Cursor)
-		{
-			switch (ParseState)
-			{
-			case EParseState::CrLfSkip:
-				if (*Cursor == '\n' || *Cursor == '\r')
-				{
-					continue;
-				}
-				ParseState = EParseState::WhitespaceSkip;
-				/* [[fallthrough]] */
-
-			case EParseState::WhitespaceSkip:
-				if (*Cursor == ' ' || *Cursor == '\0')
-				{
-					continue;
-				}
-
-				if (ArgC < UE_ARRAY_COUNT(ArgV))
-				{
-					ArgV[ArgC] = Cursor;
-					++ArgC;
-				}
-
-				ParseState = EParseState::Word;
-				/* [[fallthrough]] */
-
-			case EParseState::Word:
-				if (*Cursor == ' ' || *Cursor == '\0')
-				{
-					*Cursor = '\0';
-					ParseState = EParseState::WhitespaceSkip;
-					continue;
-				}
-
-				if (*Cursor == '\r' || *Cursor == '\n')
-				{
-					*Cursor = '\0';
-
-					Writer_ControlDispatch(ArgC, ArgV);
-
-					ArgC = 0;
-					Spent = Cursor + 1;
-					ParseState = EParseState::CrLfSkip;
-					continue;
-				}
-
-				break;
-			}
-		}
-
-		int32 UnspentSize = int32(UPTRINT(Head - Spent));
-		if (UnspentSize)
-		{
-			memmove(Buffer, Spent, UnspentSize);
-		}
-		Head = Buffer + UnspentSize;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void Writer_UpdateControl()
-{
-	switch (GControlState)
-	{
-	case EControlState::Closed:
-		if (!Writer_ControlListen())
-		{
-			break;
-		}
-		/* [[fallthrough]] */
-
-	case EControlState::Listening:
-		if (!Writer_ControlAccept())
-		{
-			break;
-		}
-		/* [[fallthrough]] */
-
-	case EControlState::Accepted:
-		Writer_ControlRecv();
-		break;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void Writer_InitializeControl()
-{
-#if PLATFORM_SWITCH
-	GControlState = EControlState::Failed;
-	return;
-#endif
-
-	Writer_ControlAddCommand("SendTo", nullptr,
-		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
-		{
-			if (ArgC > 0)
-			{
-				Writer_SendTo(ArgV[0]);
-			}
-		}
-	);
-
-	Writer_ControlAddCommand("WriteTo", nullptr,
-		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
-		{
-			if (ArgC > 0)
-			{
-				Writer_WriteTo(ArgV[0]);
-			}
-		}
-	);
-
-	Writer_ControlAddCommand("ToggleEvent", nullptr,
-		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
-		{
-			if (ArgC < 1)
-			{
-				return;
-			}
-			const ANSICHAR* Wildcard = ArgV[0];
-			const ANSICHAR* State = (ArgC > 1) ? ArgV[1] : "";
-			Writer_EventToggle(Wildcard, State[0] != '0');
-		}
-	);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void Writer_ShutdownControl()
-{
-	if (GControlListen)
-	{
-		IoClose(GControlListen);
-		GControlListen = 0;
-	}
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 static UPTRINT			GWorkerThread		= 0;
 static volatile bool	GWorkerThreadQuit	= false;
 
@@ -974,16 +626,17 @@ static void Writer_WorkerThread()
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_LogHeader()
 {
-	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Always|Important)
+	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Important)
 		UE_TRACE_EVENT_FIELD(uint16, Endian)
 		UE_TRACE_EVENT_FIELD(uint8, Version)
 		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
 	UE_TRACE_EVENT_END()
 
-	UE_TRACE_LOG($Trace, NewTrace)
+	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
 		<< NewTrace.Version(2)
 		<< NewTrace.Endian(0x524d)
 		<< NewTrace.PointerSize(sizeof(void*));
@@ -1053,11 +706,16 @@ void Writer_Initialize()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_SendTo(const ANSICHAR* Host)
+bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
 {
+	if (GPendingDataHandle || GDataHandle)
+	{
+		return false;
+	}
+
 	Writer_Initialize();
 
-	UPTRINT DataHandle = TcpSocketConnect(Host, 1980);
+	UPTRINT DataHandle = TcpSocketConnect(Host, Port);
 	if (!DataHandle)
 	{
 		return false;
@@ -1070,6 +728,11 @@ bool Writer_SendTo(const ANSICHAR* Host)
 ////////////////////////////////////////////////////////////////////////////////
 bool Writer_WriteTo(const ANSICHAR* Path)
 {
+	if (GPendingDataHandle || GDataHandle)
+	{
+		return false;
+	}
+
 	Writer_Initialize();
 
 	UPTRINT DataHandle = FileOpen(Path);
@@ -1085,28 +748,7 @@ bool Writer_WriteTo(const ANSICHAR* Path)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-static UPTRINT volatile		GEventUidCounter;	// = 0;
-static FEventDef* volatile	GHeadEvent;			// = nullptr;
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename ElementType>
-static uint32 Writer_EventGetHash(const ElementType* Input, int32 Length=-1)
-{
-	uint32 Result = 0x811c9dc5;
-	for (; *Input && Length; ++Input, --Length)
-	{
-		Result ^= *Input;
-		Result *= 0x01000193;
-	}
-	return Result;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static uint32 Writer_EventGetHash(uint32 LoggerHash, uint32 NameHash)
-{
-	uint32 Parts[3] = { LoggerHash, NameHash, 0 };
-	return Writer_EventGetHash(Parts);
-}
+static uint32 volatile GEventUidCounter; // = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_EventCreate(
@@ -1120,37 +762,18 @@ void Writer_EventCreate(
 	Writer_Initialize();
 
 	// Assign a unique ID for this event
-	uint32 Uid;
-	for (;; Writer_Yield())
-	{
-		UPTRINT CurrentUid = UPTRINT(AtomicLoadRelaxed((void* volatile*)&GEventUidCounter));
-		UPTRINT NextUid = CurrentUid + 1;
-		if (AtomicCompareExchangeRelaxed(&GEventUidCounter, NextUid, CurrentUid))
-		{
-			Uid = uint32(CurrentUid) + uint32(EKnownEventUids::User);
-			break;
-		}
-	}
-
+	uint32 Uid = AtomicIncrementRelaxed(&GEventUidCounter) + uint32(EKnownEventUids::User);
 	if (Uid >= uint32(EKnownEventUids::Max))
 	{
 		Target->Uid = uint16(EKnownEventUids::Invalid);
-		Target->Enabled.bOptedIn = false;
-		Target->Enabled.Internal = 0;
 		Target->bInitialized = true;
 		return;
 	}
 
-	uint32 LoggerHash = Writer_EventGetHash(LoggerName.Ptr);
-	uint32 NameHash = Writer_EventGetHash(EventName.Ptr);
-
 	// Fill out the target event's properties
  	Target->Uid = uint16(Uid);
-	Target->LoggerHash = LoggerHash;
-	Target->Hash = Writer_EventGetHash(LoggerHash, NameHash);
-	Target->Enabled.Internal = !!(Flags & FEventDef::Flag_Always);
-	Target->Enabled.bOptedIn = false;
 	Target->bInitialized = true;
+	Target->bImportant = Flags & FEventDef::Flag_Important;
 
 	// Calculate the number of fields and size of name data.
 	uint16 NamesSize = LoggerName.Length + EventName.Length;
@@ -1184,6 +807,11 @@ void Writer_EventCreate(
 		Event.Flags |= uint8(EEventFlags::MaybeHasAux);
 	}
 
+	if (Flags & FEventDef::Flag_NoSync)
+	{
+		Event.Flags |= uint8(EEventFlags::NoSync);
+	}
+
 	// Write details about event's fields
 	Event.FieldCount = uint8(FieldCount);
 	for (uint32 i = 0; i < FieldCount; ++i)
@@ -1213,59 +841,6 @@ void Writer_EventCreate(
 	}
 
 	Writer_EndLog(LogInstance);
-
-	// Add this new event into the list so we can look them up later.
-	for (;; Writer_Yield())
-	{
-		FEventDef* HeadEvent = AtomicLoadRelaxed(&GHeadEvent);
-		Target->Handle = HeadEvent;
-		if (AtomicCompareExchangeRelease(&GHeadEvent, Target, HeadEvent))
-		{
-			break;
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint32 Writer_EventToggle(const ANSICHAR* Wildcard, bool bState)
-{
-	Writer_Initialize();
-
-	uint32 ToggleCount = 0;
-
-	const ANSICHAR* Dot = FCStringAnsi::Strchr(Wildcard, '.');
-	if (Dot == nullptr)
-	{
-		uint32 LoggerHash = Writer_EventGetHash(Wildcard);
-
-		FEventDef* Event = AtomicLoadAcquire(&GHeadEvent);
-		for (; Event != nullptr; Event = (FEventDef*)(Event->Handle))
-		{
-			if (Event->LoggerHash == LoggerHash)
-			{
-				Event->Enabled.bOptedIn = bState;
-				++ToggleCount;
-			}
-		}
-
-		return ToggleCount;
-	}
-
-	uint32 LoggerHash = Writer_EventGetHash(Wildcard, int(Dot - Wildcard));
-	uint32 NameHash = Writer_EventGetHash(Dot + 1);
-	uint32 EventHash = Writer_EventGetHash(LoggerHash, NameHash);
-
-	FEventDef* Event = (FEventDef*)AtomicLoadAcquire(&Private::GHeadEvent);
-	for (; Event != nullptr; Event = (FEventDef*)(Event->Handle))
-	{
-		if (Event->Hash == EventHash)
-		{
-			Event->Enabled.bOptedIn = bState;
-			++ToggleCount;
-		}
-	}
-
-	return ToggleCount;
 }
 
 } // namespace Private

@@ -10,6 +10,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
@@ -22,6 +23,7 @@
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraNodeOutput.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "EdGraphSchema_NiagaraSystemOverview.h"
@@ -71,6 +73,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 	, bCompilePendingCompletion(false)
 	, SystemStackViewModel(nullptr)
 	, SelectionViewModel(nullptr)
+	, ScriptScratchPadViewModel(nullptr)
 {
 	GEditor->RegisterForUndo(this);
 }
@@ -100,6 +103,11 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	SystemStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
 	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
 	SystemStackViewModel->OnStructureChanged().AddSP(this, &FNiagaraSystemViewModel::StackViewModelStructureChanged);
+
+	ScriptScratchPadViewModel = NewObject<UNiagaraScratchPadViewModel>(GetTransientPackage());
+	ScriptScratchPadViewModel->Initialize(this->AsShared());
+	ScriptScratchPadViewModel->OnScriptRenamed().AddSP(this, &FNiagaraSystemViewModel::ScratchPadScriptsChanged);
+	ScriptScratchPadViewModel->OnScriptDeleted().AddSP(this, &FNiagaraSystemViewModel::ScratchPadScriptsChanged);
 
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
@@ -178,6 +186,16 @@ void FNiagaraSystemViewModel::Cleanup()
 		SelectionViewModel->Finalize();
 		SelectionViewModel = nullptr;
 	}
+
+	if (ScriptScratchPadViewModel != nullptr)
+	{
+		ScriptScratchPadViewModel->OnScriptRenamed().RemoveAll(this);
+		ScriptScratchPadViewModel->OnScriptDeleted().RemoveAll(this);
+		ScriptScratchPadViewModel->Finalize();
+		ScriptScratchPadViewModel = nullptr;
+	}
+
+	System = nullptr;
 }
 
 FNiagaraSystemViewModel::~FNiagaraSystemViewModel()
@@ -233,12 +251,14 @@ void FNiagaraSystemViewModel::CompileSystem(bool bForce)
 	check(SystemScriptViewModel.IsValid());
 	SystemScriptViewModel->CompileSystem(bForce);
 	bCompilePendingCompletion = true;
+	InvalidateCachedCompileStatus();
 }
 
 ENiagaraScriptCompileStatus FNiagaraSystemViewModel::GetLatestCompileStatus() const
 {
-	check(SystemScriptViewModel.IsValid());
-	return SystemScriptViewModel->GetLatestCompileStatus();
+	return LatestCompileStatusCache.IsSet() 
+		? LatestCompileStatusCache.GetValue() 
+		: ENiagaraScriptCompileStatus::NCS_Unknown;
 }
 
 UNiagaraSystemEditorData& FNiagaraSystemViewModel::GetEditorData() const
@@ -478,6 +498,10 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 	{
 		Collector.AddReferencedObject(SelectionViewModel);
 	}
+	if (ScriptScratchPadViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(ScriptScratchPadViewModel);
+	}
 }
 
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
@@ -490,6 +514,13 @@ void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 
 void FNiagaraSystemViewModel::Tick(float DeltaTime)
 {
+	if (System == nullptr)
+	{
+		// If the system pointer is no longer valid, this system view model has been cleaned up and is invalid
+		// and is about to be destroyed so don't run tick logic.
+		return;
+	}
+
 	if (bCompilePendingCompletion && GetSystem().HasOutstandingCompilationRequests() == false)
 	{
 		bCompilePendingCompletion = false;
@@ -497,41 +528,24 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 		SendLastCompileMessageJobs();
 	}
 
-	if (bForceAutoCompileOnce || (GetDefault<UNiagaraEditorSettings>()->GetAutoCompile() && bCanAutoCompile))
+	if (!SystemScriptViewModel.IsValid())
 	{
-		bool bRecompile = false;
+		return;
+	}
 
-		check(SystemScriptViewModel.IsValid());
-		if (SystemScriptViewModel->GetLatestCompileStatus() == ENiagaraScriptCompileStatus::NCS_Dirty)
-		{
-			//SystemScriptViewModel->CompileSystem();
-			//UE_LOG(LogNiagaraEditor, Log, TEXT("Compiling %s due to dirty scripts."), *GetSystem().GetName());
-			bRecompile |= true;
-		}
+	TickCompileStatus();
 
-		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
-		{
-			if (EmitterHandleViewModel->GetIsEnabled() && EmitterHandleViewModel->GetEmitterViewModel()->GetLatestCompileStatus() == ENiagaraScriptCompileStatus::NCS_Dirty)
-			{
-				bRecompile |= true;
-				//EmitterHandleViewModel->GetEmitterViewModel()->CompileScripts();
-				//UE_LOG(LogNiagaraEditor, Log, TEXT("Compiling %s - %s due to dirty scripts."), *GetSystem().GetName(), *EmitterHandleViewModel->GetName().ToString());
-			}
-		}
+	bool bAutoCompileThisFrame = GetDefault<UNiagaraEditorSettings>()->GetAutoCompile() && bCanAutoCompile && GetLatestCompileStatus() == ENiagaraScriptCompileStatus::NCS_Dirty;
+	if ((bForceAutoCompileOnce || bAutoCompileThisFrame) && GetSystem().HasOutstandingCompilationRequests() == false)
 
-		if (GetSystem().HasOutstandingCompilationRequests() == false)
-		{
-			if (bRecompile || bForceAutoCompileOnce)
-			{
-				CompileSystem(false);
-				bForceAutoCompileOnce = false;
-			}
+	{
+		CompileSystem(false);
+		bForceAutoCompileOnce = false;
+	}
 
-			if (bResetRequestPending)
-			{
-				ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
-			}
-		}
+	if (bResetRequestPending)
+	{
+		ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
 	}
 
 	if (EmitterIdsRequiringSequencerTrackUpdate.Num() > 0)
@@ -578,6 +592,16 @@ void FNiagaraSystemViewModel::NotifyPreClose()
 FNiagaraSystemViewModel::FOnPreClose& FNiagaraSystemViewModel::OnPreClose()
 {
 	return OnPreCloseDelegate;
+}
+
+FNiagaraSystemViewModel::FOnRequestFocusTab& FNiagaraSystemViewModel::OnRequestFocusTab()
+{
+	return OnRequestFocusTabDelegate;
+}
+
+void FNiagaraSystemViewModel::FocusTab(FName TabName)
+{
+	OnRequestFocusTabDelegate.Broadcast(TabName);
 }
 
 TSharedPtr<FUICommandList> FNiagaraSystemViewModel::GetToolkitCommands()
@@ -642,6 +666,11 @@ UNiagaraSystemSelectionViewModel* FNiagaraSystemViewModel::GetSelectionViewModel
 	return SelectionViewModel;
 }
 
+UNiagaraScratchPadViewModel* FNiagaraSystemViewModel::GetScriptScratchPadViewModel()
+{
+	return ScriptScratchPadViewModel;
+}
+
 TStatId FNiagaraSystemViewModel::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemViewModel, STATGROUP_Tickables);
@@ -677,13 +706,17 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 	{
 		const UNiagaraEmitter* EmitterInSystem = Handle.GetInstance();
 		TArray<UNiagaraScript*> EmitterScripts;
-		EmitterInSystem->GetScripts(EmitterScripts);
+		EmitterInSystem->GetScripts(EmitterScripts, false);
 		for (UNiagaraScript* EmitterScript : EmitterScripts)
 		{
 			ScriptsToGetCompileEventsFrom.Add(FNiagaraScriptAndOwningScriptNameString(EmitterScript, EmitterInSystem->GetUniqueEmitterName()));
 		}
 	}
 
+	// Clear out existing compile event messages from compile event message jobs for this asset.
+	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(SystemMessageLogGuidKey.GetValue(), ENiagaraMessageJobType::CompileEventMessageJob);
+
+	// Make new messages and messages jobs from the compile.
 	TArray<TSharedPtr<const INiagaraMessageJob>> JobBatchToQueue;
 	// Iterate from back to front to avoid reordering the events when they are queued
 	for (int i = ScriptsToGetCompileEventsFrom.Num()-1; i >=0; --i)
@@ -704,10 +737,130 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 
 			JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), ScriptInfo.OwningScriptNameString));
 		}
+		
+		// Check if there are any GPU compile errors and if so push them.
+		const FNiagaraShaderScript* ShaderScript = ScriptInfo.Script->GetRenderThreadScript();
+		if (ShaderScript != nullptr && ShaderScript->IsCompilationFinished() && 
+			ScriptInfo.Script->Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
+		{
+			const TArray<FString>& GPUCompileErrors = ShaderScript->GetCompileErrors();
+			for (const FString& String : GPUCompileErrors)
+			{
+				FNiagaraCompileEventSeverity Severity = FNiagaraCompileEventSeverity::Warning;
+				if (String.Contains(TEXT("err0r")))
+				{
+					Severity = FNiagaraCompileEventSeverity::Error;
+					ErrorCount++;
+				}
+				else
+				{
+					WarningCount++;
+				}
+				FNiagaraCompileEvent CompileEvent = FNiagaraCompileEvent(Severity, String);
+				JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)),
+					ScriptInfo.OwningScriptNameString));
+			}
+		}
+		
 	}
 	JobBatchToQueue.Insert(MakeShared<FNiagaraMessageJobPostCompileSummary>(ErrorCount, WarningCount, GetLatestCompileStatus(), FText::FromString("System")), 0);
-	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(SystemMessageLogGuidKey.GetValue(), ENiagaraMessageJobType::CompileEventMessageJob);
 	FNiagaraMessageManager::Get()->QueueMessageJobBatch(JobBatchToQueue, SystemMessageLogGuidKey.GetValue());
+}
+
+void FNiagaraSystemViewModel::InvalidateCachedCompileStatus()
+{
+	LatestCompileStatusCache.Reset();
+	ScriptsToCheckForStatus.Empty();
+	ScriptCompileStatuses.Empty();
+}
+
+void FNiagaraSystemViewModel::TickCompileStatus()
+{
+	// Checking the compile status is expensive which is why it's updated on tick, and multiple scripts
+	// are time sliced across multiple frames.
+	if (System->HasOutstandingCompilationRequests())
+	{
+		// When compiling the compile status is always unknown.
+		InvalidateCachedCompileStatus();
+	}
+	else
+	{
+		if (LatestCompileStatusCache.IsSet() == false)
+		{
+			if (ScriptsToCheckForStatus.Num() > 0)
+			{
+				// If there are still scripts to check for status do that...
+				UNiagaraScript* ScriptToCheck = ScriptsToCheckForStatus.Last();
+				ScriptsToCheckForStatus.RemoveAt(ScriptsToCheckForStatus.Num() - 1);
+
+				if (ScriptToCheck->AreScriptAndSourceSynchronized() == false)
+				{
+					// If any script is not synchronized the entire system is considered dirty and we no longer need
+					// to check other script statuses.
+					LatestCompileStatusCache = ENiagaraScriptCompileStatus::NCS_Dirty;
+					ScriptsToCheckForStatus.Empty();
+					ScriptCompileStatuses.Empty();
+				}
+				else
+				{
+					ENiagaraScriptCompileStatus LastScirptCompileStatus = ScriptToCheck->GetLastCompileStatus();
+					if (LastScirptCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown ||
+						LastScirptCompileStatus == ENiagaraScriptCompileStatus::NCS_Dirty ||
+						LastScirptCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated)
+					{
+						// If the script doesn't have a vaild last compile status assume that it's dirty and by extension
+						// so is the system and we can ignore the other statuses.
+						LatestCompileStatusCache = ENiagaraScriptCompileStatus::NCS_Dirty;
+						ScriptsToCheckForStatus.Empty();
+						ScriptCompileStatuses.Empty();
+					}
+					else
+					{
+						// Otherwise save it for processing once all scripts are done.
+						ScriptCompileStatuses.Add(LastScirptCompileStatus);
+					}
+				}
+			}
+			else
+			{
+				// Otherwise check for status results.
+				if (ScriptCompileStatuses.Num() > 0)
+				{
+					// If there are statues from scripts figure out the system status.
+					if (ScriptCompileStatuses.Contains(ENiagaraScriptCompileStatus::NCS_Error))
+					{
+						// If any individual script has an error the system is considered to have an error.
+						LatestCompileStatusCache = ENiagaraScriptCompileStatus::NCS_Error;
+					}
+					else if (ScriptCompileStatuses.Contains(ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings) ||
+						ScriptCompileStatuses.Contains(ENiagaraScriptCompileStatus::NCS_ComputeUpToDateWithWarnings))
+					{
+						// If there were no errors and any individual script has a warning the system is considered to have a warning.
+						LatestCompileStatusCache = ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings;
+					}
+					else
+					{
+						LatestCompileStatusCache = ENiagaraScriptCompileStatus::NCS_UpToDate;
+					}
+					ScriptCompileStatuses.Empty();
+				}
+				else
+				{
+					// If there is no current status, no scripts to check, and no status results then
+					// collect up the scripts to check deferred.
+					ScriptsToCheckForStatus.Add(System->GetSystemSpawnScript());
+					ScriptsToCheckForStatus.Add(System->GetSystemUpdateScript());
+					for (const FNiagaraEmitterHandle& EmitterHandle : System->GetEmitterHandles())
+					{
+						if (EmitterHandle.GetIsEnabled())
+						{
+							EmitterHandle.GetInstance()->GetScripts(ScriptsToCheckForStatus, true);
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 void FNiagaraSystemViewModel::SetupPreviewComponentAndInstance()
@@ -737,6 +890,7 @@ void FNiagaraSystemViewModel::RefreshAll()
 	RefreshEmitterHandleViewModels();
 	RefreshSequencerTracks();
 	ResetCurveData();
+	ScriptScratchPadViewModel->RefreshScriptViewModels();
 }
 
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
@@ -1204,6 +1358,51 @@ void FNiagaraSystemViewModel::ResetCurveData()
 	OnCurveOwnerChangedDelegate.Broadcast();
 }
 
+void GetCompiledScriptAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNiagaraSystem& OwningSystem, UNiagaraScript*& OutCompiledScript, FString& OutEmitterName)
+{
+	OutCompiledScript = nullptr;
+	OutEmitterName = FString();
+	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(StackNode);
+	if (OutputNode != nullptr)
+	{
+		if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript)
+		{
+			OutCompiledScript = OwningSystem.GetSystemSpawnScript();
+		}
+		else if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript)
+		{
+			OutCompiledScript = OwningSystem.GetSystemUpdateScript();
+		}
+		else
+		{
+			const FNiagaraEmitterHandle* OwningEmitterHandle = OwningSystem.GetEmitterHandles().FindByPredicate([&StackNode](const FNiagaraEmitterHandle& EmitterHandle)
+			{
+				return CastChecked<UNiagaraScriptSource>(EmitterHandle.GetInstance()->GraphSource)->NodeGraph == StackNode.GetNiagaraGraph();
+			});
+
+			if(OwningEmitterHandle != nullptr)
+			{
+				OutEmitterName = OwningEmitterHandle->GetInstance()->GetUniqueEmitterName();
+				switch (OutputNode->GetUsage())
+				{
+				case ENiagaraScriptUsage::EmitterSpawnScript:
+					OutCompiledScript = OwningSystem.GetSystemSpawnScript();
+					break;
+				case ENiagaraScriptUsage::EmitterUpdateScript:
+					OutCompiledScript = OwningSystem.GetSystemUpdateScript();
+					break;
+				case ENiagaraScriptUsage::ParticleSpawnScript:
+				case ENiagaraScriptUsage::ParticleUpdateScript:
+				case ENiagaraScriptUsage::ParticleEventScript:
+				case ENiagaraScriptUsage::ParticleSimulationStageScript:
+					OutCompiledScript = OwningEmitterHandle->GetInstance()->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId());
+					break;
+				}
+			}
+		}
+	}
+}
+
 void UpdateCompiledDataInterfacesForScript(UNiagaraScript& TargetScript, FName TargetDataInterfaceName, UNiagaraDataInterface& SourceDataInterface)
 {
 	for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : TargetScript.GetCachedDefaultDataInterfaces())
@@ -1229,31 +1428,14 @@ void FNiagaraSystemViewModel::UpdateCompiledDataInterfaces(UNiagaraDataInterface
 		}
 
 		// If the data interface was owned by an input node, then we need to try to update the compiled version.
-		UNiagaraEmitter* OwningEmitter;
-		UNiagaraScript* OwningScript;
-		FNiagaraStackGraphUtilities::GetOwningEmitterAndScriptForStackNode(*OuterInputNode, GetSystem(), OwningEmitter, OwningScript);
-		if (ensureMsgf(OwningScript != nullptr, TEXT("Could not find owning script for data interface input node.")))
+		UNiagaraScript* CompiledScript;
+		FString EmitterName;
+		GetCompiledScriptAndEmitterNameFromInputNode(*OuterInputNode, GetSystem(), CompiledScript, EmitterName);
+		if (ensureMsgf(CompiledScript != nullptr, TEXT("Could not find owning script for data interface input node.")))
 		{
-			switch (OwningScript->GetUsage())
-			{
-			case ENiagaraScriptUsage::SystemSpawnScript:
-			case ENiagaraScriptUsage::SystemUpdateScript:
-			case ENiagaraScriptUsage::ParticleSpawnScript:
-			case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
-			case ENiagaraScriptUsage::ParticleUpdateScript:
-			case ENiagaraScriptUsage::ParticleEventScript:
-				UpdateCompiledDataInterfacesForScript(*OwningScript, OuterInputNode->Input.GetName(), *ChangedDataInterface);
-				break;
-			case ENiagaraScriptUsage::EmitterSpawnScript:
-			case ENiagaraScriptUsage::EmitterUpdateScript:
-				if (ensureMsgf(OwningEmitter != nullptr, TEXT("Could not find owning emitter for data interface input node.")))
-				{
-					UNiagaraScript& TargetScript = OwningScript->GetUsage() == ENiagaraScriptUsage::EmitterSpawnScript ? *GetSystem().GetSystemSpawnScript() : *GetSystem().GetSystemUpdateScript();
-					FName AliasedInputNodeName = FNiagaraParameterMapHistory::ResolveEmitterAlias(OuterInputNode->Input.GetName(), OwningEmitter->GetUniqueEmitterName());
-					UpdateCompiledDataInterfacesForScript(TargetScript, AliasedInputNodeName, *ChangedDataInterface);
-				}
-				break;
-			}
+			bool bIsParameterMapDataInterface = false;
+			FName DataInterfaceName = FHlslNiagaraTranslator::GetDataInterfaceName(OuterInputNode->Input.GetName(), EmitterName, bIsParameterMapDataInterface);
+			UpdateCompiledDataInterfacesForScript(*CompiledScript, DataInterfaceName, *ChangedDataInterface);
 		}
 	}
 	else
@@ -1326,11 +1508,13 @@ void FNiagaraSystemViewModel::EmitterScriptGraphChanged(const FEdGraphEditAction
 	}
 	// Remove from cache on graph change 
 	GuidToCachedStackModuleData.Remove(OwningEmitterHandleId);
+	InvalidateCachedCompileStatus();
 }
 
 void FNiagaraSystemViewModel::SystemScriptGraphChanged(const FEdGraphEditAction& InAction)
 {
 	GuidToCachedStackModuleData.Empty();
+	InvalidateCachedCompileStatus();
 }
 
 void FNiagaraSystemViewModel::EmitterParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript)
@@ -1592,7 +1776,7 @@ void FNiagaraSystemViewModel::SequencerTimeChanged()
 				// We don't want to reset the current time if we're scrubbing.
 				if (CurrentStatus == EMovieScenePlayerStatus::Playing)
 				{
-					ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
+					ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 				}
 				else
 				{
@@ -1794,7 +1978,7 @@ void FNiagaraSystemViewModel::AddSystemEventHandlers()
 
 void FNiagaraSystemViewModel::RemoveSystemEventHandlers()
 {
-	if (GetSystem().IsValid())
+	if (System != nullptr && System->IsValid())
 	{
 		TArray<UNiagaraScript*> Scripts;
 		Scripts.Add(GetSystem().GetSystemSpawnScript());
@@ -1859,6 +2043,15 @@ void FNiagaraSystemViewModel::StackViewModelStructureChanged()
 	if (SelectionViewModel != nullptr)
 	{
 		SelectionViewModel->RefreshDeferred();
+	}
+}
+
+void FNiagaraSystemViewModel::ScratchPadScriptsChanged()
+{
+	SystemStackViewModel->GetRootEntry()->RefreshChildren();
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->RefreshChildren();
 	}
 }
 

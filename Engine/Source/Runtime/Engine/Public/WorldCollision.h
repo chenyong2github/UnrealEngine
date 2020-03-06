@@ -46,6 +46,11 @@ struct FTraceHandle
 		return Other._Handle == _Handle;
 	}
 
+	bool IsValid() const
+	{
+		return _Handle != 0;
+	}
+
 };
 
 /** 

@@ -158,7 +158,7 @@ FScreenPassTexture AddDownsamplePass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Downsample.%s %dx%d (CS)", Inputs.Name, Inputs.SceneColor.ViewRect.Width(), Inputs.SceneColor.ViewRect.Height()),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(OutputViewport.Rect.Size(), FIntPoint(GDownsampleTileSizeX, GDownsampleTileSizeY)));
 	}
@@ -174,7 +174,7 @@ FScreenPassTexture AddDownsamplePass(
 			GraphBuilder,
 			View.ShaderMap,
 			RDG_EVENT_NAME("Downsample.%s %dx%d (PS)", Inputs.Name, Inputs.SceneColor.ViewRect.Width(), Inputs.SceneColor.ViewRect.Height()),
-			*PixelShader,
+			PixelShader,
 			PassParameters,
 			OutputViewport.Rect);
 	}

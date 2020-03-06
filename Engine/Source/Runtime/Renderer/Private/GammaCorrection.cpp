@@ -33,11 +33,11 @@ class FGammaCorrectionPS : public FGlobalShader
 
 public:
 
-	FShaderResourceParameter SceneTexture;
-	FShaderResourceParameter SceneTextureSampler;
-	FShaderParameter InverseGamma;
-	FShaderParameter ColorScale;
-	FShaderParameter OverlayColor;
+	LAYOUT_FIELD(FShaderResourceParameter, SceneTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, SceneTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, InverseGamma);
+	LAYOUT_FIELD(FShaderParameter, ColorScale);
+	LAYOUT_FIELD(FShaderParameter, OverlayColor);
 
 	/** Initialization constructor. */
 	FGammaCorrectionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -48,15 +48,6 @@ public:
 		InverseGamma.Bind(Initializer.ParameterMap,TEXT("InverseGamma"));
 		ColorScale.Bind(Initializer.ParameterMap,TEXT("ColorScale"));
 		OverlayColor.Bind(Initializer.ParameterMap,TEXT("OverlayColor"));
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		
-		Ar << SceneTexture << SceneTextureSampler << InverseGamma << ColorScale << OverlayColor;
-		return bShaderHasOutdatedParameters;
 	}
 };
 
@@ -127,8 +118,8 @@ void FSceneRenderer::GammaCorrectToViewportRenderTarget(FRHICommandList& RHICmdL
 	TShaderMapRef<FGammaCorrectionPS> PixelShader(View->ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -140,7 +131,7 @@ void FSceneRenderer::GammaCorrectToViewportRenderTarget(FRHICommandList& RHICmdL
 		InvDisplayGamma = 1 / OverrideGamma;
 	}
 
-	FRHIPixelShader* ShaderRHI = PixelShader->GetPixelShader();
+	FRHIPixelShader* ShaderRHI = PixelShader.GetPixelShader();
 
 	SetShaderValue(
 		RHICmdList, 
@@ -172,7 +163,7 @@ void FSceneRenderer::GammaCorrectToViewportRenderTarget(FRHICommandList& RHICmdL
 		View->ViewRect.Width(),View->ViewRect.Height(),
 		ViewFamily.RenderTarget->GetSizeXY(),
 		SceneContext.GetBufferSizeXY(),
-		*VertexShader,
+		VertexShader,
 		EDRF_UseTriangleOptimization);
 
 	RHICmdList.EndRenderPass();

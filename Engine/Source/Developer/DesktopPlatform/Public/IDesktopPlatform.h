@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/CompilationResult.h"
 #include "HAL/PlatformProcess.h"
 
 class FEngineVersion;
@@ -346,9 +347,10 @@ public:
 	* @param RootDir			Engine root directory for the project to use.
 	* @param ProjectFileName	Filename of the project to update
 	* @param Warn				Feedback context to use for progress updates
+	* @param OutResult			The compilation result. May be null.
 	* @return true if project files were generated successfully.
 	*/
-	virtual bool CompileGameProject(const FString& RootDir, const FString& ProjectFileName, FFeedbackContext* Warn) = 0;
+	virtual bool CompileGameProject(const FString& RootDir, const FString& ProjectFileName, FFeedbackContext* Warn, ECompilationResult::Type* OutResult = nullptr) = 0;
 
 	/**
 	* Generates project files for the given project.
@@ -391,6 +393,18 @@ public:
 	* @return true if the task completed successfully.
 	*/
 	virtual bool RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn) = 0;
+
+	/**
+	* Runs UnrealBuildTool with the given arguments.
+	*
+	* @param Description		Task description for FFeedbackContext
+	* @param RootDir			Engine root directory for the project to use.
+	* @param Arguments			Parameters for UnrealBuildTool
+	* @param Warn				Feedback context to use for progress updates
+	* @param OutExitCode		Receives the process exit code
+	* @return true if the task completed successfully.
+	*/
+	virtual bool RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn, int32& OutExitCode) = 0;
 
 	/**
 	* Checks if an instance of UnrealBuildTool is running.

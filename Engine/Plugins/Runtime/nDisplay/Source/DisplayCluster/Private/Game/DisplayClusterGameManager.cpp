@@ -65,6 +65,9 @@ bool FDisplayClusterGameManager::StartSession(const FString& configPath, const F
 void FDisplayClusterGameManager::EndSession()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
+
+	ConfigPath.Reset();
+	ClusterNodeId.Reset();
 }
 
 bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
@@ -119,6 +122,7 @@ void FDisplayClusterGameManager::EndScene()
 	FScopeLock lock(&InternalsSyncScope);
 
 	DisplayClusterRootActor = nullptr;
+	CurrentWorld = nullptr;
 }
 
 

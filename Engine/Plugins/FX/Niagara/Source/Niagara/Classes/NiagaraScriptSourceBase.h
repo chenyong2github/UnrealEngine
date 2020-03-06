@@ -32,11 +32,7 @@ public:
 	virtual int32 GetDependentRequestCount() const = 0;
 	virtual TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> GetDependentRequest(int32 Index) = 0;
 	virtual FName ResolveEmitterAlias(FName VariableName) const = 0;
-	virtual uint32 GetDetailLevelMask() const = 0;
 	virtual bool GetUseRapidIterationParams() const = 0;
-
-	static const uint32 CookForAllDetailLevelMask = 0xFFFFFFFF;
-
 };
 
 class FNiagaraCompileOptions
@@ -63,7 +59,6 @@ public:
 	FString Name;
 	int32 TargetUsageBitmask;
 	TArray<FString> AdditionalDefines;
-	uint32 DetailLevelMask = 0xFFFFFFFF;
 };
 
 struct FNiagaraParameterStore;

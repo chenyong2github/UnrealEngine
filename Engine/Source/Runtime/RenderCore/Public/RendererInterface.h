@@ -27,6 +27,9 @@ class FSceneTexturesUniformParameters;
 class FGlobalDistanceFieldParameterData;
 struct FMeshBatch;
 struct FSynthBenchmarkResults;
+class FShader;
+class FShaderMapPointerTable;
+template<typename ShaderType, typename PointerTableType> class TShaderRefBase;
 
 // Shortcut for the allocator used by scene rendering.
 typedef TMemStackAllocator<> SceneRenderingAllocator;
@@ -681,7 +684,7 @@ public:
 	virtual void InitializeSystemTextures(FRHICommandListImmediate& RHICmdList) = 0;
 
 	/** Draws a tile mesh element with the specified view. */
-	virtual void DrawTileMesh(FRHICommandListImmediate& RHICmdList, struct FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& View, FMeshBatch& Mesh, bool bIsHitTesting, const class FHitProxyId& HitProxyId) = 0;
+	virtual void DrawTileMesh(FRHICommandListImmediate& RHICmdList, struct FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& View, FMeshBatch& Mesh, bool bIsHitTesting, const class FHitProxyId& HitProxyId, bool bUse128bitRT = false) = 0;
 
 	virtual const TSet<FSceneInterface*>& GetAllocatedScenes() = 0;
 
@@ -722,7 +725,7 @@ public:
 		float SizeV,
 		FIntPoint TargetSize,
 		FIntPoint TextureSize,
-		class FShader* VertexShader,
+		const TShaderRefBase<FShader, FShaderMapPointerTable>& VertexShader,
 		EDrawRectangleFlags Flags = EDRF_Default
 		) = 0;
 

@@ -34,6 +34,7 @@ void FCADInterfacesModule::StartupModule()
 {
 	check(KernelIOLibHandle == nullptr);
 
+#ifdef CAD_INTERFACE
 	FString KernelIODll = TEXT("kernel_io.dll");
 
 	// determine directory paths
@@ -54,6 +55,9 @@ void FCADInterfacesModule::StartupModule()
 	}
 
 	FPlatformProcess::PopDllDirectory(*CADImporterDllPath);
+#else
+	UE_LOG(CADInterfaces, Display, TEXT("Missing CoreTech module. Plug-in will not be functional."));
+#endif
 }
 
 void FCADInterfacesModule::ShutdownModule()

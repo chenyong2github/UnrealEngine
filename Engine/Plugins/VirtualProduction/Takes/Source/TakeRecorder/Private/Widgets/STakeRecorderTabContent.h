@@ -55,7 +55,7 @@ public:
 
 	void StopRecording() const;
 
-	void NewTake();
+	void ClearPendingTake();
 
 private:
 

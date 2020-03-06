@@ -84,7 +84,7 @@ private:
 	*/
 	static void OpenProjectLauncher()
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FName(TEXT("ProjectLauncher")));
+		FGlobalTabmanager::Get()->TryInvokeTab(FName(TEXT("ProjectLauncher")));
 	}
 
 	/**
@@ -103,6 +103,6 @@ private:
 	static void OpenVisualLogger()
 	{
 		FModuleManager::Get().LoadModuleChecked<IModuleInterface>("LogVisualizer");
-		FGlobalTabmanager::Get()->InvokeTab(FName(TEXT("VisualLogger")));
+		FGlobalTabmanager::Get()->TryInvokeTab(FName(TEXT("VisualLogger")));
 	}
 };

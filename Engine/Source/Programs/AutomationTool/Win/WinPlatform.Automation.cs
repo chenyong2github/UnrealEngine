@@ -16,6 +16,10 @@ public abstract class BaseWinPlatform : Platform
 		: base(P)
 	{
 	}
+	protected override string GetPlatformExeExtension()
+	{
+		return ".exe";
+	}
 
 	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
 	{
@@ -395,8 +399,6 @@ public abstract class BaseWinPlatform : Platform
 		{
 			DateTime Start = DateTime.Now;
 			DirectoryReference TempSymStoreDir = DirectoryReference.Combine(RootDirectory, "Saved", "SymStore");
-			DirectoryReference.CreateDirectory(TempSymStoreDir);
-			DeleteDirectoryContents(TempSymStoreDir);
 
 			string TempFileName = Path.GetTempFileName();
 			try

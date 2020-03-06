@@ -30,7 +30,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDiffPackagesCommandlet, Log, All);
 // whether to skip levels when building the initial diff sets (for debugging)
 #define OPTIMIZE_LEVEL_DIFFS 1
 
-UDiffPackagesCommandlet::UDiffPackagesCommandlet(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_DiffPackagesCommandlet::UDEPRECATED_DiffPackagesCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	LogToConsole = false;
@@ -167,6 +167,11 @@ FNativePropertyData::FNativePropertyData( UObject* InObject )
 	SetObject(InObject);
 }
 
+namespace DiffPackagesCommandletImpl
+{
+	void LoadNativePropertyData(UObject* Object, TArray<uint8>& out_NativePropertyData);
+}
+
 /**
  * Changes the UObject associated with this native property data container and re-initializes the
  * PropertyData and PropertyText members
@@ -179,7 +184,7 @@ void FNativePropertyData::SetObject( UObject* NewObject )
 
 	if ( Object != NULL )
 	{
-		UDiffPackagesCommandlet::LoadNativePropertyData(Object, PropertyData);
+		DiffPackagesCommandletImpl::LoadNativePropertyData(Object, PropertyData);
 		Object->GetNativePropertyValues(PropertyText, PPF_SimpleObjectText);
 	}
 }
@@ -393,7 +398,7 @@ void FixupObjectReferences(UPackage* Package, TMap<UObject*, UObject*>& ObjectRe
 }
 
 
-bool UDiffPackagesCommandlet::GenerateObjectComparison( UObject* RootObject, FObjectComparison& out_Comparison, TArray<FObjectComparison>* ObjectsToIgnore/*=NULL*/ )
+bool UDEPRECATED_DiffPackagesCommandlet::GenerateObjectComparison( UObject* RootObject, FObjectComparison& out_Comparison, TArray<FObjectComparison>* ObjectsToIgnore/*=NULL*/ )
 {
 	check(RootObject);
 
@@ -449,9 +454,15 @@ bool UDiffPackagesCommandlet::GenerateObjectComparison( UObject* RootObject, FOb
 }
 
 
-bool UDiffPackagesCommandlet::Initialize( const TCHAR* Parms )
+bool UDEPRECATED_DiffPackagesCommandlet::Initialize( const TCHAR* Parms )
 {
 	bool bResult = false;
+
+	SET_WARN_COLOR(COLOR_RED);
+	UE_LOG(LogDiffPackagesCommandlet, Warning, TEXT("#####################################################"));
+	UE_LOG(LogDiffPackagesCommandlet, Warning, TEXT("# DiffPackages is deprecated, use DiffAssets instead."));
+	UE_LOG(LogDiffPackagesCommandlet, Warning, TEXT("#####################################################"));
+	CLEAR_WARN_COLOR();
 
 	// parse the command line into tokens and switches
 	TArray<FString> Tokens, Switches;
@@ -695,7 +706,7 @@ bool UDiffPackagesCommandlet::Initialize( const TCHAR* Parms )
 	return bResult;
 }
 
-int32 UDiffPackagesCommandlet::Main(const FString& Params)
+int32 UDEPRECATED_DiffPackagesCommandlet::Main(const FString& Params)
 {
 	if ( !Initialize(*Params) )
 	{
@@ -906,7 +917,7 @@ void AppendComparisonResultText(FString& ExistingResultText, const FString& NewR
 	ExistingResultText += NewResultText + LINE_TERMINATOR;
 }
 
-bool UDiffPackagesCommandlet::ProcessDiff(FObjectComparison& Diff)
+bool UDEPRECATED_DiffPackagesCommandlet::ProcessDiff(FObjectComparison& Diff)
 {
 	// always diff the root objects against each other
 	Diff.OverallDiffType = DiffObjects(
@@ -971,7 +982,7 @@ bool UDiffPackagesCommandlet::ProcessDiff(FObjectComparison& Diff)
 	return Diff.OverallDiffType != OD_None;
 }
 
-EObjectDiff UDiffPackagesCommandlet::DiffObjects(UObject* ObjA, UObject* ObjB, UObject* ObjAncestor, FObjectComparison& Diff)
+EObjectDiff UDEPRECATED_DiffPackagesCommandlet::DiffObjects(UObject* ObjA, UObject* ObjB, UObject* ObjAncestor, FObjectComparison& Diff)
 {
 	// if all objects are NULL, there's no difference :)
 	if (!ObjA && !ObjB && !ObjAncestor)
@@ -1309,7 +1320,10 @@ EObjectDiff UDiffPackagesCommandlet::DiffObjects(UObject* ObjA, UObject* ObjB, U
 
 
 
-void UDiffPackagesCommandlet::LoadNativePropertyData( UObject* Object, TArray<uint8>& out_NativePropertyData )
+namespace DiffPackagesCommandletImpl
+{
+
+void LoadNativePropertyData( UObject* Object, TArray<uint8>& out_NativePropertyData )
 {
 	// first, validate our input parameters
 	check(Object);
@@ -1350,8 +1364,10 @@ void UDiffPackagesCommandlet::LoadNativePropertyData( UObject* Object, TArray<ui
 	}
 }
 
+}
 
-EObjectDiff UDiffPackagesCommandlet::CompareNativePropertyValues( UObject* ObjA, UObject* ObjB, UObject* ObjAncestor, FObjectComparison& PropertyValueComparisons )
+
+EObjectDiff UDEPRECATED_DiffPackagesCommandlet::CompareNativePropertyValues( UObject* ObjA, UObject* ObjB, UObject* ObjAncestor, FObjectComparison& PropertyValueComparisons )
 {
 	FNativePropertyData PropertyDataA(ObjA), PropertyDataB(ObjB), PropertyDataAncestor(ObjAncestor);
 

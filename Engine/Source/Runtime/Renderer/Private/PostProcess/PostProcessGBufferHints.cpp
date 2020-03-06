@@ -64,7 +64,7 @@ FScreenPassTexture AddVisualizeGBufferHintsPass(FRDGBuilder& GraphBuilder, const
 
 	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeGBufferHints");
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, OutputViewport, InputViewport, *PixelShader, PassParameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, OutputViewport, InputViewport, PixelShader, PassParameters);
 
 	Output.LoadAction = ERenderTargetLoadAction::ELoad;
 

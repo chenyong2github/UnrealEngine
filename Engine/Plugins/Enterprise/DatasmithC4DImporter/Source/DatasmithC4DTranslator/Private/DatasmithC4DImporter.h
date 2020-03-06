@@ -116,10 +116,10 @@ public:
 	TMap<int32, FString> GetCustomizedMaterialAssignment(const FString& DatasmithMeshName, const TArray<melange::TextureTag*>& TextureTags);
 
 	/** Imports a melange actor, which might involve parsing another small hierarchy of subnodes and deformers*/
-	TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const FString& DatasmithLabel);
+	TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
 
 	/** Traverse the melange actor hierarchy importing all nodes */
-	void ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects);
+	void ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const TArray<melange::TextureTag*>& TextureTags);
 
 	/**
 	 * Adds Actor as a child of ParentActor using the corresponding WorldTransformMatrix. Object is the corresponding melange Object to Actor.
@@ -135,7 +135,7 @@ public:
 
 private:
 	/** Returns the TextureTags that should affect this object. May check parent objects, so relies on CachesOriginalObject */
-	TArray<melange::TextureTag*> GetActiveTextureTags(const melange::BaseObject* Object);
+	TArray<melange::TextureTag*> GetActiveTextureTags(const melange::BaseObject* Object, const TArray<melange::TextureTag*>& OrderedTextureTags);
 
 	/** Removes from Context->Scene all empty actors that have a single child */
 	void RemoveEmptyActors();
@@ -174,8 +174,7 @@ private:
 	TSet<FString> NamesOfAllActors;
 
 	/** Names of IDatasmithActorElements that shouldn't be removed when optimizing the scene */
-	TSet<FString> NamesOfCameraTargetActors;
-	TSet<FString> NamesOfAnimatedActors;
+	TSet<FString> NamesOfActorsToKeep;
 
 	/** Where all actor animations are imported into when parsing the scene */
 	TSharedPtr<IDatasmithLevelSequenceElement> LevelSequence;

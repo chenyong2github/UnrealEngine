@@ -19,87 +19,65 @@
 
 #define LOCTEXT_NAMESPACE "SAnimSequenceCurveEditor"
 
-// Model that references a named curve, rather than a raw pointer, so we avoid issues with 
-// reallocation of the curves arrays under the UI
-class FRichCurveEditorModelNamed : public FRichCurveEditorModel
+bool FRichCurveEditorModelNamed::IsValid() const
 {
-public:
-	FRichCurveEditorModelNamed(const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, UAnimSequenceBase* InAnimSequence, FCurveEditorTreeItemID InTreeId)
-		: FRichCurveEditorModel(InAnimSequence)
-		, Name(InName)
-		, AnimSequence(InAnimSequence)
-		, CurveIndex(InCurveIndex)
-		, Type(InType)
-		, TreeId(InTreeId)
-	{
-	}
+	return AnimSequence->GetCurveData().GetCurveData(Name.UID, Type) != nullptr;
+}
 
-	virtual bool IsValid() const override
-	{
-		return AnimSequence->GetCurveData().GetCurveData(Name.UID, Type) != nullptr;
-	}
+FRichCurve& FRichCurveEditorModelNamed::GetRichCurve()
+{
+	check(AnimSequence.Get() != nullptr);
 
-	virtual FRichCurve& GetRichCurve() override
-	{
-		check(AnimSequence.Get() != nullptr);
-
-		FAnimCurveBase* CurveBase = AnimSequence->RawCurveData.GetCurveData(Name.UID, Type);
-		check(CurveBase);	// If this fails lifetime contracts have been violated - this curve should always be present if this model exists
+	FAnimCurveBase* CurveBase = AnimSequence->RawCurveData.GetCurveData(Name.UID, Type);
+	check(CurveBase);	// If this fails lifetime contracts have been violated - this curve should always be present if this model exists
 		
-		switch (Type)
-		{
-		case ERawCurveTrackTypes::RCT_Vector:
-		{
-			FVectorCurve& VectorCurve = *(static_cast<FVectorCurve*>(CurveBase));
-			check(CurveIndex < 3);
-			return VectorCurve.FloatCurves[CurveIndex];
-		}
-		case ERawCurveTrackTypes::RCT_Transform:
-		{
-			FTransformCurve& TransformCurve = *(static_cast<FTransformCurve*>(CurveBase));
-			check(CurveIndex < 9);
-			const int32 SubCurveIndex = CurveIndex % 3;
-			switch(CurveIndex)
-			{
-			default:
-				check(false);
-				// fall through
-			case 0:
-			case 1:
-			case 2:
-				return TransformCurve.TranslationCurve.FloatCurves[SubCurveIndex];
-			case 3:
-			case 4:
-			case 5:
-				return TransformCurve.RotationCurve.FloatCurves[SubCurveIndex];
-			case 6:
-			case 7:
-			case 8:
-				return TransformCurve.ScaleCurve.FloatCurves[SubCurveIndex];
-			}
-			
-		}
-		case ERawCurveTrackTypes::RCT_Float:
-		default:
-		{
-			FFloatCurve& FloatCurve = *(static_cast<FFloatCurve*>(CurveBase));
-			check(CurveIndex == 0);
-			return FloatCurve.FloatCurve;
-		}
-		}
-	}
-
-	virtual const FRichCurve& GetReadOnlyRichCurve() const override
+	switch (Type)
 	{
-		return const_cast<FRichCurveEditorModelNamed*>(this)->GetRichCurve();
+	case ERawCurveTrackTypes::RCT_Vector:
+	{
+		FVectorCurve& VectorCurve = *(static_cast<FVectorCurve*>(CurveBase));
+		check(CurveIndex < 3);
+		return VectorCurve.FloatCurves[CurveIndex];
 	}
+	case ERawCurveTrackTypes::RCT_Transform:
+	{
+		FTransformCurve& TransformCurve = *(static_cast<FTransformCurve*>(CurveBase));
+		check(CurveIndex < 9);
+		const int32 SubCurveIndex = CurveIndex % 3;
+		switch(CurveIndex)
+		{
+		default:
+			check(false);
+			// fall through
+		case 0:
+		case 1:
+		case 2:
+			return TransformCurve.TranslationCurve.FloatCurves[SubCurveIndex];
+		case 3:
+		case 4:
+		case 5:
+			return TransformCurve.RotationCurve.FloatCurves[SubCurveIndex];
+		case 6:
+		case 7:
+		case 8:
+			return TransformCurve.ScaleCurve.FloatCurves[SubCurveIndex];
+		}
+			
+	}
+	case ERawCurveTrackTypes::RCT_Float:
+	default:
+	{
+		FFloatCurve& FloatCurve = *(static_cast<FFloatCurve*>(CurveBase));
+		check(CurveIndex == 0);
+		return FloatCurve.FloatCurve;
+	}
+	}
+}
 
-	FSmartName Name;
-	TWeakObjectPtr<UAnimSequenceBase> AnimSequence;
-	int32 CurveIndex;
-	ERawCurveTrackTypes Type;
-	FCurveEditorTreeItemID TreeId;
-};
+const FRichCurve& FRichCurveEditorModelNamed::GetReadOnlyRichCurve() const
+{
+	return const_cast<FRichCurveEditorModelNamed*>(this)->GetRichCurve();
+}
 
 class FAnimSequenceCurveEditorItem : public ICurveEditorTreeItem
 {

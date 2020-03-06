@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_PRAGMAS_H
-#define ARCH_PRAGMAS_H
+#ifndef PXR_BASE_ARCH_PRAGMAS_H
+#define PXR_BASE_ARCH_PRAGMAS_H
 
 /// \file arch/pragmas.h
 /// Pragmas for controlling compiler-specific behaviors.
@@ -54,6 +54,11 @@
     #define ARCH_PRAGMA_WRITE_STRINGS \
         _Pragma("GCC diagnostic ignored \"-Wwrite-strings\"")
 
+#if ARCH_COMPILER_GCC_MAJOR >= 6
+    #define ARCH_PRAGMA_PLACEMENT_NEW \
+        _Pragma("GCC diagnostic ignored \"-Wplacement-new\"")
+#endif
+
 #elif defined(ARCH_COMPILER_CLANG)
 
     #define ARCH_PRAGMA_PUSH \
@@ -64,6 +69,9 @@
 
     #define ARCH_PRAGMA_MACRO_REDEFINITION \
         _Pragma("clang diagnostic ignored \"-Wbuiltin-macro-redefined\"")
+
+    #define ARCH_PRAGMA_UNDEFINED_VAR_TEMPLATE \
+        _Pragma("clang diagnostic ignored \"-Wundefined-var-template\"")
 
     #define ARCH_PRAGMA_WRITE_STRINGS \
         _Pragma("clang diagnostic ignored \"-Wwrite-strings\"")
@@ -192,4 +200,12 @@
     #define ARCH_PRAGMA_INSTANTIATION_AFTER_SPECIALIZATION
 #endif
 
-#endif // ARCH_PRAGMAS_H
+#if !defined ARCH_PRAGMA_UNDEFINED_VAR_TEMPLATE
+    #define ARCH_PRAGMA_UNDEFINED_VAR_TEMPLATE
+#endif
+
+#if !defined ARCH_PRAGMA_PLACEMENT_NEW
+    #define ARCH_PRAGMA_PLACEMENT_NEW
+#endif
+
+#endif // PXR_BASE_ARCH_PRAGMAS_H

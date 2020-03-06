@@ -3,6 +3,7 @@
 #include "OculusAudioReverb.h"
 #include "OculusAudioMixer.h"
 #include "OculusAudioSettings.h"
+#include "OculusAudioContextManager.h"
 
 #include "Sound/SoundSubmix.h"
 
@@ -15,15 +16,22 @@ namespace
 	}
 } // namespace <>
 
-void FSubmixEffectOculusReverbPlugin::SetContext(ovrAudioContext* SharedContext)
-{
-	FScopeLock ScopeLock(&ContextLock);
-	Context = SharedContext;
-}
-
 void FSubmixEffectOculusReverbPlugin::ClearContext()
 {
 	Context = nullptr;
+}
+
+void FSubmixEffectOculusReverbPlugin::Init(const FSoundEffectSubmixInitData& InInitData)
+{
+	FAudioDevice* AudioDevice = GEngine ? GEngine->GetAudioDeviceManager()->GetAudioDeviceRaw(InInitData.DeviceID) : nullptr;
+
+	Context = FOculusAudioContextManager::GetContextForAudioDevice(AudioDevice);
+	if (!Context)
+	{
+		Context = FOculusAudioContextManager::CreateContextForAudioDevice(AudioDevice);
+	}
+
+	check(Context);
 }
 
 FSubmixEffectOculusReverbPlugin::FSubmixEffectOculusReverbPlugin()
@@ -33,32 +41,17 @@ FSubmixEffectOculusReverbPlugin::FSubmixEffectOculusReverbPlugin()
 
 void FSubmixEffectOculusReverbPlugin::OnProcessAudio(const FSoundEffectSubmixInputData& InputData, FSoundEffectSubmixOutputData& OutputData)
 {
-	FScopeLock ScopeLock(&ContextLock);
-	if (Context != nullptr && *Context != nullptr)
-	{
-		int Enabled = 0;
-		ovrResult Result = OVRA_CALL(ovrAudio_IsEnabled)(*Context, ovrAudioEnable_LateReverberation, &Enabled);
-		OVR_AUDIO_CHECK(Result, "Failed to check if reverb is Enabled");
+	check(Context);
 
-		if (Enabled != 0)
-		{
-			uint32_t Status = 0;
-			Result = OVRA_CALL(ovrAudio_MixInSharedReverbInterleaved)(*Context, &Status, OutputData.AudioBuffer->GetData());
-			OVR_AUDIO_CHECK(Result, "Failed to process reverb");
-		}
-	}
-}
+	int Enabled = 0;
+	ovrResult Result = OVRA_CALL(ovrAudio_IsEnabled)(Context, ovrAudioEnable_LateReverberation, &Enabled);
+	OVR_AUDIO_CHECK(Result, "Failed to check if reverb is Enabled");
 
-void OculusAudioReverb::SetContext(ovrAudioContext* SharedContext)
-{
-	if (SharedContext != nullptr)
+	if (Enabled != 0)
 	{
-		Context = SharedContext;
-	}
-
-	if (SubmixEffect.IsValid())
-	{
-		CastEffectToPluginSharedPtr(SubmixEffect)->SetContext(SharedContext);
+		uint32_t Status = 0;
+		Result = OVRA_CALL(ovrAudio_MixInSharedReverbInterleaved)(Context, &Status, OutputData.AudioBuffer->GetData());
+		OVR_AUDIO_CHECK(Result, "Failed to process reverb");
 	}
 }
 

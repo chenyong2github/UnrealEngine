@@ -243,6 +243,7 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 	AddWidgetForCapability(DetailBuilder, DeviceCapabilityList, TEXT("location"), LOCTEXT("LocationCaption", "Location"), LOCTEXT("LocationTooltip", "Provides access to the current location, which is obtained from dedicated hardware like a GPS sensor in the PC or derived from available network information."), true);
 	AddWidgetForCapability(DetailBuilder, DeviceCapabilityList, TEXT("bluetooth"), LOCTEXT("BluetoothCaption", "Bluetooth"), LOCTEXT("BluetoothTooltip", "Allows communication with paired Bluetooth devices over the Generic Attribute (GATT) or Classic Basic Rate (RFCOMM) protocols."), true);
 	AddWidgetForCapability(DetailBuilder, DeviceCapabilityList, TEXT("gazeInput"), LOCTEXT("GazeInputCaption", "Gaze Input"), LOCTEXT("GazeInputTooltip", "Provides access to the input from gaze like eyes tracking. Required for Windows.Perception.People.EyesPose API."), false);
+	AddWidgetForCapability(DetailBuilder, DeviceCapabilityList, TEXT("wiFiControl"), LOCTEXT("WiFiControlCaption", "WiFiControl"), LOCTEXT("WiFiControlTooltip", "Allows apps to scan and connect to Wi-Fi networks."), false);
 
 	TSharedRef<IPropertyHandle> UapCapabilityList = DetailBuilder.GetProperty("UapCapabilityList");
 	DetailBuilder.HideProperty(UapCapabilityList);
@@ -274,8 +275,6 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 		OnCapabilityStateChanged(ECheckBoxState::Checked, CapabilityList, TEXT("privateNetworkClientServer"));
 		// Our AR apps expect to get spatial mesh updates, so make this opt out for users that know what they are doing
 		OnCapabilityStateChanged(ECheckBoxState::Checked, Uap2CapabilityList, TEXT("spatialPerception"));
-		// Our AR apps expect to get a camera image each frame, so make this opt out for users that know what they are doing
-		OnCapabilityStateChanged(ECheckBoxState::Checked, DeviceCapabilityList, TEXT("webcam"));
 
 		SetDefaultCapabilitiesProperty->NotifyPreChange();
 		SetDefaultCapabilitiesProperty->SetValue(false);

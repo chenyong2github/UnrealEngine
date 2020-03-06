@@ -26,8 +26,8 @@ struct FEngineShowFlags;
 // This is static for a version of a component. When a component is changed/tweaked, it is recreated.
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAtmosphereUniformShaderParameters, )
 	SHADER_PARAMETER(float, MultiScatteringFactor)
-	SHADER_PARAMETER(float, BottomRadius)
-	SHADER_PARAMETER(float, TopRadius)
+	SHADER_PARAMETER(float, BottomRadiusKm)
+	SHADER_PARAMETER(float, TopRadiusKm)
 	SHADER_PARAMETER(float, RayleighDensityExpScale)
 	SHADER_PARAMETER(FLinearColor, RayleighScattering)
 	SHADER_PARAMETER(FLinearColor, MieScattering)
@@ -47,11 +47,11 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 // These parameters are shared on the view global uniform buffer and are dynamically changed with cvars.
 struct FSkyAtmosphereViewSharedUniformShaderParameters
 {
-	float AerialPerspectiveStartDepth;
+	float AerialPerspectiveStartDepthKm;
 	float CameraAerialPerspectiveVolumeDepthResolution;
 	float CameraAerialPerspectiveVolumeDepthResolutionInv;
-	float CameraAerialPerspectiveVolumeDepthSliceLength;
-	float CameraAerialPerspectiveVolumeDepthSliceLengthInv;
+	float CameraAerialPerspectiveVolumeDepthSliceLengthKm;
+	float CameraAerialPerspectiveVolumeDepthSliceLengthKmInv;
 	float ApplyCameraAerialPerspectiveVolume;
 };
 
@@ -89,6 +89,7 @@ private:
 
 
 bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
+bool ShouldApplyAtmosphereLightPerPixelTransmittance(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
 
 void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Scene);
 void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene* Scene, FViewInfo& View);

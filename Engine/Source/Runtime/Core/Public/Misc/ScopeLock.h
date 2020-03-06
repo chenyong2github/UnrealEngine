@@ -42,9 +42,18 @@ public:
 	/** Destructor that performs a release on the synchronization object. */
 	~FScopeLock()
 	{
-		check(SynchObject);
-		SynchObject->Unlock();
+		Unlock();
 	}
+
+	void Unlock()
+	{
+		if(SynchObject)
+		{
+			SynchObject->Unlock();
+			SynchObject = nullptr;
+		}
+	}
+
 private:
 
 	/** Default constructor (hidden on purpose). */

@@ -146,12 +146,33 @@ USceneComponent* UOculusMRFunctionLibrary::GetTrackingReferenceComponent()
 	return TrackingRef;
 }
 
-void UOculusMRFunctionLibrary::SetTrackingReferenceComponent(USceneComponent* Component)
+bool UOculusMRFunctionLibrary::SetTrackingReferenceComponent(USceneComponent* Component)
 {
 	if (FOculusMRModule::IsAvailable())
 	{
 		FOculusMRModule::Get().GetMRState()->TrackingReferenceComponent = Component;
+		return true;
 	}
+	return false;
+}
+
+float UOculusMRFunctionLibrary::GetMrcScalingFactor()
+{
+	if (FOculusMRModule::IsAvailable())
+	{
+		return FOculusMRModule::Get().GetMRState()->ScalingFactor;
+	}
+	return 0.0;
+}
+
+bool UOculusMRFunctionLibrary::SetMrcScalingFactor(float ScalingFactor)
+{
+	if (FOculusMRModule::IsAvailable() && ScalingFactor > 0.0f)
+	{
+		FOculusMRModule::Get().GetMRState()->ScalingFactor = ScalingFactor;
+		return true;
+	}
+	return false;
 }
 
 bool UOculusMRFunctionLibrary::IsMrcEnabled()

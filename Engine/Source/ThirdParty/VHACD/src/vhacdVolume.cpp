@@ -20,6 +20,7 @@
 #include <math.h>
 #include <queue>
 #include <string.h>
+#include "../public/VHACD.h"
 
 #ifdef _MSC_VER
 #pragma warning(disable:4458 4100)
@@ -29,7 +30,7 @@
 namespace VHACD {
 /********************************************************/
 /* AABB-triangle overlap test code                      */
-/* by Tomas Akenine-Möller                              */
+/* by Tomas Akenine-MÃ¶ller                              */
 /* Function: int32_t triBoxOverlap(float boxcenter[3],      */
 /*          float boxhalfsize[3],float triverts[3][3]); */
 /* History:                                             */
@@ -759,7 +760,8 @@ void VoxelSet::ComputePrincipalAxes()
     covMat[2][1] = covMat[1][2];
     Diagonalize(covMat, m_Q, m_D);
 }
-Volume::Volume()
+Volume::Volume(const IVHACD::Parameters& params)
+    : m_params(params)
 {
     m_dim[0] = m_dim[1] = m_dim[2] = 0;
     m_minBB[0] = m_minBB[1] = m_minBB[2] = 0.0;
@@ -786,58 +788,107 @@ void Volume::Free()
     delete[] m_data;
     m_data = 0;
 }
-void Volume::FillOutsideSurface(const size_t i0,
+
+void Volume::MarkOutsideSurface(const size_t i0,
     const size_t j0,
     const size_t k0,
     const size_t i1,
     const size_t j1,
     const size_t k1)
 {
-    const short neighbours[6][3] = { { 1, 0, 0 },
-        { 0, 1, 0 },
-        { 0, 0, 1 },
-        { -1, 0, 0 },
-        { 0, -1, 0 },
-        { 0, 0, -1 } };
-    std::queue<Vec3<short> > fifo;
-    Vec3<short> current;
-    short a, b, c;
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(m_params.m_profiler, VHACDVolume::MarkOutsideSurface);
     for (size_t i = i0; i < i1; ++i) {
         for (size_t j = j0; j < j1; ++j) {
             for (size_t k = k0; k < k1; ++k) {
-
-                if (GetVoxel(i, j, k) == PRIMITIVE_UNDEFINED) {
-                    current[0] = (short)i;
-                    current[1] = (short)j;
-                    current[2] = (short)k;
-                    fifo.push(current);
-                    GetVoxel(current[0], current[1], current[2]) = PRIMITIVE_OUTSIDE_SURFACE;
-                    ++m_numVoxelsOutsideSurface;
-                    while (fifo.size() > 0) {
-                        current = fifo.front();
-                        fifo.pop();
-                        for (int32_t h = 0; h < 6; ++h) {
-                            a = current[0] + neighbours[h][0];
-                            b = current[1] + neighbours[h][1];
-                            c = current[2] + neighbours[h][2];
-                            if (a < 0 || a >= (int32_t)m_dim[0] || b < 0 || b >= (int32_t)m_dim[1] || c < 0 || c >= (int32_t)m_dim[2]) {
-                                continue;
-                            }
-                            unsigned char& v = GetVoxel(a, b, c);
-                            if (v == PRIMITIVE_UNDEFINED) {
-                                v = PRIMITIVE_OUTSIDE_SURFACE;
-                                ++m_numVoxelsOutsideSurface;
-                                fifo.push(Vec3<short>(a, b, c));
-                            }
-                        }
-                    }
+                unsigned char& v = GetVoxel(i, j, k);
+                if (v == PRIMITIVE_UNDEFINED) {
+                    v = PRIMITIVE_OUTSIDE_SURFACE_TOWALK;
                 }
             }
         }
     }
 }
+
+inline void WalkForward(int64_t start, int64_t end, unsigned char* ptr, int64_t stride, int64_t maxDistance)
+{
+    for (int64_t i = start, count = 0; count < maxDistance && i < end && *ptr == PRIMITIVE_UNDEFINED; ++i, ptr += stride, ++count)
+    {
+        *ptr = PRIMITIVE_OUTSIDE_SURFACE_TOWALK;
+    }
+}
+
+inline void WalkBackward(int64_t start, int64_t end, unsigned char* ptr, int64_t stride, int64_t maxDistance)
+{
+    for (int64_t i = start, count = 0; count < maxDistance && i >= end && *ptr == PRIMITIVE_UNDEFINED; --i, ptr -= stride, ++count)
+    {
+        *ptr = PRIMITIVE_OUTSIDE_SURFACE_TOWALK;
+    }
+}
+
+void Volume::FillOutsideSurface()
+{
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(m_params.m_profiler, VHACDVolume::FillOutsideSurface);
+
+    size_t voxelsWalked = 0;
+    const int64_t i0 = m_dim[0];
+    const int64_t j0 = m_dim[1];
+    const int64_t k0 = m_dim[2];
+
+    // Avoid striding too far in each direction to stay in L1 cache as much as possible.
+    // The cache size required for the walk is roughly (4 * walkDistance * 64) since
+    // the k direction doesn't count as it's walking byte per byte directly in a cache lines.
+    // ~16k is required for a walk distance of 64 in each directions.
+    const size_t walkDistance = 64;
+
+    // using the stride directly instead of calling GetVoxel for each iterations saves
+    // a lot of multiplications and pipeline stalls due to data dependencies on imul.
+    const size_t istride = &GetVoxel(1, 0, 0) - &GetVoxel(0, 0, 0);
+    const size_t jstride = &GetVoxel(0, 1, 0) - &GetVoxel(0, 0, 0);
+    const size_t kstride = &GetVoxel(0, 0, 1) - &GetVoxel(0, 0, 0);
+
+    // It might seem counter intuitive to go over the whole voxel range multiple times
+    // but since we do the run in memory order, it leaves us with far fewer cache misses
+    // than a BFS algorithm and it has the additional benefit of not requiring us to
+    // store and manipulate a fifo for recursion that might become huge when the number
+    // of voxels is large.
+    // This will outperform the BFS algorithm by several orders of magnitude in practice.
+    do
+    {
+        VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(m_params.m_profiler, VHACDVolume::FillOutsideSurface_Iteration);
+
+        voxelsWalked = 0;
+        for (int64_t i = 0; i < i0; ++i) {
+            for (int64_t j = 0; j < j0; ++j) {
+                for (int64_t k = 0; k < k0; ++k) {
+                    unsigned char& voxel = GetVoxel(i, j, k);
+                    if (voxel == PRIMITIVE_OUTSIDE_SURFACE_TOWALK) {
+                        voxelsWalked++;
+                        voxel = PRIMITIVE_OUTSIDE_SURFACE;
+
+                        // walk in each direction to mark other voxel that should be walked.
+                        // this will generate a 3d pattern that will help the overall
+                        // algorithm converge faster while remaining cache friendly.
+                        WalkForward(k + 1, k0, &voxel + kstride, kstride, walkDistance);
+                        WalkBackward(k - 1, 0, &voxel - kstride, kstride, walkDistance);
+
+                        WalkForward(j + 1, j0, &voxel + jstride, jstride, walkDistance);
+                        WalkBackward(j - 1, 0, &voxel - jstride, jstride, walkDistance);
+
+                        WalkForward(i + 1, i0, &voxel + istride, istride, walkDistance);
+                        WalkBackward(i - 1, 0, &voxel - istride, istride, walkDistance);
+                    }
+                }
+            }
+        }
+
+        m_numVoxelsOutsideSurface += voxelsWalked;
+    } while (voxelsWalked != 0);
+}
+
 void Volume::FillInsideSurface()
 {
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(m_params.m_profiler, VHACDVolume::FillInsideSurface);
+
     const size_t i0 = m_dim[0];
     const size_t j0 = m_dim[1];
     const size_t k0 = m_dim[2];
@@ -853,8 +904,11 @@ void Volume::FillInsideSurface()
         }
     }
 }
+
 void Volume::Convert(Mesh& mesh, const VOXEL_VALUE value) const
 {
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(m_params.m_profiler, VHACDVolume::Convert);
+
     const size_t i0 = m_dim[0];
     const size_t j0 = m_dim[1];
     const size_t k0 = m_dim[2];
@@ -899,6 +953,8 @@ void Volume::Convert(Mesh& mesh, const VOXEL_VALUE value) const
 }
 void Volume::Convert(VoxelSet& vset) const
 {
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(m_params.m_profiler, VHACDVolume::Convert);
+
     for (int32_t h = 0; h < 3; ++h) {
         vset.m_minBB[h] = m_minBB[h];
     }
@@ -938,6 +994,8 @@ void Volume::Convert(VoxelSet& vset) const
 
 void Volume::Convert(TetrahedronSet& tset) const
 {
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(m_params.m_profiler, VHACDVolume::Convert);
+
     tset.m_tetrahedra.Allocate(5 * (m_numVoxelsInsideSurface + m_numVoxelsOnSurface));
     tset.m_scale = m_scale;
     const short i0 = (short)m_dim[0];
@@ -1004,6 +1062,8 @@ void Volume::Convert(TetrahedronSet& tset) const
 
 void Volume::AlignToPrincipalAxes(double (&rot)[3][3]) const
 {
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(m_params.m_profiler, VHACDVolume::AlignToPrincipalAxes);
+
     const short i0 = (short)m_dim[0];
     const short j0 = (short)m_dim[1];
     const short k0 = (short)m_dim[2];

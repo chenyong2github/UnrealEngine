@@ -32,10 +32,10 @@ static uint32 GetDeepShadowKernelType() { return uint32(FMath::Max(0, GDeepShado
 static float GetDeepShadowKernelAperture() { return GDeepShadowKernelAperture; }
 
 static int32 GStrandHairShadowMaskKernelType = 2;
-static FAutoConsoleVariableRef GVarDeepShadowShadowMaskKernelType(TEXT("r.HairStrands.DeepShadow.ShadowMaskKernelType"), GStrandHairShadowMaskKernelType, TEXT("Set the kernel type for filtering shadow cast by hair on opaque geometry (0:2x2, 1:4x4, 2:Gaussian8, 3:Gaussian16). Default is 0"));
+static FAutoConsoleVariableRef GVarDeepShadowShadowMaskKernelType(TEXT("r.HairStrands.DeepShadow.ShadowMaskKernelType"), GStrandHairShadowMaskKernelType, TEXT("Set the kernel type for filtering shadow cast by hair on opaque geometry (0:2x2, 1:4x4, 2:Gaussian8, 3:Gaussian16, 4:Gaussian8 with transmittance. Default is 0"));
 
 static float GDeepShadowDensityScale = 2;	// Default is arbitrary, based on Mike asset
-static float GDeepShadowDepthBiasScale = 2;	// Default is arbitrary, based on content test
+static float GDeepShadowDepthBiasScale = 0.05;
 static FAutoConsoleVariableRef CVarDeepShadowDensityScale(TEXT("r.HairStrands.DeepShadow.DensityScale"), GDeepShadowDensityScale, TEXT("Set density scale for compensating the lack of hair fiber in an asset"));
 static FAutoConsoleVariableRef CVarDeepShadowDepthBiasScale(TEXT("r.HairStrands.DeepShadow.DepthBiasScale"), GDeepShadowDepthBiasScale, TEXT("Set depth bias scale for transmittance computation"));
 
@@ -49,17 +49,19 @@ float GetDeepShadowDensityScale() { return FMath::Max(0.0f, GDeepShadowDensitySc
 float GetDeepShadowDepthBiasScale() { return FMath::Max(0.0f, GDeepShadowDepthBiasScale); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static bool HasDeepShadowData(const FLightSceneInfo* LightSceneInfo, const FHairStrandsDeepShadowDatas& InDatas)
+static bool HasDeepShadowData(const FLightSceneInfo* LightSceneInfo, const FHairStrandsMacroGroupDatas& InDatas)
 {
-	for (const FHairStrandsDeepShadowData& DomData : InDatas.Datas)
+	for (const FHairStrandsMacroGroupData& MacroGroupData : InDatas.Datas)
 	{
-		if (DomData.LightId == LightSceneInfo->Id)
-			return true;
+		for (const FHairStrandsDeepShadowData& DomData : MacroGroupData.DeepShadowDatas.Datas)
+		{
+			if (DomData.LightId == LightSceneInfo->Id)
+				return true;
+		}
 	}
 
 	return false;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Transmittance Mask from deep shadow
@@ -88,8 +90,8 @@ class FDeepTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 
-		SHADER_PARAMETER_ARRAY(FIntVector4, DeepShadow_AtlasSlotOffsets, [FHairStrandsDeepShadowData::MaxMacroGroupCount])
-		SHADER_PARAMETER_ARRAY(FMatrix, DeepShadow_WorldToLightTransforms, [FHairStrandsDeepShadowData::MaxMacroGroupCount])
+		SHADER_PARAMETER_ARRAY(FIntVector4, DeepShadow_AtlasSlotOffsets_AtlasSlotIndex, [FHairStrandsDeepShadowData::MaxMacroGroupCount])
+		SHADER_PARAMETER_ARRAY(FMatrix, DeepShadow_CPUWorldToLightTransforms, [FHairStrandsDeepShadowData::MaxMacroGroupCount])
 		SHADER_PARAMETER(FIntPoint, DeepShadow_Resolution)
 		SHADER_PARAMETER(float, LightRadius)
 		SHADER_PARAMETER(FVector, LightDirection)
@@ -102,6 +104,7 @@ class FDeepTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, DeepShadow_KernelType)
 		SHADER_PARAMETER(uint32, DeepShadow_DebugMode)
 		SHADER_PARAMETER(FMatrix, DeepShadow_ShadowToWorld)
+		SHADER_PARAMETER(uint32, DeepShadow_bIsGPUDriven)
 
 		SHADER_PARAMETER_ARRAY(FVector4, Voxel_MinAABBs, [FHairStrandsDeepShadowData::MaxMacroGroupCount])
 		SHADER_PARAMETER_ARRAY(FVector4, Voxel_MaxAABBs, [FHairStrandsDeepShadowData::MaxMacroGroupCount])
@@ -119,6 +122,8 @@ class FDeepTransmittanceMaskCS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DeepShadow_FrontDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DeepShadow_DomTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeepShadow_WorldToLightTransformBuffer)
+
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, HairLUTTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, HairVisibilityNodeData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, HairVisibilityNodeCoord)
@@ -168,9 +173,11 @@ IMPLEMENT_GLOBAL_SHADER(FDeepTransmittanceMaskCS, "/Engine/Private/HairStrands/H
 
 struct FDeepShadowTransmittanceParams
 {
-	FIntVector4 DeepShadow_AtlasSlotOffsets[FHairStrandsDeepShadowData::MaxMacroGroupCount];
-	FMatrix DeepShadow_WorldToLightTransforms[FHairStrandsDeepShadowData::MaxMacroGroupCount];
+	FIntVector4 DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[FHairStrandsDeepShadowData::MaxMacroGroupCount];
+	FMatrix DeepShadow_CPUWorldToLightTransforms[FHairStrandsDeepShadowData::MaxMacroGroupCount];
+	FRDGBufferSRVRef DeepShadow_WorldToLightTransformBuffer = nullptr;
 	FIntPoint DeepShadow_Resolution = FIntPoint(0, 0);
+	bool DeepShadow_bIsGPUDriven = false;
 	FVector LightDirection = FVector::ZeroVector;
 	FVector4 LightPosition = FVector4(0, 0, 0, 0);
 	uint32 LightChannelMask = 0;
@@ -178,7 +185,7 @@ struct FDeepShadowTransmittanceParams
 	float DepthBiasScale = 0;
 	float DensityScale = 0;
 	FMatrix DeepShadow_ShadowToWorld = FMatrix::Identity;
-
+	
 	FRDGTextureRef DeepShadow_FrontDepthTexture = nullptr;
 	FRDGTextureRef DeepShadow_DomTexture = nullptr;
 
@@ -231,6 +238,8 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	Parameters->DeepShadow_ShadowToWorld = Params.DeepShadow_ShadowToWorld;
 	Parameters->IndirectArgsBuffer = IndirectArgsBuffer;
 	Parameters->MaxVisibilityNodeCount = Params.HairVisibilityNodeData->Desc.NumElements;
+	Parameters->DeepShadow_bIsGPUDriven = Params.DeepShadow_bIsGPUDriven ? 1 : 0;;
+	Parameters->DeepShadow_WorldToLightTransformBuffer = Params.DeepShadow_WorldToLightTransformBuffer;
 
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
 	{
@@ -238,8 +247,8 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 		ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
 	}
 
-	memcpy(&(Parameters->DeepShadow_AtlasSlotOffsets[0]), Params.DeepShadow_AtlasSlotOffsets, sizeof(FIntVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
-	memcpy(&(Parameters->DeepShadow_WorldToLightTransforms[0]), Params.DeepShadow_WorldToLightTransforms, sizeof(FMatrix) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
+	memcpy(&(Parameters->DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[0]), Params.DeepShadow_AtlasSlotOffsets_AtlasSlotIndex, sizeof(FIntVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
+	memcpy(&(Parameters->DeepShadow_CPUWorldToLightTransforms[0]), Params.DeepShadow_CPUWorldToLightTransforms, sizeof(FMatrix) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
 
 	memcpy(&(Parameters->Voxel_MinAABBs[0]), Params.Voxel_MinAABBs, sizeof(FVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
 	memcpy(&(Parameters->Voxel_MaxAABBs[0]), Params.Voxel_MaxAABBs, sizeof(FVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
@@ -279,7 +288,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsTransmittanceMask"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		IndirectArgsBuffer,
 		0);
@@ -304,18 +313,22 @@ class FDeepShadowMaskPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FDeepShadowMaskPS, FGlobalShader);
 
 	class FOpaqueMaskType : SHADER_PERMUTATION_INT("PERMUTATION_OPAQUEMASK_TYPE", FHairOpaqueMaskTypeCount);
-	class FKernelType : SHADER_PERMUTATION_INT("PERMUTATION_KERNEL_TYPE", 4);
+	class FKernelType : SHADER_PERMUTATION_INT("PERMUTATION_KERNEL_TYPE", 5);
 	using FPermutationDomain = TShaderPermutationDomain<FOpaqueMaskType, FKernelType>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
-
+		                         
 		SHADER_PARAMETER(FIntPoint, DeepShadow_SlotOffset)
+		SHADER_PARAMETER(uint32, DeepShadow_SlotIndex)
 		SHADER_PARAMETER(FIntPoint, DeepShadow_SlotResolution)
-		SHADER_PARAMETER(FMatrix, DeepShadow_WorldToLightTransform)
+		SHADER_PARAMETER(FMatrix, DeepShadow_CPUWorldToLightTransform)
 		SHADER_PARAMETER(uint32, DeepShadow_IsWholeSceneLight)
+		SHADER_PARAMETER(float, DeepShadow_DepthBiasScale)
+		SHADER_PARAMETER(float, DeepShadow_DensityScale)
+		SHADER_PARAMETER(uint32, DeepShadow_bIsGPUDriven)
 
 		SHADER_PARAMETER(FVector4, Voxel_LightPosition)
 		SHADER_PARAMETER(FVector, Voxel_LightDirection)
@@ -327,8 +340,10 @@ class FDeepShadowMaskPS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayMarchMaskTexture)
 
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeepShadow_WorldToLightTransformBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DeepShadow_FrontDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DeepShadow_DomTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ShadowSampler)
@@ -349,10 +364,16 @@ struct FDeepShadowOpaqueParams
 {
 	FRDGTextureRef	CategorizationTexture = nullptr;
 
-	FMatrix			DeepShadow_WorldToLightTransform;
+	FRDGBufferSRVRef DeepShadow_WorldToLightTransformBuffer = nullptr;
+	FMatrix			DeepShadow_CPUWorldToLightTransform;
 	FIntRect		DeepShadow_AtlasRect;
 	FRDGTextureRef	DeepShadow_FrontDepthTexture = nullptr;
+	FRDGTextureRef	DeepShadow_LayerTexture = nullptr;
 	bool			DeepShadow_bIsWholeSceneLight = false;
+	bool			DeepShadow_bIsGPUDriven = false;
+	float			DeepShadow_DepthBiasScale = 1;
+	float			DeepShadow_DensityScale = 1;
+	uint32			DeepShadow_AtlasSlotIndex = 0;
 
 	FVector			Voxel_LightDirection = FVector::ZeroVector;
 	FVector4		Voxel_LightPosition = FVector4(0, 0, 0, 0);
@@ -380,15 +401,21 @@ static void AddDeepShadowOpaqueMaskPass(
 	FDeepShadowMaskPS::FParameters* Parameters = GraphBuilder.AllocParameters<FDeepShadowMaskPS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->SceneTextures = SceneTextures;
-	Parameters->DeepShadow_WorldToLightTransform = Params.DeepShadow_WorldToLightTransform;
+	Parameters->DeepShadow_CPUWorldToLightTransform = Params.DeepShadow_CPUWorldToLightTransform;
 	Parameters->DeepShadow_FrontDepthTexture = Params.DeepShadow_FrontDepthTexture;
+	Parameters->DeepShadow_DomTexture = Params.DeepShadow_LayerTexture;
 	Parameters->CategorizationTexture = Params.CategorizationTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->ShadowSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->DeepShadow_IsWholeSceneLight = Params.DeepShadow_bIsWholeSceneLight ? 1 : 0;
+	Parameters->DeepShadow_DepthBiasScale = Params.DeepShadow_DepthBiasScale;
+	Parameters->DeepShadow_DensityScale = Params.DeepShadow_DensityScale;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutShadowMask, ERenderTargetLoadAction::ELoad);
+	Parameters->DeepShadow_SlotIndex = Params.DeepShadow_AtlasSlotIndex;
 	Parameters->DeepShadow_SlotOffset = FIntPoint(Params.DeepShadow_AtlasRect.Min.X, Params.DeepShadow_AtlasRect.Min.Y);
 	Parameters->DeepShadow_SlotResolution = FIntPoint(Params.DeepShadow_AtlasRect.Max.X - Params.DeepShadow_AtlasRect.Min.X, Params.DeepShadow_AtlasRect.Max.Y - Params.DeepShadow_AtlasRect.Min.Y);
+	Parameters->DeepShadow_WorldToLightTransformBuffer = Params.DeepShadow_WorldToLightTransformBuffer;
+	Parameters->DeepShadow_bIsGPUDriven = Params.DeepShadow_bIsGPUDriven ? 1 : 0;;
 
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
 	{
@@ -425,17 +452,17 @@ static void AddDeepShadowOpaqueMaskPass(
 
 	FDeepShadowMaskPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FDeepShadowMaskPS::FOpaqueMaskType>(HairOpaqueMaskType);
-	PermutationVector.Set<FDeepShadowMaskPS::FKernelType>(FMath::Clamp(GStrandHairShadowMaskKernelType, 0, 3));
+	PermutationVector.Set<FDeepShadowMaskPS::FKernelType>(FMath::Clamp(GStrandHairShadowMaskKernelType, 0, 4));
 
 	const FIntPoint OutputResolution = SceneTextures.SceneDepthBuffer->Desc.Extent;
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FDeepShadowMaskPS> PixelShader(View.ShaderMap, PermutationVector);
-	const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
+	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
 	const FViewInfo* CapturedView = &View;
 
 	{
-		ClearUnusedGraphResources(*PixelShader, Parameters);
+		ClearUnusedGraphResources(PixelShader, Parameters);
 		FIntPoint Resolution = OutShadowMask->Desc.Extent;
 
 		GraphBuilder.AddPass(
@@ -451,14 +478,14 @@ static void AddDeepShadowOpaqueMaskPass(
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 			VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
 			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *Parameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
 
 			DrawRectangle(
 				RHICmdList,
@@ -468,7 +495,7 @@ static void AddDeepShadowOpaqueMaskPass(
 				Viewport.Width(), Viewport.Height(),
 				Viewport.Size(),
 				Resolution,
-				*VertexShader,
+				VertexShader,
 				EDRF_UseTriangleOptimization);
 		});
 	}
@@ -480,7 +507,6 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
-	const FHairStrandsDeepShadowDatas& DeepShadowDatas,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FHairStrandsVisibilityData& VisibilityData,
 	TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskSubPixelTexture)
@@ -488,7 +514,7 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	if (MacroGroupDatas.Datas.Num() == 0)
 		return FHairStrandsTransmittanceMaskData();
 
-	if (!HasDeepShadowData(LightSceneInfo, DeepShadowDatas) && !IsHairStrandsVoxelizationEnable())
+	if (!HasDeepShadowData(LightSceneInfo, MacroGroupDatas) && !IsHairStrandsVoxelizationEnable())
 		return FHairStrandsTransmittanceMaskData();
 
 	DECLARE_GPU_STAT(HairStrandsTransmittanceMask);
@@ -511,31 +537,45 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	Params.HairVisibilityNodeData = GraphBuilder.RegisterExternalBuffer(VisibilityData.NodeData, TEXT("HairVisibilityNodeData"));
 	Params.HairVisibilityNodeCoord = GraphBuilder.RegisterExternalBuffer(VisibilityData.NodeCoord, TEXT("HairVisibilityNodeCoord"));
 	Params.DensityScale = GetDeepShadowDensityScale();
-	memset(Params.DeepShadow_AtlasSlotOffsets, 0, sizeof(Params.DeepShadow_AtlasSlotOffsets));
-	memset(Params.DeepShadow_WorldToLightTransforms, 0, sizeof(Params.DeepShadow_WorldToLightTransforms));
+	memset(Params.DeepShadow_AtlasSlotOffsets_AtlasSlotIndex, 0, sizeof(Params.DeepShadow_AtlasSlotOffsets_AtlasSlotIndex));
+	memset(Params.DeepShadow_CPUWorldToLightTransforms, 0, sizeof(Params.DeepShadow_CPUWorldToLightTransforms));
+
 
 	FRDGBufferRef OutShadowMask = nullptr;
 	bool bHasFoundLight = false;
 	if (!IsHairStrandsForVoxelTransmittanceAndShadowEnable())
 	{
-		for (const FHairStrandsDeepShadowData& DeepShadowData : DeepShadowDatas.Datas)
+		FRDGBufferRef DeepShadow_WorldToLightTransformBuffer = nullptr;
+		FRDGBufferSRVRef DeepShadow_WorldToLightTransformBufferSRV = nullptr;
+		for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
 		{
-			if (DeepShadowData.LightId == LightSceneInfo->Id)
+			for (const FHairStrandsDeepShadowData& DeepShadowData : MacroGroupData.DeepShadowDatas.Datas)
 			{
-				bHasFoundLight = true;
-				if (!Params.DeepShadow_FrontDepthTexture)
+				if (DeepShadowData.LightId == LightSceneInfo->Id)
 				{
-					Params.DeepShadow_FrontDepthTexture = GraphBuilder.RegisterExternalTexture(DeepShadowData.DepthTexture, TEXT("DeepShadow_FrontDepthTexture"));
-					Params.DeepShadow_DomTexture = GraphBuilder.RegisterExternalTexture(DeepShadowData.LayersTexture, TEXT("DeepShadow_DomTexture"));
+					if (DeepShadow_WorldToLightTransformBuffer == nullptr)
+					{
+						DeepShadow_WorldToLightTransformBuffer = GraphBuilder.RegisterExternalBuffer(MacroGroupDatas.DeepShadowResources.DeepShadowWorldToLightTransforms);
+						DeepShadow_WorldToLightTransformBufferSRV = GraphBuilder.CreateSRV(DeepShadow_WorldToLightTransformBuffer);
+					}
+
+					bHasFoundLight = true;
+					if (!Params.DeepShadow_FrontDepthTexture)
+					{
+						Params.DeepShadow_FrontDepthTexture = GraphBuilder.RegisterExternalTexture(MacroGroupDatas.DeepShadowResources.DepthAtlasTexture, TEXT("DeepShadow_FrontDepthTexture"));
+						Params.DeepShadow_DomTexture = GraphBuilder.RegisterExternalTexture(MacroGroupDatas.DeepShadowResources.LayersAtlasTexture, TEXT("DeepShadow_DomTexture"));
+					}
+					Params.DeepShadow_Resolution = DeepShadowData.ShadowResolution;
+					Params.LightDirection = DeepShadowData.LightDirection;
+					Params.LightPosition = DeepShadowData.LightPosition;
+					Params.LightRadius = 0;
+					Params.LightChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
+					Params.DepthBiasScale = GetDeepShadowDepthBiasScale();
+					Params.DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[DeepShadowData.MacroGroupId] = FIntVector4(DeepShadowData.AtlasRect.Min.X, DeepShadowData.AtlasRect.Min.Y, DeepShadowData.AtlasSlotIndex, 0);
+					Params.DeepShadow_CPUWorldToLightTransforms[DeepShadowData.MacroGroupId] = DeepShadowData.CPU_WorldToLightTransform;
+					Params.DeepShadow_WorldToLightTransformBuffer = DeepShadow_WorldToLightTransformBufferSRV;
+					Params.DeepShadow_bIsGPUDriven = MacroGroupDatas.DeepShadowResources.bIsGPUDriven;
 				}
-				Params.DeepShadow_Resolution = DeepShadowData.ShadowResolution;
-				Params.LightDirection = DeepShadowData.LightDirection;
-				Params.LightPosition = DeepShadowData.LightPosition;
-				Params.LightRadius = 0;
-				Params.LightChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
-				Params.DepthBiasScale = GetDeepShadowDepthBiasScale();
-				Params.DeepShadow_AtlasSlotOffsets[DeepShadowData.MacroGroupId] = FIntVector4(DeepShadowData.AtlasRect.Min.X, DeepShadowData.AtlasRect.Min.Y, DeepShadowData.AtlasRect.Width(), DeepShadowData.AtlasRect.Height());
-				Params.DeepShadow_WorldToLightTransforms[DeepShadowData.MacroGroupId] = DeepShadowData.WorldToLightTransform;
 			}
 		}
 
@@ -634,11 +674,10 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			const FViewInfo& View = Views[ViewIndex];
-			const FHairStrandsDeepShadowDatas& InDeepShadowDatas = HairDatas->DeepShadowViews.Views[ViewIndex];
 			const FHairStrandsVisibilityData& InHairVisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 			const FHairStrandsMacroGroupDatas& InMacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
 
-			TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, View, LightSceneInfo, InDeepShadowDatas, InMacroGroupDatas, InHairVisibilityData, ScreenShadowMaskSubPixelTexture);
+			TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, View, LightSceneInfo, InMacroGroupDatas, InHairVisibilityData, ScreenShadowMaskSubPixelTexture);
 		}
 	}
 	return TransmittanceMaskData;
@@ -651,14 +690,13 @@ static void RenderHairStrandsShadowMask(
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
 	IPooledRenderTarget* ScreenShadowMaskTexture,
-	const FHairStrandsDeepShadowDatas& DeepShadowDatas,
 	const FHairStrandsVisibilityData& InVisibilityData,
 	const FHairStrandsMacroGroupDatas& InMacroGroupDatas)
 {
 	if (InMacroGroupDatas.Datas.Num() == 0)
 		return;
 
-	if (!HasDeepShadowData(LightSceneInfo, DeepShadowDatas) && !IsHairStrandsVoxelizationEnable())
+	if (!HasDeepShadowData(LightSceneInfo, InMacroGroupDatas) && !IsHairStrandsVoxelizationEnable())
 		return;
 
 	DECLARE_GPU_STAT(HairStrandsOpaqueMask);
@@ -675,32 +713,52 @@ static void RenderHairStrandsShadowMask(
 	FRDGTextureRef Categorization = RegisterExternalTextureWithFallback(GraphBuilder, InVisibilityData.CategorizationTexture, GSystemTextures.BlackDummy);
 	FRDGTextureRef OutShadowMask = GraphBuilder.RegisterExternalTexture(ScreenShadowMaskTexture, TEXT("ScreenShadowMaskTexture"));
 
+
 	bool bHasDeepShadow = false;
 	if (!IsHairStrandsForVoxelTransmittanceAndShadowEnable())
 	{
-		for (const FHairStrandsDeepShadowData& DomData : DeepShadowDatas.Datas)
+		FRDGBufferRef DeepShadow_WorldToLightTransformBuffer = nullptr;
+		FRDGBufferSRVRef DeepShadow_WorldToLightTransformBufferSRV = nullptr;
+
+		for (const FHairStrandsMacroGroupData& MacroGroupData : InMacroGroupDatas.Datas)
 		{
-			if (DomData.LightId != LightSceneInfo->Id)
-				continue;
+			for (const FHairStrandsDeepShadowData& DomData : MacroGroupData.DeepShadowDatas.Datas)
+			{
+				if (DomData.LightId != LightSceneInfo->Id)
+					continue;
 
-			bHasDeepShadow = true;
-			FRDGTextureRef DeepShadowDepth = GraphBuilder.RegisterExternalTexture(DomData.DepthTexture, TEXT("DeepShadowDepthTexture"));
-			const bool bIsWholeSceneLight = LightSceneInfo->Proxy->GetLightType() == LightType_Directional;
+				if (DeepShadow_WorldToLightTransformBuffer == nullptr)
+				{
+					DeepShadow_WorldToLightTransformBuffer = GraphBuilder.RegisterExternalBuffer(InMacroGroupDatas.DeepShadowResources.DeepShadowWorldToLightTransforms);
+					DeepShadow_WorldToLightTransformBufferSRV = GraphBuilder.CreateSRV(DeepShadow_WorldToLightTransformBuffer);
+				}
 
-			FDeepShadowOpaqueParams Params;
-			Params.CategorizationTexture = Categorization;
-			Params.DeepShadow_WorldToLightTransform = DomData.WorldToLightTransform;
-			Params.DeepShadow_AtlasRect = DomData.AtlasRect;
-			Params.DeepShadow_FrontDepthTexture = DeepShadowDepth;
-			Params.DeepShadow_bIsWholeSceneLight = bIsWholeSceneLight;
+				bHasDeepShadow = true;
+				FRDGTextureRef DeepShadowDepth = GraphBuilder.RegisterExternalTexture(InMacroGroupDatas.DeepShadowResources.DepthAtlasTexture, TEXT("DeepShadowDepthTexture"));
+				FRDGTextureRef DeepShadowLayers = GraphBuilder.RegisterExternalTexture(InMacroGroupDatas.DeepShadowResources.LayersAtlasTexture, TEXT("DeepShadowLayerTexture"));
+				const bool bIsWholeSceneLight = LightSceneInfo->Proxy->GetLightType() == LightType_Directional;
 
-			AddDeepShadowOpaqueMaskPass(
-				GraphBuilder,
-				SceneTextures,
-				View,
-				FHairOpaqueMaskType_DeepShadow,
-				Params,
-				OutShadowMask);
+				FDeepShadowOpaqueParams Params;
+				Params.CategorizationTexture = Categorization;
+				Params.DeepShadow_AtlasSlotIndex = DomData.AtlasSlotIndex;
+				Params.DeepShadow_WorldToLightTransformBuffer = DeepShadow_WorldToLightTransformBufferSRV;
+				Params.DeepShadow_bIsGPUDriven = InMacroGroupDatas.DeepShadowResources.bIsGPUDriven ? 1 : 0;
+				Params.DeepShadow_CPUWorldToLightTransform = DomData.CPU_WorldToLightTransform;
+				Params.DeepShadow_AtlasRect = DomData.AtlasRect;
+				Params.DeepShadow_FrontDepthTexture = DeepShadowDepth;
+				Params.DeepShadow_LayerTexture = DeepShadowLayers;
+				Params.DeepShadow_bIsWholeSceneLight = bIsWholeSceneLight;
+				Params.DeepShadow_DepthBiasScale = GetDeepShadowDepthBiasScale();
+				Params.DeepShadow_DensityScale = GetDeepShadowDensityScale();
+
+				AddDeepShadowOpaqueMaskPass(
+					GraphBuilder,
+					SceneTextures,
+					View,
+					FHairOpaqueMaskType_DeepShadow,
+					Params,
+					OutShadowMask);
+			}
 		}
 	}
 
@@ -750,18 +808,16 @@ void RenderHairStrandsShadowMask(
 	IPooledRenderTarget* ScreenShadowMaskTexture,
 	const FHairStrandsDatas* HairDatas)
 {
-	const FHairStrandsDeepShadowViews& DeepShadowViews = HairDatas->DeepShadowViews;
 	const FHairStrandsVisibilityViews& HairVisibilityViews = HairDatas->HairVisibilityViews;
 	const FHairStrandsMacroGroupViews& MacroGroupViews = HairDatas->MacroGroupsPerViews;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
-		if (ViewIndex < DeepShadowViews.Views.Num() && ViewIndex < HairVisibilityViews.HairDatas.Num() && ViewIndex < MacroGroupViews.Views.Num())
+		if (ViewIndex < HairVisibilityViews.HairDatas.Num() && ViewIndex < MacroGroupViews.Views.Num())
 		{
 			const FHairStrandsVisibilityData& HairVisibilityData = HairVisibilityViews.HairDatas[ViewIndex];
-			const FHairStrandsDeepShadowDatas& DeepShadowDatas = DeepShadowViews.Views[ViewIndex];
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = MacroGroupViews.Views[ViewIndex];
-			RenderHairStrandsShadowMask(RHICmdList, Views[ViewIndex], LightSceneInfo, ScreenShadowMaskTexture, DeepShadowDatas, HairVisibilityData, MacroGroupDatas);
+			RenderHairStrandsShadowMask(RHICmdList, Views[ViewIndex], LightSceneInfo, ScreenShadowMaskTexture, HairVisibilityData, MacroGroupDatas);
 		}
 	}
 }

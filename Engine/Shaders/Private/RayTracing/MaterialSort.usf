@@ -1,6 +1,12 @@
 #include "../Common.ush"
 #include "RayTracingCommon.ush"
 
+#define MATERIAL_SORT_SHADER_VERSION 0xd74cbc87 // Change to force shader compilation of this shader
+
+#ifndef DIM_WAVE_OPS
+	#define DIM_WAVE_OPS 0
+#endif // DIM_WAVE_OPS
+
 #if DIM_SORT_SIZE == 0
 	#define NUM_ELEMENTS 256
 
@@ -21,11 +27,17 @@
 	#error Unknown sorting size
 #endif
 
-#define NUM_BINS  128
-
+#define NUM_BINS 128 // Max sort window (4096) / min threads per wave (32)
 groupshared uint Bins[NUM_BINS];
-groupshared uint Offsets[NUM_BINS];
 
+#if DIM_WAVE_OPS
+#define MIN_SUPPORTED_WAVE_SIZE 32
+#define NUM_WAVE_SUMS ((NUM_BINS+MIN_SUPPORTED_WAVE_SIZE-1) / MIN_SUPPORTED_WAVE_SIZE)
+groupshared uint WaveSums[NUM_WAVE_SUMS];
+#define Offsets Bins // No need for a separate array of offsets as prefix sum is computed in-place
+#else // DIM_WAVE_OPS
+groupshared uint Offsets[NUM_BINS];
+#endif // DIM_WAVE_OPS
 
 int NumTotalEntries;
 RWStructuredBuffer<FDeferredMaterialPayload> MaterialBuffer;
@@ -38,14 +50,14 @@ RWStructuredBuffer<FDeferredMaterialPayload> MaterialBuffer;
 
 // Simple local bin sort based on shared atomics
 [numthreads(NUM_THREADS_X, 1, 1)]
-void MaterialSortLocal(uint3 DispatchThread : SV_DispatchThreadID, uint3 GroupThread : SV_GroupThreadID, uint3 GroupIndex : SV_GroupID)
+void MaterialSortLocal(uint GroupThread : SV_GroupThreadID, uint GroupIndex : SV_GroupID)
 {
-	const uint GroupBase = GroupIndex.x * NUM_ELEMENTS;
+	const uint GroupBase = GroupIndex * NUM_ELEMENTS;
 
-	if (GroupThread.x < NUM_BINS)
+	if (GroupThread < NUM_BINS)
 	{
-		Bins[GroupThread.x] = 0;
-		Offsets[GroupThread.x] = 0;
+		Bins[GroupThread] = 0;
+		Offsets[GroupThread] = 0;
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -53,9 +65,9 @@ void MaterialSortLocal(uint3 DispatchThread : SV_DispatchThreadID, uint3 GroupTh
 	FDeferredMaterialPayload Data[NUM_ELEMENTS / NUM_THREADS_X];
 	uint Slot[NUM_ELEMENTS / NUM_THREADS_X];
 
-	//get counts
-	[unroll(NUM_ELEMENTS/ NUM_THREADS_X)]
-	for (int i = GroupThread.x; i < NUM_ELEMENTS ; i += NUM_THREADS_X)
+	// Compute histogram
+
+	for (int i = GroupThread; i < NUM_ELEMENTS ; i += NUM_THREADS_X)
 	{
 		uint Index = GroupBase + i;
 		if (Index < NumTotalEntries)
@@ -69,23 +81,49 @@ void MaterialSortLocal(uint3 DispatchThread : SV_DispatchThreadID, uint3 GroupTh
 
 	GroupMemoryBarrierWithGroupSync();
 
-	// compute prefix sum
-	// Naive implementation that trades instructions for fewer barriers
-	// Can be improved by WaveOps if compiled as SM6
-	if (GroupThread.x < NUM_BINS)
+	// Compute prefix sum
+
+#if DIM_WAVE_OPS
 	{
-		for (int i = 0; i < GroupThread.x; i++)
+		const uint WaveIndex = GroupThread / WaveGetLaneCount();
+		const uint LaneIndex = WaveGetLaneIndex();
+		uint Value = 0;
+		if (GroupThread < NUM_BINS)
 		{
-			Offsets[GroupThread.x] += Bins[i];
+			Value = Bins[GroupThread];
+			uint ThisWaveSum = WaveActiveSum(Value);
+			if (LaneIndex == 0)
+			{
+				WaveSums[WaveIndex] = ThisWaveSum;
+			}
+		}
+		GroupMemoryBarrierWithGroupSync();
+		if (WaveIndex == 0 && LaneIndex < NUM_WAVE_SUMS)
+		{
+			WaveSums[LaneIndex] = WavePrefixSum(WaveSums[LaneIndex]);
+		}
+		GroupMemoryBarrierWithGroupSync();
+		if (GroupThread < NUM_BINS)
+		{
+			Offsets[GroupThread] = WaveSums[WaveIndex] + WavePrefixSum(Value);
 		}
 	}
+#else // DIM_WAVE_OPS
+	if (GroupThread < NUM_BINS)
+	{
+		// Naive implementation that trades instructions for fewer barriers
+		for (int i = 0; i < GroupThread; i++)
+		{
+			Offsets[GroupThread] += Bins[i];
+		}
+	}
+#endif // DIM_WAVE_OPS
 
-	DeviceMemoryBarrier();
 	GroupMemoryBarrierWithGroupSync();
 	
-	//write data
-	[unroll(NUM_ELEMENTS/ NUM_THREADS_X)]
-	for (int i = GroupThread.x; i < NUM_ELEMENTS; i += NUM_THREADS_X)
+	// Write data
+
+	for (int i = GroupThread; i < NUM_ELEMENTS; i += NUM_THREADS_X)
 	{
 		uint Index = GroupBase + i;
 		if (Index < NumTotalEntries)

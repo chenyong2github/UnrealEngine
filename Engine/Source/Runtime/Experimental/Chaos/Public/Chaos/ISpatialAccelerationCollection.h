@@ -20,7 +20,7 @@ public:
 	ISpatialAccelerationCollection()
 	: ISpatialAcceleration<TPayloadType, T, d>(StaticType)
 	, ActiveBucketsMask(0)
-	, AllAsyncTrasksComplete(true)
+	, AllAsyncTasksComplete(true)
 	{}
 	static constexpr ESpatialAcceleration StaticType = ESpatialAcceleration::Collection;
 	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, uint16 Bucket) = 0;
@@ -29,6 +29,7 @@ public:
 
 	/** This is kind of a hack to avoid virtuals. We simply route calls into templated functions */
 	virtual void PBDComputeConstraintsLowLevel(T Dt, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData) const = 0;
+	virtual void CallMoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle) const = 0;
 	virtual TArray<FSpatialAccelerationIdx> GetAllSpatialIndices() const = 0;
 
 	bool IsBucketActive(uint8 BucketIdx) const
@@ -36,12 +37,12 @@ public:
 		return (1 << BucketIdx) & ActiveBucketsMask;
 	}
 
-	bool IsAllAsyncTrasksComplete() const { return AllAsyncTrasksComplete; }
-	void SetAllAsyncTrasksComplete(bool State) { AllAsyncTrasksComplete = State; }
+	bool IsAllAsyncTasksComplete() const { return AllAsyncTasksComplete; }
+	void SetAllAsyncTasksComplete(bool State) { AllAsyncTasksComplete = State; }
 
 protected:
 	uint8 ActiveBucketsMask;
-	bool AllAsyncTrasksComplete;
+	bool AllAsyncTasksComplete;
 };
 
 }

@@ -181,6 +181,9 @@ public:
 	/** Indicates that during compile we want to create multiple exec pins from an enum param */
 	static const FName MD_ExpandEnumAsExecs;
 
+	/** Synonym for MD_ExpandEnumAsExecs */
+	static const FName MD_ExpandBoolAsExecs;
+
 	static const FName MD_CommutativeAssociativeBinaryOperator;
 
 	/** Metadata string that indicates to use the MaterialParameterCollectionFunction node. */

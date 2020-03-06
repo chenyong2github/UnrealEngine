@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_STACKED_H
-#define TF_STACKED_H
+#ifndef PXR_BASE_TF_STACKED_H
+#define PXR_BASE_TF_STACKED_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/tf/api.h"
@@ -210,7 +210,7 @@ private:
     }
 
     static Stack &_GetStack() {
-        // Technically unsafe double-checked lock to intitialize the stack.
+        // Technically unsafe double-checked lock to initialize the stack.
         if (ARCH_UNLIKELY(Storage::value.load() == nullptr)) {
             // Make a new stack and try to set it.
             _StorageType *old = nullptr;
@@ -251,4 +251,4 @@ class Derived :                                                                \
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_STACKED_H
+#endif // PXR_BASE_TF_STACKED_H

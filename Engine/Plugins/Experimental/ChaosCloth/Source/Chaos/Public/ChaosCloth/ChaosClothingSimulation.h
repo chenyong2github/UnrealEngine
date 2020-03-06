@@ -7,6 +7,7 @@
 #include "Chaos/PBDEvolution.h"
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMesh.h"
+#include "Chaos/ChaosDebugDrawDeclares.h"
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "Components/SkeletalMeshComponent.h"
 
@@ -41,19 +42,25 @@ namespace Chaos
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		// End of FGCObject interface
 
-		CHAOSCLOTH_API void DebugDrawPhysMeshWired(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
+		// Editor only debug draw function
 		CHAOSCLOTH_API void DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawPointNormals(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawInversedPointNormals(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawFaceNormals(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawInversedFaceNormals(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawCollision(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawBackstops(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawAnimDrive(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawLongRangeConstraint(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
-		CHAOSCLOTH_API void DebugDrawWindDragForces(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 #endif  // #if WITH_EDITOR
+
+#if WITH_EDITOR || CHAOS_DEBUG_DRAW
+		// Editor & runtime debug draw functions
+		CHAOSCLOTH_API void DebugDrawPhysMeshWired(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawPointNormals(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawInversedPointNormals(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawFaceNormals(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawInversedFaceNormals(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawCollision(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawBackstops(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawAnimDrive(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawLongRangeConstraint(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawWindDragForces(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawLocalSpace(USkeletalMeshComponent* OwnerComponent = nullptr, FPrimitiveDrawInterface* PDI = nullptr) const;
+#endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
 	protected:
 		// IClothingSimulation interface
@@ -68,8 +75,8 @@ namespace Chaos
 		virtual void DestroyContext(IClothingSimulationContext* InContext) override { delete InContext; }
 		virtual void GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const override;
 
-		virtual FBoxSphereBounds GetBounds(const USkeletalMeshComponent* InOwnerComponent) const override
-		{ return FBoxSphereBounds(Evolution->Particles().X().GetData(), Evolution->Particles().Size()); }
+		// Return bounds in local space (or in world space if InOwnerComponent is null).
+		virtual FBoxSphereBounds GetBounds(const USkeletalMeshComponent* InOwnerComponent) const override;
 
 		virtual void AddExternalCollisions(const FClothCollisionData& InData) override;
 		virtual void ClearExternalCollisions() override;
@@ -77,6 +84,12 @@ namespace Chaos
 		// End of IClothingSimulation interface
 
 	private:
+#if CHAOS_DEBUG_DRAW
+		// Runtime only debug draw functions
+		void DebugDrawBounds() const;
+		void DebugDrawGravity() const;
+#endif  // #if CHAOS_DEBUG_DRAW
+
 		void UpdateSimulationFromSharedSimConfig();
 		void BuildMesh(const FClothPhysicalMeshData& PhysMesh, int32 InSimDataIndex);
 
@@ -90,15 +103,17 @@ namespace Chaos
 		void AddSelfCollisions(int32 InSimDataIndex);
 
 		// Extract all collisions (from the physics asset and from the legacy apex collisions)
-		void ExtractCollisions(const UClothingAssetCommon* Asset);
+		void ExtractCollisions(const UClothingAssetCommon* Asset, int32 InSimDataIndex);
 		// Extract the collisions from the physics asset referenced by the specified clothing asset
-		void ExtractPhysicsAssetCollisions(const UClothingAssetCommon* Asset);
+		void ExtractPhysicsAssetCollisions(const UClothingAssetCommon* Asset, int32 InSimDataIndex);
 		// Extract the legacy apex collisions from the specified clothing asset 
-		void ExtractLegacyAssetCollisions(const UClothingAssetCommon* Asset);
+		void ExtractLegacyAssetCollisions(const UClothingAssetCommon* Asset, int32 InSimDataIndex);
 		// Add collisions from a ClothCollisionData structure
-		void AddCollisions(const FClothCollisionData& ClothCollisionData, const TArray<int32>& UsedBoneIndices);
-		// Update the collision transforms using the specified context, also update old collision if bReinit is true
-		void UpdateCollisionTransforms(const ClothingSimulationContext& Context, bool bReinit);
+		void AddCollisions(const FClothCollisionData& ClothCollisionData, const TArray<int32>& UsedBoneIndices, int32 InSimDataIndex);
+		// Process the collision function for all collisions of the specified cloth
+		void ForAllCollisions(TFunction<void(TGeometryClothParticles<float, 3>&, uint32)> CollisionFunction, int32 SimDataIndex);
+		// Update the collision transforms using the specified context, also reset initial collision particle states if the number of collisions has changed
+		void UpdateCollisionTransforms(const ClothingSimulationContext& Context, int32 InSimDataIndex);
 		// Return the correct bone index based on the asset used bone index array
 		FORCEINLINE int32 GetMappedBoneIndex(const TArray<int32>& UsedBoneIndices, int32 BoneIndex)
 		{
@@ -129,7 +144,6 @@ namespace Chaos
 
 		// Sim Data
 		TArray<Chaos::TVector<uint32, 2>> IndexToRangeMap;
-		TArray<FTransform> RootBoneWorldTransforms;  // Used for teleportation
 
 		TArray<TUniquePtr<Chaos::TTriangleMesh<float>>> Meshes;
 		mutable TArray<TArray<Chaos::TVector<float, 3>>> FaceNormals;
@@ -137,6 +151,8 @@ namespace Chaos
 
 		TUniquePtr<Chaos::TPBDEvolution<float, 3>> Evolution;
 
+		TArray<Chaos::TVector<uint32, 2>> CollisionsRangeMap;  // Collisions first particle index and number of collisions for each simulated cloth
+		TArray<TArray<Chaos::TVector<uint32, 2>>> ExternalCollisionsRangeMaps;  // External collisions first particle index and number of collisions for each simulated cloth
 		uint32 ExternalCollisionsOffset;  // External collisions first particle index
 
 		float Time;
@@ -148,17 +164,11 @@ namespace Chaos
 
 		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
 
-		// This is used to translate between world space and simulation space. Add this to simulation space coordinates to get world space coordinates
-		// The function of this is to help with floating point precision errors if the character is far away form the world origin
-		// and to decouple the simulation from character acceleration and velocities if it is desired
-		bool	bLocalSimSpaceEnabled;
-		FVector LocalSimSpaceOffset;  
-		FVector PrevLocalSimSpaceOffset;
-		FVector LocalSimSpaceVelocity;
-		FVector LocalSimSpaceCappedVelocity;
-		FVector PrevLocalSimSpaceVelocity;
-		FVector ComponentLinearAccScale;
-		FVector ComponentLinearAccClamp;
+		bool bUseLocalSpaceSimulation;  // The function of this is to help with floating point precision errors if the character is far away form the world origin
+		FVector LocalSpaceLocation;  // This is used to translate between world space and simulation space. Add this to simulation space coordinates to get world space coordinates
+		TArray<FTransform> RootBoneWorldTransforms;  // Reference bone transform used for teleportation and to decouple the simulation from reference bone's accelerations
+		TArray<FVector> LinearDeltaRatios;  // Linear ratios applied to the reference bone transforms
+		TArray<float> AngularDeltaRatios;  // Angular ratios factor applied to the reference bone transforms
 
 #if WITH_EDITOR
 		// Visualization material

@@ -122,7 +122,6 @@ void SPaintModeWidget::CreateDetailsView()
 	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 
 	SettingsDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
-	SettingsDetailsView->SetRootObjectCustomizationInstance(MakeShareable(new FPaintModeSettingsRootObjectCustomization));
 	SettingsDetailsView->SetObjects(SettingsObjects);
 }
 

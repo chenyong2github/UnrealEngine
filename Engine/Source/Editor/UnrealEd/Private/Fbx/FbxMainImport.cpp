@@ -294,26 +294,26 @@ FBXImportOptions* GetImportOptions( UnFbx::FFbxImporter* FbxImporter, UFbxImport
 			}
 		}
 
-		ImportUI->SaveConfig();
+		UFbxImportUI::SaveOptions(ImportUI);
 
 		if( ImportUI->StaticMeshImportData )
 		{
-			ImportUI->StaticMeshImportData->SaveOptions();
+			UFbxImportUI::SaveOptions(ImportUI->StaticMeshImportData);
 		}
 
 		if( ImportUI->SkeletalMeshImportData )
 		{
-			ImportUI->SkeletalMeshImportData->SaveOptions();
+			UFbxImportUI::SaveOptions(ImportUI->SkeletalMeshImportData);
 		}
 
 		if( ImportUI->AnimSequenceImportData )
 		{
-			ImportUI->AnimSequenceImportData->SaveOptions();
+			UFbxImportUI::SaveOptions(ImportUI->AnimSequenceImportData);
 		}
 
 		if( ImportUI->TextureImportData )
 		{
-			ImportUI->TextureImportData->SaveOptions();
+			UFbxImportUI::SaveOptions(ImportUI->TextureImportData);
 		}
 
 		if (FbxOptionWindow->ShouldImport())
@@ -513,15 +513,15 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 	}
 }
 
-void FImportedMaterialData::AddImportedMaterial( FbxSurfaceMaterial& FbxMaterial, UMaterialInterface& UnrealMaterial )
+void FImportedMaterialData::AddImportedMaterial( const FbxSurfaceMaterial& FbxMaterial, UMaterialInterface& UnrealMaterial )
 {
 	FbxToUnrealMaterialMap.Add( &FbxMaterial, &UnrealMaterial );
 	ImportedMaterialNames.Add( *UnrealMaterial.GetPathName() );
 }
 
-bool FImportedMaterialData::IsUnique( FbxSurfaceMaterial& FbxMaterial, FName ImportedMaterialName ) const
+bool FImportedMaterialData::IsAlreadyImported( const FbxSurfaceMaterial& FbxMaterial, FName ImportedMaterialName ) const
 {
-	UMaterialInterface* FoundMaterial = GetUnrealMaterial( FbxMaterial );
+	const UMaterialInterface* FoundMaterial = GetUnrealMaterial( FbxMaterial );
 
 	return FoundMaterial != NULL || ImportedMaterialNames.Contains( ImportedMaterialName );
 }
@@ -2021,19 +2021,6 @@ void FFbxImporter::FillFbxMeshArray(FbxNode* Node, TArray<FbxNode*>& outMeshArra
 	}
 }
 
-void FFbxImporter::FillFbxSkeletonArray(FbxNode* Node, TArray<FbxNode*>& OutMeshArray)
-{
-	if (Node->GetSkeleton())
-	{
-		OutMeshArray.Add(Node);
-	}
-
-	for (int32 ChildIndex = 0; ChildIndex < Node->GetChildCount(); ++ChildIndex)
-	{
-		FillFbxSkeletonArray(Node->GetChild(ChildIndex), OutMeshArray);
-	}
-}
-
 void FFbxImporter::FillFbxMeshAndLODGroupArray(FbxNode* Node, TArray<FbxNode*>& outLODGroupArray, TArray<FbxNode*>& outMeshArray)
 {
 	// Is this node an LOD group
@@ -3127,10 +3114,40 @@ FString GetFbxPropertyStringValue(const FbxProperty& Property)
 		ValueStr = LexToString(BoolValue);
 	}
 	break;
+	case eFbxChar:
+	{
+		FbxChar CharValue = Property.Get<FbxChar>();
+		ValueStr = LexToString(CharValue);
+	}
+	break;
+	case eFbxUChar:
+	{
+		FbxUChar UCharValue = Property.Get<FbxUChar>();
+		ValueStr = LexToString(UCharValue);
+	}
+	break;
+	case eFbxShort:
+	{
+		FbxShort ShortValue = Property.Get<FbxShort>();
+		ValueStr = LexToString(ShortValue);
+	}
+	break;
+	case eFbxUShort:
+	{
+		FbxUShort UShortValue = Property.Get<FbxUShort>();
+		ValueStr = LexToString(UShortValue);
+	}
+	break;
 	case eFbxInt:
 	{
 		FbxInt IntValue = Property.Get<FbxInt>();
 		ValueStr = LexToString(IntValue);
+	}
+	break;
+	case eFbxUInt:
+	{
+		FbxUInt UIntValue = Property.Get<FbxUInt>();
+		ValueStr = LexToString(UIntValue);
 	}
 	break;
 	case eFbxEnum:

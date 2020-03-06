@@ -23,6 +23,7 @@
 #include "AssetRegistryModule.h"
 #include "ARFilter.h"
 #include "EdGraph/EdGraphPin.h"
+#include "NiagaraConstants.h"
 
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreEntry"
@@ -58,12 +59,12 @@ void UNiagaraStackParameterStoreEntry::RefreshChildrenInternal(const TArray<UNia
 {
 	RefreshValueAndHandle();
 
-	if (ValueObject != nullptr && ValueObject->IsA<UNiagaraDataInterface>())
+	if (ValueObject.IsValid() && ValueObject->IsA<UNiagaraDataInterface>())
 	{
 		if(ValueObjectEntry == nullptr || ValueObjectEntry->GetObject() != ValueObject)
 		{
 			ValueObjectEntry = NewObject<UNiagaraStackObject>(this);
-			ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), ValueObject, GetOwnerStackItemEditorDataKey());
+			ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), ValueObject.Get(), GetOwnerStackItemEditorDataKey());
 		}
 		NewChildren.Add(ValueObjectEntry);
 	}
@@ -106,7 +107,7 @@ TSharedPtr<FStructOnScope> UNiagaraStackParameterStoreEntry::GetValueStruct()
 
 UObject* UNiagaraStackParameterStoreEntry::GetValueObject()
 {
-	return ValueObject;
+	return ValueObject.Get();
 }
 
 void UNiagaraStackParameterStoreEntry::NotifyBeginValueChange()
@@ -170,24 +171,6 @@ void UNiagaraStackParameterStoreEntry::Reset()
 	GetSystemViewModel()->ResetSystem();
 }
 
-bool UNiagaraStackParameterStoreEntry::CanRenameInput() const
-{
-	return true; 
-}
-
-bool UNiagaraStackParameterStoreEntry::GetIsRenamePending() const
-{
-	return CanRenameInput() && GetStackEditorData().GetModuleInputIsRenamePending(ParameterName.ToString());
-}
-
-void UNiagaraStackParameterStoreEntry::SetIsRenamePending(bool bIsRenamePending)
-{
-	if (CanRenameInput())
-	{
-		GetStackEditorData().SetModuleInputIsRenamePending(ParameterName.ToString(), bIsRenamePending);
-	}
-}
-
 TArray<UEdGraphPin*> UNiagaraStackParameterStoreEntry::GetOwningPins()
 {
 	TArray<UNiagaraGraph*> GraphsToCheck;
@@ -233,22 +216,20 @@ TArray<UEdGraphPin*> UNiagaraStackParameterStoreEntry::GetOwningPins()
 	return OwningPins;
 }
 
-void UNiagaraStackParameterStoreEntry::RenameInput(FString NewName)
+void UNiagaraStackParameterStoreEntry::OnRenamed(FText NewName)
 {
-	FName NewFName = FName(*NewName);
-	FString ActualNameString = NewName;
-	FString NamespacePrefix = FNiagaraParameterHandle::UserNamespace.ToString() + ".";
-	if (NewName.Contains(NamespacePrefix))
+	FString ActualNameString = NewName.ToString();
+	FString NamespacePrefix = FNiagaraConstants::UserNamespace.ToString() + ".";
+	if (ActualNameString.Contains(NamespacePrefix))
 	{
-		ActualNameString = NewName.Replace(*NamespacePrefix, TEXT(""));
+		ActualNameString = ActualNameString.Replace(*NamespacePrefix, TEXT(""));
 	}
 	FName ActualName = FName(*ActualNameString);
 	// what if it's not user namespace? dehardcode.
-	FNiagaraParameterHandle ParameterHandle(FNiagaraParameterHandle::UserNamespace, ActualName); 
+	FNiagaraParameterHandle ParameterHandle(FNiagaraConstants::UserNamespace, ActualName); 
 	FName VariableName = ParameterHandle.GetParameterHandleString();
 	if (VariableName != ParameterName)
 	{
-
 		// destroy links, rename parameter and rebuild links
 		TArray<UEdGraphPin*> OwningPins = GetOwningPins();
 		TArray<UEdGraphPin*> LinkedPins;
@@ -407,7 +388,7 @@ UObject* UNiagaraStackParameterStoreEntry::GetCurrentValueObject()
 
 bool UNiagaraStackParameterStoreEntry::IsUniqueName(FString NewName)
 {
-	FString NamespacePrefix = FNiagaraParameterHandle::UserNamespace.ToString() + "."; // correcting name of variable for comparison, all user variables start with "User."
+	FString NamespacePrefix = FNiagaraConstants::UserNamespace.ToString() + "."; // correcting name of variable for comparison, all user variables start with "User."
 	if (!NewName.Contains(NamespacePrefix))
 	{
 		NewName = NamespacePrefix + NewName;

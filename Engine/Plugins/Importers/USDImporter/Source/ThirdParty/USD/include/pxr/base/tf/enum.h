@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_ENUM_H
-#define TF_ENUM_H
+#ifndef PXR_BASE_TF_ENUM_H
+#define PXR_BASE_TF_ENUM_H
 
 /// \file tf/enum.h
 /// \ingroup group_tf_RuntimeTyping
@@ -444,4 +444,4 @@ TF_API std::ostream& operator<<(std::ostream& out, const TfEnum & e);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_ENUM_H
+#endif // PXR_BASE_TF_ENUM_H

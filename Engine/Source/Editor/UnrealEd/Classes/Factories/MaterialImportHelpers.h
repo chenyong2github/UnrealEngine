@@ -20,7 +20,9 @@ enum class EMaterialSearchLocation : uint8
 	/** Search for matching material recursively from root folder. */
 	UnderRoot,
 	/** Search for matching material in all assets folders. */
-	AllAssets
+	AllAssets,
+	/** Do not search for existing matching materials */
+	DoNotSearch,
 };
 
 UCLASS(transient)

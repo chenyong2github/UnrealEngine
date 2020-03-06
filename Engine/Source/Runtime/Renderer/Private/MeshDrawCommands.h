@@ -16,27 +16,30 @@ class FParallelCommandListSet;
 /**
  * Global vertex buffer pool used for GPUScene primitive id arrays.
  */
+
+struct FPrimitiveIdVertexBufferPoolEntry
+{
+	int32 BufferSize = 0;
+	uint32 LastDiscardId = 0;
+	FVertexBufferRHIRef BufferRHI;
+};
+
 class FPrimitiveIdVertexBufferPool : public FRenderResource
 {
 public:
 	FPrimitiveIdVertexBufferPool();
 	~FPrimitiveIdVertexBufferPool();
 
-	FRHIVertexBuffer* Allocate(int32 BufferSize);
+	FPrimitiveIdVertexBufferPoolEntry Allocate(int32 BufferSize);
+	void ReturnToFreeList(FPrimitiveIdVertexBufferPoolEntry Entry);
 	void DiscardAll();
 
 	virtual void ReleaseDynamicRHI() override;
 
 private:
-	struct FPrimitiveIdVertexBufferPoolEntry
-	{
-		int32 BufferSize;
-		uint32 LastDiscardId;
-		FVertexBufferRHIRef BufferRHI;
-	};
-
 	uint32 DiscardId;
 	TArray<FPrimitiveIdVertexBufferPoolEntry> Entries;
+	FCriticalSection AllocationCS;
 };
 
 extern TGlobalResource<FPrimitiveIdVertexBufferPool> GPrimitiveIdVertexBufferPool;
@@ -62,6 +65,7 @@ public:
 		, InstanceFactor(1)
 		, NumDynamicMeshElements(0)
 		, NumDynamicMeshCommandBuildRequestElements(0)
+		, NeedsShaderInitialisation(false)
 		, PrimitiveIdBufferData(nullptr)
 		, PrimitiveIdBufferDataSize(0)
 		, PrimitiveBounds(nullptr)
@@ -98,6 +102,7 @@ public:
 	TArray<const FStaticMeshBatch*, SceneRenderingAllocator> MobileBasePassCSMDynamicMeshCommandBuildRequests;
 	FDynamicMeshDrawCommandStorage MeshDrawCommandStorage;
 	FGraphicsMinimalPipelineStateSet MinimalPipelineStatePassSet;
+	bool NeedsShaderInitialisation;
 
 	// Resources preallocated on rendering thread.
 	void* PrimitiveIdBufferData;
@@ -126,8 +131,7 @@ class FParallelMeshDrawCommandPass
 {
 public:
 	FParallelMeshDrawCommandPass()
-		: PrimitiveIdVertexBufferRHI(nullptr)
-		, bPrimitiveIdBufferDataOwnedByRHIThread(false)
+		: bPrimitiveIdBufferDataOwnedByRHIThread(false)
 		, MaxNumDraws(0)
 	{
 	}
@@ -163,9 +167,13 @@ public:
 	void SetDumpInstancingStats(const FString& InPassName);
 	bool HasAnyDraw() const { return MaxNumDraws > 0; }
 
+	void InitCreateSnapshot()
+	{
+		new (&TaskContext.MinimalPipelineStatePassSet) FGraphicsMinimalPipelineStateSet();
+	}
 
 private:
-	FRHIVertexBuffer* PrimitiveIdVertexBufferRHI;
+	FPrimitiveIdVertexBufferPoolEntry PrimitiveIdVertexBufferPoolEntry;
 	FMeshDrawCommandPassSetupTaskContext TaskContext;
 	FGraphEventRef TaskEventRef;
 	FString PassNameForStats;

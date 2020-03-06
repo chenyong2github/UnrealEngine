@@ -75,6 +75,11 @@ struct AIMODULE_API FAIDataProviderTypedValue : public FAIDataProviderValue
 {
 	GENERATED_USTRUCT_BODY()
 
+	FAIDataProviderTypedValue()
+		: PropertyType_DEPRECATED(nullptr)
+		, PropertyType(nullptr)
+	{}
+
 	/** type of value */
 	UPROPERTY()
 	UClass* PropertyType_DEPRECATED;

@@ -62,7 +62,7 @@ class FMipsShadersVS : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	FMipsShadersVS() { }
@@ -70,12 +70,6 @@ public:
 	FMipsShadersVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{ }
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
 };
 IMPLEMENT_SHADER_TYPE(, FMipsShadersVS, TEXT("/Engine/Private/ComputeGenerateMips.usf"), TEXT("MainVS"), SF_Vertex);
 
@@ -95,7 +89,7 @@ class FMipsShadersPS : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	FMipsShadersPS() { }
@@ -115,7 +109,7 @@ public:
 		}
 
 		TUniformBufferRef<FMipsShadersUB> Data = TUniformBufferRef<FMipsShadersUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-		SetUniformBufferParameter(RHICmdList, GetPixelShader(), GetUniformBufferParameter<FMipsShadersUB>(), Data);
+		SetUniformBufferParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), GetUniformBufferParameter<FMipsShadersUB>(), Data);
 	}
 };
 
@@ -204,8 +198,8 @@ void FGenerateMips::RenderMips(FRHICommandListImmediate& CommandList, FRHITextur
 	TShaderMapRef<FMipsShadersPS> CopyShader(ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GenMipsStruct->VertexDeclaration;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*CopyShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = CopyShader.GetPixelShader();
 
 	uint32 NumMips = InTexture->GetNumMips();
 	for (uint32 MipLevel=1; MipLevel<NumMips; ++MipLevel)
@@ -298,13 +292,12 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 	//Select compute shader variant (normal vs. sRGB etc.)
 #if PLATFORM_ANDROID
 	const bool bIsUsingVulkan = FAndroidMisc::ShouldUseVulkan();
-	const bool bCanDoSRGB = (GMaxRHIFeatureLevel > ERHIFeatureLevel::ES2);
 #else
 	const bool bIsUsingVulkan = false;
-	const bool bCanDoSRGB = true;
 #endif
+
 	FGenerateMipsCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FGenerateMipsCS::FGenMipsSRGB>(!!(InTexture->GetFlags() & TexCreate_SRGB) && bCanDoSRGB);
+	PermutationVector.Set<FGenerateMipsCS::FGenMipsSRGB>(!!(InTexture->GetFlags() & TexCreate_SRGB));
 	// TEMP: On Vulkan we experience RGB being swizzled around, this little switch here circumvents the issue
 	PermutationVector.Set<FGenerateMipsCS::FGenMipsSwizzle>(bIsUsingVulkan);
 	TShaderMapRef<FGenerateMipsCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
@@ -333,7 +326,7 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 			FMath::Max((DestTextureSizeY + MIPSSHADER_NUMTHREADS - 1) / MIPSSHADER_NUMTHREADS, 1),
 			1);
 		//Pass added per mip level to be written.
-		ClearUnusedGraphResources(*ComputeShader, PassParameters);
+		ClearUnusedGraphResources(ComputeShader, PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Generate2DTextureMips DestMipLevel=%d", MipLevel),
@@ -341,7 +334,7 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 			ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
 			[PassParameters, ComputeShader, GenMipsGroupCount](FRHICommandList& RHICmdList)
 		{
-			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, GenMipsGroupCount);
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GenMipsGroupCount);
 		});
 	}
 	GraphBuilder.QueueTextureExtraction(GraphTexture, &GenMipsStruct->RenderTarget);
@@ -433,7 +426,7 @@ void FGenerateMips::Execute(FRDGBuilder* GraphBuilder, FRDGTextureRef InGraphTex
 			1);
 		
 		//Pass added per mip level to be written.
-		ClearUnusedGraphResources(*ComputeShader, PassParameters);
+		ClearUnusedGraphResources(ComputeShader, PassParameters);
 
 		GraphBuilder->AddPass(
 			RDG_EVENT_NAME("Generate2DTextureMips DestMipLevel=%d", MipLevel),
@@ -441,7 +434,7 @@ void FGenerateMips::Execute(FRDGBuilder* GraphBuilder, FRDGTextureRef InGraphTex
 			ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
 			[PassParameters, ComputeShader, GenMipsGroupCount](FRHICommandList& RHICmdList)
 		{
-			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, GenMipsGroupCount);
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GenMipsGroupCount);
 		});
 
 	}

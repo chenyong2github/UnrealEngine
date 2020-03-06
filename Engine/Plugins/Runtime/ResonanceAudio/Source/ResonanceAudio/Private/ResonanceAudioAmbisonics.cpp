@@ -3,162 +3,394 @@
 //
 #include "ResonanceAudioAmbisonics.h"
 #include "ResonanceAudioAmbisonicsSettings.h"
+#include "ResonanceAudioPluginListener.h"
+#include "SoundFieldRendering.h"
+
+static int32 UseReverbPluginForResonanceOutputCVar = 1;
+FAutoConsoleVariableRef CVarUseReverbPluginForResonanceOutput(
+	TEXT("au.resonance.UseReverbPluginForOutput"),
+	UseReverbPluginForResonanceOutputCVar,
+	TEXT("If set to 0, will allow for Resonance to render it's output directly from a submix even if it is not set as the spatialization or reverb plugin.\n")
+	TEXT("0: Disable, >0: Enable"),
+	ECVF_Default);
 
 namespace ResonanceAudio
 {
-
-	const int32 DefaultNumChannels = 4;
-
-
-	int32 GetNumChannelsForAmbisonicsOrder(EAmbisonicsOrder InOrder)
+	class FEncoder : public ISoundfieldEncoderStream
 	{
-		switch (InOrder)
+	private:
+		vraudio::ResonanceAudioApi* ResonanceSystem;
+		bool bShouldDestroyResonanceSystem;
+
+		TArray<vraudio::SourceId> SourceIdArray;
+		TArray<Audio::AlignedFloatBuffer> DeinterleavedBuffers;
+		int32 NumChannels;
+
+		void ChangeNumChannels(int32 NewNumChannels, vraudio::RenderingMode InRenderingMode)
 		{
-			case EAmbisonicsOrder::SecondOrder:
+			check(ResonanceSystem);
+			for (vraudio::SourceId Source : SourceIdArray)
 			{
-				return 9;
+				ResonanceSystem->DestroySource(Source);
 			}
 
-			case EAmbisonicsOrder::ThirdOrder:
+			DeinterleavedBuffers.Reset();
+
+			if (NewNumChannels > 1)
 			{
-				return 16;
+				for (int32 Index = 0; Index < NewNumChannels; Index++)
+				{
+					DeinterleavedBuffers.AddDefaulted();
+					SourceIdArray.Add(ResonanceSystem->CreateSoundObjectSource(InRenderingMode));
+				}
 			}
 
-			case EAmbisonicsOrder::FirstOrder:
-			default:
-			{
-				return 4;
-			}
+			NumChannels = NewNumChannels;
 		}
-	}
 
-	FResonanceAudioAmbisonicsMixer::FResonanceAudioAmbisonicsMixer()
-		: ResonanceAudioApi(nullptr)
-	{
-	}
-
-	void FResonanceAudioAmbisonicsMixer::Shutdown()
-	{
-	}
-
-	int32 FResonanceAudioAmbisonicsMixer::GetNumChannelsForAmbisonicsFormat(UAmbisonicsSubmixSettingsBase* InSettings)
-	{
-		UResonanceAudioAmbisonicsSettings* CastedSettings = Cast<UResonanceAudioAmbisonicsSettings>(InSettings);
-
-		if (CastedSettings != nullptr)
+	public:
+		FEncoder(vraudio::ResonanceAudioApi* InResonanceSystem, bool bInShouldDestroyResonanceAPI, int32 InNumChannels, vraudio::RenderingMode InRenderingMode)
+			: ResonanceSystem(InResonanceSystem)
+			, bShouldDestroyResonanceSystem(bInShouldDestroyResonanceAPI)
+			, NumChannels(InNumChannels)
 		{
-			const EAmbisonicsOrder Order = CastedSettings->AmbisonicsOrder;
-			return GetNumChannelsForAmbisonicsOrder(Order);
-		}
-		else
-		{
-			return 4;
-		}
-	}
-
-	void FResonanceAudioAmbisonicsMixer::OnOpenEncodingStream(const uint32 StreamId, UAmbisonicsSubmixSettingsBase* InSettings)
-	{
-		UE_LOG(LogResonanceAudio, Warning, TEXT("Encoding into an ambisonics is not currently supported by the Resonance Audio plugin."));
-	}
-
-	void FResonanceAudioAmbisonicsMixer::OnCloseEncodingStream(const uint32 SourceId)
-	{
-		//TODO: Implement.
-	}
-
-	void FResonanceAudioAmbisonicsMixer::EncodeToAmbisonics(const uint32 SourceId, const FAmbisonicsEncoderInputData& InputData, FAmbisonicsEncoderOutputData& OutputData, UAmbisonicsSubmixSettingsBase* InParams)
-	{
-		//TODO: Implement.
-	}
-
-	void FResonanceAudioAmbisonicsMixer::OnOpenDecodingStream(const uint32 StreamId, UAmbisonicsSubmixSettingsBase* InSettings, FAmbisonicsDecoderPositionalData& SpecifiedOutputPositions)
-	{
-		if (ResonanceAudioApi == nullptr)
-		{
-			return;
-		}
-
-		int32 NumChannels = 4;
-
-		UResonanceAudioAmbisonicsSettings* MyAmbisonicsSettings = Cast<UResonanceAudioAmbisonicsSettings>(InSettings);
-		if(MyAmbisonicsSettings != nullptr)
-		{
-			NumChannels = GetNumChannelsForAmbisonicsOrder(MyAmbisonicsSettings->AmbisonicsOrder);
-		}
-
-		ResonanceSourceIdMap.Add(StreamId, ResonanceAudioApi->CreateAmbisonicSource(NumChannels));
-	}
-
-	void FResonanceAudioAmbisonicsMixer::OnCloseDecodingStream(const uint32 StreamId)
-	{
-		if (ResonanceAudioApi == nullptr)
-		{
-			return;
-		}
-
-		RaSourceId* InStreamId = ResonanceSourceIdMap.Find(StreamId);
-		if (InStreamId != nullptr)
-		{
-			ResonanceAudioApi->DestroySource(*InStreamId);
-			ResonanceSourceIdMap.Remove(*InStreamId);
-		}
-		else
-		{
-			UE_LOG(LogResonanceAudio, Warning, TEXT("Tried to close a stream id (%d) we did not open."), StreamId);
-		}
-	}
-
-	void FResonanceAudioAmbisonicsMixer::DecodeFromAmbisonics(const uint32 StreamId, const FAmbisonicsDecoderInputData& InputData, FAmbisonicsDecoderPositionalData& SpecifiedOutputPositions, FAmbisonicsDecoderOutputData& OutputData)
-	{
-		if (ResonanceAudioApi == nullptr)
-		{
-			return;
-		}
-
-		
-		//Get the source ID for this Ambisonics file.
-		RaSourceId* ThisStream = ResonanceSourceIdMap.Find(StreamId);
-
-		//If it doesn't exist already, create a new source.
-		if (ThisStream == nullptr)
-		{
-			ThisStream = &ResonanceSourceIdMap.Add(StreamId, ResonanceAudioApi->CreateAmbisonicSource(InputData.NumChannels));
-		}
+			check(ResonanceSystem);
+			check(NumChannels > 0);
 			
-		int32 NumFrames = InputData.AudioBuffer->Num() / InputData.NumChannels;
-		float* InputAudio = InputData.AudioBuffer->GetData();
-
-		ResonanceAudioApi->SetInterleavedBuffer(*ThisStream, InputAudio, InputData.NumChannels, NumFrames);
-		
-	}
-
-	bool FResonanceAudioAmbisonicsMixer::ShouldReencodeBetween(UAmbisonicsSubmixSettingsBase* SourceSubmixSettings, UAmbisonicsSubmixSettingsBase* DestinationSubmixSettings)
-	{
-		return true;
-	}
-
-	void FResonanceAudioAmbisonicsMixer::Initialize(const FAudioPluginInitializationParams InitializationParams)
-	{
-		// Nothing to do here for now.
-	}
-
-	UClass* FResonanceAudioAmbisonicsMixer::GetCustomSettingsClass()
-	{
-		return UResonanceAudioAmbisonicsSettings::StaticClass();
-	}
-
-	UAmbisonicsSubmixSettingsBase* FResonanceAudioAmbisonicsMixer::GetDefaultSettings()
-	{
-		static UResonanceAudioAmbisonicsSettings* DefaultAmbisonicsSettings = nullptr;
-		
-		if (DefaultAmbisonicsSettings == nullptr)
-		{
-			DefaultAmbisonicsSettings = NewObject<UResonanceAudioAmbisonicsSettings>();
-			DefaultAmbisonicsSettings->AmbisonicsOrder = EAmbisonicsOrder::FirstOrder;
-			DefaultAmbisonicsSettings->AddToRoot();
+			for (int32 Index = 0; Index < NumChannels; Index++)
+			{
+				DeinterleavedBuffers.AddDefaulted();
+				SourceIdArray.Add(ResonanceSystem->CreateSoundObjectSource(InRenderingMode));
+			}
 		}
 
-		return DefaultAmbisonicsSettings;
+		virtual ~FEncoder()
+		{
+			check(ResonanceSystem);
+			for (vraudio::SourceId Source : SourceIdArray)
+			{
+				ResonanceSystem->DestroySource(Source);
+			}
+
+			if (bShouldDestroyResonanceSystem)
+			{
+				FResonanceAudioPluginListener::RemoveResonanceAPIForAudioDevice(ResonanceSystem);
+				delete ResonanceSystem;
+				ResonanceSystem = nullptr;
+			}
+		}
+
+
+		virtual void Encode(const FSoundfieldEncoderInputData& InputData, ISoundfieldAudioPacket& OutputData) override
+		{
+			OutputData.Reset();
+			EncodeAndMixIn(InputData, OutputData);
+		}
+
+
+		virtual void EncodeAndMixIn(const FSoundfieldEncoderInputData& InputData, ISoundfieldAudioPacket& OutputData) override
+		{
+			check(ResonanceSystem);
+			FResonancePacket& OutPacket = DowncastSoundfieldRef<FResonancePacket>(OutputData);
+			OutPacket.SetResonanceApi(ResonanceSystem);
+
+			const FResonanceAmbisonicsSettingsProxy& Settings = DowncastSoundfieldRef<const FResonanceAmbisonicsSettingsProxy>(InputData.InputSettings);
+
+			if (NumChannels == 1)
+			{
+				check(SourceIdArray.Num() == 1);
+
+				// Don't use the DeinterleavedBuffers, submit the audio directly.
+				ResonanceSystem->SetInterleavedBuffer(SourceIdArray[0], InputData.AudioBuffer.GetData(), 1, InputData.AudioBuffer.Num());
+			}
+			else
+			{
+				check(InputData.PositionalData.ChannelPositions);
+				const TArray<Audio::FChannelPositionInfo>& ChannelPositions = *InputData.PositionalData.ChannelPositions;
+
+
+				if (ChannelPositions.Num() != NumChannels)
+				{
+					ChangeNumChannels(ChannelPositions.Num(), Settings.RenderingMode);
+				}
+
+				const int32 NumFrames = InputData.AudioBuffer.Num() / InputData.NumChannels;
+				check(DeinterleavedBuffers.Num() == InputData.NumChannels);
+
+				for (int32 ChannelIndex = 0; ChannelIndex < InputData.NumChannels; ChannelIndex++)
+				{
+					// Deinterleave the audio for this channel.
+					Audio::AlignedFloatBuffer& DeinterleavedBuffer = DeinterleavedBuffers[ChannelIndex];
+					DeinterleavedBuffer.Reset();
+					DeinterleavedBuffer.AddUninitialized(NumFrames);
+
+					for (int32 FrameIndex = 0; FrameIndex < NumFrames; FrameIndex++)
+					{
+						DeinterleavedBuffer[FrameIndex] = InputData.AudioBuffer[FrameIndex * NumChannels + ChannelIndex];
+					}
+
+					// Set the position and audio buffer for this source.
+					vraudio::SourceId& SourceId = SourceIdArray[ChannelIndex];
+					FVector ResonancePosition = ConvertToResonanceAudioCoordinates(ChannelPositions[ChannelIndex]);
+					ResonanceSystem->SetSourcePosition(SourceId, ResonancePosition.X, ResonancePosition.Y, ResonancePosition.Z);
+					ResonanceSystem->SetInterleavedBuffer(SourceId, DeinterleavedBuffer.GetData(), 1, NumFrames);
+				}
+			}
+		}
+	};
+
+	class FDecoder : public ISoundfieldDecoderStream
+	{
+	public:
+		virtual void Decode(const FSoundfieldDecoderInputData& InputData, FSoundfieldDecoderOutputData& OutputData) override
+		{
+			DecodeAndMixIn(InputData, OutputData);
+		}
+
+
+		virtual void DecodeAndMixIn(const FSoundfieldDecoderInputData& InputData, FSoundfieldDecoderOutputData& OutputData) override
+		{
+			// If the reverb plugin is enabled, FillInterleavedOutputBuffer will be called there.
+			// TODO: detect whether the reverb plugin is enabled on this audio device to toggle this behavior automatically.
+			if (!UseReverbPluginForResonanceOutputCVar)
+			{
+				const int32 NumChannels = InputData.PositionalData.NumChannels;
+				const FResonancePacket& Packet = DowncastSoundfieldRef<const FResonancePacket>(InputData.SoundfieldBuffer);
+				OutputData.AudioBuffer.Reset();
+				OutputData.AudioBuffer.AddZeroed(NumChannels * InputData.NumFrames);
+
+				if (vraudio::ResonanceAudioApi* ResonanceSystem = const_cast<vraudio::ResonanceAudioApi*>(Packet.GetResonanceApi()))
+				{
+					ResonanceSystem->FillInterleavedOutputBuffer(NumChannels, InputData.NumFrames, OutputData.AudioBuffer.GetData());
+				}
+			}
+		}
+
+	};
+
+	/**
+	 * This class takes an audio stream in Unreal's internal ambisonics format and mixes it into Resonance's ambisonics bed.
+	 */
+	class FAmbisonicsTranscoder : public ISoundfieldTranscodeStream
+	{
+	private:
+		vraudio::ResonanceAudioApi* ResonanceSystem;
+		bool bShouldDestroyResonanceSystem;
+		vraudio::SourceId AmbisonicsSourceId;
+		int32 NumChannels;
+
+		void ChangeNumChannels(int32 NewNumChannels)
+		{
+			check(ResonanceSystem);
+			ResonanceSystem->DestroySource(AmbisonicsSourceId);
+
+			NumChannels = NewNumChannels;
+			AmbisonicsSourceId = ResonanceSystem->CreateAmbisonicSource(NumChannels);
+		}
+
+	public:
+		FAmbisonicsTranscoder(vraudio::ResonanceAudioApi* InResonanceSystem, int32 InNumChannels, bool bInShouldDestroyResonanceSystem)
+			: ResonanceSystem(InResonanceSystem)
+			, bShouldDestroyResonanceSystem(bInShouldDestroyResonanceSystem)
+			, NumChannels(InNumChannels)
+		{
+			check(ResonanceSystem);
+			AmbisonicsSourceId = ResonanceSystem->CreateAmbisonicSource(NumChannels);
+		}
+
+		virtual ~FAmbisonicsTranscoder()
+		{
+			check(ResonanceSystem);
+			ResonanceSystem->DestroySource(AmbisonicsSourceId);
+
+			if (bShouldDestroyResonanceSystem)
+			{
+				FResonanceAudioPluginListener::RemoveResonanceAPIForAudioDevice(ResonanceSystem);
+				delete ResonanceSystem;
+				ResonanceSystem = nullptr;
+			}
+		}
+
+		virtual void Transcode(const ISoundfieldAudioPacket& InputData, const ISoundfieldEncodingSettingsProxy& InputSettings, ISoundfieldAudioPacket& OutputData, const ISoundfieldEncodingSettingsProxy& OutputSettings) override
+		{
+			TranscodeAndMixIn(InputData, InputSettings, OutputData, OutputSettings);
+		}
+
+
+		virtual void TranscodeAndMixIn(const ISoundfieldAudioPacket& InputData, const ISoundfieldEncodingSettingsProxy& InputSettings, ISoundfieldAudioPacket& PacketToSumTo, const ISoundfieldEncodingSettingsProxy& OutputSettings) override
+		{
+			const FAmbisonicsSoundfieldBuffer& AmbisonicsBuffer = DowncastSoundfieldRef<const FAmbisonicsSoundfieldBuffer>(InputData);
+			FResonancePacket& OutPacket = DowncastSoundfieldRef<FResonancePacket>(PacketToSumTo);
+			
+			check(ResonanceSystem);
+
+			if (AmbisonicsBuffer.NumChannels != NumChannels)
+			{
+				ChangeNumChannels(AmbisonicsBuffer.NumChannels);
+			}
+
+			ResonanceSystem->SetInterleavedBuffer(AmbisonicsSourceId, AmbisonicsBuffer.AudioBuffer.GetData(), NumChannels, AmbisonicsBuffer.AudioBuffer.Num() / NumChannels);
+
+			OutPacket.SetResonanceApi(ResonanceSystem);
+		}
+
+	};
+
+	class FResonanceMixer : public ISoundfieldMixerStream
+	{
+	public:
+
+		virtual void MixTogether(const FSoundfieldMixerInputData& InputData, ISoundfieldAudioPacket& PacketToSumTo) override
+		{
+			// All this does is forward the resonance system to the PacketToSumTo.
+			const FResonancePacket& InPacket = DowncastSoundfieldRef<const FResonancePacket>(InputData.InputPacket);
+			FResonancePacket& OutPacket = DowncastSoundfieldRef<FResonancePacket>(PacketToSumTo);
+
+			OutPacket.SetResonanceApi(InPacket.GetResonanceApi());
+		}
+
+	};
+
+	FAmbisonicsFactory::FAmbisonicsFactory()
+	{
+		ISoundfieldFactory::RegisterSoundfieldFormat(this);
+	}
+
+	FAmbisonicsFactory::~FAmbisonicsFactory()
+	{
+		ISoundfieldFactory::UnregisterSoundfieldFormat(this);
+	}
+
+	FName FAmbisonicsFactory::GetSoundfieldFormatName()
+	{
+		static FName ResonanceSoundfieldFormat = TEXT("Resonance Binaural Spatialization");
+		return ResonanceSoundfieldFormat;
+	}
+
+	TUniquePtr<ISoundfieldEncoderStream> FAmbisonicsFactory::CreateEncoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings)
+	{
+		const FResonanceAmbisonicsSettingsProxy& Settings = DowncastSoundfieldRef<const FResonanceAmbisonicsSettingsProxy>(InitialSettings);
+		FAudioDevice* AudioDevice = InitInfo.AudioDevicePtr;
+
+		check(AudioDevice);
+
+		vraudio::ResonanceAudioApi* ResonanceApi = FResonanceAudioPluginListener::GetResonanceAPIForAudioDevice(AudioDevice);
+
+		// If there's no globablly available Resonance api, spawn a new one.
+		if (!ResonanceApi)
+		{
+			// TODO: Currently, we don't delete the resonance API we create here until the audio device is destroyed.
+			// If we're going to handle things like dynamic submix routing, the Resonance API lifecycle needs to be reworked to be more explicit.
+			ResonanceApi = CreateNewResonanceApiInstance(AudioDevice, InitInfo);
+			return TUniquePtr<ISoundfieldEncoderStream>(new FEncoder(ResonanceApi, false, InitInfo.NumOutputChannels, Settings.RenderingMode));
+		}
+		else
+		{
+			return TUniquePtr<ISoundfieldEncoderStream>(new FEncoder(ResonanceApi, false, InitInfo.NumOutputChannels, Settings.RenderingMode));
+		}
+	}
+
+	TUniquePtr<ISoundfieldDecoderStream> FAmbisonicsFactory::CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings)
+	{
+		return TUniquePtr<ISoundfieldDecoderStream>(new FDecoder());
+	}
+
+	TUniquePtr<ISoundfieldTranscodeStream> FAmbisonicsFactory::CreateTranscoderStream(const FName SourceFormat, const ISoundfieldEncodingSettingsProxy& InitialSourceSettings, const FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& InitialDestinationSettings, const FAudioPluginInitializationParams& InitInfo)
+	{
+		check(SourceFormat == GetUnrealAmbisonicsFormatName());
+		check(DestinationFormat == GetSoundfieldFormatName());
+
+		const FAmbisonicsSoundfieldSettings& SourceSettings = DowncastSoundfieldRef<const FAmbisonicsSoundfieldSettings>(InitialSourceSettings);
+		const FResonanceAmbisonicsSettingsProxy& DestinationSettings = DowncastSoundfieldRef<const FResonanceAmbisonicsSettingsProxy>(InitialDestinationSettings);
+
+		int32 NumChannels = (SourceSettings.Order + 1) * (SourceSettings.Order + 1);
+
+		FAudioDevice* AudioDevice = InitInfo.AudioDevicePtr;
+		
+		vraudio::ResonanceAudioApi* ResonanceApi = FResonanceAudioPluginListener::GetResonanceAPIForAudioDevice(AudioDevice);
+
+		// If there's no globabally available Resonance api, spawn a new one.
+		if (!ResonanceApi)
+		{
+			ResonanceApi = CreateNewResonanceApiInstance(AudioDevice, InitInfo);
+			return TUniquePtr<ISoundfieldTranscodeStream>(new FAmbisonicsTranscoder(ResonanceApi, NumChannels, true));
+		}
+		else
+		{
+			return TUniquePtr<ISoundfieldTranscodeStream>(new FAmbisonicsTranscoder(ResonanceApi, NumChannels, false));
+		}
+	}
+
+	TUniquePtr<ISoundfieldMixerStream> FAmbisonicsFactory::CreateMixerStream(const ISoundfieldEncodingSettingsProxy& InitialSettings)
+	{
+		return TUniquePtr<ISoundfieldMixerStream>(new FResonanceMixer());
+	}
+
+	TUniquePtr<ISoundfieldAudioPacket> FAmbisonicsFactory::CreateEmptyPacket()
+	{
+		return TUniquePtr<ISoundfieldAudioPacket>(new FResonancePacket(nullptr));
+	}
+
+	bool FAmbisonicsFactory::IsTranscodeRequiredBetweenSettings(const ISoundfieldEncodingSettingsProxy& SourceSettings, const ISoundfieldEncodingSettingsProxy& DestinationSettings)
+	{
+		// Since all audio is encoded to third order ambisonics upon encoding for Resonance, we don't need to transcode anything.
+		return false;
+	}
+
+	bool FAmbisonicsFactory::CanTranscodeFromSoundfieldFormat(FName SourceFormat, const ISoundfieldEncodingSettingsProxy& SourceEncodingSettings)
+	{
+		FName AmbisonicsSoundfieldFormatName = GetUnrealAmbisonicsFormatName();
+		if (SourceFormat == AmbisonicsSoundfieldFormatName)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool FAmbisonicsFactory::CanTranscodeToSoundfieldFormat(FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& DestinationEncodingSettings)
+	{
+		return false;
+	}
+
+	UClass* FAmbisonicsFactory::GetCustomEncodingSettingsClass() const
+	{
+		return UResonanceAudioSoundfieldSettings::StaticClass();
+	}
+
+	const USoundfieldEncodingSettingsBase* FAmbisonicsFactory::GetDefaultEncodingSettings()
+	{
+		return GetDefault<UResonanceAudioSoundfieldSettings>();
+	}
+
+	vraudio::ResonanceAudioApi* FAmbisonicsFactory::CreateNewResonanceApiInstance(FAudioDevice* AudioDevice, const FAudioPluginInitializationParams& InInitInfo)
+	{
+		const size_t FramesPerBuffer = static_cast<size_t>(AudioDevice->GetBufferLength());
+		const int SampleRate = static_cast<int>(AudioDevice->GetSampleRate());
+
+		vraudio::ResonanceAudioApi* ResonanceApi = CreateResonanceAudioApi(FResonanceAudioModule::GetResonanceAudioDynamicLibraryHandle(), 2 /* num channels */, FramesPerBuffer, SampleRate);
+		FResonanceAudioPluginListener::SetResonanceAPIForAudioDevice(AudioDevice, ResonanceApi);
+
+		return ResonanceApi;
+	}
+
+	void FResonancePacket::Serialize(FArchive& Ar)
+	{
+		// Since the FResonancePacket is just a handle to the API, 
+		// we don't have anything to serialize.
+	}
+
+	TUniquePtr<ISoundfieldAudioPacket> FResonancePacket::Duplicate() const
+	{
+		FResonancePacket* Packet = new FResonancePacket(ResonanceSystem);
+		return TUniquePtr<ISoundfieldAudioPacket>(Packet);
+	}
+
+	void FResonancePacket::Reset()
+	{
+		ResonanceSystem = nullptr;
 	}
 
 }

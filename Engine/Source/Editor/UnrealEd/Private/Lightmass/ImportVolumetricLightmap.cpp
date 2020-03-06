@@ -1024,9 +1024,34 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 
 	bool bGenerateSkyShadowing = false;
 
+	int32 LocalNumCompletedVolumetricLightmapTasks = FPlatformAtomics::AtomicRead(&NumCompletedVolumetricLightmapTasks);
+	if (Exporter->VolumetricLightmapTaskGuids.Num() != LocalNumCompletedVolumetricLightmapTasks)
+	{
+		FMessageLog("LightingResults").Error(
+			FText::Format(
+				LOCTEXT("LightmassError_VolumetricLightmapImportFailed_NotAllCompleted", "Import Volumetric Lightmap failed: Expected {0} tasks, only {1} were reported as completed from Swarm"), 
+				FText::AsNumber(Exporter->VolumetricLightmapTaskGuids.Num()), 
+				FText::AsNumber(LocalNumCompletedVolumetricLightmapTasks)
+			)
+		);
+
+		return;
+	}
+
 	ImportIrradianceTasks(bGenerateSkyShadowing, TaskDataArray);
 
-	checkf(TaskDataArray.Num() == Exporter->VolumetricLightmapTaskGuids.Num(), TEXT("Import Volumetric Lightmap failed: Expected %u tasks, only found %u"), Exporter->VolumetricLightmapTaskGuids.Num(), TaskDataArray.Num());
+	if (TaskDataArray.Num() != Exporter->VolumetricLightmapTaskGuids.Num())
+	{
+		FMessageLog("LightingResults").Error(
+			FText::Format(
+				LOCTEXT("LightmassError_VolumetricLightmapImportFailed_FewerThanExpectedImported", "Import Volumetric Lightmap failed: Expected {0} tasks, only found {1}"),
+				FText::AsNumber(Exporter->VolumetricLightmapTaskGuids.Num()),
+				FText::AsNumber(TaskDataArray.Num())
+			)
+		);
+
+		return;
+	}
 
 	TArray<TArray<const FImportedVolumetricLightmapBrick*>> BricksByDepth;
 	BricksByDepth.Empty(VolumetricLightmapSettings.MaxRefinementLevels);

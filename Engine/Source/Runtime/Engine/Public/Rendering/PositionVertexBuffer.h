@@ -143,7 +143,7 @@ private:
 	FShaderResourceViewRHIRef PositionComponentSRV;
 
 	/** The vertex data storage type */
-	class FPositionVertexData* VertexData;
+	TMemoryImagePtr<class FPositionVertexData> VertexData;
 
 	/** The cached vertex data pointer. */
 	uint8* Data;
@@ -162,3 +162,4 @@ private:
 	template <bool bRenderThread>
 	FVertexBufferRHIRef CreateRHIBuffer_Internal();
 };
+

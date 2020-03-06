@@ -53,7 +53,7 @@ public:
 		const FIntPoint& ViewSize,
 		FRHIUnorderedAccessView* TotalRayCountBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		SetTextureParameter(RHICmdList, ShaderRHI, RayCountPerPixelParameter, RayCountPerPixelBuffer);
 		SetShaderValue(RHICmdList, ShaderRHI, ViewSizeParameter, ViewSize);
@@ -67,27 +67,18 @@ public:
 		FRWBuffer& TotalRayCountBuffer,
 		FRHIComputeFence* Fence)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, TotalRayCountBuffer.UAV, Fence);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << RayCountPerPixelParameter;
-		Ar << ViewSizeParameter;
-		Ar << TotalRayCountParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
 	// Input parameters
-	FShaderResourceParameter RayCountPerPixelParameter;
-	FShaderParameter ViewSizeParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, RayCountPerPixelParameter)
+	LAYOUT_FIELD(FShaderParameter, ViewSizeParameter)
 
 	// Output parameters
-	FShaderResourceParameter TotalRayCountParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, TotalRayCountParameter)
 };
 
 IMPLEMENT_SHADER_TYPE(, FRayCounterCS, TEXT("/Engine/Private/PathTracing/PathTracingRayCounterComputeShader.usf"), TEXT("RayCounterCS"), SF_Compute)
@@ -100,13 +91,13 @@ void FDeferredShadingSceneRenderer::ComputeRayCount(FRHICommandListImmediate& RH
 
 	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FRayCounterCS> RayCounterComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(RayCounterComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(RayCounterComputeShader.GetComputeShader());
 
 	FIntPoint ViewSize = View.ViewRect.Size();
 	RayCounterComputeShader->SetParameters(RHICmdList, RayCountPerPixelTexture, ViewSize, ViewState->TotalRayCountBuffer->UAV);
 
 	int32 NumGroups = FMath::DivideAndRoundUp<int32>(ViewSize.Y, FRayCounterCS::GetGroupSize());
-	DispatchComputeShader(RHICmdList, *RayCounterComputeShader, NumGroups, 1, 1);
+	DispatchComputeShader(RHICmdList, RayCounterComputeShader.GetShader(), NumGroups, 1, 1);
 
 	FRHIGPUBufferReadback* RayCountGPUReadback = ViewState->RayCountGPUReadback;
 

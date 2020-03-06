@@ -12,6 +12,7 @@
 #include "Containers/StringConv.h"
 #include "UObject/UnrealNames.h"
 #include "Templates/Atomic.h"
+#include "Serialization/MemoryLayout.h"
 
 /*----------------------------------------------------------------------------
 	Definitions.
@@ -924,6 +925,12 @@ private:
 template<> struct TIsZeroConstructType<class FName> { enum { Value = true }; };
 Expose_TNameOf(FName)
 
+namespace Freeze
+{
+	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FName& Object, const FTypeLayoutDesc&);
+}
+
+DECLARE_INTRINSIC_TYPE_LAYOUT(FName);
 
 FORCEINLINE uint32 GetTypeHash(FName Name)
 {

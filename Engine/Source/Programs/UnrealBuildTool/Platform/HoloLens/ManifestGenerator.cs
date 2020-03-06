@@ -615,21 +615,119 @@ namespace UnrealBuildTool
 
 		}
 
-		/// <summary>
-		/// Kicks off manifest generation. Will always attempt to fully calculate a new manifest but will not update the output
-		/// file unless there are changes (to avoid unnecessary copies when deploying).
-		/// </summary>
-		/// <param name="TargetPlatform">The platform we're generating a manifest for.</param>
-		/// <param name="TargetArchitecture">The architecture we're generating a manifest for.</param>
-		/// <param name="InOutputPath">Path to write manifest files to.</param>
-		/// <param name="InIntermediatePath">Path to store temporary intermediate data (e.g. XML resource file).</param>
-		/// <param name="InProjectFile">Path to the uproject file</param>
-		/// <param name="InProjectDirectory">Directory containing the uproject file or the base engine path if no project file is specified (for content only builds).</param>
-		/// <param name="InTargetConfigs">Configurations to build manifest data for. Each configuration will generate it's own application entry.</param>
-		/// <param name="InExecutables">The launch executable for each configuration. Must match the length and order of InTargetConfigs.</param>
-		/// <param name="InWinMDReferences">The WinMD references that should be added as activatable types</param>
-		/// <returns>A list of all updated target files</returns>
-		public List<string> CreateManifest(UnrealTargetPlatform TargetPlatform, WindowsArchitecture TargetArchitecture, string InOutputPath, string InIntermediatePath, FileReference InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables, IEnumerable<WinMDRegistrationInfo> InWinMDReferences)
+        // Add a new key with the given value to the input ini file.  The new value will take effect on the next build since the ini has already been ingested.
+        bool WriteProjectIniString(string iniFilePath, string SectionName, string keyName, string newString)
+        {
+            if (!File.Exists(iniFilePath))
+            {
+                return false;
+            }
+
+            string[] lines = File.ReadAllLines(iniFilePath);
+            List<string> updatedLines = new List<string>();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].Trim();
+				if (line.Equals("[" + SectionName.Trim() + "]"))
+                {
+                    updatedLines = lines.ToList();
+					updatedLines.Insert(i + 1, string.Concat(keyName.Trim(), "=", newString.Trim()));
+
+                    break;
+                }
+            }
+
+            if (updatedLines.Count > 0)
+            {
+                File.WriteAllLines(iniFilePath, updatedLines.ToArray());
+                return true;
+            }
+
+            return false;
+        }
+
+        // Update any ini keyName entries in the project directory with newString.  The new value will take effect on the next build since the ini has already been ingested.
+        bool UpdateProjectIniString(FileReference InProjectFile, UnrealTargetPlatform TargetPlatform, string SectionName, string keyName, string newString)
+        {
+            DirectoryReference IniDirRef = DirectoryReference.FromFile(InProjectFile);
+            bool iniUpdated = false;
+
+            List<string> projectIniFilePaths = new List<string>();
+            List<ConfigFile> Files = new List<ConfigFile>();
+            foreach (FileReference IniFileName in ConfigHierarchy.EnumerateConfigFileLocations(ConfigHierarchyType.Game, IniDirRef, TargetPlatform))
+            {
+                // If ini file does not exist, or is not in the project directory, move on to the next one.
+                if (!File.Exists(IniFileName.FullName)
+					|| !IniFileName.FullName.StartsWith(InProjectFile.Directory.FullName))
+                {
+                    continue;
+                }
+
+                Log.TraceLog("Looking at file: " + IniFileName.FullName);
+                projectIniFilePaths.Add(IniFileName.FullName);
+
+                bool isInDesiredSection = false;
+                bool rewriteCurrentFile = false;
+
+                string[] lines = File.ReadAllLines(IniFileName.FullName);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = lines[i].Trim();
+                    if (line.StartsWith("[") && line.EndsWith("]"))
+                    {
+						isInDesiredSection = line.Equals("[" + SectionName.Trim() + "]");
+                    }
+                    if (!isInDesiredSection)
+                    {
+                        continue;
+                    }
+
+					if (line.StartsWith(keyName.Trim() + "="))
+                    {
+                        Log.TraceLog("Found string match.");
+                        iniUpdated = true;
+                        rewriteCurrentFile = true;
+
+						lines[i] = string.Concat(keyName.Trim(), "=", newString.Trim());
+                    }
+                }
+
+                if (rewriteCurrentFile)
+                {
+                    File.WriteAllLines(IniFileName.FullName, lines);
+                }
+            }
+
+            if (!iniUpdated)
+            {
+                // The project ini did not have a project version entry.  This will happen on the first build which defaults to an entry in the engine ini.
+                foreach (string iniPath in projectIniFilePaths)
+                {
+                    if (WriteProjectIniString(iniPath, SectionName, keyName, newString))
+                    {
+                        iniUpdated = true;
+                    }
+                }
+            }
+
+            return iniUpdated;
+        }
+
+        /// <summary>
+        /// Kicks off manifest generation. Will always attempt to fully calculate a new manifest but will not update the output
+        /// file unless there are changes (to avoid unnecessary copies when deploying).
+        /// </summary>
+        /// <param name="TargetPlatform">The platform we're generating a manifest for.</param>
+        /// <param name="TargetArchitecture">The architecture we're generating a manifest for.</param>
+        /// <param name="InOutputPath">Path to write manifest files to.</param>
+        /// <param name="InIntermediatePath">Path to store temporary intermediate data (e.g. XML resource file).</param>
+        /// <param name="InProjectFile">Path to the uproject file</param>
+        /// <param name="InProjectDirectory">Directory containing the uproject file or the base engine path if no project file is specified (for content only builds).</param>
+        /// <param name="InTargetConfigs">Configurations to build manifest data for. Each configuration will generate it's own application entry.</param>
+        /// <param name="InExecutables">The launch executable for each configuration. Must match the length and order of InTargetConfigs.</param>
+        /// <param name="InWinMDReferences">The WinMD references that should be added as activatable types</param>
+        /// <returns>A list of all updated target files</returns>
+        public List<string> CreateManifest(UnrealTargetPlatform TargetPlatform, WindowsArchitecture TargetArchitecture, string InOutputPath, string InIntermediatePath, FileReference InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables, IEnumerable<WinMDRegistrationInfo> InWinMDReferences)
 		{
 			// Check parameter values are valid
 			if (InTargetConfigs.Count != InExecutables.Count)
@@ -788,8 +886,43 @@ namespace UnrealBuildTool
 				return null;
 			}
 
-			// Create the appxmanifest document
-			AppxManifestXmlDocument = new XmlDocument();
+            // Check autoincrement flag
+            bool bAutoIncrementVersion;
+            if (EngineIni.GetBool(TargetSettings, "bAutoIncrementVersion", out bAutoIncrementVersion) && bAutoIncrementVersion)
+            {
+                string currentVersion;
+                if (GameIni.GetString("/Script/EngineSettings.GeneralProjectSettings", "ProjectVersion", out currentVersion))
+                {
+                    Log.TraceLog("Automatically incrementing version. Starting version is " + currentVersion);
+
+                    string[] versionEntries = currentVersion.Split(new char[] { '.' });
+                    if (versionEntries.Length == 4)
+                    {
+                        uint versionEntryToIncrement = Convert.ToUInt32(versionEntries[2]);
+                        versionEntryToIncrement++;
+
+                        string newVersion = string.Concat(versionEntries[0], ".", versionEntries[1], ".", versionEntryToIncrement, ".", versionEntries[3]);
+                        Log.TraceLog("Writing new version string: " + newVersion);
+
+                        // Update GameIni with newVersion.
+                        if (!UpdateProjectIniString(InProjectFile, TargetPlatform, "/Script/EngineSettings.GeneralProjectSettings", "ProjectVersion", newVersion))
+                        {
+                            Log.TraceWarning("Auto incrementing the project version was unsuccessful.");
+                        }
+                    }
+                    else
+                    {
+                        Log.TraceWarning("Auto increment was desired, but the number of decimals in the version string was unexpected.");
+                    }
+                }
+                else
+                {
+                    Log.TraceWarning("Auto increment was desired, but the existing version could not be identified.");
+                }
+            }
+
+            // Create the appxmanifest document
+            AppxManifestXmlDocument = new XmlDocument();
 			XmlDeclaration Declaration = AppxManifestXmlDocument.CreateXmlDeclaration("1.0", Encoding.UTF8.BodyName, null);
 			AppxManifestXmlDocument.AppendChild(Declaration);
 			
@@ -1155,7 +1288,7 @@ namespace UnrealBuildTool
 					TargetDeviceFamily.Attributes.Append(NameAttribute);
 
 					XmlAttribute MinVersionAttribute = AppxManifestXmlDocument.CreateAttribute("MinVersion");
-					string versionString = CreateStringValue("MinimumPlatformVersion", "Package.Dependencies.TargetDeviceFamily[0].MinVersion", "MinimumPlatformVersion", "MinVersion", "10.0.10240.0");
+					string versionString = CreateStringValue("MinimumPlatformVersion", "Package.Dependencies.TargetDeviceFamily[0].MinVersion", "MinimumPlatformVersion", "MinVersion", "10.0.17763.0");
 					MinVersionAttribute.Value = versionString;
 					TargetDeviceFamily.Attributes.Append(MinVersionAttribute);
 
@@ -1180,19 +1313,9 @@ namespace UnrealBuildTool
 					Properties.AppendChild(PublisherDisplayName);
 
 					XmlElement PackageLogo = AppxManifestXmlDocument.CreateElement("Logo");
-					// Some applications may not have a package logo and use the application logo instead.
-					// Try logos in the following order:
-					//   1. Project package logo
-					//   2. Project application logo
-					//   3. Engine application logo (the engine always uses a single logo for package and application)
-					if (CopyAndReplaceBinaryIntermediate("StoreLogo.png", false))
-					{
+                    if (CopyAndReplaceBinaryIntermediate("StoreLogo.png"))
+                    {
 						PackageLogo.InnerText = BuildResourceSubPath + "\\StoreLogo.png";
-						Properties.AppendChild(PackageLogo);
-					}
-					else if (CopyAndReplaceBinaryIntermediate("Logo.png"))
-					{
-						PackageLogo.InnerText = BuildResourceSubPath + "\\Logo.png";
 						Properties.AppendChild(PackageLogo);
 					}
 					else
@@ -1540,9 +1663,22 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// Any culture with a culture-specific value will override the neutral value,
-			// even for unrelated cultures.  So propagate the neutral value to avoid this happening.
-			if (IsEverLocalized)
+            // Values cannot be empty in the resource file, or the appx will fail WACK.
+            if (string.IsNullOrEmpty(NeutralValue.Trim()))
+            {
+                if (!string.IsNullOrEmpty(DefaultValue.Trim()))
+                {
+                    NeutralValue = DefaultValue.Trim();
+                }
+                else
+                {
+                    NeutralValue = "Missing Entry";
+                }
+            }
+
+            // Any culture with a culture-specific value will override the neutral value,
+            // even for unrelated cultures.  So propagate the neutral value to avoid this happening.
+            if (IsEverLocalized)
 			{
 				for (int i = 0; i < CulturesToStage.Count; ++i)
 				{
@@ -1632,7 +1768,7 @@ namespace UnrealBuildTool
 			XmlNode Properties = GetProperties();
 			AddElementIfValid(Package, Properties, true);
 
-			XmlNode Dependencies = GetDependencies();
+			XmlNode Dependencies = GetDependencies(TargetConfigs);
 			AddElementIfValid(Package, Dependencies, true);
 
 			XmlNode Resources = GetResources();
@@ -1729,22 +1865,12 @@ namespace UnrealBuildTool
 			XmlElement PackageDescription = AppxManifestXmlDocument.CreateElement("Description");
 			PackageDescription.InnerText = "ms-resource:PackageDescription";
 			Properties.AppendChild(PackageDescription);
-			AddResourceEntry("PackageDescription", "PackageDescription", "Package.Properties.Description", "/Script/EngineSettings.GeneralProjectSettings", "Description", "");
+			AddResourceEntry("PackageDescription", "PackageDescription", "Package.Properties.Description", "/Script/EngineSettings.GeneralProjectSettings", "Description", "No Description");
 
 			XmlElement PackageLogo = AppxManifestXmlDocument.CreateElement("Logo");
-			// Some applications may not have a package logo and use the application logo instead.
-			// Try logos in the following order:
-			//   1. Project package logo
-			//   2. Project application logo
-			//   3. Engine application logo (the engine always uses a single logo for package and application)
-			if (CopyAndReplaceBinaryIntermediate("StoreLogo.png", false))
+			if (CopyAndReplaceBinaryIntermediate("StoreLogo.png"))
 			{
 				PackageLogo.InnerText = BuildResourceSubPath + "\\StoreLogo.png";
-				Properties.AppendChild(PackageLogo);
-			}
-			else if (CopyAndReplaceBinaryIntermediate("Logo.png"))
-			{
-				PackageLogo.InnerText = BuildResourceSubPath + "\\Logo.png";
 				Properties.AppendChild(PackageLogo);
 			}
 			else
@@ -1758,7 +1884,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gather all information for the Dependencies element of the manifest.
 		/// </summary>
-		private XmlNode GetDependencies()
+		private XmlNode GetDependencies(List<UnrealTargetConfiguration> TargetConfigs)
 		{
 			XmlElement Dependencies = AppxManifestXmlDocument.CreateElement("Dependencies");
 			
@@ -2007,12 +2133,14 @@ namespace UnrealBuildTool
 		private XmlNode GetDefaultTile(int ApplicationIndex)
 		{
 			XmlElement DefaultTile = AppxManifestXmlDocument.CreateElement("uap:DefaultTile", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+			bool bIsWideLogoUsed = false;
 
 			XmlAttribute WideLogo = AppxManifestXmlDocument.CreateAttribute("Wide310x150Logo");
 			if (CopyAndReplaceBinaryIntermediate("WideLogo.png"))
 			{
 				WideLogo.Value = BuildResourceSubPath + "\\WideLogo.png";
 				DefaultTile.Attributes.Append(WideLogo);
+				bIsWideLogoUsed = true;
 				if (CopyAndReplaceBinaryIntermediate("3DLogo.glb", false, (string from, string to) => 
 				{
 					//we need to process the logo with the gltf tool
@@ -2047,41 +2175,26 @@ namespace UnrealBuildTool
 				Log.TraceError("Unable to stage application wide logo.");
 			}
 
-			// Calculate the short name display conditions and the short name if it will be used
-			XmlAttribute ShowName = AppxManifestXmlDocument.CreateAttribute("ShowName");
-			ShowName.Value = "noLogos";
-			bool bUseShortNameForLogo = false;
-			bool bUseShortNameForWideLogo = false;
-			bool bShortNameForLogoValueRead = EngineIni.GetBool(TargetSettings, "bUseShortNameForLogo", out bUseShortNameForLogo);
-			bool bShortNameForWideLogoValueRead = EngineIni.GetBool(TargetSettings, "bUseShortNameForWideLogo", out bUseShortNameForWideLogo);
-			if (bShortNameForLogoValueRead || bShortNameForWideLogoValueRead)
+			bool bUseNameForLogo;
+			if(EngineIni.GetBool(TargetSettings, "bUseNameForLogo", out bUseNameForLogo) && bUseNameForLogo)
 			{
-				if (bUseShortNameForLogo && bUseShortNameForWideLogo)
+				XmlElement ShowNameOnTiles = AppxManifestXmlDocument.CreateElement("uap:ShowNameOnTiles", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+				Func<string, bool> addShowOnTile = (string s) => 
 				{
-					ShowName.Value = "allLogos";
-				}
-				else if (bUseShortNameForLogo)
-				{
-					ShowName.Value = "logoOnly";
-				}
-				else if (bUseShortNameForWideLogo)
-				{
-					ShowName.Value = "wideLogoOnly";
-				}
-			}
-			else
-			{
-				ShowName.Value = GetInterprettedSettingValue("Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DefaultTile.ShowName");
-			}
-			if (ShowName.Value != null && ShowName.Value.Length > 0 && !ShowName.Value.Equals("noLogos"))
+					XmlElement ShowOn = AppxManifestXmlDocument.CreateElement("uap:ShowOn", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+					XmlAttribute Tile = AppxManifestXmlDocument.CreateAttribute("Tile");
+					Tile.Value = s;
+					ShowOn.Attributes.Append(Tile);
+					ShowNameOnTiles.AppendChild(ShowOn);
+					return true;
+				};
 
-			{
-				XmlAttribute ShortName = AppxManifestXmlDocument.CreateAttribute("ShortName");// CreateStringAttribute("ShortName", "ApplicationShortName", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DefaultTile.ShortName", null, null, "");
-				ShortName.Value = "ms-resource:AppShortName";
-				AddResourceEntry("AppShortName", "ApplicationShortName", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DefaultTile.ShortName", null, null, "UE4Game");
-
-				DefaultTile.Attributes.Append(ShortName);
-				DefaultTile.Attributes.Append(ShowName);
+				addShowOnTile("square150x150Logo");
+				if (bIsWideLogoUsed)
+				{
+					addShowOnTile("wide310x150Logo");
+				}
+				DefaultTile.AppendChild(ShowNameOnTiles);
 			}
 
 			return DefaultTile;

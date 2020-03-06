@@ -433,8 +433,34 @@ namespace UnrealBuildTool
 					VCSharpProjectFile Project = new VCSharpProjectFile(ProjectFile);
 					Project.ShouldBuildForAllSolutionTargets = false;//true;
 					AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
-                    AutomationProjectFiles.Add( Project );
+					AutomationProjectFiles.Add( Project );
 					Folder.ChildProjects.Add( Project );
+
+					if (!ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+					{
+						FileReference PropsFile = new FileReference(ProjectFile.FullName + ".props");
+						CreateAutomationProjectPropsFile(PropsFile);
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Creates a .props file next to each automation project which specifies the path to the engine directory
+		/// </summary>
+		/// <param name="PropsFile">The properties file path</param>
+		void CreateAutomationProjectPropsFile(FileReference PropsFile)
+		{
+			using (FileStream Stream = FileReference.Open(PropsFile, FileMode.Create, FileAccess.Write, FileShare.Read))
+			{
+				using (StreamWriter Writer = new StreamWriter(Stream, Encoding.UTF8))
+				{
+					Writer.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+					Writer.WriteLine("<Project ToolsVersion=\"Current\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
+					Writer.WriteLine("\t<PropertyGroup>");
+					Writer.WriteLine("\t\t<EngineDir Condition=\"'$(EngineDir)' == ''\">{0}</EngineDir>", UnrealBuildTool.EngineDirectory);
+					Writer.WriteLine("\t</PropertyGroup>");
+					Writer.WriteLine("</Project>");
 				}
 			}
 		}
@@ -1319,13 +1345,17 @@ namespace UnrealBuildTool
 		/// Adds additional files from the platform extensions folder
 		protected virtual void AddPlatformExtensionFiles( ProjectFile EngineProject )
 		{
-			DirectoryReference PlatformExtensionsDirectory = UnrealBuildTool.ProjectPlatformExtensionsDirectory(EngineProject.ProjectFilePath);
+			// @todo: this will add the same files to the solution (like the UBT source files that also get added to UnrealBuildTool project).
+			// not sure of a good filtering method here
+			DirectoryReference PlatformExtensionsDirectory = UnrealBuildTool.EnginePlatformExtensionsDirectory;
 			if (DirectoryReference.Exists(PlatformExtensionsDirectory))
 			{
 				List<string> SubdirectoryNamesToExclude = new List<string>();
 				SubdirectoryNamesToExclude.Add("AutomationTool"); //automation files are added separately to the AutomationTool project
+				SubdirectoryNamesToExclude.Add("Binaries");
+				SubdirectoryNamesToExclude.Add("Content");
 
-				EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(PlatformExtensionsDirectory, SubdirectoryNamesToExclude), UnrealBuildTool.RootDirectory);
+				EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(PlatformExtensionsDirectory, SubdirectoryNamesToExclude), UnrealBuildTool.EngineDirectory);
 			}
 		}
 
@@ -2146,7 +2176,7 @@ namespace UnrealBuildTool
 				}
 				if (Path == UnrealBuildTool.EnginePlatformExtensionsDirectory)
 				{
-					BaseFolder = UnrealBuildTool.RootDirectory;
+					BaseFolder = UnrealBuildTool.EngineDirectory;
 					return FindOrAddProjectHelper(EngineProjectFileNameBase, BaseFolder);
 				}
 				if (Path == UnrealBuildTool.EnterpriseDirectory)
@@ -2436,7 +2466,7 @@ namespace UnrealBuildTool
 				ProjectFile GameProject = GameProjects.First();
 				foreach(PluginInfo PluginInfo in Plugins.ReadProjectPlugins(GameProject.BaseDir))
 				{
-					if (PluginInfo.Descriptor.Modules != null && PluginInfo.Descriptor.Modules.Length > 0 && PluginInfo.Type == PluginType.Mod)
+					if (PluginInfo.Descriptor.Modules != null && PluginInfo.Descriptor.Modules.Count > 0 && PluginInfo.Type == PluginType.Mod)
 					{
 						FileReference ModProjectFilePath = FileReference.Combine(PluginInfo.Directory, "Mods", PluginInfo.Name + ProjectFileExtension);
 

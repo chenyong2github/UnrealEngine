@@ -22,7 +22,6 @@ public class ICU : ModuleRules
 		{
 			if (Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.Switch ||
 				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64 ||
 				Target.Platform == UnrealTargetPlatform.XboxOne ||
@@ -186,10 +185,6 @@ public class ICU : ModuleRules
 			// Definitions
 			PublicDefinitions.Add("ICU_NO_USER_DATA_OVERRIDE=1");
 			PublicDefinitions.Add("U_PLATFORM=U_PF_DURANGO");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, UseDebugLibs ? "Debug" : "Release", "libicu.a"));
 		}
 
 		// DLL Definitions

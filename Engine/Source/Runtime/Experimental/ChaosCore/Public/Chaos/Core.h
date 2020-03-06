@@ -6,6 +6,7 @@
 #include "Chaos/Matrix.h"
 #include "Chaos/Rotation.h"
 #include "Chaos/Transform.h"
+#include "Containers/UnrealString.h"
 
 namespace Chaos
 {
@@ -24,4 +25,7 @@ namespace Chaos
 
 	template <typename T>
 	using TVec3 = TVector<T, 3>;
+
+	/** Core version string for Chaos data. Any DDC builder dependent on Chaos for serialization should depend on this version */
+	static const FString ChaosVersionString = TEXT("030758A4893440588B23DD9BCDF339B1");
 }

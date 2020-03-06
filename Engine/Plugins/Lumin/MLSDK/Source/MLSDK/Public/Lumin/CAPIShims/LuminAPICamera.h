@@ -21,8 +21,10 @@ CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraPrepareCapture)
 #define MLCameraPrepareCapture ::MLSDK_API::MLCameraPrepareCaptureShim
 CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraSetDeviceStatusCallbacks)
 #define MLCameraSetDeviceStatusCallbacks ::MLSDK_API::MLCameraSetDeviceStatusCallbacksShim
-CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraSetCaptureCallbacks)
+CREATE_DEPRECATED_MSG_SHIM(ml_camera, MLResult, MLCameraSetCaptureCallbacks, "Replaced by MLCameraSetCaptureCallbacksEx.")
 #define MLCameraSetCaptureCallbacks ::MLSDK_API::MLCameraSetCaptureCallbacksShim
+CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraSetCaptureCallbacksEx)
+#define MLCameraSetCaptureCallbacksEx ::MLSDK_API::MLCameraSetCaptureCallbacksExShim
 CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraSetOutputFormat)
 #define MLCameraSetOutputFormat ::MLSDK_API::MLCameraSetOutputFormatShim
 CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraCaptureImage)
@@ -31,6 +33,8 @@ CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraCaptureImageRaw)
 #define MLCameraCaptureImageRaw ::MLSDK_API::MLCameraCaptureImageRawShim
 CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraCaptureVideoStart)
 #define MLCameraCaptureVideoStart ::MLSDK_API::MLCameraCaptureVideoStartShim
+CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraCaptureRawVideoStart)
+#define MLCameraCaptureRawVideoStart ::MLSDK_API::MLCameraCaptureRawVideoStartShim
 CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraCaptureVideoStop)
 #define MLCameraCaptureVideoStop ::MLSDK_API::MLCameraCaptureVideoStopShim
 CREATE_FUNCTION_SHIM(ml_camera, MLResult, MLCameraGetDeviceStatus)

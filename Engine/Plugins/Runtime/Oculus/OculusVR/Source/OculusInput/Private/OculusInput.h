@@ -103,6 +103,8 @@ private:
 	static float ButtonRepeatDelay;
 
 	ovrpHapticsDesc OvrpHapticsDesc;
+
+	int LocalTrackingSpaceRecenterCount;
 };
 
 

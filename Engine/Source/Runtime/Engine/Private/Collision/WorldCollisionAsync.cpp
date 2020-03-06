@@ -14,6 +14,9 @@
 #include "Engine/World.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+CSV_DEFINE_CATEGORY(WorldCollision, true);
 
 /**
  * Async trace functions
@@ -212,9 +215,8 @@ namespace
 	FAutoConsoleTaskPriority CPrio_FAsyncTraceTask(
 		TEXT("TaskGraph.TaskPriorities.AsyncTraceTask"),
 		TEXT("Task and thread priority for async traces."),
-		ENamedThreads::BackgroundThreadPriority, // if we have background priority task threads, then use them...
-		ENamedThreads::HighTaskPriority, // .. at normal task priority
-		ENamedThreads::NormalTaskPriority // if we don't have background threads, then use normal priority threads at normal task priority instead
+		ENamedThreads::NormalThreadPriority, // Use Normal thread and normal task priority
+		ENamedThreads::NormalTaskPriority 
 		);
 
 
@@ -458,6 +460,7 @@ void UWorld::WaitForAllAsyncTraceTasks()
 		if (DataBufferExecuted.AsyncTraceCompletionEvent.Num() > 0)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_WaitForAllAsyncTraceTasks);
+			CSV_SCOPED_TIMING_STAT(WorldCollision, StatWaitForAllAsyncTraceTasks);
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(DataBufferExecuted.AsyncTraceCompletionEvent, ENamedThreads::GameThread);
 			DataBufferExecuted.AsyncTraceCompletionEvent.Reset();
 		}

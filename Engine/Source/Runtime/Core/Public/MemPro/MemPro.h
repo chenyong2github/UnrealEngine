@@ -65,8 +65,8 @@
 // **** The Target Platform ****
 
 // define ONE of these
-#if defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__WIN32__) || defined(__WINDOWS__)
-	#if defined(_XBOX_ONE) || (defined(__UNREAL__) && PLATFORM_XBOXONE)
+#if (defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__WIN32__) || defined(__WINDOWS__)) && !defined(MEMPRO_PLATFORM_XBOXONE) //@EPIC: allow external definition
+	#if defined(_XBOX_ONE) //@EPIC:  allow external definition
 		#define MEMPRO_PLATFORM_XBOXONE
 	#elif defined(_XBOX)
 		#define MEMPRO_PLATFORM_XBOX360
@@ -317,7 +317,7 @@ namespace
 //@EPIC BEGIN: other platforms
 #elif defined(MEMPRO_PLATFORM_SWITCH)
 
-	#include "Switch/MemProSwitch.h"
+	#include "MemPro/MemProSwitch.h"
 
 //@EPIC END
 

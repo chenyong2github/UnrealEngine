@@ -763,7 +763,7 @@ void FOnlineSubsystemBPCallHelper::QueryIDFromPlayerController(APlayerController
 
 	if (APlayerState* PlayerState = (PlayerController != NULL) ? PlayerController->PlayerState : NULL)
 	{
-		UserID = PlayerState->UniqueId.GetUniqueNetId();
+		UserID = PlayerState->GetUniqueId().GetUniqueNetId();
 		if (!UserID.IsValid())
 		{
 			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("%s - Cannot map local player to unique net ID"), FunctionContext), ELogVerbosity::Warning);

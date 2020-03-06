@@ -44,8 +44,6 @@ bool FMovieSceneSequencePlaybackSettings::SerializeFromMismatchedTag( const FPro
 	return false;
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& Init)
 	: Super(Init)
 	, Status(EMovieScenePlayerStatus::Stopped)
@@ -56,7 +54,6 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, StartTime(0)
 	, DurationFrames(0)
 	, CurrentNumLoops(0)
-	, LastTickGameTimeSeconds(-1.f)
 {
 	PlayPosition.Reset(FFrameTime(0));
 
@@ -139,6 +136,12 @@ void UMovieSceneSequencePlayer::PlayLooping(int32 NumLoops)
 
 void UMovieSceneSequencePlayer::PlayInternal()
 {
+	if (bIsEvaluating)
+	{
+		LatentActions.Emplace(FLatentAction::EType::Play);
+		return;
+	}
+
 	if (!IsPlaying() && Sequence && CanPlay())
 	{
 		float PlayRate = bReversePlayback ? -PlaybackSettings.PlayRate : PlaybackSettings.PlayRate;
@@ -222,18 +225,18 @@ void UMovieSceneSequencePlayer::PlayInternal()
 
 void UMovieSceneSequencePlayer::Pause()
 {
+	if (bIsEvaluating)
+	{
+		LatentActions.Emplace(FLatentAction::EType::Pause);
+		return;
+	}
+
 	if (IsPlaying())
 	{
-		if (bIsEvaluating)
-		{
-			LatentActions.Emplace(FLatentAction::EType::Pause);
-			return;
-		}
-
 		Status = EMovieScenePlayerStatus::Paused;
 		TimeController->StopPlaying(GetCurrentTime());
 
-		LastTickGameTimeSeconds = -1;
+		LastTickGameTimeSeconds.Reset();
 
 		// Evaluate the sequence at its current time, with a status of 'stopped' to ensure that animated state pauses correctly. (ie. audio sounds should stop/pause)
 		{
@@ -293,14 +296,15 @@ void UMovieSceneSequencePlayer::StopAtCurrentTime()
 
 void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 {
+	if (bIsEvaluating)
+	{
+		LatentActions.Emplace(FLatentAction::EType::Stop, TimeToResetTo);
+		return;
+	}
+
 	if (IsPlaying() || IsPaused())
 	{
-		if (bIsEvaluating)
-		{
-			LatentActions.Emplace(FLatentAction::EType::Stop, TimeToResetTo);
-			return;
-		}
-
+		bIsEvaluating = true;
 		Status = EMovieScenePlayerStatus::Stopped;
 
 		// Put the cursor at the specified position
@@ -311,7 +315,7 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		}
 
 		CurrentNumLoops = 0;
-		LastTickGameTimeSeconds = -1;
+		LastTickGameTimeSeconds.Reset();
 
 		// Reset loop count on stop so that it doesn't persist to the next call to play
 		PlaybackSettings.LoopCount.Value = 0;
@@ -354,6 +358,9 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		{
 			OnStop.Broadcast();
 		}
+		bIsEvaluating = false;
+
+		ApplyLatentActions();
 	}
 }
 
@@ -694,6 +701,7 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		{
 		case EUpdateClockSource::Audio:    TimeController = MakeShared<FMovieSceneTimeController_AudioClock>();    break;
 		case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>(); break;
+		case EUpdateClockSource::RelativeTimecode: TimeController = MakeShared<FMovieSceneTimeController_RelativeTimecodeClock>(); break;
 		case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>(); break;
 		default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();          break;
 		}
@@ -727,9 +735,9 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 
 		float DeltaTimeForFunction = DeltaSeconds;
 
-		if (LastTickGameTimeSeconds >= 0.f)
+		if (LastTickGameTimeSeconds.IsSet() && LastTickGameTimeSeconds.GetValue() >= 0.f)
 		{
-			DeltaTimeForFunction = CurrentWorldTime - LastTickGameTimeSeconds;
+			DeltaTimeForFunction = CurrentWorldTime - LastTickGameTimeSeconds.GetValue();
 		}
 
 		TimeController->Tick(DeltaTimeForFunction, PlayRate);
@@ -743,7 +751,10 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 		UpdateTimeCursorPosition(NewTime, EUpdatePositionMethod::Play);
 	}
 
-	LastTickGameTimeSeconds = CurrentWorldTime;
+	if (World)
+	{
+		LastTickGameTimeSeconds = CurrentWorldTime;
+	}
 }
 
 void UMovieSceneSequencePlayer::UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method)
@@ -939,6 +950,7 @@ void UMovieSceneSequencePlayer::ApplyLatentActions()
 		{
 		case FLatentAction::EType::Stop:   StopInternal(LatentAction.Position); continue;
 		case FLatentAction::EType::Pause:  Pause();                             continue;
+		case FLatentAction::EType::Play:   PlayInternal();                      continue;
 		}
 
 		check(LatentAction.Type == FLatentAction::EType::Update);
@@ -1080,11 +1092,17 @@ void UMovieSceneSequencePlayer::RPC_OnStopEvent_Implementation(FFrameTime Stoppe
 	}
 #endif
 
-	switch (Status.GetValue())
+	// If we're behind the target time to stop at, advance to that target time.
+	const bool bBehindTime = StoppedTime < PlayPosition.GetCurrentPosition();
+
+	if (bBehindTime)
 	{
-	case EMovieScenePlayerStatus::Playing:   PlayToFrame( StoppedTime);  break;
-	case EMovieScenePlayerStatus::Stopped:   JumpToFrame( StoppedTime);  break;
-	case EMovieScenePlayerStatus::Scrubbing: ScrubToFrame(StoppedTime);  break;
+		switch (Status.GetValue())
+		{
+		case EMovieScenePlayerStatus::Playing:   PlayToFrame(StoppedTime);  break;
+		case EMovieScenePlayerStatus::Stopped:   JumpToFrame(StoppedTime);  break;
+		case EMovieScenePlayerStatus::Scrubbing: ScrubToFrame(StoppedTime);  break;
+		}
 	}
 
 	StopInternal(StoppedTime);
@@ -1269,5 +1287,3 @@ bool UMovieSceneSequencePlayer::CallRemoteFunction(UFunction* Function, void* Pa
 	return false;
 }
 
-
-PRAGMA_ENABLE_OPTIMIZATION

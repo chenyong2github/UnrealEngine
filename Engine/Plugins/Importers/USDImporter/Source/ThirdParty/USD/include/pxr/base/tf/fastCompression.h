@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 
-#ifndef TF_FASTCOMPRESSION_H
-#define TF_FASTCOMPRESSION_H
+#ifndef PXR_BASE_TF_FAST_COMPRESSION_H
+#define PXR_BASE_TF_FAST_COMPRESSION_H
 
 /// \file tf/fastCompression.h
 /// Simple fast data compression/decompression routines.
@@ -68,6 +68,6 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_FASTCOMPRESSION_H
+#endif // PXR_BASE_TF_FAST_COMPRESSION_H
 
 

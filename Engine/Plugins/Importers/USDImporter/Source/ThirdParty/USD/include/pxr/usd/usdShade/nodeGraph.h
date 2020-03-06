@@ -39,7 +39,6 @@
 #include "pxr/usd/usdShade/output.h"
 #include "pxr/usd/usdShade/shader.h"
 
-
 #include "pxr/base/vt/value.h"
 
 #include "pxr/base/gf/vec3d.h"
@@ -157,7 +156,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDSHADE_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -169,7 +168,7 @@ private:
 
     // override SchemaBase virtuals.
     USDSHADE_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // ===================================================================== //
@@ -364,10 +363,6 @@ public:
     /// inside the material. Note that inputs on node-graphs that don't have 
     /// value consumers will continue to be included in the result.
     /// 
-    /// \p renderTarget exists for backwards compatibility to allow retrieving 
-    /// the input-consumers map when the shading network has old-style interface 
-    /// attributes.
-    /// 
     /// This API is provided for use by DCC's that want to present node-graph
     /// interface / shader connections in the opposite direction than they are 
     /// encoded in USD.
@@ -375,38 +370,6 @@ public:
     USDSHADE_API
     InterfaceInputConsumersMap ComputeInterfaceInputConsumersMap(
         bool computeTransitiveConsumers=false) const;
-
-protected:
-    
-    // Befriend UsdRiLookAPI and UsdRiMaterialAPI temporarily to assist in the
-    // transition to the new shading encoding.
-    friend class UsdRiLookAPI;
-    friend class UsdRiMaterialAPI;
-
-    /// \deprecated
-    /// This is similar to ComputeInterfaceInputConsumersMap(), but takes an 
-    /// additonal "renderTarget" argument which needs to be considered when 
-    /// collecting old-style interface-input connections. 
-    /// 
-    /// Provided for use by UsdRiLookAPI and UsdRiMaterialAPI. 
-    /// 
-    USDSHADE_API
-    InterfaceInputConsumersMap _ComputeInterfaceInputConsumersMap(
-        bool computeTransitiveConsumers, 
-        const TfToken &renderTarget) const;
-    
-
-    
-    /// \deprecated
-    /// This is similar to GetInterfaceInputs(), but takes an additonal 
-    /// "renderTarget" argument which needs to be considered when collecting 
-    /// old-style interface-input connections. 
-    /// 
-    /// Provided for use by UsdRiLookAPI and UsdRiMaterialAPI. 
-    /// 
-    USDSHADE_API
-    std::vector<UsdShadeInput> _GetInterfaceInputs(const TfToken &renderTarget) 
-        const;
 
     /// @}
 

@@ -210,6 +210,7 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 #endif
 	));
 	Solver = PhysScene->GetSolver();
+
 	// Ticking setup for collision/breaking notifies
 	PrimaryActorTick.TickGroup = TG_PostPhysics;
 	PrimaryActorTick.bCanEverTick = true;
@@ -261,6 +262,11 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 	GameplayEventDispatcherComponent = ObjectInitializer.CreateDefaultSubobject<UChaosGameplayEventDispatcher>(this, TEXT("GameplayEventDispatcher"));
 }
 
+void AChaosSolverActor::PreInitializeComponents()
+{
+	Super::PreInitializeComponents();
+}
+
 void AChaosSolverActor::BeginPlay()
 {
 	Super::BeginPlay();
@@ -300,8 +306,7 @@ void AChaosSolverActor::BeginPlay()
 			InSolver->SetCollisionFilterSettings(InCollisionFilterSettings);
 			InSolver->SetBreakingFilterSettings(InBreakingFilterSettings);
 			InSolver->SetTrailingFilterSettings(InTrailingFilterSettings);
-			InSolver->SetHasFloor(InHasFloor);
-			InSolver->SetFloorHeight(InFloorHeight);
+
 #if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 			InSolver->SetMassScale(InMassScale);
 #endif
@@ -361,6 +366,16 @@ void AChaosSolverActor::PostRegisterAllComponents()
 		SetAsCurrentWorldSolver();
 	}
 #endif
+}
+
+void AChaosSolverActor::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	if(FChaosSolversModule* Module = FChaosSolversModule::GetModule())
+	{
+		Module->MigrateSolver(GetSolver(), GetWorld());
+	}
 }
 
 void AChaosSolverActor::SetAsCurrentWorldSolver()
@@ -488,7 +503,6 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 				PhysDispatcher->EnqueueCommandImmediate(Solver, [InHasFloor = bHasFloor]
 				(Chaos::FPhysicsSolver* InSolver)
 				{
-					InSolver->SetHasFloor(InHasFloor);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, FloorHeight))
@@ -496,7 +510,6 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 				PhysDispatcher->EnqueueCommandImmediate(Solver, [InFloorHeight = FloorHeight]
 				(Chaos::FPhysicsSolver* InSolver)
 				{
-					InSolver->SetFloorHeight(InFloorHeight);
 				});
 			}
 #if TODO_REIMPLEMENT_TIMESTEP_MULTIPLIER

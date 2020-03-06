@@ -21,14 +21,14 @@ FText FAssetTypeActions_LidarPointCloud::GetName() const
 void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
 {
 	TArray<ULidarPointCloud*> PointClouds;
-	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+	for (UObject* Object : InObjects)
 	{
-		PointClouds.Add(CastChecked<ULidarPointCloud>(*ObjIt));
+		PointClouds.Add(CastChecked<ULidarPointCloud>(Object));
 	}
 
 	// Make sure at least one asset has source assigned
 	bool bSourceExists = false;
-	for (auto& PointCloud : PointClouds)
+	for (ULidarPointCloud* PointCloud : PointClouds)
 	{
 		if (!PointCloud->GetSourcePath().IsEmpty())
 		{
@@ -78,9 +78,9 @@ void FAssetTypeActions_LidarPointCloud::OpenAssetEditor(const TArray<UObject*>& 
 {
 	const EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 
-	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+	for (UObject* Object : InObjects)
 	{
-		if (ULidarPointCloud* PointCloud = Cast<ULidarPointCloud>(*ObjIt))
+		if (ULidarPointCloud* PointCloud = Cast<ULidarPointCloud>(Object))
 		{
 			TSharedRef<FLidarPointCloudEditor> NewPointCloudEditor(new FLidarPointCloudEditor());
 			NewPointCloudEditor->InitPointCloudEditor(Mode, EditWithinLevelEditor, PointCloud);

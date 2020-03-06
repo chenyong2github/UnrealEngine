@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_SPECIALIZES_H
-#define USD_SPECIALIZES_H
+#ifndef PXR_USD_USD_SPECIALIZES_H
+#define PXR_USD_USD_SPECIALIZES_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/api.h"
@@ -42,12 +42,11 @@ SDF_DECLARE_HANDLES(SdfPrimSpec);
 /// prim.
 ///
 /// All paths passed to the UsdSpecializes API are expected to be in the 
-/// namespace of the owning prim's stage. Local specializes paths (i.e., 
-/// non-root prim paths) will be translated from this namespace to the
-/// namespace of the current edit target, if necessary. If a path cannot 
-/// be translated, a coding error will be issued and no changes will be
-/// made. Global specializes paths (i.e., root prim paths) will not be 
-/// translated.
+/// namespace of the owning prim's stage. Subroot prim specializes paths  
+/// will be translated from this namespace to the namespace of the current 
+/// edit target, if necessary. If a path cannot be translated, a coding error 
+/// will be issued and no changes will be made. Root prim specializes paths 
+/// will not be translated.
 ///
 class UsdSpecializes {
     friend class UsdPrim;
@@ -60,7 +59,7 @@ public:
     /// in the position specified by \p position.
     USD_API
     bool AddSpecialize(const SdfPath &primPath,
-                       UsdListPosition position=UsdListPositionTempDefault);
+               UsdListPosition position=UsdListPositionBackOfPrependList);
 
     /// Removes the specified path from the specializes listOp at the
     /// current EditTarget.
@@ -89,10 +88,9 @@ public:
     // ---------------------------------------------------------------------- //
 private:
 
-    SdfPrimSpecHandle _CreatePrimSpecForEditing();
     UsdPrim _prim;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif //USD_SPECIALIZES_H
+#endif //PXR_USD_USD_SPECIALIZES_H

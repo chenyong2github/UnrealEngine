@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef VT_HASH_H
-#define VT_HASH_H
+#ifndef PXR_BASE_VT_HASH_H
+#define PXR_BASE_VT_HASH_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/vt/api.h"
@@ -52,7 +52,7 @@ constexpr bool _IsHashable(...) { return false; }
 
 // Hash implementations -- We're using an overload resolution ordering trick
 // here (int vs long vs ...) so that we pick hash_value first, if possible,
-// otherwise we do TfHash() if possible, otheriwse we issue a runtime error.
+// otherwise we do TfHash() if possible, otherwise we issue a runtime error.
 template <class T, class = decltype(hash_value(std::declval<T>()))>
 inline size_t
 _HashValueImpl(T const &val, int)
@@ -98,4 +98,4 @@ size_t VtHashValue(T const &val)
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // VT_HASH_H
+#endif // PXR_BASE_VT_HASH_H

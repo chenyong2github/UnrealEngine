@@ -20,6 +20,9 @@ class MOVIERENDERPIPELINEEDITOR_API UMoviePipelinePIEExecutor : public UMoviePip
 public:
 	UMoviePipelinePIEExecutor()
 		: UMoviePipelineLinearExecutorBase()
+		, RemainingInitializationFrames(-1)
+		, bPreviousUseFixedTimeStep(false)
+		, PreviousFixedTimeStepDelta(1/30.0)
 	{
 	}
 
@@ -29,17 +32,20 @@ protected:
 private:
 	/** Called when PIE finishes booting up and it is safe for us to spawn an object into that world. */
 	void OnPIEStartupFinished(bool);
+
+	/** If they're using delayed initialization, this is called each frame to process the countdown until start, also updates Window Title each frame. */
+	void OnTick();
+
 	/** Called before PIE tears down the world during shutdown. Used to detect cancel-via-escape/stop PIE. */
 	void OnPIEEnded(bool);
 	/** Called when the instance of the pipeline in the PIE world has finished. */
 	void OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline);
 	/** Called a short period of time after OnPIEMoviePipelineFinished to allow Editor the time to fully close PIE before we make a new request. */
 	void DelayedFinishNotification();
-
-	/** Gets the title for the Window. Used to show progress in the title. */
-	FText GetWindowTitle(const int32 InConfigIndex, const int32 InNumConfigs) const;
-
 private:
+	/** If using delayed initialization, how many frames are left before we call Initialize. Will be -1 if not actively counting down. */
+	int32 RemainingInitializationFrames;
 	bool bPreviousUseFixedTimeStep;
 	double PreviousFixedTimeStepDelta;
+	TWeakPtr<class SWindow> WeakCustomWindow;
 };

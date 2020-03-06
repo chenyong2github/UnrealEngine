@@ -21,26 +21,33 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef VT_TYPES_H
-#define VT_TYPES_H
+#ifndef PXR_BASE_VT_TYPES_H
+#define PXR_BASE_VT_TYPES_H
 
 /// \file vt/types.h
 /// Defines all the types "TYPED" for which Vt creates a VtTYPEDArray typedef.
 
 #include "pxr/pxr.h"
 #include "pxr/base/vt/api.h"
+#include "pxr/base/vt/traits.h"
 #include "pxr/base/arch/inttypes.h"
 #include "pxr/base/gf/declare.h"
 #include "pxr/base/gf/half.h"
 #include "pxr/base/tf/token.h"
 
-#include <boost/preprocessor.hpp>
+#include <boost/preprocessor/cat.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
 
 #include <cstddef>
 #include <cstring>
 #include <string>
 
 PXR_NAMESPACE_OPEN_SCOPE
+
+// Help ensure TfToken is stored in local storage in VtValue by indicating it is
+// cheap to copy (just refcount operations).
+VT_TYPE_IS_CHEAP_TO_COPY(TfToken);
 
 // Value types.
 
@@ -211,4 +218,4 @@ struct Vt_ShapeData {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // VT_TYPES_H
+#endif // PXR_BASE_VT_TYPES_H

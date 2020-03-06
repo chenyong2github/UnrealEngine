@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef KIND_REGISTRY_H
-#define KIND_REGISTRY_H
+#ifndef PXR_USD_KIND_REGISTRY_H
+#define PXR_USD_KIND_REGISTRY_H
 
 /// \file kind/registry.h
 
@@ -133,4 +133,4 @@ KIND_API_TEMPLATE_CLASS(TfSingleton<KindRegistry>);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // KIND_REGISTRY_H
+#endif // PXR_USD_KIND_REGISTRY_H

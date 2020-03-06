@@ -164,7 +164,7 @@ void FPropertyEditorToolkit::Initialize( const EToolkitMode::Type Mode, const TS
 		const bool bCreateDefaultToolbar = false;
 		FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, ApplicationId, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, AdjustedObjectsToEdit);
 
-		TArray< TWeakObjectPtr<UObject> > AdjustedObjectsToEditWeak;
+		TArray<UObject*> AdjustedObjectsToEditWeak;
 		for (auto ObjectIter = AdjustedObjectsToEdit.CreateConstIterator(); ObjectIter; ++ObjectIter)
 		{
 			AdjustedObjectsToEditWeak.Add(*ObjectIter);
@@ -460,7 +460,7 @@ void FPropertyEditorToolkit::TableColumnsChanged()
 
 void FPropertyEditorToolkit::GridSelectionChanged()
 {
-	TArray< TWeakObjectPtr< UObject > > SelectedObjects;
+	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 	PropertyTable->GetSelectedTableObjects( SelectedObjects );
 
 	if (SelectedObjects.Num() == 0)
@@ -469,7 +469,15 @@ void FPropertyEditorToolkit::GridSelectionChanged()
 		SelectedObjects = PropertyTable->GetSelectedObjects();
 	}
 
-	PropertyTree->SetObjectArray( SelectedObjects );
+	TArray<UObject*> SelectedRawObjects;
+	SelectedRawObjects.Reserve(SelectedObjects.Num());
+
+	for (const TWeakObjectPtr<UObject>& Object : SelectedObjects)
+	{
+		SelectedRawObjects.Add(Object.Get());
+	}
+
+	PropertyTree->SetObjectArray(SelectedRawObjects);
 
 	const TSet< TSharedRef< IPropertyTableRow > > SelectedRows = PropertyTable->GetSelectedRows();
 

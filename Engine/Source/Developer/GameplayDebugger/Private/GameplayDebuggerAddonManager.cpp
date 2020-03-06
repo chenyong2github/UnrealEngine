@@ -120,8 +120,9 @@ void FGameplayDebuggerAddonManager::NotifyCategoriesChanged()
 void FGameplayDebuggerAddonManager::CreateCategories(AGameplayDebuggerCategoryReplicator& Owner, TArray<TSharedRef<FGameplayDebuggerCategory> >& CategoryObjects)
 {
 	UWorld* World = Owner.GetWorld();
+	check(World);
 	const ENetMode NetMode = World->GetNetMode();
-	const bool bHasAuthority = (NetMode != NM_Client);
+	const bool bHasAuthority = FGameplayDebuggerUtils::IsAuthority(World);
 	const bool bIsLocal = (NetMode != NM_DedicatedServer);
 	const bool bIsSimulate = FGameplayDebuggerAddonBase::IsSimulateInEditor();
 

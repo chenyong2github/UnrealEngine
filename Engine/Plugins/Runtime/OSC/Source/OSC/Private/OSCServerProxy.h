@@ -15,10 +15,11 @@ class OSC_API FOSCServerProxy : public IOSCServerProxy
 {
 public:
 	FOSCServerProxy(UOSCServer& InServer);
-	virtual ~FOSCServerProxy() { }
+	virtual ~FOSCServerProxy();
 
 	bool GetMulticastLoopback() const override;
-
+	FString GetIpAddress() const override;
+	int32 GetPort() const override;
 	bool IsActive() const override;
 
 	void Listen(const FString& ServerName) override;

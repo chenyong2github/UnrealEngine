@@ -280,7 +280,7 @@ void SWidgetDetailsView::OnEditorSelectionChanged()
 	PropertyView->SetObjects(SelectedObjects, bForceRefresh);
 }
 
-void SWidgetDetailsView::OnPropertyViewObjectArrayChanged(const FString& InTitle, const TArray<TWeakObjectPtr<UObject>>& InObjects)
+void SWidgetDetailsView::OnPropertyViewObjectArrayChanged(const FString& InTitle, const TArray<UObject*>& InObjects)
 {
 	// Update the package remapping for all selected objects so that we can find the correct localization ID when editing text properties (since we edit a copy of the real data, not connected to the asset package)
 	UBlueprint* UMGBlueprint = BlueprintEditor.Pin()->GetBlueprintObj();

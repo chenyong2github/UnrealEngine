@@ -20,10 +20,6 @@ struct FSlateBrush;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class FThreadTimingSharedState : public Insights::ITimingViewExtender, public TSharedFromThis<FThreadTimingSharedState>
 {
 private:
@@ -91,9 +87,11 @@ private:
 
 class FThreadTimingTrack : public FTimingEventsTrack
 {
+	INSIGHTS_DECLARE_RTTI(FThreadTimingTrack, FTimingEventsTrack)
+
 public:
-	explicit FThreadTimingTrack(FThreadTimingSharedState& InSharedState, const FName& InSubType, const FString& InName, const TCHAR* InGroupName, uint32 InTimelineIndex, uint32 InThreadId)
-		: FTimingEventsTrack(FName(TEXT("Thread")), InSubType, InName)
+	explicit FThreadTimingTrack(FThreadTimingSharedState& InSharedState, const FString& InName, const TCHAR* InGroupName, uint32 InTimelineIndex, uint32 InThreadId)
+		: FTimingEventsTrack(InName)
 		, SharedState(InSharedState)
 		, GroupName(InGroupName)
 		, TimelineIndex(InTimelineIndex)
@@ -154,7 +152,7 @@ class FCpuTimingTrack : public FThreadTimingTrack
 {
 public:
 	explicit FCpuTimingTrack(FThreadTimingSharedState& InSharedState, const FString& InName, const TCHAR* InGroupName, uint32 InTimelineIndex, uint32 InThreadId)
-		: FThreadTimingTrack(InSharedState, FName(TEXT("CPU")), InName, InGroupName, InTimelineIndex, InThreadId)
+		: FThreadTimingTrack(InSharedState, InName, InGroupName, InTimelineIndex, InThreadId)
 	{
 	}
 };
@@ -165,7 +163,7 @@ class FGpuTimingTrack : public FThreadTimingTrack
 {
 public:
 	explicit FGpuTimingTrack(FThreadTimingSharedState& InSharedState, const FString& InName, const TCHAR* InGroupName, uint32 InTimelineIndex, uint32 InThreadId)
-		: FThreadTimingTrack(InSharedState, FName(TEXT("GPU")), InName, InGroupName, InTimelineIndex, InThreadId)
+		: FThreadTimingTrack(InSharedState, InName, InGroupName, InTimelineIndex, InThreadId)
 	{
 	}
 };

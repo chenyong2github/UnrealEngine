@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "Engine/Public/AudioDevice.h"
 #include "Engine/Classes/Sound/SoundWave.h"
-#include "AudioMixer/Private/AudioMixerBuffer.h"
-#include "AudioMixer/Private/AudioMixerSourceBuffer.h"
 #include "DSP/SinOsc.h"
 #include "DSP/ParamInterpolator.h"
+#include "Misc/ScopeLock.h"
+
+
 
 class FAudioDevice;
 
@@ -16,6 +17,10 @@ class FAudioDevice;
 
 namespace Audio
 {
+	class FMixerBuffer;
+	class FMixerSourceBuffer;
+	struct FMixerSourceVoiceBuffer;
+
 	struct FDecodingSoundSourceHandle
 	{
 		FDecodingSoundSourceHandle()
@@ -44,7 +49,7 @@ namespace Audio
 		FDecodingSoundSourceHandle Handle;
 	};
 
-	class FDecodingSoundSource : public FGCObject
+	class FDecodingSoundSource
 	{
 	public:
 		FDecodingSoundSource(FAudioDevice* AudioDevice, const FSourceDecodeInit& InitData);
@@ -77,8 +82,8 @@ namespace Audio
 		// Get audio buffer
 		bool GetAudioBuffer(const int32 InNumFrames, const int32 InNumChannels, AlignedFloatBuffer& OutAudioBuffer);
 
-		// Override for FGCObject:
-		virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
+		// Return the underlying sound wave
+		USoundWave* GetSoundWave() { return SoundWave; }
 
 	private:
 
@@ -95,7 +100,9 @@ namespace Audio
 		FMixerBuffer* MixerBuffer;
 
 		// Object which handles bulk of decoding operations
-		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
+		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
+
+		FCriticalSection DtorCritSec;
 
 		// Sample rate of the source
 		int32 SampleRate;
@@ -156,7 +163,7 @@ namespace Audio
 			TArray<float> NextFrameValues;
 
 			// The current decoded PCM buffer we are reading from
-			TSharedPtr<FMixerSourceVoiceBuffer> CurrentPCMBuffer;
+			TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe> CurrentPCMBuffer;
 
 			// If this sound is done (has decoded all data)
 			bool bIsDone;
@@ -196,11 +203,15 @@ namespace Audio
 
 	typedef TSharedPtr<FDecodingSoundSource> FDecodingSoundSourcePtr;
 	
-	class AUDIOMIXER_API FSoundSourceDecoder
+	class AUDIOMIXER_API FSoundSourceDecoder : public FGCObject
 	{
 	public:
 		FSoundSourceDecoder();
 		virtual ~FSoundSourceDecoder();
+
+		//~ Begin FGCObject
+		virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
+		//~ End FGCObject
 
 		// Initialize the source decoder at the given output sample rate
 		// Sources will automatically sample rate convert to match this output
@@ -247,6 +258,7 @@ namespace Audio
 		int32 AudioThreadId;
 		FAudioDevice* AudioDevice;
 		int32 SampleRate;
+		FCriticalSection DecodingSourcesCritSec;
 		TMap<int32, FDecodingSoundSourcePtr> InitializingDecodingSources;
 		TMap<int32, FDecodingSoundSourcePtr> DecodingSources;
 		TMap<int32, FSourceDecodeInit> PrecachingSources;

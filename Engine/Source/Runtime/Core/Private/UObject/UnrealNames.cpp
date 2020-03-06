@@ -24,6 +24,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Serialization/MemoryImage.h"
 #include "Hash/CityHash.h"
 #include "Templates/AlignmentTemplates.h"
 
@@ -725,6 +726,7 @@ public:
 	{
 		uint32 WantedCapacity = FMath::RoundUpToPowerOfTwo(Num * LoadFactorDivisor / LoadFactorQuotient);
 
+		FWriteScopeLock _(Lock);
 		if (WantedCapacity > Capacity())
 		{
 			Grow(WantedCapacity);
@@ -1878,7 +1880,7 @@ struct FNameHelper
 		// Make NAME_None == TEXT("") or nullptr consistent with NAME_None == FName(TEXT("")) or FName(nullptr)
 		if (Str == nullptr || Str[0] == '\0')
 		{
-			return Name == NAME_None;
+			return Name.IsNone();
 		}
 
 		const FNameEntry& Entry = *Name.GetComparisonNameEntry();
@@ -2476,8 +2478,7 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			// If StringLen cannot be negated due to integer overflow, Ar is corrupted.
 			if (StringLen == MIN_int32)
 			{
-				Ar.ArIsError = 1;
-				Ar.ArIsCriticalError = 1;
+				Ar.SetCriticalError();
 				UE_LOG(LogUnrealNames, Error, TEXT("Archive is corrupted"));
 				return Ar;
 			}
@@ -2488,8 +2489,7 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			// Protect against network packets allocating too much memory
 			if ((MaxSerializeSize > 0) && (StringLen > MaxSerializeSize))
 			{
-				Ar.ArIsError = 1;
-				Ar.ArIsCriticalError = 1;
+				Ar.SetCriticalError();
 				UE_LOG(LogUnrealNames, Error, TEXT("String is too large"));
 				return Ar;
 			}
@@ -2516,8 +2516,7 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			// Protect against network packets allocating too much memory
 			if ((MaxSerializeSize > 0) && (StringLen > MaxSerializeSize))
 			{
-				Ar.ArIsError = 1;
-				Ar.ArIsCriticalError = 1;
+				Ar.SetCriticalError();
 				UE_LOG(LogUnrealNames, Error, TEXT("String is too large"));
 				return Ar;
 			}
@@ -3201,6 +3200,11 @@ uint8** FNameDebugVisualizer::GetBlocks()
 	static_assert(OffsetBits == FNameBlockOffsetBits,			"Natvis constants out of sync with actual constants");
 
 	return ((FNamePool*)(NamePoolData))->GetBlocksForDebugVisualizer();
+}
+
+void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FName& Object, const FTypeLayoutDesc&)
+{
+	Writer.WriteFName(Object);
 }
 
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

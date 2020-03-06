@@ -278,11 +278,9 @@ void FMDLImporter::ConvertUnsuportedVirtualTextures() const
 	{
 		if (UMaterial* CurrentMaterial = Cast<UMaterial>(CurrentMaterialInterface))
 		{
-			TArray<UObject*> ReferencedTextures;
-			CurrentMaterial->AppendReferencedTextures(ReferencedTextures);
 			for (UTexture2D* VirtualTexture : VirtualTexturesToConvert)
 			{
-				if (ReferencedTextures.Contains(VirtualTexture))
+				if (CurrentMaterial->GetCachedExpressionData().ReferencedTextures.Contains(VirtualTexture))
 				{
 					MaterialsToRefreshAfterVirtualTextureConversion.Add(CurrentMaterial);
 					break;

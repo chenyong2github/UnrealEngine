@@ -131,6 +131,8 @@ public:
 		float SightRadiusSq;
 		float AutoSuccessRangeSqFromLastSeenLocation;
 		float LoseSightRadiusSq;
+		float PointOfViewBackwardOffset;
+		float NearClippingRadiusSq;
 		uint8 AffiliationFlags;
 
 		FDigestedSightProperties();
@@ -141,7 +143,13 @@ public:
 	FTargetsContainer ObservedTargets;
 	TMap<FPerceptionListenerID, FDigestedSightProperties> DigestedProperties;
 
-	TArray<FAISightQuery> SightQueryQueue;
+	/** The SightQueries are a n^2 problem and to reduce the sort time, they are now split between in range and out of range */
+	/** Since the out of range queries only age as the distance component of the score is always 0, there is few need to sort them */
+	/** In the majority of the cases most of the queries are out of range, so the sort time is greatly reduced as we only sort the in range queries */
+	int32 NextOutOfRangeIndex = 0;
+	bool bSightQueriesOutOfRangeDirty = true;
+	TArray<FAISightQuery> SightQueriesOutOfRange;
+	TArray<FAISightQuery> SightQueriesInRange;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
@@ -185,7 +193,8 @@ protected:
 
 	void OnNewListenerImpl(const FPerceptionListener& NewListener);
 	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
-	void OnListenerRemovedImpl(const FPerceptionListener& UpdatedListener);	
+	void OnListenerRemovedImpl(const FPerceptionListener& RemovedListener);
+	virtual void OnListenerConfigUpdated(const FPerceptionListener& UpdatedListener) override;
 	
 	void GenerateQueriesForListener(const FPerceptionListener& Listener, const FDigestedSightProperties& PropertyDigest, const TFunction<void(FAISightQuery&)>& OnAddedFunc = nullptr);
 

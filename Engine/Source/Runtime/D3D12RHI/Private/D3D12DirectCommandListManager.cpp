@@ -385,6 +385,8 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 
 FGPUTimingCalibrationTimestamp FD3D12CommandListManager::GetCalibrationTimestamp()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12GetCalibrationTimestamp);
+
 	check(CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE);
 
 	uint64 GPUTimestampFrequency;
@@ -767,7 +769,25 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 			LogResourceBarriers(BarrierDescs.Num(), BarrierDescs.GetData(), hResourceBarrierList.CommandList());
 #endif
 
-			hResourceBarrierList->ResourceBarrier(BarrierDescs.Num(), BarrierDescs.GetData());
+#if USE_PIX && PLATFORM_XBOXONE 
+			//there was a bug in the instrumented driver that corrupts the cmdBuffer if more than 2000 Barrieres are submitted at once
+			if (BarrierDescs.Num() > 1900)
+			{
+				int Num = BarrierDescs.Num();
+				D3D12_RESOURCE_BARRIER* Ptr = BarrierDescs.GetData();
+				while (Num > 0)
+				{
+					int DispatchNum = FMath::Min(Num, 1900);
+					hResourceBarrierList->ResourceBarrier(DispatchNum, Ptr);
+					Ptr += 1900;
+					Num -= 1900;
+				}
+			}
+			else
+#endif
+			{
+				hResourceBarrierList->ResourceBarrier(BarrierDescs.Num(), BarrierDescs.GetData());
+			}
 		}
 
 		return BarrierDescs.Num();

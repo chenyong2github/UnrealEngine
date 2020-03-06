@@ -39,13 +39,13 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "geometry/PxConvexMesh.h"
 #include "geometry/PxTriangleMesh.h"
 #include "foundation/PxVec3.h"
 #include "extensions/PxMassProperties.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Containers/ArrayView.h"
 #endif
 
@@ -137,7 +137,7 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndexAndHitLocation(con
 						BodySetup = BodyInst->BodySetup.Get();	//this data should be immutable at runtime so ok to check from worker thread.
 						ECollisionShapeType GeomType = GetGeometryType(Shape);
 
-						if (BodySetup->bSupportUVsAndFaceRemap && GetGeometryType(Shape) == ECollisionShapeType::Trimesh)
+						if (BodySetup && BodySetup->bSupportUVsAndFaceRemap && GetGeometryType(Shape) == ECollisionShapeType::Trimesh)
 						{
 							FVector Scale(1.0f, 1.0f, 1.0f);
 							const Chaos::FImplicitObject* Geometry = Shape.Geometry.Get();
@@ -316,6 +316,9 @@ void FPhysInterface_Chaos::UpdateMaterial(FPhysicsMaterialHandle& InHandle, UPhy
 	{
 		Material->Friction = InMaterial->Friction;
 		Material->Restitution = InMaterial->Restitution;
+		Material->SleepingLinearThreshold = InMaterial->SleepLinearVelocityThreshold;
+		Material->SleepingAngularThreshold = InMaterial->SleepAngularVelocityThreshold;
+		Material->SleepCounterThreshold = InMaterial->SleepCounterThreshold;
 	}
 
 	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
@@ -551,7 +554,7 @@ void FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(const FPhysicsActorHandl
 	}
 	else
 	{
-		ensureMsgf(false, TEXT("Can only set kinematic state of underlying dynamic particles"));
+		CHAOS_ENSURE_MSG(false, TEXT("Can only set kinematic state of underlying dynamic particles"));
 	}
 }
 
@@ -782,7 +785,7 @@ void FPhysInterface_Chaos::AddImpulse_AssumesLocked(const FPhysicsActorHandle& I
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			AddVelocity_AssumesLocked(InActorReference, Rigid->InvM() * InForce);
+			Rigid->SetLinearImpulse(Rigid->LinearImpulse() + InForce);
 		}
 	}
 }
@@ -794,7 +797,7 @@ void FPhysInterface_Chaos::AddAngularImpulseInRadians_AssumesLocked(const FPhysi
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			AddAngularVelocityInRadians_AssumesLocked(InActorReference, Chaos::Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->InvI()) * InTorque);
+			Rigid->SetAngularImpulse(Rigid->AngularImpulse() + InTorque);
 		}
 	}
 }
@@ -803,10 +806,10 @@ void FPhysInterface_Chaos::AddVelocity_AssumesLocked(const FPhysicsActorHandle& 
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
-		if (ensure(Kinematic))
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
 		{
-			Kinematic->SetV(Kinematic->V() + InVelocityDelta);
+			AddImpulse_AssumesLocked(InActorReference, Rigid->M() * InVelocityDelta);
 		}
 	}
 }
@@ -815,11 +818,11 @@ void FPhysInterface_Chaos::AddAngularVelocityInRadians_AssumesLocked(const FPhys
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
-		if (ensure(Kinematic))
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
 		{
-			// NOTE: Need to convert W to rad/sec?
-			Kinematic->SetW(Kinematic->W() + InAngularVelocityDeltaRad);
+			const Chaos::FMatrix33 WorldI = Chaos::FParticleUtilitiesXR::GetWorldInertia(Rigid);
+			AddAngularImpulseInRadians_AssumesLocked(InActorReference, WorldI * InAngularVelocityDeltaRad);
 		}
 	}
 }
@@ -1559,14 +1562,28 @@ FPhysicsGeometryCollection_Chaos::FPhysicsGeometryCollection_Chaos(const FPhysic
 {
 }
 
-FCollisionFilterData FPhysInterface_Chaos::GetSimulationFilter(const FPhysicsShapeHandle& InShape)
+FCollisionFilterData FPhysInterface_Chaos::GetSimulationFilter(const FPhysicsShapeReference_Chaos& InShape)
 {
-	return FCollisionFilterData();
+	if (ensure(InShape.Shape))
+	{
+		return InShape.Shape->SimData;
+	}
+	else
+	{
+		return FCollisionFilterData();
+	}
 }
 
-FCollisionFilterData FPhysInterface_Chaos::GetQueryFilter(const FPhysicsShapeHandle& InShape)
+FCollisionFilterData FPhysInterface_Chaos::GetQueryFilter(const FPhysicsShapeReference_Chaos& InShape)
 {
-	return FCollisionFilterData();
+	if (ensure(InShape.Shape))
+	{
+		return InShape.Shape->QueryData;
+	}
+	else
+	{
+		return FCollisionFilterData();
+	}
 }
 
 void FPhysInterface_Chaos::SetQueryFilter(const FPhysicsShapeReference_Chaos& InShapeRef, const FCollisionFilterData& InFilter)
@@ -1725,18 +1742,16 @@ void FinishSceneStat()
 {
 }
 
-#if WITH_PHYSX
-
 bool CalculateMassPropertiesOfImplicitType(
 	Chaos::TMassProperties<float, 3>& OutMassProperties,
-	const Chaos::TRigidTransform<float, 3> & WorldTransform,
-	const Chaos::FImplicitObject* ImplicitObject, 
+	const Chaos::TRigidTransform<float, 3>& WorldTransform,
+	const Chaos::FImplicitObject* ImplicitObject,
 	float InDensityKGPerCM)
 {
 	// WIP
 	// @todo : Support center of mass offsets.
 	// @todo : Support Mass space alignment. 
-	
+
 	using namespace Chaos;
 
 	if (ImplicitObject)
@@ -1761,51 +1776,35 @@ bool CalculateMassPropertiesOfImplicitType(
 				OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
 				return false;
 			}
-		else*/ 
-		if (ImplicitObject->GetType(true) & Chaos::ImplicitObjectType::Transformed)
-		{
-			// TODO:  This all very wrong, but is wrong in the same way as scaled. Rotation/Translation are ignored though. The three methods on Transformed no implemented.
-			// Only adding this to hack around CastHelper, as TransformedImplicit is very not supported in that path.
-			const Chaos::TImplicitObjectTransformed<FReal, 3>& Object = ImplicitObject->template GetObjectChecked<Chaos::TImplicitObjectTransformed<FReal, 3>>();
+		else*/
 
-
-			OutMassProperties.Volume = Object.GetVolume();
-			OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
-			OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
-			OutMassProperties.CenterOfMass = Object.GetCenterOfMass();
-			OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
-			return true;
-		}
-		else
-		{
-			//question: is LocalTM enough to merge these two branches?
-			Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
+		//todo: Still need to handle scaled
+		Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
 			{
 				OutMassProperties.Volume = Object.GetVolume();
 				OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
 				OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
-				OutMassProperties.CenterOfMass = Object.GetCenterOfMass();
-				OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+				OutMassProperties.CenterOfMass = LocalTM.TransformPosition(Object.GetCenterOfMass());
+				OutMassProperties.RotationOfMass = LocalTM.GetRotation();
 			});
-			return true;
-		}
+		return true;
 	}
 	return false;
 }
 
-void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(physx::PxMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
+void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
 {
 	float TotalMass = 0.f;
 	Chaos::FVec3 TotalCenterOfMass(0.f);
-	TArray< Chaos::TMassProperties<float,3> > MassPropertiesList;
+	TArray< Chaos::TMassProperties<float, 3> > MassPropertiesList;
 	for (const FPhysicsShapeHandle& ShapeHandle : InShapes)
 	{
 		if (const Chaos::TPerShapeData<float, 3>* Shape = ShapeHandle.Shape)
 		{
-			if (const Chaos::FImplicitObject * ImplicitObject = Shape->Geometry.Get())
+			if (const Chaos::FImplicitObject* ImplicitObject = Shape->Geometry.Get())
 			{
 				FTransform WorldTransform(ShapeHandle.ActorRef->R(), ShapeHandle.ActorRef->X());
-				Chaos::TMassProperties<float,3> MassProperties;
+				Chaos::TMassProperties<float, 3> MassProperties;
 				if (CalculateMassPropertiesOfImplicitType(MassProperties, WorldTransform, ImplicitObject, InDensityKGPerCM))
 				{
 					MassPropertiesList.Add(MassProperties);
@@ -1824,22 +1823,19 @@ void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(physx::PxM
 	Chaos::PMatrix<float, 3, 3> Tensor;
 	if (MassPropertiesList.Num())
 	{
-		Tensor = Chaos::Combine<float, 3>(MassPropertiesList).InertiaTensor;
+		Tensor = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
 	}
-	else 
+	else
 	{
 		// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
 		Tensor = Chaos::PMatrix<float, 3, 3>(5.24e5, 5.24e5, 5.24e5);
 		TotalMass = 523.f;
 	}
 
-	float Mat[] = { Tensor.M[0][0],Tensor.M[0][1],Tensor.M[0][2],Tensor.M[1][0],Tensor.M[1][1],Tensor.M[1][2],Tensor.M[2][0],Tensor.M[2][1],Tensor.M[2][2] };
-	OutProperties.inertiaTensor = PxMat33(Mat);
-	OutProperties.mass = TotalMass;
-	OutProperties.centerOfMass = U2PVector(TotalCenterOfMass);
+	OutProperties.InertiaTensor = Tensor;
+	OutProperties.Mass = TotalMass;
+	OutProperties.CenterOfMass = TotalCenterOfMass;
 }
-
-#endif
 
 bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstance* InInstance, const FVector& WorldStart, const FVector& WorldEnd, bool bTraceComplex, bool bExtractPhysMaterial)
 {

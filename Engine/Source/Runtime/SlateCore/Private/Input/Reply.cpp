@@ -28,6 +28,15 @@ FReply& FReply::ClearUserFocus(EFocusCause ReasonFocusIsChanging, bool bInAllUse
 	return Me();
 }
 
+FReply& FReply::CancelFocusRequest()
+{
+	this->bSetUserFocus = false;
+	this->FocusRecipient = nullptr;
+	this->bReleaseUserFocus = false;
+
+	return Me();
+}
+
 FString FReply::ToString()
 {
 	FString HandledStr = IsEventHandled() ? TEXT("Handled") : TEXT("Unhandled");

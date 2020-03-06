@@ -918,7 +918,15 @@ TOptional<EItemDropZone> FSequencerObjectBindingNode::CanDrop(FSequencerDisplayN
 	// This removes a confusing "above" -> "blocked" -> "above/below" transition.
 	if (ItemDropZone == EItemDropZone::OntoItem || ItemDropZone == EItemDropZone::BelowItem)
 	{
-		ItemDropZone = EItemDropZone::AboveItem;
+		// Except when dropping onto the last item so that we can drop to the end of the tree
+		if (ParentTree.GetRootNode()->GetNumChildren() > 0 && this == &ParentTree.GetRootNode()->GetChildNodes().Last().Get())
+		{
+			ItemDropZone = EItemDropZone::BelowItem;
+		}
+		else
+		{
+			ItemDropZone = EItemDropZone::AboveItem;
+		}
 	}
 
 	if (GetParent().IsValid() && GetParent()->GetType() != ESequencerNode::Folder)

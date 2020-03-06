@@ -73,6 +73,10 @@ struct ENGINE_API FSoundConcurrencySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency)
 	TEnumAsByte<EMaxConcurrentResolutionRule::Type> ResolutionRule;
 
+	/** Amount of time to wait (in seconds) between different sounds which play with this concurrency. Sounds rejected from this will ignore virtualization settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency, meta = (UIMin = "0.0", ClampMin = "0.0"))
+	float RetriggerTime;
+
 private:
 	/**
 	 * Ducking factor to apply per older voice instance (generation), which compounds as new voices play
@@ -113,6 +117,7 @@ public:
 		: MaxCount(16)
 		, bLimitToOwner(0)
 		, ResolutionRule(EMaxConcurrentResolutionRule::StopFarthestThenOldest)
+		, RetriggerTime(0.0f)
 		, VolumeScale(1.0f)
 		, VolumeScaleAttackTime(0.01f)
 		, bVolumeScaleCanRelease(0)
@@ -260,6 +265,9 @@ struct FSoundInstanceEntry
 /** Type for mapping an object id to a concurrency entry. */
 typedef TMap<FConcurrencyObjectID, FConcurrencyGroupID> FConcurrencyMap;
 
+/** Type for mapping concurrency group id to when the group last played. */
+typedef TMap<FConcurrencyGroupID, float> FLastTimePlayedMap;
+
 struct FOwnerConcurrencyMapEntry
 {
 	FConcurrencyMap ConcurrencyObjectToConcurrencyGroup;
@@ -299,6 +307,9 @@ public:
 	void UpdateSoundsToCull();
 
 private: // Methods
+	/** Returns whether or not the sound is rate-limited using retrigger threshold */
+	bool IsRateLimited(const FConcurrencyHandle& InHandle);
+
 	/** Evaluates whether or not the sound can play given the concurrency group's rules. Appends permissible
 	sounds to evict in order for sound to play (if required) and returns the desired concurrency group. */
 	FConcurrencyGroup* CanPlaySound(const FActiveSound& NewActiveSound, const FConcurrencyGroupID GroupID, TArray<FActiveSound*>& OutSoundsToEvict, bool bIsRetriggering);
@@ -329,6 +340,9 @@ private: // Methods
 private: // Data
 	/** Owning audio device ptr for the concurrency manager. */
 	FAudioDevice* AudioDevice;
+
+	/** A map of when a sound last played on the concurrency group. */
+	FLastTimePlayedMap LastTimePlayedMap;
 
 	/** Global concurrency map that maps individual sounds instances to shared USoundConcurrency UObjects. */
 	FConcurrencyMap ConcurrencyMap;

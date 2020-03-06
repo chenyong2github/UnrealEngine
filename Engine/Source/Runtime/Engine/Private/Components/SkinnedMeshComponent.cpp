@@ -25,6 +25,7 @@
 #include "SkeletalMeshTypes.h"
 #include "Animation/MorphTarget.h"
 #include "AnimationRuntime.h"
+#include "Animation/SkinWeightProfileManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedMeshComp, Log, All);
 
@@ -511,7 +512,7 @@ void USkinnedMeshComponent::OnUnregister()
 	}
 }
 
-void USkinnedMeshComponent::CreateRenderState_Concurrent()
+void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
@@ -572,7 +573,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent()
 		}
 	}
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	if (SkeletalMesh)
 	{
@@ -778,15 +779,6 @@ void USkinnedMeshComponent::TickUpdateRate(float DeltaTime, bool bNeedsValidRoot
 	}
 }
 
-void USkinnedMeshComponent::SetMeshObjectCallbackData(FSkeletalMeshObjectCallbackData& InData)
-{
-	MeshObjectCallbackData = InData;
-	if (MeshObject)
-	{
-		MeshObject->SetCallbackData(InData);
-	}
-}
-
 void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	SCOPED_NAMED_EVENT(USkinnedMeshComponent_TickComponent, FColor::Yellow);
@@ -794,12 +786,6 @@ void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 
 	// Tick ActorComponent first.
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// Refresh callback in case MeshObjectCallbackData was updated
-	if (MeshObject)
-	{
-		MeshObject->SetCallbackData(MeshObjectCallbackData);
-	}
 
 	// See if this mesh was rendered recently. This has to happen first because other data will rely on this
 	bRecentlyRendered = (GetLastRenderTime() > GetWorld()->TimeSeconds - 1.0f);
@@ -1406,6 +1392,41 @@ bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FNam
 	}
 
 	return false;
+}
+
+bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
+{
+	static const IConsoleVariable* CVarDefaultGPUSkinCacheBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.DefaultBehavior"));
+
+	bool bIsRayTracing = IsRayTracingEnabled();
+
+	bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
+
+	if (!SkeletalMesh)
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bGlobalDefault);
+	}
+
+	FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LodIdx);
+	if (!LodInfo)
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bGlobalDefault);
+	}
+
+	bool bLodEnabled = LodInfo->SkinCacheUsage == ESkinCacheUsage::Auto ?
+		bGlobalDefault :
+		LodInfo->SkinCacheUsage == ESkinCacheUsage::Enabled;
+
+	if (!SkinCacheUsage.IsValidIndex(LodIdx))
+	{
+		return GEnableGPUSkinCache && (bIsRayTracing || bLodEnabled);
+	}
+
+	bool bComponentEnabled = SkinCacheUsage[LodIdx] == ESkinCacheUsage::Auto ? 
+		bLodEnabled :
+		SkinCacheUsage[LodIdx] == ESkinCacheUsage::Enabled;
+
+	return GEnableGPUSkinCache && (bIsRayTracing || bComponentEnabled);
 }
 
 void USkinnedMeshComponent::GetBoneNames(TArray<FName>& BoneNames)
@@ -3158,6 +3179,15 @@ void USkinnedMeshComponent::BeginDestroy()
 	Super::BeginDestroy();
 	ReleaseResources();
 
+	if (bSkinWeightProfilePending)
+	{
+		bSkinWeightProfilePending = false;
+		if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(GetWorld()))
+		{
+			Manager->CancelSkinWeightProfileRequest(this);
+		}
+	}
+
 	// Release ref pose override if allocated
 	if (RefPoseOverride)
 	{
@@ -3543,37 +3573,90 @@ void USkinnedMeshComponent::ClearSkinWeightOverride(int32 LODIndex)
 
 bool USkinnedMeshComponent::SetSkinWeightProfile(FName InProfileName)
 {
+	bool bContainsProfile = false;
+
 	if (FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData())
 	{
 		// Ensure the LOD infos array is initialized
 		InitLODInfos();
-        for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+		for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
         {
 			// Check whether or not setting a profile is allow for this LOD index
 			if (LODIndex > GSkinWeightProfilesAllowedFromLOD)
 			{
 				FSkeletalMeshLODRenderData& RenderData = SkelMeshRenderData->LODRenderData[LODIndex];
-				
+
+				bContainsProfile |= RenderData.SkinWeightProfilesData.ContainsProfile(InProfileName);
+
 				// Retrieve this profile's skin weight buffer
 				FSkinWeightVertexBuffer* Buffer = RenderData.SkinWeightProfilesData.GetOverrideBuffer(InProfileName);
+        
+				FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+				Info.OverrideProfileSkinWeights = Buffer;
+                
 				if (Buffer != nullptr)
 				{
-					FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
-					Info.OverrideProfileSkinWeights = Buffer;
-
 					bSkinWeightProfileSet = true;
-					CurrentSkinWeightProfileName = InProfileName;
 				}
 			}
         }
 
-		if (bSkinWeightProfileSet)
+		if (bContainsProfile)
 		{
-			UpdateSkinWeightOverrideBuffer();
+			CurrentSkinWeightProfileName = InProfileName;
+
+			if (bSkinWeightProfileSet)
+			{
+				UpdateSkinWeightOverrideBuffer();
+			}
+			else 
+			{
+				TWeakObjectPtr<USkinnedMeshComponent> WeakComponent = this;
+				FRequestFinished Callback = [WeakComponent](TWeakObjectPtr<USkeletalMesh> WeakMesh, FName ProfileName)
+				{
+					// Ensure that the request objects are still valid
+					if (WeakMesh.IsValid() && WeakComponent.IsValid())
+					{
+						USkinnedMeshComponent* Component = WeakComponent.Get();
+						Component->InitLODInfos();
+
+						Component->bSkinWeightProfilePending = false;
+						Component->bSkinWeightProfileSet = true;
+
+						if (FSkeletalMeshRenderData * RenderData = WeakMesh->GetResourceForRendering())
+						{
+							const int32 NumLODs = RenderData->LODRenderData.Num();
+							for (int32 Index = 0; Index < NumLODs; ++Index)
+							{
+								FSkeletalMeshLODRenderData& LODRenderData = RenderData->LODRenderData[Index];
+								FSkinWeightProfilesData& SkinweightData = LODRenderData.SkinWeightProfilesData;
+
+								// Check whether or not setting a profile is allow for this LOD index
+								if (Index > GSkinWeightProfilesAllowedFromLOD)
+								{
+									// Retrieve this profile's skin weight buffer
+									FSkinWeightVertexBuffer* Buffer = SkinweightData.GetOverrideBuffer(ProfileName);
+									FSkelMeshComponentLODInfo& Info = Component->LODInfo[Index];
+									Info.OverrideProfileSkinWeights = Buffer;
+								}
+							}
+
+							Component->UpdateSkinWeightOverrideBuffer();
+						}
+					}
+				};
+
+				// Put in a skin weight profile request
+				if (FSkinWeightProfileManager* Manager = FSkinWeightProfileManager::Get(GetWorld()))
+				{
+					Manager->RequestSkinWeightProfile(InProfileName, SkeletalMesh, this, Callback);
+					bSkinWeightProfilePending = true;
+				}
+			}
 		}
 	}
 
-	return bSkinWeightProfileSet;
+	return bContainsProfile;
 }
 
 void USkinnedMeshComponent::ClearSkinWeightProfile()
@@ -3582,20 +3665,33 @@ void USkinnedMeshComponent::ClearSkinWeightProfile()
 	{	
 		bool bCleared = false;
 
-		// Clear skin weight buffer set for all of the LODs
-		for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+		if (bSkinWeightProfileSet)
 		{
-			FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
-			bCleared |= (Info.OverrideProfileSkinWeights != nullptr);
-			Info.OverrideProfileSkinWeights = nullptr;
+			InitLODInfos();
+			// Clear skin weight buffer set for all of the LODs
+			for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+			{
+				FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+				bCleared |= (Info.OverrideProfileSkinWeights != nullptr);
+				Info.OverrideProfileSkinWeights = nullptr;
+			}
+
+			if (bCleared)
+			{
+				UpdateSkinWeightOverrideBuffer();
+			}
 		}
 
-		if (bCleared)
+		if (bSkinWeightProfilePending)
 		{
-			UpdateSkinWeightOverrideBuffer();
+			if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(GetWorld()))
+			{
+				Manager->CancelSkinWeightProfileRequest(this);
+			}
 		}
 	}
 
+	bSkinWeightProfilePending = false;
 	bSkinWeightProfileSet = false;
 	CurrentSkinWeightProfileName = NAME_None;
 }
@@ -3626,6 +3722,16 @@ void USkinnedMeshComponent::UnloadSkinWeightProfile(FName InProfileName)
 			{
 				UpdateSkinWeightOverrideBuffer();
 			}
+		}
+
+		if (bSkinWeightProfilePending)
+		{
+			if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(GetWorld()))
+			{
+				Manager->CancelSkinWeightProfileRequest(this);
+			}
+
+			bSkinWeightProfilePending = false;
 		}
 	}
 
@@ -3702,7 +3808,7 @@ void USkinnedMeshComponent::HandleFeatureLevelChanged(ERHIFeatureLevel::Type InF
 		}
 	}
 }
-#endif // WITH_EDITORONLY_DATA
+#endif
 
 void FAnimUpdateRateParameters::SetTrailMode(float DeltaTime, uint8 UpdateRateShift, int32 NewUpdateRate, int32 NewEvaluationRate, bool bNewInterpSkippedFrames)
 {

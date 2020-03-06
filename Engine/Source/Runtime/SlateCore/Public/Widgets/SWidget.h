@@ -786,8 +786,11 @@ public:
 		return TStatId(); // not doing stats at the moment, or ever
 	}
 
+	UE_DEPRECATED(4.24, "GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier), your widget will also need to set bHasRelativeLayoutScale in their Construct/ctor.")
+	virtual float GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const { return 1.0f; }
+
 	/** What is the Child's scale relative to this widget. */
-	virtual float GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const;
+	virtual float GetRelativeLayoutScale(const int32 ChildIndex, float LayoutScaleMultiplier) const;
 
 	/**
 	 * Non-virtual entry point for arrange children. ensures common work is executed before calling the virtual
@@ -1560,6 +1563,8 @@ private:
 
 protected:
 	uint8 bHasCustomPrepass : 1;
+
+	uint8 bHasRelativeLayoutScale : 1;
 	
 	/** if this widget should always invalidate the prepass step when volatile */
 	uint8 bVolatilityAlwaysInvalidatesPrepass : 1;

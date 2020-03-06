@@ -5,7 +5,6 @@
 // Dataprep includes
 #include "DataprepAsset.h"
 #include "DataprepActionAsset.h"
-#include "DataprepEditorUtils.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
 
@@ -79,11 +78,6 @@ void UDataprepGraphActionNode::DestroyNode()
 	}
  
 	Super::DestroyNode();
-}
-
-void UDataprepGraphActionNode::NodeConnectionListChanged()
-{
-	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( DataprepActionAsset );
 }
 
 TSharedPtr<class INameValidatorInterface> UDataprepGraphActionNode::MakeNameValidator() const

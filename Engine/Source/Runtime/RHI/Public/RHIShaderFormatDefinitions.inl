@@ -13,8 +13,6 @@ static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 
 static FName NAME_GLSL_430(TEXT("GLSL_430"));
 static FName NAME_GLSL_150_ES31(TEXT("GLSL_150_ES31"));
-static FName NAME_GLSL_ES2(TEXT("GLSL_ES2"));
-static FName NAME_GLSL_ES2_WEBGL(TEXT("GLSL_ES2_WEBGL"));
 static FName NAME_GLSL_310_ES_EXT(TEXT("GLSL_310_ES_EXT"));
 static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
 
@@ -44,6 +42,8 @@ static FName NAME_VULKAN_SM5_NOUB(TEXT("SF_VULKAN_SM5_NOUB"));
 static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
 static FName NAME_VULKAN_SM5_LUMIN(TEXT("SF_VULKAN_SM5_LUMIN"));
 static FName NAME_VULKAN_SM5_LUMIN_NOUB(TEXT("SF_VULKAN_SM5_LUMIN_NOUB"));
+static FName NAME_VULKAN_SM5_ANDROID(TEXT("SF_VULKAN_SM5_ANDROID"));
+static FName NAME_VULKAN_SM5_ANDROID_NOUB(TEXT("SF_VULKAN_SM5_ANDROID_NOUB"));
 
 
 static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
@@ -59,10 +59,6 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 		return NAME_GLSL_430;
 	case SP_OPENGL_PCES3_1:
 		return NAME_GLSL_150_ES31;
-	case SP_OPENGL_ES2_ANDROID:
-		return NAME_GLSL_ES2;
-	case SP_OPENGL_ES2_WEBGL:
-		return NAME_GLSL_ES2_WEBGL;
 	case SP_OPENGL_ES31_EXT:
 		return NAME_GLSL_310_ES_EXT;
 	case SP_OPENGL_ES3_1_ANDROID:
@@ -121,6 +117,11 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 		static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Vulkan.UseRealUBs"));
 		return (CVar && CVar->GetValueOnAnyThread() == 0) ? NAME_VULKAN_SM5_LUMIN_NOUB : NAME_VULKAN_SM5_LUMIN;
 	}
+	case SP_VULKAN_SM5_ANDROID:
+	{
+		static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Vulkan.UseRealUBs"));
+		return (CVar && CVar->GetValueOnAnyThread() == 0) ? NAME_VULKAN_SM5_ANDROID_NOUB : NAME_VULKAN_SM5_ANDROID;
+	}
 
 	default:
 		if (FStaticShaderPlatformNames::IsStaticPlatform(Platform))
@@ -142,8 +143,6 @@ static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 
 	if (ShaderFormat == NAME_GLSL_430)					return SP_OPENGL_SM5;
 	if (ShaderFormat == NAME_GLSL_150_ES31)				return SP_OPENGL_PCES3_1;
-	if (ShaderFormat == NAME_GLSL_ES2)					return SP_OPENGL_ES2_ANDROID;
-	if (ShaderFormat == NAME_GLSL_ES2_WEBGL)			return SP_OPENGL_ES2_WEBGL;
 	if (ShaderFormat == NAME_GLSL_310_ES_EXT)			return SP_OPENGL_ES31_EXT;
 	if (ShaderFormat == NAME_GLSL_ES3_1_ANDROID)		return SP_OPENGL_ES3_1_ANDROID;
 
@@ -173,6 +172,8 @@ static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 	if (ShaderFormat == NAME_VULKAN_SM5)				return SP_VULKAN_SM5;
 	if (ShaderFormat == NAME_VULKAN_SM5_LUMIN)			return SP_VULKAN_SM5_LUMIN;
 	if (ShaderFormat == NAME_VULKAN_SM5_LUMIN_NOUB)		return SP_VULKAN_SM5_LUMIN;
+	if (ShaderFormat == NAME_VULKAN_SM5_ANDROID)		return SP_VULKAN_SM5_ANDROID;
+	if (ShaderFormat == NAME_VULKAN_SM5_ANDROID_NOUB)	return SP_VULKAN_SM5_ANDROID;
 
 	for (int32 StaticPlatform = SP_StaticPlatform_First; StaticPlatform <= SP_StaticPlatform_Last; ++StaticPlatform)
 	{

@@ -48,8 +48,13 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(int, MaterialParam3DataOffset)
 	SHADER_PARAMETER(int, NormalizedAgeDataOffset)
 	SHADER_PARAMETER(int, MaterialRandomDataOffset)
+	SHADER_PARAMETER(int, CameraOffsetDataOffset)
 	SHADER_PARAMETER(FVector4, DefaultPos)
 	SHADER_PARAMETER(int, SubImageBlendMode)
+	SHADER_PARAMETER(uint32, FacingMode)
+	SHADER_PARAMETER(uint32, bLockedAxisEnable)
+	SHADER_PARAMETER(FVector, LockedAxis)
+	SHADER_PARAMETER(uint32, LockedAxisSpace)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FNiagaraMeshUniformParameters> FNiagaraMeshUniformBufferRef;
@@ -69,7 +74,6 @@ public:
 	FNiagaraMeshVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
 		: FNiagaraVertexFactoryBase(InType, InFeatureLevel)
 		, LODIndex(-1)
-		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
 		, SortedIndicesOffset(0)
@@ -78,7 +82,6 @@ public:
 	FNiagaraMeshVertexFactory()
 		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num)
 		, LODIndex(-1)
-		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
 		, SortedIndicesOffset(0)
@@ -87,16 +90,16 @@ public:
 	/**
 	* Should we cache the material's shadertype on this platform with this vertex factory?
 	*/
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 
 	/**
 	* Modify compile environment to enable instancing
 	* @param OutEnvironment - shader compile environment to modify
 	*/
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+		FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		// Set a define so we can tell in MaterialTemplate.usf when we are compiling a mesh particle vertex factory
 		OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_FACTORY"), TEXT("1"));
@@ -171,18 +174,12 @@ public:
 
 	static bool SupportsTessellationShaders() { return true; }
 
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
-	
 	int32 GetLODIndex() const { return LODIndex; }
 	void SetLODIndex(int32 InLODIndex) { LODIndex = InLODIndex; }
-
-	uint32 GetMeshFacingMode() const { return MeshFacingMode; }
-	void SetMeshFacingMode(uint32 InMode) { MeshFacingMode = InMode; }
-
+	
 protected:
 	FStaticMeshDataType Data;
-	int32 LODIndex;
-	uint32 MeshFacingMode;
+	int32 LODIndex;	
 
 	/** Uniform buffer with mesh particle parameters. */
 	FRHIUniformBuffer* MeshParticleUniformBuffer;
@@ -195,36 +192,6 @@ protected:
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;
 	uint32 SortedIndicesOffset;
-};
-
-
-class NIAGARAVERTEXFACTORIES_API FNiagaraMeshVertexFactoryEmulatedInstancing : public FNiagaraMeshVertexFactory
-{
-	DECLARE_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactoryEmulatedInstancing);
-
-public:
-	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
-	FNiagaraMeshVertexFactoryEmulatedInstancing(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
-		: FNiagaraMeshVertexFactory(InType, InFeatureLevel)
-	{}
-
-	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
-	FNiagaraMeshVertexFactoryEmulatedInstancing()
-		: FNiagaraMeshVertexFactory()
-	{}
-
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
-	{
-		return (Platform == SP_OPENGL_ES2_ANDROID || Platform == SP_OPENGL_ES2_WEBGL) // Those are only platforms that might not support hardware instancing
-			&& FNiagaraMeshVertexFactory::ShouldCompilePermutation(Platform, Material, ShaderType);
-	}
-
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FNiagaraMeshVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
-
-		OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_INSTANCED"), TEXT("0"));
-	}
 };
 
 inline FNiagaraMeshVertexFactory* ConstructNiagaraMeshVertexFactory()

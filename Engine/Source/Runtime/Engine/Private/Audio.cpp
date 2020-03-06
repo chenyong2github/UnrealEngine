@@ -954,6 +954,14 @@ void FWaveInstance::AddReferencedObjects( FReferenceCollector& Collector )
 		}
 	}
 
+	for (FAttenuationSubmixSendSettings& SubmixSend : SubmixSendSettings)
+	{
+		if (SubmixSend.Submix)
+		{
+			Collector.AddReferencedObject(SubmixSend.Submix);
+		}
+	}
+
 	Collector.AddReferencedObject( SoundClass );
 	NotifyBufferFinishedHooks.AddReferencedObjects( Collector );
 }
@@ -1078,7 +1086,7 @@ bool FWaveInstance::IsSeekable() const
 		return false;
 	}
 
-	if (WaveData->bIsBus || WaveData->bProcedural)
+	if (WaveData->bIsSourceBus || WaveData->bProcedural)
 	{
 		return false;
 	}
@@ -1093,7 +1101,7 @@ bool FWaveInstance::IsSeekable() const
 
 bool FWaveInstance::IsStreaming() const
 {
-	return FPlatformProperties::SupportsAudioStreaming() && WaveData != nullptr && WaveData->IsStreaming();
+	return FPlatformProperties::SupportsAudioStreaming() && WaveData != nullptr && WaveData->IsStreaming(nullptr);
 }
 
 bool FWaveInstance::GetUseSpatialization() const

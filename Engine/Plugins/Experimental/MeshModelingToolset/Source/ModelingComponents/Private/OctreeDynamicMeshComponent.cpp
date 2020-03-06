@@ -50,7 +50,6 @@ UOctreeDynamicMeshComponent::UOctreeDynamicMeshComponent(const FObjectInitialize
 void UOctreeDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescription)
 {
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.bPrintDebugMessages = true;
 	Mesh->Clear();
 	Converter.Convert(MeshDescription, *Mesh);
 
@@ -357,16 +356,10 @@ FBoxSphereBounds UOctreeDynamicMeshComponent::CalcBounds(const FTransform& Local
 
 void UOctreeDynamicMeshComponent::ApplyChange(const FMeshVertexChange* Change, bool bRevert)
 {
-	int NV = Change->Vertices.Num();
-	const TArray<FVector3d>& Positions = (bRevert) ? Change->OldPositions : Change->NewPositions;
-	
 	Octree->ResetModifiedBounds();
 	TSet<int> TrianglesToUpdate;
-
-	for (int k = 0; k < NV; ++k)
+	auto NotifyTriVerticesAffected = [&](int32 vid) 
 	{
-		int vid = Change->Vertices[k];
-
 		for (int tid : Mesh->VtxTrianglesItr(vid))
 		{
 			if (TrianglesToUpdate.Contains(tid) == false)
@@ -375,8 +368,32 @@ void UOctreeDynamicMeshComponent::ApplyChange(const FMeshVertexChange* Change, b
 				TrianglesToUpdate.Add(tid);
 			}
 		}
+	};
 
+	int NV = Change->Vertices.Num();
+	const TArray<FVector3d>& Positions = (bRevert) ? Change->OldPositions : Change->NewPositions;
+	for (int k = 0; k < NV; ++k)
+	{
+		int vid = Change->Vertices[k];
+		NotifyTriVerticesAffected(vid);
 		Mesh->SetVertex(vid, Positions[k]);
+	}
+
+	if (Change->bHaveOverlayNormals && Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals())
+	{
+		FDynamicMeshNormalOverlay* Overlay = Mesh->Attributes()->PrimaryNormals();
+		int32 NumNormals = Change->Normals.Num();
+		const TArray<FVector3f>& UseNormals = (bRevert) ? Change->OldNormals : Change->NewNormals;
+		for (int32 k = 0; k < NumNormals; ++k)
+		{
+			int32 elemid = Change->Normals[k];
+			if (Overlay->IsElement(elemid))
+			{
+				Overlay->SetElement(elemid, UseNormals[k]);
+				int32 ParentVID = Overlay->GetParentVertex(elemid);
+				NotifyTriVerticesAffected(ParentVID);
+			}
+		}
 	}
 
 	Octree->ReinsertTriangles(TrianglesToUpdate);

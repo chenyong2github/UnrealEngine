@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDHYDRA_TOKENS_H
-#define USDHYDRA_TOKENS_H
+#ifndef PXR_USD_USD_HYDRA_TOKENS_H
+#define PXR_USD_USD_HYDRA_TOKENS_H
 
 /// \file usdHydra/tokens.h
 

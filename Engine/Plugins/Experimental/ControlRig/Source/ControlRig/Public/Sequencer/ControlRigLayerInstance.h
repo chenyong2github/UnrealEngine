@@ -24,6 +24,7 @@ public:
 	void AddControlRigTrack(int32 ControlRigID, UControlRig* InControlRig);
 	void UpdateControlRigTrack(int32 ControlRigID, float Weight, const FControlRigIOSettings& InputSettings, bool bExecute);
 	void RemoveControlRigTrack(int32 ControlRigID);
+	bool HasControlRigTrack(int32 ControlRigID);
 	void ResetControlRigTracks();
 
 	/** Sequencer AnimInstance Interface */
@@ -32,6 +33,8 @@ public:
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies) override;
 	void RemoveAnimation(int32 SequenceId);
 
+	/** Construct all nodes in this instance */
+	virtual void ConstructNodes() override;
 	/** Reset all nodes in this instance */
 	virtual void ResetNodes() override;
 	/** Reset the pose in this instance*/

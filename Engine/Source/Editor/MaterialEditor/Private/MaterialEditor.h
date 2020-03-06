@@ -22,6 +22,7 @@
 #include "UObject/WeakFieldPtr.h"
 
 struct FAssetData;
+struct FToolMenuSection;
 class FCanvas;
 class FMaterialCompiler;
 class FScopedTransaction;
@@ -63,7 +64,7 @@ public:
 		FPlatformMisc::CreateGuid(Id);
 
 		check(InExpression->Material && InExpression->Material->Expressions.Contains(InExpression));
-		InExpression->Material->AppendReferencedTextures(ReferencedTextures);
+		ReferencedTextures = InExpression->Material->GetReferencedTextures();
 		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
 	}
 
@@ -93,9 +94,9 @@ public:
 	 */
 	virtual bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const override;
 
-	virtual const TArray<UObject*>& GetReferencedTextures() const override
+	virtual TArrayView<UObject* const> GetReferencedTextures() const override
 	{
-		return ReferencedTextures;
+		return MakeArrayView(ReferencedTextures);
 	}
 
 	////////////////
@@ -114,7 +115,7 @@ public:
 		}
 	}
 
-	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{
@@ -123,7 +124,7 @@ public:
 		return false;
 	}
 
-	virtual bool GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{
@@ -132,7 +133,7 @@ public:
 		return false;
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{
@@ -141,7 +142,7 @@ public:
 		return false;
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{
@@ -275,6 +276,8 @@ public:
 	virtual FText GetToolkitName() const override;
 	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
+	virtual void InitToolMenuContext(struct FToolMenuContext& MenuContext) override;
+
 
 	/** @return the documentation location for this editor */
 	virtual FString GetDocumentationLink() const override
@@ -392,7 +395,7 @@ public:
 	virtual void GetBoundsForNode(const UEdGraphNode* InNode, class FSlateRect& OutRect, float InPadding) const override;
 	virtual FMatExpressionPreview* GetExpressionPreview(UMaterialExpression* InExpression) override;
 	virtual void DeleteNodes(const TArray<class UEdGraphNode*>& NodesToDelete) override;
-
+	virtual void GenerateInheritanceMenu(class UToolMenu* Menu) override;
 
 	void UpdateStatsMaterials();
 
@@ -413,6 +416,9 @@ public:
 
 	/** Rebuilds the inheritance list for this material. */
 	void RebuildInheritanceList();
+
+	/** Add entry to hierarchy menu */
+	static void AddInheritanceMenuEntry(FToolMenuSection& Section, const FAssetData& AssetData, bool bIsFunctionPreviewMaterial);
 
 public:
 	/** Set to true when modifications have been made to the material */
@@ -545,6 +551,7 @@ protected:
 private:
 	/** Builds the toolbar widget for the material editor */
 	void ExtendToolbar();
+	void RegisterToolBar();
 
 	/** Creates the toolbar buttons. Bound by ExtendToolbar*/
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
@@ -772,6 +779,7 @@ private:
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 	void OnFinishedChangingParametersFromOverview(const FPropertyChangedEvent& PropertyChangedEvent);
+	void GeneratorRowsRefreshed();
 private:
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap< FName, TWeakPtr<class SDockableTab> > SpawnedToolPanels;
@@ -888,4 +896,6 @@ private:
 
 	/** List of children used to populate the inheritance list chain. */
 	TArray< FAssetData > FunctionChildList;
+
+	TSharedPtr<class IPropertyRowGenerator> Generator;
 };

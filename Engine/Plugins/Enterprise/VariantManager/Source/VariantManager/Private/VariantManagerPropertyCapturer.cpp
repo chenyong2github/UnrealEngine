@@ -397,7 +397,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 					FString Category = Property->GetMetaData(TEXT("Category"));
 					if (!Category.IsEmpty())
 					{
-					Category = Category.Replace(TEXT("|"), PATH_DELIMITER);
+						Category = Category.Replace(TEXT("|"), PATH_DELIMITER);
 
 					int32 LastDelimiterIndex = Category.Find(PATH_DELIMITER, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 					FString LastCategorySegment = (LastDelimiterIndex == INDEX_NONE)? Category : Category.RightChop(LastDelimiterIndex+1);

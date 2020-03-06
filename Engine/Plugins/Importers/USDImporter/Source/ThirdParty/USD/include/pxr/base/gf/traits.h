@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef GF_TRAITS_H
-#define GF_TRAITS_H
+#ifndef PXR_BASE_GF_TRAITS_H
+#define PXR_BASE_GF_TRAITS_H
 
 #include "pxr/pxr.h"
 
@@ -51,4 +51,4 @@ struct GfIsGfRange { static const bool value = false; };
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // GF_TRAITS_H
+#endif // PXR_BASE_GF_TRAITS_H

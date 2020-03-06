@@ -1,11 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceEffects/SourceEffectRingModulation.h"
+#include "AudioDevice.h"
+#include "AudioMixerDevice.h"
+#include "AudioMixerBus.h"
+#include "DSP/MultithreadedPatching.h"
 
 void FSourceEffectRingModulation::Init(const FSoundEffectSourceInitData& InitData)
 {
 	bIsActive = true;
-	RingModulation.Init(InitData.SampleRate, InitData.NumSourceChannels);
+	NumChannels = InitData.NumSourceChannels;
+	RingModulation.Init(InitData.SampleRate, NumChannels);
+	AudioDeviceId = InitData.AudioDeviceId;
 }
 
 void FSourceEffectRingModulation::OnPresetChanged()
@@ -36,6 +42,20 @@ void FSourceEffectRingModulation::OnPresetChanged()
 	RingModulation.SetModulationFrequency(Settings.Frequency);
 	RingModulation.SetDryLevel(Settings.DryLevel);
 	RingModulation.SetWetLevel(Settings.WetLevel);
+
+	// If we're modulating the ring modulator with an audio bus, lets set up that patch source from the audio bus
+	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	if (Settings.AudioBusModulator && AudioDeviceManager)
+	{
+		Audio::FMixerDevice* MixerDevice = (Audio::FMixerDevice*)AudioDeviceManager->GetAudioDeviceRaw(AudioDeviceId);
+		uint32 AudioBusId = Settings.AudioBusModulator->GetUniqueID();
+		Audio::FPatchOutputStrongPtr AudioBusPatchOutputPtr = MixerDevice->AddPatchForAudioBus(AudioBusId, 1.0f);
+		RingModulation.SetExternalPatchSource(AudioBusPatchOutputPtr);
+	}
+	else
+	{
+		RingModulation.SetExternalPatchSource(nullptr);
+	}
 }
 
 void FSourceEffectRingModulation::ProcessAudio(const FSoundEffectSourceInputData& InData, float* OutAudioBufferData)

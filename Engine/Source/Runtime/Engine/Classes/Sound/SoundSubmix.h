@@ -3,7 +3,9 @@
 
 #include "CoreMinimal.h"
 
-#include "IAmbisonicsMixer.h"
+#include "ISoundfieldFormat.h"
+#include "IAudioEndpoint.h"
+#include "ISoundfieldEndpoint.h"
 #include "SampleBufferIO.h"
 #include "SoundEffectSubmix.h"
 #include "SoundSubmixSend.h"
@@ -19,36 +21,6 @@ class USoundEffectSubmixPreset;
 class USoundSubmix;
 class ISubmixBufferListener;
 
-
-/* Submix channel format.
- Allows submixes to have sources mix to a particular channel configuration for potential effect chain requirements.
- Master submix will always render at the device channel count. All child submixes will be down-mixed (or up-mixed) to
- the device channel count. This feature exists to allow specific submix effects to do their work on multi-channel mixes
- of audio.
-*/
-UENUM(BlueprintType)
-enum class ESubmixChannelFormat : uint8
-{
-	// Sets the submix channels to the output device channel count
-	Device UMETA(DisplayName = "Device"),
-
-	// Sets the submix mix to stereo (FL, FR)
-	Stereo UMETA(DisplayName = "Stereo"),
-
-	// Sets the submix to mix to quad (FL, FR, SL, SR)
-	Quad UMETA(DisplayName = "Quad"),
-
-	// Sets the submix to mix 5.1 (FL, FR, FC, LF, SL, SR)
-	FiveDotOne UMETA(DisplayName = "5.1"),
-
-	// Sets the submix to mix audio to 7.1 (FL, FR, FC, LF, BL, BR, SL, SR)
-	SevenDotOne UMETA(DisplayName = "7.1"),
-
-	// Sets the submix to render audio to first-order ambisonics.
-	Ambisonics UMETA(DisplayName = "Ambisonics"),
-
-	Count UMETA(Hidden)
-};
 
 
 /**
@@ -76,26 +48,102 @@ public:
 };
 #endif
 
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType)
-class ENGINE_API USoundSubmix : public UObject
+UCLASS(config = Engine, abstract, hidecategories = Object, editinlinenew, BlueprintType)
+class ENGINE_API USoundSubmixBase : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	// Child submixes to this sound mix
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
-	TArray<USoundSubmix*> ChildSubmixes;
-
-	UPROPERTY()
-	USoundSubmix* ParentSubmix;
-
+public:
 #if WITH_EDITORONLY_DATA
 	/** EdGraph based representation of the SoundSubmix */
 	UEdGraph* SoundSubmixGraph;
 #endif
 
-	// Experimental! Specifies the channel format for the submix. Sources will be mixed at the specified format. Useful for specific effects that need to operate on a specific format.
+	// Child submixes to this sound mix
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
-	ESubmixChannelFormat ChannelFormat;
+	TArray<USoundSubmixBase*> ChildSubmixes;
+
+protected:
+	//~ Begin UObject Interface.
+	virtual FString GetDesc() override;
+	virtual void BeginDestroy() override;
+	virtual void PostLoad() override;
+
+public:
+	// Sound Submix Editor functionality
+#if WITH_EDITOR
+
+	/**
+	* @return true if the child sound class exists in the tree
+	*/
+	bool RecurseCheckChild(const USoundSubmixBase* ChildSoundSubmix) const;
+
+	/**
+	* Add Referenced objects
+	*
+	* @param	InThis SoundSubmix we are adding references from.
+	* @param	Collector Reference Collector
+	*/
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+
+protected:
+
+#if WITH_EDITOR
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
+	//~ End UObject Interface.
+
+private:
+	static TArray<USoundSubmixBase*> BackupChildSubmixes;
+#endif // WITH_EDITOR
+};
+
+/**
+ * This submix class can be derived from for submixes that output to a parent submix.
+ */
+UCLASS(config = Engine, abstract, hidecategories = Object, editinlinenew, BlueprintType)
+class ENGINE_API USoundSubmixWithParentBase : public USoundSubmixBase
+{
+	GENERATED_UCLASS_BODY()
+public:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
+	USoundSubmixBase* ParentSubmix;
+
+	/**
+	* Set the parent submix of this SoundSubmix, removing it as a child from its previous owner
+	*
+	* @param	InParentSubmix	The New Parent Submix of this
+	*/
+	void SetParentSubmix(USoundSubmixBase* InParentSubmix);
+
+protected:
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+#endif 
+};
+
+// Whether to use linear or decibel values for audio gains
+UENUM(BlueprintType)
+enum class EGainParamMode : uint8
+{
+	Linear = 0,
+	Decibels,
+};
+
+/**
+ * Sound Submix class meant for applying an effect to the downmixed sum of multiple audio sources.
+ */
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta=(DisplayName="Effect Submix"))
+class ENGINE_API USoundSubmix : public USoundSubmixWithParentBase
+{
+	GENERATED_UCLASS_BODY()
+
+public:
 
 	/** Mute this submix when the application is muted or in the background. Used to prevent submix effect tails from continuing when tabbing out of application or if application is muted. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
@@ -106,7 +154,7 @@ class ENGINE_API USoundSubmix : public UObject
 
 	/** Optional settings used by plugins which support ambisonics file playback. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SoundSubmix)
-	UAmbisonicsSubmixSettingsBase* AmbisonicsPluginSettings;
+	USoundfieldEncodingSettingsBase* AmbisonicsPluginSettings;
 
 	/** The attack time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the envelope value of sounds played with this submix. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = EnvelopeFollower, meta = (ClampMin = "0", UIMin = "0"))
@@ -116,9 +164,35 @@ class ENGINE_API USoundSubmix : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = EnvelopeFollower, meta = (ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerReleaseTime;
 
-	/** The output volume of the submix. Applied after submix effects and analysis are performed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SoundSubmix, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	/** Whether to treat submix gain levels as linear or decibel values. */
+	UPROPERTY(EditAnywhere, Category = SubmixLevel, meta = (InlineCategoryProperty))
+	EGainParamMode GainMode;
+
+	/** The output volume of the submix. Applied after submix effects and analysis are performed.*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0", EditCondition = "GainMode == EGainParamMode::Linear", DisplayName = "Output Volume", EditConditionHides))
 	float OutputVolume;
+
+	/** The wet level of the submix. Applied after submix effects and analysis are performed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0", EditCondition = "GainMode == EGainParamMode::Linear", DisplayName = "Wet Level", EditConditionHides))
+	float WetLevel;
+
+	/** The dry level of the submix. Applied before submix effects and analysis are performed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0", EditCondition = "GainMode == EGainParamMode::Linear", DisplayName = "Dry Level", EditConditionHides))
+	float DryLevel;
+
+#if WITH_EDITORONLY_DATA
+	/** The output volume of the submix (in dB). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-120.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Output Volume (dB)", EditConditionHides))
+	float OutputVolumeDB;
+
+	/** The wet level of the submix  (in dB). Applied after submix effects and analysis are performed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-120.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Wet Level (dB)", EditConditionHides))
+	float WetLevelDB;
+
+	/** The dry level of the submix  (in dB)s. Applied before submix effects and analysis are performed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-120.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Dry Level (dB)", EditConditionHides))
+	float DryLevelDB;
+#endif
 
 	// Blueprint delegate for when a recorded file is finished exporting.
 	UPROPERTY(BlueprintAssignable)
@@ -161,46 +235,118 @@ class ENGINE_API USoundSubmix : public UObject
 
 protected:
 
-	//~ Begin UObject Interface.
-	virtual FString GetDesc() override;
-	virtual void BeginDestroy() override;
 	virtual void PostLoad() override;
-
 #if WITH_EDITOR
-	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
-	//~ End UObject Interface.
+#endif
 
 	// State handling for bouncing output.
 	TUniquePtr<Audio::FAudioRecordingData> RecordingData;
+};
+	
+
+/**
+ * Sound Submix class meant for use with soundfield formats, such as Ambisonics.
+ */
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Soundfield Submix"))
+class ENGINE_API USoundfieldSubmix : public USoundSubmixWithParentBase
+{
+	GENERATED_UCLASS_BODY()
 
 public:
-	// Sound Submix Editor functionality
-#if WITH_EDITOR
+	ISoundfieldFactory* GetSoundfieldFactoryForSubmix() const;
+	const USoundfieldEncodingSettingsBase* GetSoundfieldEncodingSettings() const;
+	TArray<USoundfieldEffectBase *> GetSoundfieldProcessors() const;
+
+public:
+	/** Currently used format. */
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = Soundfield)
+	FName SoundfieldEncodingFormat;
+
+	//TODO: Make this editable only if SoundfieldEncodingFormat is non-default,
+	// and filter classes based on ISoundfieldFactory::GetCustomSettingsClass().
+	UPROPERTY(EditAnywhere, Category = Soundfield)
+	USoundfieldEncodingSettingsBase* EncodingSettings;
+
+	// TODO: make this editable only if SoundfieldEncodingFormat is non-default
+	// and filter classes based on USoundfieldProcessorBase::SupportsFormat.
+	UPROPERTY(EditAnywhere, Category = Soundfield)
+	TArray<USoundfieldEffectBase*> SoundfieldEffectChain;
+
+	// Traverses parent submixes until we find a submix that doesn't inherit it's soundfield format.
+	FName GetSubmixFormat() const;
+
+	UPROPERTY()
+	TSubclassOf<USoundfieldEncodingSettingsBase> EncodingSettingsClass;
+
+	// Traverses parent submixes until we find a submix that specifies encoding settings.
+	const USoundfieldEncodingSettingsBase* GetEncodingSettings() const;
+};
+
+/**
+ * Sound Submix class meant for sending audio to an external endpoint, such as controller haptics or an additional audio device.
+ */
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Audio Endpoint Submix"))
+class ENGINE_API UEndpointSubmix : public USoundSubmixBase
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	IAudioEndpointFactory* GetAudioEndpointForSubmix() const;
+	const UAudioEndpointSettingsBase* GetEndpointSettings() const;
+
+public:
+	/** Currently used format. */
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = Endpoint)
+	FName EndpointType;
+
+	UPROPERTY()
+	TSubclassOf<UAudioEndpointSettingsBase> EndpointSettingsClass;
+
+	//TODO: Make this editable only if EndpointType is non-default,
+	// and filter classes based on ISoundfieldFactory::GetCustomSettingsClass().
+	UPROPERTY(EditAnywhere, Category = Endpoint)
+	UAudioEndpointSettingsBase* EndpointSettings;
+
+};
+
+/**
+ * Sound Submix class meant for sending soundfield-encoded audio to an external endpoint, such as a hardware binaural renderer that supports ambisonics.
+ */
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Soundfield Endpoint Submix"))
+class ENGINE_API USoundfieldEndpointSubmix : public USoundSubmixBase
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	ISoundfieldEndpointFactory* GetSoundfieldEndpointForSubmix() const;
+	const USoundfieldEndpointSettingsBase* GetEndpointSettings() const;
+	const USoundfieldEncodingSettingsBase* GetEncodingSettings() const;
+	TArray<USoundfieldEffectBase*> GetSoundfieldProcessors() const;
+public:
+	/** Currently used format. */
+	UPROPERTY(EditAnywhere, Category = Endpoint, AssetRegistrySearchable)
+	FName SoundfieldEndpointType;
+
+	UPROPERTY()
+	TSubclassOf<UAudioEndpointSettingsBase> EndpointSettingsClass;
 
 	/**
 	* @return true if the child sound class exists in the tree
 	*/
 	bool RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const;
 
-	/**
-	* Set the parent submix of this SoundSubmix, removing it as a child from its previous owner
-	*
-	* @param	InParentSubmix	The New Parent Submix of this
-	*/
-	void SetParentSubmix(USoundSubmix* InParentSubmix);
+	//TODO: Make this editable only if EndpointType is non-default,
+	// and filter classes based on ISoundfieldFactory::GetCustomSettingsClass().
+	UPROPERTY(EditAnywhere, Category = Endpoint)
+	USoundfieldEndpointSettingsBase* EndpointSettings;
 
-	/**
-	* Add Referenced objects
-	*
-	* @param	InThis SoundSubmix we are adding references from.
-	* @param	Collector Reference Collector
-	*/
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	UPROPERTY()
+	TSubclassOf<USoundfieldEncodingSettingsBase> EncodingSettingsClass;
 
-private:
-	TArray<USoundSubmix*> BackupChildSubmixes;
-#endif // WITH_EDITOR
+	UPROPERTY(EditAnywhere, Category = Soundfield)
+	USoundfieldEncodingSettingsBase* EncodingSettings;
+
+	UPROPERTY(EditAnywhere, Category = Soundfield)
+	TArray<USoundfieldEffectBase*> SoundfieldEffectChain;
 };

@@ -183,25 +183,30 @@ namespace UE4MapProperty_Private
 
 IMPLEMENT_FIELD(FMapProperty)
 
-FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, EMapPropertyFlags InMapFlags)
 	: FMapProperty_Super(InOwner, InName, InObjectFlags)
 {
 	// These are expected to be set post-construction by AddCppProperty
 	KeyProp = nullptr;
 	ValueProp = nullptr;
+
+	MapFlags = InMapFlags;
 }
 
-FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
-: FMapProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, EMapPropertyFlags InMapFlags)
+	: FMapProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 {
 	// These are expected to be set post-construction by AddCppProperty
 	KeyProp   = nullptr;
 	ValueProp = nullptr;
+
+	MapFlags = InMapFlags;
 }
 
 #if WITH_EDITORONLY_DATA
 FMapProperty::FMapProperty(UField* InField)
 	: FMapProperty_Super(InField)
+	, MapFlags(EMapPropertyFlags::None)
 {
 	UMapProperty* SourceProperty = CastChecked<UMapProperty>(InField);
 	MapLayout = SourceProperty->MapLayout;
@@ -337,7 +342,7 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		FStructuredArchive::FArray KeysToRemoveArray = Record.EnterArray(SA_FIELD_NAME(TEXT("KeysToRemove")), NumKeysToRemove);
 		if (NumKeysToRemove)
 		{
-			TempKeyStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+			TempKeyStorage = (uint8*)FMemory::Malloc(KeyProp->GetSize());
 			KeyProp->InitializeValue(TempKeyStorage);
 
 			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
@@ -360,16 +365,8 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		// Allocate temporary key space if we haven't allocated it already above
 		if (NumEntries != 0 && !TempKeyStorage)
 		{
-			TempKeyStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+			TempKeyStorage = (uint8*)FMemory::Malloc(KeyProp->GetSize());
 			KeyProp->InitializeValue(TempKeyStorage);
-		}
-
-		if (KeyProp->IsA<FLazyObjectProperty>())
-		{
-			UE_LOG(LogProperty, Warning, 
-				TEXT("Loading map properties with lazy object pointer keys has a known bug in UE4.24.1 (UE-85796). "
-					 "Resaving this package may cause data loss. '%s' in package '%s'. "),
-				*GetFullName(), *UnderlyingArchive.GetArchiveName());
 		}
 
 		// Read remaining items into container
@@ -1172,9 +1169,12 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 
 void FScriptMapHelper::Rehash()
 {
-	// Moved out-of-line to maybe fix a weird link error
-	Map->Rehash(MapLayout, [=](const void* Src) {
-		return KeyProp->GetValueTypeHash(Src);
+	WithScriptMap([this](auto* Map)
+	{
+		// Moved out-of-line to maybe fix a weird link error
+		Map->Rehash(MapLayout, [=](const void* Src) {
+			return KeyProp->GetValueTypeHash(Src);
+		});
 	});
 }
 

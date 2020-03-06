@@ -215,7 +215,7 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 				DetailLayout.HideCategory(MaterialExpressionCategory);
 			}
 
-			if (ValueHandle.IsValid() && ValueHandle->IsValidHandle())
+			if (ValueHandle.IsValid() && ValueHandle->IsValidHandle() && !VectorParameter->IsUsedAsChannelMask())
 			{
 				static const FName Red("R");
 				static const FName Green("G");
@@ -237,6 +237,12 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 				{
 					ValueHandle->GetChildHandle(Alpha)->SetPropertyDisplayName(VectorParameter->ChannelNames.A);
 				}
+			}
+
+			if (VectorParameter->IsUsedAsChannelMask())
+			{
+				TSharedPtr<IPropertyHandle> ChannelNameHandle = DetailLayout.GetProperty("ChannelNames", UMaterialExpressionVectorParameter::StaticClass());
+				ChannelNameHandle->MarkHiddenByCustomization();
 			}
 		}
 

@@ -11,6 +11,7 @@
 #include "GeometryCacheCodecBase.h"
 #include "GeometryCacheModule.h"
 #include "StreamingGeometryCacheData.h"
+#include "Async/Async.h"
 
 DECLARE_CYCLE_STAT(TEXT("Update Resource Streaming"), STAT_UpdateResourceStreaming, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("Wait Untill Requests Finished"), STAT_BlockTillAllRequestsFinished, STATGROUP_GeometryCache);
@@ -65,6 +66,8 @@ struct FGeometryCacheStreamingManager : public IGeometryCacheStreamingManager
 	// End IGeometryCacheStreamingManager interface
 
 private:
+
+	void PrefetchDataInternal(UGeometryCacheComponent* CacheComponent);
 
 	/** Geometry caches being managed. */
 	TMap<UGeometryCacheTrackStreamable*, FStreamingGeometryCacheData*> StreamingGeometryCaches;
@@ -277,7 +280,7 @@ void FGeometryCacheStreamingManager::RemoveStreamingComponent(UGeometryCacheComp
 	StreamingComponents.Remove(CacheComponent);
 }
 
-void FGeometryCacheStreamingManager::PrefetchData(UGeometryCacheComponent* CacheComponent)
+void FGeometryCacheStreamingManager::PrefetchDataInternal(UGeometryCacheComponent* CacheComponent)
 {
 	check(IsInGameThread());
 	check(IsManagedComponent(CacheComponent));
@@ -293,6 +296,27 @@ void FGeometryCacheStreamingManager::PrefetchData(UGeometryCacheComponent* Cache
 				(*data)->PrefetchData(CacheComponent);
 			}
 		}
+	}
+}
+
+void FGeometryCacheStreamingManager::PrefetchData(UGeometryCacheComponent* CacheComponent)
+{
+	if (IsInGameThread())
+	{
+		PrefetchDataInternal(CacheComponent);
+	}
+	else
+	{
+		// The prefetch doesn't need to be executed right now, so schedule it for the game thread
+		FWeakObjectPtr WeakComponent(CacheComponent);
+		AsyncTask(ENamedThreads::GameThread, [this, WeakComponent]()
+		{
+			UGeometryCacheComponent* Component = Cast<UGeometryCacheComponent>(WeakComponent.Get());
+			if (Component)
+			{
+				PrefetchDataInternal(Component);
+			}
+		});
 	}
 }
 

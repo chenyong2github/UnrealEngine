@@ -7,6 +7,7 @@
 #include "SGraphNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FDataprepEditor;
 class SDataprepActionBlock;
 class SDataprepGraphActionNode;
 class SDataprepGraphTrackNode;
@@ -23,12 +24,14 @@ class SDataprepGraphActionStepNode : public SGraphNode
 {
 public:
 	SLATE_BEGIN_ARGS(SDataprepGraphActionStepNode) {}
+		SLATE_ARGUMENT(TWeakPtr<FDataprepEditor>, DataprepEditor)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode);
+	void Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode, const TSharedPtr<SDataprepGraphActionNode>& InParent);
 
 	// SWidget interface
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	FReply OnMouseButtonUp( const FGeometry & MyGeometry, const FPointerEvent & MouseEvent ) override;
 	virtual FReply OnMouseMove(const FGeometry& SenderGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	// End of SWidget interface
@@ -39,6 +42,8 @@ public:
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	virtual bool IsNameReadOnly () const override { return true; }
+	virtual FSlateRect GetTitleRect() const override { return FSlateRect(); }
 	// End of SGraphNode interface
 
 	int32 GetStepIndex() const { return StepIndex; }
@@ -48,15 +53,6 @@ public:
 	virtual TSharedPtr<SWidget> GetStepTitleWidget() const;
 
 	void SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode);
-	void SetParentNode(TSharedPtr<SDataprepGraphActionNode> InParentNode)
-	{
-		ParentNodePtr = InParentNode;
-	}
-
-	void ShowInsertionSlot(bool bShow)
-	{
-		bShowInsertionSlot = bShow;
-	}
 
 private:
 	/**
@@ -68,6 +64,10 @@ private:
 	 */
 	FSlateColor GetDragAndDropColor() const;
 
+	FSlateColor GetBlockOverlayColor() const;
+
+	FMargin GetBlockPadding();
+
 private:
 	/** Pointer to the widget displaying the actual filter or operation */
 	TSharedPtr<SDataprepActionBlock> ActionStepBlockPtr;
@@ -75,12 +75,12 @@ private:
 	/** Index of the represented action step in the list of the parent action */
 	int32 StepIndex;
 
-	/** Indicates if the widget is hovered during a drag and drop operation */
-	bool bShowInsertionSlot;
-
 	/** Pointer to the SDataprepGraphTrackNode displayed in the graph editor  */
 	TWeakPtr<SDataprepGraphTrackNode> ParentTrackNodePtr;
 
 	/** Pointer to the SDataprepGraphTrackNode displayed in the graph editor  */
 	TWeakPtr<SDataprepGraphActionNode> ParentNodePtr;
+
+	/** Optional pointer to the dataprep asset */
+	TWeakPtr<FDataprepEditor> DataprepEditor;
 };

@@ -140,14 +140,7 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
 {
-	if (FunctionCallNode != nullptr)
-	{
-		return FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
-	}
-	else
-	{
-	return FText::FromName(NAME_None);
-	}
+	return FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
 }
 
 UObject* UNiagaraStackModuleItem::GetDisplayedObject() const
@@ -1118,7 +1111,6 @@ FText UNiagaraStackModuleItem::GetDeleteTransactionText() const
 void UNiagaraStackModuleItem::Delete()
 {
 	checkf(CanMoveAndDelete(), TEXT("This module can't be deleted"));
-
 	const FNiagaraEmitterHandle* EmitterHandle = GetEmitterViewModel().IsValid()
 		? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(GetSystemViewModel()->GetSystem(), *GetEmitterViewModel()->GetEmitter())
 		: nullptr;
@@ -1138,7 +1130,6 @@ void UNiagaraStackModuleItem::Delete()
 				GetSystemViewModel()->NotifyDataObjectChanged(InputNode->GetDataInterface());
 			}
 		}
-		Finalize();
 		ModifiedGroupItemsDelegate.Broadcast();
 	}
 }

@@ -19,7 +19,7 @@ UENUM(BlueprintType)
 enum class EDataprepReportMethod : uint8
 {
 	// Report the feedback into the output log only
-	StandartLog,
+	StandardLog,
 
 	// Report the feedback the same way that the dataprep asset editor does
 	SameFeedbackAsEditor,

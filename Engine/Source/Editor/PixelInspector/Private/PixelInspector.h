@@ -152,8 +152,8 @@ namespace PixelInspector
 		UTextureRenderTarget2D* Buffer_A_RGB8[2];
 		UTextureRenderTarget2D* Buffer_A_RGB10[2];
 		//GBuffer BCDE RenderTarget
-		UTextureRenderTarget2D* Buffer_BCDE_Float[2];
-		UTextureRenderTarget2D* Buffer_BCDE_RGB8[2];
+		UTextureRenderTarget2D* Buffer_BCDEF_Float[2];
+		UTextureRenderTarget2D* Buffer_BCDEF_RGB8[2];
 		//Which index we are at for the current Request
 		int32 LastBufferIndex;
 

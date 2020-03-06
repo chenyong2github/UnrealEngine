@@ -201,6 +201,9 @@ namespace ELauncherProfileValidationErrors
 
 		/** Device is unauthorized or is locked */
 		LaunchDeviceIsUnauthorized,
+ 
+		/** Using I/O store container file(s) requires using UnrealPak */
+		IoStoreRequiresPakFiles,
 
 		Count
 	};
@@ -1258,6 +1261,19 @@ public:
 	 * @return The delegate.
 	 */
 	virtual FOnProfileProjectChanged& OnProjectChanged() = 0;
+
+	/**
+	 * Sets whether to use I/O store for optimized loading.
+	 * @param bUseIoStore Whether to use I/O store
+	 */
+	virtual void SetUseIoStore(bool bUseIoStore) = 0;
+
+	/**
+	 * Using I/O store or not.
+	 *
+	 * @return true if using I/O store
+	 */
+	virtual bool IsUsingIoStore() const = 0;
 
 public:
 

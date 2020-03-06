@@ -19,7 +19,7 @@ class SBox;
 class SSCSEditor;
 class SSplitter;
 class UBlueprint;
-
+class FDetailsViewObjectFilter;
 
 /**
  * Wraps a details panel customized for viewing actors
@@ -44,6 +44,14 @@ public:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 
+	static LEVELEDITOR_API IConsoleVariable* ShowComponents;
+	
+	/**
+	 * Sets the filter that should be used to filter incoming actors in or out of the details panel
+	 *
+	 * @param InFilter	The filter to use or nullptr to remove the active filter
+	 */
+	void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<class IDetailRootObjectCustomization> ActorDetailsRootCustomization);
 private:
 	AActor* GetSelectedActorInEditor() const;
 	AActor* GetActorContext() const;
@@ -55,7 +63,7 @@ private:
 	void OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);
 	void OnSCSEditorTreeViewItemDoubleClicked(const TSharedPtr<class FSCSEditorTreeNode> ClickedNode);
 	void UpdateComponentTreeFromEditorSelection();
-	void OnDetailsViewObjectArrayChanged(const FString& InTitle, const TArray<TWeakObjectPtr<UObject>>& InObjects);
+	void OnDetailsViewObjectArrayChanged(const FString& InTitle, const TArray<UObject*>& InObjects);
 
 	bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const;
 	bool IsPropertyEditingEnabled() const;

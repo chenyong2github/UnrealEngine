@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef GF_RECT2I_H
-#define GF_RECT2I_H
+#ifndef PXR_BASE_GF_RECT2I_H
+#define PXR_BASE_GF_RECT2I_H
 
 /// \file gf/rect2i.h
 /// \ingroup group_gf_LinearAlgebra

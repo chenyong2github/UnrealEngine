@@ -6,88 +6,19 @@
 #if !PLATFORM_LUMINGL4
 
 #include "OpenGLDrvPrivate.h"
-#include "OpenGLES2.h"
+#include "OpenGLES.h"
 #include "Android/AndroidApplication.h"
 
 namespace GL_EXT
 {
-	PFNEGLGETSYSTEMTIMENVPROC eglGetSystemTimeNV;
+	PFNEGLGETSYSTEMTIMENVPROC eglGetSystemTimeNV = NULL;
 	PFNEGLCREATESYNCKHRPROC eglCreateSyncKHR = NULL;
 	PFNEGLDESTROYSYNCKHRPROC eglDestroySyncKHR = NULL;
 	PFNEGLCLIENTWAITSYNCKHRPROC eglClientWaitSyncKHR = NULL;
-
 	PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR = NULL;
 	PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR = NULL;
 
 	PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = NULL;
-
-	// Occlusion Queries
-	PFNGLGENQUERIESEXTPROC 					glGenQueriesEXT = NULL;
-	PFNGLDELETEQUERIESEXTPROC 				glDeleteQueriesEXT = NULL;
-	PFNGLISQUERYEXTPROC 					glIsQueryEXT = NULL;
-	PFNGLBEGINQUERYEXTPROC 					glBeginQueryEXT = NULL;
-	PFNGLENDQUERYEXTPROC 					glEndQueryEXT = NULL;
-	PFNGLGETQUERYIVEXTPROC 					glGetQueryivEXT = NULL;
-	PFNGLGETQUERYOBJECTIVEXTPROC 			glGetQueryObjectivEXT = NULL;
-	PFNGLGETQUERYOBJECTUIVEXTPROC 			glGetQueryObjectuivEXT = NULL;
-
-	PFNGLQUERYCOUNTEREXTPROC				glQueryCounterEXT = NULL;
-	PFNGLGETQUERYOBJECTUI64VEXTPROC			glGetQueryObjectui64vEXT = NULL;
-
-	// Offscreen MSAA rendering
-	PFNBLITFRAMEBUFFERNVPROC				glBlitFramebufferNV = NULL;
-	PFNGLDISCARDFRAMEBUFFEREXTPROC			glDiscardFramebufferEXT = NULL;
-	PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC	glFramebufferTexture2DMultisampleEXT = NULL;
-	PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC	glRenderbufferStorageMultisampleEXT = NULL;
-
-	PFNGLPUSHGROUPMARKEREXTPROC				glPushGroupMarkerEXT = NULL;
-	PFNGLPOPGROUPMARKEREXTPROC				glPopGroupMarkerEXT = NULL;
-	PFNGLLABELOBJECTEXTPROC					glLabelObjectEXT = NULL;
-	PFNGLGETOBJECTLABELEXTPROC				glGetObjectLabelEXT = NULL;
-
-	PFNGLMAPBUFFEROESPROC					glMapBufferOESa = NULL;
-	PFNGLUNMAPBUFFEROESPROC					glUnmapBufferOESa = NULL;
-
-	PFNGLTEXSTORAGE2DPROC					glTexStorage2D = NULL;
-
-	// KHR_debug
-	PFNGLDEBUGMESSAGECONTROLKHRPROC			glDebugMessageControlKHR = NULL;
-	PFNGLDEBUGMESSAGEINSERTKHRPROC			glDebugMessageInsertKHR = NULL;
-	PFNGLDEBUGMESSAGECALLBACKKHRPROC		glDebugMessageCallbackKHR = NULL;
-	PFNGLGETDEBUGMESSAGELOGKHRPROC			glDebugMessageLogKHR = NULL;
-	PFNGLGETPOINTERVKHRPROC					glGetPointervKHR = NULL;
-	PFNGLPUSHDEBUGGROUPKHRPROC				glPushDebugGroupKHR = NULL;
-	PFNGLPOPDEBUGGROUPKHRPROC				glPopDebugGroupKHR = NULL;
-	PFNGLOBJECTLABELKHRPROC					glObjectLabelKHR = NULL;
-	PFNGLGETOBJECTLABELKHRPROC				glGetObjectLabelKHR = NULL;
-	PFNGLOBJECTPTRLABELKHRPROC				glObjectPtrLabelKHR = NULL;
-	PFNGLGETOBJECTPTRLABELKHRPROC			glGetObjectPtrLabelKHR = NULL;
-
-	PFNGLDRAWELEMENTSINSTANCEDPROC			glDrawElementsInstanced = NULL;
-	PFNGLDRAWARRAYSINSTANCEDPROC			glDrawArraysInstanced = NULL;
-	PFNGLVERTEXATTRIBDIVISORPROC			glVertexAttribDivisor = NULL;
-
-	PFNGLUNIFORM4UIVPROC					glUniform4uiv = NULL;
-	PFNGLTEXIMAGE3DPROC						glTexImage3D = NULL;
-	PFNGLTEXSUBIMAGE3DPROC					glTexSubImage3D = NULL;
-	PFNGLCOMPRESSEDTEXIMAGE3DPROC			glCompressedTexImage3D = NULL;
-	PFNGLCOMPRESSEDTEXSUBIMAGE3DPROC		glCompressedTexSubImage3D = NULL;
-	PFNGLCOPYTEXSUBIMAGE3DPROC				glCopyTexSubImage3D = NULL;
-	PFNGLCLEARBUFFERFIPROC					glClearBufferfi = NULL;
-	PFNGLCLEARBUFFERFVPROC					glClearBufferfv = NULL;
-	PFNGLCLEARBUFFERIVPROC					glClearBufferiv = NULL;
-	PFNGLCLEARBUFFERUIVPROC					glClearBufferuiv = NULL;
-	PFNGLDRAWBUFFERSPROC					glDrawBuffers = NULL;
-	PFNGLTEXBUFFEREXTPROC					glTexBufferEXT = NULL;
-	PFNGLTEXBUFFERRANGEEXTPROC				glTexBufferRangeEXT = NULL;
-
-	PFNGLREADBUFFERPROC glReadBuffer = nullptr;
-	PFNGLCOPYIMAGESUBDATAEXTPROC glCopyImageSubDataEXT = nullptr;
-
-	PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC glFramebufferTextureMultiviewOVR = NULL;
-	PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC glFramebufferTextureMultisampleMultiviewOVR = NULL;
-
-	PFNGLFRAMEBUFFERTEXTURELAYERPROC glFramebufferTextureLayer = NULL;
 }
 
 struct FPlatformOpenGLDevice
@@ -214,6 +145,8 @@ void PlatformRestoreDesktopDisplayMode()
 
 bool PlatformInitOpenGL()
 {
+	FOpenGLES::CurrentFeatureLevelSupport = FOpenGLES::EFeatureLevelSupport::ES31;
+
 	return true;
 }
 
@@ -261,17 +194,6 @@ void FPlatformOpenGLDevice::LoadEXT()
 	glGetObjectLabelKHR = (PFNGLGETOBJECTLABELKHRPROC)((void*)eglGetProcAddress("glGetObjectLabelKHR"));
 	glObjectPtrLabelKHR = (PFNGLOBJECTPTRLABELKHRPROC)((void*)eglGetProcAddress("glObjectPtrLabelKHR"));
 	glGetObjectPtrLabelKHR = (PFNGLGETOBJECTPTRLABELKHRPROC)((void*)eglGetProcAddress("glGetObjectPtrLabelKHR"));
-
-	if (GL_EXT::glReadBuffer == nullptr)
-	{
-		glReadBuffer = (PFNGLREADBUFFERPROC)((void*)eglGetProcAddress("glReadBuffer"));
-	}
-	if (GL_EXT::glReadBuffer == nullptr)
-	{
-		glReadBuffer = (PFNGLREADBUFFERPROC)((void*)eglGetProcAddress("glReadBufferNV"));
-	}
-
-	glCopyImageSubDataEXT = (PFNGLCOPYIMAGESUBDATAEXTPROC)((void*)eglGetProcAddress("glCopyImageSubDataEXT"));
 }
 
 FPlatformOpenGLContext* PlatformCreateOpenGLContext(FPlatformOpenGLDevice* Device, void* InWindowHandle)
@@ -368,65 +290,17 @@ void PlatformReleaseRenderQuery(GLuint Query, uint64 QueryContext)
 	FOpenGL::DeleteQueries(1, &Query);
 }
 
-
-bool FLuminOpenGL::bUseHalfFloatTexStorage = false;
-bool FLuminOpenGL::bSupportsTextureBuffer = false;
-bool FLuminOpenGL::bUseES30ShadingLanguage = false;
-bool FLuminOpenGL::bES30Support = false;
-bool FLuminOpenGL::bES31Support = false;
-bool FLuminOpenGL::bHasHardwareHiddenSurfaceRemoval = false;
-bool FLuminOpenGL::bSupportsMobileMultiView = false;
-bool FLuminOpenGL::bSupportsImageExternal = false;
 FLuminOpenGL::EImageExternalType FLuminOpenGL::ImageExternalType = FLuminOpenGL::EImageExternalType::None;
+bool FLuminOpenGL::bSupportsImageExternal = false;
 
 void FLuminOpenGL::ProcessExtensions(const FString& ExtensionsString)
-{
-	FOpenGLES2::ProcessExtensions(ExtensionsString);
-
+{	
 	FString VersionString = FString(ANSI_TO_TCHAR((const ANSICHAR*)glGetString(GL_VERSION)));
 
-	bES30Support = VersionString.Contains(TEXT("OpenGL ES 3."));
-	bES31Support = VersionString.Contains(TEXT("OpenGL ES 3.1")) || VersionString.Contains(TEXT("OpenGL ES 3.2"));
+	FOpenGLES::CurrentFeatureLevelSupport = VersionString.Contains(TEXT("OpenGL ES 3.2")) ? FOpenGLES::EFeatureLevelSupport::ES32 : FOpenGLES::EFeatureLevelSupport::ES31;
+	bES31Support = true;
 
-	// Get procedures
-	if (bSupportsOcclusionQueries || bSupportsDisjointTimeQueries)
-	{
-		glGenQueriesEXT = (PFNGLGENQUERIESEXTPROC)((void*)eglGetProcAddress("glGenQueriesEXT"));
-		glDeleteQueriesEXT = (PFNGLDELETEQUERIESEXTPROC)((void*)eglGetProcAddress("glDeleteQueriesEXT"));
-		glIsQueryEXT = (PFNGLISQUERYEXTPROC)((void*)eglGetProcAddress("glIsQueryEXT"));
-		glBeginQueryEXT = (PFNGLBEGINQUERYEXTPROC)((void*)eglGetProcAddress("glBeginQueryEXT"));
-		glEndQueryEXT = (PFNGLENDQUERYEXTPROC)((void*)eglGetProcAddress("glEndQueryEXT"));
-		glGetQueryivEXT = (PFNGLGETQUERYIVEXTPROC)((void*)eglGetProcAddress("glGetQueryivEXT"));
-		glGetQueryObjectivEXT = (PFNGLGETQUERYOBJECTIVEXTPROC)((void*)eglGetProcAddress("glGetQueryObjectivEXT"));
-		glGetQueryObjectuivEXT = (PFNGLGETQUERYOBJECTUIVEXTPROC)((void*)eglGetProcAddress("glGetQueryObjectuivEXT"));
-	}
-
-	if (bSupportsDisjointTimeQueries)
-	{
-		glQueryCounterEXT = (PFNGLQUERYCOUNTEREXTPROC)((void*)eglGetProcAddress("glQueryCounterEXT"));
-		glGetQueryObjectui64vEXT = (PFNGLGETQUERYOBJECTUI64VEXTPROC)((void*)eglGetProcAddress("glGetQueryObjectui64vEXT"));
-
-		// If EXT_disjoint_timer_query wasn't found, NV_timer_query might be available
-		if (glQueryCounterEXT == NULL)
-		{
-			glQueryCounterEXT = (PFNGLQUERYCOUNTEREXTPROC)eglGetProcAddress("glQueryCounterNV");
-		}
-		if (glGetQueryObjectui64vEXT == NULL)
-		{
-			glGetQueryObjectui64vEXT = (PFNGLGETQUERYOBJECTUI64VEXTPROC)eglGetProcAddress("glGetQueryObjectui64vNV");
-		}
-	}
-
-	glDiscardFramebufferEXT = (PFNGLDISCARDFRAMEBUFFEREXTPROC)((void*)eglGetProcAddress("glDiscardFramebufferEXT"));
-	glFramebufferTexture2DMultisampleEXT = (PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC)((void*)eglGetProcAddress("glFramebufferTexture2DMultisampleEXT"));
-	glRenderbufferStorageMultisampleEXT = (PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC)((void*)eglGetProcAddress("glRenderbufferStorageMultisampleEXT"));
-	glPushGroupMarkerEXT = (PFNGLPUSHGROUPMARKEREXTPROC)((void*)eglGetProcAddress("glPushGroupMarkerEXT"));
-	glPopGroupMarkerEXT = (PFNGLPOPGROUPMARKEREXTPROC)((void*)eglGetProcAddress("glPopGroupMarkerEXT"));
-	glLabelObjectEXT = (PFNGLLABELOBJECTEXTPROC)((void*)eglGetProcAddress("glLabelObjectEXT"));
-	glGetObjectLabelEXT = (PFNGLGETOBJECTLABELEXTPROC)((void*)eglGetProcAddress("glGetObjectLabelEXT"));
-
-	bSupportsETC2 = bES30Support;
-	bUseES30ShadingLanguage = bES30Support;
+	FOpenGLES::ProcessExtensions(ExtensionsString);
 
 	FString RendererString = FString(ANSI_TO_TCHAR((const ANSICHAR*)glGetString(GL_RENDERER)));
 
@@ -495,84 +369,6 @@ void FLuminOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	}
 	bSupportsImageExternal = ImageExternalType != EImageExternalType::None;
 
-	if (bES30Support)
-	{
-		glDrawElementsInstanced = (PFNGLDRAWELEMENTSINSTANCEDPROC)((void*)eglGetProcAddress("glDrawElementsInstanced"));
-		glDrawArraysInstanced = (PFNGLDRAWARRAYSINSTANCEDPROC)((void*)eglGetProcAddress("glDrawArraysInstanced"));
-		glVertexAttribDivisor = (PFNGLVERTEXATTRIBDIVISORPROC)((void*)eglGetProcAddress("glVertexAttribDivisor"));
-		glUniform4uiv = (PFNGLUNIFORM4UIVPROC)((void*)eglGetProcAddress("glUniform4uiv"));
-		glTexImage3D = (PFNGLTEXIMAGE3DPROC)((void*)eglGetProcAddress("glTexImage3D"));
-		glTexSubImage3D = (PFNGLTEXSUBIMAGE3DPROC)((void*)eglGetProcAddress("glTexSubImage3D"));
-		glCompressedTexImage3D = (PFNGLCOMPRESSEDTEXIMAGE3DPROC)((void*)eglGetProcAddress("glCompressedTexImage3D"));
-		glCompressedTexSubImage3D = (PFNGLCOMPRESSEDTEXSUBIMAGE3DPROC)((void*)eglGetProcAddress("glCompressedTexSubImage3D"));
-		glCopyTexSubImage3D = (PFNGLCOPYTEXSUBIMAGE3DPROC)((void*)eglGetProcAddress("glCopyTexSubImage3D"));
-		glClearBufferfi = (PFNGLCLEARBUFFERFIPROC)((void*)eglGetProcAddress("glClearBufferfi"));
-		glClearBufferfv = (PFNGLCLEARBUFFERFVPROC)((void*)eglGetProcAddress("glClearBufferfv"));
-		glClearBufferiv = (PFNGLCLEARBUFFERIVPROC)((void*)eglGetProcAddress("glClearBufferiv"));
-		glClearBufferuiv = (PFNGLCLEARBUFFERUIVPROC)((void*)eglGetProcAddress("glClearBufferuiv"));
-		glDrawBuffers = (PFNGLDRAWBUFFERSPROC)((void*)eglGetProcAddress("glDrawBuffers"));
-		glFramebufferTextureLayer = (PFNGLFRAMEBUFFERTEXTURELAYERPROC)((void*)eglGetProcAddress("glFramebufferTextureLayer"));
-
-		// Required by the ES3 spec
-		bSupportsTextureFloat = true;
-		bSupportsTextureHalfFloat = true;
-	}
-
-	if (bES30Support)
-	{
-		// Mobile multi-view setup
-		const bool bMultiViewSupport = ExtensionsString.Contains(TEXT("GL_OVR_multiview"));
-		const bool bMultiView2Support = ExtensionsString.Contains(TEXT("GL_OVR_multiview2"));
-		const bool bMultiViewMultiSampleSupport = ExtensionsString.Contains(TEXT("GL_OVR_multiview_multisampled_render_to_texture"));
-		if (bMultiViewSupport && bMultiView2Support && bMultiViewMultiSampleSupport)
-		{
-			glFramebufferTextureMultiviewOVR = (PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC)((void*)eglGetProcAddress("glFramebufferTextureMultiviewOVR"));
-			glFramebufferTextureMultisampleMultiviewOVR = (PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC)((void*)eglGetProcAddress("glFramebufferTextureMultisampleMultiviewOVR"));
-
-			bSupportsMobileMultiView = (glFramebufferTextureMultiviewOVR != NULL) && (glFramebufferTextureMultisampleMultiviewOVR != NULL);
-
-			// Just because the driver declares multi-view support and hands us valid function pointers doesn't actually guarantee the feature works...
-			if (bSupportsMobileMultiView)
-			{
-				UE_LOG(LogRHI, Log, TEXT("Device supports mobile multi-view."));
-			}
-		}
-	}
-
-	// Adreno's implementation of GL_EXT_texture_buffer errors when creating light grid resources
-	if (bES31Support)
-	{
-		bSupportsTextureBuffer = ExtensionsString.Contains(TEXT("GL_EXT_texture_buffer"));
-		if (bSupportsTextureBuffer)
-		{
-			glTexBufferEXT = (PFNGLTEXBUFFEREXTPROC)((void*)eglGetProcAddress("glTexBufferEXT"));
-			glTexBufferRangeEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRangeEXT"));
-		}
-	}
-	
-	if (bES30Support)
-	{
-		// Attempt to find ES 3.0 glTexStorage2D if we're on an ES 3.0 device
-		glTexStorage2D = (PFNGLTEXSTORAGE2DPROC)((void*)eglGetProcAddress("glTexStorage2D"));
-		if( glTexStorage2D != NULL )
-		{
-			bUseHalfFloatTexStorage = true;
-		}
-		else
-		{
-			// need to disable GL_EXT_color_buffer_half_float support because we have no way to allocate the storage and the driver doesn't work without it.
-			UE_LOG(LogRHI,Warning,TEXT("Disabling support for GL_EXT_color_buffer_half_float as we cannot bind glTexStorage2D"));
-			bSupportsColorBufferHalfFloat = false;
-		}
-	}
-
-
-	//@todo android: need GMSAAAllowed	 ?
-	if (bSupportsNVFrameBufferBlit)
-	{
-		glBlitFramebufferNV = (PFNBLITFRAMEBUFFERNVPROC)((void*)eglGetProcAddress("glBlitFramebufferNV"));
-	}
-
 	glMapBufferOESa = (PFNGLMAPBUFFEROESPROC)((void*)eglGetProcAddress("glMapBufferOES"));
 	glUnmapBufferOESa = (PFNGLUNMAPBUFFEROESPROC)((void*)eglGetProcAddress("glUnmapBufferOES"));
 
@@ -580,23 +376,7 @@ void FLuminOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	// so we set this to false to modify the glsl manually at compile-time.
 	bSupportsTextureCubeLodEXT = false;
 	
-	if (bSupportsBGRA8888)
-	{
-		// Check whether device supports BGRA as color attachment
-		GLuint FrameBuffer;
-		glGenFramebuffers(1, &FrameBuffer);
-		glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
-		GLuint BGRA8888Texture;
-		glGenTextures(1, &BGRA8888Texture);
-		glBindTexture(GL_TEXTURE_2D, BGRA8888Texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, BGRA8888Texture, 0);
-
-		bSupportsBGRA8888RenderTarget = (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-		glDeleteTextures(1, &BGRA8888Texture);
-		glDeleteFramebuffers(1, &FrameBuffer);
-	}
+	
 }
 
 void FAndroidAppEntry::PlatformInit()

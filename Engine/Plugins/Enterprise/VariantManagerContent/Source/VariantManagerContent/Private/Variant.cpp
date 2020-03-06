@@ -271,7 +271,7 @@ void UVariant::SetThumbnail(UTexture2D* NewThumbnail)
 
 			if (TargetWidth != OriginalWidth || TargetHeight != OriginalHeight)
 			{
-				FImageUtils::ImageResize(OriginalWidth, OriginalHeight, OriginalColors, TargetWidth, TargetHeight, TargetColors, false);
+				FImageUtils::ImageResize(OriginalWidth, OriginalHeight, OriginalColors, TargetWidth, TargetHeight, TArrayView<FColor>(TargetColors), false);
 			}
 			else
 			{

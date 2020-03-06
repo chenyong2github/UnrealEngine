@@ -178,7 +178,7 @@ struct FShaderParameterStructBindingContext
 					if (uint32(BoundSize) > ByteSize)
 					{
 						UE_LOG(LogShaders, Fatal, TEXT("The size required to bind shader %s's (Permutation Id %d) struct %s parameter %s is %i bytes, smaller than %s's %i bytes."),
-							Shader->GetType()->GetName(), Shader->GetPermutationId(), StructMetaData.GetStructTypeName(),
+							Shader->GetTypeUnfrozen()->GetName(), Shader->GetPermutationId(), StructMetaData.GetStructTypeName(),
 							*ElementShaderBindingName, BoundSize, *CppName, ByteSize);
 					}
 
@@ -210,7 +210,7 @@ struct FShaderParameterStructBindingContext
 								TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
 								TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
 								TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
-								Shader->GetType()->GetName(), Shader->GetPermutationId(),
+								Shader->GetTypeUnfrozen()->GetName(), Shader->GetPermutationId(),
 								*ElementShaderBindingName, BoundSize, *CppName);
 						}
 					}
@@ -241,10 +241,11 @@ struct FShaderParameterStructBindingContext
 
 void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shader, const FShaderParameterMap& ParametersMap, const FShaderParametersMetadata& StructMetaData, bool bShouldBindEverything)
 {
+	const FShaderType* Type = Shader->GetTypeUnfrozen();
 	checkf(StructMetaData.GetSize() < (1 << (sizeof(uint16) * 8)), TEXT("Shader parameter structure can only have a size < 65536 bytes."));
 	check(this == &Shader->Bindings);
 	
-	switch (Shader->GetType()->GetFrequency())
+	switch (Type->GetFrequency())
 	{
 	case SF_Vertex:
 	case SF_Hull:
@@ -276,7 +277,7 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 	if (bShouldBindEverything && BindingContext.ShaderGlobalScopeBindings.Num() != AllParameterNames.Num())
 	{
 		FString ErrorString = FString::Printf(
-			TEXT("Shader %s has unbound parameters not represented in the parameter struct:"), Shader->GetType()->GetName());
+			TEXT("Shader %s has unbound parameters not represented in the parameter struct:"), Type->GetName());
 
 		for (const FString& GlobalParameterName : AllParameterNames)
 		{
@@ -292,13 +293,14 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 
 void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader, const FShaderParameterMap& ParametersMap)
 {
+	const FShaderType* Type = Shader->GetTypeUnfrozen();
 	check(this == &Shader->Bindings);
-	check(Shader->GetType()->GetRootParametersMetadata());
+	check(Type->GetRootParametersMetadata());
 
-	const FShaderParametersMetadata& StructMetaData = *Shader->GetType()->GetRootParametersMetadata();
+	const FShaderParametersMetadata& StructMetaData = *Type->GetRootParametersMetadata();
 	checkf(StructMetaData.GetSize() < (1 << (sizeof(uint16) * 8)), TEXT("Shader parameter structure can only have a size < 65536 bytes."));
 
-	switch (Shader->GetType()->GetFrequency())
+	switch (Type->GetFrequency())
 	{
 	case SF_RayGen:
 	case SF_RayMiss:
@@ -342,7 +344,7 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 	if (BindingContext.ShaderGlobalScopeBindings.Num() != AllParameterNames.Num())
 	{
 		FString ErrorString = FString::Printf(
-			TEXT("Shader %s has unbound parameters not represented in the parameter struct:"), Shader->GetType()->GetName());
+			TEXT("Shader %s has unbound parameters not represented in the parameter struct:"), Type->GetName());
 
 		for (const FString& GlobalParameterName : AllParameterNames)
 		{
@@ -419,11 +421,11 @@ bool FDepthStencilBinding::Validate() const
 	return true;
 }
 
-void EmitNullShaderParameterFatalError(const FShader* Shader, const FShaderParametersMetadata* ParametersMetadata, uint16 MemberOffset)
+void EmitNullShaderParameterFatalError(const TShaderRef<FShader>& Shader, const FShaderParametersMetadata* ParametersMetadata, uint16 MemberOffset)
 {
 	FString MemberName = ParametersMetadata->GetFullMemberCodeName(MemberOffset);
 
-	const TCHAR* ShaderClassName = Shader->GetType()->GetName();
+	const TCHAR* ShaderClassName = Shader.GetType()->GetName();
 
 	UE_LOG(LogShaders, Fatal,
 		TEXT("%s's required shader parameter %s::%s was not set."),
@@ -434,18 +436,18 @@ void EmitNullShaderParameterFatalError(const FShader* Shader, const FShaderParam
 
 #if DO_CHECK
 
-void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMetadata* ParametersMetadata, const void* Parameters)
+void ValidateShaderParameters(const TShaderRef<FShader>& Shader, const FShaderParametersMetadata* ParametersMetadata, const void* Parameters)
 {
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
 	checkf(
 		Bindings.StructureLayoutHash == ParametersMetadata->GetLayoutHash(),
 		TEXT("Seams shader %s's parameter structure has changed without recompilation of the shader"),
-		Shader->GetType()->GetName());
+		Shader->GetTypeUnfrozen()->GetName());
 
 	const uint8* Base = reinterpret_cast<const uint8*>(Parameters);
 
-	const TCHAR* ShaderClassName = Shader->GetType()->GetName();
+	const TCHAR* ShaderClassName = Shader.GetType()->GetName();
 	const TCHAR* ShaderParemeterStructName = ParametersMetadata->GetStructTypeName();
 
 	// Textures

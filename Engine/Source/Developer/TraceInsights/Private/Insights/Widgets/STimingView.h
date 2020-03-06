@@ -23,6 +23,7 @@
 #include "Insights/ViewModels/TooltipDrawState.h"
 
 class FFileActivitySharedState;
+class FFrameSharedState;
 class FLoadingSharedState;
 class FMarkersTimingTrack;
 class FMenuBuilder;
@@ -30,6 +31,7 @@ class FThreadTimingSharedState;
 class FTimeRulerTrack; 
 class FTimingGraphTrack;
 class FTimingViewDrawHelper;
+class SOverlay;
 class SScrollBar;
 namespace Insights { class ITimingViewExtender; }
 
@@ -220,12 +222,18 @@ public:
 	virtual void InvalidateScrollableTracksOrder() override;
 	//TODO: virtual void InvalidateScrollableTracksVisibility() override;
 
+	virtual double GetTimeMarker() const override { return TimeMarker; }
+	virtual void SetTimeMarker(double InTimeMarker) override;
+	virtual void SetAndCenterOnTimeMarker(double InTimeMarker) override;
+
 	virtual Insights::FSelectionChangedDelegate& OnSelectionChanged() override { return OnSelectionChangedDelegate; }
 	virtual Insights::FTimeMarkerChangedDelegate& OnTimeMarkerChanged() override { return OnTimeMarkerChangedDelegate; }
 	virtual Insights::FHoveredTrackChangedDelegate& OnHoveredTrackChanged() override { return OnHoveredTrackChangedDelegate; }
 	virtual Insights::FHoveredEventChangedDelegate& OnHoveredEventChanged() override { return OnHoveredEventChangedDelegate; }
 	virtual Insights::FSelectedTrackChangedDelegate& OnSelectedTrackChanged() override { return OnSelectedTrackChangedDelegate; }
 	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
+
+	virtual void AddOverlayWidget(const TSharedRef<SWidget>& InWidget) override;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -256,8 +264,7 @@ public:
 	void CenterOnTimeInterval(double IntervalStartTime, double IntervalDuration);
 	void BringIntoView(double StartTime, double EndTime);
 	void SelectTimeInterval(double IntervalStartTime, double IntervalDuration);
-	void SetAndCenterOnTimeMarker(double Time);
-	void SelectToTimeMarker(double Time);
+	void SelectToTimeMarker(double InTimeMarker);
 
 	//bool AreTimeMarkersVisible() { return MarkersTrack->IsVisible(); }
 	void SetTimeMarkersVisible(bool bOnOff);
@@ -340,28 +347,9 @@ protected:
 	// Get all the plugin extenders we care about
 	TArray<Insights::ITimingViewExtender*> GetExtenders() const;
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FrameSelectionChanged Event
-
-public:
-	/**
-	 * The event to execute when the selected frames have been changed.
-	 *
-	 * @param FrameStartIndex	- The index of the first frame selected.
-	 * @param FrameEndIndex		- The index of the last frame selected.
-	 *
-	 */
-	DECLARE_EVENT_TwoParams(STimingView, FFrameSelectionChangedEvent, int32 /*FrameStartIndex*/, int32 /*FrameEndIndex*/);
-	FFrameSelectionChangedEvent& OnFrameSelectionChanged()
-	{
-		return FrameSelectionChangedEvent;
-	}
-
-protected:
-	/** The event to execute when the selected frames have been changed. */
-	FFrameSelectionChangedEvent FrameSelectionChangedEvent;
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
+	FReply AllowTracksToProcessOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	FReply AllowTracksToProcessOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	FReply AllowTracksToProcessOnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
@@ -383,6 +371,9 @@ protected:
 	bool bScrollableTracksOrderIsDirty;
 
 	////////////////////////////////////////////////////////////
+
+	// Shared state for Frame Thread tracks
+	TSharedPtr<FFrameSharedState> FrameSharedState;
 
 	// Shared state for Cpu/Gpu Thread tracks
 	TSharedPtr<FThreadTimingSharedState> ThreadTimingSharedState;
@@ -406,6 +397,9 @@ protected:
 	TSharedPtr<FTimingGraphTrack> GraphTrack;
 
 	////////////////////////////////////////////////////////////
+
+	/** The extension overlay containing external sub-widgets */
+	TSharedPtr<SOverlay> ExtensionOverlay;
 
 	/** Horizontal scroll bar, used for scrolling timing events' viewport. */
 	TSharedPtr<SScrollBar> HorizontalScrollBar;

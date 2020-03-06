@@ -21,6 +21,7 @@
 
 #if PHYS_TEST_SERIALIZER
 
+#if PHYSICS_INTERFACE_PHYSX
 namespace physx
 {
 	class PxScene;
@@ -30,11 +31,11 @@ namespace physx
 	class PxActor;
 	class PxShape;
 }
+#endif
 
 namespace Chaos
 {
-	template <typename, int>
-	class TPBDRigidsEvolutionGBF;
+	class FPBDRigidsEvolutionGBF;
 
 	class FChaosArchive;
 }
@@ -52,8 +53,11 @@ public:
 	void Serialize(const TCHAR* FilePrefix);
 
 	//Set the data from an external source. This will obliterate any existing data. Make sure you are not holding on to old internal data as it will go away
-	void SetPhysicsData(Chaos::TPBDRigidsEvolutionGBF<float, 3>& ChaosEvolution);
+	void SetPhysicsData(Chaos::FPBDRigidsEvolutionGBF& ChaosEvolution);
+
+#if PHYSICS_INTERFACE_PHYSX
 	void SetPhysicsData(physx::PxScene& Scene);
+#endif
 
 	const Chaos::FChaosArchiveContext* GetChaosContext() const
 	{
@@ -72,31 +76,33 @@ public:
 		if (SQCapture)
 		{
 			//todo: this sucks, find a better way to create data instead of doing it lazily
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 			GetPhysXData();
 			SQCapture->CreatePhysXData();
 #endif
 
 			GetChaosData();
-#if WITH_PHYSX
+#if 0 
 			SQCapture->CreateChaosDataFromPhysX();
 #endif
 		}
 		return SQCapture.Get();
 	}
 
-	Chaos::TPBDRigidsEvolutionGBF<float, 3>* GetChaosData()
+	Chaos::FPBDRigidsEvolutionGBF* GetChaosData()
 	{
+#if 0
 		if (!bChaosDataReady)
 		{
 			ensure(!bDiskDataIsChaos);
 			//only supported for physx to chaos - don't have serialization context
 			CreateChaosData();
 		}
+#endif
 		return ChaosEvolution.Get();
 	}
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	physx::PxScene* GetPhysXData()
 	{
 		if (!bDiskDataIsChaos)	//don't support chaos to physx
@@ -119,8 +125,12 @@ public:
 
 private:
 
+#if 0
 	void CreateChaosData();
+#endif 
+#if PHYSICS_INTERFACE_PHYSX
 	void CreatePhysXData();
+#endif
 
 private:
 
@@ -130,15 +140,16 @@ private:
 
 	TUniquePtr<FSQCapture> SQCapture;
 
-	TUniquePtr<Chaos::TPBDRigidsEvolutionGBF<float, 3>> ChaosEvolution;
+	TUniquePtr<Chaos::FPBDRigidsEvolutionGBF> ChaosEvolution;
 	Chaos::TPBDRigidsSOAs<float, 3> Particles;
+	Chaos::THandleArray<Chaos::FChaosPhysicsMaterial> PhysicalMaterials;
 	TArray <TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTParticles;
 
 	TUniquePtr<Chaos::FChaosArchiveContext> ChaosContext;
 
 	FCustomVersionContainer ArchiveVersion;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	struct FPhysXSerializerData
 	{
 		FPhysXSerializerData(int32 NumBytes)
@@ -154,9 +165,7 @@ private:
 		physx::PxSerializationRegistry* Registry;
 	};
 	TUniquePtr<FPhysXSerializerData> AlignedDataHelper;
-#endif
 
-#if WITH_PHYSX
 	TMap<physx::PxActor*, Chaos::TGeometryParticleHandle<float, 3>*> PxActorToChaosHandle;
 	TMap<physx::PxShape*, Chaos::TPerShapeData<float, 3>*> PxShapeToChaosShapes;
 #endif

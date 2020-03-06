@@ -2,6 +2,7 @@
 
 #include "NiagaraStackCommandContext.h"
 #include "NiagaraEditorCommon.h"
+#include "NiagaraEditorUtilities.h"
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 
@@ -13,18 +14,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackCommandContext"
-
-void WarnWithToastAndLog(FText WarningMessage)
-{
-	FText IncompleteDeleteMessage = LOCTEXT("DeleteIncompleteMessage", "Not all items could be deleted because they either\ndon't support being deleted or they are inherited.");
-	FNotificationInfo WarningNotification(WarningMessage);
-	WarningNotification.ExpireDuration = 5.0f;
-	WarningNotification.bFireAndForget = true;
-	WarningNotification.bUseLargeFont = false;
-	WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
-	FSlateNotificationManager::Get().AddNotification(WarningNotification);
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
-}
 
 FNiagaraStackCommandContext::FNiagaraStackCommandContext()
 	: Commands(MakeShared<FUICommandList>())
@@ -60,7 +49,8 @@ bool FNiagaraStackCommandContext::AddEditMenuItems(FMenuBuilder& MenuBuilder)
 	bool bSupportsCopy = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry) { return SelectedEntry->SupportsCopy(); });
 	bool bSupportsPaste = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry) { return SelectedEntry->SupportsPaste(); });
 	bool bSupportsDelete = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry) { return SelectedEntry->SupportsDelete(); });
-	if (bSupportsCut || bSupportsCopy || bSupportsPaste || bSupportsDelete)
+	bool bSupportsRename = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry) { return SelectedEntry->SupportsRename(); });
+	if (bSupportsCut || bSupportsCopy || bSupportsPaste || bSupportsDelete || bSupportsRename)
 	{
 		MenuBuilder.BeginSection("EntryEdit", LOCTEXT("EntryEditActions", "Edit"));
 		{
@@ -84,6 +74,11 @@ bool FNiagaraStackCommandContext::AddEditMenuItems(FMenuBuilder& MenuBuilder)
 				TAttribute<FText> CanDeleteToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FNiagaraStackCommandContext::GetCanDeleteSelectedEntriesToolTip));
 				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, TAttribute<FText>(), CanDeleteToolTip);
 			}
+			if (bSupportsRename)
+			{
+				TAttribute<FText> CanRenameToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FNiagaraStackCommandContext::GetCanRenameSelectedEntriesToolTip));
+				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, TAttribute<FText>(), CanRenameToolTip);
+			}
 		}
 		MenuBuilder.EndSection();
 		return true;
@@ -105,6 +100,9 @@ void FNiagaraStackCommandContext::SetupCommands()
 	Commands->MapAction(FGenericCommands::Get().Delete, FUIAction(
 		FExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::DeleteSelectedEntries),
 		FCanExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::CanDeleteSelectedEntries)));
+	Commands->MapAction(FGenericCommands::Get().Rename, FUIAction(
+		FExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::RenameSelectedEntries),
+		FCanExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::CanRenameSelectedEntries)));
 }
 
 bool FNiagaraStackCommandContext::CanCutSelectedEntries() const
@@ -113,7 +111,7 @@ bool FNiagaraStackCommandContext::CanCutSelectedEntries() const
 	bool bCanCut = FNiagaraStackClipboardUtilities::TestCanCutSelectionWithMessage(SelectedEntries, CanCutMessage);
 	if (bProcessingCommandBindings && bCanCut == false && CanCutMessage.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(CanCutMessage);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(CanCutMessage);
 	}
 	return bCanCut;
 }
@@ -136,7 +134,7 @@ bool FNiagaraStackCommandContext::CanCopySelectedEntries() const
 	bool bCanCopy = FNiagaraStackClipboardUtilities::TestCanCopySelectionWithMessage(SelectedEntries, CanCopyMessage);
 	if (bProcessingCommandBindings && bCanCopy == false && CanCopyMessage.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(CanCopyMessage);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(CanCopyMessage);
 	}
 	return bCanCopy;
 }
@@ -159,7 +157,7 @@ bool FNiagaraStackCommandContext::CanPasteSelectedEntries() const
 	bool bCanPaste = FNiagaraStackClipboardUtilities::TestCanPasteSelectionWithMessage(SelectedEntries, CanPasteMessage);
 	if (bProcessingCommandBindings && bCanPaste == false && CanPasteMessage.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(CanPasteMessage);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(CanPasteMessage);
 	}
 	return bCanPaste;
 }
@@ -177,7 +175,7 @@ void FNiagaraStackCommandContext::PasteSelectedEntries() const
 	FNiagaraStackClipboardUtilities::PasteSelection(SelectedEntries, PasteWarning);
 	if (PasteWarning.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(PasteWarning);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(PasteWarning);
 	}
 }
 
@@ -187,7 +185,7 @@ bool FNiagaraStackCommandContext::CanDeleteSelectedEntries() const
 	bool bCanDelete = FNiagaraStackClipboardUtilities::TestCanDeleteSelectionWithMessage(SelectedEntries, CanDeleteMessage);
 	if (bProcessingCommandBindings && bCanDelete == false && CanDeleteMessage.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(CanDeleteMessage);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(CanDeleteMessage);
 	}
 	return bCanDelete;
 }
@@ -202,6 +200,39 @@ FText FNiagaraStackCommandContext::GetCanDeleteSelectedEntriesToolTip() const
 void FNiagaraStackCommandContext::DeleteSelectedEntries() const
 {
 	FNiagaraStackClipboardUtilities::DeleteSelection(SelectedEntries);
+}
+
+FText FNiagaraStackCommandContext::GetCanRenameSelectedEntriesToolTip() const
+{
+	if (SelectedEntries.Num() > 1)
+	{
+		LOCTEXT("CantRenameMultipleToolTip", "Can't rename multiple items.");
+	}
+
+	if (SelectedEntries[0]->SupportsRename())
+	{
+		return LOCTEXT("CantRenameToolTip", "The selected item cannot be renamed.");
+	}
+
+	return LOCTEXT("RenameToolTip", "Rename the selected item.");
+}
+
+bool FNiagaraStackCommandContext::CanRenameSelectedEntries() const
+{
+	if (SelectedEntries.Num() == 1)
+	{
+		return SelectedEntries[0]->SupportsRename();
+	}
+
+	return false;
+}
+
+void FNiagaraStackCommandContext::RenameSelectedEntries()
+{
+	if (SelectedEntries.Num() == 1)
+	{
+		SelectedEntries[0]->SetIsRenamePending(true);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

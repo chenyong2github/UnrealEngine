@@ -36,6 +36,18 @@ enum class EMagicLeapPlaneQueryFlags : uint8
 	Polygons
 };
 
+/** Persistent query types.
+ */
+UENUM(BlueprintType)
+enum class EMagicLeapPlaneQueryType : uint8
+{	
+	/** All planes will be returned every query.*/
+	Bulk,
+	
+	/** Planes will be returned as an array of new and removed planes in relation to the previous request. */
+	Delta
+};
+
 /** Represents a plane returned from the ML-API. */
 USTRUCT(BlueprintType)
 struct FMagicLeapPlaneResult
@@ -66,6 +78,10 @@ public:
 	/** ID of the plane result. This ID is persistent across queries */
 	UPROPERTY(BlueprintReadOnly, Category = "Planes|MagicLeap")
 	FGuid ID;
+
+	/** ID of the inner plane. This ID is persistent across queries */
+	UPROPERTY(BlueprintReadOnly, Category = "Planes|MagicLeap")
+	FGuid InnerID;
 };
 
 /** Type used to represent a plane query. */
@@ -73,6 +89,19 @@ USTRUCT(BlueprintType)
 struct FMagicLeapPlanesQuery
 {
 	GENERATED_BODY()
+
+	FMagicLeapPlanesQuery() :
+		  SearchVolume(nullptr)
+		, MaxResults(10)
+		, MinHoleLength(5.0f)
+		, MinPlaneArea(100.0f)
+		, SearchVolumePosition(0.0f, 0.0f, 0.0f)
+		, SearchVolumeOrientation(0.0f, 0.0f, 0.0f, 1.0f)
+		, SearchVolumeExtents(10.0f, 10.0f, 10.0f)
+		, SimilarityThreshold(1.0f)
+		, bSearchVolumeTrackingSpace(false)
+		, bResultTrackingSpace(false)
+	{}
 
 	/** The flags to apply to this query. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
@@ -112,6 +141,30 @@ struct FMagicLeapPlanesQuery
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
 	FVector SearchVolumeExtents;
+
+	/**
+		The threshold used to compare incoming planes with any cached planes.
+		Larger values reduce the amount of NewPlanes returned by a persistent query.
+		Larger values increase the amount of error in the current set of planes.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
+	float SimilarityThreshold;
+
+	/**
+		A flag representing what coordinate space the search volume is in. 
+		If set, the search volume is in HMD tracking space.
+		If unset, the search volume is in world space.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
+	bool bSearchVolumeTrackingSpace;
+
+	/**
+		A flag representing what coordinate space the results are in.
+		If set, the results are in HMD tracking space.
+		If unset, the results are is in world space.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
+	bool bResultTrackingSpace;
 };
 
 USTRUCT(BlueprintType)
@@ -155,6 +208,11 @@ struct FMagicLeapPlaneBoundaries
 };
 
 /** Delegate used to convey the result of a plane query. */
-DECLARE_DELEGATE_ThreeParams(FMagicLeapPlanesResultStaticDelegate, const bool, const TArray<FMagicLeapPlaneResult>&, const TArray<FMagicLeapPlaneBoundaries>&);
+DECLARE_DELEGATE_ThreeParams(FMagicLeapPlanesResultStaticDelegate, const bool, const TArray<FMagicLeapPlaneResult>&,const TArray<FMagicLeapPlaneBoundaries>&);
 DECLARE_DYNAMIC_DELEGATE_ThreeParams(FMagicLeapPlanesResultDelegate, const bool, bSuccess, const TArray<FMagicLeapPlaneResult>&, Planes, const TArray<FMagicLeapPlaneBoundaries>&, Polygons);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMagicLeapPlanesResultDelegateMulti, const bool, bSuccess, const TArray<FMagicLeapPlaneResult>&, Planes, const TArray<FMagicLeapPlaneBoundaries>&, Polygons);
+
+/** Delegate used to convey the result of a persistent plane query. */
+DECLARE_DELEGATE_SevenParams(FMagicLeapPersistentPlanesResultStaticDelegate, const bool, const FGuid&, const EMagicLeapPlaneQueryType, const TArray<FMagicLeapPlaneResult>&, const TArray<FGuid>&, const TArray<FMagicLeapPlaneBoundaries>&, const TArray<FGuid>&);
+DECLARE_DYNAMIC_DELEGATE_SevenParams(FMagicLeapPersistentPlanesResultDelegate, const bool, bSuccess, const FGuid&, QueryHandle, const EMagicLeapPlaneQueryType, QueryType,const TArray<FMagicLeapPlaneResult>&, NewPlanes, const TArray<FGuid>&, RemovedPlaneIDs, const TArray<FMagicLeapPlaneBoundaries>&, NewPolygons, const TArray<FGuid>&, RemovedPolygonIDs);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_SevenParams(FMagicLeapPersistentPlanesResultDelegateMulti, const bool, bSuccess, const FGuid&, QueryHandle, const EMagicLeapPlaneQueryType, QueryType,const TArray<FMagicLeapPlaneResult>&, NewPlanes, const TArray<FGuid>&, RemovedPlaneIDs, const TArray<FMagicLeapPlaneBoundaries>&, NewPolygons, const TArray<FGuid>&, RemovedPolygonIDs);

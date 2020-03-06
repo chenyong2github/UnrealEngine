@@ -4,6 +4,7 @@
 #include "DesktopPlatformPrivate.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "HAL/FileManager.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 
 #define LOCTEXT_NAMESPACE "PlatformInfo"

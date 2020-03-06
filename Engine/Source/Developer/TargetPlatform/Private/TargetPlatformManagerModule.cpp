@@ -21,10 +21,10 @@
 #include "PlatformInfo.h"
 #include "DesktopPlatformModule.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "IPhysXCooking.h"
 #include "IPhysXCookingModule.h"
-#endif // WITH_PHYSX
+#endif // PHYSICS_INTERFACE_PHYSX
 
 DEFINE_LOG_CATEGORY_STATIC(LogTargetPlatformManager, Log, All);
 
@@ -179,16 +179,13 @@ public:
 		return nullptr;
 	}
 
-	virtual ITargetPlatform* FindTargetPlatform(const FString& Name) override
+	virtual ITargetPlatform* FindTargetPlatform(const FStringView& Name) override
 	{
-		const TArray<ITargetPlatform*>& TargetPlatforms = GetTargetPlatforms();	
-		
-		for (int32 Index = 0; Index < TargetPlatforms.Num(); Index++)
+		GetTargetPlatforms(); // Populates PlatformsByName
+
+		if (ITargetPlatform** Platform = PlatformsByName.Find(FName(Name)))
 		{
-			if (TargetPlatforms[Index]->PlatformName() == Name)
-			{
-				return TargetPlatforms[Index];
-			}
+			return *Platform;
 		}
 
 		return nullptr;
@@ -560,7 +557,7 @@ public:
 		static bool bInitialized = false;
 		static TArray<const IPhysXCooking*> Results;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		if (!bInitialized || bForceCacheUpdate)
 		{
 			bInitialized = true;
@@ -587,14 +584,14 @@ public:
 				}
 			}
 		}
-#endif // WITH_PHYSX
+#endif // PHYSICS_INTERFACE_PHYSX
 
 		return Results;
 	}
 
 	virtual const IPhysXCooking* FindPhysXCooking(FName Name) override
 	{
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX 
 		const TArray<const IPhysXCooking*>& PhysXCooking = GetPhysXCooking();
 
 		for (int32 Index = 0; Index < PhysXCooking.Num(); Index++)
@@ -611,7 +608,7 @@ public:
 				}
 			}
 		}
-#endif // WITH_PHYSX
+#endif // PHYSICS_INTERFACE_PHYSX
 
 		return nullptr;
 	}
@@ -643,6 +640,7 @@ protected:
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FTargetPlatformManagerModule::DiscoverAvailablePlatforms"), STAT_FTargetPlatformManagerModule_DiscoverAvailablePlatforms, STATGROUP_TargetPlatform);
 
 		Platforms.Empty(Platforms.Num());
+		PlatformsByName.Empty(PlatformsByName.Num());
 
 #if !IS_MONOLITHIC
 		// Find all module subdirectories and add them so we can load dependent modules for target platform modules
@@ -726,8 +724,10 @@ protected:
 					RETRY_SETUPANDVALIDATE:
 						if (SetupAndValidateAutoSDK(Platform->GetPlatformInfo().AutoSDKPath))
 						{
-							UE_LOG(LogTargetPlatformManager, Display, TEXT("Loaded TargetPlatform '%s'"), *Platform->PlatformName());
+							const FString& PlatformName = Platform->PlatformName();
+							UE_LOG(LogTargetPlatformManager, Display, TEXT("Loaded TargetPlatform '%s'"), *PlatformName);
 							Platforms.Add(Platform);
+							PlatformsByName.Add(FName(PlatformName), Platform);
 						}
 						else
 						{
@@ -1142,6 +1142,9 @@ private:
 
 	// Holds the list of discovered platforms.
 	TArray<ITargetPlatform*> Platforms;
+
+	// Map for fast lookup of platforms by name.
+	TMap<FName, ITargetPlatform*> PlatformsByName;
 
 #if AUTOSDKS_ENABLED
 	// holds the list of Platforms that have attempted setup.

@@ -115,11 +115,12 @@ public:
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) {}
 #endif
 
-	NIAGARA_API static FRWBuffer& GetDummyFloatBuffer();
-	NIAGARA_API static FRWBuffer& GetDummyFloat4Buffer();
-	NIAGARA_API static FRWBuffer& GetDummyIntBuffer();
-	NIAGARA_API static FRWBuffer& GetDummyUIntBuffer();
-	
+	NIAGARA_API static FRHIShaderResourceView* GetDummyFloatBuffer();
+	NIAGARA_API static FRHIShaderResourceView* GetDummyFloat4Buffer();
+	NIAGARA_API static FRHIShaderResourceView* GetDummyIntBuffer();
+	NIAGARA_API static FRHIShaderResourceView* GetDummyUIntBuffer();
+	NIAGARA_API static FRHIShaderResourceView* GetDummyTextureReadBuffer2D();
+
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 
 protected:

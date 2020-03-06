@@ -10,7 +10,14 @@
 #include "NiagaraTypes.generated.h"
 
 class UNiagaraDataInterfaceBase;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogNiagara, Log, Verbose);
+
+// helper methods for basic struct definitions
+struct NIAGARA_API FNiagaraTypeUtilities
+{
+	static FString GetNamespaceStringForScriptParameterScope(const ENiagaraParameterScope& InScope);
+};
 
 // basic type struct definitions
 
@@ -60,7 +67,7 @@ struct FNiagaraBool
 
 private:
 	UPROPERTY(EditAnywhere, Category = Parameters)// Must be either FNiagaraBool::True or FNiagaraBool::False.
-	int32 Value;
+	int32 Value = FNiagaraBool::False;
 };
 
 USTRUCT()
@@ -82,10 +89,10 @@ struct FNiagaraTestStructInner
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector InnerVector1;
+	FVector InnerVector1 = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector InnerVector2;
+	FVector InnerVector2 = FVector::ZeroVector;
 };
 
 USTRUCT()
@@ -94,10 +101,10 @@ struct FNiagaraTestStruct
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector Vector1;
+	FVector Vector1 = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector Vector2;
+	FVector Vector2 = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, Category = TestStruct)
 	FNiagaraTestStructInner InnerStruct1;
@@ -112,16 +119,16 @@ struct FNiagaraMatrix
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=NiagaraMatrix)
-	FVector4 Row0;
+	FVector4 Row0 = FVector4(EForceInit::ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4 Row1;
+	FVector4 Row1 = FVector4(EForceInit::ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4 Row2;
+	FVector4 Row2 = FVector4(EForceInit::ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4 Row3;
+	FVector4 Row3 = FVector4(EForceInit::ForceInitToZero);
 };
 
 /** Data controlling the spawning of particles */
@@ -130,29 +137,22 @@ struct FNiagaraSpawnInfo
 {
 	GENERATED_USTRUCT_BODY();
 	
-	FNiagaraSpawnInfo()
-		: Count(0)
-		, InterpStartDt(0.0f)
-		, IntervalDt(1.0f)
-		, SpawnGroup(0)
-	{}
-
 	/** How many particles to spawn. */
 	UPROPERTY(EditAnywhere, Category = SpawnInfo)
-	int32 Count;
+	int32 Count = 0;
 	/** The sub frame delta time at which to spawn the first particle. */
 	UPROPERTY(EditAnywhere, Category = SpawnInfo)
-	float InterpStartDt;
+	float InterpStartDt = 0.0f;
 	/** The sub frame delta time between each particle. */
 	UPROPERTY(EditAnywhere, Category = SpawnInfo)
-	float IntervalDt;
+	float IntervalDt = 1.0f;
 	/**
 	 * An integer used to identify this spawn info.
 	 * Typically this is unused.
 	 * An example usage is when using multiple spawn modules to spawn from multiple discreet locations.
 	 */
 	UPROPERTY(EditAnywhere, Category = SpawnInfo)
-	int32 SpawnGroup;
+	int32 SpawnGroup = 0;
 };
 
 USTRUCT(Blueprintable, meta = (DisplayName = "Niagara ID"))
@@ -165,14 +165,14 @@ struct FNiagaraID
 	Is always unique among currently living particles but will be reused after the particle dies.
 	*/
 	UPROPERTY(EditAnywhere, Category = ID)
-	int32 Index;
+	int32 Index = 0;
 
 	/** 
 	A unique tag for when this ID was acquired. 
 	Allows us to differentiate between particles when one dies and another reuses it's Index.
 	*/
 	UPROPERTY(EditAnywhere, Category = ID)
-	int32 AcquireTag;
+	int32 AcquireTag = 0;
 
 	bool operator==(const FNiagaraID& Other)const { return Index == Other.Index && AcquireTag == Other.AcquireTag; }
 	bool operator!=(const FNiagaraID& Other)const { return !(*this == Other); }
@@ -439,6 +439,57 @@ public:
 };
 
 
+UENUM()
+enum class ENiagaraParameterScope : uint32
+{
+	Input,
+
+	User,
+
+	Engine,
+
+	Owner,
+
+	System,
+
+	Emitter,
+
+	Particles,
+
+	ScriptPersistent UMETA(Hidden), //@todo(ng) hiding until autotest verification is made.
+
+	ScriptTransient,
+
+	Local UMETA(Hidden), //Convenience markup for ScopeToString functions, only use in conjunction with ENiagaraScriptParameterUsage::Local.
+
+	Custom UMETA(Hidden), //Convenience markup for expressing parameters using legacy editor mode to freetype namespace and name.
+
+	DISPLAY_ONLY_StaticSwitch UMETA(DisplayName="Static Switch", Hidden), //Only use for display string in SEnumComboBoxes; does not have implementation for classes that interact with ENiagaraParameterScope.
+	// insert new scopes before
+	None UMETA(Hidden),
+
+	Num UMETA(Hidden)
+};
+
+UENUM()
+enum class ENiagaraScriptParameterUsage : uint32
+{
+	Input,
+
+	Output,
+
+	Local,
+
+	InputOutput,
+
+	InitialValueInput,
+
+	// insert new script parameter usages before
+	None UMETA(Hidden),
+	
+	Num UMETA(Hidden)
+};
+
 /** Defines options for conditionally editing and showing script inputs in the UI. */
 USTRUCT()
 struct NIAGARA_API FNiagaraInputConditionMetadata
@@ -455,6 +506,38 @@ public:
 };
 
 USTRUCT()
+struct NIAGARA_API FNiagaraParameterScopeInfo
+{
+	GENERATED_BODY();
+
+public:
+	FNiagaraParameterScopeInfo()
+		: Scope(ENiagaraParameterScope::None)
+		, NamespaceString()
+	{};
+
+	FNiagaraParameterScopeInfo(const ENiagaraParameterScope InScope, const FString& InNamespaceString)
+		: Scope(InScope)
+		, NamespaceString(InNamespaceString)
+	{};
+
+	bool operator == (const FNiagaraParameterScopeInfo& Other) const
+	{
+		return Scope == Other.Scope && NamespaceString == Other.NamespaceString;
+	}
+
+	ENiagaraParameterScope GetScope() const { return Scope; };
+	const FString& GetNamespaceString() const { return NamespaceString; };
+
+private:
+	UPROPERTY()
+		ENiagaraParameterScope Scope;
+
+	UPROPERTY()
+		FString NamespaceString;
+};
+
+USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
 {
 	GENERATED_USTRUCT_BODY()
@@ -463,10 +546,15 @@ public:
 		: bAdvancedDisplay(false)
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
+		, ScopeName()
+		, Usage(ENiagaraScriptParameterUsage::None)
 		, bIsStaticSwitch(false)
 		, StaticSwitchDefaultValue(0)
-	{
-	}
+		, bAddedToNodeGraphDeepCopy(false)
+		, bOutputIsPersistent(false)
+		, bCreatedInSystemEditor(false)
+		, bUseLegacyNameString(false)
+	{};
 public:
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true, SkipForCompileHash = "true"))
 	FText Description;
@@ -497,6 +585,50 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata", SkipForCompileHash = "true"))
 	TMap<FName, FString> PropertyMetaData;
 
+public:
+
+	const FName& GetScopeName() const { return ScopeName; };
+	void SetScopeName(const FName& InScopeName) { ScopeName = InScopeName; };
+
+	ENiagaraScriptParameterUsage GetUsage() const { return Usage; };
+	void SetUsage(ENiagaraScriptParameterUsage InUsage) { Usage = InUsage; };
+
+	/** Gets the CachedNamespacelessParameterName and notifies if it cannot be returned due to an override being set.
+	 * @params OutName		The Name to return;
+	 * @return bool			Whether the CachedNamespacelessParameterName can be returned. Is false if bUseLegacyNameString is set.
+	 */
+	bool GetParameterName(FName& OutName) const;
+	void SetCachedNamespacelessVariableName(const FName& InVariableName) { CachedNamespacelessVariableName = InVariableName; };
+
+	bool GetWasCreatedInSystemEditor() const { return bCreatedInSystemEditor; };
+	void SetWasCreatedInSystemEditor(bool bWasCreatedInSystemEditor) { bCreatedInSystemEditor = bWasCreatedInSystemEditor; };
+
+	bool GetWasAddedToNodeGraphDeepCopy() const { return bAddedToNodeGraphDeepCopy; };
+	void SetWasAddedToNodeGraphDeepCopy(bool bWasAddedToNodeGraphDeepCopy) { bAddedToNodeGraphDeepCopy = bWasAddedToNodeGraphDeepCopy; };
+
+	bool GetIsStaticSwitch() const { return bIsStaticSwitch; };
+	void SetIsStaticSwitch(bool bInIsStaticSwitch) { bIsStaticSwitch = bInIsStaticSwitch; };
+
+	int32 GetStaticSwitchDefaultValue() const { return StaticSwitchDefaultValue; };
+	void SetStaticSwitchDefaultValue(int32 InStaticSwitchDefaultValue) { StaticSwitchDefaultValue = InStaticSwitchDefaultValue; };
+
+	bool GetOutputIsPersistent() const { return bOutputIsPersistent; };
+	void SetOutputIsPersistent(bool bInOutputIsPersistent) { bOutputIsPersistent = bInOutputIsPersistent; };
+
+	bool GetIsUsingLegacyNameString() const { return bUseLegacyNameString; };
+	void SetIsUsingLegacyNameString(bool bInUseLegacyNameString) { bUseLegacyNameString = bInUseLegacyNameString; };
+
+	void CopyPerScriptMetaData(const FNiagaraVariableMetaData& OtherMetaData);
+
+private:
+	/** Defines the scope of a variable that is an input to a script. Used to lookup registered scope infos and resolve the actual ENiagaraParameterScope and Namespace string to use. */
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	FName ScopeName;
+
+	/** Defines the usage of a variable as an argument or output relative to the script. */
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	ENiagaraScriptParameterUsage Usage;
+
 	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
 	UPROPERTY()
 	bool bIsStaticSwitch; // TODO: This should be moved to the UNiagaraScriptVariable in the future
@@ -504,6 +636,29 @@ public:
 	/** The default value to use when creating new pins or stack entries for a static switch parameter */
 	UPROPERTY()
 	int32 StaticSwitchDefaultValue;  // TODO: This should be moved to the UNiagaraScriptVariable in the future
+
+	/** Transient data to mark variables set in the node graph deep copy as having been derived from a module namespace parameter default. */
+	UPROPERTY(Transient, meta = (SkipForCompileHash = "true"))
+	bool bAddedToNodeGraphDeepCopy;
+
+	/** Only valid if Usage is Output. Marks the associated FNiagaraVariable as Persistent across script runs and therefore should be retained in the Dataset during compilation/translation. */
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	bool bOutputIsPersistent;
+
+	/** Namespace-less name for associated FNiagaraVariable. Edited directly by user and then used to generate full Name of associated FNiagaraVariable. */
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	FName CachedNamespacelessVariableName;
+
+	/** Track if the associated parameter was created in the Emitter/System editor. Used to determine whether the associated parameter can be deleted from the Emitter/System editor. */
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	bool bCreatedInSystemEditor;
+
+	UPROPERTY(EditAnywhere, Category = "Custom Name", meta = (ToolTip = "Enable using a legacy custom name string.", SkipForCompileHash = "true"))
+	bool bUseLegacyNameString;
+
+public:
+	FORCEINLINE bool IsInputUsage() const { return Usage == ENiagaraScriptParameterUsage::Input || Usage == ENiagaraScriptParameterUsage::InputOutput; };
+	FORCEINLINE bool IsInputOrLocalUsage() const { return Usage == ENiagaraScriptParameterUsage::Input || Usage == ENiagaraScriptParameterUsage::InputOutput || Usage == ENiagaraScriptParameterUsage::InitialValueInput || Usage == ENiagaraScriptParameterUsage::Local; };
 };
 
 USTRUCT()
@@ -749,6 +904,8 @@ public:
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
 
+	static UEnum* GetParameterScopeEnum() { return ParameterScopeEnum; }
+
 	static const FNiagaraTypeDefinition& GetCollisionEventDef() { return CollisionEventDef; }
 
 	static bool IsScalarDefinition(const FNiagaraTypeDefinition& Type);
@@ -804,6 +961,8 @@ private:
 	static UEnum* ScriptUsageEnum;
 	static UEnum* ExecutionStateEnum;
 	static UEnum* ExecutionStateSourceEnum;
+
+	static UEnum* ParameterScopeEnum;
 
 	static UScriptStruct* ParameterMapStruct;
 	static UScriptStruct* IDStruct;
@@ -1043,6 +1202,18 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 	bool operator!=(const FNiagaraVariable& Other)const
 	{
 		return !(*this == Other);
+	}
+
+	/** Checks if the types match and either both variables are uninitialized or both hold exactly the same data.*/
+	bool HoldsSameData(const FNiagaraVariable& Other) const
+	{
+		if (TypeDef != Other.TypeDef) {
+			return false;
+		}
+		if (!IsDataAllocated() && !Other.IsDataAllocated()) {
+			return true;
+		}
+		return IsDataAllocated() && Other.IsDataAllocated() && VarData.Num() == Other.VarData.Num() && FMemory::Memcmp(VarData.GetData(), Other.VarData.GetData(), VarData.Num()) == 0;
 	}
 
 	// Var data operations

@@ -45,10 +45,10 @@ void FPlayerMuteList::ServerMutePlayer(APlayerController* OwningPC, const FUniqu
 	if (OtherPC != NULL)
 	{
 		// Update their packet filter list too
-		AddIdToMuteList(OtherPC->MuteList.VoicePacketFilter, OwningPC->PlayerState->UniqueId.GetUniqueNetId());
+		AddIdToMuteList(OtherPC->MuteList.VoicePacketFilter, OwningPC->PlayerState->GetUniqueId().GetUniqueNetId());
 
 		// Tell the other PC to mute this one
-		OtherPC->ClientMutePlayer(OwningPC->PlayerState->UniqueId);
+		OtherPC->ClientMutePlayer(OwningPC->PlayerState->GetUniqueId());
 	}
 }
 
@@ -63,7 +63,7 @@ void FPlayerMuteList::ServerUnmutePlayer(APlayerController* OwningPC, const FUni
 	APlayerController* OtherPC = OwningPC->GetPlayerControllerForMuting(UnmuteId);
 	if (OtherPC != NULL)
 	{
-		FUniqueNetIdRepl& OwningPlayerId = OwningPC->PlayerState->UniqueId;
+		const FUniqueNetIdRepl& OwningPlayerId = OwningPC->PlayerState->GetUniqueId();
 		auto PlayerIdToUnmutePred = [&PlayerIdToUnmute](TSharedRef<const FUniqueNetId> Other) { return PlayerIdToUnmute.IsValid() && *PlayerIdToUnmute == *Other; };
 		auto OwningPlayerIdPred = [&OwningPlayerId](TSharedRef<const FUniqueNetId> Other) { return *OwningPlayerId == *Other; };
 
@@ -155,7 +155,7 @@ void FPlayerMuteList::GameplayUnmutePlayer(APlayerController* OwningPC, const FU
 
 	if (OtherPC != nullptr)
 	{
-		FUniqueNetIdRepl& OwningPlayerId = OwningPC->PlayerState->UniqueId;
+		const FUniqueNetIdRepl& OwningPlayerId = OwningPC->PlayerState->GetUniqueId();
 		auto PlayerIdToUnmutePred = [&PlayerIdToUnmute](TSharedRef<const FUniqueNetId> Other) { return PlayerIdToUnmute.IsValid() && *PlayerIdToUnmute == *Other; };
 		auto OwningPlayerIdPred = [&OwningPlayerId](TSharedRef<const FUniqueNetId> Other) { return OwningPlayerId.IsValid() && *OwningPlayerId == *Other; };
 

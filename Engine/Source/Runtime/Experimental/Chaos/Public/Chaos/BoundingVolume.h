@@ -346,9 +346,10 @@ public:
 
 	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, T>>& OutElements)
 	{
+		OutElements.Reserve(GetReserveCount());
 		OutElements.Append(MGlobalPayloads);
-		OutElements.Reserve(OutElements.Num() + MDirtyElements.Num());
-		for(const FCellElement& Elem : MDirtyElements)
+		
+		for (const FCellElement& Elem : MDirtyElements)
 		{
 			OutElements.Add(TPayloadBoundsElement<TPayloadType,T>{Elem.Payload,Elem.Bounds});
 		}
@@ -372,7 +373,14 @@ public:
 				}
 			}
 		}
+	}
 
+	SIZE_T GetReserveCount() const
+	{
+		// Optimize for fewer memory allocations.
+		const auto& Counts = MGrid.Counts(); 
+		const SIZE_T GridCount = Counts[0] * Counts[1] * Counts[2] * MElements.Num();
+		return MGlobalPayloads.Num() + MDirtyElements.Num() + GridCount;
 	}
 
 	TAABB<T, d> GetBounds() const

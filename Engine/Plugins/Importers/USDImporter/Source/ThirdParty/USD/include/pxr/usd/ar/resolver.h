@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_RESOLVER_H
-#define AR_RESOLVER_H
+#ifndef PXR_USD_AR_RESOLVER_H
+#define PXR_USD_AR_RESOLVER_H
 
 /// \file ar/resolver.h
 
@@ -455,4 +455,4 @@ std::unique_ptr<ArResolver> ArCreateResolver(const TfType& resolverType);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // AR_RESOLVER_H
+#endif // PXR_USD_AR_RESOLVER_H

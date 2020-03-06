@@ -292,7 +292,7 @@ private:
  * Represents a widget that can display a FProperty 
  * With the ability to customize the look of the property                 
  */
-class PROPERTYEDITOR_VTABLE SProperty
+class SProperty
 	: public SCompoundWidget
 {
 public:

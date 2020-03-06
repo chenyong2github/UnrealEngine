@@ -473,8 +473,8 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 	TShaderMapRef<FVisualizeTexturePresentPS> PixelShader(ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -483,7 +483,7 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 		FVisualizeTexturePresentPS::FParameters Parameters;
 		Parameters.VisualizeTexture2D = GVisualizeTexture.VisualizeTextureContent->GetRenderTargetItem().ShaderResourceTexture;
 		Parameters.VisualizeTexture2DSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), Parameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), Parameters);
 	}
 
 	{
@@ -496,7 +496,7 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 			SrcRect.Width(), SrcRect.Height(),
 			DestRect.Size(),
 			SrcSize,
-			*VertexShader,
+			VertexShader,
 			EDRF_Default);
 	}
 	RHICmdList.EndRenderPass();

@@ -10,7 +10,7 @@
 void UNiagaraStackPropertyRow::Initialize(FRequiredEntryData InRequiredEntryData, TSharedRef<IDetailTreeNode> InDetailTreeNode, FString InOwnerStackItemEditorDataKey, FString InOwnerStackEditorDataKey, UNiagaraNode* InOwningNiagaraNode)
 {
 	TSharedPtr<IPropertyHandle> PropertyHandle = InDetailTreeNode->CreatePropertyHandle();
-	bool bRowIsAdvanced = PropertyHandle.IsValid() && PropertyHandle->GetProperty()->HasAnyPropertyFlags(CPF_AdvancedDisplay);
+	bool bRowIsAdvanced = PropertyHandle.IsValid() && PropertyHandle->GetProperty() && PropertyHandle->GetProperty()->HasAnyPropertyFlags(CPF_AdvancedDisplay);
 	FString RowStackEditorDataKey = FString::Printf(TEXT("%s-%s"), *InOwnerStackEditorDataKey, *InDetailTreeNode->GetNodeName().ToString());
 	Super::Initialize(InRequiredEntryData, bRowIsAdvanced, InOwnerStackItemEditorDataKey, RowStackEditorDataKey);
 	DetailTreeNode = InDetailTreeNode;
@@ -18,6 +18,16 @@ void UNiagaraStackPropertyRow::Initialize(FRequiredEntryData InRequiredEntryData
 	RowStyle = DetailTreeNode->GetNodeType() == EDetailNodeType::Category
 		? EStackRowStyle::ItemCategory
 		: EStackRowStyle::ItemContent;
+	bCannotEditInThisContext = false;
+	if (PropertyHandle.IsValid() && PropertyHandle.Get() && PropertyHandle->GetProperty())
+	{
+		FProperty* Prop = PropertyHandle->GetProperty();
+		FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>(Prop);
+		if (ObjProp && ObjProp->PropertyClass && (ObjProp->PropertyClass->IsChildOf(AActor::StaticClass()) || ObjProp->PropertyClass->IsChildOf(UActorComponent::StaticClass())))
+		{
+			bCannotEditInThisContext = true;
+		}
+	}
 }
 
 TSharedRef<IDetailTreeNode> UNiagaraStackPropertyRow::GetDetailTreeNode() const
@@ -27,6 +37,8 @@ TSharedRef<IDetailTreeNode> UNiagaraStackPropertyRow::GetDetailTreeNode() const
 
 bool UNiagaraStackPropertyRow::GetIsEnabled() const
 {
+	if (bCannotEditInThisContext) 
+		return false;
 	return OwningNiagaraNode == nullptr || OwningNiagaraNode->GetDesiredEnabledState() == ENodeEnabledState::Enabled;
 }
 

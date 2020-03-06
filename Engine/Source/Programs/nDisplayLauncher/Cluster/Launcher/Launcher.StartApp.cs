@@ -77,7 +77,7 @@ namespace nDisplayLauncher.Cluster
 
 			if (!Config.Windows.ContainsKey(Node.Window))
 			{
-				throw new Exception("Node {0} has no windows property specified");
+				throw new Exception(string.Format("Node {0} has no windows property specified", Node.Id));
 			}
 
 			// Get window settings for the node
@@ -118,7 +118,8 @@ namespace nDisplayLauncher.Cluster
 					"LogDisplayClusterNetwork {8}, " +
 					"LogDisplayClusterNetworkMsg {9}, " +
 					"LogDisplayClusterRender {10}, " +
-					"LogDisplayClusterBlueprint {11}"
+					"LogDisplayClusterRenderSync {11}, " +
+					"LogDisplayClusterBlueprint {12}"
 					, SelectedVerbocityPlugin
 					, SelectedVerbocityEngine
 					, SelectedVerbocityConfig
@@ -130,6 +131,7 @@ namespace nDisplayLauncher.Cluster
 					, SelectedVerbocityNetwork
 					, SelectedVerbocityNetworkMsg
 					, SelectedVerbocityRender
+					, SelectedVerbocityRenderSync
 					, SelectedVerbocityBlueprint);
 
 				commandCmd = string.Format("{0} -LogCmds=\"{1}\"", commandCmd, LogCmds);

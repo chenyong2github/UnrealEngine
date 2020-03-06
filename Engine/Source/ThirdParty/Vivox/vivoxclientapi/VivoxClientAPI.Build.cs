@@ -24,8 +24,7 @@ public class VivoxClientAPI : ModuleRules
 			string LibDir = Path.Combine(VivoxClientAPIPath, PlatformSubdir, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigurationSubdir);
 			PublicAdditionalLibraries.Add(LibDir + "/vivoxclientapi.lib");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4
-			|| Target.Platform == UnrealTargetPlatform.Switch)
+		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
 			string LibDir = Path.Combine(VivoxClientAPIPath, PlatformSubdir, ConfigurationSubdir);
 			PublicAdditionalLibraries.Add(LibDir + "/libvivoxclientapi.a");

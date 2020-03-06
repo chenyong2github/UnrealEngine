@@ -56,6 +56,7 @@ class STutorialsBrowser : public SCompoundWidget
 	SLATE_ARGUMENT(FSimpleDelegate, OnClosed)
 	SLATE_ARGUMENT(FOnLaunchTutorial, OnLaunchTutorial)
 	SLATE_ARGUMENT(TWeakPtr<SWindow>, ParentWindow)
+	SLATE_ARGUMENT(TArray<FTutorialCategory>, ExternalCategories)
 
 	SLATE_END_ARGS()
 
@@ -156,4 +157,7 @@ private:
 
 	/** Prevent us from refreshing too often */
 	float RefreshTimer;
+
+	/** Categories that were registered externally, i.e. by a plugin */
+	TArray<FTutorialCategory> ExternalCategories;
 };

@@ -39,7 +39,8 @@ public:
 
 	virtual void ActorSelectionChangeNotify() override;
 
-	virtual bool ProcessEditDelete();
+	virtual bool ProcessEditDelete() override;
+	virtual bool ProcessEditCut() override;
 
 	virtual bool CanAutoSave() const override;
 
@@ -161,4 +162,6 @@ protected:
 
 	void ModelingModeShortcutRequested(EModelingModeActionCommands Command);
 	void FocusCameraAtCursorHotkey();
+
+	void ConfigureRealTimeViewportsOverride(bool bEnable);
 };

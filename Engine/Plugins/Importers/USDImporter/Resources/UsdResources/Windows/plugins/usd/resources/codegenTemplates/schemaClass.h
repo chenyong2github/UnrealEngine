@@ -309,7 +309,7 @@ protected:
     {% if useExportAPI -%}
     {{ Upper(libraryName) }}_API
     {% endif -%}
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -325,7 +325,7 @@ private:
     {% if useExportAPI -%}
     {{ Upper(libraryName) }}_API
     {% endif -%}
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 {% for attrName in cls.attrOrder %}
 {% set attr = cls.attrs[attrName]%}
@@ -337,9 +337,13 @@ public:
     // --------------------------------------------------------------------- //
     /// {{ attr.doc }}
     ///
+{% if attr.details %}
+    /// | ||
+    /// | -- | -- |
 {% for detail in attr.details %}
-    /// \n  {{ detail[0] }}: {{ detail[1] }}
+    /// | {{ detail[0] }} | {{ detail[1] }} |
 {% endfor %}
+{% endif %}
     {% if useExportAPI -%}
     {{ Upper(libraryName) }}_API
     {% endif -%}

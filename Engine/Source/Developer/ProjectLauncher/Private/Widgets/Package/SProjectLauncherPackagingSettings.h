@@ -50,6 +50,9 @@ private:
 	void HandleIncludePrerequisitesCheckStateChanged(ECheckBoxState NewState);
 	ECheckBoxState HandleIncludePrerequisitesCheckBoxIsChecked() const;
 
+	void HandleUseIoStoreCheckStateChanged(ECheckBoxState NewState);
+	ECheckBoxState HandleUseIoStoreCheckBoxIsChecked() const;
+
 	// Callback for getting the content text of the 'Directory' label.
 	FText HandleDirectoryTitleText() const;
 	FText HandleDirectoryPathText() const;

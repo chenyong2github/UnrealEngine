@@ -61,8 +61,8 @@ namespace {
 	namespace ComputeDisplacement 
 	{
 		void Constant(const FDynamicMesh3& Mesh,
-			const TArray<FVector3d>& Positions, const FMeshNormals& Normals, double Intensity,
-			TArray<FVector3d>& DisplacedPositions)
+				const TArray<FVector3d>& Positions, const FMeshNormals& Normals, double Intensity,
+				TArray<FVector3d>& DisplacedPositions)
 		{
 			DisplacedPositions.SetNumUninitialized(Positions.Num());
 			for (int vid : Mesh.VertexIndicesItr())
@@ -102,9 +102,9 @@ namespace {
 		}
 
 		void Map(const FDynamicMesh3& Mesh,
-			const TArray<FVector3d>& Positions, const FMeshNormals& Normals,
-			double Intensity, const FSampledScalarField2f& DisplaceField,
-			TArray<FVector3d>& DisplacedPositions)
+				const TArray<FVector3d>& Positions, const FMeshNormals& Normals,
+				double Intensity, const FSampledScalarField2f& DisplaceField,
+				TArray<FVector3d>& DisplacedPositions)
 		{
 			const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(0);
 			for (int tid : Mesh.TriangleIndicesItr())
@@ -137,7 +137,7 @@ namespace {
 			}
 		}
 
-	}
+		}
 	class FTextureAccess
 	{
 	public:
@@ -592,8 +592,8 @@ void UDisplaceMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
-		FSubdivideMeshOpFactory* SubdividerDownCast = static_cast<FSubdivideMeshOpFactory*>(Subdivider.Get());
-		FDisplaceMeshOpFactory* DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
+		FSubdivideMeshOpFactory*  SubdividerDownCast = static_cast<FSubdivideMeshOpFactory*>(Subdivider.Get());
+		FDisplaceMeshOpFactory*  DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
 		const FName PropName = PropertyThatChanged->GetFName();
 		bNeedsDisplaced = true;
 		if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, Subdivisions))

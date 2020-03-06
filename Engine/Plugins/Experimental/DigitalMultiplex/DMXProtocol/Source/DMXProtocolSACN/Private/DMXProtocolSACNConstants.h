@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "DMXProtocolTypes.h"
 
+#define DMX_PROTOCOLNAME_SACN "sACN"
+
 enum 
 {
 	VECTOR_ROOT_E131_DATA = 0x00000004,
@@ -36,7 +38,12 @@ enum
 	ACN_CIDBYTES = 16,
 	ACN_SOURCE_NAME_SIZE = 64,
 	ACN_ADDRESS_INC = 1,
-	ACN_ADDRESS_ROOT_VECTOR = 18
+	ACN_ADDRESS_ROOT_VECTOR = 18,
+
+	// Low 12 bits = PDU length
+	// High 4 bits = 0x7
+	// ((ACN_HEADER_SIZE + ACN_DMX_SIZE) << 4) | ((VHD_V_FLAG | VHD_H_FLAG | VHD_D_FLAG >> 4)
+	ACN_PDU_FLAGS_AND_LENGHT_SIZE = 0x27e7
 };
 
 enum

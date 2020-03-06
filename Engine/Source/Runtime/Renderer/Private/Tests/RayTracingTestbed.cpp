@@ -104,8 +104,12 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	GeometryInitializer.TotalPrimitiveCount = Segment.NumPrimitives;
 	FRayTracingGeometryRHIRef Geometry = RHICreateRayTracingGeometry(GeometryInitializer);
 
+	FRHIResourceCreateInfo CreateInfo;
+	FShaderResourceViewRHIRef GPUTransforms = nullptr;
+	const uint32 NumTransforms = 1;
+
 	FRayTracingGeometryInstance Instances[] = {
-		FRayTracingGeometryInstance { Geometry, {FMatrix::Identity}, {0}, 0xFF }
+		FRayTracingGeometryInstance { Geometry, {FMatrix::Identity}, NumTransforms, GPUTransforms, {0}, 0xFF }
 	};
 
 	FRayTracingSceneInitializer Initializer;
@@ -191,7 +195,7 @@ public:
 	}
 
 	FTestRaygenShader() {}
-	virtual ~FTestRaygenShader() {}
+	//virtual ~FTestRaygenShader() {}
 
 	/** Initialization constructor. */
 	FTestRaygenShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -202,18 +206,18 @@ public:
 		Output.Bind(Initializer.ParameterMap, TEXT("Output"));
 	}
 
-	bool Serialize(FArchive& Ar)
+	/*bool Serialize(FArchive& Ar)
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 		Ar << TLAS;
 		Ar << Rays;
 		Ar << Output;
 		return bShaderHasOutdatedParameters;
-	}
+	}*/
 
-	FShaderResourceParameter	TLAS;   // SRV RaytracingAccelerationStructure
-	FShaderResourceParameter	Rays;   // SRV StructuredBuffer<FBasicRayData>
-	FShaderResourceParameter	Output; // UAV RWStructuredBuffer<uint>
+	LAYOUT_FIELD(FShaderResourceParameter, TLAS)   // SRV RaytracingAccelerationStructure
+	LAYOUT_FIELD(FShaderResourceParameter, Rays)   // SRV StructuredBuffer<FBasicRayData>
+	LAYOUT_FIELD(FShaderResourceParameter, Output) // UAV RWStructuredBuffer<uint>
 };
 
 IMPLEMENT_SHADER_TYPE(, FTestRaygenShader, TEXT("/Engine/Private/RayTracing/RayTracingTest.usf"), TEXT("TestMainRGS"), SF_RayGen);

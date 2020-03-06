@@ -9,8 +9,10 @@
 #include "IMediaPlayer.h"
 #include "IMediaTracks.h"
 #include "IMediaView.h"
+#include "ITimedDataInput.h"
 
 #include "HAL/CriticalSection.h"
+#include "MediaIOCoreSampleContainer.h"
 #include "Misc/CoreMisc.h"
 
 #include "Misc/FrameRate.h"
@@ -29,7 +31,6 @@ struct MEDIAIOCORE_API FMediaIOCoreMediaOption
 	static const FName VideoModeName;
 };
 
-
 /**
  * Implements a base player for hardware IO cards. 
  *
@@ -47,6 +48,7 @@ class MEDIAIOCORE_API FMediaIOCorePlayerBase
 	, protected IMediaControls
 	, protected IMediaTracks
 	, protected IMediaView
+	, public ITimedDataInput
 {
 public:
 
@@ -78,6 +80,7 @@ public:
 	virtual FString GetUrl() const override;
 	virtual IMediaView& GetView() override;
 	virtual void TickTimeManagement();
+	virtual void TickFetch(FTimespan DeltaTime, FTimespan Timecode) override;
 
 public:
 	//~ IMediaCache interface
@@ -117,6 +120,19 @@ protected:
 	virtual bool SelectTrack(EMediaTrackType TrackType, int32 TrackIndex) override;
 	virtual bool SetTrackFormat(EMediaTrackType TrackType, int32 TrackIndex, int32 FormatIndex) override;
 
+public:
+	//~ ITimedDataInput interface
+	virtual FText GetDisplayName() const override;
+	virtual TArray<ITimedDataInputChannel*> GetChannels() const override;
+	virtual ETimedDataInputEvaluationType GetEvaluationType() const override;
+	virtual void SetEvaluationType(ETimedDataInputEvaluationType Evaluation) override;
+	virtual double GetEvaluationOffsetInSeconds() const override;
+	virtual void SetEvaluationOffsetInSeconds(double Offset) override;
+	virtual FFrameRate GetFrameRate() const override;
+	virtual bool IsDataBufferSizeControlledByInput() const override;
+	virtual void AddChannel(ITimedDataInputChannel* Channel) override;
+	virtual void RemoveChannel(ITimedDataInputChannel * Channel) override; 
+
 protected:
 	/** Is the IO hardware/device ready to be used. */
 	virtual bool IsHardwareReady() const = 0;
@@ -132,6 +148,12 @@ protected:
 
 	/** Log the timecode when a frame is received. */
 	static bool IsTimecodeLogEnabled();
+	
+	/** 
+	 * Setup settings for the different kind of supported data channels. 
+	 * PlayerBase will setup the common settings
+	 */
+	virtual void SetupSampleChannels() = 0;
 
 protected:
 	/** Critical section for synchronizing access to receiver and sinks. */
@@ -175,6 +197,12 @@ protected:
 
 	/** Previous frame Timespan */
 	FTimespan PreviousFrameTimespan;
+
+	/** Timed Data Input handler */
+	TArray<ITimedDataInputChannel*> Channels;
+	
+	/** Base set of settings to start from when setuping channels */
+	FMediaIOSamplingSettings BaseSettings;
 };
 
 

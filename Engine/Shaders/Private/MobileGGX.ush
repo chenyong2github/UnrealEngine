@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-// Note: comment out to assume fp32 computations
-#ifndef MOBILE_GGX_USE_FP16
-	#define MOBILE_GGX_USE_FP16 1
-#endif
+#include "/Engine/Public/Platform.ush"
 
-#define MEDIUMP_FLT_MAX    65504.0
-#define MEDIUMP_FLT_MIN    0.00006103515625
+#define MOBILE_GGX_USE_FP16 !FORCE_FLOATS
+#define MEDIUMP_FLT_MAX		65504.0
+#define MEDIUMP_FLT_MIN		0.00006103515625
 
 #if MOBILE_GGX_USE_FP16
 	#define saturateMediump(x) min(x, MEDIUMP_FLT_MAX)
@@ -48,15 +46,15 @@ half GGX_Mobile(half Roughness, half NoH, half3 H, half3 N)
     // Overall this yields better performance, keeping all computations in mediump
 
 #if MOBILE_GGX_USE_FP16
-	float3 NxH = cross(N, H);
-	float OneMinusNoHSqr = dot(NxH, NxH);
+	half3 NxH = cross(N, H);
+	half OneMinusNoHSqr = dot(NxH, NxH);
 #else
-    float OneMinusNoHSqr = 1.0 - NoH * NoH;
+    half OneMinusNoHSqr = 1.0 - NoH * NoH;
 #endif
 
 	half a = Roughness * Roughness;
-	float n = NoH * a;
-	float p = a / (OneMinusNoHSqr + n * n);
-	float d = p * p;
+	half n = NoH * a;
+	half p = a / (OneMinusNoHSqr + n * n);
+	half d = p * p;
 	return saturateMediump(d);
 }

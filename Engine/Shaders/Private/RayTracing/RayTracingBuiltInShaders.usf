@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifdef PLATFORM_RAY_TRACING_BUILTIN_SHADERS_USH
+#ifdef OVERRIDE_RAYTRACINGBUILTINSHADERS_USH
 #include "/Platform/Private/RayTracingBuiltInShaders.usf"
-#else // PLATFORM_RAY_TRACING_BUILTIN_SHADERS_USH
+#else // OVERRIDE_RAYTRACINGBUILTINSHADERS_USH
 
 #include "../Common.ush"
 #include "RayTracingCommon.ush"

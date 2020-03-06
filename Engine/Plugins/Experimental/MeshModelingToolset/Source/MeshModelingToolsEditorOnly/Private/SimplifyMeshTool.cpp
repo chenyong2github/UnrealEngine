@@ -2,6 +2,7 @@
 
 #include "SimplifyMeshTool.h"
 #include "InteractiveToolManager.h"
+#include "Properties/RemeshProperties.h"
 #include "ToolBuilderUtil.h"
 
 #include "ToolSetupUtil.h"
@@ -70,6 +71,8 @@ USimplifyMeshToolProperties::USimplifyMeshToolProperties()
 	bDiscardAttributes = false;
 	bShowWireframe = true;
 	bShowGroupColors = false;
+	GroupBoundaryConstraint = EGroupBoundaryConstraint::Ignore;
+	MaterialBoundaryConstraint = EMaterialBoundaryConstraint::Ignore;
 }
 
 void USimplifyMeshTool::SetWorld(UWorld* World)
@@ -118,7 +121,6 @@ void USimplifyMeshTool::Setup()
 		EnterProgressFrame(1);
 		OriginalMesh = MakeShared<FDynamicMesh3>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.bPrintDebugMessages = true;
 		Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
 		EnterProgressFrame(2);
 		OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3>(OriginalMesh.Get(), true);

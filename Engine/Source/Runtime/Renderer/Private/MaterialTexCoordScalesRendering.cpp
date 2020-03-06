@@ -14,7 +14,8 @@ MaterialTexCoordScalesRendering.cpp: Contains definitions for rendering the view
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FMaterialTexCoordScalePS,TEXT("/Engine/Private/MaterialTexCoordScalesPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
-void FMaterialTexCoordScalePS::GetDebugViewModeShaderBindings(
+void FMaterialTexCoordScaleBaseInterface::GetDebugViewModeShaderBindings(
+	const FDebugViewModePS& ShaderBase,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT Material,
@@ -29,6 +30,7 @@ void FMaterialTexCoordScalePS::GetDebugViewModeShaderBindings(
 	FMeshDrawSingleShaderBindings& ShaderBindings
 ) const 
 {
+	const FMaterialTexCoordScalePS& Shader = static_cast<const FMaterialTexCoordScalePS&>(ShaderBase);
 	const int32 AnalysisIndex = ViewModeParam >= 0 ? FMath::Clamp<int32>(ViewModeParam, 0, TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL - 1) : -1;
 	FVector4 OneOverCPUTexCoordScales[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4];
 	FIntVector4 TexCoordIndices[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4];
@@ -42,10 +44,10 @@ void FMaterialTexCoordScalePS::GetDebugViewModeShaderBindings(
 #endif
 	const bool bOutputScales = DebugViewMode == DVSM_OutputMaterialTextureScales;
 
-	ShaderBindings.Add(OneOverCPUTexCoordScalesParameter, OneOverCPUTexCoordScales);
-	ShaderBindings.Add(TexCoordIndicesParameter, TexCoordIndices);
-	ShaderBindings.Add(AnalysisParamsParameter, FIntPoint(bOutputScales ? -1 : AnalysisIndex, bOutputScales ? 1 : 0));
-	ShaderBindings.Add(PrimitiveAlphaParameter,  (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f);
+	ShaderBindings.Add(Shader.OneOverCPUTexCoordScalesParameter, OneOverCPUTexCoordScales);
+	ShaderBindings.Add(Shader.TexCoordIndicesParameter, TexCoordIndices);
+	ShaderBindings.Add(Shader.AnalysisParamsParameter, FIntPoint(bOutputScales ? -1 : AnalysisIndex, bOutputScales ? 1 : 0));
+	ShaderBindings.Add(Shader.PrimitiveAlphaParameter,  (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f);
 }
 
 void FOutputMaterialTexCoordScaleInterface::SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const

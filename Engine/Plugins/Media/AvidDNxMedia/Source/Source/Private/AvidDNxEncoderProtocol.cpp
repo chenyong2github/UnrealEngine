@@ -109,12 +109,6 @@ bool UAvidDNxEncoderProtocol::SetupImpl()
 		return false;
 	}
 
-	if (!InitializeMXFwriter())
-	{
-		DestroyEncoder();
-		return false;
-	}
-
 	return Super::SetupImpl();
 }
 
@@ -301,6 +295,15 @@ FFramePayloadPtr UAvidDNxEncoderProtocol::GetFramePayload(const FFrameMetrics& I
 
 void UAvidDNxEncoderProtocol::ProcessFrame(FCapturedFrameData InFrame)
 {
+	// Defer writer creation until sequence has evaluated so that cached data for format mappings can be generated
+	if (MXFwriter == nullptr)
+	{
+		if (!InitializeMXFwriter())
+		{
+			return;
+		}
+	}
+
 	const double StartTime = FPlatformTime::Seconds();
 
 	ensure(InFrame.ColorBuffer.Num() % 2 == 0);

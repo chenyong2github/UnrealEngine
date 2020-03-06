@@ -76,7 +76,7 @@ struct FPrimitiveViewRelevance : public FMaterialRelevance
 
 	bool HasTranslucency() const 
 	{
-		return bSeparateTranslucency || bNormalTranslucency;
+		return bSeparateTranslucency || bNormalTranslucency || bSeparateTranslucencyModulate;
 	}
 
 	bool HasVelocity() const

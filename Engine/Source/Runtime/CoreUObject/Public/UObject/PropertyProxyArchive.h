@@ -35,7 +35,7 @@ public:
 	}
 	virtual FArchive& operator<<(FField*& Value) override
 	{
-		if (!IsPersistent())
+		if (!IsPersistent() || IsObjectReferenceCollector())
 		{
 			// For reference collectors (like FArchiveReplaceFieldReferences): fully serialize the entire field to find all of its UObject references
 			InnerArchive << Value;

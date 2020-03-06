@@ -16,7 +16,7 @@ void SEnumCurveKeyEditor::Construct(const FArguments& InArgs, const TSequencerKe
 		MovieSceneToolHelpers::MakeEnumComboBox(
 			Enum,
 			TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateSP(this, &SEnumCurveKeyEditor::OnGetCurrentValueAsInt)),
-			SEnumCombobox::FOnEnumSelectionChanged::CreateSP(this, &SEnumCurveKeyEditor::OnChangeKey)
+			SEnumComboBox::FOnEnumSelectionChanged::CreateSP(this, &SEnumCurveKeyEditor::OnChangeKey)
 		)
 	];
 }

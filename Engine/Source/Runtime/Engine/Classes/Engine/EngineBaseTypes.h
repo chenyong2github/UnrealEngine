@@ -438,7 +438,7 @@ struct TStructOpsTypeTraits<FTickFunction> : public TStructOpsTypeTraitsBase2<FT
 * Tick function that calls AActor::TickActor
 **/
 USTRUCT()
-struct ENGINE_VTABLE FActorTickFunction : public FTickFunction
+struct FActorTickFunction : public FTickFunction
 {
 	GENERATED_USTRUCT_BODY()
 

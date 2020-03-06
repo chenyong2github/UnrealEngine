@@ -9,39 +9,9 @@
 #include "AudioDevice.h"
 #include "AudioDeviceManager.h"
 #include "DSP/MultithreadedPatching.h"
+#include "NiagaraDataInterfaceAudio.h"
 #include "NiagaraDataInterfaceAudioOscilloscope.generated.h"
 
-// Class used to to capture the audio stream of an arbitrary submix.
-class NIAGARA_API FNiagaraSubmixListener : public ISubmixBufferListener
-{
-public:
-	FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer);
-	FNiagaraSubmixListener(const FNiagaraSubmixListener& Other)
-	{
-		// Copy constructor technically required to compile TMap, but not used during runtime if move constructor is available.
-		// If you're hitting this, consider using Emplace or Add(MoveTemp()).
-		checkNoEntry();
-	}
-
-	FNiagaraSubmixListener(FNiagaraSubmixListener&& Other);
-
-	virtual ~FNiagaraSubmixListener();
-
-	float GetSampleRate();
-	int32 GetNumChannels();
-
-	// Begin ISubmixBufferListener overrides
-	virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
-	// End ISubmixBufferListener overrides
-
-private:
-	FNiagaraSubmixListener();
-
-	int32 NumChannelsInSubmix;
-	int32 SubmixSampleRate;
-
-	Audio::FPatchInput MixerInput;
-};
 
 struct FNiagaraDataInterfaceProxyOscilloscope : public FNiagaraDataInterfaceProxy
 {
@@ -89,9 +59,9 @@ private:
 	void OnNewDeviceCreated(Audio::FDeviceId InID);
 	void OnDeviceDestroyed(Audio::FDeviceId InID);
 
-	TMap<Audio::FDeviceId, FNiagaraSubmixListener> SubmixListeners;
+	TMap<Audio::FDeviceId, TUniquePtr<FNiagaraSubmixListener>> SubmixListeners;
 
-	// This 
+	// This mixer is patched into by all instances of FNiagaraSubmixListener in the SubmixListeners map, and is consumed by DownsampleAudioToBuffer().
 	Audio::FPatchMixer PatchMixer;
 
 	USoundSubmix* SubmixRegisteredTo;
@@ -120,6 +90,8 @@ class NIAGARA_API UNiagaraDataInterfaceAudioOscilloscope : public UNiagaraDataIn
 {
 	GENERATED_UCLASS_BODY()
 public:
+
+	DECLARE_NIAGARA_DI_PARAMETER();
 	
 	UPROPERTY(EditAnywhere, Category = "Oscilloscope")
 	USoundSubmix* Submix;
@@ -153,7 +125,6 @@ public:
 
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

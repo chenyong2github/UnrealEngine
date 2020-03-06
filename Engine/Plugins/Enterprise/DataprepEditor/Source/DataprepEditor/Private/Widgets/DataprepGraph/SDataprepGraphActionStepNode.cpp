@@ -5,6 +5,7 @@
 // Dataprep includes
 #include "DataprepActionAsset.h"
 #include "DataprepCoreUtils.h"
+#include "DataprepEditor.h"
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
@@ -12,10 +13,13 @@
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepFilter.h"
+#include "SelectionSystem/DataprepSelectionTransform.h"
 #include "Widgets/DataprepGraph/SDataprepActionSteps.h"
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
+#include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 #include "Widgets/DataprepGraph/SDataprepOperation.h"
+#include "Widgets/DataprepGraph/SDataprepSelectionTransform.h"
 
 // Engine Includes
 #include "Editor.h"
@@ -27,20 +31,21 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 
-void SDataprepGraphActionStepNode::Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode)
+void SDataprepGraphActionStepNode::Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode, const TSharedPtr<SDataprepGraphActionNode>& InParent)
 {
 	StepIndex = InActionStepNode->GetStepIndex();
-	bShowInsertionSlot = false;
 
+	ParentNodePtr = InParent;
 	GraphNode = InActionStepNode;
+	DataprepEditor = InArgs._DataprepEditor;
 
-	SetCursor(EMouseCursor::ResizeUpDown);
+	SetCursor(EMouseCursor::CardinalCross);
 	UpdateGraphNode();
 }
 
@@ -53,18 +58,40 @@ TSharedPtr<SWidget> SDataprepGraphActionStepNode::GetStepTitleWidget() const
 {
 	if(SDataprepActionBlock* ActionStepBlock = ActionStepBlockPtr.Get())
 	{
-		return SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush( "Graph.StateNode.Body" ) )
-		.Padding(0.0f)
-		.BorderBackgroundColor( FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop") )
-		[
-			SNew(SBox)
-			.Padding( FMargin( 2.0f ) )
-			.Content()
+		TAttribute<FSlateColor> BlockColorAndOpacity = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetBlockOverlayColor));
+
+		return SNew(SOverlay)
+			+ SOverlay::Slot()
+			.Padding(FDataprepEditorStyle::GetMargin( "DataprepActionStep.DnD.Outter.Padding" ))
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
 			[
-				ActionStepBlock->GetBlockTitleWidget()
+				SDataprepGraphActionNode::CreateBackground(BlockColorAndOpacity)
 			]
-		];
+
+			+ SOverlay::Slot()
+			.Padding(FDataprepEditorStyle::GetMargin( "DataprepActionStep.DnD.Inner.Padding" ))
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SDataprepGraphActionNode::CreateBackground(FDataprepEditorStyle::GetColor( "DataprepActionStep.BackgroundColor" ))
+			]
+
+			+ SOverlay::Slot()
+			.Padding(FDataprepEditorStyle::GetMargin( "DataprepActionStep.DnD.Inner.Padding" ))
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(5.f, 10.f)
+				.VAlign(VAlign_Center)
+				[
+					ActionStepBlock->GetTitleWidget()
+				]
+			];
 	}
 
 	return TSharedPtr<SWidget>();
@@ -78,8 +105,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 	RightNodeBox.Reset();
 	LeftNodeBox.Reset();
 
-	TSharedRef<SWidget> ActionBlock = SNullWidget::NullWidget;
-
+	TSharedRef<SWidget> ActionBlockPtr = SNullWidget::NullWidget;
 	if(UDataprepGraphActionStepNode* ActionStepNode = Cast<UDataprepGraphActionStepNode>(GraphNode))
 	{
 		TSharedRef< FDataprepSchemaActionContext > StepData = MakeShared< FDataprepSchemaActionContext >();
@@ -90,25 +116,47 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 		if ( UDataprepActionStep* ActionStep = StepData->DataprepActionStepPtr.Get())
 		{
 			UDataprepParameterizableObject* StepObject = ActionStep->GetStepObject();
-			UClass* StepType = FDataprepCoreUtils::GetTypeOfActionStep(StepObject);
+
+			bool bIsPreviewed = false;
+			if (TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin())
+			{
+				bIsPreviewed = DataprepEditorPtr->IsPreviewingStep( StepObject );
+			}
+
+			UClass* StepType = FDataprepCoreUtils::GetTypeOfActionStep( StepObject );
 			if (StepType == UDataprepOperation::StaticClass())
 			{
 				UDataprepOperation* Operation = static_cast<UDataprepOperation*>( StepObject );
-				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepOperation, Operation, StepData) );
+				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepOperation, Operation, StepData).IsSimplified(true) );
 			}
 			else if (StepType == UDataprepFilter::StaticClass())
 			{
 				UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
-				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepFilter, *Filter, StepData) );
+
+				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( 
+					SNew( SDataprepFilter, *Filter, StepData )
+						.IsPreviewed( bIsPreviewed )
+						.IsSimplified(true)
+					);
+			}
+			else if (StepType == UDataprepSelectionTransform::StaticClass())
+			{
+				UDataprepSelectionTransform* SelectionTransform = static_cast<UDataprepSelectionTransform*>( StepObject );
+				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepSelectionTransform, SelectionTransform, StepData).IsSimplified(true) );
 			}
 
 			if(ActionStepBlockPtr.IsValid())
 			{
-				ActionStepBlockPtr->bDragEnabled = false;
-				ActionBlock = ActionStepBlockPtr->AsShared();
+#ifndef NO_BLUEPRINT
+				ActionStepBlockPtr->bIsSimplifiedGraph = true;
+#endif
+				ActionBlockPtr = ActionStepBlockPtr->AsShared();
 			}
 		}
 	}
+
+	TAttribute<FMargin> OverlayPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetBlockPadding));
+	TAttribute<FSlateColor> BlockColorAndOpacity = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetBlockOverlayColor));
 
 	this->ContentScale.Bind( this, &SGraphNode::GetContentScale );
 	this->GetOrAddSlot( ENodeZone::Center )
@@ -119,41 +167,67 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(20.f, 0.f)
 		[
-			SNew(SBorder)
-			.BorderBackgroundColor( this, &SDataprepGraphActionStepNode::GetDragAndDropColor )
-			.BorderImage(FEditorStyle::GetBrush("Graph.StateNode.Body"))
-			[
-				SNew(SBox)
-				.HeightOverride(2.0)
-			]
+			SNew( SSeparator )
+			.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+			.Thickness(2.f)
+			.Orientation(EOrientation::Orient_Horizontal)
+			.ColorAndOpacity(this, &SDataprepGraphActionStepNode::GetDragAndDropColor)
 		]
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( "Graph.StateNode.Body" ) )
-			.Padding(2.0f)
-			.BorderBackgroundColor( this, &SDataprepGraphActionStepNode::GetBorderBackgroundColor )
+			SNew(SOverlay)
+
+			+ SOverlay::Slot()
+			.Padding(OverlayPadding)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SBox)
-				.Padding( FMargin( 1.0f ) )
-				.Content()
-				[
-					ActionBlock
-				]
+				SDataprepGraphActionNode::CreateBackground(BlockColorAndOpacity)
+			]
+
+			+ SOverlay::Slot()
+			.Padding(FDataprepEditorStyle::GetMargin( "DataprepActionStep.Padding" ))
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SDataprepGraphActionNode::CreateBackground(FDataprepEditorStyle::GetColor( "DataprepActionStep.BackgroundColor" ))
+			]
+
+			+ SOverlay::Slot()
+			.Padding(FDataprepEditorStyle::GetMargin( "DataprepActionStep.Padding" ))
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				ActionBlockPtr
 			]
 		]
 	];
 }
 
+FSlateColor SDataprepGraphActionStepNode::GetBlockOverlayColor() const
+{
+	static const FSlateColor BlockColor = FDataprepEditorStyle::GetColor( "DataprepActionStep.Filter.OutlineColor" );
+
+	return ActionStepBlockPtr.IsValid() ? ActionStepBlockPtr->GetOutlineColor() : BlockColor;
+}
+
+FMargin SDataprepGraphActionStepNode::GetBlockPadding()
+{
+	static const FMargin Selected = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Selected.Padding" );
+	static const FMargin Regular = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Regular.Padding" );
+
+	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
+
+	return bIsSelected ? Selected : Regular;
+}
+
 FSlateColor SDataprepGraphActionStepNode::GetDragAndDropColor() const
 {
-	static const FLinearColor BackgroundColor = FDataprepEditorStyle::GetColor("DataprepActionStep.BackgroundColor");
-	static const FLinearColor DragAndDrop = FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop");
-
-	return bShowInsertionSlot ? DragAndDrop : BackgroundColor;
+	return ParentNodePtr.Pin()->GetInsertColor(StepIndex);
 }
 
 FSlateColor SDataprepGraphActionStepNode::GetBorderBackgroundColor() const
@@ -168,23 +242,42 @@ FSlateColor SDataprepGraphActionStepNode::GetBorderBackgroundColor() const
 
 FReply SDataprepGraphActionStepNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	GetOwnerPanel()->SelectionManager.ClickedOnNode(GraphNode, MouseEvent);
-
 	if ( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 	{
+		GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
 		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
+	}
+
+	// Take ownership of the mouse if right mouse button clicked to display contextual menu
+	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	{
+		if ( !GetOwnerPanel()->SelectionManager.SelectedNodes.Contains( GraphNode ) )
+		{
+			GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+		}
+		return FReply::Handled();
 	}
 
 	return SGraphNode::OnMouseButtonDown( MyGeometry, MouseEvent);
 }
 
-FReply SDataprepGraphActionStepNode::OnMouseMove(const FGeometry& SenderGeometry, const FPointerEvent& MouseEvent)
+FReply SDataprepGraphActionStepNode::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (!MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton) && bShowInsertionSlot)
+	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
 	{
-		bShowInsertionSlot = false;
+		ensure(OwnerGraphPanelPtr.IsValid());
+
+		const FVector2D Position = MouseEvent.GetScreenSpacePosition();
+		OwnerGraphPanelPtr.Pin()->SummonContextMenu( Position, Position, GraphNode, nullptr, TArray<UEdGraphPin*>() );
+
+		return FReply::Handled();
 	}
 
+	return FReply::Unhandled();
+}
+
+FReply SDataprepGraphActionStepNode::OnMouseMove(const FGeometry& SenderGeometry, const FPointerEvent& MouseEvent)
+{
 	return FReply::Unhandled();
 }
 
@@ -194,7 +287,11 @@ FReply SDataprepGraphActionStepNode::OnDragDetected(const FGeometry & MyGeometry
 	{
 		if (UDataprepActionStep* ActionStep = ActionStepNode->GetDataprepActionStep())
 		{
-			return FReply::Handled().BeginDragDrop(FDataprepDragDropOp::New( GetOwnerPanel().ToSharedRef(), SharedThis(this)));
+			if(SDataprepGraphActionNode* ActionNode = ParentNodePtr.Pin().Get())
+			{
+				ActionNode->SetDraggedIndex(StepIndex);
+				return FReply::Handled().BeginDragDrop(FDataprepDragDropOp::New( SharedThis(ActionNode->GetParentTrackNode().Get()), SharedThis(this)));
+			}
 		}
 	}
 
@@ -211,7 +308,7 @@ void SDataprepGraphActionStepNode::OnDragEnter(const FGeometry& MyGeometry, cons
 
 		// Inform the Drag and Drop operation that we are hovering over this node.
 		DragNodeOp->SetHoveredNode(GraphNode);
-		bShowInsertionSlot = DragNodeOp->IsValidDrop();
+		ParentNodePtr.Pin()->SetHoveredIndex(StepIndex);
 
 		return;
 	}
@@ -227,7 +324,7 @@ FReply SDataprepGraphActionStepNode::OnDragOver(const FGeometry& MyGeometry, con
 	{
 		// Inform the Drag and Drop operation that we are hovering over this node.
 		DragNodeOp->SetHoveredNode(GraphNode);
-		bShowInsertionSlot = DragNodeOp->IsValidDrop();
+		ParentNodePtr.Pin()->SetHoveredIndex(StepIndex);
 
 		return FReply::Handled();
 	}
@@ -242,7 +339,7 @@ void SDataprepGraphActionStepNode::OnDragLeave(const FDragDropEvent& DragDropEve
 	{
 		// Inform the Drag and Drop operation that we are not this widget anymore
 		DragNodeOp->SetHoveredNode(nullptr);
-		bShowInsertionSlot = false;
+		ParentNodePtr.Pin()->SetHoveredIndex(INDEX_NONE);
 
 		return;
 	}
@@ -252,7 +349,7 @@ void SDataprepGraphActionStepNode::OnDragLeave(const FDragDropEvent& DragDropEve
 
 FReply SDataprepGraphActionStepNode::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	bShowInsertionSlot = false;
+	ParentNodePtr.Pin()->SetDraggedIndex(INDEX_NONE);
 
 	// Process OnDrop if done by FDataprepDragDropOp
 	TSharedPtr<FDataprepDragDropOp> DragActionStepNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();

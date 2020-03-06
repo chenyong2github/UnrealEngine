@@ -106,7 +106,6 @@ DECLARE_CYCLE_STAT(TEXT("ParticleComponent UpdateDynamicData GT"), STAT_Particle
 DECLARE_CYCLE_STAT(TEXT("ParticleComponent OrientZAxisTowardCamera GT"), STAT_UParticleSystemComponent_OrientZAxisTowardCamera, STATGROUP_Particles);
 DECLARE_CYCLE_STAT(TEXT("ParticleComponent QueueFinalize GT"), STAT_UParticleSystemComponent_QueueFinalize, STATGROUP_Particles);
 DECLARE_CYCLE_STAT(TEXT("ParticleComponent CheckForReset GT"), STAT_UParticleSystemComponent_CheckForReset, STATGROUP_Particles);
-DECLARE_CYCLE_STAT(TEXT("ParticleComponent LOD_Inactive GT"), STAT_UParticleSystemComponent_LOD_Inactive, STATGROUP_Particles);
 DECLARE_CYCLE_STAT(TEXT("ParticleComponent LOD GT"), STAT_UParticleSystemComponent_LOD, STATGROUP_Particles);
 DECLARE_CYCLE_STAT(TEXT("ParticleComponent QueueTasksGT"), STAT_UParticleSystemComponent_QueueTasks, STATGROUP_Particles);
 DECLARE_CYCLE_STAT(TEXT("ParticleComponent QueueAsyncGT"), STAT_UParticleSystemComponent_QueueAsync, STATGROUP_Particles);
@@ -3563,7 +3562,6 @@ bool UParticleSystemComponent::CanSkipTickDueToVisibility()
 {
 	if (Template && Template->IsLooping() && CanConsiderInvisible() && !bWasDeactivated)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_UParticleSystemComponent_LOD_Inactive);
 		bForcedInActive = true;
 		SpawnEvents.Empty();
 		DeathEvents.Empty();
@@ -3925,7 +3923,7 @@ void UParticleSystemComponent::OnEndOfFrameUpdateDuringTick()
 	WaitForAsyncAndFinalize(STALL);
 }
 
-void UParticleSystemComponent::CreateRenderState_Concurrent()
+void UParticleSystemComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	LLM_SCOPE(ELLMTag::Particles);
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_CreateRenderState_Concurrent);
@@ -3954,7 +3952,7 @@ void UParticleSystemComponent::CreateRenderState_Concurrent()
 		}
 	}
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	bJustRegistered = true;
 }
@@ -7083,6 +7081,17 @@ void UParticleSystemComponent::SetBoolParameter(FName Name, bool Value)
 {
 	SetFloatParameter(Name, (Value ? 1.0f : 0.0f));
 
+}
+/**
+ *	Set a named float instance parameter on this ParticleSystemComponent.
+ *	Updates the parameter if it already exists, or creates a new entry if not.
+	This maps a int to a float for parity as cascade doesn't have booleans.
+	This for adding functionality to the parent UFXSystemComponent to set int
+	variables.
+ */
+void UParticleSystemComponent::SetIntParameter(FName Name, int Value)
+{
+	SetFloatParameter(Name, float(Value));
 }
 
 /** 

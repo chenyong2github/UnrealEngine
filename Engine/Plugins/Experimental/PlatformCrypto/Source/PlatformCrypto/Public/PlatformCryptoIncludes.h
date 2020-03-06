@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 
-#if PLATFORM_XBOXONE
+#if !defined(USE_BCRYPT)
+	#define USE_BCRYPT 0
+#endif
+
+#if USE_BCRYPT
 	#include "EncryptionContextBCrypt.h"
 #elif PLATFORM_SWITCH
 	#include "EncryptionContextSwitch.h"

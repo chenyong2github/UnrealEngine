@@ -61,10 +61,6 @@ public class libstrophe : ModuleRules
 			string LibrayPath = Path.Combine(StrophePackagePath, Target.Platform.ToString(), ConfigName) + "/";
 			PublicSystemLibraries.Add(LibrayPath + "libstrophe.a");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, Target.Platform.ToString(), ConfigName, "libstrophe.a"));
-		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Linux", Target.Architecture.ToString(), ConfigName, "libstrophe" + ((Target.LinkType != TargetLinkType.Monolithic) ? "_fPIC" : "") + ".a"));

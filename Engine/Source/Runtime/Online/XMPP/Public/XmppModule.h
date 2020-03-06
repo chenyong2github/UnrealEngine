@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/CoreMisc.h"
+#include "Containers/Ticker.h"
 #include "XmppConnection.h"
 #include "Modules/ModuleInterface.h"
 #include "XmppMultiUserChat.h"
@@ -15,7 +16,7 @@ class Error;
  * Use CreateConnection to create a new Xmpp connection
  */
 class XMPP_API FXmppModule :
-	public IModuleInterface, public FSelfRegisteringExec
+	public IModuleInterface, public FSelfRegisteringExec, public FTickerObjectBase
 {
 
 public:
@@ -95,6 +96,9 @@ public:
 	{
 		return bEnabled;
 	}
+
+	// FTickerObjectBase
+	virtual bool Tick(float DeltaTime) override;
 
 	/**
 	 * Delegate callback when a system acquires ownership over an XMPP connection

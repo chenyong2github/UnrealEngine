@@ -62,7 +62,6 @@
 #include "IImageWrapperModule.h"
 #include "HAL/PlatformApplicationMisc.h"
 
-CSV_DEFINE_CATEGORY(View, true);
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -116,43 +115,92 @@ static TAutoConsoleVariable<float> CVarSecondaryScreenPercentage( // TODO: make 
 	TEXT(" 1: override secondary screen percentage."),
 	ECVF_Default);
 
+#if CSV_PROFILER
+struct FCsvLocalPlayer
+{
+	FCsvLocalPlayer()
+	{
+		CategoryIndex = INDEX_NONE;
+		PrevViewOrigin = FVector::ZeroVector;
+		LastFrame = 0;
+		PrevTime = 0.0;
+	}
 
-void UGameViewportClient::UpdateCsvCameraStats(const FSceneView* View)
+	uint32 CategoryIndex;
+	uint32 LastFrame;
+	double PrevTime;
+	FVector PrevViewOrigin;
+};
+static TMap<uint32, FCsvLocalPlayer> GCsvLocalPlayers;
+#endif
+
+void UGameViewportClient::EnableCsvPlayerStats(int32 LocalPlayerCount)
 {
 #if CSV_PROFILER
-	if (!View)
+	if (GCsvLocalPlayers.Num() < LocalPlayerCount)
 	{
-		return;
+		for (int PlayerIndex = GCsvLocalPlayers.Num(); PlayerIndex < LocalPlayerCount; PlayerIndex++)
+		{
+			FCsvLocalPlayer& CsvData = GCsvLocalPlayers.Add(PlayerIndex);
+			uint32 index = GCsvLocalPlayers.Num() - 1;
+			FString CategoryName = (PlayerIndex == 0) ? TEXT("View") : FString::Printf(TEXT("View%d"), index);
+			CsvData.CategoryIndex = FCsvProfiler::Get()->RegisterCategory(CategoryName, (PlayerIndex == 0) ? true : false, false);
+		}
 	}
-	static uint32 PrevFrameNumber = GFrameNumber;
-	static double PrevTime = 0.0;
-	static FVector PrevViewOrigin = FVector(ForceInitToZero);
 
-	// TODO: support multiple views/view families, e.g for splitscreen. For now, we just output stats for the first one.
-	if (GFrameNumber != PrevFrameNumber)
+	int32 PlayerIndex = 0;
+	for (auto& KV : GCsvLocalPlayers)
 	{
-		FVector ViewOrigin = View->ViewMatrices.GetViewOrigin();
-		FVector ForwardVec = View->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
-		FVector UpVec = View->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(1);
-		FVector Diff = ViewOrigin - PrevViewOrigin;
-		double CurrentTime = FPlatformTime::Seconds();
-		double DeltaT = CurrentTime - PrevTime;
-		FVector Velocity = Diff / float(DeltaT);
-		float CameraSpeed = Velocity.Size();
-		PrevViewOrigin = ViewOrigin;
-		PrevTime = CurrentTime;
-		PrevFrameNumber = GFrameNumber;
+		FCsvLocalPlayer& value = KV.Value;
+		FCsvProfiler::Get()->EnableCategoryByIndex(value.CategoryIndex, PlayerIndex < LocalPlayerCount);
+		PlayerIndex++;
+	}
+#endif
+}
 
-		CSV_CUSTOM_STAT(View, PosX, View->ViewMatrices.GetViewOrigin().X, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, PosY, View->ViewMatrices.GetViewOrigin().Y, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, PosZ, View->ViewMatrices.GetViewOrigin().Z, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, ForwardX, ForwardVec.X, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, ForwardY, ForwardVec.Y, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, ForwardZ, ForwardVec.Z, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, UpX, UpVec.X, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, UpY, UpVec.Y, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, UpZ, UpVec.Z, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(View, Speed, CameraSpeed, ECsvCustomStatOp::Set);
+void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap)
+{
+#if CSV_PROFILER
+
+	for (TMap<ULocalPlayer*, FSceneView*>::TConstIterator It(PlayerViewMap); It; ++It)
+	{
+		ULocalPlayer* LocalPlayer = It.Key();
+		FSceneView* SceneView = It.Value();
+
+		uint32 PlayerIndex = ConvertLocalPlayerToGamePlayerIndex(LocalPlayer);
+		if (PlayerIndex != INDEX_NONE)
+		{
+			FCsvLocalPlayer& CsvData = GCsvLocalPlayers.FindOrAdd(PlayerIndex);
+			if (CsvData.CategoryIndex == INDEX_NONE)
+			{
+				uint32 index = GCsvLocalPlayers.Num() - 1;
+				FString CategoryName = LocalPlayer->IsPrimaryPlayer() ? TEXT("View") : FString::Printf(TEXT("View%d"), index);
+				CsvData.CategoryIndex = FCsvProfiler::Get()->RegisterCategory(CategoryName, (index == 0) ? true : false, false);
+			}
+
+			FVector ViewOrigin = SceneView->ViewMatrices.GetViewOrigin();
+			FVector ForwardVec = SceneView->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
+			FVector UpVec = SceneView->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(1);
+			FVector Diff = ViewOrigin - CsvData.PrevViewOrigin;
+			double CurrentTime = FPlatformTime::Seconds();
+			double DeltaT = CurrentTime - CsvData.PrevTime;
+			FVector Velocity = Diff / float(DeltaT);
+			float CameraSpeed = Velocity.Size();
+			CsvData.PrevViewOrigin = ViewOrigin;
+			CsvData.LastFrame = GFrameNumber;
+			CsvData.PrevTime = CurrentTime;
+
+			FCsvProfiler::RecordCustomStat("PosX", CsvData.CategoryIndex, ViewOrigin.X, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("PosY", CsvData.CategoryIndex, ViewOrigin.Y, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("PosZ", CsvData.CategoryIndex, ViewOrigin.Z, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("ForwardX", CsvData.CategoryIndex, ForwardVec.X, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("ForwardY", CsvData.CategoryIndex, ForwardVec.Y, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("ForwardZ", CsvData.CategoryIndex, ForwardVec.Z, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("UpX", CsvData.CategoryIndex, UpVec.X, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("UpY", CsvData.CategoryIndex, UpVec.Y, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("UpZ", CsvData.CategoryIndex, UpVec.Z, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("Speed", CsvData.CategoryIndex, CameraSpeed, ECsvCustomStatOp::Set);
+		}
 	}
 #endif
 }
@@ -160,9 +208,6 @@ void UGameViewportClient::UpdateCsvCameraStats(const FSceneView* View)
 
 UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if WITH_EDITOR
-	, bShowTitleSafeZone(true)
-#endif
 	, EngineShowFlags(ESFIM_Game)
 	, CurrentBufferVisualizationMode(NAME_None)
 	, HighResScreenshotDialog(NULL)
@@ -171,7 +216,6 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	, MouseCaptureMode(EMouseCaptureMode::CapturePermanently)
 	, bHideCursorDuringCapture(false)
 	, MouseLockMode(EMouseLockMode::LockOnCapture)
-	, bHasAudioFocus(false)
 	, bIsMouseOverClient(false)
 #if WITH_EDITOR
 	, bUseMouseForTouchInEditor(false)
@@ -182,6 +226,9 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	ViewModeIndex = VMI_Lit;
 
 	SplitscreenInfo.Init(FSplitscreenData(), ESplitScreenType::SplitTypeCount);
+
+	static float OneOverThree = 1.0f / 3.0f;
+	static float TwoOverThree = 2.0f / 3.0f;
 
 	SplitscreenInfo[ESplitScreenType::None].PlayerData.Add(FPerPlayerSplitscreenData(1.0f, 1.0f, 0.0f, 0.0f));
 
@@ -199,13 +246,13 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	SplitscreenInfo[ESplitScreenType::ThreePlayer_FavorBottom].PlayerData.Add(FPerPlayerSplitscreenData(0.5f, 0.5f, 0.5f, 0.0f));
 	SplitscreenInfo[ESplitScreenType::ThreePlayer_FavorBottom].PlayerData.Add(FPerPlayerSplitscreenData(1.0f, 0.5f, 0.0f, 0.5f));
 
-	SplitscreenInfo[ESplitScreenType::ThreePlayer_Vertical].PlayerData.Add(FPerPlayerSplitscreenData(0.333f, 1.0f, 0.0f, 0.0f));
-	SplitscreenInfo[ESplitScreenType::ThreePlayer_Vertical].PlayerData.Add(FPerPlayerSplitscreenData(0.333f, 1.0f, 0.333f, 0.0f));
-	SplitscreenInfo[ESplitScreenType::ThreePlayer_Vertical].PlayerData.Add(FPerPlayerSplitscreenData(0.333f, 1.0f, 0.666f, 0.0f));
+	SplitscreenInfo[ESplitScreenType::ThreePlayer_Vertical].PlayerData.Add(FPerPlayerSplitscreenData(OneOverThree, 1.0f, 0.0f, 0.0f));
+	SplitscreenInfo[ESplitScreenType::ThreePlayer_Vertical].PlayerData.Add(FPerPlayerSplitscreenData(OneOverThree, 1.0f, OneOverThree, 0.0f));
+	SplitscreenInfo[ESplitScreenType::ThreePlayer_Vertical].PlayerData.Add(FPerPlayerSplitscreenData(OneOverThree, 1.0f, TwoOverThree, 0.0f));
 
-	SplitscreenInfo[ESplitScreenType::ThreePlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.0f, 0.333f, 0.0f, 0.0f));
-	SplitscreenInfo[ESplitScreenType::ThreePlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.0f, 0.333f, 0.0f, 0.333f));
-	SplitscreenInfo[ESplitScreenType::ThreePlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.0f, 0.333f, 0.0f, 0.666f));
+	SplitscreenInfo[ESplitScreenType::ThreePlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.0f, OneOverThree, 0.0f, 0.0f));
+	SplitscreenInfo[ESplitScreenType::ThreePlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.0f, OneOverThree, 0.0f, OneOverThree));
+	SplitscreenInfo[ESplitScreenType::ThreePlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.0f, OneOverThree, 0.0f, TwoOverThree));
 
 	SplitscreenInfo[ESplitScreenType::FourPlayer_Grid].PlayerData.Add(FPerPlayerSplitscreenData(0.5f, 0.5f, 0.0f, 0.0f));
 	SplitscreenInfo[ESplitScreenType::FourPlayer_Grid].PlayerData.Add(FPerPlayerSplitscreenData(0.5f, 0.5f, 0.5f, 0.0f));
@@ -245,9 +292,6 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 
 UGameViewportClient::UGameViewportClient(FVTableHelper& Helper)
 	: Super(Helper)
-#if WITH_EDITOR
-	, bShowTitleSafeZone(true)
-#endif
 	, EngineShowFlags(ESFIM_Game)
 	, CurrentBufferVisualizationMode(NAME_None)
 	, HighResScreenshotDialog(NULL)
@@ -255,7 +299,6 @@ UGameViewportClient::UGameViewportClient(FVTableHelper& Helper)
 	, MouseCaptureMode(EMouseCaptureMode::CapturePermanently)
 	, bHideCursorDuringCapture(false)
 	, MouseLockMode(EMouseLockMode::LockOnCapture)
-	, bHasAudioFocus(false)
 {
 
 }
@@ -915,6 +958,27 @@ void UGameViewportClient::AddSoftwareCursor(EMouseCursor::Type Cursor, const FSo
 	}
 }
 
+void UGameViewportClient::AddSoftwareCursorFromSlateWidget(EMouseCursor::Type InCursorType, TSharedPtr<SWidget> CursorWidgetPtr)
+{
+	if (CursorWidgetPtr.IsValid())
+	{
+		CursorWidgets.Emplace(InCursorType, CursorWidgetPtr);
+	}
+}
+
+TSharedPtr<SWidget> UGameViewportClient::GetSoftwareCursorWidget(EMouseCursor::Type Cursor) const
+{
+	if (CursorWidgets.Contains(Cursor))
+	{
+		const TSharedPtr<SWidget> CursorWidgetPtr = CursorWidgets.FindRef(Cursor);
+		if (CursorWidgetPtr.IsValid())
+		{	
+			return CursorWidgetPtr;
+		}
+	}
+	return nullptr;
+}
+
 bool UGameViewportClient::HasSoftwareCursor(EMouseCursor::Type Cursor) const
 {
 	return CursorWidgets.Contains(Cursor);
@@ -1268,6 +1332,11 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
 						View->SpecularOverrideParameter = FVector4(.1f, .1f, .1f, 0.0f);
 					}
+					else if (View->Family->EngineShowFlags.LightingOnlyOverride)
+					{
+						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+						View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+					}
 					else if (View->Family->EngineShowFlags.ReflectionOverride)
 					{
 						View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
@@ -1357,10 +1426,6 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 					#if RHI_RAYTRACING
 						View->SetupRayTracedRendering();
 					#endif
-
-					#if CSV_PROFILER
-						UpdateCsvCameraStats(View);
-					#endif
 					}
 
 					// Add view information for resource streaming. Allow up to 5X boost for small FOV.
@@ -1371,6 +1436,10 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			}
 		}
 	}
+
+#if CSV_PROFILER
+	UpdateCsvCameraStats(PlayerViewMap);
+#endif
 
 	FinalizeViews(&ViewFamily, PlayerViewMap);
 
@@ -1958,12 +2027,8 @@ bool UGameViewportClient::IsOrtho() const
 void UGameViewportClient::PostRender(UCanvas* Canvas)
 {
 #if WITH_EDITOR
-	if(bShowTitleSafeZone)
-	{
-		DrawTitleSafeArea(Canvas);
-	}
+	DrawTitleSafeArea(Canvas);
 #endif
-
 	// Draw the transition screen.
 	DrawTransition(Canvas);
 }
@@ -2005,9 +2070,19 @@ void UGameViewportClient::SSSwapControllers()
 
 void UGameViewportClient::ShowTitleSafeArea()
 {
-#if !UE_BUILD_SHIPPING
-	bShowTitleSafeZone = !bShowTitleSafeZone;
-#endif
+	static IConsoleVariable* DebugSafeZoneModeCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DebugSafeZone.Mode"));
+	if (DebugSafeZoneModeCvar)
+	{
+		const int32 DebugSafeZoneMode = DebugSafeZoneModeCvar->GetInt();
+		if (DebugSafeZoneMode != 1)
+		{
+			DebugSafeZoneModeCvar->Set(1);
+		}
+		else
+		{
+			DebugSafeZoneModeCvar->Set(0);
+		}
+	}
 }
 
 void UGameViewportClient::SetConsoleTarget(int32 PlayerIndex)
@@ -2432,13 +2507,33 @@ bool UGameViewportClient::CalculateDeadZoneForAllSides( ULocalPlayer* LPlayer, U
 void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 {
 #if WITH_EDITOR
+	// If we have a valid player hud, then the title area has already rendered.
+	APlayerController* FirstPlayerController = GetWorld()->GetFirstPlayerController();
+	if (FirstPlayerController && FirstPlayerController->GetHUD())
+	{
+		return;
+	}
+
+	// If r.DebugSafeZone.Mode isn't set to draw title area, don't draw it.
+	static IConsoleVariable* SafeZoneModeCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DebugSafeZone.Mode"));
+	if (SafeZoneModeCvar && (SafeZoneModeCvar->GetInt() != 1))
+	{
+		return;
+	}
+
 	FMargin SafeZone;
 	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
 
 	float Width, Height;
 	GetPixelSizeOfScreen(Width, Height, Canvas, 0);
 
-	const FLinearColor UnsafeZoneColor(1.0f, 0.0f, 0.0f, 0.25f);
+	FLinearColor UnsafeZoneColor(1.0f, 0.0f, 0.0f, 0.25f);
+	static IConsoleVariable* AlphaCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DebugSafeZone.OverlayAlpha"));
+	if (AlphaCvar)
+	{
+		UnsafeZoneColor.A = AlphaCvar->GetFloat();
+	}
+
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, GWhiteTexture, UnsafeZoneColor);
 	TileItem.BlendMode = SE_BLEND_Translucent;
 
@@ -3812,17 +3907,10 @@ bool UGameViewportClient::IsSimulateInEditorViewport() const
 	return GameViewport ? GameViewport->GetPlayInEditorIsSimulate() : false;
 }
 
-#if WITH_EDITOR
-void UGameViewportClient::SetPlayInEditorUseMouseForTouch(bool bInUseMouseForTouch)
-{
-	bUseMouseForTouchInEditor = bInUseMouseForTouch;
-}
-#endif
-
 bool UGameViewportClient::GetUseMouseForTouch() const
 {
 #if WITH_EDITOR
-	return bUseMouseForTouchInEditor || GetDefault<UInputSettings>()->bUseMouseForTouch;
+	return GetDefault<ULevelEditorPlaySettings>()->UseMouseForTouch || GetDefault<UInputSettings>()->bUseMouseForTouch;
 #else
 	return GetDefault<UInputSettings>()->bUseMouseForTouch;
 #endif

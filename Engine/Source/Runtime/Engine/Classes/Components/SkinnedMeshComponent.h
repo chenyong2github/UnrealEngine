@@ -14,6 +14,8 @@
 #include "Containers/SortedMap.h"
 #include "SkinnedMeshComponent.generated.h"
 
+enum class ESkinCacheUsage : uint8;
+
 class FPrimitiveSceneProxy;
 class FColorVertexBuffer;
 class FSkinWeightVertexBuffer;
@@ -130,18 +132,6 @@ struct FActiveMorphTarget
 	}
 };
 
-struct FSkeletalMeshObjectCallbackData
-{
-	enum class EEventType { Register, Unregister, Update };
-	typedef void (*TCallbackMeshObjectCallback)(
-		EEventType Event, 
-		class FSkeletalMeshObject* MeshObject,
-		uint64 UserData);
-
-	uint64 UserData = 0;
-	TCallbackMeshObjectCallback Run = nullptr;
-};
-
 /** Vertex skin weight info supplied for a component override. */
 USTRUCT(BlueprintType, meta = (HasNativeMake = "Engine.KismetRenderingLibrary.MakeSkinWeightInfo", HasNativeBreak = "Engine.KismetRenderingLibrary.BreakSkinWeightInfo"))
 struct FSkelMeshSkinWeightInfo
@@ -230,6 +220,12 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent
 	 */
 	UPROPERTY(BlueprintReadOnly, Category="Mesh")
 	TWeakObjectPtr<USkinnedMeshComponent> MasterPoseComponent;
+
+	/**
+	 * How this Component's LOD uses the skin cache feature. Auto will defer to the asset's (SkeletalMesh) option. If Ray Tracing is enabled, will imply Enabled
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TArray<ESkinCacheUsage> SkinCacheUsage;
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const
@@ -479,6 +475,9 @@ protected:
 
 	/** Whether or not a Skin Weight profile is currently set for this component */
 	uint8 bSkinWeightProfileSet:1;
+
+	/** Whether or not a Skin Weight profile is currently pending load and creation for this component */
+	uint8 bSkinWeightProfilePending:1;
 public:
 
 	/** Whether we should use the min lod specified in MinLodModel for this component instead of the min lod in the mesh */
@@ -659,8 +658,6 @@ public:
 
 	/** Object responsible for sending bone transforms, morph target state etc. to render thread. */
 	class FSkeletalMeshObject*	MeshObject;
-	FSkeletalMeshObjectCallbackData MeshObjectCallbackData;
-	void SetMeshObjectCallbackData(FSkeletalMeshObjectCallbackData& MeshObjectCallbackData);
 
 	/** Gets the skeletal mesh resource used for rendering the component. */
 	FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const;
@@ -800,6 +797,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	bool GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const;
 
+	bool IsSkinCacheAllowed(int32 LodIdx) const;
+
 public:
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
@@ -815,7 +814,7 @@ protected:
 	//~ Begin UActorComponent Interface
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
 	virtual bool RequiresGameThreadEndOfFrameRecreate() const override
@@ -1002,9 +1001,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	bool IsUsingSkinWeightProfile() const { return bSkinWeightProfileSet == 1;  }
 
-protected:
+	/** Check whether or not a Skin Weight Profile is currently pending load / create */
+	bool IsSkinWeightProfilePending() const { return bSkinWeightProfilePending == 1; }
+
 	/** Queues an update of the Skin Weight Buffer used by the current MeshObject */
 	void UpdateSkinWeightOverrideBuffer();
+protected:	
 
 	/** Name of currently set up Skin Weight profile, otherwise is 'none' */
 	FName CurrentSkinWeightProfileName;
@@ -1558,7 +1560,7 @@ public:
 
 		if (bWasRenderStateCreated && bIsRegistered)
 		{
-			Component->CreateRenderState_Concurrent();
+			Component->CreateRenderState_Concurrent(nullptr);
 		}
 	}
 };

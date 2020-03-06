@@ -26,7 +26,7 @@
 
 #include "PhysXCookHelper.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	#include "PhysXPublic.h"
 	#include "PhysicsEngine/PhysXSupport.h"
 #endif // WITH_PHYSX
@@ -128,12 +128,15 @@ DEFINE_STAT(STAT_PhysXCooking);
 
 bool IsRuntimeCookingEnabled()
 {
+#if PHYSICS_INTERFACE_PHYSX
 	return FModuleManager::LoadModulePtr<IPhysXCookingModule>("RuntimePhysXCooking") != nullptr;
+#else
+	return false;
+#endif
 }
 #endif //WITH_PHYSX
 
-
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// Quaternion that converts Sphyls from UE space to PhysX space (negate Y, swap X & Z)
 	// This is equivalent to a 180 degree rotation around the normalized (1, 0, 1) axis
 	const physx::PxQuat U2PSphylBasis( PI, PxVec3( 1.0f / FMath::Sqrt( 2.0f ), 0.0f, 1.0f / FMath::Sqrt( 2.0f ) ) );
@@ -188,7 +191,7 @@ UBodySetup::UBodySetup(const FObjectInitializer& ObjectInitializer)
 	SetFlags(RF_Transactional);
 	bSharedCookedData = false;
 	CookedFormatDataOverride = nullptr;
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	CurrentCookHelper = nullptr;
 #endif
 }
@@ -201,9 +204,10 @@ void UBodySetup::CopyBodyPropertiesFrom(const UBodySetup* FromSetup)
 	for (int32 i = 0; i < AggGeom.ConvexElems.Num(); i++)
 	{
 		FKConvexElem& ConvexElem = AggGeom.ConvexElems[i];
+#if PHYSICS_INTERFACE_PHYSX
 		ConvexElem.SetConvexMesh(nullptr);
 		ConvexElem.SetMirroredConvexMesh(nullptr);
-#if WITH_CHAOS
+#elif WITH_CHAOS
 		ConvexElem.ResetChaosConvexMesh();
 #endif
 	}
@@ -230,9 +234,10 @@ void UBodySetup::AddCollisionFrom(const FKAggregateGeom& FromAggGeom)
 	for (int32 i = FirstNewConvexIdx; i < AggGeom.ConvexElems.Num(); i++)
 	{
 		FKConvexElem& ConvexElem = AggGeom.ConvexElems[i];
+#if PHYSICS_INTERFACE_PHYSX
 		ConvexElem.SetConvexMesh(nullptr);
 		ConvexElem.SetMirroredConvexMesh(nullptr);
-#if WITH_CHAOS
+#elif WITH_CHAOS
 		ConvexElem.ResetChaosConvexMesh();
 #endif
 	}
@@ -636,7 +641,7 @@ void UBodySetup::CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished OnAsyncPhy
 
 void UBodySetup::AbortPhysicsMeshAsyncCreation()
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (CurrentCookHelper)
 	{
 		CurrentCookHelper->Abort();
@@ -813,6 +818,9 @@ void UBodySetup::ClearPhysicsMeshes()
 	AggGeom.FreeRenderInfo();
 }
 
+DECLARE_CYCLE_STAT(TEXT("AddShapesToRigidActor"), STAT_AddShapesToActor, STATGROUP_Physics);
+DECLARE_CYCLE_STAT(TEXT("AddGeomToSolver"), STAT_AddGeomToSolver, STATGROUP_Physics);
+
 void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	FBodyInstance* OwningInstance, 
 	FVector& Scale3D, 
@@ -823,6 +831,8 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	const FTransform& RelativeTM, 
 	TArray<FPhysicsShapeHandle>* NewShapes)
 {
+	SCOPE_CYCLE_COUNTER(STAT_AddShapesToActor);
+
 	check(OwningInstance);
 
 	// in editor, there are a lot of things relying on body setup to create physics meshes
@@ -850,14 +860,17 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	AddParams.LocalTransform = RelativeTM;
 	AddParams.WorldTransform = OwningInstance->GetUnrealWorldTransform();
 	AddParams.Geometry = &AggGeom;
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	AddParams.TriMeshes = TArrayView<PxTriangleMesh*>(TriMeshes);
 #endif
 
 #if WITH_CHAOS
 	AddParams.ChaosTriMeshes = MakeArrayView(ChaosTriMeshes);
 #endif
-	FPhysicsInterface::AddGeometry(OwningInstance->ActorHandle, AddParams, NewShapes);
+	{
+		SCOPE_CYCLE_COUNTER(STAT_AddGeomToSolver);
+		FPhysicsInterface::AddGeometry(OwningInstance->ActorHandle, AddParams, NewShapes);
+	}
 }
 
 void UBodySetup::RemoveSimpleCollision()
@@ -958,6 +971,7 @@ void UBodySetup::FinishDestroy()
 void UBodySetup::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 
 	// Load GUID (or create one for older versions)
 	Ar << BodySetupGuid;
@@ -1032,6 +1046,25 @@ void UBodySetup::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 	AggGeom.FixupDeprecated( Ar );
+#endif
+
+#if WITH_CHAOS && WITH_EDITOR
+
+	if (Ar.IsLoading())
+	{
+		const bool bForceIndexRebuild = Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ForceRebuildBodySetupIndices;
+		for (FKConvexElem& Convex : AggGeom.ConvexElems)
+		{
+			// Reset potentially corrupted index data to correctly rebuild below
+			if (bForceIndexRebuild)
+			{
+				Convex.IndexData.Reset();
+			}
+			// Build an index buffer if we don't have one, either as a consequence of the check above or loading in a mesh that has never been
+			// processed with Chaos previously
+			Convex.ComputeChaosConvexIndices();
+		}
+	}
 #endif
 }
 
@@ -1124,7 +1157,7 @@ void UBodySetup::PostLoad()
 void UBodySetup::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateTriMeshVertices);
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (TriMeshes.Num())
 	{
 		check(TriMeshes[0] != nullptr);
@@ -1476,7 +1509,7 @@ void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// Count PhysX trimesh mem usage
 	for(PxTriangleMesh* TriMesh : TriMeshes)
 	{
@@ -1604,13 +1637,17 @@ FKConvexElem::FKConvexElem()
 	: FKShapeElem(EAggCollisionShape::Convex)
 	, ElemBox(ForceInit)
 	, Transform(FTransform::Identity)
+#if PHYSICS_INTERFACE_PHYSX
 	, ConvexMesh(NULL)
 	, ConvexMeshNegX(NULL)
+#endif
 {}
 
 FKConvexElem::FKConvexElem(const FKConvexElem& Other)
+#if PHYSICS_INTERFACE_PHYSX
 	: ConvexMesh(nullptr)
 	, ConvexMeshNegX(nullptr)
+#endif
 {
 	CloneElem(Other);
 }
@@ -1622,11 +1659,12 @@ FKConvexElem::~FKConvexElem()
 
 const FKConvexElem& FKConvexElem::operator=(const FKConvexElem& Other)
 {
+#if PHYSICS_INTERFACE_PHYSX
 	ensureMsgf(ConvexMesh == nullptr, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
 	ensureMsgf(ConvexMeshNegX == nullptr, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
 	ConvexMesh = nullptr;
 	ConvexMeshNegX = nullptr;
-#if WITH_CHAOS
+#elif WITH_CHAOS
 	ensureMsgf(!ChaosConvex, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
 	ResetChaosConvexMesh();
 #endif
@@ -1658,7 +1696,7 @@ float SignedVolumeOfTriangle(const FVector& p1, const FVector& p2, const FVector
 {
 	return FVector::DotProduct(p1, FVector::CrossProduct(p2, p3)) / 6.0f;
 }
-
+#if PHYSICS_INTERFACE_PHYSX
 physx::PxConvexMesh* FKConvexElem::GetConvexMesh() const
 {
 	return ConvexMesh;
@@ -1678,12 +1716,13 @@ void FKConvexElem::SetMirroredConvexMesh(physx::PxConvexMesh* InMesh)
 {
 	ConvexMeshNegX = InMesh;
 }
+#endif
 
 float FKConvexElem::GetVolume(const FVector& Scale) const
 {
 	float Volume = 0.0f;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (ConvexMesh != NULL)
 	{
 		// Preparation for convex mesh scaling implemented in another changelist
@@ -1714,7 +1753,10 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 			}
 		}
 	}
-#endif // WITH_PHYSX
+#elif WITH_CHAOS
+	//TODO Support ChaosConvex.
+	CHAOS_ENSURE(false);
+#endif
 
 	return Volume;
 }
@@ -1724,7 +1766,9 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 void FKConvexElem::SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex)
 {
 	ChaosConvex = MoveTemp(InChaosConvex);
-	ComputeChaosConvexIndices();
+	
+	const bool bForceCompute = true;
+	ComputeChaosConvexIndices(bForceCompute);
 }
 
 void FKConvexElem::ResetChaosConvexMesh()
@@ -1732,15 +1776,24 @@ void FKConvexElem::ResetChaosConvexMesh()
 	ChaosConvex.Reset();
 }
 
-ENGINE_API void FKConvexElem::ComputeChaosConvexIndices()
+ENGINE_API void FKConvexElem::ComputeChaosConvexIndices(bool bForceCompute)
 {
+	if (bForceCompute || IndexData.Num() == 0)
+	{
+		IndexData = GetChaosConvexIndices();
+	}
+}
+
+TArray<int32> FKConvexElem::GetChaosConvexIndices() const
+{
+	TArray<int32> ResultIndexData;
 	const int32 NumVerts = VertexData.Num();
-	if(NumVerts > 0 && IndexData.Num() == 0)
+	if (NumVerts > 0)
 	{
 		Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
 		ConvexParticles.AddParticles(NumVerts);
 
-		for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+		for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
 		{
 			ConvexParticles.X(VertIndex) = VertexData[VertIndex];
 		}
@@ -1748,14 +1801,16 @@ ENGINE_API void FKConvexElem::ComputeChaosConvexIndices()
 		TArray<Chaos::TVector<int32, 3>> Triangles;
 		Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles);
 
-		IndexData.Reset(Triangles.Num() * 3);
-		for(Chaos::TVector<int32, 3> Tri : Triangles)
+		ResultIndexData.Reserve(Triangles.Num() * 3);
+		for (Chaos::TVector<int32, 3> Tri : Triangles)
 		{
-			IndexData.Add(Tri[0]);
-			IndexData.Add(Tri[1]);
-			IndexData.Add(Tri[2]);
+			ResultIndexData.Add(Tri[0]);
+			ResultIndexData.Add(Tri[1]);
+			ResultIndexData.Add(Tri[2]);
 		}
 	}
+
+	return ResultIndexData;
 }
 #endif
 

@@ -2143,7 +2143,7 @@ void FMeshSectionSettingsLayout::OnSectionForceOpaqueFlagChanged( ECheckBoxState
 	FText TransactionTest = LOCTEXT("StaticMeshEditorSetForceOpaqueSectionFlag", "Staticmesh editor: Set Force Opaque For section, the section will be considered opaque in ray tracing effects");
 	if (NewState == ECheckBoxState::Unchecked)
 	{
-		TransactionTest = LOCTEXT("StaticMeshEditorClearShadowCastingSectionFlag", "Staticmesh editor: Clear Force Opaque For section");
+		TransactionTest = LOCTEXT("StaticMeshEditorClearForceOpaqueSectionFlag", "Staticmesh editor: Clear Force Opaque For section");
 	}
 	FScopedTransaction Transaction(TransactionTest);
 

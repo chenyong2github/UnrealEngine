@@ -19,14 +19,18 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineInProcessExecutor : public UMovi
 public:
 	UMoviePipelineInProcessExecutor()
 		: UMoviePipelineLinearExecutorBase()
+		, RemainingInitializationFrames(-1)
 	{
 	}
 
 protected:
 	virtual void Start(const UMoviePipelineExecutorJob* InJob) override;
-
-	virtual void UpdateWindowTitle();
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);
 	void OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline);
+	void OnTick();
+
+private:
+	/** If using delayed initialization, how many frames are left before we call Initialize. Will be -1 if not actively counting down. */
+	int32 RemainingInitializationFrames;
 };

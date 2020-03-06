@@ -27,8 +27,10 @@ class UMaterialExpressionChannelMaskParameter : public UMaterialExpressionVector
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionChannelMaskParameter)
 	TEnumAsByte<EChannelMaskParameterColor::Type> MaskChannel;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FExpressionInput Input;
+#endif
 
 #if WITH_EDITOR
 	virtual bool SetParameterValue(FName InParameterName, FLinearColor InValue) override;

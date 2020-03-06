@@ -108,6 +108,9 @@ UObject* UUSDAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 			}
 		}
 
+		// Reset this cache or else reimport will not work properly
+		ImportContext.PathToImportAssetMap.Empty();
+
 		ImportContext.DisplayErrorMessages(IsAutomatedImport());
 	}
 	else

@@ -20,7 +20,8 @@ public:
 	virtual bool VerifyFileAssociations() override;
 	virtual bool UpdateFileAssociations() override;
 
-	virtual bool RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn) override;
+	using FDesktopPlatformBase::RunUnrealBuildTool;
+	virtual bool RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn, int32& OutExitCode) override;
 	virtual bool IsUnrealBuildToolRunning() override;
 
 	virtual FFeedbackContext* GetNativeFeedbackContext() override;

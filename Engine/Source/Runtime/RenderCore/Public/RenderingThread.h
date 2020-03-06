@@ -10,6 +10,8 @@
 #include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Templates/Atomic.h"
+#include "Trace/Trace.h"
+#include "Serialization/MemoryLayout.h"
 
 class FRHICommandListImmediate;
 
@@ -124,6 +126,8 @@ private:
 // Render commands
 ////////////////////////////////////
 
+RENDERCORE_API extern Trace::FChannel RenderCommandsChannel;
+
 /** The parent class of commands stored in the rendering command queue. */
 class RENDERCORE_API FRenderCommand
 {
@@ -186,14 +190,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-#if CPUPROFILERTRACE_ENABLED
-		static uint16 __CpuProfilerEventSpecId;
-		if (__CpuProfilerEventSpecId == 0)
-		{
-			__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(TSTR::TStr(), CpuProfilerGroup_Default);
-		}
-		FCpuProfilerTrace::FEventScope __CpuProfilerEventScope(__CpuProfilerEventSpecId);
-#endif
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(TSTR::TStr(), RenderCommandsChannel);
 		FRHICommandListImmediate& RHICmdList = GetImmediateCommandList_ForRenderCommand();
 		Lambda(RHICmdList);
 	}
@@ -247,6 +244,7 @@ private:
 template<typename TSTR, typename LAMBDA>
 FORCEINLINE_DEBUGGABLE void EnqueueUniqueRenderCommand(LAMBDA&& Lambda)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_EnqueueUniqueRenderCommand);
 	typedef TEnqueueUniqueRenderCommandType<TSTR, LAMBDA> EURCType;
 
 #if 0 // UE_SERVER && UE_BUILD_DEBUG

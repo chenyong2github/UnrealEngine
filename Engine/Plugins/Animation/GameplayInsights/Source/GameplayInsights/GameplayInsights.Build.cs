@@ -13,10 +13,12 @@ namespace UnrealBuildTool.Rules
 				"InputCore",
 				"SlateCore",
 				"Slate",
+				"TraceLog",
 				"TraceAnalysis",
 				"TraceServices",
 				"TraceInsights",
 				"AssetRegistry",
+				"ApplicationCore",
 			});
 
 			if (Target.bCompileAgainstEngine)
@@ -37,6 +39,8 @@ namespace UnrealBuildTool.Rules
 					"AnimationBlueprintEditor",
 					"Persona",
 					"UnrealEd",
+  					"GameplayInsightsEditor",
+					"EditorWidgets",
 				});
 			}
 		}

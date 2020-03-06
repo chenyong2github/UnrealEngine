@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.props" Condition="Exists('..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.props')" />
+  <Import Project="..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.props" Condition="Exists('..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -18,7 +20,7 @@
     <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup>
-	<WithSceneUnderstanding Condition="$(WithSceneUnderstanding) == ''">0</WithSceneUnderstanding>
+    <WithSceneUnderstanding Condition="$(WithSceneUnderstanding) == ''">0</WithSceneUnderstanding>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -61,14 +63,14 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-		<PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;_DEBUG;_LIB;%(PreprocessorDefinitions);MIXEDREALITYINTEROP_EXPORTS;WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;_DEBUG;_LIB;%(PreprocessorDefinitions);MIXEDREALITYINTEROP_EXPORTS;WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;../Include/HoloLens1Remoting</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../MixedRealityInteropHoloLens/Generated Files;../Include/$(WindowsTargetPlatformVersion);../Include;../Include/HoloLens1Remoting;</AdditionalIncludeDirectories>
       <CompileAsWinRT>true</CompileAsWinRT>
       <AdditionalUsingDirectories>$(VCIDEInstallDir)vcpackages;$(WindowsSDKDir)UnionMetadata\$(TargetPlatformVersion);$(WindowsSDKDir)UnionMetadata;</AdditionalUsingDirectories>
       <AdditionalOptions>/await /bigobj %(AdditionalOptions)</AdditionalOptions>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\Microsoft.Holographic.AppRemoting.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\Microsoft.MixedReality.QR.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\Microsoft.Holographic.AppRemoting.winmd;$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\Microsoft.Azure.SpatialAnchors.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -89,15 +91,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-		<PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;NDEBUG;_LIB;%(PreprocessorDefinitions);MIXEDREALITYINTEROP_EXPORTS;WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;NDEBUG;_LIB;%(PreprocessorDefinitions);MIXEDREALITYINTEROP_EXPORTS;WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;../Include/HoloLens1Remoting</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../MixedRealityInteropHoloLens/Generated Files;../Include/$(WindowsTargetPlatformVersion);../Include;../Include/HoloLens1Remoting;</AdditionalIncludeDirectories>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalUsingDirectories>$(VCIDEInstallDir)vcpackages;$(WindowsSDKDir)UnionMetadata\$(TargetPlatformVersion);$(WindowsSDKDir)UnionMetadata</AdditionalUsingDirectories>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\Microsoft.Holographic.AppRemoting.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\Microsoft.MixedReality.QR.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\Microsoft.Holographic.AppRemoting.winmd;$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\Microsoft.Azure.SpatialAnchors.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
+      <AdditionalUsingDirectories>$(VCIDEInstallDir)vcpackages;$(WindowsSDKDir)UnionMetadata\$(TargetPlatformVersion);$(WindowsSDKDir)UnionMetadata</AdditionalUsingDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -114,7 +116,7 @@
       <AdditionalLibraryDirectories>..\..\..\Source\ThirdParty\Lib\x64</AdditionalLibraryDirectories>
     </Lib>
     <CustomBuildStep>
-      <Command>"$(DevEnvDir)TextTransform.exe" -out $(SolutionDir)Include/MixedRealityInteropBuildInfo.h "$(ProjectDir)MixedRealityInteropBuildInfo.tt" -a !!WindowsTargetPlatformVersion!$(WindowsTargetPlatformVersion)</Command>
+      <Command>"$(DevEnvDir)TextTransform.exe" -out "$(SolutionDir)Include/MixedRealityInteropBuildInfo.h" "$(ProjectDir)MixedRealityInteropBuildInfo.tt" -a !!WindowsTargetPlatformVersion!$(WindowsTargetPlatformVersion)</Command>
     </CustomBuildStep>
     <CustomBuildStep>
       <Outputs>$(SolutionDir)Include/MixedRealityInteropBuildInfo.h</Outputs>
@@ -132,8 +134,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\MixedRealityInterop.h" />
+    <ClInclude Include="AzureSpatialAnchors.h" />
     <ClInclude Include="CxDataFromBuffer.h" />
     <ClInclude Include="FastConversion.h" />
+    <ClInclude Include="HandMeshObserver.h" />
     <ClInclude Include="MeshObserver.h" />
     <ClInclude Include="QRCodeObserver.h" />
     <ClInclude Include="SceneUnderstandingObserver.h" />
@@ -144,7 +148,9 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AzureSpatialAnchors.cpp" />
     <ClCompile Include="CameraImageCapture.cpp" />
+    <ClCompile Include="HandMeshObserver.cpp" />
     <ClCompile Include="MeshObserver.cpp" />
     <ClCompile Include="MixedRealityInterop.cpp" />
     <ClCompile Include="QRCodeObserver.cpp" />
@@ -158,8 +164,20 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="MixedRealityInteropBuildInfo.tt" />
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.targets" Condition="Exists('..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.targets')" />
+    <Import Project="..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.targets" Condition="Exists('..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.targets'))" />
+  </Target>
 </Project>

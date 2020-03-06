@@ -38,6 +38,7 @@ class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTe
 	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Defaults to 'ConstCoordinate' if not specified"))
 	FExpressionInput Coordinates;
 
+#if WITH_EDITORONLY_DATA
 	/** 
 	 * Texture object input which overrides Texture if specified. 
 	 * This only shows up in material functions and is used to implement texture parameters without actually putting the texture parameter in the function.
@@ -90,6 +91,7 @@ public:
 	/** only used if MipValue is not hooked up */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample)
 	int32 ConstMipValue;
+#endif // WITH_EDITORONLY_DATA
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR

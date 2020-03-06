@@ -112,13 +112,6 @@ protected:
 			&& (FCString::Strstr(Parameters.VertexFactoryType->GetName(), TEXT("LocalVertexFactory")) != NULL
 				|| FCString::Strstr(Parameters.VertexFactoryType->GetName(), TEXT("InstancedStaticMeshVertexFactory")) != NULL);
 	}
-
-	static void GetStreamOutElements(FStreamOutElementList& ElementList, TArray<uint32>& StreamStrides, int32& RasterizedStream)
-	{
-		StreamStrides.Add(ComputeUniformVertexStride() * 4);
-		GetUniformMeshStreamOutLayout(ElementList);
-		RasterizedStream = -1;
-	}
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FConvertToUniformMeshGS,TEXT("/Engine/Private/ConvertToUniformMesh.usf"),TEXT("ConvertToUniformMeshGS"),SF_Geometry);
@@ -161,8 +154,9 @@ void FConvertToUniformMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mes
 
 	const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material);
-	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material);
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 
 	Process(MeshBatch, BatchElementMask, PrimitiveSceneProxy, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
 }
@@ -311,12 +305,12 @@ public:
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		if (Parameters.Material->IsUIMaterial())
+		if (Parameters.MaterialParameters.MaterialDomain == MD_UI)
 		{
 			return false;
 		}
 
-		if (Parameters.Material->GetShadingModels().IsUnlit())
+		if (Parameters.MaterialParameters.ShadingModels.IsUnlit())
 		{
 			return false;
 		}
@@ -326,7 +320,7 @@ public:
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform,OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("EVALUATE_SURFEL_MATERIAL_GROUP_SIZE"), GEvaluateSurfelMaterialGroupSize);
 		OutEnvironment.SetDefine(TEXT("HAS_PRIMITIVE_UNIFORM_BUFFER"), 1);
 	}
@@ -354,7 +348,7 @@ public:
 		const FMatrix& Instance0Transform
 		)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
 
 		SetUniformBufferParameter(RHICmdList, ShaderRHI,GetUniformBufferParameter<FPrimitiveUniformShaderParameters>(),PrimitiveUniformBuffer);
@@ -375,7 +369,7 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, FViewInfo& View)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		SurfelBufferParameters.UnsetParameters(RHICmdList, ShaderRHI);
 
 		const FScene* Scene = (const FScene*)View.Family->Scene;
@@ -384,22 +378,12 @@ public:
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UniformMeshUAVs, UE_ARRAY_COUNT(UniformMeshUAVs));
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{		
-		bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		Ar << SurfelBufferParameters;
-		Ar << SurfelStartIndex;
-		Ar << NumSurfelsToGenerate;
-		Ar << Instance0InverseTransform;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
 
-	FSurfelBufferParameters SurfelBufferParameters;
-	FShaderParameter SurfelStartIndex;
-	FShaderParameter NumSurfelsToGenerate;
-	FShaderParameter Instance0InverseTransform;
+	LAYOUT_FIELD(FSurfelBufferParameters, SurfelBufferParameters);
+	LAYOUT_FIELD(FShaderParameter, SurfelStartIndex);
+	LAYOUT_FIELD(FShaderParameter, NumSurfelsToGenerate);
+	LAYOUT_FIELD(FShaderParameter, Instance0InverseTransform);
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FEvaluateSurfelMaterialCS,TEXT("/Engine/Private/EvaluateSurfelMaterial.usf"),TEXT("EvaluateSurfelMaterialCS"),SF_Compute);
@@ -416,11 +400,11 @@ void FUniformMeshConverter::GenerateSurfels(
 {
 	const FMaterial* Material = MaterialProxy->GetMaterial(View.GetFeatureLevel());
 	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
-	FEvaluateSurfelMaterialCS* ComputeShader = MaterialShaderMap->GetShader<FEvaluateSurfelMaterialCS>();
+	TShaderRef<FEvaluateSurfelMaterialCS> ComputeShader = MaterialShaderMap->GetShader<FEvaluateSurfelMaterialCS>();
 
-	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 	ComputeShader->SetParameters(RHICmdList, View, SurfelOffset, NumSurfels, MaterialProxy, PrimitiveUniformBuffer, Instance0Transform);
-	DispatchComputeShader(RHICmdList, ComputeShader, FMath::DivideAndRoundUp(NumSurfels, GEvaluateSurfelMaterialGroupSize), 1, 1);
+	DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), FMath::DivideAndRoundUp(NumSurfels, GEvaluateSurfelMaterialGroupSize), 1, 1);
 
 	ComputeShader->UnsetParameters(RHICmdList, View);
 }

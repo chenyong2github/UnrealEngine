@@ -3,6 +3,7 @@
 
 #include "MoviePipelineSetting.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "MoviePipelineUtils.h"
 #include "MoviePipelineHighResSetting.generated.h"
 
 UCLASS(Blueprintable)
@@ -14,6 +15,8 @@ public:
 		: TileCount(1)
 		, TextureSharpnessBias(0.f)
 		, OverlapRatio(0.f)
+		, bOverrideSubSurfaceScattering(false)
+		, BurleySampleCount(64)
 		, bWriteAllSamples(false)
 	{
 	}
@@ -53,6 +56,28 @@ public:
 		InOutFormatArgs.Arguments.Add(TEXT("overlap_percent"), OverlapRatio);
 	}
 
+	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) override
+	{
+		if (!(IsEnabled() && GetIsUserCustomized()))
+		{
+			return;
+		}
+
+		int32 NumSamples = bOverrideSubSurfaceScattering ? BurleySampleCount : 0;
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PrevBurleyOverride, TEXT("r.SSS.Burley.NumSamplesOverride"), NumSamples, true);
+	}
+
+	virtual void TeardownForPipelineImpl(UMoviePipeline* InPipeline) override
+	{
+		if (!(IsEnabled() && GetIsUserCustomized()))
+		{
+			return;
+		}
+
+		int32 NumSamples = 0; // Dummy
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PrevBurleyOverride, TEXT("r.SSS.Burley.NumSamplesOverride"), NumSamples, false);
+	}
+
 public:
 	/**
 	* How many tiles should the resulting movie render be broken into? A tile should be no larger than
@@ -61,7 +86,7 @@ public:
 	* resolution which may help with gpu timeouts. Requires at least 1 tile. Tiling is applied evenly to
 	* both X and Y.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1, UIMax = 16), Category = "Movie Pipeline")
 	int32 TileCount;
 	
 	/**
@@ -80,6 +105,19 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 0.5, ClampMax=1), Category = "Movie Pipeline")
 	float OverlapRatio;
+
+	/**
+	* Sub Surface Scattering relies on history which is not available when using tiling. This can be overriden to use more samples
+	* to improve the quality.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
+	bool bOverrideSubSurfaceScattering;
+
+	/*
+	* How many samples should the Burley Sub Surface Scattering use?
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 64, ClampMin = 0, UIMax = 1024, EditCondition="bOverrideSubSurfaceScattering"), Category = "Movie Pipeline")
+	int32 BurleySampleCount;
 	
 	/**
 	* If true, we will write all samples that get generated to disk individually. This can be useful for debugging or if you need to accumulate
@@ -88,4 +126,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Movie Pipeline")
 	bool bWriteAllSamples;
 
+
+private:
+	/** What was the Burley CVar before we overrode it? */
+	int32 PrevBurleyOverride;
 };

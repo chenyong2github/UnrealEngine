@@ -6,3 +6,8 @@ UGroomImportOptions::UGroomImportOptions(const FObjectInitializer& ObjectInitial
 : Super(ObjectInitializer)
 {
 }
+
+UGroomHairGroupsPreview::UGroomHairGroupsPreview(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}

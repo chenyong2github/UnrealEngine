@@ -431,7 +431,7 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 				}
 			}
 
-			if (Parent->GetDescriptor().SupportedTargetPlatforms.Num() != 0 && Child->GetDescriptor().SupportedTargetPlatforms.Num() != 0)
+			if (Parent->GetDescriptor().SupportedTargetPlatforms.Num() != 0)
 			{
 				for (const FString& SupportedTargetPlatform : Child->GetDescriptor().SupportedTargetPlatforms)
 				{
@@ -828,14 +828,14 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					PlatformFile.IterateDirectoryRecursively(*(ContentDir / TEXT("Paks") / FPlatformProperties::PlatformName()), PakVisitor);
 					for (const FString& PakPath : FoundPaks)
 					{
-						if (FCoreDelegates::OnMountPak.IsBound())
+						if (FCoreDelegates::MountPak.IsBound())
 						{
-							FCoreDelegates::OnMountPak.Execute(PakPath, 0, nullptr);
+							FCoreDelegates::MountPak.Execute(PakPath, 0);
 							PluginsWithPakFile.AddUnique(Plugin);
 						}
 						else
 						{
-							UE_LOG(LogPluginManager, Warning, TEXT("PAK file (%s) could not be mounted because OnMountPak is not bound"), *PakPath)
+							UE_LOG(LogPluginManager, Warning, TEXT("PAK file (%s) could not be mounted because MountPak is not bound"), *PakPath)
 						}
 					}
 				}
@@ -1309,7 +1309,7 @@ bool FPluginManager::AreRequiredPluginsAvailable()
 }
 
 #if !IS_MONOLITHIC
-bool FPluginManager::CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules)
+bool FPluginManager::CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules, TArray<FString>& OutIncompatibleEngineModules)
 {
 	if(!ConfigureEnabledPlugins())
 	{
@@ -1320,8 +1320,15 @@ bool FPluginManager::CheckModuleCompatibility(TArray<FString>& OutIncompatibleMo
 	for(const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
 	{
 		const TSharedRef< FPlugin > &Plugin = PluginPair.Value;
-		if (Plugin->bEnabled && !FModuleDescriptor::CheckModuleCompatibility(Plugin->Descriptor.Modules, OutIncompatibleModules))
+
+		TArray<FString> IncompatibleModules;
+		if (Plugin->bEnabled && !FModuleDescriptor::CheckModuleCompatibility(Plugin->Descriptor.Modules, IncompatibleModules))
 		{
+			OutIncompatibleModules.Append(IncompatibleModules);
+			if (Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine)
+			{
+				OutIncompatibleEngineModules.Append(IncompatibleModules);
+			}
 			bResult = false;
 		}
 	}

@@ -96,6 +96,8 @@ using FVertexSplitInfo = DynamicMeshInfo::FVertexSplitInfo;
 	constexpr static int InvalidID = IndexConstants::InvalidID;
 	/** NonManifoldID is returned by AppendTriangle() to indicate that the added triangle would result in nonmanifold geometry and hence was ignored */
 	constexpr static int NonManifoldID = -2;
+	/** DuplicateTriangleID is returned by AppendTriangle() to indicate that the added triangle already exists in the mesh, and was ignored because we do not support duplicate triangles */
+	constexpr static int DuplicateTriangleID = -3;
 	/** InvalidGroupID indicates that a group ID is invalid */
 	constexpr static int InvalidGroupID = IndexConstants::InvalidID;
 
@@ -1150,11 +1152,37 @@ public:
 							bool bCheckGroups = false,
 							float Epsilon = TMathUtil<float>::Epsilon);
 
+	/**
+	 * Options for what the validity check will permit
+	 */
+	struct FValidityOptions
+	{
+		bool bAllowNonManifoldVertices = false;
+		bool bAllowAdjacentFacesReverseOrientation = false;
+
+		/**
+		 * Construct validity checking options
+		 */
+		FValidityOptions(bool bAllowNonManifoldVertices = false, bool bAllowAdjacentFacesReverseOrientation = false)
+			: bAllowNonManifoldVertices(bAllowNonManifoldVertices), bAllowAdjacentFacesReverseOrientation(bAllowAdjacentFacesReverseOrientation)
+		{}
+
+		/**
+		 * Construct with most-permissive options that we still consider valid for processing
+		 */
+		static FValidityOptions Permissive()
+		{
+			FValidityOptions ToRet;
+			ToRet.bAllowAdjacentFacesReverseOrientation = true;
+			ToRet.bAllowNonManifoldVertices = true;
+			return ToRet;
+		}
+	};
 
 	/**
 	 * Checks that the mesh is well-formed, ie all internal data structures are consistent
 	 */
-	virtual bool CheckValidity(bool bAllowNonManifoldVertices = false, EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
+	virtual bool CheckValidity(FValidityOptions ValidityOptions = FValidityOptions(), EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
 
 	//
 	// Internal functions

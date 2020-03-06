@@ -125,6 +125,14 @@ namespace Chaos
 			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color);
 		}
 
+		void DrawParticleShapesImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticle<FReal, 3>* Particle, const FColor& Color)
+		{
+			FVec3 P = SpaceTransform.TransformPosition(Particle->ObjectState() == EObjectStateType::Dynamic ? Particle->CastToRigidParticle()->P() : Particle->X());
+			FRotation3 Q = SpaceTransform.GetRotation() * (Particle->ObjectState() == EObjectStateType::Dynamic ? Particle->CastToRigidParticle()->Q() : Particle->R());
+
+			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color);
+		}
+
 		void DrawParticleBoundsImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, const FColor& Color)
 		{
 			TAABB<FReal, 3> Box = InParticle->WorldSpaceInflatedBounds();
@@ -361,6 +369,26 @@ namespace Chaos
 				{
 					DrawParticleShapesImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
 				}
+			}
+#endif
+		}
+
+		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<float, 3>* Particle, const FColor& Color)
+		{
+#if CHAOS_DEBUG_DRAW
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				DrawParticleShapesImpl(SpaceTransform, Particle, Color);
+			}
+#endif
+		}
+
+		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TGeometryParticle<float, 3>* Particle, const FColor& Color)
+		{
+#if CHAOS_DEBUG_DRAW
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				DrawParticleShapesImpl(SpaceTransform, Particle, Color);
 			}
 #endif
 		}

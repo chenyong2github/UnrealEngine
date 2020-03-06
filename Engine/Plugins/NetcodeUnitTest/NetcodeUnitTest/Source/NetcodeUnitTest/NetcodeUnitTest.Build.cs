@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"EngineSettings",
 					"InputCore",
 					"PacketHandler",
+					"RenderCore",
 					"Slate",
 					"SlateCore"
 				}

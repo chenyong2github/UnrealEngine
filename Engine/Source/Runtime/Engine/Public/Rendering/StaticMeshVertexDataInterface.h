@@ -48,6 +48,8 @@ public:
 	/** Serializer. */
 	virtual void Serialize(FArchive& Ar, bool bForcePerElementSerialization = false) = 0;
 
+	virtual void OverrideFreezeSizeAndAlignment(int64& Size, int32& Alignment) const = 0;
+
 	virtual SIZE_T GetResourceSize() const = 0;
 
 	virtual bool GetAllowCPUAccess() const = 0;

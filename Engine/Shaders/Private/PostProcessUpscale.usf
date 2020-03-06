@@ -121,7 +121,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 #if METHOD == UPSCALE_METHOD_NEAREST
 	// Nearest sampling (not blurry but blocky, more for testing)
-	#if ES2_PROFILE || ES3_1_PROFILE
+	#if ES3_1_PROFILE
 		OutColor = Texture2DSample(PointSceneColorTexture, PointSceneColorSampler, UVAndScreenPos.xy);
 	#else
 		OutColor = PointSceneColorTexture.SampleLevel(PointSceneColorSampler, UVAndScreenPos.xy, 0, int2(0, 0));

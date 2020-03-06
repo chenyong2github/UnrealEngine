@@ -70,9 +70,10 @@ class UMaterialExpressionFunctionOutput : public UMaterialExpression
 	/** Generate the Id for this input. */
 	ENGINE_API void ConditionallyGenerateId(bool bForce);
 
+#if WITH_EDITOR
 	/** Validate OutputName.  Must be called after OutputName is changed to prevent duplicate outputs. */
 	ENGINE_API void ValidateName();
-
+#endif // WITH_EDITOR
 };
 
 

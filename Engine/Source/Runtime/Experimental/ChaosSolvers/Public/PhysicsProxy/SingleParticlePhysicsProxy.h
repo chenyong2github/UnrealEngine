@@ -145,6 +145,11 @@ public:
 	/**/
 	void ClearEvents();
 
+	PARTICLE_TYPE* GetParticle()
+	{
+		return Particle;
+	}
+	
 private:
 	bool bInitialized;
 	TArray<int32> InitializedIndices;

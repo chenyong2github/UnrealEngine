@@ -591,7 +591,7 @@ bool FImgMediaPlayer::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaT
 		return false; // sample not loaded yet
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
+	const FTimespan SampleTime = Sample->GetTime().Time;
 
 	if (SampleTime == LastFetchTime)
 	{
@@ -610,6 +610,12 @@ void FImgMediaPlayer::FlushSamples()
 	LastFetchTime = FTimespan::MinValue();
 }
 
+
+bool FImgMediaPlayer::PeekVideoSampleTime(FMediaTimeStamp & TimeStamp)
+{
+	// player does not support v2 timing control at this point -> no need for this method, yet
+	return false;
+}
 
 /* IMediaTracks interface
  *****************************************************************************/

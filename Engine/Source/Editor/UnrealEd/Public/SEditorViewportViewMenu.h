@@ -12,6 +12,7 @@
 #include "Styling/SlateTypes.h"
 
 struct FSlateBrush;
+class UToolMenu;
 
 class UNREALED_API SEditorViewportViewMenu : public SEditorViewportToolbarMenu
 {
@@ -25,6 +26,7 @@ public:
 private:
 	FText GetViewMenuLabel() const;
 	const FSlateBrush* GetViewMenuLabelIcon() const;
+	void FillViewMenu(UToolMenu* Menu) const;
 
 protected:
 	virtual TSharedRef<SWidget> GenerateViewMenuContent() const;

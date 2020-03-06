@@ -122,7 +122,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Binaries/Win64/libusdLux.dll", 
+            "LibraryPath": "../../../../../Binaries/Win64/usdLux.dll", 
             "Name": "usdLux", 
             "ResourcePath": "resources", 
             "Root": "..", 

@@ -9,7 +9,7 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 
-void RenderHairComposeSubPixel(
+void RenderHairComposition(
 	FRHICommandListImmediate& RHICmdList, 
 	const TArray<FViewInfo>& Views,
 	const struct FHairStrandsDatas* HairDatas);

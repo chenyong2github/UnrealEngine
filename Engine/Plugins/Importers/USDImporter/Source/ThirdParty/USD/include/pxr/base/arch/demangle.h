@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_DEMANGLE_H
-#define ARCH_DEMANGLE_H
+#ifndef PXR_BASE_ARCH_DEMANGLE_H
+#define PXR_BASE_ARCH_DEMANGLE_H
 
 #if !defined(__cplusplus)
 #error This include file can only be included in C++ programs.
@@ -60,14 +60,15 @@ ARCH_API bool ArchDemangle(std::string* typeName);
 /// string; otherwise, the function returns the empty string.
 ///
 /// \see ArchDemangle()
-inline std::string
-ArchGetDemangled(const std::string& typeName)
-{
-    std::string r = typeName;
-    if (ArchDemangle(&r))
-        return r;
-    return std::string();
-}
+ARCH_API std::string
+ArchGetDemangled(const std::string& typeName);
+
+/// Return demangled RTTI-generated type name.
+///
+/// \see ArchDemangle()
+/// \overload
+ARCH_API std::string
+ArchGetDemangled(const char *typeName);
 
 /// Return demangled RTTI-generated type name.
 ///
@@ -111,4 +112,4 @@ void Arch_DemangleFunctionName(std::string* functionName);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif	// ARCH_DEMANGLE_H 
+#endif	// PXR_BASE_ARCH_DEMANGLE_H 

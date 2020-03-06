@@ -37,6 +37,7 @@
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "IMeshReductionManagerModule.h"
 #include "Engine/HLODProxy.h"
+#include "Engine/LevelStreaming.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLODGenerator, Log, All);
 
@@ -93,14 +94,17 @@ void FHierarchicalLODBuilder::PreviewBuild()
 	const TArray<ULevel*>& Levels = World->GetLevels();
 	for (ULevel* LevelIter : Levels)
 	{
-		// Only build clusters for levels that are visible, and throw warning if any are hidden
-		if (LevelIter->bIsVisible)
+		if (ShouldBuildHLODForLevel(World, LevelIter))
 		{
-			BuildClusters(LevelIter);
-		}
-		else
-		{
-			bVisibleLevelsWarning |= LevelIter->GetWorldSettings()->bEnableHierarchicalLODSystem;
+			// Only build clusters for levels that are visible, and throw warning if any are hidden
+			if (LevelIter->bIsVisible)
+			{
+				BuildClusters(LevelIter);
+			}
+			else
+			{
+				bVisibleLevelsWarning |= LevelIter->GetWorldSettings()->bEnableHierarchicalLODSystem;
+			}
 		}
 	}
 
@@ -630,6 +634,25 @@ void FHierarchicalLODBuilder::HandleHLODVolumes(ULevel* InLevel)
 	}
 }
 
+bool FHierarchicalLODBuilder::ShouldBuildHLODForLevel(const UWorld* InWorld, const ULevel* InLevel) const
+{
+	check(InWorld);
+	if (!InLevel)
+	{
+		return false;
+	}
+
+	ULevelStreaming* const* SourceLevelStreamingPtr = InWorld->GetStreamingLevels().FindByPredicate([InLevel](ULevelStreaming* LS) { return LS && LS->GetLoadedLevel() == InLevel; });
+	ULevelStreaming* SourceLevelStreaming = SourceLevelStreamingPtr ? *SourceLevelStreamingPtr : nullptr;
+	if (SourceLevelStreaming && SourceLevelStreaming->HasAnyFlags(RF_Transient))
+	{
+		// Skip over levels from transient ULevelStreamings. These are levels that are not saved in the map and should not contribute to the HLOD
+		return false;
+	}
+
+	return true;
+}
+
 bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 HLODLevelIndex)
 {
 	if (!Actor)
@@ -717,13 +740,16 @@ void FHierarchicalLODBuilder::ClearHLODs()
 
 	for (ULevel* Level : World->GetLevels())
 	{
-		if (Level->bIsVisible)
+		if (ShouldBuildHLODForLevel(World, Level))
 		{
-			DeleteLODActors(Level);
-		}
-		else
-		{
-			bVisibleLevelsWarning |= Level->GetWorldSettings()->bEnableHierarchicalLODSystem;
+			if (Level->bIsVisible)
+			{
+				DeleteLODActors(Level);
+			}
+			else
+			{
+				bVisibleLevelsWarning |= Level->GetWorldSettings()->bEnableHierarchicalLODSystem;
+			}
 		}
 	}
 
@@ -750,6 +776,11 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 	const TArray<ULevel*>& Levels = World->GetLevels();
 	for (const ULevel* LevelIter : Levels)
 	{
+		if (!ShouldBuildHLODForLevel(World, LevelIter))
+		{
+			continue;
+		}
+
 		// Only meshes for clusters that are in a visible level
 		if (!LevelIter->bIsVisible)
 		{

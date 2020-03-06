@@ -5,6 +5,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectRedirector.h"
 #include "Misc/PackageName.h"
+#include "Misc/StringBuilder.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/CoreRedirects.h"
@@ -34,6 +35,19 @@ FString FSoftObjectPath::ToString() const
 	FullPathString.AppendChar(':');
 	FullPathString.Append(SubPathString);
 	return FullPathString;
+}
+
+void FSoftObjectPath::ToString(FStringBuilderBase& Builder) const
+{
+	if (!AssetPathName.IsNone())
+	{
+		Builder << AssetPathName;
+	}
+
+	if (SubPathString.Len() > 0)
+	{
+		Builder << ':' << SubPathString;
+	}
 }
 
 void FSoftObjectPath::SetPath(FString Path)

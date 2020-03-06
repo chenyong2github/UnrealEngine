@@ -131,10 +131,6 @@ public class ApexDestructionLib : ModuleRules
         {
 			LibraryFormatString = Path.Combine(ApexLibDir, "XboxOne", "VS2015", "{0}.lib");
         }
-        else if (Target.Platform == UnrealTargetPlatform.Switch)
-        {
-			LibraryFormatString = Path.Combine(ApexLibDir, "Switch", "lib{0}.a");
-        }
 		
 		// Add the libraries needed (used for all platforms except Windows and Mac)
 		if (LibraryFormatString != null)

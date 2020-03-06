@@ -1,0 +1,115 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=================================================================================================
+	NiagaraGPURayTracingTransforms.usf: Shader to pass GPU transforms to the ray tracing world
+===================================================================================================*/
+
+#include "/Engine/Private/Common.ush"
+
+#define NIAGARA_KEYGEN 1
+#include "NiagaraVFParticleAccess.usf"
+
+#if NIAGARA_LOOSEPARAM_BINDING
+Buffer<float> NiagaraParticleDataFloat;
+#endif
+
+// Offsets: (Position, Transform, Scale, bLocalSpace)
+uint4 NiagaraOffsets;
+float4x4 LocalTransform;
+
+// (GPUInstanceCount, GPUInstanceCountOffset)
+uint4 GPUInstanceCountParams;
+Buffer<uint> GPUInstanceCountInputBuffer;
+RWStructuredBuffer<float3x4> TLASTransforms;
+
+//#dxr-todo: move to a header
+float4x4 QuatTo4x4(float4 Q)
+{
+	float x2 = Q.x + Q.x;  float y2 = Q.y + Q.y;  float z2 = Q.z + Q.z;
+	float xx = Q.x * x2;   float xy = Q.x * y2;   float xz = Q.x * z2;
+	float yy = Q.y * y2;   float yz = Q.y * z2;   float zz = Q.z * z2;
+	float wx = Q.w * x2;   float wy = Q.w * y2;   float wz = Q.w * z2;
+
+	float4x4 Mat = {
+		/*M[0][0]*/ 1.0f - (yy + zz),	/*M[1][0]*/ xy - wz,				/*M[2][0]*/ xz + wy,		0.0f,
+		/*M[0][1]*/ xy + wz,			/*M[1][1]*/ 1.0f - (xx + zz),		/*M[2][1]*/ yz - wx,		0.0f,
+		/*M[0][2]*/ xz - wy,			/*M[1][2]*/ yz + wx,				/*M[2][2]*/ 1.0f - (xx + yy),0.0f,
+		0.0f,							0.0f,								0.0f,						1.0f
+	};
+	return Mat;
+}
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 1
+#endif
+
+[numthreads(THREADGROUP_SIZE,1,1)]
+void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint CPUInstancesCountConservative = GPUInstanceCountParams.x;
+	const uint GPUInstancesCountOffset = GPUInstanceCountParams.y;
+	const uint GPUInstancesCount = GPUInstancesCountOffset != -1 ? GPUInstanceCountInputBuffer[GPUInstancesCountOffset] : CPUInstancesCountConservative;
+
+	uint InstanceIndex = DispatchThreadId.x;
+
+	if (InstanceIndex < GPUInstancesCount)
+	{
+		uint PositionOffset = NiagaraOffsets[0];
+		uint TransformOffset = NiagaraOffsets[1];
+		uint ScaleOffset = NiagaraOffsets[2];
+		uint bLocalSpace = NiagaraOffsets[3];
+
+		float4 InstancePosition = float4(0.0, 0.0, 0.0, 1.0);
+
+		if (PositionOffset != -1)
+		{
+			InstancePosition = float4(GetVec3(PositionOffset, InstanceIndex), 1);
+		}
+
+		float4 Transform1 = float4(1.0f, 0.0f, 0.0f, InstancePosition.x);
+		float4 Transform2 = float4(0.0f, 1.0f, 0.0f, InstancePosition.y);
+		float4 Transform3 = float4(0.0f, 0.0f, 1.0f, InstancePosition.z);
+
+		if (TransformOffset != -1)
+		{
+			float4 Quat = GetVec4(TransformOffset, InstanceIndex);
+
+			float4x4 EulerToMat = QuatTo4x4(normalize(Quat));
+			Transform1.xyz = EulerToMat[0].xyz;
+			Transform2.xyz = EulerToMat[1].xyz;
+			Transform3.xyz = EulerToMat[2].xyz;
+		}
+
+		float4x4 ScaleMatrix = float4x4(float4(1.0f, 0.0f, 0.0f, 0.0f), float4(0.0f, 1.0f, 0.0f, 0.0f), float4(0.0f, 0.0f, 1.0f, 0.0f), float4(0.0f, 0.0f, 0.0f, 1.0f));
+		if (ScaleOffset != -1)
+		{
+			float3 Scale = GetVec3(ScaleOffset, InstanceIndex);
+
+			ScaleMatrix[0][0] *= Scale.x;
+			ScaleMatrix[1][1] *= Scale.y;
+			ScaleMatrix[2][2] *= Scale.z;
+		}
+
+		//#dxr-todo: handle MESH_FACING_VELOCITY, MESH_FACING_CAMERA_POSITION, etc
+	
+		float4x4 InstanceMatrix = float4x4(Transform1, Transform2, Transform3, float4(0.0f, 0.0f, 0.0f, 1.0f));
+		InstanceMatrix = mul(InstanceMatrix, ScaleMatrix);
+		
+		if (bLocalSpace == 1)
+		{
+			InstanceMatrix = transpose(InstanceMatrix);
+			InstanceMatrix = mul(InstanceMatrix, LocalTransform);
+			InstanceMatrix = transpose(InstanceMatrix);
+		}
+
+		TLASTransforms[InstanceIndex][0] = InstanceMatrix[0];
+		TLASTransforms[InstanceIndex][1] = InstanceMatrix[1];
+		TLASTransforms[InstanceIndex][2] = InstanceMatrix[2];
+	}
+	else
+	{
+		TLASTransforms[InstanceIndex][0] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+		TLASTransforms[InstanceIndex][1] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+		TLASTransforms[InstanceIndex][2] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+}

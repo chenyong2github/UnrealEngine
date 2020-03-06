@@ -10,6 +10,7 @@
 #include "Logging/LogMacros.h"
 #include "Math/Vector2D.h"
 #include "Math/Vector.h"
+#include "Serialization/MemoryLayout.h"
 
 /**
  * A 4D homogeneous vector, 4x1 FLOATs, 16-byte aligned.
@@ -432,6 +433,8 @@ public:
 	}
 
 } GCC_ALIGN(16);
+
+DECLARE_INTRINSIC_TYPE_LAYOUT(FVector4);
 
 
 /**

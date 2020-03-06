@@ -1039,7 +1039,7 @@ void FLevelEditorActionCallbacks::RecompileGameCode_Clicked()
 		}
 		else
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoLiveCodingCompileAfterHotReload", "Live Coding cannot be enabled after hot-reload has been used. Please restart the editor."));
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoLiveCodingCompileAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting."));
 		}
 		return;
 	}
@@ -1086,7 +1086,7 @@ void FLevelEditorActionCallbacks::LiveCoding_ToggleEnabled()
 
 		if (LiveCoding->IsEnabledByDefault() && !LiveCoding->IsEnabledForSession())
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoEnableLiveCodingAfterHotReload", "Live Coding cannot be enabled after hot-reload has been used. Please restart the editor."));
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoEnableLiveCodingAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting."));
 		}
 	}
 }
@@ -2067,7 +2067,7 @@ bool FLevelEditorActionCallbacks::SaveAnimationFromSkeletalMeshComponent(AActor 
 
 void FLevelEditorActionCallbacks::OpenMergeActor_Clicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FName("MergeActors"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FName("MergeActors"));
 }
 
 void FLevelEditorActionCallbacks::OnKeepSimulationChanges()
@@ -2221,7 +2221,7 @@ void FLevelEditorActionCallbacks::OnFindActorInLevelScript()
 void FLevelEditorActionCallbacks::OnShowWorldProperties( TWeakPtr< SLevelEditor > LevelEditor )
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
-	LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(FName("WorldSettingsTab"));
+	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FName("WorldSettingsTab"));
 }
 
 void FLevelEditorActionCallbacks::OpenContentBrowser()
@@ -2326,83 +2326,16 @@ void FLevelEditorActionCallbacks::CreateBlankBlueprintClass()
 	}
 }
 
-bool FLevelEditorActionCallbacks::CanHarvestSelectedActorsIntoBlueprintClass()
-{
-	return GEditor->GetSelectedActorCount() > 0;
-}
-
-void FLevelEditorActionCallbacks::HarvestSelectedActorsIntoBlueprintClass()
-{
-	FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode::Harvest);
-}
-
-ECreateBlueprintFromActorMode GetConvertSelectedActorsMode()
-{
-	if (GEditor->GetSelectedActorCount() == 0)
-	{
-		return ECreateBlueprintFromActorMode::None;
-	}
-
-	// Subclassing mode when we have 1 actor selected of a blueprint type
-	if (GEditor->GetSelectedActorCount() == 1)
-	{
-		AActor* Actor = Cast<AActor>(*GEditor->GetSelectedActorIterator());
-		if (FKismetEditorUtilities::CanCreateBlueprintOfClass(Actor->GetClass()))
-		{
-			return ECreateBlueprintFromActorMode::Subclass;
-		}
-	}
-
-	// Child Actor mode when we have 1 or more selected objects that are all placeable
-	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
-	{
-		AActor* Actor = Cast<AActor>(*It);
-		if (Actor->GetClass()->HasAnyClassFlags(CLASS_NotPlaceable))
-		{
-			return ECreateBlueprintFromActorMode::None;
-		}
-	}
-
-	return ECreateBlueprintFromActorMode::ChildActor;
-}
-
 bool FLevelEditorActionCallbacks::CanConvertSelectedActorsIntoBlueprintClass()
 {
-	const bool bCanConvert = GetConvertSelectedActorsMode() != ECreateBlueprintFromActorMode::None;
-	return bCanConvert;
+	return (FCreateBlueprintFromActorDialog::GetValidCreationMethods() != ECreateBlueprintFromActorMode::None);
 }
 
 void FLevelEditorActionCallbacks::ConvertSelectedActorsIntoBlueprintClass()
 {
-	ECreateBlueprintFromActorMode CreateMode = GetConvertSelectedActorsMode();
-	if (ensure(CreateMode != ECreateBlueprintFromActorMode::None))
-	{
-		FCreateBlueprintFromActorDialog::OpenDialog(CreateMode);
-	}
-}
-
-FText FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassLabel()
-{
-	if (GetConvertSelectedActorsMode() == ECreateBlueprintFromActorMode::ChildActor)
-{
-		return LOCTEXT("ConvertSelectionToBlueprintViaChildActor_Label", "Convert Selected Actors to Blueprint Class...");
-	}
-	else
-	{
-		return LOCTEXT("ConvertSelectionToBlueprintViaSubclass_Label", "Convert Selected Actor to Blueprint Class...");
-	}
-}
-
-FText FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassTooltip()
-{
-	if (GetConvertSelectedActorsMode() == ECreateBlueprintFromActorMode::ChildActor)
-	{
-		return LOCTEXT("ConvertSelectionToBlueprintViaChildActor_Tooltip", "Replace the selected actors with a new Blueprint subclass based on Actor with each of the selected Actors as a Child Actor");
-	}
-	else
-	{
-		return LOCTEXT("ConvertSelectionToBlueprintViaSubclass_Tooltip", "Replace the selected actor with a new Blueprint subclass based on the class of the selected Actor");
-	}
+	const ECreateBlueprintFromActorMode ValidCreateModes = FCreateBlueprintFromActorDialog::GetValidCreationMethods();
+	const ECreateBlueprintFromActorMode DefaultCreateMode = ((GEditor->GetSelectedActorCount() == 1 && !!(ValidCreateModes & ECreateBlueprintFromActorMode::Subclass)) ? ECreateBlueprintFromActorMode::Subclass : ECreateBlueprintFromActorMode::ChildActor);
+	FCreateBlueprintFromActorDialog::OpenDialog(DefaultCreateMode);
 }
 
 void FLevelEditorActionCallbacks::CheckOutProjectSettingsConfig( )
@@ -3358,8 +3291,7 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( OpenLevelBlueprint, "Open Level Blueprint", "Edit the Level Blueprint for the current level", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( CheckOutProjectSettingsConfig, "Check Out", "Checks out the project settings config file so the game mode can be set.", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( CreateBlankBlueprintClass, "New Empty Blueprint Class...", "Create a new Blueprint Class", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( ConvertSelectionToBlueprintViaHarvest, "Convert Selected Components to Blueprint Class...", "Replace all of the selected actors with a new Blueprint Class based on Actor that contains the components", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( ConvertSelectionToBlueprintViaSubclass, "Convert Selected Actor to Blueprint Class...", "Replace the selected actor with a new Blueprint subclass based on the class of the selected Actor", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( ConvertSelectionToBlueprint, "Convert Selection to Blueprint Class...", "Replace all of the selected actors with a new Blueprint Class", EUserInterfaceActionType::Button, FInputChord() );
 
 	UI_COMMAND( ShowTransformWidget, "Show Transform Widget", "Toggles the visibility of the transform widgets", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( AllowTranslucentSelection, "Allow Translucent Selection", "Allows translucent objects to be selected", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T) );
@@ -3405,9 +3337,9 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND(ToggleFeatureLevelPreview, "Preview Mode Toggle", "Toggles the Preview Mode on or off for the currently selected Preview target", EUserInterfaceActionType::ToggleButton, FInputChord());
 
 	UI_COMMAND(PreviewPlatformOverride_SM5, "Shader Model 5", "DirectX 11, OpenGL 4.3+, PS4, XB1", EUserInterfaceActionType::Check, FInputChord());
-	UI_COMMAND(PreviewPlatformOverride_AndroidGLES2, "Android ES2", "Mobile preview using Android's quality settings.", EUserInterfaceActionType::Check, FInputChord());
 	UI_COMMAND(PreviewPlatformOverride_AndroidGLES31, "Android ES 3.1", "Mobile preview using Android ES3.1 quality settings.", EUserInterfaceActionType::Check, FInputChord());
 	UI_COMMAND(PreviewPlatformOverride_AndroidVulkanES31, "Android Vulkan", "Mobile preview using Android Vulkan quality settings.", EUserInterfaceActionType::Check, FInputChord());
+	UI_COMMAND(PreviewPlatformOverride_AndroidVulkanSM5, "Android Vulkan SM5", "Mobile preview using Android Vulkan SM5 quality settings.", EUserInterfaceActionType::Check, FInputChord());
 	UI_COMMAND(PreviewPlatformOverride_IOSMetalES31, "iOS", "Mobile preview using iOS material quality settings.", EUserInterfaceActionType::Check, FInputChord());
 
 	UI_COMMAND( ConnectToSourceControl, "Connect to Source Control...", "Opens a dialog to connect to source control.", EUserInterfaceActionType::Button, FInputChord());

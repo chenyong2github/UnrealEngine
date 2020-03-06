@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_TEMPLATE_STRING_H
-#define TF_TEMPLATE_STRING_H
+#ifndef PXR_BASE_TF_TEMPLATE_STRING_H
+#define PXR_BASE_TF_TEMPLATE_STRING_H
 
 /// \file tf/templateString.h
 
@@ -75,7 +75,7 @@ public:
     /// Returns the template source string supplied to the constructor.
     const std::string& GetTemplate() const { return _data->template_; }
 
-    /// Performs the template subsitution, returning a new string. The mapping
+    /// Performs the template substitution, returning a new string. The mapping
     /// contains keys which match the placeholders in the template. If a
     /// placeholder is found for which no mapping is present, a coding error is
     /// raised.
@@ -147,4 +147,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_TEMPLATE_STRING_H 
+#endif // PXR_BASE_TF_TEMPLATE_STRING_H 

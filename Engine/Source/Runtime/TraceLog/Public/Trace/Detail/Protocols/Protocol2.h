@@ -22,17 +22,23 @@ using Protocol1::EKnownEventUids;
 using Protocol1::FAuxHeader;
 
 ////////////////////////////////////////////////////////////////////////////////
-#pragma pack(push, 1)
 struct FEventHeader
 {
 	uint16		Uid;
 	uint16		Size;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+#pragma pack(push, 1)
+struct FEventHeaderSync
+	: public FEventHeader
+{
 	uint16		SerialLow;		// 24-bit...
 	uint8		SerialHigh;		// ...serial no.
 	uint8		EventData[];
 };
 #pragma pack(pop)
-static_assert(sizeof(FEventHeader) == 7, "Packing assumption doesn't hold");
+static_assert(sizeof(FEventHeaderSync) == 7, "Packing assumption doesn't hold");
 
-} // namespace Protocol1
+} // namespace Protocol2
 } // namespace Trace

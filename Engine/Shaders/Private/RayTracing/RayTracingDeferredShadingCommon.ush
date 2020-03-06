@@ -13,7 +13,17 @@ FGBufferData GetGBufferDataFromSceneTexturesLoad(uint2 PixelCoord, bool bGetNorm
 	float4 GBufferC = SceneGBufferC.Load(int3(PixelCoord, 0));
 	float4 GBufferD = SceneGBufferD.Load(int3(PixelCoord, 0));
 	float4 GBufferE = SceneGBufferE.Load(int3(PixelCoord, 0));
+#if GBUFFER_HAS_TANGENT
+	float4 GBufferF = SceneGBufferF.Load(int3(PixelCoord, 0));
+#else
+	float4 GBufferF = 0.5f;
+#endif
+
+#if GBUFFER_HAS_VELOCITY
 	float4 GBufferVelocity = SceneVelocityBuffer.Load(int3(PixelCoord, 0));
+#else
+	float4 GBufferVelocity = 0.0f;
+#endif
 
 	uint CustomStencil = 0;
 	float CustomNativeDepth = 0;
@@ -22,7 +32,7 @@ FGBufferData GetGBufferDataFromSceneTexturesLoad(uint2 PixelCoord, bool bGetNorm
 
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
-	return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromPixelPos(PixelCoord));
+	return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferF, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromPixelPos(PixelCoord));
 }
 
 FGBufferData GetGBufferDataFromPayload(in FMaterialClosestHitPayload Payload)
@@ -40,6 +50,9 @@ FGBufferData GetGBufferDataFromPayload(in FMaterialClosestHitPayload Payload)
 	GBufferData.ShadingModelID = Payload.ShadingModelID;
 	GBufferData.SpecularColor = Payload.SpecularColor;
 	GBufferData.DiffuseColor = Payload.DiffuseColor;
+	GBufferData.WorldTangent = Payload.WorldTangent;
+	GBufferData.Anisotropy = Payload.Anisotropy;
+
 	return GBufferData;
 }
 

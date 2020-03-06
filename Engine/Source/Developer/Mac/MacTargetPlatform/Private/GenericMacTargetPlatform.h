@@ -320,7 +320,7 @@ return TSuper::SupportsFeature(Feature);
 			return NAME_ADPCM;
 		}
 
-		if (Wave->IsStreaming())
+		if (Wave->IsStreaming(*this->IniPlatformName()))
 		{
 			return NAME_OPUS;
 		}
@@ -337,11 +337,6 @@ return TSuper::SupportsFeature(Feature);
 		OutFormats.Add(NAME_ADPCM);
 		OutFormats.Add(NAME_OGG);
 		OutFormats.Add(NAME_OPUS);
-	}
-
-	virtual FPlatformAudioCookOverrides* GetAudioCompressionSettings() const override
-	{
-		return nullptr;
 	}
 
 #endif //WITH_ENGINE

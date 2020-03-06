@@ -8,6 +8,8 @@
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"
 
+class FGlobalShaderMap;
+
 /** An empty shader parameter structure ready to be used anywhere. */
 BEGIN_SHADER_PARAMETER_STRUCT(FEmptyShaderParameters, RENDERCORE_API)
 END_SHADER_PARAMETER_STRUCT()
@@ -43,7 +45,7 @@ extern RENDERCORE_API void ClearUnusedGraphResourcesImpl(
 
 template <typename TShaderClass>
 void ClearUnusedGraphResources(
-	const TShaderClass* Shader,
+	const TShaderRef<TShaderClass>& Shader,
 	typename TShaderClass::FParameters* InoutParameters,
 	std::initializer_list<FRDGResourceRef> ExcludeList = {})
 {
@@ -60,8 +62,8 @@ void ClearUnusedGraphResources(
 
 template <typename TShaderClassA, typename TShaderClassB, typename TPassParameterStruct>
 void ClearUnusedGraphResources(
-	const TShaderClassA* ShaderA,
-	const TShaderClassB* ShaderB,
+	const TShaderRef<TShaderClassA>& ShaderA,
+	const TShaderRef<TShaderClassB>& ShaderB,
 	TPassParameterStruct* InoutParameters,
 	std::initializer_list<FRDGResourceRef> ExcludeList = {})
 {
@@ -132,9 +134,9 @@ struct RENDERCORE_API FComputeShaderUtils
 
 	/** Dispatch a compute shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
-	static void Dispatch(FRHICommandList& RHICmdList, const TShaderClass* ComputeShader, const typename TShaderClass::FParameters& Parameters, FIntVector GroupCount)
+	static void Dispatch(FRHICommandList& RHICmdList, const TShaderRef<TShaderClass>& ComputeShader, const typename TShaderClass::FParameters& Parameters, FIntVector GroupCount)
 	{
-		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
 		RHICmdList.DispatchComputeShader(GroupCount.X, GroupCount.Y, GroupCount.Z);
@@ -145,12 +147,12 @@ struct RENDERCORE_API FComputeShaderUtils
 	template<typename TShaderClass>
 	static void DispatchIndirect(
 		FRHICommandList& RHICmdList,
-		const TShaderClass* ComputeShader,
+		const TShaderRef<TShaderClass>& ComputeShader,
 		const typename TShaderClass::FParameters& Parameters,
 		FRHIVertexBuffer* IndirectArgsBuffer,
 		uint32 IndirectArgOffset)
 	{
-		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
 		RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, IndirectArgOffset);
@@ -178,7 +180,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	static void AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
-		const TShaderClass* ComputeShader,
+		const TShaderRef<TShaderClass>& ComputeShader,
 		typename TShaderClass::FParameters* Parameters,
 		FIntVector GroupCount)
 	{
@@ -199,7 +201,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	static void AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
-		const TShaderClass* ComputeShader,
+		const TShaderRef<TShaderClass>& ComputeShader,
 		typename TShaderClass::FParameters* Parameters,
 		FRDGBufferRef IndirectArgsBuffer,
 		uint32 IndirectArgOffset)
@@ -222,10 +224,9 @@ struct RENDERCORE_API FComputeShaderUtils
 		});
 	}
 
-	static void ClearUAV(FRDGBuilder& GraphBuilder, TShaderMap<FGlobalShaderType>* ShaderMap, FRDGBufferUAVRef UAV, uint32 ClearValue);
-	static void ClearUAV(FRDGBuilder& GraphBuilder, TShaderMap<FGlobalShaderType>* ShaderMap, FRDGBufferUAVRef UAV, FVector4 ClearValue);
+	static void ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAV, uint32 ClearValue);
+	static void ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAV, FVector4 ClearValue);
 };
-
 /** Adds a render graph pass to copy a region from one texture to another. Uses RHICopyTexture under the hood.
  *  Formats of the two textures must match. The output and output texture regions be within the respective extents.
  */

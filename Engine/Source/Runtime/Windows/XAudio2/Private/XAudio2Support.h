@@ -12,9 +12,6 @@
 #ifndef XAUDIO_SUPPORTS_DEVICE_DETAILS
 	#define XAUDIO_SUPPORTS_DEVICE_DETAILS		1
 #endif	//XAUDIO_SUPPORTS_DEVICE_DETAILS
-#ifndef XAUDIO2_SUPPORTS_MUSIC
-	#define XAUDIO2_SUPPORTS_MUSIC				0
-#endif	//XAUDIO2_SUPPORTS_MUSIC
 #ifndef X3DAUDIO_VECTOR_IS_A_D3DVECTOR
 	#define X3DAUDIO_VECTOR_IS_A_D3DVECTOR		1
 #endif	//X3DAUDIO_VECTOR_IS_A_D3DVECTOR
@@ -26,12 +23,14 @@
 #include "XAudio2Device.h"
 #include "AudioDecompress.h"
 #include "AudioEffect.h"
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_XBOXONE
+#if PLATFORM_MICROSOFT
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
+THIRD_PARTY_INCLUDES_START
 	#include <xaudio2.h>
 	#include <X3Daudio.h>
+THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformAtomics.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif

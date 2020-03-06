@@ -50,7 +50,7 @@ extern RENDERER_API void DrawRectangle(
 	float SizeV,
 	FIntPoint TargetSize,
 	FIntPoint TextureSize,
-	class FShader* VertexShader,
+	const TShaderRef<FShader>& VertexShader,
 	EDrawRectangleFlags Flags = EDRF_Default,
 	uint32 InstanceCount = 1
 	);
@@ -86,7 +86,7 @@ extern RENDERER_API void DrawHmdMesh(
 	FIntPoint TargetSize,
 	FIntPoint TextureSize,
 	EStereoscopicPass StereoView,
-	FShader* VertexShader
+	const TShaderRef<FShader>& VertexShader
 	);
 
 // NOTE: Assumes previously set PSO has PrimitiveType = PT_TriangleList
@@ -102,7 +102,7 @@ extern RENDERER_API void DrawPostProcessPass(
 	float SizeV,
 	FIntPoint TargetSize,
 	FIntPoint TextureSize,
-	class FShader* VertexShader,
+	const TShaderRef<FShader>& VertexShader,
 	EStereoscopicPass StereoView,
 	bool bHasCustomMesh,
 	EDrawRectangleFlags Flags = EDRF_Default
@@ -117,6 +117,7 @@ FMGammaShaderParameters
 /** Encapsulates the gamma correction parameters. */
 class FGammaShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FGammaShaderParameters, NonVirtual);
 public:
 
 	/** Default constructor. */
@@ -131,7 +132,7 @@ public:
 	}
 
 	/** Set the material shader parameter values. */
-	void Set(FRHICommandList& RHICmdList, FShader* PixelShader, float DisplayGamma, FLinearColor const& ColorScale, FLinearColor const& ColorOverlay)
+	void Set(FRHICommandList& RHICmdList, FRHIPixelShader* RHIShader, float DisplayGamma, FLinearColor const& ColorScale, FLinearColor const& ColorOverlay)
 	{
 		// GammaColorScaleAndInverse
 
@@ -147,7 +148,7 @@ public:
 
 		SetShaderValue(
 			RHICmdList,
-			PixelShader->GetPixelShader(),
+			RHIShader,
 			GammaColorScaleAndInverse,
 			ColorScaleAndInverse
 			);
@@ -163,7 +164,7 @@ public:
 
 		SetShaderValue(
 			RHICmdList,
-			PixelShader->GetPixelShader(),
+			RHIShader,
 			GammaOverlayColor,
 			OverlayColor
 			);
@@ -178,7 +179,7 @@ public:
 
 		SetShaderValue(
 			RHICmdList,
-			PixelShader->GetPixelShader(),
+			RHIShader,
 			RenderTargetExtent,
 			vRenderTargetExtent);
 	}
@@ -195,9 +196,11 @@ public:
 
 
 private:
-	FShaderParameter				GammaColorScaleAndInverse;
-	FShaderParameter				GammaOverlayColor;
-	FShaderParameter				RenderTargetExtent;
+	
+		LAYOUT_FIELD(FShaderParameter, GammaColorScaleAndInverse)
+		LAYOUT_FIELD(FShaderParameter, GammaOverlayColor)
+		LAYOUT_FIELD(FShaderParameter, RenderTargetExtent)
+	
 };
 
 

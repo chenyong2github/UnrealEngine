@@ -23,6 +23,10 @@ int32 FRegisteredSchemaTranslatorHandle::CurrentSchemaTranslatorId = 0;
 TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const pxr::UsdTyped& InSchema )
 {
 	TUsdStore< pxr::UsdPrim > Prim = InSchema.GetPrim();
+	if ( !Prim.Get() )
+	{
+		return {};
+	}
 
 	for ( TPair< FString, FSchemaTranslatorsStack >& RegisteredSchemasStack : RegisteredSchemaTranslators )
 	{

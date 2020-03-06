@@ -41,6 +41,7 @@ public class NiagaraEditor : ModuleRules
 				"GraphEditor",
                 "ShaderFormatVectorVM",
                 "TargetPlatform",
+                "DesktopPlatform",
                 "AppFramework",
 				"MovieSceneTools",
                 "MovieSceneTracks",
@@ -48,6 +49,7 @@ public class NiagaraEditor : ModuleRules
 				"Projects",
                 "MainFrame",
 				"ToolMenus",
+				"Renderer",
 				"EditorWidgets",
 			}
         );

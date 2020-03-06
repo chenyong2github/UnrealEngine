@@ -47,7 +47,7 @@ struct FSlateInvalidationResult
 	bool bRepaintedWidgets;
 };
 
-class SLATECORE_VTABLE FSlateInvalidationRoot : public FGCObject, public FNoncopyable
+class FSlateInvalidationRoot : public FGCObject, public FNoncopyable
 {
 	friend class FSlateUpdateFastWidgetPathTask;
 	friend class FSlateUpdateFastPathAndHitTestGridTask;
@@ -102,7 +102,7 @@ private:
 	bool PaintFastPath(const FSlateInvalidationContext& Context);
 
 	void BuildFastPathList(SWidget* RootWidget);
-	void BuildNewFastPathList_Recursive(FSlateInvalidationRoot& Root, FWidgetProxy& Proxy, int32 ParentIndex, int32& NextTreeIndex, TArray<FWidgetProxy>& CurrentFastPathList, TArray<FWidgetProxy, TMemStackAllocator<>>& NewFastPathList);
+	bool BuildNewFastPathList_Recursive(FSlateInvalidationRoot& Root, FWidgetProxy& Proxy, int32 ParentIndex, int32& NextTreeIndex, TArray<FWidgetProxy>& CurrentFastPathList, TArray<FWidgetProxy, TMemStackAllocator<>>& NewFastPathList);
 
 	void AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform);
 private:

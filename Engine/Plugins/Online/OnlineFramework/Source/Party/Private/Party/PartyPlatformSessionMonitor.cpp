@@ -420,6 +420,10 @@ void FPartyPlatformSessionMonitor::EvaluateCurrentSession()
 			{
 				if (Member->GetRepData().GetPlatformSessionId() == ExistingSessionInfo->SessionId)
 				{
+					if (LastAttemptedFindSessionId.IsSet() && LastAttemptedFindSessionId.GetValue() == ExistingSessionInfo->SessionId)
+					{
+						continue;
+					}
 					// Someone else is claiming to be in the session already, so go find it now
 					FindSession(*ExistingSessionInfo);
 					break;
@@ -524,6 +528,9 @@ void FPartyPlatformSessionMonitor::FindSession(const FPartyPlatformSessionInfo& 
 
 		SessionInitTracker.BeginStep(Step_FindSession);
 		TargetSessionId = SessionInfo.SessionId;
+
+		// Don't attempt to find this session again if this find fails.  This is cleared if the find is successful.
+		LastAttemptedFindSessionId.Emplace(SessionInfo.SessionId);
 
 		SessionManager->FindSession(SessionInfo, FPartyPlatformSessionManager::FOnFindSessionAttemptComplete::CreateSP(this, &FPartyPlatformSessionMonitor::HandleFindSessionComplete));
 	}
@@ -778,6 +785,7 @@ void FPartyPlatformSessionMonitor::HandleFindSessionComplete(bool bWasSuccessful
 	}
 	else if (bWasSuccessful)
 	{
+		LastAttemptedFindSessionId.Reset();
 		JoinSession(FoundSession);
 	}
 	else

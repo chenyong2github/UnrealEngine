@@ -9,8 +9,7 @@ public class AudioCaptureRtAudio : ModuleRules
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("AudioCaptureCore");
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			   Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			PublicDefinitions.Add("WITH_RTAUDIO=1");
 			PublicDefinitions.Add("WITH_AUDIOCAPTURE=1");

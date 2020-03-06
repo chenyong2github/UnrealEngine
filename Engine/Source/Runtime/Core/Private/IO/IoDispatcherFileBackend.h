@@ -10,8 +10,7 @@
 struct FFileIoStoreCacheBlockKey
 {
 	uint64 FileHandle;
-	uint32 BlockIndex;
-	uint32 Hash;
+	uint64 BlockIndex;
 
 	friend bool operator==(const FFileIoStoreCacheBlockKey& A, const FFileIoStoreCacheBlockKey& B)
 	{
@@ -20,16 +19,16 @@ struct FFileIoStoreCacheBlockKey
 
 	friend uint32 GetTypeHash(const FFileIoStoreCacheBlockKey& Key)
 	{
-		return Key.Hash;
+		return HashCombine(GetTypeHash(Key.FileHandle), GetTypeHash(Key.BlockIndex));
 	}
 };
 
 struct FFileIoStoreReadBlockScatter
 {
 	FIoRequestImpl* Request = nullptr;
-	uint8* Dst;
-	const uint8* Src;
-	uint32 Size;
+	uint64 DstOffset;
+	uint64 SrcOffset;
+	uint64 Size;
 };
 
 struct FFileIoStoreReadBlock
@@ -38,7 +37,9 @@ struct FFileIoStoreReadBlock
 	FFileIoStoreReadBlock* LruPrev = nullptr;
 	FFileIoStoreReadBlock* LruNext = nullptr;
 	FFileIoStoreCacheBlockKey Key;
-	uint8* Buffer = nullptr;
+	FIoBuffer Buffer;
+	uint64 Size = 0;
+	uint64 Offset = 0;
 	TArray<FFileIoStoreReadBlockScatter> ScatterList;
 	bool bIsReady = false;
 };
@@ -77,7 +78,7 @@ public:
 	EIoStoreResolveResult Resolve(FIoRequestImpl* Request);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
-	void ProcessIncomingBlocks();
+	bool ProcessCompletedBlock();
 
 	static bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 
@@ -86,16 +87,13 @@ private:
 	void ReadBlockCached(uint32 BlockIndex, const FFileIoStoreResolvedRequest& ResolvedRequest);
 	void ReadBlocksUncached(uint32 BeginBlockIndex, uint32 BlockCount, FFileIoStoreResolvedRequest& ResolvedRequest);
 
-	static constexpr uint32 CacheMemorySize = 32 << 20;
-	static constexpr uint32 CacheBlockSize = 256 << 10;
-	static constexpr uint32 CacheBlockCount = CacheMemorySize / CacheBlockSize;
-
 	FFileIoStoreImpl PlatformImpl;
 
 	mutable FRWLock IoStoreReadersLock;
 	TArray<FFileIoStoreReader*> IoStoreReaders;
-	TArray<FFileIoStoreReadBlock> CacheBlocks;
 	TMap<FFileIoStoreCacheBlockKey, FFileIoStoreReadBlock*> CachedBlocksMap;
 	FFileIoStoreReadBlock LruHead;
 	FFileIoStoreReadBlock LruTail;
+	const uint64 CacheBlockSize;
+	uint64 CurrentCacheUsage = 0;
 };

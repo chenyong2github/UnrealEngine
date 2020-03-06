@@ -606,6 +606,57 @@ public:
 	{
 		return GetName() < Other.GetName();
 	}
+
+
+
+	/*******
+	 * Stats
+	 *******/
+#if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
+	FORCEINLINE void ResetStatID()
+	{
+		GUObjectArray.IndexToObject(InternalIndex)->StatID = TStatId();
+	}
+#endif
+	/**
+	  * Returns the stat ID of the object, used for profiling. This will create a stat ID if needed.
+	  *
+	  * @param bForDeferred If true, a stat ID will be created even if a group is disabled
+	  */
+	FORCEINLINE TStatId GetStatID(bool bForDeferredUse = false) const
+	{
+#if STATS
+		const TStatId& StatID = GUObjectArray.IndexToObject(InternalIndex)->StatID;
+
+		// this is done to avoid even registering stats for a disabled group (unless we plan on using it later)
+		if (bForDeferredUse || FThreadStats::IsCollectingData(GET_STATID(STAT_UObjectsStatGroupTester)))
+		{
+			if (!StatID.IsValidStat())
+			{
+				CreateStatID();
+			}
+			return StatID;
+		}
+#elif ENABLE_STATNAMEDEVENTS_UOBJECT
+		const TStatId& StatID = GUObjectArray.IndexToObject(InternalIndex)->StatID;
+		if (!StatID.IsValidStat() && (bForDeferredUse || GCycleStatsShouldEmitNamedEvents))
+		{
+			CreateStatID();
+		}
+		return StatID;
+#endif // STATS
+		return TStatId(); // not doing stats at the moment, or ever
+	}
+
+private:
+#if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
+	/** Creates a stat ID for this object */
+	void CreateStatID() const
+	{
+		GUObjectArray.IndexToObject(InternalIndex)->CreateStatID();
+	}
+#endif
+
 };
 
 /** Returns false if this pointer cannot be a valid pointer to a UObject */

@@ -417,7 +417,7 @@ FReply FFindInBlueprintsProperty::OnClick()
 			{
 				// Open Viewport Tab
 				BlueprintEditor->FocusWindow();
-				BlueprintEditor->GetTabManager()->InvokeTab(FBlueprintEditorTabs::SCSViewportID);
+				BlueprintEditor->GetTabManager()->TryInvokeTab(FBlueprintEditorTabs::SCSViewportID);
 
 				// Find and Select the Component in the Viewport tab view
 				const TArray<USCS_Node*>& Nodes = Blueprint->SimpleConstructionScript->GetAllNodes();

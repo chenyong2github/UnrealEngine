@@ -235,7 +235,7 @@ namespace ShaderDrawDebug
 			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader](FRHICommandList& RHICmdList)
 		{
-			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *Parameters, FIntVector(1,1,1));
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, FIntVector(1,1,1));
 		});
 
 		GraphBuilder.QueueBufferExtraction(DataBuffer, &View.ShaderDrawData.Buffer, FRDGResourceState::EAccess::Write, FRDGResourceState::EPipeline::Compute);
@@ -287,10 +287,10 @@ namespace ShaderDrawDebug
 				PassParameters->ShaderDrawVSParameters.LockedShaderDrawDebugPrimitive = LockedDataBuffer;
 			}
 
-			ValidateShaderParameters(*PixelShader, PassParameters->ShaderDrawPSParameters);
-			ClearUnusedGraphResources(*PixelShader, &PassParameters->ShaderDrawPSParameters, { IndirectBuffer });
-			ValidateShaderParameters(*VertexShader, PassParameters->ShaderDrawVSParameters);
-			ClearUnusedGraphResources(*VertexShader, &PassParameters->ShaderDrawVSParameters, { IndirectBuffer });
+			ValidateShaderParameters(PixelShader, PassParameters->ShaderDrawPSParameters);
+			ClearUnusedGraphResources(PixelShader, &PassParameters->ShaderDrawPSParameters, { IndirectBuffer });
+			ValidateShaderParameters(VertexShader, PassParameters->ShaderDrawVSParameters);
+			ClearUnusedGraphResources(VertexShader, &PassParameters->ShaderDrawVSParameters, { IndirectBuffer });
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ShaderDrawDebug"),
@@ -311,12 +311,12 @@ namespace ShaderDrawDebug
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None, true>::GetRHI();
 				GraphicsPSOInit.PrimitiveType = PT_LineList;
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdListImmediate, GraphicsPSOInit);
 
-				SetShaderParameters(RHICmdListImmediate, *VertexShader, VertexShader->GetVertexShader(), PassParameters->ShaderDrawVSParameters);
-				SetShaderParameters(RHICmdListImmediate, *PixelShader, PixelShader->GetPixelShader(), PassParameters->ShaderDrawPSParameters);
+				SetShaderParameters(RHICmdListImmediate, VertexShader, VertexShader.GetVertexShader(), PassParameters->ShaderDrawVSParameters);
+				SetShaderParameters(RHICmdListImmediate, PixelShader, PixelShader.GetPixelShader(), PassParameters->ShaderDrawPSParameters);
 
 
 				if (bUseRdgInput)
@@ -360,7 +360,7 @@ namespace ShaderDrawDebug
 				Parameters->NumElements = NumElements;
 				Parameters->InStructuredBuffer = GraphBuilder.CreateSRV(DataBuffer);
 				Parameters->OutStructuredBuffer = LockedData.Buffer.UAV;
-				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ShaderDrawDebugCopy"), *ComputeShader, Parameters, FIntVector(FMath::CeilToInt(NumElements / 1024.f), 1, 1));
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ShaderDrawDebugCopy"), ComputeShader, Parameters, FIntVector(FMath::CeilToInt(NumElements / 1024.f), 1, 1));
 			}
 			{
 				FShaderDrawDebugCopyCS::FPermutationDomain PermutationVector;
@@ -370,7 +370,7 @@ namespace ShaderDrawDebug
 				FShaderDrawDebugCopyCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugCopyCS::FParameters>();
 				Parameters->InBuffer = GraphBuilder.CreateSRV(IndirectBuffer);
 				Parameters->OutBuffer = LockedData.IndirectBuffer.UAV;
-				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ShaderDrawDebugCopy"), *ComputeShader, Parameters, FIntVector(1, 1, 1));
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ShaderDrawDebugCopy"), ComputeShader, Parameters, FIntVector(1, 1, 1));
 			}
 		}
 	}

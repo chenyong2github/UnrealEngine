@@ -1058,7 +1058,7 @@ void UUnrealEdEngine::ShowLightingStaticMeshInfoWindow()
 	// first invoke the stats viewer tab
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-	LevelEditorTabManager->InvokeTab(FName("LevelEditorStatsViewer"));
+	LevelEditorTabManager->TryInvokeTab(FName("LevelEditorStatsViewer"));
 
 	// then switch pages
 	FStatsViewerModule& StatsViewerModule = FModuleManager::Get().LoadModuleChecked<FStatsViewerModule>(TEXT("StatsViewer"));
@@ -1071,7 +1071,7 @@ void UUnrealEdEngine::OpenSceneStatsWindow()
 	// first invoke the stats viewer tab
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-	LevelEditorTabManager->InvokeTab(FName("LevelEditorStatsViewer"));
+	LevelEditorTabManager->TryInvokeTab(FName("LevelEditorStatsViewer"));
 
 	// then switch pages
 	FStatsViewerModule& StatsViewerModule = FModuleManager::Get().LoadModuleChecked<FStatsViewerModule>(TEXT("StatsViewer"));
@@ -1084,7 +1084,7 @@ void UUnrealEdEngine::OpenTextureStatsWindow()
 	// first invoke the stats viewer tab
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-	LevelEditorTabManager->InvokeTab(FName("LevelEditorStatsViewer"));
+	LevelEditorTabManager->TryInvokeTab(FName("LevelEditorStatsViewer"));
 
 	// then switch pages
 	FStatsViewerModule& StatsViewerModule = FModuleManager::Get().LoadModuleChecked<FStatsViewerModule>(TEXT("StatsViewer"));

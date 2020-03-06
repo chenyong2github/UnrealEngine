@@ -174,7 +174,8 @@ struct FRHICommandLockWriteTexture final : public FRHICommand<FRHICommandLockWri
 	}
 };
 
-VkImageCreateInfo FVulkanSurface::GenerateImageCreateInfo(
+void FVulkanSurface::GenerateImageCreateInfo(
+	FImageCreateInfo& OutImageCreateInfo,
 	FVulkanDevice& InDevice,
 	VkImageViewType ResourceType,
 	EPixelFormat InFormat,
@@ -197,8 +198,7 @@ VkImageCreateInfo FVulkanSurface::GenerateImageCreateInfo(
 	}
 
 	checkf(TextureFormat != VK_FORMAT_UNDEFINED, TEXT("PixelFormat %d, is not supported for images"), (int32)InFormat);
-
-	VkImageCreateInfo ImageCreateInfo;
+	VkImageCreateInfo& ImageCreateInfo = OutImageCreateInfo.ImageCreateInfo;
 	ZeroVulkanStruct(ImageCreateInfo, VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
 
 	switch(ResourceType)
@@ -253,9 +253,26 @@ VkImageCreateInfo FVulkanSurface::GenerateImageCreateInfo(
 	check(ImageCreateInfo.arrayLayers <= DeviceProperties.limits.maxImageArrayLayers);
 
 	ImageCreateInfo.flags = (ResourceType == VK_IMAGE_VIEW_TYPE_CUBE || ResourceType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
-	if ((UEFlags & TexCreate_SRGB) == TexCreate_SRGB)
+
+
+	if((UEFlags & TexCreate_SRGB) == TexCreate_SRGB)
 	{
-		ImageCreateInfo.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+		if(InDevice.GetOptionalExtensions().HasKHRImageFormatList)
+		{
+			VkImageFormatListCreateInfoKHR& ImageFormatListCreateInfo = OutImageCreateInfo.ImageFormatListCreateInfo;
+			ZeroVulkanStruct(ImageFormatListCreateInfo, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR);
+			ImageFormatListCreateInfo.pNext = ImageCreateInfo.pNext;
+			ImageCreateInfo.pNext = &ImageFormatListCreateInfo;
+			ImageFormatListCreateInfo.viewFormatCount = 2;
+			ImageFormatListCreateInfo.pViewFormats = OutImageCreateInfo.FormatsUsed;
+			OutImageCreateInfo.FormatsUsed[0] = nonSrgbFormat;
+			OutImageCreateInfo.FormatsUsed[1] = srgbFormat;
+		}
+		else
+		{
+			ImageCreateInfo.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+		}
+
 	}
 
 #if VULKAN_SUPPORTS_MAINTENANCE_LAYER1
@@ -402,7 +419,6 @@ VkImageCreateInfo FVulkanSurface::GenerateImageCreateInfo(
 		}
 	}
 #endif
-	return ImageCreateInfo;
 }
 
 struct FRHICommandInitialClearTexture final : public FRHICommand<FRHICommandInitialClearTexture>
@@ -503,13 +519,14 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	, FullAspectMask(0)
 	, PartialAspectMask(0)
 {
-	VkImageCreateInfo ImageCreateInfo = FVulkanSurface::GenerateImageCreateInfo(
+	FImageCreateInfo ImageCreateInfo;
+	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo, 
 		InDevice, ResourceType,
 		InFormat, SizeX, SizeY, SizeZ,
 		ArraySize, NumMips, NumSamples, UEFlags,
 		&StorageFormat, &ViewFormat);
 
-	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &Image));
+	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo.ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &Image));
 
 	// Fetch image size
 	VulkanRHI::vkGetImageMemoryRequirements(InDevice.GetInstanceHandle(), Image, &MemoryRequirements);
@@ -524,7 +541,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	// If VK_IMAGE_TILING_OPTIMAL is specified,
 	// memoryTypeBits in vkGetImageMemoryRequirements will become 1
 	// which does not support VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.
-	if (ImageCreateInfo.tiling != VK_IMAGE_TILING_OPTIMAL)
+	if (ImageCreateInfo.ImageCreateInfo.tiling != VK_IMAGE_TILING_OPTIMAL)
 	{
 		MemProps |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 	}
@@ -565,10 +582,10 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	// update rhi stats
 	VulkanTextureAllocated(MemoryRequirements.size, ResourceType, bRenderTarget);
 
-	Tiling = ImageCreateInfo.tiling;
+	Tiling = ImageCreateInfo.ImageCreateInfo.tiling;
 	check(Tiling == VK_IMAGE_TILING_LINEAR || Tiling == VK_IMAGE_TILING_OPTIMAL);
 
-	if ((ImageCreateInfo.usage & VK_IMAGE_USAGE_SAMPLED_BIT) && (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)))
+	if ((ImageCreateInfo.ImageCreateInfo.usage & VK_IMAGE_USAGE_SAMPLED_BIT) && (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)))
 	{
 		const bool bTransitionToPresentable = ((UEFlags & TexCreate_Presentable) == TexCreate_Presentable);
 
@@ -625,12 +642,14 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	if (Image != VK_NULL_HANDLE)
 	{
 #if VULKAN_ENABLE_WRAP_LAYER	
-		VkImageCreateInfo ImageCreateInfo = FVulkanSurface::GenerateImageCreateInfo(
+		FImageCreateInfo ImageCreateInfo;
+		FVulkanSurface::GenerateImageCreateInfo(
+			ImageCreateInfo,
 			InDevice, ResourceType,
 			InFormat, SizeX, SizeY, SizeZ,
 			ArraySize, NumMips, NumSamples, UEFlags,
 			&StorageFormat, &ViewFormat);
-		FWrapLayer::CreateImage(VK_SUCCESS, InDevice.GetInstanceHandle(), &ImageCreateInfo, &Image);
+		FWrapLayer::CreateImage(VK_SUCCESS, InDevice.GetInstanceHandle(), &ImageCreateInfo.ImageCreateInfo, &Image);
 #endif
 		VULKAN_SET_DEBUG_NAME(InDevice, VK_OBJECT_TYPE_IMAGE, Image, TEXT("(FVulkanSurface*)0x%p"), this);
 
@@ -673,6 +692,7 @@ void FVulkanSurface::Destroy()
 		{
 			Size = GetMemorySize();
 			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Image, Image);
+			Device->GetDeferredDeletionQueue().EnqueueResourceAllocation(GetResourceAllocation());
 			Image = VK_NULL_HANDLE;
 		}
 
@@ -2145,12 +2165,13 @@ static VkMemoryRequirements FindOrCalculateTexturePlatformSize(FVulkanDevice* De
 	VkMemoryRequirements MemReq;
 
 	// Create temporary image to measure the memory requirements
-	VkImageCreateInfo TmpCreateInfo = FVulkanSurface::GenerateImageCreateInfo(*Device, ViewType,
+	FVulkanSurface::FImageCreateInfo TmpCreateInfo;
+	FVulkanSurface::GenerateImageCreateInfo(TmpCreateInfo, *Device, ViewType,
 		PixelFormat, SizeX, SizeY, SizeZ, 1, NumMips, NumSamples,
 		Flags, nullptr, nullptr, false);
 
 	VkImage TmpImage;
-	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(Device->GetInstanceHandle(), &TmpCreateInfo, VULKAN_CPU_ALLOCATOR, &TmpImage));
+	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(Device->GetInstanceHandle(), &TmpCreateInfo.ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &TmpImage));
 	VulkanRHI::vkGetImageMemoryRequirements(Device->GetInstanceHandle(), TmpImage, &MemReq);
 	VulkanRHI::vkDestroyImage(Device->GetInstanceHandle(), TmpImage, VULKAN_CPU_ALLOCATOR);
 

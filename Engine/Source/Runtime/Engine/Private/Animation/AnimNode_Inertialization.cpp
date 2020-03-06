@@ -268,6 +268,8 @@ void FAnimNode_Inertialization::GatherDebugData(FNodeDebugData& DebugData)
 			InertializationDeficit);
 	}
 	DebugData.AddDebugItem(DebugLine);
+
+	Source.GatherDebugData(DebugData);
 }
 
 

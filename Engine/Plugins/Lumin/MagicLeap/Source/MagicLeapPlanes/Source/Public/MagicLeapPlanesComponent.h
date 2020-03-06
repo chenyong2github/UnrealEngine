@@ -54,8 +54,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes | MagicLeap", meta = (ClampMin = 400))
 	float MinPlaneArea;
 
-private:
+	/**
+	  The type of plane query to perform.
+	  Bulk: Use OnPlanesQueryResult to retrieve results.
+	  Delta: Use OnPersistentPlanesQueryResult to retrieve results.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes | MagicLeap")
+	EMagicLeapPlaneQueryType QueryType;
+
+	/**
+		The threshold used to compare incoming planes with any cached planes.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes | MagicLeap", meta = (ClampMin = 0.0))
+	float SimilarityThreshold;
+	
+ private:
 	// Delegate instances
 	UPROPERTY(BlueprintAssignable, Category = "Planes | MagicLeap", meta = (AllowPrivateAccess = true))
 	FMagicLeapPlanesResultDelegateMulti OnPlanesQueryResult;
+
+	UPROPERTY(BlueprintAssignable, Category = "Planes | MagicLeap", meta = (AllowPrivateAccess = true))
+	FMagicLeapPersistentPlanesResultDelegateMulti OnPersistentPlanesQueryResult;
+	
+	EMagicLeapPlaneQueryType CurrentQueryType;
+	FGuid QueryHandle;
 };

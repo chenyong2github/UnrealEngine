@@ -395,6 +395,8 @@ void VHACD::ComputePrimitiveSet(const Parameters& params)
     if (GetCancel()) {
         return;
     }
+
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(params.m_profiler, VHACD::ComputePrimitiveSet);
     m_timer.Tic();
 
     m_stage = "Compute primitive set";
@@ -685,6 +687,9 @@ void VHACD::ComputeBestClippingPlane(const PrimitiveSet* inputPSet, const double
     if (GetCancel()) {
         return;
     }
+
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(params.m_profiler, VHACD::ComputeBestClippingPlane)
+
     char msg[256];
     size_t nPrimitives = inputPSet->GetNPrimitives();
     bool oclAcceleration = (nPrimitives > OCL_MIN_NUM_PRIMITIVES && params.m_oclAcceleration && params.m_mode == 0) ? true : false;
@@ -973,6 +978,8 @@ void VHACD::ComputeACD(const Parameters& params)
     if (GetCancel()) {
         return;
     }
+
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(params.m_profiler, VHACD::ComputeACD)
     m_timer.Tic();
 
     m_stage = "Approximate Convex Decomposition";
@@ -1018,6 +1025,9 @@ void VHACD::ComputeACD(const Parameters& params)
 
 
     while (sub++ < depth && inputParts.Size() > 0 && !m_cancel) {
+
+       VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(params.m_profiler, VHACD::ComputeACD_Iteration)
+
         msg.str("");
         msg << "Subdivision level " << sub;
         m_operation = msg.str();
@@ -1287,6 +1297,8 @@ void VHACD::MergeConvexHulls(const Parameters& params)
     if (GetCancel()) {
         return;
     }
+
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(params.m_profiler, VHACD::MergeConvexHulls)
     m_timer.Tic();
 
     m_stage = "Merge Convex Hulls";
@@ -1512,6 +1524,8 @@ void VHACD::SimplifyConvexHulls(const Parameters& params)
     if (m_cancel || params.m_maxNumVerticesPerCH < 4) {
         return;
     }
+
+    VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(params.m_profiler, VHACD::SimplifyConvexHulls)
     m_timer.Tic();
 
     m_stage = "Simplify convex-hulls";
@@ -1531,6 +1545,7 @@ void VHACD::SimplifyConvexHulls(const Parameters& params)
             msg << "\t\t Simplify CH[" << std::setfill('0') << std::setw(5) << i << "] " << m_convexHulls[i]->GetNPoints() << " V, " << m_convexHulls[i]->GetNTriangles() << " T" << std::endl;
             params.m_logger->Log(msg.str().c_str());
         }
+        VHACD_TRACE_CPUPROFILER_EVENT_SCOPE(params.m_profiler, VHACD::SimplifyConvexHull)
         SimplifyConvexHull(m_convexHulls[i], params.m_maxNumVerticesPerCH, m_volumeCH0 * params.m_minVolumePerCH);
     }
 

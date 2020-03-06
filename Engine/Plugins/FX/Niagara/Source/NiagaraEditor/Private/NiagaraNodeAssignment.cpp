@@ -32,7 +32,37 @@ void UNiagaraNodeAssignment::AllocateDefaultPins()
 
 FText UNiagaraNodeAssignment::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("NodeTitle", "Set Variables");
+	return Title;
+}
+
+void UNiagaraNodeAssignment::RefreshTitle()
+{
+	if (AssignmentTargets.Num() == 1)
+	{
+		Title = FText::Format(LOCTEXT("NodeTitleSingle", "Set {0}"), FText::FromName(AssignmentTargets[0].GetName()));
+	}
+	else if (AssignmentTargets.Num() > 1)
+	{
+		Title = FText::Format(LOCTEXT("NodeTitleMultiple", "Set {0} (+{1})"), FText::FromName(AssignmentTargets[0].GetName()), AssignmentTargets.Num() - 1);
+	}
+	else
+	{
+		Title = LOCTEXT("NodeTitle", "Set Variables");
+	}
+}
+
+FText UNiagaraNodeAssignment::GetTooltipText() const
+{
+	FText BaseText = LOCTEXT("NodeTooltipFormat", "Sets these parameters in the stack:");
+
+	TArray<FText> TargetNames;
+	TargetNames.Add(BaseText);
+	for (const FNiagaraVariable& Var : AssignmentTargets)
+	{
+		TargetNames.Add(FText::Format(LOCTEXT("Indent", "\t{0}"), FText::FromName(Var.GetName())));
+	}
+
+	return FText::Join(FText::FromString("\n"), TargetNames);
 }
 
 bool UNiagaraNodeAssignment::RefreshFromExternalChanges()
@@ -40,6 +70,8 @@ bool UNiagaraNodeAssignment::RefreshFromExternalChanges()
 	FunctionScript = nullptr;
 	GenerateScript();
 	ReallocatePins();
+	RefreshTitle();
+	OnInputsChangedDelegate.Broadcast();
 	return true;
 }
 
@@ -175,6 +207,8 @@ void UNiagaraNodeAssignment::PostLoad()
 			}
 		}
 	}
+
+	RefreshTitle();
 }
 
 void UNiagaraNodeAssignment::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
@@ -192,7 +226,7 @@ void UNiagaraNodeAssignment::GenerateScript()
 {
 	if (FunctionScript == nullptr)
 	{
-		FunctionScript = NewObject<UNiagaraScript>(this, FName(*(TEXT("SetVariables_") + NodeGuid.ToString())), RF_Transactional);
+		FunctionScript = NewObject<UNiagaraScript>(this, FName(*(TRANSLATOR_SET_VARIABLES_UNDERSCORE_STR + NodeGuid.ToString())), RF_Transactional);
 		FunctionScript->SetUsage(ENiagaraScriptUsage::Module);
 		FunctionScript->Description = LOCTEXT("AssignmentNodeDesc", "Sets one or more variables in the stack.");
 		InitializeScript(FunctionScript);
@@ -213,11 +247,10 @@ void UNiagaraNodeAssignment::BuildAddParameterMenu(FMenuBuilder& MenuBuilder, EN
 
 	for (const FNiagaraVariable& AvailableParameter : AvailableParameters)
 	{
-		FString DisplayNameString = FName::NameToDisplayString(AvailableParameter.GetName().ToString(), false);
-		const FText NameText = FText::FromString(DisplayNameString);
+		const FText NameText = FText::FromName(AvailableParameter.GetName());
 		FText VarDesc = FNiagaraConstants::GetAttributeDescription(AvailableParameter);
 		FString VarDefaultValue = FNiagaraConstants::GetAttributeDefaultValue(AvailableParameter);
-		const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Description: Set the parameter {0}. {1}"), FText::FromName(AvailableParameter.GetName()), VarDesc);
+		const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Description: Set the parameter {0}. {1}"), NameText, VarDesc);
 		FText CategoryName = LOCTEXT("ModuleSetCategory", "Set Specific Parameters");
 		bool bCanExecute = AssignmentTargets.Contains(AvailableParameter) == false; 
 
@@ -301,7 +334,8 @@ void UNiagaraNodeAssignment::AddParameter(FNiagaraVariable InVar, FString InDefa
 
 	RefreshFromExternalChanges();
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
-	OnInputsChangedDelegate.Broadcast();
+
+	RefreshTitle();
 }
 
 void UNiagaraNodeAssignment::RemoveParameter(const FNiagaraVariable& InVar)
@@ -329,7 +363,8 @@ void UNiagaraNodeAssignment::RemoveParameter(const FNiagaraVariable& InVar)
 
 	RefreshFromExternalChanges();
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
-	OnInputsChangedDelegate.Broadcast();
+
+	RefreshTitle();
 }
 
 void UNiagaraNodeAssignment::UpdateUsageBitmaskFromOwningScript()
@@ -520,6 +555,8 @@ void UNiagaraNodeAssignment::InitializeScript(UNiagaraScript* NewScript)
 			}
 		}
 	}
+
+	RefreshTitle();
 }
 
 int32 UsageToBitmask(ENiagaraScriptUsage Usage)
@@ -622,17 +659,24 @@ bool UNiagaraNodeAssignment::SetAssignmentTarget(int32 Idx, const FNiagaraVariab
 	return bRetValue;
 }
 
-bool UNiagaraNodeAssignment::SetAssignmentTargetName(int32 Idx, const FName& InName)
+bool UNiagaraNodeAssignment::RenameAssignmentTarget(FName OldName, FName NewName)
 {
-	check(Idx < AssignmentTargets.Num());
-	if (AssignmentTargets[Idx].GetName() != InName)
+	for (FNiagaraVariable& AssignmentTarget : AssignmentTargets)
 	{
-		AssignmentTargets[Idx].SetName(InName);
-		MarkNodeRequiresSynchronization(__FUNCTION__, true);
-		return true;
+		if (AssignmentTarget.GetName() == OldName)
+		{
+			Modify();
+			if (FunctionScript != nullptr)
+			{
+				FunctionScript->Modify();
+				FunctionScript->GetSource()->Modify();
+			}
+
+			AssignmentTarget.SetName(NewName);
+			return true;
+		}
 	}
 	return false;
 }
-
 
 #undef LOCTEXT_NAMESPACE

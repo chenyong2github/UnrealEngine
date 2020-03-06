@@ -3567,7 +3567,7 @@ void CompilerMSL::emit_custom_functions()
 		case SPVFuncImplImage2DAtomicCoords:
 		{
 			statement("// Returns buffer coords corresponding to 2D texture coords for emulating 2D texture atomics");
-			statement("#define spvImage2DAtomicCoord(tc, tex) (((tex).get_width() * (tc).x) + (tc).y)");
+			statement("#define spvImage2DAtomicCoord(tc, tex) (((tex).get_width() * (tc).y) + (tc).x)");
 			statement("");
 			break;
 		}
@@ -5626,6 +5626,7 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 					coord = join("spvStorageBufferCoords(", convert_to_string(var_index), ", spvBufferSizeConstants, ",
 					             type_to_glsl(innertype), ", ", coord, ")");
 				}
+				add_spv_func_and_recompile(SPVFuncImplStorageBufferCoords);
 			}
 
 			auto &e = set<SPIRExpression>(id, join(to_expression(ops[2]), "_atomic[", coord, "]"), result_type, true);
@@ -6170,6 +6171,9 @@ void CompilerMSL::emit_texture_op(const Instruction &i)
 		// Use Metal's native frame-buffer fetch API for subpass inputs.
 		if (imgtype.image.dim == DimSubpassData)
 		{
+			// Result type depends on dimension of subpass input
+			result_type_id = imgtype.image.type;
+			
 			SmallVector<uint32_t> inherited_expressions;
 			bool forward = false;
 			to_texture_op(i, &forward, inherited_expressions);
@@ -6256,29 +6260,6 @@ void CompilerMSL::emit_barrier(uint32_t id_exe_scope, uint32_t id_mem_scope, uin
 			bar_stmt += "mem_flags::mem_texture";
 		else
 			bar_stmt += "mem_flags::mem_none";
-	}
-
-	if (msl_options.is_ios() && (msl_options.supports_msl_version(2) && !msl_options.supports_msl_version(2, 1)))
-	{
-		bar_stmt += ", ";
-
-		switch (mem_scope)
-		{
-		case ScopeCrossDevice:
-		case ScopeDevice:
-			bar_stmt += "memory_scope_device";
-			break;
-
-		case ScopeSubgroup:
-		case ScopeInvocation:
-			bar_stmt += "memory_scope_simdgroup";
-			break;
-
-		case ScopeWorkgroup:
-		default:
-			bar_stmt += "memory_scope_threadgroup";
-			break;
-		}
 	}
 
 	bar_stmt += ");";
@@ -9080,7 +9061,43 @@ void CompilerMSL::entry_point_args_discrete_descriptors(string &ep_args)
 			}
 			else
 			{
-				ep_args += image_type_glsl(type, var_id) + "4 " + r.name;
+				// Determine dimension of subpass input attachment.
+				// This can't be stored in SPIR-V, so we need to pass this information via compiler options.
+				uint32_t subpass_dim = 4;
+				
+				auto dim_iter = msl_options.subpass_input_dimensions.find(r.index);
+				if (dim_iter != msl_options.subpass_input_dimensions.end())
+				{
+					subpass_dim = static_cast<uint32_t>(dim_iter->second);
+					if (subpass_dim < 1 || subpass_dim > 4)
+					{
+						SPIRV_CROSS_THROW(
+							"Subpass input dimension must be in range [1, 4] but " +
+							std::to_string(subpass_dim) + " was specified");
+					}
+				}
+				
+				// Change vector size of subpass expression
+				auto& img_type = get<SPIRType>(type.self).image;
+				auto& subpass_type = get<SPIRType>(img_type.type);
+				
+				// Generate new type and assign it to variable
+				uint32_t new_type_id = ir.increase_bound_by(1);
+				SPIRType new_type = subpass_type;
+				{
+					new_type.vecsize = subpass_dim;
+					
+					// Ensure new type has a parent type if we generated a vector
+					if (subpass_type.vecsize == 1 && subpass_dim != 1)
+						new_type.parent_type = subpass_type.self;
+				}
+				set<SPIRType>(new_type_id, new_type);
+				
+				// Replace image type with new tpye
+				img_type.type = new_type_id;
+				
+				// Use [[color(N)]] as input for fragment shader to utilize native subpass fetch operations
+				ep_args += image_type_glsl(type, var_id) + " " + r.name;
 				ep_args += " [[color(" + convert_to_string(r.index) + ")]]";
 			}
 

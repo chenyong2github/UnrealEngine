@@ -16,13 +16,15 @@
     {
       "Name": "Text3D",
       "Type": "Runtime",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "Default",
+	  "BlacklistTargets": [ "Server" ]
     }
   ],
   "Plugins": [
     {
       "Name": "GeometryProcessing",
-      "Enabled": true
+      "Enabled": true,
+	  "BlacklistTargets": [ "Server" ]
     }
   ]
 }

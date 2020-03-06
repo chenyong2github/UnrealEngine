@@ -50,6 +50,12 @@ namespace Audio
 		// Processes the input audio stream and returns the envelope value.
 		float ProcessAudio(const float InAudioSample);
 
+		// Process the input audio buffer and returns the last envelope value
+		float ProcessAudio(const float* InAudioBuffer, float* OutAudioBuffer, int32 InNumSamples);
+
+		// Process the input audio buffer and returns the last envelope value
+		float ProcessAudio(const float* InAudioBuffer, int32 InNumSamples);
+
 		// Processes the input audio stream and returns the envelope value.
 		float ProcessAudioNonClamped(const float InAudioSample);
 

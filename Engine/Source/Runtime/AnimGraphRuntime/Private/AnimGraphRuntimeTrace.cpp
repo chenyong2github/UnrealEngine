@@ -19,18 +19,9 @@ UE_TRACE_EVENT_BEGIN(Animation, BlendSpacePlayer)
 	UE_TRACE_EVENT_FIELD(float, PositionZ)
 UE_TRACE_EVENT_END()
 
-void FAnimGraphRuntimeTrace::Init()
-{
-	if (FParse::Param(FCommandLine::Get(), TEXT("objecttrace")))
-	{
-		UE_TRACE_EVENT_IS_ENABLED(Animation, BlendSpacePlayer);
-		Trace::ToggleEvent(TEXT("Animation"), true);
-	}
-}
-
 void FAnimGraphRuntimeTrace::OutputBlendSpacePlayer(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpacePlayer& InNode)
 {
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(Animation, BlendSpacePlayer);
+	bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
 	if (!bEventEnabled)
 	{
 		return;
@@ -41,7 +32,7 @@ void FAnimGraphRuntimeTrace::OutputBlendSpacePlayer(const FAnimationBaseContext&
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 	TRACE_OBJECT(InNode.BlendSpace);
 
-	UE_TRACE_LOG(Animation, BlendSpacePlayer)
+	UE_TRACE_LOG(Animation, BlendSpacePlayer, AnimationChannel)
 		<< BlendSpacePlayer.Cycle(FPlatformTime::Cycles64())
 		<< BlendSpacePlayer.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< BlendSpacePlayer.BlendSpaceId(FObjectTrace::GetObjectId(InNode.BlendSpace))

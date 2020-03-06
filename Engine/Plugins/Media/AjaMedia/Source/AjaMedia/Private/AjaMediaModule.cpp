@@ -5,11 +5,14 @@
 #include "Aja/Aja.h"
 #include "AjaDeviceProvider.h"
 #include "AJALib.h"
-#include "Player/AjaMediaPlayer.h"
-
+#include "Brushes/SlateImageBrush.h"
 #include "CoreMinimal.h"
 #include "IMediaIOCoreModule.h"
+#include "Interfaces/IPluginManager.h"
 #include "Modules/ModuleManager.h"
+#include "Player/AjaMediaPlayer.h"
+#include "Styling/SlateStyle.h"
+
 
 DEFINE_LOG_CATEGORY(LogAjaMedia);
 
@@ -33,6 +36,11 @@ public:
 		return MakeShared<FAjaMediaPlayer, ESPMode::ThreadSafe>(EventSink);
 	}
 
+	virtual TSharedPtr<FSlateStyleSet> GetStyle() override
+	{
+		return StyleSet;
+	}
+
 	virtual bool IsInitialized() const override { return FAja::IsInitialized(); }
 
 	virtual bool CanBeUsed() const override { return FAja::CanUseAJACard(); }
@@ -49,6 +57,8 @@ public:
 			return;
 		}
 
+		CreateStyle();
+
 		IMediaIOCoreModule::Get().RegisterDeviceProvider(&DeviceProvider);
 	}
 
@@ -62,7 +72,19 @@ public:
 	}
 
 private:
+	void CreateStyle()
+	{
+		static FName StyleName(TEXT("AjaMediaStyle"));
+		StyleSet = MakeShared<FSlateStyleSet>(StyleName);
+
+		const FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("AjaMedia"))->GetContentDir();
+		const FVector2D Icon16x16(16.0f, 16.0f);
+		StyleSet->Set("AjaMediaIcon", new FSlateImageBrush((ContentDir / TEXT("Editor/Icons/AjaMediaSource_64x")) + TEXT(".png"), Icon16x16));
+	}
+
+private:
 	FAjaDeviceProvider DeviceProvider;
+	TSharedPtr<FSlateStyleSet> StyleSet;
 };
 
 IMPLEMENT_MODULE(FAjaMediaModule, AjaMedia);

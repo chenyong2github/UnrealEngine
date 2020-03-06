@@ -53,6 +53,7 @@ void UClothLODDataCommon::PostLoad()
 
 	if (PhysicalMeshData_DEPRECATED)
 	{
+		PhysicalMeshData_DEPRECATED->ConditionalPostLoad();  // Makes sure the UObject has finished loading
 		ClothPhysicalMeshData.MigrateFrom(PhysicalMeshData_DEPRECATED);
 		PhysicalMeshData_DEPRECATED = nullptr;
 	}

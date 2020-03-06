@@ -331,6 +331,12 @@ namespace DeploymentServer
 								Writer.Flush();
 								break;
 
+							case "listapplications":
+								Console.SetOut(Writer);
+								DeploymentProxy.Deployer.ListApplications();
+								Writer.Flush();
+								break;
+
 							case "command":
 								if (Device.Length < 5)
 								{
@@ -1091,6 +1097,7 @@ namespace DeploymentServer
 				Console.WriteLine("\t install");
 				Console.WriteLine("\t enumerate");
 				Console.WriteLine("\t listdevices");
+				Console.WriteLine("\t listapplications");
 				Console.WriteLine("\t listentodevice");
 				Console.WriteLine("\t command");
 				Console.WriteLine("\t forward");

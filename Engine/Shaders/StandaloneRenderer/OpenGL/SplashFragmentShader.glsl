@@ -1,5 +1,5 @@
 
-#if PLATFORM_USES_ES2
+#if PLATFORM_USES_GLES
 precision highp float;
 #else
 // #version 120 at the beginning is added in FSlateOpenGLShader::CompileShader()

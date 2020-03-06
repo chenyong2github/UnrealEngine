@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+
 #include "GenericPlatform/GenericWindow.h"
 #include "Templates/SharedPointer.h"
 #include "Windows/WindowsHWrapper.h"

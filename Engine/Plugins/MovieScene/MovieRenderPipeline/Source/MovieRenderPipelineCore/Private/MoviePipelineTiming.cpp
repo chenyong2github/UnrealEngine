@@ -28,6 +28,25 @@ void UMoviePipeline::TickProducingFrames()
 	// We should not be calling this once we have completed all the shots.
 	check(CurrentShotIndex >= 0 && CurrentShotIndex < ShotList.Num());
 
+	if (bShutdownRequested)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[GFrameCounter: %d] Async Shutdown Requested, abandoning remaining work and moving to Finalize."), GFrameCounter);
+		TransitionToState(EMovieRenderPipelineState::Finalize);
+		return;
+	}
+
+	// When start up we want to override the engine's Custom Timestep with our own.
+	// This gives us the ability to completely control the engine tick/delta time before the frame
+	// is started so that we don't have to always be thinking of delta times one frame ahead. We need
+	// to do this only once we're ready to set the timestep though, as Initialize can be called as
+	// a result of a OnBeginFrame, meaning that Initialize is called on the frame before TickProducingFrames
+	// so there would be one frame where it used the custom timestep (after initialize) before TPF was called.
+	if (GEngine->GetCustomTimeStep() != CustomTimeStep)
+	{
+		CachedPrevCustomTimeStep = GEngine->GetCustomTimeStep();
+		GEngine->SetCustomTimeStep(CustomTimeStep);
+	}
+
 	// If we're debug stepping one frame at a time, this will return true
 	// and we early out so that we don't end up advancing the pipeline at all.
 	// This handles setting the delta time for us to a fixed number.
@@ -126,14 +145,6 @@ void UMoviePipeline::TickProducingFrames()
 		return;
 	}
 
-	// At this point, from now on, the Sequence should be in the Playing state. MotionBlur fixes only
-	// last for one frame, and rendering expects it to be playing anyways. 
-	if (!LevelSequenceActor->GetSequencePlayer()->IsPlaying())
-	{
-		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("[%d] Setting Sequence Player to Play due to being paused when motion started."), GFrameCounter);
-		LevelSequenceActor->GetSequencePlayer()->Play();
-	}
-
 	// Do the MotionBlur State exit condition before the MotionBlur loop, to allow the correct MotionBlur state to
 	// persist through to the post-frame render before switching to the next state.
 	if (CurrentCameraCut.State == EMovieRenderShotState::MotionBlur && CurrentCameraCut.bHasEvaluatedMotionBlurFrame)
@@ -176,7 +187,7 @@ void UMoviePipeline::TickProducingFrames()
 	// This block is optional, as they may not want motion blur fixes.
 	if (CurrentCameraCut.State == EMovieRenderShotState::MotionBlur)
 	{
-		CachedOutputState.bSkipRendering = true;
+		CachedOutputState.bSkipRendering = false;
 		CachedOutputState.bDiscardRenderResult = true;
 
 		const MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(CurrentShot);
@@ -188,6 +199,7 @@ void UMoviePipeline::TickProducingFrames()
 		double FrameDeltaTime = FrameMetrics.TickResolution.AsSeconds(FrameMetrics.TicksPerSample);
 		CachedOutputState.TimeData.FrameDeltaTime = FrameDeltaTime;
 		CachedOutputState.TimeData.WorldSeconds = CachedOutputState.TimeData.WorldSeconds + FrameDeltaTime;
+		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(FrameDeltaTime));
 
 		// We subtract a single tick here so that if you're trying to render one frame, and it is the last frame of the
 		// camera cut, if we jump forward a whole frame the evaluation will fail (since end frames are exclusive). To
@@ -198,7 +210,9 @@ void UMoviePipeline::TickProducingFrames()
 		// offsets taken into account. When we evaluate for this frame, take those into account.
 		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut.CurrentMasterSeqTick + MotionBlurDurationTicks);
 
-		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(FrameDeltaTime));
+		// Jump to the motion blur frame
+		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(FinalEvalTime, FrameMetrics.TickResolution, TargetSequence->GetMovieScene()->GetDisplayRate());
+		LevelSequenceActor->GetSequencePlayer()->JumpToFrame(TimeInPlayRate);
 		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(FinalEvalTime, FrameMetrics.TickResolution));
 		
 		// We early out on this loop so that at least one tick passes for motion blur. We need to leave our state in
@@ -462,6 +476,18 @@ void UMoviePipeline::TickProducingFrames()
 			GFrameCounter, *LexToString(FinalEvalTime.FloorToFrame()),
 			CurrentCameraCut.CurrentMasterSeqTick.Value, FrameMetrics.ShutterOffsetTicks.GetFrame().Value, FrameMetrics.MotionBlurCenteringOffsetTicks.GetFrame().Value);
 
+
+		if (!LevelSequenceActor->GetSequencePlayer()->IsPlaying())
+		{
+			// If the level sequence actor isn't playing then this is the first frame that we're trying to render for the shot.
+			// We want to trigger a jump and then a play (and then set the SetCachedFrameTiming below as normal). The jump is
+			// important because we're going backwards in time from the motion blur frame, and some tracks need to be notified
+			// of a jump when time goes backwards.
+			FFrameTime TimeInPlayRate = FFrameRate::TransformTime(FinalEvalTime, FrameMetrics.TickResolution, TargetSequence->GetMovieScene()->GetDisplayRate());
+			LevelSequenceActor->GetSequencePlayer()->JumpToFrame(TimeInPlayRate);
+			LevelSequenceActor->GetSequencePlayer()->Play();
+		}
+
 		
 		// If the user doesn't want to render every frame we need to increase the delta time so that enough
 		// time passes in the world. The framerate of the output media will be adjusted to match.
@@ -487,10 +513,14 @@ void UMoviePipeline::TickProducingFrames()
 			// If this isn't the last shot, we'll immediately call this function again to just
 			// determine a new setup/seek/etc. on the same engine tick. Otherwise we would have
 			// used a random delta time that didn't actually correlate to anything.
-			if (!ProcessEndOfCameraCut(CurrentShot, CurrentCameraCut))
+			ProcessEndOfCameraCut(CurrentShot, CurrentCameraCut);
+			if (PipelineState == EMovieRenderPipelineState::ProducingFrames)
 			{
 				CachedOutputState.TemporalSampleIndex = -1;
 				TickProducingFrames();
+			}
+			else
+			{
 				return;
 			}
 		}
@@ -548,4 +578,7 @@ void UMoviePipeline::CalculateFrameNumbersForOutputState(const MoviePipeline::FF
 		InOutOutputState.CurrentShotSourceFrameNumber = FFrameRate::TransformTime(CenteredTick, InFrameMetrics.TickResolution, SourceDisplayRate).RoundToFrame().Value;
 		InOutOutputState.CurrentShotSourceTimeCode = FTimecode::FromFrameNumber(InOutOutputState.CurrentShotSourceFrameNumber, InFrameMetrics.FrameRate, false);
 	}
+
+	InOutOutputState.ShotName = InCameraCut.ShotName;
+	InOutOutputState.CameraName = InCameraCut.CameraName;
 }

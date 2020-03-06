@@ -14,8 +14,10 @@ LUMIN_THIRD_PARTY_INCLUDES_END
 namespace MLSDK_API
 {
 
-CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderCreate)
+CREATE_DEPRECATED_MSG_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderCreate, "Replaced by MLMusicServiceProviderCreateEx.")
 #define MLMusicServiceProviderCreate ::MLSDK_API::MLMusicServiceProviderCreateShim
+CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderCreateEx)
+#define MLMusicServiceProviderCreateEx ::MLSDK_API::MLMusicServiceProviderCreateExShim
 CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderStart)
 #define MLMusicServiceProviderStart ::MLSDK_API::MLMusicServiceProviderStartShim
 CREATE_FUNCTION_SHIM(ml_musicservice_provider, MLResult, MLMusicServiceProviderSetAudioOutput)

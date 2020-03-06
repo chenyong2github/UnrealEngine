@@ -56,7 +56,10 @@ RENDERER_API bool IsHairStrandsSupported(const EShaderPlatform Platform);
 
 FVector4 PackHairRenderInfo(
 	float PrimaryRadiusAtDepth1,
+	float StableRadiusAtDepth1,
 	float VelocityRadiusAtDepth1,
-	float VelocityScale,
-	bool  bIsOrtho,
-	bool  bIsGPUDriven);
+	float VelocityScale);
+
+uint32 PackHairRenderInfoBits(
+	bool bIsOrtho,
+	bool bIsGPUDriven);

@@ -3,12 +3,17 @@
 #include "DatasmithDeltaGenSceneProcessor.h"
 
 #include "DatasmithDeltaGenImportData.h"
+#include "DatasmithDeltaGenImportOptions.h"
 #include "DatasmithDeltaGenLog.h"
 #include "DatasmithFBXScene.h"
+#include "DatasmithUtils.h"
+
+#include "Factories/TextureFactory.h"
+#include "HAL/FileManager.h"
 
 using TimelineToAnimations = TMap<FDeltaGenTmlDataTimeline*, FDeltaGenTmlDataTimelineAnimation*>;
 
-namespace FDeltaGenProcessorImpl
+namespace DeltaGenProcessorImpl
 {
 	// Moves tracks of TrackTypes to new animations within each Timeline, all tied to the Dummy node's name
 	void MoveTracksToDummyAnimation(TSharedPtr<FDatasmithFBXSceneNode>& Dummy,
@@ -152,11 +157,134 @@ namespace FDeltaGenProcessorImpl
 		NodeParent->Children.Remove(Node);
 		NodeParent->AddChild(Dummy);
 	}
+
+	/** Will return a clone of Original that has TexAO set with 'AOPath' as its path. It may reuse an existing clone, or create a new one */
+	TSharedPtr<FDatasmithFBXSceneMaterial> CloneMaterialForAOTexture(const TSharedPtr<FDatasmithFBXSceneMaterial>& Original, const FString& AOPath)
+	{
+		if (!Original.IsValid() || AOPath.IsEmpty())
+		{
+			return nullptr;
+		}
+
+		// Maybe we already cloned this material for that AO texture?
+		for (const TWeakPtr<FDatasmithFBXSceneMaterial>& Clone : Original->ClonedMaterials)
+		{
+			if (!Clone.IsValid())
+			{
+				continue;
+			}
+
+			TSharedPtr<FDatasmithFBXSceneMaterial> PinnedClone = Clone.Pin();
+			if (FDatasmithFBXSceneMaterial::FTextureParams* AOTexture = PinnedClone->TextureParams.Find(TEXT("TexAO")))
+			{
+				if (AOTexture->Path == AOPath)
+				{
+					return PinnedClone;
+				}
+			}
+		}
+
+		TSharedPtr<FDatasmithFBXSceneMaterial> Clone = MakeShared<FDatasmithFBXSceneMaterial>(*Original);
+		Clone->TextureParams.FindOrAdd(TEXT("TexAO")).Path = AOPath;
+
+		Original->ClonedMaterials.Add(Clone);
+
+		return Clone;
+	}
+
+	/**
+	 * Will look for an existing AO texture for a given mesh name and set it on the material.
+	 * If it can't set the texture (already has a different AO texture), it will return a cloned version of the material with the new AO texture.
+	 */
+	TSharedPtr<FDatasmithFBXSceneMaterial> FetchAOTexture(const FString& MeshName, TSharedPtr<FDatasmithFBXSceneMaterial>& Material, const TArray<FDirectoryPath>& TextureFolders)
+	{
+		UTextureFactory* TextureFactory = UTextureFactory::StaticClass()->GetDefaultObject<UTextureFactory>();
+		if (TextureFolders.Num() == 0 || !TextureFactory)
+		{
+			return nullptr;
+		}
+
+		// Find all filepaths for images that are in a texture folder and have the mesh name as part of the filename
+		TArray<FString> PotentialTextures;
+		for (const FDirectoryPath& Dir : TextureFolders)
+		{
+			TArray<FString> Textures;
+			IFileManager::Get().FindFiles(Textures, *Dir.Path, TEXT(""));
+
+			for (const FString& Texture : Textures)
+			{
+				if (TextureFactory->FactoryCanImport(Texture) && Texture.Contains(MeshName))
+				{
+					PotentialTextures.Add(Dir.Path / Texture);
+				}
+			}
+		}
+
+		if (PotentialTextures.Num() == 0)
+		{
+			return nullptr;
+		}
+
+		FString AOTexPath = PotentialTextures[0];
+		if (PotentialTextures.Num() > 1)
+		{
+			UE_LOG(LogDatasmithDeltaGenImport, Warning, TEXT("Found more than one candidate for an AO texture matching mesh name '%s', so texture '%s' will be used. Better matching between texture and mesh name would help."), *MeshName, *AOTexPath);
+		}
+
+		TSharedPtr<FDatasmithFBXSceneMaterial> ClonedMaterial = nullptr;
+		if (FDatasmithFBXSceneMaterial::FTextureParams* ExistingAOTexture = Material->TextureParams.Find(TEXT("TexAO")))
+		{
+			// If the material already has a different AO texture set, some other mesh is using it, so we need
+			// to duplicate this material and set our own AO texture
+			if (ExistingAOTexture->Path != AOTexPath)
+			{
+				ClonedMaterial = DeltaGenProcessorImpl::CloneMaterialForAOTexture(Material, AOTexPath);
+			}
+		}
+		// No AO texture on this material yet, lets set our texture to it and use it
+		else
+		{
+			FDatasmithFBXSceneMaterial::FTextureParams& Tex = Material->TextureParams.FindOrAdd(TEXT("TexAO"));
+			Tex.Path = AOTexPath;
+		}
+
+		return ClonedMaterial;
+	}
 };
 
 FDatasmithDeltaGenSceneProcessor::FDatasmithDeltaGenSceneProcessor(FDatasmithFBXScene* InScene)
 	: FDatasmithFBXSceneProcessor(InScene)
 {
+}
+
+void FDatasmithDeltaGenSceneProcessor::SetupAOTextures(const TArray<FDirectoryPath>& TextureFolders)
+{
+	TSet<TSharedPtr<FDatasmithFBXSceneMaterial>> UniqueMaterials{ Scene->Materials };
+
+	FDatasmithUniqueNameProvider UniqueNameProvider;
+	for (const TSharedPtr<FDatasmithFBXSceneMaterial>& UniqueMaterial : UniqueMaterials)
+	{
+		UniqueNameProvider.AddExistingName(UniqueMaterial->Name);
+	}
+
+	for (TSharedPtr<FDatasmithFBXSceneNode>& Node : Scene->GetAllNodes())
+	{
+		for (int32 Index = 0; Index < Node->Materials.Num(); ++Index)
+		{
+			TSharedPtr<FDatasmithFBXSceneMaterial>& Material = Node->Materials[Index];
+
+			TSharedPtr<FDatasmithFBXSceneMaterial> ClonedMaterial = DeltaGenProcessorImpl::FetchAOTexture(Node->Mesh->Name, Material, TextureFolders);
+			if (ClonedMaterial.IsValid())
+			{
+				ClonedMaterial->Name = UniqueNameProvider.GenerateUniqueName(ClonedMaterial->Name);
+
+				UniqueMaterials.Add(ClonedMaterial);
+				Node->Materials[Index] = ClonedMaterial;
+			}
+		}
+	}
+
+	Scene->Materials = UniqueMaterials.Array();
 }
 
 void FDatasmithDeltaGenSceneProcessor::DecomposePivots(TArray<FDeltaGenTmlDataTimeline>& Timelines)
@@ -176,8 +304,8 @@ void FDatasmithDeltaGenSceneProcessor::DecomposePivots(TArray<FDeltaGenTmlDataTi
 	TMap<FDeltaGenTmlDataTimeline*, TArray<FDeltaGenTmlDataTimelineAnimation>> NewAnimationsPerTimeline;
 	for (TSharedPtr<FDatasmithFBXSceneNode> Node : Scene->GetAllNodes())
 	{
-		FDeltaGenProcessorImpl::DecomposeRotationPivotsForNode(Node, NodeNamesToAnimations, NewAnimationsPerTimeline);
-		FDeltaGenProcessorImpl::DecomposeScalingPivotsForNode(Node, NodeNamesToAnimations, NewAnimationsPerTimeline);
+		DeltaGenProcessorImpl::DecomposeRotationPivotsForNode(Node, NodeNamesToAnimations, NewAnimationsPerTimeline);
+		DeltaGenProcessorImpl::DecomposeScalingPivotsForNode(Node, NodeNamesToAnimations, NewAnimationsPerTimeline);
 	}
 
 	// Add the new animations only afterwards, as NodeNamesToAnimations stores raw pointers to animations within TArrays

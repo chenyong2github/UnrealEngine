@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TRACE_API_H
-#define TRACE_API_H
+#ifndef PXR_BASE_TRACE_API_H
+#define PXR_BASE_TRACE_API_H
 
 #include "pxr/base/arch/export.h"
 
@@ -44,4 +44,4 @@
 #   define TRACE_LOCAL ARCH_HIDDEN
 #endif
 
-#endif // TRACE_API_H
+#endif // PXR_BASE_TRACE_API_H

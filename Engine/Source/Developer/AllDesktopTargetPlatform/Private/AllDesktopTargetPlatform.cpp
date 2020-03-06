@@ -81,7 +81,8 @@ FName FAllDesktopTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) c
 	{
 		return NAME_ADPCM;
 	}
-	else if (Wave->IsStreaming())
+	// there is no one platform to check for Streaming status here
+	else if (Wave->IsStreaming(TEXT("Windows")))
 	{
 #if !USE_VORBIS_FOR_STREAMING
 		return NAME_OPUS;

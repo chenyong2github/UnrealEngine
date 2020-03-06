@@ -20,6 +20,7 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
+#include "HitProxies.h"
 #include "PrimitiveComponent.generated.h"
 
 class AController;
@@ -523,6 +524,12 @@ public:
 	UPROPERTY()
 	TEnumAsByte<EHasCustomNavigableGeometry::Type> bHasCustomNavigableGeometry;
 
+public:
+#if WITH_EDITORONLY_DATA
+		UPROPERTY()
+			TEnumAsByte<enum EHitProxyPriority> HitProxyPriority;
+#endif
+
 private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -585,7 +592,7 @@ public:
 	 * Array of runtime virtual textures into which we render the mesh for this actor. 
 	 * The material also needs to be set up to output to a virtual texture. 
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
 
 	/** Bias to the LOD selected for rendering to runtime virtual textures. */
@@ -1894,7 +1901,7 @@ public:
 #endif
 
 	//~ Begin UActorComponent Interface
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void OnRegister()  override;
 	virtual void OnUnregister()  override;

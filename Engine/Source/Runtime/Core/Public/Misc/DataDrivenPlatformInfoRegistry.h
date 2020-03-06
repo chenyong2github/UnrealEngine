@@ -6,7 +6,6 @@
 #include "Containers/UnrealString.h"
 #include "Containers/Map.h"
 #include "Containers/Array.h"
-#include "Misc/ConfigCacheIni.h"
 
 
 struct CORE_API FDataDrivenPlatformInfoRegistry
@@ -14,17 +13,30 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	// Information about a platform loaded from disk
 	struct FPlatformInfo
 	{
+		// cached list of ini parents
+		TArray<FString> IniParentChain;
+
 		// is this platform confidential
 		bool bIsConfidential = false;
 
 		// should this platform be split when using ELocTextPlatformSplitMode::Restricted (only used when bIsConfidential is true)
 		bool bRestrictLocalization = false;
 
+		// the name of the ini section to use to load audio compression settings (used at runtime and cooktime)
+		FString AudioCompressionSettingsIniSectionName;
+
 		// list of additonal restricted folders
 		TArray<FString> AdditionalRestrictedFolders;
 
-		// cached list of ini parents
-		TArray<FString> IniParentChain;
+		// MemoryFreezing information, matches FPlatformTypeLayoutParameters - defaults are clang, noneditor
+		uint32 Freezing_MaxFieldAlignment = 0xffffffff;
+		bool Freezing_b32Bit = false;
+		bool Freezing_bForce64BitMemoryImagePointers = true;
+		bool Freezing_bAlignBases = false;
+		bool Freezing_bWithRayTracing = false;
+
+		// NOTE: add more settings here (and read them in in the LoadDDPIIniSettings() function in the .cpp)
+
 	};
 
 	/**

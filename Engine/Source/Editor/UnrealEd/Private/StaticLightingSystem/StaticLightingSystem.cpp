@@ -749,7 +749,10 @@ bool FStaticLightingSystem::BeginLightmassProcess()
 	else
 	{
 		InvalidateStaticLighting();
-		ApplyNewLightingData(true);
+
+		// Calling ApplyNewLightingData() results in creating an empty MapBuildData which is causing cooking issues
+		// Disabled for now
+		//ApplyNewLightingData(true);
 	}
 	
 	if (!bForceNoPrecomputedLighting)
@@ -775,9 +778,6 @@ void FStaticLightingSystem::InvalidateStaticLighting()
 		{
 			continue;
 		}
-
-		// Clear all the atmosphere guids from the MapBuildData when starting a new build.
-		Level->GetOrCreateMapBuildData()->ClearSkyAtmosphereBuildData();
 
 		const bool bBuildLightingForLevel = Options.ShouldBuildLightingForLevel( Level );
 		

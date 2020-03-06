@@ -2365,10 +2365,12 @@ void SClassViewer::SetExpansionStatesInTree( TSharedPtr<FClassViewerNode> InItem
 int32 SClassViewer::CountTreeItems(FClassViewerNode* Node)
 {
 	if (Node == nullptr)
+	{
 		return 0;
+	}
 	int32 Count = 1;
 	TArray<TSharedPtr<FClassViewerNode>>& ChildArray = Node->GetChildrenList();
-	for (int i = 0; i < ChildArray.Num(); i++)
+	for (int32 i = 0; i < ChildArray.Num(); i++)
 	{
 		Count += CountTreeItems(ChildArray[i].Get());
 	}
@@ -2377,6 +2379,21 @@ int32 SClassViewer::CountTreeItems(FClassViewerNode* Node)
 
 void SClassViewer::Populate()
 {
+	TArray<FName> PreviousSelection;
+	{
+		TArray<TSharedPtr<FClassViewerNode>> SelectedItems = GetSelectedItems();
+		if (SelectedItems.Num() > 0)
+		{
+			for (TSharedPtr<FClassViewerNode>& Node : SelectedItems)
+			{
+				if (Node.IsValid())
+				{
+					PreviousSelection.Add(Node->ClassPath);
+				}
+			}
+		}
+	}
+
 	bPendingSetExpansionStates = false;
 
 	// If showing a class tree, we may need to save expansion states.
@@ -2482,11 +2499,61 @@ void SClassViewer::Populate()
 		}
 
 		NumClasses = 0;
-		for (int i = 0; i < RootTreeItems.Num(); i++)
+		for (int32 i = 0; i < RootTreeItems.Num(); i++)
+		{
 			NumClasses += CountTreeItems(RootTreeItems[i].Get());
+		}
 
 		// Now that new items are in the tree, we need to request a refresh.
 		ClassTree->RequestTreeRefresh();
+
+		UClass* CurrentClass = nullptr;
+		if (PreviousSelection.Num() > 0)
+		{
+			if (TSharedPtr<FClassViewerNode> ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByClassName(ClassViewer::Helpers::ClassHierarchy->GetObjectRootNode(), PreviousSelection[0].ToString()))
+			{
+				if (ClassNode.IsValid())
+				{
+					CurrentClass = ClassNode->Class.Get();
+				}
+			}
+		}
+		else if (InitOptions.InitiallySelectedClass)
+		{
+			CurrentClass = InitOptions.InitiallySelectedClass;
+		}
+
+		if (CurrentClass)
+		{
+			TArray<UClass*> ClassHierarchy;
+			while (CurrentClass)
+			{
+				ClassHierarchy.Add(CurrentClass);
+				CurrentClass = CurrentClass->GetSuperClass();
+			}
+
+			ClassTree->SetItemExpansion(RootNode, true);
+
+			TSharedPtr<FClassViewerNode> ClassNode = RootNode;
+
+			for (int32 Index = ClassHierarchy.Num() - 2; Index >= 0; --Index)
+			{
+				for (const TSharedPtr<FClassViewerNode>& ChildClassNode : ClassNode->GetChildrenList())
+				{
+					UClass* ChildClass = ChildClassNode->Class.Get();
+					if (ChildClass == ClassHierarchy[Index])
+					{
+						ClassTree->SetItemExpansion(ChildClassNode, true);
+						ClassNode = ChildClassNode;
+						break;
+					}
+				}
+			}
+
+			ClassTree->SetSelection(ClassNode);
+
+			InitOptions.InitiallySelectedClass = nullptr;
+		}
 	}
 	else
 	{
@@ -2505,11 +2572,32 @@ void SClassViewer::Populate()
 		}
 
 		NumClasses = 0;
-		for (int i = 0; i < RootTreeItems.Num(); i++)
-			NumClasses += CountTreeItems(RootTreeItems[i].Get() );
+		for (int32 i = 0; i < RootTreeItems.Num(); i++)
+		{
+			NumClasses += CountTreeItems(RootTreeItems[i].Get());
+		}
 
 		// Now that new items are in the list, we need to request a refresh.
 		ClassList->RequestListRefresh();
+
+		FString ClassPathNameToSelect;
+		if (PreviousSelection.Num() > 0)
+		{
+			ClassPathNameToSelect = PreviousSelection[0].ToString();
+		}
+		else if (InitOptions.InitiallySelectedClass)
+		{
+			ClassPathNameToSelect = InitOptions.InitiallySelectedClass->GetPathName();
+		}
+
+		if (ClassPathNameToSelect.Len() > 0)
+		{
+			if (TSharedPtr<FClassViewerNode> ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByClassName(ClassViewer::Helpers::ClassHierarchy->GetObjectRootNode(), ClassPathNameToSelect))
+			{
+				ClassList->SetSelection(ClassNode);
+			}
+			InitOptions.InitiallySelectedClass = nullptr;
+		}
 	}
 }
 
@@ -2522,14 +2610,10 @@ FReply SClassViewer::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& In
 
 FReply SClassViewer::OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent )
 {
-	if (RootTreeItems.Num() > 0)
+	if (InFocusEvent.GetCause() == EFocusCause::Navigation)
 	{
-		ClassTree->SetItemSelection(RootTreeItems[0], true, ESelectInfo::OnMouseClick);
-		ClassTree->SetItemExpansion(RootTreeItems[0], true);
-		OnClassViewerSelectionChanged(RootTreeItems[0],ESelectInfo::OnMouseClick);
+		FSlateApplication::Get().SetKeyboardFocus(SearchBox.ToSharedRef(), EFocusCause::SetDirectly);
 	}
-
-	FSlateApplication::Get().SetKeyboardFocus(SearchBox.ToSharedRef(), EFocusCause::SetDirectly);
 	
 	return FReply::Unhandled();
 }
@@ -2582,6 +2666,13 @@ void SClassViewer::Tick( const FGeometry& AllottedGeometry, const double InCurre
 		if (InitOptions.bExpandRootNodes)
 		{
 			ExpandRootNodes();
+		}
+
+		// Scroll the first item into view if applicable
+		const TArray<TSharedPtr<FClassViewerNode>> SelectedItems = GetSelectedItems();
+		if (SelectedItems.Num() > 0)
+		{
+			ClassTree->RequestScrollIntoView(SelectedItems[0]);
 		}
 	}
 

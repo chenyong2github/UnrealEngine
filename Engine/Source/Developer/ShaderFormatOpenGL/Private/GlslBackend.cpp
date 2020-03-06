@@ -52,7 +52,7 @@ PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 #define _strdup strdup
 #endif
 
-static inline std::string FixHlslName(const glsl_type* Type, bool bIsES2)
+static inline std::string FixHlslName(const glsl_type* Type)
 {
 	check(Type->is_image() || Type->is_vector() || Type->is_numeric() || Type->is_void() || Type->is_sampler() || Type->is_scalar());
 	std::string Name = Type->name;
@@ -107,27 +107,6 @@ static inline std::string FixHlslName(const glsl_type* Type, bool bIsES2)
 	else if (Type == glsl_type::half4x4_type)
 	{
 		return "mat4";
-	}
-	else if (bIsES2 && (Type->base_type == GLSL_TYPE_UINT))
-	{
-		// uint does not exist with GLSL 1.00 (ES2)
-		// So we silently swap uint types to int.
-		if (Type == glsl_type::uint_type)
-		{
-			return "int";
-		}
-		else if (Type == glsl_type::uvec2_type)
-		{
-			return "ivec2";
-		}
-		else if (Type == glsl_type::uvec3_type)
-		{
-			return "ivec3";
-		}
-		else if (Type == glsl_type::uvec4_type)
-		{
-			return "ivec4";
-		}
 	}
 	return Name;
 }
@@ -755,7 +734,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 		}
 		else 
 		{
-			std::string Name = FixHlslName(t, bIsES && !bIsES31 && !bIsWebGL);
+			std::string Name = FixHlslName(t);
 			ralloc_asprintf_append(buffer, "%s", Name.c_str());
 		}
 	}
@@ -1389,7 +1368,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 			}
 			else
 			{
-				ralloc_asprintf_append(buffer, "%s(", FixHlslName(expr->type, bIsES && !bIsES31 && !bIsWebGL).c_str());
+				ralloc_asprintf_append(buffer, "%s(", FixHlslName(expr->type).c_str());
 				expr->operands[0]->accept(this);
 				ralloc_asprintf_append(buffer, ")");
 			}
@@ -1639,6 +1618,12 @@ class ir_gen_glsl_visitor : public ir_visitor
 		check(scope_depth > 0);
 
 		ir_variable* var = deref->variable_referenced();
+
+		// enable texture buffer extension for "uimagebuffer" and "imagebuffer" which is a sampler_buffer but not a shader_storage_buffer
+		if (var->type->sampler_buffer && !var->type->shader_storage_buffer)
+		{
+			bUsesTextureBuffer = true;
+		}
 
 		ralloc_asprintf_append(buffer, unique_name(var));
 
@@ -3396,11 +3381,6 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 			ralloc_asprintf_append(buffer, "#endif\n\n");
 		}
 
-		if (UsesUEIntrinsic(ir, GET_HDR_32BPP_HDR_ENCODE_MODE_ES2))
-		{
-			ralloc_asprintf_append(buffer, "\nfloat %s() { return HDR_32BPP_ENCODE_MODE; }\n", GET_HDR_32BPP_HDR_ENCODE_MODE_ES2);
-		}
-
 		foreach_iter(exec_list_iterator, iter, *ir)
 		{
 			ir_instruction *inst = (ir_instruction *)iter.get();
@@ -3647,7 +3627,7 @@ char* FGlslCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* stat
 	const bool bUsesDepthBufferFetch = Frequency == HSF_PixelShader && UsesUEIntrinsic(ir, DEPTHBUFFER_FETCH_ES2);
 	ir_gen_glsl_visitor visitor(state->bGenerateES,
 								bEmitPrecision,
-								bIsWebGL,
+								false,
 								Target,
 								state->target,
 								bGenerateLayoutLocations,
@@ -3661,16 +3641,13 @@ char* FGlslCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* stat
 }
 
 // Verify if SampleLevel() is used
-struct SPromoteSampleLevelES2 : public ir_hierarchical_visitor
+struct SPromoteSampleLevel : public ir_hierarchical_visitor
 {
 	_mesa_glsl_parse_state* ParseState;
 	const bool bIsVertexShader;
-	bool bIsES2;
-
-	SPromoteSampleLevelES2(_mesa_glsl_parse_state* InParseState, bool bInIsVertexShader, bool bInIsES2) :
+	SPromoteSampleLevel(_mesa_glsl_parse_state* InParseState, bool bInIsVertexShader) :
 		ParseState(InParseState),
-		bIsVertexShader(bInIsVertexShader),
-		bIsES2(bInIsES2)
+		bIsVertexShader(bInIsVertexShader)
 	{
 	}
 
@@ -3774,7 +3751,7 @@ bool FGlslCodeBackend::ApplyAndVerifyPlatformRestrictions(exec_list* Instruction
 
 		// Handle SampleLevel
 		{
-			SPromoteSampleLevelES2 Visitor(ParseState, bIsVertexShader, Target == HCT_FeatureLevelES2);
+			SPromoteSampleLevel Visitor(ParseState, bIsVertexShader);
 			Visitor.run(Instructions);
 		}
 
@@ -5700,16 +5677,8 @@ void FGlslCodeBackend::GenShaderPatchConstantFunctionInputs(_mesa_glsl_parse_sta
 
 void FGlslLanguageSpec::SetupLanguageIntrinsics(_mesa_glsl_parse_state* State, exec_list* ir)
 {
-	if (bIsES2)
-	{
-		make_intrinsic_genType(ir, State, GET_HDR_32BPP_HDR_ENCODE_MODE_ES2, ir_invalid_opcode, IR_INTRINSIC_ALL_FLOATING, 0);
-	}
-
-	if (bIsES2 || bIsES31)
-	{
-		make_intrinsic_genType(ir, State, FRAMEBUFFER_FETCH_ES2, ir_invalid_opcode, IR_INTRINSIC_ALL_FLOATING, 0, 4, 4);
-		make_intrinsic_genType(ir, State, DEPTHBUFFER_FETCH_ES2, ir_invalid_opcode, IR_INTRINSIC_ALL_FLOATING, 3, 1, 1);
-	}
+	make_intrinsic_genType(ir, State, FRAMEBUFFER_FETCH_ES2, ir_invalid_opcode, IR_INTRINSIC_ALL_FLOATING, 0, 4, 4);
+	make_intrinsic_genType(ir, State, DEPTHBUFFER_FETCH_ES2, ir_invalid_opcode, IR_INTRINSIC_ALL_FLOATING, 3, 1, 1);
 
 	{
 		ir_function* func = new(State)ir_function("compiler_internal_AdjustInputSemantic");

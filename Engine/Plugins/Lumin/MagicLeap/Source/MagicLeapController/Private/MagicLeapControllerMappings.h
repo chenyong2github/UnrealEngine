@@ -1,3 +1,9 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "TouchpadGesturesComponent.h"
+
 #if WITH_MLSDK
 #define TOUCH_GESTURE_CASE_DEPRECATED(x) case MLInputControllerTouchpadGestureType_##x: { return EMagicLeapTouchpadGestureType::x; }
 
@@ -78,30 +84,6 @@ const FName& MLToUnrealButton(EControllerHand Hand, MLInputControllerButton ml_b
 	return empty;
 }
 
-const FName& MLToUnrealButtonLegacy(EControllerHand Hand, MLInputControllerButton ml_button)
-{
-	static const FName empty;
-
-	switch (ml_button)
-	{
-	case MLInputControllerButton_Bumper:
-		if (Hand == EControllerHand::Left)
-		{
-			return FGamepadKeyNames::MotionController_Left_Shoulder;
-		}
-		return FGamepadKeyNames::MotionController_Right_Shoulder;
-	case MLInputControllerButton_HomeTap:
-		if (Hand == EControllerHand::Left)
-		{
-			return FMagicLeapControllerKeyNames::Left_HomeButton_Name;
-		}
-		return FMagicLeapControllerKeyNames::Right_HomeButton_Name;
-	default:
-		break;
-	}
-	return empty;
-}
-
 const FName& MLToUnrealButton(FName MotionSource, MLInputControllerButton ml_button)
 {
 	static const FName empty;
@@ -133,37 +115,6 @@ const FName& MLTouchToUnrealTrackpadAxis(EControllerHand Hand, uint32 TouchIndex
 			return FMagicLeapControllerKeyNames::Left_Trackpad_Force_Name;
 		}
 		return FMagicLeapControllerKeyNames::Right_Trackpad_Force_Name;
-	default:
-		return empty;
-	}
-
-	return empty;
-}
-
-const FName& MLTouchToUnrealTrackpadAxisLegacy(EControllerHand Hand, uint32 TouchIndex)
-{
-	static const FName empty;
-
-	switch (TouchIndex)
-	{
-	case 0:
-		if (Hand == EControllerHand::Left)
-		{
-			return FGamepadKeyNames::MotionController_Left_Thumbstick_X;
-		}
-		return FGamepadKeyNames::MotionController_Right_Thumbstick_X;
-	case 1:
-		if (Hand == EControllerHand::Left)
-		{
-			return FGamepadKeyNames::MotionController_Left_Thumbstick_Y;
-		}
-		return FGamepadKeyNames::MotionController_Right_Thumbstick_Y;
-	case 2:
-		if (Hand == EControllerHand::Left)
-		{
-			return FMagicLeapControllerKeyNames::MotionController_Left_Thumbstick_Z_Name;
-		}
-		return FMagicLeapControllerKeyNames::MotionController_Right_Thumbstick_Z_Name;
 	default:
 		return empty;
 	}
@@ -217,21 +168,6 @@ const FName& MLTouchToUnrealTrackpadButton(EControllerHand Hand)
 	return empty;
 }
 
-const FName& MLTouchToUnrealTrackpadButtonLegacy(EControllerHand Hand)
-{
-	static const FName empty;
-
-	switch (Hand)
-	{
-	case EControllerHand::Left:
-		return FGamepadKeyNames::MotionController_Left_Thumbstick;
-	case EControllerHand::Right:
-		return FGamepadKeyNames::MotionController_Right_Thumbstick;
-	}
-
-	return empty;
-}
-
 const FName& MLTouchToUnrealTouch1Button(EControllerHand Hand)
 {
 	static const FName empty;
@@ -262,21 +198,6 @@ const FName& MLTriggerToUnrealTriggerAxis(EControllerHand Hand)
 	return empty;
 }
 
-const FName& MLTriggerToUnrealTriggerAxisLegacy(EControllerHand Hand)
-{
-	static const FName empty;
-
-	switch (Hand)
-	{
-	case EControllerHand::Left:
-		return FGamepadKeyNames::MotionController_Left_TriggerAxis;
-	case EControllerHand::Right:
-		return FGamepadKeyNames::MotionController_Right_TriggerAxis;
-	}
-
-	return empty;
-}
-
 const FName& MLTriggerToUnrealTriggerKey(EControllerHand Hand)
 {
 	static const FName empty;
@@ -286,19 +207,6 @@ const FName& MLTriggerToUnrealTriggerKey(EControllerHand Hand)
 		return FMagicLeapControllerKeyNames::Left_Trigger_Name;
 	case EControllerHand::Right:
 		return FMagicLeapControllerKeyNames::Right_Trigger_Name;
-	}
-	return empty;
-}
-
-const FName& MLTriggerToUnrealTriggerKeyLegacy(EControllerHand Hand)
-{
-	static const FName empty;
-	switch (Hand)
-	{
-	case EControllerHand::Left:
-		return FGamepadKeyNames::MotionController_Left_Trigger;
-	case EControllerHand::Right:
-		return FGamepadKeyNames::MotionController_Right_Trigger;
 	}
 	return empty;
 }

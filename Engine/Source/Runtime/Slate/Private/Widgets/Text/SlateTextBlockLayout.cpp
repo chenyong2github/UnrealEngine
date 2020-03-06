@@ -94,9 +94,14 @@ FVector2D FSlateTextBlockLayout::GetDesiredSize() const
 	return TextLayout->GetSize();
 }
 
+float FSlateTextBlockLayout::GetLayoutScale() const
+{
+	return TextLayout->GetScale();
+}
+
 int32 FSlateTextBlockLayout::OnPaint(const FPaintArgs& InPaintArgs, const FGeometry& InAllottedGeometry, const FSlateRect& InClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled)
 {
-	// Store a new cached size.
+	// Store a new cached size with the scale
 	CachedSize = InAllottedGeometry.GetLocalSize();
 
 	// Recompute wrapping in case the cached size changed.

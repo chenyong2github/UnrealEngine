@@ -29,7 +29,7 @@ UQuitMatchCallbackProxy* UQuitMatchCallbackProxy::QuitMatch(UObject* WorldContex
 
 void UQuitMatchCallbackProxy::Activate()
 {
-	FOnlineSubsystemBPCallHelper Helper(TEXT("ConnectToService"), WorldContextObject);
+	FOnlineSubsystemBPCallHelper Helper(TEXT("QuitMatch"), WorldContextObject);
 	Helper.QueryIDFromPlayerController(PlayerControllerWeakPtr.Get());
 
 	if (Helper.IsValid())

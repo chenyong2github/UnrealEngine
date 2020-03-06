@@ -139,7 +139,7 @@ enum class EPlaySessionPreviewType : uint8
 {
 	/* No preview mode is applied. */
 	NoPreview,
-	/* Emulate Mobile ES2 Rendering. */
+	/* Emulate Mobile ES3 Rendering. */
 	MobilePreview,
 	/* Emulate Vulkan Rendering. */
 	VulkanPreview,

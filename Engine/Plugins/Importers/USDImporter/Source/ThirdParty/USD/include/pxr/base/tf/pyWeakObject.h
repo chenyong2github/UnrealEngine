@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYWEAKOBJECT_H
-#define TF_PYWEAKOBJECT_H
+#ifndef PXR_BASE_TF_PY_WEAK_OBJECT_H
+#define PXR_BASE_TF_PY_WEAK_OBJECT_H
 
 #include "pxr/pxr.h"
 
@@ -154,4 +154,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYWEAKOBJECT_H
+#endif // PXR_BASE_TF_PY_WEAK_OBJECT_H

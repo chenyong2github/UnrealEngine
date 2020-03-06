@@ -18,6 +18,13 @@ static FAutoConsoleVariableRef CVarWholeSceneShadowUnbuiltInteractionThreshold(
 	ECVF_RenderThreadSafe
 	);
 
+static int32 GRecordInteractionShadowPrimitives = 1;
+FAutoConsoleVariableRef CVarRecordInteractionShadowPrimitives(
+	TEXT("r.Shadow.RecordInteractionShadowPrimitives"),
+	GRecordInteractionShadowPrimitives,
+	TEXT(""),
+	ECVF_RenderThreadSafe);
+
 void FLightSceneInfoCompact::Init(FLightSceneInfo* InLightSceneInfo)
 {
 	LightSceneInfo = InLightSceneInfo;
@@ -36,7 +43,8 @@ void FLightSceneInfoCompact::Init(FLightSceneInfo* InLightSceneInfo)
 }
 
 FLightSceneInfo::FLightSceneInfo(FLightSceneProxy* InProxy, bool InbVisible)
-	: DynamicInteractionOftenMovingPrimitiveList(NULL)
+	: bRecordInteractionShadowPrimitives(!!GRecordInteractionShadowPrimitives && InProxy->GetLightType() != ELightComponentType::LightType_Directional)
+	, DynamicInteractionOftenMovingPrimitiveList(NULL)
 	, DynamicInteractionStaticPrimitiveList(NULL)
 	, Proxy(InProxy)
 	, Id(INDEX_NONE)
@@ -78,31 +86,40 @@ void FLightSceneInfo::AddToScene()
 			|| (LightType == LightType_Spot && MobileEnableMovableSpotLightsVar->GetValueOnRenderThread());
 	}
 
-	// Only need to create light interactions for lights that can cast a shadow, 
+	// Only need to create light interactions for lights that can cast a shadow,
 	// As deferred shading doesn't need to know anything about the primitives that a light affects
-	if (Proxy->CastsDynamicShadow() 
-		|| Proxy->CastsStaticShadow() 
+	if (Proxy->CastsDynamicShadow()
+		|| Proxy->CastsStaticShadow()
 		// Lights that should be baked need to check for interactions to track unbuilt state correctly
 		|| Proxy->HasStaticLighting()
 		// Mobile path supports dynamic point/spot lights in the base pass using forward rendering, so we need to know the primitives
 		|| bIsValidLightTypeMobile)
 	{
-		// Add the light to the scene's light octree.
 		Scene->FlushAsyncLightPrimitiveInteractionCreation();
-		Scene->LightOctree.AddElement(LightSceneInfoCompact);
-
-		// TODO: Special case directional lights, no need to traverse the octree.
-
-		// Find primitives that the light affects in the primitive octree.
-		FMemMark MemStackMark(FMemStack::Get());
-		for(FScenePrimitiveOctree::TConstElementBoxIterator<SceneRenderingAllocator> PrimitiveIt(
-				Scene->PrimitiveOctree,
-				GetBoundingBox()
-				);
-			PrimitiveIt.HasPendingElements();
-			PrimitiveIt.Advance())
+		
+		// Directional lights have no finite extent and cannot meaningfully be in the LocalShadowCastingLightOctree
+		if (LightSceneInfoCompact.LightType == LightType_Directional)
 		{
-			CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveIt.GetCurrentElement());
+			// 
+			Scene->DirectionalShadowCastingLightIDs.Add(Id);
+
+			// All primitives may interact with a directional light
+			FMemMark MemStackMark(FMemStack::Get());
+			for (FPrimitiveSceneInfo *PrimitiveSceneInfo : Scene->Primitives)
+			{
+				CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfo);
+			}
+		}
+		else
+		{
+			// Add the light to the scene's light octree.
+			Scene->LocalShadowCastingLightOctree.AddElement(LightSceneInfoCompact);
+			// Find primitives that the light affects in the primitive octree.
+			FMemMark MemStackMark(FMemStack::Get());
+			for (FScenePrimitiveOctree::TConstElementBoxIterator<SceneRenderingAllocator> PrimitiveIt(Scene->PrimitiveOctree, GetBoundingBox()); PrimitiveIt.HasPendingElements(); PrimitiveIt.Advance())
+			{
+				CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveIt.GetCurrentElement());
+			}
 		}
 	}
 }
@@ -130,7 +147,11 @@ void FLightSceneInfo::RemoveFromScene()
 	if (OctreeId.IsValidId())
 	{
 		// Remove the light from the octree.
-		Scene->LightOctree.RemoveElement(OctreeId);
+		Scene->LocalShadowCastingLightOctree.RemoveElement(OctreeId);
+	}
+	else
+	{
+		Scene->DirectionalShadowCastingLightIDs.RemoveSwap(Id);
 	}
 
 	Scene->CachedShadowMaps.Remove(Id);
@@ -142,6 +163,8 @@ void FLightSceneInfo::RemoveFromScene()
 void FLightSceneInfo::Detach()
 {
 	check(IsInRenderingThread());
+
+	InteractionShadowPrimitives.Empty();
 
 	// implicit linked list. The destruction will update this "head" pointer to the next item in the list.
 	while(DynamicInteractionOftenMovingPrimitiveList)
@@ -204,6 +227,15 @@ bool FLightSceneInfo::IsPrecomputedLightingValid() const
 	return (bPrecomputedLightingIsValid && NumUnbuiltInteractions < GWholeSceneShadowUnbuiltInteractionThreshold) || !Proxy->HasStaticShadowing();
 }
 
+const TArray<FLightPrimitiveInteraction*>* FLightSceneInfo::GetInteractionShadowPrimitives(bool bSync) const
+{
+	if (bSync)
+	{
+		Scene->FlushAsyncLightPrimitiveInteractionCreation();
+	}
+	return bRecordInteractionShadowPrimitives ? &InteractionShadowPrimitives : nullptr;
+}
+
 FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionOftenMovingPrimitiveList(bool bSync) const
 {
 	if (bSync)
@@ -258,7 +290,8 @@ FORCEINLINE bool AreSpheresNotIntersecting(
 bool FLightSceneInfoCompact::AffectsPrimitive(const FBoxSphereBounds& PrimitiveBounds, const FPrimitiveSceneProxy* PrimitiveSceneProxy) const
 {
 	// Check if the light's bounds intersect the primitive's bounds.
-	if(AreSpheresNotIntersecting(
+	// Directional lights reach everywhere (the hacky world max radius does not work for large worlds)
+	if(LightType != LightType_Directional && AreSpheresNotIntersecting(
 		BoundingSphereVector,
 		VectorReplicate(BoundingSphereVector,3),
 		VectorLoadFloat3(&PrimitiveBounds.Origin),

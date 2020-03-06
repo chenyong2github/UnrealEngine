@@ -569,16 +569,28 @@ void FStructureEditorUtils::RemoveInvalidStructureMemberVariableFromBlueprint(UB
 		for (int32 VarIndex = 0; VarIndex < Blueprint->NewVariables.Num(); ++VarIndex)
 		{
 			const FBPVariableDescription& Var = Blueprint->NewVariables[VarIndex];
+
+			bool bIsInvalid = false;
+
 			if (Var.VarType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 			{
-				const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(Var.VarType.PinSubCategoryObject.Get());
-				const bool bInvalidStruct = (NULL == ScriptStruct) || (FallbackStruct == ScriptStruct);
-				if (bInvalidStruct)
-				{
-					DislpayList += Var.FriendlyName.IsEmpty() ? Var.VarName.ToString() : Var.FriendlyName;
-					DislpayList += TEXT("\n");
-					ZombieMemberNames.Add(Var.VarName);
-				}
+				// The variable is invalid if the struct object is null, or it points to the fallback struct
+				UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Var.VarType.PinSubCategoryObject.Get());
+
+				bIsInvalid = (!ScriptStruct || (FallbackStruct == ScriptStruct));
+			}
+			else if (Var.VarType.IsMap() && Var.VarType.PinValueType.TerminalCategory == UEdGraphSchema_K2::PC_Struct)
+			{
+				// If there is no ValueType object then the variable is invalid
+				bIsInvalid = (!Var.VarType.PinValueType.TerminalSubCategoryObject.Get());
+			}
+
+			// If this variable is invalid then display a warning
+			if (bIsInvalid)
+			{
+				DislpayList += Var.FriendlyName.IsEmpty() ? Var.VarName.ToString() : Var.FriendlyName;
+				DislpayList += TEXT("\n");
+				ZombieMemberNames.Add(Var.VarName);
 			}
 		}
 

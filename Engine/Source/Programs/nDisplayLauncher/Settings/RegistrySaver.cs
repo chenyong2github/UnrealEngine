@@ -45,7 +45,7 @@ namespace nDisplayLauncher.Settings
 		public const string RegLogParamsVerbosityNetworkMsg = "VerbosityNetworkMsg";
 		public const string RegLogParamsVerbosityBlueprint  = "VerbosityBlueprint";
 		public const string RegLogParamsVerbosityRender     = "VerbosityRender";
-
+		public const string RegLogParamsVerbosityRenderSync = "VerbosityRenderSync";
 
 
 		private static string[] ReadRegistry(string key)

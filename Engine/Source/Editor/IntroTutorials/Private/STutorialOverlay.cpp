@@ -244,7 +244,7 @@ void STutorialOverlay::OpenBrowserForWidgetAnchor(UEditorTutorial* InTutorial, c
 			// fallback to trying the main level editor tab manager
 			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 			TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-			LevelEditorTabManager->InvokeTab(FName(*WidgetContent.WidgetAnchor.TabToFocusOrOpen));
+			LevelEditorTabManager->TryInvokeTab(FName(*WidgetContent.WidgetAnchor.TabToFocusOrOpen));
 		}
 	}
 }

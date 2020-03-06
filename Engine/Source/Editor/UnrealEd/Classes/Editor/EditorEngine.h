@@ -1817,9 +1817,24 @@ public:
 	virtual void EndPlayOnLocalPc();
 
 	/**
+	 * Overrides the realtime state all viewports until RemoveViewportsRealtimeOverride is called.
+	 * The state of this override is not preserved between editor sessions. 
+	 *
+	 * @param bShouldBeRealtime	If true, this viewport will be realtime, if false this viewport will not be realtime
+	 * @param SystemDisplayName	This display name of whatever system is overriding realtime. This name is displayed to users in the viewport options menu
+	 */
+	void SetViewportsRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName);
+
+	/**
+	 * Removes the current realtime override.  If there was another realtime override set it will restore that override
+	 */
+	void RemoveViewportsRealtimeOverride();
+
+	/**
 	 * Disables any realtime viewports that are currently viewing the level.  This will not disable
 	 * things like preview viewports in Cascade, etc. Typically called before running the game.
 	 */
+	UE_DEPRECATED(4.25, "To save and restore realtime state non-permanently use SetViewportsRealtimeOverride and RemoveViewportsRealtimeOverride")
 	void DisableRealtimeViewports();
 
 	/**
@@ -1827,6 +1842,7 @@ public:
 	 * disable viewporst that were realtime when DisableRealtimeViewports has been called and got
 	 * latter toggled to be realtime.
 	 */
+	UE_DEPRECATED(4.25, "To save and restore realtime state non-permanently use SetViewportsRealtimeOverride and RemoveViewportsRealtimeOverride")
 	void RestoreRealtimeViewports();
 
 	/**

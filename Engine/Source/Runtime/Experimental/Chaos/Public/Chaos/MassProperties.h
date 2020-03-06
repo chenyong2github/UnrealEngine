@@ -52,5 +52,8 @@ namespace Chaos
 	template<class T, int d>
 	TMassProperties<T, d> Combine(const TArray<TMassProperties<T, d>>& MPArray);
 
+	template<class T, int d>
+	TMassProperties<T, d> CombineWorldSpace(const TArray<TMassProperties<T, d>>& MPArray, float InDensityKGPerCM);
+
 }
 #endif

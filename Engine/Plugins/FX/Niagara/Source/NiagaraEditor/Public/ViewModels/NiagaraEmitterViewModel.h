@@ -5,6 +5,7 @@
 #include "NiagaraCommon.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "UObject/ObjectKey.h"
+#include "IAssetTypeActions.h"
 
 class UNiagaraEmitter;
 class UNiagaraScript;
@@ -16,6 +17,8 @@ class FNiagaraEmitterInstance;
 struct FNiagaraVariable;
 struct FNiagaraParameterStore;
 struct FEdGraphEditAction;
+class SWindow;
+class FNiagaraEmitterHandleViewModel;
 
 /** The view model for the UNiagaraEmitter objects */
 class FNiagaraEmitterViewModel : public TSharedFromThis<FNiagaraEmitterViewModel>,  public TNiagaraViewModelManager<UNiagaraEmitter, FNiagaraEmitterViewModel>
@@ -60,6 +63,9 @@ public:
 	/** Gets the text representation of the parent emitter path. */
 	NIAGARAEDITOR_API FText GetParentPathNameText() const;
 
+	NIAGARAEDITOR_API void CreateNewParentWindow(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+	void UpdateParentEmitter(const TArray<FAssetData>& ActivatedAssets, EAssetTypeActivationMethod::Type ActivationMethod, TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+
 	/** Removes the parent emitter from this emitter. */
 	NIAGARAEDITOR_API void RemoveParentEmitter();
 
@@ -99,13 +105,12 @@ public:
 
 	void Cleanup();
 
-	bool IsEnabledByDetailLevel() const;
-
 private:
 	/** Sets this view model to a different emitter. */
 	void SetEmitter(UNiagaraEmitter* InEmitter);
 
 	void OnVMCompiled(UNiagaraEmitter* InEmitter);
+	void OnGPUCompiled(UNiagaraEmitter* InEmitter);
 
 	void AddScriptEventHandlers();
 
@@ -124,8 +129,8 @@ private:
 	/** The text format stats to only display particles count. */
 	static const FText StatsParticleCountFormat;
 
-	/** The text format stats to display when detail level mismatches. */
-	static const FText ParticleDisabledDueToDetailLevel;
+	/** The text format stats to display when an emitter is disabled due to scalability. */
+	static const FText ParticleDisabledDueToScalability;
 
 	/** The emitter object being displayed by the control .*/
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
@@ -164,4 +169,6 @@ private:
 
 	/** A mapping of script to the delegate handle for it's on parameter map changed delegate. */
 	TMap<FObjectKey, FDelegateHandle> ScriptToOnParameterStoreChangedHandleMap;
+
+	TSharedPtr<SWindow> NewParentWindow;
 };

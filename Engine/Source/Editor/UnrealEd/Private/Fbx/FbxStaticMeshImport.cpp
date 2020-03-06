@@ -310,18 +310,17 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		TRACE_CPUPROFILER_EVENT_SCOPE(CreateMaterials);
 		
 		TArray<UMaterialInterface*> Materials;
-		if (ImportOptions->bImportMaterials)
+		const bool bForSkeletalMesh = false;
+		
+		FindOrImportMaterialsFromNode(Node, Materials, FBXUVs.UVSets, bForSkeletalMesh);
+		if (!ImportOptions->bImportMaterials && ImportOptions->bImportTextures)
 		{
-			bool bForSkeletalMesh = false;
-			CreateNodeMaterials(Node, Materials, FBXUVs.UVSets, bForSkeletalMesh);
-		}
-		else if (ImportOptions->bImportTextures)
-		{
+			//If we are not importing any new material, we might still want to import new textures.
 			ImportTexturesFromNode(Node);
 		}
 
 		MaterialCount = Node->GetMaterialCount();
-		check(!ImportOptions->bImportMaterials || Materials.Num() == MaterialCount);
+		check(Materials.Num() == MaterialCount);
 	
 		// Used later to offset the material indices on the raw triangle data
 		MaterialIndexOffset = MeshMaterials.Num();
@@ -331,46 +330,14 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 			FFbxMaterial* NewMaterial = new(MeshMaterials) FFbxMaterial;
 			FbxSurfaceMaterial *FbxMaterial = Node->GetMaterial(MaterialIndex);
 			NewMaterial->FbxMaterial = FbxMaterial;
-			if (ImportOptions->bImportMaterials)
+			
+			if (Materials[MaterialIndex])
 			{
 				NewMaterial->Material = Materials[MaterialIndex];
 			}
 			else
 			{
-				FString MaterialFullName = GetMaterialFullName(*FbxMaterial);
-				FString BasePackageName = UPackageTools::SanitizePackageName(FPackageName::GetLongPackagePath(StaticMesh->GetOutermost()->GetName()) / MaterialFullName);
-				FString MaterialPackagePath = BasePackageName + TEXT(".") + MaterialFullName;
-				UMaterialInterface* UnrealMaterialInterface = FindObject<UMaterialInterface>(NULL, *MaterialPackagePath);
-				if (UnrealMaterialInterface == nullptr)
-				{
-					// Try loading the object if its package exists on disk
-					FSoftObjectPath ObjectPath(MaterialPackagePath);
-
-					FString LongPackageName = ObjectPath.GetAssetName().IsEmpty() ? ObjectPath.ToString() : ObjectPath.GetLongPackageName();
-					if (FPackageName::DoesPackageExist(LongPackageName))
-					{
-						UnrealMaterialInterface = Cast<UMaterialInterface>(ObjectPath.TryLoad());
-					}
-				}
-				if (UnrealMaterialInterface == NULL)
-				{
-					//In case we do not found the material we can see if the material is in the material list of the static mesh material
-					FName MaterialFbxFullName = UTF8_TO_TCHAR(MakeName(FbxMaterial->GetName()));
-					for (const FStaticMaterial &StaticMaterial : StaticMesh->StaticMaterials)
-					{
-						if (StaticMaterial.ImportedMaterialSlotName == MaterialFbxFullName)
-						{
-							UnrealMaterialInterface = StaticMaterial.MaterialInterface;
-							break;
-						}
-					}
-				
-					if (UnrealMaterialInterface == NULL)
-					{
-						UnrealMaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
-					}
-				}
-				NewMaterial->Material = UnrealMaterialInterface;
+				NewMaterial->Material = UMaterial::GetDefaultMaterial(MD_Surface);
 			}
 		}
 
@@ -1705,26 +1672,24 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 				StaticMesh->GetSourceModel(ModelLODIndex).ReductionSettings = LODGroup.GetDefaultSettings(ModelLODIndex);
 			}
 			StaticMesh->LightMapResolution = LODGroup.GetDefaultLightMapResolution();
+
+			//@third party BEGIN SIMPLYGON
+			/* ImportData->Update(UFactory::GetCurrentFilename());
+			Developer Note: Update method above computed Hash internally. Hash is calculated based on the file size.
+			Doing this for CAD files with thousands of components hugely increases the time.
+			The following method uses a precomputed hash (once per file). Huge time savings.
+			*/
+			UFbxStaticMeshImportData* ImportData = UFbxStaticMeshImportData::GetImportDataForStaticMesh(StaticMesh, TemplateImportData);
+			FString FactoryCurrentFileName = UFactory::GetCurrentFilename();
+			if (!FactoryCurrentFileName.IsEmpty())
+			{
+				//The factory is instantiate only when importing or re-importing the LOD 0
+				//The LOD re-import is not using the factory so the static function UFactory::GetCurrentFilename()
+				//will return the last fbx imported asset name or no name if there was no imported asset before.
+				ImportData->Update(FactoryCurrentFileName, UFactory::GetFileHash());
+			}
+			//@third party END SIMPLYGON
 		}
-
-		UFbxStaticMeshImportData* ImportData = UFbxStaticMeshImportData::GetImportDataForStaticMesh(StaticMesh, TemplateImportData);
-
-		//@third party BEGIN SIMPLYGON
-		/* ImportData->Update(UFactory::GetCurrentFilename());
-		Developer Note: Update method above computed Hash internally. Hash is calculated based on the file size.
-		Doing this for CAD files with thousands of components hugely increases the time.
-		The following method uses a precomputed hash (once per file). Huge time savings.
-		*/
-		FString FactoryCurrentFileName = UFactory::GetCurrentFilename();
-		if (!FactoryCurrentFileName.IsEmpty() && LODIndex == 0)
-		{
-			//The factory is instantiate only when importing or re-importing the LOD 0
-			//The LOD re-import is not using the factory so the static function UFactory::GetCurrentFilename()
-			//will return the last fbx imported asset name or no name if there was no imported asset before.
-			ImportData->Update(FactoryCurrentFileName, UFactory::GetFileHash());
-		}
-		//@third party END SIMPLYGON
-
 
 		// @todo This overrides restored values currently but we need to be able to import over the existing settings if the user chose to do so.
 		SrcModel.BuildSettings.bRemoveDegenerates = ImportOptions->bRemoveDegenerates;

@@ -13,11 +13,11 @@ namespace Chaos
 	class FImplicitObject;
 	class FPBDJointConstraintHandle;
 	class FPBDJointConstraints;
+	class FPBDRigidsEvolutionGBF;
 	template<typename T, int D> struct TKinematicGeometryParticleParameters;
 	template<typename T, int D> class TKinematicTarget;
 	template<typename P> class TPBDConstraintIslandRule;
 	template<typename T, int D> struct TPBDRigidParticleParameters;
-	template<typename T, int D> class TPBDRigidsEvolutionGBF;
 	template<typename T, int D> class TPBDRigidsSOAs;
 	template<typename T, int D> class TPerShapeData;
 }

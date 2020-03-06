@@ -9,6 +9,36 @@
 #include "NiagaraShader.h"
 #include "NiagaraCustomVersion.h"
 
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Curve);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCurveBase, FNiagaraDataInterfaceParametersCS_Curve);
+
+void FNiagaraDataInterfaceParametersCS_Curve::Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
+{
+	MinTime.Bind(ParameterMap, *(TEXT("MinTime_") + ParameterInfo.DataInterfaceHLSLSymbol));
+	MaxTime.Bind(ParameterMap, *(TEXT("MaxTime_") + ParameterInfo.DataInterfaceHLSLSymbol));
+	InvTimeRange.Bind(ParameterMap, *(TEXT("InvTimeRange_") + ParameterInfo.DataInterfaceHLSLSymbol));
+	CurveLUTNumMinusOne.Bind(ParameterMap, *(TEXT("CurveLUTNumMinusOne_") + ParameterInfo.DataInterfaceHLSLSymbol));
+	CurveLUT.Bind(ParameterMap, *(TEXT("CurveLUT_") + ParameterInfo.DataInterfaceHLSLSymbol));
+}
+
+void FNiagaraDataInterfaceParametersCS_Curve::Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
+{
+	check(IsInRenderingThread());
+
+	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
+	FNiagaraDataInterfaceProxyCurveBase* CurveDI = (FNiagaraDataInterfaceProxyCurveBase*)Context.DataInterface;
+	FReadBuffer& CurveLUTBuffer = CurveDI->CurveLUT;
+
+	SetShaderValue(RHICmdList, ComputeShaderRHI, MinTime, CurveDI->LUTMinTime);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, MaxTime, CurveDI->LUTMaxTime);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, InvTimeRange, CurveDI->LUTInvTimeRange);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, CurveLUTNumMinusOne, CurveDI->CurveLUTNumMinusOne);
+	SetSRVParameter(RHICmdList, ComputeShaderRHI, CurveLUT, CurveLUTBuffer.SRV);
+}
+
+
+
 float GNiagaraLUTOptimizeThreshold = UNiagaraDataInterfaceCurveBase::DefaultOptimizeThreshold;
 static FAutoConsoleVariableRef CVarNiagaraLUTOptimizeThreshold(
 	TEXT("fx.Niagara.LUT.OptimizeThreshold"),
@@ -306,52 +336,4 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 		FPlatformMemory::Memcpy(BufferData, rtShaderLUT.GetData(), BufferSize);
 		RHIUnlockVertexBuffer(RT_Proxy->CurveLUT.Buffer);
 	});
-}
-
-struct FNiagaraDataInterfaceParametersCS_Curve : public FNiagaraDataInterfaceParametersCS
-{
-	virtual ~FNiagaraDataInterfaceParametersCS_Curve() {}
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
-	{
-		MinTime.Bind(ParameterMap, *(TEXT("MinTime_") + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		MaxTime.Bind(ParameterMap, *(TEXT("MaxTime_") + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		InvTimeRange.Bind(ParameterMap, *(TEXT("InvTimeRange_") + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		CurveLUTNumMinusOne.Bind(ParameterMap, *(TEXT("CurveLUTNumMinusOne_") + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		CurveLUT.Bind(ParameterMap, *(TEXT("CurveLUT_") + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << MinTime;
-		Ar << MaxTime;
-		Ar << InvTimeRange;
-		Ar << CurveLUTNumMinusOne;
-		Ar << CurveLUT;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
-		FNiagaraDataInterfaceProxyCurveBase* CurveDI = (FNiagaraDataInterfaceProxyCurveBase*)Context.DataInterface;
-		FReadBuffer& CurveLUTBuffer = CurveDI->CurveLUT;
-
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MinTime, CurveDI->LUTMinTime);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxTime, CurveDI->LUTMaxTime);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InvTimeRange, CurveDI->LUTInvTimeRange);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, CurveLUTNumMinusOne, CurveDI->CurveLUTNumMinusOne);
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, CurveLUT, CurveLUTBuffer.SRV);
-	}
-
-	FShaderParameter MinTime;
-	FShaderParameter MaxTime;
-	FShaderParameter InvTimeRange;
-	FShaderParameter CurveLUTNumMinusOne;
-	FShaderResourceParameter CurveLUT;
-};
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceCurveBase::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_Curve();
 }

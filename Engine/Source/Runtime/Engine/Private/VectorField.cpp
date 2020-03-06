@@ -263,6 +263,22 @@ public:
 			});
 	}
 
+	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
+	{
+		if (VolumeData)
+		{
+			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SizeX * SizeY * SizeZ * sizeof(FFloat16Color));
+		}
+		if (VolumeTextureRHI)
+		{
+			const FPixelFormatInfo& FormatInfo = GPixelFormats[PF_FloatRGBA];
+			const SIZE_T NumBlocksX = (SIZE_T)FMath::DivideAndRoundUp(SizeX, FormatInfo.BlockSizeX);
+			const SIZE_T NumBlocksY = (SIZE_T)FMath::DivideAndRoundUp(SizeY, FormatInfo.BlockSizeY);
+			const SIZE_T NumBlocksZ = (SIZE_T)FMath::DivideAndRoundUp(SizeZ, FormatInfo.BlockSizeZ);
+			CumulativeResourceSize.AddDedicatedVideoMemoryBytes(NumBlocksX * NumBlocksY * NumBlocksZ * (SIZE_T)FormatInfo.BlockBytes);
+		}
+	}
+
 private:
 
 	/** Static volume texture data. */
@@ -304,6 +320,57 @@ void UVectorFieldStatic::UpdateResource()
 
 	FVectorFieldStaticResource* StaticResource = (FVectorFieldStaticResource*)Resource;
 	StaticResource->UpdateResource(this); // Will discard the contents of SourceData
+}
+
+// Simple implementation of an accessor struct for grabbing the, now, inited resource on the render thread
+// Impl structure is required because of the private nature of the FVectorFieldResource, which could be
+// resolved...
+struct FVectorFieldTextureAccessorImpl
+{
+	FVectorFieldTextureAccessorImpl(FVectorFieldResource* InResource)
+		: Resource(InResource)
+	{
+	}
+
+	FVectorFieldTextureAccessorImpl(const FVectorFieldTextureAccessorImpl& rhs)
+		: Resource(rhs.Resource)
+	{
+	}
+
+	TRefCountPtr<FVectorFieldResource> Resource;
+};
+
+FVectorFieldTextureAccessor::FVectorFieldTextureAccessor(UVectorField* InVectorField)
+	: Impl(nullptr)
+{
+	if (UVectorFieldStatic* VectorFieldStatic = Cast<UVectorFieldStatic>(InVectorField))
+	{
+		Impl = MakeUnique<FVectorFieldTextureAccessorImpl>(VectorFieldStatic->Resource);
+	}
+}
+
+FVectorFieldTextureAccessor::FVectorFieldTextureAccessor(const FVectorFieldTextureAccessor& rhs)
+	: Impl(nullptr)
+{
+	if (rhs.Impl)
+	{
+		Impl = MakeUnique<FVectorFieldTextureAccessorImpl>(rhs.Impl->Resource);
+	}
+}
+
+FVectorFieldTextureAccessor::~FVectorFieldTextureAccessor()
+{
+
+}
+
+FRHITexture* FVectorFieldTextureAccessor::GetTexture() const
+{
+	if (Impl && Impl->Resource && Impl->Resource->VolumeTextureRHI)
+	{
+		return Impl->Resource->VolumeTextureRHI;
+	}
+
+	return GBlackVolumeTexture->TextureRHI;
 }
 
 #if WITH_EDITOR
@@ -433,6 +500,21 @@ void UVectorFieldStatic::BeginDestroy()
 {
 	ReleaseResource();
 	Super::BeginDestroy();
+}
+
+void UVectorFieldStatic::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CPUData.GetAllocatedSize());
+	if (SourceData.IsBulkDataLoaded())
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SourceData.GetBulkDataSize());
+	}
+	if (Resource)
+	{
+		((const FVectorFieldStaticResource*)Resource)->GetResourceSizeEx(CumulativeResourceSize);
+	}
 }
 
 #if WITH_EDITOR
@@ -786,19 +868,6 @@ public:
 		OutVolumeTextureSampler.Bind( Initializer.ParameterMap, TEXT("OutVolumeTextureSampler") );
 	}
 
-	/** Serialization. */
-	virtual bool Serialize( FArchive& Ar ) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize( Ar );
-		Ar << AtlasTexture;
-		Ar << AtlasTextureSampler;
-		Ar << NoiseVolumeTexture;
-		Ar << NoiseVolumeTextureSampler;
-		Ar << OutVolumeTexture;
-		Ar << OutVolumeTextureSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
 	/**
 	 * Set parameters for this shader.
 	 * @param UniformBuffer - Uniform buffer containing parameters for compositing vector fields.
@@ -811,7 +880,7 @@ public:
 		FRHITexture* AtlasTextureRHI,
 		FRHITexture* NoiseVolumeTextureRHI )
 	{
-		FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 		FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, GetUniformBufferParameter<FCompositeAnimatedVectorFieldUniformParameters>(), UniformBuffer );
 		SetTextureParameter(RHICmdList, ComputeShaderRHI, AtlasTexture, AtlasTextureSampler, SamplerStateLinear, AtlasTextureRHI );
@@ -823,7 +892,7 @@ public:
 	 */
 	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* VolumeTextureUAV)
 	{
-		FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 		if ( OutVolumeTexture.IsBound() )
 		{
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutVolumeTexture.GetBaseIndex(), VolumeTextureUAV);
@@ -835,7 +904,7 @@ public:
 	 */
 	void UnbindBuffers(FRHICommandList& RHICmdList)
 	{
-		FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 		if ( OutVolumeTexture.IsBound() )
 		{
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutVolumeTexture.GetBaseIndex(), nullptr);
@@ -843,16 +912,15 @@ public:
 	}
 
 private:
-
 	/** Vector field volume textures to composite. */
-	FShaderResourceParameter AtlasTexture;
-	FShaderResourceParameter AtlasTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, AtlasTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, AtlasTextureSampler);
 	/** Volume texture to sample as noise. */
-	FShaderResourceParameter NoiseVolumeTexture;
-	FShaderResourceParameter NoiseVolumeTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, NoiseVolumeTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, NoiseVolumeTextureSampler);
 	/** The global vector field volume texture to write to. */
-	FShaderResourceParameter OutVolumeTexture;
-	FShaderResourceParameter OutVolumeTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, OutVolumeTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, OutVolumeTextureSampler);
 };
 IMPLEMENT_SHADER_TYPE(,FCompositeAnimatedVectorFieldCS,TEXT("/Engine/Private/VectorFieldCompositeShaders.usf"),TEXT("CompositeAnimatedVectorField"),SF_Compute);
 
@@ -995,7 +1063,7 @@ public:
 			}
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumeTextureUAV);
-			RHICmdList.SetComputeShader(CompositeCS->GetComputeShader());
+			RHICmdList.SetComputeShader(CompositeCS.GetComputeShader());
 			CompositeCS->SetOutput(RHICmdList, VolumeTextureUAV);
 			/// ?
 			CompositeCS->SetParameters(
@@ -1005,7 +1073,7 @@ public:
 				NoiseVolumeTextureRHI );
 			DispatchComputeShader(
 				RHICmdList,
-				*CompositeCS,
+				CompositeCS.GetShader(),
 				SizeX / THREADS_PER_AXIS,
 				SizeY / THREADS_PER_AXIS,
 				SizeZ / THREADS_PER_AXIS );

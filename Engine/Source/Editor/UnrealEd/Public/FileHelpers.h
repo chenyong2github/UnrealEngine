@@ -440,10 +440,11 @@ public:
 	 * @param	PkgsToCheckOut							Reference to array of packages to check out 
 	 * @param	OutPackagesCheckedOut					If not NULL, this array will be populated with packages that were checked out.
 	 * @param	bErrorIfAlreadyCheckedOut				true to consider being unable to checkout a package because it is already checked out an error, false to allow this without error
+	 * @param	bConfirmPackageBranchCheckOutStatus		true to prompt user on whether a package that is checked out or modified in another branch should be checked out, false to silently attempt check out.
 	 *
 	 * @return	true if all the packages were checked out successfully
 	 */
-	UNREALED_API static ECommandResult::Type CheckoutPackages(const TArray<UPackage*>& PkgsToCheckOut, TArray<UPackage*>* OutPackagesCheckedOut = NULL, const bool bErrorIfAlreadyCheckedOut = true);
+	UNREALED_API static ECommandResult::Type CheckoutPackages(const TArray<UPackage*>& PkgsToCheckOut, TArray<UPackage*>* OutPackagesCheckedOut = NULL, const bool bErrorIfAlreadyCheckedOut = true, const bool bConfirmPackageBranchCheckOutStatus = true);
 
 	/**
 	 * Check out the specified packages from source control and report any errors while checking out

@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 #include "HairStrandsVoxelization.h"
+#include "HairStrandsDeepShadow.h"
 #include "SceneManagement.h"
 
 // -----------------------------
@@ -25,6 +26,7 @@
 
 struct FHairMacroGroupAABBData
 {
+	uint32 MacroGroupCount = 0;
 	TRefCountPtr<FPooledRDGBuffer>	MacroGroupAABBsBuffer;
 };
 
@@ -37,7 +39,8 @@ struct FHairStrandsMacroGroupData
 		FMeshBatchAndRelevance MeshBatchAndRelevance;
 		uint32 MaterialId;
 		uint32 ResourceId;
-		uint32 GroupIndex;
+		uint32 GroupIndex;		
+		bool IsCullingEnable() const;
 	};
 	typedef TArray<PrimitiveInfo, SceneRenderingAllocator> TPrimitiveInfos;
 
@@ -56,6 +59,7 @@ struct FHairStrandsMacroGroupData
 
 	FVirtualVoxelNodeDesc VirtualVoxelNodeDesc;
 	FHairStrandsVoxelResources VoxelResources;
+	FHairStrandsDeepShadowDatas DeepShadowDatas;
 	TPrimitiveInfos PrimitivesInfos;
 	TPrimitiveGroups PrimitivesGroups;
 	FBoxSphereBounds Bounds;
@@ -67,6 +71,7 @@ struct FHairStrandsMacroGroupData
 struct FHairStrandsMacroGroupDatas
 {
 	TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator> Datas;
+	FDeepShadowResources DeepShadowResources;
 	FVirtualVoxelResources VirtualVoxelResources;
 	FHairMacroGroupAABBData MacroGroupResources;
 };

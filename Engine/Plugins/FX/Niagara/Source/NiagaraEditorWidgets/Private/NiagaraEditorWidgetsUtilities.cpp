@@ -64,9 +64,9 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		{
 			return "NiagaraEditor.Stack.EventIconHighlighted";
 		}
-		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::ShaderStage)
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::SimulationStage)
 		{
-			return "NiagaraEditor.Stack.ShaderStageIconHighlighted";
+			return "NiagaraEditor.Stack.SimulationStageIconHighlighted";
 		}
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
 		{
@@ -91,9 +91,9 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		{
 			return "NiagaraEditor.Stack.EventIcon";
 		}
-		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::ShaderStage)
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::SimulationStage)
 		{
-			return "NiagaraEditor.Stack.ShaderStageIcon";
+			return "NiagaraEditor.Stack.SimulationStageIcon";
 		}
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
 		{
@@ -127,6 +127,30 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(
 		return NAME_None;
 	}
 }
+
+FName FNiagaraStackEditorWidgetsUtilities::GetColorNameForParameterScope(ENiagaraParameterScope ParameterScope)
+{
+	switch (ParameterScope) {
+	case ENiagaraParameterScope::Engine:
+		return "NiagaraEditor.Scope.Engine";
+	case ENiagaraParameterScope::Owner:
+		return "NiagaraEditor.Scope.Owner";
+	case ENiagaraParameterScope::User:
+		return "NiagaraEditor.Scope.User";
+	case ENiagaraParameterScope::System:
+		return "NiagaraEditor.Scope.System";
+	case ENiagaraParameterScope::Emitter:
+		return "NiagaraEditor.Scope.Emitter";
+	case ENiagaraParameterScope::Particles:
+		return "NiagaraEditor.Scope.Particles";
+	case ENiagaraParameterScope::ScriptPersistent:
+		return "NiagaraEditor.Scope.ScriptPersistent";
+	case ENiagaraParameterScope::ScriptTransient:
+		return "NiagaraEditor.Scope.ScriptTransient";
+	};
+	return NAME_None;
+}
+
 
 void OpenSourceAsset(TWeakObjectPtr<UNiagaraStackEntry> StackEntryWeak)
 {

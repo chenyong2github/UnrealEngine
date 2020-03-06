@@ -373,10 +373,11 @@ public:
 	 *
 	 * @param MasterSequence  The master sequence that contains the sequence
 	 * @param Binding The binding proxy to generate the binding id from
+	 * @param Space The object binding space to resolve from (Root or Local)
 	 * @return The new object binding id
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
-	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding);
+	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
 
 	/**
 	 * Get the root folders in the provided sequence
@@ -465,4 +466,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
 	static int32 FindNextMarkedFrame(UMovieSceneSequence* Sequence, FFrameNumber InFrameNumber, bool bForward);
+
+	/*
+	 * Set read only
+	 *
+	 * @bInReadOnly Whether the movie scene should be read only or not
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SetReadOnly(UMovieSceneSequence* Sequence, bool bInReadOnly);
+
+	/*
+	 * Is read only
+	 *
+	 * @return Whether the movie scene is read only or not
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static bool IsReadOnly(UMovieSceneSequence* Sequence);
 };

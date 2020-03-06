@@ -73,25 +73,17 @@ public:
 	{
 		const float InvVolumeResolutionX = 1.0f / VolumeResolution.X;
 		const float InvVolumeResolutionY = 1.0f / VolumeResolution.Y;
-		SetShaderValue(RHICmdList, GetVertexShader(), UVScaleBias, FVector4(
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), UVScaleBias, FVector4(
 			(VolumeBounds.MaxX - VolumeBounds.MinX) * InvVolumeResolutionX,
 			(VolumeBounds.MaxY - VolumeBounds.MinY) * InvVolumeResolutionY,
 			VolumeBounds.MinX * InvVolumeResolutionX,
 			VolumeBounds.MinY * InvVolumeResolutionY));
-		SetShaderValue(RHICmdList, GetVertexShader(), MinZ, VolumeBounds.MinZ);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << UVScaleBias;
-		Ar << MinZ;
-		return bShaderHasOutdatedParameters;
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), MinZ, VolumeBounds.MinZ);
 	}
 
 private:
-	FShaderParameter UVScaleBias;
-	FShaderParameter MinZ;
+	LAYOUT_FIELD(FShaderParameter, UVScaleBias);
+	LAYOUT_FIELD(FShaderParameter, MinZ);
 };
 
 /** Geometry shader used to write to a range of slices of a 3d volume texture. */
@@ -115,18 +107,11 @@ public:
 	template <typename TRHICommandList>
 	void SetParameters(TRHICommandList& RHICmdList, int32 MinZValue)
 	{
-		SetShaderValue(RHICmdList, GetGeometryShader(), MinZ, MinZValue);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << MinZ;
-		return bShaderHasOutdatedParameters;
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundGeometryShader(), MinZ, MinZValue);
 	}
 
 private:
-	FShaderParameter MinZ;
+	LAYOUT_FIELD(FShaderParameter, MinZ);
 };
 
 // This function assumes the PSO had a PrimitiveType of PT_TriangleStrip

@@ -35,22 +35,11 @@ public:
 	}
 	FCubeFilterPS() {}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << CubeFace;
-		Ar << MipIndex;
-		Ar << NumMips;
-		Ar << SourceTexture;
-		Ar << SourceTextureSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderParameter CubeFace;
-	FShaderParameter MipIndex;
-	FShaderParameter NumMips;
-	FShaderResourceParameter SourceTexture;
-	FShaderResourceParameter SourceTextureSampler;
+	LAYOUT_FIELD(FShaderParameter, CubeFace);
+	LAYOUT_FIELD(FShaderParameter, MipIndex);
+	LAYOUT_FIELD(FShaderParameter, NumMips);
+	LAYOUT_FIELD(FShaderResourceParameter, SourceTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSampler);
 };
 
 template< uint32 bNormalize >

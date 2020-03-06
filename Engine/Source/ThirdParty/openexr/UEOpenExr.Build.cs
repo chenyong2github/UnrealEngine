@@ -24,12 +24,12 @@ public class UEOpenExr : ModuleRules
 		}
 
         Type = ModuleType.External;
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Mac || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Mac || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
             bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
             string LibDir = Target.UEThirdPartySourceDirectory + DeployDir + "/OpenEXR//lib/";
 			string Platform = "";
-			if (Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
             {
                     Platform = "x64";
                     LibDir += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
@@ -52,7 +52,7 @@ public class UEOpenExr : ModuleRules
             LibDir = LibDir + "/" + Platform;
             LibDir = LibDir + "/Static" + (bDebug ? "Debug" : "Release");
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				PublicAdditionalLibraries.AddRange(
 					new string[] {

@@ -303,6 +303,12 @@ void FSoundConcurrencyManager::CreateNewGroupsFromHandles(
 {
 	for (const FConcurrencyHandle& ConcurrencyHandle : ConcurrencyHandles)
 	{
+		// Add an entry to the map if it hasn't already been added
+		if (!LastTimePlayedMap.Contains(ConcurrencyHandle.ObjectID))
+		{
+			LastTimePlayedMap.Add(ConcurrencyHandle.ObjectID, FPlatformTime::ToSeconds64(FPlatformTime::Cycles64()));
+		}
+	
 		switch (ConcurrencyHandle.GetMode(NewActiveSound))
 		{
 			case EConcurrencyMode::Group:
@@ -413,6 +419,28 @@ FConcurrencyGroup& FSoundConcurrencyManager::CreateNewConcurrencyGroup(const FCo
 	ConcurrencyGroups.Emplace(GroupID, new FConcurrencyGroup(GroupID, ConcurrencyHandle));
 
 	return *ConcurrencyGroups.FindRef(GroupID);
+}
+
+bool FSoundConcurrencyManager::IsRateLimited(const FConcurrencyHandle& InHandle)
+{
+	const float* LastTimePlayed = LastTimePlayedMap.Find(InHandle.ObjectID);
+	const float CurrentTime = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64());
+
+	if (LastTimePlayed)
+	{
+		const float DeltaTime = CurrentTime - *LastTimePlayed;
+
+		if (*LastTimePlayed > 0.0f && InHandle.Settings.RetriggerTime > 0.0f && DeltaTime < InHandle.Settings.RetriggerTime)
+		{
+			// Retrieve the current game time
+			UE_LOG(LogAudio, VeryVerbose, TEXT("Rejected Sound for Group ID (%d) with DeltaTime: %.2f"), InHandle.ObjectID, DeltaTime);
+			return true;
+		}
+
+		LastTimePlayedMap.Add(InHandle.ObjectID, CurrentTime);
+	}
+
+	return false;
 }
 
 FConcurrencyGroup* FSoundConcurrencyManager::CanPlaySound(const FActiveSound& NewActiveSound, const FConcurrencyGroupID GroupID, TArray<FActiveSound*>& OutSoundsToEvict, bool bIsRetriggering)
@@ -573,6 +601,12 @@ FActiveSound* FSoundConcurrencyManager::EvaluateConcurrency(const FActiveSound& 
 
 	for (const FConcurrencyHandle& ConcurrencyHandle : ConcurrencyHandles)
 	{
+		// If this concurrency handle has been rate limited, early exit
+		if (IsRateLimited(ConcurrencyHandle))
+		{
+			return nullptr;
+		}
+
 		switch (ConcurrencyHandle.GetMode(NewActiveSound))
 		{
 			case EConcurrencyMode::Group:

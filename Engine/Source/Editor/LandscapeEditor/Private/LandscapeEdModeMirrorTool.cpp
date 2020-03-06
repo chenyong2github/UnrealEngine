@@ -670,9 +670,8 @@ public:
 	void CenterMirrorPoint()
 	{
 		ULandscapeInfo* const LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
-		ALandscapeProxy* const LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
 		int32 MinX, MinY, MaxX, MaxY;
-		if (LandscapeInfo->GetLandscapeExtent(MinX, MinY, MaxX, MaxY))
+		if (LandscapeInfo && LandscapeInfo->GetLandscapeExtent(MinX, MinY, MaxX, MaxY))
 		{
 			EdMode->UISettings->MirrorPoint = FVector2D((float)(MinX + MaxX) / 2.0f, (float)(MinY + MaxY) / 2.0f);
 		}

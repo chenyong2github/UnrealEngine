@@ -17,29 +17,11 @@ static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
 DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick, STATGROUP_Landscape);
 
 ULandscapeSubsystem::ULandscapeSubsystem()
-	: TickFunction(this)
-{}
+{
+}
 
 ULandscapeSubsystem::~ULandscapeSubsystem()
 {
-
-}
-
-void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-	// Register Tick 
-	TickFunction.bCanEverTick = true;
-	TickFunction.bTickEvenWhenPaused = true;
-	TickFunction.bStartWithTickEnabled = true;
-	TickFunction.TickGroup = TG_DuringPhysics;
-	TickFunction.bAllowTickOnDedicatedServer = false;
-	TickFunction.RegisterTickFunction(GetWorld()->PersistentLevel);
-}
-
-void ULandscapeSubsystem::Deinitialize()
-{
-	TickFunction.UnRegisterTickFunction();
-	Proxies.Empty();
 }
 
 void ULandscapeSubsystem::RegisterActor(ALandscapeProxy* Proxy)
@@ -52,7 +34,28 @@ void ULandscapeSubsystem::UnregisterActor(ALandscapeProxy* Proxy)
 	Proxies.Remove(Proxy);
 }
 
-void ULandscapeSubsystem::Tick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	// Register Tick 
+	bCanEverTick = true;
+	bTickEvenWhenPaused = true;
+	bStartWithTickEnabled = true;
+	TickGroup = TG_DuringPhysics;
+	bAllowTickOnDedicatedServer = false;
+	RegisterTickFunction(GetWorld()->PersistentLevel);
+}
+
+void ULandscapeSubsystem::Deinitialize()
+{
+	UnRegisterTickFunction();
+	Proxies.Empty();
+
+	Super::Deinitialize();
+}
+
+void ULandscapeSubsystem::ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeSubsystemTick);
 	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeSubsystem::Tick);
@@ -93,7 +96,7 @@ void ULandscapeSubsystem::Tick(float DeltaTime, enum ELevelTick TickType, ENamed
 	}
 
 	int32 InOutNumComponentsCreated = 0;
-	for(ALandscapeProxy* Proxy : Proxies)
+	for (ALandscapeProxy* Proxy : Proxies)
 	{
 #if WITH_EDITOR
 		if (GIsEditor)
@@ -117,19 +120,14 @@ void ULandscapeSubsystem::Tick(float DeltaTime, enum ELevelTick TickType, ENamed
 	}
 }
 
-void FLandscapeSubsystemTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+FString ULandscapeSubsystem::DiagnosticMessage()
 {
-	Subsystem->Tick(DeltaTime, TickType, CurrentThread, MyCompletionGraphEvent);
-}
-
-FString FLandscapeSubsystemTickFunction::DiagnosticMessage()
-{
-	static const FString Message(TEXT("FLandscapeSubsystemTickFunction"));
+	static const FString Message(TEXT("ULandscapeSubsystem"));
 	return Message;
 }
 
-FName FLandscapeSubsystemTickFunction::DiagnosticContext(bool bDetailed)
+FName ULandscapeSubsystem::DiagnosticContext(bool bDetailed)
 {
-	static const FName Context(TEXT("FLandscapeSubsystemTickFunction"));
+	static const FName Context(TEXT("ULandscapeSubsystem"));
 	return Context;
 }

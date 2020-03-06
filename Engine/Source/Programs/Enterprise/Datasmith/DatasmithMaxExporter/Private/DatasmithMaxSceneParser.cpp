@@ -520,6 +520,8 @@ void FDatasmithMaxSceneParser::LightTexEnum(INode* Node)
 					}
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 	}
 }

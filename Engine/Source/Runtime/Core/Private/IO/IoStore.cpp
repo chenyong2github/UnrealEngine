@@ -4,6 +4,7 @@
 #include "Containers/Map.h"
 #include "HAL/FileManager.h"
 #include "Templates/UniquePtr.h"
+#include "Misc/Paths.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -16,19 +17,13 @@ FIoStoreEnvironment::FIoStoreEnvironment()
 {
 }
 
-FIoStoreEnvironment::FIoStoreEnvironment(const FIoStoreEnvironment& BaseEnvironment, FStringView InPartitionName)
-{
-	BasePath = BaseEnvironment.BasePath;
-	PartitionName = InPartitionName;
-}
-
 FIoStoreEnvironment::~FIoStoreEnvironment()
 {
 }
 
-void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InBasePath)
+void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InPath)
 {
-	BasePath = InBasePath;
+	Path = InPath;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -45,15 +40,10 @@ public:
 	{
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 
-		FString PartitionName = Environment.GetPartitionName();
-		if (PartitionName.IsEmpty())
-		{
-			PartitionName = TEXT("global");
-		}
-		FString TocFilePath = Environment.GetBasePath() / PartitionName + TEXT(".utoc");
-		FString ContainerFilePath = Environment.GetBasePath() / PartitionName + TEXT(".ucas");
+		FString TocFilePath = Environment.GetPath() + TEXT(".utoc");
+		FString ContainerFilePath = Environment.GetPath() + TEXT(".ucas");
 
-		Ipf.CreateDirectoryTree(*Environment.GetBasePath());
+		Ipf.CreateDirectoryTree(*FPaths::GetPath(ContainerFilePath));
 
 		ContainerFileHandle.Reset(Ipf.OpenWrite(*ContainerFilePath, /* append */ false, /* allowread */ true));
 
@@ -72,7 +62,21 @@ public:
 		return FIoStatus::Ok;
 	}
 
-	UE_NODISCARD FIoStatus Append(FIoChunkId ChunkId, FIoBuffer Chunk)
+	FIoStatus EnableCsvOutput()
+	{
+		FString CsvFilePath = Environment.GetPath() + TEXT(".csv");
+		CsvArchive.Reset(IFileManager::Get().CreateFileWriter(*CsvFilePath));
+		if (!CsvArchive)
+		{
+			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore CSV file '") << *CsvFilePath << TEXT("'");
+		}
+		ANSICHAR Header[] = "Name,Offset,Size\n";
+		CsvArchive->Serialize(Header, sizeof(Header) - 1);
+
+		return FIoStatus::Ok;
+	}
+
+	UE_NODISCARD FIoStatus Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name)
 	{
 		if (!ContainerFileHandle)
 		{
@@ -111,6 +115,13 @@ public:
 		if (Success)
 		{
 			Toc.Add(ChunkId, TocEntry);
+
+			if (CsvArchive)
+			{
+				ANSICHAR Line[MAX_SPRINTF];
+				FCStringAnsi::Sprintf(Line, "%s,%lld,%lld\n", TCHAR_TO_ANSI(Name), TocEntry.GetOffset(), TocEntry.GetLength());
+				CsvArchive->Serialize(Line, FCStringAnsi::Strlen(Line));
+			}
 
 			return FIoStatus::Ok;
 		}
@@ -192,6 +203,7 @@ private:
 	TMap<FIoChunkId, FIoStoreTocEntry>	Toc;
 	TUniquePtr<IFileHandle>				ContainerFileHandle;
 	TUniquePtr<IFileHandle>				TocFileHandle;
+	TUniquePtr<FArchive>				CsvArchive;
 	bool								IsMetadataDirty = true;
 };
 
@@ -210,9 +222,14 @@ FIoStatus FIoStoreWriter::Initialize()
 	return Impl->Initialize();
 }
 
-FIoStatus FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk)
+FIoStatus FIoStoreWriter::EnableCsvOutput()
 {
-	return Impl->Append(ChunkId, Chunk);
+	return Impl->EnableCsvOutput();
+}
+
+FIoStatus FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name)
+{
+	return Impl->Append(ChunkId, Chunk, Name);
 }
 
 FIoStatus FIoStoreWriter::MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange)

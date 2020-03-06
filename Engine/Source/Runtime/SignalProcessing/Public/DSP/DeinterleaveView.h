@@ -25,10 +25,10 @@ namespace Audio
 		class TChannel
 		{
 			public:
-				const TArray<T, InAllocator>& Values;
+				TArray<T, InAllocator>& Values;
 				const int32 ChannelIndex;
 
-				TChannel(const TArray<T, InAllocator>& InValues, const int32 InChannelIndex)
+				TChannel(TArray<T, InAllocator>& InValues, const int32 InChannelIndex)
 				:	Values(InValues)
 				,	ChannelIndex(InChannelIndex)
 				{}
@@ -71,12 +71,6 @@ namespace Audio
 				}
 
 
-				// prepare the array
-				ArrayToFill.Reset(DeinterleaveView.NumElementsPerChannel);
-				if (DeinterleaveView.NumElementsPerChannel > 0)
-				{
-					ArrayToFill.AddUninitialized(DeinterleaveView.NumElementsPerChannel);
-				}
 			}
 
 			/** Increment the iterator forward by one channel */
@@ -114,6 +108,13 @@ namespace Audio
 				}
 				else
 				{
+					// prepare the array
+					ArrayToFill.Reset(DeinterleaveView.NumElementsPerChannel);
+					if (DeinterleaveView.NumElementsPerChannel > 0)
+					{
+						ArrayToFill.AddUninitialized(DeinterleaveView.NumElementsPerChannel);
+					}
+
 					// Fill array with deinterleave data
 					T* ArrayToFillData = ArrayToFill.GetData();
 					const T* InterleavedData = DeinterleaveView.InterleavedArray.GetData();

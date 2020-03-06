@@ -6,6 +6,7 @@
 #include "RenderUtils.h"
 #include "SkeletalMeshTypes.h"
 #include "UObject/AnimObjectVersion.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 /*-----------------------------------------------------------------------------
 FSkinWeightLookupVertexBuffer
@@ -128,15 +129,18 @@ void FSkinWeightLookupVertexBuffer::InitRHI()
 	// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 
-	bool bSRV = VertexBufferRHI && GSupportsResourceView && GPixelFormats[PixelFormat].Supported;
-	// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
-	// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
-	// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
-	bSRV |= GetNeedsCPUAccess();
-
-	if (bSRV)
+	if (VertexBufferRHI)
 	{
-		SRVValue = RHICreateShaderResourceView(LookupData ? VertexBufferRHI : nullptr, PixelFormatStride, PixelFormat);
+		bool bSRV = GSupportsResourceView && GPixelFormats[PixelFormat].Supported;
+		// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
+		// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
+		// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
+		bSRV |= GetNeedsCPUAccess();
+
+		if (bSRV && LookupData && VertexBufferRHI)
+		{
+			SRVValue = RHICreateShaderResourceView(VertexBufferRHI, PixelFormatStride, PixelFormat);
+		}
 	}
 }
 
@@ -180,7 +184,7 @@ FVertexBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Internal()
 		// Create the vertex buffer.
 		FResourceArrayInterface* ResourceArray = LookupData ? LookupData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
+		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
 		CreateInfo.bWithoutNativeResource = !LookupData;
 
@@ -390,7 +394,7 @@ FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Internal()
 		// Create the vertex buffer.
 		FResourceArrayInterface* ResourceArray = WeightData ? WeightData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
+		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
 		CreateInfo.bWithoutNativeResource = !WeightData;
 
@@ -417,8 +421,15 @@ FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Async()
 	return CreateRHIBuffer_Internal<false>();
 }
 
+bool FSkinWeightDataVertexBuffer::IsWeightDataValid() const
+{
+	return WeightData != nullptr;
+}
+
 void FSkinWeightDataVertexBuffer::InitRHI()
 {
+	SCOPED_LOADTIMER(FSkinWeightVertexBuffer_InitRHI);
+
 	// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 
@@ -428,9 +439,9 @@ void FSkinWeightDataVertexBuffer::InitRHI()
 	// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
 	bSRV |= GetNeedsCPUAccess();
 
-	if (bSRV)
+	if (bSRV && WeightData && VertexBufferRHI)
 	{
-		SRVValue = RHICreateShaderResourceView(WeightData ? VertexBufferRHI : nullptr, GetPixelFormatStride(), GetPixelFormat());
+		SRVValue = RHICreateShaderResourceView(VertexBufferRHI, GetPixelFormatStride(), GetPixelFormat());
 	}
 }
 
@@ -584,6 +595,11 @@ void FSkinWeightDataVertexBuffer::ResetVertexBoneWeights(uint32 VertexWeightOffs
 	}
 }
 
+void FSkinWeightDataVertexBuffer::CopyDataFromBuffer(const TArrayView<const FSkinWeightInfo>& SkinWeightData)
+{
+	Init(SkinWeightData.Num() * GetMaxBoneInfluences(), SkinWeightData.Num());
+	FMemory::Memcpy(Data, SkinWeightData.GetData(), GetVertexDataSize());
+}
 
 /*-----------------------------------------------------------------------------
 FSkinWeightVertexBuffer
@@ -897,4 +913,9 @@ FSkinWeightInfo FSkinWeightVertexBuffer::GetVertexSkinWeights(uint32 VertexIndex
 		OutVertex.InfluenceWeights[InfluenceIdx] = GetBoneWeight(VertexIndex, InfluenceIdx);
 	}
 	return OutVertex;
+}
+
+void FSkinWeightVertexBuffer::CopySkinWeightInfoData(const TArrayView<const FSkinWeightInfo>& SkinWeightData)
+{
+	DataVertexBuffer.CopyDataFromBuffer(SkinWeightData);
 }

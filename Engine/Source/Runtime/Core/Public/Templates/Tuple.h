@@ -9,6 +9,8 @@
 #include "Delegates/IntegerSequence.h"
 #include "Templates/Invoke.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/MemoryLayout.h"
+#include "Templates/TypeHash.h"
 
 class FArchive;
 
@@ -17,21 +19,6 @@ struct TTuple;
 
 namespace UE4Tuple_Private
 {
-	template <int32 N, typename... Types>
-	struct TNthTypeFromParameterPack;
-
-	template <int32 N, typename T, typename... OtherTypes>
-	struct TNthTypeFromParameterPack<N, T, OtherTypes...>
-	{
-		typedef typename TNthTypeFromParameterPack<N - 1, OtherTypes...>::Type Type;
-	};
-
-	template <typename T, typename... OtherTypes>
-	struct TNthTypeFromParameterPack<0, T, OtherTypes...>
-	{
-		typedef T Type;
-	};
-
 	template <typename T, typename... Types>
 	struct TDecayedFrontOfParameterPackIsSameType
 	{
@@ -399,6 +386,26 @@ namespace UE4Tuple_Private
 	{
 		enum { Value = sizeof...(Types) };
 	};
+
+	template <uint32 ArgToCombine, uint32 ArgCount>
+	struct TGetTupleHashHelper
+	{
+		template <typename TupleType>
+		FORCEINLINE static uint32 Do(uint32 Hash, const TupleType& Tuple)
+		{
+			return TGetTupleHashHelper<ArgToCombine + 1, ArgCount>::Do(HashCombine(Hash, GetTypeHash(Tuple.template Get<ArgToCombine>())), Tuple);
+		}
+	};
+
+	template <uint32 ArgIndex>
+	struct TGetTupleHashHelper<ArgIndex, ArgIndex>
+	{
+		template <typename TupleType>
+		FORCEINLINE static uint32 Do(uint32 Hash, const TupleType& Tuple)
+		{
+			return Hash;
+		}
+	};
 }
 
 template <typename... Types>
@@ -433,6 +440,50 @@ public:
 	TTuple& operator=(const TTuple&) = default;
 };
 
+template <typename... Types>
+FORCEINLINE uint32 GetTypeHash(const TTuple<Types...>& Tuple)
+{
+	return UE4Tuple_Private::TGetTupleHashHelper<1u, sizeof...(Types)>::Do(GetTypeHash(Tuple.template Get<0>()), Tuple);
+}
+
+FORCEINLINE uint32 GetTypeHash(const TTuple<>& Tuple)
+{
+	return 0;
+}
+
+namespace Freeze
+{
+	template<typename KeyType, typename ValueType>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TTuple<KeyType, ValueType>& Object, const FTypeLayoutDesc&)
+	{
+		Writer.WriteObject(Object.Key);
+		Writer.WriteObject(Object.Value);
+	}
+
+	template<typename KeyType, typename ValueType>
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TTuple<KeyType, ValueType>& Object, void* OutDst)
+	{
+		TTuple<KeyType, ValueType>* DstObject = (TTuple<KeyType, ValueType>*)OutDst;
+		Context.UnfreezeObject(Object.Key, &DstObject->Key);
+		Context.UnfreezeObject(Object.Value, &DstObject->Value);
+	}
+
+	template<typename KeyType, typename ValueType>
+	uint32 IntrinsicAppendHash(const TTuple<KeyType, ValueType>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		return Freeze::AppendHashPair(StaticGetTypeLayoutDesc<KeyType>(), StaticGetTypeLayoutDesc<ValueType>(), LayoutParams, Hasher);
+	}
+
+	template<typename KeyType, typename ValueType>
+	uint32 IntrinsicGetTargetAlignment(const TTuple<KeyType, ValueType>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams)
+	{
+		const uint32 KeyAlignment = GetTargetAlignment(StaticGetTypeLayoutDesc<KeyType>(), LayoutParams);
+		const uint32 ValueAlignment = GetTargetAlignment(StaticGetTypeLayoutDesc<ValueType>(), LayoutParams);
+		return FMath::Min(FMath::Max(KeyAlignment, ValueAlignment), LayoutParams.MaxFieldAlignment);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename ValueType>), (TTuple<KeyType, ValueType>));
 
 /**
  * Traits class which calculates the number of elements in a tuple.

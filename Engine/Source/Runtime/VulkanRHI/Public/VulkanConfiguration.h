@@ -121,6 +121,12 @@
 	#define VULKAN_SUPPORTS_VALIDATION_CACHE					0
 #endif
 
+#ifdef VK_EXT_validation_features
+	#define VULKAN_HAS_VALIDATION_FEATURES						1
+#else
+	#define VULKAN_HAS_VALIDATION_FEATURES						0
+#endif
+
 #ifndef VULKAN_SUPPORTS_DEDICATED_ALLOCATION
 	#ifdef VK_KHR_dedicated_allocation
 		// Disable this for now as it is causing a large memory leak

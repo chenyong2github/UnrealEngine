@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef WORK_DISPATCHER_H
-#define WORK_DISPATCHER_H
+#ifndef PXR_BASE_WORK_DISPATCHER_H
+#define PXR_BASE_WORK_DISPATCHER_H
 
 /// \file work/dispatcher.h
 
@@ -65,7 +65,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 ///
 /// Calls to Run() and Cancel() may be made concurrently.  However, once Wait()
 /// is called, calls to Run() and Cancel() must only be made by tasks already
-/// added by Run().  Additionaly, Wait() must never be called by a task added by
+/// added by Run().  Additionally, Wait() must never be called by a task added by
 /// Run(), since that task could never complete.
 ///
 class WorkDispatcher
@@ -180,4 +180,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // WORK_DISPATCHER_H
+#endif // PXR_BASE_WORK_DISPATCHER_H

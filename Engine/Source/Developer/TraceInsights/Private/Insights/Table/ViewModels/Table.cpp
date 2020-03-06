@@ -112,21 +112,6 @@ int32 FTable::GetColumnPositionIndex(const FName& ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::Init(TSharedPtr<Trace::IUntypedTable> InSourceTable)
-{
-	Reset();
-
-	SourceTable = InSourceTable;
-
-	if (SourceTable)
-	{
-		TableReader = MakeShareable(SourceTable->CreateReader());
-		CreateColumnsFromTableLayout();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 bool AreTableLayoutsEqual(const Trace::ITableLayout& TableLayoutA, const Trace::ITableLayout& TableLayoutB)
 {
 	if (TableLayoutA.GetColumnCount() != TableLayoutB.GetColumnCount())
@@ -152,12 +137,33 @@ bool AreTableLayoutsEqual(const Trace::ITableLayout& TableLayoutA, const Trace::
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable)
+bool FTable::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable)
 {
-	check(InSourceTable.IsValid() && SourceTable.IsValid());
-	check(AreTableLayoutsEqual(InSourceTable->GetLayout(), SourceTable->GetLayout()));
-	SourceTable = InSourceTable;
-	TableReader = MakeShareable(SourceTable->CreateReader());
+	bool bTableLayoutChanged;
+
+	if (InSourceTable.IsValid())
+	{
+		bTableLayoutChanged = !SourceTable.IsValid() || !AreTableLayoutsEqual(InSourceTable->GetLayout(), SourceTable->GetLayout());
+		SourceTable = InSourceTable;
+		TableReader = MakeShareable(SourceTable->CreateReader());
+	}
+	else
+	{
+		bTableLayoutChanged = SourceTable.IsValid();
+		SourceTable.Reset();
+		TableReader.Reset();
+	}
+
+	if (bTableLayoutChanged)
+	{
+		Columns.Reset();
+		if (SourceTable.IsValid())
+		{
+			CreateColumns(SourceTable->GetLayout());
+		}
+	}
+
+	return bTableLayoutChanged;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -220,12 +226,9 @@ void FTable::CreateHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::CreateColumnsFromTableLayout()
+void FTable::CreateColumns(const Trace::ITableLayout& TableLayout)
 {
-	ensure(TableReader.IsValid());
 	ensure(Columns.Num() == 0);
-
-	const Trace::ITableLayout& TableLayout = SourceTable->GetLayout();
 	const int32 ColumnCount = TableLayout.GetColumnCount();
 
 	//////////////////////////////////////////////////

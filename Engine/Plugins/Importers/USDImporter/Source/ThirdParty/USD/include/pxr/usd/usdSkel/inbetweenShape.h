@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDSKEL_INBETWEENSHAPE_H
-#define USDSKEL_INBETWEENSHAPE_H
+#ifndef PXR_USD_USD_SKEL_INBETWEEN_SHAPE_H
+#define PXR_USD_USD_SKEL_INBETWEEN_SHAPE_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usdSkel/api.h"
@@ -66,23 +66,45 @@ public:
 
     /// Return the location at which the shape is applied.
     USDSKEL_API
-    float GetWeight() const;
+    bool GetWeight(float* weight) const;
 
     /// Set the location at which the shape is applied.
     USDSKEL_API
     bool SetWeight(float weight);
 
-    /// Has weight been explicitly authored on this shape?
+    /// Has a weight value been explicitly authored on this shape?
     ///
     /// \sa GetWeight()
     USDSKEL_API
     bool HasAuthoredWeight() const;
 
+    /// Get the point offsets corresponding to this shape.
     USDSKEL_API
     bool GetOffsets(VtVec3fArray* offsets) const;
 
+    /// Set the point offsets corresponding to this shape.
     USDSKEL_API
     bool SetOffsets(const VtVec3fArray& offsets) const;
+
+    /// Returns a valid normal offsets attribute if the shape has normal
+    /// offsets. Returns an invalid attribute otherwise.
+    USDSKEL_API
+    UsdAttribute GetNormalOffsetsAttr() const;
+
+    /// Returns the existing normal offsets attribute if the shape has
+    /// normal offsets, or creates a new one.
+    USDSKEL_API
+    UsdAttribute
+    CreateNormalOffsetsAttr(const VtValue &defaultValue = VtValue()) const;
+
+    /// Get the normal offsets authored for this shape.
+    /// Normal offsets are optional, and may be left unspecified.
+    USDSKEL_API
+    bool GetNormalOffsets(VtVec3fArray* offsets) const;
+    
+    /// Set the normal offsets authored for this shape.
+    USDSKEL_API
+    bool SetNormalOffsets(const VtVec3fArray& offsets) const;
 
     /// Test whether a given UsdAttribute represents a valid Inbetween, which
     /// implies that creating a UsdSkelInbetweenShape from the attribute will
@@ -117,6 +139,14 @@ public:
        return IsDefined() ? (bool)_attr : 0;
     }
 
+    bool operator==(const UsdSkelInbetweenShape& o) const {
+        return _attr == o._attr;
+    }
+    
+    bool operator!=(const UsdSkelInbetweenShape& o) const {
+        return !(*this == o);
+    }
+
     /// @}
 
 private:
@@ -140,10 +170,14 @@ private:
     /// will be silent.
     static TfToken _MakeNamespaced(const TfToken& name, bool quiet=false);
 
-    static TfToken const &_GetNamespacePrefix();
+    static const TfToken& _GetNamespacePrefix();
+
+    static const TfToken& _GetNormalOffsetsSuffix();
+
+    UsdAttribute _GetNormalOffsetsAttr(bool create) const;
 
     /// Factory for UsdBlendShape's use, so that we can encapsulate the
-    /// logic of what discriminates an Inbetween in this calss, while
+    /// logic of what discriminates an Inbetween in this class, while
     /// preserving the pattern that attributes can only be created via
     /// their container objects.
     ///
@@ -164,4 +198,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USDSKEL_INBETWEENSHAPE_H
+#endif // PXR_USD_USD_SKEL_INBETWEEN_SHAPE_H

@@ -174,9 +174,9 @@ FBoxSphereBounds UGameplayDebuggerRenderingComponent::CalcBounds(const FTransfor
 	return FBoxSphereBounds(FBox::BuildAABB(FVector::ZeroVector, FVector(1000000.0f, 1000000.0f, 1000000.0f)));
 }
 
-void UGameplayDebuggerRenderingComponent::CreateRenderState_Concurrent()
+void UGameplayDebuggerRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	GameplayDebuggerDebugDrawDelegateHelper.RegisterDebugDrawDelgate();
 }

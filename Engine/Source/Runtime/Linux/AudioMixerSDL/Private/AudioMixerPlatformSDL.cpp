@@ -328,7 +328,7 @@ namespace Audio
 		static FName NAME_OPUS(TEXT("OPUS"));
 		static FName NAME_ADPCM(TEXT("ADPCM"));
 
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 			if (InSoundWave->IsSeekableStreaming())
 			{

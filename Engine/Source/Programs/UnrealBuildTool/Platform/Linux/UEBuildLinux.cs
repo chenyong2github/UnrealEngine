@@ -238,13 +238,7 @@ namespace UnrealBuildTool
 			// check if OS update invalidated our build
 			Target.bCheckSystemHeadersForModification = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux);
 
-			// At the moment ICU has not been compiled for AArch64 and i686.
-			if (Target.Architecture.StartsWith("aarch64") || Target.Architecture.StartsWith("i686"))
-			{
-				Target.bCompileICU = false;
-			}
-
-			Target.bCompileISPC = true;
+			Target.bCompileISPC = Target.Architecture.StartsWith("x86_64");
 		}
 
 		/// <summary>
@@ -537,6 +531,41 @@ namespace UnrealBuildTool
 			};
 		}
 
+		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference ProjectFile, ReadOnlyTargetRules Target)
+		{
+			List<FileReference> FinalBinaryPath = new List<FileReference>();
+
+			string SanitizerSuffix = null;
+			if(Target.LinuxPlatform.bEnableAddressSanitizer)
+			{
+				SanitizerSuffix = "ASan";
+			}
+			else if(Target.LinuxPlatform.bEnableThreadSanitizer)
+			{
+				SanitizerSuffix = "TSan";
+			}
+			else if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
+			{
+				SanitizerSuffix = "UBSan";
+			}
+			else if(Target.LinuxPlatform.bEnableMemorySanitizer)
+			{
+				SanitizerSuffix = "MSan";
+			}
+
+			if (String.IsNullOrEmpty(SanitizerSuffix))
+			{
+				FinalBinaryPath.Add(BinaryName);
+			}
+			else
+			{
+				// Append the sanitizer suffix to the binary name but before the extension type
+				FinalBinaryPath.Add(new FileReference(Path.Combine(BinaryName.Directory.FullName, BinaryName.GetFileNameWithoutExtension() + "-" + SanitizerSuffix + BinaryName.GetExtension())));
+			}
+
+			return FinalBinaryPath;
+		}
+
 		/// <summary>
 		/// Creates a toolchain instance for the given platform.
 		/// </summary>
@@ -604,7 +633,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// This is the SDK version we support
 		/// </summary>
-		static string ExpectedSDKVersion = "v15_clang-8.0.1-centos7";	// now unified for all the architectures
+		static string ExpectedSDKVersion = "v16_clang-9.0.1-centos7";	// now unified for all the architectures
 
 		/// <summary>
 		/// Platform name (embeds architecture for now)
@@ -866,6 +895,7 @@ namespace UnrealBuildTool
 			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.Linux, SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Linux);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Unix);
+			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Desktop);
 
 			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.LinuxAArch64, SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxAArch64, UnrealPlatformGroup.Linux);

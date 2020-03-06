@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_TF_H
-#define TF_TF_H
+#ifndef PXR_BASE_TF_TF_H
+#define PXR_BASE_TF_TF_H
 
 /// \file tf/tf.h
 /// A file containing basic constants and definitions.

@@ -52,6 +52,15 @@ struct FMovieSceneTimecodeSource
 		, DeltaFrame(FFrameNumber())
 	{}
 
+	FORCEINLINE bool operator==(const FMovieSceneTimecodeSource& Other) const
+	{
+		return Timecode == Other.Timecode && DeltaFrame == Other.DeltaFrame;
+	}
+	FORCEINLINE bool operator!=(const FMovieSceneTimecodeSource& Other) const
+	{
+		return Timecode != Other.Timecode || DeltaFrame != Other.DeltaFrame;
+	}
+
 public:
 
 	/** The global timecode at which this target is based (ie. the timecode at the beginning of the movie scene section when it was recorded) */
@@ -584,7 +593,7 @@ public:
 	UMovieSceneTrack* AddCameraCutTrack( TSubclassOf<UMovieSceneTrack> TrackClass );
 	
 	/** @return The camera cut track if it exists. */
-	UMovieSceneTrack* GetCameraCutTrack();
+	UMovieSceneTrack* GetCameraCutTrack() const;
 
 	/** Removes the camera cut track if it exists. */
 	void RemoveCameraCutTrack();
@@ -965,12 +974,6 @@ protected:
 	 */
 	void RemoveBinding(const FGuid& Guid);
 
-#if WITH_EDITOR
-	/** Templated helper for optimizing lists of possessables and spawnables for cook */
-	template<typename T>
-	void OptimizeObjectArray(TArray<T>& ObjectArray);
-#endif
-	
 protected:
 
 	/** Called after this object has been deserialized */

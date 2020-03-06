@@ -371,37 +371,37 @@ void FD3D11DynamicRHI::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,uint32 
 	FD3D11TextureBase* NewTexture = GetD3D11TextureFromRHITexture(NewTextureRHI);
 	ID3D11ShaderResourceView* ShaderResourceView = NewTexture ? NewTexture->GetShaderResourceView() : nullptr;
 
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
 		SetShaderTexture<SF_Vertex>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShader);
 		SetShaderTexture<SF_Hull>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShader);
 		SetShaderTexture<SF_Domain>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShader);
 		SetShaderTexture<SF_Geometry>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FD3D11PixelShader* PixelShader = static_cast<FD3D11PixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShader);
@@ -409,7 +409,7 @@ void FD3D11DynamicRHI::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,uint32 
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 
@@ -504,37 +504,37 @@ void FD3D11DynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* Sha
 		Resource = SRV->Resource;
 		D3D11SRV = SRV->View;
 	}
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
 		SetShaderResourceView<SF_Vertex>(Resource, D3D11SRV, TextureIndex, NAME_None);
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShader);
 		SetShaderResourceView<SF_Hull>(Resource, D3D11SRV, TextureIndex, NAME_None);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShader);
 		SetShaderResourceView<SF_Domain>(Resource, D3D11SRV, TextureIndex, NAME_None);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShader);
 		SetShaderResourceView<SF_Geometry>(Resource, D3D11SRV, TextureIndex, NAME_None);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FD3D11PixelShader* PixelShader = static_cast<FD3D11PixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShader);
@@ -542,7 +542,7 @@ void FD3D11DynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* Sha
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 
@@ -568,37 +568,37 @@ void FD3D11DynamicRHI::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI,uint32 
 {
 	FD3D11SamplerState* NewState = ResourceCast(NewStateRHI);
 	ID3D11SamplerState* StateResource = NewState->Resource;
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
 		StateCache.SetSamplerState<SF_Vertex>(StateResource, SamplerIndex);
 	}
 		break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShader);
 		StateCache.SetSamplerState<SF_Hull>(StateResource, SamplerIndex);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShader);
 		StateCache.SetSamplerState<SF_Domain>(StateResource, SamplerIndex);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShader);
 		StateCache.SetSamplerState<SF_Geometry>(StateResource, SamplerIndex);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FD3D11PixelShader* PixelShader = static_cast<FD3D11PixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShader);
@@ -606,7 +606,7 @@ void FD3D11DynamicRHI::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI,uint32 
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 
@@ -636,9 +636,9 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI,u
 	FD3D11UniformBuffer* Buffer = ResourceCast(BufferRHI);
 	ID3D11Buffer* ConstantBuffer = Buffer ? Buffer->Resource : NULL;
 	EShaderFrequency Stage = SF_NumFrequencies;
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
@@ -646,7 +646,7 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI,u
 		StateCache.SetConstantBuffer<SF_Vertex>(ConstantBuffer, BufferIndex);
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShader);
@@ -654,7 +654,7 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI,u
 		StateCache.SetConstantBuffer<SF_Hull>(ConstantBuffer, BufferIndex);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShader);
@@ -662,7 +662,7 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI,u
 		StateCache.SetConstantBuffer<SF_Domain>(ConstantBuffer, BufferIndex);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShader);
@@ -670,7 +670,7 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI,u
 		StateCache.SetConstantBuffer<SF_Geometry>(ConstantBuffer, BufferIndex);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FD3D11PixelShader* PixelShader = static_cast<FD3D11PixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShader);
@@ -679,7 +679,7 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI,u
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 		return;
 	}
 
@@ -703,9 +703,9 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeShade
 
 void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint32 BufferIndex,uint32 BaseIndex,uint32 NumBytes,const void* NewValue)
 {
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
@@ -713,7 +713,7 @@ void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint3
 		VSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShader);
@@ -721,7 +721,7 @@ void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint3
 		HSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShader);
@@ -729,7 +729,7 @@ void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint3
 		DSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShader);
@@ -737,7 +737,7 @@ void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint3
 		GSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FD3D11PixelShader* PixelShader = static_cast<FD3D11PixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShader);
@@ -746,7 +746,7 @@ void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint3
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 
@@ -1551,7 +1551,7 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 			if (LayoutHash != Shader->ShaderResourceTable.ResourceTableLayoutHashes[BufferIndex])
 			{
 				auto& BufferLayout = Buffer->GetLayout();
-				FString DebugName = BufferLayout.GetDebugName().GetPlainNameString();
+				const auto& DebugName = BufferLayout.GetDebugName();
 				const FString& ShaderName = Shader->ShaderName;
 #if UE_BUILD_DEBUG
 				FString ShaderUB;
@@ -1579,7 +1579,7 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 		}
 #endif
 
-		FName LayoutName = Buffer->GetLayout().GetDebugName();
+		FName LayoutName = *Buffer->GetLayout().GetDebugName();
 
 		// todo: could make this two pass: gather then set
 		SetShaderResourcesFromBuffer_Surface<(EShaderFrequency)ShaderType::StaticFrequency>(this, &StateCache, Buffer, Shader->ShaderResourceTable.TextureMap.GetData(), BufferIndex, LayoutName);
@@ -1605,7 +1605,7 @@ int32 FD3D11DynamicRHI::SetUAVPSResourcesFromTables(const ShaderType* RESTRICT S
 		FD3D11UniformBuffer* Buffer = (FD3D11UniformBuffer*)BoundUniformBuffers[ShaderType::StaticFrequency][BufferIndex].GetReference();
 
 		check(BufferIndex < Shader->ShaderResourceTable.ResourceTableLayoutHashes.Num());
-		FName LayoutName = Buffer->GetLayout().GetDebugName();
+		FName LayoutName = *Buffer->GetLayout().GetDebugName();
 
 		if ((EShaderFrequency)ShaderType::StaticFrequency == SF_Pixel)
 		{
@@ -1849,7 +1849,37 @@ void FD3D11DynamicRHI::RHIBindClearMRTValues(bool bClearColor, bool bClearDepth,
 // Blocks the CPU until the GPU catches up and goes idle.
 void FD3D11DynamicRHI::RHIBlockUntilGPUIdle()
 {
-	// Not really supported
+	if (IsRunningRHIInSeparateThread())
+	{
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
+	
+	D3D11_QUERY_DESC Desc = {};
+	Desc.Query = D3D11_QUERY_EVENT;
+
+	TRefCountPtr<ID3D11Query> Query;
+	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateQuery(&Desc, Query.GetInitReference()), Direct3DDevice);
+	
+	D3D11StallRHIThread();
+	
+	Direct3DDeviceIMContext->End(Query.GetReference());
+	Direct3DDeviceIMContext->Flush();
+
+	for(;;)
+	{
+		BOOL EventComplete = false;
+		Direct3DDeviceIMContext->GetData(Query.GetReference(), &EventComplete, sizeof(EventComplete), 0);
+		if (EventComplete)
+		{
+			break;
+		}
+		else
+		{
+			FPlatformProcess::Sleep(0.005f);
+		}
+	}
+
+	D3D11UnstallRHIThread();
 }
 
 /**
@@ -1988,6 +2018,18 @@ void FD3D11DynamicRHI::RHITransitionResources(EResourceTransitionAccess Transiti
 			Resource->SetCurrentGPUAccess(TransitionType);
 		}
 	}
+
+	// If we get any write transitions and UAV overlaps are enabled,
+	// we have to toggle the overlap off/back on again to get the driver
+	// to insert an appropriate UAV barrier.
+	switch (TransitionType)
+	{
+	case EResourceTransitionAccess::EWritable:
+	case EResourceTransitionAccess::ERWBarrier:
+	case EResourceTransitionAccess::ERWSubResBarrier:
+		UAVBarrier();
+		break;
+	}
 }
 
 void FD3D11DynamicRHI::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 InNumUAVs, FRHIComputeFence* WriteFence)
@@ -2008,6 +2050,18 @@ void FD3D11DynamicRHI::RHITransitionResources(EResourceTransitionAccess Transiti
 		}
 	}
 
+	// If we get any write transitions and UAV overlaps are enabled,
+	// we have to toggle the overlap off/back on again to get the driver
+	// to insert an appropriate UAV barrier.
+	switch (TransitionType)
+	{
+	case EResourceTransitionAccess::EWritable:
+	case EResourceTransitionAccess::ERWBarrier:
+	case EResourceTransitionAccess::ERWSubResBarrier:
+		UAVBarrier();
+		break;
+	}
+
 	if (WriteFence)
 	{
 		WriteFence->WriteFence();
@@ -2022,127 +2076,127 @@ static TAutoConsoleVariable<int32> CVarAllowUAVFlushExt(
 	TEXT(" 0: off"),
 	ECVF_RenderThreadSafe);
 
-static bool GAllowUAVFlushExt = true;
-static bool GOverlapUAVOBegin = false;
-
 // Enable this to test if NvAPI/AGS/Intel returned an error during UAV overlap enabling/disabling.
 // By default we do not test because this is an optimalisation (if overlapping is not enabled, GPU execution is slower)
 // Enable it here to validate if overlapping is actually used.
 #if 0
-	#define CHECK_AGS(x) {AGSReturnCode err = (x); check(err == AGS_SUCCESS);}
-	#define CHECK_NVAPI(x) {NvAPI_Status err = (x); check(err == NVAPI_OK);}
-	#define CHECK_INTEL(x) { HRESULT err = (x); check(err == S_OK);}
+	#define CHECK_AGS(x)   do { AGSReturnCode err = (x); check(err == AGS_SUCCESS); } while(false)
+	#define CHECK_NVAPI(x) do { NvAPI_Status  err = (x); check(err == NVAPI_OK);    } while(false)
+	#define CHECK_INTEL(x) do { HRESULT       err = (x); check(err == S_OK);        } while(false)
 #else
-	#define CHECK_AGS(x) {(x);}
-	#define CHECK_NVAPI(x) {(x);}
-	#define CHECK_INTEL(x) {(x);}
+	#define CHECK_AGS(x)   do { (x); } while(false)
+	#define CHECK_NVAPI(x) do { (x); } while(false)
+	#define CHECK_INTEL(x) do { (x); } while(false)
 #endif
 
-static bool IsUAVOverlapSupported()
+bool FD3D11DynamicRHI::IsUAVOverlapSupported()
 {
-	if (!GAllowUAVFlushExt ||
-		(!IsRHIDeviceNVIDIA() &&
-		!IsRHIDeviceAMD() &&
-		!IsRHIDeviceIntel()))
-	{
-		return true;
-	}
-	return false;
+	return IsRHIDeviceNVIDIA() || IsRHIDeviceAMD() || IsRHIDeviceIntel();
 }
 
-void FD3D11DynamicRHI::BeginUAVOverlap()
+void FD3D11DynamicRHI::RHIBeginUAVOverlap()
 {
-#if !PLATFORM_HOLOLENS
-	if (!GOverlapUAVOBegin)
-	{
-		if (IsRHIDeviceNVIDIA())
-		{
-			CHECK_NVAPI(NvAPI_D3D11_BeginUAVOverlap(Direct3DDevice));
-		}
-		else if (IsRHIDeviceAMD())
-		{
-			CHECK_AGS(agsDriverExtensionsDX11_BeginUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext));
-		}
-		else if (IsRHIDeviceIntel())
-		{
-#if INTEL_EXTENSIONS
-			if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap)
-			{
-				CHECK_INTEL(IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap(IntelExtensionContext));
-			}
-#endif
-		}
-		else ensure(false);
+	checkf(!bUAVOverlapEnabled, TEXT("Mismatched call to BeginUAVOverlap. Ensure all calls to RHICmdList.BeginUAVOverlap() are paired with a call to RHICmdList.EndUAVOverlap()."));
 
-		GOverlapUAVOBegin = true;
+	bUAVOverlapAllowed = (CVarAllowUAVFlushExt.GetValueOnRenderThread() != 0) && IsUAVOverlapSupported();
+	if (!bUAVOverlapAllowed)
+	{
+		return;
+	}
+
+	bUAVOverlapEnabled = true;
+
+#if !PLATFORM_HOLOLENS
+	if (IsRHIDeviceNVIDIA())
+	{
+		CHECK_NVAPI(NvAPI_D3D11_BeginUAVOverlap(Direct3DDevice));
+	}
+	else if (IsRHIDeviceAMD())
+	{
+		CHECK_AGS(agsDriverExtensionsDX11_BeginUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext));
+	}
+	else if (IsRHIDeviceIntel())
+	{
+#if INTEL_EXTENSIONS
+		if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap)
+		{
+			CHECK_INTEL(IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap(IntelExtensionContext));
+		}
+#endif
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("BeginUAVOverlap not implemented for this GPU IHV."));
+	}
+#endif
+}
+
+void FD3D11DynamicRHI::RHIEndUAVOverlap()
+{
+	if (!bUAVOverlapAllowed)
+	{
+		return;
+	}
+
+	checkf(bUAVOverlapEnabled, TEXT("Mismatched call to EndUAVOverlap. Ensure all calls to RHICmdList.BeginUAVOverlap() are paired with a call to RHICmdList.EndUAVOverlap()."));
+	bUAVOverlapEnabled = false;
+
+#if !PLATFORM_HOLOLENS
+	if (IsRHIDeviceNVIDIA())
+	{
+		CHECK_NVAPI(NvAPI_D3D11_EndUAVOverlap(Direct3DDevice));
+	}
+	else if (IsRHIDeviceAMD())
+	{
+		CHECK_AGS(agsDriverExtensionsDX11_EndUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext));
+	}
+	else if (IsRHIDeviceIntel())
+	{
+#if INTEL_EXTENSIONS
+		if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap)
+		{
+			CHECK_INTEL(IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap(IntelExtensionContext));
+		}
+#endif
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("EndUAVOverlap not implemented for this GPU IHV."));
 	}
 #endif	
 }
-void FD3D11DynamicRHI::EndUAVOverlap()
-{
-#if !PLATFORM_HOLOLENS
-	if (GOverlapUAVOBegin)
-	{
-		if (IsRHIDeviceNVIDIA())
-		{
-			CHECK_NVAPI(NvAPI_D3D11_EndUAVOverlap(Direct3DDevice));
-		}
-		else if (IsRHIDeviceAMD())
-		{
-			CHECK_AGS(agsDriverExtensionsDX11_EndUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext));
-		}
-		else if (IsRHIDeviceIntel())
-		{
-#if INTEL_EXTENSIONS
-			if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap)
-			{
-				CHECK_INTEL(IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap(IntelExtensionContext));
-			}
-#endif
-		}
-		else ensure(false);
 
-		GOverlapUAVOBegin = false;
+void FD3D11DynamicRHI::UAVBarrier()
+{
+	if (bUAVOverlapEnabled)
+	{
+		RHIEndUAVOverlap();
+		RHIBeginUAVOverlap();
 	}
-#endif
 }
 
 
 void FD3D11DynamicRHI::RHIAutomaticCacheFlushAfterComputeShader(bool bEnable)
 {
-	const bool bCVarEnabled = CVarAllowUAVFlushExt.GetValueOnRenderThread() != 0;
-
-	if (GAllowUAVFlushExt != bCVarEnabled)
-	{
-		// Make sure to disable first
-		EndUAVOverlap();
-	}
-
-	GAllowUAVFlushExt = bCVarEnabled;
-
-	if (!IsUAVOverlapSupported())
-	{
-		return;
-	}
-
 	if (bEnable)
 	{
-		EndUAVOverlap();
+		if (bUAVOverlapEnabled)
+		{
+			RHIEndUAVOverlap();
+		}
 	}
 	else
 	{
-		BeginUAVOverlap();
+		if (!bUAVOverlapEnabled)
+		{
+			RHIBeginUAVOverlap();
+		}
 	}
 }
 
 void FD3D11DynamicRHI::RHIFlushComputeShaderCache()
 {
-	if (!IsUAVOverlapSupported())
-	{
-		return;
-	}
-
-	EndUAVOverlap();
+	UAVBarrier();
 }
 
 //*********************** StagingBuffer Implementation ***********************//
@@ -2161,6 +2215,8 @@ void FD3D11DynamicRHI::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBufferRHI,
 		ensureMsgf(!StagingBuffer->bIsLocked, TEXT("Attempting to Copy to a locked staging buffer. This may have undefined behavior"));
 		if (SourceBuffer)
 		{
+			ensureMsgf((SourceBufferRHI->GetUsage() & BUF_SourceCopy) != 0, TEXT("Buffers used as copy source need to be created with BUF_SourceCopy"));
+
 			if (!StagingBuffer->StagedRead || StagingBuffer->ShadowBufferSize < NumBytes)
 			{
 				// Free previously allocated buffer.

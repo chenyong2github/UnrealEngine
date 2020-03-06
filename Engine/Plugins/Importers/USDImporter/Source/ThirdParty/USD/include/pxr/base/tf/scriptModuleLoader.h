@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_SCRIPT_MODULE_LOADER_H
-#define TF_SCRIPT_MODULE_LOADER_H
+#ifndef PXR_BASE_TF_SCRIPT_MODULE_LOADER_H
+#define PXR_BASE_TF_SCRIPT_MODULE_LOADER_H
 
 #include "pxr/pxr.h"
 
@@ -142,4 +142,4 @@ TF_API_TEMPLATE_CLASS(TfSingleton<TfScriptModuleLoader>);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_SCRIPT_MODULE_LOADER_H
+#endif // PXR_BASE_TF_SCRIPT_MODULE_LOADER_H

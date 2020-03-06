@@ -1218,26 +1218,26 @@ uint32 FPooledRenderTarget::ComputeMemorySize() const
 	{
 		if (Desc.Is2DTexture())
 		{
-			Size += RHIComputeMemorySize((const FTexture2DRHIRef&)RenderTargetItem.TargetableTexture);
+			Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
 			if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
 			{
-				Size += RHIComputeMemorySize((const FTexture2DRHIRef&)RenderTargetItem.ShaderResourceTexture);
+				Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
 			}
 		}
 		else if (Desc.Is3DTexture())
 		{
-			Size += RHIComputeMemorySize((const FTexture3DRHIRef&)RenderTargetItem.TargetableTexture);
+			Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
 			if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
 			{
-				Size += RHIComputeMemorySize((const FTexture3DRHIRef&)RenderTargetItem.ShaderResourceTexture);
+				Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
 			}
 		}
 		else
 		{
-			Size += RHIComputeMemorySize((const FTextureCubeRHIRef&)RenderTargetItem.TargetableTexture);
+			Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
 			if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
 			{
-				Size += RHIComputeMemorySize((const FTextureCubeRHIRef&)RenderTargetItem.ShaderResourceTexture);
+				Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
 			}
 		}
 	}

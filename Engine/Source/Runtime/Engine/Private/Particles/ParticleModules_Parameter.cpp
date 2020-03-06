@@ -427,26 +427,6 @@ UMaterial* UParticleModuleParameterDynamic_RetrieveMaterial(UMaterialInterface* 
 	return Material;
 }
 
-/**
- *	Helper function to find the DynamicParameter expression in a material
- */
-UMaterialExpressionDynamicParameter* UParticleModuleParameterDynamic_GetDynamicParameterExpression(UMaterial* InMaterial)
-{
-	UMaterialExpressionDynamicParameter* DynParamExp = NULL;
-	for (int32 ExpIndex = 0; ExpIndex < InMaterial->Expressions.Num(); ExpIndex++)
-	{
-		DynParamExp = Cast<UMaterialExpressionDynamicParameter>(InMaterial->Expressions[ExpIndex]);
-
-		if (DynParamExp != NULL)
-		{
-			break;
-		}
-	}
-
-	return DynParamExp;
-}
-
-
 void UParticleModuleParameterDynamic::UpdateParameterNames(UMaterialInterface* InMaterialInterface)
 {
 	UMaterial* Material = UParticleModuleParameterDynamic_RetrieveMaterial(InMaterialInterface);
@@ -455,16 +435,9 @@ void UParticleModuleParameterDynamic::UpdateParameterNames(UMaterialInterface* I
 		return;
 	}
 
-	// Check the expressions...
-	UMaterialExpressionDynamicParameter* DynParamExp = UParticleModuleParameterDynamic_GetDynamicParameterExpression(Material);
-	if (DynParamExp == NULL)
-	{
-		return;
-	}
-
 	for (int32 ParamIndex = 0; ParamIndex < 4; ParamIndex++)
 	{
-		DynamicParams[ParamIndex].ParamName = FName(*(DynParamExp->ParamNames[ParamIndex]));
+		DynamicParams[ParamIndex].ParamName = Material->GetCachedExpressionData().DynamicParameterNames[ParamIndex];
 	}
 }
 

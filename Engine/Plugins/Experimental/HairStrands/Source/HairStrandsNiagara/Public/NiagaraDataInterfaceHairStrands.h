@@ -10,7 +10,7 @@
 #include "GroomActor.h"
 #include "NiagaraDataInterfaceHairStrands.generated.h"
 
-static const int32 MaxDelay = 5;
+static const int32 MaxDelay = 2;
 
 /** Render buffers that will be used in hlsl functions */
 struct FNDIHairStrandsBuffer : public FRenderResource
@@ -34,11 +34,11 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Deformed position buffer in case no ressource are there */
 	FRWBuffer DeformedPositionBuffer;
 
-	/** Bounding Box Buffer*/
-	FRWBuffer BoundingBoxBuffer;
+	/** Bounding Box Buffer A*/
+	FRWBuffer BoundingBoxBufferA;
 
-	/** Node Bound Buffer*/
-	FRWBuffer NodeBoundBuffer;
+	/** Bounding Box Buffer B*/
+	FRWBuffer BoundingBoxBufferB;
 
 	/** The strand asset datas from which to sample */
 	const FHairStrandsDatas* SourceDatas;
@@ -74,7 +74,6 @@ struct FNDIHairStrandsData
 
 		TickCount = 0;
 		ForceReset = true;
-		ResetTick = MaxDelay;
 
 		NumStrands = 0;
 		StrandsSize = 0;
@@ -120,7 +119,6 @@ struct FNDIHairStrandsData
 
 			TickCount = OtherDatas->TickCount;
 			ForceReset = OtherDatas->ForceReset;
-			ResetTick = OtherDatas->ResetTick;
 
 			NumStrands = OtherDatas->NumStrands;
 			StrandsSize = OtherDatas->StrandsSize;
@@ -179,9 +177,6 @@ struct FNDIHairStrandsData
 
 	/** Force reset simulation */
 	bool ForceReset;
-
-	/** Reset Tick*/
-	int32 ResetTick;
 
 	/** Strands Gpu buffer */
 	FNDIHairStrandsBuffer* HairStrandsBuffer;
@@ -273,6 +268,8 @@ class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfaceHairStrands : public UNiagaraD
 
 public:
 
+	DECLARE_NIAGARA_DI_PARAMETER();
+
 	/** Hair Strands Asset used to sample from when not overridden by a source actor from the scene. Also useful for previewing in the editor. */
 	UPROPERTY(EditAnywhere, Category = "Source")
 	UGroomAsset* DefaultSource;
@@ -300,7 +297,6 @@ public:
 	/** GPU simulation  functionality */
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 
@@ -317,7 +313,7 @@ public:
 	/** Get the number of strands */
 	void GetNumStrands(FVectorVMContext& Context);
 
-	/** Get the grrom asset datas  */
+	/** Get the groom asset datas  */
 	void GetStrandSize(FVectorVMContext& Context);
 
 	void GetSubSteps(FVectorVMContext& Context);
@@ -510,6 +506,15 @@ public:
 	/** Check if we need or not a simulation reset*/
 	void NeedSimulationReset(FVectorVMContext& Context);
 
+	/** Check if we need or not a simulation reset*/
+	void HasGlobalInterpolation(FVectorVMContext& Context);
+
+	/** Check if we need or not a simulation reset*/
+	void HasKinematicsTarget(FVectorVMContext& Context);
+
+	/** Eval the skinned position given a rest position*/
+	void EvalSkinnedPosition(FVectorVMContext& Context);
+
 	/** Name of the world transform */
 	static const FString WorldTransformName;
 
@@ -532,10 +537,10 @@ public:
 	static const FString CurvesOffsetsBufferName;
 
 	/** Name of bounding box buffer */
-	static const FString BoundingBoxBufferName;
+	static const FString BoundingBoxBufferAName;
 
 	/** Name of node bound buffer */
-	static const FString NodeBoundBufferName;
+	static const FString BoundingBoxBufferBName;
 
 	/** Name of the nodes positions buffer */
 	static const FString RestPositionBufferName;
@@ -584,6 +589,15 @@ public:
 
 	/** Deformed center of all the position */
 	static const FString DeformedPositionOffsetName;
+
+	/** Number of samples for rbf interpolation */
+	static const FString SampleCountName;
+
+	/** Rbf sample weights */
+	static const FString MeshSampleWeightsName;
+
+	/** Rbf Sample rest positions */
+	static const FString RestSamplePositionsName;
 
 protected:
 	/** Copy one niagara DI to this */

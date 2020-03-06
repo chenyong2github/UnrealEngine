@@ -6,6 +6,7 @@
 #include "DataprepAssetUserData.h"
 #endif
 
+#include "DataprepActionAsset.h"
 #include "DataprepAsset.h"
 #include "DataprepAssetInterface.h"
 #include "DataprepContentConsumer.h"
@@ -17,10 +18,13 @@
 #include "IDataprepProgressReporter.h"
 #include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
+#include "SelectionSystem/DataprepSelectionTransform.h"
 
+#include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/WorldSettings.h"
 #include "HAL/FileManager.h"
 #include "LevelSequence.h"
 #include "MaterialGraph/MaterialGraph.h"
@@ -28,13 +32,15 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RenderingThread.h"
+#include "Templates/SubclassOf.h"
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/UObjectHash.h"
-#include "Templates/SubclassOf.h"
 
 #if WITH_EDITOR
+#include "ActorEditorUtils.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Editor.h"
 #include "ObjectTools.h"
@@ -44,6 +50,44 @@
 
 #define LOCTEXT_NAMESPACE "DataprepCoreUtils"
 
+namespace DataprepCoreUtilsPrivate
+{
+	template<class ArrayOfClass>
+	void GetActorsFromWorld(const UWorld* World, TArray<ArrayOfClass*>& OutActors)
+	{
+		if ( World != nullptr )
+		{
+			int32 ActorsCount = 0;
+			for ( ULevel* Level : World->GetLevels() )
+			{
+				ActorsCount += Level->Actors.Num();
+			}
+
+			OutActors.Reserve( ActorsCount );
+
+			for ( ULevel* Level : World->GetLevels() )
+			{
+				for ( AActor* Actor : Level->Actors )
+				{
+					const bool bIsValidActor = Actor
+						&& !Actor->IsPendingKill()
+						&& Actor->IsEditable()
+						&& !Actor->IsTemplate()
+						&& !FActorEditorUtils::IsABuilderBrush( Actor )
+						&& !Actor->IsA( AWorldSettings::StaticClass() )
+						&& !Actor->HasAnyFlags( RF_Transient );
+
+					if ( bIsValidActor )
+					{
+						OutActors.Add( Actor );
+					}
+				}
+			}
+		}
+	}
+}
+
+
 UDataprepAsset* FDataprepCoreUtils::GetDataprepAssetOfObject(UObject* Object)
 {
 	while ( Object )
@@ -51,6 +95,20 @@ UDataprepAsset* FDataprepCoreUtils::GetDataprepAssetOfObject(UObject* Object)
 		if ( UDataprepAsset::StaticClass() == Object->GetClass() )
 		{
 			return static_cast<UDataprepAsset*>( Object );
+		}
+		Object = Object->GetOuter();
+	}
+
+	return nullptr;
+}
+
+UDataprepActionAsset* FDataprepCoreUtils::GetDataprepActionAssetOf(UObject* Object)
+{
+	while (Object)
+	{
+		if (UDataprepActionAsset::StaticClass() == Object->GetClass())
+		{
+			return static_cast<UDataprepActionAsset*>(Object);
 		}
 		Object = Object->GetOuter();
 	}
@@ -275,7 +333,7 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 		{
 			// Delete all actors of the transient world
 			TArray<AActor*> TransientActors;
-			DataprepCorePrivateUtils::GetActorsFromWorld( TransientWorld.Get(), TransientActors );
+			FDataprepCoreUtils::GetActorsFromWorld( TransientWorld.Get(), TransientActors );
 			for ( AActor* Actor : TransientActors )
 			{
 				if ( Actor && !Actor->IsPendingKill() )
@@ -354,6 +412,7 @@ bool FDataprepCoreUtils::IsClassValidForStepCreation(const TSubclassOf<UDataprep
 	UClass* DataprepTopLevelClass = UDataprepParameterizableObject::StaticClass();
 	UClass* DataprepOperationClass = UDataprepOperation::StaticClass();
 	UClass* DataprepFetcherClass = UDataprepFetcher::StaticClass();
+	UClass* DataprepTransformClass = UDataprepSelectionTransform::StaticClass();
 
 	while ( Class )
 	{
@@ -381,6 +440,12 @@ bool FDataprepCoreUtils::IsClassValidForStepCreation(const TSubclassOf<UDataprep
 			return true;
 		}
 
+		if ( Class == DataprepTransformClass )
+		{
+			OutValidRootClass = DataprepTransformClass;
+			return true;
+		}
+
 		Class = Class->GetSuperClass();
 	}
 
@@ -393,11 +458,13 @@ UClass* FDataprepCoreUtils::GetTypeOfActionStep(const UDataprepParameterizableOb
 
 	const UClass* DataprepFilterClass = UDataprepFilter::StaticClass();
 	const UClass* DataprepOperationClass = UDataprepOperation::StaticClass();
+	const UClass* DataprepTransformClass = UDataprepSelectionTransform::StaticClass();
 
 	while ( CurrentClass )
 	{
 		if ( CurrentClass == DataprepFilterClass
 			|| CurrentClass == DataprepOperationClass
+			|| CurrentClass == DataprepTransformClass
 			)
 		{
 			break;
@@ -592,15 +659,43 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 	// Force compilation of materials which have no render proxy
 	if(MaterialInterfaces.Num() > 0)
 	{
-		auto MustCompile = [](const UMaterialInterface* MaterialInterface)
+		auto MustCompile = [](UMaterialInterface* MaterialInterface) -> bool
 		{
-			if( MaterialInterface )
+			if(MaterialInterface == nullptr)
 			{
-				const FMaterialRenderProxy* RenderProxy = MaterialInterface->GetRenderProxy();
-				return RenderProxy == nullptr || !RenderProxy->IsInitialized();
+				return false;
 			}
 
-			return false;
+			// Force recompilation of constant material instances which either override blend mode or any static switch
+			if(UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >(MaterialInterface))
+			{
+				// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
+				if ( ConstantMaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
+				{
+					ConstantMaterialInstance->ForceRecompileForRendering();
+					return true;
+				}
+				else
+				{
+					// If a static switch is overridden, we need to recompile
+					FStaticParameterSet StaticParameters;
+					ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
+
+					for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
+					{
+						if ( Switch.bOverride )
+						{
+							ConstantMaterialInstance->ForceRecompileForRendering();
+							return true;
+						}
+					}
+				}
+			}
+
+			// Force compilation if there is no valid render proxy
+			const FMaterialRenderProxy* RenderProxy = MaterialInterface->GetRenderProxy();
+
+			return RenderProxy == nullptr || !RenderProxy->IsInitialized();
 		};
 
 		int32 AssetBuiltCount = 0;
@@ -628,5 +723,35 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 		return true;
 	});
 }
+
+bool FDataprepCoreUtils::RemoveSteps(UDataprepActionAsset* ActionAsset, const TArray<int32>& Indices, int32& ActionIndex)
+{
+	ActionIndex = INDEX_NONE;
+
+	UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject(ActionAsset);
+	check(DataprepAsset);
+
+	if(ActionAsset->GetStepsCount() == Indices.Num())
+	{
+		// Find index of source action 
+		ActionIndex = DataprepAsset->GetActionIndex(ActionAsset);
+		ensure(ActionIndex != INDEX_NONE);
+
+		return DataprepAsset->RemoveAction(ActionIndex);
+	}
+
+	return ActionAsset->RemoveSteps( Indices );
+}
+
+void FDataprepCoreUtils::GetActorsFromWorld(const UWorld* World, TArray<UObject*>& OutActors)
+{
+	DataprepCoreUtilsPrivate::GetActorsFromWorld( World, OutActors );
+}
+
+void FDataprepCoreUtils::GetActorsFromWorld(const UWorld* World, TArray<AActor*>& OutActors)
+{
+	DataprepCoreUtilsPrivate::GetActorsFromWorld( World, OutActors );
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -8,11 +8,16 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
+#include "GameplaySharedData.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GameplayProvider.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include "IGameplayProvider.h"
+#include "TraceServices/Model/Frames.h"
 
-namespace GameplayTrackConstants
-{
-	constexpr float IndentSize = 12.0f;
-}
+INSIGHTS_IMPLEMENT_RTTI(FGameplayTimingEventsTrack);
+
+#define LOCTEXT_NAMESPACE "GameplayTrack"
 
 void FGameplayTrack::AddChildTrack(FGameplayTrack& InChildTrack)
 {
@@ -89,3 +94,80 @@ void FGameplayTrack::DrawHeaderForTimingTrack(const ITimingTrackDrawContext& InC
 		}
 	}
 }
+
+FText FGameplayTrack::GetWorldPostFix(const FWorldInfo& InWorldInfo)
+{
+	switch (InWorldInfo.Type)
+	{
+	default:
+		return LOCTEXT("Unknown", "Unknown");
+	case FWorldInfo::EType::None:
+		return LOCTEXT("None", "None");
+	case FWorldInfo::EType::PIE:
+	{
+		switch (InWorldInfo.NetMode)
+		{
+		case FWorldInfo::ENetMode::Client:
+			return FText::Format(LOCTEXT("ClientIndexFormat", "Client {0}"), InWorldInfo.PIEInstanceId - 1);
+		case FWorldInfo::ENetMode::DedicatedServer:
+			return LOCTEXT("ServerPostfix", "Server");
+		case FWorldInfo::ENetMode::ListenServer:
+			return LOCTEXT("ListenServerPostfix", "Listen Server");
+		case FWorldInfo::ENetMode::Standalone:
+			return InWorldInfo.bIsSimulating ? LOCTEXT("SimulateInEditorPostfix", "Simulate") : LOCTEXT("PlayInEditorPostfix", "PIE");
+		}
+	}
+	case FWorldInfo::EType::Editor:
+	case FWorldInfo::EType::EditorPreview:
+		return LOCTEXT("EditorPostfix", "Editor");
+	case FWorldInfo::EType::Game:
+	case FWorldInfo::EType::GamePreview:
+	case FWorldInfo::EType::GameRPC:
+		return LOCTEXT("GamePostfix", "Game");
+	case FWorldInfo::EType::Inactive:
+		return LOCTEXT("InactivePostfix", "Inactive");
+	}
+}
+
+FText FGameplayTrack::GetWorldName(const Trace::IAnalysisSession& InAnalysisSession) const
+{
+	const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+	if (GameplayProvider)
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+
+		if(const FWorldInfo* WorldInfo = GameplayProvider->FindWorldInfoFromObject(ObjectId))
+		{
+			const FObjectInfo& WorldObjectInfo = GameplayProvider->GetObjectInfo(WorldInfo->Id);
+			return FText::Format(LOCTEXT("WorldNameFormat", "{0} ({1})"), FText::FromString(WorldObjectInfo.Name), GetWorldPostFix(*WorldInfo));
+		}
+	}
+
+	return LOCTEXT("UnknownWorld", "Unknown");
+}
+
+void FGameplayTimingEventsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+{ 
+	GetVariantsAtTime(InFrame.StartTime, OutVariants);
+}
+
+void FGameplayTimingEventsTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("View", LOCTEXT("ViewHeader", "View"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ViewProperties", "View Properties"),
+			LOCTEXT("ViewProperties_Tooltip", "Open a window to view the properties of this track. You can scrub the timeline to see properties change in real-time."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){ GameplaySharedData.OpenTrackVariantsTab(GetGameplayTrack()); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+}
+
+#undef LOCTEXT_NAMESPACE

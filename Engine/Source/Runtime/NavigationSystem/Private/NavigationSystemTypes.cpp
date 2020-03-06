@@ -233,8 +233,10 @@ namespace NavigationHelper
 
 	bool IsBodyNavigationRelevant(const UBodySetup& BodySetup)
 	{
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		const bool bBodyHasGeometry = (BodySetup.AggGeom.GetElementCount() > 0 || BodySetup.TriMeshes.Num() > 0);
+#elif WITH_CHAOS
+		const bool bBodyHasGeometry = (BodySetup.AggGeom.GetElementCount() > 0 || BodySetup.ChaosTriMeshes.Num() > 0);
 #else
 		const bool bBodyHasGeometry = (BodySetup.AggGeom.GetElementCount() > 0);
 #endif

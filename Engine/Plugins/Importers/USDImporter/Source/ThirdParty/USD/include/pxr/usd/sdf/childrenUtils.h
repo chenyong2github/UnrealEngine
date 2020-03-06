@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_CHILDRENUTILS_H
-#define SDF_CHILDRENUTILS_H
+#ifndef PXR_USD_SDF_CHILDREN_UTILS_H
+#define PXR_USD_SDF_CHILDREN_UTILS_H
 
 /// \file sdf/childrenUtils.h
 
@@ -105,7 +105,7 @@ public:
         const SdfLayerHandle &layer,
         const SdfPath &path,
         const typename ChildPolicy::ValueType& value,
-        size_t index);
+        int index);
 
     /// Remove the child identified by \a key.
     SDF_API
@@ -127,7 +127,7 @@ public:
         const SdfPath &path,
         const typename ChildPolicy::ValueType& value,
         const typename ChildPolicy::FieldType& newName,
-        size_t index);
+        int index);
 
     /// Remove the child identified by \a key.
     SDF_API
@@ -148,7 +148,7 @@ public:
         const SdfPath &path,
         const typename ChildPolicy::ValueType& value,
         const typename ChildPolicy::FieldType& newName,
-        size_t index,
+        int index,
         std::string* whyNot);
 
     /// Returns \c true if the child of \p path identified by \p key can
@@ -165,4 +165,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_CHILDRENUTILS_H
+#endif // PXR_USD_SDF_CHILDREN_UTILS_H

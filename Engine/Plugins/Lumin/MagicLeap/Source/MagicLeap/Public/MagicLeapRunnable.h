@@ -35,6 +35,7 @@ public:
 	, StopTaskCounter(0)
 	, Semaphore(nullptr)
 	, bPaused(false)
+	, bShuttingDown(false)
 	{
 		AppEventHandler.SetOnAppPauseHandler([this]() 
 		{
@@ -46,26 +47,20 @@ public:
 			OnAppResume();
 		});
 
+		AppEventHandler.SetOnAppStartHandler([this]()
+		{
+			OnAppStart();
+		});
+
 		AppEventHandler.SetOnAppShutDownHandler([this]()
 		{
-			OnAppShutDown();
+			OnAppShutdown();
 		});
 	}
 
 	virtual ~FMagicLeapRunnable()
 	{
-		StopTaskCounter.Increment();
-
-		if (Semaphore)
-		{
-			Semaphore->Trigger();
-			Thread->WaitForCompletion();
-			FGenericPlatformProcess::ReturnSynchEventToPool(Semaphore);
-			Semaphore = nullptr;
-		}
-
-		delete Thread;
-		Thread = nullptr;
+		Stop();
 	}
 
 	uint32 Run() override
@@ -94,6 +89,28 @@ public:
 		return 0;
 	}
 
+	virtual void Start()
+	{
+		StopTaskCounter.Reset();
+		Semaphore = FGenericPlatformProcess::GetSynchEventFromPool(false);
+		Thread = FRunnableThread::Create(this, *Name, 0, ThreadPriority, FPlatformAffinity::GetPoolThreadMask());
+	}
+
+	void Stop() override
+	{
+		StopTaskCounter.Increment();
+
+		if (Semaphore)
+		{
+			Semaphore->Trigger();
+			Thread->WaitForCompletion();
+			FGenericPlatformProcess::ReturnSynchEventToPool(Semaphore);
+			Semaphore = nullptr;
+			delete Thread;
+			Thread = nullptr;
+		}
+	}
+
 	void OnAppPause()
 	{
 		bPaused = true;
@@ -112,18 +129,27 @@ public:
 		}
 	}
 
-	void OnAppShutDown()
+	void OnAppStart()
 	{
-		Stop();
+		bShuttingDown = false;
 	}
 
-	void PushNewTask(TTaskType InTask)
+	void OnAppShutdown()
 	{
+		bShuttingDown = true;
+	}
+
+	void PushNewTask(const TTaskType& InTask)
+	{
+		if (bShuttingDown)
+		{
+			return;
+		}
+
 		// on demand thread creation
 		if (!Thread)
 		{
-			Semaphore = FGenericPlatformProcess::GetSynchEventFromPool(false);
-			Thread = FRunnableThread::Create(this, *Name, 0, ThreadPriority, FPlatformAffinity::GetPoolThreadMask());
+			Start();
 		}
 
 		IncomingTasks.Enqueue(InTask);
@@ -148,6 +174,11 @@ public:
 		return false;
 	}
 
+	bool IsRunning() const
+	{
+		return StopTaskCounter.GetValue() == 0;
+	}
+
 protected:
 	void CancelIncomingTasks()
 	{
@@ -170,8 +201,9 @@ protected:
 	FThreadSafeCounter StopTaskCounter;
 	FEvent* Semaphore;
 	FThreadSafeBool bPaused;
+	FThreadSafeBool bShuttingDown;
 	TQueue<TTaskType, EQueueMode::Spsc> IncomingTasks;
-	TQueue<TTaskType, EQueueMode::Spsc> CompletedTasks;
+	TQueue<TTaskType, EQueueMode::Mpsc> CompletedTasks; // allow multiple (binder) threads to push completed tasks
 	TTaskType CurrentTask;
 
 private:

@@ -5,7 +5,9 @@ using System.IO;
 
 public class AESGCMHandlerComponent : ModuleRules
 {
-    public AESGCMHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
+	protected virtual bool DefaultToSSL { get { return true; } }
+
+	public AESGCMHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
@@ -37,16 +39,7 @@ public class AESGCMHandlerComponent : ModuleRules
 				}
 				);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"PlatformCryptoSwitch",
-				}
-				);
-		}
-		else
+		else if (DefaultToSSL)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]

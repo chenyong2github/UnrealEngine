@@ -23,6 +23,11 @@ namespace UnrealBuildTool
 		public readonly ModuleRules Rules;
 
 		/// <summary>
+		/// The directory for this module's object files
+		/// </summary>
+		public readonly DirectoryReference IntermediateDirectory;
+
+		/// <summary>
 		/// The name that uniquely identifies the module.
 		/// </summary>
 		public string Name
@@ -65,11 +70,6 @@ namespace UnrealBuildTool
 		/// The name of the _API define for this module
 		/// </summary>
 		protected readonly string ModuleApiDefine;
-
-		/// <summary>
-		/// The name of the _VTABLE define for this module
-		/// </summary>
-		protected readonly string ModuleVTableDefine;
 
 		/// <summary>
 		/// Set of all the public definitions
@@ -170,12 +170,13 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Rules">Rules for this module</param>
-		public UEBuildModule(ModuleRules Rules)
+		/// <param name="IntermediateDirectory">Intermediate directory for this module</param>
+		public UEBuildModule(ModuleRules Rules, DirectoryReference IntermediateDirectory)
 		{
 			this.Rules = Rules;
+			this.IntermediateDirectory = IntermediateDirectory;
 
 			ModuleApiDefine = Name.ToUpperInvariant() + "_API";
-			ModuleVTableDefine = Name.ToUpperInvariant() + "_VTABLE";
 
 			PublicDefinitions = HashSetFromOptionalEnumerableStringParameter(Rules.PublicDefinitions);
 			PublicIncludePaths = CreateDirectoryHashSet(Rules.PublicIncludePaths);
@@ -240,6 +241,16 @@ namespace UnrealBuildTool
 
 			// cache the results (it will always at least have the ModuleDirectory)
 			ModuleDirectories = MergedDirectories.ToArray();
+		}
+
+		/// <summary>
+		/// Determines if a file is part of the given module
+		/// </summary>
+		/// <param name="Location">Path to the file</param>
+		/// <returns>True if the file is part of this module</returns>
+		public virtual bool ContainsFile(FileReference Location)
+		{
+			return Location.IsUnderDirectory(ModuleDirectory);
 		}
 
 		/// <summary>
@@ -488,6 +499,7 @@ namespace UnrealBuildTool
 			HashSet<DirectoryReference> SystemIncludePaths,
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
+			List<FileItem> AdditionalPrerequisites,
 			bool bLegacyPublicIncludePaths
 			)
 		{
@@ -510,34 +522,39 @@ namespace UnrealBuildTool
 				{
 					if (Rules.Target.bShouldCompileAsDLL && (Rules.Target.bHasExports || Rules.ModuleSymbolVisibility == ModuleRules.SymbolVisibility.VisibileForDll))
 					{
-						Definitions.Add(ModuleVTableDefine + "=DLLEXPORT_VTABLE");
 						Definitions.Add(ModuleApiDefine + "=DLLEXPORT");
 					}
 					else
 					{
-						Definitions.Add(ModuleVTableDefine + "=");
 						Definitions.Add(ModuleApiDefine + "=");
 					}
 				}
 				else if(Binary == null || SourceBinary != Binary)
 				{
-					Definitions.Add(ModuleVTableDefine + "=DLLIMPORT_VTABLE");
 					Definitions.Add(ModuleApiDefine + "=DLLIMPORT");
 				}
 				else if(!Binary.bAllowExports)
 				{
-					Definitions.Add(ModuleVTableDefine + "=");
 					Definitions.Add(ModuleApiDefine + "=");
 				}
 				else
 				{
-					Definitions.Add(ModuleVTableDefine + "=DLLEXPORT_VTABLE");
 					Definitions.Add(ModuleApiDefine + "=DLLEXPORT");
 				}
 			}
 
 			// Add the additional frameworks so that the compiler can know about their #include paths
 			AdditionalFrameworks.AddRange(PublicAdditionalFrameworks);
+
+			// Add any generated type library headers
+			if (Rules.TypeLibraries.Count > 0)
+			{
+				IncludePaths.Add(IntermediateDirectory);
+				foreach (ModuleRules.TypeLibrary TypeLibrary in Rules.TypeLibraries)
+				{
+					AdditionalPrerequisites.Add(FileItem.GetItemByFileReference(FileReference.Combine(IntermediateDirectory, TypeLibrary.Header)));
+				}
+			}
 		}
 
 		/// <summary>
@@ -548,6 +565,7 @@ namespace UnrealBuildTool
 			HashSet<DirectoryReference> SystemIncludePaths,
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
+			List<FileItem> AdditionalPrerequisites,
 			bool bWithLegacyPublicIncludePaths
 			)
 		{
@@ -567,7 +585,7 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				Module.AddModuleToCompileEnvironment(Binary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, bWithLegacyPublicIncludePaths);
+				Module.AddModuleToCompileEnvironment(Binary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bWithLegacyPublicIncludePaths);
 			}
 		}
 
@@ -768,7 +786,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Compiles the module, and returns a list of files output by the compiler.
 		/// </summary>
-		public abstract List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, FileReference SingleFileToCompile, ISourceFileWorkingSet WorkingSet, TargetMakefile Makefile);
+		public virtual List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, FileReference SingleFileToCompile, ISourceFileWorkingSet WorkingSet, TargetMakefile Makefile)
+		{
+			// Generate type libraries for Windows
+			foreach(ModuleRules.TypeLibrary TypeLibrary in Rules.TypeLibraries)
+			{
+				FileReference OutputFile = FileReference.Combine(IntermediateDirectory, TypeLibrary.Header);
+				ToolChain.GenerateTypeLibraryHeader(CompileEnvironment, TypeLibrary, OutputFile, Makefile.Actions);
+			}
+
+			return new List<FileItem>();
+		}
 
 		// Object interface.
 		public override string ToString()
@@ -864,13 +892,13 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns valueless API defines (like MODULE_API or MODULE_VTABLE)
+		/// Returns valueless API defines (like MODULE_API)
 		/// </summary>
 		public IEnumerable<string> GetEmptyApiMacros()
 		{
 			if (Rules.Type == ModuleRules.ModuleType.CPlusPlus)
 			{
-				return new[] {ModuleVTableDefine + "=", ModuleApiDefine + "="};
+				return new[] {ModuleApiDefine + "="};
 			}
 
 			return new string[0];
@@ -923,19 +951,23 @@ namespace UnrealBuildTool
 			}
 			Writer.WriteArrayEnd();
 
-			Writer.WriteArrayStart("RuntimeDependencies");
-			foreach(ModuleRules.RuntimeDependency RuntimeDependency in Rules.RuntimeDependencies.Inner)
+			// Don't add runtime dependencies for modules that aren't being linked in. They may reference BinaryOutputDir, which is invalid.
+			if (Binary != null)
 			{
-				Writer.WriteObjectStart();
-				Writer.WriteValue("Path", ExpandPathVariables(RuntimeDependency.Path, BinaryOutputDir, TargetOutputDir));
-				if(RuntimeDependency.SourcePath != null)
+				Writer.WriteArrayStart("RuntimeDependencies");
+				foreach (ModuleRules.RuntimeDependency RuntimeDependency in Rules.RuntimeDependencies.Inner)
 				{
-					Writer.WriteValue("SourcePath", ExpandPathVariables(RuntimeDependency.SourcePath, BinaryOutputDir, TargetOutputDir));
+					Writer.WriteObjectStart();
+					Writer.WriteValue("Path", ExpandPathVariables(RuntimeDependency.Path, BinaryOutputDir, TargetOutputDir));
+					if (RuntimeDependency.SourcePath != null)
+					{
+						Writer.WriteValue("SourcePath", ExpandPathVariables(RuntimeDependency.SourcePath, BinaryOutputDir, TargetOutputDir));
+					}
+					Writer.WriteValue("Type", RuntimeDependency.Type.ToString());
+					Writer.WriteObjectEnd();
 				}
-				Writer.WriteValue("Type", RuntimeDependency.Type.ToString());
-				Writer.WriteObjectEnd();
+				Writer.WriteArrayEnd();
 			}
-			Writer.WriteArrayEnd();
 		}
 
 		/// <summary>

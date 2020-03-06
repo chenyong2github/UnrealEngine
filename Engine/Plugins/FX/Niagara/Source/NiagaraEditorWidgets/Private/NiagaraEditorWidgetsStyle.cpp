@@ -71,7 +71,15 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	FTextBlockStyle StackGroupText = FTextBlockStyle(NormalText)
 		.SetFont(StackGroupFont)
 		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
-	Style->Set("NiagaraEditor.Stack.GroupText", StackGroupText);
+	
+	FEditableTextBoxStyle EditableGroupText = FEditableTextBoxStyle(NormalEditableTextBox)
+		.SetFont(StackGroupFont);
+
+	FInlineEditableTextBlockStyle StackEditableGroupText = FInlineEditableTextBlockStyle()
+		.SetEditableTextBoxStyle(EditableGroupText)
+		.SetTextStyle(StackGroupText); 
+
+	Style->Set("NiagaraEditor.Stack.GroupText", StackEditableGroupText);
 
 	FSlateFontInfo StackDefaultFont = DEFAULT_FONT("Regular", 10);
 	FTextBlockStyle StackDefaultText = FTextBlockStyle(NormalText)
@@ -97,18 +105,34 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	FSlateFontInfo StackItemFont = DEFAULT_FONT("Regular", 11);
 	FTextBlockStyle StackItemText = FTextBlockStyle(NormalText)
 		.SetFont(StackItemFont);
-	Style->Set("NiagaraEditor.Stack.ItemText", StackItemText);
+	
+	FEditableTextBoxStyle EditableItemText = FEditableTextBoxStyle(NormalEditableTextBox)
+		.SetFont(StackItemFont);
+
+	FInlineEditableTextBlockStyle StackEditableItemText = FInlineEditableTextBlockStyle()
+		.SetTextStyle(StackItemText)
+		.SetEditableTextBoxStyle(EditableItemText);
+	Style->Set("NiagaraEditor.Stack.ItemText", StackEditableItemText);
+
+	FSlateFontInfo TypeNameFont = DEFAULT_FONT("Regular", 9);
+	FTextBlockStyle TypeNameText = FTextBlockStyle(NormalText)
+		.SetFont(TypeNameFont);
+	Style->Set("NiagaraEditor.Stack.TypeNameText", TypeNameText);
 
 	FSlateFontInfo SystemOverviewListHeaderFont = DEFAULT_FONT("Bold", 12);
 	FTextBlockStyle SystemOverviewListHeaderText = FTextBlockStyle(NormalText)
 		.SetFont(SystemOverviewListHeaderFont);
 	Style->Set("NiagaraEditor.SystemOverview.ListHeaderText", SystemOverviewListHeaderText);
 
-
 	FSlateFontInfo SystemOverviewItemFont = DEFAULT_FONT("Regular", 9);
 	FTextBlockStyle SystemOverviewItemText = FTextBlockStyle(NormalText)
 		.SetFont(SystemOverviewItemFont);
 	Style->Set("NiagaraEditor.SystemOverview.ItemText", SystemOverviewItemText);
+
+	FSlateFontInfo SystemOverviewAlternateItemFont = DEFAULT_FONT("Italic", 9);
+	FTextBlockStyle SystemOverviewAlternateItemText = FTextBlockStyle(NormalText)
+		.SetFont(SystemOverviewAlternateItemFont);
+	Style->Set("NiagaraEditor.SystemOverview.AlternateItemText", SystemOverviewAlternateItemText);
 
 	Style->Set("NiagaraEditor.SystemOverview.Item.BackgroundColor", FLinearColor(FColor(62, 62, 62)));
 	Style->Set("NiagaraEditor.SystemOverview.Group.BackgroundColor", FLinearColor::Transparent);
@@ -180,14 +204,14 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.Stack.SpawnIcon", new IMAGE_PLUGIN_BRUSH("Icons/Spawn", Icon12x12, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.UpdateIcon", new IMAGE_PLUGIN_BRUSH("Icons/Update", Icon12x12, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.EventIcon", new IMAGE_PLUGIN_BRUSH("Icons/Event", Icon12x12, FLinearColor::White));
-	Style->Set("NiagaraEditor.Stack.ShaderStageIcon", new IMAGE_PLUGIN_BRUSH("Icons/ShaderStage", Icon12x12, FLinearColor::White));
+	Style->Set("NiagaraEditor.Stack.SimulationStageIcon", new IMAGE_PLUGIN_BRUSH("Icons/SimulationStage", Icon12x12, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.RenderIcon", new IMAGE_PLUGIN_BRUSH("Icons/Render", Icon12x12, FLinearColor::White));
 
 	Style->Set("NiagaraEditor.Stack.ParametersIconHighlighted", new IMAGE_PLUGIN_BRUSH("Icons/SystemParams", Icon16x16, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.SpawnIconHighlighted", new IMAGE_PLUGIN_BRUSH("Icons/Spawn", Icon16x16, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.UpdateIconHighlighted", new IMAGE_PLUGIN_BRUSH("Icons/Update", Icon16x16, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.EventIconHighlighted", new IMAGE_PLUGIN_BRUSH("Icons/Event", Icon16x16, FLinearColor::White));
-	Style->Set("NiagaraEditor.Stack.ShaderStageIconHighlighted", new IMAGE_PLUGIN_BRUSH("Icons/ShaderStage", Icon16x16, FLinearColor::White));
+	Style->Set("NiagaraEditor.Stack.SimulationStageIconHighlighted", new IMAGE_PLUGIN_BRUSH("Icons/SimulationStage", Icon16x16, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.RenderIconHighlighted", new IMAGE_PLUGIN_BRUSH("Icons/Render", Icon16x16, FLinearColor::White));
 
 	Style->Set("NiagaraEditor.Stack.IconHighlightedSize", 16.0f);
@@ -217,6 +241,34 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.Stack.ModuleHighlightLarge", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlightLarge", Icon8x8, FLinearColor::White));
 
 	Style->Set("NiagaraEditor.ShowInCurveEditorIcon", new IMAGE_PLUGIN_BRUSH("Icons/ShowInCurveEditor", Icon16x16, FLinearColor::White));
+
+	// Scratch pad
+	FSlateFontInfo ScratchPadLargeHeaderFont = DEFAULT_FONT("Bold", 11);
+	FTextBlockStyle ScratchPadLargeHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadLargeHeaderFont);
+	Style->Set("NiagaraEditor.ScratchPad.LargeHeaderText", ScratchPadLargeHeaderText);
+
+	FSlateFontInfo ScratchPadSmallHeaderFont = DEFAULT_FONT("Bold", 10);
+	FTextBlockStyle ScratchPadSmallHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadSmallHeaderFont);
+	Style->Set("NiagaraEditor.ScratchPad.SmallHeaderText", ScratchPadSmallHeaderText);
+
+	FSlateBrush ScratchPadCategoryBrush = BOX_PLUGIN_BRUSH("Icons/CategoryRow", FMargin(2.0f / 8.0f), FLinearColor(FColor(48, 48, 48)));
+	FSlateBrush ScratchPadHoveredCategoryBrush = BOX_PLUGIN_BRUSH("Icons/CategoryRow", FMargin(2.0f / 8.0f), FLinearColor(FColor(38, 38, 38)));
+	Style->Set("NiagaraEditor.ScratchPad.CategoryRow", FTableRowStyle(NormalTableRowStyle)
+		.SetEvenRowBackgroundBrush(ScratchPadCategoryBrush)
+		.SetOddRowBackgroundBrush(ScratchPadCategoryBrush)
+		.SetEvenRowBackgroundHoveredBrush(ScratchPadHoveredCategoryBrush)
+		.SetOddRowBackgroundHoveredBrush(ScratchPadHoveredCategoryBrush));
+
+	Style->Set("NiagaraEditor.Scope.Engine", FLinearColor(FColor(230, 102, 102)));
+	Style->Set("NiagaraEditor.Scope.Owner", FLinearColor(FColor(210, 112, 112)));
+	Style->Set("NiagaraEditor.Scope.User", FLinearColor(FColor(114, 226, 254)));
+	Style->Set("NiagaraEditor.Scope.System", FLinearColor(FColor(1, 202, 252)));
+	Style->Set("NiagaraEditor.Scope.Emitter", FLinearColor(FColor(241, 99, 6)));
+	Style->Set("NiagaraEditor.Scope.Particles", FLinearColor(FColor(131, 218, 9)));
+	Style->Set("NiagaraEditor.Scope.ScriptPersistent", FLinearColor(FColor(255, 247, 77)));
+	Style->Set("NiagaraEditor.Scope.ScriptTransient", FLinearColor(FColor(255, 247, 77)));
 
 	return Style;
 }

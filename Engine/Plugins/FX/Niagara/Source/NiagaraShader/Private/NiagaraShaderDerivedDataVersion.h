@@ -11,4 +11,4 @@ NiagaraShaderDerivedDataVersion.h: Shader derived data version for Niagara.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define NIAGARASHADERMAP_DERIVEDDATA_VER		TEXT("A27AE38E639D4954AC529C61BD67058A")
+#define NIAGARASHADERMAP_DERIVEDDATA_VER		TEXT("906AEEB436374DF1ACE9A4AA6BABCED1")

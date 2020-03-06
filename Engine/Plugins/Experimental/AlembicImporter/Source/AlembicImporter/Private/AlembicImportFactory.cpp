@@ -1,18 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AlembicImportFactory.h"
+#include "AssetImportTask.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
 #include "Framework/Application/SlateApplication.h"
-
-
 #include "Interfaces/IMainFrameModule.h"
+#include "Math/UnrealMathUtility.h"
 
 #include "AlembicImportOptions.h"
-
 #include "AlembicLibraryModule.h"
 #include "AbcImporter.h"
 #include "AbcImportLogger.h"
@@ -96,6 +95,14 @@ UObject* UAlembicImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPa
 		ShowImportOptionsWindow(Options, UFactory::CurrentFilename, Importer);
 		// Set whether or not the user canceled
 		bOutOperationCanceled = !Options->ShouldImport();
+	}
+	else
+	{
+		UAbcImportSettings* ScriptedSettings = AssetImportTask ? Cast<UAbcImportSettings>(AssetImportTask->Options) : nullptr;
+		if (ScriptedSettings)
+		{
+			ImportSettings = ScriptedSettings;
+		}
 	}
 
 	// Set up message log page name to separate different assets
@@ -498,10 +505,12 @@ EReimportResult::Type UAlembicImportFactory::Reimport(UObject* Obj)
 
 void UAlembicImportFactory::ShowImportOptionsWindow(TSharedPtr<SAlembicImportOptions>& Options, FString FilePath, const FAbcImporter& Importer)
 {
+	// Window size computed from SAlembicImportOptions
+	const float WindowHeight = 500.f + FMath::Clamp(Importer.GetPolyMeshes().Num() * 16.f, 0.f, 250.f);
 
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(LOCTEXT("WindowTitle", "Alembic Cache Import Options"))
-		.SizingRule(ESizingRule::Autosized);
+		.ClientSize(FVector2D(522.f, WindowHeight));
 
 	Window->SetContent
 		(

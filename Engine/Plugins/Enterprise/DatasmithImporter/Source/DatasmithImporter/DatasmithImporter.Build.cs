@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Analytics",
+					"ApplicationCore",
 					"CinematicCamera",
 					"ContentBrowser",
 					"Core",
@@ -35,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"MessageLog",
 					"MovieScene",
 					"MovieSceneTracks",
+					"PropertyEditor",
 					"RHI",
 					"RawMesh",
 					"Slate",

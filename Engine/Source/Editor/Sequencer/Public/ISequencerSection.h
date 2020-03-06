@@ -64,7 +64,7 @@ struct FSequencerSectionPropertyDetailsViewCustomizationParams
 /**
  * Interface that should be implemented for the UI portion of a section
  */
-class SEQUENCER_VTABLE ISequencerSection
+class ISequencerSection
 {
 public:
 	virtual ~ISequencerSection(){}
@@ -210,7 +210,7 @@ public:
 	virtual void CustomizePropertiesDetailsView(TSharedRef<IDetailsView> DetailsView, const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams) const {}
 };
 
-class SEQUENCER_VTABLE FSequencerSection : public ISequencerSection
+class FSequencerSection : public ISequencerSection
 {
 public:
 	FSequencerSection(UMovieSceneSection& InSection)

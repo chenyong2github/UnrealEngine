@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_TYPEFUNCTIONS_H
-#define TF_TYPEFUNCTIONS_H
+#ifndef PXR_BASE_TF_TYPE_FUNCTIONS_H
+#define PXR_BASE_TF_TYPE_FUNCTIONS_H
 
 /// \file tf/typeFunctions.h
 /// \ingroup group_tf_Internal
@@ -128,4 +128,4 @@ struct TfCopyIfNotReference<T&>
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_TYPEFUNCTIONS_H
+#endif // PXR_BASE_TF_TYPE_FUNCTIONS_H

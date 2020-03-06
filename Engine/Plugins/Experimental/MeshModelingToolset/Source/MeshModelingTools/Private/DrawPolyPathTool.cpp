@@ -18,6 +18,7 @@
 #include "MeshTransforms.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "Operations/ExtrudeMesh.h"
+#include "MeshNormals.h"
 
 #define LOCTEXT_NAMESPACE "UDrawPolyPathTool"
 
@@ -511,6 +512,8 @@ void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 			Mesh.SetVertexUV(NumPoints+k, FVector2f((float)ArcLengths[k], (float)k));
 			ShiftX += DeltaX;
 		}
+
+		FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
 	}
 }
 
@@ -601,6 +604,8 @@ void UDrawPolyPathTool::GenerateExtrudeMesh(FDynamicMesh3& PathMesh)
 	Extruder.UVScaleFactor = 1.0 / Bounds.MaxDim();
 	Extruder.IsPositiveOffset = (CurHeight >= 0);
 	Extruder.Apply();
+
+	FMeshNormals::QuickRecomputeOverlayNormals(PathMesh);
 }
 
 void UDrawPolyPathTool::GenerateRampMesh(FDynamicMesh3& PathMesh)
@@ -623,6 +628,8 @@ void UDrawPolyPathTool::GenerateRampMesh(FDynamicMesh3& PathMesh)
 	Extruder.UVScaleFactor = 1.0 / Bounds.MaxDim();
 	Extruder.IsPositiveOffset = (CurHeight >= 0);
 	Extruder.Apply();
+
+	FMeshNormals::QuickRecomputeOverlayNormals(PathMesh);
 }
 
 

@@ -30,7 +30,11 @@ template FD3D12StructuredBuffer* FD3D12Adapter::CreateRHIBuffer<FD3D12Structured
 	uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
 	FRHIResourceCreateInfo& CreateInfo);
 
-struct FRHICommandUpdateBuffer final : public FRHICommand<FRHICommandUpdateBuffer>
+struct FRHICommandUpdateBufferString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandUpdateBuffer"); }
+};
+struct FRHICommandUpdateBuffer final : public FRHICommand<FRHICommandUpdateBuffer, FRHICommandUpdateBufferString>
 {
 	FD3D12ResourceLocation Source;
 	FD3D12ResourceLocation* Destination;
@@ -55,8 +59,12 @@ struct FRHICommandUpdateBuffer final : public FRHICommand<FRHICommandUpdateBuffe
 // This allows us to rename resources from the RenderThread i.e. all the 'hard' work of allocating a new resource
 // is done in parallel and this small function is called to switch the resource to point to the correct location
 // a the correct time.
+struct FRHICommandRenameUploadBufferString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandRenameUploadBuffer"); }
+};
 template<typename ResourceType>
-struct FRHICommandRenameUploadBuffer final : public FRHICommand<FRHICommandRenameUploadBuffer<ResourceType>>
+struct FRHICommandRenameUploadBuffer final : public FRHICommand<FRHICommandRenameUploadBuffer<ResourceType>, FRHICommandRenameUploadBufferString>
 {
 	ResourceType* Resource;
 	FD3D12ResourceLocation NewLocation;
@@ -181,7 +189,11 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 			check(pData);
 			FMemory::Memcpy(pData, CreateInfo.ResourceArray->GetResourceData(), Size);
 
-			struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHICommandInitializeBuffer>
+			struct FD3D12RHICommandInitializeBufferString
+			{
+				static const TCHAR* TStr() { return TEXT("FD3D12RHICommandInitializeBuffer"); }
+			};
+			struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHICommandInitializeBuffer, FD3D12RHICommandInitializeBufferString>
 			{
 				BufferType* CurrentBuffer;
 				FD3D12ResourceLocation SrcResourceLoc;

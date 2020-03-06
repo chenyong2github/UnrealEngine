@@ -543,6 +543,7 @@ void STutorialsBrowser::Construct(const FArguments& InArgs)
 	OnClosed = InArgs._OnClosed;
 	OnLaunchTutorial = InArgs._OnLaunchTutorial;
 	ParentWindow = InArgs._ParentWindow;
+	ExternalCategories = InArgs._ExternalCategories;
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetAdded().AddSP(this, &STutorialsBrowser::HandleAssetAdded);
@@ -659,6 +660,12 @@ TSharedPtr<FTutorialListEntry_Category> STutorialsBrowser::RebuildCategories()
 	// add root category
 	TSharedPtr<FTutorialListEntry_Category> RootCategory = MakeShareable(new FTutorialListEntry_Category(FOnCategorySelected::CreateSP(this, &STutorialsBrowser::OnCategorySelected)));
 	Categories.Add(RootCategory);
+
+	// add external categories
+	for (const auto& TutorialCategory : ExternalCategories)
+	{
+		Categories.Add(MakeShareable(new FTutorialListEntry_Category(TutorialCategory, FOnCategorySelected::CreateSP(this, &STutorialsBrowser::OnCategorySelected), TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STutorialsBrowser::GetSearchText)))));
+	}
 
 	// rebuild categories
 	for(const auto& TutorialCategory : GetDefault<UTutorialSettings>()->Categories)

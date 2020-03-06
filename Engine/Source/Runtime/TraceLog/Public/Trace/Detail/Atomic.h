@@ -14,9 +14,15 @@ template <typename Type> bool	AtomicCompareExchangeRelaxed(Type volatile* Target
 template <typename Type> bool	AtomicCompareExchangeAcquire(Type volatile* Target, Type New, Type Expected);
 template <typename Type> bool	AtomicCompareExchangeRelease(Type volatile* Target, Type New, Type Expected);
 uint32							AtomicIncrementRelaxed(uint32 volatile* Target);
+void							PlatformYield();
 
 } // namespace Private
 } // namespace Trace
+
+////////////////////////////////////////////////////////////////////////////////
+#if PLATFORM_CPU_X86_FAMILY
+#include <emmintrin.h>
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 #define IS_MSVC					0
@@ -45,9 +51,25 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
+inline void PlatformYield()
+{
+#if PLATFORM_CPU_X86_FAMILY
+	_mm_pause();
+#elif PLATFORM_CPU_ARM_FAMILY
+#	if IS_MSVC
+		__yield();
+#	else
+		__builtin_arm_yield();
+#	endif
+#else
+	#error Unsupported architecture!
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
 #if IS_MSVC
 #	if defined(_M_ARM) || defined(_M_ARM64)
-#		define INTERLOCKED_API(Name, Suffix, ...)	Name##_##Suffix(__VA_ARGS__)
+#		define INTERLOCKED_API(Name, Suffix, ...)	Name##Suffix(__VA_ARGS__)
 #	elif defined(_M_IX86) || defined(_M_X64)
 #		define INTERLOCKED_API(Name, Suffix, ...)	Name(__VA_ARGS__)
 #	endif

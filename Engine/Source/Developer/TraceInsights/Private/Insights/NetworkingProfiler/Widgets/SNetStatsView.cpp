@@ -1148,6 +1148,27 @@ void SNetStatsView::SortTreeNodes()
 {
 	if (CurrentSorter.IsValid())
 	{
+		// Sort groups (always by name).
+		TArray<Insights::FBaseTreeNodePtr> SortedGroupNodes;
+		for (const FNetEventNodePtr& NodePtr : GroupNodes)
+		{
+			SortedGroupNodes.Add(NodePtr);
+		}
+		TSharedPtr<Insights::ITableCellValueSorter> Sorter = CurrentSorter;
+		Insights::ESortMode SortMode = (ColumnSortMode == EColumnSortMode::Type::Descending) ? Insights::ESortMode::Descending : Insights::ESortMode::Ascending;
+		if (CurrentSorter->GetName() != FName(TEXT("ByName")))
+		{
+			Sorter = MakeShared<Insights::FSorterByName>(Table->GetColumns()[0]);
+			SortMode = Insights::ESortMode::Ascending;
+		}
+		Sorter->Sort(SortedGroupNodes, SortMode);
+		GroupNodes.Reset();
+		for (const Insights::FBaseTreeNodePtr& NodePtr : SortedGroupNodes)
+		{
+			GroupNodes.Add(StaticCastSharedPtr<FNetEventNode>(NodePtr));
+		}
+
+		// Sort nodes in each group.
 		for (FNetEventNodePtr& Root : GroupNodes)
 		{
 			SortTreeNodesRec(*Root, *CurrentSorter);

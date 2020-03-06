@@ -9,6 +9,8 @@
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
 
+class IPakFile;
+
 /** 
  * Flags describing the type and properties of this redirect
  */
@@ -16,7 +18,7 @@ enum class ECoreRedirectFlags : uint32
 {
 	None = 0,
 
-	// Core type of the thing being redirected, multiple can be set
+	// Core type of the Thing being redirected, multiple can be set.  A Query will only find Redirects that have at least one of the same Type bits set.
 	Type_Object =			0x00000001, // UObject
 	Type_Class =			0x00000002, // UClass
 	Type_Struct =			0x00000004, // UStruct
@@ -24,14 +26,22 @@ enum class ECoreRedirectFlags : uint32
 	Type_Function =			0x00000010, // UFunction
 	Type_Property =			0x00000020, // FProperty
 	Type_Package =			0x00000040, // UPackage
-	Type_AllMask =			0x0000FFFF, // Bit mask of all possible types
+	Type_AllMask =			0x0000FFFF, // Bit mask of all possible Types
 
-	// Option flags, specify rules for this redirect
-	Option_InstanceOnly =	0x00010000, // Only redirect instances of this type, not the type itself
-	Option_Removed =		0x00020000, // This type was explicitly removed, new name isn't valid
-	Option_MatchSubstring = 0x00040000, // Does a slow substring match
-	Option_AllMask =		0xFFFF0000, // Bit mask of all possible options
-	Option_ExactMatchMask = Option_InstanceOnly | Option_Removed // These options must match exactly, substring is checked both ways
+	// Category flags.  A Query will only match Redirects that have the same value for every category bit.
+	Category_InstanceOnly = 0x00010000, // Only redirect instances of this type, not the type itself
+	Category_Removed =		0x00020000, // This type was explicitly removed, new name isn't valid
+	Category_AllMask =		0x00FF0000, // Bit mask of all possible Categories
+
+	// Option flags.  Does not behave as a bit-match between Queries and Redirects.  Each one specifies a custom rule for how FCoreRedirects handles the Redirect.
+	Option_MatchSubstring = 0x01000000, // Does a slow substring match
+	Option_MissingLoad =	0x02000000, // An automatically-created redirect that was created in response to a missing Thing during load. Redirect will be removed if and when the Thing is loaded.
+	Option_AllMask =		0xFF000000, // Bit mask of all possible Options
+
+	// Deprecated Names
+	Option_InstanceOnly UE_DEPRECATED(4.25, "Use Category_InstanceOnly instead") = Category_InstanceOnly,
+	Option_Removed UE_DEPRECATED(4.25, "Use Category_Removed instead") = Category_Removed,
+	Option_ExactMatchMask UE_DEPRECATED(4.25, "Use Category_AllMask instead") = Category_AllMask,
 };
 ENUM_CLASS_FLAGS(ECoreRedirectFlags);
 
@@ -176,7 +186,7 @@ struct COREUOBJECT_API FCoreRedirect
 	/** Parses a char buffer into the ValueChanges map */
 	const TCHAR* ParseValueChanges(const TCHAR* Buffer);
 
-	/** Returns true if the passed in name matches requirements */
+	/** Returns true if the passed in name and flags match requirements */
 	bool Matches(ECoreRedirectFlags InFlags, const FCoreRedirectObjectName& InName) const;
 
 	/** Returns true if this has value redirects */
@@ -218,11 +228,25 @@ struct COREUOBJECT_API FCoreRedirects
 	/** Returns true if this name has been registered as explicitly missing */
 	static bool IsKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName);
 
-	/** Adds this as a missing name */
-	static bool AddKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName);
+	/**
+	  * Adds the given combination of (Type, ObjectName, Channel) as a missing name; IsKnownMissing queries will now find it
+	  *
+	  * @param Type Combination of the ECoreRedirectFlags::Type_* flags specifying the type of the object now known to be missing
+	  * @param ObjectName The name of the object now known to be missing
+	  * @param Channel may be Option_MissingLoad or Option_None; used to distinguish between detected-at-runtime and specified-by-ini
+	  */
+	static bool AddKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
 
-	/** Removes this as a missing name */
-	static bool RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName);
+	/**
+	  * Removes the given combination of (Type, ObjectName, Channel) as a missing name
+	  *
+	  * @param Type Combination of the ECoreRedirectFlags::Type_* flags specifying the type of the object that has just been loaded.
+	  * @param ObjectName The name of the object that has just been loaded.
+	  * @param Channel may be Option_MissingLoad or Option_None; used to distinguish between detected-at-runtime and specified-by-ini
+	  */
+	static bool RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
+
+	static void ClearKnownMissing(ECoreRedirectFlags Type, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
 
 	/** Returns list of names it may have been before */
 	static bool FindPreviousNames(ECoreRedirectFlags Type, const FCoreRedirectObjectName& NewObjectName, TArray<FCoreRedirectObjectName>& PreviousNames);

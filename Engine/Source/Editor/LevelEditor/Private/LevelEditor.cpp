@@ -39,6 +39,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Subsystems/PanelExtensionSubsystem.h"
 #include "Classes/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
@@ -136,6 +137,12 @@ public:
 
 		SetToolTipText(RightContentTooltip);
 
+		TSharedRef<SWidget> DefaultNamePlate = SNew(STextBlock)
+			.Text(RightContentText)
+			.Visibility(EVisibility::HitTestInvisible)
+			.TextStyle(FEditorStyle::Get(), "SProjectBadge.Text")
+			.ColorAndOpacity(BadgeTextColor);
+
 		SBox::Construct(SBox::FArguments()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Top)
@@ -147,11 +154,9 @@ public:
 				.BorderBackgroundColor(BadgeBackgroundColor)
 				.VAlign(VAlign_Top)
 				[
-					SNew(STextBlock)
-					.Text(RightContentText)
-					.Visibility(EVisibility::HitTestInvisible)
-					.TextStyle(FEditorStyle::Get(),"SProjectBadge.Text")
-					.ColorAndOpacity(BadgeTextColor)
+					SNew(SExtensionPanel)
+					.ExtensionPanelID("LevelEditorProjectNamePlate")
+					.DefaultWidget(DefaultNamePlate)
 				]
 			]);
 	}
@@ -212,7 +217,7 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		{
 			// In legacy mode this toolbox should always be open
 			static const FTabId ToolboxTabId("LevelEditorToolBox");
-			LevelEditorTabManager->InvokeTab(ToolboxTabId);
+			LevelEditorTabManager->TryInvokeTab(ToolboxTabId);
 
 			// In legacy mode the standalone placement browser tab should not be opened
 			static const FTabId PlacementBrowserTabId("PlacementBrowser");
@@ -223,6 +228,7 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 			}
 		}
 
+		LevelEditorCreatedEvent.Broadcast(LevelEditorTmp);
 	}
 
 	IIntroTutorials& IntroTutorials = FModuleManager::LoadModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
@@ -369,26 +375,26 @@ void FLevelEditorModule::SummonSelectionDetails()
 void FLevelEditorModule::SummonBuildAndSubmit()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab(LevelEditorTabIds::LevelEditorBuildAndSubmit);
+	LevelEditorInstance->TryInvokeTab(LevelEditorTabIds::LevelEditorBuildAndSubmit);
 }
 
 
 void FLevelEditorModule::SummonWorldBrowserHierarchy()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserHierarchy);
+	LevelEditorInstance->TryInvokeTab(LevelEditorTabIds::WorldBrowserHierarchy);
 }
 
 void FLevelEditorModule::SummonWorldBrowserDetails()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserDetails);
+	LevelEditorInstance->TryInvokeTab(LevelEditorTabIds::WorldBrowserDetails);
 }
 
 void FLevelEditorModule::SummonWorldBrowserComposition()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserComposition);
+	LevelEditorInstance->TryInvokeTab(LevelEditorTabIds::WorldBrowserComposition);
 }
 
 // @todo remove when world-centric mode is added
@@ -1809,12 +1815,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None, false)),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None)));
-
-	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_AndroidGLES2,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, LegacyShaderPlatformToShaderFormat(SP_OPENGL_ES2_ANDROID), true)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, LegacyShaderPlatformToShaderFormat(SP_OPENGL_ES2_ANDROID))));
 
 	ActionList.MapAction(
 		Commands.PreviewPlatformOverride_AndroidGLES31,

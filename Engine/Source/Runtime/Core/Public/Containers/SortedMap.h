@@ -677,6 +677,7 @@ public:
 	FORCEINLINE RangedForConstIteratorType	end() const   { return Pairs.end(); }
 };
 
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate>), (TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>));
 
 template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate>
 struct TContainerTraits<TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>> : public TContainerTraitsBase<TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>>

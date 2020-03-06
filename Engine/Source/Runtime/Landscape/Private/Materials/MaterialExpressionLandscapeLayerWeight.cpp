@@ -135,9 +135,4 @@ void UMaterialExpressionLandscapeLayerWeight::GetAllParameterInfo(TArray<FMateri
 	}
 }
 
-bool UMaterialExpressionLandscapeLayerWeight::NeedsLoadForClient() const
-{
-	return ParameterName != NAME_None;
-}
-
 #undef LOCTEXT_NAMESPACE

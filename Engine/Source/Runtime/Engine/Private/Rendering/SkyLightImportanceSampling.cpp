@@ -52,7 +52,7 @@ public:
 		uint32 MipLevel,
 		FRWBuffer& MipTree)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
 		SetShaderValue(RHICmdList, ShaderRHI, FaceIndexParameter, FaceIndex);
@@ -69,32 +69,21 @@ public:
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& MipTree)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		MipTreeParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTree.UAV);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TextureParameter;
-		Ar << TextureSamplerParameter;
-		Ar << DimensionsParameter;
-		Ar << FaceIndexParameter;
-		Ar << MipLevelParameter;
-		Ar << MipTreeParameter;
-		return bShaderHasOutdatedParameters;
-	}
 
 private:
-	FShaderResourceParameter TextureParameter;
-	FShaderResourceParameter TextureSamplerParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, TextureParameter);
+	LAYOUT_FIELD(FShaderResourceParameter,TextureSamplerParameter);
 
-	FShaderParameter DimensionsParameter;
-	FShaderParameter FaceIndexParameter;
-	FShaderParameter MipLevelParameter;
-	FRWShaderParameter MipTreeParameter;
+	LAYOUT_FIELD(FShaderParameter, DimensionsParameter);
+	LAYOUT_FIELD(FShaderParameter, FaceIndexParameter);
+	LAYOUT_FIELD(FShaderParameter, MipLevelParameter);
+	LAYOUT_FIELD(FRWShaderParameter, MipTreeParameter);
 };
 
 class FBuildSolidAnglePdfCS : public FGlobalShader
@@ -135,7 +124,7 @@ public:
 		FRWBuffer& SolidAnglePdf
 	)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, MipLevelParameter, MipLevel);
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
@@ -151,25 +140,16 @@ public:
 		FRHIComputeFence* Fence
 	)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		SolidAnglePdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTreePdf.UAV, Fence);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << MipLevelParameter;
-		Ar << DimensionsParameter;
-		Ar << SolidAnglePdfParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter MipLevelParameter;
-	FShaderParameter DimensionsParameter;
-	FRWShaderParameter SolidAnglePdfParameter;
+	LAYOUT_FIELD(FShaderParameter, MipLevelParameter);
+	LAYOUT_FIELD(FShaderParameter, DimensionsParameter);
+	LAYOUT_FIELD(FRWShaderParameter, SolidAnglePdfParameter);
 };
 
 class FBuildMipTreePdfCS : public FGlobalShader
@@ -211,7 +191,7 @@ public:
 		uint32 MipLevel,
 		FRWBuffer& MipTreePdf)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		SetSRVParameter(RHICmdList, ShaderRHI, MipTreeParameter, MipTree.SRV);
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
@@ -227,28 +207,18 @@ public:
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& MipTreePdf)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		MipTreePdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTreePdf.UAV);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << MipTreeParameter;
-		Ar << DimensionsParameter;
-		Ar << MipLevelParameter;
-		Ar << MipTreePdfParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderResourceParameter MipTreeParameter;
-	FShaderParameter DimensionsParameter;
-	FShaderParameter MipLevelParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, MipTreeParameter);
+	LAYOUT_FIELD(FShaderParameter, DimensionsParameter);
+	LAYOUT_FIELD(FShaderParameter, MipLevelParameter);
 
-	FRWShaderParameter MipTreePdfParameter;
+	LAYOUT_FIELD(FRWShaderParameter, MipTreePdfParameter);
 };
 
 IMPLEMENT_SHADER_TYPE(, FBuildMipTreeCS, TEXT("/Engine/Private/Raytracing/BuildMipTreeCS.usf"), TEXT("BuildMipTreeCS"), SF_Compute)
@@ -269,7 +239,7 @@ void BuildSkyLightMipTree(
 {
 	const auto ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FBuildMipTreeCS> BuildSkyLightMipTreeComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(BuildSkyLightMipTreeComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(BuildSkyLightMipTreeComputeShader.GetComputeShader());
 
 	FRWBuffer* MipTrees[] = {
 		&SkyLightMipTreePosX,
@@ -304,7 +274,7 @@ void BuildSkyLightMipTree(
 			BuildSkyLightMipTreeComputeShader->SetParameters(RHICmdList, SkyLightTexture, SkyLightMipTreeDimensions, FaceIndex, MipLevel, *MipTrees[FaceIndex]);
 			FIntVector MipLevelDimensions = FIntVector(SkyLightMipTreeDimensions.X >> MipLevel, SkyLightMipTreeDimensions.Y >> MipLevel, 1);
 			FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildMipTreeCS::GetGroupSize());
-			DispatchComputeShader(RHICmdList, *BuildSkyLightMipTreeComputeShader, NumGroups.X, NumGroups.Y, 1);
+			DispatchComputeShader(RHICmdList, BuildSkyLightMipTreeComputeShader, NumGroups.X, NumGroups.Y, 1);
 			BuildSkyLightMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, *MipTrees[FaceIndex]);
 		}
 
@@ -326,7 +296,7 @@ void BuildSolidAnglePdf(
 {
 	const auto ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FBuildSolidAnglePdfCS> BuildSolidAnglePdfComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(BuildSolidAnglePdfComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(BuildSolidAnglePdfComputeShader.GetComputeShader());
 
 	uint32 NumElements = Dimensions.X * Dimensions.Y;
 	uint32 MipLevelCount = FMath::Log2(Dimensions.X);
@@ -341,7 +311,7 @@ void BuildSolidAnglePdf(
 		FComputeFenceRHIRef ComputeFence = RHICmdList.CreateComputeFence(TEXT("SkyLight SolidAnglePdf Build"));
 		BuildSolidAnglePdfComputeShader->SetParameters(RHICmdList, MipLevel, Dimensions, SolidAnglePdf);
 		FIntVector NumGroups = FIntVector::DivideAndRoundUp(Dimensions, FBuildSolidAnglePdfCS::GetGroupSize());
-		DispatchComputeShader(RHICmdList, *BuildSolidAnglePdfComputeShader, NumGroups.X, NumGroups.Y, 1);
+		DispatchComputeShader(RHICmdList, BuildSolidAnglePdfComputeShader, NumGroups.X, NumGroups.Y, 1);
 		BuildSolidAnglePdfComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, SolidAnglePdf, ComputeFence);
 	}
 }
@@ -383,7 +353,7 @@ void BuildSkyLightMipTreePdf(
 
 	const auto ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FBuildMipTreePdfCS> BuildSkyLightMipTreePdfComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(BuildSkyLightMipTreePdfComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(BuildSkyLightMipTreePdfComputeShader.GetComputeShader());
 
 	uint32 NumElements = SkyLightMipTreePosX.NumBytes / sizeof(float);
 	uint32 MipLevelCount = FMath::Log2(SkyLightMipTreeDimensions.X);
@@ -397,7 +367,7 @@ void BuildSkyLightMipTreePdf(
 			BuildSkyLightMipTreePdfComputeShader->SetParameters(RHICmdList, *MipTrees[FaceIndex], SkyLightMipTreeDimensions, MipLevel, *MipTreePdfs[FaceIndex]);
 			FIntVector MipLevelDimensions = FIntVector(SkyLightMipTreeDimensions.X >> MipLevel, SkyLightMipTreeDimensions.Y >> MipLevel, 1);
 			FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildMipTreeCS::GetGroupSize());
-			DispatchComputeShader(RHICmdList, *BuildSkyLightMipTreePdfComputeShader, NumGroups.X, NumGroups.Y, 1);
+			DispatchComputeShader(RHICmdList, BuildSkyLightMipTreePdfComputeShader, NumGroups.X, NumGroups.Y, 1);
 		}
 		BuildSkyLightMipTreePdfComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, *MipTreePdfs[FaceIndex]);
 	}

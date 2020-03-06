@@ -9,6 +9,10 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 class FWindowsReadRequest;
 class FWindowsAsyncReadFileHandle;
 
+#if !defined(USE_WINAPI_CREATEFILE2)
+	#define USE_WINAPI_CREATEFILE2 0
+#endif
+
 class FWindowsReadRequestWorker : public FNonAbandonableTask
 {
 	FWindowsReadRequest& ReadRequest;
@@ -190,7 +194,7 @@ public:
 
 			for (int32 Try = 0; bFailed && Try < 10; Try++)
 			{
-#if PLATFORM_XBOXONE
+#if USE_WINAPI_CREATEFILE2
 				DWORD  Access = GENERIC_READ;
 				DWORD  WinFlags = FILE_SHARE_READ;
 				DWORD  Create = OPEN_EXISTING;

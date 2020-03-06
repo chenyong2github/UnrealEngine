@@ -57,7 +57,7 @@ TSharedRef<SWidget> TLevelViewportLayoutTwoPanes<TOrientation>::MakeViewportLayo
 	Args.ViewportType = LVT_OrthoXY;
 	TSharedRef<ILevelViewportLayoutEntity> Viewport0 = LevelEditor.FactoryViewport(*ViewportType0, Args);
 
-	Args.bRealtime = !FPlatformMisc::IsRemoteSession();
+	Args.bRealtime = true;
 	Args.ConfigKey = *ViewportKey1;
 	Args.ViewportType = LVT_Perspective;
 	TSharedRef<ILevelViewportLayoutEntity> Viewport1 = LevelEditor.FactoryViewport(*ViewportType1, Args);

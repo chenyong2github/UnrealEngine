@@ -75,6 +75,8 @@ bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 											OutputStr);
 	}
 
+	bCompressionSuccessful = bCompressionSuccessful && !DataToCompress.IsCancelled();
+
 	if (bCompressionSuccessful)
 	{
 		const double CompressionEndTime = FPlatformTime::Seconds();
@@ -87,14 +89,14 @@ bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 		OutData.BoneCompressionCodec = CompressionResult.Codec;
 
 		FMemoryWriter Ar(OutDataArray, true);
-		OutData.SerializeCompressedData(Ar, true, nullptr, DataToCompress.Skeleton, DataToCompress.BoneCompressionSettings, DataToCompress.CurveCompressionSettings); //Save out compressed
+		OutData.SerializeCompressedData(Ar, true, nullptr, nullptr, DataToCompress.BoneCompressionSettings, DataToCompress.CurveCompressionSettings); //Save out compressed
 	}
 
 	return bCompressionSuccessful;
 }
 
 const uint64 GigaBytes = 1024 * 1024 * 1024;
-const uint64 MAX_ASYNC_COMPRESSION_MEM_USAGE = 2 * GigaBytes;
+const uint64 MAX_ASYNC_COMPRESSION_MEM_USAGE = 3 * GigaBytes;
 const int32 MAX_ACTIVE_COMPRESSIONS = 2;
 
 FAsyncCompressedAnimationsManagement* GAsyncCompressedAnimationsTracker = nullptr;
@@ -106,32 +108,119 @@ FAsyncCompressedAnimationsManagement& FAsyncCompressedAnimationsManagement::Get(
 	return SingletonInstance;
 }
 
+FAsyncCompressedAnimationsManagement::FAsyncCompressedAnimationsManagement() : ActiveMemoryUsage(0), LastTickTime(0.0)
+{
+	FCoreDelegates::OnPreExit.AddRaw(this, &FAsyncCompressedAnimationsManagement::Shutdown);
+}
+
+void FAsyncCompressedAnimationsManagement::Shutdown()
+{
+	TArray<uint8> OutData; // For canceling
+
+	for (FActiveAsyncCompressionTask& ActiveTask : ActiveAsyncCompressionTasks)
+	{
+		ActiveTask.DataToCompress->IsCancelledSignal.Cancel();
+		if (ActiveTask.Sequence)
+		{
+			ActiveTask.Sequence->ApplyCompressedData(FString(), false, OutData); // Clear active compression on Sequence
+			ActiveTask.Sequence = nullptr;
+		}
+	}
+
+	for (const FQueuedAsyncCompressionWork& QueuedTask : QueuedAsyncCompressionWork)
+	{
+		if (QueuedTask.Anim)
+		{
+			QueuedTask.Anim->ApplyCompressedData(FString(), false, OutData); // Clear active compression on Sequence
+		}
+	}
+
+	QueuedAsyncCompressionWork.Reset();
+
+	const double PreExitStartTimer = FPlatformTime::Seconds();
+	while(ActiveAsyncCompressionTasks.Num() > 0)
+	{
+		Tick(0.f); //Give active tasks that have already started a chance to finish
+		
+		const double PreExitDuration = FPlatformTime::Seconds() - PreExitStartTimer;
+
+		if (PreExitDuration > 10.0)
+		{
+			UE_LOG(LogAnimationCompression, Warning, TEXT("Async Compression Pre Init Timer hit, Active Compressions:%i"), ActiveAsyncCompressionTasks.Num());
+			return;
+		}
+		FPlatformProcess::Sleep(1.f);
+	} 
+}
+
 void FAsyncCompressedAnimationsManagement::OnActiveCompressionFinished(int32 ActiveAnimIndex)
 {
 	FDerivedDataCacheInterface& DerivedDataCache = GetDerivedDataCacheRef();
 
 	FActiveAsyncCompressionTask& Task = ActiveAsyncCompressionTasks[ActiveAnimIndex];
 
-	TArray<uint8> OutData;
-	bool bBuiltLocally = false;
-	if (DerivedDataCache.GetAsynchronousResults(Task.AsyncHandle, OutData, &bBuiltLocally))
+	if(Task.Sequence)
 	{
-		Task.Sequence->ApplyCompressedData(Task.CacheKey, Task.bPerformFrameStripping, OutData);
+		TArray<uint8> OutData;
+		bool bBuiltLocally = false;
+		if (DerivedDataCache.GetAsynchronousResults(Task.AsyncHandle, OutData, &bBuiltLocally))
+		{
+			Task.Sequence->ApplyCompressedData(Task.CacheKey, Task.bPerformFrameStripping, OutData);
+		}
+		else
+		{
+			UE_LOG(LogAnimationCompression, Fatal, TEXT("Failed to get async compressed animation data for anim '%s'"), *Task.Sequence->GetName());
+			Task.Sequence->ApplyCompressedData(FString(), false, OutData); // Clear active compression on Sequence
+		}
 	}
-	else
-	{
-		UE_LOG(LogAnimationCompression, Fatal, TEXT("Failed to get async compressed animation data for anim '%s'"), *Task.Sequence->GetName());
-		Task.Sequence->ApplyCompressedData(FString(), false, OutData); // Clear active compression on Sequence
-	}
+
 	ActiveMemoryUsage -= Task.TaskSize;
 	ActiveAsyncCompressionTasks.RemoveAtSwap(ActiveAnimIndex, 1, false);
 }
+
+float FormatBytes(uint64 Bytes, const TCHAR*& OutPostFix)
+{
+	uint64 Size = GigaBytes;
+
+	if (Bytes > Size)
+	{
+		OutPostFix = TEXT("GB");
+		return (float)Bytes / (float)Size;
+	}
+
+	Size = Size / 1024;
+	if (Bytes > Size)
+	{
+		OutPostFix = TEXT("MB");
+		return (float)Bytes / (float)Size;
+	}
+
+	Size = Size / 1024;
+	if (Bytes > Size)
+	{
+		OutPostFix = TEXT("KB");
+		return (float)Bytes / (float)Size;
+	}
+
+	OutPostFix = TEXT("B");
+	return (float)Bytes;
+}
+
+#define ASYNC_MEM_LOG 0
 
 void FAsyncCompressedAnimationsManagement::Tick(float DeltaTime)
 {
 	const double MaxProcessingTime = 0.1; // try not to hang the editor too much
 	const double EndTime = FPlatformTime::Seconds() + MaxProcessingTime;
 	const double StartTime = FPlatformTime::Seconds();
+
+#if ASYNC_MEM_LOG
+	const TCHAR* BytesPostFix = TEXT("ERROR");
+	const float FormatSize = FormatBytes(ActiveMemoryUsage, BytesPostFix);
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAsyncCompressedAnimationsManagement::Tick\n\tDelta:%.2f TimeSinceLastRun:%.2f\n\tActive:%i Queued:%i\n\tMemUsage:%.2f%s\n"), DeltaTime, StartTime - LastTickTime, ActiveAsyncCompressionTasks.Num(), QueuedAsyncCompressionWork.Num(), FormatSize, BytesPostFix);
+#endif
+
+	LastTickTime = StartTime;
 
 	FDerivedDataCacheInterface& DerivedDataCache = GetDerivedDataCacheRef();
 
@@ -152,7 +241,17 @@ void FAsyncCompressedAnimationsManagement::Tick(float DeltaTime)
 
 	const bool bHasQueuedTasks = QueuedAsyncCompressionWork.Num() > 0;
 
-	while (ActiveAsyncCompressionTasks.Num() < MAX_ACTIVE_COMPRESSIONS)
+	StartQueuedTasks(MAX_ACTIVE_COMPRESSIONS);
+
+	if (bHasQueuedTasks && QueuedAsyncCompressionWork.Num() == 0)
+	{
+		QueuedAsyncCompressionWork.Empty(); //free memory
+	}
+}
+
+void FAsyncCompressedAnimationsManagement::StartQueuedTasks(int32 MaxActiveTasks)
+{
+	while (ActiveAsyncCompressionTasks.Num() < MaxActiveTasks)
 	{
 		if (QueuedAsyncCompressionWork.Num() == 0)
 		{
@@ -160,11 +259,6 @@ void FAsyncCompressedAnimationsManagement::Tick(float DeltaTime)
 		}
 		FQueuedAsyncCompressionWork NewTask = QueuedAsyncCompressionWork.Pop(false);
 		StartAsyncWork(NewTask.Compressor, NewTask.Anim, NewTask.Compressor.GetMemoryUsage(), NewTask.bPerformFrameStripping);
-	}
-
-	if (bHasQueuedTasks && QueuedAsyncCompressionWork.Num() == 0)
-	{
-		QueuedAsyncCompressionWork.Empty(); //free memory
 	}
 }
 
@@ -192,7 +286,14 @@ bool FAsyncCompressedAnimationsManagement::RequestAsyncCompression(FDerivedDataA
 
 	bool bWasAsync = true;
 
-	if (ActiveMemoryUsage + NewTaskSize >= MAX_ASYNC_COMPRESSION_MEM_USAGE)
+	const bool bOutOfMemForQueue = (ActiveMemoryUsage + NewTaskSize) >= MAX_ASYNC_COMPRESSION_MEM_USAGE;
+	const bool bGameThreadStarved = FPlatformTime::Seconds() - LastTickTime > 2.f;
+
+	//Boost Max active compressions in the case of game thread not running for extended periods (assumes heavy loading situation)
+	// so that memory usage of async compressions does not grow too large
+	const int32 MaxActiveCompressions = bGameThreadStarved ? (MAX_ACTIVE_COMPRESSIONS * 6) : MAX_ACTIVE_COMPRESSIONS;
+
+	if (bOutOfMemForQueue || bGameThreadStarved)
 	{
 		Tick(0.f); // Try to free up some memory
 	}
@@ -200,12 +301,13 @@ bool FAsyncCompressedAnimationsManagement::RequestAsyncCompression(FDerivedDataA
 	const bool bCanRunASync = (ActiveMemoryUsage + NewTaskSize < MAX_ASYNC_COMPRESSION_MEM_USAGE);
 	const bool bForceSync = false; //debugging override
 
+
 	if (bCanRunASync && !bForceSync)
 	{
 		//Queue Async
 		ActiveMemoryUsage += NewTaskSize;
 
-		if(ActiveAsyncCompressionTasks.Num() < MAX_ACTIVE_COMPRESSIONS)
+		if(ActiveAsyncCompressionTasks.Num() < MaxActiveCompressions)
 		{
 			StartAsyncWork(Compressor, Anim, NewTaskSize, bPerformFrameStripping);
 		}
@@ -220,6 +322,9 @@ bool FAsyncCompressedAnimationsManagement::RequestAsyncCompression(FDerivedDataA
 		GetDerivedDataCacheRef().GetSynchronous(&Compressor, OutData);
 		bWasAsync = false;
 	}
+
+	StartQueuedTasks(MaxActiveCompressions);
+
 	return bWasAsync;
 }
 

@@ -489,41 +489,48 @@ UObject* StaticFindObjectFastExplicit( const UClass* ObjectClass, FName ObjectNa
 	return Result;
 }
 
-static FName SplitInnerAndOuter(const TCHAR* OuterAndInner, const TCHAR* Delimiter, FName& OutOuter, uint32 InnerNumber)
+// Splits an object path into FNames representing an outer chain.
+//
+// Input path examples: "Object", "Package.Object", "Object:Subobject", "Object:Subobject.Nested", "Package.Object:Subobject", "Package.Object:Subobject.NestedSubobject"
+struct FObjectSearchPath
 {
-	check(*Delimiter == ':');
+	FName Inner;
+	TArray<FName, TInlineAllocator<8>> Outers;
 
-	int32 OuterLen = static_cast<int32>(Delimiter - OuterAndInner);
-	OutOuter = FName(OuterLen, OuterAndInner);
-	return FName(Delimiter + 1, InnerNumber);
-}
-
-static FName ExtractInnerAndOuterFromPath(FName ObjectPath, FName& OutOuter)
-{
-	TCHAR PathBuffer[NAME_SIZE];
-	ObjectPath.GetPlainNameString(PathBuffer);
-
-	// Find package separator . or subobject separator :
-	constexpr FAsciiSet DotColon(".:");
-	const TCHAR* Path = PathBuffer;
-	while (true)
+	explicit FObjectSearchPath(FName InPath)
 	{
-		const TCHAR* DelimiterOrEnd = FAsciiSet::FindFirstOrEnd(Path, DotColon);
+		TCHAR Buffer[NAME_SIZE];
+		InPath.GetPlainNameString(Buffer);
 
-		if (*DelimiterOrEnd == '\0')
+		constexpr FAsciiSet DotColon(".:");
+		const TCHAR* Begin = Buffer;
+		const TCHAR* End = FAsciiSet::FindFirstOrEnd(Begin, DotColon);
+		while (*End != '\0')
 		{
-			return Path == PathBuffer ? ObjectPath : FName(Path, ObjectPath.GetNumber());
-		}
-		else if (*DelimiterOrEnd == ':')
-		{
-			return SplitInnerAndOuter(Path, DelimiterOrEnd, OutOuter, ObjectPath.GetNumber());
+			Outers.Add(FName(End - Begin, Begin));
+
+			Begin = End + 1;
+			End = FAsciiSet::FindFirstOrEnd(Begin, DotColon);
 		}
 
-		// We have a package prefix, drop it
-		check(*DelimiterOrEnd == '.');
-		Path = DelimiterOrEnd + 1;
+		Inner = Outers.Num() == 0 ? InPath : FName(FStringView(Begin, End - Begin), InPath.GetNumber());
 	}
-}
+
+	bool MatchOuterNames(UObject* Outer) const
+	{
+		for (int32 Idx = Outers.Num() - 1; Idx >= 0; --Idx)
+		{
+			if (!Outer || Outers[Idx] != Outer->GetFName())
+			{
+				return false;
+			}
+
+			Outer = Outer->GetOuter();
+		}
+
+		return true;
+	}
+};
 
 UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, const UClass* ObjectClass, const UObject* ObjectPackage, FName ObjectName, bool bExactClass, bool bAnyPackage, EObjectFlags ExcludeFlags, EInternalObjectFlags ExclusiveInternalFlags)
 {
@@ -571,11 +578,9 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 	}
 	else
 	{
-		// Find an object with the specified name and (optional) class, in any package; if bAnyPackage is false, only matches top-level packages
-		FName VerifyOuterName;
-		FName ActualObjectName = ExtractInnerAndOuterFromPath(ObjectName, /* out*/ VerifyOuterName);
+		FObjectSearchPath SearchPath(ObjectName);
 
-		const int32 Hash = GetObjectHash(ActualObjectName);
+		const int32 Hash = GetObjectHash(SearchPath.Inner);
 		FHashTableLock HashLock(ThreadHash);
 
 		FHashBucket* Bucket = ThreadHash.Hash.Find(Hash);
@@ -584,8 +589,11 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 			for (FHashBucketIterator It(*Bucket); It; ++It)
 			{
 				UObject* Object = (UObject*)*It;
+
+				checkSlow(Object->GetFName() != SearchPath.Inner || SearchPath.MatchOuterNames(Object->GetOuter()) == Object->GetPathName().EndsWith(ObjectName.ToString()));
+
 				if
-					((Object->GetFName() == ActualObjectName)
+					((Object->GetFName() == SearchPath.Inner)
 
 					/* Don't return objects that have any of the exclusive flags set */
 					&& !Object->HasAnyFlags(ExcludeFlags)
@@ -602,12 +610,12 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 					&& !Object->HasAnyInternalFlags(ExclusiveInternalFlags)
 
 					/** Ensure that the partial path provided matches the object found */
-					&& (VerifyOuterName.IsNone() || (Object->GetOuter() && Object->GetOuter()->GetFName() == VerifyOuterName)))
+					&& SearchPath.MatchOuterNames(Object->GetOuter()))
 				{
 					checkf(!Object->IsUnreachable(), TEXT("%s"), *Object->GetFullName());
 					if (Result)
 					{
-						UE_LOG(LogUObjectHash, Warning, TEXT("Ambiguous search, could be %s or %s"), *GetFullNameSafe(Result), *GetFullNameSafe(Object));
+						UE_LOG(LogUObjectHash, Warning, TEXT("Ambiguous path search, could be %s or %s"), *GetFullNameSafe(Result), *GetFullNameSafe(Object));
 					}
 					else
 					{

@@ -241,7 +241,7 @@ namespace AudioModulation
 	{
 	}
 
-	FModulationInputProxy::FModulationInputProxy(const FSoundModulationInputBase& Input, FReferencedProxies& OutRefProxies)
+	FModulationInputProxy::FModulationInputProxy(const FSoundModulationInputBase& Input, FReferencedProxies& OutRefProxies, FAudioModulationImpl& ModulationImpl)
 		: Transform(Input.Transform)
 		, bSampleAndHold(Input.bSampleAndHold)
 	{
@@ -252,7 +252,7 @@ namespace AudioModulation
 			{
 				NewProxy.InitLFOs(*Bus, RefProxies->LFOs);
 			};
-			BusHandle = FBusHandle::Create(*Bus, OutRefProxies.Buses, OnCreate);
+			BusHandle = FBusHandle::Create(*Bus, OutRefProxies.Buses, ModulationImpl, OnCreate);
 		}
 	}
 
@@ -277,7 +277,7 @@ namespace AudioModulation
 	{
 	}
 
-	FModulationPatchProxy::FModulationPatchProxy(const FSoundModulationPatchBase& Patch, FReferencedProxies& OutRefProxies)
+	FModulationPatchProxy::FModulationPatchProxy(const FSoundModulationPatchBase& Patch, FReferencedProxies& OutRefProxies, FAudioModulationImpl& InModulationImpl)
 		: DefaultInputValue(Patch.DefaultInputValue)
 		, bBypass(Patch.bBypass)
 		, OutputProxy(*Patch.GetOutput())
@@ -285,7 +285,7 @@ namespace AudioModulation
 		TArray<const FSoundModulationInputBase*> Inputs = Patch.GetInputs();
 		for (const FSoundModulationInputBase* Input : Inputs)
 		{
-			InputProxies.Emplace_GetRef(*Input, OutRefProxies);
+			InputProxies.Emplace_GetRef(*Input, OutRefProxies, InModulationImpl);
 		}
 	}
 
@@ -306,24 +306,16 @@ namespace AudioModulation
 		Highpass.OutputProxy.Operator = ESoundModulatorOperator::Max;
 	}
 
-	FModulationSettingsProxy::FModulationSettingsProxy(const USoundModulationSettings& Settings, FReferencedProxies& OutRefProxies)
+	FModulationSettingsProxy::FModulationSettingsProxy(const USoundModulationSettings& Settings, FReferencedProxies& OutRefProxies, FAudioModulationImpl& InModulationImpl)
 		: TModulatorProxyBase<uint32>(Settings.GetName(), Settings.GetUniqueID())
-		, Volume(Settings.Volume, OutRefProxies)
-		, Pitch(Settings.Pitch, OutRefProxies)
-		, Lowpass(Settings.Lowpass, OutRefProxies)
-		, Highpass(Settings.Highpass, OutRefProxies)
+		, Volume(Settings.Volume, OutRefProxies, InModulationImpl)
+		, Pitch(Settings.Pitch, OutRefProxies, InModulationImpl)
+		, Lowpass(Settings.Lowpass, OutRefProxies, InModulationImpl)
+		, Highpass(Settings.Highpass, OutRefProxies, InModulationImpl)
 	{
 		for (const FSoundControlModulationPatch& Patch : Settings.Controls)
 		{
-			Controls.Add(Patch.Control, FModulationPatchProxy(Patch, OutRefProxies));
-		}
-
-		for (const USoundControlBusMix* Mix : Settings.Mixes)
-		{
-			if (Mix)
-			{
-				Mixes.Add(FBusMixHandle::Create(*Mix, OutRefProxies.BusMixes));
-			}
+			Controls.Add(Patch.Control, FModulationPatchProxy(Patch, OutRefProxies, InModulationImpl));
 		}
 	}
 } // namespace AudioModulation

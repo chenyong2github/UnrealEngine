@@ -483,7 +483,7 @@ void SDeviceProfileEditor::HandleDeviceProfilePinned( const TWeakObjectPtr< UDev
 		DeviceProfiles.Add( DeviceProfile.Get() );
 		RebuildPropertyTable();
 
-		TabManager->InvokeTab(DeviceProfileEditorTabName);
+		TabManager->TryInvokeTab(DeviceProfileEditorTabName);
 	}
 }
 
@@ -495,7 +495,7 @@ void SDeviceProfileEditor::HandleDeviceProfileUnpinned( const TWeakObjectPtr< UD
 		DeviceProfiles.Remove( DeviceProfile.Get() );
 		RebuildPropertyTable();
 
-		TabManager->InvokeTab(DeviceProfileEditorTabName);
+		TabManager->TryInvokeTab(DeviceProfileEditorTabName);
 	}
 }
 
@@ -514,7 +514,7 @@ void SDeviceProfileEditor::HandleDeviceProfileViewAlone( const TWeakObjectPtr< U
 			.SetGroup(DeviceManagerMenuGroup.ToSharedRef());
 	}
 
-	TabManager->InvokeTab(TabId);
+	TabManager->TryInvokeTab(TabId);
 }
 
 

@@ -173,7 +173,7 @@ enum ERenamePinResult
  * Abstract base class of all blueprint graph nodes.
  */
 UCLASS(abstract, MinimalAPI)
-class BLUEPRINTGRAPH_VTABLE UK2Node : public UEdGraphNode
+class UK2Node : public UEdGraphNode
 {
 	GENERATED_UCLASS_BODY()
 
@@ -396,6 +396,7 @@ class BLUEPRINTGRAPH_VTABLE UK2Node : public UEdGraphNode
 
 	BLUEPRINTGRAPH_API virtual int32 GetNodeRefreshPriority() const { return EBaseNodeRefreshPriority::Normal; }
 
+	BLUEPRINTGRAPH_API bool DoesWildcardPinAcceptContainer(const UEdGraphPin* Pin);
 	BLUEPRINTGRAPH_API virtual bool DoesInputWildcardPinAcceptArray(const UEdGraphPin* Pin) const { return true; }
 	BLUEPRINTGRAPH_API virtual bool DoesOutputWildcardPinAcceptContainer(const UEdGraphPin* Pin) const { return true; }
 
@@ -404,6 +405,9 @@ class BLUEPRINTGRAPH_VTABLE UK2Node : public UEdGraphNode
 
 	/** Return whether this node references the specified variable, give the supplied scope. Used when variable types are changed. */
 	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const { return false; }
+
+	/** Helper function for ExpandNode(), allowing other contexts to call pin expansion alone */
+	BLUEPRINTGRAPH_API void ExpandSplitPins(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph);
 
 protected:
 

@@ -19,3 +19,34 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = BuildSettings)
 	FGroomBuildSettings BuildSettings;
 };
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
+{
+	GENERATED_USTRUCT_BODY()
+
+	FGroomHairGroupPreview()
+	: GroupID(0)
+	, CurveCount(0)
+	, GuideCount(0)
+	{}
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
+	int32 GroupID;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
+	int32 CurveCount;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
+	int32 GuideCount;
+};
+
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, HideCategories = ("Hidden"))
+class HAIRSTRANDSCORE_API UGroomHairGroupsPreview : public UObject
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	UPROPERTY(config, VisibleAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Preview)
+	TArray<FGroomHairGroupPreview> Groups;
+};

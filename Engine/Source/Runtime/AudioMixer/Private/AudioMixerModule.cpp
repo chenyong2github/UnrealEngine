@@ -9,6 +9,8 @@ public:
 
 	virtual void StartupModule() override
 	{
+		FModuleManager::Get().LoadModuleChecked(TEXT("AudioMixerCore"));
+		FModuleManager::Get().LoadModuleChecked(TEXT("SignalProcessing"));
 	}
 };
 

@@ -59,6 +59,7 @@ public:
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -112,3 +113,15 @@ private:
 	
 };
 
+// work around for the private nature of FVectorFieldResource
+struct ENGINE_API FVectorFieldTextureAccessor
+{
+	FVectorFieldTextureAccessor(UVectorField* InVectorField);
+	FVectorFieldTextureAccessor(const FVectorFieldTextureAccessor& rhs);
+	~FVectorFieldTextureAccessor();
+
+	FRHITexture* GetTexture() const;
+
+private:
+	TUniquePtr<struct FVectorFieldTextureAccessorImpl> Impl;
+};

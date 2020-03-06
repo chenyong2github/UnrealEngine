@@ -174,9 +174,9 @@ void ProcessPixelInspectorRequests(
 			}
 
 			//////////////////////////////////////////////////////////////////////////
-			// GBuffer BCDE
-			const FTexture2DRHIRef &DestinationBufferBCDE = PixelInspectorData.RenderTargetBufferBCDE[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
-			if (DestinationBufferBCDE.IsValid())
+			// GBuffer BCDEF
+			const FTexture2DRHIRef &DestinationBufferBCDEF = PixelInspectorData.RenderTargetBufferBCDEF[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
+			if (DestinationBufferBCDEF.IsValid())
 			{
 				const FIntVector SourcePoint(
 					FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
@@ -187,51 +187,63 @@ void ProcessPixelInspectorRequests(
 				if (SceneTextures.SceneGBufferB)
 				{
 					FRHITexture* SourceBufferB = SceneTextures.SceneGBufferB->GetRHI();
-					if (DestinationBufferBCDE->GetFormat() == SourceBufferB->GetFormat())
+					if (DestinationBufferBCDEF->GetFormat() == SourceBufferB->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
 						CopyInfo.Size = FIntVector(1, 1, 1);
-						RHICmdList.CopyTexture(SourceBufferB, DestinationBufferBCDE, CopyInfo);
+						RHICmdList.CopyTexture(SourceBufferB, DestinationBufferBCDEF, CopyInfo);
 					}
 				}
 
 				if (SceneTextures.SceneGBufferC)
 				{
 					FRHITexture* SourceBufferC = SceneTextures.SceneGBufferC->GetRHI();
-					if (DestinationBufferBCDE->GetFormat() == SourceBufferC->GetFormat())
+					if (DestinationBufferBCDEF->GetFormat() == SourceBufferC->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
 						CopyInfo.DestPosition = FIntVector(1, 0, 0);
 						CopyInfo.Size = FIntVector(1, 1, 1);
-						RHICmdList.CopyTexture(SourceBufferC, DestinationBufferBCDE, CopyInfo);
+						RHICmdList.CopyTexture(SourceBufferC, DestinationBufferBCDEF, CopyInfo);
 					}
 				}
 
 				if (SceneTextures.SceneGBufferD)
 				{
 					FRHITexture* SourceBufferD = SceneTextures.SceneGBufferD->GetRHI();
-					if (DestinationBufferBCDE->GetFormat() == SourceBufferD->GetFormat())
+					if (DestinationBufferBCDEF->GetFormat() == SourceBufferD->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
 						CopyInfo.DestPosition = FIntVector(2, 0, 0);
 						CopyInfo.Size = FIntVector(1, 1, 1);
-						RHICmdList.CopyTexture(SourceBufferD, DestinationBufferBCDE, CopyInfo);
+						RHICmdList.CopyTexture(SourceBufferD, DestinationBufferBCDEF, CopyInfo);
 					}
 				}
 
 				if (SceneTextures.SceneGBufferE)
 				{
 					FRHITexture* SourceBufferE = SceneTextures.SceneGBufferE->GetRHI();
-					if (DestinationBufferBCDE->GetFormat() == SourceBufferE->GetFormat())
+					if (DestinationBufferBCDEF->GetFormat() == SourceBufferE->GetFormat())
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.SourcePosition = SourcePoint;
 						CopyInfo.DestPosition = FIntVector(3, 0, 0);
 						CopyInfo.Size = FIntVector(1, 1, 1);
-						RHICmdList.CopyTexture(SourceBufferE, DestinationBufferBCDE, CopyInfo);
+						RHICmdList.CopyTexture(SourceBufferE, DestinationBufferBCDEF, CopyInfo);
+					}
+				}
+
+				if (SceneTextures.SceneGBufferF)
+				{
+					FRHITexture* SourceBufferF = SceneTextures.SceneGBufferF->GetRHI();
+					if (DestinationBufferBCDEF->GetFormat() == SourceBufferF->GetFormat())
+					{
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourcePosition = SourcePoint;
+						CopyInfo.Size = FIntVector(1, 1, 1);
+						RHICmdList.CopyTexture(SourceBufferF, DestinationBufferBCDEF, CopyInfo);
 					}
 				}
 			}

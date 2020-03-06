@@ -59,6 +59,8 @@ struct FSSDSignalSample
 	
 	// Blur radius allowed for this sample, valid only if SampleCount == 1.
 	float WorldBluringRadius;
+
+	float TransmissionDistance;
 };
 
 /** Array of signal samples. Technically should be a typedef, but there is a bug in HLSL with the out operator of an array. */
@@ -100,6 +102,7 @@ FSSDSignalSample CreateSignalSampleFromScalarValue(float Scalar)
 	OutSample.MissCount = Scalar;
 	OutSample.ClosestHitDistance = Scalar;
 	OutSample.WorldBluringRadius = Scalar;
+	OutSample.TransmissionDistance = Scalar;
 	return OutSample;
 }
 
@@ -142,6 +145,7 @@ FSSDSignalSample MulSignal(FSSDSignalSample Sample, float Scalar)
 	OutSample.MissCount              = Sample.MissCount * Scalar;
 	OutSample.ClosestHitDistance     = Sample.ClosestHitDistance * Scalar;
 	OutSample.WorldBluringRadius     = Sample.WorldBluringRadius * Scalar;
+	OutSample.TransmissionDistance   = Sample.TransmissionDistance * Scalar;
 	return OutSample;
 }
 
@@ -164,6 +168,7 @@ FSSDSignalSample AddSignal(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 	SampleA.MissCount              += SampleB.MissCount;
 	SampleA.ClosestHitDistance     += SampleB.ClosestHitDistance;
 	SampleA.WorldBluringRadius     += SampleB.WorldBluringRadius;
+	SampleA.TransmissionDistance   += SampleB.TransmissionDistance;
 	return SampleA;
 }
 
@@ -186,6 +191,7 @@ FSSDSignalSample MinusSignal(FSSDSignalSample Sample)
 	Sample.MissCount              = -Sample.MissCount;
 	Sample.ClosestHitDistance     = -Sample.ClosestHitDistance;
 	Sample.WorldBluringRadius     = -Sample.WorldBluringRadius;
+	Sample.TransmissionDistance   = -Sample.TransmissionDistance;
 	return Sample;
 }
 
@@ -225,6 +231,7 @@ FSSDSignalSample AbsSignal(FSSDSignalSample Sample)
 	Sample.MissCount              = abs(Sample.MissCount);
 	Sample.ClosestHitDistance     = abs(Sample.ClosestHitDistance);
 	Sample.WorldBluringRadius     = abs(Sample.WorldBluringRadius);
+	Sample.TransmissionDistance = abs(Sample.TransmissionDistance);
 	return Sample;
 }
 
@@ -259,6 +266,7 @@ FSSDSignalSample SqrtSignal(FSSDSignalSample Sample)
 	Sample.MissCount              = sqrt(Sample.MissCount);
 	Sample.ClosestHitDistance     = sqrt(Sample.ClosestHitDistance);
 	Sample.WorldBluringRadius     = sqrt(Sample.WorldBluringRadius);
+	Sample.TransmissionDistance   = sqrt(Sample.TransmissionDistance);
 	return Sample;
 }
 
@@ -296,6 +304,7 @@ FSSDSignalSample PowerSignal(FSSDSignalSample Sample, float Exponent)
 	Sample.MissCount              = pow(Sample.MissCount, Exponent);
 	Sample.ClosestHitDistance     = pow(Sample.ClosestHitDistance, Exponent);
 	Sample.WorldBluringRadius     = pow(Sample.WorldBluringRadius, Exponent);
+	Sample.TransmissionDistance   = pow(Sample.TransmissionDistance, Exponent);
 	return Sample;
 }
 
@@ -331,6 +340,7 @@ FSSDSignalSample MinSignal(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 	OutSample.MissCount = min(SampleA.MissCount, SampleB.MissCount);
 	OutSample.ClosestHitDistance = min(SampleA.ClosestHitDistance, SampleB.ClosestHitDistance);
 	OutSample.WorldBluringRadius = min(SampleA.WorldBluringRadius, SampleB.WorldBluringRadius);
+	OutSample.TransmissionDistance = min(SampleA.TransmissionDistance, SampleB.TransmissionDistance);
 	return OutSample;
 }
 
@@ -366,6 +376,7 @@ FSSDSignalSample MaxSignal(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 	OutSample.MissCount = max(SampleA.MissCount, SampleB.MissCount);
 	OutSample.ClosestHitDistance = max(SampleA.ClosestHitDistance, SampleB.ClosestHitDistance);
 	OutSample.WorldBluringRadius = max(SampleA.WorldBluringRadius, SampleB.WorldBluringRadius);
+	OutSample.TransmissionDistance = max(SampleA.TransmissionDistance, SampleB.TransmissionDistance);
 	return OutSample;
 }
 
@@ -401,6 +412,7 @@ FSSDSignalSample ClampSignal(FSSDSignalSample Sample, FSSDSignalSample SampleMin
 	OutSample.MissCount = clamp(Sample.MissCount, SampleMin.MissCount, SampleMax.MissCount);
 	OutSample.ClosestHitDistance = clamp(Sample.ClosestHitDistance, SampleMin.ClosestHitDistance, SampleMax.ClosestHitDistance);
 	OutSample.WorldBluringRadius = clamp(Sample.WorldBluringRadius, SampleMin.WorldBluringRadius, SampleMax.WorldBluringRadius);
+	OutSample.TransmissionDistance = clamp(Sample.TransmissionDistance, SampleMin.TransmissionDistance, SampleMax.TransmissionDistance);
 	return OutSample;
 }
 
@@ -449,5 +461,6 @@ FSSDSignalSample WaveBroadcastSignal(const FWaveBroadcastSettings BroadcastSetti
 	OutSample.MissCount          = WaveBroadcast(BroadcastSettings, Sample.MissCount);
 	OutSample.ClosestHitDistance = WaveBroadcast(BroadcastSettings, Sample.ClosestHitDistance);
 	OutSample.WorldBluringRadius = WaveBroadcast(BroadcastSettings, Sample.WorldBluringRadius);
+	OutSample.TransmissionDistance = WaveBroadcast(BroadcastSettings, Sample.TransmissionDistance);
 	return OutSample;
 }

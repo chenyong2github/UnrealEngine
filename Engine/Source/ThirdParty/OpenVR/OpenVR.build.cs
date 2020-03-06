@@ -51,7 +51,6 @@ public class OpenVR : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
 		{
 			LibraryPath += "linux64/";
-			//PublicLibraryPaths.Add(LibraryPath);
 			PublicAdditionalLibraries.Add(LibraryPath + "libopenvr_api.so");
 
 			string DylibDir = Target.UEThirdPartyBinariesDirectory + "OpenVR/OpenVR" + OpenVRVersion + "/linux64";

@@ -16,7 +16,7 @@
 
 struct FCachedWindowRect
 {
-	FCachedWindowRect() : WindowWidth(-1), WindowHeight(-1), WindowInit(false), ContentScaleFactor(-1.0f), bLastMosaicState(false), Window_EventThread(nullptr)
+	FCachedWindowRect() : WindowWidth(-1), WindowHeight(-1), WindowInit(false), ContentScaleFactor(-1.0f), Window_EventThread(nullptr)
 	{
 	}
 
@@ -24,7 +24,6 @@ struct FCachedWindowRect
 	int32 WindowHeight;
 	bool WindowInit;
 	float ContentScaleFactor;
-	bool bLastMosaicState;
 	ANativeWindow* Window_EventThread;
 };
 
@@ -267,7 +266,7 @@ void* FAndroidWindow::WaitForHardwareWindow()
 extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
-bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const bool bMosaicEnabled, const float RequestedContentScaleFactor, ANativeWindow* Window)
+bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const float RequestedContentScaleFactor, ANativeWindow* Window)
 {
 	// window must be valid when bUseEventThreadWindow and null when !bUseEventThreadWindow.
 	check((Window != nullptr) == bUseEventThreadWindow);
@@ -280,12 +279,6 @@ bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const bool bM
 	}
 
 	bool bValidCache = true;
-
-	if (CachedRect.bLastMosaicState != bMosaicEnabled)
-	{
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** Mosaic State change (to %s), not using res cache (%d)"), bMosaicEnabled ? TEXT("enabled") : TEXT("disabled"), (int32)bUseEventThreadWindow);
-		bValidCache = false;
-	}
 
 	if (CachedRect.ContentScaleFactor != RequestedContentScaleFactor )
 	{
@@ -308,7 +301,7 @@ bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const bool bM
 	return bValidCache;
 }
 
-void FAndroidWindow::CacheRect(bool bUseEventThreadWindow, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, const bool bMosaicEnabled, ANativeWindow* Window)
+void FAndroidWindow::CacheRect(bool bUseEventThreadWindow, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, ANativeWindow* Window)
 {
 	check(Window != nullptr || !bUseEventThreadWindow);
 
@@ -318,7 +311,6 @@ void FAndroidWindow::CacheRect(bool bUseEventThreadWindow, const int32 Width, co
 	CachedRect.WindowHeight = Height;
 	CachedRect.WindowInit = true;
 	CachedRect.ContentScaleFactor = RequestedContentScaleFactor;
-	CachedRect.bLastMosaicState = bMosaicEnabled;
 	CachedRect.Window_EventThread = Window;
 }
 
@@ -373,9 +365,6 @@ FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 		bUseEventThreadWindow = true;
 	}
 
-	// determine mosaic requirements:
-	const bool bMosaicEnabled = AndroidWindowUtils::ShouldEnableMosaic() && !(bIsOculusMobileApp || bIsDaydreamApp);
-
 	// CSF is a multiplier to 1280x720
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
 	// If the app is for Oculus Mobile then always use 0 as ScaleFactor (to match window size).
@@ -389,7 +378,7 @@ FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 
 	// since orientation won't change on Android, use cached results if still valid. Different cache is maintained for event_thread flavor.
 	ANativeWindow* Window = bUseEventThreadWindow ? (ANativeWindow*)FAndroidWindow::GetHardwareWindow_EventThread() : nullptr;
-	bool bComputeRect = !IsCachedRectValid(bUseEventThreadWindow, bMosaicEnabled, RequestedContentScaleFactor, Window);
+	bool bComputeRect = !IsCachedRectValid(bUseEventThreadWindow, RequestedContentScaleFactor, Window);
 	if (bComputeRect)
 	{
 		// currently hardcoding resolution
@@ -404,17 +393,11 @@ FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 
 		if (!bIsOculusMobileApp)
 		{
-			bool bSupportsES30 = FAndroidMisc::SupportsES30();
-			if (!bIsDaydreamApp && !bSupportsES30)
-			{
-				AndroidWindowUtils::ApplyMosaicRequirements(ScreenWidth, ScreenHeight);
-			}
-
 			AndroidWindowUtils::ApplyContentScaleFactor(ScreenWidth, ScreenHeight);
 		}
 
 		// save for future calls
-		CacheRect(bUseEventThreadWindow, ScreenWidth, ScreenHeight, RequestedContentScaleFactor, bMosaicEnabled, Window);
+		CacheRect(bUseEventThreadWindow, ScreenWidth, ScreenHeight, RequestedContentScaleFactor, Window);
 	}
 
 	const FCachedWindowRect& CachedRect = bUseEventThreadWindow ? CachedWindowRect_EventThread : CachedWindowRect;

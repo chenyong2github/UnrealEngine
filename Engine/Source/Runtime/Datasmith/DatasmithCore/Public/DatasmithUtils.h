@@ -60,6 +60,37 @@ public:
 		YUp_RightHanded,
 	};
 
+	static void ConvertVectorArray(EModelCoordSystem ModelCoordSys, TArray<FVector>& Array)
+	{
+		switch (ModelCoordSys)
+		{
+		case EModelCoordSystem::YUp_LeftHanded:
+			for (FVector& Vector : Array)
+			{
+				Vector.Set(Vector[2], Vector[0], Vector[1]);
+			}
+			break;
+
+		case EModelCoordSystem::YUp_RightHanded:
+			for (FVector& Vector : Array)
+			{
+				Vector.Set(-Vector[2], Vector[0], Vector[1]);
+			}
+			break;
+
+		case EModelCoordSystem::ZUp_RightHanded:
+			for (FVector& Vector : Array)
+			{
+				Vector.Set(-Vector[0], Vector[1], Vector[2]);
+			}
+			break;
+
+		case EModelCoordSystem::ZUp_LeftHanded:
+		default:
+			break;
+		}
+	}
+
 	template<typename VecType>
 	static FVector ConvertVector(EModelCoordSystem ModelCoordSys, const VecType& V)
 	{

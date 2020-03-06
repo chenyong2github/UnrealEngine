@@ -200,18 +200,21 @@ void FTakeRecorderModule::RegisterMenus()
 					[LevelSequence]
 					{
 						FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-						TSharedRef<SDockTab> DockTab = LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(ITakeRecorderModule::TakeRecorderTabName);
-						TSharedRef<STakeRecorderTabContent> TabContent = StaticCastSharedRef<STakeRecorderTabContent>(DockTab->GetContent());
+						TSharedPtr<SDockTab> DockTab = LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(ITakeRecorderModule::TakeRecorderTabName);
+						if (DockTab.IsValid())
+						{
+							TSharedRef<STakeRecorderTabContent> TabContent = StaticCastSharedRef<STakeRecorderTabContent>(DockTab->GetContent());
 
-						// If this sequence has already been recorded, set it up for viewing, otherwise start recording from it.
-						UTakeMetaData* TakeMetaData = LevelSequence->FindMetaData<UTakeMetaData>();
-						if (!TakeMetaData || !TakeMetaData->Recorded())
-						{
-							TabContent->SetupForRecording(LevelSequence);
-						}
-						else
-						{
-							TabContent->SetupForViewing(LevelSequence);
+							// If this sequence has already been recorded, set it up for viewing, otherwise start recording from it.
+							UTakeMetaData* TakeMetaData = LevelSequence->FindMetaData<UTakeMetaData>();
+							if (!TakeMetaData || !TakeMetaData->Recorded())
+							{
+								TabContent->SetupForRecording(LevelSequence);
+							}
+							else
+							{
+								TabContent->SetupForViewing(LevelSequence);
+							}
 						}
 					}
 				)

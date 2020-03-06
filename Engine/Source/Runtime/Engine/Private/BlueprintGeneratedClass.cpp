@@ -22,6 +22,7 @@
 #include "Misc/ScopeLock.h"
 #include "UObject/CoreObjectVersion.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "UObject/CoreObjectVersion.h"
 
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -76,7 +77,7 @@ void UBlueprintGeneratedClass::PostInitProperties()
 
 void UBlueprintGeneratedClass::PostLoad()
 {
-	Super::PostLoad();
+	Super::PostLoad();	
 
 #if WITH_EDITORONLY_DATA
 	UPackage* Package = GetOutermost();
@@ -436,8 +437,22 @@ bool UBlueprintGeneratedClass::BuildCustomPropertyListForPostConstruction(FCusto
 					*CurrentNodePtr = new FCustomPropertyListNode(Property, Idx);
 					CustomPropertyListForPostConstruction.Add(*CurrentNodePtr);
 
-					// Recursively gather up all struct fields that differ and assign to the current node's sub property list.
-					if (BuildCustomPropertyListForPostConstruction((*CurrentNodePtr)->SubPropertyList, StructProperty->Struct, PropertyValue, DefaultPropertyValue))
+					UScriptStruct::ICppStructOps* CppStructOps = nullptr;
+					if (StructProperty->Struct)
+					{
+						CppStructOps = StructProperty->Struct->GetCppStructOps();
+					}
+
+					// Check if we should initialize using the full value (e.g. a USTRUCT with one or more non-reflected fields).
+					bool bIsIdentical = false;
+					const uint32 PortFlags = 0;
+					if(!CppStructOps || !CppStructOps->HasIdentical() || !CppStructOps->Identical(PropertyValue, DefaultPropertyValue, PortFlags, bIsIdentical))
+					{
+						// Recursively gather up all struct fields that differ and assign to the current node's sub property list.
+						bIsIdentical = !BuildCustomPropertyListForPostConstruction((*CurrentNodePtr)->SubPropertyList, StructProperty->Struct, PropertyValue, DefaultPropertyValue);
+					}
+
+					if (!bIsIdentical)
 					{
 						// Advance to the next node in the list.
 						CurrentNodePtr = &(*CurrentNodePtr)->PropertyListNext;
@@ -642,10 +657,14 @@ void UBlueprintGeneratedClass::InitPropertiesFromCustomList(const FCustomPropert
 
 		if (const FStructProperty* StructProperty = CastField<FStructProperty>(CustomPropertyListNode->Property))
 		{
-			// This should never be NULL; we should not be recording the StructProperty without at least one sub property, but we'll verify just to be sure.
-			if (ensure(CustomPropertyListNode->SubPropertyList != nullptr))
+			if (CustomPropertyListNode->SubPropertyList != nullptr)
 			{
 				InitPropertiesFromCustomList(CustomPropertyListNode->SubPropertyList, StructProperty->Struct, PropertyValue, DefaultPropertyValue);
+			}
+			else
+			{
+				// A NULL sub-property list indicates that we should copy the entire default value (e.g. a struct with one or more non-reflected fields).
+				StructProperty->CopySingleValue(PropertyValue, DefaultPropertyValue);
 			}
 		}
 		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CustomPropertyListNode->Property))
@@ -1521,7 +1540,7 @@ void UBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties
 	Super::Link(Ar, bRelinkExistingProperties);
 
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
-	if(UsePersistentUberGraphFrame())
+	if (UsePersistentUberGraphFrame())
 	{
 		if (UberGraphFunction)
 		{
@@ -1860,6 +1879,15 @@ FName UBlueprintGeneratedClass::FindPropertyNameFromGuid(const FGuid& PropertyGu
 {
 	FName RedirectedName = NAME_None;
 #if WITH_EDITORONLY_DATA
+	if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+	{
+		FName NameFromSuper = Super->FindPropertyNameFromGuid(PropertyGuid);
+		if (NameFromSuper != FName())
+		{
+			return NameFromSuper;
+		}
+	}
+
 	if (const FName* Result = PropertyGuids.FindKey(PropertyGuid))
 	{
 		RedirectedName = *Result;
@@ -1875,6 +1903,10 @@ FGuid UBlueprintGeneratedClass::FindPropertyGuidFromName(const FName InName) con
 	if (const FGuid* Result = PropertyGuids.Find(InName))
 	{
 		PropertyGuid = *Result;
+	}
+	else if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+	{
+		PropertyGuid = Super->FindPropertyGuidFromName(InName);
 	}
 #endif // WITH_EDITORONLY_DATA
 	return PropertyGuid;

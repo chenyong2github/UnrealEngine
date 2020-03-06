@@ -8,11 +8,11 @@ public class IntelVTune : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string IntelVTunePath = Target.UEThirdPartySourceDirectory + "IntelVTune/VTune-2017/";
+		string IntelVTunePath = Target.UEThirdPartySourceDirectory + "IntelVTune/VTune-2019/";
 
-		if ( (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32) )
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
-			string PlatformName = (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64" : "Win32";
+			string PlatformName = (Target.Platform == UnrealTargetPlatform.Win32) ? "Win32" : "Win64";
 
 			PublicSystemIncludePaths.Add(IntelVTunePath + "include/");
 

@@ -6,9 +6,6 @@
 #include "stdafx.h"
 #include "SpatialAnchorHelper.h"
 
-#include "wrl/client.h"
-#include "wrl/wrappers/corewrappers.h"
-
 #include <Roapi.h>
 #include <queue>
 
@@ -19,14 +16,15 @@
 
 #include <HolographicSpaceInterop.h>
 #include <SpatialInteractionManagerInterop.h>
-#include <Windows.Graphics.Holographic.h>
-#include <windows.ui.input.spatial.h>
+#include <winrt/Windows.Graphics.Holographic.h>
+#include <winrt/windows.ui.input.spatial.h>
 
 #include <DXGI1_4.h>
 
 #include "winrt/Windows.Graphics.Holographic.h"
 #include "winrt/Windows.Graphics.DirectX.Direct3D11.h"
 #include <Windows.Graphics.DirectX.Direct3D11.interop.h>
+#include <winrt/Windows.Foundation.Collections.h>
 
 // Remoting
 #include <sstream>
@@ -135,6 +133,7 @@ namespace WindowsMixedReality
 	{
 		try
 		{
+			std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
 			if (m_spatialAnchorMap.count(anchorId) == 0)
 			{
 				winrt::Windows::Foundation::Numerics::float3 position(inPosition.x, inPosition.y, inPosition.z);
@@ -166,6 +165,7 @@ namespace WindowsMixedReality
 
 	void SpatialAnchorHelper::RemoveAnchor(const wchar_t* anchorId)
 	{
+		std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
 		if (m_spatialAnchorMap.count(anchorId) != 0)
 		{
 			{ std::wstringstream string; string << L"RemoveAnchor: removing " << anchorId; Log(string); }
@@ -179,6 +179,7 @@ namespace WindowsMixedReality
 
 	bool SpatialAnchorHelper::DoesAnchorExist(const wchar_t* anchorId) const
 	{
+		std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
 		return m_spatialAnchorMap.count(anchorId) != 0;
 	}
 
@@ -186,6 +187,7 @@ namespace WindowsMixedReality
 	{
 		try
 		{
+			std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
 			if (m_spatialAnchorMap.count(anchorId) != 0)
 			{
 				auto anchorItr = m_spatialAnchorMap.find(anchorId);
@@ -245,6 +247,7 @@ namespace WindowsMixedReality
 				}
 			}
 
+			std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
 			auto& iterator = m_spatialAnchorMap.find(anchorId);
 
 			if (iterator == m_spatialAnchorMap.end())
@@ -309,6 +312,7 @@ namespace WindowsMixedReality
 			bool success = true;
 
 			// If access is denied, 'anchorStore' will not be obtained.
+			std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
 			for (auto& pair : m_spatialAnchorMap)
 			{
 				//TODO currently we save all anchors to the store.
@@ -365,12 +369,15 @@ namespace WindowsMixedReality
 				}
 
 				// If we already have an anchor of this key overwrite it with the saved one.
-				if (m_spatialAnchorMap.count(KeyView.data()) != 0)
+				std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
 				{
-					{ std::wstringstream string; string << L"LoadAnchors:   Overwriting"; Log(string); }
-					m_spatialAnchorMap.erase(KeyView.data());
+					if (m_spatialAnchorMap.count(KeyView.data()) != 0)
+					{
+						{ std::wstringstream string; string << L"LoadAnchors:   Overwriting"; Log(string); }
+						m_spatialAnchorMap.erase(KeyView.data());
+					}
+					m_spatialAnchorMap.insert(std::make_pair(KeyView.data(), pair.Value()));
 				}
-				m_spatialAnchorMap.insert(std::make_pair(KeyView.data(), pair.Value()));
 				SubscribeToRawCoordinateSystemAdjusted(pair.Value(), KeyView.data());
 				anchorIdWritingFunctionPointer(KeyView.data());
 			}
@@ -437,6 +444,24 @@ namespace WindowsMixedReality
 		}
 
 		return false;
+	}
+
+	winrt::Windows::Perception::Spatial::SpatialAnchor* SpatialAnchorHelper::GetSpatialAnchor(const wchar_t* anchorId)
+	{
+		std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
+		auto& iterator = m_spatialAnchorMap.find(anchorId);
+		if (iterator == m_spatialAnchorMap.end())
+		{
+			return nullptr;
+		}
+		return &(iterator->second);
+	}
+
+	void SpatialAnchorHelper::StoreSpatialAnchor(const std::wstring& anchorId, winrt::Windows::Perception::Spatial::SpatialAnchor& newAnchor)
+	{
+		std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
+		auto pair = m_spatialAnchorMap.insert_or_assign(anchorId, newAnchor);
+		assert(pair.second);
 	}
 
 	void SpatialAnchorHelper::SetLogCallback(void(*functionPointer)(const wchar_t*))

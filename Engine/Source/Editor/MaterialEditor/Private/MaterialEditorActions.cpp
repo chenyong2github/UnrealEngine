@@ -62,7 +62,6 @@ void FMaterialEditorCommands::RegisterCommands()
 	UI_COMMAND(QualityLevel_Low, "Low", "Sets node preview to low quality.", EUserInterfaceActionType::RadioButton, FInputChord());
 
 	UI_COMMAND(FeatureLevel_All, "All", "Sets node preview to show all feature levels.", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(FeatureLevel_ES2, "ES2", "Sets node preview to show the ES2 feature level.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(FeatureLevel_ES31, "ES3.1", "Sets node preview to show the ES3.1 feature level.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(FeatureLevel_SM4, "SM4", "Sets node preview to show the SM4 feature level.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(FeatureLevel_SM5, "SM5", "Sets node preview to show the SM5 feature level.", EUserInterfaceActionType::RadioButton, FInputChord());

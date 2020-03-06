@@ -7,6 +7,7 @@
 class FBaseTimingTrack;
 class FTimingEventsTrack;
 class ITimingEvent;
+class SWidget;
 
 namespace Insights
 {
@@ -62,6 +63,15 @@ public:
 	/** Finds a track has been added via Add*Track(). */
 	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) = 0;
 
+	/** Get the current marker time */
+	virtual double GetTimeMarker() const = 0;
+
+	/** Set the current marker time */
+	virtual void SetTimeMarker(double InTimeMarker) = 0;
+
+	/** Set the current marker time and center the view on it */
+	virtual void SetAndCenterOnTimeMarker(double InTimeMarker) = 0;
+
 	/** Gets the delegate to be invoked when the selection have been changed. */
 	virtual FSelectionChangedDelegate& OnSelectionChanged() = 0;
 
@@ -79,6 +89,9 @@ public:
 
 	/** Gets the delegate to be invoked when the selected timing event has changed. */
 	virtual FSelectedEventChangedDelegate& OnSelectedEventChanged() = 0;
+
+	/** Add a slot to the overlay */
+	virtual void AddOverlayWidget(const TSharedRef<SWidget>& InWidget) = 0;
 };
 
 } // namespace Insights

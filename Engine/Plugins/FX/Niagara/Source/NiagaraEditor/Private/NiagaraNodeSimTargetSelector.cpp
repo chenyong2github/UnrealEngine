@@ -73,13 +73,23 @@ void UNiagaraNodeSimTargetSelector::Compile(class FHlslNiagaraTranslator* Transl
 	TArray<UEdGraphPin*> OutputPins;
 	GetOutputPins(OutputPins);
 
-	ENiagaraSimTarget SimulationTarget = Translator->GetSimulationTarget();
+	//ENiagaraSimTarget SimulationTarget = Translator->GetSimulationTarget();
+	bool bCPUSim = Translator->IsCompileOptionDefined(TEXT("CPUSim"));
+	bool bGPUSim = Translator->IsCompileOptionDefined(TEXT("GPUComputeSim"));
+
+	if (Translator->GetTargetUsage() >= ENiagaraScriptUsage::Function && Translator->GetTargetUsage() <= ENiagaraScriptUsage::DynamicInput)
+	{
+		// Functions through Dynamic inputs are missing the context, so just use CPU by default.
+		bCPUSim = true;
+	}
+
+
 	int32 VarIdx;
-	if (SimulationTarget == ENiagaraSimTarget::CPUSim)
+	if (bCPUSim/*SimulationTarget == ENiagaraSimTarget::CPUSim*/)
 	{
 		VarIdx = 0;
 	}
-	else if (SimulationTarget == ENiagaraSimTarget::GPUComputeSim)
+	else if (bGPUSim/*SimulationTarget == ENiagaraSimTarget::GPUComputeSim*/)
 	{
 		VarIdx = InputPins.Num() / 2;
 	}

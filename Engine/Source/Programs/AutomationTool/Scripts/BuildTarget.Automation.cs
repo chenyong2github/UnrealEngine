@@ -18,7 +18,10 @@ namespace AutomationTool
 	[Help("platform=PS4+XboxOne", "Platforms to build, join multiple platforms using +")]
 	[Help("configuration=Development+Test", "Configurations to build, join multiple configurations using +")]
 	[Help("target=Editor+Game", "Targets to build, join multiple targets using +")]
-	[Help("notools", "Don't build any tools (UHT, ShaderCompiler, CrashReporter")]
+	[Help("notools", "Don't build any tools (UnrealPak, Lightmass, ShaderCompiler, CrashReporter")]
+	[Help("clean", "Do a clean build")]
+	[Help("NoXGE", "Toggle to disable the distributed build process")]
+	[Help("DisableUnity", "Toggle to disable the unity build system")]
 	public class BuildTarget : BuildCommand
 	{
 		// exposed as a property so projects can derive and set this directly
@@ -32,34 +35,33 @@ namespace AutomationTool
 
 		public bool	  Clean { get; set; }
 
-		protected Dictionary<string, string> TargetNames { get; set; }
+		public bool	  NoTools { get; set; }
+
+		public string UBTArgs { get; set; }
 
 		public BuildTarget()
 		{
 			Platforms = HostPlatform.Current.HostEditorPlatform.ToString();
 			Configurations = "Development";
-
-			TargetNames = new Dictionary<string, string>();
+			UBTArgs = "";
 		}
 
 		public override ExitCode Execute()
 		{
 			string[] Arguments = this.Params;
 
-			string[] DefaultUE4Targets = new string[] { "editor", "game", "client", "server" };
-
 			ProjectName = ParseParamValue("project", ProjectName);
 			Targets = ParseParamValue("target", Targets);
 			Platforms = ParseParamValue("platform", Platforms);
 			Configurations = ParseParamValue("configuration", Configurations);
 			Clean = ParseParam("clean") || Clean;
+			NoTools = ParseParam("NoTools") || NoTools;
+			UBTArgs = ParseParamValue("ubtargs", UBTArgs);
 
 			if (string.IsNullOrEmpty(Targets))
 			{
 				throw new AutomationException("No target specified with -target. Use -help to see all options");
 			}
-
-			bool NoTools = ParseParam("notools");
 
 			IEnumerable<string> TargetList = Targets.Split(new char[] { '+' }, StringSplitOptions.RemoveEmptyEntries);
 			IEnumerable<UnrealTargetConfiguration> ConfigurationList = null;
@@ -96,7 +98,11 @@ namespace AutomationTool
 			}
 
 			FileReference ProjectFile = null;
-			DirectoryReference TargetSource = DirectoryReference.Combine(BuildCommand.EngineDirectory, "Source");
+
+			// default UE4 targets
+			IEnumerable<string> AvailableTargets = new[] { "editor", "game", "client", "server" };
+
+			bool RequireProjectTargets = false;
 
 			if (!string.IsNullOrEmpty(ProjectName))
 			{
@@ -107,43 +113,78 @@ namespace AutomationTool
 					throw new AutomationException("Unable to find uproject file for {0}", ProjectName);
 				}
 
-				TargetSource = DirectoryReference.Combine(ProjectFile.Directory, "Source");
+				ProjectProperties Properties = ProjectUtils.GetProjectProperties(ProjectFile);
+
+				if (Properties.bIsCodeBasedProject)
+				{
+					RequireProjectTargets = true;
+
+					AvailableTargets = Properties.Targets.Select(T => T.Rules.Type.ToString());
+
+					// go through the list of targets such as Editor, Client, Server etc and replace them with their real target names
+					List<string> ActualTargets = new List<string>();
+					foreach (string Target in TargetList)
+					{
+						// Could be Client, but could also be ShooterClient if that's what was explicitly asked for
+						if (Properties.Targets.Any(T => T.TargetName.Equals(Target, StringComparison.OrdinalIgnoreCase)))
+						{
+							ActualTargets.Add(Target);
+						}
+						else
+						{
+							// find targets that match (and there may be multiple...)
+							IEnumerable<string> MatchingTargetTypes = Properties.Targets.Where(T => T.Rules.Type.ToString().Equals(Target, StringComparison.OrdinalIgnoreCase)).Select(T => T.TargetName);
+
+							if (!MatchingTargetTypes.Any())
+							{
+								throw new AutomationException("The {0} is not a valid target for {1}", Target, ProjectName);
+							}
+
+							string ProjectTarget;
+
+							if (MatchingTargetTypes.Count() == 0)
+							{
+								ProjectTarget = MatchingTargetTypes.First();
+							}
+							else
+							{
+								// if multiple targets, pick the one with our name (FN specific!)
+								ProjectTarget = MatchingTargetTypes.Where(T => string.CompareOrdinal(T, 0, ProjectName, 0, 1) == 0).FirstOrDefault();
+							}
+
+							ActualTargets.Add(ProjectTarget);
+						}
+					}
+
+					TargetList = ActualTargets;
+				}
 			}
-			else
+
+			if (!RequireProjectTargets)
 			{
-				Log.TraceInformation("No project specified, will build vanilla UE4 binaries");
-			}
+				Log.TraceInformation("Will build vanilla UE4 targets");
 
-			IEnumerable<string> TargetScripts = DirectoryReference.EnumerateFiles(TargetSource, "*.Target.cs").Select(F => F.GetFileName());
+				List<string> ActualTargets = new List<string>();
 
-			foreach (string TargetName in TargetList)
-			{
-				string TargetScript = TargetScripts.Where(S => S.IndexOf(TargetName, StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
-
-				if (TargetScript == null && (
-						TargetName.Equals("Client", StringComparison.OrdinalIgnoreCase) ||
-						TargetName.Equals("Game", StringComparison.OrdinalIgnoreCase)
-						)
-					)
+				foreach (string Target in TargetList)
 				{
-					// if there's no ProjectGame.Target.cs or ProjectClient.Target.cs then
-					// fallback to Project.Target.cs
-					TargetScript = TargetScripts.Where(S => S.IndexOf(ProjectName + ".", StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
+					// If they asked for editor, client etc then give them the UE version
+					if (AvailableTargets.Contains(Target.ToLower()))
+					{
+						ActualTargets.Add("UE4" + Target);
+					}
+					else
+					{
+						// or just build what they want and let later code figure out if that's valid. E.g. "UnrealPak"
+						ActualTargets.Add(Target);
+					}
 				}
 
-				// IF we found a script for a target, then that is our build target (e.g. QAGame for Game)
-				if (TargetScript != null)
-				{
-					TargetNames[TargetName] = Regex.Replace(TargetScript, ".Target.cs", "", RegexOptions.IgnoreCase);
-				}
-				else
-				{
-					// else just build what they asked for
-					TargetNames[TargetName] = TargetName;
-				}
+				TargetList = ActualTargets;
 			}
 
 			UE4Build Build = new UE4Build(this);
+			Build.AlwaysBuildUHT = true;
 
 			UE4Build.BuildAgenda Agenda = new UE4Build.BuildAgenda();
 
@@ -153,31 +194,27 @@ namespace AutomationTool
 
 			UnrealTargetPlatform CurrentPlatform = HostPlatform.Current.HostEditorPlatform;
 
-			if (!NoTools)
+			//if (!NoTools)
 			{
-				Agenda.AddTarget("UnrealHeaderTool", CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
+				//Agenda.AddTarget("UnrealHeaderTool", CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
 			}
 
 			if (string.IsNullOrEmpty(EditorTarget) == false)
 			{
-				string TargetName = TargetNames[EditorTarget];
-
-				Agenda.AddTarget(TargetName, CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
+				Agenda.AddTarget(EditorTarget, CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile, UBTArgs);
 
 				if (!NoTools)
 				{
-					Agenda.AddTarget("UnrealPak", CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
-					Agenda.AddTarget("ShaderCompileWorker", CurrentPlatform, UnrealTargetConfiguration.Development);
-					Agenda.AddTarget("UnrealLightmass", CurrentPlatform, UnrealTargetConfiguration.Development);
-					Agenda.AddTarget("CrashReportClient", CurrentPlatform, UnrealTargetConfiguration.Shipping);
-					Agenda.AddTarget("CrashReportClientEditor", CurrentPlatform, UnrealTargetConfiguration.Shipping);
+					Agenda.AddTarget("UnrealPak", CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile, UBTArgs);
+					Agenda.AddTarget("ShaderCompileWorker", CurrentPlatform, UnrealTargetConfiguration.Development, null, UBTArgs);
+					Agenda.AddTarget("UnrealLightmass", CurrentPlatform, UnrealTargetConfiguration.Development, null, UBTArgs);
+					Agenda.AddTarget("CrashReportClient", CurrentPlatform, UnrealTargetConfiguration.Shipping, null, UBTArgs);
+					Agenda.AddTarget("CrashReportClientEditor", CurrentPlatform, UnrealTargetConfiguration.Shipping, null, UBTArgs);
 				}
 			}
 
 			foreach (string Target in OtherTargets)
 			{
-				string TargetName = TargetNames[Target];
-
 				bool IsServer = Target.EndsWith("Server", StringComparison.OrdinalIgnoreCase);
 
 				IEnumerable<UnrealTargetPlatform> PlatformsToBuild = IsServer ? new UnrealTargetPlatform[] { CurrentPlatform } : PlatformList;
@@ -186,7 +223,7 @@ namespace AutomationTool
 				{
 					foreach (UnrealTargetConfiguration Config in ConfigurationList)
 					{
-						Agenda.AddTarget(TargetName, Platform, Config);
+						Agenda.AddTarget(Target, Platform, Config, ProjectFile, UBTArgs);
 					}
 				}
 			}

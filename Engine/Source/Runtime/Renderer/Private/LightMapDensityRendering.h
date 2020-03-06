@@ -52,14 +52,14 @@ public:
 template<typename LightMapPolicyType>
 class TLightMapDensityVS : public FMeshMaterialShader, public LightMapPolicyType::VertexParametersType
 {
-	DECLARE_SHADER_TYPE(TLightMapDensityVS,MeshMaterial);
+	DECLARE_SHADER_TYPE_EXPLICIT_BASES(TLightMapDensityVS,MeshMaterial, FMeshMaterialShader, typename LightMapPolicyType::VertexParametersType);
 
 public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return  AllowDebugViewmodes(Parameters.Platform) 
-				&& (Parameters.Material->IsSpecialEngineMaterial() || Parameters.Material->IsMasked() || Parameters.Material->MaterialMayModifyMeshPosition())
+				&& (Parameters.MaterialParameters.bIsSpecialEngineMaterial || Parameters.MaterialParameters.bIsMasked || Parameters.MaterialParameters.bMaterialMayModifyMeshPosition)
 				&& LightMapPolicyType::ShouldCompilePermutation(Parameters)
 				&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
@@ -78,13 +78,6 @@ public:
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FLightmapDensityPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 	TLightMapDensityVS() {}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		LightMapPolicyType::VertexParametersType::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
 
 	void GetShaderBindings(
 		const FScene* Scene,
@@ -175,14 +168,14 @@ public:
 template<typename LightMapPolicyType>
 class TLightMapDensityPS : public FMeshMaterialShader, public LightMapPolicyType::PixelParametersType
 {
-	DECLARE_SHADER_TYPE(TLightMapDensityPS,MeshMaterial);
+	DECLARE_SHADER_TYPE_EXPLICIT_BASES(TLightMapDensityPS,MeshMaterial, FMeshMaterialShader, typename LightMapPolicyType::PixelParametersType);
 
 public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return	AllowDebugViewmodes(Parameters.Platform) 
-				&& (Parameters.Material->IsSpecialEngineMaterial() || Parameters.Material->IsMasked() || Parameters.Material->MaterialMayModifyMeshPosition())
+				&& (Parameters.MaterialParameters.bIsSpecialEngineMaterial || Parameters.MaterialParameters.bIsMasked || Parameters.MaterialParameters.bMaterialMayModifyMeshPosition)
 				&& LightMapPolicyType::ShouldCompilePermutation(Parameters)
 				&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
@@ -235,20 +228,10 @@ public:
 		ShaderBindings.Add(LightMapDensityDisplayOptions, OptionsParameter);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		LightMapPolicyType::PixelParametersType::Serialize(Ar);
-		Ar << BuiltLightingAndSelectedFlags;
-		Ar << LightMapResolutionScale;
-		Ar << LightMapDensityDisplayOptions;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter BuiltLightingAndSelectedFlags;
-	FShaderParameter LightMapResolutionScale;
-	FShaderParameter LightMapDensityDisplayOptions;
+	LAYOUT_FIELD(FShaderParameter, BuiltLightingAndSelectedFlags);
+	LAYOUT_FIELD(FShaderParameter, LightMapResolutionScale);
+	LAYOUT_FIELD(FShaderParameter, LightMapDensityDisplayOptions);
 };
 
 

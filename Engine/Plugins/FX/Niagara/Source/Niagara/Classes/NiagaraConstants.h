@@ -9,6 +9,7 @@
 #define PARAM_MAP_ENGINE_OWNER_STR TEXT("Engine.Owner.")
 #define PARAM_MAP_ENGINE_SYSTEM_STR TEXT("Engine.System.")
 #define PARAM_MAP_ENGINE_EMITTER_STR TEXT("Engine.Emitter.")
+#define PARAM_MAP_LOCAL_MODULE_STR TEXT("Local.Module.")
 #define PARAM_MAP_USER_STR TEXT("User.")
 #define PARAM_MAP_SYSTEM_STR TEXT("System.")
 #define PARAM_MAP_EMITTER_STR TEXT("Emitter.")
@@ -19,7 +20,14 @@
 #define PARAM_MAP_RAPID_ITERATION_STR TEXT("Constants.")
 #define PARAM_MAP_INDICES_STR TEXT("Array.")
 #define PARAM_MAP_RAPID_ITERATION_BASE_STR TEXT("Constants")
+#define PARAM_MAP_SCRIPT_PERSISTENT_STR TEXT("ScriptPersistent.")
+#define PARAM_MAP_SCRIPT_TRANSIENT_STR TEXT("ScriptTransient.")
+#define PARAM_MAP_INTERMEDIATE_STR TEXT("Intermedate.")
+#define PARAM_MAP_LOCAL_STR TEXT("Local.")
+#define PARAM_MAP_OUTPUT_STR TEXT("Output.")
 
+#define TRANSLATOR_SET_VARIABLES_STR TEXT("SetVariables")
+#define TRANSLATOR_SET_VARIABLES_UNDERSCORE_STR TEXT("SetVariables_")
 
 #define SYS_PARAM_ENGINE_DELTA_TIME                      INiagaraModule::GetVar_Engine_DeltaTime()
 #define SYS_PARAM_ENGINE_INV_DELTA_TIME                  INiagaraModule::GetVar_Engine_InvDeltaTime()
@@ -133,6 +141,33 @@ struct NIAGARA_API FNiagaraConstants
 	static const FNiagaraVariable *FindStaticSwitchConstant(const FName& InName);
 
 	static bool IsEngineManagedAttribute(const FNiagaraVariable& Var);
+
+	static const FName InputPinName;
+	static const FName OutputPinName;
+
+
+	/** Reserved Namespace Names and Scope Names */
+	static const FName UserNamespace;
+	static const FName EngineNamespace;
+	static const FName SystemNamespace;
+	static const FName EmitterNamespace;
+	static const FName ParticleAttributeNamespace;
+	static const FName ModuleNamespace;
+	static const FName ParameterCollectionNamespace;
+	static const FString InitialPrefix;
+	static const FName LocalNamespace;
+	static const FName InitialNamespace;
+	static const FName OwnerNamespace;
+
+	static const FName EngineOwnerScopeName;
+	static const FName EngineSystemScopeName;
+	static const FName EngineEmitterScopeName;
+
+	static const FName ScriptTransientScopeName;
+	static const FName ScriptPersistentScopeName;
+	static const FName InputScopeName;
+	static const FName OutputScopeName;
+	static const FName CustomScopeName;
 
 private:
 	static TArray<FNiagaraVariable> SystemParameters;

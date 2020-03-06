@@ -26,14 +26,17 @@ struct FMeshTriInfoCache
 	static FMeshTriInfoCache BuildTriInfoCache(const TriangleMeshType& Mesh)
 	{
 		FMeshTriInfoCache Cache;
-		int NT = Mesh.TriangleCount();
+		int NT = Mesh.MaxTriangleID();
 		Cache.Centroids.Resize(NT);
 		Cache.Normals.Resize(NT);
 		Cache.Areas.Resize(NT);
 
-		ParallelFor(NT, [&](int TriIdx)
+		ParallelFor(NT, [&](int TID)
 		{
-			TMeshQueries<TriangleMeshType>::GetTriNormalAreaCentroid(Mesh, TriIdx, Cache.Normals[TriIdx], Cache.Areas[TriIdx], Cache.Centroids[TriIdx]);
+			if (Mesh.IsTriangle(TID))
+			{
+				TMeshQueries<TriangleMeshType>::GetTriNormalAreaCentroid(Mesh, TID, Cache.Normals[TID], Cache.Areas[TID], Cache.Centroids[TID]);
+			}
 		});
 
 		return Cache;

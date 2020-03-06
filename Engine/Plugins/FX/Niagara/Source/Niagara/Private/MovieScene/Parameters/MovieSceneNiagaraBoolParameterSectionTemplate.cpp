@@ -27,5 +27,5 @@ void FMovieSceneNiagaraBoolParameterSectionTemplate::GetParameterValue(FFrameTim
 	}
 	
 	OutAnimatedValueData.AddUninitialized(sizeof(FNiagaraBool));
-	FMemory::Memcpy(OutAnimatedValueData.GetData(), (uint8*)&AnimatedValue, sizeof(FNiagaraBool));
+	FMemory::Memcpy(OutAnimatedValueData.GetData(), (uint8*)&AnimatedNiagaraValue, sizeof(FNiagaraBool));
 }

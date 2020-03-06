@@ -9,6 +9,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Serialization/Archive.h"
+#include "Serialization/MemoryImageWriter.h"
 #include "Math/UnrealMathUtility.h"
 
 template<typename Allocator > class TBitArray;
@@ -24,6 +25,15 @@ struct FBitSet
 		Mask ^= LowestBitMask;
 		return BitIndex;
 	}
+
+	// Clang generates 7 instructions for int32 DivideAndRoundUp but only 2 for uint32
+	static constexpr uint32 BitsPerWord = NumBitsPerDWORD;
+
+	FORCEINLINE static uint32 CalculateNumWords(int32 NumBits)
+	{
+		checkSlow(NumBits >= 0);
+		return FMath::DivideAndRoundUp(static_cast<uint32>(NumBits), BitsPerWord);
+	}
 };
 
 
@@ -37,7 +47,8 @@ class TConstSetBitIterator;
 template<typename Allocator = FDefaultBitArrayAllocator,typename OtherAllocator = FDefaultBitArrayAllocator>
 class TConstDualSetBitIterator;
 
-class FScriptBitArray;
+template <typename AllocatorType, typename InDerivedType = void>
+class TScriptBitArray;
 
 
 /**
@@ -175,9 +186,12 @@ public:
 template<typename Allocator /*= FDefaultBitArrayAllocator*/>
 class TBitArray
 {
-	friend class FScriptBitArray;
+	template <typename, typename>
+	friend class TScriptBitArray;
 
 public:
+
+	typedef typename Allocator::template ForElementType<uint32> AllocatorType;
 
 	template<typename>
 	friend class TConstSetBitIterator;
@@ -188,42 +202,19 @@ public:
 	TBitArray()
 	:	NumBits(0)
 	,	MaxBits(AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD)
-	{}
+	{
+		SetWords(GetData(), AllocatorInstance.GetInitialCapacity(), false);
+	}
 
 	/**
 	 * Minimal initialization constructor.
 	 * @param Value - The value to initial the bits to.
 	 * @param InNumBits - The initial number of bits in the array.
 	 */
-	explicit TBitArray(bool bValue, int32 InNumBits)
-	:	NumBits(InNumBits)
-	,	MaxBits(AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD)
+	FORCEINLINE explicit TBitArray(bool bValue, int32 InNumBits)
+	:	MaxBits(AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD)
 	{
-		if (NumBits > 0)
-		{
-			const int32 Words = FMath::DivideAndRoundUp(NumBits, NumBitsPerDWORD);
-
-			if (Words > FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD))
-			{
-				AllocatorInstance.ResizeAllocation(0, Words, sizeof(uint32));
-				MaxBits = Words * NumBitsPerDWORD;
-			}
-			
-			if (Words > 8)
-			{
-				FMemory::Memset(GetData(), bValue ? 0xff : 0, Words * sizeof(uint32));
-			}
-			else
-			{
-				uint32 Word = bValue ? ~0u : 0;
-				int32 WordIdx = 0;
-				do
-				{
-					GetData()[WordIdx] = Word;
-				}
-				while (++WordIdx < Words);
-			}
-		}
+		Init(bValue, InNumBits);
 	}
 
 	/**
@@ -270,10 +261,9 @@ public:
 
 		Empty(Copy.Num());
 		NumBits = Copy.NumBits;
-		if(NumBits)
+		if (NumBits)
 		{
-			const int32 NumDWORDs = FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD);
-			FMemory::Memcpy(GetData(),Copy.GetData(),NumDWORDs * sizeof(uint32));
+			FMemory::Memcpy(GetData(),Copy.GetData(), GetNumWords() * sizeof(uint32));
 		}
 		return *this;
 	}
@@ -285,8 +275,7 @@ public:
 			return false;
 		}
 
-		int NumBytes = FMath::DivideAndRoundUp(NumBits, NumBitsPerDWORD) * sizeof(uint32);
-		return FMemory::Memcmp(GetData(), Other.GetData(), NumBytes) == 0;
+		return FMemory::Memcmp(GetData(), Other.GetData(), GetNumWords() * sizeof(uint32)) == 0;
 	}
 
 	FORCEINLINE bool operator<(const TBitArray<Allocator>& Other) const
@@ -297,7 +286,7 @@ public:
 			return Num() < Other.Num();
 		}
 
-		uint32 NumWords = FMath::DivideAndRoundUp(Num(), NumBitsPerDWORD);
+		uint32 NumWords = GetNumWords();
 		const uint32* Data0 = GetData();
 		const uint32* Data1 = Other.GetData();
 
@@ -318,6 +307,38 @@ public:
 	}
 
 private:
+	FORCEINLINE uint32 GetNumWords() const
+	{
+		return FBitSet::CalculateNumWords(NumBits);
+	}
+
+	FORCEINLINE uint32 GetMaxWords() const
+	{
+		return FBitSet::CalculateNumWords(MaxBits);
+	}
+
+	FORCEINLINE uint32 GetLastWordMask() const
+	{
+		const uint32 UnusedBits = (FBitSet::BitsPerWord - static_cast<uint32>(NumBits) % FBitSet::BitsPerWord) % FBitSet::BitsPerWord;
+		return ~0u >> UnusedBits;
+	}
+
+	FORCEINLINE static void SetWords(uint32* Words, int32 NumWords, bool bValue)
+	{
+		if (NumWords > 8)
+		{
+			FMemory::Memset(Words, bValue ? 0xff : 0, NumWords * sizeof(uint32));
+		}
+		else
+		{
+			uint32 Word = bValue ? ~0u : 0u;
+			for (int32 Idx = 0; Idx < NumWords; ++Idx)
+			{
+				Words[Idx] = Word;
+			}
+		}
+	}
+
 	template <typename BitArrayType>
 	static FORCEINLINE typename TEnableIf<TContainerTraits<BitArrayType>::MoveWillEmptyContainer>::Type MoveOrCopy(BitArrayType& ToArray, BitArrayType& FromArray)
 	{
@@ -353,11 +374,8 @@ public:
 			BitArray.Realloc(0);
 		}
 
-		// calc the number of dwords for all the bits
-		const int32 NumDWORDs = FMath::DivideAndRoundUp(BitArray.NumBits, NumBitsPerDWORD);
-
 		// serialize the data as one big chunk
-		Ar.Serialize(BitArray.GetData(), NumDWORDs * sizeof(uint32));
+		Ar.Serialize(BitArray.GetData(), BitArray.GetNumWords() * sizeof(uint32));
 
 		return Ar;
 	}
@@ -404,15 +422,22 @@ public:
 	 */
 	void Empty(int32 ExpectedNumBits = 0)
 	{
-		NumBits = 0;
+		ExpectedNumBits = static_cast<int32>(FBitSet::CalculateNumWords(ExpectedNumBits)) * NumBitsPerDWORD;
+		const int32 InitialMaxBits = AllocatorInstance.GetInitialCapacity() * NumBitsPerDWORD;
 
-		ExpectedNumBits = FMath::DivideAndRoundUp(ExpectedNumBits, NumBitsPerDWORD) * NumBitsPerDWORD;
-		// If the expected number of bits doesn't match the allocated number of bits, reallocate.
-		if(MaxBits != ExpectedNumBits)
+		// If we need more bits or can shrink our allocation, do so
+		if (ExpectedNumBits > MaxBits || MaxBits > InitialMaxBits)
 		{
-			MaxBits = ExpectedNumBits;
+			MaxBits = FMath::Max(ExpectedNumBits, InitialMaxBits);
 			Realloc(0);
 		}
+		else
+		{
+			// Reuse current initial allocation but clear used words
+			SetWords(GetData(), GetNumWords(), false);
+		}
+
+		NumBits = 0;
 	}
 
 	/**
@@ -425,8 +450,8 @@ public:
 		if (Number > MaxBits)
 		{
 			const uint32 MaxDWORDs = AllocatorInstance.CalculateSlackGrow(
-				FMath::DivideAndRoundUp(Number,  NumBitsPerDWORD),
-				FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD),
+				FBitSet::CalculateNumWords(Number),
+				GetMaxWords(),
 				sizeof(uint32)
 				);
 			MaxBits = MaxDWORDs * NumBitsPerDWORD;
@@ -440,23 +465,43 @@ public:
 	void Reset()
 	{
 		// We need this because iterators often use whole DWORDs when masking, which includes off-the-end elements
-		FMemory::Memset(GetData(), 0, FMath::DivideAndRoundUp(NumBits, NumBitsPerDWORD) * sizeof(uint32));
+		SetWords(GetData(), GetNumWords(), false);
 
 		NumBits = 0;
 	}
 
 	/**
-	 * Resets the array's contents.
+	 * Resets the array's contents. Use TBitArray(bool bValue, int32 InNumBits) instead of default constructor and Init().
+	 *
 	 * @param Value - The value to initial the bits to.
 	 * @param NumBits - The number of bits in the array.
 	 */
-	void Init(bool Value,int32 InNumBits)
+	FORCEINLINE void Init(bool bValue, int32 InNumBits)
 	{
-		Empty(InNumBits);
-		if(InNumBits)
+		NumBits = InNumBits;
+		
+		const uint32 NumWords = GetNumWords();
+		const uint32 MaxWords = GetMaxWords();
+
+		if (NumWords > MaxWords)
 		{
-			NumBits = InNumBits;
-			FMemory::Memset(GetData(),Value ? 0xff : 0, FMath::DivideAndRoundUp(NumBits, NumBitsPerDWORD) * sizeof(uint32));
+			AllocatorInstance.ResizeAllocation(0, NumWords, sizeof(uint32));
+			MaxBits = NumWords * NumBitsPerDWORD;
+
+			uint32* Words = GetData();
+			SetWords(Words, NumWords, bValue);
+			Words[NumWords - 1] &= GetLastWordMask();
+		}
+		else if (bValue & (NumWords > 0))
+		{
+			uint32* Words = GetData();
+			SetWords(Words, NumWords - 1, true);
+			Words[NumWords - 1] = GetLastWordMask();
+			SetWords(Words + NumWords, MaxWords - NumWords, false);
+		}
+		else
+		{
+			SetWords(GetData(), MaxWords, false);
 		}
 	}
 
@@ -468,9 +513,9 @@ public:
 
 		if (InNumBits > MaxBits)
 		{
-			const int32 PreviousNumDWORDs = FMath::DivideAndRoundUp(PreviousNumBits, NumBitsPerDWORD);
+			const int32 PreviousNumDWORDs = FBitSet::CalculateNumWords(PreviousNumBits);
 			const uint32 MaxDWORDs = AllocatorInstance.CalculateSlackReserve(
-				FMath::DivideAndRoundUp(InNumBits, NumBitsPerDWORD), sizeof(uint32));
+				FBitSet::CalculateNumWords(InNumBits), sizeof(uint32));
 			
 			AllocatorInstance.ResizeAllocation(PreviousNumDWORDs, MaxDWORDs, sizeof(uint32));	
 
@@ -609,15 +654,15 @@ public:
 	 */
 	uint32 GetAllocatedSize( void ) const
 	{
-		return FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD) * sizeof(uint32);
+		return FBitSet::CalculateNumWords(MaxBits) * sizeof(uint32);
 	}
 
 	/** Tracks the container's memory use through an archive. */
 	void CountBytes(FArchive& Ar) const
 	{
 		Ar.CountBytes(
-			FMath::DivideAndRoundUp(NumBits, NumBitsPerDWORD) * sizeof(uint32),
-			FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD) * sizeof(uint32)
+			GetNumWords() * sizeof(uint32),
+			GetMaxWords() * sizeof(uint32)
 		);
 	}
 
@@ -632,7 +677,7 @@ public:
 
 		const uint32* RESTRICT DwordArray = GetData();
 		const int32 LocalNumBits = NumBits;
-		const int32 DwordCount = FMath::DivideAndRoundUp(LocalNumBits, NumBitsPerDWORD);
+		const int32 DwordCount = FBitSet::CalculateNumWords(LocalNumBits);
 		int32 DwordIndex = 0;
 		while (DwordIndex < DwordCount && DwordArray[DwordIndex] == Test)
 		{
@@ -667,7 +712,7 @@ public:
 		uint32 Mask = ~0u >> (NumBitsPerDWORD - SlackIndex);
 
 		// Iterate over the array until we see a word with a zero bit.
-		uint32 DwordIndex = FMath::DivideAndRoundUp(LocalNumBits, NumBitsPerDWORD);
+		uint32 DwordIndex = FBitSet::CalculateNumWords(LocalNumBits);
 		const uint32* RESTRICT DwordArray = GetData();
 		const uint32 Test = bValue ? 0u : ~0u;
 		for (;;)
@@ -708,7 +753,7 @@ public:
 		// Iterate over the array until we see a word with a zero bit.
 		uint32* RESTRICT DwordArray = GetData();
 		const int32 LocalNumBits = NumBits;
-		const int32 DwordCount = FMath::DivideAndRoundUp(LocalNumBits, NumBitsPerDWORD);
+		const int32 DwordCount = FBitSet::CalculateNumWords(LocalNumBits);
 		int32 DwordIndex = FMath::DivideAndRoundDown(ConservativeStartIndex, NumBitsPerDWORD);
 		while (DwordIndex < DwordCount && DwordArray[DwordIndex] == (uint32)-1)
 		{
@@ -745,7 +790,7 @@ public:
 		uint32 Mask = ~0u >> (NumBitsPerDWORD - SlackIndex);
 
 		// Iterate over the array until we see a word with a zero bit.
-		uint32 DwordIndex = FMath::DivideAndRoundUp(LocalNumBits, NumBitsPerDWORD);
+		uint32 DwordIndex = FBitSet::CalculateNumWords(LocalNumBits);
 		uint32* RESTRICT DwordArray = GetData();
 		for (;;)
 		{
@@ -949,16 +994,14 @@ public:
 	}
 
 private:
-	typedef typename Allocator::template ForElementType<uint32> AllocatorType;
-
 	AllocatorType AllocatorInstance;
 	int32         NumBits;
 	int32         MaxBits;
 
 	FORCENOINLINE void Realloc(int32 PreviousNumBits)
 	{
-		const int32 PreviousNumDWORDs = FMath::DivideAndRoundUp(PreviousNumBits, NumBitsPerDWORD);
-		const int32 MaxDWORDs = FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD);
+		const uint32 PreviousNumDWORDs = FBitSet::CalculateNumWords(PreviousNumBits);
+		const uint32 MaxDWORDs = FBitSet::CalculateNumWords(MaxBits);
 
 		AllocatorInstance.ResizeAllocation(PreviousNumDWORDs,MaxDWORDs,sizeof(uint32));
 
@@ -968,12 +1011,49 @@ private:
 			FMemory::Memzero((uint32*)AllocatorInstance.GetAllocation() + PreviousNumDWORDs,(MaxDWORDs - PreviousNumDWORDs) * sizeof(uint32));
 		}
 	}
+
+	template<bool bFreezeMemoryImage, typename Dummy=void>
+	struct TSupportsFreezeMemoryImageHelper
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TBitArray&) { Writer.WriteBytes(TBitArray()); }
+	};
+
+	template<typename Dummy>
+	struct TSupportsFreezeMemoryImageHelper<true, Dummy>
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TBitArray& Object)
+		{
+			const int32 NumDWORDs = FMath::DivideAndRoundUp(Object.NumBits, NumBitsPerDWORD);
+			Object.AllocatorInstance.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<uint32>(), NumDWORDs);
+			Writer.WriteBytes(Object.NumBits);
+			Writer.WriteBytes(Object.NumBits);
+		}
+	};
+
+public:
+	void WriteMemoryImage(FMemoryImageWriter& Writer) const
+	{
+		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage;
+		checkf(!Writer.GetTargetLayoutParams().b32Bit, TEXT("TBitArray does not currently support freezing for 32bits"));
+		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
+	}
 };
+
+namespace Freeze
+{
+	template<typename Allocator>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TBitArray<Allocator>& Object, const FTypeLayoutDesc&)
+	{
+		Object.WriteMemoryImage(Writer);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<typename Allocator>, TBitArray<Allocator>);
 
 template<typename Allocator>
 FORCEINLINE uint32 GetTypeHash(const TBitArray<Allocator>& BitArray)
 {
-	uint32 NumWords = FMath::DivideAndRoundUp(BitArray.Num(), NumBitsPerDWORD);
+	uint32 NumWords = FBitSet::CalculateNumWords(BitArray.Num());
 	uint32 Hash = NumWords;
 	const uint32* Data = BitArray.GetData();
 	for (uint32 i = 0; i < NumWords; i++)
@@ -1214,15 +1294,18 @@ private:
 
 // Untyped bit array type for accessing TBitArray data, like FScriptArray for TArray.
 // Must have the same memory representation as a TBitArray.
-class FScriptBitArray
+template <typename Allocator, typename InDerivedType>
+class TScriptBitArray
 {
+	using DerivedType = typename TChooseClass<TIsVoidType<InDerivedType>::Value, TScriptBitArray, InDerivedType>::Result;
+
 public:
 	/**
 	 * Minimal initialization constructor.
 	 * @param Value - The value to initial the bits to.
 	 * @param InNumBits - The initial number of bits in the array.
 	 */
-	FScriptBitArray()
+	TScriptBitArray()
 		: NumBits(0)
 		, MaxBits(0)
 	{
@@ -1245,7 +1328,7 @@ public:
 		return FConstBitReference(GetData()[Index / NumBitsPerDWORD], 1 << (Index & (NumBitsPerDWORD - 1)));
 	}
 
-	void MoveAssign(FScriptBitArray& Other)
+	void MoveAssign(DerivedType& Other)
 	{
 		checkSlow(this != &Other);
 		Empty(0);
@@ -1258,7 +1341,7 @@ public:
 	{
 		NumBits = 0;
 
-		Slack = FMath::DivideAndRoundUp(Slack, NumBitsPerDWORD) * NumBitsPerDWORD;
+		Slack = FBitSet::CalculateNumWords(Slack) * NumBitsPerDWORD;
 		// If the expected number of bits doesn't match the allocated number of bits, reallocate.
 		if (MaxBits != Slack)
 		{
@@ -1280,7 +1363,7 @@ public:
 	}
 
 private:
-	typedef FDefaultBitArrayAllocator::ForElementType<uint32> AllocatorType;
+	typedef typename Allocator::template ForElementType<uint32> AllocatorType;
 
 	AllocatorType AllocatorInstance;
 	int32         NumBits;
@@ -1289,22 +1372,22 @@ private:
 	// This function isn't intended to be called, just to be compiled to validate the correctness of the type.
 	static void CheckConstraints()
 	{
-		typedef FScriptBitArray ScriptType;
+		typedef TScriptBitArray ScriptType;
 		typedef TBitArray<>     RealType;
 
 		// Check that the class footprint is the same
-		static_assert(sizeof (ScriptType) == sizeof (RealType), "FScriptBitArray's size doesn't match TBitArray");
-		static_assert(alignof(ScriptType) == alignof(RealType), "FScriptBitArray's alignment doesn't match TBitArray");
+		static_assert(sizeof (ScriptType) == sizeof (RealType), "TScriptBitArray's size doesn't match TBitArray");
+		static_assert(alignof(ScriptType) == alignof(RealType), "TScriptBitArray's alignment doesn't match TBitArray");
 
 		// Check member sizes
-		static_assert(sizeof(DeclVal<ScriptType>().AllocatorInstance) == sizeof(DeclVal<RealType>().AllocatorInstance), "FScriptBitArray's AllocatorInstance member size does not match TBitArray's");
-		static_assert(sizeof(DeclVal<ScriptType>().NumBits)           == sizeof(DeclVal<RealType>().NumBits),           "FScriptBitArray's NumBits member size does not match TBitArray's");
-		static_assert(sizeof(DeclVal<ScriptType>().MaxBits)           == sizeof(DeclVal<RealType>().MaxBits),           "FScriptBitArray's MaxBits member size does not match TBitArray's");
+		static_assert(sizeof(DeclVal<ScriptType>().AllocatorInstance) == sizeof(DeclVal<RealType>().AllocatorInstance), "TScriptBitArray's AllocatorInstance member size does not match TBitArray's");
+		static_assert(sizeof(DeclVal<ScriptType>().NumBits)           == sizeof(DeclVal<RealType>().NumBits),           "TScriptBitArray's NumBits member size does not match TBitArray's");
+		static_assert(sizeof(DeclVal<ScriptType>().MaxBits)           == sizeof(DeclVal<RealType>().MaxBits),           "TScriptBitArray's MaxBits member size does not match TBitArray's");
 
 		// Check member offsets
-		static_assert(STRUCT_OFFSET(ScriptType, AllocatorInstance) == STRUCT_OFFSET(RealType, AllocatorInstance), "FScriptBitArray's AllocatorInstance member offset does not match TBitArray's");
-		static_assert(STRUCT_OFFSET(ScriptType, NumBits)           == STRUCT_OFFSET(RealType, NumBits),           "FScriptBitArray's NumBits member offset does not match TBitArray's");
-		static_assert(STRUCT_OFFSET(ScriptType, MaxBits)           == STRUCT_OFFSET(RealType, MaxBits),           "FScriptBitArray's MaxBits member offset does not match TBitArray's");
+		static_assert(STRUCT_OFFSET(ScriptType, AllocatorInstance) == STRUCT_OFFSET(RealType, AllocatorInstance), "TScriptBitArray's AllocatorInstance member offset does not match TBitArray's");
+		static_assert(STRUCT_OFFSET(ScriptType, NumBits)           == STRUCT_OFFSET(RealType, NumBits),           "TScriptBitArray's NumBits member offset does not match TBitArray's");
+		static_assert(STRUCT_OFFSET(ScriptType, MaxBits)           == STRUCT_OFFSET(RealType, MaxBits),           "TScriptBitArray's MaxBits member offset does not match TBitArray's");
 	}
 
 	FORCEINLINE uint32* GetData()
@@ -1320,11 +1403,11 @@ private:
 	FORCENOINLINE void Realloc(int32 PreviousNumBits)
 	{
 		const uint32 MaxDWORDs = AllocatorInstance.CalculateSlackReserve(
-			FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD),
+			FBitSet::CalculateNumWords(MaxBits),
 			sizeof(uint32)
 			);
 		MaxBits = MaxDWORDs * NumBitsPerDWORD;
-		const uint32 PreviousNumDWORDs = FMath::DivideAndRoundUp(PreviousNumBits, NumBitsPerDWORD);
+		const uint32 PreviousNumDWORDs = FBitSet::CalculateNumWords(PreviousNumBits);
 
 		AllocatorInstance.ResizeAllocation(PreviousNumDWORDs, MaxDWORDs, sizeof(uint32));
 
@@ -1338,12 +1421,12 @@ private:
 	{
 		// Allocate memory for the new bits.
 		const uint32 MaxDWORDs = AllocatorInstance.CalculateSlackGrow(
-			FMath::DivideAndRoundUp(NumBits, NumBitsPerDWORD),
-			FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD),
+			FBitSet::CalculateNumWords(NumBits),
+			FBitSet::CalculateNumWords(MaxBits),
 			sizeof(uint32)
 			);
 		MaxBits = MaxDWORDs * NumBitsPerDWORD;
-		const uint32 PreviousNumDWORDs = FMath::DivideAndRoundUp(PreviousNumBits, NumBitsPerDWORD);
+		const uint32 PreviousNumDWORDs = FBitSet::CalculateNumWords(PreviousNumBits);
 		AllocatorInstance.ResizeAllocation(PreviousNumDWORDs, MaxDWORDs, sizeof(uint32));
 		if (MaxDWORDs && MaxDWORDs > PreviousNumDWORDs)
 		{
@@ -1355,12 +1438,20 @@ private:
 public:
 	// These should really be private, because they shouldn't be called, but there's a bunch of code
 	// that needs to be fixed first.
-	FScriptBitArray(const FScriptBitArray&) { check(false); }
-	void operator=(const FScriptBitArray&) { check(false); }
+	TScriptBitArray(const TScriptBitArray&) { check(false); }
+	void operator=(const TScriptBitArray&) { check(false); }
 };
 
-template <>
-struct TIsZeroConstructType<FScriptBitArray>
+template <typename AllocatorType, typename InDerivedType>
+struct TIsZeroConstructType<TScriptBitArray<AllocatorType, InDerivedType>>
 {
 	enum { Value = true };
+};
+
+class FScriptBitArray : public TScriptBitArray<FDefaultBitArrayAllocator, FScriptBitArray>
+{
+	using Super = TScriptBitArray<FDefaultBitArrayAllocator, FScriptBitArray>;
+
+public:
+	using Super::Super;
 };

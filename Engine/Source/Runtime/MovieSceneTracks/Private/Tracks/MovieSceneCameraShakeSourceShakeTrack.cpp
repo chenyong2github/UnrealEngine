@@ -1,0 +1,109 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Tracks/MovieSceneCameraShakeSourceShakeTrack.h"
+#include "Camera/CameraShakeSourceComponent.h"
+#include "Compilation/MovieSceneCompilerRules.h"
+#include "Sections/MovieSceneCameraShakeSourceShakeSection.h"
+
+#define LOCTEXT_NAMESPACE "MovieSceneCameraShakeSourceShakeTrack"
+
+UMovieSceneSection* UMovieSceneCameraShakeSourceShakeTrack::AddNewCameraShake(const FFrameNumber KeyTime, const UCameraShakeSourceComponent& ShakeSourceComponent)
+{
+	if (ensure(ShakeSourceComponent.CameraShake))
+	{
+		return AddNewCameraShake(KeyTime, ShakeSourceComponent.CameraShake, true);
+	}
+	return nullptr;
+}
+
+UMovieSceneSection* UMovieSceneCameraShakeSourceShakeTrack::AddNewCameraShake(const FFrameNumber KeyTime, const TSubclassOf<UCameraShake> ShakeClass, bool bIsAutomaticShake)
+{
+	ensure(ShakeClass);
+
+	Modify();
+
+	UMovieSceneCameraShakeSourceShakeSection* const NewSection = Cast<UMovieSceneCameraShakeSourceShakeSection>(CreateNewSection());
+	if (NewSection)
+	{
+		float ShakeDuration = -1.f;
+		UCameraShake::GetCameraShakeDuration(ShakeClass, ShakeDuration);
+		if (ShakeDuration <= SMALL_NUMBER)
+		{
+			// Default endless shakes to 5 seconds totally arbitrarily.
+			ShakeDuration = 5.f;
+		}
+
+		const FFrameTime ShakeDurationTime = ShakeDuration * GetTypedOuter<UMovieScene>()->GetTickResolution();
+		NewSection->InitialPlacement(CameraShakeSections, KeyTime, ShakeDurationTime.FrameNumber.Value, SupportsMultipleRows());
+		if (!bIsAutomaticShake)
+		{
+			// Only set the shake class if we want to specifically run the provided shake. Otherwise, we leave
+			// it null and will automatically fallback to whatever is set on the shake source component.
+			NewSection->ShakeData.ShakeClass = ShakeClass;
+		}
+		
+		AddSection(*NewSection);
+	}
+
+	return NewSection;
+}
+
+FMovieSceneTrackSegmentBlenderPtr UMovieSceneCameraShakeSourceShakeTrack::GetTrackSegmentBlender() const
+{
+	return FMovieSceneAdditiveCameraTrackBlender();
+}
+
+#if WITH_EDITORONLY_DATA
+FText UMovieSceneCameraShakeSourceShakeTrack::GetDisplayName() const
+{
+	return LOCTEXT("TrackName", "Camera Shake");
+}
+#endif
+
+const TArray<UMovieSceneSection*>& UMovieSceneCameraShakeSourceShakeTrack::GetAllSections() const
+{
+	return CameraShakeSections;
+}
+
+bool UMovieSceneCameraShakeSourceShakeTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
+{
+	return SectionClass == UMovieSceneCameraShakeSourceShakeSection::StaticClass();
+}
+
+UMovieSceneSection* UMovieSceneCameraShakeSourceShakeTrack::CreateNewSection()
+{
+	return NewObject<UMovieSceneCameraShakeSourceShakeSection>(this, NAME_None, RF_Transactional);
+}
+
+void UMovieSceneCameraShakeSourceShakeTrack::RemoveAllAnimationData()
+{
+	CameraShakeSections.Empty();
+}
+
+bool UMovieSceneCameraShakeSourceShakeTrack::HasSection(const UMovieSceneSection& Section) const
+{
+	return CameraShakeSections.Contains(&Section);
+}
+
+void UMovieSceneCameraShakeSourceShakeTrack::AddSection(UMovieSceneSection& Section)
+{
+	CameraShakeSections.Add(&Section);
+}
+
+void UMovieSceneCameraShakeSourceShakeTrack::RemoveSection(UMovieSceneSection& Section)
+{
+	CameraShakeSections.Remove(&Section);
+}
+
+void UMovieSceneCameraShakeSourceShakeTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	CameraShakeSections.RemoveAt(SectionIndex);
+}
+
+bool UMovieSceneCameraShakeSourceShakeTrack::IsEmpty() const
+{
+	return CameraShakeSections.Num() == 0;
+}
+
+#undef LOCTEXT_NAMESPACE
+

@@ -932,6 +932,24 @@ void ARecastNavMesh::AddTileCacheLayers(int32 TileX, int32 TileY, const TArray<F
 	}
 }
 
+#if RECAST_INTERNAL_DEBUG_DATA
+void ARecastNavMesh::RemoveTileDebugData(int32 TileX, int32 TileY)
+{
+	if (RecastNavMeshImpl)
+	{
+		RecastNavMeshImpl->DebugDataMap.Remove(FIntPoint(TileX, TileY));
+	}
+}
+
+void ARecastNavMesh::AddTileDebugData(int32 TileX, int32 TileY, const FRecastInternalDebugData& InTileDebugData)
+{
+	if (RecastNavMeshImpl)
+	{
+		RecastNavMeshImpl->DebugDataMap.Add(FIntPoint(TileX, TileY), InTileDebugData);
+	}
+}
+#endif //RECAST_INTERNAL_DEBUG_DATA
+
 void ARecastNavMesh::MarkEmptyTileCacheLayers(int32 TileX, int32 TileY)
 {
 	if (RecastNavMeshImpl && bStoreEmptyTileLayers)
@@ -1047,8 +1065,9 @@ bool ARecastNavMesh::GetRandomPointInNavigableRadius(const FVector& Origin, floa
 	{
 		const float RadiusSq = FMath::Square(Radius);
 		TArray<FNavPoly> Polys;
-		const FVector FallbackExtent(Radius, Radius, BIG_NUMBER);
-		const FBox Box(Origin - FallbackExtent, Origin + FallbackExtent);
+		const FVector FallbackExtent(Radius, Radius, HALF_WORLD_MAX); //Using HALF_WORLD_MAX instead of BIG_NUMBER, else the box size will be NaN.
+		const FVector BoxOrigin(Origin.X, Origin.Y, 0.f);
+		const FBox Box(BoxOrigin - FallbackExtent, BoxOrigin + FallbackExtent);
 		GetPolysInBox(Box, Polys, Filter, Querier);
 	
 		// @todo extremely naive implementation, barely random. To be improved
@@ -2687,6 +2706,17 @@ void ARecastNavMesh::RebuildTile(const TArray<FIntPoint>& Tiles)
 		}
 	}
 }
+
+#if RECAST_INTERNAL_DEBUG_DATA
+const TMap<FIntPoint, struct FRecastInternalDebugData>* ARecastNavMesh::GetDebugDataMap() const
+{
+	if (RecastNavMeshImpl)
+	{
+		return &RecastNavMeshImpl->DebugDataMap;
+	}
+	return nullptr;
+}
+#endif //RECAST_INTERNAL_DEBUG_DATA
 
 //----------------------------------------------------------------------//
 // FRecastNavMeshCachedData

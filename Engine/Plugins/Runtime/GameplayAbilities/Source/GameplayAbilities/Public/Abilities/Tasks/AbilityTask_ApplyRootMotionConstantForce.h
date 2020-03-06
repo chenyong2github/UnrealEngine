@@ -39,7 +39,8 @@ class GAMEPLAYABILITIES_API UAbilityTask_ApplyRootMotionConstantForce : public U
 		UCurveFloat* StrengthOverTime,
 		ERootMotionFinishVelocityMode VelocityOnFinishMode,
 		FVector SetVelocityOnFinish,
-		float ClampVelocityOnFinish
+		float ClampVelocityOnFinish,
+		bool bEnableGravity
 	);
 
 	/** Tick function for this task, if bTickingTask == true */
@@ -74,4 +75,8 @@ protected:
 	 */
 	UPROPERTY(Replicated)
 	UCurveFloat* StrengthOverTime;
+
+	UPROPERTY(Replicated)
+	bool bEnableGravity;
+
 };

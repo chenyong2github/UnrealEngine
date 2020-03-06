@@ -25,8 +25,18 @@ struct FRayTracingInstance
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
 	uint8 Mask = RAY_TRACING_MASK_ALL;
 
-	/** When InstanceTransforms.Num() == 1 we create a single instance. When it's more than one we create multiple identical instances with different transforms. */
+	/** 
+	* Transforms count. When NumTransforms == 1 we create a single instance. 
+	* When it's more than one we create multiple identical instances with different transforms. 
+	* When GPU transforms are used it is a conservative count. NumTransforms should be less or equal to `InstanceTransforms.Num() 
+	*/
+	uint32 NumTransforms = 0;
+
+	/** Instance transforms. */
 	TArray<FMatrix> InstanceTransforms;
+
+	/** When instance transforms are only available in GPU, this SRV holds them. */
+	FShaderResourceViewRHIRef InstanceGPUTransformsSRV;
 
 	/** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
 	ENGINE_API void BuildInstanceMaskAndFlags();

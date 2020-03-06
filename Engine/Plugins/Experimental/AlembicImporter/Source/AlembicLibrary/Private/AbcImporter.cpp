@@ -6,7 +6,6 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 
-PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <Alembic/AbcCoreOgawa/All.h>
@@ -14,7 +13,6 @@ THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 THIRD_PARTY_INCLUDES_END
-PRAGMA_DEFAULT_VISIBILITY_END
 
 #include "Misc/Paths.h"
 #include "Misc/FeedbackContext.h"
@@ -35,16 +33,12 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include "Animation/AnimSequence.h"
 #include "Rendering/SkeletalMeshModel.h"
 
-
 #include "AbcImportUtilities.h"
 #include "Utils.h"
 
 #include "MeshUtilities.h"
-#include "MaterialUtilities.h"
-#include "Materials/MaterialInstance.h"
-
-#include "Runtime/Engine/Classes/Materials/MaterialInterface.h"
-#include "Runtime/Engine/Public/MaterialCompiler.h"
+#include "Materials/Material.h"
+#include "Modules/ModuleManager.h"
 
 #include "Async/ParallelFor.h"
 
@@ -53,7 +47,6 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include "AbcAssetImportData.h"
 #include "AbcFile.h"
 
-#include "AssetRegistryModule.h"
 #include "AnimationUtils.h"
 #include "ComponentReregisterContext.h"
 #include "GeometryCacheCodecV1.h"
@@ -218,7 +211,7 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 			UMaterialInterface* Material = nullptr;
 			if (FaceSetNames.IsValidIndex(MaterialIndex))
 			{
-				Material = RetrieveMaterial(FaceSetNames[MaterialIndex], InParent, Flags);
+				Material = AbcImporterUtilities::RetrieveMaterial(*AbcFile, FaceSetNames[MaterialIndex], InParent, Flags);
 
 				if (Material != UMaterial::GetDefaultMaterial(MD_Surface))
 				{
@@ -390,29 +383,8 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 				FScopedSlowTask SlowTask((ImportSettings->SamplingSettings.FrameEnd + 1) - ImportSettings->SamplingSettings.FrameStart, FText::FromString(FString(TEXT("Importing Frames"))));
 				SlowTask.MakeDialog(true);
 
-				// Need to get all face sets here -> material names?
-				TArray<FString> UniqueFaceSetNames;
-
+				const TArray<FString>& UniqueFaceSetNames = AbcFile->GetUniqueFaceSetNames();
 				const TArray<FAbcPolyMesh*>& PolyMeshes = AbcFile->GetPolyMeshes();
-				bool bRequiresDefaultMaterial = false;
-				for (FAbcPolyMesh* PolyMesh : PolyMeshes)
-				{
-					if (PolyMesh->bShouldImport)
-					{
-						for (const FString& FaceSetName : PolyMesh->FaceSetNames)
-						{
-							UniqueFaceSetNames.AddUnique(FaceSetName);
-						}
-					
-						bRequiresDefaultMaterial |= PolyMesh->FaceSetNames.Num() == 0;
-					}
-				}
-
-				if (bRequiresDefaultMaterial)
-				{
-					UniqueFaceSetNames.Insert(TEXT("DefaultMaterial"), 0 );
-				}
-
 				
 				const int32 NumTracks = Tracks.Num();
 				int32 PreviousNumVertices = 0;
@@ -436,7 +408,7 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 				// Now add materials for all the face set names
 				for (const FString& FaceSetName : UniqueFaceSetNames)
 				{
-					UMaterialInterface* Material = RetrieveMaterial(FaceSetName, InParent, Flags);
+					UMaterialInterface* Material = AbcImporterUtilities::RetrieveMaterial(*AbcFile, FaceSetName, InParent, Flags);
 					GeometryCache->Materials.Add((Material != nullptr) ? Material : DefaultMaterial);		
 
 					if (Material != UMaterial::GetDefaultMaterial(MD_Surface))
@@ -469,7 +441,7 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 							UMaterialInterface* Material = nullptr;
 							if (PolyMesh->FaceSetNames.IsValidIndex(MaterialIndex))
 							{
-								Material = RetrieveMaterial(PolyMesh->FaceSetNames[MaterialIndex], InParent, Flags);
+								Material = AbcImporterUtilities::RetrieveMaterial(*AbcFile, PolyMesh->FaceSetNames[MaterialIndex], InParent, Flags);
 								if (Material != UMaterial::GetDefaultMaterial(MD_Surface))
 								{
 									Material->PostEditChange();
@@ -664,6 +636,10 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		Sequence->SequenceLength = AbcFile->GetImportLength();
 		Sequence->ImportFileFramerate = AbcFile->GetFramerate();
 		Sequence->ImportResampleFramerate = AbcFile->GetFramerate();
+
+		// Add 1 because of the way AnimSequence computes its framerate
+		Sequence->SetRawNumberOfFrame(AbcFile->GetImportNumFrames() + 1);
+
 		int32 ObjectIndex = 0;
 		uint32 TriangleOffset = 0;
 		uint32 WedgeOffset = 0;
@@ -732,7 +708,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 				for (uint32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
 				{
 					const FString& MaterialName = CompressedData.MaterialNames[MaterialIndex];
-					UMaterialInterface* Material = RetrieveMaterial(MaterialName, InParent, Flags);
+					UMaterialInterface* Material = AbcImporterUtilities::RetrieveMaterial(*AbcFile, MaterialName, InParent, Flags);
 					SkeletalMesh->Materials.Add(FSkeletalMaterial(Material, true));
 					if (Material != UMaterial::GetDefaultMaterial(MD_Surface))
 					{
@@ -1277,16 +1253,28 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 		VertexPositions[VertexID] = FVector(Position);
 	}
 
+	uint32 VertexIndices[3];
 	uint32 TriangleCount = Sample->Indices.Num() / 3;
 	for (uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
 	{
+		const uint32 IndiceIndex0 = TriangleIndex * 3;
+		VertexIndices[0] = Sample->Indices[IndiceIndex0];
+		VertexIndices[1] = Sample->Indices[IndiceIndex0 + 1];
+		VertexIndices[2] = Sample->Indices[IndiceIndex0 + 2];
+
+		// Skip degenerated triangle
+		if (VertexIndices[0] == VertexIndices[1] || VertexIndices[1] == VertexIndices[2] || VertexIndices[0] == VertexIndices[2])
+		{
+			continue;
+		}
+
 		TArray<FVertexInstanceID> CornerVertexInstanceIDs;
 		CornerVertexInstanceIDs.SetNum(3);
 		FVertexID CornerVertexIDs[3];
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
-			uint32 IndiceIndex = (TriangleIndex * 3) + Corner;
-			uint32 VertexIndex = Sample->Indices[IndiceIndex];
+			uint32 IndiceIndex = IndiceIndex0 + Corner;
+			uint32 VertexIndex = VertexIndices[Corner];
 			const FVertexID VertexID(VertexIndex);
 			const FVertexInstanceID VertexInstanceID = MeshDescription->CreateVertexInstance(VertexID);
 
@@ -1540,56 +1528,6 @@ void FAbcImporter::GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArra
 			MorphDeltas.Add(MorphVertex);
 		}
 	}
-}
-
-UMaterialInterface* FAbcImporter::RetrieveMaterial(const FString& MaterialName, UObject* InParent, EObjectFlags Flags)
-{
-	UMaterialInterface* Material = nullptr;
-	UMaterialInterface** CachedMaterial = AbcFile->GetMaterialByName(MaterialName);
-	if (CachedMaterial)
-	{
-		Material = *CachedMaterial;
-		// Material could have been deleted if we're overriding/reimporting an asset
-		if (Material->IsValidLowLevel())
-		{
-			if (Material->GetOuter() == GetTransientPackage())
-			{
-				UMaterial* ExistingTypedObject = FindObject<UMaterial>(InParent, *MaterialName);
-				if (!ExistingTypedObject)
-				{
-					// This is in for safety, as we do not expect this to happen
-					UObject* ExistingObject = FindObject<UObject>(InParent, *MaterialName);
-					if (ExistingObject)
-					{
-						return nullptr;
-					}
-
-					Material->Rename(*MaterialName, InParent);				
-					Material->SetFlags(Flags);
-					FAssetRegistryModule::AssetCreated(Material);
-				}
-				else
-				{
-					ExistingTypedObject->PreEditChange(nullptr);
-					Material = ExistingTypedObject;
-				}
-			}
-		}
-		else
-		{
-			// In this case recreate the material
-			Material = NewObject<UMaterial>(InParent, *MaterialName);
-			Material->SetFlags(Flags);
-			FAssetRegistryModule::AssetCreated(Material);
-		}
-	}
-	else
-	{
-		Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		check(Material);
-	}
-
-	return Material;
 }
 
 FCompressedAbcData::~FCompressedAbcData()

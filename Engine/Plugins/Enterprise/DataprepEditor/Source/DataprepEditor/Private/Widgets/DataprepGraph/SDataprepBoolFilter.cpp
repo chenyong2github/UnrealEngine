@@ -3,7 +3,6 @@
 #include "Widgets/DataprepGraph/SDataprepBoolFilter.h"
 
 #include "SelectionSystem/DataprepBoolFilter.h"
-#include "Widgets/DataprepGraph/SDataprepFetcherSelector.h"
 
 #include "Widgets/Layout/SBox.h"
 

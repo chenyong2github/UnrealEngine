@@ -15,24 +15,27 @@
 
 static inline void PreloadInnerStructMembers(FStructProperty* StructProperty)
 {
-#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	uint32 PropagatedLoadFlags = 0;
-	if (FLinkerLoad* Linker = StructProperty->GetLinker())
+	if (UseCircularDependencyLoadDeferring())
 	{
-		PropagatedLoadFlags |= (Linker->LoadFlags & LOAD_DeferDependencyLoads);
-	}
-
-	if (UScriptStruct* Struct = StructProperty->Struct)
-	{
-		if (FLinkerLoad* StructLinker = Struct->GetLinker())
+		uint32 PropagatedLoadFlags = 0;
+		if (FLinkerLoad* Linker = StructProperty->GetLinker())
 		{
-			TGuardValue<uint32> LoadFlagGuard(StructLinker->LoadFlags, StructLinker->LoadFlags | PropagatedLoadFlags);
-			Struct->RecursivelyPreload();
+			PropagatedLoadFlags |= (Linker->LoadFlags & LOAD_DeferDependencyLoads);
+		}
+
+		if (UScriptStruct* Struct = StructProperty->Struct)
+		{
+			if (FLinkerLoad* StructLinker = Struct->GetLinker())
+			{
+				TGuardValue<uint32> LoadFlagGuard(StructLinker->LoadFlags, StructLinker->LoadFlags | PropagatedLoadFlags);
+				Struct->RecursivelyPreload();
+			}
 		}
 	}
-#else // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	StructProperty->Struct->RecursivelyPreload();
-#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	else
+	{
+		StructProperty->Struct->RecursivelyPreload();
+	}
 }
 
 /*-----------------------------------------------------------------------------
@@ -144,11 +147,7 @@ uint32 FStructProperty::GetValueTypeHashInternal(const void* Src) const
 
 void FStructProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
-	check(Struct);
-
-#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	FScopedPlaceholderPropertyTracker ImportPropertyTracker(this);
-#endif
 
 	Struct->SerializeItem(Slot, Value, Defaults);
 }
@@ -291,7 +290,7 @@ const TCHAR* FStructProperty::ImportText_Internal(const TCHAR* InBuffer, void* D
 		StructLinker->LoadFlags |= OldFlags | PropagatedLoadFlags;
 	}
 #endif 
-	const TCHAR* Result = Struct->ImportText(InBuffer, Data, Parent, PortFlags, ErrorText, GetName(), true);
+	const TCHAR* Result = Struct->ImportText(InBuffer, Data, Parent, PortFlags, ErrorText, [this]() { return GetName(); }, true);
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	if (StructLinker)

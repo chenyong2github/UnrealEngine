@@ -6,39 +6,37 @@
 
 class FLuminAffinity : public FGenericPlatformAffinity
 {
-	const static uint64 ArmCores = MAKEAFFINITYMASK2(3,4);
-	const static uint64 DenverCores = MAKEAFFINITYMASK1(2);
 public:
 	static const CORE_API uint64 GetMainGameMask() {
-		return ArmCores;
+		return GameThreadMask;
 	}
 
 	static const CORE_API uint64 GetRenderingThreadMask() {
-		return ArmCores;
+		return RenderingThreadMask;
 	}
 
 	static const CORE_API uint64 GetRHIThreadMask() {
-		return ArmCores;
+		return RHIThreadMask;
 	}
 
 	static const CORE_API uint64 GetRTHeartBeatMask() {
-		return ArmCores;
+		return RTHeartBeatMask;
 	}
 
 	static const CORE_API uint64 GetPoolThreadMask() {
-		return DenverCores;
+		return PoolThreadMask;
 	}
 
 	static const CORE_API uint64 GetTaskGraphThreadMask() {
-		return ArmCores;
+		return TaskGraphThreadMask;
 	}
 
 	static const CORE_API uint64 GetStatsThreadMask() {
-		return ArmCores;
+		return StatsThreadMask;
 	}
 
 	static const CORE_API uint64 GetAudioThreadMask() {
-		return DenverCores;
+		return AudioThreadMask;
 	}
 
 	static const CORE_API uint64 GetNoAffinityMask() {
@@ -46,7 +44,7 @@ public:
 	}
 
 	static const CORE_API uint64 GetTaskGraphBackgroundTaskMask() {
-		return ArmCores;
+		return TaskGraphBGTaskMask;
 	}
 
 	static EThreadPriority GetRenderingThreadPriority() {
@@ -56,6 +54,18 @@ public:
 	static EThreadPriority GetRHIThreadPriority() {
 		return TPri_SlightlyBelowNormal;
 	}
+
+public:
+	// Default mask definitions in LuminPlatformProcess.cpp
+	static int64 GameThreadMask;
+	static int64 RenderingThreadMask;
+	static int64 RTHeartBeatMask;
+	static int64 RHIThreadMask;
+	static int64 PoolThreadMask;
+	static int64 TaskGraphThreadMask;
+	static int64 TaskGraphBGTaskMask;
+	static int64 StatsThreadMask;
+	static int64 AudioThreadMask;
 };
 
 typedef FLuminAffinity FPlatformAffinity;

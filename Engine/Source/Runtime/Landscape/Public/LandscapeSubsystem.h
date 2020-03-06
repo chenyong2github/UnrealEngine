@@ -10,44 +10,29 @@
 
 class ALandscapeProxy;
 
-struct FLandscapeSubsystemTickFunction : public FTickFunction
-{
-	FLandscapeSubsystemTickFunction() : FLandscapeSubsystemTickFunction(nullptr) {}
-	FLandscapeSubsystemTickFunction(ULandscapeSubsystem* InSubsystem) : Subsystem(InSubsystem) {}
-	virtual ~FLandscapeSubsystemTickFunction() {}
-
-	// Begin FTickFunction overrides
-	virtual void ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) override;
-	virtual FString DiagnosticMessage() override;
-	virtual FName DiagnosticContext(bool bDetailed) override;
-	// End FTickFunction overrides
-
-	class ULandscapeSubsystem* Subsystem;
-};
-
 UCLASS()
 class ULandscapeSubsystem : public UWorldSubsystem, public FTickFunction
 {
 	GENERATED_BODY()
 
+public:
 	ULandscapeSubsystem();
 	virtual ~ULandscapeSubsystem();
 
-public:
-	// Begin USubsystem
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
-	// End USubsystem
-		
 	void RegisterActor(ALandscapeProxy* Proxy);
 	void UnregisterActor(ALandscapeProxy* Proxy);
 
 private:
-	void Tick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+	// Begin USubsystem
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	// End USubsystem
 
-	friend struct FLandscapeSubsystemTickFunction;
-	FLandscapeSubsystemTickFunction TickFunction;
+	// Begin FTickFunction overrides
+	virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) override;
+	virtual FString DiagnosticMessage() override;
+	virtual FName DiagnosticContext(bool bDetailed) override;
+	// End FTickFunction overrides
 
 	TArray<ALandscapeProxy*> Proxies;
 };
-

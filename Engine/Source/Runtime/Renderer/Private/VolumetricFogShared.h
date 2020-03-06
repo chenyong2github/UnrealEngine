@@ -39,6 +39,7 @@ struct FVolumetricFogIntegrationParameterData
 /**  */
 class FVolumetricFogIntegrationParameters
 {
+	DECLARE_TYPE_LAYOUT(FVolumetricFogIntegrationParameters, NonVirtual);
 public:
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
@@ -116,18 +117,19 @@ public:
 	}
 
 private:
-
-	FRWShaderParameter VBufferA;
-	FRWShaderParameter VBufferB;
-	FRWShaderParameter LightScattering;
-	FRWShaderParameter IntegratedLightScattering;
-	FShaderResourceParameter IntegratedLightScatteringSampler;
-	FShaderUniformBufferParameter VolumetricFogData;
-	FShaderParameter UnjitteredClipToTranslatedWorld;
-	FShaderParameter UnjitteredPrevWorldToClip;
-	FShaderParameter FrameJitterOffsets;
-	FShaderParameter HistoryWeight;
-	FShaderParameter HistoryMissSuperSampleCount;
+	
+		LAYOUT_FIELD(FRWShaderParameter, VBufferA)
+		LAYOUT_FIELD(FRWShaderParameter, VBufferB)
+		LAYOUT_FIELD(FRWShaderParameter, LightScattering)
+		LAYOUT_FIELD(FRWShaderParameter, IntegratedLightScattering)
+		LAYOUT_FIELD(FShaderResourceParameter, IntegratedLightScatteringSampler)
+		LAYOUT_FIELD(FShaderUniformBufferParameter, VolumetricFogData)
+		LAYOUT_FIELD(FShaderParameter, UnjitteredClipToTranslatedWorld)
+		LAYOUT_FIELD(FShaderParameter, UnjitteredPrevWorldToClip)
+		LAYOUT_FIELD(FShaderParameter, FrameJitterOffsets)
+		LAYOUT_FIELD(FShaderParameter, HistoryWeight)
+		LAYOUT_FIELD(FShaderParameter, HistoryMissSuperSampleCount)
+	
 };
 
 inline int32 ComputeZSliceFromDepth(float SceneDepth, FVector GridZParams)

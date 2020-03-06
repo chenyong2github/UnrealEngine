@@ -10,13 +10,15 @@
 #include "NiagaraCollision.h"
 #include "INiagaraMergeManager.h"
 #include "NiagaraSystemFastPath.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
 class UNiagaraEmitter;
 class UNiagaraEventReceiverEmitterAction;
 class UNiagaraRendererProperties;
-class UNiagaraShaderStageBase;
+class UNiagaraSimulationStageBase;
+class UNiagaraEditorDataBase;
 
 //TODO: Event action that spawns other whole Systems?
 //One that calls a BP exposed delegate?
@@ -63,11 +65,7 @@ struct FNiagaraEventGeneratorProperties
 {
 	GENERATED_BODY()
 
-	FNiagaraEventGeneratorProperties()
-	: MaxEventsPerFrame(64)
-	{
-
-	}
+	FNiagaraEventGeneratorProperties() = default;
 
 	FNiagaraEventGeneratorProperties(FNiagaraDataSetProperties &Props, FName InEventGenerator)
 		: ID(Props.ID.Name)
@@ -80,7 +78,7 @@ struct FNiagaraEventGeneratorProperties
 
 	/** Max Number of Events that can be generated per frame. */
 	UPROPERTY(EditAnywhere, Category = "Event Receiver")
-	int32 MaxEventsPerFrame; //TODO - More complex allocation so that we can grow dynamically if more space is needed ?
+	int32 MaxEventsPerFrame = 64; //TODO - More complex allocation so that we can grow dynamically if more space is needed ?
 
 	UPROPERTY()
 	FName ID;
@@ -177,31 +175,22 @@ struct FNiagaraEventScriptProperties : public FNiagaraEmitterScriptProperties
 	uint32 MinSpawnNumber;
 };
 
+/** Legacy struct for spawn count scale overrides. This is now done in FNiagaraEmitterScalabilityOverrides*/
 USTRUCT()
 struct FNiagaraDetailsLevelScaleOverrides 
 {
 	GENERATED_BODY()
 
 	FNiagaraDetailsLevelScaleOverrides();
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to Low instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float Low;
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to Medium instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float Medium;
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to High instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float High;
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to Epic instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float Epic;
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to Cine instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float Cine;
 };
 
@@ -250,10 +239,14 @@ public:
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
 #endif
+	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
 	void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+	virtual bool IsEditorOnly() const override;
 	//End UObject Interface
+
+	bool IsEnabledOnPlatform(const FString& PlatformName)const;
 
 	/** Toggles whether or not the particles within this emitter are relative to the emitter origin or in global space. */ 
 	UPROPERTY(EditAnywhere, Category = "Emitter")
@@ -302,17 +295,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Emitter", meta = (EditCondition = "bFixedBounds"))
 	FBox FixedBounds;
 	
-	/** If the current engine detail level is below MinDetailLevel then this emitter is disabled. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(EditCondition = "bUseMinDetailLevel"))
-	int32 MinDetailLevel;
+	UPROPERTY()
+	int32 MinDetailLevel_DEPRECATED;
+	UPROPERTY()
+	int32 MaxDetailLevel_DEPRECATED;
+	UPROPERTY()
+	FNiagaraDetailsLevelScaleOverrides GlobalSpawnCountScaleOverrides_DEPRECATED;
+	
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	FNiagaraPlatformSet Platforms;
 
-	/** If the current engine detail level is above MaxDetailLevel then this emitter is disabled. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(EditCondition = "bUseMaxDetailLevel"))
-	int32 MaxDetailLevel;
-
-	/** Custom Scalability spawn count scales to override the ones defined by fx.NiagaraGlobalSpawnCountScale in the GScalabilityIni config hierarchy. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bOverrideGlobalSpawnCountScale"))
-	FNiagaraDetailsLevelScaleOverrides GlobalSpawnCountScaleOverrides;
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	FNiagaraEmitterScalabilityOverrides ScalabilityOverrides;
 
 	/** When enabled, this will spawn using interpolated parameter values and perform a partial update at spawn time. This adds significant additional cost for spawning but will produce much smoother spawning for high spawn rates, erratic frame rates and fast moving emitters. */
 	UPROPERTY(EditAnywhere, Category = "Emitter")
@@ -323,16 +317,16 @@ public:
 	uint32 bFixedBounds : 1;
 
 	/** Whether to use the min detail or not. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bUseMinDetailLevel : 1;
+	UPROPERTY()
+	uint32 bUseMinDetailLevel_DEPRECATED : 1;
 	
 	/** Whether to use the min detail or not. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bUseMaxDetailLevel : 1;
+	UPROPERTY()
+	uint32 bUseMaxDetailLevel_DEPRECATED : 1;
 
-	/** Whether or not to override the global spawn count scale based on Effects Quality levels, as defined by fx.NiagaraGlobalSpawnCountScale in the GScalabilityIni config hierarchy. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bOverrideGlobalSpawnCountScale : 1;
+	/** Legacy bool to control overriding the global spawn count scales. */
+	UPROPERTY()
+	uint32 bOverrideGlobalSpawnCountScale_DEPRECATED : 1;
 
 	/** Do particles in this emitter require a persistent ID? */
 	UPROPERTY(EditAnywhere, Category = "Emitter")
@@ -342,17 +336,25 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "bLimitDeltaTime"))
 	float MaxDeltaTimePerTick;
 
-	/** Get the max number of iteration that the CS is going to be launched. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	/** Get the default shader stage index. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bDeprecatedShaderStagesEnabled", DisplayAfter = "bDeprecatedShaderStagesEnabled"))
 	uint32 DefaultShaderStageIndex;
 
-	/** Get the max number of iteration that the CS is going to be launched. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	/** Get the number of shader stages that we fire off. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bDeprecatedShaderStagesEnabled", DisplayAfter = "DefaultShaderStageIndex"))
 	uint32 MaxUpdateIterations;
 
-	/** Get the max number of iteration that the CS is going to be launched. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	/** Get whether or not shaderstages spwn. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bDeprecatedShaderStagesEnabled", DisplayAfter = "MaxUpdateIterations"))
 	TSet<uint32> SpawnStages;
+
+	/** Get whether or not to use simulation stages. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (DisplayName = "Enable Simulation Stages (Experimental GPU Only)"))
+	uint32 bSimulationStagesEnabled : 1;
+
+	/** Get whether or not to use shader stages. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (DisplayName = "Enable Deprecated Shader Stages (Experimental GPU Only)"))
+	uint32 bDeprecatedShaderStagesEnabled : 1;
 
 	/** Whether to limit the max tick delta time or not. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (InlineEditConditionToggle))
@@ -382,10 +384,10 @@ public:
 
 	/* Gets a Guid which is updated any time data in this emitter is changed. */
 	FGuid NIAGARA_API GetChangeId() const;
-	
-	/** Data used by the editor to maintain UI state etc.. */
-	UPROPERTY()
-	UObject* EditorData;
+
+	NIAGARA_API UNiagaraEditorDataBase* GetEditorData() const;
+
+	NIAGARA_API void SetEditorData(UNiagaraEditorDataBase* InEditorData);
 
 	/** Internal: The thumbnail image.*/
 	UPROPERTY()
@@ -404,10 +406,25 @@ public:
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	FText TemplateAssetDescription;
+
+	UPROPERTY()
+	TArray<UNiagaraScript*> ScratchPadScripts;
+
+	UPROPERTY()
+	TArray<UNiagaraScript*> ParentScratchPadScripts;
 	
 	/** Callback issued whenever a VM compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnEmitterCompiled& OnEmitterVMCompiled();
 
+	/** Callback issued whenever a VM compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
+	NIAGARA_API FOnEmitterCompiled& OnEmitterGPUCompiled();
+
+	/** Callback issued whenever a GPU compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
+	NIAGARA_API FOnEmitterCompiled& OnGPUCompilationComplete()
+	{
+		return OnGPUScriptCompiledDelegate;
+	}
+	
 	NIAGARA_API static bool GetForceCompileOnLoad();
 
 	/** Whether or not this emitter is synchronized with its parent emitter. */
@@ -423,11 +440,12 @@ public:
 	NIAGARA_API UNiagaraEmitter* DuplicateWithoutMerging(UObject* InOuter);
 #endif
 
-	float GetSpawnCountScale(int EffectsQuality = -1); 
+	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
 
-	/** Is this emitter allowed to be enabled by the current system detail level. */
-	NIAGARA_API bool IsAllowedByDetailLevel(int32 DetailLevel)const;
-	NIAGARA_API bool RequiresPersistantIDs()const;
+	/** Returns true if this emitter's platform filter allows it on this platform and EffectsQuality level. */
+	NIAGARA_API bool IsAllowedByScalability()const;
+
+	NIAGARA_API bool RequiresPersistentIDs() const;
 
 	NIAGARA_API bool IsValid()const;
 	NIAGARA_API bool IsReadyToRun() const;
@@ -455,15 +473,15 @@ public:
 
 	void NIAGARA_API RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId);
 
-	NIAGARA_API const TArray<UNiagaraShaderStageBase*>& GetShaderStages() const { return ShaderStages; }
+	NIAGARA_API const TArray<UNiagaraSimulationStageBase*>& GetSimulationStages() const { return SimulationStages; }
 
-	NIAGARA_API UNiagaraShaderStageBase* GetShaderStageById(FGuid ScriptUsageId) const;
+	NIAGARA_API UNiagaraSimulationStageBase* GetSimulationStageById(FGuid ScriptUsageId) const;
 
-	void NIAGARA_API AddShaderStage(UNiagaraShaderStageBase* ShaderStage);
+	void NIAGARA_API AddSimulationStage(UNiagaraSimulationStageBase* SimulationStage);
 
-	void NIAGARA_API RemoveShaderStage(UNiagaraShaderStageBase* ShaderStage);
+	void NIAGARA_API RemoveSimulationStage(UNiagaraSimulationStageBase* SimulationStage);
 
-	void NIAGARA_API MoveShaderStageToIndex(UNiagaraShaderStageBase* ShaderStage, int32 TargetIndex);
+	void NIAGARA_API MoveSimulationStageToIndex(UNiagaraSimulationStageBase* SimulationStage, int32 TargetIndex);
 
 	/* Gets whether or not the supplied event generator id matches an event generator which is shared between the particle spawn and update scrips. */
 	bool IsEventGeneratorShared(FName EventGeneratorId) const;
@@ -482,7 +500,11 @@ public:
 	NIAGARA_API void RemoveParent();
 
 	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
+
+	NIAGARA_API	void Reparent(UNiagaraEmitter& InParent);
 #endif
+
+	void OnEffectsQualityChanged();
 
 	void InitFastPathAttributeNames();
 
@@ -510,6 +532,8 @@ public:
 protected:
 	virtual void BeginDestroy() override;
 
+	void ResolveScalabilitySettings();
+
 #if WITH_EDITORONLY_DATA
 private:
 	void UpdateFromMergedCopy(const INiagaraMergeManager& MergeManager, UNiagaraEmitter* MergedEmitter);
@@ -520,19 +544,30 @@ private:
 
 	void ScriptRapidIterationParameterChanged();
 
-	void ShaderStageChanged();
+	void SimulationStageChanged();
 
 	void RendererChanged();
 
 	void GraphSourceChanged();
+
+	void PersistentEditorDataChanged();
 
 private:
 	/** Adjusted every time that we compile this emitter. Lets us know that we might differ from any cached versions.*/
 	UPROPERTY()
 	FGuid ChangeId;
 
+	/** Data used by the editor to maintain UI state etc.. */
+	UPROPERTY()
+	UNiagaraEditorDataBase* EditorData;
+
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnVMScriptCompiledDelegate;
+
+	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
+	FOnEmitterCompiled OnGPUScriptCompiledDelegate;
+
+	void RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript);
 #endif
 
 	UPROPERTY()
@@ -545,7 +580,7 @@ private:
 	TArray<FNiagaraEventScriptProperties> EventHandlerScriptProps;
 
 	UPROPERTY(meta = (NiagaraNoMerge))
-	TArray<UNiagaraShaderStageBase*> ShaderStages;
+	TArray<UNiagaraSimulationStageBase*> SimulationStages;
 
 	UPROPERTY()
 	UNiagaraScript* GPUComputeScript;
@@ -576,6 +611,8 @@ private:
 
 	MemoryRuntimeEstimation RuntimeEstimation;
 	FCriticalSection EstimationCriticalSection;
+
+	FNiagaraEmitterScalabilitySettings CurrentScalabilitySettings;
 };
 
 

@@ -112,7 +112,7 @@ protected:
 		else
 		{
 			// Actor component classes should not be abstract and must also be tagged as BlueprintSpawnable
-			bCanCreate = !ObjectClass->HasAnyClassFlags(CLASS_Abstract) && ObjectClass->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent);
+			bCanCreate = FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(ObjectClass);
 		}
 
 		return bCanCreate;
@@ -429,8 +429,7 @@ bool FComponentEditorUtils::CanCopyComponent(const UActorComponent* ComponentToC
 		check(ComponentClass != nullptr);
 
 		// Component class cannot be abstract and must also be tagged as BlueprintSpawnable
-		return !ComponentClass->HasAnyClassFlags(CLASS_Abstract)
-			&& ComponentClass->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent);
+		return FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(ComponentClass);
 	}
 
 	return false;

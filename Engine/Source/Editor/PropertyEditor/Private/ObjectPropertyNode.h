@@ -24,8 +24,8 @@ public:
 	/** FPropertyNode Interface */
 	virtual FObjectPropertyNode* AsObjectNode() override { return this;}
 	virtual const FObjectPropertyNode* AsObjectNode() const override { return this; }
-	virtual bool GetReadAddressUncached(FPropertyNode& InNode, bool InRequiresSingleSelection, FReadAddressListData* OutAddresses, bool bComparePropertyContents = true, bool bObjectForceCompare = false, bool bArrayPropertiesCanDifferInSize = false) const override;
-	virtual bool GetReadAddressUncached(FPropertyNode& InNode, FReadAddressListData& OutAddresses) const override;
+	virtual bool GetReadAddressUncached(const FPropertyNode& InNode, bool InRequiresSingleSelection, FReadAddressListData* OutAddresses, bool bComparePropertyContents = true, bool bObjectForceCompare = false, bool bArrayPropertiesCanDifferInSize = false) const override;
+	virtual bool GetReadAddressUncached(const FPropertyNode& InNode, FReadAddressListData& OutAddresses) const override;
 
 	/**
 	 * Returns the UObject at index "n" of the Objects Array
@@ -131,7 +131,7 @@ protected:
 	virtual void InitBeforeNodeFlags() override;
 	virtual void InitChildNodes() override;
 	virtual bool GetQualifiedName( FString& PathPlusIndex, const bool bWithArrayIndex, const FPropertyNode* StopParent = nullptr, bool bIgnoreCategories = false ) const override;
-	virtual uint8* GetValueBaseAddress(uint8* Base, bool bIsSparseData) override;
+	virtual uint8* GetValueBaseAddress(uint8* Base, bool bIsSparseData) const override;
 	/**
 	 * Looks at the Objects array and creates the best base class.  Called by
 	 * Finalize(); that is, when the list of selected objects is being finalized.

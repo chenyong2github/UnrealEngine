@@ -133,7 +133,7 @@ public:
 		IPooledRenderTarget& InTextureValue,
 		IPooledRenderTarget& OutTextureValue)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
@@ -267,27 +267,10 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, IPooledRenderTarget& OutTextureValue)
 	{
-		OutTexture.UnsetUAV(RHICmdList, GetComputeShader());
+		OutTexture.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 
 		FRHIUnorderedAccessView* OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, &OutUAV, 1);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{		
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SceneTextureParameters;
-		Ar << OutTexture;
-		Ar << InTexture;
-		Ar << NumLights;
-		Ar << ViewDimensions;
-		Ar << LTCMatTexture;
-		Ar << LTCMatSampler;
-		Ar << LTCAmpTexture;
-		Ar << LTCAmpSampler;
-		Ar << TransmissionProfilesTexture;
-		Ar << TransmissionProfilesLinearSampler;
-		return bShaderHasOutdatedParameters;
 	}
 
 	static const TCHAR* GetSourceFilename()
@@ -301,18 +284,17 @@ public:
 	}
 
 private:
-
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderResourceParameter InTexture;
-	FRWShaderParameter OutTexture;
-	FShaderParameter NumLights;
-	FShaderParameter ViewDimensions;
-	FShaderResourceParameter LTCMatTexture;
-	FShaderResourceParameter LTCMatSampler;
-	FShaderResourceParameter LTCAmpTexture;
-	FShaderResourceParameter LTCAmpSampler;
-	FShaderResourceParameter TransmissionProfilesTexture;
-	FShaderResourceParameter TransmissionProfilesLinearSampler;
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture);
+	LAYOUT_FIELD(FRWShaderParameter, OutTexture);
+	LAYOUT_FIELD(FShaderParameter, NumLights);
+	LAYOUT_FIELD(FShaderParameter, ViewDimensions);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCMatTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCMatSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesLinearSampler);
 };
 
 // #define avoids a lot of code duplication
@@ -350,13 +332,13 @@ static void SetShaderTemplTiledLighting(
 	IPooledRenderTarget& OutTexture)
 {
 	TShaderMapRef<FTiledDeferredLightingCS<bVisualizeLightCulling> > ComputeShader(View.ShaderMap);
-	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 	ComputeShader->SetParameters(RHICmdList, View, ViewIndex, NumViews, SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, InTexture, OutTexture);
 
 	uint32 GroupSizeX = (View.ViewRect.Size().X + GDeferredLightTileSizeX - 1) / GDeferredLightTileSizeX;
 	uint32 GroupSizeY = (View.ViewRect.Size().Y + GDeferredLightTileSizeY - 1) / GDeferredLightTileSizeY;
-	DispatchComputeShader(RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+	DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
 
 	ComputeShader->UnsetParameters(RHICmdList, OutTexture);
 }

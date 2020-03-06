@@ -50,6 +50,8 @@ void FOSCBundlePacket::WriteData(FOSCStream& Stream)
 
 void FOSCBundlePacket::ReadData(FOSCStream& Stream)
 {
+	Packets.Reset();
+
 	FString BundleTag = Stream.ReadString();
 	if (BundleTag != OSC::BundleTag)
 	{

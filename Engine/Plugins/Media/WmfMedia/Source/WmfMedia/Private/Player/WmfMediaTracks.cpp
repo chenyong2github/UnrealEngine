@@ -371,7 +371,7 @@ bool FWmfMediaTracks::FetchAudio(TRange<FTimespan> TimeRange, TSharedPtr<IMediaA
 		return false;
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
+	const FTimespan SampleTime = Sample->GetTime().Time;
 
 	if (!TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
 	{
@@ -398,7 +398,7 @@ bool FWmfMediaTracks::FetchCaption(TRange<FTimespan> TimeRange, TSharedPtr<IMedi
 		return false;
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
+	const FTimespan SampleTime = Sample->GetTime().Time;
 
 	if (!TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
 	{
@@ -425,7 +425,7 @@ bool FWmfMediaTracks::FetchMetadata(TRange<FTimespan> TimeRange, TSharedPtr<IMed
 		return false;
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
+	const FTimespan SampleTime = Sample->GetTime().Time;
 
 	if (!TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
 	{
@@ -452,7 +452,7 @@ bool FWmfMediaTracks::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaT
 		return false;
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
+	const FTimespan SampleTime = Sample->GetTime().Time;
 
 	if (!TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
 	{
@@ -478,6 +478,17 @@ void FWmfMediaTracks::FlushSamples()
 	VideoSampleQueue.RequestFlush();
 }
 
+
+bool FWmfMediaTracks::PeekVideoSampleTime(FMediaTimeStamp & TimeStamp)
+{
+	TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+	if (!VideoSampleQueue.Peek(Sample))
+	{
+		return false;
+	}
+	TimeStamp = FMediaTimeStamp(Sample->GetTime());
+	return true;
+}
 
 /* IMediaTracks interface
  *****************************************************************************/
@@ -1078,7 +1089,7 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 	if ((GEngine != nullptr) && 
 		GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding &&
 		MajorType == MFMediaType_Video &&
-		FWindowsPlatformMisc::VerifyWindowsVersion(6, 2) && // Windows 8
+		FPlatformMisc::VerifyWindowsVersion(6, 2) && // Windows 8
 		FWmfMediaStreamSink::Create(MFMediaType_Video, MediaStreamSink))
 	{
 		VideoHardwareVideoDecodingSamplePool = MakeShared<FWmfMediaHardwareVideoDecodingTextureSamplePool>();

@@ -40,6 +40,7 @@ static inline FGuid GUIDToFGuid(GUID InGuid)
 struct FMeshUpdate
 {
 	FGuid Id;
+	EARObjectClassification Type;
 
 	/** This gets filled in during the mesh allocation */
 	FVector Location;
@@ -237,11 +238,6 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 		WMRInterop->SetLogCallback(&OnLog);
 	}
 
-#if PLATFORM_HOLOLENS
-	// Start the camera image grabber
-	SetupCameraImageSupport();
-#endif
-
 	if (SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 	{
 		// Start spatial mesh mapping
@@ -276,7 +272,7 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 void FHoloLensARSystem::SetupCameraImageSupport()
 {
 	// Remoting does not support CameraCapture currently.
-	//if (WMRInterop->IsRemoting()) //TEMP Disabling passthrough camera, it has d3d corruption bugs.
+	if (WMRInterop->IsRemoting())
 	{
 		return;
 	}
@@ -555,19 +551,34 @@ bool FHoloLensARSystem::OnAddRuntimeCandidateImage(UARSessionConfig* InSessionCo
 }
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
-void FHoloLensARSystem::OnCameraImageReceived_Raw(ID3D11Texture2D* CameraFrame)
+void FHoloLensARSystem::OnCameraImageReceived_Raw(void* handle, DirectX::XMFLOAT4X4 camToTracking)
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	// To keep this from being deleted while we are processing it
-	CameraFrame->AddRef();
 
-	auto CameraImageTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(HoloLensARThis, &FHoloLensARSystem::OnCameraImageReceived_GameThread, CameraFrame);
+	DirectX::XMVECTOR p,r,s;
+	DirectX::XMMATRIX m = DirectX::XMLoadFloat4x4(&camToTracking);
+	DirectX::XMMatrixDecompose(&s, &r, &p, m);
+
+	DirectX::XMFLOAT3 pos, scale;
+	DirectX::XMFLOAT4 rot;
+
+	DirectX::XMStoreFloat3(&pos, p);
+	DirectX::XMStoreFloat3(&scale, s);
+	DirectX::XMStoreFloat4(&rot, r);
+
+	FQuat rotUE = WindowsMixedReality::WMRUtility::FromMixedRealityQuaternion(rot);
+	FVector posUE = WindowsMixedReality::WMRUtility::FromMixedRealityVector(pos) * 100.0f;
+	FVector scaleUE = WindowsMixedReality::WMRUtility::FromMixedRealityScale(scale);
+
+	FTransform transform = FTransform(rotUE, posUE, scaleUE);
+
+	auto CameraImageTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(HoloLensARThis, &FHoloLensARSystem::OnCameraImageReceived_GameThread, handle, transform);
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(CameraImageTask, GET_STATID(STAT_FHoloLensARSystem_OnCameraImageReceived), nullptr, ENamedThreads::GameThread);
 }
 
-void FHoloLensARSystem::OnCameraImageReceived_GameThread(ID3D11Texture2D* CameraFrame)
+void FHoloLensARSystem::OnCameraImageReceived_GameThread(void* handle, FTransform camToTracking)
 {
-	if (CameraFrame == nullptr)
+	if ((HANDLE)handle == INVALID_HANDLE_VALUE)
 	{
 		UE_LOG(LogHoloLensAR, Log, TEXT("OnCameraImageReceived_GameThread() passed a null texture!"));
 		return;
@@ -578,16 +589,79 @@ void FHoloLensARSystem::OnCameraImageReceived_GameThread(ID3D11Texture2D* Camera
 		CameraImage = NewObject<UHoloLensCameraImageTexture>();
 	}
 	// This will start the async update process
-	CameraImage->Init(CameraFrame);
-
-	// The raw handler added a ref to keep this in memory through the async task, so we need to release our ref
-	CameraFrame->Release();
+	CameraImage->Init(handle);
+	
+	const FTransform TrackingToWorldTransform = TrackingSystem->GetTrackingToWorldTransform();
+	FScopeLock sl(&PVCamToWorldLock);
+	PVCameraToWorldMatrix = camToTracking * TrackingToWorldTransform;
 }
 #endif
 
+FTransform FHoloLensARSystem::GetPVCameraToWorldTransform()
+{
+	FScopeLock sl(&PVCamToWorldLock);
+	return PVCameraToWorldMatrix;
+}
+
+bool FHoloLensARSystem::GetPVCameraIntrinsics(FVector2D& focalLength, int& width, int& height, FVector2D& principalPoint, FVector& radialDistortion, FVector2D& tangentialDistortion)
+{
+	CameraImageCapture& CameraCapture = CameraImageCapture::Get();
+	
+	DirectX::XMFLOAT2 _focalLength, _principalPoint, _tangentialDistortion;
+	DirectX::XMFLOAT3 _radialDistortion;
+	if (!CameraCapture.GetCameraIntrinsics(_focalLength, width, height, _principalPoint, _radialDistortion, _tangentialDistortion))
+	{
+		return false;
+	}
+
+	// Convert to FVector - 2d Vectors preserve windows coordinate system (x is left/right, y is up/down)
+	focalLength = FVector2D(_focalLength.x, _focalLength.y);
+	principalPoint = FVector2D(_principalPoint.x, _principalPoint.y);
+	radialDistortion = WindowsMixedReality::WMRUtility::FromMixedRealityVector(_radialDistortion);
+	tangentialDistortion = FVector2D(_tangentialDistortion.x, _tangentialDistortion.y);
+
+	return true;
+}
+
+FVector FHoloLensARSystem::GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate)
+{
+	CameraImageCapture& CameraCapture = CameraImageCapture::Get();
+	
+	DirectX::XMFLOAT2 cameraPoint = DirectX::XMFLOAT2(pixelCoordinate.X, pixelCoordinate.Y);
+	DirectX::XMFLOAT2 unprojectedPointAtUnitDepth = CameraCapture.UnprojectPVCamPointAtUnitDepth(cameraPoint);
+	
+	FVector ray = WindowsMixedReality::WMRUtility::FromMixedRealityVector(
+		DirectX::XMFLOAT3(
+			unprojectedPointAtUnitDepth.x,
+			unprojectedPointAtUnitDepth.y,
+			-1.0f // Unprojection happened at 1 meter
+		)
+	) * 100.0f;
+
+	ray.Normalize();
+
+	FScopeLock sl(&PVCamToWorldLock);
+	return PVCameraToWorldMatrix.TransformVector(ray);
+}
+
+void FHoloLensARSystem::StartCameraCapture()
+{
+	SetupCameraImageSupport();
+}
+
+void FHoloLensARSystem::StopCameraCapture()
+{
+	CameraImageCapture& CameraCapture = CameraImageCapture::Get();
+	CameraCapture.StopCameraCapture();
+}
+
 void FHoloLensARSystem::OnLog(const wchar_t* LogMsg)
 {
-	UE_LOG(LogHoloLensAR, Log, TEXT("%s"), LogMsg);
+	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
+	if (HoloLensARThis)
+	{
+		UE_LOG(LogHoloLensAR, Log, TEXT("%s"), LogMsg);
+	}
 }
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
@@ -651,6 +725,15 @@ void FHoloLensARSystem::AllocateMeshBuffers(MeshUpdate* InMeshUpdate)
 	// Allocate our memory for the mesh update
 	FMeshUpdate* MeshUpdate = new FMeshUpdate();
 	MeshUpdate->Id = GUIDToFGuid(InMeshUpdate->Id);
+	switch (InMeshUpdate->Type)
+	{
+	case MeshUpdate::World:
+		MeshUpdate->Type = EARObjectClassification::World;
+		break;
+	case MeshUpdate::Hand:
+		MeshUpdate->Type = EARObjectClassification::HandMesh;
+		break;
+	}
 
 	// If this is zero, then the mesh wasn't updated so we'll just update the timestamp related to it
 	// Otherwise the mesh itself was added/changed and requires an update
@@ -768,7 +851,7 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 			FTransform(CurrentMesh->Rotation, CurrentMesh->Location, CurrentMesh->Scale),
 			TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform());
 		// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
-		NewUpdatedGeometry->SetObjectClassification(EARObjectClassification::World);
+		NewUpdatedGeometry->SetObjectClassification(CurrentMesh->Type);
 		if (NewUpdatedGeometry->GetUnderlyingMesh() == nullptr)
 		{
 			// Attach this component to our single origin actor
@@ -800,6 +883,16 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 		// MRMesh takes ownership of the data in the arrays at this point
 		MRMesh->UpdateMesh(CurrentMesh->Location, CurrentMesh->Rotation, CurrentMesh->Scale, CurrentMesh->Vertices, CurrentMesh->Indices);
 	}
+	else
+	{
+		// Update the tracking data
+		NewUpdatedGeometry->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
+			GFrameCounter,
+			FPlatformTime::Seconds(),
+			FTransform::Identity,
+			FTransform::Identity);
+	}
+
 	// Trigger the proper notification delegate
 	if (bIsAdd)
 	{
@@ -960,6 +1053,26 @@ void FHoloLensARSystem::QRCodeRemoved_GameThread(FQRCodeData* InCode)
 void FHoloLensARSystem::OnTrackingChanged(EARTrackingQuality InTrackingQuality)
 {
 	TrackingQuality = InTrackingQuality;
+}
+
+void FHoloLensARSystem::SetEnabledMixedRealityCamera(bool enabled)
+{
+	if (WMRInterop)
+	{
+		WMRInterop->SetEnabledMixedRealityCamera(enabled);
+	}
+}
+
+void FHoloLensARSystem::ResizeMixedRealityCamera(/*inout*/ FIntPoint& size)
+{
+	if (WMRInterop)
+	{
+		SIZE newSize = { size.X, size.Y };
+		if (WMRInterop->ResizeMixedRealityCamera(newSize))
+		{
+			size = FIntPoint(newSize.cx, newSize.cy);
+		}
+	}
 }
 
 /** Used to run Exec commands */

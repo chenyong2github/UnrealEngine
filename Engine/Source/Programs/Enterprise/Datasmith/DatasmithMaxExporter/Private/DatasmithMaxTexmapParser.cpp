@@ -215,6 +215,8 @@ namespace DatasmithMaxTexmapParser
 					NormalMapParameters.BumpMap.Weight = ParamBlock2->GetFloat( ParamDefinition.ID, GetCOREInterface()->GetTime() );
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return NormalMapParameters;
@@ -246,7 +248,7 @@ namespace DatasmithMaxTexmapParser
 				}
 				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Parameters_Invert_Image")) == 0)
 				{
-					AutodeskBitmapParameters.InvertImage = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime));
+					AutodeskBitmapParameters.bInvertImage = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) != 0);
 				}
 				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Position_X")) == 0)
 				{
@@ -270,11 +272,11 @@ namespace DatasmithMaxTexmapParser
 				}
 				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Repeat_Horizontal")) == 0)
 				{
-					AutodeskBitmapParameters.RepeatHorizontal = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime));
+					AutodeskBitmapParameters.bRepeatHorizontal = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) != 0);
 				}
 				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Repeat_Vertical")) == 0)
 				{
-					AutodeskBitmapParameters.RepeatVertical = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime));
+					AutodeskBitmapParameters.bRepeatVertical = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) != 0);
 				}
 				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Advanced_Parameters_Blur")) == 0)
 				{
@@ -293,6 +295,8 @@ namespace DatasmithMaxTexmapParser
 					AutodeskBitmapParameters.MapChannel = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime));
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return AutodeskBitmapParameters;

@@ -26,10 +26,21 @@ USceneComponent* FUsdGeomCameraTranslator::CreateComponents()
 
 void FUsdGeomCameraTranslator::UpdateComponents( USceneComponent* SceneComponent )
 {
-	if ( UCineCameraComponent* CameraComponent = Cast< UCineCameraComponent >( SceneComponent ) )
+	if ( !SceneComponent )
 	{
-		FScopedUsdAllocs UsdAllocs;
-		UsdToUnreal::ConvertGeomCamera( Schema.Get().GetPrim().GetStage(), pxr::UsdGeomCamera( Schema.Get() ), *CameraComponent, pxr::UsdTimeCode( Context->Time ) );
+		return;
+	}
+
+	FUsdGeomXformableTranslator::UpdateComponents( SceneComponent );
+
+	// The CineCamera component is not actually the root component
+	for ( USceneComponent* ChildComponent : SceneComponent->GetAttachChildren() )
+	{
+		if ( UCineCameraComponent* CameraComponent = Cast< UCineCameraComponent >( ChildComponent ) )
+		{
+			FScopedUsdAllocs UsdAllocs;
+			UsdToUnreal::ConvertGeomCamera( Schema.Get().GetPrim().GetStage(), pxr::UsdGeomCamera( Schema.Get() ), *CameraComponent, pxr::UsdTimeCode( Context->Time ) );
+		}
 	}
 }
 

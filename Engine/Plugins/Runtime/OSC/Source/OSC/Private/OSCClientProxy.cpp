@@ -3,6 +3,7 @@
 
 #include "Common/UdpSocketBuilder.h"
 #include "Sockets.h"
+#include "SocketTypes.h"
 
 #include "OSCBundlePacket.h"
 #include "OSCLog.h"
@@ -19,6 +20,11 @@ FOSCClientProxy::FOSCClientProxy(const FString& InClientName)
 	: Socket(FUdpSocketBuilder(*InClientName).Build())
 {
 	ClientName = InClientName;
+}
+
+FOSCClientProxy::~FOSCClientProxy()
+{
+	Stop();
 }
 
 void FOSCClientProxy::GetSendIPAddress(FString& InIPAddress, int32& Port) const
@@ -48,6 +54,11 @@ bool FOSCClientProxy::SetSendIPAddress(const FString& InIPAddress, const int32 P
 	return bIsValidAddress;
 }
 
+bool FOSCClientProxy::IsActive() const
+{
+	return Socket && Socket->GetConnectionState() == ESocketConnectionState::SCS_Connected;
+}
+
 void FOSCClientProxy::SendPacket(IOSCPacket& Packet)
 {
 	if (!Socket)
@@ -70,9 +81,9 @@ void FOSCClientProxy::SendPacket(IOSCPacket& Packet)
 
 	if (IPAddress)
 	{
-		FOSCStream Stream = FOSCStream(OUTPUT_BUFFER_SIZE);
-		const uint8* DataPtr = Stream.GetData();
+		FOSCStream Stream = FOSCStream();
 		Packet.WriteData(Stream);
+		const uint8* DataPtr = Stream.GetData();
 
 		int32 BytesSent = 0;
 

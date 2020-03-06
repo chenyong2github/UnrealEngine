@@ -295,9 +295,6 @@ public:
 	/** Toggles whether to show channel colors in the track area. */
 	TSharedPtr< FUICommandInfo > ToggleChannelColors;
 
-	/** Toggles whether the label browser is enabled in the level editor. */
-	TSharedPtr< FUICommandInfo > ToggleLabelBrowser;
-
 	/** Turns auto scroll on and off. */
 	TSharedPtr< FUICommandInfo > ToggleAutoScroll;
 

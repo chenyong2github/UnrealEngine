@@ -94,6 +94,7 @@ namespace
 					break;
 				}
 			}
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return PrevDisplayValue;
@@ -596,10 +597,10 @@ void FDatasmithMaxMeshExporter::FillDatasmithMeshFromMaxMesh(FDatasmithMesh& Dat
 
 	for ( int32 i = 1; i <= MaxMesh.getNumMaps(); ++i )
 	{
-		if ( MaxMesh.mapSupport(i) == BOOL(true) )
+		if ( MaxMesh.mapSupport(i) == BOOL(true) && MaxMesh.getNumMapVerts(i) > 0)
 		{
 			DatasmithMesh.AddUVChannel();
-			int32 UVChannelIndex = DatasmithMesh.GetUVChannelsCount() - 1;
+			const int32 UVChannelIndex = DatasmithMesh.GetUVChannelsCount() - 1;
 			const int32 UVsCount = MaxMesh.getNumMapVerts(i);
 
 			DatasmithMesh.SetUVCount( UVChannelIndex, UVsCount );

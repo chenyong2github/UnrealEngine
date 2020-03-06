@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_DEFAULT_RESOLVER_CONTEXT_H
-#define AR_DEFAULT_RESOLVER_CONTEXT_H
+#ifndef PXR_USD_AR_DEFAULT_RESOLVER_CONTEXT_H
+#define PXR_USD_AR_DEFAULT_RESOLVER_CONTEXT_H
 
 /// \file ar/defaultResolverContext.h
 
@@ -101,4 +101,4 @@ AR_DECLARE_RESOLVER_CONTEXT(ArDefaultResolverContext);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // AR_DEFAULT_RESOLVER_CONTEXT_H
+#endif // PXR_USD_AR_DEFAULT_RESOLVER_CONTEXT_H

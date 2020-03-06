@@ -16,6 +16,8 @@ class FTimingTrackViewport;
 
 class FTimeRulerTrack : public FBaseTimingTrack
 {
+	INSIGHTS_DECLARE_RTTI(FTimeRulerTrack, FBaseTimingTrack)
+
 public:
 	FTimeRulerTrack();
 	virtual ~FTimeRulerTrack();

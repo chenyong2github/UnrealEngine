@@ -68,9 +68,9 @@ namespace Gauntlet.SelfTest
 				new BuildData("ActionRPG", "ActionRPG-IOS-Shipping.ipa", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.IOS, UnrealTargetRole.Client ),
 
 				// Test Android where the name contains build data 
-				new BuildData("ActionRPG", "ActionRPG-arm64-es2.apk", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
-				new BuildData("ActionRPG", "ActionRPG-Android-Test-arm64-es2.apk", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
-				new BuildData("ActionRPG", "ActionRPG-Android-Shipping-arm64-es2.apk", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
+				new BuildData("ActionRPG", "ActionRPG-arm64.apk", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
+				new BuildData("ActionRPG", "ActionRPG-Android-Test-arm64.apk", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
+				new BuildData("ActionRPG", "ActionRPG-Android-Shipping-arm64.apk", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
 
 				// Test a project like ForniteGame that emits dedicated Client executables
 				new BuildData("FortniteGame", "FortniteClient.exe", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Win64, UnrealTargetRole.Client ),

@@ -896,7 +896,7 @@ void UWorld::MarkActorComponentForNeededEndOfFrameUpdate(UActorComponent* Compon
 		if (!bForceGameThread)
 		{
 			bool bAllowConcurrentUpdates = FApp::ShouldUseThreadingForPerformance() && 
-				(GIsEditor ? !!CVarAllowAsyncRenderThreadUpdatesEditor.GetValueOnGameThread() : !!CVarAllowAsyncRenderThreadUpdates.GetValueOnGameThread());
+				(GIsEditor ? !!CVarAllowAsyncRenderThreadUpdatesEditor.GetValueOnAnyThread() : !!CVarAllowAsyncRenderThreadUpdates.GetValueOnAnyThread());
 			bForceGameThread = !bAllowConcurrentUpdates 
 								// When there is no rendering thread force all updates on game thread,
 								// to avoid modifying scene structures from multiple task threads
@@ -959,12 +959,16 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
 		[SendAllEndOfFrameUpdates](FRHICommandList& RHICmdList)
 	{
-#if RHI_RAYTRACING
 		if (SendAllEndOfFrameUpdates->GPUSkinCache)
 		{
+			// Flush any remaining pending resource barriers.
+			SendAllEndOfFrameUpdates->GPUSkinCache->TransitionAllToReadable(RHICmdList);
+
+		#if RHI_RAYTRACING
 			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
+		#endif
 		}
-#endif
+
 		delete SendAllEndOfFrameUpdates;
 	});
 }
@@ -1689,7 +1693,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 
 		FWorldDelegates::OnWorldPostActorTick.Broadcast(this, TickType, DeltaSeconds);
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		if ( PhysicsScene != nullptr )
 		{
 			GPhysCommandHandler->Flush();

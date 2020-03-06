@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_RELATIONSHIPS_H
-#define USD_RELATIONSHIPS_H
+#ifndef PXR_USD_USD_RELATIONSHIP_H
+#define PXR_USD_USD_RELATIONSHIP_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/api.h"
@@ -155,7 +155,7 @@ public:
     /// semantics, which we will document soon 
     USD_API
     bool AddTarget(const SdfPath& target,
-                   UsdListPosition position=UsdListPositionTempDefault) const;
+           UsdListPosition position=UsdListPositionBackOfPrependList) const;
 
     /// Removes \p target from the list of targets.
     ///
@@ -271,4 +271,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif //USD_RELATIONSHIPS_H
+#endif //PXR_USD_USD_RELATIONSHIP_H

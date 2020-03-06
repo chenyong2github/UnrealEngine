@@ -143,7 +143,7 @@ FRDGBarrierBatcher::~FRDGBarrierBatcher()
 	{
 		FTransitionParameters TransitionParameters = Element.Key;
 		FTextureBatch& Batch = Element.Value;
-		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, Batch.GetData(), Batch.Num());
+		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
 	}
 
 	for (auto& Element : UAVBatchMap)
@@ -202,7 +202,7 @@ void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResour
 		{
 			FTransitionParameters TransitionParameters;
 			TransitionParameters.TransitionAccess = GetResourceTransitionAccess(StateAfter.Access);
-			TransitionParameters.TransitionPipeline = EResourceTransitionPipeline::EGfxToGfx; // NOTE: Transition API for textures doesn't currently expose pipeline transitions.
+			TransitionParameters.TransitionPipeline = GetResourceTransitionPipeline(StateBefore.Pipeline, StateAfter.Pipeline);
 
 			FTextureBatch& TextureBatch = TextureBatchMap.FindOrAdd(TransitionParameters);
 			TextureBatch.Reserve(kBatchReservationSize);

@@ -148,24 +148,6 @@ bool FMagicLeapEyeTracker::GetEyeBlinkState(FMagicLeapEyeBlinkState& BlinkState)
 	return false;
 }
 
-bool FMagicLeapEyeTracker::GetFixationComfort(FMagicLeapFixationComfort& FixationComfort) const
-{
-	if (VREyeTracker)
-	{
-		const FMagicLeapVREyeTrackingData& VRGazeData = VREyeTracker->GetVREyeTrackingData();
-		if (EEyeTrackerStatus::Tracking == GetEyeTrackerStatus())
-		{
-			FixationComfort.FixationDepthIsUncomfortable = VRGazeData.FixationDepthIsUncomfortable;
-			FixationComfort.FixationDepthViolationHasOccurred = VRGazeData.FixationDepthViolationHasOccurred;
-			FixationComfort.RemainingTimeAtUncomfortableDepth = VRGazeData.RemainingTimeAtUncomfortableDepth;
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
 /************************************************************************/
 /* FMagicLeapEyeTrackerModule                                           */
 /************************************************************************/
@@ -224,18 +206,6 @@ bool UMagicLeapEyeTrackerFunctionLibrary::GetEyeBlinkState(FMagicLeapEyeBlinkSta
 	if (ET)
 	{
 		return ET->GetEyeBlinkState(BlinkState);
-	}
-
-	return false;
-}
-
-bool UMagicLeapEyeTrackerFunctionLibrary::GetFixationComfort(FMagicLeapFixationComfort& FixationComfort)
-{
-	// TODO: Don't do this. Use StaticCastSharedPtr().
-	FMagicLeapEyeTracker* ET = GEngine ? static_cast<FMagicLeapEyeTracker*>(GEngine->EyeTrackingDevice.Get()) : nullptr;
-	if (ET)
-	{
-		return ET->GetFixationComfort(FixationComfort);
 	}
 
 	return false;

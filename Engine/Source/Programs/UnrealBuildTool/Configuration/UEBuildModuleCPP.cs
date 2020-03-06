@@ -33,11 +33,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// The directory for this module's object files
-		/// </summary>
-		public readonly DirectoryReference IntermediateDirectory;
-
-		/// <summary>
 		/// The directory for this module's generated code
 		/// </summary>
 		public readonly DirectoryReference GeneratedCodeDirectory;
@@ -138,9 +133,8 @@ namespace UnrealBuildTool
 
 
 		public UEBuildModuleCPP(ModuleRules Rules, DirectoryReference IntermediateDirectory, DirectoryReference GeneratedCodeDirectory)
-			: base(Rules)
+			: base(Rules, IntermediateDirectory)
 		{
-			this.IntermediateDirectory = IntermediateDirectory;
 			this.GeneratedCodeDirectory = GeneratedCodeDirectory;
 
 			foreach (string Def in PublicDefinitions)
@@ -162,6 +156,24 @@ namespace UnrealBuildTool
 			}
 
 			AddDefaultIncludePaths();
+		}
+
+		/// <summary>
+		/// Determines if a file is part of the given module
+		/// </summary>
+		/// <param name="Location">Path to the file</param>
+		/// <returns>True if the file is part of this module</returns>
+		public override bool ContainsFile(FileReference Location)
+		{
+			if (base.ContainsFile(Location))
+			{
+				return true;
+			}
+			if (GeneratedCodeDirectory != null && Location.IsUnderDirectory(GeneratedCodeDirectory))
+			{
+				return true;
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -238,6 +250,7 @@ namespace UnrealBuildTool
 			HashSet<DirectoryReference> SystemIncludePaths,
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
+			List<FileItem> AdditionalPrerequisites,
 			bool bLegacyPublicIncludePaths
 			)
 		{
@@ -248,7 +261,7 @@ namespace UnrealBuildTool
 				IncludePaths.Add(GeneratedCodeDirectory);
 			}
 
-			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, bLegacyPublicIncludePaths);
+			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bLegacyPublicIncludePaths);
 		}
 
 		// UEBuildModule interface.
@@ -256,7 +269,7 @@ namespace UnrealBuildTool
 		{
 			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BinaryCompileEnvironment.Platform);
 
-			List<FileItem> LinkInputFiles = new List<FileItem>();
+			List<FileItem> LinkInputFiles = base.Compile(Target, ToolChain, BinaryCompileEnvironment, SingleFileToCompile, WorkingSet, Makefile);
 
 			CppCompileEnvironment ModuleCompileEnvironment = CreateModuleCompileEnvironment(Target, BinaryCompileEnvironment);
 
@@ -299,7 +312,7 @@ namespace UnrealBuildTool
 				InputFiles.CCFiles.RemoveAll(x => x.Location != SingleFileToCompile);
 				InputFiles.CFiles.RemoveAll(x => x.Location != SingleFileToCompile);
 
-				if(InputFiles.CPPFiles.Count == 0 && InputFiles.CCFiles.Count == 0 && InputFiles.CFiles.Count == 0)
+				if(InputFiles.CPPFiles.Count == 0 && InputFiles.CCFiles.Count == 0 && InputFiles.CFiles.Count == 0 && !ContainsFile(SingleFileToCompile))
 				{
 					return new List<FileItem>();
 				}
@@ -402,7 +415,7 @@ namespace UnrealBuildTool
 			}
 
 			// Compile all the generated CPP files
-			if (GeneratedCodeWildcard != null && !CompileEnvironment.bHackHeaderGenerator && SingleFileToCompile == null)
+			if (GeneratedCodeWildcard != null && !CompileEnvironment.bHackHeaderGenerator)
 			{
 				string[] GeneratedFiles = Directory.GetFiles(Path.GetDirectoryName(GeneratedCodeWildcard), Path.GetFileName(GeneratedCodeWildcard));
 				if(GeneratedFiles.Length > 0)
@@ -433,9 +446,10 @@ namespace UnrealBuildTool
 					foreach (string GeneratedFilename in GeneratedFiles)
 					{
 						FileItem GeneratedCppFileItem = FileItem.GetItemByPath(GeneratedFilename);
-
-						// @todo ubtmake: Check for ALL other places where we might be injecting .cpp or .rc files for compiling without caching CachedCPPIncludeInfo first (anything platform specific?)
-						GeneratedFileItems.Add(GeneratedCppFileItem);
+						if (SingleFileToCompile == null || GeneratedCppFileItem.Location == SingleFileToCompile)
+						{
+							GeneratedFileItems.Add(GeneratedCppFileItem);
+						}
 					}
 
 					if (bModuleUsesUnityBuild)
@@ -946,7 +960,7 @@ namespace UnrealBuildTool
 				}
 
 				// Try to find a suitable shared PCH for this module
-				if (CompileEnvironment.PrecompiledHeaderFile == null && CompileEnvironment.SharedPCHs.Count > 0 && !CompileEnvironment.bIsBuildingLibrary && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoSharedPCHs)
+				if (CompileEnvironment.PrecompiledHeaderIncludeFilename == null && CompileEnvironment.SharedPCHs.Count > 0 && !CompileEnvironment.bIsBuildingLibrary && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoSharedPCHs)
 				{
 					// Find all the dependencies of this module
 					HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
@@ -965,7 +979,6 @@ namespace UnrealBuildTool
 						{
 							// Remove the module _API definition for cases where there are circular dependencies between the shared PCH module and modules using it
 							Writer.WriteLine("#undef {0}", ModuleApiDefine);
-							Writer.WriteLine("#undef {0}", ModuleVTableDefine);
 
 							// Games may choose to use shared PCHs from the engine, so allow them to change the value of these macros
 							if(!Rules.bTreatAsEngineModule)
@@ -1158,8 +1171,6 @@ namespace UnrealBuildTool
 				case "VulkanRHI":
 				case "OpenGLDrv":
 				case "MetalRHI":
-				case "PS4RHI":
-                case "Gnmx":
 					return true;
 			}
 			return false;
@@ -1266,7 +1277,7 @@ namespace UnrealBuildTool
 			}
 
 			// Setup the compile environment for the module.
-			SetupPrivateCompileEnvironment(Result.UserIncludePaths, Result.SystemIncludePaths, Result.Definitions, Result.AdditionalFrameworks, Rules.bLegacyPublicIncludePaths);
+			SetupPrivateCompileEnvironment(Result.UserIncludePaths, Result.SystemIncludePaths, Result.Definitions, Result.AdditionalFrameworks, Result.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
 
 			return Result;
 		}
@@ -1308,7 +1319,7 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, Rules.bLegacyPublicIncludePaths);
+				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, CompileEnvironment.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
 			}
 			return CompileEnvironment;
 		}

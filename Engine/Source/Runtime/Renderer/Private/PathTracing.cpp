@@ -113,7 +113,7 @@ public:
 	}
 
 	FPathTracingRG() {}
-	virtual ~FPathTracingRG() {}
+	~FPathTracingRG() {}
 
 	FPathTracingRG(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -311,7 +311,7 @@ public:
 		}
 	}
 
-	bool Serialize(FArchive& Ar)
+	/*bool Serialize(FArchive& Ar)
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 		Ar << TLASParameter;
@@ -327,20 +327,20 @@ public:
 		Ar << RayCountPerPixelRT;
 
 		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderResourceParameter		TLASParameter;   // RaytracingAccelerationStructure
-	FShaderUniformBufferParameter	ViewParameter;
-	FShaderUniformBufferParameter	PathTracingParameters;
-	FShaderUniformBufferParameter	SceneLightsParameters;
-	FShaderUniformBufferParameter	SkyLightParameters;
-	FShaderUniformBufferParameter	AdaptiveSamplingParameters;
+	}*/
+	
+	LAYOUT_FIELD(FShaderResourceParameter, TLASParameter);   // RaytracingAccelerationStructure
+	LAYOUT_FIELD(FShaderUniformBufferParameter, ViewParameter);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, PathTracingParameters);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, SceneLightsParameters);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, SkyLightParameters);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, AdaptiveSamplingParameters);
 
 	// Output parameters
-	FShaderResourceParameter		RadianceRT;
-	FShaderResourceParameter		SampleCountRT;
-	FShaderResourceParameter        PixelPositionRT;
-	FShaderResourceParameter		RayCountPerPixelRT;
+	LAYOUT_FIELD(FShaderResourceParameter, RadianceRT);
+	LAYOUT_FIELD(FShaderResourceParameter, SampleCountRT);
+	LAYOUT_FIELD(FShaderResourceParameter, PixelPositionRT);
+	LAYOUT_FIELD(FShaderResourceParameter, RayCountPerPixelRT);
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingRG, TEXT("/Engine/Private/PathTracing/PathTracing.usf"), TEXT("PathTracingMainRG"), SF_RayGen);
 
@@ -396,7 +396,7 @@ class FPathTracingCompositorPS : public FGlobalShader
 		FRHITexture* CumulativeIrradianceRT,
 		FRHITexture* CumulativeSampleCountRT)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SetTextureParameter(RHICmdList, ShaderRHI, RadianceRedTexture, RadianceRedRT);
 		SetTextureParameter(RHICmdList, ShaderRHI, RadianceGreenTexture, RadianceGreenRT);
@@ -407,28 +407,15 @@ class FPathTracingCompositorPS : public FGlobalShader
 		SetTextureParameter(RHICmdList, ShaderRHI, CumulativeSampleCountTexture, CumulativeSampleCountRT);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOudatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << RadianceRedTexture;
-		Ar << RadianceGreenTexture;
-		Ar << RadianceBlueTexture;
-		Ar << RadianceAlphaTexture;
-		Ar << SampleCountTexture;
-		Ar << CumulativeIrradianceTexture;
-		Ar << CumulativeSampleCountTexture;
-		return bShaderHasOudatedParameters;
-	}
-
 public:
-	FShaderResourceParameter RadianceRedTexture;
-	FShaderResourceParameter RadianceGreenTexture;
-	FShaderResourceParameter RadianceBlueTexture;
-	FShaderResourceParameter RadianceAlphaTexture;
-	FShaderResourceParameter SampleCountTexture;
+	LAYOUT_FIELD(FShaderResourceParameter, RadianceRedTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, RadianceGreenTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, RadianceBlueTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, RadianceAlphaTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, SampleCountTexture);
 
-	FShaderResourceParameter CumulativeIrradianceTexture;
-	FShaderResourceParameter CumulativeSampleCountTexture;
+	LAYOUT_FIELD(FShaderResourceParameter, CumulativeIrradianceTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, CumulativeSampleCountTexture);
 };
 
 IMPLEMENT_SHADER_TYPE(, FPathTracingCompositorPS, TEXT("/Engine/Private/PathTracing/PathTracingCompositingPixelShader.usf"), TEXT("CompositeMain"), SF_Pixel);
@@ -437,7 +424,7 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FViewInfo& View, TA
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	auto RayGenShader = View.ShaderMap->GetShader<FPathTracingRG>();
-	OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 }
 
 void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
@@ -558,7 +545,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 
 			RHICmdList.RayTraceDispatch(
 				View.RayTracingMaterialPipeline, 
-				RayGenShader->GetRayTracingShader(), 
+				RayGenShader.GetRayTracingShader(), 
 				RayTracingSceneRHI, GlobalResources, 
 				DispatchSizeX, DispatchSizeY
 			);
@@ -624,7 +611,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 
 		RHICmdList.RayTraceDispatch(
 			View.RayTracingMaterialPipeline, 
-			RayGenShader->GetRayTracingShader(), 
+			RayGenShader.GetRayTracingShader(), 
 			RayTracingSceneRHI, GlobalResources, 
 			DispatchSizeX, DispatchSizeY 
 		);
@@ -721,8 +708,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -765,7 +752,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 			DispatchSizeX, View.ViewRect.Height(),
 			FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
 			SceneContext.GetBufferSizeXY(),
-			*VertexShader);
+			VertexShader);
 	}
 	RHICmdList.EndRenderPass();
 

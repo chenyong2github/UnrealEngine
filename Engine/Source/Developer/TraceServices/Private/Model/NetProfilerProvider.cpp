@@ -359,6 +359,42 @@ const INetProfilerProvider& ReadNetProfilerProvider(const IAnalysisSession& Sess
 	return *Session.ReadProvider<INetProfilerProvider>(FNetProfilerProvider::ProviderName);
 }
 
+int32 FNetProfilerProvider::FindPacketIndexFromPacketSequence(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 SequenceNumber) const
+{
+	Session.ReadAccessCheck();
+
+	check(ConnectionIndex < Connections.Num());
+
+	const auto& Packets = Connections[ConnectionIndex].Data[Mode]->Packets;
+	const int32 PacketCount = (int32)Packets.Num();
+
+	if (PacketCount == 0)
+	{
+		return -1;
+	}
+
+	if (SequenceNumber < Packets[0].SequenceNumber)
+	{
+		return -1;
+	}
+
+	if (SequenceNumber > Packets[PacketCount - 1].SequenceNumber)
+	{
+		return -1;
+	}
+
+	// Brute force it, we can cache some data to speed this up if necessary
+	for (int32 PacketIt = 0, PacketEndIt = PacketCount - 1; PacketIt <= PacketEndIt; ++PacketIt)
+	{
+		if (Packets[PacketIt].SequenceNumber == SequenceNumber)
+		{
+			return PacketIt;
+		}
+	}
+
+	return -1;	
+}
+
 uint32 FNetProfilerProvider::GetPacketCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const
 {
 	Session.ReadAccessCheck();
@@ -443,6 +479,7 @@ void FNetProfilerProvider::EnumeratePacketContentEventsByPosition(uint32 Connect
 	while (EventIt <= EndEventIndex && ContentEvents[EventIt].StartPos < EndPos)
 	{
 		Callback(ContentEvents[EventIt]);
+		EndPos = FMath::Max(EndPos, (uint32)ContentEvents[EventIt].EndPos);
 		++EventIt;
 	}
 }

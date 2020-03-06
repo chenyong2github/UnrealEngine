@@ -13,8 +13,8 @@
 //------------------------------------------------------- PARAMETERS
 
 float4 ViewportSize;
-
 float4 GatherInputSize;
+float2 GatherInputViewportSize;
 Texture2D GatherInput_SceneColor;
 Texture2D GatherInput_SeparateCoc;
 
@@ -194,6 +194,8 @@ FGatherSample FetchGatherSample(in FPrivateKernelSharedScope KernelScope, float2
 	}
 	#endif
 
+	SampleUV = min(SampleUV, KernelScope.GatherInputMaxUV);
+
 	float4 RawSample0 = 0;
 	float4 RawSample1 = 0;
 
@@ -297,7 +299,7 @@ void UpdateRuntimeKernelScope(
 	KernelScope.SampleCountToSamplePosition = GatherParameters.KernelRadius * UnitSampleRadius;
 
 	float MipTexelSize = pow(2.0, uint(MipLevel));
-	KernelScope.GatherInputMaxUV = (ViewportSize.xy - 0.5 * MipTexelSize) * GatherParameters.DispatchThreadIdToInputBufferUV;
+	KernelScope.GatherInputMaxUV = (GatherInputViewportSize.xy - 0.5 * MipTexelSize) * GatherInputSize.zw;
 	KernelScope.GatherInputMipLevel = MipLevel;
 	KernelScope.IntersectionMultiplier = rcp(MipTexelSize);
 		

@@ -34,6 +34,8 @@ public:
 
 class FTimingGraphTrack : public FGraphTrack
 {
+	INSIGHTS_DECLARE_RTTI(FTimingGraphTrack, FGraphTrack)
+
 public:
 	FTimingGraphTrack();
 	virtual ~FTimingGraphTrack();

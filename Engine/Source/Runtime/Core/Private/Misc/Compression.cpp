@@ -18,6 +18,11 @@ THIRD_PARTY_INCLUDES_START
 #include "ThirdParty/zlib/zlib-1.2.5/Inc/zlib.h"
 THIRD_PARTY_INCLUDES_END
 
+THIRD_PARTY_INCLUDES_START
+#define LZ4_HC_STATIC_LINKING_ONLY
+#include "Compression/lz4hc.h"
+THIRD_PARTY_INCLUDES_END
+
 DECLARE_LOG_CATEGORY_EXTERN(LogCompression, Log, All);
 DEFINE_LOG_CATEGORY(LogCompression);
 
@@ -414,6 +419,11 @@ int32 FCompression::CompressMemoryBound(FName FormatName, int32 UncompressedSize
 		// CompressionBound = deflateBound(&gzipstream, gzipstream.avail_in) + GzipHeaderLength;
 		UE_LOG(LogCompression, Fatal, TEXT("FCompression::CompressMemoryBound - GZip is not supported yet"));
 	}
+	else if (FormatName == NAME_LZ4)
+	{
+		// hardcoded lz4
+		CompressionBound = LZ4_compressBound(UncompressedSize);
+	}
 	else
 	{
 		ICompressionFormat* Format = GetCompressionFormat(FormatName);
@@ -444,6 +454,12 @@ bool FCompression::CompressMemory(FName FormatName, void* CompressedBuffer, int3
 	{
 		// hardcoded gzip
 		bCompressSucceeded = appCompressMemoryGZIP(CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize);
+	}
+	else if (FormatName == NAME_LZ4)
+	{
+		// hardcoded lz4
+		CompressedSize = LZ4_compress_HC((const char*)UncompressedBuffer, (char*)CompressedBuffer, UncompressedSize, CompressedSize, LZ4HC_CLEVEL_MAX);
+		bCompressSucceeded = CompressedSize > 0;
 	}
 	else
 	{
@@ -515,6 +531,11 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 	else if (FormatName == NAME_Gzip)
 	{
 		// @todo buh?
+	}
+	else if (FormatName == NAME_LZ4)
+	{
+		// hardcoded lz4
+		bUncompressSucceeded = LZ4_decompress_safe((const char*)CompressedBuffer, (char*)UncompressedBuffer, CompressedSize, UncompressedSize) > 0;
 	}
 	else
 	{

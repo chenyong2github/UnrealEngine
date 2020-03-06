@@ -12,6 +12,7 @@
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ScopeLock.h"
 #include "CoreGlobals.h"
+#include "Templates/RefCounting.h"
 
 /** For FConfigFile in appInit							*/
 #include "Misc/ConfigCacheIni.h"

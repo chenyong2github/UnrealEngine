@@ -175,6 +175,9 @@ private:
 	/** Update the name of the producer based on the directory name */
 	void UpdateName();
 
+	/** Try import files in the FolderPath as parts of constructed PLMXML file */
+	bool ImportAsPlmXml(UPackage* RootPackage, TArray< TWeakObjectPtr< UObject > >& OutAssets, TArray<FString>& FilesCouldntBeProcessedWithPlmXml);
+
 	/** Indicates if ExtensionString contains "*.*" */
 	bool bHasWildCardSearch;
 

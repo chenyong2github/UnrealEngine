@@ -43,6 +43,7 @@
 #include "UObject/LinkerLoad.h"
 #include "Misc/RedirectCollector.h"
 #include "UObject/GCScopeLock.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Serialization/ArchiveDescribeReference.h"
@@ -84,6 +85,10 @@ static UPackage*			GObjTransientPkg								= NULL;
 	static FUObjectAnnotationSparseBool DebugSpikeMarkAnnotation;
 	static TArray<FString>			DebugSpikeMarkNames;
 #endif
+
+#if WITH_EDITOR
+	UObject::FAssetRegistryTag::FOnGetObjectAssetRegistryTags UObject::FAssetRegistryTag::OnGetExtraObjectTags;
+#endif // WITH_EDITOR
 
 UObject::UObject( EStaticConstructor, EObjectFlags InFlags )
 : UObjectBaseUtility(InFlags | (!(InFlags & RF_Dynamic) ? (RF_MarkAsNative | RF_MarkAsRootSet) : RF_NoFlags))
@@ -465,7 +470,7 @@ void UObject::PropagatePreEditChange( TArray<UObject*>& AffectedObjects, FEditPr
 
 		// in order to ensure that all objects are saved properly, only process the objects which have this object as their
 		// ObjectArchetype since we are going to call Pre/PostEditChange on each object (which could potentially affect which data is serialized
-		if ( Obj->GetArchetype() == this )
+		if ( Obj->GetArchetype() == this || Obj->GetOuter()->GetArchetype() == this )
 		{
 			// add this object to the list that we're going to process
 			Instances.Add(Obj);
@@ -479,14 +484,17 @@ void UObject::PropagatePreEditChange( TArray<UObject*>& AffectedObjects, FEditPr
 	{
 		UObject* Obj = Instances[i];
 
-		// this object must now be included in any undo/redo operations
-		Obj->SetFlags(RF_Transactional);
+		if ( PropertyAboutToChange.IsArchetypeInstanceAffected(Obj) )
+		{
+			// this object must now be included in any undo/redo operations
+			Obj->SetFlags(RF_Transactional);
 
-		// This will call ClearComponents in the Actor case, so that we do not serialize more stuff than we need to.
-		Obj->PreEditChange(PropertyAboutToChange);
+			// This will call ClearComponents in the Actor case, so that we do not serialize more stuff than we need to.
+			Obj->PreEditChange(PropertyAboutToChange);
 
-		// now recurse into this object, saving its instances
-		Obj->PropagatePreEditChange(AffectedObjects, PropertyAboutToChange);
+			// now recurse into this object, saving its instances
+			Obj->PropagatePreEditChange(AffectedObjects, PropertyAboutToChange);
+		}
 	}
 }
 
@@ -516,11 +524,14 @@ void UObject::PropagatePostEditChange( TArray<UObject*>& AffectedObjects, FPrope
 	{
 		UObject* Obj = Instances[i];
 
-		// notify the object that all changes are complete
-		Obj->PostEditChangeChainProperty(PropertyChangedEvent);
+		if ( PropertyChangedEvent.HasArchetypeInstanceChanged(Obj) )
+		{
+			// notify the object that all changes are complete
+			Obj->PostEditChangeChainProperty(PropertyChangedEvent);
 
-		// now recurse into this object, loading its instances
-		Obj->PropagatePostEditChange(AffectedObjects, PropertyChangedEvent);
+			// now recurse into this object, loading its instances
+			Obj->PropagatePostEditChange(AffectedObjects, PropertyChangedEvent);
+		}
 	}
 }
 
@@ -1241,6 +1252,8 @@ IMPLEMENT_FARCHIVE_SERIALIZER(UObject)
 
 void UObject::Serialize(FStructuredArchive::FRecord Record)
 {
+	SCOPED_LOADTIMER(UObject_Serialize);
+
 #if WITH_EDITOR
 	bool bReportSoftObjectPathRedirects = false;
 
@@ -1806,6 +1819,9 @@ void UObject::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	FAssetRegistryTag::GetAssetRegistryTagsFromSearchableProperties(this, OutTags);
 
 #if WITH_EDITOR
+	// Notify external sources that we need tags.
+	FAssetRegistryTag::OnGetExtraObjectTags.Broadcast(this, OutTags);
+
 	// Check if there's a UMetaData for this object that has tags that are requested in the settings to be transferred to the Asset Registry
 	const TSet<FName>& MetaDataTagsForAR = GetMetaDataTagsForAssetRegistry();
 	if (MetaDataTagsForAR.Num() > 0)
@@ -2013,7 +2029,7 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 	{
 		TFieldIterator<FProperty> It1(Struct1);
 		TFieldIterator<FProperty> It2(Struct2);
-		for (;;)
+		for (;;++It1,++It2)
 		{
 			bool bAtEnd1 = !It1;
 			bool bAtEnd2 = !It2;
@@ -2487,15 +2503,18 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 			FArrayProperty* Array   = CastField<FArrayProperty>( Property );
 			if( Array )
 			{
+				FConfigSection* Sec = Config->GetSectionPrivate(*Section, 1, 0, *PropFileName);
+				// Default ini's require the array syntax to be applied to the property name
+				FString CompleteKey = FString::Printf(TEXT("%s%s"), bIsADefaultIniWrite ? TEXT("+") : TEXT(""), *Key);
+				if (Sec)
+				{
+					// Delete the old value for the property in the ConfigCache before (conditionally) adding in the new value
+					Sec->Remove(*CompleteKey);
+				}
+
 				if (!bPropDeprecated && (!bShouldCheckIfIdenticalBeforeAdding || !Property->Identical_InContainer(this, SuperClassDefaultObject)))
 				{
-					FConfigSection* Sec = Config->GetSectionPrivate( *Section, 1, 0, *PropFileName );
 					check(Sec);
-					Sec->Remove( *Key );
-
-					// Default ini's require the array syntax to be applied to the property name
-					FString CompleteKey = FString::Printf(TEXT("%s%s"), bIsADefaultIniWrite ? TEXT("+") : TEXT(""), *Key);
-
 					FScriptArrayHelper_InContainer ArrayHelper(Array, this);
 					for( int32 i=0; i<ArrayHelper.Num(); i++ )
 					{
@@ -2503,16 +2522,6 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 						Array->Inner->ExportTextItem( Buffer, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), this, PortFlags );
 						Sec->Add(*CompleteKey, *Buffer);
 					}
-				}
-				else
-				{
-					// If we are not writing it to config above, we should make sure that this property isn't stagnant in the cache.
-					FConfigSection* Sec = Config->GetSectionPrivate( *Section, 1, 0, *PropFileName );
-					if( Sec )
-					{
-						Sec->Remove( *Key );
-					}
-
 				}
 			}
 			else
@@ -4350,6 +4359,7 @@ void InitUObject()
 	FModuleManager::Get().IsPackageLoadedCallback().BindStatic(Local::IsPackageLoaded);
 	
 	FCoreDelegates::NewFileAddedDelegate.AddStatic(FLinkerLoad::OnNewFileAdded);
+	FCoreDelegates::OnPakFileMounted2.AddStatic(FLinkerLoad::OnPakFileMounted);
 
 #if WITH_EDITOR
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -4424,11 +4434,16 @@ void StaticExit()
 		GUObjectArray.CloseDisregardForGC();
 	}
 
+	// Complete any pending incremental GC
+	if (IsIncrementalPurgePending())
+	{
+		IncrementalPurgeGarbage(false);
+	}
+
 	// Make sure no other threads manipulate UObjects
 	AcquireGCLock();
 
-	GatherUnreachableObjects(false);
-	IncrementalPurgeGarbage(false);
+	// Dissolve all clusters before the final GC pass
 	GUObjectClusters.DissolveClusters(true);
 
 	// Keep track of how many objects there are for GC stats as we simulate a mark pass.
@@ -4450,10 +4465,18 @@ void StaticExit()
 		FUObjectItem* ObjItem = *It;
 		checkSlow(ObjItem);
 		UObject* Obj = static_cast<UObject*>(ObjItem->Object);
-		if (Obj && !Obj->IsA<UField>()) // Skip Structures, properties, etc.. They could be still necessary while GC.
+		if (Obj) 
 		{
-			// Mark as unreachable so purge phase will kill it.
-			ObjItem->SetUnreachable();
+			// Skip Structures, properties, etc.. They could be still necessary while GC.
+			if (!Obj->IsA<UField>())
+			{
+				// Mark as unreachable so purge phase will kill it.
+				ObjItem->SetUnreachable();
+			}
+			else
+			{
+				ObjItem->ClearUnreachable();
+			}
 		}
 	}
 

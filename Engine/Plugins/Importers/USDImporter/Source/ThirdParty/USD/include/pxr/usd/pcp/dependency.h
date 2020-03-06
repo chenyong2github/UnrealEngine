@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PCP_DEPENDENCY_H
-#define PCP_DEPENDENCY_H
+#ifndef PXR_USD_PCP_DEPENDENCY_H
+#define PXR_USD_PCP_DEPENDENCY_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/pcp/api.h"
@@ -59,7 +59,7 @@ enum PcpDependencyType {
     /// ancestral arcs along the chain as well.
     PcpDependencyTypePartlyDirect = (1 << 2),
 
-    /// Ancestreal dependencies involve only arcs from ancestral
+    /// Ancestral dependencies involve only arcs from ancestral
     /// levels of namespace, and no direct arcs.
     PcpDependencyTypeAncestral = (1 << 3),
 
@@ -144,4 +144,4 @@ std::string PcpDependencyFlagsToString(const PcpDependencyFlags flags);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PCP_DEPENDENCY_H
+#endif // PXR_USD_PCP_DEPENDENCY_H

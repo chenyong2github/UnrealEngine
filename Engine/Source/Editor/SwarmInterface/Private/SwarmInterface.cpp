@@ -152,13 +152,13 @@ extern "C" DLLEXPORT void SwarmInterfaceLog(TVerbosityLevel Verbosity, const TCH
 	switch (Verbosity)
 	{
 	case VERBOSITY_Critical:
-		UE_LOG(LogSwarmInterface, Error, TEXT("%s"), Message);
+		UE_LOG_CLINKAGE(LogSwarmInterface, Error, TEXT("%s"), Message);
 		break;
 	case VERBOSITY_Complex:
-		UE_LOG(LogSwarmInterface, Warning, TEXT("%s"), Message);
+		UE_LOG_CLINKAGE(LogSwarmInterface, Warning, TEXT("%s"), Message);
 		break;
 	default:
-		UE_LOG(LogSwarmInterface, Log, TEXT("%s"), Message);
+		UE_LOG_CLINKAGE(LogSwarmInterface, Log, TEXT("%s"), Message);
 		break;
 	}
 }

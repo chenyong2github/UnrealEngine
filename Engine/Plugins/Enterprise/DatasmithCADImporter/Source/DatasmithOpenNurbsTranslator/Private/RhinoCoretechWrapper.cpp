@@ -407,9 +407,16 @@ CT_IO_ERROR FRhinoCoretechWrapper::Tessellate(FMeshDescription& Mesh, CADLibrary
 	return CADLibrary::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
 }
 
-CT_OBJECT_ID BRepToKernelIOBodyTranslator::CreateBody()
+CT_OBJECT_ID BRepToKernelIOBodyTranslator::CreateBody(const ON_3dVector& Offset)
 {
 	BrepTrimToCoedge.SetNumZeroed(BRep.m_T.Count());
+
+	double boxmin[3];
+	double boxmax[3];
+	BRep.GetBBox(boxmin, boxmax);
+
+	BRep.Translate(Offset);
+	BRep.GetBBox(boxmin, boxmax);
 
 	// Create ct faces
 	BRep.FlipReversedSurfaces();
@@ -420,6 +427,7 @@ CT_OBJECT_ID BRepToKernelIOBodyTranslator::CreateBody()
 		const ON_BrepFace& On_face = BRep.m_F[index];
 		CreateCTFace(On_face, FaceList);
 	}
+	BRep.Translate(-Offset);
 
 	if (FaceList.IsEmpty())
 	{
@@ -436,8 +444,7 @@ CT_OBJECT_ID BRepToKernelIOBodyTranslator::CreateBody()
 	return 0;
 }
 
-
-CADLibrary::CheckedCTError FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep)
+CADLibrary::CheckedCTError FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep, const ON_3dVector& Offset)
 {
 	CADLibrary::CheckedCTError Result;
 	if (!IsSessionValid())
@@ -447,7 +454,7 @@ CADLibrary::CheckedCTError FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep)
 	}
 
 	BRepToKernelIOBodyTranslator BodyTranslator(Brep);
-	CT_OBJECT_ID BodyID = BodyTranslator.CreateBody();
+	CT_OBJECT_ID BodyID = BodyTranslator.CreateBody(Offset);
 
 	CT_LIST_IO Bodies;
 	if (BodyID)

@@ -76,6 +76,7 @@ public:
 	ENGINE_API virtual bool IsDependent(UMaterialFunctionInterface* OtherFunction)
 		PURE_VIRTUAL(UMaterialFunctionInterface::IsDependent,return false;);
 
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Iterates all functions that this function is dependent on, directly or indrectly.
 	 *
@@ -89,10 +90,7 @@ public:
 	/** Returns an array of the functions that this function is dependent on, directly or indirectly. */
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetDependentFunctions,);
-
-	/** Appends textures referenced by the expressions in this function. */
-	ENGINE_API virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
-		PURE_VIRTUAL(UMaterialFunctionInterface::AppendReferencedTextures,);
+#endif
 
 #if WITH_EDITOR
 	ENGINE_API virtual UMaterialInterface* GetPreviewMaterial()
@@ -124,8 +122,10 @@ public:
 	virtual const UMaterialFunctionInterface* GetBaseFunction() const
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetBaseFunction,return nullptr;);
 
+#if WITH_EDITORONLY_DATA
 	virtual const TArray<UMaterialExpression*>* GetFunctionExpressions() const
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetFunctionExpressions,return nullptr;);
+#endif // WITH_EDITORONLY_DATA
 
 	virtual const FString* GetDescription() const
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetDescription,return nullptr;);
@@ -137,6 +137,7 @@ public:
 		PURE_VIRTUAL(UMaterialFunctionInterface::SetReentrantFlag,);
 
 public:
+#if WITH_EDITORONLY_DATA
 	/** Finds the names of all matching type parameters */
 	template<typename ExpressionType>
 	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
@@ -162,10 +163,12 @@ public:
 			check(OutParameterInfo.Num() == OutParameterIds.Num());
 		}
 	}
+#endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
 	/** Finds the first matching parameter by name and type */
 	template<typename ExpressionType>
-	bool GetNamedParameterOfType(const FMaterialParameterInfo& ParameterInfo, ExpressionType*& Parameter, UMaterialFunctionInterface** OwningFunction = nullptr)
+	bool GetNamedParameterOfType(const FHashedMaterialParameterInfo& ParameterInfo, ExpressionType*& Parameter, UMaterialFunctionInterface** OwningFunction = nullptr)
 	{
 		Parameter = nullptr;
 
@@ -207,9 +210,8 @@ public:
 		return false;
 	}
 
-#if WITH_EDITOR
 	/** Finds the first matching parameter's group name */
-	bool GetParameterGroupName(const FMaterialParameterInfo& ParameterInfo, FName& OutGroup)
+	bool GetParameterGroupName(const FHashedMaterialParameterInfo& ParameterInfo, FName& OutGroup)
 	{
 		if (UMaterialFunctionInterface* ParameterFunction = GetBaseFunction())
 		{
@@ -253,7 +255,7 @@ public:
 	}
 
 	/** Finds the first matching parameter's group name */
-	bool GetParameterSortPriority(const FMaterialParameterInfo& ParameterInfo, int32& OutSortPriority)
+	bool GetParameterSortPriority(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutSortPriority)
 	{
 		if (UMaterialFunctionInterface* ParameterFunction = GetBaseFunction())
 		{
@@ -297,7 +299,7 @@ public:
 	}
 
 	/** Finds the first matching parameter's description */
-	bool GetParameterDesc(const FMaterialParameterInfo& ParameterInfo, FString& OutDesc)
+	bool GetParameterDesc(const FHashedMaterialParameterInfo& ParameterInfo, FString& OutDesc)
 	{
 		if (UMaterialFunctionInterface* ParameterFunction = GetBaseFunction())
 		{
@@ -339,7 +341,6 @@ public:
 
 		return false;
 	}
-#endif // WITH_EDITOR
 
 	/** Returns if any of the matching parameters have changed */
 	template <typename ParameterType, typename ExpressionType>
@@ -372,7 +373,9 @@ public:
 
 		return bChanged;
 	}
+#endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 	/** Get all expressions of the requested type, recursing through any function expressions in the function */
 	template<typename ExpressionType>
 	bool HasAnyExpressionsOfType()
@@ -423,38 +426,39 @@ public:
 			}
 		}
 	}
+#endif // WITH_EDITORONLY_DATA
 
-	virtual bool OverrideNamedScalarParameter(const FMaterialParameterInfo& ParameterInfo, float& OutValue)
+	virtual bool OverrideNamedScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue)
 	{
 		return false;
 	}
 
-	virtual bool OverrideNamedVectorParameter(const FMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue)
+	virtual bool OverrideNamedVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue)
 	{
 		return false;
 	}
 
-	virtual bool OverrideNamedTextureParameter(const FMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue)
+	virtual bool OverrideNamedTextureParameter(const FHashedMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue)
 	{
 		return false;
 	}
 	
-	virtual bool OverrideNamedRuntimeVirtualTextureParameter(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue)
+	virtual bool OverrideNamedRuntimeVirtualTextureParameter(const FHashedMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue)
 	{
 		return false;
 	}
 
-	virtual bool OverrideNamedFontParameter(const FMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage)
+	virtual bool OverrideNamedFontParameter(const FHashedMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage)
 	{
 		return false;
 	}
 
-	virtual bool OverrideNamedStaticSwitchParameter(const FMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid)
+	virtual bool OverrideNamedStaticSwitchParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid)
 	{
 		return false;
 	}
 
-	virtual bool OverrideNamedStaticComponentMaskParameter(const FMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid& OutExpressionGuid)
+	virtual bool OverrideNamedStaticComponentMaskParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid& OutExpressionGuid)
 	{
 		return false;
 	}

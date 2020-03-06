@@ -461,9 +461,9 @@ FBoxSphereBounds UNavTestRenderingComponent::CalcBounds(const FTransform& LocalT
 	return FBoxSphereBounds(BoundingBox);
 }
 
-void UNavTestRenderingComponent::CreateRenderState_Concurrent()
+void UNavTestRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 #if WITH_RECAST && WITH_EDITOR
 	NavTestDebugDrawDelegateHelper.RegisterDebugDrawDelgate();

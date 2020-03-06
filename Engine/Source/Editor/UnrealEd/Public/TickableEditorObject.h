@@ -114,15 +114,7 @@ private:
 	/** True if we are in the Tick function for an editor tickable object */
 	static bool bIsInObjectsTick;
 
-	static TArray<FTickableObjectEntry>& GetTickableObjects()
-	{
-		static TTickableObjectsCollection TickableObjects;
-		return TickableObjects;
-	}
+	static TArray<FTickableObjectEntry>& GetTickableObjects();
 
-	static TArray<FTickableEditorObject*>& GetPendingTickableObjects()
-	{
-		static TArray<FTickableEditorObject*> PendingTickableObjects;
-		return PendingTickableObjects;
-	}
+	static TArray<FTickableEditorObject*>& GetPendingTickableObjects();
 };

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_COMMON_H
-#define USD_COMMON_H
+#ifndef PXR_USD_USD_COMMON_H
+#define PXR_USD_USD_COMMON_H
 
 /// \file usd/common.h
 
@@ -80,35 +80,6 @@ typedef std::map<class TfToken, VtValue,
                  TfDictionaryLessThan
                  > UsdMetadataValueMap;
 
-/// Returns true if Add() methods in the USD API, when given
-/// UsdListPositionTempDefault, should author "add" operations
-/// in SdfListOp values instead of prepends. Used for backwards
-/// compatibility.
-USD_API
-bool UsdAuthorOldStyleAdd();
-
-/// Returns true if USD uses the historical behavior of applying
-/// the inverse of composed layer offsets to map layer time to
-/// stage time.  Respects the env setting USD_USE_INVERSE_LAYER_OFFSET.
-USD_API
-bool UsdUsesInverseLayerOffset();
-
-/// Prepare the given offset for application to map layer time to
-/// stage time, respecting the environment variable
-/// USD_USE_INVERSE_LAYER_OFFSET.
-///
-/// Typically, the supplied SdfLayerOffset will come from Pcp -- in
-/// a PcpNodeRef or PcpLayerStack -- and represent the cumulative offset
-/// to transform data from a layer to the Usd stage.
-///
-/// Historically, USD applied the inverse of that offset, flipping
-/// the intended semantics. To address this, this function provides a
-/// temporary measure to control whether to take the inverse or not.
-/// Under the new behavior this function will become a no-op,
-/// and can eventually be phased out.
-USD_API
-SdfLayerOffset UsdPrepLayerOffset(SdfLayerOffset offset);
-
 /// \enum UsdListPosition
 ///
 /// Specifies a position to add items to lists.  Used by some Add()
@@ -135,11 +106,6 @@ enum UsdListPosition {
     /// be weaker than other items appended in this layer, but stronger
     /// than items added by weaker layers.
     UsdListPositionBackOfAppendList,
-    /// Default position.
-    /// XXX This value will be removed in the near future. This is
-    /// meant as a temporary value used for staged rollout of the
-    /// new behavior with a TfEnvSetting.
-    UsdListPositionTempDefault,
 };
 
 /// \enum UsdLoadPolicy

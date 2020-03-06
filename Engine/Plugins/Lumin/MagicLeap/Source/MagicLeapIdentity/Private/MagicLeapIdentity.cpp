@@ -175,12 +175,12 @@ void UMagicLeapIdentity::GetAllAvailableAttributesAsync(const FAvailableIdentity
 #endif //WITH_MLSDK
 }
 
-EMagicLeapIdentityError UMagicLeapIdentity::RequestAttributeValue(const TArray<EMagicLeapIdentityKey>& Attribute, TArray<FMagicLeapIdentityAttribute>& AttributeValue)
+EMagicLeapIdentityError UMagicLeapIdentity::RequestAttributeValue(const TArray<EMagicLeapIdentityKey>& RequestedAttributeList, TArray<FMagicLeapIdentityAttribute>& AttributeValue)
 {
 #if WITH_MLSDK
 	MLIdentityProfile* profile = nullptr;
 	TArray<MLIdentityAttributeKey> mlAttributes;
-	for (EMagicLeapIdentityKey attrib : Attribute)
+	for (EMagicLeapIdentityKey attrib : RequestedAttributeList)
 	{
 		mlAttributes.Add(Impl->UnrealToMLIdentityAttribute(attrib));
 	}
@@ -216,12 +216,12 @@ EMagicLeapIdentityError UMagicLeapIdentity::RequestAttributeValue(const TArray<E
 #endif //WITH_MLSDK
 }
 
-EMagicLeapIdentityError UMagicLeapIdentity::RequestAttributeValueAsync(const TArray<EMagicLeapIdentityKey>& Attribute, const FRequestIdentityAttributeValueDelegate& ResultDelegate)
+EMagicLeapIdentityError UMagicLeapIdentity::RequestAttributeValueAsync(const TArray<EMagicLeapIdentityKey>& RequestedAttributeList, const FRequestIdentityAttributeValueDelegate& ResultDelegate)
 {
 #if WITH_MLSDK
 	MLIdentityProfile* profile = nullptr;
 	TArray<MLIdentityAttributeKey> mlAttributes;
-	for (EMagicLeapIdentityKey attrib : Attribute)
+	for (EMagicLeapIdentityKey attrib : RequestedAttributeList)
 	{
 		mlAttributes.Add(Impl->UnrealToMLIdentityAttribute(attrib));
 	}
@@ -286,7 +286,7 @@ void UMagicLeapIdentity::Tick(float DeltaTime)
 		}
 		else if (Result != MLResult_Pending)
 		{
-			FuturesToDelete.Add(future);			
+			FuturesToDelete.Add(future);
 			AvailableAttribsFuture.Value.ExecuteIfBound(Impl->MLToUnrealIdentityError(Result), AvailableAttributes);
 		}
 	}
@@ -323,7 +323,7 @@ void UMagicLeapIdentity::Tick(float DeltaTime)
 		}
 		else if (Result != MLResult_Pending)
 		{
-			FuturesToDelete.Add(future);			
+			FuturesToDelete.Add(future);
 			RequestAttribsFuture.Value.RequestDelegate.ExecuteIfBound(Impl->MLToUnrealIdentityError(Result), AttributeValue);
 		}
 	}

@@ -31,8 +31,8 @@ namespace Chaos
 		static constexpr int D = d;
 
 		FORCEINLINE TAABB()
-			: MMin()
-			, MMax()
+			: MMin(TVector<T, d>(TNumericLimits<T>::Max()))
+			, MMax(TVector<T, d>(-TNumericLimits<T>::Max()))
 		{
 		}
 
@@ -424,6 +424,13 @@ namespace Chaos
 			MMax += AbsThickness;
 		}
 
+		/** Grow along a vector (as if swept by the vector's direction and magnitude) */
+		FORCEINLINE void GrowByVector(const TVector<T, d>& V)
+		{
+			MMin += V.ComponentwiseMin(TVector<T, d>(0));
+			MMax += V.ComponentwiseMax(TVector<T, d>(0));
+		}
+
 		FORCEINLINE TVector<T, d> Center() const { return (MMax - MMin) / (T)2 + MMin; }
 		FORCEINLINE TVector<T, d> GetCenter() const { return Center(); }
 		FORCEINLINE TVector<T, d> GetCenterOfMass() const { return GetCenter(); }
@@ -465,6 +472,7 @@ namespace Chaos
 
 		FORCEINLINE static TAABB<T, d> EmptyAABB() { return TAABB<T, d>(TVector<T, d>(TNumericLimits<T>::Max()), TVector<T, d>(-TNumericLimits<T>::Max())); }
 		FORCEINLINE static TAABB<T, d> ZeroAABB() { return TAABB<T, d>(TVector<T, d>((T)0), TVector<T, d>((T)0)); }
+		FORCEINLINE static TAABB<T, d> FullAABB() { return TAABB<T, d>(TVector<T, d>(-TNumericLimits<T>::Max()), TVector<T, d>(TNumericLimits<T>::Max())); }
 
 		FORCEINLINE void Serialize(FArchive &Ar) 
 		{
@@ -599,4 +607,6 @@ namespace Chaos
 			return SamplePoints;
 		}
 	};
+
+	using FAABB3 = TAABB<FReal, 3>;
 }

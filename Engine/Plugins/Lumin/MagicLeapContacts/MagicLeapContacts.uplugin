@@ -6,7 +6,7 @@
 	"CreatedBy": "Magic Leap, Inc.",
 	"CreatedByURL": "http://magicleap.com",
 	"Description": "Support for the Magic Leap Contacts API.",
-	"Category": "Undefined",
+	"Category": "Lumin",
 	"EnabledByDefault": false,
 	"DocsURL": "",
 	"MarketplaceURL": "",

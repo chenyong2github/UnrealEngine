@@ -946,7 +946,7 @@ struct TStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<CPPSTRUCT>
 /**
  * Reflection data for a standalone structure declared in a header or as a user defined struct
  */
-class COREUOBJECT_VTABLE UScriptStruct : public UStruct
+class UScriptStruct : public UStruct
 {
 public:
 	/** Interface to template to manage dynamic access to C++ struct construction and destruction **/
@@ -2233,7 +2233,7 @@ public:
 	template<typename EnumType>
 	FORCEINLINE static FName GetValueAsName(const TEnumAsByte<EnumType> EnumeratorValue)
 	{
-		return GetValueAsName((int64)EnumeratorValue.GetValue());
+		return GetValueAsName(EnumeratorValue.GetValue());
 	}
 
 	template<typename EnumType>
@@ -2258,7 +2258,7 @@ public:
 	template<typename EnumType>
 	FORCEINLINE static FString GetValueAsString(const TEnumAsByte<EnumType> EnumeratorValue)
 	{
-		return GetValueAsString((int64)EnumeratorValue.GetValue());
+		return GetValueAsString(EnumeratorValue.GetValue());
 	}
 
 	template<typename EnumType>
@@ -2286,7 +2286,7 @@ public:
 	template<typename EnumType>
 	FORCEINLINE static FText GetDisplayValueAsText(const TEnumAsByte<EnumType> EnumeratorValue)
 	{
-		return GetDisplayValueAsText((int64)EnumeratorValue.GetValue());
+		return GetDisplayValueAsText(EnumeratorValue.GetValue());
 	}
 
 	template<typename EnumType>
@@ -3052,6 +3052,8 @@ public:
 	/** 
 	 * Purges out the properties of this class in preparation for it to be regenerated
 	 * @param bRecompilingOnLoad - true if we are recompiling on load
+	 *
+	 * In editor, properties are not freed until DestroyPropertiesPendingDestruction is called.
 	 */
 	virtual void PurgeClass(bool bRecompilingOnLoad);
 

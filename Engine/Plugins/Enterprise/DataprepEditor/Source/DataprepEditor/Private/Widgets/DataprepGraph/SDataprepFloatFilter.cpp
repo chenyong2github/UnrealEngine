@@ -5,11 +5,9 @@
 #include "DataprepAsset.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorUtils.h"
-#include "SchemaActions/DataprepFetcherMenuActionCollector.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepFloatFilter.h"
 #include "Widgets/DataprepGraph/DataprepActionWidgetsUtils.h"
-#include "Widgets/DataprepGraph/SDataprepFetcherSelector.h"
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/Parameterization/SDataprepParameterizationLinkIcon.h"
 
@@ -84,7 +82,7 @@ void SDataprepFloatFilter::Construct(const FArguments& InArgs, UDataprepFloatFil
 			ToleranceParameterizationActionData = MakeShared<FDataprepParametrizationActionData>( *DataprepAsset, InFilter, PropertyChain );
 		}
 
-		OnParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsChanged.AddSP( this, &SDataprepFloatFilter::OnParameterizationStatusForObjectsChanged );
+		OnParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsStatusChanged.AddSP( this, &SDataprepFloatFilter::OnParameterizationStatusForObjectsChanged );
 	}
 
 	UpdateVisualDisplay();
@@ -94,7 +92,7 @@ SDataprepFloatFilter::~SDataprepFloatFilter()
 {
 	if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( Filter ) )
 	{
-		DataprepAsset->OnParameterizedObjectsChanged.Remove( OnParameterizationStatusForObjectsChangedHandle );
+		DataprepAsset->OnParameterizedObjectsStatusChanged.Remove( OnParameterizationStatusForObjectsChangedHandle );
 	}
 }
 
@@ -276,8 +274,6 @@ void SDataprepFloatFilter::OnSelectedCriteriaChanged(TSharedPtr<FListEntry> List
 		Filter->SetFloatMatchingCriteria( FloatMatchType );
 
 		SDataprepFloatFilterUtils::PostEditChainProperty( Filter, TEXT("FloatMatchingCriteria") );
-
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 	}
 }
 
@@ -335,8 +331,6 @@ void SDataprepFloatFilter::OnEqualValueComitted(float NewEqualValue, ETextCommit
 		Filter->SetEqualValue( NewEqualValue );
 
 		SDataprepFloatFilterUtils::PostEditChainProperty( Filter, TEXT("EqualValue") );
-
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 		OldEqualValue = NewEqualValue;
 	}
 }
@@ -383,7 +377,6 @@ void SDataprepFloatFilter::OnToleranceComitted(float NewTolerance, ETextCommit::
 		FScopedTransaction Transaction( LOCTEXT("ToleranceChangedTransaction", "Change the Tolerance") );
 		Filter->SetTolerance( NewTolerance );
 		SDataprepFloatFilterUtils::PostEditChainProperty( Filter, TEXT("Tolerance") );
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 		OldTolerance = NewTolerance;
 	}
 }

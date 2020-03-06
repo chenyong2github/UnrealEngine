@@ -70,6 +70,8 @@ enum EFallbackColor
 // convenient but not the most optimized solution
 struct RENDERER_API FPostProcessPassParameters
 {
+	DECLARE_TYPE_LAYOUT(FPostProcessPassParameters, NonVirtual);
+public:
 	/** Initialization constructor. */
 	 void Bind(const FShaderParameterMap& ParameterMap);
 
@@ -88,17 +90,16 @@ struct RENDERER_API FPostProcessPassParameters
 	RENDERER_API friend FArchive& operator<<(FArchive& Ar,FPostProcessPassParameters& P);
 
 private:
-
-	FShaderParameter ViewportSize;
-	FShaderParameter ViewportRect;
-	FShaderResourceParameter PostprocessInputParameter[ePId_Input_MAX];
-	FShaderResourceParameter PostprocessInputParameterSampler[ePId_Input_MAX];
-	FShaderParameter PostprocessInputSizeParameter[ePId_Input_MAX];
-	FShaderParameter PostProcessInputMinMaxParameter[ePId_Input_MAX];
-	FShaderParameter ScreenPosToPixel;
-	FShaderParameter SceneColorBufferUVViewport;
-	FShaderResourceParameter BilinearTextureSampler;
-
+	LAYOUT_FIELD(FShaderParameter, ViewportSize);
+	LAYOUT_FIELD(FShaderParameter, ViewportRect);
+	LAYOUT_ARRAY(FShaderResourceParameter, PostprocessInputParameter, ePId_Input_MAX);
+	LAYOUT_ARRAY(FShaderResourceParameter, PostprocessInputParameterSampler, ePId_Input_MAX);
+	LAYOUT_ARRAY(FShaderParameter, PostprocessInputSizeParameter, ePId_Input_MAX);
+	LAYOUT_ARRAY(FShaderParameter, PostProcessInputMinMaxParameter, ePId_Input_MAX);
+	LAYOUT_FIELD(FShaderParameter, ScreenPosToPixel);
+	LAYOUT_FIELD(FShaderParameter, SceneColorBufferUVViewport);
+	LAYOUT_FIELD(FShaderResourceParameter, BilinearTextureSampler);
+	
 public:
 	// @param Filter can be 0 if FilterOverrideArray is used
 	// @param FilterOverrideArray can be 0 if Filter is used

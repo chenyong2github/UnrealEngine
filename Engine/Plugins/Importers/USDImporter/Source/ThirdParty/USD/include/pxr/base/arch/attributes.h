@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_ATTRIBUTES_H
-#define ARCH_ATTRIBUTES_H
+#ifndef PXR_BASE_ARCH_ATTRIBUTES_H
+#define PXR_BASE_ARCH_ATTRIBUTES_H
 
 /// \file arch/attributes.h
 /// Define function attributes.
@@ -87,6 +87,21 @@ PXR_NAMESPACE_OPEN_SCOPE
 ///
 /// \hideinitializer
 #   define ARCH_UNUSED_ARG
+
+/// Macro used to indicate a function may be unused.
+///
+/// In general, avoid this attribute if possible.  Mostly this attribute
+/// should be used when you need to keep a function around (for some
+/// good reason), but it is not used in the rest of the code. The usage
+/// is:
+/// \code
+///    ARCH_UNUSED_FUNCTION void Func() {
+///        ...
+///    }
+/// \endcode
+///
+/// \hideinitializer
+#   define ARCH_UNUSED_FUNCTION
 
 /// Macro used to indicate that a function's code must always be emitted even
 /// if not required.
@@ -154,6 +169,7 @@ PXR_NAMESPACE_OPEN_SCOPE
         __attribute__((format(scanf, _fmt, _firstArg)))
 #   define ARCH_NOINLINE __attribute__((noinline))
 #   define ARCH_UNUSED_ARG   __attribute__ ((unused))
+#   define ARCH_UNUSED_FUNCTION __attribute__((unused))
 #   define ARCH_USED_FUNCTION __attribute__((used))
 
 #elif defined(ARCH_COMPILER_MSVC)
@@ -162,6 +178,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 #   define ARCH_SCANF_FUNCTION(_fmt, _firstArg)
 #   define ARCH_NOINLINE // __declspec(noinline)
 #   define ARCH_UNUSED_ARG
+#   define ARCH_UNUSED_FUNCTION
 #   define ARCH_USED_FUNCTION
 
 #else
@@ -315,4 +332,4 @@ struct Arch_ConstructorInit {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_ATTRIBUTES_H
+#endif // PXR_BASE_ARCH_ATTRIBUTES_H

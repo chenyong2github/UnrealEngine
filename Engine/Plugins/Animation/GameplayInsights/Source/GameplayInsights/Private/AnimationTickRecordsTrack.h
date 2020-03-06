@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "GameplayTrack.h"
-#include "Insights/ViewModels/GraphTrack.h"
-#include "Insights/ViewModels/GraphSeries.h"
+#include "GameplayGraphTrack.h"
 
 class FAnimationSharedData;
 struct FTickRecordMessage;
@@ -13,8 +11,9 @@ class FGameplaySharedData;
 class UAnimBlueprintGeneratedClass;
 class FAnimationTickRecordsTrack;
 class FTimingTrackViewport;
+class FGraphTrackEvent;
 
-class FTickRecordSeries : public FGraphSeries
+class FTickRecordSeries : public FGameplayGraphSeries
 {
 public:
 	enum class ESeriesType : uint32
@@ -31,56 +30,43 @@ public:
 
 	virtual FString FormatValue(double Value) const override;
 
-	// Custom overload for auto zoom
-	void UpdateAutoZoom(const FTimingTrackViewport& InViewport, const FAnimationTickRecordsTrack& InTrack);
-
 public:
+	/** The asset ID that this series uses */
+	uint64 AssetId;
+
+	/** The node ID that this series' data comes from */
+	int32 NodeId;
+
 	ESeriesType Type;
-	double CurrentMin;
-	double CurrentMax;
 };
 
-class FAnimationTickRecordsTrack : public TGameplayTrackMixin<FGraphTrack>
+class FAnimationTickRecordsTrack : public FGameplayGraphTrack
 {
+	INSIGHTS_DECLARE_RTTI(FAnimationTickRecordsTrack, FGameplayGraphTrack)
+
 public:
-	static const FName TypeName;
-	static const FName SubTypeName;
+	FAnimationTickRecordsTrack(const FAnimationSharedData& InSharedData, uint64 InObjectId, const TCHAR* InName);
 
-	FAnimationTickRecordsTrack(const FAnimationSharedData& InSharedData, uint64 InObjectId, uint64 InAssetId, int32 InNodeId, const TCHAR* InName);
-
-	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
-	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
+	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const override;
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
-
-	virtual float GetBorderY() const { return BorderY; }
-
-	/** Get the asset ID that this track uses */
-	uint64 GetAssetId() const { return AssetId; }
-
-	/** Get the node ID that this track uses */
-	int32 GetNodeId() const { return NodeId; }
-
-	/** The current height in lanes */
-	int32 HeightInLanes;
+	virtual bool UpdateSeriesBounds(FGameplayGraphSeries& InSeries, const FTimingTrackViewport& InViewport) override;
+	virtual void UpdateSeries(FGameplayGraphSeries& InSeries, const FTimingTrackViewport& InViewport) override;
+	virtual void AddAllSeries() override;
+	virtual void GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 
 private:
-	// Add all the series that this track can represent
-	void AddAllSeries();
-
-	// Helper for PreUpdate to update the track height
-	void UpdateTrackHeight(const ITimingTrackUpdateContext& Context);
-
 	// Helper function used to find a tick record
 	void FindTickRecordMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FTickRecordMessage&)> InFoundPredicate) const;
 
-	// Override certain UI items to be disabled
-	virtual bool ContextMenu_UseEventDuration_CanExecute() { return false; }
-	virtual bool ContextMenu_ShowBars_CanExecute() { return false; }
+	// Helper function for series bounds update
+	template<typename ProjectionType>
+	bool UpdateSeriesBoundsHelper(FTickRecordSeries& InSeries, const FTimingTrackViewport& InViewport, ProjectionType Projection);
 
-	// Helper used to build track name
-	FText MakeTrackName(const FGameplaySharedData& InSharedData, uint64 InAssetID, const TCHAR* InName) const;
+	// Helper function for series update
+	template<typename ProjectionType>
+	void UpdateSeriesHelper(FTickRecordSeries& InSeries, const FTimingTrackViewport& InViewport, ProjectionType Projection);
 
 private:
 	/** The shared data */
@@ -88,22 +74,9 @@ private:
 
 #if WITH_EDITOR
 	/** The class that output this tick record */
-	UAnimBlueprintGeneratedClass* InstanceClass;
+	TSoftObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
 #endif
 
-	/** Colors for line drawing */
-	FLinearColor MainSeriesLineColor;
-	FLinearColor MainSeriesFillColor;
-
-	/** The asset ID that this track uses */
-	uint64 AssetId;
-
-	/** The node ID that this track's data comes from */
-	int32 NodeId;
-
-	/** The track size we want to be displayed at */
-	float RequestedTrackSizeScale;
-
-	/** The size of the border between tracks */
-	float BorderY;
+	/** Cached hovered event */
+	TWeakPtr<const FGraphTrackEvent> CachedHoveredEvent;
 };

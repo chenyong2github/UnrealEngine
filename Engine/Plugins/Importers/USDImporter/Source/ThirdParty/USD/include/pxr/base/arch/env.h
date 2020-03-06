@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_ENV_H
-#define ARCH_ENV_H
+#ifndef PXR_BASE_ARCH_ENV_H
+#define PXR_BASE_ARCH_ENV_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/arch/api.h"
@@ -86,4 +86,4 @@ ArchEnviron();
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_ENV_H
+#endif // PXR_BASE_ARCH_ENV_H

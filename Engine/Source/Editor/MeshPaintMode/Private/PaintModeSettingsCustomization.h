@@ -24,14 +24,6 @@ public:
 	void OnPaintTypeChanged(IDetailLayoutBuilder* LayoutBuilder);
 };
 
-class FPaintModeSettingsRootObjectCustomization : public IDetailRootObjectCustomization
-{
-public:
-	/** IDetailRootObjectCustomization interface */
-	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject) override;
-	virtual bool IsObjectVisible(const UObject* InRootObject) const override { return true; }
-	virtual bool ShouldDisplayHeader(const UObject* InRootObject) const override { return false; }
-};
 
 class FVertexPaintSettingsCustomization : public IPropertyTypeCustomization
 {

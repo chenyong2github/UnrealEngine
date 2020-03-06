@@ -73,7 +73,7 @@ public:
 	 * @return The scale between Value units and viewport units; in pixels (Slate units) / Value unit.
 	 */
 	double GetScaleY() const { return ScaleY; }
-	void SetScaleY(const double InScaleY) { ScaleY = FMath::Max(InScaleY, (double)KINDA_SMALL_NUMBER); }
+	void SetScaleY(const double InScaleY) { ScaleY = FMath::Max(InScaleY, DBL_EPSILON); }
 
 	/**
 	 * @param Value a value; in Value units
@@ -129,7 +129,7 @@ public:
 	const FGraphSeriesEvent* GetEvent(const float PosX, const float PosY, const FTimingTrackViewport& Viewport, bool bCheckLine, bool bCheckBox) const;
 
 	/** Update the track's auto-zoom. Does nothing if IsAutoZoomEnabled() is false. */
-	void UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue);
+	void UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue, const bool bIsAutoZoomAnimated = true);
 
 	virtual FString FormatValue(double Value) const;
 
@@ -152,7 +152,7 @@ private:
 protected:
 	TArray<FGraphSeriesEvent> Events; // reduced list of events; used to identify an event at a certain screen position (ex.: the event hovered by mouse)
 	TArray<FVector2D> Points; // reduced list of points; for drawing points
-	TArray<TArray<FVector2D>> LinePoints;	// reduced list of points; for drawing the connected line and filled polygon, split into disconnected batches
+	TArray<TArray<FVector2D>> LinePoints; // reduced list of points; for drawing the connected line and filled polygon, split into disconnected batches
 	TArray<FBox> Boxes; // reduced list of boxes; for drawing boxes
 };
 

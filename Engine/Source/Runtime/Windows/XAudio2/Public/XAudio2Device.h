@@ -124,7 +124,7 @@ private:
 		static const FName NAME_OPUS(TEXT("OPUS"));
 		static const FName NAME_XMA(TEXT("XMA"));
 
-		if (SoundWave->IsStreaming())
+		if (SoundWave->IsStreaming(nullptr))
 		{
 			if (SoundWave->IsSeekableStreaming())
 			{

@@ -1155,7 +1155,7 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 		UActorComponent* ActorComponent = Components[CompIndex];
 
 		// Filter out nulls and the components we won't be able to create.
-		if (ActorComponent && ActorComponent->GetClass()->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent))
+		if (ActorComponent && FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(ActorComponent->GetClass()))
 		{
 			USceneComponent* SceneComponent = Cast<USceneComponent>(Components[CompIndex]);
 			if (SceneComponent)
@@ -1349,8 +1349,21 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName Bluepri
 	{
 		if (Outer != nullptr)
 		{
+			if (ParentClassOverride)
+			{
+				if (!ParentClassOverride->IsChildOf(Actor->GetClass()))
+				{
+					// Invalid input, use ActorClass instead?
+					return nullptr;
+				}
+			}
+			else
+			{
+				ParentClassOverride = Actor->GetClass();
+			}
+
 			// We don't have a factory, but we can still try to create a blueprint for this actor class
-			NewBlueprint = FKismetEditorUtilities::CreateBlueprint( Actor->GetClass(), Outer, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("CreateFromActor") );
+			NewBlueprint = FKismetEditorUtilities::CreateBlueprint(ParentClassOverride, Outer, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("CreateFromActor") );
 		}
 
 		if (NewBlueprint != nullptr)
@@ -1588,7 +1601,12 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName Bluepr
 			CAC->SetChildActorClass(Actor->GetClass(), Actor);
 
 			// Clear any properties that can't be on the template
-			CAC->GetChildActorTemplate()->SetActorRelativeTransform(FTransform::Identity);
+			if (USceneComponent* RootComponent = CAC->GetChildActorTemplate()->GetRootComponent())
+			{
+				RootComponent->SetRelativeLocation_Direct(FVector::ZeroVector);
+				RootComponent->SetRelativeRotation_Direct(FRotator::ZeroRotator);
+				RootComponent->SetRelativeScale3D_Direct(FVector::OneVector);
+			}
 
 			CAC->SetWorldTransform(Actor->GetTransform());
 			if (ParentComponent)
@@ -1613,6 +1631,13 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName Bluepr
 		}
 
 		FKismetEditorUtilities::AddComponentsToBlueprint(AssemblyProps.Blueprint, ChildActorComponents, /*bHarvesting=*/ true, AssemblyProps.RootNodeOverride);
+
+		// Since the names we create are well defined relative to the SCS but created in the transient package, we could end up reusing objects
+		// unless we rename these temporary components out of the way
+		for (UActorComponent* CAC : ChildActorComponents)
+		{
+			CAC->Rename(nullptr, nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+		}
 	};
 	
 	UBlueprint* Blueprint = nullptr;
@@ -1622,7 +1647,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName Bluepr
 		if (Package != nullptr)
 		{
 			// We don't have a factory, but we can still try to create a blueprint for this actor class
-			Blueprint = FKismetEditorUtilities::CreateBlueprint(AActor::StaticClass(), Package, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("CreateFromActors"));
+			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("CreateFromActors"));
 		}
 
 		if (Blueprint != nullptr)
@@ -1634,20 +1659,20 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName Bluepr
 	return Blueprint;
 }
 
-UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld)
+UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass)
 {
 	UBlueprint* NewBlueprint = nullptr;
 	FString AssetName;
 
 	if (UPackage* Package = CreateBlueprintPackage(Path, AssetName))
 	{
-		NewBlueprint = HarvestBlueprintFromActors(FName(*AssetName), Package, Actors, bReplaceInWorld);
+		NewBlueprint = HarvestBlueprintFromActors(FName(*AssetName), Package, Actors, bReplaceInWorld, ParentClass);
 	}
 
 	return NewBlueprint;
 }
 
-UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld)
+UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass)
 {
 	auto AssemblyFunction = [](const FBlueprintAssemblyProps& AssemblyProps)
 	{
@@ -1693,7 +1718,7 @@ UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName Bluep
 		if (Package != nullptr)
 		{
 			// We don't have a factory, but we can still try to create a blueprint for this actor class
-			Blueprint = FKismetEditorUtilities::CreateBlueprint(AActor::StaticClass(), Package, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("HarvestFromActors"));
+			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("HarvestFromActors"));
 		}
 
 		if (Blueprint != nullptr)
@@ -2192,6 +2217,13 @@ bool FKismetEditorUtilities::CanBlueprintImplementInterface(UBlueprint const* Bl
 	}
 
 	return bCanImplementInterface;
+}
+
+bool FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(const UClass* Class)
+{
+	return (!Class->HasAnyClassFlags(CLASS_Abstract) &&
+	        Class->IsChildOf<UActorComponent>() &&
+	        Class->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent));
 }
 
 bool FKismetEditorUtilities::IsClassABlueprintSkeleton(const UClass* Class)

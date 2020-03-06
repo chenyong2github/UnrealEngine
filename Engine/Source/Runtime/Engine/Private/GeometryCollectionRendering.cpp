@@ -2,8 +2,43 @@
 
 #include "GeometryCollectionRendering.h"
 #include "MeshDrawShaderBindings.h"
+#include "MeshMaterialShader.h"
 
+IMPLEMENT_TYPE_LAYOUT(FGeometryCollectionVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGeometryCollectionVertexFactory, SF_Vertex, FGeometryCollectionVertexFactoryShaderParameters);
 IMPLEMENT_VERTEX_FACTORY_TYPE(FGeometryCollectionVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, true, true, true, true);
+
+bool FGeometryCollectionVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	return (Parameters.MaterialParameters.bIsUsedWithGeometryCollections || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
+		&& FLocalVertexFactory::ShouldCompilePermutation(Parameters);
+}
+
+//
+// Modify compile environment to enable instancing
+// @param OutEnvironment - shader compile environment to modify
+//
+void FGeometryCollectionVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
+	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Parameters.Platform))
+	{
+		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
+	}
+
+	if (RHISupportsManualVertexFetch(Parameters.Platform))
+	{
+		OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
+
+		OutEnvironment.SetDefine(TEXT("USE_INSTANCING_BONEMAP"), TEXT("1"));
+		OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), TEXT("0"));
+	}
+
+	// Geometry collections use a custom hit proxy per bone
+	OutEnvironment.SetDefine(TEXT("USE_PER_VERTEX_HITPROXY_ID"), 1);
+
+	FLocalVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+}
 
 void FGeometryCollectionVertexFactoryShaderParameters::GetElementShaderBindings(
 	const FSceneInterface* Scene,

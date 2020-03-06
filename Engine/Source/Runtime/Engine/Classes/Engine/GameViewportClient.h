@@ -77,7 +77,10 @@ public:
 	UPROPERTY(Config)
 	int32 MaxSplitscreenPlayers = 4;
 
-	/** if true then the title safe border is drawn */
+	/** if true then the title safe border is drawn
+	  * @deprecated - Use the cvar "r.DebugSafeZone.Mode=1".
+	  */
+	UE_DEPRECATED(4.26, "Use the cvar \"r.DebugSafeZone.Mode=1\".")
 	uint32 bShowTitleSafeZone:1;
 
 	/** If true, this viewport is a play in editor viewport */
@@ -115,8 +118,10 @@ public:
 	UFUNCTION(exec)
 	virtual void SSSwapControllers();
 
-	/** Exec for toggling the display of the title safe area */
-	UFUNCTION(exec)
+	/** Exec for toggling the display of the title safe area
+	  * @deprecated Use the cvar "r.DebugSafeZone.Mode=1".
+	  */
+	UFUNCTION(exec, meta = (DeprecatedFunction, DeprecationMessage = "Use the cvar \"r.DebugSafeZone.Mode=1.\""))
 	virtual void ShowTitleSafeArea();
 
 	/** Sets the player which console commands will be executed in the context of. */
@@ -438,7 +443,7 @@ public:
 	bool CalculateDeadZoneForAllSides( ULocalPlayer* LPlayer, UCanvas* Canvas, float& fTopSafeZone, float& fBottomSafeZone, float& fLeftSafeZone, float& fRightSafeZone, bool bUseMaxPercent = false );
 
 	/**  
-	 * Draw the safe area using the current TitleSafeZone settings. 
+	 * Draws the safe area using the current r.DebugSafeZone.Mode=1 when there is not a valid PlayerController HUD.
 	 * 
 	 * @param Canvas	Canvas on which to draw
 	 */
@@ -606,13 +611,9 @@ public:
 	/** FViewport interface */
 	virtual bool ShouldDPIScaleSceneCanvas() const override { return false; }
 
-#if WITH_EDITOR
-	void SetPlayInEditorUseMouseForTouch(bool bUseMouseForTouch);
-#endif
+	bool GetUseMouseForTouch() const;
 
 protected:
-
-	bool GetUseMouseForTouch() const;
 	void SetCurrentBufferVisualizationMode(FName NewBufferVisualizationMode) { CurrentBufferVisualizationMode = NewBufferVisualizationMode; }
 	FName GetCurrentBufferVisualizationMode() const { return CurrentBufferVisualizationMode; }
 	bool HasAudioFocus() const { return bHasAudioFocus; }
@@ -791,6 +792,11 @@ public:
 		bUseSoftwareCursorWidgets = bInUseSoftwareCursorWidgets;
 	}
 
+	/**
+	* Get whether or not the viewport is currently using software cursor
+	*/
+	bool GetIsUsingSoftwareCursorWidgets() { return bUseSoftwareCursorWidgets; }
+
 #if WITH_EDITOR
 	/** Accessor for delegate called when a game viewport received input key */
 	FOnGameViewportInputKey& OnGameViewportInputKey()
@@ -807,11 +813,19 @@ public:
 
 	void SetVirtualCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* Widget);
 
+	/** Add a cursor to the set based on the enum and a slate widget */
+	void AddSoftwareCursorFromSlateWidget(EMouseCursor::Type InCursorType, TSharedPtr<SWidget> CursorWidgetPtr);
+
 	/** Adds a cursor to the set based on the enum and the class reference to it. */
 	void AddSoftwareCursor(EMouseCursor::Type Cursor, const FSoftClassPath& CursorClass);
 
+	/** Get the slate widget of the current software cursor */
+	TSharedPtr<SWidget> GetSoftwareCursorWidget(EMouseCursor::Type Cursor) const;
+
 	/** Does the viewport client have a software cursor set up for the given enum? */
 	bool HasSoftwareCursor(EMouseCursor::Type Cursor) const;
+
+	void EnableCsvPlayerStats(int32 LocalPlayerCount);
 
 private:
 	/** Resets the platform type shape to nullptr, to restore it to the OS default. */
@@ -891,6 +905,13 @@ private:
 	*/
 	void AddDebugDisplayProperty(class UObject* Obj, TSubclassOf<class UObject> WithinClass, const FName& PropertyName, bool bSpecialProperty = false);
 
+protected:
+	/** Handle to the audio device created for this viewport. Each viewport (for multiple PIE) will have its own audio device. */
+	uint32 AudioDeviceHandle = INDEX_NONE;
+
+	/** Whether or not this audio device is in audio-focus */
+	bool bHasAudioFocus = false;
+
 private:
 	/** Slate window associated with this viewport client.  The same window may host more than one viewport client. */
 	TWeakPtr<SWindow> Window;
@@ -930,7 +951,8 @@ private:
 	bool SetDisplayConfiguration( const FIntPoint* Dimensions, EWindowMode::Type WindowMode);
 
 	/** Updates CSVProfiler camera stats */
-	void UpdateCsvCameraStats(const FSceneView* View);
+	void UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap);
+
 
 #if WITH_EDITOR
 	/** Delegate called when game viewport client received input key */
@@ -1005,9 +1027,6 @@ private:
 
 	/** Mouse cursor locking behavior when the viewport is clicked */
 	EMouseLockMode MouseLockMode;
-
-	/** Whether or not this audio device is in audio-focus */
-	bool bHasAudioFocus;
 
 	/** Is the mouse currently over the viewport client */
 	bool bIsMouseOverClient;

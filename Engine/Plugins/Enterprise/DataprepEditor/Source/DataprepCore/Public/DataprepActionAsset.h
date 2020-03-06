@@ -54,6 +54,11 @@ class UDataprepActionStep : public UObject
 
 public:
 
+	UDataprepActionStep()
+		: bIsEnabled(true)
+		, StepObject(nullptr)
+	{}
+
 	// Begin UObject Interface
 	virtual void PostLoad() override;
 	// End UObject Interface
@@ -163,8 +168,10 @@ struct FDataprepActionContext
 	DataprepActionAsset::FActionsContextChangedFunc ContextChangedCallback;
 };
 
-// Delegates
-DECLARE_MULTICAST_DELEGATE(FOnStepsOrderChanged)
+class UDataprepActionAsset;
+DECLARE_EVENT(UDataprepActionAsset, FOnStepsOrderChanged);
+DECLARE_EVENT_OneParam(UDataprepActionAsset, FOnStepAboutToBeRemoved, UDataprepParameterizableObject* /** The step object */ );
+DECLARE_EVENT_TwoParams(UDataprepParameterizableObject, FOnStepWasEdited, UDataprepParameterizableObject* /** The step object of the step (The object edited might be a subobject of it) */, struct FPropertyChangedChainEvent&)
 
 UCLASS(Experimental)
 class DATAPREPCORE_API UDataprepActionAsset : public UObject
@@ -176,6 +183,10 @@ public:
 	UDataprepActionAsset();
 
 	virtual ~UDataprepActionAsset();
+
+	// Begin UObject Interface
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	// End UObject Interface
 
 	/**
 	 * Execute the action on a specific set of objects
@@ -295,20 +306,39 @@ public:
 	bool RemoveStep(int32 Index);
 
 	/**
+	 * Remove an array of steps from the action
+	 * @param Indices Array of step indices to remove
+	 * @return True if at least one step has been removed
+	 */
+	bool RemoveSteps(const TArray<int32>& Indices);
+
+	/**
 	 * Allow an observer to be notified when the steps order changed that also include adding and removing steps
 	 * @return The delegate that will be broadcasted when the steps order changed
 	 */
 	FOnStepsOrderChanged& GetOnStepsOrderChanged();
+
+	/**
+	 * Allow an observer to be notified when a step is about to be removed from the action
+	 * @return The event that will be broadcasted
+	 */
+	FOnStepAboutToBeRemoved& GetOnStepAboutToBeRemoved();
+
+	/**
+	 * Allow an observer to be notified when a step was edited (the step himself or a sub object of it)
+	 * @return The event that will be broadcasted
+	 */
+	FOnStepWasEdited& GetOnStepWasEdited();
 
 	UPROPERTY(Transient)
 	bool bExecutionInterrupted;
 
 	/** Getter and Setter on the UI text of the action */
 	const TCHAR* GetLabel() const { return *Label; }
-	void SetLabel( const TCHAR* InLabel ) { Label = InLabel ? InLabel : TEXT(""); }
+	void SetLabel( const TCHAR* InLabel ) { Modify(); Label = InLabel ? InLabel : TEXT(""); }
 
 	/**
-	 * Do the necessary notification so that the dataprep system can react properly to removal of this action
+	 * Do the necessary notification so that the Dataprep system can react properly to removal of this action
 	 */
 	void NotifyDataprepSystemsOfRemoval();
 
@@ -398,7 +428,13 @@ private:
 	TArray<UDataprepActionStep*> Steps;
 
 	/** Broadcasts any change to the stack of steps */
-	FOnStepsOrderChanged OnStepsChanged;
+	FOnStepsOrderChanged OnStepsOrderChanged;
+
+	/** Broadcast when a step is about to be removed */
+	FOnStepAboutToBeRemoved OnStepsAboutToBeRemoved;
+
+	/** Broacast when a subobject of a step or a step object was edited */
+	FOnStepWasEdited OnStepWasEdited;
 
 	FDelegateHandle OnAssetDeletedHandle;
 
@@ -424,7 +460,7 @@ private:
 	bool bWorkingSetHasChanged;
 
 	/** UI label of the action */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Label")
 	FString Label;
 
 	/** Package which static meshes will be added to */

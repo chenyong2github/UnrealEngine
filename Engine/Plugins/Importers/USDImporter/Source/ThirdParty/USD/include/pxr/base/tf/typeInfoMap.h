@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_TYPEINFO_MAP_H
-#define TF_TYPEINFO_MAP_H
+#ifndef PXR_BASE_TF_TYPE_INFO_MAP_H
+#define PXR_BASE_TF_TYPE_INFO_MAP_H
 
 /// \file tf/typeInfoMap.h
 /// \ingroup group_tf_RuntimeTyping
@@ -244,4 +244,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_TYPEINFO_MAP_H
+#endif // PXR_BASE_TF_TYPE_INFO_MAP_H

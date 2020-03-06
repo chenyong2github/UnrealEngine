@@ -25,7 +25,7 @@ struct FNiagaraParameterStore;
 const uint32 NIAGARA_COMPUTE_THREADGROUP_SIZE = 64;
 const uint32 NIAGARA_MAX_COMPUTE_THREADGROUPS = 65535;
 
-const FString INTERPOLATED_PARAMETER_PREFIX = TEXT("PREV_");
+#define INTERPOLATED_PARAMETER_PREFIX TEXT("PREV_")
 
 /** The maximum number of spawn infos we can run on the GPU, modifying this will require a version update as it is used in the shader compiler  */
 constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
@@ -83,10 +83,14 @@ enum class ENiagaraSimTarget : uint8
 UENUM()
 enum class ENiagaraAgeUpdateMode : uint8
 {
-	/** Update the age using the delta time supplied to the tick function. */
+	/** Update the age using the delta time supplied to the component tick function. */
 	TickDeltaTime,
 	/** Update the age by seeking to the DesiredAge. To prevent major perf loss, we clamp to MaxClampTime*/
-	DesiredAge
+	DesiredAge,
+	/** Update the age by tracking changes to the desired age, but when the desired age goes backwards in time,
+	or jumps forwards in time by more than a few steps, the system is reset and simulated forward by a single step.
+	This mode is useful for continuous effects controlled by sequencer. */
+	DesiredAgeNoSeek
 };
 
 
@@ -268,6 +272,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	uint32 bSupportsGPU : 1;
 
+	/** Writes to the variable this is bound to */
+	UPROPERTY()
+	uint32 bWriteFunction : 1;
+
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
@@ -284,6 +292,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bExperimental(false)
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
+		, bWriteFunction(false)
 	{
 	}
 
@@ -296,6 +305,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bExperimental(false)
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
+		, bWriteFunction(false)
 	{
 
 	}
@@ -309,6 +319,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bExperimental(false)
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
+		, bWriteFunction(false)
 		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
@@ -536,18 +547,19 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 {
 	GENERATED_BODY()
 
-	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit) :bDestroyOnAdd(false) { Add(System, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
-	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit) : bDestroyOnAdd(false) { Add(Emitter, bReInit); }
-	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit) :bDestroyOnAdd(false) { Add(Script, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit) : bDestroyOnAdd(false), bOnlyActive(false) { Add(Emitter, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(Script, bReInit); }
 	//FNiagaraSystemUpdateContext(UNiagaraDataInterface* Interface, bool bReinit) : Add(Interface, bReinit) {}
-	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit) :bDestroyOnAdd(false) { Add(Collection, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(Collection, bReInit); }
 #endif
 	FNiagaraSystemUpdateContext():bDestroyOnAdd(false){ }
 
 	~FNiagaraSystemUpdateContext();
 
 	void SetDestroyOnAdd(bool bInDestroyOnAdd) { bDestroyOnAdd = bInDestroyOnAdd; }
+	void SetOnlyActive(bool bInOnlyActive) { bOnlyActive = bInOnlyActive; }
 
 	void Add(const UNiagaraSystem* System, bool bReInit);
 #if WITH_EDITORONLY_DATA
@@ -575,6 +587,7 @@ private:
 	TArray<UNiagaraSystem*> SystemSimsToDestroy;
 
 	bool bDestroyOnAdd;
+	bool bOnlyActive;
 	//TODO: When we allow component less systems we'll also want to find and reset those.
 };
 
@@ -593,25 +606,25 @@ enum class ENiagaraScriptUsage : uint8
 	/** The script defines a dynamic input for use in particle, emitter, or system scripts. */
 	DynamicInput,
 	/** The script is called when spawning particles. */
-	ParticleSpawnScript UMETA(Hidden),
+	ParticleSpawnScript,
 	/** Particle spawn script that handles intra-frame spawning and also pulls in the update script. */
 	ParticleSpawnScriptInterpolated UMETA(Hidden),
 	/** The script is called to update particles every frame. */
-	ParticleUpdateScript UMETA(Hidden),
+	ParticleUpdateScript,
 	/** The script is called to update particles in response to an event. */
-	ParticleEventScript UMETA(Hidden),
-	/** The script is called as a particle shader stage. */
-	ParticleShaderStageScript UMETA(Hidden),
+	ParticleEventScript ,
+	/** The script is called as a particle simulation stage. */
+	ParticleSimulationStageScript,
 	/** The script is called to update particles on the GPU. */
 	ParticleGPUComputeScript UMETA(Hidden),
 	/** The script is called once when the emitter spawns. */
-	EmitterSpawnScript UMETA(Hidden),
+	EmitterSpawnScript,
 	/** The script is called every frame to tick the emitter. */
-	EmitterUpdateScript UMETA(Hidden),
+	EmitterUpdateScript ,
 	/** The script is called once when the system spawns. */
-	SystemSpawnScript UMETA(Hidden),
+	SystemSpawnScript ,
 	/** The script is called every frame to tick the system. */
-	SystemUpdateScript UMETA(Hidden),
+	SystemUpdateScript,
 };
 
 UENUM()
@@ -621,6 +634,14 @@ enum class ENiagaraScriptGroup : uint8
 	Emitter,
 	System,
 	Max
+};
+
+
+UENUM()
+enum class ENiagaraIterationSource : uint8
+{
+	Particles = 0,
+	DataInterface
 };
 
 
@@ -676,11 +697,12 @@ struct FNiagaraVariableDataInterfaceBinding
 	FNiagaraVariableDataInterfaceBinding() {}
 	FNiagaraVariableDataInterfaceBinding(const FNiagaraVariable& InVar) : BoundVariable(InVar)
 	{
-		check(InVar.IsDataInterface() == true);
+		ensure(InVar.IsDataInterface() == true);
 	}
 
 	UPROPERTY()
 	FNiagaraVariable BoundVariable;
+
 };
 
 /** Primarily a wrapper around an FName to be used for customizations in the Selected Details panel 
@@ -762,7 +784,7 @@ namespace FNiagaraUtilities
 };
 
 USTRUCT()
-struct FNiagaraUserParameterBinding
+struct NIAGARA_API FNiagaraUserParameterBinding
 {
 	GENERATED_USTRUCT_BODY()
 

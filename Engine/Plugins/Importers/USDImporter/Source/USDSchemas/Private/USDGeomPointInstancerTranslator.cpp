@@ -37,7 +37,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 			return false;
 		}
 
-		pxr::TfToken UpAxis = UsdUtils::GetUsdStageAxis( Stage );
+		UsdToUnreal::FUsdStageInfo StageInfo( Stage );
 
 		int32 Index = 0;
 
@@ -47,7 +47,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 		{
 			if ( ProtoIndices[ Index ] == ProtoIndex )
 			{
-				FTransform InstanceTransform = UsdToUnreal::ConvertMatrix( UpAxis, UsdMatrix );
+				FTransform InstanceTransform = UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
 
 				HismComponent.AddInstance( InstanceTransform );
 			}
@@ -85,14 +85,11 @@ namespace UsdGeomPointInstancerTranslatorImpl
 	}
 }
 
-USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
+void FUsdGeomPointInstancerTranslator::UpdateComponents(USceneComponent* PointInstancerRootComponent)
 {
-	// Spawn Xform Actor / SceneComponent
-	USceneComponent* PointInstancerRootComponent = FUsdGeomXformableTranslator::CreateComponents();
-
 	if ( !PointInstancerRootComponent )
 	{
-		return nullptr;
+		return;
 	}
 
 	FScopedUsdAllocs UsdAllocs;
@@ -101,7 +98,7 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 
 	if ( !PointInstancer )
 	{
-		return nullptr;
+		return;
 	}
 
 	pxr::UsdPrim Prim = PointInstancer.GetPrim();
@@ -114,10 +111,13 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 	{
 		TGuardValue< USceneComponent* > ParentComponentGuard( Context->ParentComponent, PointInstancerRootComponent );
 
-		int32 PrototypeIndex = 0;
-		for ( const pxr::SdfPath& PrototypePath : PrototypesPaths )
+		for ( int32 PrototypeIndex = 0; PrototypeIndex < PrototypesPaths.size(); ++PrototypeIndex)
 		{
-			pxr::UsdPrim PrototypePrim = Prim.GetStage()->GetPrimAtPath( PrototypePath );
+			pxr::UsdPrim PrototypePrim = Prim.GetStage()->GetPrimAtPath( PrototypesPaths[PrototypeIndex] );
+			if (!Prim)
+			{
+				continue;
+			}
 
 			FUsdGeomXformableTranslator PrototypeXformTranslator( Context, pxr::UsdTyped( PrototypePrim ) );
 			USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponents();
@@ -142,12 +142,8 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 					UsdGeomPointInstancerTranslatorImpl::ConvertGeomPointInstancer( Prim.GetStage(), PointInstancer, PrototypeIndex, *HismComponent, pxr::UsdTimeCode( Context->Time ) );
 				}
 			}
-
-			++PrototypeIndex;
 		}
 	}
-
-	return PointInstancerRootComponent;
 }
 
 #endif // #if USE_USD_SDK

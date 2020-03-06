@@ -378,6 +378,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bReceiveMobileCSMShadows = true;
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = true;
+	HitProxyPriority = HPP_World;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -536,7 +537,7 @@ FORCEINLINE_DEBUGGABLE bool OwnerLevelHasRegisteredStaticComponentsInStreamingMa
 	return false;
 }
 
-void UPrimitiveComponent::CreateRenderState_Concurrent()
+void UPrimitiveComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	// Make sure cached cull distance is up-to-date if its zero and we have an LD cull distance
 	if( CachedMaxDrawDistance == 0.f && LDMaxDrawDistance > 0.f )
@@ -545,14 +546,21 @@ void UPrimitiveComponent::CreateRenderState_Concurrent()
 		CachedMaxDrawDistance = bNeverCull ? 0.f : LDMaxDrawDistance;
 	}
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	UpdateBounds();
 
 	// If the primitive isn't hidden and the detail mode setting allows it, add it to the scene.
 	if (ShouldComponentAddToScene())
 	{
-		GetWorld()->Scene->AddPrimitive(this);
+		if (Context != nullptr)
+		{
+			Context->AddPrimitiveBatches.Add(this);
+		}
+		else
+		{
+			GetWorld()->Scene->AddPrimitive(this);
+		}
 	}
 
 	// Components are either registered as static or dynamic in the streaming manager.
@@ -2140,7 +2148,7 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& 
 					{
 						if (!ShouldIgnoreHitResult(MyWorld, TestHit, Delta, Actor, MoveFlags))
 						{
-							if (TestHit.Time == 0.f)
+							if (TestHit.bStartPenetrating)
 							{
 								// We may have multiple initial hits, and want to choose the one with the normal most opposed to our movement.
 								const float NormalDotDelta = (TestHit.ImpactNormal | Delta);
@@ -2432,7 +2440,8 @@ bool UPrimitiveComponent::IsNavigationRelevant() const
 
 FBox UPrimitiveComponent::GetNavigationBounds() const
 {
-	return Bounds.GetBox();
+	// Return invalid box when retrieving NavigationBounds before they are being computed at component registration
+	return bRegistered ? Bounds.GetBox() : FBox(ForceInit);
 }
 
 //////////////////////////////////////////////////////////////////////////

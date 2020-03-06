@@ -13,6 +13,7 @@
 #include "USDIncludesEnd.h"
 
 class UStaticMesh;
+class FStaticMeshComponentRecreateRenderStateContext;
 
 PXR_NAMESPACE_OPEN_SCOPE
 	class UsdGeomMesh;
@@ -32,6 +33,9 @@ protected:
 
 	// Outputs
 	UStaticMesh* StaticMesh = nullptr;
+
+	// Required to prevent StaticMesh from being used for drawing while it is being rebuilt
+	TSharedPtr<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContextPtr;
 
 protected:
 	FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema )
@@ -59,15 +63,17 @@ protected:
 class USDSCHEMAS_API FUsdGeomMeshTranslator : public FUsdGeomXformableTranslator
 {
 public:
+	using Super = FUsdGeomXformableTranslator;
+
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
 
 	FUsdGeomMeshTranslator( const FUsdGeomMeshTranslator& Other ) = delete;
 	FUsdGeomMeshTranslator& operator=( const FUsdGeomMeshTranslator& Other ) = delete;
 
 	virtual void CreateAssets() override;
-	virtual USceneComponent* CreateComponents() override;
+	virtual void UpdateComponents( USceneComponent* SceneComponent ) override;
 
-	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return true; }
+	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
 
 };
 

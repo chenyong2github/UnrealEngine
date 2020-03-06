@@ -148,24 +148,23 @@ public:
 	/** Current bounds of the component */
 	FBoxSphereBounds Bounds;
 
+private:
 	/** Location of the component relative to its parent */
-	UE_DEPRECATED(4.24, "This member will be made private. Please use GetRelativeLocation or SetRelativeLocation.")
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, Category = Transform)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, Category = Transform, meta=(AllowPrivateAccess="true"))
 	FVector RelativeLocation;
 
 	/** Rotation of the component relative to its parent */
-	UE_DEPRECATED(4.24, "This member will be made private. Please use GetRelativeRotation or SetRelativeRotation.")
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, Category=Transform)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, Category=Transform, meta=(AllowPrivateAccess="true"))
 	FRotator RelativeRotation;
 
 	/**
 	*	Non-uniform scaling of the component relative to its parent.
 	*	Note that scaling is always applied in local space (no shearing etc)
 	*/
-	UE_DEPRECATED(4.24, "This member will be made private. Please use GetRelativeScale3D or SetRelativeScale3D.")
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, interp, Category=Transform)
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, interp, Category=Transform, meta=(AllowPrivateAccess="true"))
 	FVector RelativeScale3D;
 
+public:
 	/**
 	* Velocity of the component.
 	* @see GetComponentVelocity()
@@ -182,32 +181,22 @@ private:
 	* This should only be set to true as a result of UpdateOverlaps. To dirty this flag see ClearSkipUpdateOverlaps() which is expected when state affecting UpdateOverlaps changes (attachment, Collision settings, etc...) */
 	uint8 bSkipUpdateOverlaps : 1;
 
-public:
 	/** If RelativeLocation should be considered relative to the world, rather than the parent */
-	UE_DEPRECATED(4.24, "This member will be made private. Please use IsUsingAbsoluteLocation or SetUsingAbsoluteLocation.")
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform, meta=(AllowPrivateAccess="true"))
 	uint8 bAbsoluteLocation:1;
 
 	/** If RelativeRotation should be considered relative to the world, rather than the parent */
-	UE_DEPRECATED(4.24, "This member will be made private. Please use IsUsingAbsoluteRotation or SetUsingAbsoluteRotation.")
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform, meta=(AllowPrivateAccess="true"))
 	uint8 bAbsoluteRotation:1;
 
 	/** If RelativeScale3D should be considered relative to the world, rather than the parent */
-	UE_DEPRECATED(4.24, "This member will be made private. Please use IsUsingAbsoluteScale or SetUsingAbsoluteScale.")
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, ReplicatedUsing=OnRep_Transform, Category=Transform, meta=(AllowPrivateAccess="true"))
 	uint8 bAbsoluteScale:1;
 
 	/** Whether to completely draw the primitive; if false, the primitive is not drawn, does not cast a shadow. */
-	UE_DEPRECATED(4.24, "This member will be made private. Please use IsVisible or SetVisibility.")
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Visibility,  Category = Rendering)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Visibility,  Category = Rendering, meta=(AllowPrivateAccess="true"))
 	uint8 bVisible:1;
 
-	/** Whether to hide the primitive in game, if the primitive is Visible. */
-	UPROPERTY(Interp, EditAnywhere, BlueprintReadOnly, Category=Rendering, meta=(SequencerTrackClass = "MovieSceneVisibilityTrack"))
-	uint8 bHiddenInGame:1;
-
-private:
 	/** Whether or not we should be attached. */
 	UPROPERTY(Transient, Replicated)
 	uint8 bShouldBeAttached : 1;
@@ -226,6 +215,10 @@ private:
 	uint8 bShouldUpdatePhysicsVolume:1;
 
 public:
+	/** Whether to hide the primitive in game, if the primitive is Visible. */
+	UPROPERTY(Interp, EditAnywhere, BlueprintReadOnly, Category=Rendering, meta=(SequencerTrackClass = "MovieSceneVisibilityTrack"))
+	uint8 bHiddenInGame:1;
+
 	/** If true, a change in the bounds of the component will call trigger a streaming data rebuild */
 	UPROPERTY()
 	uint8 bBoundsChangeTriggersStreamingDataRebuild:1;
@@ -1258,7 +1251,6 @@ private:
 	friend class FScopedPreventAttachedComponentMove;
 	friend struct FDirectAttachChildrenAccessor;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	//~ Begin Methods for Replicated Members.
 private:
 
@@ -1516,7 +1508,6 @@ public:
 	void SetVisibleFlag(const bool bInVisible);
 	
 	//~ End Methods for Replicated Members.
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 /** 

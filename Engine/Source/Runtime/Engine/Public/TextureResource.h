@@ -74,7 +74,9 @@ struct FTexture2DMipMap
 		bool IsAvailableForUse() const { return !(BulkDataFlags & BULKDATA_Unused); }
 		bool IsOptional() const { return (BulkDataFlags & BULKDATA_OptionalPayload) != 0; }
 		bool IsInlined() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) == 0 && (GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0; }
-		bool InSeperateFile() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0; }
+		UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
+		FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
+		bool IsInSeperateFile() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0; }
 		bool IsBulkDataLoaded() const { return IsInlined(); }
 		bool IsAsyncLoadingComplete() const { return true; }
 		bool IsStoredCompressedOnDisk() const { return !!(BulkDataFlags & BULKDATA_SerializeCompressed); }
@@ -406,6 +408,15 @@ public:
 
 	FTexture2DArrayResource() :
 		SizeX(0),
+		SizeY(0),
+		NumMips(0),
+		NumSlices(0),
+		LODGroup(),
+		Format(PF_Unknown),
+		Filter(SF_Point),
+		SamplerXAddress(AM_Wrap),
+		SamplerYAddress(AM_Wrap),
+		SamplerZAddress(AM_Wrap),
 		bDirty(false),
 		bPreventingReallocation(false)
 	{}

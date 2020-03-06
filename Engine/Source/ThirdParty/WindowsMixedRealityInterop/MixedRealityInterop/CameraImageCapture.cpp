@@ -10,6 +10,7 @@
 
 #include <DXGI1_4.h>
 #include <Windows.Graphics.DirectX.Direct3D11.interop.h>
+#include <d3d11.h>
 
 using namespace Windows::Foundation;
 using namespace Windows::Foundation::Collections;
@@ -29,6 +30,7 @@ std::mutex RefsLock;
 Platform::Agile<MediaCapture> CameraCapture = nullptr;
 MediaFrameReader^ CameraFrameReader = nullptr;
 MediaFrameSource^ CameraFrameSource = nullptr;
+Windows::Media::Devices::Core::CameraIntrinsics^ CameraIntrinsics = nullptr;
 
 CameraImageCapture* CameraImageCapture::CaptureInstance = nullptr;
 
@@ -75,6 +77,56 @@ void CameraImageCapture::Log(const wchar_t* LogMsg)
 	}
 }
 
+bool CameraImageCapture::GetCameraIntrinsics(DirectX::XMFLOAT2& focalLength, int& width, int& height, DirectX::XMFLOAT2& principalPoint, DirectX::XMFLOAT3& radialDistortion, DirectX::XMFLOAT2& tangentialDistortion)
+{
+	if (CameraIntrinsics == nullptr)
+	{
+		return false;
+	}
+
+	focalLength = DirectX::XMFLOAT2(CameraIntrinsics->FocalLength.x, CameraIntrinsics->FocalLength.y);
+	width = CameraIntrinsics->ImageWidth;
+	height = CameraIntrinsics->ImageHeight;
+	principalPoint = DirectX::XMFLOAT2(CameraIntrinsics->PrincipalPoint.x, CameraIntrinsics->PrincipalPoint.y);
+	radialDistortion = DirectX::XMFLOAT3(CameraIntrinsics->RadialDistortion.x, CameraIntrinsics->RadialDistortion.y, CameraIntrinsics->RadialDistortion.z);
+	tangentialDistortion = DirectX::XMFLOAT2(CameraIntrinsics->TangentialDistortion.x, CameraIntrinsics->TangentialDistortion.y);
+
+	return true;
+}
+
+DirectX::XMFLOAT2 CameraImageCapture::UnprojectPVCamPointAtUnitDepth(DirectX::XMFLOAT2 pixelCoordinate)
+{
+	if (CameraIntrinsics == nullptr)
+	{
+		return DirectX::XMFLOAT2(pixelCoordinate.x, pixelCoordinate.y);
+	}
+
+	Windows::Foundation::Point point;
+	point.X = pixelCoordinate.x;
+	point.Y = pixelCoordinate.y;
+	float2 unprojected = CameraIntrinsics->UnprojectAtUnitDepth(point);
+	
+	return DirectX::XMFLOAT2(unprojected.x, unprojected.y);
+}
+
+template <typename T>
+T convert_from_abi(::IUnknown* from)
+{
+	T to{ nullptr }; // `T` is a projected type.
+
+	winrt::check_hresult(from->QueryInterface(winrt::guid_of<T>(),
+		winrt::put_abi(to)));
+
+	return to;
+}
+
+//TODO: can we go directly to cx from abi?
+template <typename T>
+T^ to_cx(winrt::Windows::Foundation::IUnknown const& from)
+{
+	return safe_cast<T^>(reinterpret_cast<Platform::Object^>(winrt::get_abi(from)));
+}
+
 /** Used to keep from leaking WinRT types to the header file, so this forwards to the real handler */
 void OnFrameRecevied(MediaFrameReader^ SendingFrameReader, MediaFrameArrivedEventArgs^ FrameArrivedArgs)
 {
@@ -85,20 +137,68 @@ void OnFrameRecevied(MediaFrameReader^ SendingFrameReader, MediaFrameArrivedEven
 		// Drill down through the objects to get the underlying D3D texture
 		VideoMediaFrame^ VideoFrame = CurrentFrame->VideoMediaFrame;
 		Windows::Graphics::DirectX::Direct3D11::IDirect3DSurface^ ManagedSurface = VideoFrame->Direct3DSurface;
+
 		if (ManagedSurface == nullptr)
 		{
 			CaptureInstance.Log(L"OnFrameRecevied() : VideoMediaFrame->Direct3DSurface was null, so no image to process");
 			return;
 		}
-		ID3D11Texture2D* VideoFrameTexture = nullptr;
-		HRESULT Result = GetDXGIInterface(ManagedSurface, &VideoFrameTexture);
-		if (SUCCEEDED(Result) && VideoFrameTexture != nullptr)
-		{
-			// If the callback hangs onto the pointer, it needs to AddRef/Release like any COM ptr consumer
-			CaptureInstance.NotifyReceivedFrame(VideoFrameTexture);
 
-			// GetDXGIInterface() does call AddRef() on our behalf, so we need to Release()
-			VideoFrameTexture->Release();
+		// Get camera intrinsics, since we just have the one camera, cache the intrinsics.
+		if (CameraIntrinsics == nullptr)
+		{
+			CameraIntrinsics = VideoFrame->CameraIntrinsics;
+		}
+
+		// Find current frame's tracking information from the frame's coordinate system.
+		Windows::Perception::Spatial::SpatialCoordinateSystem^ CameraCoordinateSystemCX = CurrentFrame->CoordinateSystem;
+
+		DirectX::XMFLOAT4X4 cameraToTracking = DirectX::XMFLOAT4X4();
+		if (CameraCoordinateSystemCX != nullptr)
+		{
+			// Get CX coordinate system from ABI tracking coordinate system.
+			ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem* TrackingCoordinateSystemABI = nullptr;
+			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem TrackingCoordinateSystemWinRT = nullptr;
+			Windows::Perception::Spatial::SpatialCoordinateSystem^ TrackingCoordinateSystemCX = nullptr;
+
+			WindowsMixedReality::HMDTrackingOrigin origin;
+			if (WindowsMixedReality::MixedRealityInterop::QueryCoordinateSystem(TrackingCoordinateSystemABI, origin))
+			{
+				TrackingCoordinateSystemWinRT = convert_from_abi<winrt::Windows::Perception::Spatial::SpatialCoordinateSystem>((IUnknown*)TrackingCoordinateSystemABI);
+				if (TrackingCoordinateSystemWinRT != nullptr)
+				{
+					TrackingCoordinateSystemCX = to_cx<Windows::Perception::Spatial::SpatialCoordinateSystem>(TrackingCoordinateSystemWinRT);
+					if (TrackingCoordinateSystemCX != nullptr)
+					{
+						IBox<float4x4>^ cameraToTrackingCX = CameraCoordinateSystemCX->TryGetTransformTo(TrackingCoordinateSystemCX);
+						if (cameraToTrackingCX != nullptr)
+						{
+							Windows::Foundation::Numerics::float4x4 m = cameraToTrackingCX->Value;
+
+							// Load winrt transform from cx input
+							cameraToTracking = DirectX::XMFLOAT4X4(
+								m.m11, m.m12, m.m13, m.m14,
+								m.m21, m.m22, m.m23, m.m24,
+								m.m31, m.m32, m.m33, m.m34,
+								m.m41, m.m42, m.m43, m.m44);
+						}
+					}
+				}
+
+				// QueryCoordinateSystem calls AddRef on the Coordinate System
+				((IUnknown*)TrackingCoordinateSystemABI)->Release();
+			}
+		}
+
+		Microsoft::WRL::ComPtr<IDXGIResource1> srcResource = nullptr;
+		HRESULT Result = GetDXGIInterface(ManagedSurface, srcResource.GetAddressOf());
+
+		if (SUCCEEDED(Result) && srcResource != nullptr)
+		{
+			HANDLE sharedHandle = NULL;
+			srcResource->CreateSharedHandle(NULL, DXGI_SHARED_RESOURCE_READ, NULL, &sharedHandle);
+
+			CaptureInstance.NotifyReceivedFrame(sharedHandle, cameraToTracking);
 		}
 		else
 		{
@@ -106,25 +206,36 @@ void OnFrameRecevied(MediaFrameReader^ SendingFrameReader, MediaFrameArrivedEven
 			LogString << L"Unable to get the underlying video texture with HRESULT (" << Result << L")";
 			CaptureInstance.Log(LogString.str().c_str());
 		}
-		// @todo JoeG - the docs say this is required, but it's not valid...
-		// Dispose of the ManagedSurface manually because it gives us a hard ref
-		//ManagedSurface->Dispose();
+
+		ManagedSurface = nullptr;
 	}
 }
 
-void CameraImageCapture::NotifyReceivedFrame(ID3D11Texture2D* ReceivedFrame)
+void CameraImageCapture::NotifyReceivedFrame(void* handle, DirectX::XMFLOAT4X4 CamToTracking)
 {
 	std::lock_guard<std::mutex> lock(RefsLock);
 	if (OnReceivedFrame == nullptr)
 	{
+		if (handle != INVALID_HANDLE_VALUE)
+		{
+			CloseHandle(handle);
+			handle = INVALID_HANDLE_VALUE;
+		}
 		return;
 	}
-	// Pass the D3D texture to the UE4 code via the function pointer
-	OnReceivedFrame(ReceivedFrame);
+
+	// Pass the D3D texture handle to the UE4 code via the function pointer
+	OnReceivedFrame(handle, CamToTracking);
 }
 
-void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(ID3D11Texture2D*), int DesiredWidth, int DesiredHeight, int DesiredFPS)
+void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, DirectX::XMFLOAT4X4), int DesiredWidth, int DesiredHeight, int DesiredFPS)
 {
+	if (CameraFrameReader)
+	{
+		Log(L"Camera is already capturing frames. Aborting.");
+		return;
+	}
+
 	OnReceivedFrame = FunctionPointer;
 	if (OnReceivedFrame == nullptr)
 	{
@@ -132,12 +243,16 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(ID3D11Texture
 		return;
 	}
 
-	// We need to enumerate the devices and pick one (hopefully there's only one)
 	auto EnumerationTask = create_task(MediaFrameSourceGroup::FindAllAsync());
 	EnumerationTask.then([this, DesiredWidth, DesiredHeight, DesiredFPS](IVectorView<MediaFrameSourceGroup^>^ DiscoveredGroups)
 	{
-		MediaFrameSourceInfo^ ChosenSourceInfo = nullptr;
 		MediaFrameSourceGroup^ ChosenSourceGroup = nullptr;
+		MediaFrameSourceInfo^ ChosenSourceInfo = nullptr;
+
+		MediaCaptureInitializationSettings^ CaptureSettings = ref new MediaCaptureInitializationSettings();
+		CaptureSettings->StreamingCaptureMode = StreamingCaptureMode::Video;
+		CaptureSettings->MemoryPreference = MediaCaptureMemoryPreference::Auto; // For GPU
+		CaptureSettings->VideoProfile = nullptr;
 
 		const unsigned int DiscoveredCount = DiscoveredGroups->Size;
 		{
@@ -150,23 +265,47 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(ID3D11Texture
 		{
 			MediaFrameSourceGroup^ Group = DiscoveredGroups->GetAt(GroupIndex);
 
-			const unsigned int InfosCount = Group->SourceInfos->Size;
-			// Search through the infos to determine if this is the color camera source
-			for (unsigned int InfoIndex = 0; InfoIndex < InfosCount; InfoIndex++)
+			// For HoloLens, use the video conferencing video profile - this will give the best power consumption.
+			IVectorView<MediaCaptureVideoProfile^>^ profileList = MediaCapture::FindKnownVideoProfiles(Group->Id, KnownVideoProfile::VideoConferencing);
+			if (profileList->Size == 0)
 			{
-				MediaFrameSourceInfo^ Info = Group->SourceInfos->GetAt(InfoIndex);
-				if (Info->SourceKind == MediaFrameSourceKind::Color)
-				{
-					ChosenSourceInfo = Info;
-					ChosenSourceGroup = Group;
-					break;
-				}
+				// No video conferencing profiles in this group, move to the next one.
+				continue;
 			}
 
-			// If we have selected one, stop searching
-			if (ChosenSourceGroup != nullptr)
+			// Cache the first valid group and profile in case we do not find a profile that matches the input description.
+			if (ChosenSourceGroup == nullptr)
 			{
-				break;
+				ChosenSourceGroup = Group;
+
+				CaptureSettings->SourceGroup = ChosenSourceGroup;
+				CaptureSettings->VideoProfile = profileList->GetAt(0);
+			}
+
+			if (DesiredWidth > 0 && DesiredHeight > 0 && DesiredFPS > 0)
+			{
+				for (unsigned int profileIndex = 0; profileIndex < profileList->Size; profileIndex++)
+				{
+					MediaCaptureVideoProfile^ profile = profileList->GetAt(profileIndex);
+
+					IVectorView<MediaCaptureVideoProfileMediaDescription^>^ descriptions = profile->SupportedRecordMediaDescription;
+					for (unsigned int descIndex = 0; descIndex < descriptions->Size; descIndex++)
+					{
+						MediaCaptureVideoProfileMediaDescription^ desc = descriptions->GetAt(descIndex);
+
+						// Check for a profile that matches our desired dimensions.
+						if (desc->Width == DesiredWidth && desc->Height == DesiredHeight && desc->FrameRate == DesiredFPS)
+						{
+							ChosenSourceGroup = Group;
+
+							CaptureSettings->SourceGroup = Group;
+							CaptureSettings->VideoProfile = profile;
+							CaptureSettings->RecordMediaDescription = desc;
+
+							break;
+						}
+					}
+				}
 			}
 		}
 
@@ -177,51 +316,32 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(ID3D11Texture
 			return;
 		}
 
-		// Select the description that matches their desired width, height, fps
-		MediaCaptureVideoProfileMediaDescription^ ChosenVideoDesc = nullptr;
-		if (DesiredWidth > 0 && DesiredHeight > 0 && DesiredFPS > 0)
+		if (DesiredWidth > 0 && DesiredHeight > 0 && DesiredFPS > 0
+			&& CaptureSettings->RecordMediaDescription == nullptr)
 		{
-			// Find a video profile that supports what we want
-			IVectorView<MediaCaptureVideoProfileMediaDescription^>^ VideoFormats = ChosenSourceInfo->VideoProfileMediaDescription;
-			if (VideoFormats != nullptr)
+			Log(L"No matching video format found, using default profile instead.");
+		}
+
+		// Find the color camera source
+		const unsigned int InfosCount = ChosenSourceGroup->SourceInfos->Size;
+		// Search through the infos to determine if this is the color camera source
+		for (unsigned int InfoIndex = 0; InfoIndex < InfosCount; InfoIndex++)
+		{
+			MediaFrameSourceInfo^ Info = ChosenSourceGroup->SourceInfos->GetAt(InfoIndex);
+			if (Info->SourceKind == MediaFrameSourceKind::Color)
 			{
-				const unsigned int FormatsCount = VideoFormats->Size;
-				for (unsigned int FormatsIndex = 0; FormatsIndex < FormatsCount; FormatsIndex++)
-				{
-					MediaCaptureVideoProfileMediaDescription^ Desc = VideoFormats->GetAt(FormatsIndex);
-					if (DesiredWidth == Desc->Width && DesiredHeight == Desc->Height && DesiredFPS == Desc->FrameRate)
-					{
-						ChosenVideoDesc = Desc;
-						break;
-					}
-				}
-				// Log out the supported formats if the user selected one that is not supported
-				if (ChosenVideoDesc == nullptr)
-				{
-					std::wstringstream LogString;
-					LogString << L"No matching video format: W(" << DesiredWidth << L") H(" << DesiredHeight<< L") FPS(" << DesiredFPS << L")";
-					Log(LogString.str().c_str());
-					Log(L"Enumerating supported formats");
-					const unsigned int FormatsCount = VideoFormats->Size;
-					for (unsigned int FormatsIndex = 0; FormatsIndex < FormatsCount; FormatsIndex++)
-					{
-						MediaCaptureVideoProfileMediaDescription^ Desc = VideoFormats->GetAt(FormatsIndex);
-						std::wstringstream LogString;
-						LogString << L"Supports video format: W(" << Desc->Width << L") H(" << Desc->Height << L") FPS(" << Desc->FrameRate << L")";
-						Log(LogString.str().c_str());
-					}
-				}
+				ChosenSourceInfo = Info;
+				break;
 			}
 		}
 
-		// Setup our capture settings (chosen group, video only, auto memory which should be GPU, but whatever)
-		MediaCaptureInitializationSettings^ CaptureSettings = ref new MediaCaptureInitializationSettings();
-		CaptureSettings->SourceGroup = ChosenSourceGroup;
-		CaptureSettings->StreamingCaptureMode = StreamingCaptureMode::Video;
-		CaptureSettings->MemoryPreference = MediaCaptureMemoryPreference::Auto;
-		CaptureSettings->VideoProfile = nullptr;
-		CaptureSettings->RecordMediaDescription = ChosenVideoDesc;
-		
+		// If there was no camera available, then log it and bail
+		if (ChosenSourceInfo == nullptr)
+		{
+			Log(L"No media frame source info found, so no camera images will be delivered");
+			return;
+		}
+
 		// Create our capture object with our settings
 		Platform::Agile<MediaCapture> Capture(ref new MediaCapture());
 		auto CaptureCreateTask = create_task(Capture->InitializeAsync(CaptureSettings));
@@ -230,7 +350,7 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(ID3D11Texture
 			// Get the frame source from the source info we got earlier
 			MediaFrameSource^ FrameSource = Capture->FrameSources->Lookup(ChosenSourceInfo->Id);
 
-			// Now create and start the frame reader (omg, this process is tedious)
+			// Now create and start the frame reader
 			auto ReaderCreateTask = create_task(Capture->CreateFrameReaderAsync(FrameSource));
 			ReaderCreateTask.then([=](MediaFrameReader^ FrameReader)
 			{

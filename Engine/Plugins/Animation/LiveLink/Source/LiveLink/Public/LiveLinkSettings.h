@@ -7,9 +7,10 @@
 #include "UObject/ObjectMacros.h"
 
 #include "Engine/EngineTypes.h"
-#include "LiveLinkRole.h"
 #include "LiveLinkFrameInterpolationProcessor.h"
 #include "LiveLinkFramePreProcessor.h"
+#include "LiveLinkRole.h"
+#include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
 #include "Templates/SubclassOf.h"
 
@@ -75,6 +76,10 @@ public:
 	/** The default location in which to save take presets */
 	UPROPERTY(config, EditAnywhere, Category="LiveLink", meta=(DisplayName="Preset Save Location"))
 	FDirectoryPath PresetSaveDir;
+
+	/** The default evaluation mode a source connected via the message bus should start with. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "LiveLink")
+	ELiveLinkSourceMode DefaultMessageBusSourceMode;
 
 	/** The refresh frequency of the list of message bus provider (when discovery is requested). */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="LiveLink", meta=(ConfigRestartRequired=true, ForceUnits=s))

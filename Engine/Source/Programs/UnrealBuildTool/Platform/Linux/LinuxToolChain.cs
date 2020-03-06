@@ -67,6 +67,9 @@ namespace UnrealBuildTool
 		/** Whether or not to preserve the portable symbol file produced by dump_syms */
 		bool bPreservePSYM = false;
 
+		/** Pass --gdb-index option to linker to generate .gdb_index section. */
+		protected bool bGdbIndexSection = true;
+
 		/** Platform SDK to use */
 		protected LinuxPlatformSDK PlatformSDK;
 
@@ -173,10 +176,10 @@ namespace UnrealBuildTool
 				throw new BuildException("Unable to build: no compatible clang version found. Please run Setup.sh");
 			}
 			// prevent unknown clangs since the build is likely to fail on too old or too new compilers
-			else if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 80 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 60)
+			else if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 90 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 60)
 			{
 				throw new BuildException(
-					string.Format("This version of the Unreal Engine can only be compiled with clang 8.0, 7.0 and 6.0. clang {0} may not build it - please use a different version.",
+					string.Format("This version of the Unreal Engine can only be compiled with clang 9.0, 8.0, 7.0 and 6.0. clang {0} may not build it - please use a different version.",
 						CompilerVersionString)
 					);
 			}
@@ -184,6 +187,9 @@ namespace UnrealBuildTool
 			// trust lld only for clang 5.x and above (FIXME: also find if present on the system?)
 			// NOTE: with early version you can run into errors like "failed to compute relocation:" and others
 			bUseLld = (CompilerVersionMajor >= 5);
+
+			// Add --gdb-index for Clang 9.0 and higher
+			bGdbIndexSection = (CompilerVersionMajor >= 9);
 		}
 
 		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, bool InPreservePSYM = false, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
@@ -586,7 +592,8 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.bHideSymbolsByDefault)
 			{
-				Result += " -fvisibility=hidden";
+				Result += " -fvisibility-ms-compat";
+				Result += " -fvisibility-inlines-hidden";
 			}
 
 			if (String.IsNullOrEmpty(ClangPath))
@@ -726,8 +733,14 @@ namespace UnrealBuildTool
 			// bCreateDebugInfo is normally set for all configurations, including Shipping - this is needed to enable callstack in Shipping builds (proper resolution: UEPLAT-205, separate files with debug info)
 			if (CompileEnvironment.bCreateDebugInfo)
 			{
-				// libdwarf (from elftoolchain 0.6.1) doesn't support DWARF4. If we need to go back to depending on elftoolchain revert this back to dwarf-3
 				Result += " -gdwarf-4";
+
+				if (bGdbIndexSection)
+				{
+					// Generate .debug_pubnames and .debug_pubtypes sections in a format suitable for conversion into a
+					// GDB index. This option is only useful with a linker that can produce GDB index version 7.
+					Result += " -ggnu-pubnames";
+				}
 			}
 
 			// optimization level
@@ -910,7 +923,7 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 
-			if (UsingLld(LinkEnvironment.Architecture) && !LinkEnvironment.bIsBuildingDLL)
+			if (UsingLld(LinkEnvironment.Architecture) && (!LinkEnvironment.bIsBuildingDLL || (CompilerVersionMajor >= 9)))
 			{
 				Result += (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? " -fuse-ld=lld.exe" : " -fuse-ld=lld";
 			}
@@ -967,6 +980,13 @@ namespace UnrealBuildTool
 				}
 			}
 
+			if (UsingLld(Architecture) && LinkEnvironment.bCreateDebugInfo && bGdbIndexSection)
+			{
+				// Generate .gdb_index section. On my machine, this cuts symbol loading time (breaking at main) from 45
+				// seconds to 17 seconds (with gdb v8.3.1).
+				Result += " -Wl,--gdb-index";
+			}
+
 			// RPATH for third party libs
 			Result += " -Wl,-rpath=${ORIGIN}";
 			Result += " -Wl,-rpath-link=${ORIGIN}";
@@ -1012,6 +1032,15 @@ namespace UnrealBuildTool
 					{
 						Result += " -Wl,-nopie";
 					}
+				}
+			}
+
+			if (LinkEnvironment.Configuration == CppConfiguration.Shipping)
+			{
+				Result += " -Wl,--icf=all"; // Enables ICF (Identical Code Folding). [all, safe] safe == fold functions that can be proven not to have their address taken.
+				if (!UsingLld(LinkEnvironment.Architecture))
+				{
+					Result += " -Wl,--icf-iterations=3";
 				}
 			}
 
@@ -1431,7 +1460,7 @@ namespace UnrealBuildTool
 
 		bool UsingLld(string Architecture)
 		{
-			return bUseLld && Architecture.StartsWith("x86_64");
+			return bUseLld && (Architecture.StartsWith("x86_64") || (CompilerVersionMajor >= 9));
 		}
 
 		/// <summary>
@@ -1667,14 +1696,19 @@ namespace UnrealBuildTool
 
 				if ((AdditionalLibrary.Contains("Plugins") || AdditionalLibrary.Contains("Binaries/ThirdParty") || AdditionalLibrary.Contains("Binaries\\ThirdParty")) && Path.GetDirectoryName(AdditionalLibrary) != Path.GetDirectoryName(OutputFile.AbsolutePath))
 				{
-					// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
-					string AdditionalLibraryRootPath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(UnrealBuildTool.RootDirectory);
+					string RelativePath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(OutputFile.Location.Directory);
 
-					// Figure out how many dirs we need to go back
-					string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+					if (LinkEnvironment.bIsBuildingDLL)
+					{
+						// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
+						string AdditionalLibraryRootPath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(UnrealBuildTool.RootDirectory);
 
-					// Combine the two together ie. number of ../ + the path after the root
-					string RelativePath = Path.Combine(RelativeRootPath, AdditionalLibraryRootPath);
+						// Figure out how many dirs we need to go back
+						string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+
+						// Combine the two together ie. number of ../ + the path after the root
+						RelativePath = Path.Combine(RelativeRootPath, AdditionalLibraryRootPath);
+					}
 
 					// On Windows, MakeRelativeTo can silently fail if the engine and the project are located on different drives
 					if (CrossCompiling() && RelativePath.StartsWith(UnrealBuildTool.RootDirectory.FullName))
@@ -1699,14 +1733,24 @@ namespace UnrealBuildTool
 
 				if(!RelativePath.StartsWith("$"))
 				{
-					// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
-					string RuntimeLibraryRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuildTool.RootDirectory);
+					if (LinkEnvironment.bIsBuildingDLL)
+					{
+						// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
+						string RuntimeLibraryRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuildTool.RootDirectory);
 
-					// Figure out how many dirs we need to go back
-					string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+						// Figure out how many dirs we need to go back
+						string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
 
-					// Combine the two together ie. number of ../ + the path after the root
-					RelativePath = Path.Combine(RelativeRootPath, RuntimeLibraryRootPath);
+						// Combine the two together ie. number of ../ + the path after the root
+						RelativePath = Path.Combine(RelativeRootPath, RuntimeLibraryRootPath);
+					}
+					else
+					{
+						string RelativeRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuildTool.RootDirectory);
+
+						// We're assuming that the binary will be placed according to our ProjectName/Binaries/Platform scheme
+						RelativePath = Path.Combine("..", "..", "..", RelativeRootPath);
+					}
 				}
 
 				// On Windows, MakeRelativeTo can silently fail if the engine and the project are located on different drives

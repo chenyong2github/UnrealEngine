@@ -39,6 +39,8 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 
 	FSlateStyleSet& Style = StyleRef.Get();
 
+	//Style.Set("AppIcon", new IMAGE_BRUSH("Icons/Insights/AppIcon_24x", FVector2D(24.0f, 24.0f)));
+
 	//////////////////////////////////////////////////
 
 	Style.Set("WhiteBrush", new FSlateColorBrush(FLinearColor::White));
@@ -54,6 +56,9 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 
 	Style.Set("StartPage.Icon.Large", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", FVector2D(32.0f, 32.0f)));
 	Style.Set("StartPage.Icon.Small", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", FVector2D(16.0f, 16.0f)));
+
+	Style.Set("SessionInfo.Icon.Large", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", FVector2D(32.0f, 32.0f)));
+	Style.Set("SessionInfo.Icon.Small", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", FVector2D(16.0f, 16.0f)));
 
 	Style.Set("TimingProfiler.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", FVector2D(32.0f, 32.0f)));
 	Style.Set("TimingProfiler.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", FVector2D(16.0f, 16.0f)));

@@ -1025,6 +1025,29 @@ namespace ChaosTest
 		EXPECT_GT(FMath::Abs(Normal.Z), 0.8f);
 	}
 
+	GTEST_TEST(EPATests, DISABLED_EPA_EdgeCases)
+	{
+		TBox<FReal, 3> A(FVec3(0.0f, 0.0f, 0.0f), FVec3(100.0f, 100.0f, 100.0f));
+		TBox<FReal, 3> B(FVec3(100.0f + 0.00001f, 0.0f, 0.0f), FVec3(200.0f, 100.0f, 100.0f)); // This small epsilon can actually be zero as well.
+		FRigidTransform3 ATM = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
+		FRigidTransform3 BTM = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
+		FVec3 InitialDir = FVec3(1.0f, 0.0f, 0.0f);
+
+		const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
+		FReal Penetration;
+		FVec3 ClosestA, ClosestB, NormalA;
+		int32 NumIterations = 0;
+		GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, 0.0f, InitialDir, 0.0f, &NumIterations);
+
+		FVec3 Location = ATM.TransformPosition(ClosestA);
+		FVec3 Normal = ATM.TransformVectorNoScale(NormalA);
+		FReal Phi = -Penetration;
+
+		EXPECT_NEAR(Normal.X, 1.0f, 1e-3f);
+		EXPECT_NEAR(Normal.Y, 0.0f, 1e-3f);
+		EXPECT_NEAR(Normal.Z, 0.0f, 1e-3f);
+	}
+
 
 		//
 		// Performs the same initially overlapping sweep twice, with slightly different rotations, gives different normals.
@@ -1088,5 +1111,57 @@ namespace ChaosTest
 
 		}
 
+		//
+		// Player can clip through RockWall trimesh, this repros a failure, MTD seems wrong.
+		// This is failing GJKRaycast2 call.
+		// Fixed: (11457046) ClosestB computation was transformed wrong messing up normal.
+		//
+		GTEST_TEST(EPATests, EPARealFailures_CapsuleVsTrimeshRockWallWrongNormalGJKRaycast2)
+		{
+			using namespace Chaos;
+			// Triangle w/ world scale
+			TTriangle<FReal> Triangle({
+				{-306.119476, 1674.38647, 117.138489},
+				{-491.015747, 1526.35803, 116.067123},
+				{-91.0660172, 839.028320, 118.413063}
+				});
 
+
+			FVec3 ExpectedNormal = FVec3::CrossProduct(Triangle[1] - Triangle[0], Triangle[2] - Triangle[0]);
+			ExpectedNormal.Normalize();
+
+			TRigidTransform<FReal, 3> StartTM(FVec3(-344.031799, 1210.37158, 134.252747), FQuat(-0.255716801, -0.714108050, 0.0788889676, -0.646866322), FVec3(1));
+
+			// Wrapping in 1,1,1 scale is unnecessary, but this is technically what is happening when sweeping against scaled trimesh.
+			TUniquePtr<TCapsule<FReal>> Capsule = MakeUnique<TCapsule<FReal>>(TVec3<FReal>(0, 0, -33), TVec3<FReal>(0, 0, 33), 42);
+			TImplicitObjectScaled<TCapsule<FReal>> ScaledCapsule = TImplicitObjectScaled<TCapsule<FReal>>(MakeSerializable(Capsule), FVec3(1));
+
+
+			const FVec3 Dir(-0.102473199, 0.130887285, -0.986087084);
+			const FReal LengthScale = 9.31486130;
+			const FReal  CurrentLength = 2.14465737;
+			const FReal Length = LengthScale * CurrentLength;
+			const bool bComputeMTD = true;
+			const FReal Thickness = 0;
+
+			FReal OutTime = -1.0f;
+			FVec3 Normal(0.0f);
+			FVec3 Position(0.0f);
+			int32 FaceIndex = -1;
+
+			// This is local to trimesh, world scale.
+			bool bResult = GJKRaycast2<FReal>(Triangle, ScaledCapsule, StartTM, Dir, Length, OutTime, Position, Normal, Thickness, bComputeMTD);
+
+			// Compare results against GJKPenetration, sweep is initial overlap, so this should be the same.
+			FVec3 Normal2, ClosestA, ClosestB;
+			FReal OutTime2;
+			bool bResult2 = GJKPenetration(Triangle, ScaledCapsule, StartTM, OutTime2, ClosestA, ClosestB, Normal2);
+
+
+			EXPECT_VECTOR_NEAR(Normal, Normal2, KINDA_SMALL_NUMBER);
+			EXPECT_NEAR(OutTime, -OutTime2, KINDA_SMALL_NUMBER);
+
+			const FVec3 ClosestBShouldBe{ -287.344025, 1211.66296, 101.851364 };
+			EXPECT_VECTOR_NEAR(ClosestB, ClosestBShouldBe, KINDA_SMALL_NUMBER);
+		}
 }

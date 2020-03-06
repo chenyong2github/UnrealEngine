@@ -129,7 +129,7 @@ public:
 	FArchive& operator<<(class UObject*& Obj);
 };
 
-class UNREALED_VTABLE FFindReferencedAssets : 
+class FFindReferencedAssets : 
 	public FGCObject
 {
 public:

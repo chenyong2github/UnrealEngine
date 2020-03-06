@@ -13,12 +13,12 @@ LUMIN_THIRD_PARTY_INCLUDES_END
 namespace MLSDK_API
 {
 
+CREATE_FUNCTION_SHIM(ml_location, const char *, MLLocationGetResultString)
+#define MLLocationGetResultString ::MLSDK_API::MLLocationGetResultStringShim
 CREATE_FUNCTION_SHIM(ml_location, MLResult, MLLocationGetLastCoarseLocation)
 #define MLLocationGetLastCoarseLocation ::MLSDK_API::MLLocationGetLastCoarseLocationShim
 CREATE_FUNCTION_SHIM(ml_location, MLResult, MLLocationGetLastFineLocation)
 #define MLLocationGetLastFineLocation ::MLSDK_API::MLLocationGetLastFineLocationShim
-CREATE_FUNCTION_SHIM(ml_location, const char *, MLLocationGetResultString)
-#define MLLocationGetResultString ::MLSDK_API::MLLocationGetResultStringShim
 
 }
 

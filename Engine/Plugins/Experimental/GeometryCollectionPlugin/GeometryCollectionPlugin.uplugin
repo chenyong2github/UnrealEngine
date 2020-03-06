@@ -15,12 +15,6 @@
     "IsBetaVersion" : true,
     "Installed" : false,
     "Modules": [
-	{
-      "Name": "GeometryCollectionExampleCore",
-      "Type": "Runtime",
-	  "LoadingPhase": "Default",
-      "WhitelistPlatforms" : [ "Win32", "Win64" ]
-    },
     {
       "Name": "GeometryCollectionEditor",
       "Type": "Editor",

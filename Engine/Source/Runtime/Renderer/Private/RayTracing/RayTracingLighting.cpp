@@ -18,7 +18,7 @@ bool CanUseRayTracingLightingMissShader(EShaderPlatform ShaderPlatform)
 {
 	return GRHISupportsRayTracingMissShaderBindings
 		&& CVarRayTracingLightingMissShader.GetValueOnRenderThread() != 0
-		&& FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bSupportsRayTracingMissShaderBindings;
+		&& FDataDrivenShaderPlatformInfo::GetSupportsRayTracingMissShaderBindings(ShaderPlatform);
 }
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, "RaytracingLightsDataPacked");
@@ -238,7 +238,7 @@ class FRayTracingLightingMS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform)
-			&& FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsRayTracingMissShaderBindings;
+			&& FDataDrivenShaderPlatformInfo::GetSupportsRayTracingMissShaderBindings(Parameters.Platform);
 	}
 };
 
@@ -246,15 +246,15 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingLightingMS, "/Engine/Private/RayTracing/RayTr
 
 FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetRayTracingLightingMissShader(FViewInfo& View)
 {
-	return View.ShaderMap->GetShader<FRayTracingLightingMS>()->GetRayTracingShader();
+	return View.ShaderMap->GetShader<FRayTracingLightingMS>().GetRayTracingShader();
 }
 
 template< typename ShaderClass>
-static int32 BindParameters(ShaderClass* Shader, typename ShaderClass::FParameters & Parameters, int32 MaxParams, const FRHIUniformBuffer **OutUniformBuffers)
+static int32 BindParameters(const TShaderRef<ShaderClass>& Shader, typename ShaderClass::FParameters & Parameters, int32 MaxParams, const FRHIUniformBuffer **OutUniformBuffers)
 {
 	FRayTracingShaderBindingsWriter ResourceBinder;
 
-	auto &ParameterMap = Shader->GetParameterMapInfo();
+	auto &ParameterMap = Shader->ParameterMapInfo;
 
 	// all parameters should be in uniform buffers
 	check(ParameterMap.LooseParameterBuffers.Num() == 0);

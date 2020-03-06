@@ -33,7 +33,7 @@ class FMeshDecalAccumulatePolicy
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material && Parameters.Material->IsDeferredDecal() && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 };
 
@@ -129,7 +129,7 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		FDecalRendering::SetDecalCompilationEnvironment(Parameters.Platform, Parameters.Material, OutEnvironment);
+		FDecalRendering::SetDecalCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	FMeshDecalsPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -140,12 +140,6 @@ public:
 
 	FMeshDecalsPS()
 	{
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
 	}
 };
 
@@ -159,13 +153,13 @@ public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return FMeshDecalsPS::ShouldCompilePermutation(Parameters)
-			&& Parameters.Material->HasEmissiveColorConnected()
-			&& IsDBufferDecalBlendMode(FDecalRenderingCommon::ComputeFinalDecalBlendMode(Parameters.Platform, Parameters.Material));
+			&& Parameters.MaterialParameters.bHasEmissiveColorConnected
+			&& IsDBufferDecalBlendMode(FDecalRenderingCommon::ComputeFinalDecalBlendMode(Parameters.Platform, (EDecalBlendMode)Parameters.MaterialParameters.DecalBlendMode, Parameters.MaterialParameters.bHasNormalConnected));
 	}
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMeshDecalsPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(Parameters.Platform, Parameters.Material, OutEnvironment);
+		FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	FMeshDecalsEmissivePS() {}
@@ -235,8 +229,10 @@ void FMeshDecalMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 				const EShaderPlatform ShaderPlatform = ViewIfDynamicMeshCommand->GetShaderPlatform();
 				const EDecalBlendMode FinalDecalBlendMode = FDecalRenderingCommon::ComputeFinalDecalBlendMode(ShaderPlatform, Material);
 				const EDecalRenderStage LocalDecalRenderStage = FDecalRenderingCommon::ComputeRenderStage(ShaderPlatform, FinalDecalBlendMode);
-				const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material);
-				const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material);
+
+				const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+				ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
+				ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
 
 				bool bShouldRender = FDecalRenderingCommon::IsCompatibleWithRenderStage(
 					PassDecalStage,
@@ -325,11 +321,14 @@ void FMeshDecalMeshProcessor::Process(
 	}
 
 	MeshDecalPassShaders.VertexShader = MaterialResource.GetShader<FMeshDecalsVS>(VertexFactoryType);
-
-	MeshDecalPassShaders.PixelShader = PassDecalStage == DRS_Emissive
-		? MaterialResource.GetShader<FMeshDecalsEmissivePS>(VertexFactoryType)
-		: MaterialResource.GetShader<FMeshDecalsPS>(VertexFactoryType);
-
+	if (PassDecalStage == DRS_Emissive)
+	{
+		MeshDecalPassShaders.PixelShader = MaterialResource.GetShader<FMeshDecalsEmissivePS>(VertexFactoryType);
+	}
+	else
+	{
+		MeshDecalPassShaders.PixelShader = MaterialResource.GetShader<FMeshDecalsPS>(VertexFactoryType);
+	}
 
 	FMeshMaterialShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);

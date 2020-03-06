@@ -312,6 +312,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
 	static void RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformReferenceFrame ReferenceFrame, const FVector& Min, const FVector& Max);
 
+	/**
+	 * Flip the faces of all elements of a set of Static Meshes or Static Mesh Actors
+	 * @param SelectedObjects	Objects to the flip the faces of
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void FlipFaces( const TSet< UStaticMesh* >& StaticMeshes );
+
+	/**
+	 * Add/Edit UDataprepConsumerUserData with the requested name for the sub-level
+	 * @param SelectedObjects:	Objects to consider
+	 * @param SubLevelName:	Name of the sub-level
+	 * @note - This operation only applies on actors
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void SetSubOuputLevel(const TArray<UObject*>& SelectedObjects, const FString& SubLevelName);
+
+	/**
+	 * Add/Edit UDataprepConsumerUserData with the requested name for the sub-folder
+	 * @param SelectedObjects:	Objects to consider
+	 * @param SubFolderName:	Name of the sub-folder
+	 * @note - This operation only applies on assets
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void SetSubOuputFolder(const TArray<UObject*>& SelectedObjects, const FString& SubFolderName);
+
 private:
 	static void SubstituteMaterial(const TArray<UObject*>& SelectedObjects, const FString& MaterialSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UMaterialInterface*>& MaterialList, UMaterialInterface* MaterialSubstitute);
 	static void SubstituteMesh(const TArray<UObject*>& SelectedObjects, const FString& MeshSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UStaticMesh*>& MeshList, UStaticMesh* MeshSubstitute);

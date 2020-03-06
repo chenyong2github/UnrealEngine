@@ -28,8 +28,11 @@ bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 #if VULKAN_HAS_DEBUGGING_ENABLED
 	if (GValidationCvar->GetInt() > 0)
 	{
-		const bool bUseSDK = FParse::Param(FCommandLine::Get(), TEXT("vulkansdk"));
-		if (!bUseSDK)
+		const FString VulkanSDK = FPlatformMisc::GetEnvironmentVariable(TEXT("VULKAN_SDK"));
+		const bool bHasVulkanSDK = !VulkanSDK.IsEmpty();
+		// Only editor builds can use the redist libs currently
+		//#todo-rco: Package the DLLs next to the exe; if so then change this check
+		if (!bHasVulkanSDK && GIsEditor)
 		{
 			const FString PreviousEnvVar = FPlatformMisc::GetEnvironmentVariable(TEXT("VK_LAYER_PATH"));
 			if (PreviousEnvVar.IsEmpty())
@@ -47,7 +50,7 @@ bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 	}
 #endif // VULKAN_HAS_DEBUGGING_ENABLED
 
-	// Try to load the vulkan dll, as not everyone has the sdk installed
+	// The vulkan dll must exist, otherwise the driver doesn't support Vulkan
 	GVulkanDLLModule = ::LoadLibraryW(TEXT("vulkan-1.dll"));
 
 	if (GVulkanDLLModule)
@@ -188,6 +191,8 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	// Fullscreen requires Instance capabilities2
 	OutExtensions.Add(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
 #endif
+	
+	OutExtensions.Add(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
 }
 
 void FVulkanWindowsPlatform::CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface)
@@ -201,7 +206,7 @@ void FVulkanWindowsPlatform::CreateSurface(void* WindowHandle, VkInstance Instan
 
 bool FVulkanWindowsPlatform::SupportsDeviceLocalHostVisibleWithNoPenalty(EGpuVendorId VendorId)
 {
-	static bool bIsWin10 = FWindowsPlatformMisc::VerifyWindowsVersion(10, 0) /*Win10*/;
+	static bool bIsWin10 = FPlatformMisc::VerifyWindowsVersion(10, 0) /*Win10*/;
 	return (VendorId == EGpuVendorId::Amd && bIsWin10);
 }
 

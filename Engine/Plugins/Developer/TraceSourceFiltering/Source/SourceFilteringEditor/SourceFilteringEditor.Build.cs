@@ -1,0 +1,48 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using UnrealBuildTool;
+
+public class SourceFilteringEditor : ModuleRules
+{
+    public SourceFilteringEditor(ReadOnlyTargetRules Target) : base(Target)
+    {
+        PrivateDependencyModuleNames.AddRange(
+                new string[] {
+                    "Core",
+                    "CoreUObject",
+                    "Slate",
+                    "SlateCore",
+                    "EditorStyle",
+                    "InputCore",
+                    "TraceServices",
+                    "TraceInsights",
+					"TraceAnalysis",
+					"WorkspaceMenuStructure",
+                    "SourceFilteringCore",
+					"PropertyPath",
+					"GameplayInsights",
+					"Sockets",
+                    "MessagingCommon"
+                }
+            );
+		
+        if (Target.bCompileAgainstEngine)
+        {
+            PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					 "Engine",
+					 "SourceFilteringTrace"
+				}
+			);
+        }
+
+        if (Target.bBuildEditor)
+        {
+            PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"UnrealEd",                 
+				}
+			);
+        }
+    }
+}

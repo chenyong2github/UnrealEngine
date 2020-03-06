@@ -25,6 +25,10 @@
 #endif
 #endif
 
+#ifndef PLATFORM_EMPTY_BASES
+#define PLATFORM_EMPTY_BASES
+#endif
+
 // Master switch for scoped named events
 #define ENABLE_NAMED_EVENTS (!UE_BUILD_SHIPPING && 1)
 
@@ -113,10 +117,10 @@ public:
 #endif
 
 #define SCOPED_NAMED_EVENT(Name, Color) \
-	TRACE_CPUPROFILER_EVENT_SCOPE(Name) \
 	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_##Name##_)(Color, NAMED_EVENT_STR(#Name));
 
 #define SCOPED_NAMED_EVENT_FSTRING(Text, Color)  FScopedNamedEvent       ANONYMOUS_VARIABLE(NamedEvent_)         (Color, *Text);
+#define SCOPED_NAMED_EVENT_TCHAR(Text, Color)    FScopedNamedEvent       ANONYMOUS_VARIABLE(NamedEvent_)         (Color, Text);
 
 #define SCOPED_NAMED_EVENT_TEXT(Text, Color) \
 	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_)         (Color, NAMED_EVENT_STR(Text));
@@ -157,6 +161,7 @@ public:
 
 #define SCOPED_NAMED_EVENT(...)
 #define SCOPED_NAMED_EVENT_FSTRING(...)
+#define SCOPED_NAMED_EVENT_TCHAR(...)
 #define SCOPED_NAMED_EVENT_TEXT(...)
 #define SCOPED_NAMED_EVENT_F(...)
 #define SCOPED_PROFILER_COLOR(...)

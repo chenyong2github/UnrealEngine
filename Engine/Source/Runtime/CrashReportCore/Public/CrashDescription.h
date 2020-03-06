@@ -295,6 +295,11 @@ struct FPrimaryCrashProperties
 	 */
 	FString PCallStackHash;
 
+	/*
+	 * The signal that was raised to enter the crash handler
+	 */
+	int32 CrashSignal;
+
 	/**
 	 * Specifies the number of stack frames in the callstack to ignore when symbolicating from a minidump.
 	 */

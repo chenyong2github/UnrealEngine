@@ -15,51 +15,42 @@ void SpecularRefraction_SampleMaterial(
 	out float OutPdf,
 	out float OutPositionBiasSign)
 {
-	float3 N_World = GetWorldNormal(Payload);
-	float3 SpecularColor = GetSpecularColor(Payload);
+	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
+	bool bIsEntering = Payload.IsFrontFace();
+	float3 WorldNormal = GetWorldNormal(Payload);
 
-	float3 V_World = normalize(-RayDirection);
-	float3 V_Local = WorldToTangent(V_World, N_World);	
-	const bool bIsEntering = V_Local.z >= 0.0;
+	// #dxr_todo: Maintain a refraction stack on the path tracing payload
+	// #dxr_todo Determine if parameterization from Specular is still the proper path forward
+	//float Ior = Payload.Ior;
+	float Ior = DielectricF0ToIor(DielectricSpecularToF0(Payload.Specular));
+	float N1 = bIsEntering ? 1.0 : Ior;
+	float N2 = bIsEntering ? Ior : 1.0;
+	float Fr = bIsEntering ? FresnelDielectric(dot(-RayDirection, WorldNormal), N1, N2) : 0.0;
 
-	// Should be an input to this function, using a stack of medium. How to handle non-water tight geometry?
-	const float IorI = 1;
-	const float IorT = Payload.Ior;
-
-	const float3 F = FresnelDielectric(V_Local.z, IorI, IorT);
-    const float Favg = (F.x + F.y + F.z) / 3.0f;
-	const bool bIsReflected = RandSample.x < Favg;
-	
-	float3 L_Local;
-	if (bIsReflected)
+	// Stochastically choose to reflect/refract based on Fresnel term
+	float ProbReflect = bIsEntering ? Fr : 0.0;
+	if (RandSample.x < ProbReflect)
 	{
-        L_Local = float3(-V_Local.x, -V_Local.y, V_Local.z);
-
-		OutThroughput =  F;
-        OutPdf = Favg;
-		OutPositionBiasSign = bIsEntering ? 1 : -1;
+		OutDirection = reflect(RayDirection, WorldNormal);
+		OutThroughput = Fr;
+		OutPdf = ProbReflect;
+		OutPositionBiasSign = 1.0;
 	}
 	else
 	{
-		const float Eta = bIsEntering ? IorI / IorT : IorT / IorI;
-		const float3 N = float3(0.0, 0.0, bIsEntering ? 1.0f : -1.0f);
-		const bool bIsTIR = !BSDF_Refract(V_Local, N, Eta, L_Local);
-		if (bIsTIR)
+		float Eta = N1 / N2;
+		OutThroughput = 1.0 - Fr;
+		OutPdf = 1.0 - ProbReflect;
+		OutDirection = refract(RayDirection, WorldNormal, Eta);
+		OutPositionBiasSign = -1.0;
+
+		// Total internal reflection
+		if (!any(OutDirection))
 		{
-			OutThroughput = 1;
-			OutPdf = 1;
-			OutPositionBiasSign = bIsEntering ? 1 : -1;
-		}
-		else
-		{
-			float SqrRatio = 1.0; // (IorI * IorI) / (IorT * IorT);	// SqrRatio is 1 for light rays	
-			OutThroughput = SqrRatio * (1 - F);
-			OutPdf = 1.0f - Favg;
-			OutPositionBiasSign = bIsEntering ? -1 : 1;
+			OutDirection = reflect(RayDirection, WorldNormal);
+			OutPositionBiasSign = 1.0;
 		}
 	}
-
-	OutDirection = TangentToWorld(L_Local, N_World);
 } 
 
 float SpecularTransmission_Pdf()

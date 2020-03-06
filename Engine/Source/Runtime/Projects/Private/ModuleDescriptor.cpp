@@ -493,18 +493,24 @@ bool FModuleDescriptor::IsLoadedInCurrentConfiguration() const
 
 	case EHostType::Editor:
 		#if WITH_EDITOR
+			// GIsEditor is not set until the PostSplashScreen phase
+			ensure(LoadingPhase != ELoadingPhase::PostConfigInit && LoadingPhase != ELoadingPhase::EarliestPossible);
 			if(GIsEditor) return true;
 		#endif
 		break;
 
 	case EHostType::EditorNoCommandlet:
 		#if WITH_EDITOR
+			// GIsEditor is not set until the PostSplashScreen phase
+			ensure(LoadingPhase != ELoadingPhase::PostConfigInit && LoadingPhase != ELoadingPhase::EarliestPossible);
 			if(GIsEditor && !IsRunningCommandlet()) return true;
 		#endif
 		break;
 
 	case EHostType::EditorAndProgram:
 		#if WITH_EDITOR
+			// GIsEditor is not set until the PostSplashScreen phase
+			ensure(LoadingPhase != ELoadingPhase::PostConfigInit && LoadingPhase != ELoadingPhase::EarliestPossible);
 			return GIsEditor;
 		#elif IS_PROGRAM
 			return true;

@@ -73,6 +73,7 @@
 #endif // #if WITH_EDITOR
 
 #include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 
 #if WITH_APEX
 #include "PhysXIncludes.h"
@@ -97,6 +98,7 @@
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
 #endif
+#include "Animation/SkinWeightProfileManager.h"
 
 #define LOCTEXT_NAMESPACE "SkeltalMesh"
 
@@ -1147,8 +1149,11 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 			// destroying the object.
 			if (bRebuildPlatformData)
 			{
+				ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+				ITargetPlatform* TargetPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+
 				// TODO: force rebuild even if DDC keys match
-				SkeletalMeshRenderData->Cache(this);
+				SkeletalMeshRenderData->Cache(TargetPlatform, this);
 				// @TODO this can not be called from this callstack since the entry needs to be removed completely from the streamer.
 				// UpdateResource();
 			}
@@ -1434,6 +1439,11 @@ void USkeletalMesh::BeginDestroy()
 
 	// Safely unlink mesh from list of streamable ones.
 	UnlinkStreaming();
+
+	if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(GetWorld()))
+	{
+		Manager->CancelSkinWeightProfileRequest(this);
+	}
 
 	// remove the cache of link up
 	if (Skeleton)
@@ -2210,6 +2220,103 @@ void USkeletalMesh::ForceBulkDataResident(const int32 LODIndex)
 {
 	GetMeshEditorData().GetLODImportedData(LODIndex).GetBulkData().ForceBulkDataResident();
 }
+
+void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()
+{
+	//We want to avoid changing the ddc if we load an old asset.
+	//This bool should be put to false at the end of the postload, if there is another posteditchange call after a new ddc will be created
+	UseLegacyMeshDerivedDataKey = true;
+	//Fill up the Section ChunkedParentSectionIndex and OriginalDataSectionIndex
+	//We also want to create the UserSectionsData structure so the user can change the section data
+	for (int32 LodIndex = 0; LodIndex < LODInfo.Num(); LodIndex++)
+	{
+		FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LodIndex];
+		FSkeletalMeshLODInfo* ThisLODInfo = GetLODInfo(LodIndex);
+		check(ThisLODInfo);
+
+		//Reset the reduction setting to a non active state if the asset has active reduction but have no RawSkeletalMeshBulkData (we cannot reduce it)
+		const bool bIsLODReductionActive = IsReductionActive(LodIndex);
+
+
+		bool bMustUseReductionSourceData = bIsLODReductionActive
+			&& ThisLODInfo->bHasBeenSimplified
+			&& ImportedModel->OriginalReductionSourceMeshData.IsValidIndex(LodIndex)
+			&& !(ImportedModel->OriginalReductionSourceMeshData[LodIndex]->IsEmpty());
+
+		if (bIsLODReductionActive && !ThisLODInfo->bHasBeenSimplified && IsLODImportedDataEmpty(LodIndex))
+		{
+			if (LodIndex > ThisLODInfo->ReductionSettings.BaseLOD)
+			{
+				ThisLODInfo->bHasBeenSimplified = true;
+			}
+			else if (LodIndex == ThisLODInfo->ReductionSettings.BaseLOD)
+			{
+				if (ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_AbsNumOfTriangles
+					|| ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_AbsNumOfVerts
+					|| ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_AbsTriangleOrVert)
+				{
+					//MaxNum.... cannot be inactive, switch to NumOfTriangle
+					ThisLODInfo->ReductionSettings.TerminationCriterion = SMTC_NumOfTriangles;
+				}
+
+				//Now that we use triangle or vert num, set an inactive value
+				if (ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_NumOfTriangles
+					|| ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_TriangleOrVert)
+				{
+					ThisLODInfo->ReductionSettings.NumOfTrianglesPercentage = 1.0f;
+				}
+				if (ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_NumOfVerts
+					|| ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_TriangleOrVert)
+				{
+					ThisLODInfo->ReductionSettings.NumOfVertPercentage = 1.0f;
+				}
+			}
+			bMustUseReductionSourceData = false;
+		}
+		ThisLODModel.UpdateChunkedSectionInfo(GetName());
+
+		if (bMustUseReductionSourceData)
+		{
+			//We must load the reduction source model, since reduction can remove section
+			FSkeletalMeshLODModel ReductionSrcLODModel;
+			TMap<FString, TArray<FMorphTargetDelta>> TmpMorphTargetData;
+			ImportedModel->OriginalReductionSourceMeshData[LodIndex]->LoadReductionData(ReductionSrcLODModel, TmpMorphTargetData, this);
+			
+			//Fill the user data with the original value
+			TMap<int32, FSkelMeshSourceSectionUserData> BackupUserSectionsData = ThisLODModel.UserSectionsData;
+			ThisLODModel.UserSectionsData.Empty();
+
+			ThisLODModel.UserSectionsData = ReductionSrcLODModel.UserSectionsData;
+
+			//Now restore the reduce section user change and adjust the originalDataSectionIndex to point on the correct UserSectionData
+			TBitArray<> SourceSectionMatched;
+			SourceSectionMatched.Init(false, ReductionSrcLODModel.Sections.Num());
+			for (int32 SectionIndex = 0; SectionIndex < ThisLODModel.Sections.Num(); ++SectionIndex)
+			{
+				FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
+				FSkelMeshSourceSectionUserData& BackupUserData = FSkelMeshSourceSectionUserData::GetSourceSectionUserData(BackupUserSectionsData, Section);
+				for (int32 SourceSectionIndex = 0; SourceSectionIndex < ReductionSrcLODModel.Sections.Num(); ++SourceSectionIndex)
+				{
+					if (SourceSectionMatched[SourceSectionIndex])
+					{
+						continue;
+					}
+					FSkelMeshSection& SourceSection = ReductionSrcLODModel.Sections[SourceSectionIndex];
+					FSkelMeshSourceSectionUserData& UserData = FSkelMeshSourceSectionUserData::GetSourceSectionUserData(ThisLODModel.UserSectionsData, SourceSection);
+					if (Section.MaterialIndex == SourceSection.MaterialIndex)
+					{
+						Section.OriginalDataSectionIndex = SourceSection.OriginalDataSectionIndex;
+						UserData = BackupUserData;
+						SourceSectionMatched[SourceSectionIndex] = true;
+						break;
+					}
+				}
+			}
+			ThisLODModel.SyncronizeUserSectionsDataArray();
+		}
+	}
+}
+
 #endif // WITH_EDITOR
 
 void USkeletalMesh::PostLoad()
@@ -2219,6 +2326,10 @@ void USkeletalMesh::PostLoad()
 
 	// Consolidate the shared cloth configs once all cloth assets are loaded
 	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)
+	{
+		MeshClothingAsset->ConditionalPostLoad();  // Make sure the cloth asset has finished loading
+	}
+	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)  // PostUpdateAllAssets will also iterate through all clothing assets so this cannot be merged with the loop above
 	{
 		MeshClothingAsset->PostUpdateAllAssets();
 	}
@@ -2356,51 +2467,7 @@ void USkeletalMesh::PostLoad()
 
 		if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshBuildRefactor)
 		{
-			//We want to avoid changing the ddc if we load an old asset.
-			//This bool should be put to false at the end of the postload, if there is another posteditchange call after a new ddc will be created
-			UseLegacyMeshDerivedDataKey = true;
-			//Fill up the Section ChunkedParentSectionIndex and OriginalDataSectionIndex
-			//We also want to create the UserSectionsData structure so the user can change the section data
-			for (int32 LodIndex = 0; LodIndex < LODInfo.Num(); LodIndex++)
-			{
-				FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LodIndex];
-				FSkeletalMeshLODInfo* ThisLODInfo = GetLODInfo(LodIndex);
-				check(ThisLODInfo);
-				//Reset the reduction setting to a non active state if the asset has active reduction but have no RawSkeletalMeshBulkData (we cannot reduce it)
-				if (IsReductionActive(LodIndex) && !ThisLODInfo->bHasBeenSimplified && IsLODImportedDataEmpty(LodIndex))
-				{
-					if (LodIndex > ThisLODInfo->ReductionSettings.BaseLOD)
-					{
-						ThisLODInfo->bHasBeenSimplified = true;
-					}
-					else if (LodIndex == ThisLODInfo->ReductionSettings.BaseLOD)
-					{
-						if (ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_AbsNumOfTriangles
-							|| ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_AbsNumOfVerts
-							|| ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_AbsTriangleOrVert)
-						{
-							//MaxNum.... cannot be inactive, switch to NumOfTriangle
-							ThisLODInfo->ReductionSettings.TerminationCriterion = SMTC_NumOfTriangles;
-						}
-
-						//Now that we use trinagle or vert num, set an inactive value
-						if (ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_NumOfTriangles
-							|| ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_TriangleOrVert)
-						{
-							ThisLODInfo->ReductionSettings.NumOfTrianglesPercentage = 1.0f;
-						}
-						if (ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_NumOfVerts
-							|| ThisLODInfo->ReductionSettings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_TriangleOrVert)
-						{
-							ThisLODInfo->ReductionSettings.NumOfVertPercentage = 1.0f;
-						}
-					}
-				}
-				if (!IsLODImportedDataBuildAvailable(LodIndex))
-				{
-					ThisLODModel.UpdateChunkedSectionInfo(GetName(), ThisLODInfo->LODMaterialMap);
-				}
-			}
+			CreateUserSectionsDataForLegacyAssets();
 		}
 
 		if (GetResourceForRendering() == nullptr)
@@ -3324,8 +3391,13 @@ void USkeletalMesh::InvalidateDeriveDataCacheGUID()
 
 void USkeletalMesh::CacheDerivedData()
 {
+	// Cache derived data for the running platform.
+	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+	ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+	check(RunningPlatform);
+
 	AllocateResourceForRendering();
-	SkeletalMeshRenderData->Cache(this);
+	SkeletalMeshRenderData->Cache(RunningPlatform, this);
 	PostMeshCached.Broadcast(this);
 }
 
@@ -3365,22 +3437,28 @@ void USkeletalMesh::RemoveMeshSection(int32 InLodIndex, int32 InSectionIndex)
 		return;
 	}
 
-	FSkelMeshSection& SectionToRemove = LodModel.Sections[InSectionIndex];
+	FSkelMeshSection& SectionToDisable = LodModel.Sections[InSectionIndex];
+	
+	//Get the UserSectionData
+	FSkelMeshSourceSectionUserData& UserSectionToDisableData = LodModel.UserSectionsData.FindChecked(SectionToDisable.OriginalDataSectionIndex);
 
-	if(SectionToRemove.HasClothingData())
+	if(UserSectionToDisableData.HasClothingData())
 	{
 		// Can't remove this, clothing currently relies on it
 		UE_LOG(LogSkeletalMesh, Warning, TEXT("Failed to remove skeletal mesh section, clothing is currently bound to Lod%d Section %d, unbind clothing before removal."), InLodIndex, InSectionIndex);
 		return;
 	}
 
-	// Valid to remove, dirty the mesh
-	Modify();
-	PreEditChange(nullptr);
-
-	SectionToRemove.bDisabled = true;
-
-	PostEditChange();
+	{
+		//Scope a post edit change
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(this);
+		// Valid to disable, dirty the mesh
+		Modify();
+		PreEditChange(nullptr);
+		//Disable the section
+		UserSectionToDisableData.bDisabled = true;
+		SectionToDisable.bDisabled = true;
+	}
 }
 
 #endif // #if WITH_EDITOR
@@ -4009,6 +4087,8 @@ static void SerializeReductionSettingsForDDC(FArchive& Ar, FSkeletalMeshOptimiza
 	Ar << ReductionSettings.NumOfVertPercentage;
 	Ar << ReductionSettings.MaxNumOfTriangles;
 	Ar << ReductionSettings.MaxNumOfVerts;
+	Ar << ReductionSettings.MaxNumOfTrianglesPercentage;
+	Ar << ReductionSettings.MaxNumOfVertsPercentage;
 	Ar << ReductionSettings.MaxDeviationPercentage;
 	Ar << ReductionSettings.ReductionMethod;
 	Ar << ReductionSettings.SilhouetteImportance;
@@ -4626,7 +4706,7 @@ HHitProxy* FSkeletalMeshSceneProxy::CreateHitProxies(UPrimitiveComponent* Compon
 					}
 					else
 					{
-						ActorHitProxy = new HActor(Component->GetOwner(), Component, SectionIndex, MaterialIndex);
+						ActorHitProxy = new HActor(Component->GetOwner(), Component, Component->HitProxyPriority, SectionIndex, MaterialIndex);
 					}
 
 					// Set the hitproxy.
@@ -5435,7 +5515,8 @@ bool FSkeletalMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Sec
 
 void FSkeletalMeshSceneProxy::OnTransformChanged()
 {
-	MeshObject->RefreshClothingTransforms(GetLocalToWorld(), GetScene().GetFrameNumber() + 1);
+	// OnTransformChanged is called on the following frame after FSkeletalMeshObject::Update(), thus omit '+ 1' to frame number.
+	MeshObject->RefreshClothingTransforms(GetLocalToWorld(), GetScene().GetFrameNumber());
 }
 
 
@@ -5477,7 +5558,7 @@ FSkinnedMeshComponentRecreateRenderStateContext::~FSkinnedMeshComponentRecreateR
 
 		if (Component->IsRegistered() && !Component->IsRenderStateCreated())
 		{
-			Component->CreateRenderState_Concurrent();
+			Component->CreateRenderState_Concurrent(nullptr);
 		}
 	}
 }

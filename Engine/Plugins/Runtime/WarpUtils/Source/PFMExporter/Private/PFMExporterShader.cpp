@@ -50,17 +50,8 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, MeshToPFMMatrixParameter, MeshToPFMMatrix);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar
-			<< MeshToPFMMatrixParameter;
-
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter MeshToPFMMatrixParameter;
+	LAYOUT_FIELD(FShaderParameter, MeshToPFMMatrixParameter)
 };
 
 class FPFMExporterPS 
@@ -149,7 +140,7 @@ bool FPFMExporterShader::ApplyPFMExporter_RenderThread(
 			RHICmdList.SetViewport(DstRect.Min.X, DstRect.Min.Y, 0.0f, DstRect.Max.X, DstRect.Max.Y, 1.0f);
 			//DrawClearQuad(RHICmdList, FLinearColor::Black); //!
 
-			TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 			TShaderMapRef<FPFMExporterVS> VertexShader(ShaderMap);
 			TShaderMapRef<FPFMExporterPS> PixelShader(ShaderMap);
 
@@ -162,13 +153,13 @@ bool FPFMExporterShader::ApplyPFMExporter_RenderThread(
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;// GetVertexDeclarationFVector4();
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			}
-			VertexShader->SetMeshToPFMMatrix(RHICmdList, VertexShader->GetVertexShader(), MeshToPFMMatrix);
+			VertexShader->SetMeshToPFMMatrix(RHICmdList, VertexShader.GetVertexShader(), MeshToPFMMatrix);
 
 			// Render mesh to PFM texture:
 			RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);

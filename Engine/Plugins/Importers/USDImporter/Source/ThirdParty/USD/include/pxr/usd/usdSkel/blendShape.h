@@ -33,6 +33,7 @@
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usdSkel/tokens.h"
 
+#include "pxr/base/tf/span.h"
 #include "pxr/usd/usdSkel/inbetweenShape.h" 
 
 #include "pxr/base/vt/value.h"
@@ -141,7 +142,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDSKEL_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -153,7 +154,7 @@ private:
 
     // override SchemaBase virtuals.
     USDSKEL_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -162,10 +163,12 @@ public:
     /// **Required property**. Position offsets which, when added to the
     /// base pose, provides the target shape.
     ///
-    /// \n  C++ Type: VtArray<GfVec3f>
-    /// \n  Usd Type: SdfValueTypeNames->Vector3fArray
-    /// \n  Variability: SdfVariabilityUniform
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform vector3f[] offsets` |
+    /// | C++ Type | VtArray<GfVec3f> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Vector3fArray |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
     USDSKEL_API
     UsdAttribute GetOffsetsAttr() const;
 
@@ -179,6 +182,30 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
+    // NORMALOFFSETS 
+    // --------------------------------------------------------------------- //
+    /// **Required property**. Normal offsets which, when added to the
+    /// base pose, provides the normals of the target shape.
+    ///
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform vector3f[] normalOffsets` |
+    /// | C++ Type | VtArray<GfVec3f> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Vector3fArray |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
+    USDSKEL_API
+    UsdAttribute GetNormalOffsetsAttr() const;
+
+    /// See GetNormalOffsetsAttr(), and also 
+    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
+    /// If specified, author \p defaultValue as the attribute's default,
+    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
+    /// the default for \p writeSparsely is \c false.
+    USDSKEL_API
+    UsdAttribute CreateNormalOffsetsAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
+
+public:
+    // --------------------------------------------------------------------- //
     // POINTINDICES 
     // --------------------------------------------------------------------- //
     /// **Optional property**. Indices into the original mesh that
@@ -186,10 +213,12 @@ public:
     /// authored, the number of elements must be equal to the number of elements
     /// in the *offsets* array.
     ///
-    /// \n  C++ Type: VtArray<unsigned int>
-    /// \n  Usd Type: SdfValueTypeNames->UIntArray
-    /// \n  Variability: SdfVariabilityUniform
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform int[] pointIndices` |
+    /// | C++ Type | VtArray<int> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->IntArray |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
     USDSKEL_API
     UsdAttribute GetPointIndicesAttr() const;
 
@@ -259,6 +288,16 @@ public:
     //// description.
     USDSKEL_API
     std::vector<UsdSkelInbetweenShape> GetAuthoredInbetweens() const;
+
+    /// Validates a set of point indices for a given point count.
+    /// This ensures that all point indices are in the range [0, numPoints).
+    /// Returns true if the indices are valid, or false otherwise.
+    /// If invalid and \p reason is non-null, an error message describing
+    /// the first validation error will be set.
+    USDSKEL_API
+    static bool ValidatePointIndices(TfSpan<const int> indices,
+                                     size_t numPoints,
+                                     std::string* reason=nullptr);
 
 private:
     std::vector<UsdSkelInbetweenShape>

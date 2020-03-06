@@ -14,6 +14,7 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraWorldManager.h"
+#include "NiagaraSimulationStageBase.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Custom Events"), STAT_NiagaraNumCustomEvents, STATGROUP_Niagara);
 
@@ -184,7 +185,7 @@ FBox FNiagaraEmitterInstance::GetBounds()
 
 bool FNiagaraEmitterInstance::IsReadyToRun() const
 {
-	if (!CachedEmitter->IsReadyToRun())
+	if (!IsDisabled() && !CachedEmitter->IsReadyToRun())
 	{
 		return false;
 	}
@@ -209,10 +210,9 @@ void FNiagaraEmitterInstance::Dump()const
 
 bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 {
-	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
 	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
 	return EmitterHandle.GetIsEnabled() &&
-		CachedEmitter->IsAllowedByDetailLevel(DetailLevel) &&
+		CachedEmitter->IsAllowedByScalability() &&
 		// TODO: fall back to CPU sim instead once we have scalability functionality to do so
 		(CachedEmitter->SimTarget != ENiagaraSimTarget::GPUComputeSim || (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform())));
 }
@@ -353,12 +353,18 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 		{
 			GPUExecContext = new FNiagaraComputeExecutionContext();
-			GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->GetUniqueEmitterName(), CachedEmitter->DefaultShaderStageIndex, CachedEmitter->MaxUpdateIterations, CachedEmitter->SpawnStages);
+			const uint32 MaxUpdateIterations = CachedEmitter->bDeprecatedShaderStagesEnabled ? CachedEmitter->MaxUpdateIterations : 1;
+			GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->GetUniqueEmitterName(), CachedEmitter->DefaultShaderStageIndex, MaxUpdateIterations, CachedEmitter->SpawnStages);
 			GPUExecContext->MainDataSet = &Data;
 			GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
 
 			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
 			UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+
+			for (int32 i = 0; i < CachedEmitter->GetSimulationStages().Num(); i++)
+			{
+				CachedEmitter->GetSimulationStages()[i]->Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
+			}
 		}
 	
 		EventExecContexts.SetNum(CachedEmitter->GetEventHandlers().Num());
@@ -405,10 +411,12 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		}
 		FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, MakeArrayView(Scripts), ScriptDefinedDataInterfaceParameters);
 
-		// Initialize bounds calculators
-		//-OPT: Could skip creating this if we won't ever use it
+		// Initialize bounds calculators - skip creating if we won't ever use it.  We leave the GPU sims in there with the editor so that we can
+		// generate the bounds from the readback in the tool.
+#if !WITH_EDITOR
 		bool bUseDynamicBounds = !CachedSystemFixedBounds.IsSet() && !CachedEmitter->bFixedBounds && CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim;
 		if (bUseDynamicBounds)
+#endif
 		{
 			BoundsCalculators.Reserve(CachedEmitter->GetRenderers().Num());
 			for (UNiagaraRendererProperties* RendererProperties : CachedEmitter->GetRenderers())
@@ -580,6 +588,11 @@ void FNiagaraEmitterInstance::CheckForErrors()
 
 void FNiagaraEmitterInstance::DirtyDataInterfaces()
 {
+	if (IsDisabled())
+	{
+		return;
+	}
+
 	// Make sure that our function tables need to be regenerated...
 	SpawnExecContext.DirtyDataInterfaces();
 	UpdateExecContext.DirtyDataInterfaces();
@@ -708,6 +721,11 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 		{
 			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
 			UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+
+			for (int32 i = 0; i < CachedEmitter->GetSimulationStages().Num(); i++)
+			{
+				CachedEmitter->GetSimulationStages()[i]->Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
+			}
 		}
 	}
 }
@@ -765,18 +783,44 @@ int FNiagaraEmitterInstance::GetTotalBytesUsed()
 	return BytesUsed;
 }
 
-FBox FNiagaraEmitterInstance::CalculateDynamicBounds(const bool bReadGPUSimulation)
+FBox FNiagaraEmitterInstance::InternalCalculateDynamicBounds(int32 ParticleCount) const
 {
-	if (IsComplete() || !BoundsCalculators.Num() || CachedEmitter == nullptr)
+	if (!ParticleCount || !BoundsCalculators.Num())
+	{
 		return FBox(ForceInit);
+	}
+
+	FBox Ret;
+	Ret.Init();
+
+	for (const TUniquePtr<FNiagaraBoundsCalculator>& BoundsCalculator : BoundsCalculators)
+	{
+		BoundsCalculator->RefreshAccessors();
+		Ret += BoundsCalculator->CalculateBounds(ParticleCount);
+	}
+
+	return Ret;
+}
+
+#if WITH_EDITOR
+void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpace)
+{
+	check(CachedEmitter);
+
+	if (IsComplete() || CachedEmitter == nullptr)
+	{
+		return ;
+	}
 
 	FScopedNiagaraDataSetGPUReadback ScopedGPUReadback;
 
 	int32 NumInstances = 0;
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
-		if (!bReadGPUSimulation || (GPUExecContext == nullptr))
-			return FBox(ForceInit);
+		if (GPUExecContext == nullptr)
+		{
+			return;
+		}
 
 		ScopedGPUReadback.ReadbackData(Batcher, GPUExecContext->MainDataSet);
 		NumInstances = ScopedGPUReadback.GetNumInstances();
@@ -787,40 +831,11 @@ FBox FNiagaraEmitterInstance::CalculateDynamicBounds(const bool bReadGPUSimulati
 	}
 
 	if (NumInstances == 0)
-		return FBox(ForceInit);
-
-	FBox Ret;
-	Ret.Init();
-
-	bool bContainsNaN = false;
-	for ( const TUniquePtr<FNiagaraBoundsCalculator>& BoundsCalculator : BoundsCalculators )
 	{
-		Ret += BoundsCalculator->CalculateBounds(NumInstances, bContainsNaN);
+		return;
 	}
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (bContainsNaN && ParentSystemInstance != nullptr && CachedEmitter != nullptr && ParentSystemInstance->GetSystem() != nullptr)
-	{
-		const FString OnScreenMessage = FString::Printf(TEXT("Niagara Particle position data contains NaNs. Likely a divide by zero somewhere in your modules. Emitter \"%s\" in System \"%s\".  Use fx.Niagara.DumpNansOnce to get full log."), *CachedEmitter->GetName(), *ParentSystemInstance->GetSystem()->GetName());
-		GEngine->AddOnScreenDebugMessage((uint64)((PTRINT)this), 3.f, FColor::Red, OnScreenMessage);
-
-		if (GbNiagaraDumpNans || GbNiagaraDumpNansOnce)
-		{
-			GbNiagaraDumpNansOnce = 0;
-			UE_LOG(LogNiagara, Warning, TEXT("Particle position data contains NaNs. Likely a divide by zero somewhere in your modules. Emitter \"%s\" in System \"%s\""), *CachedEmitter->GetName(), *ParentSystemInstance->GetSystem()->GetName());
-			ParentSystemInstance->Dump();
-		}
-	}
-#endif
-
-	return Ret;
-}
-
-void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpace)
-{
-	check(CachedEmitter);
-
-	FBox Bounds = CalculateDynamicBounds(true);
+	FBox Bounds = InternalCalculateDynamicBounds(NumInstances);
 	if (!Bounds.IsValid)
 		return;
 
@@ -837,6 +852,7 @@ void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpac
 
 	CachedBounds = Bounds;
 }
+#endif
 
 /** 
   * Do any post work such as calculating dynamic bounds.
@@ -860,7 +876,7 @@ void FNiagaraEmitterInstance::PostTick()
 	}
 	else
 	{
-		FBox DynamicBounds = CalculateDynamicBounds();
+		FBox DynamicBounds = InternalCalculateDynamicBounds(ParticleDataSet->GetCurrentDataChecked().GetNumInstances());
 		if (DynamicBounds.IsValid)
 		{
 			if (CachedEmitter->bLocalSpace)
@@ -900,10 +916,10 @@ bool FNiagaraEmitterInstance::HandleCompletion(bool bForce)
 	return false;
 }
 
-bool FNiagaraEmitterInstance::RequiredPersistentID()const
+bool FNiagaraEmitterInstance::RequiresPersistentIDs() const
 {
 	//TODO: can we have this be enabled at runtime from outside the system?
-	return GetEmitterHandle().GetInstance()->RequiresPersistantIDs() || ParticleDataSet->HasVariable(SYS_PARAM_PARTICLES_ID);
+	return GetEmitterHandle().GetInstance()->RequiresPersistentIDs() || ParticleDataSet->HasVariable(SYS_PARAM_PARTICLES_ID);
 }
 
 /** 
@@ -1166,15 +1182,18 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			GpuSpawnInfo.MaxParticleCount = AllocationSize;
 
 			int NumSpawnInfos = 0;
+			int32 NumSpawnedOnGPUThisFrame = 0;
 			if (ExecutionState == ENiagaraExecutionState::Active)
 			{
-				for (FNiagaraSpawnInfo& Info : SpawnInfos)
+				for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < SpawnInfos.Num(); SpawnInfoIdx++)
 				{
+					FNiagaraSpawnInfo& Info = SpawnInfos[SpawnInfoIdx];
 					if (Info.Count > 0 && (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS))
 					{
-						if ((TotalSpawnedParticles + Info.Count) > GMaxNiagaraGPUParticlesSpawnPerFrame)
+						NumSpawnedOnGPUThisFrame += Info.Count;
+						if (NumSpawnedOnGPUThisFrame > GMaxNiagaraGPUParticlesSpawnPerFrame)
 						{
-							UE_LOG(LogNiagara, Warning, TEXT("%s has attempted to execeed max GPU per frame spawn! | Max: %d | Requested: %d"), *CachedEmitter->GetUniqueEmitterName(), GMaxNiagaraGPUParticlesSpawnPerFrame, TotalSpawnedParticles + Info.Count);
+							UE_LOG(LogNiagara, Warning, TEXT("%s has attempted to execeed max GPU per frame spawn! | Max: %d | Requested: %d | SpawnInfoEntry: %d"), *CachedEmitter->GetUniqueEmitterName(), GMaxNiagaraGPUParticlesSpawnPerFrame, NumSpawnedOnGPUThisFrame, SpawnInfoIdx);
 							break;
 						}
 
@@ -1442,9 +1461,10 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		}
 	}
 
-	// The spawn count and ID acquire tag in FNiagaraDataBuffer are currently only used by the GPU path,
-	// but we'll set them here anyway, to prevent surprises in case someone sees them and decides to use them.
-	Data.GetDestinationDataChecked().SetNumSpawnedInstances(Data.GetSpawnedIDsTable().Num());
+	int32 NumAfterSpawn = Data.GetCurrentDataChecked().GetNumInstances();
+	int32 TotalNumSpawned = NumAfterSpawn - NumBeforeSpawn;
+
+	Data.GetDestinationDataChecked().SetNumSpawnedInstances(TotalNumSpawned);
 	Data.GetDestinationDataChecked().SetIDAcquireTag(Data.GetIDAcquireTag());
 
 	//We're done with this simulation pass.
@@ -1467,8 +1487,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	//Now pull out any debug info we need.
 #if WITH_EDITORONLY_DATA
-	int32 NumAfterSpawn = Data.GetCurrentDataChecked().GetNumInstances();
-	int32 TotalNumSpawned = NumAfterSpawn - NumBeforeSpawn;
 	if (ParentSystemInstance->ShouldCaptureThisFrame())
 	{
 		//Pull out update data.

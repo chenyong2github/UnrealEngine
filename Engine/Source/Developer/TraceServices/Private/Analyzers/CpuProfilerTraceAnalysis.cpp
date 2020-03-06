@@ -27,6 +27,8 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EventSpec, "CpuProfiler", "EventSpec");
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
+	Builder.RouteEvent(RouteId_ChannelAnnounce, "$Trace", "ChannelAnnounce");
+	Builder.RouteEvent(RouteId_ChannelToggle, "$Trace", "ChannelToggle");
 }
 
 bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
@@ -107,6 +109,41 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		}
 		ThreadState.LastCycle = LastCycle;
 		BytesPerScope = double(TotalEventSize) / double(TotalScopeCount);
+		break;
+	}
+	case RouteId_ChannelAnnounce:
+	{
+		const ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
+		const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+		if (FCStringAnsi::Stricmp(ChannelName, "cpu") == 0)
+		{
+			CpuChannelId = ChannelId;
+		}
+		break;
+	}
+	case RouteId_ChannelToggle:
+	{
+		const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+		const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
+
+		if (ChannelId == CpuChannelId && bCpuChannelState != bEnabled)
+		{
+			bCpuChannelState = bEnabled;
+			if (bEnabled == false)
+			{
+				for (auto ThreadPair : ThreadStatesMap)
+				{
+					FThreadState& ThreadState = *ThreadPair.Value;
+					const double Timestamp = Context.SessionContext.TimestampFromCycle(ThreadState.LastCycle);
+					Session.UpdateDurationSeconds(Timestamp);
+					while (ThreadState.ScopeStack.Num())
+					{
+						ThreadState.ScopeStack.Pop();
+						ThreadState.Timeline->AppendEndEvent(Timestamp);
+					}
+				}
+			}
+		}
 		break;
 	}
 	}

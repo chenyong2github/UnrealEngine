@@ -416,9 +416,13 @@ void FLevelEditorSequencerIntegration::OnSequencerEvaluated()
 	// Blueprint, and other editors that have a 3d viewport.
 	for (FEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
-		if (LevelVC && !LevelVC->IsRealtime())
+		if (LevelVC)
 		{
-			LevelVC->RequestRealTimeFrames(1);
+			if (!LevelVC->IsRealtime())
+			{
+				LevelVC->RequestRealTimeFrames(1);
+			}
+			LevelVC->Invalidate();
 		}
 	}
 
@@ -1014,7 +1018,7 @@ void FLevelEditorSequencerIntegration::DetachOutlinerColumn()
 		{
 			if (LevelEditorTabManager->GetOwnerTab().IsValid())
 			{
-				LevelEditorTabManager->InvokeTab(FName("LevelEditorSceneOutliner"))->RequestCloseTab();			
+				LevelEditorTabManager->TryInvokeTab(FName("LevelEditorSceneOutliner"))->RequestCloseTab();			
 			}
 		}
 		
@@ -1022,7 +1026,7 @@ void FLevelEditorSequencerIntegration::DetachOutlinerColumn()
 		{
 			if (LevelEditorTabManager->GetOwnerTab().IsValid())
 			{
-				LevelEditorTabManager->InvokeTab(FName("LevelEditorSceneOutliner"));
+				LevelEditorTabManager->TryInvokeTab(FName("LevelEditorSceneOutliner"));
 			}
 		}
 	}
@@ -1049,8 +1053,8 @@ void FLevelEditorSequencerIntegration::ActivateRealtimeViewports()
 			// If there is a director group, set the perspective viewports to realtime automatically.
 			if (LevelVC->IsPerspective() && LevelVC->AllowsCinematicControl())
 			{				
-				// Ensure Realtime is turned on and store the original setting so we can restore it later.
-				LevelVC->SetRealtime(true, true);
+				const bool bShouldBeRealtime = true;
+				LevelVC->SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_Sequencer", "Sequencer"));
 			}
 		}
 	}
@@ -1068,8 +1072,7 @@ void FLevelEditorSequencerIntegration::RestoreRealtimeViewports()
 			// Turn off realtime when exiting.
 			if( LevelVC->IsPerspective() && LevelVC->AllowsCinematicControl() )
 			{				
-				// Specify true so RestoreRealtime will allow us to disable Realtime if it was original disabled
-				LevelVC->RestoreRealtime(true);
+				LevelVC->RemoveRealtimeOverride();
 			}
 		}
 	}

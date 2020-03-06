@@ -4285,7 +4285,8 @@ void FBlueprintEditorUtils::GetHiddenPinsForFunction(UEdGraph const* Graph, UFun
 			{
 				HiddenPins.Add(*It.Value());
 			}
-			else if (Key == FBlueprintMetadata::MD_ExpandEnumAsExecs)
+			else if (Key == FBlueprintMetadata::MD_ExpandEnumAsExecs ||
+					Key == FBlueprintMetadata::MD_ExpandBoolAsExecs)
 			{
 				TArray<FName> EnumPinNames;
 				UK2Node_CallFunction::GetExpandEnumPinNames(Function, EnumPinNames);
@@ -4349,6 +4350,32 @@ bool FBlueprintEditorUtils::IsPinTypeValid(const FEdGraphPinType& Type)
 		}
 	}
 	return true;
+}
+
+void FBlueprintEditorUtils::ValidatePinConnections(const UEdGraphNode* Node, FCompilerResultsLog& MessageLog)
+{
+	if (Node)
+	{
+		const UEdGraphSchema* Schema = Node->GetSchema();
+		check(Schema);
+
+		// Validate that all pins with links are actually set to valid connections.
+		// This is necessary because the user could change the type of the pin 
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin)
+			{
+				for (UEdGraphPin* Link : Pin->LinkedTo)
+				{
+					if (Link && Link != Pin && Schema->CanCreateConnection(Pin, Link).Response == CONNECT_RESPONSE_DISALLOW)
+					{
+						FText const ErrorFormat = LOCTEXT("BadConnection", "Invalid pin connection in graph '@@' from '@@' to '@@'. You may have changed the type after the connections were made.");
+						MessageLog.Error(*ErrorFormat.ToString(), Node->GetGraph(), Pin, Link);
+					}
+				}
+			}
+		}
+	}
 }
 
 void FBlueprintEditorUtils::GetClassVariableList(const UBlueprint* Blueprint, TSet<FName>& VisibleVariables, bool bIncludePrivateVars) 

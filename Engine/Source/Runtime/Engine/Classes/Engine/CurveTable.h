@@ -36,7 +36,7 @@ enum class ECurveTableMode : uint8
  * Imported spreadsheet table as curves.
  */
 UCLASS(MinimalAPI)
-class ENGINE_VTABLE UCurveTable
+class UCurveTable
 	: public UObject
 	, public FCurveOwnerInterface
 {
@@ -237,7 +237,7 @@ struct ENGINE_API FCurveTableRowHandle
 	{ }
 
 	/** Pointer to table we want a row from */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CurveTableRowHandle)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CurveTableRowHandle, meta=(DisplayThumbnail="false"))
 	const class UCurveTable*	CurveTable;
 
 	/** Name of row in the table that we want */

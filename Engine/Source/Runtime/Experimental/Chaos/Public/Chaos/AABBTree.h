@@ -10,6 +10,12 @@
 #include "Templates/Models.h"
 #include "Chaos/BoundingVolume.h"
 
+struct FAABBTreeCVars
+{
+	static int32 UpdateDirtyElementPayloadData;
+	static FAutoConsoleVariableRef CVarUpdateDirtyElementPayloadData;
+};
+
 namespace Chaos
 {
 
@@ -123,6 +129,12 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		OutElements.Append(Elems);
 	}
 
+	SIZE_T GetReserveCount() const
+	{
+		// Optimize for fewer memory allocations.
+		return Elems.Num();
+	}
+
 	template <typename TSQVisitor, typename TQueryFastData>
 	bool RaycastFast(const TVector<T,3>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor) const
 	{
@@ -197,7 +209,6 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		Ar << Elems;
 	}
 
-
 	TArray<TPayloadBoundsElement<TPayloadType, T>> Elems;
 	TAABB<T,3> Bounds;
 };
@@ -218,8 +229,8 @@ struct TAABBTreeNode
 		ChildrenBounds[1] = TAABB<T, 3>();
 	}
 	TAABB<T, 3> ChildrenBounds[2];
-	int32 ChildrenNodes[2];
-	bool bLeaf;
+	int32 ChildrenNodes[2] = { 0, 0 };
+	bool bLeaf = false;
 
 	void Serialize(FChaosArchive& Ar)
 	{
@@ -271,6 +282,27 @@ inline FArchive& operator<<(FArchive& Ar, FAABBTreePayloadInfo& PayloadInfo)
 }
 
 extern CHAOS_API int32 MaxDirtyElements;
+
+struct CIsUpdatableElement
+{
+	template<typename ElementT>
+	auto Requires(ElementT& InElem, const ElementT& InOtherElem) -> decltype(InElem.UpdateFrom(InOtherElem));
+};
+
+template<typename T, typename TEnableIf<!TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+static void UpdateElementHelper(T& InElem, const T& InFrom)
+{
+
+}
+
+template<typename T, typename TEnableIf<TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+static void UpdateElementHelper(T& InElem, const T& InFrom)
+{
+	if(FAABBTreeCVars::UpdateDirtyElementPayloadData != 0)
+	{
+		InElem.UpdateFrom(InFrom);
+	}
+}
 
 template <typename TPayloadType, typename TLeafType, typename T, bool bMutable = true>
 class TAABBTree final : public ISpatialAcceleration<TPayloadType, T, 3>
@@ -494,6 +526,7 @@ public:
 				else
 				{
 					DirtyElements[PayloadInfo->DirtyPayloadIdx].Bounds = NewBounds;
+					UpdateElementHelper(DirtyElements[PayloadInfo->DirtyPayloadIdx].Payload, Payload);
 				}
 
 				// Handle something that previously did not have bounds that may be in global elements.
@@ -519,6 +552,7 @@ public:
 				else
 				{
 					GlobalPayloads[PayloadInfo->GlobalPayloadIdx].Bounds = GlobalBounds;
+					UpdateElementHelper(GlobalPayloads[PayloadInfo->GlobalPayloadIdx].Payload, Payload);
 				}
 
 				// Handle something that previously had bounds that may be in dirty elements.
@@ -596,10 +630,19 @@ private:
 	void ReoptimizeTree()
 	{
 		TArray<FElement> AllElements;
+
+		SIZE_T ReserveCount = DirtyElements.Num() + GlobalPayloads.Num();
+		for (const auto& Leaf : Leaves)
+		{
+			ReserveCount += Leaf.GetReserveCount();
+		}
+
+		AllElements.Reserve(ReserveCount);
+
 		AllElements.Append(DirtyElements);
 		AllElements.Append(GlobalPayloads);
 
-		for(auto& Leaf : Leaves)
+		for (auto& Leaf : Leaves)
 		{
 			Leaf.GatherElements(AllElements);
 		}

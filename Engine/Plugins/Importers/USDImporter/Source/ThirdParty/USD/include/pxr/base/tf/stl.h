@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_STL_H
-#define TF_STL_H
+#ifndef PXR_BASE_TF_STL_H
+#define PXR_BASE_TF_STL_H
 
 /// \file tf/stl.h
 /// \ingroup group_tf_Stl
@@ -101,10 +101,10 @@ bool TfMapLookup(Container const &map, Key const &key, Result* valuePtr)
 ///    TfHashMap<string, int, TfHash> m;
 ///    m["foo"] = 1;
 ///
-///    int value = TfMapLookup(m, "someKey", -1);
+///    int value = TfMapLookupByValue(m, "someKey", -1);
 ///    TF_AXIOM(value == -1);
 ///
-///    int value = TfMapLookup(m, "foo", -1);
+///    int value = TfMapLookupByValue(m, "foo", -1);
 ///    TF_AXIOM(value == 1);
 ///
 /// \endcode
@@ -416,4 +416,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_STL_H
+#endif // PXR_BASE_TF_STL_H

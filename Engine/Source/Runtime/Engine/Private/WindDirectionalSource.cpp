@@ -217,9 +217,9 @@ void UWindDirectionalSourceComponent::SetWindType(EWindSourceType InNewType)
 	MarkRenderDynamicDataDirty();
 }
 
-void UWindDirectionalSourceComponent::CreateRenderState_Concurrent()
+void UWindDirectionalSourceComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 	GetWorld()->Scene->AddWindSource(this);
 }
 

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 #include "Templates/RefCounting.h"
 #include "GenericPlatform/ICursor.h"
 
@@ -18,6 +19,7 @@ class FReferenceCollector;
  * HPP_Wireframe - the priority of items that are drawn in wireframe, such as volumes
  * HPP_UI - the priority of the UI components such as the translation widget
  */
+UENUM()
 enum EHitProxyPriority
 {
 	HPP_World = 0,
@@ -126,7 +128,7 @@ private:
 /**
  * Base class for detecting user-interface hits.
  */
-class ENGINE_VTABLE HHitProxy : public FRefCountedObject
+class HHitProxy : public FRefCountedObject
 {
 	//DECLARE_HIT_PROXY( ENGINE_API )
 	//We separate the GetType function implementation here because this is the base class/

@@ -292,9 +292,9 @@ void UAtmosphericFogComponent::ReleaseResource()
 	}
 }
 
-void UAtmosphericFogComponent::CreateRenderState_Concurrent()
+void UAtmosphericFogComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 	AddFogIfNeeded();
 }
 

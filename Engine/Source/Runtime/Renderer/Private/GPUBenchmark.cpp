@@ -49,8 +49,8 @@ class FPostProcessBenchmarkPS : public FGlobalShader
 	FPostProcessBenchmarkPS() {}
 
 public:
-	FShaderResourceParameter InputTexture;
-	FShaderResourceParameter InputTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, InputTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InputTextureSampler);
 
 	/** Initialization constructor. */
 	FPostProcessBenchmarkPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -60,17 +60,9 @@ public:
 		InputTextureSampler.Bind(Initializer.ParameterMap,TEXT("InputTextureSampler"));
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << InputTexture << InputTextureSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, TRefCountPtr<IPooledRenderTarget>& Src)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -123,17 +115,9 @@ public:
 	{
 	}
 
-	/** Serializer */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-
-		return bShaderHasOutdatedParameters;
-	}
-
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 		
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 	}
@@ -210,8 +194,8 @@ void RunBenchmarkShader(FRHICommandList& RHICmdList, FRHIVertexBuffer* VertexThr
 		: GFilterVertexDeclaration.VertexDeclarationRHI;
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = VertexDeclaration;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -262,7 +246,7 @@ void RunBenchmarkShader(FRHICommandList& RHICmdList, FRHIVertexBuffer* VertexThr
 				GBenchmarkResolution, LocalHeight,
 				FIntPoint(GBenchmarkResolution, GBenchmarkResolution),
 				FIntPoint(GBenchmarkResolution, GBenchmarkResolution),
-				*VertexShader,
+				VertexShader,
 				EDRF_Default);
 		}
 	}
@@ -502,25 +486,21 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 			UE_LOG(LogSynthBenchmark, Warning, TEXT("GPU driver does not support timer queries."));
 
 #else
-			// Workaround for Metal not having a timing API and some drivers not properly supporting command-buffer completion handler based implementation...
+			// Workaround for Metal not having a timing API and Intel and NVIDIA drivers not properly supporting command-buffer completion handler based implementation...
+			// On AMD GSupportsTimestampRenderQueries is true
 			FTextureMemoryStats MemStats;
 			RHIGetTextureMemoryStats(MemStats);
 			
 			float PerfScale = 1.0f;
-			if(MemStats.TotalGraphicsMemory < (2ll * 1024ll * 1024ll * 1024ll))
+			if (MemStats.TotalGraphicsMemory < (2ll * 1024ll * 1024ll * 1024ll))
 			{
-				// Assume Intel HD 5000, Iris, Iris Pro performance - not dreadful
-				PerfScale = 4.2f;
+				// Assume Intel HD 5000, Iris, Iris Pro performance, or low end NVIDIA - low settings
+				PerfScale = 6.2f;
 			}
-			else if(MemStats.TotalGraphicsMemory < (3ll * 1024ll * 1024ll * 1024ll))
+			else if (MemStats.TotalGraphicsMemory < (3ll * 1024ll * 1024ll * 1024ll))
 			{
-				// Assume Nvidia 6x0 & 7x0 series/AMD M370X or Radeon Pro 4x0 series - mostly OK
-				PerfScale = 2.0f;
-			}
-			else
-			{
-				// AMD 7xx0 & Dx00 series - should be pretty beefy
-				PerfScale = 1.2f;
+				// Assume NVIDIA 6x0 & 7x0 series - medium settings
+				PerfScale = 3.0f;
 			}
 
 			for (int32 Index = 0; Index < MethodCount; ++Index)

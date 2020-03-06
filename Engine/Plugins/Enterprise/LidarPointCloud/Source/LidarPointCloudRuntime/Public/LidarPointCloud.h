@@ -76,6 +76,9 @@ private:
 	void UpdateStatus();
 };
 
+/** Used to notify the component it should refresh its state. */
+DECLARE_EVENT(ULidarPointCloud, FOnPointCloudChanged);
+
 /**
  * Represents the Point Cloud asset
  */
@@ -108,6 +111,10 @@ public:
 	UPROPERTY()
 	FDoubleVector OriginalCoordinates;
 
+	/** Contains an offset to be added to all points when rendering */
+	UPROPERTY()
+	FDoubleVector LocationOffset;
+
 	/** Required for file versioning */
 	static const FGuid PointCloudFileGUID;
 	static const int32 PointCloudFileVersion;
@@ -138,19 +145,23 @@ private:
 	/** Used for collision building */
 	FThreadSafeBool bCollisionBuildInProgress;
 
+	FOnPointCloudChanged OnPointCloudRebuiltEvent;
+	FOnPointCloudChanged OnPointCloudUpdateCollisionEvent;
+	FOnPointCloudChanged OnPreSaveCleanupEvent;
+
 public:
 	ULidarPointCloud();
 
-	/** Used to notify the component it should refresh its state. */
-	DECLARE_EVENT(ULidarPointCloud, FOnPointCloudChanged);
 	FOnPointCloudChanged& OnPointCloudRebuilt() { return OnPointCloudRebuiltEvent; }
 	FOnPointCloudChanged& OnPointCloudCollisionUpdated() { return OnPointCloudUpdateCollisionEvent; }
+	FOnPointCloudChanged& OnPreSaveCleanup() { return OnPreSaveCleanupEvent; }
 
 	// Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void BeginDestroy() override;
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent & PropertyChangedEvent) override;
 #endif
@@ -173,14 +184,14 @@ public:
 	FString GetSourcePath() const { return SourcePath.FilePath; }
 
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
-	FBox GetBounds() const { return Octree.GetBounds(); }
+	FBox GetBounds() const { return Octree.GetBounds().ShiftBy(LocationOffset.ToVector()); }
 
-	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
-	FBox GetPointsBounds() const { return Octree.GetPointsBounds(); }
+	/** Returns the Cloud's offset from the 0,0,0 coordinate */
+	FDoubleVector GetLocationOffset() const { return LocationOffset; }
 
 	/** Recalculates and updates points bounds. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RefreshPointsBounds() { Octree.RefreshPointsBounds(); }
+	void RefreshBounds() { Octree.RefreshBounds(); }
 
 	/** Returns true, if the Octree has collision built */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
@@ -196,84 +207,96 @@ public:
 	void GetPoints(TArray<FLidarPointCloudPoint*>& Points, int64 StartIndex = 0, int64 Count = -1) { Octree.GetPoints(Points, StartIndex, Count); }
 
 	/** Populates the array with the list of points within the given sphere. */
-	void GetPointsInSphere(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FVector& Center, const float& Radius, const bool& bVisibleOnly) { GetPointsInSphere(SelectedPoints, FSphere(Center, Radius), bVisibleOnly); }
-	void GetPointsInSphere(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly) { Octree.GetPointsInSphere(SelectedPoints, Sphere, bVisibleOnly); }
+	void GetPointsInSphere(TArray<FLidarPointCloudPoint*>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly)
+	{
+		Sphere.Center -= LocationOffset.ToVector();
+		Octree.GetPointsInSphere(SelectedPoints, Sphere, bVisibleOnly);
+	}
 
 	/** Populates the array with the list of points within the given box. */
-	void GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FVector& Center, const FVector& Extent, const bool& bVisibleOnly) { GetPointsInBox(SelectedPoints, FBox(Center - Extent, Center + Extent), bVisibleOnly); }
-	void GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) { Octree.GetPointsInBox(SelectedPoints, Box, bVisibleOnly); }
+	void GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) { Octree.GetPointsInBox(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
 
-	/** Populates the array with the list of points within the given frustum. */
+	/**
+	 * Populates the array with the list of points within the given frustum.
+	 * Frustum is assumed to include the LocationOffset of the asset
+	 */
 	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly) { Octree.GetPointsInFrustum(SelectedPoints, Frustum, bVisibleOnly); }
 
-	/** Returns an array with copies of points from the tree */
+	/**
+	 * Returns an array with copies of points from the tree
+	 * If ReturnWorldSpace is selected, the points' locations will be converted into absolute value, otherwise they will be relative to the center of the cloud.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
-	TArray<FLidarPointCloudPoint> GetPointsAsCopies(int32 StartIndex = 0, int32 Count = -1) const;
-	void GetPointsAsCopies(TArray<FLidarPointCloudPoint>& Points, int64 StartIndex = 0, int64 Count = -1) const { Octree.GetPointsAsCopies(Points, StartIndex, Count); }
+	TArray<FLidarPointCloudPoint> GetPointsAsCopies(bool bReturnWorldSpace, int32 StartIndex = 0, int32 Count = -1) const;
+	void GetPointsAsCopies(TArray<FLidarPointCloudPoint>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const
+	{
+		FTransform LocalToWorld(LocationOffset.ToVector());
+		Octree.GetPointsAsCopies(Points, bReturnWorldSpace ? &LocalToWorld : nullptr, StartIndex, Count);
+	}
 	
-	/** Returns an array with copies of points within the given sphere */
+	/**
+	 * Returns an array with copies of points within the given sphere
+	 * If ReturnWorldSpace is selected, the points' locations will be converted into absolute value, otherwise they will be relative to the center of the cloud.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
-	TArray<FLidarPointCloudPoint> GetPointsInSphereAsCopies(FVector Center, float Radius, bool bVisibleOnly);
-	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly) { Octree.GetPointsInSphereAsCopies(SelectedPoints, Sphere, bVisibleOnly); }
+	TArray<FLidarPointCloudPoint> GetPointsInSphereAsCopies(FVector Center, float Radius, bool bVisibleOnly, bool bReturnWorldSpace);
+	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace)
+	{
+		FTransform LocalToWorld(LocationOffset.ToVector());
+		Sphere.Center -= LocationOffset.ToVector();
+		Octree.GetPointsInSphereAsCopies(SelectedPoints, Sphere, bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
+	}
 
-	/** Returns an array with copies of points within the given box */
+	/**
+	 * Returns an array with copies of points within the given box
+	 * If ReturnWorldSpace is selected, the points' locations will be converted into absolute value, otherwise they will be relative to the center of the cloud.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
-	TArray<FLidarPointCloudPoint> GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly);
-	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) { Octree.GetPointsInBoxAsCopies(SelectedPoints, Box, bVisibleOnly); }
+	TArray<FLidarPointCloudPoint> GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly, bool bReturnWorldSpace);
+	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace)
+	{
+		FTransform LocalToWorld(LocationOffset.ToVector());
+		Octree.GetPointsInBoxAsCopies(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
+	}
 
 	/** Performs a raycast test against the point cloud. Returns the pointer if hit or nullptr otherwise. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (Keywords = "raycast"))
 	bool LineTraceSingle(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, FLidarPointCloudPoint& PointHit);
-	FLidarPointCloudPoint* LineTraceSingle(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly) { return Octree.RaycastSingle(Ray, Radius, bVisibleOnly); }
+	FLidarPointCloudPoint* LineTraceSingle(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly) { return Octree.RaycastSingle(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/**
 	 * Performs a raycast test against the point cloud.
 	 * Populates OutHits array with the results.
+	 * If ReturnWorldSpace is selected, the points' locations will be converted into absolute value, otherwise they will be relative to the center of the cloud.
 	 * Returns true it anything has been hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (Keywords = "raycast"))
-	bool LineTraceMulti(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint>& OutHits) { return Octree.RaycastMulti(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly, OutHits); }
-	bool LineTraceMulti(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint>& OutHits) { return Octree.RaycastMulti(Ray, Radius, bVisibleOnly, OutHits); }
-	bool LineTraceMulti(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint*>& OutHits) { return Octree.RaycastMulti(Ray, Radius, bVisibleOnly, OutHits); }
+	bool LineTraceMulti(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, bool bReturnWorldSpace, TArray<FLidarPointCloudPoint>& OutHits) { return LineTraceMulti(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly, bReturnWorldSpace, OutHits); }
+	bool LineTraceMulti(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly, bool bReturnWorldSpace, TArray<FLidarPointCloudPoint>& OutHits)
+	{
+		FTransform LocalToWorld(LocationOffset.ToVector());
+		return Octree.RaycastMulti(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr, OutHits);
+	}
+	bool LineTraceMulti(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint*>& OutHits) { return Octree.RaycastMulti(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly, OutHits); }
 
 	/** Sets visibility of points within the given sphere. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void SetVisibilityOfPointsInSphere(bool bNewVisibility, FVector Center, float Radius) { SetVisibilityOfPointsInSphere(bNewVisibility, FSphere(Center, Radius)); }
-	void SetVisibilityOfPointsInSphere(const bool& bNewVisibility, const FSphere& Sphere) { Octree.SetVisibilityOfPointsInSphere(bNewVisibility, Sphere); }
-
-	/**
-	 * Sets visibility of points within the given sphere.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void SetVisibilityOfPointsInSphereAsync(bool bNewVisibility, FVector Center, float Radius) { SetVisibilityOfPointsInSphereAsync(bNewVisibility, FSphere(Center, Radius)); }
-	void SetVisibilityOfPointsInSphereAsync(const bool& bNewVisibility, const FSphere& Sphere, TFunction<void(void)> CompletionCallback = nullptr) { Octree.SetVisibilityOfPointsInSphereAsync(bNewVisibility, Sphere, MoveTemp(CompletionCallback)); }
+	void SetVisibilityOfPointsInSphere(const bool& bNewVisibility, FSphere Sphere)
+	{
+		Sphere.Center -= LocationOffset.ToVector();
+		Octree.SetVisibilityOfPointsInSphere(bNewVisibility, Sphere);
+	}
 
 	/** Sets visibility of points within the given box. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void SetVisibilityOfPointsInBox(bool bNewVisibility, FVector Center, FVector Extent) { SetVisibilityOfPointsInBox(bNewVisibility, FBox(Center - Extent, Center + Extent)); }
-	void SetVisibilityOfPointsInBox(const bool& bNewVisibility, const FBox& Box) { Octree.SetVisibilityOfPointsInBox(bNewVisibility, Box); }
-
-	/**
-	 * Sets visibility of points within the given box.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void SetVisibilityOfPointsInBoxAsync(bool bNewVisibility, FVector Center, FVector Extent) { SetVisibilityOfPointsInBoxAsync(bNewVisibility, FBox(Center - Extent, Center + Extent)); }
-	void SetVisibilityOfPointsInBoxAsync(const bool& bNewVisibility, const FBox& Box, TFunction<void(void)> CompletionCallback = nullptr) { Octree.SetVisibilityOfPointsInBoxAsync(bNewVisibility, Box, MoveTemp(CompletionCallback)); }
+	void SetVisibilityOfPointsInBox(const bool& bNewVisibility, const FBox& Box) { Octree.SetVisibilityOfPointsInBox(bNewVisibility, Box.ShiftBy(-LocationOffset.ToVector())); }
 
 	/** Sets visibility of points hit by the given ray. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void SetVisibilityOfPointsByRay(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRay(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
-	void SetVisibilityOfPointsByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius) { Octree.SetVisibilityOfPointsByRay(bNewVisibility, Ray, Radius); }
-
-	/**
-	 * Sets visibility of points hit by the given ray.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void SetVisibilityOfPointsByRayAsync(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRayAsync(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
-	void SetVisibilityOfPointsByRayAsync(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius, TFunction<void(void)> CompletionCallback = nullptr) { Octree.SetVisibilityOfPointsByRayAsync(bNewVisibility, Ray, Radius, MoveTemp(CompletionCallback)); }
+	void SetVisibilityOfPointsByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius) { Octree.SetVisibilityOfPointsByRay(bNewVisibility, Ray.ShiftBy(-LocationOffset.ToVector()), Radius); }
 
 	/** Marks all points hidden */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -283,53 +306,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void UnhideAll() { Octree.UnhideAll(); }
 
-	/**
-	 * Marks all points visible
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void ResetVisibilityAsync() { Octree.ResetVisibilityAsync(); }
-	void ResetVisibilityAsync(TFunction<void(void)> CompletionCallback) { Octree.ResetVisibilityAsync(MoveTemp(CompletionCallback)); }
-
 	/** Executes the provided action on each of the points. */
 	void ExecuteActionOnAllPoints(TFunction<void(FLidarPointCloudPoint*)> Action, const bool& bVisibleOnly) { Octree.ExecuteActionOnAllPoints(MoveTemp(Action), bVisibleOnly); }
 
-	/**
-	 * Executes the provided action on each of the points.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	void ExecuteActionOnAllPointsAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const bool& bVisibleOnly, TFunction<void(void)> CompletionCallback = nullptr) { Octree.ExecuteActionOnAllPointsAsync(MoveTemp(Action), bVisibleOnly, MoveTemp(CompletionCallback)); }
-
 	/** Executes the provided action on each of the points within the given sphere. */
 	void ExecuteActionOnPointsInSphere(TFunction<void(FLidarPointCloudPoint*)> Action, const FVector& Center, const float& Radius, const bool& bVisibleOnly) { ExecuteActionOnPointsInSphere(MoveTemp(Action), FSphere(Center, Radius), bVisibleOnly); }
-	void ExecuteActionOnPointsInSphere(TFunction<void(FLidarPointCloudPoint*)> Action, const FSphere& Sphere, const bool& bVisibleOnly) { Octree.ExecuteActionOnPointsInSphere(MoveTemp(Action), Sphere, bVisibleOnly); }
-
-	/**
-	 * Executes the provided action on each of the points within the given sphere.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	void ExecuteActionOnPointsInSphereAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FVector& Center, const float& Radius, const bool& bVisibleOnly) { ExecuteActionOnPointsInSphereAsync(MoveTemp(Action), FSphere(Center, Radius), bVisibleOnly); }
-	void ExecuteActionOnPointsInSphereAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FSphere& Sphere, const bool& bVisibleOnly, TFunction<void(void)> CompletionCallback = nullptr) { Octree.ExecuteActionOnPointsInSphereAsync(MoveTemp(Action), Sphere, bVisibleOnly, MoveTemp(CompletionCallback)); }
-
+	void ExecuteActionOnPointsInSphere(TFunction<void(FLidarPointCloudPoint*)> Action, FSphere Sphere, const bool& bVisibleOnly)
+	{
+		Sphere.Center -= LocationOffset.ToVector();
+		Octree.ExecuteActionOnPointsInSphere(MoveTemp(Action), Sphere, bVisibleOnly);
+	}
+	
 	/** Executes the provided action on each of the points within the given box. */
 	void ExecuteActionOnPointsInBox(TFunction<void(FLidarPointCloudPoint*)> Action, const FVector& Center, const FVector& Extent, const bool& bVisibleOnly) { ExecuteActionOnPointsInBox(MoveTemp(Action), FBox(Center - Extent, Center + Extent), bVisibleOnly); }
-	void ExecuteActionOnPointsInBox(TFunction<void(FLidarPointCloudPoint*)> Action, const FBox& Box, const bool& bVisibleOnly) { Octree.ExecuteActionOnPointsInBox(MoveTemp(Action), Box, bVisibleOnly); }
-
-	/**
-	 * Executes the provided action on each of the points within the given box.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	void ExecuteActionOnPointsInBoxAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FVector& Center, const FVector& Extent, const bool& bVisibleOnly) { ExecuteActionOnPointsInBoxAsync(MoveTemp(Action), FBox(Center - Extent, Center + Extent), bVisibleOnly); }
-	void ExecuteActionOnPointsInBoxAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FBox& Box, const bool& bVisibleOnly, TFunction<void(void)> CompletionCallback = nullptr) { Octree.ExecuteActionOnPointsInBoxAsync(MoveTemp(Action), Box, bVisibleOnly, MoveTemp(CompletionCallback)); }
+	void ExecuteActionOnPointsInBox(TFunction<void(FLidarPointCloudPoint*)> Action, const FBox& Box, const bool& bVisibleOnly) { Octree.ExecuteActionOnPointsInBox(MoveTemp(Action), Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
 
 	/** Executes the provided action on each of the points hit by the given ray. */
-	void ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ExecuteActionOnPointsByRay(MoveTemp(Action), Ray, Radius, bVisibleOnly); }
-
-	/**
-	 * Executes the provided action on each of the points hit by the given ray.
-	 * Async version - does not wait for completion before returning from the call.
-	 */
-	void ExecuteActionOnPointsByRayAsync(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly, TFunction<void(void)> CompletionCallback = nullptr) { Octree.ExecuteActionOnPointsByRayAsync(MoveTemp(Action), Ray, Radius, bVisibleOnly, MoveTemp(CompletionCallback)); }
+	void ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ExecuteActionOnPointsByRay(MoveTemp(Action), Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/** Applies the given color to all points */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -338,17 +331,21 @@ public:
 	/** Applies the given color to all points within the sphere */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void ApplyColorToPointsInSphere(FColor NewColor, FVector Center, float Radius, bool bVisibleOnly) { ApplyColorToPointsInSphere(NewColor, FSphere(Center, Radius), bVisibleOnly); }
-	void ApplyColorToPointsInSphere(const FColor& NewColor, const FSphere& Sphere, const bool& bVisibleOnly) { Octree.ApplyColorToPointsInSphere(NewColor, Sphere, bVisibleOnly); }
+	void ApplyColorToPointsInSphere(const FColor& NewColor, FSphere Sphere, const bool& bVisibleOnly)
+	{
+		Sphere.Center -= LocationOffset.ToVector();
+		Octree.ApplyColorToPointsInSphere(NewColor, Sphere, bVisibleOnly);
+	}
 
 	/** Applies the given color to all points within the box */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void ApplyColorToPointsInBox(FColor NewColor, FVector Center, FVector Extent, bool bVisibleOnly) { ApplyColorToPointsInBox(NewColor, FBox(Center - Extent, Center + Extent), bVisibleOnly); }
-	void ApplyColorToPointsInBox(const FColor& NewColor, const FBox& Box, const bool& bVisibleOnly) { Octree.ApplyColorToPointsInBox(NewColor, Box, bVisibleOnly); }
+	void ApplyColorToPointsInBox(const FColor& NewColor, const FBox& Box, const bool& bVisibleOnly) { Octree.ApplyColorToPointsInBox(NewColor, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
 
 	/** Applies the given color to all points hit by the given ray */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void ApplyColorToPointsByRay(FColor NewColor, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { ApplyColorToPointsByRay(NewColor, FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
-	void ApplyColorToPointsByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ApplyColorToPointsByRay(NewColor, Ray, Radius, bVisibleOnly); }
+	void ApplyColorToPointsByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ApplyColorToPointsByRay(NewColor, Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/**
 	 * This should to be called if any manual modification to individual points' visibility has been made.
@@ -365,7 +362,11 @@ public:
 	 * Warning: Will erase all currently held data!
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void Initialize(const FBox& NewBounds) { Octree.Initialize(NewBounds); }
+	void Initialize(const FBox& NewBounds)
+	{
+		LocationOffset = OriginalCoordinates = NewBounds.GetCenter();
+		Octree.Initialize(NewBounds.GetExtent());
+	}
 
 	/** Builds collision mesh for the cloud, using current collision settings */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -375,29 +376,34 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void RemoveCollision();
 
-	/** Centers all contained points */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void CenterPoints();
+	/** Returns true, if the cloud is fully and persistently loaded. */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	bool IsFullyLoaded() const { return Octree.IsFullyLoaded(); }
 
-	/** Restores original coordinates to all contained points */
+	/** Persistently loads all nodes. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RestoreOriginalCoordinates();
+	void LoadAllNodes() { Octree.LoadAllNodes(); }
 
-	/**
-	 * Applies given offset to all contained points.
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
+	/** Applies given offset to this point cloud. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void ShiftPointsBy(FVector Offset, bool bRefreshPointsBounds) { ShiftPointsBy(FDoubleVector(Offset), bRefreshPointsBounds); }
-	void ShiftPointsBy(FDoubleVector Offset, bool bRefreshPointsBounds);
+	void SetLocationOffset(FVector Offset) { SetLocationOffset(FDoubleVector(Offset)); }
+	void SetLocationOffset(FDoubleVector Offset);
+
+	/** Centers this cloud */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void CenterPoints() { SetLocationOffset(FDoubleVector::ZeroVector); }
+
+	/** Restores original coordinates */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void RestoreOriginalCoordinates() { SetLocationOffset(OriginalCoordinates); }
 
 	/** Returns true, if the cloud has been centered. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	bool IsCentered() const;
+	bool IsCentered() const { return LocationOffset.IsNearlyZero(0.1f); }
 
 	/** Re-imports the cloud from it's original source file, overwriting any current point information. */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void Reimport(bool bUseAsync) { Reimport(FLidarPointCloudAsyncParameters(bUseAsync)); }
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (Latent, WorldContext = "WorldContextObject", LatentInfo = "LatentInfo", ExpandEnumAsExecs = "AsyncMode"))
+	void Reimport(UObject* WorldContextObject, bool bUseAsync, FLatentActionInfo LatentInfo, ELidarPointCloudAsyncMode& AsyncMode, float& Progress);
 	void Reimport(const FLidarPointCloudAsyncParameters& AsyncParameters);
 
 	/**
@@ -410,99 +416,88 @@ public:
 
 	/**
 	 * Inserts the given point into the Octree structure.
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
+	 * If bRefreshPointsBounds is set to false, make sure you call RefreshBounds() manually or cloud centering may not work correctly.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void InsertPoint(const FLidarPointCloudPoint& Point, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds);
+	void InsertPoint(const FLidarPointCloudPoint& Point, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation);
 
 	/**
 	 * Inserts group of points into the Octree structure, multi-threaded.
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
+	 * If bRefreshPointsBounds is set to false, make sure you call RefreshBounds() manually or cloud centering may not work correctly.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void InsertPoints(const TArray<FLidarPointCloudPoint>& Points, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds) { InsertPoints(Points.GetData(), Points.Num(), DuplicateHandling, bRefreshPointsBounds); }
+	void InsertPoints(const TArray<FLidarPointCloudPoint>& Points, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation) { InsertPoints(Points.GetData(), Points.Num(), DuplicateHandling, bRefreshPointsBounds, Translation); }
 
 	/**
 	 * Inserts group of points into the Octree structure, multi-threaded.
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
+	 * If bRefreshPointsBounds is set to false, make sure you call RefreshBounds() manually or cloud centering may not work correctly.
 	 * Can be optionally passed a cancellation pointer - if it ever becomes non-null with value of true, process will be canceled.
 	 * May also provide progress callback, called approximately every 1% of progress.
 	 * Returns false if canceled.
 	 */
 	template<typename T>
-	bool InsertPoints(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>())
+	bool InsertPoints(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>())
 	{
 		FScopeLock Lock(&Octree.DataLock);
-		return InsertPoints_NoLock(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, bCanceled, MoveTemp(ProgressCallback));
+		return InsertPoints_NoLock(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
 	}
 	template<typename T>
-	bool InsertPoints_NoLock(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool InsertPoints_NoLock(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
 
-	/**
-	 * Attempts to remove the given point.
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
+	/** Attempts to remove the given point. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemovePoint(FLidarPointCloudPoint Point, bool bRefreshPointsBounds)
+	void RemovePoint(FLidarPointCloudPoint Point)
 	{
 		FScopeLock Lock(&Octree.DataLock);
-		Octree.RemovePoint(Point, bRefreshPointsBounds);
+		Octree.RemovePoint(Point);
 	}
-	void RemovePoint_NoLock(FLidarPointCloudPoint Point, bool bRefreshPointsBounds)
+	void RemovePoint_NoLock(FLidarPointCloudPoint Point)
 	{
-		Octree.RemovePoint(Point, bRefreshPointsBounds);
+		Octree.RemovePoint(Point);
 	}
-	void RemovePoint(const FLidarPointCloudPoint* Point, bool bRefreshPointsBounds)
-	{
-		FScopeLock Lock(&Octree.DataLock);
-		RemovePoint_NoLock(Point, bRefreshPointsBounds);
-	}
-	void RemovePoint_NoLock(const FLidarPointCloudPoint* Point, bool bRefreshPointsBounds)
-	{
-		Octree.RemovePoint(Point, bRefreshPointsBounds);
-	}
-
-	/**
-	 * Removes points in bulk
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
-	void RemovePoints(TArray<FLidarPointCloudPoint*>& Points, bool bRefreshPointsBounds)
+	void RemovePoint(const FLidarPointCloudPoint* Point)
 	{
 		FScopeLock Lock(&Octree.DataLock);
-		RemovePoints_NoLock(Points, bRefreshPointsBounds);
+		RemovePoint_NoLock(Point);
 	}
-	void RemovePoints_NoLock(TArray<FLidarPointCloudPoint*>& Points, bool bRefreshPointsBounds)
+	void RemovePoint_NoLock(const FLidarPointCloudPoint* Point)
 	{
-		Octree.RemovePoints(Points, bRefreshPointsBounds);
+		Octree.RemovePoint(Point);
 	}
 
-	/**
-	 * Removes all points within the given sphere
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemovePointsInSphere(FVector Center, float Radius, bool bVisibleOnly, bool bRefreshPointsBounds) { RemovePointsInSphere(FSphere(Center, Radius), bVisibleOnly, bRefreshPointsBounds); }
-	void RemovePointsInSphere(const FSphere& Sphere, const bool& bVisibleOnly, bool bRefreshPointsBounds) { Octree.RemovePointsInSphere(Sphere, bVisibleOnly, bRefreshPointsBounds); }
+	/** Removes points in bulk */
+	void RemovePoints(TArray<FLidarPointCloudPoint*>& Points)
+	{
+		FScopeLock Lock(&Octree.DataLock);
+		RemovePoints_NoLock(Points);
+	}
+	void RemovePoints_NoLock(TArray<FLidarPointCloudPoint*>& Points)
+	{
+		Octree.RemovePoints(Points);
+	}
 
-	/**
-	 * Removes all points within the given box
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
+	/** Removes all points within the given sphere  */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemovePointsInBox(FVector Center, FVector Extent, bool bVisibleOnly, bool bRefreshPointsBounds) { RemovePointsInBox(FBox(Center - Extent, Center + Extent), bVisibleOnly, bRefreshPointsBounds); }
-	void RemovePointsInBox(const FBox& Box, const bool& bVisibleOnly, bool bRefreshPointsBounds) { Octree.RemovePointsInBox(Box, bVisibleOnly, bRefreshPointsBounds); }
+	void RemovePointsInSphere(FVector Center, float Radius, bool bVisibleOnly) { RemovePointsInSphere(FSphere(Center, Radius), bVisibleOnly); }
+	void RemovePointsInSphere(FSphere Sphere, const bool& bVisibleOnly)
+	{
+		Sphere.Center -= LocationOffset.ToVector();
+		Octree.RemovePointsInSphere(Sphere, bVisibleOnly);
+	}
 
-	/**
-	 * Removes all points hit by the given ray
-	 * If bRefreshPointsBounds is set to false, make sure you call RefreshPointsBounds() manually or cloud centering may not work correctly.
-	 */
+	/** Removes all points within the given box */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemovePointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, bool bRefreshPointsBounds) { RemovePointsByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly, bRefreshPointsBounds); }
-	void RemovePointsByRay(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly, bool bRefreshPointsBounds) { Octree.RemovePointsByRay(Ray, Radius, bVisibleOnly, bRefreshPointsBounds); }
+	void RemovePointsInBox(FVector Center, FVector Extent, bool bVisibleOnly) { RemovePointsInBox(FBox(Center - Extent, Center + Extent), bVisibleOnly); }
+	void RemovePointsInBox(const FBox& Box, const bool& bVisibleOnly) { Octree.RemovePointsInBox(Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
+
+	/** Removes all points hit by the given ray */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void RemovePointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { RemovePointsByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
+	void RemovePointsByRay(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly) { Octree.RemovePointsByRay(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/** Removes all hidden points */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemoveHiddenPoints(bool bRefreshPointsBounds) { Octree.RemoveHiddenPoints(bRefreshPointsBounds); }
+	void RemoveHiddenPoints() { Octree.RemoveHiddenPoints(); }
 
 	/** Reinitializes the cloud with the new set of data. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -527,6 +522,26 @@ public:
 	//~ End Interface_CollisionDataProvider Interface
 
 	UBodySetup* GetBodySetup();
+
+	//~ Begin Deprecated
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Use SetLocationOffset() instead"))
+	void ShiftPointsBy(FVector Offset, bool bRefreshPointsBounds) { SetLocationOffset(LocationOffset + Offset); }
+
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Use GetBounds() instead"))
+	FBox GetPointsBounds() const { return GetBounds(); }
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
+	void SetVisibilityOfPointsInSphereAsync(bool bNewVisibility, FVector Center, float Radius) { SetVisibilityOfPointsInSphere(bNewVisibility, FSphere(Center, Radius)); }
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
+	void SetVisibilityOfPointsInBoxAsync(bool bNewVisibility, FVector Center, FVector Extent) { SetVisibilityOfPointsInBox(bNewVisibility, FBox(Center - Extent, Center + Extent)); }
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
+	void SetVisibilityOfPointsByRayAsync(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRay(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
+	void ResetVisibilityAsync() { UnhideAll(); }
+	//~ End Deprecated
 
 public:
 	/** Aligns provided clouds based on the relative offset between their Original Coordinates. Retains overall centering of the group. */
@@ -565,9 +580,6 @@ private:
 
 	void InitializeCollisionRendering();
 	void ReleaseCollisionRendering();
-
-	FOnPointCloudChanged OnPointCloudRebuiltEvent;
-	FOnPointCloudChanged OnPointCloudUpdateCollisionEvent;
 };
 
 USTRUCT(BlueprintType)
@@ -628,6 +640,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	static bool ExportPointCloudToFile(ULidarPointCloud* PointCloud, const FString& Filename) { return PointCloud && PointCloud->Export(Filename); }
+
+	/** Aligns provided clouds based on the relative offset between their Original Coordinates. Retains overall centering of the group. */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	static void AlignClouds(TArray<ULidarPointCloud*> PointCloudsToAlign) { ULidarPointCloud::AlignClouds(PointCloudsToAlign); }
 
 	/** Does a collision trace along the given line and returns the first blocking hit encountered. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject", DisplayName = "LineTraceForLidarPointCloud", Keywords = "raycast"))

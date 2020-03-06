@@ -21,13 +21,16 @@ private:
 	{
 		RouteId_TickRecord,
 		RouteId_SkeletalMesh,
+		RouteId_SkeletalMesh2,
 		RouteId_SkeletalMeshComponent,
+		RouteId_SkeletalMeshComponent2,
 		RouteId_SkeletalMeshFrame,
 		RouteId_AnimGraph,
 		RouteId_AnimNodeStart,
 		RouteId_AnimNodeValueBool,
 		RouteId_AnimNodeValueInt,
 		RouteId_AnimNodeValueFloat,
+		RouteId_AnimNodeValueVector2D,
 		RouteId_AnimNodeValueVector,
 		RouteId_AnimNodeValueString,
 		RouteId_AnimNodeValueObject,
@@ -36,6 +39,9 @@ private:
 		RouteId_BlendSpacePlayer,
 		RouteId_StateMachineState,
 		RouteId_Name,
+		RouteId_Notify,
+		RouteId_SyncMarker,
+		RouteId_Montage,
 	};
 
 	Trace::IAnalysisSession& Session;

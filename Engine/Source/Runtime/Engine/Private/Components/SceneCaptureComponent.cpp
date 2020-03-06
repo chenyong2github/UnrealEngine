@@ -135,6 +135,7 @@ USceneCaptureComponent::USceneCaptureComponent(const FObjectInitializer& ObjectI
 	LODDistanceFactor = 1.0f;
 	MaxViewDistanceOverride = -1;
 	CaptureSortPriority = 0;
+	bUseRayTracingIfEnabled = 0;
 
 	// Disable features that are not desired when capturing the scene
 	ShowFlags.SetMotionBlur(0); // motion blur doesn't work correctly with scene captures.
@@ -444,6 +445,7 @@ USceneCaptureComponent2D::USceneCaptureComponent2D(const FObjectInitializer& Obj
 	ClipPlaneNormal = FVector(0, 0, 1);
 	bCameraCutThisFrame = false;
 	bConsiderUnrenderedOpaquePixelAsFullyTranslucent = false;
+	bDisableFlipCopyGLES = false;
 	
 	// Legacy initialization.
 	{
@@ -655,6 +657,11 @@ bool USceneCaptureComponent2D::CanEditChange(const FProperty* InProperty) const
 		{
 			return bUseCustomProjectionMatrix;
 		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(USceneCaptureComponent2D, bDisableFlipCopyGLES))
+		{
+			return CaptureSource == SCS_FinalColorLDR;
+		}
 	}
 
 	return Super::CanEditChange(InProperty);
@@ -850,11 +857,11 @@ void UPlanarReflectionComponent::Serialize(FArchive& Ar)
 	}
 }
 
-void UPlanarReflectionComponent::CreateRenderState_Concurrent()
+void UPlanarReflectionComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	UpdatePreviewShape();
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	if (ShouldComponentAddToScene() && ShouldRender())
 	{

@@ -1010,7 +1010,7 @@ void ALODActor::UpdateSubActorLODParents()
 {
 	for (AActor* Actor : SubActors)
 	{	
-		if(Actor)
+		if (Actor && !Actor->IsPendingKillPending())
 		{
 			UStaticMeshComponent* LODComponent = GetLODComponentForActor(Actor);
 			Actor->SetLODParent(LODComponent, LODComponent->MinDrawDistance);
@@ -1096,7 +1096,7 @@ UMaterialInterface* ALODActor::GetImposterMaterial(const UStaticMeshComponent* I
 		const int32 LODIndex = StaticMesh->GetNumLODs() - 1;
 
 		// Retrieve the sections, we're expect 1 for imposter meshes
-		const TArray<FStaticMeshSection>& Sections = StaticMesh->RenderData->LODResources[LODIndex].Sections;
+		const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = StaticMesh->RenderData->LODResources[LODIndex].Sections;
 		if (Sections.Num() == 1)
 		{
 			// Retrieve material for this section

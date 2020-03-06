@@ -23,7 +23,7 @@ void SDeviceBrowserDefaultPlatformAddWidget::Construct(const FArguments& InArgs,
 	auto CredentialsBoxVisibility = [this, InPlatformName]() -> EVisibility {
 		ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(*InPlatformName);
 
-		if ((Platform != nullptr) && Platform->RequiresUserCredentials())
+		if ((Platform != nullptr) && Platform->RequiresUserCredentials() != EPlatformAuthentication::Never)
 		{
 			return EVisibility::Visible;
 		}
@@ -159,7 +159,7 @@ bool SDeviceBrowserDefaultPlatformAddWidget::IsInputValid(const FString& InPlatf
 	{
 		ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(*InPlatformName);
 
-		if (!Platform || !Platform->RequiresUserCredentials())
+		if (!Platform || Platform->RequiresUserCredentials() != EPlatformAuthentication::Always)
 		{
 			return true;
 		}

@@ -39,7 +39,7 @@ UFindTurnBasedMatchCallbackProxy* UFindTurnBasedMatchCallbackProxy::FindTurnBase
 
 void UFindTurnBasedMatchCallbackProxy::Activate()
 {
-	FOnlineSubsystemBPCallHelper Helper(TEXT("ConnectToService"), WorldContextObject);
+	FOnlineSubsystemBPCallHelper Helper(TEXT("FindTurnBasedMatch"), WorldContextObject);
 	Helper.QueryIDFromPlayerController(PlayerControllerWeakPtr.Get());
 
 	if (Helper.IsValid())

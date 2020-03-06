@@ -18,9 +18,9 @@ class IPropertyTypeCustomizationUtils;
 class FNiagaraScriptDetails : public IDetailCustomization
 {
 public:
-	static TSharedRef<IDetailCustomization> MakeInstance(TWeakPtr<FNiagaraScriptViewModel> ScriptViewModel);
+	static TSharedRef<IDetailCustomization> MakeInstance();
 	
-	FNiagaraScriptDetails(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel);
+	FNiagaraScriptDetails();
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder);
 

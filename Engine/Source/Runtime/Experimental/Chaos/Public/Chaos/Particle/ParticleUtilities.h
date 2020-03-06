@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/Utilities.h"
 
 #define CHAOS_PARTICLE_ACTORTRANSFORM 1
 
@@ -70,6 +71,18 @@ namespace Chaos
 		static inline const FRigidTransform3& ActorWorldToParticleWorld(T_PARTICLEHANDLE Particle, const FRigidTransform3& ActorWorldT)
 		{
 			return ActorWorldT;
+		}
+
+		template<typename T_PARTICLEHANDLE>
+		static inline FMatrix33 GetWorldInertia(T_PARTICLEHANDLE Particle)
+		{
+			return Utilities::ComputeWorldSpaceInertia(TSpatialAccessor::GetRotation(Particle) * Particle->RotationOfMass(), Particle->I());
+		}
+
+		template<typename T_PARTICLEHANDLE>
+		static inline FMatrix33 GetWorldInvInertia(T_PARTICLEHANDLE Particle)
+		{
+			return Utilities::ComputeWorldSpaceInertia(TSpatialAccessor::GetRotation(Particle) * Particle->RotationOfMass(), Particle->InvI());
 		}
 
 		/**
@@ -196,6 +209,18 @@ namespace Chaos
 			FRotation3 CoMQ = ActorWorldT.GetRotation() * Particle->RotationOfMass();
 			FVec3 CoMP = ActorWorldT.GetTranslation() + ActorWorldT.GetRotation().RotateVector(Particle->CenterOfMass());
 			return FRigidTransform3(CoMP, CoMQ);
+		}
+
+		template<typename T_PARTICLEHANDLE>
+		static inline FMatrix33 GetWorldInertia(T_PARTICLEHANDLE Particle)
+		{
+			return Utilities::ComputeWorldSpaceInertia(TSpatialAccessor::Rotation(Particle), Particle->I());
+		}
+
+		template<typename T_PARTICLEHANDLE>
+		static inline FMatrix33 GetWorldInvInertia(T_PARTICLEHANDLE Particle)
+		{
+			return Utilities::ComputeWorldSpaceInertia(TSpatialAccessor::Rotation(Particle), Particle->InvI());
 		}
 
 		template<typename T_PARTICLEHANDLE>

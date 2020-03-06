@@ -307,7 +307,8 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 	// Assigning the new state like this ensures we always set the same variables (they depend on the view mode)
 	// This is affecting the state of showflags - if the state can be changed by the user as well it should better be done in EngineShowFlagOverride
 
-	EngineShowFlags.SetOverrideDiffuseAndSpecular(ViewModeIndex == VMI_Lit_DetailLighting || ViewModeIndex == VMI_LightingOnly);
+	EngineShowFlags.SetOverrideDiffuseAndSpecular(ViewModeIndex == VMI_Lit_DetailLighting);
+	EngineShowFlags.SetLightingOnlyOverride(ViewModeIndex == VMI_LightingOnly);
 	EngineShowFlags.SetReflectionOverride(ViewModeIndex == VMI_ReflectionOverride);
 	EngineShowFlags.SetVisualizeBuffer(ViewModeIndex == VMI_VisualizeBuffer);
 	EngineShowFlags.SetVisualizeLightCulling(ViewModeIndex == VMI_LightComplexity);
@@ -640,6 +641,10 @@ EViewModeIndex FindViewMode(const FEngineShowFlags& EngineShowFlags)
 	else if(EngineShowFlags.OverrideDiffuseAndSpecular)
 	{
 		return VMI_Lit_DetailLighting;
+	}
+	else if (EngineShowFlags.LightingOnlyOverride)
+	{
+		return VMI_LightingOnly;
 	}
 	else if (EngineShowFlags.ReflectionOverride)
 	{

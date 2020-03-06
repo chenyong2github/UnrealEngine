@@ -224,7 +224,10 @@ public:
 	TArray<FVulkanTextureView> AttachmentTextureViews;
 	// Copy from the Depth render target partial view
 	FVulkanTextureView PartialDepthTextureView;
+
+	// Image views and memory allocations we need to addref + release
 	TArray<VkImageView> AttachmentViewsToDelete;
+	TArray< TRefCountPtr<VulkanRHI::FOldResourceAllocation> > ResourceAllocationsToDelete;
 
 	inline bool ContainsRenderTarget(FRHITexture* Texture) const
 	{
@@ -379,6 +382,14 @@ inline void VulkanSetImageLayoutSimple(VkCommandBuffer CmdBuffer, VkImage Image,
 	VkImageSubresourceRange SubresourceRange = { Aspect, 0, 1, 0, 1 };
 	VulkanSetImageLayout(CmdBuffer, Image, OldLayout, NewLayout, SubresourceRange);
 }
+
+// Transitions all mips of Color Image
+inline void VulkanSetImageLayoutAllMips(VkCommandBuffer CmdBuffer, VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, VkImageAspectFlags Aspect = VK_IMAGE_ASPECT_COLOR_BIT)
+{
+	VkImageSubresourceRange SubresourceRange = { Aspect, 0, VK_REMAINING_MIP_LEVELS , 0, 1 };
+	VulkanSetImageLayout(CmdBuffer, Image, OldLayout, NewLayout, SubresourceRange);
+}
+
 
 void VulkanResolveImage(VkCommandBuffer Cmd, FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI);
 
@@ -677,7 +688,7 @@ static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetS
 inline VkFormat UEToVkTextureFormat(EPixelFormat UEFormat, const bool bIsSRGB)
 {
 	VkFormat Format = (VkFormat)GPixelFormats[UEFormat].PlatformFormat;
-	if (bIsSRGB && GMaxRHIFeatureLevel > ERHIFeatureLevel::ES2)
+	if (bIsSRGB)
 	{
 		switch (Format)
 		{

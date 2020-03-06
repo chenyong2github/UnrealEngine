@@ -2,8 +2,8 @@
 
 #include "USDLevelSequenceHelper.h"
 
-#include "USDErrorUtils.h"
 #include "USDListener.h"
+#include "USDLog.h"
 #include "USDMemory.h"
 #include "USDStageActor.h"
 #include "USDTypesConversion.h"
@@ -86,7 +86,7 @@ public:
 
 private:
 	/** Create a FLayerTimeInfo object with data from LayerHandle, and calls itself for all of its sublayers */
-	FLayerTimeInfo* RecursivelyCreateLayerTimeInfo(const TUsdStore<pxr::SdfLayerHandle>& LayerHandle, TSet<FString>& ExploredFiles);
+	FLayerTimeInfo* RecursivelyCreateLayerTimeInfo(const TUsdStore<pxr::SdfLayerRefPtr>& LayerHandle, TSet<FString>& ExploredFiles);
 
 	/**
 	 * Propagate timecodes for leaf FLayerTimeInfo all the way up to Info. We use this to calculate enveloping
@@ -140,7 +140,7 @@ void FUsdLevelSequenceHelperImpl::CreateLevelSequences()
 
 	double TimeCodesPerSecond = ValidStageActor->TimeCodesPerSecond;
 
-	UE_LOG(LogUsdStage, Verbose, TEXT("CreateLevelSequences: Initializing level sequence with '%f' fps"), TimeCodesPerSecond);
+	UE_LOG(LogUsd, Verbose, TEXT("CreateLevelSequences: Initializing level sequence with '%f' fps"), TimeCodesPerSecond);
 	if ( ValidStageActor->LevelSequence )
 	{
 		return;
@@ -190,7 +190,7 @@ void FUsdLevelSequenceHelperImpl::CreateLevelSequences()
 			}
 			SubMovieScene->SetDisplayRate(FFrameRate(Info.TimeCodesPerSecond.GetValue(), 1));
 
-			UE_LOG(LogUsdStage, Verbose, TEXT("CreateLevelSequences: Created new LevelSequence '%s' for layer '%s'"), *Sequence->GetName(), *Identifier);
+			UE_LOG(LogUsd, Verbose, TEXT("CreateLevelSequences: Created new LevelSequence '%s' for layer '%s'"), *Sequence->GetName(), *Identifier);
 		}
 	}
 }
@@ -208,7 +208,7 @@ void FUsdLevelSequenceHelperImpl::CreateSubsequenceTrack(const FUsdLevelSequence
 		return;
 	}
 
-	UE_LOG(LogUsdStage, Verbose, TEXT("CreateSubsequenceSections: Initializing for layer '%s'"), *Info->Identifier);
+	UE_LOG(LogUsd, Verbose, TEXT("CreateSubsequenceSections: Initializing for layer '%s'"), *Info->Identifier);
 
 	// Recurse first as we'll need the sublayer LevelSequences to be completed to insert them as subsections
 	bool bFoundAnimatedSubLayer = false;
@@ -236,7 +236,7 @@ void FUsdLevelSequenceHelperImpl::CreateSubsequenceTrack(const FUsdLevelSequence
 
 	if (Sequence != nullptr && Info->IsAnimated() && bFoundAnimatedSubLayer)
 	{
-		UE_LOG(LogUsdStage, Verbose, TEXT("CreateSubsequenceSections: Layer '%s' is animated"), *Info->Identifier);
+		UE_LOG(LogUsd, Verbose, TEXT("CreateSubsequenceSections: Layer '%s' is animated"), *Info->Identifier);
 
 		UMovieScene* MovieScene = Sequence->GetMovieScene();
 		if (!MovieScene)
@@ -264,7 +264,7 @@ void FUsdLevelSequenceHelperImpl::CreateSubsequenceTrack(const FUsdLevelSequence
 			ULevelSequence** SubSequence = ValidStageActor->SubLayerLevelSequencesByIdentifier.Find(SubInfo->Identifier);
 			if (!SubSequence || !*SubSequence)
 			{
-				UE_LOG(LogUsdStage, Warning, TEXT("CreateSubsequenceSections: Invalid LevelSequence for sublayer '%s'"), *SubInfo->Identifier);
+				UE_LOG(LogUsd, Warning, TEXT("CreateSubsequenceSections: Invalid LevelSequence for sublayer '%s'"), *SubInfo->Identifier);
 				continue;
 			}
 
@@ -278,7 +278,7 @@ void FUsdLevelSequenceHelperImpl::CreateSubsequenceTrack(const FUsdLevelSequence
 			int32 Duration = FrameRate.AsFrameNumber(SubEndSeconds).Value - StartFrame.Value;
 			UMovieSceneSubSection* NewSection = SubTrack->AddSequenceOnRow(*SubSequence, StartFrame, Duration, INDEX_NONE);
 
-			UE_LOG(LogUsdStage, Verbose, TEXT("CreateSubsequenceSections: Layer '%s' received subsection for layer '%s' starting at frame '%d' and with duration '%d'"),
+			UE_LOG(LogUsd, Verbose, TEXT("CreateSubsequenceSections: Layer '%s' received subsection for layer '%s' starting at frame '%d' and with duration '%d'"),
 				*Info->Identifier,
 				*SubInfo->Identifier,
 				StartFrame.Value,
@@ -298,7 +298,7 @@ void FUsdLevelSequenceHelperImpl::CreateSubsequenceTrack(const FUsdLevelSequence
 		MovieScene->SetViewRange(StartTimeSeconds - 1.0f, 1.0f + EndTimeSeconds);
 		MovieScene->SetWorkingRange(StartTimeSeconds - 1.0f, 1.0f + EndTimeSeconds);
 
-		UE_LOG(LogUsdStage, Verbose, TEXT("CreateSubsequenceSections: Layer '%s' received view range [%f, %f]"),
+		UE_LOG(LogUsd, Verbose, TEXT("CreateSubsequenceSections: Layer '%s' received view range [%f, %f]"),
 			*Info->Identifier,
 			StartTimeSeconds - 1.0f,
 			EndTimeSeconds + 1.0f);
@@ -346,6 +346,11 @@ void FUsdLevelSequenceHelperImpl::CreateTimeTrack(const FUsdLevelSequenceHelperI
 	else
 	{
 		TimeTrack = MovieScene->AddTrack<UMovieSceneFloatTrack>(StageActorBinding);
+		if (!TimeTrack)
+		{
+			return;
+		}
+
 		TimeTrack->SetPropertyNameAndPath(FName(TIME_TRACK_NAME), "Time");
 
 		MovieScene->SetEvaluationType(EMovieSceneEvaluationType::FrameLocked);
@@ -389,12 +394,12 @@ void FUsdLevelSequenceHelperImpl::RebuildLayerTimeInfoCache(const pxr::UsdStageR
 		return;
 	}
 
-	UE_LOG(LogUsdStage, Verbose, TEXT("RebuildLayerTimeInfoCache"));
+	UE_LOG(LogUsd, Verbose, TEXT("RebuildLayerTimeInfoCache"));
 
 	LayerTimeInfosByIdentifier.Reset();
 	LayerInfoIdentifierByLevelSequenceName.Reset();
 
-	TUsdStore<pxr::SdfLayerHandle> RootLayerHandle = MakeUsdStore<pxr::SdfLayerHandle>(UsdStage->GetRootLayer());
+	TUsdStore<pxr::SdfLayerRefPtr> RootLayerHandle = MakeUsdStore<pxr::SdfLayerRefPtr>(pxr::SdfLayer::FindOrOpen(UsdStage->GetRootLayer()->GetRealPath()));
 
 	// Used to catch N-item infinite loops (e.g. A/B/C/A/B/C/etc)
 	TSet<FString> ExploredPaths;
@@ -442,32 +447,32 @@ void FUsdLevelSequenceHelperImpl::InitializeActorTimeCodes(const pxr::UsdStageRe
 	ValidStageActor->StartTimeCode = RootInfo->StartTimeCode.Get(0);
 	ValidStageActor->EndTimeCode = RootInfo->EndTimeCode.Get(0);
 	ValidStageActor->TimeCodesPerSecond = RootInfo->TimeCodesPerSecond.Get(DEFAULT_FRAMERATE);
-	UE_LOG(LogUsdStage, Verbose, TEXT("Initialized AUsdStageActor's Stage. StartTimeCode: %f, EndTimeCode: %f, TimeCodesPerSeconds: %f"), ValidStageActor->StartTimeCode, ValidStageActor->EndTimeCode, ValidStageActor->TimeCodesPerSecond);
+	UE_LOG(LogUsd, Verbose, TEXT("Initialized AUsdStageActor's Stage. StartTimeCode: %f, EndTimeCode: %f, TimeCodesPerSeconds: %f"), ValidStageActor->StartTimeCode, ValidStageActor->EndTimeCode, ValidStageActor->TimeCodesPerSecond);
 }
 
-FUsdLevelSequenceHelperImpl::FLayerTimeInfo* FUsdLevelSequenceHelperImpl::RecursivelyCreateLayerTimeInfo(const TUsdStore<pxr::SdfLayerHandle>& LayerHandleWrapper, TSet<FString>& ExploredFiles)
+FUsdLevelSequenceHelperImpl::FLayerTimeInfo* FUsdLevelSequenceHelperImpl::RecursivelyCreateLayerTimeInfo(const TUsdStore<pxr::SdfLayerRefPtr>& LayerHandleWrapper, TSet<FString>& ExploredFiles)
 {
-	const pxr::SdfLayerHandle& LayerHandle = LayerHandleWrapper.Get();
+	const pxr::SdfLayerRefPtr& LayerRefPtr = LayerHandleWrapper.Get();
 
 	// We want to keep track of all SdfLayers we find, but each layer should only appear once in a path to the root, or else we infinitely loop
-	FString Identifier = UsdToUnreal::ConvertString(LayerHandle->GetIdentifier());
-	if (ExploredFiles.Contains(Identifier))
+	FString FilePath = UsdToUnreal::ConvertString(LayerRefPtr->GetRealPath());
+	if (ExploredFiles.Contains(FilePath))
 	{
-		UE_LOG(LogUsdStage, Warning, TEXT("Detected infinite SubLayer recursion when visiting layer with identifier '%s'!"), *Identifier);
+		UE_LOG(LogUsd, Warning, TEXT("Detected infinite SubLayer recursion when visiting layer at path '%s'!"), *FilePath);
 		return nullptr;
 	}
-
-	FString FilePath = UsdToUnreal::ConvertString(LayerHandle->GetRealPath());
 	ExploredFiles.Add(FilePath);
 
-	FUsdLevelSequenceHelperImpl::FLayerTimeInfo LayerTimeInfo;
-	LayerTimeInfo.Identifier = Identifier;
-	LayerTimeInfo.FilePath = FilePath;
-	LayerTimeInfo.StartTimeCode      = LayerHandle->HasStartTimeCode() ? LayerHandle->GetStartTimeCode() : TOptional<double>();
-	LayerTimeInfo.EndTimeCode        = LayerHandle->HasEndTimeCode() ? LayerHandle->GetEndTimeCode() : TOptional<double>();
-	LayerTimeInfo.TimeCodesPerSecond = LayerHandle->HasTimeCodesPerSecond() ? LayerHandle->GetTimeCodesPerSecond() : TOptional<double>();
+	FString Identifier = UsdToUnreal::ConvertString(LayerRefPtr->GetIdentifier());
 
-	UE_LOG(LogUsdStage, Verbose, TEXT("Creating layer time info for layer '%s'. Original timecodes: '%s', '%s' and '%s'"),
+	FUsdLevelSequenceHelperImpl::FLayerTimeInfo LayerTimeInfo;
+	LayerTimeInfo.Identifier		 = Identifier;
+	LayerTimeInfo.FilePath			 = FilePath;
+	LayerTimeInfo.StartTimeCode      = LayerRefPtr->HasStartTimeCode() ? LayerRefPtr->GetStartTimeCode() : TOptional<double>();
+	LayerTimeInfo.EndTimeCode        = LayerRefPtr->HasEndTimeCode() ? LayerRefPtr->GetEndTimeCode() : TOptional<double>();
+	LayerTimeInfo.TimeCodesPerSecond = LayerRefPtr->HasTimeCodesPerSecond() ? LayerRefPtr->GetTimeCodesPerSecond() : TOptional<double>();
+
+	UE_LOG(LogUsd, Verbose, TEXT("Creating layer time info for layer '%s'. Original timecodes: '%s', '%s' and '%s'"),
 		*LayerTimeInfo.Identifier,
 		LayerTimeInfo.StartTimeCode.IsSet() ? *LexToString(LayerTimeInfo.StartTimeCode.GetValue()) : TEXT("null"),
 		LayerTimeInfo.EndTimeCode.IsSet() ? *LexToString(LayerTimeInfo.EndTimeCode.GetValue()) : TEXT("null"),
@@ -477,17 +482,18 @@ FUsdLevelSequenceHelperImpl::FLayerTimeInfo* FUsdLevelSequenceHelperImpl::Recurs
 	TUsdStore<std::vector<pxr::SdfLayerOffset>> SubLayerOffsetScales;
 	{
 		FScopedUsdAllocs USDAllocs;
-		SubLayerPaths = LayerHandle->GetSubLayerPaths();
-		SubLayerOffsetScales = LayerHandle->GetSubLayerOffsets();
+		SubLayerPaths = LayerRefPtr->GetSubLayerPaths();
+		SubLayerOffsetScales = LayerRefPtr->GetSubLayerOffsets();
 	}
 
-	for (int64 LayerIndex = 0; LayerIndex < static_cast<int64>(LayerHandle->GetNumSubLayerPaths()); ++LayerIndex)
+	for (int64 LayerIndex = 0; LayerIndex < static_cast<int64>(LayerRefPtr->GetNumSubLayerPaths()); ++LayerIndex)
 	{
-		TUsdStore<pxr::SdfLayerHandle> SubLayer;
+		TUsdStore<pxr::SdfLayerRefPtr> SubLayer;
 		{
 			FScopedUsdAllocs USDAllocs;
-			std::string RelativePath = pxr::SdfComputeAssetPathRelativeToLayer(LayerHandle, SubLayerPaths.Get()[LayerIndex]);
-			SubLayer = LayerHandle->Find(RelativePath);
+
+			std::string RelativePath = pxr::SdfComputeAssetPathRelativeToLayer(LayerRefPtr, SubLayerPaths.Get()[LayerIndex]);
+			SubLayer = pxr::SdfLayer::FindOrOpen(RelativePath);
 		}
 
 		if (!SubLayer.Get())
@@ -506,7 +512,7 @@ FUsdLevelSequenceHelperImpl::FLayerTimeInfo* FUsdLevelSequenceHelperImpl::Recurs
 
 		if (FUsdLevelSequenceHelperImpl::FLayerTimeInfo* SubLayerInfo = RecursivelyCreateLayerTimeInfo(SubLayer, ExploredFiles))
 		{
-			UE_LOG(LogUsdStage, Verbose, TEXT("Adding sublayer '%s' to layer '%s'. Offset: '%f', Scale: '%f'"),
+			UE_LOG(LogUsd, Verbose, TEXT("Adding sublayer '%s' to layer '%s'. Offset: '%f', Scale: '%f'"),
 				*SubLayerInfo->Identifier,
 				*LayerTimeInfo.Identifier,
 				SubOffset,
@@ -549,7 +555,7 @@ void FUsdLevelSequenceHelperImpl::RecursivelyPropagateTimeCodes(FUsdLevelSequenc
 	bool bHaveEndCode	= Info->EndTimeCode.IsSet();
 	if (bHaveStartCode && bHaveEndCode)
 	{
-		UE_LOG(LogUsdStage, Verbose, TEXT("RecursivelyPropagateTimeCodes: Aborting for layer '%s' as it already has '%s', '%s' and '%s' set"),
+		UE_LOG(LogUsd, Verbose, TEXT("RecursivelyPropagateTimeCodes: Aborting for layer '%s' as it already has '%s', '%s' and '%s' set"),
 			*Info->Identifier,
 			Info->StartTimeCode.IsSet() ? *LexToString(Info->StartTimeCode.GetValue()) : TEXT("null"),
 			Info->EndTimeCode.IsSet() ? *LexToString(Info->EndTimeCode.GetValue()) : TEXT("null"),
@@ -590,7 +596,7 @@ void FUsdLevelSequenceHelperImpl::RecursivelyPropagateTimeCodes(FUsdLevelSequenc
 		Info->EndTimeCode = MaxEndSeconds.GetValue() * TimeCodesPerSecond;
 	}
 
-	UE_LOG(LogUsdStage, Verbose, TEXT("RecursivelyPropagateTimeCodes: Finished for layer '%s': '%s', '%s' and '%s' set"),
+	UE_LOG(LogUsd, Verbose, TEXT("RecursivelyPropagateTimeCodes: Finished for layer '%s': '%s', '%s' and '%s' set"),
 		*Info->Identifier,
 		Info->StartTimeCode.IsSet() ? *LexToString(Info->StartTimeCode.GetValue()) : TEXT("null"),
 		Info->EndTimeCode.IsSet() ? *LexToString(Info->EndTimeCode.GetValue()) : TEXT("null"),
@@ -604,18 +610,18 @@ void FUsdLevelSequenceHelperImpl::UpdateInfoFromSection(FUsdLevelSequenceHelperI
 		return;
 	}
 
-	TUsdStore<pxr::SdfLayerHandle> Layer;
+	TUsdStore<pxr::SdfLayerRefPtr> Layer;
 	{
 		FScopedUsdAllocs Allocs;
-		Layer = MakeUsdStore<pxr::SdfLayerHandle>(pxr::SdfLayer::Find(UnrealToUsd::ConvertString(*Info->Identifier).Get()));
+		Layer = MakeUsdStore<pxr::SdfLayerRefPtr>(pxr::SdfLayer::FindOrOpen(UnrealToUsd::ConvertString(*Info->Identifier).Get()));
 		if (!Layer.Get())
 		{
-			UE_LOG(LogUsdStage, Warning, TEXT("Failed to update sublayer '%s'"), *Info->Identifier);
+			UE_LOG(LogUsd, Warning, TEXT("Failed to update sublayer '%s'"), *Info->Identifier);
 			return;
 		}
 	}
 
-	UE_LOG(LogUsdStage, Verbose, TEXT("Updating LevelSequence '%s' for sublayer '%s'"), *Sequence->GetName(), *Info->Identifier);
+	UE_LOG(LogUsd, Verbose, TEXT("Updating LevelSequence '%s' for sublayer '%s'"), *Sequence->GetName(), *Info->Identifier);
 
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	UMovieSceneSequence* SubSequence = Section->GetSequence();
@@ -673,7 +679,7 @@ void FUsdLevelSequenceHelperImpl::UpdateInfoFromSection(FUsdLevelSequenceHelperI
 	pxr::SdfLayerOffset NewLayerOffset{ModifiedOffset, ModifiedScale};
 	Layer.Get()->SetSubLayerOffset(NewLayerOffset, SubLayerIndex);
 
-	UE_LOG(LogUsdStage, Verbose, TEXT("\tNew OffsetScale: %f, %f"), NewLayerOffset.GetOffset(), NewLayerOffset.GetScale());
+	UE_LOG(LogUsd, Verbose, TEXT("\tNew OffsetScale: %f, %f"), NewLayerOffset.GetOffset(), NewLayerOffset.GetScale());
 }
 
 void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event)
@@ -731,7 +737,7 @@ void FUsdLevelSequenceHelper::InitLevelSequence(const pxr::UsdStageRefPtr& UsdSt
 {
 	if (UsdSequencerImpl.IsValid() && UsdStage)
 	{
-		UE_LOG(LogUsdStage, Verbose, TEXT("InitLevelSequence"));
+		UE_LOG(LogUsd, Verbose, TEXT("InitLevelSequence"));
 
 		UsdSequencerImpl->RebuildLayerTimeInfoCache(UsdStage);
 
@@ -748,7 +754,7 @@ void FUsdLevelSequenceHelper::UpdateLevelSequence(const pxr::UsdStageRefPtr& Usd
 {
 	if (UsdSequencerImpl.IsValid() && UsdStage)
 	{
-		UE_LOG(LogUsdStage, Verbose, TEXT("UpdateLevelSequence"));
+		UE_LOG(LogUsd, Verbose, TEXT("UpdateLevelSequence"));
 
 		FUsdLevelSequenceHelperImpl::FLayerTimeInfo* RootInfo = UsdSequencerImpl->GetRootLayerInfo();
 		RootInfo->StartTimeCode = UsdStage->GetStartTimeCode();

@@ -4,6 +4,7 @@
 
 #if USE_USD_SDK
 
+#include "USDLog.h"
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
@@ -17,8 +18,6 @@
 #include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "USDErrorUtils"
-
-DEFINE_LOG_CATEGORY(LogUsdErrorUtility);
 
 namespace UsdUtils
 {
@@ -59,7 +58,7 @@ namespace UsdUtils
 			 ++ErrorIter)
 		{
 			std::string ErrorStr = ErrorIter->GetErrorCodeAsString();
-			ErrorStr += " ";
+			ErrorStr += ": ";
 			ErrorStr += ErrorIter->GetCommentary();
 
 			// Add unique here as for some errors (e.g. parsing errors) USD can emit the exact same
@@ -89,7 +88,7 @@ namespace UsdUtils
 
 		for (const FString& Error : Errors)
 		{
-			UE_LOG(LogUsdErrorUtility, Error, TEXT("%s"), *Error);
+			UE_LOG(LogUsd, Error, TEXT("%s"), *Error);
 		}
 
 		return Errors.Num() > 0;

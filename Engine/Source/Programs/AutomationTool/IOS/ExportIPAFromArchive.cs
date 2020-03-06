@@ -44,6 +44,7 @@ public class ExportIPAFromArchive : BuildCommand
 	protected void CreateExportPlist(string OutputPath)
 	{
 		XmlDocument Doc = new XmlDocument();
+		Doc.XmlResolver = null;
 		Doc.Load(OptionsFile);
 
 		// select all entries via xpath

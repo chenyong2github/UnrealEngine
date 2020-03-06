@@ -716,7 +716,6 @@ enum class ERepParentFlags : uint32
 	IsZeroConstructible	= (1 << 6),	//! This property is ZeroConstructible.
 	IsFastArray			= (1 << 7),	//! This property is a FastArraySerializer. This can't be a ERepLayoutCmdType, because
 									//! these Custom Delta structs will have their inner properties tracked.
-	UsePushModel		= (1 << 8),	//! This object relies on PushModel, and can be skipped when not dirty.	
 };
 
 ENUM_CLASS_FLAGS(ERepParentFlags)
@@ -1015,13 +1014,6 @@ enum class ERepLayoutFlags : uint8
 };
 ENUM_CLASS_FLAGS(ERepLayoutFlags);
 
-enum class UE_DEPRECATED(4.24, "Use FRepLayout::IsEmpty() instead.") ERepLayoutState
-{
-	Uninitialized,	//! The RepLayout was never initiliazed, this should not be possible.
-	Empty,			//! The RepLayout was initialized, but doesn't have any RepCommands.
-					//! This can happen when replicating References to actors with no network state (e.g., Item Definitions, etc.).
-	Normal			//! The RepLayout was initialized, and contains commands.
-};
 
 /**
  * This class holds all replicated properties for a given type (either a UClass, UStruct, or UFunction).
@@ -1111,7 +1103,7 @@ enum class UE_DEPRECATED(4.24, "Use FRepLayout::IsEmpty() instead.") ERepLayoutS
  * and replication of the Object will be completely paused until the property bunches are acknowledged.
  * However, this will not affect other history items since they are still unreliable.
  */
-class ENGINE_VTABLE FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
+class FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 {
 private:
 
@@ -1292,19 +1284,6 @@ public:
 	 */
 	void CallRepNotifies(FReceivingRepState* RepState, UObject* Object) const;
 
-	/**
-	 * Called after an object has finished replicating its properties.
-	 *
-	 * @param RepState		The RepState associated with the Object.
-	 *						This is expected to be valid.
-	 * @param PacketRange	Range / IDs of the Packets sent containing the property data.
-	 * @param bReliable		Whether or not the data was sent in reliable bunches.
-	 */
-	void PostReplicate(
-		FSendingRepState* RESTRICT RepState,
-		FPacketIdRange& PacketRange,
-		bool bReliable) const;
-
 	template<ERepDataBufferType DataType>
 	void ValidateWithChecksum(TConstRepDataBuffer<DataType> Data, FBitArchive & Ar) const;
 
@@ -1443,13 +1422,6 @@ public:
 
 		return nullptr;
 	}
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-	UE_DEPRECATED(4.24, "Use GetFlags instead.")
-	const ERepLayoutState GetRepLayoutState() const;
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	const ERepLayoutFlags GetFlags() const
 	{
@@ -1815,14 +1787,9 @@ private:
 
 	/** Shared comparison to default state for multicast rpc */
 	TBitArray<> SharedInfoRPCParentsChanged;
+
+#if WITH_PUSH_MODEL
+	/** Properties that have push model enabled. */
+	TBitArray<> PushModelProperties;
+#endif
 };
-
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-inline const ERepLayoutState FRepLayout::GetRepLayoutState() const
-{
-	// Because our constructor is hidden, we're guaranteed to be initialized.
-	// We're either Empty or Normal.
-	return IsEmpty() ? ERepLayoutState::Empty : ERepLayoutState::Normal;
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS

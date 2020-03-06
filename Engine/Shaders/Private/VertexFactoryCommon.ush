@@ -49,6 +49,18 @@ float3 RotateLocalToWorld(float3 LocalDirection)
 		InvScale.z * Primitive.LocalToWorld[2].xyz * LocalDirection.zzz;
 }
 
+float3 RotateWorldToLocal(float3 WorldDirection)
+{
+	const float3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	float3x3 InvRot = {
+		InvScale.x * Primitive.LocalToWorld[0].xyz,
+		InvScale.y * Primitive.LocalToWorld[1].xyz,
+		InvScale.z * Primitive.LocalToWorld[2].xyz
+	};
+	InvRot = transpose(InvRot);
+	return mul(WorldDirection, InvRot);
+}
+
 // Octahedron Normal Vectors
 // [Cigolle 2014, "A Survey of Efficient Representations for Independent Unit Vectors"]
 //						Mean	Max

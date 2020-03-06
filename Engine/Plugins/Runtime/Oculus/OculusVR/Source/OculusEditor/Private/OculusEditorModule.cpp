@@ -84,6 +84,19 @@ void FOculusEditorModule::StartupModule()
 
 		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FOculusEditorModule::OnEngineLoopInitComplete);
 	}
+
+	// If UseAllowTearing CVar is present, set it to 0. UseAllowTearing causes performance issues on Rift if enabled.
+	IConsoleVariable* d3d11AllowTearing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D11.UseAllowTearing"));
+	if (d3d11AllowTearing)
+	{
+		d3d11AllowTearing->Set(0);
+	}
+
+	IConsoleVariable* d3d12AllowTearing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D12.UseAllowTearing"));
+	if (d3d12AllowTearing)
+	{
+		d3d12AllowTearing->Set(0);
+	}
 }
 
 void FOculusEditorModule::ShutdownModule()
@@ -163,7 +176,7 @@ FReply FOculusEditorModule::PluginClickFn(bool text)
 
 void FOculusEditorModule::PluginButtonClicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(OculusPerfTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(OculusPerfTabName);
 }
 
 void FOculusEditorModule::AddMenuExtension(FMenuBuilder& Builder)
@@ -193,13 +206,13 @@ TSharedRef<IDetailCustomization> FOculusHMDSettingsDetailsCustomization::MakeIns
 
 FReply FOculusHMDSettingsDetailsCustomization::PluginClickPerfFn(bool text)
 {
-	FGlobalTabmanager::Get()->InvokeTab(FOculusEditorModule::OculusPerfTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(FOculusEditorModule::OculusPerfTabName);
 	return FReply::Handled();
 }
 
 FReply FOculusHMDSettingsDetailsCustomization::PluginClickPlatFn(bool text)
 {
-	FGlobalTabmanager::Get()->InvokeTab(FOculusEditorModule::OculusPlatToolTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(FOculusEditorModule::OculusPlatToolTabName);
 	return FReply::Handled();
 }
 

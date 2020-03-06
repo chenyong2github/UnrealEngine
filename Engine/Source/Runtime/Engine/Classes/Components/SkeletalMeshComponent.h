@@ -50,10 +50,12 @@ typedef FOnSkelMeshTeleportedMultiCast::FDelegate FOnSkelMeshTeleported;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBoneTransformsFinalized);
 
+#if PHYSICS_INTERFACE_PHYSX
 namespace physx
 {
 	class PxAggregate;
 }
+#endif
 
 UENUM()
 enum class EAnimCurveType : uint8 

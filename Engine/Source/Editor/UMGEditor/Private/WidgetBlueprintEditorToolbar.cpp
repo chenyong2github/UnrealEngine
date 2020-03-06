@@ -134,7 +134,7 @@ void FWidgetBlueprintEditorToolbar::AddWidgetReflector(UToolMenu* InMenu)
 	Section.AddEntry(FToolMenuEntry::InitToolBarButton(
 		"OpenWidgetReflector",
 		FUIAction(
-			FExecuteAction::CreateLambda([=] { FGlobalTabmanager::Get()->InvokeTab(FTabId("WidgetReflector")); }),
+			FExecuteAction::CreateLambda([=] { FGlobalTabmanager::Get()->TryInvokeTab(FTabId("WidgetReflector")); }),
 			FCanExecuteAction()
 		)
 		, LOCTEXT("OpenWidgetReflector", "Widget Reflector")

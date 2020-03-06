@@ -12,12 +12,13 @@
 #include "VertexFactory.h"
 #include "ShaderCodeLibrary.h"
 
+IMPLEMENT_TYPE_LAYOUT(FShaderParameter);
+IMPLEMENT_TYPE_LAYOUT(FShaderResourceParameter);
+IMPLEMENT_TYPE_LAYOUT(FRWShaderParameter);
+IMPLEMENT_TYPE_LAYOUT(FShaderUniformBufferParameter);
+
 void FShaderParameter::Bind(const FShaderParameterMap& ParameterMap,const TCHAR* ParameterName,EShaderParameterFlags Flags)
 {
-#if UE_BUILD_DEBUG
-	bInitialized = true;
-#endif
-
 	if (!ParameterMap.FindParameterAllocation(ParameterName,BufferIndex,BaseIndex,NumBytes) && Flags == SPF_Mandatory)
 	{
 		if (!UE_LOG_ACTIVE(LogShaders, Log))
@@ -36,13 +37,6 @@ void FShaderParameter::Bind(const FShaderParameterMap& ParameterMap,const TCHAR*
 
 FArchive& operator<<(FArchive& Ar,FShaderParameter& P)
 {
-#if UE_BUILD_DEBUG
-	if (Ar.IsLoading())
-	{
-		P.bInitialized = true;
-	}
-#endif
-
 	uint16& PBufferIndex = P.BufferIndex;
 	return Ar << P.BaseIndex << P.NumBytes << PBufferIndex;
 }
@@ -50,10 +44,6 @@ FArchive& operator<<(FArchive& Ar,FShaderParameter& P)
 void FShaderResourceParameter::Bind(const FShaderParameterMap& ParameterMap,const TCHAR* ParameterName,EShaderParameterFlags Flags)
 {
 	uint16 UnusedBufferIndex = 0;
-
-#if UE_BUILD_DEBUG
-	bInitialized = true;
-#endif
 
 	if(!ParameterMap.FindParameterAllocation(ParameterName,UnusedBufferIndex,BaseIndex,NumResources) && Flags == SPF_Mandatory)
 	{
@@ -73,13 +63,6 @@ void FShaderResourceParameter::Bind(const FShaderParameterMap& ParameterMap,cons
 
 FArchive& operator<<(FArchive& Ar,FShaderResourceParameter& P)
 {
-#if UE_BUILD_DEBUG
-	if (Ar.IsLoading())
-	{
-		P.bInitialized = true;
-	}
-#endif
-
 	return Ar << P.BaseIndex << P.NumResources;
 }
 
@@ -103,13 +86,9 @@ void FShaderUniformBufferParameter::Bind(const FShaderParameterMap& ParameterMap
 	uint16 UnusedBaseIndex = 0;
 	uint16 UnusedNumBytes = 0;
 
-#if UE_BUILD_DEBUG
-	bInitialized = true;
-#endif
-
 	if(!ParameterMap.FindParameterAllocation(ParameterName,BaseIndex,UnusedBaseIndex,UnusedNumBytes))
 	{
-		bIsBound = false;
+		BaseIndex = 0xffff;
 		if(Flags == SPF_Mandatory)
 		{
 			if (!UE_LOG_ACTIVE(LogShaders, Log))
@@ -127,7 +106,7 @@ void FShaderUniformBufferParameter::Bind(const FShaderParameterMap& ParameterMap
 	}
 	else
 	{
-		bIsBound = true;
+		check(IsBound());
 	}
 }
 
@@ -411,6 +390,7 @@ void FShaderType::DumpDebugInfo()
 		break;
 	}
 
+#if 0
 	UE_LOG(LogConsoleResponse, Display, TEXT("  --- %d shaders"), ShaderIdMap.Num());
 	int32 Index = 0;
 	for (auto& KeyValue : ShaderIdMap)
@@ -420,7 +400,7 @@ void FShaderType::DumpDebugInfo()
 		Shader->DumpDebugInfo();
 		Index++;
 	}
-
+#endif
 }
 
 void FShaderType::GetShaderStableKeyParts(FStableShaderKeyAndValue& SaveKeyVal)
@@ -448,24 +428,6 @@ void FShaderType::GetShaderStableKeyParts(FStableShaderKeyAndValue& SaveKeyVal)
 	SaveKeyVal.ShaderType = FName(GetName() ? GetName() : TEXT("null"));
 #endif
 }
-
-void FShaderType::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform)
-{
-#if WITH_EDITOR
-	FStableShaderKeyAndValue SaveKeyVal;
-	if (ShaderIdMap.Num())
-	{
-		for (auto& KeyValue : ShaderIdMap)
-		{
-			FShader* Shader = KeyValue.Value;
-			check(Shader);
-			check(Shader->Type == this);
-			Shader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
-		}
-	}
-#endif
-}
-
 
 void FVertexFactoryType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform)
 {

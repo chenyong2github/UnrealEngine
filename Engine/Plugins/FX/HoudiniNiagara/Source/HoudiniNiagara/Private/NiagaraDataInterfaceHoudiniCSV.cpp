@@ -2211,54 +2211,34 @@ void FNiagaraDataInterfaceProxyHoudiniCSV::AcceptStaticDataUpdate(FNiagaraDIHoud
 // Parameters used for GPU sim compatibility
 struct FNiagaraDataInterfaceParametersCS_HoudiniCSV : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_HoudiniCSV, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		NumberOfRows.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::NumberOfRowsBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		NumberOfColumns.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::NumberOfColumnsBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		NumberOfPoints.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::NumberOfPointsBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		NumberOfRows.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::NumberOfRowsBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		NumberOfColumns.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::NumberOfColumnsBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		NumberOfPoints.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::NumberOfPointsBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 		
-		FloatValuesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::FloatValuesBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		FloatValuesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::FloatValuesBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		SpecialAttributesColumnIndexesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::SpecialAttributesColumnIndexesBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));		
+		SpecialAttributesColumnIndexesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::SpecialAttributesColumnIndexesBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));		
 
-		SpawnTimesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::SpawnTimesBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		LifeValuesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::LifeValuesBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		PointTypesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::PointTypesBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		SpawnTimesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::SpawnTimesBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		LifeValuesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::LifeValuesBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		PointTypesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::PointTypesBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		MaxNumberOfIndexesPerPoint.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::MaxNumberOfIndexesPerPointBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		PointValueIndexesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::PointValueIndexesBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		MaxNumberOfIndexesPerPoint.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::MaxNumberOfIndexesPerPointBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		PointValueIndexesBuffer.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::PointValueIndexesBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		LastSpawnedPointId.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::LastSpawnedPointIdBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		LastSpawnTime.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::LastSpawnTimeBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		LastSpawnedPointId.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::LastSpawnedPointIdBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		LastSpawnTime.Bind(ParameterMap, *(UNiagaraDataInterfaceHoudiniCSV::LastSpawnTimeBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
-	virtual void Serialize(FArchive& Ar)override
-	{
-		Ar << Version;
-
-		Ar << NumberOfRows;
-		Ar << NumberOfColumns;
-		Ar << NumberOfPoints;
-
-		Ar << FloatValuesBuffer;
-		Ar << SpecialAttributesColumnIndexesBuffer;
-
-		Ar << SpawnTimesBuffer;
-		Ar << LifeValuesBuffer;
-		Ar << PointTypesBuffer;
-
-		Ar << MaxNumberOfIndexesPerPoint;
-		Ar << PointValueIndexesBuffer;
-
-		Ar << LastSpawnedPointId;
-		Ar << LastSpawnTime;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check( IsInRenderingThread() );
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyHoudiniCSV* HoudiniDI = static_cast<FNiagaraDataInterfaceProxyHoudiniCSV*>(Context.DataInterface);
 		if ( !HoudiniDI )
 		{
@@ -2284,30 +2264,28 @@ struct FNiagaraDataInterfaceParametersCS_HoudiniCSV : public FNiagaraDataInterfa
 	}
 
 private:
+	LAYOUT_FIELD(FShaderParameter, NumberOfRows);
+	LAYOUT_FIELD(FShaderParameter, NumberOfColumns);
+	LAYOUT_FIELD(FShaderParameter, NumberOfPoints);
 
-	FShaderParameter NumberOfRows;
-	FShaderParameter NumberOfColumns;
-	FShaderParameter NumberOfPoints;
+	LAYOUT_FIELD(FShaderResourceParameter, FloatValuesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, SpecialAttributesColumnIndexesBuffer);
 
-	FShaderResourceParameter FloatValuesBuffer;
-	FShaderResourceParameter SpecialAttributesColumnIndexesBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, SpawnTimesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, LifeValuesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, PointTypesBuffer);
 
-	FShaderResourceParameter SpawnTimesBuffer;
-	FShaderResourceParameter LifeValuesBuffer;
-	FShaderResourceParameter PointTypesBuffer;
+	LAYOUT_FIELD(FShaderParameter, MaxNumberOfIndexesPerPoint);
+	LAYOUT_FIELD(FShaderResourceParameter, PointValueIndexesBuffer);
 
-	FShaderParameter MaxNumberOfIndexesPerPoint;
-	FShaderResourceParameter PointValueIndexesBuffer;
+	LAYOUT_FIELD(FShaderParameter, LastSpawnedPointId);
+	LAYOUT_FIELD(FShaderParameter, LastSpawnTime);
 
-	FShaderParameter LastSpawnedPointId;
-	FShaderParameter LastSpawnTime;
-
-	uint32 Version = 1;
+	LAYOUT_FIELD_INITIALIZED(uint32, Version, 1);
 };
 
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceHoudiniCSV::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_HoudiniCSV();
-}
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_HoudiniCSV);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceHoudiniCSV, FNiagaraDataInterfaceParametersCS_HoudiniCSV);
 
 #undef LOCTEXT_NAMESPACE

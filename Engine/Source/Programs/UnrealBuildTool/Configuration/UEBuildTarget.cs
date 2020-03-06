@@ -26,11 +26,22 @@ namespace UnrealBuildTool
 		private int Id;
 
 		// shared string instance registry - pass in a delegate to create a new one with a name that wasn't made yet
-		private static UniqueStringRegistry StringRegistry = new UniqueStringRegistry();
+		private static UniqueStringRegistry StringRegistry;
+
+		// #jira UE-88908 if parts of a partial struct have each static member variables, their initialization order does not appear guaranteed
+		// here this means initializing "StringRegistry" directly to "new UniqueStringRegistry()" may not be executed before FindOrAddByName() has been called as part of initializing a static member variable of another part of the partial struct
+		private static UniqueStringRegistry GetUniqueStringRegistry()
+		{
+			if (StringRegistry == null)
+			{
+				StringRegistry = new UniqueStringRegistry();
+			}
+			return StringRegistry;
+		}
 
 		private UnrealTargetPlatform(string Name)
 		{
-			Id = StringRegistry.FindOrAddByName(Name);
+			Id = GetUniqueStringRegistry().FindOrAddByName(Name);
 		}
 
 		private UnrealTargetPlatform(int InId)
@@ -55,7 +66,7 @@ namespace UnrealBuildTool
 		/// <param name="Context"></param>
 		public UnrealTargetPlatform(SerializationInfo Info, StreamingContext Context)
 		{
-			Id = StringRegistry.FindOrAddByName((string)Info.GetValue("Name", typeof(string)));
+			Id = GetUniqueStringRegistry().FindOrAddByName((string)Info.GetValue("Name", typeof(string)));
 		}
 
 		/// <summary>
@@ -65,7 +76,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static private UnrealTargetPlatform FindOrAddByName(string Name)
 		{
-			return new UnrealTargetPlatform(StringRegistry.FindOrAddByName(Name));
+			return new UnrealTargetPlatform(GetUniqueStringRegistry().FindOrAddByName(Name));
 		}
 
 		/// <summary>
@@ -114,7 +125,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return StringRegistry.GetStringForId(Id);
+			return GetUniqueStringRegistry().GetStringForId(Id);
 		}
 
 		/// <summary>
@@ -125,9 +136,9 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static public bool TryParse(string Name, out UnrealTargetPlatform Platform)
 		{
-			if (StringRegistry.HasString(Name))
+			if (GetUniqueStringRegistry().HasString(Name))
 			{
-				Platform.Id = StringRegistry.FindOrAddByName(Name);
+				Platform.Id = GetUniqueStringRegistry().FindOrAddByName(Name);
 				return true;
 			}
 
@@ -142,13 +153,13 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static public UnrealTargetPlatform Parse(string Name)
 		{
-			if (StringRegistry.HasString(Name))
+			if (GetUniqueStringRegistry().HasString(Name))
 			{
 				return new UnrealTargetPlatform(Name);
 			}
 
 			throw new BuildException(string.Format("The platform name {0} is not a valid platform name. Valid names are ({1})", Name, 
-				string.Join(",", StringRegistry.GetStringNames())));
+				string.Join(",", GetUniqueStringRegistry().GetStringNames())));
 		}
 
 
@@ -158,7 +169,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static UnrealTargetPlatform[] GetValidPlatforms()
 		{
-			return Array.ConvertAll(StringRegistry.GetStringIds(), x => new UnrealTargetPlatform(x));
+			return Array.ConvertAll(GetUniqueStringRegistry().GetStringIds(), x => new UnrealTargetPlatform(x));
 		}
 
 		/// <summary>
@@ -167,7 +178,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static string[] GetValidPlatformNames()
 		{
-			return StringRegistry.GetStringNames();
+			return GetUniqueStringRegistry().GetStringNames();
 		}
 
 		/// <summary>
@@ -177,7 +188,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static bool IsValidName(string Name)
 		{
-			return StringRegistry.HasString(Name);
+			return GetUniqueStringRegistry().HasString(Name);
 		}
 
 		/// <summary>
@@ -260,11 +271,6 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Switch = FindOrAddByName("Switch");
 
 		/// <summary>
-		/// NDA'd platform Quail
-		/// </summary>
-		public static UnrealTargetPlatform Quail = FindOrAddByName("Quail");
-
-		/// <summary>
 		/// Confidential platform
 		/// </summary>
 		public static UnrealTargetPlatform Lumin = FindOrAddByName("Lumin");
@@ -306,11 +312,21 @@ namespace UnrealBuildTool
 		private int Id;
 
 		// shared string instance registry - pass in a delegate to create a new one with a name that wasn't made yet
-		private static UniqueStringRegistry StringRegistry = new UniqueStringRegistry();
+		private static UniqueStringRegistry StringRegistry;
+
+		// #jira UE-88908 (see above)
+		private static UniqueStringRegistry GetUniqueStringRegistry()
+		{
+			if (StringRegistry == null)
+			{
+				StringRegistry = new UniqueStringRegistry();
+			}
+			return StringRegistry;
+		}
 
 		private UnrealPlatformGroup(string Name)
 		{
-			Id = StringRegistry.FindOrAddByName(Name);
+			Id = GetUniqueStringRegistry().FindOrAddByName(Name);
 		}
 
 		private UnrealPlatformGroup(int InId)
@@ -335,7 +351,7 @@ namespace UnrealBuildTool
 		/// <param name="Context"></param>
 		public UnrealPlatformGroup(SerializationInfo Info, StreamingContext Context)
 		{
-			Id = StringRegistry.FindOrAddByName((string)Info.GetValue("Name", typeof(string)));
+			Id = GetUniqueStringRegistry().FindOrAddByName((string)Info.GetValue("Name", typeof(string)));
 		}
 
 		/// <summary>
@@ -345,7 +361,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static private UnrealPlatformGroup FindOrAddByName(string Name)
 		{
-			return new UnrealPlatformGroup(StringRegistry.FindOrAddByName(Name));
+			return new UnrealPlatformGroup(GetUniqueStringRegistry().FindOrAddByName(Name));
 		}
 
 		/// <summary>
@@ -395,7 +411,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return StringRegistry.GetStringForId(Id);
+			return GetUniqueStringRegistry().GetStringForId(Id);
 		}
 		/// <summary>
 		/// 
@@ -403,7 +419,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static UnrealPlatformGroup[] GetValidGroups()
 		{
-			return Array.ConvertAll(StringRegistry.GetStringIds(), x => new UnrealPlatformGroup(x));
+			return Array.ConvertAll(GetUniqueStringRegistry().GetStringIds(), x => new UnrealPlatformGroup(x));
 		}
 
 		/// <summary>
@@ -412,7 +428,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static string[] GetValidGroupNames()
 		{
-			return StringRegistry.GetStringNames();
+			return GetUniqueStringRegistry().GetStringNames();
 		}
 
 		/// <summary>
@@ -422,7 +438,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static bool IsValidName(string Name)
 		{
-			return StringRegistry.HasString(Name);
+			return GetUniqueStringRegistry().HasString(Name);
 		}
 
 
@@ -473,9 +489,20 @@ namespace UnrealBuildTool
 		public static UnrealPlatformGroup Sony = FindOrAddByName("Sony");
 
 		/// <summary>
+		/// XboxCommon group
+		/// </summary>
+		public static UnrealPlatformGroup XboxCommon = FindOrAddByName("XboxCommon");
+
+		/// <summary>
 		/// Target all desktop platforms (Win64, Mac, Linux) simultaneously
 		/// </summary>
 		public static UnrealPlatformGroup AllDesktop = FindOrAddByName("AllDesktop");
+
+		/// <summary>
+		/// Desktop group - used by UnrealPlatformClass.Desktop
+		/// </summary>
+		public static UnrealPlatformGroup Desktop = FindOrAddByName("Desktop");
+
 	}
 
 	/// <summary>
@@ -832,7 +859,7 @@ namespace UnrealBuildTool
 			// Throw an exception if they don't match
 			if(!bFieldsMatch)
 			{
-				throw new BuildException("{0} modifies the value of {1}. This is not allowed, as {0} has build products in common with {2}.\nRemove the modified setting, change {0} to use a unique build environment by setting 'BuildEnvironment = TargetBuildEnvironment.Unique;' in the {3} constructor, or set bOverrideSharedBuildEnvironment = true to force this setting on.", ThisTargetName, FieldName, BaseTargetName, RulesType.Name);
+				throw new BuildException("{0} modifies the value of {1}. This is not allowed, as {0} has build products in common with {2}.\nRemove the modified setting, change {0} to use a unique build environment by setting 'BuildEnvironment = TargetBuildEnvironment.Unique;' in the {3} constructor, or set bOverrideBuildEnvironment = true to force this setting on.", ThisTargetName, FieldName, BaseTargetName, RulesType.Name);
 			}
 		}
 
@@ -1623,7 +1650,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.HoloLens;
+					IsCurrentPlatform = Platform.IsInGroup(UnrealPlatformGroup.Windows) || Platform == UnrealTargetPlatform.HoloLens;
 				}
 
 				if (IsCurrentPlatform)
@@ -1688,7 +1715,7 @@ namespace UnrealBuildTool
 			List<UEBuildBinary> BuildBinaries = Binaries;
 			if (SingleFileToCompile != null)
 			{
-				BuildBinaries = Binaries.Where(x => x.Modules.Any(y => SingleFileToCompile.IsUnderDirectory(y.ModuleDirectory))).ToList();
+				BuildBinaries = Binaries.Where(x => x.Modules.Any(y => y.ContainsFile(SingleFileToCompile))).ToList();
 				if (BuildBinaries.Count == 0)
 				{
 					throw new BuildException("Couldn't find any module containing {0} in {1}.", SingleFileToCompile, TargetName);
@@ -1713,6 +1740,8 @@ namespace UnrealBuildTool
 			{
 				Binary.PrepareRuntimeDependencies(RuntimeDependencies, RuntimeDependencyTargetFileToSourceFile, ExeDir);
 			}
+			TargetToolChain.PrepareRuntimeDependencies(RuntimeDependencies, RuntimeDependencyTargetFileToSourceFile, ExeDir);
+
 			foreach(KeyValuePair<FileReference, FileReference> Pair in RuntimeDependencyTargetFileToSourceFile)
 			{
 				if(!UnrealBuildTool.IsFileInstalled(Pair.Key))
@@ -2038,24 +2067,7 @@ namespace UnrealBuildTool
 			FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
 			FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
 
-			Action CopyAction = new Action(ActionType.BuildProject);
-			CopyAction.CommandDescription = "Copy";
-			CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
-			if(BuildHostPlatform.Current.ShellType == ShellType.Cmd)
-			{
-				CopyAction.CommandArguments = String.Format("/C \"copy /Y \"{0}\" \"{1}\" 1>nul\"", SourceFile, TargetFile);
-			}
-			else
-			{
-				CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
-			}
-			CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-			CopyAction.PrerequisiteItems.Add(SourceFileItem);
-			CopyAction.ProducedItems.Add(TargetFileItem);
-			CopyAction.DeleteItems.Add(TargetFileItem);
-			CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
-			CopyAction.bCanExecuteRemotely = false;
-			Actions.Add(CopyAction);
+			Actions.Add(Action.CreateCopyAction(SourceFileItem, TargetFileItem));
 
 			return TargetFileItem;
 		}
@@ -2176,7 +2188,7 @@ namespace UnrealBuildTool
 				Writer.WriteArrayEnd();
 
 				Writer.WriteObjectStart("Modules");
-				foreach(UEBuildModule Module in Modules.Values)
+				foreach (UEBuildModule Module in Modules.Values)
 				{
 					Writer.WriteObjectStart(Module.Name);
 					Module.ExportJson(Module.Binary?.OutputDir, GetExecutableDir(), Writer);
@@ -2202,7 +2214,7 @@ namespace UnrealBuildTool
 			List<string> Definitions = new List<string>(GlobalCompileEnvironment.Definitions);
 			foreach(UEBuildModule Module in Binary.Modules)
 			{
-				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), false);
+				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), new List<FileItem>(), false);
 			}
 
 			// Write the header
@@ -3225,7 +3237,8 @@ namespace UnrealBuildTool
 							UEBuildModuleCPP Module = FindOrCreateCppModuleByName(ModuleInfo.Name, PluginReferenceChain);
 							if(!Instance.Modules.Contains(Module))
 							{
-								if (!Module.RulesFile.IsUnderDirectory(Info.Directory))
+								// This could be in a child plugin so scan thorugh those as well
+								if (!Module.RulesFile.IsUnderDirectory(Info.Directory) && !Info.ChildFiles.Any(ChildFile => Module.RulesFile.IsUnderDirectory(ChildFile.Directory)))
 								{
 									throw new BuildException("Plugin '{0}' (referenced via {1}) does not contain the '{2}' module, but lists it in '{3}'.", Info.Name, ReferenceChain, ModuleInfo.Name, Info.File);
 								}
@@ -3310,14 +3323,22 @@ namespace UnrealBuildTool
 			}
 
 			// Construct the output paths for this target's executable
-			DirectoryReference OutputDirectory;
-			if (bCompileMonolithic || !bUseSharedBuildEnvironment)
+			DirectoryReference OutputDirectory = UnrealBuildTool.EngineDirectory;
+
+			bool bOutputToPlatformExtensionDirectory = Rules.File.IsUnderDirectory(UnrealBuildTool.EnginePlatformExtensionsDirectory) || Rules.File.IsUnderDirectory(UnrealBuildTool.ProjectPlatformExtensionsDirectory(ProjectDirectory));
+			bool bOutputToProjectDirectory = (bCompileMonolithic || !bUseSharedBuildEnvironment) && (ProjectDirectory != UnrealBuildTool.EngineDirectory);
+			
+			if (bOutputToPlatformExtensionDirectory && bOutputToProjectDirectory)
+			{
+				OutputDirectory = UnrealBuildTool.GetAllProjectDirectories(ProjectDirectory).First(x => x != ProjectDirectory && Rules.File.IsUnderDirectory(x));
+			}
+			else if(bOutputToPlatformExtensionDirectory)
+			{
+				OutputDirectory = UnrealBuildTool.GetAllEngineDirectories().First(x => x != UnrealBuildTool.EngineDirectory && Rules.File.IsUnderDirectory(x));
+			} 
+			else if (bOutputToProjectDirectory)
 			{
 				OutputDirectory = ProjectDirectory;
-			}
-			else
-			{
-				OutputDirectory = UnrealBuildTool.EngineDirectory;
 			}
 
 			bool bCompileAsDLL = Rules.bShouldCompileAsDLL && bCompileMonolithic;
@@ -3936,7 +3957,7 @@ namespace UnrealBuildTool
 						);
 
 				case ModuleRules.ModuleType.External:
-					return new UEBuildModuleExternal(RulesObject);
+					return new UEBuildModuleExternal(RulesObject, GetModuleIntermediateDirectory(RulesObject));
 
 				default:
 					throw new BuildException("Unrecognized module type specified by 'Rules' object {0}", RulesObject.ToString());

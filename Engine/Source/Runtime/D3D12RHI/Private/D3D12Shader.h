@@ -190,6 +190,8 @@ public:
 class FD3D12RayTracingShader : public FRHIRayTracingShader, public FD3D12ShaderData
 {
 public:
+	explicit FD3D12RayTracingShader(EShaderFrequency InFrequency) : FRHIRayTracingShader(InFrequency) {}
+
 	/** The shader's bytecode. */
 	FD3D12ShaderBytecode ShaderBytecode;
 

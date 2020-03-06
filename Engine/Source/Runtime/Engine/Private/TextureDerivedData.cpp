@@ -27,6 +27,7 @@
 #include "Engine/VolumeTexture.h"
 #include "VT/VirtualTextureBuildSettings.h"
 #include "VT/VirtualTextureBuiltData.h"
+#include "HAL/FileManager.h"
 
 #if WITH_EDITOR
 
@@ -1079,16 +1080,47 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 		{
 			if (OutMipData != nullptr)
 			{
-#if PLATFORM_SUPPORTS_TEXTURE_STREAMING && !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+				if (Mip.BulkData.IsInlined())
+				{
+					Mip.BulkData.GetCopy(&OutMipData[MipIndex - FirstMipToLoad], true);
+				}
+				else
+				{
+					check(Texture);
+					FString FileName;
+					verify(Texture->GetMipDataFilename(MipIndex, FileName));
+
+					check(FileName.EndsWith(TEXT(".ubulk")) || FileName.EndsWith(TEXT(".uptnl")));
+					check(!Mip.BulkData.IsStoredCompressedOnDisk() && Mip.BulkData.GetBulkDataSize() > 0);
+
+					FArchive* Ar = IFileManager::Get().CreateFileReader(*FileName, FILEREAD_Silent);
+					if (!Ar)
+					{
+						continue;
+					}
+
+					void*& Dest = OutMipData[MipIndex - FirstMipToLoad];
+					if (!Dest)
+					{
+						Dest = FMemory::Malloc(Mip.BulkData.GetBulkDataSize());
+					}
+					Ar->Seek(Mip.BulkData.GetBulkDataOffsetInFile());
+					Ar->Serialize(Dest, Mip.BulkData.GetBulkDataSize());
+					delete Ar;
+				}
+#else
+#if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 				// We want to make sure that any non-streamed mips are coming from the texture asset file, and not from an external bulk file.
 				// But because "r.TextureStreaming" is driven by the project setting as well as the command line option "-NoTextureStreaming", 
 				// is it possible for streaming mips to be loaded in non streaming ways.
 				if (CVarSetTextureStreaming.GetValueOnAnyThread() != 0)
 				{
-					UE_CLOG(Mip.BulkData.InSeperateFile(), LogTexture, Error, TEXT("Loading non-streamed mips from an external bulk file.  This is not desireable.  File %s"), *(Mip.BulkData.GetFilename() ) );
+					UE_CLOG(Mip.BulkData.IsInSeperateFile(), LogTexture, Error, TEXT("Loading non-streamed mips from an external bulk file.  This is not desireable.  File %s"), *(Mip.BulkData.GetFilename() ) );
 				}
 #endif
 				Mip.BulkData.GetCopy(&OutMipData[MipIndex - FirstMipToLoad], true);
+#endif
 			}
 			NumMipsCached++;
 		}
@@ -1148,7 +1180,7 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 
 		for (const FTexture2DMipMap& Mip : Mips)
 		{
-			if ( Mip.BulkData.InSeperateFile() || !Mip.BulkData.IsInlined() )
+			if ( Mip.BulkData.IsInSeperateFile() || !Mip.BulkData.IsInlined() )
 			{
 				--NumNonStreamingMips;
 			}

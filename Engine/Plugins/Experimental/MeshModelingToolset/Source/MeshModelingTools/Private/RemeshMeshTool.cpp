@@ -111,7 +111,6 @@ void URemeshMeshTool::Setup()
 
 	OriginalMesh = MakeShared<FDynamicMesh3>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.bPrintDebugMessages = true;
 	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
 
 	Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());

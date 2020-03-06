@@ -166,100 +166,6 @@ static EColorWriteMask TranslateWriteMask(MTLColorWriteMask WriteMask)
 	return (EColorWriteMask)Result;
 }
 
-static bool operator==(const FSamplerStateInitializerRHI& Left, const FSamplerStateInitializerRHI& Right)
-{
-	bool bSame = Left.Filter == Right.Filter
-	&& Left.MaxAnisotropy == Right.MaxAnisotropy
-	&& Left.AddressU == Right.AddressU
-	&& Left.AddressV == Right.AddressV
-	&& Left.AddressW == Right.AddressW
-	&& Left.MinMipLevel == Right.MinMipLevel
-	&& Left.MaxMipLevel == Right.MaxMipLevel
-	&& Left.SamplerComparisonFunction == Right.SamplerComparisonFunction
-	&& Left.BorderColor == Right.BorderColor;
-	
-	return bSame;
-}
-
-static uint32 GetTypeHash(const FSamplerStateInitializerRHI& Initializer)
-{
-	uint32 Hash = FCrc::MemCrc32(&Initializer.Filter, sizeof(Initializer.Filter));
-	Hash = FCrc::MemCrc32(&Initializer.MaxAnisotropy, sizeof(Initializer.MaxAnisotropy), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AddressU, sizeof(Initializer.AddressU), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AddressV, sizeof(Initializer.AddressV), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AddressW, sizeof(Initializer.AddressW), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.MinMipLevel, sizeof(Initializer.MinMipLevel), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.MaxMipLevel, sizeof(Initializer.MaxMipLevel), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.SamplerComparisonFunction, sizeof(Initializer.SamplerComparisonFunction), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.BorderColor, sizeof(Initializer.BorderColor), Hash);
-	
-	return Hash;
-}
-
-static bool operator==(const FDepthStencilStateInitializerRHI& Left, const FDepthStencilStateInitializerRHI& Right)
-{
-	bool bSame = Left.bEnableDepthWrite == Right.bEnableDepthWrite
-	&& Left.DepthTest == Right.DepthTest
-	&& Left.FrontFaceStencilTest == Right.FrontFaceStencilTest
-	&& Left.FrontFaceStencilFailStencilOp == Right.FrontFaceStencilFailStencilOp
-	&& Left.FrontFaceDepthFailStencilOp == Right.FrontFaceDepthFailStencilOp
-	&& Left.FrontFacePassStencilOp == Right.FrontFacePassStencilOp
-	&& Left.bEnableBackFaceStencil == Right.bEnableBackFaceStencil
-	&& Left.BackFaceStencilTest == Right.BackFaceStencilTest
-	&& Left.BackFaceStencilFailStencilOp == Right.BackFaceStencilFailStencilOp
-	&& Left.BackFaceDepthFailStencilOp == Right.BackFaceDepthFailStencilOp
-	&& Left.BackFacePassStencilOp == Right.BackFacePassStencilOp
-	&& Left.StencilReadMask == Right.StencilReadMask
-	&& Left.StencilWriteMask == Right.StencilWriteMask;
-	
-	return bSame;
-}
-
-static uint32 GetTypeHash(const FDepthStencilStateInitializerRHI& Initializer)
-{
-	uint32 Hash = FCrc::MemCrc32(&Initializer.bEnableDepthWrite, sizeof(Initializer.bEnableDepthWrite));
-	Hash = FCrc::MemCrc32(&Initializer.DepthTest, sizeof(Initializer.DepthTest), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.FrontFaceStencilTest, sizeof(Initializer.FrontFaceStencilTest), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.FrontFaceStencilFailStencilOp, sizeof(Initializer.FrontFaceStencilFailStencilOp), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.FrontFaceDepthFailStencilOp, sizeof(Initializer.FrontFaceDepthFailStencilOp), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.FrontFacePassStencilOp, sizeof(Initializer.FrontFacePassStencilOp), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.bEnableBackFaceStencil, sizeof(Initializer.bEnableBackFaceStencil), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.BackFaceStencilTest, sizeof(Initializer.BackFaceStencilTest), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.BackFaceStencilFailStencilOp, sizeof(Initializer.BackFaceStencilFailStencilOp), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.BackFaceDepthFailStencilOp, sizeof(Initializer.BackFaceDepthFailStencilOp), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.BackFacePassStencilOp, sizeof(Initializer.BackFacePassStencilOp), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.StencilReadMask, sizeof(Initializer.StencilReadMask), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.StencilWriteMask, sizeof(Initializer.StencilWriteMask), Hash);
-	
-	return Hash;
-}
-
-static bool operator==(const FBlendStateInitializerRHI::FRenderTarget& Left, const FBlendStateInitializerRHI::FRenderTarget& Right)
-{
-	bool bSame = Left.ColorBlendOp == Right.ColorBlendOp
-	&& Left.ColorDestBlend == Right.ColorDestBlend
-	&& Left.ColorSrcBlend == Right.ColorSrcBlend
-	&& Left.AlphaBlendOp == Right.AlphaBlendOp
-	&& Left.AlphaDestBlend == Right.AlphaDestBlend
-	&& Left.AlphaSrcBlend == Right.AlphaSrcBlend
-	&& Left.ColorWriteMask == Right.ColorWriteMask;
-	
-	return bSame;
-}
-
-static uint32 GetTypeHash(const FBlendStateInitializerRHI::FRenderTarget& Initializer)
-{
-	uint32 Hash = FCrc::MemCrc32(&Initializer.ColorBlendOp, sizeof(Initializer.ColorBlendOp));
-	Hash = FCrc::MemCrc32(&Initializer.ColorDestBlend, sizeof(Initializer.ColorDestBlend), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.ColorSrcBlend, sizeof(Initializer.ColorSrcBlend), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AlphaBlendOp, sizeof(Initializer.AlphaBlendOp), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AlphaDestBlend, sizeof(Initializer.AlphaDestBlend), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.AlphaSrcBlend, sizeof(Initializer.AlphaSrcBlend), Hash);
-	Hash = FCrc::MemCrc32(&Initializer.ColorWriteMask, sizeof(Initializer.ColorWriteMask), Hash);
-	
-	return Hash;
-}
-
 template <typename InitializerType, typename StateType>
 class FMetalStateObjectCache
 {
@@ -530,8 +436,8 @@ FMetalBlendState::FMetalBlendState(const FBlendStateInitializerRHI& Initializer)
 		{
 			Key = &BlendSettingsToUniqueKeyMap.Add(BlendBitMask, NextKey++);
 
-			// only giving 5 bits to the key, since we need to pack a bunch of them into 64 bits
-			checkf(NextKey < 32, TEXT("Too many unique blend states to fit into the PipelineStateHash"));
+			// only giving limited bits to the key, since we need to pack 8 of them into a key
+			checkf(NextKey < (1 << NumBits_BlendState), TEXT("Too many unique blend states to fit into the PipelineStateHash [%d allowed]"), 1 << NumBits_BlendState);
 		}
 		// set the key
 		RenderTargetStates[RenderTargetIndex].BlendStateKey = *Key;

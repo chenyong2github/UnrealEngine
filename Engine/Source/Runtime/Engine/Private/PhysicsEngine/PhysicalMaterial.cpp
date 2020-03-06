@@ -12,7 +12,7 @@
 #include "PhysicalMaterials/PhysicalMaterialPropertyBase.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	#include "PhysicsEngine/PhysXSupport.h"
 #endif // WITH_PHYSX
 
@@ -28,12 +28,13 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	Restitution = 0.3f;
 	RaiseMassToPower = 0.75f;
 	Density = 1.0f;
+	SleepLinearVelocityThreshold = 0.001f;
+	SleepAngularVelocityThreshold = 0.0087f;
+	SleepCounterThreshold = 0;
 	DestructibleDamageThresholdScale = 1.0f;
 	TireFrictionScale = 1.0f;
 	bOverrideFrictionCombineMode = false;
-#if WITH_PHYSX
-	PhysxUserData = FPhysxUserData(this);
-#endif
+	UserData = FChaosUserData(this);
 }
 
 #if WITH_EDITOR
@@ -86,7 +87,7 @@ FPhysicsMaterialHandle& UPhysicalMaterial::GetPhysicsMaterial()
 		MaterialHandle = FPhysicsInterface::CreateMaterial(this);
 		check(MaterialHandle.IsValid());
 
-		FPhysicsInterface::SetUserData(MaterialHandle, &PhysxUserData);
+		FPhysicsInterface::SetUserData(MaterialHandle, &UserData);
 		FPhysicsInterface::UpdateMaterial(MaterialHandle, this);
 	}
 

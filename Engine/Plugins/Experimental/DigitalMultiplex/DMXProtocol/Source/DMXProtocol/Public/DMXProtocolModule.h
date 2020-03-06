@@ -5,9 +5,7 @@
 #include "DMXProtocolCommon.h"
 #include "Modules/ModuleInterface.h"
 
-/**
- * 
- */
+/**   */
 class DMXPROTOCOL_API FDMXProtocolModule 
 	: public IModuleInterface
 {
@@ -21,11 +19,16 @@ public:
 	 * @param  InProtocolName Name of the requested protocol
 	 * @return Return the pointer to protocol.
 	 */
-	virtual IDMXProtocol* GetProtocol(const FName InProtocolName = NAME_None);
+	virtual IDMXProtocolPtr GetProtocol(const FName InProtocolName = NAME_None);
 	
+	/**  Get the reference to all protocol factories map */
 	const TMap<FName, IDMXProtocolFactory*>& GetProtocolFactories() const;
 
+	/**  Get the reference to all protocols map */
+	const TMap<FName, IDMXProtocolPtr>& GetProtocols() const;
+
 	//~ Begin IModuleInterface implementation
+	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface implementation
 
@@ -41,6 +44,6 @@ public:
 
 private:
 	TMap<FName, IDMXProtocolFactory*> DMXFactories;
-	TMap<FName, TSharedPtr<IDMXProtocol>> DMXProtocols;
+	TMap<FName, IDMXProtocolPtr> DMXProtocols;
 	TMap<FName, bool> DMXProtocolFailureNotes;
 };

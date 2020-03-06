@@ -513,7 +513,7 @@ FReply FSceneViewport::AcquireFocusAndCapture(FIntPoint MousePosition, EFocusCau
 	TSharedRef<SViewport> ViewportWidgetRef = ViewportWidget.Pin().ToSharedRef();
 
 	// Mouse down should focus viewport for user input
-	ReplyState.SetUserFocus(ViewportWidgetRef, FocusCause, true);
+	ReplyState.SetUserFocus(ViewportWidgetRef, FocusCause);
 
 	UWorld* World = ViewportClient->GetWorld();
 	if (World && World->IsGameWorld() && World->GetGameInstance() && (World->GetGameInstance()->GetFirstLocalPlayerController() || World->IsPlayInEditor()))
@@ -1465,19 +1465,6 @@ void FSceneViewport::ResizeViewport(uint32 NewSizeX, uint32 NewSizeY, EWindowMod
 		bIsResizing = true;
 
 		UpdateViewportRHI(false, NewSizeX, NewSizeY, NewWindowMode, PF_Unknown);
-
-#if WITH_EDITOR
-		FMargin SafeMargin;
-		if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.f || !FSlateApplication::Get().GetCustomSafeZone().GetDesiredSize().IsZero())
-		{
-			FSlateApplication::Get().GetSafeZoneSize(SafeMargin, FVector2D(NewSizeX, NewSizeY));
-			SafeMargin.Left /= (NewSizeX / 2.0f);
-			SafeMargin.Right /= (NewSizeX / 2.0f);
-			SafeMargin.Bottom /= (NewSizeY / 2.0f);
-			SafeMargin.Top /= (NewSizeY / 2.0f);
-		}
-		FSlateApplication::Get().OnDebugSafeZoneChanged.Broadcast(SafeMargin, false);
-#endif
 		FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
 
 		if (ViewportClient)

@@ -42,7 +42,7 @@ namespace UsdPrimInfoWidgetConstants
 }
 
 void SUsdPrimInfo::Construct( const FArguments& InArgs, const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
-{	
+{
 	TSharedRef< SWidget > VariantSetsWidget = GenerateVariantSetsWidget( UsdStage, PrimPath );
 	TSharedRef< SWidget > ReferencesListWidget = GenerateVariantSetsWidget( UsdStage, PrimPath );
 
@@ -51,36 +51,15 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const TUsdStore< pxr::Us
 		SNew( SVerticalBox )
 
 		+SVerticalBox::Slot()
-		.AutoHeight()
+		.FillHeight( 1.f )
 		[
-			SNew( SVerticalBox )
-
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew( SBorder )
-				.BorderImage( &FCoreStyle::Get().GetWidgetStyle< FHeaderRowStyle >("TableView.Header").BackgroundBrush )
-				.Padding( UsdPrimInfoWidgetConstants::CategoryHeaderPadding )
-				[
-					SNew( STextBlock )
-					.Font( FEditorStyle::GetFontStyle( TEXT("DetailsView.CategoryFontStyle") ) )
-					.Text( LOCTEXT( "Details", "Details" ) )
-				]
-			]
-
-			+SVerticalBox::Slot()
-			.AutoHeight()
+			SNew( SBox )
+			.Content()
 			[
 				SAssignNew( PropertiesList, SUsdPrimPropertiesList, PrimPath )
 			]
-
-			+SVerticalBox::Slot()
-			[
-				SNew( SSpacer )
-				.Size( FVector2D( 0.f, 10.f ) )
-			]
 		]
-		
+
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[

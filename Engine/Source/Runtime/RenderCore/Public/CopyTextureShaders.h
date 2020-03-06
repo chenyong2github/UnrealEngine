@@ -23,10 +23,22 @@ namespace CopyTextureCS
 {
 	template <ECopyTextureResourceType> struct TThreadGroupSize              { static constexpr int32 X = 8, Y = 8, Z = 1; };
 	template <> struct TThreadGroupSize<ECopyTextureResourceType::Texture3D> { static constexpr int32 X = 4, Y = 4, Z = 4; };
+
+	struct DispatchContext
+	{
+		uint32 ThreadGroupSizeX = 0u;
+		uint32 ThreadGroupSizeY = 0u;
+		uint32 ThreadGroupSizeZ = 0u;
+		ECopyTextureResourceType SrcType;
+		ECopyTextureResourceType DstType;
+		ECopyTextureValueType ValueType;
+		uint32 NumChannels;
+	};
 }
 
 class FCopyTextureCS : public FGlobalShader
 {
+	DECLARE_EXPORTED_TYPE_LAYOUT(FCopyTextureCS, RENDERCORE_API, NonVirtual);
 protected:
 	FCopyTextureCS() {}
 	FCopyTextureCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -39,44 +51,50 @@ protected:
 		DstResourceParam.Bind(Initializer.ParameterMap, TEXT("DstResource"), SPF_Mandatory);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-
-		Ar << DstOffsetParam;
-		Ar << SrcOffsetParam;
-		Ar << DimensionsParam;
-		Ar << SrcResourceParam;
-		Ar << DstResourceParam;
-
-		return bShaderHasOutdatedParameters;
-	}
-
 public:
 	inline const FShaderResourceParameter& GetSrcResourceParam() { return SrcResourceParam; }
 	inline const FShaderResourceParameter& GetDstResourceParam() { return DstResourceParam; }
 
-	virtual void Dispatch(
+	void Dispatch(
 		FRHIComputeCommandList& RHICmdList,
+		const CopyTextureCS::DispatchContext& Context,
 		FIntVector const& SrcOffset,
 		FIntVector const& DstOffset,
 		FIntVector const& Dimensions
-	) = 0;
+	)
+	{
+		check(SrcOffset.GetMin() >= 0 && DstOffset.GetMin() >= 0 && Dimensions.GetMin() >= 0);
+		check(Context.DstType != ECopyTextureResourceType::Texture2D || Dimensions.Z <= 1);
 
-	static inline FCopyTextureCS* SelectShader(TShaderMap<FGlobalShaderType>* GlobalShaderMap, ECopyTextureResourceType SrcType, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType);
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+		SetShaderValue(RHICmdList, ShaderRHI, SrcOffsetParam, SrcOffset);
+		SetShaderValue(RHICmdList, ShaderRHI, DstOffsetParam, DstOffset);
+		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParam, Dimensions);
+
+		RHICmdList.DispatchComputeShader(
+			FMath::DivideAndRoundUp(uint32(Dimensions.X), Context.ThreadGroupSizeX),
+			FMath::DivideAndRoundUp(uint32(Dimensions.Y), Context.ThreadGroupSizeY),
+			FMath::DivideAndRoundUp(uint32(Dimensions.Z), Context.ThreadGroupSizeZ)
+		);
+	}
+
+	static inline TShaderRef<FCopyTextureCS> SelectShader(FGlobalShaderMap* GlobalShaderMap, ECopyTextureResourceType SrcType, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType, CopyTextureCS::DispatchContext& OutContext);
 
 protected:
+	template<typename ShaderType>
+	static inline TShaderRef<FCopyTextureCS> SelectShader(FGlobalShaderMap* GlobalShaderMap, CopyTextureCS::DispatchContext& OutContext);
+
 	template <ECopyTextureResourceType SrcType>
-	static inline FCopyTextureCS* SelectShader(TShaderMap<FGlobalShaderType>* GlobalShaderMap, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType);
+	static inline TShaderRef<FCopyTextureCS> SelectShader(FGlobalShaderMap* GlobalShaderMap, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType, CopyTextureCS::DispatchContext& OutContext);
 
 	template <ECopyTextureResourceType SrcType, ECopyTextureResourceType DstType>
-	static inline FCopyTextureCS* SelectShader(TShaderMap<FGlobalShaderType>* GlobalShaderMap, ECopyTextureValueType ValueType);
+	static inline TShaderRef<FCopyTextureCS> SelectShader(FGlobalShaderMap* GlobalShaderMap, ECopyTextureValueType ValueType, CopyTextureCS::DispatchContext& OutContext);
 
-	FShaderParameter DstOffsetParam;
-	FShaderParameter SrcOffsetParam;
-	FShaderParameter DimensionsParam;
-	FShaderResourceParameter SrcResourceParam;
-	FShaderResourceParameter DstResourceParam;
+	LAYOUT_FIELD(FShaderParameter, DstOffsetParam);
+	LAYOUT_FIELD(FShaderParameter, SrcOffsetParam);
+	LAYOUT_FIELD(FShaderParameter, DimensionsParam);
+	LAYOUT_FIELD(FShaderResourceParameter, SrcResourceParam);
+	LAYOUT_FIELD(FShaderResourceParameter, DstResourceParam);
 };
 
 template <ECopyTextureResourceType SrcType, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType, uint32 NumChannels>
@@ -148,59 +166,57 @@ public:
 		}
 	}
 
-	virtual void Dispatch(
-		FRHIComputeCommandList& RHICmdList,
-		FIntVector const& SrcOffset,
-		FIntVector const& DstOffset,
-		FIntVector const& Dimensions) override final
+	void GetDispatchContext(CopyTextureCS::DispatchContext& OutContext)
 	{
-		check(SrcOffset.GetMin() >= 0 && DstOffset.GetMin() >= 0 && Dimensions.GetMin() >= 0);
-		check(DstType != ECopyTextureResourceType::Texture2D || Dimensions.Z <= 1);
-
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
-		SetShaderValue(RHICmdList, ShaderRHI, SrcOffsetParam, SrcOffset);
-		SetShaderValue(RHICmdList, ShaderRHI, DstOffsetParam, DstOffset);
-		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParam, Dimensions);
-
-		RHICmdList.DispatchComputeShader(
-			FMath::DivideAndRoundUp(uint32(Dimensions.X), ThreadGroupSizeX),
-			FMath::DivideAndRoundUp(uint32(Dimensions.Y), ThreadGroupSizeY),
-			FMath::DivideAndRoundUp(uint32(Dimensions.Z), ThreadGroupSizeZ)
-		);
+		OutContext.ThreadGroupSizeX = ThreadGroupSizeX;
+		OutContext.ThreadGroupSizeY = ThreadGroupSizeY;
+		OutContext.ThreadGroupSizeZ = ThreadGroupSizeZ;
+		OutContext.SrcType = SrcType;
+		OutContext.DstType = DstType;
+		OutContext.ValueType = ValueType;
+		OutContext.NumChannels = NumChannels;
 	}
 };
 
+template <typename ShaderType>
+inline TShaderRef<FCopyTextureCS> FCopyTextureCS::SelectShader(FGlobalShaderMap* GlobalShaderMap, CopyTextureCS::DispatchContext& OutContext)
+{
+	TShaderRef<ShaderType> Shader = GlobalShaderMap->GetShader<ShaderType>();
+	Shader->GetDispatchContext(OutContext);
+	return Shader;
+}
+
 template <ECopyTextureResourceType SrcType, ECopyTextureResourceType DstType>
-inline FCopyTextureCS* FCopyTextureCS::SelectShader(TShaderMap<FGlobalShaderType>* GlobalShaderMap, ECopyTextureValueType ValueType)
+inline TShaderRef<FCopyTextureCS> FCopyTextureCS::SelectShader(FGlobalShaderMap* GlobalShaderMap, ECopyTextureValueType ValueType, CopyTextureCS::DispatchContext& OutContext)
 {
 	switch (ValueType)
 	{
 	default: checkNoEntry();
-	case ECopyTextureValueType::Float:  return GlobalShaderMap->GetShader<TCopyResourceCS<SrcType, DstType, ECopyTextureValueType::Float,  4>>();
-	case ECopyTextureValueType::Int32:  return GlobalShaderMap->GetShader<TCopyResourceCS<SrcType, DstType, ECopyTextureValueType::Int32,  4>>();
-	case ECopyTextureValueType::Uint32: return GlobalShaderMap->GetShader<TCopyResourceCS<SrcType, DstType, ECopyTextureValueType::Uint32, 4>>();
+	case ECopyTextureValueType::Float:  return SelectShader<TCopyResourceCS<SrcType, DstType, ECopyTextureValueType::Float,  4>>(GlobalShaderMap, OutContext);
+	case ECopyTextureValueType::Int32:  return SelectShader<TCopyResourceCS<SrcType, DstType, ECopyTextureValueType::Int32,  4>>(GlobalShaderMap, OutContext);
+	case ECopyTextureValueType::Uint32: return SelectShader<TCopyResourceCS<SrcType, DstType, ECopyTextureValueType::Uint32, 4>>(GlobalShaderMap, OutContext);
 	}
 }
 
 template <ECopyTextureResourceType SrcType>
-inline FCopyTextureCS* FCopyTextureCS::SelectShader(TShaderMap<FGlobalShaderType>* GlobalShaderMap, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType)
+inline TShaderRef<FCopyTextureCS> FCopyTextureCS::SelectShader(FGlobalShaderMap* GlobalShaderMap, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType, CopyTextureCS::DispatchContext& OutContext)
 {
 	switch (DstType)
 	{
 	default: checkNoEntry();
-	case ECopyTextureResourceType::Texture2D:	   return FCopyTextureCS::SelectShader<SrcType, ECopyTextureResourceType::Texture2D     >(GlobalShaderMap, ValueType);
-	case ECopyTextureResourceType::Texture2DArray: return FCopyTextureCS::SelectShader<SrcType, ECopyTextureResourceType::Texture2DArray>(GlobalShaderMap, ValueType);
-	case ECopyTextureResourceType::Texture3D:      return FCopyTextureCS::SelectShader<SrcType, ECopyTextureResourceType::Texture3D     >(GlobalShaderMap, ValueType);
+	case ECopyTextureResourceType::Texture2D:	   return FCopyTextureCS::SelectShader<SrcType, ECopyTextureResourceType::Texture2D     >(GlobalShaderMap, ValueType, OutContext);
+	case ECopyTextureResourceType::Texture2DArray: return FCopyTextureCS::SelectShader<SrcType, ECopyTextureResourceType::Texture2DArray>(GlobalShaderMap, ValueType, OutContext);
+	case ECopyTextureResourceType::Texture3D:      return FCopyTextureCS::SelectShader<SrcType, ECopyTextureResourceType::Texture3D     >(GlobalShaderMap, ValueType, OutContext);
 	}
 }
 
-inline FCopyTextureCS* FCopyTextureCS::SelectShader(TShaderMap<FGlobalShaderType>* GlobalShaderMap, ECopyTextureResourceType SrcType, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType)
+inline TShaderRef<FCopyTextureCS> FCopyTextureCS::SelectShader(FGlobalShaderMap* GlobalShaderMap, ECopyTextureResourceType SrcType, ECopyTextureResourceType DstType, ECopyTextureValueType ValueType, CopyTextureCS::DispatchContext& OutContext)
 {
 	switch (SrcType)
 	{
 	default: checkNoEntry();
-	case ECopyTextureResourceType::Texture2D:	   return FCopyTextureCS::SelectShader<ECopyTextureResourceType::Texture2D     >(GlobalShaderMap, DstType, ValueType);
-	case ECopyTextureResourceType::Texture2DArray: return FCopyTextureCS::SelectShader<ECopyTextureResourceType::Texture2DArray>(GlobalShaderMap, DstType, ValueType);
-	case ECopyTextureResourceType::Texture3D:      return FCopyTextureCS::SelectShader<ECopyTextureResourceType::Texture3D     >(GlobalShaderMap, DstType, ValueType);
+	case ECopyTextureResourceType::Texture2D:	   return FCopyTextureCS::SelectShader<ECopyTextureResourceType::Texture2D     >(GlobalShaderMap, DstType, ValueType, OutContext);
+	case ECopyTextureResourceType::Texture2DArray: return FCopyTextureCS::SelectShader<ECopyTextureResourceType::Texture2DArray>(GlobalShaderMap, DstType, ValueType, OutContext);
+	case ECopyTextureResourceType::Texture3D:      return FCopyTextureCS::SelectShader<ECopyTextureResourceType::Texture3D     >(GlobalShaderMap, DstType, ValueType, OutContext);
 	}
 }

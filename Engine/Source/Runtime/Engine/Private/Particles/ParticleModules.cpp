@@ -3362,7 +3362,7 @@ int32 UParticleModuleTypeDataMesh::GetCurrentDetailMode()
 
 int32 UParticleModuleTypeDataMesh::GetMeshParticleMotionBlurMinDetailMode()
 {
-	return CVarMinDetailModeForMeshParticleMotionBlur.GetValueOnGameThread();
+	return CVarMinDetailModeForMeshParticleMotionBlur.GetValueOnAnyThread();
 }
 
 UParticleModuleTypeDataMesh::UParticleModuleTypeDataMesh(const FObjectInitializer& ObjectInitializer)

@@ -36,6 +36,8 @@ struct COREUOBJECT_API FBlueprintTags
 	static const FName ImplementedInterfaces;
 	/** Very large string used to store find in blueprint data for the editor */
 	static const FName FindInBlueprintsData;
+	/** (Deprecated) Legacy tag that was initially used to store find in blueprint data for the editor */
+	static const FName UnversionedFindInBlueprintsData;
 	/** Number of replicated properties */
 	static const FName NumReplicatedProperties;
 	/** Number of native components */

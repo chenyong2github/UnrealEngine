@@ -770,7 +770,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 			if(TotalSamplesStreamed >= TotalSamplesPerChannel)
 			{
 				ReachedEndOfSamples = true;
-				CurrentChunkIndex = 0;
+				CurrentChunkIndex = FirstChunkSampleDataIndex;
 				CurrentChunkBufferOffset = 0;
 				TotalSamplesStreamed = 0;
 				CurCompressedChunkData = nullptr;

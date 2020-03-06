@@ -162,6 +162,8 @@ void USkeleton::PostLoad()
 	// Cache smart name uids for animation curve names
 	IncreaseAnimCurveUidVersion();
 
+	SmartNames.PostLoad();
+
 	// refresh linked bone indices
 	FSmartNameMapping* CurveMappingTable = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
 	if (CurveMappingTable)
@@ -248,7 +250,7 @@ void USkeleton::Serialize( FArchive& Ar )
 	// If we should be using smartnames, serialize the mappings
 	if(Ar.UE4Ver() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
 	{
-		SmartNames.Serialize(Ar);
+		SmartNames.Serialize(Ar, IsTemplate());
 
 		AnimCurveMapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
 	}

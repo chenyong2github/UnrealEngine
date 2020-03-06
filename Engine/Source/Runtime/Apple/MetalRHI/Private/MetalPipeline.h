@@ -16,7 +16,7 @@ enum EMetalPipelineHashBits
 	NumBits_StencilFormat = 3, //(x1=3),
 	NumBits_SampleCount = 3, //(x1=3),
 
-	NumBits_BlendState = 5, //(x8=40),
+	NumBits_BlendState = 7, //(x8=56),
 	NumBits_PrimitiveTopology = 2, //(x1=2)
 	NumBits_IndexType = 2, //(x1=2)
 };

@@ -14,9 +14,10 @@ UEditorPerformanceSettings::UEditorPerformanceSettings(const FObjectInitializer&
 	: Super(ObjectInitializer)
 	, bShowFrameRateAndMemory(false)
 	, bThrottleCPUWhenNotForeground(true)
-	, bMonitorEditorPerformance(true)
+	, bMonitorEditorPerformance(false)
 	, bOverrideDPIBasedEditorViewportScaling(false)
 	, bEnableSharedDDCPerformanceNotifications(true)
+	, bEnableScalabilityWarningIndicator(true)
 {
 
 }

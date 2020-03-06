@@ -44,7 +44,7 @@ private:
 	void OnEditorSelectionChanged();
 
 	/** Handles the callback from the property detail view confirming the list of objects being edited has changed */
-	void OnPropertyViewObjectArrayChanged(const FString& InTitle, const TArray<TWeakObjectPtr<UObject>>& InObjects);
+	void OnPropertyViewObjectArrayChanged(const FString& InTitle, const TArray<UObject*>& InObjects);
 
 	void ClearFocusIfOwned();
 

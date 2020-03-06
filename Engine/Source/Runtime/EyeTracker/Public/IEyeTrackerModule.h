@@ -8,8 +8,6 @@
 #include "Features/IModularFeatures.h"
 #include "Features/IModularFeature.h"
 
-static const FName EyeTrackerModularFeatureName(TEXT("EyeTracker"));
-
 /**
  * The public interface of the EyeTracker module
  */
@@ -19,6 +17,7 @@ public:
 	/** Returns modular feature name for this module */
 	static FName GetModularFeatureName()
 	{
+		static const FName EyeTrackerModularFeatureName(TEXT("EyeTracker"));
 		return EyeTrackerModularFeatureName;
 	}
 

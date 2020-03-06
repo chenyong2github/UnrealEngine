@@ -16,6 +16,13 @@ DEFINE_LOG_CATEGORY(LogNiagaraEditor);
 TMap<FName, int32> FNiagaraOpInfo::OpInfoMap;
 TArray<FNiagaraOpInfo> FNiagaraOpInfo::OpInfos;
 
+int32 FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 = 1;
+FAutoConsoleVariableRef FNiagaraEditorCommonCVar::CVarEnableParameterPanel2(
+	TEXT("fx.NiagaraEnableParameterPanel2"),
+	FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2,
+	TEXT("If true, enable enhanced parameter panel features and dynamic parameter linking in precompiler."),
+	ECVF_Default);
+
 const FNiagaraOpInfo* FNiagaraOpInfo::GetOpInfo(FName OpName)
 {
 	const int32* Idx = OpInfoMap.Find(OpName);
@@ -874,7 +881,7 @@ void FNiagaraOpInfo::Init()
 		Op->Keywords = FText::FromString(TEXT("<"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, Type, AText, AText, DefaultStr_Zero));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("{0} < {1}")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} < {1})")));
 		Op->BuildName(TEXT("CmpLT"), CategoryName);
 		OpInfoMap.Add(Op->Name) = Idx;
 
@@ -886,7 +893,7 @@ void FNiagaraOpInfo::Init()
 		Op->Keywords = FText::FromString(TEXT("<="));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, Type, AText, AText, DefaultStr_Zero));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("{0} <= {1}")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} <= {1})")));
 		Op->BuildName(TEXT("CmpLE"), CategoryName);
 		OpInfoMap.Add(Op->Name) = Idx;
 
@@ -898,7 +905,7 @@ void FNiagaraOpInfo::Init()
 		Op->Keywords = FText::FromString(TEXT(">"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, Type, AText, AText, DefaultStr_Zero));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("{0} > {1}")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} > {1})")));
 		Op->BuildName(TEXT("CmpGT"), CategoryName);
 		OpInfoMap.Add(Op->Name) = Idx;
 
@@ -910,7 +917,7 @@ void FNiagaraOpInfo::Init()
 		Op->Keywords = FText::FromString(TEXT(">="));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, Type, AText, AText, DefaultStr_Zero));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("{0} >= {1}")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} >= {1})")));
 		Op->BuildName(TEXT("CmpGE"), CategoryName);
 		OpInfoMap.Add(Op->Name) = Idx;
 
@@ -922,7 +929,7 @@ void FNiagaraOpInfo::Init()
 		Op->Keywords = FText::FromString(TEXT("=="));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, Type, AText, AText, DefaultStr_Zero));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("{0} == {1}")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} == {1})")));
 		Op->BuildName(TEXT("CmpEQ"), CategoryName);
 		OpInfoMap.Add(Op->Name) = Idx;
 		
@@ -934,7 +941,7 @@ void FNiagaraOpInfo::Init()
 		Op->Keywords = FText::FromString(TEXT("!="));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, Type, AText, AText, DefaultStr_Zero));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("{0} != {1}")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} != {1})")));
 		Op->BuildName(TEXT("CmpNEQ"), CategoryName);
 		OpInfoMap.Add(Op->Name) = Idx;
 	}
@@ -1081,6 +1088,30 @@ void FNiagaraOpInfo::Init()
 	Op->Inputs.Add(FNiagaraOpInOutInfo(A, BoolType, AText, AText, Default_BoolOne));
 	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, BoolType, ResultText, ResultText, Default_BoolOne, TEXT("!{0}")));
 	Op->BuildName(TEXT("LogicNot"), BoolCategoryName);
+	OpInfoMap.Add(Op->Name) = Idx;
+
+	Idx = OpInfos.AddDefaulted();
+	Op = &OpInfos[Idx];
+	Op->Category = BoolCategory;
+	Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "LogicEq Name", "Bool Equal");
+	Op->Description = NSLOCTEXT("NiagaraOpInfo", "LogicEq Desc", "Result = A == B");
+	Op->Keywords = FText::FromString(TEXT("=="));
+	Op->Inputs.Add(FNiagaraOpInOutInfo(A, BoolType, AText, AText, Default_BoolZero));
+	Op->Inputs.Add(FNiagaraOpInOutInfo(B, BoolType, BText, BText, Default_BoolOne));
+	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, BoolType, ResultText, ResultText, Default_BoolOne, TEXT("NiagaraAll({0} == {1})")));
+	Op->BuildName(TEXT("LogicEq"), BoolCategoryName);
+	OpInfoMap.Add(Op->Name) = Idx;
+
+	Idx = OpInfos.AddDefaulted();
+	Op = &OpInfos[Idx];
+	Op->Category = BoolCategory;
+	Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "LogicNEq Name", "Bool Not Equal");
+	Op->Description = NSLOCTEXT("NiagaraOpInfo", "LogicNEq Desc", "Result = A != B");
+	Op->Keywords = FText::FromString(TEXT("!="));
+	Op->Inputs.Add(FNiagaraOpInOutInfo(A, BoolType, AText, AText, Default_BoolZero));
+	Op->Inputs.Add(FNiagaraOpInOutInfo(B, BoolType, BText, BText, Default_BoolOne));
+	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, BoolType, ResultText, ResultText, Default_BoolOne, TEXT("NiagaraAll({0} != {1})")));
+	Op->BuildName(TEXT("LogicNEq"), BoolCategoryName);
 	OpInfoMap.Add(Op->Name) = Idx;
 
 	//////////////////////////////////////////////////////////////////////////

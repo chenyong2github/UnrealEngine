@@ -6,12 +6,12 @@
 
 #if WITH_LIBWEBSOCKETS
 	#if PLATFORM_SWITCH
-		#include "Lws/Switch/LwsSwitchWebSocketsManager.h"
+		#include "Lws/LwsSwitchWebSocketsManager.h"
 	#else
 		#include "Lws/LwsWebSocketsManager.h"
 	#endif //PLATFORM_SWITCH
 
-#elif PLATFORM_XBOXONE
+#elif PLATFORM_XBOXONE && WITH_LEGACY_XDK
 #include "XboxOne/XboxOneWebSocketsManager.h"
 #elif PLATFORM_HOLOLENS
 #include "HoloLens/HoloLensWebSocketsManager.h"
@@ -27,6 +27,6 @@ typedef FHoloLensWebSocketsManager FPlatformWebSocketsManager;
 		typedef FLwsWebSocketsManager FPlatformWebSocketsManager;
 	#endif // PLATFORM_SWITCH
 
-#elif PLATFORM_XBOXONE
+#elif PLATFORM_XBOXONE && WITH_LEGACY_XDK
 	typedef FXboxOneWebSocketsManager FPlatformWebSocketsManager;
 #endif //WITH_LIBWEBSOCKETS

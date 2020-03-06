@@ -43,7 +43,15 @@ public:
 	/** If not an InvalidRange (which is the default), we will always be able to see the target that has already been seen if they are within this range of their last seen location. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", config)
 	float AutoSuccessRangeFromLastSeenLocation;
-		
+
+	/** Point of view move back distance for cone calculation. In conjunction with near clipping distance, this will act as a close by awareness and peripheral vision. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", config, meta = (UIMin = 0.0, ClampMin = 0.0))
+	float PointOfViewBackwardOffset;
+
+	/** Near clipping distance, to be used with point of view backward offset. Will act as a close by awareness and peripheral vision */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", config, meta = (UIMin = 0.0, ClampMin = 0.0))
+	float NearClippingRadius;
+
 	virtual TSubclassOf<UAISense> GetSenseImplementation() const override;
 
 #if WITH_EDITOR

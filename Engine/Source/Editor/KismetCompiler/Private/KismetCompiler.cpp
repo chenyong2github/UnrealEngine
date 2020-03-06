@@ -680,16 +680,6 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 	if (bRebuildPropertyMap)
 	{
 		NewClass->PropertyGuids.Reset();
-		// Add any chained parent blueprint map values
-		UBlueprint* ParentBP = Cast<UBlueprint>(Blueprint->ParentClass->ClassGeneratedBy);
-		while (ParentBP)
-		{
-			if (UBlueprintGeneratedClass* ParentBPGC = Cast<UBlueprintGeneratedClass>(ParentBP->GeneratedClass))
-			{
-				NewClass->PropertyGuids.Append(ParentBPGC->PropertyGuids);
-			}
-			ParentBP = Cast<UBlueprint>(ParentBP->ParentClass->ClassGeneratedBy);
-		}
 	}
 
 	for (int32 i = 0; i < Blueprint->NewVariables.Num(); ++i)
@@ -4265,6 +4255,7 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 
 					UEditorEngine::FCopyPropertiesForUnrelatedObjectsParams CopyDetails;
 					CopyDetails.bCopyDeprecatedProperties = Blueprint->bIsRegeneratingOnLoad;
+					CopyDetails.bNotifyObjectReplacement = true; 
 					UEditorEngine::CopyPropertiesForUnrelatedObjects(OldCDO, NewCDO, CopyDetails);
 					FBlueprintEditorUtils::PatchCDOSubobjectsIntoExport(OldCDO, NewCDO);
 				}
@@ -4660,6 +4651,7 @@ const UK2Node_FunctionEntry* FKismetCompilerContext::FindLocalEntryPoint(const U
 	return NULL;
 }
 
+#ifndef PVS_STUDIO // Bogus warning using GET_FUNCTION_NAME_CHECKED (see UE-88111)
 void FKismetCompilerContext::SetCanEverTick() const
 {
 	FTickFunction* TickFunction = nullptr;
@@ -4762,6 +4754,7 @@ void FKismetCompilerContext::SetCanEverTick() const
 			TickFunction->bCanEverTick ? *(CoreTexts.True.ToString()) : *(CoreTexts.False.ToString()) );
 	}
 }
+#endif
 
 bool FKismetCompilerContext::UsePersistentUberGraphFrame() const
 {

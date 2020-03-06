@@ -2,28 +2,30 @@
 
 #pragma once
 
+#include "NiagaraEditorDataBase.h"
+
 #include "NiagaraStackEditorData.generated.h"
 struct FStackIssue;
 
 /** Editor only UI data for emitters. */
 UCLASS()
-class UNiagaraStackEditorData : public UObject
+class UNiagaraStackEditorData : public UNiagaraEditorDataBase
 {
 	GENERATED_BODY()
 
 public:
 	/*
-	* Gets whether or not a module has a rename pending.
-	* @param ModuleInputKey A unique key for the module.
+	* Gets whether or not a stack entry has a rename pending.
+	* @param StackEntryKey A unique key for the stack entry.
 	*/
-	bool GetModuleInputIsRenamePending(const FString& ModuleInputKey) const;
+	bool GetStackEntryIsRenamePending(const FString& StackEntryKey) const;
 
 	/*
-	* Sets whether or not a module is pinned.
-	* @param ModuleInputKey A unique key for the module.
-	* @param bIsRenamePending Whether or not the module is pinned.
+	* Sets whether or not a stack entry has a rename pending.
+	* @param StackEntryKey A unique key for the stack entry.
+	* @param bIsRenamePending Whether or not the stack entry has a rename pending.
 	*/
-	void SetModuleInputIsRenamePending(const FString& ModuleInputKey, bool bIsRenamePending);
+	void SetStackEntryIsRenamePending(const FString& StackEntryKey, bool bIsRenamePending);
 
 	/*
 	 * Gets whether or not a stack entry is Expanded.
@@ -67,6 +69,24 @@ public:
 	*/
 	void SetStackItemShowAdvanced(const FString& StackEntryKey, bool bShowAdanced);
 
+	/*
+	* Gets a stack entry's display name. Returns null if none is found.
+	* @param StackEntryKey A unique key for the stack entry.
+	*/
+	NIAGARAEDITOR_API const FText* GetStackEntryDisplayName(const FString& StackEntryKey) const;
+
+	/*
+	* Gets a map of all renamed stack entry keys to their display name.
+	*/
+	const TMap<FString, FText>& GetAllStackEntryDisplayNames() const { return StackEntryKeyToDisplayName; }
+
+	/*
+	* Sets a stack entry's display name.
+	* @param StackEntryKey A unique key for the stack entry.
+	* @param InDisplayName The display name to set for this entry.
+	*/
+	void SetStackEntryDisplayName(const FString& StackEntryKey, const FText& InDisplayName);
+
 	/* Gets whether or not all advanced items should be shown in the stack. */
 	bool GetShowAllAdvanced() const;
 
@@ -109,31 +129,25 @@ public:
 	NIAGARAEDITOR_API const TArray<FString>& GetDismissedStackIssueIds();
 
 private:
-	UPROPERTY(Transient)
-	TMap<FString, bool> ModuleInputKeyToRenamePendingMap;
+	TMap<FString, bool> StackEntryKeyToRenamePendingMap;
 
-	UPROPERTY(Transient)
 	TMap<FString, bool> StackEntryKeyToExpandedMap;
 
-	UPROPERTY(Transient)
 	TMap<FString, bool> StackEntryKeyToPreSearchExpandedMap;
 
-	UPROPERTY(Transient)
 	TMap<FString, bool> StackItemKeyToShowAdvancedMap;
 
-	UPROPERTY(Transient)
+	UPROPERTY()
+	TMap<FString, FText> StackEntryKeyToDisplayName;
+
 	bool bShowAllAdvanced;
 
-	UPROPERTY(Transient)
 	bool bShowOutputs;
 
-	UPROPERTY(Transient)
 	bool bShowLinkedInputs;
 
-	UPROPERTY(Transient)
 	bool bShowOnlyIssues;
 
-	UPROPERTY(Transient)
 	double LastScrollPosition;
 
 	UPROPERTY()

@@ -84,9 +84,11 @@ private:
 
 class FFileActivityTimingTrack : public FTimingEventsTrack
 {
+	INSIGHTS_DECLARE_RTTI(FFileActivityTimingTrack, FTimingEventsTrack)
+
 public:
-	explicit FFileActivityTimingTrack(FFileActivitySharedState& InSharedState, const FName SubType, const FString& InName)
-		: FTimingEventsTrack(FName(TEXT("FileActivity")), SubType, InName)
+	explicit FFileActivityTimingTrack(FFileActivitySharedState& InSharedState, const FString& InName)
+		: FTimingEventsTrack(InName)
 		, SharedState(InSharedState)
 	{
 	}
@@ -107,7 +109,7 @@ class FOverviewFileActivityTimingTrack : public FFileActivityTimingTrack
 {
 public:
 	explicit FOverviewFileActivityTimingTrack(FFileActivitySharedState& InSharedState)
-		: FFileActivityTimingTrack(InSharedState, FName(TEXT("Overview")), TEXT("I/O Overview"))
+		: FFileActivityTimingTrack(InSharedState, TEXT("I/O Overview"))
 	{
 	}
 
@@ -121,7 +123,7 @@ class FDetailedFileActivityTimingTrack : public FFileActivityTimingTrack
 {
 public:
 	explicit FDetailedFileActivityTimingTrack(FFileActivitySharedState& InSharedState)
-		: FFileActivityTimingTrack(InSharedState, FName(TEXT("Detailed")), TEXT("I/O Activity"))
+		: FFileActivityTimingTrack(InSharedState, TEXT("I/O Activity"))
 	{
 	}
 

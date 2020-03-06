@@ -762,6 +762,14 @@ public:
 	static bool IsPinTypeValid(const FEdGraphPinType& Type);
 
 	/**
+	* Ensures the validity of each pin connection on the given node. Outputs compiler error if invalid
+	* 
+	* @param Node			The node to check all linked pins on
+	* @param MessageLog		BP compiler results log to output any error messages to
+	*/
+	static void ValidatePinConnections(const UEdGraphNode* Node, FCompilerResultsLog& MessageLog);
+
+	/**
 	 * Gets the visible class variable list.  This includes both variables introduced here and in all superclasses.
 	 *
 	 * @param [in,out]	VisibleVariables	The visible variables will be appended to this array.

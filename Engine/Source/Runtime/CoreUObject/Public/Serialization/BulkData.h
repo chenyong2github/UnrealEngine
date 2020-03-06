@@ -64,8 +64,13 @@ enum EBulkDataFlags
 	BULKDATA_DuplicateNonOptionalPayload		= 1 << 14,
 	/** Indicates that an old ID is present in the data, at some point when the DDCs are flushed we can remove this. */
 	BULKDATA_BadDataVersion						= 1 << 15,
+	
+	/* Runtime flags go below! */
+	
 	/** Assigned at runtime to indicate that the BulkData should be using the IoDispatcher when loading, not filepaths. */
 	BULKDATA_UsesIoDispatcher					= 1 << 16,
+	/** Assigned at runtime to indicate that the BulkData allocation is a memory mapped region of a file and not raw data */
+	BULKDATA_DataIsMemoryMapped					= 1 << 17,
 };
 
 /**
@@ -490,11 +495,14 @@ public:
 		return   (GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0;
 	}
 
+	UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
+	FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
+
 	/**
 	* Returns whether this bulk data is currently stored in it's own file or not
 	* @return true if BULKDATA_PayloadInSeperateFile is not set
 	*/
-	bool InSeperateFile() const
+	bool IsInSeperateFile() const
 	{
 		return	(GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0;
 	}
@@ -677,53 +685,60 @@ public:
 	/*-----------------------------------------------------------------------------
 		Async Streaming Interface.
 	-----------------------------------------------------------------------------*/
-	
+
 	/**
-	* Create an async read request for the bulk data.
-	* This version will load the entire data range that the FUntypedBulkData represents.
-	*
-	* @param Priority			Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
-	* @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
-	* @param UserSuppliedMemory A pointer to memory for the IO request to be written to, it is up to the caller to make sure that it is large enough. If the pointer is null then the system will allocate memory instead.
-	* @return					A request for the read. This is owned by the caller and must be deleted by the caller.
-	**/
+	 * Opens a new IAsyncReadFileHandle that references the file that the BulkData object represents.
+	 *
+	 * @return A valid handle if the file can be accessed, if it cannot then nullptr.
+	 */
+	IAsyncReadFileHandle* OpenAsyncReadHandle() const;
+
+	/**
+	 * Create an async read request for the bulk data.
+	 * This version will load the entire data range that the FUntypedBulkData represents.
+	 *
+	 * @param Priority				Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
+	 * @param CompleteCallback		Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
+	 * @param UserSuppliedMemory	A pointer to memory for the IO request to be written to, it is up to the caller to make sure that it is large enough. If the pointer is null then the system will allocate memory instead.
+	 * @return						A request for the read. This is owned by the caller and must be deleted by the caller.
+	 */
 	IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
 	/**
-	* Create an async read request for the bulk data.
-	* This version allows the user to request a subset of the data that the FUntypedBulkData represents.
-	*
-	* @param OffsetInBulkData	Offset into the bulk data to start reading from.
-	* @param BytesToRead		The number of bytes to read. If this request is AIOP_Preache, the size can be anything, even MAX_int64, otherwise the size and offset must be fully contained in the file.
-	* @param Priority			Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
-	* @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
-	* @param UserSuppliedMemory A pointer to memory for the IO request to be written to, it is up to the caller to make sure that it is large enough. If the pointer is null then the system will allocate memory instead.
-	* @return					A request for the read. This is owned by the caller and must be deleted by the caller.
-	**/
+	 * Create an async read request for the bulk data.
+	 * This version allows the user to request a subset of the data that the FUntypedBulkData represents.
+	 *
+	 * @param OffsetInBulkData		Offset into the bulk data to start reading from.
+	 * @param BytesToRead			The number of bytes to read. If this request is AIOP_Preache, the size can be anything, even MAX_int64, otherwise the size and offset must be fully contained in the file.
+	 * @param Priority				Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
+	 * @param CompleteCallback		Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
+	 * @param UserSuppliedMemory	A pointer to memory for the IO request to be written to, it is up to the caller to make sure that it is large enough. If the pointer is null then the system will allocate memory instead.
+	 * @return						A request for the read. This is owned by the caller and must be deleted by the caller.
+	 */
 	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
 #if USE_BULKDATA_STREAMING_TOKEN 
 
 	/**
-	* Creates a FBulkDataStreamingToken representing the area of the file that the FUntypedBulkData represents. See the declaration of 
-	* FBulkDataStreamingToken for further details.
-	* 
-	* @return	A FBulkDataStreamingToken valid for the FUntypedBulkData.
-	**/
+	 * Creates a FBulkDataStreamingToken representing the area of the file that the FUntypedBulkData represents. See the declaration of
+	 * FBulkDataStreamingToken for further details.
+	 *
+	 * @return	A FBulkDataStreamingToken valid for the FUntypedBulkData.
+	 */
 	FBulkDataStreamingToken CreateStreamingToken() const;
 
 	/**
-	* Create an async read request for a range of bulk data streaming tokens
-	* The request will read all data between the two given streaming tokens objects. They must both represent areas of data in the file!
-	* There is no way to validate this and it is up to the caller to make sure that it is correct.
-	* The memory to be read into will be automatically allocated the size of which can be retrieved by calling IBulkDataIORequest::GetSize()
-	*
-	* @param Filename			The file to read from.
-	* @param Start				The bulk data to start reading from.
-	* @param End				The bulk data to finish reading from.
-	* @param Priority			Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
-	* @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
-	* @return					A request for the read. This is owned by the caller and must be deleted by the caller.
+	 * Create an async read request for a range of bulk data streaming tokens
+	 * The request will read all data between the two given streaming tokens objects. They must both represent areas of data in the file!
+	 * There is no way to validate this and it is up to the caller to make sure that it is correct.
+	 * The memory to be read into will be automatically allocated the size of which can be retrieved by calling IBulkDataIORequest::GetSize()
+	 *
+	 * @param Filename			The file to read from.
+	 * @param Start				The bulk data to start reading from.
+	 * @param End				The bulk data to finish reading from.
+	 * @param Priority			Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
+	 * @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
+	 * @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 #endif

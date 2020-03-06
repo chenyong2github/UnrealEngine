@@ -406,7 +406,7 @@ void UAjaMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& I
 
 		AJA::AJAOutputFrameBufferData FrameBuffer;
 		FrameBuffer.Timecode = Timecode;
-		FrameBuffer.FrameIdentifier = InBaseData.SourceFrameNumberRenderThread;
+		FrameBuffer.FrameIdentifier = InBaseData.SourceFrameNumber;
 		OutputChannel->SetVideoFrameData(FrameBuffer, reinterpret_cast<uint8_t*>(InBuffer), Stride * Height);
 
 		if (bAjaWritInputRawDataCmdEnable)

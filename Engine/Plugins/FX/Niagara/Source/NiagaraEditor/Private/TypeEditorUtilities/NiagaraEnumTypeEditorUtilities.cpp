@@ -5,9 +5,10 @@
 #include "NiagaraTypes.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorCommon.h"
-#include "SEnumCombobox.h"
 
 #include "Widgets/Input/SSpinBox.h"
+#include "EditorWidgets/Public/SEnumCombobox.h"
+#include "EditorStyleSet.h"
 
 class SNiagaraEnumParameterEditor : public SNiagaraParameterEditor
 {
@@ -23,9 +24,12 @@ public:
 
 		ChildSlot
 		[
-			SNew(SEnumCombobox, Enum)
-			.CurrentValue(this, &SNiagaraEnumParameterEditor::GetValue) 
-			.OnEnumSelectionChanged(SEnumCombobox::FOnEnumSelectionChanged::CreateSP(this, &SNiagaraEnumParameterEditor::ValueChanged))
+			SNew(SEnumComboBox, Enum)
+			.CurrentValue(this, &SNiagaraEnumParameterEditor::GetValue)
+			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+			.ContentPadding(FMargin(2, 0))
+			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+			.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateSP(this, &SNiagaraEnumParameterEditor::ValueChanged))
 		];
 	}
 
@@ -110,7 +114,7 @@ bool FNiagaraEditorEnumTypeUtilities::SetValueFromPinDefaultString(const FString
 	checkf(Enum != nullptr, TEXT("Variable is not an enum type."));
 
 	FNiagaraInt32 EnumValue;
-	EnumValue.Value = (int32)Enum->GetValueByNameString(StringValue, EGetByNameFlags::ErrorIfNotFound);
+	EnumValue.Value = (int32)Enum->GetValueByNameString(StringValue);
 	if(EnumValue.Value != INDEX_NONE)
 	{
 		Variable.AllocateData();

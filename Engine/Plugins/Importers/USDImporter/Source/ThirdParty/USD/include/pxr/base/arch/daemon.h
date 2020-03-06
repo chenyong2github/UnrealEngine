@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_DAEMON_H
-#define ARCH_DAEMON_H
+#ifndef PXR_BASE_ARCH_DAEMON_H
+#define PXR_BASE_ARCH_DAEMON_H
 
 /// \file arch/daemon.h
 /// \ingroup group_arch_Multithreading
@@ -65,4 +65,4 @@ int ArchCloseAllFiles(int nExcept, const int* exceptFds);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_DAEMON_H 
+#endif // PXR_BASE_ARCH_DAEMON_H 

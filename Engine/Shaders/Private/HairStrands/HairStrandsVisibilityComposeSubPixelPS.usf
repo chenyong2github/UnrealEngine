@@ -7,14 +7,15 @@
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
+#if SHADER_SUBCOLOR
+
 Texture2D<float4> SubPixelColorTexture;
 Texture2D<uint4> CategorisationTexture;
 
 void SubColorPS(
 	in FScreenVertexOutput Input,
-	out float4 OutColor  : SV_Target0
-	, out float  OutDepth : SV_Depth
-)
+	out float4 OutColor  : SV_Target0, 
+	out float  OutDepth : SV_Depth)
 {
 	const uint2 PixelCoord = floor(Input.Position.xy);
 	OutColor = SubPixelColorTexture.Load(uint3(PixelCoord, 0));
@@ -27,15 +28,23 @@ void SubColorPS(
 	OutDepth = CategorisationData.ClosestDepth;
 }
 
+#endif // SHADER_SUBCOLOR
+
+#if SHADER_FASTRESOLVE
+
+#ifndef PERMUTATION_MSAACOUNT
+#error PERMUTATION_MSAACOUNT is not defined
+#endif
+
 float VelocityThreshold;
-Texture2DMS<float2, HAIR_VISIBILITY_MAXSAMPLECOUNT> HairVisibilityVelocityTexture;
+Texture2DMS<float2, PERMUTATION_MSAACOUNT> HairVisibilityVelocityTexture;
 
 void FastResolvePS(in FScreenVertexOutput Input)
 {
 	const uint2 PixelCoord = floor(Input.Position.xy);
 
 	bool bNeedFastResolve = false;
-	for (uint SampleIt = 0; SampleIt < HAIR_VISIBILITY_MAXSAMPLECOUNT; ++SampleIt)
+	for (uint SampleIt = 0; SampleIt < PERMUTATION_MSAACOUNT; ++SampleIt)
 	{
 		const float2 EncodedVelocity = HairVisibilityVelocityTexture.Load(PixelCoord, SampleIt);
 		const float2 Velocity = DecodeVelocityFromTexture(EncodedVelocity);
@@ -50,3 +59,67 @@ void FastResolvePS(in FScreenVertexOutput Input)
 	if (!bNeedFastResolve)
 		discard;
 }
+
+#endif // SHADER_FASTRESOLVE
+
+#if SHADER_PATCH
+
+Texture2D<uint4> CategorisationTexture;
+
+void MainPS(
+	in FScreenVertexOutput Input,
+	out float4 OutGBufferA : SV_Target0,
+	out float4 OutGBufferB : SV_Target1)
+{
+	const uint2 PixelCoord = floor(Input.Position.xy);
+	const FCategorizationData CatData = DecodeCategorizationData(CategorisationTexture.Load(uint3(Input.Position.xy, 0)));
+	if (CatData.PixelCoverage == 0)
+		discard;
+
+	const float3 Tangent = float3(0, 0, 1);
+	OutGBufferA = float4(Tangent, 0);
+	OutGBufferB = float4(0, 0, 0, SHADINGMODELID_HAIR);
+}
+
+#endif // SHADER_PATCH
+
+#if SHADER_COMPOSE_SAMPLE
+
+Texture2D<uint>		HairSampleCount;
+Texture2D<uint4>	HairCategorizationTexture;
+Texture2D<uint>		HairVisibilityNodeOffsetAndCount;
+Texture2D<float4>	HairLightingSampleBuffer;
+
+void ComposeSamplePS(
+	in FScreenVertexOutput Input,
+	out float4 OutColor : SV_Target0,
+	out float  OutDepth : SV_Depth)
+{
+	OutColor = 0.0f;
+	const uint3 PixelCoord = uint3(floor(Input.Position.xy), 0);
+
+	FNodeDesc NodeDesc = DecodeNodeDesc(HairVisibilityNodeOffsetAndCount.Load(PixelCoord));
+	if (NodeDesc.Count == 0)
+	{
+		discard;
+	}
+
+	const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
+	const float PixelCoverage = min(CatData.PixelCoverage, 1);
+
+	const uint Resolution = ceil(sqrt(HairSampleCount.Load(uint3(0, 0, 0))));
+
+	LOOP
+	for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
+	{
+		const uint LocalOffset = NodeDesc.Offset + SampleIt;
+		const uint2 Coord = uint2(LocalOffset % Resolution, LocalOffset / Resolution);
+		const float4 LightingSample = HairLightingSampleBuffer.Load(uint3(Coord,0));
+		OutColor.xyz += LightingSample.xyz * PixelCoverage;
+	}
+	OutColor.a = PixelCoverage;
+	OutDepth = CatData.ClosestDepth;
+
+}
+
+#endif // SHADER_COMPOSE_SAMPLE

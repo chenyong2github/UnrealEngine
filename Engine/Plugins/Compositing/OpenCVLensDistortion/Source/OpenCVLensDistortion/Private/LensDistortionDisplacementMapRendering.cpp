@@ -22,6 +22,7 @@ static const uint32 kGridSubdivisionY = 16;
 #if WITH_OPENCV
 class FLensDistortionDisplacementMapGenerationShader : public FGlobalShader
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FLensDistortionDisplacementMapGenerationShader, NonVirtual);
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -54,17 +55,11 @@ public:
 		SetTextureParameter(RHICmdList, ShaderRHI, UndistortDisplacementMap, BilinearSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), PreComputedDisplacementMap->TextureRHI);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PixelUVSize << UndistortDisplacementMap << BilinearSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter PixelUVSize;
-	FShaderResourceParameter UndistortDisplacementMap;
-	FShaderResourceParameter BilinearSampler;
+	
+	LAYOUT_FIELD(FShaderParameter, PixelUVSize);
+	LAYOUT_FIELD(FShaderResourceParameter, UndistortDisplacementMap);
+	LAYOUT_FIELD(FShaderResourceParameter, BilinearSampler);
 };
 
 
@@ -133,7 +128,7 @@ static void DrawUVDisplacementToRenderTargetFromPreComputedDisplacementMap_Rende
 		RHICmdList.SetViewport(0, 0, 0.f, DisplacementMapResolution.X, DisplacementMapResolution.Y, 1.f);
 
 		// Get shaders.
-		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 		TShaderMapRef< FLensDistortionDisplacementMapGenerationVS > VertexShader(GlobalShaderMap);
 		TShaderMapRef< FLensDistortionDisplacementMapGenerationPS > PixelShader(GlobalShaderMap);
 
@@ -145,13 +140,13 @@ static void DrawUVDisplacementToRenderTargetFromPreComputedDisplacementMap_Rende
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		// Update shader uniform parameters.
-		VertexShader->SetParameters(RHICmdList, VertexShader->GetVertexShader(), PreComputedDisplacementMap, DisplacementMapResolution);
-		PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), PreComputedDisplacementMap, DisplacementMapResolution);
+		VertexShader->SetParameters(RHICmdList, VertexShader.GetVertexShader(), PreComputedDisplacementMap, DisplacementMapResolution);
+		PixelShader->SetParameters(RHICmdList, PixelShader.GetPixelShader(), PreComputedDisplacementMap, DisplacementMapResolution);
 
 		// Draw grid.
 		const uint32 PrimitiveCount = kGridSubdivisionX * kGridSubdivisionY * 2;

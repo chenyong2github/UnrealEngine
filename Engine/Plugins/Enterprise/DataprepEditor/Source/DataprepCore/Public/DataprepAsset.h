@@ -43,6 +43,7 @@ public:
 	virtual void PostLoad() override;
 	virtual bool Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOuter/* =nullptr */, ERenameFlags Flags/* =REN_None */) override;
 	virtual void PostEditUndo() override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	// End of UObject interface
 
 	// UDataprepAssetInterface interface
@@ -63,12 +64,18 @@ public:
 
 	const UDataprepActionAsset* GetAction(int32 Index) const;
 
+	int32 GetActionIndex(UDataprepActionAsset* ActionAsset) const
+	{
+		return ActionAssets.Find(ActionAsset);
+	}
+
 	/**
 	 * Add a copy of the action to the Dataprep asset
-	 * @param Action The action we want to duplicate in the Dataprep asset
+	 * @param Action The action we want to duplicate in the Dataprep asset. Parameter can be null
 	 * @return The index of the added action or index none if the action is invalid
+	 * @remark If action is nullptr, a new DataprepActionAsset is simply created
 	 */
-	int32 AddAction(const UDataprepActionAsset* Action);
+	int32 AddAction(const UDataprepActionAsset* Action = nullptr);
 
 	/**
 	 * Creates an action from the array of action steps or one action per action steps
@@ -77,7 +84,32 @@ public:
 	 * @param bCreateOne Indicates if one or more action assets should be created. By default one is created
 	 * @return The index of the last added action or index none if the action is invalid
 	 */
-	int32 AddActions(const TArray<const UDataprepActionStep*>& ActionSteps, bool bCreateOne = true);
+	int32 AddAction(const TArray<const UDataprepActionStep*>& ActionSteps);
+
+	/**
+	 * Add the actions to the Dataprep asset
+	 * @param Actions The array of action to add
+	 * @param bCreateOne Indicates if one or more action assets should be created. By default one is created
+	 * @return The index of the last added action or index none if the action is invalid
+	 */
+	int32 AddActions(const TArray<const UDataprepActionAsset*>& Actions);
+
+	/**
+	 * Creates a new action 
+	 * then insert the action to the Dataprep asset at the requested index
+	 * @param Index The index at which the insertion must happen
+	 * @return True if the insertion is successful, false if the index is invalid
+	 */
+	bool InsertAction(int32 Index);
+	
+	/**
+	 * Creates an action from the array of action steps or one action per action steps
+	 * then insert the action(s) to the Dataprep asset at the requested index
+	 * @param ActionSteps The array of action steps to process
+	 * @param Index The index at which the insertion must happen
+	 * @return True if the insertion is successful, false if the action steps or the index are invalid
+	 */
+	bool InsertAction(const TArray<const UDataprepActionStep*>& InActionSteps, int32 Index);
 
 	/**
 	 * Insert a copy of the action to the Dataprep asset at the requested index
@@ -88,13 +120,12 @@ public:
 	bool InsertAction(const UDataprepActionAsset* InAction, int32 Index);
 
 	/**
-	 * Creates an action from the array of action steps or one action per action steps
-	 * then insert the action(s) to the Dataprep asset at the requested index
-	 * @param ActionSteps The array of action steps to process
+	 * Insert a copy of each action into the Dataprep asset at the requested index
+	 * @param Actions The array of actions to insert
 	 * @param Index The index at which the insertion must happen
-	 * @return True if the insertion is successful, false if the action steps or the index are invalid
+	 * @return True if the insertion is successful, false if the actions or the index are invalid
 	 */
-	bool InsertActions(const TArray<const UDataprepActionStep*>& InActionSteps, int32 Index, bool bCreateOne = true);
+	bool InsertActions(const TArray<const UDataprepActionAsset*>& InActions, int32 Index);
 
 	/**
 	 * Move an action to another spot in the order of actions
@@ -126,6 +157,19 @@ public:
 	DECLARE_EVENT_TwoParams(UDataprepAsset, FOnDataprepActionAssetChange, UObject* /*The object that was modified*/, FDataprepAssetChangeType)
 	FOnDataprepActionAssetChange& GetOnActionChanged() { return OnActionChanged; }
 
+	/**
+	 * Allow an observer to be notified of the removal of some step from the asset
+	 */
+	DECLARE_EVENT_OneParam(UDataprepAsset, FOnStepObjectsAboutToBeRemoved, const TArrayView<UDataprepParameterizableObject*>&)
+	FOnStepObjectsAboutToBeRemoved& GetOnStepObjectsAboutToBeRemoved() { return OnStepObjectsAboutToBeRemoved; }
+
+	struct FRestrictedToActionAsset
+	{
+	private:
+		friend UDataprepActionAsset;
+		static void NotifyAssetOfTheRemovalOfSteps(UDataprepAsset& DataprepAsset, const TArrayView<UDataprepParameterizableObject*>& StepObjects);
+	};
+
 	bool CreateParameterization();
 
 #ifndef NO_BLUEPRINT
@@ -143,26 +187,6 @@ public:
 		return DataprepRecipeBP;
 	}
 
-	// struct to restrict the access scope
-	struct FDataprepBlueprintChangeNotifier
-	{
-	private:
-		friend class FDataprepEditorUtils;
-
-		static void NotifyDataprepBlueprintChange(UDataprepAsset& DataprepAsset, UObject* ModifiedObject)
-		{
-			// The asset is not complete yet. Skip this change
-			if(!DataprepAsset.HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
-			{
-				if(UDataprepActionAsset* ActionAsset = Cast<UDataprepActionAsset>(ModifiedObject))
-				{
-					DataprepAsset.UpdateActions();
-				}
-				DataprepAsset.OnBlueprintChanged.Broadcast( ModifiedObject );
-			}
-		}
-	};
-
 	//Todo Change the signature of this function when the new graph is ready (Hack to avoid a refactoring)
 	UDataprepActionAsset* AddActionUsingBP(class UEdGraphNode* NewActionNode);
 
@@ -170,12 +194,6 @@ public:
 
 	void RemoveActionUsingBP(int32 Index);
 
-	/**
-	 * Allow an observer to be notified of an change in the pipeline
-	 * return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
-	 */
-	DECLARE_EVENT_OneParam(UDataprepAsset, FOnDataprepBlueprintChange, UObject* /*The object that was modified*/)
-	FOnDataprepBlueprintChange& GetOnBlueprintChanged() { return OnBlueprintChanged; }
 	// end of temp code for nodes development
 #endif
 
@@ -188,8 +206,9 @@ public:
 	 * Note on the objects param: The parameterized objects that should refresh their ui. If nullptr all widgets that can display some info on the parameterization should be refreshed
 	 */
 	DECLARE_EVENT_OneParam(UDataprepParameterization, FDataprepParameterizationStatusForObjectsChanged, const TSet<UObject*>* /** Objects */)
-	FDataprepParameterizationStatusForObjectsChanged OnParameterizedObjectsChanged;
+	FDataprepParameterizationStatusForObjectsChanged OnParameterizedObjectsStatusChanged;
 
+	// Internal Use only (the current implementation might be subject to change)
 	virtual UObject* GetParameterizationObject() override;
 
 	void BindObjectPropertyToParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain,const FName& Name);
@@ -202,6 +221,7 @@ public:
 
 	void GetExistingParameterNamesForType(FProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
+	// Internal only for now
 	UDataprepParameterization* GetDataprepParameterization() { return Parameterization; }
 
 protected:
@@ -227,7 +247,7 @@ protected:
 
 	// Temp code for the nodes development
 private:
-	void UpdateActions();
+	void UpdateActions(bool bNotify = true);
 
 private:
 	UPROPERTY()
@@ -241,11 +261,7 @@ private:
 
 	FOnDataprepActionAssetChange OnActionChanged;
 
-	int32 CachedActionCount;
+	FOnStepObjectsAboutToBeRemoved OnStepObjectsAboutToBeRemoved;
 
-#ifndef NO_BLUEPRINT
-	/** Event broadcasted when object in the pipeline was modified (Only broadcasted on changes that can affect the result of execution) */
-	FOnDataprepBlueprintChange OnBlueprintChanged;
-	// end of temp code for nodes development
-#endif
+	int32 CachedActionCount;
 };

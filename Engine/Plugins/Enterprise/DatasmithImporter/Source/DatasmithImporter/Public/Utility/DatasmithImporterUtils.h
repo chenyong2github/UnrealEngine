@@ -18,7 +18,14 @@ DECLARE_LOG_CATEGORY_EXTERN( LogDatasmithImport, Log, All );
 class DATASMITHIMPORTER_API FDatasmithImporterUtils
 {
 public:
-	/** Loads an IDatasmithScene from a UDatasmithScene */
+	enum class EAssetCreationStatus : uint8
+	{
+		CS_CanCreate,
+		CS_HasRedirector,
+		CS_ClassMismatch,
+	};
+
+		/** Loads an IDatasmithScene from a UDatasmithScene */
 	static TSharedPtr< IDatasmithScene > LoadDatasmithScene( UDatasmithScene* DatasmithSceneAsset );
 
 	/** Saves an IDatasmithScene into a UDatasmithScene */
@@ -111,6 +118,25 @@ public:
 	static bool CanCreateAsset(const FString& AssetPathName, const UClass* AssetClass, FText& OutFailReason);
 
 	/**
+	 * @param AssetPathName		Full path name of the asset to create
+	 * @param AssetClass		Class of the asset to create
+	 * Returns a state from the creation enumeration, EAssetCreationStatus.
+	 * Given a path and a class, check if an existing asset with a different class
+	 * would not prevent the creation of such asset.
+	 */
+	static EAssetCreationStatus CanCreateAsset(const FString& AssetPathName, const UClass* AssetClass);
+
+	/**
+	 * @param AssetPathName		Full path name of the asset to create
+	 * Calls CanCreateAsset(const FString&, const UClass*) with the instantiating class
+	 */
+	template< class ObjectType >
+	static EAssetCreationStatus CanCreateAsset(const FString& AssetPathName)
+	{
+		return CanCreateAsset(AssetPathName, ObjectType::StaticClass());
+	}
+
+	/**
 	 * Finds the UDatasmithScene for which the Asset belongs to.
 	 */
 	static UDatasmithScene* FindDatasmithSceneForAsset( UObject* Asset );
@@ -169,6 +195,19 @@ public:
 	 * @return the copied object or null if it failed for some reason
 	 */
 	static UObject* StaticDuplicateObject(UObject* SourceObject, UObject* Outer, const FName Name = NAME_None);
+
+	/**
+	 * Specialization of the duplication of a StaticMesh object specifically optimized for datasmith use case.
+	 * This operation invalidate the duplicated SourceStaticMesh and mark it as PendingKill, unless bIgnoreBulkData is True.
+	 *
+	 * @param SourceStaticMesh	the UStaticMesh being copied
+	 * @param Outer				the outer to use for the object
+	 * @param Name				the optional name of the object
+	 * @param bIgnoreBulkData	if True, the SourceStaticMesh's SourceModels BulkDatas won't be copied and SourceStaticMesh will stay valid after the operation.
+	 *
+	 * @return the copied StaticMesh or null if it failed for some reason
+	 */
+	static UStaticMesh* DuplicateStaticMesh(UStaticMesh* SourceStaticMesh, UObject* Outer, const FName Name = NAME_None, bool bIgnoreBulkData = false);
 
 	template< class T >
 	static T* DuplicateObject(T* SourceObject, UObject* Outer, const FName Name = NAME_None)

@@ -14,15 +14,22 @@ struct FDataprepSchemaActionContext;
 
 class SDataprepOperation : public SDataprepActionBlock, public FGCObject
 {
+#ifndef NO_BLUEPRINT
+	SLATE_BEGIN_ARGS(SDataprepOperation)
+	: _IsSimplified(false)
+	{}
+		SLATE_ARGUMENT( bool, IsSimplified )
+#else
 	SLATE_BEGIN_ARGS(SDataprepOperation) {}
-	SLATE_END_ARGS();
+#endif
+	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepOperation* InOperation, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext);
 
 protected:
 
 	// SDataprepActionBlock interface
-	virtual FLinearColor GetOutlineColor() const override;
+	virtual FSlateColor GetOutlineColor() const override;
 	virtual FText GetBlockTitle() const override;
 	virtual TSharedRef<SWidget> GetContentWidget() override;
 	//~ end of SDataprepActionBlock interface

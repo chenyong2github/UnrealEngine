@@ -204,6 +204,7 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& BoundTransform) const override;
 #if WITH_EDITOR
+	virtual void PostEditUndo() override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
@@ -257,7 +258,12 @@ public:
 protected:
 	void BuildTree();
 	void BuildTreeAsync();
+	void ApplyBuildTree(FClusterBuilder& Builder);
+	void ApplyEmpty();
 	void SetPerInstanceLightMapAndEditorData(FStaticMeshInstanceData& PerInstanceData, const TArray<TRefCountPtr<HHitProxy>>& HitProxies);
+
+	void GetInstanceTransforms(TArray<FMatrix>& InstanceTransforms) const;
+	void InitializeInstancingRandomSeed();
 
 	/** Removes specified instances */ 
 	void RemoveInstancesInternal(const int32* InstanceIndices, int32 Num);

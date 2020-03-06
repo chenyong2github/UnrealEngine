@@ -2389,6 +2389,10 @@ bool UActorChannel::ProcessQueuedBunches()
 
 			if (UPackageMapClient * PackageMapClient = Cast< UPackageMapClient >(Connection->PackageMap))
 			{
+#if CSV_PROFILER
+				FNetGUIDCache::FIsOwnerOrPawnHelper Helper(Connection->Driver->GuidCache.Get(), Connection->OwningActor, Actor);
+#endif
+
 				PackageMapClient->SetHasQueuedBunches(ActorNetGUID, false);
 			}
 
@@ -2464,8 +2468,11 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 			QueuedObjectsToTrack.SetNum(NumMustBeMappedGUIDs);
 			//UE_LOG( LogNetTraffic, Warning, TEXT( "Read must be mapped GUID's. NumMustBeMappedGUIDs: %i" ), NumMustBeMappedGUIDs );
 
-			UPackageMapClient* PackageMapClient = CastChecked<UPackageMapClient>(Connection->PackageMap);
 			FNetGUIDCache* GuidCache = Connection->Driver->GuidCache.Get();
+
+#if CSV_PROFILER
+			FNetGUIDCache::FIsOwnerOrPawnHelper Helper(GuidCache, Connection->OwningActor, Actor);
+#endif
 
 			for (int32 i = 0; i < NumMustBeMappedGUIDs; i++)
 			{
@@ -2474,7 +2481,7 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 
 				// If we have async package map loading disabled, we have to ignore NumMustBeMappedGUIDs
 				//	(this is due to the fact that async loading could have been enabled on the server side)
-				if (!Connection->Driver->GuidCache->ShouldAsyncLoad())
+				if (!GuidCache->ShouldAsyncLoad())
 				{
 					continue;
 				}
@@ -2829,7 +2836,6 @@ int32 GNumReplicateActorCalls = 0;
 int64 UActorChannel::ReplicateActor()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateActorTime);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ReplicateActor);
 
 	check(Actor);
 	check(!Closing);
@@ -2845,6 +2851,8 @@ int64 UActorChannel::ReplicateActor()
 #endif
 
 	const bool bReplay = ActorWorld->DemoNetDriver == Connection->GetDriver();
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(ReplicateActor, !bReplay);
+
 	const bool bEnableScopedCycleCounter = !bReplay && GReplicateActorTimingEnabled;
 	FSimpleScopeSecondsCounter ScopedSecondsCounter(GReplicateActorTimeSeconds, bEnableScopedCycleCounter);
 

@@ -15,6 +15,7 @@ TextureStreamingManager.h: Definitions of classes used for texture streaming.
 
 class AActor;
 class FRenderAssetStreamingMipCalcTask;
+class IPakFile;
 class UPrimitiveComponent;
 
 template<typename TTask> class FAsyncTask;
@@ -408,7 +409,7 @@ private:
 	TArray<int32> InflightRenderAssets;
 
 	TMap<FString, bool> CachedFileExistsChecks;
-	void OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId);
+	void OnPakFileMounted(const IPakFile& PakFile);
 
 	// A critical section use around code that could be called in parallel with NotifyPrimitiveUpdated() or NotifyPrimitiveUpdated_Concurrent().
 	FCriticalSection CriticalSection;

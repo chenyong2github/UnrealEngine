@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDSKEL_CACHE_H
-#define USDSKEL_CACHE_H
+#ifndef PXR_USD_USD_SKEL_CACHE_H
+#define PXR_USD_USD_SKEL_CACHE_H
 
 /// \file usdSkel/cache.h
 
@@ -41,6 +41,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 
 class UsdSkelRoot;
+class UsdSkelAnimation;
 class UsdSkelSkeleton;
 class UsdSkelSkeletonQuery;
 class UsdSkelSkinningQuery;
@@ -72,8 +73,13 @@ public:
     USDSKEL_API
     UsdSkelSkeletonQuery GetSkelQuery(const UsdSkelSkeleton& skel) const;
 
-    /// Get an anim query corresponding to \p prim.
+    /// Get an anim query corresponding to \p anim.
     /// This does not require Populate() to be called on the cache.
+    USDSKEL_API
+    UsdSkelAnimQuery GetAnimQuery(const UsdSkelAnimation& anim) const;
+
+    /// \overload
+    /// \deprecated
     USDSKEL_API
     UsdSkelAnimQuery GetAnimQuery(const UsdPrim& prim) const;
 

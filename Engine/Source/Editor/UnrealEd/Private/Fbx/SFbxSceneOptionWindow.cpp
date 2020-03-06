@@ -1319,17 +1319,17 @@ void SFbxSceneOptionWindow::Construct(const FArguments& InArgs)
 	//By default we want to see the Scene tab
 	if (!SceneInfoOriginal.IsValid())
 	{
-		FbxSceneImportTabManager->InvokeTab(FTabId("Scene"));
+		FbxSceneImportTabManager->TryInvokeTab(FTabId("Scene"));
 	}
 	else
 	{
 		if (bCanReimportHierarchy)
 		{
-			FbxSceneImportTabManager->InvokeTab(FTabId("SceneReImport"));
+			FbxSceneImportTabManager->TryInvokeTab(FTabId("SceneReImport"));
 		}
 		else
 		{
-			FbxSceneImportTabManager->InvokeTab(FTabId("StaticMeshesReimport"));
+			FbxSceneImportTabManager->TryInvokeTab(FTabId("StaticMeshesReimport"));
 		}
 	}
 }

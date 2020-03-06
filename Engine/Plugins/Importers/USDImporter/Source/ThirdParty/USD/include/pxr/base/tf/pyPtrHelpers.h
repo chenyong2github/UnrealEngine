@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYPTRHELPERS_H
-#define TF_PYPTRHELPERS_H
+#ifndef PXR_BASE_TF_PY_PTR_HELPERS_H
+#define PXR_BASE_TF_PY_PTR_HELPERS_H
 
 /// \file tf/pyPtrHelpers.h
 /// Enables wrapping of Weak or Ref & Weak held types to python.
@@ -447,4 +447,4 @@ struct TfPyRefAndWeakPtr : Tf_PyDefHelpers::RefAndWeakPtr {};
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYPTRHELPERS_H
+#endif // PXR_BASE_TF_PY_PTR_HELPERS_H

@@ -33,8 +33,8 @@ int32 UnrealInsightsMain(const TCHAR* CommandLine)
 
 	// Shut down.
 	//im: ??? FCoreDelegates::OnExit.Broadcast();
-	FModuleManager::Get().UnloadModulesAtShutdown();
 	FEngineLoop::AppPreExit(); //im: ???
+	FModuleManager::Get().UnloadModulesAtShutdown();
 
 #if STATS
 	FThreadStats::StopThread();

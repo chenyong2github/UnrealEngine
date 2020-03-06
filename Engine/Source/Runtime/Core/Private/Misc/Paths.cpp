@@ -20,6 +20,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
 
+#if !defined(SUPPORTS_LOGS_IN_USERDIR)
+	#define SUPPORTS_LOGS_IN_USERDIR 0
+#endif
+
 struct FPaths::FStaticData
 {
 	FCriticalSection GameProjectFilePathLock;
@@ -27,6 +31,7 @@ struct FPaths::FStaticData
 
 	FString         UserDirArg;
 	FString         GameSavedDir;
+	FString         EngineSavedDir;
 	FString         ShaderDir;
 	FString         UserFolder;
 	TArray<FString> EngineLocalizationPaths;
@@ -40,6 +45,7 @@ struct FPaths::FStaticData
 
 	bool bUserDirArgInitialized                    = false;
 	bool bGameSavedDirInitialized                  = false;
+	bool bEngineSavedDirInitialized                = false;
 	bool bShaderDirInitialized                     = false;
 	bool bUserFolderInitialized                    = false;
 	bool bEngineLocalizationPathsInitialized       = false;
@@ -61,12 +67,12 @@ namespace UE4Paths_Private
 	auto IsSlashOrBackslash    = [](TCHAR C) { return C == TEXT('/') || C == TEXT('\\'); };
 	auto IsNotSlashOrBackslash = [](TCHAR C) { return C != TEXT('/') && C != TEXT('\\'); };
 
-	FString GameSavedDir()
+	FString GetSavedDirSuffix(const FString& BaseDir, const TCHAR* CommandLineArgument)
 	{
-		FString Result = FPaths::ProjectUserDir();
+		FString Result = BaseDir + TEXT("Saved");
 
 		FString NonDefaultSavedDirSuffix;
-		if (FParse::Value(FCommandLine::Get(), TEXT("-saveddirsuffix="), NonDefaultSavedDirSuffix))
+		if (FParse::Value(FCommandLine::Get(), CommandLineArgument, NonDefaultSavedDirSuffix))
 		{
 			for (int32 CharIdx = 0; CharIdx < NonDefaultSavedDirSuffix.Len(); ++CharIdx)
 			{
@@ -76,18 +82,26 @@ namespace UE4Paths_Private
 					--CharIdx;
 				}
 			}
+		}
 
-			if (!NonDefaultSavedDirSuffix.IsEmpty())
-			{
-				Result += TEXT("Saved_") + NonDefaultSavedDirSuffix + TEXT("/");
-			}
-		}
-		else
+		if (!NonDefaultSavedDirSuffix.IsEmpty())
 		{
-			Result += TEXT("Saved/");
+			Result += TEXT("_") + NonDefaultSavedDirSuffix;
 		}
+
+		Result += TEXT("/");
 
 		return Result;
+	}
+
+	FString GameSavedDir()
+	{
+		return GetSavedDirSuffix(FPaths::ProjectUserDir(), TEXT("-saveddirsuffix="));
+	}
+
+	FString EngineSavedDir()
+	{
+		return GetSavedDirSuffix(FPaths::EngineUserDir(), TEXT("-enginesaveddirsuffix="));
 	}
 
 	FString ConvertRelativePathToFullInternal(FString&& BasePath, FString&& InPath)
@@ -185,7 +199,13 @@ FString FPaths::EngineIntermediateDir()
 
 FString FPaths::EngineSavedDir()
 {
-	return EngineUserDir() + TEXT("Saved/");
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+	if (!StaticData.bEngineSavedDirInitialized)
+	{
+		StaticData.EngineSavedDir = UE4Paths_Private::EngineSavedDir();
+		StaticData.bEngineSavedDirInitialized = true;
+	}
+	return StaticData.EngineSavedDir;
 }
 
 FString FPaths::EnginePluginsDir()
@@ -368,7 +388,7 @@ FString FPaths::ProjectLogDir()
 	{
 		return *OverrideDir;
 	}
-#elif PLATFORM_MAC || PLATFORM_XBOXONE
+#elif PLATFORM_MAC || SUPPORTS_LOGS_IN_USERDIR
 	if (CustomUserDirArgument().IsEmpty())
 	{
 		return FPlatformProcess::UserLogsDir();
@@ -1510,7 +1530,7 @@ bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 	MakeStandardFilename(TmpA);
 	MakeStandardFilename(TmpB);
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
+#if PLATFORM_MICROSOFT
 	return FCString::Stricmp(*TmpA, *TmpB) == 0;
 #else
 	return FCString::Strcmp(*TmpA, *TmpB) == 0;
@@ -1527,7 +1547,7 @@ bool FPaths::IsUnderDirectory(const FString& InPath, const FString& InDirectory)
 		Directory.RemoveAt(Directory.Len() - 1);
 	}
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
+#if PLATFORM_MICROSOFT
 	int Compare = FCString::Strnicmp(*Path, *Directory, Directory.Len());
 #else
 	int Compare = FCString::Strncmp(*Path, *Directory, Directory.Len());

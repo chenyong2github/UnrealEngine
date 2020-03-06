@@ -128,7 +128,7 @@ public:
 		const FDistanceFieldAOParameters& Parameters,
 		const FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
@@ -193,40 +193,22 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
 	{
-		ScreenGridConeVisibility.UnsetUAV(RHICmdList, GetComputeShader());
-		ConeDepthVisibilityFunction.UnsetUAV(RHICmdList, GetComputeShader());
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{		
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SceneTextureParameters;
-		Ar << ObjectParameters;
-		Ar << AOParameters;
-		Ar << ScreenGridParameters;
-		Ar << GlobalDistanceFieldParameters;
-		Ar << TileConeDepthRanges;
-		Ar << TileIntersectionParameters;
-		Ar << TanConeHalfAngle;
-		Ar << BentNormalNormalizeFactor;
-		Ar << ScreenGridConeVisibility;
-		Ar << ConeDepthVisibilityFunction;
-		return bShaderHasOutdatedParameters;
+		ScreenGridConeVisibility.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
+		ConeDepthVisibilityFunction.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 	}
 
 private:
-
-	FSceneTextureShaderParameters SceneTextureParameters;
-	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> ObjectParameters;
-	FAOParameters AOParameters;
-	FScreenGridParameters ScreenGridParameters;
-	FGlobalDistanceFieldParameters GlobalDistanceFieldParameters;
-	FShaderResourceParameter TileConeDepthRanges;
-	FTileIntersectionParameters TileIntersectionParameters;
-	FShaderParameter TanConeHalfAngle;
-	FShaderParameter BentNormalNormalizeFactor;
-	FRWShaderParameter ScreenGridConeVisibility;
-	FRWShaderParameter ConeDepthVisibilityFunction;
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD((TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField>), ObjectParameters);
+	LAYOUT_FIELD(FAOParameters, AOParameters);
+	LAYOUT_FIELD(FScreenGridParameters, ScreenGridParameters);
+	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, TileConeDepthRanges);
+	LAYOUT_FIELD(FTileIntersectionParameters, TileIntersectionParameters);
+	LAYOUT_FIELD(FShaderParameter, TanConeHalfAngle);
+	LAYOUT_FIELD(FShaderParameter, BentNormalNormalizeFactor);
+	LAYOUT_FIELD(FRWShaderParameter, ScreenGridConeVisibility);
+	LAYOUT_FIELD(FRWShaderParameter, ConeDepthVisibilityFunction);
 };
 
 #define IMPLEMENT_CONETRACE_CS_TYPE(bSupportIrradiance, bUseGlobalDistanceField) \
@@ -291,7 +273,7 @@ public:
 		const FDistanceFieldAOParameters& Parameters,
 		const FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
@@ -358,37 +340,20 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
 	{
-		ScreenGridConeVisibility.UnsetUAV(RHICmdList, GetComputeShader());
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{		
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SceneTextureParameters;
-		Ar << ObjectParameters;
-		Ar << AOParameters;
-		Ar << ScreenGridParameters;
-		Ar << GlobalDistanceFieldParameters;
-		Ar << TileConeDepthRanges;
-		Ar << TileListGroupSize;
-		Ar << TanConeHalfAngle;
-		Ar << BentNormalNormalizeFactor;
-		Ar << ScreenGridConeVisibility;
-		return bShaderHasOutdatedParameters;
+		ScreenGridConeVisibility.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 	}
 
 private:
-
-	FSceneTextureShaderParameters SceneTextureParameters;
-	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> ObjectParameters;
-	FAOParameters AOParameters;
-	FScreenGridParameters ScreenGridParameters;
-	FGlobalDistanceFieldParameters GlobalDistanceFieldParameters;
-	FShaderResourceParameter TileConeDepthRanges;
-	FShaderParameter TileListGroupSize;
-	FShaderParameter TanConeHalfAngle;
-	FShaderParameter BentNormalNormalizeFactor;
-	FRWShaderParameter ScreenGridConeVisibility;
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD((TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField>), ObjectParameters);
+	LAYOUT_FIELD(FAOParameters, AOParameters);
+	LAYOUT_FIELD(FScreenGridParameters, ScreenGridParameters);
+	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, TileConeDepthRanges);
+	LAYOUT_FIELD(FShaderParameter, TileListGroupSize);
+	LAYOUT_FIELD(FShaderParameter, TanConeHalfAngle);
+	LAYOUT_FIELD(FShaderParameter, BentNormalNormalizeFactor);
+	LAYOUT_FIELD(FRWShaderParameter, ScreenGridConeVisibility);
 };
 
 #define IMPLEMENT_CONETRACE_GLOBAL_CS_TYPE(bSupportIrradiance) \
@@ -443,7 +408,7 @@ public:
 		FSceneRenderTargetItem& DistanceFieldNormal, 
 		FSceneRenderTargetItem& DownsampledBentNormal)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
 
@@ -488,30 +453,17 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, FSceneRenderTargetItem& DownsampledBentNormal)
 	{
-		DistanceFieldBentNormal.UnsetUAV(RHICmdList, GetComputeShader());
+		DistanceFieldBentNormal.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, DownsampledBentNormal.UAV);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{		
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << ScreenGridParameters;
-		Ar << BentNormalNormalizeFactor;
-		Ar << ScreenGridConeVisibility;
-		Ar << DistanceFieldBentNormal;
-		Ar << DFNormalBufferUVMax;
-		Ar << ConeBufferMax;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-
-	FScreenGridParameters ScreenGridParameters;
-	FShaderParameter BentNormalNormalizeFactor;
-	FShaderParameter DFNormalBufferUVMax;
-	FShaderParameter ConeBufferMax;
-	FShaderResourceParameter ScreenGridConeVisibility;
-	FRWShaderParameter DistanceFieldBentNormal;
+	LAYOUT_FIELD(FScreenGridParameters, ScreenGridParameters);
+	LAYOUT_FIELD(FShaderParameter, BentNormalNormalizeFactor);
+	LAYOUT_FIELD(FShaderParameter, DFNormalBufferUVMax);
+	LAYOUT_FIELD(FShaderParameter, ConeBufferMax);
+	LAYOUT_FIELD(FShaderResourceParameter, ScreenGridConeVisibility);
+	LAYOUT_FIELD(FRWShaderParameter, DistanceFieldBentNormal);
 };
 
 IMPLEMENT_SHADER_TYPE(,FCombineConeVisibilityCS,TEXT("/Engine/Private/DistanceFieldScreenGridLighting.usf"),TEXT("CombineConeVisibilityCS"),SF_Compute);
@@ -602,18 +554,18 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		{
 			TShaderMapRef<TConeTraceScreenGridGlobalOcclusionCS<true> > ComputeShader(View.ShaderMap);
 
-			RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 			ComputeShader->SetParameters(RHICmdList, View, TileListGroupSize, DistanceFieldNormal->GetRenderTargetItem(), Parameters, View.GlobalDistanceFieldInfo);
-			DispatchComputeShader(RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
 			ComputeShader->UnsetParameters(RHICmdList, View);
 		}
 		else
 		{
 			TShaderMapRef<TConeTraceScreenGridGlobalOcclusionCS<false> > ComputeShader(View.ShaderMap);
 
-			RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 			ComputeShader->SetParameters(RHICmdList, View, TileListGroupSize, DistanceFieldNormal->GetRenderTargetItem(), Parameters, View.GlobalDistanceFieldInfo);
-			DispatchComputeShader(RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
 			ComputeShader->UnsetParameters(RHICmdList, View);
 		}
 	}
@@ -633,18 +585,18 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 			{
 				TShaderMapRef<TConeTraceScreenGridObjectOcclusionCS<true, true> > ComputeShader(View.ShaderMap);
 
-				RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 				ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRenderTargetItem(), Parameters, View.GlobalDistanceFieldInfo);
-				DispatchIndirectComputeShader(RHICmdList, *ComputeShader, TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
+				DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
 				ComputeShader->UnsetParameters(RHICmdList, View);
 			}
 			else
 			{
 				TShaderMapRef<TConeTraceScreenGridObjectOcclusionCS<false, true> > ComputeShader(View.ShaderMap);
 
-				RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 				ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRenderTargetItem(), Parameters, View.GlobalDistanceFieldInfo);
-				DispatchIndirectComputeShader(RHICmdList, *ComputeShader, TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
+				DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
 				ComputeShader->UnsetParameters(RHICmdList, View);
 			}
 		}
@@ -654,18 +606,18 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 			{
 				TShaderMapRef<TConeTraceScreenGridObjectOcclusionCS<true, false> > ComputeShader(View.ShaderMap);
 
-				RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 				ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRenderTargetItem(), Parameters, View.GlobalDistanceFieldInfo);
-				DispatchIndirectComputeShader(RHICmdList, *ComputeShader, TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
+				DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
 				ComputeShader->UnsetParameters(RHICmdList, View);
 			}
 			else
 			{
 				TShaderMapRef<TConeTraceScreenGridObjectOcclusionCS<false, false> > ComputeShader(View.ShaderMap);
 
-				RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 				ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRenderTargetItem(), Parameters, View.GlobalDistanceFieldInfo);
-				DispatchIndirectComputeShader(RHICmdList, *ComputeShader, TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
+				DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
 				ComputeShader->UnsetParameters(RHICmdList, View);
 			}
 		}
@@ -712,9 +664,9 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 
 		TShaderMapRef<FCombineConeVisibilityCS> ComputeShader(View.ShaderMap);
 
-		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 		ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRenderTargetItem(), DownsampledBentNormal->GetRenderTargetItem());
-		DispatchComputeShader(RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
 		ComputeShader->UnsetParameters(RHICmdList, DownsampledBentNormal->GetRenderTargetItem());
 	}
 

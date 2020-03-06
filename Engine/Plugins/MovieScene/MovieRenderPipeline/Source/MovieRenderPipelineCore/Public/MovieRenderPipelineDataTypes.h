@@ -47,7 +47,7 @@ enum class EMovieRenderPipelineState : uint8
 	/** All outputs have finished writing to disk or otherwise processing. Additional exports that may have needed information about the produced file can now be run. */
 	Export = 3,
 	/** The pipeline has been shut down. It is an error to shut it down again. */
-	Shutdown = 4,
+	Finished = 4,
 };
 
 /**
@@ -500,14 +500,14 @@ public:
 
 	bool SetNextShotActive()
 	{
-		if (CurrentCameraCutIndex + 1 < CameraCuts.Num() - 1)
+		if (CurrentCameraCutIndex == CameraCuts.Num() - 1)
 		{
-			CurrentCameraCutIndex++;
-			return false;
+			// We're on the last camera cut, we can't make another one active.
+			return true;
 		}
-
-		// We're on the last camera cut, we can't make another one active.
-		return true;
+		
+		CurrentCameraCutIndex++;
+		return false;
 	}
 
 	bool operator == (const FMoviePipelineShotInfo& InRHS) const
@@ -563,6 +563,13 @@ public:
 		* may be duplicate frame Source/Effective frame numbers as they find the closest ideal time to the current.
 		*/
 		bool bWasAffectedByTimeDilation;
+
+		void ResetPerFrameData()
+		{
+			MotionBlurFraction = 0.f;
+			FrameDeltaTime = 0.0;
+			bWasAffectedByTimeDilation = false;
+		}
 	};
 
 	FMoviePipelineFrameOutputState()
@@ -614,11 +621,20 @@ public:
 	/** The total number of samples (including warm ups) that have been sent to the GPU for this shot. */
 	int32 ShotSamplesRendered;
 
+	/** What time data should this frame use? Can vary between samples when TemporalSampleCount > 1. */
+	FTimeData TimeData;
+
+	/** The name of the currently active camera being rendered. May be empty. */
+	FString CameraName;
+
+	/** THe name of the currently active shot. May be empty if there is no shot track. */
+	FString ShotName;
+
 	/** INFORMATION BELOW HERE SHOULD NOT GET PERSISTED BETWEEN FRAMES */
 
 	void ResetPerFrameData()
 	{
-		TimeData = FTimeData();
+		TimeData.ResetPerFrameData();
 		bSkipRendering = false;
 		bDiscardRenderResult = false;
 		SourceFrameNumber = 0;
@@ -635,10 +651,9 @@ public:
 		ShotSamplesRendered = 0;
 		ShotIndex = 0;
 		TemporalSampleCount = 0;
+		CameraName.Reset();
+		ShotName.Reset();
 	}
-
-	/** What time data should this frame use? Can vary between samples when TemporalSampleCount > 1. */
-	FTimeData TimeData;
 
 	/**
 	* If true, then the rendering for this frame should be skipped (ie: nothing submitted to the gpu, and the output merger not told to expect this frame).
@@ -819,6 +834,8 @@ public:
 
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 };
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineSampleReady, TArray<FFloat16Color>&, FMoviePipelineRenderPassMetrics);
 
 namespace MoviePipeline
 {

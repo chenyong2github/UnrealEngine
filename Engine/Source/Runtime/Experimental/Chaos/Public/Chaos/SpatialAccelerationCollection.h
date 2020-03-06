@@ -306,6 +306,22 @@ typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType
 {
 }
 
+template<typename T_SPATIALACCELERATION>
+void MoveToTOIHackImpl(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle1, const T_SPATIALACCELERATION* SpatialAcceleration);
+
+template <typename SpatialAccelerationCollection>
+typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<FReal, 3>>::Value, void>::Type CallMoveToTOIHack_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, TTransientPBDRigidParticleHandle<FReal, 3>& Particle)
+{
+	MoveToTOIHackImpl(Dt, Particle, &Accel);
+}
+
+template <typename SpatialAccelerationCollection>
+typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<FReal, 3>>::Value, void>::Type CallMoveToTOIHack_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, TTransientPBDRigidParticleHandle<FReal, 3>& Particle)
+{
+}
+
+
+
 template <typename ... TSpatialAccelerationTypes>
 class CHAOS_API TSpatialAccelerationCollection : public
 	ISpatialAccelerationCollection<typename std::tuple_element<0, std::tuple< TSpatialAccelerationTypes...>>::type::PayloadType,
@@ -474,6 +490,11 @@ public:
 	virtual void PBDComputeConstraintsLowLevel(T Dt, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData) const override
 	{
 		PBDComputeConstraintsLowLevel_Helper(Dt, *this, BroadPhase, NarrowPhase, Receiver, StatData);
+	}
+
+	virtual void CallMoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle) const override
+	{
+		CallMoveToTOIHack_Helper(Dt, *this, Particle);
 	}
 
 	virtual void Serialize(FChaosArchive& Ar)

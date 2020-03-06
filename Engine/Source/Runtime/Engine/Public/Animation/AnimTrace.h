@@ -5,15 +5,19 @@
 #include "CoreTypes.h"
 #include "ObjectTrace.h"
 #include "CoreMinimal.h"
+#include "Trace/Trace.h"
 
 #define ANIM_TRACE_ENABLED OBJECT_TRACE_ENABLED
 
 #if ANIM_TRACE_ENABLED
 
+ENGINE_API UE_TRACE_CHANNEL_EXTERN(AnimationChannel);
+
 struct FAnimInstanceProxy;
 struct FAnimTickRecord;
 struct FAnimationBaseContext;
 struct FAnimationUpdateContext;
+class UAnimInstance;
 class USkeletalMesh;
 class USkeletalMeshComponent;
 struct FAnimationInitializeContext;
@@ -26,6 +30,10 @@ class FName;
 struct FVector;
 struct FRotator;
 struct FAnimNode_SequencePlayer;
+struct FAnimNotifyEvent;
+struct FPassedMarker;
+struct FAnimSyncMarker;
+struct FAnimMontageInstance;
 
 struct FAnimTrace
 {
@@ -37,6 +45,16 @@ struct FAnimTrace
 		Update = 2,
 		CacheBones = 3,
 		Evaluate = 4,
+	};
+
+	/** The various events called on notifies */
+	enum class ENotifyEventType : uint8
+	{
+		Event = 0,
+		Begin = 1,
+		End = 2,
+		Tick = 3,
+		SyncMarker = 4	// We 'fake' sync markers with a notify type for convenience
 	};
 
 	/** Helper for outputting anim nodes */
@@ -69,6 +87,13 @@ struct FAnimTrace
 		EPhase Phase;
 	};
 
+	/** Helper for suspending anim node tracing */
+	struct FScopedAnimNodeTraceSuspend
+	{
+		FScopedAnimNodeTraceSuspend();
+		~FScopedAnimNodeTraceSuspend();
+	};
+
 	/** Describes a debug line output to the world */
 	struct FDebugLine
 	{
@@ -88,9 +113,6 @@ struct FAnimTrace
 		float Thickness;
 		bool bPersistentLines;
 	};
-
-	/** Initialize animation tracing */
-	ENGINE_API static void Init();
 
 	/** Helper function to output a tick record */
 	ENGINE_API static void OutputAnimTickRecord(const FAnimationBaseContext& InContext, const FAnimTickRecord& InTickRecord);
@@ -115,6 +137,7 @@ struct FAnimTrace
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, bool InValue);
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, int32 InValue);
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, float InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FVector2D& InValue);
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FVector& InValue);
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FRotator& InValue);
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FName& InValue);
@@ -133,6 +156,15 @@ struct FAnimTrace
 
 	/** Helper function to output a state machine state's info */
 	ENGINE_API static void OutputStateMachineState(const FAnimationBaseContext& InContext, int32 InStateMachineIndex, int32 InStateIndex, float InStateWeight, float InElapsedTime);
+
+	/** Helper function to output an anim notify event */
+	ENGINE_API static void OutputAnimNotify(UAnimInstance* InAnimInstance, const FAnimNotifyEvent& InNotifyEvent, ENotifyEventType InEventType);
+
+	/** Helper function to output an anim sync marker event */
+	ENGINE_API static void OutputAnimSyncMarker(UAnimInstance* InAnimInstance, const FPassedMarker& InPassedSyncMarker);
+
+	/** Helper function to output a montage instance's info */
+	ENGINE_API static void OutputMontage(UAnimInstance* InAnimInstance, const FAnimMontageInstance& InMontageInstance);
 };
 
 #define TRACE_ANIM_TICK_RECORD(Context, TickRecord) \
@@ -153,6 +185,9 @@ struct FAnimTrace
 #define TRACE_SCOPED_ANIM_NODE(Context) \
 	FAnimTrace::FScopedAnimNodeTrace _ScopedAnimNodeTrace(Context);
 
+#define TRACE_SCOPED_ANIM_NODE_SUSPEND \
+	FAnimTrace::FScopedAnimNodeTraceSuspend _ScopedAnimNodeTraceSuspend;
+
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value) \
 	FAnimTrace::OutputAnimNodeValue(Context, Key, Value);
 
@@ -162,6 +197,15 @@ struct FAnimTrace
 #define TRACE_ANIM_STATE_MACHINE_STATE(Context, StateMachineIndex, StateIndex, StateWeight, ElapsedTime) \
 	FAnimTrace::OutputStateMachineState(Context, StateMachineIndex, StateIndex, StateWeight, ElapsedTime);
 
+#define TRACE_ANIM_NOTIFY(AnimInstance, NotifyEvent, EventType) \
+	FAnimTrace::OutputAnimNotify(AnimInstance, NotifyEvent, FAnimTrace::ENotifyEventType::EventType);
+
+#define TRACE_ANIM_SYNC_MARKER(AnimInstance, SyncMarker) \
+	FAnimTrace::OutputAnimSyncMarker(AnimInstance, SyncMarker);
+
+#define TRACE_ANIM_MONTAGE(AnimInstance, MontageInstance) \
+	FAnimTrace::OutputMontage(AnimInstance, MontageInstance);
+
 #else
 
 #define TRACE_ANIM_TICK_RECORD(Context, TickRecord)
@@ -170,8 +214,12 @@ struct FAnimTrace
 #define TRACE_SKELETALMESH_FRAME(Component)
 #define TRACE_SCOPED_ANIM_GRAPH(Context)
 #define TRACE_SCOPED_ANIM_NODE(Context)
+#define TRACE_SCOPED_ANIM_NODE_SUSPEND
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value)
 #define TRACE_ANIM_SEQUENCE_PLAYER(Context, Node)
 #define TRACE_ANIM_STATE_MACHINE_STATE(Context, StateMachineIndex, StateIndex, StateWeight, ElapsedTime)
+#define TRACE_ANIM_NOTIFY(AnimInstance, NotifyEvent, EventType)
+#define TRACE_ANIM_SYNC_MARKER(AnimInstance, SyncMarker)
+#define TRACE_ANIM_MONTAGE(AnimInstance, MontageInstance)
 
 #endif

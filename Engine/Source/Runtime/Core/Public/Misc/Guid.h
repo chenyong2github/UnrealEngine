@@ -7,6 +7,8 @@
 #include "Misc/Crc.h"
 #include "Containers/UnrealString.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/MemoryLayout.h"
+#include "Hash/CityHash.h"
 
 class FArchive;
 class FOutputDevice;
@@ -299,7 +301,7 @@ public:
 	 */
 	friend uint32 GetTypeHash(const FGuid& Guid)
 	{
-		return FCrc::MemCrc_DEPRECATED(&Guid, sizeof(FGuid));
+		return uint32(CityHash64((char*)&Guid, sizeof(FGuid)));
 	}
 
 public:
@@ -347,6 +349,7 @@ public:
 	/** Holds the fourth component. */
 	uint32 D;
 };
-
+template<> struct TCanBulkSerialize<FGuid> { enum { Value = true }; };
+DECLARE_INTRINSIC_TYPE_LAYOUT(FGuid);
 
 template <> struct TIsPODType<FGuid> { enum { Value = true }; };

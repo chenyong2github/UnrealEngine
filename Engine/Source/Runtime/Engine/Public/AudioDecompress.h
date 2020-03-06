@@ -327,7 +327,7 @@ public:
 	 *
 	 * @param	InWave		Wave data to decompress
 	 */
-	ENGINE_API FAsyncAudioDecompressWorker(USoundWave* InWave, int32 InNumPrecacheFrames);
+	ENGINE_API FAsyncAudioDecompressWorker(USoundWave* InWave, int32 InNumPrecacheFrames, FAudioDevice* InAudioDevice = nullptr);
 
 	/**
 	 * Performs the async audio decompression

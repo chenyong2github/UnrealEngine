@@ -1,0 +1,28 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Camera/CameraShake.h"
+#include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#include "MovieSceneCameraShakeSourceTriggerSection.generated.h"
+
+UCLASS(MinimalAPI)
+class UMovieSceneCameraShakeSourceTriggerSection 
+	: public UMovieSceneSection
+{
+public:
+	GENERATED_BODY()
+
+	UMovieSceneCameraShakeSourceTriggerSection(const FObjectInitializer& Init);
+
+	const FMovieSceneCameraShakeSourceTriggerChannel& GetChannel() const { return Channel; }
+
+	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
+
+private:
+	UPROPERTY()
+	FMovieSceneCameraShakeSourceTriggerChannel Channel;
+};
+

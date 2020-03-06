@@ -66,6 +66,9 @@
 #include "LiveLinkPresetTypes.h"
 #include "LiveLinkSourceSettings.h"
 #include "Features/IModularFeatures.h"
+#include "Tracks/MovieSceneSpawnTrack.h"
+#include "Sections/MovieSceneSpawnSection.h"
+
 /* MovieSceneToolHelpers
  *****************************************************************************/
 
@@ -525,10 +528,13 @@ int32 MovieSceneToolHelpers::FindAvailableRowIndex(UMovieSceneTrack* InTrack, UM
 	return InTrack->GetMaxRowIndex() + 1;
 }
 
-TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum, TAttribute<int32> InCurrentValue, SEnumCombobox::FOnEnumSelectionChanged InOnSelectionChanged)
+TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum, TAttribute<int32> InCurrentValue, SEnumComboBox::FOnEnumSelectionChanged InOnSelectionChanged)
 {
-	return SNew(SEnumCombobox, InEnum)
+	return SNew(SEnumComboBox, InEnum)
 		.CurrentValue(InCurrentValue)
+		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+		.ContentPadding(FMargin(2, 0))
+		.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
 		.OnEnumSelectionChanged(InOnSelectionChanged);
 }
 
@@ -2191,3 +2197,51 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	return true;
 }
 
+FSpawnableRestoreState::FSpawnableRestoreState(UMovieScene* MovieScene) :
+	bWasChanged(false)
+{
+	WeakMovieScene = MovieScene;
+
+	for (int32 SpawnableIndex = 0; SpawnableIndex < WeakMovieScene->GetSpawnableCount(); ++SpawnableIndex)
+	{
+		FMovieSceneSpawnable& Spawnable = WeakMovieScene->GetSpawnable(SpawnableIndex);
+
+		UMovieSceneSpawnTrack* SpawnTrack = WeakMovieScene->FindTrack<UMovieSceneSpawnTrack>(Spawnable.GetGuid());
+
+		if (SpawnTrack)
+		{
+			bWasChanged = true;
+
+			// Spawnable could be in a subscene, so temporarily override it to persist throughout
+			SpawnOwnershipMap.Add(Spawnable.GetGuid(), Spawnable.GetSpawnOwnership());
+			Spawnable.SetSpawnOwnership(ESpawnOwnership::MasterSequence);
+
+			// Spawnable could have animated spawned state, so temporarily override it to spawn infinitely
+			UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->CreateNewSection());
+			SpawnSection->Modify();
+			SpawnSection->GetChannel().Reset();
+			SpawnSection->GetChannel().SetDefault(true);
+		}
+	}
+}
+
+FSpawnableRestoreState::~FSpawnableRestoreState()
+{
+	if (!bWasChanged || !WeakMovieScene.IsValid())
+	{
+		return;
+	}
+
+	// Restore spawnable owners
+	for (int32 SpawnableIndex = 0; SpawnableIndex < WeakMovieScene->GetSpawnableCount(); ++SpawnableIndex)
+	{
+		FMovieSceneSpawnable& Spawnable = WeakMovieScene->GetSpawnable(SpawnableIndex);
+		Spawnable.SetSpawnOwnership(SpawnOwnershipMap[Spawnable.GetGuid()]);
+	}
+
+	// Restore modified spawned sections
+	bool bOrigSquelchTransactionNotification = GEditor->bSquelchTransactionNotification;
+	GEditor->bSquelchTransactionNotification = true;
+	GEditor->UndoTransaction(false);
+	GEditor->bSquelchTransactionNotification = bOrigSquelchTransactionNotification;
+}

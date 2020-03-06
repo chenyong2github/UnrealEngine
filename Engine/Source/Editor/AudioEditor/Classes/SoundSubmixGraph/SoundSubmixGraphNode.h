@@ -7,7 +7,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "SoundSubmixGraphNode.generated.h"
 
-class USoundSubmix;
+class USoundSubmixBase;
 
 UCLASS(MinimalAPI)
 class USoundSubmixGraphNode : public UEdGraphNode
@@ -16,7 +16,7 @@ class USoundSubmixGraphNode : public UEdGraphNode
 
 	/** The SoundSubmix this represents */
 	UPROPERTY(VisibleAnywhere, instanced, Category=Sound)
-	USoundSubmix* SoundSubmix;
+	USoundSubmixBase* SoundSubmix;
 
 	/** Get the Pin that connects to all children */
 	UEdGraphPin* GetChildPin() const { return ChildPin; }

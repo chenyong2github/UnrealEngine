@@ -144,7 +144,7 @@ void FBitReader::SetData( uint8* Src, int64 CountBits )
 {
 	Num			= CountBits;
 	Pos			= 0;
-	ArIsError	= 0;
+	ClearError();
 
 	Buffer.Empty();
 	Buffer.AddUninitialized( (Num+7)>>3 );
@@ -164,7 +164,7 @@ void FBitReader::SetData( TArray<uint8>&& Src, int64 CountBits )
 {
 	Num			= CountBits;
 	Pos			= 0;
-	ArIsError	= 0;
+	ClearError();
 
 	Buffer = MoveTemp(Src);
 
@@ -178,7 +178,7 @@ void FBitReader::SetData( FBitReader& Src, int64 CountBits )
 {
 	Num			= CountBits;
 	Pos			= 0;
-	ArIsError	= 0;
+	ClearError();
 
 	// Setup network version
 	this->SetEngineNetVer(Src.EngineNetVer());
@@ -231,7 +231,7 @@ void FBitReader::SetOverflowed(int64 LengthBits)
 	UE_LOG(LogNetSerialization, Error, TEXT("FBitReader::SetOverflowed() called! (ReadLen: %i, Remaining: %i, Max: %i)"),
 			LengthBits, (Num - Pos), Num);
 
-	ArIsError = 1;
+	SetError();
 }
 
 void FBitReader::SerializeBitsWithOffset( void* Dest, int32 DestBit, int64 LengthBits )

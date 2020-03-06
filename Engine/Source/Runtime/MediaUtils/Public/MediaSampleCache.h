@@ -30,7 +30,7 @@ class MEDIAUTILS_API FMediaSampleCache
 	{
 		static FORCEINLINE FTimespan GetSetKey(const TSharedPtr<SampleType, ESPMode::ThreadSafe>& Element)
 		{
-			return Element->GetTime();
+			return Element->GetTime().Time;
 		}
 
 		static FORCEINLINE bool Matches(FTimespan A, FTimespan B)

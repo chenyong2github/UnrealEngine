@@ -137,7 +137,7 @@ public:
 		FVector CenterOffset = Bounds.GetCenter();
 
 		// Apply it to the points
-		for (auto& Point : Points)
+		for (FLidarPointCloudPoint& Point : Points)
 		{
 			Point.Location -= CenterOffset;
 		}

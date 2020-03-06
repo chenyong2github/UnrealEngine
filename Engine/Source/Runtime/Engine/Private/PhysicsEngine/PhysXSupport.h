@@ -21,7 +21,7 @@ class UPhysicalMaterial;
 struct FCollisionShape;
 class FPhysScene_PhysX;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 // binary serialization requires 128 byte alignment
 #ifndef PHYSX_SERIALIZATION_ALIGNMENT

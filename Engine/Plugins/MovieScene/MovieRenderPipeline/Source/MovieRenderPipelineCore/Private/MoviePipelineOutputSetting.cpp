@@ -10,15 +10,17 @@ UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	: OutputResolution(FIntPoint(1920, 1080))
 	, bUseCustomFrameRate(false)
 	, OutputFrameRate(FFrameRate(24, 1))
-	, OutputFrameStep(1)
 	, DEBUG_OutputFrameStepOffset(0)
 	, bOverrideExistingOutput(true)
+	, HandleFrameCount(0)
+	, OutputFrameStep(1)
 	, bUseCustomPlaybackRange(false)
 	, CustomStartFrame(0)
 	, CustomEndFrame(0)
 	, ZeroPadFrameNumbers(4)
 	, FrameNumberOffset(0)
 	, bDisableToneCurve(false)
+	, bHidePreview(true)
 {
 	FileNameFormat = TEXT("{sequence_name}.{frame_number}");
 	OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");

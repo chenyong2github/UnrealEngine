@@ -635,7 +635,7 @@ protected:
 
 	struct FLatentAction
 	{
-		enum class EType : uint8 { Stop, Pause, Update };
+		enum class EType : uint8 { Stop, Pause, Update, Play };
 
 		FLatentAction(EType InType, FFrameTime DesiredTime = 0)
 			: Type(InType), Position(DesiredTime)
@@ -687,9 +687,7 @@ private:
 
 	/**
 	* The last world game time at which we were ticked. Game time used is dependent on bTickEvenWhenPaused
-	* Valid only if we've been ticked at least once since having a tick interval; otherwise set to -1.f
+	* Valid only if we've been ticked at least once since having a tick interval
 	*/
-	float LastTickGameTimeSeconds;
-
-
+	TOptional<float> LastTickGameTimeSeconds;
 };

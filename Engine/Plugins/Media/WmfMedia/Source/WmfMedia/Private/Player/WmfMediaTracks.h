@@ -27,6 +27,7 @@ class IMediaBinarySample;
 class IMediaOverlaySample;
 class IMediaTextureSample;
 class FWmfMediaTextureSample;
+class FMediaTimeStamp;
 
 enum class EMediaTextureSampleFormat;
 enum class EMediaTrackType;
@@ -187,6 +188,7 @@ public:
 	virtual bool FetchMetadata(TRange<FTimespan> TimeRange, TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual bool FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual void FlushSamples() override;
+	virtual bool PeekVideoSampleTime(FMediaTimeStamp & TimeStamp) override;
 
 public:
 

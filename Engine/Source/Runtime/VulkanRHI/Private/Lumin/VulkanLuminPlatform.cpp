@@ -140,7 +140,7 @@ void FVulkanLuminPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<con
 
 void FVulkanLuminPlatform::SetupFeatureLevels()
 {
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_VULKAN_ES3_1_LUMIN;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_VULKAN_ES3_1_LUMIN;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_VULKAN_SM5_LUMIN;
@@ -212,4 +212,21 @@ VkBool32 FVulkanLuminPlatform::DebugReportFunction(
 	}
 
 	return VK_TRUE;
+}
+
+void FVulkanLuminPlatform::SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel)
+{
+	if (!GIsEditor &&
+		(FVulkanPlatform::RequiresMobileRenderer() ||
+			InRequestedFeatureLevel == ERHIFeatureLevel::ES3_1 ||
+			FParse::Param(FCommandLine::Get(), TEXT("featureleveles31"))))
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
+		GMaxRHIShaderPlatform = SP_VULKAN_ES3_1_LUMIN;
+	}
+	else
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
+		GMaxRHIShaderPlatform = SP_VULKAN_SM5_LUMIN;
+	}
 }

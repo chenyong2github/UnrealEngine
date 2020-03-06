@@ -34,6 +34,7 @@ public:
 
 class FGlobalDistanceFieldParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FGlobalDistanceFieldParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -94,17 +95,19 @@ public:
 	}
 
 private:
-	FShaderResourceParameter GlobalDistanceFieldTexture0;
-	FShaderResourceParameter GlobalDistanceFieldTexture1;
-	FShaderResourceParameter GlobalDistanceFieldTexture2;
-	FShaderResourceParameter GlobalDistanceFieldTexture3;
-	FShaderResourceParameter GlobalDistanceFieldSampler0;
-	FShaderResourceParameter GlobalDistanceFieldSampler1;
-	FShaderResourceParameter GlobalDistanceFieldSampler2;
-	FShaderResourceParameter GlobalDistanceFieldSampler3;
-	FShaderParameter GlobalVolumeCenterAndExtent;
-	FShaderParameter GlobalVolumeWorldToUVAddAndMul;
-	FShaderParameter GlobalVolumeDimension;
-	FShaderParameter GlobalVolumeTexelSize;
-	FShaderParameter MaxGlobalDistance;
+	
+		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture0)
+		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture1)
+		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture2)
+		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture3)
+		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler0)
+		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler1)
+		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler2)
+		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler3)
+		LAYOUT_FIELD(FShaderParameter, GlobalVolumeCenterAndExtent)
+		LAYOUT_FIELD(FShaderParameter, GlobalVolumeWorldToUVAddAndMul)
+		LAYOUT_FIELD(FShaderParameter, GlobalVolumeDimension)
+		LAYOUT_FIELD(FShaderParameter, GlobalVolumeTexelSize)
+		LAYOUT_FIELD(FShaderParameter, MaxGlobalDistance)
+	
 };

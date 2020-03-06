@@ -1012,6 +1012,12 @@ void FUnixPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR*
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 }
 
 void FUnixPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text)
@@ -1019,12 +1025,24 @@ void FUnixPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSICH
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 }
 
 void FUnixPlatformMisc::EndNamedEvent()
 {
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PopEvent();
+#endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputEndEvent();
+	}
 #endif
 }
 

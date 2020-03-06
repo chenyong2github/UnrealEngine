@@ -14,8 +14,10 @@ class UMaterialExpressionStaticComponentMaskParameter : public UMaterialExpressi
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FExpressionInput Input;
+#endif
 
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionStaticComponentMaskParameter)
 	uint32 DefaultR:1;
@@ -41,7 +43,7 @@ public:
 	//~ End UMaterialExpression Interface
 
 	/** Return whether this is the named parameter, and fill in its value */
-	bool IsNamedParameter(const FMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid&OutExpressionGuid) const;
+	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid&OutExpressionGuid) const;
 
 #if WITH_EDITOR
 	bool SetParameterValue(FName InParameterName, bool InR, bool InG, bool InB, bool InA, FGuid InExpressionGuid);

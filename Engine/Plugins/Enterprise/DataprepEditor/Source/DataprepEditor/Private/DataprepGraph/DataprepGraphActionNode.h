@@ -54,6 +54,9 @@ protected:
 
 	UPROPERTY()
 	int32 StepIndex;
+
+	// Is this node currently driving the filter preview
+	bool bIsPreviewed = false;
 };
 
 /**
@@ -74,7 +77,6 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual void DestroyNode() override;
-	virtual void NodeConnectionListChanged() override;
 	TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
 	// End EdGraphNode interface
 
@@ -83,7 +85,7 @@ public:
 	const UDataprepActionAsset* GetDataprepActionAsset() const { return DataprepActionAsset; }
 	UDataprepActionAsset* GetDataprepActionAsset() { return DataprepActionAsset; }
 
-	int32 GetExecutionOrder() { return ExecutionOrder; }
+	int32 GetExecutionOrder() const { return ExecutionOrder; }
 
 protected:
 	UPROPERTY()

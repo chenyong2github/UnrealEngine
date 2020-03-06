@@ -54,7 +54,9 @@ struct FD3D12VertexDeclarationKey
 			case VET_UInt:			D3DElement.Format = DXGI_FORMAT_R32_UINT; break;
 			default: UE_LOG(LogD3D12RHI, Fatal, TEXT("Unknown RHI vertex element type %u"), (uint8)InElements[ElementIndex].Type);
 			};
-			D3DElement.SemanticName = "ATTRIBUTE";
+
+			// We don't assign D3DElement.SemanticName here, because it's a constant string and we don't want to hash pointers. For best debugging experience,
+			// we want to get a consistent hash value across sessions. Therefore it's assigned below, after hashing.
 			D3DElement.SemanticIndex = Element.AttributeIndex;
 			D3DElement.InputSlotClass = Element.bUseInstanceIndex ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
 
@@ -87,6 +89,12 @@ struct FD3D12VertexDeclarationKey
 		// Hash once.
 		Hash = FCrc::MemCrc_DEPRECATED(VertexElements.GetData(), VertexElements.Num()*sizeof(D3D12_INPUT_ELEMENT_DESC));
 		Hash = FCrc::MemCrc_DEPRECATED(StreamStrides, sizeof(StreamStrides), Hash);
+
+		// Assign all the SemanticName after hashing. It's a constant string, always the same, so no need to hash the data.
+		for (int32 ElementIndex = 0; ElementIndex < VertexElements.Num(); ElementIndex++)
+		{
+			VertexElements[ElementIndex].SemanticName = "ATTRIBUTE";
+		}
 	}
 };
 

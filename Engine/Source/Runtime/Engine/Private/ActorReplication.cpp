@@ -145,10 +145,8 @@ void AActor::PostNetReceive()
 		bNetCheckedInitialPhysicsState = true;
 	}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ExchangeB(bHidden, ActorReplication::SavedbHidden);
 	Exchange(Owner, ActorReplication::SavedOwner);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (IsHidden() != ActorReplication::SavedbHidden)
 	{
@@ -336,7 +334,6 @@ bool AActor::IsReplayRelevantFor(const AActor* RealViewer, const AActor* ViewTar
 
 void AActor::GatherCurrentMovement()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsReplicatingMovement() || (RootComponent && RootComponent->GetAttachParent()))
 	{
 		bool bWasAttachmentModified = false;
@@ -409,7 +406,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
 		}
 	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const

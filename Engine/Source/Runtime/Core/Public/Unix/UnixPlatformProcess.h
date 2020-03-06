@@ -256,6 +256,7 @@ struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
 	static void* GetDllExport( void* DllHandle, const TCHAR* ProcName );
 	static const TCHAR* ComputerName();
 	static const TCHAR* UserName(bool bOnlyAlphaNumeric = true);
+	static const TCHAR* UserTempDir();
 	static const TCHAR* UserDir();
 	static const TCHAR* UserSettingsDir();
 	static const TCHAR* ApplicationSettingsDir();

@@ -12,6 +12,7 @@
 class IMediaEventSink;
 
 enum class EMediaTextureSampleFormat;
+enum class EMediaIOSampleType;
 
 namespace BlackmagicMediaPlayerHelpers
 {
@@ -66,6 +67,13 @@ public:
 	virtual void TickInput(FTimespan DeltaTime, FTimespan Timecode) override;
 	virtual void TickFetch(FTimespan DeltaTime, FTimespan Timecode) override;
 
+	//~ ITimedDataInput interface
+#if WITH_EDITOR
+	virtual const FSlateBrush* GetDisplayIcon() const override;
+#endif
+
+public:
+
 	/** Process pending audio and video frames, and forward them to the sinks. */
 	void ProcessFrame();
 
@@ -74,6 +82,10 @@ public:
 
 	/** Is Hardware initialized */
 	virtual bool IsHardwareReady() const override;
+
+protected:
+	/** Setup our different channels with the current set of settings */
+	virtual void SetupSampleChannels() override;
 
 private:
 
@@ -86,4 +98,11 @@ private:
 
 	/** Log warning about the amount of audio/video frame can't could not be cached . */
 	bool bVerifyFrameDropCount;
+
+	/** Max sample count our different buffer can hold. Taken from MediaSource */
+	int32 MaxNumAudioFrameBuffer = 0;
+	int32 MaxNumVideoFrameBuffer = 0;
+
+	/** Used to flag which sample types we advertise as supported for timed data monitoring */
+	EMediaIOSampleType SupportedSampleTypes;
 };

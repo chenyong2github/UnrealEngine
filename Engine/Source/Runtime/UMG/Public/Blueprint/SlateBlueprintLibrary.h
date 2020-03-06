@@ -101,15 +101,17 @@ public:
 
 	/**
 	 * Translates a screen position in pixels into the local space of a widget with the given geometry. 
+	 * If bIncludeWindowPosition is true, then this method will also remove the game window's position (useful when in windowed mode).
 	 */
 	UFUNCTION(Category="User Interface|Geometry", meta=( WorldContext="WorldContextObject", DisplayName="ScreenToLocal" ))
-	static void ScreenToWidgetLocal(UObject* WorldContextObject, const FGeometry& Geometry, FVector2D ScreenPosition, FVector2D& LocalCoordinate);
+	static void ScreenToWidgetLocal(UObject* WorldContextObject, const FGeometry& Geometry, FVector2D ScreenPosition, FVector2D& LocalCoordinate, bool bIncludeWindowPosition = false);
 
 	/**
 	 * Translates a screen position in pixels into absolute application coordinates.
+	 * If bIncludeWindowPosition is true, then this method will also remove the game window's position (useful when in windowed mode).
 	 */
 	UFUNCTION(Category="User Interface|Geometry", meta=( WorldContext="WorldContextObject", DisplayName="ScreenToAbsolute" ))
-	static void ScreenToWidgetAbsolute(UObject* WorldContextObject, FVector2D ScreenPosition, FVector2D& AbsoluteCoordinate);
+	static void ScreenToWidgetAbsolute(UObject* WorldContextObject, FVector2D ScreenPosition, FVector2D& AbsoluteCoordinate, bool bIncludeWindowPosition = false);
 
 	/**
 	 * Translates a screen position in pixels into the local space of the viewport widget.

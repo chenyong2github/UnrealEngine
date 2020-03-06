@@ -3,6 +3,7 @@
 #include "Widgets/DataprepGraph/SDataprepActionBlock.h"
 
 #include "DataprepActionAsset.h"
+#include "DataprepCoreUtils.h"
 #include "DataprepEditorStyle.h"
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/DataprepSchemaAction.h"
@@ -20,8 +21,10 @@
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/Anchors.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
@@ -32,10 +35,17 @@ void SDataprepActionBlock::Construct(const FArguments& InArgs, const TSharedRef<
 {
 	DataprepActionContext = InDataprepActionContext;
 
-	bDragEnabled = true;
-
 	const float DefaultPadding = FDataprepEditorStyle::GetFloat( "DataprepAction.Padding" );
-	const FLinearColor OutlineColor = GetOutlineColor();
+	const FLinearColor OutlineColor = GetOutlineColor().GetSpecifiedColor();
+#ifndef NO_BLUEPRINT
+	bIsSimplifiedGraph = InArgs._IsSimplified;
+
+	if(bIsSimplifiedGraph)
+	{
+		ConstructForSimplified();
+		return;
+	}
+#endif
 
 	ChildSlot
 	[
@@ -85,7 +95,7 @@ void SDataprepActionBlock::Construct(const FArguments& InArgs, const TSharedRef<
 			// The content zone of the action block
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding( bDragEnabled ? FMargin( DefaultPadding ) : FMargin( 2.f * DefaultPadding, 0.f, 0.f, 0.f ) )
+			.Padding( FMargin( DefaultPadding ) )
 			[
 				SNew( SConstraintCanvas )
 
@@ -105,6 +115,56 @@ void SDataprepActionBlock::Construct(const FArguments& InArgs, const TSharedRef<
 				[
 					GetContentWidget()
 				]
+			]
+		]
+	];
+}
+
+void SDataprepActionBlock::ConstructForSimplified()
+{
+	const FLinearColor OutlineColor = GetOutlineColor().GetSpecifiedColor();
+
+	ChildSlot
+	[
+		SNew( SVerticalBox )
+
+		//The title of the block
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.f)
+		[
+			SNew( SHorizontalBox )
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding( FMargin( 5.f, 5.f, 5.f, 2.f ) )
+			[
+				GetTitleWidget()
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(5.f, 2.f)
+		[
+			SNew( SSeparator )
+			.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+			.Thickness(1.f)
+			.Orientation(EOrientation::Orient_Horizontal)
+			.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
+		]
+
+		//The content of the block
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.f)
+		[
+			SNew( SHorizontalBox )
+
+			+ SHorizontalBox::Slot()
+			.Padding( FMargin( 5.f, 0.f, 5.f, 0.f ) )
+			[
+				GetContentWidget()
 			]
 		]
 	];
@@ -144,39 +204,17 @@ TSharedRef<SWidget> SDataprepActionBlock::GetBlockTitleWidget()
 
 FReply SDataprepActionBlock::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if ( bDragEnabled && MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
+#ifndef NO_BLUEPRINT
+	if ( !bIsSimplifiedGraph && MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 	{
 		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 	}
-
-	// Take ownership of the mouse if right mouse button clicked to display contextual menu
-	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+#else
+	if ( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 	{
-		return !bDragEnabled ? FReply::Handled().CaptureMouse( SharedThis(this) ) : FReply::Handled();
+		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 	}
-
-	return FReply::Unhandled();
-}
-
-FReply SDataprepActionBlock::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
-	{
-		FMenuBuilder MenuBuilder( true, nullptr );
-		PopulateMenuBuilder( MenuBuilder );
-
-		FWidgetPath WidgetPath = MouseEvent.GetEventPath() ? *MouseEvent.GetEventPath() : FWidgetPath();
-		FSlateApplication::Get().PushMenu(
-			AsShared(),
-			WidgetPath,
-			MenuBuilder.MakeWidget(),
-			MouseEvent.GetScreenSpacePosition(),
-			FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
-		);
-
-		// Release mouse capture
-		return FReply::Handled().ReleaseMouseCapture();
-	}
+#endif
 
 	return FReply::Unhandled();
 }
@@ -332,7 +370,7 @@ FReply SDataprepActionBlock::OnDragDetected(const FGeometry& MyGeometry, const F
 	return FReply::Handled().BeginDragDrop( MoveTemp( DragDropOperation ) );
 }
 
-FLinearColor SDataprepActionBlock::GetOutlineColor() const
+FSlateColor SDataprepActionBlock::GetOutlineColor() const
 {
 	return FDataprepEditorStyle::GetColor( "DataprepAction.OutlineColor" );
 }
@@ -356,8 +394,7 @@ TSharedRef<SWidget> SDataprepActionBlock::GetTitleWidget()
 
 TSharedRef<SWidget> SDataprepActionBlock::GetTitleBackgroundWidget()
 {
-	return SNew( SColorBlock )
-		.Color( GetOutlineColor() );
+	return SNew( SColorBlock ).Color( GetOutlineColor().GetSpecifiedColor() );
 }
 
 TSharedRef<SWidget> SDataprepActionBlock::GetContentWidget()
@@ -368,19 +405,23 @@ TSharedRef<SWidget> SDataprepActionBlock::GetContentWidget()
 TSharedRef<SWidget> SDataprepActionBlock::GetContentBackgroundWidget()
 {
 	return SNew( SColorBlock )
-		.Color( FDataprepEditorStyle::GetColor("DataprepActionBlock.ContentBackgroundColor") );
+		.Color( FDataprepEditorStyle::GetColor("DataprepActionBlock.ContentBackgroundColor.Old") );
 }
 
 void SDataprepActionBlock::PopulateMenuBuilder(FMenuBuilder& MenuBuilder)
 {
-	FUIAction DeleteAction;
-	DeleteAction.ExecuteAction.BindSP( this, &SDataprepActionBlock::DeleteStep );
+	MenuBuilder.BeginSection( FName( TEXT("NodeSection") ), LOCTEXT("NodeSection", "Common") );
+	{
+		FUIAction DeleteAction;
+		DeleteAction.ExecuteAction.BindSP( this, &SDataprepActionBlock::DeleteStep );
 
-	TSharedPtr<FUICommandInfo> DeleteCommand = FGenericCommands::Get().Delete;
-	MenuBuilder.AddMenuEntry( DeleteCommand->GetLabel(),
-		DeleteCommand->GetDescription(),
-		DeleteCommand->GetIcon(),
-		DeleteAction );
+		TSharedPtr<FUICommandInfo> DeleteCommand = FGenericCommands::Get().Delete;
+		MenuBuilder.AddMenuEntry( DeleteCommand->GetLabel(),
+			DeleteCommand->GetDescription(),
+			DeleteCommand->GetIcon(),
+			DeleteAction );
+	}
+	MenuBuilder.EndSection();
 }
 
 void SDataprepActionBlock::DeleteStep()
@@ -390,7 +431,12 @@ void SDataprepActionBlock::DeleteStep()
 		if ( UDataprepActionAsset* ActionAsset = ActionContext->DataprepActionPtr.Get() )
 		{
 			FScopedTransaction Transaction( LOCTEXT("DeleteStepTransaction", "Remove step from action") );
-			ActionAsset->RemoveStep( ActionContext->StepIndex );
+
+			int32 ActionIndex = INDEX_NONE;
+			if( !FDataprepCoreUtils::RemoveStep( ActionAsset, ActionContext->StepIndex, ActionIndex ) )
+			{
+				Transaction.Cancel();
+			}
 		}
 	}
 }

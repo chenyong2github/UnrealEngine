@@ -327,6 +327,9 @@ FD3D12GraphicsPipelineState::FD3D12GraphicsPipelineState(
 	, RootSignature(InRootSignature)
 	, PipelineState(InPipelineState)
 {
+	// hold on to bound RHI resources
+	PipelineStateInitializer.BoundShaderState.AddRefResources();
+
 	if (Initializer.BoundShaderState.VertexDeclarationRHI)
 		FMemory::Memcpy(StreamStrides, ((FD3D12VertexDeclaration*) Initializer.BoundShaderState.VertexDeclarationRHI)->StreamStrides, sizeof(StreamStrides));
 	else
@@ -349,6 +352,9 @@ FD3D12GraphicsPipelineState::~FD3D12GraphicsPipelineState()
 	delete PipelineState;
 	PipelineState = nullptr;
 #endif // D3D12_USE_DERIVED_PSO
+
+	// release bound RHI resources
+	PipelineStateInitializer.BoundShaderState.ReleaseResources();
 }
 
 FD3D12ComputePipelineState::~FD3D12ComputePipelineState()

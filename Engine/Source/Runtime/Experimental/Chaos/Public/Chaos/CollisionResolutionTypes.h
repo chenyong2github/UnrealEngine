@@ -115,6 +115,7 @@ namespace Chaos
 		{
 			None = 0,     // default value also indicates a invalid constraint
 			SinglePoint,  //   TRigidBodyPointContactConstraint
+			SinglePointSwept, // TRigidBodySweptPointContactConstraint
 			MultiPoint    //   TRigidBodyMultiPointContactConstraint
 		};
 
@@ -284,6 +285,33 @@ namespace Chaos
 	};
 	typedef TRigidBodyMultiPointContactConstraint<float, 3> FRigidBodyMultiPointContactConstraint;
 
+	/*
+	*
+	*/
+	template<class T, int d>
+	class TRigidBodySweptPointContactConstraint : public TRigidBodyPointContactConstraint<T,d>
+	{
+	public:
+		using Base = TRigidBodyPointContactConstraint<T, d>;
+		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
+		using Base::Particle;
+
+		TRigidBodySweptPointContactConstraint() : Base(Base::FType::SinglePointSwept) {}
+		TRigidBodySweptPointContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
+			EContactShapesType ShapesType)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::SinglePointSwept, ShapesType)
+			, TimeOfImpact(0) {}
+
+		// Value in range [0,1] used to interpolate P between [X,P] that we will rollback to when solving at time of impact.
+		T TimeOfImpact;
+
+		static typename Base::FType StaticType() { return Base::FType::SinglePointSwept; };
+	};
+	typedef TRigidBodySweptPointContactConstraint<float, 3> FRigidBodySweptPointContactConstraint;
+
+
 
 	//
 	//
@@ -351,6 +379,11 @@ namespace Chaos
 			{
 				return ConstraintContainer->PointConstraints[ConstraintIndex];
 			}
+			else if (GetType() == FConstraintBase::FType::SinglePointSwept)
+			{
+				return ConstraintContainer->SweptPointConstraints[ConstraintIndex];
+			}
+
 			check(GetType() == FConstraintBase::FType::MultiPoint);
 			return ConstraintContainer->IterativeConstraints[ConstraintIndex];
 		}
@@ -361,6 +394,11 @@ namespace Chaos
 			{
 				return ConstraintContainer->PointConstraints[ConstraintIndex];
 			}
+			else if (GetType() == FConstraintBase::FType::SinglePointSwept)
+			{
+				return ConstraintContainer->SweptPointConstraints[ConstraintIndex];
+			}
+
 			check(GetType() == FConstraintBase::FType::MultiPoint);
 			return ConstraintContainer->IterativeConstraints[ConstraintIndex];
 		}
@@ -369,6 +407,9 @@ namespace Chaos
 
 		const TRigidBodyPointContactConstraint<T, d>& GetPointContact() const { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
 		TRigidBodyPointContactConstraint<T, d>& GetPointContact() { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
+
+		const TRigidBodySweptPointContactConstraint<T, d>& GetSweptPointContact() const { check(GetType() == FConstraintBase::FType::SinglePointSwept); return ConstraintContainer->SweptPointConstraints[ConstraintIndex]; }
+		TRigidBodySweptPointContactConstraint<T, d>& GetSweptPointContact() { check(GetType() == FConstraintBase::FType::SinglePointSwept); return ConstraintContainer->SweptPointConstraints[ConstraintIndex]; }
 
 		const TRigidBodyMultiPointContactConstraint<T, d>& GetMultiPointContact() const { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->IterativeConstraints[ConstraintIndex]; }
 		TRigidBodyMultiPointContactConstraint<T, d>& GetMultiPointContact() { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->IterativeConstraints[ConstraintIndex]; }
@@ -417,13 +458,15 @@ namespace Chaos
 		static const int32 InlineMaxConstraints = 8;
 
 		TArray<FRigidBodyPointContactConstraint, TInlineAllocator<InlineMaxConstraints>> SinglePointConstraints;
+		TArray<FRigidBodySweptPointContactConstraint, TInlineAllocator<InlineMaxConstraints>> SinglePointSweptConstraints;
 		TArray<FRigidBodyMultiPointContactConstraint, TInlineAllocator<InlineMaxConstraints>> MultiPointConstraints;
 
-		int32 Num() const { return SinglePointConstraints.Num() + MultiPointConstraints.Num(); }
+		int32 Num() const { return SinglePointConstraints.Num() + SinglePointSweptConstraints.Num() + MultiPointConstraints.Num(); }
 
 		void Empty()
 		{
 			SinglePointConstraints.Empty();
+			SinglePointSweptConstraints.Empty();
 			MultiPointConstraints.Empty();
 		}
 
@@ -433,6 +476,16 @@ namespace Chaos
 			{
 				int32 ConstraintIndex = SinglePointConstraints.Add(C);
 				return &SinglePointConstraints[ConstraintIndex];
+			}
+			return nullptr;
+		}
+
+		TRigidBodySweptPointContactConstraint<FReal, 3>* TryAdd(FReal MaxPhi, const TRigidBodySweptPointContactConstraint<FReal, 3>& C)
+		{
+			if (C.GetPhi() < MaxPhi)
+			{
+				int32 ConstraintIndex = SinglePointSweptConstraints.Add(C);
+				return &SinglePointSweptConstraints[ConstraintIndex];
 			}
 			return nullptr;
 		}

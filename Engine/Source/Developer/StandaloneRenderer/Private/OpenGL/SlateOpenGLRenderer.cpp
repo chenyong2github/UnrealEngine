@@ -94,7 +94,7 @@ bool FSlateOpenGLRenderer::Initialize()
 
 	ElementBatcher = MakeUnique<FSlateElementBatcher>(RenderingPolicy.ToSharedRef());
 
-#if !PLATFORM_USES_ES2
+#if !PLATFORM_USES_GLES
 	// Load OpenGL extensions if needed.  Need a current rendering context to do this
 	LoadOpenGLExtensions();
 #endif

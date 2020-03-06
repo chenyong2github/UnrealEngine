@@ -17,11 +17,11 @@
 
 #elif PLATFORM_XBOXONE
 
-#include "XboxOne/XboxOneAllowPlatformTypes.h"
-#include "XboxOne/XboxOnePreApi.h"
+#include "XboxCommonAllowPlatformTypes.h"
+#include "XboxCommonPreApi.h"
 	#include <mftransform.h>
-#include "XboxOne/XboxOnePostApi.h"
-#include "XboxOne/XboxOneHidePlatformTypes.h"
+#include "XboxCommonPostApi.h"
+#include "XboxCommonHidePlatformTypes.h"
 #endif
 
 namespace AVEncoder

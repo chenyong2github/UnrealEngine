@@ -273,6 +273,21 @@ public:
 	virtual int32 GetProcessSnapshot( TArray<FTargetDeviceProcessInfo>& OutProcessInfos ) = 0;
 
 	/**
+	 * Creates a snapshot of processes currently running on the device.
+	 *
+	 * @param OutProcessInfos Will contain the information for running processes.
+	 * @param CompleteHandler will be invoked when process snapshot information is available
+	 * @return True if retrieving a process snapshot is supported
+	 */
+	virtual bool GetProcessSnapshotAsync(TFunction<void(const TArray<FTargetDeviceProcessInfo>&)> CompleteHandler)
+	{
+		TArray<FTargetDeviceProcessInfo> InProcessInfos;
+		GetProcessSnapshot(InProcessInfos);
+		CompleteHandler(InProcessInfos);
+		return true;
+	}
+
+	/**
 	 * Gets the TargetPlatform that this device belongs to.
 	 */
 	virtual const class ITargetPlatform& GetTargetPlatform() const = 0;

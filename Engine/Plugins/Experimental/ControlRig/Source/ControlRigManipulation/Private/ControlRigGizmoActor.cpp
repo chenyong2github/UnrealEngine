@@ -20,6 +20,9 @@ AControlRigGizmoActor::AControlRigGizmoActor(const FObjectInitializer& ObjectIni
 	StaticMeshComponent->Mobility = EComponentMobility::Movable;
 	StaticMeshComponent->SetGenerateOverlapEvents(false);
 	StaticMeshComponent->bUseDefaultCollision = true;
+#if WITH_EDITORONLY_DATA
+	StaticMeshComponent->HitProxyPriority = HPP_Wireframe;
+#endif
 
 	RootComponent = ActorRootComponent;
 	StaticMeshComponent->SetupAttachment(RootComponent);

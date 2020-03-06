@@ -1322,6 +1322,25 @@ void SPacketView::SetSelectedPacket(const int32 InPacketIndex)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SPacketView::SelectPacketBySequenceNumber(const uint32 InSequenceNumber)
+{
+	// Find the PacketIndex from sequence number
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+
+		const int32 PacketId = NetProfilerProvider.FindPacketIndexFromPacketSequence(ConnectionIndex, ConnectionMode, InSequenceNumber);
+		if (PacketId != -1)
+		{
+			SetSelectedPacket(PacketId);
+		}
+	}	
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SPacketView::SelectPreviousPacket()
 {
 	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();

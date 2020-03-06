@@ -9,7 +9,6 @@
 #include "Math/Matrix.h"
 #include "Math/Transform.h"
 
-
 /* FBoxSphereBounds interface
  *****************************************************************************/
 

@@ -540,6 +540,8 @@ void SKismetInspector::UpdateFromSingleStruct(const TSharedPtr<FStructOnScope>& 
 {
 	if (StructureDetailsView.IsValid())
 	{
+		SelectedObjects.Empty();
+
 		// Update our context-sensitive editing widget
 		ContextualEditingBorderWidget->SetContent(StructureDetailsView->GetWidget().ToSharedRef());
 	}

@@ -320,11 +320,11 @@ FScreenPassTexture AddEditorPrimitivePass(
 					View,
 					EditorPrimitivesViewport,
 					SceneDepthViewport,
-					FScreenPassPipelineState(*PopulateDepthVertexShader, *PopulateDepthPixelShader, FScreenPassPipelineState::FDefaultBlendState::GetRHI(), TStaticDepthStencilState<true, CF_Always>::GetRHI()),
+					FScreenPassPipelineState(PopulateDepthVertexShader, PopulateDepthPixelShader, FScreenPassPipelineState::FDefaultBlendState::GetRHI(), TStaticDepthStencilState<true, CF_Always>::GetRHI()),
 					EScreenPassDrawFlags::None,
 					[&](FRHICommandList&)
 				{
-					SetShaderParameters(RHICmdList, *PopulateDepthPixelShader, PopulateDepthPixelShader->GetPixelShader(), *PassParameters);
+					SetShaderParameters(RHICmdList, PopulateDepthPixelShader, PopulateDepthPixelShader.GetPixelShader(), *PassParameters);
 				});
 			}
 			else
@@ -413,7 +413,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 		View,
 		OutputViewport,
 		ColorViewport,
-		*PixelShader,
+		PixelShader,
 		PassParameters);
 
 	return MoveTemp(Output);

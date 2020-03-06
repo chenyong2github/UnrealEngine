@@ -83,6 +83,11 @@ public:
 
 	virtual bool AddDevice(const FString& DeviceName, bool bDefault) override
 	{
+		return AddDevice(DeviceName, TEXT(""), TEXT(""), TEXT(""), bDefault);
+	}
+
+	virtual bool AddDevice(const FString& DeviceName, const FString& DeviceUserFriendlyName, const FString& Username, const FString& Password, bool bDefault) override
+	{
 		FLinuxTargetDevicePtr& Device = Devices.FindOrAdd(DeviceName);
 
 		if (Device.IsValid())
@@ -99,9 +104,15 @@ public:
 			nullptr));
 #endif // WITH_ENGINE
 
+		if (!Username.IsEmpty() || !Password.IsEmpty())
+		{
+			Device->SetUserCredentials(Username, Password);
+		}
+
 		DeviceDiscoveredEvent.Broadcast(Device.ToSharedRef());
 		return true;
 	}
+
 
 	virtual void GetAllDevices( TArray<ITargetDevicePtr>& OutDevices ) const override
 	{
@@ -321,7 +332,7 @@ public:
 			return NAME_ADPCM;
 		}
 
-		if (Wave->IsStreaming())
+		if (Wave->IsStreaming(*this->IniPlatformName()))
 		{
 			return NAME_OPUS;
 		}
@@ -338,11 +349,6 @@ public:
 		OutFormats.Add(NAME_ADPCM);
 		OutFormats.Add(NAME_OGG);
 		OutFormats.Add(NAME_OPUS);
-	}
-
-	virtual FPlatformAudioCookOverrides* GetAudioCompressionSettings() const override
-	{
-		return nullptr;
 	}
 
 #endif //WITH_ENGINE

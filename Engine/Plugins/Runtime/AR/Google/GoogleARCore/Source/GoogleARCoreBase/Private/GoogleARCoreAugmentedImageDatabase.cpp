@@ -209,9 +209,7 @@ void UGoogleARCoreAugmentedImageDatabase::Serialize(FArchive& Ar)
 
 			if (OutReturnCode)
 			{
-				Ar.SetError();
-				Ar.ArIsError = 1;
-				Ar.ArIsCriticalError = 1;
+				Ar.SetCriticalError();
 				UE_LOG(LogGoogleARCoreAPI, Error, TEXT("Failed to build augmented image database: %s"), *OutStderr);
 			}
 			else

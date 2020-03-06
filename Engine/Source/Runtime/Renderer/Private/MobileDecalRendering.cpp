@@ -49,11 +49,7 @@ void FMobileSceneRenderer::RenderDecals(FRHICommandListImmediate& RHICmdList)
 			EDecalRasterizerState LastDecalRasterizerState = DRS_Undefined;
 			TOptional<EDecalBlendMode> LastDecalBlendMode;
 			TOptional<bool> LastDecalDepthState;
-			bool bEncodedHDR = GetMobileHDRMode() == EMobileHDRMode::EnabledRGBE;
-			if (bEncodedHDR)
-			{
-				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-			}
+
 			for (int32 DecalIndex = 0, DecalCount = SortedDecals.Num(); DecalIndex < DecalCount; DecalIndex++)
 			{
 				const FTransientDecalRenderData& DecalData = SortedDecals[DecalIndex];
@@ -104,7 +100,7 @@ void FMobileSceneRenderer::RenderDecals(FRHICommandListImmediate& RHICmdList)
 				}
 
 				// update BlendMode if needed
-				if (!bEncodedHDR && (!LastDecalBlendMode.IsSet() || LastDecalBlendMode.GetValue() != DecalData.FinalDecalBlendMode))
+				if (!LastDecalBlendMode.IsSet() || LastDecalBlendMode.GetValue() != DecalData.FinalDecalBlendMode)
 				{
 					LastDecalBlendMode = DecalData.FinalDecalBlendMode;
 					switch(DecalData.FinalDecalBlendMode)

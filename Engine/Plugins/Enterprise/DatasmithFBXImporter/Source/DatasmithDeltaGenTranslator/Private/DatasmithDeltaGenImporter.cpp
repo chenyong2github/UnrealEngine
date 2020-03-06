@@ -207,65 +207,15 @@ void FDatasmithDeltaGenImporter::ParseAuxFiles(const FString& FBXPath)
 	}
 }
 
-void FDatasmithDeltaGenImporter::FetchAOTexture(const FString& MeshName, TSharedPtr<FDatasmithFBXSceneMaterial>& Material)
-{
-	if (ImportOptions->TextureDirs.Num() == 0 || ImportOptions->ShadowTextureMode == EShadowTextureMode::Ignore)
-	{
-		return;
-	}
-
-	// FNames because they're case insensitive
-	// I've only ever seen .bmp shadow textures, but I haven't seen anything saying they can't be anything else
-	const static TSet<FName> ImageExtensions{ TEXT("bmp"), TEXT("jpg"), TEXT("png"), TEXT("jpeg"), TEXT("tiff"), TEXT("tga") };
-
-	// Find all filepaths for images that are in a texture folder and have the mesh name as part of the filename
-	TArray<FString> PotentialTextures;
-	for (const FDirectoryPath& Dir : ImportOptions->TextureDirs)
-	{
-		TArray<FString> Textures;
-		IFileManager::Get().FindFiles(Textures, *Dir.Path, TEXT(""));
-
-		for (const FString& Texture : Textures)
-		{
-			FName Extension = FName(*FPaths::GetExtension(Texture));
-
-			if (ImageExtensions.Contains(Extension) && Texture.Contains(MeshName))
-			{
-				PotentialTextures.Add( Dir.Path / Texture );
-			}
-		}
-	}
-
-	if (PotentialTextures.Num() == 0)
-	{
-		return;
-	}
-
-	FString AOTexPath = PotentialTextures[0];
-	if (PotentialTextures.Num() > 1)
-	{
-		UE_LOG(LogDatasmithDeltaGenImport, Log, TEXT("Found more than one candidate for an AO texture for mesh '%s'. The texture '%s' will be used, but moving or renaming the texture would prevent this."), *MeshName, *AOTexPath);
-	}
-
-	FDatasmithFBXSceneMaterial::FTextureParams& Tex = Material->TextureParams.FindOrAdd(TEXT("TexAO"));
-	Tex.Path = AOTexPath;
-}
-
 bool FDatasmithDeltaGenImporter::ProcessScene()
 {
 	FDatasmithDeltaGenSceneProcessor Processor(IntermediateScene.Get());
 
-	// We need to create AO textures before we merge as they depend on the name of the mesh itself,
-	// and we only want to add this AO texture to the one material used by that mesh
+	Processor.FindDuplicatedMaterials();
+
 	if (ImportOptions->ShadowTextureMode != EShadowTextureMode::Ignore)
 	{
-		for (TSharedPtr<FDatasmithFBXSceneNode>& Node : IntermediateScene->GetAllNodes())
-		{
-			for (TSharedPtr<FDatasmithFBXSceneMaterial>& Material : Node->Materials)
-			{
-				FetchAOTexture(Node->Mesh->Name, Material);
-			}
-		}
+		Processor.SetupAOTextures(ImportOptions->TextureDirs);
 	}
 
 	Processor.RemoveLightMapNodes();
@@ -275,8 +225,6 @@ bool FDatasmithDeltaGenImporter::ProcessScene()
 	Processor.SplitLightNodes();
 
 	Processor.DecomposePivots(TmlTimelines);
-
-	Processor.FindDuplicatedMaterials();
 
 	if (ImportOptions->bRemoveInvisibleNodes)
 	{
@@ -579,6 +527,7 @@ TSharedPtr<IDatasmithTextureElement> CreateTextureAndTextureProperties(IDatasmit
 		MapEntry(TEXT("TexTransparent"), EDatasmithTextureMode::Other),
 		MapEntry(TEXT("TexEmissive"), EDatasmithTextureMode::Diffuse),
 		MapEntry(TEXT("TexAO"), EDatasmithTextureMode::Diffuse),
+		MapEntry(TEXT("TexShininess"), EDatasmithTextureMode::Specular),
 	});
 
 	// Create the actual texture (accompanying texture properties will all be packed as key-value pairs)
@@ -898,12 +847,50 @@ namespace DeltaGenImporterImpl
 		ETransformChannelComponents Components = ETransformChannelComponents::All;
 		TransformAnimation.SetEnabledTransformChannels(Channels | FDatasmithAnimationUtils::SetChannelTypeComponents(Components, DSType));
 	}
+
+	void CombineAnimations(const TArray<TSharedRef<IDatasmithTransformAnimationElement>>& InputAnimations, TSharedRef<IDatasmithTransformAnimationElement>& OutputAnimation)
+	{
+		TArray<FDatasmithTransformFrameInfo> Frames;
+		for (uint8 TransformTypeIndex = 0; TransformTypeIndex < (uint8)EDatasmithTransformType::Count; ++TransformTypeIndex)
+		{
+			EDatasmithTransformType TransformType = (EDatasmithTransformType)TransformTypeIndex;
+
+			int32 NumFrames = 0;
+			for (const TSharedRef<IDatasmithTransformAnimationElement>& Animation : InputAnimations)
+			{
+				NumFrames += Animation->GetFramesCount(TransformType);
+			}
+			Frames.Reset();
+			Frames.Reserve(NumFrames);
+
+			for (const TSharedRef<IDatasmithTransformAnimationElement>& Animation : InputAnimations)
+			{
+				int32 FrameCount = Animation->GetFramesCount(TransformType);
+				for (int32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex)
+				{
+					Frames.Add(Animation->GetFrame(TransformType, FrameIndex));
+				}
+			}
+
+			Algo::Sort(Frames, [](const FDatasmithTransformFrameInfo& A, const FDatasmithTransformFrameInfo& B)
+			{
+				return A.FrameNumber < B.FrameNumber;
+			});
+
+			for (const FDatasmithTransformFrameInfo& Frame : Frames)
+			{
+				OutputAnimation->AddFrame(TransformType, Frame);
+			}
+		}
+	}
 }
 
 TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithDeltaGenImporter::ConvertAnimationTimeline(const FDeltaGenTmlDataTimeline& TmlTimeline)
 {
 	TSharedRef<IDatasmithLevelSequenceElement> SequenceElement = FDatasmithSceneFactory::CreateLevelSequence(*TmlTimeline.Name);
+	SequenceElement->SetFrameRate(TmlTimeline.Framerate);
 
+	TArray<TSharedRef<IDatasmithTransformAnimationElement>> InitialAnimations;
 	for (const FDeltaGenTmlDataTimelineAnimation& Animation : TmlTimeline.Animations)
 	{
 		FString TargetNodeName = Animation.TargetNode.ToString();
@@ -921,8 +908,37 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithDeltaGenImporter::ConvertAn
 			TransformAnimation->GetFramesCount(EDatasmithTransformType::Rotation) > 0 ||
 			TransformAnimation->GetFramesCount(EDatasmithTransformType::Scale) > 0)
 		{
-			SequenceElement->AddAnimation(TransformAnimation);
-			SequenceElement->SetFrameRate(TmlTimeline.Framerate);
+			InitialAnimations.Add(TransformAnimation);
+		}
+	}
+
+	// Temp fix for UE-87458 until DatasmithLevelSequenceImporter can handle multiple simultaneous animations per actor using separate sections.
+	// This combines animations so that we will only ever emit one IDatasmithTransformAnimationElement per actor per level sequence.
+	// This needs to be done after baking as tracks can have different interpolation modes.
+	{
+		TMap<FString, TArray<TSharedRef<IDatasmithTransformAnimationElement>>> AnimationsPerActor;
+
+		for (const TSharedRef<IDatasmithTransformAnimationElement>& Animation : InitialAnimations)
+		{
+			AnimationsPerActor.FindOrAdd(Animation->GetName()).Add(Animation);
+		}
+
+		for (const TPair<FString, TArray<TSharedRef<IDatasmithTransformAnimationElement>>>& Pair : AnimationsPerActor)
+		{
+			const FString& ActorName = Pair.Key;
+			const TArray<TSharedRef<IDatasmithTransformAnimationElement>>& Animations = Pair.Value;
+
+			if (Animations.Num() == 1)
+			{
+				SequenceElement->AddAnimation(Animations[0]);
+			}
+			else
+			{
+				TSharedRef<IDatasmithTransformAnimationElement> CombinedAnimation = FDatasmithSceneFactory::CreateTransformAnimation(*ActorName);
+				DeltaGenImporterImpl::CombineAnimations(Animations, CombinedAnimation);
+
+				SequenceElement->AddAnimation(CombinedAnimation);
+			}
 		}
 	}
 

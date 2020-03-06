@@ -165,7 +165,7 @@ struct ESteamVRInputButton
 };
 
 /* Available SteamVR Input Action Types */
-enum EActionType
+enum class ESteamVRActionType
 {
 	Boolean,
 	Vector1,
@@ -313,7 +313,7 @@ struct FSteamVRInputAction
 {
 	FString		Path;							// The path defined for the action (e.g. main/in/{ActionName})
 	FName		Name;							// The SteamVR name of the action (e.g. Teleport, OpenConsole)
-	EActionType	Type;							// The SteamVR input data type
+	ESteamVRActionType	Type;							// The SteamVR input data type
 	FName		KeyX;							// The UE Key in the X axis or float axis (e.g. Motion_Controller_Thumbstick_X)
 	FName		KeyY;							// The UE Key in the Y axis
 	FName		KeyZ;							// The UE Key in the Z axis
@@ -334,7 +334,7 @@ struct FSteamVRInputAction
 		return SActionTypes[(int)Type];
 	}
 
-	FSteamVRInputAction(const FString& inPath, EActionType inType, bool inRequirement, const FName& inName, const FString& inStringPath)
+	FSteamVRInputAction(const FString& inPath, ESteamVRActionType inType, bool inRequirement, const FName& inName, const FString& inStringPath)
 		: Path(inPath)
 		, Name(inName)
 		, Type(inType)
@@ -354,7 +354,7 @@ struct FSteamVRInputAction
 	FSteamVRInputAction(const FString& inPath, const FName& inName, const FName& inKeyName, bool inState)
 		: Path(inPath)
 		, Name(inName)
-		, Type(Boolean)
+		, Type(ESteamVRActionType::Boolean)
 		, KeyX(inKeyName)
 		, KeyY()
 		, KeyZ()
@@ -371,7 +371,7 @@ struct FSteamVRInputAction
 	FSteamVRInputAction(const FString& inPath, const FName& inName, bool inRequirement, const FName& inKeyName, bool inState)
 		: Path(inPath)
 		, Name(inName)
-		, Type(Boolean)
+		, Type(ESteamVRActionType::Boolean)
 		, KeyX(inKeyName)
 		, KeyY()
 		, KeyZ()
@@ -388,7 +388,7 @@ struct FSteamVRInputAction
 	FSteamVRInputAction(const FString& inPath, const FName& inName, const FName& inKeyName, float inValue1D)
 		: Path(inPath)
 		, Name(inName)
-		, Type(Vector1)
+		, Type(ESteamVRActionType::Vector1)
 		, KeyX(inKeyName)
 		, KeyY()
 		, KeyZ()
@@ -401,7 +401,7 @@ struct FSteamVRInputAction
 	FSteamVRInputAction(const FString& inPath, const FName& inName, const FName& inKeyName_X, const FName& inKeyName_Y, const FVector2D& inValue2D)
 		: Path(inPath)
 		, Name(inName)
-		, Type(Vector2)
+		, Type(ESteamVRActionType::Vector2)
 		, KeyX(inKeyName_X)
 		, KeyY(inKeyName_Y)
 		, KeyZ()
@@ -417,7 +417,7 @@ struct FSteamVRInputAction
 	FSteamVRInputAction(const FString& inPath, const FName& inName, const FName& inKeyName_X, const FName& inKeyName_Y, const FName& inKeyName_Z, const FVector& inValue3D)
 		: Path(inPath)
 		, Name(inName)
-		, Type(Vector3)
+		, Type(ESteamVRActionType::Vector3)
 		, KeyX(inKeyName_X)
 		, KeyY(inKeyName_Y)
 		, KeyZ(inKeyName_Z)
@@ -430,7 +430,7 @@ struct FSteamVRInputAction
 		LastUpdated = 0.f;
 	}
 
-	FSteamVRInputAction(const FString& inPath, const EActionType& inActionType, const bool& inRequirement, const FName& inName)
+	FSteamVRInputAction(const FString& inPath, const ESteamVRActionType& inActionType, const bool& inRequirement, const FName& inName)
 		: Path(inPath)
 		, Name(inName)
 		, Type(inActionType)

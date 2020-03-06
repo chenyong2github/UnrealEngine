@@ -93,8 +93,13 @@ public:
 	UPROPERTY()
 	FTrackedCamera TrackedCamera;
 
+	// Component at the tracking origin that the camera calibration is applied to
 	UPROPERTY()
 	class USceneComponent* TrackingReferenceComponent;
+
+	// A multiplier on the camera distance, should be based on the scaling of the player component
+	UPROPERTY()
+	double ScalingFactor;
 
 	ovrpCameraDevice CurrentCapturingCamera;
 

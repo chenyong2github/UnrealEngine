@@ -489,7 +489,7 @@ namespace WmfMedia
 
 			if ((SubType == MFVideoFormat_H264) || (SubType == MFVideoFormat_H264_ES))
 			{
-				if (IsVideoDevice /*&& !FWindowsPlatformMisc::VerifyWindowsVersion(6, 2)*/ /*Win8*/)
+				if (IsVideoDevice /*&& !FPlatformMisc::VerifyWindowsVersion(6, 2)*/ /*Win8*/)
 				{
 					UE_LOG(LogWmfMedia, Warning, TEXT("H264 video type requires Windows 8 or newer (your version is %s)"), *FPlatformMisc::GetOSVersion());
 					return NULL;
@@ -498,9 +498,9 @@ namespace WmfMedia
 
 			if ((SubType == MFVideoFormat_HEVC) || (SubType == MFVideoFormat_HEVC_ES))
 			{
-				if (!FWindowsPlatformMisc::VerifyWindowsVersion(10, 0) /*Win10*/)
+				if (!FPlatformMisc::VerifyWindowsVersion(10, 0) /*Win10*/)
 				{
-					if (!FWindowsPlatformMisc::VerifyWindowsVersion(6, 2) /*Win8*/)
+					if (!FPlatformMisc::VerifyWindowsVersion(6, 2) /*Win8*/)
 					{
 						UE_LOG(LogWmfMedia, Warning, TEXT("HEVC video type requires Windows 10 or newer (your version is %s)"), *FPlatformMisc::GetOSVersion());
 						return NULL;

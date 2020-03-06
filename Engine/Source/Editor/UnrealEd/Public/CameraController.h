@@ -213,7 +213,7 @@ public:
  *
  * An interactive camera movement system.  Supports simple physics-based animation.
  */
-class UNREALED_VTABLE FEditorCameraController
+class FEditorCameraController
 {
 
 public:

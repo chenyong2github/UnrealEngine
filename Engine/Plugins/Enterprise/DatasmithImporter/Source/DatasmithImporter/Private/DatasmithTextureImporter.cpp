@@ -31,10 +31,9 @@
 #include "Modules/ModuleManager.h"
 
 #include "ObjectTools.h"
+#include "RHI.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithTextureImport"
-
-const uint32 MaxTextureSize = 4096;
 
 namespace
 {
@@ -42,7 +41,7 @@ namespace
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ResizeTexture);
 
-		EDSTextureUtilsError ErrorCode = FDatasmithTextureResize::ResizeTexture(Filename, ResizedFilename, EDSResizeTextureMode::NearestPowerOfTwo, MaxTextureSize, bCreateNormal);
+		EDSTextureUtilsError ErrorCode = FDatasmithTextureResize::ResizeTexture(Filename, ResizedFilename, EDSResizeTextureMode::NearestPowerOfTwo, GMaxTextureDimensions, bCreateNormal);
 
 		switch (ErrorCode)
 		{

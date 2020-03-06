@@ -6,6 +6,14 @@
 #include "Containers/Map.h"
 #include "Templates/UnrealTemplate.h"
 
+#define RUN_HASHTABLE_CONCURENCY_CHECKS UE_BUILD_DEBUG
+
+#if RUN_HASHTABLE_CONCURENCY_CHECKS
+#define CHECK_CONCURRENT_ACCESS(x) check(x)
+#else
+#define CHECK_CONCURRENT_ACCESS(x)
+#endif
+
 namespace Experimental
 {
 
@@ -91,9 +99,10 @@ namespace RobinHoodHashTable_Private
 		friend class TRobinHoodHashTable;
 
 		template<typename DeducedKeyType, typename DeducedValueType>
-		inline TKeyValue(DeducedKeyType&& InKey, DeducedValueType&& InVal) : Pair(Forward<DeducedKeyType>(InKey), Forward<DeducedValueType>(InVal)) {}
+		inline TKeyValue(DeducedKeyType&& InKey, DeducedValueType&& InVal, FHashType InHash) : Pair(Forward<DeducedKeyType>(InKey), Forward<DeducedValueType>(InVal)), Hash(InHash) {}
 
 		ElementType Pair;
+		FHashType Hash;
 
 		inline FindValueType FindImpl()
 		{
@@ -126,9 +135,10 @@ namespace RobinHoodHashTable_Private
 		friend class TRobinHoodHashTable;
 
 		template<typename DeducedKeyType>
-		inline TKeyValue(DeducedKeyType&& InKey, FUnitType&&) : Key(Forward<DeducedKeyType>(InKey)) {}
+		inline TKeyValue(DeducedKeyType&& InKey, FUnitType&&, FHashType InHash) : Key(Forward<DeducedKeyType>(InKey)), Hash(InHash) {}
 
 		ElementType Key;
+		FHashType Hash;
 
 		inline FindValueType FindImpl() const
 		{
@@ -178,25 +188,31 @@ namespace RobinHoodHashTable_Private
 			}
 
 			template<typename DeducedKeyType, typename DeducedValueType>
-			inline IndexType Allocate(DeducedKeyType&& Key, DeducedValueType&& Val)
+			inline IndexType Allocate(DeducedKeyType&& Key, DeducedValueType&& Val, FHashType Hash)
 			{
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
 				IndexType Index;
 				if (FreeList.Num() > 0)
 				{
 					Index = FreeList.Pop();
-					new (&KeyVals[Index]) KeyValueType{ Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val) };
+					new (&KeyVals[Index]) KeyValueType{ Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val), Hash };
 				}
 				else
 				{
 					Index = KeyVals.Num();
-					KeyVals.Push(KeyValueType{ Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val) });
+					KeyVals.Push(KeyValueType{ Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val), Hash });
 				}
 				checkSlow(Index != InvalidIndex);
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
 				return Index;
 			}
 
 			inline void Deallocate(IndexType Index)
 			{
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
 				int InsertIndex = 0;
 				for (; InsertIndex < FreeList.Num(); InsertIndex++)
 				{
@@ -205,8 +221,11 @@ namespace RobinHoodHashTable_Private
 						break;
 					}
 				}
+
 				FreeList.EmplaceAt(InsertIndex, Index);
 				KeyVals[Index].~KeyValueType();
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
 				//TODO shrink KeyValue Array.
 				//As the FreeList is sorted backwards this would work as follows:
 				// - go though the FreeList front to back as long as the FreeList entry is the last
@@ -216,23 +235,31 @@ namespace RobinHoodHashTable_Private
 
 			inline const KeyValueType& Get(IndexType Index) const
 			{
+				CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) >= 1);
 #if DO_CHECK
 				for (IndexType Idx : FreeList)
 				{
 					check(Idx != Index);
 				}
 #endif
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) >= 0);
+				CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
 				return KeyVals[Index];
 			}
 
 			inline KeyValueType& Get(IndexType Index)
 			{
+				CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) >= 1);
 #if DO_CHECK
 				for (IndexType Idx : FreeList)
 				{
 					check(Idx != Index);
 				}
 #endif
+				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) >= 0);
+				CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
 				return KeyVals[Index];
 			}
 
@@ -308,6 +335,10 @@ namespace RobinHoodHashTable_Private
 				KeyVals.Reserve(ReserveNum);
 			}
 
+#if RUN_HASHTABLE_CONCURENCY_CHECKS
+			mutable int ConcurrentReaders = 0;
+			mutable int ConcurrentWriters = 0;
+#endif
 			TArray<KeyValueType, HashMapAllocator> KeyVals;
 			TArray<IndexType, HashMapAllocator> FreeList;
 		};
@@ -364,8 +395,11 @@ namespace RobinHoodHashTable_Private
 
 	protected:
 		template<typename DeducedKeyType, typename DeducedValueType>
-		inline FHashElementId FindOrAddIdByHash(FHashType HashValue, DeducedKeyType&& Key, DeducedValueType&& Val)
+		inline FHashElementId FindOrAddIdByHash(FHashType HashValue, DeducedKeyType&& Key, DeducedValueType&& Val, bool& bIsAlreadyInMap)
 		{
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
+
 			checkSlow(HashValue == ComputeHash(Key));
 			IndexType BucketIndex = ModTableSize(HashValue.AsUInt());
 			const IndexType EndBucketIndex = ModTableSize(HashValue.AsUInt() + MaximumDistance + 1);
@@ -375,6 +409,9 @@ namespace RobinHoodHashTable_Private
 				{
 					if (Hasher::Matches(Key, KeyValueData.Get(IndexData[BucketIndex]).GetKey()))
 					{
+						CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
+						CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
+						bIsAlreadyInMap = true;
 						return IndexData[BucketIndex];
 					}
 				}
@@ -403,22 +440,27 @@ namespace RobinHoodHashTable_Private
 				}
 			}
 
-			IndexType InsertIndex = KeyValueData.Allocate(Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val));
+			IndexType InsertIndex = KeyValueData.Allocate(Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val), HashValue);
 			InsertIntoTable(InsertIndex, HashValue);
+
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
+
+			bIsAlreadyInMap = false;
 			return FHashElementId(InsertIndex);
 		}
 
 		template<typename DeducedKeyType, typename DeducedValueType>
-		inline FHashElementId FindOrAddId(DeducedKeyType&& Key, DeducedValueType&& Val)
+		inline FHashElementId FindOrAddId(DeducedKeyType&& Key, DeducedValueType&& Val, bool& bIsAlreadyInMap)
 		{
 			FHashType HashValue = ComputeHash(Key);
-			return FindOrAddIdByHash(HashValue, Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val));
+			return FindOrAddIdByHash(HashValue, Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val), bIsAlreadyInMap);
 		}
 
 		template<typename DeducedKeyType, typename DeducedValueType>
-		inline FindValueType FindOrAdd(DeducedKeyType&& Key, DeducedValueType&& Val)
+		inline FindValueType FindOrAdd(DeducedKeyType&& Key, DeducedValueType&& Val, bool& bIsAlreadyInMap)
 		{
-			FHashElementId Id = FindOrAddId(Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val));
+			FHashElementId Id = FindOrAddId(Forward<DeducedKeyType>(Key), Forward<DeducedValueType>(Val), bIsAlreadyInMap);
 			return KeyValueData.Get(Id.GetIndex()).FindImpl();
 		}
 
@@ -639,6 +681,9 @@ namespace RobinHoodHashTable_Private
 
 		inline FHashElementId FindId(const KeyType& Key) const
 		{
+			CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) >= 1);
+
 			FHashType HashValue = ComputeHash(Key);
 			IndexType BucketIndex = ModTableSize(HashValue.AsUInt());
 			const IndexType EndBucketIndex = ModTableSize(HashValue.AsUInt() + MaximumDistance + 1);
@@ -648,12 +693,17 @@ namespace RobinHoodHashTable_Private
 				{
 					if (Hasher::Matches(Key, KeyValueData.Get(IndexData[BucketIndex]).GetKey()))
 					{
+						CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) >= 0);
+						CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
 						return FHashElementId(IndexData[BucketIndex]);
 					}
 				}
 
 				BucketIndex = ModTableSize(BucketIndex + 1);
 			} while (BucketIndex != EndBucketIndex);
+
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) >= 0);
+			CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
 
 			return FHashElementId();
 		}
@@ -682,7 +732,10 @@ namespace RobinHoodHashTable_Private
 
 		bool Remove(const KeyType& Key)
 		{
-			bool bRetValue = false;
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
+
+			bool bIsFoundInMap = false;
 			FHashType HashValue = ComputeHash(Key);
 			IndexType BucketIndex = ModTableSize(HashValue.AsUInt());
 			const IndexType EndBucketIndex = ModTableSize(HashValue.AsUInt() + MaximumDistance + 1);
@@ -694,7 +747,7 @@ namespace RobinHoodHashTable_Private
 					{
 						KeyValueData.Deallocate(IndexData[BucketIndex]);
 						HashData[BucketIndex] = FHashType();
-						bRetValue = true;
+						bIsFoundInMap = true;
 						break;
 					}
 				}
@@ -702,7 +755,7 @@ namespace RobinHoodHashTable_Private
 				BucketIndex = ModTableSize(BucketIndex + 1);
 			} while (BucketIndex != EndBucketIndex);
 
-			if (bRetValue && (KeyValueData.Num() * LoadFactorQuotient * 4) < (SizePow2Minus1 * LoadFactorDivisor))
+			if (bIsFoundInMap && (KeyValueData.Num() * LoadFactorQuotient * 4) < (SizePow2Minus1 * LoadFactorDivisor))
 			{
 				TArray<IndexType> IndexDataOld = MoveTemp(IndexData);
 				TArray<FHashType> HashDataOld = MoveTemp(HashData);
@@ -723,16 +776,67 @@ namespace RobinHoodHashTable_Private
 				}
 			}
 
-			return bRetValue;
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
+
+			return bIsFoundInMap;
 		}
 
 		inline bool RemoveByElementId(FHashElementId Id)
 		{
-			return Remove(KeyValueData.Get(Id.GetIndex()).GetKey());
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
+			
+			bool bIsFoundInMap = false;
+			FHashType HashValue = KeyValueData.Get(Id.GetIndex()).Hash;
+			IndexType BucketIndex = ModTableSize(HashValue.AsUInt());
+			const IndexType EndBucketIndex = ModTableSize(HashValue.AsUInt() + MaximumDistance + 1);
+			do
+			{
+				if (Id.GetIndex() == IndexData[BucketIndex])
+				{
+					checkSlow(HashData[BucketIndex] == HashValue);
+					KeyValueData.Deallocate(IndexData[BucketIndex]);
+					HashData[BucketIndex] = FHashType();
+					bIsFoundInMap = true;
+					break;
+				}
+
+				BucketIndex = ModTableSize(BucketIndex + 1);
+			} while (BucketIndex != EndBucketIndex);
+
+			if (bIsFoundInMap && (KeyValueData.Num() * LoadFactorQuotient * 4) < (SizePow2Minus1 * LoadFactorDivisor))
+			{
+				TArray<IndexType> IndexDataOld = MoveTemp(IndexData);
+				TArray<FHashType> HashDataOld = MoveTemp(HashData);
+				IndexType OldSizePow2Minus1 = SizePow2Minus1;
+				SizePow2Minus1 = SizePow2Minus1 / 2;
+				MaximumDistance = 0;
+				IndexData.Reserve(SizePow2Minus1 + 1);
+				IndexData.AddUninitialized(SizePow2Minus1 + 1);
+				HashData.Reserve(SizePow2Minus1 + 1);
+				HashData.AddDefaulted(SizePow2Minus1 + 1);
+
+				for (IndexType Index = 0; Index <= OldSizePow2Minus1; Index++)
+				{
+					if (HashDataOld[Index].IsOccupied())
+					{
+						InsertIntoTable(IndexDataOld[Index], HashDataOld[Index]);
+					}
+				}
+			}
+
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
+
+			return bIsFoundInMap;
 		}
 
 		void Empty()
 		{
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
+
 			IndexData.Empty(1); 
 			IndexData.AddUninitialized();
 			HashData.Empty(1); 
@@ -740,10 +844,16 @@ namespace RobinHoodHashTable_Private
 			KeyValueData.Empty();
 			SizePow2Minus1 = 0;
 			MaximumDistance = 0;
+
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
 		}
 
 		void Reserve(SizeType ReserveNum)
 		{
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
+
 			if (ReserveNum > KeyValueData.Num())
 			{
 				KeyValueData.Reserve(ReserveNum);
@@ -775,6 +885,9 @@ namespace RobinHoodHashTable_Private
 					}
 				}
 			}
+
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) == 0);
+			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
 		}
 
 	private:
@@ -785,6 +898,11 @@ namespace RobinHoodHashTable_Private
 
 		IndexType SizePow2Minus1 = 0;
 		IndexType MaximumDistance = 0;
+
+#if RUN_HASHTABLE_CONCURENCY_CHECKS
+		mutable int ConcurrentReaders = 0;
+		mutable int ConcurrentWriters = 0;
+#endif
 	};
 }
 
@@ -806,64 +924,136 @@ public:
 	TRobinHoodHashMap(TRobinHoodHashMap&& Other) = default;
 	TRobinHoodHashMap& operator=(TRobinHoodHashMap&& Other) = default;
 
+	FHashElementId FindOrAddIdByHash(FHashType HashValue, const KeyType& Key, const ValueType& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAddIdByHash(HashValue, Key, Val, bIsAlreadyInMap);
+	}
+
+	FHashElementId FindOrAddIdByHash(FHashType HashValue, const KeyType& Key, ValueType&& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAddIdByHash(HashValue, Key, MoveTemp(Val), bIsAlreadyInMap);
+	}
+
+	FHashElementId FindOrAddIdByHash(FHashType HashValue, KeyType&& Key, const ValueType& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), Val, bIsAlreadyInMap);
+	}
+
+	FHashElementId FindOrAddIdByHash(FHashType HashValue, KeyType&& Key, ValueType&& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), MoveTemp(Val), bIsAlreadyInMap);
+	}
+
+	FHashElementId FindOrAddId(const KeyType& Key, const ValueType& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAddId(Key, Val, bIsAlreadyInMap);
+	}
+
+	FHashElementId FindOrAddId(const KeyType& Key, ValueType&& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAddId(Key, MoveTemp(Val), bIsAlreadyInMap);
+	}
+
+	FHashElementId FindOrAddId(KeyType&& Key, const ValueType& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAddId(MoveTemp(Key), Val);
+	}
+
+	FHashElementId FindOrAddId(KeyType&& Key, ValueType&& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAddId(MoveTemp(Key), MoveTemp(Val), bIsAlreadyInMap);
+	}
+
+	FindValueType FindOrAdd(const KeyType& Key, const ValueType& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAdd(Key, Val, bIsAlreadyInMap);
+	}
+
+	FindValueType FindOrAdd(const KeyType& Key, ValueType&& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAdd(Key, MoveTemp(Val), bIsAlreadyInMap);
+	}
+
+	FindValueType FindOrAdd(KeyType&& Key, const ValueType& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAdd(MoveTemp(Key), Val, bIsAlreadyInMap);
+	}
+
+	FindValueType FindOrAdd(KeyType&& Key, ValueType&& Val, bool& bIsAlreadyInMap)
+	{
+		return Base::FindOrAdd(MoveTemp(Key), MoveTemp(Val), bIsAlreadyInMap);
+	}
+
 	FHashElementId FindOrAddIdByHash(FHashType HashValue, const KeyType& Key, const ValueType& Val)
 	{
-		return Base::FindOrAddIdByHash(HashValue, Key, Val);
+		bool bIsAlreadyInMap;
+		return Base::FindOrAddIdByHash(HashValue, Key, Val, bIsAlreadyInMap);
 	}
 
 	FHashElementId FindOrAddIdByHash(FHashType HashValue, const KeyType& Key, ValueType&& Val)
 	{
-		return Base::FindOrAddIdByHash(HashValue, Key, MoveTemp(Val));
+		bool bIsAlreadyInMap;
+		return Base::FindOrAddIdByHash(HashValue, Key, MoveTemp(Val), bIsAlreadyInMap);
 	}
 
 	FHashElementId FindOrAddIdByHash(FHashType HashValue, KeyType&& Key, const ValueType& Val)
 	{
-		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), Val);
+		bool bIsAlreadyInMap;
+		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), Val, bIsAlreadyInMap);
 	}
 
 	FHashElementId FindOrAddIdByHash(FHashType HashValue, KeyType&& Key, ValueType&& Val)
 	{
-		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), MoveTemp(Val));
+		bool bIsAlreadyInMap;
+		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), MoveTemp(Val), bIsAlreadyInMap);
 	}
 
 	FHashElementId FindOrAddId(const KeyType& Key, const ValueType& Val)
 	{
-		return Base::FindOrAddId(Key, Val);
+		bool bIsAlreadyInMap;
+		return Base::FindOrAddId(Key, Val, bIsAlreadyInMap);
 	}
 
 	FHashElementId FindOrAddId(const KeyType& Key, ValueType&& Val)
 	{
-		return Base::FindOrAddId(Key, MoveTemp(Val));
+		bool bIsAlreadyInMap;
+		return Base::FindOrAddId(Key, MoveTemp(Val), bIsAlreadyInMap);
 	}
 
 	FHashElementId FindOrAddId(KeyType&& Key, const ValueType& Val)
 	{
+		bool bIsAlreadyInMap;
 		return Base::FindOrAddId(MoveTemp(Key), Val);
 	}
 
 	FHashElementId FindOrAddId(KeyType&& Key, ValueType&& Val)
 	{
-		return Base::FindOrAddId(MoveTemp(Key), MoveTemp(Val));
+		bool bIsAlreadyInMap;
+		return Base::FindOrAddId(MoveTemp(Key), MoveTemp(Val), bIsAlreadyInMap);
 	}
 
 	FindValueType FindOrAdd(const KeyType& Key, const ValueType& Val)
 	{
-		return Base::FindOrAdd(Key, Val);
+		bool bIsAlreadyInMap;
+		return Base::FindOrAdd(Key, Val, bIsAlreadyInMap);
 	}
 
 	FindValueType FindOrAdd(const KeyType& Key, ValueType&& Val)
 	{
-		return Base::FindOrAdd(Key, MoveTemp(Val));
+		bool bIsAlreadyInMap;
+		return Base::FindOrAdd(Key, MoveTemp(Val), bIsAlreadyInMap);
 	}
 
 	FindValueType FindOrAdd(KeyType&& Key, const ValueType& Val)
 	{
-		return Base::FindOrAdd(MoveTemp(Key), Val);
+		bool bIsAlreadyInMap;
+		return Base::FindOrAdd(MoveTemp(Key), Val, bIsAlreadyInMap);
 	}
 
 	FindValueType FindOrAdd(KeyType&& Key, ValueType&& Val)
 	{
-		return Base::FindOrAdd(MoveTemp(Key), MoveTemp(Val));
+		bool bIsAlreadyInMap;
+		return Base::FindOrAdd(MoveTemp(Key), MoveTemp(Val), bIsAlreadyInMap);
 	}
 };
 
@@ -886,35 +1076,74 @@ public:
 	TRobinHoodHashSet(TRobinHoodHashSet&& Other) = default;
 	TRobinHoodHashSet& operator=(TRobinHoodHashSet&& Other) = default;
 
+	FHashElementId FindOrAddIdByHash(FHashType HashValue, const KeyType& Key, bool& bIsAlreadyInSet)
+	{
+		return Base::FindOrAddIdByHash(HashValue, Key, Unit(), bIsAlreadyInSet);
+	}
+
+	FHashElementId FindOrAddIdByHash(FHashType HashValue, KeyType&& Key, bool& bIsAlreadyInSet)
+	{
+		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), Unit(), bIsAlreadyInSet);
+	}
+
+	FHashElementId FindOrAddId(const KeyType& Key, bool& bIsAlreadyInSet)
+	{
+		return Base::FindOrAddId(Key, Unit(), bIsAlreadyInSet);
+	}
+
+	FHashElementId FindOrAddId(KeyType&& Key, bool& bIsAlreadyInSet)
+	{
+		return Base::FindOrAddId(MoveTemp(Key), Unit(), bIsAlreadyInSet);
+	}
+
+	FindValueType FindOrAdd(const KeyType& Key, bool& bIsAlreadyInSet)
+	{
+		return Base::FindOrAdd(Key, Unit(), bIsAlreadyInSet);
+	}
+
+	FindValueType FindOrAdd(KeyType&& Key, bool& bIsAlreadyInSet)
+	{
+		return Base::FindOrAdd(MoveTemp(Key), Unit(), bIsAlreadyInSet);
+	}
+
 	FHashElementId FindOrAddIdByHash(FHashType HashValue, const KeyType& Key)
 	{
-		return Base::FindOrAddIdByHash(HashValue, Key, Unit());
+		bool bIsAlreadyInSet;
+		return Base::FindOrAddIdByHash(HashValue, Key, Unit(), bIsAlreadyInSet);
 	}
 
 	FHashElementId FindOrAddIdByHash(FHashType HashValue, KeyType&& Key)
 	{
-		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), Unit());
+		bool bIsAlreadyInSet;
+		return Base::FindOrAddIdByHash(HashValue, MoveTemp(Key), Unit(), bIsAlreadyInSet);
 	}
 
 	FHashElementId FindOrAddId(const KeyType& Key)
 	{
-		return Base::FindOrAddId(Key, Unit());
+		bool bIsAlreadyInSet;
+		return Base::FindOrAddId(Key, Unit(), bIsAlreadyInSet);
 	}
 
 	FHashElementId FindOrAddId(KeyType&& Key)
 	{
-		return Base::FindOrAddId(MoveTemp(Key), Unit());
+		bool bIsAlreadyInSet;
+		return Base::FindOrAddId(MoveTemp(Key), Unit(), bIsAlreadyInSet);
 	}
 
 	FindValueType FindOrAdd(const KeyType& Key)
 	{
-		return Base::FindOrAdd(Key, Unit());
+		bool bIsAlreadyInSet;
+		return Base::FindOrAdd(Key, Unit(), bIsAlreadyInSet);
 	}
 
 	FindValueType FindOrAdd(KeyType&& Key)
 	{
-		return Base::FindOrAdd(MoveTemp(Key), Unit());
+		bool bIsAlreadyInSet;
+		return Base::FindOrAdd(MoveTemp(Key), Unit(), bIsAlreadyInSet);
 	}
 };
 
 };
+
+#undef CHECK_CONCURRENT_ACCESS
+#undef RUN_HASHTABLE_CONCURENCY_CHECKS

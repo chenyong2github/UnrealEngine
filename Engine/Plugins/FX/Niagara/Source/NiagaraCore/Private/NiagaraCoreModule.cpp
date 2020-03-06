@@ -6,6 +6,9 @@
 
 IMPLEMENT_MODULE(INiagaraCoreModule, NiagaraCore);
 
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS);
+
+IMPLEMENT_EXPORTED_INTRINSIC_TYPE_LAYOUT(TIndexedPtr<UNiagaraDataInterfaceBase>);
 
 UNiagaraDataInterfaceBase::UNiagaraDataInterfaceBase(class FObjectInitializer const & Initializer)
 {

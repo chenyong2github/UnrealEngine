@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef JS_CONVERTER_H
-#define JS_CONVERTER_H
+#ifndef PXR_BASE_JS_CONVERTER_H
+#define PXR_BASE_JS_CONVERTER_H
 
 /// \file js/converter.h
 
@@ -142,4 +142,4 @@ ValueType JsConvertToContainerType(const JsValue& value) {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // JS_CONVERTER_H
+#endif // PXR_BASE_JS_CONVERTER_H

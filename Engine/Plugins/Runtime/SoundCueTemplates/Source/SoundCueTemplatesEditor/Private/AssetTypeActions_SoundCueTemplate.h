@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -29,4 +30,11 @@ protected:
 
 	/** Converts the provided SoundCue Template to a fully-modifiable SoundCue */
 	void ExecuteCopyToSoundCue(TArray<TWeakObjectPtr<USoundCueTemplate>> Objects);
+};
+
+class FAssetActionExtender_SoundCueTemplate
+{
+public:
+	static void RegisterMenus();
+	static void ExecuteCreateSoundCueTemplate(const struct FToolMenuContext& MenuContext);
 };

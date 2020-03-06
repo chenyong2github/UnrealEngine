@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/StringBuilder.h"
-
+#include "Containers/UnrealString.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
@@ -76,7 +76,7 @@ TStringBuilderImpl<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
 	{
 		va_list ArgPack;
 		va_start(ArgPack, Fmt);
-		const int32 RemainingSize = UE_PTRDIFF_TO_INT32(Self.End - Self.CurPos);
+		const int32 RemainingSize = (int32)(Self.End - Self.CurPos);
 		const int32 Result = TCString<C>::GetVarArgs(Self.CurPos, RemainingSize, Fmt, ArgPack);
 		va_end(ArgPack);
 
@@ -91,6 +91,11 @@ TStringBuilderImpl<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
 			Self.Extend(64);
 		}
 	}
+}
+
+FStringBuilderBase&	operator<<(FStringBuilderBase& Builder, const FString& Str)
+{
+	return Builder.Append(*Str, Str.Len());
 }
 
 // Instantiate templates once

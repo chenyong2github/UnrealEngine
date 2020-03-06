@@ -66,7 +66,7 @@ public:
 	void       Alloc( FRect Rect );
 
 	bool       FindBitByBit( FRect& Rect, const FAllocator2D& Other );
-	bool       FindWithSegments( FRect& Rect, const FRect& BestRect, const FAllocator2D& Other ) const;
+	bool       FindWithSegments( FRect& Rect, const FAllocator2D& Other, TFunctionRef<bool (const FAllocator2D::FRect&)> IsBestRect ) const;
 	bool       Test( FRect Rect, const FAllocator2D& Other );
 	void       Alloc( FRect Rect, const FAllocator2D& Other );
 
@@ -98,7 +98,7 @@ public:
 	uint32     GetRasterHeight() const { return RasterHeight; }
 
 	void       ResetStats();
-	void       PublishStats( int32 ChartIndex, int32 Orientation, bool bFound, const FRect& Rect, const FRect& BestRect, const FMD5Hash& ChartMD5 );
+	void       PublishStats( int32 ChartIndex, int32 Orientation, bool bFound, const FRect& Rect, const FRect& BestRect, const FMD5Hash& ChartMD5, TFunctionRef<bool (const FAllocator2D::FRect&)> IsBestRect );
 
 protected:
 	bool       TestOneRun( const FRun& Run, const FRun& OtherRun, uint32 RectOffset, uint32 RectLength, uint32 PrimaryResolution, uint32& OutFailedLength ) const;

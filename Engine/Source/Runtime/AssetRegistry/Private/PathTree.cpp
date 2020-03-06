@@ -152,17 +152,36 @@ bool FPathTree::RemovePath(FName Path)
 bool FPathTree::GetAllPaths(TSet<FName>& OutPaths) const
 {
 	OutPaths.Reset();
-	OutPaths.Reserve(ParentPathToChildPaths.Num());
-
-	for (const auto& PathPair : ParentPathToChildPaths)
+	EnumerateAllPaths([&OutPaths](FName Path)
 	{
-		OutPaths.Add(PathPair.Key);
-	}
-
+		OutPaths.Emplace(Path);
+		return true;
+	});
 	return OutPaths.Num() > 0;
 }
 
+void FPathTree::EnumerateAllPaths(TFunctionRef<bool(FName)> Callback) const
+{
+	for (const auto& PathPair : ParentPathToChildPaths)
+	{
+		if (!Callback(PathPair.Key))
+		{
+			return;
+		}
+	}
+}
+
 bool FPathTree::GetSubPaths(FName BasePath, TSet<FName>& OutPaths, bool bRecurse) const
+{
+	const int32 OutPathsOriginalNum = OutPaths.Num();
+	return EnumerateSubPaths(BasePath, [&OutPaths](FName Path)
+	{
+		OutPaths.Emplace(Path);
+		return true;
+	}, bRecurse) && OutPaths.Num() > OutPathsOriginalNum;
+}
+
+bool FPathTree::EnumerateSubPaths(FName BasePath, TFunctionRef<bool(FName)> Callback, bool bRecurse) const
 {
 	if (BasePath.IsNone())
 	{
@@ -192,19 +211,20 @@ bool FPathTree::GetSubPaths(FName BasePath, TSet<FName>& OutPaths, bool bRecurse
 		}
 	}
 
-	const int32 OutPathsOriginalNum = OutPaths.Num();
-
 	for (const FName& ChildPath : *ChildPathsPtr)
 	{
 		check(ParentPathToChildPaths.Contains(ChildPath)); // This failing is an integrity violation as this entry lists a child that we don't know about
 
-		OutPaths.Add(ChildPath);
+		if (!Callback(ChildPath))
+		{
+			return true;
+		}
 
 		if (bRecurse)
 		{
-			GetSubPaths(ChildPath, OutPaths, /*bRecurse=*/true);
+			EnumerateSubPaths(ChildPath, Callback, /*bRecurse=*/true);
 		}
 	}
 
-	return OutPaths.Num() > OutPathsOriginalNum;
+	return true;
 }

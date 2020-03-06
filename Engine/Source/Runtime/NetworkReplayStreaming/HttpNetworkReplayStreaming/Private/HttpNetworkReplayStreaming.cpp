@@ -156,7 +156,7 @@ void FHttpStreamFArchive::Serialize( void* V, int64 Length )
 	{
 		if ( Pos + Length > Buffer.Num() )
 		{
-			ArIsError = true;
+			SetError();
 			return;
 		}
 			

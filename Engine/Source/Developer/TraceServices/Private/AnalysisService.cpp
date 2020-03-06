@@ -16,6 +16,7 @@
 #include "Model/ThreadsPrivate.h"
 #include "Model/CountersPrivate.h"
 #include "Model/NetProfilerProvider.h"
+#include "Model/Channel.h"
 
 namespace Trace
 {
@@ -76,13 +77,13 @@ void FAnalysisSessionLock::EndEdit()
 	}
 }
 
-FAnalysisSession::FAnalysisSession(const TCHAR* SessionName)
+FAnalysisSession::FAnalysisSession(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& InDataStream)
 	: Name(SessionName)
 	, DurationSeconds(0.0)
 	, Allocator(32 << 20)
 	, StringStore(Allocator)
+	, DataStream(MoveTemp(InDataStream))
 {
-
 }
 
 FAnalysisSession::~FAnalysisSession()
@@ -95,6 +96,30 @@ FAnalysisSession::~FAnalysisSession()
 	{
 		delete Providers[ProviderIndex];
 	}
+}
+
+void FAnalysisSession::Start()
+{
+	FAnalysisContext Context;
+	for (Trace::IAnalyzer* Analyzer : ReadAnalyzers())
+	{
+		Context.AddAnalyzer(*Analyzer);
+	}
+	Processor = Context.Process(*DataStream);
+}
+
+void FAnalysisSession::Stop(bool bAndWait) const
+{
+	DataStream->Close();
+	if (bAndWait)
+	{
+		Wait();
+	}
+}
+
+void FAnalysisSession::Wait() const
+{
+	Processor.Wait();
 }
 
 void FAnalysisSession::AddAnalyzer(IAnalyzer* Analyzer)
@@ -137,111 +162,89 @@ IProvider* FAnalysisSession::EditProviderPrivate(const FName& InName)
 FAnalysisService::FAnalysisService(FModuleService& InModuleService)
 	: ModuleService(InModuleService)
 {
-
-}
-
-FAnalysisService::FAnalysisWorker::FAnalysisWorker(FAnalysisService& InOuter, TUniquePtr<Trace::IInDataStream>&& InDataStream, TSharedRef<FAnalysisSession> InAnalysisSession)
-	: Outer(InOuter)
-	, DataStream(MoveTemp(InDataStream))
-	, AnalysisSession(InAnalysisSession)
-{
-	
-}
-
-void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSession, Trace::IInDataStream* DataStream)
-{
-	OnAnalysisStarted().Broadcast(AnalysisSession);
-
-	{
-		IAnalysisSession& Session = AnalysisSession.Get();
-		Trace::FAnalysisSessionEditScope _(Session);
-
-		FBookmarkProvider* BookmarkProvider = new FBookmarkProvider(Session);
-		Session.AddProvider(FBookmarkProvider::ProviderName, BookmarkProvider);
-
-		FLogProvider* LogProvider = new FLogProvider(Session);
-		Session.AddProvider(FLogProvider::ProviderName, LogProvider);
-
-		FThreadProvider* ThreadProvider = new FThreadProvider(Session);
-		Session.AddProvider(FThreadProvider::ProviderName, ThreadProvider);
-
-		FFrameProvider* FrameProvider = new FFrameProvider(Session);
-		Session.AddProvider(FFrameProvider::ProviderName, FrameProvider);
-
-		FCounterProvider* CounterProvider = new FCounterProvider(Session, *FrameProvider);
-		Session.AddProvider(FCounterProvider::ProviderName, CounterProvider);
-
-		FNetProfilerProvider* NetProfilerProvider = new FNetProfilerProvider(Session);
-		Session.AddProvider(FNetProfilerProvider::ProviderName, NetProfilerProvider);
-
-		Session.AddAnalyzer(new FMiscTraceAnalyzer(Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider));
-		Session.AddAnalyzer(new FLogTraceAnalyzer(Session, *LogProvider));
-
-		ModuleService.OnAnalysisBegin(Session);
-	}
-	
-	FAnalysisContext Context;
-	for (Trace::IAnalyzer* Analyzer : AnalysisSession->ReadAnalyzers())
-	{
-		Context.AddAnalyzer(*Analyzer);
-	}
-	Trace::FAnalysisProcessor Processor = Context.Process(*DataStream);
-	Processor.Wait();
-
-	delete DataStream;
-
-	AnalysisSession->SetComplete();
-
-	OnAnalysisFinished().Broadcast(AnalysisSession);
-}
-
-void FAnalysisService::FAnalysisWorker::DoWork()
-{
-	Outer.AnalyzeInternal(AnalysisSession.ToSharedRef(), DataStream.Release());
-	AnalysisSession = nullptr;
 }
 
 FAnalysisService::~FAnalysisService()
 {
-	for (TSharedPtr<FAsyncTask<FAnalysisWorker>> Task : Tasks)
-	{
-		Task->EnsureCompletion();
-	}
 }
 
 TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* SessionUri)
 {
-	IInDataStream* DataStream = Trace::DataStream_ReadFile(SessionUri);
-	if (!DataStream)
-	{
-		return nullptr;
-	}
-	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionUri);
-	AnalyzeInternal(AnalysisSession, DataStream);
+	TSharedPtr<const IAnalysisSession> AnalysisSession = StartAnalysis(SessionUri);
+	AnalysisSession->Wait();
 	return AnalysisSession;
 }
 
 TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionUri)
 {
-	TUniquePtr<IInDataStream> DataStream(Trace::DataStream_ReadFile(SessionUri));
-	if (!DataStream)
+	struct FFileDataStream
+		: public IInDataStream
+	{
+		virtual int32 Read(void* Data, uint32 Size) override
+		{
+			if (Remaining <= 0)
+			{
+				return 0;
+			}
+
+			Size = (Size < Remaining) ? Size : Remaining;
+			Remaining -= Size;
+			return Handle->Read((uint8*)Data, Size) ? Size : 0;
+		}
+
+		TUniquePtr<IFileHandle> Handle;
+		int64 Remaining;
+	};
+
+	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
+	IFileHandle* Handle = FileSystem.OpenRead(SessionUri, true);
+	if (!Handle)
 	{
 		return nullptr;
 	}
-	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionUri);
-	TSharedPtr<FAsyncTask<FAnalysisWorker>> Task = MakeShared<FAsyncTask<FAnalysisWorker>>(*this, MoveTemp(DataStream), AnalysisSession);
-	Tasks.Add(Task);
-	Task->StartBackgroundTask();
-	return AnalysisSession;
+
+	FFileDataStream* FileStream = new FFileDataStream();
+	FileStream->Handle = TUniquePtr<IFileHandle>(Handle);
+	FileStream->Remaining = Handle->Size();
+
+	TUniquePtr<IInDataStream> DataStream(FileStream);
+	return StartAnalysis(SessionUri, MoveTemp(DataStream));
 }
 
 TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream)
 {
-	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionName);
-	TSharedPtr<FAsyncTask<FAnalysisWorker>> Task = MakeShared<FAsyncTask<FAnalysisWorker>>(*this, MoveTemp(DataStream), AnalysisSession);
-	Tasks.Add(Task);
-	Task->StartBackgroundTask();
-	return AnalysisSession;
+	TSharedRef<FAnalysisSession> Session = MakeShared<FAnalysisSession>(SessionName, MoveTemp(DataStream));
+
+	Trace::FAnalysisSessionEditScope _(*Session);
+
+	FBookmarkProvider* BookmarkProvider = new FBookmarkProvider(*Session);
+	Session->AddProvider(FBookmarkProvider::ProviderName, BookmarkProvider);
+
+	FLogProvider* LogProvider = new FLogProvider(*Session);
+	Session->AddProvider(FLogProvider::ProviderName, LogProvider);
+
+	FThreadProvider* ThreadProvider = new FThreadProvider(*Session);
+	Session->AddProvider(FThreadProvider::ProviderName, ThreadProvider);
+
+	FFrameProvider* FrameProvider = new FFrameProvider(*Session);
+	Session->AddProvider(FFrameProvider::ProviderName, FrameProvider);
+
+	FCounterProvider* CounterProvider = new FCounterProvider(*Session, *FrameProvider);
+	Session->AddProvider(FCounterProvider::ProviderName, CounterProvider);
+
+	FNetProfilerProvider* NetProfilerProvider = new FNetProfilerProvider(*Session);
+	Session->AddProvider(FNetProfilerProvider::ProviderName, NetProfilerProvider);
+
+	FChannelProvider* ChannelProvider = new FChannelProvider();
+	Session->AddProvider(FChannelProvider::ProviderName, ChannelProvider);
+
+	Session->AddAnalyzer(new FMiscTraceAnalyzer(*Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider, *ChannelProvider));
+	Session->AddAnalyzer(new FLogTraceAnalyzer(*Session, *LogProvider));
+
+	ModuleService.OnAnalysisBegin(*Session);
+
+	Session->Start();
+	return Session;
 }
 
 }

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_CHILDRENPROXY_H
-#define SDF_CHILDRENPROXY_H
+#ifndef PXR_USD_SDF_CHILDREN_PROXY_H
+#define PXR_USD_SDF_CHILDREN_PROXY_H
 
 /// \file sdf/childrenProxy.h
 
@@ -475,4 +475,4 @@ struct Vt_DefaultValueFactory<SdfChildrenProxy<_View> > {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_CHILDRENPROXY_H
+#endif // PXR_USD_SDF_CHILDREN_PROXY_H

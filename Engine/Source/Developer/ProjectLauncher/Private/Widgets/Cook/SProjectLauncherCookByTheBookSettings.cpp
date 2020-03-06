@@ -231,7 +231,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 							]
 
 							+ SHorizontalBox::Slot()
-								.FillWidth(1.0f)
+								.AutoWidth()
 								.Padding(8.0f, 0.0f, 0.0f, 0.0f)
 								[
 									// cooked maps radio button
@@ -242,6 +242,21 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 										[
 											SNew(STextBlock)
 												.Text(LOCTEXT("CookedMapsCheckBoxText", "Show cooked"))
+										]
+								]
+
+							+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								.Padding(8.0f, 0.0f, 0.0f, 0.0f)
+								[
+									// missing maps radio button
+									SNew(SCheckBox)
+										.IsChecked(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxIsChecked, EShowMapsChoices::ShowMissingMaps)
+										.OnCheckStateChanged(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxCheckStateChanged, EShowMapsChoices::ShowMissingMaps)
+										.Style(FEditorStyle::Get(), "RadioButton")
+										[
+											SNew(STextBlock)
+												.Text(LOCTEXT("MissingMapsCheckBoxText", "Show missing"))
 										]
 								]
 						]
@@ -944,7 +959,7 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeSimpleWidget()
 								]
 
 							+ SHorizontalBox::Slot()
-								.FillWidth(1.0f)
+								.AutoWidth()
 								.Padding(8.0f, 0.0f, 0.0f, 0.0f)
 								[
 									// cooked maps radio button
@@ -955,6 +970,21 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeSimpleWidget()
 										[
 											SNew(STextBlock)
 												.Text(LOCTEXT("CookedMapsCheckBoxText", "Show cooked"))
+										]
+								]
+
+							+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								.Padding(8.0f, 0.0f, 0.0f, 0.0f)
+								[
+									// missing maps radio button
+									SNew(SCheckBox)
+										.IsChecked(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxIsChecked, EShowMapsChoices::ShowMissingMaps)
+										.OnCheckStateChanged(this, &SProjectLauncherCookByTheBookSettings::HandleShowCheckBoxCheckStateChanged, EShowMapsChoices::ShowMissingMaps)
+										.Style(FEditorStyle::Get(), "RadioButton")
+										[
+											SNew(STextBlock)
+												.Text(LOCTEXT("MissingMapsCheckBoxText", "Show missing"))
 										]
 								]
 						]
@@ -1209,13 +1239,26 @@ void SProjectLauncherCookByTheBookSettings::RefreshMapList()
 	{
 		TArray<FString> AvailableMaps = FGameProjectHelper::GetAvailableMaps(SelectedProfile->GetProjectBasePath(), SelectedProfile->SupportsEngineMaps(), true);
 
-		for (int32 AvailableMapIndex = 0; AvailableMapIndex < AvailableMaps.Num(); ++AvailableMapIndex)
+		if (ShowMapsChoice == EShowMapsChoices::ShowMissingMaps)
 		{
-			FString& Map = AvailableMaps[AvailableMapIndex];
-
-			if ((ShowMapsChoice == EShowMapsChoices::ShowAllMaps) || SelectedProfile->GetCookedMaps().Contains(Map))
+			for (const FString& Map : SelectedProfile->GetCookedMaps())
 			{
-				MapList.Add(MakeShareable(new FString(Map)));
+				if (!AvailableMaps.Contains(Map))
+				{
+					MapList.Add(MakeShareable(new FString(Map)));
+				}
+			}
+		}
+		else
+		{
+			for (int32 AvailableMapIndex = 0; AvailableMapIndex < AvailableMaps.Num(); ++AvailableMapIndex)
+			{
+				FString& Map = AvailableMaps[AvailableMapIndex];
+
+				if ((ShowMapsChoice == EShowMapsChoices::ShowAllMaps) || SelectedProfile->GetCookedMaps().Contains(Map))
+				{
+					MapList.Add(MakeShareable(new FString(Map)));
+				}
 			}
 		}
 	}
@@ -1469,6 +1512,10 @@ FText SProjectLauncherCookByTheBookSettings::HandleNoMapsTextBlockText() const
 		else if (ShowMapsChoice == EShowMapsChoices::ShowCookedMaps)
 		{
 			return LOCTEXT("NoMapsSelectedText", "No map selected. Only startup packages will be cooked!");
+		}
+		else if (ShowMapsChoice == EShowMapsChoices::ShowMissingMaps)
+		{
+			return LOCTEXT("NoMissingMapsFoundText", "No missing maps were found.");
 		}
 	}
 

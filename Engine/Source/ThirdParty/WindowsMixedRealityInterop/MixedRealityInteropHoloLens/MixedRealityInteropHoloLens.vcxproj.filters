@@ -43,6 +43,12 @@
     <ClInclude Include="..\MixedRealityInterop\CxDataFromBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\MixedRealityInterop\AzureSpatialAnchors.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MixedRealityInterop\HandMeshObserver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\MixedRealityInterop\MixedRealityInterop.cpp">
@@ -66,8 +72,17 @@
     <ClCompile Include="..\MixedRealityInterop\SpatialAudioClientInterop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-	<ClCompile Include="..\MixedRealityInterop\SceneUnderstandingObserver.cpp">
+    <ClCompile Include="..\MixedRealityInterop\SceneUnderstandingObserver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\MixedRealityInterop\AzureSpatialAnchors.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MixedRealityInterop\HandMeshObserver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

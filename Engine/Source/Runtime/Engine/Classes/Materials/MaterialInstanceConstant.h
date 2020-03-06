@@ -17,7 +17,7 @@ class UPhysicalMaterialMask;
  * predefined material parameters. The parameters are statically defined in the compiled material by a unique name, type and default value.
  */
 UCLASS(hidecategories=Object, collapsecategories, BlueprintType,MinimalAPI)
-class ENGINE_VTABLE UMaterialInstanceConstant : public UMaterialInstance
+class UMaterialInstanceConstant : public UMaterialInstance
 {
 	GENERATED_UCLASS_BODY()
 

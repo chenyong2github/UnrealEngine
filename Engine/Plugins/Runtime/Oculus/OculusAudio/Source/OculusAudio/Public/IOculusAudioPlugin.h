@@ -5,6 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "OculusAudio.h"
 #include "OculusAudioDllManager.h"
+#include "OculusAmbisonicSpatializer.h"
 
 /************************************************************************/
 /* FOculusAudioPlugin												   */
@@ -29,4 +30,5 @@ private:
 	TArray<FAudioDevice*> RegisteredAudioDevices;
 	FOculusSpatializationPluginFactory PluginFactory;
 	FOculusReverbPluginFactory ReverbPluginFactory;
+	FOculusAmbisonicsFactory AmbisonicsFactory;
 };

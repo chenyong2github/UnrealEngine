@@ -132,7 +132,7 @@ struct TIMESYNTH_API FTimeSynthQuantizationSettings
 	GENERATED_USTRUCT_BODY()
 
 	// The beats per minute of the pulse. Musical convention gives this as BPM for "quarter notes" (BeatDivision = 4).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|TimeSynth|PlayClip", meta = (ClampMin = "1.0", UIMin = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|TimeSynth|PlayClip", meta = (ClampMin = "1.0", UIMin = "1.0", ClampMax = "999.0", UIMax = "999.0"))
 	float BeatsPerMinute;
 
 	// Defines numerator when determining beat time in seconds
@@ -497,6 +497,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
 	float GetEnvelopeFollowerValue() const { return CurrentEnvelopeValue; }
 
+	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
+	int32 GetMaxActiveClipLimit() const;
+
 	// The default quantizations settings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TimeSynth")
 	FTimeSynthQuantizationSettings QuantizationSettings;
@@ -569,6 +572,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Spectral Analysis", meta = (WorldContext = "WorldContextObject"))
 	void SetFFTSize(ETimeSynthFFTSize InFFTSize);
 
+	// Check to see if clips are actively generating sound on the TimeSynth
+	UFUNCTION(BlueprintCallable, Category = "Playback State", meta = (WorldContext = "WorldContextObject"))
+	bool HasActiveClips();
+
 private:
 	// Called when a new event happens when registered
 	void OnQuantizationEvent(Audio::EEventQuantization EventQuantizationType, int32 Bars, float Beat);
@@ -621,6 +628,12 @@ private:
 
 		bool bIsGloballyQuantized;
 
+		bool bIsInitialized;
+
+		bool bHasStartedPlaying;
+
+		bool bHasBeenStopped;
+
 		FPlayingClipInfo()
 			: ClipQuantization(Audio::EEventQuantization::Bar)
 			, VolumeScale(1.0f)
@@ -633,6 +646,9 @@ private:
 			, VolumeGroupId(INDEX_NONE)
 			, SynthClip(nullptr)
 			, bIsGloballyQuantized(false)
+			, bIsInitialized(false)
+			, bHasStartedPlaying(false)
+			, bHasBeenStopped(false)
 		{}
 	};
 
@@ -743,6 +759,9 @@ private:
 
 	// Need to limit output to prevent wrap around issues when converting to int16
 	Audio::FDynamicsProcessor DynamicsProcessor;
+
+	FThreadSafeBool bHasActiveClips;
+	FThreadSafeBool bTimeSynthWasDisabled;
 
 	friend class FTimeSynthEventListener;
 };

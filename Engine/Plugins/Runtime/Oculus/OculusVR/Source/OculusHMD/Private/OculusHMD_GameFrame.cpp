@@ -22,6 +22,7 @@ FGameFrame::FGameFrame() :
 	PlayerLocation(FVector::ZeroVector)
 {
 	Flags.Raw = 0;
+	Fov[0] = Fov[1] = ovrpFovf{0,0,0,0};
 }
 
 TSharedPtr<FGameFrame, ESPMode::ThreadSafe> FGameFrame::Clone() const

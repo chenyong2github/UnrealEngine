@@ -63,23 +63,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraSpriteVFLooseParameters, NIAGARAVER
 	SHADER_PARAMETER(uint32, SortedIndicesOffset)
 	SHADER_PARAMETER(uint32, IndirectArgsOffset)
 	SHADER_PARAMETER_SRV(Buffer<float2>, CutoutGeometry)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataPosition)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataVelocity)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataColor)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataRotation)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataSize)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFacing)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataAlignment)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataSubImage)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataCameraOffset)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataUVScale)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataNormalizedAge)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialRandom)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataCustomSorting)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam0)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam1)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam2)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam3)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
 	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
 	SHADER_PARAMETER_SRV(Buffer<uint>, IndirectArgsBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -127,12 +111,12 @@ public:
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	/**
 	 * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	 */
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	
 	void SetTexCoordBuffer(const FVertexBuffer* InTexCoordBuffer);
 	
@@ -217,11 +201,6 @@ public:
 	{
 		VertexBufferOverride = InVertexBufferOverride;
 	}
-
-	/**
-	 * Construct shader parameters for this type of vertex factory.
-	 */
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 	FUniformBufferRHIRef LooseParameterUniformBuffer;
 

@@ -186,6 +186,8 @@ public:
 	static FSemaphore* NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks = 1);
 	static bool DeleteInterprocessSynchObject(FSemaphore * Object);
 	static bool Daemonize();
+	static void SetupAudioThread();
+	static void TeardownAudioThread();
 protected:
 
 	/**
@@ -220,5 +222,7 @@ private:
 	static void* LoadLibraryWithSearchPaths(const FString& FileName, const TArray<FString>& SearchPaths);
 };
 
-
+#if WINDOWS_USE_FEATURE_PLATFORMPROCESS_CLASS
 typedef FWindowsPlatformProcess FPlatformProcess;
+#endif
+

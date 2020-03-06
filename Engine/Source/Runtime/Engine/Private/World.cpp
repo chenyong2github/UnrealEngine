@@ -172,6 +172,7 @@ FActorSpawnParameters::FActorSpawnParameters()
 , bTemporaryEditorActor(false)
 , bHideFromSceneOutliner(false)
 #endif
+, NameMode(ESpawnActorNameMode::Required_Fatal)
 , ObjectFlags(RF_Transactional)
 {
 }
@@ -1316,7 +1317,9 @@ void UWorld::RepairWorldSettings()
 		if (ExistingWorldSettings)
 		{
 			NewWorldSettings->UnregisterAllComponents();
-			UEngine::CopyPropertiesForUnrelatedObjects(ExistingWorldSettings, NewWorldSettings);
+			UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
+			CopyParams.bNotifyObjectReplacement = true;
+			UEngine::CopyPropertiesForUnrelatedObjects(ExistingWorldSettings, NewWorldSettings, CopyParams);
 			NewWorldSettings->RegisterAllComponents();
 		}
 
@@ -1812,7 +1815,7 @@ void UWorld::ClearWorldComponents()
 }
 
 
-void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly)
+void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly, FRegisterComponentContext* Context)
 {
 	if ( !IsRunningDedicatedServer() )
 	{
@@ -1824,7 +1827,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!LineBatcher->IsRegistered())
 		{	
-			LineBatcher->RegisterComponentWithWorld(this);
+			LineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 
 		if(!PersistentLineBatcher)
@@ -1835,7 +1838,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!PersistentLineBatcher->IsRegistered())	
 		{
-			PersistentLineBatcher->RegisterComponentWithWorld(this);
+			PersistentLineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 
 		if(!ForegroundLineBatcher)
@@ -1846,7 +1849,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!ForegroundLineBatcher->IsRegistered())	
 		{
-			ForegroundLineBatcher->RegisterComponentWithWorld(this);
+			ForegroundLineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 	}
 
@@ -1856,7 +1859,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 		ULevel* CurrentLevel = PersistentLevel;
 #endif
 		check( CurrentLevel );
-		CurrentLevel->UpdateLevelComponents(bRerunConstructionScripts);
+		CurrentLevel->UpdateLevelComponents(bRerunConstructionScripts, Context);
 	}
 	else
 	{
@@ -1867,7 +1870,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 			// Update the level only if it is visible (or not a streamed level)
 			if(!StreamingLevel || Level->bIsVisible)
 			{
-				Level->UpdateLevelComponents(bRerunConstructionScripts);
+				Level->UpdateLevelComponents(bRerunConstructionScripts, Context);
 				IStreamingManager::Get().AddLevel(Level);
 			}
 		}
@@ -2568,6 +2571,8 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 	check(!Level->IsPendingKill());
 	check(!Level->IsUnreachable());
 
+	Level->bIsDisassociatingLevel = true;
+
 	// To be removed from the world a world must be visible and not pending being made visible (this may be redundent, but for safety)
 	// If the level may be removed incrementally then there must also be no level pending visibility
 	if ( ((CurrentLevelPendingVisibility == nullptr) || (!bAllowIncrementalRemoval && (CurrentLevelPendingVisibility != Level))) && Level->bIsVisible )
@@ -2686,6 +2691,8 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 
 			Level->bIsBeingRemoved = false;
 		} // if ( bFinishRemovingLevel )
+
+		Level->bIsDisassociatingLevel = false;
 
 #if PERF_TRACK_DETAILED_ASYNC_STATS
 		UE_LOG(LogStreaming, Display, TEXT("UWorld::RemoveFromWorld for %s took %5.2f ms"), *Level->GetOutermost()->GetName(), (FPlatformTime::Seconds() - StartTime) * 1000.0);
@@ -3085,24 +3092,6 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	return PIELevelWorld;
 }
 
-bool FLevelStreamingWrapper::operator<(const FLevelStreamingWrapper& Other) const
-{
-	if (StreamingLevel && Other.StreamingLevel)
-	{
-		const int32 Priority = StreamingLevel->GetPriority();
-		const int32 OtherPriority = Other.StreamingLevel->GetPriority();
-
-		if (Priority == OtherPriority)
-		{
-			return ((UPTRINT)StreamingLevel < (UPTRINT)Other.StreamingLevel);
-		}
-
-		return (Priority < OtherPriority);
-	}
-
-	return (StreamingLevel != nullptr);
-}
-
 void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, bool bGuaranteedNotInContainer)
 {
 	if (StreamingLevel)
@@ -3117,10 +3106,27 @@ void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, b
 		}
 		else
 		{
-			FLevelStreamingWrapper WrappedLevel(StreamingLevel);
-			if (bGuaranteedNotInContainer || !StreamingLevels.Contains(WrappedLevel))
+			if (bGuaranteedNotInContainer || !StreamingLevels.Contains(StreamingLevel))
 			{
-				StreamingLevels.Insert(WrappedLevel, Algo::LowerBound(StreamingLevels, WrappedLevel));
+				auto PrioritySort = [](ULevelStreaming* LambdaStreamingLevel, ULevelStreaming* OtherStreamingLevel)
+			{
+					if (LambdaStreamingLevel && OtherStreamingLevel)
+					{
+						const int32 Priority = LambdaStreamingLevel->GetPriority();
+						const int32 OtherPriority = OtherStreamingLevel->GetPriority();
+
+						if (Priority == OtherPriority)
+						{
+							return ((UPTRINT)LambdaStreamingLevel < (UPTRINT)OtherStreamingLevel);
+						}
+
+						return (Priority < OtherPriority);
+					}
+
+					return (LambdaStreamingLevel != nullptr);
+				};
+
+				StreamingLevels.Insert(StreamingLevel, Algo::LowerBound(StreamingLevels, StreamingLevel, PrioritySort));
 			}
 		}
 	}
@@ -3132,10 +3138,35 @@ bool FStreamingLevelsToConsider::Remove(ULevelStreaming* StreamingLevel)
 	if (StreamingLevel)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ManageLevelsToConsider);
-		bRemoved = (StreamingLevels.Remove(StreamingLevel) > 0);
-		bRemoved |= (LevelsToProcess.Remove(StreamingLevel) > 0);
+		if (bStreamingLevelsBeingConsidered)
+		{
+			int32 Index;
+			if (StreamingLevels.Find(StreamingLevel, Index))
+			{
+				// While we are considering we must null here because we are iterating the array and changing the size would be undesirable
+				StreamingLevels[Index] = nullptr;
+				bRemoved = true;
+			}
+			bRemoved |= (LevelsToProcess.Remove(StreamingLevel) > 0);
+		}
+		else
+		{
+			bRemoved = (StreamingLevels.Remove(StreamingLevel) > 0);
+		}
 	}
 	return bRemoved;
+}
+
+void FStreamingLevelsToConsider::RemoveAt(const int32 Index)
+{
+	if (bStreamingLevelsBeingConsidered)
+	{
+		if (ULevelStreaming* StreamingLevel = StreamingLevels[Index])
+		{
+			LevelsToProcess.Remove(StreamingLevel);
+		}
+	}
+	StreamingLevels.RemoveAt(Index, 1, false);
 }
 
 void FStreamingLevelsToConsider::Reevaluate(ULevelStreaming* StreamingLevel)
@@ -3146,10 +3177,9 @@ void FStreamingLevelsToConsider::Reevaluate(ULevelStreaming* StreamingLevel)
 		{
 			// If the streaming level is already in the map then it doesn't need to be updated as it is either
 			// already Reevaluate or the more significant Add
-			FLevelStreamingWrapper WrappedLevel(StreamingLevel);
-			if (!LevelsToProcess.Contains(WrappedLevel))
+			if (!LevelsToProcess.Contains(StreamingLevel))
 			{
-				LevelsToProcess.Add(WrappedLevel, EProcessReason::Reevaluate);
+				LevelsToProcess.Add(StreamingLevel, EProcessReason::Reevaluate);
 			}
 		}
 		else
@@ -3171,7 +3201,15 @@ bool FStreamingLevelsToConsider::Contains(ULevelStreaming* StreamingLevel) const
 
 void FStreamingLevelsToConsider::Reset()
 {
+	if (bStreamingLevelsBeingConsidered)
+	{
+		// not safe to resize while levels are being considered, just null everything
+		FMemory::Memzero(StreamingLevels.GetData(), StreamingLevels.Num() * sizeof(ULevelStreaming*));
+	}
+	else
+	{
 	StreamingLevels.Reset();
+	}
 	LevelsToProcess.Reset();
 }
 
@@ -3188,10 +3226,10 @@ void FStreamingLevelsToConsider::EndConsideration()
 	{
 		// For any streaming level that was added or had its priority changed while we were considering the
 		// streaming levels go through and ensure they are correctly in the map and sorted to the correct location
-		TSortedMap<FLevelStreamingWrapper, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
-		for (const TPair<FLevelStreamingWrapper,EProcessReason>& LevelToProcessPair : LevelsToProcessCopy)
+		TSortedMap<ULevelStreaming*, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
+		for (const TPair<ULevelStreaming*,EProcessReason>& LevelToProcessPair : LevelsToProcessCopy)
 		{
-			if (ULevelStreaming* StreamingLevel = LevelToProcessPair.Key.Get())
+			if (ULevelStreaming* StreamingLevel = LevelToProcessPair.Key)
 			{
 				// Remove the level if it is already in the list so we can use Add to place in the correct priority location
 				const bool bIsBeingConsidered = Remove(StreamingLevel);
@@ -3208,9 +3246,9 @@ void FStreamingLevelsToConsider::EndConsideration()
 
 void FStreamingLevelsToConsider::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	for (TPair<FLevelStreamingWrapper, EProcessReason>& LevelToProcessPair : LevelsToProcess)
+	for (TPair<ULevelStreaming*, EProcessReason>& LevelToProcessPair : LevelsToProcess)
 	{
-		if (ULevelStreaming*& StreamingLevel = LevelToProcessPair.Key.Get())
+		if (ULevelStreaming*& StreamingLevel = LevelToProcessPair.Key)
 		{
 			Collector.AddReferencedObject(StreamingLevel, InThis);
 		}
@@ -3233,11 +3271,10 @@ void UWorld::UpdateLevelStreaming()
 	const int32 NumLevelsPendingPurge = FLevelStreamingGCHelper::GetNumLevelsPendingPurge();
 
 	StreamingLevelsToConsider.BeginConsideration();
-	TArray<FLevelStreamingWrapper> StreamingLevelsBeingConsidered = MoveTemp(StreamingLevelsToConsider.StreamingLevels);
 
-	for (int32 Index = StreamingLevelsBeingConsidered.Num() - 1; Index >= 0; --Index)
+	for (int32 Index = StreamingLevelsToConsider.GetStreamingLevels().Num() - 1; Index >= 0; --Index)
 	{
-		if (ULevelStreaming* StreamingLevel = StreamingLevelsBeingConsidered[Index].Get())
+		if (ULevelStreaming* StreamingLevel = StreamingLevelsToConsider.GetStreamingLevels()[Index])
 		{
 			bool bUpdateAgain = true;
 			bool bShouldContinueToConsider = true;
@@ -3254,17 +3291,15 @@ void UWorld::UpdateLevelStreaming()
 
 			if (!bShouldContinueToConsider)
 			{
-				StreamingLevelsBeingConsidered.RemoveAt(Index, 1, false);
-				StreamingLevelsToConsider.Remove(StreamingLevel); // In case something had added it to the list while we're in this loop
+				StreamingLevelsToConsider.RemoveAt(Index);
 			}
 		}
 		else
 		{
-			StreamingLevelsBeingConsidered.RemoveAt(Index, 1, false);
+			StreamingLevelsToConsider.RemoveAt(Index);
 		}
 	}
 
-	StreamingLevelsToConsider.StreamingLevels = MoveTemp(StreamingLevelsBeingConsidered);
 	StreamingLevelsToConsider.EndConsideration();
 
 
@@ -3355,7 +3390,7 @@ void UWorld::SetStreamingLevels(TArrayView<ULevelStreaming* const> InStreamingLe
 
 void UWorld::SetStreamingLevels(TArray<ULevelStreaming*>&& InStreamingLevels)
 {
-	StreamingLevels = MoveTempIfPossible(InStreamingLevels);
+	StreamingLevels = MoveTemp(InStreamingLevels);
 
 	PopulateStreamingLevelsToConsider();
 }
@@ -3449,8 +3484,19 @@ void UWorld::UpdateStreamingLevelPriority(ULevelStreaming* StreamingLevel)
 
 void UWorld::FlushLevelStreaming(EFlushLevelStreamingType FlushType)
 {
-	if (!FPlatformProcess::SupportsMultithreading())
+	if (FlushType == FlushLevelStreamingType
+		|| FlushLevelStreamingType == EFlushLevelStreamingType::Full
+		|| FlushType == EFlushLevelStreamingType::None)
 	{
+		// We're already flushing at the correct level, or none was passed in
+		// No need to flush
+		return;
+	}
+	else if (FlushType == EFlushLevelStreamingType::Full && FlushLevelStreamingType == EFlushLevelStreamingType::Visibility)
+	{
+		// If FlushLevelStreaming is called for a full update while we are already doing a visibility update, 
+		// upgrade the stored type and let it go back to the loop that was already running
+		FlushLevelStreamingType = EFlushLevelStreamingType::Full;
 		return;
 	}
 
@@ -3468,14 +3514,13 @@ void UWorld::FlushLevelStreaming(EFlushLevelStreamingType FlushType)
 	UpdateLevelStreaming();
 
 	// Making levels visible is spread across several frames so we simply loop till it is done.
-	bool bLevelsPendingVisibility = true;
+	bool bLevelsPendingVisibility = IsVisibilityRequestPending();
 	while( bLevelsPendingVisibility )
 	{
-		bLevelsPendingVisibility = IsVisibilityRequestPending();
-
 		// Tick level streaming to make levels visible.
-		if( bLevelsPendingVisibility )
-		{
+
+		const EFlushLevelStreamingType LastStreamingType = FlushLevelStreamingType;
+
 			// Only flush async loading if we're performing a full flush.
 			if (FlushLevelStreamingType == EFlushLevelStreamingType::Full)
 			{
@@ -3485,7 +3530,10 @@ void UWorld::FlushLevelStreaming(EFlushLevelStreamingType FlushType)
 	
 			// Update level streaming.
 			UpdateLevelStreaming();
-		}
+
+		// If FlushLevelStreaming reentered as a result of FlushAsyncLoading or UpdateLevelStreaming and upgraded
+		// the flush type, we'll need to do at least one additional loop to be certain all processing is complete
+		bLevelsPendingVisibility = ((LastStreamingType != FlushLevelStreamingType) || IsVisibilityRequestPending());
 	}
 	
 	check(!IsVisibilityRequestPending());
@@ -3540,10 +3588,6 @@ void UWorld::ConditionallyBuildStreamingData()
 
 bool UWorld::IsVisibilityRequestPending() const
 {
-	if (!FPlatformProcess::SupportsMultithreading())
-	{
-		return false;
-	}
 	return (CurrentLevelPendingVisibility != nullptr || CurrentLevelPendingInvisibility != nullptr);
 }
 
@@ -3940,8 +3984,9 @@ bool UWorld::SetGameMode(const FURL& InURL)
 	return false;
 }
 
-void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
+void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime, FRegisterComponentContext* Context)
 {
+	TRACE_WORLD(this);
 	TRACE_OBJECT_EVENT(this, InitializeActorsForPlay);
 
 	check(bIsWorldInitialized);
@@ -3980,7 +4025,7 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 	// We don't need to rerun construction scripts if we have cooked data or we are playing in editor unless the PIE world was loaded
 	// from disk rather than duplicated
 	const bool bRerunConstructionScript = !(FPlatformProperties::RequiresCookedData() || (IsGameWorld() && (PersistentLevel->bHasRerunConstructionScripts || PersistentLevel->bWasDuplicatedForPIE || !bRerunConstructionDuringEditorStreaming)));
-	UpdateWorldComponents( bRerunConstructionScript, true );
+	UpdateWorldComponents( bRerunConstructionScript, true, Context);
 
 	// Init level gameplay info.
 	if( !AreActorsInitialized() )
@@ -4238,7 +4283,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 		if (WorldType != EWorldType::PIE)
 		{
-			if (PersistentLevel && PersistentLevel->MapBuildData)
+			if (PersistentLevel && PersistentLevel->MapBuildData && !PersistentLevel->MapBuildData->IsAsset())
 			{
 				PersistentLevel->MapBuildData->ClearFlags(RF_Standalone);
 
@@ -5241,7 +5286,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 							// Successfully spawned in game.
 							UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Succeeded: %s PlayerId: %s"),
 								*ChildConn->PlayerController->PlayerState->GetPlayerName(),
-								*ChildConn->PlayerController->PlayerState->UniqueId.ToDebugString());
+								*ChildConn->PlayerController->PlayerState->GetUniqueId().ToDebugString());
 						}
 					}
 				}
@@ -6575,7 +6620,6 @@ bool UWorld::IsPlayInMobilePreview() const
 {
 #if WITH_EDITOR
 	if (FPIEPreviewDeviceModule::IsRequestingPreviewDevice()
-		|| FParse::Param(FCommandLine::Get(), TEXT("featureleveles2"))
 		|| FParse::Param(FCommandLine::Get(), TEXT("featureleveles31")))
 	{
 		return true;
@@ -7435,6 +7479,8 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 	float DistanceToPoint = 0.0f;
 	float LocalWeight = FMath::Clamp(VolumeProperties.BlendWeight, 0.0f, 1.0f);
 
+	ensureMsgf((LocalWeight >= 0 && LocalWeight <= 1.0f), TEXT("Invalid post process blend weight retrieved from volume (%f)"), LocalWeight);
+
 	if (!VolumeProperties.bIsUnbound)
 	{
 		float SquaredBlendRadius = VolumeProperties.BlendRadius * VolumeProperties.BlendRadius;
@@ -7454,7 +7500,12 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 				{
 					LocalWeight *= 1.0f - DistanceToPoint / VolumeProperties.BlendRadius;
 
-					check(LocalWeight >= 0 && LocalWeight <= 1.0f);
+					if(!(LocalWeight >= 0 && LocalWeight <= 1.0f))
+					{
+						// Mitigate crash here by disabling this volume and generating info regarding the calculation that went wrong.
+						ensureMsgf(false, TEXT("Invalid LocalWeight after post process volume weight calculation (Local: %f, DtP: %f, Radius: %f, SettingsWeight: %f)"), LocalWeight, DistanceToPoint, VolumeProperties.BlendRadius, VolumeProperties.BlendWeight);
+						LocalWeight = 0.0f;
+					}
 				}
 			}
 		}

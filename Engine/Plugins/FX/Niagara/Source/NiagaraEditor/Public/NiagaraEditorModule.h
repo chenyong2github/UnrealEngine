@@ -27,6 +27,7 @@ class INiagaraEditorOnlyDataUtilities;
 class FNiagaraEditorCommands;
 struct FNiagaraScriptHighlight;
 class FNiagaraClipboard;
+class UNiagaraScratchPadViewModel;
 class FHlslNiagaraCompiler;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
@@ -38,7 +39,9 @@ public:
 	virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) const = 0;
 	virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const = 0;
 	virtual TSharedRef<SWidget> CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const = 0;
+	virtual TSharedRef<SWidget> CreateScriptScratchPad(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const = 0;
 	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
+	virtual FLinearColor GetColorForParameterScope(ENiagaraParameterScope ParameterScope) const = 0;
 };
 
 extern int32 GbShowFastPathOptions;
@@ -118,12 +121,49 @@ public:
 
 	FNiagaraClipboard& GetClipboard() const;
 
+	template<typename T>
+	void EnqueueObjectForDeferredDestruction(TSharedRef<T> InObjectToDestruct)
+	{
+		TDeferredDestructionContainer<T>* ObjectInContainer = new TDeferredDestructionContainer<T>(InObjectToDestruct);
+		EnqueueObjectForDeferredDestructionInternal(ObjectInContainer);
+	}
+
+	/** Lookup a parameter scope info by name. Returns nullptr if the parameter scope info registered name cannot be found. */
+	static const FNiagaraParameterScopeInfo* FindParameterScopeInfo(const FName& ParameterScopeInfoName);
+
 private:
+	class FDeferredDestructionContainerBase
+	{
+	public:
+		virtual ~FDeferredDestructionContainerBase()
+		{
+		}
+	};
+
+	template<typename T>
+	class TDeferredDestructionContainer : public FDeferredDestructionContainerBase
+	{
+	public:
+		TDeferredDestructionContainer(TSharedRef<const T> InObjectToDestruct)
+			: ObjectToDestuct(InObjectToDestruct)
+		{
+		}
+
+		virtual ~TDeferredDestructionContainer()
+		{
+			ObjectToDestuct.Reset();
+		}
+
+		TSharedPtr<const T> ObjectToDestuct;
+	};
+
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
 	void OnPreGarbageCollection();
 	void OnExecParticleInvoked(const TCHAR* InStr);
 	void OnPostEngineInit();
+	void OnDeviceProfileManagerUpdated();
+	void OnPreExit();
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -134,6 +174,14 @@ private:
 
 	void TestCompileScriptFromConsole(const TArray<FString>& Arguments);
 	void ReinitializeStyle();
+
+	void EnqueueObjectForDeferredDestructionInternal(FDeferredDestructionContainerBase* InObjectToDestruct);
+
+	bool DeferredDestructObjects(float InDeltaTime);
+
+	/** Register a parameter scope info to lookup by name. */
+	static void RegisterParameterScopeInfo(const FName& ParameterScopeInfoName, const FNiagaraParameterScopeInfo& ParameterScopeInfo);
+
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -160,6 +208,8 @@ private:
 	FDelegateHandle ScriptCompilerHandle;
 	FDelegateHandle CompileResultHandle;
 	FDelegateHandle PrecompilerHandle;
+
+	FDelegateHandle DeviceProfileManagerUpdatedHandle;
 
 	USequencerSettings* SequencerSettings;
 	
@@ -189,4 +239,8 @@ private:
 	IConsoleCommand* ReinitializeStyleCommand;
 
 	TMap<int32, TSharedPtr<FHlslNiagaraCompiler>> ActiveCompilations;
+
+	TArray<TSharedRef<const FDeferredDestructionContainerBase>> EnqueuedForDeferredDestruction;
+
+	static TArray<TPair<FName, FNiagaraParameterScopeInfo>> RegisteredParameterScopeInfos;
 };

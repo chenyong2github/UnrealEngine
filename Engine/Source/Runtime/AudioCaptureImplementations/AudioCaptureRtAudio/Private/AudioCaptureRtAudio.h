@@ -3,7 +3,7 @@
 
 #include "AudioCaptureCore.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_MICROSOFT
 #include "Windows/WindowsHWrapper.h"
 #endif
 

@@ -674,9 +674,9 @@ void UCableComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	UpdateComponentToWorld();
 };
 
-void UCableComponent::CreateRenderState_Concurrent()
+void UCableComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	SendRenderDynamicData_Concurrent();
 }

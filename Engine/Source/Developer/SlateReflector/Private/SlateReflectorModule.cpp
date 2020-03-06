@@ -95,19 +95,19 @@ public:
 	virtual void DisplayWidgetReflector() override
 	{
 		check(bHasRegisteredTabSpawners);
-		FGlobalTabmanager::Get()->InvokeTab(FTabId("WidgetReflector"));
+		FGlobalTabmanager::Get()->TryInvokeTab(FTabId("WidgetReflector"));
 	}
 
 	virtual void DisplayTextureAtlasVisualizer() override
 	{
 		check(bHasRegisteredTabSpawners);
-		FGlobalTabmanager::Get()->InvokeTab(FTabId("TextureAtlasVisualizer"));
+		FGlobalTabmanager::Get()->TryInvokeTab(FTabId("TextureAtlasVisualizer"));
 	}
 
 	virtual void DisplayFontAtlasVisualizer() override
 	{
 		check(bHasRegisteredTabSpawners);
-		FGlobalTabmanager::Get()->InvokeTab(FTabId("FontAtlasVisualizer"));
+		FGlobalTabmanager::Get()->TryInvokeTab(FTabId("FontAtlasVisualizer"));
 	}
 
 	virtual void RegisterTabSpawner( const TSharedPtr<FWorkspaceItem>& WorkspaceGroup ) override

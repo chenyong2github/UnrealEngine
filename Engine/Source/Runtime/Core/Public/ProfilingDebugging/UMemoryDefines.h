@@ -16,6 +16,13 @@
 	#define TBB_ALLOCATOR_ALLOWED 1
 #endif
 
+ /**
+  * true if mimalloc can be used (different to the platform actually supporting it)
+  */
+#ifndef MIMALLOC_ALLOCATOR_ALLOWED
+	#define MIMALLOC_ALLOCATOR_ALLOWED 1
+#endif
+
 /**
  *	IMPORTANT:	The malloc proxy flags are mutually exclusive.
  *				You can have either none of them set or only one of them.

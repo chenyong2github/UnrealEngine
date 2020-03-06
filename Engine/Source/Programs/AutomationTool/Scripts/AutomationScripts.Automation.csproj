@@ -61,11 +61,19 @@
     </Compile>
     <Compile Include="AnalyzeThirdPartyLibs.Automation.cs" />
     <Compile Include="ArchiveCommand.Automation.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkBuild.Automation.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkBuildTests.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkCookTask.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkNopCompileTask.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkRunEditorTask.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkSingleCompileTask.cs" />
+    <Compile Include="BenchmarkBuild\BenchmarkTaskBase.cs" />
     <Compile Include="FinalizeInstalledBuild.cs" />
     <Compile Include="BuildHlslcc.Automation.cs" />
     <Compile Include="ParseMsvcTimingInfo.cs" />
     <Compile Include="StashTarget.cs" />
     <Compile Include="BlameKeyword.Automation.cs" />
+    <Compile Include="BuildCMakeLib.Automation.cs" />
     <Compile Include="BuildCommonTools.Automation.cs" />
     <Compile Include="BuildCookRun.Automation.cs" />
     <Compile Include="BuildDerivedDataCache.Automation.cs" />

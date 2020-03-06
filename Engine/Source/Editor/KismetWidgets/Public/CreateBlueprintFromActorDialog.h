@@ -11,11 +11,12 @@
 /** Enum defining which mode to use when creating the blueprint from the selected actors */
 enum class ECreateBlueprintFromActorMode : uint8
 {
-	None,        // Indicates that a user is unable to create blueprints from the currently selected actor set
-	Harvest,     // Harvest all the components of the selected actors and create an actor blueprint with those components in it.
-	Subclass,     // Create a subclass of the selected Actor's class with defaults from the selected Actor. Valid only when there is a single selected actor.
-	ChildActor    // Create an actor blueprint with each selected actor as a child actor component
+	None,             // Indicates that a user is unable to create blueprints from the currently selected actor set
+	Harvest = 1,      // Harvest all the components of the selected actors and create an actor blueprint with those components in it.
+	Subclass = 2,     // Create a subclass of the selected Actor's class with defaults from the selected Actor. Valid only when there is a single selected actor.
+	ChildActor = 4    // Create an actor blueprint with each selected actor as a child actor component
 };
+ENUM_CLASS_FLAGS(ECreateBlueprintFromActorMode)
 
 class FCreateBlueprintFromActorDialog
 {
@@ -36,6 +37,11 @@ public:
 	}
 
 
+	/** 
+	 * Static function that returns which create modes are valid given the current selection set
+	 */
+	static KISMETWIDGETS_API ECreateBlueprintFromActorMode GetValidCreationMethods();
+
 private:
 
 	/** 
@@ -44,7 +50,5 @@ private:
 	 * @param InAssetPath		Path of the asset to create
 	 * @param bInHarvest		The mode to use when creating a blueprint from the selected actors
 	 */
-	static void OnCreateBlueprint(const FString& InAssetPath, ECreateBlueprintFromActorMode CreateMode);
-
-	static TWeakObjectPtr<AActor> ActorOverride;
+	static void OnCreateBlueprint(const FString& InAssetPath, UClass* ParentClass, ECreateBlueprintFromActorMode CreateMode, AActor* ActorToUse);
 };

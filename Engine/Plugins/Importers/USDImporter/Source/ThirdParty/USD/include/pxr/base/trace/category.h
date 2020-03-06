@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef TRACE_CATEGORY_H
-#define TRACE_CATEGORY_H
+#ifndef PXR_BASE_TRACE_CATEGORY_H
+#define PXR_BASE_TRACE_CATEGORY_H
 
 /// \file trace/category.h
 
@@ -87,4 +87,4 @@ TRACE_API_TEMPLATE_CLASS(TfSingleton<TraceCategory>);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TRACE_CATEGORY_H
+#endif // PXR_BASE_TRACE_CATEGORY_H

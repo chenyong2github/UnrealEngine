@@ -10,6 +10,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
+#include "TexturePaintToolset.h"
 
 //////////////////////////////////////////////////////////////////////////
 // IMeshPaintGeometryAdapter
@@ -56,7 +57,8 @@ void IMeshPaintComponentAdapter::DefaultQueryPaintableTextures(int32 MaterialInd
 				TextureBase->Texture != NULL &&
 				!TextureBase->Texture->IsNormalMap() && 
 				!TextureBase->Texture->VirtualTextureStreaming &&
-				!TextureBase->Texture->HasHDRSource()) // Currently HDR textures are not supported to paint on
+				!TextureBase->Texture->HasHDRSource() && // Currently HDR textures are not supported to paint on.
+				(TextureBase->Texture->Source.GetBytesPerPixel() <= UTexturePaintToolset::GetMaxSupportedBytesPerPixelForPainting())) // Textures' sources must fit in FColor struct to be supported.
 			{
 				// Default UV channel to index 0. 
 				PaintableTexture = FPaintableTexture(TextureBase->Texture, 0);

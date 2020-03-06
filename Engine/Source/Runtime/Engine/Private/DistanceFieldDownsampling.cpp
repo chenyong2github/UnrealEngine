@@ -122,9 +122,8 @@ void FDistanceFieldDownsampling::DispatchDownsampleTasks(FRHICommandListImmediat
 		PassParameters->MeshDFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->DFAtlas = DFAtlasUAV;	
 
-		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 		TShaderMapRef< FDistanceFieldDownsamplingCS > ComputeShader(GlobalShaderMap);
-		FDistanceFieldDownsamplingCS* ComputeShaderPtr = *ComputeShader;
 		const FIntVector GroupCount(FMath::DivideAndRoundUp(Task.DstSize.X, 8), FMath::DivideAndRoundUp(Task.DstSize.Y, 8), Task.DstSize.Z);
 
 		GraphBuilder.AddPass
@@ -132,9 +131,9 @@ void FDistanceFieldDownsampling::DispatchDownsampleTasks(FRHICommandListImmediat
 			RDG_EVENT_NAME("DownsampleMeshDF"),
 			PassParameters, 
 			ERDGPassFlags::Compute,
-			[PassParameters, ComputeShaderPtr, GroupCount, &Task, &DFAtlasUAV](FRHICommandList& CmdList)
+			[PassParameters, ComputeShader, GroupCount, &Task, &DFAtlasUAV](FRHICommandList& CmdList)
 			{
-				FComputeShaderUtils::Dispatch(CmdList, ComputeShaderPtr, *PassParameters, GroupCount);
+				FComputeShaderUtils::Dispatch(CmdList, ComputeShader, *PassParameters, GroupCount);
 				CmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, &DFAtlasUAV, 1); // No barrier needed
 				Task.VolumeTextureRHI = nullptr;
 			}

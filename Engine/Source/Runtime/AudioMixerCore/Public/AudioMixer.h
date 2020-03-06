@@ -68,12 +68,7 @@ namespace EAudioMixerChannel
 		TopBackRight,
 		Unknown,
 		ChannelTypeCount,
-
-		// Alias Values
-		Ambisonics_W = FrontLeft,
-		Ambisonics_X = FrontRight,
-		Ambisonics_Y = FrontCenter,
-		Ambisonics_Z = LowFrequency,
+		DefaultChannel = FrontLeft
 	};
 
 	static const int32 MaxSupportedChannel = EAudioMixerChannel::TopCenter;
@@ -275,7 +270,7 @@ namespace Audio
 	};
 
 	/** Struct used to store render time analysis data. */
-	struct FAudioRenderTimeAnalysis
+	struct AUDIOMIXERCORE_API FAudioRenderTimeAnalysis
 	{
 		double AvgRenderTime;
 		double MaxRenderTime;
@@ -342,7 +337,9 @@ namespace Audio
 		AlignedByteBuffer FormattedBuffer;
  		EAudioMixerStreamDataFormat::Type DataFormat;
  		FThreadSafeBool bIsReady;
- 	};
+
+		int32 CallCounterMixNextBuffer{ 0 };
+	};
 
 	/** Abstract interface for receiving audio device changed notifications */
 	class AUDIOMIXERCORE_API IAudioMixerDeviceChangedLister
@@ -494,10 +491,10 @@ namespace Audio
 		void ReadNextBuffer();
 
 		/** Reset the fade state (use if reusing audio platform interface, e.g. in main audio device. */
-		void FadeIn();
+		virtual void FadeIn();
 
 		/** Start a fadeout. Prevents pops during shutdown. */
-		void FadeOut();
+		virtual void FadeOut();
 
 		/** Returns the last error generated. */
 		FString GetLastError() const { return LastError; }
@@ -602,6 +599,9 @@ namespace Audio
 
 		/** Struct used to store render time analysis data. */
 		FAudioRenderTimeAnalysis RenderTimeAnalysis;
+
+		int32 CallCounterApplyAttenuationInternal{ 0 };
+		int32 CallCounterReadNextBuffer{ 0 };
 
 		FThreadSafeBool bPerformingFade;
 		FThreadSafeBool bFadedOut;

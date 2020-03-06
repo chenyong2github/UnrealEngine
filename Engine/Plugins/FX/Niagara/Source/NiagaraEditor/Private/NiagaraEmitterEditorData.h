@@ -2,13 +2,15 @@
 
 #pragma once
 
+#include "NiagaraEditorDataBase.h"
+
 #include "NiagaraEmitterEditorData.generated.h"
 
 class UNiagaraStackEditorData;
 
 /** Editor only UI data for emitters. */
 UCLASS()
-class UNiagaraEmitterEditorData : public UObject
+class UNiagaraEmitterEditorData : public UNiagaraEditorDataBase
 {
 	GENERATED_BODY()
 
@@ -32,4 +34,6 @@ private:
 
 	UPROPERTY()
 	float PlaybackRangeMax;
+
+	void StackEditorDataChanged();
 };

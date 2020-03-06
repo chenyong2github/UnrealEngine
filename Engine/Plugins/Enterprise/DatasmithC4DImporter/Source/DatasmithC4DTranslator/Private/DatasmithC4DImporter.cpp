@@ -516,29 +516,25 @@ namespace FC4DImporterImpl
 	// For now, we can't remove parents of animated nodes because animations are stored wrt local coordinate
 	// system. If we optimized an otherwise useless intermediate node, we'd need to bake its transform into all animations of
 	// child nodes, which I'm not sure is the ideal behavior as imported animation curves would look very different
-	bool KeepParentsOfAnimatedNodes(const TSharedPtr<IDatasmithActorElement>& Actor, TSet<FString>& NamesOfAnimatedActors)
+	bool KeepParentsOfAnimatedNodes(const TSharedPtr<IDatasmithActorElement>& Actor, TSet<FString>& NamesOfActorsToKeep)
 	{
-		bool bKeepThisNode = NamesOfAnimatedActors.Contains(Actor->GetName());
+		bool bKeepThisNode = NamesOfActorsToKeep.Contains(Actor->GetName());
 
 		for (int32 ChildIndex = 0; ChildIndex < Actor->GetChildrenCount(); ++ChildIndex)
 		{
-			bKeepThisNode |= KeepParentsOfAnimatedNodes(Actor->GetChild(ChildIndex), NamesOfAnimatedActors);
+			bKeepThisNode |= KeepParentsOfAnimatedNodes(Actor->GetChild(ChildIndex), NamesOfActorsToKeep);
 		}
 
 		if (bKeepThisNode)
 		{
-			NamesOfAnimatedActors.Add(Actor->GetName());
+			NamesOfActorsToKeep.Add(Actor->GetName());
 		}
 
 		return bKeepThisNode;
 	}
 
-	void RemoveEmptyActors(TSharedRef<IDatasmithScene>& DatasmithScene, const TSet<FString>& NamesOfCameraTargetActors, const TSet<FString>& NamesOfAnimatedActors)
+	void RemoveEmptyActors(TSharedRef<IDatasmithScene>& DatasmithScene, const TSet<FString>& NamesOfActorsToKeep)
 	{
-		TSet<FString> NamesOfActorsToKeep;
-		NamesOfActorsToKeep.Append(NamesOfCameraTargetActors);
-		NamesOfActorsToKeep.Append(NamesOfAnimatedActors);
-
 		for (int32 ActorIndex = 0; ActorIndex < DatasmithScene->GetActorsCount(); ++ActorIndex)
 		{
 			TSharedPtr<IDatasmithActorElement> Actor = DatasmithScene->GetActor(ActorIndex);
@@ -1143,7 +1139,7 @@ TSharedPtr<IDatasmithCameraActorElement> FDatasmithC4DImporter::ImportCamera(mel
 		}
 		CameraActor->SetLookAtActor(*(LookAtID.GetValue()));
 		CameraActor->SetLookAtAllowRoll(true);
-		NamesOfCameraTargetActors.Add(LookAtID.GetValue());
+		NamesOfActorsToKeep.Add(LookAtID.GetValue());
 	}
 
 	float CameraFocusDistanceInCM = MelangeGetFloat(InC4DCameraPtr, melange::CAMERAOBJECT_TARGETDISTANCE);
@@ -2138,7 +2134,7 @@ void FDatasmithC4DImporter::ImportAnimations(TSharedPtr<IDatasmithActorElement> 
 	}
 
 	// Prevent actor from being optimized away
-	NamesOfAnimatedActors.Add(ActorElement->GetName());
+	NamesOfActorsToKeep.Add(ActorElement->GetName());
 
 	// Add a visibility track to simulate the particle spawning and despawning, if this is a particle actor.
 	// It seems like the particles have keys where they are visible: Before the first key the particles haven't
@@ -2287,41 +2283,23 @@ void FDatasmithC4DImporter::ImportActorHierarchyAnimations(TSharedPtr<IDatasmith
 	}
 }
 
-TArray<melange::TextureTag*> FDatasmithC4DImporter::GetActiveTextureTags(const melange::BaseObject* Object)
+TArray<melange::TextureTag*> FDatasmithC4DImporter::GetActiveTextureTags(const melange::BaseObject* Object, const TArray<melange::TextureTag*>& OrderedTextureTags)
 {
 	if (!Object)
 	{
 		return {};
 	}
 
-	// If we're the cache of an object, then our texture tags will be stored on that object.
-	// This repeats recursively, with only the first 'non-cache' BaseObject actually containing the TextureTags.
-	// Most PolygonObjects are not caches, but if a polygon has direct children then this will happen.
-	const melange::BaseObject* ObjectToSearch = Object;
-	while (const melange::BaseObject* Parent = CachesOriginalObject.FindRef(ObjectToSearch))
-	{
-		ObjectToSearch = Parent;
-	}
-
-	if (ObjectToSearch == nullptr)
-	{
-		return {};
-	}
-
-	TArray<melange::TextureTag*> OrderedTextureTags;
 	TArray<melange::BaseSelect*> OrderedSelectionTags;
 	OrderedSelectionTags.Add(nullptr); // "unselected" group
 
 	TMap<FString, melange::BaseSelect*> SelectionTagsByName;
 
-	for (melange::BaseTag* Tag = const_cast<melange::BaseObject*>(ObjectToSearch)->GetFirstTag(); Tag; Tag = Tag->GetNext())
+	// Fetch selection tags, which only affect this polygon
+	// The texture tags are fetched when moving down the hierarchy, as texture tags on parents also affect children
+	for (melange::BaseTag* Tag = const_cast<melange::BaseObject*>(Object)->GetFirstTag(); Tag; Tag = Tag->GetNext())
 	{
-		melange::Int32 TagType = Tag->GetType();
-		if (TagType == Ttexture)
-		{
-			OrderedTextureTags.Add(static_cast<melange::TextureTag*>(Tag));
-		}
-		else if (TagType == Tpolygonselection)
+		if (Tag->GetType() == Tpolygonselection)
 		{
 			FString SelectionName = MelangeGetString(Tag, melange::POLYGONSELECTIONTAG_NAME);
 			if (!SelectionName.IsEmpty())
@@ -2369,7 +2347,7 @@ TArray<melange::TextureTag*> FDatasmithC4DImporter::GetActiveTextureTags(const m
 	return OrderedActiveTextureTags;
 }
 
-TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const FString& DatasmithLabel)
+TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags)
 {
 	TSharedPtr<IDatasmithActorElement> ActorElement;
 	melange::Int32 ObjectType = DataObject->GetType();
@@ -2460,7 +2438,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildre
 
 					if (TOptional<FString> ObjectID = MelangeObjectID(DataObject))
 					{
-						return ImportObjectAndChildren(ActorObject, ActorToImport, ParentActor, WorldTransformMatrix, ObjectID.GetValue() + InstancePath, &CurentInstanceObjects, DatasmithLabel);
+						return ImportObjectAndChildren(ActorObject, ActorToImport, ParentActor, WorldTransformMatrix, ObjectID.GetValue() + InstancePath, &CurentInstanceObjects, DatasmithLabel, TextureTags);
 					}
 				}
 
@@ -2503,13 +2481,32 @@ TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildre
 					ActorElement = ImportNullActor(ActorObject, DatasmithName.GetValue(), DatasmithLabel);
 					if (DataCache != nullptr && DataCache->GetType() == Onull && AddChildActor(ActorObject, ParentActor, NewWorldTransformMatrix, ActorElement))
 					{
-						ImportHierarchy(ActorCache->GetDown(), DataCache->GetDown(), ActorElement, NewWorldTransformMatrix, InstancePath, nullptr);
+						ImportHierarchy(ActorCache->GetDown(), DataCache->GetDown(), ActorElement, NewWorldTransformMatrix, InstancePath, nullptr, TextureTags);
 						return ActorElement;
 					}
 
 					bSuccess = false;
 				}
 
+				break;
+
+			case Oatomarray:
+			case Oconnector:
+				// Connector object will have as children the original objects, and its data cache will point at the polygon that results from the actual connect operation,
+				// so here we skip that hierarchy and just imoprt that polygon directly
+				ActorElement = ImportNullActor(ActorObject, DatasmithName.GetValue(), DatasmithLabel);
+
+				// This will be an empty actor, but we would like to keep it around because its the actor that receives the name of the connect object node itself,
+				// while its polygon seems to randomly receive the name of one of the original objects. Keeping the hierarchy like this makes it look exactly like what is
+				// shown in C4D if you make a connect object editable
+				NamesOfActorsToKeep.Add(ActorElement->GetName());
+				if (DataCache != nullptr && AddChildActor(ActorObject, ParentActor, NewWorldTransformMatrix, ActorElement))
+				{
+					ImportHierarchy(ActorCache, DataCache, ActorElement, NewWorldTransformMatrix, InstancePath, nullptr, TextureTags);
+					return ActorElement;
+				}
+
+				bSuccess = false;
 				break;
 
 			case Ofracture:
@@ -2519,7 +2516,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildre
 			case Oboole:
 				ActorElement = ImportNullActor(ActorObject, DatasmithName.GetValue() +"0"/*to be different than the cache root*/, DatasmithLabel);
 				if (DataCache != nullptr && AddChildActor(ActorObject, ParentActor, NewWorldTransformMatrix, ActorElement)
-					&& ImportObjectAndChildren(ActorCache, DataCache, ActorElement, NewWorldTransformMatrix, InstancePath, nullptr, DatasmithLabel))
+					&& ImportObjectAndChildren(ActorCache, DataCache, ActorElement, NewWorldTransformMatrix, InstancePath, nullptr, DatasmithLabel, TextureTags))
 				{
 					return ActorElement;
 				}
@@ -2541,14 +2538,15 @@ TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildre
 
 			if (bSuccess && bImportCache && ActorCache)
 			{
-				ActorElement = ImportObjectAndChildren(ActorCache, DataCache, nullptr, ActorCache->GetMg(), InstancePath, nullptr, DatasmithLabel);
+				ActorElement = ImportObjectAndChildren(ActorCache, DataCache, nullptr, ActorCache->GetMg(), InstancePath, nullptr, DatasmithLabel, TextureTags);
 			}
 			else if (ObjectType == Opolygon)
 			{
 				melange::PolygonObject* PolygonObject = static_cast<melange::PolygonObject*>(DataObject);
 				if (Options->bImportEmptyMesh || PolygonObject->GetPolygonCount() > 0)
 				{
-					if (TSharedPtr<IDatasmithMeshActorElement> MeshActorElement = ImportPolygon(PolygonObject, DatasmithName.GetValue(), DatasmithLabel, GetActiveTextureTags(PolygonObject)))
+					TArray<melange::TextureTag*> ActiveTextureTags = GetActiveTextureTags(PolygonObject, TextureTags);
+					if (TSharedPtr<IDatasmithMeshActorElement> MeshActorElement = ImportPolygon(PolygonObject, DatasmithName.GetValue(), DatasmithLabel, ActiveTextureTags))
 					{
 						ActorElement = MeshActorElement;
 					}
@@ -2603,12 +2601,12 @@ TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildre
 		ActorElement->SetLayer(*TargetLayerName);
 	}
 
-	ImportHierarchy(ActorObject->GetDown(), DataObject->GetDown(), ActorElement, NewWorldTransformMatrix, InstancePath, InstanceObjects);
+	ImportHierarchy(ActorObject->GetDown(), DataObject->GetDown(), ActorElement, NewWorldTransformMatrix, InstancePath, InstanceObjects, TextureTags);
 
 	return ActorElement;
 }
 
-void FDatasmithC4DImporter::ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects)
+void FDatasmithC4DImporter::ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const TArray<melange::TextureTag*>& TextureTags)
 {
 	while (ActorObject || DataObject)
 	{
@@ -2621,10 +2619,14 @@ void FDatasmithC4DImporter::ImportHierarchy(melange::BaseObject* ActorObject, me
 			ActorObject = DataObject;
 		}
 
+		// Reset this for every child as texture tags only propagate down, not between siblings
+		TArray<melange::TextureTag*> TextureTagsDown = TextureTags;
+
 		bool SkipObject = false;
 		for (melange::BaseTag* Tag = ActorObject->GetFirstTag(); Tag; Tag = Tag->GetNext())
 		{
-			if (Tag->GetType() == Tannotation)
+			melange::Int32 TagType = Tag->GetType();
+			if (TagType == Tannotation)
 			{
 				FString AnnotationLabel = MelangeGetString(Tag, 10014);
 				if (AnnotationLabel.Compare("EXCLUDE", ESearchCase::IgnoreCase) == 0)
@@ -2633,12 +2635,16 @@ void FDatasmithC4DImporter::ImportHierarchy(melange::BaseObject* ActorObject, me
 					break;
 				}
 			}
+			else if (TagType == Ttexture)
+			{
+				TextureTagsDown.Add(static_cast<melange::TextureTag*>(Tag));
+			}
 		}
 
 		if (!SkipObject)
 		{
 			FString DatasmithLabel = FDatasmithUtils::SanitizeObjectName(MelangeObjectName(ActorObject));
-			ImportObjectAndChildren(ActorObject, DataObject, ParentActor, WorldTransformMatrix, InstancePath, InstanceObjects, DatasmithLabel);
+			ImportObjectAndChildren(ActorObject, DataObject, ParentActor, WorldTransformMatrix, InstancePath, InstanceObjects, DatasmithLabel, TextureTagsDown);
 		}
 
 		ActorObject = ActorObject->GetNext();
@@ -3054,7 +3060,8 @@ bool FDatasmithC4DImporter::ProcessScene()
 	// Need a RootActor for RemoveEmptyActors and to make AddChildActor agnostic to actor hiearchy level
 	TSharedPtr<IDatasmithActorElement> RootActor = FDatasmithSceneFactory::CreateActor(TEXT("RootActor"));
 	DatasmithScene->AddActor(RootActor);
-	ImportHierarchy(C4dDocument->GetFirstObject(), C4dDocument->GetFirstObject(), RootActor, melange::Matrix(), "", nullptr);
+	TArray<melange::TextureTag*> TextureTags;
+	ImportHierarchy(C4dDocument->GetFirstObject(), C4dDocument->GetFirstObject(), RootActor, melange::Matrix(), "", nullptr, TextureTags);
 
 	// Animations
 	LevelSequence = FDatasmithSceneFactory::CreateLevelSequence(DatasmithScene->GetName());
@@ -3063,8 +3070,8 @@ bool FDatasmithC4DImporter::ProcessScene()
 	ImportActorHierarchyAnimations(RootActor);
 
 	// Processing
-	FC4DImporterImpl::KeepParentsOfAnimatedNodes(RootActor, NamesOfAnimatedActors);
-	FC4DImporterImpl::RemoveEmptyActors(DatasmithScene, NamesOfCameraTargetActors, NamesOfAnimatedActors);
+	FC4DImporterImpl::KeepParentsOfAnimatedNodes(RootActor, NamesOfActorsToKeep);
+	FC4DImporterImpl::RemoveEmptyActors(DatasmithScene, NamesOfActorsToKeep);
 	DatasmithScene->RemoveActor(RootActor, EDatasmithActorRemovalRule::KeepChildrenAndKeepRelativeTransform);
 
 #if WITH_EDITOR

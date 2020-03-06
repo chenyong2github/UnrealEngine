@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Processor.h"
-#include "DataStream.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "StreamReader.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Analysis.h"
+#include "Trace/DataStream.h"
 
 namespace Trace
 {
@@ -56,6 +56,7 @@ uint32 FAnalysisProcessor::FImpl::Run()
 		}
 	}
 
+	AnalysisEngine.End();
 	return 0;
 }
 
@@ -106,7 +107,14 @@ void FAnalysisProcessor::Pause(bool bState) { if (Impl != nullptr) { Impl->Pause
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisProcessor::FAnalysisProcessor(FAnalysisProcessor&& Rhs)
 {
+	this->operator = (MoveTemp(Rhs));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FAnalysisProcessor& FAnalysisProcessor::operator = (FAnalysisProcessor&& Rhs)
+{
 	Swap(Impl, Rhs.Impl);
+	return *this;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

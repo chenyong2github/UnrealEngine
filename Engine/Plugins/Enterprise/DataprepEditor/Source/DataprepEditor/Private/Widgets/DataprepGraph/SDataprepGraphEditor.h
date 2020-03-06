@@ -13,11 +13,15 @@
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "Layout/SlateRect.h"
+#include "NodeFactory.h"
 #include "SGraphNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/SWidget.h"
 
+class FDataprepEditor;
+class FUICommandList;
 class SDataprepGraphActionNode;
 class SDataprepGraphTrackNode;
 class SDataprepGraphTrackWidget;
@@ -26,8 +30,26 @@ class UDataprepAsset;
 class UBlueprint;
 class UEdGraph;
 
-class SDataprepGraphEditorNodeFactory : public FGraphPanelNodeFactory
+class FDataprepGraphNodeFactory : public FGraphNodeFactory, public TSharedFromThis<FDataprepGraphNodeFactory>
 {
+public:
+	virtual ~FDataprepGraphNodeFactory() = default;
+
+	template<class DataprepEditorPtrType>
+	FDataprepGraphNodeFactory(DataprepEditorPtrType&& InDataprepEditor)
+		: DataprepEditor(Forward<DataprepEditorPtrType>(InDataprepEditor))
+	{}
+
+	/** Create a widget for the supplied node */
+	virtual TSharedPtr<SGraphNode> CreateNodeWidget(UEdGraphNode* InNode) override;
+
+private:
+	TWeakPtr<FDataprepEditor> DataprepEditor;
+};
+
+class FDataprepGraphEditorNodeFactory : public FGraphPanelNodeFactory
+{
+public:
 	virtual TSharedPtr<SGraphNode> CreateNode(UEdGraphNode* Node) const override;
 };
 
@@ -48,6 +70,7 @@ public:
 		SLATE_ATTRIBUTE( FGraphAppearanceInfo, Appearance )
 		SLATE_ARGUMENT( UEdGraph*, GraphToEdit )
 		SLATE_ARGUMENT( FGraphEditorEvents, GraphEvents)
+		SLATE_ARGUMENT( TSharedPtr<FDataprepEditor>, DataprepEditor )
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepAsset* InDataprepAsset);
@@ -61,6 +84,10 @@ public:
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	// End of SWidget overrides
 
+	// SGraphEditor overrides
+	virtual void NotifyGraphChanged() override;
+	// End of SGraphEditor overrides
+
 	// #ueent_toremove: Temp code for the nodes development
 	void OnPipelineChanged(UBlueprint* InBlueprint);
 
@@ -71,12 +98,45 @@ public:
 	static void RegisterFactories();
 	static void UnRegisterFactories();
 
+	/** Set of methods necessary for copy/paste of action nodes*/
+	void OnRenameNode();
+	bool CanRenameNode() const;
+
+	bool CanSelectAllNodes() const { return true; }
+
+	void DeleteSelectedNodes();
+	bool CanDeleteNodes() const;
+
+	void CopySelectedNodes();
+	bool CanCopyNodes() const;
+
+	void CutSelectedNodes();
+	bool CanCutNodes() const;
+
+	void PasteNodes();
+	bool CanPasteNodes() const;
+
+	void DuplicateNodes();
+	bool CanDuplicateNodes() const;
+
+	void DeleteSelectedDuplicatableNodes();
+	/** End of set of methods necessary for copy/paste of action nodes*/
+
+	/** Set of callbacks to rename an action node */
+	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage);
+	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
+
+	/** Callback to create contextual menu on graph panel */
+	FActionMenuContent OnCreateActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
+
+	/** Callback to create contextual menu for graph nodes in graph panel */
+	FActionMenuContent OnCreateNodeOrPinMenu(UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging);
+
 private:
 	/** Recompute the layout of the displayed graph after a pan, resize and/or zoom */
 	void UpdateLayout( const FVector2D& LocalSize, const FVector2D& Location, float ZoomAmount );
 
-	/** Recompute the boundaries of a the displayed graph */
-	void UpdateBoundaries(const FVector2D& LocalSize, float ZoomAmount);
+	void BuildCommandList();
 
 private:
 	/** When false, indicates the graph editor has not been drawn yet */
@@ -94,17 +154,17 @@ private:
 	/** Last zoom factor applied to the graph's canvas */
 	float LastZoomAmount;
 
-	/** Indicates min and max of ordinates in canvas */
-	FVector2D ViewLocationRangeOnY;
-
-	/** Size of graph being displayed */
-	mutable FVector2D CachedTrackNodeSize;
+	/** Dimensions of pipeline being displayed */
+	FSlateRect WorkingArea;
 
 	/** Size of graph being displayed */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
 	/** Size of graph being displayed */
 	mutable TWeakPtr<SDataprepGraphTrackNode> TrackGraphNodePtr;
+
+	/** Command list associated with this graph editor */
+	TSharedPtr<FUICommandList> GraphEditorCommands;
 
 	bool bCachedControlKeyDown;
 
@@ -115,7 +175,10 @@ private:
 	static const float HorizontalPadding;
 
 	/** Factory to create the associated SGraphNode classes for Dataprep graph's UEdGraph classes */
-	static TSharedPtr<SDataprepGraphEditorNodeFactory> NodeFactory;
+	static TSharedPtr<FDataprepGraphEditorNodeFactory> NodeFactory;
+
+	// The Dataprep editor that owns the graph
+	TWeakPtr<FDataprepEditor> DataprepEditor;
 
 	friend SDataprepGraphTrackNode;
 };

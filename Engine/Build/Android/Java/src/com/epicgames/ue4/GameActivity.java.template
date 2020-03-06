@@ -477,7 +477,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	private String EGLErrorStatus = "UNSET";
 	
 	/** Flag for not officially supported devices */
-	public boolean bSupportedDevice = true;
+	public static boolean bSupportedDevice = true;
 
 	/** Used for LocalNotification support*/
 	private boolean localNotificationAppLaunched = false;
@@ -2232,6 +2232,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		InternalFilesDir = getFilesDir().getAbsolutePath() + "/";
 		ExternalFilesDir = getExternalFilesDir(null).getAbsolutePath() + "/";
 
+		// disable autofill to avoid possible Android 10 crash (android.view.autofill.AutofillManager.ensureServiceClientAddedIfNeededLocked() SyncResultReceiver$TimeoutException)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+		{
+			getWindow().getDecorView().setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+		}
+
 		// create splashscreen dialog (if launched by SplashActivity)
 		_extrasBundle = getIntent().getExtras();
 		if (_extrasBundle != null)
@@ -2699,9 +2705,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			return;
 		}
 
-		Log.debug("APK path: " + getPackageResourcePath());
+		String APKPath = getPackageResourcePath();
+//$${gameActivityOverrideAPKOBBPackaging}$$
+		Log.debug("APK path: " + APKPath);
 		Log.debug("OBB in APK: " + (PackageDataInsideApkValue==1));
-		nativeSetGlobalActivity(UseExternalFilesDir, PublicLogFiles, getFilesDir().getPath(), getExternalFilesDir(null).getPath(), PackageDataInsideApkValue==1, getPackageResourcePath());
+		nativeSetGlobalActivity(UseExternalFilesDir, PublicLogFiles, getFilesDir().getPath(), getExternalFilesDir(null).getPath(), PackageDataInsideApkValue==1, APKPath);
 
 		// tell the engine if this is a portrait app
 		nativeSetWindowInfo(getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT, DepthBufferPreference);
@@ -3027,9 +3035,14 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
                     int visibleScreenYOffset = Math.max(bottomDiff, topDiff);
 
 					//Log.debug("VK: show?" + visibleScreenYOffset + "," + newVirtualKeyboardInput.getY());
+					
+					// If the keyboard is a soft keyboard, the visibleScreenYOffset should be greater than 200 tall
+					boolean bSoftKeyboardPopup = visibleScreenYOffset > 200;
 
-					// Samsung Game Tools floating keyboard is only 1 pixel tall
-					if(visibleScreenYOffset > 200 || (bSamsungDevice && visibleScreenYOffset > 0))
+					// If the keyboard is a floating keyboard, after testing on partial Samsung devcies and Huawei devices, the visibleScreenYOffset is 1 pixel tall, expand it to [1, 200] for safety, correct this range if there is any unexpected case.
+					boolean bFloatingKeyboardPopup = visibleScreenYOffset >= 1 && visibleScreenYOffset <= 200;
+
+					if(bSoftKeyboardPopup || bFloatingKeyboardPopup)
                     {
 						if (bKeyboardShowing)
 						{
@@ -5979,6 +5992,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		context.startActivity(intent);
 
 		// kill the current application instance. Undefined behaviour after this!
+//$${gameActivityOnRestartApplicationAdditions}$$
 		Runtime.getRuntime().exit(0); 
 	}
 	
@@ -6108,6 +6122,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public native boolean nativeIsShippingBuild();
 	public native void nativeSetAndroidStartupState(boolean bDebuggerAttached);
 	public native void nativeSetGlobalActivity(boolean bUseExternalFilesDir, boolean bPublicLogFiles, String internalFilePath, String externalFilePath, boolean bOBBInAPK, String APKPath);
+	public native void nativeSetObbFilePaths(String OBBMainFilePath, String OBBPatchFilePath);
 	public native void nativeSetWindowInfo(boolean bIsPortrait, int DepthBufferPreference);
 	public native void nativeSetObbInfo(String ProjectName, String PackageName, int Version, int PatchVersion, String AppType);
 	public native void nativeSetAndroidVersionInformation( String AndroidVersion, String PhoneMake, String PhoneModel, String PhoneBuildNumber, String OSLanguage );
@@ -6140,7 +6155,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	static
 	{
-		System.loadLibrary("gnustl_shared");
+		System.loadLibrary("c++_shared");
 //$${soLoadLibrary}$$
 		System.loadLibrary("UE4");
 	}

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once 
+#pragma once
 
 #include "Editor/EditorEngine.h"
 #include "Logging/TokenizedMessage.h"
@@ -9,13 +9,11 @@
 #include "UnrealUSDWrapper.h"
 #include "USDMemory.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogUSDImport, Log, All);
-
 namespace USDKindTypes
 {
 	// Note: std::string for compatiblity with USD
 
-	const std::string Component("component"); 
+	const std::string Component("component");
 	const std::string Group("group");
 	const std::string SubComponent("subcomponent");
 }
@@ -35,7 +33,7 @@ USTRUCT()
 struct USDIMPORTER_API FUsdImportContext
 {
 	GENERATED_BODY()
-	
+
 	/** Mapping of path to imported assets  */
 	TMap<FString, UObject*> PathToImportAssetMap;
 

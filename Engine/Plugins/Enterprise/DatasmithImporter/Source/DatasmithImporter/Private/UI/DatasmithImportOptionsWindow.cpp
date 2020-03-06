@@ -150,16 +150,6 @@ void SDatasmithOptionsWindow::Construct(const FArguments& InArgs)
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
-	// customized IDetailRootObjectCustomization in order to hide labels from the various Options Objects displayed
-	class FDatasmithRootObjectCustomization : public IDetailRootObjectCustomization
-	{
-		virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject) { return SNullWidget::NullWidget; }
-		virtual bool IsObjectVisible(const UObject* InRootObject) const override { return true; }
-		virtual bool ShouldDisplayHeader(const UObject* InRootObject) const override { return false; }
-	};
-	TSharedPtr<IDetailRootObjectCustomization> RootObjectCustomization = MakeShareable(new FDatasmithRootObjectCustomization());
-	DetailsView->SetRootObjectCustomizationInstance(RootObjectCustomization);
-
 	DetailsViewBox->SetContent(DetailsView.ToSharedRef());
 	// @todo: Find a way to aggregate properties of all UObjects into one set
 	DetailsView->SetObjects(ImportOptions);

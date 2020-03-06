@@ -19,4 +19,5 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	const FString& OwnerName,
 	const FResolveParams& ResolveParams,
 	bool bGenerateMips,
-	const FGenerateMipsParams& GenerateMipsParams);
+	const FGenerateMipsParams& GenerateMipsParams,
+	const bool bDisableFlipCopyGLES);

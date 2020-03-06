@@ -28,10 +28,10 @@ struct FDummyPhysActor {};
 template<typename DummyT>
 struct FDummyCallback {};
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 using FQueryFilterData = PxQueryFilterData;
-#else
-using FQueryFilterData = FDummyPhysType;
+#elif WITH_CHAOS
+using FQueryFilterData = FChaosQueryFilterData;
 #endif
 
 /** We use this struct so that if no conversion is needed in another API, we can avoid the copy (if we think that's critical) */
@@ -81,13 +81,17 @@ struct FQueryDebugParams
 {
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) 
 	FQueryDebugParams()
-		: bDebugQuery(false) { }
+		: bDebugQuery(false)
+		, bExternalQuery(true) { }
 	bool bDebugQuery;
+	bool bExternalQuery;
 	bool IsDebugQuery() const { return bDebugQuery; }
+	bool IsExternalQuery() const { return bExternalQuery; }
 #else
 	// In test or shipping builds, this struct must be left empty
 	FQueryDebugParams() { }
 	constexpr bool IsDebugQuery() const { return false; }
+	constexpr bool IsExternalQuery() const { return true; }
 #endif
 };
 #endif

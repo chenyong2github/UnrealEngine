@@ -55,7 +55,8 @@ static const TCHAR* CrashReporterSettings = TEXT("/Script/UnrealEd.CrashReporter
 #endif
 
 // Optimization that only loads symbols on demand rather than always loading all symbols for loaded modules.
-#if 1
+// Warning: Enabling this currently has a bug where symbols are not loaded for modules outside of the main binary directory (i.e. plugins).
+#if 0
 #define ON_DEMAND_SYMBOL_LOADING 1
 #else
 #define ON_DEMAND_SYMBOL_LOADING 0
@@ -240,7 +241,7 @@ static bool GMaxCallstackDepthInitialized = false;
 void DetermineMaxCallstackDepth()
 {
 	// Check that we're running on Vista or newer (version 6.0+).
-	if ( FWindowsPlatformMisc::VerifyWindowsVersion(6, 0) )
+	if ( FPlatformMisc::VerifyWindowsVersion(6, 0) )
 	{
 		GMaxCallstackDepth = MAX_CALLSTACK_DEPTH;
 	}
@@ -1027,6 +1028,7 @@ bool FWindowsPlatformStackWalk::InitStackWalkingInternal(void* Process)
 #if !ON_DEMAND_SYMBOL_LOADING
 		if (!FPlatformProperties::IsMonolithicBuild() && FPlatformStackWalk::WantsDetailedCallstacksInNonMonolithicBuilds())
 		{
+			const FString RemoteStorage = GetRemoteStorage(GetDownstreamStorage());
 			LoadSymbolsForProcessModules(RemoteStorage);
 		}
 #endif

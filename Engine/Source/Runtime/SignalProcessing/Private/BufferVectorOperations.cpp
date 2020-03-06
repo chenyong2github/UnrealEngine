@@ -6,6 +6,12 @@
 
 namespace Audio
 {
+	static void RestrictedPtrAliasCheck(const float* RESTRICT Ptr1, const float* RESTRICT Ptr2, uint32 NumFloatsInArray)
+	{
+		checkf(static_cast<uint32>(FMath::Abs(Ptr1 - Ptr2)) >= NumFloatsInArray,
+			TEXT("Using this function as an in-place operation will result in undefined behavior!"));
+	}
+
 	/* Sets a values to zero if value is denormal. Denormal numbers significantly slow down floating point operations. */
 	void BufferUnderflowClampFast(AlignedFloatBuffer& InOutBuffer)
 	{
@@ -89,6 +95,8 @@ namespace Audio
 	void BufferMultiplyByConstant(const float* RESTRICT InFloatBuffer, float InValue, float* RESTRICT OutFloatBuffer, const int32 InNumSamples)
 	{
 		check(InNumSamples >= 4);
+		RestrictedPtrAliasCheck(InFloatBuffer, OutFloatBuffer, InNumSamples);
+
 #if !AUDIO_USE_SIMD
 		for (int32 i = 0; i < InNumSamples; ++i)
 		{
@@ -186,17 +194,20 @@ namespace Audio
 		checkf(IsAligned<const float*>(InBuffer2, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<float*>(OutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
+		RestrictedPtrAliasCheck(InBuffer1, OutBuffer, InNum);
+		RestrictedPtrAliasCheck(InBuffer2, OutBuffer, InNum);
+
 		VectorRegister Gain1Vector = VectorLoadFloat1(&InGain1);
 		VectorRegister Gain2Vector = VectorLoadFloat1(&InGain2);
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			// InBuffer1 x InGain1
-			VectorRegister Input1  = VectorLoadAligned(&InBuffer1[i]);
+			VectorRegister Input1 = VectorLoadAligned(&InBuffer1[i]);
 			VectorRegister Weighted1 = VectorMultiply(Input1, Gain1Vector);
 
 			// InBuffer2 x InGain2
-			VectorRegister Input2  = VectorLoadAligned(&InBuffer2[i]);
+			VectorRegister Input2 = VectorLoadAligned(&InBuffer2[i]);
 			VectorRegister Weighted2 = VectorMultiply(Input2, Gain2Vector);
 
 			VectorRegister Output = VectorAdd(Weighted1, Weighted2);
@@ -213,15 +224,18 @@ namespace Audio
 		checkf(IsAligned<const float*>(InBuffer2, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<float*>(OutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
+		RestrictedPtrAliasCheck(InBuffer1, OutBuffer, InNum);
+		RestrictedPtrAliasCheck(InBuffer2, OutBuffer, InNum);
+
 		VectorRegister Gain1Vector = VectorLoadFloat1(&InGain1);
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			// InBuffer1 x InGain1
-			VectorRegister Input1  = VectorLoadAligned(&InBuffer1[i]);
+			VectorRegister Input1 = VectorLoadAligned(&InBuffer1[i]);
 			VectorRegister Weighted1 = VectorMultiply(Input1, Gain1Vector);
 
-			VectorRegister Input2  = VectorLoadAligned(&InBuffer2[i]);
+			VectorRegister Input2 = VectorLoadAligned(&InBuffer2[i]);
 
 			VectorRegister Output = VectorAdd(Weighted1, Input2);
 			VectorStoreAligned(Output, &OutBuffer[i]);
@@ -317,6 +331,8 @@ namespace Audio
 		checkf(IsAligned<float*>(BufferToSumTo, 4), TEXT("Memory must be aligned to use vector operations."));
 		checkf(NumSamples % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
 
+		RestrictedPtrAliasCheck(InFloatBuffer, BufferToSumTo, NumSamples);
+
 #if !AUDIO_USE_SIMD
 		for (int32 i = 0; i < NumSamples; ++i)
 		{
@@ -347,6 +363,8 @@ namespace Audio
 		checkf(IsAligned<float*>(BufferToSumTo, 4), TEXT("Memory must be aligned to use vector operations."));
 		checkf(NumSamples % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
 
+		RestrictedPtrAliasCheck(InFloatBuffer, BufferToSumTo, NumSamples);
+
 #if !AUDIO_USE_SIMD
 		for (int32 i = 0; i < NumSamples; ++i)
 		{
@@ -373,6 +391,8 @@ namespace Audio
 		checkf(IsAligned<const float*>(InFloatBuffer, 4), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<float*>(BufferToSumTo, 4), TEXT("Memory must be aligned to use vector operations."));
 		checkf(NumSamples % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
+
+		RestrictedPtrAliasCheck(InFloatBuffer, BufferToSumTo, NumSamples);
 
 		const int32 NumIterations = NumSamples / 4;
 
@@ -441,6 +461,9 @@ namespace Audio
 		checkf(IsAligned<const float*>(InSubtrahend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<float*>(OutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
+		RestrictedPtrAliasCheck(InMinuend, OutBuffer, InNum);
+		RestrictedPtrAliasCheck(InSubtrahend, OutBuffer, InNum);
+
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			VectorRegister Input1 = VectorLoadAligned(&InMinuend[i]);
@@ -465,6 +488,8 @@ namespace Audio
 		checkf(IsAligned<const float*>(InMinuend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<const float*>(InOutSubtrahend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 		
+		RestrictedPtrAliasCheck(InMinuend, InOutSubtrahend, InNum);
+
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			VectorRegister Input1 = VectorLoadAligned(&InMinuend[i]);
@@ -490,6 +515,8 @@ namespace Audio
 		checkf(IsAligned<const float*>(InOutMinuend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<const float*>(InSubtrahend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
+		RestrictedPtrAliasCheck(InOutMinuend, InSubtrahend, InNum);
+		
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			VectorRegister Input1 = VectorLoadAligned(&InOutMinuend[i]);
@@ -516,6 +543,9 @@ namespace Audio
 		checkf(IsAligned<const float*>(InFloatBuffer2, 4), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<float*>(OutputBuffer, 4), TEXT("Memory must be aligned to use vector operations."));
 		checkf(NumSamples % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
+
+		RestrictedPtrAliasCheck(InFloatBuffer1, OutputBuffer, NumSamples);
+		RestrictedPtrAliasCheck(InFloatBuffer2, OutputBuffer, NumSamples);
 
 #if !AUDIO_USE_SIMD
 		for (int32 i = 0; i < NumSamples; ++i)
@@ -544,6 +574,8 @@ namespace Audio
 		checkf(IsAligned<const float*>(InFloatBuffer, 4), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<const float*>(BufferToMultiply, 4), TEXT("Memory must be aligned to use vector operations."));
 		checkf(NumSamples % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
+
+		RestrictedPtrAliasCheck(InFloatBuffer, BufferToMultiply, NumSamples);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
@@ -1774,6 +1806,28 @@ namespace Audio
 	}
 
 
+	SIGNALPROCESSING_API void DownmixAndSumIntoBuffer(int32 NumSourceChannels, int32 NumDestinationChannels, const AlignedFloatBuffer& SourceBuffer, AlignedFloatBuffer& BufferToSumTo, const float* RESTRICT Gains)
+	{
+		DownmixAndSumIntoBuffer(NumSourceChannels, NumDestinationChannels, SourceBuffer.GetData(), BufferToSumTo.GetData(), SourceBuffer.Num() / NumSourceChannels, Gains);
+	}
+
+	SIGNALPROCESSING_API void DownmixAndSumIntoBuffer(int32 NumSourceChannels, int32 NumDestinationChannels, const float* RESTRICT SourceBuffer, float* RESTRICT BufferToSumTo, int32 NumFrames, const float* RESTRICT Gains)
+	{
+		for (int32 FrameIndex = 0; FrameIndex < NumFrames; FrameIndex++)
+		{
+			float* RESTRICT OutputFrame = &BufferToSumTo[FrameIndex * NumDestinationChannels];
+			const float* RESTRICT InputFrame = &SourceBuffer[FrameIndex * NumSourceChannels];
+
+			for (int32 OutputChannelIndex = 0; OutputChannelIndex < NumDestinationChannels; OutputChannelIndex++)
+			{
+				for (int32 InputChannelIndex = 0; InputChannelIndex < NumSourceChannels; InputChannelIndex++)
+				{
+					OutputFrame[OutputChannelIndex] += InputFrame[InputChannelIndex] * Gains[InputChannelIndex * NumDestinationChannels + OutputChannelIndex];
+				}
+			}
+		}
+	}
+
 	/** Interleaves samples from two input buffers */
 	void BufferInterleave2ChannelFast(const AlignedFloatBuffer& InBuffer1, const AlignedFloatBuffer& InBuffer2, AlignedFloatBuffer& OutBuffer)
 	{
@@ -1932,7 +1986,9 @@ namespace Audio
 		checkf(IsAligned<const float*>(InImaginarySamples, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 		checkf(IsAligned<float*>(OutPowerSamples, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
-		
+		RestrictedPtrAliasCheck(InRealSamples, OutPowerSamples, InNum);
+		RestrictedPtrAliasCheck(InImaginarySamples, OutPowerSamples, InNum);
+
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			VectorRegister VInReal = VectorLoadAligned(&InRealSamples[i]);
@@ -1945,5 +2001,75 @@ namespace Audio
 
 			VectorStoreAligned(VOut, &OutPowerSamples[i]);
 		}
+	}
+
+	// class FBufferLinearEase implementation
+	FBufferLinearEase::FBufferLinearEase() {}
+	FBufferLinearEase::FBufferLinearEase(const AlignedFloatBuffer & InSourceValues, const AlignedFloatBuffer & InTargetValues, int32 InLerpLength)
+	{
+		Init(InSourceValues, InTargetValues, InLerpLength);
+	}
+
+	FBufferLinearEase::~FBufferLinearEase() {}
+
+	void FBufferLinearEase::Init(const AlignedFloatBuffer & InSourceValues, const AlignedFloatBuffer & InTargetValues, int32 InLerpLength)
+	{
+		check(InSourceValues.Num());
+		check(InTargetValues.Num());
+		check(InLerpLength > 0);
+
+		BufferLength = InSourceValues.Num();
+
+		check(InTargetValues.Num() == BufferLength);
+		LerpLength = InLerpLength;
+		CurrentLerpStep = 0;
+
+		// init deltas
+		DeltaBuffer.Reset();
+		DeltaBuffer.AddZeroed(BufferLength);
+
+		const float OneOverLerpLength = 1.0f / static_cast<float>(LerpLength);
+
+		BufferSubtractFast(InTargetValues.GetData(), InSourceValues.GetData(), DeltaBuffer.GetData(), BufferLength);
+		MultiplyBufferByConstantInPlace(DeltaBuffer, OneOverLerpLength);
+	}
+
+	bool FBufferLinearEase::Update(AlignedFloatBuffer & InSourceValues)
+	{
+		check(InSourceValues.Num() == BufferLength);
+		check(CurrentLerpStep != LerpLength);
+
+		MixInBufferFast(DeltaBuffer.GetData(), InSourceValues.GetData(), BufferLength);
+
+		if (++CurrentLerpStep == LerpLength)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	bool FBufferLinearEase::Update(uint32 StepsToJumpForward, AlignedFloatBuffer & InSourceValues)
+	{
+		check(InSourceValues.Num() == BufferLength);
+		check(CurrentLerpStep != LerpLength);
+		check(StepsToJumpForward);
+
+		bool bIsComplete = false;
+		if ((CurrentLerpStep += StepsToJumpForward) >= LerpLength)
+		{
+			StepsToJumpForward -= (CurrentLerpStep - LerpLength);
+			CurrentLerpStep = LerpLength;
+			bIsComplete = true;
+		}
+
+		MixInBufferFast(DeltaBuffer.GetData(), InSourceValues.GetData(), BufferLength, static_cast<float>(StepsToJumpForward));
+
+		return bIsComplete;
+
+	}
+	const AlignedFloatBuffer & FBufferLinearEase::GetDeltaBuffer()
+	{
+		return DeltaBuffer;
 	}
 }

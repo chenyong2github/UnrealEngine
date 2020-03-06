@@ -42,9 +42,6 @@ namespace Chaos
 	public:
 		friend class FPBDConstraintColor;
 
-		/** Number of sleep threshold passes before sleep mode is enabled */
-		static const int32 SleepCountThreshold = 5;
-
 		/** Information required to map a graph edge back to its constraint */
 		struct FConstraintData
 		{
@@ -94,7 +91,7 @@ namespace Chaos
 		/**
 		 * Put particles in inactive islands to sleep.
 		 */
-		bool SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes);
+		bool SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials);
 
 		/**
 		 * Wake all particles in an Island.
@@ -147,15 +144,24 @@ namespace Chaos
 		const FConstraintData& GetConstraintData(int32 ConstraintDataIndex) const;
 
 		/**
-		 * Enable a particle after initialization. Adds the particle to the island of the parent particle if supplied.
+		 * Adds \p ChildParticle to the constraint graph.  Copies the sleeping 
+		 * state and island of \p ParentParticle to \p ChildParticle.  Does nothing
+		 * if \p ParentParticle is not supplied.
 		 */
-		void EnableParticle(TGeometryParticleHandle<FReal, 3>* Particle, const TGeometryParticleHandle<FReal, 3>* ParentParticle);
+		void EnableParticle(TGeometryParticleHandle<FReal, 3>* ChildParticle, const TGeometryParticleHandle<FReal, 3>* ParentParticle);
 
 		/**
 		 * Disable a particle and remove it from its island.
 		 * @note: this does not remove any attached constraints - constraints need to be re-added and islands will need to be rebuilt.
 		 */
 		void DisableParticle(TGeometryParticleHandle<FReal, 3>* Particle);
+
+		/**
+		 * Preallocate buffers for \p Num particles.
+		 *
+		 * Returns the number of new slots created.
+		 */
+		int32 ReserveParticles(const int32 Num);
 
 		void AddParticle(TGeometryParticleHandle<FReal, 3>* AddedParticle)
 		{

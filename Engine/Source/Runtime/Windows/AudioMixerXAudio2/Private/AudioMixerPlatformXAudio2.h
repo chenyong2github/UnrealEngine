@@ -15,6 +15,10 @@
 #pragma comment(lib,"xaudio2_9redist.lib")
 #endif
 
+#ifndef XAUDIO_SUPPORTS_DEVICE_DETAILS
+    #define XAUDIO_SUPPORTS_DEVICE_DETAILS		1
+#endif	//XAUDIO_SUPPORTS_DEVICE_DETAILS
+
 // Any platform defines
 namespace Audio
 {
@@ -118,6 +122,8 @@ namespace Audio
 		// When we are running the null device,
 		// we check whether a new audio device was connected every second or so.
 		float TimeSinceNullDeviceWasLastChecked;
+
+		bool FirstBufferSubmitted{false};
 
 		uint32 bIsInitialized : 1;
 		uint32 bIsDeviceOpen : 1;

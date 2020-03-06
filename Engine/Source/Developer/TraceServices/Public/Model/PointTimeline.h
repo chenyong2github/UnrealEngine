@@ -68,7 +68,7 @@ public:
 			{
 				if (!(Event->Time < IntervalStart || IntervalEnd < Event->Time))
 				{
-					if(bEnumerateOutsideRange && PreviousEvent != Event)
+					if(!bIntersected && bEnumerateOutsideRange && PreviousEvent != Event)
 					{
 						Callback(PreviousEvent->Time, PreviousEvent->Time, 0, PreviousEvent->Event);
 					}

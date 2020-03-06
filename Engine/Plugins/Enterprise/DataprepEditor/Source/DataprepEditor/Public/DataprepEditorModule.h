@@ -47,9 +47,4 @@ public:
 	virtual TSharedRef<SWidget> CreateDataprepDetailsView(UObject* ObjectToDetail) = 0;
 
 	static EAssetTypeCategories::Type DataprepCategoryBit;
-
-	// Temporary remove this when new graph is implemented (to create dataprep action node
-	virtual class UEdGraphNode* CreateDataprepActionInGraph(class UEdGraph& Graph, class UDataprepActionAsset*& OutDataprepAction) = 0;
-
-	virtual UEdGraphNode* CreateDataprepActionInGraphByDuplication(UEdGraph& Graph, const UDataprepActionAsset& DataprepAssetToBeDuplicated, UDataprepActionAsset*& OutDataprepAction) = 0;
 };

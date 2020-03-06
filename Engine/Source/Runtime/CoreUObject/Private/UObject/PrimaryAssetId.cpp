@@ -5,6 +5,8 @@
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectRedirector.h"
 
+	
+
 bool FPrimaryAssetType::ExportTextItem(FString& ValueStr, FPrimaryAssetType const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
 	if (0 != (PortFlags & PPF_ExportCpp))
@@ -58,6 +60,28 @@ bool FPrimaryAssetType::SerializeFromMismatchedTag(struct FPropertyTag const& Ta
 	}
 
 	return false;
+}
+
+FPrimaryAssetId FPrimaryAssetId::ParseTypeAndName(const TCHAR* TypeAndName, uint32 Len)
+{
+	for (uint32 Idx = 0; Idx < Len; ++Idx)
+	{
+		if (TypeAndName[Idx] == ':')
+		{
+			FName Type(Idx, TypeAndName);
+			FName Name(Len - Idx - 1, TypeAndName + Idx + 1);
+			return FPrimaryAssetId(Type, Name);
+		}
+	}
+
+	return FPrimaryAssetId();
+}
+	
+FPrimaryAssetId FPrimaryAssetId::ParseTypeAndName(FName TypeAndName)
+{
+	TCHAR Str[FName::StringBufferSize];
+	uint32 Len = TypeAndName.ToString(Str);
+	return ParseTypeAndName(Str, Len);
 }
 
 bool FPrimaryAssetId::ExportTextItem(FString& ValueStr, FPrimaryAssetId const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const

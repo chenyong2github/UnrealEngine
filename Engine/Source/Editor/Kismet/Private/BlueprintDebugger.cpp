@@ -205,7 +205,7 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 			}
 			else
 			{
-				InDebuggingToolsManager->InvokeTab(InTabName);
+				InDebuggingToolsManager->TryInvokeTab(InTabName);
 			}
 		}
 	};

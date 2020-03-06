@@ -11,7 +11,6 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
-#include "SNiagaraGraphPinAdd.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeOutput.h"
@@ -339,9 +338,9 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 
 	FString EmitterUniqueName = GetEmitterUniqueName();
 	UNiagaraGraph* Graph = GetCalledGraph();
-	if (Graph && ParamMapIdx != INDEX_NONE)
+	if (Graph && ParamMapIdx != INDEX_NONE && OutHistory.bShouldBuildSubHistories)
 	{
-		OutHistory.EnterEmitter(EmitterUniqueName, this);
+		OutHistory.EnterEmitter(EmitterUniqueName, Graph, this);
 
 		TArray<ENiagaraScriptUsage> Usages;
 		Usages.Add(ENiagaraScriptUsage::EmitterSpawnScript);
@@ -350,6 +349,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 		Usages.Add(ENiagaraScriptUsage::ParticleSpawnScriptInterpolated);
 		Usages.Add(ENiagaraScriptUsage::ParticleUpdateScript);
 		Usages.Add(ENiagaraScriptUsage::ParticleEventScript);
+		Usages.Add(ENiagaraScriptUsage::ParticleSimulationStageScript);
 	
 		uint32 NodeIdx = OutHistory.BeginNodeVisitation(ParamMapIdx, this);
 		for (ENiagaraScriptUsage OutputNodeUsage : Usages)
@@ -364,7 +364,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 			ChildBuilder.RegisterEncounterableVariables(OutHistory.GetEncounterableVariables());
 			ChildBuilder.EnableScriptWhitelist(true, GetUsage());
 			FString LocalEmitterName = TEXT("Emitter");
-			ChildBuilder.EnterEmitter(LocalEmitterName, this);
+			ChildBuilder.EnterEmitter(LocalEmitterName, Graph, this);
 			for (UNiagaraNodeOutput* OutputNode : OutputNodes)
 			{
 				ChildBuilder.BuildParameterMaps(OutputNode, true);
@@ -384,11 +384,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 					int32 ExistingIdx = OutHistory.Histories[ParamMapIdx].FindVariable(Var.GetName(), Var.GetType());
 					if (ExistingIdx == INDEX_NONE)
 					{
-						ExistingIdx = OutHistory.Histories[ParamMapIdx].Variables.Add(Var);
-						OutHistory.Histories[ParamMapIdx].VariablesWithOriginalAliasesIntact.Add(History.VariablesWithOriginalAliasesIntact[SrcVarIdx]);
-						OutHistory.Histories[ParamMapIdx].PerVariableReadHistory.AddDefaulted(1);
-						OutHistory.Histories[ParamMapIdx].PerVariableWriteHistory.AddDefaulted(1);
-						OutHistory.Histories[ParamMapIdx].PerVariableWarnings.AddDefaulted(1);
+						ExistingIdx = OutHistory.AddVariableToHistory(OutHistory.Histories[ParamMapIdx], Var, History.VariablesWithOriginalAliasesIntact[SrcVarIdx], nullptr);
 					}
 					ensure(ExistingIdx < OutHistory.Histories[ParamMapIdx].PerVariableWarnings.Num());
 					ensure(ExistingIdx < OutHistory.Histories[ParamMapIdx].PerVariableReadHistory.Num());

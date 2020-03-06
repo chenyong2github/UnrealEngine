@@ -1118,10 +1118,12 @@ class FGenerateVulkanVisitor : public ir_visitor
 		const char * const GLSLmode_str[] = { "", "uniform ", "in ", "out ", "inout ", "in ", "", "shared ", "", "", "uniform_ref " };
 		const char * const ESVSmode_str[] = { "", "uniform ", "attribute ", "varying ", "inout ", "in ", "", "shared " };
 		const char * const ESFSmode_str[] = { "", "uniform ", "varying ", "attribute ", "", "in ", "", "shared " };
-		const char * const interp_str[] = { "", "smooth ", "flat ", "noperspective " };
+		const char * const GLSLinterp_str[] = { "", "smooth ", "flat ", "noperspective " };
+		const char * const ES31interp_str[] = { "", "smooth ", "flat ", "" };
 		const char * const layout_str[] = { "", "layout(origin_upper_left) ", "layout(pixel_center_integer) ", "layout(origin_upper_left,pixel_center_integer) " };
 
 		const char * const * mode_str = bIsES ? ((ParseState->target == vertex_shader) ? ESVSmode_str : ESFSmode_str) : GLSLmode_str;
+		const char * const * interp_str = bIsES31 ? ES31interp_str : GLSLinterp_str;
 
 		// Check for an initialized const variable
 		// If var is read-only and initialized, set it up as an initialized const
@@ -4317,7 +4319,7 @@ static ir_rvalue* GenShaderInputSemantic(
 
 							return TempVariableDeref->clone(ParseState, NULL);
 						}
-						else if (ParseState->adjust_clip_space_dx11_to_opengl && SystemValues[i].bApplyClipSpaceAdjustment)
+						else if (SystemValues[i].bApplyClipSpaceAdjustment)
 						{
 							// incoming gl_FrontFacing. Make it (!gl_FrontFacing), due to vertical flip in OpenGL
 							return new(ParseState)ir_expression(ir_unop_logic_not, glsl_type::bool_type, VariableDeref, NULL);
@@ -5182,7 +5184,7 @@ static void GenShaderOutputForVariable(
 					);
 			}
 
-			// GLSL doesn't support pow2 partitioning, so we treate pow2 as integer partitioning and
+			// GLSL doesn't support pow2 partitioning, so we treat pow2 as integer partitioning and
 			// manually compute the next power of two via exp2(pow(ceil(log2(Src)));
 			if (ApplyClampPowerOfTwo)
 			{
@@ -5370,8 +5372,8 @@ bool FVulkanCodeBackend::GenerateMain(
 	exec_list* Instructions,
 	_mesa_glsl_parse_state* ParseState)
 {
-	// Force coordinate system adjustment from GLSL->Vulkan
-	ParseState->adjust_clip_space_dx11_to_opengl = true;
+	// Don't force coordinate system adjustment from GLSL->Vulkan as we transition to flipping the viewport instead of gl_Position.y coordinate
+	ParseState->adjust_clip_space_dx11_to_opengl = false;
 
 	{
 		// Set up origin_upper_left for gl_FragCoord, depending on HLSLCC_DX11ClipSpace flag presence.
@@ -5380,7 +5382,8 @@ bool FVulkanCodeBackend::GenerateMain(
 		{
 			if (FCStringAnsi::Stricmp(SystemValues[i].GlslName, "gl_FragCoord") == 0)
 			{
-				SystemValues[i].bOriginUpperLeft = !ParseState->adjust_clip_space_dx11_to_opengl;
+				// Always disable layout(origin_upper_left) attribute as we transition to flipping the viewport instead of gl_Position.y coordinate
+				SystemValues[i].bOriginUpperLeft = false;// !ParseState->adjust_clip_space_dx11_to_opengl;// false;
 				break;
 			}
 		}

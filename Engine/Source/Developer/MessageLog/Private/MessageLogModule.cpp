@@ -124,7 +124,7 @@ void FMessageLogModule::OpenMessageLog(const FName& LogName)
 #endif
 	   )
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FName("MessageLog"));
+		FGlobalTabmanager::Get()->TryInvokeTab(FName("MessageLog"));
 		MessageLogViewModel->ChangeCurrentListingViewModel(LogName);
 	}
 }

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_PACKAGE_RESOLVER_H
-#define AR_PACKAGE_RESOLVER_H
+#ifndef PXR_USD_AR_PACKAGE_RESOLVER_H
+#define PXR_USD_AR_PACKAGE_RESOLVER_H
 
 /// \file ar/packageResolver.h
 
@@ -65,7 +65,7 @@ class VtValue;
 ///   #AR_DEFINE_PACKAGE_RESOLVER
 /// \code{.cpp}
 /// # custom resolver's .cpp file
-/// AR_DEFINE_RESOLVER(CustomResolver, ArResolver);
+/// AR_DEFINE_PACKAGE_RESOLVER(CustomPackageResolver, ArPackageResolver);
 /// \endcode
 ///
 /// - Declare the ArPackageResolver subclass in the plugin's plugInfo.json file.
@@ -175,4 +175,4 @@ protected:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // AR_PACKAGE_RESOLVER_H
+#endif // PXR_USD_AR_PACKAGE_RESOLVER_H

@@ -4484,6 +4484,7 @@ void SAnimNotifyPanel::OnReplaceSelectedWithNotify(FString NewNotifyName, UClass
 			if ((OldEventPayload != nullptr) && (NewEvent.Notify != nullptr))
 			{
 				UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
+				CopyParams.bNotifyObjectReplacement = true;
 				UEngine::CopyPropertiesForUnrelatedObjects(OldEventPayload, NewEvent.Notify, CopyParams);
 			}
 

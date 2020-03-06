@@ -7,6 +7,8 @@ D3D12Util.h: D3D RHI utility implementation.
 #include "D3D12RHIPrivate.h"
 #include "EngineModule.h"
 #include "RendererInterface.h"
+#include "CoreGlobals.h"
+#include "Misc/OutputDeviceRedirector.h"
 
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
@@ -202,9 +204,174 @@ static FString GetD3D12TextureFlagString(uint32 TextureFlags)
 	return TextureFormatText;
 }
 
-extern CORE_API bool GIsGPUCrashed;
-static void TerminateOnDeviceRemoved(HRESULT D3DResult)
+
+#if PLATFORM_WINDOWS
+
+static void LogDREDData(ID3D12Device* Device)
 {
+	// Should match all values from D3D12_AUTO_BREADCRUMB_OP
+	static const TCHAR* OpNames[] =
+	{
+		TEXT("SetMarker"),
+		TEXT("BeginEvent"),
+		TEXT("Endevent"),
+		TEXT("DrawInstanced"),
+		TEXT("DrawIndexedInstanced"),
+		TEXT("ExecuteIndirect"),
+		TEXT("Dispatch"),
+		TEXT("CopyBufferRegion"),
+		TEXT("CopyTextureRegion"),
+		TEXT("CopyResource"),
+		TEXT("CopyTiles"),
+		TEXT("ResolveSubresource"),
+		TEXT("ClearRenderTargetView"),
+		TEXT("ClearUnorderedAccessView"),
+		TEXT("ClearDepthStencilView"),
+		TEXT("ResourceBarrier"),
+		TEXT("ExecuteBundle"),
+		TEXT("Present"),
+		TEXT("ResolveQueryData"),
+		TEXT("BeginSubmission"),
+		TEXT("EndSubmission"),
+		TEXT("DecodeFrame"),
+		TEXT("ProcessFrames"),
+		TEXT("AtomicCopyBufferUint"),
+		TEXT("AtomicCopyBufferUint64"),
+		TEXT("ResolveSubresourceRegion"),
+		TEXT("WriteBufferImmediate"),
+		TEXT("DecodeFrame1"),
+		TEXT("SetProtectedResourceSession"),
+		TEXT("DecodeFrame2"),
+		TEXT("ProcessFrames1"),
+		TEXT("BuildRaytracingAccelerationStructure"),
+		TEXT("EmitRaytracingAccelerationStructurePostBuildInfo"),
+		TEXT("CopyRaytracingAccelerationStructure"),
+		TEXT("DispatchRays"),
+		TEXT("InitializeMetaCommand"),
+		TEXT("ExecuteMetaCommand"),
+		TEXT("EstimateMotion"),
+		TEXT("ResolveMotionVectorHeap"),
+		TEXT("SetPipelineState1"),
+		TEXT("InitializeExtensionCommand"),
+		TEXT("ExecuteExtensionCommand"),
+	};
+	static_assert(UE_ARRAY_COUNT(OpNames) == D3D12_AUTO_BREADCRUMB_OP_EXECUTEEXTENSIONCOMMAND + 1, "OpNames array length mismatch");
+
+	// Should match all valid values from D3D12_DRED_ALLOCATION_TYPE
+	static const TCHAR* AllocTypesNames[] =
+	{
+		TEXT("CommandQueue"),
+		TEXT("CommandAllocator"),
+		TEXT("PipelineState"),
+		TEXT("CommandList"),
+		TEXT("Fence"),
+		TEXT("DescriptorHeap"),
+		TEXT("Heap"),
+		TEXT("Unknown"),				// Unknown type - missing enum value in D3D12_DRED_ALLOCATION_TYPE
+		TEXT("QueryHeap"),
+		TEXT("CommandSignature"),
+		TEXT("PipelineLibrary"),
+		TEXT("VideoDecoder"),
+		TEXT("Unknown"),				// Unknown type - missing enum value in D3D12_DRED_ALLOCATION_TYPE
+		TEXT("VideoProcessor"),
+		TEXT("Unknown"),				// Unknown type - missing enum value in D3D12_DRED_ALLOCATION_TYPE
+		TEXT("Resource"),
+		TEXT("Pass"),
+		TEXT("CryptoSession"),
+		TEXT("CryptoSessionPolicy"),
+		TEXT("ProtectedResourceSession"),
+		TEXT("VideoDecoderHeap"),
+		TEXT("CommandPool"),
+		TEXT("CommandRecorder"),
+		TEXT("StateObjectr"),
+		TEXT("MetaCommand"),
+		TEXT("SchedulingGroup"),
+		TEXT("VideoMotionEstimator"),
+		TEXT("VideoMotionVectorHeap"),
+		TEXT("VideoExtensionCommand"),
+	};
+	static_assert(UE_ARRAY_COUNT(AllocTypesNames) == D3D12_DRED_ALLOCATION_TYPE_VIDEO_EXTENSION_COMMAND - D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE + 1, "AllocTypes array length mismatch");
+
+	ID3D12DeviceRemovedExtendedData* Dred = nullptr;
+	if (SUCCEEDED(Device->QueryInterface(IID_PPV_ARGS(&Dred))))
+	{
+		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
+		if (SUCCEEDED(Dred->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput)))
+		{
+			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Last tracked GPU operations:"));
+
+			const D3D12_AUTO_BREADCRUMB_NODE* Node = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			while (Node)
+			{
+				int32 LastCompletedOp = *Node->pLastBreadcrumbValue;
+
+				UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Commandlist \"%s\" on CommandQueue \"%s\", %d completed of %d"), Node->pCommandListDebugNameW, Node->pCommandQueueDebugNameW, LastCompletedOp, Node->BreadcrumbCount);
+
+				int32 FirstOp = FMath::Max(LastCompletedOp - 5, 0);
+				int32 LastOp = FMath::Min(LastCompletedOp + 5, int32(Node->BreadcrumbCount) - 1);
+
+				for (int32 Op = FirstOp; Op <= LastOp; ++Op)
+				{
+					//uint32 LastOpIndex = (*Node->pLastBreadcrumbValue - 1) % 65536;
+					D3D12_AUTO_BREADCRUMB_OP BreadcrumbOp = Node->pCommandHistory[Op];
+					const TCHAR* OpName = (BreadcrumbOp < UE_ARRAY_COUNT(OpNames)) ? OpNames[BreadcrumbOp] : TEXT("Unknown Op");
+					UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s"), Op, OpName, (Op + 1 == LastCompletedOp) ? TEXT(" - Last completed") : TEXT(""));
+				}
+
+				Node = Node->pNext;
+			}
+		}
+
+		D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
+		if (SUCCEEDED(Dred->GetPageFaultAllocationOutput(&DredPageFaultOutput)) && DredPageFaultOutput.PageFaultVA != 0)
+		{
+			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: PageFault at VA GPUAddress \"0x%x\""), DredPageFaultOutput.PageFaultVA);
+
+			const D3D12_DRED_ALLOCATION_NODE* Node = DredPageFaultOutput.pHeadExistingAllocationNode;
+			if (Node)
+			{
+				UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Active objects with VA ranges that match the faulting VA:"));
+				while (Node)
+				{
+					int32 alloc_type_index = Node->AllocationType - D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE;
+					const TCHAR* AllocTypeName = (alloc_type_index < UE_ARRAY_COUNT(AllocTypesNames)) ? AllocTypesNames[alloc_type_index] : TEXT("Unknown Alloc");
+					UE_LOG(LogD3D12RHI, Error, TEXT("\tName: %s (Type: %s)"), Node->ObjectNameW, AllocTypeName);
+
+					Node = Node->pNext;
+				}
+			}
+
+			Node = DredPageFaultOutput.pHeadRecentFreedAllocationNode;
+			if (Node)
+			{
+				UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Recent freed objects with VA ranges that match the faulting VA:"));
+				while (Node)
+				{
+					int32 alloc_type_index = Node->AllocationType - D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE;
+					const TCHAR* AllocTypeName = (alloc_type_index < UE_ARRAY_COUNT(AllocTypesNames)) ? AllocTypesNames[alloc_type_index] : TEXT("Unknown Alloc");
+					UE_LOG(LogD3D12RHI, Error, TEXT("\tName: %s (Type: %s)"), Node->ObjectNameW, AllocTypeName);
+
+					Node = Node->pNext;
+				}
+			}
+		}
+
+		GLog->Flush();
+	}
+}
+
+#endif  // PLATFORM_WINDOWS
+
+extern CORE_API bool GIsGPUCrashed;
+static void TerminateOnDeviceRemoved(HRESULT D3DResult, ID3D12Device* Device)
+{
+	static FCriticalSection cs;
+	FScopeLock scope_lock(&cs);
+
+	// already handled the gpu crash?
+	if (GIsGPUCrashed)
+		return;
+
 	if (GDynamicRHI)
 	{
 		GDynamicRHI->CheckGpuHeartbeat();
@@ -212,7 +379,16 @@ static void TerminateOnDeviceRemoved(HRESULT D3DResult)
 
 	if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
 	{
+		GIsCriticalError = true;
 		GIsGPUCrashed = true;
+
+#if PLATFORM_WINDOWS
+		if (Device)
+		{
+			LogDREDData(Device);
+		}
+#endif  // PLATFORM_WINDOWS
+
 		if (!FApp::IsUnattended())
 		{
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("DeviceRemoved", "Video driver crashed and was reset!  Make sure your video drivers are up to date.  Exiting...").ToString(), TEXT("Error"));
@@ -259,17 +435,17 @@ namespace D3D12RHI
 		const FString& ErrorString = GetD3D12ErrorString(D3DResult, Device);
 		UE_LOG(LogD3D12RHI, Error, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
 
-		TerminateOnDeviceRemoved(D3DResult);
+		TerminateOnDeviceRemoved(D3DResult, Device);
 		TerminateOnOutOfMemory(D3DResult, false);
 
 		UE_LOG(LogD3D12RHI, Fatal, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
 	}
 
-	void VerifyD3D12CreateTextureResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, const D3D12_RESOURCE_DESC& TextureDesc)
+	void VerifyD3D12CreateTextureResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, const D3D12_RESOURCE_DESC& TextureDesc, ID3D12Device* Device)
 	{
 		check(FAILED(D3DResult));
 
-		const FString ErrorString = GetD3D12ErrorString(D3DResult, 0);
+		const FString ErrorString = GetD3D12ErrorString(D3DResult, nullptr);
 		const TCHAR* D3DFormatString = GetD3D12TextureFormatString(TextureDesc.Format);
 
 		UE_LOG(LogD3D12RHI, Error,
@@ -286,7 +462,7 @@ namespace D3D12RHI
 			TextureDesc.MipLevels,
 			*GetD3D12TextureFlagString(TextureDesc.Flags));
 
-		TerminateOnDeviceRemoved(D3DResult);
+		TerminateOnDeviceRemoved(D3DResult, Device);
 		TerminateOnOutOfMemory(D3DResult, true);
 
 		// this is to track down a rarely happening crash

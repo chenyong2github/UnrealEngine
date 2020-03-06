@@ -597,8 +597,10 @@ bool FDesktopPlatformMac::UpdateFileAssociations()
 	return Status == noErr;
 }
 
-bool FDesktopPlatformMac::RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn)
+bool FDesktopPlatformMac::RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn, int32& OutExitCode)
 {
+	OutExitCode = 1;
+
 	// Get the path to UBT
 	FString UnrealBuildToolPath = RootDir / TEXT("Engine/Binaries/DotNET/UnrealBuildTool.exe");
 	if(IFileManager::Get().FileSize(*UnrealBuildToolPath) < 0)
@@ -612,8 +614,7 @@ bool FDesktopPlatformMac::RunUnrealBuildTool(const FText& Description, const FSt
 	FString CmdLineParams = FString::Printf(TEXT("\"%s\" \"%s\" %s"), *ScriptPath, *UnrealBuildToolPath, *Arguments);
 
 	// Spawn it
-	int32 ExitCode = 0;
-	return FFeedbackContextMarkup::PipeProcessOutput(Description, TEXT("/bin/sh"), CmdLineParams, Warn, &ExitCode) && ExitCode == 0;
+	return FFeedbackContextMarkup::PipeProcessOutput(Description, TEXT("/bin/sh"), CmdLineParams, Warn, &OutExitCode) && OutExitCode == 0;
 }
 
 bool FDesktopPlatformMac::IsUnrealBuildToolRunning()

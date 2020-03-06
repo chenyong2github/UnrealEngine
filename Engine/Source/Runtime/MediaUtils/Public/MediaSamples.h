@@ -83,7 +83,7 @@ public:
 	 * @return Number of samples.
 	 * @see AddAudio, NumCaption, NumMetadata, NumSubtitle, NumVideo
 	 */
-	int32 NumAudio() const
+	int32 NumAudio() const override
 	{
 		return AudioSampleQueue.Num();
 	}
@@ -94,7 +94,7 @@ public:
 	 * @return Number of samples.
 	 * @see AddCaption, NumAudio, NumMetadata, NumSubtitle, NumVideo
 	 */
-	int32 NumCaption() const
+	int32 NumCaption() const override
 	{
 		return CaptionSampleQueue.Num();
 	}
@@ -105,7 +105,7 @@ public:
 	 * @return Number of samples.
 	 * @see AddMetadata, NumAudio, NumCaption, NumSubtitle, NumVideo
 	 */
-	int32 NumMetadataSamples() const
+	int32 NumMetadataSamples() const override
 	{
 		return MetadataSampleQueue.Num();
 	}
@@ -116,7 +116,7 @@ public:
 	 * @return Number of samples.
 	 * @see AddSubtitle, NumAudio, NumCaption, NumMetadata, NumVideo
 	 */
-	int32 NumSubtitleSamples() const
+	int32 NumSubtitleSamples() const override
 	{
 		return SubtitleSampleQueue.Num();
 	}
@@ -127,11 +127,15 @@ public:
 	 * @return Number of samples.
 	 * @see AddVideo, NumAudio, NumCaption, NumMetadata, NumSubtitle
 	 */
-	int32 NumVideoSamples() const
+	int32 NumVideoSamples() const override
 	{
 		return VideoSampleQueue.Num();
 	}
 
+	/**
+	 * Peek next video sample's timestamp
+	 * @return true if value could be retrieved, false otherwise
+	 */
 public:
 
 	//~ IMediaSamples interface
@@ -142,6 +146,27 @@ public:
 	virtual bool FetchSubtitle(TRange<FTimespan> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual bool FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual void FlushSamples() override;
+
+	virtual bool FetchCaption(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample) override;
+	virtual bool FetchSubtitle(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample) override;
+	virtual bool FetchVideo(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override;
+
+	virtual EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp> & TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse) override;
+
+	virtual bool PeekVideoSampleTime(FMediaTimeStamp & TimeStamp) override
+	{
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+		if (!VideoSampleQueue.Peek(Sample))
+		{
+			return false;
+		}
+		TimeStamp = Sample->GetTime();
+		return true;
+	}
+
+	virtual uint32 PurgeOutdatedVideoSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed) override;
+
+	virtual bool CanReceiveVideoSamples(uint32 Num) const override;
 
 private:
 

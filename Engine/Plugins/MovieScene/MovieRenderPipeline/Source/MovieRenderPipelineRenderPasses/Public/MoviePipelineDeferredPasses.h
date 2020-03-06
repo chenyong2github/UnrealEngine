@@ -5,6 +5,8 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "SceneTypes.h"
 #include "SceneView.h"
+#include "MoviePipelineSurfaceReader.h"
+#include "UObject/GCObject.h"
 #include "MoviePipelineDeferredPasses.generated.h"
 
 class UTextureRenderTarget2D;
@@ -28,7 +30,7 @@ protected:
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSettingDisplayName", "Deferred Rendering"); }
 
 
-	void OnBackbufferSampleReady(TArray<FLinearColor> InPixelData, FMoviePipelineRenderPassMetrics InSampleState);
+	void OnBackbufferSampleReady(TArray<FFloat16Color>& InPixelData, FMoviePipelineRenderPassMetrics InSampleState);
 	void OnSetupView(FSceneViewFamily& InViewFamily, FSceneView& InView, const FMoviePipelineRenderPassMetrics& InSampleState);
 
 private:
@@ -41,12 +43,11 @@ private:
 	TArray<TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe>> ImageTileAccumulator;
 };
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineSampleReady, TArray<FLinearColor>, FMoviePipelineRenderPassMetrics);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineSetupView, FSceneViewFamily&, FSceneView&, const FMoviePipelineRenderPassMetrics&);
 
 namespace MoviePipeline
 {
-	struct FDeferredRenderEnginePass : public FMoviePipelineEnginePass
+	struct FDeferredRenderEnginePass : public FMoviePipelineEnginePass, FGCObject
 	{
 		FDeferredRenderEnginePass()
 			: FMoviePipelineEnginePass(FMoviePipelinePassIdentifier(TEXT("MainDeferredPass")))
@@ -57,6 +58,10 @@ namespace MoviePipeline
 		virtual void RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState) override;
 		virtual void Teardown() override;
 
+		// FGCObject Interface
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		// ~FGCObject Interface
+
 		FMoviePipelineSampleReady BackbufferReadyDelegate;
 		FMoviePipelineSetupView SetupViewDelegate;
 
@@ -65,6 +70,9 @@ namespace MoviePipeline
 
 	protected:
 		FSceneViewStateReference ViewState;
+		
+		/** A queue of surfaces that the render targets can be copied to. If no surface is available the game thread should hold off on submitting more samples. */
+		TSharedPtr<FMoviePipelineSurfaceQueue> SurfaceQueue;
 
 		TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget;
 	};

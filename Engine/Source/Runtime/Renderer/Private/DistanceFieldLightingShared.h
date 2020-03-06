@@ -150,6 +150,7 @@ public:
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldObjectBufferParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(TDistanceFieldObjectBufferParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -227,16 +228,18 @@ public:
 	}
 
 private:
-	FRWShaderParameter SceneObjectBounds;
-	FRWShaderParameter SceneObjectData;
-	FShaderParameter NumSceneObjects;
-	FShaderResourceParameter DistanceFieldTexture;
-	FShaderResourceParameter DistanceFieldSampler;
-	FShaderParameter DistanceFieldAtlasTexelSize;
+	
+	LAYOUT_FIELD(FRWShaderParameter, SceneObjectBounds)
+	LAYOUT_FIELD(FRWShaderParameter, SceneObjectData)
+	LAYOUT_FIELD(FShaderParameter, NumSceneObjects)
+	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldSampler)
+	LAYOUT_FIELD(FShaderParameter, DistanceFieldAtlasTexelSize)
 };
 
 class FSurfelBufferParameters
 {
+	DECLARE_TYPE_LAYOUT(FSurfelBufferParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -268,9 +271,11 @@ public:
 	}
 
 private:
-	FRWShaderParameter InterpolatedVertexData;
-	FRWShaderParameter SurfelData;
-	FRWShaderParameter VPLFlux;
+	
+		LAYOUT_FIELD(FRWShaderParameter, InterpolatedVertexData)
+		LAYOUT_FIELD(FRWShaderParameter, SurfelData)
+		LAYOUT_FIELD(FRWShaderParameter, VPLFlux)
+	
 };
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
@@ -402,6 +407,7 @@ class FHeightFieldObjectBufferResource : public TDistanceFieldObjectBufferResour
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldCulledObjectBufferParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(TDistanceFieldCulledObjectBufferParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -512,14 +518,15 @@ public:
 	}
 
 private:
-	FRWShaderParameter ObjectIndirectArguments;
-	FRWShaderParameter CulledObjectBounds;
-	FRWShaderParameter CulledObjectData;
-	FRWShaderParameter CulledObjectBoxBounds;
-	FShaderResourceParameter HFVisibilityTexture;
-	FShaderResourceParameter DistanceFieldTexture;
-	FShaderResourceParameter DistanceFieldSampler;
-	FShaderParameter DistanceFieldAtlasTexelSize;
+	
+	LAYOUT_FIELD(FRWShaderParameter, ObjectIndirectArguments)
+	LAYOUT_FIELD(FRWShaderParameter, CulledObjectBounds)
+	LAYOUT_FIELD(FRWShaderParameter, CulledObjectData)
+	LAYOUT_FIELD(FRWShaderParameter, CulledObjectBoxBounds)
+	LAYOUT_FIELD(FShaderResourceParameter, HFVisibilityTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldSampler)
+	LAYOUT_FIELD(FShaderParameter, DistanceFieldAtlasTexelSize)
 };
 
 class FCPUUpdatedBuffer
@@ -626,6 +633,7 @@ public:
 
 class FLightTileIntersectionParameters
 {
+	DECLARE_TYPE_LAYOUT(FLightTileIntersectionParameters, NonVirtual);
 public:
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
@@ -714,12 +722,14 @@ public:
 	}
 
 private:
-	FRWShaderParameter ShadowTileNumCulledObjects;
-	FRWShaderParameter ShadowTileStartOffsets;
-	FRWShaderParameter NextStartOffset;
-	FRWShaderParameter ShadowTileArrayData;
-	FShaderParameter ShadowTileListGroupSize;
-	FShaderParameter ShadowAverageObjectsPerTile;
+	
+		LAYOUT_FIELD(FRWShaderParameter, ShadowTileNumCulledObjects)
+		LAYOUT_FIELD(FRWShaderParameter, ShadowTileStartOffsets)
+		LAYOUT_FIELD(FRWShaderParameter, NextStartOffset)
+		LAYOUT_FIELD(FRWShaderParameter, ShadowTileArrayData)
+		LAYOUT_FIELD(FShaderParameter, ShadowTileListGroupSize)
+		LAYOUT_FIELD(FShaderParameter, ShadowAverageObjectsPerTile)
+	
 };
 
 extern void CullDistanceFieldObjectsForLight(

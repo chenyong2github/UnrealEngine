@@ -3,8 +3,8 @@
 #include "/Engine/Private/Common.ush"
 
 uint NumElements;
-RWBuffer<uint> BoundingBoxBuffer;
-RWBuffer<uint> OutNodeBoundBuffer;
+RWBuffer<uint> BoundingBoxBufferA;
+RWBuffer<uint> OutBoundingBoxBufferB;
 
 uint FloatToUint( in float FloatValue)
 {
@@ -23,20 +23,20 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint ElementIndex = DispatchThreadId.x;
 	if (ElementIndex < NumElements)
 	{
-		OutNodeBoundBuffer[0] = BoundingBoxBuffer[0];
-		OutNodeBoundBuffer[1] = BoundingBoxBuffer[1];
-		OutNodeBoundBuffer[2] = BoundingBoxBuffer[2];
+		OutBoundingBoxBufferB[0] = BoundingBoxBufferA[0];
+		OutBoundingBoxBufferB[1] = BoundingBoxBufferA[1];
+		OutBoundingBoxBufferB[2] = BoundingBoxBufferA[2];
 
-		OutNodeBoundBuffer[3] = BoundingBoxBuffer[3];
-		OutNodeBoundBuffer[4] = BoundingBoxBuffer[4];
-		OutNodeBoundBuffer[5] = BoundingBoxBuffer[5];
+		OutBoundingBoxBufferB[3] = BoundingBoxBufferA[3];
+		OutBoundingBoxBufferB[4] = BoundingBoxBufferA[4];
+		OutBoundingBoxBufferB[5] = BoundingBoxBufferA[5];
 
-		BoundingBoxBuffer[0] = UINT_MAX;
-		BoundingBoxBuffer[1] = UINT_MAX;
-		BoundingBoxBuffer[2] = UINT_MAX;
+		BoundingBoxBufferA[0] = UINT_MAX;
+		BoundingBoxBufferA[1] = UINT_MAX;
+		BoundingBoxBufferA[2] = UINT_MAX;
 
-		BoundingBoxBuffer[3] = UINT_MIN;
-		BoundingBoxBuffer[4] = UINT_MIN;
-		BoundingBoxBuffer[5] = UINT_MIN;
+		BoundingBoxBufferA[3] = UINT_MIN;
+		BoundingBoxBufferA[4] = UINT_MIN;
+		BoundingBoxBufferA[5] = UINT_MIN;
 	}
 }

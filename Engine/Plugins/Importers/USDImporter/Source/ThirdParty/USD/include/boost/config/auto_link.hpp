@@ -161,10 +161,15 @@ BOOST_LIB_VERSION:    The Boost version, in the form x_y, for Boost version x.y.
      // vc12:
 #    define BOOST_LIB_TOOLSET "vc120"
 
-# elif defined(BOOST_MSVC)
+#  elif defined(BOOST_MSVC) && (BOOST_MSVC < 1910)
 
-   // vc14:
-#  define BOOST_LIB_TOOLSET "vc140"
+     // vc14:
+#    define BOOST_LIB_TOOLSET "vc140"
+
+#  elif defined(BOOST_MSVC)
+
+     // vc14.1:
+#    define BOOST_LIB_TOOLSET "vc141"
 
 #  elif defined(__BORLANDC__)
 
@@ -362,16 +367,7 @@ BOOST_LIB_VERSION:    The Boost version, in the form x_y, for Boost version x.y.
 #if (defined(_DLL) || defined(_RTLDLL)) && defined(BOOST_DYN_LINK)
 #  define BOOST_LIB_PREFIX
 #elif defined(BOOST_DYN_LINK)
-
-
-///////////////////////////////////////////
-// EPIC: Disabled this error to workaround static analysis issue
-//#  error "Mixing a dll boost library with a static runtime is a really bad idea..."
-
-#define BOOST_LIB_PREFIX
-///////////////////////////////////////////
-
-
+#  error "Mixing a dll boost library with a static runtime is a really bad idea..."
 #else
 #  define BOOST_LIB_PREFIX "lib"
 #endif

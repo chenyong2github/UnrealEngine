@@ -6,16 +6,20 @@
 
 #include "SlateFwd.h"
 #include "SlateOptMacros.h"
+#include "TimedDataMonitorTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/STableRow.h"
 
-
+enum class ETimedDataInputEvaluationType : uint8;
+struct FTimedDataInputTableRowData;
+struct FSlateBrush;
 class STimedDataInputListView;
 class STimedDataInputTableRow;
-struct FTimedDataInputTableRowData;
+class STimedDataMonitorPanel;
+class STimingDiagramWidget;
 
 
 /**
@@ -38,6 +42,9 @@ public:
 
 	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwerTableView, const TSharedRef<STimedDataInputListView>& OwnerTreeView);
 
+public:
+	void UpdateCachedValue();
+
 private:
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 
@@ -48,11 +55,17 @@ private:
 	FSlateColor GetStateColorAndOpacity() const;
 
 	FText GetDescription() const;
+	float GetEvaluationOffset() const;
 	FText GetEvaluationOffsetText() const;
-	TOptional<int32> GetBufferSize() const;
+	void SetEvaluationOffset(float NewValue, ETextCommit::Type CommitType);
+	int32 GetBufferSize() const;
 	FText GetBufferSizeText() const;
 	void SetBufferSize(int32 NewValue, ETextCommit::Type CommitType);
 	bool CanEditBufferSize() const;
+	int32 GetCurrentSampleCount() const;
+	TSharedRef<SWidget> OnEvaluationImageBuildMenu();
+	const FSlateBrush* GetEvaluationImage() const;
+	void SetInputEvaluationType(ETimedDataInputEvaluationType EvaluationType);
 
 	/** Queries about buffer stats to display */
 	FText GetBufferUnderflowCount() const;
@@ -62,6 +75,7 @@ private:
 private:
 	FTimedDataInputTableRowDataPtr Item;
 	TSharedPtr<STimedDataInputListView> OwnerTreeView;
+	TSharedPtr<STimingDiagramWidget> DiagramWidget;
 };
 
 
@@ -74,14 +88,16 @@ class STimedDataInputListView : public STreeView<FTimedDataInputTableRowDataPtr>
 
 public:
 	SLATE_BEGIN_ARGS(STimedDataInputListView) {}
+		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedPtr<STimedDataMonitorPanel> OwnerPanel);
 	virtual ~STimedDataInputListView();
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	void RequestRefresh();
+	void UpdateCachedValue();
 
-	void RequestRefresh() { bRefreshRequested = true; }
+	FTimedDataMonitorInputIdentifier GetSelectedInputIdentifier() const;
 
 private:
 	void RequestRebuildSources();
@@ -90,13 +106,16 @@ private:
 	ECheckBoxState GetAllEnabledCheckState() const;
 	void OnToggleAllEnabledCheckState(ECheckBoxState CheckBoxState);
 	TSharedRef<ITableRow> OnGenerateRow(FTimedDataInputTableRowDataPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void ReleaseListViewWidget(const TSharedRef<ITableRow>& Row);
 	void GetChildrenForInfo(FTimedDataInputTableRowDataPtr InItem, TArray<FTimedDataInputTableRowDataPtr>& OutChildren);
 	void OnSelectionChanged(FTimedDataInputTableRowDataPtr InItem, ESelectInfo::Type SelectInfo);
 	bool OnIsSelectableOrNavigable(FTimedDataInputTableRowDataPtr InItem) const;
 
+
 private:
+	TWeakPtr<STimedDataMonitorPanel> OwnerPanel;
+
 	TArray<FTimedDataInputTableRowDataPtr> ListItemsSource;
+	TArray<TWeakPtr<STimedDataInputTableRow>> ListRowWidgets;
 	bool bRebuildListRequested = true;
-	bool bRefreshRequested = true;
-	double LastCachedValueUpdateTime = 0.0;
 };

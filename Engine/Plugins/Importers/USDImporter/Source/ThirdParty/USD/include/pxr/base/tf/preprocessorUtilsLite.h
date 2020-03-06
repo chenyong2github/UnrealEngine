@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PREPROCESSORUTILSLITE_H
-#define TF_PREPROCESSORUTILSLITE_H
+#ifndef PXR_BASE_TF_PREPROCESSOR_UTILS_LITE_H
+#define PXR_BASE_TF_PREPROCESSOR_UTILS_LITE_H
 
 // Helper for TF_PP_CAT. This extra indirection is required so that macros get
 // expanded before the pasting occurs.
@@ -33,4 +33,4 @@
 /// header which is somewhat heavy.
 #define TF_PP_CAT(x, y) TF_PP_CAT_IMPL(x, y)
 
-#endif // TF_PREPROCESSORUTILSLITE_H
+#endif // PXR_BASE_TF_PREPROCESSOR_UTILS_LITE_H

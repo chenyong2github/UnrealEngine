@@ -37,6 +37,12 @@ namespace WindowsMixedReality
 		void SubscribeToRawCoordinateSystemAdjusted(winrt::Windows::Perception::Spatial::SpatialAnchor& anchor, const wchar_t* strName);
 		bool DidAnchorCoordinateSystemChange();
 		void OnRawCoordinateSystemAdjusted(const winrt::Windows::Perception::Spatial::SpatialAnchor& anchor, const winrt::Windows::Perception::Spatial::SpatialAnchorRawCoordinateSystemAdjustedEventArgs& args, const wchar_t* strName);
+		
+		// Support functions used by AzureSpatialAnchors
+		winrt::Windows::Perception::Spatial::SpatialAnchor* GetSpatialAnchor(const wchar_t* anchorId);
+		void StoreSpatialAnchor(const std::wstring& anchorId, winrt::Windows::Perception::Spatial::SpatialAnchor& newAnchor);
+
+
 
 		void SetLogCallback(void(*functionPointer)(const wchar_t* text));
 
@@ -46,6 +52,7 @@ namespace WindowsMixedReality
 		void(*m_logCallback)(const wchar_t*) = nullptr;
 
 		class MixedRealityInterop&														m_interop;
+		mutable std::mutex																m_spatialAnchorMapLock;
 		std::map<std::wstring, winrt::Windows::Perception::Spatial::SpatialAnchor>		m_spatialAnchorMap;
 		mutable std::mutex																m_spatialAnchorStoreLock;
 		winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Perception::Spatial::SpatialAnchorStore>		m_spatialAnchorStoreAsyncOperation;

@@ -163,6 +163,7 @@ public:
 
 	void OnListenerForgetsActor(const UAIPerceptionComponent& Listener, AActor& ActorToForget);
 	void OnListenerForgetsAll(const UAIPerceptionComponent& Listener);
+	void OnListenerConfigUpdated(FAISenseID SenseID, const UAIPerceptionComponent& Listener);
 
 	void RegisterDelayedStimulus(FPerceptionListenerID ListenerId, float Delay, AActor* Instigator, const FAIStimulus& Stimulus);
 

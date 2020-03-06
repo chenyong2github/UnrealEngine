@@ -1153,7 +1153,6 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 	// tell other side all the materials to load, by pathname
 	In << RecompileData.MaterialsToLoad;
 	In << RecompileData.ShaderPlatform;
-	In << RecompileData.SerializedShaderResources;
 	In << RecompileData.bCompileChangedShaders;
 
 	NetworkFileDelegates->RecompileShadersDelegate.ExecuteIfBound(RecompileData);

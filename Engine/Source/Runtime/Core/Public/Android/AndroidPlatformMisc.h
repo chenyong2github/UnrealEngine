@@ -182,6 +182,7 @@ public:
 #if USE_ANDROID_JNI
 	static int GetAndroidBuildVersion();
 #endif
+	static bool IsSupportedAndroidDevice();
 	static TMap<FString, FString> GetConfigRulesTMap();
 	static FString* GetConfigRulesVariable(const FString& Key);
 
@@ -214,7 +215,7 @@ public:
 	typedef TFunction<void()> OnPauseCallBackType;
 	static OnPauseCallBackType GetOnPauseCallback();
 	static void SetOnPauseCallback(OnPauseCallBackType InOnPauseCallback);
-	static void TriggerCrashHandler(const TCHAR* InErrorMessage, const TMap<FString, FString>& AdditionalProperties);
+	static void TriggerCrashHandler(const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack);
 	static void TriggerNonFatalCrashHandler(enum class ECrashContextType InType, const FString& Message);
 
 	static bool IsInSignalHandler();
@@ -272,7 +273,11 @@ public:
 
 	// Window access is locked by the game thread before preinit and unlocked here after RHIInit (PlatformCreateDynamicRHI). 
 	static void UnlockAndroidWindow();
-
+	
+	/**
+	 * Returns whether or not a 16 bit index buffer should be promoted to 32 bit on load, needed for some Android devices
+	 */
+	static bool Expand16BitIndicesTo32BitOnLoad();
 private:
     static EDeviceScreenOrientation DeviceOrientation;
 };

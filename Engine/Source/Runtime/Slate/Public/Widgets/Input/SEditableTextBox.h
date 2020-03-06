@@ -14,6 +14,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Framework/SlateDelegates.h"
 
 class IErrorReportingWidget;
 class SBox;
@@ -112,6 +113,9 @@ public:
 
 		/** Called whenever the text is committed.  This happens when the user presses enter or the text box loses focus. */
 		SLATE_EVENT( FOnTextCommitted, OnTextCommitted )
+
+		/** Called whenever the text is changed programmatically or interactively by the user */
+		SLATE_EVENT( FOnVerifyTextChanged, OnVerifyTextChanged )
 
 		/** Minimum width that a text block should be */
 		SLATE_ATTRIBUTE( float, MinDesiredWidth )
@@ -357,6 +361,11 @@ protected:
 	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const override;
 #endif
+	/** Callback for the editable text's OnTextChanged event */
+	void OnEditableTextChanged(const FText& InText);
+
+	/** Callback when the editable text is committed. */
+	void OnEditableTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
 
 	const FEditableTextBoxStyle* Style;
 
@@ -386,6 +395,15 @@ protected:
 
 	/** SomeWidget reporting */
 	TSharedPtr<class IErrorReportingWidget> ErrorReporting;
+
+	/** Called when the text is changed interactively */
+	FOnTextChanged OnTextChanged;
+
+	/** Called when the user commits their change to the editable text control */
+	FOnTextCommitted OnTextCommitted;	
+
+	/** Callback to verify text when changed. Will return an error message to denote problems. */
+	FOnVerifyTextChanged OnVerifyTextChanged;
 
 private:
 

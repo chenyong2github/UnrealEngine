@@ -1059,6 +1059,27 @@ bool FLayoutUV::FChartPacker::PackCharts(TArray< FMeshChart >& Charts, float UVS
 			int32				BestOrientation = -1;
 			FAllocator2D::FRect	BestRect = { ~0u, ~0u, ~0u, ~0u };
 
+			// Refactored BestRect comparison code in one place so this can be customized per version if needed
+			TFunction<bool (const FAllocator2D::FRect&)> IsBestRect;
+			if ( LayoutVersion >= ELightmapUVVersion::OptimalSurfaceArea )
+			{
+				// This version focus on minimal surface area giving fairness to both horizontal and vertical chart placement
+				// instead of only taking the pixel offset of the lower left corner into account.
+				IsBestRect = 
+					[&BestRect](const FAllocator2D::FRect& Rect)
+					{
+						return ((Rect.X+Rect.W) + (Rect.Y+Rect.H)) < ((BestRect.X+BestRect.W) + (BestRect.Y+BestRect.H));
+					};
+			}
+			else
+			{
+				IsBestRect = 
+					[this, &BestRect](const FAllocator2D::FRect& Rect)
+					{
+						return Rect.X + Rect.Y * TextureResolution < BestRect.X + BestRect.Y * TextureResolution;
+					};
+			}
+
 			for( int32 Orientation = 0; Orientation < 8; Orientation++ )
 			{
 				// TODO If any dimension is less than 1 pixel shrink dimension to zero
@@ -1085,8 +1106,7 @@ bool FLayoutUV::FChartPacker::PackCharts(TArray< FMeshChart >& Charts, float UVS
 				{
 					if( LayoutRaster.Find( Rect ) )
 					{
-						// Is best?
-						if( Rect.X + Rect.Y * TextureResolution < BestRect.X + BestRect.Y * TextureResolution )
+						if( IsBestRect(Rect) )
 						{
 							BestOrientation = Orientation;
 							BestRect = Rect;
@@ -1150,7 +1170,7 @@ bool FLayoutUV::FChartPacker::PackCharts(TArray< FMeshChart >& Charts, float UVS
 							}
 
 							LayoutRaster.ResetStats();
-							bFound = LayoutRaster.FindWithSegments(RasterRect, BestRect, ChartRaster);
+							bFound = LayoutRaster.FindWithSegments(RasterRect, ChartRaster, IsBestRect);
 							if (bFound)
 							{
 								// Store only the best possible position in the hash table so we can start from there for other identical charts
@@ -1167,7 +1187,7 @@ bool FLayoutUV::FChartPacker::PackCharts(TArray< FMeshChart >& Charts, float UVS
 									Rect.X = RasterRect.X;
 									Rect.Y = RasterRect.Y;
 
-									bFound = LayoutRaster.FindWithSegments(Rect, BestRect, ChartRaster);
+									bFound = LayoutRaster.FindWithSegments(Rect, ChartRaster, IsBestRect);
 								}
 								else
 								{
@@ -1177,7 +1197,7 @@ bool FLayoutUV::FChartPacker::PackCharts(TArray< FMeshChart >& Charts, float UVS
 								}
 							}
 
-							LayoutRaster.PublishStats(ChartIndex, Orientation, bFound, Rect, BestRect, RasterMD5);
+							LayoutRaster.PublishStats(ChartIndex, Orientation, bFound, Rect, BestRect, RasterMD5, IsBestRect);
 						}
 
 					}
@@ -1190,8 +1210,7 @@ bool FLayoutUV::FChartPacker::PackCharts(TArray< FMeshChart >& Charts, float UVS
 
 					if( bFound )
 					{
-						// Is best?
-						if( Rect.X + Rect.Y * TextureResolution < BestRect.X + BestRect.Y * TextureResolution )
+						if( IsBestRect(Rect) )
 						{
 							BestChartRaster = ChartRaster;
 

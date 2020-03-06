@@ -55,10 +55,10 @@ public:
 		checkf(UniformBuffer, TEXT("Attemped to assign a null uniform buffer to the global uniform buffer bindings."));
 		const FRHIUniformBufferLayout& Layout = UniformBuffer->GetLayout();
 		const FUniformBufferStaticSlot Slot = Layout.StaticSlot;
-		checkf(IsUniformBufferStaticSlotValid(Slot), TEXT("Attempted to set a global uniform buffer %s with an invalid slot."), *Layout.GetDebugName().ToString());
+		checkf(IsUniformBufferStaticSlotValid(Slot), TEXT("Attempted to set a global uniform buffer %s with an invalid slot."), *Layout.GetDebugName());
 
 #if VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS
-		ensureMsgf(INDEX_NONE == Slots.Find(Slot), TEXT("Uniform Buffer %s was added twice to the binding array."), *Layout.GetDebugName().ToString());
+		ensureMsgf(INDEX_NONE == Slots.Find(Slot), TEXT("Uniform Buffer %s was added twice to the binding array."), *Layout.GetDebugName());
 #endif
 
 		Slots.Add(Slot);
@@ -127,6 +127,9 @@ public:
 	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	*/
 	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) = 0;
+
+	virtual void RHIBeginUAVOverlap() {}
+	virtual void RHIEndUAVOverlap() {}
 
 	/**
 	* Clears a UAV to the multi-channel floating point value provided. Should only be called on UAVs with a floating point format, or on structured buffers.
@@ -346,6 +349,7 @@ public:
 	* Explicitly transition a texture resource from readable -> writable by the GPU or vice versa.
 	* We know render targets are only used as rendered targets on the Gfx pipeline, so these transitions are assumed to be implemented such
 	* Gfx->Gfx and Gfx->Compute pipeline transitions are both handled by this call by the RHI implementation.  Hence, no pipeline parameter on this call.
+	* TransitionPipeline version is also available to transition from Compute->Gfx for example
 	*
 	* @param TransitionType - direction of the transition
 	* @param InTextures - array of texture objects to transition
@@ -361,6 +365,21 @@ public:
 				RHICopyToResolveTarget(InTextures[i], InTextures[i], ResolveParams);
 			}
 		}
+	}
+
+	/**
+	* Explicitly transition a texture resource from readable -> writable by the GPU or vice versa.
+	* Also explicitly states which pipeline the texture can be used on next.  For example, if a Compute job just wrote this UAV for a Pixel shader to read
+	* you would do EResourceTransitionAccess::Readable and EResourceTransitionPipeline::EComputeToGfx
+	*
+	* @param TransitionType - direction of the transition
+	* @param TransitionPipeline - How this Texture is transitioning between Gfx and Compute, if at all.
+	* @param InTextures - array of texture objects to transition
+	* @param NumTextures - number of textures to transition
+	*/
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture** InTextures, int32 NumTextures)
+	{
+		RHITransitionResources(TransitionType, InTextures, NumTextures);
 	}
 
 	/**
@@ -407,6 +426,16 @@ public:
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
 
 	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
+
+	virtual void RHICalibrateTimers()
+	{
+		/* empty default implementation */
+	}
+
+	virtual void RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
+	{
+		/* empty default implementation */
+	}
 
 	// Used for OpenGL to check and see if any occlusion queries can be read back on the RHI thread. If they aren't ready when we need them, then we end up stalling.
 	virtual void RHIPollOcclusionQueries()

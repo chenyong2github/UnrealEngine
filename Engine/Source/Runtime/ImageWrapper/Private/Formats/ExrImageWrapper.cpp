@@ -15,11 +15,10 @@ FExrImageWrapper::FExrImageWrapper()
 {
 }
 
-
 template <typename sourcetype> class FSourceImageRaw
 {
 public:
-	FSourceImageRaw(const TArray<uint8>& SourceImageBitmapIN, uint32 ChannelsIN, uint32 WidthIN, uint32 HeightIN)
+	FSourceImageRaw(const TArray64<uint8>& SourceImageBitmapIN, uint64 ChannelsIN, uint64 WidthIN, uint64 HeightIN)
 		: SourceImageBitmap(SourceImageBitmapIN),
 			Width( WidthIN ),
 			Height(HeightIN),
@@ -28,19 +27,19 @@ public:
 		check(SourceImageBitmap.Num() == Channels*Width*Height*sizeof(sourcetype));
 	}
 
-	uint32 GetXStride() const	{return sizeof(sourcetype) * Channels;}
-	uint32 GetYStride() const	{return GetXStride() * Width;}
+	uint64 GetXStride() const	{return sizeof(sourcetype) * Channels;}
+	uint64 GetYStride() const	{return GetXStride() * Width;}
 
-	const sourcetype* GetHorzLine(uint32 y, uint32 Channel)
+	const sourcetype* GetHorzLine(uint64 y, uint64 Channel)
 	{
 		return &SourceImageBitmap[(sizeof(sourcetype) * Channel) + (GetYStride() * y)];
 	}
 
 private:
-	const TArray<uint8>& SourceImageBitmap;
-	uint32 Width;
-	uint32 Height;
-	uint32 Channels;
+	const TArray64<uint8>& SourceImageBitmap;
+	uint64 Width;
+	uint64 Height;
+	uint64 Channels;
 };
 
 
@@ -58,19 +57,21 @@ public:
 	{
 	}
 
-	virtual void write(const char c[/*n*/], int n)
+	// InN must be 32bit to match the abstract interface.
+	virtual void write(const char c[/*n*/], int32 InN)
 	{
-		int64 DestPost = Pos + n;
+		int64 SrcN = (int64)InN;
+		int64 DestPost = Pos + SrcN;
 		if (DestPost > Data.Num())
 		{
 			Data.AddUninitialized(FMath::Max(Data.Num() * 2, DestPost) - Data.Num());
 		}
 
-		for (int32 i = 0; i < n; ++i)
+		for (int64 i = 0; i < SrcN; ++i)
 		{
 			Data[Pos + i] = c[i];
 		}
-		Pos += n;
+		Pos += SrcN;
 	}
 
 
@@ -129,14 +130,17 @@ public:
 	// the file it returns false, otherwise it returns true.
 	//------------------------------------------------------
 
-	virtual bool read (char c[/*n*/], int n)
+	// InN must be 32bit to match the abstract interface.
+	virtual bool read (char c[/*n*/], int32 InN)
 	{
-		if(Pos + n > Size)
+		int64 SrcN = InN;
+
+		if(Pos + SrcN > Size)
 		{
 			return false;
 		}
 
-		for (int32 i = 0; i < n; ++i)
+		for (int64 i = 0; i < SrcN; ++i)
 		{
 			c[i] = Data[Pos];
 			++Pos;
@@ -178,17 +182,17 @@ namespace
 {
 	/////////////////////////////////////////
 	// 8 bit per channel source
-	void ExtractAndConvertChannel(const uint8*Src, uint32 SrcChannels, uint32 x, uint32 y, float* ChannelOUT)
+	void ExtractAndConvertChannel(const uint8*Src, uint64 SrcChannels, uint64 x, uint64 y, float* ChannelOUT)
 	{
-		for (uint64 i = 0; i < (uint64)x*y; i++, Src += SrcChannels)
+		for (uint64 i = 0; i < uint64(x)*uint64(y); i++, Src += SrcChannels)
 		{
 			ChannelOUT[i] = *Src / 255.f;
 		}
 	}
 
-	void ExtractAndConvertChannel(const uint8*Src, uint32 SrcChannels, uint32 x, uint32 y, FFloat16* ChannelOUT)
+	void ExtractAndConvertChannel(const uint8*Src, uint64 SrcChannels, uint64 x, uint64 y, FFloat16* ChannelOUT)
 	{
-		for (uint64 i = 0; i < (uint64)x*y; i++, Src += SrcChannels)
+		for (uint64 i = 0; i < uint64(x)*uint64(y); i++, Src += SrcChannels)
 		{
 			ChannelOUT[i] = FFloat16(*Src / 255.f);
 		}
@@ -196,17 +200,17 @@ namespace
 
 	/////////////////////////////////////////
 	// 16 bit per channel source
-	void ExtractAndConvertChannel(const FFloat16*Src, uint32 SrcChannels, uint32 x, uint32 y, float* ChannelOUT)
+	void ExtractAndConvertChannel(const FFloat16*Src, uint64 SrcChannels, uint64 x, uint64 y, float* ChannelOUT)
 	{
-		for (uint64 i = 0; i < (uint64)x*y; i++, Src += SrcChannels)
+		for (uint64 i = 0; i < uint64(x)*uint64(y); i++, Src += SrcChannels)
 		{
 			ChannelOUT[i] = Src->GetFloat();
 		}
 	}
 
-	void ExtractAndConvertChannel(const FFloat16*Src, uint32 SrcChannels, uint32 x, uint32 y, FFloat16* ChannelOUT)
+	void ExtractAndConvertChannel(const FFloat16*Src, uint64 SrcChannels, uint64 x, uint64 y, FFloat16* ChannelOUT)
 	{
-		for (uint64 i = 0; i < (uint64)x*y; i++, Src += SrcChannels)
+		for (uint64 i = 0; i < uint64(x)*uint64(y); i++, Src += SrcChannels)
 		{
 			ChannelOUT[i] = *Src;
 		}
@@ -214,17 +218,17 @@ namespace
 
 	/////////////////////////////////////////
 	// 32 bit per channel source
-	void ExtractAndConvertChannel(const float* Src, uint32 SrcChannels, uint32 x, uint32 y, float* ChannelOUT)
+	void ExtractAndConvertChannel(const float* Src, uint64 SrcChannels, uint64 x, uint64 y, float* ChannelOUT)
 	{
-		for (uint64 i = 0; i < (uint64)x*y; i++, Src += SrcChannels)
+		for (uint64 i = 0; i < uint64(x)*uint64(y); i++, Src += SrcChannels)
 		{
 			ChannelOUT[i] = *Src;
 		}
 	}
 
-	void ExtractAndConvertChannel(const float* Src, uint32 SrcChannels, uint32 x, uint32 y, FFloat16* ChannelOUT)
+	void ExtractAndConvertChannel(const float* Src, uint64 SrcChannels, uint64 x, uint64 y, FFloat16* ChannelOUT)
 	{
-		for (uint64 i = 0; i < (uint64)x*y; i++, Src += SrcChannels)
+		for (uint64 i = 0; i < uint64(x)*uint64(y); i++, Src += SrcChannels)
 		{
 			ChannelOUT[i] = *Src;
 		}
@@ -289,11 +293,11 @@ template <> struct TExrImageOutputChannelType<Imf::FLOAT> { typedef float Type; 
 template <Imf::PixelType OutputFormat, typename sourcetype>
 void FExrImageWrapper::WriteFrameBufferChannel(Imf::FrameBuffer& ImfFrameBuffer, const char* ChannelName, const sourcetype* SrcData, TArray64<uint8>& ChannelBuffer)
 {
-	const int32 OutputPixelSize = ((OutputFormat == Imf::HALF) ? 2 : 4);
-	ChannelBuffer.AddUninitialized((uint64)Width*Height*OutputPixelSize);
-	uint32 SrcChannels = GetNumChannelsFromFormat(RawFormat);
+	const int64 OutputPixelSize = ((OutputFormat == Imf::HALF) ? 2 : 4);
+	ChannelBuffer.AddUninitialized(uint64(Width)*uint64(Height)*uint64(OutputPixelSize));
+	uint64 SrcChannels = GetNumChannelsFromFormat(RawFormat);
 	ExtractAndConvertChannel(SrcData, SrcChannels, Width, Height, (typename TExrImageOutputChannelType<OutputFormat>::Type*)&ChannelBuffer[0]);
-	Imf::Slice FrameChannel = Imf::Slice(OutputFormat, (char*)&ChannelBuffer[0], OutputPixelSize, Width*OutputPixelSize);
+	Imf::Slice FrameChannel = Imf::Slice(OutputFormat, (char*)&ChannelBuffer[0], OutputPixelSize, uint64(Width)*uint64(OutputPixelSize));
 	ImfFrameBuffer.insert(ChannelName, FrameChannel);
 }
 
@@ -337,7 +341,7 @@ void FExrImageWrapper::CompressRaw(const sourcetype* SrcData, bool bIgnoreAlpha)
 		Imf::OutputFile ImfFile(MemFile, Header);
 		ImfFile.setFrameBuffer(ImfFrameBuffer);
 	
-		MemFile.Data.AddUninitialized(Width * Height * NumWriteComponents * (OutputFormat == 2 ? 4 : 2));
+		MemFile.Data.AddUninitialized(int64(Width) * int64(Height) * int64(NumWriteComponents) * int64(OutputFormat == 2 ? 4 : 2));
 		ImfFile.writePixels(Height);
 		FileLength = MemFile.tellp();
 	}
@@ -395,14 +399,14 @@ void FExrImageWrapper::Uncompress( const ERGBFormat InFormat, const int32 InBitD
 	check(Height);
 
 	uint32 Channels = 4;
-
+	
 	RawData.Empty();
-	RawData.AddUninitialized( Width * Height * Channels * (BitDepth / 8) );
+	RawData.AddUninitialized( int64(Width) * int64(Height) * int64(Channels) * int64(BitDepth / 8) );
 
 	int dx = win.min.x;
 	int dy = win.min.y;
 
-	ImfFile.setFrameBuffer((Imf::Rgba*)&RawData[0] - dx - dy * Width, 1, Width);
+	ImfFile.setFrameBuffer((Imf::Rgba*)&RawData[0] - int64(dx) - int64(dy) * int64(Width), 1, Width);
 	ImfFile.readPixels(win.min.y, win.max.y);
 }
 

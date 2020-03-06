@@ -12,7 +12,8 @@ RequiredTextureResolutionRendering.cpp: Contains definitions for rendering the v
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FRequiredTextureResolutionPS,TEXT("/Engine/Private/RequiredTextureResolutionPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
-void FRequiredTextureResolutionPS::GetDebugViewModeShaderBindings(
+void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
+	const FDebugViewModePS& ShaderBase,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT Material,
@@ -27,20 +28,22 @@ void FRequiredTextureResolutionPS::GetDebugViewModeShaderBindings(
 	FMeshDrawSingleShaderBindings& ShaderBindings
 ) const
 {
+	const FRequiredTextureResolutionPS& Shader = static_cast<const FRequiredTextureResolutionPS&>(ShaderBase);
 	int32 AnalysisIndex = INDEX_NONE;
 	int32 TextureResolution = 64;
 	FMaterialRenderContext MaterialContext(&MaterialRenderProxy, Material, nullptr);
-	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& ExpressionsByType = Material.GetUniform2DTextureExpressions();
+	const FUniformExpressionSet& UniformExpressions = Material.GetUniformExpressions();
 	if (ViewModeParam != INDEX_NONE && ViewModeParamName == NAME_None) // If displaying texture per texture indices
 	{
 		AnalysisIndex = ViewModeParam;
 
-		for (FMaterialUniformExpressionTexture* Expression : ExpressionsByType)
+		for (int32 ParameterIndex = 0; ParameterIndex < UniformExpressions.GetNumTextures(EMaterialTextureParameterType::Standard2D); ++ParameterIndex)
 		{
-			if (Expression && Expression->GetTextureIndex() == ViewModeParam)
+			const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, ParameterIndex);
+			if (Parameter.TextureIndex == ViewModeParam)
 			{
 				const UTexture* Texture = nullptr;
-				Expression->GetTextureValue(MaterialContext, Material, Texture);
+				UniformExpressions.GetTextureValue(EMaterialTextureParameterType::Standard2D, ParameterIndex, MaterialContext, Material, Texture);
 				const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 				if (Texture2D && Texture2D->Resource)
 				{
@@ -66,41 +69,39 @@ void FRequiredTextureResolutionPS::GetDebugViewModeShaderBindings(
 	else if (ViewModeParam != INDEX_NONE) // Otherwise show only texture matching the given name
 	{
 		AnalysisIndex = 1024; // Make sure not to find anything by default.
-		for (FMaterialUniformExpressionTexture* Expression : ExpressionsByType)
+		for (int32 ParameterIndex = 0; ParameterIndex < UniformExpressions.GetNumTextures(EMaterialTextureParameterType::Standard2D); ++ParameterIndex)
 		{
-			if (Expression)
+			const UTexture* Texture = nullptr;
+			UniformExpressions.GetTextureValue(EMaterialTextureParameterType::Standard2D, ParameterIndex, MaterialContext, Material, Texture);
+			if (Texture && Texture->GetFName() == ViewModeParamName)
 			{
-				const UTexture* Texture = nullptr;
-				Expression->GetTextureValue(MaterialContext, Material, Texture);
-				if (Texture && Texture->GetFName() == ViewModeParamName)
+				const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
+				if (Texture2D && Texture2D->Resource)
 				{
-					const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-					if (Texture2D && Texture2D->Resource)
+					if (!Texture2D->IsCurrentlyVirtualTextured())
 					{
-						if (!Texture2D->IsCurrentlyVirtualTextured())
+						FTexture2DResource* Texture2DResource = (FTexture2DResource*)Texture2D->Resource;
+						if (Texture2DResource->GetTexture2DRHI().IsValid())
 						{
-							FTexture2DResource* Texture2DResource =  (FTexture2DResource*)Texture2D->Resource;
-							if (Texture2DResource->GetTexture2DRHI().IsValid())
-							{
-								AnalysisIndex = Expression->GetTextureIndex();
-								TextureResolution = 1 << (Texture2DResource->GetTexture2DRHI()->GetNumMips() - 1);
-							}
-							break;
+							const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, ParameterIndex);
+							AnalysisIndex = Parameter.TextureIndex;
+							TextureResolution = 1 << (Texture2DResource->GetTexture2DRHI()->GetNumMips() - 1);
 						}
-						else
-						{
-							//FVirtualTexture2DResource* Texture2DResource = (FVirtualTexture2DResource*)Texture2D->Resource;
-							TextureResolution = FMath::Max(Texture2D->GetSizeX(), Texture2D->GetSizeY());
-							break;
-						}
+						break;
+					}
+					else
+					{
+						//FVirtualTexture2DResource* Texture2DResource = (FVirtualTexture2DResource*)Texture2D->Resource;
+						TextureResolution = FMath::Max(Texture2D->GetSizeX(), Texture2D->GetSizeY());
+						break;
 					}
 				}
 			}
 		}
 	}
 
-	ShaderBindings.Add(AnalysisParamsParameter, FIntPoint(AnalysisIndex, TextureResolution));
-	ShaderBindings.Add(PrimitiveAlphaParameter, (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f);
+	ShaderBindings.Add(Shader.AnalysisParamsParameter, FIntPoint(AnalysisIndex, TextureResolution));
+	ShaderBindings.Add(Shader.PrimitiveAlphaParameter, (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f);
 }
 
 

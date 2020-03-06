@@ -9,6 +9,11 @@
 #include "WindowsMixedRealitySpatialInputTypes.h"
 #include "WindowsMixedRealityAvailability.h"
 
+#if WITH_INPUT_SIMULATION
+#include "Engine/Engine.h"
+#include "WindowsMixedRealityInputSimulationEngineSubsystem.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "WindowsMixedRealitySpatialInput"
 #define MotionControllerDeviceTypeName "WindowsMixedRealitySpatialInput"
 
@@ -248,11 +253,6 @@ namespace WindowsMixedReality
 			// Trigger
 			position.X = FWindowsMixedRealityStatics::GetAxisPosition(hand, HMDInputControllerAxes::SelectValue);
 			key = (hand == HMDHand::Left) ?
-				EKeys::MotionController_Left_TriggerAxis :
-				EKeys::MotionController_Right_TriggerAxis;
-
-			SendControllerAxisEvent(MessageHandler, source, key, position.X);
-			key = (hand == HMDHand::Left) ?
 				EKeys::MixedReality_Left_Trigger_Axis :
 				EKeys::MixedReality_Right_Trigger_Axis;
 
@@ -261,11 +261,6 @@ namespace WindowsMixedReality
 			// Thumbstick X
 			position.X = FWindowsMixedRealityStatics::GetAxisPosition(hand, HMDInputControllerAxes::ThumbstickX);
 			key = (hand == HMDHand::Left) ?
-				EKeys::MotionController_Left_Thumbstick_X :
-				EKeys::MotionController_Right_Thumbstick_X;
-
-			SendControllerAxisEvent(MessageHandler, source, key, position.X);
-			key = (hand == HMDHand::Left) ?
 				EKeys::MixedReality_Left_Thumbstick_X :
 				EKeys::MixedReality_Right_Thumbstick_X;
 
@@ -273,11 +268,6 @@ namespace WindowsMixedReality
 
 			// Thumbstick Y
 			position.Y = FWindowsMixedRealityStatics::GetAxisPosition(hand, HMDInputControllerAxes::ThumbstickY);
-			key = (hand == HMDHand::Left) ?
-				EKeys::MotionController_Left_Thumbstick_Y :
-				EKeys::MotionController_Right_Thumbstick_Y;
-
-			SendControllerAxisEvent(MessageHandler, source, key, position.Y);
 			key = (hand == HMDHand::Left) ?
 				EKeys::MixedReality_Left_Thumbstick_Y :
 				EKeys::MixedReality_Right_Thumbstick_Y;
@@ -374,11 +364,6 @@ namespace WindowsMixedReality
 			if (pressState != HMDInputPressState::NotApplicable)
 			{
 				key = (hand == HMDHand::Left) ?
-					EKeys::MotionController_Left_Trigger :
-					EKeys::MotionController_Right_Trigger;
-
-				SendControllerButtonEvent(MessageHandler, source, key, pressState);
-				key = (hand == HMDHand::Left) ?
 					EKeys::MixedReality_Left_Trigger_Click :
 					EKeys::MixedReality_Right_Trigger_Click;
 
@@ -389,11 +374,6 @@ namespace WindowsMixedReality
 			pressState = FWindowsMixedRealityStatics::GetPressState(hand, HMDInputControllerButtons::Grasp);
 			if (pressState != HMDInputPressState::NotApplicable)
 			{
-				key = (hand == HMDHand::Left) ?
-					EKeys::MotionController_Left_Grip1 :
-					EKeys::MotionController_Right_Grip1;
-
-				SendControllerButtonEvent(MessageHandler, source, key, pressState);
 				key = (hand == HMDHand::Left) ?
 					EKeys::MixedReality_Left_Grip_Click :
 					EKeys::MixedReality_Right_Grip_Click;
@@ -416,11 +396,6 @@ namespace WindowsMixedReality
 			pressState = FWindowsMixedRealityStatics::GetPressState(hand, HMDInputControllerButtons::Thumbstick);
 			if (pressState != HMDInputPressState::NotApplicable)
 			{
-				key = (hand == HMDHand::Left) ?
-					EKeys::MotionController_Left_Thumbstick :
-					EKeys::MotionController_Right_Thumbstick;
-
-				SendControllerButtonEvent(MessageHandler, source, key, pressState);
 				key = (hand == HMDHand::Left) ?
 					EKeys::MixedReality_Left_Thumbstick_Click :
 					EKeys::MixedReality_Right_Thumbstick_Click;
@@ -830,6 +805,12 @@ namespace WindowsMixedReality
 	ETrackingStatus FWindowsMixedRealitySpatialInput::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
 	{
 #if WITH_WINDOWS_MIXED_REALITY
+#if WITH_INPUT_SIMULATION
+		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		{
+			return InputSim->GetControllerTrackingStatus(DeviceHand);
+		}
+#endif
 		HMDHand hand = (HMDHand)((int)DeviceHand);
 		HMDTrackingStatus trackingStatus = FWindowsMixedRealityStatics::GetControllerTrackingStatus(hand);
 
@@ -912,7 +893,8 @@ namespace WindowsMixedReality
 		if (GetHandEnumForSourceName(MotionSource, DeviceHand))
 		{
 			FRotator outRotator;
-			return FWindowsMixedRealityStatics::GetHandJointOrientationAndPosition((HMDHand)DeviceHand, (HMDHandJoint)jointIndex, outRotator, OutPosition);
+			float outRadius;
+			return FWindowsMixedRealityStatics::GetHandJointOrientationAndPosition((HMDHand)DeviceHand, (HMDHandJoint)jointIndex, outRotator, OutPosition, outRadius);
 		}
 #endif
 		return false;

@@ -16,7 +16,7 @@ class FCanvas;
 class FRenderTarget;
 
 UCLASS(MinimalAPI)
-class UNREALED_VTABLE UPhysicalMaterialMaskThumbnailRenderer : public UTextureThumbnailRenderer
+class UPhysicalMaterialMaskThumbnailRenderer : public UTextureThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
 

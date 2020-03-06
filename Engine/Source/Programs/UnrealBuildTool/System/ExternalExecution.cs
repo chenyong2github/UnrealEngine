@@ -46,9 +46,14 @@ namespace UnrealBuildTool
 		FailedDueToHeaderChange = 4,
 
 		/// <summary>
+		/// Compilation failed due to the engine modules needing to be rebuilt
+		/// </summary>
+		FailedDueToEngineChange = 5,
+
+		/// <summary>
 		/// Compilation failed due to compilation errors
 		/// </summary>
-		OtherCompilationError = 5,
+		OtherCompilationError = 6,
 
 		/// <summary>
 		/// Compilation is not supported in the current build
@@ -708,21 +713,25 @@ namespace UnrealBuildTool
 					return false;
 				}
 
-				TargetReceipt Receipt;
-				if (!TargetReceipt.TryRead(ReceiptPath, out Receipt))
+				// Don't check timestamps for individual binaries if we're using the installed version of UHT. It will always be up to date.
+				if (!UnrealBuildTool.IsFileInstalled(ReceiptFile.Location))
 				{
-					Timestamp = DateTime.MaxValue;
-					return false;
-				}
-
-				// Make sure all the build products exist, and that the receipt is newer
-				foreach (BuildProduct BuildProduct in Receipt.BuildProducts)
-				{
-					FileItem BuildProductItem = FileItem.GetItemByFileReference(BuildProduct.Path);
-					if(!BuildProductItem.Exists || BuildProductItem.LastWriteTimeUtc > ReceiptFile.LastWriteTimeUtc)
+					TargetReceipt Receipt;
+					if (!TargetReceipt.TryRead(ReceiptPath, out Receipt))
 					{
 						Timestamp = DateTime.MaxValue;
 						return false;
+					}
+
+					// Make sure all the build products exist, and that the receipt is newer
+					foreach (BuildProduct BuildProduct in Receipt.BuildProducts)
+					{
+						FileItem BuildProductItem = FileItem.GetItemByFileReference(BuildProduct.Path);
+						if (!BuildProductItem.Exists || BuildProductItem.LastWriteTimeUtc > ReceiptFile.LastWriteTimeUtc)
+						{
+							Timestamp = DateTime.MaxValue;
+							return false;
+						}
 					}
 				}
 

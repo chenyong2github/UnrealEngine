@@ -108,6 +108,10 @@ class ENGINE_API USceneCaptureComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SceneCapture)
 	int32 CaptureSortPriority;
 
+	/** Whether to use ray tracing for this capture. Ray Tracing must be enabled in the project. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SceneCapture)
+	bool bUseRayTracingIfEnabled;
+
 	/** ShowFlags for the SceneCapture's ViewFamily, to control rendering settings for this view. Hidden but accessible through details customization */
 	UPROPERTY(EditAnywhere, interp, Category=SceneCapture)
 	TArray<struct FEngineShowFlagsSetting> ShowFlagSettings;

@@ -14,13 +14,14 @@
 #include <memory>
 
 #if USE_USD_SDK
-
 #include "USDIncludesStart.h"
 	#include "pxr/pxr.h"
 	#include "pxr/base/tf/token.h"
 	#include "pxr/usd/usd/stageCache.h"
 #include "USDIncludesEnd.h"
+#endif // #if USE_USD_SDK
 
+#if USE_USD_SDK
 PXR_NAMESPACE_OPEN_SCOPE
 	class GfMatrix4d;
 	class SdfPath;
@@ -32,10 +33,10 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 	template< typename T > class TfRefPtr;
 PXR_NAMESPACE_CLOSE_SCOPE
-
 #endif // #if USE_USD_SDK
 
 class IUsdPrim;
+class FUsdDiagnosticDelegate;
 
 enum class EUsdInterpolationMethod
 {
@@ -168,8 +169,12 @@ public:
 	UNREALUSDWRAPPER_API static TUsdStore< pxr::TfRefPtr< pxr::UsdStage > > OpenUsdStage(const char* Path, const char* Filename);
 	UNREALUSDWRAPPER_API static pxr::UsdStageCache& GetUsdStageCache();
 #endif  // #if USE_USD_SDK
+
+	UNREALUSDWRAPPER_API static void SetupDiagnosticDelegate();
+	UNREALUSDWRAPPER_API static void ClearDiagnosticDelegate();
 private:
 	static bool bInitialized;
+	static TUniquePtr<FUsdDiagnosticDelegate> Delegate;
 };
 
 class FUsdAttribute
@@ -202,14 +207,17 @@ class IUsdPrim
 {
 public:
 #if USE_USD_SDK
-	static UNREALUSDWRAPPER_API EUsdPurpose GetPurpose(const pxr::UsdPrim& Prim);
-	static UNREALUSDWRAPPER_API FName GetPurposeName(EUsdPurpose Purpose);
+	static UNREALUSDWRAPPER_API bool IsValidPrimName(const FString& Name, FText& OutReason);
+
+	static UNREALUSDWRAPPER_API EUsdPurpose GetPurpose(const pxr::UsdPrim& Prim, bool bComputed = true);
 
 	static UNREALUSDWRAPPER_API bool HasGeometryData(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API bool HasGeometryDataOrLODVariants(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API int GetNumLODs(const pxr::UsdPrim& Prim);
+
 	static UNREALUSDWRAPPER_API bool IsKindChildOf(const pxr::UsdPrim& Prim, const std::string& InBaseKind);
 	static UNREALUSDWRAPPER_API pxr::TfToken GetKind(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API bool SetKind(const pxr::UsdPrim& Prim, const pxr::TfToken& Kind);
 
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalTransform(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim );

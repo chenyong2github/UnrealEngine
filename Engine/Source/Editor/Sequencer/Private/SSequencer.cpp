@@ -2269,7 +2269,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Auto; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -2281,7 +2281,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::User; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -2293,7 +2293,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Break; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -2305,7 +2305,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Linear; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -2317,7 +2317,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Constant; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 	MenuBuilder.EndSection(); // SequencerInterpolation
@@ -3190,15 +3190,18 @@ void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)
 	{
 		// Request the Tab Manager invoke the tab. This will spawn the tab if needed, otherwise pull it to focus. This assumes
 		// that the Toolkit Host's Tab Manager has already registered a tab with a NullWidget for content.
-		TSharedRef<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->InvokeTab(TabId);
-		CurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
+		TSharedPtr<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->TryInvokeTab(TabId);
+		if (CurveEditorTab.IsValid())
+		{
+			CurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
 
-		const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
-		CurveEditorTab->SetTabIcon(SequencerGraphIcon.GetIcon());
+			const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
+			CurveEditorTab->SetTabIcon(SequencerGraphIcon.GetIcon());
 
-		CurveEditorTab->SetLabel(LOCTEXT("SequencerMainGraphEditorTitle", "Sequencer Curves"));
+			CurveEditorTab->SetLabel(LOCTEXT("SequencerMainGraphEditorTitle", "Sequencer Curves"));
 
-		SequencerPtr.Pin()->GetCurveEditor()->ZoomToFit();
+			SequencerPtr.Pin()->GetCurveEditor()->ZoomToFit();
+		}
 	}
 	else
 	{

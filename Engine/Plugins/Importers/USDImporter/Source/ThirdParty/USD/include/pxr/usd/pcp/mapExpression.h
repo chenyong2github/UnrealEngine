@@ -21,18 +21,19 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PCP_MAP_EXPRESSION_H
-#define PCP_MAP_EXPRESSION_H
+#ifndef PXR_USD_PCP_MAP_EXPRESSION_H
+#define PXR_USD_PCP_MAP_EXPRESSION_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/pcp/api.h"
 #include "pxr/usd/pcp/mapFunction.h"
 
-#include <boost/optional.hpp>
+#include <boost/intrusive_ptr.hpp>
 
 #include <tbb/atomic.h>
-#include <tbb/spin_rw_mutex.h>
+#include <tbb/spin_mutex.h>
 
+#include <atomic>
 #include <memory>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -264,10 +265,11 @@ private: // data
         static TfStaticData<_NodeMap> _nodeRegistry;
 
         mutable tbb::atomic<int> _refCount;
-        mutable boost::optional<Value> _cachedValue;
+        mutable Value _cachedValue;
         mutable std::set<_Node*> _dependentExpressions;
         Value _valueForVariable;
-        mutable tbb::spin_rw_mutex _mutex;
+        mutable tbb::spin_mutex _mutex;
+        mutable std::atomic<bool> _hasCachedValue;
     };
 
     // Need to friend them here to have visibility to private class _Node.
@@ -279,4 +281,4 @@ private: // data
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PCP_MAP_EXPRESSION_H
+#endif // PXR_USD_PCP_MAP_EXPRESSION_H

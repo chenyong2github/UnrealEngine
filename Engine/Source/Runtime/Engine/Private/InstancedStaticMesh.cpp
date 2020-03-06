@@ -30,6 +30,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #endif // WITH_EDITOR
 #include "MeshMaterialShader.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
@@ -43,6 +44,9 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
+
+
+IMPLEMENT_TYPE_LAYOUT(FInstancedStaticMeshVertexFactoryShaderParameters);
 
 
 const int32 InstancedStaticMeshMaxTexCoord = 8;
@@ -377,6 +381,8 @@ void FStaticMeshInstanceBuffer::InitRHI()
 	if (InstanceData->GetNumInstances() > 0)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FStaticMeshInstanceBuffer_InitRHI);
+		SCOPED_LOADTIMER(FStaticMeshInstanceBuffer_InitRHI);
+
 		LLM_SCOPE(ELLMTag::InstancedMesh);
 		auto AccessFlags = BUF_Static;
 		CreateVertexBuffer(InstanceData->GetOriginResourceArray(), AccessFlags | BUF_ShaderResource, 16, PF_A32B32G32R32F, InstanceOriginBuffer.VertexBufferRHI, InstanceOriginSRV);
@@ -592,10 +598,32 @@ void FStaticMeshInstanceData::Serialize(FArchive& Ar)
 /**
  * Should we cache the material's shadertype on this platform with this vertex factory? 
  */
-bool FInstancedStaticMeshVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FInstancedStaticMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (Material->IsUsedWithInstancedStaticMeshes() || Material->IsSpecialEngineMaterial()) 
-			&& FLocalVertexFactory::ShouldCompilePermutation(Platform, Material, ShaderType);
+	return (Parameters.MaterialParameters.bIsUsedWithInstancedStaticMeshes || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
+			&& FLocalVertexFactory::ShouldCompilePermutation(Parameters);
+}
+
+void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
+	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Parameters.Platform))
+	{
+		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
+	}
+
+	OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
+	if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
+	{
+		OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES);
+	}
+	else
+	{
+		// On mobile dithered LOD transition has to be explicitly enabled in material and project settings
+		OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), Parameters.MaterialParameters.bIsDitheredLODTransition && ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES);
+	}
+
+	FLocalVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 }
 
 
@@ -617,6 +645,8 @@ void FInstancedStaticMeshVertexFactory::Copy(const FInstancedStaticMeshVertexFac
 
 void FInstancedStaticMeshVertexFactory::InitRHI()
 {
+	SCOPED_LOADTIMER(FInstancedStaticMeshVertexFactory_InitRHI);
+
 	check(HasValidFeatureLevel());
 
 #if !ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES // position(and normal) only shaders cannot work with dithered LOD
@@ -747,12 +777,10 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	}
 }
 
-
-FVertexFactoryShaderParameters* FInstancedStaticMeshVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new FInstancedStaticMeshVertexFactoryShaderParameters() : NULL;
-}
-
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_Vertex, FInstancedStaticMeshVertexFactoryShaderParameters);
+#if RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_RayHitGroup, FInstancedStaticMeshVertexFactoryShaderParameters);
+#endif
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
 
 void FInstancedStaticMeshRenderData::InitVertexFactories()
@@ -1108,7 +1136,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	}
 
 	uint32 LOD = GetCurrentFirstLODIdx_RenderThread();
-	const int32 InstanceCount = InstancedRenderData.Component->PerInstanceSMData.Num();
+	const int32 InstanceCount = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
 
 	if (InstanceCount == 0)
 	{
@@ -1130,7 +1158,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	{
 		//#dxr_todo: so far we use the parent static mesh path to get material data
 		FMeshBatch MeshBatch;
-		FStaticMeshSceneProxy::GetMeshElement(LOD, 0, SectionIdx, 0, false, false, MeshBatch);
+		GetMeshElement(LOD, 0, SectionIdx, 0, false, false, MeshBatch);
 
 		RayTracingInstanceTemplate.Materials.Add(MeshBatch);
 	}
@@ -1143,7 +1171,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		const float BVHLowScaleRadius = CVarRayTracingInstancesLowScaleCullRadius.GetValueOnRenderThread();
 		const bool ApplyGeneralCulling = BVHCullRadius > 0.0f;
 		const bool ApplyLowScaleCulling = BVHLowScaleThreshold > 0.0f && BVHLowScaleRadius > 0.0f;
-		FMatrix ToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
+		FMatrix ToWorld = GetLocalToWorld();
 
 		// Iterate over all culling clusters
 		for (int32 ClusterIdx = 0; ClusterIdx < RayTracingCullClusterBoundsMin.Num(); ++ClusterIdx)
@@ -1167,36 +1195,34 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			{
 				const uint32 Instance = InstancePtr->GetValue();
 
-				if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(Instance))
+				FMatrix Transform;
+				InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(Instance, Transform);
+				Transform.M[3][3] = 1.0f;
+				FMatrix InstanceTransform = Transform * GetLocalToWorld();
+				FVector InstanceLocation = InstanceTransform.TransformPosition({ 0.0f,0.0f,0.0f });
+				FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
+				float   DistanceToInstanceCenter = VToInstanceCenter.Size();
+
+				FVector VMin, VMax, VDiag;
+				VMin = InstanceTransform.TransformPosition(GetLocalBounds().GetBox().Min);
+				VMax = InstanceTransform.TransformPosition(GetLocalBounds().GetBox().Max);
+				VDiag = VMax - VMin;
+
+				float InstanceRadius = 0.5f * VDiag.Size();
+				float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
+
+				// Cull instance based on distance
+				if (DistanceToInstanceStart > BVHCullRadius&& ApplyGeneralCulling)
+					continue;
+
+				// Special culling for small scale objects
+				if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
 				{
-					const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[Instance];
-					FMatrix InstanceTransform = InstanceData.Transform * ToWorld;
-					FVector InstanceLocation = InstanceTransform.TransformPosition({ 0.0f,0.0f,0.0f });
-					FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
-					float   DistanceToInstanceCenter = VToInstanceCenter.Size();
-
-					FVector VMin, VMax, VDiag;
-					InstancedRenderData.Component->GetLocalBounds(VMin, VMax);
-					VMin = InstanceTransform.TransformPosition(VMin);
-					VMax = InstanceTransform.TransformPosition(VMax);
-					VDiag = VMax - VMin;
-
-					float InstanceRadius = 0.5f * VDiag.Size();
-					float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
-
-					// Cull instance based on distance
-					if (DistanceToInstanceStart > BVHCullRadius && ApplyGeneralCulling)
+					if (DistanceToInstanceStart > BVHLowScaleRadius)
 						continue;
-
-					// Special culling for small scale objects
-					if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
-					{
-						if (DistanceToInstanceStart > BVHLowScaleRadius)
-							continue;
-					}
-
-					RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
 				}
+
+				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
 			}
 		}
 	}
@@ -1205,14 +1231,12 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		// No culling
 		for (int32 InstanceIdx = 0; InstanceIdx < InstanceCount; ++InstanceIdx)
 		{
-			if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(InstanceIdx))
-			{
-				const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[InstanceIdx];
-				FMatrix ComponentLocalToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
-				FMatrix InstanceTransform = InstanceData.Transform * ComponentLocalToWorld;
+			FMatrix Transform;
+			InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
+			Transform.M[3][3] = 1.0f;
+			FMatrix InstanceTransform = Transform * GetLocalToWorld();
 
-				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
-			}
+			RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
 		}
 	}
 
@@ -1221,14 +1245,20 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 
 void FInstancedStaticMeshSceneProxy::SetupRayTracingCullClusters()
 {
+	if (!IsRayTracingEnabled())
+	{
+		return;
+	}
+
 	//#dxr_todo: select the appropriate LOD depending on Context.View
 	int32 LOD = 0;
 	if (RenderData->LODResources.Num() > LOD && RenderData->LODResources[LOD].RayTracingGeometry.IsInitialized())
 	{
 		const float MaxClusterRadiusMultiplier = CVarRayTracingInstancesCullClusterMaxRadiusMultiplier.GetValueOnAnyThread();
 		const int32 Batches = GetNumMeshBatches();
-		const int32 InstanceCount = InstancedRenderData.Component->PerInstanceSMData.Num();
+		const int32 InstanceCount = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
 		int32 ClusterIndex = 0;
+		// We're in game thread and at this point this scene proxy hasn't been added to FScene, thus GetLocalToWorld() returns undefined transform
 		FMatrix ComponentLocalToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
 		float MaxInstanceRadius = 0.0f;
 
@@ -1240,20 +1270,19 @@ void FInstancedStaticMeshSceneProxy::SetupRayTracingCullClusters()
 		// Traverse instances to find maximum rarius
 		for (int32 Instance = 0; Instance < InstanceCount; ++Instance)
 		{
-			if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(Instance))
-			{
-				const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[Instance];
-				FMatrix InstanceTransform = InstanceData.Transform * ComponentLocalToWorld;
-				FVector VMin, VMax;
+			FMatrix Transform;
+			InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(Instance, Transform);
+			Transform.M[3][3] = 1.0f;
+			FMatrix InstanceTransform = Transform * ComponentLocalToWorld;
 
-				InstancedRenderData.Component->GetLocalBounds(VMin, VMax);
-				VMin = InstanceTransform.TransformPosition(VMin);
-				VMax = InstanceTransform.TransformPosition(VMax);
+			FVector VMin, VMax;
+			InstancedRenderData.Component->GetLocalBounds(VMin, VMax);
+			VMin = InstanceTransform.TransformPosition(VMin);
+			VMax = InstanceTransform.TransformPosition(VMax);
 
-				FVector VBBoxSize = VMax - VMin;
+			FVector VBBoxSize = VMax - VMin;
 
-				MaxInstanceRadius = FMath::Max(0.5f * VBBoxSize.Size(), MaxInstanceRadius);
-			}
+			MaxInstanceRadius = FMath::Max(0.5f * VBBoxSize.Size(), MaxInstanceRadius);
 		}
 
 		float MaxClusterRadius = MaxInstanceRadius * MaxClusterRadiusMultiplier;
@@ -1261,45 +1290,44 @@ void FInstancedStaticMeshSceneProxy::SetupRayTracingCullClusters()
 		// Build clusters
 		for (int32 Instance = 0; Instance < InstanceCount; ++Instance)
 		{
-			if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(Instance))
+			FMatrix Transform;
+			InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(Instance, Transform);
+			Transform.M[3][3] = 1.0f;
+			FMatrix InstanceTransform = Transform * ComponentLocalToWorld;
+			FVector InstanceLocation = InstanceTransform.TransformPosition({ 0.0f,0.0f,0.0f });
+			FVector VMin = InstanceLocation - FVector(MaxInstanceRadius, MaxInstanceRadius, MaxInstanceRadius);
+			FVector VMax = InstanceLocation + FVector(MaxInstanceRadius, MaxInstanceRadius, MaxInstanceRadius);
+			bool bClusterFound = false;
+
+			// Try to find suitable cluster
+			for (int32 CandidateCluster = 0; CandidateCluster <= ClusterIndex; ++CandidateCluster)
 			{
-				const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[Instance];
-				FMatrix InstanceTransform = InstanceData.Transform * ComponentLocalToWorld;
-				FVector InstanceLocation = InstanceTransform.TransformPosition({ 0.0f,0.0f,0.0f });
-				FVector VMin = InstanceLocation - FVector(MaxInstanceRadius, MaxInstanceRadius, MaxInstanceRadius);
-				FVector VMax = InstanceLocation + FVector(MaxInstanceRadius, MaxInstanceRadius, MaxInstanceRadius);
-				bool bClusterFound = false;
+				// Build new candidate cluster bounds
+				FVector VCandidateMin = VMin.ComponentMin(RayTracingCullClusterBoundsMin[CandidateCluster]);
+				FVector VCandidateMax = VMax.ComponentMax(RayTracingCullClusterBoundsMax[CandidateCluster]);
 
-				// Try to find suitable cluster
-				for (int32 CandidateCluster = 0; CandidateCluster <= ClusterIndex; ++CandidateCluster)
+				FVector VCandidateBBoxSize = VCandidateMax - VCandidateMin;
+				float MaxCandidateRadius = 0.5f * VCandidateBBoxSize.Size();
+
+				// If new candidate is still small enough, update current cluster
+				if (MaxCandidateRadius <= MaxClusterRadius)
 				{
-					// Build new candidate cluster bounds
-					FVector VCandidateMin = VMin.ComponentMin(RayTracingCullClusterBoundsMin[CandidateCluster]);
-					FVector VCandidateMax = VMax.ComponentMax(RayTracingCullClusterBoundsMax[CandidateCluster]);
-
-					FVector VCandidateBBoxSize = VCandidateMax - VCandidateMin;
-					float MaxCandidateRadius = 0.5f * VCandidateBBoxSize.Size();
-
-					// If new candidate is still small enough, update current cluster
-					if (MaxCandidateRadius <= MaxClusterRadius)
-					{
-						RayTracingCullClusterInstances[CandidateCluster]->AddTail(Instance);
-						RayTracingCullClusterBoundsMin[CandidateCluster] = VCandidateMin;
-						RayTracingCullClusterBoundsMax[CandidateCluster] = VCandidateMax;
-						bClusterFound = true;
-						break;
-					}
+					RayTracingCullClusterInstances[CandidateCluster]->AddTail(Instance);
+					RayTracingCullClusterBoundsMin[CandidateCluster] = VCandidateMin;
+					RayTracingCullClusterBoundsMax[CandidateCluster] = VCandidateMax;
+					bClusterFound = true;
+					break;
 				}
+			}
 
-				// if we couldn't add the instance to an existing cluster create a new one
-				if (!bClusterFound)
-				{
-					++ClusterIndex;
-					RayTracingCullClusterInstances.Add(new TDoubleLinkedList< uint32>());
-					RayTracingCullClusterInstances[ClusterIndex]->AddTail(Instance);
-					RayTracingCullClusterBoundsMin.Add(VMin);
-					RayTracingCullClusterBoundsMax.Add(VMax);
-				}
+			// if we couldn't add the instance to an existing cluster create a new one
+			if (!bClusterFound)
+			{
+				++ClusterIndex;
+				RayTracingCullClusterInstances.Add(new TDoubleLinkedList< uint32>());
+				RayTracingCullClusterInstances[ClusterIndex]->AddTail(Instance);
+				RayTracingCullClusterBoundsMin.Add(VMin);
+				RayTracingCullClusterBoundsMax.Add(VMax);
 			}
 		}
 	}
@@ -1843,10 +1871,17 @@ void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapp
 
 		// Ensure LODData has enough entries in it, free not required.
 		SetLODDataCount(ResolvedMesh->GetNumLODs(), ResolvedMesh->GetNumLODs());
+		FStaticMeshComponentLODInfo& LODInfo = LODData[0];
+
+		// Ensure this LODInfo has a valid MapBuildDataId
+		if (LODInfo.CreateMapBuildDataId(0))
+		{
+			MarkPackageDirty();
+		}
 
 		ULevel* StorageLevel = LightingScenario ? LightingScenario : GetOwner()->GetLevel();
 		UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-		FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(LODData[0].MapBuildDataId, true);
+		FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(LODInfo.MapBuildDataId, true);
 
 		MeshBuildData.PerInstanceLightmapData.Empty(AllQuantizedData.Num());
 		MeshBuildData.PerInstanceLightmapData.AddZeroed(AllQuantizedData.Num());
@@ -1858,11 +1893,11 @@ void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapp
 		TRefCountPtr<FLightMap2D> NewLightMap = FLightMap2D::AllocateInstancedLightMap(Registry, this,
 			MoveTemp(AllQuantizedData),
 			bUseVirtualTextures ? MoveTemp(AllShadowMapData) : MoveTemp(EmptyShadowMapData),
-			Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, LMF_Streamed);
+			Registry, LODInfo.MapBuildDataId, Bounds, PaddingType, LMF_Streamed);
 
 		// Create a shadow-map for the primitive, only needed when not using VT
 		TRefCountPtr<FShadowMap2D> NewShadowMap = (bNeedsShadowMap && !bUseVirtualTextures)
-			? FShadowMap2D::AllocateInstancedShadowMap(Registry, this, MoveTemp(AllShadowMapData), Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, SMF_Streamed)
+			? FShadowMap2D::AllocateInstancedShadowMap(Registry, this, MoveTemp(AllShadowMapData), Registry, LODInfo.MapBuildDataId, Bounds, PaddingType, SMF_Streamed)
 			: nullptr;
 
 		MeshBuildData.LightMap = NewLightMap;
@@ -2697,9 +2732,12 @@ static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponen
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
-		const bool bNeedsCPUAccess = (InComponent->CastShadow && InComponent->bAffectDistanceFieldLighting 
+		bool bNeedsCPUAccess = (InComponent->CastShadow && InComponent->bAffectDistanceFieldLighting 
 			// Distance field algorithms need access to instance data on the CPU
 			&& (CVar->GetValueOnAnyThread(true) != 0 || (InComponent->GetStaticMesh() && InComponent->GetStaticMesh()->bGenerateMeshDistanceField)));
+
+		// Ray tracing needs instance transforms on CPU
+		bNeedsCPUAccess |= IsRayTracingEnabled();
 
 		return bNeedsCPUAccess;
 	}
@@ -2941,8 +2979,7 @@ void UInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChanged
 {
 	if(PropertyChangedEvent.Property != NULL)
 	{
-		// Only permit editing archetype or instance if instance was changed by an archetype
-		if (PropertyChangedEvent.Property->GetFName() == "PerInstanceSMData" && (HasAnyFlags(RF_ArchetypeObject|RF_ClassDefaultObject) ||  PropertyChangedEvent.HasArchetypeInstanceChanged(this)))
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UInstancedStaticMeshComponent, PerInstanceSMData))
 		{
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd
 				|| PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
@@ -2966,10 +3003,14 @@ void UInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChanged
 			{
 				ClearInstances();
 			}
+			else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+			{
+				InstanceUpdateCmdBuffer.Edit();
+			}
 			
 			MarkRenderStateDirty();
 		}
-		else if (PropertyChangedEvent.Property->GetFName() == "Transform")
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FInstancedStaticMeshInstanceData, Transform))
 		{
 			PartialNavigationUpdate(-1);
 			// Force recreation of the render data
@@ -3125,6 +3166,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
 		ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
 	}
+
 	if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
 	{
 		VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, InputStreamType, VertexStreams);
@@ -3189,14 +3231,14 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 				FinalCull *= MaxDrawDistanceScale;
 
 				InstancingViewZCompare.Z = FinalCull;
-				if (BatchElement.InstancedLODIndex < InstancingUserData->MeshRenderData->LODResources.Num() - 1)
+				if (int(BatchElement.InstancedLODIndex) < InstancingUserData->MeshRenderData->LODResources.Num() - 1)
 				{
 					float NextCut = ComputeBoundsDrawDistance(InstancingUserData->MeshRenderData->ScreenSize[BatchElement.InstancedLODIndex + 1].GetValueForFeatureLevel(FeatureLevel), SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
 					InstancingViewZCompare.Z = FMath::Min(NextCut, FinalCull);
 				}
 
 				InstancingViewZCompare.X = MIN_flt;
-				if (BatchElement.InstancedLODIndex > FirstLOD)
+				if (int(BatchElement.InstancedLODIndex) > FirstLOD)
 				{
 					float CurCut = ComputeBoundsDrawDistance(InstancingUserData->MeshRenderData->ScreenSize[BatchElement.InstancedLODIndex].GetValueForFeatureLevel(FeatureLevel), SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
 					if (CurCut < FinalCull)

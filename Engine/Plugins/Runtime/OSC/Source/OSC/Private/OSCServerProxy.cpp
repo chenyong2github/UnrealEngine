@@ -20,6 +20,11 @@ FOSCServerProxy::FOSCServerProxy(UOSCServer& InServer)
 {
 }
 
+FOSCServerProxy::~FOSCServerProxy()
+{
+	Stop();
+}
+
 void FOSCServerProxy::OnPacketReceived(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint)
 {
 	TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Data->GetData());
@@ -43,8 +48,18 @@ void FOSCServerProxy::OnPacketReceived(const FArrayReaderPtr& Data, const FIPv4E
 			return;
 		}
 
-		Server->OnPacketReceived(Endpoint.Address.ToString());
+		Server->OnPacketReceived(Endpoint.Address.ToString(), Endpoint.Port);
 	}, GET_STATID(STAT_OSCServerOnPacketReceived), nullptr, ENamedThreads::GameThread);
+}
+
+FString FOSCServerProxy::GetIpAddress() const
+{
+	return ReceiveIPAddress.ToString();
+}
+
+int32 FOSCServerProxy::GetPort() const
+{
+	return Port;
 }
 
 bool FOSCServerProxy::GetMulticastLoopback() const

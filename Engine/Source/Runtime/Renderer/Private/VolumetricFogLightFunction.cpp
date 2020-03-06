@@ -28,7 +28,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material->IsLightFunction() && DoesPlatformSupportVolumetricFog(Parameters.Platform);
+		return Parameters.MaterialParameters.MaterialDomain == MD_LightFunction && DoesPlatformSupportVolumetricFog(Parameters.Platform);
 	}
 
 	FVolumetricFogLightFunctionPS() {}
@@ -50,7 +50,7 @@ public:
 		FVector2D LightFunctionTexelSizeValue,
 		const FMatrix& ShadowToWorldValue)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
 
@@ -76,23 +76,12 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowToWorld, ShadowToWorldValue);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		Ar << LightFunctionParameters;
-		Ar << LightFunctionParameters2;
-		Ar << LightFunctionWorldToLight;
-		Ar << LightFunctionTexelSize;
-		Ar << ShadowToWorld;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FLightFunctionSharedParameters LightFunctionParameters;
-	FShaderParameter LightFunctionParameters2;
-	FShaderParameter LightFunctionWorldToLight;
-	FShaderParameter LightFunctionTexelSize;
-	FShaderParameter ShadowToWorld;
+	LAYOUT_FIELD(FLightFunctionSharedParameters, LightFunctionParameters);
+	LAYOUT_FIELD(FShaderParameter, LightFunctionParameters2);
+	LAYOUT_FIELD(FShaderParameter, LightFunctionWorldToLight);
+	LAYOUT_FIELD(FShaderParameter, LightFunctionTexelSize);
+	LAYOUT_FIELD(FShaderParameter, ShadowToWorld);
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FVolumetricFogLightFunctionPS,TEXT("/Engine/Private/VolumetricFogLightFunction.usf"),TEXT("Main"),SF_Pixel);
@@ -243,11 +232,11 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 
 				const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-				FVolumetricFogLightFunctionPS* PixelShader = MaterialShaderMap->GetShader<FVolumetricFogLightFunctionPS>();
+				TShaderRef<FVolumetricFogLightFunctionPS> PixelShader = MaterialShaderMap->GetShader<FVolumetricFogLightFunctionPS>();
 
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -262,7 +251,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 					LightFunctionResolution.X, LightFunctionResolution.Y,
 					LightFunctionResolution,
 					LightFunctionResolution,
-					*VertexShader);
+					VertexShader);
 			});
 		}
 	}

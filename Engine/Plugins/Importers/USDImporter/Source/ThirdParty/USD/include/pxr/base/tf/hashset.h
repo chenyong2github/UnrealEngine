@@ -29,8 +29,8 @@
 // The GNU extension (currently) has the best overall performance but
 // isn't standard.  Otherwise we use the C++11 standard implementation.
 
-#ifndef TF_HASHSET_H
-#define TF_HASHSET_H
+#ifndef PXR_BASE_TF_HASHSET_H
+#define PXR_BASE_TF_HASHSET_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/arch/defines.h"
@@ -493,4 +493,4 @@ operator!=(const TfHashMultiSet<Key, HashFn, EqualKey, Alloc>& lhs,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_HASHSET_H
+#endif // PXR_BASE_TF_HASHSET_H

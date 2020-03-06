@@ -194,6 +194,8 @@ private:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	uint32 GetPacketSequence(int32 PacketIndex) const;
+
 	void UpdateState();
 
 	void UpdateHoveredEvent();
@@ -215,6 +217,7 @@ private:
 	uint32 ConnectionIndex;
 	Trace::ENetProfilerConnectionMode ConnectionMode;
 	uint32 PacketIndex;
+	uint32 PacketSequence;
 	int64 PacketBitSize; // total number of bits; [bit]
 
 	bool bFilterByEventType;

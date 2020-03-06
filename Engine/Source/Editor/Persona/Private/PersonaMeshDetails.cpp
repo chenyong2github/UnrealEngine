@@ -116,6 +116,11 @@ static int32 GetDefaultMaterialIndex(const USkeletalMesh* SkeletalMesh, int32 LO
 	}
 
 	const FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[LODIndex];
+	if (LODIndex > 0)
+	{
+		//Only base LOD is using the default/modified feature
+		return INDEX_NONE;
+	}
 
 	if (LODModel.Sections.IsValidIndex(SectionIndex))
 	{
@@ -663,7 +668,14 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 				FGetIntegerDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetNumMaxTrianglesCount),
 				FSetIntegerDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::SetNumMaxTrianglesCount));
 
-			SetPercentAndAbsoluteVisibility(MaxTrianglesRow, SMTC_AbsNumOfTriangles, SMTC_AbsTriangleOrVert);
+			const TArray< SkeletalMeshTerminationCriterion > VizList =
+			{
+				SMTC_AbsNumOfTriangles,
+				SMTC_AbsTriangleOrVert
+			};
+
+			MaxTrianglesRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSkeletalMeshReductionSettingsLayout::ShowIfCurrentCriterionIs, VizList)));
+			
 		}
 
 		{
@@ -675,8 +687,51 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 				INT_MAX,
 				FGetIntegerDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetNumMaxVerticesCount),
 				FSetIntegerDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::SetNumMaxVerticesCount));
+				
+			const TArray< SkeletalMeshTerminationCriterion > VizList =
+			{
+				SMTC_AbsNumOfVerts,
+				SMTC_AbsTriangleOrVert
+			};
 
-			SetPercentAndAbsoluteVisibility(MaxVerticesRow, SMTC_AbsNumOfVerts, SMTC_AbsTriangleOrVert);
+			MaxVerticesRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSkeletalMeshReductionSettingsLayout::ShowIfCurrentCriterionIs, VizList)));
+		}
+
+		{
+			FDetailWidgetRow& MaxTrianglesRow = AddUnsignedIntegerRow(ChildrenBuilder,
+				LOCTEXT("MaxTrianglesPercentage_Row", "Max Number of Triangles"),
+				LOCTEXT("MaxTrianglesPercentage", "Max Triangles Count"),
+				LOCTEXT("MaxTrianglesPercentage_ToolTip", "The maximum number of triangles to retain when using percentage criterion."),
+				0,
+				MAX_uint32,
+				FGetUnsignedIntegerDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetNumMaxTrianglesPercentageCount),
+				FSetUnsignedIntegerDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::SetNumMaxTrianglesPercentageCount));
+
+			const TArray< SkeletalMeshTerminationCriterion > VizList =
+			{
+				SMTC_NumOfTriangles
+			};
+
+			MaxTrianglesRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSkeletalMeshReductionSettingsLayout::ShowIfCurrentCriterionIs, VizList)));
+
+		}
+
+		{
+			FDetailWidgetRow& MaxVerticesRow = AddUnsignedIntegerRow(ChildrenBuilder,
+				LOCTEXT("MaxVerticesPercentage_Row", "Max Number of Vertices"),
+				LOCTEXT("MaxVerticesPercentage", "Max Vertex Count"),
+				LOCTEXT("MaxVerticesPercentage_ToolTip", "The maximum number of vertices to retain when using percentage criterion."),
+				0,
+				MAX_uint32,
+				FGetUnsignedIntegerDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetNumMaxVerticesPercentageCount),
+				FSetUnsignedIntegerDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::SetNumMaxVerticesPercentageCount));
+
+			const TArray< SkeletalMeshTerminationCriterion > VizList =
+			{
+				SMTC_NumOfVerts
+			};
+
+			MaxVerticesRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSkeletalMeshReductionSettingsLayout::ShowIfCurrentCriterionIs, VizList)));
 		}
 
 		AddBoolRow(ChildrenBuilder,
@@ -885,6 +940,73 @@ FDetailWidgetRow& FSkeletalMeshReductionSettingsLayout::AddIntegerRow(IDetailChi
 		.OnEndSliderMovement_Lambda(EndSliderMovementHelperFunc)
 		.IsEnabled(this, &FSkeletalMeshReductionSettingsLayout::IsReductionEnabled)
 	];
+	return Row;
+}
+
+FDetailWidgetRow& FSkeletalMeshReductionSettingsLayout::AddUnsignedIntegerRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const uint32 MinSliderValue, const uint32 MaxSliderValue, FGetUnsignedIntegerDelegate GetterDelegate, FSetUnsignedIntegerDelegate SetterDelegate)
+{
+	uint32 SliderDataIndex = SliderStateDataArray.Num();
+	FSliderStateData& SliderData = SliderStateDataArray.AddDefaulted_GetRef();
+	SliderData.bSliderActiveMode = false;
+
+	auto BeginSliderMovementHelperFunc = [GetterDelegate, SliderDataIndex, this]()
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		SliderStateDataArray[SliderDataIndex].bSliderActiveMode = true;
+		SliderStateDataArray[SliderDataIndex].MovementValueUnsignedInt = GetterDelegate.IsBound() ? GetterDelegate.Execute() : 0;
+	};
+
+	auto EndSliderMovementHelperFunc = [SetterDelegate, SliderDataIndex, this](int32 Value)
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		SliderStateDataArray[SliderDataIndex].bSliderActiveMode = false;
+		SliderStateDataArray[SliderDataIndex].MovementValueUnsignedInt = 0;
+		SetterDelegate.ExecuteIfBound(Value);
+	};
+
+	auto SetValueHelperFunc = [SetterDelegate, SliderDataIndex, this](uint32 Value)
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		if (SliderStateDataArray[SliderDataIndex].bSliderActiveMode)
+		{
+			SliderStateDataArray[SliderDataIndex].MovementValueUnsignedInt = Value;
+		}
+		else
+		{
+			SetterDelegate.ExecuteIfBound(Value);
+		}
+	};
+
+	auto GetValueHelperFunc = [GetterDelegate, SliderDataIndex, this]()
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		if (SliderStateDataArray[SliderDataIndex].bSliderActiveMode)
+		{
+			return SliderStateDataArray[SliderDataIndex].MovementValueUnsignedInt;
+		}
+		return GetterDelegate.IsBound() ? GetterDelegate.Execute() : 0;
+	};
+
+	FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(RowTitleText)
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(RowNameContentText)
+		.ToolTipText(RowNameContentTootlipText)
+		]
+	.ValueContent()
+		[
+			SNew(SSpinBox<uint32>)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		.MinValue(MinSliderValue)
+		.MaxValue(MaxSliderValue)
+		.Value_Lambda(GetValueHelperFunc)
+		.OnValueChanged_Lambda(SetValueHelperFunc)
+		.OnBeginSliderMovement_Lambda(BeginSliderMovementHelperFunc)
+		.OnEndSliderMovement_Lambda(EndSliderMovementHelperFunc)
+		.IsEnabled(this, &FSkeletalMeshReductionSettingsLayout::IsReductionEnabled)
+		];
 	return Row;
 }
 
@@ -1133,6 +1255,40 @@ void FSkeletalMeshReductionSettingsLayout::SetNumMaxVerticesCount(int32 Value)
 		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
 
 		ReductionSettings.MaxNumOfVerts = Value;
+	}
+}
+
+uint32 FSkeletalMeshReductionSettingsLayout::GetNumMaxTrianglesPercentageCount() const
+{
+	return ReductionSettings.MaxNumOfTrianglesPercentage;
+}
+
+void FSkeletalMeshReductionSettingsLayout::SetNumMaxTrianglesPercentageCount(uint32 Value)
+{
+	if (ReductionSettings.MaxNumOfTrianglesPercentage != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaReductionChangedSetMaxTriangleCountLOD", "LOD{0} reduction settings: max triangles percentage count changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		ReductionSettings.MaxNumOfTrianglesPercentage = Value;
+	}
+}
+
+uint32 FSkeletalMeshReductionSettingsLayout::GetNumMaxVerticesPercentageCount() const
+{
+	return ReductionSettings.MaxNumOfVertsPercentage;
+}
+
+void FSkeletalMeshReductionSettingsLayout::SetNumMaxVerticesPercentageCount(uint32 Value)
+{
+	if (ReductionSettings.MaxNumOfVertsPercentage != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaReductionChangedSetMaxVertexCountLOD", "LOD{0} reduction settings: max vertex percentage count changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		ReductionSettings.MaxNumOfVertsPercentage = Value;
 	}
 }
 
@@ -4092,8 +4248,8 @@ void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMeshPtr.Get());
 		//When we delete a material slot we must invalidate the DDC because material index is not part of the DDC key by design
-	SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
-	FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
+		SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
+		FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
 
 		int32 NumLODInfos = SkeletalMeshPtr->GetLODNum();
 
@@ -4109,13 +4265,13 @@ void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 					SectionMaterialIndex = LODMaterialMap[SectionIndex];
 				}
 				if (SectionMaterialIndex > MaterialIndex)
-	{
+				{
 					SectionMaterialIndex--;
 				}
 				if (SectionMaterialIndex != Model->LODModels[LODInfoIdx].Sections[SectionIndex].MaterialIndex)
-		{
+				{
 					while(!LODMaterialMap.IsValidIndex(SectionIndex))
-			{
+					{
 						LODMaterialMap.Add(INDEX_NONE);
 					}
 					LODMaterialMap[SectionIndex] = SectionMaterialIndex;

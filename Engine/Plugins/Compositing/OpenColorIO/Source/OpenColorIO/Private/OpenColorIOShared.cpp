@@ -20,6 +20,10 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+IMPLEMENT_TYPE_LAYOUT(FOpenColorIOCompilationOutput);
+IMPLEMENT_TYPE_LAYOUT(FOpenColorIOShaderMapId);
+IMPLEMENT_TYPE_LAYOUT(FOpenColorIOShaderMapContent);
+
 FOpenColorIOTransformResource::~FOpenColorIOTransformResource()
 {
 	FOpenColorIOShaderMap::RemovePendingColorTransform(this);
@@ -105,14 +109,6 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatfo
 	}
 }
 
-void FOpenColorIOTransformResource::RegisterShaderMap()
-{
-	if (GameThreadShaderMap)
-	{
-		GameThreadShaderMap->RegisterSerializedShaders(false);
-	}
-}
-
 void FOpenColorIOTransformResource::ReleaseShaderMap()
 {
 	if (GameThreadShaderMap)
@@ -131,11 +127,7 @@ void FOpenColorIOTransformResource::ReleaseShaderMap()
 void FOpenColorIOTransformResource::DiscardShaderMap()
 {
 	check(RenderingThreadShaderMap == nullptr);
-	if (GameThreadShaderMap)
-	{
-		GameThreadShaderMap->DiscardSerializedShaders();
-		GameThreadShaderMap = nullptr;
-	}
+	GameThreadShaderMap = nullptr;
 }
 
 void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
@@ -184,10 +176,6 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 				if (FApp::CanEverRender())
 				{
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
-				}
-				else
-				{
-					LoadedShaderMap->DiscardSerializedShaders();
 				}
 			}
 		}
@@ -351,24 +339,24 @@ void FOpenColorIOTransformResource::FinishCompilation()
 #endif
 }
 
-OPENCOLORIO_API  FOpenColorIOPixelShader* FOpenColorIOTransformResource::GetShader() const
+OPENCOLORIO_API  TShaderRef<FOpenColorIOPixelShader> FOpenColorIOTransformResource::GetShader() const
 {
 	check(!GIsThreadedRendering || !IsInGameThread());
 	if (!GIsEditor || RenderingThreadShaderMap)
 	{
 		return RenderingThreadShaderMap->GetShader<FOpenColorIOPixelShader>();
 	}
-	return nullptr;
+	return TShaderRef<FOpenColorIOPixelShader>();
 };
 
-OPENCOLORIO_API  FOpenColorIOPixelShader* FOpenColorIOTransformResource::GetShaderGameThread() const
+OPENCOLORIO_API  TShaderRef<FOpenColorIOPixelShader> FOpenColorIOTransformResource::GetShaderGameThread() const
 {
 	if (GameThreadShaderMap)
 	{
 		return GameThreadShaderMap->GetShader<FOpenColorIOPixelShader>();
 	}
 
-	return nullptr;
+	return TShaderRef<FOpenColorIOPixelShader>();
 };
 
 void FOpenColorIOTransformResource::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& OutShaderMapIds)
@@ -443,7 +431,7 @@ void FOpenColorIOShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& 
 			if (ShaderType != nullptr)
 			{
 				FShaderTypeDependency Dependency;
-				Dependency.ShaderType = ShaderType;
+				Dependency.ShaderTypeName = ShaderType->GetHashedName();
 				Dependency.SourceHash = ShaderType->GetSourceHash(InShaderPlatform);
 				ShaderTypeDependencies.Add(Dependency);
 			}
@@ -456,7 +444,7 @@ bool FOpenColorIOShaderMapId::ContainsShaderType(const FShaderType* ShaderType) 
 {
 	for (int32 TypeIndex = 0; TypeIndex < ShaderTypeDependencies.Num(); TypeIndex++)
 	{
-		if (ShaderTypeDependencies[TypeIndex].ShaderType == ShaderType)
+		if (ShaderTypeDependencies[TypeIndex].ShaderTypeName == ShaderType->GetHashedName())
 		{
 			return true;
 		}

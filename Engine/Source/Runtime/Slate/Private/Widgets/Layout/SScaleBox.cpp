@@ -14,6 +14,7 @@
 void SScaleBox::Construct(const SScaleBox::FArguments& InArgs)
 {
 	bHasCustomPrepass = true;
+	bHasRelativeLayoutScale = true;
 
 	Stretch = InArgs._Stretch;
 
@@ -400,7 +401,7 @@ FVector2D SScaleBox::ComputeDesiredSize(float InScale) const
 	return SCompoundWidget::ComputeDesiredSize(InScale);
 }
 
-float SScaleBox::GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const
+float SScaleBox::GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const
 {
 	return ComputedContentScale.IsSet() ? ComputedContentScale.GetValue() : 1.0f;
 }

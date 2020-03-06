@@ -239,7 +239,7 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 	static const uint8* FindPairPtr(const FScriptMapHelper& Helper, const uint8* Key)
 	{
 		const FProperty* KeyProp = Helper.GetKeyProperty();
-		int32 Index = Helper.Map->FindPairIndex(Key, Helper.MapLayout,
+		int32 Index = Helper.HeapMap->FindPairIndex(Key, Helper.MapLayout,
 												[KeyProp](const void* Key) { return KeyProp->GetValueTypeHash(Key); },
 												[KeyProp](const void* A, const void* B) { return Equals(KeyProp, A, B); });
 		return Index >= 0 ? Helper.GetPairPtr(Index) : nullptr;

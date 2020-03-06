@@ -207,6 +207,7 @@ struct CORE_API FGenericPlatformMemory
 		Binned2, // Newer binned malloc
 		Binned3, // Newer VM-based binned malloc, 64 bit only
 		Platform, // Custom platform specific allocator
+		Mimalloc, // mimalloc
 	};
 
 	/** Current allocator */

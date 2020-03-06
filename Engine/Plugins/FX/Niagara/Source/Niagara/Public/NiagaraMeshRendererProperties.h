@@ -27,6 +27,16 @@ enum class ENiagaraMeshFacingMode : uint8
 	CameraPlane
 };
 
+UENUM()
+enum class ENiagaraMeshLockedAxisSpace : uint8 {
+	/** The locked axis is in the emitter's local space if the emitter is marked as local-space, or in world space otherwise */
+	Simulation,
+	/** The locked axis is in world space */
+	World,
+	/** The locked axis is in the emitter's local space */
+	Local
+};
+
 USTRUCT()
 struct FNiagaraMeshMaterialOverride 
 {
@@ -85,6 +95,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
 	virtual void FixMaterial(UMaterial* Material) override;
+	virtual const TArray<FNiagaraVariable>& GetBoundAttributes() override;
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
 	virtual	void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
@@ -127,7 +138,19 @@ public:
 
 	/** Determines how the mesh orients itself relative to the camera.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
-	ENiagaraMeshFacingMode FacingMode; 
+	ENiagaraMeshFacingMode FacingMode;
+
+	/** If true and in a non-default facing mode, will lock facing direction to an arbitrary plane of rotation */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	uint32 bLockedAxisEnable : 1;
+
+	/** Arbitrary axis by which to lock facing rotations */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
+	FVector LockedAxis;
+
+	/** Specifies what space the locked axis is in */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
+	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 	
 	/** Which attribute should we use for position when generating instanced meshes?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
@@ -180,6 +203,10 @@ public:
 	/** Which attribute should we use for Normalized Age? */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding NormalizedAgeBinding;
+
+	/** Which attribute should we use for camera offset when rendering meshes?*/
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding CameraOffsetBinding;
 
 
 protected:

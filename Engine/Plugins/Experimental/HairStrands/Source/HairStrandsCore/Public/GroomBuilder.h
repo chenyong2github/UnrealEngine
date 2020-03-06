@@ -8,6 +8,7 @@
 #include "GroomSettings.h"
 
 struct FHairStrandsDatas;
+struct FProcessedHairDescription;
 class UGroomAsset;
 
 struct HAIRSTRANDSCORE_API FGroomBuilder
@@ -15,4 +16,5 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 	static bool BuildGroom(const class FHairDescription& HairDescription, const struct FGroomBuildSettings& BuildSettings, UGroomAsset* GroomAsset);
 	static void GenerateGuides(const FHairStrandsDatas& InData, float DecimationPercentage, FHairStrandsDatas& OutData);
 	static void BuildData(UGroomAsset* GroomAsset, const FGroomBuildSettings& BuildSettings);
+	static bool ProcessHairDescription(const class FHairDescription& HairDescription, const FGroomBuildSettings& BuildSettings, FProcessedHairDescription& Out);
 };

@@ -89,11 +89,6 @@ struct FStaticMeshComponentLODInfo
 	/** Uniquely identifies this LOD's built map data. */
 	FGuid MapBuildDataId;
 
-#if WITH_EDITOR
-	/** Check to see if MapBuildDataId was loaded - otherwise we need to display a warning on cook */
-	bool bMapBuildDataIdLoaded;
-#endif
-
 	/** Used during deserialization to temporarily store legacy lightmap data. */
 	FMeshMapBuildData* LegacyMapBuildData;
 
@@ -119,12 +114,19 @@ struct FStaticMeshComponentLODInfo
 
 	/** Default constructor */
 	FStaticMeshComponentLODInfo();
-	FStaticMeshComponentLODInfo(UStaticMeshComponent* InOwningComponent, int32 LodIndex);
+	FStaticMeshComponentLODInfo(UStaticMeshComponent* InOwningComponent);
 	/** Destructor */
 	~FStaticMeshComponentLODInfo();
 
 	/** Delete existing resources */
 	void CleanUp();
+
+	/** 
+	 * Ensure this LODInfo has a valid MapBuildDataId GUID.
+	 * @param LodIndex Index of the LOD this LODInfo represents.
+	 * @return true if a new GUID was created, false otherwise.
+	 */
+	bool CreateMapBuildDataId(int32 LodIndex);
 
 	/**
 	* Enqueues a rendering command to release the vertex colors.
@@ -204,7 +206,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(editcondition = "bOverrideWireframeColor"))
 	FColor WireframeColorOverride;
 
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=RayTracing)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=RayTracing)
 	uint8 bEvaluateWorldPositionOffset:1;
 
 #if WITH_EDITORONLY_DATA
@@ -301,6 +303,10 @@ public:
 
 	UPROPERTY(transient)
 	uint8 bDisplayVertexColors:1;
+
+	UPROPERTY(transient)
+	uint8 bDisplayPhysicalMaterialMasks : 1;
+
 #endif
 
 	/**
@@ -439,7 +445,7 @@ public:
 protected: 
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void OnCreatePhysicsState() override;
 	virtual void OnDestroyPhysicsState() override;
 public:

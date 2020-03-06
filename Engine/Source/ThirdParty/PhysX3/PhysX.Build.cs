@@ -114,7 +114,7 @@ public class PhysX : ModuleRules
 		string EngineBinThirdPartyPath = Path.Combine("$(EngineDir)", "Binaries", "ThirdParty", "PhysX3");
 
 		// Libraries and DLLs for windows platform
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
 		{
 			string[] StaticLibrariesX64 = new string[] {
 				"PhysX3{0}_x64.lib",
@@ -437,31 +437,6 @@ public class PhysX : ModuleRules
 			foreach (string Lib in StaticLibrariesXB1)
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "XboxOne", "VS2015", String.Format(Lib, LibrarySuffix)));
-			}
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			string[] StaticLibrariesSwitch = new string[] {
-					"LowLevel{0}",
-					"LowLevelAABB{0}",
-					"LowLevelCloth{0}",
-					"LowLevelDynamics{0}",
-					"LowLevelParticles{0}",
-					"PhysX3{0}",
-					"PhysX3Common{0}",
-					"PhysX3Cooking{0}",
-					"PhysX3Extensions{0}",
-					"SceneQuery{0}",
-					"SimulationController{0}",
-					"PxFoundation{0}",
-					"PxTask{0}",
-					"PxPvdSDK{0}",
-					"PsFastXml{0}"
-			};
-
-			foreach (string Lib in StaticLibrariesSwitch)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Switch", "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
 			}
 		}
 	}

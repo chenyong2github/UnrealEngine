@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 
-#ifndef SDF_PYSPEC_H
-#define SDF_PYSPEC_H
+#ifndef PXR_USD_SDF_PY_SPEC_H
+#define PXR_USD_SDF_PY_SPEC_H
 
 /// \file sdf/pySpec.h
 ///
@@ -505,4 +505,4 @@ struct NewCtor<R(Args...)> : CtorBase<R(Args...)> {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PYSPEC_H
+#endif // PXR_USD_SDF_PY_SPEC_H

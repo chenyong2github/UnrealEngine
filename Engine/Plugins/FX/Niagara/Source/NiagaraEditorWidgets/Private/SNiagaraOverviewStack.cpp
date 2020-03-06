@@ -257,6 +257,94 @@ private:
 	FOnCheckedChanged OnCheckedChanged;
 };
 
+class SNiagaraSystemOverviewItemName : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewItemName) {}
+	SLATE_END_ARGS();
+
+	void Construct(const FArguments& InArgs, UNiagaraStackItem* InStackItem)
+	{
+		StackItem = InStackItem;
+		StackItem->OnAlternateDisplayNameChanged().AddSP(this, &SNiagaraSystemOverviewItemName::UpdateFromAlternateDisplayName);
+
+		ChildSlot
+		[
+			SAssignNew(NameTextBlock, STextBlock)
+			.Text(this, &SNiagaraSystemOverviewItemName::GetItemDisplayName)
+			.ToolTipText(this, &SNiagaraSystemOverviewItemName::GetItemToolTip)
+			.IsEnabled_UObject(StackItem.Get(), &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+		];
+		UpdateFromAlternateDisplayName();
+	}
+
+	~SNiagaraSystemOverviewItemName()
+	{
+		if (StackItem.IsValid())
+		{
+			StackItem->OnAlternateDisplayNameChanged().RemoveAll(this);
+		}
+	}
+
+private:
+	FText GetItemDisplayName() const
+	{
+		if (StackItem.IsValid() && StackItem->IsFinalized() == false)
+		{
+			return StackItem->GetAlternateDisplayName().IsSet() ? StackItem->GetAlternateDisplayName().GetValue() : StackItem->GetDisplayName();
+		}
+		return FText::GetEmpty();
+	}
+
+	FText GetItemToolTip() const
+	{
+		if (StackItem.IsValid() && StackItem->IsFinalized() == false)
+		{
+			FText CurrentToolTip = StackItem->GetTooltipText();
+			if (ToolTipCache.IsSet() == false || LastToolTipCache.IdenticalTo(CurrentToolTip) == false)
+			{
+				if(StackItem->GetAlternateDisplayName().IsSet())
+				{
+					FText AlternateNameAndOriginalName = FText::Format(LOCTEXT("AlternateNameAndOriginalNameFormat", "{0} ({1})"), StackItem->GetAlternateDisplayName().GetValue(), StackItem->GetDisplayName());
+					if (CurrentToolTip.IsEmptyOrWhitespace())
+					{
+						ToolTipCache = AlternateNameAndOriginalName;
+					}
+					else
+					{
+						ToolTipCache = FText::Format(LOCTEXT("AlternateDisplayNameToolTipFormat", "{0}\n\n{1}"), AlternateNameAndOriginalName, StackItem->GetTooltipText());
+					}
+				}
+				else
+				{
+					ToolTipCache = CurrentToolTip;
+				}
+			}
+			LastToolTipCache = CurrentToolTip;
+			return ToolTipCache.GetValue();
+		}
+		return FText::GetEmpty();
+	}
+
+	void UpdateFromAlternateDisplayName()
+	{
+		if (StackItem.IsValid() && StackItem->IsFinalized() == false && StackItem->GetAlternateDisplayName().IsSet())
+		{
+			NameTextBlock->SetTextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.AlternateItemText"));
+		}
+		else
+		{
+			NameTextBlock->SetTextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.ItemText"));
+		}
+		ToolTipCache.Reset();
+	}
+
+private:
+	mutable FText LastToolTipCache;
+	mutable TOptional<FText> ToolTipCache;
+	TSharedPtr<STextBlock> NameTextBlock;
+	TWeakObjectPtr<UNiagaraStackItem> StackItem;
+};
+
 void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel& InStackViewModel, UNiagaraSystemSelectionViewModel& InOverviewSelectionViewModel)
 {
 	StackCommandContext = MakeShared<FNiagaraStackCommandContext>();
@@ -492,10 +580,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			.VAlign(VAlign_Center)
 			.Padding(3, 2, 0, 2)
 			[
-				SNew(STextBlock)
-				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.ItemText")
-				.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
-				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+				SNew(SNiagaraSystemOverviewItemName, StackItem)
 			]
 			// Enabled checkbox
 			+ SHorizontalBox::Slot()

@@ -539,6 +539,17 @@ FPropertyPathSegment::FPropertyPathSegment(int32 InCount, const TCHAR* InString)
 	Name = FName(*PropertyNameString, FNAME_Find);
 }
 
+void FPropertyPathSegment::PostSerialize(const FArchive& Ar)
+{
+	if (Struct)
+	{
+		// if the struct has been serialized then we're loading a CDO and we need to re-cache the field pointer
+		UStruct* ResolveStruct = Struct;
+		Struct = nullptr;
+		Resolve(ResolveStruct);
+	}
+}
+
 FPropertyPathSegment FPropertyPathSegment::MakeUnresolvedCopy(const FPropertyPathSegment& ToCopy)
 {
 	FPropertyPathSegment Segment;
@@ -556,10 +567,10 @@ FFieldVariant FPropertyPathSegment::Resolve(UStruct* InStruct) const
 		if ( InStruct != Struct )
 		{
 			Struct = InStruct;
-			Field = FindField<UField>(InStruct, Name);
+			Field = FindField<FProperty>(InStruct, Name);
 			if (!Field.IsValid())
 			{
-				Field = FindField<FProperty>(InStruct, Name);
+				Field = FindField<UField>(InStruct, Name);
 			}
 		}
 

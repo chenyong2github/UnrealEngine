@@ -19,7 +19,7 @@ void FAssetTypeActions_SoundSubmix::OpenAssetEditor(const TArray<UObject*>& InOb
 
 	for (UObject* Obj : InObjects)
 	{
-		if (USoundSubmix* SoundSubmix = Cast<USoundSubmix>(Obj))
+		if (USoundSubmixBase* SoundSubmix = Cast<USoundSubmixBase>(Obj))
 		{
 			IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
 			AudioEditorModule->CreateSoundSubmixEditor(Mode, EditWithinLevelEditor, SoundSubmix);
@@ -29,11 +29,11 @@ void FAssetTypeActions_SoundSubmix::OpenAssetEditor(const TArray<UObject*>& InOb
 
 bool FAssetTypeActions_SoundSubmix::AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
 {
-	TSet<USoundSubmix*> SubmixesToSelect;
+	TSet<USoundSubmixBase*> SubmixesToSelect;
 	IAssetEditorInstance* Editor = nullptr;
 	for (UObject* Obj : InObjects)
 	{
-		if (USoundSubmix* SubmixToSelect = Cast<USoundSubmix>(Obj))
+		if (USoundSubmixBase* SubmixToSelect = Cast<USoundSubmixBase>(Obj))
 		{
 			if (!Editor)
 			{
@@ -61,4 +61,45 @@ const TArray<FText>& FAssetTypeActions_SoundSubmix::GetSubMenus() const
 
 	return SubMenus;
 }
+
+UClass* FAssetTypeActions_SoundfieldSubmix::GetSupportedClass() const
+{
+	return USoundfieldSubmix::StaticClass();
+}
+
+UClass* FAssetTypeActions_EndpointSubmix::GetSupportedClass() const
+{
+	return UEndpointSubmix::StaticClass();
+}
+
+UClass* FAssetTypeActions_SoundfieldEndpointSubmix::GetSupportedClass() const
+{
+	return USoundfieldEndpointSubmix::StaticClass();
+}
+
+UClass* FAssetTypeActions_SoundfieldEncodingSettings::GetSupportedClass() const
+{
+	return USoundfieldEncodingSettingsBase::StaticClass();
+}
+
+UClass* FAssetTypeActions_SoundfieldEffectSettings::GetSupportedClass() const
+{
+	return USoundfieldEncodingSettingsBase::StaticClass();
+}
+
+UClass* FAssetTypeActions_SoundfieldEffect::GetSupportedClass() const
+{
+	return USoundfieldEffectBase::StaticClass();
+}
+
+UClass* FAssetTypeActions_AudioEndpointSettings::GetSupportedClass() const
+{
+	return UAudioEndpointSettingsBase::StaticClass();
+}
+
+UClass* FAssetTypeActions_SoundfieldEndpointSettings::GetSupportedClass() const
+{
+	return USoundfieldEndpointSettingsBase::StaticClass();
+}
+
 #undef LOCTEXT_NAMESPACE

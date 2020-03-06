@@ -5,9 +5,11 @@
 =============================================================================*/
 
 #include "UObject/Linker.h"
+#include "Containers/StringView.h"
 #include "Misc/PackageName.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "UObject/UnrealType.h"
@@ -615,7 +617,7 @@ FLinkerLoad* GetPackageLinker
 		// Process any package redirects
 		{
 			const FCoreRedirectObjectName NewPackageName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, *PackageNameToCreate));
-			PackageNameToCreate = NewPackageName.PackageName.ToString();
+			NewPackageName.PackageName.ToString(PackageNameToCreate);
 		}
 
 		// The editor must not redirect packages for localization. We also shouldn't redirect script or in-memory packages.
@@ -652,7 +654,7 @@ FLinkerLoad* GetPackageLinker
 		// Process any package redirects
 		{
 			const FCoreRedirectObjectName NewPackageName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, *PackageNameToCreate));
-			PackageNameToCreate = NewPackageName.PackageName.ToString();
+			NewPackageName.PackageName.ToString(PackageNameToCreate);
 		}
 
 		// The editor must not redirect packages for localization. We also shouldn't redirect script packages.
@@ -688,14 +690,18 @@ FLinkerLoad* GetPackageLinker
 			}
 			return nullptr;
 		}
-
+		UPackage* FilenamePkg = ExistingPackage;
+		if (!FilenamePkg)
+		{
 #if WITH_EDITORONLY_DATA
 		// Make sure the package name matches the name on disk
-		FPackageName::FixPackageNameCase(PackageNameToCreate, FPaths::GetExtension(NewFilename));
+		FPackageName::FixPackageNameCase(PackageNameToCreate, FPathViews::GetExtension(NewFilename));
 #endif
+			// Create the package with the provided long package name.
+			CreatedPackage = CreatePackage(nullptr, *PackageNameToCreate);
+			FilenamePkg = CreatedPackage;
+		}
 
-		// Create the package with the provided long package name.
-		UPackage* FilenamePkg = (ExistingPackage ? ExistingPackage : (CreatedPackage = CreatePackage(nullptr, *PackageNameToCreate)));
 		if (FilenamePkg && FilenamePkg != ExistingPackage && (LoadFlags & LOAD_PackageForPIE))
 		{
 			check(FilenamePkg);
@@ -808,35 +814,23 @@ FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName
 	return LoadPackageLinker(InOuter, InLongPackageName, LoadFlags, Sandbox, CompatibleGuid, InReaderOverride, [](FLinkerLoad* InLinker) {});
 }
 
-/**
- * 
- * Ensure thumbnails are loaded and then reset the loader in preparation for a package save
- *
- * @param	InOuter			The outer for the package we are saving
- * @param	Filename		The filename we are saving too
- */
-void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename)
+
+void ResetLoadersForSave(UObject* InOuter, const TCHAR* Filename)
 {
 	UPackage* Package = dynamic_cast<UPackage*>(InOuter);
 	ResetLoadersForSave(Package, Filename);
 }
 
-/**
- *
- * Reset the loader for the given package if it is using the given filename, so we can write to the file
- *
- * @param	Package			The package we are saving
- * @param	Filename		The filename we are saving too
- */
 void ResetLoadersForSave(UPackage* Package, const TCHAR* Filename)
 {
-	if(FLinkerLoad* Loader = FLinkerLoad::FindExistingLinkerForPackage(Package))
+	FLinkerLoad* Loader = FLinkerLoad::FindExistingLinkerForPackage(Package);
+	if( Loader )
 	{
 		// Compare absolute filenames to see whether we're trying to save over an existing file.
 		if( FPaths::ConvertRelativePathToFull(Filename) == FPaths::ConvertRelativePathToFull( Loader->Filename ) )
 		{
 			// Detach all exports from the linker and dissociate the linker.
-			ResetLoaders(Package);
+			ResetLoaders( Package );
 		}
 	}
 }

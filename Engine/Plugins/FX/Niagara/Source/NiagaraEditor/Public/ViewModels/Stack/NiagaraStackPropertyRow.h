@@ -31,4 +31,5 @@ private:
 	TSharedPtr<IDetailTreeNode> DetailTreeNode;
 	UNiagaraNode* OwningNiagaraNode;
 	EStackRowStyle RowStyle;
+	bool bCannotEditInThisContext;
 };

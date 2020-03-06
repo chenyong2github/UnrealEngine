@@ -96,6 +96,13 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 			}
 		}
 
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->Materials = Data->ShapeMaterials[CurrShape++];
+			}
+		}
 	}
 }
 
@@ -203,6 +210,14 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 			{
 				Shape->SimData = Data->ShapeSimData[CurrShape];
 				Shape->QueryData = Data->ShapeQueryData[CurrShape++];
+			}
+		}
+
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->Materials = Data->ShapeMaterials[CurrShape++];
 			}
 		}
 
@@ -333,6 +348,19 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			RigidHandle->SetTorque(Data->MTorque);
 			bDynamicPropertyUpdated = true;
 		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::LinearImpulse))
+		{
+			RigidHandle->SetLinearImpulse(Data->MLinearImpulse);
+			bDynamicPropertyUpdated = true;
+		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::AngularImpulse))
+		{
+			RigidHandle->SetAngularImpulse(Data->MAngularImpulse);
+			bDynamicPropertyUpdated = true;
+		}
+
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ObjectState))
 		{
 			GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Data->MObjectState);
@@ -384,6 +412,14 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			}
 		}
 
+		{
+			int32 CurrShape = 0;
+			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->Materials = Data->ShapeMaterials[CurrShape++];
+			}
+		}
+
 		if (bDynamicPropertyUpdated)
 		{
 			if (bInitialized && RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping)
@@ -406,6 +442,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccum
 {
 	Particle->SetF(Chaos::TVector<float, 3>(0));
 	Particle->SetTorque(Chaos::TVector<float, 3>(0));
+	Particle->SetLinearImpulse(Chaos::TVector<float, 3>(0));
+	Particle->SetAngularImpulse(Chaos::TVector<float, 3>(0));
 	Particle->ClearDirtyFlags();
 }
 

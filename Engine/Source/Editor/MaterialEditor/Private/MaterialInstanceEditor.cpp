@@ -22,6 +22,7 @@
 #include "MaterialEditorModule.h"
 #include "ToolMenus.h"
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
+#include "MaterialEditorContext.h"
 
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
@@ -385,6 +386,7 @@ void FMaterialInstanceEditor::InitMaterialInstanceEditor( const EToolkitMode::Ty
 	CreateInternalWidgets();
 
 	BindCommands();
+	RegisterToolBar();
 
 	UpdatePreviewViewportsVisibility();
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
@@ -770,7 +772,8 @@ void FMaterialInstanceEditor::CreateInternalWidgets()
 	if (MaterialEditorModule->MaterialLayersEnabled() && !bIsFunctionPreviewMaterial)
 	{
 		MaterialLayersFunctionsInstance = SNew(SMaterialLayersFunctionsInstanceWrapper)
-			.InMaterialEditorInstance(MaterialEditorInstance);
+			.InMaterialEditorInstance(MaterialEditorInstance)
+			.InShowHiddenDelegate(FGetShowHiddenParameters::CreateSP(this, &FMaterialInstanceEditor::GetShowHiddenParameters));
 	}
 }
 
@@ -797,41 +800,57 @@ void FMaterialInstanceEditor::UpdatePreviewViewportsVisibility()
 
 void FMaterialInstanceEditor::RegisterToolBar()
 {
-	UToolMenus* ToolMenus = UToolMenus::Get();
-	UToolMenu* ToolBar = ToolMenus->ExtendMenu(GetToolMenuToolbarName());
-
-	FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
+	const FName MenuName = GetToolMenuToolbarName();
+	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
 	{
-		FToolMenuSection& Section = ToolBar->AddSection("Apply", TAttribute<FText>(), InsertAfterAssetSection);
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().Apply));
-	}
+		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
 
-	{
-		FToolMenuSection& Section = ToolBar->AddSection("Command", TAttribute<FText>(), InsertAfterAssetSection);
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ShowAllMaterialParameters));
-		// TODO: support in material instance editor.
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().TogglePlatformStats));
-	}
-	
-	{
-		FToolMenuSection& Section = ToolBar->AddSection("Parent", TAttribute<FText>(), InsertAfterAssetSection);
-		Section.AddEntry(FToolMenuEntry::InitComboButton(
-			"Hierarchy",
-			FToolUIActionChoice(),
-			FNewToolMenuDelegate::CreateSP(this, &FMaterialInstanceEditor::GenerateInheritanceMenu),
-			LOCTEXT("Hierarchy", "Hierarchy"),
-			FText::GetEmpty(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.SwitchToBehaviorTreeMode"),
-			false
-		));
-	}
+		FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
+		{
+			FToolMenuSection& Section = ToolBar->AddSection("Apply", TAttribute<FText>(), InsertAfterAssetSection);
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().Apply));
+		}
 
+		{
+			FToolMenuSection& Section = ToolBar->AddSection("Command", TAttribute<FText>(), InsertAfterAssetSection);
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ShowAllMaterialParameters));
+			// TODO: support in material instance editor.
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().TogglePlatformStats));
+		}
+
+		{
+			FToolMenuSection& Section = ToolBar->AddSection("Parent", TAttribute<FText>(), InsertAfterAssetSection);
+			Section.AddEntry(FToolMenuEntry::InitComboButton(
+				"Hierarchy",
+				FToolUIActionChoice(),
+				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+				{
+					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+					{
+						SubMenuContext->MaterialEditor.Pin()->GenerateInheritanceMenu(InSubMenu);
+					}
+				}),
+				LOCTEXT("Hierarchy", "Hierarchy"),
+				FText::GetEmpty(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.SwitchToBehaviorTreeMode"),
+				false
+			));
+		}
+	}
+}
+
+void FMaterialInstanceEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UMaterialEditorMenuContext* Context = NewObject<UMaterialEditorMenuContext>();
+	Context->MaterialEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
 }
 
 void FMaterialInstanceEditor::ExtendToolbar()
 {
-	RegisterToolBar();
-
 	AddToolbarExtender(GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );
@@ -840,140 +859,49 @@ void FMaterialInstanceEditor::ExtendToolbar()
 
 void FMaterialInstanceEditor::GenerateInheritanceMenu(UToolMenu* Menu)
 {
-	struct Local
-	{
-		static void AddMenuEntry(FToolMenuSection& Section, FAssetData AssetData, bool bIsFunctionPreviewMaterial)
-		{
-			FExecuteAction OpenAction;
-			FExecuteAction FindInContentBrowserAction;
-			if (bIsFunctionPreviewMaterial)
-			{
-				OpenAction.BindStatic(&FMaterialEditorUtilities::OnOpenFunction, AssetData);
-				FindInContentBrowserAction.BindStatic(&FMaterialEditorUtilities::OnShowFunctionInContentBrowser, AssetData);
-			}
-			else
-			{
-				OpenAction.BindStatic(&FMaterialEditorUtilities::OnOpenMaterial, AssetData);
-				FindInContentBrowserAction.BindStatic(&FMaterialEditorUtilities::OnShowMaterialInContentBrowser, AssetData);
-			}
-
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("ParentName"), FText::FromName(AssetData.AssetName));
-			FText Label = FText::Format(LOCTEXT("InstanceParentName", "{ParentName}"), Args);
-
-			FSlateIcon OpenIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor");
-			FSlateIcon FindInContentBrowserIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser");
-
-			TSharedRef<SWidget> EntryWidget =
-				SNew(SHorizontalBox)
-				.ToolTipText(LOCTEXT("OpenInEditor", "Open In Editor"))
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(FMargin(2, 0, 2, 0))
-				[
-					SNew( SBox )
-					.WidthOverride( MultiBoxConstants::MenuIconSize + 2 )
-					.HeightOverride( MultiBoxConstants::MenuIconSize )
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew( SBox )
-						.WidthOverride( MultiBoxConstants::MenuIconSize )
-						.HeightOverride( MultiBoxConstants::MenuIconSize )
-						[
-							SNew(SImage)
-							.Image(OpenIcon.GetIcon())
-						]
-					]
-				]
-
-				+ SHorizontalBox::Slot()
-				.FillWidth( 1.0f )
-				.Padding(FMargin(2, 0, 6, 0))
-				.VAlign( VAlign_Center )
-				[
-					SNew(STextBlock)
-					.Text(Label)
-				]
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign( VAlign_Center )
-				.HAlign( HAlign_Right )
-				[
-					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-					.ToolTipText(LOCTEXT("FindInContentBrowser", "Find In Content Browser"))
-					.OnClicked_Lambda([FindInContentBrowserAction]() { FindInContentBrowserAction.ExecuteIfBound(); return FReply::Handled(); })
-					[
-						SNew( SBox )
-						.WidthOverride( MultiBoxConstants::MenuIconSize + 2 )
-						.HeightOverride( MultiBoxConstants::MenuIconSize )
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SNew( SBox )
-							.WidthOverride( MultiBoxConstants::MenuIconSize )
-							.HeightOverride( MultiBoxConstants::MenuIconSize )
-							[
-								SNew(SImage)
-								.Image(FindInContentBrowserIcon.GetIcon())
-							]
-						]
-					]
-				];
-
-			Section.AddEntry(FToolMenuEntry::InitMenuEntry(
-				NAME_None,
-				FUIAction(OpenAction),
-				EntryWidget
-			));
-		}
-	};
-
 	RebuildInheritanceList();
 	Menu->bShouldCloseWindowAfterMenuSelection = true;
 	Menu->bSearchable = true;
 	Menu->SetMaxHeight(500);
-	const FName ParentName = TEXT("ParentChain");
-	FToolMenuSection& Section = Menu->AddSection(ParentName, LOCTEXT("ParentChain", "Parent Chain"));
-	if (bIsFunctionPreviewMaterial)
+
 	{
-		if (FunctionParentList.Num() == 0)
+		FToolMenuSection& Section = Menu->AddSection("ParentChain", LOCTEXT("ParentChain", "Parent Chain"));
+		if (bIsFunctionPreviewMaterial)
 		{
-			const FText NoParentText = LOCTEXT("NoParentFound", "No Parent Found");
-			TSharedRef<SWidget> NoParentWidget = SNew(STextBlock)
-				.Text(NoParentText);
-			Section.AddEntry(FToolMenuEntry::InitWidget("NoParentEntry", NoParentWidget, FText::GetEmpty()));
+			if (FunctionParentList.Num() == 0)
+			{
+				const FText NoParentText = LOCTEXT("NoParentFound", "No Parent Found");
+				TSharedRef<SWidget> NoParentWidget = SNew(STextBlock)
+					.Text(NoParentText);
+				Section.AddEntry(FToolMenuEntry::InitWidget("NoParentEntry", NoParentWidget, FText::GetEmpty()));
+			}
+			for (FAssetData FunctionParent : FunctionParentList)
+			{
+				FMaterialEditor::AddInheritanceMenuEntry(Section, FunctionParent, bIsFunctionPreviewMaterial);
+			}
 		}
-		for (FAssetData FunctionParent : FunctionParentList)
+		else
 		{
-			Local::AddMenuEntry(Section, FunctionParent, bIsFunctionPreviewMaterial);
-		}
-	}
-	else
-	{
-		if (MaterialParentList.Num() == 0)
-		{
-			const FText NoParentText = LOCTEXT("NoParentFound", "No Parent Found");
-			TSharedRef<SWidget> NoParentWidget = SNew(STextBlock)
-				.Text(NoParentText);
-			Section.AddEntry(FToolMenuEntry::InitWidget("NoParentEntry", NoParentWidget, FText::GetEmpty()));
-		}
-		for (FAssetData MaterialParent : MaterialParentList)
-		{
-			Local::AddMenuEntry(Section, MaterialParent, bIsFunctionPreviewMaterial);
+			if (MaterialParentList.Num() == 0)
+			{
+				const FText NoParentText = LOCTEXT("NoParentFound", "No Parent Found");
+				TSharedRef<SWidget> NoParentWidget = SNew(STextBlock)
+					.Text(NoParentText);
+				Section.AddEntry(FToolMenuEntry::InitWidget("NoParentEntry", NoParentWidget, FText::GetEmpty()));
+			}
+			for (FAssetData MaterialParent : MaterialParentList)
+			{
+				FMaterialEditor::AddInheritanceMenuEntry(Section, MaterialParent, bIsFunctionPreviewMaterial);
+			}
 		}
 	}
 
 	if (!bIsFunctionPreviewMaterial)
 	{
-		const FName MaterialInstances = TEXT("MaterialInstances");
-		FToolMenuSection& MaterialInstancesSection = Menu->AddSection(MaterialInstances, LOCTEXT("MaterialInstances", "Material Instances"));
-		for (FAssetData MaterialChild : MaterialChildList)
+		FToolMenuSection& Section = Menu->AddSection("MaterialInstances", LOCTEXT("MaterialInstances", "Material Instances"));
+		for (const FAssetData& MaterialChild : MaterialChildList)
 		{
-			Local::AddMenuEntry(MaterialInstancesSection, MaterialChild, bIsFunctionPreviewMaterial);
+			FMaterialEditor::AddInheritanceMenuEntry(Section, MaterialChild, bIsFunctionPreviewMaterial);
 		}
 	}
 }

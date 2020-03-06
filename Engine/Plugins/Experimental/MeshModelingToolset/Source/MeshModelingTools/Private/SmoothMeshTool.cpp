@@ -76,7 +76,6 @@ void USmoothMeshTool::Setup()
 
 	// populate the SrcDynamicMesh with a conversion of the input mesh.
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.bPrintDebugMessages = false;
 	Converter.Convert(ComponentTarget->GetMesh(), SrcDynamicMesh);
 
 	// Initialize the preview mesh with a copy of the source mesh.

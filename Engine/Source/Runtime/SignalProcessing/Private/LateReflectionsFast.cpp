@@ -234,7 +234,7 @@ void FLateReflectionsPlate::SetDecay(float InDecay)
 void FLateReflectionsPlate::SetDensity(float InDensity)
 {
 	Density = InDensity;
-	ModulatedAPF->SetG(-Density);
+	ModulatedAPF->SetG(FMath::Clamp(-Density, -0.9f, 0.9f));
 	APF->SetG(Density - 0.15f);
 }
 

@@ -37,7 +37,7 @@ public:
 	virtual void OnAbandoned() = 0;
 };
 
-class IMAGEWRITEQUEUE_VTABLE FImageWriteTask
+class FImageWriteTask
 	: public IImageWriteTaskBase
 {
 public:

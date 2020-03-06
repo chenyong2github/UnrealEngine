@@ -28,6 +28,11 @@
 #include "MeshMergeModule.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "ScopedTransaction.h"
+#include "Async/ParallelFor.h"
+#include "Algo/AllOf.h"
+#include "Algo/AnyOf.h"
+#include "Async/Async.h"
+#include "Misc/ScopedSlowTask.h"
 
 #include "UnrealEdGlobals.h"
 #include "UnrealEd/Private/GeomFitUtils.h"
@@ -52,6 +57,8 @@ namespace InternalEditorMeshLibrary
 		{
 			return false;
 		}
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(GenerateConvexCollision)
 
 		// If RenderData has not been computed yet, do it
 		if (!StaticMesh->RenderData)
@@ -691,8 +698,10 @@ int32 UEditorStaticMeshLibrary::GetConvexCollisionCount(UStaticMesh* StaticMesh)
 	return BodySetup->AggGeom.ConvexElems.Num();
 }
 
-bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges)
+bool UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotification(const TArray<UStaticMesh*>& InStaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification)
+
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
@@ -700,7 +709,10 @@ bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(
 		return false;
 	}
 
-	if (StaticMesh == nullptr)
+	TArray<UStaticMesh*> StaticMeshes(InStaticMeshes);
+	StaticMeshes.RemoveAll([](const UStaticMesh* StaticMesh) { return StaticMesh == nullptr || !StaticMesh->IsMeshDescriptionValid(0); });
+
+	if (StaticMeshes.Num() == 0)
 	{
 		UE_LOG(LogEditorScripting, Error, TEXT("SetConvexDecompositionCollisions: The StaticMesh is null."));
 		return false;
@@ -712,51 +724,101 @@ bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(
 		return false;
 	}
 
+	if (Algo::AnyOf(StaticMeshes, [](const UStaticMesh* StaticMesh) { return StaticMesh->RenderData == nullptr; }))
+	{
+		UStaticMesh::BatchBuild(StaticMeshes);
+	}
+
+	Algo::SortBy(
+		StaticMeshes,
+		[](const UStaticMesh* StaticMesh){ return StaticMesh->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices(); },
+		TGreater<>()
+	);
+
 	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-	bool bStaticMeshIsEdited = false;
-	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
-	{
-		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
-		bStaticMeshIsEdited = true;
-	}
 
-	if (StaticMesh->BodySetup)
+	TSet<UStaticMesh*> EditedStaticMeshes;
+	for (UStaticMesh* StaticMesh : StaticMeshes)
 	{
-		if(bApplyChanges)
+		if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
 		{
-			StaticMesh->BodySetup->Modify();
+			AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
+			EditedStaticMeshes.Add(StaticMesh);
 		}
 
-		// Remove simple collisions
-		StaticMesh->BodySetup->RemoveSimpleCollision();
-
-		// refresh collision change back to static mesh components
-		RefreshCollisionChange(*StaticMesh);
-	}
-
-	// Generate convex collision on mesh
-	bool bResult = InternalEditorMeshLibrary::GenerateConvexCollision(StaticMesh, HullCount, MaxHullVerts, HullPrecision);
-
-	if(bApplyChanges)
-	{
-		// refresh collision change back to static mesh components
-		RefreshCollisionChange(*StaticMesh);
-
-		// Mark mesh as dirty
-		StaticMesh->MarkPackageDirty();
-
-		// Request re-building of mesh following collision changes
-		StaticMesh->PostEditChange();
-
-		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
-		if (bStaticMeshIsEdited)
+		if (StaticMesh->BodySetup)
 		{
-			AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
+			if (bApplyChanges)
+			{
+				StaticMesh->BodySetup->Modify();
+			}
+
+			// Remove simple collisions
+			StaticMesh->BodySetup->RemoveSimpleCollision();
 		}
 	}
 
-	return bResult;
+	TArray<bool> bResults;
+	bResults.SetNumZeroed(StaticMeshes.Num());
+
+	TAtomic<uint32> Processed(0);
+	TFuture<void> Result = 
+		Async(
+			EAsyncExecution::ThreadPool,
+			[&Processed, &bResults, &StaticMeshes, HullCount, MaxHullVerts, HullPrecision]()
+			{
+				ParallelFor(
+					StaticMeshes.Num(),
+					[&Processed, &bResults, &StaticMeshes, HullCount, MaxHullVerts, HullPrecision](int32 Index)
+					{
+						bResults[Index] = InternalEditorMeshLibrary::GenerateConvexCollision(StaticMeshes[Index], HullCount, MaxHullVerts, HullPrecision);
+						Processed++;
+					},
+					EParallelForFlags::Unbalanced
+				);
+			}
+		);
+	
+	uint32 LastProcessed = 0;
+	const FText ProgressText = LOCTEXT("ComputingConvexCollision", "Computing convex collision for static mesh {0}/{1} ...");
+	FScopedSlowTask Progress(StaticMeshes.Num(), FText::Format(ProgressText, LastProcessed, StaticMeshes.Num()));
+	Progress.MakeDialog();
+	
+	while (!Result.WaitFor(FTimespan::FromMilliseconds(33.0)))
+	{
+		uint32 LocalProcessed = Processed.Load(EMemoryOrder::Relaxed);
+		Progress.EnterProgressFrame(LocalProcessed - LastProcessed, FText::Format(ProgressText, LocalProcessed, StaticMeshes.Num()));
+		LastProcessed = LocalProcessed;
+	}
+
+	// refresh collision change back to static mesh components
+	RefreshCollisionChanges(StaticMeshes);
+
+	if (bApplyChanges)
+	{
+		for (UStaticMesh* StaticMesh : StaticMeshes)
+		{
+			// Mark mesh as dirty
+			StaticMesh->MarkPackageDirty();
+
+			// Request re-building of mesh following collision changes
+			StaticMesh->PostEditChange();
+		}
+	}
+	
+	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
+	for (UStaticMesh* StaticMesh : EditedStaticMeshes)
+	{
+		AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
+	}
+
+	return Algo::AllOf(bResults);
+}
+
+bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges)
+{
+	return BulkSetConvexDecompositionCollisionsWithNotification({StaticMesh}, HullCount, MaxHullVerts, HullPrecision, bApplyChanges);
 }
 
 bool UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* StaticMesh, bool bApplyChanges)

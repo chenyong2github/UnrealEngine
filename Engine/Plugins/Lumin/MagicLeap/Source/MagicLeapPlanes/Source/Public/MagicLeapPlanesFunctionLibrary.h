@@ -25,10 +25,22 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Planes Function Library | MagicLeap")
 	static bool IsTrackerValid();
 
+	/** Adds a new plane query. */
+	UFUNCTION(BlueprintCallable, Category = "Planes Function Library | MagicLeap")
+	static FGuid AddPersistentQuery(EMagicLeapPlaneQueryType PersistentQueryType);
+
+	/** Removes a plane query. Returns a boolean of the operation's success*/
+	UFUNCTION(BlueprintCallable, Category = "Planes Function Library | MagicLeap")
+	static bool RemovePersistentQuery(FGuid Handle);
+	
 	/** Initiates a plane query. */
 	UFUNCTION(BlueprintCallable, Category = "Planes Function Library | MagicLeap")
 	static bool PlanesQueryBeginAsync(const FMagicLeapPlanesQuery& Query, const FMagicLeapPlanesResultDelegate& ResultDelegate);
 
+	/** Initiates a persistant plane query. */
+	UFUNCTION(BlueprintCallable, Category = "Planes Function Library | MagicLeap")
+	static bool PlanesPersistentQueryBeginAsync(const FMagicLeapPlanesQuery& Query, const FGuid& Handle, const FMagicLeapPersistentPlanesResultDelegate& ResultDelegate);
+	
 	/**
 		Gets the expected scale of the actor to be placed within the bounds of the given plane.
 		Ensure that the actor rotation is 0 (FQuat::Identity) before sending it to this function.

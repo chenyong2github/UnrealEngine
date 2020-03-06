@@ -22,6 +22,8 @@ class IAnalysisSession
 {
 public:
 	virtual ~IAnalysisSession() = default;
+	virtual void Stop(bool bAndWait=false) const = 0;
+	virtual void Wait() const = 0;
 	
 	virtual const TCHAR* GetName() const = 0;
 	virtual bool IsAnalysisComplete() const = 0;

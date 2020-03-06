@@ -151,6 +151,8 @@ public:
 		return OnAudioPlaybackPercent;
 	}
 
+	void UpdateChannelProxy();
+
 public:
 
 	//~ UMovieSceneSection interface
@@ -164,7 +166,6 @@ protected:
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
-	void UpdateChannelProxy();
 
 private:
 

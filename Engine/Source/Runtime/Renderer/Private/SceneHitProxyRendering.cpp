@@ -43,21 +43,15 @@ class FHitProxyVS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FHitProxyVS,MeshMaterial);
 
 public:
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-
-		Ar << VertexFetch_HitProxyIdBuffer;
-
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		// Only compile the hit proxy vertex shader on PC
 		return IsPCPlatform(Parameters.Platform)
 			// and only compile for the default material or materials that are masked.
-			&& (Parameters.Material->IsSpecialEngineMaterial() || !Parameters.Material->WritesEveryPixel() || Parameters.Material->MaterialMayModifyMeshPosition() || Parameters.Material->IsTwoSided());
+			&& (Parameters.MaterialParameters.bIsSpecialEngineMaterial ||
+				!Parameters.MaterialParameters.bWritesEveryPixel ||
+				Parameters.MaterialParameters.bMaterialMayModifyMeshPosition ||
+				Parameters.MaterialParameters.bIsTwoSided);
 	}
 
 	void GetShaderBindings(
@@ -95,7 +89,7 @@ protected:
 	}
 	FHitProxyVS() {}
 
-	FShaderResourceParameter VertexFetch_HitProxyIdBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_HitProxyIdBuffer)
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyVS,TEXT("/Engine/Private/HitProxyVertexShader.usf"),TEXT("Main"),SF_Vertex); 
@@ -159,7 +153,10 @@ public:
 		// Only compile the hit proxy vertex shader on PC
 		return IsPCPlatform(Parameters.Platform) 
 			// and only compile for default materials or materials that are masked.
-			&& (Parameters.Material->IsSpecialEngineMaterial() || !Parameters.Material->WritesEveryPixel() || Parameters.Material->MaterialMayModifyMeshPosition() || Parameters.Material->IsTwoSided());
+			&& (Parameters.MaterialParameters.bIsSpecialEngineMaterial ||
+				!Parameters.MaterialParameters.bWritesEveryPixel ||
+				Parameters.MaterialParameters.bMaterialMayModifyMeshPosition ||
+				Parameters.MaterialParameters.bIsTwoSided);
 	}
 
 	FHitProxyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -206,16 +203,8 @@ public:
 		ShaderBindings.Add(HitProxyId, hitProxyId.GetColor().ReinterpretAsLinear());
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		Ar << HitProxyId;
-		return bShaderHasOutdatedParameters;
-	}
-
-
 private:
-	FShaderParameter HitProxyId;
+	LAYOUT_FIELD(FShaderParameter, HitProxyId)
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyPS,TEXT("/Engine/Private/HitProxyPixelShader.usf"),TEXT("Main"),SF_Pixel);
@@ -631,7 +620,6 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		}
 
 		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
-		ClearPrimitiveSingleFrameIndirectLightingCacheBuffers();
 	}
 	check(RHICmdList.IsOutsideRenderPass());
 #endif
@@ -647,8 +635,9 @@ void FHitProxyMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
 		const FMaterial* Material = &MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, MaterialRenderProxy);
 		const EBlendMode BlendMode = Material->GetBlendMode();
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material);
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material);
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
 
 		if (Material->WritesEveryPixel() && !Material->IsTwoSided() && !Material->MaterialModifiesMeshPosition_RenderThread())
 		{
@@ -697,10 +686,10 @@ void GetHitProxyPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	FHitProxyHS*& HullShader,
-	FHitProxyDS*& DomainShader,
-	FHitProxyVS*& VertexShader,
-	FHitProxyPS*& PixelShader)
+	TShaderRef<FHitProxyHS>& HullShader,
+	TShaderRef<FHitProxyDS>& DomainShader,
+	TShaderRef<FHitProxyVS>& VertexShader,
+	TShaderRef<FHitProxyPS>& PixelShader)
 {
 	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
 
@@ -808,7 +797,8 @@ void FEditorSelectionMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
 		const FMaterial* Material = &MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, MaterialRenderProxy);
 
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material);
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
 		const ERasterizerCullMode MeshCullMode = CM_None;
 
 		if (Material->WritesEveryPixel() && !Material->IsTwoSided() && !Material->MaterialModifiesMeshPosition_RenderThread())

@@ -11,6 +11,10 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 {
 	FString SessionId;
 
+	FString AppId;
+	FString AppVersion;
+	FString UserId;
+
 	FString ProjectName;
 	FString ProjectID;
 	FString ProjectDescription;

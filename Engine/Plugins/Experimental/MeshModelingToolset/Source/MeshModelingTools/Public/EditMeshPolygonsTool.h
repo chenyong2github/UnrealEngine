@@ -479,6 +479,10 @@ protected:
 
 	FFrame3d InitialGizmoFrame;
 	FVector3d InitialGizmoScale;
+	void CacheUpdate_Gizmo();
+	bool bGizmoUpdatePending = false;
+	FFrame3d LastUpdateGizmoFrame;
+	FVector3d LastUpdateGizmoScale;
 	void ComputeUpdate_Gizmo();
 
 	TUniquePtr<FGroupTopology> Topology;

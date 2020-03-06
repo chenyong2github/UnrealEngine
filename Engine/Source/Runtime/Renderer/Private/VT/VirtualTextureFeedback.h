@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "RenderCore/Public/RenderTargetPool.h"
 
-class FRHIGPUBufferReadback;
-
 /*
 ====================================
 	Manages GPU and CPU buffers for VT feedback.
@@ -50,10 +48,10 @@ public:
 private:
 	struct FFeedBackItem
 	{
-		FRHIGPUBufferReadback* ReadbackBuffer;
 		int32 NumRects;
 		FIntRect Rects[MaxRectPerTarget];
 		FRHIGPUMask GPUMask;
+		FStagingBufferRHIRef ReadbackBuffer;
 	};
 
 	FFeedBackItem FeedbackCPU[TargetCapacity];

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_STAGE_H
-#define USD_STAGE_H
+#ifndef PXR_USD_USD_STAGE_H
+#define PXR_USD_USD_STAGE_H
 
 /// \file usd/stage.h
 
@@ -32,8 +32,9 @@
 #include "pxr/usd/usd/editTarget.h"
 #include "pxr/usd/usd/interpolation.h"
 #include "pxr/usd/usd/schemaRegistry.h"
+#include "pxr/usd/usd/stageLoadRules.h"
 #include "pxr/usd/usd/stagePopulationMask.h"
-#include "pxr/usd/usd/prim.h"
+#include "pxr/usd/usd/primFlags.h"
 
 #include "pxr/base/tf/declarePtrs.h"
 #include "pxr/base/tf/hashmap.h"
@@ -71,6 +72,7 @@ class Usd_InstanceChanges;
 class Usd_InterpolatorBase;
 class UsdResolveInfo;
 class Usd_Resolver;
+class UsdPrim;
 class UsdPrimRange;
 
 SDF_DECLARE_HANDLES(SdfLayer);
@@ -539,50 +541,48 @@ public:
     ///       some recomposition cost. Similarly, unloading an unloaded prim
     ///       is legal.
     ///     - Specifying a path that does not target a prim is legal as long it
-    ///       has at least one ancestor in the scene graph (!including the
-    ///       absolute root). If the given path has no ancestors, it is an
+    ///       has an ancestor present in the scene graph (other than the
+    ///       absolute root). If the given path has no such ancestor, it is an
     ///       error.
-    ///     - Loading an inactive prim is an error.
-    ///     - Loading a master prim is an error. However, note that loading
-    ///       a prim in a master is legal.
+    ///     - Specifying a path to an inactive prim is an error.
+    ///     - Specifying a path to a master prim or a prim within a master is an
+    ///       error.
+    ///
+    /// If an instance prim (or a path identifying a prim descendant to an
+    /// instance) is encountered during a Load/Unload operation, these functions
+    /// may cause instancing to change on the stage in order to ensure that no
+    /// other instances are affected.  The load/unload rules that affect a given
+    /// prim hierarchy are considered when determining which prims can be
+    /// instanced together.  Instance sharing occurs when different instances
+    /// have equivalent load rules.
+    ///
+    /// The GetLoadRules() and SetLoadRules() provide direct low-level access to
+    /// the UsdStageLoadRules that govern payload inclusion on a stage.
+    ///
     /// @{
     // --------------------------------------------------------------------- //
 
-    /// Load the prim at \p path, its ancestors, and all of its descendants if
-    /// \p policy is UsdLoadWithDescendants.  If \p policy is
-    /// UsdLoadWithoutDescendants, then descendants are not loaded.
+    /// Modify this stage's load rules to load the prim at \p path, its
+    /// ancestors, and all of its descendants if \p policy is
+    /// UsdLoadWithDescendants.  If \p policy is UsdLoadWithoutDescendants, then
+    /// payloads on descendant prims are not loaded.
     ///
-    /// If an instance prim is encountered during this operation, this
-    /// function will also load prims in the instance's master. In other
-    /// words, loading a single instance may affect other instances because
-    /// it changes the load state of prims in the shared master. However, 
-    /// loading a single instance will never cause other instances to be
-    /// loaded as well.
-    ///
-    /// See the rules under
-    /// \ref Usd_workingSetManagement "Working Set Management" for a discussion
-    /// of what paths are considered valid.
+    /// See \ref Usd_workingSetManagement "Working Set Management" for more
+    /// information.
     USD_API
     UsdPrim Load(const SdfPath& path=SdfPath::AbsoluteRootPath(),
                  UsdLoadPolicy policy=UsdLoadWithDescendants);
 
-    /// Unload the prim and its descendants specified by \p path.
+    /// Modify this stage's load rules to unload the prim and its descendants
+    /// specified by \p path.
     ///
-    /// If an instance prim is encountered during this operation, this
-    /// function will also unload prims in the instance's master. In other
-    /// words, unloading a single instance may affect other instances because
-    /// it changes the load state of prims in the shared master. However, 
-    /// unloading a single instance will never cause other instances to be
-    /// unloaded as well.
-    ///
-    /// See the rules under
-    /// \ref Usd_workingSetManagement "Working Set Management" for a discussion
-    /// of what paths are considered valid.
+    /// See \ref Usd_workingSetManagement "Working Set Management" for more
+    /// information.
     USD_API
     void Unload(const SdfPath& path=SdfPath::AbsoluteRootPath());
 
-    /// Unloads and loads the given path sets; the effect is as if the
-    /// unload set were processed first followed by the load set.
+    /// Unload and load the given path sets.  The effect is as if the unload set
+    /// were processed first followed by the load set.
     ///
     /// This is equivalent to calling UsdStage::Unload for each item in the
     /// unloadSet followed by UsdStage::Load for each item in the loadSet,
@@ -590,9 +590,8 @@ public:
     /// a single batch.  The \p policy argument is described in the
     /// documentation for Load().
     ///
-    /// See the rules under
-    /// \ref Usd_workingSetManagement "Working Set Management" for a discussion
-    /// of what paths are considered valid.
+    /// See \ref Usd_workingSetManagement "Working Set Management" for more
+    /// information.
     USD_API
     void LoadAndUnload(const SdfPathSet &loadSet, const SdfPathSet &unloadSet,
                        UsdLoadPolicy policy=UsdLoadWithDescendants);
@@ -604,6 +603,9 @@ public:
     /// descendants of explicitly loaded paths.
     ///
     /// This method does not return paths to inactive prims.
+    ///
+    /// See \ref Usd_workingSetManagement "Working Set Management" for more
+    /// information.
     USD_API
     SdfPathSet GetLoadSet();
 
@@ -623,9 +625,33 @@ public:
     ///                     all.begin(), all.end(),
     ///                     std::inserter(result, result.end()));
     /// \endcode
+    ///
+    /// See \ref Usd_workingSetManagement "Working Set Management" for more
+    /// information.
     USD_API
     SdfPathSet FindLoadable(
         const SdfPath& rootPath = SdfPath::AbsoluteRootPath());
+
+    /// Return the stage's current UsdStageLoadRules governing payload
+    /// inclusion.
+    ///
+    /// See \ref Usd_workingSetManagement "Working Set Management" for more
+    /// information.
+    UsdStageLoadRules const &GetLoadRules() const {
+        return _loadRules;
+    }
+
+    /// Set the UsdStageLoadRules to govern payload inclusion on this stage.
+    /// This rebuilds the stage's entire prim hierarchy to follow \p rules.
+    ///
+    /// Note that subsequent calls to Load(), Unload(), LoadAndUnload() will
+    /// modify this stages load rules as described in the documentation for
+    /// those member functions.
+    ///
+    /// See \ref Usd_workingSetManagement "Working Set Management" for more
+    /// information.
+    USD_API
+    void SetLoadRules(UsdStageLoadRules const &rules);
 
     /// Return this stage's population mask.
     UsdStagePopulationMask GetPopulationMask() const {
@@ -764,11 +790,6 @@ private:
     // prim in the instance's master.
     Usd_PrimDataConstPtr 
     _GetPrimDataAtPathOrInMaster(const SdfPath &path) const;
-
-    // A helper function for LoadAndUnload to aggregate notification data
-    void _LoadAndUnload(const SdfPathSet&, const SdfPathSet&, 
-                        SdfPathSet*, SdfPathSet*,
-                        UsdLoadPolicy policy);
 
 public:
 
@@ -1503,13 +1524,7 @@ public:
     /// @}
 
 private:
-    struct _IncludeNewlyDiscoveredPayloadsPredicate;
-
-    enum _IncludePayloadsRule {
-        _IncludeAllDiscoveredPayloads,
-        _IncludeNoDiscoveredPayloads,
-        _IncludeNewPayloadsIfAncestorWasIncluded
-    };
+    struct _IncludePayloadsPredicate;
 
     // --------------------------------------------------------------------- //
     // Stage Construction & Initialization
@@ -1604,23 +1619,74 @@ private:
     // Value & Metadata Authoring
     // --------------------------------------------------------------------- //
 
-    bool _SetValue(UsdTimeCode time, const UsdAttribute &attr,
-                   const VtValue &newValue);
-    bool _SetValue(UsdTimeCode time, const UsdAttribute &attr,
-                   const SdfAbstractDataConstValue &newValue);
+    // Trait that allows us to call the correct versions of _SetValue and 
+    // _SetMetadata for types whose values need to be mapped when written to
+    // different edit targets.
     template <class T>
-    bool _SetValueImpl(UsdTimeCode time, const UsdAttribute &attr, const T& value);
+    struct _IsEditTargetMappable {
+        static const bool value =
+            std::is_same<T, SdfTimeCode>::value ||
+            std::is_same<T, VtArray<SdfTimeCode>>::value ||
+            std::is_same<T, SdfTimeSampleMap>::value ||
+            std::is_same<T, VtDictionary>::value;
+    };
+
+    // Set value for types that don't need to be mapped for edit targets.
+    template <class T>
+    typename std::enable_if<!_IsEditTargetMappable<T>::value, bool>::type
+    _SetValue(
+        UsdTimeCode time, const UsdAttribute &attr, const T &newValue);
+
+    // Set value for types that do need to be mapped for edit targets.
+    template <class T>
+    typename std::enable_if<_IsEditTargetMappable<T>::value, bool>::type
+    _SetValue(
+        UsdTimeCode time, const UsdAttribute &attr, const T &newValue);
+
+    // Set value for dynamically typed VtValue. Will map the value across edit
+    // targets if the held value type supports it.
+    bool _SetValue(
+        UsdTimeCode time, const UsdAttribute &attr, const VtValue &newValue);
+
+    template <class T>
+    bool _SetEditTargetMappedValue(
+        UsdTimeCode time, const UsdAttribute &attr, const T &newValue);
+
+    template <class T>
+    bool _SetValueImpl(
+        UsdTimeCode time, const UsdAttribute &attr, const T& value);
 
     bool _ClearValue(UsdTimeCode time, const UsdAttribute &attr);
 
-    bool _SetMetadata(const UsdObject &obj, const TfToken& fieldName,
-                      const TfToken &keyPath, const VtValue &newValue);
-    bool _SetMetadata(const UsdObject &obj, const TfToken& fieldName,
-                      const TfToken &keyPath,
-                      const SdfAbstractDataConstValue &newValue);
+    // Set metadata for types that don't need to be mapped across edit targets.
     template <class T>
-    bool _SetMetadataImpl(const UsdObject &obj, const TfToken& fieldName,
-                          const TfToken &keyPath, const T &value);
+    typename std::enable_if<!_IsEditTargetMappable<T>::value, bool>::type
+    _SetMetadata(const UsdObject &object, const TfToken& key,
+                 const TfToken &keyPath, const T& value);
+
+    // Set metadata for types that do need to be mapped for edit targets.
+    template <class T>
+    typename std::enable_if<_IsEditTargetMappable<T>::value, bool>::type
+    _SetMetadata(const UsdObject &object, const TfToken& key,
+                 const TfToken &keyPath, const T& value);
+
+    // Set metadata for dynamically typed VtValue. Will map the value across 
+    // edit targets if the held value type supports it.
+    USD_API
+    bool _SetMetadata(const UsdObject &object,
+                      const TfToken& key,
+                      const TfToken &keyPath,
+                      const VtValue& value);
+
+    template <class T>
+    bool _SetEditTargetMappedMetadata(
+        const UsdObject &obj, const TfToken& fieldName,
+        const TfToken &keyPath, const T &newValue);
+
+    template <class T>
+    bool _SetMetadataImpl(
+        const UsdObject &obj, const TfToken& fieldName,
+        const TfToken &keyPath, const T &value);
 
     bool _ClearMetadata(const UsdObject &obj, const TfToken& fieldName,
                         const TfToken &keyPath=TfToken());
@@ -1655,9 +1721,8 @@ private:
     // during composition.
     void _ComposePrimIndexesInParallel(
         const std::vector<SdfPath>& primIndexPaths,
-        _IncludePayloadsRule includeRule,
         const std::string& context,
-        Usd_InstanceChanges* instanceChanges = NULL);
+        Usd_InstanceChanges* instanceChanges = nullptr);
 
     // Recompose the subtree rooted at \p prim: compose its type, flags, and
     // list of children, then invoke _ComposeSubtree on all its children.
@@ -1672,7 +1737,7 @@ private:
     void _ComposeSubtreeInParallel(Usd_PrimDataPtr prim);
     void _ComposeSubtreesInParallel(
         const std::vector<Usd_PrimDataPtr> &prims,
-        const std::vector<SdfPath> *primIndexPaths = NULL);
+        const std::vector<SdfPath> *primIndexPaths = nullptr);
 
     // Compose subtree rooted at \p prim under \p parent.  This function
     // ensures that the appropriate prim index is specified for \p prim if
@@ -1767,16 +1832,6 @@ private:
     bool _IsValidForLoad(const SdfPath& path) const;
     bool _IsValidForUnload(const SdfPath& path) const;
 
-    template <class Callback>
-    void _WalkPrimsWithMasters(const SdfPath &, Callback const &) const;
-
-    template <class Callback>
-    void _WalkPrimsWithMastersImpl(
-        UsdPrim const &prim,
-        Callback const &cb,
-        tbb::concurrent_unordered_set<SdfPath, SdfPath::Hash>
-        *seenMasterPrimPaths) const;
-
     // Discover all payloads in a given subtree, adding the path of each
     // discovered prim index to the \p primIndexPaths set. If specified,
     // the corresponding UsdPrim path will be added to the \p usdPrimPaths
@@ -1790,13 +1845,6 @@ private:
                            SdfPathSet* primIndexPaths,
                            bool unloadedOnly = false,
                            SdfPathSet* usdPrimPaths = nullptr) const;
-
-    // Discover all ancestral payloads above a given root, adding the path
-    // of each discovered prim index to the \p result set. The root path
-    // itself will not be included in the result.
-    void _DiscoverAncestorPayloads(const SdfPath& rootPath,
-                                   SdfPathSet* result,
-                                   bool unloadedOnly = false) const;
 
     // ===================================================================== //
     //                          VALUE RESOLUTION                             //
@@ -1823,24 +1871,84 @@ private:
                                  size_t numAssetPaths,
                                  bool anchorAssetPathsOnly = false) const;
 
-    void _MakeResolvedAssetPaths(UsdTimeCode time, const UsdAttribute &attr,
-                                 VtValue *value,
-                                 bool anchorAssetPathsOnly = false) const;
+    void _MakeResolvedAssetPathsValue(UsdTimeCode time, const UsdAttribute &attr,
+                                      VtValue *value,
+                                      bool anchorAssetPathsOnly = false) const;
+
+    void _MakeResolvedTimeCodes(UsdTimeCode time, const UsdAttribute &attr,
+                                SdfTimeCode *timeCodes,
+                                size_t numTimeCodes) const;
+
+    void _MakeResolvedAttributeValue(UsdTimeCode time, const UsdAttribute &attr,
+                                     VtValue *value) const;
 
     // --------------------------------------------------------------------- //
     // Metadata Resolution
     // --------------------------------------------------------------------- //
+
+public:
+    // Trait that allows us to call the correct version of _GetMetadata for 
+    // types that require type specific value resolution as opposed to just
+    // strongest opinion. These types also use type specific resolution 
+    // in _GetValue.
+    template <class T>
+    struct _HasTypeSpecificResolution {
+        static const bool value =
+            std::is_same<T, SdfAssetPath>::value ||
+            std::is_same<T, VtArray<SdfAssetPath>>::value ||
+            std::is_same<T, SdfTimeCode>::value ||
+            std::is_same<T, VtArray<SdfTimeCode>>::value ||
+            std::is_same<T, SdfTimeSampleMap>::value ||
+            std::is_same<T, VtDictionary>::value;
+    };
+
+private:
+    // Get metadata for types that do not have type specific value resolution.
+    template <class T>
+    typename std::enable_if<!_HasTypeSpecificResolution<T>::value, bool>::type
+    _GetMetadata(const UsdObject &obj,
+                 const TfToken& fieldName,
+                 const TfToken &keyPath,
+                 bool useFallbacks,
+                 T* result) const;
+
+    // Get metadata for types that do have type specific value resolution.
+    template <class T>
+    typename std::enable_if<_HasTypeSpecificResolution<T>::value, bool>::type
+    _GetMetadata(const UsdObject &obj,
+                 const TfToken& fieldName,
+                 const TfToken &keyPath,
+                 bool useFallbacks,
+                 T* result) const;
+
+    // Get metadata as a dynamically typed VtValue. Will perform type specific
+    // value resolution if the returned held type requires it.
     bool _GetMetadata(const UsdObject &obj,
                       const TfToken& fieldName,
                       const TfToken &keyPath,
                       bool useFallbacks,
                       VtValue* result) const;
 
-    bool _GetMetadata(const UsdObject &obj,
-                      const TfToken& fieldName,
-                      const TfToken &keyPath,
-                      bool useFallbacks,
-                      SdfAbstractDataValue* result) const;
+    // Gets a metadata value using only strongest value resolution. It is 
+    // assumed that result is holding a value that does not require type 
+    // specific value resolution.
+    USD_API
+    bool _GetStrongestResolvedMetadata(const UsdObject &obj,
+                                       const TfToken& fieldName,
+                                       const TfToken &keyPath,
+                                       bool useFallbacks,
+                                       SdfAbstractDataValue* result) const;
+
+    // Gets a metadata value with the type specific value resolution for the 
+    // type applied. This is only implemented for types that 
+    // _HasTypeSpecificResolution.
+    template <class T>
+    USD_API
+    bool _GetTypeSpecificResolvedMetadata(const UsdObject &obj,
+                                          const TfToken& fieldName,
+                                          const TfToken &keyPath,
+                                          bool useFallbacks,
+                                          T* result) const;
 
     template <class T>
     bool _GetMetadataImpl(const UsdObject &obj, const TfToken& fieldName, 
@@ -1926,10 +2034,6 @@ private:
                              const TfToken &fieldName,
                              const TfToken &keyPath,
                              Composer *composer) const;
-
-    template <class T>
-    bool _GetFallbackMetadata(const UsdObject &obj, const TfToken& fieldName,
-                              const TfToken &keyPath, T* result) const;
 
     // --------------------------------------------------------------------- //
     // Default & TimeSample Resolution
@@ -2085,6 +2189,9 @@ private:
     // The population mask that applies to this stage.
     UsdStagePopulationMask _populationMask;
     
+    // The load rules that apply to this stage.
+    UsdStageLoadRules _loadRules;
+    
     bool _isClosingStage;
 
     friend class UsdAPISchemaBase;
@@ -2095,7 +2202,6 @@ private:
     friend class UsdObject;
     friend class UsdPrim;
     friend class UsdProperty;
-    friend class UsdReferences;
     friend class UsdRelationship;
     friend class UsdSpecializes;
     friend class UsdVariantSet;
@@ -2104,7 +2210,23 @@ private:
     friend class Usd_PcpCacheAccess;
     friend class Usd_PrimData;
     friend class Usd_StageOpenRequest;
+    template <class T> friend struct Usd_AttrGetValueHelper;
+    friend struct Usd_AttrGetUntypedValueHelper;
+    template <class RefsOrPayloadsEditorType, class RefsOrPayloadsProxyType> 
+        friend struct Usd_ListEditImpl;
 };
+
+// UsdObject's typed metadata query relies on this specialization being
+// externally visible and exporting the primary template does not
+// automatically export this specialization.
+template <>
+USD_API
+bool
+UsdStage::_GetTypeSpecificResolvedMetadata(const UsdObject &obj,
+                                           const TfToken& fieldName,
+                                           const TfToken &keyPath,
+                                           bool useFallbacks,
+                                           SdfTimeSampleMap* result) const;
 
 template<typename T>
 bool
@@ -2169,9 +2291,64 @@ UsdStage::SetMetadataByDictKey(const TfToken& key, const TfToken &keyPath,
     return SetMetadataByDictKey(key, keyPath, in);
 }
 
+// Get metadata for types that do not have type specific value resolution.
+template <class T>
+typename std::enable_if<
+    !UsdStage::_HasTypeSpecificResolution<T>::value, bool>::type
+UsdStage::_GetMetadata(const UsdObject &obj,
+                       const TfToken& fieldName,
+                       const TfToken &keyPath,
+                       bool useFallbacks,
+                       T* result) const
+{
+    // Since these types don't have type specific value resolution, we can just 
+    // get the strongest metadata value and be done.
+    SdfAbstractDataTypedValue<T> out(result);
+    return _GetStrongestResolvedMetadata(
+        obj, fieldName, keyPath, useFallbacks, &out);
+}
+
+// Get metadata for types that do have type specific value resolution.
+template <class T>
+typename std::enable_if<
+    UsdStage::_HasTypeSpecificResolution<T>::value, bool>::type
+UsdStage::_GetMetadata(const UsdObject &obj,
+                       const TfToken& fieldName,
+                       const TfToken &keyPath,
+                       bool useFallbacks,
+                       T* result) const
+{
+    // Call the templated type specifice resolved metadata implementation that 
+    // will only be implemented for types that support it.
+    return _GetTypeSpecificResolvedMetadata(
+        obj, fieldName, keyPath, useFallbacks, result);
+}
+
+
+// Set metadata for types that don't need to be mapped across edit targets.
+template <class T>
+typename std::enable_if<!UsdStage::_IsEditTargetMappable<T>::value, bool>::type
+UsdStage::_SetMetadata(const UsdObject &object, const TfToken& key,
+                       const TfToken &keyPath, const T& value)
+{
+    // Since we know that we don't need to map the value for edit targets, 
+    // we can just type erase the value and set the metadata as is.
+    SdfAbstractDataConstTypedValue<T> in(&value);
+    return _SetMetadataImpl<SdfAbstractDataConstValue>(
+        object, key, keyPath, in);
+}
+
+// Set metadata for types that do need to be mapped for edit targets.
+template <class T>
+typename std::enable_if<UsdStage::_IsEditTargetMappable<T>::value, bool>::type
+UsdStage::_SetMetadata(const UsdObject &object, const TfToken& key,
+                       const TfToken &keyPath, const T& value)
+{
+    return _SetEditTargetMappedMetadata(object, key, keyPath, value);
+}
 
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif //USD_STAGE_H
+#endif //PXR_USD_USD_STAGE_H
 

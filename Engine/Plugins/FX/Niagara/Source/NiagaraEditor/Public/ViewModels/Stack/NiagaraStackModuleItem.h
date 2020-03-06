@@ -37,6 +37,8 @@ public:
 	bool CanRefresh() const;
 	void Refresh();
 
+	virtual bool SupportsRename() const override { return true; }
+
 	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
 
@@ -100,8 +102,7 @@ private:
 	bool FilterLinkedInputCollection(const UNiagaraStackEntry& Child) const;
 	bool FilterLinkedInputCollectionChild(const UNiagaraStackEntry& Child) const;
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
-
-private:
+	void OnEditorDataChanged();
 	void RefreshIsEnabled();
 
 private:

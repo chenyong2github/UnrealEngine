@@ -19,6 +19,7 @@
 
 struct FPolyglotTextData;
 class ILocalizedTextSource;
+class IPakFile;
 class FTextLocalizationResource;
 
 typedef TSharedRef<FString, ESPMode::ThreadSafe> FTextDisplayStringRef;
@@ -229,7 +230,7 @@ public:
 
 private:
 	/** Callback for when a PAK file is loaded. Loads any chunk specific localization resources. */
-	void OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId);
+	void OnPakFileMounted(const IPakFile& PakFile);
 
 	/** Callback for changes in culture. Loads the new culture's localization resources. */
 	void OnCultureChanged();

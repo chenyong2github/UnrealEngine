@@ -176,7 +176,7 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value, bool bNewBa
 	// Start a new batch
 	if (bNewBatch)
 	{
-		if (Series.LinePoints.Num() > 0)
+		if (Series.LinePoints.Num() > 0 && Series.LinePoints.Last().Num() > 0)
 		{
 			Series.LinePoints.AddDefaulted();
 		}

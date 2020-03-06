@@ -424,12 +424,20 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 		if (*Src == '.')
 		{
 			const TCHAR *Cur = Src + 1;
-			while ((*Cur >= '0') && (*Cur <= '9'))
+			if (*Cur == '*')
 			{
+				PrecisionLen = va_arg(ArgPtr, int32);
 				Cur++;
 			}
+			else
+			{
+				while ((*Cur >= '0') && (*Cur <= '9'))
+				{
+					Cur++;
+				}
 
-			PrecisionLen = Atoi(Src + 1);
+				PrecisionLen = Atoi(Src + 1);
+			}
 			Src = Cur;
 		}
 
@@ -763,7 +771,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 					Val = Null;
 				}
 
-				int RetCnt = Strlen(Val);
+				int RetCnt = PrecisionLen < 0 ? Strlen(Val) : Strnlen(Val, PrecisionLen);
 				int Spaces = FPlatformMath::Max(FPlatformMath::Abs(FieldLen) - RetCnt, 0);
 				if (Spaces > 0 && FieldLen > 0)
 				{
@@ -795,7 +803,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 					Val = Null;
 				}
 
-				int RetCnt = Strlen(Val);
+				int RetCnt = PrecisionLen < 0 ? Strlen(Val) : Strnlen(Val, PrecisionLen);
 				int Spaces = FPlatformMath::Max(FPlatformMath::Abs(FieldLen) - RetCnt, 0);
 				if (Spaces > 0 && FieldLen > 0)
 				{

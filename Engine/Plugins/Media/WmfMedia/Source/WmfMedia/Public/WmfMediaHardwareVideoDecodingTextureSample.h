@@ -57,15 +57,16 @@ public:
 	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override
 	{
 		// Only use sample converter for Win8+
-		return FWindowsPlatformMisc::VerifyWindowsVersion(6, 2) ? this : nullptr;
+		return FPlatformMisc::VerifyWindowsVersion(6, 2) ? this : nullptr;
 	}
 
 	/**
 	 * Texture sample convert using hardware video decoding.
 	 */
-	virtual void Convert(FTexture2DRHIRef InDstTexture) override
+	virtual bool Convert(FTexture2DRHIRef & InDstTexture, const FConversionHints & Hints) override
 	{
 		FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread(this, InDstTexture);
+		return true;
 	}
 
 	/**

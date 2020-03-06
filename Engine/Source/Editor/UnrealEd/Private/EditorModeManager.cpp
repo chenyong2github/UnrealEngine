@@ -819,7 +819,7 @@ void FEditorModeTools::SpawnOrUpdateModeToolbar()
 		}
 		else if (ToolkitHost.IsValid())
 		{
-			ToolkitHost.Pin()->GetTabManager()->InvokeTab(EditorModeToolbarTabName);
+			ToolkitHost.Pin()->GetTabManager()->TryInvokeTab(EditorModeToolbarTabName);
 		}
 	}
 }
@@ -903,6 +903,15 @@ FEdMode* FEditorModeTools::FindMode(FEditorModeID InID)
 
 void FEditorModeTools::DestroyMode( FEditorModeID InID )
 {
+	// Since deactivating the last active mode will cause the default modes to be activated, make sure this mode is removed from defaults.
+	RemoveDefaultMode( InID );
+	
+	// Add back the default default mode if we just removed the last valid default.
+	if ( DefaultModeIDs.Num() == 0 )
+	{
+		AddDefaultMode( FBuiltinEditorModes::EM_Default );
+	}
+
 	// Find the mode from the ID and exit it.
 	for( int32 Index = ActiveModes.Num() - 1; Index >= 0; --Index )
 	{
@@ -1159,7 +1168,9 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				Toolkit->GetToolPaletteNames(PaletteNames);
 				for(auto Palette : PaletteNames)
 				{
-					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
+					const bool bUniform = true;
+					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false, bUniform);
+					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
 					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
@@ -2069,6 +2080,7 @@ void FEditorModeTools::AddReferencedObjects( FReferenceCollector& Collector )
 	}
 
 	Collector.AddReferencedObjects(ActiveScriptableModes);
+	Collector.AddReferencedObjects(RecycledScriptableModes);
 }
 
 FEdMode* FEditorModeTools::GetActiveMode( FEditorModeID InID )

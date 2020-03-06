@@ -289,16 +289,21 @@ FChildActorComponentInstanceData::FChildActorComponentInstanceData(const UChildA
 	, ChildActorName(Component->GetChildActorName())
 	, ComponentInstanceData(nullptr)
 {
-	if (Component->GetChildActor())
+	if (AActor* ChildActor = Component->GetChildActor())
 	{
-		ComponentInstanceData = MakeShared<FComponentInstanceDataCache>(Component->GetChildActor());
+		if (ChildActorName.IsNone())
+		{
+			ChildActorName = ChildActor->GetFName();
+		}
+
+		ComponentInstanceData = MakeShared<FComponentInstanceDataCache>(ChildActor);
 		// If it is empty dump it
 		if (!ComponentInstanceData->HasInstanceData())
 		{
 			ComponentInstanceData.Reset();
 		}
 
-		USceneComponent* ChildRootComponent = Component->GetChildActor()->GetRootComponent();
+		USceneComponent* ChildRootComponent = ChildActor->GetRootComponent();
 		if (ChildRootComponent)
 		{
 			for (USceneComponent* AttachedComponent : ChildRootComponent->GetAttachChildren())
@@ -306,7 +311,7 @@ FChildActorComponentInstanceData::FChildActorComponentInstanceData(const UChildA
 				if (AttachedComponent)
 				{
 					AActor* AttachedActor = AttachedComponent->GetOwner();
-					if (AttachedActor != Component->GetChildActor())
+					if (AttachedActor != ChildActor)
 					{
 						FChildActorAttachedActorInfo Info;
 						Info.Actor = AttachedActor;
@@ -393,6 +398,9 @@ void UChildActorComponent::ApplyComponentInstanceData(FChildActorComponentInstan
 			if (ChildActor->Rename(*ChildActorNameString, nullptr, REN_Test))
 			{
 				ChildActor->Rename(*ChildActorNameString, nullptr, REN_DoNotDirty | REN_ForceNoResetLoaders);
+#if WITH_EDITOR
+				ChildActor->ClearActorLabel();
+#endif
 			}
 		}
 
@@ -440,7 +448,9 @@ void UChildActorComponent::SetChildActorClass(TSubclassOf<AActor> Class, AActor*
 				{
 					if (ActorTemplate == nullptr)
 					{
-						UEngine::CopyPropertiesForUnrelatedObjects(ChildActorTemplate, NewChildActorTemplate);
+						UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+						Options.bNotifyObjectReplacement = true;
+						UEngine::CopyPropertiesForUnrelatedObjects(ChildActorTemplate, NewChildActorTemplate, Options);
 					}
 					ChildActorTemplate->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
 				}
@@ -561,6 +571,7 @@ void UChildActorComponent::CreateChildActor()
 				Params.bAllowDuringConstructionScript = true;
 				Params.OverrideLevel = (MyOwner ? MyOwner->GetLevel() : nullptr);
 				Params.Name = ChildActorName;
+				Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 				if (ChildActorTemplate && ChildActorTemplate->GetClass() == ChildActorClass)
 				{
 					Params.Template = ChildActorTemplate;
@@ -594,7 +605,11 @@ void UChildActorComponent::CreateChildActor()
 					const FComponentInstanceDataCache* ComponentInstanceData = (CachedInstanceData ? CachedInstanceData->ComponentInstanceData.Get() : nullptr);
 					ChildActor->FinishSpawning(GetComponentTransform(), false, ComponentInstanceData);
 
-					ChildActor->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					if (USceneComponent* ChildRoot = ChildActor->GetRootComponent())
+					{
+						TGuardValue<TEnumAsByte<EComponentMobility::Type>> MobilityGuard(ChildRoot->Mobility, Mobility);
+						ChildRoot->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					}
 
 					SetIsReplicated(ChildActor->GetIsReplicated());
 

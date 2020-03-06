@@ -16,7 +16,7 @@ class UNiagaraEmitter;
 class FNiagaraScriptInputCollectionViewModel : public FNiagaraParameterCollectionViewModel, public TSharedFromThis<FNiagaraScriptInputCollectionViewModel>
 {
 public:
-	FNiagaraScriptInputCollectionViewModel(FText InDisplayName, ENiagaraParameterEditMode InParameterEditMode);
+	FNiagaraScriptInputCollectionViewModel(TAttribute<FText> InDisplayName, ENiagaraParameterEditMode InParameterEditMode);
 
 	~FNiagaraScriptInputCollectionViewModel();
 
@@ -69,7 +69,7 @@ private:
 	TWeakObjectPtr<UNiagaraGraph> Graph;
 
 	/** The display name for the view model. */
-	FText DisplayName;
+	TAttribute<FText> DisplayName;
 
 	/** The handle to the graph changed delegate. */
 	FDelegateHandle OnGraphChangedHandle;

@@ -19,6 +19,7 @@
 #include "SceneTextureParameters.h"
 #include "HairStrands/HairStrandsRendering.h"
 #include "ScreenPass.h"
+#include "SkyAtmosphereRendering.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
@@ -29,6 +30,11 @@
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 DECLARE_GPU_STAT(Lights);
+
+IMPLEMENT_TYPE_LAYOUT(FLightFunctionSharedParameters);
+IMPLEMENT_TYPE_LAYOUT(FStencilingGeometryShaderParameters);
+IMPLEMENT_TYPE_LAYOUT(FOnePassPointShadowProjectionShaderParameters);
+IMPLEMENT_TYPE_LAYOUT(FShadowProjectionShaderParameters);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct, "DeferredLightUniforms");
 
@@ -211,10 +217,63 @@ struct FRenderLightParams
 	// Visibility buffer data
 	IPooledRenderTarget* HairCategorizationTexture = nullptr;
 	IPooledRenderTarget* HairVisibilityNodeOffsetAndCount = nullptr;
+	IPooledRenderTarget* HairVisibilityNodeCount = nullptr;
+	FShaderResourceViewRHIRef HairVisibilityNodeCoordsSRV = nullptr;
 	FShaderResourceViewRHIRef HairVisibilityNodeDataSRV = nullptr;
 
 	IPooledRenderTarget* ScreenShadowMaskSubPixelTexture = nullptr;
 };
+
+
+class TDeferredLightHairVS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(TDeferredLightHairVS, Global);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_HAIR"), 1);
+	}
+
+	TDeferredLightHairVS() {}
+	TDeferredLightHairVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+		MaxViewportResolution.Bind(Initializer.ParameterMap, TEXT("MaxViewportResolution"));
+		HairVisibilityNodeCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeCount"));
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FHairStrandsVisibilityData* VisibilityData)
+	{
+		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
+
+		if (!VisibilityData)
+		{
+			return;
+		}
+
+		if (HairVisibilityNodeCount.IsBound() && VisibilityData->NodeCount)
+		{
+			SetTextureParameter(RHICmdList,	ShaderRHI, HairVisibilityNodeCount, VisibilityData->NodeCount->GetRenderTargetItem().ShaderResourceTexture);
+		}
+
+		SetShaderValue(RHICmdList, ShaderRHI, MaxViewportResolution, VisibilityData->SampleLightingViewportResolution);
+	}
+
+private:
+	LAYOUT_FIELD(FShaderParameter, MaxViewportResolution);
+	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeCount);
+};
+
+IMPLEMENT_SHADER_TYPE(, TDeferredLightHairVS, TEXT("/Engine/Private/DeferredLightVertexShaders.usf"), TEXT("HairVertexMain"), SF_Vertex);
+
 
 enum class ELightSourceShape
 {
@@ -228,7 +287,7 @@ enum class ELightSourceShape
 /** A pixel shader for rendering the light in a deferred pass. */
 class FDeferredLightPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FDeferredLightPS)
+	DECLARE_SHADER_TYPE(FDeferredLightPS, Global)
 
 	class FSourceShapeDim		: SHADER_PERMUTATION_ENUM_CLASS("LIGHT_SOURCE_SHAPE", ELightSourceShape);
 	class FSourceTextureDim		: SHADER_PERMUTATION_BOOL("USE_SOURCE_TEXTURE");
@@ -237,7 +296,8 @@ class FDeferredLightPS : public FGlobalShader
 	class FVisualizeCullingDim	: SHADER_PERMUTATION_BOOL("VISUALIZE_LIGHT_CULLING");
 	class FLightingChannelsDim	: SHADER_PERMUTATION_BOOL("USE_LIGHTING_CHANNELS");
 	class FTransmissionDim		: SHADER_PERMUTATION_BOOL("USE_TRANSMISSION");
-	class FHairLighting			: SHADER_PERMUTATION_BOOL("USE_HAIR_LIGHTING");
+	class FHairLighting			: SHADER_PERMUTATION_INT("USE_HAIR_LIGHTING", 3);
+	class FAtmosphereTransmittance: SHADER_PERMUTATION_BOOL("USE_ATMOSPHERE_TRANSMITTANCE");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FSourceShapeDim,
@@ -247,7 +307,8 @@ class FDeferredLightPS : public FGlobalShader
 		FVisualizeCullingDim,
 		FLightingChannelsDim,
 		FTransmissionDim,
-		FHairLighting>;
+		FHairLighting,
+		FAtmosphereTransmittance>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -256,6 +317,11 @@ class FDeferredLightPS : public FGlobalShader
 		if( PermutationVector.Get< FSourceShapeDim >() == ELightSourceShape::Directional && (
 			PermutationVector.Get< FIESProfileDim >() ||
 			PermutationVector.Get< FInverseSquaredDim >() ) )
+		{
+			return false;
+		}
+
+		if (PermutationVector.Get< FSourceShapeDim >() != ELightSourceShape::Directional && PermutationVector.Get<FAtmosphereTransmittance>())
 		{
 			return false;
 		}
@@ -276,6 +342,13 @@ class FDeferredLightPS : public FGlobalShader
 		}
 
 		if (PermutationVector.Get<FHairLighting>() && !IsHairStrandsSupported(Parameters.Platform))
+		{
+			return false;
+		}
+
+		if (PermutationVector.Get< FHairLighting >() == 2 && (
+			PermutationVector.Get< FVisualizeCullingDim >() ||
+			PermutationVector.Get< FTransmissionDim >()))
 		{
 			return false;
 		}
@@ -320,6 +393,7 @@ class FDeferredLightPS : public FGlobalShader
 
 		HairCategorizationTexture.Bind(Initializer.ParameterMap, TEXT("HairCategorizationTexture"));
 		HairVisibilityNodeOffsetAndCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeOffsetAndCount"));
+		HairVisibilityNodeCoords.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeCoords"));
 		HairVisibilityNodeData.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeData"));
 	}
 
@@ -334,50 +408,16 @@ public:
 		IPooledRenderTarget* ScreenShadowMaskTexture, 
 		FRenderLightParams* RenderLightParams)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetParametersBase(RHICmdList, ShaderRHI, View, ScreenShadowMaskTexture, LightSceneInfo->Proxy->GetIESTextureResource(), RenderLightParams);
 		SetDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), LightSceneInfo, View);
 	}
 
 	void SetParametersSimpleLight(FRHICommandList& RHICmdList, const FSceneView& View, const FSimpleLightEntry& SimpleLight, const FSimpleLightPerViewEntry& SimpleLightPerViewData)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetParametersBase(RHICmdList, ShaderRHI, View, nullptr, nullptr, nullptr);
 		SetSimpleDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), SimpleLight, SimpleLightPerViewData, View);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SceneTextureParameters;
-		Ar << LightAttenuationTexture;
-		Ar << LightAttenuationTextureSampler;
-		Ar << LTCMatTexture;
-		Ar << LTCMatSampler;
-		Ar << LTCAmpTexture;
-		Ar << LTCAmpSampler;
-		Ar << IESTexture;
-		Ar << IESTextureSampler;
-		Ar << LightingChannelsTexture;
-		Ar << LightingChannelsSampler;
-		Ar << TransmissionProfilesTexture;
-		Ar << TransmissionProfilesLinearSampler;
-
-		Ar << HairTransmittanceBuffer;
-		Ar << HairTransmittanceBufferMaxCount;
-
-		Ar << HairCategorizationTexture;
-		Ar << HairVisibilityNodeOffsetAndCount;
-		Ar << HairVisibilityNodeData;
-		Ar << ScreenShadowMaskSubPixelTexture;
-
-		Ar << HairLUTTexture;
-		Ar << HairLUTSampler;
-		Ar << HairComponents;
-		Ar << HairShadowMaskValid;
-		Ar << HairDualScatteringRoughnessOverride;
-
-		return bShaderHasOutdatedParameters;
 	}
 
 private:
@@ -535,6 +575,19 @@ private:
 					RenderLightParams->HairVisibilityNodeOffsetAndCount->GetRenderTargetItem().TargetableTexture);
 			}
 		}
+		
+		if (HairVisibilityNodeCoords.IsBound())
+		{
+			if (RenderLightParams && RenderLightParams->HairVisibilityNodeCoordsSRV)
+			{
+				FShaderResourceViewRHIRef SRV = RenderLightParams->HairVisibilityNodeCoordsSRV;
+				SetSRVParameter(
+					RHICmdList, 
+					ShaderRHI, 
+					HairVisibilityNodeCoords,
+					SRV);
+			}
+		}
 
 		if (HairVisibilityNodeData.IsBound())
 		{
@@ -583,33 +636,34 @@ private:
 		
 	}
 
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderResourceParameter LightAttenuationTexture;
-	FShaderResourceParameter LightAttenuationTextureSampler;
-	FShaderResourceParameter LTCMatTexture;
-	FShaderResourceParameter LTCMatSampler;
-	FShaderResourceParameter LTCAmpTexture;
-	FShaderResourceParameter LTCAmpSampler;
-	FShaderResourceParameter IESTexture;
-	FShaderResourceParameter IESTextureSampler;
-	FShaderResourceParameter LightingChannelsTexture;
-	FShaderResourceParameter LightingChannelsSampler;
-	FShaderResourceParameter TransmissionProfilesTexture;
-	FShaderResourceParameter TransmissionProfilesLinearSampler;
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, LightAttenuationTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LightAttenuationTextureSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCMatTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCMatSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, IESTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, IESTextureSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, LightingChannelsTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LightingChannelsSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesLinearSampler);
 
-	FShaderParameter HairTransmittanceBufferMaxCount;
-	FShaderResourceParameter HairTransmittanceBuffer;
-	FShaderResourceParameter HairCategorizationTexture;
-	FShaderResourceParameter HairVisibilityNodeOffsetAndCount;
-	FShaderResourceParameter HairVisibilityNodeData;
-	FShaderResourceParameter ScreenShadowMaskSubPixelTexture;
+	LAYOUT_FIELD(FShaderParameter, HairTransmittanceBufferMaxCount);
+	LAYOUT_FIELD(FShaderResourceParameter, HairTransmittanceBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, HairCategorizationTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeOffsetAndCount);
+	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeCoords);
+	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeData);
+	LAYOUT_FIELD(FShaderResourceParameter, ScreenShadowMaskSubPixelTexture);
 
-	FShaderResourceParameter HairLUTTexture;
-	FShaderResourceParameter HairLUTSampler;
-	FShaderParameter HairComponents;
-	FShaderParameter HairShadowMaskValid;
-	FShaderParameter HairDualScatteringRoughnessOverride;
-	};
+	LAYOUT_FIELD(FShaderResourceParameter, HairLUTTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, HairLUTSampler);
+	LAYOUT_FIELD(FShaderParameter, HairComponents);
+	LAYOUT_FIELD(FShaderParameter, HairShadowMaskValid);
+	LAYOUT_FIELD(FShaderParameter, HairDualScatteringRoughnessOverride);
+};
 
 IMPLEMENT_GLOBAL_SHADER(FDeferredLightPS, "/Engine/Private/DeferredLightPixelShaders.usf", "DeferredLightPixelMain", SF_Pixel);
 
@@ -645,7 +699,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FLightSceneInfo* LightSceneInfo)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI,View.ViewUniformBuffer);
 		const float HasValidChannelValue = LightSceneInfo->Proxy->GetPreviewShadowMapChannel() == INDEX_NONE ? 0.0f : 1.0f;
 		SetShaderValue(RHICmdList, ShaderRHI, HasValidChannel, HasValidChannelValue);
@@ -653,17 +707,9 @@ public:
 		SetDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), LightSceneInfo, View);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << HasValidChannel;
-		Ar << SceneTextureParameters;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter HasValidChannel;
-	FSceneTextureShaderParameters SceneTextureParameters;
+	LAYOUT_FIELD(FShaderParameter, HasValidChannel);
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 };
 
 IMPLEMENT_SHADER_TYPE(template<>, TDeferredLightOverlapPS<true>, TEXT("/Engine/Private/StationaryLightOverlapShaders.usf"), TEXT("OverlapRadialPixelMain"), SF_Pixel);
@@ -930,21 +976,15 @@ void FDeferredShadingSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo
 void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsDatas* HairDatas)
 {
 	const bool bUseHairLighting = HairDatas != nullptr;
-	const FHairStrandsDeepShadowViews* InDeepShadowViews = HairDatas ? &HairDatas->DeepShadowViews : nullptr;
 	const FHairStrandsVisibilityViews* InHairVisibilityViews = HairDatas ? &HairDatas->HairVisibilityViews : nullptr;
 	auto HasHairStrandsClusters = [bUseHairLighting, HairDatas](int32 ViewIndex)
 	{
 		return HairDatas && ViewIndex < HairDatas->MacroGroupsPerViews.Views.Num() && HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas.Num() > 0;
 	};
 
-	struct FHairStrandsTextures
+	auto GetHairStrandsResources = [HairDatas](int32 ViewIndex, FRDGBuilder& GraphBuilder)
 	{
-		FRDGTextureRef CategorizationTexture = nullptr;
-		FRDGTextureRef LightChannelMaskTexture = nullptr;
-	};
-	auto GetHairStrandsTextures = [HairDatas](int32 ViewIndex, FRDGBuilder& GraphBuilder)
-	{
-		FHairStrandsTextures Out;
+		FHairStrandsOcclusionResources Out;
 		if (HairDatas && ViewIndex < HairDatas->HairVisibilityViews.HairDatas.Num())
 		{
 			if (HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture)
@@ -955,6 +995,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			{
 				Out.LightChannelMaskTexture = GraphBuilder.RegisterExternalTexture(HairDatas->HairVisibilityViews.HairDatas[ViewIndex].LightChannelMaskTexture);
 			}
+
+			Out.VoxelResources = &HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources;
 		}
 		return Out;
 	};
@@ -985,14 +1027,6 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 		{
 			//Gfx pipe must wait for the async compute clear of the translucency volume clear.
 			RHICmdList.WaitComputeFence(TranslucencyLightingVolumeClearEndFence);
-		}
-
-		// Clear sub pixel color when there is no light
-		if (bUseHairLighting)
-		{
-			FRHIRenderPassInfo RPInfo(SceneContext.SceneColorSubPixel->GetRenderTargetItem().TargetableTexture, MakeRenderTargetActions(ERenderTargetLoadAction::EClear, ERenderTargetStoreAction::EStore));
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearSubSpixelColor"));
-			RHICmdList.EndRenderPass();
 		}
 
 		if(ViewFamily.EngineShowFlags.DirectLighting)
@@ -1061,7 +1095,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
 
 					// Render the light to the scene color buffer, using a 1x1 white texture as input
-					RenderLight(RHICmdList, LightSceneInfo, nullptr, nullptr, nullptr, nullptr, false, false);
+					RenderLight(RHICmdList, LightSceneInfo, nullptr, nullptr, false, false);
 				}
 
 				SceneContext.FinishRenderingSceneColor(RHICmdList);
@@ -1085,8 +1119,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, Views, LightSceneInfo, HairDatas, NullScreenShadowMaskSubPixelTexture);
 
 					// Render the light to the scene color buffer, using a 1x1 white texture as input
-					SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true, true);
-					RenderLight(RHICmdList, LightSceneInfo, nullptr, nullptr, &TransmittanceMaskData, InHairVisibilityViews, false, false);
+					SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true);
+					RenderLight(RHICmdList, LightSceneInfo, nullptr, InHairVisibilityViews, false, false);
 					SceneContext.FinishRenderingSceneColor(RHICmdList);
 				}
 
@@ -1201,12 +1235,12 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			const bool bDoShadowDenoisingBatching = DenoiserMode != 0 && MaxDenoisingBatchSize > 1;
 
 			//#dxr_todo: support multiview for the batching case
-			const bool dDoShadowBatching = (bDoShadowDenoisingBatching || MaxRTShadowBatchSize > 1) && Views.Num() == 1;
+			const bool bDoShadowBatching = (bDoShadowDenoisingBatching || MaxRTShadowBatchSize > 1) && Views.Num() == 1;
 
 			// Optimisations: batches all shadow ray tracing denoising. Definitely could be smarter to avoid high VGPR pressure if this entire
 			// function was converted to render graph, and want least intrusive change as possible. So right not it trades render target memory pressure
 			// for denoising perf.
-			if (RHI_RAYTRACING && dDoShadowBatching)
+			if (RHI_RAYTRACING && bDoShadowBatching)
 			{
 				const uint32 ViewIndex = 0;
 				FViewInfo& View = Views[ViewIndex];
@@ -1284,7 +1318,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 						const bool bDenoiserCompatible = !LightRequiresDenosier(LightSceneInfo) || IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder == DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
 
 						const bool bWantsBatchedShadow = OcclusionType == FLightOcclusionType::Raytraced && 
-							dDoShadowBatching &&
+							bDoShadowBatching &&
 							bDenoiserCompatible &&
 							SortedLightInfo.SortKey.Fields.bShadowed && 
 							!ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
@@ -1404,14 +1438,32 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									RayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
 								}
 
+								FRDGTextureRef SubPixelRayTracingShadowMaskTexture = nullptr;
+								FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = nullptr;
+								if (bUseHairLighting)
+								{
+									FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+										SceneTextures.SceneDepthBuffer->Desc.Extent,
+										PF_FloatRGBA,
+										FClearValueBinding::Black,
+										TexCreate_None,
+										TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+										/* bInForceSeparateTargetAndShaderResource = */ false);
+									SubPixelRayTracingShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("SubPixelRayTracingOcclusion"));
+									SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
+								}
+
+								FString BatchLightNameWithLevel;
+								GetLightNameForDrawEvent(BatchLightSceneInfo.Proxy, BatchLightNameWithLevel);
+
 								FRDGTextureUAV* RayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayTracingShadowMaskTexture));
 								FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
-								FHairStrandsTextures HairTextures = GetHairStrandsTextures(ViewIndex, GraphBuilder);
+								FHairStrandsOcclusionResources HairResources = GetHairStrandsResources(ViewIndex, GraphBuilder);
 								{
-									FString BatchLightNameWithLevel;
-									GetLightNameForDrawEvent(BatchLightSceneInfo.Proxy, BatchLightNameWithLevel);
 									RDG_EVENT_SCOPE(GraphBuilder, "%s", *BatchLightNameWithLevel);
 
+									// Ray trace the shadow cast by opaque geometries on to hair strands geometries
+									// Note: No denoiser is required on this output, as the hair strands are geometrically noisy, which make it hard to denoise
 									RenderRayTracingShadows(
 										GraphBuilder,
 										SceneTextures,
@@ -1419,62 +1471,18 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 										BatchLightSceneInfo,
 										BatchRayTracingConfig,
 										DenoiserRequirements,
-										false,
-										HairTextures.CategorizationTexture,
-										HairTextures.LightChannelMaskTexture,
+										&HairResources,
 										RayTracingShadowMaskUAV,
-										RayHitDistanceUAV);
-								}
-
-								// Ray trace the shadow cast by opaque geometries on to hair strands geometries
-								// Note: No denoiser is required on this output, as the hair strands are geometrically noisy, and so hard to denoise
-								if (HasHairStrandsClusters(ViewIndex))
-								{
-									//#dxr_todo: support multiview for the batching case
-									FRDGTextureRef SubPixelRayTracingShadowMaskTexture;
+										RayHitDistanceUAV,
+										SubPixelRayTracingShadowMaskUAV);
+									
+									if (HasHairStrandsClusters(ViewIndex))
 									{
-										FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-											SceneTextures.SceneDepthBuffer->Desc.Extent,
-											PF_FloatRGBA,
-											FClearValueBinding::Black,
-											TexCreate_None,
-											TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-											/* bInForceSeparateTargetAndShaderResource = */ false);
-										SubPixelRayTracingShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
+										TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskSubPixelTextures[LightBatchIndex - AttenuationLightStart];
+										check(*RefDestination == nullptr);
+
+										GraphBuilder.QueueTextureExtraction(SubPixelRayTracingShadowMaskTexture, RefDestination);
 									}
-
-									FRDGTextureRef SubPixelRayDistanceTexture;
-									{
-										FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-											SceneTextures.SceneDepthBuffer->Desc.Extent,
-											PF_R16F,
-											FClearValueBinding::Black,
-											TexCreate_None,
-											TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-											/* bInForceSeparateTargetAndShaderResource = */ false);
-										SubPixelRayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
-									}
-
-									FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
-									FRDGTextureUAV* SubPixelRayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayDistanceTexture));
-
-									RenderRayTracingShadows(
-										GraphBuilder,
-										SceneTextures,
-										View,
-										BatchLightSceneInfo,
-										BatchRayTracingConfig,
-										IScreenSpaceDenoiser::EShadowRequirements::Bailout,
-										true,
-										HairTextures.CategorizationTexture,
-										HairTextures.LightChannelMaskTexture,
-										SubPixelRayTracingShadowMaskUAV,
-										SubPixelRayHitDistanceUAV);
-
-									TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskSubPixelTextures[LightBatchIndex - AttenuationLightStart];
-									check(*RefDestination == nullptr);
-
-									GraphBuilder.QueueTextureExtraction(SubPixelRayTracingShadowMaskTexture, RefDestination);
 								}
 
 								bool bBatchFull = false;
@@ -1577,8 +1585,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 						FRDGTextureUAV* RayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayTracingShadowMaskTexture));
 						FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
 
-
-						FRDGTextureRef SubPixelRayTracingShadowMaskTexture;
+						FRDGTextureRef SubPixelRayTracingShadowMaskTexture = nullptr;
+						FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = nullptr;
+						if (bUseHairLighting)
 						{
 							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
 								SceneTextures.SceneDepthBuffer->Desc.Extent,
@@ -1588,22 +1597,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
 								/* bInForceSeparateTargetAndShaderResource = */ false);
 							SubPixelRayTracingShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
+							SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
 						}
 
-						FRDGTextureRef SubPixelRayDistanceTexture;
-						{
-							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-								SceneTextures.SceneDepthBuffer->Desc.Extent,
-								PF_R16F,
-								FClearValueBinding::Black,
-								TexCreate_None,
-								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-								/* bInForceSeparateTargetAndShaderResource = */ false);
-							SubPixelRayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
-						}
-
-						FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayTracingShadowMaskTexture));
-						FRDGTextureUAV* SubPixelRayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SubPixelRayDistanceTexture));
 
 						FRDGTextureRef RayTracingShadowMaskTileTexture;
 						{
@@ -1632,7 +1628,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
 							}
 
-							FHairStrandsTextures HairTextures = GetHairStrandsTextures(ViewIndex, GraphBuilder);
+							FHairStrandsOcclusionResources HairResources = GetHairStrandsResources(ViewIndex, GraphBuilder);
 							RenderRayTracingShadows(
 								GraphBuilder,
 								SceneTextures,
@@ -1640,11 +1636,10 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								LightSceneInfo,
 								RayTracingConfig,
 								DenoiserRequirements,
-								false,
-								HairTextures.CategorizationTexture,
-								HairTextures.LightChannelMaskTexture,
+								&HairResources,
 								RayTracingShadowMaskUAV,
-								RayHitDistanceUAV);
+								RayHitDistanceUAV,
+								SubPixelRayTracingShadowMaskUAV);
 
 							if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::Bailout)
 							{
@@ -1688,23 +1683,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								GraphBuilder.QueueTextureExtraction(RayTracingShadowMaskTexture, &ScreenShadowMaskTexture);
 							}
 
-							// Ray trace the shadow cast by opaque geometries on to hair strands geometries
-							// Note: No denoiser is required on this output, as the hair strands are geometrically noisy, and so hard to denoise
 							if (HasHairStrandsClusters(ViewIndex))
 							{
-								RenderRayTracingShadows(
-									GraphBuilder,
-									SceneTextures,
-									View,
-									LightSceneInfo,
-									RayTracingConfig,
-									IScreenSpaceDenoiser::EShadowRequirements::Bailout,
-									true,
-									HairTextures.CategorizationTexture,
-									HairTextures.LightChannelMaskTexture,
-									SubPixelRayTracingShadowMaskUAV,
-									SubPixelRayHitDistanceUAV);
-
 								GraphBuilder.QueueTextureExtraction(SubPixelRayTracingShadowMaskTexture, &ScreenShadowMaskSubPixelTexture);
 							}
 						}
@@ -1856,23 +1836,29 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				else
 				{
 					SCOPED_DRAW_EVENT(RHICmdList, StandardDeferredLighting);
-					SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true, true);
+					SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true);
+
+					// ScreenShadowMaskTexture might have been created for a previous light, but only use it if we wrote valid data into it for this light
+					IPooledRenderTarget* LightShadowMaskTexture = nullptr;
+					IPooledRenderTarget* LightShadowMaskSubPixelTexture = nullptr;
+					if (bUsedShadowMaskTexture)
+					{
+						LightShadowMaskTexture = ScreenShadowMaskTexture;
+						LightShadowMaskSubPixelTexture = ScreenShadowMaskSubPixelTexture;
+					}
 
 					// Render the light to the scene color buffer, conditionally using the attenuation buffer or a 1x1 white texture as input 
 					if (bDirectLighting)
 					{
-						// ScreenShadowMaskTexture might have been created for a previous light, but only use it if we wrote valid data into it for this light
-						IPooledRenderTarget* LightShadowMaskTexture = nullptr;
-						IPooledRenderTarget* LightShadowMaskSubPixelTexture = nullptr;
-						if (bUsedShadowMaskTexture)
-						{
-							LightShadowMaskTexture = ScreenShadowMaskTexture;
-							LightShadowMaskSubPixelTexture = ScreenShadowMaskSubPixelTexture;
-						}
-						RenderLight(RHICmdList, &LightSceneInfo, LightShadowMaskTexture, LightShadowMaskSubPixelTexture, &TransmittanceMaskData, InHairVisibilityViews, false, true);
+						RenderLight(RHICmdList, &LightSceneInfo, LightShadowMaskTexture, InHairVisibilityViews, false, true);
 					}
 
 					SceneContext.FinishRenderingSceneColor(RHICmdList);
+
+					if (bUseHairLighting)
+					{
+						RenderLightForHair(RHICmdList, &LightSceneInfo, LightShadowMaskSubPixelTexture, &TransmittanceMaskData, InHairVisibilityViews);
+					}
 				}
 			}
 		}
@@ -1906,7 +1892,7 @@ void FDeferredShadingSceneRenderer::RenderLightArrayForOverlapViewmode(FRHIComma
 			&& !LightSceneInfo->Proxy->HasStaticLighting()
 			&& LightSceneInfo->Proxy->CastsStaticShadow())
 		{
-			RenderLight(RHICmdList, LightSceneInfo, nullptr, nullptr, nullptr, nullptr, true, false);
+			RenderLight(RHICmdList, LightSceneInfo, nullptr, nullptr, true, false);
 		}
 	}
 }
@@ -1961,7 +1947,7 @@ static void SetShaderTemplLightingSimple(
 	FRHICommandList& RHICmdList,
 	FGraphicsPipelineStateInitializer& GraphicsPSOInit,
 	const FViewInfo& View,
-	FShader* VertexShader,
+	const TShaderRef<FShader>& VertexShader,
 	const FSimpleLightEntry& SimpleLight,
 	const FSimpleLightPerViewEntry& SimpleLightPerViewData)
 {
@@ -1972,12 +1958,13 @@ static void SetShaderTemplLightingSimple(
 	PermutationVector.Set< FDeferredLightPS::FVisualizeCullingDim >( View.Family->EngineShowFlags.VisualizeLightCulling );
 	PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( false );
 	PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( false );
-	PermutationVector.Set< FDeferredLightPS::FHairLighting>( false );
+	PermutationVector.Set< FDeferredLightPS::FHairLighting>( 0 );
+	PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >( false );
 
 	TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 	PixelShader->SetParametersSimpleLight(RHICmdList, View, SimpleLight, SimpleLightPerViewData);
 }
@@ -2020,7 +2007,8 @@ void CalculateLightNearFarDepthFromBounds(const FViewInfo& View, const FSphere &
  * @param LightIndex The light's index into FScene::Lights
  * @return true if anything got rendered
  */
-void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, FHairStrandsTransmittanceMaskData* InTransmittanceMaskData, const FHairStrandsVisibilityViews* InHairVisibilityViews, bool bRenderOverlap, bool bIssueDrawEvent)
+
+void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, const FHairStrandsVisibilityViews* InHairVisibilityViews,  bool bRenderOverlap, bool bIssueDrawEvent)
 {
 	SCOPE_CYCLE_COUNTER(STAT_DirectLightRenderingTime);
 	INC_DWORD_STAT(STAT_NumLightsUsingStandardDeferred);
@@ -2029,18 +2017,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-	const bool bHairRenderingEnabled = InTransmittanceMaskData && InHairVisibilityViews && (LightSceneInfo->Proxy->CastsHairStrandsDeepShadow() || IsHairStrandsVoxelizationEnable());
-	if (bHairRenderingEnabled)
-	{
-		GraphicsPSOInit.BlendState = TStaticBlendState<
-			CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
-			CW_RGBA, BO_Add, BF_One, BF_One, BO_Max, BF_SourceAlpha, BF_DestAlpha
-		>::GetRHI();
-	}
-	else
-	{
-		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
-	}
+	GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
@@ -2068,20 +2045,11 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 		FRenderLightParams RenderLightParams;
-		if (bHairRenderingEnabled)
+		const bool bHairLighting = InHairVisibilityViews && ViewIndex < InHairVisibilityViews->HairDatas.Num() && InHairVisibilityViews->HairDatas[ViewIndex].CategorizationTexture != nullptr;
+		if (bHairLighting)
 		{
-			RenderLightParams.DeepShadow_TransmittanceMaskBuffer = InTransmittanceMaskData ? InTransmittanceMaskData->TransmittanceMaskSRV : nullptr;
-			RenderLightParams.DeepShadow_TransmittanceMaskBufferMaxCount = InTransmittanceMaskData && InTransmittanceMaskData->TransmittanceMask ? InTransmittanceMaskData->TransmittanceMask->Desc.NumElements : 0;
-			RenderLightParams.ScreenShadowMaskSubPixelTexture = ScreenShadowMaskSubPixelTexture;
-			if (InHairVisibilityViews && ViewIndex < InHairVisibilityViews->HairDatas.Num())
-			{
-				const FHairStrandsVisibilityData& HairVisibilityData = InHairVisibilityViews->HairDatas[ViewIndex];
-				RenderLightParams.HairVisibilityNodeOffsetAndCount = HairVisibilityData.NodeIndex;
-				RenderLightParams.HairVisibilityNodeDataSRV = HairVisibilityData.NodeDataSRV;
-				RenderLightParams.HairCategorizationTexture = HairVisibilityData.CategorizationTexture;
-			}
+			RenderLightParams.HairCategorizationTexture = InHairVisibilityViews->HairDatas[ViewIndex].CategorizationTexture;
 		}
-
 		if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
 		{
 			// Turn DBT back off
@@ -2095,13 +2063,15 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 			{
 				TShaderMapRef<TDeferredLightOverlapPS<false> > PixelShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo);
 			}
 			else
 			{
+				const bool bAtmospherePerPixelTransmittance = LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() && ShouldApplyAtmosphereLightPerPixelTransmittance(Scene, View.Family->EngineShowFlags);
+
 				FDeferredLightPS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >( ELightSourceShape::Directional );
 				PermutationVector.Set< FDeferredLightPS::FIESProfileDim >( false );
@@ -2109,15 +2079,17 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				PermutationVector.Set< FDeferredLightPS::FVisualizeCullingDim >( View.Family->EngineShowFlags.VisualizeLightCulling );
 				PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( View.bUsesLightingChannels );
 				PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( bTransmission );
-				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairRenderingEnabled);
+				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairLighting ? 1 : 0);
+				// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
+				PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(bAtmospherePerPixelTransmittance);
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, bHairRenderingEnabled ? &RenderLightParams : nullptr);
+				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, (bHairLighting) ? &RenderLightParams : nullptr);
 			}
 
 			VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
@@ -2131,14 +2103,14 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				View.ViewRect.Size(),
 				FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
-				*VertexShader,
+				VertexShader,
 				EDRF_UseTriangleOptimization);
 		}
 		else
 		{
 			// Use DBT to allow work culling on shadow lights
 			// Disable depth bound when hair rendering is enabled as this rejects partially covered pixel write (with opaque background)
-			GraphicsPSOInit.bDepthBounds = !bHairRenderingEnabled && (GSupportsDepthBoundsTest && GAllowDepthBoundsTest != 0);
+			GraphicsPSOInit.bDepthBounds = GSupportsDepthBoundsTest && GAllowDepthBoundsTest != 0;
 
 			TShaderMapRef<TDeferredLightVS<true> > VertexShader(View.ShaderMap);
 
@@ -2148,8 +2120,8 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 			{
 				TShaderMapRef<TDeferredLightOverlapPS<true> > PixelShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo);
@@ -2164,15 +2136,16 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				PermutationVector.Set< FDeferredLightPS::FVisualizeCullingDim >( View.Family->EngineShowFlags.VisualizeLightCulling );
 				PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( View.bUsesLightingChannels );
 				PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( bTransmission );
-				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairRenderingEnabled);
+				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairLighting ? 1 : 0);
+				PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >(false);
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, &RenderLightParams);
+				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, (bHairLighting) ? &RenderLightParams : nullptr);
 			}
 
 			VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
@@ -2207,6 +2180,107 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				StencilingGeometry::DrawCone(RHICmdList);
 			}
 		}
+	}
+}
+
+void FDeferredShadingSceneRenderer::RenderLightForHair(
+	FRHICommandList& RHICmdList, 
+	const FLightSceneInfo* LightSceneInfo, 
+	IPooledRenderTarget* HairShadowMaskTexture, 
+	FHairStrandsTransmittanceMaskData* InTransmittanceMaskData, 
+	const FHairStrandsVisibilityViews* InHairVisibilityViews)
+{
+	SCOPE_CYCLE_COUNTER(STAT_DirectLightRenderingTime);
+	INC_DWORD_STAT(STAT_NumLightsUsingStandardDeferred);
+	SCOPED_CONDITIONAL_DRAW_EVENT(RHICmdList, StandardDeferredLighting_Hair, true);
+	
+
+	const bool bHairRenderingEnabled = InTransmittanceMaskData && InHairVisibilityViews && (LightSceneInfo->Proxy->CastsHairStrandsDeepShadow() || IsHairStrandsVoxelizationEnable());
+	if (!bHairRenderingEnabled)
+	{
+		return;
+	}
+
+
+	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
+	const bool bTransmission = LightSceneInfo->Proxy->Transmission();
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		// Ensure the light is valid for this view
+		if (!LightSceneInfo->ShouldRenderLight(View) || ViewIndex >= InHairVisibilityViews->HairDatas.Num())
+		{
+			continue;
+		}
+
+		check(RHICmdList.IsOutsideRenderPass());
+
+		const FHairStrandsVisibilityData& HairVisibilityData = InHairVisibilityViews->HairDatas[ViewIndex];
+		if (!HairVisibilityData.SampleLightingBuffer)
+		{
+			continue;
+		}
+
+		FRenderLightParams RenderLightParams;
+		RenderLightParams.DeepShadow_TransmittanceMaskBuffer = InTransmittanceMaskData ? InTransmittanceMaskData->TransmittanceMaskSRV : nullptr;
+		RenderLightParams.DeepShadow_TransmittanceMaskBufferMaxCount = InTransmittanceMaskData && InTransmittanceMaskData->TransmittanceMask ? InTransmittanceMaskData->TransmittanceMask->Desc.NumElements : 0;
+		RenderLightParams.ScreenShadowMaskSubPixelTexture = HairShadowMaskTexture;
+		RenderLightParams.HairVisibilityNodeOffsetAndCount = HairVisibilityData.NodeIndex;
+		RenderLightParams.HairVisibilityNodeDataSRV = HairVisibilityData.NodeDataSRV;
+		RenderLightParams.HairVisibilityNodeCoordsSRV = HairVisibilityData.NodeCoordSRV;
+		RenderLightParams.HairCategorizationTexture = HairVisibilityData.CategorizationTexture;
+
+		FRHIRenderPassInfo RPInfo(HairVisibilityData.SampleLightingBuffer->GetRenderTargetItem().TargetableTexture, MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore));
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("HairLighting"));
+		RHICmdList.SetViewport(0, 0, 0.0f, HairVisibilityData.SampleLightingViewportResolution.X, HairVisibilityData.SampleLightingViewportResolution.Y, 1.0f);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Max, BF_SourceAlpha, BF_DestAlpha>::GetRHI();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+		FDeferredLightPS::FPermutationDomain PermutationVector;
+		if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
+		{
+			PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >(ELightSourceShape::Directional);
+			PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >(false);
+			PermutationVector.Set< FDeferredLightPS::FIESProfileDim >(false);
+			PermutationVector.Set< FDeferredLightPS::FInverseSquaredDim >(false);
+		}
+		else
+		{
+			const bool bUseIESTexture = View.Family->EngineShowFlags.TexturedLightProfiles && LightSceneInfo->Proxy->GetIESTextureResource() != 0;
+			PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >(LightSceneInfo->Proxy->IsRectLight() ? ELightSourceShape::Rect : ELightSourceShape::Capsule);
+			PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >(LightSceneInfo->Proxy->IsRectLight() && LightSceneInfo->Proxy->HasSourceTexture());
+			PermutationVector.Set< FDeferredLightPS::FIESProfileDim >(bUseIESTexture);
+			PermutationVector.Set< FDeferredLightPS::FInverseSquaredDim >(LightSceneInfo->Proxy->IsInverseSquared());
+		}
+		PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >(View.bUsesLightingChannels);
+		PermutationVector.Set< FDeferredLightPS::FVisualizeCullingDim >(false);
+		PermutationVector.Set< FDeferredLightPS::FTransmissionDim >(false);
+		PermutationVector.Set< FDeferredLightPS::FHairLighting>(2);
+
+		TShaderMapRef<TDeferredLightHairVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FDeferredLightPS> PixelShader(View.ShaderMap, PermutationVector);
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+		GraphicsPSOInit.bDepthBounds = false;
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+		VertexShader->SetParameters(RHICmdList, View, &HairVisibilityData);
+		PixelShader->SetParameters(RHICmdList, View,  LightSceneInfo, HairShadowMaskTexture, bHairRenderingEnabled ? &RenderLightParams : nullptr);
+
+		RHICmdList.SetStreamSource(0, nullptr, 0);
+		RHICmdList.DrawPrimitive(0, 1, 1);
+
+		RHICmdList.EndRenderPass();
 	}
 }
 
@@ -2245,12 +2319,12 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(FRHIComma
 			if (SimpleLight.Exponent == 0)
 			{
 				// inverse squared
-				SetShaderTemplLightingSimple<false, true, true>(RHICmdList, GraphicsPSOInit, View, *VertexShader, SimpleLight, SimpleLightPerViewData);
+				SetShaderTemplLightingSimple<false, true, true>(RHICmdList, GraphicsPSOInit, View, VertexShader, SimpleLight, SimpleLightPerViewData);
 			}
 			else
 			{
 				// light's exponent, not inverse squared
-				SetShaderTemplLightingSimple<false, true, false>(RHICmdList, GraphicsPSOInit, View, *VertexShader, SimpleLight, SimpleLightPerViewData);
+				SetShaderTemplLightingSimple<false, true, false>(RHICmdList, GraphicsPSOInit, View, VertexShader, SimpleLight, SimpleLightPerViewData);
 			}
 
 			VertexShader->SetSimpleLightParameters(RHICmdList, View, LightBounds);

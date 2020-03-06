@@ -34,12 +34,31 @@ struct FUObjectItem
 	// Weak Object Pointer Serial number associated with the object
 	int32 SerialNumber;
 
+#if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
+	/** Stat id of this object, 0 if nobody asked for it yet */
+	mutable TStatId StatID;
+
+#if ENABLE_STATNAMEDEVENTS_UOBJECT
+	mutable PROFILER_CHAR* StatIDStringStorage;
+#endif
+#endif // STATS || ENABLE_STATNAMEDEVENTS
+
 	FUObjectItem()
 		: Object(nullptr)
 		, Flags(0)
 		, ClusterRootIndex(0)
 		, SerialNumber(0)
+#if ENABLE_STATNAMEDEVENTS_UOBJECT
+		, StatIDStringStorage(nullptr)
+#endif
 	{
+	}
+	~FUObjectItem()
+	{
+#if ENABLE_STATNAMEDEVENTS_UOBJECT
+		delete[] StatIDStringStorage;
+		StatIDStringStorage = nullptr;
+#endif
 	}
 
 	FORCEINLINE void SetOwnerIndex(int32 OwnerIndex)
@@ -190,6 +209,10 @@ struct FUObjectItem
 		ClusterRootIndex = 0;
 		SerialNumber = 0;
 	}
+
+#if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
+	COREUOBJECT_API void CreateStatID() const;
+#endif
 };
 
 /**

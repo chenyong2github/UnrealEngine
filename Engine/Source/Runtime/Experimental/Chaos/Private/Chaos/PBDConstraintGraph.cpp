@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDConstraintGraph.h"
-
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "ChaosStats.h"
 #include "ChaosLog.h"
@@ -14,11 +13,17 @@
 
 using namespace Chaos;
 
-float ChaosSolverCollisionDefaultLinearSleepThresholdCVar = 1.f;
-FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultLinearSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultLinearSleepThreshold"), ChaosSolverCollisionDefaultLinearSleepThresholdCVar, TEXT("Default linear threshold for sleeping.[def:2]"));
+bool ChaosSolverCollisionDefaultUseMaterialSleepThresholdsCVar = true;
+FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultUseMaterialSleepThresholds(TEXT("p.ChaosSolverCollisionDefaultUseMaterialSleepThresholds"), ChaosSolverCollisionDefaultUseMaterialSleepThresholdsCVar, TEXT("Enable material support for sleeping thresholds[def:true]"));
 
-float ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.1f;
-FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultAngularSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultAngularSleepThreshold"), ChaosSolverCollisionDefaultAngularSleepThresholdCVar, TEXT("Default angular threshold for sleeping.[def:2]"));
+int32 ChaosSolverCollisionDefaultSleepCounterThresholdCVar = 0; 
+FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultSleepCounterThreshold(TEXT("p.ChaosSolverCollisionDefaultSleepCounterThreshold"), ChaosSolverCollisionDefaultSleepCounterThresholdCVar, TEXT("Default counter threshold for sleeping.[def:0]"));
+
+float ChaosSolverCollisionDefaultLinearSleepThresholdCVar = 0.001f; // .001 unit mass cm
+FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultLinearSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultLinearSleepThreshold"), ChaosSolverCollisionDefaultLinearSleepThresholdCVar, TEXT("Default linear threshold for sleeping.[def:0.001]"));
+
+float ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.0087f;  //~1/2 unit mass degree
+FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultAngularSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultAngularSleepThreshold"), ChaosSolverCollisionDefaultAngularSleepThresholdCVar, TEXT("Default angular threshold for sleeping.[def:0.0087]"));
 
 FPBDConstraintGraph::FPBDConstraintGraph() : VisitToken(0)
 {
@@ -30,6 +35,29 @@ FPBDConstraintGraph::FPBDConstraintGraph(const TParticleView<TGeometryParticles<
 	InitializeGraph(Particles);
 }
 
+int32 FPBDConstraintGraph::ReserveParticles(const int32 Num)
+{
+	const int32 NumFree = FreeIndexList.Num();
+	int32 NumToAdd = NumFree - Num; // Can be negative
+	if (NumToAdd > 0)
+	{
+		return 0;
+	}
+	NumToAdd = -NumToAdd; // Flip sign
+	const int32 NumNodes = Nodes.Num();
+	Nodes.SetNum(NumNodes + NumToAdd);
+	FreeIndexList.Reserve(NumToAdd);
+	for (int32 Counter = 0; Counter < NumToAdd; Counter++)
+	{
+		FreeIndexList.Push(NumNodes + Counter);
+	}
+
+	ParticleToNodeIndex.Reserve(ParticleToNodeIndex.Num() + NumToAdd);
+	Visited.Reserve(Visited.Num() + NumToAdd);
+
+	return NumToAdd;
+}
+
 /**
  * Bill added this.
  * Adds new Node to Nodes array when a new particle is created
@@ -37,16 +65,24 @@ FPBDConstraintGraph::FPBDConstraintGraph(const TParticleView<TGeometryParticles<
 
 void FPBDConstraintGraph::ParticleAdd(TGeometryParticleHandle<FReal, 3>* AddedParticle)
 {
-	int32 NewNodeIndex = GetNextNodeIndex();
+	if (ensure(!ParticleToNodeIndex.Contains(AddedParticle)))
+	{
+		const int32 NewNodeIndex = GetNextNodeIndex();
+		FGraphNode& Node = Nodes[NewNodeIndex];
+		ensure(Node.Edges.Num() == 0);
+		ensure(Node.Island == INDEX_NONE);
 
-	FGraphNode& Node = Nodes[NewNodeIndex];
-	ensure(Node.Edges.Num() == 0);
-	ensure(Node.Island == INDEX_NONE);
-	ensure(ParticleToNodeIndex.Find(AddedParticle) == nullptr);
+		Node.Particle = AddedParticle->Handle();
+		check(Node.Particle);
+		ParticleToNodeIndex.Add(Node.Particle, NewNodeIndex);
 
-	Node.Particle = AddedParticle->Handle();
-	ParticleToNodeIndex.Add(Node.Particle, NewNodeIndex);
-	Visited.Add(0);
+		const int32 NewMinNum = NewNodeIndex + 1;
+		const int32 NumToAdd = NewMinNum - Visited.Num();
+		if (NumToAdd > 0)
+			Visited.AddZeroed(NumToAdd);
+		else
+			Visited[NewNodeIndex] = 0;
+	}
 }
 
 /**
@@ -58,7 +94,7 @@ void FPBDConstraintGraph::ParticleRemove(TGeometryParticleHandle<FReal, 3>* Remo
 {
 	if (ParticleToNodeIndex.Contains(RemovedParticle))
 	{
-		int32 NodeIdx = ParticleToNodeIndex[RemovedParticle];
+		const int32 NodeIdx = ParticleToNodeIndex[RemovedParticle];
 		FreeIndexList.Push(NodeIdx);
 
 		FGraphNode& NodeRemoved = Nodes[NodeIdx];
@@ -125,7 +161,14 @@ void FPBDConstraintGraph::InitializeGraph(const TParticleView<TGeometryParticles
 	}
 	else
 	{
-		ensure(NumNonDisabledParticles <= Nodes.Num());
+		if (!ensure(NumNonDisabledParticles <= Nodes.Num()))
+		{
+			for (auto& Particle : Particles)
+			{
+				if(!ParticleToNodeIndex.Contains(Particle.Handle()))
+					ParticleAdd(Particle.Handle());
+			}
+		}
 
 		// Update nodes may contain duplicate entries. To process in parallel we either need to prevent that, 
 		// or ensure we only process the first entry of a dupe. We are doing the latter for now...
@@ -202,6 +245,15 @@ void FPBDConstraintGraph::AddConstraint(const uint32 InContainerId, FConstraintH
 	FGraphEdge NewEdge;
 	NewEdge.Data = { InContainerId, InConstraintHandle };
 
+	if (ConstrainedParticles[0] && !ParticleToNodeIndex.Contains(ConstrainedParticles[0]))
+	{
+		ParticleAdd(ConstrainedParticles[0]);
+	}
+	if (ConstrainedParticles[1] && !ParticleToNodeIndex.Contains(ConstrainedParticles[1]))
+	{
+		ParticleAdd(ConstrainedParticles[1]);
+	}
+
 	int32* PNodeIndex0 = (ConstrainedParticles[0])? ParticleToNodeIndex.Find(ConstrainedParticles[0]) : nullptr;
 	int32* PNodeIndex1 = (ConstrainedParticles[1])? ParticleToNodeIndex.Find(ConstrainedParticles[1]) : nullptr;
 	if (ensure(PNodeIndex0 || PNodeIndex1))
@@ -238,6 +290,10 @@ void FPBDConstraintGraph::UpdateIslands(const TParticleView<TPBDRigidParticles<F
 	for (auto& PBDRigid : PBDRigids)
 	{
 		PBDRigid.Island() = INDEX_NONE;
+		if (!ensure(ParticleToNodeIndex.Contains(PBDRigid.Handle())))
+		{
+			ParticleAdd(PBDRigid.Handle());
+		}
 	}
 	ComputeIslands(PBDRigids, Particles);
 }
@@ -273,7 +329,8 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 
 	for (auto& Particle : PBDRigids)
 	{
-		int32 Idx = ParticleToNodeIndex[Particle.Handle()];
+		auto* ParticleHandle = Particle.Handle();
+		int32 Idx = ParticleToNodeIndex[ParticleHandle];  // ryan - FAILS!
 		// selective reset of islands, don't reset if has been visited due to being edge connected to earlier processed node
 		if (Visited[Idx] && Visited[Idx] != VisitToken)
 		{
@@ -430,6 +487,32 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 			}
 			else
 			{
+				int32 NumRigidsInIsland = 0, NumRigidsInNewIsland = 0;
+				if (OtherIsland != INDEX_NONE)
+				{
+					for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
+					{
+						if (Particle)
+						{
+							if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle())
+							{
+								NumRigidsInIsland++;
+							}
+						}
+					}
+
+					for (TGeometryParticleHandle<FReal, 3>* Particle : NewIslandParticles[OtherIsland])
+					{
+						if (Particle)
+						{
+							if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle())
+							{
+								NumRigidsInNewIsland++;
+							}
+						}
+					}
+				}
+
 				for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 				{
 					if (CHAOS_ENSURE(Particle))
@@ -437,9 +520,14 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 						TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 						if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 						{
-							if (!PBDRigid->Disabled())	// todo: why is this needed? [we aren't handling enable/disable state changes properly so disabled particles end up in the graph.]
+							if (!PBDRigid->Disabled()) // todo: why is this needed? [we aren't handling enable/disable state changes properly so disabled particles end up in the graph.]
 							{
-								PBDRigid->SetSleeping(false);
+								//this condition is a hack to ensure we don't immediately wake up particles that were put to sleep due to them getting into a new island. 
+								//we should probably fix island generation code to not move particles to their own islands when sleeping.
+								if (!(NumRigidsInIsland == 1 && NumRigidsInNewIsland == 1 && PBDRigid->Sleeping()))
+								{
+									PBDRigid->SetSleeping(false);
+								}
 								Particles.ActivateParticle(Particle);
 							}
 						}
@@ -534,30 +622,14 @@ void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 	}
 }
 
-
-bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes)
+bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials)
 {
-	FReal DefaultLinearSleepingThreshold = (FReal)ChaosSolverCollisionDefaultLinearSleepThresholdCVar;
-	FReal DefaultAngularSleepingThreshold = (FReal)ChaosSolverCollisionDefaultAngularSleepThresholdCVar;
-	// @todo(ccaulfield): should be able to eliminate this when island is already sleeping
+	FReal LinearSleepingThreshold = FLT_MAX;
+	FReal AngularSleepingThreshold = FLT_MAX;
+	int32 SleepCounterThreshold = 0;
 
 	const TArray<TGeometryParticleHandle<FReal, 3>*>& IslandParticles = GetIslandParticles(Island);
 	check(IslandParticles.Num());
-
-	if (IslandToParticles[Island].Num() == 1)
-	{
-		if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = IslandToParticles[Island][0]->CastToRigidParticle())
-		{
-			if (PBDRigid->V().Size() < DefaultLinearSleepingThreshold && PBDRigid->W().Size() < DefaultAngularSleepingThreshold)
-			{
-				PBDRigid->SetSleeping(true);
-				PBDRigid->V() = TVector<FReal, 3>(0);
-				PBDRigid->W() = TVector<FReal, 3>(0);
-				return true;
-			}
-		}
-	}
-
 
 	if (!IslandToData[Island].bIsIslandPersistant)
 	{
@@ -569,35 +641,56 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 	TVector<FReal, 3> V(0);
 	TVector<FReal, 3> W(0);
 	FReal M = 0;
-	FReal LinearSleepingThreshold = FLT_MAX;
-	FReal AngularSleepingThreshold = FLT_MAX;
 
 	int32 NumDynamicParticles = 0;
 
-	for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
+	for (TGeometryParticleHandle<FReal, 3>* Particle : IslandParticles)
 	{
-		TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-		if (PBDRigid && (PBDRigid->ObjectState() == EObjectStateType::Dynamic))
+		if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle())
 		{
-			NumDynamicParticles++;
-
-			M += PBDRigid->M();
-			V += PBDRigid->V() * PBDRigid->M();
-
-			if (TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial = Particle->AuxilaryValue(PerParticleMaterialAttributes))
+			if (PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 			{
-				LinearSleepingThreshold = FMath::Min(LinearSleepingThreshold, PhysicsMaterial->SleepingLinearThreshold);
-				AngularSleepingThreshold = FMath::Min(AngularSleepingThreshold, PhysicsMaterial->SleepingAngularThreshold);
-			}
-			else
-			{
-				LinearSleepingThreshold = DefaultLinearSleepingThreshold;
-				AngularSleepingThreshold = DefaultAngularSleepingThreshold;
+				NumDynamicParticles++;
+
+				M += PBDRigid->M();
+				V += PBDRigid->V() * PBDRigid->M();
+
+				bool bThresholdsSet = false;
+				if (TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial = Particle->AuxilaryValue(PerParticleMaterialAttributes))
+				{
+					LinearSleepingThreshold = FMath::Min(LinearSleepingThreshold, PhysicsMaterial->SleepingLinearThreshold);
+					AngularSleepingThreshold = FMath::Min(AngularSleepingThreshold, PhysicsMaterial->SleepingAngularThreshold);
+					SleepCounterThreshold = FMath::Max(SleepCounterThreshold, PhysicsMaterial->SleepCounterThreshold);
+					bThresholdsSet = true;
+				}
+				else if (PBDRigid->ShapesArray().Num())
+				{
+					if (TPerShapeData<FReal, 3>* PerShapeData = PBDRigid->ShapesArray()[0].Get())
+					{
+						if (PerShapeData->Materials.Num())
+						{
+							if (FChaosPhysicsMaterial* Material = SolverPhysicsMaterials.Get(PBDRigid->ShapesArray()[0].Get()->Materials[0].InnerHandle))
+							{
+								LinearSleepingThreshold = FMath::Min(LinearSleepingThreshold, Material->SleepingLinearThreshold);
+								AngularSleepingThreshold = FMath::Min(AngularSleepingThreshold, Material->SleepingAngularThreshold);
+								SleepCounterThreshold = FMath::Max(SleepCounterThreshold, Material->SleepCounterThreshold);
+								bThresholdsSet = true;
+							}
+						}
+					}
+				}
+
+				if (!bThresholdsSet)
+				{
+					LinearSleepingThreshold = FMath::Min(LinearSleepingThreshold, ChaosSolverCollisionDefaultLinearSleepThresholdCVar);
+					AngularSleepingThreshold = FMath::Min(AngularSleepingThreshold, ChaosSolverCollisionDefaultAngularSleepThresholdCVar);
+					SleepCounterThreshold = FMath::Max(SleepCounterThreshold, ChaosSolverCollisionDefaultSleepCounterThresholdCVar);
+				}
 			}
 		}
 	}
 
-	if (NumDynamicParticles == 0)
+	if (NumDynamicParticles == 0 || FMath::IsNearlyZero(M))
 	{
 		// prevent divide by zero - all particles much be sleeping/disabled already
 		return false;
@@ -605,12 +698,12 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 
 	V /= M;
 
-	for (const TGeometryParticleHandle<FReal, 3>* Particle: IslandParticles)
+	for (const TGeometryParticleHandle<FReal, 3>* Particle : IslandParticles)
 	{
 		const TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-		if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
+		if (PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 		{
-			W += /*TVector<FReal, 3>::CrossProduct(PBDRigid->X() - X, PBDRigid->M() * PBDRigid->V()/ +*/ PBDRigid->W() * PBDRigid->M();
+			W += PBDRigid->W() * PBDRigid->M();
 		}
 	}
 
@@ -620,18 +713,19 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 	const FReal WSize = W.SizeSquared();
 	if (VSize < LinearSleepingThreshold && WSize < AngularSleepingThreshold)
 	{
-		if (IslandSleepCount > SleepCountThreshold)
+		if (IslandSleepCount >= SleepCounterThreshold)
 		{
 			for (TGeometryParticleHandle<FReal, 3>* Particle : IslandParticles)
 			{
-				TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-				if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
+				if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle())
 				{
-					PBDRigid->SetSleeping(true);
-					PBDRigid->V() = TVector<FReal, 3>(0);
-					PBDRigid->W() = TVector<FReal, 3>(0);
+					if (PBDRigid->ObjectState() == EObjectStateType::Dynamic)
+					{
+						PBDRigid->SetSleeping(true);
+						PBDRigid->V() = TVector<FReal, 3>(0);
+						PBDRigid->W() = TVector<FReal, 3>(0);
+					}
 				}
-				
 			}
 			return true;
 		}

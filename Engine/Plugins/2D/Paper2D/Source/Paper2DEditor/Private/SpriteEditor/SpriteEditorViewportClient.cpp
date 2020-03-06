@@ -693,9 +693,11 @@ void FSpriteEditorViewportClient::UpdateRelatedSpritesList()
 	{
 		FARFilter Filter;
 		Filter.ClassNames.Add(UPaperSprite::StaticClass()->GetFName());
-		const FString TextureString = TSoftObjectPtr<UTexture2D>(Texture).ToString();
 		const FName SourceTexturePropName(TEXT("SourceTexture"));
-		Filter.TagsAndValues.Add(SourceTexturePropName, TextureString);
+		Filter.TagsAndValues.Add(SourceTexturePropName, TSoftObjectPtr<UTexture2D>(Texture).ToString());
+		// Legacy format for files that haven't been resaved
+		Filter.TagsAndValues.Add(SourceTexturePropName, FAssetData(Texture).GetExportTextName());
+
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		TArray<FAssetData> SpriteAssetData;
 		AssetRegistryModule.Get().GetAssets(Filter, SpriteAssetData);

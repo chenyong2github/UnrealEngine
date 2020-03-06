@@ -18,14 +18,35 @@ bool UMagicLeapPlanesFunctionLibrary::IsTrackerValid()
 	return GetMagicLeapPlanesModule().IsTrackerValid();
 }
 
-bool UMagicLeapPlanesFunctionLibrary::PlanesQueryBeginAsync(const FMagicLeapPlanesQuery& InQuery, const FMagicLeapPlanesResultDelegate& InResultDelegate)
+FGuid UMagicLeapPlanesFunctionLibrary::AddPersistentQuery(EMagicLeapPlaneQueryType PersistentQueryType)
 {
-	FMagicLeapPlanesResultDelegateMulti ResultDelegate;
-	ResultDelegate.Add(InResultDelegate);
+	return GetMagicLeapPlanesModule().AddQuery(PersistentQueryType);
+}
+
+bool UMagicLeapPlanesFunctionLibrary::RemovePersistentQuery(FGuid Handle)
+{
+	return GetMagicLeapPlanesModule().RemoveQuery(Handle);
+}
+
+bool UMagicLeapPlanesFunctionLibrary::PlanesQueryBeginAsync(const FMagicLeapPlanesQuery& Query, const FMagicLeapPlanesResultDelegate& ResultDelegate)
+{
+	FMagicLeapPlanesResultDelegateMulti ResultDelegateMulti;
+	ResultDelegateMulti.Add(ResultDelegate);
 
 	return GetMagicLeapPlanesModule().QueryBeginAsync(
-		InQuery,
-		ResultDelegate);
+		Query,
+		ResultDelegateMulti);
+}
+
+bool UMagicLeapPlanesFunctionLibrary::PlanesPersistentQueryBeginAsync(const FMagicLeapPlanesQuery& Query, const FGuid& Handle, const FMagicLeapPersistentPlanesResultDelegate& ResultDelegate)
+{
+	FMagicLeapPersistentPlanesResultDelegateMulti ResultDelegateMulti;
+	ResultDelegateMulti.Add(ResultDelegate);
+
+	return GetMagicLeapPlanesModule().PersistentQueryBeginAsync(
+		Query,
+		Handle,
+		ResultDelegateMulti);
 }
 
 FTransform UMagicLeapPlanesFunctionLibrary::GetContentScale(const AActor* ContentActor, const FMagicLeapPlaneResult& PlaneResult)

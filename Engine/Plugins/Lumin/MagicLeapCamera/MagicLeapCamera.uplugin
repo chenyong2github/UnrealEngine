@@ -47,6 +47,18 @@
 				"Mac",
 				"Lumin"
 			]
+		},
+		{
+			"Name": "MagicLeapCVCamera",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Mac",
+				"Lumin",
+				"IOS",
+				"Android"
+			]
 		}
 	],
 	"Plugins": [

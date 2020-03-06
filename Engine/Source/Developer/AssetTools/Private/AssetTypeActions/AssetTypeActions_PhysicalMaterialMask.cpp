@@ -153,3 +153,5 @@ void FAssetTypeActions_PhysicalMaterialMask::ExecuteDebug(TWeakObjectPtr<UPhysic
 		PhysMatMask->DumpMaskData();
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

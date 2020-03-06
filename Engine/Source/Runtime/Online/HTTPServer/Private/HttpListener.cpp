@@ -9,6 +9,10 @@
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
 
+constexpr uint32 FHttpListener::MaxConnectionsToAcceptPerFrame;
+constexpr uint32 FHttpListener::ListenerConnectionBacklogSize;
+constexpr uint32 FHttpListener::ListenerBufferSize;
+
 DEFINE_LOG_CATEGORY(LogHttpListener)
 
 FHttpListener::FHttpListener(uint32 Port)

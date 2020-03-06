@@ -190,8 +190,8 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 			uint32 NumInstructions = 0;
 			if (Script->GetUsage() == ENiagaraScriptUsage::ParticleGPUComputeScript)
 			{
-				FNiagaraShader* Shader = Script->GetRenderThreadScript()->GetShaderGameThread();
-				if (Shader != nullptr)
+				FNiagaraShaderRef Shader = Script->GetRenderThreadScript()->GetShaderGameThread();
+				if (Shader.IsValid())
 				{
 					NumInstructions = Shader->GetNumInstructions();
 				}

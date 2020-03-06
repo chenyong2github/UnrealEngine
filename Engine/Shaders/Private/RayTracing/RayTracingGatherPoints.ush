@@ -88,4 +88,9 @@ void CreateRejectionMask(
 		float3 GPDistance2 = RejectionCriteria.CreationPoint - GatherSample.CreationPoint;
 		bShouldReject[Index] = dot(GPDistance2, GPDistance2) > RejectionCriteria.DistanceThreshold2;
 	}
+
+	for (int Index = SampleCount; Index < MAXIMUM_GATHER_POINTS_PER_PIXEL; ++Index)
+	{
+		bShouldReject[Index] = true;
+	}
 }

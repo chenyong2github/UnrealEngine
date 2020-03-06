@@ -462,11 +462,6 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 			ViewportInstanceSettings.BufferVisualizationMode = NAME_None;
 		}
 
-		// Disable realtime viewports by default for remote sessions
-		if (FPlatformMisc::IsRemoteSession())
-		{
-			ViewportInstanceSettings.bIsRealtime = false;
-		}
 	}
 
 	if(ViewportInstanceSettings.ViewportType == LVT_Perspective)
@@ -536,6 +531,14 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 	LevelViewportClient->SetViewModes(ViewportInstanceSettings.PerspViewModeIndex, ViewportInstanceSettings.OrthoViewModeIndex );
 
 	bShowFullToolbar = ViewportInstanceSettings.bShowFullToolbar;
+
+
+	// Disable realtime viewports by default for remote sessions
+	if (FPlatformMisc::IsRemoteSession())
+	{
+		bool bShouldBeRealtime = false;
+		LevelViewportClient->SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_RDP", "Remote Desktop"));
+	}
 }
 
 FSceneViewport* SLevelViewport::GetGameSceneViewport() const
@@ -657,9 +660,16 @@ void SLevelViewport::OnDragLeave( const FDragDropEvent& DragDropEvent )
 		LevelViewportClient->DestroyDropPreviewActors();
 	}
 
-	if (DragDropEvent.GetOperation().IsValid())
+	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
+	if (Operation.IsValid())
 	{
-		DragDropEvent.GetOperation()->SetDecoratorVisibility(true);
+		Operation->SetDecoratorVisibility(true);
+
+		if (Operation->IsOfType<FDecoratedDragDropOp>())
+		{
+			TSharedPtr<FDecoratedDragDropOp> DragDropOp = StaticCastSharedPtr<FDecoratedDragDropOp>(Operation);
+			DragDropOp->ResetToDefaultToolTip();
+		}
 	}
 }
 
@@ -749,7 +759,9 @@ bool SLevelViewport::HandleDragObjects(const FGeometry& MyGeometry, const FDragD
 		{
 			// At least one of the assets can't be dropped.
 			Operation->SetCursorOverride(EMouseCursor::SlashedCircle);
-			return false;
+			bValidDrag = false;
+			HintText = DropResult.HintText;
+			break;
 		}
 		else
 		{
@@ -1105,6 +1117,10 @@ TSharedRef< SWidget > SLevelViewport::BuildViewportDragDropContextMenu()
 
 void SLevelViewport::OnMapChanged( UWorld* World, EMapChangeType MapChangeType )
 {
+	// If the level is being unloaded, disable input in the viewport. Since click actions are deferred,
+	// It's possible to get into a state where the selected actors have been cleaned up by the time the click message is handled
+	LevelViewportClient->bDisableInput = (MapChangeType == EMapChangeType::TearDownWorld);
+
 	if( World && ( ( World == GetWorld() ) || ( World->EditorViews[LevelViewportClient->ViewportType].CamUpdated ) ) )
 	{
 		if( MapChangeType == EMapChangeType::LoadMap )
@@ -2186,11 +2202,9 @@ void SLevelViewport::SaveConfig(const FString& ConfigName) const
 		ViewportInstanceSettings.RayTracingDebugVisualizationMode = LevelViewportClient->CurrentRayTracingDebugVisualizationMode;
 		ViewportInstanceSettings.ExposureSettings = LevelViewportClient->ExposureSettings;
 		ViewportInstanceSettings.FOVAngle = LevelViewportClient->FOVAngle;
-		if (!FPlatformMisc::IsRemoteSession())
-		{
-			// Only save this when we're not a remote session, as remote sessions force realtime to be disabled
-			ViewportInstanceSettings.bIsRealtime = LevelViewportClient->IsRealtime();
-		}
+	
+		LevelViewportClient->SaveRealtimeStateToConfig(ViewportInstanceSettings.bIsRealtime);
+	
 		ViewportInstanceSettings.bShowOnScreenStats = LevelViewportClient->ShouldShowStats();
 		ViewportInstanceSettings.FarViewPlane = LevelViewportClient->GetFarClipPlaneOverride();
 		ViewportInstanceSettings.bShowFullToolbar = bShowFullToolbar;
@@ -2287,12 +2301,6 @@ FLevelEditorViewportInstanceSettings SLevelViewport::LoadLegacyConfigFromIni(con
 	GConfig->GetBool(*IniSection, *(InConfigKey + TEXT(".bWantStats")), ViewportInstanceSettings.bShowOnScreenStats, GEditorPerProjectIni);
 	GConfig->GetBool(*IniSection, *(InConfigKey + TEXT(".bWantFPS")), ViewportInstanceSettings.bShowFPS_DEPRECATED, GEditorPerProjectIni);
 	GConfig->GetFloat(*IniSection, *(InConfigKey + TEXT(".FOVAngle")), ViewportInstanceSettings.FOVAngle, GEditorPerProjectIni);
-
-	// Disable realtime viewports by default for remote sessions
-	if (FPlatformMisc::IsRemoteSession())
-	{
-		ViewportInstanceSettings.bIsRealtime = false;
-	}
 
 	return ViewportInstanceSettings;
 }
@@ -4013,8 +4021,6 @@ void SLevelViewport::StartPlayInEditorSession(UGameViewportClient* PlayClient, c
 	// Remove keyboard focus to send a focus lost message to the widget to clean up any saved state from the viewport interface thats about to be swapped out
 	// Focus will be set when the game viewport is registered
 	FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
-
-	PlayClient->SetPlayInEditorUseMouseForTouch(GetDefault<ULevelEditorPlaySettings>()->UseMouseForTouch);
 
 	// Attach global play world actions widget to view port
 	ActiveViewport = MakeShareable( new FSceneViewport( PlayClient, ViewportWidget) );

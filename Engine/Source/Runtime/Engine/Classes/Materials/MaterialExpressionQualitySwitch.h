@@ -35,8 +35,4 @@ class UMaterialExpressionQualitySwitch : public UMaterialExpression
 	virtual uint32 GetOutputType(int32 InputIndex) override {return MCT_Unknown;}
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
-
-	//~ Begin UObject Interface
-	virtual bool NeedsLoadForClient() const override;
-	//~ End UObject Interface
 };

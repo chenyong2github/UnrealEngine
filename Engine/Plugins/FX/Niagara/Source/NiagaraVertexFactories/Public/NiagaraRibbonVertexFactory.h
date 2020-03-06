@@ -61,18 +61,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVFLooseParameters, NIAGARAVER
 	SHADER_PARAMETER_SRV(Buffer<float4>, TangentsAndDistances)
 	SHADER_PARAMETER_SRV(Buffer<uint>, MultiRibbonIndices)
 	SHADER_PARAMETER_SRV(Buffer<float>, PackedPerRibbonDataByIndex)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataPosition)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataVelocity)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataColor)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataWidth)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataTwist)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFacing)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataNormalizedAge)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialRandom)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam0)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam1)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam2)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam3)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FNiagaraRibbonVFLooseParameters> FNiagaraRibbonVFLooseParametersRef;
 
@@ -105,12 +94,12 @@ public:
 	/**
 	* Should we cache the material's shadertype on this platform with this vertex factory?
 	*/
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	/**
 	* Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	*/
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	// FRenderResource interface.
 	virtual void InitRHI() override;
@@ -218,11 +207,6 @@ public:
 	{
 		return FacingMode;
 	}
-
-	/**
-	* Construct shader parameters for this type of vertex factory.
-	*/
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 	FIndexBuffer*& GetIndexBuffer()
 	{

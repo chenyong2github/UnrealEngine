@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
 #include "UObject/ObjectMacros.h"
-#include "IMovieSceneTrackInstance.h"
 #include "Misc/Guid.h"
 #include "MovieSceneSignedObject.h"
 #include "MovieSceneSection.h"
@@ -17,18 +16,6 @@ struct FMovieSceneEvaluationTrack;
 struct FMovieSceneTrackSegmentBlender;
 struct FMovieSceneTrackRowSegmentBlender;
 struct IMovieSceneTemplateGenerator;
-
-/** Flags used to perform cook-time optimization of movie scene data */
-enum class ECookOptimizationFlags
-{
-	/** Perform no cook optimization */
-	None 			= 0,
-	/** Remove this track since its of no consequence to runtime */
-	RemoveTrack		= 1 << 0,
-	/** Remove this track's object since its of no consequence to runtime */
-	RemoveObject	= 1 << 1,
-};
-ENUM_CLASS_FLAGS(ECookOptimizationFlags)
 
 /** Track compiler arguments */
 struct FMovieSceneTrackCompilerArgs
@@ -131,11 +118,21 @@ struct FMovieSceneSupportsEasingParams
 	FMovieSceneSupportsEasingParams(const UMovieSceneSection* InSection) : ForSection(InSection) {}
 };
 
+#if WITH_EDITOR
+/** Parameters for sections moving in the editor */
+struct FMovieSceneSectionMovedParams
+{
+	EPropertyChangeType::Type MoveType;
+
+	FMovieSceneSectionMovedParams(EPropertyChangeType::Type InMoveType) : MoveType(InMoveType) {}
+};
+#endif
+
 /**
  * Base class for a track in a Movie Scene
  */
 UCLASS(abstract, DefaultToInstanced, MinimalAPI, BlueprintType)
-class MOVIESCENE_VTABLE UMovieSceneTrack
+class UMovieSceneTrack
 	: public UMovieSceneSignedObject
 {
 	GENERATED_BODY()
@@ -361,16 +358,6 @@ public:
 	 */
 	virtual void RemoveSectionAt(int32 SectionIndex) PURE_VIRTUAL(UMovieSceneSection::RemoveSectionAt, );
 
-#if WITH_EDITOR
-
-	/**
-	 * Called when this track's movie scene is being cooked to determine if/how this track should be cooked.
-	 * @return ECookOptimizationFlags detailing how to optimize this track
-	 */
-	virtual ECookOptimizationFlags GetCookOptimizationFlags() const { return ECookOptimizationFlags::None; }
-
-#endif
-
 #if WITH_EDITORONLY_DATA
 
 	/**
@@ -449,7 +436,6 @@ public:
 	 *
 	 * @param Section The section that moved.
 	 */
-	virtual void OnSectionMoved(UMovieSceneSection& Section) { }
-
+	virtual void OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) {}
 #endif
 };

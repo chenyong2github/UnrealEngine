@@ -40,7 +40,7 @@ static void ValidateUniformBufferResource(const FRHIUniformBufferLayout& InLayou
 		&& (InLayout.Resources[Index].MemberType == UBMT_SRV || InLayout.Resources[Index].MemberType == UBMT_RDG_TEXTURE_SRV || InLayout.Resources[Index].MemberType == UBMT_RDG_BUFFER_SRV))
 		&& Validation == EUniformBufferValidation::ValidateResources)
 	{
-		checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."), *InLayout.GetDebugName().ToString(), Index, (uint8)InLayout.Resources[Index].MemberType);
+		checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."), *InLayout.GetDebugName(), Index, (uint8)InLayout.Resources[Index].MemberType);
 	}
 }
 

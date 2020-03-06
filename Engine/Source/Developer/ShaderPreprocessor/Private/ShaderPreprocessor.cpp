@@ -219,7 +219,7 @@ bool PreprocessShader(
 	FShaderCompilerOutput& ShaderOutput,
 	const FShaderCompilerInput& ShaderInput,
 	const FShaderCompilerDefinitions& AdditionalDefines,
-	bool bShaderDumpDefinesAsCommentedCode
+	EDumpShaderDefines DefinesPolicy
 	)
 {
 	// Skip the cache system and directly load the file path (used for debugging)
@@ -312,7 +312,7 @@ bool PreprocessShader(
 	}
 
 	// List the defines used for compilation in the preprocessed shaders, especially to know witch permutation vector this shader is.
-	if (bShaderDumpDefinesAsCommentedCode)
+	if (DefinesPolicy == EDumpShaderDefines::AlwaysIncludeDefines || (DefinesPolicy == EDumpShaderDefines::DontCare && ShaderInput.DumpDebugInfoPath.Len() > 0))
 	{
 		DumpShaderDefinesAsCommentedCode(ShaderInput, &OutPreprocessedShader);
 	}

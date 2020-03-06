@@ -904,6 +904,21 @@ UK2Node::ERedirectType UK2Node::DoPinsMatchForReconstruction(const UEdGraphPin* 
 	return RedirectType;
 }
 
+bool UK2Node::DoesWildcardPinAcceptContainer(const UEdGraphPin* Pin)
+{
+	check(Pin);
+	if (Pin->Direction == EGPD_Input)
+	{
+		return DoesInputWildcardPinAcceptArray(Pin);
+	}
+	else if (Pin->Direction == EGPD_Output)
+	{
+		return DoesOutputWildcardPinAcceptContainer(Pin);
+	}
+
+	return false;
+}
+
 void UK2Node::ReconstructSinglePin(UEdGraphPin* NewPin, UEdGraphPin* OldPin, ERedirectType RedirectType)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UK2Node::ReconstructSinglePin"), STAT_LinkerLoad_ReconstructSinglePin, STATGROUP_LoadTimeVerbose);
@@ -1265,6 +1280,11 @@ UK2Node* UK2Node::ExpandSplitPin(FKismetCompilerContext* CompilerContext, UEdGra
 }
 
 void UK2Node::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
+{
+	ExpandSplitPins(CompilerContext, SourceGraph);
+}
+
+void UK2Node::ExpandSplitPins(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
 	// We iterate the array in reverse so we can both remove the subpins safely after we've read them and
 	// so we have split nested structs we combine them back together in the right order

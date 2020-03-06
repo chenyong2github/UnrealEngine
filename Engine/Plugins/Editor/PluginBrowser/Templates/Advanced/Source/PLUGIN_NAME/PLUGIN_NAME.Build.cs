@@ -37,7 +37,7 @@ public class PLUGIN_NAME : ModuleRules
 				"Projects",
 				"InputCore",
 				"UnrealEd",
-				"LevelEditor",
+				"ToolMenus",
 				"CoreUObject",
 				"Engine",
 				"Slate",

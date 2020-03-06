@@ -12,19 +12,10 @@
 #include "Editor.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelinePIEExecutorSettings.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
-FText UMoviePipelinePIEExecutor::GetWindowTitle(const int32 InConfigIndex, const int32 InNumConfigs) const
-{
-	FNumberFormattingOptions PercentFormatOptions;
-	PercentFormatOptions.MinimumIntegralDigits = 2;
-	PercentFormatOptions.MaximumIntegralDigits = 3;
-
-	FText TitleFormatString = LOCTEXT("MoviePreviewWindowTitleFormat", "Movie Pipeline Render (Preview) [{CurrentCount}/{TotalCount} Total] {PercentComplete}% Completed.");
-	FText WindowTitle = FText::FormatNamed(TitleFormatString, TEXT("CurrentCount"), FText::AsNumber(InConfigIndex + 1), TEXT("TotalCount"), FText::AsNumber(InNumConfigs), TEXT("PercentComplete"), FText::AsNumber(12.f, &PercentFormatOptions));
-	return WindowTitle;
-}
 
 void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 {
@@ -32,7 +23,6 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 
 	// Create a Slate window to hold our preview.
 	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
-		.Title_UObject(this, &UMoviePipelinePIEExecutor::GetWindowTitle, CurrentPipelineIndex, Queue->GetJobs().Num())
 		.ClientSize(FVector2D(1280, 720))
 		.AutoCenter(EAutoCenter::PrimaryWorkArea)
 		.UseOSWindowBorder(true)
@@ -43,6 +33,7 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 		.SupportsMinimize(true)
 		.SizingRule(ESizingRule::UserSized);
 
+	WeakCustomWindow = CustomWindow;
 	FSlateApplication::Get().AddWindow(CustomWindow);
 
 	// Initialize our own copy of the Editor Play settings which we will adjust defaults on.
@@ -54,17 +45,26 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	FRequestPlaySessionParams Params;
 	Params.EditorPlaySettings = PlayInEditorSettings;
 	Params.CustomPIEWindow = CustomWindow;
+	Params.GlobalMapOverride = InJob->Map.GetAssetPathString();
 
-	UMoviePipelineGameOverrideSetting* GameOverrides = InJob->GetConfiguration()->FindSetting<UMoviePipelineGameOverrideSetting>();
-	if (GameOverrides)
-	{
-		Params.GameModeOverride = GameOverrides->GameModeOverride;
+	// Initialize the transient settings so that they will exist in time for the GameOverrides check.
+	InJob->GetConfiguration()->InitializeTransientSettings();
+
+	TArray<UMoviePipelineSetting*> AllSettings = InJob->GetConfiguration()->GetAllSettings();
+	UMoviePipelineSetting** GameOverridesPtr = AllSettings.FindByPredicate([](UMoviePipelineSetting* InSetting) { return InSetting->GetClass() == UMoviePipelineGameOverrideSetting::StaticClass(); });
+	if (GameOverridesPtr)
+	{	
+		UMoviePipelineSetting* Setting = *GameOverridesPtr;
+		if (Setting)
+		{
+			Params.GameModeOverride = CastChecked<UMoviePipelineGameOverrideSetting>(Setting)->GameModeOverride;
+		}
 	}
 
 	bPreviousUseFixedTimeStep = FApp::UseFixedTimeStep();
 	PreviousFixedTimeStepDelta = FApp::GetFixedDeltaTime();
 
-	// Force the engine into fixed timestep mode. It's going to get overriden on the first frame by the movie pipeline,
+	// Force the engine into fixed timestep mode. It's going to get overridden on the first frame by the movie pipeline,
 	// and everything controlled by Sequencer will use the correct timestep for renders but non-controlled things (such
 	// as pawns) use an uncontrolled DT on the first frame which lowers determinism.
 	ULevelSequence* LevelSequence = CastChecked<ULevelSequence>(InJob->Sequence.TryLoad());
@@ -111,20 +111,56 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	// This Pipeline belongs to the world being created so that they have context for things they execute.
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(ExecutingWorld, PipelineClass);
 	
-	ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+	// We allow users to set a multi-frame delay before we actually run the Initialization function and start thinking.
+	// This solves cases where there are engine systems that need to finish loading before we do anything.
+	const UMoviePipelinePIEExecutorSettings* ExecutorSettings = GetDefault<UMoviePipelinePIEExecutorSettings>();
+
+	// We tick each frame to update the Window Title, and kick off latent pipeling initialization.
+	FCoreDelegates::OnBeginFrame.AddUObject(this, &UMoviePipelinePIEExecutor::OnTick);
 
 	// Listen for when the pipeline thinks it has finished.
 	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished);
 	ActiveMoviePipeline->OnMoviePipelineErrored().AddUObject(this, &UMoviePipelinePIEExecutor::OnPipelineErrored);
-
+	
+	if (ExecutorSettings->InitialDelayFrameCount == 0)
+	{
+		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		RemainingInitializationFrames = -1;
+	}
+	else
+	{
+		RemainingInitializationFrames = ExecutorSettings->InitialDelayFrameCount;
+	}
+	
 	// Listen for PIE shutdown in case the user hits escape to close it. 
 	FEditorDelegates::EndPIE.AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEEnded);
+}
+
+void UMoviePipelinePIEExecutor::OnTick()
+{
+	if (RemainingInitializationFrames >= 0)
+	{
+		if (RemainingInitializationFrames == 0)
+		{
+			ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		}
+
+		RemainingInitializationFrames--;
+	}
+
+	FText WindowTitle = GetWindowTitle();
+	TSharedPtr<SWindow> CustomWindow = WeakCustomWindow.Pin();
+	if (CustomWindow)
+	{
+		CustomWindow->SetTitle(WindowTitle);
+	}
 }
 
 void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
 {
 	// Unsubscribe to the EndPIE event so we don't think the user canceled it.
 	FEditorDelegates::EndPIE.RemoveAll(this);
+	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 
 	if (ActiveMoviePipeline)
 	{
@@ -142,9 +178,7 @@ void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMov
 
 void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 {
-	// Restore the previous settings.
-	FApp::SetUseFixedTimeStep(bPreviousUseFixedTimeStep);
-	FApp::SetFixedDeltaTime(bPreviousUseFixedTimeStep);
+	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 
 	// If the movie pipeline finishes naturally we unsubscribe from the EndPIE event.
 	// This means that if this gets called, the user has hit escape and wants to cancel.
@@ -166,6 +200,10 @@ void UMoviePipelinePIEExecutor::DelayedFinishNotification()
 	// Null these out now since OnIndividualPipelineFinished might invoke something that causes a GC
 	// and we want them to go away with the GC.
 	ActiveMoviePipeline = nullptr;
+
+	// Restore the previous settings.
+	FApp::SetUseFixedTimeStep(bPreviousUseFixedTimeStep);
+	FApp::SetFixedDeltaTime(PreviousFixedTimeStepDelta);
 	
 	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
 	OnIndividualPipelineFinished(MoviePipeline);

@@ -974,7 +974,7 @@ private:
 	FRigVMExprAST* TraverseLink(URigVMLink* InLink, FRigVMExprAST* InParentExpr);
 
 	TMap<UObject*, FRigVMExprAST*> SubjectToExpression;
-	TArray<int32> NodeExpressionIndex;
+	TMap<UObject*, int32> NodeExpressionIndex;
 	TArray<FRigVMExprAST*> Expressions;
 	TArray<FRigVMExprAST*> RootExpressions;
 

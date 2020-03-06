@@ -71,6 +71,14 @@ class CHAOS_API TUniformGridBase
 	{
 		return MDx * Face.Second + MMinCorner + (TVector<T, d>(1) - TVector<T, d>::AxisVector(Face.First)) * (MDx / 2);
 	}
+
+#ifdef PLATFORM_COMPILER_CLANG
+	// Disable optimization (-ffast-math) since its currently causing regressions.
+	//		freciprocal-math:
+	//		x / y = x * rccps(y) 
+	//		rcpps is faster but less accurate (12 bits of precision), this can causes incorrect CellIdx
+	DISABLE_FUNCTION_OPTIMIZATION 
+#endif
 	TVector<int32, d> Cell(const TVector<T, d>& X) const
 	{
 		const TVector<T, d> Delta = X - MMinCorner;
@@ -199,5 +207,11 @@ FArchive& operator<<(FArchive& Ar, TUniformGridBase<T, d>& Value)
 	Value.Serialize(Ar);
 	return Ar;
 }
+
+#if PLATFORM_MAC || PLATFORM_LINUX
+extern template class CHAOS_API Chaos::TUniformGridBase<float, 3>;
+extern template class CHAOS_API Chaos::TUniformGrid<float, 3>;
+extern template class CHAOS_API Chaos::TUniformGrid<float, 2>;
+#endif // __clang__
 
 }

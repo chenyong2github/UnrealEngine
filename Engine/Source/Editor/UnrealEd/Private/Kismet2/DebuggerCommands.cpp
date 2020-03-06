@@ -929,6 +929,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 				.MaxValue(64)
 				.MinSliderValue(1)
 				.MaxSliderValue(4)
+				.Delta(1)
 				.ToolTipText(LOCTEXT("NumberOfClientsToolTip", "How many client instances do you want to create? The first instance respects the Play Mode location (PIE/PINW) and additional instances respect the RunUnderOneProcess setting."))
 				.Value(FInternalPlayWorldCommandCallbacks::GetNumberOfClients())
 				.OnValueCommitted_Static(&FInternalPlayWorldCommandCallbacks::SetNumberOfClients);
@@ -939,9 +940,12 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 		{
 			const UEnum* PlayNetModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPlayNetMode"));
 			
-			TSharedRef<SWidget> NetMode = SNew(SEnumCombobox, PlayNetModeEnum)
+			TSharedRef<SWidget> NetMode = SNew(SEnumComboBox, PlayNetModeEnum)
 				.CurrentValue(TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetNetPlayMode)))
-				.OnEnumSelectionChanged(SEnumCombobox::FOnEnumSelectionChanged::CreateStatic(&FInternalPlayWorldCommandCallbacks::SetNetPlayMode))
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+				.ContentPadding(FMargin(2, 0))
+				.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+				.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateStatic(&FInternalPlayWorldCommandCallbacks::SetNetPlayMode))
 				.ToolTipText(LOCTEXT("NetworkModeToolTip", "Which network mode should the clients launch in? A server will automatically be started if needed."));
 
 			MenuBuilder.AddWidget(NetMode, LOCTEXT("NetworkModeMenuWidget", "Net Mode"));
@@ -2031,12 +2035,12 @@ void FInternalPlayWorldCommandCallbacks::PlayInSettings_Clicked()
 
 void FInternalPlayWorldCommandCallbacks::OpenProjectLauncher_Clicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FTabId("ProjectLauncher"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("ProjectLauncher"));
 }
 
 void FInternalPlayWorldCommandCallbacks::OpenDeviceManager_Clicked()
 {
-	FGlobalTabmanager::Get()->InvokeTab(FTabId("DeviceManager"));
+	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("DeviceManager"));
 }
 
 void FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_Clicked()

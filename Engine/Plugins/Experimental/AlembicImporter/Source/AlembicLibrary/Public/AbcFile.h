@@ -10,13 +10,11 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 
-PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreFactory/IFactory.h>
 #include <Alembic/Abc/IArchive.h>
 #include <Alembic/Abc/IObject.h>
 THIRD_PARTY_INCLUDES_END
-PRAGMA_DEFAULT_VISIBILITY_END
 
 #if PLATFORM_WINDOWS
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -67,6 +65,7 @@ public:
 	const int32 GetMaxFrameIndex() const;
 	const float GetImportTimeOffset() const;
 	const float GetImportLength() const;
+	const int32 GetImportNumFrames() const;
 	const int32 GetFramerate() const;
 	const FBoxSphereBounds& GetArchiveBounds() const;
 	const bool ContainsHeterogeneousMeshes() const;
@@ -91,7 +90,8 @@ public:
 	void ReadFrame(int32 FrameIndex, const EFrameReadFlags InFlags, const int32 ReadIndex = INDEX_NONE);
 	/** Cleans up frame data. Must be called after ReadFrame when the frame data (with matching ReadIndex) is not needed anymore */
 	void CleanupFrameData(const int32 ReadIndex);
-
+	/** Returns the list of unique face set names from the meshes to be imported */
+	const TArray<FString>& GetUniqueFaceSetNames() const { return UniqueFaceSetNames; }
 protected:
 	void TraverseAbcHierarchy(const Alembic::Abc::IObject& InObject, IAbcObject* InParent);
 protected:
@@ -124,7 +124,8 @@ protected:
 	
 	/** Map of material created for the imported alembic file identified by material names */
 	TMap<FString, UMaterialInterface*> MaterialMap;
-	
+	TArray<FString> UniqueFaceSetNames;
+
 	/** Total (max) number of frames in the Alembic file */
 	int32 NumFrames;
 	/** Frames per second (retrieved and specified in top Alembic object) */

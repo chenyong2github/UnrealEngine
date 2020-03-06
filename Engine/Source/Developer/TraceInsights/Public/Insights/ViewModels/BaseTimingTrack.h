@@ -3,7 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Input/Events.h"
+#include "Input/Reply.h"
 #include "Misc/EnumClassFlags.h"
+
+#include "Insights/Common/SimpleRtti.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -86,11 +90,11 @@ class TRACEINSIGHTS_API FBaseTimingTrack : public TSharedFromThis<FBaseTimingTra
 {
 	friend class FTimingViewDrawHelper;
 
+	INSIGHTS_DECLARE_RTTI_BASE(FBaseTimingTrack)
+
 protected:
-	explicit FBaseTimingTrack(const FName& InType, const FName& InSubType = NAME_None, const FString& InName = FString())
+	explicit FBaseTimingTrack(const FString& InName = FString())
 		: Id(GenerateId())
-		, Type(InType)
-		, SubType(InSubType)
 		, Name(InName)
 		, Order(0)
 		, PosY(0.0f)
@@ -112,9 +116,6 @@ public:
 	}
 
 	uint64 GetId() const { return Id; }
-
-	const FName& GetType() const { return Type; }
-	const FName& GetSubType() const { return SubType; }
 
 	const FString& GetName() const { return Name; }
 	void SetName(const FString& InName) { Name = InName; }
@@ -183,6 +184,10 @@ public:
 
 	//////////////////////////////////////////////////
 
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return FReply::Unhandled(); }
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return FReply::Unhandled(); }
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return FReply::Unhandled(); }
+
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder);
 
 	/**
@@ -226,8 +231,6 @@ protected:
 
 private:
 	const uint64 Id;
-	const FName Type; // Thread, Loading, FileActivity
-	const FName SubType; // Cpu, Gpu, MainThread, AsyncThread, Overview, Detailed
 	FString Name;
 	int32 Order;
 	float PosY; // y position, in Slate units

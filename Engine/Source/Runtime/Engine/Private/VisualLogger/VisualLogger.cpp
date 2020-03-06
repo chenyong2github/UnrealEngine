@@ -650,7 +650,7 @@ public:
 #if WITH_EDITOR
 				else
 				{
-					FGlobalTabmanager::Get()->InvokeTab(FName(TEXT("VisualLogger")));
+					FGlobalTabmanager::Get()->TryInvokeTab(FName(TEXT("VisualLogger")));
 					return true;
 				}
 #endif

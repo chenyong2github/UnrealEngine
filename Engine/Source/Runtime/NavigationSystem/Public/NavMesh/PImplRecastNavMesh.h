@@ -15,6 +15,10 @@
 #include "NavMesh/RecastNavMesh.h"
 #include "NavMesh/RecastQueryFilter.h"
 
+#if RECAST_INTERNAL_DEBUG_DATA
+#include "NavMesh/RecastInternalDebugData.h"
+#endif
+
 #if WITH_RECAST
 #include "Detour/DetourNavMesh.h"
 #include "Detour/DetourNavMeshQuery.h"
@@ -211,6 +215,10 @@ public:
 
 	/** Compressed layers data, can be reused for tiles generation */
 	TMap<FIntPoint, TArray<FNavMeshTileData> > CompressedTileCacheLayers;
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	TMap<FIntPoint, FRecastInternalDebugData> DebugDataMap;
+#endif
 
 	/** query used for searching data on game thread */
 	mutable dtNavMeshQuery SharedNavQuery;

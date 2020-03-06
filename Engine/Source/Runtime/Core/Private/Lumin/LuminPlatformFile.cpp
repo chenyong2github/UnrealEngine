@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include <sys/stat.h>   // mkdirp()
 #include <dirent.h>
+#include "Lumin/CAPIShims/LuminAPIFileInfo.h"
 #include "Lumin/CAPIShims/LuminAPISharedFile.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLuminPlatformFile, Log, All);
@@ -40,13 +41,14 @@ FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath
 
 	// Then add it to the app writable directory path.
 	FString lhs = FLuminPlatformMisc::GetApplicationWritableDirectoryPath();
-	FString rhs = MoveTemp(Result);
+	// only convert the unreal path to lowercase, not the sandbox directory (lhs)
+	FString rhs = Result.ToLower();
 	lhs.RemoveFromEnd(TEXT("/"), ESearchCase::CaseSensitive);
 	rhs.RemoveFromStart(TEXT("/"), ESearchCase::CaseSensitive);
 	Result = lhs / rhs;
 
-	// always use lower case ... always
-	return Result.ToLower();
+	// only convert the unreal path to lowercase, not the sandbox directory (lhs)
+	return Result;
 }
 
 namespace
@@ -62,9 +64,9 @@ namespace
 		}
 
 		return FFileStatData(
-			UnixEpoch + FTimespan(0, 0, FileInfo.st_ctime), 
-			UnixEpoch + FTimespan(0, 0, FileInfo.st_atime), 
-			UnixEpoch + FTimespan(0, 0, FileInfo.st_mtime), 
+			UnixEpoch + FTimespan(0, 0, FileInfo.st_ctime),
+			UnixEpoch + FTimespan(0, 0, FileInfo.st_atime),
+			UnixEpoch + FTimespan(0, 0, FileInfo.st_mtime),
 			FileSize,
 			bIsDirectory,
 			!(FileInfo.st_mode & S_IWUSR)
@@ -201,7 +203,7 @@ public:
 	virtual bool Seek(int64 NewPosition) override
 	{
 		check(NewPosition >= 0);
-		
+
 #if MANAGE_FILE_HANDLES
 		if( IsManaged() )
 		{
@@ -311,7 +313,7 @@ public:
 		}
 	}
 
-	
+
 private:
 
 #if MANAGE_FILE_HANDLES
@@ -327,7 +329,7 @@ private:
 			if( ActiveHandles[ HandleSlot ] != this || (ActiveHandles[ HandleSlot ] && ActiveHandles[ HandleSlot ]->FileHandle == -1) )
 			{
 				ReserveSlot();
-				
+
 				FileHandle = open(TCHAR_TO_UTF8(*Filename), O_RDONLY | O_CLOEXEC);
 				if( FileHandle != -1 )
 				{
@@ -349,7 +351,7 @@ private:
 	void ReserveSlot()
 	{
 		HandleSlot = -1;
-		
+
 		// Look for non-reserved slot
 		for( int32 i = 0; i < ACTIVE_HANDLE_COUNT; ++i )
 		{
@@ -359,7 +361,7 @@ private:
 				break;
 			}
 		}
-		
+
 		// Take the oldest handle
 		if( HandleSlot == -1 )
 		{
@@ -371,12 +373,12 @@ private:
 					Oldest = i;
 				}
 			}
-			
+
 			close( ActiveHandles[ Oldest ]->FileHandle );
 			ActiveHandles[ Oldest ]->FileHandle = -1;
 			HandleSlot = Oldest;
 		}
-		
+
 		ActiveHandles[ HandleSlot ] = NULL;
 		AccessTimes[ HandleSlot ] = FPlatformTime::Seconds();
 	}
@@ -409,16 +411,16 @@ private:
 #if MANAGE_FILE_HANDLES
 	// Holds the name of the file that this handle represents. Kept around for possible reopen of file.
 	FString Filename;
-	
+
 	// Most recent valid slot index for this handle; >=0 for handles which are managed.
 	int32 HandleSlot;
-	
+
 	// Current file offset; valid if a managed handle.
 	int64 FileOffset;
-	
+
 	// Cached file size; valid if a managed handle.
 	int64 FileSize;
-	
+
 	// Each thread keeps a collection of active handles with access times.
 	static const int32 ACTIVE_HANDLE_COUNT = 256;
 	static __thread FFileHandleLumin* ActiveHandles[ACTIVE_HANDLE_COUNT];
@@ -436,271 +438,13 @@ __thread double FFileHandleLumin::AccessTimes[FFileHandleLumin::ACTIVE_HANDLE_CO
 #endif // MANAGE_FILE_HANDLES
 
 /**
- * A class to handle file mapping. This is a band-aid, non-performant approach,
- * without any caching.
- */
-class FLuminFileMapper
-{
-
-public:
-
-	FLuminFileMapper()
-	{
-	}
-
-	FString GetPathComponent(const FString & Filename, int NumPathComponent)
-	{
-		// skip over empty part
-		int StartPosition = (Filename[0] == TEXT('/')) ? 1 : 0;
-		
-		for (int ComponentIdx = 0; ComponentIdx < NumPathComponent; ++ComponentIdx)
-		{
-			int FoundAtIndex = Filename.Find(TEXT("/"), ESearchCase::CaseSensitive,
-											 ESearchDir::FromStart, StartPosition);
-			
-			if (FoundAtIndex == INDEX_NONE)
-			{
-				checkf(false, TEXT("Asked to get %d-th path component, but filename '%s' doesn't have that many!"), 
-					   NumPathComponent, *Filename);
-				break;
-			}
-			
-			StartPosition = FoundAtIndex + 1;	// skip the '/' itself
-		}
-
-		// now return the 
-		int NextSlash = Filename.Find(TEXT("/"), ESearchCase::CaseSensitive,
-									  ESearchDir::FromStart, StartPosition);
-		if (NextSlash == INDEX_NONE)
-		{
-			// just return the rest of the string
-			return Filename.RightChop(StartPosition);
-		}
-		else if (NextSlash == StartPosition)
-		{
-			return TEXT("");	// encountered an invalid path like /foo/bar//baz
-		}
-		
-		return Filename.Mid(StartPosition, NextSlash - StartPosition);
-	}
-
-	int32 CountPathComponents(const FString & Filename)
-	{
-		if (Filename.Len() == 0)
-		{
-			return 0;
-		}
-
-		// if the first character is not a separator, it's part of a distinct component
-		int NumComponents = (Filename[0] != TEXT('/')) ? 1 : 0;
-		for (const auto & Char : Filename)
-		{
-			if (Char == TEXT('/'))
-			{
-				++NumComponents;
-			}
-		}
-
-		// cannot be 0 components if path is non-empty
-		return FMath::Max(NumComponents, 1);
-	}
-
-	/**
-	 * Tries to recursively find and open the file.
-	 * The first file found will be opened.
-	 * 
-	 * @param Filename Original file path as requested (absolute)
-	 * @param PathComponentToLookFor Part of path we are currently trying to find.
-	 * @param MaxPathComponents Maximum number of path components (directories), i.e. how deep the path is.
-	 * @param ConstructedPath The real (absolute) path that we have found so far
-	 * 
-	 * @return a handle opened with open()
-	 */
-	bool MapFileRecursively(const FString & Filename, int PathComponentToLookFor, int MaxPathComponents, FString & ConstructedPath)
-	{
-		// get the directory without the last path component
-		FString BaseDir = ConstructedPath;
-
-		// get the path component to compare
-		FString PathComponent = GetPathComponent(Filename, PathComponentToLookFor);
-		FString PathComponentLower = PathComponent.ToLower();
-
-		bool bFound = false;
-
-		// see if we can open this (we should)
-		DIR* DirHandle = opendir(TCHAR_TO_UTF8(*BaseDir));
-		if (DirHandle)
-		{
-			struct dirent *Entry;
-			while ((Entry = readdir(DirHandle)) != nullptr)
-			{
-				FString DirEntry = UTF8_TO_TCHAR(Entry->d_name);
-				if (DirEntry.ToLower() == PathComponentLower)
-				{
-					if (PathComponentToLookFor < MaxPathComponents - 1)
-					{
-						// make sure this is a directory
-						bool bIsDirectory = Entry->d_type == DT_DIR;
-						if(Entry->d_type == DT_UNKNOWN)
-						{
-							struct stat StatInfo;
-							if(stat(TCHAR_TO_UTF8(*(BaseDir / Entry->d_name)), &StatInfo) == 0)
-							{
-								bIsDirectory = S_ISDIR(StatInfo.st_mode);
-							}
-						}
-
-						if (bIsDirectory)
-						{
-							// recurse with the new filename
-							FString NewConstructedPath = ConstructedPath;
-							NewConstructedPath /= DirEntry;
-
-							bFound = MapFileRecursively(Filename, PathComponentToLookFor + 1, MaxPathComponents, NewConstructedPath);
-							if (bFound)
-							{
-								ConstructedPath = NewConstructedPath;
-								break;
-							}
-						}
-					}
-					else
-					{
-						// last level, try opening directly
-						FString ConstructedFilename = ConstructedPath;
-						ConstructedFilename /= DirEntry;
-
-						struct stat StatInfo;
-						bFound = (stat(TCHAR_TO_UTF8(*ConstructedFilename), &StatInfo) == 0);
-						if (bFound)
-						{
-							ConstructedPath = ConstructedFilename;
-							break;
-						}
-					}
-				}
-			}
-			closedir(DirHandle);
-		}
-		
-		return bFound;
-	}
-
-	/**
-	 * Tries to map a filename to one that exists.
-	 * 
-	 * @param PossiblyWrongFilename absolute filename 
-	 * @param ExistingFilename filename that exists (only valid to use if the function returned success).
-	 */
-	bool MapFile(const FString & PossiblyWrongFilename, FString & ExistingFilename)
-	{
-		ExistingFilename = PossiblyWrongFilename;
-		return true;
-
-		// Cannot log anything here, as this may result in infinite recursion when this function is called on log file itself
-
-		// We can get some "absolute" filenames like "D:/Blah/" here (e.g. non-Lumin paths to source files embedded in assets).
-		// In that case, fail silently.
-		if (PossiblyWrongFilename.IsEmpty() || PossiblyWrongFilename[0] != TEXT('/'))
-		{
-			return false;
-		}
-
-		// try the filename as given first
-		struct stat StatInfo;
-		bool bFound = stat(TCHAR_TO_UTF8(*PossiblyWrongFilename), &StatInfo) == 0;
-
-		if (bFound)
-		{
-			ExistingFilename = PossiblyWrongFilename;
-		}
-		else
-		{
-			// perform a search from /
-
-			int MaxPathComponents = CountPathComponents(PossiblyWrongFilename);
-			if (MaxPathComponents > 0)
-			{
-				FString FoundFilename(TEXT("/"));	// start with root
-				bFound = MapFileRecursively(PossiblyWrongFilename, 0, MaxPathComponents, FoundFilename);
-				if (bFound)
-				{
-					ExistingFilename = FoundFilename;
-				}
-			}
-		}
-
-		return bFound;
-	}
-
-	/**
-	 * Opens a file for reading
-	 * 
-	 * @param Filename absolute filename
-	 * @param MappedToFilename absolute filename that we mapped the Filename to (always filled out on success, even if the same as Filename)
-	 */
-	int32 OpenReadInternal(const FString & Filename, FString & MappedToFilename)
-	{
-		// We can get some "absolute" filenames like "D:/Blah/" here (e.g. non-Lumin paths to source files embedded in assets).
-		// In that case, fail silently.
-		if (Filename.IsEmpty() || Filename[0] != TEXT('/'))
-		{
-			return -1;
-		}
-
-		// try opening right away
-		int32 Handle = open(TCHAR_TO_UTF8(*Filename), O_RDONLY | O_CLOEXEC);
-		if (Handle != -1)
-		{
-			MappedToFilename = Filename;
-		}
-		else
-		{
-			// log non-standard errors only
-			if (ENOENT != errno)
-			{
-				int ErrNo = errno;
-				UE_LOG(LogLuminPlatformFile, Warning, TEXT("open('%s', O_RDONLY | O_CLOEXEC) failed: errno=%d (%s)"), *Filename, ErrNo, ANSI_TO_TCHAR(strerror(ErrNo)));
-			}
-			else
-			{
-				// perform a search
-				// make sure we get the absolute filename
-				checkf(Filename[0] == TEXT('/'), TEXT("Filename '%s' given to OpenReadInternal is not absolute!"), *Filename);
-				
-				int MaxPathComponents = CountPathComponents(Filename);
-				if (MaxPathComponents > 0)
-				{
-					FString FoundFilename(TEXT("/"));	// start with root
-					if (MapFileRecursively(Filename, 0, MaxPathComponents, FoundFilename))
-					{
-						Handle = open(TCHAR_TO_UTF8(*FoundFilename), O_RDONLY | O_CLOEXEC);
-						if (Handle != -1)
-						{
-							MappedToFilename = FoundFilename;
-							if (Filename != MappedToFilename)
-							{
-								UE_LOG(LogLuminPlatformFile, Log, TEXT("Mapped '%s' to '%s'"), *Filename, *MappedToFilename);
-							}
-						}
-					}
-				}
-			}
-		}
-		return Handle;
-	}
-};
-
-FLuminFileMapper GLuminFileMapper;
-
-/**
 * Lumin File I/O implementation
 **/
 FString FLuminPlatformFile::NormalizeFilename(const TCHAR* Filename)
 {
 	FString Result(Filename);
 	FPaths::NormalizeFilename(Result);
-	// Don't convert relative path to full path. 
+	// Don't convert relative path to full path.
 	// When jailing is on, the BaseDir() is /package/bin/. The incoming paths are usually of the format ../../../ProjectName/
 	// When ConvertRelativePathToFull() tries to collapse the relative path, we run out of the root directory, and hit an edge case and the path is set to /../ProjectName/
 	// This still works when jailing is enabled because FLuminPlatformFile::ConvertToLuminPath() gets rid of all relative path prepends and constructs with its own base path.
@@ -733,7 +477,7 @@ bool FLuminPlatformFile::FileExists(const TCHAR* Filename, FString& OutLuminPath
 	bool bExists = false;
 	FString NormalizedFilename = NormalizeFilename(Filename);
 	FString ReadFilePath = ConvertToLuminPath(NormalizedFilename, false);
-	
+
 	if (FileExistsInternal(ReadFilePath))
 	{
 		OutLuminPath = ReadFilePath;
@@ -766,21 +510,9 @@ int64 FLuminPlatformFile::FileSize(const TCHAR* Filename)
 
 bool FLuminPlatformFile::DeleteFile(const TCHAR* Filename)
 {
-	FString MappedFilename;
 	// Only delete from write path
 	FString IntendedFilename(ConvertToLuminPath(NormalizeFilename(Filename), true));
-	if (!GLuminFileMapper.MapFile(IntendedFilename, MappedFilename))
-	{
-		// could not find the file
-		return false;
-	}
-
-	// removing mapped file is too dangerous
-	if (IntendedFilename != MappedFilename)
-	{
-		UE_LOG(LogLuminPlatformFile, Warning, TEXT("Could not find file '%s', deleting file '%s' instead (for consistency with the rest of file ops)"), *IntendedFilename, *MappedFilename);
-	}
-	return unlink(TCHAR_TO_UTF8(*MappedFilename)) == 0;
+	return unlink(TCHAR_TO_UTF8(*IntendedFilename)) == 0;
 }
 
 bool FLuminPlatformFile::IsReadOnly(const TCHAR* Filename)
@@ -800,28 +532,15 @@ bool FLuminPlatformFile::MoveFile(const TCHAR* To, const TCHAR* From)
 	// Move to write path only.
 	FString ToLuminFilename = ConvertToLuminPath(NormalizeFilename(To), true);
 	FString FromLuminFilename = ConvertToLuminPath(NormalizeFilename(From), true);
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(FromLuminFilename, MappedFilename))
-	{
-		// could not find the file
-		return false;
-	}
-
-	return rename(TCHAR_TO_UTF8(*MappedFilename), TCHAR_TO_UTF8(*ToLuminFilename)) == 0;
+	return rename(TCHAR_TO_UTF8(*FromLuminFilename), TCHAR_TO_UTF8(*ToLuminFilename)) == 0;
 }
 
 bool FLuminPlatformFile::SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyValue)
 {
 	FString LuminFilename = ConvertToLuminPath(NormalizeFilename(Filename), false);
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(LuminFilename, MappedFilename))
-	{
-		// could not find the file
-		return false;
-	}
 
 	struct stat FileInfo;
-	if (stat(TCHAR_TO_UTF8(*MappedFilename), &FileInfo) == 0)
+	if (stat(TCHAR_TO_UTF8(*LuminFilename), &FileInfo) == 0)
 	{
 		if (bNewReadOnlyValue)
 		{
@@ -831,7 +550,7 @@ bool FLuminPlatformFile::SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyVal
 		{
 			FileInfo.st_mode |= S_IWUSR;
 		}
-		return chmod(TCHAR_TO_UTF8(*MappedFilename), FileInfo.st_mode) == 0;
+		return chmod(TCHAR_TO_UTF8(*LuminFilename), FileInfo.st_mode) == 0;
 	}
 	return false;
 }
@@ -850,17 +569,12 @@ FDateTime FLuminPlatformFile::GetTimeStamp(const TCHAR* Filename)
 
 void FLuminPlatformFile::SetTimeStamp(const TCHAR* Filename, const FDateTime DateTime)
 {
-	FString MappedFilename;
 	// Update timestamp on a file in the write path only.
-	if (!GLuminFileMapper.MapFile(ConvertToLuminPath(NormalizeFilename(Filename), true), MappedFilename))
-	{
-		// could not find the file
-		return;
-	}
+	FString LuminFilename = ConvertToLuminPath(NormalizeFilename(Filename), true);
 
 	// get file times
 	struct stat FileInfo;
-	if(stat(TCHAR_TO_UTF8(*MappedFilename), &FileInfo) != 0)
+	if(stat(TCHAR_TO_UTF8(*LuminFilename), &FileInfo) != 0)
 	{
 		return;
 	}
@@ -869,7 +583,7 @@ void FLuminPlatformFile::SetTimeStamp(const TCHAR* Filename, const FDateTime Dat
 	struct utimbuf Times;
 	Times.actime = FileInfo.st_atime;
 	Times.modtime = (DateTime - UnixEpoch).GetTotalSeconds();
-	utime(TCHAR_TO_UTF8(*MappedFilename), &Times);
+	utime(TCHAR_TO_UTF8(*LuminFilename), &Times);
 }
 
 FDateTime FLuminPlatformFile::GetAccessTimeStamp(const TCHAR* Filename)
@@ -891,20 +605,21 @@ FString FLuminPlatformFile::GetFilenameOnDisk(const TCHAR* Filename)
 
 IFileHandle* FLuminPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 {
-	FString NormalizedFilename = NormalizeFilename(Filename);
-	FString MappedToName;
+	const FString NormalizedFilename = NormalizeFilename(Filename);
+	FString LuminFilename = ConvertToLuminPath(NormalizedFilename, false);
 	// Check the read path.
-	int32 Handle = GLuminFileMapper.OpenReadInternal(ConvertToLuminPath(NormalizedFilename, false), MappedToName);
+	int32 Handle = OpenReadInternal(LuminFilename);
 	if (Handle == -1)
 	{
 		// If not in the read path, check the write path.
-		Handle = GLuminFileMapper.OpenReadInternal(ConvertToLuminPath(NormalizedFilename, true), MappedToName);
+		LuminFilename = ConvertToLuminPath(NormalizedFilename, true);
+		Handle = OpenReadInternal(LuminFilename);
 		if (Handle == -1)
 		{
 			return nullptr;
 		}
 	}
-	return new FFileHandleLumin(Handle, *MappedToName, true);
+	return new FFileHandleLumin(Handle, *LuminFilename, true);
 }
 
 IFileHandle* FLuminPlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, bool bAllowRead)
@@ -980,21 +695,9 @@ bool FLuminPlatformFile::CreateDirectory(const TCHAR* Directory)
 
 bool FLuminPlatformFile::DeleteDirectory(const TCHAR* Directory)
 {
-	FString MappedFilename;
 	// Delete directory from write path only.
 	FString IntendedFilename(ConvertToLuminPath(NormalizeFilename(Directory), true));
-	if (!GLuminFileMapper.MapFile(IntendedFilename, MappedFilename))
-	{
-		// could not find the directory
-		return false;
-	}
-
-	// removing mapped directory is too dangerous
-	if (IntendedFilename != MappedFilename)
-	{
-		UE_LOG(LogLuminPlatformFile, Warning, TEXT("Could not find directory '%s', deleting '%s' instead (for consistency with the rest of file ops)"), *IntendedFilename, *MappedFilename);
-	}
-	return rmdir(TCHAR_TO_UTF8(*MappedFilename)) == 0;
+	return rmdir(TCHAR_TO_UTF8(*IntendedFilename)) == 0;
 }
 
 void FLuminPlatformFile::SetSandboxEnabled(bool bInEnabled)
@@ -1036,7 +739,7 @@ bool FLuminPlatformFile::IterateDirectory(const TCHAR* Directory, FDirectoryVisi
 	return IterateDirectoryCommon(Directory, [&](struct dirent* InEntry) -> bool
 	{
 		const FString UnicodeEntryName = UTF8_TO_TCHAR(InEntry->d_name);
-				
+
 		bool bIsDirectory = false;
 		if (InEntry->d_type != DT_UNKNOWN)
 		{
@@ -1046,7 +749,7 @@ bool FLuminPlatformFile::IterateDirectory(const TCHAR* Directory, FDirectoryVisi
 		{
 			// filesystem does not support d_type, fallback to stat
 			struct stat FileInfo;
-			const FString AbsoluteUnicodeName = NormalizedDirectoryStr / UnicodeEntryName;	
+			const FString AbsoluteUnicodeName = NormalizedDirectoryStr / UnicodeEntryName;
 			if (stat(TCHAR_TO_UTF8(*AbsoluteUnicodeName), &FileInfo) != -1)
 			{
 				bIsDirectory = ((FileInfo.st_mode & S_IFMT) == S_IFDIR);
@@ -1070,9 +773,9 @@ bool FLuminPlatformFile::IterateDirectoryStat(const TCHAR* Directory, FDirectory
 	return IterateDirectoryCommon(Directory, [&](struct dirent* InEntry) -> bool
 	{
 		const FString UnicodeEntryName = UTF8_TO_TCHAR(InEntry->d_name);
-				
+
 		struct stat FileInfo;
-		const FString AbsoluteUnicodeName = NormalizedDirectoryStr / UnicodeEntryName;	
+		const FString AbsoluteUnicodeName = NormalizedDirectoryStr / UnicodeEntryName;
 		// Check the read path first.
 		if (stat(TCHAR_TO_UTF8(*ConvertToLuminPath(AbsoluteUnicodeName, false)), &FileInfo) != -1)
 		{
@@ -1171,7 +874,7 @@ FString FLuminPlatformFile::ConvertToLuminPath(const FString& Filename, bool bFo
 	FString Result = Filename;
 	Result.ReplaceInline(TEXT("../"), TEXT(""));
 	Result.ReplaceInline(TEXT(".."), TEXT(""));
-	
+
 	// Remove the base app path if present, we will prepend it the correct base path as needed.
 	Result.ReplaceInline(*FLuminPlatformMisc::GetApplicationPackageDirectoryPath(), TEXT(""));
 	// Remove the writable path if present, we will prepend it the correct base path as needed.
@@ -1219,7 +922,6 @@ FString FLuminPlatformFile::ConvertToLuminPath(const FString& Filename, bool bFo
 
 	return Result;
 }
-
 
 IFileHandle* GetHandleForSharedFile(const TCHAR* Filename, bool bForWrite)
 {
@@ -1292,15 +994,8 @@ bool FLuminPlatformFile::SetMLFileInfoFD(const IFileHandle* FileHandle, void* In
 
 bool FLuminPlatformFile::FileExistsInternal(const FString& NormalizedFilename) const
 {
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(NormalizedFilename, MappedFilename))
-	{
-		// could not find the file
-		return false;
-	}
-
 	struct stat FileInfo;
-	if (stat(TCHAR_TO_UTF8(*MappedFilename), &FileInfo) != -1)
+	if (stat(TCHAR_TO_UTF8(*NormalizedFilename), &FileInfo) != -1)
 	{
 		return S_ISREG(FileInfo.st_mode);
 	}
@@ -1310,16 +1005,9 @@ bool FLuminPlatformFile::FileExistsInternal(const FString& NormalizedFilename) c
 
 int64 FLuminPlatformFile::FileSizeInterenal(const FString& NormalizedFilename) const
 {
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(NormalizedFilename, MappedFilename))
-	{
-		// could not find the file
-		return -1;
-	}
-
 	struct stat FileInfo;
 	FileInfo.st_size = -1;
-	if (stat(TCHAR_TO_UTF8(*MappedFilename), &FileInfo) != -1)
+	if (stat(TCHAR_TO_UTF8(*NormalizedFilename), &FileInfo) != -1)
 	{
 		// make sure to return -1 for directories
 		if (S_ISDIR(FileInfo.st_mode))
@@ -1332,16 +1020,8 @@ int64 FLuminPlatformFile::FileSizeInterenal(const FString& NormalizedFilename) c
 
 bool FLuminPlatformFile::IsReadOnlyInternal(const FString& NormalizedFilename) const
 {
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(NormalizedFilename, MappedFilename))
-	{
-		// could not find the file
-		return false;
-	}
-
-	// skipping checking F_OK since this is already taken care of by file mapper
-
-	if (access(TCHAR_TO_UTF8(*MappedFilename), W_OK) == -1)
+	// skipping checking F_OK since this is already taken care of by case mapper
+	if (access(TCHAR_TO_UTF8(*NormalizedFilename), W_OK) == -1)
 	{
 		return errno == EACCES;
 	}
@@ -1350,16 +1030,9 @@ bool FLuminPlatformFile::IsReadOnlyInternal(const FString& NormalizedFilename) c
 
 FDateTime FLuminPlatformFile::GetTimeStampInternal(const FString& NormalizedFilename) const
 {
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(NormalizedFilename, MappedFilename))
-	{
-		// could not find the file
-		return FDateTime::MinValue();
-	}
-
 	// get file times
 	struct stat FileInfo;
-	if (stat(TCHAR_TO_UTF8(*MappedFilename), &FileInfo) == -1)
+	if (stat(TCHAR_TO_UTF8(*NormalizedFilename), &FileInfo) == -1)
 	{
 		if (errno == EOVERFLOW)
 		{
@@ -1379,16 +1052,9 @@ FDateTime FLuminPlatformFile::GetTimeStampInternal(const FString& NormalizedFile
 
 FDateTime FLuminPlatformFile::GetAccessTimeStampInternal(const FString& NormalizedFilename) const
 {
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(NormalizedFilename, MappedFilename))
-	{
-		// could not find the file
-		return FDateTime::MinValue();
-	}
-
 	// get file times
 	struct stat FileInfo;
-	if (stat(TCHAR_TO_UTF8(*MappedFilename), &FileInfo) == -1)
+	if (stat(TCHAR_TO_UTF8(*NormalizedFilename), &FileInfo) == -1)
 	{
 		return FDateTime::MinValue();
 	}
@@ -1400,16 +1066,8 @@ FDateTime FLuminPlatformFile::GetAccessTimeStampInternal(const FString& Normaliz
 
 FFileStatData FLuminPlatformFile::GetStatDataInternal(const FString& NormalizedFilename, bool& bFound) const
 {
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(NormalizedFilename, MappedFilename))
-	{
-		// could not find the file
-		bFound = false;
-		return FFileStatData();
-	}
-
 	struct stat FileInfo;
-	if (stat(TCHAR_TO_UTF8(*MappedFilename), &FileInfo) == -1)
+	if (stat(TCHAR_TO_UTF8(*NormalizedFilename), &FileInfo) == -1)
 	{
 		bFound = false;
 		return FFileStatData();
@@ -1421,19 +1079,32 @@ FFileStatData FLuminPlatformFile::GetStatDataInternal(const FString& NormalizedF
 
 bool FLuminPlatformFile::DirectoryExistsInternal(const FString& NormalizedFilename) const
 {
-	FString MappedFilename;
-	if (!GLuminFileMapper.MapFile(NormalizedFilename, MappedFilename))
-	{
-		// could not find the file
-		return false;
-	}
-
 	struct stat FileInfo;
-	if (stat(TCHAR_TO_UTF8(*MappedFilename), &FileInfo) != -1)
+	if (stat(TCHAR_TO_UTF8(*NormalizedFilename), &FileInfo) != -1)
 	{
 		return S_ISDIR(FileInfo.st_mode);
 	}
 	return false;
+}
+
+int32 FLuminPlatformFile::OpenReadInternal(const FString& NormalizedFilename) const
+{
+	// We can get some "absolute" filenames like "D:/Blah/" here (e.g. non-Lumin paths to source files embedded in assets).
+	// In that case, fail silently.
+	if (NormalizedFilename.IsEmpty() || NormalizedFilename[0] != TEXT('/'))
+	{
+		return -1;
+	}
+
+	// try opening right away
+	int32 Handle = open(TCHAR_TO_UTF8(*NormalizedFilename), O_RDONLY | O_CLOEXEC);
+	// log non-standard errors only
+	if (Handle == -1 && ENOENT != errno)
+	{
+		int ErrNo = errno;
+		UE_LOG(LogLuminPlatformFile, Warning, TEXT("open('%s', O_RDONLY | O_CLOEXEC) failed: errno=%d (%s)"), *NormalizedFilename, ErrNo, ANSI_TO_TCHAR(strerror(ErrNo)));
+	}
+	return Handle;
 }
 
 IPlatformFile& IPlatformFile::GetPlatformPhysical()

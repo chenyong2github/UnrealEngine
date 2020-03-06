@@ -42,6 +42,8 @@ private:
 		RouteId_EventSpec,
 		RouteId_EventBatch,
 		RouteId_EndCapture,
+		RouteId_ChannelAnnounce,
+		RouteId_ChannelToggle,
 	};
 
 	Trace::IAnalysisSession& Session;
@@ -51,5 +53,7 @@ private:
 	TMap<const TCHAR*, uint32> ScopeNameToEventIdMap;
 	uint64 TotalEventSize = 0;
 	uint64 TotalScopeCount = 0;
+	uint32 CpuChannelId = 0;
+	bool bCpuChannelState = true;
 	double BytesPerScope = 0.0;
 };

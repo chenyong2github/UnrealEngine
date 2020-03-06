@@ -118,60 +118,65 @@ bool FExtrudeMesh::ApplyExtrude(FExtrusionInfo& Region, FMeshNormals* UseNormals
 		}
 
 		FDynamicMeshEditResult StitchResult;
+		bool bStitchSuccess;
 		if (IsPositiveOffset)
 		{
-			Editor.StitchVertexLoopsMinimal(OffsetLoop, BaseLoop.Vertices, StitchResult);
+			bStitchSuccess = Editor.StitchVertexLoopsMinimal(OffsetLoop, BaseLoop.Vertices, StitchResult);
 		}
 		else
 		{
-			Editor.StitchVertexLoopsMinimal(BaseLoop.Vertices, OffsetLoop, StitchResult);
+			bStitchSuccess = Editor.StitchVertexLoopsMinimal(BaseLoop.Vertices, OffsetLoop, StitchResult);
 		}
-		StitchResult.GetAllTriangles(Region.StitchTriangles[LoopIndex]);
-		Region.StitchPolygonIDs[LoopIndex] = StitchResult.NewGroups;
 
-		// for each polygon we created in stitch, set UVs and normals
-		if (Mesh->HasAttributes())
+		if (bStitchSuccess)
 		{
-			float AccumUVTranslation = 0;
+			StitchResult.GetAllTriangles(Region.StitchTriangles[LoopIndex]);
+			Region.StitchPolygonIDs[LoopIndex] = StitchResult.NewGroups;
 
-			FFrame3d FirstProjectFrame;
-			FVector3d FrameUp;
-
-			int NumNewQuads = StitchResult.NewQuads.Num();
-			for (int k = 0; k < NumNewQuads; k++)
+			// for each polygon we created in stitch, set UVs and normals
+			if (Mesh->HasAttributes())
 			{
-				FVector3f Normal = Editor.ComputeAndSetQuadNormal(StitchResult.NewQuads[k], true);
+				float AccumUVTranslation = 0;
 
-				// align axis 0 of projection frame to first edge, then for further edges,
-				// rotate around 'up' axis to keep normal aligned and frame horizontal
-				FFrame3d ProjectFrame;
-				if (k == 0)
-				{
-					FVector3d FirstEdge = Mesh->GetVertex(BaseLoop.Vertices[1]) - Mesh->GetVertex(BaseLoop.Vertices[0]);
-					FirstEdge.Normalize();
-					FirstProjectFrame = FFrame3d(FVector3d::Zero(), (FVector3d)Normal);
-					FirstProjectFrame.ConstrainedAlignAxis(0, FirstEdge, (FVector3d)Normal);
-					FrameUp = FirstProjectFrame.GetAxis(1);
-					ProjectFrame = FirstProjectFrame;
-				}
-				else
-				{
-					ProjectFrame = FirstProjectFrame;
-					ProjectFrame.ConstrainedAlignAxis(2, (FVector3d)Normal, FrameUp);
-				}
+				FFrame3d FirstProjectFrame;
+				FVector3d FrameUp;
 
-				if (k > 0)
+				int NumNewQuads = StitchResult.NewQuads.Num();
+				for (int k = 0; k < NumNewQuads; k++)
 				{
-					AccumUVTranslation += Mesh->GetVertex(BaseLoop.Vertices[k]).Distance(Mesh->GetVertex(BaseLoop.Vertices[k - 1]));
-				}
+					FVector3f Normal = Editor.ComputeAndSetQuadNormal(StitchResult.NewQuads[k], true);
 
-				// translate horizontally such that vertical spans are adjacent in UV space (so textures tile/wrap properly)
-				float TranslateU = UVScaleFactor * AccumUVTranslation;
-				Editor.SetQuadUVsFromProjection(StitchResult.NewQuads[k], ProjectFrame, UVScaleFactor, FVector2f(TranslateU, 0));
+					// align axis 0 of projection frame to first edge, then for further edges,
+					// rotate around 'up' axis to keep normal aligned and frame horizontal
+					FFrame3d ProjectFrame;
+					if (k == 0)
+					{
+						FVector3d FirstEdge = Mesh->GetVertex(BaseLoop.Vertices[1]) - Mesh->GetVertex(BaseLoop.Vertices[0]);
+						FirstEdge.Normalize();
+						FirstProjectFrame = FFrame3d(FVector3d::Zero(), (FVector3d)Normal);
+						FirstProjectFrame.ConstrainedAlignAxis(0, FirstEdge, (FVector3d)Normal);
+						FrameUp = FirstProjectFrame.GetAxis(1);
+						ProjectFrame = FirstProjectFrame;
+					}
+					else
+					{
+						ProjectFrame = FirstProjectFrame;
+						ProjectFrame.ConstrainedAlignAxis(2, (FVector3d)Normal, FrameUp);
+					}
+
+					if (k > 0)
+					{
+						AccumUVTranslation += Mesh->GetVertex(BaseLoop.Vertices[k]).Distance(Mesh->GetVertex(BaseLoop.Vertices[k - 1]));
+					}
+
+					// translate horizontally such that vertical spans are adjacent in UV space (so textures tile/wrap properly)
+					float TranslateU = UVScaleFactor * AccumUVTranslation;
+					Editor.SetQuadUVsFromProjection(StitchResult.NewQuads[k], ProjectFrame, UVScaleFactor, FVector2f(TranslateU, 0));
+				}
 			}
-		}
 
-		Region.NewLoops[LoopIndex].InitializeFromVertices(Mesh, OffsetLoop);
+			Region.NewLoops[LoopIndex].InitializeFromVertices(Mesh, OffsetLoop);
+		}
 		LoopIndex++;
 	}
 

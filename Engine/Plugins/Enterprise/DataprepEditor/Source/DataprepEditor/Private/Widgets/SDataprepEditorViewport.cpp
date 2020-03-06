@@ -171,7 +171,7 @@ namespace DataprepEditor3DPreviewUtils
 
 	/** Compile all materials included in the input array*/
 	// Copied from DatasmithImporterImpl::CompileMaterial
-	void CompileMaterials(const TArray< UMaterialInterface* > Materials);
+	void CompileMaterials(const TArray< UMaterialInterface* >& Materials);
 
 	void FindMeshComponents(const AActor * InActor, TArray<UStaticMeshComponent*>& MeshComponents, bool bRecursive );
 
@@ -380,13 +380,19 @@ void SDataprepEditorViewport::UpdateScene()
 					{
 						const FText Message = FText::Format( LOCTEXT("UpdateMeshes_AddOneComponent", "Adding {0} ..."), FText::FromString( SceneMeshComponent->GetOwner()->GetActorLabel() ) );
 						SubSlowTask.EnterProgressFrame( 1.0f, Message );
-						
+
 						UCustomStaticMeshComponent* PreviewMeshComponent = NewObject< UCustomStaticMeshComponent >( PreviewActor.Get(), NAME_None, RF_Transient );
 						if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 						{
 							PreviewMeshComponent->SetMobility(EComponentMobility::Static);
 						}
+						else
+						{
+							PreviewMeshComponent->SetMobility( SceneMeshComponent->Mobility );
+						}
 
+						PreviewMeshComponent->bOverrideLightMapRes = SceneMeshComponent->bOverrideLightMapRes;
+						PreviewMeshComponent->OverriddenLightMapRes = SceneMeshComponent->OverriddenLightMapRes;
 						PreviewMeshComponent->bForceWireframe = bWireframeRenderingMode;
 						PreviewMeshComponent->MeshColorIndex = PerMeshColorIndex % PerMeshColorsCount;
 						++PerMeshColorIndex;
@@ -721,6 +727,21 @@ void SDataprepEditorViewport::OnFocusViewportToSelection()
 
 void SDataprepEditorViewport::InitializeDefaultMaterials()
 {
+	auto CreateMaterialFunc = [](FString MaterialName) -> UMaterial*
+	{
+		FSoftObjectPath MaterialSoftPath = FSoftObjectPath(FString("/DataprepEditor/") + MaterialName + "." + MaterialName);
+		if(UMaterial* Material = Cast< UMaterial >( MaterialSoftPath.TryLoad() ))
+		{
+			Material->SetFlags(RF_Transient);
+			Material->ClearFlags(RF_Transactional);
+
+			return Material;
+		}
+
+		check(false);
+		return nullptr;
+	};
+
 	const int32 DefaultMaterialsCount = 4;
 
 	TArray< UMaterialInterface* > Materials;
@@ -728,15 +749,7 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!PreviewMaterial.IsValid())
 	{
-		PreviewMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/PreviewMaterial.PreviewMaterial").TryLoad() ) );
-
-		if(!PreviewMaterial.IsValid())
-		{
-			PreviewMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial").TryLoad() ) );
-		}
-
-		check( PreviewMaterial.IsValid() );
-
+		PreviewMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("PreviewMaterial") );
 		Materials.Add( PreviewMaterial.Get() );
 	}
 
@@ -758,28 +771,19 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!XRayMaterial.IsValid())
 	{
-		XRayMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/xray_master.xray_master").TryLoad() ) );
-
-		check( XRayMaterial.IsValid() );
-
+		XRayMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("xray_master") );
 		Materials.Add( XRayMaterial.Get() );
 	}
 
 	if(!BackFaceMaterial.IsValid())
 	{
-		BackFaceMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/BackFaceMaterial.BackFaceMaterial").TryLoad() ) );
-
-		check( BackFaceMaterial.IsValid() );
-
+		BackFaceMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("BackFaceMaterial") );
 		Materials.Add( BackFaceMaterial.Get() );
 	}
 
 	if(!PerMeshMaterial.IsValid())
 	{
-		PerMeshMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/PerMeshMaterial.PerMeshMaterial").TryLoad() ) );
-
-		check( PerMeshMaterial.IsValid() );
-
+		PerMeshMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("PerMeshMaterial") );
 		Materials.Add( PerMeshMaterial.Get() );
 	}
 
@@ -807,10 +811,7 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!ReflectionMaterial.IsValid())
 	{
-		ReflectionMaterial = TWeakObjectPtr<UMaterial>( Cast< UMaterial >( FSoftObjectPath("/DataprepEditor/ReflectionMaterial.ReflectionMaterial").TryLoad() ) );
-
-		check( ReflectionMaterial.IsValid() );
-
+		ReflectionMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("ReflectionMaterial") );
 		Materials.Add( ReflectionMaterial.Get() );
 	}
 
@@ -1497,7 +1498,7 @@ void FDataprepEditorViewportCommands::RegisterCommands()
 	UI_COMMAND(ApplyXRayMaterial, "XRay", "Use XRay material to render meshes.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(ApplyPerMeshMaterial, "MultiColored", "Assign a different color for each rendered mesh.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(ApplyReflectionMaterial, "ReflectionLines", "Use reflective material to show lines of reflection.", EUserInterfaceActionType::RadioButton, FInputChord());
-	
+
 	// Selection Mode
 	UI_COMMAND(ApplyOutlineSelection, "Outline", "Outline selected meshes with a colored contour.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(ApplyXRaySelection, "XRay", "Use XRay material on non selected meshes.", EUserInterfaceActionType::RadioButton, FInputChord());
@@ -1519,7 +1520,7 @@ FPrimitiveSceneProxy* UCustomStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
-	const TIndirectArray<FStaticMeshLODResources>& LODResources = GetStaticMesh()->RenderData->LODResources;
+	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->RenderData->LODResources;
 	if (LODResources.Num() == 0	|| LODResources[FMath::Clamp<int32>(GetStaticMesh()->MinLOD.Default, 0, LODResources.Num()-1)].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
 		return nullptr;
@@ -1626,7 +1627,7 @@ namespace DataprepEditor3DPreviewUtils
 	}
 
 	// Copied from DatasmithImporterImpl::CompileMaterial
-	void CompileMaterials(const TArray< UMaterialInterface* > Materials)
+	void CompileMaterials(const TArray< UMaterialInterface* >& Materials)
 	{
 		if(Materials.Num() > 0)
 		{

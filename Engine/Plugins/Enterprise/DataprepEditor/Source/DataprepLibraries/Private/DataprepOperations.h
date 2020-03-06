@@ -429,3 +429,72 @@ protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
 };
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Flip Faces", ToolTip = "On each actor to process, flip faces of each mesh"))
+class UDataprepFlipFacesOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+public:
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::MeshOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Experimental, Category = AssetOperation, Meta = (DisplayName="Output to Folder", ToolTip = "For each asset to process, set the sub-folder to save it to.\nThe sub-folder is relative to the folder specified to the Dataprep consumer.") )
+class UDataprepSetOutputFolder : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+	UDataprepSetOutputFolder()
+	: FolderName(TEXT("MySubFolder"))
+	{
+	}
+
+public:
+	// If true, the screen sizes at which LODs swap are computed automatically
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AssetOperation, meta = (DisplayName = "Folder Name", ToolTip = "Name of the sub folder the assets to be saved to"))
+	FString FolderName;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::AssetOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+// Customization of the details of the "Output to Folder" operation.
+class FDataprepSetOutputFolderDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDataprepSetOutputFolderDetails>(); };
+
+	/** Called when details should be customized */
+	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+
+private:
+	void FolderName_TextChanged(const FText& Text);
+	void FolderName_TextCommited(const FText& InText, ETextCommit::Type InCommitType);
+
+private:
+	UDataprepSetOutputFolder* Operation = nullptr;
+
+	TSharedPtr<IPropertyHandle> FolderNamePropertyHandle;
+
+	bool bValidFolderName = true;
+
+	TSharedPtr< class SEditableTextBox > TextBox;
+};

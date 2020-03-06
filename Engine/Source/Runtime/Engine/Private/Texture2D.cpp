@@ -45,6 +45,7 @@
 #include "Engine/Texture2DArray.h"
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -540,7 +541,7 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 #else
 			OutBulkDataFilename = PlatformData->CachedPackageFileName;
 
-			if (PlatformData->Mips[MipIndex].BulkData.InSeperateFile())
+			if (PlatformData->Mips[MipIndex].BulkData.IsInSeperateFile())
 			{	
 				const bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.IsOptional();
 				OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
@@ -1126,7 +1127,7 @@ bool UTexture2D::HasSameSourceArt(UTexture2D* InTexture)
 
 bool UTexture2D::HasAlphaChannel() const
 {
-	if (PlatformData && (PlatformData->PixelFormat != PF_DXT1) && (PlatformData->PixelFormat != PF_ATC_RGB))
+	if (PlatformData && (PlatformData->PixelFormat != PF_DXT1))
 	{
 		return true;
 	}
@@ -1608,6 +1609,8 @@ FTexture2DResource::~FTexture2DResource()
  */
 void FTexture2DResource::InitRHI()
 {
+	SCOPED_LOADTIMER(FTexture2DResource_InitRHI);
+
 	FTexture2DScopedDebugInfo ScopedDebugInfo(Owner);
 	INC_DWORD_STAT_BY( STAT_TextureMemory, TextureSize );
 	INC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
@@ -1816,7 +1819,7 @@ void FTexture2DResource::CreateSamplerStates(float MipMapBias)
 	  AM_Wrap,
 	  MipMapBias
 	);
-	SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 	// Create a custom sampler state for using this texture in a deferred pass, where ddx / ddy are discontinuous
 	FSamplerStateInitializerRHI DeferredPassSamplerStateInitializer
@@ -1834,7 +1837,7 @@ void FTexture2DResource::CreateSamplerStates(float MipMapBias)
 	  2
 	);
 
-	DeferredPassSamplerStateRHI = RHICreateSamplerState(DeferredPassSamplerStateInitializer);
+	DeferredPassSamplerStateRHI = GetOrCreateSamplerState(DeferredPassSamplerStateInitializer);
 }
 
 // Recreate the sampler states (used when updating mip map lod bias offset)
@@ -1968,7 +1971,7 @@ void FVirtualTexture2DResource::InitRHI()
 		// This doesn't really matter when sampling the cache texture (as it only has a level 0, so whatever the bias that is sampled) but it does when we sample miptail texture
 		0 // VT currently ignores global mip bias ensure the miptail works the same -> UTexture2D::GetGlobalMipMapLODBias()
 	);
-	SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 	const int32 MaxLevel = VTData->GetNumMips() - FirstMipToUse - 1;
 	check(MaxLevel >= 0);
@@ -2451,7 +2454,7 @@ void FTexture2DArrayResource::InitRHI()
 		SamplerZAddress
 	);
 
-	SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 }
 
 FIncomingTextureArrayDataEntry::FIncomingTextureArrayDataEntry(UTexture2D* InTexture)

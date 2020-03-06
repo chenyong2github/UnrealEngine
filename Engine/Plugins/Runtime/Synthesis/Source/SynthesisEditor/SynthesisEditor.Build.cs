@@ -6,6 +6,7 @@ namespace UnrealBuildTool.Rules
 	{
         public SynthesisEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
+
             PublicDependencyModuleNames.AddRange(
 				new string[] {
                     "Core",
@@ -15,7 +16,12 @@ namespace UnrealBuildTool.Rules
 					"AudioEditor",
                     "Synthesis",
 					"AudioMixer",
-				}
+                    "ToolMenus",
+                    "EditorStyle",
+                    "Slate",
+                    "SlateCore",
+                    "ContentBrowser",
+                }
 			);
 
             PrivateIncludePathModuleNames.AddRange(

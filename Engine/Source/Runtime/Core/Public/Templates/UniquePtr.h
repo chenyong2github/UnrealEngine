@@ -6,6 +6,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Templates/IsArray.h"
 #include "Templates/RemoveExtent.h"
+#include "Serialization/MemoryLayout.h"
 
 // Single-ownership smart pointer in the vein of std::unique_ptr.
 // Use this when you need an object's lifetime to be strictly bound to the lifetime of a single smart pointer.
@@ -15,10 +16,16 @@
 // TUniquePtr<MyClass> Ptr1(new MyClass);    // The MyClass object is owned by Ptr1.
 // TUniquePtr<MyClass> Ptr2(Ptr1);           // Error - TUniquePtr is not copyable
 // TUniquePtr<MyClass> Ptr3(MoveTemp(Ptr1)); // Ptr3 now owns the MyClass object - Ptr1 is now nullptr.
+//
+// If you provide a custom deleter, it is up to your deleter to handle null pointers.  This is a departure
+// from std::unique_ptr which will not invoke the deleter if the owned pointer is null:
+// https://en.cppreference.com/w/cpp/memory/unique_ptr/~unique_ptr
 
 template <typename T>
 struct TDefaultDelete
 {
+	DECLARE_INLINE_TYPE_LAYOUT(TDefaultDelete, NonVirtual);
+
 	TDefaultDelete() = default;
 	TDefaultDelete(const TDefaultDelete&) = default;
 	TDefaultDelete& operator=(const TDefaultDelete&) = default;
@@ -83,8 +90,10 @@ struct TDefaultDelete<T[]>
 };
 
 template <typename T, typename Deleter = TDefaultDelete<T>>
-class TUniquePtr : private Deleter
+class TUniquePtr : public /*private*/ Deleter // @todo loadtime: can we go back to private? I get this: error C2243: 'static_cast': conversion from 'T *' to 'Base *' exists, but is inaccessible
 {
+	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TUniquePtr, NonVirtual, Deleter);
+
 	template <typename OtherT, typename OtherDeleter>
 	friend class TUniquePtr;
 
@@ -95,7 +104,8 @@ public:
 	 * Default constructor - initializes the TUniquePtr to null.
 	 */
 	FORCEINLINE TUniquePtr()
-		: Ptr(nullptr)
+		: Deleter()
+		, Ptr    (nullptr)
 	{
 	}
 
@@ -104,8 +114,43 @@ public:
 	 *
 	 * @param InPtr The pointed-to object to take ownership of.
 	 */
-	explicit FORCEINLINE TUniquePtr(T* InPtr)
-		: Ptr(InPtr)
+	template <
+		typename U,
+		typename = decltype(ImplicitConv<T*>((U*)nullptr))
+	>
+	explicit FORCEINLINE TUniquePtr(U* InPtr)
+		: Deleter()
+		, Ptr    (InPtr)
+	{
+	}
+
+	/**
+	 * Pointer constructor - takes ownership of the pointed-to object
+	 *
+	 * @param InPtr The pointed-to object to take ownership of.
+	 */
+	template <
+		typename U,
+		typename = decltype(ImplicitConv<T*>((U*)nullptr))
+	>
+	explicit FORCEINLINE TUniquePtr(U* InPtr, Deleter&& InDeleter)
+		: Deleter(MoveTemp(InDeleter))
+		, Ptr    (InPtr)
+	{
+	}
+
+	/**
+	 * Pointer constructor - takes ownership of the pointed-to object
+	 *
+	 * @param InPtr The pointed-to object to take ownership of.
+	 */
+	template <
+		typename U,
+		typename = decltype(ImplicitConv<T*>((U*)nullptr))
+	>
+	explicit FORCEINLINE TUniquePtr(U* InPtr, const Deleter& InDeleter)
+		: Deleter(InDeleter)
+		, Ptr    (InPtr)
 	{
 	}
 
@@ -113,7 +158,8 @@ public:
 	 * nullptr constructor - initializes the TUniquePtr to null.
 	 */
 	FORCEINLINE TUniquePtr(TYPE_OF_NULLPTR)
-		: Ptr(nullptr)
+		: Deleter()
+		, Ptr    (nullptr)
 	{
 	}
 
@@ -318,7 +364,8 @@ private:
 	TUniquePtr(const TUniquePtr&);
 	TUniquePtr& operator=(const TUniquePtr&);
 
-	T* Ptr;
+	using PtrType = T*;
+	LAYOUT_FIELD(PtrType, Ptr);
 };
 
 template <typename T, typename Deleter>
@@ -334,7 +381,8 @@ public:
 	 * Default constructor - initializes the TUniquePtr to null.
 	 */
 	FORCEINLINE TUniquePtr()
-		: Ptr(nullptr)
+		: Deleter()
+		, Ptr    (nullptr)
 	{
 	}
 
@@ -348,7 +396,38 @@ public:
 		typename = decltype(ImplicitConv<T(*)[]>((U(*)[])nullptr))
 	>
 	explicit FORCEINLINE TUniquePtr(U* InPtr)
-		: Ptr(InPtr)
+		: Deleter()
+		, Ptr    (InPtr)
+	{
+	}
+
+	/**
+	 * Pointer constructor - takes ownership of the pointed-to array
+	 *
+	 * @param InPtr The pointed-to array to take ownership of.
+	 */
+	template <
+		typename U,
+		typename = decltype(ImplicitConv<T(*)[]>((U(*)[])nullptr))
+	>
+	explicit FORCEINLINE TUniquePtr(U* InPtr, Deleter&& InDeleter)
+		: Deleter(MoveTemp(InDeleter))
+		, Ptr    (InPtr)
+	{
+	}
+
+	/**
+	 * Pointer constructor - takes ownership of the pointed-to array
+	 *
+	 * @param InPtr The pointed-to array to take ownership of.
+	 */
+	template <
+		typename U,
+		typename = decltype(ImplicitConv<T(*)[]>((U(*)[])nullptr))
+	>
+	explicit FORCEINLINE TUniquePtr(U* InPtr, const Deleter& InDeleter)
+		: Deleter(InDeleter)
+		, Ptr    (InPtr)
 	{
 	}
 
@@ -356,7 +435,8 @@ public:
 	 * nullptr constructor - initializes the TUniquePtr to null.
 	 */
 	FORCEINLINE TUniquePtr(TYPE_OF_NULLPTR)
-		: Ptr(nullptr)
+		: Deleter()
+		, Ptr    (nullptr)
 	{
 	}
 
@@ -412,7 +492,7 @@ public:
 		typename OtherDeleter,
 		typename = decltype(ImplicitConv<T(*)[]>((OtherT(*)[])nullptr))
 	>
-	FORCEINLINE TUniquePtr& operator=(TUniquePtr<OtherT>&& Other)
+	FORCEINLINE TUniquePtr& operator=(TUniquePtr<OtherT, OtherDeleter>&& Other)
 	{
 		// We delete last, because we don't want odd side effects if the destructor of T relies on the state of this or Other
 		T* OldPtr = Ptr;

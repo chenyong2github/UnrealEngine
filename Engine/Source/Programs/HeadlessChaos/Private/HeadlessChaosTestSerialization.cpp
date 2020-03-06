@@ -424,7 +424,7 @@ namespace ChaosTest
 			{
 				Chaos::FChaosArchive ChaosAr(*File);
 				TPBDRigidsSOAs<float, 3> Particles;
-				TPBDRigidsEvolutionGBF<float, 3> Evolution(Particles);
+				FPBDRigidsEvolutionGBF Evolution(Particles);
 
 				Evolution.Serialize(ChaosAr);
 				Evolution.AdvanceOneTimeStep(1 / 60.f);

@@ -6,11 +6,11 @@ PathTracingFresnel.usf: Fresnel utilities for material sampling functions
 #pragma once
 
 
-float3 FresnelDielectric(float CosThetaI, float IorI, float IorT)
+float FresnelDielectric(float CosThetaI, float IorI, float IorT)
 {
 	if (IorI == IorT)
 	{
-		return float3(1.0, 1.0, 1.0);
+		return 1.0;
 	}
 
 	CosThetaI = clamp(CosThetaI, -1.0, 1.0);
@@ -29,7 +29,7 @@ float3 FresnelDielectric(float CosThetaI, float IorI, float IorT)
 	const float d = 1.0 - SinThetaI * IorRatio*IorRatio;
 	if (d < 0.0)
 	{
-		return float3(1.0, 1.0, 1.0);
+		return 1.0;
 	}
 
 	float CosThetaT = sqrt(d);
@@ -42,5 +42,5 @@ float3 FresnelDielectric(float CosThetaI, float IorI, float IorT)
 	float Perp = (CosI_A - CosT_B) / (CosI_A + CosT_B);
 	float Fr = min(0.5*(Perp*Perp + Parl * Parl), 1.0);
 
-	return float3(Fr, Fr, Fr);
+	return Fr;
 }

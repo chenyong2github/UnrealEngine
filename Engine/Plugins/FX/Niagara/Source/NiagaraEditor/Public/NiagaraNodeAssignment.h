@@ -26,8 +26,9 @@ public:
 	bool SetAssignmentTarget(int32 Idx, const FNiagaraVariable& InVar, const FString* InDefaultValue = nullptr);
 	int32 AddAssignmentTarget(const FNiagaraVariable& InVar, const FString* InDefaultValue = nullptr);
 
-	FName GetAssignmentTargetName(int32 Idx) const { return AssignmentTargets[Idx].GetName(); }
-	bool SetAssignmentTargetName(int32 Idx, const FName& InName);
+	/** This will rename an existing input but will not refresh the underlying script.  RefreshFromExternalChanges must be called if this function returns true. */
+	bool RenameAssignmentTarget(FName OldName, FName NewName);
+
 	const FNiagaraVariable& GetAssignmentTarget(int32 Idx) const { return AssignmentTargets[Idx]; }
 
 	const TArray<FNiagaraVariable>& GetAssignmentTargets() const { return AssignmentTargets; }
@@ -52,6 +53,8 @@ public:
 
 	void UpdateUsageBitmaskFromOwningScript();
 
+	virtual FText GetTooltipText() const override;
+
 protected:
 
 	UPROPERTY()
@@ -69,11 +72,15 @@ protected:
 	UPROPERTY()
 	FString OldFunctionCallName;
 
+	FText Title;
+
 private:
 	void GenerateScript();
 
 	void InitializeScript(UNiagaraScript* NewScript);
 
 	int32 CalculateScriptUsageBitmask();
+
+	void RefreshTitle();
 };
 

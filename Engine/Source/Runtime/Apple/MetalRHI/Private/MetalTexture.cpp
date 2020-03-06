@@ -133,10 +133,6 @@ static bool IsPixelFormatCompressed(EPixelFormat Format)
 		case PF_PVRTC4:
 		case PF_BC4:
 		case PF_BC5:
-		case PF_ATC_RGB:
-		case PF_ATC_RGBA_E:
-		case PF_ATC_RGBA_I:
-		case PF_ETC1:
 		case PF_ETC2_RGB:
 		case PF_ETC2_RGBA:
 		case PF_ASTC_4x4:
@@ -173,10 +169,6 @@ static bool IsPixelFormatPVRTCCompressed(EPixelFormat Format)
 	{
 		case PF_PVRTC2:
 		case PF_PVRTC4:
-		case PF_ATC_RGB:
-		case PF_ATC_RGBA_E:
-		case PF_ATC_RGBA_I:
-		case PF_ETC1:
 		case PF_ETC2_RGB:
 		case PF_ETC2_RGBA:
 			return true;
@@ -688,12 +680,6 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 		GetMetalPixelFormatKey(mtlpp::PixelFormat::Depth24Unorm_Stencil8);
 		GetMetalPixelFormatKey(mtlpp::PixelFormat::Depth16Unorm);
 #endif
-	}
-	
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-	{
-		// Remove sRGB read flag when not supported
-		Flags &= ~TexCreate_SRGB;
 	}
 	
 	FPlatformAtomics::InterlockedExchange(&Written, 0);
@@ -2411,10 +2397,6 @@ void FMetalRHICommandContext::RHIUpdateTextureReference(FRHITextureReference* Te
 		if (TextureRef)
 		{
 			TextureRef->SetReferencedTexture(NewTextureRHI);
-			if (NewTextureRHI)
-			{
-				GetMetalDeviceContext().UpdateIABs(TextureRefRHI);
-			}
 		}
 	}
 }

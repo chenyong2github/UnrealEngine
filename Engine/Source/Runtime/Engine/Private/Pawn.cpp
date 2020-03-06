@@ -213,12 +213,12 @@ bool APawn::IsLocallyControlled() const
 }
 bool APawn::IsPlayerControlled() const
 {
-	return PlayerState && !PlayerState->bIsABot;
+	return PlayerState && !PlayerState->IsABot();
 }
 
 bool APawn::IsBotControlled() const
 {
-	return PlayerState && PlayerState->bIsABot;
+	return PlayerState && PlayerState->IsABot();
 }
 
 bool APawn::ReachedDesiredRotation()

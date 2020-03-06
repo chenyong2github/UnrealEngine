@@ -172,7 +172,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			View,
 			OutputViewport,
 			ColorViewport,
-			*PixelShader,
+			PixelShader,
 			PassParameters);
 	}
 

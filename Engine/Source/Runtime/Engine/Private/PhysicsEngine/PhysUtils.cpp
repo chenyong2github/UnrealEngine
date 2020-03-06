@@ -497,7 +497,7 @@ bool FPhysicsInterface::ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Output
 		Chaos::FChaosArchive Ar(BaseAr);
 		FPhysScene* PhysScene = InWorld->GetPhysicsScene();
 		Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
-		Chaos::TPBDRigidsEvolutionGBF<float, 3>* Evolution = Solver->GetEvolution();
+		Chaos::FPBDRigidsEvolutionGBF* Evolution = Solver->GetEvolution();
 		Evolution->Serialize(Ar);
 		TUniquePtr<Chaos::FChaosArchiveContext> ArchiveContext = Ar.StealContext();
 

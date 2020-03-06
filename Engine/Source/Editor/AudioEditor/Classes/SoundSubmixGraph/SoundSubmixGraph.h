@@ -6,7 +6,7 @@
 
 
 // Forward Declarations
-class USoundSubmix;
+class USoundSubmixBase;
 class USoundSubmixGraphNode;
 
 
@@ -19,12 +19,12 @@ public:
 	/**
 	 * Set the SoundSubmix which forms the root of this graph
 	 */
-	AUDIOEDITOR_API void SetRootSoundSubmix(USoundSubmix* InSoundSubmix);
+	AUDIOEDITOR_API void SetRootSoundSubmix(USoundSubmixBase* InSoundSubmix);
 
 	/**
 	 * Get the SoundSubmix which forms the root of this graph
 	 */
-	USoundSubmix* GetRootSoundSubmix() const;
+	USoundSubmixBase* GetRootSoundSubmix() const;
 
 	/**
 	 * Completely rebuild the graph from the root, removing all old nodes
@@ -38,7 +38,7 @@ public:
 	 * @param	NodePosX		X coordinate submix(es) were dropped at
 	 * @param	NodePosY		Y coordinate submix(es) were dropped at
 	 */
-	void AddDroppedSoundSubmixes(const TSet<USoundSubmix*>& SoundSubmixes, int32 NodePosX, int32 NodePosY);
+	void AddDroppedSoundSubmixes(const TSet<USoundSubmixBase*>& SoundSubmixes, int32 NodePosX, int32 NodePosY);
 
 	/**
 	 * Display a new SoundSubmix that has just been created using the editor
@@ -49,12 +49,12 @@ public:
 	 * @param	NodePosY	Y coordinate new submix was created at
 	 * @param bSelectNewNode	Whether or not to select the new node being created
 	 */
-	AUDIOEDITOR_API void AddNewSoundSubmix(UEdGraphPin* FromPin, USoundSubmix* SoundSubmix, int32 NodePosX, int32 NodePosY, bool bSelectNewNode = true);
+	AUDIOEDITOR_API void AddNewSoundSubmix(UEdGraphPin* FromPin, USoundSubmixBase* SoundSubmix, int32 NodePosX, int32 NodePosY, bool bSelectNewNode = true);
 
 	/**
 	 * Checks whether a SoundSubmix is already represented on this graph
 	 */
-	bool IsSubmixDisplayed(USoundSubmix* SoundSubmix) const;
+	bool IsSubmixDisplayed(USoundSubmixBase* SoundSubmix) const;
 
 	/**
 	 * Use this graph to re-link all of the SoundSubmixes it represents after a change in linkage
@@ -75,7 +75,7 @@ public:
 	/**
 	 * Find an existing node that represents a given SoundSubmix
 	 */
-	AUDIOEDITOR_API USoundSubmixGraphNode* FindExistingNode(USoundSubmix* SoundSubmix) const;
+	AUDIOEDITOR_API USoundSubmixGraphNode* FindExistingNode(USoundSubmixBase* SoundSubmix) const;
 
 private:
 	/**
@@ -87,7 +87,7 @@ private:
 	 * @param bSelectNewNode	Whether or not to select the new node being created
 	 * @return	Total height of all constructed nodes (used to arrange multiple new nodes)
 	 */
-	int32 ConstructNodes(USoundSubmix* SoundSubmix, int32 NodePosX, int32 NodePosY, bool bSelectNewNode = true);
+	int32 ConstructNodes(USoundSubmixBase* SoundSubmix, int32 NodePosX, int32 NodePosY, bool bSelectNewNode = true);
 	/**
 	 * Recursively build a map of child counts for each SoundSubmix to arrange them correctly
 	 *
@@ -95,7 +95,7 @@ private:
 	 * @param	OutChildCounts	Map of child counts
 	 * @return	Total child count for ParentClass
 	 */
-	int32 RecursivelyGatherChildCounts(USoundSubmix* ParentSubmix, TMap<USoundSubmix*, int32>& OutChildCounts);
+	int32 RecursivelyGatherChildCounts(USoundSubmixBase* ParentSubmix, TMap<USoundSubmixBase*, int32>& OutChildCounts);
 	/**
 	 * Recursively Construct Nodes to represent the children of a SoundSubmix
 	 *
@@ -104,7 +104,7 @@ private:
 	 * @param bSelectNewNode	Whether or not to select the new node being created
 	 * @return	Total height of constructed nodes (used to arrange next new node)
 	 */
-	int32 RecursivelyConstructChildNodes(USoundSubmixGraphNode* ParentNode, const TMap<USoundSubmix*, int32>& InChildCounts, bool bSelectNewNode = true);
+	int32 RecursivelyConstructChildNodes(USoundSubmixGraphNode* ParentNode, const TMap<USoundSubmixBase*, int32>& InChildCounts, bool bSelectNewNode = true);
 	/**
 	 * Recursively remove a node and its children from the graph
 	 */
@@ -122,10 +122,10 @@ private:
 	 * @param bSelectNewNode	Whether or not to select the new node being created
 	 * @return	Either a new node or an existing node representing the class
 	 */
-	USoundSubmixGraphNode* CreateNode(USoundSubmix* SoundSubmix, int32 NodePosX, int32 NodePosY, bool bSelectNewNode = true);
+	USoundSubmixGraphNode* CreateNode(USoundSubmixBase* SoundSubmix, int32 NodePosX, int32 NodePosY, bool bSelectNewNode = true);
 
 private:
 	/** SoundSubmix which forms the root of this graph */
-	USoundSubmix*	RootSoundSubmix;
+	USoundSubmixBase*	RootSoundSubmix;
 };
 

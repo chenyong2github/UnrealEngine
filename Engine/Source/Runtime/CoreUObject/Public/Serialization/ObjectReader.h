@@ -16,7 +16,7 @@ struct FWeakObjectPtr;
 /**
  * UObject Memory Reader Archive. Reads from InBytes, writes to Obj.
  */
-class COREUOBJECT_VTABLE FObjectReader : public FMemoryArchive
+class FObjectReader : public FMemoryArchive
 {
 public:
 	FObjectReader(UObject* Obj, TArray<uint8>& InBytes, bool bIgnoreClassRef = false, bool bIgnoreArchetypeRef = false)
@@ -46,7 +46,7 @@ public:
 
 	void Serialize(void* Data, int64 Num)
 	{
-		if (Num && !ArIsError)
+		if (Num && !IsError())
 		{
 			// Only serialize if we have the requested amount of data
 			if (Offset + Num <= TotalSize())
@@ -56,7 +56,7 @@ public:
 			}
 			else
 			{
-				ArIsError = true;
+				SetError();
 			}
 		}
 	}

@@ -558,7 +558,7 @@ bool FDesktopPlatformBase::CleanGameProject(const FString& ProjectDir, FString& 
 	return true;
 }
 
-bool FDesktopPlatformBase::CompileGameProject(const FString& RootDir, const FString& ProjectFileName, FFeedbackContext* Warn)
+bool FDesktopPlatformBase::CompileGameProject(const FString& RootDir, const FString& ProjectFileName, FFeedbackContext* Warn, ECompilationResult::Type* OutResult)
 {
 	FModuleManager& ModuleManager = FModuleManager::Get();
 
@@ -576,10 +576,15 @@ bool FDesktopPlatformBase::CompileGameProject(const FString& RootDir, const FStr
 	}
 
 	// Append any other options
-	Arguments += " -Progress -NoHotReloadFromIDE";
+	Arguments += " -Progress -NoEngineChanges -NoHotReloadFromIDE";
 
 	// Run UBT
-	bool bResult = RunUnrealBuildTool(LOCTEXT("CompilingProject", "Compiling project..."), RootDir, Arguments, Warn);
+	int32 ExitCode;
+	bool bResult = static_cast<IDesktopPlatform*>(this)->RunUnrealBuildTool(LOCTEXT("CompilingProject", "Compiling project..."), RootDir, Arguments, Warn, ExitCode);
+	if (OutResult != nullptr)
+	{
+		*OutResult = (ECompilationResult::Type)ExitCode;
+	}
 
 	// Reset module paths in case they have changed during compilation
 	ModuleManager.ResetModulePathsCache();
@@ -747,6 +752,12 @@ FProcHandle FDesktopPlatformBase::InvokeUnrealBuildToolAsync(const FString& InCm
 	}
 
 	return ProcHandle;
+}
+
+bool FDesktopPlatformBase::RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn)
+{
+	int32 ExitCode;
+	return static_cast<IDesktopPlatform*>(this)->RunUnrealBuildTool(Description, RootDir, Arguments, Warn, ExitCode);
 }
 
 struct FTargetFileVisitor : IPlatformFile::FDirectoryStatVisitor

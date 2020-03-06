@@ -18,9 +18,9 @@
 
 FText DisplayNameFormat = NSLOCTEXT("ScriptInputCollection", "DisplayNameFormat", "{0} Inputs");
 
-FNiagaraScriptInputCollectionViewModel::FNiagaraScriptInputCollectionViewModel(FText InDisplayName, ENiagaraParameterEditMode InParameterEditMode)
+FNiagaraScriptInputCollectionViewModel::FNiagaraScriptInputCollectionViewModel(TAttribute<FText> InDisplayName, ENiagaraParameterEditMode InParameterEditMode)
 	: FNiagaraParameterCollectionViewModel(InParameterEditMode)
-	, DisplayName(FText::Format(DisplayNameFormat, InDisplayName))
+	, DisplayName(InDisplayName)
 	, bCanHaveNumericParameters(true)
 {
 }
@@ -82,7 +82,7 @@ void FNiagaraScriptInputCollectionViewModel::SetScripts(TArray<UNiagaraScript*> 
 
 FText FNiagaraScriptInputCollectionViewModel::GetDisplayName() const 
 {
-	return DisplayName;
+	return FText::Format(DisplayNameFormat, DisplayName.Get());
 }
 
 FVector2D GetNewNodeLocation(UNiagaraGraph* Graph, UNiagaraNode* NewInputNode, float VerticalNodeOffset, float HorizontalNodeOffset)

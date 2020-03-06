@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PATTERNMATCHER_H
-#define TF_PATTERNMATCHER_H
+#ifndef PXR_BASE_TF_PATTERN_MATCHER_H
+#define PXR_BASE_TF_PATTERN_MATCHER_H
 
 /// \file tf/patternMatcher.h
 /// \ingroup group_tf_String
@@ -33,8 +33,6 @@
 #include "pxr/base/arch/regex.h"
 
 #include <string>
-
-#include <boost/noncopyable.hpp>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -47,12 +45,16 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// pattern. This is because the matcher will only compile the regular
 /// expression once.
 ///
-class TfPatternMatcher : public boost::noncopyable {
+class TfPatternMatcher
+{
 
   public:
 
     /// Construct an empty (invalid) TfPatternMatcher.
     TF_API TfPatternMatcher();
+
+    TF_API TfPatternMatcher(TfPatternMatcher &&) = default;
+    TF_API TfPatternMatcher& operator=(TfPatternMatcher &&) = default;
 
     /// Construct a TfPatternMatcher with a default configuration.  Note that
     /// pattern compilation will not occur until the first call to \a Match()
@@ -78,6 +80,11 @@ class TfPatternMatcher : public boost::noncopyable {
     /// patterns, false otherwise.
     bool IsGlobPattern() const {
         return _isGlob;
+    }
+
+    /// Returns the matcher's pattern string.
+    TF_API const std::string& GetPattern() const {
+        return _pattern;
     }
 
     /// Returns true if the matcher has a valid pattern.  Note that empty
@@ -118,4 +125,4 @@ class TfPatternMatcher : public boost::noncopyable {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PATTERNMATCHER_H
+#endif // PXR_BASE_TF_PATTERN_MATCHER_H

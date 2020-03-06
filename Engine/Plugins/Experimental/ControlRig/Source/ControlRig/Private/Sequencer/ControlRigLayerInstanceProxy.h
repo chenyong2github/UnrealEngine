@@ -80,6 +80,7 @@ public:
 	void AddControlRigTrack(int32 ControlRigID, UControlRig* InControlRig);
 	void UpdateControlRigTrack(int32 ControlRigID, float Weight, const FControlRigIOSettings& InputSettings, bool bExecute);
 	void RemoveControlRigTrack(int32 ControlRigID);
+	bool HasControlRigTrack(int32 ControlRigID);
 	void ResetControlRigTracks();
 
 	/** Sequencer AnimInstance Interface */
@@ -92,6 +93,8 @@ public:
 	virtual void ResetNodes();
 	/** Reset the pose in this instance*/
 	virtual void ResetPose();
+	/** Construct and link the base part of the blend tree */
+	virtual void ConstructNodes();
 
 	/** return first available control rig from the node it has */
 	UControlRig* GetFirstAvailableControlRig() const;
@@ -112,9 +115,6 @@ public:
 protected:
 	/** Find ControlRig node of the */
 	FAnimNode_ControlRig_ExternalSource* FindControlRigNode(int32 ControlRigID) const;
-
-	/** Construct and link the base part of the blend tree */
-	void ConstructNodes();
 
 	/** Input pose anim node */
 	FAnimNode_ControlRigInputPose InputPose;

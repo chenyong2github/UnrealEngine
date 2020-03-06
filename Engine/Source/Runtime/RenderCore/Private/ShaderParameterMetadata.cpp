@@ -44,9 +44,9 @@ TLinkedList<FShaderParametersMetadata*>*& FShaderParametersMetadata::GetStructLi
 	return GUniformStructList;
 }
 
-TMap<FName, FShaderParametersMetadata*>& FShaderParametersMetadata::GetNameStructMap()
+TMap<FHashedName, FShaderParametersMetadata*>& FShaderParametersMetadata::GetNameStructMap()
 {
-	static TMap<FName, FShaderParametersMetadata*> NameStructMap;
+	static TMap<FHashedName, FShaderParametersMetadata*> NameStructMap;
 	return NameStructMap;
 }
 
@@ -81,7 +81,7 @@ public:
 
 FShaderParametersMetadata::FShaderParametersMetadata(
 	EUseCase InUseCase,
-	const FName& InLayoutName,
+	const TCHAR* InLayoutName,
 	const TCHAR* InStructTypeName,
 	const TCHAR* InShaderVariableName,
 	const TCHAR* InStaticSlotName,
@@ -90,6 +90,7 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	: StructTypeName(InStructTypeName)
 	, ShaderVariableName(InShaderVariableName)
 	, StaticSlotName(InStaticSlotName)
+	, ShaderVariableHashedName(InShaderVariableName)
 	, Size(InSize)
 	, UseCase(InUseCase)
 	, Layout(InLayoutName)
@@ -117,7 +118,8 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 		FName StructTypeFName(StructTypeName);
 		// Verify that during FName creation there's no case conversion
 		checkSlow(FCString::Strcmp(StructTypeName, *StructTypeFName.GetPlainNameString()) == 0);
-		GetNameStructMap().Add(FName(StructTypeFName), this);
+		GetNameStructMap().Add(ShaderVariableHashedName, this);
+
 
 #if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
 		FName ShaderVariableFName(ShaderVariableName);
@@ -152,7 +154,7 @@ FShaderParametersMetadata::~FShaderParametersMetadata()
 	if (UseCase == EUseCase::UniformBuffer)
 	{
 		GlobalListLink.Unlink();
-		GetNameStructMap().Remove(FName(StructTypeName, FNAME_Find));
+		GetNameStructMap().Remove(ShaderVariableHashedName);
 
 #if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
 		GlobalShaderVariableToStructMap.Remove(FName(ShaderVariableName, FNAME_Find));

@@ -11,7 +11,7 @@
 
 struct FDataprepSchemaActionContext;
 class SDataprepGraphActionStepNode;
-class SGraphPanel;
+class SDataprepGraphTrackNode;
 class UDataprepActionAsset;
 class UDataprepAsset;
 class UDataprepGraphActionNode;
@@ -36,7 +36,7 @@ public:
 
 	static TSharedRef<FDataprepDragDropOp> New(TSharedRef<FDataprepSchemaAction> InAction);
 	static TSharedRef<FDataprepDragDropOp> New(FDataprepGraphOperation&& GraphOperation);
-	static TSharedRef<FDataprepDragDropOp> New(const TSharedRef<SGraphPanel>& InGraphPanel, const TSharedRef<SDataprepGraphActionStepNode>& InDraggedNode);
+	static TSharedRef<FDataprepDragDropOp> New(const TSharedRef<SDataprepGraphTrackNode>& InTrackNode, const TSharedRef<SDataprepGraphActionStepNode>& InDraggedNode);
 	static TSharedRef<FDataprepDragDropOp> New(UDataprepActionStep* InActionStep);
 
 	void SetHoveredDataprepActionContext(TOptional<FDataprepSchemaActionContext> Context);
@@ -50,6 +50,7 @@ public:
 	virtual void OnDragged (const class FDragDropEvent& DragDropEvent ) override;
 	virtual EVisibility GetIconVisible() const;
 	virtual EVisibility GetErrorIconVisible() const;
+	virtual void Construct() override;
 	// End of FGraphEditorDragDropAction Interface
 
 	/**
@@ -66,9 +67,9 @@ public:
 	// Returns action step node targeted for the drop
 	UDataprepGraphActionStepNode* GetDropTargetNode() const;
 
-	void SetGraphPanel(const TSharedPtr<SGraphPanel>& InGraphPanel)
+	void SetTrackNode(const TSharedPtr<SDataprepGraphTrackNode>& InTrackNodePtr)
 	{
-		GraphPanelPtr = InGraphPanel;
+		TrackNodePtr = InTrackNodePtr;
 	}
 
 	bool IsValidDrop() { return bDropTargetValid; }
@@ -109,7 +110,7 @@ private:
 	typedef TTuple<TWeakObjectPtr<UDataprepActionAsset>,int32,TWeakObjectPtr<UDataprepActionStep>> FDraggedStepEntry;
 
 	/** Graph panel associated with the Dataprep graph editor */
-	TSharedPtr<SGraphPanel> GraphPanelPtr;
+	TWeakPtr<SDataprepGraphTrackNode> TrackNodePtr;
 
 	/** Array of action steps being dragged */
 	TArray<TSharedRef<SDataprepGraphActionStepNode>> DraggedNodeWidgets;

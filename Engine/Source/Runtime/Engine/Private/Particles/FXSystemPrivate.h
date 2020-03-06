@@ -61,7 +61,7 @@ inline bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EPartic
 	switch (InCollisionShaderMode)
 	{
 	case PCM_None:
-		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::ES3_1);
 	case PCM_DepthBuffer:
 		// we only need to check for simple forward if we're NOT currently attempting to cache the shader
 		// since SF is a runtime change, we need to compile the shader regardless, because we could be switching to deferred at any time

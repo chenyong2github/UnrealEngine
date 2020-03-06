@@ -21,10 +21,10 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifdef TF_PYMODULE_H
+#ifdef PXR_BASE_TF_PY_MODULE_H
 #error This file should only be included once in any given source (.cpp) file.
 #endif
-#define TF_PYMODULE_H
+#define PXR_BASE_TF_PY_MODULE_H
 
 #include "pxr/pxr.h"
 

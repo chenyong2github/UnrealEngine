@@ -2,14 +2,13 @@
 
 #include "AudioMixerEffectsManager.h"
 #include "AudioMixerDevice.h"
-#include "AudioMixerEffectsManager.h"
+#include "AudioMixerSubmix.h"
 #include "SubmixEffects/AudioMixerSubmixEffectReverb.h"
 #include "SubmixEffects/AudioMixerSubmixEffectReverbFast.h"
 #include "SubmixEffects/AudioMixerSubmixEffectEQ.h"
 
 namespace Audio
 {
-
 	FAudioMixerEffectsManager::FAudioMixerEffectsManager(FAudioDevice* InDevice)
 		: FAudioEffectsManager(InDevice)
 	{

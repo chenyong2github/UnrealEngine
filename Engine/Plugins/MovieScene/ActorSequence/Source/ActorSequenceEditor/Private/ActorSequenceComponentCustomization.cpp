@@ -153,33 +153,34 @@ FReply FActorSequenceComponentCustomization::InvokeSequencer()
 	TSharedPtr<FTabManager> TabManager = WeakTabManager.Pin();
 	if (TabManager.IsValid() && TabManager->HasTabSpawner(SequenceTabId))
 	{
-		TSharedRef<SDockTab> Tab = TabManager->InvokeTab(SequenceTabId);
-
+		if (TSharedPtr<SDockTab> Tab = TabManager->TryInvokeTab(SequenceTabId))
 		{
-			// Set up a delegate that forces a refresh of this panel when the tab is closed to ensure we see the inline widget
-			TWeakPtr<IPropertyUtilities> WeakUtilities = PropertyUtilities;
-			auto OnClosed = [WeakUtilities](TSharedRef<SDockTab>)
 			{
-				TSharedPtr<IPropertyUtilities> PinnedPropertyUtilities = WeakUtilities.Pin();
-				if (PinnedPropertyUtilities.IsValid())
+				// Set up a delegate that forces a refresh of this panel when the tab is closed to ensure we see the inline widget
+				TWeakPtr<IPropertyUtilities> WeakUtilities = PropertyUtilities;
+				auto OnClosed = [WeakUtilities](TSharedRef<SDockTab>)
 				{
-					PinnedPropertyUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateSP(PinnedPropertyUtilities.ToSharedRef(), &IPropertyUtilities::ForceRefresh));
-				}
-			};
+					TSharedPtr<IPropertyUtilities> PinnedPropertyUtilities = WeakUtilities.Pin();
+					if (PinnedPropertyUtilities.IsValid())
+					{
+						PinnedPropertyUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateSP(PinnedPropertyUtilities.ToSharedRef(), &IPropertyUtilities::ForceRefresh));
+					}
+				};
 
-			Tab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateLambda(OnClosed));
-		}
+				Tab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateLambda(OnClosed));
+			}
 
-		// Move our inline widget content to the tab (so that we keep the existing sequencer state)
-		if (InlineSequencer.IsValid())
-		{
-			Tab->SetContent(InlineSequencer->GetChildren()->GetChildAt(0));
-			InlineSequencer->SetContent(SNullWidget::NullWidget);
-			InlineSequencer->SetVisibility(EVisibility::Collapsed);
-		}
-		else 
-		{
-			StaticCastSharedRef<SActorSequenceEditorWidget>(Tab->GetContent())->AssignSequence(GetActorSequence());
+			// Move our inline widget content to the tab (so that we keep the existing sequencer state)
+			if (InlineSequencer.IsValid())
+			{
+				Tab->SetContent(InlineSequencer->GetChildren()->GetChildAt(0));
+				InlineSequencer->SetContent(SNullWidget::NullWidget);
+				InlineSequencer->SetVisibility(EVisibility::Collapsed);
+			}
+			else
+			{
+				StaticCastSharedRef<SActorSequenceEditorWidget>(Tab->GetContent())->AssignSequence(GetActorSequence());
+			}
 		}
 	}
 

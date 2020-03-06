@@ -3,6 +3,7 @@
 #include "DataprepOperationsLibrary.h"
 
 #include "DataprepCoreUtils.h"
+#include "DataprepContentConsumer.h"
 #include "DatasmithAssetUserData.h"
 
 #include "ActorEditorUtils.h"
@@ -22,11 +23,13 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/Vector2D.h"
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "TessellationRendering.h"
 #include "UObject/SoftObjectPath.h"
 
@@ -63,7 +66,6 @@ namespace DataprepOperationsLibraryUtil
 	TSet<UStaticMesh*> GetSelectedMeshes(const TArray<UObject*>& SelectedObjects)
 	{
 		TSet<UStaticMesh*> SelectedMeshes;
-		TArray<AActor*> SelectedActors;
 
 		for (UObject* Object : SelectedObjects)
 		{
@@ -438,22 +440,22 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 
 void UDataprepOperationsLibrary::SetConvexDecompositionCollision(const TArray<UObject*>& SelectedObjects, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, TArray<UObject*>& ModifiedObjects)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UDataprepOperationsLibrary::SetConvexDecompositionCollision)
+
 	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
 
 	// Make sure all static meshes to be processed have render data
 	DataprepOperationsLibraryUtil::FStaticMeshBuilder StaticMeshBuilder(SelectedMeshes);
 
+	TArray<UStaticMesh*> StaticMeshes = SelectedMeshes.Array();
+	StaticMeshes.RemoveAll([](UStaticMesh* StaticMesh) { return StaticMesh == nullptr; });
+
 	// Build complex collision
-	for (UStaticMesh* StaticMesh : SelectedMeshes)
+	UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotification(StaticMeshes, HullCount, MaxHullVerts, HullPrecision, false);
+
+	for (UStaticMesh* StaticMesh : StaticMeshes)
 	{
-		if (StaticMesh)
-		{
-			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
-
-			UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(StaticMesh, HullCount, MaxHullVerts, HullPrecision, false);
-
-			ModifiedObjects.Add( StaticMesh );
-		}
+		ModifiedObjects.Add( StaticMesh );
 	}
 }
 
@@ -785,8 +787,47 @@ void UDataprepOperationsLibrary::ConsolidateObjects(const TArray< UObject* >& Se
 		OutCompatibleObjects.Add(CurProposedObj);
 	}
 
+	// Sort assets according to their dependency
+	// Texture first, then MaterialFunction, then ...
+	auto GetAssetClassRank = [&](const UClass* AssetClass) -> int8
+	{
+		if (AssetClass->IsChildOf(UTexture::StaticClass()))
+		{
+			return 0;
+		}
+		else if (AssetClass->IsChildOf(UMaterialFunction::StaticClass()))
+		{
+			return 1;
+		}
+		else if (AssetClass->IsChildOf(UMaterialFunctionInstance::StaticClass()))
+		{
+			return 2;
+		}
+		else if (AssetClass->IsChildOf(UMaterial::StaticClass()))
+		{
+			return 3;
+		}
+		else if (AssetClass->IsChildOf(UMaterialInstance::StaticClass()))
+		{
+			return 4;
+		}
+		else if (AssetClass->IsChildOf(UStaticMesh::StaticClass()))
+		{
+			return 5;
+		}
+
+		return 6;
+	};
+
+	Algo::Sort(OutCompatibleObjects, [&](const UObject* A, const UObject* B)
+	{
+		int8 AValue = A ? GetAssetClassRank(A->GetClass()) : 7;
+		int8 BValue = B ? GetAssetClassRank(B->GetClass()) : 7;
+		return AValue > BValue;
+	});
+
 	// Perform the object consolidation
-	ObjectTools::FConsolidationResults ConsResults = ObjectTools::ConsolidateObjects(ObjectToConsolidateTo, OutCompatibleObjects, false);
+	ObjectTools::ConsolidateObjects(ObjectToConsolidateTo, OutCompatibleObjects, false);
 }
 
 void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformReferenceFrame ReferenceFrame, const FVector& Min, const FVector& Max)
@@ -846,6 +887,92 @@ void UDataprepOperationsLibrary::RandomizeTransform(const TArray<UObject*>& Sele
 					}
 					break;
 				}
+			}
+		}
+	}
+}
+
+void UDataprepOperationsLibrary::FlipFaces(const TSet< UStaticMesh* >& StaticMeshes)
+{
+	for (UStaticMesh* StaticMesh : StaticMeshes)
+	{
+		if (nullptr == StaticMesh || !StaticMesh->IsMeshDescriptionValid(0))
+		{
+			continue;
+		}
+
+		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
+
+		UStaticMesh::FCommitMeshDescriptionParams Params;
+		Params.bMarkPackageDirty = false;
+		Params.bUseHashAsGuid = true;
+
+		FStaticMeshOperations::FlipPolygons(*MeshDescription);
+		StaticMesh->CommitMeshDescription(0, Params);
+	}
+}
+
+void UDataprepOperationsLibrary::SetSubOuputLevel(const TArray<UObject*>& SelectedObjects, const FString& SubLevelName)
+{
+	if(SubLevelName.IsEmpty())
+	{
+		return;
+	}
+
+	for (UObject* Object : SelectedObjects)
+	{
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			if (USceneComponent* RootComponent = Actor->GetRootComponent())
+			{
+				if ( RootComponent->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+				{
+					if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( RootComponent ) )
+					{
+						UDataprepConsumerUserData* DataprepContentUserData = AssetUserDataInterface->GetAssetUserData< UDataprepConsumerUserData >();
+
+						if ( !DataprepContentUserData )
+						{
+							EObjectFlags Flags = RF_Public;
+							DataprepContentUserData = NewObject< UDataprepConsumerUserData >( RootComponent, NAME_None, Flags );
+							AssetUserDataInterface->AddAssetUserData( DataprepContentUserData );
+						}
+
+						DataprepContentUserData->AddMarker(UDataprepContentConsumer::RelativeOutput, SubLevelName);
+					}
+				}
+			}
+		}
+	}
+}
+
+void UDataprepOperationsLibrary::SetSubOuputFolder(const TArray<UObject*>& SelectedObjects, const FString& SubFolderName)
+{
+	if(SubFolderName.IsEmpty())
+	{
+		return;
+	}
+
+	for (UObject* Object : SelectedObjects)
+	{
+		const bool bValidObject = Object->HasAnyFlags(RF_Public)
+		&& !Object->IsPendingKill()
+		&& Object->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass());
+
+		if (bValidObject)
+		{
+			if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( Object ) )
+			{
+				UDataprepConsumerUserData* DataprepContentUserData = AssetUserDataInterface->GetAssetUserData< UDataprepConsumerUserData >();
+
+				if ( !DataprepContentUserData )
+				{
+					EObjectFlags Flags = RF_Public;
+					DataprepContentUserData = NewObject< UDataprepConsumerUserData >( Object, NAME_None, Flags );
+					AssetUserDataInterface->AddAssetUserData( DataprepContentUserData );
+				}
+
+				DataprepContentUserData->AddMarker(UDataprepContentConsumer::RelativeOutput, SubFolderName);
 			}
 		}
 	}

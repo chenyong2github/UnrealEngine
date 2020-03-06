@@ -715,6 +715,15 @@ uint32 FOpenXRHMD::GetViewIndexForPass(EStereoscopicPass StereoPassType) const
 	}
 }
 
+uint32 FOpenXRHMD::DeviceGetLODViewIndex() const
+{
+	if (SelectedViewConfigurationType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO)
+	{
+		return GetViewIndexForPass(eSSP_LEFT_EYE_SIDE);
+	}
+	return IStereoRendering::DeviceGetLODViewIndex();
+}
+
 int32 FOpenXRHMD::GetDesiredNumberOfViews(bool bStereoRequested) const
 {
 	return bStereoRequested ? Views.Num() : 1; // FIXME: Monoscopic actually needs 2 views for quad vr
@@ -1106,6 +1115,9 @@ void FOpenXRHMD::CloseSession()
 {
 	if (Session != XR_NULL_HANDLE)
 	{
+		Swapchain.Reset();
+		DepthSwapchain.Reset();
+
 		// Clear up device spaces
 		for (auto& DeviceSpace : DeviceSpaces)
 		{
@@ -1131,6 +1143,7 @@ void FOpenXRHMD::CloseSession()
 		bIsReady = false;
 		bIsRunning = false;
 		bRunRequested = false;
+		bNeedReAllocatedDepth = true;
 	}
 }
 
@@ -1596,8 +1609,8 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -1619,7 +1632,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			USize, VSize,
 			TargetSize,
 			FIntPoint(1, 1),
-			*VertexShader,
+			VertexShader,
 			EDRF_Default);
 	}
 	RHICmdList.EndRenderPass();

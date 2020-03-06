@@ -71,6 +71,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Subjects")
 	bool bUseSourceTimecode;
 
+	/** If true discard livelink samples with timecode that occurs before the start of recording*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Subjects", meta=(EditCondition = bUseSourceTimecode))
+	bool bDiscardSamplesBeforeStart;
+
 	/**
 	* The master track recorder we created.
 	*/

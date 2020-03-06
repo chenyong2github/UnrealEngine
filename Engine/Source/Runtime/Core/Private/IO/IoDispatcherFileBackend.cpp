@@ -5,10 +5,29 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/PlatformFilemanager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/IConsoleManager.h"
 
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalBytesRead, TEXT("IoDispatcher/TotalBytesRead"));
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalBytesScattered, TEXT("IoDispatcher/TotalBytesScattered"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherCacheHitsCold, TEXT("IoDispatcher/CacheHitsCold"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherCacheHitsHot, TEXT("IoDispatcher/CacheHitsHot"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherCacheMisses, TEXT("IoDispatcher/CacheMisses"));
+
+//PRAGMA_DISABLE_OPTIMIZATION
+
+int32 GIoDispatcherBlockSizeKB = 256;
+/*static FAutoConsoleVariableRef CVar_IoDispatcherBlockSizeKB(
+	TEXT("s.IoDispatcherBlockSizeKB"),
+	GIoDispatcherBlockSizeKB,
+	TEXT("IoDispatcher read block size (in kilobytes).")
+);*/
+
+int32 GIoDispatcherCacheSizeMB = 32;
+static FAutoConsoleVariableRef CVar_IoDispatcherCacheSizeMB(
+	TEXT("s.IoDispatcherCacheSizeMB"),
+	GIoDispatcherCacheSizeMB,
+	TEXT("IoDispatcher cache size (in megabytes).")
+);
 
 FFileIoStoreReader::FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl)
 	: PlatformImpl(InPlatformImpl)
@@ -20,19 +39,8 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	TStringBuilder<256> ContainerFilePath;
-	ContainerFilePath.Append(Environment.GetBasePath());
-	if (ContainerFilePath.LastChar() != '/')
-	{
-		ContainerFilePath.Append(TEXT('/'));
-	}
-	if (Environment.GetPartitionName().IsEmpty())
-	{
-		ContainerFilePath.Append(TEXT("global"));
-	}
-	else
-	{
-		ContainerFilePath.Append(Environment.GetPartitionName());
-	}
+	ContainerFilePath.Append(Environment.GetPath());
+
 	TStringBuilder<256> TocFilePath;
 	TocFilePath.Append(ContainerFilePath);
 
@@ -130,26 +138,26 @@ bool FFileIoStoreReader::Resolve(FFileIoStoreResolvedRequest& ResolvedRequest)
 	}
 
 	ResolvedRequest.ResolvedFileHandle = ContainerFileHandle;
-	uint64 FileEndOffset = OffsetAndLength->GetOffset() + OffsetAndLength->GetLength();
-	uint64 RequestedBeginOffset = OffsetAndLength->GetOffset() + ResolvedRequest.Request->Options.GetOffset();
-	uint64 RequestedEndOffset = FMath::Min(FileEndOffset, RequestedBeginOffset + ResolvedRequest.Request->Options.GetSize());
 	ResolvedRequest.ResolvedFileSize = ContainerFileSize;
-	ResolvedRequest.ResolvedOffset = RequestedBeginOffset;
-	if (RequestedEndOffset > RequestedBeginOffset)
+	uint64 RequestedOffset = ResolvedRequest.Request->Options.GetOffset();
+	ResolvedRequest.ResolvedOffset = OffsetAndLength->GetOffset() + RequestedOffset;
+	if (RequestedOffset > OffsetAndLength->GetLength())
 	{
-		ResolvedRequest.ResolvedSize = RequestedEndOffset - RequestedBeginOffset;
+		ResolvedRequest.ResolvedSize = 0;
 	}
 	else
 	{
-		ResolvedRequest.ResolvedSize = 0;
+		ResolvedRequest.ResolvedSize = FMath::Min(ResolvedRequest.Request->Options.GetSize(), OffsetAndLength->GetLength() - RequestedOffset);
 	}
 	return true;
 }
 
 FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue)
 	: PlatformImpl(InEventQueue)
+	, CacheBlockSize(GIoDispatcherBlockSizeKB > 0 ? uint64(GIoDispatcherBlockSizeKB) << 10 : 256 << 10)
 {
-	InitCache();
+	LruHead.LruNext = &LruTail;
+	LruTail.LruPrev = &LruHead;
 }
 
 FIoStatus FFileIoStore::Mount(const FIoStoreEnvironment& Environment)
@@ -173,12 +181,6 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 	{
 		if (Reader->Resolve(ResolvedRequest))
 		{
-			// Halt IO request submission if the two least recently used blocks are still waiting for their IO
-			if (!(LruTail.LruPrev->bIsReady && LruTail.LruPrev->LruPrev->bIsReady))
-			{
-				return IoStoreResolveResult_Stalled;
-			}
-
 			Request->UnfinishedReadsCount = 0;
 			if (ResolvedRequest.ResolvedSize > 0)
 			{
@@ -240,64 +242,56 @@ TIoStatusOr<uint64> FFileIoStore::GetSizeForChunk(const FIoChunkId& ChunkId) con
 bool FFileIoStore::IsValidEnvironment(const FIoStoreEnvironment& Environment)
 {
 	TStringBuilder<256> TocFilePath;
-	TocFilePath.Append(Environment.GetBasePath());
-	if (TocFilePath.LastChar() != '/')
-	{
-		TocFilePath.Append(TEXT('/'));
-	}
-	if (Environment.GetPartitionName().IsEmpty())
-	{
-		TocFilePath.Append(TEXT("global"));
-	}
-	else
-	{
-		TocFilePath.Append(Environment.GetPartitionName());
-	}
+	TocFilePath.Append(Environment.GetPath());
 	TocFilePath.Append(TEXT(".utoc"));
 	return FPlatformFileManager::Get().GetPlatformFile().FileExists(*TocFilePath);
 }
 
-void FFileIoStore::ProcessIncomingBlocks()
+bool FFileIoStore::ProcessCompletedBlock()
 {
-	while (FFileIoStoreReadBlock* CompletedBlock = PlatformImpl.GetNextCompletedBlock())
+	const uint64 CacheMemorySize = GIoDispatcherCacheSizeMB > 0 ? uint64(GIoDispatcherCacheSizeMB) << 20 : 0;
+	FFileIoStoreReadBlock* CompletedBlock = PlatformImpl.GetNextCompletedBlock();
+	if (!CompletedBlock)
 	{
-		check(!CompletedBlock->bIsReady);
-		CompletedBlock->bIsReady = true;
-		for (FFileIoStoreReadBlockScatter& Scatter : CompletedBlock->ScatterList)
+		return false;
+	}
+	check(!CompletedBlock->bIsReady);
+	CompletedBlock->bIsReady = true;
+	TRACE_COUNTER_ADD(IoDispatcherTotalBytesRead, CompletedBlock->Size);
+	for (FFileIoStoreReadBlockScatter& Scatter : CompletedBlock->ScatterList)
+	{
+		if (Scatter.DstOffset != MAX_uint64)
 		{
-			FMemory::Memcpy(Scatter.Dst, Scatter.Src, Scatter.Size);
-			check(Scatter.Request->UnfinishedReadsCount > 0);
-			--Scatter.Request->UnfinishedReadsCount;
+			FMemory::Memcpy(Scatter.Request->IoBuffer.Data() + Scatter.DstOffset, CompletedBlock->Buffer.Data() + Scatter.SrcOffset, Scatter.Size);
 		}
-		if (CacheBlocks.GetData() <= CompletedBlock && CompletedBlock < CacheBlocks.GetData() + CacheBlockCount)
+		TRACE_COUNTER_ADD(IoDispatcherTotalBytesScattered, Scatter.Size);
+		check(Scatter.Request->UnfinishedReadsCount > 0);
+		--Scatter.Request->UnfinishedReadsCount;
+	}
+	//CompletedBlock->ScatterList.Empty();
+
+	if (CompletedBlock->LruPrev)
+	{
+		CurrentCacheUsage += CompletedBlock->Size;
+
+		FFileIoStoreReadBlock* EvictionCandidate = LruTail.LruPrev;
+		while (CurrentCacheUsage > CacheMemorySize && EvictionCandidate != &LruHead && EvictionCandidate->bIsReady)
 		{
-			CompletedBlock->ScatterList.Empty();
-		}
-		else
-		{
-			delete CompletedBlock;
+			FFileIoStoreReadBlock* NextEvictionCandidate = EvictionCandidate->LruPrev;
+			EvictionCandidate->LruNext->LruPrev = EvictionCandidate->LruPrev;
+			EvictionCandidate->LruPrev->LruNext = EvictionCandidate->LruNext;
+			CurrentCacheUsage -= EvictionCandidate->Size;
+			CachedBlocksMap.Remove(EvictionCandidate->Key);
+			delete EvictionCandidate;
+			EvictionCandidate = NextEvictionCandidate;
 		}
 	}
-}
-
-void FFileIoStore::InitCache()
-{
-	uint8* CacheMemoryBlock = static_cast<uint8*>(FMemory::Malloc(CacheMemorySize));
-	CacheBlocks.AddDefaulted(CacheBlockCount);
-	FFileIoStoreReadBlock* PreviousBlock = &LruHead;
-	for (uint32 BlockIndex = 0; BlockIndex < CacheBlockCount; ++BlockIndex)
+	else
 	{
-		FFileIoStoreReadBlock& ReadBlock = CacheBlocks[BlockIndex];
-		PreviousBlock->LruNext = &ReadBlock;
-		ReadBlock.LruPrev = PreviousBlock;
-		PreviousBlock = &ReadBlock;
-
-		ReadBlock.bIsReady = true;
-		ReadBlock.Buffer = CacheMemoryBlock;
-		CacheMemoryBlock += CacheBlockSize;
+		CachedBlocksMap.Remove(CompletedBlock->Key);
+		delete CompletedBlock;
 	}
-	PreviousBlock->LruNext = &LruTail;
-	LruTail.LruPrev = PreviousBlock;
+	return true;
 }
 
 void FFileIoStore::ReadBlockCached(uint32 BlockIndex, const FFileIoStoreResolvedRequest& ResolvedRequest)
@@ -305,30 +299,44 @@ void FFileIoStore::ReadBlockCached(uint32 BlockIndex, const FFileIoStoreResolved
 	FFileIoStoreCacheBlockKey Key;
 	Key.FileHandle = ResolvedRequest.ResolvedFileHandle;
 	Key.BlockIndex = BlockIndex;
-	Key.Hash = HashCombine(GetTypeHash(ResolvedRequest.ResolvedFileHandle), GetTypeHash(BlockIndex));
 	uint64 BlockOffset = uint64(BlockIndex) * uint64(CacheBlockSize);
 	FFileIoStoreReadBlock* CachedBlock = CachedBlocksMap.FindRef(Key);
 	if (!CachedBlock)
 	{
-		CachedBlock = LruTail.LruPrev;
-		check(CachedBlock->bIsReady);
-		CachedBlocksMap.Remove(CachedBlock->Key);
+		uint64 ReadSize = FMath::Min(ResolvedRequest.ResolvedFileSize, BlockOffset + CacheBlockSize) - BlockOffset;
+
+		CachedBlock = new FFileIoStoreReadBlock();
 		CachedBlock->Key = Key;
 		CachedBlock->bIsReady = false;
+		CachedBlock->Offset = BlockOffset;
+		CachedBlock->Size = ReadSize;
 		CachedBlocksMap.Add(CachedBlock->Key, CachedBlock);
 
-		uint64 ReadSize = FMath::Min(ResolvedRequest.ResolvedFileSize, BlockOffset + CacheBlockSize) - BlockOffset;
-		PlatformImpl.ReadBlockFromFile(CachedBlock, CachedBlock->Buffer, ResolvedRequest.ResolvedFileHandle, ReadSize, BlockOffset);
-
+		PlatformImpl.ReadBlockFromFile(CachedBlock);
 		TRACE_COUNTER_INCREMENT(IoDispatcherCacheMisses);
 	}
+	else
+	{
+		if (CachedBlock->bIsReady)
+		{
+			TRACE_COUNTER_INCREMENT(IoDispatcherCacheHitsHot);
+		}
+		else
+		{
+			TRACE_COUNTER_INCREMENT(IoDispatcherCacheHitsCold);
+		}
+	}
 
-	CachedBlock->LruPrev->LruNext = CachedBlock->LruNext;
-	CachedBlock->LruNext->LruPrev = CachedBlock->LruPrev;
+	if (CachedBlock->LruPrev)
+	{
+		check(CachedBlock->LruNext);
+		CachedBlock->LruPrev->LruNext = CachedBlock->LruNext;
+		CachedBlock->LruNext->LruPrev = CachedBlock->LruPrev;
+	}
 
 	CachedBlock->LruNext = LruHead.LruNext;
 	CachedBlock->LruPrev = &LruHead;
-	CachedBlock->LruNext->LruPrev = CachedBlock;
+	LruHead.LruNext->LruPrev = CachedBlock;
 	LruHead.LruNext = CachedBlock;
 
 	uint64 RequestStartOffsetInBlock = FMath::Max<int64>(0, int64(ResolvedRequest.ResolvedOffset) - BlockOffset);
@@ -340,17 +348,16 @@ void FFileIoStore::ReadBlockCached(uint32 BlockIndex, const FFileIoStoreResolved
 	check(ResolvedRequest.Request->IoBuffer.Data() + BlockOffsetInRequest + RequestSizeInBlock <= ResolvedRequest.Request->IoBuffer.Data() + ResolvedRequest.Request->IoBuffer.DataSize());
 	if (CachedBlock->bIsReady)
 	{
-		TRACE_COUNTER_INCREMENT(IoDispatcherCacheHitsHot);
-		FMemory::Memcpy(ResolvedRequest.Request->IoBuffer.Data() + BlockOffsetInRequest, CachedBlock->Buffer + RequestStartOffsetInBlock, RequestSizeInBlock);
+		FMemory::Memcpy(ResolvedRequest.Request->IoBuffer.Data() + BlockOffsetInRequest, CachedBlock->Buffer.Data() + RequestStartOffsetInBlock, RequestSizeInBlock);
+		TRACE_COUNTER_ADD(IoDispatcherTotalBytesScattered, RequestSizeInBlock);
 	}
 	else
 	{
-		TRACE_COUNTER_INCREMENT(IoDispatcherCacheHitsCold);
 		++ResolvedRequest.Request->UnfinishedReadsCount;
 		FFileIoStoreReadBlockScatter& Scatter = CachedBlock->ScatterList.AddDefaulted_GetRef();
 		Scatter.Request = ResolvedRequest.Request;
-		Scatter.Dst = ResolvedRequest.Request->IoBuffer.Data() + BlockOffsetInRequest;
-		Scatter.Src = CachedBlock->Buffer + RequestStartOffsetInBlock;
+		Scatter.DstOffset = BlockOffsetInRequest;
+		Scatter.SrcOffset = RequestStartOffsetInBlock;
 		check(RequestSizeInBlock <= TNumericLimits<uint32>::Max());
 		Scatter.Size = (uint32)RequestSizeInBlock;
 	}
@@ -364,11 +371,17 @@ void FFileIoStore::ReadBlocksUncached(uint32 BeginBlockIndex, uint32 BlockCount,
 	check(ResolvedRequest.Request->IoBuffer.Data() + BlockOffsetInRequest + ReadSize <= ResolvedRequest.Request->IoBuffer.Data() + ResolvedRequest.Request->IoBuffer.DataSize());
 
 	FFileIoStoreReadBlock* UncachedBlock = new FFileIoStoreReadBlock();
+	UncachedBlock->Size = ReadSize;
+	UncachedBlock->Offset = BlockOffset;
+	UncachedBlock->Key.FileHandle = ResolvedRequest.ResolvedFileHandle;
+	UncachedBlock->Key.BlockIndex = BlockOffset / CacheBlockSize;
+	UncachedBlock->Buffer = FIoBuffer(FIoBuffer::Wrap, ResolvedRequest.Request->IoBuffer.Data() + BlockOffsetInRequest, ReadSize);
+
 	++ResolvedRequest.Request->UnfinishedReadsCount;
 	FFileIoStoreReadBlockScatter& Scatter = UncachedBlock->ScatterList.AddDefaulted_GetRef();
 	Scatter.Request = ResolvedRequest.Request;
-	Scatter.Dst = nullptr;
-	Scatter.Src = nullptr;
-	Scatter.Size = 0;
-	PlatformImpl.ReadBlockFromFile(UncachedBlock, ResolvedRequest.Request->IoBuffer.Data() + BlockOffsetInRequest, ResolvedRequest.ResolvedFileHandle, ReadSize, BlockOffset);
+	Scatter.DstOffset = MAX_uint64;
+	Scatter.SrcOffset = MAX_uint64;
+	Scatter.Size = ReadSize;
+	PlatformImpl.ReadBlockFromFile(UncachedBlock);
 }

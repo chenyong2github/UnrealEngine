@@ -5,17 +5,20 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
+#include "Framework/SlateDelegates.h"
 
 class UNiagaraStackViewModel;
 class UNiagaraStackEntry;
 class SBox;
+class SInlineEditableTextBlock;
 
 class SNiagaraStackEntryWidget : public SCompoundWidget
 {
 public:
-	FSlateColor GetTextColorForSearch(FSlateColor DefaultColor) const;
 	FReply ExpandEntry();
 	
+	FSlateColor GetTextColorForSearch(FSlateColor DefaultColor) const;
+
 protected:
 	bool IsCurrentSearchMatch() const;
 	
@@ -27,26 +30,49 @@ protected:
 class SNiagaraStackDisplayName : public SNiagaraStackEntryWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SNiagaraStackDisplayName) { }
+	SLATE_BEGIN_ARGS(SNiagaraStackDisplayName)
+	{
+		_Clipping = EWidgetClipping::OnDemand;
+	}
+		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TypeNameStyle)
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UNiagaraStackEntry& InStackEntry, UNiagaraStackViewModel& InStackViewModel, FName InTextStyleName);
 
 	~SNiagaraStackDisplayName();
 
+	void StartRename();
+
 private:
+	void OnEndRename();
+
 	TSharedRef<SWidget> ConstructChildren();
 
 	FText GetTopLevelDisplayName(TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModelWeak) const;
 
 	void StackViewModelStructureChanged();
 
-	bool GetIsEnabled() const;
+	void StackEntryItemAlternateNameChanged();
+
+	FText GetEntryDisplayName() const;
+
+	FText GetOriginalName() const;
+
+	FText GetEntryToolTipText() const;
+
+	bool GetEntryIsEnabled() const;
+
+	void EntryNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
 
 private:
 	FName TextStyleName;
 
+	const FTextBlockStyle* TypeNameStyle;
+
 	TSharedPtr<SBox> Container;
+
+	TSharedPtr<SInlineEditableTextBlock> EditableTextBlock;
+	FOnTextCommitted OnRenameCommitted;
 
 	mutable FText TopLevelDisplayNameCache;
 	mutable FText TopLevelDisplayNameFormattedCache;

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_PYMAPEDITPROXY_H
-#define SDF_PYMAPEDITPROXY_H
+#ifndef PXR_USD_SDF_PY_MAP_EDIT_PROXY_H
+#define PXR_USD_SDF_PY_MAP_EDIT_PROXY_H
 
 /// \file sdf/pyMapEditProxy.h
 
@@ -372,4 +372,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PYMAPEDITPROXY_H
+#endif // PXR_USD_SDF_PY_MAP_EDIT_PROXY_H

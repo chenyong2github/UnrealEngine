@@ -624,7 +624,7 @@ public:
 	 */
 	virtual void OpenBrowser() override
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FTabId(ConcertBrowserTabName));
+		FGlobalTabmanager::Get()->TryInvokeTab(FTabId(ConcertBrowserTabName));
 	}
 
 	/**
@@ -972,7 +972,7 @@ private:
 		}
 
 		// The auto-connect is not configured, clicking the button will open (or flash) the multi-users browser.
-		FGlobalTabmanager::Get()->InvokeTab(FTabId(ConcertBrowserTabName));
+		FGlobalTabmanager::Get()->TryInvokeTab(FTabId(ConcertBrowserTabName));
 	}
 
 	/**

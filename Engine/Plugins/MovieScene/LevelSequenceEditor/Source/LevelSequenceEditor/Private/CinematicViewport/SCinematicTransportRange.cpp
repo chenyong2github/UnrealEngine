@@ -102,7 +102,7 @@ void SCinematicTransportRange::Tick(const FGeometry& AllottedGeometry, const dou
 		FTimeToPixel TimeToPixelConverter(AllottedGeometry, WorkingRange, Sequencer->GetFocusedTickResolution());
 		const float DuplicateThreshold = (TimeToPixelConverter.PixelToSeconds(3.f) - TimeToPixelConverter.PixelToSeconds(0.f));
 
-		Sequencer->GetKeysFromSelection(ActiveKeyCollection, DuplicateThreshold);
+		Sequencer->GetKeysFromSelection(ActiveKeyCollection, FMath::Max(DuplicateThreshold, SMALL_NUMBER));
 	}
 }
 

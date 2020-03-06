@@ -42,6 +42,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "ObjectTrace.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Engine/AutoDestroySubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -1009,8 +1010,6 @@ void AActor::TickActor( float DeltaSeconds, ELevelTick TickType, FActorTickFunct
 
 void AActor::Tick( float DeltaSeconds )
 {
-	bool bShouldAutoDestroy = bAutoDestroyWhenFinished;
-
 	if (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint) || !GetClass()->HasAnyClassFlags(CLASS_Native))
 	{
 		// Blueprint code outside of the construction script should not run in the editor
@@ -1032,28 +1031,6 @@ void AActor::Tick( float DeltaSeconds )
 		{
 			FLatentActionManager& LatentActionManager = MyWorld->GetLatentActionManager();
 			LatentActionManager.ProcessLatentActions(this, MyWorld->GetDeltaSeconds());
-			if (bShouldAutoDestroy)
-			{
-				bShouldAutoDestroy = (LatentActionManager.GetNumActionsForObject(this) == 0);
-			}
-		}
-	}
-
-	if (bShouldAutoDestroy)
-	{
-		for (UActorComponent* const Comp : GetComponents())
-		{
-			if (Comp && !Comp->IsReadyForOwnerToAutoDestroy())
-			{
-				bShouldAutoDestroy = false;
-				break;
-			}
-		}
-
-		// die!
-		if (bShouldAutoDestroy)
-		{
-			Destroy();
 		}
 	}
 }
@@ -1078,9 +1055,7 @@ void AActor::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 
 	GatherCurrentMovement();
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, ReplicatedMovement, IsReplicatingMovement());
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Don't need to replicate AttachmentReplication if the root component replicates, because it already handles it.
 	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, AttachmentReplication, RootComponent && !RootComponent->GetIsReplicated());
@@ -1660,6 +1635,23 @@ bool AActor::HasNetOwner() const
 	}
 
 	return TopOwner->HasNetOwner();
+}
+
+void AActor::SetAutoDestroyWhenFinished(bool bVal)
+{
+	bAutoDestroyWhenFinished = bVal;
+	if (UWorld* MyWorld = GetWorld())
+	{
+		UAutoDestroySubsystem* AutoDestroySub = MyWorld->GetSubsystem<UAutoDestroySubsystem>();
+		if (bAutoDestroyWhenFinished && (HasActorBegunPlay() || IsActorBeginningPlay()))
+		{
+			AutoDestroySub->RegisterActor(this);
+		}
+		else
+		{
+			AutoDestroySub->UnregisterActor(this);
+		}
+	}
 }
 
 void AActor::K2_AttachRootComponentTo(USceneComponent* InParent, FName InSocketName, EAttachLocation::Type AttachLocationType /*= EAttachLocation::KeepRelativeOffset */, bool bWeldSimulatedBodies /*=true*/)
@@ -2569,7 +2561,6 @@ void AActor::EndViewTarget( APlayerController* PC )
 	K2_OnEndViewTarget(PC);
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 APawn* AActor::GetInstigator() const
 {
 	return Instigator;
@@ -2579,7 +2570,6 @@ AController* AActor::GetInstigatorController() const
 {
 	return Instigator ? Instigator->Controller : nullptr;
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void AActor::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
 {
@@ -3363,9 +3353,7 @@ void AActor::ExchangeNetRoles(bool bRemoteOwned)
 	{
 		if (bRemoteOwned)
 		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Exchange( Role, RemoteRole );
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		bExchangedRoles = true;
 	}
@@ -3373,9 +3361,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void AActor::SwapRoles()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Swap(Role, RemoteRole);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
@@ -3487,6 +3473,17 @@ void AActor::BeginPlay()
 		{
 			// When an Actor begins play we expect only the not bAutoRegister false components to not be registered
 			//check(!Component->bAutoRegister);
+		}
+	}
+
+	if (GetAutoDestroyWhenFinished())
+	{
+		if (UWorld* MyWorld = GetWorld())
+		{
+			if (UAutoDestroySubsystem* AutoDestroySys = MyWorld->GetSubsystem<UAutoDestroySubsystem>())
+			{
+				AutoDestroySys->RegisterActor(this);
+			}			
 		}
 	}
 
@@ -4367,10 +4364,13 @@ void AActor::PostUnregisterAllComponents()
 
 void AActor::RegisterAllComponents()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_AActor_RegisterAllComponents);
+
 	PreRegisterAllComponents();
 
 	// 0 - means register all components
-	verify(IncrementalRegisterComponents(0));
+	bool bAllRegistered = IncrementalRegisterComponents(0);
+	check(bAllRegistered);
 
 	// Clear this flag as it's no longer deferred
 	bHasDeferredComponentRegistration = false;
@@ -4400,7 +4400,7 @@ static USceneComponent* GetUnregisteredParent(UActorComponent* Component)
 	return ParentComponent;
 }
 
-bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
+bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegisterComponentContext* Context)
 {
 	if (NumComponentsToRegister == 0)
 	{
@@ -4430,7 +4430,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
 			// This should prevent unwanted components hanging around when undoing a copy/paste or duplication action.
 			RootComponent->Modify(false);
 
-			RootComponent->RegisterComponentWithWorld(World);
+			RootComponent->RegisterComponentWithWorld(World, Context);
 		}
 	}
 
@@ -4470,7 +4470,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
 			// This should prevent unwanted components hanging around when undoing a copy/paste or duplication action.
 			Component->Modify(false);
 
-			Component->RegisterComponentWithWorld(World);
+			Component->RegisterComponentWithWorld(World, Context);
 			NumRegisteredComponentsThisRun++;
 		}
 
@@ -5007,42 +5007,32 @@ void AActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDi
 
 void AActor::SetHidden(bool bInHidden)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bHidden = bInHidden;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bHidden, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::SetReplicatingMovement(bool bInReplicateMovement)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bReplicateMovement = bInReplicateMovement;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bReplicateMovement, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::SetCanBeDamaged(bool bInCanBeDamaged)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bCanBeDamaged = bInCanBeDamaged;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bCanBeDamaged, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::SetRole(ENetRole InRole)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Role = InRole;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FRepMovement& AActor::GetReplicatedMovement_Mutable()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, ReplicatedMovement, this);
 	return ReplicatedMovement;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::SetReplicatedMovement(const FRepMovement& InReplicatedMovement)
@@ -5052,10 +5042,8 @@ void AActor::SetReplicatedMovement(const FRepMovement& InReplicatedMovement)
 
 void AActor::SetInstigator(APawn* InInstigator)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Instigator = InInstigator;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Instigator, this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #undef LOCTEXT_NAMESPACE

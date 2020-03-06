@@ -146,9 +146,9 @@ bool UEditorUtilitySubsystem::SpawnRegisteredTabByID(FName NewTabID)
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-		if (!LevelEditorTabManager->HasTabSpawner(NewTabID))
+		if (LevelEditorTabManager->HasTabSpawner(NewTabID))
 		{
-			TSharedRef<SDockTab> NewDockTab = LevelEditorTabManager->InvokeTab(NewTabID);
+			TSharedPtr<SDockTab> NewDockTab = LevelEditorTabManager->TryInvokeTab(NewTabID);
 			return true;
 		}
 	}

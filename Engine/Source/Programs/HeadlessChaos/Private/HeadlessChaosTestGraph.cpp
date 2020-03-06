@@ -573,6 +573,7 @@ namespace ChaosTest {
 		PhysicalMaterial->SleepingAngularThreshold = 10;
 		PhysicalMaterial->DisabledLinearThreshold = 0;
 		PhysicalMaterial->DisabledAngularThreshold = 0;
+		PhysicalMaterial->SleepCounterThreshold = 5;
 
 		// Create some dynamic particles
 		int32 NumParticles = 6;
@@ -580,7 +581,7 @@ namespace ChaosTest {
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> DynParticles = SOAs.CreateDynamicParticles(NumParticles);
 		TArray<TGeometryParticleHandle<FReal, 3>*> Particles;
 		TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
-		SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
+ 		SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
 
 		for (int32 Idx = 0; Idx < NumParticles; ++Idx)
 		{
@@ -611,7 +612,7 @@ namespace ChaosTest {
 			Constraints.AddConstraint(ConstrainedParticleIndices);
 		}
 		FPBDConstraintGraph Graph;
-		for (int32 LoopIndex = 0; LoopIndex < 5 + FPBDConstraintGraph::SleepCountThreshold; ++LoopIndex)
+		for (int32 LoopIndex = 0; LoopIndex < 5 + PhysicalMaterial->SleepCounterThreshold; ++LoopIndex)
 		{
 			Graph.InitializeGraph(SOAs.GetNonDisabledView());
 
@@ -657,7 +658,7 @@ namespace ChaosTest {
 			EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[1]));
 			EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[2]));
 			// Particles 3-5 should sleep when we hit the frame count threshold and then stay asleep
-			bool bSomeShouldSleep = (LoopIndex > FPBDConstraintGraph::SleepCountThreshold);
+			bool bSomeShouldSleep = (LoopIndex >= PhysicalMaterial->SleepCounterThreshold );
 			EXPECT_EQ(Particles[3]->Sleeping(), bSomeShouldSleep);
 			EXPECT_EQ(Particles[4]->Sleeping(), bSomeShouldSleep);
 			EXPECT_EQ(Particles[5]->Sleeping(), bSomeShouldSleep);

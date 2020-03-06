@@ -6,7 +6,10 @@
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
 #include "LevelEditor.h"
-#include "LevelEditorViewport.h"   // for GCurrentLevelEditingViewportClient
+#include "LevelEditorViewport.h"
+#include "IAssetViewport.h"
+#include "SLevelViewport.h"
+
 #include "Modules/ModuleManager.h"
 #include "ShowFlags.h"				// for EngineShowFlags
 #include "Engine/Selection.h"
@@ -424,6 +427,12 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		RestoreEditorState();
 	});
 
+	// if viewport clients change we will discard our overrides as we aren't sure what happened
+	ViewportClientListChangedHandle = GEditor->OnViewportClientListChanged().AddLambda([this]()
+	{
+		RestoreEditorState();
+	});
+
 
 	// If user right-press-drags, this enables "fly mode" in the main viewport, and in that mode the QEWASD keys should
 	// be used for flying control. However the EdMode InputKey/etc system doesn't enforce any of this, we can still also
@@ -449,6 +458,7 @@ void UEdModeInteractiveToolsContext::Shutdown()
 	LevelEditor.OnMapChanged().Remove(WorldTearDownDelegateHandle);
 	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
 	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
+	GEditor->OnViewportClientListChanged().Remove(ViewportClientListChangedHandle);
 
 	// auto-accept any in-progress tools
 	DeactivateAllActiveTools();
@@ -962,15 +972,27 @@ void UEdModeInteractiveToolsContext::DeactivateAllActiveTools()
 void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
 {
 	check(bHaveSavedEditorState == false);
-	SavedViewportClient = GCurrentLevelEditingViewportClient;
 	bHaveSavedEditorState = true;
 
-	GCurrentLevelEditingViewportClient->EnableOverrideEngineShowFlags([](FEngineShowFlags& Flags)
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
 	{
-		Flags.SetTemporalAA(false);
-		Flags.SetMotionBlur(false);
-		Flags.SetEyeAdaptation(false);
-	});
+		TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
+		{
+			if (ViewportWindow.IsValid())
+			{
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+				Viewport.EnableOverrideEngineShowFlags([](FEngineShowFlags& Flags)
+				{
+					Flags.SetTemporalAA(false);
+					Flags.SetMotionBlur(false);
+					Flags.SetEyeAdaptation(false);
+				});
+			}
+		}
+	}
 }
 
 
@@ -978,7 +1000,23 @@ void UEdModeInteractiveToolsContext::RestoreEditorState()
 {
 	if (bHaveSavedEditorState)
 	{
-		SavedViewportClient->DisableOverrideEngineShowFlags();
 		bHaveSavedEditorState = false;
+
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+		if (LevelEditor.IsValid())
+		{
+			TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
+			for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
+			{
+				if (ViewportWindow.IsValid())
+				{
+					FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+					Viewport.DisableOverrideEngineShowFlags();
+				}
+			}
+		}
+
 	}
 }
+

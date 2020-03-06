@@ -113,7 +113,8 @@ public:
 			if ( OuterArrayProperty != NULL )
 			{
 				// make sure we're not trying to compare against an element that doesn't exist
-				if ( PropertyNodeRef.GetArrayIndex() >= FScriptArrayHelper::Num( PropertyValueAddresses.BaseAddress ) )
+				FScriptArrayHelper ArrayHelper(OuterArrayProperty, PropertyValueAddresses.BaseAddress);
+				if ( PropertyNodeRef.GetArrayIndex() >= ArrayHelper.Num() )
 				{
 					bPropertyValid = false;
 				}
@@ -233,6 +234,8 @@ bool FPropertyChangeListener::ScanForChanges( bool bRecacheNewValues )
 			TArray<UObject*> ObjectsThatChanged;
 			if (ObjectNode)
 			{
+				ObjectNode->PurgeKilledObjects();
+
 				for (auto It = ObjectNode->ObjectConstIterator(); It; ++It)
 				{
 					UObject* Obj = It->Get();
@@ -272,6 +275,8 @@ void FPropertyChangeListener::TriggerAllPropertiesChangedDelegate()
 		TArray<UObject*> ObjectsThatChanged;
 		if (ObjectNode)
 		{
+			ObjectNode->PurgeKilledObjects();
+
 			for (auto It = ObjectNode->ObjectConstIterator(); It; ++It)
 			{
 				UObject* Obj = It->Get();

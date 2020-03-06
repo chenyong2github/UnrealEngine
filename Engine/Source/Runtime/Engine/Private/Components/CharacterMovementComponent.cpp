@@ -1459,9 +1459,12 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 		UpdateComponentVelocity();
 		bJustTeleported = false;
 
-		CharacterOwner->RootMotionRepMoves.Empty();
-		CurrentRootMotion.Clear();
-		CharacterOwner->SavedRootMotion.Clear();
+		if (CharacterOwner)
+		{
+			CharacterOwner->RootMotionRepMoves.Empty();
+			CurrentRootMotion.Clear();
+			CharacterOwner->SavedRootMotion.Clear();
+		}
 
 		// Note: we do not call the Super implementation, that runs prediction.
 		// We do still need to call these though
@@ -1483,7 +1486,7 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 		UE_LOG(LogRootMotion, Verbose, TEXT("UCharacterMovementComponent::SimulatedTick"));
 
 		// Tick animations before physics.
-		if( CharacterOwner->GetMesh() )
+		if( CharacterOwner && CharacterOwner->GetMesh() )
 		{
 			TickCharacterPose(DeltaSeconds);
 
@@ -1502,15 +1505,15 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 
 #if !(UE_BUILD_SHIPPING)
 			// debug
-			if (false)
+			if (CharacterOwner && false)
 			{
 				const FRotator OldRotation = OldRotationQuat.Rotator();
 				const FRotator NewRotation = UpdatedComponent->GetComponentRotation();
 				const FVector NewLocation = UpdatedComponent->GetComponentLocation();
-				DrawDebugCoordinateSystem(GetWorld(), CharacterOwner->GetMesh()->GetComponentLocation() + FVector(0,0,1), NewRotation, 50.f, false); //-V595
+				DrawDebugCoordinateSystem(GetWorld(), CharacterOwner->GetMesh()->GetComponentLocation() + FVector(0,0,1), NewRotation, 50.f, false);
 				DrawDebugLine(GetWorld(), OldLocation, NewLocation, FColor::Red, false, 10.f);
 
-				UE_LOG(LogRootMotion, Log,  TEXT("UCharacterMovementComponent::SimulatedTick DeltaMovement Translation: %s, Rotation: %s, MovementBase: %s"), //-V595
+				UE_LOG(LogRootMotion, Log,  TEXT("UCharacterMovementComponent::SimulatedTick DeltaMovement Translation: %s, Rotation: %s, MovementBase: %s"),
 					*(NewLocation - OldLocation).ToCompactString(), *(NewRotation - OldRotation).GetNormalized().ToCompactString(), *GetNameSafe(CharacterOwner->GetMovementBase()) );
 			}
 #endif // !(UE_BUILD_SHIPPING)
@@ -1563,7 +1566,7 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 		PerformMovement(DeltaSeconds);
 
 		// After movement correction, smooth out error in position if any.
-		if( bCorrectedToServer )
+		if( bCorrectedToServer || CurrentRootMotion.NeedsSimulatedSmoothing() )
 		{
 			SmoothCorrection(OldLocation, OldRotation, UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentQuat());
 		}
@@ -2442,6 +2445,16 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 
 			// Root Motion has been used, clear
 			RootMotionParams.Clear();
+		}
+		else if (CurrentRootMotion.HasActiveRootMotionSources())
+		{
+			FQuat RootMotionRotationQuat;
+			if (CharacterOwner && UpdatedComponent && CurrentRootMotion.GetOverrideRootMotionRotation(DeltaSeconds, *CharacterOwner, *this, RootMotionRotationQuat))
+			{
+				const FQuat OldActorRotationQuat = UpdatedComponent->GetComponentQuat();
+				const FQuat NewActorRotationQuat = RootMotionRotationQuat * OldActorRotationQuat;
+				MoveUpdatedComponent(FVector::ZeroVector, NewActorRotationQuat, true);
+			}
 		}
 
 		// consume path following requested velocity
@@ -9295,7 +9308,10 @@ void UCharacterMovementComponent::ClientAdjustPosition_Implementation
 	OnClientCorrectionReceived(*ClientData, TimeStamp, WorldShiftedNewLocation, NewVelocity, NewBase, NewBaseBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
 
 	// Trust the server's positioning.
-	UpdatedComponent->SetWorldLocation(WorldShiftedNewLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	if (UpdatedComponent)
+	{
+		UpdatedComponent->SetWorldLocation(WorldShiftedNewLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	}
 	Velocity = NewVelocity;
 
 	// Trust the server's movement mode
@@ -9312,9 +9328,9 @@ void UCharacterMovementComponent::ClientAdjustPosition_Implementation
 		
 		// We had an unresolved base from the server
 		// If walking, we'd like to continue walking if possible, to avoid falling for a frame, so try to find a base where we moved to.
-		if (PreviousBase)
+		if (PreviousBase && UpdatedComponent)
 		{
-			FindFloor(UpdatedComponent->GetComponentLocation(), CurrentFloor, false); //-V595
+			FindFloor(UpdatedComponent->GetComponentLocation(), CurrentFloor, false);
 			if (CurrentFloor.IsWalkableFloor())
 			{
 				FinalBase = CurrentFloor.HitResult.Component.Get();

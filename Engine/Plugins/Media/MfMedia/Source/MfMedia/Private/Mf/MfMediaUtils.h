@@ -13,7 +13,7 @@
 	#include "Windows/WindowsHWrapper.h"
 	#include "Windows/AllowWindowsPlatformTypes.h"
 #else
-	#include "XboxOne/XboxOneAllowPlatformTypes.h"
+	#include "XboxCommonAllowPlatformTypes.h"
 #endif
 
 class FArchive;
@@ -94,7 +94,7 @@ namespace MfMedia
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#include "Windows/HideWindowsPlatformTypes.h"
 #else
-	#include "XboxOne/XboxOneHidePlatformTypes.h"
+	#include "XboxCommonHidePlatformTypes.h"
 #endif
 
 #endif //MFMEDIA_SUPPORTED_PLATFORM

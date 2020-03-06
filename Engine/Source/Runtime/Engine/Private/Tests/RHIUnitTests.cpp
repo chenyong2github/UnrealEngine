@@ -166,7 +166,7 @@ namespace RHIUnitTest
 		}
 
 		FRHIResourceCreateInfo Info;
-		FVertexBufferRHIRef VertexBuffer = RHICreateVertexBuffer(BufferSize, BUF_ShaderResource | BUF_UnorderedAccess, Info);
+		FVertexBufferRHIRef VertexBuffer = RHICreateVertexBuffer(BufferSize, BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy, Info);
 		FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(VertexBuffer, Format);
 		bool bResult = RunTest_UAVClear_Buffer(RHICmdList, TestName, VertexBuffer.GetReference(), UAV, BufferSize, ClearValue, ClearPtr, TestValue);
 

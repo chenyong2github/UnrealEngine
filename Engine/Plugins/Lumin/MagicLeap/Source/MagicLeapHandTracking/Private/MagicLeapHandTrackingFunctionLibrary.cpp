@@ -246,6 +246,18 @@ bool UMagicLeapHandTrackingFunctionLibrary::GetCurrentGestureConfidence(EControl
 	return false;
 }
 
+bool UMagicLeapHandTrackingFunctionLibrary::IsHoldingControl(EControllerHand Hand)
+{
+	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
+
+	if (GetHandTrackingData(Hand, HandTrackingData))
+	{
+		return HandTrackingData->IsHoldingControl;
+	}
+
+	return false;
+}
+
 bool UMagicLeapHandTrackingFunctionLibrary::GetCurrentGesture(EControllerHand Hand, EMagicLeapHandTrackingGesture& Gesture)
 {
 	const FMagicLeapHandTracking::FHandState* HandTrackingData = nullptr;
@@ -278,3 +290,25 @@ bool UMagicLeapHandTrackingFunctionLibrary::GetMagicLeapHandTrackingLiveLinkSour
 		return false;
 	}
 };
+
+bool UMagicLeapHandTrackingFunctionLibrary::GetMotionSourceForHandKeypoint(EControllerHand Hand, EMagicLeapHandTrackingKeypoint Keypoint, FName& OutMotionSource)
+{
+	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	if (HandTracking.IsValid())
+	{
+		return HandTracking->GetMotionSourceForHandKeypoint(Hand, Keypoint, OutMotionSource);
+	}
+
+	return false;
+}
+
+bool UMagicLeapHandTrackingFunctionLibrary::GetHandKeypointForMotionSource(FName MotionSource, EMagicLeapHandTrackingKeypoint& OutKeyPoint)
+{
+	TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetInputDevice());
+	if (HandTracking.IsValid())
+	{
+		return HandTracking->GetHandKeypointForMotionSource(MotionSource, OutKeyPoint);
+	}
+
+	return false;
+}

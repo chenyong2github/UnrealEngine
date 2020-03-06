@@ -114,17 +114,29 @@ namespace Timing_Data_Investigator
 			Modification = true;
 
 			// Iterate through all of the children within the items
-			IEnumerable<TreeGridElement> SortedItems = Items;
-			if (CurrentSortDirection == ListSortDirection.Ascending)
+			IEnumerable<TreeGridElement> SortedItems;
+			switch (CurrentSortDirection)
 			{
-				Items.OrderBy(i => CurrentSortProperty.GetValue(i));
-			}
-			else if (CurrentSortDirection == ListSortDirection.Descending)
-			{
-				Items.OrderByDescending(i => CurrentSortProperty.GetValue(i));
+				case ListSortDirection.Ascending:
+					{
+						SortedItems = Items.OrderBy(i => CurrentSortProperty.GetValue(i));
+						break;
+					}
+
+				case ListSortDirection.Descending:
+					{
+						SortedItems = Items.OrderByDescending(i => CurrentSortProperty.GetValue(i));
+						break;
+					}
+
+				default:
+					{
+						SortedItems = Items;
+						break;
+					}
 			}
 
-			foreach (TreeGridElement child in Items)
+			foreach (TreeGridElement child in SortedItems)
 			{
 				// Add the child to the model
 				Insert(Index++, child);

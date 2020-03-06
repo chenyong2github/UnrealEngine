@@ -231,7 +231,7 @@ void UVariantObjectBinding::SortCapturedProperties()
 
 		if (OrderA == OrderB)
 		{
-			return A.GetFullDisplayString() < B.GetFullDisplayString();
+		return A.GetFullDisplayString() < B.GetFullDisplayString();
 		}
 
 		return OrderA < OrderB;
@@ -298,6 +298,26 @@ void UVariantObjectBinding::ExecuteTargetFunction(FName FunctionName)
 	if (Func->NumParms == 0)
 	{
 		DirectorInstance->ProcessEvent(Func, nullptr);
+	}
+	// Mostly for backwards compatibility
+	else if (Func->NumParms == 1)
+	{
+		if (FObjectProperty* ObjectParameter = CastField<FObjectProperty>(Func->PropertyLink))
+		{
+			if (!ObjectParameter->PropertyClass || BoundObject->IsA(ObjectParameter->PropertyClass))
+			{
+				DirectorInstance->ProcessEvent(Func, &BoundObject);
+			}
+			else
+			{
+				UE_LOG(LogVariantContent, Error, TEXT("Failed to call function '%s' with object '%s' because it is not the correct type. Function expects a '%s' but target object is a '%s'."),
+					*Func->GetName(),
+					*BoundObject->GetName(),
+					*ObjectParameter->PropertyClass->GetName(),
+					*BoundObject->GetClass()->GetName()
+				);
+			}
+		}
 	}
 	else if (Func->NumParms == 4)
 	{

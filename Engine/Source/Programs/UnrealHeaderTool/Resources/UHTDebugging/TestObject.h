@@ -42,13 +42,22 @@ public:
 	TArray<FContainsInstancedProperty> InstancedPropertyArray;
 
 	UPROPERTY()
-	TArray<TWeakObjectPtr<UObject>> ObjectWrapperArray;
+	TArray<TWeakObjectPtr<UObject>, FMemoryImageAllocator> ObjectWrapperArray;
+
+	UPROPERTY()
+	TArray<TWeakObjectPtr<UObject>, TMemoryImageAllocator<64>> ObjectWrapperArrayTemplated;
 
 	UPROPERTY()
 	TSet<FContainsInstancedProperty> InstancedPropertySet;
 
 	UPROPERTY()
-	TMap<FContainsInstancedProperty, TWeakObjectPtr<UObject>> InstancedPropertyToObjectWrapperMap;
+	LAYOUT_FIELD((TMap<FContainsInstancedProperty, TWeakObjectPtr<UObject>>), InstancedPropertyToObjectWrapperMap);
+
+	UPROPERTY()
+	TMap<FContainsInstancedProperty, TWeakObjectPtr<UObject>, FMemoryImageSetAllocator> InstancedPropertyToObjectWrapperMapFrozen;
+
+	UPROPERTY()
+	LAYOUT_FIELD((TMap<FContainsInstancedProperty, TWeakObjectPtr<UObject>, FMemoryImageSetAllocator>), InstancedPropertyToObjectWrapperMapFrozenWithLayout);
 
 	UPROPERTY()
 	TMap<TWeakObjectPtr<UObject>, FContainsInstancedProperty> ObjectWrapperToInstancedPropertyMap;
@@ -60,7 +69,7 @@ public:
 	void TestPassingArrayOfInterfaces(const TArray<TScriptInterface<ITestInterface> >& ArrayOfInterfaces);
 
 	UPROPERTY()
-	int32 Cpp11Init = 123;
+	LAYOUT_FIELD_INITIALIZED(int32, Cpp11Init, 123);
 
 	UPROPERTY()
 	TArray<int> Cpp11BracedInit { 1, 2, 3 };
@@ -72,13 +81,19 @@ public:
 	int RawInt;
 
 	UPROPERTY()
-	unsigned int RawUint;
+	LAYOUT_FIELD_EDITORONLY(int32, EditorOnlyField);
+
+	UPROPERTY()
+	LAYOUT_ARRAY_EDITORONLY(int32, EditorOnlyArray, 20);
+
+	UPROPERTY()
+	LAYOUT_ARRAY(unsigned int, RawUint, 20);
 
 	UFUNCTION()
 	void FuncTakingRawInts(int Signed, unsigned int Unsigned);
 
 	UPROPERTY()
-	ECppEnum EnumProperty;
+	LAYOUT_FIELD(ECppEnum, EnumProperty);
 
 	UPROPERTY()
 	TMap<int32, bool> TestMap;
@@ -91,6 +106,9 @@ public:
 
 	UPROPERTY()
 	FSimpleClassDelegate DelegateProperty;
+
+	UPROPERTY()
+	LAYOUT_BITFIELD(uint32, bThing, 1);
 
 	UFUNCTION()
 	void CodeGenTestForEnumClasses(ECppEnum Val);

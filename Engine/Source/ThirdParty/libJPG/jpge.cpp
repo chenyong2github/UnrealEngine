@@ -866,7 +866,7 @@ jpeg_encoder::~jpeg_encoder()
   deinit();
 }
 
-bool jpeg_encoder::init(output_stream *pStream, int width, int height, int src_channels, const params &comp_params)
+bool jpeg_encoder::init(output_stream *pStream, int64_t width, int64_t height, int64_t src_channels, const params &comp_params)
 {
   deinit();
   if (((!pStream) || (width < 1) || (height < 1)) || ((src_channels != 1) && (src_channels != 3) && (src_channels != 4)) || (!comp_params.check_valid())) return false;
@@ -945,7 +945,7 @@ public:
       return m_bStatus;
    }
 
-   virtual bool put_buf(const void* pBuf, int len)
+   virtual bool put_buf(const void* pBuf, int64_t len)
    {
       m_bStatus = m_bStatus && (fwrite(pBuf, len, 1, m_pFile) == 1);
       return m_bStatus;
@@ -958,7 +958,7 @@ public:
 };
 
 // Writes JPEG image to file.
-bool compress_image_to_jpeg_file(const char *pFilename, int width, int height, int num_channels, const uint8 *pImage_data, const params &comp_params)
+bool compress_image_to_jpeg_file(const char *pFilename, int64_t width, int64_t height, int64_t num_channels, const uint8 *pImage_data, const params &comp_params)
 {
   cfile_stream dst_stream;
   if (!dst_stream.open(pFilename))
@@ -970,8 +970,9 @@ bool compress_image_to_jpeg_file(const char *pFilename, int width, int height, i
 
   for (uint pass_index = 0; pass_index < dst_image.get_total_passes(); pass_index++)
   {
-    for (int i = 0; i < height; i++)
+    for (int64_t i = 0; i < height; i++)
     {
+		// i, width, and num_channels are all 64bit
        const uint8* pBuf = pImage_data + i * width * num_channels;
        if (!dst_image.process_scanline(pBuf))
           return false;
@@ -991,30 +992,30 @@ class memory_stream : public output_stream
    memory_stream &operator= (const memory_stream &);
 
    uint8 *m_pBuf;
-   uint m_buf_size, m_buf_ofs;
+   uint64_t m_buf_size, m_buf_ofs;
 
 public:
-   memory_stream(void *pBuf, uint buf_size) : m_pBuf(static_cast<uint8*>(pBuf)), m_buf_size(buf_size), m_buf_ofs(0) { }
+   memory_stream(void *pBuf, uint64_t buf_size) : m_pBuf(static_cast<uint8*>(pBuf)), m_buf_size(buf_size), m_buf_ofs(0) { }
 
    virtual ~memory_stream() { }
 
-   virtual bool put_buf(const void* pBuf, int len)
+   virtual bool put_buf(const void* pBuf, int64_t len)
    {
-      uint buf_remaining = m_buf_size - m_buf_ofs;
-      if ((uint)len > buf_remaining)
+      uint64_t buf_remaining = m_buf_size - m_buf_ofs;
+      if ((uint64_t)len > buf_remaining)
          return false;
       memcpy(m_pBuf + m_buf_ofs, pBuf, len);
       m_buf_ofs += len;
       return true;
    }
 
-   uint get_size() const
+   uint64_t get_size() const
    {
       return m_buf_ofs;
    }
 };
 
-bool compress_image_to_jpeg_file_in_memory(void *pDstBuf, int &buf_size, int width, int height, int num_channels, const uint8 *pImage_data, const params &comp_params)
+bool compress_image_to_jpeg_file_in_memory(void *pDstBuf, int64_t &buf_size, int64_t width, int64_t height, int64_t num_channels, const uint8 *pImage_data, const params &comp_params)
 {
    if ((!pDstBuf) || (!buf_size))
       return false;
@@ -1029,7 +1030,7 @@ bool compress_image_to_jpeg_file_in_memory(void *pDstBuf, int &buf_size, int wid
 
    for (uint pass_index = 0; pass_index < dst_image.get_total_passes(); pass_index++)
    {
-     for (int i = 0; i < height; i++)
+     for (int64_t i = 0; i < height; i++)
      {
         const uint8* pScanline = pImage_data + i * width * num_channels;
         if (!dst_image.process_scanline(pScanline))

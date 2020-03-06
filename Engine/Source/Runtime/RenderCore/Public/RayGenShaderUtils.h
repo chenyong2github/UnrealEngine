@@ -19,7 +19,7 @@ struct RENDERCORE_API FRayGenShaderUtils
 	static inline void AddRayTraceDispatchPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
-		const TShaderClass* RayGenerationShader,
+		const TShaderRef<TShaderClass>& RayGenerationShader,
 		typename TShaderClass::FParameters* Parameters,
 		FIntPoint Resolution)
 	{
@@ -35,11 +35,11 @@ struct RENDERCORE_API FRayGenShaderUtils
 			SetShaderParameters(GlobalResources, RayGenerationShader, *Parameters);
 
 			FRayTracingPipelineStateInitializer Initializer;
-			FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader->GetRayTracingShader() };
+			FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
 			Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
 			FRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
-			RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader->GetRayTracingShader(), GlobalResources, Resolution.X, Resolution.Y);
+			RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader.GetRayTracingShader(), GlobalResources, Resolution.X, Resolution.Y);
 		});
 	}
 };

@@ -101,8 +101,11 @@ IStylusInputDevice* FWindowsStylusInputInterface::GetInputDevice(int32 Index) co
 
 FWindowsStylusInputInterfaceImpl::~FWindowsStylusInputInterfaceImpl()
 {
-	RealTimeStylus->RemoveAllStylusSyncPlugins();
-	RealTimeStylus.Reset();
+	if (RealTimeStylus.IsValid())
+	{
+		RealTimeStylus->RemoveAllStylusSyncPlugins();
+		RealTimeStylus.Reset();
+	}
 
 	StylusPlugin.Reset();
 
@@ -132,7 +135,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 	if (WindowsImpl->DLLHandle == nullptr)
 	{
 		FWindowsPlatformMisc::CoUninitialize();
-		UE_LOG(LogStylusInput, Error, TEXT("Could not load RTSCom.dll!"));
+		UE_LOG(LogStylusInput, Warning, TEXT("Could not load RTSCom.dll! Stylus input will be unavailable."));
 		return nullptr;
 	}
 
@@ -144,7 +147,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 	if (FAILED(hr))
 	{
 		FWindowsPlatformMisc::CoUninitialize();
-		UE_LOG(LogStylusInput, Error, TEXT("Could not create RealTimeStylus!"));
+		UE_LOG(LogStylusInput, Warning, TEXT("Could not create RealTimeStylus! Stylus input will be unavailable."));
 		return nullptr;
 	}
 
@@ -156,7 +159,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 	if (FAILED(hr))
 	{
 		FWindowsPlatformMisc::CoUninitialize();
-		UE_LOG(LogStylusInput, Error, TEXT("Could not create FreeThreadedMarshaller!"));
+		UE_LOG(LogStylusInput, Warning, TEXT("Could not create FreeThreadedMarshaller! Stylus input will be unavailable."));
 		return nullptr;
 	}
 
@@ -165,7 +168,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 	if (FAILED(hr))
 	{
 		FWindowsPlatformMisc::CoUninitialize();
-		UE_LOG(LogStylusInput, Error, TEXT("Could not add stylus plugin to API!"));
+		UE_LOG(LogStylusInput, Warning, TEXT("Could not add stylus plugin to API! Stylus input will be unavailable."));
 		return nullptr;
 	}
 	

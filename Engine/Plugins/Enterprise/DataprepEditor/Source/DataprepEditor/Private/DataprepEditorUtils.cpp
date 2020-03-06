@@ -27,6 +27,7 @@ bool FDataprepParametrizationActionData::IsValid() const
 	return DataprepAsset && Object && PropertyChain.Num() > 0;
 }
 
+#ifndef NO_BLUEPRINT
 void FDataprepEditorUtils::NotifySystemOfChangeInPipeline(UObject* SourceObject)
 {
 	UBlueprint* Blueprint = nullptr;
@@ -49,13 +50,17 @@ void FDataprepEditorUtils::NotifySystemOfChangeInPipeline(UObject* SourceObject)
 
 	if ( DataprepAsset )
 	{
-		UDataprepAsset::FDataprepBlueprintChangeNotifier::NotifyDataprepBlueprintChange( *DataprepAsset, SourceObject );
+		if(!DataprepAsset->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
+		{
+			DataprepAsset->GetRecipeBP()->OnChanged().Broadcast(DataprepAsset->GetRecipeBP());
+		}
 	}
 	else if ( Blueprint )
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsModified( Blueprint );
 	}
 }
+#endif
 
 void FDataprepEditorUtils::PopulateMenuForParameterization(FMenuBuilder& MenuBuilder, UDataprepAsset& DataprepAsset, UDataprepParameterizableObject& Object, const TArray<FDataprepPropertyLink>& PropertyChain)
 {

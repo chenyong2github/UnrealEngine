@@ -655,7 +655,7 @@ bool IsTriangleDegenerated(const FRawMesh& SourceRawMesh, const TArray<FVertexID
 	return (VertexIDs[0] == VertexIDs[1] || VertexIDs[0] == VertexIDs[2] || VertexIDs[1] == VertexIDs[2]);
 }
 
-void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FMeshDescription& DestinationMeshDescription, const TMap<int32, FName>& MaterialMap)
+void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FMeshDescription& DestinationMeshDescription, const TMap<int32, FName>& MaterialMap, bool bSkipNormalsAndTangents)
 {
 	DestinationMeshDescription.Empty();
 
@@ -800,7 +800,7 @@ void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FM
 	ConvertSmoothGroupToHardEdges(SourceRawMesh.FaceSmoothingMasks, DestinationMeshDescription);
 
 	//Create the missing normals and tangents, should we use Mikkt space for tangent???
-	if (!bHasNormals || !bHasTangents)
+	if (!bSkipNormalsAndTangents && (!bHasNormals || !bHasTangents))
 	{
 		//DestinationMeshDescription.ComputePolygonTangentsAndNormals(0.0f);
 		ComputePolygonTangentsAndNormals(DestinationMeshDescription, 0.0f);
@@ -853,9 +853,18 @@ void FStaticMeshOperations::AppendMeshDescription(const FMeshDescription& Source
 	TargetMesh.ReserveNewEdges(SourceMesh.Edges().Num());
 	TargetMesh.ReserveNewPolygons(SourceMesh.Polygons().Num());
 
-	if (SourceVertexInstanceUVs.GetNumIndices() > TargetVertexInstanceUVs.GetNumIndices())
+	int32 NumSourceUVChannels = 0;
+	for (int32 ChannelIdx = 0; ChannelIdx < SourceVertexInstanceUVs.GetNumIndices(); ++ChannelIdx)
 	{
-		TargetVertexInstanceUVs.SetNumIndices(SourceVertexInstanceUVs.GetNumIndices());
+		if (AppendSettings.bMergeUVChannels[ChannelIdx])
+		{
+			NumSourceUVChannels = ChannelIdx + 1;
+		}
+	}
+
+	if (NumSourceUVChannels > TargetVertexInstanceUVs.GetNumIndices())
+	{
+		TargetVertexInstanceUVs.SetNumIndices(NumSourceUVChannels);
 	}
 
 	//PolygonGroups
@@ -938,7 +947,7 @@ void FStaticMeshOperations::AppendMeshDescription(const FMeshDescription& Source
 			TargetVertexInstanceColors[TargetVertexInstanceID] = SourceVertexInstanceColors[SourceVertexInstanceID];
 		}
 
-		for (int32 UVChannelIndex = 0; UVChannelIndex < SourceVertexInstanceUVs.GetNumIndices(); ++UVChannelIndex)
+		for (int32 UVChannelIndex = 0; UVChannelIndex < NumSourceUVChannels; ++UVChannelIndex)
 		{
 			TargetVertexInstanceUVs.Set(TargetVertexInstanceID, UVChannelIndex, SourceVertexInstanceUVs.Get(SourceVertexInstanceID, UVChannelIndex));
 		}
@@ -2233,6 +2242,31 @@ FSHAHash FStaticMeshOperations::ComputeSHAHash(const FMeshDescription& MeshDescr
 	HashState.GetHash(&OutHash.Hash[0]);
 
 	return OutHash;
+}
+
+void FStaticMeshOperations::FlipPolygons(FMeshDescription& MeshDescription)
+{
+	TSet<FVertexInstanceID> VertexInstanceIDs;
+	for (FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
+	{
+		VertexInstanceIDs.Append(MeshDescription.GetPolygonVertexInstances(PolygonID));
+		MeshDescription.ReversePolygonFacing(PolygonID);
+	}
+
+	// Flip tangents and normals
+	const TVertexInstanceAttributesRef<FVector> VertexNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	const TVertexInstanceAttributesRef<FVector> VertexTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+
+	for (const FVertexInstanceID VertexInstanceID : VertexInstanceIDs)
+	{
+		// Just reverse the sign of the normals/tangents; note that since binormals are the cross product of normal with tangent, they are left untouched
+		FVector Normal = VertexNormals[VertexInstanceID] * -1.0f;
+		FVector Tangent = VertexTangents[VertexInstanceID] * -1.0f;
+
+		TAttributesSet<FVertexInstanceID>& AttributesSet = MeshDescription.VertexInstanceAttributes();
+		AttributesSet.SetAttribute(VertexInstanceID, MeshAttribute::VertexInstance::Normal, 0, Normal);
+		AttributesSet.SetAttribute(VertexInstanceID, MeshAttribute::VertexInstance::Tangent, 0, Tangent);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

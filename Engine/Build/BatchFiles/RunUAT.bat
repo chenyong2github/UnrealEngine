@@ -30,9 +30,6 @@ rem ## check if the UAT projects are present. if not, we'll just use the precomp
 if not exist Source\Programs\AutomationTool\AutomationTool.csproj goto RunPrecompiled
 if not exist Source\Programs\AutomationToolLauncher\AutomationToolLauncher.csproj goto RunPrecompiled
 
-rem ## find platform extension source code that UBT will need when compiling platform extension automation projects
-call "%~dp0FindPlatformExtensionSources.bat"
-
 rem ## Get the path to MSBuild
 call "%~dp0GetMSBuildPath.bat"
 if errorlevel 1 goto RunPrecompiled

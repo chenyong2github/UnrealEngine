@@ -95,9 +95,6 @@ UObjectBase::UObjectBase( EObjectFlags InFlags )
 ,	InternalIndex		(INDEX_NONE)
 ,	ClassPrivate		(nullptr)
 ,	OuterPrivate		(nullptr)
-#if ENABLE_STATNAMEDEVENTS_UOBJECT
-, StatIDStringStorage(nullptr)
-#endif
 {}
 
 /**
@@ -113,9 +110,6 @@ UObjectBase::UObjectBase(UClass* InClass, EObjectFlags InFlags, EInternalObjectF
 ,	InternalIndex		(INDEX_NONE)
 ,	ClassPrivate		(InClass)
 ,	OuterPrivate		(InOuter)
-#if ENABLE_STATNAMEDEVENTS_UOBJECT
-, StatIDStringStorage(nullptr)
-#endif
 {
 	check(ClassPrivate);
 	// Add to global table.
@@ -136,76 +130,9 @@ UObjectBase::~UObjectBase()
 		check(GetFName() == NAME_None);
 		GUObjectArray.FreeUObjectIndex(this);
 	}
-
-#if ENABLE_STATNAMEDEVENTS_UOBJECT
-	delete[] StatIDStringStorage;
-	StatIDStringStorage = nullptr;
-#endif
 }
 
-#if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
 
-void UObjectBase::CreateStatID() const
-{
-	SCOPE_CYCLE_COUNTER(STAT_CreateStatID);
-
-	FString LongName;
-	LongName.Reserve(255);
-	TArray<UObjectBase const*, TInlineAllocator<24>> ClassChain;
-	
-	// Build class hierarchy
-	UObjectBase const* Target = this;
-	do
-	{
-		ClassChain.Add(Target);
-		Target = Target->GetOuter();
-	} while(Target);
-
-	// Start with class name
-	if (GetClass())
-	{
-		GetClass()->GetFName().GetDisplayNameEntry()->AppendNameToString(LongName);
-	}
-
-	// Now process from parent -> child so we can append strings more efficiently.
-	bool bFirstEntry = true;
-	for (int32 i = ClassChain.Num()-1; i >= 0; i--)
-	{
-		Target = ClassChain[i];
-		const FNameEntry* NameEntry = Target->GetFName().GetDisplayNameEntry();
-		if (bFirstEntry)
-		{
-			NameEntry->AppendNameToPathString(LongName);
-		}
-		else
-		{
-			if (!LongName.IsEmpty())
-			{
-				LongName += TEXT(".");
-			}
-			NameEntry->AppendNameToString(LongName);
-		}			
-		bFirstEntry = false;
-	}
-
-#if STATS
-	StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_UObjects>( LongName );
-#else // ENABLE_STATNAMEDEVENTS
-	const auto& ConversionData = StringCast<PROFILER_CHAR>(*LongName);
-	const int32 NumStorageChars = (ConversionData.Length() + 1);	//length doesn't include null terminator
-
-	PROFILER_CHAR* StoragePtr = new PROFILER_CHAR[NumStorageChars];
-	FMemory::Memcpy(StoragePtr, ConversionData.Get(), NumStorageChars * sizeof(PROFILER_CHAR));
-	
-	if (FPlatformAtomics::InterlockedCompareExchangePointer((void**)&StatIDStringStorage, StoragePtr, nullptr) != nullptr)
-	{
-		delete[] StoragePtr;
-	}
-	
-	StatID = TStatId(StatIDStringStorage);
-#endif
-}
-#endif
 
 
 /**
@@ -277,7 +204,7 @@ void UObjectBase::AddObject(FName InName, EInternalObjectFlags InSetInternalFlag
  */
 void UObjectBase::LowLevelRename(FName NewName,UObject *NewOuter)
 {
-	STAT(StatID = TStatId();) // reset the stat id since this thing now has a different name
+	STAT(((UObject*)this)->ResetStatID()); // reset the stat id since this thing now has a different name
 	UnhashObject(this);
 	check(InternalIndex >= 0);
 	NamePrivate = NewName;
@@ -290,7 +217,7 @@ void UObjectBase::LowLevelRename(FName NewName,UObject *NewOuter)
 
 void UObjectBase::SetClass(UClass* NewClass)
 {
-	STAT(StatID = TStatId();) // reset the stat id since this thing now has a different name
+	STAT(((UObject*)this)->ResetStatID()); // reset the stat id since this thing now has a different name
 
 	UnhashObject(this);
 #if USE_UBER_GRAPH_PERSISTENT_FRAME

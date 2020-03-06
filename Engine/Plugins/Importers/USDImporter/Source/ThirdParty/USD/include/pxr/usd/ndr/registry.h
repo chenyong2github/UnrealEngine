@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef NDR_REGISTRY_H
-#define NDR_REGISTRY_H
+#ifndef PXR_USD_NDR_REGISTRY_H
+#define PXR_USD_NDR_REGISTRY_H
 
 /// \file ndr/registry.h
 
@@ -89,8 +89,17 @@ public:
     NDR_API
     void SetExtraDiscoveryPlugins(const std::vector<TfType>& pluginTypes);
 
-    /// Parses the given \p asset, constucts a NdrNode from it and adds it to 
-    /// the registry. 
+    /// Allows the client to set any additional parser plugins that would
+    /// otherwise NOT be found through the plugin system.
+    ///
+    /// Note that this method cannot be called after any nodes in the registry
+    /// have been parsed (eg, through GetNode*()), otherwise an error will
+    /// result.
+    NDR_API
+    void SetExtraParserPlugins(const std::vector<TfType>& pluginTypes);
+
+    /// Parses the given \p asset, constructs a NdrNode from it and adds it to
+    /// the registry.
     /// 
     /// Nodes created from an asset using this API can be looked up by the 
     /// unique identifier and sourceType of the returned node, or by URI, 
@@ -100,12 +109,22 @@ public:
     /// compiling the source code in the file pointed to by \p asset correctly.
     /// This metadata supplements the metadata available in the asset and 
     /// overrides it in cases where there are key collisions.
-    /// 
+    ///
+    /// \p subidentifier is optional, and it would be used to indicate a
+    /// particular definition in the asset file if the asset contains multiple
+    /// node definitions.
+    ///
+    /// \p sourceType is optional, and it is only needed to indicate a
+    /// particular type if the asset file is capable of representing a node
+    /// definition of multiple source types.
+    ///
     /// Returns a valid node if the asset is parsed successfully using one 
     /// of the registered parser plugins.
     NDR_API
     NdrNodeConstPtr GetNodeFromAsset(const SdfAssetPath &asset,
-                                     const NdrTokenMap &metadata);
+                                     const NdrTokenMap &metadata,
+                                     const TfToken &subIdentifier=TfToken(),
+                                     const TfToken &sourceType=TfToken());
 
     /// Parses the given \p sourceCode string, constructs a NdrNode from it and 
     /// adds it to the registry. The parser to be used is determined by the 
@@ -248,19 +267,19 @@ public:
                                         NdrVersionFilter filter =
                                             NdrVersionFilterDefaultOnly);
 
-    /// Get a list of all node source types that may be present on the nodes in
-    /// the registry.
+    /// Get a sorted list of all node source types that may be present on the
+    /// nodes in the registry.
     ///
-    /// Source types originate from the parser plugins that have been
-    /// registered, so the types here depend on the parsers that are available.
-    /// Also note that some parser plugins may not advertise a source type.
+    /// Source types originate from the discovery process, but there is no
+    /// guarantee that the discovered source types will also have a registered
+    /// parser plugin.  The actual supported source types here depend on the
+    /// parsers that are available.  Also note that some parser plugins may not
+    /// advertise a source type.
     ///
     /// See the documentation for `NdrParserPlugin` and
     /// `NdrNode::GetSourceType()` for more information.
     NDR_API
-    const NdrTokenVec& GetAllNodeSourceTypes() const {
-        return _availableSourceTypes;
-    }
+    NdrTokenVec GetAllNodeSourceTypes() const;
 
 protected:
     NdrRegistry(const NdrRegistry&) = delete;
@@ -303,11 +322,15 @@ private:
     // internal discovery results vector
     void _RunDiscoveryPlugins(const DiscoveryPluginRefPtrVec& discoveryPlugins);
 
-    // Finds and instantiates the discovery plugins via Tf
+    // Finds and instantiates the discovery plugins
     void _FindAndInstantiateDiscoveryPlugins();
 
-    // Finds and instantiates the parser plugins via Tf
+    // Finds and instantiates the parser plugins
     void _FindAndInstantiateParserPlugins();
+
+    // Instantiates the specified parser plugins and adds them to
+    // the registry.
+    void _InstantiateParserPlugins(const std::set<TfType>& parserPluginTypes);
 
     // Parses all nodes that match the specified predicate, optionally only
     // parsing the first node that matches (good to use when the predicate will
@@ -367,4 +390,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // NDR_REGISTRY_H
+#endif // PXR_USD_NDR_REGISTRY_H

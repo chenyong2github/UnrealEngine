@@ -15,18 +15,22 @@ FMagicLeapImageTrackerRunnable::FMagicLeapImageTrackerRunnable()
 #endif // WITH_MLSDK
 };
 
-void FMagicLeapImageTrackerRunnable::Exit()
+void FMagicLeapImageTrackerRunnable::Stop()
 {
 #if WITH_MLSDK
+	FMagicLeapRunnable::Stop();
+	FScopeLock Lock(&TargetsMutex);
+	for (auto& TargetKeyVal : TrackedImageTargets)
 	{
-		FScopeLock Lock(&TargetsMutex);
-		for (auto& Target : TrackedImageTargets)
+		FMagicLeapImageTrackerTarget& Target = TargetKeyVal.Value;
+		if (MLHandleIsValid(Target.Handle))
 		{
-			RemoveTarget(Target.Value);
+			checkf(MLHandleIsValid(GetHandle()), TEXT("ImageTracker weak pointer is invalid!"));
+			MLResult Result = MLImageTrackerRemoveTarget(GetHandle(), Target.Handle);
+			UE_CLOG(Result != MLResult_Ok, LogMagicLeapImageTracker, Error, TEXT("MLImageTrackerRemoveTarget '%s' failed with error '%s'!"), *Target.Name, UTF8_TO_TCHAR(MLGetResultString(Result)));
 		}
-		TrackedImageTargets.Empty();
 	}
-
+	TrackedImageTargets.Empty();
 	DestroyTracker();
 #endif // WITH_MLSDK
 }
@@ -283,6 +287,24 @@ void FMagicLeapImageTrackerRunnable::UpdateTargetsMainThread()
 		Target.OldTrackingStatus = TrackingStatus;
 	}
 #endif // WITH_MLSDK
+}
+
+bool FMagicLeapImageTrackerRunnable::IsTracked(const FString& TargetName) const
+{
+#if WITH_MLSDK
+	if (!(IMagicLeapPlugin::Get().IsMagicLeapHMDValid()))
+	{
+		return false;
+	}
+
+	FScopeLock Lock(const_cast<FCriticalSection*>(&TargetsMutex));
+	const FMagicLeapImageTrackerTarget* Target = TrackedImageTargets.Find(TargetName);
+	if (Target)
+	{
+		return Target->OldTrackingStatus.status == MLImageTrackerTargetStatus_Tracked || Target->OldTrackingStatus.status == MLImageTrackerTargetStatus_Unreliable;
+	}
+#endif // WITH_MLSDK
+	return false;
 }
 
 bool FMagicLeapImageTrackerRunnable::TryGetRelativeTransformMainThread(const FString& TargetName, FVector& OutLocation, FRotator& OutRotation)

@@ -7,7 +7,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/SNiagaraGraphPinAdd.h"
 #include "NiagaraCommon.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSource.h"
@@ -309,10 +308,14 @@ void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable)
 		GraphActionMenu->OnRequestRenameOnActionNode();
 	}
 }
-
-bool SNiagaraParameterMapView::AllowMakeType(const FNiagaraTypeDefinition& InType) const
+bool SNiagaraParameterMapView::AllowMakeTypeGeneric(const FNiagaraTypeDefinition& InType) const
 {
 	return InType != FNiagaraTypeDefinition::GetParameterMapDef();
+}
+
+bool SNiagaraParameterMapView::AllowMakeTypeAttribute(const FNiagaraTypeDefinition& InType) const
+{
+	return InType != FNiagaraTypeDefinition::GetParameterMapDef() && InType != FNiagaraTypeDefinition::GetGenericNumericDef();
 }
 
 void SNiagaraParameterMapView::OnFilterTextChanged(const FText& InFilterText)
@@ -575,9 +578,11 @@ bool SNiagaraParameterMapView::SelectionHasContextMenu() const
 
 TSharedRef<SWidget> SNiagaraParameterMapView::OnGetParameterMenu(const NiagaraParameterMapSectionID::Type InSection)
 {
+	bool bTypeIsAttribute = true; 	// Leaving around the old generic path in case it is needed in the future.
+
 	TSharedRef<SNiagaraAddParameterMenu> MenuWidget = SNew(SNiagaraAddParameterMenu, Graphs)
 		.OnAddParameter(this, &SNiagaraParameterMapView::AddParameter)
-		.OnAllowMakeType(this, &SNiagaraParameterMapView::AllowMakeType)
+		.OnAllowMakeType(this, bTypeIsAttribute ? &SNiagaraParameterMapView::AllowMakeTypeAttribute : &SNiagaraParameterMapView::AllowMakeTypeGeneric)
 		.Section(InSection)
 		.ShowNamespaceCategory(false)
 		.ShowGraphParameters(false)
@@ -832,6 +837,7 @@ void SNiagaraAddParameterMenu::Construct(const FArguments& InArgs, TArray<TWeakO
 		[
 			SNew(SBox)
 			.MinDesiredWidth(300)
+			.MaxDesiredHeight(700) // Set max desired height to prevent flickering bug for menu larger than screen
 			[
 				SAssignNew(GraphMenu, SGraphActionMenu)
 				.OnActionSelected(this, &SNiagaraAddParameterMenu::OnActionSelected)

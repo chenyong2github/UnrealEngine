@@ -45,6 +45,26 @@ UWMRARPin* FHoloLensARSystem::CreateNamedARPin(FName Name, const FTransform& Pin
 	return NewPin;
 }
 
+UWMRARPin* FHoloLensARSystem::CreateNamedARPinAroundAnchor(FName Name, FString AnchorId)
+{
+	TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface = TrackingSystem->GetARCompositionComponent();
+
+	FTransform Transform;
+	const bool bTracked = WMRGetAnchorTransform(*AnchorId, Transform);
+
+	UWMRARPin* NewPin = NewObject<UWMRARPin>();
+	NewPin->InitARPin(ARSupportInterface.ToSharedRef(), nullptr, Transform, nullptr, Name);
+
+	AnchorIdToPinMap.Add(AnchorId, NewPin);
+	NewPin->SetAnchorId(AnchorId);
+
+	Pins.Add(NewPin);
+
+	NewPin->OnTrackingStateChanged(bTracked ? EARTrackingState::Tracking : EARTrackingState::NotTracking);
+
+	return NewPin;
+}
+
 bool FHoloLensARSystem::PinComponentToARPin(USceneComponent* ComponentToPin, UWMRARPin* Pin)
 {
 	if (Pin == nullptr)

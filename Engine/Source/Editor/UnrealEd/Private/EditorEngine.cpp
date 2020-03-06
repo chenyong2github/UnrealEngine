@@ -220,6 +220,11 @@
 #include "StudioAnalytics.h"
 #include "Engine/LevelScriptActor.h"
 
+#if WITH_CHAOS
+#include "ChaosSolversModule.h"
+#endif
+
+
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
 #define LOCTEXT_NAMESPACE "UnrealEd.Editor"
@@ -1488,6 +1493,15 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 	bool bAWorldTicked = false;
 	ELevelTick TickType = IsRealtime ? LEVELTICK_ViewportsOnly : LEVELTICK_TimeOnly;
+
+#if WITH_CHAOS
+	// Before we begin ticking any of our worlds, dispatch the global command lists and queues for physics
+	FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
+	if(ensure(ChaosModule))
+	{
+		ChaosModule->DispatchGlobalCommands();
+	}
+#endif
 
 	if( bShouldTickEditorWorld )
 	{ 
@@ -4382,12 +4396,12 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 
 	World->SetPhysicsScene(nullptr);
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (GPhysCommandHandler)
 	{
 		GPhysCommandHandler->Flush();
 	}
-#endif // WITH_PHYSX
+#endif // PHYSICS_INTERFACE_PHYSX
 
 	// Update components again in case it was a world without a physics scene but did have rendered components.
 	World->UpdateWorldComponents(true, true);
@@ -5168,7 +5182,9 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 			if (Blueprint->GeneratedClass->IsChildOf(OldActorClass) && NewActor != NULL)
 			{
 				NewActor->UnregisterAllComponents();
-				UEditorEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor);
+				FCopyPropertiesForUnrelatedObjectsParams Options;
+				Options.bNotifyObjectReplacement = true;
+				UEditorEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor, Options);
 				NewActor->RegisterAllComponents();
 			}
 		}
@@ -6140,8 +6156,39 @@ void UEditorEngine::NotifyToolsOfObjectReplacement(const TMap<UObject*, UObject*
 	}
 }
 
+void UEditorEngine::SetViewportsRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)
+{
+	for (FEditorViewportClient* VC : AllViewportClients)
+	{
+		if (VC)
+		{
+			VC->SetRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+		}
+	}
+
+	RedrawAllViewports();
+
+	FEditorSupportDelegates::UpdateUI.Broadcast();
+}
+
+void UEditorEngine::RemoveViewportsRealtimeOverride()
+{
+	for (FEditorViewportClient* VC : AllViewportClients)
+	{
+		if (VC)
+		{
+			VC->RemoveRealtimeOverride();
+		}
+	}
+
+	RedrawAllViewports();
+
+	FEditorSupportDelegates::UpdateUI.Broadcast();
+}
+
 void UEditorEngine::DisableRealtimeViewports()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for(FEditorViewportClient* VC : AllViewportClients)
 	{
 		if( VC )
@@ -6153,11 +6200,13 @@ void UEditorEngine::DisableRealtimeViewports()
 	RedrawAllViewports();
 
 	FEditorSupportDelegates::UpdateUI.Broadcast();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
 void UEditorEngine::RestoreRealtimeViewports()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for(FEditorViewportClient* VC : AllViewportClients)
 	{
 		if( VC )
@@ -6169,6 +6218,7 @@ void UEditorEngine::RestoreRealtimeViewports()
 	RedrawAllViewports();
 
 	FEditorSupportDelegates::UpdateUI.Broadcast();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
@@ -6189,6 +6239,11 @@ bool UEditorEngine::IsAnyViewportRealtime()
 
 bool UEditorEngine::ShouldThrottleCPUUsage() const
 {
+	if (IsRunningCommandlet())
+	{
+		return false;
+	}
+
 	bool bShouldThrottle = false;
 
 	const bool bRunningCommandlet = IsRunningCommandlet();
@@ -6201,25 +6256,28 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 		bShouldThrottle = Settings->bThrottleCPUWhenNotForeground;
 
 		// Check if we should throttle due to all windows being minimized
-		if ( !bShouldThrottle )
+		if (FSlateApplication::IsInitialized())
 		{
-			 bShouldThrottle = AreAllWindowsHidden();
-		}
+			if (!bShouldThrottle)
+			{
+				bShouldThrottle = AreAllWindowsHidden();
+			}
 
-		// Do not throttle during drag and drop
-		if (bShouldThrottle && FSlateApplication::Get().IsDragDropping())
-		{
-			bShouldThrottle = false;
-		}
-
-		if (bShouldThrottle)
-		{
-			static const FName AssetRegistryName(TEXT("AssetRegistry"));
-			FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(AssetRegistryName);
-			// Don't throttle during amortized export, greatly increases export time
-			if (IsLightingBuildCurrentlyExporting() || GShaderCompilingManager->IsCompiling() || (AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets()))
+			// Do not throttle during drag and drop
+			if (bShouldThrottle && FSlateApplication::Get().IsDragDropping())
 			{
 				bShouldThrottle = false;
+			}
+
+			if (bShouldThrottle)
+			{
+				static const FName AssetRegistryName(TEXT("AssetRegistry"));
+				FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(AssetRegistryName);
+				// Don't throttle during amortized export, greatly increases export time
+				if (IsLightingBuildCurrentlyExporting() || GShaderCompilingManager->IsCompiling() || (AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets()))
+				{
+					bShouldThrottle = false;
+				}
 			}
 		}
 	}
@@ -6675,17 +6733,19 @@ void UEditorEngine::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 		}
 	}
 	// UEngine::LoadMap broadcast this event with InLevel==NULL, before cleaning up the world during travel in Multiplayer
-	else if (InWorld->IsPlayInEditor() && Trans)
+	else if (Trans)
 	{
-		// Each additional instance of PIE in a multiplayer game will add another barrier, so if the event is triggered then this is the case and we need to lift it
-		// Otherwise there will be an imbalance between barriers set and barriers removed and we won't be able to undo when we return.
-		Trans->RemoveUndoBarrier();
-	}
-
-	if (!InWorld->IsPlayInEditor())
-	{
-		// If we're in editor mode, reset transactions buffer, to ensure that there are no references to a world which is about to be destroyed
-		ResetTransaction(NSLOCTEXT("UnrealEd", "LevelRemovedFromWorldEditorCallback", "Level removed from world"));
+		if (InWorld->IsPlayInEditor())
+		{
+			// Each additional instance of PIE in a multiplayer game will add another barrier, so if the event is triggered then this is the case and we need to lift it
+			// Otherwise there will be an imbalance between barriers set and barriers removed and we won't be able to undo when we return.
+			Trans->RemoveUndoBarrier();
+		}
+		else
+		{
+			// If we're in editor mode, reset transactions buffer, to ensure that there are no references to a world which is about to be destroyed
+			ResetTransaction(NSLOCTEXT("UnrealEd", "LevelRemovedFromWorldEditorCallback", "Level removed from world"));
+		}
 	}
 }
 
@@ -6873,6 +6933,24 @@ void UEditorEngine::UpdateAutoLoadProject()
 	IFileManager::Get().Delete(*AutoLoadInProgressFilename, bRequireExists, bEvenIfReadOnly, bQuiet);
 }
 
+FString NetworkRemapPath_TestLevelScriptActor(const ALevelScriptActor* LevelScriptActor, const FString& AssetName, const FString& LevelPackageName, const FString& PathName, const FString& PrefixedPathName)
+{
+	FString ResultStr;
+
+	UClass* LSAClass = LevelScriptActor ? LevelScriptActor->GetClass() : nullptr;
+
+	if (LSAClass && LSAClass->GetName() == AssetName && LSAClass->GetOutermost()->GetName() != LevelPackageName)
+	{
+		ResultStr = PathName;
+	}
+	else
+	{
+		ResultStr = PrefixedPathName;
+	}
+
+	return ResultStr;
+}
+
 FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bool bReading, bool bIsReplay)
 {
 	if (bReading)
@@ -6910,16 +6988,7 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 
 			if (WorldPackageName == PrefixedPackageName)
 			{
-				const ALevelScriptActor* LSA = World->GetLevelScriptActor();
-				if (LSA && LSA->GetClass() && LSA->GetClass()->GetName() == AssetName && LSA->GetClass()->GetOutermost()->GetName() != WorldPackageName)
-				{
-					Str = Path.ToString();
-				}
-				else
-				{
-					Str = PrefixedFullName;
-				}
-				
+				Str = NetworkRemapPath_TestLevelScriptActor(World->GetLevelScriptActor(), AssetName, WorldPackageName, Path.ToString(), PrefixedFullName);
 				return true;
 			}
 
@@ -6928,9 +6997,11 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 				if (StreamingLevel != nullptr)
 				{
 					const FString StreamingLevelName = StreamingLevel->GetWorldAsset().GetLongPackageName();
+					const FString LevelPackageName = StreamingLevel->GetWorldAssetPackageName();
+
 					if (StreamingLevelName == PrefixedPackageName)
 					{
-						Str = PrefixedFullName;
+						Str = NetworkRemapPath_TestLevelScriptActor(StreamingLevel->GetLevelScriptActor(), AssetName, LevelPackageName, Path.ToString(), PrefixedFullName);
 						return true;
 					}
 				}
@@ -7490,7 +7561,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		FlushRenderingCommands();
 
 		// Set only require the preview feature level and the max feature level. The Max feature level is required for the toggle feature.
-		for (uint32 i = (uint32)ERHIFeatureLevel::ES2; i < (uint32)ERHIFeatureLevel::Num; i++)
+		for (uint32 i = (uint32)ERHIFeatureLevel::ES3_1; i < (uint32)ERHIFeatureLevel::Num; i++)
 		{
 			ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)i;
 			UMaterialInterface::SetGlobalRequiredFeatureLevel(FeatureLevel, FeatureLevel == PreviewPlatform.PreviewFeatureLevel || FeatureLevel == GMaxRHIFeatureLevel);

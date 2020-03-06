@@ -45,25 +45,7 @@ bool FOSCAddress::Matches(const FOSCAddress& InAddress) const
 {
 	if (IsValidPattern() && InAddress.IsValidPath())
 	{
-		if (Containers.Num() != InAddress.Containers.Num())
-		{
-			return false;
-		}
-
-		if (!FAudioAddressPattern::PartsMatch(Method, InAddress.Method))
-		{
-			return false;
-		}
-
-		for (int32 i = 0; i < Containers.Num(); ++i)
-		{
-			if (!FAudioAddressPattern::PartsMatch(Containers[i], InAddress.Containers[i]))
-			{
-				return false;
-			}
-		}
-
-		return true; 
+		return FAudioAddressPattern::PartsMatch(GetFullPath(), InAddress.GetFullPath());
 	}
 
 	return false;
@@ -145,6 +127,17 @@ TArray<FString> FOSCAddress::PopContainers(int32 InNumContainers)
 
 	Hash = GetTypeHash(GetFullPath());
 	return Popped;
+}
+
+void FOSCAddress::RemoveContainers(int32 InIndex, int32 InCount)
+{
+	if (InIndex >= 0 && InCount > 0)
+	{
+		if (InIndex + InCount < Containers.Num())
+		{
+			Containers.RemoveAt(InIndex, InCount);
+		}
+	}
 }
 
 void FOSCAddress::ClearContainers()

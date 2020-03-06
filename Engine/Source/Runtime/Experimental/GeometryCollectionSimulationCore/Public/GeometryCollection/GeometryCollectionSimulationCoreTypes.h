@@ -7,6 +7,7 @@
 #include "GeometryCollection/RecordedTransformTrack.h"
 #include "GeometryCollectionSimulationTypes.h"
 #include "Chaos/ClusterCreationParameters.h"
+#include "Chaos/CollisionFilterData.h"
 
 class FGeometryCollection;
 class FGeometryDynamicCollection;
@@ -128,6 +129,9 @@ struct FCollisionDataSimulationParameters
 	bool DoCollisionDataSpatialHash;
 	float CollisionDataSpatialHashRadius;
 	int32 MaxCollisionPerCell;
+
+	FCollisionFilterData QueryData;
+	FCollisionFilterData SimData;
 };
 
 struct FBreakingDataSimulationParameters
@@ -197,7 +201,6 @@ struct FSimulationParameters
 	FSimulationParameters()
 		: Name("")
 		, RestCollection(nullptr)
-		, DynamicCollection(nullptr)
 		, RecordedTrack(nullptr)
 		, bOwnsTrack(false)
 		, Simulating(false)
@@ -209,6 +212,8 @@ struct FSimulationParameters
 		, ClusterConnectionMethod(Chaos::FClusterCreationParameters<float>::EConnectionMethod::PointImplicit)
 		, CollisionGroup(0)
 		, CollisionSampleFraction(1.0)
+		, LinearEtherDrag(0.0)
+		, AngularEtherDrag(0.0)
 		, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_None)
 		, InitialLinearVelocity(FVector(0))
 		, InitialAngularVelocity(FVector(0))
@@ -216,14 +221,12 @@ struct FSimulationParameters
 		, CacheBeginTime(0.0f)
 		, ReverseCacheBeginTime(0.0f)
 		, bClearCache(false)
-		, InitializationState(ESimulationInitializationState::Unintialized)
 		, RemoveOnFractureEnabled(false)
 	{}
 
 
 	FSimulationParameters(const FSimulationParameters& Other)
 		: RestCollection(Other.RestCollection)
-		, DynamicCollection(Other.DynamicCollection)
 		, InitializationCommands(Other.InitializationCommands)
 		, RecordedTrack(Other.RecordedTrack)
 		, bOwnsTrack(false)
@@ -235,6 +238,8 @@ struct FSimulationParameters
 		, ClusterConnectionMethod(Other.ClusterConnectionMethod)
 		, CollisionGroup(Other.CollisionGroup)
 		, CollisionSampleFraction(Other.CollisionSampleFraction)
+		, LinearEtherDrag(Other.LinearEtherDrag)
+		, AngularEtherDrag(Other.AngularEtherDrag)
 		, InitialVelocityType(Other.InitialVelocityType)
 		, InitialLinearVelocity(Other.InitialLinearVelocity)
 		, InitialAngularVelocity(Other.InitialAngularVelocity)
@@ -247,7 +252,6 @@ struct FSimulationParameters
 		, BreakingData(Other.BreakingData)
 		, TrailingData(Other.TrailingData)
 		, Shared(Other.Shared)
-		, InitializationState(Other.InitializationState)
 		, RemoveOnFractureEnabled(false)
 	{}
 
@@ -264,7 +268,6 @@ struct FSimulationParameters
 
 	FString Name;
 	const FGeometryCollection* RestCollection;
-	FGeometryDynamicCollection* DynamicCollection;
 	TArray<FFieldSystemCommand> InitializationCommands;
 	const FRecordedTransformTrack* RecordedTrack;
 	bool bOwnsTrack;
@@ -281,6 +284,9 @@ struct FSimulationParameters
 
 	int32 CollisionGroup;
 	float CollisionSampleFraction;
+
+	float LinearEtherDrag;
+	float AngularEtherDrag;
 
 	EInitialVelocityTypeEnum InitialVelocityType;
 	FVector InitialLinearVelocity;
@@ -300,8 +306,6 @@ struct FSimulationParameters
 	FTrailingDataSimulationParameters TrailingData;
 
 	FSharedSimulationParameters Shared;
-
-	ESimulationInitializationState InitializationState;
 
 	bool RemoveOnFractureEnabled;
 };

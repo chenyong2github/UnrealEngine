@@ -7,7 +7,6 @@
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
 #include "EngineDefines.h"
-#include "PhysxUserData.h"
 #include "Vehicles/TireType.h"
 #include "PhysicsEngine/PhysicsSettingsEnums.h"
 #include "Physics/PhysicsInterfaceCore.h"
@@ -15,10 +14,12 @@
 
 struct FPropertyChangedEvent;
 
+#if PHYSICS_INTERFACE_PHYSX
 namespace physx
 {
 	class PxMaterial;
 }
+#endif
 
 /** DEPRECATED Pairs desired tire friction scale with tire type */
 USTRUCT()
@@ -85,6 +86,18 @@ class ENGINE_API UPhysicalMaterial : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalMaterial, meta=(ClampMin=0))
 	float Density;
 
+	/**  How low the linear velocity can be before solver puts body to sleep. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalMaterial, meta = (ClampMin = 0))
+	float SleepLinearVelocityThreshold;
+
+	/** How low the angular velocity can be before solver puts body to sleep. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalMaterial, meta = (ClampMin = 0))
+	float SleepAngularVelocityThreshold;
+
+	/** How many ticks we can be under thresholds for before solver puts body to sleep. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalMaterial, meta = (ClampMin = 0))
+	int32 SleepCounterThreshold;
+
 	/** 
 	 *	Used to adjust the way that mass increases as objects get larger. This is applied to the mass as calculated based on a 'solid' object. 
 	 *	In actuality, larger objects do not tend to be solid, and become more like 'shells' (e.g. a car is not a solid piece of metal).
@@ -118,9 +131,7 @@ public:
 
 	FPhysicsMaterialHandle MaterialHandle;
 
-#if WITH_PHYSX
-	FPhysxUserData PhysxUserData;
-#endif
+	FChaosUserData UserData;
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR

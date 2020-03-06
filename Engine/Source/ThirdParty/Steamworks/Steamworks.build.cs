@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Globalization;
 using System.IO;
 using UnrealBuildTool;
 
@@ -8,14 +9,15 @@ public class Steamworks : ModuleRules
 {
 	public Steamworks(ReadOnlyTargetRules Target) : base(Target)
 	{
-		// The current SDK version number.
+        // The current SDK version number.
         double SteamVersionNumber = 1.47;
 
         // Mark the current version of the Steam SDK
-        string SteamVersion = String.Format("v{0}", SteamVersionNumber).Replace(".", "");
+        string SteamVersion = String.Format(CultureInfo.InvariantCulture, "v{0}", SteamVersionNumber).Replace(".", "");
+
 		Type = ModuleType.External;
 
-		PublicDefinitions.Add(String.Format("STEAM_SDK_VER=TEXT(\"{0}\")", SteamVersionNumber));
+		PublicDefinitions.Add(String.Format(CultureInfo.InvariantCulture, "STEAM_SDK_VER=TEXT(\"{0}\")", SteamVersionNumber));
 		PublicDefinitions.Add("STEAM_SDK_VER_PATH=TEXT(\"Steam" + SteamVersion + "\")");
 
         string SdkBase = Target.UEThirdPartySourceDirectory + "Steamworks/Steam" + SteamVersion + "/sdk";

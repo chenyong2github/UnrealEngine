@@ -55,13 +55,12 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	//~ End UMaterialExpression Interface
 
 	/** Return whether this is the named parameter, and fill in its value */
-	bool IsNamedParameter(const FMaterialParameterInfo& ParameterInfo, UTexture*& OutValue) const;
+	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue) const;
 
 #if WITH_EDITOR
 	bool SetParameterValue(FName InParameterName, UTexture* InValue);
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	void ApplyChannelNames();
-#endif
 
 	/**
 	 * Return true if the texture is a movie texture
@@ -76,6 +75,7 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	 *	Sets the default texture if none is set
 	 */
 	virtual void SetDefaultTexture();
+#endif // WITH_EDITOR
 
 	virtual FGuid& GetParameterExpressionId() override
 	{

@@ -73,11 +73,11 @@ void UTakeRecorderPanel::SetupForViewing(ULevelSequence* LevelSequenceAsset)
 	}
 }
 
-void UTakeRecorderPanel::NewTake()
+void UTakeRecorderPanel::ClearPendingTake()
 {
 	if (ValidateTabContent())
 	{
-		WeakTabContent.Pin()->NewTake();
+		WeakTabContent.Pin()->ClearPendingTake();
 	}
 }
 

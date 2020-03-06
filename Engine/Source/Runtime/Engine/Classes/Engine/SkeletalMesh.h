@@ -63,6 +63,29 @@ namespace nvidia
 }
 #endif
 
+UENUM()
+enum class ESkinCacheUsage : uint8
+{
+	// Auto will defer to child or global behavior based on context. If Ray Tracing is enabled, will imply Enabled
+	Auto		= 0,
+
+	// Mesh will not use the skin cache. If Ray Tracing is enabled, will imply Enabled
+	Disabled	= uint8(-1),
+
+	// Mesh will use the skin cache
+	Enabled		= 1,
+};
+
+UENUM()
+enum class ESkinCacheDefaultBehavior : uint8
+{
+	// All skeletal meshes are excluded from the skin cache. Each must opt in individually. If Ray Tracing is enabled, will imply Inclusive
+	Exclusive = 0,
+
+	// All skeletal meshes are included into the skin cache. Each must opt out individually
+	Inclusive = 1,
+};
+
 USTRUCT()
 struct FBoneMirrorInfo
 {
@@ -215,6 +238,12 @@ struct FSkeletalMeshLODInfo
 	/** The filename of the file tha was used to import this LOD if it was not auto generated. */
 	UPROPERTY(VisibleAnywhere, Category= SkeletalMeshLODInfo, AdvancedDisplay)
 	FString SourceImportFilename;
+
+	/**
+	 * How this LOD uses the skin cache feature. Auto will defer to the default project global option. If Ray Tracing is enabled, will imply Enabled
+	 */
+	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo)
+	ESkinCacheUsage SkinCacheUsage = ESkinCacheUsage::Auto;
 
 	/** Whether to disable morph targets for this LOD. */
 	UPROPERTY()
@@ -1015,6 +1044,11 @@ public:
 #if WITH_EDITOR
 private:
 	int32 PostEditChangeStackCounter;
+
+	//When loading a legacy asset (saved before the skeletalmesh build refactor), we need to create the user sections data.
+	//This function should be call only in the PostLoad
+	void CreateUserSectionsDataForLegacyAssets();
+
 public:
 	//We want to avoid calling post edit change multiple time during import and build process.
 
@@ -1047,6 +1081,7 @@ public:
 	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
 
 	void UpdateGenerateUpToData();
+
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;

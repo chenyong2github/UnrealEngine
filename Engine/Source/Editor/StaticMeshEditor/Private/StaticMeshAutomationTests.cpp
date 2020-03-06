@@ -100,6 +100,7 @@ namespace EditorViewButtonHelper
 				if (!AutomationParameters.ViewportClient->EngineShowFlags.VertexColors)
 				{
 					AutomationParameters.ViewportClient->EngineShowFlags.SetVertexColors(true);
+					AutomationParameters.ViewportClient->EngineShowFlags.SetPhysicalMaterialMasks(false);
 					AutomationParameters.ViewportClient->EngineShowFlags.SetLighting(false);
 					AutomationParameters.ViewportClient->EngineShowFlags.SetIndirectLightingCache(false);
 				}

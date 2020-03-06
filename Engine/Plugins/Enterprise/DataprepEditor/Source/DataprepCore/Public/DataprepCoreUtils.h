@@ -15,6 +15,7 @@
 #include "UObject/Package.h"
 
 class UDataprepAsset;
+class UDataprepActionAsset;
 class UDataprepAssetInterface;
 class UDataprepParameterizableObject;
 struct FScopedSlowTask;
@@ -29,6 +30,12 @@ public:
 	 * @return nullptr if the object is not a part of a dataprep asset
 	 */
 	static UDataprepAsset* GetDataprepAssetOfObject(UObject* Object);
+
+	/**
+	 * Return the dataprep action asset that own the object, if the object is part of a dataprep action asset
+	 * @return nullptr if the object is not a part of a dataprep action asset
+	 */
+	static UDataprepActionAsset* GetDataprepActionAssetOf(UObject* Object);
 
 	/** Delete the objects and do the manipulation required to safely delete the assets */
 	static void PurgeObjects(TArray<UObject*> Objects);
@@ -99,6 +106,30 @@ public:
 	 * @param	ProgressReporterPtr		Pointer to a IDataprepProgressReporter interface. This pointer can be invalid.
 	 */
 	static void BuildAssets(const TArray< TWeakObjectPtr<UObject> >& Assets, const TSharedPtr<IDataprepProgressReporter>& ProgressReporterPtr );
+
+	/**
+	 * Helper function to remove a step from an action.
+	 * This function will remove the action from the Dataprep asset owning it if this is the last step.
+	 * 
+	 * @param	ActionAsset		Action asset to perform the operation on
+	 * @param	Indices			Array of step's indices to remove.
+	 * @param	ActionIndex		Set to INDEX_NONE if the action was not removed from its owning Dataprep asset. Valid index otherwise.
+	 * @return  Returns true if the removal was successful, false otherwise
+	 */
+	static bool RemoveSteps(UDataprepActionAsset* ActionAsset, const TArray<int32>& Indices, int32& ActionIndex );
+
+	/**
+	 * Helper function to remove a step from an action.
+	 * This function will remove the action from the Dataprep asset owning it if this is the last step.
+	 * 
+	 * @param	ActionAsset		Action asset to perform the operation on
+	 * @param	Index			Index of the step to remove.
+	 * @param	ActionIndex		Set to INDEX_NONE if the action was not removed from its owning Dataprep asset. Valid index otherwise.
+	 */
+	static bool RemoveStep(UDataprepActionAsset* ActionAsset, int32 Index, int32& ActionIndex)
+	{
+		return RemoveSteps(ActionAsset, { Index }, ActionIndex);
+	}
 
 	class DATAPREPCORE_API FDataprepLogger : public IDataprepLogger
 	{
@@ -190,5 +221,20 @@ public:
 		int32 TaskDepth;
 		TUniquePtr<FFeedbackContextAnsi> FeedbackContext;
 	};
+
+	/**
+	 * Collect on the valid actors in the input World
+	 * @param World			World to parse
+	 * @param OutActors		Actors present in the world
+	 */
+	static void GetActorsFromWorld(const UWorld* World, TArray<UObject*>& OutActors);
+
+	/**
+	 * Collect on the valid actors in the input World
+	 * @param World			World to parse
+	 * @param OutActors		Actors present in the world
+	 */
+	static void GetActorsFromWorld(const UWorld* World, TArray<AActor*>& OutActors);
+
 };
 

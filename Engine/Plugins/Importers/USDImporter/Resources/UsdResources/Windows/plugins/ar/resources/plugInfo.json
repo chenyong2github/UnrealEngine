@@ -7,7 +7,7 @@
                     "ArPackageResolver": {}
                 }
             },
-            "LibraryPath": "../../../../../Binaries/Win64/libar.dll", 
+            "LibraryPath": "../../../../../Binaries/Win64/ar.dll", 
             "Name": "ar", 
             "ResourcePath": "resources", 
             "Root": "..", 

@@ -14,9 +14,12 @@ class OSC_API FOSCClientProxy : public IOSCClientProxy
 {
 public:
 	FOSCClientProxy(const FString& InClientName);
+	virtual ~FOSCClientProxy();
 
 	void GetSendIPAddress(FString& InIPAddress, int32& Port) const override;
 	bool SetSendIPAddress(const FString& InIPAddress, const int32 Port) override;
+
+	bool IsActive() const override;
 
 	void SendMessage(FOSCMessage& Message) override;
 	void SendBundle(FOSCBundle& Bundle) override;

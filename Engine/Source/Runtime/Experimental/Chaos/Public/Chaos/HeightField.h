@@ -41,6 +41,10 @@ namespace Chaos
 		void EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
 		T GetHeight(int32 InIndex) const;
 		T GetHeight(int32 InX, int32 InY) const;
+		uint8 GetMaterialIndex(int32 InIndex) const;
+		uint8 GetMaterialIndex(int32 InX, int32 InY) const;
+		bool IsHole(int32 InIndex) const;
+		bool IsHole(int32 InCellX, int32 InCellY) const;
 		T GetHeightAt(const TVector<T, 2>& InGridLocationLocal) const;
 
 		int32 GetNumRows() const { return GeomData.NumRows; }
@@ -476,8 +480,8 @@ namespace Chaos
 					}
 				}
 
-				const T TimeToEnter = FMath::Max(TimesToEnter[0],TimesToEnter[1]);
-				const T TimeToExit = FMath::Min(TimesToExit[0],TimesToExit[1]);
+				const T TimeToEnter = FMath::Max(FMath::Abs(TimesToEnter[0]),FMath::Abs(TimesToEnter[1]));
+				const T TimeToExit = FMath::Min(FMath::Abs(TimesToExit[0]),FMath::Abs(TimesToExit[1]));
 
 				if(TimeToExit < TimeToEnter)
 				{
@@ -507,7 +511,7 @@ namespace Chaos
 					}
 				}
 
-				const T MinTime = FMath::Min(Times[0],Times[1]);
+				const T MinTime = FMath::Min(FMath::Abs(Times[0]),FMath::Abs(Times[1]));
 				return MinTime;
 			}
 		};
@@ -554,3 +558,4 @@ namespace Chaos
 
 	};
 }
+

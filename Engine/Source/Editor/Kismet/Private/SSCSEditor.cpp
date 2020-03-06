@@ -6628,6 +6628,7 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 			const FScopedTransaction Transaction(LOCTEXT("PushToBlueprintDefaults_Transaction", "Apply Changes to Blueprint"));
 
 			// The component selection state should be maintained
+			GEditor->GetSelectedActors()->Modify();
 			GEditor->GetSelectedComponents()->Modify();
 
 			Actor->Modify();
@@ -6661,15 +6662,14 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 					}
 				}
 			}
-		}
 
-		// Compile the BP outside of the transaction
- 		if (NumChangedProperties > 0)
- 		{
-			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-			FKismetEditorUtilities::CompileBlueprint(Blueprint);
-			RestoreSelectedInstanceComponent.Restore();
- 		}
+			if (NumChangedProperties > 0)
+			{
+				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+				FKismetEditorUtilities::CompileBlueprint(Blueprint);
+				RestoreSelectedInstanceComponent.Restore();
+			}
+		}
 
 		// Set up a notification record to indicate success/failure
 		FNotificationInfo NotificationInfo(FText::GetEmpty());

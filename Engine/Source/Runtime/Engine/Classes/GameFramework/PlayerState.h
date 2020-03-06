@@ -69,24 +69,18 @@ class ENGINE_API APlayerState : public AInfo
 	virtual ~APlayerState();
 
 	/** Player's current score. */
-	UPROPERTY(replicatedUsing=OnRep_Score, BlueprintReadOnly, Category=PlayerState)
+	UE_DEPRECATED(4.25, "This member will be made private. Use GetScore or SetScore instead.")
+	UPROPERTY(ReplicatedUsing=OnRep_Score, BlueprintReadOnly, Category=PlayerState)
 	float Score;
 
-	/** Player name, or blank if none. */
-	UE_DEPRECATED(4.19, "This property is now deprecated, please use GetPlayerName and SetPlayerName/SetPlayerNameInternal functions instead.")
-	UPROPERTY(BlueprintReadOnly, Category = PlayerState)
-	FString PlayerName;
-
-	/** Previous player name.  Saved on client-side to detect player name changes. */
-	UE_DEPRECATED(4.19, "This property is now deprecated, please use GetOldPlayerName() function instead.")
-	FString OldName;
-
 	/** Unique net id number. Actual value varies based on current online subsystem, use it only as a guaranteed unique number per player. */
-	UPROPERTY(replicatedUsing=OnRep_PlayerId, BlueprintReadOnly, Category=PlayerState)
+	UE_DEPRECATED(4.25, "This member will be made private. Use GetPlayerId or SetPlayerId instead.")
+	UPROPERTY(ReplicatedUsing=OnRep_PlayerId, BlueprintReadOnly, Category=PlayerState)
 	int32 PlayerId;
 
 	/** Replicated compressed ping for this player (holds ping in msec divided by 4) */
-	UPROPERTY(replicated, BlueprintReadOnly, Category=PlayerState)
+	UE_DEPRECATED(4.25, "This member will be made private. Use GetPing or SetPing instead.")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category=PlayerState)
 	uint8 Ping;
 
 private:
@@ -104,36 +98,42 @@ private:
 
 public:
 	/** Whether this player is currently a spectator */
-	UPROPERTY(replicated, BlueprintReadOnly, Category=PlayerState)
+	UE_DEPRECATED(4.25, "This member will be made private. Use IsSpectator or SetIsSpectator instead.")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category=PlayerState)
 	uint8 bIsSpectator:1;
 
 	/** Whether this player can only ever be a spectator */
-	UPROPERTY(replicated)
+	UE_DEPRECATED(4.25, "This member will be made private. Use IsOnlyASpectator or SetIsOnlyASpectator instead.")
+	UPROPERTY(Replicated)
 	uint8 bOnlySpectator:1;
 
 	/** True if this PlayerState is associated with an AIController */
-	UPROPERTY(replicated, BlueprintReadOnly, Category=PlayerState)
+	UE_DEPRECATED(4.25, "This member will be made private. Use IsABot or SetIsABot instead.")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category=PlayerState)
 	uint8 bIsABot:1;
 
 	/** client side flag - whether this player has been welcomed or not (player entered message) */
 	uint8 bHasBeenWelcomed:1;
 
 	/** Means this PlayerState came from the GameMode's InactivePlayerArray */
-	UPROPERTY(replicatedUsing=OnRep_bIsInactive)
+	UE_DEPRECATED(4.25, "This member will be made private. Use IsInative or SetIsInactive instead.")
+	UPROPERTY(ReplicatedUsing=OnRep_bIsInactive)
 	uint8 bIsInactive:1;
 
 	/** indicates this is a PlayerState from the previous level of a seamless travel,
 	 * waiting for the player to finish the transition before creating a new one
 	 * this is used to avoid preserving the PlayerState in the InactivePlayerArray if the player leaves
 	 */
-	UPROPERTY(replicated)
+	UE_DEPRECATED(4.25, "This member will be made private. Use IsFromPreviousLevel or SetIsFromPreviousLevel instead.")
+	UPROPERTY(Replicated)
 	uint8 bFromPreviousLevel:1;
 
 	/** if set, GetPlayerName() will call virtual GetPlayerNameCustom() to allow custom access */
 	uint8 bUseCustomPlayerNames : 1;
 
 	/** Elapsed time on server when this PlayerState was first created.  */
-	UPROPERTY(replicated)
+	UE_DEPRECATED(4.25, "This member will be made private. Use GetStartTime or SetStartTime instead.")
+	UPROPERTY(Replicated)
 	int32 StartTime;
 
 	/** This is used for sending game agnostic messages that can be localized */
@@ -152,7 +152,8 @@ public:
 	 * NOTE: the internals of this property should *never* be exposed to the player as it's transient
 	 * and opaque in meaning (ie it might mean date/time followed by something else).
 	 * It is OK to use and pass around this property, though. */
-	UPROPERTY(replicatedUsing=OnRep_UniqueId)
+	UE_DEPRECATED(4.25, "This member will be made private. Use GetUniqueId or SetUniqueId instead.")
+	UPROPERTY(ReplicatedUsing=OnRep_UniqueId)
 	FUniqueNetIdRepl UniqueId; 
 
 	/** The session that the player needs to join/remove from as it is created/leaves */
@@ -178,7 +179,7 @@ private:
 	float			CurPingBucketTimestamp;
 
 	/** Player name, or blank if none. */
-	UPROPERTY(replicatedUsing = OnRep_PlayerName)
+	UPROPERTY(ReplicatedUsing = OnRep_PlayerName)
 	FString PlayerNamePrivate;
 
 	/** Previous player name.  Saved on client-side to detect player name changes. */
@@ -321,6 +322,103 @@ protected:
 private:
 	// Hidden functions that don't make sense to use on this class.
 	HIDE_ACTOR_TRANSFORM_FUNCTIONS();
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	//~ Begin Methods for Replicated Members.
+public:
+
+	/** Gets the literal value of Score. */
+	float GetScore() const
+	{
+		return Score;
+	}
+
+	/** Sets the value of Score without causing other side effects to this instance. */
+	void SetScore(const float NewScore);
+
+	/** Gets the literal value of PlayerId. */
+	int32 GetPlayerId() const
+	{
+		return PlayerId;
+	}
+
+	/** Sets the value of PlayerId without causing other side effects to this instance. */
+	void SetPlayerId(const int32 NewId);
+
+	/** Gets the literal value of Ping. */
+	uint8 GetPing() const
+	{
+		return Ping;
+	}
+
+	/** Sets the value of Ping without causing other side effects to this instance. */
+	void SetPing(const uint8 NewPing);
+
+	/** Gets the literal value of bIsSpectator. */
+	bool IsSpectator() const
+	{
+		return bIsSpectator;
+	}
+
+	/** Sets the value of bIsSpectator without causing other side effects to this instance. */
+	void SetIsSpectator(const bool bNewSpectator);
+
+	/** Gets the literal value of bOnlySpectator. */
+	bool IsOnlyASpectator() const
+	{
+		return bOnlySpectator;
+	}
+
+	/** Sets the value of bOnlySpectator without causing other side effects to this instance. */
+	void SetIsOnlyASpectator(const bool bNewSpectator);
+
+	/** Gets the literal value of bIsABot. */
+	bool IsABot() const
+	{
+		return bIsABot;
+	}
+
+	/** Sets the value of bIsABot without causing other side effects to this instance. */
+	void SetIsABot(const bool bNewIsABot);
+
+	/** Gets the literal value of bIsInactive. */
+	bool IsInactive() const
+	{
+		return bIsInactive;
+	}
+
+	/** Sets the value of bIsInactive without causing other side effects to this instance. */
+	void SetIsInactive(const bool bNewInactive);
+
+	/** Gets the literal value of bFromPreviousLevel. */
+	bool IsFromPreviousLevel() const
+	{
+		return bFromPreviousLevel;
+	}
+
+	/** Sets the value of bFromPreviousLevel without causing other side effects to this instance. */
+	void SetIsFromPreviousLevel(const bool bNewFromPreviousLevel);
+
+	/** Gets the literal value of StartTime. */
+	int32 GetStartTime() const
+	{
+		return StartTime;
+	}
+
+	/** Sets the value of StartTime without causing other side effects to this instance. */
+	void SetStartTime(const int32 NewStartTime);
+
+	/** Gets the literal value of UniqueId. */
+	const FUniqueNetIdRepl& GetUniqueId() const
+	{
+		return UniqueId;
+	}
+
+	/** Sets the value of UniqueId without causing other side effects to this instance. */
+	void SetUniqueId(const FUniqueNetIdRepl& NewUniqueId);
+	void SetUniqueId(FUniqueNetIdRepl&& NewUniqueId);
+	//~ End Methods for Replicated Members.
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 struct FSetPlayerStatePawn

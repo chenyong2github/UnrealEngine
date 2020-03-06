@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_DIAGNOSTICLITE_H
-#define TF_DIAGNOSTICLITE_H
+#ifndef PXR_BASE_TF_DIAGNOSTIC_LITE_H
+#define PXR_BASE_TF_DIAGNOSTIC_LITE_H
 
 /// \file tf/diagnosticLite.h
 /// Stripped down version of \c diagnostic.h that doesn't define \c std::string.
@@ -149,4 +149,4 @@ Tf_AxiomHelper(bool val, TfCallContext const &ctx, char const *txt) {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_DIAGNOSTICLITE_H
+#endif // PXR_BASE_TF_DIAGNOSTIC_LITE_H

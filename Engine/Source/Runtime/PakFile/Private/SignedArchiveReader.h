@@ -59,6 +59,8 @@ struct FChunkRequest
 	FThreadSafeCounter IsTrusted;
 	/** Reference count */
 	FThreadSafeCounter RefCount;
+	/** Optional pointer to an FEvent that can be used to signal that the request is ready for use */
+	FEvent* Event;
 
 	/**
 	 * Constructor
@@ -67,9 +69,10 @@ struct FChunkRequest
 		: Index(INDEX_NONE)
 		, Offset(0)
 		, Size(0)
-		, Buffer(NULL)
+		, Buffer(nullptr)
 		, IsTrusted(0)
 		, RefCount(0)
+		, Event(nullptr)
 	{}
 
 	/**
@@ -122,8 +125,6 @@ class FChunkCacheWorker : public FRunnable
 	FThreadSafeCounter PendingQueueCounter;
 	/** Event used to signal there's work to be done */
 	FEvent* QueuedRequestsEvent;
-	/** Event used to signal there's completed work to be processed */
-	FEvent* ChunkRequestAvailable;
 	/** List of active chunk requests */
 	TArray<FChunkRequest*> ActiveRequests;
 	/** Stops this thread */
@@ -154,27 +155,12 @@ class FChunkCacheWorker : public FRunnable
 	 */
 	void ReleaseBuffer(int32 ChunkIndex);
 	/**
-	* Initializes the public key
-	*/
-	void SetupDecryptionKey();
-	/**
 	* Is this chunk cache worker running in a thread?
 	*/
 	FORCEINLINE bool IsMultithreaded() const 
 	{ 
 		return Thread != nullptr;
 	}
-
-	/**
-	* Block until there is a new chunk to process on the main thread
-	*/
-	void WaitForNextChunk();
-
-	/**
-	* Reset any outstanding chunk completion event triggers that may still be 
-	* left over when the main thread has finished copying out all the data it needs
-	*/
-	void FlushRemainingChunkCompletionEvents();
 
 public:
 
@@ -193,9 +179,10 @@ public:
 	 * @param ChunkIndex Index of a chunk to load
 	 * @param StartOffset Offset to the beginning of the chunk
 	 * @param ChunkSize Chunk size
+	 * @param Event Optional FEvent that will signal when the request is ready, nullptr is valid if the calling code does not want this signal
 	 * @return Handle to the request.
 	 */
-	FChunkRequest& RequestChunk(int32 ChunkIndex, int64 StartOffset, int64 ChunkSize);
+	FChunkRequest& RequestChunk(int32 ChunkIndex, int64 StartOffset, int64 ChunkSize, FEvent* Event);
 	/**
 	 * Releases the requested chunk buffer
 	 */
@@ -285,9 +272,12 @@ class FSignedArchiveReader : public FArchive
 
 	/** 
 	 * Queues chunks on the worker thread 
+	 * @param Chunks This array will contain info about each chunk created by the call.
+	 * @param Length The length of data to precache
+	 * @param Event Optional FEvent that will signal as each request becomes ready, nullptr is valid if the calling code does not want this signal
 	 * @return Number of chunks in the output array which are actually required for the requested length. The rest are precache chunks 
 	 */
-	int64 PrecacheChunks(TArray<FReadInfo>& Chunks, int64 Length);
+	int64 PrecacheChunks(TArray<FReadInfo>& Chunks, int64 Length, FEvent* Event);
 
 public:
 

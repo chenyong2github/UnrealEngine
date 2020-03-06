@@ -488,6 +488,8 @@ inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const ANS
 
 #endif
 
+CORE_API FStringBuilderBase&				operator<<(FStringBuilderBase& Builder, const FString& Str);
+
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const FStringView& Str)					{ return Builder.Append(Str); }
 
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, int32 Value)							{ return Builder.Appendf(TEXT("%d"), Value); }

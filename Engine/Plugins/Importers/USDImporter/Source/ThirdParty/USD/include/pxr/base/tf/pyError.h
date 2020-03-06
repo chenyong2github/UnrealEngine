@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYERROR_H
-#define TF_PYERROR_H
+#ifndef PXR_BASE_TF_PY_ERROR_H
+#define PXR_BASE_TF_PY_ERROR_H
 
 /// \file tf/error.h
 /// Provide facilities for error handling in script.
@@ -115,4 +115,4 @@ struct Tf_PyErrorClearer {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYERROR_H
+#endif // PXR_BASE_TF_PY_ERROR_H

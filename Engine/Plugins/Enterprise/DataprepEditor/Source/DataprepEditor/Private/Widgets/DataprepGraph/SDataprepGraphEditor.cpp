@@ -3,18 +3,35 @@
 #include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
 
 #include "DataprepAsset.h"
+#include "DataprepEditor.h"
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraph.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
+#include "DataprepGraph/DataprepGraphSchema.h"
+#include "DataprepParameterizableObject.h"
+#include "SchemaActions/DataprepAllMenuActionCollector.h"
 #include "SchemaActions/DataprepDragDropOp.h"
+#include "SchemaActions/IDataprepMenuActionCollector.h"
+#include "SelectionSystem/DataprepFilter.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 #include "Widgets/DataprepWidgets.h"
+#include "Widgets/SDataprepActionMenu.h"
 
+#include "EdGraph/EdGraphSchema.h"
+#include "EdGraphNode_Comment.h"
+#include "EdGraphUtilities.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "Kismet2/Kismet2NameValidators.h"
+#include "ScopedTransaction.h"
 #include "SGraphPanel.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
@@ -29,9 +46,25 @@ const float SDataprepGraphEditor::TopPadding = 60.f;
 const float SDataprepGraphEditor::BottomPadding = 15.f;
 const float SDataprepGraphEditor::HorizontalPadding = 20.f;
 
-TSharedPtr<SDataprepGraphEditorNodeFactory> SDataprepGraphEditor::NodeFactory;
+TSharedPtr<FDataprepGraphEditorNodeFactory> SDataprepGraphEditor::NodeFactory;
 
-TSharedPtr<class SGraphNode> SDataprepGraphEditorNodeFactory::CreateNode(UEdGraphNode* Node) const
+TSharedPtr<SGraphNode> FDataprepGraphNodeFactory::CreateNodeWidget(UEdGraphNode* InNode)
+{
+	if (UDataprepGraphRecipeNode* RecipeNode = Cast<UDataprepGraphRecipeNode>(InNode))
+	{
+		return SNew(SDataprepGraphTrackNode, RecipeNode)
+			.NodeFactory( AsShared() );
+	}
+	else if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(InNode))
+	{
+		return SNew(SDataprepGraphActionNode, ActionNode)
+			.DataprepEditor( DataprepEditor );
+	}
+
+	return FGraphNodeFactory::CreateNodeWidget( InNode );
+}
+
+TSharedPtr<SGraphNode> FDataprepGraphEditorNodeFactory::CreateNode(UEdGraphNode* Node) const
 {
 	if (UDataprepGraphRecipeNode* RecipeNode = Cast<UDataprepGraphRecipeNode>(Node))
 	{
@@ -41,10 +74,6 @@ TSharedPtr<class SGraphNode> SDataprepGraphEditorNodeFactory::CreateNode(UEdGrap
 	{
 		return SNew(SDataprepGraphActionNode, ActionNode);
 	}
-	else if (UDataprepGraphActionStepNode* ActionStepNode = Cast<UDataprepGraphActionStepNode>(Node))
-	{
-		return SNew(SDataprepGraphActionStepNode, ActionStepNode);
-	}
 
 	return nullptr;
 }
@@ -53,7 +82,7 @@ void SDataprepGraphEditor::RegisterFactories()
 {
 	if(!NodeFactory.IsValid())
 	{
-		NodeFactory  = MakeShareable( new SDataprepGraphEditorNodeFactory() );
+		NodeFactory  = MakeShared<FDataprepGraphEditorNodeFactory>();
 		FEdGraphUtilities::RegisterVisualNodeFactory(NodeFactory);
 	}
 }
@@ -71,12 +100,21 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 {
 	check(InDataprepAsset);
 	DataprepAssetPtr = InDataprepAsset;
+	DataprepEditor = InArgs._DataprepEditor;
+
+	SGraphEditor::FGraphEditorEvents Events;
+	Events.OnCreateNodeOrPinMenu = SGraphEditor::FOnCreateNodeOrPinMenu::CreateSP(this, &SDataprepGraphEditor::OnCreateNodeOrPinMenu);
+	Events.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &SDataprepGraphEditor::OnCreateActionMenu);
+	Events.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &SDataprepGraphEditor::OnNodeVerifyTitleCommit);
+	Events.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &SDataprepGraphEditor::OnNodeTitleCommitted);
+
+	BuildCommandList();
 
 	SGraphEditor::FArguments Arguments;
-	Arguments._AdditionalCommands = InArgs._AdditionalCommands;
+	Arguments._AdditionalCommands = GraphEditorCommands;
 	Arguments._TitleBar = InArgs._TitleBar;
 	Arguments._GraphToEdit = InArgs._GraphToEdit;
-	Arguments._GraphEvents = InArgs._GraphEvents;
+	Arguments._GraphEvents = Events;
 
 	SGraphEditor::Construct( Arguments );
 
@@ -95,11 +133,25 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 	bMustRearrange = false;
 
 	LastLocalSize = FVector2D::ZeroVector;
-	LastLocation = FVector2D( 0.f, -TopPadding );
-	LastZoomAmount = 1.f;
+	LastZoomAmount = BIG_NUMBER;
 
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 	bCachedControlKeyDown = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
+
+	SetNodeFactory( MakeShared<FDataprepGraphNodeFactory>( InArgs._DataprepEditor ) );
+}
+
+void SDataprepGraphEditor::NotifyGraphChanged()
+{
+	// Release track node widget as it is about to be re-created
+	TrackGraphNodePtr.Reset();
+	bIsComplete = false;
+
+	// Reset cached size and zoom. No need for location because it is invalidated when size has changed
+	LastLocalSize = FVector2D::ZeroVector;
+	LastZoomAmount = BIG_NUMBER;
+
+	SGraphEditor::NotifyGraphChanged();
 }
 
 // #ueent_toremove: Temp code for the nodes development
@@ -107,13 +159,7 @@ void SDataprepGraphEditor::OnPipelineChanged(UBlueprint* InBlueprint)
 {
 	if (InBlueprint)
 	{
-		TrackGraphNodePtr.Reset();
-		bIsComplete = false;
 		NotifyGraphChanged();
-
-		LastLocalSize = FVector2D::ZeroVector;
-		//LastLocation = FVector2D( BIG_NUMBER );
-		LastZoomAmount = 1.f;
 	}
 }
 
@@ -124,13 +170,23 @@ void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FData
 		case FDataprepAssetChangeType::ActionAdded:
 		case FDataprepAssetChangeType::ActionRemoved:
 		{
-			TrackGraphNodePtr.Reset();
-			bIsComplete = false;
+			TArray<UEdGraphNode*> ToDelete;
+			TArray<UEdGraphNode*>& Nodes = GetCurrentGraph()->Nodes;
+			for(UEdGraphNode* NodeObject : Nodes)
+			{
+				if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+				{
+					ToDelete.Add(NodeObject);
+				}
+			}
+
+			for(UEdGraphNode* NodeObject : ToDelete)
+			{
+				Nodes.Remove(NodeObject);
+			}
+
 			NotifyGraphChanged();
 
-			LastLocalSize = FVector2D::ZeroVector;
-			LastLocation = FVector2D::ZeroVector;
-			LastZoomAmount = 1.f;
 			break;
 		}
 
@@ -171,25 +227,7 @@ void SDataprepGraphEditor::CacheDesiredSize(float InLayoutScaleMultiplier)
 		{
 			bIsComplete = TrackGraphNodePtr.Pin()->RefreshLayout();
 			bMustRearrange = true;
-			// Force a change of viewpoint to update the canvas.
-			SetViewLocation(FVector2D(0.f, -TopPadding), 1.f);
 		}
-	}
-}
-
-void SDataprepGraphEditor::UpdateBoundaries(const FVector2D& LocalSize, float ZoomAmount)
-{
-	if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
-	{
-		CachedTrackNodeSize = TrackGraphNode->Update(LocalSize, ZoomAmount);
-	}
-
-	ViewLocationRangeOnY.Set( -TopPadding, -TopPadding );
-
-	const float DesiredVisualHeight = CachedTrackNodeSize.Y * ZoomAmount;
-	if(LocalSize.Y < DesiredVisualHeight)
-	{
-		ViewLocationRangeOnY.Y = DesiredVisualHeight - LocalSize.Y;
 	}
 }
 
@@ -222,70 +260,57 @@ void SDataprepGraphEditor::Tick(const FGeometry& AllottedGeometry, const double 
 
 void SDataprepGraphEditor::UpdateLayout( const FVector2D& LocalSize, const FVector2D& Location, float ZoomAmount )
 {
-	if(LastZoomAmount != ZoomAmount)
+	if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
 	{
-		UpdateBoundaries( LocalSize, ZoomAmount );
-	}
-
-	if( !LocalSize.Equals(LastLocalSize) )
-	{
-		bMustRearrange = true;
-
-		UpdateBoundaries( LocalSize, ZoomAmount );
-
-		LastLocalSize = LocalSize;
-
-		// Force a re-compute of the view location
-		LastLocation = -Location;
-	}
-
-	if( !Location.Equals(LastLocation) )
-	{
-		FVector2D ComputedLocation( LastLocation );
-
-		if(Location.X != LastLocation.X)
+		if(LastZoomAmount != ZoomAmount)
 		{
-			const float ActualWidth = LocalSize.X / ZoomAmount;
-			const float MaxInX = CachedTrackNodeSize.X > ActualWidth ? CachedTrackNodeSize.X - ActualWidth : 0.f;
-			ComputedLocation.X = Location.X < 0.f ? 0.f : Location.X >= MaxInX ? MaxInX : Location.X;
+			WorkingArea = TrackGraphNode->Update();
 		}
 
-		if(Location.Y != LastLocation.Y)
+		if( !LocalSize.Equals(LastLocalSize) )
 		{
-			// Keep same visual Y position if only zoom has changed
-			// Assumption: user cannot zoom in or out and move the canvas at the same time
-			if(LastZoomAmount != ZoomAmount)
+			bMustRearrange = true;
+
+			WorkingArea = TrackGraphNode->Update();
+
+			LastLocalSize = LocalSize;
+
+			// Force a re-compute of the view location
+			LastLocation = -Location;
+		}
+
+		if( !Location.Equals(LastLocation) )
+		{
+			FVector2D ComputedLocation(Location);
+
+			FVector2D PanelSize = LocalSize / ZoomAmount;
+			FVector2D WorkingSize = WorkingArea.GetSize();
+
+			if(Location.X != LastLocation.X)
 			{
-				ComputedLocation.Y = LastLocation.Y * LastZoomAmount / ZoomAmount;
+				const float Delta = WorkingSize.X - PanelSize.X;
+				const float MaxRight =  Delta > 0.f ? WorkingArea.Left + Delta : WorkingArea.Left;
+				ComputedLocation.X = ComputedLocation.X < WorkingArea.Left ? WorkingArea.Left : (ComputedLocation.X >= MaxRight ? MaxRight : ComputedLocation.X);
 			}
-			else
+
+			if(Location.Y != LastLocation.Y)
 			{
-				const float ActualPositionInY = Location.Y * ZoomAmount;
-				if(ActualPositionInY <= ViewLocationRangeOnY.X )
-				{
-					ComputedLocation.Y = ViewLocationRangeOnY.X / ZoomAmount;
-				}
-				else if( ActualPositionInY > ViewLocationRangeOnY.Y )
-				{
-					ComputedLocation.Y = ViewLocationRangeOnY.Y / ZoomAmount;
-				}
-				else
-				{
-					ComputedLocation.Y = Location.Y;
-				}
+				const float Delta = WorkingSize.Y - PanelSize.Y;
+				const float MaxBottom =  Delta > 0.f ? WorkingArea.Top + Delta : WorkingArea.Top;
+				ComputedLocation.Y = ComputedLocation.Y < WorkingArea.Top ? WorkingArea.Top : (ComputedLocation.Y >= MaxBottom ? MaxBottom : ComputedLocation.Y);
+			}
+
+			LastLocation = Location;
+
+			if(ComputedLocation != Location)
+			{
+				SetViewLocation( ComputedLocation, ZoomAmount );
+				LastLocation = ComputedLocation;
 			}
 		}
 
-		LastLocation = Location;
-
-		if(ComputedLocation != Location)
-		{
-			SetViewLocation( ComputedLocation, ZoomAmount );
-			LastLocation = ComputedLocation;
-		}
+		LastZoomAmount = ZoomAmount;
 	}
-
-	LastZoomAmount = ZoomAmount;
 }
 
 void SDataprepGraphEditor::OnDragEnter(const FGeometry & MyGeometry, const FDragDropEvent & DragDropEvent)
@@ -294,7 +319,7 @@ void SDataprepGraphEditor::OnDragEnter(const FGeometry & MyGeometry, const FDrag
 	if (TrackGraphNodePtr.IsValid() && DragNodeOp.IsValid())
 	{
 		// Inform the Drag and Drop operation that we are hovering over this node.
-		DragNodeOp->SetGraphPanel(TrackGraphNodePtr.Pin()->GetOwnerPanel());
+		DragNodeOp->SetTrackNode(TrackGraphNodePtr.Pin());
 	}
 
 	SGraphEditor::OnDragEnter(MyGeometry, DragDropEvent);
@@ -316,8 +341,8 @@ void SDataprepGraphEditor::OnDragLeave(const FDragDropEvent & DragDropEvent)
 	TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if (TrackGraphNodePtr.IsValid() && DragNodeOp.IsValid())
 	{
-		// Inform the Drag and Drop operation that we are hovering over this node.
-		DragNodeOp->SetGraphPanel(TSharedPtr<SGraphPanel>());
+		// Inform the Drag and Drop operation that we are not hovering over this node anymore.
+		DragNodeOp->SetTrackNode(TSharedPtr<SDataprepGraphTrackNode>());
 	}
 
 	SGraphEditor::OnDragLeave(DragDropEvent);
@@ -328,13 +353,511 @@ FReply SDataprepGraphEditor::OnDrop(const FGeometry& MyGeometry, const FDragDrop
 	TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if (TrackGraphNodePtr.IsValid() && DragNodeOp.IsValid())
 	{
-		//const FVector2D NodeAddPosition = (MyGeometry.AbsoluteToLocal( DragDropEvent.GetScreenSpacePosition() ) / LastZoomAmount) + LastLocation;
-		//return DragNodeOp->DroppedOnPanel(SharedThis(this), DragDropEvent.GetScreenSpacePosition(), NodeAddPosition, *GetCurrentGraph()).EndDragDrop();
-
 		return FReply::Handled().EndDragDrop();
 	}
 
 	return SGraphEditor::OnDrop(MyGeometry, DragDropEvent);
+}
+
+void SDataprepGraphEditor::BuildCommandList()
+{
+	if (!GraphEditorCommands.IsValid())
+	{
+		GraphEditorCommands = MakeShareable(new FUICommandList);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Rename,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::OnRenameNode),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanRenameNode)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().SelectAll,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::SelectAllNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanSelectAllNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::DeleteSelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanDeleteNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Copy,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::CopySelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanCopyNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Cut,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::CutSelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanCutNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Paste,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::PasteNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanPasteNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
+			FExecuteAction::CreateSP(this, &SDataprepGraphEditor::DuplicateNodes),
+			FCanExecuteAction::CreateSP(this, &SDataprepGraphEditor::CanDuplicateNodes)
+		);
+	}
+}
+
+void SDataprepGraphEditor::OnRenameNode()
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		UEdGraphNode* SelectedNode = Cast<UEdGraphNode>(*NodeIt);
+		if (SelectedNode != NULL && SelectedNode->bCanRenameNode && TrackGraphNodePtr.IsValid())
+		{
+			TrackGraphNodePtr.Pin()->RequestRename(SelectedNode);
+			break;
+		}
+	}
+}
+
+bool SDataprepGraphEditor::CanRenameNode() const
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	if ( SelectedNodes.Num() == 1)
+	{
+		if ( UDataprepGraphActionNode* SelectedNode = Cast<UDataprepGraphActionNode>(*SelectedNodes.CreateConstIterator()) )
+		{
+			return SelectedNode->bCanRenameNode;
+		}
+	}
+
+	return false;
+}
+
+void SDataprepGraphEditor::DeleteSelectedNodes()
+{
+	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	TArray<int32> ActionsToDelete;
+	TSet<UDataprepActionAsset*> ActionAssets;
+	for(UObject* NodeObject : SelectedNodes)
+	{
+		if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+		{
+			if (ActionNode->CanUserDeleteNode() && ActionNode->GetDataprepActionAsset())
+			{
+				ActionsToDelete.Add(ActionNode->GetExecutionOrder());
+				ActionAssets.Add(ActionNode->GetDataprepActionAsset());
+			}
+		}
+	}
+
+	UEdGraph* EdGraph = GetCurrentGraph();
+
+	TMap<UDataprepActionAsset*, TArray<int32>> StepsToDelete;
+	for(UObject* NodeObject : SelectedNodes)
+	{
+		if (UDataprepGraphActionStepNode* ActionStepNode = Cast<UDataprepGraphActionStepNode>(NodeObject))
+		{
+			UDataprepActionAsset* ActionAsset = ActionStepNode->GetDataprepActionAsset();
+			if (ActionStepNode->CanUserDeleteNode() && ActionAsset && !ActionAssets.Contains(ActionAsset))
+			{
+				TArray<int32>& ToDelete = StepsToDelete.FindOrAdd(ActionAsset);
+				ToDelete.Add(ActionStepNode->GetStepIndex());
+
+				// Delete action if all its steps are deleted
+				if(ActionAsset->GetStepsCount() == ToDelete.Num())
+				{
+					StepsToDelete.Remove(ActionAsset);
+					int32 Index = DataprepAssetPtr->GetActionIndex(ActionAsset);
+					ensure(Index != INDEX_NONE);
+					ActionsToDelete.Add(Index);
+
+					TArray<class UEdGraphNode*>& Nodes = EdGraph->Nodes;
+					for(Index = 0; Index < Nodes.Num(); ++Index)
+					{
+						if(UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(Nodes[Index]))
+						{
+							if(ActionNode->GetDataprepActionAsset() == ActionAsset)
+							{
+								SelectedNodes.Add(Nodes[Index]);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	FScopedTransaction Transaction(FGenericCommands::Get().Delete->GetDescription());
+	bool bTransactionSuccessful = true;
+
+	if(ActionsToDelete.Num() > 0)
+	{
+		bTransactionSuccessful &= DataprepAssetPtr->RemoveActions(ActionsToDelete);
+	}
+
+	if(StepsToDelete.Num() > 0)
+	{
+		for(TPair<UDataprepActionAsset*, TArray<int32>>& Entry : StepsToDelete)
+		{
+			if(UDataprepActionAsset* ActionAsset = Entry.Key)
+			{
+				bTransactionSuccessful &= ActionAsset->RemoveSteps(Entry.Value);
+			}
+		}
+	}
+
+	TArray<UEdGraphNode*>& Nodes = EdGraph->Nodes;
+	for(UObject* NodeObject : SelectedNodes)
+	{
+		if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+		{
+			Nodes.Remove(ActionNode);
+		}
+	}
+
+	if (!bTransactionSuccessful)
+	{
+		Transaction.Cancel();
+	}
+}
+
+bool SDataprepGraphEditor::CanDeleteNodes() const
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	for (UObject* NodeObject : SelectedNodes)
+	{
+		// If any nodes allow deleting, then do not disable the delete option
+		UEdGraphNode* Node = Cast<UEdGraphNode>(NodeObject);
+		if (Node && Node->CanUserDeleteNode())
+		{
+			return true;
+			break;
+		}
+	}
+
+	return false;
+}
+
+void SDataprepGraphEditor::CopySelectedNodes()
+{
+	// Export the selected nodes and place the text on the clipboard
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	TSet<UObject*> ActionsToCopy;
+
+	for (UObject* NodeObject : SelectedNodes)
+	{
+		if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+		{
+			UDataprepActionAsset* ActionAsset = ActionNode->GetDataprepActionAsset();
+			// Temporarily set DataprepActionAsset's owner as ActionNode to serialize it with the EdGraphNode
+			ActionAsset->Rename(nullptr, ActionNode, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+
+			ActionNode->PrepareForCopying();
+			ActionsToCopy.Add(ActionNode);
+		}
+	}
+
+	if(ActionsToCopy.Num() > 0)
+	{
+		FString ExportedText;
+
+		FEdGraphUtilities::ExportNodesToText(ActionsToCopy, /*out*/ ExportedText);
+		FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+
+		// Restore DataprepActionAssets' owner to the DataprepAsset
+		for (UObject* NodeObject : ActionsToCopy)
+		{
+			if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
+			{
+				UDataprepActionAsset* ActionAsset = ActionNode->GetDataprepActionAsset();
+				ActionAsset->Rename(nullptr, DataprepAssetPtr.Get(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			}
+		}
+	}
+}
+
+bool SDataprepGraphEditor::CanCopyNodes() const
+{
+	// If any of the nodes can be duplicated then we should allow copying
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	for (UObject* NodeObject : SelectedNodes)
+	{
+		UDataprepGraphActionNode* Node = Cast<UDataprepGraphActionNode>(NodeObject);
+		if ((Node != NULL) && Node->CanDuplicateNode())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void SDataprepGraphEditor::CutSelectedNodes()
+{
+	CopySelectedNodes();
+	// Cut should only delete nodes that can be duplicated
+	DeleteSelectedDuplicatableNodes();
+}
+
+bool SDataprepGraphEditor::CanCutNodes() const
+{
+	return CanCopyNodes() && CanDeleteNodes();
+}
+
+void SDataprepGraphEditor::PasteNodes()
+{
+	ClearSelectionSet();
+
+	// Grab the text to paste from the clipboard.
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+	// Create temporary graph
+	FName UniqueGraphName = MakeUniqueObjectName( GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("DataprepTempGraph", "TempGraph").ToString()) ) );
+	TStrongObjectPtr<UDataprepGraph> DataprepGraph = TStrongObjectPtr<UDataprepGraph>( NewObject< UDataprepGraph >(GetTransientPackage(), UniqueGraphName) );
+	DataprepGraph->Schema = UDataprepGraphSchema::StaticClass();
+
+	// Import the nodes
+	// #ueent_wip: The FEdGraphUtilities::ImportNodesFromTex could be replaced
+	TSet<UEdGraphNode*> PastedNodes;
+	FEdGraphUtilities::ImportNodesFromText(DataprepGraph.Get(), TextToImport, /*out*/ PastedNodes);
+
+	TArray<const UDataprepActionAsset*> Actions;
+	for(UEdGraphNode* Node : PastedNodes)
+	{
+		UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(Node);
+		if (ActionNode && ActionNode->CanDuplicateNode() && ActionNode->GetDataprepActionAsset())
+		{
+			Actions.Add(ActionNode->GetDataprepActionAsset());
+		}
+	}
+
+	if(Actions.Num() > 0)
+	{
+		FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
+		if(DataprepAssetPtr->AddActions(Actions) == INDEX_NONE)
+		{
+			Transaction.Cancel();
+		}
+	}
+}
+
+bool SDataprepGraphEditor::CanPasteNodes() const
+{
+	FString ClipboardContent;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+
+	return FEdGraphUtilities::CanImportNodesFromText(GetCurrentGraph(), ClipboardContent);
+}
+
+void SDataprepGraphEditor::DuplicateNodes()
+{
+	// Copy and paste current selection
+	CopySelectedNodes();
+	PasteNodes();
+}
+
+bool SDataprepGraphEditor::CanDuplicateNodes() const
+{
+	return CanCopyNodes();
+}
+
+void SDataprepGraphEditor::DeleteSelectedDuplicatableNodes()
+{
+	// Cache off the old selection
+	const FGraphPanelSelectionSet OldSelectedNodes = GetSelectedNodes();
+
+	// Clear the selection and only select the nodes that can be duplicated
+	FGraphPanelSelectionSet CurrentSelection;
+	ClearSelectionSet();
+
+	FGraphPanelSelectionSet RemainingNodes;
+	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(OldSelectedNodes); SelectedIter; ++SelectedIter)
+	{
+		UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
+		if ((Node != NULL) && Node->CanDuplicateNode())
+		{
+			SetNodeSelection(Node, true);
+		}
+		else
+		{
+			RemainingNodes.Add(Node);
+		}
+	}
+
+	// Delete the nodes which can be duplicated
+	DeleteSelectedNodes();
+
+	// Reselect whatever is left from the original selection after the deletion
+	ClearSelectionSet();
+
+	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(RemainingNodes); SelectedIter; ++SelectedIter)
+	{
+		if (UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter))
+		{
+			SetNodeSelection(Node, true);
+		}
+	}
+}
+
+bool SDataprepGraphEditor::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage)
+{
+	bool bValid(false);
+
+	if (NodeBeingChanged && NodeBeingChanged->bCanRenameNode)
+	{
+		// Clear off any existing error message 
+		NodeBeingChanged->ErrorMsg.Empty();
+		NodeBeingChanged->bHasCompilerMessage = false;
+
+		TSharedPtr<INameValidatorInterface> NameEntryValidator = NodeBeingChanged->MakeNameValidator();
+
+		check( NameEntryValidator.IsValid() );
+
+		EValidatorResult VResult = NameEntryValidator->IsValid(NewText.ToString(), true);
+		if (VResult == EValidatorResult::Ok)
+		{
+			bValid = true;
+		}
+	}
+
+	return bValid;
+}
+
+void SDataprepGraphEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
+{
+	if (NodeBeingChanged)
+	{
+		const FScopedTransaction Transaction(NSLOCTEXT("RenameNode", "RenameNode", "Rename Node"));
+		NodeBeingChanged->Modify();
+		NodeBeingChanged->OnRenameNode(NewText.ToString());
+	}
+}
+
+FActionMenuContent SDataprepGraphEditor::OnCreateActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
+{
+	// bAutoExpand is voluntary ignored for now
+	TUniquePtr<IDataprepMenuActionCollector> ActionCollector = MakeUnique<FDataprepAllMenuActionCollector>();
+
+	TSharedRef<SDataprepActionMenu> ActionMenu =
+		SNew (SDataprepActionMenu, MoveTemp(ActionCollector))
+		.TransactionText(LOCTEXT("AddingANewActionNode","Add a Action Node"))
+		.GraphObj(InGraph)
+		.NewNodePosition(InNodePosition)
+		.DraggedFromPins(InDraggedPins)
+		.OnClosedCallback(InOnMenuClosed);
+
+	return FActionMenuContent( ActionMenu, ActionMenu->GetFilterTextBox() );
+}
+
+FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging)
+{
+	if(CurrentGraph != GetCurrentGraph())
+	{
+		return FActionMenuContent();
+	}
+
+	// Open contextual menu for action node
+	UClass* GraphNodeClass = InGraphNode->GetClass();
+	const bool bIsActionNode = GraphNodeClass == UDataprepGraphActionNode::StaticClass();
+	const UDataprepGraphActionStepNode* FirstStepNode = Cast<UDataprepGraphActionStepNode>( InGraphNode );
+	if( bIsActionNode || FirstStepNode )
+	{
+		MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
+		{
+			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Copy);
+			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Cut);
+			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Duplicate);
+			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Delete);
+		}
+		MenuBuilder->EndSection();
+
+		if ( FirstStepNode )
+		{
+			// Todo revisit this code the implementation is a bit ruff
+			// If all the all to node are filters (also we might need a more robust code path ex: register extension base on the base class/type of the steps?)
+			bool bIsSelectionOnlyFilters = true;
+			bool bAreFilterFromSameAction = true;
+			FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+			TArray<UDataprepFilter*> Filters;
+			Filters.Reserve( SelectedNodes.Num() );
+
+			const UDataprepActionAsset* ClikedAction = FirstStepNode->GetDataprepActionAsset();
+
+
+			for ( UObject* Node : SelectedNodes )
+			{
+				if ( UDataprepGraphActionStepNode* StepNode = Cast<UDataprepGraphActionStepNode>( Node ) )
+				{
+					if ( UDataprepActionAsset* Action = StepNode->GetDataprepActionAsset() )
+					{
+						bAreFilterFromSameAction &= Action == ClikedAction;
+
+						int32 StepIndex = StepNode->GetStepIndex();
+						if ( UDataprepActionStep* Step = Action->GetStep( StepIndex ).Get() )
+						{
+							if ( UDataprepParameterizableObject* StepObject = Step->GetStepObject() )
+							{
+								if ( UDataprepFilter* Filter = Cast<UDataprepFilter>( StepObject ) )
+								{
+									Filters.Add( Filter );
+									continue;
+								}
+							}
+						}
+					}
+				}
+
+				bIsSelectionOnlyFilters = false;
+				break;
+			}
+
+
+
+			if ( bIsSelectionOnlyFilters )
+			{
+				MenuBuilder->BeginSection( FName( TEXT("FilterSection") ), LOCTEXT("FilterSection", "Filter") );
+				{
+					FUIAction InverseFilterAction;
+					InverseFilterAction.ExecuteAction.BindLambda( [Filters]()
+						{
+							FScopedTransaction Transaction( LOCTEXT("InverseFilterTransaction", "Inverse the filter") );
+							for ( UDataprepFilter* Filter : Filters )
+							{
+								Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
+							}
+						});
+					MenuBuilder->AddMenuEntry(LOCTEXT("InverseFilter", "Inverse Filter(s) Selection"),
+						LOCTEXT("InverseFilterTooltip", "Inverse the resulting selection from a filter"),
+						FSlateIcon(),
+						InverseFilterAction);
+
+					if ( TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin() )
+					{ 
+						FUIAction SetFilterPreview;
+						SetFilterPreview.CanExecuteAction.BindLambda( [bAreFilterFromSameAction]() { return bAreFilterFromSameAction; } );
+						SetFilterPreview.ExecuteAction.BindLambda( [Filters, DataprepEditorPtr]()
+							{
+								TArray<UDataprepParameterizableObject*> ObjectsToObserve( Filters );
+								DataprepEditorPtr->SetPreviewedObjects( MakeArrayView<UDataprepParameterizableObject*>( ObjectsToObserve.GetData(), ObjectsToObserve.Num() ) );
+							});
+
+						MenuBuilder->AddMenuEntry(LOCTEXT("SetFilterPreview", "Preview Filter(s)"),
+							bAreFilterFromSameAction ? LOCTEXT("SetFilterPreviewTooltip", "Change the columns of the scene preview and asset preview tabs to display a preview of what the filters would select from the current scene") : LOCTEXT("SetFilterPreviewFailTooltip", "The filters can only be previewed if they are from the same action."),
+							FSlateIcon(),
+							SetFilterPreview);
+					}
+				}
+				MenuBuilder->EndSection();
+			}
+		}
+
+		return FActionMenuContent(MenuBuilder->MakeWidget());
+	}
+
+	// Create contextual for graph panel when on top of track node too
+	return OnCreateActionMenu(CurrentGraph, GetPasteLocation(), TArray<UEdGraphPin*>(), true, SGraphEditor::FActionMenuClosed());
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -4,53 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/LatentActionManager.h"
 #include "ITimedDataInput.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "Tickable.h"
+#include "TimedDataMonitorCalibration.h"
+#include "TimedDataMonitorTypes.h"
 
 #include "TimedDataMonitorSubsystem.generated.h"
-
-
-USTRUCT(BlueprintType)
-struct TIMEDDATAMONITOR_API FTimedDataMonitorInputIdentifier
-{
-	GENERATED_BODY()
-
-private:
-	UPROPERTY()
-	FGuid Identifier;
-
-public:
-	static FTimedDataMonitorInputIdentifier NewIdentifier();
-
-	bool IsValid() const { return Identifier.IsValid(); }
-
-	bool operator== (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Identifier == Identifier; }
-	bool operator!= (const FTimedDataMonitorInputIdentifier& Other) const { return Other.Identifier != Identifier; }
-
-	friend uint32 GetTypeHash(const FTimedDataMonitorInputIdentifier& InIdentifier) { return GetTypeHash(InIdentifier.Identifier); }
-};
-
-
-USTRUCT(BlueprintType)
-struct TIMEDDATAMONITOR_API FTimedDataMonitorChannelIdentifier
-{
-	GENERATED_BODY()
-
-private:
-	UPROPERTY()
-	FGuid Identifier;
-
-public:
-	static FTimedDataMonitorChannelIdentifier NewIdentifier();
-
-	bool IsValid() const { return Identifier.IsValid(); }
-
-	bool operator== (const FTimedDataMonitorChannelIdentifier& Other) const { return Other.Identifier == Identifier; }
-	bool operator!= (const FTimedDataMonitorChannelIdentifier& Other) const { return Other.Identifier != Identifier; }
-
-	friend uint32 GetTypeHash(const FTimedDataMonitorChannelIdentifier& InIdentifier) { return GetTypeHash(InIdentifier.Identifier); }
-};
 
 
 UENUM()
@@ -63,106 +24,70 @@ enum class ETimedDataMonitorInputEnabled : uint8
 
 
 UENUM()
-enum class ETimedDataMonitorCalibrationReturnCode : uint8
+enum class ETimedDataMonitorEvaluationState : uint8
 {
-	/** Success. The values were synchronized. */
-	Succeeded,
-	/** Failed. The timecode provider doesn't have a proper timecode value. */
-	Failed_NoTimecode,
-	/** Failed. At least one input is unresponsive. */
-	Failed_UnresponsiveInput,
-	/** Failed. At least one input doesn't have a defined frame rate. */
-	Failed_InvalidFrameRate,
-	/** Failed. At least one input doesn't have data buffered. */
-	Failed_NoDataBuffered,
-	/** Failed. We tried to find a valid offset for the timecode provider and failed. */
-	Failed_CanNotCallibrateWithoutJam,
-	/** It failed but, we increased the number of buffer of at least one channel. You may retry to see if it works now. */
-	Retry_BufferSizeHasBeenIncreased,
+	NoSample = 0,
+	OutsideRange = 1,
+	InsideRange = 2,
+	Disabled = 3,
 };
 
 
-USTRUCT(BlueprintType)
-struct FTimedDataMonitorCalibrationResult
+/**
+ * Exponential running mean calculator. Gives better result than incremental running mean when parameters change
+ */
+struct FExponentialMeanVarianceTracker
 {
-	GENERATED_BODY();
+	FExponentialMeanVarianceTracker()
+	{
+		Reset();
+	}
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	ETimedDataMonitorCalibrationReturnCode ReturnCode;
+	void Reset();
+	void Update(float NewValue, float MeanOffset);
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	TArray<FTimedDataMonitorChannelIdentifier> FailureChannelIdentifiers;
+	/** Current number of samples used for the running average and variance */
+	int32 SampleCount = 0;
+	
+	/** Last sample value used for statistics */
+	float LastValue = 0.0f;
+	
+	/** Current running mean */
+	float CurrentMean = 0.0f;
+	
+	/** Current running variance */
+	float CurrentVariance = 0.0f;
+	
+	/** Current standard deviation */
+	float CurrentSTD = 0.0f;
+	
+	/** Weight given to new samples. A bigger value means new data will weight more in the calculation. Won't filter if data oscillates a lot. */
+	float Alpha = 0.0f;
 };
-
-
-UENUM()
-enum class ETimedDataMonitorJamReturnCode : uint8
-{
-	/** Success. The values were synchronized. */
-	Succeeded,
-	/** Failed. The timecode provider was not existing or not synchronized. */
-	Failed_NoTimecode,
-	/** Failed. At least one channel is unresponsive. */
-	Failed_UnresponsiveInput,
-	/** Failed. The evaluation type of at least of input doesn't match with what was requested. */
-	Failed_EvaluationTypeDoNotMatch,
-	/** Failed. The channel doesn't have any data in it's buffer to synchronized with. */
-	Failed_NoDataBuffered,
-	/** Failed. The channel or buffer size has been increase but it's still not enough. */
-	Failed_BufferSizeHaveBeenMaxed,
-	/** Failed but we increased the number of buffer of at least one channel. You may retry to see if it works now. */
-	Retry_BufferSizeHasBeenIncreased,
-};
-
-USTRUCT(BlueprintType)
-struct FTimedDataMonitorJamResult
-{
-	GENERATED_BODY();
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Result")
-	ETimedDataMonitorJamReturnCode ReturnCode;
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	TArray<FTimedDataMonitorInputIdentifier> FailureInputIdentifiers;
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	TArray<FTimedDataMonitorChannelIdentifier> FailureChannelIdentifiers;
-};
-
 
 /**
  * Structure to facilitate calculating running mean and variance of evaluation distance to buffered samples for a channel
  */
 struct FTimedDataChannelEvaluationStatistics
 {
+	void CacheSettings(ETimedDataInputEvaluationType EvaluationType, float TimeOffset, int32 BufferSize);
 	void Update(float DistanceToOldest, float DistanceToNewest);
 	void Reset();
+	
+	FExponentialMeanVarianceTracker NewestSampleDistanceTracker;
+	FExponentialMeanVarianceTracker OldestSampleDistanceTracker;
 
-	/** Current number of samples used for the running average and variance */
-	int32 SampleCount = 0;
+	/** Last evaluation type of our input */
+	ETimedDataInputEvaluationType CachedEvaluationType;
 
-	/** Running average of the distance between last evaluation time and oldest sample in the buffer */
-	float IncrementalAverageOldestDistance = 0.0f;
+	/** Last Offset associated with this channel */
+	float CachedOffset = 0.0f;
 
-	/** Running average of the distance between last evaluation time and newest sample in the buffer */
-	float IncrementalAverageNewestDistance = 0.0f;
+	/** Last buffer size associated with this channel */
+	int32 CachedBufferSize = 0;
 
-	/** Running variance of the distance between last evaluation time and oldest sample in the buffer */
-	float IncrementalVarianceDistanceNewest = 0.0f;
-
-	/** Running variance of the distance between last evaluation time and newest sample in the buffer */
-	float IncrementalVarianceDistanceOldest = 0.0f;
-
-	/** Standard deviation of the distance between last evaluation time and oldest sample in the buffer */
-	float DistanceToNewestSTD = 0.0f;
-
-	/** Standard deviation of the distance between last evaluation time and newest sample in the buffer */
-	float DistanceToOldestSTD = 0.0f;
-
-	/** Internal counters of squared distance to average to be able to compute running variance */
-	double SumSquaredDistanceNewest = 0.0;
-	double SumSquaredDistanceOldest = 0.0;
-
+	/** Offset to be applied for the next tick. Used to feedforward mean tracker */
+	float NextTickOffset = 0.0f;
 };
 
 
@@ -174,7 +99,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTimedDataIdentifierListChangedSignature);
  * 
  */
 UCLASS()
-class TIMEDDATAMONITOR_API UTimedDataMonitorSubsystem : public UEngineSubsystem, public FTickableGameObject
+class TIMEDDATAMONITOR_API UTimedDataMonitorSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 
@@ -206,13 +131,11 @@ public:
 	virtual void Deinitialize() override;
 	//~ End USubsystem implementation
 
-	//~ Begin FTickableGameObject implementation
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override;
-	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
-	virtual bool IsTickableWhenPaused() const override { return true; }
-	virtual bool IsTickableInEditor() const override { return true; }
-	//~ End FTickableGameObject implementation
+	/** Used to cache global (Engine TimecodeProvider) frame delay for the current frame. */
+	void BeginFrameCallback();
+
+	/** Used to update statistics once all TimedData are processed. i.e. MediaIO is processed after tickables. */
+	void EndFrameCallback();
 
 public:
 	/** Delegate of when an element is added or removed. */
@@ -229,6 +152,12 @@ public:
 	/** Get the interface for a specific channel identifier. */
 	ITimedDataInputChannel* GetTimedDataChannel(const FTimedDataMonitorChannelIdentifier& Identifier);
 
+	/** Get offset applied to global evaluation time. Only works when a Timecode Provider is used */
+	float GetEvaluationTimeOffsetInSeconds(ETimedDataInputEvaluationType EvaluationType);
+
+	/** Get the current evaluation time. */
+	static double GetEvaluationTime(ETimedDataInputEvaluationType EvaluationType);
+
 public:
 	/** Get the list of all the inputs. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
@@ -238,20 +167,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	TArray<FTimedDataMonitorChannelIdentifier> GetAllChannels();
 
-	/**
-	 * Set evaluation offset for all inputs and the engine's timecode provider to align all the buffers.
-	 * If there is no data available, it may increase the buffer size of an input.
-	 */
+	/** Get the list of all the channels that are enabled. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
-	FTimedDataMonitorCalibrationResult CalibrateWithTimecodeProvider();
+	TArray<FTimedDataMonitorChannelIdentifier> GetAllEnabledChannels();
+
+	/** Change the Timecode Provider offset to align all inputs and channels. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor", meta = (DisplayName = "Calibrate", Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject"))
+	void CalibrateLatent(UObject* WorldContextObject, FLatentActionInfo LatentInfo, const FTimedDataMonitorCalibrationParameters& CalibrationParameters, FTimedDataMonitorCalibrationResult& Result);
 
 	/** Assume all data samples were produce at the same time and align them with the current platform's time */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
-	FTimedDataMonitorJamResult JamInputs(ETimedDataInputEvaluationType EvaluationType);
+	FTimedDataMonitorTimeCorrectionResult ApplyTimeCorrection(const FTimedDataMonitorInputIdentifier& Identifier, const FTimedDataMonitorTimeCorrectionParameters& TimeCorrectionParameters);
 
 	/** Reset the stat of all the inputs. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	void ResetAllBufferStats();
+
+	/** Get the worst evaluation state of all the inputs. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
+	ETimedDataMonitorEvaluationState GetEvaluationState();
 
 	/** Return true if the identifier is a valid input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
@@ -313,9 +247,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputDataBufferSize(const FTimedDataMonitorInputIdentifier& Identifier, int32 BufferSize);
 
-	/** Get the worst state of all the channel state of that input. */
+	/** Get the worst state of all the channels of that input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	ETimedDataInputState GetInputState(const FTimedDataMonitorInputIdentifier& Identifier);
+	ETimedDataInputState GetInputConnectionState(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Get the worst evaluation state of all the channels of that input. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	ETimedDataMonitorEvaluationState GetInputEvaluationState(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Returns the max average distance, in seconds, between evaluation time and newest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetInputEvaluationDistanceToNewestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Returns the min average distance, in seconds, between evaluation time and oldest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetInputEvaluationDistanceToOldestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier);
 
 	/** Returns the standard deviation of the distance, in seconds, between evaluation time and newest sample */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
@@ -348,9 +294,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
 	FText GetChannelDisplayName(const FTimedDataMonitorChannelIdentifier& Identifier);
 
-	/** Get the worst state of all the input state of that channel. */
+	/** Get the state the channel. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
-	ETimedDataInputState GetChannelState (const FTimedDataMonitorChannelIdentifier& Identifier);
+	ETimedDataInputState GetChannelConnectionState (const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Get the evaluation state of the channel. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	ETimedDataMonitorEvaluationState GetChannelEvaluationState(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 	/** Get the channel oldest sample time. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
@@ -412,15 +362,30 @@ private:
 
 	void OnTimedDataSourceCollectionChanged();
 
-	double GetSeconds(ETimedDataInputEvaluationType Evaluation, const FTimedDataChannelSampleTime& SampleTime) const;
-	double CalculateAverageInDeltaTimeBetweenSample(ETimedDataInputEvaluationType Evaluation, const TArray<FTimedDataChannelSampleTime>& SampleTimes) const;
-
 	/** Update internal statistics for each enabled channel */
 	void UpdateEvaluationStatistics();
+
+	/** Starts logging stats for each channel to be dumped in a file */
+	void UpdateStatFileLoggingState();
+
+	/** Adds a log entry for a given channel */
+	void AddStatisticLogEntry(const TPair<FTimedDataMonitorChannelIdentifier, FTimeDataChannelItem>& ChannelEntry);
 
 private:
 	bool bRequestSourceListRebuilt = false;
 	TMap<FTimedDataMonitorInputIdentifier, FTimeDataInputItem> InputMap;
 	TMap<FTimedDataMonitorChannelIdentifier, FTimeDataChannelItem> ChannelMap;
 	FSimpleMulticastDelegate OnIdentifierListChanged_Delegate;
+	float CachedTimecodeProviderFrameDelayInSeconds = 0.0f;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	struct FChannelStatisticLogging
+	{
+		FString ChannelName;
+		TArray<FString> Entries;
+	};
+
+	bool bHasStatFileLoggingStarted = false;
+	TMap<FTimedDataMonitorChannelIdentifier, FChannelStatisticLogging> StatLoggingMap;
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 };

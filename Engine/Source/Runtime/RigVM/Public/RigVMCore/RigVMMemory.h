@@ -191,7 +191,7 @@ struct RIGVM_API FRigVMRegister
 	FORCEINLINE uint64 GetWorkByteIndex() const { return ByteIndex; }
 
 	// returns the first allocated byte in the data byte array
-	FORCEINLINE uint64 GetFirstAllocatedByte() const { return ByteIndex - (uint64)AlignmentBytes - (uint64)(SliceIndex * GetNumBytesPerSlice()); }
+	FORCEINLINE uint64 GetFirstAllocatedByte() const { return ByteIndex - (uint64)AlignmentBytes - ((uint64)SliceIndex * GetNumBytesPerSlice()); }
 
 	// Returns the leading alignment bytes
 	FORCEINLINE uint8 GetAlignmentBytes() const { return AlignmentBytes; }

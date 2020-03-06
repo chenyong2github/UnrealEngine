@@ -22,7 +22,7 @@
 
 //wrap for non-windows platforms
 #if !__UNREAL__ || (PLATFORM_HOLOLENS || PLATFORM_WINDOWS)
-#include <Windows.h>
+
 #include <string>
 
 #include <d3d11.h>
@@ -33,6 +33,10 @@
 
 #include <functional>
 #endif
+
+#include <atomic>
+#include <memory>
+#include <vector>
 
 #pragma warning(default:4005)
 #pragma warning(default:4668)
@@ -65,7 +69,9 @@ struct MIXEDREALITYINTEROP_API TransformUpdate
 struct MIXEDREALITYINTEROP_API MeshUpdate :
 	public TransformUpdate
 {
+	enum MeshType {	World, Hand	};
 	GUID Id;
+	MeshType Type = World;
 
 	/** If this is zero, there were no mesh changes */
 	int NumVertices = 0;
@@ -123,7 +129,8 @@ namespace WindowsMixedReality
 	enum class HMDEye
 	{
 		Left = 0,
-		Right = 1
+		Right = 1,
+		ThirdCamera = 2
 	};
 
 	enum class HMDTrackingOrigin
@@ -184,6 +191,15 @@ namespace WindowsMixedReality
 		ThumbstickY,
 		TouchpadX,
 		TouchpadY
+	};
+	
+	enum class HMDRemotingConnectionState
+	{
+		Connecting,
+		Connected,
+		Disconnected,
+		Unknown,
+		Undefined
 	};
 
 	enum class HMDHandJoint
@@ -364,7 +380,7 @@ namespace WindowsMixedReality
 
 		// Get the latest pose information from our tracking frame.
 		bool GetCurrentPoseRenderThread(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin);
-		bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, HMDTrackingOrigin& trackingOrigin);
+		static bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, HMDTrackingOrigin& trackingOrigin);
 		
 		DirectX::XMFLOAT4X4 GetProjectionMatrix(HMDEye eye);
 		bool GetHiddenAreaMesh(HMDEye eye, DirectX::XMFLOAT2*& vertices, int& length);
@@ -388,7 +404,9 @@ namespace WindowsMixedReality
 		void RemoveQuadLayer(uint32 Id);
 
 		bool CreateRenderingParameters();
+		ID3D11Texture2D* GetBackBufferTexture();
 		bool CommitDepthBuffer(ID3D11Texture2D* depthTexture);
+		bool CommitThirdCameraDepthBuffer(ID3D11Texture2D* depthTexture);
 
 		void SetFocusPointForFrame(DirectX::XMFLOAT3 position);
 
@@ -424,11 +442,12 @@ namespace WindowsMixedReality
 			HMDHand hand,
 			HMDHandJoint joint,
 			DirectX::XMFLOAT4& orientation,
-			DirectX::XMFLOAT3& position);
+			DirectX::XMFLOAT3& position,
+			float& radius);
 
 		void PollInput();
 		void PollHandTracking();
-		HMDInputPressState GetPressState(HMDHand hand, HMDInputControllerButtons button);
+		HMDInputPressState GetPressState(HMDHand hand, HMDInputControllerButtons button, bool onlyRegisterClicks = true);
 		void ResetButtonStates();
 
 		float GetAxisPosition(HMDHand hand, HMDInputControllerAxes axis);
@@ -463,6 +482,7 @@ namespace WindowsMixedReality
 
 		typedef std::function<void(ConnectionEvent)> ConnectionCallback;
 
+		HMDRemotingConnectionState GetConnectionState();
 		void SetLogCallback(void (*functionPointer)(const wchar_t* text));
 		void ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t* ip, int bitrate, bool IsHoloLens1 = false);
 		void ConnectToLocalWMRHeadset();
@@ -510,6 +530,14 @@ namespace WindowsMixedReality
 		bool CreateHolographicSpace(HWND hwnd);
 #endif
 		void SetInteractionManagerForCurrentView();
+
+		// Third camera
+		bool IsThirdCameraActive();
+		bool GetThirdCameraPoseRenderThread(DirectX::XMMATRIX& thirdCameraViewLeft, DirectX::XMMATRIX& thirdCameraViewRight);
+
+		bool SetEnabledMixedRealityCamera(bool enabled);
+		bool ResizeMixedRealityCamera(/*inout*/ SIZE& sz);
+		void GetThirdCameraDimensions(int& width, int& height);
 	};
 
 	class SpatialAudioClientRenderer;
@@ -566,12 +594,15 @@ public:
 	/** To route logging messages back to the UE_LOG() macros */
 	void SetOnLog(void(*FunctionPointer)(const wchar_t* LogMsg));
 
-	void StartCameraCapture(void(*FunctionPointer)(ID3D11Texture2D*), int DesiredWidth, int DesiredHeight, int DesiredFPS);
+	void StartCameraCapture(void(*FunctionPointer)(void*, DirectX::XMFLOAT4X4), int DesiredWidth, int DesiredHeight, int DesiredFPS);
 	void StopCameraCapture();
 
-	void NotifyReceivedFrame(ID3D11Texture2D* ReceivedFrame);
+	void NotifyReceivedFrame(void* handle, DirectX::XMFLOAT4X4 CamToTracking);
 
 	void Log(const wchar_t* LogMsg);
+
+	bool GetCameraIntrinsics(DirectX::XMFLOAT2& focalLength, int& width, int& height, DirectX::XMFLOAT2& principalPoint, DirectX::XMFLOAT3& radialDistortion, DirectX::XMFLOAT2& tangentialDistortion);
+	DirectX::XMFLOAT2 UnprojectPVCamPointAtUnitDepth(DirectX::XMFLOAT2 pixelCoordinate);
 
 private:
 	CameraImageCapture();
@@ -581,7 +612,158 @@ private:
 	/** Function pointer for logging */
 	void(*OnLog)(const wchar_t*);
 	/** Function pointer for when new frames have arrived */
-	void(*OnReceivedFrame)(ID3D11Texture2D*);
+	void(*OnReceivedFrame)(void*, DirectX::XMFLOAT4X4);
+};
+
+
+/** Singleton for AsureSpatialAnchors */
+class MIXEDREALITYINTEROP_API AzureSpatialAnchorsInterop
+{
+public:
+	static void Create(WindowsMixedReality::MixedRealityInterop& interop, void(*LogFunctionPointer)(const wchar_t* LogMsg));
+	static AzureSpatialAnchorsInterop& Get();
+	static void Release();
+
+	// The session lifecycle
+	struct ConfigData
+	{
+		const wchar_t* accountId = nullptr;
+		const wchar_t* accountKey = nullptr;
+		bool bCoarseLocalizationEnabled = false;
+		bool bEnableGPS = false;
+		bool bEnableWifi = false;
+		std::vector<const wchar_t*> BLEBeaconUUIDs;
+		int logVerbosity = 0;
+
+		//uncopyable, due to char*'s.
+		ConfigData() {}
+	private:
+		ConfigData(const ConfigData&) = delete;
+		ConfigData& operator=(const ConfigData&) = delete;
+	};
+	virtual bool CreateSession() = 0;
+	virtual bool ConfigSession(const ConfigData& InConfigData) = 0;
+	virtual bool StartSession() = 0;
+	virtual void StopSession() = 0;
+	virtual void DestroySession() = 0;
+
+	enum class AsyncResult : uint8
+	{
+		NotStarted,
+		Started,
+		FailBadAnchorIdentifier,
+		FailAnchorIdAlreadyUsed,
+		FailAnchorDoesNotExist,
+		FailAnchorAlreadyTracked,
+		FailNoAnchor,
+		FailNoLocalAnchor,
+		FailNoCloudAnchor,
+		FailNoSession,
+		FailNotEnoughData,
+		FailSeeErrorString,
+		NotLocated,
+		Canceled,
+		Success
+	};
+
+	typedef int CloudAnchorID;
+	static const CloudAnchorID CloudAnchorID_Invalid = -1;
+	typedef int32_t WatcherID;
+	typedef std::wstring LocalAnchorID;
+	typedef std::wstring CloudAnchorIdentifier;
+
+	struct AsyncData
+	{
+		AsyncResult Result = AsyncResult::NotStarted;
+		std::wstring OutError;
+		std::atomic<bool> Completed = { false };
+
+		void Complete() { Completed = true; }
+	};
+
+	struct SaveAsyncData : public AsyncData
+	{
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<SaveAsyncData> SaveAsyncDataPtr;
+
+	struct DeleteAsyncData : public AsyncData
+	{
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<DeleteAsyncData> DeleteAsyncDataPtr;
+
+	struct LoadByIDAsyncData : public AsyncData
+	{
+		CloudAnchorIdentifier CloudAnchorIdentifier;
+		LocalAnchorID LocalAnchorId;
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<LoadByIDAsyncData> LoadByIDAsyncDataPtr;
+
+	struct UpdateCloudAnchorPropertiesAsyncData : public AsyncData
+	{
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<UpdateCloudAnchorPropertiesAsyncData> UpdateCloudAnchorPropertiesAsyncDataPtr;
+
+	struct RefreshCloudAnchorPropertiesAsyncData : public AsyncData
+	{
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<RefreshCloudAnchorPropertiesAsyncData> RefreshCloudAnchorPropertiesAsyncDataPtr;
+
+	struct GetCloudAnchorPropertiesAsyncData : public AsyncData
+	{
+		CloudAnchorIdentifier CloudAnchorIdentifier;
+		CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	};
+	typedef std::shared_ptr<GetCloudAnchorPropertiesAsyncData> GetCloudAnchorPropertiesAsyncDataPtr;
+
+	struct CreateWatcherAsyncData : public AsyncData
+	{
+		bool bBypassCache = false;
+		std::vector<std::wstring> Identifiers;
+		CloudAnchorID NearCloudAnchorID = CloudAnchorID_Invalid;
+		float NearCloudAnchorDistance = 5.0f;
+		int NearCloudAnchorMaxResultCount = 20;
+		bool SearchNearDevice = false;
+		float NearDeviceDistance = 5.0f;
+		int NearDeviceMaxResultCount = 20;
+		int AzureSpatialAnchorDataCategory = 0;
+		int AzureSptialAnchorsLocateStrategy = 0;
+
+		int32 OutWatcherIdentifier = -1;
+		std::vector<CloudAnchorID> OutCloudAnchorIDs;
+	};
+	typedef std::shared_ptr<CreateWatcherAsyncData> CreateWatcherAsyncDataPtr;
+
+
+	// Things you can do while your session is running.
+	// AsyncDataPtr objects are created by UE4, and passed in here.
+	virtual bool HasEnoughDataForSaving() = 0;
+	virtual const wchar_t* GetCloudSpatialAnchorIdentifier(CloudAnchorID cloudAnchorID) = 0;
+	virtual bool CreateCloudAnchor(LocalAnchorID localAnchorId, CloudAnchorID& outCloudAnchorID) = 0;
+	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME expirationTime) = 0;
+	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME& expirationTime) = 0;
+	virtual bool SetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, const std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
+	virtual bool GetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
+	virtual bool SaveCloudAnchor(SaveAsyncDataPtr Data) = 0;
+	virtual bool DeleteCloudAnchor(DeleteAsyncDataPtr Data) = 0;
+	virtual bool LoadCloudAnchorByID(LoadByIDAsyncDataPtr Data) = 0;
+	virtual bool UpdateCloudAnchorProperties(UpdateCloudAnchorPropertiesAsyncDataPtr Data) = 0;
+	virtual bool RefreshCloudAnchorProperties(RefreshCloudAnchorPropertiesAsyncDataPtr Data) = 0;
+	virtual bool GetCloudAnchorProperties(GetCloudAnchorPropertiesAsyncDataPtr Data) = 0;
+	virtual bool CreateWatcher(const CreateWatcherAsyncDataPtr Data) = 0;
+	virtual bool StopWatcher(WatcherID WatcherIdentifier) = 0;
+	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(LocalAnchorID localAnchorId, CloudAnchorID cloudAnchorID) = 0;
+
+
+protected:
+	AzureSpatialAnchorsInterop() {};
+	virtual ~AzureSpatialAnchorsInterop() {};
+	AzureSpatialAnchorsInterop(const AzureSpatialAnchorsInterop&) = delete;
+	AzureSpatialAnchorsInterop& operator=(const AzureSpatialAnchorsInterop&) = delete;
 };
 
 

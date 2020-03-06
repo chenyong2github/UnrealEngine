@@ -15,6 +15,7 @@
 /** The vertex data used to filter a texture. */
 struct FFilterVertex
 {
+public:
 	FVector4 Position;
 	FVector2D UV;
 };

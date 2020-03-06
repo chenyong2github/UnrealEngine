@@ -39,8 +39,14 @@
 #else
 //Now __dmb(_ARM_BARRIER_SY) is used for both compiler and memory fences
 //This might be changed later after testing
+#if defined(_M_ARM)
 #define __TBB_compiler_fence()    __dmb(_ARM_BARRIER_SY)
 #define __TBB_full_memory_fence() __dmb(_ARM_BARRIER_SY)
+#elif defined(_M_ARM64)
+#define __TBB_compiler_fence()    __dmb(_ARM64_BARRIER_SY)
+#define __TBB_full_memory_fence() __dmb(_ARM64_BARRIER_SY)
+#endif // _M_ARM
+
 #define __TBB_control_consistency_helper() __TBB_compiler_fence()
 #define __TBB_acquire_consistency_helper() __TBB_full_memory_fence()
 #define __TBB_release_consistency_helper() __TBB_full_memory_fence()
@@ -143,12 +149,18 @@ public:
 #if !__TBB_WIN8UI_SUPPORT
 extern "C" __declspec(dllimport) int __stdcall SwitchToThread( void );
 #define __TBB_Yield()  SwitchToThread()
+extern "C" __declspec(dllimport) void __stdcall Sleep( unsigned long );
+#define __TBB_Sleep(v) Sleep( v )
 #else
 #include<thread>
+#include<chrono>
 #define __TBB_Yield()  std::this_thread::yield()
+#define __TBB_Sleep(v) std::this_thread::sleep_for( std::chrono::milliseconds(v) )
 #endif
 #else
 #define __TBB_Yield() __yield()
+extern "C" __declspec(dllimport) void __stdcall Sleep( unsigned long );
+#define __TBB_Sleep(v) Sleep( v )
 #endif
 
 // Machine specific atomic operations

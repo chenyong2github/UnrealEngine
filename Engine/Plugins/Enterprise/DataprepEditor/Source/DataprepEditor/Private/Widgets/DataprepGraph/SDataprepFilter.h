@@ -13,11 +13,18 @@ class UDataprepFilter;
 
 struct FDataprepSchemaActionContext;
 
+
 class SDataprepFilter : public SDataprepActionBlock, public FGCObject
 {
 public:
-	SLATE_BEGIN_ARGS(SDataprepFilter) {}
-	SLATE_END_ARGS();
+	SLATE_BEGIN_ARGS(SDataprepFilter)
+
+		: _IsSimplified(false)
+		, _IsPreviewed(false)
+	{}
+		SLATE_ARGUMENT( bool, IsSimplified )
+		SLATE_ARGUMENT( bool, IsPreviewed )
+	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepFilter& InFilter, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext);
 
@@ -26,7 +33,7 @@ public:
 protected:
 
 	// SDataprepActionBlock interface
-	virtual FLinearColor GetOutlineColor() const override;
+	virtual FSlateColor GetOutlineColor() const override;
 	virtual FText GetBlockTitle() const override;
 	virtual TSharedRef<SWidget> GetTitleWidget() override;
 	virtual TSharedRef<SWidget> GetContentWidget() override;
@@ -45,4 +52,6 @@ private:
 	TSharedPtr<class SDataprepDetailsView> DetailsView;
 
 	UDataprepFilter* Filter = nullptr;
+
+	bool bIsPreviewed;
 };

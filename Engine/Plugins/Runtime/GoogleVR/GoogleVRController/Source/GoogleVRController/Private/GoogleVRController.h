@@ -39,11 +39,6 @@ namespace AndroidControllerKeyNames
 	const FGamepadKeyNames::Type AndroidVolumeDown("Android_Volume_Down");
 }
 
-namespace GoogleVRControllerKeyNames
-{
-	const FGamepadKeyNames::Type Touch0("Steam_Touch_0");
-}
-
 class FGoogleVRController : public IInputDevice, public FXRMotionControllerBase
 {
 public:
@@ -61,19 +56,6 @@ public:
 	{
 		enum Type
 		{
-			// Deprecated buttons
-			ApplicationMenu,
-			TouchPadLeft,
-			TouchPadUp,
-			TouchPadRight,
-			TouchPadDown,
-			System,
-			TriggerPress,
-			Grip,
-			TouchPadPress,
-			TouchPadTouch,
-
-			// New buttons
 			SelectClick,
 			TrackpadClick,
 			TrackpadTouch,

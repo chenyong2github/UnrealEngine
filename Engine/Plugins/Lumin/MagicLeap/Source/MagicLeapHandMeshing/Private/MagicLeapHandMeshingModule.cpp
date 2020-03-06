@@ -45,6 +45,11 @@ bool FMagicLeapHandMeshingModule::DisconnectMRMesh(class UMRMeshComponent* InMRM
 	return MeshTracker.DisconnectMRMesh(InMRMeshPtr);
 }
 
+void FMagicLeapHandMeshingModule::SetUseWeightedNormals(const bool bInUseWeightedNormals)
+{
+	MeshTracker.SetUseWeightedNormals(bInUseWeightedNormals);
+}
+
 bool FMagicLeapHandMeshingModule::HasMRMesh() const
 {
 	return MeshTracker.HasMRMesh();

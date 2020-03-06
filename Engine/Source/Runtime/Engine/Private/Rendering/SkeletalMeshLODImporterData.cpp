@@ -531,6 +531,12 @@ void FReductionBaseSkeletalMeshBulkData::LoadReductionData(FSkeletalMeshLODModel
 			Ar << ReductionSkeletalMeshData;
 
 			CacheGeometryInfo(BaseLODModel);
+
+			//This call will filled missing chunked data for old asset that cannot build normal and chunking (not re import since the new skeletal mesh chunk build refactor)
+			if (!BaseLODModel.bIsBuildDataAvailable)
+			{
+				BaseLODModel.UpdateChunkedSectionInfo(Owner ? Owner->GetName() : FString(TEXT("")));
+			}
 		}
 		// Unlock the bulk data
 	}
@@ -657,18 +663,25 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 
 	if (Ar.IsLoading() && Version < RAW_SKELETAL_MESH_BULKDATA_VER_CompressMorphTargetData)
 	{
-		//Compress the morph target data
-		for (int32 MorphTargetIndex = 0; MorphTargetIndex < RawMesh.MorphTargets.Num(); ++MorphTargetIndex)
+		if (RawMesh.MorphTargetModifiedPoints.Num() != 0)
 		{
-			const TSet<uint32>& ModifiedPoints = RawMesh.MorphTargetModifiedPoints[MorphTargetIndex];
-			FSkeletalMeshImportData& ToCompressShapeImportData = RawMesh.MorphTargets[MorphTargetIndex];
-			TArray<FVector> CompressPoints;
-			CompressPoints.Reserve(ToCompressShapeImportData.Points.Num());
-			for (uint32 PointIndex : ModifiedPoints)
+			//Compress the morph target data
+			for (int32 MorphTargetIndex = 0; MorphTargetIndex < RawMesh.MorphTargets.Num(); ++MorphTargetIndex)
 			{
-				CompressPoints.Add(ToCompressShapeImportData.Points[PointIndex]);
+				if (!RawMesh.MorphTargetModifiedPoints.IsValidIndex(MorphTargetIndex))
+				{
+					continue;
+				}
+				const TSet<uint32>& ModifiedPoints = RawMesh.MorphTargetModifiedPoints[MorphTargetIndex];
+				FSkeletalMeshImportData& ToCompressShapeImportData = RawMesh.MorphTargets[MorphTargetIndex];
+				TArray<FVector> CompressPoints;
+				CompressPoints.Reserve(ToCompressShapeImportData.Points.Num());
+				for (uint32 PointIndex : ModifiedPoints)
+				{
+					CompressPoints.Add(ToCompressShapeImportData.Points[PointIndex]);
+				}
+				ToCompressShapeImportData.Points = CompressPoints;
 			}
-			ToCompressShapeImportData.Points = CompressPoints;
 		}
 	}
 

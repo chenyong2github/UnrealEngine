@@ -165,7 +165,7 @@ public:
 				Ar.Logf(TEXT("    Total Bytes Out: %i"), MessageTunnel->GetTotalOutboundBytes());
 
 				TArray<TSharedPtr<IUdpMessageTunnelConnection>> Connections;
-			
+
 				if (MessageTunnel->GetConnections(Connections) > 0)
 				{
 					Ar.Log(TEXT("  Active Connections:"));
@@ -258,8 +258,12 @@ public:
 		ParseCommandLine(GetMutableDefault<UUdpMessagingSettings>(), FCommandLine::Get());
 
 		// register application events
-		FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationHasReactivated);
-		FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationWillDeactivate);
+		const UUdpMessagingSettings& Settings = *GetDefault<UUdpMessagingSettings>();
+		if (Settings.bStopServiceWhenAppDeactivates)
+		{
+			FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationHasReactivated);
+			FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationWillDeactivate);
+		}
 
 		RestartServices();
 
@@ -308,7 +312,7 @@ public:
 
 	virtual bool IsSupportEnabled() const
 	{
-#if !IS_PROGRAM && UE_BUILD_SHIPPING
+#if  !IS_PROGRAM && UE_BUILD_SHIPPING && !(defined(ALLOW_UDP_MESSAGING_SHIPPING) && ALLOW_UDP_MESSAGING_SHIPPING)
 		return false;
 #else
 		// disallow unsupported platforms
@@ -355,21 +359,22 @@ public:
 
 	virtual void ShutdownServices()
 	{
-		AdditionalStaticEndpoints.Empty();
 		ShutdownBridge();
 #if PLATFORM_DESKTOP
 		ShutdownTunnel();
 #endif
+		AdditionalStaticEndpoints.Empty();
 	}
 
 	virtual void AddEndpoint(const FString& InEndpoint)
 	{
-		FIPv4Endpoint OutEndpoint;
-		if (FIPv4Endpoint::Parse(InEndpoint, OutEndpoint) && !AdditionalStaticEndpoints.Contains(OutEndpoint))
+		if (auto Transport = WeakBridgeTransport.Pin())
 		{
-			AdditionalStaticEndpoints.Add(OutEndpoint);
-			if (auto Transport = WeakBridgeTransport.Pin())
+			FScopeLock StaticEndpointsLock(&StaticEndpointsCS);
+			FIPv4Endpoint OutEndpoint;
+			if (FIPv4Endpoint::Parse(InEndpoint, OutEndpoint) && !AdditionalStaticEndpoints.Contains(OutEndpoint))
 			{
+				AdditionalStaticEndpoints.Add(OutEndpoint);
 				Transport->AddStaticEndpoint(OutEndpoint);
 			}
 		}
@@ -377,12 +382,13 @@ public:
 
 	virtual void RemoveEndpoint(const FString& InEndpoint)
 	{
-		FIPv4Endpoint OutEndpoint;
-		if (FIPv4Endpoint::Parse(InEndpoint, OutEndpoint) && AdditionalStaticEndpoints.Contains(OutEndpoint))
+		if (auto Transport = WeakBridgeTransport.Pin())
 		{
-			AdditionalStaticEndpoints.Remove(OutEndpoint);
-			if (auto Transport = WeakBridgeTransport.Pin())
+			FScopeLock StaticEndpointsLock(&StaticEndpointsCS);
+			FIPv4Endpoint OutEndpoint;
+			if (FIPv4Endpoint::Parse(InEndpoint, OutEndpoint) && AdditionalStaticEndpoints.Contains(OutEndpoint))
 			{
+				AdditionalStaticEndpoints.Remove(OutEndpoint);
 				Transport->RemoveStaticEndpoint(OutEndpoint);
 			}
 		}
@@ -427,7 +433,7 @@ protected:
 
 		// Initialize the service with the additional endpoints added through the modular interface
 		TArray<FIPv4Endpoint> StaticEndpoints = AdditionalStaticEndpoints.Array();
-		
+
 		for (auto& StaticEndpoint : Settings->StaticEndpoints)
 		{
 			FIPv4Endpoint Endpoint;
@@ -445,7 +451,7 @@ protected:
 		if (Settings->MulticastTimeToLive == 0)
 		{
 			Settings->MulticastTimeToLive = 1;
-			ResaveSettings = true;		
+			ResaveSettings = true;
 		}
 
 		if (ResaveSettings)
@@ -534,7 +540,7 @@ protected:
 			FParse::Bool(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_ENABLE="), Settings->EnableTransport);
 			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_UNICAST="), Settings->UnicastEndpoint);
 			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_MULTICAST="), Settings->MulticastEndpoint);
-			
+
 			FString StaticEndpoints;
 			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_STATIC="), StaticEndpoints, false);
 			TArray<FString> CommandLineStaticEndpoints;
@@ -567,7 +573,7 @@ protected:
 		{
 			MessageTunnel->StopServer();
 			MessageTunnel.Reset();
-		}		
+		}
 	}
 #endif
 
@@ -660,6 +666,9 @@ private:
 
 	/** Holds the bridge transport if present.  */
 	TWeakPtr<FUdpMessageTransport, ESPMode::ThreadSafe> WeakBridgeTransport;
+
+	/** Critical section protecting access to the transport static endpoints and additional static endpoints. */
+	FCriticalSection StaticEndpointsCS;
 
 	/** Holds additional static endpoints added through the modular feature interface. */
 	TSet<FIPv4Endpoint> AdditionalStaticEndpoints;

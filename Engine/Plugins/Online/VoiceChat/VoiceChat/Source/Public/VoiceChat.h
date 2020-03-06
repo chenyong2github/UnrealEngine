@@ -68,6 +68,22 @@ struct FVoiceChatCallStats
 	int PacketsNumLost;
 };
 
+struct FVoiceChatDeviceInfo
+{
+	/** The display name for the device */
+	FString DisplayName;
+	/** The unique id for the device */
+	FString Id;
+
+	inline bool operator==(const FVoiceChatDeviceInfo& Other) const { return Id == Other.Id; }
+	inline bool operator!=(const FVoiceChatDeviceInfo& Other) const { return !operator==(Other); }
+};
+
+inline FString LexToString(const FVoiceChatDeviceInfo& DeviceInfo)
+{
+	return FString::Printf(TEXT("DisplayName=[%s] Id=[%s]"), *DeviceInfo.DisplayName, *DeviceInfo.Id);
+}
+
 DECLARE_DELEGATE_OneParam(FOnVoiceChatConnectCompleteDelegate, const FVoiceChatResult& /* Result */);
 DECLARE_DELEGATE_OneParam(FOnVoiceChatDisconnectCompleteDelegate, const FVoiceChatResult& /* Result */);
 DECLARE_DELEGATE_TwoParams(FOnVoiceChatLoginCompleteDelegate, const FString& /* PlayerName */, const FVoiceChatResult& /* Result */);
@@ -174,18 +190,50 @@ public:
 	virtual bool GetAudioOutputDeviceMuted() const = 0;
 
 	/**
+	 * Get a list of available audio input device names
+	 *
+	 * @return Array of audio input devices names
+	 */
+	UE_DEPRECATED(4.26, "GetAvailableInputDevices is deprecated. Please use GetAvailableInputDeviceInfos instead!")
+	TArray<FString> GetAvailableInputDevices() const
+	{
+		TArray<FString> DeviceNames;
+		for (const FVoiceChatDeviceInfo& DeviceInfo : GetAvailableInputDeviceInfos())
+		{
+			DeviceNames.Emplace(DeviceInfo.DisplayName);
+		}
+		return DeviceNames;
+	}
+
+	/**
 	 * Get a list of available audio input devices
 	 *
 	 * @return Array of audio input devices
 	 */
-	virtual TArray<FString> GetAvailableInputDevices() const = 0;
+	virtual TArray<FVoiceChatDeviceInfo> GetAvailableInputDeviceInfos() const = 0;
+
+	/**
+	 * Get a list of available audio output device names
+	 *
+	 * @return Array of audio output device names
+	 */
+	UE_DEPRECATED(4.26, "GetAvailableOutputDevices is deprecated. Please use GetAvailableOutputDeviceInfos instead!")
+	TArray<FString> GetAvailableOutputDevices() const
+	{
+		TArray<FString> DeviceNames;
+		for (const FVoiceChatDeviceInfo& DeviceInfo : GetAvailableOutputDeviceInfos())
+		{
+			DeviceNames.Emplace(DeviceInfo.DisplayName);
+		}
+		return DeviceNames;
+	}
 
 	/**
 	 * Get a list of available audio output devices
 	 *
 	 * @return Array of audio output devices
 	 */
-	virtual TArray<FString> GetAvailableOutputDevices() const = 0;
+	virtual TArray<FVoiceChatDeviceInfo> GetAvailableOutputDeviceInfos() const = 0;
 
 	/**
 	 * Delegate broadcast whenever the available audio devices change. Any cached values from GetAvailableInputDevices or GetAvailableOutputDevices should be discarded and requeried
@@ -197,79 +245,110 @@ public:
 	 *
 	 * @param InputDevice String from GetAvailableInputDevice. If empty, will use the default input device
 	 */
-	virtual void SetInputDevice(const FString& InputDevice) = 0;
+	UE_DEPRECATED(4.26, "SetInputDevice is deprecated. Please use SetInputDeviceId instead!")
+	void SetInputDevice(const FString& InputDeviceName)
+	{
+		FString InputDeviceId = InputDeviceName;
+		for (const FVoiceChatDeviceInfo& DeviceInfo : GetAvailableInputDeviceInfos())
+		{
+			if (InputDeviceName == DeviceInfo.DisplayName)
+			{
+				InputDeviceId = DeviceInfo.Id;
+				break;
+			}
+		}
+		SetInputDeviceId(InputDeviceId);
+	}
+
+	/**
+	 * Set the audio input device to use
+	 *
+	 * @param InputDeviceId Device Id from GetAvailableInputDeviceInfos. If empty, will use the default input device
+	 */
+	virtual void SetInputDeviceId(const FString& InputDeviceId) = 0;
 
 	/**
 	 * Set the audio output device to use
 	 *
 	 * @param OutputDevice String from GetAvailableOutputDevice. If empty, will use the default output device
 	 */
-	virtual void SetOutputDevice(const FString& OutputDevice) = 0;
+	UE_DEPRECATED(4.26, "SetOutputDevice is deprecated. Please use SetOutputDeviceId instead!")
+	void SetOutputDevice(const FString& OutputDeviceName)
+	{
+		FString OutputDeviceId = OutputDeviceName;
+		for (const FVoiceChatDeviceInfo& DeviceInfo : GetAvailableOutputDeviceInfos())
+		{
+			if (OutputDeviceName == DeviceInfo.DisplayName)
+			{
+				OutputDeviceId = DeviceInfo.Id;
+				break;
+			}
+		}
+		SetOutputDeviceId(OutputDeviceId);
+	}
 
 	/**
-	 * Get the audio input device that is being used
-	 */
-	virtual FString GetInputDevice() const = 0;
-
-	/**
-	 * Get the audio output device that is being used
-	 */
-	virtual FString GetOutputDevice() const = 0;
-
-	/**
-	 * Get the default audio input device
-	 */
-	virtual FString GetDefaultInputDevice() const = 0;
-
-	/**
-	 * Get the default audio output device
-	 */
-	virtual FString GetDefaultOutputDevice() const = 0;
-
-	/**
-	 * Connect to a voice server
+	 * Set the audio output device to use
 	 *
-	 * @param Delegate delegate called once connect completes
+	 * @param OutputDeviceId Device Id from GetAvailableOutputDeviceInfos. If empty, will use the default output device
 	 */
-	virtual void Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate) = 0;
+	virtual void SetOutputDeviceId(const FString& InputDeviceId) = 0;
 
 	/**
-	 * Disconnect from a voice server
-	 *
-	 * @param Delegate delegate called once disconnect completes
+	 * Get the display name of the audio input device that is being used
 	 */
-	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) = 0;
+	UE_DEPRECATED(4.26, "GetInputDevice is deprecated. Please use GetInputDeviceInfo instead!")
+	FString GetInputDevice() const
+	{
+		return GetInputDeviceInfo().DisplayName;
+	}
 
 	/**
-	* Are we connecting to the voice server?
-	*
-	* @return true if we are connecting to the voice server
-	*/
-	virtual bool IsConnecting() const = 0;
+	 * Get the device info of the audio input device that is being used
+	 */
+	virtual FVoiceChatDeviceInfo GetInputDeviceInfo() const = 0;
 
 	/**
-	 * Are we connected to the voice server?
-	 *
-	 * @return true if we are connected to the voice server
+	 * Get the display name of the audio output device that is being used
 	 */
-	virtual bool IsConnected() const = 0;
+	UE_DEPRECATED(4.26, "GetOutputDevice is deprecated. Please use GetOutputDeviceInfo instead!")
+	FString GetOutputDevice() const
+	{
+		return GetOutputDeviceInfo().DisplayName;
+	}
 
 	/**
-	 * Delegate triggered when we are connected to voice chat
+	 * Get the device info of the audio output device that is being used
 	 */
-	virtual FOnVoiceChatConnectedDelegate& OnVoiceChatConnected() = 0;
+	virtual FVoiceChatDeviceInfo GetOutputDeviceInfo() const = 0;
 
 	/**
-	 * Delegate triggered when we are disconnected from voice chat
+	 * Get the display name of the default audio input device
 	 */
-	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() = 0;
+	UE_DEPRECATED(4.26, "GetDefaultInputDevice is deprecated. Please use GetDefaultInputDeviceInfo instead!")
+	FString GetDefaultInputDevice() const
+	{
+		return GetDefaultInputDeviceInfo().DisplayName;
+	};
 
 	/**
-	 * Delegate triggered when we are reconnected to voice chat in cases where the underlying implementation disconnected
-	 * and then reconnected. This is most commonly seen when an application resumes after being suspended. If the disconnect
-	 * is unexpected, OnVoiceChatDisconnected will be called instead.
+	 * Get the device info of the default audio input device
 	 */
-	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() = 0;
+	virtual FVoiceChatDeviceInfo GetDefaultInputDeviceInfo() const = 0;
+
+	/**
+	 * Get the display name of the default audio output device
+	 */
+	UE_DEPRECATED(4.26, "GetDefaultOutputDevice is deprecated. Please use GetDefaultOutputDeviceInfo instead!")
+	FString GetDefaultOutputDevice() const
+	{
+		return GetDefaultOutputDeviceInfo().DisplayName;
+	}
+
+	/**
+	 * Get the device info of the default audio output device
+	 */
+	virtual FVoiceChatDeviceInfo GetDefaultOutputDeviceInfo() const = 0;
 
 	/**
 	 * Login to the connected voice server
@@ -563,6 +642,51 @@ public:
 	 * @return true if voice chat is initialized
 	 */
 	virtual bool IsInitialized() const = 0;
+
+	/**
+	 * Connect to a voice server
+	 *
+	 * @param Delegate delegate called once connect completes
+	 */
+	virtual void Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate) = 0;
+
+	/**
+	 * Disconnect from a voice server
+	 *
+	 * @param Delegate delegate called once disconnect completes
+	 */
+	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) = 0;
+
+	/**
+	* Are we connecting to the voice server?
+	*
+	* @return true if we are connecting to the voice server
+	*/
+	virtual bool IsConnecting() const = 0;
+
+	/**
+	 * Are we connected to the voice server?
+	 *
+	 * @return true if we are connected to the voice server
+	 */
+	virtual bool IsConnected() const = 0;
+
+	/**
+	 * Delegate triggered when we are connected to voice chat
+	 */
+	virtual FOnVoiceChatConnectedDelegate& OnVoiceChatConnected() = 0;
+
+	/**
+	 * Delegate triggered when we are disconnected from voice chat
+	 */
+	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() = 0;
+
+	/**
+	 * Delegate triggered when we are reconnected to voice chat in cases where the underlying implementation disconnected
+	 * and then reconnected. This is most commonly seen when an application resumes after being suspended. If the disconnect
+	 * is unexpected, OnVoiceChatDisconnected will be called instead.
+	 */
+	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() = 0;
 
 	/**
 	 * Allocate an interface for an additional user // TODO: document limitations

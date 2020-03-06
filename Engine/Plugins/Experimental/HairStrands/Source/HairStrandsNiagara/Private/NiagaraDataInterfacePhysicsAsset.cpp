@@ -306,28 +306,6 @@ void FNDIPhysicsAssetBuffer::Update()
 	}
 }
 
-struct FPhysicsAssetManager
-{
-	TMap<int32,FSkeletalMeshObject*> Elements;
-};
-
-FPhysicsAssetManager GHairManager;
-
-void MeshObjectCallback(
-	FSkeletalMeshObjectCallbackData::EEventType Event,
-	FSkeletalMeshObject* MeshObject,
-	uint64 UserData)
-{
-	ENQUEUE_RENDER_COMMAND(FPhysicsAssetUpdate)(
-		[Event, MeshObject, UserData](FRHICommandListImmediate& RHICmdList)
-	{
-		if (Event == FSkeletalMeshObjectCallbackData::EEventType::Register || Event == FSkeletalMeshObjectCallbackData::EEventType::Update)
-		{
-			GHairManager.Elements.Add(UserData,MeshObject);
-		}
-	});
-}
-
 void FNDIPhysicsAssetBuffer::InitRHI()
 {
 	if (IsValid())
@@ -340,8 +318,8 @@ void FNDIPhysicsAssetBuffer::InitRHI()
 		CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, true>(AssetArrays->ElementExtent.Num(), AssetArrays->ElementExtent, ElementExtentBuffer);
 		CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, true>(AssetArrays->PreviousInverse.Num(), AssetArrays->PreviousInverse, PreviousInverseBuffer);
 
-		//UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
-		//	AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
+		UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
+			AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
 	}
 
 	// /*const FPrimitiveComponentId LocalComponentId = SkeletalMesh->ComponentId;
@@ -418,9 +396,11 @@ bool FNDIPhysicsAssetData::Init(UNiagaraDataInterfacePhysicsAsset* Interface, FN
 
 struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNDIPhysicsAssetParametersCS, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		FNDIPhysicsAssetParametersName ParamNames(ParamRef.ParameterInfo.DataInterfaceHLSLSymbol);
+		FNDIPhysicsAssetParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
 
 		ElementOffsets.Bind(ParameterMap, *ParamNames.ElementOffsetsName);
 
@@ -465,25 +445,11 @@ struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << ElementOffsets;
-		Ar << CurrentTransformBuffer;
-		Ar << PreviousTransformBuffer;
-		Ar << PreviousInverseBuffer;
-		Ar << InverseTransformBuffer;
-		Ar << RestTransformBuffer;
-		Ar << RestInverseBuffer;
-		Ar << ElementExtentBuffer;
-		Ar << BoxOrigin;
-		Ar << BoxExtent;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FNDIPhysicsAssetProxy* InterfaceProxy =
 			static_cast<FNDIPhysicsAssetProxy*>(Context.DataInterface);
@@ -507,13 +473,13 @@ struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 		else
 		{
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurrentTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PreviousTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PreviousInverseBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, InverseTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestInverseBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ElementExtentBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurrentTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, PreviousTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, PreviousInverseBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, InverseTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestInverseBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, ElementExtentBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 
 			static const FElementOffset DummyOffsets(0,0,0,0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, DummyOffsets);
@@ -522,25 +488,30 @@ struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 	}
 
-	virtual void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 	}
 
 private:
 
-	FShaderParameter ElementOffsets;
+	LAYOUT_FIELD(FShaderParameter, ElementOffsets);
 
-	FShaderResourceParameter CurrentTransformBuffer;
-	FShaderResourceParameter PreviousTransformBuffer;
-	FShaderResourceParameter PreviousInverseBuffer;
-	FShaderResourceParameter InverseTransformBuffer;
-	FShaderResourceParameter RestTransformBuffer;
-	FShaderResourceParameter RestInverseBuffer;
-	FShaderResourceParameter ElementExtentBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, CurrentTransformBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousTransformBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousInverseBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, InverseTransformBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, RestTransformBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, RestInverseBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, ElementExtentBuffer);
 
-	FShaderParameter BoxOrigin;
-	FShaderParameter BoxExtent;
+	LAYOUT_FIELD(FShaderParameter, BoxOrigin);
+	LAYOUT_FIELD(FShaderParameter, BoxExtent);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNDIPhysicsAssetParametersCS);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfacePhysicsAsset, FNDIPhysicsAssetParametersCS);
+
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -579,7 +550,7 @@ void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher
 
 void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
 {
-	if (Context.ShaderStageIndex == 0)
+	if (Context.SimulationStageIndex == 0)
 	{
 		FNDIPhysicsAssetData* ProxyData =
 			SystemInstancesToProxyData.Find(Context.SystemInstance);
@@ -1003,77 +974,5 @@ void UNiagaraDataInterfacePhysicsAsset::ProvidePerInstanceDataForRenderThread(vo
 	}
 	check(Proxy);
 }
-
-FNiagaraDataInterfaceParametersCS*
-UNiagaraDataInterfacePhysicsAsset::ConstructComputeParameters() const
-{
-	return new FNDIPhysicsAssetParametersCS();
-}
-
-//------------------------------------------------------------------------------------------------------------
-//
-//class FResetCS : public FGlobalShader
-//{
-//	DECLARE_GLOBAL_SHADER(FCopyBoundingBoxCS);
-//	SHADER_USE_PARAMETER_STRUCT(FCopyBoundingBoxCS, FGlobalShader);
-//
-//	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-//		SHADER_PARAMETER(uint32, NumElements)
-//		SHADER_PARAMETER_UAV(RWBuffer, BoundingBoxBuffer)
-//		SHADER_PARAMETER_UAV(RWBuffer, OutNodeBoundBuffer)
-//		END_SHADER_PARAMETER_STRUCT()
-//
-//public:
-//	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-//	{
-//		return RHISupportsComputeShaders(Parameters.Platform);
-//	}
-//
-//	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-//	{
-//		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-//		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
-//	}
-//};
-//
-//IMPLEMENT_GLOBAL_SHADER(FCopyBoundingBoxCS, "/Plugin/Experimental/HairStrands/Private/NiagaraCopyBoundingBox.usf", "MainCS", SF_Compute);
-//
-//static void AddSkinCacheRasterPass(
-//	FRDGBuilder& GraphBuilder,
-//	FRHIUnorderedAccessView* BoundingBoxBuffer,
-//	FRHIUnorderedAccessView* OutNodeBoundBuffer)
-//{
-//	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
-//	const uint32 NumElements = 1;
-//
-//	FCopyBoundingBoxCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyBoundingBoxCS::FParameters>();
-//	Parameters->BoundingBoxBuffer = BoundingBoxBuffer;
-//	Parameters->OutNodeBoundBuffer = OutNodeBoundBuffer;
-//	Parameters->NumElements = NumElements;
-//
-//	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-//
-//	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
-//
-//	TShaderMapRef<FCopyBoundingBoxCS> ComputeShader(ShaderMap);
-//	FComputeShaderUtils::AddPass(
-//		GraphBuilder,
-//		RDG_EVENT_NAME("CopyBoundingBox"),
-//		*ComputeShader,
-//		Parameters,
-//		FIntVector(DispatchCount, 1, 1));
-//
-//	GraphBuilder.AddPass(
-//		RDG_EVENT_NAME("SkinCacheRaster"),
-//		PassParameters,
-//		ERDGPassFlags::Raster,
-//		[PassParameters, Scene = Scene, ViewInfo, RasterPassType, &PrimitiveSceneInfos, ViewportRect, HairRenderInfo, RasterDirection](FRHICommandListImmediate& RHICmdList)
-//	{
-//	});
-//}
-
-//------------------------------------------------------------------------------------------------------------
-
-
 
 #undef LOCTEXT_NAMESPACE

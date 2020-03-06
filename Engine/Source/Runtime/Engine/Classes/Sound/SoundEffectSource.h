@@ -67,11 +67,15 @@ struct FSoundEffectSourceInitData
 	// The object id of the parent preset
 	uint32 ParentPresetUniqueId;
 
+	// The audio device ID of the audio device instance this source instance was created from
+	uint32 AudioDeviceId;
+
 	FSoundEffectSourceInitData()
 	: SampleRate(0.0f)
 	, NumSourceChannels(0)
 	, AudioClock(0.0)
 	, ParentPresetUniqueId(INDEX_NONE)
+	, AudioDeviceId(INDEX_NONE)
 	{}
 };
 

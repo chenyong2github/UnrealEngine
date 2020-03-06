@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_THREADS_H
-#define ARCH_THREADS_H
+#ifndef PXR_BASE_ARCH_THREADS_H
+#define PXR_BASE_ARCH_THREADS_H
 
 /// \file arch/threads.h
 /// \ingroup group_arch_Multithreading
@@ -45,4 +45,4 @@ ARCH_API std::thread::id ArchGetMainThreadId();
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_THREADS_H
+#endif // PXR_BASE_ARCH_THREADS_H

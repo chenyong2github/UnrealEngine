@@ -9,7 +9,7 @@
 /**
  * Base class for target platforms.
  */
-class TARGETPLATFORM_VTABLE FTargetPlatformBase
+class FTargetPlatformBase
 	: public ITargetPlatform
 {
 public:
@@ -19,6 +19,11 @@ public:
 	virtual bool AddDevice( const FString& DeviceName, bool bDefault ) override
 	{
 		return false;
+	}
+
+	virtual bool AddDevice(const FString& DeviceId, const FString& DeviceUserFriendlyName, const FString& Username, const FString& Password, bool bDefault) override
+	{
+		return AddDevice(DeviceId, bDefault);
 	}
 
 	virtual FText DisplayName() const override
@@ -37,9 +42,13 @@ public:
 
 	TARGETPLATFORM_API virtual bool UsesBasePassVelocity() const override;
 
+	TARGETPLATFORM_API virtual bool UsesAnisotropicBRDF() const override;
+
 	TARGETPLATFORM_API virtual bool UsesSelectiveBasePassOutputs() const override;
 	
 	TARGETPLATFORM_API virtual bool UsesDistanceFields() const override;
+
+	TARGETPLATFORM_API virtual bool UsesRayTracing() const override;
 
 	TARGETPLATFORM_API virtual float GetDownSampleMeshDistanceFieldDivider() const override;
 
@@ -140,6 +149,20 @@ public:
 
 	TARGETPLATFORM_API virtual TSharedPtr<IDeviceManagerCustomPlatformWidgetCreator> GetCustomWidgetCreator() const override;
 
+	virtual bool ShouldExpandTo32Bit(const uint16* Indices, const int32 NumIndices) const override
+	{
+		return false;
+	}
+
+#if WITH_ENGINE
+	virtual FName GetMeshBuilderModuleName() const override
+	{
+		// MeshBuilder is the default module. Platforms may override this to provide platform specific mesh data.
+		static const FName NAME_MeshBuilder(TEXT("MeshBuilder"));
+		return NAME_MeshBuilder;
+	}
+#endif
+
 protected:
 
 	FTargetPlatformBase(const PlatformInfo::FPlatformInfo *const InPlatformInfo)
@@ -232,9 +255,16 @@ public:
 		return TPlatformProperties::HasSecurePackageFormat();
 	}
 
-	virtual bool RequiresUserCredentials() const override
+	virtual EPlatformAuthentication RequiresUserCredentials() const override
 	{
-		return TPlatformProperties::RequiresUserCredentials();
+		if (TPlatformProperties::RequiresUserCredentials())
+		{
+			return EPlatformAuthentication::Always;
+		}
+		else
+		{
+			return EPlatformAuthentication::Never;
+		}
 	}
 
 	virtual bool SupportsBuildTarget( EBuildTargetType TargetType ) const override

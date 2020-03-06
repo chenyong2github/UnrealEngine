@@ -9,7 +9,7 @@
                     }
                 }
             },
-            "LibraryPath": "../../../../../Binaries/Win64/libusdShaders.dll",
+            "LibraryPath": "../../../../../Binaries/Win64/usdShaders.dll",
             "Name": "usdShaders",
             "ResourcePath": "resources",
             "Root": "..",

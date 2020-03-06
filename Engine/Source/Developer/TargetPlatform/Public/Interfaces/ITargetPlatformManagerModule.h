@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StringView.h"
 #include "Interfaces/ITargetDevice.h"
 #include "Modules/ModuleInterface.h"
 
@@ -63,7 +64,7 @@ public:
 	 * @param Name The target platform's short or long name.
 	 * @return The target platform, or nullptr if not found.
 	 */
-	virtual ITargetPlatform* FindTargetPlatform( const FString& Name ) = 0;
+	virtual ITargetPlatform* FindTargetPlatform( const FStringView& Name ) = 0;
 
 	/**
 	 * Finds a target platform by looking for one that supports a given value for a generic type of support

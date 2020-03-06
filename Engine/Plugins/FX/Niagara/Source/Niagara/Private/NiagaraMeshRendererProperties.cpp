@@ -44,9 +44,14 @@ bool FNiagaraMeshMaterialOverride::SerializeFromMismatchedTag(const struct FProp
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	: ParticleMesh(nullptr)
 	, SortMode(ENiagaraSortMode::None)
+	, bOverrideMaterials(false)
 	, bSortOnlyWhenTranslucent(true)
 	, SubImageSize(1.0f, 1.0f)
 	, bSubImageBlend(false)
+	, FacingMode(ENiagaraMeshFacingMode::Default)
+	, bLockedAxisEnable(false)
+	, LockedAxis(0.0f, 0.0f, 1.0f)
+	, LockedAxisSpace(ENiagaraMeshLockedAxisSpace::Simulation)
 {
 }
 
@@ -66,8 +71,8 @@ FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator
 {
 	if (ParticleMesh)
 	{
-		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator = new FNiagaraBoundsCalculatorHelper<false, true, false>();
-		BoundsCalculator->MeshExtents = ParticleMesh->GetBounds().BoxExtent;
+		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator
+			= new FNiagaraBoundsCalculatorHelper<false, true, false>(ParticleMesh->GetBounds().BoxExtent);
 		return BoundsCalculator;
 	}
 
@@ -134,6 +139,7 @@ void UNiagaraMeshRendererProperties::InitBindings()
 		ScaleBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_SCALE);
 		MaterialRandomBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_MATERIAL_RANDOM);
 		NormalizedAgeBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
+		CameraOffsetBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_CAMERA_OFFSET);
 
 		//Default custom sorting to age
 		CustomSortingBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
@@ -247,6 +253,43 @@ void UNiagaraMeshRendererProperties::FixMaterial(UMaterial* Material)
 	Material->Modify();
 	Material->bUsedWithNiagaraMeshParticles = true;
 	Material->ForceRecompileForRendering();
+}
+
+const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetBoundAttributes()
+{
+	CurrentAttributeBindings.Reset();
+
+	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
+	AttributeBindings.Add(&PositionBinding);
+	AttributeBindings.Add(&ColorBinding);
+	AttributeBindings.Add(&VelocityBinding);
+	AttributeBindings.Add(&MeshOrientationBinding);
+	AttributeBindings.Add(&ScaleBinding);
+	AttributeBindings.Add(&DynamicMaterialBinding);
+	AttributeBindings.Add(&DynamicMaterial1Binding);
+	AttributeBindings.Add(&DynamicMaterial2Binding);
+	AttributeBindings.Add(&DynamicMaterial3Binding);
+	AttributeBindings.Add(&MaterialRandomBinding);
+	AttributeBindings.Add(&CustomSortingBinding);
+	AttributeBindings.Add(&NormalizedAgeBinding);
+
+	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
+	{
+		if (AttributeBinding->BoundVariable.IsValid())
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->BoundVariable);
+		}
+		else if (AttributeBinding->DataSetVariable.IsValid())
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->DataSetVariable);
+		}
+		else
+		{
+			CurrentAttributeBindings.Add(AttributeBinding->DefaultValueIfNonExistent);
+		}
+	}
+
+	return CurrentAttributeBindings;
 }
 
 const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetRequiredAttributes()

@@ -184,6 +184,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 							// downgrading from Dynamic in those cases.
 							if (!bIsGC && HandleState != Chaos::EObjectStateType::Dynamic)
 							{
+								++i;
 								continue;
 							}
 
@@ -237,7 +238,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					if (StateChanged)
 					{
 						// regenerate views
-						CurrentSolver->GetParticles().UpdateGeometryCollectionViews();
+						CurrentSolver->GetParticles().UpdateGeometryCollectionViews(true);
 					}
 
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
@@ -322,7 +323,6 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 				}
 				CommandsToRemove.Add(CommandIndex);
 			}
-#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain))
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
@@ -344,30 +344,40 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 							Command.MetaData
 						};
 
+						// TODO: Chaos, Ryan
+						// As we're allocating a buffer the size of all particles every iteration, 
+						// I suspect this is a performance hit.  It seems like we should add a buffer
+						// that's recycled rather than reallocating.  It could live on the particles
+						// and its lifetime tied to an object that lives in the scope of the object 
+						// that's driving the sampling of the field.
+
 						TArray<float> StrainSamples;
-						StrainSamples.AddUninitialized(SamplesView.Num());
-						for (const ContextIndex& Index : IndicesArray)
-						{
-							StrainSamples[Index.Sample] = 0.f;
-						}
+						// There's 2 ways to think about initializing this array...
+						// Either we have a low number of indices, and the cost of iterating
+						// over the indices in addition to StrainSamples is lower than the
+						// cost of initializing them all, or it's cheaper and potentially 
+						// more cache coherent to just initialize them all.  I'm thinking
+						// the latter may be more likely...
+						StrainSamples.AddZeroed(SamplesView.Num());
+
 						TArrayView<float> FloatBuffer(&StrainSamples[0], StrainSamples.Num());
 						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, FloatBuffer);
 
 						int32 Iterations = 1;
 						if (Command.MetaData.Contains(FFieldSystemMetaData::EMetaType::ECommandData_Iteration))
 						{
-							Iterations = static_cast<FFieldSystemMetaDataIteration*>(Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_Iteration].Get())->Iterations;
+							Iterations = static_cast<FFieldSystemMetaDataIteration*>(
+								Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_Iteration].Get())->Iterations;
 						}
 
 						if (StrainSamples.Num())
 						{
-							CurrentSolver->GetRigidClustering().BreakingModel(StrainSamples);
+							CurrentSolver->GetEvolution()->GetRigidClustering().BreakingModel(&FloatBuffer);
 						}
 					}
 				}
 				CommandsToRemove.Add(CommandIndex);
 			}
-#endif
 			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_Kill))
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Kill);
@@ -378,28 +388,36 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
 					if (IndicesArray.Num())
 					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						FFieldContext Context(
+							SampleIndicesView,
+							SamplePointsView,
+							Command.MetaData);
 
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
+						TArray<float> LocalResults;
+						LocalResults.AddZeroed(Handles.Num());
+						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
+						static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(
+							Context, ResultsView);
+						
 
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-
-						// @todo(better) : Dont copy, support native type conversion. 
-						TArray<float> Results;
-						Results.AddUninitialized(Particles.Size());
-						for (const ContextIndex& Index : IndicesArray)
+						bool HasDisabled = false;
+						int32 i = 0;
+						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
 						{
-							Results[Index.Sample] = 0.f;
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
+							
+							if (ResultsView[i] > 0.0)
+							{
+								CurrentSolver->GetEvolution()->DisableParticle(Handle);
+								HasDisabled = true;
+							}
+							++i;
 						}
-						TArrayView<float> ResultsView(&(Results[0]), Results.Num());
-						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
-#if TODO_REIMPLEMENT_GETFLOORINDEX
+						// #todo: no special casing for the floor
+						/*
 						bool bHasFloor = false;
 						int32 FloorIndex = CurrentSolver->GetFloorIndex();
 						if (FloorIndex != INDEX_NONE)
@@ -423,7 +441,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 							CurrentSolver->GetEvolution()->DisableParticle(FloorIndex);
 							Particles.SetObjectState(FloorIndex, Chaos::EObjectStateType::Static);
 						}
-#endif
+						*/
 					}
 				}
 				CommandsToRemove.Add(CommandIndex);
@@ -499,87 +517,55 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
 					TEXT("Field based evaluation of the simulations 'Disable' parameter expects scale field inputs.")))
 				{
-#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
-					const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyMapping = CurrentSolver->GetPhysicsProxyReverseMapping();
-					
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
+					if (Handles.Num())
 					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						FFieldContext Context(
+							SampleIndicesView,
+							SamplePointsView,
+							Command.MetaData);
 
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
+						TArray<float> LocalResults;
+						LocalResults.AddZeroed(Handles.Num());
+						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
+						static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(
+							Context, ResultsView);
 
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-
-						TArray<float> Results;
-						Results.AddUninitialized(Particles.Size());
-						for (const ContextIndex Index : IndicesArray)
+						int32 i = 0;
+						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
 						{
-							const SolverObjectWrapper& ParticleObjectWrapper = SolverObjectMapping[Index.Result];
-							TSerializablePtr<Chaos::FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(Index.Result);
-							if (ensure(Material) && ParticleObjectWrapper.SolverObject)
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
+
+							if (RigidHandle && ResultsView.Num() > 0)
 							{
-								const TUniquePtr<Chaos::FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result);
-								if (InstanceMaterial)
+								// if no per particle physics material is set, make one
+								if (!CurrentSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle).IsValid())
 								{
-									Results[Index.Result] = InstanceMaterial->SleepingLinearThreshold;
+
+									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>();
+									NewMaterial->SleepingLinearThreshold = ResultsView[i];
+									NewMaterial->SleepingAngularThreshold = ResultsView[i];
+
+
+									CurrentSolver->GetEvolution()->SetPhysicsMaterial(RigidHandle, MakeSerializable(NewMaterial));
+									CurrentSolver->GetEvolution()->SetPerParticlePhysicsMaterial(RigidHandle, NewMaterial);
 								}
 								else
 								{
-									Results[Index.Result] = Material->SleepingLinearThreshold;
+									const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle);
+
+									if (ResultsView[i] != InstanceMaterial->DisabledLinearThreshold)
+									{
+										InstanceMaterial->SleepingLinearThreshold = ResultsView[i];
+										InstanceMaterial->SleepingAngularThreshold = ResultsView[i];
+									}
 								}
 							}
-							else
-							{
-								Results[Index.Result] = 0.0f;
-							}
+
+							++i;
 						}
-
-						TArrayView<float> ResultsView(&(Results[0]), Results.Num());
-						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
-
-						for (const ContextIndex Index : IndicesArray)
-						{
-							const int32 i = Index.Result;
-							const PhysicsProxyWrapper& ParticleObjectWrapper = PhysicsProxyMapping[i];
-							TSerializablePtr<FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(i);
-							if (!ensure(Material) || !ParticleObjectWrapper.PhysicsProxy)	//question: do we actually need to check for solver object?
-							{
-								continue;
-							}
-
-							//per instance override
-							if (!CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result))
-							{
-								if (Results[i] != Material->SleepingLinearThreshold)
-								{
-									// value changed from shared material, make unique material.
-									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>(*Material);
-									CurrentSolver->SetPerParticlePhysicsMaterial(Index.Result, MoveTemp(NewMaterial));
-									const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
-
-									InstanceMaterial->SleepingLinearThreshold = Results[i];
-									InstanceMaterial->SleepingAngularThreshold = Results[i];
-								}
-							}
-							else
-							{
-								const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
-
-								if (InstanceMaterial->SleepingLinearThreshold != Results[i])
-								{
-									InstanceMaterial->SleepingLinearThreshold = Results[i];
-									InstanceMaterial->SleepingAngularThreshold = Results[i];
-								}
-							}
-						}
-					}
-#endif
+					}				
 				}
 				CommandsToRemove.Add(CommandIndex);
 			}
@@ -590,119 +576,59 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
 					TEXT("Field based evaluation of the simulations 'Disable' parameter expects scale field inputs.")))
 				{
-#if TODO_REIMPLEMENT_PHYSICS_PROXY_REVERSE_MAPPING
-					const Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyMapping = CurrentSolver->GetPhysicsProxyReverseMapping();
 					
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
+					if (Handles.Num())
 					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						FFieldContext Context(
+							SampleIndicesView,
+							SamplePointsView,
+							Command.MetaData);
 
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
+						TArray<float> LocalResults;
+						LocalResults.AddUninitialized(Handles.Num());
+						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
+						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(
+							Context, ResultsView);
 
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-
-						TArray<float> Results;
-						Results.AddUninitialized(Particles.Size());
-						for (const ContextIndex Index : IndicesArray)
+						int32 i = 0;
+						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
 						{
-							const SolverObjectWrapper& ParticleObjectWrapper = SolverObjectMapping[Index.Result];
-							TSerializablePtr<Chaos::FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(Index.Result);
-							if (ensure(Material) && ParticleObjectWrapper.SolverObject)
-							{
-								const TUniquePtr<Chaos::FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result);
-								if (InstanceMaterial)
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
+							
+							if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic && ResultsView.Num() > 0)
+							{						
+								// if no per particle physics material is set, make one
+								if (!CurrentSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle).IsValid())
 								{
-									Results[Index.Result] = InstanceMaterial->DisabledLinearThreshold;
-								}
+
+									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>();
+									NewMaterial->DisabledLinearThreshold = ResultsView[i];
+									NewMaterial->DisabledAngularThreshold = ResultsView[i];
+
+
+									CurrentSolver->GetEvolution()->SetPhysicsMaterial(RigidHandle, MakeSerializable(NewMaterial));
+									CurrentSolver->GetEvolution()->SetPerParticlePhysicsMaterial(RigidHandle, NewMaterial);
+								} 
 								else
 								{
-									Results[Index.Result] = Material->DisabledLinearThreshold;
+									const TUniquePtr<FChaosPhysicsMaterial> &InstanceMaterial = CurrentSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle);
+		
+									if (ResultsView[i] != InstanceMaterial->DisabledLinearThreshold)
+									{
+										InstanceMaterial->DisabledLinearThreshold = ResultsView[i];
+										InstanceMaterial->DisabledAngularThreshold = ResultsView[i];
+									}
 								}
 							}
-							else
-							{
-								Results[Index.Result] = 0.0f;
-							}
+							++i;
 						}
-
-						TArrayView<float> ResultsView(&(Results[0]), Results.Num());
-						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
-
-						for (const ContextIndex Index : IndicesArray)
-						{
-							const int32 i = Index.Result;
-							const PhysicsProxyWrapper& ParticleObjectWrapper = PhysicsProxyMapping[i];
-							TSerializablePtr<Chaos::FChaosPhysicsMaterial> Material = CurrentSolver->GetPhysicsMaterial(i);
-							if (!ensure(Material) || !ParticleObjectWrapper.PhysicsProxy)	//question: do we actually need to check for solver object?
-							{
-								continue;
-							}
-
-							//per instance override
-							if (!CurrentSolver->GetPerParticlePhysicsMaterial(Index.Result))
-							{
-								if (Results[i] != Material->DisabledLinearThreshold)
-								{
-									// value changed from shared material, make unique material.
-									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>(*Material);
-									CurrentSolver->SetPerParticlePhysicsMaterial(Index.Result, MoveTemp(NewMaterial));
-									const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
-
-									InstanceMaterial->DisabledLinearThreshold = Results[i];
-									InstanceMaterial->DisabledAngularThreshold = Results[i];
-								}
-							}
-							else
-							{
-								const TUniquePtr<FChaosPhysicsMaterial>& InstanceMaterial = CurrentSolver->GetPerParticlePhysicsMaterial(i);
-
-								if (InstanceMaterial->DisabledLinearThreshold != Results[i])
-								{
-									InstanceMaterial->DisabledLinearThreshold = Results[i];
-									InstanceMaterial->DisabledAngularThreshold = Results[i];
-								}
-							}
-						}
-					}
-#endif
+					}									
 				}
+
 				CommandsToRemove.Add(CommandIndex);
 			}
-#if TODO_REIMPLEMENT_RIGID_CLUSTERING
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_InternalClusterStrain))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_InternalClusterStrain);
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'ExternalClusterStrain' parameter expects scalar field inputs.")))
-				{
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
-					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
-
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-
-						float * vptr = &(Strains[0]);
-						TArrayView<float> ResultsView(vptr, Particles.Size());
-						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
-					}
-				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-#endif
 			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_CollisionGroup))
 			{
 				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
@@ -1012,7 +938,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 							Command.MetaData);
 
 						TArray<FVector> LocalForce;
-						LocalForce.AddUninitialized(Handles.Num());					
+						LocalForce.AddZeroed(Handles.Num());					
 						TArrayView<FVector> ForceView(&(LocalForce[0]), LocalForce.Num());
 						static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(Context, ForceView);
 		
@@ -1021,7 +947,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 						{
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
 							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
-							{
+							{								
 								RigidHandle->F() += ForceView[i];
 							}
 							++i;
@@ -1164,7 +1090,8 @@ void FFieldSystemPhysicsProxy::GetParticleHandles(
 	}
 	else if (ResolutionType == EFieldResolutionType::Field_Resolution_Minimal)
 	{
-		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>> &ParticleView = SolverParticles.GetNonDisabledView();
+		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>> &ParticleView = 
+			SolverParticles.GetNonDisabledView();
 		Handles.Reserve(ParticleView.Num());
 		for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)

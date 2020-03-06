@@ -11,7 +11,7 @@
  *
  * Archive proxies are archive types that modify the behavior of another archive type.
  */
-class CORE_VTABLE FArchiveProxy : public FArchive
+class FArchiveProxy : public FArchive
 {
 public:
 	/**

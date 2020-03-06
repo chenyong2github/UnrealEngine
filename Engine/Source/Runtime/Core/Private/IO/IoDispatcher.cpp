@@ -146,62 +146,11 @@ public:
 
 	~FIoDispatcherImpl()
 	{
-		IPlatformChunkInstall* ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
-		if (ChunkInstall && ChunkDownloadedDelegateHandle.IsValid())
-		{
-			ChunkInstall->RemoveChunkInstallDelegate(ChunkDownloadedDelegateHandle);
-		}
+		delete Thread;
 	}
 
-	FIoStatus Initialize(const FIoStoreEnvironment& InitialEnvironment)
+	FIoStatus Initialize()
 	{
-		FIoStatus IoStatus = Mount(InitialEnvironment);
-		if (!IoStatus.IsOk())
-		{
-			return IoStatus;
-		}
-
-		FIoBuffer IoBuffer;
-		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
-		ReadWithCallback(
-			CreateIoChunkId(0, 0, EIoChunkType::InstallManifest),
-			FIoReadOptions(),
-			[Event, &IoBuffer](TIoStatusOr<FIoBuffer> Result)
-		{
-			if (Result.IsOk())
-			{
-				IoBuffer = Result.ConsumeValueOrDie();
-			}
-			Event->Trigger();
-		});
-		Event->Wait();
-		if (!IoBuffer.DataSize())
-		{
-			return FIoStatusBuilder(EIoErrorCode::NotFound) << TEXT("Failed to open install manifest");
-		}
-		FLargeMemoryReader InstallManifestAr(IoBuffer.Data(), IoBuffer.DataSize());
-
-		FIoStoreInstallManifest InstallManifest;
-		InstallManifestAr << InstallManifest;
-
-		IPlatformChunkInstall* ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
-		if (ChunkInstall)
-		{
-			ChunkDownloadedDelegateHandle = ChunkInstall->AddChunkInstallDelegate(FPlatformChunkInstallDelegate::CreateRaw(this, &FIoDispatcherImpl::OnChunkDownloaded));
-		}
-		for (const FIoStoreInstallManifest::FEntry& InstallManifestEntry : InstallManifest.ReadEntries())
-		{
-			FIoStoreEnvironment PartitionEnvironment(InitialEnvironment, InstallManifestEntry.PartitionName);
-			if (ChunkInstall && ChunkInstall->GetPakchunkLocation(InstallManifestEntry.InstallChunkId) == EChunkLocation::NotAvailable)
-			{
-				PendingInstallChunks.Add(MakeTuple(InstallManifestEntry.InstallChunkId, PartitionEnvironment));
-			}
-			else
-			{
-				Mount(PartitionEnvironment);
-			}
-		}
-
 		return FIoStatus::Ok;
 	}
 
@@ -326,10 +275,20 @@ public:
 private:
 	friend class FIoBatch;
 
-	void CompleteRequests()
+	void ProcessCompletedBlocks()
+	{
+		EventQueue.Poll();
+		while (FileIoStore.ProcessCompletedBlock())
+		{
+			ProcessCompletedRequests();
+		}
+	}
+
+	void ProcessCompletedRequests()
 	{
 		while (SubmittedRequestsHead && SubmittedRequestsHead->UnfinishedReadsCount == 0)
 		{
+			//TRACE_CPUPROFILER_EVENT_SCOPE(CompleteRequest);
 			FIoRequestImpl* NextRequest = SubmittedRequestsHead->NextRequest;
 			CompleteRequest(SubmittedRequestsHead);
 			SubmittedRequestsHead = NextRequest;
@@ -365,36 +324,43 @@ private:
 
 	void ProcessIncomingRequests()
 	{
-		FIoRequestImpl* WaitingRequest;
+		FIoRequestImpl* RequestsToSubmitHead = nullptr;
+		FIoRequestImpl* RequestsToSubmitTail = nullptr;
+		//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessIncomingRequests);
+		for (;;)
 		{
-			FScopeLock _(&WaitingLock);
-			WaitingRequest = WaitingRequestsHead;
-			WaitingRequestsHead = WaitingRequestsTail = nullptr;
-		}
-		while (WaitingRequest)
-		{
-			RequestsToSubmit.Add(WaitingRequest);
-			WaitingRequest = WaitingRequest->NextRequest;
-		}
+			{
+				FScopeLock _(&WaitingLock);
+				if (WaitingRequestsHead)
+				{
+					if (RequestsToSubmitTail)
+					{
+						RequestsToSubmitTail->NextRequest = WaitingRequestsHead;
+						RequestsToSubmitTail = WaitingRequestsTail;
+					}
+					else
+					{
+						RequestsToSubmitHead = WaitingRequestsHead;
+						RequestsToSubmitTail = WaitingRequestsTail;
+					}
+					WaitingRequestsHead = WaitingRequestsTail = nullptr;
+				}
+			}
+			if (!RequestsToSubmitHead)
+			{
+				return;
+			}
 
-		int32 RequestsToSubmitCount = RequestsToSubmit.Num();
-		if (!RequestsToSubmitCount)
-		{
-			return;
-		}
+			FIoRequestImpl* Request = RequestsToSubmitHead;
+			RequestsToSubmitHead = RequestsToSubmitHead->NextRequest;
+			if (!RequestsToSubmitHead)
+			{
+				RequestsToSubmitTail = nullptr;
+			}
 
-		//TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherSubmitRequests);
-
-		for (; CurrentRequestsToSubmitIndex < RequestsToSubmitCount; ++CurrentRequestsToSubmitIndex)
-		{
-			FIoRequestImpl* Request = RequestsToSubmit[CurrentRequestsToSubmitIndex];
-			check(Request);
+			//TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
 
 			EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
-			if (Result == IoStoreResolveResult_Stalled)
-			{
-				break;
-			}
 			if (Result == IoStoreResolveResult_NotFound)
 			{
 				Request->Status = FIoStatus(EIoErrorCode::NotFound);
@@ -409,29 +375,8 @@ private:
 				SubmittedRequestsTail = Request;
 			}
 			Request->NextRequest = nullptr;
-		}
 
-		if (CurrentRequestsToSubmitIndex == RequestsToSubmitCount)
-		{
-			RequestsToSubmit.Reset(false);
-			CurrentRequestsToSubmitIndex = 0;
-		}
-	}
-
-	void OnChunkDownloaded(uint32 ChunkId, bool bSuccess)
-	{
-		if (bSuccess)
-		{
-			for (auto It = PendingInstallChunks.CreateIterator(); It; ++It)
-			{
-				int32 PendingChunkId = It->Get<0>();
-				if (PendingChunkId == ChunkId)
-				{
-					const FIoStoreEnvironment& PendingEnvironment = It->Get<1>();
-					Mount(PendingEnvironment);
-					It.RemoveCurrent();
-				}
-			}
+			ProcessCompletedBlocks();
 		}
 	}
 
@@ -442,19 +387,22 @@ private:
 
 	virtual uint32 Run()
 	{
-		while (true)
+		while (!bStopRequested)
 		{
-			EventQueue.ProcessEvents();
-
-			FileIoStore.ProcessIncomingBlocks();
+			EventQueue.Wait();
+			
+			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessEventQueue);
 			ProcessIncomingRequests();
-			CompleteRequests();
+			ProcessCompletedBlocks();
+			ProcessCompletedRequests();
 		}
 		return 0;
 	}
 
 	virtual void Stop()
 	{
+		bStopRequested = true;
+		EventQueue.Notify();
 	}
 
 	using FRequestAllocator = TBlockAllocator<FIoRequestImpl, 4096>;
@@ -469,12 +417,9 @@ private:
 	FCriticalSection WaitingLock;
 	FIoRequestImpl* WaitingRequestsHead = nullptr;
 	FIoRequestImpl* WaitingRequestsTail = nullptr;
-	TArray<FIoRequestImpl*> RequestsToSubmit;
-	int32 CurrentRequestsToSubmitIndex = 0;
 	FIoRequestImpl* SubmittedRequestsHead = nullptr;
 	FIoRequestImpl* SubmittedRequestsTail = nullptr;
-	FDelegateHandle ChunkDownloadedDelegateHandle;
-	TArray<TTuple<int32, FIoStoreEnvironment>> PendingInstallChunks;
+	TAtomic<bool> bStopRequested { false };
 };
 
 FIoDispatcher::FIoDispatcher()
@@ -536,11 +481,11 @@ FIoDispatcher::IsValidEnvironment(const FIoStoreEnvironment& Environment)
 }
 
 FIoStatus
-FIoDispatcher::Initialize(const FIoStoreEnvironment& InitialEnvironment)
+FIoDispatcher::Initialize()
 {
 	GIoDispatcher = MakeUnique<FIoDispatcher>();
 
-	return GIoDispatcher->Impl->Initialize(InitialEnvironment);
+	return GIoDispatcher->Impl->Initialize();
 }
 
 void

@@ -15,6 +15,7 @@
 #include "Misc/OutputDeviceConsole.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/StringBuilder.h"
 #include "UObject/ErrorException.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectAllocator.h"
@@ -1243,8 +1244,8 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 			// and makes it an O(n) when properties are saved in the same order as they are loaded (default case). In the 
 			// case that a property was reordered the code falls back to a slower search.
 			FProperty*	Property = PropertyLink;
-			bool		bAdvanceProperty = false;
-			int32		RemainingArrayDim = Property ? Property->ArrayDim : 0;
+			bool		bAdvanceProperty	= false;
+			int32		RemainingArrayDim	= Property ? Property->ArrayDim : 0;
 
 			// Load all stored properties, potentially skipping unknown ones.
 			while (true)
@@ -1497,7 +1498,9 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 							Tag.SetPropertyGuid(PropertyGuid);
 						}
 
-						FStructuredArchive::FSlot PropertySlot = StaticArrayContainer.IsSet() ? StaticArrayContainer->EnterElement() : PropertiesRecord.EnterField(SA_FIELD_NAME(*Tag.Name.ToString()));
+						TStringBuilder<256> TagName;
+						Tag.Name.ToString(TagName);
+						FStructuredArchive::FSlot PropertySlot = StaticArrayContainer.IsSet() ? StaticArrayContainer->EnterElement() : PropertiesRecord.EnterField(SA_FIELD_NAME(TagName.ToString()));
 
 						PropertySlot << Tag;
 
@@ -1588,7 +1591,7 @@ UStruct::~UStruct()
 	// This needs to happen after FinishDestroy which calls DestroyNonNativeProperties
 	// Also, Blueprint generated classes can have DestroyNonNativeProperties called on them after their FinishDestroy has been called
 	// so properties can only be deleted in the destructor
-	DestroyPropertyLinkedList(ChildProperties);
+	DestroyChildPropertiesAndResetPropertyLinks();
 }
 
 IMPLEMENT_FSTRUCTUREDARCHIVE_SERIALIZER(UStruct);
@@ -1723,8 +1726,6 @@ void UStruct::SerializeProperties(FArchive& Ar)
 		check(!Ar.IsSaving() || VerifySerializedFieldsCount == PropertyCount);
 	}
 }
-
-
 
 void UStruct::Serialize(FArchive& Ar)
 {
@@ -4636,29 +4637,29 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 		}
 		PropertyWrappers.Empty();
 	}
-	if (bRecompilingOnLoad)
+
+	// When compiling properties can't be immediately destroyed because we need 
+	// to fix up references to these properties. The caller of PurgeClass is 
+	// expected to call DestroyPropertiesPendingDestruction
+	FField* LastField = ChildProperties;
+	if (LastField)
 	{
-		// When compiling on load properties can't be immediately destroyed because new properties can be allocated
-		// in their place and this breaks script byte code reference replacement. See FBlueprintCompileReinstancer::AddReferencedObjects.
-		FField* LastField = ChildProperties;
-		if (LastField)
+		while (LastField->Next)
 		{
-			while (LastField->Next)
-			{
-				LastField = LastField->Next;
-			}
-			check(LastField->Next == nullptr);
-			LastField->Next = PropertiesPendingDestruction;
-			PropertiesPendingDestruction = ChildProperties;
-			ChildProperties = nullptr;
+			LastField = LastField->Next;
 		}
+		check(LastField->Next == nullptr);
+		LastField->Next = PropertiesPendingDestruction;
+		PropertiesPendingDestruction = ChildProperties;
+		ChildProperties = nullptr;
 	}
-	else
-#endif // WITH_EDITORONLY_DATA
+#else
 	{
 		// Destroy all properties owned by this struct
 		DestroyPropertyLinkedList(ChildProperties);
 	}
+#endif // WITH_EDITORONLY_DATA
+
 	FFieldPath::OnFieldDeleted();
 
 	DestroyUnversionedSchema(this);

@@ -311,5 +311,7 @@ private:
 	TMap<FName, FStructProperty*> RegisteredStructToProxyMap;
 	/** Shared thumbnail pool used by property row generators */
 	TSharedPtr<class FAssetThumbnailPool> GlobalThumbnailPool;
+	/** Container for ScopeOnStruct FStructProperty objects */
+	UStruct* StructOnScopePropertyOwner;
 
 };

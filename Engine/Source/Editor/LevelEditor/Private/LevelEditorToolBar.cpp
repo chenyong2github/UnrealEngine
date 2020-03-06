@@ -1197,7 +1197,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset"),
 			NAME_None,
-			"SaveAllLevels"
+			FName("SaveAllLevels")
 		));
 
 		// Source control buttons
@@ -1376,10 +1376,6 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 				switch (GEditor->PreviewPlatform.PreviewFeatureLevel)
 				{
-					case ERHIFeatureLevel::ES2:
-					{
-						return LOCTEXT("PreviewModeES2_Text", "ES2 Preview");
-					}
 					case ERHIFeatureLevel::ES3_1:
 					{
 						return LOCTEXT("PreviewModeES3_1_Text", "ES3.1 Preview");
@@ -1436,17 +1432,12 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.iOS.Enabled" : "LevelEditor.PreviewMode.iOS.Disabled");
 					}
 					case SP_VULKAN_PCES3_1:
-					case SP_OPENGL_ES2_WEBGL:
 					{
 						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.AndroidES2.Enabled" : "LevelEditor.PreviewMode.AndroidES2.Disabled");
 					}
 				}
 				switch (GEditor->PreviewPlatform.PreviewFeatureLevel)
 				{
-					case ERHIFeatureLevel::ES2:
-					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.AndroidES2.Enabled" : "LevelEditor.PreviewMode.AndroidES2.Disabled");
-					}
 					case ERHIFeatureLevel::ES3_1:
 					{
 						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.Enabled" : "LevelEditor.PreviewMode.Disabled");
@@ -1936,12 +1927,13 @@ static void MakeShaderModelPreviewMenu( UToolMenu* InMenu )
 		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_AndroidVulkanES31);
 	}
 
-	bool bAndroidBuildForES2 = false;
-	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bBuildForES2"), bAndroidBuildForES2, GEngineIni);
-	if (bAndroidBuildForES2)
+	bool bAndroidSupportsMobileVulkanSM5 = false;
+	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsAndroidVulkanSM5"), bAndroidSupportsVulkan, GEngineIni);
+	if (bAndroidSupportsMobileVulkanSM5)
 	{
-    	Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_AndroidGLES2);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_AndroidVulkanSM5);
 	}
+
 
 	// iOS
 	bool bIOSSupportsMetal = false;
@@ -2315,11 +2307,7 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 		Section.AddMenuEntry(FLevelEditorCommands::Get().CreateBlankBlueprintClass);
 
 		// Convert selection to BP
-		Section.AddMenuEntry(FLevelEditorCommands::Get().ConvertSelectionToBlueprintViaHarvest);
-		Section.AddMenuEntry(
-			FLevelEditorCommands::Get().ConvertSelectionToBlueprintViaSubclass,
-			TAttribute<FText>::Create(FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassLabel),
-			TAttribute<FText>::Create(FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassTooltip));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().ConvertSelectionToBlueprint);
 
 		// Open an existing Blueprint Class...
 		FSlateIcon OpenBPIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenClassBlueprint");

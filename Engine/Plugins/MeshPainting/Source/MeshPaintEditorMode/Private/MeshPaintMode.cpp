@@ -127,7 +127,10 @@ void UMeshPaintMode::Enter()
 	RegisterTool(ToolManagerCommands.TexturePaint, TEXT("TextureBrushTool"), NewObject<UMeshTexturePaintingToolBuilder>());
 	UpdateSelectedMeshes();
 
+	// disable tool change tracking to activate default tool, and then switch to full undo/redo tracking mode
+	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
 	ActivateDefaultTool();
+	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::FullUndoRedo);
 }
 
 void UMeshPaintMode::Exit()
@@ -200,7 +203,7 @@ void UMeshPaintMode::BindCommands()
 
 	CommandList->MapAction(Commands.SwitchForeAndBackgroundColor, FExecuteAction::CreateLambda([this]()
 	{
-		UMeshPaintModeHelpers::SwapColors();
+		UMeshPaintModeHelpers::SwapVertexColors();
 	}));
 
 
@@ -289,10 +292,7 @@ void UMeshPaintMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveT
 
 bool UMeshPaintMode::InputAxis(FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime)
 {
-	bool bSelectingOnly = (GetToolManager()->GetActiveTool(EToolSide::Mouse)) ? GetToolManager()->GetActiveTool(EToolSide::Mouse)->IsA<USingleClickTool>() : false;
-
-	// If we are painting (not selecting), don't allow panning with the mouse.
-	return !bSelectingOnly && !InViewportClient->IsAltPressed();
+	return !InViewportClient->IsAltPressed();
 }
 
 void UMeshPaintMode::ActorSelectionChangeNotify()
@@ -348,19 +348,19 @@ void UMeshPaintMode::FillWithVertexColor()
 			MeshAdapter->PreEdit();
 		}
 
-		if (UMeshColorPaintingToolProperties* ColorProperties = UMeshPaintMode::GetColorToolProperties())
-		{
-			const bool bPaintOnSpecificLOD = ColorProperties ? ColorProperties->bPaintOnSpecificLOD : false;
+		UMeshColorPaintingToolProperties* ColorProperties = UMeshPaintMode::GetColorToolProperties();
+		
+		const bool bPaintOnSpecificLOD = ColorProperties ? ColorProperties->bPaintOnSpecificLOD : false;
 
-			if (Component->IsA<UStaticMeshComponent>())
-			{
-				UMeshPaintingToolset::FillStaticMeshVertexColors(Cast<UStaticMeshComponent>(Component), bPaintOnSpecificLOD ? ColorProperties->LODIndex : -1, FillColor, MaskColor);
-			}
-			else if (Component->IsA<USkeletalMeshComponent>())
-			{
-				UMeshPaintingToolset::FillSkeletalMeshVertexColors(Cast<USkeletalMeshComponent>(Component), bPaintOnSpecificLOD ? ColorProperties->LODIndex : -1, FillColor, MaskColor);
-			}
+		if (Component->IsA<UStaticMeshComponent>())
+		{
+			UMeshPaintingToolset::FillStaticMeshVertexColors(Cast<UStaticMeshComponent>(Component), bPaintOnSpecificLOD ? ColorProperties->LODIndex : -1, FillColor, MaskColor);
 		}
+		else if (Component->IsA<USkeletalMeshComponent>())
+		{
+			UMeshPaintingToolset::FillSkeletalMeshVertexColors(Cast<USkeletalMeshComponent>(Component), bPaintOnSpecificLOD ? ColorProperties->LODIndex : -1, FillColor, MaskColor);
+		}
+		
 
 		if (MeshAdapter)
 		{
@@ -696,6 +696,7 @@ void UMeshPaintMode::UpdateCachedVertexDataSize()
 			}
 		}
 	}
+	bRecacheVertexDataSize = false;
 }
 
 

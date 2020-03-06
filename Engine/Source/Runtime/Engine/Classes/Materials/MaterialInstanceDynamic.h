@@ -17,6 +17,10 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	UFUNCTION(BlueprintCallable, meta=(Keywords = "SetFloatParameterValue"), Category="Rendering|Material")
 	void SetScalarParameterValue(FName ParameterName, float Value);
 
+	/** Set a MID scalar (float) parameter value using MPI (to allow access to layer parameters) */
+	UFUNCTION(BlueprintCallable, meta = (Keywords = "SetFloatParameterValue"), Category = "Rendering|Material")
+	void SetScalarParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, float Value);
+
 	// NOTE: These Index-related functions should be used VERY carefully, and only in cases where optimization is
 	// critical.  Generally that's only if you're using an unusually high number of parameters in a material AND
 	// setting a huge number of parameters in the same frame.
@@ -35,21 +39,41 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "GetScalarParameterValue", ScriptName = "GetScalarParameterValue", Keywords = "GetFloatParameterValue"), Category="Rendering|Material")
 	float K2_GetScalarParameterValue(FName ParameterName);
 
+	/** Get the current scalar (float) parameter value from an MID, using MPI (to allow access to layer parameters) */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "GetScalarParameterValueByInfo", ScriptName = "GetScalarParameterValueByInfo", Keywords = "GetFloatParameterValue"), Category = "Rendering|Material")
+	float K2_GetScalarParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo);
+
 	/** Set an MID texture parameter value */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetTextureParameterValue(FName ParameterName, class UTexture* Value);
+
+	/** Set an MID texture parameter value using MPI (to allow access to layer parameters) */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetTextureParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, class UTexture* Value);
 
 	/** Get the current MID texture parameter value */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "GetTextureParameterValue", ScriptName = "GetTextureParameterValue"), Category="Rendering|Material")
 	class UTexture* K2_GetTextureParameterValue(FName ParameterName);
 
+	/** Get the current MID texture parameter value, using MPI (to allow access to layer parameters) */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "GetTextureParameterValueByInfo", ScriptName = "GetTextureParameterValueByInfo"), Category = "Rendering|Material")
+	class UTexture* K2_GetTextureParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo);
+
 	/** Set an MID vector parameter value */
 	UFUNCTION(BlueprintCallable, meta=(Keywords = "SetColorParameterValue"), Category="Rendering|Material")
 	void SetVectorParameterValue(FName ParameterName, FLinearColor Value);
 
+	/** Set an MID vector parameter value, using MPI (to allow access to layer parameters) */
+	UFUNCTION(BlueprintCallable, meta = (Keywords = "SetColorParameterValue"), Category = "Rendering|Material")
+	void SetVectorParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, FLinearColor Value);
+
 	/** Get the current MID vector parameter value */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "GetVectorParameterValue", ScriptName = "GetVectorParameterValue", Keywords = "GetColorParameterValue"), Category="Rendering|Material")
 	FLinearColor K2_GetVectorParameterValue(FName ParameterName);
+
+	/** Get the current MID vector parameter value, using MPI (to allow access to layer parameters) */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "GetVectorParameterValueByInfo", ScriptName = "GetVectorParameterValueByInfo", Keywords = "GetColorParameterValue"), Category = "Rendering|Material")
+	FLinearColor K2_GetVectorParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo);
 	
 	/**
 	 * Interpolates the scalar and vector parameters of this material instance based on two other material instances, and an alpha blending factor

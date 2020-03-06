@@ -9,7 +9,7 @@
 #include "ILiveLinkClient.h"
 #include "ILiveLinkSource.h"
 
-bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform)
+bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius)
 {
 	TSharedPtr<FWindowsMixedRealityHandTracking> HandTracking = StaticCastSharedPtr<FWindowsMixedRealityHandTracking>(IWindowsMixedRealityHandTrackingModule::Get().GetInputDevice());
 
@@ -23,9 +23,15 @@ bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(ECon
 		if (bSuccess)
 		{
 			OutTransform = KeyPointTransform * UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
+			HandTracking->GetKeypointRadius(Hand, Keypoint, OutRadius);
 			return true;
 		}
 	}
 
 	return false;
+}
+
+bool UWindowsMixedRealityHandTrackingFunctionLibrary::SupportsHandTracking()
+{
+	return WindowsMixedReality::FWindowsMixedRealityStatics::SupportsHandTracking();
 }

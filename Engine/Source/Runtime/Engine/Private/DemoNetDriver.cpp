@@ -1916,7 +1916,7 @@ bool UDemoNetDriver::SerializeGuidCache(const FRepActorsCheckpointParams& Params
 	const double StartTime = FPlatformTime::Seconds();
 	const double Deadline = Params.StartCheckpointTime + Params.CheckpointMaxUploadTimePerFrame;
 
-	check(NextNetGuidForRecording >= 0 && NextNetGuidForRecording < NetGuidCacheSnapshot.Num());
+	check(NetGuidCacheSnapshot.Num() == 0 || NetGuidCacheSnapshot.IsValidIndex(NextNetGuidForRecording));
 
 	for (; NextNetGuidForRecording != NetGuidCacheSnapshot.Num(); ++NextNetGuidForRecording)
 	{
@@ -1950,14 +1950,14 @@ bool UDemoNetDriver::SerializeGuidCache(const FRepActorsCheckpointParams& Params
 
 			++NumNetGuidsForRecording;
 
-			if (FPlatformTime::Seconds() >= Deadline)
+			if (Params.CheckpointMaxUploadTimePerFrame > 0 && (FPlatformTime::Seconds() >= Deadline))
 			{
 				break;
 			}
 		}
 	}
 
-	bool bCompleted = NextNetGuidForRecording == NetGuidCacheSnapshot.Num();
+	const bool bCompleted = NextNetGuidForRecording == NetGuidCacheSnapshot.Num();
 	if (bCompleted)
 	{
 		FArchivePos Pos = CheckpointArchive->Tell();
@@ -4382,7 +4382,7 @@ APlayerController* UDemoNetDriver::CreateDemoPlayerController(UNetConnection* Co
 	// Tell the game that we're spectator and not a normal player
 	if (NewDemoController->PlayerState)
 	{
-		NewDemoController->PlayerState->bOnlySpectator = true;
+		NewDemoController->PlayerState->SetIsOnlyASpectator(true);
 	}
 
 	for (FActorIterator It(World); It; ++It)

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYWRAPCONTEXT_H
-#define TF_PYWRAPCONTEXT_H
+#ifndef PXR_BASE_TF_PY_WRAP_CONTEXT_H
+#define PXR_BASE_TF_PY_WRAP_CONTEXT_H
 
 #include "pxr/pxr.h"
 
@@ -70,4 +70,4 @@ class Tf_PyWrapContextManager : public boost::noncopyable {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYWRAPCONTEXT_H
+#endif // PXR_BASE_TF_PY_WRAP_CONTEXT_H

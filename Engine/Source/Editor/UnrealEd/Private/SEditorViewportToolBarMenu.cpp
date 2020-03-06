@@ -102,7 +102,7 @@ void SEditorViewportToolbarMenu::Construct( const FArguments& Declaration )
 			.ClickMethod( EButtonClickMethod::MouseDown )
 			.ContentPadding( FMargin( 5.0f, 2.0f ) )
 			.VAlign( VAlign_Center )
-			.ButtonStyle( FEditorStyle::Get(), "EditorViewportToolBar.MenuButton" )
+			.ButtonStyle(Declaration._MenuStyle)
 			.OnClicked( this, &SEditorViewportToolbarMenu::OnMenuClicked )
 			[
 				ButtonContent.ToSharedRef()

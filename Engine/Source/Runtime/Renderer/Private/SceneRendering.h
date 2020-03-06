@@ -39,9 +39,9 @@ class FViewInfo;
 struct FILCUpdatePrimTaskData;
 class FPostprocessContext;
 struct FILCUpdatePrimTaskData;
-template<typename ShaderMetaType> class TShaderMap;
 class FRaytracingLightDataPacked;
 class FRayTracingLocalShaderBindingWriter;
+struct FExposureBufferData;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -1062,7 +1062,8 @@ public:
 	uint32 bTranslucentSurfaceLighting : 1;
 	/** Whether the view has any materials that read from scene depth. */
 	uint32 bUsesSceneDepth : 1;
-	uint32 bUsesCustomDepthStencil : 1;
+	uint32 bCustomDepthStencilValid : 1;
+	uint32 bUsesCustomDepthStencilInTranslucentMaterials : 1;
 
 	/** Whether fog should only be computed on rendered opaque pixels or not. */
 	uint32 bFogOnlyOnRenderedOpaque : 1;
@@ -1081,6 +1082,12 @@ public:
 	 * true if the scene has at least one mesh with a material tagged as water visible in a view.
 	 */
 	uint32 bHasSingleLayerWaterMaterial : 1;
+	/**
+	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied post DOF. If true,
+	 * that means we need to run the separate modulation render pass.
+	 */
+	uint32 bHasTranslucencySeparateModulation : 1;
+
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 
@@ -1133,7 +1140,7 @@ public:
 
 	FHeightfieldLightingViewInfo HeightfieldLightingViewInfo;
 
-	TShaderMap<FGlobalShaderType>* ShaderMap;
+	FGlobalShaderMap* ShaderMap;
 
 	bool bIsSnapshot;
 
@@ -1244,7 +1251,12 @@ public:
 	void InitRHIResources();
 
 	/** Determines distance culling and fades if the state changes */
-	bool IsDistanceCulled(float DistanceSquared, float MaxDrawDistance, float MinDrawDistance, const FPrimitiveSceneInfo* PrimitiveSceneInfo);
+	bool IsDistanceCulled(float DistanceSquared, float MinDrawDistance, float InMaxDrawDistance, const FPrimitiveSceneInfo* PrimitiveSceneInfo);
+
+	bool IsDistanceCulled_AnyThread(float DistanceSquared, float MinDrawDistance, float InMaxDrawDistance, const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bOutMayBeFading, bool& bOutFadingIn) const;
+
+	/** @return - whether this primitive has completely faded out */
+	bool UpdatePrimitiveFadingState(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bFadingIn);
 
 	/** Gets the eye adaptation render target for this view. Same as GetEyeAdaptationRT */
 	IPooledRenderTarget* GetEyeAdaptation(FRHICommandList& RHICmdList) const;
@@ -1264,6 +1276,11 @@ public:
 
 	/**Swap the order of the two eye adaptation targets in the double buffer system */
 	void SwapEyeAdaptationRTs(FRHICommandList& RHICmdList) const;
+
+	const FExposureBufferData* GetEyeAdaptationBuffer() const;
+	const FExposureBufferData* GetLastEyeAdaptationBuffer() const;
+
+	void SwapEyeAdaptationBuffers() const;
 
 	/** Tells if the eyeadaptation texture exists without attempting to allocate it. */
 	bool HasValidEyeAdaptation() const;
@@ -1773,7 +1790,6 @@ protected:
 	FRHITexture* GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const;
 
 	void UpdatePrimitiveIndirectLightingCacheBuffers();
-	void ClearPrimitiveSingleFrameIndirectLightingCacheBuffers();
 
 	void RenderPlanarReflection(class FPlanarReflectionSceneProxy* ReflectionSceneProxy);
 
@@ -1822,6 +1838,8 @@ protected:
 	void BuildCSMVisibilityState(FLightSceneInfo* LightSceneInfo);
 
 	void InitViews(FRHICommandListImmediate& RHICmdList);
+
+	void RenderPrePass(FRHICommandListImmediate& RHICmdList);
 
 	/** Renders the opaque base pass for mobile. */
 	void RenderMobileBasePass(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews);
@@ -1874,9 +1892,11 @@ protected:
 	void UpdateTranslucentBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	void UpdateDirectionalLightUniformBuffers(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	void UpdateSkyReflectionUniformBuffer();
+	void UpdateDepthPrepassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	
 private:
 	bool bModulatedShadowsInUse;
+	bool bShouldRenderCustomDepth;
 	static FGlobalDynamicIndexBuffer DynamicIndexBuffer;
 	static FGlobalDynamicVertexBuffer DynamicVertexBuffer;
 	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBuffer;
@@ -1965,6 +1985,7 @@ struct FFastVramConfig
 	uint32 GBufferC;
 	uint32 GBufferD;
 	uint32 GBufferE;
+	uint32 GBufferF;
 	uint32 GBufferVelocity;
 	uint32 HZB;
 	uint32 SceneDepth;
@@ -1993,6 +2014,7 @@ struct FFastVramConfig
 	uint32 ScreenSpaceShadowMask;
 	uint32 VolumetricFog;
 	uint32 SeparateTranslucency;
+	uint32 SeparateTranslucencyModulate;
 	uint32 LightAccumulation;
 	uint32 LightAttenuation;
 	uint32 ScreenSpaceAO;
@@ -2027,6 +2049,7 @@ private:
 extern FFastVramConfig GFastVRamConfig;
 
 extern bool UseCachedMeshDrawCommands();
+extern bool UseCachedMeshDrawCommands_AnyThread();
 extern bool IsDynamicInstancingEnabled(ERHIFeatureLevel::Type FeatureLevel);
 
 enum class EGPUSkinCacheTransition

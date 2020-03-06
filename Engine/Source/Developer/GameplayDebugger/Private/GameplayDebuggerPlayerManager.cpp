@@ -35,9 +35,10 @@ void AGameplayDebuggerPlayerManager::BeginPlay()
 	Super::BeginPlay();
 
 	UWorld* World = GetWorld();
+	check(World);
 	const ENetMode NetMode = World->GetNetMode();
 	
-	bHasAuthority = (NetMode != NM_Client);
+	bHasAuthority = FGameplayDebuggerUtils::IsAuthority(World);
 	bIsLocal = (NetMode != NM_DedicatedServer);
 	bInitialized = true;
 

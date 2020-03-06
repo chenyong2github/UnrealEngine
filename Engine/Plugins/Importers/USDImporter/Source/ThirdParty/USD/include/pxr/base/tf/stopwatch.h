@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_STOPWATCH_H
-#define TF_STOPWATCH_H
+#ifndef PXR_BASE_TF_STOPWATCH_H
+#define PXR_BASE_TF_STOPWATCH_H
 
 /// \file tf/stopwatch.h
 /// \ingroup group_tf_Performance
@@ -201,4 +201,4 @@ TF_API std::ostream& operator<<(std::ostream& out, const TfStopwatch& s);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_STOPWATCH_H
+#endif // PXR_BASE_TF_STOPWATCH_H

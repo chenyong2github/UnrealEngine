@@ -233,24 +233,23 @@ FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	{
 		RHICmdList.SetViewport(OutputViewport.Rect.Min.X, OutputViewport.Rect.Min.Y, 0.0f, OutputViewport.Rect.Max.X, OutputViewport.Rect.Max.Y, 1.0f);
 
-		FShader* VertexShader = nullptr;
-
+		TShaderRef<FShader> VertexShader;
 		if (bUsePaniniProjection)
 		{
 			TShaderMapRef<FUpscaleVS> TypedVertexShader(View.ShaderMap);
-			SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(*TypedVertexShader, *PixelShader));
-			SetShaderParameters(RHICmdList, *TypedVertexShader, TypedVertexShader->GetVertexShader(), *PassParameters);
-			VertexShader = *TypedVertexShader;
+			SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(TypedVertexShader, PixelShader));
+			SetShaderParameters(RHICmdList, TypedVertexShader, TypedVertexShader.GetVertexShader(), *PassParameters);
+			VertexShader = TypedVertexShader;
 		}
 		else
 		{
 			TShaderMapRef<FScreenPassVS> TypedVertexShader(View.ShaderMap);
-			SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(*TypedVertexShader, *PixelShader));
-			VertexShader = *TypedVertexShader;
+			SetScreenPassPipelineState(RHICmdList, FScreenPassPipelineState(TypedVertexShader, PixelShader));
+			VertexShader = TypedVertexShader;
 		}
-		check(VertexShader != nullptr);
+		check(VertexShader.IsValid());
 
-		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 		DrawRectangle(
 			RHICmdList,

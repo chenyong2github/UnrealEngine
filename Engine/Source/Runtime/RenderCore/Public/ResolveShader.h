@@ -40,14 +40,7 @@ public:
 	{
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << UnresolvedSurface;
-		return bShaderHasOutdatedParameters;
-	}
-	
-	FShaderResourceParameter UnresolvedSurface;
+	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
 };
 
 class FResolveDepth2XPS : public FGlobalShader
@@ -81,14 +74,7 @@ public:
 	{
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << UnresolvedSurface;
-		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderResourceParameter UnresolvedSurface;
+	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
 };
 
 
@@ -123,14 +109,7 @@ public:
 	{
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << UnresolvedSurface;
-		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderResourceParameter UnresolvedSurface;
+	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
 };
 
 
@@ -167,14 +146,7 @@ public:
 	{
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << UnresolvedSurface;
-		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderResourceParameter UnresolvedSurface;
+	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
 };
 
 
@@ -197,15 +169,8 @@ public:
 	void SetParameters(FRHICommandList& RHICmdList, FParameter)
 	{
 	}
-	
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << UnresolvedSurface;
-		return bShaderHasOutdatedParameters;
-	}
-	
-	FShaderResourceParameter UnresolvedSurface;
+
+	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
 };
 
 class FResolveSingleSamplePS : public FGlobalShader
@@ -227,16 +192,8 @@ public:
 	
 	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, uint32 SingleSampleIndexValue);
 	
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << UnresolvedSurface;
-		Ar << SingleSampleIndex;
-		return bShaderHasOutdatedParameters;
-	}
-	
-	FShaderResourceParameter UnresolvedSurface;
-	FShaderParameter SingleSampleIndex;
+	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
+	LAYOUT_FIELD(FShaderParameter, SingleSampleIndex);
 };
 
 /**
@@ -259,14 +216,6 @@ public:
 
 	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight);
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PositionMinMax;
-		Ar << UVMinMax;
-		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderParameter PositionMinMax;
-	FShaderParameter UVMinMax;
+	LAYOUT_FIELD(FShaderParameter, PositionMinMax);
+	LAYOUT_FIELD(FShaderParameter, UVMinMax);
 };

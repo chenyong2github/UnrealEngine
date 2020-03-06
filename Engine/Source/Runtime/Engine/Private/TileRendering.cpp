@@ -165,7 +165,8 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 	FMeshPassProcessorRenderState& DrawRenderState,
 	const FSceneView& View,
 	bool bIsHitTesting,
-	bool bNeedsToSwitchVerticalAxis)
+	bool bNeedsToSwitchVerticalAxis,
+	bool bUse128bitRT)
 {
 	check(IsInRenderingThread());
 
@@ -184,7 +185,7 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 		Mesh.MaterialRenderProxy = MaterialRenderProxy;
 		Mesh.Elements[0].FirstIndex = CanvasTileIndexCount * TileIdx;
 
-		RendererModule.DrawTileMesh(RHICmdList, DrawRenderState, View, Mesh, bIsHitTesting, Tile.HitProxyId);
+		RendererModule.DrawTileMesh(RHICmdList, DrawRenderState, View, Mesh, bIsHitTesting, Tile.HitProxyId, bUse128bitRT);
 	}
 
 	ReleaseTileMesh();
@@ -256,51 +257,63 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FRenderTh
 	checkSlow(Data);
 
 	const FRenderTarget* CanvasRenderTarget = Canvas->GetRenderTarget();
+	if (ensure(CanvasRenderTarget))
+	{
+		const FSceneViewFamily* ViewFamily = new FSceneViewFamily(FSceneViewFamily::ConstructionValues(
+			CanvasRenderTarget,
+			Canvas->GetScene(),
+			FEngineShowFlags(ESFIM_Game))
+			.SetWorldTimes(CurrentWorldTime, DeltaWorldTime, CurrentRealTime)
+			.SetGammaCorrection(CanvasRenderTarget->GetDisplayGamma()));
 
-	const FSceneViewFamily* ViewFamily = new FSceneViewFamily(FSceneViewFamily::ConstructionValues(
-		CanvasRenderTarget,
-		Canvas->GetScene(),
-		FEngineShowFlags(ESFIM_Game))
-		.SetWorldTimes(CurrentWorldTime, DeltaWorldTime, CurrentRealTime)
-		.SetGammaCorrection(CanvasRenderTarget->GetDisplayGamma()));
+		const FIntRect ViewRect(FIntPoint(0, 0), CanvasRenderTarget->GetSizeXY());
 
-	const FIntRect ViewRect(FIntPoint(0, 0), CanvasRenderTarget->GetSizeXY());
+		// make a temporary view
+		FSceneViewInitOptions ViewInitOptions;
+		ViewInitOptions.ViewFamily = ViewFamily;
+		ViewInitOptions.SetViewRectangle(ViewRect);
+		ViewInitOptions.ViewOrigin = FVector::ZeroVector;
+		ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
+		ViewInitOptions.ProjectionMatrix = Data->Transform.GetMatrix();
+		ViewInitOptions.BackgroundColor = FLinearColor::Black;
+		ViewInitOptions.OverlayColor = FLinearColor::White;
 
-	// make a temporary view
-	FSceneViewInitOptions ViewInitOptions;
-	ViewInitOptions.ViewFamily = ViewFamily;
-	ViewInitOptions.SetViewRectangle(ViewRect);
-	ViewInitOptions.ViewOrigin = FVector::ZeroVector;
-	ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
-	ViewInitOptions.ProjectionMatrix = Data->Transform.GetMatrix();
-	ViewInitOptions.BackgroundColor = FLinearColor::Black;
-	ViewInitOptions.OverlayColor = FLinearColor::White;
+		const FSceneView* View = new FSceneView(ViewInitOptions);
 
-	const FSceneView* View = new FSceneView(ViewInitOptions);
+		const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
+		const bool bIsHitTesting = Canvas->IsHitTesting();
+		const bool bDeleteOnRender = Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender;
 
-	const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
-	const bool bIsHitTesting = Canvas->IsHitTesting();
-	const bool bDeleteOnRender = Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender;
+		bool bRequiresExplicit128bitRT = false;
 
-	RenderScope.EnqueueRenderCommand(
-		[LocalData = Data, View, bIsHitTesting, bNeedsToSwitchVerticalAxis]
+		FTexture2DRHIRef CanvasRTTexture = CanvasRenderTarget->GetRenderTargetTexture();
+		if (CanvasRTTexture)
+		{
+			bRequiresExplicit128bitRT = PlatformRequires128bitRT(CanvasRTTexture->GetFormat());
+		}
+
+		RenderScope.EnqueueRenderCommand(
+			[LocalData = Data, View, bIsHitTesting, bNeedsToSwitchVerticalAxis, bRequiresExplicit128bitRT]
 		(FRHICommandListImmediate& RHICmdList)
-	{
-		FMeshPassProcessorRenderState DrawRenderState(*View);
+		{
+			FMeshPassProcessorRenderState DrawRenderState(*View);
 
-		// disable depth test & writes
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+			// disable depth test & writes
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
-		LocalData->RenderTiles(RHICmdList, DrawRenderState, *View, bIsHitTesting, bNeedsToSwitchVerticalAxis);
+			LocalData->RenderTiles(RHICmdList, DrawRenderState, *View, bIsHitTesting, bNeedsToSwitchVerticalAxis, bRequiresExplicit128bitRT);
 
-		delete View->Family;
-		delete View;
-	});
+			delete View->Family;
+			delete View;
+		});
 
-	if (bDeleteOnRender)
-	{
-		Data = nullptr;
+		if (bDeleteOnRender)
+		{
+			Data = nullptr;
+		}
+
+		return true;
 	}
-
-	return true;
+		
+	return false;
 }

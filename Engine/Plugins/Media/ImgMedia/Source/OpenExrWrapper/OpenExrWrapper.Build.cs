@@ -21,8 +21,7 @@ namespace UnrealBuildTool.Rules
 
 			bool bLinuxEnabled = Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64");
 
-            if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-                (Target.Platform == UnrealTargetPlatform.Win32) ||
+            if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
                 (Target.Platform == UnrealTargetPlatform.Mac) ||
 				bLinuxEnabled)
             {

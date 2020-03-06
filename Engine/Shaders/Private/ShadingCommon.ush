@@ -14,7 +14,8 @@
 #define SHADINGMODELID_CLOTH				8
 #define SHADINGMODELID_EYE					9
 #define SHADINGMODELID_SINGLELAYERWATER		10
-#define SHADINGMODELID_NUM					11
+#define SHADINGMODELID_THIN_TRANSLUCENT		11
+#define SHADINGMODELID_NUM					12
 #define SHADINGMODELID_MASK					0xF		// 4 bits reserved for ShadingModelID			
 
 // The flags are defined so that 0 value has no effect!
@@ -49,6 +50,7 @@ float3 GetShadingModelColor(uint ShadingModelID)
 	else if (ShadingModelID == SHADINGMODELID_CLOTH) return float3(0.7f, 1.0f, 1.0f); 
 	else if (ShadingModelID == SHADINGMODELID_EYE) return float3(0.3f, 1.0f, 1.0f); 
 	else if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER) return float3(0.5f, 0.5f, 1.0f);
+	else if (ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT) return float3(1.0f, 0.8f, 0.3f);
 	else return float3(1.0f, 1.0f, 1.0f); // White
 #else
 	switch(ShadingModelID)
@@ -64,6 +66,7 @@ float3 GetShadingModelColor(uint ShadingModelID)
 		case SHADINGMODELID_CLOTH: return float3(0.7f, 1.0f, 1.0f);
 		case SHADINGMODELID_EYE: return float3(0.3f, 1.0f, 1.0f);
 		case SHADINGMODELID_SINGLELAYERWATER: return float3(0.5f, 0.5f, 1.0f);
+		case SHADINGMODELID_THIN_TRANSLUCENT: return float3(1.0f, 0.8f, 0.3f);
 		default: return float3(1.0f, 1.0f, 1.0f); // White
 	}
 #endif
@@ -79,6 +82,13 @@ float DielectricSpecularToF0(float Specular)
 float DielectricF0ToIor(float F0)
 {
 	return 2.0f / (1.0f - sqrt(F0)) - 1.0f;
+}
+
+float DielectricIorToF0(float Ior)
+{
+	const float F0Sqrt = (Ior-1)/(Ior+1);
+	const float F0 = F0Sqrt*F0Sqrt;
+	return F0;
 }
 
 float3 ComputeF0(float Specular, float3 BaseColor, float Metallic)

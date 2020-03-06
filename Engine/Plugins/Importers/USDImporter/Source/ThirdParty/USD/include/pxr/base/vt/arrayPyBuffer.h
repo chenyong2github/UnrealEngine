@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef VT_ARRAY_PYBUFFER_H
-#define VT_ARRAY_PYBUFFER_H
+#ifndef PXR_BASE_VT_ARRAY_PY_BUFFER_H
+#define PXR_BASE_VT_ARRAY_PY_BUFFER_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/vt/api.h"
@@ -57,4 +57,4 @@ VtArrayFromPyBuffer(TfPyObjWrapper const &obj, std::string *err=nullptr);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // VT_ARRAY_PYBUFFER_H
+#endif // PXR_BASE_VT_ARRAY_PY_BUFFER_H

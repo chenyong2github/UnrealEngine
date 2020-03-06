@@ -87,7 +87,6 @@ void SClothPaintWidget::CreateDetailsView(FClothPainter* InPainter)
 	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 	
 	DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
-	DetailsView->SetRootObjectCustomizationInstance(MakeShareable(new FClothPaintSettingsRootObjectCustomization));
 	DetailsView->RegisterInstancedCustomPropertyLayout(UClothPainterSettings::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FClothPaintSettingsCustomization::MakeInstance, InPainter));
 	DetailsView->RegisterInstancedCustomPropertyLayout(UPaintBrushSettings::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FClothPaintBrushSettingsCustomization::MakeInstance));
 

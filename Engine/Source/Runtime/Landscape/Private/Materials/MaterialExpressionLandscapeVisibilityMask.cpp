@@ -74,9 +74,5 @@ void UMaterialExpressionLandscapeVisibilityMask::GetCaption(TArray<FString>& Out
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionLandscapeVisibilityMask::NeedsLoadForClient() const
-{
-	return ParameterName != NAME_None;
-}
 
 #undef LOCTEXT_NAMESPACE

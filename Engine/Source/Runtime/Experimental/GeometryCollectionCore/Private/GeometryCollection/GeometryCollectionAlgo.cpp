@@ -7,7 +7,6 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
 #include "Async/ParallelFor.h"
-#include "GeometryCollection/GeometryDynamicCollection.h"
 
 DEFINE_LOG_CATEGORY_STATIC(GeometryCollectionAlgoLog, Log, All);
 

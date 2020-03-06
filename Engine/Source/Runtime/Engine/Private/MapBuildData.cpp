@@ -405,7 +405,7 @@ void UMapBuildDataRegistry::PostLoad()
 		// We already stripped unneeded formats during cooking, but some cooking targets require multiple formats to be stored
 		// Strip unneeded formats for the current max feature level
 		bool bRetainAllFeatureLevelData = GIsEditor && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5;
-		bool bEncodedDataRequired = bRetainAllFeatureLevelData || (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
+		bool bEncodedDataRequired = bRetainAllFeatureLevelData || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1;
 		bool bFullDataRequired = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5;
 
 		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(ReflectionCaptureBuildData); It; ++It)
@@ -704,6 +704,9 @@ void UMapBuildDataRegistry::InvalidateStaticLighting(UWorld* World, bool bRecrea
 
 		MarkPackageDirty();
 	}
+
+	// Clear all the atmosphere guids from the MapBuildData when starting a new build.
+	ClearSkyAtmosphereBuildData();
 
 	bSetupResourceClusters = false;
 }

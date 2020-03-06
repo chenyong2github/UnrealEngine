@@ -14,7 +14,7 @@ IMPLEMENT_SHADER_TYPE(, FResolveVS, TEXT("/Engine/Private/ResolveVertexShader.us
 
 void FResolveSingleSamplePS::SetParameters(FRHICommandList& RHICmdList, uint32 SingleSampleIndexValue)
 {
-	SetShaderValue(RHICmdList, GetPixelShader(),SingleSampleIndex,SingleSampleIndexValue);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),SingleSampleIndex,SingleSampleIndexValue);
 }
 
 void FResolveVS::SetParameters(FRHICommandList& RHICmdList, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight)
@@ -29,6 +29,6 @@ void FResolveVS::SetParameters(FRHICommandList& RHICmdList, const FResolveRect& 
 	const float MaxX = -1.f + DstBounds.X2 / ((float)DstSurfaceWidth * 0.5f);
 	const float MaxY = +1.f - DstBounds.Y2 / ((float)DstSurfaceHeight * 0.5f);
 
-	SetShaderValue(RHICmdList, GetVertexShader(), PositionMinMax, FVector4(MinX, MinY, MaxX, MaxY));
-	SetShaderValue(RHICmdList, GetVertexShader(), UVMinMax, FVector4(MinU, MinV, MaxU, MaxV));
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), PositionMinMax, FVector4(MinX, MinY, MaxX, MaxY));
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), UVMinMax, FVector4(MinU, MinV, MaxU, MaxV));
 }

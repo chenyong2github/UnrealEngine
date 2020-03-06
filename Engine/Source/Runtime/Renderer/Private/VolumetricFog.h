@@ -10,20 +10,20 @@
 #include "SceneView.h"
 #include "SceneRendering.h"
 
-inline bool DoesPlatformSupportVolumetricFog(EShaderPlatform Platform)
+inline bool DoesPlatformSupportVolumetricFog(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || Platform == SP_XBOXONE_D3D12
 		|| Platform == SP_METAL_SM5 || Platform == SP_METAL_SM5_NOTESS
 		|| IsVulkanSM5Platform(Platform)
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsVolumetricFog;
+		|| FDataDrivenShaderPlatformInfo::GetSupportsVolumetricFog(Platform);
 }
 
-inline bool DoesPlatformSupportVolumetricFogVoxelization(EShaderPlatform Platform)
+inline bool DoesPlatformSupportVolumetricFogVoxelization(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || Platform == SP_XBOXONE_D3D12
 		|| Platform == SP_METAL_SM5 || Platform == SP_METAL_SM5_NOTESS
 		|| IsVulkanSM5Platform(Platform)
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsVolumetricFog;
+		|| FDataDrivenShaderPlatformInfo::GetSupportsVolumetricFog(Platform);
 }
 
 extern bool ShouldRenderVolumetricFog(const FScene* Scene, const FSceneViewFamily& ViewFamily);

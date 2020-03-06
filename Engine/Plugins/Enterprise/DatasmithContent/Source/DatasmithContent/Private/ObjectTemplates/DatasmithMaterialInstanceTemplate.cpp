@@ -151,20 +151,25 @@ void FDatasmithStaticParameterSetTemplate::LoadRebase(const UMaterialInstanceCon
 
 	for (TMap< FName, bool >::TConstIterator It = ComparedTemplate.StaticSwitchParameters.CreateConstIterator(); It; ++It)
 	{
-		bool bDefaultValue;
+		bool DefaultValue;
 		FGuid ExpressionGuid;
-		if (Source.GetStaticSwitchParameterDefaultValue(It->Key, bDefaultValue, ExpressionGuid))
+		if (Source.GetStaticSwitchParameterDefaultValue(It->Key, DefaultValue, ExpressionGuid))
 		{
-			if (bDefaultValue != It->Value)
+			bool OldValue = It->Value;
+			bool NewValue = DefaultValue;
+
+			if (MergedTemplate)
 			{
-				StaticSwitchParameters.Add(It->Key, It->Value);
-			}
-			else if (MergedTemplate)
-			{
-				if (const bool* MergedTemplateValue = MergedTemplate->StaticSwitchParameters.Find(It->Key))
+				if (const bool* BaseTemplateValue = MergedTemplate->StaticSwitchParameters.Find(It->Key))
 				{
-					StaticSwitchParameters.Add(It->Key) = *MergedTemplateValue;
+					NewValue = *BaseTemplateValue;
 				}
+			}
+
+			// Store new value in case it's different from old or default is different from old
+			if (NewValue != OldValue || DefaultValue != OldValue)
+			{
+				StaticSwitchParameters.Add(It->Key) = NewValue;
 			}
 		}
 	}
@@ -331,16 +336,21 @@ void UDatasmithMaterialInstanceTemplate::LoadRebase(const UObject* Source, const
 		float DefaultValue;
 		if (ParentMaterial->GetScalarParameterDefaultValue(It->Key, DefaultValue))
 		{
-			if (DefaultValue != It->Value)
-			{
-				ScalarParameterValues.Add(It->Key) = It->Value;
-			}
-			else if(bMergeTemplate)
+			float OldValue = It->Value;
+			float NewValue = DefaultValue;
+
+			if (bMergeTemplate)
 			{
 				if (const float* BaseTemplateValue = TypedBaseTemplate->ScalarParameterValues.Find(It->Key))
 				{
-					ScalarParameterValues.Add(It->Key) = *BaseTemplateValue;
+					NewValue = *BaseTemplateValue;
 				}
+			}
+
+			// Store new value in case it's different from old or default is different from old
+			if (NewValue != OldValue || DefaultValue != OldValue)
+			{
+				ScalarParameterValues.Add(It->Key) = NewValue;
 			}
 		}
 	}
@@ -351,16 +361,21 @@ void UDatasmithMaterialInstanceTemplate::LoadRebase(const UObject* Source, const
 		FLinearColor DefaultValue;
 		if (ParentMaterial->GetVectorParameterDefaultValue(It->Key, DefaultValue))
 		{
-			if (DefaultValue != It->Value)
-			{
-				VectorParameterValues.Add(It->Key) = It->Value;
-			}
-			else if (bMergeTemplate)
+			FLinearColor OldValue = It->Value;
+			FLinearColor NewValue = DefaultValue;
+			
+			if (bMergeTemplate)
 			{
 				if (const FLinearColor* BaseTemplateValue = TypedBaseTemplate->VectorParameterValues.Find(It->Key))
 				{
-					VectorParameterValues.Add(It->Key) = *BaseTemplateValue;
+					NewValue = *BaseTemplateValue;
 				}
+			}
+
+			// Store new value in case it's different from old or default is different from old
+			if (NewValue != OldValue || DefaultValue != OldValue)
+			{
+				VectorParameterValues.Add(It->Key) = NewValue;
 			}
 		}
 	}
@@ -371,16 +386,21 @@ void UDatasmithMaterialInstanceTemplate::LoadRebase(const UObject* Source, const
 		UTexture* DefaultValue;
 		if (ParentMaterial->GetTextureParameterDefaultValue(It->Key, DefaultValue))
 		{
-			if (DefaultValue != It->Value.Get())
-			{
-				TextureParameterValues.Add(It->Key) = It->Value;
-			}
-			else if (bMergeTemplate)
+			UTexture* OldValue = It->Value.Get();
+			UTexture* NewValue = DefaultValue;
+
+			if (bMergeTemplate)
 			{
 				if (const TSoftObjectPtr<UTexture>* BaseTemplateValue = TypedBaseTemplate->TextureParameterValues.Find(It->Key))
 				{
-					TextureParameterValues.Add(It->Key) = *BaseTemplateValue;
+					NewValue = BaseTemplateValue->Get();
 				}
+			}
+			
+			// Store new value in case it's different from old or default is different from old
+			if (NewValue != OldValue || DefaultValue != OldValue)
+			{
+				TextureParameterValues.Add(It->Key) = NewValue;
 			}
 		}
 	}

@@ -144,14 +144,14 @@ bool FCompareBasepassShaders::RunTest(const FString& Parameters)
     for (int i = 0; i < NUM_CAMERAS; ++i)
     {
         FString CompareBasepassShadersTestName = FString::Printf(TEXT("CompareBasepassShaders_Game/%s/%d"), *FPaths::GetBaseFilename(MapName), i);
-        AutomationCommon::GetScreenshotPath(CompareBasepassShadersTestName, ScreenshotFileName[i]);
+		ScreenshotFileName[i] = AutomationCommon::GetScreenshotName(CompareBasepassShadersTestName);
         CompareBasepassShadersTestName = FString::Printf(TEXT("Incoming/CompareBasepassShaders_Game/%s/%d"), *FPaths::GetBaseFilename(MapName), i);
-        AutomationCommon::GetScreenshotPath(CompareBasepassShadersTestName, RealScreenshotFileName[i]);
+		RealScreenshotFileName[i] = AutomationCommon::GetScreenshotName(CompareBasepassShadersTestName);
         RealScreenshotFileName[i] = "../../../" + RealScreenshotFileName[i];
         CompareBasepassShadersTestName = FString::Printf(TEXT("CompareBasepassShaders_Game/%s_fp16/%d"), *FPaths::GetBaseFilename(MapName), i);
-        AutomationCommon::GetScreenshotPath(CompareBasepassShadersTestName, FP16ScreenshotFileName[i]);
+		FP16ScreenshotFileName[i] = AutomationCommon::GetScreenshotName(CompareBasepassShadersTestName);
         CompareBasepassShadersTestName = FString::Printf(TEXT("Incoming/CompareBasepassShaders_Game/%s_fp16/%d"), *FPaths::GetBaseFilename(MapName), i);
-        AutomationCommon::GetScreenshotPath(CompareBasepassShadersTestName, RealFP16ScreenshotFileName[i]);
+		RealFP16ScreenshotFileName[i] = AutomationCommon::GetScreenshotName(CompareBasepassShadersTestName);
         RealFP16ScreenshotFileName[i] = "../../../" + RealFP16ScreenshotFileName[i];
     }
 

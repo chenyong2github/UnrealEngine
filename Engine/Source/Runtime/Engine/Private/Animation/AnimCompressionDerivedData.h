@@ -38,14 +38,13 @@ public:
 	void SetCompressibleData(FCompressibleAnimRef InCompressibleAnimData)
 	{
 		DataToCompressPtr = InCompressibleAnimData;
-		check(DataToCompressPtr->Skeleton != nullptr);
 	}
 
 	FCompressibleAnimPtr GetCompressibleData() const { return DataToCompressPtr; }
 
 	uint64 GetMemoryUsage() const
 	{
-		return DataToCompressPtr.IsValid() ? DataToCompressPtr->GetApproxRawSize() : 0;
+		return DataToCompressPtr.IsValid() ? DataToCompressPtr->GetApproxMemoryUsage() : 0;
 	}
 
 	virtual const TCHAR* GetPluginName() const override

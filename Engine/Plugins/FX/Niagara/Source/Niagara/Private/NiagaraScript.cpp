@@ -38,7 +38,7 @@
 
 #include "NiagaraFunctionLibrary.h"
 #include "VectorVM.h"
-
+#include "NiagaraSimulationStageBase.h"
 #include "Async/Async.h"
 
 DECLARE_STATS_GROUP(TEXT("Niagara Detailed"), STATGROUP_NiagaraDetailed, STATCAT_Advanced);
@@ -140,7 +140,6 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 #if WITH_EDITORONLY_DATA
 		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash ||
 #endif
-		DetailLevelMask != ReferenceSet.DetailLevelMask ||
 		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams ||
 		bInterpolatedSpawn != ReferenceSet.bInterpolatedSpawn ||
 		bRequiresPersistentIDs != ReferenceSet.bRequiresPersistentIDs )
@@ -212,14 +211,6 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 		KeyString += TEXT("[AdditionalDefines]") + Delimiter;
 	}
 
-	if (DetailLevelMask != 0xFFFFFFFF)
-	{
-		KeyString += FString::Printf(TEXT("DL_%d"), DetailLevelMask);
-	}
-	else
-	{
-		KeyString += TEXT("ALLDL") + Delimiter;
-	}
 
 	if (bUsesRapidIterationParams)
 	{
@@ -265,7 +256,7 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 #endif
 {
 #if WITH_EDITORONLY_DATA
-	ScriptResource.OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::OnCompilationComplete);
+	ScriptResource.OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::RaiseOnGPUCompilationComplete);
 
 	RapidIterationParameters.DebugName = *GetFullName();
 #endif	
@@ -315,8 +306,8 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	Id.bUsesRapidIterationParams = true;
 	Id.bInterpolatedSpawn = false;
 	Id.bRequiresPersistentIDs = false;
-	Id.DetailLevelMask = 0xFFFFFFFF; // Unused for now.
 	
+	ENiagaraSimTarget SimTargetToBuild = ENiagaraSimTarget::CPUSim;
 	// Ideally we wouldn't want to do this but rather than push the data down
 	// from the emitter.
 	UObject* Obj = GetOuter();
@@ -335,7 +326,11 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			Id.bInterpolatedSpawn = true;
 			Id.AdditionalDefines.Add(TEXT("InterpolatedSpawn"));
 		}
-		if (Emitter->RequiresPersistantIDs())
+		if (IsParticleScript(Usage))
+		{
+			SimTargetToBuild = Emitter->SimTarget;
+		}
+		if (Emitter->RequiresPersistentIDs())
 		{
 			Id.bRequiresPersistentIDs = true;
 			Id.AdditionalDefines.Add(TEXT("RequiresPersistentIDs"));
@@ -348,15 +343,46 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.Determinism"));
 		}
-		if (Emitter->bOverrideGlobalSpawnCountScale)
-		{
-			Id.AdditionalDefines.Add(TEXT("Emitter.OverrideGlobalSpawnCountScale"));
-		}
 
 		if (!Emitter->bBakeOutRapidIteration)
 		{
 			Id.bUsesRapidIterationParams = true;
 		}
+
+		if (Emitter->bSimulationStagesEnabled)
+		{
+			Id.AdditionalDefines.Add(TEXT("Emitter.UseSimulationStages"));
+
+			FSHA1 HashState;
+			FNiagaraCompileHashVisitor Visitor(HashState);
+			for (UNiagaraSimulationStageBase* Base : Emitter->GetSimulationStages())
+			{
+				// bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+				if (Base)
+				{
+					Base->AppendCompileHash(&Visitor);
+				}
+			}
+			HashState.Final();
+
+			TArray<uint8> DataHash;
+			DataHash.AddUninitialized(FSHA1::DigestSize);
+			HashState.GetHash(DataHash.GetData());
+
+			FNiagaraCompileHash Hash(DataHash);
+			Id.ReferencedCompileHashes.Add(Hash);
+			Id.DebugReferencedObjects.Add(TEXT("SimulationStageHeaders"));
+
+		}
+		else if (Emitter->bDeprecatedShaderStagesEnabled)
+		{
+			Id.AdditionalDefines.Add(TEXT("Emitter.UseOldShaderStages"));
+		}
+
+		// in order to generate deterministic cooks we need to differentiate between two emitters that might
+		// generate the same hash but slightly different shaders.  In particular the full path of the emitter
+		// is used to generate the stat scopes that won't directly change the shader but will alter the name map
+		Id.AdditionalDefines.Add(Emitter->GetFullName());
 	}
 
 	if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Obj))
@@ -382,6 +408,19 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			}
 		}
 	}
+
+	switch (SimTargetToBuild)
+	{
+	case ENiagaraSimTarget::CPUSim:
+		Id.AdditionalDefines.Add(TEXT("CPUSim"));
+		break;
+	case ENiagaraSimTarget::GPUComputeSim:
+		Id.AdditionalDefines.Add(TEXT("GPUComputeSim"));
+		break;
+	default:
+		checkf(false, TEXT("Unknown sim target type!"));
+	}
+
 
 	// If we aren't using rapid iteration parameters, we need to bake them into the hashstate for the compile id. This 
 	// makes their values part of the lookup. 
@@ -422,13 +461,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		Id.ReferencedCompileHashes.Add(Hash);
 		Id.DebugReferencedObjects.Add(TEXT("RIParams"));
 	}
-
-	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
-	if (UseShaderStagesCVar->GetInt())
-	{
-		Id.AdditionalDefines.Add(TEXT("fx.UseShaderStages"));
-	}
-
+	
 	Source->ComputeVMCompilationId(Id, Usage, UsageId);	
 	
 	if (GNiagaraDumpKeyGen == 1 && Id != LastGeneratedVMId)
@@ -458,6 +491,11 @@ bool UNiagaraScript::ContainsUsage(ENiagaraScriptUsage InUsage) const
 	}
 
 	if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript && IsParticleScript(InUsage))
+	{
+		return true;
+	}
+
+	if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript && InUsage == ENiagaraScriptUsage::ParticleSimulationStageScript)
 	{
 		return true;
 	}
@@ -526,6 +564,7 @@ TOptional<ENiagaraSimTarget> UNiagaraScript::GetSimTarget() const
 	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
 	case ENiagaraScriptUsage::ParticleUpdateScript:
 	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
 	case ENiagaraScriptUsage::ParticleGPUComputeScript:
 		if (UNiagaraEmitter* OwningEmitter = GetTypedOuter<UNiagaraEmitter>())
 		{
@@ -791,7 +830,7 @@ bool UNiagaraScript::IsUsageDependentOn(ENiagaraScriptUsage InUsageA, ENiagaraSc
 
 	// The GPU compute script is always dependent on the other particle scripts.
 	if ((InUsageA == ENiagaraScriptUsage::ParticleGPUComputeScript)
-		&& (InUsageB == ENiagaraScriptUsage::ParticleSpawnScript || InUsageB == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated || InUsageB == ENiagaraScriptUsage::ParticleUpdateScript || InUsageB == ENiagaraScriptUsage::ParticleEventScript))
+		&& (InUsageB == ENiagaraScriptUsage::ParticleSpawnScript || InUsageB == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated || InUsageB == ENiagaraScriptUsage::ParticleUpdateScript || InUsageB == ENiagaraScriptUsage::ParticleEventScript || InUsageB == ENiagaraScriptUsage::ParticleSimulationStageScript))
 	{
 		return true;
 	}
@@ -850,12 +889,12 @@ void UNiagaraScript::PostLoad()
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
-	if (NiagaraVer < FNiagaraCustomVersion::AddShaderStageUsageEnum)
+	if (NiagaraVer < FNiagaraCustomVersion::AddSimulationStageUsageEnum)
 	{
-		uint8 ShaderStageIndex = (uint8)ENiagaraScriptUsage::ParticleShaderStageScript;
+		uint8 SimulationStageIndex = (uint8)ENiagaraScriptUsage::ParticleSimulationStageScript;
 		uint8 MaxIndex = (uint8)ENiagaraScriptUsage::SystemUpdateScript;
 		// Start at the end and shift the bits down to account for the new shader stage bit.
-		for (uint8 CurrentIndex = MaxIndex; CurrentIndex > ShaderStageIndex; CurrentIndex--)
+		for (uint8 CurrentIndex = MaxIndex; CurrentIndex > SimulationStageIndex; CurrentIndex--)
 		{
 			uint8 OldIndex = CurrentIndex - 1;
 			if ((ModuleUsageBitmask & (1 << OldIndex)) != 0)
@@ -868,7 +907,7 @@ void UNiagaraScript::PostLoad()
 			}
 		}
 		// Clear the shader stage bit.
-		ModuleUsageBitmask &= ~(1 << ShaderStageIndex);
+		ModuleUsageBitmask &= ~(1 << SimulationStageIndex);
 	}
 
 	if (Source != nullptr)
@@ -1023,6 +1062,7 @@ void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	}
 
 	CustomAssetRegistryTagCache.Reset();
+	OnPropertyChangedDelegate.Broadcast(PropertyChangedEvent);
 }
 
 #endif
@@ -1302,6 +1342,8 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	CachedScriptVMId = InCompileId;
 	CachedScriptVM = InScriptVM;
 	CachedParameterCollectionReferences.Empty();
+	// Proactively clear out the script resource, because it might be stale now.
+	ScriptResource.Invalidate();
 	
 	if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Error)
 	{
@@ -1336,13 +1378,13 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	{
 		int32 Idx = CachedDefaultDataInterfaces.AddDefaulted();
 		CachedDefaultDataInterfaces[Idx].UserPtrIdx = Info.UserPtrIdx;
-		CachedDefaultDataInterfaces[Idx].Name = Info.Name;
+		CachedDefaultDataInterfaces[Idx].Name = InRequestData->ResolveEmitterAlias(Info.Name);
 		CachedDefaultDataInterfaces[Idx].Type = Info.Type;
 		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapRead = InRequestData->ResolveEmitterAlias(Info.RegisteredParameterMapRead);
 		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrite = InRequestData->ResolveEmitterAlias(Info.RegisteredParameterMapWrite);
 
 		// We compiled it just a bit ago, so we should be able to resolve it from the table that we passed in.
-		UNiagaraDataInterface*const* FindDIById = InRequestData->GetObjectNameMap().Find(Info.Name);
+		UNiagaraDataInterface*const* FindDIById = InRequestData->GetObjectNameMap().Find(CachedDefaultDataInterfaces[Idx].Name);
 		if (FindDIById != nullptr && *(FindDIById) != nullptr)
 		{
 			CachedDefaultDataInterfaces[Idx].DataInterface = CopyDataInterface(*(FindDIById), this);
@@ -1417,6 +1459,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 			return;
 		}
 
+
 		CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_BeingCreated;
 
 		TArray<TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>> DependentRequests;
@@ -1471,12 +1514,14 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 			CachedScriptVMId = LastGeneratedVMId;
 			return false;
 		}
+
 		INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
 		CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_BeingCreated;
 
 		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ModuleUsageBitmask, GetPathName(), GetFullName(), GetName());
 		Options.AdditionalDefines = LastGeneratedVMId.AdditionalDefines;
 		OutAsyncHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), Options);
+		UE_LOG(LogNiagara, Verbose, TEXT("Script '%s' is requesting compile.."), *GetFullName());
 		return true;
 	}
 	else
@@ -1488,9 +1533,10 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 }
 #endif
 
-void UNiagaraScript::OnCompilationComplete()
+void UNiagaraScript::RaiseOnGPUCompilationComplete()
 {
 #if WITH_EDITORONLY_DATA
+	OnGPUScriptCompiled().Broadcast(this);
 	FNiagaraSystemUpdateContext(this, true);
 #endif
 }
@@ -1543,6 +1589,31 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 		OutTags.Add(FAssetRegistryTag(HighlightsName, *HighlightsTags, UObject::FAssetRegistryTag::TT_Hidden));
 	}
 #endif
+}
+
+bool UNiagaraScript::IsEditorOnly() const
+{
+#if WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return false;
+	}
+
+	if (const UNiagaraEmitter* EmitterOwner = Cast<const UNiagaraEmitter>(GetOuter()))
+	{
+		// we want to only cook scripts that are referenced by systems (as opposed to standalone scripts that may be getting
+		// referenced via an emitter's parent, this will also take care of GPUScripts that are created for CPU emitters
+		TArray<UNiagaraScript*> OwnerScripts;
+
+		EmitterOwner->GetScripts(OwnerScripts, false);
+
+		if (!OwnerScripts.Contains(this))
+		{
+			return true;
+		}
+	}
+#endif
+	return Super::IsEditorOnly();
 }
 
 #if WITH_EDITOR
@@ -1634,16 +1705,26 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 		// spawn and update are combined on GPU, so we only compile spawn scripts
 		if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
 		{
-			FNiagaraShaderScript *ResourceToCache = nullptr;
 			ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+			const auto FindExistingScriptPredicate = [&](const FNiagaraShaderScript* ExistingScript)
+			{
+				return ExistingScript->MatchesScript(TargetFeatureLevel, CachedScriptVMId);
+			};
 
+			// see if the script has already been added before adding a new version
+			if (InOutCachedResources.ContainsByPredicate(FindExistingScriptPredicate))
+			{
+				return;
+			}
+			
+			FNiagaraShaderScript *ResourceToCache = nullptr;
 			FNiagaraShaderScript* NewResource = AllocateResource();
 			check(CachedScriptVMId.CompilerVersionID.IsValid());
 			check(CachedScriptVMId.BaseScriptCompileHash.IsValid());
 
 			NewResource->SetScript(this, (ERHIFeatureLevel::Type)TargetFeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.DetailLevelMask, GetFullName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFullName());
 			ResourceToCache = NewResource;
 
 			check(ResourceToCache);
@@ -1703,13 +1784,14 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 	if (CanBeRunOnGpu())
 	{
-		if (Source)
+		// Need to make sure the owner supports GPU scripts, otherwise this is a wasted compile.
+		if (Source && OwnerCanBeRunOnGpu())
 		{
 			FNiagaraShaderScript* ResourceToCache;
 			ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
 			ScriptResource.SetScript(this, FeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.DetailLevelMask, GetFullName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFullName());
 
 			//if (ScriptResourcesByFeatureLevel[FeatureLevel])
 			{
@@ -1721,6 +1803,10 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 					ScriptResourcesByFeatureLevel[CacheFeatureLevel] = &ScriptResource;
 				}
 			}
+		}
+		else
+		{
+			ScriptResource.Invalidate();
 		}
 	}
 }
@@ -1759,6 +1845,33 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 		if (NewVar.GetName() != Var.GetName())
 		{
 			GetVMExecutableData().Parameters.Parameters[i] = NewVar;
+		}
+	}
+
+	// Sync up any simulation stage name references.
+	for (int32 i = 0; i < GetVMExecutableData().SimulationStageMetaData.Num(); i++)
+	{
+		if (!GetVMExecutableData().SimulationStageMetaData[i].IterationSource.IsNone())
+		{
+			FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), GetVMExecutableData().SimulationStageMetaData[i].IterationSource);
+			FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+			if (NewVar.GetName() != Var.GetName())
+			{
+				GetVMExecutableData().SimulationStageMetaData[i].IterationSource = NewVar.GetName();
+			}
+		}
+
+		for (int32 DestIdx = 0; DestIdx < GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations.Num(); DestIdx++)
+		{
+			if (!GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx].IsNone())
+			{
+				FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx]);
+				FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+				if (NewVar.GetName() != Var.GetName())
+				{
+					GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx] = NewVar.GetName();
+				}
+			}
 		}
 	}
 
@@ -1822,7 +1935,7 @@ bool UNiagaraScript::SynchronizeExecutablesWithMaster(const UNiagaraScript* Scri
 
 void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 {
-	UE_LOG(LogNiagara, Verbose, TEXT("InvalidateCompileResults Script:%s Reason:%s"), *GetPathName());
+	UE_LOG(LogNiagara, Verbose, TEXT("InvalidateCompileResults Script:%s Reason:%s"), *GetPathName(), *Reason);
 	CachedScriptVM.Reset();
 	ScriptResource.Invalidate();
 	CachedScriptVMId.Invalidate();
@@ -1836,7 +1949,15 @@ UNiagaraScript::FOnScriptCompiled& UNiagaraScript::OnVMScriptCompiled()
 	return OnVMScriptCompiledDelegate;
 }
 
+UNiagaraScript::FOnScriptCompiled& UNiagaraScript::OnGPUScriptCompiled()
+{
+	return OnGPUScriptCompiledDelegate;
+}
 
+UNiagaraScript::FOnPropertyChanged& UNiagaraScript::OnPropertyChanged()
+{
+	return OnPropertyChangedDelegate;
+}
 
 #endif
 
@@ -1845,8 +1966,8 @@ NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) con
 {
 	if (bGPUScript)
 	{
-		FNiagaraShader *Shader = ScriptResource.GetShaderGameThread();
-		if (Shader)
+		FNiagaraShaderRef Shader = ScriptResource.GetShaderGameThread();
+		if (Shader.IsValid())
 		{
 			return false;
 		}
@@ -1866,8 +1987,8 @@ NIAGARA_API bool UNiagaraScript::DidScriptCompilationSucceed(bool bGPUScript) co
 {
 	if (bGPUScript)
 	{
-		FNiagaraShader *Shader = ScriptResource.GetShaderGameThread();
-		if (Shader)
+		FNiagaraShaderRef Shader = ScriptResource.GetShaderGameThread();
+		if (Shader.IsValid())
 		{
 			return true;
 		}
@@ -1942,8 +2063,6 @@ void ProcessSerializedShaderMaps(UNiagaraScript* Owner, TArray<FNiagaraShaderScr
 
 	for (FNiagaraShaderScript& LoadedResource : LoadedResources)
 	{
-		LoadedResource.RegisterShaderMap();
-
 		FNiagaraShaderMap* LoadedShaderMap = LoadedResource.GetGameThreadShaderMap();
 		if (LoadedShaderMap && LoadedShaderMap->GetShaderPlatform() == GMaxRHIShaderPlatform)
 		{
@@ -1956,7 +2075,7 @@ void ProcessSerializedShaderMaps(UNiagaraScript* Owner, TArray<FNiagaraShaderScr
 			}
 
 			OutScriptResourcesLoaded[LoadedFeatureLevel]->SetShaderMap(LoadedShaderMap);
-			OutResourceForCurrentPlatform.SetDataInterfaceParamInfo(LoadedResource.GetShaderGameThread()->GetDIParameters());
+			OutResourceForCurrentPlatform.SetDataInterfaceParamInfo(Owner->GetVMExecutableData().DIParamInfo);
 
 			break;
 		}
@@ -1973,6 +2092,35 @@ FNiagaraShaderScript* UNiagaraScript::AllocateResource()
 }
 
 #if WITH_EDITORONLY_DATA
+TArray<ENiagaraParameterScope> UNiagaraScript::GetUnsupportedParameterScopes() const
+{
+	TArray<ENiagaraParameterScope> UnsupportedParameterScopes;
+	UnsupportedParameterScopes.Add(ENiagaraParameterScope::System);
+	UnsupportedParameterScopes.Add(ENiagaraParameterScope::Emitter);
+	UnsupportedParameterScopes.Add(ENiagaraParameterScope::Particles);
+
+	const TArray<ENiagaraScriptUsage> SupportedUsages = GetSupportedUsageContextsForBitmask(ModuleUsageBitmask);
+	for (ENiagaraScriptUsage SupportedUsage : SupportedUsages)
+	{
+		if (SupportedUsage == ENiagaraScriptUsage::ParticleSpawnScript || SupportedUsage == ENiagaraScriptUsage::ParticleUpdateScript || SupportedUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated
+		|| SupportedUsage == ENiagaraScriptUsage::ParticleGPUComputeScript || SupportedUsage == ENiagaraScriptUsage::ParticleEventScript)
+		{
+			UnsupportedParameterScopes.Empty();
+			return UnsupportedParameterScopes;
+		}
+		else if (SupportedUsage == ENiagaraScriptUsage::EmitterSpawnScript || SupportedUsage == ENiagaraScriptUsage::EmitterUpdateScript)
+		{
+			UnsupportedParameterScopes.Remove(ENiagaraParameterScope::System);
+			UnsupportedParameterScopes.Remove(ENiagaraParameterScope::Emitter);
+		}
+		else if (SupportedUsage == ENiagaraScriptUsage::SystemSpawnScript || SupportedUsage == ENiagaraScriptUsage::SystemUpdateScript)
+		{
+			UnsupportedParameterScopes.Remove(ENiagaraParameterScope::System);
+		}
+	}
+	return UnsupportedParameterScopes;
+}
+
 TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContexts() const
 {
 	return GetSupportedUsageContextsForBitmask(ModuleUsageBitmask);
@@ -2014,6 +2162,19 @@ bool UNiagaraScript::CanBeRunOnGpu()const
 	return true;
 }
 
+
+bool UNiagaraScript::OwnerCanBeRunOnGpu() const
+{
+	if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
+	{
+		if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 bool UNiagaraScript::LegacyCanBeRunOnGpu() const
 {

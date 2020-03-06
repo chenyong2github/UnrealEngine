@@ -150,6 +150,8 @@ void FLightPrimitiveInteraction::Destroy(FLightPrimitiveInteraction* LightPrimit
 	delete LightPrimitiveInteraction;
 }
 
+extern bool ShouldCreateObjectShadowForStationaryLight(const FLightSceneInfo* LightSceneInfo, const FPrimitiveSceneProxy* PrimitiveSceneProxy, bool bInteractionShadowMapped);
+
 FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 	FLightSceneInfo* InLightSceneInfo,
 	FPrimitiveSceneInfo* InPrimitiveSceneInfo,
@@ -268,6 +270,21 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 		(*PrevLightLink)->PrevLightLink = &NextLight;
 	}
 	*PrevLightLink = this;
+
+	if (HasShadow()
+		&& LightSceneInfo->bRecordInteractionShadowPrimitives
+		&& (HasTranslucentObjectShadow() || HasInsetObjectShadow() || ShouldCreateObjectShadowForStationaryLight(LightSceneInfo, PrimitiveSceneInfo->Proxy, IsShadowMapped())))
+	{
+		if (LightSceneInfo->InteractionShadowPrimitives.Num() < 16)
+		{
+			LightSceneInfo->InteractionShadowPrimitives.Add(this);
+		}
+		else
+		{
+			LightSceneInfo->bRecordInteractionShadowPrimitives = false;
+			LightSceneInfo->InteractionShadowPrimitives.Empty();
+		}
+	}
 }
 
 FLightPrimitiveInteraction::~FLightPrimitiveInteraction()
@@ -311,6 +328,8 @@ FLightPrimitiveInteraction::~FLightPrimitiveInteraction()
 		NextLight->PrevLightLink = PrevLightLink;
 	}
 	*PrevLightLink = NextLight;
+
+	LightSceneInfo->InteractionShadowPrimitives.RemoveSingleSwap(this);
 }
 
 void FLightPrimitiveInteraction::FlushCachedShadowMapData()

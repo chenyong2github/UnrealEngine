@@ -271,15 +271,6 @@ void SAdvancedPreviewDetailsTab::CreateSettingsView()
 		DetailDelegate.OnPreviewSceneChangedDelegate.AddSP(this, &SAdvancedPreviewDetailsTab::OnPreviewSceneChanged);
 	}
 
-	class FDetailRootObjectCustomization : public IDetailRootObjectCustomization
-	{
-		virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject) { return SNullWidget::NullWidget; }
-		virtual bool IsObjectVisible(const UObject* InRootObject) const { return true; }
-		virtual bool ShouldDisplayHeader(const UObject* InRootObject) const { return false; }
-	};
-
-	SettingsView->SetRootObjectCustomizationInstance(MakeShareable(new FDetailRootObjectCustomization));
-
 	UpdateSettingsView();
 }
 

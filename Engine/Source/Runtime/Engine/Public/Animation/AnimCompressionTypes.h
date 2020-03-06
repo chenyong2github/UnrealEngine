@@ -164,6 +164,30 @@ struct FCompressedOffsetData : public FCompressedOffsetDataBase<TArray<int32>>
 
 FArchive& operator<<(FArchive& Ar, FCompressedOffsetData& D);
 
+// Mechanism for cancelling in flight compression
+struct FCancelCompressionSignal
+{
+private:
+	FThreadSafeBool Signal;
+
+public:
+	FCancelCompressionSignal& operator=(const FCancelCompressionSignal& Other)
+	{
+		Signal = (bool)Other.Signal;
+		return *this;
+	}
+
+	void Cancel()
+	{
+		Signal = true;
+	}
+
+	bool IsCancelled() const
+	{
+		return Signal;
+	}
+};
+
 struct ENGINE_API FCompressibleAnimData
 {
 public:
@@ -177,7 +201,9 @@ public:
 
 	UAnimBoneCompressionSettings* BoneCompressionSettings;
 
-	USkeleton* Skeleton;
+	// Data from USkeleton
+	TArray<FTransform> RefLocalPoses;
+	FReferenceSkeleton RefSkeleton;
 
 	TArray<FTrackToSkeletonMap> TrackToSkeletonMapTable;
 
@@ -204,18 +230,26 @@ public:
 	FString FullName;
 	FName   AnimFName;
 
-	int32 GetApproxRawBoneSize() const
+	FCancelCompressionSignal IsCancelledSignal;
+
+	static int32 GetApproxRawDataArraySize(const TArray<FRawAnimSequenceTrack>& AnimData)
 	{
-		int32 Total = sizeof(FRawAnimSequenceTrack) * RawAnimationData.Num();
-		for (int32 i = 0; i < RawAnimationData.Num(); ++i)
+		int32 Total = sizeof(FRawAnimSequenceTrack) * AnimData.Num();
+		for (int32 i = 0; i < AnimData.Num(); ++i)
 		{
-			const FRawAnimSequenceTrack& RawTrack = RawAnimationData[i];
+			const FRawAnimSequenceTrack& RawTrack = AnimData[i];
 			Total +=
 				sizeof(FVector) * RawTrack.PosKeys.Num() +
 				sizeof(FQuat) * RawTrack.RotKeys.Num() +
 				sizeof(FVector) * RawTrack.ScaleKeys.Num();
 		}
+
 		return Total;
+	}
+
+	int32 GetApproxRawBoneSize() const
+	{
+		return GetApproxRawDataArraySize(RawAnimationData);
 	}
 
 	int32 GetApproxRawCurveSize() const
@@ -234,12 +268,26 @@ public:
 		return GetApproxRawBoneSize() + GetApproxRawCurveSize();
 	}
 
+	uint64 GetApproxMemoryUsage() const
+	{
+		const uint64 MemUsage	= GetApproxRawSize()
+								+ TrackToSkeletonMapTable.GetAllocatedSize()
+								+ GetApproxRawDataArraySize(AdditiveBaseAnimationData)
+								+ BoneData.GetAllocatedSize();
+		return MemUsage;
+	}
+
 	void Update(struct FCompressedAnimSequence& CompressedData) const;
 
 	void AddReferencedObjects(FReferenceCollector& Collector)
 	{
 		Collector.AddReferencedObject(BoneCompressionSettings);
 		Collector.AddReferencedObject(CurveCompressionSettings);
+	}
+
+	bool IsCancelled() const
+	{
+		return IsCancelledSignal.IsCancelled();
 	}
 
 private:

@@ -13,7 +13,7 @@ namespace Audio
 	 * This class, when started, spawns a new high priority thread that exists to query an FAudioMixerPlatformInterface
 	 * and immediately throw out whatever buffers it receives.
 	 */
-	class FMixerNullCallback : protected FRunnable
+	class AUDIOMIXERCORE_API FMixerNullCallback : protected FRunnable
 	{
 	public:
 

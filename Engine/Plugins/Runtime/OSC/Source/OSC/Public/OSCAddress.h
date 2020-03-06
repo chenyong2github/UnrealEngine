@@ -64,6 +64,9 @@ public:
 	/** Pops containers off end of address' ordered array of containers */
 	TArray<FString> PopContainers(int32 InNumContainers);
 
+	/** Removes containers from container array at index until count */
+	void RemoveContainers(int32 InIndex, int32 InCount);
+
 	/** Clears ordered array of containers */
 	void ClearContainers();
 
@@ -87,7 +90,48 @@ public:
 
 	bool operator== (const FOSCAddress& InAddress) const
 	{
-		return Hash == InAddress.Hash;
+		if (Hash != InAddress.Hash)
+		{
+			return false;
+		}
+
+		if (InAddress.Containers.Num() != Containers.Num())
+		{
+			return false;
+		}
+
+		if (InAddress.Method != Method)
+		{
+			return false;
+		}
+
+		for (int32 i = 0; i < Containers.Num(); ++i)
+		{
+			if (InAddress.Containers[i] != Containers[i])
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	FOSCAddress& operator/= (const FOSCAddress& InAddress)
+	{
+		Containers.Add(Method);
+		Containers.Append(InAddress.Containers);
+
+		Method = InAddress.Method;
+
+		CacheAggregates();
+		return *this;
+	}
+
+	FOSCAddress operator/ (const FOSCAddress& InAddress) const
+	{
+		FOSCAddress ToReturn = *this;
+		ToReturn /= InAddress;
+		return ToReturn;
 	}
 
 	friend uint32 GetTypeHash(const FOSCAddress& InAddress)

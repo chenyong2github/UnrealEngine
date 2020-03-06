@@ -89,6 +89,7 @@ DEFINE_STAT(STAT_Navigation_RecastTestPath);
 DEFINE_STAT(STAT_RecastNavMeshGenerator_StoringCompressedLayers);
 DEFINE_STAT(STAT_Navigation_RecastBuildCompressedLayers);
 DEFINE_STAT(STAT_Navigation_RecastCreateHeightField);
+DEFINE_STAT(STAT_Navigation_RecastComputeRasterizationMasks);
 DEFINE_STAT(STAT_Navigation_RecastRasterizeTriangles);
 DEFINE_STAT(STAT_Navigation_RecastVoxelFilter);
 DEFINE_STAT(STAT_Navigation_RecastFilter);
@@ -120,6 +121,7 @@ DEFINE_STAT(STAT_Navigation_ObservedPathsCount);
 DEFINE_STAT(STAT_Navigation_RecastMemory);
 
 CSV_DEFINE_CATEGORY(NavigationSystem, false);
+CSV_DEFINE_CATEGORY(NavTasks, true);
 
 //----------------------------------------------------------------------//
 // consts
@@ -232,6 +234,120 @@ namespace
 	}
 #endif // ENABLE_VISUAL_LOG
 }
+
+void FNavRegenTimeSlicer::SetupTimeSlice(double SliceDuration)
+{
+	RemainingDuration = OriginalDuration = SliceDuration; 
+	StartTime = TimeLastTested = 0.;
+	bTimeSliceFinishedCached = false; 
+}
+
+void FNavRegenTimeSlicer::StartTimeSlice()
+{
+	ensureMsgf(!bTimeSliceFinishedCached, TEXT("Starting a time slice that has already been tested as finished! Call SetupTimeSlice() before calling StartTimeSlice() again!"));
+	ensureMsgf(RemainingDuration > 0., TEXT("Attempting to start a time slice that has zero duration!"));
+
+	TimeLastTested = StartTime = FPlatformTime::Seconds();
+}
+ 
+void FNavRegenTimeSlicer::EndTimeSliceAndAdjustDuration()
+{
+	RemainingDuration = FMath::Max(RemainingDuration - (TimeLastTested - StartTime), 0.);
+}
+
+bool FNavRegenTimeSlicer::TestTimeSliceFinished() const
+{
+	ensureMsgf(!bTimeSliceFinishedCached, TEXT("Testing time slice is finished when we have already confirmed that!"));
+
+	TimeLastTested = FPlatformTime::Seconds();
+
+	bTimeSliceFinishedCached = (TimeLastTested - StartTime) >= RemainingDuration;
+	return bTimeSliceFinishedCached;
+}
+
+FNavRegenTimeSliceManager::FNavRegenTimeSliceManager()
+	: MinTimeSliceDuration(0.00075)
+	, MaxTimeSliceDuration(0.004)
+	, FrameNumOld(TNumericLimits<int64>::Max() - 1)
+	, MaxDesiredTileRegenDuration(0.7)
+	, TimeLastCall(-1.f)
+	, NavDataIdx(0)
+#if TIME_SLICE_NAV_REGEN
+	, bDoTimeSlicedUpdate(true)
+#else
+	, bDoTimeSlicedUpdate(false)
+#endif
+{
+}
+
+void FNavRegenTimeSliceManager::CalcAverageDeltaTime(uint64 FrameNum)
+{
+	const double CurTime = FPlatformTime::Seconds();
+
+	if ((FrameNumOld + 1) == FrameNum)
+	{
+		const double DeltaTime = CurTime - TimeLastCall;
+		MovingWindowDeltaTime.PushValue(DeltaTime);
+	}
+	TimeLastCall = CurTime;
+	FrameNumOld = FrameNum;
+}
+
+void FNavRegenTimeSliceManager::CalcTimeSliceDuration(int32 NumTilesToRegen, const TArray<double>& CurrentTileRegenDurations)
+{
+	const float DeltaTimesAverage = (MovingWindowDeltaTime.GetAverage() > 0.f) ? MovingWindowDeltaTime.GetAverage() : (1.f / 30.f); //use default 33 ms
+
+	const double TileRegenTimesAverage = (MovingWindowTileRegenTime.GetAverage() > 0.) ? MovingWindowTileRegenTime.GetAverage() : 0.0025; //use default of 2.5 milli secs to regen a full tile
+
+	//calculate the max desired frames to regen all the tiles in PendingDirtyTiles
+	const float MaxDesiredFramesToRegen = FMath::FloorToFloat(MaxDesiredTileRegenDuration / DeltaTimesAverage);
+
+	//tiles to add to PendingDirtyTiles if the current tiles are taking longer than average to regen
+	//we add 1 tile for however many times longer the current tile is taking compared with the moving window average
+	int32 TilesToAddForLongCurrentTileRegen = 0;
+	for (const double RegenDuration : CurrentTileRegenDurations)
+	{
+		TilesToAddForLongCurrentTileRegen += (RegenDuration > 0.) ? (static_cast<int32>(RegenDuration / TileRegenTimesAverage)) : 0;
+	}
+
+	//calculate the total processing time to regen all the tiles based on the moving window average
+	const double TotalRegenTime = TileRegenTimesAverage * static_cast<double>(NumTilesToRegen + TilesToAddForLongCurrentTileRegen);
+
+	//calculate the time slice per frame required to regen all the tiles clamped between MinTimeSliceDuration and MaxTimeSliceDuration
+	const double NextRegenTimeSliceTime = FMath::Clamp(TotalRegenTime / static_cast<double>(MaxDesiredFramesToRegen), MinTimeSliceDuration, MaxTimeSliceDuration);
+
+	TimeSlicer.SetupTimeSlice(NextRegenTimeSliceTime);
+
+#if !UE_BUILD_SHIPPING
+	CSV_CUSTOM_STAT(NavigationSystem, NavTileRegenTimeSliceTimeMs, static_cast<float>(NextRegenTimeSliceTime * 1000.), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(NavigationSystem, NavTileNumTilesToRegen, NumTilesToRegen, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(NavigationSystem, NavTilesToAddForLongCurrentTileRegen, TilesToAddForLongCurrentTileRegen, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(NavigationSystem, NavTileAvRegenTimeMs, static_cast<float>(MovingWindowTileRegenTime.GetAverage() * 1000.), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(NavigationSystem, NavTileAvRegenDeltaTimeMs, static_cast<float>(MovingWindowDeltaTime.GetAverage() * 1000.), ECsvCustomStatOp::Set);
+#endif
+}
+
+void FNavRegenTimeSliceManager::SetMinTimeSliceDuration(double NewMinTimeSliceDuration)
+{
+	MinTimeSliceDuration = NewMinTimeSliceDuration;
+
+	UE_LOG(LogNavigationDataBuild, Log, TEXT("Navigation System: MinTimeSliceDuration = %f"), MinTimeSliceDuration);
+}
+
+void FNavRegenTimeSliceManager::SetMaxTimeSliceDuration(double NewMaxTimeSliceDuration)
+{
+	MaxTimeSliceDuration = NewMaxTimeSliceDuration;
+
+	UE_LOG(LogNavigationDataBuild, Log, TEXT("Navigation System: MaxTimeSliceDuration = %f"), MaxTimeSliceDuration);
+}
+
+void FNavRegenTimeSliceManager::SetMaxDesiredTileRegenDuration(float NewMaxDesiredTileRegenDuration)
+{
+	MaxDesiredTileRegenDuration = NewMaxDesiredTileRegenDuration;
+
+	UE_LOG(LogNavigationDataBuild, Log, TEXT("Navigation System: MaxDesiredTileRegenDuration = %f"), MaxDesiredTileRegenDuration);
+}
+
 //----------------------------------------------------------------------//
 // UNavigationSystemV1                                                                
 //----------------------------------------------------------------------//
@@ -257,6 +373,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	, bTickWhilePaused(false)
 	, bWholeWorldNavigable(false)
 	, bSkipAgentHeightCheckWhenPickingNavData(false)
+	, DirtyAreaWarningSizeThreshold(-1.0f)
 	, OperationMode(FNavigationSystemRunMode::InvalidMode)
 	, NavBuildingLockFlags(0)
 	, InitialNavBuildingLockFlags(0)
@@ -554,6 +671,8 @@ void UNavigationSystemV1::PostInitProperties()
 			FNavDataConfig& SupportedAgentConfig = SupportedAgents[AgentIndex];
 			SetSupportedAgentsNavigationClass(AgentIndex, SupportedAgentConfig.GetNavDataClass<ANavigationData>());
 		}
+
+		DefaultDirtyAreasController.SetDirtyAreaWarningSizeThreshold(DirtyAreaWarningSizeThreshold);
 	
 		if (bInitialBuildingLocked)
 		{
@@ -714,7 +833,6 @@ void UNavigationSystemV1::OnBeginTearingDown()
 
 void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 {
-	static const bool bSkipRebuildInEditor = true;
 	OperationMode = Mode;
 	DoInitialSetup();
 	
@@ -746,7 +864,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 
 		if (OperationMode == FNavigationSystemRunMode::EditorMode)
 		{
-			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, bSkipRebuildInEditor);
+			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 		}
 	}
 	else
@@ -808,7 +926,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 		if (OperationMode == FNavigationSystemRunMode::EditorMode)
 		{
 			// don't lock navigation building in editor
-			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, bSkipRebuildInEditor);
+			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 		}
 
 		// See if any of registered navigation data needs NavOctree
@@ -865,6 +983,9 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 		DefaultDirtyAreasController.DirtyAreas.Empty();
 	}
 
+	// Report oversized dirty areas only in game mode
+	DefaultDirtyAreasController.SetCanReportOversizedDirtyArea(Mode == FNavigationSystemRunMode::GameMode);
+
 	bWorldInitDone = true;
 	OnNavigationInitDone.Broadcast();
 }
@@ -916,6 +1037,39 @@ void UNavigationSystemV1::SetCrowdManager(UCrowdManagerBase* NewCrowdManager)
 	if (NewCrowdManager != NULL)
 	{
 		CrowdManager->AddToRoot();
+	}
+}
+
+void UNavigationSystemV1::CalcTimeSlicedUpdateData(TArray<double>& OutCurrentTimeSlicedBuildTaskDurations, TArray<bool>& OutIsTimeSlicingArray, bool& bOutAnyNonTimeSlicedGenerators, int32& OutNumTimeSlicedRemainingBuildTasks)
+{
+	OutNumTimeSlicedRemainingBuildTasks = 0;
+	OutIsTimeSlicingArray.SetNumZeroed(NavDataSet.Num());
+	bOutAnyNonTimeSlicedGenerators = false;
+	OutCurrentTimeSlicedBuildTaskDurations.Reset(NavDataSet.Num());
+
+	for (int32 NavDataIdx = 0; NavDataIdx < NavDataSet.Num(); ++NavDataIdx)
+	{
+		const ANavigationData* NavData = NavDataSet[NavDataIdx];
+		const FNavDataGenerator* Generator = NavData ? NavData->GetGenerator() : nullptr;
+		if (Generator)
+		{
+			double TimeSlicedBuildTaskDuration = 0.;
+			int32 NumRemainingBuildTasksTemp = 0;
+
+			if (Generator->GetTimeSliceData(NumRemainingBuildTasksTemp, TimeSlicedBuildTaskDuration))
+			{
+				OutIsTimeSlicingArray[NavDataIdx] = true;
+				OutNumTimeSlicedRemainingBuildTasks += NumRemainingBuildTasksTemp;
+				if (TimeSlicedBuildTaskDuration > 0.)
+				{
+					OutCurrentTimeSlicedBuildTaskDurations.Push(TimeSlicedBuildTaskDuration);
+				}
+			}
+			else
+			{
+				bOutAnyNonTimeSlicedGenerators = true;
+			}
+		}
 	}
 }
 
@@ -974,15 +1128,97 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Navigation_TickAsyncBuild);
 
-			for (ANavigationData* NavData : NavDataSet)
+			bool bDoStandardTickAsync = true;
+
+			if (NavRegenTimeSliceManager.DoTimeSlicedUpdate())
 			{
-				if (NavData)
+				int32 NumTimeSlicedRemainingBuildTasks = 0;
+				TArray<double> CurrentTimeSlicedBuildTaskDurations;
+				TArray<bool> IsTimeSlicingArray;
+				bool bAnyNonTimeSlicedGenerators = false;
+
+				NavRegenTimeSliceManager.CalcAverageDeltaTime(GFrameCounter);
+
+				CalcTimeSlicedUpdateData(CurrentTimeSlicedBuildTaskDurations, IsTimeSlicingArray, bAnyNonTimeSlicedGenerators, NumTimeSlicedRemainingBuildTasks);
+
+				if (NumTimeSlicedRemainingBuildTasks > 0)
 				{
-					NavData->TickAsyncBuild(DeltaSeconds);
+					NavRegenTimeSliceManager.CalcTimeSliceDuration(NumTimeSlicedRemainingBuildTasks, CurrentTimeSlicedBuildTaskDurations);
+
+					//The general idea here is to tick any non time sliced generators once per frame. Time sliced generators we aim to tick one per frame and move to the next, next frame. In the
+					//case where one time sliced generator doesn't use the whole time slice we move to the next time sliced generator. That generator will only be considered to have a full frames
+					//processing if either it runs out of work or uses a large % of the time slice. Depending we either tick it again next frame or go to the next time sliced generator (next frame).
+					bool bNavDataIdxSet = false;
+					int32 NavDataIdxTemp = NavRegenTimeSliceManager.GetNavDataIdx();
+					const double RemainingFractionConsideredWholeTick = 0.8;
+					const int32 FirstNavDataIdx = NavDataIdxTemp = NavDataIdxTemp % NavDataSet.Num();
+
+					for (int32 NavDataIter = 0; NavDataIter < NavDataSet.Num(); ++NavDataIter)
+					{
+						if (ANavigationData* NavData = NavDataSet[NavDataIdxTemp])
+						{
+							if (IsTimeSlicingArray[NavDataIdxTemp])
+							{
+								if (NavRegenTimeSliceManager.GetTimeSlicer().IsTimeSliceFinishedCached())
+								{
+									//if we haven't set the NavDataIdx then this is the TimeSliced Generator to process next frame
+									if (!bNavDataIdxSet)
+									{
+										NavRegenTimeSliceManager.SetNavDataIdx(NavDataIdxTemp);
+										bNavDataIdxSet = true;
+									}
+
+									//if the time slice is finished and we have no non time sliced generators then stop TickAsyncBuild, otherwise continue
+									if (!bAnyNonTimeSlicedGenerators)
+									{
+										break;
+									}
+									continue;
+								}
+								else if (NavRegenTimeSliceManager.GetTimeSlicer().GetRemainingDurationFraction() < RemainingFractionConsideredWholeTick)
+								{
+									//don't check bNavDataIdxSet here, either this time sliced generator won't get enough time this frame to be considered
+									//a whole tick or it will complete and there is some time sliced left - in the later case next frame we'll process the 
+									//next time sliced generator we process this frame or the first Idx we processed this frame
+									NavRegenTimeSliceManager.SetNavDataIdx(NavDataIdxTemp);
+									bNavDataIdxSet = true;
+								}
+							}
+							NavData->TickAsyncBuild(DeltaSeconds);
+						}
+						//Increment and mod NavDataIdxTemp
+						++NavDataIdxTemp;
+						NavDataIdxTemp %= NavDataSet.Num();
+					}
+
+					//if we processed all the time sliced generators and there is still some time slice left
+					//OR if we haven't SetNavDataIdx() we should start next frame where we started this frame
+					if (!NavRegenTimeSliceManager.GetTimeSlicer().IsTimeSliceFinishedCached() || !bNavDataIdxSet)
+					{
+						NavRegenTimeSliceManager.SetNavDataIdx(FirstNavDataIdx);
+						bNavDataIdxSet = true;
+					}
+					//don't do the standard TickASyncBuild as we have already processed the regen appropriately 
+					bDoStandardTickAsync = false;
+				}
+			}
+
+			//if we aren't time sliced rebuilding and / or if there aren't any time sliced nav data's with work to do just tick all nav data
+			if (bDoStandardTickAsync)
+			{
+				for (ANavigationData* NavData : NavDataSet)
+				{
+					if (NavData)
+					{
+						NavData->TickAsyncBuild(DeltaSeconds);
+					}
 				}
 			}
 		}
 	}
+
+	CSV_CUSTOM_STAT(NavTasks, NumRemainingTasks, GetNumRemainingBuildTasks(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(NavTasks, NumRunningTasks, GetNumRunningBuildTasks(), ECsvCustomStatOp::Set);
 
 	if (AsyncPathFindingQueries.Num() > 0)
 	{
@@ -1026,8 +1262,7 @@ void UNavigationSystemV1::SetNavigationAutoUpdateEnabled(bool bNewEnable, UNavig
 
 			if (bCurrentIsEnabled)
 			{
-				const bool bSkipRebuildsInEditor = false;
-				NavSystem->RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor, bSkipRebuildsInEditor);
+				NavSystem->RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor);
 			}
 			else
 			{
@@ -3255,26 +3490,59 @@ void UNavigationSystemV1::OnPIEEnd()
 	{
 		bAsyncBuildPaused = false;
 		// there's no need to request while navigation rebuilding just because PIE has ended
-		RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor, /*bSkipRebuildInEditor=*/true);
+		RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 	}
 }
 
-void UNavigationSystemV1::RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor)
+void UNavigationSystemV1::AddNavigationBuildLock(uint8 Flags)
+{
+	const bool bWasLocked = IsNavigationBuildingLocked();
+
+	NavBuildingLockFlags |= Flags;
+
+	const bool bIsLocked = IsNavigationBuildingLocked();
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::AddNavigationBuildLock WasLocked=%s IsLocked=%s"), *LexToString(bWasLocked), *LexToString(bIsLocked));
+	if (!bWasLocked && bIsLocked)
+	{
+		DefaultDirtyAreasController.OnNavigationBuildLocked();
+	}
+}
+
+void UNavigationSystemV1::RemoveNavigationBuildLock(uint8 Flags, const ELockRemovalRebuildAction RebuildAction /*= ELockRemovalRebuildAction::Rebuild*/)
 {
 	const bool bWasLocked = IsNavigationBuildingLocked();
 
 	NavBuildingLockFlags &= ~Flags;
 
 	const bool bIsLocked = IsNavigationBuildingLocked();
-	const bool bSkipRebuild = (OperationMode == FNavigationSystemRunMode::EditorMode) && bSkipRebuildInEditor;
-	if (bWasLocked && !bIsLocked && !bSkipRebuild)
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::RemoveNavigationBuildLock WasLocked=%s IsLocked=%s"), *LexToString(bWasLocked), *LexToString(bIsLocked));
+	if (bWasLocked && !bIsLocked)
 	{
-		RebuildAll();
+		DefaultDirtyAreasController.OnNavigationBuildUnlocked();
+
+		const bool bRebuild = 
+			(RebuildAction == ELockRemovalRebuildAction::RebuildIfNotInEditor && (OperationMode != FNavigationSystemRunMode::EditorMode)) || 
+			(RebuildAction == ELockRemovalRebuildAction::Rebuild);
+		
+		if (bRebuild)
+		{
+			RebuildAll();
+		}
 	}
 }
 
+void UNavigationSystemV1::SetNavigationOctreeLock(bool bLock)
+{
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::SetNavigationOctreeLock IsLocked=%s"), *LexToString(bLock));
+
+	DefaultOctreeController.SetNavigationOctreeLock(bLock);
+}
+
+
 void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 {
+	UE_LOG(LogNavigation, Verbose, TEXT("UNavigationSystemV1::RebuildAll"));
+
 	const bool bIsInGame = GetWorld()->IsGameWorld();
 	
 	GatherNavigationBounds();
@@ -3336,6 +3604,13 @@ bool UNavigationSystemV1::IsNavigationBuildInProgress(bool bCheckDirtyToo)
 void UNavigationSystemV1::OnNavigationGenerationFinished(ANavigationData& NavData)
 {
 	OnNavigationGenerationFinishedDelegate.Broadcast(&NavData);
+
+#if WITH_EDITOR
+	if (!GetWorld()->IsGameWorld())
+	{
+		NavData.MarkPackageDirty();
+	}
+#endif //WITH_EDITOR
 }
 
 int32 UNavigationSystemV1::GetNumRemainingBuildTasks() const
@@ -3519,7 +3794,7 @@ void UNavigationSystemV1::OnHotReload(bool bWasTriggeredAutomatically)
 
 		if (bInitialBuildingLocked)
 		{
-			RemoveNavigationBuildLock(ENavigationBuildLock::InitialLock, /*bSkipRebuildInEditor=*/true);
+			RemoveNavigationBuildLock(ENavigationBuildLock::InitialLock, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 		}
 	}
 }

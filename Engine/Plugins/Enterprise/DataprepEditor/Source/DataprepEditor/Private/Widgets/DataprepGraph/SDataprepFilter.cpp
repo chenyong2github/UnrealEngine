@@ -2,8 +2,8 @@
 
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
 
+#include "DataprepCoreUtils.h"
 #include "DataprepEditorStyle.h"
-#include "DataprepEditorUtils.h"
 #include "SelectionSystem/DataprepBoolFilter.h"
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepFloatFilter.h"
@@ -16,6 +16,7 @@
 #include "Widgets/DataprepGraph/SDataprepStringFilter.h"
 #include "Widgets/DataprepWidgets.h"
 
+#include "EditorStyleSet.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
@@ -31,7 +32,9 @@ void SDataprepFilter::Construct(const FArguments& InArgs, UDataprepFilter& InFil
 	TAttribute<FText> TooltipTextAttribute = MakeAttributeSP( this, &SDataprepFilter::GetTooltipText );
 	SetToolTipText( TooltipTextAttribute );
 
-	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments(), InDataprepActionContext );
+	bIsPreviewed = InArgs._IsPreviewed;
+
+	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments().IsSimplified(InArgs._IsSimplified), InDataprepActionContext );
 }
 
 void SDataprepFilter::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -45,8 +48,13 @@ void SDataprepFilter::Tick(const FGeometry& AllottedGeometry, const double InCur
 	}
 }
 
-FLinearColor SDataprepFilter::GetOutlineColor() const
+FSlateColor SDataprepFilter::GetOutlineColor() const
 {
+	if ( bIsPreviewed )
+	{
+		return FDataprepEditorStyle::GetColor( "Graph.ActionStepNode.PreviewColor" );
+	}
+
 	return FDataprepEditorStyle::GetColor( "DataprepActionStep.Filter.OutlineColor" );
 }
 
@@ -75,13 +83,33 @@ TSharedRef<SWidget> SDataprepFilter::GetTitleWidget()
 	const ISlateStyle* DataprepEditorStyle = FSlateStyleRegistry::FindSlateStyle( FDataprepEditorStyle::GetStyleSetName() );
 	check( DataprepEditorStyle );
 	const float DefaultPadding = DataprepEditorStyle->GetFloat( "DataprepAction.Padding" );
-
-	return SNew( STextBlock )
+	TSharedRef<SWidget> DefaultTitle = SNew( STextBlock )
 		.Text( this, &SDataprepFilter::GetBlockTitle )
 		.TextStyle( &DataprepEditorStyle->GetWidgetStyle<FTextBlockStyle>( "DataprepActionBlock.TitleTextBlockStyle" ) )
 		.ColorAndOpacity( FLinearColor( 1.f, 1.f, 1.f ) )
 		.Margin( FMargin( DefaultPadding ) )
 		.Justification( ETextJustify::Center );
+
+
+	if ( bIsPreviewed )
+	{
+		return SNew( SVerticalBox )
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				DefaultTitle
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding( FMargin( 2.0f, 4.0f, 0.0f, 0.0f ) )
+			[
+				SNew( STextBlock )
+				.TextStyle(  &DataprepEditorStyle->GetWidgetStyle<FTextBlockStyle>( "DataprepActionBlock.PreviewTextBlockStyle" ) )
+				.Text( LOCTEXT("PreviewLabel", "Previewing") )
+			];
+	}
+
+	return DefaultTitle;
 }
 
 TSharedRef<SWidget> SDataprepFilter::GetContentWidget()
@@ -150,7 +178,6 @@ void SDataprepFilter::InverseFilter()
 	{
 		FScopedTransaction Transaction( LOCTEXT("InverseFilterTransaction", "Inverse the filter") );
 		Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
-		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 	}
 }
 

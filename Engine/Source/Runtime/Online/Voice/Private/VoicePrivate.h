@@ -14,7 +14,6 @@ THIRD_PARTY_INCLUDES_START
 #include <Audiopolicy.h>
 #include <Mmdeviceapi.h>
 #include <Functiondiscoverykeys_devpkey.h>
-#include <audiodefs.h>
 #include <dsound.h>
 THIRD_PARTY_INCLUDES_END
 

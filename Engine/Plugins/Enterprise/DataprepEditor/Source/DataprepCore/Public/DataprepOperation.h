@@ -58,6 +58,7 @@ class DATAPREPCORE_API FDataprepOperationCategories
 {
 public:
 	static FText ActorOperation;
+	static FText AssetOperation;
 	static FText MeshOperation;
 	static FText ObjectOperation;
 };

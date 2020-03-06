@@ -41,16 +41,16 @@ struct RENDERCORE_API FPixelShaderUtils
 	/** Initialize a pipeline state object initializer with almost all the basics required to do a full viewport pass. */
 	static void InitFullscreenPipelineState(
 		FRHICommandList& RHICmdList,
-		const TShaderMap<FGlobalShaderType>* GlobalShaderMap,
-		const FShader* PixelShader,
+		const FGlobalShaderMap* GlobalShaderMap,
+		const TShaderRef<FShader>& PixelShader,
 		FGraphicsPipelineStateInitializer& GraphicsPSOInit);
 
 	/** Dispatch a full screen pixel shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
 	static inline void DrawFullscreenPixelShader(
 		FRHICommandList& RHICmdList, 
-		const TShaderMap<FGlobalShaderType>* GlobalShaderMap,
-		const TShaderClass* PixelShader,
+		const FGlobalShaderMap* GlobalShaderMap,
+		const TShaderRef<TShaderClass>& PixelShader,
 		const typename TShaderClass::FParameters& Parameters,
 		const FIntRect& Viewport,
 		FRHIBlendState* BlendState = nullptr,
@@ -58,7 +58,7 @@ struct RENDERCORE_API FPixelShaderUtils
 		FRHIDepthStencilState* DepthStencilState = nullptr,
 		uint32 StencilRef = 0)
 	{
-		check(PixelShader);
+		check(PixelShader.IsValid());
 		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 		
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -70,7 +70,7 @@ struct RENDERCORE_API FPixelShaderUtils
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 		RHICmdList.SetStencilRef(StencilRef);
 
-		SetShaderParameters(RHICmdList, PixelShader, PixelShader->GetPixelShader(), Parameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), Parameters);
 
 		DrawFullscreenTriangle(RHICmdList);
 	}
@@ -79,9 +79,9 @@ struct RENDERCORE_API FPixelShaderUtils
 	template<typename TShaderClass>
 	static inline void AddFullscreenPass(
 		FRDGBuilder& GraphBuilder,
-		const TShaderMap<FGlobalShaderType>* GlobalShaderMap,
+		const FGlobalShaderMap* GlobalShaderMap,
 		FRDGEventName&& PassName,
-		const TShaderClass* PixelShader,
+		const TShaderRef<TShaderClass>& PixelShader,
 		typename TShaderClass::FParameters* Parameters,
 		const FIntRect& Viewport,
 		FRHIBlendState* BlendState = nullptr,
@@ -89,7 +89,7 @@ struct RENDERCORE_API FPixelShaderUtils
 		FRHIDepthStencilState* DepthStencilState = nullptr,
 		uint32 StencilRef = 0)
 	{
-		check(PixelShader);
+		check(PixelShader.IsValid());
 		ClearUnusedGraphResources(PixelShader, Parameters);
 
 		GraphBuilder.AddPass(
@@ -107,9 +107,9 @@ struct RENDERCORE_API FPixelShaderUtils
 	template<typename TPixelShaderClass, typename TPassParameters>
 	static inline void AddRasterizeToRectsPass(
 		FRDGBuilder& GraphBuilder,
-		const TShaderMap<FGlobalShaderType>* GlobalShaderMap,
+		const FGlobalShaderMap* GlobalShaderMap,
 		FRDGEventName&& PassName,
-		const TPixelShaderClass* PixelShader,
+		const TShaderRef<TPixelShaderClass>& PixelShader,
 		TPassParameters* Parameters,
 		const FIntPoint& ViewportSize,
 		FRDGBufferSRVRef RectMinMaxBufferSRV,
@@ -145,15 +145,15 @@ struct RENDERCORE_API FPixelShaderUtils
 			GraphicsPSOInit.PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GTileVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader->GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader->GetPixelShader();
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 			RHICmdList.SetStencilRef(StencilRef);
 
-			SetShaderParameters(RHICmdList, VertexShader, VertexShader->GetVertexShader(), Parameters->VS);
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader->GetPixelShader(), Parameters->PS);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), Parameters->VS);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), Parameters->PS);
 
 			const uint32 NumPrimitives = GRHISupportsRectTopology ? 1 : 2;
 			const uint32 NumInstances = Parameters->VS.NumRects;

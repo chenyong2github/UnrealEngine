@@ -1959,7 +1959,7 @@ FArchive& operator<<(FArchive& Ar, FPackageObjects& PackageObjects)
 
 	if (Ar.IsLoading())
 	{
-		int32 NumObjects;
+		int32 NumObjects = 0;
 		FString ObjectName;
 		FString ClassName;
 

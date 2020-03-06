@@ -108,7 +108,7 @@ double FMovieSceneTimeController_AudioClock::GetCurrentTime() const
 	return AudioDevice ? AudioDevice->GetAudioClock() : FPlatformTime::Seconds();
 }
 
-double FMovieSceneTimeController_TimecodeClock::GetCurrentTime() const
+double FMovieSceneTimeController_RelativeTimecodeClock::GetCurrentTime() const
 {
 	const TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
 	if (CurrentFrameTime.IsSet())
@@ -119,6 +119,21 @@ double FMovieSceneTimeController_TimecodeClock::GetCurrentTime() const
 	{
 		return FPlatformTime::Seconds();
 	}
+}
+
+FFrameTime FMovieSceneTimeController_TimecodeClock::OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate)
+{
+	if (GEngine && GEngine->GetTimecodeProvider() && GEngine->GetTimecodeProvider()->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+	{
+		FTimecode Timecode = FApp::GetTimecode();
+		FFrameRate FrameRate = FApp::GetTimecodeFrameRate();
+
+		// Convert timecode to raw number of frames at the timecode's framerate.
+		FFrameNumber FrameNumber = Timecode.ToFrameNumber(FrameRate);
+		return FFrameRate::TransformTime(FFrameTime(FrameNumber), FrameRate, InCurrentTime.Rate);
+	}
+
+	return FFrameTime(0);
 }
 
 void FMovieSceneTimeController_Tick::OnStartPlaying(const FQualifiedFrameTime& InStartTime)

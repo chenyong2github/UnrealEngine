@@ -106,6 +106,8 @@ public:
 
 	virtual void TickPreEngine() override
 	{
+		FrameStartTime = FPlatformTime::Seconds();
+
 		if (TimeSource.IsValid())
 		{
 			Clock.UpdateTimecode(TimeSource->GetTimecode(), TimecodeLocked);
@@ -130,6 +132,11 @@ public:
 	virtual void UnregisterPlayerFactory(IMediaPlayerFactory& Factory) override
 	{
 		PlayerFactories.Remove(&Factory);
+	}
+
+	virtual double GetFrameStartTime() const override
+	{
+		return FrameStartTime;
 	}
 
 public:
@@ -169,6 +176,9 @@ private:
 
 	/** The media clock. */
 	FMediaClock Clock;
+
+	/** Realtime at which frame started. */
+	double FrameStartTime;
 
 	/** Time code of the current frame. */
 	FTimespan CurrentTimecode;

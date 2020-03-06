@@ -79,10 +79,10 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 	{
 		// Find nDisplay root actor
 		ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(EditorWorldPreDup);
-		if (!RootActor && EditorWorld)
+		if (!RootActor && EditorWorldPreDup)
 		{
 			// Also search inside streamed levels
-			const TArray<ULevelStreaming*>& StreamingLevels = EditorWorld->GetStreamingLevels();
+			const TArray<ULevelStreaming*>& StreamingLevels = EditorWorldPreDup->GetStreamingLevels();
 			for (ULevelStreaming* StreamingLevel : StreamingLevels)
 			{
 				if (StreamingLevel)

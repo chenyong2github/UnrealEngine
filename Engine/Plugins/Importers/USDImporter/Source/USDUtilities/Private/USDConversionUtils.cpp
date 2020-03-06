@@ -15,14 +15,42 @@
 #include "USDIncludesStart.h"
 
 #include "pxr/usd/usd/attribute.h"
+#include "pxr/usd/usd/editContext.h"
 #include "pxr/usd/usd/primRange.h"
 #include "pxr/usd/usdGeom/camera.h"
 #include "pxr/usd/usdGeom/scope.h"
 #include "pxr/usd/usdGeom/xform.h"
 #include "pxr/usd/usdGeom/mesh.h"
+#include "pxr/usd/usdGeom/metrics.h"
 #include "pxr/usd/usdSkel/root.h"
 
 #include "USDIncludesEnd.h"
+
+pxr::TfToken UsdUtils::GetUsdStageAxis( const pxr::UsdStageRefPtr& Stage )
+{
+	return pxr::UsdGeomGetStageUpAxis( Stage );
+}
+
+void UsdUtils::SetUsdStageAxis( const pxr::UsdStageRefPtr& Stage, pxr::TfToken Axis )
+{
+	pxr::UsdGeomSetStageUpAxis( Stage, Axis );
+}
+
+float UsdUtils::GetUsdStageMetersPerUnit( const pxr::UsdStageRefPtr& Stage )
+{
+	return (float)pxr::UsdGeomGetStageMetersPerUnit( Stage );
+}
+
+void UsdUtils::SetUsdStageMetersPerUnit( const pxr::UsdStageRefPtr& Stage, float MetersPerUnit )
+{
+	if ( !Stage || !Stage->GetRootLayer() )
+	{
+		return;
+	}
+
+	pxr::UsdEditContext( Stage, Stage->GetRootLayer() );
+	pxr::UsdGeomSetStageMetersPerUnit( Stage, MetersPerUnit );
+}
 
 UClass* UsdUtils::GetActorTypeForPrim( const pxr::UsdPrim& Prim )
 {

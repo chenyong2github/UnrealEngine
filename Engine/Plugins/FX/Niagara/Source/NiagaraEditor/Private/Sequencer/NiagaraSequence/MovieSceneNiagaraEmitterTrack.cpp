@@ -7,7 +7,6 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
-#include "MovieSceneNiagaraEmitterTrackInstance.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraNodeFunctionCall.h"
@@ -95,6 +94,11 @@ bool UMovieSceneNiagaraEmitterTrack::CanRename() const
 		return true;
 	}
 	return false;
+}
+
+bool UMovieSceneNiagaraEmitterTrack::ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const
+{
+	return EmitterHandleViewModel.Pin()->VerifyNameTextChanged(NewDisplayName, OutErrorMessage);
 }
 
 FNiagaraSystemViewModel& UMovieSceneNiagaraEmitterTrack::GetSystemViewModel() const

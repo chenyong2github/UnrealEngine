@@ -74,7 +74,7 @@ void GenerateParticleSortKeys(uint ParticleIndex : SV_DispatchThreadID)
 		{
 			if (SortMode == SORT_VIEW_DEPTH || SortMode == SORT_VIEW_DISTANCE)
 			{ 
-				float3 ParticlePosition = GetVec3(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataFloat), SortAttributeOffset, ParticleIndex); 
+				float3 ParticlePosition = GetVec3(SortAttributeOffset, ParticleIndex); 
 				float3 CameraVector = ParticlePosition - CameraPosition;
 				SortValue = SortMode == SORT_VIEW_DEPTH ? dot(CameraVector, CameraDirection) : length(CameraVector);
 				
@@ -88,7 +88,7 @@ void GenerateParticleSortKeys(uint ParticleIndex : SV_DispatchThreadID)
 			}
 			else
 			{
-				SortValue = GetFloat(NIAGARA_LOOSEPARAM_STRUCT(NiagaraParticleDataFloat), SortAttributeOffset, ParticleIndex);
+				SortValue = GetFloat(SortAttributeOffset, ParticleIndex);
 
 #if SORT_MAX_PRECISION
 				SortKey = (asuint(SortValue)) >> SortKeyShift;

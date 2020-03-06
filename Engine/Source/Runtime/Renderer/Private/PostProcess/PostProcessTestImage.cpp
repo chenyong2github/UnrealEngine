@@ -51,7 +51,7 @@ void AddTestImagePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenP
 		ERDGPassFlags::Raster,
 		[&View, OutputTexture, OutputViewport, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
 	{
-		DrawScreenPass(RHICmdList, View, OutputViewport, OutputViewport, *PixelShader, *PassParameters);
+		DrawScreenPass(RHICmdList, View, OutputViewport, OutputViewport, PixelShader, *PassParameters);
 
 		// Draw debug text
 		{

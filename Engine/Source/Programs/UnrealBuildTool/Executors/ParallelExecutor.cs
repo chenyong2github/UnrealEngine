@@ -33,16 +33,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
-		/// </summary>
-		[XmlConfigFile]
-		double ProcessorCountMultiplier = 1.0;
-
-		/// <summary>
 		/// Maximum processor count for local execution. 
 		/// </summary>
 		[XmlConfigFile]
 		int MaxProcessorCount = int.MaxValue;
+
+		/// <summary>
+		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
+		/// </summary>
+		[XmlConfigFile]
+		double ProcessorCountMultiplier = 1.0;
 
 		/// <summary>
 		/// When enabled, will stop compiling targets after a compile error occurs.
@@ -51,11 +51,28 @@ namespace UnrealBuildTool
 		bool bStopCompilationAfterErrors = false;
 
 		/// <summary>
+		/// How many processes that will be executed in parallel
+		/// </summary>
+		int MaxProcesses;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ParallelExecutor()
+		/// <param name="MaxLocalActions">How many actions to execute in parallel</param>
+		public ParallelExecutor(int MaxLocalActions)
 		{
 			XmlConfig.ApplyTo(this);
+
+			// if specified this caps how many processors we can use
+			if (MaxLocalActions > 0)
+			{
+				MaxProcesses = MaxLocalActions;
+			}
+			else
+			{
+				// Figure out how many processors to use
+				MaxProcesses = Math.Min((int)(Environment.ProcessorCount * ProcessorCountMultiplier), MaxProcessorCount);
+			}
 		}
 
 		/// <summary>
@@ -81,8 +98,6 @@ namespace UnrealBuildTool
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
 		public override bool ExecuteActions(List<Action> InputActions, bool bLogDetailedActionStats)
 		{
-			// Figure out how many processors to use
-			int MaxProcesses = Math.Min((int)(Environment.ProcessorCount * ProcessorCountMultiplier), MaxProcessorCount);
 			Log.TraceInformation("Building {0} {1} with {2} {3}...", InputActions.Count, (InputActions.Count == 1) ? "action" : "actions", MaxProcesses, (MaxProcesses == 1)? "process" : "processes");
 
 			// Create actions with all our internal metadata

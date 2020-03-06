@@ -113,21 +113,21 @@ struct FConcertCreateSessionArgs
 	FString ArchiveNameOverride;
 };
 
-struct FConcertRestoreSessionArgs
+struct FConcertCopySessionArgs
 {
-	/** True to auto-connect to the session after restoring it */
+	/** True to auto-connect to the session after copying/restoring it */
 	bool bAutoConnect = true;
 
-	/** The ID of the archived session to restore */
+	/** The ID of the session to copy or restore */
 	FGuid SessionId;
 
 	/** The desired name for new session */
 	FString SessionName;
 
-	/** The override for the name used when archiving this session */
+	/** The override for the name used when archiving the copied/restored session */
 	FString ArchiveNameOverride;
 
-	/** The filter controlling which activities from the session should be restored */
+	/** The filter controlling which activities should be copied from the source session. */
 	FConcertSessionFilter SessionFilter;
 };
 
@@ -292,13 +292,23 @@ public:
 	virtual TFuture<EConcertResponseCode> JoinSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) = 0;
 
 	/**
-	 * Restore an archived session on the server, matching the client configured settings.
+	 * Copy an archived session into a new live session on the server, matching the client configured settings.
 	 * This also initiates the connection handshake for that session with the client when bAutoConnect is true in the RestoreSessionArgs.
 	 * @param ServerAdminEndpointId	The Id of the Concert Server query endpoint
 	 * @param RestoreSessionArgs	The arguments that will be use for the restoration of the session
 	 * @return A future that will contains the final response code of the request
 	 */
-	virtual TFuture<EConcertResponseCode> RestoreSession(const FGuid& ServerAdminEndpointId, const FConcertRestoreSessionArgs& RestoreSessionArgs) = 0;
+	virtual TFuture<EConcertResponseCode> RestoreSession(const FGuid& ServerAdminEndpointId, const FConcertCopySessionArgs& RestoreSessionArgs) = 0;
+
+	/**
+	 * Copy a live or and archived session into a new live session on server, matching the configured settings. If the session is archived,
+	 * this is equivalent to restoring it (because copying an archive into another archive is not useful).
+	 * This also initiates the connection handshake for that session with the server when bAutoConnect is true in the CopySessionArgs.
+	 * @param ServerAdminEndpointId	The Id of the Concert Server query endpoint
+	 * @param CopySessionArgs	The arguments that will be use to copy the session
+	 * @return A future that will contains the final response code of the request
+	 */
+	virtual TFuture<EConcertResponseCode> CopySession(const FGuid& ServerAdminEndpointId, const FConcertCopySessionArgs& CopySessionArgs) = 0;
 
 	/**
 	 * Archive a live session on the server hosting the session.

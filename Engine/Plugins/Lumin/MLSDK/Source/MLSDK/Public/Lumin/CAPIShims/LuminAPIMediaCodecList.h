@@ -36,6 +36,14 @@ CREATE_FUNCTION_SHIM(ml_mediacodeclist, MLResult, MLMediaCodecListGetSecureCodec
 #define MLMediaCodecListGetSecureCodecName ::MLSDK_API::MLMediaCodecListGetSecureCodecNameShim
 CREATE_FUNCTION_SHIM(ml_mediacodeclist, MLResult, MLMediaCodecListQueryResultsRelease)
 #define MLMediaCodecListQueryResultsRelease ::MLSDK_API::MLMediaCodecListQueryResultsReleaseShim
+CREATE_FUNCTION_SHIM(ml_mediacodeclist, MLResult, MLMediaCodecListGetSupportedProfileLevels)
+#define MLMediaCodecListGetSupportedProfileLevels ::MLSDK_API::MLMediaCodecListGetSupportedProfileLevelsShim
+CREATE_FUNCTION_SHIM(ml_mediacodeclist, MLResult, MLMediaCodecListProfileLevelsRelease)
+#define MLMediaCodecListProfileLevelsRelease ::MLSDK_API::MLMediaCodecListProfileLevelsReleaseShim
+CREATE_FUNCTION_SHIM(ml_mediacodeclist, MLResult, MLMediaCodecListGetSupportedColorFormats)
+#define MLMediaCodecListGetSupportedColorFormats ::MLSDK_API::MLMediaCodecListGetSupportedColorFormatsShim
+CREATE_FUNCTION_SHIM(ml_mediacodeclist, MLResult, MLMediaCodecListColorFormatsRelease)
+#define MLMediaCodecListColorFormatsRelease ::MLSDK_API::MLMediaCodecListColorFormatsReleaseShim
 
 }
 

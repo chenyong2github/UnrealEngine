@@ -4,18 +4,22 @@
 
 #include "DataprepOperation.h"
 
+#include "DataprepActionAsset.h"
 #include "DataprepAssetInstance.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepContentProducer.h"
+#include "DataprepCoreUtils.h"
 #include "DataprepEditorActions.h"
+#include "DataprepEditorLogCategory.h"
 #include "DataprepEditorModule.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepRecipe.h"
-#include "DataprepActionAsset.h"
-#include "DataprepCoreUtils.h"
-#include "DataprepEditorLogCategory.h"
+#include "PreviewSystem/DataprepPreviewAssetColumn.h"
+#include "PreviewSystem/DataprepPreviewSceneOutlinerColumn.h"
+#include "PreviewSystem/DataprepPreviewSystem.h"
 #include "SchemaActions/DataprepOperationMenuActionCollector.h"
 #include "Widgets/DataprepAssetView.h"
+#include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
 #include "Widgets/SAssetsPreviewWidget.h"
 #include "Widgets/SDataprepEditorViewport.h"
 #include "Widgets/SDataprepPalette.h"
@@ -24,7 +28,6 @@
 #include "ActorTreeItem.h"
 #include "AssetDeleteModel.h"
 #include "AssetRegistryModule.h"
-#include "StatsViewerModule.h"
 #include "BlueprintNodeSpawner.h"
 #include "ComponentTreeItem.h"
 #include "DesktopPlatformModule.h"
@@ -50,7 +53,9 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
+#include "SceneOutlinerPublicTypes.h"
 #include "ScopedTransaction.h"
+#include "StatsViewerModule.h"
 #include "Templates/UnrealTemplate.h"
 #include "Toolkits/IToolkit.h"
 #include "UObject/Object.h"
@@ -152,6 +157,7 @@ FDataprepEditor::FDataprepEditor()
 	, bSaveIntermediateBuildProducts(false)
 	, PreviewWorld(nullptr)
 	, bIgnoreCloseRequest(false)
+	, PreviewSystem( MakeShared<FDataprepPreviewSystem>() )
 {
 	FName UniqueWorldName = MakeUniqueObjectName(GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("PreviewWorld", "Preview").ToString()) ));
 	PreviewWorld = TStrongObjectPtr<UWorld>(NewObject< UWorld >(GetTransientPackage(), UniqueWorldName));
@@ -191,8 +197,6 @@ FDataprepEditor::~FDataprepEditor()
 		PreviewWorld->DestroyWorld( true );
 		PreviewWorld.Reset();
 	}
-
-	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 
 	auto DeleteDirectory = [&](const FString& DirectoryToDelete)
 	{
@@ -401,9 +405,14 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	DataprepAssetInterfacePtr = TWeakObjectPtr<UDataprepAssetInterface>(InDataprepAssetInterface);
 	check( DataprepAssetInterfacePtr.IsValid() );
 
-	bIsDataprepInstance = Cast<UDataprepAssetInstance>(InDataprepAssetInterface) != nullptr;
+	bIsDataprepInstance = InDataprepAssetInterface->IsA<UDataprepAssetInstance>();
 
 	DataprepAssetInterfacePtr->GetOnChanged().AddSP( this, &FDataprepEditor::OnDataprepAssetChanged );
+
+	if ( UDataprepAsset* DataprepAsset = Cast<UDataprepAsset>( InDataprepAssetInterface ) )
+	{
+		DataprepAsset->GetOnStepObjectsAboutToBeRemoved().AddSP( this, &FDataprepEditor::OnStepObjectsAboutToBeDeleted );
+	}
 
 	// Assign unique session identifier
 	SessionID = FGuid::NewGuid().ToString();
@@ -431,6 +440,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	TempDir = FPaths::Combine( GetRootTemporaryDir(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ), SessionID);
 	IFileManager::Get().MakeDirectory(*TempDir);
 
+#ifndef NO_BLUEPRINT
 	// Temp code for the nodes development
 	if(Blueprint != nullptr)
 	{
@@ -439,11 +449,12 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 		// Necessary step to regenerate blueprint generated class
 		// Note that this compilation will always succeed as Dataprep node does not have real body
-		{
-			FKismetEditorUtilities::CompileBlueprint( DataprepRecipeBPPtr.Get(), EBlueprintCompileOptions::None, nullptr );
-		}
+		//{
+		//	FKismetEditorUtilities::CompileBlueprint( DataprepRecipeBPPtr.Get(), EBlueprintCompileOptions::None, nullptr );
+		//}
 	}
 	// End temp code for the nodes development
+#endif
 
 	GEditor->RegisterForUndo(this);
 
@@ -566,8 +577,16 @@ void FDataprepEditor::OnBuildWorld()
 		return;
 	}
 
-	CachedAssets.Reset();
-	CachedAssets.Append( Assets );
+	UpdateDataForPreviewSystem();
+
+	CachedAssets.Empty(Assets.Num());
+	for(TWeakObjectPtr<UObject>& WeakObject : Assets)
+	{
+		if(UObject* Object = WeakObject.Get())
+		{
+			CachedAssets.Emplace( Object );
+		}
+	}
 
 	TakeSnapshot();
 
@@ -642,16 +661,17 @@ void FDataprepEditor::CleanPreviewWorld()
 	// Delete assets which are still in the transient content folder
 	const FString TransientContentFolder( GetTransientContentFolder() );
 	TArray<UObject*> ObjectsToDelete;
-	for( TWeakObjectPtr<UObject>& Asset : CachedAssets )
+	for( FSoftObjectPath& SoftObjectPath : CachedAssets )
 	{
-		if( UObject* ObjectToDelete = Asset.Get() )
+		if(SoftObjectPath.GetLongPackageName().StartsWith(TransientContentFolder))
 		{
-			FString PackagePath = ObjectToDelete->GetOutermost()->GetName();
-			if( PackagePath.StartsWith( TransientContentFolder ) )
-			{
-				FDataprepCoreUtils::MoveToTransientPackage( ObjectToDelete );
-				ObjectsToDelete.Add( ObjectToDelete );
-			}
+			FSoftObjectPath PackagePath(SoftObjectPath.GetLongPackageName());
+			UPackage* Package = Cast<UPackage>(PackagePath.ResolveObject());
+
+			UObject* ObjectToDelete = StaticFindObjectFast(nullptr, Package, *SoftObjectPath.GetAssetName());
+
+			FDataprepCoreUtils::MoveToTransientPackage( ObjectToDelete );
+			ObjectsToDelete.Add( ObjectToDelete );
 		}
 	}
 
@@ -696,10 +716,16 @@ void FDataprepEditor::OnExecutePipeline()
 		TGuardValue<bool> IgnoreCloseRequestGuard(bIgnoreCloseRequest, true);
 
 		TSharedPtr< FDataprepCoreUtils::FDataprepFeedbackContext > FeedbackContext(new FDataprepCoreUtils::FDataprepFeedbackContext);
+
+		FFeedbackContext* OldGWarn = GWarn;
+		GWarn = FeedbackContext.Get();
+
 		ActionsContext->SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter( FeedbackContext.ToSharedRef() ) ) );
 		ActionsContext->SetWorld( PreviewWorld.Get() ).SetAssets( Assets );
 
 		DataprepAssetInterfacePtr->ExecuteRecipe( ActionsContext );
+
+		GWarn = OldGWarn;
 
 		// Update list of assets with latest ones
 		Assets = ActionsContext->Assets.Array();
@@ -710,6 +736,8 @@ void FDataprepEditor::OnExecutePipeline()
 		RestoreFromSnapshot();
 	}
 
+	UpdateDataForPreviewSystem();
+
 	// Redraw 3D viewport
 	SceneViewportView->UpdateScene();
 
@@ -718,7 +746,7 @@ void FDataprepEditor::OnExecutePipeline()
 	{
 		if( Asset.IsValid() )
 		{
-			CachedAssets.Add( Asset );
+			CachedAssets.Emplace( Asset.Get() );
 		}
 	}
 
@@ -773,9 +801,22 @@ void FDataprepEditor::OnCommitWorld()
 	if( !DataprepAssetInterfacePtr->RunConsumer( Context ) )
 	{
 		UE_LOG( LogDataprepEditor, Error, TEXT("Consumer failed...") );
+
+		// Restore Dataprep's import data
+		RestoreFromSnapshot();
+
+		// Restore 3D viewport
+		SceneViewportView->UpdateScene();
+
+		// Indicates that the pipeline has not been run on the data
+		bIsFirstRun = true;
+
+		return;
 	}
 
 	ResetBuildWorld();
+
+	UpdateDataForPreviewSystem();
 }
 
 void FDataprepEditor::ExtendMenu()
@@ -1215,6 +1256,84 @@ void FDataprepEditor::OnActionsContextChanged( const UDataprepActionAsset* Actio
 	if(bAssetsChanged)
 	{
 		Assets = NewAssets;
+	}
+}
+
+void FDataprepEditor::UpdateDataForPreviewSystem()
+{
+	TArray<UObject*> ObjectsForThePreviewSystem;
+	FDataprepCoreUtils::GetActorsFromWorld( PreviewWorld.Get(), ObjectsForThePreviewSystem );
+	ObjectsForThePreviewSystem.Reserve( Assets.Num() );
+	for ( TWeakObjectPtr<UObject>& WeakObjectPtr : Assets )
+	{
+		if ( UObject* Object = WeakObjectPtr.Get() )
+		{
+			ObjectsForThePreviewSystem.Add( Object );
+		}
+	}
+	PreviewSystem->UpdateDataToProcess( MakeArrayView( ObjectsForThePreviewSystem ) );
+}
+
+bool FDataprepEditor::IsPreviewingStep(const UDataprepParameterizableObject* StepObject) const 
+{
+	return PreviewSystem->IsObservingObject( StepObject );
+}
+
+void FDataprepEditor::OnStepObjectsAboutToBeDeleted(const TArrayView<UDataprepParameterizableObject*>& StepObjects)
+{
+	// Todo Implement removal of objects from the preview system
+}
+
+void FDataprepEditor::PostUndo(bool bSuccess)
+{
+	if ( bSuccess )
+	{
+		if ( PreviewSystem->HasObservedObjects() )
+		{
+			// Check if a object as disappear
+			PreviewSystem->RestartProcessing();
+			// Set Preview view
+		}
+	}
+}
+
+void FDataprepEditor::PostRedo(bool bSuccess)
+{
+	if ( bSuccess )
+	{
+		if ( PreviewSystem->HasObservedObjects() )
+		{
+			// Check if a object as disappear
+			PreviewSystem->RestartProcessing();
+			// Set Preview view
+		}
+	}
+}
+
+void FDataprepEditor::SetPreviewedObjects(const TArrayView<UDataprepParameterizableObject*>& ObservedObjects)
+{
+	// (possible improvement) A validation that the observed object are from the same action in that the action is from the edited dataprep could help here.
+
+	if ( !PreviewSystem->HasObservedObjects() )
+	{ 
+		SceneOutliner->RemoveColumn( SceneOutliner::FBuiltInColumnTypes::ActorInfo() );
+		
+		SceneOutliner::FColumnInfo ColumnInfo( SceneOutliner::EColumnVisibility::Visible, 100, FCreateSceneOutlinerColumn::CreateLambda([Preview = PreviewSystem](ISceneOutliner& InSceneOutliner) -> TSharedRef< ISceneOutlinerColumn >
+			{
+				return MakeShared<FDataprepPreviewOutlinerColumn>( InSceneOutliner, Preview );
+			}));
+
+		SceneOutliner->AddColumn( FDataprepPreviewOutlinerColumn::ColumnID, ColumnInfo );
+
+		AssetPreviewView->AddColumn( MakeShared<FDataprepPreviewAssetColumn>( PreviewSystem ) );
+	}
+
+	PreviewSystem->SetObservedObjects( ObservedObjects );
+	
+	if ( SDataprepGraphEditor* RawGraphEditor = GraphEditor.Get() )
+	{
+		// Refresh the graph
+		RawGraphEditor->NotifyGraphChanged();
 	}
 }
 

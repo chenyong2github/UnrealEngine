@@ -370,9 +370,5 @@ Mat::FParameterMap FMDLMaterialPropertyFactory::CreateProperties(EObjectFlags Fl
 		}
 	}
 
-	Material.MarkPackageDirty();
-	Material.PostEditChange();
-	ParentPackage->MarkPackageDirty();
-
 	return ParameterMap;
 }

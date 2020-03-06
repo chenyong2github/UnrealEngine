@@ -183,13 +183,13 @@ struct FControlChannelOutBunch : public FOutBunch
 	FArchive& operator<<(FName& Name)
 	{
 		UE_LOG(LogNet, Fatal,TEXT("Cannot send Names on the control channel"));
-		ArIsError = true;
+		SetError();
 		return *this;
 	}
 	FArchive& operator<<(UObject*& Object)
 	{
 		UE_LOG(LogNet, Fatal,TEXT("Cannot send Objects on the control channel"));
-		ArIsError = true;
+		SetError();
 		return *this;
 	}
 };

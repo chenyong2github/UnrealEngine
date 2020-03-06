@@ -9,6 +9,10 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #undef UI
 
+
+constexpr uint32 FDTLSFingerprint::Length;
+
+
 FDTLSCertificate::FDTLSCertificate()
 	: PKey(nullptr)
 	, Certificate(nullptr)

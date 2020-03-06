@@ -353,16 +353,16 @@ public:
 			return FVector2D::ZeroVector;
 		}
 
-		virtual float GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const override
+		virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override
 		{
-			const FNodeSlot& ThisSlot = static_cast<const FNodeSlot&>(Child);
-			if ( !ThisSlot.AllowScale.Get() )
+			const FNodeSlot& ThisSlot = Children[ChildIndex];
+			if (!ThisSlot.AllowScale.Get())
 			{
 				// Child slots that do not allow zooming should scale themselves to negate the node panel's zoom.
 				TSharedPtr<SNodePanel> ParentPanel = GetParentPanel();
 				if (ParentPanel.IsValid())
-				{					
-					return 1.0f/ParentPanel->GetZoomAmount();
+				{
+					return 1.0f / ParentPanel->GetZoomAmount();
 				}
 			}
 
@@ -396,7 +396,7 @@ public:
 						CurChild.GetWidget(),
 						CurChild.Offset.Get(),
 						Size,
-						GetRelativeLayoutScale(CurChild, AllottedGeometry.Scale)
+						GetRelativeLayoutScale(ChildIndex, AllottedGeometry.Scale)
 					);
 					ArrangedChildren.AddWidget( ChildVisibility, ChildGeom );
 				}
@@ -580,6 +580,7 @@ public:
 		, DesiredSizeScale(FVector2D(1,1))
 		, Children(this)
 		{
+			bHasRelativeLayoutScale = true;
 		}
 
 	protected:
@@ -638,7 +639,7 @@ public:
 	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
 	virtual FReply OnTouchGesture( const FGeometry& MyGeometry, const FPointerEvent& GestureEvent ) override;
 	virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual float GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const override;
+	virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
 	// End of SWidget interface
 public:
 	/**

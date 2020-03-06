@@ -144,7 +144,7 @@ FRDGTextureRef AddHistogramPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Histogram %dx%d (CS)", SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height()),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FIntVector(HistogramThreadGroupCount.X, HistogramThreadGroupCount.Y, 1));
 	}
@@ -184,7 +184,7 @@ FRDGTextureRef AddHistogramPass(
 			View,
 			OutputViewport,
 			InputViewport,
-			*PixelShader,
+			PixelShader,
 			PassParameters);
 	}
 

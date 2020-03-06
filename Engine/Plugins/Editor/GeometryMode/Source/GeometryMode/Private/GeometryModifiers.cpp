@@ -2070,7 +2070,7 @@ static ABrush* ClipBrushAgainstPlane( const FPlane& InPlane, ABrush* InBrush)
 UGeomModifier_Clip::UGeomModifier_Clip(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Description = NSLOCTEXT("UnrealEd", "BrushClip", "Clip");
+	Description = NSLOCTEXT("UnrealEd", "Clip", "Clip");
 	Tooltip = NSLOCTEXT("UnrealEd.GeomModifier_Clip", "Tooltip", "Given a dividing plane, cut the geometry into two pieces, optionally discarding one of them. This operation only works in an orthographic viewport.  Define the vertices of the dividing plane with the space bar, and press Enter to apply.");
 	bFlipNormal = false;
 	bSplit = false;

@@ -25,7 +25,8 @@ public class MicrosoftSpatialSound : ModuleRules
 			{
 				"Core",
 				"MixedRealityInteropLibrary",
-			}
+                "AudioExtensions"
+            }
 			);
 			
 		
@@ -33,7 +34,7 @@ public class MicrosoftSpatialSound : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Engine"
+				"Engine",
 			}
 			);
         PrivateIncludePathModuleNames.Add("TargetPlatform");

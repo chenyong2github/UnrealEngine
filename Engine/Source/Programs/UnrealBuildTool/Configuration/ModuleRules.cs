@@ -410,6 +410,40 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Information about a Windows type library (TLB/OLB file) which requires a generated header.
+		/// </summary>
+		public class TypeLibrary
+		{
+			/// <summary>
+			/// Name of the type library
+			/// </summary>
+			public string FileName;
+
+			/// <summary>
+			/// Additional attributes for the #import directive
+			/// </summary>
+			public string Attributes;
+
+			/// <summary>
+			/// Name of the output header
+			/// </summary>
+			public string Header;
+
+			/// <summary>
+			/// Constructor
+			/// </summary>
+			/// <param name="FileName">Name of the type library. Follows the same conventions as the filename parameter in the MSVC #import directive.</param>
+			/// <param name="Attributes">Additional attributes for the import directive</param>
+			/// <param name="Header">Name of the output header</param>
+			public TypeLibrary(string FileName, string Attributes, string Header)
+			{
+				this.FileName = FileName;
+				this.Attributes = Attributes;
+				this.Header = Header;
+			}
+		}
+
+		/// <summary>
 		/// Name of this module
 		/// </summary>
 		public string Name
@@ -567,7 +601,8 @@ namespace UnrealBuildTool
 		public bool bUseRTTI = false;
 
 		/// <summary>
-		/// Use AVX instructions
+		/// Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the platforms that support it.
+		/// Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
 		/// </summary>
 		public bool bUseAVX = false;
 
@@ -819,6 +854,11 @@ namespace UnrealBuildTool
 		public List<BundleResource> AdditionalBundleResources = new List<BundleResource>();
 
 		/// <summary>
+		/// List of type libraries that we need to generate headers for (Windows only)
+		/// </summary>
+		public List<TypeLibrary> TypeLibraries = new List<TypeLibrary>();
+
+		/// <summary>
 		/// For builds that execute on a remote machine (e.g. iOS), this list contains additional files that
 		/// need to be copied over in order for the app to link successfully.  Source/header files and PCHs are
 		/// automatically copied.  Usually this is simply a list of precompiled third party library dependencies.
@@ -936,6 +976,18 @@ namespace UnrealBuildTool
 		///  Control visibility of symbols
 		/// </summary>
 		public SymbolVisibility ModuleSymbolVisibility = ModuleRules.SymbolVisibility.Default;
+
+		/// <summary>
+		/// The AutoSDK directory for the active host platform
+		/// </summary>
+		public string AutoSdkDirectory
+		{
+			get
+			{
+				DirectoryReference AutoSdkDir;
+				return UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out AutoSdkDir) ? AutoSdkDir.FullName : null;
+			}
+		}
 
 		/// <summary>
 		/// The current engine directory
@@ -1069,9 +1121,13 @@ namespace UnrealBuildTool
             // definitions used outside of PhysX/APEX need to be set here, not in PhysX.Build.cs or APEX.Build.cs, 
             // since we need to make sure we always set it, even to 0 (because these are Private dependencies, the
             // defines inside their Build.cs files won't leak out)
-            if (Target.bCompilePhysX == true)
+            if (Target.bCompilePhysX == true && Target.bCompileChaos == false && Target.bUseChaos == false)
 			{
 				PrivateDependencyModuleNames.Add("PhysX");
+			}
+
+			if(Target.bCompileChaos || Target.bUseChaos || Target.bCompilePhysX)
+			{
 				PublicDefinitions.Add("WITH_PHYSX=1");
 			}
 			else

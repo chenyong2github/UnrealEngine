@@ -12,6 +12,8 @@
 #include "AssetThumbnail.h"
 #include "Toolkits/IToolkitHost.h"
 
+class FDetailsViewObjectFilter;
+class IDetailRootObjectCustomization;
 class ISceneOutliner;
 class IAssetViewport;
 class SLevelViewport;
@@ -57,6 +59,9 @@ public:
 
 	/** Spawns an Actor Details widget */
 	virtual TSharedRef<SWidget> CreateActorDetails( const FName TabIdentifier ) = 0;
+
+	/** Set the filter that should be used to determine the set of objects that should be shown in a details panel when an actor in the level editor is selected */
+	virtual void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization) = 0;
 
 	/** Spawns a level editor ToolBox widget (aka. "Modes") */
 	virtual TSharedRef<SWidget> CreateToolBox() = 0;

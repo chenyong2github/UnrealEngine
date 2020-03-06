@@ -163,6 +163,7 @@ static FAutoConsoleCommand GDisableProfilingAudioCacheCommand(
 
 FCachedAudioStreamingManager::FCachedAudioStreamingManager(const FCachedAudioStreamingManagerParams& InitParams)
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	check(FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching());
 	checkf(InitParams.Caches.Num() > 0, TEXT("FCachedAudioStreamingManager should be initialized with dimensions for at least one cache."));
 
@@ -187,6 +188,8 @@ void FCachedAudioStreamingManager::UpdateResourceStreaming(float DeltaTime, bool
 
 int32 FCachedAudioStreamingManager::BlockTillAllRequestsFinished(float TimeLimit, bool bLogResults)
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
+
 	// TODO: Honor TimeLimit and bLogResults. Since we cancel any in flight read requests, this should not spin out.
 	for (FAudioChunkCache& Cache : CacheArray)
 	{
@@ -292,6 +295,7 @@ bool FCachedAudioStreamingManager::IsManagedStreamingSoundSource(const FSoundSou
 
 FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad, bool bForImmediatePlayback) const
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	bBlockForLoad |= (ForceBlockForLoadCVar != 0);
 
 	// If this sound wave is managed by a cache, use that to get the chunk:
@@ -320,7 +324,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 		}
 
 		// The function call below increments the reference count to the internal chunk.
-		TArrayView<uint8> LoadedChunk = Cache->GetChunk(ChunkKey, bBlockForLoad, bForImmediatePlayback);
+		TArrayView<uint8> LoadedChunk = Cache->GetChunk(ChunkKey, bBlockForLoad, (bForImmediatePlayback || bBlockForLoad));
 
 		// Finally, if there's a chunk after this in the sound, request that it is in the cache.
 		const int32 NextChunk = GetNextChunkIndex(SoundWave, ChunkIndex);
@@ -378,6 +382,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 
 FAudioChunkCache* FCachedAudioStreamingManager::GetCacheForWave(const USoundWave* InSoundWave) const
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	check(InSoundWave);
 
 	// We only cache chunks beyond the zeroth chunk of audio (which is inlined directly on the asset)
@@ -394,6 +399,7 @@ FAudioChunkCache* FCachedAudioStreamingManager::GetCacheForWave(const USoundWave
 
 FAudioChunkCache* FCachedAudioStreamingManager::GetCacheForChunkSize(uint32 InChunkSize) const
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	// Iterate over our caches until we find the lowest MaxChunkSize cache this sound's chunks will fit into. 
 	for (int32 CacheIndex = 0; CacheIndex < CacheArray.Num(); CacheIndex++)
 	{
@@ -413,6 +419,7 @@ FAudioChunkCache* FCachedAudioStreamingManager::GetCacheForChunkSize(uint32 InCh
 
 int32 FCachedAudioStreamingManager::GetNextChunkIndex(const USoundWave* InSoundWave, uint32 CurrentChunkIndex) const
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	check(InSoundWave);
 	// TODO: Figure out a way to tell whether this wave is looping or not.
 	// if(bNotLooping) return ((int32) CurrentChunkIndex) < (InSoundWave->RunningPlatformData->Chunks.Num() - 1);
@@ -438,6 +445,7 @@ int32 FCachedAudioStreamingManager::GetNextChunkIndex(const USoundWave* InSoundW
 
 void FCachedAudioStreamingManager::AddReferenceToChunk(const FAudioChunkHandle& InHandle)
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	FAudioChunkCache* Cache = GetCacheForChunkSize(InHandle.CachedDataNumBytes);
 	check(Cache);
 
@@ -456,6 +464,7 @@ void FCachedAudioStreamingManager::AddReferenceToChunk(const FAudioChunkHandle& 
 
 void FCachedAudioStreamingManager::RemoveReferenceToChunk(const FAudioChunkHandle& InHandle)
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	FAudioChunkCache* Cache = GetCacheForChunkSize(InHandle.CachedDataNumBytes);
 	check(Cache);
 
@@ -474,6 +483,7 @@ void FCachedAudioStreamingManager::RemoveReferenceToChunk(const FAudioChunkHandl
 
 bool FCachedAudioStreamingManager::RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback)
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	FAudioChunkCache* Cache = GetCacheForWave(SoundWave);
 	if (Cache)
 	{
@@ -506,6 +516,7 @@ FAudioChunkCache::FAudioChunkCache(uint32 InMaxChunkSize, uint32 NumChunks, uint
 
 FAudioChunkCache::~FAudioChunkCache()
 {
+	LLM_SCOPE(ELLMTag::AudioStreamCache);
 	// While this is handled by the default destructor, we do this to ensure that we don't leak async read operations.
 	CachePool.Reset();
 	check(NumberOfLoadsInFlight.GetValue() == 0);
@@ -557,6 +568,13 @@ bool FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EA
 #if DEBUG_STREAM_CACHE
 		CacheElement->DebugInfo.bWasCacheMiss = bNeededForPlayback;
 #endif
+		const FStreamedAudioChunk& Chunk = InKey.SoundWave->RunningPlatformData->Chunks[InKey.ChunkIndex];
+		int32 ChunkDataSize = Chunk.AudioDataSize;
+
+		if (TrimCacheWhenOverBudgetCVar != 0 && (MemoryCounterBytes + ChunkDataSize) > MemoryLimitBytes)
+		{
+			TrimMemory(MemoryCounterBytes + ChunkDataSize - MemoryLimitBytes);
+		}
 
 		KickOffAsyncLoad(CacheElement, InKey, OnLoadCompleted, CallbackThread, bNeededForPlayback);
 
@@ -567,12 +585,6 @@ bool FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EA
 
 			FCacheMissInfo CacheMissInfo = { InKey.SoundWaveName, InKey.ChunkIndex, TotalNumChunksInWave, false };
 			CacheMissQueue.Enqueue(MoveTemp(CacheMissInfo));
-		}
-
-
-		if (TrimCacheWhenOverBudgetCVar != 0 && MemoryCounterBytes > MemoryLimitBytes)
-		{
-			TrimMemory(MemoryCounterBytes - MemoryLimitBytes);
 		}
 
 		return true;
@@ -699,7 +711,11 @@ uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree)
 			BytesFreed += CurrentElement->ChunkData.Num();
 			MemoryCounterBytes -= CurrentElement->ChunkData.Num();
 			// Empty the chunk data and invalidate the key.
-			CurrentElement->ChunkData.Empty();
+			{
+				LLM_SCOPE(ELLMTag::AudioStreamCacheCompressedData);
+				CurrentElement->ChunkData.Empty();
+			}
+
 			CurrentElement->ChunkDataSize = 0;
 			CurrentElement->Key = FChunkKey();
 
@@ -1087,7 +1103,6 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 
 void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback)
 {
-	LLM_SCOPE(ELLMTag::Audio);
 	check(CacheElement);
 	
 	const FStreamedAudioChunk& Chunk = InKey.SoundWave->RunningPlatformData->Chunks[InKey.ChunkIndex];
@@ -1096,8 +1111,14 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 	EAsyncIOPriorityAndFlags AsyncIOPriority = GetAsyncPriorityForChunk(InKey, bNeededForPlayback);
 
 	MemoryCounterBytes -= CacheElement->ChunkData.Num();
-	// Reallocate our chunk data This allows us to shrink if possible.
-	CacheElement->ChunkData.SetNumUninitialized(Chunk.AudioDataSize, true);
+
+	{
+		LLM_SCOPE(ELLMTag::AudioStreamCacheCompressedData);
+
+		// Reallocate our chunk data This allows us to shrink if possible.
+		CacheElement->ChunkData.SetNumUninitialized(Chunk.AudioDataSize, true);
+	}
+
 	MemoryCounterBytes += CacheElement->ChunkData.Num();
 
 #if DEBUG_STREAM_CACHE
@@ -1162,12 +1183,12 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 		check(ChunkDataSize <= ChunkBulkDataSize);
 		check(((int32)ChunkDataSize) <= CacheElement->ChunkData.Num());
 
-		// If we ever want to eliminate zero-padding in chunks, that could be done here:
+		// If we ever want to eliminate zero-padding in chunks, that could be verified here:
 		//ensureAlwaysMsgf(AudioChunkSize == ChunkBulkDataSize, TEXT("For memory load on demand, we do not zero-pad to page sizes."));
 		
 		NumberOfLoadsInFlight.Increment();
 
-		FBulkDataIORequestCallBack AsyncFileCallBack = [this, OnLoadCompleted, CacheElement, InKey, ChunkDataSize](bool bWasCancelled, IBulkDataIORequest*)
+		FBulkDataIORequestCallBack AsyncFileCallBack = [this, OnLoadCompleted, CacheElement, InKey, ChunkDataSize, CallbackThread](bool bWasCancelled, IBulkDataIORequest*)
 		{
 			// Populate key and DataSize. The async read request was set up to write directly into CacheElement->ChunkData.
 			CacheElement->Key = InKey;
@@ -1177,8 +1198,8 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 #if DEBUG_STREAM_CACHE
 			CacheElement->DebugInfo.TimeToLoad = (FPlatformTime::Seconds() - CacheElement->DebugInfo.TimeLoadStarted) * 1000.0f;
 #endif
-
-			OnLoadCompleted(bWasCancelled ? EAudioChunkLoadResult::Interrupted : EAudioChunkLoadResult::Completed);
+			const EAudioChunkLoadResult LoadResult = bWasCancelled ? EAudioChunkLoadResult::Interrupted : EAudioChunkLoadResult::Completed;
+			ExecuteOnLoadCompleteCallback(LoadResult, OnLoadCompleted, CallbackThread);
 
 			NumberOfLoadsInFlight.Decrement();
 		};

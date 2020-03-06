@@ -478,7 +478,7 @@ namespace UnrealBuildTool
 				case UnrealPlatformClass.All:
 					return UnrealTargetPlatform.GetValidPlatforms();
 				case UnrealPlatformClass.Desktop:
-					return new UnrealTargetPlatform[] { UnrealTargetPlatform.Win32, UnrealTargetPlatform.Win64, UnrealTargetPlatform.Linux, UnrealTargetPlatform.Mac };
+					return UEBuildPlatform.GetPlatformsInGroup(UnrealPlatformGroup.Desktop).ToArray();
 				case UnrealPlatformClass.Editor:
 					return new UnrealTargetPlatform[] { UnrealTargetPlatform.Win64, UnrealTargetPlatform.Linux, UnrealTargetPlatform.Mac };
 				case UnrealPlatformClass.Server:

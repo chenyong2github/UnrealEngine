@@ -185,12 +185,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)
 	uint32 bImportRigidMesh:1;
 
-	/** Whether to automatically create Unreal materials for materials found in the FBX scene */
+	/** If no existing materials are found, whether to automatically create Unreal materials for materials found in the FBX scene */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material, meta=(ImportType="GeoOnly"))
 	uint32 bImportMaterials:1;
 
-	/** The option works only when option "Import Material" is OFF. If "Import Material" is ON, textures are always imported. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category=Material, meta = (ImportType = "GeoOnly"))
+	/** Whether or not we should import textures. This option is disabled when we are importing materials because textures are always imported in that case. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category=Material, meta = (ImportType = "GeoOnly", EditCondition="!bImportMaterials"))
 	uint32 bImportTextures:1;
 
 	/** Import data used when importing static meshes */
@@ -227,6 +227,13 @@ public:
 	{
 		MeshTypeToImport = bImportAsSkeletal ? FBXIT_SkeletalMesh : FBXIT_StaticMesh;
 	}
+
+	/* We want to change the last dialog state but not the CDO, so we cannot call UObject::SaveConfig here.
+	 * The problem is the class is use to store the import settings with the imported asset and the serialization
+	 * is serializing the diff with the CDO. Data will be lost if the CDO change.
+	*/
+	static void SaveOptions(UObject* ObjectToSaveOptions);
+	static void LoadOptions(UObject* ObjectToLoadOptions);
 
 	/* Whether this UI is construct for a reimport */
 	bool bIsReimport;

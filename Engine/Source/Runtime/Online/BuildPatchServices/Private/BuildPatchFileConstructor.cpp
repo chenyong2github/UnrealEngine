@@ -794,7 +794,7 @@ bool FBuildPatchFileConstructor::ConstructFileFromChunks(const FFileManifest& Fi
 	}
 #endif
 
-#if PLATFORM_ANDROID || PLATFORM_ANDROIDESDEFERRED
+#if PLATFORM_ANDROID
 	if (bSuccess)
 	{
 		IFileManager::Get().SetTimeStamp(*NewFilename, FDateTime::UtcNow());

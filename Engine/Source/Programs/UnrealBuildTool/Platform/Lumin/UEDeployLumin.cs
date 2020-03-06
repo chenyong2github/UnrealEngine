@@ -18,6 +18,8 @@ namespace UnrealBuildTool
 	{
 		private FileReference ProjectFile;
 
+		private string IconDirectory;
+
 		public manifest PackageManifest = new manifest();
 
 		protected UnrealPluginLanguage UPL;
@@ -58,13 +60,6 @@ namespace UnrealBuildTool
 
 		private manifestApplicationComponentType GetApplicationType()
 		{
-			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
-			bool Value = false;
-			Ini.GetBool("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "bIsScreensApp", out Value);
-			if (Value)
-			{
-				return manifestApplicationComponentType.ScreensImmersive;
-			}
 			return manifestApplicationComponentType.Fullscreen;
 		}
 
@@ -228,12 +223,6 @@ namespace UnrealBuildTool
 				case "MusicService":
 					OutComponent.type = manifestApplicationComponentType.MusicService;
 					break;
-				case "Screens":
-					OutComponent.type = manifestApplicationComponentType.Screens;
-					break;
-				case "ScreensImmersive":
-					OutComponent.type = manifestApplicationComponentType.ScreensImmersive;
-					break;
 				case "Console":
 				default:
 					OutComponent.type = manifestApplicationComponentType.Console;
@@ -304,8 +293,12 @@ namespace UnrealBuildTool
 			List<string> ExtraComponentElements;
 			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "ExtraComponentElements", out ExtraComponentElements);
 
-			// We always add an additional item as that will be our 'root' <component>
-			int Size = (ExtraComponentElements == null ? AppPrivileges.Count() : AppPrivileges.Count() + ExtraComponentElements.Count()) + 1;
+			// We start with 1 since there will always be a 'root' <component>
+			int Size = 1;
+			Size += (AppPrivileges != null) ? AppPrivileges.Count : 0;
+			Size += (ExtraComponentElements != null) ? ExtraComponentElements.Count : 0;
+			// Increment Size here if more elements are required in the <application> node.
+
 			// Index used for sibling elements (app privileges, root component and any extra components)
 			int CurrentIndex = 0;
 			PackageManifest.application.Items = new object[Size];
@@ -336,13 +329,65 @@ namespace UnrealBuildTool
 			// Sub-elements under root <component>
 			List<string> ExtraComponentSubElements;
 			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "ExtraComponentSubElements", out ExtraComponentSubElements);
-			RootComponent.Items = (ExtraComponentSubElements == null ? new object[1] : new object[ExtraComponentSubElements.Count() + 1]);
+
+			List<string> LocalizedAppNames;
+			EngineIni.GetArray("/Script/LuminRuntimeSettings.LuminRuntimeSettings", "LocalizedAppNames", out LocalizedAppNames);
+
+			// We start with 1 since there will always be an icon element
+			int NumElementsInRootComponent = 1;
+			NumElementsInRootComponent += (ExtraComponentSubElements != null) ? ExtraComponentSubElements.Count : 0;
+			// If localized app names have been specified, add count of 1 for the <locale> tag.
+			NumElementsInRootComponent += (LocalizedAppNames != null) ? 1 : 0;
+			// Increment NumElementsInRootComponent here if more elements are required in the <component> node.
+
+			RootComponent.Items = new object[NumElementsInRootComponent];
 
 			// Root component icon
+			Dictionary<string, manifestApplicationComponentIconTranslation> LocalizedIconsDict = new Dictionary<string, manifestApplicationComponentIconTranslation>();
+
+			if (Directory.Exists(IconDirectory + "/Model"))
+			{
+				string[] IconModelSubDirectories = Directory.GetDirectories(IconDirectory + "/Model");
+				foreach (var IconModelSubDirectory in IconModelSubDirectories)
+				{
+					manifestApplicationComponentIconTranslation LocalizedIcon = new manifestApplicationComponentIconTranslation();
+					LocalizedIcon.language = Path.GetFileName(IconModelSubDirectory);
+					LocalizedIcon.model_folder = GetIconModelStagingPath() + "/" + LocalizedIcon.language;
+					LocalizedIconsDict.Add(LocalizedIcon.language, LocalizedIcon);
+				}
+			}
+
+			if (Directory.Exists(IconDirectory + "/Portal"))
+			{
+				string[] IconPortalSubDirectories = Directory.GetDirectories(IconDirectory + "/Portal");
+				foreach (var IconPortalSubDirectory in IconPortalSubDirectories)
+				{
+					manifestApplicationComponentIconTranslation LocalizedIcon;
+					string language = Path.GetFileName(IconPortalSubDirectory);
+					if (!LocalizedIconsDict.TryGetValue(language, out LocalizedIcon))
+					{
+						LocalizedIcon = new manifestApplicationComponentIconTranslation();
+						LocalizedIcon.language = language;
+						LocalizedIconsDict.Add(LocalizedIcon.language, LocalizedIcon);
+					}
+
+					LocalizedIcon.portal_folder = GetIconPortalStagingPath() + "/" + LocalizedIcon.language;
+				}
+			}
+
+			manifestApplicationComponentIconTranslation[] LocalizedIcons = new manifestApplicationComponentIconTranslation[LocalizedIconsDict.Count];
+			int LocalizedIconIndex = 0;
+			foreach (KeyValuePair<string, manifestApplicationComponentIconTranslation> LocalizedIconKVP in LocalizedIconsDict)
+			{
+				LocalizedIcons[LocalizedIconIndex++] = LocalizedIconKVP.Value;
+			}
+
 			RootComponent.Items[0] = new manifestApplicationComponentIcon();
+			((manifestApplicationComponentIcon)RootComponent.Items[0]).locale = LocalizedIcons;
 			((manifestApplicationComponentIcon)RootComponent.Items[0]).model_folder = GetIconModelStagingPath();
 			((manifestApplicationComponentIcon)RootComponent.Items[0]).portal_folder = GetIconPortalStagingPath();
 
+			int RootComponentIndex = 1;
 			if (ExtraComponentSubElements != null)
 			{
 				for (int Index = 0; Index < ExtraComponentSubElements.Count(); ++Index)
@@ -350,7 +395,30 @@ namespace UnrealBuildTool
 					Dictionary<string, string> NodeContent;
 					if (ConfigHierarchy.TryParse(ExtraComponentSubElements[Index], out NodeContent))
 					{
-						RootComponent.Items[Index + 1] = GetComponentSubElement(NodeContent["ElementType"], NodeContent["Value"]);
+						RootComponent.Items[RootComponentIndex] = GetComponentSubElement(NodeContent["ElementType"], NodeContent["Value"]);
+						RootComponentIndex++;
+					}
+				}
+			}
+
+			// Localized app names
+			if (LocalizedAppNames != null && LocalizedAppNames.Count > 0)
+			{
+				manifestApplicationComponentLocale LocaleTag = new manifestApplicationComponentLocale();
+				LocaleTag.Items = new manifestApplicationComponentLocaleTranslation[LocalizedAppNames.Count];
+				RootComponent.Items[RootComponentIndex] = LocaleTag;
+				RootComponentIndex++;
+
+				for (int i = 0; i < LocalizedAppNames.Count; ++i)
+				{
+					Dictionary<string, string> NodeContent;
+					if (ConfigHierarchy.TryParse(LocalizedAppNames[i], out NodeContent))
+					{
+						LocaleTag.Items[i] = new manifestApplicationComponentLocaleTranslation
+						{
+							language = NodeContent["LanguageCode"],
+							visible_name = NodeContent["AppName"]
+						};
 					}
 				}
 			}
@@ -393,7 +461,6 @@ namespace UnrealBuildTool
 			return XDoc.ToString();
 		}
 
-
 		private List<string> CollectPluginDataPaths(TargetReceipt Receipt)
 		{
 			List<string> PluginExtras = new List<string>();
@@ -428,6 +495,9 @@ namespace UnrealBuildTool
 
 			string ConfigurationString = Receipt.Configuration.ToString();
 
+			IconDirectory = Path.Combine(ProjectDirectory.FullName, "Build/Lumin/Resources/");
+			IconDirectory = IconDirectory.Replace('\\', '/').Replace("//", "/");
+
 			string Architecture = "arm64-v8a";
 			List<string> MLSDKArches = new List<string>();
 			MLSDKArches.Add(Architecture);
@@ -456,6 +526,18 @@ namespace UnrealBuildTool
 			return Value;
 		}
 
+		private void MakeFileReadWrite(string Filename)
+		{
+			if (File.Exists(Filename))
+			{
+				FileAttributes Attribs = File.GetAttributes(Filename);
+				if (Attribs.HasFlag(FileAttributes.ReadOnly))
+				{
+					File.SetAttributes(Filename, Attribs & ~FileAttributes.ReadOnly);
+				}
+			}
+		}
+
 		private void MakeMabuPackage(string ProjectName, DirectoryReference ProjectDirectory, string ExePath, bool bForDistribution, string EngineDir, string MpkName)
 		{
 			string UE4BuildPath = Path.Combine(ProjectDirectory.FullName, "Intermediate/Lumin/Mabu");
@@ -467,6 +549,17 @@ namespace UnrealBuildTool
 
 			LuminToolChain ToolChain = new LuminToolChain(ProjectFile);
 			string ExecSrcFile = Path.Combine(UE4BuildPath, "Binaries", Path.GetFileName(ExePath));
+
+			// On installed builds on Mac, for BP-only projects,
+			// if ExecSrcFile is already present,
+			// File.Copy() (called directly or via ToolChain.StripSymbols())
+			// fails to copy / overwrite ExePath to ExecSrcFile since the latter is read-only.
+			// This is because BP-only projects use UE4Game executable
+			// present in the Engine which is set read-only upon installation.
+			// Copying this read-only file over to the project retains the read-only
+			// flags, preventing any edit operations on it (such as stripping debug symbols).
+			// Update the file attribs to make it read-write.
+			MakeFileReadWrite(ExecSrcFile);
 
 			if (bForDistribution || GetRemoveDebugInfo())
 			{
@@ -481,11 +574,21 @@ namespace UnrealBuildTool
 				File.Copy(ExePath, ExecSrcFile, true);
 			}
 
+			// On installed builds on Mac, for BP-only projects,
+			// objcopy is unable to update ExecSrcFile when running
+			// ToolChain.LinkSymbols() since the file is read-only.
+			// This is because BP-only projects use UE4Game executable
+			// present in the Engine which is set read-only upon installation.
+			// Copying this read-only file over to the project retains the read-only
+			// flags, preventing any edit operations on it (such as creating a gnu debug link).
+			// Update the file attribs to make it read-write.
+			MakeFileReadWrite(ExecSrcFile);
+
 			// We also create a SYM file to support debugging
 			string SymFile = Path.ChangeExtension(ExecSrcFile, "sym");
 			ToolChain.ExtractSymbols(new FileReference(ExePath), new FileReference(SymFile));
 			ToolChain.LinkSymbols(new FileReference(SymFile), new FileReference(ExecSrcFile));
-			
+
 			// Generate manifest (after UPL is setup
 			const string Architecture = "arm64-v8a";
 			var Manifest = GenerateManifest(ProjectName, bForDistribution, Architecture);

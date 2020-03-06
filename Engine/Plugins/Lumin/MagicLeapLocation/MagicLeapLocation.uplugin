@@ -29,11 +29,23 @@
 				"Mac",
 				"Lumin"
 			]
+		},
+		{
+			"Name": "MagicLeapLocationServices",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Lumin"
+			]
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "MagicLeap",
+			"Enabled": true
+		},
+		{
+			"Name": "LocationServicesBPLibrary",
 			"Enabled": true
 		}
 	]

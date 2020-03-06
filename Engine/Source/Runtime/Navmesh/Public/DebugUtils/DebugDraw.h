@@ -38,7 +38,7 @@ enum duDebugDrawPrimitives
 /// Abstract debug draw interface.
 struct duDebugDraw
 {
-	virtual ~duDebugDraw() = 0;
+	NAVMESH_API virtual ~duDebugDraw() = 0;
 	
 	virtual void depthMask(bool state) = 0;
 
@@ -213,7 +213,7 @@ class duDisplayList : public duDebugDraw
 	
 public:
 	duDisplayList(int cap = 512);
-	~duDisplayList();
+	virtual ~duDisplayList() override;
 	virtual void depthMask(bool state);
 	virtual void begin(duDebugDrawPrimitives prim, float size = 1.0f);
 	virtual void vertex(const float x, const float y, const float z, unsigned int color);

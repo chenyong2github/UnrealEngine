@@ -58,10 +58,10 @@ void FToolMenuEntry::SetCommandList(const TSharedPtr<const FUICommandList>& InCo
 	CommandList = InCommandList;
 }
 
-void FToolMenuEntry::SetCommand(const TSharedPtr<const FUICommandInfo>& InCommand, FName InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon)
+void FToolMenuEntry::SetCommand(const TSharedPtr<const FUICommandInfo>& InCommand, TOptional<FName> InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon)
 {
 	Command = InCommand;
-	Name = InName != NAME_None ? InName : InCommand->GetCommandName();
+	Name = InName.IsSet() ? InName.GetValue() : InCommand->GetCommandName();
 	Label = InLabel.IsSet() ? InLabel : InCommand->GetLabel();
 	ToolTip = InToolTip.IsSet() ? InToolTip : InCommand->GetDescription();
 	Icon = InIcon.IsSet() ? InIcon : InCommand->GetIcon();
@@ -79,20 +79,29 @@ FToolMenuEntry FToolMenuEntry::InitMenuEntry(const FName InName, const TAttribut
 	return Entry;
 }
 
-FToolMenuEntry FToolMenuEntry::InitMenuEntry(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FName InTutorialHighlightName, const FName InName)
+FToolMenuEntry FToolMenuEntry::InitMenuEntry(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FName InTutorialHighlightName, const TOptional<FName> InName)
 {
-	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
+	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), NAME_None, EMultiBlockType::MenuEntry);
 	Entry.TutorialHighlightName = InTutorialHighlightName;
 	Entry.SetCommand(InCommand, InName, InLabel, InToolTip, InIcon);
 	Entry.CommandList.Reset();
 	return Entry;
 }
 
-FToolMenuEntry FToolMenuEntry::InitMenuEntryWithCommandList(const TSharedPtr< const FUICommandInfo >& InCommand, const TSharedPtr< const FUICommandList >& InCommandList, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FName InTutorialHighlightName, const FName InName)
+FToolMenuEntry FToolMenuEntry::InitMenuEntry(const FName InNameOverride, const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FName InTutorialHighlightName)
 {
-	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
+	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InNameOverride, EMultiBlockType::MenuEntry);
 	Entry.TutorialHighlightName = InTutorialHighlightName;
-	Entry.SetCommand(InCommand, InName, InLabel, InToolTip, InIcon);
+	Entry.SetCommand(InCommand, InNameOverride, InLabel, InToolTip, InIcon);
+	Entry.CommandList.Reset();
+	return Entry;
+}
+
+FToolMenuEntry FToolMenuEntry::InitMenuEntryWithCommandList(const TSharedPtr< const FUICommandInfo >& InCommand, const TSharedPtr< const FUICommandList >& InCommandList, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FName InTutorialHighlightName, const TOptional<FName> InNameOverride)
+{
+	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), NAME_None, EMultiBlockType::MenuEntry);
+	Entry.TutorialHighlightName = InTutorialHighlightName;
+	Entry.SetCommand(InCommand, InNameOverride, InLabel, InToolTip, InIcon);
 	Entry.CommandList = InCommandList;
 	return Entry;
 }
@@ -157,9 +166,9 @@ FToolMenuEntry FToolMenuEntry::InitToolBarButton(const FName InName, const FTool
 	return Entry;
 }
 
-FToolMenuEntry FToolMenuEntry::InitToolBarButton(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, FName InTutorialHighlightName, const FName InName)
+FToolMenuEntry FToolMenuEntry::InitToolBarButton(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, FName InTutorialHighlightName, const TOptional<FName> InName)
 {
-	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::ToolBarButton);
+	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), NAME_None, EMultiBlockType::ToolBarButton);
 	Entry.TutorialHighlightName = InTutorialHighlightName;
 	Entry.SetCommand(InCommand, InName, InLabel, InToolTip, InIcon);
 	return Entry;

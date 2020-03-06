@@ -109,4 +109,5 @@ private:
 	FDateTime GetAccessTimeStampInternal(const FString& NormalizedFilename) const;
 	FFileStatData GetStatDataInternal(const FString& NormalizedFilename, bool& bFound) const;
 	bool DirectoryExistsInternal(const FString& NormalizedFilename) const;
+	int32 OpenReadInternal(const FString& NormalizedFilename) const;
 };

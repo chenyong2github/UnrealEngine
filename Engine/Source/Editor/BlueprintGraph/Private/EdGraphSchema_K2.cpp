@@ -151,6 +151,7 @@ const FName FBlueprintMetadata::MD_ProhibitedInterfaces(TEXT("ProhibitedInterfac
 const FName FBlueprintMetadata::MD_FunctionKeywords(TEXT("Keywords"));
 
 const FName FBlueprintMetadata::MD_ExpandEnumAsExecs(TEXT("ExpandEnumAsExecs"));
+const FName FBlueprintMetadata::MD_ExpandBoolAsExecs(TEXT("ExpandBoolAsExecs"));
 
 const FName FBlueprintMetadata::MD_CommutativeAssociativeBinaryOperator(TEXT("CommutativeAssociativeBinaryOperator"));
 const FName FBlueprintMetadata::MD_MaterialParameterCollectionFunction(TEXT("MaterialParameterCollectionFunction"));
@@ -1959,7 +1960,7 @@ void UEdGraphSchema_K2::GetNonExistentVariableMenu(FToolMenuSection& Section, co
 		// delete this node
 		{			
 			const FText Desc = FText::Format( LOCTEXT("DeleteNonExistentVarToolTip", "Referenced variable '{0}' does not exist, delete this node?"), Variable->GetVarNameText());
-			Section.AddMenuEntry(FGenericCommands::Get().Delete, FGenericCommands::Get().Delete->GetLabel(), Desc, FSlateIcon(), NAME_None, "DeleteNonExistentVar");
+			Section.AddMenuEntry("DeleteNonExistentVar", FGenericCommands::Get().Delete, FGenericCommands::Get().Delete->GetLabel(), Desc, FSlateIcon());
 		}
 
 		GetReplaceVariableMenu(Section, InGraphNode, OwnerBlueprint);

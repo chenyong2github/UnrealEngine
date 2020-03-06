@@ -94,6 +94,7 @@ public:
 	DECLARE_DELEGATE_RetVal_TwoParams(TOptional<FDropRequestResponse>, FOnRequestDrop, const UNiagaraStackEntry& /*TargetEntry*/, const FDropRequest& /*DropRequest*/);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnFilterChild, const UNiagaraStackEntry&);
 	DECLARE_DELEGATE(FStackIssueFixDelegate);
+	DECLARE_MULTICAST_DELEGATE(FOnAlternateDisplayNameChanged);
 
 public:
 	struct NIAGARAEDITOR_API FExecutionCategoryNames
@@ -110,7 +111,7 @@ public:
 		static const FName Spawn;
 		static const FName Update;
 		static const FName Event;
-		static const FName ShaderStage;
+		static const FName SimulationStage;
 		static const FName Render;
 	};
 
@@ -225,6 +226,8 @@ public:
 
 	virtual FText GetDisplayName() const;
 
+	TOptional<FText> GetAlternateDisplayName() const;
+
 	virtual UObject* GetDisplayedObject() const;
 
 	UNiagaraStackEditorData& GetStackEditorData() const;
@@ -289,6 +292,8 @@ public:
 	const FOnRequestFullRefresh& OnRequestFullRefreshDeferred() const;
 
 	FOnRequestFullRefresh& OnRequestFullRefreshDeferred();
+
+	FOnAlternateDisplayNameChanged& OnAlternateDisplayNameChanged();
 
 	void RefreshChildren();
 
@@ -377,6 +382,18 @@ public:
 
 	virtual void Delete() { }
 
+	/** Returns whether or not this entry can be renamed. */
+	virtual bool SupportsRename() const { return false; }
+
+	/** Gets whether this entry has a rename pending. */
+	virtual bool GetIsRenamePending() const;
+
+	/** Sets whether this entry has a rename pending. */
+	virtual void SetIsRenamePending(bool bIsRenamePending);
+
+	/** Handler for when a rename is committed for this stack entry. */
+	virtual void OnRenamed(FText NewName);
+
 protected:
 	virtual void BeginDestroy() override;
 
@@ -433,6 +450,8 @@ private:
 
 	FOnRequestFullRefresh RequestFullRefreshDeferredDelegate;
 
+	FOnAlternateDisplayNameChanged AlternateDisplayNameChangedDelegate;
+
 	TArray<FOnFilterChild> ChildFilters;
 
 	UPROPERTY()
@@ -462,6 +481,8 @@ private:
 	mutable TOptional<bool> bHasBaseEmitterCache;
 
 	bool bOwnerIsEnabled;
+
+	TOptional<FText> AlternateDisplayName;
 
 	int32 TotalNumberOfInfoIssues;
 	int32 TotalNumberOfWarningIssues;

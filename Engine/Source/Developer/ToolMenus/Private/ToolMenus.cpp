@@ -1935,6 +1935,10 @@ UToolMenu* UToolMenus::ExtendMenu(const FName InName)
 		{
 			Section.bIsRegistering = Found->bIsRegistering;
 		}
+
+		// Refresh all widgets because this could be child of another menu being displayed
+		RefreshAllWidgets();
+
 		return Found;
 	}
 

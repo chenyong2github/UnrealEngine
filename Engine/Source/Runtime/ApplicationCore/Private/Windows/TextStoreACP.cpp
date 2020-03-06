@@ -79,7 +79,7 @@ STDAPI_(ULONG) FTextStoreACP::Release()
 
 STDAPI FTextStoreACP::AdviseSink(__RPC__in REFIID riid, __RPC__in_opt IUnknown *punk, DWORD dwMask)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("AdviseSink"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("AdviseSink"));
 
 	// punk must not be null.
 	if(!punk)
@@ -137,7 +137,7 @@ STDAPI FTextStoreACP::AdviseSink(__RPC__in REFIID riid, __RPC__in_opt IUnknown *
 
 STDAPI FTextStoreACP::UnadviseSink(__RPC__in_opt IUnknown *punk)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("UnadviseSink"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("UnadviseSink"));
 
 	// punk must not be null.
 	if(!punk)
@@ -176,7 +176,7 @@ STDAPI FTextStoreACP::UnadviseSink(__RPC__in_opt IUnknown *punk)
 
 STDAPI FTextStoreACP::RequestLock(DWORD dwLockFlags, HRESULT *phrSession)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestLock"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestLock"));
 
 	// Must have a sink object.
 	if(!AdviseSinkObject.TextStoreACPSink)
@@ -194,32 +194,32 @@ STDAPI FTextStoreACP::RequestLock(DWORD dwLockFlags, HRESULT *phrSession)
 	if(LockManager.LockType == 0)
 	{
 		// Flag as locked.
-		UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestLock - Locking..."));
+		UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestLock - Locking..."));
 		LockManager.LockType = dwLockFlags & (~TS_LF_SYNC);
 
-		UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestLock - Locked"));
+		UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestLock - Locked"));
 
 		*phrSession = AdviseSinkObject.TextStoreACPSink->OnLockGranted(LockManager.LockType);
 
-		UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestLock - Unlocking..."));
+		UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestLock - Unlocking..."));
 
 		while(LockManager.IsPendingLockUpgrade)
 		{
-			UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestLock - Upgrading..."));
+			UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestLock - Upgrading..."));
 
 			LockManager.LockType = TS_LF_READWRITE;
 			LockManager.IsPendingLockUpgrade = false;
 
-			UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestLock - Upgraded"));
+			UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestLock - Upgraded"));
 
 			AdviseSinkObject.TextStoreACPSink->OnLockGranted(LockManager.LockType);
 
-			UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestLock - Unlocking..."));
+			UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestLock - Unlocking..."));
 		}
 
 		// Flag as unlocked.
 		LockManager.LockType = 0;
-		UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestLock - Unlocked"));
+		UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestLock - Unlocked"));
 
 		return S_OK;
 	}
@@ -241,7 +241,7 @@ STDAPI FTextStoreACP::RequestLock(DWORD dwLockFlags, HRESULT *phrSession)
 
 STDAPI FTextStoreACP::GetStatus(__RPC__out TS_STATUS *pdcs)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetStatus"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetStatus"));
 
 	// pdcs cannot be null.
 	if(!pdcs)
@@ -257,7 +257,7 @@ STDAPI FTextStoreACP::GetStatus(__RPC__out TS_STATUS *pdcs)
 
 STDAPI FTextStoreACP::GetEndACP(__RPC__out LONG *pacp)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetEndACP"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetEndACP"));
 
 	if(!IsFlaggedReadLocked(LockManager.LockType))
 	{
@@ -271,7 +271,7 @@ STDAPI FTextStoreACP::GetEndACP(__RPC__out LONG *pacp)
 
 STDAPI FTextStoreACP::GetSelection(ULONG ulIndex, ULONG ulCount, __RPC__out_ecount_part(ulCount, *pcFetched) TS_SELECTION_ACP *pSelection, __RPC__out ULONG *pcFetched)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetSelection"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetSelection"));
 
 	if(!IsFlaggedReadLocked(LockManager.LockType))
 	{
@@ -312,7 +312,7 @@ STDAPI FTextStoreACP::GetSelection(ULONG ulIndex, ULONG ulCount, __RPC__out_ecou
 
 STDAPI FTextStoreACP::SetSelection(ULONG ulCount, __RPC__in_ecount_full(ulCount) const TS_SELECTION_ACP *pSelection)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("SetSelection - From %d to %d"), pSelection->acpStart, pSelection->acpEnd);
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("SetSelection - From %d to %d"), pSelection->acpStart, pSelection->acpEnd);
 
 	if(!IsFlaggedReadWriteLocked(LockManager.LockType))
 	{
@@ -347,7 +347,7 @@ STDAPI FTextStoreACP::SetSelection(ULONG ulCount, __RPC__in_ecount_full(ulCount)
 
 STDAPI FTextStoreACP::RequestSupportedAttrs(DWORD dwFlags, ULONG cFilterAttrs, __RPC__in_ecount_full_opt(cFilterAttrs) const TS_ATTRID *paFilterAttrs)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestSupportedAttrs"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestSupportedAttrs"));
 
 	for(ULONG i = 0; i < cFilterAttrs; ++i)
 	{
@@ -368,7 +368,7 @@ STDAPI FTextStoreACP::RequestSupportedAttrs(DWORD dwFlags, ULONG cFilterAttrs, _
 
 STDAPI FTextStoreACP::RequestAttrsAtPosition(LONG acpPos, ULONG cFilterAttrs, __RPC__in_ecount_full_opt(cFilterAttrs) const TS_ATTRID *paFilterAttrs, DWORD dwFlags)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestAttrsAtPosition"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestAttrsAtPosition"));
 
 	for(ULONG i = 0; i < cFilterAttrs; ++i)
 	{
@@ -389,20 +389,20 @@ STDAPI FTextStoreACP::RequestAttrsAtPosition(LONG acpPos, ULONG cFilterAttrs, __
 
 STDAPI FTextStoreACP::RequestAttrsTransitioningAtPosition(LONG acpPos, ULONG cFilterAttrs, __RPC__in_ecount_full_opt(cFilterAttrs) const TS_ATTRID *paFilterAttrs, DWORD dwFlags)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("RequestAttrsTransitioningAtPosition"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RequestAttrsTransitioningAtPosition"));
 	return E_NOTIMPL; // TODO: No meaningful documentation to this method, not implemented.
 }
 
 STDAPI FTextStoreACP::FindNextAttrTransition(LONG acpStart, LONG acpHalt, ULONG cFilterAttrs, __RPC__in_ecount_full_opt(cFilterAttrs) const TS_ATTRID *paFilterAttrs, DWORD dwFlags, __RPC__out LONG *pacpNext, __RPC__out BOOL *pfFound, __RPC__out LONG *plFoundOffset)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("FindNextAttrTransition"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("FindNextAttrTransition"));
 	return E_NOTIMPL; // TODO: No meaningful documentation to this method, not implemented.
 }
 
 CA_SUPPRESS(6101)
 STDAPI FTextStoreACP::RetrieveRequestedAttrs(ULONG ulCount, __RPC__out_ecount_part(ulCount, *pcFetched) TS_ATTRVAL *paAttrVals, __RPC__out ULONG *pcFetched)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("RetrieveRequestedAttrs"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("RetrieveRequestedAttrs"));
 
 	*pcFetched = 0;
 
@@ -424,7 +424,7 @@ STDAPI FTextStoreACP::RetrieveRequestedAttrs(ULONG ulCount, __RPC__out_ecount_pa
 
 STDAPI FTextStoreACP::GetActiveView(__RPC__out TsViewCookie *pvcView)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetActiveView"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetActiveView"));
 	*pvcView = 0;
 
 	return S_OK;
@@ -432,7 +432,7 @@ STDAPI FTextStoreACP::GetActiveView(__RPC__out TsViewCookie *pvcView)
 
 STDAPI FTextStoreACP::GetACPFromPoint(TsViewCookie vcView, __RPC__in const POINT *pt, DWORD dwFlags, __RPC__out LONG *pacp)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetACPFromPoint - At (%d, %d)"), pt->x, pt->y);
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetACPFromPoint - At (%d, %d)"), pt->x, pt->y);
 
 	if(!IsFlaggedReadLocked(LockManager.LockType))
 	{
@@ -449,7 +449,7 @@ STDAPI FTextStoreACP::GetACPFromPoint(TsViewCookie vcView, __RPC__in const POINT
 
 STDAPI FTextStoreACP::GetTextExt(TsViewCookie vcView, LONG acpStart, LONG acpEnd, __RPC__out RECT *prc, __RPC__out BOOL *pfClipped)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetTextExt - From %d to %d"), acpStart, acpEnd);
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetTextExt - From %d to %d"), acpStart, acpEnd);
 
 	if(!IsFlaggedReadLocked(LockManager.LockType))
 	{
@@ -483,7 +483,7 @@ STDAPI FTextStoreACP::GetTextExt(TsViewCookie vcView, LONG acpStart, LONG acpEnd
 
 STDAPI FTextStoreACP::GetScreenExt(TsViewCookie vcView, __RPC__out RECT *prc)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetScreenExt"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetScreenExt"));
 
 	// View cookie must be valid.
 	if(vcView != 0)
@@ -506,7 +506,7 @@ CA_SUPPRESS(28196)
 CA_SUPPRESS(6387)
 STDAPI FTextStoreACP::GetWnd(TsViewCookie vcView, __RPC__deref_out_opt HWND *phwnd)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetWnd"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetWnd"));
 
 	const TSharedPtr<FGenericWindow> GenericWindow = TextContext->GetWindow();
 	*phwnd = GenericWindow.IsValid() ? reinterpret_cast<HWND>(GenericWindow->GetOSWindowHandle()) : nullptr;
@@ -516,7 +516,7 @@ STDAPI FTextStoreACP::GetWnd(TsViewCookie vcView, __RPC__deref_out_opt HWND *phw
 
 STDAPI FTextStoreACP::GetText(LONG acpStart, LONG acpEnd, __RPC__out_ecount_part(cchPlainReq, *pcchPlainOut) WCHAR *pchPlain, ULONG cchPlainReq, __RPC__out ULONG *pcchPlainOut, __RPC__out_ecount_part(ulRunInfoReq, *pulRunInfoOut) TS_RUNINFO *prgRunInfo, ULONG ulRunInfoReq, __RPC__out ULONG *pulRunInfoOut, __RPC__out LONG *pacpNext)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetText - From %d to %d"), acpStart, acpEnd);
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetText - From %d to %d"), acpStart, acpEnd);
 
 	if(!IsFlaggedReadLocked(LockManager.LockType))
 	{
@@ -565,7 +565,7 @@ STDAPI FTextStoreACP::GetText(LONG acpStart, LONG acpEnd, __RPC__out_ecount_part
 
 STDAPI FTextStoreACP::QueryInsert(LONG acpInsertStart, LONG acpInsertEnd, ULONG cch, __RPC__out LONG *pacpResultStart, __RPC__out LONG *pacpResultEnd)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("QueryInsert"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("QueryInsert"));
 
 	// Can't successfully query if there's nowhere to write a result.
 	if(!pacpResultStart || !pacpResultEnd)
@@ -588,7 +588,7 @@ STDAPI FTextStoreACP::QueryInsert(LONG acpInsertStart, LONG acpInsertEnd, ULONG 
 CA_SUPPRESS(6101)
 STDAPI FTextStoreACP::InsertTextAtSelection(DWORD dwFlags, __RPC__in_ecount_full(cch) const WCHAR *pchText, ULONG cch, __RPC__out LONG *pacpStart, __RPC__out LONG *pacpEnd, __RPC__out TS_TEXTCHANGE *pChange)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("InsertTextAtSelection - %s"), pchText);
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("InsertTextAtSelection - %s"), pchText);
 
 	// Must have a read lock if querying.
 	if(dwFlags == TS_IAS_QUERYONLY && !IsFlaggedReadLocked(LockManager.LockType))
@@ -670,7 +670,7 @@ STDAPI FTextStoreACP::InsertTextAtSelection(DWORD dwFlags, __RPC__in_ecount_full
 CA_SUPPRESS(6103)
 STDAPI FTextStoreACP::SetText(DWORD dwFlags, LONG acpStart, LONG acpEnd, __RPC__in_ecount_full(cch) const WCHAR *pchText, ULONG cch, __RPC__out TS_TEXTCHANGE *pChange)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("SetText - From %d to %d, set %s"), acpStart, acpEnd, pchText);
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("SetText - From %d to %d, set %s"), acpStart, acpEnd, pchText);
 
 	if(!IsFlaggedReadWriteLocked(LockManager.LockType))
 	{
@@ -701,7 +701,7 @@ STDAPI FTextStoreACP::SetText(DWORD dwFlags, LONG acpStart, LONG acpEnd, __RPC__
 
 STDAPI FTextStoreACP::GetEmbedded(LONG acpPos, __RPC__in REFGUID rguidService, __RPC__in REFIID riid, __RPC__deref_out_opt IUnknown **ppunk)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetEmbedded"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetEmbedded"));
 
 	if(!IsFlaggedReadLocked(LockManager.LockType))
 	{
@@ -713,7 +713,7 @@ STDAPI FTextStoreACP::GetEmbedded(LONG acpPos, __RPC__in REFGUID rguidService, _
 
 STDAPI FTextStoreACP::GetFormattedText(LONG acpStart, LONG acpEnd, __RPC__deref_out_opt IDataObject **ppDataObject)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("GetFormattedText"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("GetFormattedText"));
 
 	if(!IsFlaggedReadLocked(LockManager.LockType))
 	{
@@ -725,14 +725,14 @@ STDAPI FTextStoreACP::GetFormattedText(LONG acpStart, LONG acpEnd, __RPC__deref_
 
 STDAPI FTextStoreACP::QueryInsertEmbedded(__RPC__in const GUID *pguidService, __RPC__in const FORMATETC *pFormatEtc, __RPC__out BOOL *pfInsertable)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("QueryInsertEmbedded"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("QueryInsertEmbedded"));
 
 	return E_NOTIMPL;
 }
 
 STDAPI FTextStoreACP::InsertEmbedded(DWORD dwFlags, LONG acpStart, LONG acpEnd, __RPC__in_opt IDataObject *pDataObject, __RPC__out TS_TEXTCHANGE *pChange)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("InsertEmbedded"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("InsertEmbedded"));
 
 	if(!IsFlaggedReadWriteLocked(LockManager.LockType))
 	{
@@ -744,7 +744,7 @@ STDAPI FTextStoreACP::InsertEmbedded(DWORD dwFlags, LONG acpStart, LONG acpEnd, 
 
 STDAPI FTextStoreACP::InsertEmbeddedAtSelection(DWORD dwFlags, __RPC__in_opt IDataObject *pDataObject, __RPC__out LONG *pacpStart, __RPC__out LONG *pacpEnd, __RPC__out TS_TEXTCHANGE *pChange)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("InsertEmbeddedAtSelection"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("InsertEmbeddedAtSelection"));
 
 	if(!IsFlaggedReadLocked(LockManager.LockType))
 	{
@@ -756,7 +756,7 @@ STDAPI FTextStoreACP::InsertEmbeddedAtSelection(DWORD dwFlags, __RPC__in_opt IDa
 
 STDAPI FTextStoreACP::OnStartComposition(__RPC__in_opt ITfCompositionView *pComposition, __RPC__out BOOL *pfOk)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("OnStartComposition"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("OnStartComposition"));
 
 	// Can only handle 1 composition. This is not an error or failure, however.
 	if(!Composition.TSFCompositionView)
@@ -781,7 +781,7 @@ STDAPI FTextStoreACP::OnStartComposition(__RPC__in_opt ITfCompositionView *pComp
 
 STDAPI FTextStoreACP::OnUpdateComposition(__RPC__in_opt ITfCompositionView *pComposition, __RPC__in_opt ITfRange *pRangeNew)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("OnUpdateComposition"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("OnUpdateComposition"));
 
 	// Can not update without an active composition.
 	if(!Composition.TSFCompositionView)
@@ -809,7 +809,7 @@ STDAPI FTextStoreACP::OnUpdateComposition(__RPC__in_opt ITfCompositionView *pCom
 			return E_FAIL;
 		}
 
-		UE_LOG(LogTextStoreACP, Verbose, TEXT("OnUpdateComposition - From %d to %d"), BeginIndex, BeginIndex + Length);
+		UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("OnUpdateComposition - From %d to %d"), BeginIndex, BeginIndex + Length);
 
 		TextContext->UpdateCompositionRange(BeginIndex, Length);
 	}
@@ -819,7 +819,7 @@ STDAPI FTextStoreACP::OnUpdateComposition(__RPC__in_opt ITfCompositionView *pCom
 
 STDAPI FTextStoreACP::OnEndComposition(__RPC__in_opt ITfCompositionView *pComposition)
 {
-	UE_LOG(LogTextStoreACP, Verbose, TEXT("OnEndComposition"));
+	UE_LOG_CLINKAGE(LogTextStoreACP, Verbose, TEXT("OnEndComposition"));
 
 	// Can not update without an active composition.
 	if(!Composition.TSFCompositionView)

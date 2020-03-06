@@ -1,8 +1,8 @@
 #include "Common.ush"
 
-#ifdef PLATFORM_RTWRITEMASKPROCESSING_USH
+#ifdef OVERRIDE_RTWRITEMASKPROCESSING_USH
 
-	#include PLATFORM_RTWRITEMASKPROCESSING_USH
+	#include "/Platform/Private/RTWriteMaskProcessing.usf"
 
 #elif PS4_PROFILE
 

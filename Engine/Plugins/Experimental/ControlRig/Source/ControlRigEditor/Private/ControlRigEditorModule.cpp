@@ -362,14 +362,14 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 			if (PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 			{
 				if (UScriptStruct* Struct = Cast<UScriptStruct>(PinType.PinSubCategoryObject.Get()))
-				{
+	{
 					MenuDesc = FText::FromString(Struct->GetName());
 					ToolTip = MenuDesc;
-				}
+	}
 
 			}
 			else
-			{
+	{
 				MenuDesc = UEdGraphSchema_K2::GetCategoryText(PinType.PinCategory, true);
 				ToolTip = UEdGraphSchema_K2::GetCategoryText(PinType.PinCategory, false);
 			}
@@ -382,7 +382,7 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 			UBlueprintNodeSpawner* NodeSpawnerSetter = UControlRigParameterNodeSpawner::CreateFromPinType(PinType, false, MenuDesc, NodeCategory, ToolTip);
 			check(NodeSpawnerSetter != nullptr);
 			InActionRegistrar.AddBlueprintAction(InActionKey, NodeSpawnerSetter);
-		}
+	}
 		*/
 	};
 
@@ -502,7 +502,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								RigBlueprint->Controller->ClearArrayPin(ModelPin->GetPinPath());
 							})
 						));
-					}
+		}
 					if(ModelPin->IsArrayElement())
 					{
 						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinArrays", LOCTEXT("PinArrays", "Arrays"));
@@ -538,7 +538,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								RigBlueprint->Controller->ResetPinDefaultValue(ModelPin->GetPinPath());
 							})
 						));
-					}
+	}
 
 					if ((ModelPin->GetCPPType() == TEXT("FVector") ||
 						 ModelPin->GetCPPType() == TEXT("FQuat") ||
@@ -816,9 +816,9 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 							RigBlueprint->HierarchyContainer.ClearSelection();
 							for (const FRigElementKey& RigElementToSelect : RigElementsToSelect)
-							{
+	{
 								RigBlueprint->HierarchyContainer.Select(RigElementToSelect, true);
-							}
+	}
 
 						})
 					));

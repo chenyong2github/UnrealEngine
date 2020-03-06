@@ -363,11 +363,19 @@ void FPhysicsAssetEditor::PostRedo( bool bSuccess )
 		{
 			FKConvexElem& Element = Body->AggGeom.ConvexElems[ElemIdx];
 
+#if PHYSICS_INTERFACE_PHYSX
 			if (Element.GetConvexMesh() == NULL)
 			{
 				bRecreate = true;
 				break;
 			}
+#elif WITH_CHAOS
+			if (Element.GetChaosConvexMesh() == NULL)
+			{
+				bRecreate = true;
+				break;
+			}
+#endif
 		}
 
 		if (bRecreate)

@@ -11,13 +11,13 @@ LUMIN_THIRD_PARTY_INCLUDES_END
 
 namespace MLSDK_API
 {
-
+    
+CREATE_FUNCTION_SHIM(ml_networking, const char*, MLNetworkingGetResultString)
+#define MLNetworkingGetResultString ::MLSDK_API::MLNetworkingGetResultStringShim
 CREATE_FUNCTION_SHIM(ml_networking, MLResult, MLNetworkingIsInternetConnected)
 #define MLNetworkingIsInternetConnected ::MLSDK_API::MLNetworkingIsInternetConnectedShim
 CREATE_FUNCTION_SHIM(ml_networking, MLResult, MLNetworkingGetWiFiData)
 #define MLNetworkingGetWiFiData ::MLSDK_API::MLNetworkingGetWiFiDataShim
-CREATE_FUNCTION_SHIM(ml_networking, const char*, MLNetworkingGetResultString)
-#define MLNetworkingGetResultString ::MLSDK_API::MLNetworkingGetResultStringShim
 
 }
 

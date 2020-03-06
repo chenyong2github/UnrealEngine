@@ -73,6 +73,8 @@ int FMeshRegionBoundaryLoops::GetMaxVerticesLoopIndex() const
 
 bool FMeshRegionBoundaryLoops::Compute()
 {
+	bFailed = false; // reset
+
 	// This algorithm assumes that triangles are oriented consistently, 
 	// so closed boundary-loop can be followed by walking edges in-order
 	Loops.SetNum(0);
@@ -109,6 +111,7 @@ bool FMeshRegionBoundaryLoops::Compute()
 		loop_edges.Add(eStart);
 
 		int eCur = eid;
+		int eFirstVert = -1; // the first vertex on eCur, in terms of our walking order
 
 		// follow the chain : order of oriented edges
 		bool bClosed = false;
@@ -119,14 +122,32 @@ bool FMeshRegionBoundaryLoops::Compute()
 			int tid_in = IndexConstants::InvalidID, tid_out = IndexConstants::InvalidID;
 			IsEdgeOnBoundary(eCur, tid_in, tid_out);
 
-			FIndex2i ev = GetOrientedEdgeVerts(eCur, tid_in, tid_out);
-			int cure_a = ev.A, cure_b = ev.B;
+			int cure_a, cure_b;
+			if (eFirstVert == -1)
+			{
+				FIndex2i ev = GetOrientedEdgeVerts(eCur, tid_in);
+				cure_a = ev.A;
+				cure_b = ev.B;
+			}
+			else
+			{
+				// once we've walked on at least one edge, no longer need to rely on triangle orientation to know which way we were walking
+				FIndex2i edgev = Mesh->GetEdgeV(eCur);
+				checkSlow(edgev.Contains(eFirstVert));
+				cure_a = eFirstVert;
+				cure_b = edgev.A == cure_a ? edgev.B : edgev.A;
+			}
 			loop_verts.Add(cure_a);
 
 			int e0 = -1, e1 = 1;
 			int bdry_nbrs = GetVertexBoundaryEdges(cure_b, e0, e1);
 
-			check(bdry_nbrs >= 2); //  if (bdry_nbrs < 2) throw new MeshBoundaryLoopsException("MeshRegionBoundaryLoops.Compute: found broken neighbourhood at vertex " + cure_b){ UnclosedLoop = true };
+			if (bdry_nbrs < 2)
+			{
+				// found broken neighbourhood at vertex cure_b -- unrecoverable failure (unclosed loop)
+				bFailed = true;
+				return false;
+			}
 
 			int eNext = -1;
 			if (bdry_nbrs > 2)
@@ -153,7 +174,12 @@ bool FMeshRegionBoundaryLoops::Compute()
 					// Try to pick the best "turn left" vertex.
 					eNext = FindLeftTurnEdge(eCur, cure_b, all_e, num_be, used_edge);
 
-					check(eNext != -1); // throw new MeshBoundaryLoopsException("MeshRegionBoundaryLoops.Compute: cannot find valid outgoing edge at bowtie vertex " + cure_b){ BowtieFailure = true };
+					if (eNext == -1)
+					{
+						// Cannot find valid outgoing edge at bowtie vertex cure_b -- unrecoverable failure
+						bFailed = true;
+						return false;
+					}
 				}
 
 				if (bowties.Contains(cure_b) == false)
@@ -187,16 +213,27 @@ bool FMeshRegionBoundaryLoops::Compute()
 				eCur = eNext;
 				used_edge.Add(eCur);
 			}
+
+			eFirstVert = cure_b;
 		}
 
 		// if we saw a bowtie vertex, we might need to break up this loop,
 		// so call ExtractSubloops
 		if (bowties.Num() > 0)
 		{
-			TArray<FEdgeLoop> subloops = ExtractSubloops(loop_verts, loop_edges, bowties);
-			for (int i = 0; i < subloops.Num(); ++i)
+			TArray<FEdgeLoop> subloops;
+			bool bExtractedLoops = TryExtractSubloops(loop_verts, loop_edges, bowties, subloops);
+			if (!bExtractedLoops)
 			{
-				Loops.Add(subloops[i]);
+				// skip adding subloops and mark as failure (but go on computing the rest of the boundary loops)
+				bFailed = true;
+			}
+			else
+			{
+				for (int i = 0; i < subloops.Num(); ++i)
+				{
+					Loops.Add(subloops[i]);
+				}
 			}
 		}
 		else
@@ -214,7 +251,7 @@ bool FMeshRegionBoundaryLoops::Compute()
 		bowties.SetNum(0);
 	}
 
-	return true;
+	return !bFailed;
 }
 
 
@@ -254,7 +291,7 @@ bool FMeshRegionBoundaryLoops::IsEdgeOnBoundary(int eid, int& tid_in, int& tid_o
 
 
 // return same indices as GetEdgeV, but oriented based on attached triangle
-FIndex2i FMeshRegionBoundaryLoops::GetOrientedEdgeVerts(int eID, int tid_in, int tid_out)
+FIndex2i FMeshRegionBoundaryLoops::GetOrientedEdgeVerts(int eID, int tid_in)
 {
 	FIndex2i edgev = Mesh->GetEdgeV(eID);
 	int a = edgev.A, b = edgev.B;
@@ -344,7 +381,7 @@ int FMeshRegionBoundaryLoops::FindLeftTurnEdge(int incoming_e, int bowtie_v, TAr
 		// [TODO] can do this more efficiently?
 		int tid_in = IndexConstants::InvalidID, tid_out = IndexConstants::InvalidID;
 		IsEdgeOnBoundary(bdry_eid, tid_in, tid_out);
-		FIndex2i bdry_ev = GetOrientedEdgeVerts(bdry_eid, tid_in, tid_out);
+		FIndex2i bdry_ev = GetOrientedEdgeVerts(bdry_eid, tid_in);
 		//FIndex2i bdry_ev = Mesh.GetOrientedBoundaryEdgeV(bdry_eid);
 
 		if (bdry_ev.A != bowtie_v) {
@@ -353,7 +390,7 @@ int FMeshRegionBoundaryLoops::FindLeftTurnEdge(int incoming_e, int bowtie_v, TAr
 
 		// compute projected angle
 		FVector3d bc = Mesh->GetVertex(bdry_ev.B) - Mesh->GetVertex(bowtie_v);
-		double fAngleS = VectorUtil::PlaneAngleSignedD(ab, bc, n);
+		double fAngleS = -VectorUtil::PlaneAngleSignedD(ab, bc, n);
 
 		// turn left!
 		if (best_angle == TNumericLimits<double>::Max() || fAngleS < best_angle)
@@ -362,7 +399,6 @@ int FMeshRegionBoundaryLoops::FindLeftTurnEdge(int incoming_e, int bowtie_v, TAr
 			best_e = bdry_eid;
 		}
 	}
-	check(best_e != -1);
 
 	return best_e;
 }
@@ -379,9 +415,9 @@ int FMeshRegionBoundaryLoops::FindLeftTurnEdge(int incoming_e, int bowtie_v, TAr
 //
 // Currently loopE is not used, and the returned FEdgeLoop objects do not have their Edges
 // arrays initialized. Perhaps to improve : future.
-TArray<FEdgeLoop> FMeshRegionBoundaryLoops::ExtractSubloops(TArray<int>& loopV, const TArray<int>& loopE, const TArray<int>& bowties)
+bool FMeshRegionBoundaryLoops::TryExtractSubloops(TArray<int>& loopV, const TArray<int>& loopE, const TArray<int>& bowties, TArray<FEdgeLoop>& SubLoopsOut)
 {
-	TArray<FEdgeLoop> subs;
+	SubLoopsOut.Reset();
 
 	// figure out which bowties we saw are actually duplicated : loopV
 	TArray<int> dupes;
@@ -400,8 +436,8 @@ TArray<FEdgeLoop> FMeshRegionBoundaryLoops::ExtractSubloops(TArray<int>& loopV, 
 		NewLoop.Vertices = loopV;
 		NewLoop.Edges = loopE;
 		NewLoop.BowtieVertices = bowties;
-		subs.Add(NewLoop);
-		return subs;
+		SubLoopsOut.Add(NewLoop);
+		return true;
 	}
 
 	// This loop extracts subloops until we have dealt with all the
@@ -428,7 +464,12 @@ TArray<FEdgeLoop> FMeshRegionBoundaryLoops::ExtractSubloops(TArray<int>& loopV, 
 				}
 			}
 		}
-		check(bv_shortest != -1); //  throw new MeshBoundaryLoopsException("MeshRegionBoundaryLoops.Compute: Cannot find a valid simple loop");
+		if (bv_shortest == -1)
+		{
+			// Cannot find a valid simple loop -- unrecoverable failure
+			return false;
+		}
+
 		if (bv != bv_shortest)
 		{
 			bv = bv_shortest;
@@ -442,7 +483,7 @@ TArray<FEdgeLoop> FMeshRegionBoundaryLoops::ExtractSubloops(TArray<int>& loopV, 
 		FMeshBoundaryLoops::ExtractSpan(loopV, start_i, end_i, true, loop.Vertices);
 		FEdgeLoop::VertexLoopToEdgeLoop(Mesh, loop.Vertices, loop.Edges);
 		loop.BowtieVertices = bowties;
-		subs.Add(loop);
+		SubLoopsOut.Add(loop);
 
 		// If there are no more duplicates of this bowtie, we can treat
 		// it like a regular vertex now
@@ -476,8 +517,8 @@ TArray<FEdgeLoop> FMeshRegionBoundaryLoops::ExtractSubloops(TArray<int>& loopV, 
 		}
 		FEdgeLoop::VertexLoopToEdgeLoop(Mesh, loop.Vertices, loop.Edges);
 		loop.BowtieVertices = bowties;
-		subs.Add(loop);
+		SubLoopsOut.Add(loop);
 	}
 
-	return subs;
+	return true;
 }

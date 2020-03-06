@@ -47,9 +47,6 @@ void UAudioSettings::AddDefaultSettings()
 #if WITH_EDITOR
 void UAudioSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	// Cache ambisonic submix in case user tries to set to submix that isn't set to ambisonics
-	CachedAmbisonicSubmix = AmbisonicSubmix;
-
 	// Cache master submix in case user tries to set to submix that isn't a top-level submix
 	CachedMasterSubmix = MasterSubmix;
 
@@ -89,27 +86,6 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, ReverbSubmix))
 		{
 			bPromptRestartRequired = true;
-		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, AmbisonicSubmix))
-		{
-			if (USoundSubmix* NewSubmix = Cast<USoundSubmix>(AmbisonicSubmix.TryLoad()))
-			{
-				if (NewSubmix->ChannelFormat != ESubmixChannelFormat::Ambisonics)
-				{
-					FNotificationInfo Info(LOCTEXT("AudioSettings_InvalidAmbisonicSubmixFormat",
-						"Ambisonic Submix format must be set to 'Ambisonics' in order to be set as 'Master Ambisonics Submix'."));
-					Info.bFireAndForget = true;
-					Info.ExpireDuration = 2.0f;
-					Info.bUseThrobber = true;
-					FSlateNotificationManager::Get().AddNotification(Info);
-
-					AmbisonicSubmix = CachedAmbisonicSubmix;
-				}
-			}
-			else
-			{
-				bPromptRestartRequired = true;
-			}
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, QualityLevels))
 		{

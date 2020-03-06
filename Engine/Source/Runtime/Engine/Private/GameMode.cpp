@@ -627,7 +627,7 @@ void AGameMode::AddInactivePlayer(APlayerState* PlayerState, APlayerController* 
 	check(PlayerState)
 	UWorld* LocalWorld = GetWorld();
 	// don't store if it's an old PlayerState from the previous level or if it's a spectator... or if we are shutting down
-	if (!PlayerState->bFromPreviousLevel && !MustSpectate(PC) && !LocalWorld->bIsTearingDown)
+	if (!PlayerState->IsFromPreviousLevel() && !MustSpectate(PC) && !LocalWorld->bIsTearingDown)
 	{
 		APlayerState* const NewPlayerState = PlayerState->Duplicate();
 		if (NewPlayerState)
@@ -644,7 +644,7 @@ void AGameMode::AddInactivePlayer(APlayerState* PlayerState, APlayerController* 
 			// On console, we have to check the unique net id as network address isn't valid
 			const bool bIsConsole = !PLATFORM_DESKTOP;
 			// Assume valid unique ids means comparison should be via this method
-			const bool bHasValidUniqueId = NewPlayerState->UniqueId.IsValid();
+			const bool bHasValidUniqueId = NewPlayerState->GetUniqueId().IsValid();
 			// Don't accidentally compare empty network addresses (already issue with two clients on same machine during development)
 			const bool bHasValidNetworkAddress = !NewPlayerState->SavedNetworkAddress.IsEmpty();
 			const bool bUseUniqueIdCheck = bIsConsole || bHasValidUniqueId;
@@ -660,7 +660,7 @@ void AGameMode::AddInactivePlayer(APlayerState* PlayerState, APlayerController* 
 					Idx--;
 				}
 				else if ( (!bUseUniqueIdCheck && bHasValidNetworkAddress && (CurrentPlayerState->SavedNetworkAddress == NewPlayerState->SavedNetworkAddress))
-						|| (bUseUniqueIdCheck && (CurrentPlayerState->UniqueId == NewPlayerState->UniqueId)) )
+						|| (bUseUniqueIdCheck && (CurrentPlayerState->GetUniqueId() == NewPlayerState->GetUniqueId())) )
 				{
 					// destroy the playerstate, then remove it from the tracking
 					CurrentPlayerState->Destroy();
@@ -704,7 +704,7 @@ bool AGameMode::FindInactivePlayer(APlayerController* PC)
 	// On console, we have to check the unique net id as network address isn't valid
 	const bool bIsConsole = !PLATFORM_DESKTOP;
 	// Assume valid unique ids means comparison should be via this method
-	const bool bHasValidUniqueId = PC->PlayerState->UniqueId.IsValid();
+	const bool bHasValidUniqueId = PC->PlayerState->GetUniqueId().IsValid();
 	// Don't accidentally compare empty network addresses (already issue with two clients on same machine during development)
 	const bool bHasValidNetworkAddress = !PC->PlayerState->SavedNetworkAddress.IsEmpty();
 	const bool bUseUniqueIdCheck = bIsConsole || bHasValidUniqueId;
@@ -719,7 +719,7 @@ bool AGameMode::FindInactivePlayer(APlayerController* PC)
 			InactivePlayerArray.RemoveAt(i,1);
 			i--;
 		}
-		else if ((bUseUniqueIdCheck && (CurrentPlayerState->UniqueId == PC->PlayerState->UniqueId)) ||
+		else if ((bUseUniqueIdCheck && (CurrentPlayerState->GetUniqueId() == PC->PlayerState->GetUniqueId())) ||
 				 (!bUseUniqueIdCheck && bHasValidNetworkAddress && (FCString::Stricmp(*CurrentPlayerState->SavedNetworkAddress, *NewNetworkAddress) == 0) && (FCString::Stricmp(*CurrentPlayerState->GetPlayerName(), *NewName) == 0)))
 		{
 			// found it!
@@ -731,7 +731,7 @@ bool AGameMode::FindInactivePlayer(APlayerController* PC)
 			OverridePlayerState(PC, OldPlayerState);
 			GameState->AddPlayerState(PC->PlayerState);
 			InactivePlayerArray.RemoveAt(i, 1);
-			OldPlayerState->bIsInactive = true;
+			OldPlayerState->SetIsInactive(true);
 			// Set the uniqueId to nullptr so it will not kill the player's registration 
 			// in UnregisterPlayerWithSession()
 			OldPlayerState->SetUniqueId(nullptr);

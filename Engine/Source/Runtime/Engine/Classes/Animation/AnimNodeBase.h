@@ -261,6 +261,11 @@ public:
 		FAnimationUpdateContext Result(*this);
 		Result.SharedContext = InSharedContext;
 
+#if ANIM_TRACE_ENABLED
+		// This is currently only used in the case of cached poses, where we dont want to preserve the previous node, so clear it here
+		Result.PreviousNodeId = INDEX_NONE;
+#endif
+
 		return Result;
 	}
 
@@ -378,6 +383,11 @@ public:
 		, bExpectsAdditivePose(SourceContext.bExpectsAdditivePose || bInOverrideExpectsAdditivePose)
 	{
 		Initialize(SourceContext.AnimInstanceProxy);
+
+#if ANIM_NODE_IDS_AVAILABLE
+		CurrentNodeId = SourceContext.CurrentNodeId;
+		PreviousNodeId = SourceContext.PreviousNodeId;
+#endif
 	}
 
 #if ANIM_NODE_IDS_AVAILABLE
@@ -385,6 +395,12 @@ public:
 	{ 
 		PreviousNodeId = CurrentNodeId;
 		CurrentNodeId = InNodeId;
+	}
+
+	void SetNodeIds(const FAnimationBaseContext& InContext)
+	{ 
+		CurrentNodeId = InContext.GetCurrentNodeId();
+		PreviousNodeId = InContext.GetPreviousNodeId();
 	}
 #endif
 
@@ -463,6 +479,11 @@ public:
 		: FAnimationBaseContext(SourceContext.AnimInstanceProxy)
 	{
 		// No need to initialize, done through FA2CSPose::AllocateLocalPoses
+
+#if ANIM_NODE_IDS_AVAILABLE
+		CurrentNodeId = SourceContext.CurrentNodeId;
+		PreviousNodeId = SourceContext.PreviousNodeId;
+#endif
 	}
 
 #if ANIM_NODE_IDS_AVAILABLE
@@ -470,6 +491,12 @@ public:
 	{ 
 		PreviousNodeId = CurrentNodeId;
 		CurrentNodeId = InNodeId;
+	}
+
+	void SetNodeIds(const FAnimationBaseContext& InContext)
+	{ 
+		CurrentNodeId = InContext.GetCurrentNodeId();
+		PreviousNodeId = InContext.GetPreviousNodeId();
 	}
 #endif
 

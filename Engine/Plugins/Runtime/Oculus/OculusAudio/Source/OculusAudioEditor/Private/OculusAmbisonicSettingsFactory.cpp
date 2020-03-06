@@ -30,7 +30,7 @@ const TArray<FText>& FAssetTypeActions_OculusAmbisonicsSettings::GetSubMenus() c
 
 UClass* FAssetTypeActions_OculusAmbisonicsSettings::GetSupportedClass() const
 {
-    return UOculusAmbisonicsSettings::StaticClass();
+    return UOculusAudioSoundfieldSettings::StaticClass();
 }
 
 uint32 FAssetTypeActions_OculusAmbisonicsSettings::GetCategories()
@@ -41,7 +41,7 @@ uint32 FAssetTypeActions_OculusAmbisonicsSettings::GetCategories()
 UOculusAmbisonicsSettingsFactory::UOculusAmbisonicsSettingsFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = UOculusAmbisonicsSettings::StaticClass();
+	SupportedClass = UOculusAudioSoundfieldSettings::StaticClass();
 
 	bCreateNew = true;
 	bEditorImport = true;
@@ -51,7 +51,7 @@ UOculusAmbisonicsSettingsFactory::UOculusAmbisonicsSettingsFactory(const FObject
 UObject* UOculusAmbisonicsSettingsFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context,
     FFeedbackContext* Warn)
 {
-    return NewObject<UOculusAmbisonicsSettings>(InParent, Name, Flags);
+    return NewObject<UOculusAudioSoundfieldSettings>(InParent, Name, Flags);
 }
 
 uint32 UOculusAmbisonicsSettingsFactory::GetMenuCategories() const

@@ -36,8 +36,8 @@ class FPostProcessBusyWaitPS : public FGlobalShader
 	FPostProcessBusyWaitPS() {}
 
 public:
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderParameter GPUBusyWait;
+	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
+	LAYOUT_FIELD(FShaderParameter, GPUBusyWait);
 
 	/** Initialization constructor. */
 	FPostProcessBusyWaitPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -50,7 +50,7 @@ public:
 	template <typename TRHICmdList>
 	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
@@ -70,14 +70,6 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, GPUBusyWait, Value);
 		}
 #endif
-	}
-	
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << GPUBusyWait;
-		return bShaderHasOutdatedParameters;
 	}
 };
 
@@ -112,8 +104,8 @@ void FRCPassPostProcessBusyWait::Process(FRenderingCompositePassContext& Context
 		TShaderMapRef<FPostProcessBusyWaitPS> PixelShader(Context.GetShaderMap());
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
@@ -129,7 +121,7 @@ void FRCPassPostProcessBusyWait::Process(FRenderingCompositePassContext& Context
 			SrcRect.Width(), SrcRect.Height(),
 			DestRect.Size(),
 			SrcRect.Size(),
-			*VertexShader,
+			VertexShader,
 			EDRF_UseTriangleOptimization);
 	}
 	Context.RHICmdList.EndRenderPass();

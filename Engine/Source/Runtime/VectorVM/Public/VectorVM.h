@@ -417,6 +417,7 @@ public:
 			++TableIndex;
 		}
 
+		check(TableIndex < ConstantTableCount);
 		check(Offset < ConstantTableSizes[TableIndex]);
 		return reinterpret_cast<const T*>(ConstantTable[TableIndex] + Offset);
 	}

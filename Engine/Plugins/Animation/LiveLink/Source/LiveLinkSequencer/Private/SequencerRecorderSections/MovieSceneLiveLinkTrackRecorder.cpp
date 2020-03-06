@@ -37,12 +37,13 @@ static void AlwaysRecordLiveLinkTimecodeSinkFunction()
 
 static FAutoConsoleVariableSink CVarAlwaysRecoredLiveLinkSink(FConsoleCommandDelegate::CreateStatic(&AlwaysRecordLiveLinkTimecodeSinkFunction));
 
-void UMovieSceneLiveLinkTrackRecorder::CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecoe, UMovieSceneTrackRecorderSettings* InSettingsObject)
+void UMovieSceneLiveLinkTrackRecorder::CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecode, bool bInDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject)
 {
 	MovieScene = InMovieScene;
 	SubjectName = InSubjectName;
 	bSaveSubjectSettings = bInSaveSubjectSettings;
-	bUseSourceTimecode = bInAlwaysUseTimecoe;
+	bUseSourceTimecode = bInAlwaysUseTimecode;
+	bDiscardSamplesBeforeStart = bInDiscardSamplesBeforeStart;
 	CreateTracks();
 }
 
@@ -170,10 +171,10 @@ void UMovieSceneLiveLinkTrackRecorder::SetSectionStartTimecodeImpl(const FTimeco
 		Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
 		Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 
-		FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
-		FFrameRate DisplayRate = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetDisplayRate();
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
-		RecordStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InSectionStartTimecode.ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame() : 0;
+		RecordStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InSectionStartTimecode.ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
 	}
 }
 
@@ -216,7 +217,8 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 	if (LiveLinkClient && MovieSceneSection.IsValid())
 	{
 		//we know all section have same tick resolution
-		const FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+		const FFrameRate TickResolution = MovieScene->GetTickResolution();
+		const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 		const FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
 
 		bool bSyncedOrForced = bUseSourceTimecode || LiveLinkClient->IsSubjectTimeSynchronized(SubjectName);
@@ -244,15 +246,36 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 
 					FFrameTime FrameTime = LiveLinkFrameTime.ConvertTo(TickResolution);
 					FrameNumber = FrameTime.FrameNumber;
+
+					UE_LOG(LogLiveLinkSequencer, VeryVerbose, TEXT("LiveLinkFrameTime: [%s.%.03f] at %s for subject '%s'."), 
+						   *(FTimecode::FromFrameNumber(LiveLinkFrameTime.Time.FrameNumber, LiveLinkFrameTime.Rate).ToString()), 
+						   LiveLinkFrameTime.Time.GetSubFrame(),
+						   *(LiveLinkFrameTime.Rate.ToPrettyText().ToString()),
+						   *(SubjectName.ToString()));
 				}
 				else
 				{
-					const double Second = Frame.GetBaseData()->WorldTime.GetOffsettedTime() - SecondsDiff;
+					const double Second = Frame.GetBaseData()->WorldTime.GetOffsettedTime() - SecondsDiff;				
 					FrameNumber = (Second * TickResolution).FloorToFrame();
 					FrameNumber += RecordStartFrame;
+
+					UE_LOG(LogLiveLinkSequencer, VeryVerbose, TEXT("LiveLinkFrameTime (Unsynced): %f, for subject '%s'."), Frame.GetBaseData()->WorldTime.GetOffsettedTime(), *(SubjectName.ToString()));
 				}
 
-				MovieSceneSection->RecordFrame(FrameNumber, Frame);
+				// For clarity, only record values that are after the start frame since frames could have been buffered before recording started.
+				if (FrameNumber >= MovieSceneSection->GetInclusiveStartFrame() || !bDiscardSamplesBeforeStart)
+				{
+					MovieSceneSection->RecordFrame(FrameNumber, Frame);
+				}
+				else
+				{
+					UE_LOG(LogLiveLinkSequencer, Warning, TEXT("Discarded buffered frame: [%s.%.03f] outside of start frame: [%s.%.03f] for subject '%s'."),
+						   *(FTimecode::FromFrameNumber(ConvertFrameTime(FrameNumber, TickResolution, DisplayRate).FrameNumber, DisplayRate).ToString()), 
+						   ConvertFrameTime(FrameNumber, TickResolution, DisplayRate).GetSubFrame(),
+						   *(FTimecode::FromFrameNumber(ConvertFrameTime(MovieSceneSection->GetInclusiveStartFrame(), TickResolution, DisplayRate).FrameNumber, DisplayRate)).ToString(), 
+						   ConvertFrameTime(MovieSceneSection->GetInclusiveStartFrame(), TickResolution, DisplayRate).GetSubFrame(),
+						   *(SubjectName.ToString()));
+				}
 			}
 
 			//Empty out frames that were processed

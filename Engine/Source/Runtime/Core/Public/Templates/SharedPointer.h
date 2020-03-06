@@ -1006,6 +1006,20 @@ private:
 	SharedPointerInternals::FSharedReferencer< Mode > SharedReferenceCount;
 };
 
+//template< class ObjectType, ESPMode Mode >
+//class TSharedPtr
+
+namespace Freeze
+{
+	template<class ObjectType, ESPMode Mode>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TSharedPtr<ObjectType, Mode>& Object, const FTypeLayoutDesc&)
+	{
+		// we never want to freeze pointers, so write an empty one
+		Writer.WriteBytes(TSharedPtr<ObjectType, Mode>());
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template<class ObjectType, ESPMode Mode>), (TSharedPtr<ObjectType, Mode>));
 
 template<class ObjectType, ESPMode Mode> struct TIsZeroConstructType<TSharedPtr<ObjectType, Mode>> { enum { Value = true }; };
 

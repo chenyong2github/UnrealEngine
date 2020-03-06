@@ -734,36 +734,6 @@ void FMetalDeviceContext::ReleaseFence(FMetalFence* Fence)
 	}
 }
 
-void FMetalDeviceContext::RegisterUB(FMetalUniformBuffer* UB)
-{
-	FScopeLock Lock(&FreeListMutex);
-	UniformBuffers.Add(UB);
-}
-
-void FMetalDeviceContext::UpdateIABs(FRHITextureReference* ModifiedRef)
-{
-	if(GIsMetalInitialized)
-	{
-		FScopeLock Lock(&FreeListMutex);
-		for (FMetalUniformBuffer* UB : UniformBuffers)
-		{
-			if (UB && UB->IAB && UB->TextureReferences.Contains(ModifiedRef))
-			{
-				UB->UpdateTextureReference(ModifiedRef);
-			}
-		}
-	}
-}
-
-void FMetalDeviceContext::UnregisterUB(FMetalUniformBuffer* UB)
-{
-	if(GIsMetalInitialized)
-	{
-		FScopeLock Lock(&FreeListMutex);
-		UniformBuffers.Remove(UB);
-	}
-}
-
 FMetalTexture FMetalDeviceContext::CreateTexture(FMetalSurface* Surface, mtlpp::TextureDescriptor Descriptor)
 {
 	FMetalTexture Tex = Heap.CreateTexture(Descriptor, Surface);

@@ -8,7 +8,7 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXPublicCore.h"
 
 /** Calculates correct impulse at the body's center of mass and adds the impulse to the body. */

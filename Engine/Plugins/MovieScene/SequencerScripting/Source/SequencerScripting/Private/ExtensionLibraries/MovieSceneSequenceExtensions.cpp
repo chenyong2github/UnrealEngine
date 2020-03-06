@@ -37,11 +37,11 @@ TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::GetMasterTracks(UMovieS
 	if (MovieScene)
 	{
 		Tracks = MovieScene->GetMasterTracks();
-	}
 
-	if (UMovieSceneTrack* CameraCutTrack = MovieScene->GetCameraCutTrack())
-	{
-		Tracks.Add(CameraCutTrack);
+		if (UMovieSceneTrack* CameraCutTrack = MovieScene->GetCameraCutTrack())
+		{
+			Tracks.Add(CameraCutTrack);
+		}
 	}
 
 	return Tracks;
@@ -470,7 +470,7 @@ TArray<UObject*> UMovieSceneSequenceExtensions::LocateBoundObjects(UMovieSceneSe
 	return Result;
 }
 
-FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding)
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space)
 {
 	FMovieSceneSequenceID SequenceID = MovieSceneSequenceID::Root;
 
@@ -489,7 +489,7 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSc
 		}
 	}
 
-	return FMovieSceneObjectBindingID(InBinding.BindingID, SequenceID);
+	return FMovieSceneObjectBindingID(InBinding.BindingID, SequenceID, Space);
 }
 
 TArray<UMovieSceneFolder*> UMovieSceneSequenceExtensions::GetRootFoldersInSequence(UMovieSceneSequence* Sequence)
@@ -593,4 +593,24 @@ int32 UMovieSceneSequenceExtensions::FindNextMarkedFrame(UMovieSceneSequence* Se
 		return MovieScene->FindNextMarkedFrame(InFrameNumber, bForward);
 	}
 	return INDEX_NONE;
+}
+
+void UMovieSceneSequenceExtensions::SetReadOnly(UMovieSceneSequence* Sequence, bool bInReadOnly)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+		MovieScene->SetReadOnly(bInReadOnly);
+	}
+}
+
+bool UMovieSceneSequenceExtensions::IsReadOnly(UMovieSceneSequence* Sequence)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+		return MovieScene->IsReadOnly();
+	}
+
+	return false;
 }

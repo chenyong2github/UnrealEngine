@@ -91,6 +91,10 @@ UDataprepContentConsumer* UDataprepAssetInterface::SetConsumer(UClass* NewConsum
 		Output = NewObject< UDataprepContentConsumer >( this, NewConsumerClass, ConsumerName, RF_Transactional );
 		check( Output );
 
+		// Set the name of the output level
+		FText OutText;
+		Output->SetLevelName(GetName() + TEXT("_Map"), OutText);
+
 		FAssetRegistryModule::AssetCreated( Output );
 		Output->MarkPackageDirty();
 

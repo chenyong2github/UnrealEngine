@@ -3597,7 +3597,8 @@ void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* 
 		if (*It != LocalPlayer)
 		{
 			// send server command for new child connection
-			It->SendSplitJoin();
+			TArray<FString> Options;
+			It->SendSplitJoin(Options);
 		}
 	}
 }

@@ -36,14 +36,25 @@ struct FLightAccumulator
 	// only used for development (not compiled out with #if so we can use if() instead of #if for better readability and compiler error checking)
 	// assumed to be compiled out otherwise
 	float EstimatedCost;
+
+	// only used for alpha, which needs to keep specular and alpha separate since specular needs to multiply by 1/opacity to compensate for alpha blending
+	// assumed to be compiled out otherwise
+	float3 TotalLightDiffuse;
+	float3 TotalLightSpecular;
+
 };
 
-//
+struct FDeferredLightingSplit
+{
+	float4 DiffuseLighting;
+	float4 SpecularLighting;
+};
+
 // accumulate light, can be called multiple times
-void LightAccumulator_Add(inout FLightAccumulator In, float3 TotalLight, float3 ScatterableLight, float3 CommonMultiplier, const bool bNeedsSeparateSubsurfaceLightAccumulation)
+void LightAccumulator_AddSplit(inout FLightAccumulator In, float3 DiffuseTotalLight, float3 SpecularTotalLight, float3 ScatterableLight, float3 CommonMultiplier, const bool bNeedsSeparateSubsurfaceLightAccumulation)
 {
 	// 3 mad
-	In.TotalLight += TotalLight * CommonMultiplier;
+	In.TotalLight += (DiffuseTotalLight + SpecularTotalLight) * CommonMultiplier;
 
 	// This should ideally be evaluated statically outside of this function to avoid the branch
 	if (bNeedsSeparateSubsurfaceLightAccumulation)
@@ -61,6 +72,14 @@ void LightAccumulator_Add(inout FLightAccumulator In, float3 TotalLight, float3 
 			In.ScatterableLight += ScatterableLight * CommonMultiplier;
 		}
 	}
+
+	In.TotalLightDiffuse += DiffuseTotalLight * CommonMultiplier;
+	In.TotalLightSpecular += SpecularTotalLight * CommonMultiplier;
+}
+
+void LightAccumulator_Add(inout FLightAccumulator In, float3 TotalLight, float3 ScatterableLight, float3 CommonMultiplier, const bool bNeedsSeparateSubsurfaceLightAccumulation)
+{
+	LightAccumulator_AddSplit(In, TotalLight, 0.0f, ScatterableLight, CommonMultiplier, bNeedsSeparateSubsurfaceLightAccumulation);
 }
 
 //
@@ -99,3 +118,43 @@ float4 LightAccumulator_GetResult(FLightAccumulator In)
 	return Ret;
 }
 
+
+FDeferredLightingSplit LightAccumulator_GetResultSplit(FLightAccumulator In)
+{
+	float4 RetDiffuse;
+	float4 RetSpecular;
+
+	if (VISUALIZE_LIGHT_CULLING == 1)
+	{
+		// a soft gradient from dark red to bright white, can be changed to be different
+		RetDiffuse = 0.1f * float4(1.0f, 0.25f, 0.075f, 0) * In.EstimatedCost;
+		RetSpecular = 0.1f * float4(1.0f, 0.25f, 0.075f, 0) * In.EstimatedCost;
+	}
+	else
+	{
+		RetDiffuse = float4(In.TotalLightDiffuse, 0);
+		RetSpecular = float4(In.TotalLightSpecular, 0);
+
+		if (SUBSURFACE_CHANNEL_MODE == 1 )
+		{
+			if (View.bCheckerboardSubsurfaceProfileRendering == 0)
+			{
+				// RGB accumulated RGB HDR color, A: specular luminance for screenspace subsurface scattering
+				RetDiffuse.a = In.ScatterableLightLuma;
+			}
+		}
+		else if (SUBSURFACE_CHANNEL_MODE == 2)
+		{
+			// RGB accumulated RGB HDR color, A: view independent (diffuse) luminance for screenspace subsurface scattering
+			// 3 add,  1 mul, 2 mad, can be optimized to use 2 less temporary during accumulation and remove the 3 add
+			RetDiffuse.a = Luminance(In.ScatterableLight);
+			// todo, need second MRT for SUBSURFACE_CHANNEL_MODE==2
+		}
+	}
+
+	FDeferredLightingSplit Ret;
+	Ret.DiffuseLighting = RetDiffuse;
+	Ret.SpecularLighting = RetSpecular;
+
+	return Ret;
+}

@@ -69,6 +69,7 @@ void SPathView::Construct( const FArguments& InArgs )
 	OnGetFolderContextMenu = InArgs._OnGetFolderContextMenu;
 	OnGetPathContextMenuExtender = InArgs._OnGetPathContextMenuExtender;
 	bAllowClassesFolder = InArgs._AllowClassesFolder;
+	bAllowReadOnlyFolders = InArgs._AllowReadOnlyFolders;
 	PreventTreeItemChangedDelegateCount = 0;
 	TreeTitle = LOCTEXT("AssetTreeTitle", "Asset Tree");
 	if ( InArgs._FocusSearchBoxWhenOpened )
@@ -78,6 +79,7 @@ void SPathView::Construct( const FArguments& InArgs )
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
+	WritableFolderBlacklist = AssetToolsModule.Get().GetWritableFolderBlacklist();
 
 	// Listen for when view settings are changed
 	UContentBrowserSettings::OnSettingChanged().AddSP(this, &SPathView::HandleSettingChanged);
@@ -1113,18 +1115,23 @@ void SPathView::Populate()
 	PathList.Add(UserDeveloperFolder);
 
 	// Remove paths of localized assets, if not displaying localized assets.
-	if (!(GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder()))
-	{
-		PathList.RemoveAll([](const FString& Path) -> bool
-		{
-			return ContentBrowserUtils::IsLocalizationFolder(Path);
-		});
-	}
+	const bool bDisplayL10NFolder = GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
+	const bool bCheckWritableFolderBlacklist = !bAllowReadOnlyFolders && WritableFolderBlacklist.IsValid() && WritableFolderBlacklist->HasFiltering();
 
 	// we have a text filter, expand all parents of matching folders
 	for ( int32 PathIdx = 0; PathIdx < PathList.Num(); ++PathIdx)
 	{
 		const FString& Path = PathList[PathIdx];
+
+		if (!bDisplayL10NFolder && ContentBrowserUtils::IsLocalizationFolder(Path))
+		{
+			continue;
+		}
+
+		if (bCheckWritableFolderBlacklist && !WritableFolderBlacklist->PassesStartsWithFilter(Path))
+		{
+			continue;
+		}
 
 		// by sending the whole path we deliberately include any children
 		// of successful hits in the filtered list. 

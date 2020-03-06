@@ -3,6 +3,7 @@
 
 #include "ParserHelper.h"
 #include "UnrealHeaderTool.h"
+#include "Algo/Find.h"
 #include "Misc/DefaultValueHelper.h"
 
 /////////////////////////////////////////////////////
@@ -282,4 +283,18 @@ FTokenData* FPropertyData::Set(FProperty* InKey, const FTokenData& InValue, FUnr
 	}
 
 	return Result;
+}
+
+void FCompilerMetadataManager::CheckForNoIInterfaces() const
+{
+	const TPair<UStruct*, TUniquePtr<FClassMetaData>>* UnparsedIInterface = Algo::FindBy(
+		*(Super*)this,
+		EParsedInterface::ParsedUInterface,
+		[](const TPair<UStruct*, TUniquePtr<FClassMetaData>>& Kvp) { return Kvp.Value->ParsedInterface; }
+	);
+	if (UnparsedIInterface)
+	{
+		FString Name = UnparsedIInterface->Key->GetName();
+		FError::Throwf(TEXT("UInterface 'U%s' parsed without a corresponding 'I%s'"), *Name, *Name);
+	}
 }

@@ -7,6 +7,20 @@
 #include "ShaderCompilerCommon.h"
 #include "hlslcc.h"
 
+#if PLATFORM_MAC || PLATFORM_WINDOWS
+THIRD_PARTY_INCLUDES_START
+	#include "ShaderConductor/ShaderConductor.hpp"
+	#include "spirv_reflect.h"
+	#include "SPIRV/GlslangToSpv.h"
+	#include "SPIRV/doc.h"
+	#include "SPIRV/disassemble.h"
+THIRD_PARTY_INCLUDES_END
+#endif
+
+// Glslang's 'spv::Disassemble' function needs STL's <std::ostream>,
+// so we dump out SPIR-V disassembled ASM for debugging purposes using STL's fstream
+#include <fstream>
+
 #if PLATFORM_MAC
 // Horrible hack as we need the enum available but the Vulkan headers do not compile on Mac
 enum VkDescriptorType {
@@ -973,7 +987,10 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 
 		const FSpirv::FEntry* Entry = Spirv.GetEntryByBindingIndex(PackedArrayInfo.VulkanBindingIndex);
 		check(Entry);
-		check(Entry->Name.StartsWith(TEXT("HLSLCC_CB")));
+
+		// We are dealing with "HLSLCC_CB" for HLSLcc, and "$Globals" for DXC
+		check(Entry->Name.StartsWith(TEXT("HLSLCC_CB")) || Entry->Name.StartsWith(TEXT("$Globals")));
+
 		PackedUB.SPIRVDescriptorSetOffset = Entry->WordDescriptorSetIndex;
 		PackedUB.SPIRVBindingIndexOffset = Entry->WordBindingIndex;
 	}
@@ -1040,16 +1057,16 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 
 
 static void BuildShaderOutput(
-	FShaderCompilerOutput& ShaderOutput,
+	FShaderCompilerOutput&		ShaderOutput,
 	const FShaderCompilerInput& ShaderInput,
-	const ANSICHAR* InShaderSource,
-	int32 SourceLen,
-	const FVulkanBindingTable& BindingTable,
-	uint32 NumLines,
-	FSpirv& Spirv,
-	const FString& DebugName,
-	bool bHasRealUBs
-	)
+	const ANSICHAR*				InShaderSource,
+	int32						SourceLen,
+	const FVulkanBindingTable&	BindingTable,
+	uint32						NumLines,
+	FSpirv&						Spirv,
+	const FString&				DebugName,
+	bool						bHasRealUBs,
+	bool						bSourceContainsMetaDataOnly)
 {
 	const ANSICHAR* USFSource = InShaderSource;
 	FVulkanHlslccHeader CCHeader;
@@ -1059,7 +1076,7 @@ static void BuildShaderOutput(
 		return;
 	}
 
-	if (*USFSource != '#')
+	if (!bSourceContainsMetaDataOnly && *USFSource != '#')
 	{
 		UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Bad hlslcc header found! Missing '#'!"));
 		return;
@@ -1129,11 +1146,11 @@ static void BuildShaderOutput(
 	TMap<FString, FVulkanShaderHeader::EType> NEWEntryTypes;
 
 	// Then 'normal' uniform buffers.
-	const FString CBPrefix = "HLSLCC_CB";
 	for (auto& UniformBlock : CCHeader.UniformBlocks)
 	{
+		// DXC's generated "$Globals" has been converted to "_Globals" at this point
 		uint16 UBIndex = UniformBlock.Index;
-		if (UniformBlock.Name.StartsWith(CBPrefix))
+		if (UniformBlock.Name.StartsWith(TEXT("HLSLCC_CB")) || UniformBlock.Name.StartsWith(TEXT("_Globals")))
 		{
 			// Skip...
 		}
@@ -1508,7 +1525,7 @@ static void BuildShaderOutput(
 	{
 		if (IsVulkanMobilePlatform((EShaderPlatform)ShaderInput.Target.Platform))
 		{
-			CompileOfflineMali(ShaderInput, ShaderOutput, (ANSICHAR *)Spirv.Data.GetData(), Spirv.Data.Num(), true);
+			CompileOfflineMali(ShaderInput, ShaderOutput, (const ANSICHAR*)Spirv.Data.GetData(), Spirv.Data.Num(), true);
 		}
 	}
 }
@@ -1548,13 +1565,11 @@ static bool StringToFile(const FString& Filepath, const char* str)
 		return false;
 	}
 
-	FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*Filepath);
-	if (FileWriter)
+	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*Filepath)))
 	{
 		// const cast...
 		FileWriter->Serialize((void*)str, StrLength+1);
 		FileWriter->Close();
-		delete FileWriter;
 	}
 
 	return true;
@@ -1663,7 +1678,7 @@ static void PatchForToWhileLoop(char** InOutSourceGLSL)
 
 	// Allocate destination buffer + 1 char for terminating character
 	char* GlslSource = (char*)malloc(newLength+1);
-	check(GlslSource)
+	check(GlslSource);
 	memset(GlslSource, 0, sizeof(char)*(newLength+1));
 	memcpy(GlslSource, srcGlsl, InSrcLength);
 
@@ -1730,7 +1745,7 @@ FCompilerInfo::FCompilerInfo(const FShaderCompilerInput& InInput, const FString&
 /**
  * Compile a shader using the internal shader compiling library
  */
-static bool CompileUsingInternal(FCompilerInfo& CompilerInfo, FVulkanBindingTable& BindingTable, TArray<ANSICHAR>& GlslSource, FString& EntryPointName, FShaderCompilerOutput& Output, bool bHasRealUBs)
+static bool CompileUsingInternal(FCompilerInfo& CompilerInfo, const FVulkanBindingTable& BindingTable, const TArray<ANSICHAR>& GlslSource, FShaderCompilerOutput& Output, bool bHasRealUBs)
 {
 	FString Errors;
 	FSpirv Spirv;
@@ -1759,7 +1774,7 @@ static bool CompileUsingInternal(FCompilerInfo& CompilerInfo, FVulkanBindingTabl
 		Output.Target = CompilerInfo.Input.Target;
 		BuildShaderOutput(Output, CompilerInfo.Input,
 			GlslSource.GetData(), GlslSource.Num(),
-			BindingTable, NumLines, Spirv, DebugName, bHasRealUBs);
+			BindingTable, NumLines, Spirv, DebugName, bHasRealUBs, false);
 
 		if (CompilerInfo.bDebugDump)
 		{
@@ -1781,7 +1796,7 @@ static bool CompileUsingInternal(FCompilerInfo& CompilerInfo, FVulkanBindingTabl
 		if (Errors.Len() > 0)
 		{
 			FShaderCompilerError* Error = new(Output.Errors) FShaderCompilerError();
-			Error->ErrorLineString = Errors;
+			Error->StrippedErrorMessage = Errors;
 		}
 
 		return false;
@@ -1789,7 +1804,7 @@ static bool CompileUsingInternal(FCompilerInfo& CompilerInfo, FVulkanBindingTabl
 }
 
 
-static bool CallHlslcc(const FString& PreprocessedShader, FVulkanBindingTable& BindingTable, FCompilerInfo& CompilerInfo, FString& EntryPointName, EHlslCompileTarget HlslCompilerTarget, FShaderCompilerOutput& Output, TArray<ANSICHAR>& OutGlsl)
+static bool CompileWithHlslcc(const FString& PreprocessedShader, FVulkanBindingTable& BindingTable, FCompilerInfo& CompilerInfo, FString& EntryPointName, EHlslCompileTarget HlslCompilerTarget, FShaderCompilerOutput& Output, TArray<ANSICHAR>& OutGlsl)
 {
 	char* GlslShaderSource = nullptr;
 	char* ErrorLog = nullptr;
@@ -1838,12 +1853,10 @@ static bool CallHlslcc(const FString& PreprocessedShader, FVulkanBindingTable& B
 		if (CompilerInfo.bDebugDump)
 		{
 			FString DumpedGlslFile = CompilerInfo.Input.DumpDebugInfoPath / (TEXT("Output") + GetExtension(CompilerInfo.Frequency));
-			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*DumpedGlslFile);
-			if (FileWriter)
+			if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DumpedGlslFile)))
 			{
 				FileWriter->Serialize(GlslShaderSource, FCStringAnsi::Strlen(GlslShaderSource));
 				FileWriter->Close();
-				delete FileWriter;
 			}
 		}
 
@@ -1869,6 +1882,1020 @@ static bool CallHlslcc(const FString& PreprocessedShader, FVulkanBindingTable& B
 	return bResult;
 }
 
+#if PLATFORM_MAC || PLATFORM_WINDOWS
+
+static ShaderConductor::ShaderStage ToDXCShaderStage(EHlslShaderFrequency Frequency)
+{
+	check(Frequency >= HSF_VertexShader && Frequency <= HSF_ComputeShader);
+	switch (Frequency)
+	{
+	case HSF_VertexShader:		return ShaderConductor::ShaderStage::VertexShader;
+	case HSF_PixelShader:		return ShaderConductor::ShaderStage::PixelShader;
+	case HSF_GeometryShader:	return ShaderConductor::ShaderStage::GeometryShader;
+	case HSF_HullShader:		return ShaderConductor::ShaderStage::HullShader;
+	case HSF_DomainShader:		return ShaderConductor::ShaderStage::DomainShader;
+	case HSF_ComputeShader:		return ShaderConductor::ShaderStage::ComputeShader;
+	default:					return ShaderConductor::ShaderStage::NumShaderStages;
+	}
+}
+
+static ShaderConductor::Compiler::ShaderModel ToDXCShaderModel(EHlslCompileTarget Target)
+{
+	switch (Target)
+	{
+	case HCT_FeatureLevelSM4:		return { 4, 0 };
+	case HCT_FeatureLevelES3_1Ext:	return { 4, 0 };
+	case HCT_FeatureLevelSM5:		return { 5, 0 };
+	case HCT_FeatureLevelES2:		return { 4, 0 };
+	case HCT_FeatureLevelES3_1:		return { 4, 0 };
+	default:
+		UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Invalid input shader target for enum <EHlslCompileTarget>."));
+	}
+	return { 6,0 };
+}
+
+struct FSpirvReflectionBindings
+{
+	TArray<SpvReflectInterfaceVariable*> InputAttributes;
+	TArray<SpvReflectInterfaceVariable*> OutputAttributes;
+	TSet<SpvReflectDescriptorBinding*> AtomicCounters;
+	TArray<SpvReflectDescriptorBinding*> UniformBuffers;
+	TArray<SpvReflectDescriptorBinding*> Samplers;
+	TArray<SpvReflectDescriptorBinding*> TextureSRVs;
+	TArray<SpvReflectDescriptorBinding*> TextureUAVs;
+	TArray<SpvReflectDescriptorBinding*> TBufferSRVs;
+	TArray<SpvReflectDescriptorBinding*> TBufferUAVs;
+	TArray<SpvReflectDescriptorBinding*> SBufferSRVs;
+	TArray<SpvReflectDescriptorBinding*> SBufferUAVs;
+};
+
+// Parse the index from a semantic name, e.g. "ATTRIBUTE14" returns 14.
+static bool ParseSemanticIndex(const ANSICHAR* InSemanticName, int32& OutSemanticIndex)
+{
+	if (!InSemanticName)
+	{
+		return false;
+	}
+
+	for (int32 NameLen = FCStringAnsi::Strlen(InSemanticName), Index = NameLen; Index > 0; --Index)
+	{
+		if (!isdigit(static_cast<uint32>(InSemanticName[Index - 1])))
+		{
+			if (Index == NameLen)
+			{
+				// Semantic name does not end with digits
+				return false;
+			}
+			else
+			{
+				// Return suffix numeric starting at previous string position
+				OutSemanticIndex = FCStringAnsi::Atoi(InSemanticName + Index);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+static void GatherSPIRVReflectionBindings(
+	spv_reflect::ShaderModule&	Reflection,
+	FSpirvReflectionBindings&	OutBindings,
+	const EShaderFrequency		ShaderFrequency)
+{
+	SpvReflectResult SpvResult = SPV_REFLECT_RESULT_NOT_READY;
+
+	// Enumerate all input attributes
+	uint32 NumInputAttributes = 0;
+	SpvResult = Reflection.EnumerateEntryPointInputVariables(Reflection.GetEntryPointName(), &NumInputAttributes, nullptr);
+	check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+	if (NumInputAttributes > 0)
+	{
+		OutBindings.InputAttributes.SetNum(NumInputAttributes);
+		SpvResult = Reflection.EnumerateEntryPointInputVariables(Reflection.GetEntryPointName(), &NumInputAttributes, OutBindings.InputAttributes.GetData());
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+	}
+
+	// Change indices of input attributes by their name suffix
+	for (SpvReflectInterfaceVariable* InterfaceVar : OutBindings.InputAttributes)
+	{
+		if (InterfaceVar->built_in == -1 && InterfaceVar->name && FCStringAnsi::Strncmp(InterfaceVar->name, "in.var.ATTRIBUTE", 16) == 0)
+		{
+			int32 Location = 0;
+			if (ParseSemanticIndex(InterfaceVar->name, Location))
+			{
+				Reflection.ChangeInputVariableLocation(InterfaceVar, static_cast<uint32>(Location));
+			}
+		}
+	}
+
+	// Enumerate all output attributes
+	uint32 NumOutputAttributes = 0;
+	SpvResult = Reflection.EnumerateEntryPointOutputVariables(Reflection.GetEntryPointName(), &NumOutputAttributes, nullptr);
+	check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+	if (NumOutputAttributes > 0)
+	{
+		OutBindings.OutputAttributes.SetNum(NumOutputAttributes);
+		SpvResult = Reflection.EnumerateEntryPointOutputVariables(Reflection.GetEntryPointName(), &NumOutputAttributes, OutBindings.OutputAttributes.GetData());
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+	}
+
+	// Change descriptor set numbers
+	TArray<SpvReflectDescriptorSet*> DescriptorSets;
+	uint32 NumDescriptorSets = 0;
+
+	SpvResult = Reflection.EnumerateDescriptorSets(&NumDescriptorSets, nullptr);
+	check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+	if (NumDescriptorSets > 0)
+	{
+		DescriptorSets.SetNum(NumDescriptorSets);
+		SpvResult = Reflection.EnumerateDescriptorSets(&NumDescriptorSets, DescriptorSets.GetData());
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		for (const SpvReflectDescriptorSet* DescSet : DescriptorSets)
+		{
+			const uint32 DescSetNo = ShaderStage::GetStageForFrequency(ShaderFrequency);
+			Reflection.ChangeDescriptorSetNumber(DescSet, DescSetNo);
+		}
+	}
+
+	// Enumerate all binding points
+	TArray<SpvReflectDescriptorBinding*> Bindings;
+	uint32 NumBindings = 0;
+
+	SpvResult = Reflection.EnumerateDescriptorBindings(&NumBindings, nullptr);
+	check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+	if (NumBindings > 0)
+	{
+		Bindings.SetNum(NumBindings);
+		SpvResult = Reflection.EnumerateDescriptorBindings(&NumBindings, Bindings.GetData());
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		// Extract all the bindings first so that we process them in order - this lets us assign UAVs before other resources
+		// Which is necessary to match the D3D binding scheme.
+		for (auto const& Binding : Bindings)
+		{
+			if (Binding->usage_binding_count > 0)
+			{
+				auto count = Binding->usage_binding_count;
+			}
+
+			switch (Binding->resource_type)
+			{
+			case SPV_REFLECT_RESOURCE_FLAG_SAMPLER:
+			{
+				check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER);
+				if (Binding->accessed)
+				{
+					OutBindings.Samplers.Add(Binding);
+				}
+				break;
+			}
+			case SPV_REFLECT_RESOURCE_FLAG_CBV:
+			{
+				check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+				if (Binding->accessed)
+				{
+					OutBindings.UniformBuffers.Add(Binding);
+				}
+				break;
+			}
+			case SPV_REFLECT_RESOURCE_FLAG_SRV:
+			{
+				switch (Binding->descriptor_type)
+				{
+				/*case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				{
+					if (Binding->accessed)
+					{
+						OutBindings.Samplers.Add(Binding);
+					}
+					break;
+				}*/
+				case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+				{
+					if (Binding->accessed)
+					{
+						OutBindings.TextureSRVs.Add(Binding);
+					}
+					break;
+				}
+				case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+				{
+					if (Binding->accessed)
+					{
+						OutBindings.TBufferSRVs.Add(Binding);
+					}
+					break;
+				}
+				case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+				{
+					if (Binding->accessed)
+					{
+						// Storage buffers must always occupy a UAV binding slot
+						OutBindings.SBufferUAVs.Add(Binding);
+					}
+					break;
+				}
+				default:
+				{
+					// check(false);
+					break;
+				}
+				}
+				break;
+			}
+			case SPV_REFLECT_RESOURCE_FLAG_UAV:
+			{
+				if (Binding->uav_counter_binding)
+				{
+					OutBindings.AtomicCounters.Add(Binding->uav_counter_binding);
+				}
+
+				switch (Binding->descriptor_type)
+				{
+				case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+				{
+					OutBindings.TextureUAVs.Add(Binding);
+					break;
+				}
+				case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+				{
+					OutBindings.TBufferUAVs.Add(Binding);
+					break;
+				}
+				case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+				{
+					if (!OutBindings.AtomicCounters.Contains(Binding) || Binding->accessed)
+					{
+						OutBindings.SBufferUAVs.Add(Binding);
+					}
+					break;
+				}
+				default:
+				{
+					break;
+				}
+				}
+				break;
+			}
+			default:
+			{
+				break;
+			}
+			} // switch
+		} // for
+	}
+}
+
+static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& TypeSpecifier, bool bBaseTypeOnly = false)
+{
+	FString TypeName;
+
+	// Generate prefix for base type
+	if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_BOOL)
+	{
+		TypeName += TEXT('b');
+	}
+	else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_INT)
+	{
+		if (TypeSpecifier.traits.numeric.scalar.signedness)
+		{
+			TypeName += TEXT('i');
+		}
+		else
+		{
+			TypeName += TEXT('u');
+		}
+	}
+	else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT)
+	{
+		if (TypeSpecifier.traits.numeric.scalar.width == 16)
+		{
+			TypeName += TEXT('h');
+		}
+		else
+		{
+			TypeName += TEXT('f');
+		}
+	}
+
+	if (!bBaseTypeOnly)
+	{
+		// Generate number for vector size
+		if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+		{
+			static const TCHAR* VectorDims = TEXT("1234");
+			const uint32 VectorSize = TypeSpecifier.traits.numeric.vector.component_count;
+			check(VectorSize >= 1 && VectorSize <= 4);
+			TypeName += VectorDims[VectorSize - 1];
+		}
+		else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+		{
+			//TODO
+		}
+		else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
+		{
+			//TODO
+		}
+		else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY)
+		{
+			//TODO
+		}
+		else
+		{
+			TypeName += TEXT('1'); // add single scalar component
+		}
+	}
+
+	return TypeName;
+}
+
+static const TCHAR* SpvBuiltinToString(const SpvBuiltIn BuiltIn)
+{
+	switch (BuiltIn)
+	{
+	case SpvBuiltInPosition:					return TEXT("gl_Position");
+	case SpvBuiltInPointSize:					return TEXT("gl_PointSize");
+	case SpvBuiltInClipDistance:				return TEXT("gl_ClipDistance");
+	case SpvBuiltInCullDistance:				return TEXT("gl_CullDistance");
+	case SpvBuiltInVertexId:					return TEXT("gl_VertexID");
+	case SpvBuiltInInstanceId:					return TEXT("gl_InstanceID");
+	case SpvBuiltInPrimitiveId:					return TEXT("gl_PrimitiveID");
+	case SpvBuiltInInvocationId:				return TEXT("gl_InvocationID");
+	case SpvBuiltInLayer:						return TEXT("gl_Layer");
+	case SpvBuiltInViewportIndex:				return TEXT("gl_ViewportIndex");
+	case SpvBuiltInTessLevelOuter:				return TEXT("gl_TessLevelOuter");
+	case SpvBuiltInTessLevelInner:				return TEXT("gl_TessLevelInner");
+	case SpvBuiltInTessCoord:					return TEXT("gl_TessCoord");
+	case SpvBuiltInPatchVertices:				return TEXT("gl_PatchVertices");
+	case SpvBuiltInFragCoord:					return TEXT("gl_FragCoord");
+	case SpvBuiltInPointCoord:					return TEXT("gl_PointCoord");
+	case SpvBuiltInFrontFacing:					return TEXT("gl_FrontFacing");
+	case SpvBuiltInSampleId:					return TEXT("gl_SampleID");
+	case SpvBuiltInSamplePosition:				return TEXT("gl_SamplePosition");
+	case SpvBuiltInSampleMask:					return TEXT("gl_SampleMask");
+	case SpvBuiltInFragDepth:					return TEXT("gl_FragDepth");
+	case SpvBuiltInHelperInvocation:			return TEXT("gl_HelperInvocation");
+	case SpvBuiltInNumWorkgroups:				return TEXT("gl_NumWorkgroups");
+	case SpvBuiltInWorkgroupSize:				return TEXT("gl_WorkgroupSize");
+	case SpvBuiltInWorkgroupId:					return TEXT("gl_WorkgroupID");
+	case SpvBuiltInLocalInvocationId:			return TEXT("gl_LocalInvocationID");
+	case SpvBuiltInGlobalInvocationId:			return TEXT("gl_GlobalInvocationID");
+	case SpvBuiltInLocalInvocationIndex:		return TEXT("gl_LocalInvocationIndex");
+	case SpvBuiltInWorkDim:						return TEXT("gl_WorkDim");
+	case SpvBuiltInGlobalSize:					return TEXT("gl_GlobalSize");
+	case SpvBuiltInEnqueuedWorkgroupSize:		return TEXT("gl_EnqueuedWorkgroupSize");
+	case SpvBuiltInGlobalOffset:				return TEXT("gl_GlobalOffset");
+	case SpvBuiltInGlobalLinearId:				return TEXT("gl_GlobalLinearID");
+	case SpvBuiltInSubgroupSize:				return TEXT("gl_SubgroupSize");
+	case SpvBuiltInSubgroupMaxSize:				return TEXT("gl_SubgroupMaxSize");
+	case SpvBuiltInNumSubgroups:				return TEXT("gl_NumSubgroups");
+	case SpvBuiltInNumEnqueuedSubgroups:		return TEXT("gl_NumEnqueuedSubgroups");
+	case SpvBuiltInSubgroupId:					return TEXT("gl_SubgroupID");
+	case SpvBuiltInSubgroupLocalInvocationId:	return TEXT("gl_SubgroupLocalInvocationID");
+	case SpvBuiltInVertexIndex:					return TEXT("gl_VertexIndex");
+	case SpvBuiltInInstanceIndex:				return TEXT("gl_InstanceIndex");
+	case SpvBuiltInSubgroupEqMask:				return TEXT("gl_SubgroupEqMask");
+	case SpvBuiltInSubgroupGeMask:				return TEXT("gl_SubgroupGeMask");
+	case SpvBuiltInSubgroupGtMask:				return TEXT("gl_SubgroupGtMask");
+	case SpvBuiltInSubgroupLeMask:				return TEXT("gl_SubgroupLeMask");
+	case SpvBuiltInSubgroupLtMask:				return TEXT("gl_SubgroupLtMask");
+	case SpvBuiltInBaseVertex:					return TEXT("gl_BaseVertex");
+	case SpvBuiltInBaseInstance:				return TEXT("gl_BaseInstance");
+	case SpvBuiltInDrawIndex:					return TEXT("gl_DrawIndex");
+	case SpvBuiltInDeviceIndex:					return TEXT("gl_DeviceIndex");
+	case SpvBuiltInViewIndex:					return TEXT("gl_ViewIndex");
+	}
+	return nullptr;
+}
+
+static FString ConvertMetaDataSemantic(const FString& InSemantic, const SpvBuiltIn BuiltIn, bool bIsInput)
+{
+	if (const TCHAR* BuiltInName = SpvBuiltinToString(BuiltIn))
+	{
+		return FString(BuiltInName);
+	}
+	else
+	{
+		FString OutSemantic = (bIsInput ? TEXT("in_") : TEXT("out_"));
+
+		if (InSemantic.StartsWith(TEXT("SV_")))
+		{
+			OutSemantic += InSemantic.Right(InSemantic.Len() - 3);
+		}
+		else
+		{
+			OutSemantic += InSemantic;
+		}
+
+		return OutSemantic;
+	}
+}
+
+static void BuildShaderOutputFromSPIRV(
+	FSpirv&						Spirv,
+	const FShaderCompilerInput& Input,
+	FShaderCompilerOutput&		Output,
+	FVulkanBindingTable&		BindingTable,
+	bool						bHasRealUBs,
+	bool						bDebugDump)
+{
+	FShaderParameterMap& ParameterMap = Output.ParameterMap;
+
+	FString UAVString, SRVString, SMPString, UBOString, GLOString, PAKString, INPString, OUTString, WKGString;
+	SpvReflectResult SpvResult = SPV_REFLECT_RESULT_SUCCESS;
+
+	uint8 UAVIndices = 0xff;
+	uint64 TextureIndices = 0xffffffffffffffff;
+	uint16 SamplerIndices = 0xffff;
+	const uint32 GlobalSetId = 32;
+
+	TMap<const SpvReflectDescriptorBinding*, uint32> SamplerStatesUseCount;
+
+	// Reflect SPIR-V module with SPIRV-Reflect library
+	const size_t SpirvDataSize = (Spirv.Data.Num() * sizeof(uint32));
+	spv_reflect::ShaderModule Reflection(SpirvDataSize, Spirv.Data.GetData(), SPV_REFLECT_RETURN_FLAG_SAMPLER_IMAGE_USAGE);
+	check(Reflection.GetResult() == SPV_REFLECT_RESULT_SUCCESS);
+
+	// Change final entry point name in SPIR-V module
+	{
+		checkf(Reflection.GetEntryPointCount() == 1, TEXT("Too many entry points in SPIR-V module: Expected 1, but got %d"), Reflection.GetEntryPointCount());
+
+		SpvReflectResult Result = Reflection.ChangeEntryPointName(0, "main_00000000_00000000");
+		check(Result == SPV_REFLECT_RESULT_SUCCESS);
+	}
+
+	FSpirvReflectionBindings Bindings;
+	GatherSPIRVReflectionBindings(Reflection, Bindings, static_cast<EShaderFrequency>(Input.Target.Frequency));
+
+	// Register how often a sampler-state is used
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TextureSRVs)
+	{
+		if (Binding->usage_binding_count > 0)
+		{
+			for (uint32 UsageIndex = 0; UsageIndex < Binding->usage_binding_count; ++UsageIndex)
+			{
+				const SpvReflectDescriptorBinding* AssociatedResource = Binding->usage_bindings[UsageIndex];
+				SamplerStatesUseCount.FindOrAdd(AssociatedResource)++;
+			}
+		}
+	}
+
+	// Build binding table
+	TMap<const SpvReflectDescriptorBinding*, int32> BindingToIndexMap;
+
+	/*for (const SpvReflectInterfaceVariable* Attribute : Bindings.InputAttributes)
+	{
+		check(Attribute->semantic != nullptr);
+		BindingTable.RegisterBinding(Attribute->semantic, "a", EVulkanBindingType::InputAttachment);
+	}*/
+
+	const FString UBOGlobalsNameSpv = TEXT("$Globals");
+	const FString UBOGlobalsNameGLSL = TEXT("_Globals");
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.UniformBuffers)
+	{
+		FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		if (ResourceName == UBOGlobalsNameSpv)
+		{
+			int32 BindingIndex = BindingTable.RegisterBinding(TCHAR_TO_ANSI(*UBOGlobalsNameSpv), "h", EVulkanBindingType::PackedUniformBuffer);
+			BindingToIndexMap.Add(Binding, BindingIndex);
+			break;
+		}
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.UniformBuffers)
+	{
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		if (ResourceName != UBOGlobalsNameSpv)
+		{
+			int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "u", EVulkanBindingType::UniformBuffer);
+			BindingToIndexMap.Add(Binding, BindingIndex);
+		}
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TBufferUAVs)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "u", EVulkanBindingType::StorageTexelBuffer);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.SBufferUAVs)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "u", EVulkanBindingType::StorageBuffer);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TextureUAVs)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "u", EVulkanBindingType::StorageImage);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TBufferSRVs)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "s", EVulkanBindingType::UniformTexelBuffer);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.SBufferSRVs)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "s", EVulkanBindingType::UniformTexelBuffer);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TextureSRVs)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "s", EVulkanBindingType::Image);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.Samplers)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "z", EVulkanBindingType::Sampler);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+	}
+
+	// Sort binding table
+	BindingTable.SortBindings();
+
+	// Iterate over all resource bindings grouped by resource type0
+	for (const SpvReflectInterfaceVariable* Attribute : Bindings.InputAttributes)
+	{
+		check(Attribute->semantic != nullptr);
+		const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Attribute->type_description);
+		const FString Semantic = ConvertMetaDataSemantic(ANSI_TO_TCHAR(Attribute->semantic), Attribute->built_in, true);
+		INPString += FString::Printf(
+			TEXT("%s%s;%d:%s"),
+			INPString.Len() ? TEXT(",") : TEXT(""),
+			*TypeSpecifier, // type specifier
+			Attribute->location,
+			*Semantic
+		);
+	}
+
+	for (const SpvReflectInterfaceVariable* Attribute : Bindings.OutputAttributes)
+	{
+		check(Attribute->semantic != nullptr);
+		const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Attribute->type_description);
+		const FString Semantic = ConvertMetaDataSemantic(ANSI_TO_TCHAR(Attribute->semantic), Attribute->built_in, false);
+		OUTString += FString::Printf(
+			TEXT("%s%s;%d:%s"),
+			OUTString.Len() ? TEXT(",") : TEXT(""),
+			*TypeSpecifier, // type specifier
+			Attribute->location,
+			*Semantic
+		);
+	}
+
+	int32 UBOBindings = 0, UAVBindings = 0, SRVBindings = 0, SMPBindings = 0, GLOBindings = 0;
+
+	auto GetRealBindingIndex = [&BindingTable, &BindingToIndexMap](const SpvReflectDescriptorBinding* Binding)
+	{
+		return BindingTable.GetRealBindingIndex(BindingToIndexMap[Binding]);
+	};
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.UniformBuffers)
+	{
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		const uint32 SizePerComponent = sizeof(float);
+
+		if (ResourceName == UBOGlobalsNameSpv)
+		{
+			// Register binding for uniform buffer
+			int32 BindingIndex = GetRealBindingIndex(Binding);
+
+			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);// , GlobalSetId);
+			check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+			Spirv.ReflectionInfo.Add(FSpirv::FEntry(UBOGlobalsNameSpv, BindingIndex));
+
+			UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), TEXT("_Globals_h"), UBOBindings++);
+
+			// Register all uniform buffer members as loose data
+			FString MbrString;
+
+			for (uint32 MemberIndex = 0; MemberIndex < Binding->block.member_count; ++MemberIndex)
+			{
+				const SpvReflectBlockVariable* Member = &(Binding->block.members[MemberIndex]);
+
+				const uint32 MbrOffset = Member->absolute_offset / sizeof(float);
+				const uint32 MbrSize = Member->size / sizeof(float);
+				const FString MemberName(ANSI_TO_TCHAR(Member->name));
+				const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Member->type_description, true);
+
+				MbrString += FString::Printf(
+					TEXT("%s%s(%s:%u,%u)"),
+					MbrString.Len() ? TEXT(",") : TEXT(""),
+					*MemberName,
+					TEXT("h"),//*TypeSpecifier,
+					MbrOffset,
+					MbrSize
+				);
+			}
+
+			GLOString += MbrString;
+
+			break;
+		}
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.UniformBuffers)
+	{
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		const uint32 SizePerComponent = sizeof(float);
+
+		if (ResourceName != UBOGlobalsNameSpv)
+		{
+			// Register uniform buffer
+
+			int32 BindingIndex = GetRealBindingIndex(Binding);
+			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+			check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+			Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
+
+			UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UBOBindings++);
+		}
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TBufferUAVs)
+	{
+		int32 BindingIndex = GetRealBindingIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UAVBindings++, 1);
+
+		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.SBufferUAVs)
+	{
+		int32 BindingIndex = GetRealBindingIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UAVBindings++, 1);
+
+		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TextureUAVs)
+	{
+		int32 BindingIndex = GetRealBindingIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UAVBindings++, 1);
+
+		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TBufferSRVs)
+	{
+		int32 BindingIndex = GetRealBindingIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, SRVBindings++, 1);
+
+		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.SBufferSRVs)
+	{
+		int32 BindingIndex = GetRealBindingIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, SRVBindings++, 1);
+
+		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.TextureSRVs)
+	{
+		int32 BindingIndex = GetRealBindingIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		if (Binding->usage_binding_count > 0)
+		{
+			SRVString += FString::Printf(TEXT("%s%s(%u:%u"), SRVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, SRVBindings++, 1);
+
+			for (uint32 UsageIndex = 0; UsageIndex < Binding->usage_binding_count; ++UsageIndex)
+			{
+				const SpvReflectDescriptorBinding* AssociatedResource = Binding->usage_bindings[UsageIndex];
+				const FString AssociatedResourceName(ANSI_TO_TCHAR(AssociatedResource->name));
+				SRVString += FString::Printf(TEXT("[%s]"), *AssociatedResourceName);
+			}
+
+			SRVString += TEXT(")");
+		}
+		else
+		{
+			SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, SRVBindings++, 1);
+		}
+
+		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.Samplers)
+	{
+		int32 BindingIndex = GetRealBindingIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
+
+		// Only emit sampler state when its shared, i.e. used with at least 2 textures
+//		if (const uint32* UseCount = SamplerStatesUseCount.Find(Binding))
+		{
+//			if (*UseCount >= 2)
+			{
+				SMPString += FString::Printf(TEXT("%s%u:%s"), SMPString.Len() ? TEXT(",") : TEXT(""), SMPBindings++, *ResourceName);
+			}
+		}
+	}
+
+	// Build final shader output with meta data
+	FString DebugName = Input.DumpDebugInfoPath.Right(Input.DumpDebugInfoPath.Len() - Input.DumpDebugInfoRootPath.Len());
+
+	FString MetaData;// = FString::Printf(TEXT("// ! %s/%s:%s\n"), *Input.DebugGroupName, *Input.GetSourceFilename(), *Input.EntryPointName);
+	MetaData += TEXT("// Compiled by ShaderConductor\n");
+	if (INPString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @Inputs: %s\n"), *INPString);
+	}
+	if (OUTString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @Outputs: %s\n"), *OUTString);
+	}
+	if (UBOString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @UniformBlocks: %s\n"), *UBOString);
+	}
+	if (GLOString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @PackedGlobals: %s\n"), *GLOString);
+	}
+	if (PAKString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @PackedUBGlobalCopies: %s\n"), *PAKString);
+	}
+	if (SRVString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @Samplers: %s\n"), *SRVString);
+	}
+	if (UAVString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @UAVs: %s\n"), *UAVString);
+	}
+	if (SMPString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @SamplerStates: %s\n"), *SMPString);
+	}
+	if (WKGString.Len())
+	{
+		MetaData += FString::Printf(TEXT("// @NumThreads: %s\n"), *WKGString);
+	}
+
+	Output.Target = Input.Target;
+
+	// Overwrite updated SPIRV code
+	Spirv.Data = TArray<uint32>(Reflection.GetCode(), Reflection.GetCodeSize() / 4);
+	PathSpirvReflectionEntriesAndEntryPoint(Spirv);
+
+	BuildShaderOutput(
+		Output,
+		Input,
+		TCHAR_TO_ANSI(*MetaData),
+		MetaData.Len(),
+		BindingTable,
+		/*NumLines*/0,
+		Spirv,
+		DebugName,
+		bHasRealUBs,
+		true // source contains meta data only
+	);
+
+	if (bDebugDump)
+	{
+		// Write meta data to debug output file
+		FString DumpedMetaDataFilename = Input.DumpDebugInfoPath / TEXT("Output.dxc.txt");
+		if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DumpedMetaDataFilename)))
+		{
+			FileWriter->Serialize(MetaData.GetCharArray().GetData(), MetaData.Len() * sizeof(FString::ElementType));
+			FileWriter->Close();
+		}
+
+		// Convert to STL container for glslang library
+		std::vector<uint32> SpirvData;
+		SpirvData.resize(Spirv.Data.Num());
+		FMemory::Memcpy(&SpirvData[0], Spirv.Data.GetData(), Spirv.Data.Num() * sizeof(uint32));
+
+		// SPIR-V file (Binary)
+		{
+			FString SpirvFile = Input.DumpDebugInfoPath / (TEXT("Output.dxc.spv"));
+			glslang::OutputSpvBin(SpirvData, TCHAR_TO_ANSI(*SpirvFile));
+		}
+
+		// Disassembled SPIR-V file (Text)
+		{
+			FString SpirvTextFile = Input.DumpDebugInfoPath / (TEXT("Output.dxc.spvasm"));
+			std::ofstream File;
+			File.open(TCHAR_TO_ANSI(*SpirvTextFile), std::fstream::out);
+			if (File.is_open())
+			{
+				spv::Parameterize();
+				spv::Disassemble(File, SpirvData);
+				File.close();
+			}
+		}
+	}
+}
+
+static bool IsUsingTessellation(const FCompilerInfo& CompilerInfo)
+{
+	switch (CompilerInfo.Frequency)
+	{
+	case HSF_VertexShader:
+	{
+		const FString* UsingTessellationDefine = CompilerInfo.Input.Environment.GetDefinitions().Find(TEXT("USING_TESSELLATION"));
+		return (UsingTessellationDefine != nullptr && *UsingTessellationDefine == TEXT("1"));
+	}
+	case HSF_HullShader:
+	case HSF_DomainShader:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool CompileWithShaderConductor(
+	const FString&			PreprocessedShader,
+	const FString&			EntryPointName,
+	const FCompilerInfo&	CompilerInfo,
+	EHlslCompileTarget		HlslCompilerTarget,
+	FShaderCompilerOutput&	Output,
+	FVulkanBindingTable&	BindingTable,
+	bool					bHasRealUBs)
+{
+	const FShaderCompilerInput& Input = CompilerInfo.Input;
+
+	const bool bUsingTessellation = IsUsingTessellation(CompilerInfo);
+
+	// Set up compile options for ShaderConductor (shader model, optimization settings etc.)
+	ShaderConductor::Compiler::Options Options;
+	Options.removeUnusedGlobals = false;
+	Options.packMatricesInRowMajor = false;
+	Options.enableDebugInfo = false;
+	Options.enable16bitTypes = false;
+	Options.disableOptimizations = false;
+	Options.shaderModel = ToDXCShaderModel(HlslCompilerTarget);
+
+	// Convert input source code from TCHAR to ANSI
+	std::string CStrSourceData(TCHAR_TO_ANSI(*PreprocessedShader));
+	std::string CStrFileName(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath));
+	std::string CStrEntryPointName(TCHAR_TO_ANSI(*Input.EntryPointName));
+
+	const ShaderConductor::MacroDefine BuiltinDefines[] =
+	{
+//		{ "COMPILER_HLSL", "1" },
+		{ "TextureExternal", "Texture2D" },
+	};
+
+	// Set up source description for ShaderConductor
+	ShaderConductor::Compiler::SourceDesc SourceDesc;
+	FMemory::Memzero(SourceDesc);
+	SourceDesc.source = CStrSourceData.c_str();
+	SourceDesc.fileName = CStrFileName.c_str();
+	SourceDesc.entryPoint = CStrEntryPointName.c_str();
+	SourceDesc.numDefines = sizeof(BuiltinDefines) / sizeof(BuiltinDefines[0]);
+	SourceDesc.defines = BuiltinDefines;
+	SourceDesc.stage = ToDXCShaderStage(CompilerInfo.Frequency);
+
+	ShaderConductor::Compiler::TargetDesc TargetDesc;
+	FMemory::Memzero(TargetDesc);
+	TargetDesc.language = ShaderConductor::ShadingLanguage::SpirV;
+
+	// Rewrite HLSL source to remove unused global variables (DXC retains them when compiling)
+	ShaderConductor::Blob* RewriteBlob = nullptr;
+
+#if 1
+	if (!bUsingTessellation)
+	{
+		// Rewrite HLSL
+		Options.removeUnusedGlobals = true;
+		ShaderConductor::Compiler::ResultDesc RewriteResultDesc = ShaderConductor::Compiler::Rewrite(SourceDesc, Options);
+		Options.removeUnusedGlobals = false;
+
+		// Copy rewritten HLSL code into new source data string
+		RewriteBlob = RewriteResultDesc.target;
+
+		CStrSourceData.clear();
+		CStrSourceData.resize(RewriteBlob->Size());
+		FCStringAnsi::Strncpy(&CStrSourceData[0], static_cast<const char*>(RewriteBlob->Data()), RewriteBlob->Size());
+		SourceDesc.source = CStrSourceData.c_str();
+	}
+#endif
+
+	// Compile HLSL to SPIR-V
+	ShaderConductor::Compiler::ResultDesc ResultDesc = ShaderConductor::Compiler::Compile(SourceDesc, Options, TargetDesc);
+
+	bool bResult = true;
+	if (ResultDesc.hasError)
+	{
+		// Append compile error to output reports
+		if (ShaderConductor::Blob* ErrorBlob = ResultDesc.errorWarningMsg)
+		{
+			FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(ErrorBlob->Data()), ErrorBlob->Size());
+			const FString ErrorString(ErrorBlob->Size(), UTF8Converter.Get());
+			Output.Errors.Add(*ErrorString);
+		}
+		bResult = false;
+	}
+	else
+	{
+		// Create SPIR-V module
+		const uint8* SpirvCode = reinterpret_cast<const uint8*>(ResultDesc.target->Data());
+		const uint32 SpirvSize = ResultDesc.target->Size();
+
+		FSpirv Spirv;
+		Spirv.Data = TArray<uint32>(
+			reinterpret_cast<const uint32*>(ResultDesc.target->Data()),
+			ResultDesc.target->Size() / 4
+		);
+
+		/*if (CompilerInfo.bDebugDump)
+		{
+			// Write SPIR-V to debug output file
+			FString DumpedSpvFilename = Input.DumpDebugInfoPath / TEXT("Output.dxc.spv");
+			if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DumpedSpvFilename)))
+			{
+				FileWriter->Serialize(Spirv.Data.GetData(), Spirv.Data.Num() * 4);
+				FileWriter->Close();
+			}
+		}*/
+
+		// Build shader output and binding table
+		BuildShaderOutputFromSPIRV(Spirv, CompilerInfo.Input, Output, BindingTable, bHasRealUBs, CompilerInfo.bDebugDump);
+
+		// Write final output shader
+		Output.Target = Input.Target;
+		Output.ShaderCode.GetWriteAccess().Append(reinterpret_cast<const uint8*>(Spirv.Data.GetData()), Spirv.Data.Num() * sizeof(uint32));
+		Output.bSucceeded = true;
+	}
+
+	// Dump rewritten HLSL output
+	if (CompilerInfo.bDebugDump && RewriteBlob)
+	{
+		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / TEXT("Output.dxc.hlsl")));
+		if (FileWriter)
+		{
+			FileWriter->Serialize(const_cast<void*>(RewriteBlob->Data()), RewriteBlob->Size());
+			FileWriter->Close();
+			delete FileWriter;
+		}
+	}
+
+	// Release ShaderConductor resources
+	if (ResultDesc.errorWarningMsg)
+	{
+		ShaderConductor::DestroyBlob(ResultDesc.errorWarningMsg);
+	}
+	if (ResultDesc.target)
+	{
+		ShaderConductor::DestroyBlob(ResultDesc.target);
+	}
+	if (RewriteBlob)
+	{
+		ShaderConductor::DestroyBlob(RewriteBlob);
+	}
+
+	return bResult;
+}
+
+#endif // PLATFORM_MAC || PLATFORM_WINDOWS
+
 
 void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, const class FString& WorkingDirectory, EVulkanShaderVersion Version)
 {
@@ -1885,6 +2912,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	const bool bHasRealUBs = HasRealUBs(Version);
 	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5 || Version == EVulkanShaderVersion::SM5_NOUB);
 	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID || Version == EVulkanShaderVersion::ES3_1_NOUB || Version == EVulkanShaderVersion::ES3_1_ANDROID_NOUB);
+	const bool bForceDXC = Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 
 	const EHlslShaderFrequency FrequencyTable[] =
 	{
@@ -1936,8 +2964,13 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
 	}
 
-	//#todo-rco: Glslang doesn't allow this yet
-	AdditionalDefines.SetDefine(TEXT("noperspective"), TEXT(""));
+#if PLATFORM_MAC || PLATFORM_WINDOWS
+	// Disable VULKAN_SUBPASS_DEPTHFETCH for DXC, since DXC doesn't generate SPIR-V code that can make use of that Vulkan specific feature yet
+	if (bForceDXC)
+	{
+		AdditionalDefines.SetDefine(TEXT("VULKAN_SUBPASS_DEPTHFETCH"), (uint32)0);
+	}
+#endif // PLATFORM_MAC || PLATFORM_WINDOWS
 
 	// Preprocess the shader.
 	FString PreprocessedShaderSource;
@@ -2020,8 +3053,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	if (CompilerInfo.bDebugDump)
 	{
 		FString DumpedUSFFile = CompilerInfo.Input.DumpDebugInfoPath / CompilerInfo.BaseSourceFilename;
-		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*DumpedUSFFile);
-		if (FileWriter)
+		if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DumpedUSFFile)))
 		{
 			auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 			FileWriter->Serialize((ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length());
@@ -2035,7 +3067,6 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 				FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
 			}
 			FileWriter->Close();
-			delete FileWriter;
 		}
 
 		const FString BatchFileContents = CreateShaderCompileCommandLine(CompilerInfo, HlslCompilerTarget);
@@ -2046,26 +3077,38 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	FVulkanBindingTable BindingTable(CompilerInfo.Frequency);
 	bool bSuccess = false;
 
-	if (CallHlslcc(PreprocessedShaderSource, BindingTable, CompilerInfo, EntryPointName, HlslCompilerTarget, Output, GeneratedGlslSource))
+#if PLATFORM_MAC || PLATFORM_WINDOWS
+	if (bForceDXC)
 	{
-		//#todo-rco: Once it's all cleaned up...
-		//if (GUseExternalShaderCompiler)
-		//{
-		//	CompileUsingExternal(CompilerInfo, BindingTable, GeneratedGlslSource, EntryPointName, Output);
-		//}
-		//else
+		// Cross-compile shader via ShaderConducotr (DXC, SPIRV-Tools, SPIRV-Cross)
+		bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bHasRealUBs);
+	}
+	else
+#endif // PLATFORM_MAC || PLATFORM_WINDOWS
+	{
+		// Cross-compile shader via HLSLcc
+		if (CompileWithHlslcc(PreprocessedShaderSource, BindingTable, CompilerInfo, EntryPointName, HlslCompilerTarget, Output, GeneratedGlslSource))
 		{
-			// For debugging: if you hit an error from Glslang/Spirv, use the SourceNoHeader for line numbers
-			auto* SourceWithHeader = GeneratedGlslSource.GetData();
-			char* SourceNoHeader = strstr(SourceWithHeader, "#version");
-			bSuccess = CompileUsingInternal(CompilerInfo, BindingTable, GeneratedGlslSource, EntryPointName, Output, bHasRealUBs);
-			if (bDirectCompile)
+			//#todo-rco: Once it's all cleaned up...
+			//if (GUseExternalShaderCompiler)
+			//{
+			//	CompileUsingExternal(CompilerInfo, BindingTable, GeneratedGlslSource, EntryPointName, Output);
+			//}
+			//else
 			{
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Success: %d\n%s\n"), bSuccess, ANSI_TO_TCHAR(SourceWithHeader));
+				// For debugging: if you hit an error from Glslang/Spirv, use the SourceNoHeader for line numbers
+				auto* SourceWithHeader = GeneratedGlslSource.GetData();
+				char* SourceNoHeader = strstr(SourceWithHeader, "#version");
+				bSuccess = CompileUsingInternal(CompilerInfo, BindingTable, GeneratedGlslSource, Output, bHasRealUBs);
+				if (bDirectCompile)
+				{
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Success: %d\n%s\n"), bSuccess, ANSI_TO_TCHAR(SourceWithHeader));
+				}
 			}
 		}
 	}
 
+	
 	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
 	
 	if (bDirectCompile)

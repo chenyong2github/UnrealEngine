@@ -80,6 +80,14 @@
 			"WhitelistPlatforms": [
 				"HoloLens"
 			]
+		},
+		{
+			"Name": "WindowsMixedRealityInputSimulation",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
 		}
 	],
 	"Plugins": [

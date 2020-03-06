@@ -6,42 +6,42 @@
 void UMagicLeapContactsComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	GET_MAGIC_LEAP_CONTACTS_PLUGIN()->Startup();
-	GET_MAGIC_LEAP_CONTACTS_PLUGIN()->SetLogDelegate(OnLogMessage);
+	GetMagicLeapContactsPlugin().Startup();
+	GetMagicLeapContactsPlugin().SetLogDelegate(OnLogMessage);
 }
 
 void UMagicLeapContactsComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	GET_MAGIC_LEAP_CONTACTS_PLUGIN()->Shutdown();
+	GetMagicLeapContactsPlugin().Shutdown();
 	Super::EndPlay(EndPlayReason);
 }
 
 FGuid UMagicLeapContactsComponent::AddContactAsync(const FMagicLeapContact& Contact)
 {
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->AddContactAsync(Contact, OnAddContactResult);
+	return GetMagicLeapContactsPlugin().AddContactAsync(Contact, OnAddContactResult);
 }
 
 FGuid UMagicLeapContactsComponent::EditContactAsync(const FMagicLeapContact& Contact)
 {
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->EditContactAsync(Contact, OnEditContactResult);
+	return GetMagicLeapContactsPlugin().EditContactAsync(Contact, OnEditContactResult);
 }
 
 FGuid UMagicLeapContactsComponent::DeleteContactAsync(const FMagicLeapContact& Contact)
 {
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->DeleteContactAsync(Contact, OnDeleteContactResult);
+	return GetMagicLeapContactsPlugin().DeleteContactAsync(Contact, OnDeleteContactResult);
 }
 
-FGuid UMagicLeapContactsComponent::RequestContactsAsync()
+FGuid UMagicLeapContactsComponent::RequestContactsAsync(int32 MaxNumResults)
 {
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->RequestContactsAsync(OnRequestContactsResult);
+	return GetMagicLeapContactsPlugin().RequestContactsAsync(OnRequestContactsResult, MaxNumResults);
+}
+
+FGuid UMagicLeapContactsComponent::SelectContactsAsync(int32 MaxNumResults, EMagicLeapContactsSearchField SearchField)
+{
+	return GetMagicLeapContactsPlugin().SelectContactsAsync(OnSelectContactsResult, MaxNumResults, SearchField);
 }
 
 FGuid UMagicLeapContactsComponent::SearchContactsAsync(const FString& Query, EMagicLeapContactsSearchField SearchField)
 {
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->SearchContactsAsync(Query, SearchField, OnSearchContactsResult);
-}
-
-bool UMagicLeapContactsComponent::CancelRequest(const FGuid& RequestHandle)
-{
-	return GET_MAGIC_LEAP_CONTACTS_PLUGIN()->CancelRequest(RequestHandle);
+	return GetMagicLeapContactsPlugin().SearchContactsAsync(Query, SearchField, OnSearchContactsResult);
 }

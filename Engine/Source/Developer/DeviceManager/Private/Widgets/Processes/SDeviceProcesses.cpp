@@ -230,6 +230,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SDeviceProcesses::ReloadProcessList(bool FullyReload)
 {
+	bool Reloaded = false;
 	// reload running processes
 	if (FullyReload)
 	{
@@ -243,11 +244,32 @@ void SDeviceProcesses::ReloadProcessList(bool FullyReload)
 
 			if (TargetDevice.IsValid())
 			{
-				TargetDevice->GetProcessSnapshot(RunningProcesses);
+				TWeakPtr<SDeviceProcesses> WeakSelf = SharedThis(this);
+
+				Reloaded = TargetDevice->GetProcessSnapshotAsync([this, WeakSelf](const TArray<FTargetDeviceProcessInfo>& InProcessInfos)
+					{ 
+						check(IsInGameThread());
+						TSharedPtr<SDeviceProcesses> SharedSelf = WeakSelf.Pin();
+						if (!SharedSelf.IsValid())
+						{
+							//this pointer isn't valid any more
+							return;
+						}
+						RunningProcesses = InProcessInfos;
+						UpdateProcessTree(); 
+					});
 			}
 		}
 	}
 
+	if (!Reloaded)
+	{
+		UpdateProcessTree();
+	}
+}
+
+void SDeviceProcesses::UpdateProcessTree()
+{
 	// update process tree
 	TMap<uint32, TSharedPtr<FDeviceProcessesProcessTreeNode>> NewProcessMap;
 

@@ -142,7 +142,6 @@ void UMoviePipelineBlueprintLibrary::GetOverallSegmentCounts(const UMoviePipelin
 	}
 }
 
-
 UMovieSceneSequence* UMoviePipelineBlueprintLibrary::DuplicateSequence(UObject* Outer, UMovieSceneSequence* InSequence)
 {
 	if (!InSequence)
@@ -151,10 +150,10 @@ UMovieSceneSequence* UMoviePipelineBlueprintLibrary::DuplicateSequence(UObject* 
 	}
 
 	FObjectDuplicationParameters DuplicationParams(InSequence, Outer);
-	DuplicationParams.DestName = MakeUniqueObjectName(Outer, UMovieSceneSequence::StaticClass(), InSequence->GetFName());
+	DuplicationParams.DestName = MakeUniqueObjectName(Outer, UMovieSceneSequence::StaticClass());
 
 	// Duplicate the given sequence.
-	ULevelSequence* DuplicatedSequence = (ULevelSequence*)StaticDuplicateObjectEx(DuplicationParams);
+	UMovieSceneSequence* DuplicatedSequence = CastChecked<UMovieSceneSequence>(StaticDuplicateObjectEx(DuplicationParams));
 
 	// Now go through looking for Shot and SubSequence tracks. These currently point to the same (shared) sequence as the InSequence.
 	TArray<UMovieSceneSection*> AllSubSequenceSections;
@@ -197,7 +196,7 @@ bool UMoviePipelineBlueprintLibrary::GetEstimatedTimeRemaining(const UMoviePipel
 	int32 TotalOutputFrames;
 	GetOverallOutputFrames(InPipeline, OutputFrames, TotalOutputFrames);
 
-	if (OutputFrames == 0 || TotalOutputFrames == 0)
+	if (OutputFrames <= 0 || TotalOutputFrames <= 0)
 	{
 		OutEstimate = FTimespan();
 		return false;
@@ -222,14 +221,12 @@ float UMoviePipelineBlueprintLibrary::GetCompletionPercentage(const UMoviePipeli
 		return 0.f;
 	}
 
-	// Look at how many total samples we expect across all shots. This includes
-	// samples produced for warm-ups, motion blur fixes, and temporal/spatial samples.	
-	//int32 TotalExpectedSamples = GetTotalSampleCount(InPipeline->GetTotalWorkEstimate());
-	//int32 TotalCompletedSamples = GetTotalSampleCount(InPipeline->GetCompletedWork());
-	//
-	//float CompletionPercentage = FMath::Clamp(TotalCompletedSamples / (float)TotalExpectedSamples, 0.f, 1.f);
-	//return CompletionPercentage;
-	return 0.f;
+	int32 OutputFrames;
+	int32 TotalOutputFrames;
+	GetOverallOutputFrames(InPipeline, OutputFrames, TotalOutputFrames);
+
+	float CompletionPercentage = FMath::Clamp(OutputFrames / (float)TotalOutputFrames, 0.f, 1.f);
+	return CompletionPercentage;
 }
 
 FTimecode UMoviePipelineBlueprintLibrary::GetMasterTimecode(const UMoviePipeline* InMoviePipeline)

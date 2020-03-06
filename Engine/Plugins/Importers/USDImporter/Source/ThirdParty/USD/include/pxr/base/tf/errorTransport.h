@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_ERROR_TRANSPORT
-#define TF_ERROR_TRANSPORT
+#ifndef PXR_BASE_TF_ERROR_TRANSPORT_H
+#define PXR_BASE_TF_ERROR_TRANSPORT_H
 
 /// \file tf/errorTransport.h
 
@@ -92,4 +92,4 @@ swap(TfErrorTransport &l, TfErrorTransport &r)
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_ERROR_TRANSPORT
+#endif // PXR_BASE_TF_ERROR_TRANSPORT_H

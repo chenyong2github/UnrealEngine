@@ -8,7 +8,7 @@
 class IInstallBundleSource;
 class IAnalyticsProviderET;
 
-DECLARE_DELEGATE_TwoParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceInitInfo /*InitInfo*/);
+DECLARE_DELEGATE_TwoParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceAsyncInitInfo /*InitInfo*/);
 
 DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceRequestResultInfo /*Result*/);
 DECLARE_DELEGATE_OneParam(FInstallBundlePausedDelegate, FInstallBundleSourcePauseInfo /*PauseInfo*/);
@@ -25,7 +25,8 @@ public:
 	virtual float GetSourceWeight() const { return 1.0f; }
 
 	// Called once by bundle manager after constructing the bundle source
-	virtual void Init(
+	// Any non-fallback errors returned will cause bundle manager to fail to initialize
+	virtual FInstallBundleSourceInitInfo Init(
 		TSharedRef<InstallBundleUtil::FContentRequestStatsMap> InRequestStats,
 		TSharedPtr<IAnalyticsProviderET> AnalyticsProvider,
 		TSharedPtr<InstallBundleUtil::PersistentStats::FPersistentStatContainerBase> PersistentStatsContainer) = 0;

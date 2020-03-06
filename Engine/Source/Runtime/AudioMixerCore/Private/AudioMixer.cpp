@@ -65,12 +65,27 @@ FAutoConsoleVariableRef CVarUnderrunTimeout(
 	TEXT("Amount of time to wait for the render thread to generate the next buffer before submitting an underrun buffer. \n"),
 	ECVF_Default);
 
+static int32 FadeoutTimeoutCVar = 2000;
+FAutoConsoleVariableRef CVarFadeoutTimeout(
+	TEXT("au.FadeOutTimeoutMSec"),
+	FadeoutTimeoutCVar,
+	TEXT("Amount of time to wait for the FadeOut Event to fire. \n"),
+	ECVF_Default);
+
 static float LinearGainScalarForFinalOututCVar = 1.0f;
 FAutoConsoleVariableRef LinearGainScalarForFinalOutut(
 	TEXT("au.LinearGainScalarForFinalOutut"),
 	LinearGainScalarForFinalOututCVar,
 	TEXT("Linear gain scalar applied to the final float buffer to allow for hotfixable mitigation of clipping \n")
 	TEXT("Default is 1.0f \n"),
+	ECVF_Default);
+
+static int32 ExtraAudioMixerDeviceLoggingCVar = 0;
+FAutoConsoleVariableRef ExtraAudioMixerDeviceLogging(
+	TEXT("au.ExtraAudioMixerDeviceLogging"),
+	ExtraAudioMixerDeviceLoggingCVar,
+	TEXT("Enables extra logging for audio mixer device running \n")
+	TEXT("0: no logging, 1: logging every 500 callbacks \n"),
 	ECVF_Default);
 
 namespace Audio
@@ -217,6 +232,13 @@ namespace Audio
 			break;
 		}
 
+		static const int32 HeartBeatRate = 500;
+		if ((ExtraAudioMixerDeviceLoggingCVar > 0) && (++CallCounterMixNextBuffer > HeartBeatRate))
+		{
+			UE_LOG(LogAudioMixer, Display, TEXT("FOutputBuffer::MixNextBuffer() called %i times"), HeartBeatRate);
+			CallCounterMixNextBuffer = 0;
+		}
+
 		// Mark/signal that we're ready
 		bIsReady = true;
 		IsReadyEvent->Trigger();
@@ -344,8 +366,11 @@ namespace Audio
 
 		bPerformingFade = true;
 		if (AudioFadeEvent != nullptr)
-		{
-			AudioFadeEvent->Wait();
+		{						
+			if (!AudioFadeEvent->Wait(FadeoutTimeoutCVar))
+			{
+				UE_LOG(LogAudioMixer, Warning, TEXT("FadeOutEvent timed out"));
+			}
 		}
 
 		FadeVolume = 0.0f;
@@ -386,6 +411,14 @@ namespace Audio
 	template<typename BufferType>
 	void IAudioMixerPlatformInterface::ApplyAttenuationInternal(BufferType* BufferDataPtr, const int32 NumFrames)
 	{
+		static const int32 HeartBeatRate = 500;
+		const bool bLog = (ExtraAudioMixerDeviceLoggingCVar > 0) && (++CallCounterApplyAttenuationInternal > HeartBeatRate);
+		if (bLog)
+		{
+			UE_LOG(LogAudioMixer, Display, TEXT("IAudioMixerPlatformInterface::ApplyAttenuationInternal() called %i times"), HeartBeatRate);
+			CallCounterApplyAttenuationInternal = 0;
+		}
+
 		// Perform fade in and fade out global attenuation to avoid clicks/pops on startup/shutdown
 		if (bPerformingFade)
 		{
@@ -399,11 +432,21 @@ namespace Audio
 			bFadedOut = (FadeVolume == 0.0f);
 			bPerformingFade = false;
 			AudioFadeEvent->Trigger();
+
+			if (bLog)
+			{
+				UE_LOG(LogAudioMixer, Display, TEXT("IAudioMixerPlatformInterface::ApplyAttenuationInternal() Faded from %f to %f"), FadeVolume, FadeParam.GetValue());
+			}
 		}
 		else if (bFadedOut)
 		{
 			// If we're faded out, then just zero the data.
 			FPlatformMemory::Memzero((void*)BufferDataPtr, sizeof(BufferType)*NumFrames);
+
+			if (bLog)
+			{
+				UE_LOG(LogAudioMixer, Display, TEXT("IAudioMixerPlatformInterface::ApplyAttenuationInternal() Zero'd out buffer"));
+			}
 		}
 
 		FadeParam.Reset();
@@ -411,6 +454,8 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::StartRunningNullDevice()
 	{
+		UE_LOG(LogAudioMixer, Display, TEXT("StartRunningNullDevice() called"));
+
 		if (!NullDeviceCallback.IsValid())
 		{
 			// Reset all of the buffers, then immediately kick off another render.
@@ -434,6 +479,8 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::StopRunningNullDevice()
 	{
+		UE_LOG(LogAudioMixer, Display, TEXT("StopRunningNullDevice() called"));
+
 		if (bIsUsingNullDevice)
 		{
 			CurrentBufferReadIndex = 0;
@@ -467,6 +514,13 @@ namespace Audio
 	void IAudioMixerPlatformInterface::ReadNextBuffer()
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
+
+		static const int32 HeartBeatRate = 500;
+		if ((ExtraAudioMixerDeviceLoggingCVar > 0) && (++CallCounterReadNextBuffer > HeartBeatRate))
+		{
+			UE_LOG(LogAudioMixer, Display, TEXT("IAudioMixerPlatformInterface::ReadNextBuffer() called %i times"), HeartBeatRate);
+			CallCounterReadNextBuffer = 0;
+		}
 
 		// If we are flushing buffers for our output voice and this is being called on the audio thread directly,
 		// early exit.
@@ -575,6 +629,8 @@ namespace Audio
 
 		// Set the number of buffers to be one more than the number to queue.
 		NumOutputBuffers = FMath::Max(OpenStreamParams.NumBuffers, 2);
+		UE_LOG(LogAudioMixer, Display, TEXT("Output buffers initialized: Frames=%i, Channels=%i, Samples=%i"), NumOutputFrames, NumOutputChannels, NumOutputSamples);
+
 
 		OutputBuffers.Reset();
 		OutputBuffers.AddDefaulted(NumOutputBuffers);
@@ -676,6 +732,8 @@ namespace Audio
 
 	uint32 IAudioMixerPlatformInterface::RunInternal()
 	{
+		UE_LOG(LogAudioMixer, Display, TEXT("Starting AudioMixerPlatformInterface::RunInternal()"));
+
 		// Lets prime and submit the first buffer (which is going to be the buffer underrun buffer)
 		SubmitBuffer(UnderrunBuffer.GetBufferData());
 

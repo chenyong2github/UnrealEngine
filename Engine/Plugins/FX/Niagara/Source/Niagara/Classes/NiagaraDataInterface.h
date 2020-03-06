@@ -15,6 +15,7 @@ class UCurveVector;
 class UCurveLinearColor;
 class UCurveFloat;
 class FNiagaraSystemInstance;
+class FNiagaraEmitterInstance;
 struct FNiagaraDataInterfaceProxy;
 
 struct FNDITransformHandlerNoop
@@ -166,19 +167,20 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) { check(false); }
 
 	// #todo(dmp): move all of this stuff to the RW interface to keep it out of here?
-
+	FName SourceDIName;
+	
 	// a set of the shader stages that require the data interface for data output
-	TSet<int> OutputShaderStages;
+	TSet<int> OutputSimulationStages_DEPRECATED;
 
 	// a set of the shader stages that require the data interface for setting number of output elements
-	TSet<int> IterationShaderStages;
+	TSet<int> IterationSimulationStages_DEPRECATED;
 	
 	// number of elements to output to
 	uint32 ElementCount;
 
 	void SetElementCount(uint32 Count) { ElementCount = Count;  }
-	virtual bool IsOutputStage(uint32 CurrentStage) const { return OutputShaderStages.Contains(CurrentStage); }
-	virtual bool IsIterationStage(uint32 CurrentStage) const { return IterationShaderStages.Contains(CurrentStage); }
+	virtual bool IsOutputStage_DEPRECATED(uint32 CurrentStage) const { return OutputSimulationStages_DEPRECATED.Contains(CurrentStage); }
+	virtual bool IsIterationStage_DEPRECATED(uint32 CurrentStage) const { return IterationSimulationStages_DEPRECATED.Contains(CurrentStage); }
 
 	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) { }
 
@@ -302,6 +304,14 @@ public:
 	FNiagaraDataInterfaceProxy* GetProxy()
 	{
 		return Proxy.Get();
+	}
+
+	/**
+	* Allows a DI to specify data dependencies between emitters, so the system can ensure that the emitter instances are executed in the correct order.
+	* The Dependencies array may already contain items, and this method should only append to it.
+	*/
+	virtual void GetEmitterDependencies(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, TArray<FNiagaraEmitterInstance*>& Dependencies) const
+	{
 	}
 
 protected:

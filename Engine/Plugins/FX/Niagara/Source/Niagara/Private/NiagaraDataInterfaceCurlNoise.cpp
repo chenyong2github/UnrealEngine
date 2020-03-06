@@ -467,22 +467,19 @@ void UNiagaraDataInterfaceCurlNoise::PushToRenderThread()
 
 struct FNiagaraDataInterfaceParametersCS_CurlNoise : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CurlNoise, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		OffsetFromSeed.Bind(ParameterMap, *(OffsetFromSeedBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		OffsetFromSeed.Bind(ParameterMap, *(OffsetFromSeedBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
-	virtual void Serialize(FArchive& Ar)override
-	{
-		Ar << OffsetFromSeed;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
 		// Get shader and DI
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyCurlNoise* CNDI = static_cast<FNiagaraDataInterfaceProxyCurlNoise*>(Context.DataInterface);
 
 		// Set parameters
@@ -490,10 +487,9 @@ struct FNiagaraDataInterfaceParametersCS_CurlNoise : public FNiagaraDataInterfac
 	}
 
 private:
-	FShaderParameter OffsetFromSeed;
+	LAYOUT_FIELD(FShaderParameter, OffsetFromSeed);
 };
 
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceCurlNoise::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_CurlNoise();
-}
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CurlNoise);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCurlNoise, FNiagaraDataInterfaceParametersCS_CurlNoise);

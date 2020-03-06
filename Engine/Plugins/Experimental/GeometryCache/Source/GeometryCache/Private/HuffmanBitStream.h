@@ -4,7 +4,10 @@
 #include "CoreMinimal.h"
 #include "Containers/Array.h"
 
-#define USE_UNALIGNED_READ (PLATFORM_WINDOWS | PLATFORM_MAC | PLATFORM_XBOXONE | PLATFORM_PS4)	// Little-endian platforms that support fast unaligned reads
+#if !defined(HUFFMAN_USE_UNALIGNED_READ)
+	#define HUFFMAN_USE_UNALIGNED_READ (PLATFORM_WINDOWS | PLATFORM_MAC | PLATFORM_PS4)	// Little-endian platforms that support fast unaligned reads
+#endif
+
 #define MINIMUM_BITS_AFTER_REFILL 56															// Minimum number of bits guaranteed to be available in the internal buffer after a buffer refill.
 
 /**
@@ -173,7 +176,7 @@ public:
 	FORCEINLINE void Refill()
 	{
 		const uint8* BytesData = Bytes;
-#if USE_UNALIGNED_READ
+#if HUFFMAN_USE_UNALIGNED_READ
 		// Branchless buffer refill
 		checkSlow(BytePos + 7 < NumBytes);	// Make sure entire read uint64 is within buffer bounds
 		BitBuffer |= *(const uint64*)(BytesData + BytePos) << BitBufferBits;

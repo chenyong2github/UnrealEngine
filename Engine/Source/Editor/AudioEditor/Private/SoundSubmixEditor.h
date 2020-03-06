@@ -13,7 +13,7 @@
 
 // Forward Declarations
 class UEdGraphPin;
-class USoundSubmix;
+class USoundSubmixBase;
 class UEdGraph;
 
 class FSoundSubmixEditor : public ISoundSubmixEditor, public FGCObject, public FEditorUndoClient
@@ -57,7 +57,7 @@ public:
 	void AddMissingEditableSubmixes();
 
 	/** Select node associated with the provided submix */
-	void SelectSubmixes(TSet<USoundSubmix*>& InSubmixes);
+	void SelectSubmixes(TSet<USoundSubmixBase*>& InSubmixes);
 
 	/** Returns current graph handled by editor */
 	UEdGraph* GetGraph();
@@ -67,10 +67,10 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
 
 	/** Creates all internal widgets for the tabs to point at */
-	void CreateInternalWidgets(USoundSubmix* InSoundSubmix);
+	void CreateInternalWidgets(USoundSubmixBase* InSoundSubmix);
 
 	/** Create new graph editor widget */
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget(USoundSubmix* InSoundSubmix);
+	TSharedRef<SGraphEditor> CreateGraphEditorWidget(USoundSubmixBase* InSoundSubmix);
 
 	/** Called when the selection changes in the GraphEditor */
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
@@ -79,7 +79,7 @@ private:
 	FActionMenuContent OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
 
 	/** Adds all children of provided root submix as editable */
-	void AddEditableSubmixChildren(USoundSubmix* RootSubmix);
+	void AddEditableSubmixChildren(USoundSubmixBase* RootSubmix);
 
 	/** Select every node in the graph */
 	void SelectAllNodes();

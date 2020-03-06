@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_SITE_UTILS_H
-#define SDF_SITE_UTILS_H
+#ifndef PXR_USD_SDF_SITE_UTILS_H
+#define PXR_USD_SDF_SITE_UTILS_H
 
 /// \file sdf/siteUtils.h
 ///
@@ -92,4 +92,4 @@ SdfGetFieldAs(const SdfSite& site, const TfToken& field,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_SITE_UTILS_H
+#endif // PXR_USD_SDF_SITE_UTILS_H

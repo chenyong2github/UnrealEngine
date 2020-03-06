@@ -90,11 +90,22 @@ void UNiagaraStackFunctionInputCollection::ToClipboardFunctionInputs(UObject* In
 
 void UNiagaraStackFunctionInputCollection::SetValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs)
 {
+	TArray<const UNiagaraClipboardFunctionInput*> StaticSwitchInputs;
+	TArray<const UNiagaraClipboardFunctionInput*> StandardInputs;
+
 	TArray<UNiagaraStackInputCategory*> ChildCategories;
 	GetUnfilteredChildrenOfType(ChildCategories);
+
+	// Set static switches first so that other inputs will be available to set.
 	for (UNiagaraStackInputCategory* ChildCategory : ChildCategories)
 	{
-		ChildCategory->SetValuesFromClipboardFunctionInputs(ClipboardFunctionInputs);
+		ChildCategory->SetStaticSwitchValuesFromClipboardFunctionInputs(ClipboardFunctionInputs);
+	}
+
+	RefreshChildren();
+	for (UNiagaraStackInputCategory* ChildCategory : ChildCategories)
+	{
+		ChildCategory->SetStandardValuesFromClipboardFunctionInputs(ClipboardFunctionInputs);
 	}
 }
 

@@ -30,8 +30,17 @@ public:
 
 	virtual void OnRegister() override;
 
+#if WITH_EDITOR
+    virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 private:
 	void UpdateEditorSpriteTexture();
+
+#if WITH_EDITOR
+	TSubclassOf<UCameraShake> PreviousCameraShake;
+#endif
 
 public:
 	/** The attenuation profile for how camera shakes' intensity falls off with distance */
@@ -69,6 +78,10 @@ public:
 	/** Starts a new camera shake originating from this source, and apply it on all player controllers */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
 	void PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake);
+
+	/** Stops a camera shake originating from this source */
+	UFUNCTION(BlueprintCallable, Category = CameraShake)
+	void StopAllCameraShakesOfType(TSubclassOf<UCameraShake> InCameraShake, bool bImmediately = true);
 
 	/** Stops all currently active camera shakes that are originating from this source from all player controllers */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)

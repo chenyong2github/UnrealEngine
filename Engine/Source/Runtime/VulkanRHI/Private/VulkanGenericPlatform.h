@@ -15,6 +15,8 @@ class FVulkanDevice;
 class FVulkanGenericPlatform 
 {
 public:
+	static void SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel);
+
 	static bool IsSupported() { return true; }
 	static void CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId VendorId, const VkPhysicalDeviceProperties& Props) {}
 
@@ -92,6 +94,8 @@ public:
 
 	/** The status quo is false, so the default is chosen to not change it. As platforms opt in it may be better to flip the default. */
 	static bool SupportsDynamicResolution() { return false; }
+
+	static bool SupportsVolumeTextureRendering() { return true; }
 
 	// Allow platforms to add extension features to the DeviceInfo pNext chain
 	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo) {}

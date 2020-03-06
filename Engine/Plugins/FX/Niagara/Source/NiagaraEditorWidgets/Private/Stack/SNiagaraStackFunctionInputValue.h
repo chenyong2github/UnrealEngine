@@ -28,10 +28,9 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
+	TSharedRef<SWidget> ConstructValueWidgets();
 
 	bool GetInputEnabled() const;
-
-	EVisibility GetValueWidgetVisibility(UNiagaraStackFunctionInput::EValueMode ValidMode) const;
 
 	TSharedRef<SWidget> ConstructLocalValueStructWidget();
 
@@ -51,13 +50,9 @@ private:
 
 	FText GetDynamicValueText() const;
 
-	FText GetDynamicValueToolTip() const;
+	FText GetDefaultFunctionText() const;
 
 	void OnExpressionTextCommitted(const FText& Name, ETextCommit::Type CommitInfo);
-
-	FText GetInvalidValueText() const;
-
-	FText GetInvalidValueToolTipText() const;
 
 	FReply DynamicInputTextDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent);
 	FReply OnLinkedInputDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent);
@@ -111,6 +106,8 @@ private:
 
 	void CustomExpressionSelected();
 
+	void CreateScratchSelected();
+
 	void ParameterHandleSelected(FNiagaraParameterHandle Handle);
 
 	EVisibility GetResetButtonVisibility() const;
@@ -144,11 +141,13 @@ private:
 private:
 	UNiagaraStackFunctionInput* FunctionInput;
 
-	TSharedPtr<FStructOnScope> DisplayedLocalValueStruct;
+	TSharedPtr<SBox> ValueContainer;
+	UNiagaraStackFunctionInput::EValueMode ValueModeForGeneratedWidgets;
 
-	TSharedPtr<SBox> LocalValueStructContainer;
+	TSharedPtr<FStructOnScope> DisplayedLocalValueStruct;
 	TSharedPtr<SNiagaraParameterEditor> LocalValueStructParameterEditor;
 	TSharedPtr<IStructureDetailsView> LocalValueStructDetailsView;
+
 	TSharedPtr<SComboButton> SetFunctionInputButton;
 	TSharedPtr<SGraphActionMenu> SelectInputFunctionMenu;
 

@@ -51,8 +51,8 @@ namespace OpenGLConsoleVariables
 
 	static FAutoConsoleVariable CVarUseEmulatedUBs(
 		TEXT("OpenGL.UseEmulatedUBs"),
-		0,
-		TEXT("If true, enable using emulated uniform buffers on ES2 mode."),
+		1,
+		TEXT("If true, enable using emulated uniform buffers on ES3.1 mode."),
 		ECVF_ReadOnly
 		);
 
@@ -276,29 +276,29 @@ static FORCEINLINE GLint ModifyFilterByMips(GLint Filter, bool bHasMips)
 
 static FORCEINLINE EShaderFrequency GetShaderFrequency(FRHIGraphicsShader* ShaderRHI)
 {
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Vertex);
 		return SF_Vertex;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
 		return SF_Hull;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
 		return SF_Domain;
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
 		return SF_Geometry;
 #endif
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Pixel);
 		return SF_Pixel;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 
 	return SF_NumFrequencies;
@@ -306,29 +306,29 @@ static FORCEINLINE EShaderFrequency GetShaderFrequency(FRHIGraphicsShader* Shade
 
 static FORCEINLINE CrossCompiler::EShaderStage GetShaderCrossCompilerStage(FRHIGraphicsShader* ShaderRHI)
 {
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Vertex);
 		return CrossCompiler::SHADER_STAGE_VERTEX;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
 		return CrossCompiler::SHADER_STAGE_HULL;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
 		return CrossCompiler::SHADER_STAGE_DOMAIN;
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
 		return CrossCompiler::SHADER_STAGE_GEOMETRY;
 #endif
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Pixel);
 		return CrossCompiler::SHADER_STAGE_PIXEL;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 
 	return CrossCompiler::NUM_SHADER_STAGES;
@@ -336,39 +336,39 @@ static FORCEINLINE CrossCompiler::EShaderStage GetShaderCrossCompilerStage(FRHIG
 
 static FORCEINLINE void GetShaderStageIndexAndMaxUnits(FRHIGraphicsShader* ShaderRHI, GLint& OutIndex, GLint& OutMaxUnits)
 {
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Vertex);
 		OutIndex = FOpenGL::GetFirstVertexTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxVertexTextureImageUnits();
 		break;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
 		OutIndex = FOpenGL::GetFirstHullTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxHullTextureImageUnits();
 		break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
 		OutIndex = FOpenGL::GetFirstDomainTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxDomainTextureImageUnits();
 		break;
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
 		OutIndex = FOpenGL::GetFirstGeometryTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxGeometryTextureImageUnits();
 		break;
 #endif
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Pixel);
 		OutIndex = FOpenGL::GetFirstPixelTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxTextureImageUnits();
 		break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 
@@ -943,7 +943,7 @@ void FOpenGLDynamicRHI::UpdateSRV(FOpenGLShaderResourceView* SRV)
 {
 	check(SRV);
 	// For Depth/Stencil textures whose Stencil component we wish to sample we must blit the stencil component out to an intermediate texture when we 'Store' the texture.
-#if PLATFORM_DESKTOP || PLATFORM_ANDROIDESDEFERRED || PLATFORM_LUMINGL4
+#if PLATFORM_DESKTOP || PLATFORM_LUMINGL4
 	if (FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5 && FOpenGL::SupportsPixelBuffers() && IsValidRef(SRV->Texture2D))
 	{
 		FOpenGLTexture2D* Texture2D = ResourceCast(SRV->Texture2D.GetReference());
@@ -1007,7 +1007,7 @@ void FOpenGLDynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* Sh
 	GLint MaxUnits = 0;
 	GetShaderStageIndexAndMaxUnits(ShaderRHI, Index, MaxUnits);
 
-	ensureMsgf((int32)TextureIndex < MaxUnits, TEXT("Using more texture units (%d) than allowed (%d) on Frequency %d!"), TextureIndex, MaxUnits, (int32)ShaderRHI->GetType());
+	ensureMsgf((int32)TextureIndex < MaxUnits, TEXT("Using more texture units (%d) than allowed (%d) on Frequency %d!"), TextureIndex, MaxUnits, (int32)ShaderRHI->GetFrequency());
 	FOpenGLShaderResourceView* SRV = ResourceCast(SRVRHI);
 	GLuint Resource = 0;
 	GLenum Target = GL_TEXTURE_BUFFER;
@@ -1054,7 +1054,7 @@ void FOpenGLDynamicRHI::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,uint32
 	GLint MaxUnits = 0;
 	GetShaderStageIndexAndMaxUnits(ShaderRHI, Index, MaxUnits);
 
-	ensureMsgf((int32)TextureIndex < MaxUnits, TEXT("Using more texture units (%d) than allowed (%d) on Frequency %d!"), TextureIndex, MaxUnits, (int32)ShaderRHI->GetType());
+	ensureMsgf((int32)TextureIndex < MaxUnits, TEXT("Using more texture units (%d) than allowed (%d) on Frequency %d!"), TextureIndex, MaxUnits, (int32)ShaderRHI->GetFrequency());
 	if (NewTexture)
 	{
 		InternalSetShaderTexture(NewTexture, nullptr, Index + TextureIndex, NewTexture->Target, NewTexture->Resource, NewTextureRHI->GetNumMips(), -1);
@@ -1369,8 +1369,8 @@ void FOpenGLDynamicRHI::SetPendingBlendStateForActiveRenderTargets( FOpenGLConte
 				{
 					if (CachedRenderTargetBlendState.ColorSourceBlendFactor != RenderTargetBlendState.ColorSourceBlendFactor
 						|| CachedRenderTargetBlendState.ColorDestBlendFactor != RenderTargetBlendState.ColorDestBlendFactor
-						|| CachedRenderTargetBlendState.AlphaSourceBlendFactor != RenderTargetBlendState.ColorSourceBlendFactor
-						|| CachedRenderTargetBlendState.AlphaDestBlendFactor != RenderTargetBlendState.ColorDestBlendFactor)
+						|| CachedRenderTargetBlendState.AlphaSourceBlendFactor != RenderTargetBlendState.AlphaSourceBlendFactor
+						|| CachedRenderTargetBlendState.AlphaDestBlendFactor != RenderTargetBlendState.AlphaDestBlendFactor)
 					{
 						FOpenGL::BlendFunci(RenderTargetIndex, RenderTargetBlendState.ColorSourceBlendFactor, RenderTargetBlendState.ColorDestBlendFactor);
 					}
@@ -1442,8 +1442,8 @@ void FOpenGLDynamicRHI::SetPendingBlendStateForActiveRenderTargets( FOpenGLConte
 					{
 						if (CachedRenderTargetBlendState.ColorSourceBlendFactor != RenderTargetBlendState.ColorSourceBlendFactor
 							|| CachedRenderTargetBlendState.ColorDestBlendFactor != RenderTargetBlendState.ColorDestBlendFactor
-							|| CachedRenderTargetBlendState.AlphaSourceBlendFactor != RenderTargetBlendState.ColorSourceBlendFactor
-							|| CachedRenderTargetBlendState.AlphaDestBlendFactor != RenderTargetBlendState.ColorDestBlendFactor)
+							|| CachedRenderTargetBlendState.AlphaSourceBlendFactor != RenderTargetBlendState.AlphaSourceBlendFactor
+							|| CachedRenderTargetBlendState.AlphaDestBlendFactor != RenderTargetBlendState.AlphaDestBlendFactor)
 						{
 							glBlendFunc(RenderTargetBlendState.ColorSourceBlendFactor, RenderTargetBlendState.ColorDestBlendFactor);
 						}
@@ -1540,43 +1540,6 @@ void FOpenGLDynamicRHI::RHISetRenderTargets(
 	}
 
 	FOpenGLTextureBase* NewDepthStencilRT = GetOpenGLTextureFromRHITexture(NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->Texture : nullptr);
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (IsES2Platform(GMaxRHIShaderPlatform) && !IsPCPlatform(GMaxRHIShaderPlatform))
-	{
-		// @todo-mobile
-
-		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-		GLuint NewColorRTResource = PendingState.RenderTargets[0] ? PendingState.RenderTargets[0]->Resource : 0;
-		GLenum NewColorTargetType = PendingState.RenderTargets[0] ? PendingState.RenderTargets[0]->Target : 0;
-		// If the color buffer did not change and we are disabling depth, do not switch depth and assume
-		// the high level will disable depth test/write (so we can avoid a logical buffer store);
-		// if both are set to nothing, then it's an endframe so we don't want to switch either...
-		if (NewDepthStencilRT == NULL && PendingState.DepthStencil != NULL)
-		{
-			const bool bColorBufferUnchanged = ContextState.LastES2ColorRTResource == NewColorRTResource && ContextState.LastES2ColorTargetType == NewColorTargetType;
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
-			//color RT being 0 means backbuffer is being used. Hence taking only comparison with previous RT into consideration. Fixes black screen issue.
-			if (bColorBufferUnchanged)
-#else
-			if (NewColorRTResource == 0 || bColorBufferUnchanged)
-#endif
-			{
-				return;
-			}
-			else
-			{
-				ContextState.LastES2ColorRTResource = NewColorRTResource;
-				ContextState.LastES2ColorTargetType = NewColorTargetType;
-			}
-		}
-		else
-		{
-				ContextState.LastES2ColorRTResource = NewColorRTResource;
-				ContextState.LastES2ColorTargetType = NewColorTargetType;
-		}
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	PendingState.DepthStencil = NewDepthStencilRT;
 	PendingState.StencilStoreAction = NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->GetStencilStoreAction() : ERenderTargetStoreAction::ENoAction;
@@ -1717,32 +1680,47 @@ void FOpenGLDynamicRHI::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 	this->RHISetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
 		RenderTargetsInfo.ColorRenderTarget,
 		&RenderTargetsInfo.DepthStencilRenderTarget);
-	if (RenderTargetsInfo.bClearColor || RenderTargetsInfo.bClearStencil || RenderTargetsInfo.bClearDepth)
-	{
-		FLinearColor ClearColors[MaxSimultaneousRenderTargets];
-		float DepthClear = 0.0;
-		uint32 StencilClear = 0;
 
-		if (RenderTargetsInfo.bClearColor)
+	/**
+	 * Convert all load action from NoAction to Clear for OpenGL platform, especially for mobile to avoid an unnecessary load action.
+	 */
+	bool bClearColor = RenderTargetsInfo.bClearColor;
+	bool bClearStencil = RenderTargetsInfo.bClearStencil;
+	bool bClearDepth = RenderTargetsInfo.bClearDepth;
+
+	FLinearColor ClearColors[MaxSimultaneousRenderTargets];
+	float DepthClear = 0.0;
+	uint32 StencilClear = 0;
+
+	for (int32 i = 0; i < RenderTargetsInfo.NumColorRenderTargets; ++i)
+	{
+		if (RenderTargetsInfo.ColorRenderTarget[i].Texture != nullptr)
 		{
-			for (int32 i = 0; i < RenderTargetsInfo.NumColorRenderTargets; ++i)
-			{
-				if (RenderTargetsInfo.ColorRenderTarget[i].Texture != nullptr)
-				{
-					const FClearValueBinding& ClearValue = RenderTargetsInfo.ColorRenderTarget[i].Texture->GetClearBinding();
-					checkf(ClearValue.ColorBinding == EClearBinding::EColorBound, TEXT("Texture: %s does not have a color bound for fast clears"), *RenderTargetsInfo.ColorRenderTarget[i].Texture->GetName().GetPlainNameString());
-					ClearColors[i] = ClearValue.GetClearColor();
-				}
-			}
+			bClearColor |= RenderTargetsInfo.ColorRenderTarget[i].LoadAction == ERenderTargetLoadAction::ENoAction;
+
+			const FClearValueBinding& ClearValue = RenderTargetsInfo.ColorRenderTarget[i].Texture->GetClearBinding();
+			
+			ClearColors[i] = ClearValue.ColorBinding == EClearBinding::EColorBound ? ClearValue.GetClearColor() : FLinearColor::Black;
 		}
-		if (RenderTargetsInfo.bClearDepth || RenderTargetsInfo.bClearStencil)
+	}
+
+	if (RenderTargetsInfo.DepthStencilRenderTarget.Texture != nullptr)
+	{
+		bClearStencil |= RenderTargetsInfo.DepthStencilRenderTarget.StencilLoadAction == ERenderTargetLoadAction::ENoAction;
+
+		bClearDepth |= RenderTargetsInfo.DepthStencilRenderTarget.DepthLoadAction == ERenderTargetLoadAction::ENoAction;
+
+		const FClearValueBinding& ClearValue = RenderTargetsInfo.DepthStencilRenderTarget.Texture->GetClearBinding();
+
+		if (ClearValue.ColorBinding == EClearBinding::EDepthStencilBound)
 		{
-			const FClearValueBinding& ClearValue = RenderTargetsInfo.DepthStencilRenderTarget.Texture->GetClearBinding();
-			checkf(ClearValue.ColorBinding == EClearBinding::EDepthStencilBound, TEXT("Texture: %s does not have a DS value bound for fast clears"), *RenderTargetsInfo.DepthStencilRenderTarget.Texture->GetName().GetPlainNameString());
 			ClearValue.GetDepthStencil(DepthClear, StencilClear);
 		}
+	}
 
-		this->RHIClearMRT(RenderTargetsInfo.bClearColor, RenderTargetsInfo.NumColorRenderTargets, ClearColors, RenderTargetsInfo.bClearDepth, DepthClear, RenderTargetsInfo.bClearStencil, StencilClear);
+	if (bClearColor || bClearStencil || bClearDepth)
+	{
+		this->RHIClearMRT(bClearColor, RenderTargetsInfo.NumColorRenderTargets, ClearColors, bClearDepth, DepthClear, bClearStencil, StencilClear);
 	}
 }
 

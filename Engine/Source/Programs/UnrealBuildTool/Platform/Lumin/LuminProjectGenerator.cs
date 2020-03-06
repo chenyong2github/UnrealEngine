@@ -16,6 +16,7 @@ namespace UnrealBuildTool
 	{
 		static bool VSSupportChecked = false;       // Don't want to check multiple times
 		static bool VSDebuggingEnabled = false;
+		FileReference BPOnlyProjectPath = null;
 
 		/// <summary>
 		/// Constructor
@@ -24,6 +25,10 @@ namespace UnrealBuildTool
 		public LuminProjectGenerator(CommandLineArguments Arguments)
 			: base(Arguments)
 		{
+			if (Arguments.HasValue("-bponlyproject="))
+			{
+				BPOnlyProjectPath = new FileReference(Arguments.GetString("-bponlyproject="));
+			}
 		}
 
 		private bool IsVSLuminSupportInstalled(VCProjectFileFormat ProjectFileFormat)
@@ -90,13 +95,16 @@ namespace UnrealBuildTool
 
 			if (IsVSLuminSupportInstalled(InProjectFileFormat) && TargetType == TargetType.Game && InPlatform == UnrealTargetPlatform.Lumin)
 			{
+				// When generating for a blueprint only project, use the blueprint only project's path to generate the visual studio path entries
+				bool bGetEntriesForBlueprintOnlyProject = BPOnlyProjectPath != null;
+
 				string MLSDK = Utils.CleanDirectorySeparators(Environment.GetEnvironmentVariable("MLSDK"), '\\');
 
-				// TODO: Check if MPK name can be other than the project name.
-				string GameName = TargetRulesPath.GetFileNameWithoutExtension();
+				string GameName = bGetEntriesForBlueprintOnlyProject ? BPOnlyProjectPath.GetFileNameWithoutExtension() : TargetRulesPath.GetFileNameWithoutExtension();
 				GameName = Path.GetFileNameWithoutExtension(GameName);
 
-				string PackageFile = Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
+				string PackagePath = bGetEntriesForBlueprintOnlyProject ? BPOnlyProjectPath.Directory.FullName + "\\Binaries\\Lumin" : Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
+				string PackageFile = PackagePath;
 				string PackageName = GameName;
 				if (InConfiguration != UnrealTargetConfiguration.Development)
 				{
@@ -105,9 +113,9 @@ namespace UnrealBuildTool
 				PackageFile = Path.Combine(PackageFile, PackageName + ".mpk");
 
                 // Can't use $(NMakeOutput) directly since that is defined after <ELFFile> tag and thus ends up being translated as an empty string.
-                string ELFFile = Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
+                string ELFFile = bGetEntriesForBlueprintOnlyProject ? PackagePath : Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
 				// Provide path to stripped executable so all symbols are resolved from the external sym file instead.
-                ELFFile = Path.Combine(ELFFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Binaries", GetElfName(NMakeOutputPath));
+                ELFFile = Path.Combine(ELFFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Binaries", NMakeOutputPath.GetFileName());
 				string DebuggerFlavor = "MLDebugger";
 
 				string SymFile = Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);

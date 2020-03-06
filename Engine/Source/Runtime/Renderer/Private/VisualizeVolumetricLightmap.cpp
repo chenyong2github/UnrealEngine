@@ -74,25 +74,16 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, VisualizationRadiusScale, GVolumetricLightmapVisualizationRadiusScale);
 		SetShaderValue(RHICmdList, ShaderRHI, VisualizationMinScreenFraction, GVolumetricLightmapVisualizationMinScreenFraction);
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << VisualizationRadiusScale;
-		Ar << VisualizationMinScreenFraction;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter VisualizationRadiusScale;
-	FShaderParameter VisualizationMinScreenFraction;
+	LAYOUT_FIELD(FShaderParameter, VisualizationRadiusScale);
+	LAYOUT_FIELD(FShaderParameter, VisualizationMinScreenFraction);
 };
 
 IMPLEMENT_SHADER_TYPE(,FVisualizeVolumetricLightmapVS,TEXT("/Engine/Private/VisualizeVolumetricLightmap.usf"),TEXT("VisualizeVolumetricLightmapVS"),SF_Vertex);
@@ -120,7 +111,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -134,16 +125,8 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, DiffuseColor, DiffuseColorValue);
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << DiffuseColor;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter DiffuseColor;
+	LAYOUT_FIELD(FShaderParameter, DiffuseColor);
 };
 
 IMPLEMENT_SHADER_TYPE(,FVisualizeVolumetricLightmapPS,TEXT("/Engine/Private/VisualizeVolumetricLightmap.usf"),TEXT("VisualizeVolumetricLightmapPS"),SF_Pixel);
@@ -197,8 +180,8 @@ void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(FRHICommandListI
 				TShaderMapRef<FVisualizeVolumetricLightmapPS> PixelShader(View.ShaderMap);
 
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 

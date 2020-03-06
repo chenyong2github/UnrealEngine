@@ -182,7 +182,7 @@ struct FVectorCurve : public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
-	enum EIndex
+	enum class EIndex
 	{
 		X = 0, 
 		Y, 

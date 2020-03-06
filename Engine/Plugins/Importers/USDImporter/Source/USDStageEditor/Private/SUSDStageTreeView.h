@@ -46,11 +46,12 @@ public:
 private:
 	virtual TSharedRef< ITableRow > OnGenerateRow( FUsdStageTreeItemRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable ) override;
 	virtual void OnGetChildren( FUsdStageTreeItemRef InParent, TArray< FUsdStageTreeItemRef >& OutChildren ) const override;
-	
+
 	void ScrollItemIntoView( FUsdStageTreeItemRef TreeItem );
 	virtual void OnTreeItemScrolledIntoView( FUsdStageTreeItemRef TreeItem, const TSharedPtr< ITableRow >& Widget ) override ;
 
 	void OnPrimNameCommitted( const FUsdStageTreeItemRef& TreeItem, const FText& InPrimName );
+	void OnPrimNameUpdated( const FUsdStageTreeItemRef& TreeItem, const FText& InPrimName, FText& ErrorMessage );
 
 	virtual void SetupColumns() override;
 	TSharedPtr< SWidget > ConstructPrimContextMenu();
@@ -62,12 +63,20 @@ private:
 	void OnAddReference();
 	void OnClearReferences();
 
+	bool CanAddPrim() const;
 	bool CanExecutePrimAction() const;
 
 	TOptional< FString > BrowseFile();
 
+	/** Uses TreeItemExpansionStates to travel the tree and call SetItemExpansion */
+	void RestoreExpansionStates();
+	virtual void RequestListRefresh() override;
+
 	TWeakObjectPtr< AUsdStageActor > UsdStageActor;
 	TWeakPtr< FUsdStageTreeItem > PendingRenameItem;
+
+	// So that we can store these across refreshes
+	TMap< FString, bool > TreeItemExpansionStates;
 
 	FOnPrimSelected OnPrimSelected;
 };

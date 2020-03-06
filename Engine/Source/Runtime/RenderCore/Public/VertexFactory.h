@@ -18,6 +18,7 @@
 class FMaterial;
 class FMeshDrawSingleShaderBindings;
 class FPrimitiveSceneProxy;
+struct FVertexFactoryShaderPermutationParameters;
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
 	#pragma pack (push,4)
@@ -155,16 +156,15 @@ struct FVertexStreamComponent
  */
 class RENDERCORE_API FVertexFactoryShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FVertexFactoryShaderParameters, NonVirtual);
 public:
-	virtual ~FVertexFactoryShaderParameters() {}
-	virtual void Bind(const class FShaderParameterMap& ParameterMap) = 0;
-	virtual void Serialize(FArchive& Ar) = 0;
+	void Bind(const class FShaderParameterMap& ParameterMap) {}
 
 	/** 
 	 * Gets the vertex factory's shader bindings and vertex streams.
 	 * View can be null when caching mesh draw commands (only for supported vertex factories)
 	 */
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
 		const class FSceneView* View,
 		const class FMeshMaterialShader* Shader,
@@ -173,10 +173,119 @@ public:
 		const class FVertexFactory* VertexFactory,
 		const struct FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const = 0;
+		FVertexInputStreamArray& VertexStreams) const {}
 
-	virtual uint32 GetSize() const { return sizeof(*this); }
+	// Only for debugging type mismatch
+	LAYOUT_FIELD(uint32, Size);
 };
+
+template<EShaderFrequency ShaderFrequency, typename VertexFactoryType>
+struct TVertexFactoryParameterTraits
+{
+	static const FTypeLayoutDesc* GetLayout() { return nullptr; }
+	static FVertexFactoryShaderParameters* Create(const class FShaderParameterMap& ParameterMap) { return nullptr; }
+	
+	static void GetElementShaderBindings(
+		const FVertexFactoryShaderParameters* Parameters,
+		const class FSceneInterface* Scene,
+		const class FSceneView* View,
+		const class FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const class FVertexFactory* VertexFactory,
+		const struct FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) {}
+};
+
+#define IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass, ShaderFrequency, ParameterClass) \
+	template<> struct TVertexFactoryParameterTraits<ShaderFrequency, FactoryClass> \
+	{ \
+		static const FTypeLayoutDesc* GetLayout() { return &StaticGetTypeLayoutDesc<ParameterClass>(); } \
+		static FVertexFactoryShaderParameters* Create(const class FShaderParameterMap& ParameterMap) { ParameterClass* Result = new ParameterClass(); Result->Size = sizeof(ParameterClass); Result->Bind(ParameterMap); return Result; } \
+		static void GetElementShaderBindings( \
+			const FVertexFactoryShaderParameters* Parameters, \
+			const class FSceneInterface* Scene, \
+			const class FSceneView* View, \
+			const class FMeshMaterialShader* Shader, \
+			const EVertexInputStreamType InputStreamType, \
+			ERHIFeatureLevel::Type FeatureLevel, \
+			const class FVertexFactory* VertexFactory, \
+			const struct FMeshBatchElement& BatchElement, \
+			class FMeshDrawSingleShaderBindings& ShaderBindings, \
+			FVertexInputStreamArray& VertexStreams) \
+		{ \
+			check(Parameters->Size == sizeof(ParameterClass)); \
+			static_cast<const ParameterClass*>(Parameters)->GetElementShaderBindings(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); \
+		} \
+	}
+
+template<typename VertexFactoryType>
+static const FTypeLayoutDesc* GetVertexFactoryParametersLayout(EShaderFrequency ShaderFrequency)
+{
+	switch (ShaderFrequency)
+	{
+	case SF_Vertex: return TVertexFactoryParameterTraits<SF_Vertex, VertexFactoryType>::GetLayout();
+	case SF_Hull: return TVertexFactoryParameterTraits<SF_Hull, VertexFactoryType>::GetLayout();
+	case SF_Domain: return TVertexFactoryParameterTraits<SF_Domain, VertexFactoryType>::GetLayout();
+	case SF_Pixel: return TVertexFactoryParameterTraits<SF_Pixel, VertexFactoryType>::GetLayout();
+	case SF_Geometry: return TVertexFactoryParameterTraits<SF_Geometry, VertexFactoryType>::GetLayout();
+	case SF_Compute: return TVertexFactoryParameterTraits<SF_Compute, VertexFactoryType>::GetLayout();
+	case SF_RayGen: return TVertexFactoryParameterTraits<SF_RayGen, VertexFactoryType>::GetLayout();
+	case SF_RayMiss: return TVertexFactoryParameterTraits<SF_RayMiss, VertexFactoryType>::GetLayout();
+	case SF_RayHitGroup: return TVertexFactoryParameterTraits<SF_RayHitGroup, VertexFactoryType>::GetLayout();
+	case SF_RayCallable: return TVertexFactoryParameterTraits<SF_RayCallable, VertexFactoryType>::GetLayout();
+	default: checkNoEntry(); return nullptr;
+	}
+}
+
+template<typename VertexFactoryType>
+static FVertexFactoryShaderParameters* ConstructVertexFactoryParameters(EShaderFrequency ShaderFrequency, const class FShaderParameterMap& ParameterMap)
+{
+	switch (ShaderFrequency)
+	{
+	case SF_Vertex: return TVertexFactoryParameterTraits<SF_Vertex, VertexFactoryType>::Create(ParameterMap);
+	case SF_Hull: return TVertexFactoryParameterTraits<SF_Hull, VertexFactoryType>::Create(ParameterMap);
+	case SF_Domain: return TVertexFactoryParameterTraits<SF_Domain, VertexFactoryType>::Create(ParameterMap);
+	case SF_Pixel: return TVertexFactoryParameterTraits<SF_Pixel, VertexFactoryType>::Create(ParameterMap);
+	case SF_Geometry: return TVertexFactoryParameterTraits<SF_Geometry, VertexFactoryType>::Create(ParameterMap);
+	case SF_Compute: return TVertexFactoryParameterTraits<SF_Compute, VertexFactoryType>::Create(ParameterMap);
+	case SF_RayGen: return TVertexFactoryParameterTraits<SF_RayGen, VertexFactoryType>::Create(ParameterMap);
+	case SF_RayMiss: return TVertexFactoryParameterTraits<SF_RayMiss, VertexFactoryType>::Create(ParameterMap);
+	case SF_RayHitGroup: return TVertexFactoryParameterTraits<SF_RayHitGroup, VertexFactoryType>::Create(ParameterMap);
+	case SF_RayCallable: return TVertexFactoryParameterTraits<SF_RayCallable, VertexFactoryType>::Create(ParameterMap);
+	default: checkNoEntry(); return nullptr;
+	}
+}
+
+
+template<typename VertexFactoryType>
+static void GetVertexFactoryParametersElementShaderBindings(EShaderFrequency ShaderFrequency, const FVertexFactoryShaderParameters* Parameters,
+	const class FSceneInterface* Scene,
+	const class FSceneView* View,
+	const class FMeshMaterialShader* Shader,
+	const EVertexInputStreamType InputStreamType,
+	ERHIFeatureLevel::Type FeatureLevel,
+	const class FVertexFactory* VertexFactory,
+	const struct FMeshBatchElement& BatchElement,
+	class FMeshDrawSingleShaderBindings& ShaderBindings,
+	FVertexInputStreamArray& VertexStreams)
+{
+	switch (ShaderFrequency)
+	{
+	case SF_Vertex: TVertexFactoryParameterTraits<SF_Vertex, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_Hull: TVertexFactoryParameterTraits<SF_Hull, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_Domain: TVertexFactoryParameterTraits<SF_Domain, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_Pixel: TVertexFactoryParameterTraits<SF_Pixel, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_Geometry: TVertexFactoryParameterTraits<SF_Geometry, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_Compute: TVertexFactoryParameterTraits<SF_Compute, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_RayGen: TVertexFactoryParameterTraits<SF_RayGen, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_RayMiss: TVertexFactoryParameterTraits<SF_RayMiss, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_RayHitGroup: TVertexFactoryParameterTraits<SF_RayHitGroup, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_RayCallable: TVertexFactoryParameterTraits<SF_RayCallable, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	default: checkNoEntry(); break;
+	}
+}
 
 /**
  * An object used to represent the type of a vertex factory.
@@ -185,21 +294,38 @@ class FVertexFactoryType
 {
 public:
 
-	typedef FVertexFactoryShaderParameters* (*ConstructParametersType)(EShaderFrequency ShaderFrequency);
-	typedef bool (*ShouldCacheType)(EShaderPlatform, const class FMaterial*, const class FShaderType*);
-	typedef void (*ModifyCompilationEnvironmentType)(const FVertexFactoryType*, EShaderPlatform, const class FMaterial*, FShaderCompilerEnvironment&);
+	typedef FVertexFactoryShaderParameters* (*ConstructParametersType)(EShaderFrequency ShaderFrequency, const class FShaderParameterMap& ParameterMap);
+	typedef const FTypeLayoutDesc* (*GetParameterTypeLayoutType)(EShaderFrequency ShaderFrequency);
+	typedef void (*GetParameterTypeElementShaderBindingsType)(EShaderFrequency ShaderFrequency,
+		const FVertexFactoryShaderParameters* Parameters,
+		const class FSceneInterface* Scene,
+		const class FSceneView* View,
+		const class FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const class FVertexFactory* VertexFactory,
+		const struct FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams);
+
+	typedef bool (*ShouldCacheType)(const FVertexFactoryShaderPermutationParameters&);
+	typedef void (*ModifyCompilationEnvironmentType)(const FVertexFactoryShaderPermutationParameters&, FShaderCompilerEnvironment&);
 	typedef void (*ValidateCompiledResultType)(const FVertexFactoryType*, EShaderPlatform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
 	typedef bool (*SupportsTessellationShadersType)();
+
+	static int32 GetNumVertexFactoryTypes() { return NumVertexFactories; }
 
 	/**
 	 * @return The global shader factory list.
 	 */
 	static RENDERCORE_API TLinkedList<FVertexFactoryType*>*& GetTypeList();
 
+	static RENDERCORE_API const TArray<FVertexFactoryType*>& GetSortedMaterialTypes();
+
 	/**
 	 * Finds a FVertexFactoryType by name.
 	 */
-	static RENDERCORE_API FVertexFactoryType* GetVFByName(const FString& VFName);
+	static RENDERCORE_API FVertexFactoryType* GetVFByName(const FHashedName& VFName);
 
 	/** Initialize FVertexFactoryType static members, this must be called before any VF types are created. */
 	static void Initialize(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
@@ -223,6 +349,8 @@ public:
 		bool bInSupportsCachingMeshDrawCommands,
 		bool bInSupportsPrimitiveIdStream,
 		ConstructParametersType InConstructParameters,
+		GetParameterTypeLayoutType InGetParameterTypeLayout,
+		GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
 		ShouldCacheType InShouldCache,
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironment,
 		ValidateCompiledResultType InValidateCompiledResult,
@@ -234,8 +362,23 @@ public:
 	// Accessors.
 	const TCHAR* GetName() const { return Name; }
 	FName GetFName() const { return TypeName; }
+	const FHashedName& GetHashedName() const { return HashedName; }
 	const TCHAR* GetShaderFilename() const { return ShaderFilename; }
-	FVertexFactoryShaderParameters* CreateShaderParameters(EShaderFrequency ShaderFrequency) const { return (*ConstructParameters)(ShaderFrequency); }
+
+	FVertexFactoryShaderParameters* CreateShaderParameters(EShaderFrequency ShaderFrequency, const class FShaderParameterMap& ParameterMap) const { return (*ConstructParameters)(ShaderFrequency, ParameterMap); }
+	const FTypeLayoutDesc* GetShaderParameterLayout(EShaderFrequency ShaderFrequency) const { return (*GetParameterTypeLayout)(ShaderFrequency); }
+	void GetShaderParameterElementShaderBindings(EShaderFrequency ShaderFrequency,
+		const FVertexFactoryShaderParameters* Parameters,
+		const class FSceneInterface* Scene,
+		const class FSceneView* View,
+		const class FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const class FVertexFactory* VertexFactory,
+		const struct FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const { (*GetParameterTypeElementShaderBindings)(ShaderFrequency, Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); }
+
 	bool IsUsedWithMaterials() const { return bUsedWithMaterials; }
 	bool SupportsStaticLighting() const { return bSupportsStaticLighting; }
 	bool SupportsDynamicLighting() const { return bSupportsDynamicLighting; }
@@ -243,19 +386,11 @@ public:
 	bool SupportsPositionOnly() const { return bSupportsPositionOnly; }
 	bool SupportsCachingMeshDrawCommands() const { return bSupportsCachingMeshDrawCommands; }
 	bool SupportsPrimitiveIdStream() const { return bSupportsPrimitiveIdStream; }
-	/** Returns an int32 specific to this vertex factory type. */
-	inline int32 GetId() const { return HashIndex; }
-	static int32 GetNumVertexFactoryTypes() { return NextHashIndex; }
-
-	const FSerializationHistory* GetSerializationHistory(EShaderFrequency Frequency) const
-	{
-		return &SerializationHistory[Frequency];
-	}
 
 	// Hash function.
-	friend uint32 GetTypeHash(FVertexFactoryType* Type)
+	friend uint32 GetTypeHash(const FVertexFactoryType* Type)
 	{ 
-		return Type ? Type->HashIndex : 0;
+		return Type ? GetTypeHash(Type->HashedName) : 0u;
 	}
 
 	/** Calculates a Hash based on this vertex factory type's source code and includes */
@@ -264,23 +399,23 @@ public:
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	bool ShouldCache(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+	bool ShouldCache(const FVertexFactoryShaderPermutationParameters& Parameters) const
 	{
-		return (*ShouldCacheRef)(Platform, Material, ShaderType); 
+		return (*ShouldCacheRef)(Parameters);
 	}
 
 	/**
 	* Calls the function ptr for the shader type on the given environment
 	* @param Environment - shader compile environment to modify
 	*/
-	void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment){
+	void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment){
 		// Set up the mapping from VertexFactory.usf to the vertex factory type's source code.
 		FString VertexFactoryIncludeString = FString::Printf( TEXT("#include \"%s\""), GetShaderFilename() );
 		OutEnvironment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/VertexFactory.ush"), VertexFactoryIncludeString);
 
 		OutEnvironment.SetDefine(TEXT("HAS_PRIMITIVE_UNIFORM_BUFFER"), 1);
 
-		(*ModifyCompilationEnvironmentRef)(this, Platform, Material, OutEnvironment);
+		(*ModifyCompilationEnvironmentRef)(Parameters, OutEnvironment);
 	}
 
 	void ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
@@ -312,15 +447,15 @@ public:
 	}
 
 private:
-	static RENDERCORE_API uint32 NextHashIndex;
+	static RENDERCORE_API uint32 NumVertexFactories;
 
 	/** Tracks whether serialization history for all shader types has been initialized. */
 	static bool bInitializedSerializationHistory;
 
-	uint32 HashIndex;
 	const TCHAR* Name;
 	const TCHAR* ShaderFilename;
 	FName TypeName;
+	FHashedName HashedName;
 	uint32 bUsedWithMaterials : 1;
 	uint32 bSupportsStaticLighting : 1;
 	uint32 bSupportsDynamicLighting : 1;
@@ -329,6 +464,8 @@ private:
 	uint32 bSupportsCachingMeshDrawCommands : 1;
 	uint32 bSupportsPrimitiveIdStream : 1;
 	ConstructParametersType ConstructParameters;
+	GetParameterTypeLayoutType GetParameterTypeLayout;
+	GetParameterTypeElementShaderBindingsType GetParameterTypeElementShaderBindings;
 	ShouldCacheType ShouldCacheRef;
 	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
 	ValidateCompiledResultType ValidateCompiledResultRef;
@@ -345,12 +482,6 @@ private:
 
 	/** Tracks what platforms ReferencedUniformBufferStructsCache has had declarations cached for. */
 	bool bCachedUniformBufferStructDeclarations;
-
-	/** 
-	 * Stores a history of serialization sizes for this vertex factory's shader parameter class. 
-	 * This is used to invalidate shaders when serialization changes.
-	 */
-	FSerializationHistory SerializationHistory[SF_NumFrequencies];
 };
 
 /**
@@ -362,7 +493,7 @@ extern RENDERCORE_API FArchive& operator<<(FArchive& Ar,FVertexFactoryType*& Typ
  * Find the vertex factory type with the given name.
  * @return NULL if no vertex factory type matched, otherwise a vertex factory type with a matching name.
  */
-extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(FName TypeName);
+extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedName& TypeName);
 
 /**
  * A macro for declaring a new vertex factory type, for use in the vertex factory class's definition body.
@@ -372,13 +503,21 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(FName TypeName);
 	static FVertexFactoryType StaticType; \
 	virtual FVertexFactoryType* GetType() const override;
 
+#define IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
+	&ConstructVertexFactoryParameters<FactoryClass>, \
+	&GetVertexFactoryParametersLayout<FactoryClass>, \
+	&GetVertexFactoryParametersElementShaderBindings<FactoryClass>, \
+	FactoryClass::ShouldCompilePermutation, \
+	FactoryClass::ModifyCompilationEnvironment, \
+	FactoryClass::ValidateCompiledResult, \
+	FactoryClass::SupportsTessellationShaders
+
 /**
  * A macro for implementing the static vertex factory type object, and specifying parameters used by the type.
  * @param bUsedWithMaterials - True if the vertex factory will be rendered in combination with a material.
  * @param bSupportsStaticLighting - True if the vertex factory will be rendered with static lighting.
  */
 #define IMPLEMENT_VERTEX_FACTORY_TYPE(FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly) \
-	FVertexFactoryShaderParameters* Construct##FactoryClass##ShaderParameters(EShaderFrequency ShaderFrequency) { return FactoryClass::ConstructShaderParameters(ShaderFrequency); } \
 	FVertexFactoryType FactoryClass::StaticType( \
 		TEXT(#FactoryClass), \
 		TEXT(ShaderFilename), \
@@ -389,17 +528,12 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(FName TypeName);
 		bSupportsPositionOnly, \
 		false, \
 		false, \
-		Construct##FactoryClass##ShaderParameters, \
-		FactoryClass::ShouldCompilePermutation, \
-		FactoryClass::ModifyCompilationEnvironment, \
-		FactoryClass::ValidateCompiledResult, \
-		FactoryClass::SupportsTessellationShaders \
+		IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 		); \
 		FVertexFactoryType* FactoryClass::GetType() const { return &StaticType; }
 
 // @todo - need more extensible type properties - shouldn't have to change all IMPLEMENT_VERTEX_FACTORY_TYPE's when you add one new parameter
 #define IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly,bSupportsCachingMeshDrawCommands,bSupportsPrimitiveIdStream) \
-	FVertexFactoryShaderParameters* Construct##FactoryClass##ShaderParameters(EShaderFrequency ShaderFrequency) { return FactoryClass::ConstructShaderParameters(ShaderFrequency); } \
 	FVertexFactoryType FactoryClass::StaticType( \
 		TEXT(#FactoryClass), \
 		TEXT(ShaderFilename), \
@@ -410,11 +544,7 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(FName TypeName);
 		bSupportsPositionOnly, \
 		bSupportsCachingMeshDrawCommands, \
 		bSupportsPrimitiveIdStream, \
-		Construct##FactoryClass##ShaderParameters, \
-		FactoryClass::ShouldCompilePermutation, \
-		FactoryClass::ModifyCompilationEnvironment, \
-		FactoryClass::ValidateCompiledResult, \
-		FactoryClass::SupportsTessellationShaders \
+		IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 		); \
 		FVertexFactoryType* FactoryClass::GetType() const { return &StaticType; }
 
@@ -422,36 +552,22 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(FName TypeName);
 class FVertexFactoryTypeDependency
 {
 public:
+	FVertexFactoryTypeDependency() {}
 
-	FVertexFactoryTypeDependency() :
-		VertexFactoryType(NULL)
-	{}
+	FHashedName VertexFactoryTypeName;
 
-	FVertexFactoryType* VertexFactoryType;
-
-#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the vertex factory source files. */
 	FSHAHash VFSourceHash;
-#endif
 
 	friend FArchive& operator<<(FArchive& Ar,class FVertexFactoryTypeDependency& Ref)
 	{
-#if KEEP_SHADER_SOURCE_HASHES
-		FSHAHash& Hash = Ref.VFSourceHash;
-#else
-		FSHAHash Hash;
-#endif
-		Ar << Ref.VertexFactoryType << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash);
+		Ar << Ref.VertexFactoryTypeName << Ref.VFSourceHash;
 		return Ar;
 	}
 
 	bool operator==(const FVertexFactoryTypeDependency& Reference) const
 	{
-#if KEEP_SHADER_SOURCE_HASHES
-		return VertexFactoryType == Reference.VertexFactoryType && VFSourceHash == Reference.VFSourceHash;
-#else
-		return VertexFactoryType == Reference.VertexFactoryType;
-#endif
+		return VertexFactoryTypeName == Reference.VertexFactoryTypeName && VFSourceHash == Reference.VFSourceHash;
 	}
 
 	bool operator!=(const FVertexFactoryTypeDependency& Reference) const
@@ -496,7 +612,7 @@ public:
 	/**
 	* Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	*/
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment ) {}
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment ) {}
 
 	/**
 	* Can be overridden by FVertexFactory subclasses to fail a compile based on compilation output.
@@ -546,7 +662,7 @@ public:
 	virtual uint64 GetStaticBatchElementVisibility(const class FSceneView& View, const struct FMeshBatch* Batch, const void* InViewCustomData = nullptr) const { return 1; }
 
 	bool NeedsDeclaration() const { return bNeedsDeclaration; }
-	bool SupportsManualVertexFetch(ERHIFeatureLevel::Type InFeatureLevel) const 
+	inline bool SupportsManualVertexFetch(const FStaticFeatureLevel InFeatureLevel) const
 	{ 
 		check(InFeatureLevel != ERHIFeatureLevel::Num);
 		return bSupportsManualVertexFetch && (InFeatureLevel > ERHIFeatureLevel::ES3_1) && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform);
@@ -631,74 +747,6 @@ private:
 	/** The RHI vertex declaration used to render the factory during depth only passes. */
 	FVertexDeclarationRHIRef PositionDeclaration;
 	FVertexDeclarationRHIRef PositionAndNormalDeclaration;
-};
-
-/**
- * An encapsulation of the vertex factory parameters for a shader.
- * Handles serialization and binding of the vertex factory parameters for the shader's vertex factory type.
- */
-class RENDERCORE_API FVertexFactoryParameterRef
-{
-public:
-	FVertexFactoryParameterRef(FVertexFactoryType* InVertexFactoryType,const FShaderParameterMap& ParameterMap, EShaderFrequency InShaderFrequency, EShaderPlatform InShaderPlatform);
-
-	FVertexFactoryParameterRef():
-		Parameters(NULL),
-		VertexFactoryType(NULL)
-	{}
-
-	~FVertexFactoryParameterRef()
-	{
-		delete Parameters;
-	}
-
-	void GetElementShaderBindings(
-		const class FSceneInterface* Scene,
-		const FSceneView* View,
-		const class FMeshMaterialShader* Shader,
-		const EVertexInputStreamType InputStreamType,
-		ERHIFeatureLevel::Type FeatureLevel,
-		const FVertexFactory* VertexFactory,
-		const struct FMeshBatchElement& BatchElement,
-		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams
-		) const
-	{
-		if (Parameters)
-		{
-			checkSlow(VertexFactory->GetType() == VertexFactoryType);
-			checkSlow(View || VertexFactoryType->SupportsCachingMeshDrawCommands());
-			Parameters->GetElementShaderBindings(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams);
-		}
-	}
-
-	const FVertexFactoryType* GetVertexFactoryType() const { return VertexFactoryType; }
-
-#if KEEP_SHADER_SOURCE_HASHES
-	/** Returns the hash of the vertex factory shader file that this shader was compiled with. */
-	const FSHAHash& GetHash() const;
-#endif
-
-	/** Returns the shader platform that this shader was compiled with. */
-	EShaderPlatform GetShaderPlatform() const;
-
-	friend RENDERCORE_API bool operator<<(FArchive& Ar,FVertexFactoryParameterRef& Ref);
-
-	uint32 GetAllocatedSize() const
-	{
-		return Parameters ? Parameters->GetSize() : 0;
-	}
-
-private:
-	FVertexFactoryShaderParameters* Parameters;
-	FVertexFactoryType* VertexFactoryType;
-	EShaderFrequency ShaderFrequency;
-	EShaderPlatform ShaderPlatform;
-
-#if KEEP_SHADER_SOURCE_HASHES
-	// Hash of the vertex factory's source file at shader compile time, used by the automatic versioning system to detect changes
-	FSHAHash VFHash;
-#endif
 };
 
 /**

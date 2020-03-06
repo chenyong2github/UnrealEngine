@@ -7,7 +7,17 @@ void FAnimSequencerInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
 	FAnimInstanceProxy::Initialize(InAnimInstance);
 	ConstructNodes();
+	FullBodyBlendNode.bAdditiveNode = false;
+	FullBodyBlendNode.bNormalizeAlpha = true;
 
+	AdditiveBlendNode.bAdditiveNode = true;
+	AdditiveBlendNode.bNormalizeAlpha = false;
+
+	FullBodyBlendNode.ResetPoses();
+	AdditiveBlendNode.ResetPoses();
+
+	SnapshotNode.SnapshotName = UAnimSequencerInstance::SequencerPoseName;
+	ClearSequencePlayerMap();
 	UpdateCounter.Reset();
 }
 
@@ -31,20 +41,6 @@ void FAnimSequencerInstanceProxy::ConstructNodes()
 	SequencerRootNode.Base.SetLinkNode(&FullBodyBlendNode);
 	SequencerRootNode.Additive.SetLinkNode(&AdditiveBlendNode);
 
-	FullBodyBlendNode.bAdditiveNode = false;
-	FullBodyBlendNode.bNormalizeAlpha = true;
-
-	AdditiveBlendNode.bAdditiveNode = true;
-	AdditiveBlendNode.bNormalizeAlpha = false;
-
-	FullBodyBlendNode.ResetPoses();
-	AdditiveBlendNode.ResetPoses();
-
-
-	SnapshotNode.SnapshotName = UAnimSequencerInstance::SequencerPoseName;
-
-
-	ClearSequencePlayerMap();
 }
 
 void FAnimSequencerInstanceProxy::ClearSequencePlayerMap()

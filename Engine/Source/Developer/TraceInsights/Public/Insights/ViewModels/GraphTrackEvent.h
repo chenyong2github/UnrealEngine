@@ -28,6 +28,8 @@ struct TRACEINSIGHTS_API FGraphSeriesEvent
 
 class TRACEINSIGHTS_API FGraphTrackEvent : public ITimingEvent
 {
+	INSIGHTS_DECLARE_RTTI(FGraphTrackEvent, ITimingEvent)
+
 public:
 	explicit FGraphTrackEvent(const TSharedRef<const FGraphTrack> InTrack, const TSharedRef<const FGraphSeries> InSeries, const FGraphSeriesEvent& InSeriesEvent)
 		: Track(InTrack), Series(InSeries), SeriesEvent(InSeriesEvent)
@@ -37,8 +39,6 @@ public:
 
 	//////////////////////////////////////////////////
 	// ITimingEvent interface
-
-	virtual const FName& GetTypeName() const override { return FGraphTrackEvent::TypeName; }
 
 	virtual const TSharedRef<const FBaseTimingTrack> GetTrack() const override;
 
@@ -58,7 +58,7 @@ public:
 			return false;
 		}
 
-		const FGraphTrackEvent& OtherGraphEvent = static_cast<const FGraphTrackEvent&>(Other);
+		const FGraphTrackEvent& OtherGraphEvent = Other.As<FGraphTrackEvent>();
 		return GetTrack() == Other.GetTrack()
 			&& Series == OtherGraphEvent.GetSeries()
 			&& SeriesEvent.Equals(OtherGraphEvent.GetSeriesEvent());
@@ -70,15 +70,10 @@ public:
 	const FGraphSeriesEvent& GetSeriesEvent() const { return SeriesEvent; }
 	double GetValue() const { return SeriesEvent.Value; }
 
-	static const FName& GetStaticTypeName() { return FGraphTrackEvent::TypeName; }
-	static bool CheckTypeName(const ITimingEvent& Event) { return Event.GetTypeName() == FGraphTrackEvent::TypeName; }
-
 private:
 	const TSharedRef<const FGraphTrack> Track;
 	const TSharedRef<const FGraphSeries> Series;
 	const FGraphSeriesEvent SeriesEvent;
-
-	static const FName TypeName;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

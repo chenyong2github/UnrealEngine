@@ -2234,7 +2234,7 @@ bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bUndo)
 		FProperty* Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
 		check(Property);
 
-		const uint8* Memory = StructOnScope->GetStructMemory();
+		uint8* Memory = StructOnScope->GetStructMemory();
 		Memory = Property->ContainerPtrToValuePtr<uint8>(Memory);
 
 		while (PartIndex < Parts.Num() && Property != nullptr)
@@ -2243,9 +2243,15 @@ bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bUndo)
 			{
 				Property = ArrayProperty->Inner;
 				check(Property);
-				int32 ArrayIndex = FCString::Atoi(*Parts[PartIndex++]);
-				TArray<uint8>* ArrayPtr = (TArray<uint8>*)Memory;
-				Memory = ArrayPtr->GetData() + Property->GetSize() * ArrayIndex;
+				PartIndex++;
+
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+				{
+					UScriptStruct* InnerStruct = StructProperty->Struct;
+					StructOnScope = MakeShareable(new FStructOnScope(InnerStruct));
+					Memory = (uint8 *)StructOnScope->GetStructMemory();
+					InnerStruct->InitializeDefaultValue(Memory);
+				}
 				continue;
 			}
 
@@ -2835,16 +2841,16 @@ bool URigVMController::BreakAllLinks(const FString& InPinPath, bool bAsInput, bo
 	}
 	Pin = Pin->GetPinForLink();
 
+	if (!IsValidPinForGraph(Pin))
+	{
+		return false;
+	}
+
 	return BreakAllLinks(Pin, bAsInput, bUndo);
 }
 
 bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bUndo)
 {
-	if(!IsValidPinForGraph(Pin))
-	{
-		return false;
-	}
-
 	FRigVMBaseAction Action;
 	if (bUndo)
 	{

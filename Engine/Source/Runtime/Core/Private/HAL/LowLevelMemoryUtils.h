@@ -333,7 +333,7 @@ public:
 			static bool ShownWarning = false;
 			if (!ShownWarning)
 			{
-				FPlatformMisc::LowLevelOutputDebugString(TEXT("LLM WARNING: Replacing allocation in tracking map. Alloc/Free Mismatch."));
+				FPlatformMisc::LowLevelOutputDebugString(TEXT("LLM WARNING: Replacing allocation in tracking map. Alloc/Free Mismatch.\n"));
 				ShownWarning = true;
 			}
 

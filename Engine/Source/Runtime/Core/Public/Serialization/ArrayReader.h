@@ -32,7 +32,7 @@ public:
 
 	void Serialize(void* Data, int64 Count)
 	{
-		if (Count && !ArIsError)
+		if (Count && !IsError())
 		{
 			// Only serialize if we have the requested amount of data
 			if (Offset + Count <= Num())
@@ -42,7 +42,7 @@ public:
 			}
 			else
 			{
-				ArIsError = true;
+				SetError();
 			}
 		}
 	}

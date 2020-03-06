@@ -13,7 +13,7 @@
 #include "DefaultSizedThumbnailRenderer.generated.h"
 
 UCLASS(abstract, config=Editor, MinimalAPI)
-class UNREALED_VTABLE UDefaultSizedThumbnailRenderer : public UThumbnailRenderer
+class UDefaultSizedThumbnailRenderer : public UThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
 

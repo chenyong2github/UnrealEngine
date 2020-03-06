@@ -10,6 +10,7 @@ enum class EInstallBundleSourceType : int
 	Bulk,
 	BuildPatchServices,
 	PlayGo,
+	IntelligentDelivery,
 	Count
 };
 ENUM_RANGE_BY_COUNT(EInstallBundleSourceType, EInstallBundleSourceType::Count);
@@ -153,7 +154,10 @@ struct FInstallBundleSourceInitInfo
 {
 	EInstallBundleManagerInitResult Result = EInstallBundleManagerInitResult::OK;
 	bool bShouldUseFallbackSource = false;
+};
 
+struct FInstallBundleSourceAsyncInitInfo : public FInstallBundleSourceInitInfo
+{
 	TMap<FName, bool> BundleUpToDate;
 };
 

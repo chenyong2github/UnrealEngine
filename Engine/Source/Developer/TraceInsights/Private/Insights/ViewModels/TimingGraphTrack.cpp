@@ -5,7 +5,6 @@
 #include <limits>
 
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
@@ -55,8 +54,12 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 // FTimingGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+INSIGHTS_IMPLEMENT_RTTI(FTimingGraphTrack)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FTimingGraphTrack::FTimingGraphTrack()
-	: FGraphTrack(FName(TEXT("Random")))
+	: FGraphTrack()
 {
 	bDrawPoints = true;
 	bDrawPointsWithBorder = true;

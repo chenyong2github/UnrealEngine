@@ -58,7 +58,10 @@
 #include "Serialization/Formatters/BinaryArchiveFormatter.h"
 #include "Serialization/Formatters/JsonArchiveOutputFormatter.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Serialization/UnversionedPropertySerialization.h"
 #include "UObject/AsyncWorkSequence.h"
+#include "Serialization/BulkDataManifest.h"
+#include "Misc/ScopeExit.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSavePackage, Log, All);
 
@@ -72,7 +75,7 @@ static FCriticalSection InitializeCoreClassesCritSec;
 static void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
 static void SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
 static void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
-						 FSavePackageContext* SavePackageContext, const bool bTextFormat, const bool bDiffing, const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64 TotalPackageSizeUncompressed);
+						 FSavePackageContext* SavePackageContext, const bool bTextFormat, const bool bDiffing, const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed);
 static void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
 static EObjectMark GetExcludedObjectMarksForTargetPlatform(const class ITargetPlatform* TargetPlatform, const bool bIsCooking);
 
@@ -97,7 +100,7 @@ namespace SavePackageStats
 	static double MBWritten = 0.0;
 	TMap<FName, FArchiveDiffStats> PackageDiffStats;
 	static int32 NumberOfDifferentPackages = 0;
-	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+	void AddSavePackageStats(FCookStatsManager::AddStatFuncRef AddStat)
 	{
 		// Don't use FCookStatsManager::CreateKeyValueArray because there's just too many arguments. Don't need to overburden the compiler here.
 		TArray<FCookStatsManager::StringKeyValue> StatsList;
@@ -181,7 +184,8 @@ namespace SavePackageStats
 		#undef ADD_COOK_STAT		
 		
 		const FString TotalString = TEXT("Total");
-	});
+	}
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats(AddSavePackageStats);
 }
 #endif
 
@@ -307,13 +311,10 @@ static void CheckObjectPriorToSave(FArchiveUObject& Ar, UObject* InObj, UPackage
 	}
 }
 
-static bool EndSavingIfCancelled( FLinkerSave* Linker, const FString& TempFilename ) 
+static bool EndSavingIfCancelled() 
 {
 	if ( GWarn->ReceivedUserCancel() )
 	{
-		// free the file handle and delete the temporary file
-		Linker->CloseAndDestroySaver();
-		IFileManager::Get().Delete( *TempFilename );
 		return true;
 	}
 	return false;
@@ -448,143 +449,6 @@ public:
 private:
 	TSet<FNameEntryId> ReferencedNames;
 };
-
-void FPackageStoreBulkDataManifest::PackageDesc::AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename)
-{
-	// The ChunkId is supposed to be unique for each type
-	auto func = [=](const BulkDataDesc& Entry) { return Entry.ChunkId == InChunkId && Entry.Type == InType; };
-	if (Data.FindByPredicate(func) != nullptr)
-	{
-		FString Message;
-		for (int i = 0; i < Data.Num(); ++i)
-		{
-			const BulkDataDesc& Entry = Data[i];
-			Message.Appendf(TEXT("[%3d] ID: %20llu Offset: %8llu Size: %8llu Type: %d\n"),
-								 i, Entry.ChunkId, Entry.Offset, Entry.Size, Entry.Type);
-		}
-
-		Message.Appendf(TEXT(	"[New] ID: %20llu Offset: %8llu Size: %8llu Type: %d\n"),
-								InChunkId, InOffset, InSize, InType);
-
-		UE_LOG(	LogSavePackage, Warning, TEXT("Duplicate BulkData description found in Package '%s', this will cause issues trying to run IoStore!\n%s"),*DebugFilename , *Message);
-	}
-	else
-	{
-		BulkDataDesc& Entry = Data.Emplace_GetRef();
-
-		Entry.ChunkId = InChunkId;
-		Entry.Offset = InOffset;
-		Entry.Size = InSize;
-		Entry.Type = InType;
-	}
-}
-
-void FPackageStoreBulkDataManifest::PackageDesc::AddZeroByteData(EIoChunkType InType)
-{
-	// Make sure we only add one empty read per Bulkdata type!
-	auto func = [=](const BulkDataDesc& Entry) { return Entry.Type == InType && Entry.Size == 0; };
-	if (Data.FindByPredicate(func) == nullptr)
-	{
-		BulkDataDesc& Entry = Data.Emplace_GetRef();
-
-		Entry.ChunkId = TNumericLimits<uint64>::Max();
-		Entry.Offset = 0;
-		Entry.Size = 0;
-		Entry.Type = InType;
-	}
-}
-
-FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& ProjectPath)
-{
-	Filename = ProjectPath / TEXT("Metadata/BulkDataInfo.ubulkmanifest");
-}
-
-FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc::BulkDataDesc& Entry)
-{
-	Ar << Entry.ChunkId;
-	Ar << Entry.Offset;
-	Ar << Entry.Size; 
-	Ar << Entry.Type;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FPackageStoreBulkDataManifest::PackageDesc& Entry)
-{
-	Ar << Entry.Data;
-
-	return Ar;
-}
-
-FPackageStoreBulkDataManifest::~FPackageStoreBulkDataManifest()
-{
-}
-
-bool FPackageStoreBulkDataManifest::Load()
-{
-	Data.Empty();
-
-	TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileReader(*Filename));
-	if (BinArchive != nullptr)
-	{
-		*BinArchive << Data;
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-void FPackageStoreBulkDataManifest::Save()
-{
-	TUniquePtr<FArchive> BinArchive(IFileManager::Get().CreateFileWriter(*Filename));
-	*BinArchive << Data;
-}
-
-const FPackageStoreBulkDataManifest::PackageDesc* FPackageStoreBulkDataManifest::Find(const FString& PackageFilename) const
-{
-	const  FString NormalizedFilename = FixFilename(PackageFilename);
-	return Data.Find(NormalizedFilename);
-}
-
-void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename, EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize)
-{
-	const FString NormalizedFilename = FixFilename(PackageFilename);
-	
-	PackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
-
-	if (InSize > 0)
-	{
-		Entry.AddData(InType, InChunkId, InOffset, InSize, NormalizedFilename);
-	}
-	else
-	{
-		Entry.AddZeroByteData(InType);
-	}
-	
-}
-
-FPackageStoreBulkDataManifest::PackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
-{
-	if (PackageDesc* Entry = Data.Find(PackageFilename))
-	{
-		return *Entry;
-	}
-	else
-	{
-		return Data.Add(PackageFilename);
-	}
-}
-
-FString FPackageStoreBulkDataManifest::FixFilename(const FString& InFilename) const
-{
-	FString OutFilename = InFilename;
-	FPaths::NormalizeFilename(OutFilename);
-	FPaths::MakePathRelativeTo(OutFilename, *RootPath);
-
-	return OutFilename;
-}
 
 #if WITH_EDITOR
 static void AddReplacementsNames(FPackageNameMapSaver& NameMapSaver, UObject* Obj, const ITargetPlatform* TargetPlatform)
@@ -3605,15 +3469,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			bCleanupIsRequired = Base->PreSaveRoot(Filename);
 		}
 
-		const FString BaseFilename = FPaths::GetBaseFilename(Filename);
-		// Make temp file. CreateTempFilename guarantees unique, non-existing filename.
-		// The temp file will be saved in the game save folder to not have to deal with potentially too long paths.
-		// Since the temp filename may include a 32 character GUID as well, limit the user prefix to 32 characters.
-		FString TempFilename;
-		FString TextFormatTempFilename;
-		TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
-		TextFormatTempFilename = TempFilename + FPackageName::GetTextAssetPackageExtension();
-
 		// Init.
 		FString CleanFilename = FPaths::GetCleanFilename(Filename);
 
@@ -3782,6 +3637,26 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				FArchiveFormatterType* Formatter = nullptr;
 				FArchive* TextFormatArchive = nullptr;
 				const bool bTextFormat = FString(Filename).EndsWith(FPackageName::GetTextAssetPackageExtension()) || FString(Filename).EndsWith(FPackageName::GetTextMapPackageExtension());
+
+				const FString BaseFilename = FPaths::GetBaseFilename(Filename);
+				// Make temp file. CreateTempFilename guarantees unique, non-existing filename.
+				// The temp file will be saved in the game save folder to not have to deal with potentially too long paths.
+				// Since the temp filename may include a 32 character GUID as well, limit the user prefix to 32 characters.
+				TOptional<FString> TempFilename;
+				TOptional<FString> TextFormatTempFilename;
+				ON_SCOPE_EXIT
+				{
+					// free the file handle and delete the temporary file
+					Linker->CloseAndDestroySaver();
+					if (TempFilename.IsSet())
+					{
+						IFileManager::Get().Delete(*TempFilename.GetValue());
+					}
+					if (TextFormatTempFilename.IsSet())
+					{
+						IFileManager::Get().Delete(*TextFormatTempFilename.GetValue());
+					}
+				};
 	
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_CreateLinkerSave);
@@ -3840,13 +3715,22 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						else
 						{
 							// Allocate the linker, forcing byte swapping if wanted.
-							Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, *TempFilename, bForceByteSwapping, bSaveUnversioned));
+							TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
+							Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, *TempFilename.GetValue(), bForceByteSwapping, bSaveUnversioned));
 						}
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 					if (bTextFormat)
 					{
-						TextFormatArchive = IFileManager::Get().CreateFileWriter(*TextFormatTempFilename);
+						if (TempFilename.IsSet())
+						{
+							TextFormatTempFilename = TempFilename.GetValue() + FPackageName::GetTextAssetPackageExtension();
+						}
+						else
+						{
+							TextFormatTempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32)) + FPackageName::GetTextAssetPackageExtension();
+						}
+						TextFormatArchive = IFileManager::Get().CreateFileWriter(*TextFormatTempFilename.GetValue());
 						FJsonArchiveOutputFormatter* OutputFormatter = new FJsonArchiveOutputFormatter(*TextFormatArchive);
 						OutputFormatter->SetObjectIndicesMap(&Linker->ObjectIndicesMap);
 						Formatter = OutputFormatter;
@@ -3883,12 +3767,16 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				Linker->SetFilterEditorOnly( FilterEditorOnly );
 				Linker->SetCookingTarget(TargetPlatform);
 
+				bool bUseUnversionedProperties = bSaveUnversioned && CanUseUnversionedPropertySerialization(TargetPlatform);
+				Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+				Linker->Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+
 				// Make sure the package has the same version as the linker
 				InOuter->LinkerPackageVersion = Linker->UE4Ver();
 				InOuter->LinkerLicenseeVersion = Linker->LicenseeUE4Ver();
 				InOuter->LinkerCustomVersion = Linker->GetCustomVersions();
 
-				if (EndSavingIfCancelled(Linker.Get(), TempFilename))
+				if (EndSavingIfCancelled())
 				{ 
 					return ESavePackageResult::Canceled; 
 				}
@@ -4121,13 +4009,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				TMap<UObject*, UObject*> DuplicateRedirects = UnmarkExportTagFromDuplicates();
 #endif // WITH_EDITOR
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
 				SlowTask.EnterProgressFrame();
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4227,7 +4115,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 				}
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4296,9 +4184,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						}
 					}
 
-					// Free the file handle and delete the temporary file
-					Linker->CloseAndDestroySaver();
-					IFileManager::Get().Delete( *TempFilename );
 					if (!(SaveFlags & SAVE_NoError))
 					{
 						Error->Logf(ELogVerbosity::Warning, TEXT("Can't save %s: Graph is linked to object %s in external map"), Filename, *CulpritString);
@@ -4348,9 +4233,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							(PropertyRef != nullptr) ? *PropertyRef->GetName() : TEXT("unknown property ref"));
 					}
 
-					// free the file handle and delete the temporary file
-					Linker->CloseAndDestroySaver();
-					IFileManager::Get().Delete(*TempFilename);
 					if (!(SaveFlags & SAVE_NoError))
 					{
 						Error->Logf(ELogVerbosity::Warning, TEXT("Can't save %s: Graph is linked to external private object %s"), Filename, *CulpritString);
@@ -4406,7 +4288,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 				int32 OffsetAfterPackageFileSummary = Linker->Tell();
 		
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4435,7 +4317,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 #endif
 					NameMapSaver.UpdateLinker(*Linker.Get(), Conform, bTextFormat ? nullptr : Linker->Saver);
 				}
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4476,7 +4358,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 				}
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4549,7 +4431,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4563,7 +4445,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->Summary.ImportCount = Linker->ImportMap.Num();
 				}
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4602,7 +4484,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 #endif
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4625,7 +4507,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				Linker->Summary.ExportCount = Linker->ExportMap.Num();
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4713,7 +4595,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4740,7 +4622,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 				}
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4784,7 +4666,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4837,7 +4719,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				// Find components referenced by exports.
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -4860,7 +4742,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				int32 OffsetAfterImportMap = Linker->Tell();
 
 
-				if (EndSavingIfCancelled(Linker.Get(), TempFilename))
+				if (EndSavingIfCancelled())
 				{
 					return ESavePackageResult::Canceled;
 				}
@@ -4883,7 +4765,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				int32 OffsetAfterExportMap = Linker->Tell();
 
 
-				if (EndSavingIfCancelled(Linker.Get(), TempFilename))
+				if (EndSavingIfCancelled())
 				{
 					return ESavePackageResult::Canceled;
 				}
@@ -4921,7 +4803,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 
 
-				if (EndSavingIfCancelled(Linker.Get(), TempFilename))
+				if (EndSavingIfCancelled())
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -5349,7 +5231,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				
 				Linker->Summary.TotalHeaderSize	= Linker->Tell();
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -5381,7 +5263,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					int32 LastExportSaveStep = 0;
 					for( int32 i=0; i<Linker->ExportMap.Num(); i++ )
 					{
-						if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+						if ( EndSavingIfCancelled() )
 						{ 
 							return ESavePackageResult::Canceled;
 						}
@@ -5474,7 +5356,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 
 				
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -5517,7 +5399,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// write the package post tag
 				if (!bTextFormat)
 				{
-				uint32 Tag = PACKAGE_FILE_TAG;
+					uint32 Tag = PACKAGE_FILE_TAG;
 					StructuredArchiveRoot.GetUnderlyingArchive() << Tag;
 				}
 
@@ -5616,7 +5498,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					check( Linker->Tell() == OffsetAfterExportMap );
 				}
 
-				if (EndSavingIfCancelled(Linker.Get(), TempFilename))
+				if (EndSavingIfCancelled())
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -5678,7 +5560,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					check( Linker->Tell() == OffsetAfterPackageFileSummary );
 				}
 
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -5695,16 +5577,15 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 					if (!bFileWriterSuccess)
 					{
-						IFileManager::Get().Delete(*TempFilename);
 						UE_LOG(LogSavePackage, Error, TEXT("Error writing temp file '%s' for '%s'"),
-							*TempFilename, Filename);
+							TempFilename.IsSet() ? *TempFilename.GetValue() : TEXT("UNKNOWN"), Filename);
 						return ESavePackageResult::Error;
 					}
 				}
 				UNCLOCK_CYCLES(Time);
 				UE_CLOG(!bDiffing, LogSavePackage, Verbose,  TEXT("Save=%.2fms"), FPlatformTime::ToMilliseconds(Time) );
 		
-				if ( EndSavingIfCancelled( Linker.Get(), TempFilename ) )
+				if ( EndSavingIfCancelled() )
 				{ 
 					return ESavePackageResult::Canceled;
 				}
@@ -5730,7 +5611,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							FArchiveStackTrace* Writer = (FArchiveStackTrace*)(Linker->Saver);
 							TMap<FName, FArchiveDiffStats> PackageDiffStats;
 							Writer->CompareWith(*NewPath, IsEventDrivenLoaderEnabledInCookedBuilds() ? Linker->Summary.TotalHeaderSize : 0, CutoffString, DiffSettings.MaxDiffsToLog, PackageDiffStats);
-							TotalPackageSizeUncompressed = Writer->TotalSize();
+							TotalPackageSizeUncompressed += Writer->TotalSize();
 
 							auto MergeStats = [](TMap<FName, FArchiveDiffStats>& InOut, const TMap<FName, FArchiveDiffStats>& ToMerge)
 							{
@@ -5755,7 +5636,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							FArchiveStackTrace* Writer = (FArchiveStackTrace*)(Linker->Saver);
 							FArchiveDiffMap OutDiffMap;
 							bDiffOnlyIdentical = Writer->GenerateDiffMap(*NewPath, IsEventDrivenLoaderEnabledInCookedBuilds() ? Linker->Summary.TotalHeaderSize : 0, DiffSettings.MaxDiffsToLog, OutDiffMap);
-							TotalPackageSizeUncompressed = Writer->TotalSize();
+							TotalPackageSizeUncompressed += Writer->TotalSize();
 							if (InOutDiffMap)
 							{
 								*InOutDiffMap = MoveTemp(OutDiffMap);
@@ -5770,7 +5651,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							FLargeMemoryWriter* Writer = static_cast<FLargeMemoryWriter*>(Linker->Saver);
 							const int64 DataSize = Writer->TotalSize();
 
-							TotalPackageSizeUncompressed += DataSize;
+							if (!(SaveFlags & SAVE_DiffCallstack))  // Avoid double counting the package size if SAVE_DiffCallstack flag is set and DiffSettings.bSaveForDiff == true.
+								TotalPackageSizeUncompressed += DataSize;
 
 							if (IsEventDrivenLoaderEnabledInCookedBuilds() && Linker->IsCooking())
 							{
@@ -5840,16 +5722,22 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					// Move the temporary file.
 					else
 					{
+						check(TempFilename.IsSet());
+
 						if (bTextFormat)
 						{
-							IFileManager::Get().Delete(*TempFilename);
+							check(TextFormatTempFilename.IsSet());
+							IFileManager::Get().Delete(*TempFilename.GetValue());
 							TempFilename = TextFormatTempFilename;
+							TextFormatTempFilename.Reset();
 						}
 
-						UE_LOG(LogSavePackage, Log,  TEXT("Moving '%s' to '%s'"), *TempFilename, *NewPath );
-						TotalPackageSizeUncompressed += IFileManager::Get().FileSize(*TempFilename);
+						UE_LOG(LogSavePackage, Log,  TEXT("Moving '%s' to '%s'"), TempFilename.IsSet() ? *TempFilename.GetValue() : TEXT("UNKNOWN"), *NewPath );
+						TotalPackageSizeUncompressed += PackageSize;
 
-						Success = IFileManager::Get().Move( *NewPath, *TempFilename );
+						Success = IFileManager::Get().Move( *NewPath, *TempFilename.GetValue());
+						TempFilename.Reset();
+
 						if (FinalTimeStamp != FDateTime::MinValue())
 						{
 							IFileManager::Get().SetTimeStamp(*NewPath, FinalTimeStamp);
@@ -5903,7 +5791,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						}
 						
 						// Update package FileSize value
-						InOuter->FileSize = IFileManager::Get().FileSize(Filename);
+						InOuter->FileSize = PackageSize;
 
 						// Warn about long package names, which may be bad for consoles with limited filename lengths.
 						if( bWarnOfLongFilename == true )
@@ -5933,9 +5821,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							}
 						}
 					}
-
-					// Delete the temporary file.
-					IFileManager::Get().Delete( *TempFilename );
 				}
 				COOK_STAT(SavePackageStats::MBWritten += ((double)TotalPackageSizeUncompressed) / 1024.0 / 1024.0);
 
@@ -6211,7 +6096,7 @@ static void SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FStruc
 }
 
 void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
-				  FSavePackageContext* SavePackageContext, const bool bTextFormat, const bool bDiffing, const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64 TotalPackageSizeUncompressed)
+				  FSavePackageContext* SavePackageContext, const bool bTextFormat, const bool bDiffing, const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed)
 {
 	// Now we write all the bulkdata that is supposed to be at the end of the package
 	// and fix up the offset
@@ -6371,7 +6256,8 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			if (SavePackageContext != nullptr && SavePackageContext->BulkDataManifest != nullptr)
 			{
 				const bool bIsOptional = (BulkDataStorageInfo.BulkDataFlags & BULKDATA_OptionalPayload) != 0;
-				const EIoChunkType Type = bIsOptional ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
+				const FPackageStoreBulkDataManifest::EBulkdataType Type = !bIsOptional ? FPackageStoreBulkDataManifest::EBulkdataType::Normal :
+																						 FPackageStoreBulkDataManifest::EBulkdataType::Optional;
 
 				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, Type, StoredBulkStartOffset, BulkStartOffset, SizeOnDisk);
 			}
@@ -6393,9 +6279,10 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 
 			if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr && bWriteBulkToDisk)
 			{
-				auto ToIoBuffer = [](FLargeMemoryWriter* Writer)
+				auto AddSizeAndConvertToIoBuffer = [&TotalPackageSizeUncompressed](FLargeMemoryWriter* Writer)
 				{
 					const int64 TotalSize = Writer->TotalSize();
+					TotalPackageSizeUncompressed += TotalSize;
 					return FIoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), TotalSize);
 				};
 
@@ -6404,13 +6291,13 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 				BulkInfo.LooseFilePath = Filename;
 				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Standard;
 
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(BulkArchive.Get()));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()));
 
 				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Optional;
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(OptionalBulkArchive.Get()));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()));
 
 				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Mmap;
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, ToIoBuffer(MappedBulkArchive.Get()));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()));
 			}
 			else
 			{
@@ -6442,7 +6329,6 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 
 				WriteBulkData(BulkArchive.Get(), TEXT(".ubulk"));			// Regular separate bulk data file
 				WriteBulkData(OptionalBulkArchive.Get(), TEXT(".uptnl"));	// Optional bulk data
-				WriteBulkData(MappedBulkArchive.Get(), TEXT(".m.ubulk"));	// Memory-mapped bulk data
 				WriteBulkData(MappedBulkArchive.Get(), TEXT(".m.ubulk"));	// Memory-mapped bulk data
 			}
 		}
@@ -6561,4 +6447,10 @@ void FLooseFileWriter::WriteBulkdata(const FLooseFileWriter::FBulkDataInfo& Info
 	const FString ArchiveFilename = FPaths::ChangeExtension(Info.LooseFilePath, BulkFileExtension);
 
 	WriteToFile(ArchiveFilename, BulkData.Data(), BulkData.DataSize());
+}
+
+FSavePackageContext::~FSavePackageContext()
+{
+	delete PackageStoreWriter;
+	delete BulkDataManifest;
 }

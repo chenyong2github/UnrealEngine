@@ -10,6 +10,7 @@
 #include "Containers/List.h"
 #include "Containers/StaticArray.h"
 #include "RHI.h"
+#include "Serialization/MemoryLayout.h"
 
 namespace EShaderPrecisionModifier
 {
@@ -185,7 +186,7 @@ public:
 	/** Initialization constructor. */
 	FShaderParametersMetadata(
 		EUseCase UseCase,
-		const FName& InLayoutName,
+		const TCHAR* InLayoutName,
 		const TCHAR* InStructTypeName,
 		const TCHAR* InShaderVariableName,
 		const TCHAR* InStaticSlotName,
@@ -200,6 +201,7 @@ public:
 
 	const TCHAR* GetStructTypeName() const { return StructTypeName; }
 	const TCHAR* GetShaderVariableName() const { return ShaderVariableName; }
+	const FHashedName& GetShaderVariableHashedName() const { return ShaderVariableHashedName; }
 	const TCHAR* GetStaticSlotName() const { return StaticSlotName; }
 
 	bool HasStaticSlot() const { return StaticSlotName != nullptr; }
@@ -225,7 +227,7 @@ public:
 
 	static TLinkedList<FShaderParametersMetadata*>*& GetStructList();
 	/** Speed up finding the uniform buffer by its name */
-	static TMap<FName, FShaderParametersMetadata*>& GetNameStructMap();
+	static TMap<FHashedName, FShaderParametersMetadata*>& GetNameStructMap();
 
 	/** Initialize all the global shader parameter structs. */
 	static void InitializeAllUniformBufferStructs();
@@ -247,6 +249,8 @@ private:
 
 	/** Name of the static slot to use for the uniform buffer (or null). */
 	const TCHAR* const StaticSlotName;
+
+	FHashedName ShaderVariableHashedName;
 
 	/** Size of the entire struct in bytes. */
 	const uint32 Size;

@@ -17,9 +17,11 @@ struct FMeshBatchElement;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryUniformShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(FIntVector4,VertexFetch_Parameters)
+	SHADER_PARAMETER(int32, PreSkinBaseVertexIndex)
 	SHADER_PARAMETER(uint32,LODLightmapDataIndex)
 	SHADER_PARAMETER_SRV(Buffer<float2>, VertexFetch_TexCoordBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float>, VertexFetch_PositionBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float>, VertexFetch_PreSkinPositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_PackedTangentsBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_ColorComponentsBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -28,7 +30,9 @@ extern TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocal
 	const class FLocalVertexFactory* VertexFactory, 
 	uint32 LODLightmapDataIndex, 
 	class FColorVertexBuffer* OverrideColorVertexBuffer, 
-	int32 BaseVertexIndex);
+	int32 BaseVertexIndex,
+	int32 PreSkinBaseVertexIndex
+	);
 
 /**
  * A vertex factory which simply transforms explicit vertex attributes from local to world space.
@@ -48,14 +52,15 @@ public:
 
 	struct FDataType : public FStaticMeshDataType
 	{
+		FRHIShaderResourceView* PreSkinPositionComponentSRV = nullptr;
 	};
 
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
 
@@ -80,8 +85,6 @@ public:
 
 	static bool SupportsTessellationShaders() { return true; }
 
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
-
 	FORCEINLINE_DEBUGGABLE void SetColorOverrideStream(FRHICommandList& RHICmdList, const FVertexBuffer* ColorVertexBuffer) const
 	{
 		checkf(ColorVertexBuffer->IsInitialized(), TEXT("Color Vertex buffer was not initialized! Name %s"), *ColorVertexBuffer->GetFriendlyName());
@@ -100,6 +103,11 @@ public:
 	inline FRHIShaderResourceView* GetPositionsSRV() const
 	{
 		return Data.PositionComponentSRV;
+	}
+
+	inline FRHIShaderResourceView* GetPreSkinPositionSRV() const
+	{
+		return Data.PreSkinPositionComponentSRV ? Data.PreSkinPositionComponentSRV : GNullColorVertexBuffer.VertexBufferSRV.GetReference();
 	}
 
 	inline FRHIShaderResourceView* GetTangentsSRV() const
@@ -164,9 +172,9 @@ protected:
  */
 class FLocalVertexFactoryShaderParametersBase : public FVertexFactoryShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FLocalVertexFactoryShaderParametersBase, NonVirtual);
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override;
-	virtual void Serialize(FArchive& Ar) override;
+	void Bind(const FShaderParameterMap& ParameterMap);
 
 	void GetElementShaderBindingsBase(
 		const class FSceneInterface* Scene,
@@ -187,18 +195,18 @@ public:
 	}
 
 	// SpeedTree LOD parameter
-	FShaderParameter LODParameter;
+	LAYOUT_FIELD(FShaderParameter, LODParameter);
 
 	// True if LODParameter is bound, which puts us on the slow path in GetElementShaderBindings
-	bool bAnySpeedTreeParamIsBound;
+	LAYOUT_FIELD(bool, bAnySpeedTreeParamIsBound);
 };
 
 /** Shader parameter class used by FLocalVertexFactory only - no derived classes. */
 class FLocalVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
 {
+	DECLARE_TYPE_LAYOUT(FLocalVertexFactoryShaderParameters, NonVirtual);
 public:
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -208,5 +216,5 @@ public:
 		const FMeshBatchElement& BatchElement,
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-	) const override; 
+	) const; 
 };

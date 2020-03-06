@@ -145,14 +145,18 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 
 	if (StaticMeshesToProcess.Num())
 	{
-		// Ensure those modules are loaded on the main thread - we'll need them in async tasks
-		FModuleManager::Get().LoadModuleChecked<IMeshBuilderModule>(TEXT("MeshBuilder"));
-		FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>(TEXT("MeshReductionInterface"));
-
 		// Make sure the target platform is properly initialized before accessing it from multiple threads
 		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
 		ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
 		check(RunningPlatform);
+
+		// Ensure those modules are loaded on the main thread - we'll need them in async tasks
+		FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>(TEXT("MeshReductionInterface"));
+		IMeshBuilderModule::GetForRunningPlatform();
+		for (const ITargetPlatform* TargetPlatform : TargetPlatformManager.GetActiveTargetPlatforms())
+		{
+			IMeshBuilderModule::GetForPlatform(TargetPlatform);
+		}
 
 		for (UStaticMesh* StaticMesh : StaticMeshesToProcess)
 		{

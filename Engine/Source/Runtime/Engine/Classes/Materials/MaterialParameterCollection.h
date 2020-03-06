@@ -82,10 +82,10 @@ class UMaterialParameterCollection : public UObject
 	UPROPERTY(duplicatetransient)
 	FGuid StateId;
 
-	UPROPERTY(EditAnywhere, Category=Material)
+	UPROPERTY(EditAnywhere, Category=Material, Meta = (TitleProperty = "ParameterName"))
 	TArray<FCollectionScalarParameter> ScalarParameters;
 
-	UPROPERTY(EditAnywhere, Category=Material)
+	UPROPERTY(EditAnywhere, Category=Material, Meta = (TitleProperty = "ParameterName"))
 	TArray<FCollectionVectorParameter> VectorParameters;
 
 	//~ Begin UObject Interface.

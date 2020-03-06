@@ -223,7 +223,7 @@ namespace Gauntlet
 			// todo , how to find this?
 			if (Platform == UnrealTargetPlatform.Android)
 			{
-				ExeName += "-arm64-es2";
+				ExeName += "-arm64";
 			}
 
 			// not all platforms use an extension

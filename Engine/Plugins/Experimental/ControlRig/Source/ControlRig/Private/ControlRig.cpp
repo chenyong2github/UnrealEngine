@@ -134,10 +134,10 @@ void UControlRig::InitializeFromCDO()
 	// copy CDO property you need to here
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
+	UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 
 		// copy hierarchy
-		Hierarchy = CDO->Hierarchy;
+	Hierarchy = CDO->Hierarchy;
 		Hierarchy.Initialize();
 
 		// copy draw container
@@ -184,9 +184,9 @@ void UControlRig::InstantiateVMFromCDO()
 		if (VM && CDO && CDO->VM)
 		{
 			VM->CopyFrom(CDO->VM);
-		}
-		else
-		{
+	}
+	else
+	{
 			VM->Reset();
 		}
 	}
@@ -239,27 +239,27 @@ void UControlRig::Execute(const EControlRigState InState)
 
 			switch (Entry.Severity)
 			{
-			case EMessageSeverity::CriticalError:
-			case EMessageSeverity::Error:
-			{
+				case EMessageSeverity::CriticalError:
+				case EMessageSeverity::Error:
+				{
 				UE_LOG(LogControlRig, Error, TEXT("Operator[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.OperatorName.ToString(), *Entry.Message);
-				break;
-			}
-			case EMessageSeverity::PerformanceWarning:
-			case EMessageSeverity::Warning:
-			{
+					break;
+				}
+				case EMessageSeverity::PerformanceWarning:
+				case EMessageSeverity::Warning:
+				{
 				UE_LOG(LogControlRig, Warning, TEXT("Operator[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.OperatorName.ToString(), *Entry.Message);
-				break;
-			}
-			case EMessageSeverity::Info:
-			{
+					break;
+				}
+				case EMessageSeverity::Info:
+				{
 				UE_LOG(LogControlRig, Display, TEXT("Operator[%d] '%s': '%s'"), Entry.InstructionIndex, *Entry.OperatorName.ToString(), *Entry.Message);
-				break;
-			}
-			default:
-			{
-				break;
-			}
+					break;
+				}
+				default:
+				{
+					break;
+				}
 			}
 		}
 	}

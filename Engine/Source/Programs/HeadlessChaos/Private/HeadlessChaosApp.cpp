@@ -94,10 +94,7 @@ TEST(CollisionTests, PGS) {
 }
 
 TEST(ForceTests, Forces) {
-	ChaosTest::Gravity<Chaos::TPBDRigidsEvolutionGBF<float, 3>, float>();
-#if CHAOS_PARTICLEHANDLE_TODO
-	ChaosTest::Gravity<Chaos::TPBDRigidsEvolutionPGS<float, 3>, float>();
-#endif
+	ChaosTest::Gravity<Chaos::FPBDRigidsEvolutionGBF, float>();
 	SUCCEED();
 }
 

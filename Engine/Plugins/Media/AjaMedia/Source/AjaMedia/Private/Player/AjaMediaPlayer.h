@@ -13,9 +13,11 @@ class FAjaMediaBinarySamplePool;
 class FAjaMediaTextureSample;
 class FAjaMediaTextureSamplePool;
 class FMediaIOCoreBinarySampleBase;
+struct FSlateBrush;
 class IMediaEventSink;
 
 enum class EMediaTextureSampleFormat;
+enum class EMediaIOSampleType;
 
 namespace AJA
 {
@@ -64,6 +66,11 @@ public:
 
 	virtual FString GetStats() const override;
 
+	//~ ITimedDataInput interface
+#if WITH_EDITOR
+	virtual const FSlateBrush* GetDisplayIcon() const override;
+#endif
+
 protected:
 
 	//~ IAJAInputOutputCallbackInterface interface
@@ -88,6 +95,9 @@ protected:
 
 
 	virtual bool IsHardwareReady() const override;
+
+	//~ FMediaIOCorePlayerBase interface
+	virtual void SetupSampleChannels() override;
 
 private:
 
@@ -120,9 +130,9 @@ private:
 
 	/** Number of frames drop from the last tick. */
 	int32 AjaThreadFrameDropCount;
-	int32 AjaThreadAutoCirculateAudioFrameDropCount;
-	int32 AjaThreadAutoCirculateMetadataFrameDropCount;
-	int32 AjaThreadAutoCirculateVideoFrameDropCount;
+	int32 PreviousMetadataFrameDropCount;
+	int32 PreviousAudioFrameDropCount;
+	int32 PreviousVideoFrameDropCount;
 
 	/** Number of frames drop from the last tick. */
 	uint32 LastFrameDropCount;
@@ -145,6 +155,9 @@ private:
 
 	/** Maps to the current input Device */
 	AJA::AJAInputChannel* InputChannel;
+
+	/** Used to flag which sample types we advertise as supported for timed data monitoring */
+	EMediaIOSampleType SupportedSampleTypes;
 
 	/** Frame Description from capture device */
 	AJA::FAJAVideoFormat LastVideoFormatIndex;

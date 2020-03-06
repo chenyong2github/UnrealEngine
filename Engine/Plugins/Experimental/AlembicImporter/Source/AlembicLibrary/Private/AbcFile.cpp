@@ -21,12 +21,10 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 
-PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcGeom/All.h>
 #include "Materials/MaterialInstance.h"
 THIRD_PARTY_INCLUDES_END
-PRAGMA_DEFAULT_VISIBILITY_END
 
 #if PLATFORM_WINDOWS
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -179,6 +177,7 @@ EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
 	}
 
 	SecondsPerFrame = TimeStep;
+	FramesPerSecond = TimeStep > 0.f ? 1 / TimeStep : 30;
 	ImportLength = FrameSpan * TimeStep;
 
 	// Calculate time offset from start of import animation range
@@ -291,6 +290,25 @@ EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
 				}
 			}
 		}
+	}
+
+	// Populate the list of unique face set names from the meshes that should be imported regardless of the import material settings
+	bool bRequiresDefaultMaterial = false;
+	for (FAbcPolyMesh* PolyMesh : PolyMeshes)
+	{
+		if (PolyMesh->bShouldImport)
+		{
+			for (const FString& FaceSetName : PolyMesh->FaceSetNames)
+			{
+				UniqueFaceSetNames.AddUnique(FaceSetName);
+			}
+			bRequiresDefaultMaterial |= PolyMesh->FaceSetNames.Num() == 0;
+		}
+	}
+
+	if (bRequiresDefaultMaterial)
+	{
+		UniqueFaceSetNames.Insert(TEXT("DefaultMaterial"), 0);
 	}
 
 	return AbcImportError_NoError;
@@ -466,6 +484,11 @@ const float FAbcFile::GetImportTimeOffset() const
 const float FAbcFile::GetImportLength() const
 {
 	return ImportLength;
+}
+
+const int32 FAbcFile::GetImportNumFrames() const
+{
+	return EndFrameIndex - StartFrameIndex;
 }
 
 const int32 FAbcFile::GetFramerate() const

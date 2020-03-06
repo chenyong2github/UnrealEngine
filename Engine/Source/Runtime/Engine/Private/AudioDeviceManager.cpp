@@ -11,6 +11,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "UObject/UObjectIterator.h"
 #include "Audio/AudioDebug.h"
 
@@ -37,10 +38,17 @@ static int32 GCvarIsUsingAudioMixer = 0;
 FAutoConsoleVariableRef CVarIsUsingAudioMixer(
 	TEXT("au.IsUsingAudioMixer"),
 	GCvarIsUsingAudioMixer,
-	TEXT("Whether or not we're currently using the audio mixer. Change to dynamically toggle on/off. Note: sounds will stop. Looping sounds won't automatically resume. \n")
+	TEXT("Whether or not we're currently using the audio mixer. Change to dynamically toggle on/off. This will only take effect if an audio device is currently not in use, unless au.AllowUnsafeAudioMixerToggling is set to 1. Note: sounds will stop. Looping sounds won't automatically resume. \n")
 	TEXT("0: Not Using Audio Mixer, 1: Using Audio Mixer"),
 	ECVF_Default);
 
+static int32 GCvarAllowUnsafeAudioMixerToggling = 0;
+FAutoConsoleVariableRef CVarAllowUnsafeAudioMixerToggling(
+	TEXT("au.AllowUnsafeAudioMixerToggling"),
+	GCvarAllowUnsafeAudioMixerToggling,
+	TEXT("If set to 1, will allow au.IsUsingAudioMixer to swap out the audio engine, even if there are systems in the world currently using the audio engine. \n")
+	TEXT("0: disable usage of au.IsUsingAudioMixer when the audio device is actively in use, 1: enable usage of au.IsUsingAudioMixer."),
+	ECVF_Default);
 
 static int32 CVarIsVisualizeEnabled = 0;
 FAutoConsoleVariableRef CVarAudioVisualizeEnabled(
@@ -48,6 +56,14 @@ FAutoConsoleVariableRef CVarAudioVisualizeEnabled(
 	CVarIsVisualizeEnabled,
 	TEXT("Whether or not audio visualization is enabled. \n")
 	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
+static int32 GCVarFlushAudioRenderCommandsOnSuspend = 0;
+FAutoConsoleVariableRef CVarFlushAudioRenderCommandsOnSuspend(
+	TEXT("au.FlushAudioRenderCommandsOnSuspend"),
+	GCVarFlushAudioRenderCommandsOnSuspend,
+	TEXT("When set to 1, ensures that we pump through all pending commands to the audio thread and audio render thread on app suspension.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
 static FAutoConsoleCommand GReportAudioDevicesCommand(
@@ -147,11 +163,39 @@ FAudioDeviceManager::~FAudioDeviceManager()
 	}
 }
 
-void FAudioDeviceManager::ToggleAudioMixer()
+bool FAudioDeviceManager::ToggleAudioMixer()
 {
 	// Only need to toggle if we have 2 device module names loaded at init
 	if (AudioDeviceModule && AudioDeviceModuleName.Len() > 0 && AudioMixerModuleName.Len() > 0)
 	{
+		// Check to see if there are still any active handles using this audio device, and either warn or exit early.
+		for (auto& DeviceContainer : Devices)
+		{
+			if (DeviceContainer.Value.NumberOfHandlesToThisDevice > 0)
+			{
+
+				UE_LOG(LogAudio, Warning, TEXT("Attempted to toggle the audio mixer while that audio device was in use."));
+
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+				FString ActiveDeviceHandles;
+				for (auto& StackWalkString : DeviceContainer.Value.HandleCreationStackWalks)
+				{
+					ActiveDeviceHandles += StackWalkString.Value;
+					ActiveDeviceHandles += TEXT("\n\n");
+				}
+
+				UE_LOG(LogAudio, Warning, TEXT("List Of Active Handles to this device: \n%s"), *ActiveDeviceHandles);
+#else
+				UE_LOG(LogAudio, Warning, TEXT("For more information compile with INSTRUMENT_AUDIODEVICE_HANDLES."));
+#endif
+
+				if (!GCvarAllowUnsafeAudioMixerToggling)
+				{
+					return false;
+				}
+			}
+		}
+
 		// Suspend the audio thread
 		FAudioThread::SuspendAudioThread();
 
@@ -243,11 +287,8 @@ void FAudioDeviceManager::ToggleAudioMixer()
 
 				check(AudioDevice);
 
-				// Set the new audio device handle to the old audio device handle
-				AudioDevice->DeviceID = DeviceID;
-
 				// Re-init the new audio device using appropriate settings so it behaves the same
-				if (AudioDevice->Init(AudioSettings->GetHighestMaxChannels()))
+				if (AudioDevice->Init(DeviceID, AudioSettings->GetHighestMaxChannels()))
 				{
 					AudioDevice->SetMaxChannels(QualityLevelMaxChannels);
 				}
@@ -285,6 +326,8 @@ void FAudioDeviceManager::ToggleAudioMixer()
 			FAudioThread::ResumeAudioThread();
 		}
 	}
+
+	return false;
 }
 
 bool FAudioDeviceManager::IsUsingAudioMixer() const
@@ -364,6 +407,8 @@ bool FAudioDeviceManager::Initialize()
 			AudioEditorModule->RegisterEffectPresetAssetActions();
 		}
 #endif
+
+		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAudioDeviceManager::AppWillEnterBackground);
 
 		// Initialize the main audio device.
 		FAudioDeviceParams MainDeviceParams;
@@ -465,7 +510,7 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 FAudioDeviceHandle FAudioDeviceManager::CreateNewDevice(const FAudioDeviceParams& InParams)
 {
 	Audio::FDeviceId DeviceID = GetNewDeviceID();
-	Devices.Emplace(DeviceID, FAudioDeviceContainer(InParams, this));
+	Devices.Emplace(DeviceID, FAudioDeviceContainer(InParams, DeviceID, this));
 	FAudioDeviceContainer* ContainerPtr = Devices.Find(DeviceID);
 	check(ContainerPtr);
 	if (!ContainerPtr->Device)
@@ -498,6 +543,8 @@ bool FAudioDeviceManager::ShutdownAudioDevice(Audio::FDeviceId Handle)
 
 void FAudioDeviceManager::IncrementDevice(Audio::FDeviceId DeviceID)
 {
+	FScopeLock ScopeLock(&DeviceMapCriticalSection);
+
 	// If there is an FAudioDeviceHandle out in the world
 	check(Devices.Contains(DeviceID));
 
@@ -536,6 +583,8 @@ void FAudioDeviceManager::DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InW
 
 bool FAudioDeviceManager::ShutdownAllAudioDevices()
 {
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
+
 	MainAudioDeviceHandle.Reset();
 
 	Devices.Reset();
@@ -621,15 +670,31 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 	{
 		if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
 		{
-			ToggleAudioMixer();
-			bToggledAudioMixer = true;
-			bUsingAudioMixer = false;
+			const bool bSuccessfullyToggledAudioMixer = ToggleAudioMixer();
+
+			if (bSuccessfullyToggledAudioMixer)
+			{
+				bToggledAudioMixer = true;
+				bUsingAudioMixer = false;
+			}
+			else
+			{
+				GCvarIsUsingAudioMixer = true;
+			}
 		}
 		else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
 		{
-			ToggleAudioMixer();
-			bToggledAudioMixer = true;
-			bUsingAudioMixer = true;
+			const bool bSuccessfullyToggledAudioMixer = ToggleAudioMixer();
+
+			if (bSuccessfullyToggledAudioMixer)
+			{
+				bToggledAudioMixer = true;
+				bUsingAudioMixer = true;
+			}
+			else
+			{
+				GCvarIsUsingAudioMixer = false;
+			}
 		}
 	}
 
@@ -712,7 +777,7 @@ void FAudioDeviceManager::InitSoundClasses()
 	}
 }
 
-void FAudioDeviceManager::RegisterSoundSubmix(USoundSubmix* SoundSubmix)
+void FAudioDeviceManager::RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	for (auto& DeviceContainer : Devices)
@@ -721,7 +786,7 @@ void FAudioDeviceManager::RegisterSoundSubmix(USoundSubmix* SoundSubmix)
 	}
 }
 
-void FAudioDeviceManager::UnregisterSoundSubmix(USoundSubmix* SoundSubmix)
+void FAudioDeviceManager::UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	for (auto& DeviceContainer : Devices)
@@ -757,7 +822,7 @@ void FAudioDeviceManager::UpdateSourceEffectChain(const uint32 SourceEffectChain
 	}
 }
 
-void FAudioDeviceManager::UpdateSubmix(USoundSubmix* SoundSubmix)
+void FAudioDeviceManager::UpdateSubmix(USoundSubmixBase* SoundSubmix)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	for (auto& DeviceContainer : Devices)
@@ -871,7 +936,11 @@ void FAudioDeviceManager::AddStackWalkForContainer(Audio::FDeviceId InId, uint32
 
 void FAudioDeviceManager::RemoveStackWalkForContainer(Audio::FDeviceId InId, uint32 StackWalkID)
 {
-	check(Devices.Contains(InId));
+	if (!Devices.Contains(InId))
+	{
+		return;
+	}
+
 	check(Devices[InId].HandleCreationStackWalks.Contains(StackWalkID));
 	FAudioDeviceContainer& Container = Devices[InId];
 	Container.HandleCreationStackWalks.Remove(StackWalkID);
@@ -1140,6 +1209,29 @@ const FAudioDebugger& FAudioDeviceManager::GetDebugger() const
 
 #endif // ENABLE_AUDIO_DEBUG
 
+
+void FAudioDeviceManager::AppWillEnterBackground()
+{
+	// Flush all commands to the audio thread and the audio render thread:
+	if (GCVarFlushAudioRenderCommandsOnSuspend)
+	{
+		if (GEngine && GEngine->GetMainAudioDevice())
+		{
+			FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+
+			FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+			{
+				FAudioDevice* AudioDevicePtr = const_cast<FAudioDevice*>(AudioDevice.GetAudioDevice());
+				AudioDevicePtr->FlushAudioRenderingCommands(true);
+			}, TStatId());
+		}
+
+		FAudioCommandFence AudioCommandFence;
+		AudioCommandFence.BeginFence();
+		AudioCommandFence.Wait();
+	}
+}
+
 FAudioDeviceHandle::FAudioDeviceHandle()
 	: World(nullptr)
 	, Device(nullptr)
@@ -1198,14 +1290,18 @@ void FAudioDeviceHandle::AddStackDumpToAudioDeviceContainer()
 
 FAudioDeviceHandle::~FAudioDeviceHandle()
 {
-	if (GEngine && IsValid())
+	if (IsValid())
 	{
-		GEngine->GetAudioDeviceManager()->DecrementDevice(DeviceId, World);
+		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		if (AudioDeviceManager)
+		{
+			AudioDeviceManager->DecrementDevice(DeviceId, World);
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		check(StackWalkID != INDEX_NONE);
-		GEngine->GetAudioDeviceManager()->RemoveStackWalkForContainer(DeviceId, StackWalkID);
+			check(StackWalkID != INDEX_NONE);
+			AudioDeviceManager->RemoveStackWalkForContainer(DeviceId, StackWalkID);
 #endif
+		}
 	}
 }
 
@@ -1221,7 +1317,7 @@ Audio::FDeviceId FAudioDeviceHandle::GetDeviceID() const
 
 bool FAudioDeviceHandle::IsValid() const
 {
-	return Device != nullptr;
+	return GEngine && GEngine->GetAudioDeviceManager() && Device != nullptr;
 }
 
 void FAudioDeviceHandle::Reset()
@@ -1231,7 +1327,6 @@ void FAudioDeviceHandle::Reset()
 
 FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Other)
 {
-	// If this chunk was previously referencing another chunk, remove that chunk here.
 	if (IsValid())
 	{
 		check(FAudioDeviceManager::Get());
@@ -1243,12 +1338,15 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Othe
 
 	if (IsValid())
 	{
-		// Increment the reference count for the new streaming chunk.
-		FAudioDeviceManager::Get()->IncrementDevice(DeviceId);
+		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+		if (AudioDeviceManager)
+		{
+			AudioDeviceManager->IncrementDevice(DeviceId);
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		AddStackDumpToAudioDeviceContainer();
+			AddStackDumpToAudioDeviceContainer();
 #endif
+		}
 	}
 
 	return *this;
@@ -1256,7 +1354,6 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Othe
 
 FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 {
-	// If this chunk was previously referencing another chunk, remove that chunk here.
 	if (FAudioDeviceManager::Get() && IsValid())
 	{
 #if INSTRUMENT_AUDIODEVICE_HANDLES
@@ -1270,7 +1367,6 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 	Device = Other.Device;
 	DeviceId = Other.DeviceId;
 
-	// If the chunk we're moving from is valid, we null it out without needing to decrement.
 	Other.Device = nullptr;
 	Other.DeviceId = INDEX_NONE;
 
@@ -1285,7 +1381,7 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 	return *this;
 }
 
-FAudioDeviceManager::FAudioDeviceContainer::FAudioDeviceContainer(const FAudioDeviceParams& InParams, FAudioDeviceManager* DeviceManager)
+FAudioDeviceManager::FAudioDeviceContainer::FAudioDeviceContainer(const FAudioDeviceParams& InParams, Audio::FDeviceId InDeviceID, FAudioDeviceManager* DeviceManager)
 	: NumberOfHandlesToThisDevice(0)
 	, Scope(InParams.Scope)
 	, bIsNonRealtime(InParams.bIsNonRealtime)
@@ -1320,7 +1416,7 @@ FAudioDeviceManager::FAudioDeviceContainer::FAudioDeviceContainer(const FAudioDe
 	// runtime is supported.
 	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
 	const int32 HighestMaxChannels = AudioSettings ? AudioSettings->GetHighestMaxChannels() : 0;
-	if (Device->Init(HighestMaxChannels))
+	if (Device->Init(InDeviceID, HighestMaxChannels))
 	{
 		const FAudioQualitySettings& QualitySettings = Device->GetQualityLevelSettings();
 		Device->SetMaxChannels(QualitySettings.MaxChannels);

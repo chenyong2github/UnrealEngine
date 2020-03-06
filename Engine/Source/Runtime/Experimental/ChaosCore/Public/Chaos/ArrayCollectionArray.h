@@ -37,6 +37,14 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 
 	virtual ~TArrayCollectionArray() {}
 
+	void Fill(const T& Value)
+	{
+		for (int32 Idx = 0; Idx < TArray<T>::Num(); ++Idx)
+		{
+			TArray<T>::operator[](Idx) = Value;
+		}
+	}
+
 	TArrayCollectionArray<T> Clone()
 	{
 		TArrayCollectionArray<T> NewArray;

@@ -55,22 +55,15 @@ public:
 	virtual void SetAudioOutputDeviceMuted(bool bIsMuted) override;
 	virtual bool GetAudioInputDeviceMuted() const override;
 	virtual bool GetAudioOutputDeviceMuted() const override;
-	virtual TArray<FString> GetAvailableInputDevices() const override;
-	virtual TArray<FString> GetAvailableOutputDevices() const override;
+	virtual TArray<FVoiceChatDeviceInfo> GetAvailableInputDeviceInfos() const override;
+	virtual TArray<FVoiceChatDeviceInfo> GetAvailableOutputDeviceInfos() const override;
 	virtual FOnVoiceChatAvailableAudioDevicesChangedDelegate& OnVoiceChatAvailableAudioDevicesChanged() override { return OnVoiceChatAvailableAudioDevicesChangedDelegate; }
-	virtual void SetInputDevice(const FString& InputDevice) override;
-	virtual void SetOutputDevice(const FString& OutputDevice) override;
-	virtual FString GetInputDevice() const override;
-	virtual FString GetOutputDevice() const override;
-	virtual FString GetDefaultInputDevice() const override;
-	virtual FString GetDefaultOutputDevice() const override;
-	virtual void Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate) override;
-	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) override;
-	virtual bool IsConnecting() const override;
-	virtual bool IsConnected() const override;
-	virtual FOnVoiceChatConnectedDelegate& OnVoiceChatConnected() override;
-	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() override;
-	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() override;
+	virtual void SetInputDeviceId(const FString& InputDevice) override;
+	virtual void SetOutputDeviceId(const FString& OutputDevice) override;
+	virtual FVoiceChatDeviceInfo GetInputDeviceInfo() const override;
+	virtual FVoiceChatDeviceInfo GetOutputDeviceInfo() const override;
+	virtual FVoiceChatDeviceInfo GetDefaultInputDeviceInfo() const override;
+	virtual FVoiceChatDeviceInfo GetDefaultOutputDeviceInfo() const override;
 	virtual void Login(FPlatformUserId PlatformId, const FString& PlayerName, const FString& Credentials, const FOnVoiceChatLoginCompleteDelegate& Delegate) override;
 	virtual void Logout(const FOnVoiceChatLogoutCompleteDelegate& Delegate) override;
 	virtual bool IsLoggingIn() const override;
@@ -118,6 +111,7 @@ public:
 
 protected:
 	bool IsInitialized();
+	bool IsConnected();
 	bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
 	
 	friend class FVivoxVoiceChat;
@@ -281,6 +275,13 @@ public:
 	virtual bool Initialize() override;
 	virtual bool Uninitialize() override;
 	virtual bool IsInitialized() const override;
+	virtual void Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate) override;
+	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) override;
+	virtual bool IsConnecting() const override;
+	virtual bool IsConnected() const override;
+	virtual FOnVoiceChatConnectedDelegate& OnVoiceChatConnected() override { return OnVoiceChatConnectedDelegate; }
+	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() override { return OnVoiceChatDisconnectedDelegate; }
+	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() override { return OnVoiceChatReconnectedDelegate; }
 	virtual IVoiceChatUser* CreateUser() override;
 
 	// IVoiceChatUser
@@ -294,22 +295,15 @@ public:
 	virtual void SetAudioOutputDeviceMuted(bool bIsMuted) override;
 	virtual bool GetAudioInputDeviceMuted() const override;
 	virtual bool GetAudioOutputDeviceMuted() const override;
-	virtual TArray<FString> GetAvailableInputDevices() const override;
-	virtual TArray<FString> GetAvailableOutputDevices() const override;
+	virtual TArray<FVoiceChatDeviceInfo> GetAvailableInputDeviceInfos() const override;
+	virtual TArray<FVoiceChatDeviceInfo> GetAvailableOutputDeviceInfos() const override;
 	virtual FOnVoiceChatAvailableAudioDevicesChangedDelegate& OnVoiceChatAvailableAudioDevicesChanged() override;
-	virtual void SetInputDevice(const FString& InputDevice) override;
-	virtual void SetOutputDevice(const FString& OutputDevice) override;
-	virtual FString GetInputDevice() const override;
-	virtual FString GetOutputDevice() const override;
-	virtual FString GetDefaultInputDevice() const override;
-	virtual FString GetDefaultOutputDevice() const override;
-	virtual void Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate) override;
-	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) override;
-	virtual bool IsConnecting() const override;
-	virtual bool IsConnected() const override;
-	virtual FOnVoiceChatConnectedDelegate& OnVoiceChatConnected() override { return OnVoiceChatConnectedDelegate; }
-	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() override { return OnVoiceChatDisconnectedDelegate; }
-	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() override { return OnVoiceChatReconnectedDelegate; }
+	virtual void SetInputDeviceId(const FString& InputDeviceId) override;
+	virtual void SetOutputDeviceId(const FString& OutputDeviceId) override;
+	virtual FVoiceChatDeviceInfo GetInputDeviceInfo() const override;
+	virtual FVoiceChatDeviceInfo GetOutputDeviceInfo() const override;
+	virtual FVoiceChatDeviceInfo GetDefaultInputDeviceInfo() const override;
+	virtual FVoiceChatDeviceInfo GetDefaultOutputDeviceInfo() const override;
 	virtual void Login(FPlatformUserId PlatformId, const FString& PlayerName, const FString& Credentials, const FOnVoiceChatLoginCompleteDelegate& Delegate) override;
 	virtual void Logout(const FOnVoiceChatLogoutCompleteDelegate& Delegate) override;
 	virtual bool IsLoggingIn() const override;

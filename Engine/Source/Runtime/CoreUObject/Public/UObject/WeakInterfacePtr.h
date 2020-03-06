@@ -13,7 +13,7 @@ struct TWeakInterfacePtr
 {
 	TWeakInterfacePtr() : InterfaceInstance(nullptr) {}
 
-	TWeakInterfacePtr(const UObject* Object)
+	TWeakInterfacePtr(UObject* Object)
 	{
 		InterfaceInstance = Cast<TInterface>(Object);
 		if (InterfaceInstance != nullptr)

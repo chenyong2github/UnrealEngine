@@ -25,6 +25,8 @@
 #include "ImageWriteStream.h"
 #include "Modules/ModuleManager.h"
 
+IMPLEMENT_TYPE_LAYOUT(FPostProcessPassParameters);
+
 void ExecuteCompositionGraphDebug();
 
 static TAutoConsoleVariable<int32> CVarCompositionGraphOrder(

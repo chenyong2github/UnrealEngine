@@ -36,7 +36,7 @@ namespace BuildPatchServices
 
 		void Serialize(void* Data, int64 Num)
 		{
-			if (Num && !ArIsError)
+			if (Num && !IsError())
 			{
 				if (Offset + Num <= TotalSize())
 				{
@@ -45,7 +45,7 @@ namespace BuildPatchServices
 				}
 				else
 				{
-					ArIsError = true;
+					SetError();
 				}
 			}
 		}

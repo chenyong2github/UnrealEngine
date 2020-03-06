@@ -32,6 +32,11 @@ namespace UnrealBuildTool
 		/// Just output a list of XGE actions; don't build anything
 		/// </summary>
 		XGEExport = 2,
+
+		/// <summary>
+		/// Fail if any engine files would be modified by the build
+		/// </summary>
+		NoEngineChanges = 4,
 	}
 
 	/// <summary>
@@ -44,7 +49,7 @@ namespace UnrealBuildTool
 		/// Specifies the file to use for logging.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public string BaseLogFileName = "../Programs/UnrealBuildTool/Log.txt";
+		public string BaseLogFileName;
 
 		/// <summary>
 		/// Whether to skip checking for files identified by the junk manifest.
@@ -64,6 +69,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-XGEExport")]
 		public bool bXGEExport = false;
+
+		/// <summary>
+		/// Do not allow any engine files to be output (used by compile on startup functionality)
+		/// </summary>
+		[CommandLine("-NoEngineChanges")]
+		public bool bNoEngineChanges = false;
 
 		/// <summary>
 		/// Whether we should just export the outdated actions list
@@ -97,8 +108,14 @@ namespace UnrealBuildTool
 			// Read the XML configuration files
 			XmlConfig.ApplyTo(this);
 
+			// Fixup the log path if it wasn't overridden by a config file
+			if (BaseLogFileName == null)
+			{
+				BaseLogFileName = FileReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool", "Log.txt").FullName;
+			}
+
 			// Create the log file, and flush the startup listener to it
-			if(!Arguments.HasOption("-NoLog") && !Log.HasFileWriter())
+			if (!Arguments.HasOption("-NoLog") && !Log.HasFileWriter())
 			{
 				FileReference LogFile = new FileReference(BaseLogFileName);
 				foreach(string LogSuffix in Arguments.GetValues("-LogSuffix="))
@@ -115,7 +132,13 @@ namespace UnrealBuildTool
 			BuildConfiguration BuildConfiguration = new BuildConfiguration();
 			XmlConfig.ApplyTo(BuildConfiguration);
 			Arguments.ApplyTo(BuildConfiguration);
-			
+
+			// Check the root path length isn't too long
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && UnrealBuildTool.RootDirectory.FullName.Length > BuildConfiguration.MaxRootPathLength)
+			{
+				Log.TraceWarning("Running from a path with a long directory name (\"{0}\" = {1} characters). Root paths shorter than {2} characters are recommended to avoid exceeding maximum path lengths on Windows.", UnrealBuildTool.RootDirectory, UnrealBuildTool.RootDirectory.FullName.Length, BuildConfiguration.MaxRootPathLength);
+			}
+
 			// now that we know the available platforms, we can delete other platforms' junk. if we're only building specific modules from the editor, don't touch anything else (it may be in use).
 			if (!bIgnoreJunk && !UnrealBuildTool.IsEngineInstalled())
 			{
@@ -185,6 +208,10 @@ namespace UnrealBuildTool
 					{
 						Options |= BuildOptions.XGEExport;
 					}
+					if(bNoEngineChanges)
+					{
+						Options |= BuildOptions.NoEngineChanges;
+					}
 
 					// Create the working set provider
 					using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(UnrealBuildTool.RootDirectory, ProjectDirs))
@@ -237,6 +264,12 @@ namespace UnrealBuildTool
 				// Make sure that none of the actions conflict with any other (producing output files differently, etc...)
 				ActionGraph.CheckForConflicts(Makefiles.SelectMany(x => x.Actions));
 
+				// Check we don't exceed the nominal max path length
+				using (Timeline.ScopeEvent("ActionGraph.CheckPathLengths"))
+				{
+					ActionGraph.CheckPathLengths(BuildConfiguration, Makefiles.SelectMany(x => x.Actions));
+				}
+
 				// Find all the actions to be executed
 				HashSet<Action>[] ActionsToExecute = new HashSet<Action>[TargetDescriptors.Count];
 				for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
@@ -258,8 +291,25 @@ namespace UnrealBuildTool
 				// Link all the actions together
 				ActionGraph.Link(MergedActionsToExecute);
 
+				// Make sure we're not modifying any engine files
+				if ((Options & BuildOptions.NoEngineChanges) != 0)
+				{
+					List<FileItem> EngineChanges = MergedActionsToExecute.SelectMany(x => x.ProducedItems).Where(x => x.Location.IsUnderDirectory(UnrealBuildTool.EngineDirectory)).Distinct().OrderBy(x => x.FullName).ToList();
+					if (EngineChanges.Count > 0)
+					{
+						StringBuilder Result = new StringBuilder("Building would modify the following engine files:\n");
+						foreach (FileItem EngineChange in EngineChanges)
+						{
+							Result.AppendFormat("\n{0}", EngineChange.FullName);
+						}
+						Result.Append("\n\nPlease rebuild from an IDE instead.");
+						Log.TraceError("{0}", Result.ToString());
+						throw new CompilationResultException(CompilationResult.FailedDueToEngineChange);
+					}
+				}
+
 				// Make sure the appropriate executor is selected
-				foreach(TargetDescriptor TargetDescriptor in TargetDescriptors)
+				foreach (TargetDescriptor TargetDescriptor in TargetDescriptors)
 				{
 					UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(TargetDescriptor.Platform);
 					BuildConfiguration.bAllowXGE &= BuildPlatform.CanUseXGE();
@@ -280,16 +330,20 @@ namespace UnrealBuildTool
 				// Execute the actions
 				if ((Options & BuildOptions.XGEExport) != 0)
 				{
+					OutputToolchainInfo(TargetDescriptors, Makefiles);
+
 					// Just export to an XML file
-					using(Timeline.ScopeEvent("XGE.ExportActions()"))
+					using (Timeline.ScopeEvent("XGE.ExportActions()"))
 					{
 						XGE.ExportActions(MergedActionsToExecute);
 					}
 				}
 				else if(WriteOutdatedActionsFile != null)
 				{
+					OutputToolchainInfo(TargetDescriptors, Makefiles);
+
 					// Write actions to an output file
-					using(Timeline.ScopeEvent("ActionGraph.WriteActions"))
+					using (Timeline.ScopeEvent("ActionGraph.WriteActions"))
 					{
 						ActionGraph.ExportJson(MergedActionsToExecute, WriteOutdatedActionsFile);
 					}
@@ -523,7 +577,7 @@ namespace UnrealBuildTool
 			}
 
 			// Guard against a live coding session for this target being active
-			if(HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
+			if (BuildConfiguration.bAllowHotReloadFromIDE && HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
 			{
 				throw new BuildException("Unable to start regular build while Live Coding is active. Press Ctrl+Alt+F11 to trigger a Live Coding compile.");
 			}

@@ -14,8 +14,8 @@
 #include "UnrealEngine.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "IMagicLeapPlugin.h"
-#include "Lumin/CAPIShims/LuminAPIEyeTracking.h"
 #include "MagicLeapCFUID.h"
+#include "Lumin/CAPIShims/LuminAPI.h"
 
 #if WITH_MLSDK
 EMagicLeapEyeTrackingCalibrationStatus MLToUnrealEyeCalibrationStatus(MLEyeTrackingCalibrationStatus InStatus)
@@ -112,6 +112,7 @@ bool FMagicLeapVREyeTracker::Tick(float DeltaTime)
 			UnfilteredEyeTrackingData.TimeStamp = Now;
 
 			IMagicLeapPlugin& MLPlugin = IMagicLeapPlugin::Get();
+
 			if (MLPlugin.IsPerceptionEnabled())
 			{
 				const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
@@ -158,10 +159,6 @@ bool FMagicLeapVREyeTracker::Tick(float DeltaTime)
 
 				UnfilteredEyeTrackingData.bLeftBlink = TempTrackingState.left_blink;
 				UnfilteredEyeTrackingData.bRightBlink = TempTrackingState.right_blink;
-
-				UnfilteredEyeTrackingData.FixationDepthIsUncomfortable = TempTrackingState.fixation_depth_is_uncomfortable;
-				UnfilteredEyeTrackingData.FixationDepthViolationHasOccurred = TempTrackingState.fixation_depth_violation_has_occurred;
-				UnfilteredEyeTrackingData.RemainingTimeAtUncomfortableDepth = TempTrackingState.remaining_time_at_uncomfortable_depth;
 
 				//UE_LOG(LogCore, Warning, TEXT("   SUCCESS -> "));
 				//UE_LOG(LogCore, Warning, TEXT("        Gaze Origin %f, %f, %f"), UnfilteredEyeTrackingData.AverageGazeOrigin.X, UnfilteredEyeTrackingData.AverageGazeOrigin.Y, UnfilteredEyeTrackingData.AverageGazeOrigin.Z);

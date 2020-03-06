@@ -104,6 +104,8 @@ FOculusInput::FOculusInput( const TSharedRef< FGenericApplicationMessageHandler 
 
 	IModularFeatures::Get().RegisterModularFeature( GetModularFeatureName(), this );
 
+	LocalTrackingSpaceRecenterCount = 0;
+
 	UE_LOG(LogOcInput, Log, TEXT("OculusInput is initialized"));
 }
 
@@ -366,6 +368,20 @@ void FOculusInput::SendControllerEvents()
 				UE_CLOG(OVR_DEBUG_LOGGING, LogOcInput, Log, TEXT("SendControllerEvents: ButtonState = 0x%X"), OvrpControllerState.Buttons);
 				UE_CLOG(OVR_DEBUG_LOGGING, LogOcInput, Log, TEXT("SendControllerEvents: Touches = 0x%X"), OvrpControllerState.Touches);
 
+				// If using touch controllers (Quest) use the local tracking space recentering as a signal for recenter
+				if ((OvrpControllerState.ConnectedControllerTypes & ovrpController_LTouch) != 0 || (OvrpControllerState.ConnectedControllerTypes & ovrpController_RTouch) != 0)
+				{
+					int recenterCount = 0;
+					if (OVRP_SUCCESS(ovrp_GetLocalTrackingSpaceRecenterCount(&recenterCount)))
+					{
+						if (LocalTrackingSpaceRecenterCount != recenterCount)
+						{
+							FCoreDelegates::VRControllerRecentered.Broadcast();
+							LocalTrackingSpaceRecenterCount = recenterCount;
+						}
+					}
+				}
+
 				for (FOculusTouchControllerPair& ControllerPair : ControllerPairs)
 				{
 					for( int32 HandIndex = 0; HandIndex < UE_ARRAY_COUNT( ControllerPair.ControllerStates ); ++HandIndex )
@@ -396,23 +412,24 @@ void FOculusInput::SendControllerEvents()
 							UE_CLOG(OVR_DEBUG_LOGGING, LogOcInput, Log, TEXT("SendControllerEvents: HandTrigger[%d] = %f"), int(HandIndex), OvrGripAxis);
 							UE_CLOG(OVR_DEBUG_LOGGING, LogOcInput, Log, TEXT("SendControllerEvents: ThumbStick[%d] = { %f, %f }"), int(HandIndex), OvrpControllerState.Thumbstick[HandIndex].x, OvrpControllerState.Thumbstick[HandIndex].y );
 
-							if (OvrpControllerState.RecenterCount[HandIndex] != State.RecenterCount)
+							if (bIsMobileController)
 							{
-								State.RecenterCount = OvrpControllerState.RecenterCount[HandIndex];
-								FCoreDelegates::VRControllerRecentered.Broadcast();
+								if (OvrpControllerState.RecenterCount[HandIndex] != State.RecenterCount)
+								{
+									State.RecenterCount = OvrpControllerState.RecenterCount[HandIndex];
+									FCoreDelegates::VRControllerRecentered.Broadcast();
+								}
 							}
 							
 							if (OvrTriggerAxis != State.TriggerAxis)
 							{
 								State.TriggerAxis = OvrTriggerAxis;
-								MessageHandler->OnControllerAnalog(bIsLeft ? FGamepadKeyNames::MotionController_Left_TriggerAxis : FGamepadKeyNames::MotionController_Right_TriggerAxis, ControllerPair.UnrealControllerIndex, State.TriggerAxis);
 								MessageHandler->OnControllerAnalog(bIsLeft ? EKeys::OculusTouch_Left_Trigger_Axis.GetFName() : EKeys::OculusTouch_Right_Trigger_Axis.GetFName(), ControllerPair.UnrealControllerIndex, State.TriggerAxis);
 							}
 
 							if (OvrGripAxis != State.GripAxis)
 							{
 								State.GripAxis = OvrGripAxis;
-								MessageHandler->OnControllerAnalog(bIsLeft ? FGamepadKeyNames::MotionController_Left_Grip1Axis : FGamepadKeyNames::MotionController_Right_Grip1Axis, ControllerPair.UnrealControllerIndex, State.GripAxis);
 								MessageHandler->OnControllerAnalog(bIsLeft ? EKeys::OculusTouch_Left_Grip_Axis.GetFName() : EKeys::OculusTouch_Right_Grip_Axis.GetFName(), ControllerPair.UnrealControllerIndex, State.GripAxis);
 							}
 
@@ -422,7 +439,6 @@ void FOculusInput::SendControllerEvents()
 							if (ThumbstickValue.x != State.ThumbstickAxes.X)
 							{
 								State.ThumbstickAxes.X = ThumbstickValue.x;
-								MessageHandler->OnControllerAnalog(bIsLeft ? FGamepadKeyNames::MotionController_Left_Thumbstick_X : FGamepadKeyNames::MotionController_Right_Thumbstick_X, ControllerPair.UnrealControllerIndex, State.ThumbstickAxes.X);
 								MessageHandler->OnControllerAnalog(bIsLeft ? EKeys::OculusTouch_Left_Thumbstick_X.GetFName() : EKeys::OculusTouch_Right_Thumbstick_X.GetFName(), ControllerPair.UnrealControllerIndex, State.ThumbstickAxes.X);
 								if (bGoKeysMappedToTouch)
 								{
@@ -433,10 +449,6 @@ void FOculusInput::SendControllerEvents()
 							if (ThumbstickValue.y != State.ThumbstickAxes.Y)
 							{
 								State.ThumbstickAxes.Y = ThumbstickValue.y;
-								// we need to negate Y value to match XBox controllers
-								MessageHandler->OnControllerAnalog(bIsLeft ? FGamepadKeyNames::MotionController_Left_Thumbstick_Y : FGamepadKeyNames::MotionController_Right_Thumbstick_Y, ControllerPair.UnrealControllerIndex, -State.ThumbstickAxes.Y);
-
-								// new keys no longer need negation
 								MessageHandler->OnControllerAnalog(bIsLeft ? EKeys::OculusTouch_Left_Thumbstick_Y.GetFName() : EKeys::OculusTouch_Right_Thumbstick_Y.GetFName(), ControllerPair.UnrealControllerIndex, State.ThumbstickAxes.Y);
 								if (bGoKeysMappedToTouch)
 								{
@@ -447,17 +459,12 @@ void FOculusInput::SendControllerEvents()
 							if (TouchpadValue.x != State.TouchpadAxes.X)
 							{
 								State.TouchpadAxes.X = TouchpadValue.x;
-								MessageHandler->OnControllerAnalog(bIsLeft ? FGamepadKeyNames::MotionController_Left_Thumbstick_X : FGamepadKeyNames::MotionController_Right_Thumbstick_X, ControllerPair.UnrealControllerIndex, State.ThumbstickAxes.X);
 								MessageHandler->OnControllerAnalog(bIsLeft ? EKeys::OculusGo_Left_Trackpad_X.GetFName() : EKeys::OculusGo_Right_Trackpad_X.GetFName(), ControllerPair.UnrealControllerIndex, State.ThumbstickAxes.X);
 							}
 
 							if (TouchpadValue.y != State.TouchpadAxes.Y)
 							{
 								State.TouchpadAxes.Y = TouchpadValue.y;
-								// we need to negate Y value to match XBox controllers
-								MessageHandler->OnControllerAnalog(bIsLeft ? FGamepadKeyNames::MotionController_Left_Thumbstick_Y : FGamepadKeyNames::MotionController_Right_Thumbstick_Y, ControllerPair.UnrealControllerIndex, -State.ThumbstickAxes.Y);
-
-								// new keys no longer need negation
 								MessageHandler->OnControllerAnalog(bIsLeft ? EKeys::OculusGo_Left_Trackpad_Y.GetFName() : EKeys::OculusGo_Right_Trackpad_Y.GetFName(), ControllerPair.UnrealControllerIndex, State.ThumbstickAxes.Y);
 							}
 

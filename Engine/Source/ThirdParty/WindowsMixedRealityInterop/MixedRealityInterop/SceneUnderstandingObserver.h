@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <winrt/Windows.Perception.Spatial.h>
-#include <winrt/Windows.Perception.Spatial.Surfaces.h>
+#include <Windows.Perception.Spatial.h>
+#include <Windows.Perception.Spatial.Surfaces.h>
 
 using namespace Windows::Perception::Spatial;
 using namespace Windows::Perception::Spatial::Surfaces;

@@ -6,32 +6,81 @@
 namespace Chaos
 {
 
-	FPBDRigidActiveParticlesBuffer::FPBDRigidActiveParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode) : BufferMode(InBufferMode)
+	FPBDRigidActiveParticlesBuffer::FPBDRigidActiveParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode, bool bInSingleThreaded) : BufferMode(InBufferMode), bUseLock(!bInSingleThreaded)
 	{
 		SolverDataOut = Chaos::FMultiBufferFactory<FPBDRigidActiveParticlesBufferOut>::CreateBuffer(InBufferMode);
 	}
 
 	void FPBDRigidActiveParticlesBuffer::CaptureSolverData(FPBDRigidsSolver* Solver)
 	{
-		ResourceOutLock.WriteLock();
+		WriteLock();
 		BufferPhysicsResults(Solver);
 		FlipDataOut();
-		ResourceOutLock.WriteUnlock();
+		WriteUnlock();
+	}
+
+	void FPBDRigidActiveParticlesBuffer::RemoveActiveParticleFromConsumerBuffer(TGeometryParticle<FReal, 3>* Particle)
+	{
+		WriteLock();
+		auto& ActiveGameThreadParticles = SolverDataOut->GetConsumerBufferMutable()->ActiveGameThreadParticles;
+		ActiveGameThreadParticles.RemoveSingleSwap(Particle);
+		WriteUnlock();
 	}
 
 	void FPBDRigidActiveParticlesBuffer::BufferPhysicsResults(FPBDRigidsSolver* Solver)
 	{
 		auto& ActiveGameThreadParticles = SolverDataOut->AccessProducerBuffer()->ActiveGameThreadParticles;
+		auto& PhysicsParticleProxies = SolverDataOut->AccessProducerBuffer()->PhysicsParticleProxies;
 
 		ActiveGameThreadParticles.Empty();
-		for (auto& ActiveParticle : Solver->GetParticles().GetActiveParticlesView())
+		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticlesView = 
+			Solver->GetParticles().GetActiveParticlesView();
+		for (auto& ActiveParticle : ActiveParticlesView)
 		{
 			if (ActiveParticle.Handle())
 			{
-				TGeometryParticle<float, 3>* Handle = ActiveParticle.Handle()->GTGeometryParticle();
-				ActiveGameThreadParticles.Add(Handle);
+				// Clustered particles don't have a game thread particle instance.
+				if (TGeometryParticle<float, 3>* Handle = ActiveParticle.Handle()->GTGeometryParticle())
+				{
+					ActiveGameThreadParticles.Add(Handle);
+				}
+				else if(IPhysicsProxyBase** Proxy = Solver->MParticleToProxy.Find(ActiveParticle.Handle()))
+				{
+					PhysicsParticleProxies.Add(*Proxy);
+				}
 			}
 		}
 	}
 
+	void FPBDRigidActiveParticlesBuffer::ReadLock()
+	{
+		if (bUseLock)
+		{
+			ResourceOutLock.ReadLock();
+		}
+	}
+
+	void FPBDRigidActiveParticlesBuffer::ReadUnlock()
+	{
+		if (bUseLock)
+		{
+			ResourceOutLock.ReadUnlock();
+		}
+	}
+
+	void FPBDRigidActiveParticlesBuffer::WriteLock()
+	{
+		if (bUseLock)
+		{
+			ResourceOutLock.WriteLock();
+		}
+	}
+
+	void FPBDRigidActiveParticlesBuffer::WriteUnlock()
+	{
+		if (bUseLock)
+		{
+			ResourceOutLock.WriteUnlock();
+		}
+	}
 }

@@ -509,6 +509,7 @@ void FRenderDocPluginModule::ShutdownModule()
 void FRenderDocPluginModule::BeginCaptureBracket(FRHICommandListImmediate* RHICommandList)
 {
 	RENDERDOC_DevicePointer Device = FRenderDocFrameCapturer::GetRenderdocDevicePointer();
+	RHICommandList->SubmitCommandsAndFlushGPU();
 	RHICommandList->EnqueueLambda([this, Device](FRHICommandListImmediate& CmdList)
 	{
 		RenderDocAPI->StartFrameCapture(Device, NULL);
@@ -518,6 +519,7 @@ void FRenderDocPluginModule::BeginCaptureBracket(FRHICommandListImmediate* RHICo
 void FRenderDocPluginModule::EndCaptureBracket(FRHICommandListImmediate* RHICommandList)
 {
 	RENDERDOC_DevicePointer Device = FRenderDocFrameCapturer::GetRenderdocDevicePointer();
+	RHICommandList->SubmitCommandsAndFlushGPU();
 	RHICommandList->EnqueueLambda([this, Device](FRHICommandListImmediate& CmdList)
 	{
 		uint32 result = RenderDocAPI->EndFrameCapture(Device, NULL);

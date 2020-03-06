@@ -219,7 +219,7 @@ void USynthComponent::Initialize(int32 SampleRateOverride)
 
 		if (!Synth)
 		{
-			Synth = NewObject<USynthSound>(this, TEXT("Synth"));
+			Synth = NewObject<USynthSound>(this, FName(TEXT("TimeSynth"), this->GetUniqueID()));
 		}
 
 		// Copy sound base data to the sound
@@ -515,7 +515,7 @@ void USynthComponent::SetVolumeMultiplier(float VolumeMultiplier)
 	}
 }
 
-void USynthComponent::SetSubmixSend(USoundSubmix* Submix, float SendLevel)
+void USynthComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 {
 	if (AudioComponent)
 	{

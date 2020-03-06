@@ -1,101 +1,185 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidSpringConstraints.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
 namespace Chaos
 {
+	//
+	// Handle Impl
+	//
 
-	template<class T, int d>
-	void TPBDRigidSpringConstraints<T, d>::UpdateDistance(int32 ConstraintIndex, const TVector<T, d>& Location0, const TVector<T, d>& Location1)
+	const TVector<FVec3, 2>& FPBDRigidSpringConstraintHandle::GetConstraintPositions() const
 	{
-		const TVector<TGeometryParticleHandle<T, d>*, 2>& Constraint = Constraints[ConstraintIndex];
-		const TGeometryParticleHandle<T, d>* Particle0 = Constraint[0];
-		const TGeometryParticleHandle<T, d>* Particle1 = Constraint[1];
+		return ConstraintContainer->GetConstraintPositions(ConstraintIndex);
+
+	}
+
+	void FPBDRigidSpringConstraintHandle::SetConstraintPositions(const TVector<FVec3, 2>& ConstraintPositions)
+	{
+		ConstraintContainer->SetConstraintPositions(ConstraintIndex, ConstraintPositions);
+	}
+	
+	TVector<typename FPBDRigidSpringConstraintHandle::FGeometryParticleHandle*, 2> FPBDRigidSpringConstraintHandle::GetConstrainedParticles() const
+	{ 
+		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex);
+	}
+
+	FReal FPBDRigidSpringConstraintHandle::GetRestLength() const
+	{
+		return ConstraintContainer->GetRestLength(ConstraintIndex);
+	}
+
+	void FPBDRigidSpringConstraintHandle::SetRestLength(const FReal SpringLength)
+	{
+		ConstraintContainer->SetRestLength(ConstraintIndex, SpringLength);
+	}
+
+	//
+	// Container Impl
+	//
+
+	FPBDRigidSpringConstraints::FPBDRigidSpringConstraints()
+	{}
+
+	FPBDRigidSpringConstraints::~FPBDRigidSpringConstraints()
+	{
+	}
+
+	typename FPBDRigidSpringConstraints::FConstraintContainerHandle* FPBDRigidSpringConstraints::AddConstraint(const FConstrainedParticlePair& InConstrainedParticles, const  TVector<FVec3, 2>& InLocations, FReal Stiffness, FReal Damping, FReal RestLength)
+	{
+		Handles.Add(HandleAllocator.AllocHandle(this, Handles.Num()));
+		int32 ConstraintIndex = Constraints.Add(InConstrainedParticles);
+
+		SpringSettings.Emplace(FSpringSettings({ Stiffness, Damping, RestLength }));
+
+		Distances.Add({});
+		UpdateDistance(ConstraintIndex, InLocations[0], InLocations[1]);
+
+		return Handles.Last();
+	}
+
+	void FPBDRigidSpringConstraints::RemoveConstraint(int ConstraintIndex)
+	{
+		FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintIndex];
+		if (ConstraintHandle != nullptr)
+		{
+			// Release the handle for the freed constraint
+			HandleAllocator.FreeHandle(ConstraintHandle);
+			Handles[ConstraintIndex] = nullptr;
+		}
+
+		// Swap the last constraint into the gap to keep the array packed
+		Constraints.RemoveAtSwap(ConstraintIndex);
+		SpringSettings.RemoveAtSwap(ConstraintIndex);
+		Distances.RemoveAtSwap(ConstraintIndex);
+		Handles.RemoveAtSwap(ConstraintIndex);
+
+		// Update the handle for the constraint that was moved
+		if (ConstraintIndex < Handles.Num())
+		{
+			FConstraintHandle* Handle = Handles[ConstraintIndex];
+			SetConstraintIndex(Handle, ConstraintIndex);
+		}
+	}
+
+	void FPBDRigidSpringConstraints::RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+	{
+	}
+
+	void FPBDRigidSpringConstraints::UpdateDistance(int32 ConstraintIndex, const FVec3& Location0, const FVec3& Location1)
+	{
+		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = Constraints[ConstraintIndex];
+		const TGeometryParticleHandle<FReal, 3>* Particle0 = Constraint[0];
+		const TGeometryParticleHandle<FReal, 3>* Particle1 = Constraint[1];
 
 		Distances[ConstraintIndex][0] = Particle0->R().Inverse().RotateVector(Location0 - Particle0->X());
 		Distances[ConstraintIndex][1] = Particle1->R().Inverse().RotateVector(Location1 - Particle1->X());
-		SpringDistances[ConstraintIndex] = (Location0 - Location1).Size();
 	}
 
-	template<class T, int d>
-	TVector<T, d> TPBDRigidSpringConstraints<T, d>::GetDelta(int32 ConstraintIndex, const TVector<T, d>& WorldSpaceX1, const TVector<T, d>& WorldSpaceX2) const
+	FVec3 FPBDRigidSpringConstraints::GetDelta(int32 ConstraintIndex, const FVec3& WorldSpaceX1, const FVec3& WorldSpaceX2) const
 	{
-		const TVector<TGeometryParticleHandle<T, d>*, 2>& Constraint = Constraints[ConstraintIndex];
-		const TPBDRigidParticleHandle<T, d>* PBDRigid0 = Constraint[0]->CastToRigidParticle();
-		const TPBDRigidParticleHandle<T, d>* PBDRigid1 = Constraint[1]->CastToRigidParticle();
+		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = Constraints[ConstraintIndex];
+		const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Constraint[0]->CastToRigidParticle();
+		const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Constraint[1]->CastToRigidParticle();
 		const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 		const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
 		if (!bIsRigidDynamic0 && !bIsRigidDynamic1)
 		{
-			return TVector<T, d>(0);
+			return FVec3(0);
 		}
 
-		const TVector<T, d> Difference = WorldSpaceX2 - WorldSpaceX1;
+		const FVec3 Difference = WorldSpaceX2 - WorldSpaceX1;
 
 		const float Distance = Difference.Size();
 		check(Distance > 1e-7);
 
-		const TVector<T, d> Direction = Difference / Distance;
-		const TVector<T, d> Delta = (Distance - SpringDistances[ConstraintIndex]) * Direction;
-		const T InvM0 = (bIsRigidDynamic0) ? PBDRigid0->InvM() : (T)0;
-		const T InvM1 = (bIsRigidDynamic1) ? PBDRigid1->InvM() : (T)0;
-		const T CombinedMass = InvM0 + InvM1;
+		const FVec3 Direction = Difference / Distance;
+		const FVec3 Delta = (Distance - SpringSettings[ConstraintIndex].RestLength) * Direction;
+		const FReal InvM0 = (bIsRigidDynamic0) ? PBDRigid0->InvM() : (FReal)0;
+		const FReal InvM1 = (bIsRigidDynamic1) ? PBDRigid1->InvM() : (FReal)0;
+		const FReal CombinedMass = InvM0 + InvM1;
 
-		return Stiffness * Delta / CombinedMass;
+		return SpringSettings[ConstraintIndex].Stiffness * Delta / CombinedMass;
 	}
 
-	template<class T, int d>
-	void TPBDRigidSpringConstraints<T, d>::Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
+	bool FPBDRigidSpringConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			ApplySingle(Dt, ConstraintIndex);
+		}
+		return false;
+	}
+
+	bool FPBDRigidSpringConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
 		for (FConstraintContainerHandle* ConstraintHandle : InConstraintHandles)
 		{
 			ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
 		}
+		return false;
 	}
 
-
-	template<class T, int d>
-	void TPBDRigidSpringConstraints<T, d>::ApplySingle(const T Dt, int32 ConstraintIndex) const
+	void FPBDRigidSpringConstraints::ApplySingle(const FReal Dt, int32 ConstraintIndex) const
 	{
 		const FConstrainedParticlePair& Constraint = Constraints[ConstraintIndex];
 
-		TPBDRigidParticleHandle<T, d>* PBDRigid0 = Constraint[0]->CastToRigidParticle();
-		TPBDRigidParticleHandle<T, d>* PBDRigid1 = Constraint[1]->CastToRigidParticle();
-		const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
-		const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+		TGenericParticleHandle<FReal, 3> Particle0 = Constraints[ConstraintIndex][0];
+		TGenericParticleHandle<FReal, 3> Particle1 = Constraints[ConstraintIndex][1];
+		const bool bIsRigidDynamic0 = Particle0->IsDynamic();
+		const bool bIsRigidDynamic1 = Particle1->IsDynamic();
 
-		check((bIsRigidDynamic0 && bIsRigidDynamic1 && PBDRigid0->Island() == PBDRigid1->Island()) || (!bIsRigidDynamic0 && bIsRigidDynamic1) || (bIsRigidDynamic0 && bIsRigidDynamic1));
+		check((bIsRigidDynamic0 && bIsRigidDynamic1) || (!bIsRigidDynamic0 && bIsRigidDynamic1) || (bIsRigidDynamic0 && bIsRigidDynamic1));
 
-		// @todo(ccaulfield): see if we can eliminate the need for all these ifs
-		const TRotation<T, d> & Q0 = bIsRigidDynamic0 ? PBDRigid0->Q() : Constraint[0]->R();
-		const TRotation<T, d> & Q1 = bIsRigidDynamic1 ? PBDRigid1->Q() : Constraint[1]->R();
-		const TVector<T, d> & P0 = bIsRigidDynamic0 ? PBDRigid0->P() : Constraint[0]->X();
-		const TVector<T, d> & P1 = bIsRigidDynamic1 ? PBDRigid1->P() : Constraint[1]->X();
-
-		const TVector<T, d> WorldSpaceX1 = Q0.RotateVector(Distances[ConstraintIndex][0]) + P0;
-		const TVector<T, d> WorldSpaceX2 = Q1.RotateVector(Distances[ConstraintIndex][1]) + P1;
-		const PMatrix<T, d, d> WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
-		const PMatrix<T, d, d> WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);
-		const TVector<T, d> Delta = GetDelta(ConstraintIndex, WorldSpaceX1, WorldSpaceX2);
+		const FVec3 WorldSpaceX1 = Particle0->Q().RotateVector(Distances[ConstraintIndex][0]) + Particle0->P();
+		const FVec3 WorldSpaceX2 = Particle1->Q().RotateVector(Distances[ConstraintIndex][1]) + Particle1->P();
+		const FVec3 Delta = GetDelta(ConstraintIndex, WorldSpaceX1, WorldSpaceX2);
 
 		if (bIsRigidDynamic0)
 		{
-			const TVector<T, d> Radius = WorldSpaceX1 - PBDRigid0->P();
-			PBDRigid0->P() += PBDRigid0->InvM() * Delta;
-			PBDRigid0->Q() += TRotation<T, d>::FromElements(WorldSpaceInvI1 * TVector<T, d>::CrossProduct(Radius, Delta), 0.f) * PBDRigid0->Q() * T(0.5);
-			PBDRigid0->Q().Normalize();
+			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+			const FMatrix33 WorldSpaceInvI1 = Utilities::ComputeWorldSpaceInertia(Q0, Particle0->InvI());
+			const FVec3 Radius = WorldSpaceX1 - P0;
+			P0 += Particle0->InvM() * Delta;
+			Q0 += TRotation<FReal, 3>::FromElements(WorldSpaceInvI1 * FVec3::CrossProduct(Radius, Delta), 0.f) * Q0 * FReal(0.5);
+			Q0.Normalize();
+			FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
 		}
 
 		if (bIsRigidDynamic1)
 		{
-			const TVector<T, d> Radius = WorldSpaceX2 - PBDRigid1->P();
-			PBDRigid1->P() -= PBDRigid1->InvM() * Delta;
-			PBDRigid1->Q() += TRotation<T, d>::FromElements(WorldSpaceInvI2 * TVector<T, d>::CrossProduct(Radius, -Delta), 0.f) * PBDRigid1->Q() * T(0.5);
-			PBDRigid1->Q().Normalize();
+			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+			const FMatrix33 WorldSpaceInvI2 = Utilities::ComputeWorldSpaceInertia(Q1, Particle1->InvI());
+			const FVec3 Radius = WorldSpaceX2 - P1;
+			P1 -= Particle1->InvM() * Delta;
+			Q1 += TRotation<FReal, 3>::FromElements(WorldSpaceInvI2 * FVec3::CrossProduct(Radius, -Delta), 0.f) * Q1 * FReal(0.5);
+			Q1.Normalize();
+			FParticleUtilities::SetCoMWorldTransform(Particle1, P1, Q1);
 		}
 	}
-
-	template class TPBDRigidSpringConstraints<float, 3>;
 }

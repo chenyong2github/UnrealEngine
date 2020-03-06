@@ -91,13 +91,9 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshVertexFactory
 
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FSplineMeshVertexFactory, SF_Vertex, FSplineMeshVertexFactoryShaderParameters);
+
 IMPLEMENT_VERTEX_FACTORY_TYPE(FSplineMeshVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, true, true, true, true);
-
-
-FVertexFactoryShaderParameters* FSplineMeshVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new FSplineMeshVertexFactoryShaderParameters() : NULL;
-}
 
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshSceneProxy
@@ -910,14 +906,22 @@ void USplineMeshComponent::OnCreatePhysicsState()
 
 UBodySetup* USplineMeshComponent::GetBodySetup()
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// Don't return a body setup that has no collision, it means we are interactively moving the spline and don't want to build collision.
 	// Instead we explicitly build collision with USplineMeshComponent::RecreateCollision()
 	if (BodySetup != NULL && (BodySetup->TriMeshes.Num() || BodySetup->AggGeom.GetElementCount() > 0))
 	{
 		return BodySetup;
 	}
-#endif // WITH_PHYSX
+#elif WITH_CHAOS
+	// Don't return a body setup that has no collision, it means we are interactively moving the spline and don't want to build collision.
+	// Instead we explicitly build collision with USplineMeshComponent::RecreateCollision()
+	if (BodySetup != NULL && (BodySetup->ChaosTriMeshes.Num() || BodySetup->AggGeom.GetElementCount() > 0))
+	{
+		return BodySetup;
+	}
+#endif // WITH_CHAOS
+
 	return NULL;
 }
 

@@ -363,7 +363,8 @@ namespace AJA
 				uint32_t bUseVideo : 1; // enable video input/output
 				uint32_t bBurnTimecode : 1; // burn the timecode to the input or output image
 				uint32_t bDisplayWarningIfDropFrames : 1;
-				uint32_t bConvertOutputLevelAToB; // enable video output 3G level A to convert it to 3G level B
+				uint32_t bConvertOutputLevelAToB : 1; // enable video output 3G level A to convert it to 3G level B
+				uint32_t bTEST_OutputInterlaced : 1; // when outputting, warn if the field 1 and field 2 are the same color. It except one of the line to be white and the other line to be not white
 			};
 			uint32_t Options;
 		};

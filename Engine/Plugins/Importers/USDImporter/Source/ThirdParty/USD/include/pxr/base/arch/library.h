@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_LIBRARY_H
-#define ARCH_LIBRARY_H
+#ifndef PXR_BASE_ARCH_LIBRARY_H
+#define PXR_BASE_ARCH_LIBRARY_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/arch/api.h"
@@ -75,6 +75,15 @@ std::string ArchLibraryError();
 ARCH_API
 int ArchLibraryClose(void* handle);
 
+/// Obtain the address of a symbol defined within an object opened with
+/// \c ArchLibraryOpen.
+/// \ingroup group_arch_SystemFunctions
+///
+/// Obtain the address of a symbol that is specified by name.
+/// Returning the address of the symbol if successful; nullptr otherwise.
+ARCH_API
+void* ArchLibraryGetSymbolAddress(void* handle, const char* name);
+
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_LIBRARY_H
+#endif // PXR_BASE_ARCH_LIBRARY_H

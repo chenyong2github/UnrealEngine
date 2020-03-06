@@ -1271,6 +1271,8 @@ void FSlateApplication::FinishedInputThisFrame()
 {
 	const float DeltaTime = GetDeltaTime();
 
+	PlatformApplication->FinishedInputThisFrame();
+	
 	// Any preprocessors are given a chance to process accumulated values (or do whatever other tick things they want)
 	// after we've finished processing all of the input for the frame
 	if (PlatformApplication->Cursor.IsValid())
@@ -1465,12 +1467,7 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 	
 		const bool bIsUserIdle = (TimeSinceInput > SleepThreshold) && (TimeSinceMouseMove > SleepThreshold);
 		const bool bAnyActiveTimersPending = AnyActiveTimersArePending();
-		if (bAnyActiveTimersPending)
-		{
-			// Some UI might slide under the cursor. To a widget, this is as if the cursor moved over it.
-			ForEachUser([](FSlateUser& User) { User.QueueSyntheticCursorMove(); });
-		}
-
+		
 		// Generate any simulated gestures that we've detected.
 		ForEachUser([this] (FSlateUser& User) {
 			User.GetGestureDetector().GenerateGestures(*this, SimulateGestures);
@@ -1484,6 +1481,8 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 		bIsSlateAsleep = true;
 		if	(!AllowSlateToSleep.GetValueOnGameThread() || bAnyActiveTimersPending || !bIsUserIdle || bSynthesizedCursorMove || FApp::UseVRFocus())
 		{
+			ForEachUser([](FSlateUser& User) { User.QueueSyntheticCursorMove(); });
+
 			bIsSlateAsleep = false; // if we get here, then Slate is not sleeping
 
 			// Update any notifications - this needs to be done after windows have updated themselves 
@@ -1636,6 +1635,8 @@ TSharedRef< FGenericWindow > FSlateApplication::MakeWindow( TSharedRef<SWindow> 
 	{
 		TSharedRef< FGenericWindow > NewWindow = MakeShareable(new FGenericWindow());
 		InSlateWindow->SetNativeWindow(NewWindow);
+
+		FSlateApplicationBase::Get().GetRenderer()->CreateViewport(InSlateWindow);
 		return NewWindow;
 	}
 
@@ -1745,38 +1746,26 @@ static bool IsFocusInViewport(const TSet<TWeakPtr<SViewport>> Viewports, const F
 
 EUINavigation FSlateApplication::GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const
 {
-#if WITH_EDITOR
-	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
-	TSharedPtr<const FSlateUser> User = GetUser(GetUserIndexForKeyboard());
-	if (User && !IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
-	{
-		return EditorNavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
-	}
-#endif
-	return NavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
+	TSharedRef<FNavigationConfig> RelevantNavConfig = GetRelevantNavConfig(InKeyEvent.GetUserIndex());
+	return RelevantNavConfig->GetNavigationDirectionFromKey(InKeyEvent);
 }
 
 EUINavigation FSlateApplication::GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent)
 {
-#if WITH_EDITOR
-	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
-	TSharedPtr<const FSlateUser> User = GetUser(GetUserIndexForKeyboard());
-	if (User && !IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
-	{
-		return EditorNavigationConfig->GetNavigationDirectionFromKey(InAnalogEvent);
-	}
-#endif
-	return NavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
+	TSharedRef<FNavigationConfig> RelevantNavConfig = GetRelevantNavConfig(InAnalogEvent.GetUserIndex());
+	return RelevantNavConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
 }
 
 EUINavigationAction FSlateApplication::GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const
 {
-	return NavigationConfig->GetNavigationActionFromKey(InKeyEvent);
+	TSharedRef<FNavigationConfig> RelevantNavConfig = GetRelevantNavConfig(InKeyEvent.GetUserIndex());
+	return RelevantNavConfig->GetNavigationActionFromKey(InKeyEvent);
 }
 
 EUINavigationAction FSlateApplication::GetNavigationActionForKey(const FKey& InKey) const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Not enough info to pick the best config, so this can only use the default
 	return NavigationConfig->GetNavigationActionForKey(InKey);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
@@ -1952,7 +1941,7 @@ TSharedRef<SWindow> FSlateApplication::AddWindowAsNativeChild( TSharedRef<SWindo
 	InParentWindow->AddChildWindow( InSlateWindow );
 
 	// Only make native generic windows if the parent has one. Nullrhi makes only generic windows, whose handles are always null
-	if ( InParentWindow->GetNativeWindow()->GetOSWindowHandle() || !FApp::CanEverRender() )
+	if ( InParentWindow->GetNativeWindow()->GetOSWindowHandle() || !FApp::CanEverRender() || bRenderOffScreen )
 	{
 		TSharedRef<FGenericWindow> NewWindow = MakeWindow(InSlateWindow, bShowImmediately);
 
@@ -2635,7 +2624,7 @@ bool FSlateApplication::SetUserFocus(FSlateUser& User, const FWidgetPath& InFocu
 		}
 	}
 
-	//UE_LOG(LogSlate, Warning, TEXT("Focus for user %i set to %s."), User->GetUserIndex(), NewFocusedWidget.IsValid() ? *NewFocusedWidget->ToString() : TEXT("Invalid"));
+	//UE_LOG(LogSlate, Warning, TEXT("Focus for user %i set to %s."), User.GetUserIndex(), NewFocusedWidget.IsValid() ? *NewFocusedWidget->ToString() : TEXT("Invalid"));
 
 	// Figure out if we should show focus for this focus entry
 	bool ShowFocus = false;
@@ -2703,7 +2692,7 @@ bool FSlateApplication::SetUserFocus(FSlateUser& User, const FWidgetPath& InFocu
 			ProcessReply(InFocusPath, Reply, nullptr, nullptr, User.GetUserIndex());
 		}
 
-		NavigationConfig->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
+		GetRelevantNavConfig(User.GetUserIndex())->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
 
 #if WITH_ACCESSIBILITY
 		GetAccessibleMessageHandler()->OnWidgetEventRaised(NewFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, false, true);
@@ -3367,11 +3356,6 @@ bool FSlateApplication::IsWindowInDestroyQueue(TSharedRef<SWindow> Window) const
 	return WindowDestroyQueue.Contains(Window);
 }
 
-void FSlateApplication::QueueSynthesizedMouseMove(const FInputEvent& SourceEvent)
-{
-	GetOrCreateUser(SourceEvent)->QueueSyntheticCursorMove();
-}
-
 void FSlateApplication::SetUnhandledKeyDownEventHandler( const FOnKeyEvent& NewHandler )
 {
 	UnhandledKeyDownEventHandler = NewHandler;
@@ -3979,6 +3963,29 @@ bool FSlateApplication::ShowUserFocus(const TSharedPtr<const SWidget> Widget) co
 	return false;
 }
 
+TSharedRef<FNavigationConfig> FSlateApplication::GetRelevantNavConfig(int32 UserIndex) const
+{
+	TSharedPtr<FNavigationConfig> RelevantNavConfig = NavigationConfig;
+	if (TSharedPtr<const FSlateUser> User = GetUser(UserIndex))
+	{
+#if WITH_EDITOR
+		// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
+		if (UserIndex == GetUserIndexForKeyboard() && !IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
+		{
+			RelevantNavConfig = EditorNavigationConfig;
+		}
+		else
+#endif
+		if (TSharedPtr<FNavigationConfig> UserNavConfig = User->GetUserNavigationConfig())
+		{
+			// Use the user's personal config if it has one assigned
+			RelevantNavConfig = UserNavConfig;
+		}
+	}
+
+	return RelevantNavConfig.ToSharedRef();
+}
+
 bool FSlateApplication::HasUserFocusedDescendants(const TSharedRef< const SWidget >& Widget, int32 UserIndex) const
 {
 	TSharedPtr<const FSlateUser> User = GetUser(UserIndex);
@@ -4012,9 +4019,9 @@ TSharedRef<SImage> FSlateApplication::MakeImage( const TAttribute<const FSlateBr
 }
 
 
-TSharedRef<SWidget> FSlateApplication::MakeWindowTitleBar( const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment, TSharedPtr<IWindowTitleBar>& OutTitleBar ) const
+TSharedRef<SWidget> FSlateApplication::MakeWindowTitleBar(const FWindowTitleBarArgs& InArgs, TSharedPtr<IWindowTitleBar>& OutTitleBar) const
 {
-	TSharedRef<SWindowTitleBar> TitleBar = SNew(SWindowTitleBar, Window, CenterContent, CenterContentAlignment)
+	TSharedRef<SWindowTitleBar> TitleBar = SNew(SWindowTitleBar, InArgs.Window, InArgs.CenterContent, InArgs.CenterContentAlignment)
 		.Visibility(EVisibility::SelfHitTestInvisible);
 
 	OutTitleBar = TitleBar;
@@ -4124,8 +4131,6 @@ bool FSlateApplication::ProcessKeyDownEvent( const FKeyEvent& InKeyEvent )
 		OnApplicationPreInputKeyDownListenerEvent.Broadcast(InKeyEvent);
 	}
 #endif //WITH_EDITOR
-
-	QueueSynthesizedMouseMove(InKeyEvent);
 
 	// Analog cursor gets first chance at the input
 	if (InputPreProcessors.HandleKeyDownEvent(*this, InKeyEvent))
@@ -4238,8 +4243,6 @@ bool FSlateApplication::ProcessKeyUpEvent( const FKeyEvent& InKeyEvent )
 
 	TScopeCounter<int32> BeginInput(ProcessingInput);
 
-	QueueSynthesizedMouseMove(InKeyEvent);
-
 	// Analog cursor gets first chance at the input
 	if (InputPreProcessors.HandleKeyUpEvent(*this, InKeyEvent))
 	{
@@ -4293,8 +4296,6 @@ bool FSlateApplication::ProcessAnalogInputEvent(const FAnalogInputEvent& InAnalo
 
 	TScopeCounter<int32> BeginInput(ProcessingInput);
 
-	QueueSynthesizedMouseMove(InAnalogInputEvent);
-
 	FReply Reply = FReply::Unhandled();
 
 	// Analog cursor gets first chance at the input
@@ -4327,8 +4328,6 @@ bool FSlateApplication::ProcessAnalogInputEvent(const FAnalogInputEvent& InAnalo
 
 				return FReply::Unhandled();
 			});
-
-		QueueSynthesizedMouseMove(ModifiedEvent);
 	}
 
 	// If no one handled this, it was probably motion in the deadzone.  Don't treat it as activity.
@@ -4398,7 +4397,7 @@ bool FSlateApplication::OnMouseDown(const TSharedPtr< FGenericWindow >& Platform
 bool FSlateApplication::OnMouseDown( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
 	// convert a left mouse button click to touch event if we are faking it
-	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
+	if (IsFakingTouchEvents() && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = true;
 		return OnTouchStarted( PlatformWindow, PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0 );
@@ -4434,7 +4433,6 @@ bool FSlateApplication::ProcessMouseButtonDownEvent( const TSharedPtr< FGenericW
 	}
 #endif //WITH_EDITOR
 
-	QueueSynthesizedMouseMove(MouseEvent);
 	SetLastUserInteractionTime(this->GetCurrentTime());
 	LastUserInteractionTimeForThrottling = LastUserInteractionTime;
 	
@@ -5055,7 +5053,7 @@ bool FSlateApplication::OnMouseDoubleClick( const TSharedPtr< FGenericWindow >& 
 
 bool FSlateApplication::OnMouseDoubleClick( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
-	if (bIsFakingTouch || bIsGameFakingTouch)
+	if (IsFakingTouchEvents())
 	{
 		bIsFakingTouched = true;
 		return OnTouchStarted(PlatformWindow, PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0);
@@ -5081,7 +5079,6 @@ bool FSlateApplication::ProcessMouseButtonDoubleClickEvent( const TSharedPtr< FG
 {
 	SCOPE_CYCLE_COUNTER(STAT_ProcessMouseButtonDoubleClick);
 
-	QueueSynthesizedMouseMove(InMouseEvent);
 	SetLastUserInteractionTime(this->GetCurrentTime());
 	LastUserInteractionTimeForThrottling = LastUserInteractionTime;
 
@@ -5142,7 +5139,7 @@ bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button )
 bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
 	// convert left mouse click to touch event if we are faking it	
-	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
+	if (IsFakingTouchEvents() && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = false;
 		return OnTouchEnded(PlatformApplication->Cursor->GetPosition(), 0, 0);
@@ -5175,7 +5172,6 @@ bool FSlateApplication::ProcessMouseButtonUpEvent( const FPointerEvent& MouseEve
 		FSlateThrottleManager::Get().LeaveResponsiveMode(MouseButtonDownResponsivnessThrottle);
 	}
 
-	QueueSynthesizedMouseMove(MouseEvent);
 	SetLastUserInteractionTime(this->GetCurrentTime());
 	LastUserInteractionTimeForThrottling = LastUserInteractionTime;
 
@@ -5227,8 +5223,6 @@ bool FSlateApplication::OnMouseWheel( const float Delta, const FVector2D CursorP
 bool FSlateApplication::ProcessMouseWheelOrGestureEvent( const FPointerEvent& InWheelEvent, const FPointerEvent* InGestureEvent )
 {
 	SCOPE_CYCLE_COUNTER(STAT_ProcessMouseWheelGesture);
-
-	QueueSynthesizedMouseMove(InWheelEvent);
 
 	bool bShouldProcessEvent = false;
 
@@ -5316,7 +5310,7 @@ FReply FSlateApplication::RouteMouseWheelOrGestureEvent(const FWidgetPath& Widge
 bool FSlateApplication::OnMouseMove()
 {
 	// If the left button is pressed we fake 
-	if ((bIsFakingTouched || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
+	if (IsFakingTouchEvents() && (GetPressedMouseButtons().Num() == 0 || GetPressedMouseButtons().Contains(EKeys::LeftMouseButton)))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)
@@ -5360,7 +5354,7 @@ bool FSlateApplication::OnMouseMove()
 bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 {
     // We fake a move only if the left mous button is down
-	if ((bIsFakingTouch || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
+	if (IsFakingTouchEvents() && (GetPressedMouseButtons().Num() == 0 || GetPressedMouseButtons().Contains(EKeys::LeftMouseButton)))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)
@@ -5402,8 +5396,7 @@ bool FSlateApplication::ProcessMouseMoveEvent( const FPointerEvent& MouseEvent, 
 	if ( !bIsSynthetic )
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_ProcessMouseMove_Tooltip);
-
-		QueueSynthesizedMouseMove(MouseEvent);
+		
 		GetOrCreateUser(MouseEvent)->UpdateTooltip(MenuStack, /*bCanSpawnNewTooltip =*/true);
 		
 		// Guard against synthesized mouse moves and only track user interaction if the cursor pos changed
@@ -5413,7 +5406,7 @@ bool FSlateApplication::ProcessMouseMoveEvent( const FPointerEvent& MouseEvent, 
 	// When the event came from the OS, we are guaranteed to be over a slate window.
 	// Otherwise, we are synthesizing a MouseMove ourselves, and must verify that the
 	// cursor is indeed over a Slate window.
-	const bool bOverSlateWindow = !bIsSynthetic || PlatformApplication->IsCursorDirectlyOverSlateWindow();
+	const bool bOverSlateWindow = !bIsSynthetic || IsActive() || PlatformApplication->IsCursorDirectlyOverSlateWindow();
 	
 	FWidgetPath WidgetsUnderCursor = bOverSlateWindow
 		? LocateWindowUnderMouse(MouseEvent.GetScreenSpacePosition(), GetInteractiveTopLevelWindows(), false, MouseEvent.GetUserIndex())
@@ -5817,7 +5810,6 @@ bool FSlateApplication::OnMotionDetected(const FVector& Tilt, const FVector& Rot
 
 void FSlateApplication::ProcessMotionDetectedEvent( const FMotionEvent& MotionEvent )
 {
-	QueueSynthesizedMouseMove(MotionEvent);
 	SetLastUserInteractionTime(this->GetCurrentTime());
 	
 	if (!InputPreProcessors.HandleMotionDetectedEvent(*this, MotionEvent))
@@ -6026,10 +6018,6 @@ bool FSlateApplication::ProcessWindowActivatedEvent( const FWindowActivateEvent&
 			SetLastUserInteractionTime(this->GetCurrentTime());
 		}
 		
-		// Widgets that happen to be under the mouse need to update if activation changes
-		// This also serves as a force redraw which is needed when restoring a window that was previously inactive.
-		ForEachUser([](FSlateUser& User) { User.QueueSyntheticCursorMove(); });
-
 		// NOTE: The window is brought to front even when a modal window is active and this is not the modal window one of its children 
 		// The reason for this is so that the Slate window order is in sync with the OS window order when a modal window is open.  This is important so that when the modal window closes the proper window receives input from Slate.
 		// If you change this be sure to test windows are activated properly and receive input when they are opened when a modal dialog is open.
@@ -6171,14 +6159,7 @@ void FSlateApplication::ProcessApplicationActivationEvent(bool InAppActivated)
 		// Clear the pressed buttons when we deactivate the application, the button state can no longer be trusted.
 		PressedMouseButtons.Reset();
 	}
-	else
-	{
-		//Ensure that slate ticks/renders next frame
-		ForEachUser([](FSlateUser& User) { User.QueueSyntheticCursorMove(); });
-
-		//TODO Requery pushed button state?
-	}
-
+	
 	OnApplicationActivationStateChanged().Broadcast(InAppActivated);
 }
 

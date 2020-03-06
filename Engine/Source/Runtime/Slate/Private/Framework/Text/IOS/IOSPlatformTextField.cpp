@@ -57,7 +57,10 @@ FIOSPlatformTextField::~FIOSPlatformTextField()
 		dispatch_async(dispatch_get_main_queue(), ^{
             NSLog(@"Finally releasing text field %@", LocalTextField);
 #if !PLATFORM_TVOS
-            [LocalTextField hide];
+			if (LocalTextField != nullptr && [LocalTextField respondsToSelector:@selector(hide:)])
+			{
+            	[LocalTextField hide];
+			}
 #endif
 		});
 	}
@@ -125,11 +128,30 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 
 @implementation SlateTextField
 
+-(id)init
+{
+	self = [super init];
+	
+	if (self)
+	{
+		self->AlertController = nil;
+	}
+	
+	return self;
+}
+
 -(void)hide
 {
     if(AlertController != nil)
     {
-        [AlertController dismissViewControllerAnimated: YES completion: nil];
+		if ([AlertController respondsToSelector:@selector(dismissViewControllerAnimated: completion:)])
+		{
+        	[AlertController dismissViewControllerAnimated: YES completion: nil];
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("AlertController didn't support needed selector"));
+		}
     }
 
     if(!TextWidget.IsValid())
@@ -156,26 +178,34 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 									style:UIAlertActionStyleDefault
 									handler:^(UIAlertAction* action)
 									{
-										[AlertController dismissViewControllerAnimated : YES completion : nil];
-
-										UITextField* AlertTextField = AlertController.textFields.firstObject;
-										TextEntry = FText::FromString(AlertTextField.text);
-										AlertController = nil;
-										
-										FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
-										AsyncTask.GameThreadCallback = ^ bool(void)
+										if ([AlertController respondsToSelector:@selector(dismissViewControllerAnimated: completion:)])
 										{
-											if(TextWidget.IsValid())
-											{
-												TSharedPtr<IVirtualKeyboardEntry> TextEntryWidgetPin = TextWidget.Pin();
-												TextEntryWidgetPin->SetTextFromVirtualKeyboard(TextEntry, ETextEntryType::TextEntryAccepted);
-											}
+											[AlertController dismissViewControllerAnimated : YES completion : nil];
 
-											// clear the TextWidget
+											UITextField* AlertTextField = AlertController.textFields.firstObject;
+											TextEntry = FText::FromString(AlertTextField.text);
+											AlertController = nil;
+										
+											FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
+											AsyncTask.GameThreadCallback = ^ bool(void)
+											{
+												if(TextWidget.IsValid())
+												{
+													TSharedPtr<IVirtualKeyboardEntry> TextEntryWidgetPin = TextWidget.Pin();
+													TextEntryWidgetPin->SetTextFromVirtualKeyboard(TextEntry, ETextEntryType::TextEntryAccepted);
+												}
+
+												// clear the TextWidget
+												TextWidget = nullptr;
+												return true;
+											};
+											[AsyncTask FinishedTask];
+										}
+										else
+										{
 											TextWidget = nullptr;
-											return true;
-										};
-										[AsyncTask FinishedTask];
+											UE_LOG(LogTemp, Log, TEXT("AlertController didn't support needed selector"));
+										}
 									}
 	];
 	UIAlertAction* cancelAction = [UIAlertAction
@@ -183,17 +213,25 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 									style:UIAlertActionStyleDefault
 									handler:^(UIAlertAction* action)
 									{
-										[AlertController dismissViewControllerAnimated : YES completion : nil];
-										AlertController = nil;
-										
-										FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
-										AsyncTask.GameThreadCallback = ^ bool(void)
+										if ([AlertController respondsToSelector:@selector(dismissViewControllerAnimated: completion:)])
 										{
-											// clear the TextWidget
+											[AlertController dismissViewControllerAnimated : YES completion : nil];
+											AlertController = nil;
+										
+											FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
+											AsyncTask.GameThreadCallback = ^ bool(void)
+											{
+												// clear the TextWidget
+												TextWidget = nullptr;
+												return true;
+											};
+											[AsyncTask FinishedTask];
+										}
+								   		else
+								   		{
 											TextWidget = nullptr;
-											return true;
-										};
-										[AsyncTask FinishedTask];
+									   		UE_LOG(LogTemp, Log, TEXT("AlertController didn't support needed selector"));
+								   		}
 									}
 	];
 

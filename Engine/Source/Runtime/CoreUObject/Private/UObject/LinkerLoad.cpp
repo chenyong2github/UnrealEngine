@@ -165,8 +165,8 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					if (NewSubobjName != NAME_None || OldSubobjName != NAME_None)
 					{
 						check(OldSubobjName != NAME_None && OldClassName != NAME_None );
-						FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class, OldClassName.ToString(), OldClassName.ToString());
-						Redirect->ValueChanges.Add(OldSubobjName.ToString(), NewSubobjName.ToString());
+						FCoreRedirect& Redirect = NewRedirects.Emplace_GetRef(ECoreRedirectFlags::Type_Class, OldClassName.ToString(), OldClassName.ToString());
+						Redirect.ValueChanges.Add(OldSubobjName.ToString(), NewSubobjName.ToString());
 					}
 					//instances only
 					else if( bInstanceOnly )
@@ -174,11 +174,11 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 						// If NewClassName is none, register as removed instead
 						if (NewClassName == NAME_None)
 						{
-							FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly | ECoreRedirectFlags::Option_Removed, OldClassName.ToString(), NewClassName.ToString());
+							NewRedirects.Emplace(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly | ECoreRedirectFlags::Category_Removed, OldClassName.ToString(), NewClassName.ToString());
 						}
 						else
 						{
-							FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, OldClassName.ToString(), NewClassName.ToString());
+							NewRedirects.Emplace(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldClassName.ToString(), NewClassName.ToString());
 						}
 					}
 					//objects only on a per-object basis
@@ -195,21 +195,21 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 						}
 						else
 						{
-							FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class, OldClassName.ToString(), NewClassName.ToString());
+							FCoreRedirect& Redirect = NewRedirects.Emplace_GetRef(ECoreRedirectFlags::Type_Class, OldClassName.ToString(), NewClassName.ToString());
 
 							if (!NewClassClass.IsNone() || !NewClassPackage.IsNone())
 							{
-								Redirect->OverrideClassName = FCoreRedirectObjectName(NewClassClass, NAME_None, NewClassPackage);
+								Redirect.OverrideClassName = FCoreRedirectObjectName(NewClassClass, NAME_None, NewClassPackage);
 							}
-							else if (Redirect->NewName.ObjectName.ToString().StartsWith(TEXT("E"), ESearchCase::CaseSensitive))
+							else if (Redirect.NewName.ObjectName.ToString().StartsWith(TEXT("E"), ESearchCase::CaseSensitive))
 							{
 								// This might be an enum, so we have to register it
-								FCoreRedirect* EnumRedirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Enum, OldClassName.ToString(), NewClassName.ToString());
+								NewRedirects.Emplace(ECoreRedirectFlags::Type_Enum, OldClassName.ToString(), NewClassName.ToString());
 							}
 							else
 							{
 								// This might be a struct redirect because many of them were registered incorrectly
-								FCoreRedirect* StructRedirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Struct, OldClassName.ToString(), NewClassName.ToString());
+								NewRedirects.Emplace(ECoreRedirectFlags::Type_Struct, OldClassName.ToString(), NewClassName.ToString());
 							}
 						}
 					}
@@ -222,7 +222,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					FParse::Value( *It.Value().GetValue(), TEXT("OldGameName="), OldGameName );
 					FParse::Value( *It.Value().GetValue(), TEXT("NewGameName="), NewGameName );
 
-					FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package, OldGameName.ToString(), NewGameName.ToString());
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Package, OldGameName.ToString(), NewGameName.ToString());
 				}
 				else if ( It.Key() == TEXT("ActiveStructRedirects") )
 				{
@@ -232,7 +232,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					FParse::Value( *It.Value().GetValue(), TEXT("OldStructName="), OldStructName );
 					FParse::Value( *It.Value().GetValue(), TEXT("NewStructName="), NewStructName );
 
-					FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Struct, OldStructName.ToString(), NewStructName.ToString());
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Struct, OldStructName.ToString(), NewStructName.ToString());
 				}
 				else if ( It.Key() == TEXT("ActivePluginRedirects") )
 				{
@@ -245,7 +245,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					OldPluginName = FString(TEXT("/")) + OldPluginName + FString(TEXT("/"));
 					NewPluginName = FString(TEXT("/")) + NewPluginName + FString(TEXT("/"));
 
-					FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_MatchSubstring, OldPluginName, NewPluginName);
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_MatchSubstring, OldPluginName, NewPluginName);
 				}
 				else if ( It.Key() == TEXT("KnownMissingPackages") )
 				{
@@ -253,7 +253,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 
 					FParse::Value( *It.Value().GetValue(), TEXT("PackageName="), KnownMissingPackage );
 
-					FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_Removed, KnownMissingPackage.ToString(), FString());
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Category_Removed, KnownMissingPackage.ToString(), FString());
 				}
 				else if (It.Key() == TEXT("TaggedPropertyRedirects"))
 				{
@@ -267,7 +267,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 
 					check(ClassName != NAME_None && OldPropertyName != NAME_None && NewPropertyName != NAME_None);
 
-					FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Property, FCoreRedirectObjectName(OldPropertyName, ClassName, NAME_None), FCoreRedirectObjectName(NewPropertyName, ClassName, NAME_None));
+					NewRedirects.Emplace(ECoreRedirectFlags::Type_Property, FCoreRedirectObjectName(OldPropertyName, ClassName, NAME_None), FCoreRedirectObjectName(NewPropertyName, ClassName, NAME_None));
 				}
 				else if (It.Key() == TEXT("EnumRedirects"))
 				{
@@ -284,8 +284,8 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 					{
 						FParse::Value(*ConfigValue, TEXT("NewEnumEntry="), NewEnumEntry);
 						check(EnumName != NAME_None && OldEnumEntry != NAME_None && NewEnumEntry != NAME_None);
-						FCoreRedirect* Redirect = new(NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Enum, EnumName.ToString(), EnumName.ToString());
-						Redirect->ValueChanges.Add(OldEnumEntry.ToString(), NewEnumEntry.ToString());
+						FCoreRedirect& Redirect = NewRedirects.Emplace_GetRef(ECoreRedirectFlags::Type_Enum, EnumName.ToString(), EnumName.ToString());
+						Redirect.ValueChanges.Add(OldEnumEntry.ToString(), NewEnumEntry.ToString());
 					}
 					else if (FParse::Value(*ConfigValue, TEXT("OldEnumSubstring="), OldEnumSubstring))
 					{
@@ -1135,6 +1135,127 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 	}
 }
 
+FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
+{
+#if WITH_EDITOR
+	if (LoadProgressScope)
+	{
+		LoadProgressScope->EnterProgressFrame(1);
+	}
+#endif
+	// Read summary from file.
+	StructuredArchiveRootRecord.GetValue() << SA_VALUE(TEXT("Summary"), Summary);
+
+	// Check tag.
+	if (Summary.Tag != PACKAGE_FILE_TAG)
+	{
+		UE_LOG(LogLinker, Warning, TEXT("The file '%s' contains unrecognizable data, check that it is of the expected type."), *Filename);
+		return LINKER_Failed;
+	}
+
+	// Validate the summary.
+	if (Summary.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
+	{
+		UE_LOG(LogLinker, Warning, TEXT("The file %s was saved by a previous version which is not backwards compatible with this one. Min Required Version: %i  Package Version: %i"), *Filename, (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE4());
+		return LINKER_Failed;
+	}
+	// Don't load packages that are only compatible with an engine version newer than the current one.
+	if (!FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
+	{
+		UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with engine version newer than current and therefore can't be loaded. CurrEngineVersion: %s AssetEngineVersion: %s"), *Filename, *FEngineVersion::Current().ToString(), *Summary.CompatibleWithEngineVersion.ToString());
+		return LINKER_Failed;
+	}
+
+	// Set desired property tag format
+	bool bUseUnversionedProperties = Summary.bUnversioned && CanUseUnversionedPropertySerialization();
+	SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+	Loader->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+
+	if (!FPlatformProperties::RequiresCookedData() && !Summary.SavedByEngineVersion.HasChangelist() && FEngineVersion::Current().HasChangelist())
+	{
+		// This warning can be disabled in ini with [Core.System] ZeroEngineVersionWarning=False
+		static struct FInitZeroEngineVersionWarning
+		{
+			bool bDoWarn;
+			FInitZeroEngineVersionWarning()
+			{
+				if (!GConfig->GetBool(TEXT("Core.System"), TEXT("ZeroEngineVersionWarning"), bDoWarn, GEngineIni))
+				{
+					bDoWarn = true;
+				}
+			}
+			FORCEINLINE operator bool() const { return bDoWarn; }
+		} ZeroEngineVersionWarningEnabled;
+		UE_CLOG(ZeroEngineVersionWarningEnabled, LogLinker, Warning, TEXT("Asset '%s' has been saved with empty engine version. The asset will be loaded but may be incompatible."), *Filename);
+	}
+
+	// Don't load packages that were saved with package version newer than the current one.
+	if ((Summary.GetFileVersionUE4() > GPackageFileUE4Version) || (Summary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUE4Version))
+	{
+		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s) PackageVersion %i, MaxExpected %i : LicenseePackageVersion %i, MaxExpected %i."), *Filename, Summary.GetFileVersionUE4(), GPackageFileUE4Version, Summary.GetFileVersionLicenseeUE4(), GPackageFileLicenseeUE4Version);
+		return LINKER_Failed;
+	}
+
+	// don't load packages that contain editor only data in builds that don't support that and vise versa
+	if (!FPlatformProperties::HasEditorOnlyData() && !(Summary.PackageFlags & PKG_FilterEditorOnly))
+	{
+		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Package contains EditorOnly data which is not supported by the current build."), *Filename);
+		return LINKER_Failed;
+	}
+
+	// don't load packages that contain editor only data in builds that don't support that and vise versa
+	if (FPlatformProperties::HasEditorOnlyData() && !!(Summary.PackageFlags & PKG_FilterEditorOnly))
+	{
+		// This warning can be disabled in ini or project settings
+		if (!GAllowCookedDataInEditorBuilds)
+		{
+			UE_LOG(LogLinker, Warning,
+				TEXT("Unable to load package (%s). Package contains cooked data which is not supported by the current build. Enable 'Allow Cooked Content In The Editor' in Project Settings under 'Engine - Cooker' section to load it."),
+				*Filename);
+			return LINKER_Failed;
+		}
+	}
+
+	if (FPlatformProperties::RequiresCookedData() &&
+		Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0 &&
+		!IsEventDrivenLoaderEnabledInCookedBuilds())
+	{
+		UE_LOG(LogLinker, Fatal, TEXT("Package %s contains preload dependency data but the current build does not support it. Make sure Event Driven Loader is enabled and rebuild the game executable."),
+			*GetArchiveName())
+	}
+
+#if PLATFORM_WINDOWS
+	if (!FPlatformProperties::RequiresCookedData() &&
+		// We can't check the post tag if the file is an EDL cooked package
+		!((Summary.PackageFlags & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
+		&& !IsTextFormat())
+	{
+		// check if this package version stored the 4-byte magic post tag
+		// get the offset of the post tag
+		int64 MagicOffset = TotalSize() - sizeof(uint32);
+		// store the current file offset
+		int64 OriginalOffset = Tell();
+
+		uint32 Tag = 0;
+
+		// seek to the post tag and serialize it
+		Seek(MagicOffset);
+		*this << Tag;
+
+		if (Tag != PACKAGE_FILE_TAG)
+		{
+			UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Post Tag is not valid. File might be corrupted."), *Filename);
+			return LINKER_Failed;
+		}
+
+		// seek back to the position after the package summary
+		Seek(OriginalOffset);
+	}
+#endif
+
+	return LINKER_Loaded;
+}
+
 /**
  * Serializes the package file summary.
  */
@@ -1154,121 +1275,12 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 			GetAsyncLoader()->StartReadingHeader();
 		}
 
-#if WITH_EDITOR
-		if (LoadProgressScope)
+		ELinkerStatus Status = SerializePackageFileSummaryInternal();
+
+		if (Status == LINKER_Failed && bIsAsyncLoader)
 		{
-		LoadProgressScope->EnterProgressFrame(1);
+			GetAsyncLoader()->EndReadingHeader();
 		}
-#endif
-		// Read summary from file.
-		StructuredArchiveRootRecord.GetValue() << SA_VALUE(TEXT("Summary"), Summary);
-
-		// Check tag.
-		if( Summary.Tag != PACKAGE_FILE_TAG )
-		{
-			UE_LOG(LogLinker, Warning, TEXT("The file '%s' contains unrecognizable data, check that it is of the expected type."), *Filename );
-			return LINKER_Failed;
-		}
-
-		// Validate the summary.
-		if( Summary.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
-		{
-			UE_LOG(LogLinker, Warning, TEXT("The file %s was saved by a previous version which is not backwards compatible with this one. Min Required Version: %i  Package Version: %i"), *Filename, (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE4() );
-			return LINKER_Failed;
-		}
-		// Don't load packages that are only compatible with an engine version newer than the current one.
-		if (!FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
-		{
-			UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with engine version newer than current and therefore can't be loaded. CurrEngineVersion: %s AssetEngineVersion: %s"), *Filename, *FEngineVersion::Current().ToString(), *Summary.CompatibleWithEngineVersion.ToString());
-			return LINKER_Failed;
-		}
-		
-		// Set desired property tag format
-		bool bUseUnversionedProperties = Summary.bUnversioned && CanUseUnversionedPropertySerialization();
-		SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
-		Loader->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
-		
-		if (!FPlatformProperties::RequiresCookedData() && !Summary.SavedByEngineVersion.HasChangelist() && FEngineVersion::Current().HasChangelist())
-		{
-			// This warning can be disabled in ini with [Core.System] ZeroEngineVersionWarning=False
-			static struct FInitZeroEngineVersionWarning
-			{
-				bool bDoWarn;
-				FInitZeroEngineVersionWarning()
-				{
-					if (!GConfig->GetBool(TEXT("Core.System"), TEXT("ZeroEngineVersionWarning"), bDoWarn, GEngineIni))
-					{
-						bDoWarn = true;
-					}
-				}
-				FORCEINLINE operator bool() const { return bDoWarn; }
-			} ZeroEngineVersionWarningEnabled;			
-			UE_CLOG(ZeroEngineVersionWarningEnabled, LogLinker, Warning, TEXT("Asset '%s' has been saved with empty engine version. The asset will be loaded but may be incompatible."), *Filename );
-		}
-
-		// Don't load packages that were saved with package version newer than the current one.
-		if( (Summary.GetFileVersionUE4() > GPackageFileUE4Version) || (Summary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUE4Version) )
-		{
-			UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s) PackageVersion %i, MaxExpected %i : LicenseePackageVersion %i, MaxExpected %i."), *Filename, Summary.GetFileVersionUE4(), GPackageFileUE4Version, Summary.GetFileVersionLicenseeUE4(), GPackageFileLicenseeUE4Version );
-			return LINKER_Failed;
-		}
-
-		// don't load packages that contain editor only data in builds that don't support that and vise versa
-		if (!FPlatformProperties::HasEditorOnlyData() && !(Summary.PackageFlags & PKG_FilterEditorOnly))
-		{
-			UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Package contains EditorOnly data which is not supported by the current build."), *Filename );
-			return LINKER_Failed;
-		}
-
-		// don't load packages that contain editor only data in builds that don't support that and vise versa
-		if (FPlatformProperties::HasEditorOnlyData() && !!(Summary.PackageFlags & PKG_FilterEditorOnly))
-		{
-			// This warning can be disabled in ini or project settings
-			if (!GAllowCookedDataInEditorBuilds)
-			{
-				UE_LOG(LogLinker, Warning, 
-					TEXT("Unable to load package (%s). Package contains cooked data which is not supported by the current build. Enable 'Allow Cooked Content In The Editor' in Project Settings under 'Engine - Cooker' section to load it."), 
-					*Filename);
-				return LINKER_Failed;
-			}
-		}
-
-		if (FPlatformProperties::RequiresCookedData() && 
-			Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0 &&
-			!IsEventDrivenLoaderEnabledInCookedBuilds())
-		{
-			UE_LOG(LogLinker, Fatal, TEXT("Package %s contains preload dependency data but the current build does not support it. Make sure Event Driven Loader is enabled and rebuild the game executable."),
-				*GetArchiveName())
-		}
-
-#if PLATFORM_WINDOWS
-		if (!FPlatformProperties::RequiresCookedData() && 
-			// We can't check the post tag if the file is an EDL cooked package
-			!((Summary.PackageFlags & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
-			&& !IsTextFormat())
-		{
-			// check if this package version stored the 4-byte magic post tag
-			// get the offset of the post tag
-			int64 MagicOffset = TotalSize() - sizeof(uint32);
-			// store the current file offset
-			int64 OriginalOffset = Tell();
-
-			uint32 Tag = 0;
-
-			// seek to the post tag and serialize it
-			Seek(MagicOffset);
-			*this << Tag;
-
-			if (Tag != PACKAGE_FILE_TAG)
-			{
-				UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Post Tag is not valid. File might be corrupted."), *Filename);
-				return LINKER_Failed;
-			}
-
-			// seek back to the position after the package summary
-			Seek(OriginalOffset);
-		}
-#endif // PLATFORM_WINDOWS
 
 		ELinkerStatus UpdateStatus = UpdateFromPackageFileSummary();
 		if (UpdateStatus != LINKER_Loaded)
@@ -2795,6 +2807,16 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		return false;
 	}
 
+	TStringBuilder<256> ImportObjectName;
+	auto GetImportObjectName = [&Import, &ImportObjectName]
+	{
+		if (!ImportObjectName.Len())
+		{
+			Import.ObjectName.AppendString(ImportObjectName);
+		}
+		return ImportObjectName.ToString();
+	};
+
 	bool SafeReplace = false;
 	UObject* Pkg=NULL;
 	UPackage* TmpPkg=NULL;
@@ -2802,7 +2824,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 	// Find or load the linker load that contains the FObjectExport for this import
 	if (Import.OuterIndex.IsNull() && Import.ClassName!=NAME_Package )
 	{
-		UE_LOG(LogLinker, Error, TEXT("%s has an inappropriate outermost, it was probably saved with a deprecated outer (file: %s)"), *Import.ObjectName.ToString(), *Filename);
+		UE_LOG(LogLinker, Error, TEXT("%s has an inappropriate outermost, it was probably saved with a deprecated outer (file: %s)"), GetImportObjectName(), *Filename);
 		Import.SourceLinker = NULL;
 		return false;
 	}
@@ -2847,7 +2869,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 
 			// we now fully load the package that we need a single export from - however, we still use CreatePackage below as it handles all cases when the package
 			// didn't exist (native only), etc		
-			TmpPkg = LoadPackageInternal(NULL, *Import.ObjectName.ToString(), InternalLoadFlags | LOAD_IsVerifying, this, nullptr, GetSerializeContext());
+			TmpPkg = LoadPackageInternal(NULL, GetImportObjectName(), InternalLoadFlags | LOAD_IsVerifying, this, nullptr, GetSerializeContext());
 		}
 
 #if WITH_EDITOR
@@ -2861,7 +2883,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// @todo linkers: This could quite possibly be cleaned up
 		if (TmpPkg == NULL)
 		{
-			TmpPkg = CreatePackage( NULL, *Import.ObjectName.ToString() );
+			TmpPkg = CreatePackage( NULL, GetImportObjectName() );
 		}
 
 		// if we couldn't create the package or it is 
@@ -2957,7 +2979,9 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			}
 
 			// Top is now pointing to the top-level UPackage for this resource
-			Pkg = CreatePackage(NULL, *Top->ObjectName.ToString() );
+			TStringBuilder<256> TopObjectName;
+			Top->ObjectName.ToString(TopObjectName);
+			Pkg = CreatePackage(NULL, TopObjectName.ToString());
 
 			// Find this import within its existing linker.
 			int32 iHash = HashNames( Import.ObjectName, Import.ClassName, Import.ClassPackage) & (ExportHashCount-1);
@@ -2970,7 +2994,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			{
 				if (!Import.SourceLinker->ExportMap.IsValidIndex(j))
 				{
-					UE_LOG(LogLinker, Error, TEXT("Invalid index [%d/%d] while attempting to import '%s' with LinkerRoot '%s'"), j, Import.SourceLinker->ExportMap.Num(), *Import.ObjectName.ToString(), *GetNameSafe(Import.SourceLinker->LinkerRoot));
+					UE_LOG(LogLinker, Error, TEXT("Invalid index [%d/%d] while attempting to import '%s' with LinkerRoot '%s'"), j, Import.SourceLinker->ExportMap.Num(), GetImportObjectName(), *GetNameSafe(Import.SourceLinker->LinkerRoot));
 					break;
 				}
 				else
@@ -2996,7 +3020,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			for( int32 j=Import.SourceLinker->ExportHash[iHash]; j!=INDEX_NONE; j=Import.SourceLinker->ExportMap[j].HashNext )
 			{
 				if (!ensureMsgf(Import.SourceLinker->ExportMap.IsValidIndex(j), TEXT("Invalid index [%d/%d] while attempting to import '%s' with LinkerRoot '%s'"),
-					j, Import.SourceLinker->ExportMap.Num(), *Import.ObjectName.ToString(), *GetNameSafe(Import.SourceLinker->LinkerRoot)))
+					j, Import.SourceLinker->ExportMap.Num(), GetImportObjectName(), *GetNameSafe(Import.SourceLinker->LinkerRoot)))
 				{
 					break;
 				}
@@ -3080,7 +3104,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 									FObjectImport& TestImport = ImportMap[i];
 									if ( TestImport.OuterIndex == FoundIndex )
 									{
-										UE_LOG(LogLinker, Log, TEXT("Private import was referenced by import '%s' (outer)"), *Import.ObjectName.ToString());
+										UE_LOG(LogLinker, Log, TEXT("Private import was referenced by import '%s' (outer)"), GetImportObjectName());
 										SafeReplace = false;
 									}
 								}
@@ -3140,10 +3164,13 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 	// If not found in file, see if it's a public native transient class or field.
 	if( Import.SourceIndex==INDEX_NONE && Pkg!=NULL )
 	{
-		UObject* ClassPackage = FindObject<UPackage>( NULL, *Import.ClassPackage.ToString() );
+		TStringBuilder<256> ImportClassTemp;
+		Import.ClassPackage.ToString(ImportClassTemp);
+		UObject* ClassPackage = FindObject<UPackage>( NULL, ImportClassTemp.ToString() );
 		if( ClassPackage )
 		{
-			UClass* FindClass = FindObject<UClass>( ClassPackage, *Import.ClassName.ToString() );
+			Import.ClassName.ToString(ImportClassTemp);
+			UClass* FindClass = FindObject<UClass>( ClassPackage, ImportClassTemp.ToString() );
 			if( FindClass )
 			{
 				UObject* FindOuter			= Pkg;
@@ -3162,13 +3189,13 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 					}
 				}
 
-				UObject* FindObject = FindImport(FindClass, FindOuter, *Import.ObjectName.ToString());
+				UObject* FindObject = FindImport(FindClass, FindOuter, GetImportObjectName());
 				// Reference to in memory-only package's object, native transient class or CDO of such a class.
 				bool bIsInMemoryOnlyOrNativeTransient = bCameFromMemoryOnlyPackage || (FindObject != NULL && ((FindObject->IsNative() && FindObject->HasAllFlags(RF_Public | RF_Transient)) || (FindObject->HasAnyFlags(RF_ClassDefaultObject) && FindObject->GetClass()->IsNative() && FindObject->GetClass()->HasAllFlags(RF_Public | RF_Transient))));
 				// Check for structs which have been moved to another header (within the same class package).
 				if (!FindObject && bIsInMemoryOnlyOrNativeTransient && FindClass == UScriptStruct::StaticClass())
 				{
-					FindObject = StaticFindObject( FindClass, ANY_PACKAGE, *Import.ObjectName.ToString(), true );
+					FindObject = StaticFindObject( FindClass, ANY_PACKAGE, GetImportObjectName(), true );
 					if (FindObject && FindOuter->GetOutermost() != FindObject->GetOutermost())
 					{
 						// Limit the results to the same package.I
@@ -5221,7 +5248,7 @@ TArray<FName> FLinkerLoad::FindPreviousNamesForClass(FString CurrentClassPath, b
 	if (bIsInstance)
 	{
 		OldObjectNames.Empty();
-		if (FCoreRedirects::FindPreviousNames(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, FCoreRedirectObjectName(CurrentClassPath), OldObjectNames))
+		if (FCoreRedirects::FindPreviousNames(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, FCoreRedirectObjectName(CurrentClassPath), OldObjectNames))
 		{
 			for (FCoreRedirectObjectName& OldObjectName : OldObjectNames)
 			{
@@ -5270,7 +5297,7 @@ FName FLinkerLoad::FindNewNameForClass(FName OldClassName, bool bIsInstance)
 	if (bIsInstance)
 	{
 		// Also check instance types
-		NewName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, OldName);
+		NewName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldName);
 
 		if (NewName != OldName)
 		{
@@ -5307,6 +5334,15 @@ void FLinkerLoad::OnNewFileAdded(const FString& Filename)
 		}
 	}
 }
+
+void FLinkerLoad::OnPakFileMounted(const IPakFile& NewlyLoadedContainer)
+{
+	// To be strictly correct we should check every known missing Package to see whether it exists in the PakFile and remove it only if so.
+	// But the cost of that is be relatively high during loading, and the known missing system is for performance only.  So we instead clear the known missing
+	// on every pak file.
+	FCoreRedirects::ClearKnownMissing(ECoreRedirectFlags::Type_Package);
+}
+
 
 
 void FLinkerLoad::AddGameNameRedirect(const FName OldName, const FName NewName)
@@ -5501,9 +5537,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupExportMap()
 			// Never modify the default object instances
 			if (!StrObjectName.StartsWith(DEFAULT_OBJECT_PREFIX))
 			{
-				FCoreRedirectObjectName NewClassInstanceName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, OldClassName);
+				FCoreRedirectObjectName NewClassInstanceName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldClassName);
 
-				bool bClassInstanceDeleted = FCoreRedirects::IsKnownMissing(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, OldClassName);
+				bool bClassInstanceDeleted = FCoreRedirects::IsKnownMissing(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldClassName);
 				if (bClassInstanceDeleted)
 				{
 					UE_LOG(LogLinker, Log, TEXT("FLinkerLoad::FixupExportMap() - Pkg<%s> [Obj<%s> Cls<%s> ClsPkg<%s>] -> removed"), *LinkerRoot->GetName(),

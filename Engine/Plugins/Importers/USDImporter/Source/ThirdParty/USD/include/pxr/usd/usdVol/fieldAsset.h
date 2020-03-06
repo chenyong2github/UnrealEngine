@@ -109,7 +109,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDVOL_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -121,7 +121,7 @@ private:
 
     // override SchemaBase virtuals.
     USDVOL_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -139,10 +139,11 @@ public:
     /// a volume.  However, it does not, at this time, support
     /// any pattern substitutions like "$F". 
     ///
-    /// \n  C++ Type: SdfAssetPath
-    /// \n  Usd Type: SdfValueTypeNames->Asset
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `asset filePath` |
+    /// | C++ Type | SdfAssetPath |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Asset |
     USDVOL_API
     UsdAttribute GetFilePathAttr() const;
 

@@ -27,20 +27,12 @@ void ReplicateChannelSimpleElementShader(inout float4 BaseColor)
 MaterialFloat4 ColourTexture2DSample(Texture2D Tex, SamplerState Sampler, float2 UV)
 {
 	MaterialFloat4 Sample = Tex.Sample(Sampler, UV);
-#if SRGB_INPUT_TEXTURE && (FEATURE_LEVEL == FEATURE_LEVEL_ES2) // ES2 does not support sRGB sampling
-	Sample.rgb = Sample.rgb * Sample.rgb;
-#endif
 	return Sample;
 }
 
 float3 SimpleElementFrameBufferBlendOp(float4 Source)
 {
-#if (COMPILER_GLSL_ES2)
-	half4 Dest = FramebufferFetchES2();
-	Dest.rgb = Decode32BPPHDR(Dest).rgb;
-#else
 	half4 Dest = half4(0, 0, 0, 0);
-#endif
 
 #if SE_BLEND_MODE == SE_BLEND_OPAQUE || SE_BLEND_MODE == SE_BLEND_MASKED || SE_BLEND_MODE == SE_BLEND_MASKEDDISTANCEFIELD || SE_BLEND_MODE == SE_BLEND_MASKEDDISTANCEFIELDSHADOWED
 	return Source.rgb;
@@ -69,15 +61,7 @@ float3 SimpleElementFrameBufferBlendOp(float4 Source)
 
 float4 SimpleElementEncodeFor32BPPHDR(float4 OutColor)
 {
-#if ES2_PROFILE && USE_32BPP_HDR
-	if (GetHDR32bppEncodeMode() == HDR_ENCODE_RGBE)
-	{
-		OutColor.rgb = SimpleElementFrameBufferBlendOp(OutColor);
-	}
-	return Encode32BPPHDR(OutColor, float2(0,0)); // TODO: fix for mosaic.
-#else
 	return RETURN_COLOR(OutColor);
-#endif
 }
 
 void Main(
@@ -270,7 +254,7 @@ void GammaDistanceFieldMain(
 	float4 BaseColor = float4(Color.rgb, smoothstep(0.5-SmoothstepWidth, 0.5+SmoothstepWidth, BaseDist));
 	
 // @todo-mobile: bool doesn't work on ES2 (but it should in ES31? Why is 31 in this check)
-#if !(ES2_PROFILE || ES3_1_PROFILE)
+#if !(ES3_1_PROFILE)
 	if( EnableShadow )
 	{
 		// sample texture with shadow direction offset

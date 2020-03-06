@@ -1914,7 +1914,9 @@ FReply UUserWidget::NativeOnTouchForceChanged(const FGeometry& InGeometry, const
 
 FCursorReply UUserWidget::NativeOnCursorQuery( const FGeometry& InGeometry, const FPointerEvent& InCursorEvent )
 {
-	return FCursorReply::Unhandled();
+	return (bOverride_Cursor)
+		? FCursorReply::Cursor(Cursor)
+		: FCursorReply::Unhandled();
 }
 
 FNavigationReply UUserWidget::NativeOnNavigation(const FGeometry& InGeometry, const FNavigationEvent& InNavigationEvent)

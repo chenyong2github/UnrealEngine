@@ -581,12 +581,12 @@ bool FVideoDecoder::ProcessOutputHW(IMFSample* MFSample)
 	check(DecodeCallback);
 	webrtc::VideoFrame VideoFrame = webrtc::VideoFrame::Builder{}.
 		set_video_frame_buffer(new rtc::RefCountedObject<FVideoFrameBuffer>(TextureSample)).
-		set_timestamp_rtp(TextureSample->GetTime().GetTicks()).
+		set_timestamp_rtp(TextureSample->GetTime().Time.GetTicks()).
 		build();
 
 	DecodeCallback->Decoded(VideoFrame);
 
-	UE_LOG(LogVideoDecoder, VeryVerbose, TEXT("ProcessOutputHW: #%d (%d), ts %lld, capture ts %lld"), OutputFrameProcessedCount, InputFrameProcessedCount - OutputFrameProcessedCount, TextureSample->GetTime().GetTicks(), TextureSample->GetDuration().GetTicks());
+	UE_LOG(LogVideoDecoder, VeryVerbose, TEXT("ProcessOutputHW: #%d (%d), ts %lld, capture ts %lld"), OutputFrameProcessedCount, InputFrameProcessedCount - OutputFrameProcessedCount, TextureSample->GetTime().Time.GetTicks(), TextureSample->GetDuration().GetTicks());
 	++OutputFrameProcessedCount;
 
 	// decoder `AddRef`ed it for us. Not releasing it leads to decoder hanging
@@ -608,12 +608,12 @@ bool FVideoDecoder::ProcessOutputSW(const FSwTextureSampleRef& TextureSample)
 	check(DecodeCallback);
 	webrtc::VideoFrame VideoFrame = webrtc::VideoFrame::Builder{}.
 		set_video_frame_buffer(new rtc::RefCountedObject<FVideoFrameBuffer>(TextureSample)).
-		set_timestamp_rtp(TextureSample->GetTime().GetTicks()).
+		set_timestamp_rtp(TextureSample->GetTime().Time.GetTicks()).
 		build();
 
 	DecodeCallback->Decoded(VideoFrame);
 
-	UE_LOG(LogVideoDecoder, VeryVerbose, TEXT("ProcessOutputSW: #%d, ts %.3f, d %.3f"), OutputFrameProcessedCount, TextureSample->GetTime().GetTotalSeconds(), TextureSample->GetDuration().GetTotalSeconds());
+	UE_LOG(LogVideoDecoder, VeryVerbose, TEXT("ProcessOutputSW: #%d, ts %.3f, d %.3f"), OutputFrameProcessedCount, TextureSample->GetTime().Time.GetTotalSeconds(), TextureSample->GetDuration().GetTotalSeconds());
 	++OutputFrameProcessedCount;
 	return true;
 }

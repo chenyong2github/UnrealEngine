@@ -27,7 +27,7 @@ void UCrashReportsPrivacySettings::GetToggleCategoryAndPropertyNames(FName& OutC
 
 FText UCrashReportsPrivacySettings::GetFalseStateLabel() const
 {
-	return LOCTEXT("FalseStateLabel", "Don't send");
+	return LOCTEXT("FalseStateLabel", "Don't Send");
 };
 
 FText UCrashReportsPrivacySettings::GetFalseStateTooltip() const
@@ -42,7 +42,7 @@ FText UCrashReportsPrivacySettings::GetFalseStateDescription() const
 
 FText UCrashReportsPrivacySettings::GetTrueStateLabel() const
 {
-	return LOCTEXT("TrueStateLabel", "Send unattended bug reports");
+	return LOCTEXT("TrueStateLabel", "Send Unattended Bug Reports");
 };
 
 FText UCrashReportsPrivacySettings::GetTrueStateTooltip() const

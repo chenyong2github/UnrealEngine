@@ -80,6 +80,10 @@ struct FTonemapInputs
 
 	// Whether to leave the final output in HDR.
 	bool bOutputInHDR = false;
+
+	bool bMetalMSAAHDRDecode = false;
+
+	FRHIShaderResourceView* EyeAdaptationBuffer = nullptr;
 };
 
 FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FTonemapInputs& Inputs);
@@ -92,7 +96,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 class FRCPassPostProcessTonemap : public TRenderingCompositePassBase<4, 1>
 {
 public:
-	FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bDoEyeAdaptation, bool bHDROutput);
+	FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bDoEyeAdaptation, bool bHDROutput, bool bMetalMSAAHDRDecode);
 
 	virtual void Process(FRenderingCompositePassContext& Context) override;
 	virtual void Release() override { delete this; }
@@ -103,16 +107,17 @@ public:
 private:
 	bool bDoEyeAdaptation;
 	bool bHDROutput;
+	bool bMetalMSAAHDRDecode;
 };
 
 // derives from TRenderingCompositePassBase<InputCount, OutputCount>
 // ePId_Input0: SceneColor
 // ePId_Input1: BloomCombined (not needed for bDoGammaOnly)
 // ePId_Input2: Dof (not needed for bDoGammaOnly)
-class FRCPassPostProcessTonemapES2 : public TRenderingCompositePassBase<3, 1>
+class FRCPassPostProcessTonemapES2 : public TRenderingCompositePassBase<4, 1>
 {
 public:
-	FRCPassPostProcessTonemapES2(const FViewInfo& View, bool bInUsedFramebufferFetch, bool bInSRGBAwareTarget);
+	FRCPassPostProcessTonemapES2(const FViewInfo& View, bool bInUsedFramebufferFetch, bool bInSRGBAwareTarget, bool bInDoEyeAdaptation, bool bMetalMSAAHDRDecode);
 
 	// interface FRenderingCompositePass ---------
 
@@ -127,4 +132,6 @@ private:
 
 	bool bUsedFramebufferFetch;
 	bool bSRGBAwareTarget;
+	bool bDoEyeAdaptation;
+	bool bMetalMSAAHDRDecode;
 };

@@ -11,6 +11,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Serialization/Archive.h"
+#include "Serialization/MemoryImageWriter.h"
 
 #include "Algo/Heapify.h"
 #include "Algo/HeapSort.h"
@@ -21,6 +22,7 @@
 #include "Templates/Less.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/Sorting.h"
+#include "Templates/AlignmentTemplates.h"
 
 
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -28,6 +30,12 @@
 #else
 	#define TARRAY_RANGED_FOR_CHECKS 1
 #endif
+
+template <typename T> struct TCanBulkSerialize { enum { Value = false }; };
+template<> struct TCanBulkSerialize<unsigned int> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<unsigned short> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<int> { enum { Value = true }; };
+
 
 /**
  * Generic iterator which can operate on types that expose the following:
@@ -286,6 +294,12 @@ public:
 	typedef InElementType ElementType;
 	typedef InAllocator   Allocator;
 
+	typedef typename TChooseClass<
+		Allocator::NeedsElementType,
+		typename Allocator::template ForElementType<ElementType>,
+		typename Allocator::ForAnyElementType
+	>::Result ElementAllocatorType;
+
 	static_assert(TIsSigned<SizeType>::Value, "TArray only supports signed index types");
 
 	/**
@@ -309,6 +323,9 @@ public:
 
 		CopyToEmpty(Ptr, Count, 0, 0);
 	}
+
+	template <typename OtherElementType>
+	explicit TArray(const TArrayView<OtherElementType>& Other);
 
 	/**
 	 * Initializer list constructor
@@ -401,6 +418,9 @@ public:
 		}
 		return *this;
 	}
+
+	template <typename OtherElementType>
+	TArray& operator=(const TArrayView<OtherElementType>& Other);
 
 private:
 #if !PLATFORM_COMPILER_HAS_IF_CONSTEXPR
@@ -1119,11 +1139,17 @@ public:
 
 		Ar << SerializeNum;
 
+		if (SerializeNum == 0)
+		{
+			return Ar;
+		}
+
 		check(SerializeNum >= 0);
 
-		if (!Ar.IsError() && SerializeNum >= 0 && ensure(!Ar.IsNetArchive() || SerializeNum <= MaxNetArraySerialize))
+		if (!Ar.IsError() && SerializeNum > 0 && ensure(!Ar.IsNetArchive() || SerializeNum <= MaxNetArraySerialize))
 		{
-			if (sizeof(ElementType) == 1)
+			// if we don't need to perform per-item serialization, just read it in bulk
+			if (sizeof(ElementType) == 1 || TCanBulkSerialize<ElementType>::Value)
 			{
 				A.ArrayNum = SerializeNum;
 
@@ -1133,7 +1159,7 @@ public:
 					A.ResizeForCopy(A.ArrayNum, A.ArrayMax);
 				}
 
-				Ar.Serialize(A.GetData(), A.Num());
+				Ar.Serialize(A.GetData(), A.Num() * sizeof(ElementType));
 			}
 			else if (Ar.IsLoading())
 			{
@@ -2535,11 +2561,15 @@ private:
 		{
 			NewMax = AllocatorInstance.CalculateSlackReserve(NewMax, sizeof(ElementType));
 		}
-		if (NewMax != PrevMax)
+		if (NewMax > PrevMax)
 		{
 			AllocatorInstance.ResizeAllocation(0, NewMax, sizeof(ElementType));
+			ArrayMax = NewMax;
 		}
-		ArrayMax = NewMax;
+		else
+		{
+			ArrayMax = PrevMax;
+		}
 	}
 
 
@@ -2574,22 +2604,73 @@ private:
 
 protected:
 
-	typedef typename TChooseClass<
-		Allocator::NeedsElementType,
-		typename Allocator::template ForElementType<ElementType>,
-		typename Allocator::ForAnyElementType
-		>::Result ElementAllocatorType;
+	template<typename ElementType, typename Allocator>
+	friend class TIndirectArray;
 
 	ElementAllocatorType AllocatorInstance;
 	SizeType             ArrayNum;
 	SizeType             ArrayMax;
 
-	/**
-	 * Implicit heaps
-	 */
+private:
+	template<bool bFreezeMemoryImage, typename Dummy=void>
+	struct TSupportsFreezeMemoryImageHelper
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TArray&)
+		{
+			// Writing non-freezable TArray is only supported for 64-bit target for now
+			// Would need complete layout macros for all allocator types in order to properly write (empty) 32bit versions
+			check(Writer.Is64BitTarget());
+			Writer.WriteBytes(TArray());
+		}
+
+		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TArray&, void* Dst) { new(Dst) TArray(); }
+		static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher) {}
+	};
+
+	template<typename Dummy>
+	struct TSupportsFreezeMemoryImageHelper<true, Dummy>
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TArray& Object)
+		{
+			Object.AllocatorInstance.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<ElementType>(), Object.ArrayNum);
+			Writer.WriteBytes(Object.ArrayNum);
+			Writer.WriteBytes(Object.ArrayNum);
+		}
+		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TArray& Object, void* Dst)
+		{
+			TArray* DstArray = new(Dst) TArray();
+			DstArray->SetNumZeroed(Object.ArrayNum);
+			Object.AllocatorInstance.CopyUnfrozen(Context, StaticGetTypeLayoutDesc<ElementType>(), Object.ArrayNum, DstArray->GetData());
+		}
+		static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+		{
+			Freeze::AppendHash(StaticGetTypeLayoutDesc<ElementType>(), LayoutParams, Hasher);
+		}
+	};
 
 public:
+	void WriteMemoryImage(FMemoryImageWriter& Writer) const
+	{
+		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<ElementType>::Value;
+		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
+	}
 
+	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
+	{
+		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<ElementType>::Value;
+		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::CopyUnfrozen(Context, *this, Dst);
+	}
+
+	static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<ElementType>::Value;
+		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::AppendHash(LayoutParams, Hasher);
+	}
+
+	/**
+	* Implicit heaps
+	*/
+public:
 	/** 
 	 * Builds an implicit heap from the array.
 	 *
@@ -2863,8 +2944,45 @@ public:
 	{
 		HeapSort(TLess<ElementType>());
 	}
+
+	const ElementAllocatorType& GetAllocatorInstance() const { return AllocatorInstance; }
+	ElementAllocatorType& GetAllocatorInstance() { return AllocatorInstance; }
 };
 
+
+namespace Freeze
+{
+	template<typename T, typename AllocatorType>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TArray<T, AllocatorType>& Object, const FTypeLayoutDesc&)
+	{
+		Object.WriteMemoryImage(Writer);
+	}
+
+	template<typename T, typename AllocatorType>
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TArray<T, AllocatorType>& Object, void* OutDst)
+	{
+		Object.CopyUnfrozen(Context, OutDst);
+	}
+
+	template<typename T, typename AllocatorType>
+	uint32 IntrinsicAppendHash(const TArray<T, AllocatorType>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		// sizeof(TArray) changes depending on target platform 32bit vs 64bit
+		// For now, calculate the size manually
+		static_assert(sizeof(TArray<T, AllocatorType>) == sizeof(FMemoryImageUPtrInt) + sizeof(int32) + sizeof(int32), "Unexpected TArray size");
+		const uint32 SizeFromFields = LayoutParams.GetMemoryImagePointerSize() + sizeof(int32) + sizeof(int32);
+		return AppendHashForNameAndSize(TypeDesc.Name, SizeFromFields, Hasher);;
+	}
+
+	template<typename T, typename AllocatorType>
+	uint32 IntrinsicGetTargetAlignment(const TArray<T, AllocatorType>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams)
+	{
+		// Assume alignment of array is drive by pointer
+		return FMath::Min(LayoutParams.GetMemoryImagePointerSize(), LayoutParams.MaxFieldAlignment);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename T, typename AllocatorType>), (TArray<T, AllocatorType>));
 
 template <typename InElementType, typename Allocator>
 struct TIsZeroConstructType<TArray<InElementType, Allocator>>
@@ -2884,7 +3002,6 @@ struct TIsContiguousContainer<TArray<T, Allocator>>
 {
 	enum { Value = true };
 };
-
 
 /**
  * Traits class which determines whether or not a type is a TArray.

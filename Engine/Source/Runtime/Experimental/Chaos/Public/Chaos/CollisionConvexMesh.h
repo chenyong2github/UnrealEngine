@@ -10,15 +10,16 @@
 
 namespace Chaos
 {
+	// When encountering a triangle or quad in hull generation (3-points or 4 coplanar points) we will instead generate
+	// a prism with a small thickness to emulate the desired result as a hull. Otherwise hull generation will fail on
+	// these cases. Verbose logging on LogChaos will point out when this path is taken for further scrutiny about
+	// the geometry
+static constexpr float TriQuadPrismInflation() { return 0.1f; }
+
 	class FConvexBuilder
 	{
 	public:
 
-		// When encountering a triangle or quad in hull generation (3-points or 4 coplanar points) we will instead generate
-		// a prism with a small thickness to emulate the desired result as a hull. Otherwise hull generation will fail on
-		// these cases. Verbose logging on LogChaos will point out when this path is taken for further scrutiny about
-		// the geometry
-		static constexpr float TriQuadPrismInflation = 0.1f;
 
 		static bool IsValidTriangle(const FVec3& A, const FVec3& B, const FVec3& C, FVec3& OutNormal)
 		{
@@ -108,9 +109,9 @@ namespace Chaos
 				//TODO_SQ_IMPLEMENTATION: should do proper cleanup to avoid this
 				if(ensureMsgf(bIsValidTriangle, TEXT("FConvexBuilder::Build(): Generated invalid triangle!")))
 				{
-					Inflate(InParticles, ModifiedParticles, PlanarNormal, TriQuadPrismInflation);
+					Inflate(InParticles, ModifiedParticles, PlanarNormal, TriQuadPrismInflation());
 					ParticlesToUse = &ModifiedParticles;
-					UE_LOG(LogChaos, Verbose, TEXT("Encountered a triangle in convex hull generation. Will prepare a prism of thickness %.5f in place of a triangle."), TriQuadPrismInflation);
+					UE_LOG(LogChaos, Verbose, TEXT("Encountered a triangle in convex hull generation. Will prepare a prism of thickness %.5f in place of a triangle."), TriQuadPrismInflation());
 				}
 				else
 				{
@@ -119,9 +120,9 @@ namespace Chaos
 			}
 			else if(IsPlanarShape(InParticles, PlanarNormal))
 			{
-				Inflate(InParticles, ModifiedParticles, PlanarNormal, TriQuadPrismInflation);
+				Inflate(InParticles, ModifiedParticles, PlanarNormal, TriQuadPrismInflation());
 				ParticlesToUse = &ModifiedParticles;
-				UE_LOG(LogChaos, Verbose, TEXT("Encountered a planar shape in convex hull generation. Will prepare a prism of thickness %.5f in place of a triangle."), TriQuadPrismInflation);
+				UE_LOG(LogChaos, Verbose, TEXT("Encountered a planar shape in convex hull generation. Will prepare a prism of thickness %.5f in place of a triangle."), TriQuadPrismInflation());
 			}
 
 			const int32 NumParticlesToUse = ParticlesToUse->Size();

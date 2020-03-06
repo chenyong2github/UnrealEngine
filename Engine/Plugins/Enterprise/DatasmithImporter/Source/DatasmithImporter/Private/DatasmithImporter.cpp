@@ -24,6 +24,7 @@
 #include "DatasmithAnimationElements.h"
 #include "LevelVariantSets.h"
 #include "ObjectTemplates/DatasmithObjectTemplate.h"
+#include "Utility/DatasmithImporterImpl.h"
 #include "Utility/DatasmithImporterUtils.h"
 #include "Utility/DatasmithTextureResize.h"
 
@@ -74,823 +75,6 @@ extern UNREALED_API UEditorEngine* GEditor;
 
 #define LOCTEXT_NAMESPACE "DatasmithImporter"
 
-namespace DatasmithImporterImpl
-{
-	static void ReportProgress(FScopedSlowTask* SlowTask, const float ExpectedWorkThisFrame, const FText& Text)
-	{
-		if (SlowTask)
-		{
-			SlowTask->EnterProgressFrame(ExpectedWorkThisFrame, Text);
-		}
-	}
-
-	static void ReportProgress(FScopedSlowTask* SlowTask, const float ExpectedWorkThisFrame, FText&& Text)
-	{
-		if (SlowTask)
-		{
-			SlowTask->EnterProgressFrame(ExpectedWorkThisFrame, Text);
-		}
-	}
-
-	static bool HasUserCancelledTask(FFeedbackContext* FeedbackContext)
-	{
-		if (FeedbackContext)
-		{
-			return FeedbackContext->ReceivedUserCancel();
-		}
-
-		return false;
-	}
-
-	static UObject* PublicizeAsset( UObject* SourceAsset, const TCHAR* DestinationPath, UObject* ExistingAsset )
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImporterImpl::PublicizeAsset);
-
-		UPackage* DestinationPackage;
-
-		if ( !ExistingAsset )
-		{
-			FString DestinationPackagePath = UPackageTools::SanitizePackageName( FPaths::Combine( DestinationPath, SourceAsset->GetName() ) );
-			FString DestinationAssetPath = DestinationPackagePath + TEXT(".") + UPackageTools::SanitizePackageName( SourceAsset->GetName() );
-
-			ExistingAsset = FDatasmithImporterUtils::FindObject<UObject>( nullptr, DestinationAssetPath );
-
-			DestinationPackage = ExistingAsset ? ExistingAsset->GetOutermost() : CreatePackage( nullptr, *DestinationPackagePath );
-		}
-		else
-		{
-			DestinationPackage = ExistingAsset->GetOutermost();
-		}
-
-		DestinationPackage->FullyLoad();
-
-		UObject* DestinationAsset = ExistingAsset;
-
-		FString OldAssetPathName;
-
-		// If the object already exist, then we need to fix up the reference
-		if ( ExistingAsset != nullptr && ExistingAsset != SourceAsset )
-		{
-			OldAssetPathName = ExistingAsset->GetPathName();
-
-			DestinationAsset = FDatasmithImporterUtils::DuplicateObject( SourceAsset, DestinationPackage, ExistingAsset->GetFName() );
-
-			// If mesh's label has changed, update its name
-			if ( ExistingAsset->GetFName() != SourceAsset->GetFName() )
-			{
-				DestinationAsset->Rename( *SourceAsset->GetName(), DestinationPackage, REN_DontCreateRedirectors | REN_NonTransactional );
-			}
-
-			if ( UStaticMesh* DestinationMesh = Cast< UStaticMesh >( DestinationAsset ) )
-			{
-				// This is done during the static mesh build process but we need to redo it after the DuplicateObject since the links are now valid
-				for ( TObjectIterator< UStaticMeshComponent > It; It; ++It )
-				{
-					if ( It->GetStaticMesh() == DestinationMesh )
-					{
-						It->FixupOverrideColorsIfNecessary( true );
-						It->InvalidateLightingCache();
-					}
-				}
-			}
-		}
-		else
-		{
-			SourceAsset->Rename( *SourceAsset->GetName(), DestinationPackage, REN_DontCreateRedirectors | REN_NonTransactional );
-			DestinationAsset = SourceAsset;
-		}
-
-		DestinationAsset->SetFlags( RF_Public );
-		DestinationAsset->MarkPackageDirty();
-
-		if ( !ExistingAsset )
-		{
-			FAssetRegistryModule::AssetCreated( DestinationAsset );
-		}
-		else if ( !OldAssetPathName.IsEmpty() )
-		{
-			FAssetRegistryModule::AssetRenamed( DestinationAsset, OldAssetPathName );
-		}
-
-		return DestinationAsset;
-	}
-
-	/**
-	 * Verifies the input asset can successfully be saved and/or cooked.
-	 * The code below is heavily inspired from:
-	 *			- ContentBrowserUtils::IsValidPackageForCooking
-	 * #ueent_todo Make ContentBrowserUtils::IsValidPackageForCooking public. Not game to do it so late in 4.22
-	 */
-	static void CheckAssetPersistenceValidity(UObject* Asset, FDatasmithImportContext& ImportContext)
-	{
-		if (Asset == nullptr)
-		{
-			return;
-		}
-
-		UPackage* Package = Asset->GetOutermost();
-		const FString PackageName = Package->GetName();
-
-		// Check that package can be saved
-		const FString BasePackageFileName = FPackageName::LongPackageNameToFilename( PackageName );
-		const FString AbsolutePathToAsset = FPaths::ConvertRelativePathToFull( BasePackageFileName );
-
-		// Create fake filename of same length of final asset file name to test ability to write
-		const FString FakeAbsolutePathToAsset = AbsolutePathToAsset + TEXT( ".uasset" );
-
-		// Verify asset file name does not exceed OS' maximum path length
-		if( FPlatformMisc::GetMaxPathLength() < FakeAbsolutePathToAsset.Len() )
-		{
-			ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithImportInvalidLength", "Saving may partially fail because path for asset {0} is too long. Rename before saving."), FText::FromString( PackageName )));
-		}
-		// Verify user can overwrite existing file
-		else if( IFileManager::Get().FileExists( *FakeAbsolutePathToAsset ) )
-		{
-			FFileStatData FileStatData = IFileManager::Get().GetStatData( *FakeAbsolutePathToAsset );
-			if ( FileStatData.bIsReadOnly )
-			{
-				// Check to see if the file is not under source control
-				bool bWarnUser = true;
-
-				ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-				if (SourceControlProvider.IsAvailable() && SourceControlProvider.IsEnabled())
-				{
-					SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), FakeAbsolutePathToAsset);
-					FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(FakeAbsolutePathToAsset, EStateCacheUsage::Use);
-					if( SourceControlState.IsValid() && SourceControlState->CanCheckout() )
-					{
-						// User will be prompted to check out this file when he/she saves the asset. No need to warn.
-						bWarnUser = false;
-					}
-				}
-
-				if(bWarnUser)
-				{
-					ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithImportInvalidSaving", "Saving may partially fail because file asset {0} cannot be overwritten. Check your privileges."), FText::FromString( PackageName )));
-				}
-			}
-		}
-		// Verify user has privileges to write in folder where asset file will be stored
-		else
-		{
-			// We can't just check for the target content folders with IFileManager::Get().GetStatData here as those will
-			// only be created when UUnrealEdEngine::GetWarningStateForWritePermission is called to check for
-			// write permissions the first time, as the result is cached in GUnrealEd->PackagesCheckedForWritePermission.
-			// To check for permission, we need to first check this cache, and if the PackageName hasn't been
-			// checked yet, we need to replicate what UUnrealEdEngine::GetWarningStateForWritePermission does
-			EWriteDisallowedWarningState WarningState = EWriteDisallowedWarningState::WDWS_MAX;
-			if (GUnrealEd != nullptr && GUnrealEd->PackagesCheckedForWritePermission.Find(PackageName))
-			{
-				WarningState = (EWriteDisallowedWarningState)*GUnrealEd->PackagesCheckedForWritePermission.Find(PackageName);
-			}
-			else if (FFileHelper::SaveStringToFile(TEXT("Write Test"), *FakeAbsolutePathToAsset))
-			{
-				// We can successfully write to the folder containing the package.
-				// Delete the temp file.
-				IFileManager::Get().Delete(*FakeAbsolutePathToAsset);
-				WarningState = EWriteDisallowedWarningState::WDWS_WarningUnnecessary;
-			}
-
-			if(WarningState != EWriteDisallowedWarningState::WDWS_WarningUnnecessary)
-			{
-				ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithImportInvalidFolder", "Cannot write in folder {0} to store asset {1}. Check access to folder."), FText::FromString( FPaths::GetPath( FakeAbsolutePathToAsset ) ), FText::FromString( PackageName )));
-			}
-		}
-
-		// Check that package can be cooked
-		// Value for MaxGameNameLen directly taken from ContentBrowserUtils::GetPackageLengthForCooking
-		constexpr int32 MaxGameNameLen = 20;
-
-		// Pad out the game name to the maximum allowed
-		const FString GameName = FApp::GetProjectName();
-		FString GameNamePadded = GameName;
-		while (GameNamePadded.Len() < MaxGameNameLen)
-		{
-			GameNamePadded += TEXT(" ");
-		}
-
-		const FString AbsoluteGamePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-		const FString AbsoluteGameCookPath = AbsoluteGamePath / TEXT("Saved") / TEXT("Cooked") / TEXT("WindowsNoEditor") / GameName;
-
-		FString AssetPathWithinCookDir = AbsolutePathToAsset;
-		FPaths::RemoveDuplicateSlashes(AssetPathWithinCookDir);
-		AssetPathWithinCookDir.RemoveFromStart(AbsoluteGamePath, ESearchCase::CaseSensitive);
-
-		// Test that the package can be cooked based on the current project path
-		FString AbsoluteCookPathToAsset = AbsoluteGameCookPath / AssetPathWithinCookDir;
-
-		AbsoluteCookPathToAsset.ReplaceInline(*GameName, *GameNamePadded, ESearchCase::CaseSensitive);
-
-		// Get the longest path allowed by the system or use 260 as the longest which is the shortest max path of any platforms that support cooking
-		const int32 MaxCookPath = GetDefault<UEditorExperimentalSettings>()->bEnableLongPathsSupport ? FPlatformMisc::GetMaxPathLength() : 260 /* MAX_PATH */;
-
-		if (AbsoluteCookPathToAsset.Len() > MaxCookPath)
-		{
-			ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithImportInvalidCooking", "Cooking may fail because path for asset {0} is too long. Rename before cooking."), FText::FromString(PackageName)));
-		}
-	}
-
-	/** Set the texture mode on each texture element based on its usage in the materials */
-	static void SetTexturesMode( FDatasmithImportContext& ImportContext )
-	{
-		const int32 TexturesCount = ImportContext.FilteredScene->GetTexturesCount();
-		const int32 MaterialsCount = ImportContext.FilteredScene->GetMaterialsCount();
-
-		FFeedbackContext* FeedbackContext = ImportContext.FeedbackContext;
-		for ( int32 TextureIndex = 0; TextureIndex < TexturesCount && !ImportContext.bUserCancelled; ++TextureIndex )
-		{
-			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
-
-			TSharedPtr< IDatasmithTextureElement > TextureElement = ImportContext.FilteredScene->GetTexture( TextureIndex );
-			const FString TextureName = ObjectTools::SanitizeObjectName( TextureElement->GetName() );
-
-			for ( int32 MaterialIndex = 0; MaterialIndex < MaterialsCount; ++MaterialIndex )
-			{
-				const TSharedPtr< IDatasmithBaseMaterialElement >& BaseMaterialElement = ImportContext.FilteredScene->GetMaterial( MaterialIndex );
-
-				if ( BaseMaterialElement->IsA( EDatasmithElementType::Material ) )
-				{
-					const TSharedPtr< IDatasmithMaterialElement >& MaterialElement = StaticCastSharedPtr< IDatasmithMaterialElement >( BaseMaterialElement );
-
-					for ( int32 s = 0; s < MaterialElement->GetShadersCount(); ++s )
-					{
-						const TSharedPtr< IDatasmithShaderElement >& ShaderElement = MaterialElement->GetShader(s);
-
-						if ( FCString::Strlen( ShaderElement->GetDiffuseTexture() ) > 0 && ShaderElement->GetDiffuseTexture() == TextureName)
-						{
-							TextureElement->SetTextureMode(EDatasmithTextureMode::Diffuse);
-						}
-						else if ( FCString::Strlen( ShaderElement->GetReflectanceTexture() ) > 0 && ShaderElement->GetReflectanceTexture() == TextureName)
-						{
-							TextureElement->SetTextureMode(EDatasmithTextureMode::Specular);
-						}
-						else if ( FCString::Strlen( ShaderElement->GetDisplaceTexture() ) > 0 && ShaderElement->GetDisplaceTexture() == TextureName)
-						{
-							TextureElement->SetTextureMode(EDatasmithTextureMode::Displace);
-						}
-						else if ( FCString::Strlen( ShaderElement->GetNormalTexture() ) > 0 && ShaderElement->GetNormalTexture() == TextureName)
-						{
-							if (!ShaderElement->GetNormalTextureSampler().bInvert)
-							{
-								TextureElement->SetTextureMode(EDatasmithTextureMode::Normal);
-							}
-							else
-							{
-								TextureElement->SetTextureMode(EDatasmithTextureMode::NormalGreenInv);
-							}
-						}
-					}
-				}
-				else if ( BaseMaterialElement->IsA( EDatasmithElementType::UEPbrMaterial ) )
-				{
-					const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement = StaticCastSharedPtr< IDatasmithUEPbrMaterialElement >( BaseMaterialElement );
-
-					TFunction< bool( IDatasmithMaterialExpression* ) > IsTextureConnected;
-					IsTextureConnected = [ &TextureName, &IsTextureConnected ]( IDatasmithMaterialExpression* MaterialExpression ) -> bool
-					{
-						if ( !MaterialExpression )
-						{
-							return false;
-						}
-
-						if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Texture ) )
-						{
-							IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( MaterialExpression );
-
-							if ( TextureExpression->GetTexturePathName() == TextureName )
-							{
-								return true;
-							}
-						}
-
-						for ( int32 InputIndex = 0; InputIndex < MaterialExpression->GetInputCount(); ++InputIndex )
-						{
-							IDatasmithMaterialExpression* ConnectedExpression = MaterialExpression->GetInput( InputIndex )->GetExpression();
-
-							if ( ConnectedExpression && IsTextureConnected( ConnectedExpression ) )
-							{
-								return true;
-							}
-						}
-
-						return false;
-					};
-
-					if ( IsTextureConnected( MaterialElement->GetBaseColor().GetExpression() ) )
-					{
-						TextureElement->SetTextureMode(EDatasmithTextureMode::Diffuse);
-					}
-					else if ( IsTextureConnected( MaterialElement->GetSpecular().GetExpression() ) )
-					{
-						TextureElement->SetTextureMode(EDatasmithTextureMode::Specular);
-					}
-					else if ( IsTextureConnected( MaterialElement->GetNormal().GetExpression() ) )
-					{
-						if ( TextureElement->GetTextureMode() != EDatasmithTextureMode::Bump )
-						{
-							TextureElement->SetTextureMode(EDatasmithTextureMode::Normal);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	static void CompileMaterial( UObject* Material )
-	{
-		if ( !Material->IsA< UMaterialInterface >() && !Material->IsA< UMaterialFunctionInterface >() )
-		{
-			return;
-		}
-
-		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImporterImpl::CompileMaterial);
-
-		FMaterialUpdateContext MaterialUpdateContext;
-
-		if ( UMaterialInterface* MaterialInterface = Cast< UMaterialInterface >( Material ) )
-		{
-			MaterialUpdateContext.AddMaterialInterface( MaterialInterface );
-		}
-
-		if ( UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >( Material ) )
-		{
-			// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
-			if ( ConstantMaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
-			{
-				ConstantMaterialInstance->ForceRecompileForRendering();
-			}
-			else
-			{
-				// If a static switch is overriden, we need to recompile
-				FStaticParameterSet StaticParameters;
-				ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
-
-				for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
-				{
-					if ( Switch.bOverride )
-					{
-						ConstantMaterialInstance->ForceRecompileForRendering();
-						break;
-					}
-				}
-			}
-		}
-
-		Material->PreEditChange( nullptr );
-		Material->PostEditChange();
-	}
-
-	static void FixReferencesForObject( UObject* Object, const TMap< UObject*, UObject* >& ReferencesToRemap )
-	{
-		constexpr bool bNullPrivateRefs = false;
-		constexpr bool bIgnoreOuterRef = true;
-		constexpr bool bIgnoreArchetypeRef = true;
-
-		if ( ReferencesToRemap.Num() > 0 )
-		{
-			FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRef( Object, ReferencesToRemap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef );
-		}
-	}
-
-	using FMigratedTemplatePairType = TPair< TStrongObjectPtr< UDatasmithObjectTemplate >, TStrongObjectPtr< UDatasmithObjectTemplate > >;
-
-	/**
-	 * Creates templates to apply the values from the SourceObject on the DestinationObject.
-	 *
-	 * @returns An array of template pairs. The key is the template for the object, the value is a template to force apply to the object,
-	 *			it contains the values from the key and any overrides that were present on the DestinationObject.
-	 */
-	static TArray< FMigratedTemplatePairType > MigrateTemplates( UObject* SourceObject, UObject* DestinationObject, const TMap< UObject*, UObject* >* ReferencesToRemap, bool bIsForActor )
-	{
-		TArray< FMigratedTemplatePairType > Results;
-
-		if ( !SourceObject )
-		{
-			return Results;
-		}
-
-		TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* SourceTemplates = FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates( SourceObject );
-
-		if ( !SourceTemplates )
-		{
-			return Results;
-		}
-
-		for ( const TPair< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >& SourceTemplatePair : *SourceTemplates )
-		{
-			if ( bIsForActor == SourceTemplatePair.Value->bIsActorTemplate )
-			{
-				FMigratedTemplatePairType& Result = Results.AddDefaulted_GetRef();
-
-				TStrongObjectPtr< UDatasmithObjectTemplate > SourceTemplate{ NewObject< UDatasmithObjectTemplate >(GetTransientPackage(), SourceTemplatePair.Key.Get()) }; // The SourceTemplate is the one we will persist so set its outer as DestinationObject
-
-				SourceTemplate->Load(SourceObject);
-
-				if ( ReferencesToRemap )
-				{
-					FixReferencesForObject(SourceTemplate.Get(), *ReferencesToRemap);
-				}
-
-				Result.Key = SourceTemplate;
-
-				if (DestinationObject && !DestinationObject->IsPendingKillOrUnreachable())
-				{
-					Result.Value = TStrongObjectPtr< UDatasmithObjectTemplate >(UDatasmithObjectTemplate::GetDifference( DestinationObject, SourceTemplate.Get()));
-				}
-				else
-				{
-					Result.Value = SourceTemplate;
-				}
-			}
-		}
-
-		return Results;
-	}
-
-	/**
-	 * Applies the templates created from MigrateTemplates to DestinationObject.
-	 *
-	 * For an Object A that should be duplicated over an existing A', for which we want to keep the Datasmith overrides:
-	 * - Call MigrateTemplates(A, A')
-	 * - Duplicate A over A'
-	 * - ApplyMigratedTemplates(A')
-	 */
-	static void ApplyMigratedTemplates( TArray< FMigratedTemplatePairType >& MigratedTemplates, UObject* DestinationObject )
-	{
-		for ( FMigratedTemplatePairType& MigratedTemplate : MigratedTemplates )
-		{
-			UDatasmithObjectTemplate* SourceTemplate = MigratedTemplate.Key.Get();
-			UDatasmithObjectTemplate* DestinationTemplate = MigratedTemplate.Value.Get();
-
-			DestinationTemplate->Apply(DestinationObject, true); // Restore the overrides
-			FDatasmithObjectTemplateUtils::SetObjectTemplate(DestinationObject, SourceTemplate); // Set SourceTemplate as our template so that any differences are considered overrides
-
-		}
-	}
-
-	static UObject* FinalizeAsset( UObject* SourceAsset, const TCHAR* AssetPath, UObject* ExistingAsset, TMap< UObject*, UObject* >* ReferencesToRemap )
-	{
-		if ( ReferencesToRemap )
-		{
-			FixReferencesForObject( SourceAsset, *ReferencesToRemap );
-		}
-
-		TArray< FMigratedTemplatePairType > MigratedTemplates = MigrateTemplates( SourceAsset, ExistingAsset, ReferencesToRemap, false );
-
-		UObject* FinalAsset = PublicizeAsset( SourceAsset, AssetPath, ExistingAsset );
-
-		ApplyMigratedTemplates( MigratedTemplates, FinalAsset );
-
-		if ( ReferencesToRemap && SourceAsset && SourceAsset != FinalAsset )
-		{
-			ReferencesToRemap->Add( SourceAsset, FinalAsset );
-		}
-
-		return FinalAsset;
-	}
-
-	class FActorWriter final: public FObjectWriter
-	{
-	public:
-		FActorWriter( UObject* Object, TArray< uint8 >& Bytes )
-			: FObjectWriter( Bytes )
-		{
-			SetIsLoading(false);
-			SetIsSaving(true);
-			SetIsPersistent(false);
-
-			Object->Serialize(*this); // virtual call in ctr -> final class
-		}
-
-		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
-		{
-			bool bSkip = false;
-
-			if ( InProperty->IsA< FObjectPropertyBase >() )
-			{
-				bSkip = true;
-			}
-			else if ( InProperty->HasAnyPropertyFlags(CPF_Transient) || !InProperty->HasAnyPropertyFlags(CPF_Edit | CPF_Interp) )
-			{
-				bSkip = true;
-			}
-
-			return bSkip;
-		}
-	};
-
-	class FComponentWriter final : public FObjectWriter
-	{
-	public:
-		FComponentWriter( UObject* Object, TArray< uint8 >& Bytes )
-			: FObjectWriter( Bytes )
-		{
-			SetIsLoading(false);
-			SetIsSaving(true);
-			SetIsPersistent(false);
-
-			Object->Serialize(*this); // virtual call in ctr -> final class
-		}
-
-		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
-		{
-			bool bSkip = false;
-
-			if ( InProperty->HasAnyPropertyFlags(CPF_Transient) || !InProperty->HasAnyPropertyFlags(CPF_Edit | CPF_Interp) )
-			{
-				bSkip = true;
-			}
-
-			return bSkip;
-		}
-	};
-
-	static void DeleteImportSceneActorIfNeeded(FDatasmithActorImportContext& ActorContext, bool bForce = false)
-	{
-		ADatasmithSceneActor*& ImportSceneActor = ActorContext.ImportSceneActor;
-		if ( !ActorContext.FinalSceneActors.Contains(ImportSceneActor) || bForce )
-		{
-			if ( ImportSceneActor )
-			{
-
-				TArray< TSoftObjectPtr< AActor > > RelatedActors;
-				ImportSceneActor->RelatedActors.GenerateValueArray( RelatedActors );
-
-				ImportSceneActor->Scene = nullptr;
-				ImportSceneActor->RelatedActors.Empty();
-
-				while(RelatedActors.Num() > 0)
-				{
-					TSoftObjectPtr< AActor > ActorPtr = RelatedActors.Pop(false);
-					if(AActor* RelatedActor = ActorPtr.Get())
-					{
-						FDatasmithImporterUtils::DeleteActor( *RelatedActor );
-					}
-				}
-
-				FDatasmithImporterUtils::DeleteActor( *ImportSceneActor );
-
-				// Null also the ImportSceneActor from the Actor Context because it's a ref to it.
-				ImportSceneActor = nullptr;
-			}
-		}
-	}
-
-	static UActorComponent* PublicizeComponent(UActorComponent& SourceComponent, UActorComponent* DestinationComponent, AActor& DestinationActor, TMap< UObject*, UObject* >& ReferencesToRemap, USceneComponent* DestinationParent = nullptr )
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImporterImpl::PublicizeComponent);
-
-		if ( !SourceComponent.HasAnyFlags( RF_Transient | RF_TextExportTransient ) )
-		{
-			if (!DestinationComponent || DestinationComponent->IsPendingKillOrUnreachable())
-			{
-				if (DestinationComponent)
-				{
-					// Change the name of the old component so that the new object won't recycle the old one.
-					DestinationComponent->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_NonTransactional);
-				}
-
-				if ( UActorComponent* OldComponent = static_cast<UActorComponent*>( FindObjectWithOuter( &DestinationActor, UActorComponent::StaticClass(), SourceComponent.GetFName() ) ) )
-				{
-					OldComponent->DestroyComponent( true );
-					// Change the name of the old component so that the new object won't recycle the old one.
-					OldComponent->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_NonTransactional);
-				}
-
-				// Create a new component
-				DestinationComponent = NewObject<UActorComponent>(&DestinationActor, SourceComponent.GetClass(), SourceComponent.GetFName(), RF_Transactional);
-				DestinationActor.AddInstanceComponent(DestinationComponent);
-
-				if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(DestinationComponent))
-				{
-					if ( !DestinationActor.GetRootComponent() )
-					{
-						DestinationActor.SetRootComponent(NewSceneComponent);
-					}
-					if ( DestinationParent )
-					{
-						NewSceneComponent->AttachToComponent( DestinationParent, FAttachmentTransformRules::KeepRelativeTransform );
-					}
-				}
-
-				DestinationComponent->RegisterComponent();
-			}
-
-			check(DestinationComponent);
-
-			// Copy component data
-			{
-				TArray< uint8 > Bytes;
-				FComponentWriter ObjectWriter(&SourceComponent, Bytes);
-				FObjectReader ObjectReader(DestinationComponent, Bytes);
-			}
-
-			FixReferencesForObject(DestinationComponent, ReferencesToRemap);
-
-			// #ueent_todo: we shouldn't be copying instanced object pointers in the first place
-			UDatasmithAssetUserData* SourceAssetUserData = DestinationComponent->GetAssetUserData< UDatasmithAssetUserData >();
-
-			if ( SourceAssetUserData )
-			{
-				UDatasmithAssetUserData* DestinationAssetUserData = DuplicateObject< UDatasmithAssetUserData >( SourceAssetUserData, DestinationComponent );
-				DestinationComponent->RemoveUserDataOfClass( UDatasmithAssetUserData::StaticClass() );
-				DestinationComponent->AddAssetUserData( DestinationAssetUserData );
-			}
-
-			ReferencesToRemap.Add( &SourceComponent, DestinationComponent );
-
-			return DestinationComponent;
-		}
-
-		return nullptr;
-	}
-
-	static void FinalizeSceneComponent(FDatasmithImportContext& ImportContext, USceneComponent& SourceComponent, AActor& DestinationActor, USceneComponent* DestinationParent, TMap<UObject *, UObject *>& ReferencesToRemap )
-	{
-		USceneComponent* DestinationComponent = static_cast<USceneComponent*>( FindObjectWithOuter( &DestinationActor, SourceComponent.GetClass(), SourceComponent.GetFName() ) );
-		FName SourceComponentDatasmithId = FDatasmithImporterUtils::GetDatasmithElementId(&SourceComponent);
-
-		if ( SourceComponentDatasmithId.IsNone() )
-		{
-			// This component is not tracked by datasmith
-			if ( !DestinationComponent || DestinationComponent->IsPendingKillOrUnreachable() )
-			{
-				DestinationComponent = static_cast<USceneComponent*> ( PublicizeComponent(SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap, DestinationParent) );
-				if ( DestinationComponent )
-				{
-					// Put back the components in a proper state
-					DestinationComponent->UpdateComponentToWorld();
-				}
-			}
-		}
-		else
-		{
-			check(ImportContext.ActorsContext.CurrentTargetedScene);
-
-			TArray< FMigratedTemplatePairType > MigratedTemplates = MigrateTemplates(
-				&SourceComponent,
-				DestinationComponent,
-				&ReferencesToRemap,
-				false
-			);
-
-			DestinationComponent = static_cast< USceneComponent* > ( PublicizeComponent( SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap, DestinationParent ) );
-
-			if ( DestinationComponent )
-			{
-				// Put back the components in a proper state (Unfortunately without this the set relative transform might not work)
-				DestinationComponent->UpdateComponentToWorld();
-				ApplyMigratedTemplates( MigratedTemplates, DestinationComponent );
-				DestinationComponent->PostEditChange();
-			}
-		}
-
-		USceneComponent* AttachParentForChildren = DestinationComponent  ? DestinationComponent : DestinationParent;
-		for ( USceneComponent* Child : SourceComponent.GetAttachChildren() )
-		{
-			// Only finalize components that are from the same actor
-			if ( Child && Child->GetOuter() == SourceComponent.GetOuter() )
-			{
-				FinalizeSceneComponent( ImportContext, *Child, DestinationActor, AttachParentForChildren, ReferencesToRemap );
-			}
-		}
-	}
-
-	static void FinalizeComponents(FDatasmithImportContext& ImportContext, AActor& SourceActor, AActor& DestinationActor, TMap<UObject *, UObject *>& ReferencesToRemap)
-	{
-		USceneComponent* ParentComponent = nullptr;
-
-		// Find the parent component
-		UObject** ObjectPtr = ReferencesToRemap.Find( SourceActor.GetRootComponent()->GetAttachParent() );
-		if ( ObjectPtr )
-		{
-			ParentComponent = Cast<USceneComponent>( *ObjectPtr );
-		}
-
-		// Finalize the scene components recursively
-		{
-			USceneComponent* RootComponent = SourceActor.GetRootComponent();
-			if ( RootComponent )
-			{
-				FinalizeSceneComponent( ImportContext, *RootComponent, DestinationActor, ParentComponent, ReferencesToRemap );
-			}
-		}
-
-
-		for ( UActorComponent* SourceComponent : SourceActor.GetComponents() )
-		{
-			// Only the non scene component haven't been finalize
-			if ( SourceComponent && !SourceComponent->GetClass()->IsChildOf<USceneComponent>() )
-			{
-				UActorComponent* DestinationComponent = static_cast< UActorComponent* >( FindObjectWithOuter( &DestinationActor, SourceComponent->GetClass(), SourceComponent->GetFName() ) );
-				if (!DestinationComponent)
-				{
-					DestinationComponent = PublicizeComponent( *SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap );
-				}
-			}
-		}
-	}
-
-	static void GatherUnsupportedVirtualTexturesAndMaterials(const TMap<TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface*>& ImportedMaterials, TSet<UTexture2D*>& VirtualTexturesToConvert, TArray<UMaterial*>& MaterialsToRefreshAfterVirtualTextureConversion)
-	{
-		//Multimap cache to avoid parsing the same base material multiple times.
-		TMultiMap<UMaterial*, FMaterialParameterInfo> TextureParametersToConvertMap;
-
-		//Loops through all imported material instances and add to VirtualTexturesToConvert all the virtual texture parameters that don't support virtual texturing in the base material.
-		for (const TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& ImportedMaterialPair : ImportedMaterials)
-		{
-			UMaterialInterface* CurrentMaterialInterface = ImportedMaterialPair.Value;
-			UMaterial* BaseMaterial = CurrentMaterialInterface->GetMaterial();
-
-			if(!TextureParametersToConvertMap.Contains(BaseMaterial))
-			{
-				bool bRequiresTextureCheck = false;
-				TArray<FMaterialParameterInfo> OutParameterInfo;
-				TArray<FGuid> Guids;
-				BaseMaterial->GetAllTextureParameterInfo(OutParameterInfo, Guids);
-
-				for (int32 ParameterInfoIndex = 0; ParameterInfoIndex < OutParameterInfo.Num(); ++ParameterInfoIndex)
-				{
-					UTexture* TextureParameter = nullptr;
-
-					if (BaseMaterial->GetTextureParameterValue(OutParameterInfo[ParameterInfoIndex], TextureParameter) && VirtualTexturesToConvert.Contains(Cast<UTexture2D>(TextureParameter)))
-					{
-						bRequiresTextureCheck = true;
-						TextureParametersToConvertMap.Add(BaseMaterial, OutParameterInfo[ParameterInfoIndex]);
-					}
-				}
-
-				if (bRequiresTextureCheck)
-				{
-					MaterialsToRefreshAfterVirtualTextureConversion.Add(BaseMaterial);
-				}
-				else
-				{
-					//Adding a dummy MaterialParameterInfo so that we don't have to parse this Base Material again.
-					TextureParametersToConvertMap.Add(BaseMaterial, FMaterialParameterInfo());
-
-					//If no unsupported virtual texture parameters were found, it's possible that a texture needing conversion is simply not exposed as a parameter, so we still need to check for those.
-					TArray<UObject*> ReferencedTextures;
-					BaseMaterial->AppendReferencedTextures(ReferencedTextures);
-					for (UObject* ReferencedTexture : ReferencedTextures)
-					{
-						if (VirtualTexturesToConvert.Contains(Cast<UTexture2D>(ReferencedTexture)))
-						{
-							MaterialsToRefreshAfterVirtualTextureConversion.Add(BaseMaterial);
-							break;
-						}
-					}
-				}
-			}
-
-			for (auto ParameterInfoIt = TextureParametersToConvertMap.CreateKeyIterator(BaseMaterial); ParameterInfoIt; ++ParameterInfoIt)
-			{
-				UTexture* TextureParameter = nullptr;
-
-				if (CurrentMaterialInterface->GetTextureParameterValue(ParameterInfoIt.Value(), TextureParameter) &&
-					TextureParameter && TextureParameter->VirtualTextureStreaming)
-				{
-					if (UTexture2D* TextureToConvert = Cast<UTexture2D>(TextureParameter))
-					{
-						VirtualTexturesToConvert.Add(TextureToConvert);
-					}
-				}
-			}
-		}
-	}
-
-	static void ConvertUnsupportedVirtualTexture(FDatasmithImportContext& ImportContext, TSet<UTexture2D*>& VirtualTexturesToConvert, const TMap<UObject*, UObject*>& ReferencesToRemap)
-	{
-		TArray<UMaterial*> MaterialsToRefreshAfterVirtualTextureConversion;
-		GatherUnsupportedVirtualTexturesAndMaterials(ImportContext.ImportedMaterials, ImportContext.AssetsContext.VirtualTexturesToConvert, MaterialsToRefreshAfterVirtualTextureConversion);
-
-		if (VirtualTexturesToConvert.Num() != 0)
-		{
-			for (UTexture2D*& TextureToConvert : VirtualTexturesToConvert)
-			{
-				if (UObject* const* RemappedTexture = ReferencesToRemap.Find(TextureToConvert))
-				{
-					TextureToConvert = Cast<UTexture2D>(*RemappedTexture);
-				}
-
-				ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithVirtualTextureConverted", "The imported texture {0} could not be imported as virtual texture as it is not supported in all the materials using it."), FText::FromString(TextureToConvert->GetName())));
-			}
-
-			for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToRefreshAfterVirtualTextureConversion.Num(); ++MaterialIndex)
-			{
-				if (UObject* const* RemappedMaterial = ReferencesToRemap.Find(MaterialsToRefreshAfterVirtualTextureConversion[MaterialIndex]))
-				{
-					MaterialsToRefreshAfterVirtualTextureConversion[MaterialIndex] = Cast<UMaterial>(*RemappedMaterial);
-				}
-			}
-
-			TArray<UTexture2D*> TexturesToConvertList(VirtualTexturesToConvert.Array());
-			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			AssetTools.ConvertVirtualTextures(TexturesToConvertList, true, &MaterialsToRefreshAfterVirtualTextureConversion);
-		}
-	}
-}
-
 void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportContext )
 {
 	const int32 StaticMeshesCount = ImportContext.FilteredScene->GetMeshesCount();
@@ -923,7 +107,7 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 	{
 		for (int32 MeshIndex = 0; MeshIndex < StaticMeshesCount && !ImportContext.bUserCancelled; ++MeshIndex)
 		{
-			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 
 			if (!ImportContext.AssetsContext.StaticMeshesFinalPackage || ImportContext.AssetsContext.StaticMeshesFinalPackage->GetFName() == NAME_None || ImportContext.SceneTranslator == nullptr)
@@ -965,11 +149,11 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 	// This pass will wait on the futures we got from the first pass async tasks
 	for ( int32 MeshIndex = 0; MeshIndex < StaticMeshesCount && !ImportContext.bUserCancelled; ++MeshIndex )
 	{
-		ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		TSharedRef< IDatasmithMeshElement > MeshElement = ImportContext.FilteredScene->GetMesh( MeshIndex ).ToSharedRef();
 
-		DatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Importing static mesh %d/%d (%s) ..."), MeshIndex + 1, StaticMeshesCount, MeshElement->GetLabel() ) ) );
+		FDatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Importing static mesh %d/%d (%s) ..."), MeshIndex + 1, StaticMeshesCount, MeshElement->GetLabel() ) ) );
 
 		UStaticMesh* ExistingStaticMesh = nullptr;
 
@@ -1080,9 +264,7 @@ UStaticMesh* FDatasmithImporter::ImportStaticMesh( FDatasmithImportContext& Impo
 
 UStaticMesh* FDatasmithImporter::FinalizeStaticMesh( UStaticMesh* SourceStaticMesh, const TCHAR* StaticMeshesFolderPath, UStaticMesh* ExistingStaticMesh, TMap< UObject*, UObject* >* ReferencesToRemap, bool bBuild)
 {
-	using namespace DatasmithImporterImpl;
-
-	UStaticMesh* DestinationStaticMesh = Cast< UStaticMesh >( FinalizeAsset( SourceStaticMesh, StaticMeshesFolderPath, ExistingStaticMesh, ReferencesToRemap ) );
+	UStaticMesh* DestinationStaticMesh = Cast< UStaticMesh >( FDatasmithImporterImpl::FinalizeAsset( SourceStaticMesh, StaticMeshesFolderPath, ExistingStaticMesh, ReferencesToRemap ) );
 
 	if (bBuild)
 	{
@@ -1118,7 +300,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportTextures);
 
-	DatasmithImporterImpl::SetTexturesMode( ImportContext );
+	FDatasmithImporterImpl::SetTexturesMode( ImportContext );
 
 	const int32 TexturesCount = ImportContext.FilteredScene->GetTexturesCount();
 
@@ -1160,7 +342,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 
 		for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
 		{
-			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			AsyncData[TextureIndex].Result = 
 				Async(
@@ -1182,7 +364,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 
 		for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
 		{
-			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			if ( ImportContext.bUserCancelled )
 			{
@@ -1193,7 +375,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 			{
 				const TSharedPtr< IDatasmithTextureElement >& TextureElement = FilteredTextureElements[TextureIndex];
 
-				DatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Importing texture %d/%d (%s) ..."), TextureIndex + 1, FilteredTextureElements.Num(), TextureElement->GetLabel() ) ) );
+				FDatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Importing texture %d/%d (%s) ..."), TextureIndex + 1, FilteredTextureElements.Num(), TextureElement->GetLabel() ) ) );
 
 				UTexture* ExistingTexture = nullptr;
 
@@ -1239,7 +421,7 @@ UTexture* FDatasmithImporter::ImportTexture( FDatasmithImportContext& ImportCont
 
 UTexture* FDatasmithImporter::FinalizeTexture( UTexture* SourceTexture, const TCHAR* TexturesFolderPath, UTexture* ExistingTexture, TMap< UObject*, UObject* >* ReferencesToRemap )
 {
-	return Cast< UTexture >( DatasmithImporterImpl::FinalizeAsset( SourceTexture, TexturesFolderPath, ExistingTexture, ReferencesToRemap ) );
+	return Cast< UTexture >( FDatasmithImporterImpl::FinalizeAsset( SourceTexture, TexturesFolderPath, ExistingTexture, ReferencesToRemap ) );
 }
 
 void FDatasmithImporter::ImportMaterials( FDatasmithImportContext& ImportContext )
@@ -1259,9 +441,9 @@ void FDatasmithImporter::ImportMaterials( FDatasmithImportContext& ImportContext
 
 		ImportContext.AssetsContext.MaterialsRequirements.Empty( ImportContext.FilteredScene->GetMaterialsCount() );
 
-		for ( int32 MaterialIndex = 0; MaterialIndex < ImportContext.FilteredScene->GetMaterialsCount(); ++MaterialIndex )
+		for (FDatasmithImporterUtils::FDatasmithMaterialImportIterator It(ImportContext); It; ++It)
 		{
-			TSharedRef< IDatasmithBaseMaterialElement > MaterialElement = ImportContext.FilteredScene->GetMaterial( MaterialIndex ).ToSharedRef();
+			TSharedRef< IDatasmithBaseMaterialElement > MaterialElement = It.Value().ToSharedRef();
 
 			UMaterialInterface* ExistingMaterial = nullptr;
 
@@ -1303,7 +485,7 @@ UMaterialFunction* FDatasmithImporter::ImportMaterialFunction(FDatasmithImportCo
 UMaterialFunction* FDatasmithImporter::FinalizeMaterialFunction(UObject* SourceMaterialFunction, const TCHAR* MaterialFunctionsFolderPath,
 	UMaterialFunction* ExistingMaterialFunction, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
-	return Cast< UMaterialFunction >(DatasmithImporterImpl::FinalizeAsset(SourceMaterialFunction, MaterialFunctionsFolderPath, ExistingMaterialFunction, ReferencesToRemap));
+	return Cast< UMaterialFunction >(FDatasmithImporterImpl::FinalizeAsset(SourceMaterialFunction, MaterialFunctionsFolderPath, ExistingMaterialFunction, ReferencesToRemap));
 }
 
 UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext& ImportContext,
@@ -1354,11 +536,9 @@ UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext&
 	return ImportedMaterial;
 }
 
-UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialsFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap)
+UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TCHAR* MaterialFolderPath, const TCHAR* TransientPackagePath, const TCHAR* RootFolderPath, UMaterialInterface* ExistingMaterial, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeMaterial);
-
-	using namespace DatasmithImporterImpl;
 
 	// Finalizing the master material might add a remapping for the instance parent property so make sure we have a remapping map available
 	TOptional< TMap< UObject*, UObject* > > ReferencesToRemapLocal;
@@ -1378,15 +558,13 @@ UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TC
 				FString SourceMaterialPath = SourceMaterialInstance->GetOutermost()->GetName();
 				FString SourceParentPath = SourceMaterialParent->GetOutermost()->GetName();
 
-				if (SourceParentPath.StartsWith( SourceMaterialPath ) )
+				if ( SourceParentPath.StartsWith( TransientPackagePath ) )
 				{
 					// Simply finalize the source parent material.
 					// Note that the parent material will be overridden on the existing material instance
-					FString DestinationParentPath = SourceParentPath;
-					DestinationParentPath.RemoveFromStart( SourceMaterialPath );
-					DestinationParentPath = MaterialsFolderPath / DestinationParentPath;
+					const FString DestinationParentPath = SourceParentPath.Replace( TransientPackagePath, RootFolderPath, ESearchCase::CaseSensitive );
 
-					FinalizeMaterial( SourceMaterialParent, *DestinationParentPath, nullptr, ReferencesToRemap );
+					FinalizeMaterial( SourceMaterialParent, *DestinationParentPath, TransientPackagePath, RootFolderPath, nullptr, ReferencesToRemap );
 				}
 			}
 		}
@@ -1394,9 +572,9 @@ UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TC
 
 	UMaterialEditingLibrary::DeleteAllMaterialExpressions( Cast< UMaterial >( ExistingMaterial ) );
 
-	UObject* DestinationMaterial = FinalizeAsset( SourceMaterial, MaterialsFolderPath, ExistingMaterial, ReferencesToRemap );
+	UObject* DestinationMaterial = FDatasmithImporterImpl::FinalizeAsset( SourceMaterial, MaterialFolderPath, ExistingMaterial, ReferencesToRemap );
 
-	DatasmithImporterImpl::CompileMaterial( DestinationMaterial );
+	FDatasmithImporterImpl::CompileMaterial( DestinationMaterial );
 
 	return DestinationMaterial;
 }
@@ -1417,7 +595,7 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 			continue;
 		}
 
-		if ( ImportContext.SceneAsset == SceneActor->Scene )
+		if ( ImportContext.SceneAsset == SceneActor->Scene && SceneActor->GetLevel() == ImportContext.ActorsContext.FinalWorld->GetCurrentLevel())
 		{
 			for ( TPair< FName, TSoftObjectPtr< AActor > >& Pair : SceneActor->RelatedActors )
 			{
@@ -1457,19 +635,21 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 	{
 		ImportContext.Hierarchy.Push( ImportSceneActor->GetRootComponent() );
 
+		FDatasmithActorUniqueLabelProvider UniqueNameProvider;
+
 		for (int32 i = 0; i < ActorsCount && !ImportContext.bUserCancelled; ++i)
 		{
-			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			TSharedPtr< IDatasmithActorElement > ActorElement = ImportContext.Scene->GetActor(i);
 
 			if ( ActorElement.IsValid() )
 			{
-				DatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Spawning actor %d/%d (%s) ..."), ( i + 1 ), ActorsCount, ActorElement->GetLabel() ) ) );
+				FDatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf( TEXT("Spawning actor %d/%d (%s) ..."), ( i + 1 ), ActorsCount, ActorElement->GetLabel() ) ) );
 
 				if ( ActorElement->IsAComponent() )
 				{
-					ImportActorAsComponent( ImportContext, ActorElement.ToSharedRef(), ImportSceneActor );
+					ImportActorAsComponent( ImportContext, ActorElement.ToSharedRef(), ImportSceneActor, UniqueNameProvider );
 				}
 				else
 				{
@@ -1488,7 +668,7 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 		// After all actors were imported, perform a post import step so that any dependencies can be resolved
 		for (int32 i = 0; i < ActorsCount && !ImportContext.bUserCancelled; ++i)
 		{
-			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			TSharedPtr< IDatasmithActorElement > ActorElement = ImportContext.Scene->GetActor(i);
 
@@ -1511,7 +691,7 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 
 	if ( ImportContext.bUserCancelled )
 	{
-		DatasmithImporterImpl::DeleteImportSceneActorIfNeeded(ImportContext.ActorsContext, true );
+		FDatasmithImporterImpl::DeleteImportSceneActorIfNeeded(ImportContext.ActorsContext, true );
 	}
 }
 
@@ -1519,11 +699,13 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportActor);
 
+	FDatasmithActorUniqueLabelProvider UniqueNameProvider;
+
 	AActor* ImportedActor = nullptr;
 	if (ActorElement->IsA(EDatasmithElementType::HierarchicalInstanceStaticMesh))
 	{
 		TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement > HISMActorElement = StaticCastSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement >( ActorElement );
-		ImportedActor =  FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshAsActor( ImportContext, HISMActorElement );
+		ImportedActor =  FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshAsActor( ImportContext, HISMActorElement, UniqueNameProvider );
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 	{
@@ -1544,7 +726,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::CustomActor))
 	{
-		ImportedActor = FDatasmithActorImporter::ImportCustomActor( ImportContext, StaticCastSharedRef< IDatasmithCustomActorElement >(ActorElement) );
+		ImportedActor = FDatasmithActorImporter::ImportCustomActor( ImportContext, StaticCastSharedRef< IDatasmithCustomActorElement >(ActorElement), UniqueNameProvider );
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::Landscape))
 	{
@@ -1572,7 +754,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 
 	for (int32 i = 0; i < ActorElement->GetChildrenCount() && !ImportContext.bUserCancelled; ++i)
 	{
-		ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		const TSharedPtr< IDatasmithActorElement >& ChildActorElement = ActorElement->GetChild(i);
 
@@ -1584,7 +766,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 			}
 			else if ( ImportedActor ) // Don't import the components of an actor that we didn't import
 			{
-				ImportActorAsComponent( ImportContext, ChildActorElement.ToSharedRef(), ImportedActor );
+				ImportActorAsComponent( ImportContext, ChildActorElement.ToSharedRef(), ImportedActor, UniqueNameProvider );
 			}
 		}
 	}
@@ -1597,7 +779,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 	return ImportedActor;
 }
 
-void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithActorElement >& ActorElement, AActor* InRootActor)
+void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithActorElement >& ActorElement, AActor* InRootActor, FDatasmithActorUniqueLabelProvider& UniqueNameProvider)
 {
 	if (!InRootActor)
 	{
@@ -1609,12 +791,12 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 	if (ActorElement->IsA(EDatasmithElementType::HierarchicalInstanceStaticMesh))
 	{
 		TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement > HierarchicalInstancedStaticMeshElement = StaticCastSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement >(ActorElement);
-		SceneComponent = FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshComponent(ImportContext, HierarchicalInstancedStaticMeshElement, InRootActor);
+		SceneComponent = FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshComponent(ImportContext, HierarchicalInstancedStaticMeshElement, InRootActor, UniqueNameProvider);
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 	{
 		TSharedRef< IDatasmithMeshActorElement > MeshActorElement = StaticCastSharedRef< IDatasmithMeshActorElement >(ActorElement);
-		SceneComponent = FDatasmithActorImporter::ImportStaticMeshComponent(ImportContext, MeshActorElement, InRootActor);
+		SceneComponent = FDatasmithActorImporter::ImportStaticMeshComponent(ImportContext, MeshActorElement, InRootActor, UniqueNameProvider);
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::Light))
 	{
@@ -1623,7 +805,7 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 			return;
 		}
 
-		SceneComponent = FDatasmithLightImporter::ImportLightComponent(StaticCastSharedRef< IDatasmithLightActorElement >(ActorElement), ImportContext, InRootActor);
+		SceneComponent = FDatasmithLightImporter::ImportLightComponent(StaticCastSharedRef< IDatasmithLightActorElement >(ActorElement), ImportContext, InRootActor, UniqueNameProvider);
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::Camera))
 	{
@@ -1632,11 +814,11 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 			return;
 		}
 
-		SceneComponent = FDatasmithCameraImporter::ImportCineCameraComponent(StaticCastSharedRef< IDatasmithCameraActorElement >(ActorElement), ImportContext, InRootActor);
+		SceneComponent = FDatasmithCameraImporter::ImportCineCameraComponent(StaticCastSharedRef< IDatasmithCameraActorElement >(ActorElement), ImportContext, InRootActor, UniqueNameProvider);
 	}
 	else
 	{
-		SceneComponent = FDatasmithActorImporter::ImportBaseActorAsComponent(ImportContext, ActorElement, InRootActor);
+		SceneComponent = FDatasmithActorImporter::ImportBaseActorAsComponent(ImportContext, ActorElement, InRootActor, UniqueNameProvider);
 	}
 
 	if (SceneComponent)
@@ -1656,7 +838,7 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 			ImportContext.Hierarchy.Push(SceneComponent);
 		}
 
-		ImportActorAsComponent(ImportContext, ActorElement->GetChild(i).ToSharedRef(), InRootActor);
+		ImportActorAsComponent(ImportContext, ActorElement->GetChild(i).ToSharedRef(), InRootActor, UniqueNameProvider);
 
 		if (SceneComponent)
 		{
@@ -1668,8 +850,6 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext, TMap< UObject*, UObject* >* AssetReferencesToRemap )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeActors);
-
-	using namespace DatasmithImporterImpl;
 
 	if ( !ImportContext.bUserCancelled )
 	{
@@ -1728,7 +908,7 @@ void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext,
 				continue;
 			}
 
-			if ( ImportSceneActor->Scene != DestinationSceneActor->Scene )
+			if ( ImportSceneActor->Scene != DestinationSceneActor->Scene  || DestinationSceneActor->GetLevel() != ImportContext.ActorsContext.FinalWorld->GetCurrentLevel())
 			{
 				continue;
 			}
@@ -1786,7 +966,7 @@ void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext,
 			{
 				if ( AActor* Actor = DestinationActorPair.Value.Get() )
 				{
-					FixReferencesForObject( Actor, PerSceneActorReferencesToRemap );
+					FDatasmithImporterImpl::FixReferencesForObject( Actor, PerSceneActorReferencesToRemap );
 				}
 			}
 
@@ -1820,7 +1000,7 @@ void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext,
 		AssetToolsModule.Get().RenameReferencingSoftObjectPaths( PackagesToFix, RenamedActorsMap );
 	}
 
-	DeleteImportSceneActorIfNeeded( ImportContext.ActorsContext );
+	FDatasmithImporterImpl::DeleteImportSceneActorIfNeeded( ImportContext.ActorsContext );
 
 	// Ensure layer visibility is properly updated for new actors associated with existing layers
 	ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
@@ -1833,8 +1013,6 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeActor);
 
-	using namespace DatasmithImporterImpl;
-
 	// If the existing actor is not of the same class we destroy it
 	if ( ExistingActor && ExistingActor->GetClass() != SourceActor.GetClass() )
 	{
@@ -1842,95 +1020,69 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 		ExistingActor = nullptr;
 	}
 
-	// Backup hierarchy
 	TArray< AActor* > Children;
-	if ( ExistingActor )
-	{
-		ExistingActor->GetAttachedActors( Children );
-
-		// In order to allow modification on components owned by ExistingActor, unregister all of them
-		ExistingActor->UnregisterAllComponents( /* bForReregister = */true );
-	}
-
 	AActor* DestinationActor = ExistingActor;
 	if ( !DestinationActor )
 	{
 		DestinationActor = ImportContext.ActorsContext.FinalWorld->SpawnActor( SourceActor.GetClass() );
+	}
+	else
+	{
+		// Backup hierarchy
+		ExistingActor->GetAttachedActors( Children );
 	}
 
 	// Update label to match the source actor's
 	DestinationActor->SetActorLabel( ImportContext.ActorsContext.UniqueNameProvider.GenerateUniqueName( SourceActor.GetActorLabel() ) );
 
 	check( DestinationActor );
-	ReferencesToRemap.Add( &SourceActor ) = DestinationActor;
-
-	TArray< FMigratedTemplatePairType > MigratedTemplates = MigrateTemplates(
-		&SourceActor,
-		ExistingActor,
-		&ReferencesToRemap,
-		true
-	);
-
-	// Copy actor data
 	{
-		TArray< uint8 > Bytes;
-		FActorWriter ObjectWriter( &SourceActor, Bytes );
-		FObjectReader ObjectReader( DestinationActor, Bytes );
-	}
+		// Setup the actor to allow modifications.
+		FDatasmithImporterImpl::FScopedFinalizeActorChanges ScopedFinalizedActorChanges(DestinationActor, ImportContext);
+		
+		ReferencesToRemap.Add( &SourceActor ) = DestinationActor;
 
-	FixReferencesForObject( DestinationActor, ReferencesToRemap );
+		TArray< FDatasmithImporterImpl::FMigratedTemplatePairType > MigratedTemplates = FDatasmithImporterImpl::MigrateTemplates(
+			&SourceActor,
+			ExistingActor,
+			&ReferencesToRemap,
+			true
+		);
 
-	DatasmithImporterImpl::FinalizeComponents( ImportContext, SourceActor, *DestinationActor, ReferencesToRemap );
-
-	// The templates for the actor need to be applied after the components were created.
-	ApplyMigratedTemplates( MigratedTemplates, DestinationActor );
-
-	// Restore hierarchy
-	for ( AActor* Child : Children )
-	{
-		Child->AttachToActor( DestinationActor, FAttachmentTransformRules::KeepWorldTransform );
-	}
-
-	// Hotfix for UE-69555
-	TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> HierarchicalInstancedStaticMeshComponents;
-	DestinationActor->GetComponents(HierarchicalInstancedStaticMeshComponents);
-	for (UHierarchicalInstancedStaticMeshComponent* HierarchicalInstancedStaticMeshComponent : HierarchicalInstancedStaticMeshComponents )
-	{
-		HierarchicalInstancedStaticMeshComponent->BuildTreeIfOutdated( true, true );
-	}
-
-	if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
-	{
-		FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
-		Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
-	}
-
-	FQuat PreviousRotation = DestinationActor->GetRootComponent()->GetRelativeTransform().GetRotation();
-	DestinationActor->PostEditChange();
-
-	const bool bHasPostEditChangeModifiedRotation = !PreviousRotation.Equals(DestinationActor->GetRootComponent()->GetRelativeTransform().GetRotation());
-	if (bHasPostEditChangeModifiedRotation)
-	{
-		const float SingularityTest = PreviousRotation.Z * PreviousRotation.X - PreviousRotation.W * PreviousRotation.Y;
-		//SingularityThreshold value is comming from the FQuat::Rotator() function, but is more permissive because the rotation is already diverging before the singularity threshold is reached.
-		const float SingularityThreshold = 0.4999f; 
-
-		AActor* RootSceneActor = ImportContext.ActorsContext.ImportSceneActor;
-		if (DestinationActor != RootSceneActor
-			&& FMath::Abs(SingularityTest) > SingularityThreshold)
+		// Copy actor data
 		{
-			//This is a warning to explain the edge-case of UE-75467 while it's being fixed.
-			FFormatNamedArguments FormatArgs;
-			FormatArgs.Add(TEXT("ActorName"), FText::FromName(DestinationActor->GetFName()));
-			ImportContext.LogWarning(FText::GetEmpty())
-				->AddToken(FUObjectToken::Create(DestinationActor))
-				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("UnsupportedRotationValueError", "The actor '{ActorName}' has a rotation value pointing to either (0, 90, 0) or (0, -90, 0)."
-					"This is an edge case that is not well supported in Unreal and can cause incorrect results."
-					"In those cases, it is recommended to bake the actor's transform into the mesh at export."), FormatArgs)));
+			TArray< uint8 > Bytes;
+			FDatasmithImporterImpl::FActorWriter ObjectWriter( &SourceActor, Bytes );
+			FObjectReader ObjectReader( DestinationActor, Bytes );
+		}
+
+		FDatasmithImporterImpl::FixReferencesForObject( DestinationActor, ReferencesToRemap );
+
+		FDatasmithImporterImpl::FinalizeComponents( ImportContext, SourceActor, *DestinationActor, ReferencesToRemap );
+
+		// The templates for the actor need to be applied after the components were created.
+		FDatasmithImporterImpl::ApplyMigratedTemplates( MigratedTemplates, DestinationActor );
+
+		// Restore hierarchy
+		for ( AActor* Child : Children )
+		{
+			Child->AttachToActor( DestinationActor, FAttachmentTransformRules::KeepWorldTransform );
+		}
+
+		// Hotfix for UE-69555
+		TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> HierarchicalInstancedStaticMeshComponents;
+		DestinationActor->GetComponents(HierarchicalInstancedStaticMeshComponents);
+		for (UHierarchicalInstancedStaticMeshComponent* HierarchicalInstancedStaticMeshComponent : HierarchicalInstancedStaticMeshComponents )
+		{
+			HierarchicalInstancedStaticMeshComponent->BuildTreeIfOutdated( true, true );
+		}
+
+		if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
+		{
+			FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
+			Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
 		}
 	}
-
-	DestinationActor->RegisterAllComponents();
 
 	return DestinationActor;
 }
@@ -1957,7 +1109,7 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 	SequencesToImport.Reserve(SequencesCount);
 	for ( int32 SequenceIndex = 0; SequenceIndex < SequencesCount && !ImportContext.bUserCancelled; ++SequenceIndex )
 	{
-		ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		TSharedPtr< IDatasmithLevelSequenceElement > SequenceElement = ImportContext.FilteredScene->GetLevelSequence( SequenceIndex );
 		if ( !SequenceElement )
@@ -1980,7 +1132,7 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 		// Scan remaining sequences and import the ones we can, removing from this array
 		for ( int32 SequenceIndex = SequencesToImport.Num() - 1; SequenceIndex >= 0 && !ImportContext.bUserCancelled; --SequenceIndex )
 		{
-			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 			TSharedPtr<IDatasmithLevelSequenceElement>& SequenceElement = SequencesToImport[SequenceIndex];
 
@@ -2001,7 +1153,7 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 		}
 
 		FString SequenceName = ObjectTools::SanitizeObjectName(SequenceElement->GetName());
-		DatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf(TEXT("Importing level sequence %d/%d (%s) ..."), NumImported + 1, HardLoopCounter, *SequenceName ) ) );
+		FDatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf(TEXT("Importing level sequence %d/%d (%s) ..."), NumImported + 1, HardLoopCounter, *SequenceName ) ) );
 
 		ULevelSequence*& ImportedLevelSequence = ImportContext.ImportedLevelSequences.FindOrAdd( SequenceElement.ToSharedRef() );
 		if (ImportContext.SceneTranslator)
@@ -2040,7 +1192,7 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 
 ULevelSequence* FDatasmithImporter::FinalizeLevelSequence( ULevelSequence* SourceLevelSequence, const TCHAR* AnimationsFolderPath, ULevelSequence* ExistingLevelSequence )
 {
-	return Cast< ULevelSequence >( DatasmithImporterImpl::PublicizeAsset( SourceLevelSequence, AnimationsFolderPath, ExistingLevelSequence ) );
+	return Cast< ULevelSequence >( FDatasmithImporterImpl::PublicizeAsset( SourceLevelSequence, AnimationsFolderPath, ExistingLevelSequence ) );
 }
 
 void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& ImportContext )
@@ -2064,7 +1216,7 @@ void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& Import
 
 	for ( int32 LevelVariantSetIndex = 0; LevelVariantSetIndex < LevelVariantSetsCount && !ImportContext.bUserCancelled; ++LevelVariantSetIndex )
 	{
-		ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		TSharedPtr< IDatasmithLevelVariantSetsElement > LevelVariantSetsElement = ImportContext.FilteredScene->GetLevelVariantSets( LevelVariantSetIndex );
 		if ( !LevelVariantSetsElement )
@@ -2085,7 +1237,7 @@ void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& Import
 
 
 		FString LevelVariantSetsName = ObjectTools::SanitizeObjectName(LevelVariantSetsElement->GetName());
-		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Importing level variant sets %d/%d (%s) ..."), LevelVariantSetIndex + 1, LevelVariantSetsCount, *LevelVariantSetsName)));
+		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Importing level variant sets %d/%d (%s) ..."), LevelVariantSetIndex + 1, LevelVariantSetsCount, *LevelVariantSetsName)));
 
 		ULevelVariantSets*& ImportedLevelVariantSets = ImportContext.ImportedLevelVariantSets.FindOrAdd( LevelVariantSetsElement.ToSharedRef() );
 		ImportedLevelVariantSets = FDatasmithLevelVariantSetsImporter::ImportLevelVariantSets( LevelVariantSetsElement.ToSharedRef(), ImportContext, ExistingLevelVariantSets );
@@ -2097,7 +1249,7 @@ void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& Import
 
 ULevelVariantSets* FDatasmithImporter::FinalizeLevelVariantSets( ULevelVariantSets* SourceLevelVariantSets, const TCHAR* VariantsFolderPath, ULevelVariantSets* ExistingLevelVariantSets )
 {
-	return Cast< ULevelVariantSets >( DatasmithImporterImpl::PublicizeAsset( SourceLevelVariantSets, VariantsFolderPath, ExistingLevelVariantSets ) );
+	return Cast< ULevelVariantSets >( FDatasmithImporterImpl::PublicizeAsset( SourceLevelVariantSets, VariantsFolderPath, ExistingLevelVariantSets ) );
 }
 
 void FDatasmithImporter::ImportMetaDataForObject(FDatasmithImportContext& ImportContext, const TSharedRef<IDatasmithElement>& DatasmithElement, UObject* Object)
@@ -2167,7 +1319,7 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 	// No Scene asset yet, all assets of the scene must be imported
-	if (!ImportContext.SceneAsset)
+	if (!ImportContext.SceneAsset || !ImportContext.SceneAsset->AssetImportData)
 	{
 		return;
 	}
@@ -2211,17 +1363,19 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 
 	// Meshes part
 	ImportContext.FilteredScene->EmptyMeshes();
+	const bool bDifferentStaticMeshOptions = ImportContext.Options->BaseOptions.StaticMeshOptions != ImportContext.SceneAsset->AssetImportData->BaseOptions.StaticMeshOptions;
 	const TMap< FName, TSoftObjectPtr< UStaticMesh > >& StaticMeshes = ImportContext.SceneAsset->StaticMeshes;
 	for (int32 MeshIndex = 0; MeshIndex < ImportContext.Scene->GetMeshesCount(); ++MeshIndex)
 	{
 		TSharedRef< IDatasmithMeshElement > MeshElement = ImportContext.Scene->GetMesh( MeshIndex ).ToSharedRef();
-
 		bool bNeedsReimport = true;
 		FString AssetName = MeshElement->GetName();
+		
 		if ( StaticMeshes.Contains( MeshElement->GetName() ) )
 		{
 			AssetName = StaticMeshes[ MeshElement->GetName() ].ToString();
-			bNeedsReimport = ElementNeedsReimport(AssetName, MeshElement, ImportContext.Options->FilePath );
+			// If we are reimporting with different options we should not try to skip the reimport.
+			bNeedsReimport = bDifferentStaticMeshOptions || ElementNeedsReimport(AssetName, MeshElement, ImportContext.Options->FilePath );
 		}
 
 		if ( bNeedsReimport )
@@ -2314,7 +1468,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName TextureId = ImportedTexturePair.Key->GetName();
 
-		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Texture %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceTexture->GetName())));
+		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Texture %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceTexture->GetName())));
 
 		TSoftObjectPtr< UTexture >& ExistingTexturePtr = ImportContext.SceneAsset->Textures.FindOrAdd(TextureId);
 		UTexture* ExistingTexture = ExistingTexturePtr.Get();
@@ -2323,7 +1477,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		FString DestinationPackagePath = SourcePackagePath.Replace(*TransientFolderPath, *RootFolderPath, ESearchCase::CaseSensitive);
 
 		ExistingTexturePtr = FinalizeTexture(SourceTexture, *DestinationPackagePath, ExistingTexture, &ReferencesToRemap);
-		DatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingTexturePtr.Get(), ImportContext);
+		FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingTexturePtr.Get(), ImportContext);
 	}
 
 	// Unregister all actors component to avoid excessive refresh in the 3D engine while updating materials.
@@ -2350,7 +1504,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		}
 
 		FName MaterialFunctionId = ImportedMaterialFunctionPair.Key->GetName();
-		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material Function %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialFunction->GetName())));
+		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material Function %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialFunction->GetName())));
 
 		TSoftObjectPtr< UMaterialFunction >& ExistingMaterialFunctionPtr = ImportContext.SceneAsset->MaterialFunctions.FindOrAdd(MaterialFunctionId);
 		UMaterialFunction* ExistingMaterialFunction = ExistingMaterialFunctionPtr.Get();
@@ -2359,7 +1513,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		FString DestinationPackagePath = SourcePackagePath.Replace(*TransientFolderPath, *RootFolderPath, ESearchCase::CaseSensitive);
 
 		ExistingMaterialFunctionPtr = FinalizeMaterialFunction(SourceMaterialFunction, *DestinationPackagePath, ExistingMaterialFunction, &ReferencesToRemap);
-		DatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialFunctionPtr.Get(), ImportContext);
+		FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialFunctionPtr.Get(), ImportContext);
 	}
 
 	TArray<UMaterial*> MaterialsToRefreshAfterVirtualTextureConversion;
@@ -2379,7 +1533,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName MaterialId = ImportedMaterialPair.Key->GetName();
 
-		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialInterface->GetName())));
+		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialInterface->GetName())));
 
 		TSoftObjectPtr< UMaterialInterface >& ExistingMaterialPtr = ImportContext.SceneAsset->Materials.FindOrAdd(MaterialId);
 		UMaterialInterface* ExistingMaterial = ExistingMaterialPtr.Get();
@@ -2389,10 +1543,10 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		if (UMaterial* SourceMaterial = Cast< UMaterial >(SourceMaterialInterface))
 		{
-			SourceMaterial->RebuildExpressionTextureReferences();
-			
+			SourceMaterial->UpdateCachedExpressionData();
+
 			TArray<UObject*> ReferencedTextures;
-			SourceMaterial->AppendReferencedTextures(ReferencedTextures);
+			ReferencedTextures = SourceMaterial->GetReferencedTextures();
 			for (UTexture2D* VirtualTexture : ImportContext.AssetsContext.VirtualTexturesToConvert)
 			{
 				if (ReferencedTextures.Contains(VirtualTexture))
@@ -2402,26 +1556,26 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 				}
 			}
 
-			for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
+			for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)
 			{
 				if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
 				{
-					FinalizeMaterial(MaterialFunctionInfo.Function, *DestinationPackagePath, nullptr, &ReferencesToRemap);
+					FinalizeMaterial(MaterialFunctionInfo.Function, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, nullptr, &ReferencesToRemap);
 				}
 			}
 		}
 
-		ExistingMaterialPtr = FinalizeMaterial(SourceMaterialInterface, *DestinationPackagePath, ExistingMaterial, &ReferencesToRemap);
+		ExistingMaterialPtr = FinalizeMaterial(SourceMaterialInterface, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, ExistingMaterial, &ReferencesToRemap);
 
 		// Add material to array of packages to apply soft object path redirection to
 		if (ExistingMaterialPtr.IsValid())
 		{
 			PackagesToCheck.Add(ExistingMaterialPtr->GetOutermost());
-			DatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialPtr.Get(), ImportContext);
+			FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialPtr.Get(), ImportContext);
 		}
 	}
 
-	DatasmithImporterImpl::ConvertUnsupportedVirtualTexture(ImportContext, ImportContext.AssetsContext.VirtualTexturesToConvert, ReferencesToRemap);
+	FDatasmithImporterImpl::ConvertUnsupportedVirtualTexture(ImportContext, ImportContext.AssetsContext.VirtualTexturesToConvert, ReferencesToRemap);
 
 	// Materials have been updated, we can register everything back.
 	for (TObjectIterator<AActor> ActorIterator; ActorIterator; ++ActorIterator)
@@ -2450,7 +1604,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName StaticMeshId = ImportedStaticMeshPair.Key->GetName();
 
-		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Static Mesh %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceStaticMesh->GetName())));
+		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Static Mesh %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceStaticMesh->GetName())));
 
 		TSoftObjectPtr< UStaticMesh >& ExistingStaticMeshPtr = ImportContext.SceneAsset->StaticMeshes.FindOrAdd(StaticMeshId);
 		UStaticMesh* ExistingStaticMesh = ExistingStaticMeshPtr.Get();
@@ -2459,7 +1613,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		FString DestinationPackagePath = SourcePackagePath.Replace( *TransientFolderPath, *RootFolderPath, ESearchCase::CaseSensitive );
 
 		ExistingStaticMeshPtr = FinalizeStaticMesh(SourceStaticMesh, *DestinationPackagePath, ExistingStaticMesh, &ReferencesToRemap, false);
-		DatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingStaticMeshPtr.Get(), ImportContext);
+		FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingStaticMeshPtr.Get(), ImportContext);
 
 		ImportedStaticMeshPair.Value = ExistingStaticMeshPtr.Get();
 		StaticMeshes.Add(ExistingStaticMeshPtr.Get());
@@ -2468,7 +1622,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	int32 StaticMeshIndex = 0;
 	auto ProgressFunction = [&](UStaticMesh* StaticMesh)
 	{
-		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Building Static Mesh %d/%d (%s) ..."), ++StaticMeshIndex, StaticMeshes.Num(), *StaticMesh->GetName())));
+		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Building Static Mesh %d/%d (%s) ..."), ++StaticMeshIndex, StaticMeshes.Num(), *StaticMesh->GetName())));
 		return !ImportContext.bUserCancelled;
 	};
 
@@ -2490,7 +1644,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName LevelSequenceId = ImportedLevelSequencePair.Key->GetName();
 
-		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Level Sequence %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceLevelSequence->GetName())));
+		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Level Sequence %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceLevelSequence->GetName())));
 
 
 		TSoftObjectPtr< ULevelSequence >& ExistingLevelSequencePtr = ImportContext.SceneAsset->LevelSequences.FindOrAdd(LevelSequenceId);
@@ -2519,7 +1673,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FName LevelVariantSetsId = ImportedLevelVariantSetsPair.Key->GetName();
 
-		DatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Level Variant Sets %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceLevelVariantSets->GetName())));
+		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Level Variant Sets %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceLevelVariantSets->GetName())));
 
 		TSoftObjectPtr< ULevelVariantSets >& ExistingLevelVariantSetsPtr = ImportContext.SceneAsset->LevelVariantSets.FindOrAdd(LevelVariantSetsId);
 		ULevelVariantSets* ExistingLevelVariantSets = ExistingLevelVariantSetsPtr.Get();
@@ -2561,33 +1715,6 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	// Flush the transaction buffer (eg. avoid corrupted hierarchies after repeated undo actions)
 	// This is an aggressive workaround while we don't properly support undo history.
 	GEditor->ResetTransaction(LOCTEXT("Reset Transaction Buffer", "Datasmith Import Finalization"));
-}
-
-void FDatasmithImporter::ConvertUnsupportedVirtualTexture(FDatasmithImportContext& ImportContext, TArray<UTexture2D*>& VirtualTexturesToConvert, TArray<UMaterial*>& MaterialsToRefreshAfterVirtualTextureConversion, const TMap<UObject*, UObject*>& ReferencesToRemap)
-{
-	if (VirtualTexturesToConvert.Num() != 0)
-	{
-		for (int32 TextureIndex = 0; TextureIndex < VirtualTexturesToConvert.Num(); ++TextureIndex)
-		{
-			UTexture2D*& TextureToConvert = VirtualTexturesToConvert[TextureIndex];
-			if (UObject* const* RemappedTexture = ReferencesToRemap.Find(TextureToConvert))
-			{
-				TextureToConvert = Cast<UTexture2D>(*RemappedTexture);
-			}
-
-			ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithVirtualTextureConverted", "The imported texture {0} could not be imported as virtual texture as it is not supported in all the materials using it."), FText::FromString(TextureToConvert->GetName())));
-		}
-		for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToRefreshAfterVirtualTextureConversion.Num(); ++MaterialIndex)
-		{
-			if (UObject* const* RemappedMaterial = ReferencesToRemap.Find(MaterialsToRefreshAfterVirtualTextureConversion[MaterialIndex]))
-			{
-				MaterialsToRefreshAfterVirtualTextureConversion[MaterialIndex] = Cast<UMaterial>(*RemappedMaterial);
-			}
-		}
-
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		AssetTools.ConvertVirtualTextures(VirtualTexturesToConvert, true, &MaterialsToRefreshAfterVirtualTextureConversion);
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -249,7 +249,7 @@ int32 GetOSVersionsHelper( TCHAR* OutOSVersionLabel, int32 OSVersionLabelLength,
 				}
 				else
 				{
-					OSVersionLabel = TEXT("Windows Server Technical Preview");
+					OSVersionLabel = TEXT("Windows Server 2019");
 				}
 
 				// For Windows 10, get the release number and append that to the string too (eg. 1709 = Fall Creators Update). There doesn't seem to be any good way to get
@@ -871,6 +871,12 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 		Profiler->StartScopedEvent(Text);
 	}
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 }
 
 void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text)
@@ -884,6 +890,12 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 		Profiler->StartScopedEvent(ANSI_TO_TCHAR(Text));
 	}
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 }
 
 void FWindowsPlatformMisc::EndNamedEvent()
@@ -895,6 +907,12 @@ void FWindowsPlatformMisc::EndNamedEvent()
 	if (Profiler)
 	{
 		Profiler->EndScopedEvent();
+	}
+#endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputEndEvent();
 	}
 #endif
 }
@@ -1892,7 +1910,7 @@ bool FWindowsPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FSt
 FString FWindowsPlatformMisc::GetDefaultLanguage()
 {
 	// Only use GetUserPreferredUILanguages on Windows 8+ as older versions didn't always have language packs available
-	if (FWindowsPlatformMisc::VerifyWindowsVersion(6, 2))
+	if (FPlatformMisc::VerifyWindowsVersion(6, 2))
 	{
 		ULONG NumLanguages = 0;
 		ULONG LangBufferSize = 0;

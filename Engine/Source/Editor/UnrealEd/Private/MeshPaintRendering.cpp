@@ -42,21 +42,13 @@ namespace MeshPaintRendering
 			TransformParameter.Bind( Initializer.ParameterMap, TEXT( "c_Transform" ) );
 		}
 
-		virtual bool Serialize( FArchive& Ar ) override
-		{
-			bool bShaderHasOutdatedParameters = FGlobalShader::Serialize( Ar );
-			Ar << TransformParameter;
-			return bShaderHasOutdatedParameters;
-		}
-
 		void SetParameters(FRHICommandList& RHICmdList, const FMatrix& InTransform )
 		{
-			SetShaderValue(RHICmdList, GetVertexShader(), TransformParameter, InTransform );
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), TransformParameter, InTransform );
 		}
 
 	private:
-
-		FShaderParameter TransformParameter;
+		LAYOUT_FIELD(FShaderParameter, TransformParameter);
 	};
 
 
@@ -68,7 +60,6 @@ namespace MeshPaintRendering
 	class TMeshPaintPixelShader : public FGlobalShader
 	{
 		DECLARE_SHADER_TYPE( TMeshPaintPixelShader, Global );
-
 	public:
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -94,24 +85,9 @@ namespace MeshPaintRendering
 			GammaParameter.Bind( Initializer.ParameterMap, TEXT( "c_Gamma" ) );
 		}
 
-		virtual bool Serialize(FArchive& Ar) override
-		{
-			bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-			Ar << CloneTextureParameter;
-			Ar << CloneTextureParameterSampler;
-			Ar << WorldToBrushMatrixParameter;
-			Ar << BrushMetricsParameter;
-			Ar << BrushStrengthParameter;
-			Ar << BrushColorParameter;
-			Ar << ChannelFlagsParameter;
-			Ar << GenerateMaskFlagParameter;
-			Ar << GammaParameter;
-			return bShaderHasOutdatedParameters;
-		}
-
 		void SetParameters(FRHICommandList& RHICmdList, const float InGamma, const FMeshPaintShaderParameters& InShaderParams )
 		{
-			FRHIPixelShader* ShaderRHI = GetPixelShader();
+			FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 			SetTextureParameter(
 				RHICmdList, 
@@ -149,34 +125,32 @@ namespace MeshPaintRendering
 			SetShaderValue(RHICmdList, ShaderRHI, GammaParameter, InGamma );
 		}
 
-
 	private:
-
 		/** Texture that is a clone of the destination render target before we start drawing */
-		FShaderResourceParameter CloneTextureParameter;
-		FShaderResourceParameter CloneTextureParameterSampler;
+		LAYOUT_FIELD(FShaderResourceParameter, CloneTextureParameter);
+		LAYOUT_FIELD(FShaderResourceParameter, CloneTextureParameterSampler);
 
 		/** Brush -> World matrix */
-		FShaderParameter WorldToBrushMatrixParameter;
+		LAYOUT_FIELD(FShaderParameter, WorldToBrushMatrixParameter);
 
 		/** Brush metrics: x = radius, y = falloff range, z = depth, w = depth falloff range */
-		FShaderParameter BrushMetricsParameter;
+		LAYOUT_FIELD(FShaderParameter, BrushMetricsParameter);
 
 		/** Brush strength */
-		FShaderParameter BrushStrengthParameter;
+		LAYOUT_FIELD(FShaderParameter, BrushStrengthParameter);
 
 		/** Brush color */
-		FShaderParameter BrushColorParameter;
+		LAYOUT_FIELD(FShaderParameter, BrushColorParameter);
 
 		/** Flags that control paining individual channels: x = Red, y = Green, z = Blue, w = Alpha */
-		FShaderParameter ChannelFlagsParameter;
+		LAYOUT_FIELD(FShaderParameter, ChannelFlagsParameter);
 		
 		/** Flag to control brush mask generation or paint blending */
-		FShaderParameter GenerateMaskFlagParameter;
+		LAYOUT_FIELD(FShaderParameter, GenerateMaskFlagParameter);
 
 		/** Gamma */
 		// @todo MeshPaint: Remove this?
-		FShaderParameter GammaParameter;
+		LAYOUT_FIELD(FShaderParameter, GammaParameter);
 	};
 
 
@@ -205,21 +179,14 @@ namespace MeshPaintRendering
 			TransformParameter.Bind( Initializer.ParameterMap, TEXT( "c_Transform" ) );
 		}
 
-		virtual bool Serialize( FArchive& Ar ) override
-		{
-			bool bShaderHasOutdatedParameters = FShader::Serialize( Ar );
-			Ar << TransformParameter;
-			return bShaderHasOutdatedParameters;
-		}
-
 		void SetParameters(FRHICommandList& RHICmdList, const FMatrix& InTransform )
 		{
-			SetShaderValue(RHICmdList, GetVertexShader(), TransformParameter, InTransform );
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), TransformParameter, InTransform );
 		}
 
 	private:
 
-		FShaderParameter TransformParameter;
+		LAYOUT_FIELD(FShaderParameter, TransformParameter);
 	};
 
 
@@ -257,24 +224,9 @@ namespace MeshPaintRendering
 			GammaParameter.Bind( Initializer.ParameterMap, TEXT( "Gamma" ) );
 		}
 
-		virtual bool Serialize(FArchive& Ar) override
-		{
-			bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-			Ar << Texture0Parameter;
-			Ar << Texture0ParameterSampler;
-			Ar << Texture1Parameter;
-			Ar << Texture1ParameterSampler;
-			Ar << Texture2Parameter;
-			Ar << Texture2ParameterSampler;
-			Ar << WidthPixelOffsetParameter;
-			Ar << HeightPixelOffsetParameter;
-			Ar << GammaParameter;
-			return bShaderHasOutdatedParameters;
-		}
-
 		void SetParameters(FRHICommandList& RHICmdList, const float InGamma, const FMeshPaintDilateShaderParameters& InShaderParams )
 		{
-			FRHIPixelShader* ShaderRHI = GetPixelShader();
+			FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 			SetTextureParameter(
 				RHICmdList, 
@@ -309,26 +261,26 @@ namespace MeshPaintRendering
 	private:
 
 		/** Texture0 */
-		FShaderResourceParameter Texture0Parameter;
-		FShaderResourceParameter Texture0ParameterSampler;
+		LAYOUT_FIELD(FShaderResourceParameter, Texture0Parameter);
+		LAYOUT_FIELD(FShaderResourceParameter, Texture0ParameterSampler);
 
 		/** Texture1 */
-		FShaderResourceParameter Texture1Parameter;
-		FShaderResourceParameter Texture1ParameterSampler;
+		LAYOUT_FIELD(FShaderResourceParameter, Texture1Parameter);
+		LAYOUT_FIELD(FShaderResourceParameter, Texture1ParameterSampler);
 
 		/** Texture2 */
-		FShaderResourceParameter Texture2Parameter;
-		FShaderResourceParameter Texture2ParameterSampler;
+		LAYOUT_FIELD(FShaderResourceParameter, Texture2Parameter);
+		LAYOUT_FIELD(FShaderResourceParameter, Texture2ParameterSampler);
 
 		/** Pixel size width */
-		FShaderParameter WidthPixelOffsetParameter;
+		LAYOUT_FIELD(FShaderParameter, WidthPixelOffsetParameter);
 		
 		/** Pixel size height */
-		FShaderParameter HeightPixelOffsetParameter;
+		LAYOUT_FIELD(FShaderParameter, HeightPixelOffsetParameter);
 
 		/** Gamma */
 		// @todo MeshPaint: Remove this?
-		FShaderParameter GammaParameter;
+		LAYOUT_FIELD(FShaderParameter, GammaParameter);
 	};
 
 
@@ -362,8 +314,8 @@ namespace MeshPaintRendering
 		TShaderMapRef< TMeshPaintPixelShader > PixelShader(GetGlobalShaderMap(InFeatureLevel));
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMeshPaintDilateVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::ForceApply);
@@ -386,8 +338,8 @@ namespace MeshPaintRendering
 		TShaderMapRef< TMeshPaintDilatePixelShader > PixelShader(GetGlobalShaderMap(InFeatureLevel));
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMeshPaintDilateVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::ForceApply);

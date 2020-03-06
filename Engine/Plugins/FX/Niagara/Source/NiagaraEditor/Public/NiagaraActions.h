@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NiagaraTypes.h"
 #include "NiagaraGraph.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "GraphEditorDragDropAction.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "NiagaraEditorCommon.h"
 #include "NiagaraActions.generated.h"
 
 USTRUCT()
@@ -43,11 +43,23 @@ private:
 	FCanExecuteStackAction CanPerformAction;
 };
 
+struct NIAGARAEDITOR_API FNiagaraScriptVarAndViewInfoAction : public FEdGraphSchemaAction
+{
+	FNiagaraScriptVarAndViewInfoAction(const FNiagaraScriptVariableAndViewInfo& InScriptVariableAndViewInfo,
+		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
+
+	const FNiagaraTypeDefinition GetScriptVarType() const { return ScriptVariableAndViewInfo.ScriptVariable.GetType(); };
+
+	FNiagaraScriptVariableAndViewInfo ScriptVariableAndViewInfo;
+};
+
 struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 {
 	FNiagaraParameterAction() {}
 	FNiagaraParameterAction(const FNiagaraVariable& InParameter,
 		const TArray<FNiagaraGraphParameterReferenceCollection>& InReferenceCollection,
+		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
+	FNiagaraParameterAction(const FNiagaraVariable& InParameter, 
 		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
 
 	const FNiagaraVariable& GetParameter() const { return Parameter; }
@@ -55,6 +67,12 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 	FNiagaraVariable Parameter;
 
 	TArray<FNiagaraGraphParameterReferenceCollection> ReferenceCollection;
+};
+
+struct NIAGARAEDITOR_API FNiagaraScriptParameterAction : public FEdGraphSchemaAction
+{
+	FNiagaraScriptParameterAction() {}
+	FNiagaraScriptParameterAction(const FNiagaraVariable& InVariable, const FNiagaraVariableMetaData& InVariableMetaData);
 };
 
 class NIAGARAEDITOR_API FNiagaraParameterGraphDragOperation : public FGraphSchemaActionDragDropAction

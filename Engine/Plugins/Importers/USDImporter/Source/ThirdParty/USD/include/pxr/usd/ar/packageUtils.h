@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_PACKAGE_UTILS_H
-#define AR_PACKAGE_UTILS_H
+#ifndef PXR_USD_AR_PACKAGE_UTILS_H
+#define PXR_USD_AR_PACKAGE_UTILS_H
 
 /// \file ar/packageUtils.h
 /// Utility functions for working with package assets
@@ -131,4 +131,4 @@ ArSplitPackageRelativePathInner(const std::string& path);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // AR_PACKAGE_UTILS_H
+#endif // PXR_USD_AR_PACKAGE_UTILS_H

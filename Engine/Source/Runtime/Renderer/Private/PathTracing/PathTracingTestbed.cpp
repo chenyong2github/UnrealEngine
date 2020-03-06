@@ -54,7 +54,7 @@ public:
 		FRHIUnorderedAccessView* ResultsBuffer,
 		FRHIUnorderedAccessView* FloatResultsBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		SetShaderValue(RHICmdList, ShaderRHI, SamplesCountParameter, SamplesCount);
 		SetShaderValue(RHICmdList, ShaderRHI, BrdfTypeParameter, BrdfType);
 		SetUAVParameter(RHICmdList, ShaderRHI, ResultsBufferParameter, ResultsBuffer);
@@ -69,27 +69,17 @@ public:
 		FRWBuffer& FloatResultsBuffer,
 		FRHIComputeFence* Fence)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, ResultsBuffer.UAV, Fence);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, FloatResultsBuffer.UAV, Fence);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SamplesCountParameter;
-		Ar << BrdfTypeParameter;
-		Ar << ResultsBufferParameter;
-		Ar << FloatResultsBufferParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter SamplesCountParameter;
-	FShaderParameter BrdfTypeParameter;
-	FShaderResourceParameter ResultsBufferParameter;
-	FShaderResourceParameter FloatResultsBufferParameter;
+	LAYOUT_FIELD(FShaderParameter, SamplesCountParameter)
+	LAYOUT_FIELD(FShaderParameter, BrdfTypeParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, ResultsBufferParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, FloatResultsBufferParameter)
 };
 
 IMPLEMENT_SHADER_TYPE(, FTestBrdfIntegrityCS, TEXT("/Engine/Private/PathTracing/Material/PathTracingTestBrdfs.usf"), TEXT("TestBrdfIntegrityCS"), SF_Compute)
@@ -139,7 +129,7 @@ public:
 		uint32 NumPhiSteps,
 		FRHIUnorderedAccessView* PdfsResultsBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		SetShaderValue(RHICmdList, ShaderRHI, BrdfTypeParameter, BrdfType);
 		SetShaderValue(RHICmdList, ShaderRHI, WoParameter, Wo);
 		SetShaderValue(RHICmdList, ShaderRHI, NumThetaStepsParameter, NumThetaSteps);
@@ -154,28 +144,17 @@ public:
 		FRWBuffer& PdfsResultsBuffer,
 		FRHIComputeFence* Fence)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, PdfsResultsBuffer.UAV, Fence);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << BrdfTypeParameter;
-		Ar << WoParameter;
-		Ar << NumThetaStepsParameter;
-		Ar << NumPhiStepsParameter;
-		Ar << PdfResultsBufferParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter BrdfTypeParameter;
-	FShaderParameter WoParameter;
-	FShaderParameter NumThetaStepsParameter;
-	FShaderParameter NumPhiStepsParameter;
-	FShaderResourceParameter PdfResultsBufferParameter;
+	LAYOUT_FIELD(FShaderParameter, BrdfTypeParameter)
+	LAYOUT_FIELD(FShaderParameter, WoParameter)
+	LAYOUT_FIELD(FShaderParameter, NumThetaStepsParameter)
+	LAYOUT_FIELD(FShaderParameter, NumPhiStepsParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, PdfResultsBufferParameter)
 };
 
 IMPLEMENT_SHADER_TYPE(, FTestPdfIntegratesToOneCS, TEXT("/Engine/Private/PathTracing/Material/PathTracingTestPdfIntegration.usf"), TEXT("TestPDFIntegratesToOneCS"), SF_Compute)
@@ -227,7 +206,7 @@ public:
 		uint32 NumPhiSteps,
 		FRHIUnorderedAccessView* WisBinDistributionResultsBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		SetShaderValue(RHICmdList, ShaderRHI, BrdfTypeParameter, BrdfType);
 		SetShaderValue(RHICmdList, ShaderRHI, NumSamplesParameter, NumSamples);
 		SetShaderValue(RHICmdList, ShaderRHI, WoParameter, Wo);
@@ -243,30 +222,18 @@ public:
 		FRWBuffer& PdfsResultsBuffer,
 		FRHIComputeFence* Fence)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, PdfsResultsBuffer.UAV, Fence);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << BrdfTypeParameter;
-		Ar << NumSamplesParameter;
-		Ar << WoParameter;
-		Ar << NumThetaStepsParameter;
-		Ar << NumPhiStepsParameter;
-		Ar << WisBinDistributionResultsParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter BrdfTypeParameter;
-	FShaderParameter NumSamplesParameter;
-	FShaderParameter WoParameter;
-	FShaderParameter NumThetaStepsParameter;
-	FShaderParameter NumPhiStepsParameter;
-	FShaderResourceParameter WisBinDistributionResultsParameter;
+	LAYOUT_FIELD(FShaderParameter, BrdfTypeParameter)
+	LAYOUT_FIELD(FShaderParameter, NumSamplesParameter)
+	LAYOUT_FIELD(FShaderParameter, WoParameter)
+	LAYOUT_FIELD(FShaderParameter, NumThetaStepsParameter)
+	LAYOUT_FIELD(FShaderParameter, NumPhiStepsParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, WisBinDistributionResultsParameter)
 };
 
 IMPLEMENT_SHADER_TYPE(, FTestBrdfGenerateWiSamplesCS, TEXT("/Engine/Private/PathTracing/Material/PathTracingTestGenerateWiSamples.usf"), TEXT("TestGenerateWiSamplesCS"), SF_Compute)
@@ -316,7 +283,7 @@ public:
 		uint32 NumPhiSteps,
 		FRHIUnorderedAccessView* PdfsResultsBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		SetShaderValue(RHICmdList, ShaderRHI, BrdfTypeParameter, BrdfType);
 		SetShaderValue(RHICmdList, ShaderRHI, WoParameter, Wo);
 		SetShaderValue(RHICmdList, ShaderRHI, NumThetaStepsParameter, NumThetaSteps);
@@ -331,28 +298,17 @@ public:
 		FRWBuffer& PdfsResultsBuffer,
 		FRHIComputeFence* Fence)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, PdfsResultsBuffer.UAV, Fence);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << BrdfTypeParameter;
-		Ar << WoParameter;
-		Ar << NumThetaStepsParameter;
-		Ar << NumPhiStepsParameter;
-		Ar << WisBinDistributionResultsParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter BrdfTypeParameter;
-	FShaderParameter WoParameter;
-	FShaderParameter NumThetaStepsParameter;
-	FShaderParameter NumPhiStepsParameter;
-	FShaderResourceParameter WisBinDistributionResultsParameter;
+	LAYOUT_FIELD(FShaderParameter, BrdfTypeParameter)
+	LAYOUT_FIELD(FShaderParameter, WoParameter)
+	LAYOUT_FIELD(FShaderParameter, NumThetaStepsParameter)
+	LAYOUT_FIELD(FShaderParameter, NumPhiStepsParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, WisBinDistributionResultsParameter)
 };
 
 IMPLEMENT_SHADER_TYPE(, FTestBrdfIntegrateHemispherePatchCS, TEXT("/Engine/Private/PathTracing/Material/PathTracingTestIntegrateHemispherePatch.usf"), TEXT("TestIntegrateHemispherePatchCS"), SF_Compute)
@@ -403,7 +359,7 @@ void TestBRDFsIntegrity(void)
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FTestBrdfIntegrityCS> BrdfIntegrityComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(BrdfIntegrityComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(BrdfIntegrityComputeShader.GetComputeShader());
 
 	for (uint32 BrdfType = 0; BrdfType < (uint32) BrdfNames.Num(); ++BrdfType)
 	{
@@ -418,7 +374,7 @@ void TestBRDFsIntegrity(void)
 		BrdfIntegrityComputeShader->SetParameters(RHICmdList, NumSamples, BrdfType, BrdsResultsBuffer.UAV, FloatBrdsResultsBuffer.UAV);
 		
 		uint32 NumCSGroups = FMath::DivideAndRoundUp(NumSamples, FTestBrdfIntegrityCS::GetGroupSize());
-		DispatchComputeShader(RHICmdList, *BrdfIntegrityComputeShader, NumCSGroups, 1, 1);
+		DispatchComputeShader(RHICmdList, BrdfIntegrityComputeShader.GetShader(), NumCSGroups, 1, 1);
 
 		GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 		GDynamicRHI->RHIBlockUntilGPUIdle();
@@ -496,7 +452,7 @@ void TestPDFsIntegrateToOne(void)
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FTestPdfIntegratesToOneCS> PdfIntegrateToOneCS(ShaderMap);
-	RHICmdList.SetComputeShader(PdfIntegrateToOneCS->GetComputeShader());
+	RHICmdList.SetComputeShader(PdfIntegrateToOneCS.GetComputeShader());
 
 	TArray<FVector> Wos;
 	FRandomStream RandomStream(0);
@@ -526,7 +482,7 @@ void TestPDFsIntegrateToOne(void)
 		{
 			PdfIntegrateToOneCS->SetParameters(RHICmdList, BrdfType, Wo, NumThetaSteps, NumPhiSteps, PdfsResultsBuffer.UAV);
 
-			DispatchComputeShader(RHICmdList, *PdfIntegrateToOneCS, NumCSGroups.X, NumCSGroups.Y, 1);
+			DispatchComputeShader(RHICmdList, PdfIntegrateToOneCS.GetShader(), NumCSGroups.X, NumCSGroups.Y, 1);
 
 			GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 			GDynamicRHI->RHIBlockUntilGPUIdle();
@@ -596,10 +552,10 @@ void TestBRDFandPDFConsistency(void)
 	const auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	
 	TShaderMapRef<FTestBrdfGenerateWiSamplesCS> BrdfGenerateWiSamplesCS(ShaderMap);
-	RHICmdList.SetComputeShader(BrdfGenerateWiSamplesCS->GetComputeShader());
+	RHICmdList.SetComputeShader(BrdfGenerateWiSamplesCS.GetComputeShader());
 
 	TShaderMapRef<FTestBrdfIntegrateHemispherePatchCS> IntegrateHemispherePatchCS(ShaderMap);
-	RHICmdList.SetComputeShader(IntegrateHemispherePatchCS->GetComputeShader());
+	RHICmdList.SetComputeShader(IntegrateHemispherePatchCS.GetComputeShader());
 
 	for (uint32 BrdfType = 0; BrdfType < (uint32)BrdfNames.Num(); ++BrdfType)
 	{
@@ -622,7 +578,7 @@ void TestBRDFandPDFConsistency(void)
 				BrdfGenerateWiSamplesCS->SetParameters(RHICmdList, BrdfType, WiSamplesCount, Wo, NumThetaSteps, NumPhiSteps, SampledWisResultsBuffer.UAV);
 
 				uint32 NumCSGroupsSamplesCS = FMath::DivideAndRoundUp(WiSamplesCount, FTestBrdfGenerateWiSamplesCS::GetGroupSize());
-				DispatchComputeShader(RHICmdList, *BrdfGenerateWiSamplesCS, NumCSGroupsSamplesCS, 1, 1);
+				DispatchComputeShader(RHICmdList, BrdfGenerateWiSamplesCS.GetShader(), NumCSGroupsSamplesCS, 1, 1);
 
 				GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 				GDynamicRHI->RHIBlockUntilGPUIdle();
@@ -666,7 +622,7 @@ void TestBRDFandPDFConsistency(void)
 				FIntVector HemispherePatchCSDimensions = FIntVector(NumPhiSteps, NumThetaSteps, 1);
 				FIntVector HemispherePatchCSNumGroups = FIntVector::DivideAndRoundUp(HemispherePatchCSDimensions, FTestBrdfIntegrateHemispherePatchCS::GetGroupSize());
 
-				DispatchComputeShader(RHICmdList, *IntegrateHemispherePatchCS, HemispherePatchCSNumGroups.X, HemispherePatchCSNumGroups.Y, 1);
+				DispatchComputeShader(RHICmdList, IntegrateHemispherePatchCS.GetShader(), HemispherePatchCSNumGroups.X, HemispherePatchCSNumGroups.Y, 1);
 
 				GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 				GDynamicRHI->RHIBlockUntilGPUIdle();

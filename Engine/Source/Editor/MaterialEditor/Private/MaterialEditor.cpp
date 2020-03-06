@@ -135,6 +135,8 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "UObject/TextProperty.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ToolMenus.h"
+#include "MaterialEditorContext.h"
 #include "UObject/MetaData.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
@@ -458,6 +460,7 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	UpdatePreviewViewportsVisibility();
 
 	BindCommands();
+	RegisterToolBar();
 
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MaterialEditor_Layout_v10")
 	->AddArea
@@ -724,9 +727,18 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	RegenerateCodeView(true);
 
 	ForceRefreshExpressionPreviews();
-	
+	if (Generator.IsValid())
+	{
+		TArray<UObject*> Objects;
+		Objects.Add(MaterialEditorInstance);
+		Generator->SetObjects(Objects);
+	}
 	// Update the parameter list now that the material has been fully initialized
 	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
+	if (MaterialLayersFunctionsInstance.IsValid())
+	{
+		MaterialLayersFunctionsInstance->SetEditorInstance(MaterialEditorInstance);
+	}
 
 	if (OriginalMaterial->bUsedAsSpecialEngineMaterial)
 	{
@@ -974,16 +986,26 @@ void FMaterialEditor::CreateInternalWidgets()
 	{
 		MaterialEditorInstance->OriginalFunction = MaterialFunction->ParentFunction;
 	}
+	FPropertyEditorModule& Module = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	if (!Generator.IsValid())
+	{
+		FPropertyRowGeneratorArgs Args;
+		Generator = Module.CreatePropertyRowGenerator(Args);
+	}
+
 	MaterialParametersOverviewWidget = SNew(SMaterialParametersOverviewPanel)
-		.InMaterialEditorInstance(MaterialEditorInstance);
-	MaterialParametersOverviewWidget->GetGenerator()->OnFinishedChangingProperties().AddSP(this, &FMaterialEditor::OnFinishedChangingParametersFromOverview);
+		.InMaterialEditorInstance(MaterialEditorInstance)
+		.InGenerator(Generator);
+	Generator->OnFinishedChangingProperties().AddSP(this, &FMaterialEditor::OnFinishedChangingParametersFromOverview);
+	Generator->OnRowsRefreshed().AddSP(this, &FMaterialEditor::GeneratorRowsRefreshed);
 	MaterialCustomPrimitiveDataWidget = SNew(SMaterialCustomPrimitiveDataPanel, MaterialEditorInstance);
 
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
 	if (MaterialEditorModule->MaterialLayersEnabled())
 	{
 		MaterialLayersFunctionsInstance = SNew(SMaterialLayersFunctionsMaterialWrapper)
-			.InMaterialEditorInstance(MaterialEditorInstance);
+			.InMaterialEditorInstance(MaterialEditorInstance)
+			.InGenerator(Generator);
 	}
 
 	Palette = SNew(SMaterialPalette, SharedThis(this));
@@ -1047,6 +1069,15 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 		MaterialDetailsView->SetObjects(SelectedObjects, true);
 		Material->MarkPackageDirty();
 		SetMaterialDirty();
+	}
+}
+
+void FMaterialEditor::GeneratorRowsRefreshed()
+{
+	MaterialParametersOverviewWidget->Refresh();
+	if (MaterialLayersFunctionsInstance)
+	{
+		MaterialLayersFunctionsInstance->Refresh();
 	}
 }
 
@@ -1118,142 +1149,221 @@ void FMaterialEditor::UpdateThumbnailInfoPreviewMesh(UMaterialInterface* MatInte
 
 void FMaterialEditor::ExtendToolbar()
 {
-	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-
-	ToolbarExtender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP( this, &FMaterialEditor::FillToolbar )
-		);
-	
-	AddToolbarExtender(ToolbarExtender);
-
 	AddToolbarExtender(GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );
 	AddToolbarExtender(MaterialEditorModule->GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 }
 
-void FMaterialEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
+void FMaterialEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 {
-	ToolbarBuilder.BeginSection("Apply");
-	{
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().Apply);
-	}
-	ToolbarBuilder.EndSection();
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
 
-	ToolbarBuilder.BeginSection("Search");
-	{
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().FindInMaterial);
-	}
-	ToolbarBuilder.EndSection();
+	UMaterialEditorMenuContext* Context = NewObject<UMaterialEditorMenuContext>();
+	Context->MaterialEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
+}
 
-	ToolbarBuilder.BeginSection("Graph");
+void FMaterialEditor::RegisterToolBar()
+{
+	const FName MenuName = GetToolMenuToolbarName();
+	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
 	{
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().CameraHome);
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().CleanUnusedExpressions);
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().ShowHideConnectors);
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().ToggleLivePreview);
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().ToggleRealtimeExpressions);
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().AlwaysRefreshAllPreviews);
-		ToolbarBuilder.AddToolBarButton(
-			FMaterialEditorCommands::Get().ToggleHideUnrelatedNodes,
-				NAME_None, 
-				TAttribute<FText>(), 
-				TAttribute<FText>(), 
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
-			);
-		ToolbarBuilder.AddComboButton(
-			FUIAction(),
-			FOnGetContent::CreateSP(this, &FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu),
-			LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"),
-			LOCTEXT("HideUnrelatedNodesOptionsMenu", "Hide Unrelated Nodes options menu"),
-			TAttribute<FSlateIcon>(),
-			true
-		); 
-	}
-	ToolbarBuilder.EndSection();
+		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
 
-	ToolbarBuilder.BeginSection("Stats");
-	{
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().ToggleMaterialStats);
-		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().TogglePlatformStats);
-		ToolbarBuilder.AddComboButton(
-			FUIAction(),
-			FOnGetContent::CreateSP(this, &FMaterialEditor::GeneratePreviewMenuContent),
-			LOCTEXT("NodePreview_Label", "Preview Nodes"),
-			LOCTEXT("NodePreviewToolTip", "Preview the nodes for a given feature level and/or material quality."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "FullBlueprintEditor.SwitchToScriptingMode"),
-			false);
-	}
-	ToolbarBuilder.EndSection();
-	if (!MaterialFunction)
-	{
-		ToolbarBuilder.BeginSection("Hierarchy");
+		FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
+
 		{
-			ToolbarBuilder.AddComboButton(
-				FUIAction(),
-				FOnGetContent::CreateSP(this, &FMaterialEditor::GenerateInheritanceMenu),
-				LOCTEXT("Hierarchy", "Hierarchy"),
-				FText::GetEmpty(),
-				FSlateIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.SwitchToBehaviorTreeMode")),
-				false
-			);
+			FToolMenuSection& Section = ToolBar->AddSection("Apply", TAttribute<FText>(), InsertAfterAssetSection);
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().Apply));
 		}
-		ToolbarBuilder.EndSection();
+
+		{
+			FToolMenuSection& Section = ToolBar->AddSection("Search", TAttribute<FText>(), InsertAfterAssetSection);
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().FindInMaterial));
+		}
+
+		{
+			FToolMenuSection& Section = ToolBar->AddSection("Graph", TAttribute<FText>(), InsertAfterAssetSection);
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().CameraHome));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().CleanUnusedExpressions));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ShowHideConnectors));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ToggleLivePreview));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ToggleRealtimeExpressions));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().AlwaysRefreshAllPreviews));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+				FMaterialEditorCommands::Get().ToggleHideUnrelatedNodes,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
+			));
+			Section.AddEntry(FToolMenuEntry::InitComboButton(
+				"HideUnrelatedNodesOptions",
+				FUIAction(),
+				FOnGetContent::CreateSP(this, &FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu),
+				LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"),
+				LOCTEXT("HideUnrelatedNodesOptionsMenu", "Hide Unrelated Nodes options menu"),
+				TAttribute<FSlateIcon>(),
+				true
+			));
+		}
+
+		{
+			FToolMenuSection& Section = ToolBar->AddSection("Stats", TAttribute<FText>(), InsertAfterAssetSection);
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ToggleMaterialStats));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().TogglePlatformStats));
+			Section.AddEntry(FToolMenuEntry::InitComboButton(
+				"NodePreview",
+				FUIAction(),
+				FOnGetContent::CreateSP(this, &FMaterialEditor::GeneratePreviewMenuContent),
+				LOCTEXT("NodePreview_Label", "Preview Nodes"),
+				LOCTEXT("NodePreviewToolTip", "Preview the nodes for a given feature level and/or material quality."),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "FullBlueprintEditor.SwitchToScriptingMode"),
+				false
+			));
+		}
+
+		ToolBar->AddDynamicSection("Hierarchy", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			UMaterialEditorMenuContext* Context = InMenu->FindContext<UMaterialEditorMenuContext>();
+			TSharedPtr<FMaterialEditor> MaterialEditor = StaticCastSharedPtr<FMaterialEditor>(Context->MaterialEditor.Pin());
+			if (!MaterialEditor->MaterialFunction)
+			{
+				{
+					FToolMenuSection& Section = InMenu->AddSection("Hierarchy");
+					Section.AddEntry(FToolMenuEntry::InitComboButton(
+						"Hierarchy",
+						FToolUIActionChoice(),
+						FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+						{
+							UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+							if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+							{
+								SubMenuContext->MaterialEditor.Pin()->GenerateInheritanceMenu(InSubMenu);
+							}
+						}),
+						LOCTEXT("Hierarchy", "Hierarchy"),
+						FText::GetEmpty(),
+						FSlateIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.SwitchToBehaviorTreeMode")),
+						false
+					));
+				}
+			}
+		})).InsertPosition = InsertAfterAssetSection;
 	}
 };
 
-TSharedRef<SWidget> FMaterialEditor::GenerateInheritanceMenu()
+void FMaterialEditor::AddInheritanceMenuEntry(FToolMenuSection& Section, const FAssetData& AssetData, bool bIsFunctionPreviewMaterial)
 {
-	struct Local
+	FExecuteAction OpenAction;
+	FExecuteAction FindInContentBrowserAction;
+	if (bIsFunctionPreviewMaterial)
 	{
-		static void MakeMaterialSubmenu(FMenuBuilder& MenuBuilder, FAssetData InMaterial)
-		{
-			MenuBuilder.AddMenuEntry(LOCTEXT("OpenInEditor", "Open In Editor"),
-				FText::GetEmpty(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
-				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnOpenMaterial, InMaterial)));
+		OpenAction.BindStatic(&FMaterialEditorUtilities::OnOpenFunction, AssetData);
+		FindInContentBrowserAction.BindStatic(&FMaterialEditorUtilities::OnShowFunctionInContentBrowser, AssetData);
+	}
+	else
+	{
+		OpenAction.BindStatic(&FMaterialEditorUtilities::OnOpenMaterial, AssetData);
+		FindInContentBrowserAction.BindStatic(&FMaterialEditorUtilities::OnShowMaterialInContentBrowser, AssetData);
+	}
 
-			MenuBuilder.AddMenuEntry(LOCTEXT("FindInContentBrowser", "Find In Content Browser"),
-				FText::GetEmpty(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
-				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnShowMaterialInContentBrowser, InMaterial)));
-		}
-	};
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("ParentName"), FText::FromName(AssetData.AssetName));
+	FText Label = FText::Format(LOCTEXT("InstanceParentName", "{ParentName}"), Args);
 
+	FSlateIcon OpenIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor");
+	FSlateIcon FindInContentBrowserIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser");
+
+	TSharedRef<SWidget> EntryWidget =
+		SNew(SHorizontalBox)
+		.ToolTipText(LOCTEXT("OpenInEditor", "Open In Editor"))
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(FMargin(2, 0, 2, 0))
+		[
+			SNew( SBox )
+			.WidthOverride( MultiBoxConstants::MenuIconSize + 2 )
+			.HeightOverride( MultiBoxConstants::MenuIconSize )
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew( SBox )
+				.WidthOverride( MultiBoxConstants::MenuIconSize )
+				.HeightOverride( MultiBoxConstants::MenuIconSize )
+				[
+					SNew(SImage)
+					.Image(OpenIcon.GetIcon())
+				]
+			]
+		]
+
+		+ SHorizontalBox::Slot()
+		.FillWidth( 1.0f )
+		.Padding(FMargin(2, 0, 6, 0))
+		.VAlign( VAlign_Center )
+		[
+			SNew(STextBlock)
+			.Text(Label)
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign( VAlign_Center )
+		.HAlign( HAlign_Right )
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ToolTipText(LOCTEXT("FindInContentBrowser", "Find In Content Browser"))
+			.OnClicked_Lambda([FindInContentBrowserAction]() { FindInContentBrowserAction.ExecuteIfBound(); return FReply::Handled(); })
+			[
+				SNew( SBox )
+				.WidthOverride( MultiBoxConstants::MenuIconSize + 2 )
+				.HeightOverride( MultiBoxConstants::MenuIconSize )
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew( SBox )
+					.WidthOverride( MultiBoxConstants::MenuIconSize )
+					.HeightOverride( MultiBoxConstants::MenuIconSize )
+					[
+						SNew(SImage)
+						.Image(FindInContentBrowserIcon.GetIcon())
+					]
+				]
+			]
+		];
+
+	Section.AddEntry(FToolMenuEntry::InitMenuEntry(
+		NAME_None,
+		FUIAction(OpenAction),
+		EntryWidget
+	));
+}
+
+void FMaterialEditor::GenerateInheritanceMenu(UToolMenu* Menu)
+{
 	RebuildInheritanceList();
-	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	TSharedPtr<FUICommandList> InCommandList = MakeShareable(new FUICommandList);
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList, ToolbarExtender);
+	Menu->bShouldCloseWindowAfterMenuSelection = true;
+	Menu->bSearchable = true;
+	Menu->SetMaxHeight(500);
 
 	if (!MaterialFunction)
 	{
-		const FName MaterialInstances = TEXT("MaterialInstances");
-		MenuBuilder.BeginSection(MaterialInstances, LOCTEXT("MaterialInstances", "Material Instances"));
+		FToolMenuSection& Section = Menu->AddSection("MaterialInstances", LOCTEXT("MaterialInstances", "Material Instances"));
 		if (MaterialChildList.Num() == 0)
 		{
 			const FText NoChildText = LOCTEXT("NoInstancesFound", "No Instances Found");
 			TSharedRef<SWidget> NoChildWidget = SNew(STextBlock)
 				.Text(NoChildText);
-			MenuBuilder.AddWidget(NoChildWidget, FText::GetEmpty());
+			Section.AddEntry(FToolMenuEntry::InitWidget("NoInstancesFound", NoChildWidget, FText::GetEmpty()));
 		}
-		for (FAssetData MaterialChild : MaterialChildList)
+		for (const FAssetData& MaterialChild : MaterialChildList)
 		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("ChildName"), FText::FromName(MaterialChild.AssetName));
-			MenuBuilder.AddSubMenu(FText::Format(LOCTEXT("MaterialChildName", "{ChildName}"), Args),
-				FText::GetEmpty(),
-				FNewMenuDelegate::CreateStatic(&Local::MakeMaterialSubmenu, MaterialChild),
-				false,
-				FSlateIcon());
+			FMaterialEditor::AddInheritanceMenuEntry(Section, MaterialChild, false);
 		}
-		MenuBuilder.EndSection();
 	}
-
-	return MenuBuilder.MakeWidget(nullptr, 500);
 }
 
 TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
@@ -1273,7 +1383,6 @@ TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
 	MenuBuilder.BeginSection("MaterialEditorFeaturePreview", LOCTEXT("MaterialFeatureHeading", "Feature Level"));
 	{
 		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_All);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES2);
 		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES31);
 		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM4);
 		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM5);
@@ -1651,9 +1760,9 @@ void FMaterialEditor::LoadEditorSettings()
 			PreviewViewport->TogglePreviewGrid();
 		}
 
-		if (EditorOptions->bRealtimeMaterialViewport)
+		if (EditorOptions->bRealtimeMaterialViewport && PreviewViewport->GetViewportClient())
 		{
-			PreviewViewport->OnToggleRealtime();
+			PreviewViewport->GetViewportClient()->SetRealtime(true);
 		}
 	}
 	
@@ -1753,7 +1862,6 @@ void FMaterialEditor::UpdatePreviewMaterial( bool bForce )
 		if (MaterialLayersFunctionsInstance.IsValid())
 		{
 			MaterialLayersFunctionsInstance->SetEditorInstance(MaterialEditorInstance);
-			MaterialLayersFunctionsInstance->Refresh();
 		}
 	}
 
@@ -2223,7 +2331,7 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 
 		if (bForceDisplay)
 		{
-			TabManager->InvokeTab(MaterialStatsManager->GetGridOldStatsTabName());
+			TabManager->TryInvokeTab(MaterialStatsManager->GetGridOldStatsTabName());
 		}
 	}
 }
@@ -2306,7 +2414,6 @@ void FMaterialEditor::UpdateMaterialInfoList()
 void FMaterialEditor::UpdateGraphNodeStates()
 {
 	const FMaterialResource* ErrorMaterialResource = PreviewExpression ? ExpressionPreviewMaterial->GetMaterialResource(GMaxRHIFeatureLevel) : Material->GetMaterialResource(GMaxRHIFeatureLevel);
-	const FMaterialResource* ErrorMaterialResourceES2 = NULL;
 
 	bool bUpdatedErrorState = false;
 	bool bToggledVisibleState = bPreviewFeaturesChanged;
@@ -2330,8 +2437,7 @@ void FMaterialEditor::UpdateGraphNodeStates()
 		if (MaterialNode)
 		{
 			MaterialNode->bIsPreviewExpression = (PreviewExpression == MaterialNode->MaterialExpression);
-			MaterialNode->bIsErrorExpression = (ErrorMaterialResource->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE)
-												|| (ErrorMaterialResourceES2 && ErrorMaterialResourceES2->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE);
+			MaterialNode->bIsErrorExpression = (ErrorMaterialResource->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE);
 
 			if (MaterialNode->bIsErrorExpression && !MaterialNode->bHasCompilerMessage)
 			{
@@ -2535,11 +2641,6 @@ void FMaterialEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::Num),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::Num));
-	ToolkitCommands->MapAction(
-		Commands.FeatureLevel_ES2,
-		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::ES2),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsFeaturePreviewChecked, ERHIFeatureLevel::ES2));
 	ToolkitCommands->MapAction(
 		Commands.FeatureLevel_ES31,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetFeaturePreview, ERHIFeatureLevel::ES3_1),
@@ -3303,7 +3404,7 @@ void FMaterialEditor::OnCreateComponentMaskNode()
 
 void FMaterialEditor::OnFindInMaterial()
 {
-	TabManager->InvokeTab(FindTabId);
+	TabManager->TryInvokeTab(FindTabId);
 	FindResults->FocusForUse();
 }
 
@@ -3322,6 +3423,7 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(UEdGraphPin* TargetPin)
 			case MP_Metallic:
 			case MP_Specular:
 			case MP_Roughness:
+			case MP_Anisotropy:
 			case MP_TessellationMultiplier:
 			case MP_CustomData0:
 			case MP_CustomData1:
@@ -3329,7 +3431,8 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(UEdGraphPin* TargetPin)
 			case MP_Refraction:
 			case MP_PixelDepthOffset:
 			case MP_ShadingModel:
-			case MP_OpacityMask: return UMaterialExpressionScalarParameter::StaticClass();
+			case MP_OpacityMask:
+				return UMaterialExpressionScalarParameter::StaticClass();
 
 			case MP_WorldPositionOffset:
 			case MP_WorldDisplacement:
@@ -3337,7 +3440,9 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(UEdGraphPin* TargetPin)
 			case MP_BaseColor:
 			case MP_SubsurfaceColor:
 			case MP_SpecularColor:
-			case MP_Normal:	return UMaterialExpressionVectorParameter::StaticClass();
+			case MP_Normal:
+			case MP_Tangent:
+				return UMaterialExpressionVectorParameter::StaticClass();
 		}
 	}
 	else if (OtherPinNode)
@@ -3499,9 +3604,9 @@ void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName Parame
 			{
 				bool bUpdate = false;
 
-				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->MaterialFunctionInfos.Num(); FunctionIndex++)
+				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->GetCachedExpressionData().FunctionInfos.Num(); FunctionIndex++)
 				{
-					if (CurrentMaterial->MaterialFunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
+					if (CurrentMaterial->GetCachedExpressionData().FunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
 					{
 						bUpdate = true;
 						break;
@@ -3575,9 +3680,9 @@ void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName Parame
 			{
 				bool bUpdate = false;
 
-				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->MaterialFunctionInfos.Num(); FunctionIndex++)
+				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->GetCachedExpressionData().FunctionInfos.Num(); FunctionIndex++)
 				{
-					if (CurrentMaterial->MaterialFunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
+					if (CurrentMaterial->GetCachedExpressionData().FunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
 					{
 						bUpdate = true;
 						break;

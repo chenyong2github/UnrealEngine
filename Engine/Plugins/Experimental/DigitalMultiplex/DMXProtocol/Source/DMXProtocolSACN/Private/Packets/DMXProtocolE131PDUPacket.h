@@ -21,8 +21,7 @@ public:
 	uint16 PreambleSize = ACN_RLP_PREAMBLE_SIZE;
 	uint16 PostambleSize = 0;
 	uint8 ACNPacketIdentifier[ACN_IDENTIFIER_SIZE] = { 'A', 'S', 'C', '-', 'E', '1', '.', '1', '7', '\0', '\0', '\0' };
-	uint8 Flags = 0x72;
-	uint8 Length = 0x6e;
+	uint16 FlagsAndLength = ACN_PDU_FLAGS_AND_LENGHT_SIZE;
 	uint32 Vector = VECTOR_ROOT_E131_DATA;
 	uint8 CID[ACN_CIDBYTES] = { 0 };
 };
@@ -39,15 +38,14 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FDMXProtocolE131FramingLayerPacket& Packet);
 
 public:
-	uint8 Flags = 0;
-	uint8 Length = 0;
+	uint16 FlagsAndLength = ACN_PDU_FLAGS_AND_LENGHT_SIZE;
 	uint32 Vector = VECTOR_E131_DATA_PACKET;
 	uint8 SourceName[ACN_SOURCE_NAME_SIZE] = "New Source";
-	uint8 Priority = 0;
+	uint8 Priority = 100;
 	uint16 SynchronizationAddress = 0;
 	uint8 SequenceNumber = 0;
 	uint8 Options = 0;
-	uint8 Universe = 0;
+	uint16 Universe = 0;
 };
 
 struct FDMXProtocolE131DMPLayerPacket
@@ -62,10 +60,9 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FDMXProtocolE131DMPLayerPacket& Packet);
 
 public:
-	uint8 Flags = 0;
-	uint8 Length = 0;
+	uint16 FlagsAndLength = ACN_PDU_FLAGS_AND_LENGHT_SIZE;
 	uint8 Vector = VECTOR_DMP_SET_PROPERTY;
-	uint8 AddressTypeAndDataType = 0;
+	uint8 AddressTypeAndDataType = 0xa1; // The const from SACN protocol documentation
 	uint16 FirstPropertyAddress = 0;
 	uint16 AddressIncrement = 0;
 	uint16 PropertyValueCount = 0;
@@ -85,8 +82,7 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FDMXProtocolUDPE131FramingLayerPacket& Packet);
 
 public:
-	uint8 Flags = 0x72;
-	uint8 Length = 0x0b;
+	uint16 FlagsAndLength = ACN_PDU_FLAGS_AND_LENGHT_SIZE;
 	uint32 Vector = 2;
 	uint8 SourceName[ACN_SOURCE_NAME_SIZE] = { 0 };
 	uint8 Reserved[4] = { 0 };
@@ -105,8 +101,7 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FDMXProtocolUDPE131DiscoveryLayerPacket& Packet);
 
 public:
-	uint8 Flags = 0;
-	uint8 Length = 0;
+	uint16 FlagsAndLength = ACN_PDU_FLAGS_AND_LENGHT_SIZE;
 	uint32 Vector = VECTOR_E131_EXTENDED_DISCOVERY;
 	uint8 Page = 0;
 	uint8 Last = 0;

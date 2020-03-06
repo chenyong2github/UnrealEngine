@@ -83,7 +83,7 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 	TShaderMapRef<FStereoLayerPS_External> PixelShader_External(ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
@@ -110,7 +110,7 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 		if (bIsExternal != bLastWasExternal)
 		{
 			bLastWasExternal = bIsExternal;
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = bIsExternal ? GETSAFERHISHADER_PIXEL(*PixelShader_External) : GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = bIsExternal ? PixelShader_External.GetPixelShader() : PixelShader.GetPixelShader();
 			bPipelineStateNeedsUpdate = true;
 		}
 
@@ -161,7 +161,7 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 			1.0f, 1.0f,
 			TargetSize,
 			FIntPoint(1, 1),
-			*VertexShader
+			VertexShader
 		);
 	}
 }

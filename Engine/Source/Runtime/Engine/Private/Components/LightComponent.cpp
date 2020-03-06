@@ -775,9 +775,9 @@ void ULightComponent::OnRegister()
 	ValidateLightGUIDs();
 }
 
-void ULightComponent::CreateRenderState_Concurrent()
+void ULightComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	if (bAffectsWorld)
 	{

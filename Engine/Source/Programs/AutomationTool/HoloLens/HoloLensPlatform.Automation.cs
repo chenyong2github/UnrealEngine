@@ -5,10 +5,24 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Threading.Tasks;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Diagnostics;
 using Tools.DotNETCommon;
+using System.Xml;
+using System.Text.RegularExpressions;
+
+#if !__MonoCS__
+using Windows.Management.Deployment;
+using Windows.Foundation;
+#if false
+using Windows.ApplicationModel.Core;
+#endif
+#endif
+using System.Threading;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.Tools.WindowsDevicePortal;
 
 namespace HoloLens.Automation
 {
@@ -347,6 +361,7 @@ namespace HoloLens.Automation
 		private FileReference MakeCertPath;
 		private FileReference Pvk2PfxPath;
 		private string Windows10SDKVersion;
+		private string Extension = ".appx";
 
 
 		public HoloLensPlatform()
@@ -411,18 +426,45 @@ namespace HoloLens.Automation
 			}
 
 			ConfigHierarchy PlatformEngineConfig = null;
-			if (ProjParams.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
+			if (!ProjParams.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
 			{
-				List<string> ThumbprintsFromConfig = new List<string>();
+				throw new AutomationException(ExitCode.Error_Arguments, "No configuration on \'Platforms/HoloLens/OS Info\' page. Please create one.");
+			}
+
+			PlatformEngineConfig.GetString("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "Windows10SDKVersion", out Windows10SDKVersion);
+
+			List<string> ThumbprintsFromConfig = new List<string>();
+			if (PlatformEngineConfig.GetArray("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "AcceptThumbprints", out ThumbprintsFromConfig))
+			{
+				AcceptThumbprints.AddRange(ThumbprintsFromConfig);
+			}
+
+
+			if (ProjParams.Run)
+			{
+				var ArchList = new List<WindowsArchitecture>();
+				foreach (string DeviceAddress in ProjParams.DeviceNames)
+				{
+					//We have to choose architecture of the device to run
+					WindowsArchitecture Arch = Environment.Is64BitOperatingSystem ? WindowsArchitecture.x64 : WindowsArchitecture.x86;
+					if (!IsLocalDevice(DeviceAddress))
+					{
+						Arch = RemoteDeviceArchitecture(DeviceAddress, ProjParams);
+					}
+
+					ArchList.Add(Arch);
+
+					LogInformation(String.Format("Project will be compiled for the architecture {0} of the HoloLens device {1}.", WindowsExports.GetArchitectureSubpath(Arch), DeviceAddress));
+				}
+
+				ActualArchitectures = ArchList.Distinct().ToArray();
+			}
+			else
+			{
 				var ArchList = new List<WindowsArchitecture>();
 				bool bBuildForEmulation = false;
 				bool bBuildForDevice = false;
-
-				if (PlatformEngineConfig.GetArray("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "AcceptThumbprints", out ThumbprintsFromConfig))
-				{
-					AcceptThumbprints.AddRange(ThumbprintsFromConfig);
-				}
-
+                
 				if (PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForEmulation", out bBuildForEmulation))
 				{
 					if (bBuildForEmulation)
@@ -441,20 +483,14 @@ namespace HoloLens.Automation
 				}
 
 				ActualArchitectures = ArchList.ToArray();
-
-				PlatformEngineConfig.GetString("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "Windows10SDKVersion", out Windows10SDKVersion);
 			}
 
-
-			ProjParams.SpecifiedArchitecture = "Multi";
-			ProjParams.ConfigOverrideParams.Add("Architecture=Multi");
+			string ArchString = ActualArchitectures.Length == 1 && ProjParams.Run && !ProjParams.Package ? WindowsExports.GetArchitectureSubpath(ActualArchitectures[0]) : "Multi";
+			ProjParams.SpecifiedArchitecture = ArchString;
+			ProjParams.ConfigOverrideParams.Add(String.Format("Architecture={0}", ArchString));
 
 			FindInstruments();
-			ConfigHierarchy CameConfig = null;
-			if (ProjParams.GameConfigs.TryGetValue(PlatformType, out CameConfig))
-			{
-				GenerateSigningCertificate(ProjParams, CameConfig);
-			}
+			GenerateSigningCertificate(ProjParams, PlatformEngineConfig);
 		}
 
 		private void FindInstruments()
@@ -540,6 +576,42 @@ namespace HoloLens.Automation
 
 		public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
 		{
+			if(Params.Run && !Params.Package)
+			{
+				// Stage all the build products
+				DirectoryReference ProjectBinariesFolder = Params.GetProjectBinariesPathForPlatform(PlatformType);
+				HoloLensExports DeployExports = new HoloLensExports();
+				foreach (StageTarget Target in SC.StageTargets)
+				{
+					string ArchString = Target.Receipt.Architecture;
+					SC.StageBuildProductsFromReceipt(Target.Receipt, Target.RequireFilesExist, Params.bTreatNonShippingBinariesAsDebugFiles);
+					DeployExports.AddWinMDReferencesFromReceipt(Target.Receipt, Params.RawProjectPath.Directory, SC.LocalRoot.FullName);
+
+					// Stage HoloLens-specific assets (tile, splash, etc.)
+					DirectoryReference assetsPath = new DirectoryReference(Path.Combine(ProjectBinariesFolder.FullName, ArchString, "Resources"));
+					StagedDirectoryReference stagedAssetPath = new StagedDirectoryReference("Resources");
+					SC.StageFiles(StagedFileType.NonUFS, assetsPath, "*.png", StageFilesSearch.AllDirectories, stagedAssetPath);
+
+
+					SC.StageFile(StagedFileType.NonUFS, new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("AppxManifest_{0}.xml", ArchString))),
+						new StagedFileReference("AppxManifest.xml"));
+					SC.StageFile(StagedFileType.NonUFS, new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("resources_{0}.pri", ArchString))),
+						new StagedFileReference("resources.pri"));
+
+					FileReference SourceNetworkManifestPath = new FileReference(Path.Combine(ProjectBinariesFolder.FullName, String.Format("NetworkManifest_{0}.xml", ArchString)));
+					if (FileReference.Exists(SourceNetworkManifestPath))
+					{
+						SC.StageFile(StagedFileType.NonUFS, SourceNetworkManifestPath, new StagedFileReference("NetworkManifest.xml"));
+					}
+
+					TargetRules Rules = Params.ProjectTargets.Find(x => x.Rules.Type == TargetType.Game).Rules;
+					bool UseDebugCrt = Params.ClientConfigsToBuild.Contains(UnrealTargetConfiguration.Debug) && Rules.bDebugBuildsActuallyUseDebugCRT;
+					foreach (var RT in GetPathToVCLibsPackages(UseDebugCrt, Rules.WindowsPlatform.Compiler))
+					{
+						SC.StageFile(StagedFileType.NonUFS, new FileReference(RT), new StagedFileReference(Path.GetFileName(RT)));
+					}
+				}
+			}
 		}
 
 		public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
@@ -582,10 +654,50 @@ namespace HoloLens.Automation
 			}
 		}
 
+		static void FillMapfile(DirectoryReference DirectoryName, string SearchPath, string Mask, Dictionary<string, FileReference> Dict)
+		{
+			string StageDir = DirectoryName.FullName;
+			if (!StageDir.EndsWith("\\") && !StageDir.EndsWith("/"))
+			{
+				StageDir += Path.DirectorySeparatorChar;
+			}
+			Uri StageDirUri = new Uri(StageDir);
+			foreach (var pf in Directory.GetFiles(SearchPath, Mask, SearchOption.AllDirectories))
+			{
+				var FileUri = new Uri(pf);
+				var relativeUri = StageDirUri.MakeRelativeUri(FileUri);
+				var relativePath = Uri.UnescapeDataString(relativeUri.ToString());
+				var newPath = relativePath.Replace('/', Path.DirectorySeparatorChar);
+
+				if (!Dict.ContainsKey(newPath))
+				{
+					Dict[newPath] = new FileReference(pf);
+				}
+			}
+		}
+
+		static void FillMapfile(DirectoryReference DirectoryName, FileReference ManifestFile, Dictionary<string, FileReference> Dict)
+		{
+			if (FileReference.Exists(ManifestFile))
+			{
+				string[] Lines = FileReference.ReadAllLines(ManifestFile);
+				foreach (string Line in Lines)
+				{
+					string[] Pair = Line.Split('\t');
+					if (Pair.Length > 1)
+					{
+						if(!Dict.ContainsKey(Pair[0]))
+						{
+							Dict[Pair[0]] = FileReference.Combine(DirectoryName, Pair[0]);
+						}
+					}
+				}
+			}
+		}
+
 		private void PackagePakFiles(ProjectParams Params, DeploymentContext SC, string OutputNameBase)
 		{
 			string IntermediateDirectory = Path.Combine(SC.ProjectRoot.FullName, "Intermediate", "Deploy", "neutral");
-LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 			var ListResources = new HoloLensManifestGenerator().CreateAssetsManifest(SC.StageTargetPlatform.PlatformType, SC.StageDirectory.FullName, IntermediateDirectory, SC.RawProjectPath, SC.ProjectRoot.FullName);
 
 			string OutputName = OutputNameBase + "_pak";
@@ -595,7 +707,7 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 			string MapFilename = Path.Combine(SC.StageDirectory.FullName, OutputName + ".pkgmap");
 			AppXRecipeBuiltFiles.AppendLine(@"[Files]");
 
-			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + ".appx");
+			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + Extension);
 
 			if(Params.UsePak(this))
 			{
@@ -624,7 +736,7 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 
 			File.WriteAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
 
-			string MakeAppXCommandLine = string.Format(@"pack /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
+			string MakeAppXCommandLine = String.Format(@"pack /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
 			RunAndLog(CmdEnv, MakeAppXPath.FullName, MakeAppXCommandLine, null, 0, null, ERunOptions.None);
 			SignPackage(Params, SC, OutputAppX);
 		}
@@ -644,7 +756,7 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 
 					var AppXRecipeBuiltFiles = new StringBuilder();
 
-					string OutputAppX = Path.Combine(SC.StageDirectory.FullName, Product.Path.GetFileNameWithoutExtension() + ".appx");
+					string OutputAppX = Path.Combine(SC.StageDirectory.FullName, Product.Path.GetFileNameWithoutExtension() + Extension);
 
 					if (Params.UsePak(this))
 					{
@@ -659,11 +771,85 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 
 					File.AppendAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
 
-					string MakeAppXCommandLine = string.Format(@"pack /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
+					string MakeAppXCommandLine = String.Format(@"pack /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
 					RunAndLog(CmdEnv, MakeAppXPath.FullName, MakeAppXCommandLine, null, 0, null, ERunOptions.None);
 
 					SignPackage(Params, SC, OutputAppX);
 				}
+			}
+		}
+
+		private void MakeSingleApp(ProjectParams Params, DeploymentContext SC, string OutputNameBase)
+		{
+			foreach (StageTarget Target in SC.StageTargets)
+			{
+				string IntermediateDirectory = Path.Combine(SC.ProjectRoot.FullName, "Intermediate", "Deploy", Params.SpecifiedArchitecture);
+				var Receipt = Target.Receipt;
+				string OutputName = String.Format("{0}_{1}_{2}_{3}", Receipt.TargetName, Receipt.Platform, Receipt.Configuration, Receipt.Architecture);
+
+				string MapFilename = Path.Combine(IntermediateDirectory, OutputName + "_full.pkgmap");
+
+				Dictionary<string, FileReference> Dict = new Dictionary<string, FileReference>();
+
+
+				{
+					//parse old mapfile
+					string OldMapFilename = Path.Combine(IntermediateDirectory, OutputName + ".pkgmap");
+					string[] lines = File.ReadAllLines(OldMapFilename, Encoding.UTF8);
+					foreach (var line in lines)
+					{
+						if (line.Length == 0 || line[0] == '[')
+						{
+							continue;
+						}
+
+						string[] files = line.Split('\t');
+
+						if(files.Length != 2)
+						{
+							continue;
+						}
+
+						files[0] = files[0].Trim('\"');
+						files[1] = files[1].Trim('\"').Replace('\\', '/');
+
+						if (Dict.ContainsKey(files[1]))
+						{
+							continue;
+						}
+
+						Dict[files[1]] = new FileReference(files[0]);
+					}
+				}
+
+				string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + Extension);
+
+				if (Params.UsePak(this) && !Params.Run)
+				{
+					FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, "*.pak", Dict);
+				}
+				else
+				{
+					FillMapfile(SC.StageDirectory, FileReference.Combine(SC.StageDirectory, SC.GetUFSDeployedManifestFileName(null)), Dict);
+				}
+
+				FillMapfile(SC.StageDirectory, FileReference.Combine(SC.StageDirectory, SC.GetNonUFSDeployedManifestFileName(null)), Dict);
+
+
+				var AppXRecipeBuiltFiles = new StringBuilder();
+
+				AppXRecipeBuiltFiles.AppendLine("[Files]");
+				foreach (var P in Dict)
+				{
+					AppXRecipeBuiltFiles.AppendLine(String.Format("\"{0}\"\t\"{1}\"", P.Value, P.Key));
+				}
+
+				File.WriteAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
+
+				string MakeAppXCommandLine = String.Format("pack /o /f \"{0}\" /p \"{1}\"", MapFilename, OutputAppX);
+				RunAndLog(CmdEnv, MakeAppXPath.FullName, MakeAppXCommandLine, null, 0, null, ERunOptions.None);
+
+				SignPackage(Params, SC, OutputAppX);
 			}
 		}
 
@@ -672,11 +858,11 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 			string OutputName = OutputNameBase;
 
 			var AppXRecipeBuiltFiles = new StringBuilder();
-			
+
 			string MapFilename = Path.Combine(SC.StageDirectory.FullName, OutputName + "_bundle.pkgmap");
 			AppXRecipeBuiltFiles.AppendLine(@"[Files]");
 
-			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + ".appxbundle");
+			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + Extension + "bundle");
 			if(SeparateAssetPackaging)
 			{
 				foreach (StageTarget Target in SC.StageTargets)
@@ -689,19 +875,19 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 						}
 					}
 				}
-				
-				AppXRecipeBuiltFiles.AppendLine(String.Format("\"{0}\"\t\"{1}\"", Path.Combine(SC.StageDirectory.FullName, OutputName + "_pak.appx"), OutputName + "_pak.appx"));//assets from pak file
+
+				AppXRecipeBuiltFiles.AppendLine(String.Format("\"{0}\"\t\"{1}\"", Path.Combine(SC.StageDirectory.FullName, OutputName + "_pak" + Extension), OutputName + "_pak" + Extension));//assets from pak file
 			}
 			else
 			{
-				FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, "*.appx", AppXRecipeBuiltFiles);
+				FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, "*" + Extension, AppXRecipeBuiltFiles);
 			}
 
 			File.WriteAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
 
 			string MakeAppXCommandLine = string.Format(@"bundle /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
 			RunAndLog(CmdEnv, MakeAppXPath.FullName, MakeAppXCommandLine, null, 0, null, ERunOptions.None);
-			SignPackage(Params, SC, OutputName + ".appxbundle", true);
+			SignPackage(Params, SC, OutputName + Extension + "bundle", true);
 		}
 
 		private void CopyVCLibs(ProjectParams Params, DeploymentContext SC)
@@ -724,7 +910,7 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 			}
 		}
 
-		private void GenerateSigningCertificate(ProjectParams Params, ConfigHierarchy ConfigFile)
+		private void GenerateSigningCertificate(ProjectParams Params, ConfigHierarchy PlatformEngineConfig)
 		{
 			string SigningCertificate = @"Build\HoloLens\SigningCertificate.pfx";
 			string SigningCertificatePath = Path.Combine(Params.RawProjectPath.Directory.FullName, SigningCertificate);
@@ -733,10 +919,6 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 				if (!IsBuildMachine && !Params.Unattended)
 				{
 					LogError("Certificate is required.  Please go to Project Settings > HoloLens > Create Signing Certificate");
-				}
-				else
-				{
-					LogWarning("No certificate found at {0} and temporary certificate cannot be generated (running unattended).", SigningCertificatePath);
 				}
 			}
 		}
@@ -762,21 +944,33 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 			}
 		}
 
-		public override bool RequiresPackageToDeploy
-		{
-			get { return true; }
-		}
-
 		public override void Package(ProjectParams Params, DeploymentContext SC, int WorkingCL)
 		{
 			//GenerateDLCManifestIfNecessary(Params, SC);
-
 			string OutputNameBase = Params.HasDLCName ? Params.DLCFile.GetFileNameWithoutExtension() : Params.ShortProjectName;
-			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputNameBase + ".appxbundle");
+			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputNameBase + Extension);
+			{
+				OutputAppX += "bundle";
+				bool SeparateAssetPackaging = false;
 
-			UpdateCodePackagesWithData(Params, SC, OutputNameBase);
+				ConfigHierarchy PlatformEngineConfig = null;
+				if (Params.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
+				{
+					PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bUseAssetPackage", out SeparateAssetPackaging);
+				}
 
-			MakeBundle(Params, SC, OutputNameBase, false);
+				if (SeparateAssetPackaging)
+				{
+					PackagePakFiles(Params, SC, OutputNameBase);
+				}
+				else
+				{
+					UpdateCodePackagesWithData(Params, SC, OutputNameBase);
+				}
+
+				MakeBundle(Params, SC, OutputNameBase, SeparateAssetPackaging);
+			}
+
 
 			CopyVCLibs(Params, SC);
 
@@ -802,10 +996,10 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 						}
 					}
 				}
-				FileReference AppxSymFile = FileReference.Combine(StageDirRef, OutputNameBase + ".appxsym");
+				FileReference AppxSymFile = FileReference.Combine(StageDirRef, OutputNameBase + Extension + "sym");
 				ZipFiles(AppxSymFile, PublicSymbols, SymbolFilesToZip);
 
-				FileReference AppxUploadFile = FileReference.Combine(StageDirRef, OutputNameBase + ".appxupload");
+				FileReference AppxUploadFile = FileReference.Combine(StageDirRef, OutputNameBase + Extension + "upload");
 				ZipFiles(AppxUploadFile, StageDirRef,
 					new FileReference[]
 					{
@@ -843,7 +1037,7 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 			// parse later for information that, in conjunction with the target device, will allow
 			// for looking up the true AUMID.
 			List<FileReference> Exes = new List<FileReference>();
-			Exes.Add(new FileReference(GetAppxManifestPath(SC)));
+			Exes.Add(new FileReference(Path.Combine(SC.StageDirectory.FullName, "AppxManifest.xml")));
 			return Exes;
 		}
 
@@ -907,16 +1101,47 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 
 		private bool IsLocalDevice(string DeviceAddress)
 		{
-			try
+			Uri uriResult;
+			bool result = Uri.TryCreate(DeviceAddress, UriKind.Absolute, out uriResult)
+				&& (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+			return !result;
+		}
+
+#if !__MonoCS__
+		private void WaitFor(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation)
+		{
+			// This event is signaled when the operation completes
+			ManualResetEvent opCompletedEvent = new ManualResetEvent(false);
+
+			// Define the delegate using a statement lambda
+			deploymentOperation.Completed = (depProgress, status) => { opCompletedEvent.Set(); };
+
+			// Wait until the operation completes
+			opCompletedEvent.WaitOne();
+
+			// Check the status of the operation
+			if (deploymentOperation.Status == AsyncStatus.Error)
 			{
-				return new Uri(DeviceAddress).IsLoopback;
+				DeploymentResult deploymentResult = deploymentOperation.GetResults();
+				LogInformation("Error code: {0}", deploymentOperation.ErrorCode);
+				LogInformation("Error text: {0}", deploymentResult.ErrorText);
+				throw new AutomationException(ExitCode.Error_AppInstallFailed, deploymentResult.ErrorText, "");
 			}
-			catch
+			else if (deploymentOperation.Status == AsyncStatus.Canceled)
 			{
-				// If we can't parse the address as a Uri we default to local
-				return true;
+				//LogInformation("Operation canceled");
+				throw new AutomationException(ExitCode.Error_AppInstallFailed, "Operation canceled", "");
+			}
+			else if (deploymentOperation.Status == AsyncStatus.Completed)
+			{
+				//LogInformation("Operation succeeded");
+			}
+			else
+			{
+				//LogInformation("Operation status unknown");
 			}
 		}
+#endif
 
 		private void DeployToLocalDevice(ProjectParams Params, DeploymentContext SC)
 		{
@@ -927,11 +1152,10 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
             }
 
             bool bRequiresPackage = Params.Package || SC.StageTargetPlatform.RequiresPackageToDeploy;
-			string AppxManifestPath = GetAppxManifestPath(SC);
 			string Name;
 			string Publisher;
-			GetPackageInfo(AppxManifestPath, out Name, out Publisher);
-			Windows.Management.Deployment.PackageManager PackMgr = new Windows.Management.Deployment.PackageManager();
+			GetPackageInfo(Params, out Name, out Publisher);
+			PackageManager PackMgr = new PackageManager();
 			try
 			{
 				var ExistingPackage = PackMgr.FindPackagesForUser("", Name, Publisher).FirstOrDefault();
@@ -942,39 +1166,25 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 				{
 					if (ExistingPackage.IsDevelopmentMode)
 					{
-						PackMgr.RemovePackageAsync(ExistingPackage.Id.FullName, Windows.Management.Deployment.RemovalOptions.PreserveApplicationData).AsTask().Wait();
+						WaitFor(PackMgr.RemovePackageAsync(ExistingPackage.Id.FullName, RemovalOptions.PreserveApplicationData));
 					}
-					else if (!bRequiresPackage)
+					else if (!Params.Package)
 					{
 						throw new AutomationException(ExitCode.Error_AppInstallFailed, "A packaged version of the application already exists.  It must be uninstalled manually - note this will remove user data.");
 					}
 				}
 
-				if (!bRequiresPackage)
 				{
-					// Register appears to expect dependency packages to be loose too, which the VC runtime is not, so skip it and hope 
-					// that it's already installed on the local machine (almost certainly true given that we aren't currently picky about exact version)
-					PackMgr.RegisterPackageAsync(new Uri(AppxManifestPath), null, Windows.Management.Deployment.DeploymentOptions.DevelopmentMode).AsTask().Wait();
-				}
-				else
-				{
-					string PackageName = Params.ShortProjectName;
-					string PackagePath = Path.Combine(SC.StageDirectory.FullName, PackageName + ".appxbundle");
+					string PackagePath = Path.Combine(SC.StageDirectory.FullName, "AppxManifest.xml");
 
-					List<Uri> Dependencies = new List<Uri>();
-					TargetRules Rules = Params.ProjectTargets.Find(x => x.Rules.Type == TargetType.Game).Rules;
-					bool UseDebugCrt = Params.ClientConfigsToBuild.Contains(UnrealTargetConfiguration.Debug) && Rules.bDebugBuildsActuallyUseDebugCRT;
-					foreach(var RT in GetPathToVCLibsPackages(UseDebugCrt, Rules.WindowsPlatform.Compiler))
-					{
-						Dependencies.Add(new Uri(RT));
-					}
 
-					PackMgr.AddPackageAsync(new Uri(PackagePath), Dependencies, Windows.Management.Deployment.DeploymentOptions.None).AsTask().Wait();
+					LogInformation(String.Format("Registring {0}", PackagePath));
+					WaitFor(PackMgr.RegisterPackageAsync(new Uri(PackagePath), null, DeploymentOptions.DevelopmentMode));
 				}
 			}
 			catch (AggregateException agg)
 			{
-				throw new AutomationException(ExitCode.Error_AppInstallFailed, agg.InnerException, agg.InnerException.Message);
+				throw new AutomationException(ExitCode.Error_AppInstallFailed, agg.InnerException, "");
 			}
 
 			// Package should now be installed.  Locate it and make sure it's permitted to connect over loopback.
@@ -991,6 +1201,69 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 #endif
 		}
 
+		private WindowsArchitecture RemoteDeviceArchitecture(string DeviceAddress, ProjectParams Params)
+		{
+#if !__MonoCS__
+			string OsVersionString = "";
+			try
+			{
+				DefaultDevicePortalConnection conn = new DefaultDevicePortalConnection(DeviceAddress, Params.DeviceUsername, Params.DevicePassword);
+				DevicePortal portal = new DevicePortal(conn);
+				portal.ConnectionStatus += Portal_ConnectionStatus;
+				//portal.ConnectionStatus += (sender, args) => { Console.WriteLine(String.Format("Connected to portal with {0}", args.Status)); }; 
+
+				portal.ConnectAsync().Wait(); //think about adding a cert here!
+				var osInfo = portal.GetOperatingSystemInformationAsync().Result;
+				OsVersionString = osInfo.OsVersionString;
+			}
+			catch (AggregateException e)
+			{
+				if (e.InnerException is AutomationException)
+				{
+					throw e.InnerException;
+				}
+				else
+				{
+					throw new AutomationException(ExitCode.Error_AppInstallFailed, e.InnerException, e.InnerException.Message);
+				}
+			}
+			catch (Exception e)
+			{
+				throw new AutomationException(ExitCode.Error_AppInstallFailed, e, e.Message);
+			}
+
+
+			string[] osBlocks = OsVersionString.Split('.');
+			if (osBlocks.Length < 3)
+			{
+				LogError(String.Format("Wrong OS version string {0} from {1} device", OsVersionString, DeviceAddress));
+				throw new AutomationException(ExitCode.Error_AppInstallFailed, "Wrong OS version string");
+			}
+
+			string osArchBlock = osBlocks[2].ToLower();
+
+			if (osArchBlock.StartsWith("x86"))
+			{
+				return WindowsArchitecture.x86;
+			}
+			else if (osArchBlock.StartsWith("amd64"))
+			{
+				return WindowsArchitecture.x64;
+			}
+			else if (osArchBlock.StartsWith("arm64"))
+			{
+				return WindowsArchitecture.ARM64;
+			}
+			else
+			{
+				LogError(String.Format("Unsupported OS architecture {0} from {1} device", osArchBlock, DeviceAddress));
+				throw new AutomationException(ExitCode.Error_AppInstallFailed, "Unsupported OS architecture");
+			}
+#else
+			return WindowsArchitecture.x64;
+#endif
+		}
+
 		private void DeployToRemoteDevice(string DeviceAddress, ProjectParams Params, DeploymentContext SC)
 		{
 #if !__MonoCS__
@@ -999,21 +1272,38 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
                 return;
             }
 
+			string Name;
+			string Publisher;
+			GetPackageInfo(Params, out Name, out Publisher);
+
 			if (Params.Package || SC.StageTargetPlatform.RequiresPackageToDeploy)
 			{
-				Microsoft.Tools.WindowsDevicePortal.DefaultDevicePortalConnection conn = new Microsoft.Tools.WindowsDevicePortal.DefaultDevicePortalConnection(DeviceAddress, Params.DeviceUsername, Params.DevicePassword);
-				Microsoft.Tools.WindowsDevicePortal.DevicePortal portal = new Microsoft.Tools.WindowsDevicePortal.DevicePortal(conn);
+				DefaultDevicePortalConnection conn = new DefaultDevicePortalConnection(DeviceAddress, Params.DeviceUsername, Params.DevicePassword);
+				DevicePortal portal = new DevicePortal(conn);
 				portal.UnvalidatedCert += (sender, certificate, chain, sslPolicyErrors) =>
 				{
-					return ShouldAcceptCertificate(new System.Security.Cryptography.X509Certificates.X509Certificate2(certificate), Params.Unattended);
+					return ShouldAcceptCertificate(new X509Certificate2(certificate), Params.Unattended);
 				};
 				portal.ConnectionStatus += Portal_ConnectionStatus;
 				try
 				{
 					portal.ConnectAsync().Wait();
 					string PackageName = Params.ShortProjectName;
-					string PackagePath = Path.Combine(SC.StageDirectory.FullName, PackageName + ".appxbundle");
+					string PackagePath = Path.Combine(SC.StageDirectory.FullName, PackageName + Extension + "bundle");
 					string CertPath = Path.Combine(SC.StageDirectory.FullName, PackageName + ".cer");
+
+					{
+						var list = portal.GetInstalledAppPackagesAsync().Result;
+						//LogInformation(String.Format("Current Name = {0}, Publisher = {1}", Name, Publisher)); //code for installation debugging 
+						//foreach(var p in list.Packages)
+						//{
+						//	LogInformation(String.Format("Package FamilyName = {0}, FullName = {1}, Publisher = {2}", p.FamilyName, p.FullName, p.Publisher));
+						//}
+						foreach (var pack in list.Packages.FindAll(package => package.FamilyName.StartsWith(Name) && package.Publisher == Publisher))
+						{
+							portal.UninstallApplicationAsync(pack.FullName).Wait();
+						}
+					}
 
 					List<string> Dependencies = new List<string>();
 					bool UseDebugCrt = false;
@@ -1063,20 +1353,27 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 #endif
 		}
 
+
 		private IProcessResult RunUsingLauncherTool(string DeviceAddress, ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 		{
-#if !__MonoCS__
             if (Utils.IsRunningOnMono)
             {
                 return null;
             }
+			return RunUsingLauncherToolAsync(Params, ClientRunFlags).Result;
+		}
 
-            string Name;
+
+		// Currently does not build on UE4 build servers. Temporarily blocking out until resolved.
+#if false
+		private async Task<HoloLensLauncherCreatedProcess> RunUsingLauncherToolAsync(ProjectParams Params, ERunOptions ClientRunFlags)
+		{
+#if !__MonoCS__
+			string Name;
 			string Publisher;
-			string PrimaryAppId = "App";
-			GetPackageInfo(ClientApp, out Name, out Publisher);
+			GetPackageInfo(Params, out Name, out Publisher);
 
-			Windows.Management.Deployment.PackageManager PackMgr = new Windows.Management.Deployment.PackageManager();
+			PackageManager PackMgr = new PackageManager();
 			Windows.ApplicationModel.Package InstalledPackage = PackMgr.FindPackagesForUser("", Name, Publisher).FirstOrDefault();
 
 			if (InstalledPackage == null)
@@ -1084,18 +1381,19 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 				throw new AutomationException(ExitCode.Error_LauncherFailed, "Could not find installed app (Name: {0}, Publisher: {1}", Name, Publisher);
 			}
 
-			string Aumid = string.Format("{0}!{1}", InstalledPackage.Id.FamilyName, PrimaryAppId);
-			DirectoryReference SDKFolder;
-			Version SDKVersion;
+			IReadOnlyList<AppListEntry> entries = await InstalledPackage.GetAppListEntriesAsync();
 
-			if (!WindowsExports.TryGetWindowsSdkDir("Latest", out SDKVersion, out SDKFolder))
+			if (entries.Count == 0)
+			{
+				throw new AutomationException(ExitCode.Error_LauncherFailed, "Could not find appentry in installed app (Name: {0}, Publisher: {1}", Name, Publisher);
+			}
+
+			AppListEntry entry = entries.First();
+			if (!await entry.LaunchAsync())
 			{
 				return null;
 			}
 
-			string LauncherPath = DirectoryReference.Combine(SDKFolder, "App Certification Kit", "microsoft.windows.softwarelogo.appxlauncher.exe").FullName;
-			IProcessResult LauncherProc = Run(LauncherPath, Aumid);
-			LauncherProc.WaitForExit();
 			string LogFile;
 			if (Params.CookOnTheFly)
 			{
@@ -1105,22 +1403,47 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 			{
 				LogFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages", InstalledPackage.Id.FamilyName, "LocalState", Params.ShortProjectName, "Saved", "Logs", Params.ShortProjectName + ".log");
 			}
-			System.Diagnostics.Process Proc = System.Diagnostics.Process.GetProcessById(LauncherProc.ExitCode);
+
+			Process[] Procs = Process.GetProcessesByName(Params.ShortProjectName + Params.SpecifiedArchitecture + ".exe");
+			Process Proc = null;
+			foreach (var P in Procs)
+			{
+				DirectoryReference WorkDir = new DirectoryReference(P.StartInfo.WorkingDirectory);
+				if (WorkDir.IsUnderDirectory(Params.RawProjectPath.Directory))
+				{
+					Proc = P;
+					break;
+				}
+			}
+
+			if (Proc == null)
+			{
+				return null;
+			}
+
 			bool AllowSpew = ClientRunFlags.HasFlag(ERunOptions.AllowSpew);
 			LogEventType SpewVerbosity = ClientRunFlags.HasFlag(ERunOptions.SpewIsVerbose) ? LogEventType.Verbose : LogEventType.Console;
-			HoloLensLauncherCreatedProcess HoloLensProcessResult = new HoloLensLauncherCreatedProcess(Proc, LogFile, AllowSpew, SpewVerbosity);
-			ProcessManager.AddProcess(HoloLensProcessResult);
+			HoloLensLauncherCreatedProcess UwpProcessResult = new HoloLensLauncherCreatedProcess(Proc, LogFile, AllowSpew, SpewVerbosity);
+			ProcessManager.AddProcess(UwpProcessResult);
+
+			ProcessManager.AddProcess(UwpProcessResult);
 			if (!ClientRunFlags.HasFlag(ERunOptions.NoWaitForExit))
 			{
-				HoloLensProcessResult.WaitForExit();
-				HoloLensProcessResult.OnProcessExited();
-				HoloLensProcessResult.DisposeProcess();
+				UwpProcessResult.WaitForExit();
+				UwpProcessResult.OnProcessExited();
+				UwpProcessResult.DisposeProcess();
 			}
-			return HoloLensProcessResult;
+			return UwpProcessResult;
 #else
 			return null;
 #endif
 		}
+#else
+		private Task<HoloLensLauncherCreatedProcess> RunUsingLauncherToolAsync(ProjectParams Params, ERunOptions ClientRunFlags)
+		{
+			return null;
+		}
+#endif
 
 		private IProcessResult RunUsingDevicePortal(string DeviceAddress, ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 		{
@@ -1132,10 +1455,10 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 
             string Name;
 			string Publisher;
-			GetPackageInfo(ClientApp, out Name, out Publisher);
+			GetPackageInfo(Params, out Name, out Publisher);
 
-			Microsoft.Tools.WindowsDevicePortal.DefaultDevicePortalConnection conn = new Microsoft.Tools.WindowsDevicePortal.DefaultDevicePortalConnection(DeviceAddress, Params.DeviceUsername, Params.DevicePassword);
-			Microsoft.Tools.WindowsDevicePortal.DevicePortal portal = new Microsoft.Tools.WindowsDevicePortal.DevicePortal(conn);
+			DefaultDevicePortalConnection conn = new DefaultDevicePortalConnection(DeviceAddress, Params.DeviceUsername, Params.DevicePassword);
+			DevicePortal portal = new DevicePortal(conn);
 			portal.UnvalidatedCert += (sender, certificate, chain, sslPolicyErrors) =>
 			{
 				return ShouldAcceptCertificate(new System.Security.Cryptography.X509Certificates.X509Certificate2(certificate), Params.Unattended);
@@ -1160,6 +1483,10 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 				}
 
 				var LaunchTask = portal.LaunchApplicationAsync(Aumid, FullName);
+
+				// Message back to the UE4 Editor to correctly set the app id for each device
+				Console.WriteLine("Running Package@Device:{0}@{1}", FullName, DeviceAddress);
+
 				LaunchTask.Wait();
 				IProcessResult Result = new HoloLensDevicePortalCreatedProcess(portal, FullName, Params.ShortProjectName, LaunchTask.Result);
 
@@ -1192,29 +1519,32 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 #endif
 		}
 
-		private string GetAppxManifestPath(DeploymentContext SC)
+		private void GetPackageInfo(ProjectParams Params, out string Name, out string Publisher)
 		{
-			return Path.Combine(SC.StageDirectory.FullName, "AppxManifest_assets.xml");
-		}
+			ConfigHierarchy PlatformEngineConfig = null;
+			Params.GameConfigs.TryGetValue(PlatformType, out PlatformEngineConfig);
 
-		private void GetPackageInfo(string AppxManifestPath, out string Name, out string Publisher)
-		{
-            System.Xml.Linq.XDocument Doc = System.Xml.Linq.XDocument.Load(AppxManifestPath);
-			System.Xml.Linq.XElement Package = Doc.Root;
-			System.Xml.Linq.XElement Identity = Package.Element(System.Xml.Linq.XName.Get("Identity", Package.Name.NamespaceName));
-			Name = Identity.Attribute("Name").Value;
-			Publisher = Identity.Attribute("Publisher").Value;
+			if (PlatformEngineConfig == null || !PlatformEngineConfig.GetString("/Script/EngineSettings.GeneralProjectSettings", "ProjectName", out Name))
+			{
+				Name = "DefaultUE4Project";
+			}
+
+			Name = Regex.Replace(Name, "[^-.A-Za-z0-9]", "");
+
+			if (PlatformEngineConfig == null || !PlatformEngineConfig.GetString("/Script/EngineSettings.GeneralProjectSettings", "CompanyDistinguishedName", out Publisher))
+			{
+				Publisher = "CN=NoPublisher";
+			}
 		}
 
 		public override void GetFilesToArchive(ProjectParams Params, DeploymentContext SC)
 		{
 			string OutputNameBase = Params.HasDLCName ? Params.DLCFile.GetFileNameWithoutExtension() : Params.ShortProjectName;
 			string PackagePath = SC.StageDirectory.FullName;
-
-			SC.ArchiveFiles(PackagePath, "*.appxbundle");
+			SC.ArchiveFiles(PackagePath, OutputNameBase + Extension + "bundle");
 			SC.ArchiveFiles(PackagePath, OutputNameBase + ".cer");
-			SC.ArchiveFiles(PackagePath, "*.appxupload");
-			
+			SC.ArchiveFiles(PackagePath, OutputNameBase + Extension + "upload");
+
 			SC.ArchiveFiles(PackagePath, "*VCLibs*.appx");
 		}
 

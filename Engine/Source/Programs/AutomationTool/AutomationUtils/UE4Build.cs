@@ -9,6 +9,7 @@ using System.Web.Script.Serialization;
 using UnrealBuildTool;
 using Tools.DotNETCommon;
 using System.Linq;
+using System.Reflection;
 
 namespace AutomationTool
 {
@@ -35,6 +36,11 @@ namespace AutomationTool
 	public class UE4Build
 	{
 		private BuildCommand OwnerCommand;
+
+		/// <summary>
+		/// If true we will let UBT build UHT
+		/// </summary>
+		public bool AlwaysBuildUHT { get; set; }
 
 		public bool HasBuildProduct(string InFile)
 		{
@@ -125,7 +131,9 @@ namespace AutomationTool
 
 			ClearExportedXGEXML();
 
-			CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable: UBTExecutable, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: String.Format("-Manifest={0} -nobuilduht -NoHotReload -xgeexport {1}", CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName), AddArgs));
+			string UHTArg = this.AlwaysBuildUHT ? "" : "-nobuilduht";
+
+			CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable: UBTExecutable, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: String.Format("-Manifest={0} {1} -NoHotReload -xgeexport {2}", CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFile.FullName), UHTArg, AddArgs));
 
 			XGEItem Result = new XGEItem();
 			Result.Platform = Platform;
@@ -1307,14 +1315,7 @@ namespace AutomationTool
 		public void AddUATFilesToBuildProducts()
 		{
 			// Find all DLLs (scripts and their dependencies)
-			const string ScriptsPostfix = ".dll";
             var DotNetOutputLocation = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Engine", "Binaries", "DotNET");
-			var UATScriptsLocation = CommandUtils.CombinePaths(DotNetOutputLocation, "AutomationScripts");
-			var UATScripts = Directory.GetFiles(UATScriptsLocation, "*" + ScriptsPostfix, SearchOption.AllDirectories);
-			if (CommandUtils.IsNullOrEmpty(UATScripts))
-			{
-				throw new UE4BuildException("No automation scripts found in {0}. Cannot add UAT files to the build products.", UATScriptsLocation);
-			}
 
 			var UATFiles = new List<string>(new string[] 
 					{
@@ -1338,13 +1339,13 @@ namespace AutomationTool
 			}
 
 			// All scripts are expected to exist in DotNET/AutomationScripts subfolder.
-			foreach (var UATScriptFilePath in UATScripts)
+			foreach (FileReference BuildProduct in ScriptCompiler.BuildProducts)
 			{
+				string UATScriptFilePath = BuildProduct.FullName;
 				if (!CommandUtils.FileExists_NoExceptions(UATScriptFilePath))
 				{
 					throw new UE4BuildException("Cannot add UAT to the build products because {0} does not exist.", UATScriptFilePath);
 				}
-
 				AddBuildProduct(UATScriptFilePath);
 			}
 		}

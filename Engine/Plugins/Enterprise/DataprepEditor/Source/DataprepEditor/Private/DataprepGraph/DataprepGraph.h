@@ -32,22 +32,10 @@ public:
 	/** Associate Dataprep asset with graph and add root node */
 	void Initialize(UDataprepAsset* InDataprepAsset);
 
-	void SetEditor(TSharedPtr<SGraphEditor>& InGraphEditor)
-	{
-		GraphEditor = InGraphEditor;
-	}
-
 	const UDataprepAsset* GetDataprepAsset() const { return DataprepAssetPtr.Get(); }
 	UDataprepAsset* GetDataprepAsset() { return DataprepAssetPtr.Get(); }
 
-
 private:
-	/** Dataprep graph editor associated with this graph */
-	TSharedPtr<SGraphEditor> GraphEditor;
-
-	/** Root node to enable the graph editing */
-	TStrongObjectPtr<UDataprepGraphRecipeNode> RecipeNode;
-
 	/** Dataprep asset associated with this graph */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 };
@@ -63,7 +51,7 @@ class UDataprepGraphRecipeNode : public UEdGraphNode
 
 public:
 	/** Get/Set associated widget */
-	TSharedPtr<SGraphNode> GetWidget() { return Widget; }
+	TSharedPtr<SGraphNode> GetWidget() { return Widget.Pin(); }
 	void SetWidget(TSharedPtr<SGraphNode> InWidget) { Widget = InWidget; }
 
 	// UEdGraphNode implementation
@@ -75,5 +63,5 @@ private:
 	/**
 	 * Associated widget displayed in the Dataprep graph editor
 	 */
-	TSharedPtr<SGraphNode> Widget;
+	TWeakPtr<SGraphNode> Widget;
 };

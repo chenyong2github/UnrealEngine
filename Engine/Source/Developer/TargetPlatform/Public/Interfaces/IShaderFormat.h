@@ -7,6 +7,8 @@
 /** Wildcard string used to search for shader format modules. */
 #define SHADERFORMAT_MODULE_WILDCARD TEXT("*ShaderFormat*")
 
+class FSerializedShaderArchive;
+
 /**
  * IShaderFormat, shader pre-compilation abstraction
  */
@@ -70,9 +72,20 @@ public:
      * @param LibraryName The name of this shader library.
      * @param Format The format of shaders to cache.
      * @param WorkingDirectory The working directory.
-     * @returns An archive object on success or nullptr on failure.
+	 * @param The output directory for the archive.
+	 * @param The directory for the debug data previously generated.
+	 * @param Optional pointer to a TArray that on success will be filled with a list of the written file paths.
+     * @returns true if the archive was created
      */
-    virtual class IShaderFormatArchive* CreateShaderArchive( FString const& LibraryName, FName Format, const FString& WorkingDirectory ) const { return nullptr; }
+    virtual bool CreateShaderArchive( FString const& LibraryName,
+		FName Format,
+		const FString& WorkingDirectory,
+		const FString& OutputDir,
+		const FString& DebugOutputDir,
+		const FSerializedShaderArchive& SerializedShaders,
+		const TArray<TArray<uint8>>& ShaderCode,
+		TArray<FString>* OutputFiles) const
+	{ return false; }
 	
 	/**
 	 * Can the shader format compile shaders to the native binary format for the platform.
@@ -98,7 +111,7 @@ public:
 	 * Called when a shader resource is cooked, so the shader format can perform platform-specific operations on the debug data.
 	 * Does nothing on platforms that make no use of the platform debug data.
 	 */
-	virtual void NotifyShaderCooked(const TArray<uint8>& PlatformDebugData, FName Format) const { }
+	virtual void NotifyShaderCooked(const TConstArrayView<uint8>& PlatformDebugData, FName Format) const { }
 
 	/**
 	 * Appends shader key text to the provided key string for use in DDC unique key construction.

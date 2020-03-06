@@ -391,7 +391,7 @@ bool FFindRecoverableDisasterRecoverySessionTask::Tick()
 				SearchingSessionIdTask = MakeUnique<FLookupDisasterRecoverySessionIdTask>(
 					[this](){ return Client->GetServerSessions(GetServerAdminEndpointIdFn()); },
 					Candidates.Last()->SessionName,
-					[this, Token](const FGuid& ArchivedSessionId) { if (Token.IsValid()) { SessionId = ArchivedSessionId; } }, // Search result. The ID might be valid (found) or invalid (not found).
+					[this, Token](const FGuid& ResultSessionId) { if (Token.IsValid()) { SessionId = ResultSessionId; } }, // Search result. The ID might be valid (found) or invalid (not found).
 					[this, Token](const FText&) { if (Token.IsValid()) { SessionId.Invalidate(); } }); // Error == not found, report an invalid GUID.
 				
 				SearchingSessionIdTask->Start(); // Transit to the 'searching session' state.

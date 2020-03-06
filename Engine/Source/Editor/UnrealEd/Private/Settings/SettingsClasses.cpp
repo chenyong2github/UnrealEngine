@@ -430,7 +430,7 @@ ULevelEditorMiscSettings::ULevelEditorMiscSettings( const FObjectInitializer& Ob
 	PercentageThresholdForPrompt = 20.0f;
 	MinimumBoundsForCheckingSize = FVector(500.0f, 500.0f, 50.0f);
 	bCreateNewAudioDeviceForPlayInEditor = true;
-	bEnableLegacyMeshPaintMode = true;
+	bEnableLegacyMeshPaintMode = false;
 }
 
 void ULevelEditorMiscSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
@@ -513,7 +513,7 @@ void ULevelEditorPlaySettings::PostInitProperties()
 	NetworkEmulationSettings.OnPostInitProperties();
 
 #if WITH_EDITOR
-	FCoreDelegates::OnSafeFrameChangedEvent.AddUObject(this, &ULevelEditorPlaySettings::SwapSafeZoneTypes);
+	FCoreDelegates::OnSafeFrameChangedEvent.AddUObject(this, &ULevelEditorPlaySettings::UpdateCustomSafeZones);
 #endif
 }
 
@@ -531,12 +531,25 @@ bool ULevelEditorPlaySettings::CanEditChange(const FProperty* InProperty) const
 }
 
 #if WITH_EDITOR
-void ULevelEditorPlaySettings::SwapSafeZoneTypes()
+void ULevelEditorPlaySettings::UpdateCustomSafeZones()
 {
+	// Prefer to use r.DebugSafeZone.TitleRatio if it is set
 	if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.f)
 	{
-		DeviceToEmulate = FString();
+		FSlateApplication::Get().ResetCustomSafeZone();
+		PIESafeZoneOverride = FMargin();
 	}
+	else
+	{
+		PIESafeZoneOverride = CalculateCustomUnsafeZones(CustomUnsafeZoneStarts, CustomUnsafeZoneDimensions, DeviceToEmulate, FVector2D(NewWindowWidth, NewWindowHeight));
+	}
+
+	FMargin SafeZoneRatio = PIESafeZoneOverride;
+	SafeZoneRatio.Left /= (NewWindowWidth / 2.0f);
+	SafeZoneRatio.Right /= (NewWindowWidth / 2.0f);
+	SafeZoneRatio.Bottom /= (NewWindowHeight / 2.0f);
+	SafeZoneRatio.Top /= (NewWindowHeight / 2.0f);
+	FSlateApplication::Get().OnDebugSafeZoneChanged.Broadcast(SafeZoneRatio, true);
 }
 #endif
 

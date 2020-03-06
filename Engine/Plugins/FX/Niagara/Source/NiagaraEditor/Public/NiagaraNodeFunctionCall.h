@@ -85,7 +85,6 @@ public:
 	//End UObject interface
 
 	//~ Begin UNiagaraNode Interface
-	virtual void PostPlacedNewNode() override;
 	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
 	virtual UObject* GetReferencedAsset() const override;
 	virtual bool RefreshFromExternalChanges() override;

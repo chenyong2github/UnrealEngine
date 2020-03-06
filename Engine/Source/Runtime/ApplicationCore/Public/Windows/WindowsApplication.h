@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+
 #include "Math/Color.h"
 #include "HAL/IConsoleManager.h"
 #include "GenericPlatform/GenericApplication.h"
@@ -377,6 +378,7 @@ public:
 
 	virtual void AddExternalInputDevice(TSharedPtr<class IInputDevice> InputDevice);
 
+	virtual void FinishedInputThisFrame() override;
 public:
 
 	// IInputInterface overrides
@@ -401,10 +403,10 @@ protected:
 	/** Processes deferred drag and drop operations. */
 	void ProcessDeferredDragDropOperation(const FDeferredWindowsDragDropOperation& Op);
 
-private:
-
 	/** Hidden constructor. */
 	FWindowsApplication( const HINSTANCE HInstance, const HICON IconHandle );
+
+private:
 
 	/** Registers the Windows class for windows and assigns the application instance and icon */
 	static bool RegisterClass( const HINSTANCE HInstance, const HICON HIcon );
@@ -524,7 +526,13 @@ private:
 	/** Maps touch indexes to windows touch IDs. */
 	TArray<TOptional<int32>> TouchIDs;
 #endif
+
+	bool bSimulatingHighPrecisionMouseInputForRDP = false;
+
+	FIntPoint CachedPreHighPrecisionMousePosForRDP = FIntPoint::ZeroValue;
+	FIntPoint LastCursorPoint = FIntPoint::ZeroValue;
 };
 
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

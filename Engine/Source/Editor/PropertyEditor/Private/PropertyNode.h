@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "UObject/UnrealType.h"
 #include "PropertyPath.h"
+#include "PropertyEditorModule.h"
 
 class FComplexPropertyNode;
 class FNotifyHook;
@@ -346,6 +347,24 @@ public:
 	EPropertyDataValidationResult EnsureDataIsValid();
 
 	//////////////////////////////////////////////////////////////////////////
+	// Text
+
+	/**
+	 * @param OutText						The property formatted in a string
+	 * @param bAllowAlternateDisplayValue	Allow the function to potentially use an alternate form more suitable for display in the UI
+	 * @param PortFlags						Determines how the property's value is accessed. Defaults to PPF_PropertyWindow
+	 * @return true if the value was retrieved successfully
+	 */
+	FPropertyAccess::Result GetPropertyValueString(FString& OutString, const bool bAllowAlternateDisplayValue, EPropertyPortFlags PortFlags = PPF_PropertyWindow) const;
+
+	/**
+	 * @param OutText			The property formatted in text
+	 * @param bAllowAlternateDisplayValue Allow the function to potentially use an alternate form more suitable for display in the UI
+	 * @return true if the value was retrieved successfully
+	 */
+	FPropertyAccess::Result GetPropertyValueText(FText& OutText, const bool bAllowAlternateDisplayValue) const;
+
+	//////////////////////////////////////////////////////////////////////////
 	//Flags
 	uint32 HasNodeFlags(const EPropertyNodeFlags::Type InTestFlags) const { return PropertyNodeFlags & InTestFlags; }
 	/**
@@ -438,19 +457,26 @@ public:
 		FReadAddressList& OutAddresses,
 		bool bComparePropertyContents = true,
 		bool bObjectForceCompare = false,
-		bool bArrayPropertiesCanDifferInSize = false);
+		bool bArrayPropertiesCanDifferInSize = false) const;
 
 	/**
 	 * fills in the OutAddresses array with the addresses of all of the available objects.
 	 * @param OutAddresses	Storage array for all of the objects' addresses.
 	 */
-	bool GetReadAddress(FReadAddressList& OutAddresses);
+	bool GetReadAddress(FReadAddressList& OutAddresses) const;
+
+	/**
+	 * Fills in the OutValueAddress with the address of the value of all the available objects.
+	 * If multiple items are selected, this will return a null address unless they are all the same value.
+	 * @param OutValueAddress	The address of the item
+	 */
+	FPropertyAccess::Result GetSingleReadAddress(uint8*& OutValueAddress) const;
 
 	/**
 	 * Gets read addresses without accessing cached data.  Is less efficient but gets the must up to date data
 	 */
-	virtual bool GetReadAddressUncached(FPropertyNode& InNode, bool InRequiresSingleSelection, FReadAddressListData* OutAddresses, bool bComparePropertyContents = true, bool bObjectForceCompare = false, bool bArrayPropertiesCanDifferInSize = false) const;
-	virtual bool GetReadAddressUncached(FPropertyNode& InNode, FReadAddressListData& OutAddresses) const;
+	virtual bool GetReadAddressUncached(const FPropertyNode& InNode, bool InRequiresSingleSelection, FReadAddressListData* OutAddresses, bool bComparePropertyContents = true, bool bObjectForceCompare = false, bool bArrayPropertiesCanDifferInSize = false) const;
+	virtual bool GetReadAddressUncached(const FPropertyNode& InNode, FReadAddressListData& OutAddresses) const;
 
 	/**
 	 * Calculates the memory address for the data associated with this item's property.  This is typically the value of a FProperty or a UObject address.
@@ -460,7 +486,7 @@ public:
 	 *
 	 * @return	a pointer to a FProperty value or UObject.  (For dynamic arrays, you'd cast this value to an FArray*)
 	 */
-	virtual uint8* GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData);
+	virtual uint8* GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) const;
 
 	/**
 	 * Calculates the memory address for the data associated with this item's value.  For most properties, identical to GetValueBaseAddress.  For items corresponding
@@ -471,7 +497,7 @@ public:
 	 *
 	 * @return	a pointer to a FProperty value or UObject.  (For dynamic arrays, you'd cast this value to whatever type is the Inner for the dynamic array)
 	 */
-	virtual uint8* GetValueAddress(uint8* StartAddress, bool bIsSparseData);
+	virtual uint8* GetValueAddress(uint8* StartAddress, bool bIsSparseData) const;
 
 	/**
 	 * Calculates the memory address for the data associated with this item's property.  This is typically the value of a FProperty or a UObject address.
@@ -480,7 +506,7 @@ public:
 	 *
 	 * @return	a pointer to a FProperty value or UObject.  (For dynamic arrays, you'd cast this value to an FArray*)
 	 */
-	uint8* GetValueBaseAddressFromObject(const UObject* Obj);
+	uint8* GetValueBaseAddressFromObject(const UObject* Obj) const;
 
 	/**
 	 * Calculates the memory address for the data associated with this item's value.  For most properties, identical to GetValueBaseAddress.  For items corresponding
@@ -490,7 +516,7 @@ public:
 	 *
 	 * @return	a pointer to a FProperty value or UObject.  (For dynamic arrays, you'd cast this value to whatever type is the Inner for the dynamic array)
 	 */
-	uint8* GetValueAddressFromObject(const UObject* Obj);
+	uint8* GetValueAddressFromObject(const UObject* Obj) const;
 
 	/**
 	 * Sets the display name override to use instead of the display name
@@ -551,6 +577,8 @@ public:
 	bool IsChildOfFavorite(void) const;
 
 	void NotifyPreChange(FProperty* PropertyAboutToChange, class FNotifyHook* InNotifyHook);
+	void NotifyPreChange(FProperty* PropertyAboutToChange, class FNotifyHook* InNotifyHook, const TSet<UObject*>& AffectedInstances);
+	void NotifyPreChange(FProperty* PropertyAboutToChange, class FNotifyHook* InNotifyHook, TSet<UObject*>&& AffectedInstances);
 
 	void NotifyPostChange(FPropertyChangedEvent& InPropertyChangedEvent, class FNotifyHook* InNotifyHook);
 
@@ -574,7 +602,29 @@ public:
 	 * @param	Index						Index of the modified item
 	 */
 	void PropagateContainerPropertyChange(UObject* ModifiedObject, const void* OriginalContainerAddr,
-		EPropertyArrayChangeType::Type ChangeType, int32 Index, TMap<UObject*, bool>* PropagationResult = nullptr, int32 SwapIndex = INDEX_NONE);
+		EPropertyArrayChangeType::Type ChangeType, int32 Index, int32 SwapIndex = INDEX_NONE);
+
+	/**
+	 * Gather the list of all instances that will be affected by a container property change
+	 *
+	 * @param	ModifiedObject				Object which property has been modified
+	 * @param	OriginalContainerAddr		Original address holding the container value before the modification
+	 * @param	ChangeType					In which way is the container modified
+	 * @param	OutAffectedInstances		Instances affected by the property change
+	 */
+	void GatherInstancesAffectedByContainerPropertyChange(UObject* ModifiedObject, const void* OriginalContainerAddr, EPropertyArrayChangeType::Type ChangeType, TArray<UObject*>& OutAffectedInstances);
+
+	/**
+	 * Propagates the property change of a container property to the provided archetype instances
+	 *
+	 * @param	ModifiedObject				Object which property has been modified
+	 * @param	OriginalContainerAddr		Original address holding the container value before the modification
+	 * @param	AffectedInstances			Instances affected by the property change
+	 * @param	ChangeType					In which way was the container modified
+	 * @param	Index						Index of the modified item
+	 */
+	void PropagateContainerPropertyChange(UObject* ModifiedObject, const void* OriginalContainerAddr, const TArray<UObject*>& AffectedInstances,
+		EPropertyArrayChangeType::Type ChangeType, int32 Index, int32 SwapIndex = INDEX_NONE);
 
 	/** Broadcasts when a property value changes */
 	DECLARE_EVENT(FPropertyNode, FPropertyValueChangedEvent);
@@ -866,6 +916,10 @@ protected:
 	uint8* GetStartAddress(const UObject* Obj) const;
 
 	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange );
+	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange, const TSet<UObject*>& InAffectedArchetypeInstances );
+	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange, TSet<UObject*>&& InAffectedArchetypeInstances );
+
+	void NotifyPreChangeInternal(TSharedRef<FEditPropertyChain> PropertyChain, FProperty* PropertyAboutToChange, FNotifyHook* InNotifyHook);
 
 	/**
 	 * Destroys all node within the hierarchy
@@ -873,7 +927,7 @@ protected:
 	void DestroyTree(const bool bInDestroySelf=true);
 
 	/**
-	 * Interface function for Custom Setup of Node (priot to node flags being set)
+	 * Interface function for Custom Setup of Node (prior to node flags being set)
 	 */
 	virtual void InitBeforeNodeFlags () {};
 
@@ -959,7 +1013,7 @@ protected:
 	TSharedPtr<FPropertyNode> PropertyKeyNode;
 
 	/** Cached read addresses for this property node */
-	FReadAddressListData CachedReadAddresses;
+	mutable FReadAddressListData CachedReadAddresses;
 
 	/** List of per object default value trackers associated with this property node */
 	TArray< TSharedPtr<FPropertyItemValueDataTrackerSlate> > ObjectDefaultValueTrackers;

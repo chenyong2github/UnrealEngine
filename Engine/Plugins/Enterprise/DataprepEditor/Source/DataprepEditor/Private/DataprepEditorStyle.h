@@ -35,6 +35,11 @@ public:
 		return StyleSet->GetMargin( PropertyName, Specifier );
 	}
 
+	static const FSlateBrush* GetBrush( FName PropertyName, const ANSICHAR* Specifier = nullptr )
+	{
+		return StyleSet->GetBrush( PropertyName, Specifier );
+	}
+
 	template< typename WidgetStyleType >            
 	static const WidgetStyleType& GetWidgetStyle( FName PropertyName, const ANSICHAR* Specifier = nullptr )
 	{

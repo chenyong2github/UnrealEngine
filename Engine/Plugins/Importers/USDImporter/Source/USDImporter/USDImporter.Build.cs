@@ -42,6 +42,9 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
+			// Always use the official version of IntelTBB
+			string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8/lib/";
+
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
@@ -50,6 +53,8 @@ namespace UnrealBuildTool.Rules
 				{
 					RuntimeDependencies.Add(FilePath);
 				}
+
+				RuntimeDependencies.Add(IntelTBBLibs + "Win64/vc14/tbb.dll");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
 			{
@@ -58,6 +63,11 @@ namespace UnrealBuildTool.Rules
 				// link directly to runtime libs on Linux, as this also puts them into rpath
 				string RuntimeLibraryPath = Path.Combine(ModuleDirectory, "../../Binaries", Target.Platform.ToString(), Target.Architecture.ToString());
 				PrivateRuntimeLibraryPaths.Add(RuntimeLibraryPath);
+
+				RuntimeDependencies.Add(IntelTBBLibs + "Linux/libtbb.so");
+				RuntimeDependencies.Add(IntelTBBLibs + "Linux/libtbb.so.2");
+				RuntimeDependencies.Add(IntelTBBLibs + "Linux/libtbbmalloc.so");
+				RuntimeDependencies.Add(IntelTBBLibs + "Linux/libtbbmalloc.so.2");
 
 				foreach (string FilePath in Directory.EnumerateFiles(RuntimeLibraryPath, "*.so*", SearchOption.AllDirectories))
 				{

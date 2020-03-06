@@ -9,6 +9,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraEmitterDetailsCustomization.h"
+#include "NiagaraSystem.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackEmitterItemGroup"
 
@@ -94,11 +95,42 @@ void UNiagaraStackEmitterPropertiesItem::RefreshChildrenInternal(const TArray<UN
 	NewChildren.Add(EmitterObject);
 	bCanResetToBaseCache.Reset();
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+	RefreshIssues(NewIssues);
+}
+
+
+void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
+{
+	UNiagaraEmitter* ActualEmitter = GetEmitterViewModel()->GetEmitter();
+	if (ActualEmitter && ActualEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitter->bFixedBounds == false)
+	{
+		bool bAddError = true;
+		
+		UNiagaraSystem& Sys = GetSystemViewModel()->GetSystem();
+		if (Sys.bFixedBounds)
+		{
+			bAddError = false;
+		}			
+		
+
+		if (bAddError)
+		{
+			FStackIssue MissingRequiredFixedBoundsModuleError(
+				EStackIssueSeverity::Warning,
+				LOCTEXT("RequiredFixedBoundsWarningFormat", "The emitter is GPU but the fixed bounds checkbox is not set.\r\nPlease update the Emitter or System properties, otherwise existing value for fixed bounds will be used."),
+				LOCTEXT("MissingFixedBounds", "Missing fixed bounds."),
+				GetStackEditorDataKey(),
+				false);
+
+			NewIssues.Add(MissingRequiredFixedBoundsModuleError);
+		}
+	}
 }
 
 void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 {
 	bCanResetToBaseCache.Reset();
+	RefreshChildren();
 }
 
 UNiagaraStackEmitterSettingsGroup::UNiagaraStackEmitterSettingsGroup()

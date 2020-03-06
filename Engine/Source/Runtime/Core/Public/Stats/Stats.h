@@ -269,6 +269,7 @@ public:
 #endif
 
 #define SCOPE_SECONDS_ACCUMULATOR(Stat)
+#define SCOPE_MS_ACCUMULATOR(Stat)
 #define DEFINE_STAT(Stat)
 #define QUICK_USE_CYCLE_STAT(StatId,GroupId) TStatId()
 #define DECLARE_CYCLE_STAT(CounterName,StatId,GroupId)
@@ -355,20 +356,20 @@ struct FDynamicStats
 	}
 
 	template< typename TStatGroup >
-	static TStatId CreateStatIdInt64(const FString& StatNameOrDescription)
+	static TStatId CreateStatIdInt64(const FString& StatNameOrDescription, bool bIsAccumulator = false)
 	{
 #if	STATS
-		return CreateStatIdInternal<TStatGroup>(FName(*StatNameOrDescription), EStatDataType::ST_int64, false);
+		return CreateStatIdInternal<TStatGroup>(FName(*StatNameOrDescription), EStatDataType::ST_int64, false, !bIsAccumulator);
 #endif // STATS
 
 		return TStatId();
 	}
 
 	template< typename TStatGroup >
-	static TStatId CreateStatIdDouble(const FString& StatNameOrDescription)
+	static TStatId CreateStatIdDouble(const FString& StatNameOrDescription, bool bIsAccumulator=false)
 	{
 #if	STATS
-		return CreateStatIdInternal<TStatGroup>(FName(*StatNameOrDescription), EStatDataType::ST_double, false);
+		return CreateStatIdInternal<TStatGroup>(FName(*StatNameOrDescription), EStatDataType::ST_double, false, !bIsAccumulator);
 #endif // STATS
 		return TStatId();
 	}
@@ -417,20 +418,20 @@ struct FDynamicStats
 #if	STATS
 private: // private since this can only be declared if STATS is defined, due to EStatDataType in signature
 	template< typename TStatGroup >
-	static TStatId CreateStatIdInternal(const FName StatNameOrDescription, EStatDataType::Type Type, bool IsTimer)
+	static TStatId CreateStatIdInternal(const FName StatNameOrDescription, EStatDataType::Type Type, bool IsTimer, bool bClearEveryFrame=true)
 	{
 
 		FStartupMessages::Get().AddMetadata(StatNameOrDescription, nullptr,
 			TStatGroup::GetGroupName(),
 			TStatGroup::GetGroupCategory(),
 			TStatGroup::GetDescription(),
-			true, Type, IsTimer, false);
+			bClearEveryFrame, Type, IsTimer, false);
 
 		TStatId StatID = IStatGroupEnableManager::Get().GetHighPerformanceEnableForStat(StatNameOrDescription,
 			TStatGroup::GetGroupName(),
 			TStatGroup::GetGroupCategory(),
 			TStatGroup::DefaultEnable,
-			true, Type, nullptr, IsTimer, false);
+			bClearEveryFrame, Type, nullptr, IsTimer, false);
 
 		return StatID;
 	}

@@ -319,8 +319,8 @@ const TCHAR* const kInjestResourceNames[] = {
 	// ShadowVisibilityMask
 	TEXT("ShadowDenoiserInjest0"),
 	TEXT("ShadowDenoiserInjest1"),
-	nullptr,
-	nullptr,
+	TEXT("ShadowDenoiserInjest2"),
+	TEXT("ShadowDenoiserInjest3"),
 
 	// PolychromaticPenumbraHarmonic
 	nullptr,
@@ -1345,15 +1345,16 @@ static void DenoiseSignalAtConstantPixelDensity(
 			check(Settings.SignalBatchSize >= 1 && Settings.SignalBatchSize <= IScreenSpaceDenoiser::kMaxBatchSize);
 			for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 			{
-				InjestDescs[BatchedSignalId / 2].Format = (BatchedSignalId % 2) ? PF_FloatRGBA : PF_G16R16F;
-				InjestTextureCount = BatchedSignalId / 2 + 1;
+				InjestDescs[BatchedSignalId].Format = PF_FloatRGBA;
+				InjestTextureCount = BatchedSignalId;
 				ReconstructionDescs[BatchedSignalId].Format = PF_FloatRGBA;
 				HistoryDescs[BatchedSignalId].Format = PF_FloatRGBA;
 			}
+			InjestTextureCount = Settings.SignalBatchSize;
 
 			HistoryTextureCountPerSignal = 1;
 			ReconstructionTextureCount = Settings.SignalBatchSize;
-			bHasReconstructionLayoutDifferentFromHistory = true;
+			bHasReconstructionLayoutDifferentFromHistory = false;
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::PolychromaticPenumbraHarmonic)
 		{
@@ -1586,7 +1587,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SSD CompressMetadata %dx%d", Viewport.Width(), Viewport.Height()),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FComputeShaderUtils::kGolden2DGroupSize));
 	}
@@ -1619,7 +1620,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			GraphBuilder,
 			RDG_EVENT_NAME("SSD Injest(MultiSPP=%i)",
 				int32(PermutationVector.Get<FMultiSPPDim>())),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FComputeShaderUtils::kGolden2DGroupSize));
 
@@ -1653,7 +1654,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			RDG_EVENT_NAME("SSD Reduce(Mips=%i MultiSPP=%i)",
 				kMaxMipLevel,
 				int32(PermutationVector.Get<FMultiSPPDim>())),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FComputeShaderUtils::kGolden2DGroupSize));
 
@@ -1706,7 +1707,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 				Viewport.Width(), Viewport.Height(),
 				PermutationVector.Get<FSSDSpatialAccumulationCS::FUpscaleDim>() ? TEXT(" Upscale") : TEXT(""),
 				PermutationVector.Get<FMultiSPPDim>() ? TEXT("") : TEXT(" 1SPP")),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FSSDSpatialAccumulationCS::kGroupSize));
 
@@ -1742,7 +1743,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SSD PreConvolution(MaxSamples=7 Spread=%d)", PassParameters->KernelSpreadFactor),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FSSDSpatialAccumulationCS::kGroupSize));
 
@@ -1824,7 +1825,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("SSD SpatialAccumulation(RejectionPreConvolution MaxSamples=5)"),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(Viewport.Size(), FSSDSpatialAccumulationCS::kGroupSize));
 		} // if (SignalUsesRejectionPreConvolution(Settings.SignalProcessing))
@@ -1895,7 +1896,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		// Manually cleans the unused resource, to find out what the shader is actually going to need for next frame.
 		{
-			ClearUnusedGraphResources(*ComputeShader, PassParameters);
+			ClearUnusedGraphResources(ComputeShader, PassParameters);
 
 			bExtractSceneDepth = PassParameters->PrevDepthBuffer != nullptr;
 			bExtractSceneGBufferA = PassParameters->PrevGBufferA != nullptr;
@@ -1908,7 +1909,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SSD TemporalAccumulation"),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FComputeShaderUtils::kGolden2DGroupSize));
 
@@ -1944,7 +1945,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SSD SpatialAccumulation(PostFiltering MaxSamples=%i)", MaxPostFilterSampleCount),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FSSDSpatialAccumulationCS::kGroupSize));
 
@@ -2066,7 +2067,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SSD SpatialAccumulation(Final)"),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FSSDSpatialAccumulationCS::kGroupSize));
 	}
@@ -2370,7 +2371,7 @@ public:
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("SSD ComposeHarmonics"),
-				*ComputeShader, ComposePassParameters,
+				ComputeShader, ComposePassParameters,
 				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FSSDSpatialAccumulationCS::kGroupSize));
 		}
 

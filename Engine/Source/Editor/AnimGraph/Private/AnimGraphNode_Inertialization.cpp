@@ -2,8 +2,6 @@
 
 #include "AnimGraphNode_Inertialization.h"
 
-#include "EditorCategoryUtils.h"
-
 #define LOCTEXT_NAMESPACE "AnimGraphNode_Inertialization"
 
 

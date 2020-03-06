@@ -18,30 +18,12 @@ struct FWriteBuffer
 {
 	uint32						Overflow;
 	uint32						ThreadId;
-	FWriteBuffer* __restrict	Next;
+	FWriteBuffer* __restrict	NextThread;
+	FWriteBuffer* __restrict	NextBuffer;
 	uint8* __restrict			Cursor;
 	uint8* __restrict volatile	Committed;
 	uint8* __restrict			Reaped;
 	UPTRINT volatile			EtxOffset;
-};
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-struct FWriteTlsContext
-{
-							FWriteTlsContext();
-							~FWriteTlsContext();
-	bool					HasValidBuffer() const;
-	void					SetBuffer(FWriteBuffer*);
-	uint32					GetThreadId() const;
-	FWriteBuffer*			GetBuffer() const { return Buffer; }
-
-private:
-	FWriteBuffer*			Buffer;
-	uint32					ThreadId;
-	static uint8			DefaultBuffer[sizeof(FWriteBuffer)];
-	static UPTRINT volatile	ThreadIdCounter;
 };
 
 
@@ -53,10 +35,10 @@ TRACELOG_API FWriteBuffer*			Writer_GetBuffer();
 
 ////////////////////////////////////////////////////////////////////////////////
 #if IS_MONOLITHIC
-extern thread_local FWriteTlsContext TlsContext;
+extern thread_local FWriteBuffer* GTlsWriteBuffer;
 inline FWriteBuffer* Writer_GetBuffer()
 {
-	return TlsContext.GetBuffer();
+	return GTlsWriteBuffer;
 }
 #endif // IS_MONOLITHIC
 
@@ -67,17 +49,19 @@ inline FWriteBuffer* Writer_GetBuffer()
 ////////////////////////////////////////////////////////////////////////////////
 struct FLogInstance
 {
-	uint8*					Ptr;
-	Private::FWriteBuffer*	Internal;
+	uint8*	Ptr;
+	void*	Internal;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
+template <class HeaderType>
+inline FLogInstance Writer_BeginLogPrelude(uint16 Size, bool bMaybeHasAux)
 {
 	using namespace Private;
 
+	uint32 AllocSize = sizeof(HeaderType) + Size + int(bMaybeHasAux);
+
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	int32 AllocSize = Size + sizeof(FEventHeader) + int(bMaybeHasAux);
 	Buffer->Cursor += AllocSize;
 	if (UNLIKELY(Buffer->Cursor > (uint8*)Buffer))
 	{
@@ -91,22 +75,47 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHas
 	}
 
 	uint8* Cursor = Buffer->Cursor - Size - int(bMaybeHasAux);
+	return {Cursor, Buffer};
+}
+
+////////////////////////////////////////////////////////////////////////////////
+inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
+{
+	using namespace Private;
+
+	FLogInstance Instance = Writer_BeginLogPrelude<FEventHeaderSync>(Size, bMaybeHasAux);
 
 	// Event header
-	auto* Header = (uint16*)(Cursor - sizeof(FEventHeader::SerialHigh)); // FEventHeader1
+	auto* Header = (uint16*)(Instance.Ptr - sizeof(FEventHeaderSync::SerialHigh)); // FEventHeader1
 	*(uint32*)(Header - 1) = uint32(AtomicIncrementRelaxed(&GLogSerial));
 	Header[-2] = Size;
 	Header[-3] = EventUid;
 
-	return {Cursor, Buffer};
+	return Instance;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+inline FLogInstance Writer_BeginLogNoSync(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
+{
+	using namespace Private;
+
+	FLogInstance Instance = Writer_BeginLogPrelude<FEventHeader>(Size, bMaybeHasAux);
+
+	// Event header
+	auto* Header = (uint16*)(Instance.Ptr);
+	Header[-1] = Size;
+	Header[-2] = EventUid;
+
+	return Instance;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 inline void Writer_EndLog(FLogInstance Instance)
 {
 	using namespace Private;
-	FWriteBuffer* Buffer = Instance.Internal;
-	Private::AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
+	auto* Buffer = (FWriteBuffer*)(Instance.Internal);
+	AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
 }
 
 } // namespace Trace

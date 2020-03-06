@@ -7,6 +7,9 @@
 #include "DataprepOperation.h"
 
 #include "DataprepOperationsLibrary.h"
+#include "AssetData.h"
+
+#include "IDetailCustomization.h"
 
 //
 #include "DataprepEditingOperations.generated.h"
@@ -156,4 +159,56 @@ protected:
 	//~ End UDataprepOperation Interface
 
 	bool IsActorVisible(AActor*, TMap<AActor*, bool>& VisibilityMap);
+};
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Spawn Actors At Location", ToolTip = "For each actor in the input set, spawn an actor from the specified Asset at the same position and orientation than the reference"))
+class UDataprepSpawnActorsAtLocation : public UDataprepEditingOperation
+{
+	GENERATED_BODY()
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+	void SetAsset(UObject* Asset);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation)
+	UObject* SelectedAsset;
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+class FDataprepSpawnActorsAtLocationDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef< IDetailCustomization > MakeDetails() 
+	{ 
+		return MakeShared<FDataprepSpawnActorsAtLocationDetails>(); 
+	};
+
+	FDataprepSpawnActorsAtLocationDetails() : DataprepOperation(nullptr) {}
+	
+	/** Called when details should be customized */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+private:
+	const FAssetData& GetAssetData() const;
+	TSharedRef<SWidget> CreateWidget();
+	TSharedRef<SWidget> GenerateAssetPicker();
+	FText OnGetComboTextValue() const;
+	FText GetObjectToolTip() const;
+	void OnAssetSelectedFromPicker(const struct FAssetData& AssetData);
+	void OnAssetEnterPressedInPicker(const TArray<FAssetData>& InSelectedAssets);
+
+private:
+	TSharedPtr<class SMenuAnchor> AssetPickerAnchor;
+	UDataprepSpawnActorsAtLocation* DataprepOperation;
+
+	/** Cached AssetData of object selected */
+	mutable FAssetData CachedAssetData;
 };

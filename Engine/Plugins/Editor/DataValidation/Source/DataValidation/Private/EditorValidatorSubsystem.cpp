@@ -203,7 +203,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 	int32 NumInvalidFiles = 0;
 	int32 NumFilesSkipped = 0;
 	int32 NumFilesUnableToValidate = 0;
-	bool bAtLeastOneWarning = false;
+	int32 NumFilesWithWarnings = 0;
 
 	int32 NumFilesToValidate = AssetDataList.Num();
 
@@ -234,7 +234,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 
 		if (ValidationWarnings.Num() > 0)
 		{
-			bAtLeastOneWarning = true;
+			++NumFilesWithWarnings;
 
 			for (const FText& WarningMsg : ValidationWarnings)
 			{
@@ -272,6 +272,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 	}
 
 	const bool bFailed = (NumInvalidFiles > 0);
+	const bool bAtLeastOneWarning = (NumFilesWithWarnings > 0);
 
 	if (bFailed || bAtLeastOneWarning || bShowIfNoFailures)
 	{
@@ -289,7 +290,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 		DataValidationLog.Open(EMessageSeverity::Info, true);
 	}
 
-	return NumInvalidFiles;
+	return NumInvalidFiles + NumFilesWithWarnings;
 }
 
 void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList) const

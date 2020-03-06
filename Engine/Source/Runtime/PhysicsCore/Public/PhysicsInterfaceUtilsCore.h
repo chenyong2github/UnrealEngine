@@ -5,16 +5,20 @@
 #include "PhysicsInterfaceTypesCore.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
-#if WITH_PHYSX
-
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXPublicCore.h"
 #include "Containers/Union.h"
 #include "CollisionShape.h"
+#endif
 
+PHYSICSCORE_API FCollisionFilterData C2UFilterData(const FChaosFilterData& FilterData);
+PHYSICSCORE_API FChaosFilterData U2CFilterData(const FCollisionFilterData& FilterData);
 
-PHYSICSCORE_API PxShapeFlags BuildPhysXShapeFlags(FBodyCollisionFlags BodyCollisionFlags, bool bPhysicsStatic, bool bIsTriangleMesh);
-PHYSICSCORE_API PxFilterData U2PFilterData(const FCollisionFilterData& FilterData);
+#if PHYSICS_INTERFACE_PHYSX
+
 PHYSICSCORE_API FCollisionFilterData P2UFilterData(const PxFilterData& PFilterData);
+PHYSICSCORE_API PxFilterData U2PFilterData(const FCollisionFilterData& FilterData);
+PHYSICSCORE_API PxShapeFlags BuildPhysXShapeFlags(FBodyCollisionFlags BodyCollisionFlags, bool bPhysicsStatic, bool bIsTriangleMesh);
 PHYSICSCORE_API PxGeometryType::Enum U2PCollisionShapeType(ECollisionShapeType InUType);
 PHYSICSCORE_API ECollisionShapeType P2UCollisionShapeType(PxGeometryType::Enum InPType);
 

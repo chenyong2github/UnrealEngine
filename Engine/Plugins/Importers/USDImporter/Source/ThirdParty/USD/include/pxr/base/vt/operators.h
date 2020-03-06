@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef VT_OPERATORS_H
-#define VT_OPERATORS_H
+#ifndef PXR_BASE_VT_OPERATORS_H
+#define PXR_BASE_VT_OPERATORS_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/vt/api.h"
@@ -79,8 +79,7 @@ PXR_NAMESPACE_OPEN_SCOPE
     VtArray operator op (VtArray const &other) const {                         \
         /* accept empty vecs */                                                \
         if ((size()!=0 && other.size()!=0) &&                                  \
-            (size() != other.size() /*||                                       \
-             GetShape() != other.GetShape()*/)) {                                \
+            (size() != other.size())) {                                        \
             TF_CODING_ERROR("Non-conforming inputs for operator %s",#op);      \
             return VtArray();                                                  \
         }                                                                      \
@@ -113,8 +112,9 @@ PXR_NAMESPACE_OPEN_SCOPE
     operator op (scalartype const &scalar,                              \
                  VtArray<arraytype> const &vec) {                       \
         VtArray<rettype> ret(vec.size());                               \
-        for (size_t i = 0; i<vec.size(); ++i)                           \
+        for (size_t i = 0; i<vec.size(); ++i) {                         \
             ret[i] = scalar op vec[i];                                  \
+        }                                                               \
         return ret;                                                     \
     }                                                                   \
     template<typename arraytype>                                        \
@@ -122,8 +122,9 @@ PXR_NAMESPACE_OPEN_SCOPE
     operator op (VtArray<arraytype> const &vec,                         \
                  scalartype const &scalar) {                            \
         VtArray<rettype> ret(vec.size());                               \
-        for (size_t i = 0; i<vec.size(); ++i)                           \
+        for (size_t i = 0; i<vec.size(); ++i) {                         \
             ret[i] = vec[i] op scalar;                                  \
+        }                                                               \
         return ret;                                                     \
     } 
 
@@ -140,8 +141,9 @@ PXR_NAMESPACE_OPEN_SCOPE
     operator op (double const &scalar,                                         \
                  VtArray<ElemType> const &vec) {                               \
         VtArray<ElemType> ret(vec.size());                                     \
-        for (size_t i = 0; i<vec.size(); ++i)                                  \
+        for (size_t i = 0; i<vec.size(); ++i) {                                \
             ret[i] = scalar op vec[i];                                         \
+        }                                                                      \
         return ret;                                                            \
     }                                                                          \
     template<typename ElemType>                                                \
@@ -150,8 +152,9 @@ PXR_NAMESPACE_OPEN_SCOPE
     operator op (VtArray<ElemType> const &vec,                                 \
                  double const &scalar) {                                       \
         VtArray<ElemType> ret(vec.size());                                     \
-        for (size_t i = 0; i<vec.size(); ++i)                                  \
+        for (size_t i = 0; i<vec.size(); ++i) {                                \
             ret[i] = vec[i] op scalar;                                         \
+        }                                                                      \
         return ret;                                                            \
     } 
 
@@ -159,4 +162,4 @@ struct Vt_ShapeData;
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // VT_OPERATORS_H
+#endif // PXR_BASE_VT_OPERATORS_H

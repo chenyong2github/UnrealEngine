@@ -198,6 +198,7 @@ int FDatasmithMaxSceneExporter::GetSeedFromMaterial(Mtl* Material)
 				Seed = ParamBlock2->GetInt(ParamDefinition.ID);
 			}
 		}
+		ParamBlock2->ReleaseDesc();
 	}
 	return Seed;
 }
@@ -707,6 +708,8 @@ TSharedPtr< IDatasmithLightActorElement > FDatasmithMaxSceneExporter::CreateLigh
 				}
 			}
 		}
+
+		ParamBlock2->ReleaseDesc();
 	}
 
 	TSharedPtr< IDatasmithElement > Element = FDatasmithSceneFactory::CreateElement( LightType, Name );
@@ -1213,6 +1216,8 @@ bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef
 				}
 			}
 		}
+
+		ParamBlock2->ReleaseDesc();
 	}
 
 	if ( !bLightShapeVisible)
@@ -1644,6 +1649,8 @@ bool FDatasmithMaxSceneExporter::ParseVRayLightIES(LightObject& Light, TSharedRe
 				PointLightElement->SetTemperature( ParamBlock2->GetFloat( ParamDefinition.ID, GetCOREInterface()->GetTime() ) );
 			}
 		}
+
+		ParamBlock2->ReleaseDesc();
 	}
 
 	if ( PointLightElement->GetUseTemperature() )
@@ -1719,6 +1726,8 @@ bool FDatasmithMaxSceneExporter::ParseVRayLightIES(LightObject& Light, TSharedRe
 					}
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		if ( bUseLightShape  )
@@ -1847,6 +1856,8 @@ bool FDatasmithMaxSceneExporter::ParseLightParameters(EMaxLightClass LightClass,
 				}
 			}
 		}
+
+		ParamBlock2->ReleaseDesc();
 	}
 
 	if ( LightElement->GetUseTemperature() )

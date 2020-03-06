@@ -132,7 +132,7 @@ public:
 
 bool UAnimBoneCompressionSettings::Compress(const FCompressibleAnimData& AnimSeq, FCompressibleAnimDataResult& OutCompressedData) const
 {
-	if (AnimSeq.Skeleton == nullptr || !AreSettingsValid())
+	if (!AreSettingsValid())
 	{
 		return false;
 	}

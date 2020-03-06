@@ -15,7 +15,8 @@ enum class ELightmapUVVersion : int32
 	ConsiderLightmapPadding = 6,
 	ForceLightmapPadding = 7,
 	Segments2D = 8,
-	Latest = Segments2D
+	OptimalSurfaceArea = 9,
+	Latest = OptimalSurfaceArea
 };
 
 /** Helper struct for building acceleration structures. */

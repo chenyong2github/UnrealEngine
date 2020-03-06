@@ -256,10 +256,10 @@ void UpdatePublishedSettings(UWorld* World, FNamedOnlineSession* Session)
 			for (int32 PlayerIdx=0; PlayerIdx < GameState->PlayerArray.Num(); PlayerIdx++)
 			{
 				APlayerState const* const PlayerState = GameState->PlayerArray[PlayerIdx];
-				if (PlayerState && PlayerState->UniqueId.IsValid())
+				if (PlayerState && PlayerState->GetUniqueId().IsValid())
 				{
-					CSteamID SteamId(*(uint64*)PlayerState->UniqueId->GetBytes());
-					SteamGameServerPtr->BUpdateUserData(SteamId, TCHAR_TO_UTF8(*PlayerState->GetPlayerName()), PlayerState->Score);
+					CSteamID SteamId(*(uint64*)PlayerState->GetUniqueId()->GetBytes());
+					SteamGameServerPtr->BUpdateUserData(SteamId, TCHAR_TO_UTF8(*PlayerState->GetPlayerName()), PlayerState->GetScore());
 				}
 			}
 		}

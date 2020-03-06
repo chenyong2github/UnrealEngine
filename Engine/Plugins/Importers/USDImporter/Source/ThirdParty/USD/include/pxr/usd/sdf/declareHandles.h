@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_DECLAREHANDLES_H
-#define SDF_DECLAREHANDLES_H
+#ifndef PXR_USD_SDF_DECLARE_HANDLES_H
+#define PXR_USD_SDF_DECLARE_HANDLES_H
 
 /// \file sdf/declareHandles.h
 
@@ -36,10 +36,10 @@
 
 #include <set>
 #include <typeinfo>
+#include <type_traits>
 #include <vector>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/operators.hpp>
-#include <boost/type_traits/remove_const.hpp>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -65,7 +65,7 @@ public:
     typedef SdfHandle<T> This;
     typedef T SpecType;
 
-    typedef typename boost::remove_const<SpecType>::type NonConstSpecType;
+    typedef typename std::remove_const<SpecType>::type NonConstSpecType;
     typedef SdfHandle<NonConstSpecType> NonConstThis;
 
     SdfHandle() { }
@@ -222,8 +222,9 @@ Sdf_CanCastToTypeCheckSchema(
 
 template <class DST, class SRC>
 struct Sdf_SpecTypesAreDirectlyRelated
-    : public boost::mpl::or_<boost::is_base_of<DST, SRC>,
-                             boost::is_base_of<SRC, DST> >::type
+    : std::integral_constant<bool,
+        std::is_base_of<DST, SRC>::value ||
+        std::is_base_of<SRC, DST>::value>
 { };
 
 /// Convert SdfHandle<SRC> \p x to an SdfHandle<DST>. This function
@@ -337,4 +338,4 @@ typedef std::set<SdfHandleTo<SdfLayer>::Handle> SdfLayerHandleSet;
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_DECLAREHANDLES_H
+#endif // PXR_USD_SDF_DECLARE_HANDLES_H

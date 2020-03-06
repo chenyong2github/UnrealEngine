@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Stats/Stats2.h"
 #include "Modules/ModuleInterface.h"
 
 // Forward Declare
@@ -12,6 +13,9 @@ class ULevelSequence;
 class UMoviePipeline;
 
 namespace MoviePipeline { struct FMoviePipelineEnginePass; }
+
+// Declare a stat-group for our performance stats to be counted under, readable in game by "stat MovieRenderPipeline".
+DECLARE_STATS_GROUP(TEXT("MovieRenderPipeline"), STATGROUP_MoviePipeline, STATCAT_Advanced);
 
 namespace MoviePipelineErrorCodes
 {

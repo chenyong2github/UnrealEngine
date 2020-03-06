@@ -13,7 +13,7 @@
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformProcess.h"
-#include "Interfaces/IAnalyticsProvider.h"
+#include "IAnalyticsProviderET.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
 #include "Logging/LogMacros.h"
@@ -201,20 +201,28 @@ void FEditorSessionSummaryWriter::Shutdown()
 
 FEditorAnalyticsSession* FEditorSessionSummaryWriter::CreateCurrentSession() const
 {
+	check(FEngineAnalytics::IsAvailable()); // The function assumes the caller checked it before calling.
+
 	FEditorAnalyticsSession* Session = new FEditorAnalyticsSession();
+	IAnalyticsProviderET& AnalyticProvider = FEngineAnalytics::GetProvider();
 
 	FGuid SessionId;
-	if (FGuid::Parse(FEngineAnalytics::GetProvider().GetSessionID(), SessionId))
+	if (FGuid::Parse(AnalyticProvider.GetSessionID(), SessionId))
 	{
 		// convert session GUID to one without braces or other chars that might not be suitable for storage
 		Session->SessionId = SessionId.ToString(EGuidFormats::DigitsWithHyphens);
 	}
 	else
 	{
-		Session->SessionId = FEngineAnalytics::GetProvider().GetSessionID();
+		Session->SessionId = AnalyticProvider.GetSessionID();
 	}
 
 	const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
+
+	// Remember the AppId/AppVersion/UserId used during this session. They will be used if the summary is sent from another process/instance.
+	Session->AppId = AnalyticProvider.GetAppID();
+	Session->AppVersion = AnalyticProvider.GetAppVersion();
+	Session->UserId = AnalyticProvider.GetUserID();
 
 	Session->PlatformProcessID = FPlatformProcess::GetCurrentProcessId();
 	Session->ProjectName = ProjectSettings.ProjectName;

@@ -359,19 +359,19 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 				static const TCHAR* PhaseNames[] = { TEXT("Binary Only"), TEXT("Text Only"), TEXT("Alternating Binary/Text") };
 
 				#if CPUPROFILERTRACE_ENABLED
-				static const uint32 PhaseEventTypes[3] = {
-						FCpuProfilerTrace::OutputEventType(TEXT("BinaryOnly"), CpuProfilerGroup_Default),
-						FCpuProfilerTrace::OutputEventType(TEXT("TextOnly"), CpuProfilerGroup_Default),
-						FCpuProfilerTrace::OutputEventType(TEXT("Alternating"), CpuProfilerGroup_Default)
+				static const TCHAR* PhaseEventTypes[3] = {
+						TEXT("BinaryOnly"),
+						TEXT("TextOnly"),
+						TEXT("Alternating"),
 				};
 
-				static const uint32 TestEventTypes[6] = {
-						FCpuProfilerTrace::OutputEventType(TEXT("Test1"), CpuProfilerGroup_Default),
-						FCpuProfilerTrace::OutputEventType(TEXT("Test2"), CpuProfilerGroup_Default),
-						FCpuProfilerTrace::OutputEventType(TEXT("Test3"), CpuProfilerGroup_Default),
-						FCpuProfilerTrace::OutputEventType(TEXT("Test4"), CpuProfilerGroup_Default),
-						FCpuProfilerTrace::OutputEventType(TEXT("Test5"), CpuProfilerGroup_Default),
-						FCpuProfilerTrace::OutputEventType(TEXT("Test6"), CpuProfilerGroup_Default)
+				static const TCHAR* TestEventTypes[6] = {
+						TEXT("Test1"),
+						TEXT("Test2"),
+						TEXT("Test3"),
+						TEXT("Test4"),
+						TEXT("Test5"),
+						TEXT("Test6"),
 				};
 				#endif // CPUPROFILERTRACE_ENABLED
 
@@ -390,7 +390,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 					TArray<FSHAHash> PhaseHashes = Hashes[Hashes.AddDefaulted()];
 					
 					#if CPUPROFILERTRACE_ENABLED
-					FCpuProfilerTrace::OutputBeginEvent(PhaseEventTypes[Phase]);
+					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(PhaseEventTypes[Phase]);
 					#endif
 
 					for (int32 i = 0; i < ((Phase == 2) ? NumTests * 2 : NumTests); ++i)
@@ -398,7 +398,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 						int32 Bucket;
 
 						#if CPUPROFILERTRACE_ENABLED
-						FCpuProfilerTrace::OutputBeginEvent(TestEventTypes[i]);
+						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TestEventTypes[i]);
 						#endif
 
 						switch (Phase)
@@ -479,10 +479,6 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 
 							DiffFilenames.Add(TPair<FString, FString>(IntermediateFilename, FinalFilename));
 						}
-
-						#if CPUPROFILERTRACE_ENABLED
-						FCpuProfilerTrace::OutputEndEvent();
-						#endif
 					}
 
 					UE_LOG(LogTextAsset, Display, TEXT("Phase %i (%s) Results"), Phase + 1, PhaseNames[Phase]);
@@ -526,9 +522,6 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 
 					DiffFilenames.Empty();
 					IFileManager::Get().DeleteDirectory(*TempFailedDiffsPath, false, true);
-					#if CPUPROFILERTRACE_ENABLED
-					FCpuProfilerTrace::OutputEndEvent();
-					#endif
 				}
 
 				static const bool bDisableCleanup = FParse::Param(FCommandLine::Get(), TEXT("disablecleanup"));

@@ -12,13 +12,6 @@ public class LibOVRAudio : ModuleRules
 
 		PublicIncludePaths.Add(SourceDirectory + "include");
 
-		if (Target.Platform == UnrealTargetPlatform.Android)
-		{
-			PublicAdditionalLibraries.Add(SourceDirectory + "lib/armeabi-v7a/ovraudio32");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			// DLL dynamically loaded from FOculusAudioLibraryManager::LoadDll()
-		}
+		// Note: DLL/.so dynamically loaded by FOculusAudioLibraryManager::LoadDll()		
 	}
 }

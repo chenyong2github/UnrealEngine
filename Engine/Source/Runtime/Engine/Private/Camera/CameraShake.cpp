@@ -2,6 +2,7 @@
 
 #include "Camera/CameraShake.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Camera/CameraAnim.h"
 #include "Camera/CameraAnimInst.h"
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
@@ -425,5 +426,38 @@ void UCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& 
 	{
 		AnimInst->SetCurrentTime(NewTime);
 		AnimInst->ApplyToView(POV);
+	}
+}
+
+float UCameraShake::GetCameraShakeDuration() const
+{
+	if (Anim != nullptr)
+	{
+		if (bRandomAnimSegment)
+		{
+			return RandomAnimSegmentDuration;
+		}
+		else
+		{
+			return Anim->AnimLength;
+		}
+	}
+	else
+	{
+		return OscillationDuration;
+	}
+}
+
+void UCameraShake::GetCameraShakeBlendTimes(float& OutBlendIn, float& OutBlendOut) const
+{
+	if (Anim != nullptr)
+	{
+		OutBlendIn = AnimBlendInTime;
+		OutBlendOut = AnimBlendOutTime;
+	}
+	else
+	{
+		OutBlendIn = OscillationBlendInTime;
+		OutBlendOut = OscillationBlendOutTime;
 	}
 }

@@ -16,7 +16,14 @@ public:
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UNiagaraStackItem& InItem, UNiagaraStackViewModel* InStackViewModel);
-	
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+protected:
+	virtual void AddCustomRowWidgets(TSharedRef<SHorizontalBox> HorizontalBox) { }
+
+	virtual TSharedRef<SWidget> AddContainerForRowWidgets(TSharedRef<SWidget> RowWidgets);
+
 private:
 	EVisibility GetResetToBaseButtonVisibility() const;
 
@@ -36,6 +43,9 @@ private:
 
 	ECheckBoxState CheckEnabledStatus() const;
 
+	bool GetEnabledCheckBoxEnabled() const;
+
 private:
 	UNiagaraStackItem* Item;
+	TSharedPtr<SNiagaraStackDisplayName> DisplayNameWidget;
 };

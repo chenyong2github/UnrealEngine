@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once 
+#pragma once
 
 #include "Factories/SceneImportFactory.h"
 #include "Editor/EditorEngine.h"
@@ -8,8 +8,6 @@
 #include "USDImporter.h"
 
 #include "USDSceneImportFactory.generated.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogUSDSceneImport, Log, All);
 
 class UUSDSceneImportOptions;
 class UWorld;

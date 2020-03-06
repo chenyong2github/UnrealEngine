@@ -3,13 +3,17 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Serialization/MemoryLayout.h"
 
 /**
  * An element type independent interface to the resource array.
  */
 class FResourceArrayInterface
 {
+	DECLARE_EXPORTED_TYPE_LAYOUT(FResourceArrayInterface, CORE_API, Abstract);
 public:
+
+	virtual ~FResourceArrayInterface() {}
 
 	/**
 	 * @return A pointer to the resource data.

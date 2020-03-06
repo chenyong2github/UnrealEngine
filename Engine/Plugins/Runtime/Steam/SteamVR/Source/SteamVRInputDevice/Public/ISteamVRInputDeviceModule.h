@@ -34,7 +34,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Modules/ModuleManager.h"
 #include "IInputDeviceModule.h"
 
-STEAMVRINPUT_API class ISteamVRInputDeviceModule : public IInputDeviceModule
+class STEAMVRINPUTDEVICE_API ISteamVRInputDeviceModule : public IInputDeviceModule
 {
 
 public:

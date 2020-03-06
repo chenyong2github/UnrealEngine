@@ -26,6 +26,9 @@ namespace UnrealBuildTool.Rules
 			PrivateDefinitions.Add("SQLITE_ENABLE_FTS4");
 			PrivateDefinitions.Add("SQLITE_ENABLE_FTS5");
 
+			// Enable Json extension
+			PrivateDefinitions.Add("SQLITE_ENABLE_JSON1");
+			
 			// Use ICU with SQLite if it's available
 			if (Target.bCompileICU)
 			{

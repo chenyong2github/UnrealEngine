@@ -52,20 +52,15 @@ protected:
 
 };
 
-// class FTexturePaintSettingsCustomization : public IPropertyTypeCustomization
-// {
-// public:
-// 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
-// 
-// 	/** IPropertyTypeCustomization interface */
-// 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override {};
-// 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
-// protected:
-// 	/** Cached instance of the painter */
-// 	FPaintModePainter* MeshPainter;
-// 	/** Cached instance of the texture painting settings */
-// 	FTexturePaintSettings* PaintSettings;
-// };
+
+class FTexturePaintingSettingsCustomization : public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+	FReply OnSwapColorsClicked(TSharedRef<IPropertyHandle> PaintColor, TSharedRef<IPropertyHandle> EraseColor);
+};
 
 
 	

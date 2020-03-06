@@ -6,6 +6,7 @@
 #include "GroomAsset.h"
 #include "GroomAssetImportData.h"
 #include "GroomImportOptions.h"
+#include "GroomBuilder.h"
 #include "GroomImportOptionsWindow.h"
 #include "HairDescription.h"
 #include "HairStrandsEditor.h"
@@ -74,8 +75,25 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 
 	if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 	{
+		// Load the alembic file upfront to preview & report any potential issue
+		const bool bRunValidation = RunGroomAssetValidation();
+		FProcessedHairDescription OutDescription;
+		if (bRunValidation)
+		{
+			FScopedSlowTask Progress((float)1, LOCTEXT("ImportHairAssetForPreview", "Importing hair asset for preview..."), true);
+			Progress.MakeDialog(true);
+
+			FHairDescription HairDescription;
+			if (!SelectedTranslator->Translate(Filename, HairDescription, ImportOptions->ConversionSettings))
+			{
+				return nullptr;
+			}
+
+			FGroomBuilder::ProcessHairDescription(HairDescription, ImportOptions->BuildSettings, OutDescription);
+		}
+
 		// Display import options and handle user cancellation
-		TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, Filename);
+		TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, Filename, bRunValidation ? &OutDescription : nullptr);
 		if (!GroomOptionWindow->ShouldImport())
 		{
 			bOutOperationCanceled = true;
@@ -85,8 +103,6 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		// Save the options as the new default
 		ImportOptions->SaveConfig();
 	}
-
-	//GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, FileType);
 
 	FScopedSlowTask Progress((float) 1, LOCTEXT("ImportHairAsset", "Importing hair asset..."), true);
 	Progress.MakeDialog(true);

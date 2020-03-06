@@ -120,13 +120,7 @@ void UUVLayoutTool::Setup()
 	MaterialSettings->RestoreProperties(this);
 	AddToolPropertySource(MaterialSettings);
 
-	// initialize the PreviewMesh+BackgroundCompute object
-	UpdateNumPreviews();
-	
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Preview->InvalidateResult();
-	}
+	UpdateVisualization();
 }
 
 
@@ -153,7 +147,6 @@ void UUVLayoutTool::UpdateNumPreviews()
 			OpFactory->ComponentIndex = PreviewIdx;
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3>();
 			FMeshDescriptionToDynamicMesh Converter;
-			Converter.bPrintDebugMessages = true;
 			Converter.Convert(ComponentTargets[PreviewIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
@@ -244,14 +237,19 @@ void UUVLayoutTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 void UUVLayoutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	// if we don't know what changed, or we know checker density changed, update checker material
+	UpdateVisualization();
+}
+
+void UUVLayoutTool::UpdateVisualization()
+{
 	MaterialSettings->UpdateMaterials();
+	UpdateNumPreviews();
 	for (int PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
 	{
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[PreviewIdx];
 		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	}
-	
-	UpdateNumPreviews();
+
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Preview->InvalidateResult();

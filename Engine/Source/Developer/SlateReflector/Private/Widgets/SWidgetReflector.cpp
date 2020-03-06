@@ -282,11 +282,22 @@ private:
 
 	void SetPickingMode(EWidgetPickingMode InMode)
 	{
+#if WITH_SLATE_DEBUGGING
+		static auto CVarSlateGlobalInvalidation = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.EnableGlobalInvalidation"));
+#endif
+
 		if (PickingMode != InMode)
 		{
 			// Disable visual picking, and renable widget caching.
 #if WITH_SLATE_DEBUGGING
 			SInvalidationPanel::EnableInvalidationPanels(true);
+
+			if (PickingMode == EWidgetPickingMode::None)
+			{
+				bLastGlobalInvalidationState = CVarSlateGlobalInvalidation->GetBool();
+			}
+
+			CVarSlateGlobalInvalidation->Set(bLastGlobalInvalidationState);
 #endif
 			VisualCapture.Disable();
 
@@ -308,6 +319,7 @@ private:
 				VisualCapture.Enable();
 #if WITH_SLATE_DEBUGGING
 				SInvalidationPanel::EnableInvalidationPanels(false);
+				CVarSlateGlobalInvalidation->Set(false);
 #endif
 			}
 		}
@@ -421,6 +433,8 @@ private:
 #endif
 
 	FVisualTreeCapture VisualCapture;
+
+	bool bLastGlobalInvalidationState = false;
 
 private:
 	// DEMO MODE
@@ -1049,7 +1063,7 @@ void SWidgetReflector::SetUIMode(const EWidgetReflectorUIMode InNewMode)
 
 		if (CurrentUIMode == EWidgetReflectorUIMode::Snapshot)
 		{
-			TabManager->InvokeTab(WidgetReflectorTabID::SnapshotWidgetPicker);
+			TabManager->TryInvokeTab(WidgetReflectorTabID::SnapshotWidgetPicker);
 		}
 		else
 		{
@@ -1738,7 +1752,7 @@ void SWidgetReflector::HandleReflectorTreeSelectionChanged( TSharedPtr<FWidgetRe
 
 	if (SelectedWidgetObjects.Num() > 0)
 	{
-		TabManager->InvokeTab(WidgetReflectorTabID::WidgetDetails);
+		TabManager->TryInvokeTab(WidgetReflectorTabID::WidgetDetails);
 		if (PropertyViewPtr.IsValid())
 		{
 			PropertyViewPtr->SetObjects(SelectedWidgetObjects);

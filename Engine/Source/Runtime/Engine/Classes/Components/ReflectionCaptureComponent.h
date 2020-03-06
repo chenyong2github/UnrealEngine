@@ -92,7 +92,7 @@ class UReflectionCaptureComponent : public USceneComponent
 	ENGINE_API static int32 GetReflectionCaptureSize();
 
 	//~ Begin UActorComponent Interface
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void OnRegister() override;

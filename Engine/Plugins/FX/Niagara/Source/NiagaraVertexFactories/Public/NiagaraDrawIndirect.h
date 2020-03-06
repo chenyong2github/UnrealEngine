@@ -64,15 +64,15 @@ public:
 	FNiagaraDrawIndirectArgsGenCS() {}
 	FNiagaraDrawIndirectArgsGenCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	bool Serialize(FArchive& Ar);
+	//bool Serialize(FArchive& Ar);
 	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* DrawIndirectArgsUAV, FRHIUnorderedAccessView* InstanceCountsUAV);
 	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks);
 	void UnbindBuffers(FRHICommandList& RHICmdList);
 
 protected:
 	
-	FShaderResourceParameter TaskInfosParam;
-	FRWShaderParameter InstanceCountsParam;
-	FRWShaderParameter DrawIndirectArgsParam;
-	FShaderParameter TaskCountParam;
+	LAYOUT_FIELD(FShaderResourceParameter, TaskInfosParam)
+	LAYOUT_FIELD(FRWShaderParameter, InstanceCountsParam)
+	LAYOUT_FIELD(FRWShaderParameter, DrawIndirectArgsParam)
+	LAYOUT_FIELD(FShaderParameter, TaskCountParam)
 };

@@ -58,7 +58,7 @@ namespace UnrealBuildTool
 		/// The authentication used for Rsync (for the -e rsync flag).
 		/// </summary>
 		[XmlConfigFile]
-		private string RsyncAuthentication = "ssh -i '${CYGWIN_SSH_PRIVATE_KEY}'";
+		private string RsyncAuthentication = "./ssh -i '${CYGWIN_SSH_PRIVATE_KEY}'";
 
 		/// <summary>
 		/// The authentication used for SSH (probably similar to RsyncAuthentication).

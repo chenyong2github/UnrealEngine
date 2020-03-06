@@ -21,9 +21,6 @@
 //  WindLiftCoefficient
 //  LinearDrag
 //  AngularDrag
-//  LinearInertiaScale
-//  AngularInertiaScale
-//  CentrifugalInertiaScale
 //  StiffnessFrequency
 //  TetherLimit
 //  AnimDriveSpringStiffness
@@ -68,6 +65,10 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 
 	const float Damping = (ClothConfig.Damping.X + ClothConfig.Damping.Y + ClothConfig.Damping.Z) / 3.f;
 	DampingCoefficient = FMath::Clamp(Damping * Damping * 0.95f, 0.f, 1.f);  // Nv Cloth seems to have a different damping formulation.
+
+	LinearVelocityScale = ClothConfig.LinearInertiaScale;
+	const FVector AngularInertiaScale = ClothConfig.AngularInertiaScale * ClothConfig.CentrifugalInertiaScale;
+	AngularVelocityScale = (AngularInertiaScale.X + AngularInertiaScale.Y + AngularInertiaScale.Z) / 3.f;
 }
 
 void UChaosClothConfig::Serialize(FArchive& Ar)

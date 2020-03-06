@@ -1,22 +1,113 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioModulationStatics.h"
 
+#include "Async/Async.h"
 #include "AudioDevice.h"
 #include "AudioModulation.h"
 #include "AudioModulationInternal.h"
 #include "AudioModulationLogging.h"
-
+#include "AudioModulationProfileSerializer.h"
+#include "CoreGlobals.h"
 #include "Engine/Engine.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformFilemanager.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
 
 #define LOCTEXT_NAMESPACE "AudioModulationStatics"
 
 
-namespace
+static FAutoConsoleCommand GModulationSaveMixProfile(
+	TEXT("au.Modulation.SaveMixProfile"),
+	TEXT("Saves modulation mix profile to the config save directory.\n"
+		"Path - Path to Object\n"
+		"ProfileIndex - (Optional) Index of profile (defaults to 0)"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 1)
+			{
+				UE_LOG(LogAudioModulation, Error, TEXT("Failed to save mix profile: Path not provided"));
+				return;
+			}
+
+			const FString& Path = Args[0];
+			int32 ProfileIndex = 0;
+			if (Args.Num() > 1)
+			{
+				ProfileIndex = FCString::Atoi(*Args[1]);
+			}
+
+			FSoftObjectPath ObjPath = Path;
+			if (UObject* MixObj = ObjPath.TryLoad())
+			{
+				if (USoundControlBusMix* Mix = Cast<USoundControlBusMix>(MixObj))
+				{
+					UAudioModulationStatics::SaveMixToProfile(Mix, Mix, ProfileIndex);
+					return;
+				}
+			}
+
+			UE_LOG(LogAudioModulation, Error, TEXT("Failed to save mix '%s' to profile index '%i'"), *Path, ProfileIndex);
+		}
+	)
+);
+
+static FAutoConsoleCommand GModulationLoadMixProfile(
+	TEXT("au.Modulation.LoadMixProfile"),
+	TEXT("Loads modulation mix profile from the config save directory.\n"
+		"Path - Path to Object to load\n"
+		"Activate - (Optional) Whether or not to activate/update the mix once it is loaded (default: true)."
+		"ProfileIndex - (Optional) Index of profile (default: 0)"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 1)
+			{
+				UE_LOG(LogAudioModulation, Error, TEXT("Failed to load mix profile: Object path not provided"));
+				return;
+			}
+
+			const FString& Path = Args[0];
+			int32 ProfileIndex = 0;
+			if (Args.Num() > 1)
+			{
+				ProfileIndex = FCString::Atoi(*Args[1]);
+			}
+
+			bool bActivateUpdate = true;
+			if (Args.Num() > 2)
+			{
+				bActivateUpdate = FCString::ToBool(*Args[2]);
+			}
+
+			FSoftObjectPath ObjPath = Path;
+			if (UObject* MixObj = ObjPath.TryLoad())
+			{
+				if (USoundControlBusMix* Mix = Cast<USoundControlBusMix>(MixObj))
+				{
+					UAudioModulationStatics::LoadMixFromProfile(Mix, Mix, bActivateUpdate, ProfileIndex);
+
+					if (bActivateUpdate)
+					{
+						UAudioModulationStatics::UpdateModulator(Mix, Mix);
+					}
+					return;
+				}
+			}
+
+			UE_LOG(LogAudioModulation, Error, TEXT("Failed to load mix '%s' from profile index '%i'"), *Path, ProfileIndex);
+		}
+	)
+);
+
+
+namespace AudioModulation
 {
 	template <class T>
-	T* CreateModulatorBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
+	T* CreateBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 	{
 		UWorld* World = UAudioModulationStatics::GetAudioWorld(WorldContextObject);
 		if (!World)
@@ -30,7 +121,7 @@ namespace
 
 		if (Activate)
 		{
-			if (AudioModulation::FAudioModulationImpl* ModulationImpl = UAudioModulationStatics::GetModulationImpl(World))
+			if (FAudioModulationImpl* ModulationImpl = UAudioModulationStatics::GetModulationImpl(World))
 			{
 				ModulationImpl->ActivateBus(*NewBus);
 			}
@@ -38,10 +129,8 @@ namespace
 
 		return NewBus;
 	}
-} // namespace <>
+} // namespace AudioModulation
 
-//////////////////////////////////////////////////////////////////////////
-// UAudioModulationStatics
 
 UAudioModulationStatics::UAudioModulationStatics(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -130,22 +219,22 @@ AudioModulation::FAudioModulationImpl* UAudioModulationStatics::GetModulationImp
 
 USoundVolumeControlBus* UAudioModulationStatics::CreateVolumeBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 {
-	return CreateModulatorBus<USoundVolumeControlBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return AudioModulation::CreateBus<USoundVolumeControlBus>(WorldContextObject, Name, DefaultValue, Activate);
 }
 
 USoundPitchControlBus* UAudioModulationStatics::CreatePitchBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 {
-	return CreateModulatorBus<USoundPitchControlBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return AudioModulation::CreateBus<USoundPitchControlBus>(WorldContextObject, Name, DefaultValue, Activate);
 }
 
 USoundLPFControlBus* UAudioModulationStatics::CreateLPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 {
-	return CreateModulatorBus<USoundLPFControlBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return AudioModulation::CreateBus<USoundLPFControlBus>(WorldContextObject, Name, DefaultValue, Activate);
 }
 
 USoundHPFControlBus* UAudioModulationStatics::CreateHPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
 {
-	return CreateModulatorBus<USoundHPFControlBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return AudioModulation::CreateBus<USoundHPFControlBus>(WorldContextObject, Name, DefaultValue, Activate);
 }
 
 USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldContextObject, FName Name, float Amplitude, float Frequency, float Offset, bool Activate)
@@ -250,6 +339,36 @@ void UAudioModulationStatics::DeactivateBusModulator(const UObject* WorldContext
 	}
 }
 
+void UAudioModulationStatics::SaveMixToProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, int32 ProfileIndex)
+{
+	UWorld* World = GetAudioWorld(WorldContextObject);
+	if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
+	{
+		if (BusMix)
+		{
+			return ModulationImpl->SaveMixToProfile(*BusMix, ProfileIndex);
+		}
+	}
+}
+
+TArray<FSoundControlBusMixChannel> UAudioModulationStatics::LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate, int32 ProfileIndex)
+{
+	if (BusMix)
+	{
+		UWorld* World = GetAudioWorld(WorldContextObject);
+		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
+		{
+			if (bActivate)
+			{
+				ActivateBusMix(WorldContextObject, BusMix);
+			}
+			return ModulationImpl->LoadMixFromProfile(ProfileIndex, *BusMix);
+		}
+	}
+
+	return TArray<FSoundControlBusMixChannel>();
+}
+
 void UAudioModulationStatics::UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixChannel> Channels)
 {
 	if (Mix)
@@ -257,7 +376,9 @@ void UAudioModulationStatics::UpdateMix(const UObject* WorldContextObject, USoun
 		UWorld* World = GetAudioWorld(WorldContextObject);
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
-			ModulationImpl->UpdateMix(*Mix, Channels);
+			// UObject representation is not updated in this form of the call as doing so from
+			// PIE can result in an unstable state where UObject is modified but not properly dirtied.
+			ModulationImpl->UpdateMix(Channels, *Mix, false /* bUpdateObject */);
 		}
 	}
 }
@@ -277,7 +398,10 @@ void UAudioModulationStatics::UpdateMixByFilter(
 		if (AudioModulation::FAudioModulationImpl* ModulationImpl = GetModulationImpl(World))
 		{
 			FSoundModulationValue ModValue(Value, AttackTime, ReleaseTime);
-			ModulationImpl->UpdateMixByFilter(*Mix, AddressFilter, BusClassFilter, ModValue);
+
+			// UObject representation is not updated in this form of the call as doing so from
+			// PIE can result in an unstable state where UObject is modified but not properly dirtied.
+			ModulationImpl->UpdateMixByFilter(AddressFilter, BusClassFilter, ModValue, *Mix, false /* bUpdateObject */);
 		}
 	}
 }

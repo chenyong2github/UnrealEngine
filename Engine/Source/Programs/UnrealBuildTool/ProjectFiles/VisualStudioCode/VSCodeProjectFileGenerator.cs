@@ -600,6 +600,8 @@ namespace UnrealBuildTool
 
 		private void WriteCppPropertiesFile(DirectoryReference OutputDirectory, bool RewriteIncludePaths, ProjectData Projects)
 		{
+			DirectoryReference.CreateDirectory(OutputDirectory);
+
 			JsonFile OutFile = new JsonFile();
 
 			OutFile.BeginRootObject();

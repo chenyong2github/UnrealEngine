@@ -65,6 +65,11 @@ public:
 		return (int32)wcslen( String );
 	}
 
+	static FORCEINLINE int32 Strnlen( const WIDECHAR* String, SIZE_T StringSize )
+	{
+		return (int32)wcsnlen_s( String, StringSize );
+	}
+
 	static FORCEINLINE const WIDECHAR* Strstr( const WIDECHAR* String, const WIDECHAR* Find)
 	{
 		return wcsstr( String, Find );
@@ -226,6 +231,11 @@ public:
 		return (int32)strlen( String );
 	}
 
+	static FORCEINLINE int32 Strnlen( const ANSICHAR* String, SIZE_T StringSize )
+	{
+		return (int32)strnlen_s( String, StringSize );
+	}
+
 	static FORCEINLINE const ANSICHAR* Strstr( const ANSICHAR* String, const ANSICHAR* Find)
 	{
 		return strstr(String, Find);
@@ -302,6 +312,17 @@ public:
 	{
 		int32 Result = 0;
 		while (*String++)
+		{
+			++Result;
+		}
+
+		return Result;
+	}
+
+	static FORCEINLINE int32 Strnlen( const UCS2CHAR* String, SIZE_T StringSize )
+	{
+		int32 Result = 0;
+		while (StringSize-- > 0 && *String++)
 		{
 			++Result;
 		}

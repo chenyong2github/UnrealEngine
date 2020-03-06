@@ -2163,40 +2163,14 @@ void FDatasmithWireTranslator::UnloadScene()
 bool FDatasmithWireTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)
 {
 #ifdef USE_OPENMODEL
-
 	CADLibrary::FImportParameters& ImportParameters = Translator->GetImportParameters();
 	CADLibrary::FMeshParameters MeshParameters;
 	if (TOptional< FMeshDescription > Mesh = Translator->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-
 #ifdef CAD_LIBRARY
-		// Store CoreTech additional data if provided
-		const TCHAR* CoretechFile = MeshElement->GetFile();
-		if (FPaths::FileExists(CoretechFile))
-		{
-			TArray<uint8> ByteArray;
-			if (FFileHelper::LoadFileToArray(ByteArray, CoretechFile))
-			{
-				UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
-				CoreTechData->SourceFile = CoretechFile;
-				CoreTechData->RawData = MoveTemp(ByteArray);
-				CoreTechData->SceneParameters.ModelCoordSys = uint8(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
-				CoreTechData->SceneParameters.MetricUnit = ImportParameters.MetricUnit;
-				CoreTechData->SceneParameters.ScaleFactor = ImportParameters.ScaleFactor;
-
-				CoreTechData->MeshParameters.bNeedSwapOrientation = MeshParameters.bNeedSwapOrientation;
-				CoreTechData->MeshParameters.bIsSymmetric = MeshParameters.bIsSymmetric;
-				CoreTechData->MeshParameters.SymmetricNormal = MeshParameters.SymmetricNormal;
-				CoreTechData->MeshParameters.SymmetricOrigin = MeshParameters.SymmetricOrigin;
-
-				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
-
-				OutMeshPayload.AdditionalData.Add(CoreTechData);
-			}
-		}
-#endif
-
+		DatasmithCoreTechParametricSurfaceData::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+#endif //CAD_LIBRARY
 	}
 	return OutMeshPayload.LodMeshes.Num() > 0;
 #else

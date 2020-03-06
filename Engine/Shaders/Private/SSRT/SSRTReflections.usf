@@ -112,6 +112,15 @@ void ScreenSpaceReflections(
 	#endif
 
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
+
+	float3 N = GBuffer.WorldNormal;
+	const float SceneDepth = GBuffer.Depth;
+	const float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
+	const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
+
+#if GBUFFER_HAS_TANGENT
+	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, N, V);
+#endif
 	
 	float Roughness = GetRoughness(GBuffer);
 	float RoughnessFade = GetRoughnessFade(Roughness);
@@ -121,11 +130,6 @@ void ScreenSpaceReflections(
 	{
 		return;
 	}
-
-	const float3 N = GBuffer.WorldNormal;
-	const float SceneDepth = GBuffer.Depth;
-	const float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
-	const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
 
 	float a = Roughness * Roughness;
 	float a2 = a * a;
@@ -208,6 +212,8 @@ void ScreenSpaceReflections(
 			float3 H = normalize(V + L);
 #endif
 
+// When 'Correct integration applies DGF' is enabled below, enable this and account for anisotropy
+#if 0
 			float NoL = saturate( dot(N, L) );
 			float NoH = saturate( dot(N, H) );
 			float VoH = saturate( dot(V, H) );
@@ -216,7 +222,8 @@ void ScreenSpaceReflections(
 			float G_SmithL = 2 * NoL / (NoL + sqrt(NoL * (NoL - NoL * a2) + a2));
 			float Vis = Vis_Smith( a2, NoV,  NoL );
 			float3 F = F_Schlick( GBuffer.SpecularColor, VoH );
-				
+#endif
+
 			float3 HitUVz;
 			float Level = 0;
 			

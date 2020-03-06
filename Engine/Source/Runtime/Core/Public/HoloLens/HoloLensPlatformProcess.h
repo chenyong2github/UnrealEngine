@@ -36,6 +36,8 @@ struct CORE_API FHoloLensProcess : public FGenericPlatformProcess
 	static const TCHAR* ExecutableName(bool bRemoveExtension = true);
 	static void* GetDllHandle(const TCHAR* Filename);
 	static void FreeDllHandle(void* DllHandle);
+	static void PushDllDirectory(const TCHAR* Directory);
+	static void PopDllDirectory(const TCHAR* Directory);
 	static void SetCurrentWorkingDirectoryToBaseDir();
 	static FString GetCurrentWorkingDirectory();
 	/** Content saved to the game or engine directories should be rerouted to user directories instead **/
@@ -51,6 +53,13 @@ struct CORE_API FHoloLensProcess : public FGenericPlatformProcess
 	static const TCHAR* GetTempAppDataLowLevelPath();
 	static const TCHAR* GetLocalAppDataRedirectPath();
 	static const TCHAR* GetTempAppDataRedirectPath();
+
+private:
+	/**
+	* Since Windows can only have one directory at a time,
+	* this stack is used to reset the previous DllDirectory.
+	*/
+	static TArray<FString> DllDirectoryStack;
 };
 
 typedef FHoloLensProcess FPlatformProcess;

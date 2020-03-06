@@ -62,7 +62,7 @@ public:
 
 	virtual void ShowSettings( const FName& CategoryName, const FName& SectionName ) override
 	{
-		FGlobalTabmanager::Get()->InvokeTab(ProjectSettingsTabName);
+		FGlobalTabmanager::Get()->TryInvokeTab(ProjectSettingsTabName);
 		ISettingsEditorModelPtr SettingsEditorModel = SettingsEditorModelPtr.Pin();
 
 		if (SettingsEditorModel.IsValid())

@@ -25,8 +25,10 @@ namespace ECompilationResult
 		CrashOrAssert = 3,
 		/** Compilation failed because generated code changed which was not supported */
 		FailedDueToHeaderChange = 4,
+		/** Compilation failed due to the engine modules needing to be rebuilt */
+		FailedDueToEngineChange = 5,
 		/** Compilation failed due to compilation errors */
-		OtherCompilationError = 5,
+		OtherCompilationError = 6,
 		/** Compilation is not supported in the current build */
 		Unsupported,
 		/** Unknown error */

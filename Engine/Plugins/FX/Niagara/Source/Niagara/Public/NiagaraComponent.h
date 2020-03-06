@@ -48,6 +48,7 @@ public:
 
 	/********* UFXSystemComponent *********/
 	void SetBoolParameter(FName ParameterName, bool Param) override;
+	void SetIntParameter(FName ParameterName, int Param) override;
 	void SetFloatParameter(FName ParameterName, float Param) override;
 	void SetVectorParameter(FName ParameterName, FVector Param) override;
 	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
@@ -97,6 +98,9 @@ private:
 	/** The desired age of the System instance.  This is only relevant when using the DesiredAge age update mode. */
 	float DesiredAge;
 
+	/** The last desired age value that was handled by the tick function.  This is only relevant when using the DesiredAgeNoSeek age update mode. */
+	float LastHandledDesiredAge;
+
 	/** Whether or not the component can render while seeking to the desired age. */
 	bool bCanRenderWhileSeeking;
 
@@ -120,7 +124,7 @@ protected:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void OnEndOfFrameUpdateDuringTick() override;
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void BeginDestroy() override;
 	//virtual void OnAttachmentChanged() override;
@@ -170,7 +174,8 @@ public:
 	void DeactivateInternal(bool bIsScalabilityCull);
 	void DeactivateImmediateInternal(bool bIsScalabilityCull);
 
-	bool RegisterWithScalabilityManagerOrPreCull();
+	bool ShouldPreCull();
+	void RegisterWithScalabilityManager();
 	void UnregisterWithScalabilityManager();
 
 	public:
@@ -403,20 +408,11 @@ public:
 #endif
 	//~ End UObject Interface
 
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	void SetPreviewDetailLevel(bool bEnablePreviewDetailLevel, int32 PreviewDetailLevel);
-
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance);
 
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	FORCEINLINE bool GetPreviewDetailLevelEnabled()const;
-
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	FORCEINLINE bool GetPreviewLODDistanceEnabled()const;
-
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	FORCEINLINE int32 GetPreviewDetailLevel()const;
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	FORCEINLINE int32 GetPreviewLODDistance()const;
@@ -507,9 +503,7 @@ public:
 	virtual void SetUseAutoManageAttachment(bool bAutoManage) override { bAutoManageAttachment = bAutoManage; }
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-	int32 PreviewDetailLevel;
 	float PreviewLODDistance;
-	uint32 bEnablePreviewDetailLevel : 1;
 	uint32 bEnablePreviewLODDistance : 1;
 #endif
 
@@ -527,6 +521,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
 	void SetAllowScalability(bool bAllow);
 
+	FORCEINLINE bool IsRegisteredWithScalabilityManager()const { return ScalabilityManagerHandle != INDEX_NONE; }
+	FORCEINLINE int32 GetScalabilityManagerHandle()const { return ScalabilityManagerHandle; }
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
 	uint32 bAwaitingActivationDueToNotReady : 1;
@@ -538,6 +534,9 @@ private:
 
 	/** True if this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
 	uint32 bAllowScalability : 1;
+
+	/** True if this component has been culled by the scalability manager. */
+	uint32 bIsCulledByScalability : 1;
 
 	/** Flag to mark us as currently changing auto attachment as part of Activate/Deactivate so we don't reset in the OnAttachmentChanged() callback. */
 	//uint32 bIsChangingAutoAttachment : 1;
@@ -564,14 +563,10 @@ private:
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-FORCEINLINE bool UNiagaraComponent::GetPreviewDetailLevelEnabled()const { return bEnablePreviewDetailLevel; }
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return bEnablePreviewLODDistance; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewDetailLevel()const { return bEnablePreviewDetailLevel ? PreviewDetailLevel : INDEX_NONE; }
 FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
 #else
-FORCEINLINE bool UNiagaraComponent::GetPreviewDetailLevelEnabled()const { return false; }
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return false; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewDetailLevel()const { return INDEX_NONE; }
 FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
 #endif
 

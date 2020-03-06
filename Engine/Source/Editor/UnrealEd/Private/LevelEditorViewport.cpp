@@ -543,6 +543,7 @@ static bool TryAndCreateMaterialInput( UMaterial* UnrealMaterial, EMaterialKind:
 		UnrealMaterial->Normal.Expression = UnrealTextureExpression;
 	}
 
+
 	return true;
 }
 
@@ -634,6 +635,9 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture( UTexture* U
 		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Emissive, EmissiveTexture, UnrealMaterial->EmissiveColor, HSpace, VSpace * 1 );
 		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Normal, NormalTexture, UnrealMaterial->Normal, HSpace, VSpace * 2 );
 	}
+
+	UnrealMaterial->PreEditChange(nullptr);
+	UnrealMaterial->PostEditChange();
 
 	// Notify the asset registry
 	FAssetRegistryModule::AssetCreated( UnrealMaterial );
@@ -1302,9 +1306,31 @@ FDropQuery FLevelEditorViewportClient::CanDropObjectsAtCoordinates(int32 MouseX,
 {
 	FDropQuery Result;
 
-	if ( !ObjectTools::IsAssetValidForPlacing( GetWorld(), AssetData.ObjectPath.ToString() ) )
+	UWorld* CurrentWorld = GetWorld();
+	if ( !ObjectTools::IsAssetValidForPlacing(CurrentWorld, AssetData.ObjectPath.ToString() ) )
 	{
 		return Result;
+	}
+
+	if (CurrentWorld)
+	{
+		ULevel* CurrentLevel = CurrentWorld->GetCurrentLevel();
+		UWorld* CurrentLevelOuterWorld = CurrentLevel ? Cast<UWorld>(CurrentLevel->GetOuter()) : nullptr;  
+		UWorld* ReferencingWorld = CurrentLevelOuterWorld ? CurrentLevelOuterWorld : CurrentWorld;
+		FAssetReferenceFilterContext AssetReferenceFilterContext;
+		AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingWorld));
+
+		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext);
+		if (AssetReferenceFilter.IsValid())
+		{
+			FText FailureReason;
+			if (!AssetReferenceFilter->PassesFilter(AssetData, &FailureReason))
+			{
+				Result.bCanDrop = false;
+				Result.HintText = FailureReason;
+				return Result;
+			}
+		}
 	}
 
 	UObject* AssetObj = AssetData.GetAsset();
@@ -2767,7 +2793,7 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 			{
 				FText TrackingDescription = FText::Format(LOCTEXT("RotatationShortcut", "Rotate Atmosphere Light {0}"), LightIndex);
 				TrackingTransaction.Begin(TrackingDescription, SelectedSunLight->GetOwner());
-				SetRealtime(true, true); // The first time, save that setting for RestoreRealtime
+				SetRealtimeOverride(true, LOCTEXT("RealtimeOverrideMessage_AtmospherelLight", "Atmosphere Light Control"));// The first time, save that setting for RestoreRealtime
 			}
 			bCurrentUserControl = true;
 			UserIsControllingAtmosphericLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
@@ -2789,7 +2815,7 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	if (bUserIsControllingAtmosphericLight0 || bUserIsControllingAtmosphericLight1)
 	{
 		TrackingTransaction.End();					// End undo/redo translation
-		RestoreRealtime(true);						// Restore previous real-time state
+		RemoveRealtimeOverride();						// Restore previous real-time state
 	}
 	bUserIsControllingAtmosphericLight0 = false;	// Disable all atmospheric light controls
 	bUserIsControllingAtmosphericLight1 = false;

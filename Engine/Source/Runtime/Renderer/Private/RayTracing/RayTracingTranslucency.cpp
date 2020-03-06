@@ -141,153 +141,55 @@ bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 }
 #endif // RHI_RAYTRACING
 
-//#dxr-todo: should we unify it with the composition happening in the non raytraced translucency pass? In that case it should use FCopySceneColorPS
-// Probably, but the architecture depends on the denoiser -> discuss
-
-class FCompositeTranslucencyPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FCompositeTranslucencyPS, Global);
-
-public:
-	static bool ShouldCache(EShaderPlatform Platform)
-	{
-		return ShouldCompileRayTracingShadersForProject(Platform);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	FCompositeTranslucencyPS() {}
-	virtual ~FCompositeTranslucencyPS() {}
-
-	FCompositeTranslucencyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		SceneTextureParameters.Bind(Initializer);
-		TranslucencyTextureParameter.Bind(Initializer.ParameterMap, TEXT("TranslucencyTexture"));
-		TranslucencyTextureSamplerParameter.Bind(Initializer.ParameterMap, TEXT("TranslucencyTextureSampler"));
-	}
-
-	template<typename TRHICommandList>
-	void SetParameters(
-		TRHICommandList& RHICmdList,
-		const FViewInfo& View,
-		FRHITexture* TranslucencyTexture,
-		FRHITexture* HitDistanceTexture)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
-
-		SetTextureParameter(RHICmdList, ShaderRHI, TranslucencyTextureParameter, TranslucencyTextureSamplerParameter, TStaticSamplerState<SF_Bilinear>::GetRHI(), TranslucencyTexture);
-		// #dxr_todo: UE-72581 Use hit-distance texture for denoising
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TranslucencyTextureParameter;
-		Ar << TranslucencyTextureSamplerParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderResourceParameter TranslucencyTextureParameter;
-	FShaderResourceParameter TranslucencyTextureSamplerParameter;
-};
-
-IMPLEMENT_SHADER_TYPE(, FCompositeTranslucencyPS, TEXT("/Engine/Private/RayTracing/CompositeTranslucencyPS.usf"), TEXT("CompositeTranslucencyPS"), SF_Pixel)
-
-
 void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandListImmediate& RHICmdList)
 {
 	if (!ShouldRenderTranslucency(ETranslucencyPass::TPT_StandardTranslucency)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterDOF)
+		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterDOFModulate)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency)
 		)
 	{
 		return; // Early exit if nothing needs to be done.
 	}
 
-	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
+
+	FSceneTextureParameters SceneTextures;
+	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+
 	{
-		FViewInfo& View = Views[ViewIndex];
+		RDG_EVENT_SCOPE(GraphBuilder, "RayTracingTranslucency");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingTranslucency)
 
-		SCOPED_DRAW_EVENT(RHICmdList, RayTracingTranslucency);
-		SCOPED_GPU_STAT(RHICmdList, RayTracingTranslucency);
-
-		FRDGBuilder GraphBuilder(RHICmdList); 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
-
-		FSceneTextureParameters SceneTextures;
-		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
-
-		//#dxr_todo: UE-72581 do not use reflections denoiser structs but separated ones
-		IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
-		float ResolutionFraction = 1.0f;
-		int32 TranslucencySPP = GRayTracingTranslucencySamplesPerPixel > -1 ? GRayTracingTranslucencySamplesPerPixel : View.FinalPostProcessSettings.RayTracingTranslucencySamplesPerPixel;
-		
-		RenderRayTracingPrimaryRaysView(
-			GraphBuilder,
-			View, &DenoiserInputs.Color, &DenoiserInputs.RayHitDistance,
-			TranslucencySPP, GRayTracingTranslucencyHeightFog, ResolutionFraction, 
-			ERayTracingPrimaryRaysFlag::AllowSkipSkySample | ERayTracingPrimaryRaysFlag::UseGBufferForMaxDistance);
-
-		//#dxr_todo: UE-72581 : replace DenoiserInputs with DenoiserOutputs in the following lines!
-		TRefCountPtr<IPooledRenderTarget> TranslucencyColor = GSystemTextures.BlackDummy;
-		TRefCountPtr<IPooledRenderTarget> TranslucencyHitDistanceColor = GSystemTextures.BlackDummy;
-
-		GraphBuilder.QueueTextureExtraction(DenoiserInputs.Color, &TranslucencyColor);
-		GraphBuilder.QueueTextureExtraction(DenoiserInputs.RayHitDistance, &TranslucencyHitDistanceColor);
-
-		GraphBuilder.Execute();
-
-		// Compositing result with the scene color
-		//#dxr-todo: should we unify it with the composition happening in the non raytraced translucency pass? In that case it should use FCopySceneColorPS
-		// Probably, but the architecture depends on the denoiser -> discuss
+		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 		{
-			const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-			TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
-			TShaderMapRef<FCompositeTranslucencyPS> PixelShader(ShaderMap);
+			FViewInfo& View = Views[ViewIndex];
 
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true);
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			const FScreenPassRenderTarget Output(SceneColorTexture, View.ViewRect, ERenderTargetLoadAction::ELoad);
 
-			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			//#dxr_todo: UE-72581 do not use reflections denoiser structs but separated ones
+			IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
+			float ResolutionFraction = 1.0f;
+			int32 TranslucencySPP = GRayTracingTranslucencySamplesPerPixel > -1 ? GRayTracingTranslucencySamplesPerPixel : View.FinalPostProcessSettings.RayTracingTranslucencySamplesPerPixel;
+		
+			RenderRayTracingPrimaryRaysView(
+				GraphBuilder,
+				View, &DenoiserInputs.Color, &DenoiserInputs.RayHitDistance,
+				TranslucencySPP, GRayTracingTranslucencyHeightFog, ResolutionFraction, 
+				ERayTracingPrimaryRaysFlag::AllowSkipSkySample | ERayTracingPrimaryRaysFlag::UseGBufferForMaxDistance);
 
-			RHICmdList.SetViewport((float)View.ViewRect.Min.X, (float)View.ViewRect.Min.Y, 0.0f, (float)View.ViewRect.Max.X, (float)View.ViewRect.Max.Y, 1.0f);
-			PixelShader->SetParameters(RHICmdList, View, TranslucencyColor->GetRenderTargetItem().ShaderResourceTexture, TranslucencyHitDistanceColor->GetRenderTargetItem().ShaderResourceTexture);
-
-			DrawRectangle(
-				RHICmdList,
-				0, 0,
-				View.ViewRect.Width(), View.ViewRect.Height(),
-				View.ViewRect.Min.X, View.ViewRect.Min.Y,
-				View.ViewRect.Width(), View.ViewRect.Height(),
-				FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
-				SceneContext.GetBufferSizeXY(),
-				*VertexShader);
+			const FScreenPassTexture SceneColor(DenoiserInputs.Color, View.ViewRect);
+			AddDrawTexturePass(GraphBuilder, View, SceneColor, Output);
 		}
-
-		ResolveSceneColor(RHICmdList);
-		SceneContext.FinishRenderingSceneColor(RHICmdList);
 	}
+
+	GraphBuilder.Execute();
+
+	ResolveSceneColor(RHICmdList);
 }
 
 #endif // RHI_RAYTRACING

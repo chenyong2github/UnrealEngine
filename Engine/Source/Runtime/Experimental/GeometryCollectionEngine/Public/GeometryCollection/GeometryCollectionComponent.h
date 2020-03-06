@@ -15,7 +15,7 @@
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
-#include "GeometryCollection/GeometryDynamicCollection.h"
+#include "GeometryCollectionProxyData.h"
 #include "GeometryCollectionObject.h"
 #include "GeometryCollectionEditorSelection.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
@@ -232,27 +232,37 @@ private:
 //GetArrayRest (gives original rest value)
 //This generates pointers to arrays marked private. Macro assumes getters are public
 //todo(ocohen): may want to take in a static name
-#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)\
-FORCEINLINE const TManagedArray<Type>& Get##Name##Array() const {\
-	return Indirect##Name##Array ? *Indirect##Name##Array : RestCollection->GetGeometryCollection()->Name;\
-}\
-FORCEINLINE TManagedArray<Type>& Get##Name##ArrayCopyOnWrite(){\
-	if(!Indirect##Name##Array)\
-	{\
-		static FName StaticName(#Name);\
-		DynamicCollection->AddAttribute<Type>(StaticName, Group);\
-		DynamicCollection->CopyAttribute(*RestCollection->GetGeometryCollection(), StaticName, Group);\
-		Indirect##Name##Array = &DynamicCollection->GetAttribute<Type>(StaticName, Group);\
-		CopyOnWriteAttributeList.Add(reinterpret_cast<FManagedArrayBase**>(&Indirect##Name##Array));\
-	}\
-	return *Indirect##Name##Array;\
-}\
-FORCEINLINE void Reset##Name##ArrayDynamic(){\
-	Indirect##Name##Array = NULL;\
-}\
-FORCEINLINE const TManagedArray<Type>& Get##Name##ArrayRest() const{ return RestCollection->GetGeometryCollection()->Name; }\
-private:\
-TManagedArray<Type>* Indirect##Name##Array;\
+#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)								\
+FORCEINLINE const TManagedArray<Type>& Get##Name##Array() const 				\
+{																				\
+	return Indirect##Name##Array ?												\
+		*Indirect##Name##Array : RestCollection->GetGeometryCollection()->Name;	\
+}																				\
+FORCEINLINE TManagedArray<Type>& Get##Name##ArrayCopyOnWrite()					\
+{																				\
+	if(!Indirect##Name##Array)													\
+	{																			\
+		static FName StaticName(#Name);											\
+		DynamicCollection->AddAttribute<Type>(StaticName, Group);				\
+		DynamicCollection->CopyAttribute(										\
+			*RestCollection->GetGeometryCollection(), StaticName, Group);		\
+		Indirect##Name##Array =													\
+			&DynamicCollection->GetAttribute<Type>(StaticName, Group);			\
+		CopyOnWriteAttributeList.Add(											\
+			reinterpret_cast<FManagedArrayBase**>(&Indirect##Name##Array));		\
+	}																			\
+	return *Indirect##Name##Array;												\
+}																				\
+FORCEINLINE void Reset##Name##ArrayDynamic()									\
+{																				\
+	Indirect##Name##Array = NULL;												\
+}																				\
+FORCEINLINE const TManagedArray<Type>& Get##Name##ArrayRest() const				\
+{																				\
+	return RestCollection->GetGeometryCollection()->Name;						\
+}																				\
+private:																		\
+	TManagedArray<Type>* Indirect##Name##Array;									\
 public:
 
 /**
@@ -271,7 +281,7 @@ class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionComponent : public UMeshCo
 public:
 
 	//~ Begin UActorComponent Interface.
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	FORCEINLINE void SetRenderStateDirty() { bRenderStateDirty = true; }
 	virtual void BeginPlay() override;
@@ -373,9 +383,7 @@ public:
 	bool Simulating;
 	ESimulationInitializationState InitializationState;
 
-	/*
-	*  ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic.
-	*/
+	/** ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
 	EObjectStateTypeEnum ObjectType;
 
@@ -383,64 +391,51 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	bool EnableClustering;
 
-	/**
-	* Maximum level for cluster breaks
-	*/
+	/** Maximum level for cluster breaks. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	int32 ClusterGroupIndex;
 
-	/**
-	* Maximum level for cluster breaks
-	*/
+	/** Maximum level for cluster breaks. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	int32 MaxClusterLevel;
 
-	/**
-	* Damage threshold for clusters at different levels.
-	*/
+	/** Damage threshold for clusters at different levels. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	TArray<float> DamageThreshold;
 
-	/*
-	*  ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic.
-	*/
+	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	EClusterConnectionTypeEnum ClusterConnectionType;
 
-	/**
-	* Uniform Friction
-	*/
+	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
 	int32 CollisionGroup;
 
-	/**
-	* Uniform Friction
-	*/
+	/** Uniform Friction */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
 	float CollisionSampleFraction;
 
+	/** Uniform linear ether drag. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Ether Drag")
+	float LinearEtherDrag;
 
-	/**
-	* Physical Properties
-	*/
+	/** Uniform angular ether drag. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Ether Drag")
+	float AngularEtherDrag;
+
+	/** Physical Properties */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics")
 	const UChaosPhysicalMaterial* PhysicalMaterial;
 
-	/**
-	*
-	*/
+	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
 	EInitialVelocityTypeEnum InitialVelocityType;
 
-	/**
-	*
-	*/
+	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
 	FVector InitialLinearVelocity;
 
-	/**
-	*
-	*/
+	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
 	FVector InitialAngularVelocity;
 

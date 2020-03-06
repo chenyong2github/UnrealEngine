@@ -616,13 +616,13 @@ void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, 
 						SourceVal.Serialize(SourceReader);
 						DestVal  .Serialize(DestReader);
 
-						if (!SourceReader.ArIsError && !DestReader.ArIsError)
-						{
-							SourceVal.ExportText(BeforePropertyVal);
-							DestVal  .ExportText(AfterPropertyVal);
-						}
-					}
-				}
+									if (!SourceReader.IsError() && !DestReader.IsError())
+									{
+										SourceVal.ExportText(BeforePropertyVal);
+										DestVal  .ExportText(AfterPropertyVal);
+									}
+								}
+							}
 
 				FString DiffValues;
 				if (BeforePropertyVal != AfterPropertyVal)
@@ -705,6 +705,7 @@ void FArchiveStackTrace::CompareWith(const TCHAR* InFilename, const int64 TotalH
 		DestPackage.StartOffset = 0;
 
 		UE_LOG(LogArchiveDiff, Display, TEXT("Comparing: %s"), *GetArchiveName());
+		UE_LOG(LogArchiveDiff, Display, TEXT("Asset class: %s"), *AssetClass.ToString());
 
 		int32 NumLoggedDiffs = 0;
 

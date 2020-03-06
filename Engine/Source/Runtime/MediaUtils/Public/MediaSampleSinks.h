@@ -14,7 +14,7 @@
  *
  * @param SampleType The type of media samples that the sinks process.
  */
-template<typename SampleType>
+template<typename SampleType, typename SinkType=TMediaSampleSink<SampleType>>
 class TMediaSampleSinks
 {
 public:
@@ -25,7 +25,7 @@ public:
 	 * @param SampleSink The sink to add.
 	 * @see Num, Remove
 	 */
-	void Add(const TSharedRef<TMediaSampleSink<SampleType>, ESPMode::ThreadSafe>& SampleSink)
+	void Add(const TSharedRef<SinkType, ESPMode::ThreadSafe>& SampleSink)
 	{
 		Sinks.AddUnique(SampleSink);
 	}
@@ -46,7 +46,7 @@ public:
 
 		for (int32 SinkIndex = Sinks.Num() - 1; SinkIndex >= 0; --SinkIndex)
 		{
-			TSharedPtr<TMediaSampleSink<SampleType>, ESPMode::ThreadSafe> Sink = Sinks[SinkIndex].Pin();
+			TSharedPtr<SinkType, ESPMode::ThreadSafe> Sink = Sinks[SinkIndex].Pin();
 
 			if (Sink.IsValid())
 			{
@@ -79,7 +79,7 @@ public:
 	{
 		for (int32 SinkIndex = Sinks.Num() - 1; SinkIndex >= 0; --SinkIndex)
 		{
-			TSharedPtr<TMediaSampleSink<SampleType>, ESPMode::ThreadSafe> Sink = Sinks[SinkIndex].Pin();
+			TSharedPtr<SinkType, ESPMode::ThreadSafe> Sink = Sinks[SinkIndex].Pin();
 
 			if (Sink.IsValid())
 			{
@@ -109,13 +109,31 @@ public:
 	 * @param SampleSink The sink to remove.
 	 * @see Add, Num
 	 */
-	void Remove(const TSharedRef<TMediaSampleSink<SampleType>, ESPMode::ThreadSafe>& SampleSink)
+	void Remove(const TSharedRef<SinkType, ESPMode::ThreadSafe>& SampleSink)
 	{
 		Sinks.Remove(SampleSink);
 	}
 
-private:
+protected:
 
 	/** The collection of registered sinks. */
-	TArray<TWeakPtr<TMediaSampleSink<SampleType>, ESPMode::ThreadSafe>> Sinks;
+	TArray<TWeakPtr<SinkType, ESPMode::ThreadSafe>> Sinks;
 };
+
+typedef TMediaSampleSinks<IMediaTextureSample, FMediaTextureSampleSink> FMediaVideoSampleSinks;
+
+class FMediaAudioSampleSinks : public TMediaSampleSinks<IMediaAudioSample, FMediaAudioSampleSink>
+{
+public:
+	TSharedPtr<FMediaAudioSampleSink, ESPMode::ThreadSafe> GetPrimaryAudioSink()
+	{
+		if (Sinks.Num() == 0)
+		{
+			return TSharedPtr<FMediaAudioSampleSink, ESPMode::ThreadSafe>();
+		}
+		return Sinks[0].Pin();
+	}
+};
+
+typedef TMediaSampleSinks<IMediaOverlaySample, FMediaOverlaySampleSink> FMediaOverlaySampleSinks;
+typedef TMediaSampleSinks<IMediaBinarySample, FMediaBinarySampleSink> FMediaBinarySampleSinks;

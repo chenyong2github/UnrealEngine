@@ -77,11 +77,6 @@ void UOpenColorIOColorTransform::ProcessSerializedShaderMaps(UOpenColorIOColorTr
 {
 	check(IsInGameThread());
 
-	for (FOpenColorIOTransformResource& Resource : LoadedResources)
-	{
-		Resource.RegisterShaderMap();
-	}
-
 	for (int32 ResourceIndex = 0; ResourceIndex < LoadedResources.Num(); ResourceIndex++)
 	{
 		FOpenColorIOTransformResource& LoadedResource = LoadedResources[ResourceIndex];

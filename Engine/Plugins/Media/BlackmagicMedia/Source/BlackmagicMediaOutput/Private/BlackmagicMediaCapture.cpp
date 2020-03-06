@@ -495,7 +495,7 @@ void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBase
 		Frame.VideoWidth = Width;
 		Frame.VideoHeight = Height;
 		Frame.Timecode = Timecode;
-		Frame.FrameIdentifier = InBaseData.SourceFrameNumberRenderThread;
+		Frame.FrameIdentifier = InBaseData.SourceFrameNumber;
 		const bool bSent = EventCallback->SendVideoFrameData(Frame);
 		if (bLogDropFrame && !bSent)
 		{

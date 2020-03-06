@@ -48,6 +48,10 @@
 #include "Android/AndroidPlatformStackWalk.h"
 #include "Android/AndroidSignals.h"
 
+#include "Misc/OutputDevice.h"
+#include "Logging/LogMacros.h"
+#include "Misc/OutputDeviceError.h"
+
 #if USE_ANDROID_JNI
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
 extern int32 GAndroidPackageVersion;
@@ -69,6 +73,15 @@ static FAutoConsoleVariableRef CAndroidLowPowerBatteryThreshold(
 	GAndroidLowPowerBatteryThreshold,
 	TEXT("The battery level below which the device is considered in a low power state."),
 	ECVF_Default
+);
+
+static TAutoConsoleVariable<int32> CVarMaliT8Bug(
+	TEXT("r.Android.MaliT8Bug"),
+	0,
+	TEXT("For an indexed instance draw, the OpenGL ES driver does not handle attributes correctly. This issue only happens on Mali T8xx GPU when the difference between two adjacent index values are larger than 16.\n")
+	TEXT("  0 = off\n")
+	TEXT("  1 = on."),
+	ECVF_ReadOnly
 );
 
 #if STATS || ENABLE_STATNAMEDEVENTS
@@ -884,7 +897,8 @@ static constexpr int32 TargetSignals[] =
 	SIGFPE,
 	SIGBUS,
 	SIGSEGV,
-	SIGSYS
+	SIGSYS,
+	SIGABRT
 };
 static constexpr int32 NumTargetSignals = UE_ARRAY_COUNT(TargetSignals);
 
@@ -904,6 +918,8 @@ static const char* SignalToString(int32 Signal)
 			return "SIGSEGV";
 		case SIGSYS:
 			return "SIGSYS";
+		case SIGABRT:
+			return "SIGABRT";
 		default:
 			return FAndroidCrashContext::ItoANSI(Signal,16, 16);
 	}
@@ -1206,6 +1222,20 @@ void FAndroidMisc::TriggerNonFatalCrashHandler(ECrashContextType InType, const F
 {
 	check(InType == ECrashContextType::Ensure);
 
+	if (GLog)
+	{
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
+	}
+	if (GWarn)
+	{
+		GWarn->Flush();
+	}
+	if (GError)
+	{
+		GError->Flush();
+	}
+
 	FAndroidCrashContext CrashContext(InType, *Message);
 
 	CrashContext.CaptureCrashInfo();
@@ -1220,13 +1250,16 @@ void FAndroidMisc::TriggerNonFatalCrashHandler(ECrashContextType InType, const F
 	}
 }
 
-void FAndroidMisc::TriggerCrashHandler(const TCHAR* InErrorMessage, const TMap<FString, FString>& AdditionalProperties)
+void FAndroidMisc::TriggerCrashHandler(const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack)
 {
 	FAndroidCrashContext CrashContext(ECrashContextType::Crash, InErrorMessage);
-	CrashContext.CaptureCrashInfo();
-	for (TMap<FString, FString>::TConstIterator Iter(AdditionalProperties); Iter; ++Iter)
+	if(OverrideCallstack)
 	{
-		CrashContext.AddAndroidCrashProperty(*Iter.Key(), *Iter.Value());
+		CrashContext.SetOverrideCallstack(OverrideCallstack);
+	}
+	else
+	{
+		CrashContext.CaptureCrashInfo();
 	}
 
 	if (GCrashHandlerPointer)
@@ -1534,6 +1567,40 @@ int32 FAndroidMisc::GetAndroidBuildVersion()
 		}
 	}
 	return AndroidBuildVersion;
+}
+#endif
+
+#if USE_ANDROID_JNI
+bool FAndroidMisc::IsSupportedAndroidDevice()
+{
+	static bool bChecked = false;
+	static bool bSupported = true;
+
+	if (!bChecked)
+	{
+		bChecked = true;
+
+		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
+		if (nullptr != JEnv)
+		{
+			jclass Class = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
+			if (nullptr != Class)
+			{
+				jfieldID Field = JEnv->GetStaticFieldID(Class, "bSupportedDevice", "Z");
+				if (nullptr != Field)
+				{
+					bSupported = (bool)JEnv->GetStaticBooleanField(Class, Field);
+				}
+				JEnv->DeleteGlobalRef(Class);
+			}
+		}
+	}
+	return bSupported;
+}
+#else
+bool FAndroidMisc::IsSupportedAndroidDevice()
+{
+	return true;
 }
 #endif
 
@@ -2044,7 +2111,7 @@ bool FAndroidMisc::IsVulkanAvailable()
 			// @todo Lumin: Double check all this stuff after merging general android Vulkan SM5 from main
 			const bool bSupportsVulkanSM5 = ShouldUseDesktopVulkan();
 
-			const bool bVulkanDisabledCmdLine = FParse::Param(FCommandLine::Get(), TEXT("GL")) || FParse::Param(FCommandLine::Get(), TEXT("OpenGL")) || FParse::Param(FCommandLine::Get(), TEXT("ES2"));
+			const bool bVulkanDisabledCmdLine = FParse::Param(FCommandLine::Get(), TEXT("GL")) || FParse::Param(FCommandLine::Get(), TEXT("OpenGL"));
 
 			if (!FModuleManager::Get().ModuleExists(TEXT("VulkanRHI")))
 			{
@@ -2257,6 +2324,12 @@ void FAndroidMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #endif // FRAMEPRO_ENABLED
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;
@@ -2284,6 +2357,12 @@ void FAndroidMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* T
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #endif // FRAMEPRO_ENABLED
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;
@@ -2297,6 +2376,12 @@ void FAndroidMisc::EndNamedEvent()
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PopEvent();
 #endif // FRAMEPRO_ENABLED
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputEndEvent();
+	}
+#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;
@@ -2613,4 +2698,9 @@ uint32 FAndroidMisc::GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty Co
 		fclose(CoreFreqStateFile);
 	}
 	return ReturnFrequency;
+}
+
+bool FAndroidMisc::Expand16BitIndicesTo32BitOnLoad()
+{
+	return  (CVarMaliT8Bug.GetValueOnAnyThread() > 0);
 }
