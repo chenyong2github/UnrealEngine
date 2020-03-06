@@ -95,7 +95,7 @@ static bool ShouldRenderSingleLayerWater(const FViewInfo& View)
 // This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
 bool SingleLayerWaterUsesSimpleShading(EShaderPlatform ShaderPlatform)
 {
-	return  IsSwitchPlatform(ShaderPlatform) && IsForwardShadingEnabled(ShaderPlatform);
+	return  (IsSwitchPlatform(ShaderPlatform) || IsVulkanMobileSM5Platform(ShaderPlatform)) && IsForwardShadingEnabled(ShaderPlatform);
 }
 
 bool ShouldRenderSingleLayerWater(const TArray<FViewInfo>& Views, const FEngineShowFlags& EngineShowFlags)

@@ -19,6 +19,8 @@ static FName NAME_VULKAN_SM5_NOUB(TEXT("SF_VULKAN_SM5_NOUB"));
 static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
 static FName NAME_VULKAN_SM5_LUMIN(TEXT("SF_VULKAN_SM5_LUMIN"));
 static FName NAME_VULKAN_SM5_LUMIN_NOUB(TEXT("SF_VULKAN_SM5_LUMIN_NOUB"));
+static FName NAME_VULKAN_SM5_ANDROID(TEXT("SF_VULKAN_SM5_ANDROID"));
+static FName NAME_VULKAN_SM5_ANDROID_NOUB(TEXT("SF_VULKAN_SM5_ANDROID_NOUB"));
 
 class FShaderFormatVulkan : public IShaderFormat
 {
@@ -30,7 +32,8 @@ class FShaderFormatVulkan : public IShaderFormat
 
 	int32 InternalGetVersion(FName Format) const
 	{
-		if (Format == NAME_VULKAN_SM5 || Format == NAME_VULKAN_SM5_NOUB || Format == NAME_VULKAN_SM5_LUMIN || Format == NAME_VULKAN_SM5_LUMIN_NOUB)
+		if (Format == NAME_VULKAN_SM5 || Format == NAME_VULKAN_SM5_NOUB || Format == NAME_VULKAN_SM5_LUMIN ||
+			Format == NAME_VULKAN_SM5_LUMIN_NOUB || Format == NAME_VULKAN_SM5_ANDROID || Format == NAME_VULKAN_SM5_ANDROID_NOUB)
 		{
 			return UE_SHADER_VULKAN_SM5_VER;
 		}
@@ -65,6 +68,8 @@ public:
 		OutFormats.Add(NAME_VULKAN_ES3_1_LUMIN_NOUB);
 		OutFormats.Add(NAME_VULKAN_ES3_1_NOUB);
 		OutFormats.Add(NAME_VULKAN_SM5_NOUB);
+		OutFormats.Add(NAME_VULKAN_SM5_ANDROID);
+		OutFormats.Add(NAME_VULKAN_SM5_ANDROID_NOUB);
 	}
 
 	virtual void CompileShader(FName Format, const struct FShaderCompilerInput& Input, struct FShaderCompilerOutput& Output,const FString& WorkingDirectory) const
@@ -86,11 +91,11 @@ public:
 		{
 			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::ES3_1_ANDROID_NOUB);
 		}
-		else if (Format == NAME_VULKAN_SM5_NOUB || Format == NAME_VULKAN_SM5_LUMIN_NOUB)
+		else if (Format == NAME_VULKAN_SM5_NOUB || Format == NAME_VULKAN_SM5_LUMIN_NOUB || Format == NAME_VULKAN_SM5_ANDROID_NOUB)
 		{
 			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::SM5_NOUB);
 		}
-		else if (Format == NAME_VULKAN_SM5 || Format == NAME_VULKAN_SM5_LUMIN)
+		else if (Format == NAME_VULKAN_SM5 || Format == NAME_VULKAN_SM5_LUMIN || Format == NAME_VULKAN_SM5_ANDROID)
 		{
 			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::SM5);
 		}

@@ -224,7 +224,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 	{
 		Desc.Format = PF_A16B16G16R16;
 	}
-
+	
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GSSProfiles, TEXT("SSProfiles"));
 
 	// Write the contents of the texture.
@@ -234,8 +234,10 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 	FLinearColor TextureRow[Width];
 	FMemory::Memzero(TextureRow);
 
-	const float FloatScale = GetNextSmallerPositiveFloat(0x10000);
-	check((int32)GetNextSmallerPositiveFloat(0x10000) == 0xffff);
+	// Android devices have different precision to desktop GPU's, scaling to one less works on Adreno and Mali
+	const float FloatScaleInitial = GMaxRHIShaderPlatform == SP_VULKAN_SM5_ANDROID ? 0xffff : 0x10000;
+	const float FloatScale = GetNextSmallerPositiveFloat(FloatScaleInitial);
+	check((int32)GetNextSmallerPositiveFloat(FloatScaleInitial) == (FloatScaleInitial - 1));
 
 	for (uint32 y = 0; y < Height; ++y)
 	{

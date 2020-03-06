@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
 namespace Trace {
 namespace Private {

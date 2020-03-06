@@ -48,7 +48,7 @@ class FCubemapTexturePropertiesVS : public FGlobalShader
 	DECLARE_SHADER_TYPE(FCubemapTexturePropertiesVS,Global);
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return !IsConsolePlatform(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsPCPlatform(Parameters.Platform);}
 
 	FCubemapTexturePropertiesVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 		FGlobalShader(Initializer)
@@ -72,7 +72,7 @@ class FCubemapTexturePropertiesPS : public FGlobalShader
 	DECLARE_SHADER_TYPE(FCubemapTexturePropertiesPS,Global);
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return !IsConsolePlatform(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsPCPlatform(Parameters.Platform);}
 
 	FCubemapTexturePropertiesPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)

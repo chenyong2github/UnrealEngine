@@ -74,16 +74,16 @@ int32 FOcclusionQueryHelpers::GetNumBufferedFrames(ERHIFeatureLevel::Type Featur
 	return FMath::Min<int32>(GNumAlternateFrameRenderingGroups, (int32)FOcclusionQueryHelpers::MaxBufferedOcclusionFrames);
 #endif
 	static const auto NumBufferedQueriesVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.NumBufferedOcclusionQueries"));
+	EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 
 	int32 NumExtraMobileFrames = 0;
-	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	if (FeatureLevel <= ERHIFeatureLevel::ES3_1 || IsVulkanMobileSM5Platform(ShaderPlatform))
 	{
 		NumExtraMobileFrames++; // the mobile renderer just doesn't do much after the basepass, and hence it will be asking for the query results almost immediately; the results can't possibly be ready in 1 frame.
 		
-		EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 		if ((
 			//IsOpenGLPlatform(ShaderPlatform) || 
-			IsVulkanPlatform(ShaderPlatform) || IsSwitchPlatform(ShaderPlatform)) && IsRunningRHIInSeparateThread())
+			IsVulkanPlatform(ShaderPlatform) || IsSwitchPlatform(ShaderPlatform) || IsVulkanMobileSM5Platform(ShaderPlatform)) && IsRunningRHIInSeparateThread())
 		{
 			// Android, unfortunately, requires the RHIThread to mediate the readback of queries. Therefore we need an extra frame to avoid a stall in either thread. 
 			// The RHIT needs to do read back after the queries are ready and before the RT needs them to avoid stalls. The RHIT may be busy when the queries become ready, so this is all very complicated.
@@ -1395,6 +1395,7 @@ void FSceneRenderer::BeginOcclusionTests(FRHICommandListImmediate& RHICmdList, b
 				// Restore default render target
 				// #todo-renderpasses this is not ideal. This pass should be self-contained. Can we refactor this?
 				SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EUninitializedColorExistingDepth, FExclusiveDepthStencil::DepthRead_StencilWrite);
+				RHICmdList.EndRenderPass();
 			}
 		}
 	}

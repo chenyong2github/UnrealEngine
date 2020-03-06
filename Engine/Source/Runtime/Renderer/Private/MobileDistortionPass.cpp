@@ -79,7 +79,7 @@ class FDistortionMergePS_ES2 : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return !IsConsolePlatform(Parameters.Platform);
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) <= ERHIFeatureLevel::ES3_1;
 	}
 
 	FDistortionMergePS_ES2() {}

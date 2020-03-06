@@ -774,9 +774,11 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshDrawCommandPassSetupTask);
 		// Mobile base pass is a special case, as final lists is created from two mesh passes based on CSM visibility.
-		const bool bMobileBasePass = Context.ShadingPath == EShadingPath::Mobile && Context.PassType == EMeshPass::BasePass;
+		const bool bMobileShadingBasePass = Context.ShadingPath == EShadingPath::Mobile && Context.PassType == EMeshPass::BasePass;
+		// On SM5 Mobile platform, still want the same sorting
+		const bool bMobileVulkanSM5BasePass = IsVulkanMobileSM5Platform(Context.ShaderPlatform) && Context.PassType == EMeshPass::BasePass;
 
-		if (bMobileBasePass)
+		if (bMobileShadingBasePass)
 		{
 			MergeMobileBasePassMeshDrawCommands(
 				Context.View->MobileCSMVisibilityInfo,
@@ -841,7 +843,7 @@ public:
 			}
 
 			// Update sort keys.
-			if (bMobileBasePass)
+			if (bMobileShadingBasePass || bMobileVulkanSM5BasePass)
 			{
 				UpdateMobileBasePassMeshSortKeys(
 					Context.ViewOrigin,
