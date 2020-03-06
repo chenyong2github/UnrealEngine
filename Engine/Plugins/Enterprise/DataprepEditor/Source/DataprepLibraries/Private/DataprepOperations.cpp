@@ -7,6 +7,8 @@
 #include "GenericPlatform/GenericPlatformTime.h"
 #include "StaticMeshResources.h"
 
+#include "Misc/FileHelper.h"
+
 // UI related section
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -392,5 +394,95 @@ void UDataprepSetOutputFolder::OnExecution_Implementation(const FDataprepContext
 	UDataprepOperationsLibrary::SetSubOuputFolder(InContext.Objects, FolderName);
 }
 
+void FDataprepSetOutputFolderDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray< TWeakObjectPtr< UObject > > Objects;
+	DetailBuilder.GetObjectsBeingCustomized( Objects );
+	check( Objects.Num() > 0 );
+
+	Operation = Cast< UDataprepSetOutputFolder >(Objects[0].Get());
+	check( Operation );
+
+	// #ueent_todo: Remove handling of warning category when this is not considered experimental anymore
+	TArray<FName> CategoryNames;
+	DetailBuilder.GetCategoryNames( CategoryNames );
+	CategoryNames.Remove( FName(TEXT("Warning")) );
+
+	DetailBuilder.HideCategory(FName( TEXT( "Warning" ) ) );
+
+	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory( NAME_None, FText::GetEmpty(), ECategoryPriority::Important );
+
+	FolderNamePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDataprepSetOutputFolder, FolderName));
+	FolderNamePropertyHandle->MarkHiddenByCustomization();
+
+	FDetailWidgetRow& CustomAssetImportRow = CategoryBuilder.AddCustomRow( FText::FromString( TEXT( "Folder Name" ) ) );
+
+	CustomAssetImportRow.NameContent()
+	[
+		FolderNamePropertyHandle->CreatePropertyNameWidget()
+	];
+
+	CustomAssetImportRow.ValueContent()
+	[
+		SAssignNew(TextBox, SEditableTextBox)
+		.OnTextChanged(this, &FDataprepSetOutputFolderDetails::FolderName_TextChanged)
+		.OnTextCommitted(this, &FDataprepSetOutputFolderDetails::FolderName_TextCommited)
+		.Text(FText::FromString(Operation->FolderName))
+	];
+}
+
+void FDataprepSetOutputFolderDetails::FolderName_TextCommited(const FText& InText, ETextCommit::Type InCommitType)
+{
+	if (bValidFolderName)
+	{
+		FolderNamePropertyHandle->SetValue(InText.ToString());
+	}
+	else
+	{
+		// New name is not valid: revert to old folder name
+		TextBox->SetText(FText::FromString(Operation->FolderName));
+	}
+
+	bValidFolderName = true;
+}
+
+void FDataprepSetOutputFolderDetails::FolderName_TextChanged(const FText& Text)
+{
+	// Slash and Square brackets are invalid characters for a folder name
+	const FString InvalidChars = INVALID_LONGPACKAGE_CHARACTERS TEXT("/[]"); 
+
+	FText ErrorMessage;
+	FString FolderName = Text.ToString();
+
+	// See if the name contains invalid characters.
+	FString Char;
+	for( int32 CharIdx = 0; CharIdx < FolderName.Len(); ++CharIdx )
+	{
+		Char = FolderName.Mid(CharIdx, 1);
+
+		if ( InvalidChars.Contains(*Char) )
+		{
+			FString ReadableInvalidChars = InvalidChars;
+			ReadableInvalidChars.ReplaceInline(TEXT("\r"), TEXT(""));
+			ReadableInvalidChars.ReplaceInline(TEXT("\n"), TEXT(""));
+			ReadableInvalidChars.ReplaceInline(TEXT("\t"), TEXT(""));
+
+			ErrorMessage = FText::Format(LOCTEXT("InvalidFolderName_InvalidCharacters", "A folder name may not contain any of the following characters: {0}"), FText::FromString(ReadableInvalidChars));
+			break;
+		}
+	}
+
+	if (!ErrorMessage.IsEmpty() || !FFileHelper::IsFilenameValidForSaving(FolderName, ErrorMessage))
+	{
+		TextBox->SetError(ErrorMessage);
+	}
+	else
+	{
+		// Clear error
+		TextBox->SetError(FText::GetEmpty());
+	}
+
+	bValidFolderName = ErrorMessage.IsEmpty();
+}
 
 #undef LOCTEXT_NAMESPACE
