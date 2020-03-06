@@ -39,15 +39,28 @@ public:
 
 	/** 
 	* Initialize the movie pipeline with the specified settings. This kicks off the rendering process. 
-	
 	* @param InJob	- This contains settings and sequence to render this Movie Pipeline with.
 	*/
 	void Initialize(UMoviePipelineExecutorJob* InJob);
 
+
+	/**
+	* Request the movie pipeline to shut down at the next available time. The pipeline will attempt to abandon
+	* the current frame (such as if there are more temporal samples pending) but may be forced into finishing if
+	* there are spatial samples already submitted to the GPU. The shutdown flow will be run to ensure already
+	* completed work is written to disk. This is a non-blocking operation, use Shutdown() instead if you need to
+	* block until it is fully shut down.
+	*
+	* This function is thread safe.
+	*/
+	void RequestShutdown();
+	
 	/** 
-	* Call to shut down the pipeline. This flushes any outstanding file writes and unregisters all delegates.
-	* This will not call the OnMoviePipelineFinished() delegate as it assumes the external party already knows
-	* it is "Finished". 
+	* Abandons any future work on this Movie Pipeline and runs through the shutdown flow to ensure already
+	* completed work is written to disk. This is a blocking-operation and will not return until all outstanding
+	* work has been completed.
+	*
+	* This function should only be called from the game thread.
 	*/
 	void Shutdown();
 
@@ -128,22 +141,27 @@ private:
 	/** Runs the per-tick logic when doing the ProducingFrames state. */
 	void TickProducingFrames();
 
-	bool ProcessEndOfCameraCut(FMoviePipelineShotInfo &CurrentShot, FMoviePipelineCameraCutInfo &CurrentCameraCut);
+	void ProcessEndOfCameraCut(FMoviePipelineShotInfo &CurrentShot, FMoviePipelineCameraCutInfo &CurrentCameraCut);
 
 
 	/** Called once when first moving to the Finalize state. */
 	void BeginFinalize();
+	/** Called once when first moving to the Export state. */
+	void BeginExport();
 
 	/** 
 	* Runs the per-tick logic when doing the Finalize state.
+	*
 	* @param bInForceFinish		If true, this function will not return until all Output Containers say they have finalized.
 	*/
 	void TickFinalizeOutputContainers(const bool bInForceFinish);
 	/** 
 	* Runs the per-tick logic when doing the Export state. This is spread over multiple ticks to allow non-blocking background 
-	* processes (such as extra encoding) 
+	* processes (such as extra encoding).
+	*
+	* @param bInForceFinish		If true, this function will not return until all exports say they have finished.
 	*/
-	void TickPostFinalizeExport();
+	void TickPostFinalizeExport(const bool bInForceFinish);
 
 	/** Return true if we should early out of the TickProducingFrames function. Decrements the remaining number of steps when false. */
 	bool DebugFrameStepPreTick();
@@ -209,6 +227,8 @@ private:
 	/** It can be useful to know where the data we're generating was relative to the original Timeline, so this calculates that. */
 	void CalculateFrameNumbersForOutputState(const MoviePipeline::FFrameConstantMetrics& InFrameMetrics, const FMoviePipelineCameraCutInfo& InCameraCut, FMoviePipelineFrameOutputState& InOutOutputState) const;
 
+	/** Handles transitioning between states, preventing reentrancy. Normal state flow should be respected, does not handle arbitrary x to y transitions. */
+	void TransitionToState(const EMovieRenderPipelineState InNewState);
 private:
 	/** Custom TimeStep used to drive the engine while rendering. */
 	UPROPERTY(Transient, Instanced)
@@ -259,6 +279,12 @@ private:
 	bool bHasRunBeginFrameOnce;
 	/** Should we pause the game at the end of the frame? Used to implement frame step debugger. */
 	bool bPauseAtEndOfFrame;
+
+	/** True if RequestShutdown() was called. At the start of the next frame we will stop producing frames (if needed) and start shutting down. */
+	FThreadSafeBool bShutdownRequested;
+
+	/** True if we're in a TransitionToState call. Used to prevent reentrancy. */
+	bool bIsTransitioningState;
 
 	/** When using temporal sub-frame stepping common counts (such as 3) don't result in whole ticks. We keep track of how many ticks we lose so we can add them the next time there's a chance. */
 	float AccumulatedTickSubFrameDeltas;
