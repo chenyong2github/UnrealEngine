@@ -55,6 +55,8 @@ public:
 
 	virtual void RequestCloseEditor( ) override
 	{
+		ClearDelayedShowMainFrameDelegate();
+
 		if ( MainFrameHandler->CanCloseEditor() )
 		{
 			MainFrameHandler->ShutDownEditor();
@@ -110,6 +112,22 @@ public:
 		return MainFrameSDKNotInstalled.Broadcast(PlatformName, DocLink);
 	}
 
+	virtual void EnableDelayedShowMainFrame() override
+	{
+		bDelayedShowMainFrame = true;
+	}
+
+	virtual void ShowDelayedMainFrame() override
+	{
+		bDelayedShowMainFrame = false;
+
+		if (DelayedShowMainFrameDelegate.IsBound())
+		{
+			DelayedShowMainFrameDelegate.Execute();
+			ClearDelayedShowMainFrameDelegate();
+		}
+	}
+
 public:
 
 	// IModuleInterface interface
@@ -161,6 +179,12 @@ private:
 	// Handles launching code accessor
 	void HandleCodeAccessorLaunching( );
 
+	// Reset delegate
+	void ClearDelayedShowMainFrameDelegate()
+	{
+		DelayedShowMainFrameDelegate.Unbind();
+	}
+
 private:
 
 	// Weak pointer to the level editor's compile notification item.
@@ -192,6 +216,12 @@ private:
 
 	// Weak pointer to the code accessor's notification item.
 	TWeakPtr<class SNotificationItem> CodeAccessorNotificationPtr;
+
+	// Delegate that holds a delayed call to ShowMainFrameWindow
+	FSimpleDelegate DelayedShowMainFrameDelegate;
+
+	// Allow delaying when to show main frame's window
+	bool bDelayedShowMainFrame;
 
 	// Sounds used for compilation.
 	class USoundBase* CompileStartSound;
