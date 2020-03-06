@@ -13,10 +13,15 @@ class SDlgPickAssetPath : public SWindow
 {
 public:
 	SLATE_BEGIN_ARGS(SDlgPickAssetPath)
-	{
-	}
+		: _AllowReadOnlyFolders(true)
+		{}
+
 		SLATE_ARGUMENT(FText, Title)
 		SLATE_ARGUMENT(FText, DefaultAssetPath)
+
+		/** If true, read only folders will be displayed */
+		SLATE_ARGUMENT(bool, AllowReadOnlyFolders)
+
 	SLATE_END_ARGS()
 
 	UNREALED_API SDlgPickAssetPath()
@@ -48,6 +53,9 @@ protected:
 	EAppReturnType::Type UserResponse;
 	FText AssetPath;
 	FText AssetName;
+
+	/** If true, read only folders will be displayed */
+	bool bAllowReadOnlyFolders;
 };
 
 #undef LOCTEXT_NAMESPACE

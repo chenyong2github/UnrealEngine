@@ -20,11 +20,13 @@ void SDlgPickAssetPath::Construct(const FArguments& InArgs)
 {
 	AssetPath = FText::FromString(FPackageName::GetLongPackagePath(InArgs._DefaultAssetPath.ToString()));
 	AssetName = FText::FromString(FPackageName::GetLongPackageAssetName(InArgs._DefaultAssetPath.ToString()));
+	bAllowReadOnlyFolders = InArgs._AllowReadOnlyFolders;
 
 	FPathPickerConfig PathPickerConfig;
 	PathPickerConfig.DefaultPath = AssetPath.ToString();
 	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateSP(this, &SDlgPickAssetPath::OnPathChange);
 	PathPickerConfig.bAddDefaultPath = true;
+	PathPickerConfig.bAllowReadOnlyFolders = bAllowReadOnlyFolders;
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 
