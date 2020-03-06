@@ -35,15 +35,10 @@ protected:
 				.EditableTextBoxStyle(FEditorStyle::Get(), "Graph.EditableTextBox")
 				.BorderForegroundColor(FSlateColor::UseForeground())
 				.Visibility(this, &SGraphPinNum::GetDefaultValueVisibility)
-				.IsEnabled(this, &SGraphPinNum::GetDefaultValueIsEnabled)
+				.IsEnabled(this, &SGraphPinNum::GetDefaultValueIsEditable)
 				.Value(this, &SGraphPinNum::GetNumericValue)
 				.OnValueCommitted(this, &SGraphPinNum::SetNumericValue)
 			];
-	}
-
-	bool GetDefaultValueIsEnabled() const
-	{
-		return !GraphPinObj->bDefaultValueIsReadOnly;
 	}
 
 	TOptional<NumericType> GetNumericValue() const
