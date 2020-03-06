@@ -5,7 +5,7 @@
 #include "PhysXSupport.h"
 #include "IPhysXCookingModule.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 #include "IPhysXCooking.h"
 

@@ -16,7 +16,7 @@ struct FNavHeightfieldSamples;
 
 template<typename InElementType> class TNavStatArray;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 namespace physx
 {
 	class PxTriangleMesh;
@@ -38,7 +38,7 @@ namespace Chaos
 struct FNavigableGeometryExport
 {
 	virtual ~FNavigableGeometryExport() {}
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	virtual void ExportPxTriMesh16Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld) = 0;
 	virtual void ExportPxTriMesh32Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld) = 0;
 	virtual void ExportPxConvexMesh(physx::PxConvexMesh const * const ConvexMesh, const FTransform& LocalToWorld) = 0;

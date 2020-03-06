@@ -221,7 +221,7 @@ struct FRecastGeometryExport : public FNavigableGeometryExport
 	TNavStatArray<int32> IndexBuffer;
 	FWalkableSlopeOverride SlopeOverride;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	virtual void ExportPxTriMesh16Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld) override;
 	virtual void ExportPxTriMesh32Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld) override;
 	virtual void ExportPxConvexMesh(physx::PxConvexMesh const * const ConvexMesh, const FTransform& LocalToWorld) override;
@@ -342,7 +342,7 @@ static void StoreCollisionCache(FRecastGeometryExport& GeomExport)
 	FMemory::Memcpy(RawMemory + HeaderSize + CoordsSize, GeomExport.IndexBuffer.GetData(), IndicesSize);
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 /** exports PxConvexMesh as trimesh */
 void ExportPxConvexMesh(PxConvexMesh const * const ConvexMesh, const FTransform& LocalToWorld,
 						TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
@@ -784,7 +784,7 @@ void ExportHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldS
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportHeightFieldSlice);
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	static const uint32 SizeOfPx = sizeof(physx::PxI16);
 	static const uint32 SizeOfHeight = PrefetchedHeightfieldSamples.Heights.GetTypeSize();
 	ensure(SizeOfPx == SizeOfHeight);
@@ -1325,7 +1325,7 @@ void ExportVertexSoup(const TArray<FVector>& VertexSoup, TNavStatArray<float>& V
 
 } // namespace RecastGeometryExport
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 void FRecastGeometryExport::ExportPxTriMesh16Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld)
 {
 	RecastGeometryExport::ExportPxTriMesh<PxU16>(TriMesh, LocalToWorld, VertexBuffer, IndexBuffer, Data->Bounds);

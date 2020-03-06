@@ -143,7 +143,7 @@ inline void UpdateMaskFilter(uint32& Word3, FMaskFilter NewMaskFilter)
 	Word3 |= uint32(NewMaskFilter) << (32 - NumExtraFilterBits);
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	extern ENGINE_API PxSimulationFilterShader GSimulationFilterShader;
 #endif
 

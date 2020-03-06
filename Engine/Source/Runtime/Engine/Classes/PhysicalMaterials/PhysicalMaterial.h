@@ -15,10 +15,12 @@
 
 struct FPropertyChangedEvent;
 
+#if PHYSICS_INTERFACE_PHYSX
 namespace physx
 {
 	class PxMaterial;
 }
+#endif
 
 /** DEPRECATED Pairs desired tire friction scale with tire type */
 USTRUCT()

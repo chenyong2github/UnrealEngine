@@ -1693,7 +1693,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 
 		FWorldDelegates::OnWorldPostActorTick.Broadcast(this, TickType, DeltaSeconds);
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		if ( PhysicsScene != nullptr )
 		{
 			GPhysCommandHandler->Flush();
