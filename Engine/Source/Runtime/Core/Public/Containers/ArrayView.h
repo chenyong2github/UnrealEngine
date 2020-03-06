@@ -576,6 +576,61 @@ TArrayView<const T> MakeArrayView(std::initializer_list<T> List)
 	return TArrayView<const T>(List);
 }
 
+//////////////////////////////////////////////////////////////////////////
+
+/**
+ * Equality operator.
+ *
+ * @param Lhs Another ranged type to compare.
+ * @returns True if this array view's contents and the other ranged type match. False otherwise.
+ */
+template <
+	typename RangeType,
+	typename ElementType,
+	typename = decltype(ImplicitConv<const ElementType*>(GetData(DeclVal<RangeType&>())))
+>
+bool operator==(RangeType&& Lhs, TArrayView<ElementType> Rhs)
+{
+	auto Count = GetNum(Lhs);
+	return Count == Rhs.Num() && CompareItems(GetData(Lhs), Rhs.GetData(), Count);
+}
+
+template <
+	typename RangeType,
+	typename ElementType,
+	typename = decltype(ImplicitConv<const ElementType*>(GetData(DeclVal<RangeType&>())))
+>
+bool operator==(TArrayView<ElementType> Lhs, RangeType&& Rhs)
+{
+	return (Rhs == Lhs);
+}
+
+/**
+ * Inequality operator.
+ *
+ * @param Lhs Another ranged type to compare.
+ * @returns False if this array view's contents and the other ranged type match. True otherwise.
+ */
+template <
+	typename RangeType,
+	typename ElementType,
+	typename = decltype(ImplicitConv<const ElementType*>(GetData(DeclVal<RangeType&>())))
+>
+bool operator!=(RangeType&& Lhs, TArrayView<ElementType> Rhs)
+{
+	return !(Lhs == Rhs);
+}
+
+template <
+	typename RangeType,
+	typename ElementType,
+	typename = decltype(ImplicitConv<const ElementType*>(GetData(DeclVal<RangeType&>())))
+>
+bool operator!=(TArrayView<ElementType> Lhs, RangeType&& Rhs)
+{
+	return !(Rhs == Lhs);
+}
+
 template<typename InElementType, typename InAllocatorType>
 template<typename OtherElementType>
 FORCEINLINE TArray<InElementType, InAllocatorType>::TArray(const TArrayView<OtherElementType>& Other)
