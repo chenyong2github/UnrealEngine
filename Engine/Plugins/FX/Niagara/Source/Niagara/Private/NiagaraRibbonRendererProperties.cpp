@@ -221,6 +221,12 @@ void UNiagaraRibbonRendererProperties::GetRendererTooltipWidgets(const FNiagaraE
 }
 
 
+void UNiagaraRibbonRendererProperties::GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
+{
+	Super::GetRendererFeedback(InEmitter, OutErrors, OutWarnings, OutInfo);
+}
+
+
 bool UNiagaraRibbonRendererProperties::IsMaterialValidForRenderer(UMaterial* InMaterial, FText& InvalidMessage)
 {
 	if (InMaterial->bUsedWithNiagaraRibbons == false)
