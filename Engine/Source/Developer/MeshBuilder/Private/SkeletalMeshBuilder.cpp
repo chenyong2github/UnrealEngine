@@ -53,9 +53,10 @@ struct FSkeletalMeshVertInstanceIDAndZ
 //or simply add parameter to FSkeletalMeshImportData::CopyLODImportData to do the job inside the function.
 namespace SkeletalMeshBuilderHelperNS
 {
-	void FixFaceMaterial(USkeletalMesh* SkeletalMesh, TArray<SkeletalMeshImportData::FMaterial>& RawMeshMaterials, TArray<SkeletalMeshImportData::FMeshFace>& LODFaces)
+	//Base LOD (index 0), which is not using LODMaterialMap, we want to adjust the source face material index data to fit with the SkeletalMesh material list
+	void AdjustSourceFaceMaterialIndex(USkeletalMesh* SkeletalMesh, TArray<SkeletalMeshImportData::FMaterial>& RawMeshMaterials, TArray<SkeletalMeshImportData::FMeshFace>& LODFaces, int32 LODIndex)
 	{
-		if (RawMeshMaterials.Num() <= 1)
+		if (RawMeshMaterials.Num() <= 1 || LODIndex > 0)
 		{
 			//Nothing to fix if we have 1 or less material
 			return;
@@ -75,10 +76,7 @@ namespace SkeletalMeshBuilderHelperNS
 				FName MeshMaterialName = SkeletalMesh->Materials[MeshMaterialIndex].ImportedMaterialSlotName;
 				if (MaterialImportName == MeshMaterialName)
 				{
-					if (MaterialRemap[MaterialIndex] != MeshMaterialIndex)
-					{
-						bNeedRemapping = true;
-					}
+					bNeedRemapping |= (MaterialRemap[MaterialIndex] != MeshMaterialIndex);
 					MaterialRemap[MaterialIndex] = MeshMaterialIndex;
 					break;
 				}
@@ -151,8 +149,12 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 
 		//Use the max because we need to have at least one texture coordinnate
 		NumTextCoord = FMath::Max<int32>(NumTextCoord, SkeletalMeshImportData.NumTexCoords);
-
-		SkeletalMeshBuilderHelperNS::FixFaceMaterial(SkeletalMesh, SkeletalMeshImportData.Materials, LODFaces);
+		
+		if (LODIndex == 0)
+		{
+			//BaseLOD should not use LODMaterialMap (except if user has change the material), so we have to make sure the source data fit with the skeletalmesh materials array
+			SkeletalMeshBuilderHelperNS::AdjustSourceFaceMaterialIndex(SkeletalMesh, SkeletalMeshImportData.Materials, LODFaces, LODIndex);
+		}
 
 		//Build the skeletalmesh using mesh utilities module
 		IMeshUtilities::MeshBuildOptions Options;
