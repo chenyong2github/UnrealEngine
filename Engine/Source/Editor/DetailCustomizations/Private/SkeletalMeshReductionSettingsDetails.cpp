@@ -174,6 +174,8 @@ void FSkeletalMeshReductionSettingsDetails::CustomizeChildren(TSharedRef<IProper
 			GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, NumOfVertPercentage),
 			GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, MaxNumOfVerts),
 			GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, MaxNumOfTriangles),
+			GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, MaxNumOfVertsPercentage),
+			GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, MaxNumOfTrianglesPercentage),
 			GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, TerminationCriterion),
 			GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, bLockEdges),
 			GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, bEnforceBoneBoundaries),
@@ -255,6 +257,9 @@ void FSkeletalMeshReductionSettingsDetails::CustomizeChildren(TSharedRef<IProper
 		TSharedPtr<IPropertyHandle> MaxNumOfVertsPropertyHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, MaxNumOfVerts));
 		TSharedPtr<IPropertyHandle> MaxNumOfTrisPropertyHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, MaxNumOfTriangles));
 
+		TSharedPtr<IPropertyHandle> MaxNumOfVertsPercentagePropertyHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, MaxNumOfVertsPercentage));
+		TSharedPtr<IPropertyHandle> MaxNumOfTrisPercentagePropertyHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSkeletalMeshOptimizationSettings, MaxNumOfTrianglesPercentage));
+
 		for (auto Iter(PropertyHandles.CreateIterator()); Iter; ++Iter)
 		{
 			if (UnwantedPropertyHandles.Contains(Iter.Value())) 
@@ -301,6 +306,15 @@ void FSkeletalMeshReductionSettingsDetails::CustomizeChildren(TSharedRef<IProper
 					// Hide property if using triangle percentage
 					SettingsRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSkeletalMeshReductionSettingsDetails::ShowIfCurrentCriterionIs, VizList)));
 				}
+				else if (Iter.Value() == MaxNumOfVertsPercentagePropertyHandle)
+				{
+					const TArray< SkeletalMeshTerminationCriterion > VizList =
+					{
+						SMTC_NumOfVerts
+					};
+					// Hide property if using triangle percentage
+					SettingsRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSkeletalMeshReductionSettingsDetails::ShowIfCurrentCriterionIs, VizList)));
+				}
 				else if (Iter.Value() == MaxNumOfTrisPropertyHandle)
 				{
 					const TArray< SkeletalMeshTerminationCriterion > VizList = 
@@ -311,7 +325,15 @@ void FSkeletalMeshReductionSettingsDetails::CustomizeChildren(TSharedRef<IProper
 					// Hide property if using triangle percentage
 					SettingsRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSkeletalMeshReductionSettingsDetails::ShowIfCurrentCriterionIs, VizList)));
 				}
-
+				else if (Iter.Value() == MaxNumOfTrisPercentagePropertyHandle)
+				{
+					const TArray< SkeletalMeshTerminationCriterion > VizList =
+					{
+						SMTC_NumOfTriangles
+					};
+					// Hide property if using triangle percentage
+					SettingsRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSkeletalMeshReductionSettingsDetails::ShowIfCurrentCriterionIs, VizList)));
+				}
 			}
 		}
 
