@@ -26,20 +26,27 @@ FNiagaraParameterPanelEntryParameterNameViewModel::FNiagaraParameterPanelEntryPa
 
 TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateScopeSlotWidget() const
 {
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsUsingLegacyNameString())
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	ENiagaraParameterScope CachedScope;
+	CachedScriptVarAndViewInfo.MetaData.GetScope(CachedScope);
 	UEnum* ParameterScopeEnum = FNiagaraTypeDefinition::GetParameterScopeEnum();
 	TSharedPtr< SWidget > ScopeComboBoxWidget;
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 
 	bool bEnableScopeSlotWidget = true;
-	if (CachedScriptVarAndViewInfo.MetaData.Usage != ENiagaraScriptParameterUsage::Input)
+	if (CachedScriptVarAndViewInfo.MetaData.GetUsage() != ENiagaraScriptParameterUsage::Input)
 	{
 		bEnableScopeSlotWidget = false;
 	}
-	else if (CachedScriptVarAndViewInfo.MetaData.Scope == ENiagaraParameterScope::Local)
+	else if (CachedScope == ENiagaraParameterScope::Local)
 	{
 		bEnableScopeSlotWidget = false;
 	}
-	else if (CachedScriptVarAndViewInfo.MetaData.bIsStaticSwitch)
+	else if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch())
 	{
 		bEnableScopeSlotWidget = false;
 	}
@@ -82,7 +89,12 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateTex
 
 int32 FNiagaraParameterPanelEntryParameterNameViewModel::GetScopeValue() const
 {
-	return (int32)CachedScriptVarAndViewInfo.MetaData.Scope;
+	ENiagaraParameterScope CachedScope;
+	if (ensureMsgf(CachedScriptVarAndViewInfo.MetaData.GetScope(CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
+	{
+		return (int32)CachedScope;
+	}
+	return int32(ENiagaraParameterScope::Custom);
 }
 
 void FNiagaraParameterPanelEntryParameterNameViewModel::OnScopeValueChanged(int32 NewScopeValue, ESelectInfo::Type SelectionType) const
@@ -102,7 +114,13 @@ bool FNiagaraParameterPanelEntryParameterNameViewModel::GetScopeValueIsEnabled(i
 
 FText FNiagaraParameterPanelEntryParameterNameViewModel::GetParameterNameText() const
 {
-	return FText::FromName(CachedScriptVarAndViewInfo.MetaData.CachedNamespacelessVariableName);
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsUsingLegacyNameString())
+	{
+		return FText::FromName(CachedScriptVarAndViewInfo.ScriptVariable.GetName());
+	}
+	FName ParameterName;
+	CachedScriptVarAndViewInfo.MetaData.GetParameterName(ParameterName);
+	return FText::FromName(ParameterName);
 }
 
 void FNiagaraParameterPanelEntryParameterNameViewModel::OnParameterRenamed(const FText& NewNameText, ETextCommit::Type TextCommitType) const
@@ -126,6 +144,12 @@ FNiagaraGraphPinParameterNameViewModel::FNiagaraGraphPinParameterNameViewModel(
 
 TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateScopeSlotWidget() const
 {
+	// If using legacy name mode, skip the scope widget as we only need a text slot widget.
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsUsingLegacyNameString())
+	{
+		return SNullWidget::NullWidget;
+	}
+
 	UEnum* ParameterScopeEnum = FNiagaraTypeDefinition::GetParameterScopeEnum();
 	TSharedPtr< SWidget > ScopeComboBoxWidget;
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -166,15 +190,17 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget
 
 int32 FNiagaraGraphPinParameterNameViewModel::GetScopeValue() const
 {
-	return (int32)CachedScriptVarAndViewInfo.MetaData.Scope;
+	ENiagaraParameterScope CachedScope;
+	if (ensureMsgf(CachedScriptVarAndViewInfo.MetaData.GetScope(CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
+	{
+		return (int32)CachedScope;
+	}
+	return int32(ENiagaraParameterScope::Custom);
 }
 
 void FNiagaraGraphPinParameterNameViewModel::OnScopeValueChanged(int32 NewScopeValue, ESelectInfo::Type SelectionType) const
 {
 	ParameterPanelViewModel->ChangePinScope(OwningPin, ENiagaraParameterScope(NewScopeValue));
-
-	//UEdGraphPin* NonConstOwningPin = const_cast<UEdGraphPin*>(OwningPin); //@todo refactor
-	//Cast<UNiagaraNode>(OwningPin->GetOwningNode())->CommitEditablePinName(FText::FromName(NewPinName), NonConstOwningPin);
 }
 
 FText FNiagaraGraphPinParameterNameViewModel::GetToolTipForScopeValue(int32 ScopeValue) const
@@ -189,13 +215,16 @@ bool FNiagaraGraphPinParameterNameViewModel::GetScopeValueIsEnabled(int32 ScopeV
 
 FText FNiagaraGraphPinParameterNameViewModel::GetParameterNameText() const
 {
-	return FText::FromName(CachedScriptVarAndViewInfo.MetaData.CachedNamespacelessVariableName);
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsUsingLegacyNameString())
+	{
+		return FText::FromName(CachedScriptVarAndViewInfo.ScriptVariable.GetName());
+	}
+	FName ParameterName;
+	CachedScriptVarAndViewInfo.MetaData.GetParameterName(ParameterName);
+	return FText::FromName(ParameterName);
 }
 
 void FNiagaraGraphPinParameterNameViewModel::OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const
 {
 	ParameterPanelViewModel->RenamePin(OwningPin, NewNameText);
-
-	//UEdGraphPin* NonConstOwningPin = const_cast<UEdGraphPin*>(OwningPin); //@todo refactor
-	//Cast<UNiagaraNode>(OwningPin->GetOwningNode())->CommitEditablePinName(NewNameText, NonConstOwningPin);
 }

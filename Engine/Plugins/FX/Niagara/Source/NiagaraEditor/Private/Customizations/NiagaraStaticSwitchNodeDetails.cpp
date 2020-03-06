@@ -249,7 +249,7 @@ int32 FNiagaraStaticSwitchNodeDetails::GetDefaultWidgetIndex() const
 TOptional<int32> FNiagaraStaticSwitchNodeDetails::GetSwitchDefaultValue() const
 {
 	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
-	return MetaData.IsSet() ? TOptional<int32>(MetaData->StaticSwitchDefaultValue) : TOptional<int32>();
+	return MetaData.IsSet() ? TOptional<int32>(MetaData->GetStaticSwitchDefaultValue()) : TOptional<int32>();
 }
 
 void FNiagaraStaticSwitchNodeDetails::DefaultIntValueCommitted(int32 Value, ETextCommit::Type CommitInfo)
@@ -257,7 +257,7 @@ void FNiagaraStaticSwitchNodeDetails::DefaultIntValueCommitted(int32 Value, ETex
 	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
 	if (MetaData.IsSet())
 	{
-		MetaData->StaticSwitchDefaultValue = Value;
+		MetaData->SetStaticSwitchDefaultValue(Value);
 		SetSwitchParameterMetadata(MetaData.GetValue());
 	}
 }
@@ -267,7 +267,7 @@ void FNiagaraStaticSwitchNodeDetails::DefaultBoolValueCommitted(ECheckBoxState N
 	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
 	if (MetaData.IsSet())
 	{
-		MetaData->StaticSwitchDefaultValue = (NewState == ECheckBoxState::Checked) ? 1 : 0;
+		MetaData->SetStaticSwitchDefaultValue((NewState == ECheckBoxState::Checked) ? 1 : 0);
 		SetSwitchParameterMetadata(MetaData.GetValue());
 	}
 }
@@ -314,7 +314,7 @@ void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<DefaultEnumO
 		return;
 	}
 
-	MetaData->StaticSwitchDefaultValue = SelectedDefaultValue->EnumIndex;
+	MetaData->SetStaticSwitchDefaultValue(SelectedDefaultValue->EnumIndex);
 	SetSwitchParameterMetadata(MetaData.GetValue());
 }
 
@@ -453,7 +453,7 @@ void FNiagaraStaticSwitchNodeDetails::RefreshDropdownValues()
 			FText DisplayName = Enum->GetDisplayNameTextByIndex(i);
 			DefaultEnumDropdownOptions.Add(MakeShared<DefaultEnumOption>(DisplayName, i));
 
-			if (MetaData.IsSet() && i == MetaData->StaticSwitchDefaultValue)
+			if (MetaData.IsSet() && i == MetaData->GetStaticSwitchDefaultValue())
 			{
 				SelectedDefaultValue = DefaultEnumDropdownOptions[i];
 			}

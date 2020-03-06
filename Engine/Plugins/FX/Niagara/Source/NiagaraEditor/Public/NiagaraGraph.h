@@ -332,8 +332,6 @@ class UNiagaraGraph : public UEdGraph
 
 	void CopyCachedReferencesMap(UNiagaraGraph* TargetGraph);
 
-	void FixupParameterUsageMetaData();
-
 	bool IsPinVisualWidgetProviderRegistered() const;
 
 	/** Wrapper to provide visual widgets for pins that are managed by external viewmodels.
