@@ -116,6 +116,7 @@ void UParameterizeMeshTool::Setup()
 	// Construct the preview object and set the material on it
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 	// Initialize the preview mesh with a copy of the source mesh.
 	bool bHasGroups = false;
