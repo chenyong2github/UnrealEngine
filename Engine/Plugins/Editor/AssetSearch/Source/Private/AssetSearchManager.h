@@ -35,7 +35,7 @@ private:
 
 	void RequestIndexAsset(UObject* InAsset);
 	bool IsAssetIndexable(UObject* InAsset);
-	void TryLoadIndexForAsset(const FAssetData& InAsset);
+	bool TryLoadIndexForAsset(const FAssetData& InAsset);
 	FString TryGetDDCKeyForAsset(const FAssetData& InAsset);
 	FString GetDerivedDataKey(const FSHAHash& IndexedContentHash);
 	FString GetDerivedDataKey(const FAssetData& UnindexedAsset);
@@ -55,9 +55,12 @@ private:
 	FAssetSearchDatabase SearchDatabase;
 	FCriticalSection SearchDatabaseCS;
 	TAtomic<int32> PendingDatabaseUpdates;
+	TAtomic<int32> PendingDownloads;
 
 private:
 	TMap<FName, IAssetIndexer*> Indexers;
+
+	TArray<TWeakObjectPtr<UObject>> RequestIndexQueue;
 
 	TArray<FAssetData> ProcessAssetQueue;
 
