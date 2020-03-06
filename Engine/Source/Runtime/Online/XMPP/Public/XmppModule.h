@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/CoreMisc.h"
+#include "Containers/Ticker.h"
 #include "XmppConnection.h"
 #include "Modules/ModuleInterface.h"
 #include "XmppMultiUserChat.h"
