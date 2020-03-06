@@ -66,6 +66,11 @@ static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRasterSampleCount
 static float GHairStrandsFullCoverageThreshold = 0.98f;
 static FAutoConsoleVariableRef CVarHairStrandsFullCoverageThreshold(TEXT("r.HairStrands.Visibility.FullCoverageThreshold"), GHairStrandsFullCoverageThreshold, TEXT("Define the coverage threshold at which a pixel is considered fully covered."));
 
+static TAutoConsoleVariable<int32> CVarHairStrandsSplitLighting(
+	TEXT("r.HairStrands.SplitLighting"), 0,
+	TEXT(""),
+	ECVF_RenderThreadSafe);
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 namespace HairStrandsVisibilityInternal
@@ -1199,12 +1204,14 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const uint32 NodeGroupSize,
 	FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters,
+	FRDGTextureRef& OutCompactCounter,
 	FRDGTextureRef& OutCompactNodeIndex,
 	FRDGBufferRef& OutCompactNodeData,
 	FRDGBufferRef& OutCompactNodeCoord,
 	FRDGTextureRef& OutCategorizationTexture,
 	FRDGTextureRef& OutVelocityTexture,
-	FRDGBufferRef& OutIndirectArgsBuffer)
+	FRDGBufferRef& OutIndirectArgsBuffer,
+	uint32& OutMaxRenderNodeCount)
 {
 	FIntPoint Resolution;
 	if (bUsePPLL)
@@ -1234,8 +1241,6 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		}
 	}
 
-
-	FRDGTextureRef CompactCounter;
 	{
 		FRDGTextureDesc Desc;
 		Desc.Extent.X = 1;
@@ -1247,7 +1252,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		Desc.Flags = TexCreate_None;
 		Desc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(0);
-		CompactCounter = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityCompactCounter"));
+		OutCompactCounter = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityCompactCounter"));
 	}
 
 	{
@@ -1273,7 +1278,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	}
 
 	const uint32 ClearValues[4] = { 0u,0u,0u,0u };
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactCounter), ClearValues);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(OutCompactCounter), ClearValues);
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(OutCompactNodeIndex), ClearValues);
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(OutCategorizationTexture), ClearValues);
 
@@ -1311,7 +1316,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	PassParameters->CosTangentThreshold = FMath::Cos(FMath::DegreesToRadians(FMath::Clamp(GHairStrandsMaterialCompactionTangentThreshold, 0.f, 90.f)));
 	PassParameters->SceneTexturesStruct = CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleDraw);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->OutCompactNodeCounter = GraphBuilder.CreateUAV(CompactCounter);
+	PassParameters->OutCompactNodeCounter = GraphBuilder.CreateUAV(OutCompactCounter);
 	PassParameters->OutCompactNodeIndex = GraphBuilder.CreateUAV(OutCompactNodeIndex);
 	PassParameters->OutCompactNodeData = GraphBuilder.CreateUAV(OutCompactNodeData);
 	PassParameters->OutCompactNodeCoord = GraphBuilder.CreateUAV(OutCompactNodeCoord);
@@ -1342,7 +1347,8 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		PassParameters,
 		FComputeShaderUtils::GetGroupCount(RectResolution, GroupSize));
 
-	OutIndirectArgsBuffer = AddCopyIndirectArgPass(GraphBuilder, &View, NodeGroupSize, 1, CompactCounter);
+	OutIndirectArgsBuffer = AddCopyIndirectArgPass(GraphBuilder, &View, NodeGroupSize, 1, OutCompactCounter);
+	OutMaxRenderNodeCount = MaxRenderNodeCount;
 }
 
 
@@ -2368,6 +2374,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 			FRDGTextureRef CategorizationTexture = nullptr;
 			FRDGTextureRef CompactNodeIndex = nullptr;
 			FRDGBufferRef  CompactNodeData = nullptr;
+			FRDGTextureRef NodeCounter = nullptr;
 			if (RenderMode == HairVisibilityRenderMode_MSAA)
 			{
 				const bool bIsVisiblityEnable = GHairStrandsVisibilityMaterialPass > 0;
@@ -2431,12 +2438,14 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						MacroGroupDatas,
 						VisibilityData.NodeGroupSize,
 						PassParameters,
+						NodeCounter,
 						CompactNodeIndex,
 						CompactNodeData,
 						CompactNodeCoord,
 						CategorizationTexture,
 						SceneVelocityTexture,
-						IndirectArgsBuffer);
+						IndirectArgsBuffer,
+						VisibilityData.MaxNodeCount);
 
 					if (bIsVisiblityEnable)
 					{
@@ -2471,6 +2480,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					GraphBuilder.QueueBufferExtraction(CompactNodeData,			&VisibilityData.NodeData,					FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
 					GraphBuilder.QueueBufferExtraction(CompactNodeCoord,		&VisibilityData.NodeCoord,					FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
 					GraphBuilder.QueueBufferExtraction(IndirectArgsBuffer,		&VisibilityData.NodeIndirectArg,			FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+					GraphBuilder.QueueTextureExtraction(NodeCounter, 			&VisibilityData.NodeCount);
 				}
 
 				// View transmittance depth test needs to happen before the scene depth is patched with the hair depth (for fully-covered-by-hair pixels)
@@ -2540,12 +2550,14 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						MacroGroupDatas,
 						VisibilityData.NodeGroupSize,
 						PassParameters,
+						NodeCounter,
 						CompactNodeIndex,
 						CompactNodeData,
 						CompactNodeCoord,
 						CategorizationTexture,
 						SceneVelocityTexture,
-						IndirectArgsBuffer);
+						IndirectArgsBuffer,
+						VisibilityData.MaxNodeCount);
 
 					VisibilityData.MaxSampleCount = GetPPLLMaxRenderNodePerPixel();
 					GraphBuilder.QueueTextureExtraction(CompactNodeIndex, &VisibilityData.NodeIndex);
@@ -2553,6 +2565,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					GraphBuilder.QueueBufferExtraction(CompactNodeData, &VisibilityData.NodeData, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
 					GraphBuilder.QueueBufferExtraction(CompactNodeCoord, &VisibilityData.NodeCoord, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
 					GraphBuilder.QueueBufferExtraction(IndirectArgsBuffer, &VisibilityData.NodeIndirectArg, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+					GraphBuilder.QueueTextureExtraction(NodeCounter, &VisibilityData.NodeCount);
 				}
 
 				AddHairVisibilityColorAndDepthPatchPass(
@@ -2598,12 +2611,36 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 
 			GraphBuilder.Execute();
 
+			const bool bUseSplitLighting = CVarHairStrandsSplitLighting.GetValueOnRenderThread() >  0;
+			if (bUseSplitLighting)
+			{			
+				const uint32 SampleTextureResolution = FMath::CeilToInt(FMath::Sqrt(VisibilityData.MaxNodeCount));
+				VisibilityData.SampleLightingViewportResolution = FIntPoint(SampleTextureResolution, SampleTextureResolution);
+				FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
+					VisibilityData.SampleLightingViewportResolution,
+					PF_FloatRGBA,
+					FClearValueBinding::Black,
+					TexCreate_None, 
+					TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable, false);
+
+				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, VisibilityData.SampleLightingBuffer, TEXT("HairSampleLightingBuffer"));
+
+				// TODO: do an indirect clear of the VisibilityData.SampleLightingBuffer ...
+				FRHIRenderPassInfo RPInfo(VisibilityData.SampleLightingBuffer->GetRenderTargetItem().TargetableTexture, MakeRenderTargetActions(ERenderTargetLoadAction::EClear, ERenderTargetStoreAction::EStore));
+				RHICmdList.BeginRenderPass(RPInfo, TEXT("HairSampleLightingClear"));
+				RHICmdList.EndRenderPass();
+			}
+
 			// #hair_todo: is there a better way to get SRV view of a RDG buffer? should work as long as there is not reuse between the pass
 			if (VisibilityData.NodeData)
+			{
 				VisibilityData.NodeDataSRV = RHICreateShaderResourceView(VisibilityData.NodeData->StructuredBuffer);
+			}
 
 			if (VisibilityData.NodeCoord)
+			{
 				VisibilityData.NodeCoordSRV = RHICreateShaderResourceView(VisibilityData.NodeCoord->StructuredBuffer);
+			}
 		}
 	}
 
