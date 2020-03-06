@@ -300,11 +300,27 @@ public:
 		}
 	};
 
+#if WITH_EDITORONLY_DATA
+	struct FPlatformDebugEntry
+	{
+		uint32 Offset;
+		uint32 Size;
+
+		friend FArchive& operator<<(FArchive& Ar, FPlatformDebugEntry& Entry)
+		{
+			return Ar << Entry.Offset << Entry.Size;
+		}
+	};
+#endif // WITH_EDITORONLY_DATA
+
 	RENDERCORE_API ~FShaderMapResourceCode();
 
 	RENDERCORE_API void Finalize();
 
-	RENDERCORE_API void Serialize(FArchive& Ar);
+	RENDERCORE_API void Serialize(FArchive& Ar, bool bLoadedByCookedMaterial);
+#if WITH_EDITORONLY_DATA
+	RENDERCORE_API void NotifyShadersCooked(const ITargetPlatform* TargetPlatform);
+#endif // WITH_EDITORONLY_DATA
 
 	inline const uint32 GetSizeBytes() const
 	{
@@ -315,6 +331,10 @@ public:
 	TArray<FSHAHash> ShaderHashes;
 	TArray<FShaderEntry> ShaderEntries;
 	TArray<uint8> ShaderCode;
+#if WITH_EDITORONLY_DATA
+	TArray<FPlatformDebugEntry> PlatformDebugEntries;
+	TArray<uint8> PlatformDebugData;
+#endif // WITH_EDITORONLY_DATA
 };
 	
 class RENDERCORE_API FShaderMapResource_InlineCode : public FShaderMapResource
@@ -339,12 +359,17 @@ public:
 
 	inline int32 FindOrAddCode(const FShaderCompilerOutput& Output)
 	{
+#if WITH_EDITORONLY_DATA
+		AddPlatformDebugData(Output.PlatformDebugData);
+#endif
 		return FindOrAddCode(Output.Target.GetFrequency(), Output.OutputHash, Output.ShaderCode.GetReadAccess());
 	}
 
 	RENDERCORE_API int32 FindCode(const FSHAHash& InHash, uint32 InKey) const;
 	RENDERCORE_API int32 FindOrAddCode(EShaderFrequency InFrequency, const FSHAHash& InHash, const TConstArrayView<uint8>& InCode);
-
+#if WITH_EDITORONLY_DATA
+	RENDERCORE_API void AddPlatformDebugData(TConstArrayView<uint8> InPlatformDebugData);
+#endif // WITH_EDITORONLY_DATA
 private:
 	FHashTable ShaderHashTable;
 	TRefCountPtr<FShaderMapResourceCode> Code;
