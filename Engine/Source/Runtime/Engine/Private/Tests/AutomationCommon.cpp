@@ -22,7 +22,7 @@
 #include "StereoRendering.h"
 #include "Misc/PackageName.h"
 
-#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+#if WITH_AUTOMATION_TESTS
 
 DEFINE_LOG_CATEGORY_STATIC(LogEngineAutomationLatentCommand, Log, All);
 DEFINE_LOG_CATEGORY(LogEditorAutomationTests);
@@ -79,7 +79,7 @@ namespace AutomationCommon
 		return HardwareDetailsString;
 	}
 
-#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+#if WITH_AUTOMATION_TESTS
 
 	/** Gets a path used for automation testing (PNG sent to the AutomationTest folder) */
 	FString GetScreenshotName(const FString& TestName)

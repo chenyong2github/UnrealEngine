@@ -28,6 +28,11 @@
 #include "Misc/AutomationEvent.h"
 #include "Internationalization/Regex.h"
 
+
+#ifndef WITH_AUTOMATION_TESTS
+	#define WITH_AUTOMATION_TESTS (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+#endif
+
 /** Flags for specifying automation test requirements/behavior */
 namespace EAutomationTestFlags
 {

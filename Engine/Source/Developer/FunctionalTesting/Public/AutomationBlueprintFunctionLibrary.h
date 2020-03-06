@@ -8,7 +8,7 @@
 #include "AutomationScreenshotOptions.h"
 #include "HAL/IConsoleManager.h"
 #include "Templates/UniquePtr.h"
-
+#include "Misc/AutomationTest.h"
 #include "AutomationBlueprintFunctionLibrary.generated.h"
 
 class ACameraActor;
@@ -156,7 +156,7 @@ public:
 	static void SetScalabilityQualityToLow(UObject* WorldContextObject);
 };
 
-#if (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
+#if WITH_AUTOMATION_TESTS
 
 template<typename T>
 class FConsoleVariableSwapperTempl
