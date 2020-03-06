@@ -558,7 +558,9 @@ void FNiagaraTypeDefinition::Init()
 
 	ParameterScopeEnum = StaticEnum<ENiagaraParameterScope>();
 	
+#if WITH_EDITOR
 	RecreateUserDefinedTypeRegistry();
+#endif
 }
 
 bool FNiagaraTypeDefinition::IsValidNumericInput(const FNiagaraTypeDefinition& TypeDef)
@@ -635,6 +637,7 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 #endif
 }
 
+#if WITH_EDITOR
 void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 {
 	static auto* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
@@ -749,6 +752,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 }
+#endif
 
 bool FNiagaraTypeDefinition::IsScalarDefinition(const FNiagaraTypeDefinition& Type)
 {
