@@ -319,6 +319,7 @@ public:
 	int32 SourceSimStage = -1;
 	bool bSpawnOnly;
 	bool bUsesAlive;
+	bool bWritesAlive = false;
 };
 
 class NIAGARAEDITOR_API FHlslNiagaraTranslator
