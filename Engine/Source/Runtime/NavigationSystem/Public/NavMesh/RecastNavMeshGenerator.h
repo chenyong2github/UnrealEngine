@@ -166,8 +166,6 @@ struct FRecastAreaNavModifierElement
 	// Per instance transformations in unreal coords
 	// When empty areas are in world space
 	TArray<FTransform>	PerInstanceTransform;
-
-	bool bMaskFillCollisionUnderneathForNavmesh = false;
 };
 
 struct FRcTileBox
@@ -307,8 +305,6 @@ public:
 	FRecastInternalDebugData& GetMutableDebugData() { return DebugData; }
 #endif
 		
-	typedef TArray<int32, TInlineAllocator<4096>> TInlineMaskArray;
-
 protected:
 	/** Does the actual TimeSliced tile generation. 
 	 *	@note always trigger tile generation only via DoWorkTimeSliced(). This is a worker function
@@ -364,12 +360,6 @@ protected:
 	bool GenerateNavigationData(FNavMeshBuildContext& BuildContext);
 
 	void ApplyVoxelFilter(struct rcHeightfield* SolidHF, float WalkableRadius);
-
-	/** Compute rasterization mask */
-	void InitRasterizationMaskArray(const rcHeightfield* SolidHF, TInlineMaskArray& OutRasterizationMasks);
-	void ComputeRasterizationMasks(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	void MarkRasterizationMask(rcContext* /*BuildContext*/, rcHeightfield* SolidHF,
-		const FAreaNavModifier& Modifier, const FTransform& LocalToWorld, const int32 Mask, TInlineMaskArray& OutMaskArray);
 
 	/** apply areas from DynamicAreas to layer */
 	void MarkDynamicAreas(dtTileCacheLayer& Layer);
