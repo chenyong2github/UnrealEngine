@@ -3006,11 +3006,6 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 	{
 		ListenerProxies.AddDefaulted(InViewportIndex - ListenerProxies.Num() + 1);
 	}
-	else if (ListenerProxies[InViewportIndex].Transform.Equals(ListenerTransformCopy, KINDA_SMALL_NUMBER))
-	{
-		// Don't need tp update the listener if we're very close to our current transform
-		return;
-	}
 
 	ListenerProxies[InViewportIndex].Transform = ListenerTransformCopy;
 

@@ -222,11 +222,11 @@ namespace SteamAudio
 			}
 
 			// Attempt to load from disk, otherwise export
-			if (!LoadSceneFromDisk(World, ComputeDevice, SimulationSettings, &PhononScene, PhononSceneInfo))
+			if (!LoadSceneFromDisk(World, ComputeDevice, SimulationSettings, &PhononScene, PhononSceneInfo, nullptr))
 			{
 				IPLhandle PhononStaticMesh = nullptr;
 
-				if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles))
+				if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles, PhononSceneInfo.NumDynTriangles, PhononSceneInfo.DynDataSize))
 				{
 					GGenerateProbesTickable->QueueWorkItem(FWorkItem([](FText& DisplayText) {
 						DisplayText = NSLOCTEXT("SteamAudio", "UnableToCreateScene", "Unable to create scene.");
