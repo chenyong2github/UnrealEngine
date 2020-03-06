@@ -360,17 +360,19 @@ void UNiagaraGraph::PostLoad()
 				continue;
 			}
 
-			if (ScriptVar->Metadata.bIsStaticSwitch)
+			if (ScriptVar->Metadata.GetIsStaticSwitch())
 			{
 				// Do not need to assign scopes and usages to static switches, so assign the name and continue.
-				ScriptVar->Metadata.CachedNamespacelessVariableName = ScriptVar->Variable.GetName();
+				ScriptVar->Metadata.SetCachedNamespacelessVariableName(ScriptVar->Variable.GetName());
 				continue;
 			}
 
-			// Resolve the namespace of the variable to a scope, and assign the usage to local if "local" is in the name string.
-			FNiagaraStackGraphUtilities::SetParameterMetaDataFromName(Var.GetName(), ScriptVar->Metadata.Scope, ScriptVar->Metadata.Usage, ScriptVar->Metadata.CachedNamespacelessVariableName);
+			// Resolve the namespace of the variable to a scope, cache the scopeless name in the UI, and set the usage if the name string would force that to occur.
+			FNiagaraVariableMetaData OutMetaData;
+			FNiagaraStackGraphUtilities::GetParameterMetaDataFromName(Var.GetName(), OutMetaData);
+			ScriptVar->Metadata.CopyPerScriptMetaData(OutMetaData);
 
-			// If the usage is not local, select the usage based on the associated input/output pins.
+			// If the usage is not local or an initial value, select the usage based on the associated input/output pins.
 			SetScriptVariableUsageForPins(VarToPinsMap, ScriptVar);
 		}
 		
@@ -430,7 +432,7 @@ void UNiagaraGraph::ValidateDefaultPins()
 			// If the user selected custom mode they can basically do whatever they want
 			continue;
 		}
-		if (ScriptVariable->Metadata.bIsStaticSwitch) {
+		if (ScriptVariable->Metadata.GetIsStaticSwitch()) {
 			// We ignore static switch variables as they handle default values differently
 			continue;
 		}
@@ -916,7 +918,7 @@ bool UNiagaraGraph::UpdateUsageForScriptVariable(UNiagaraScriptVariable* ScriptV
 
 bool UNiagaraGraph::SetScriptVariableUsageForPins(const TMap<FNiagaraVariable, FInputPinsAndOutputPins>& VarToPinsMap, UNiagaraScriptVariable* ScriptVariable) const
 {
-	if (ScriptVariable->Metadata.Usage == ENiagaraScriptParameterUsage::Local || ScriptVariable->Metadata.Usage == ENiagaraScriptParameterUsage::InitialValueInput)
+	if (ScriptVariable->Metadata.GetUsage() == ENiagaraScriptParameterUsage::Local || ScriptVariable->Metadata.GetUsage() == ENiagaraScriptParameterUsage::InitialValueInput)
 	{
 		return true;
 	}
@@ -928,27 +930,27 @@ bool UNiagaraGraph::SetScriptVariableUsageForPins(const TMap<FNiagaraVariable, F
 		{
 			if (InOutPins->OutputPins.Num() > 0)
 			{
-				ScriptVariable->Metadata.Usage = ENiagaraScriptParameterUsage::InputOutput;
+				ScriptVariable->Metadata.SetUsage(ENiagaraScriptParameterUsage::InputOutput);
 				return true;
 			}
-			ScriptVariable->Metadata.Usage = ENiagaraScriptParameterUsage::Output;
+			ScriptVariable->Metadata.SetUsage(ENiagaraScriptParameterUsage::Output);
 			return true;
 		}
 		else if (InOutPins->OutputPins.Num() > 0)
 		{
-			ScriptVariable->Metadata.Usage = ENiagaraScriptParameterUsage::Input;
+			ScriptVariable->Metadata.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
 		else
 		{
 			ensureMsgf(false, TEXT("Var to pins map had entry with 0 pins!"));
-			ScriptVariable->Metadata.Usage = ENiagaraScriptParameterUsage::Local;
+			ScriptVariable->Metadata.SetUsage(ENiagaraScriptParameterUsage::Local);
 			return true;
 		}
 	}
 	else
 	{
-		ScriptVariable->Metadata.Usage = ENiagaraScriptParameterUsage::Local;
+		ScriptVariable->Metadata.SetUsage(ENiagaraScriptParameterUsage::Local);
 		return false;
 	}
 
@@ -1043,7 +1045,7 @@ void UNiagaraGraph::AddParameter(const FNiagaraVariable& Parameter, bool bIsStat
 	{
 		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional);
 		NewScriptVariable->Variable = Parameter;
-		NewScriptVariable->Metadata.bIsStaticSwitch = bIsStaticSwitch;
+		NewScriptVariable->Metadata.SetIsStaticSwitch(bIsStaticSwitch);
 		VariableToScriptVariable.Add(Parameter, NewScriptVariable);
 	}
 }
@@ -1073,15 +1075,15 @@ void UNiagaraGraph::AddParameter(FNiagaraVariable& Parameter, const FAddParamete
 
 		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional);
 		NewScriptVariable->Variable = Parameter;
-		NewScriptVariable->Metadata.bIsStaticSwitch = Options.bIsStaticSwitch;
-		NewScriptVariable->Metadata.bCreatedInSystemEditor = Options.bAddedFromSystemEditor;
+		NewScriptVariable->Metadata.SetIsStaticSwitch(Options.bIsStaticSwitch);
+		NewScriptVariable->Metadata.SetWasCreatedInSystemEditor(Options.bAddedFromSystemEditor);
 		VariableToScriptVariable.Add(Parameter, NewScriptVariable);
 
 		bool bSkipRefreshMetaDataScopeAndUsage = false;
 		if (Options.NewParameterUsage.IsSet())
 		{
 			bSkipRefreshMetaDataScopeAndUsage = true;
-			NewScriptVariable->Metadata.Usage = Options.NewParameterUsage.GetValue();
+			NewScriptVariable->Metadata.SetUsage(Options.NewParameterUsage.GetValue());
 		}
 
 		if (Options.NewParameterScope.IsSet())
@@ -1181,7 +1183,7 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 	FNiagaraVariableMetaData OldMetaData;
 	if (OldScriptVariable)
 	{
-		if (!bFromStaticSwitch && (*OldScriptVariable)->Metadata.bIsStaticSwitch)
+		if (!bFromStaticSwitch && (*OldScriptVariable)->Metadata.GetIsStaticSwitch())
 		{
 			// We current disallow renaming static switch variables in the Parameters panel. 
 			bIsRenamingParameter = false;
@@ -1191,10 +1193,10 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 	}
 
 	// Update the OldMetaData which will be applied to the new parameter to synchronize the cached namespace-less name and scope.
-	OldMetaData.CachedNamespacelessVariableName = FName(*FNiagaraStackGraphUtilities::GetNamespacelessVariableNameString(NewParameter.GetName()));
+	OldMetaData.SetCachedNamespacelessVariableName(FName(*FNiagaraStackGraphUtilities::GetNamespacelessVariableNameString(NewParameter.GetName())));
 	if (NewScope != ENiagaraParameterScope::None)
 	{
-		OldMetaData.Scope = NewScope;
+		OldMetaData.SetScope(NewScope);
 	}
 		
 	// Swap metadata to the new parameter; put the new parameter into VariableToScriptVariable
@@ -1252,7 +1254,7 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 void UNiagaraGraph::ScriptVariableChanged(FNiagaraVariable Variable)
 {
 	UNiagaraScriptVariable** ScriptVariable = GetAllMetaData().Find(Variable);
-	if (!ScriptVariable || !*ScriptVariable || (*ScriptVariable)->Metadata.bIsStaticSwitch) {
+	if (!ScriptVariable || !*ScriptVariable || (*ScriptVariable)->Metadata.GetIsStaticSwitch()) {
 		return;
 	}
 
@@ -1712,40 +1714,6 @@ void UNiagaraGraph::CopyCachedReferencesMap(UNiagaraGraph* TargetGraph)
 	TargetGraph->ParameterToReferencesMap = ParameterToReferencesMap;
 }
 
-void UNiagaraGraph::FixupParameterUsageMetaData()
-{
-	// Collect all input and output pins to infer usages of variables they reference.
-	const TMap<FNiagaraVariable, FInputPinsAndOutputPins> VarToPinsMap = CollectVarsToInOutPinsMap();
-
-	// Now iterate all variables
-	for (auto It = VariableToScriptVariable.CreateIterator(); It; ++It)
-	{
-		FNiagaraVariable Var = It.Key();
-		UNiagaraScriptVariable* ScriptVar = It.Value();
-
-		if (Var.GetName() == FNiagaraConstants::InputPinName || Var.GetName() == FNiagaraConstants::OutputPinName)
-		{
-			//@todo Pins leaked into variable maps at some point, need to clean.
-			continue;
-		}
-
-		if (ScriptVar->Metadata.bIsStaticSwitch)
-		{
-			// Do not need to assign scopes and usages to static switches, so assign the name and continue.
-			ScriptVar->Metadata.CachedNamespacelessVariableName = ScriptVar->Variable.GetName();
-			continue;
-		}
-
-		// Resolve the namespace of the variable to a scope, and assign the usage to local if "local" is in the name string.
-		FNiagaraStackGraphUtilities::SetParameterMetaDataFromName(Var.GetName(), ScriptVar->Metadata.Scope, ScriptVar->Metadata.Usage, ScriptVar->Metadata.CachedNamespacelessVariableName);
-
-		// If the usage is not local, select the usage based on the associated input/output pins.
-		SetScriptVariableUsageForPins(VarToPinsMap, ScriptVar);
-	}
-
-	NotifyGraphNeedsRecompile();
-}
-
 bool UNiagaraGraph::IsPinVisualWidgetProviderRegistered() const
 {
 	return OnGetPinVisualWidgetDelegate.IsBound();
@@ -1979,10 +1947,7 @@ void UNiagaraGraph::SetPerScriptMetaData(const FNiagaraVariable& InVar, const FN
 		{
 			// Replace the old metadata scope, usage and cached name, but retain persistent metadata such as description.
 			FNiagaraVariableMetaData& OldMetaData = (*FoundMetaData)->Metadata;
-			OldMetaData.Usage = InMetaData.Usage;
-			OldMetaData.Scope = InMetaData.Scope;
-			OldMetaData.CachedNamespacelessVariableName = InMetaData.CachedNamespacelessVariableName;
-			OldMetaData.bCreatedInSystemEditor = InMetaData.bCreatedInSystemEditor;
+			OldMetaData.CopyPerScriptMetaData(InMetaData);
 		}
 	}
 	else
@@ -2138,7 +2103,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		{
 			UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this));
 			NewScriptVariable->Variable = Variable;
-			NewScriptVariable->Metadata.bIsStaticSwitch = false;
+			NewScriptVariable->Metadata.SetIsStaticSwitch(false);
 			GenerateMetaDataForScriptVariable(NewScriptVariable);
 			VariableToScriptVariable.Add(Variable, NewScriptVariable);
 		}
@@ -2206,7 +2171,9 @@ void UNiagaraGraph::InvalidateCachedParameterData()
 
 void UNiagaraGraph::GenerateMetaDataForScriptVariable(UNiagaraScriptVariable* InScriptVariable) const
 {
-	FNiagaraStackGraphUtilities::SetParameterMetaDataFromName(InScriptVariable->Variable.GetName(), InScriptVariable->Metadata.Scope, InScriptVariable->Metadata.Usage, InScriptVariable->Metadata.CachedNamespacelessVariableName);
+	FNiagaraVariableMetaData OutMetaData;
+	FNiagaraStackGraphUtilities::GetParameterMetaDataFromName(InScriptVariable->Variable.GetName(), OutMetaData);
+	InScriptVariable->Metadata.CopyPerScriptMetaData(OutMetaData);
 	UpdateUsageForScriptVariable(InScriptVariable);
 }
 
