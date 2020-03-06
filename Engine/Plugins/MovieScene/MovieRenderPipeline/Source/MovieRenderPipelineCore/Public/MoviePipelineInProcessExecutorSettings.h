@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "Misc/CommandLine.h"
 #include "MoviePipelineInProcessExecutorSettings.generated.h"
 
 /**
