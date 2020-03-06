@@ -595,6 +595,7 @@ void AUsdStageActor::ReloadAnimations()
 		LevelSequence = nullptr;
 		SubLayerLevelSequencesByIdentifier.Reset();
 
+		LevelSequenceHelper.InitLevelSequence(UsdStage);
 	}
 #endif // #if USE_USD_SDK
 }
