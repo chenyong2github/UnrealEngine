@@ -283,6 +283,25 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DYNAMIC_MISS_SHADER"), PermutationVector.Get<FMissShaderLighting>());
+
+		if (PermutationVector.Get<FDeferredMaterialMode>() == EDeferredMaterialMode::Shade)
+		{
+			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1);
+		}
+
+		if (PermutationVector.Get<FDeferredMaterialMode>() == EDeferredMaterialMode::Gather)
+		{
+			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER"), 1);
+		}
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingReflectionsRGS, "/Engine/Private/RayTracing/RayTracingReflections.usf", "RayTracingReflectionsRGS", SF_RayGen);
