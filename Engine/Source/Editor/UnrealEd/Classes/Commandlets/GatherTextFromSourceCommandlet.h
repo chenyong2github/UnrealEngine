@@ -11,7 +11,7 @@
 
 class Error;
 
-enum EGatherTextSourceFileTypes : uint8
+enum class EGatherTextSourceFileTypes : uint8
 {
 	None = 0,
 	Cpp = 1 << 0,
