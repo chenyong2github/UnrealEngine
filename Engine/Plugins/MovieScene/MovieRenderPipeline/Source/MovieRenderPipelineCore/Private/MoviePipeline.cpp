@@ -140,12 +140,6 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	}
 
 	CurrentJob = InJob;
-
-	// When start up we want to override the engine's Custom Timestep with our own.
-	// This gives us the ability to completely control the engine tick/delta time before the frame
-	// is started so that we don't have to always be thinking of delta times one frame ahead.
-	CachedPrevCustomTimeStep = GEngine->GetCustomTimeStep();
-	GEngine->SetCustomTimeStep(CustomTimeStep);
 	
 	ULevelSequence* OriginalSequence = Cast<ULevelSequence>(InJob->Sequence.TryLoad());
 	if (!ensureAlwaysMsgf(OriginalSequence, TEXT("Failed to load Sequence Asset from specified path, aborting movie render! Attempted to load Path: %s"), *InJob->Sequence.ToString()))
