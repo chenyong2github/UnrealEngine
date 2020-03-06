@@ -284,17 +284,7 @@ public:
 		return Handles;
 	}
 
-	const FConstraintBase& GetConstraint(int32 Index) const 
-	{
-		check(Index < NumConstraints());
-		
-		if (Index < PointConstraints.Num())
-		{
-			return PointConstraints[Index];
-		}
-		
-		return IterativeConstraints[Index - PointConstraints.Num()];
-	}
+	const FConstraintBase& GetConstraint(int32 Index) const;
 
 
 protected:

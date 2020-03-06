@@ -591,6 +591,27 @@ namespace Chaos
 		return bNeedsAnotherIteration;
 	}
 
+	template<typename T, int d>
+	const typename TPBDCollisionConstraints<T, d>::FConstraintBase& TPBDCollisionConstraints<T, d>::GetConstraint(int32 Index) const
+	{
+		check(Index < NumConstraints());
+		
+		if (Index < PointConstraints.Num())
+		{
+			return PointConstraints[Index];
+		}
+		Index -= PointConstraints.Num();
+
+		if (Index < SweptPointConstraints.Num())
+		{
+			return SweptPointConstraints[Index];
+		}
+		Index -= SweptPointConstraints.Num();
+
+		{
+			return IterativeConstraints[Index];
+		}
+	}
 
 
 	template class TAccelerationStructureHandle<float, 3>;
