@@ -547,6 +547,8 @@ void FThreadTimingTrack::DrawSelectedEventInfo(const FTimingEvent& SelectedEvent
 
 void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
 {
+	InOutTooltip.ResetContent();
+
 	if (InTooltipEvent.CheckTrack(this) && InTooltipEvent.Is<FTimingEvent>())
 	{
 		const FTimingEvent& TooltipEvent = InTooltipEvent.As<FTimingEvent>();
@@ -558,8 +560,6 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 			TSharedPtr<FTimingEvent> RootTimingEvent;
 			Trace::FTimingProfilerEvent RootEvent;
 			GetParentAndRoot(TooltipEvent, ParentTimingEvent, ParentEvent, RootTimingEvent, RootEvent);
-
-			InOutTooltip.ResetContent();
 
 			const FTimerNodePtr TimerNodePtr = FTimingProfilerManager::Get()->GetTimerNode(InFoundEvent.TimerIndex);
 			FString TimerName = TimerNodePtr ? TimerNodePtr->GetName().ToString() : TEXT("N/A");
@@ -595,10 +595,10 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 			}
 
 			InOutTooltip.AddNameValueTextLine(TEXT("Depth:"), FString::Printf(TEXT("%d"), TooltipEvent.GetDepth()));
-
-			InOutTooltip.UpdateLayout();
 		});
 	}
+
+	InOutTooltip.UpdateLayout();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -620,7 +620,8 @@ void FThreadTimingTrack::GetParentAndRoot(const FTimingEvent& TimingEvent, TShar
 
 				TimingProfilerProvider.ReadTimeline(GetTimelineIndex(), [&TimingEvent, &OutParentTimingEvent, &OutParentEvent, &OutRootTimingEvent, &OutRootEvent](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 				{
-					Timeline.EnumerateEvents(TimingEvent.GetStartTime(), TimingEvent.GetEndTime(), [&TimingEvent, &OutParentTimingEvent, &OutParentEvent, &OutRootTimingEvent, &OutRootEvent](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
+					const double Time = (TimingEvent.GetStartTime() + TimingEvent.GetEndTime()) / 2;
+					Timeline.EnumerateEvents(Time, Time, [&TimingEvent, &OutParentTimingEvent, &OutParentEvent, &OutRootTimingEvent, &OutRootEvent](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
 					{
 						if (EventDepth == 0)
 						{
@@ -814,7 +815,8 @@ bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEvent& InTimingEve
 			&& InEndTime == InTimingEvent.GetEndTime();
 	};
 
-	FTimingEventSearchParameters SearchParameters(InTimingEvent.GetStartTime(), InTimingEvent.GetEndTime(), ETimingEventSearchFlags::StopAtFirstMatch, MatchEvent);
+	const double Time = (InTimingEvent.GetStartTime() + InTimingEvent.GetEndTime()) / 2;
+	FTimingEventSearchParameters SearchParameters(Time, Time, ETimingEventSearchFlags::StopAtFirstMatch, MatchEvent);
 	SearchParameters.SearchHandle = &InTimingEvent.GetSearchHandle();
 	return FindTimingProfilerEvent(SearchParameters, InFoundPredicate);
 }
