@@ -441,7 +441,7 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 		if (ThreadId == SharedCrashContext.CrashingThreadId)
 		{
 			CrashContext.SetPortableCallStack(
-				StackFrames + SharedCrashContext.NumStackFramesToIgnore,
+				StackFrames,
 				StackFrameCount - SharedCrashContext.NumStackFramesToIgnore
 			);
 		}
