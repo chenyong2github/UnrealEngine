@@ -81,6 +81,9 @@ protected:
 	/** Get the brightness on the background. */
 	FSlateColor GetBackgroundBrightness() const;
 
+	/** Returns true if this drop target is currently being hovered over by a drag drop event */
+	bool IsDragOver() const { return bIsDragOver; }
+
 private:
 	/** Delegate to call when an asset is dropped */
 	FOnDrop DroppedEvent;
