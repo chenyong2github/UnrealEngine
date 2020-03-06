@@ -563,6 +563,32 @@ void UNiagaraEmitter::PostLoad()
 	ResolveScalabilitySettings();
 }
 
+bool UNiagaraEmitter::IsEditorOnly() const
+{
+#if WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return false;
+	}
+
+	// if the emitter does not have a system as it's outer than it is likely a standalone emitter/parent emitter and so is editor only
+	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+	{
+		for (const auto& SystemEmitterHandle : SystemOwner->GetEmitterHandles())
+		{
+			if (SystemEmitterHandle.GetInstance() == this)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+#else
+	return Super::IsEditorOnly();
+#endif
+}
+
 #if WITH_EDITOR
 /** Creates a new emitter with the supplied emitter as a parent emitter and the supplied system as it's owner. */
 UNiagaraEmitter* UNiagaraEmitter::CreateWithParentAndOwner(UNiagaraEmitter& InParentEmitter, UObject* InOwner, FName InName, EObjectFlags FlagMask)

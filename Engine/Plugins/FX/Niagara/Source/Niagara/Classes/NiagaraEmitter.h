@@ -243,6 +243,7 @@ public:
 	void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+	virtual bool IsEditorOnly() const override;
 	//End UObject Interface
 
 	/** Toggles whether or not the particles within this emitter are relative to the emitter origin or in global space. */ 
