@@ -291,7 +291,7 @@ FGuid FNiagaraStackFunctionInputBinder::GetChangeIdFromFunctionScript() const
 
 void FNiagaraStackFunctionInputBinder::RefreshGraphPins() const
 {
-	if (FunctionCallNode->FunctionScript == nullptr || FunctionCallNode->FunctionScript->GetSource() == nullptr)
+	if (FunctionCallNode.IsValid() == false || FunctionCallNode->FunctionScript == nullptr || FunctionCallNode->FunctionScript->GetSource() == nullptr)
 	{
 		OverridePin = nullptr;
 		DefaultPin = nullptr;
