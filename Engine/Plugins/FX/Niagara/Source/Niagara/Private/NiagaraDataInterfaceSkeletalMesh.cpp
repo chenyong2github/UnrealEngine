@@ -649,97 +649,133 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 		return;
 	}
 
-	// Create AllSectionsRefToLocalMatrices
-	TArray<FVector4> AllSectionsRefToLocalMatrices;
 	static_assert(sizeof(FVector4) == 4 * sizeof(float), "FVector4 should match 4 * floats");
-	{
-		TArray<FMatrix> RefToLocalMatrices;
-		if (SkelComp)
-		{
-			//-TODO: We need to handle MasterPoseComponent here
-			SkelComp->CacheRefToLocalMatrices(RefToLocalMatrices);
-		}
-		else
-		{
-			RefToLocalMatrices = SkelMesh->RefBasesInvMatrix;
-		}
 
-		TIndirectArray<FSkeletalMeshLODRenderData>& LODRenderDataArray = SkelMesh->GetResourceForRendering()->LODRenderData;
-		check(0 <= LODIndex && LODIndex < LODRenderDataArray.Num());
-		FSkeletalMeshLODRenderData& LODRenderData = LODRenderDataArray[LODIndex];
-		TArray<FSkelMeshRenderSection>& Sections = LODRenderData.RenderSections;
-		uint32 SectionCount = Sections.Num();
-
-		// Count number of matrices we want before appending all of them according to the per section mapping from BoneMap
-		uint32 Float4Count = 0;
-		for (const FSkelMeshRenderSection& Section : Sections)
-		{
-			Float4Count += Section.BoneMap.Num() * 3;
-		}
-		check(Float4Count == 3 * SectionBoneCount);
-		AllSectionsRefToLocalMatrices.AddUninitialized(Float4Count);
-
-		Float4Count = 0;
-		for (const FSkelMeshRenderSection& Section : Sections)
-		{
-			const uint32 MatrixCount = Section.BoneMap.Num();
-			for (uint32 m = 0; m < MatrixCount; ++m)
-			{
-				RefToLocalMatrices[Section.BoneMap[m]].To3x4MatrixTranspose(&AllSectionsRefToLocalMatrices[Float4Count].X);
-				Float4Count += 3;
-			}
-		}
-	}
-
-	// Generate information for bone sampling
+	TArray<FVector4> AllSectionsRefToLocalMatrices;
 	TArray<FVector4> BoneSamplingData;
-	{
-		BoneSamplingData.Reserve((SamplingBoneCount + SamplingSocketCount) * 2);
 
-		// Append bones
-		if (SkelComp != nullptr)
+	auto FillBuffers =
+		[&](const TArray<FTransform>& BoneTransforms)
 		{
-			//-TODO: We need to handle MasterPoseComponent here
-			const TArray<FTransform>& ComponentTransforms = SkelComp->GetComponentSpaceTransforms();
-			check(ComponentTransforms.Num() == SamplingBoneCount);
+			check(BoneTransforms.Num() == SkelMesh->RefBasesInvMatrix.Num());
 
-			for (const FTransform& BoneTransform : ComponentTransforms)
+			// Fill AllSectionsRefToLocalMatrices
+			TIndirectArray<FSkeletalMeshLODRenderData>& LODRenderDataArray = SkelMesh->GetResourceForRendering()->LODRenderData;
+			check(0 <= LODIndex && LODIndex < LODRenderDataArray.Num());
+			FSkeletalMeshLODRenderData& LODRenderData = LODRenderDataArray[LODIndex];
+			TArray<FSkelMeshRenderSection>& Sections = LODRenderData.RenderSections;
+			uint32 SectionCount = Sections.Num();
+
+			// Count number of matrices we want before appending all of them according to the per section mapping from BoneMap
+			uint32 Float4Count = 0;
+			for (const FSkelMeshRenderSection& Section : Sections)
+			{
+				Float4Count += Section.BoneMap.Num() * 3;
+			}
+			check(Float4Count == 3 * SectionBoneCount);
+			AllSectionsRefToLocalMatrices.AddUninitialized(Float4Count);
+
+			Float4Count = 0;
+			for (const FSkelMeshRenderSection& Section : Sections)
+			{
+				const uint32 MatrixCount = Section.BoneMap.Num();
+				for (uint32 m=0; m < MatrixCount; ++m)
+				{
+					const int32 BoneIndex = Section.BoneMap[m];
+					const FTransform& BoneTransform = BoneTransforms[BoneIndex];
+					const FMatrix BoneMatrix = SkelMesh->RefBasesInvMatrix[BoneIndex] * BoneTransform.ToMatrixWithScale();
+					BoneMatrix.To3x4MatrixTranspose(&AllSectionsRefToLocalMatrices[Float4Count].X);
+					Float4Count += 3;
+				}
+			}
+
+			// Fill BoneSamplingData
+			BoneSamplingData.Reserve((SamplingBoneCount + SamplingSocketCount) * 2);
+			check(BoneTransforms.Num() == SamplingBoneCount);
+
+			for (const FTransform& BoneTransform : BoneTransforms)
 			{
 				const FQuat Rotation = BoneTransform.GetRotation();
 				BoneSamplingData.Add(BoneTransform.GetLocation());
 				BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
 			}
-		}
-		else
+
+			// Append sockets
+			for (const FTransform& SocketTransform : InstanceData->GetSpecificSocketsCurrBuffer())
+			{
+				const FQuat Rotation = SocketTransform.GetRotation();
+				BoneSamplingData.Add(SocketTransform.GetLocation());
+				BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
+			}
+		};
+
+	// If we have a component pull transforms from component otherwise grab from skel mesh
+	if (SkelComp)
+	{
+		if (USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get())
 		{
-			//-TODO: Opt and combine with MaterPostComponent
+			const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
+			const int32 NumBones = MasterBoneMap.Num();
+
 			TArray<FTransform> TempBoneTransforms;
 			TempBoneTransforms.Reserve(SamplingBoneCount);
 
-			const TArray<FTransform>& RefTransforms = SkelMesh->RefSkeleton.GetRefBonePose();
-			for (int32 i=0; i < RefTransforms.Num(); ++i)
+			if (NumBones == 0)
 			{
-				FTransform BoneTransform = RefTransforms[i];
-				const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(i);
-				if (TempBoneTransforms.IsValidIndex(ParentIndex))
-				{
-					BoneTransform = BoneTransform * TempBoneTransforms[ParentIndex];
-				}
-				TempBoneTransforms.Add(BoneTransform);
-
-				const FQuat Rotation = BoneTransform.GetRotation();
-				BoneSamplingData.Add(BoneTransform.GetLocation());
-				BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
+				// This case indicates an invalid master pose component (e.g. no skeletal mesh)
+				TempBoneTransforms.AddDefaulted(SamplingBoneCount);
 			}
+			else
+			{
+				const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
+				for (int32 BoneIndex=0; BoneIndex < NumBones; ++BoneIndex)
+				{
+					if (MasterBoneMap.IsValidIndex(BoneIndex))
+					{
+						const int32 MasterIndex = MasterBoneMap[BoneIndex];
+						if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
+						{
+							TempBoneTransforms.Add(MasterTransforms[MasterIndex]);
+							continue;
+						}
+					}
+
+					const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
+					FTransform BoneTransform =SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+					if (TempBoneTransforms.IsValidIndex(ParentIndex))
+					{
+						BoneTransform = BoneTransform * TempBoneTransforms[ParentIndex];
+					}
+					TempBoneTransforms.Add(BoneTransform);
+				}
+			}
+			FillBuffers(TempBoneTransforms);
+		}
+		else
+		{
+			const TArray<FTransform>& ComponentTransforms = SkelComp->GetComponentSpaceTransforms();
+			FillBuffers(ComponentTransforms);
+		}
+	}
+	else
+	{
+		//-TODO: Opt and combine with MaterPoseComponent
+		TArray<FTransform> TempBoneTransforms;
+		TempBoneTransforms.Reserve(SamplingBoneCount);
+
+		const TArray<FTransform>& RefTransforms = SkelMesh->RefSkeleton.GetRefBonePose();
+		for (int32 i=0; i < RefTransforms.Num(); ++i)
+		{
+			FTransform BoneTransform = RefTransforms[i];
+			const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(i);
+			if (TempBoneTransforms.IsValidIndex(ParentIndex))
+			{
+				BoneTransform = BoneTransform * TempBoneTransforms[ParentIndex];
+			}
+			TempBoneTransforms.Add(BoneTransform);
 		}
 
-		// Append sockets
-		for (const FTransform& SocketTransform : InstanceData->GetSpecificSocketsCurrBuffer())
-		{
-			const FQuat Rotation = SocketTransform.GetRotation();
-			BoneSamplingData.Add(SocketTransform.GetLocation());
-			BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
-		}
+		FillBuffers(TempBoneTransforms);
 	}
 
 	FSkeletalMeshGpuDynamicBufferProxy* ThisProxy = this;
