@@ -126,6 +126,11 @@ void UNiagaraLightRendererProperties::GetRendererTooltipWidgets(const FNiagaraEm
 	OutWidgets.Add(LightTooltip);
 }
 
+void UNiagaraLightRendererProperties::GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
+{
+	Super::GetRendererFeedback(InEmitter, OutErrors, OutWarnings, OutInfo);
+}
+
 bool UNiagaraLightRendererProperties::IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage)
 {
 	return true;
