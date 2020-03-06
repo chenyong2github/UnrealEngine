@@ -184,7 +184,7 @@ namespace UnrealBuildTool
 				ActionExecutor Executor;
 				if (BuildConfiguration.bAllowHybridExecutor && HybridExecutor.IsAvailable())
 				{
-					Executor = new HybridExecutor();
+					Executor = new HybridExecutor(BuildConfiguration.MaxParallelActions);
 				}
 				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable())
 				{
@@ -206,7 +206,7 @@ namespace UnrealBuildTool
 				}
 				else if(BuildConfiguration.bAllowParallelExecutor && ParallelExecutor.IsAvailable())
 				{
-					Executor = new ParallelExecutor();
+					Executor = new ParallelExecutor(BuildConfiguration.MaxParallelActions);
 				}
 				else
 				{
