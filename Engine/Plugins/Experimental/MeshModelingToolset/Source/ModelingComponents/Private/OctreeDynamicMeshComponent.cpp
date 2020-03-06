@@ -50,7 +50,6 @@ UOctreeDynamicMeshComponent::UOctreeDynamicMeshComponent(const FObjectInitialize
 void UOctreeDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescription)
 {
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.bPrintDebugMessages = true;
 	Mesh->Clear();
 	Converter.Convert(MeshDescription, *Mesh);
 

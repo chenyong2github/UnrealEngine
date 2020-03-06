@@ -112,7 +112,6 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	// Convert to dynamic mesh
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.bPrintDebugMessages = true;
 	Converter.Convert(&ResultMeshDescription, *ResultMesh);
 
 	if (Progress->Cancelled())
