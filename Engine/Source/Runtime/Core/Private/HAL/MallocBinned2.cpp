@@ -10,6 +10,7 @@
 #include "HAL/MemoryMisc.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
+#include "HAL/MallocTimer.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
@@ -1307,5 +1308,11 @@ void FMallocBinned2::DumpAllocatorStats(class FOutputDevice& Ar)
 		#include "FMemory.inl"
 	#endif
 #endif
+
+void FMallocBinned2::UpdateStats()
+{
+	FScopedVirtualMallocTimer::UpdateStats();
+}
+
 
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
