@@ -53,39 +53,15 @@ struct FSkeletalMeshSkinningDataHandle
 {
 	FSkeletalMeshSkinningDataHandle();
 	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataUsage InUsage, TSharedPtr<struct FSkeletalMeshSkinningData> InSkinningData);
-
-	FSkeletalMeshSkinningDataHandle& operator=(FSkeletalMeshSkinningDataHandle&& Other)
-	{
-		if (this != &Other)
-		{
-			Usage = Other.Usage;
-			SkinningData = Other.SkinningData;
-			Other.SkinningData = nullptr;
-		}
-		return *this;
-	}
-
-	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other)
-	{
-		Usage = Other.Usage;
-		SkinningData = Other.SkinningData;
-	}
-
+	FSkeletalMeshSkinningDataHandle(const FSkeletalMeshSkinningDataHandle& Other) = delete;
+	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other);
 	~FSkeletalMeshSkinningDataHandle();
+
+	FSkeletalMeshSkinningDataHandle& operator=(const FSkeletalMeshSkinningDataHandle& Other) = delete;
+	FSkeletalMeshSkinningDataHandle& operator=(FSkeletalMeshSkinningDataHandle&& Other);
 
 	FSkeletalMeshSkinningDataUsage Usage;
 	TSharedPtr<FSkeletalMeshSkinningData> SkinningData;
-
-private:
-
-	FSkeletalMeshSkinningDataHandle& operator=(FSkeletalMeshSkinningDataHandle& Other)
-	{
-		return *this;
-	}
-
-	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle& Other)
-	{
-	}
 };
 
 struct FSkeletalMeshSkinningData
@@ -104,6 +80,16 @@ struct FSkeletalMeshSkinningData
 	void ForceDataRefresh();
 
 	bool Tick(float InDeltaSeconds, bool bRequirePreskin = true);
+
+	FORCEINLINE void EnterRead()
+	{
+		RWGuard.ReadLock();
+	}
+
+	FORCEINLINE void ExitRead()
+	{
+		RWGuard.ReadUnlock();
+	}
 
 	FORCEINLINE int32 GetBoneCount(bool RequiresPrevious) const
 	{
@@ -181,7 +167,7 @@ private:
 
 	void UpdateBoneTransforms();
 
-	FCriticalSection CriticalSection; 
+	FRWLock RWGuard;
 	
 	TWeakObjectPtr<USkeletalMeshComponent> MeshComp;
 

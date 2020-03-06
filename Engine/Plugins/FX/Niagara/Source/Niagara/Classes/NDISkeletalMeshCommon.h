@@ -6,6 +6,22 @@
 
 struct FSkeletalMeshAccessorHelper
 {
+	FSkeletalMeshAccessorHelper()
+	{
+	}
+	~FSkeletalMeshAccessorHelper()
+	{
+		if (SkinningData != nullptr)
+		{
+			SkinningData->ExitRead();
+		}
+	}
+
+	FSkeletalMeshAccessorHelper(const FSkeletalMeshAccessorHelper&) = delete;
+	FSkeletalMeshAccessorHelper(FSkeletalMeshAccessorHelper&&) = delete;
+	FSkeletalMeshAccessorHelper operator=(const FSkeletalMeshAccessorHelper&) = delete;
+	FSkeletalMeshAccessorHelper operator=(FSkeletalMeshAccessorHelper&&) = delete;
+
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE void Init(FNDISkeletalMesh_InstanceData* InstData)
 	{
@@ -15,6 +31,11 @@ struct FSkeletalMeshAccessorHelper
 		IndexBuffer = LODData->MultiSizeIndexContainer.GetIndexBuffer();
 		SkinningData = InstData->SkinningData.SkinningData.Get();
 		Usage = InstData->SkinningData.Usage;
+
+		if (SkinningData != nullptr)
+		{
+			SkinningData->EnterRead();
+		}
 	}
 
 	USkeletalMeshComponent* Comp = nullptr;
