@@ -51,7 +51,7 @@ protected:
 	virtual void RemoveDynamicPin(UEdGraphPin* Pin) override;
 
 	/** Make sure that descriptions match up as well as any other value that can be changed.*/
-	void SynchronizeDefaultInputPin(UEdGraphPin* DefaultPin, UEdGraphPin* OutputPin);
+	void SynchronizeDefaultInputPin(UEdGraphPin* DefaultPin, UEdGraphPin* OutputPin, UNiagaraScriptVariable* ScriptVar);
 	
 	/** Reverse the lookup from GetDefaultPin.*/
 	UEdGraphPin* GetOutputPinForDefault(const UEdGraphPin* DefaultPin) const;
@@ -61,6 +61,9 @@ protected:
 
 	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
 	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_Output; };
+
+	/** Returns the metadata for the given variable or nullptr if no metadata is available */
+	UNiagaraScriptVariable* GetScriptVariable(FName VariableName) const;
 
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TMap<FGuid, FGuid> PinOutputToPinDefaultPersistentId;
