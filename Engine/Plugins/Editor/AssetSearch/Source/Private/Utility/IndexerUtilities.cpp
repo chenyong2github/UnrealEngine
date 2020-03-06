@@ -4,6 +4,7 @@
 #include "UObject/UnrealType.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
+#include "UObject/TextProperty.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
