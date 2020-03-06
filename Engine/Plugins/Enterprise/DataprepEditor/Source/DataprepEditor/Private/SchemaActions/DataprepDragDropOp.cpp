@@ -7,17 +7,19 @@
 #include "DataprepAsset.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorLogCategory.h"
+#include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraph.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
 #include "DataprepSchemaActionUtils.h"
+#include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
+#include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
 #include "EditorStyleSet.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
-#include "SGraphPanel.h"
 #include "SPinTypeSelector.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "UObject/StrongObjectPtr.h"
@@ -29,6 +31,7 @@
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepDragAndDrop"
@@ -56,11 +59,11 @@ TSharedRef<FDataprepDragDropOp> FDataprepDragDropOp::New(FDataprepGraphOperation
 	return DragDrop;
 }
 
-TSharedRef<FDataprepDragDropOp> FDataprepDragDropOp::New(const TSharedRef<SGraphPanel>& InGraphPanel, const TSharedRef<SDataprepGraphActionStepNode>& InDraggedNode)
+TSharedRef<FDataprepDragDropOp> FDataprepDragDropOp::New(const TSharedRef<SDataprepGraphTrackNode>& InTrackNode, const TSharedRef<SDataprepGraphActionStepNode>& InDraggedNode)
 {
 	TSharedRef<FDataprepDragDropOp> Operation = MakeShareable(new FDataprepDragDropOp);
 
-	Operation->GraphPanelPtr = InGraphPanel;
+	Operation->TrackNodePtr = InTrackNode;
 	Operation->DraggedNodeWidgets.Add(InDraggedNode);
 	if(UDataprepGraphActionStepNode* ActionStepNode = Cast<UDataprepGraphActionStepNode>(InDraggedNode->GetNodeObj()))
 	{
@@ -92,6 +95,12 @@ TSharedRef<FDataprepDragDropOp> FDataprepDragDropOp::New(UDataprepActionStep* In
 	return Operation;
 }
 
+void FDataprepDragDropOp::Construct()
+{
+	FGraphEditorDragDropAction::Construct();
+	CursorDecoratorWindow->SetOpacity(0.9f);
+}
+
 void FDataprepDragDropOp::HoverTargetChanged()
 {
 	FText DrapDropText;
@@ -110,17 +119,17 @@ void FDataprepDragDropOp::HoverTargetChanged()
 	else if(Cast<UDataprepGraphActionStepNode>(GetHoveredNode()) != nullptr)
 	{
 		bDropTargetValid = true;
-		DrapDropText = LOCTEXT("TargetIsDataprepActionNode", "Add/Insert step to location");
+		DrapDropText = LOCTEXT("CopyDataprepActionStepNode", "Add/Insert step to location");
 	}
 	else if(Cast<UDataprepGraphActionNode>(GetHoveredNode()) != nullptr)
 	{
 		bDropTargetValid = true;
-		DrapDropText = LOCTEXT("TargetIsDataprepActionNode", "Add/Insert step to location");
+		DrapDropText = LOCTEXT("CopyDataprepActionAssetNode", "Add/Insert step to location");
 	}
 	else if(Cast<UDataprepGraphRecipeNode>(GetHoveredNode()) != nullptr)
 	{
 		bDropTargetValid = true;
-		DrapDropText = LOCTEXT("TargetIsDataprepRecipeNode", "Insert action to location");
+		DrapDropText = LOCTEXT("InsertDataprepActionAssetNode", "Insert action to location");
 	}
 	else if ( UEdGraph* EdGraph = GetHoveredGraph() )
 	{
@@ -182,9 +191,9 @@ void FDataprepDragDropOp::OnDragged(const FDragDropEvent& DragDropEvent)
 	CursorDecoratorWindow->MoveWindowTo(TargetPosition + DecoratorAdjust);
 	// Request the active panel to scroll if required
 
-	if(SGraphPanel* GraphPanel = GraphPanelPtr.Get())
+	if(SDataprepGraphTrackNode* TrackNode = TrackNodePtr.Pin().Get())
 	{
-		GraphPanel->RequestDeferredPan(TargetPosition);
+		TrackNode->RequestViewportPan(TargetPosition);
 	}
 
 	Super::OnDragged(DragDropEvent);
@@ -403,7 +412,7 @@ FReply FDataprepDragDropOp::DoDropOnActionStep(UDataprepGraphActionStepNode* Tar
 
 	if(!bDropTargetValid && !bCopyRequested)
 	{
-		return FReply::Handled().EndDragDrop();
+		return FReply::Unhandled().EndDragDrop();
 	}
 
 	UDataprepActionAsset* TargetActionAsset = TargetActionStepNode->GetDataprepActionAsset();
@@ -491,7 +500,10 @@ void FDataprepDragDropOp::DropStepFromPanel(UDataprepActionAsset* TargetActionAs
 
 FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, int32 InsertIndex)
 {
-	ensure(Cast<UDataprepGraphRecipeNode>(GetHoveredNode()));
+	if(Cast<UDataprepGraphRecipeNode>(GetHoveredNode()) == nullptr)
+	{
+		return FReply::Handled().EndDragDrop();
+	}
 
 	if(DraggedSteps.Num() > 0)
 	{

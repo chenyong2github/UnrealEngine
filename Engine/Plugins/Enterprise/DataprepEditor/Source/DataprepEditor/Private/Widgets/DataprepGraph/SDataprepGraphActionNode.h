@@ -47,6 +47,7 @@ public:
 	// End of SGraphNode interface
 
 	void SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode);
+	TSharedPtr<SDataprepGraphTrackNode> GetParentTrackNode() { return ParentTrackNodePtr.Pin(); }
 
 	int32 GetExecutionOrder() const { return ExecutionOrder; }
 	void UpdateExecutionOrder();
