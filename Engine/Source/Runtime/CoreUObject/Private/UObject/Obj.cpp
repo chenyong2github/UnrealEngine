@@ -4434,11 +4434,16 @@ void StaticExit()
 		GUObjectArray.CloseDisregardForGC();
 	}
 
+	// Complete any pending incremental GC
+	if (IsIncrementalPurgePending())
+	{
+		IncrementalPurgeGarbage(false);
+	}
+
 	// Make sure no other threads manipulate UObjects
 	AcquireGCLock();
 
-	GatherUnreachableObjects(false);
-	IncrementalPurgeGarbage(false);
+	// Dissolve all clusters before the final GC pass
 	GUObjectClusters.DissolveClusters(true);
 
 	// Keep track of how many objects there are for GC stats as we simulate a mark pass.
@@ -4460,10 +4465,18 @@ void StaticExit()
 		FUObjectItem* ObjItem = *It;
 		checkSlow(ObjItem);
 		UObject* Obj = static_cast<UObject*>(ObjItem->Object);
-		if (Obj && !Obj->IsA<UField>()) // Skip Structures, properties, etc.. They could be still necessary while GC.
+		if (Obj) 
 		{
-			// Mark as unreachable so purge phase will kill it.
-			ObjItem->SetUnreachable();
+			// Skip Structures, properties, etc.. They could be still necessary while GC.
+			if (!Obj->IsA<UField>())
+			{
+				// Mark as unreachable so purge phase will kill it.
+				ObjItem->SetUnreachable();
+			}
+			else
+			{
+				ObjItem->ClearUnreachable();
+			}
 		}
 	}
 
