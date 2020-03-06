@@ -311,25 +311,22 @@ void ULevelStreaming::PostLoad()
 	}
 #endif
 
-	if ( !PIESession && !WorldAsset.IsNull() )
+	if (!IsValidStreamingLevel())
 	{
 		const FString WorldPackageName = GetWorldAssetPackageName();
-		if (FPackageName::DoesPackageExist(WorldPackageName) == false)
-		{
-			UE_LOG(LogLevelStreaming, Display, TEXT("Failed to find streaming level package file: %s. This streaming level may not load or save properly."), *WorldPackageName);
+		UE_LOG(LogLevelStreaming, Display, TEXT("Failed to find streaming level package file: %s. This streaming level may not load or save properly."), *WorldPackageName);
 #if WITH_EDITOR
-			if (GIsEditor)
-			{
-				// Launch notification to inform user of default change
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("PackageName"), FText::FromString(WorldPackageName));
-				FNotificationInfo Info(FText::Format(LOCTEXT("LevelStreamingFailToStreamLevel", "Failed to find streamed level {PackageName}, please fix the reference to it in the Level Browser"), Args));
-				Info.ExpireDuration = 7.0f;
+		if (GIsEditor)
+		{
+			// Launch notification to inform user of default change
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("PackageName"), FText::FromString(WorldPackageName));
+			FNotificationInfo Info(FText::Format(LOCTEXT("LevelStreamingFailToStreamLevel", "Failed to find streamed level {PackageName}, please fix the reference to it in the Level Browser"), Args));
+			Info.ExpireDuration = 7.0f;
 
-				FSlateNotificationManager::Get().AddNotification(Info);
-			}
-#endif // WITH_EDITOR
+			FSlateNotificationManager::Get().AddNotification(Info);
 		}
+#endif // WITH_EDITOR
 	}
 
 #if WITH_EDITOR
@@ -1680,6 +1677,17 @@ ALevelScriptActor* ULevelStreaming::GetLevelScriptActor()
 		return LoadedLevel->GetLevelScriptActor();
 	}
 	return nullptr;
+}
+
+bool ULevelStreaming::IsValidStreamingLevel() const
+{
+	const bool PIESession = GetWorld()->WorldType == EWorldType::PIE || GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
+	if (!PIESession && !WorldAsset.IsNull())
+	{
+		const FString WorldPackageName = GetWorldAssetPackageName();
+		return FPackageName::DoesPackageExist(WorldPackageName);
+	}
+	return true;
 }
 
 #if WITH_EDITOR
