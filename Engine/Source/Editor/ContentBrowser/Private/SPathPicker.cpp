@@ -33,6 +33,7 @@ void SPathPicker::Construct( const FArguments& InArgs )
 		.FocusSearchBoxWhenOpened(InArgs._PathPickerConfig.bFocusSearchBoxWhenOpened)
 		.AllowContextMenu(InArgs._PathPickerConfig.bAllowContextMenu)
 		.AllowClassesFolder(InArgs._PathPickerConfig.bAllowClassesFolder)
+		.AllowReadOnlyFolders(InArgs._PathPickerConfig.bAllowReadOnlyFolders)
 		.SelectionMode(ESelectionMode::Single)
 	];
 
