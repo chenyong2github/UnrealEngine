@@ -3077,6 +3077,20 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 						}
 					}
 				}
+
+				if (!StepToTime.IsSet() && AllTimes.Num() > 0)
+				{
+					AllTimes.Sort();
+
+					if (bStepToNextKey)
+					{
+						StepToTime = AllTimes[0];
+					}
+					else
+					{
+						StepToTime = AllTimes.Last();
+					}
+				}
 			}
 
 			if ( StepToTime.IsSet() )
