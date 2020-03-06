@@ -19,6 +19,7 @@
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/SWidget.h"
 
+class FGraphNodeFactory;
 class SDataprepGraphActionNode;
 class SDataprepGraphEditor;
 class SDataprepGraphTrackNode;
@@ -60,6 +61,7 @@ class SDataprepGraphTrackNode : public SGraphNode
 {
 public:
 	SLATE_BEGIN_ARGS(SDataprepGraphTrackNode){}
+		SLATE_ARGUMENT(TSharedPtr<FGraphNodeFactory>, NodeFactory)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepGraphRecipeNode* InNode);
@@ -149,6 +151,8 @@ private:
 
 	/** Array of strong pointers to the UEdGraphNodes created for the Dataprep asset's actions */
 	TArray<TStrongObjectPtr<UDataprepGraphActionNode>> EdGraphActionNodes;
+
+	TSharedPtr<FGraphNodeFactory> NodeFactory;
 
 	friend SDataprepGraphTrackWidget;
 };

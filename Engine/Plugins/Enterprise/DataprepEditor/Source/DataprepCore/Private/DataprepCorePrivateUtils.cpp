@@ -35,39 +35,6 @@ void DataprepCorePrivateUtils::DeleteRegisteredAsset(UObject* Asset)
 	}
 }
 
-void DataprepCorePrivateUtils::GetActorsFromWorld(const UWorld* World, TArray<AActor*>& OutActors )
-{
-	if(World != nullptr)
-	{
-		int32 ActorsCount = 0;
-		for(ULevel* Level : World->GetLevels())
-		{
-			ActorsCount += Level->Actors.Num();
-		}
-
-		OutActors.Reserve( OutActors.Num() + ActorsCount );
-
-		for(ULevel* Level : World->GetLevels())
-		{
-			for( AActor* Actor : Level->Actors )
-			{
-				const bool bIsValidActor = Actor
-					&& !Actor->IsPendingKill()
-					&& Actor->IsEditable()
-					&& !Actor->IsTemplate()
-					&& !FActorEditorUtils::IsABuilderBrush( Actor )
-					&& !Actor->IsA( AWorldSettings::StaticClass() )
-					&& !Actor->HasAnyFlags( RF_Transient );
-
-				if( bIsValidActor )
-				{
-					OutActors.Add( Actor );
-				}
-			}
-		}
-	}
-}
-
 
 const FString& DataprepCorePrivateUtils::GetRootTemporaryDir()
 {

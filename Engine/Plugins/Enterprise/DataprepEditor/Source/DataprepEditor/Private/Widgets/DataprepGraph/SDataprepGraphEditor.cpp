@@ -3,14 +3,17 @@
 #include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
 
 #include "DataprepAsset.h"
+#include "DataprepEditor.h"
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraph.h"
-#include "DataprepGraph/DataprepGraphSchema.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
+#include "DataprepGraph/DataprepGraphSchema.h"
+#include "DataprepParameterizableObject.h"
 #include "SchemaActions/DataprepAllMenuActionCollector.h"
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/IDataprepMenuActionCollector.h"
+#include "SelectionSystem/DataprepFilter.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
@@ -43,9 +46,25 @@ const float SDataprepGraphEditor::TopPadding = 60.f;
 const float SDataprepGraphEditor::BottomPadding = 15.f;
 const float SDataprepGraphEditor::HorizontalPadding = 20.f;
 
-TSharedPtr<SDataprepGraphEditorNodeFactory> SDataprepGraphEditor::NodeFactory;
+TSharedPtr<FDataprepGraphEditorNodeFactory> SDataprepGraphEditor::NodeFactory;
 
-TSharedPtr<class SGraphNode> SDataprepGraphEditorNodeFactory::CreateNode(UEdGraphNode* Node) const
+TSharedPtr<SGraphNode> FDataprepGraphNodeFactory::CreateNodeWidget(UEdGraphNode* InNode)
+{
+	if (UDataprepGraphRecipeNode* RecipeNode = Cast<UDataprepGraphRecipeNode>(InNode))
+	{
+		return SNew(SDataprepGraphTrackNode, RecipeNode)
+			.NodeFactory( AsShared() );
+	}
+	else if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(InNode))
+	{
+		return SNew(SDataprepGraphActionNode, ActionNode)
+			.DataprepEditor( DataprepEditor );
+	}
+
+	return FGraphNodeFactory::CreateNodeWidget( InNode );
+}
+
+TSharedPtr<SGraphNode> FDataprepGraphEditorNodeFactory::CreateNode(UEdGraphNode* Node) const
 {
 	if (UDataprepGraphRecipeNode* RecipeNode = Cast<UDataprepGraphRecipeNode>(Node))
 	{
@@ -63,7 +82,7 @@ void SDataprepGraphEditor::RegisterFactories()
 {
 	if(!NodeFactory.IsValid())
 	{
-		NodeFactory  = MakeShareable( new SDataprepGraphEditorNodeFactory() );
+		NodeFactory  = MakeShared<FDataprepGraphEditorNodeFactory>();
 		FEdGraphUtilities::RegisterVisualNodeFactory(NodeFactory);
 	}
 }
@@ -81,6 +100,7 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 {
 	check(InDataprepAsset);
 	DataprepAssetPtr = InDataprepAsset;
+	DataprepEditor = InArgs._DataprepEditor;
 
 	SGraphEditor::FGraphEditorEvents Events;
 	Events.OnCreateNodeOrPinMenu = SGraphEditor::FOnCreateNodeOrPinMenu::CreateSP(this, &SDataprepGraphEditor::OnCreateNodeOrPinMenu);
@@ -118,6 +138,8 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 	bCachedControlKeyDown = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
+
+	SetNodeFactory( MakeShared<FDataprepGraphNodeFactory>( InArgs._DataprepEditor ) );
 }
 
 // #ueent_toremove: Temp code for the nodes development
@@ -770,7 +792,10 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 	}
 
 	// Open contextual menu for action node
-	if(const UDataprepGraphActionNode* ActionNode = Cast<const UDataprepGraphActionNode>(InGraphNode))
+	UClass* GraphNodeClass = InGraphNode->GetClass();
+	const bool bIsActionNode = GraphNodeClass == UDataprepGraphActionNode::StaticClass();
+	const UDataprepGraphActionStepNode* FirstStepNode = Cast<UDataprepGraphActionStepNode>( InGraphNode );
+	if( bIsActionNode || FirstStepNode )
 	{
 		MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
 		{
@@ -780,6 +805,86 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Delete);
 		}
 		MenuBuilder->EndSection();
+
+		if ( FirstStepNode )
+		{
+			// Todo revisit this code the implementation is a bit ruff
+			// If all the all to node are filters (also we might need a more robust code path ex: register extension base on the base class/type of the steps?)
+			bool bIsSelectionOnlyFilters = true;
+			bool bAreFilterFromSameAction = true;
+			FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+			TArray<UDataprepFilter*> Filters;
+			Filters.Reserve( SelectedNodes.Num() );
+
+			const UDataprepActionAsset* ClikedAction = FirstStepNode->GetDataprepActionAsset();
+
+
+			for ( UObject* Node : SelectedNodes )
+			{
+				if ( UDataprepGraphActionStepNode* StepNode = Cast<UDataprepGraphActionStepNode>( Node ) )
+				{
+					if ( UDataprepActionAsset* Action = StepNode->GetDataprepActionAsset() )
+					{
+						bAreFilterFromSameAction &= Action == ClikedAction;
+
+						int32 StepIndex = StepNode->GetStepIndex();
+						if ( UDataprepActionStep* Step = Action->GetStep( StepIndex ).Get() )
+						{
+							if ( UDataprepParameterizableObject* StepObject = Step->GetStepObject() )
+							{
+								if ( UDataprepFilter* Filter = Cast<UDataprepFilter>( StepObject ) )
+								{
+									Filters.Add( Filter );
+									continue;
+								}
+							}
+						}
+					}
+				}
+
+				bIsSelectionOnlyFilters = false;
+				break;
+			}
+
+
+
+			if ( bIsSelectionOnlyFilters )
+			{
+				MenuBuilder->BeginSection( FName( TEXT("FilterSection") ), LOCTEXT("FilterSection", "Filter") );
+				{
+					FUIAction InverseFilterAction;
+					InverseFilterAction.ExecuteAction.BindLambda( [Filters]()
+						{
+							FScopedTransaction Transaction( LOCTEXT("InverseFilterTransaction", "Inverse the filter") );
+							for ( UDataprepFilter* Filter : Filters )
+							{
+								Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
+							}
+						});
+					MenuBuilder->AddMenuEntry(LOCTEXT("InverseFilter", "Inverse Filter(s) Selection"),
+						LOCTEXT("InverseFilterTooltip", "Inverse the resulting selection from a filter"),
+						FSlateIcon(),
+						InverseFilterAction);
+
+					if ( TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin() )
+					{ 
+						FUIAction SetFilterPreview;
+						SetFilterPreview.CanExecuteAction.BindLambda( [bAreFilterFromSameAction]() { return bAreFilterFromSameAction; } );
+						SetFilterPreview.ExecuteAction.BindLambda( [Filters, DataprepEditorPtr]()
+							{
+								TArray<UDataprepParameterizableObject*> ObjectsToObserve( Filters );
+								DataprepEditorPtr->SetPreviewedObjects( MakeArrayView<UDataprepParameterizableObject*>( ObjectsToObserve.GetData(), ObjectsToObserve.Num() ) );
+							});
+
+						MenuBuilder->AddMenuEntry(LOCTEXT("SetFilterPreview", "Preview Filter(s)"),
+							bAreFilterFromSameAction ? LOCTEXT("SetFilterPreviewTooltip", "Change the columns of the scene preview and asset preview tabs to display a preview of what the filters would select from the current scene") : LOCTEXT("SetFilterPreviewFailTooltip", "The filters can only be previewd if they are from the same action"),
+							FSlateIcon(),
+							SetFilterPreview);
+					}
+				}
+				MenuBuilder->EndSection();
+			}
+		}
 
 		return FActionMenuContent(MenuBuilder->MakeWidget());
 	}

@@ -20,9 +20,11 @@
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepSelectionTransform.h"
 
+#include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/WorldSettings.h"
 #include "HAL/FileManager.h"
 #include "LevelSequence.h"
 #include "MaterialGraph/MaterialGraph.h"
@@ -33,11 +35,12 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RenderingThread.h"
+#include "Templates/SubclassOf.h"
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/UObjectHash.h"
-#include "Templates/SubclassOf.h"
 
 #if WITH_EDITOR
+#include "ActorEditorUtils.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Editor.h"
 #include "ObjectTools.h"
@@ -46,6 +49,44 @@
 
 
 #define LOCTEXT_NAMESPACE "DataprepCoreUtils"
+
+namespace DataprepCoreUtilsPrivate
+{
+	template<class ArrayOfClass>
+	void GetActorsFromWorld(const UWorld* World, TArray<ArrayOfClass*>& OutActors)
+	{
+		if ( World != nullptr )
+		{
+			int32 ActorsCount = 0;
+			for ( ULevel* Level : World->GetLevels() )
+			{
+				ActorsCount += Level->Actors.Num();
+			}
+
+			OutActors.Reserve( ActorsCount );
+
+			for ( ULevel* Level : World->GetLevels() )
+			{
+				for ( AActor* Actor : Level->Actors )
+				{
+					const bool bIsValidActor = Actor
+						&& !Actor->IsPendingKill()
+						&& Actor->IsEditable()
+						&& !Actor->IsTemplate()
+						&& !FActorEditorUtils::IsABuilderBrush( Actor )
+						&& !Actor->IsA( AWorldSettings::StaticClass() )
+						&& !Actor->HasAnyFlags( RF_Transient );
+
+					if ( bIsValidActor )
+					{
+						OutActors.Add( Actor );
+					}
+				}
+			}
+		}
+	}
+}
+
 
 UDataprepAsset* FDataprepCoreUtils::GetDataprepAssetOfObject(UObject* Object)
 {
@@ -292,7 +333,7 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 		{
 			// Delete all actors of the transient world
 			TArray<AActor*> TransientActors;
-			DataprepCorePrivateUtils::GetActorsFromWorld( TransientWorld.Get(), TransientActors );
+			FDataprepCoreUtils::GetActorsFromWorld( TransientWorld.Get(), TransientActors );
 			for ( AActor* Actor : TransientActors )
 			{
 				if ( Actor && !Actor->IsPendingKill() )
@@ -701,5 +742,16 @@ bool FDataprepCoreUtils::RemoveSteps(UDataprepActionAsset* ActionAsset, const TA
 
 	return ActionAsset->RemoveSteps( Indices );
 }
+
+void FDataprepCoreUtils::GetActorsFromWorld(const UWorld* World, TArray<UObject*>& OutActors)
+{
+	DataprepCoreUtilsPrivate::GetActorsFromWorld( World, OutActors );
+}
+
+void FDataprepCoreUtils::GetActorsFromWorld(const UWorld* World, TArray<AActor*>& OutActors)
+{
+	DataprepCoreUtilsPrivate::GetActorsFromWorld( World, OutActors );
+}
+
 
 #undef LOCTEXT_NAMESPACE
