@@ -1180,19 +1180,9 @@ namespace UnrealBuildTool
 					Properties.AppendChild(PublisherDisplayName);
 
 					XmlElement PackageLogo = AppxManifestXmlDocument.CreateElement("Logo");
-					// Some applications may not have a package logo and use the application logo instead.
-					// Try logos in the following order:
-					//   1. Project package logo
-					//   2. Project application logo
-					//   3. Engine application logo (the engine always uses a single logo for package and application)
-					if (CopyAndReplaceBinaryIntermediate("StoreLogo.png", false))
-					{
+                    if (CopyAndReplaceBinaryIntermediate("StoreLogo.png"))
+                    {
 						PackageLogo.InnerText = BuildResourceSubPath + "\\StoreLogo.png";
-						Properties.AppendChild(PackageLogo);
-					}
-					else if (CopyAndReplaceBinaryIntermediate("Logo.png"))
-					{
-						PackageLogo.InnerText = BuildResourceSubPath + "\\Logo.png";
 						Properties.AppendChild(PackageLogo);
 					}
 					else
@@ -1732,19 +1722,9 @@ namespace UnrealBuildTool
 			AddResourceEntry("PackageDescription", "PackageDescription", "Package.Properties.Description", "/Script/EngineSettings.GeneralProjectSettings", "Description", "");
 
 			XmlElement PackageLogo = AppxManifestXmlDocument.CreateElement("Logo");
-			// Some applications may not have a package logo and use the application logo instead.
-			// Try logos in the following order:
-			//   1. Project package logo
-			//   2. Project application logo
-			//   3. Engine application logo (the engine always uses a single logo for package and application)
-			if (CopyAndReplaceBinaryIntermediate("StoreLogo.png", false))
+			if (CopyAndReplaceBinaryIntermediate("StoreLogo.png"))
 			{
 				PackageLogo.InnerText = BuildResourceSubPath + "\\StoreLogo.png";
-				Properties.AppendChild(PackageLogo);
-			}
-			else if (CopyAndReplaceBinaryIntermediate("Logo.png"))
-			{
-				PackageLogo.InnerText = BuildResourceSubPath + "\\Logo.png";
 				Properties.AppendChild(PackageLogo);
 			}
 			else
