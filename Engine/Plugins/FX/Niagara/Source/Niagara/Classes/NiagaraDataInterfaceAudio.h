@@ -7,6 +7,7 @@
 #include "AudioDeviceManager.h"
 #include "Sound/SoundSubmix.h"
 #include "DSP/MultithreadedPatching.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "NiagaraDataInterfaceAudio.generated.h"
 
 /** Class used to to capture the audio stream of an arbitrary submix. */
@@ -21,7 +22,7 @@ public:
 	 *                               data to be overwritten by threads that produce audio. High 
 	 *                               values require more memory.
 	 */
-	FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer);
+	FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer, Audio::FDeviceId InDeviceId, USoundSubmix* InSoundSubmix);
 
 	FNiagaraSubmixListener(const FNiagaraSubmixListener& Other)
 	{
@@ -32,6 +33,8 @@ public:
 
 	/** Move submix listener. */
 	FNiagaraSubmixListener(FNiagaraSubmixListener&& Other);
+
+	void RegisterToSubmix();
 
 	virtual ~FNiagaraSubmixListener();
 
@@ -48,10 +51,17 @@ public:
 private:
 	FNiagaraSubmixListener();
 
+
+	void UnregisterFromSubmix();
+
 	TAtomic<int32> NumChannelsInSubmix;
 	TAtomic<int32> SubmixSampleRate;
 
 	Audio::FPatchInput MixerInput;
+
+	Audio::FDeviceId AudioDeviceId;
+	USoundSubmix* Submix;
+	bool bIsRegistered;
 };
 
 /** Niagara data interface proxy for audio submix listener. */
@@ -100,7 +110,7 @@ private:
 
 	// Map of audio devices to submix listeners. Needed for editor where multiple audio devices
 	// may exist.
-	TMap<Audio::FDeviceId, FNiagaraSubmixListener> SubmixListeners;
+	TMap<Audio::FDeviceId, TUniquePtr<FNiagaraSubmixListener>> SubmixListeners;
 
 	// Mixer for sending audio 
 	Audio::FPatchMixer PatchMixer;

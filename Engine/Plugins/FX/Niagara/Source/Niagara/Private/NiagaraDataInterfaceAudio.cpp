@@ -2,22 +2,32 @@
 
 #include "NiagaraDataInterfaceAudio.h"
 
-FNiagaraSubmixListener::FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer)
+FNiagaraSubmixListener::FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer, Audio::FDeviceId InDeviceId, USoundSubmix* InSoundSubmix)
 	: NumChannelsInSubmix(0)
 	, SubmixSampleRate(0)
 	, MixerInput(InMixer.AddNewInput(InNumSamplesToBuffer, 1.0f))
+	, AudioDeviceId(InDeviceId)
+	, Submix(InSoundSubmix)
+	, bIsRegistered(false)
 {
-
 }
 
 FNiagaraSubmixListener::FNiagaraSubmixListener()
 	: NumChannelsInSubmix(0)
 	, SubmixSampleRate(0)
+	, MixerInput()
+	, AudioDeviceId(INDEX_NONE)
+	, Submix(nullptr)
+	, bIsRegistered(false)
 {
 }
 
 FNiagaraSubmixListener::FNiagaraSubmixListener(FNiagaraSubmixListener&& Other)
+	: FNiagaraSubmixListener()
 {
+	UnregisterFromSubmix();
+	Other.UnregisterFromSubmix();
+
 	NumChannelsInSubmix = Other.NumChannelsInSubmix.Load();
 	Other.NumChannelsInSubmix = 0;
 
@@ -25,10 +35,56 @@ FNiagaraSubmixListener::FNiagaraSubmixListener(FNiagaraSubmixListener&& Other)
 	Other.SubmixSampleRate = 0;
 
 	MixerInput = MoveTemp(Other.MixerInput);
+
+	Submix = Other.Submix;
+	Other.Submix = nullptr;
+
+	AudioDeviceId = Other.AudioDeviceId;
+	Other.AudioDeviceId = INDEX_NONE;
+
+	RegisterToSubmix();
 }
 
 FNiagaraSubmixListener::~FNiagaraSubmixListener()
 {
+	UnregisterFromSubmix();
+}
+
+void FNiagaraSubmixListener::RegisterToSubmix()
+{
+	FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(AudioDeviceId);
+	ensure(DeviceHandle);
+
+	if (DeviceHandle)
+	{
+		DeviceHandle->RegisterSubmixBufferListener(this, Submix);
+		bIsRegistered = true;
+
+		// RegisterSubmixBufferListener lazily enqueues the registration on the audio thread,
+		// so we have to wait for the audio thread to destroy.
+		FAudioCommandFence Fence;
+		Fence.BeginFence();
+		Fence.Wait();
+	}
+}
+
+void FNiagaraSubmixListener::UnregisterFromSubmix()
+{
+	if (bIsRegistered)
+	{
+		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(AudioDeviceId);
+		USoundSubmix* RawSubmixPtr = Submix;
+
+		check(DeviceHandle);
+		DeviceHandle->UnregisterSubmixBufferListener(this, Submix);
+		bIsRegistered = false;
+
+		// UnregisterSubmixBufferListener lazily enqueues the unregistration on the audio thread,
+		// so we have to wait for the audio thread to destroy.
+		FAudioCommandFence Fence;
+		Fence.BeginFence();
+		Fence.Wait();
+	}
 }
 
 float FNiagaraSubmixListener::GetSampleRate() const
@@ -60,7 +116,6 @@ FNiagaraDataInterfaceProxySubmix::FNiagaraDataInterfaceProxySubmix(int32 InNumSa
 	check(NumSamplesToBuffer > 0);
 
 	DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FNiagaraDataInterfaceProxySubmix::OnNewDeviceCreated);
-
 	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FNiagaraDataInterfaceProxySubmix::OnDeviceDestroyed);
 }
 
@@ -127,23 +182,14 @@ void FNiagaraDataInterfaceProxySubmix::OnDeviceDestroyed(Audio::FDeviceId InDevi
 void FNiagaraDataInterfaceProxySubmix::AddSubmixListener(const Audio::FDeviceId InDeviceId)
 {
 	check(!SubmixListeners.Contains(InDeviceId));
-
-	FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InDeviceId);
-	check(DeviceHandle);
-
-	FNiagaraSubmixListener& Listener = SubmixListeners.Emplace(InDeviceId, FNiagaraSubmixListener(PatchMixer, NumSamplesToBuffer));
-
-	DeviceHandle->RegisterSubmixBufferListener(&Listener, SubmixRegisteredTo);
+	SubmixListeners.Emplace(InDeviceId, new FNiagaraSubmixListener(PatchMixer, NumSamplesToBuffer, InDeviceId, SubmixRegisteredTo));
+	SubmixListeners[InDeviceId]->RegisterToSubmix();
 }
 
 void FNiagaraDataInterfaceProxySubmix::RemoveSubmixListener(Audio::FDeviceId InDeviceId)
 {
 	if (SubmixListeners.Contains(InDeviceId))
 	{
-		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InDeviceId);
-		check(DeviceHandle);
-
-		DeviceHandle->UnregisterSubmixBufferListener(&SubmixListeners[InDeviceId], SubmixRegisteredTo);
 		SubmixListeners.Remove(InDeviceId);
 	}
 }
@@ -154,7 +200,7 @@ int32 FNiagaraDataInterfaceProxySubmix::GetNumChannels() const
 	SubmixListeners.GetKeys(DeviceIds);
 	for (const Audio::FDeviceId DeviceId : DeviceIds)
 	{
-		int32 NumChannels = SubmixListeners[DeviceId].GetNumChannels();
+		int32 NumChannels = SubmixListeners[DeviceId]->GetNumChannels();
 
 		if (NumChannels != 0)
 		{
@@ -172,7 +218,7 @@ float FNiagaraDataInterfaceProxySubmix::GetSampleRate() const
 	SubmixListeners.GetKeys(DeviceIds);
 	for (const Audio::FDeviceId DeviceId : DeviceIds)
 	{
-		float SampleRate = SubmixListeners[DeviceId].GetSampleRate();
+		float SampleRate = SubmixListeners[DeviceId]->GetSampleRate();
 
 		if (SampleRate > 0.f)
 		{
