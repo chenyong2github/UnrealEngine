@@ -15,7 +15,7 @@ class Error;
  * Use CreateConnection to create a new Xmpp connection
  */
 class XMPP_API FXmppModule :
-	public IModuleInterface, public FSelfRegisteringExec
+	public IModuleInterface, public FSelfRegisteringExec, public FTickerObjectBase
 {
 
 public:
@@ -95,6 +95,9 @@ public:
 	{
 		return bEnabled;
 	}
+
+	// FTickerObjectBase
+	virtual bool Tick(float DeltaTime) override;
 
 	/**
 	 * Delegate callback when a system acquires ownership over an XMPP connection
