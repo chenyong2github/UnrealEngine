@@ -32,6 +32,8 @@
 #include "Widgets/SWidget.h"
 #include "NiagaraActions.h"
 #include "NiagaraClipboard.h"
+#include "NiagaraConvertInPlaceUtilityBase.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #include "ScopedTransaction.h"
 #include "NiagaraScriptVariable.h"
@@ -344,8 +346,14 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					{
 						NewIssues[AddIdx].InsertFix(0,
 							FStackIssueFix(
-							LOCTEXT("SelectNewModuleScriptFixUseRecommended", "Use recommended replacement"),
-							FStackIssueFixDelegate::CreateLambda([this]() { ReassignModuleScript(FunctionCallNode->FunctionScript->DeprecationRecommendation); })));
+							LOCTEXT("SelectNewModuleScriptFixUseRecommended", "Use recommended replacement and keep a disabled backup"),
+							FStackIssueFixDelegate::CreateLambda([this]() 
+							{
+									if (DeprecationDelegate.IsBound())
+									{
+										DeprecationDelegate.Execute(this);
+									}
+							})));
 					}
 				}
 				else
@@ -353,7 +361,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Warning,
 						ModuleScriptDeprecationShort,
-						FText::Format(LOCTEXT("ModuleScriptDeprecationFixParentLong", "The script asset for the assigned module {0} has been deprecated.  This module is inherited and this issue must be fixed in the parent emitter."),
+						FText::Format(LOCTEXT("ModuleScriptDeprecationFixParentLong", "The script asset for the assigned module {0} has been deprecated.\nThis module is inherited and this issue must be fixed in the parent emitter.\nYou will need to touch up this instance once that is done."),
 						FText::FromString(FunctionCallNode->GetFunctionName())),
 						GetStackEditorDataKey(),
 						false));
@@ -948,9 +956,15 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignModuleTransaction", "Reassign module script"));
 
 		const FString OldName = FunctionCallNode->GetFunctionName();
-		const UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
+		UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
 
 		FunctionCallNode->Modify();
+		UNiagaraClipboardContent* OldClipboardContent = nullptr;
+		if (ModuleScript->ConversionUtility != nullptr)
+		{
+			OldClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(OldClipboardContent);
+		}
 		FunctionCallNode->FunctionScript = ModuleScript;
 		
 		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
@@ -962,10 +976,29 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
 		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
 		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
-
 		FunctionCallNode->RefreshFromExternalChanges();
 		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 		RefreshChildren();
+		
+		
+		if (ModuleScript->ConversionUtility != nullptr && OldClipboardContent != nullptr)
+		{
+			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), ModuleScript->ConversionUtility);
+			FText ConvertMessage;
+
+			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(NewClipboardContent);
+
+			if (ConversionUtility && !ConversionUtility->Convert(OldScript, OldClipboardContent, ModuleScript, InputCollection, NewClipboardContent, FunctionCallNode, ConvertMessage) || !ConvertMessage.IsEmptyOrWhitespace())
+			{
+				// Notify the end-user about the convert message, but continue the process as they could always undo.
+				FNotificationInfo Msg(FText::Format(LOCTEXT("FixConvertInPlace", "Conversion Note: {0}"), ConvertMessage));
+				Msg.ExpireDuration = 5.0f;
+				Msg.bFireAndForget = true;
+				Msg.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
+				FSlateNotificationManager::Get().AddNotification(Msg);
+			}
+		}
 	}
 }
 
