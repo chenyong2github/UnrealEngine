@@ -172,6 +172,7 @@ FActorSpawnParameters::FActorSpawnParameters()
 , bTemporaryEditorActor(false)
 , bHideFromSceneOutliner(false)
 #endif
+, NameMode(ESpawnActorNameMode::Required_Fatal)
 , ObjectFlags(RF_Transactional)
 {
 }
