@@ -593,6 +593,7 @@ public:
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM5;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES31;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidVulkanES31;
+	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidVulkanSM5;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_IOSMetalES31;
 	
 	///**

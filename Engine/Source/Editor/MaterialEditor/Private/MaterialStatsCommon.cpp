@@ -153,6 +153,8 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 			return FString("VULKAN_SM5");
 		case SP_VULKAN_ES3_1_ANDROID:
 			return FString("VULKAN_ES3_1_ANDROID");
+		case SP_VULKAN_SM5_ANDROID:
+			return FString("VULKAN_SM5_ANDROID");
 		case SP_METAL_MACES3_1:
 			return FString("METAL_MACES3_1");
 		case SP_OPENGL_ES3_1_ANDROID:
@@ -179,6 +181,7 @@ FString FMaterialStatsUtils::GetPlatformOfflineCompilerPath(const EShaderPlatfor
 	{
 		case SP_OPENGL_ES3_1_ANDROID:
 		case SP_VULKAN_ES3_1_ANDROID:
+		case SP_VULKAN_SM5_ANDROID:
 			return FPaths::ConvertRelativePathToFull(GetDefault<UMaterialEditorSettings>()->MaliOfflineCompilerPath.FilePath);
 		break;
 
@@ -210,6 +213,7 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 		case SP_VULKAN_PCES3_1:
 		case SP_VULKAN_SM5:
 		case SP_VULKAN_ES3_1_ANDROID:
+		case SP_VULKAN_SM5_ANDROID:
 		case SP_OPENGL_ES3_1_ANDROID:
 			return true;
 

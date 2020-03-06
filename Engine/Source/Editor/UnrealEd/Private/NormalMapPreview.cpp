@@ -26,7 +26,7 @@ public:
 	/** Should the shader be cached? Always. */
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return !IsConsolePlatform(Parameters.Platform);
+		return IsPCPlatform(Parameters.Platform);
 	}
 
 	/** Default constructor. */

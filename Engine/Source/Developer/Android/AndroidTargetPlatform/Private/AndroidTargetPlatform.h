@@ -285,6 +285,7 @@ protected:
 	bool SupportsAEP() const;
 	bool SupportsVulkan() const;
 	bool SupportsSoftwareOcclusion() const;
+	bool SupportsVulkanSM5() const;
 
 #if WITH_ENGINE
 	// Holds the Engine INI settings (for quick access).
