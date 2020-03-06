@@ -708,7 +708,7 @@ private:
 	 * and call AActor::SetActorLabel() or FActorLabelUtilities::SetActorLabelUnique() to change the label.  Never set the label directly.
 	 */
 	UPROPERTY()
-	FString ActorLabel;
+	mutable FString ActorLabel;
 
 	/** The folder path of this actor in the world (empty=root, / separated)*/
 	UPROPERTY()
