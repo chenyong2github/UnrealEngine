@@ -89,6 +89,7 @@ float3 ModulatedShadowBlendOp(float3 Source)
 
 #if SUBPIXEL_SHADOW
 #include "HairStrands/HairStrandsVisibilityCommon.ush"
+float2 ShadowNearAndFarDepth;
 Texture2D<uint4> HairCategorizationTexture;
 #endif
 
@@ -120,6 +121,11 @@ void Main(
 		bIsSubsurfaceCompatible = false;
 	}
 	else
+	{
+		discard;
+	}
+
+	if (CategorizationData.ClosestDepth > ShadowNearAndFarDepth.x || CategorizationData.ClosestDepth < ShadowNearAndFarDepth.y) // Inverse-Z
 	{
 		discard;
 	}
