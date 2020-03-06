@@ -263,6 +263,22 @@ public:
 			});
 	}
 
+	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
+	{
+		if (VolumeData)
+		{
+			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SizeX * SizeY * SizeZ * sizeof(FFloat16Color));
+		}
+		if (VolumeTextureRHI)
+		{
+			const FPixelFormatInfo& FormatInfo = GPixelFormats[PF_FloatRGBA];
+			const SIZE_T NumBlocksX = (SIZE_T)FMath::DivideAndRoundUp(SizeX, FormatInfo.BlockSizeX);
+			const SIZE_T NumBlocksY = (SIZE_T)FMath::DivideAndRoundUp(SizeY, FormatInfo.BlockSizeY);
+			const SIZE_T NumBlocksZ = (SIZE_T)FMath::DivideAndRoundUp(SizeZ, FormatInfo.BlockSizeZ);
+			CumulativeResourceSize.AddDedicatedVideoMemoryBytes(NumBlocksX * NumBlocksY * NumBlocksZ * (SIZE_T)FormatInfo.BlockBytes);
+		}
+	}
+
 private:
 
 	/** Static volume texture data. */
@@ -484,6 +500,21 @@ void UVectorFieldStatic::BeginDestroy()
 {
 	ReleaseResource();
 	Super::BeginDestroy();
+}
+
+void UVectorFieldStatic::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CPUData.GetAllocatedSize());
+	if (SourceData.IsBulkDataLoaded())
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SourceData.GetBulkDataSize());
+	}
+	if (Resource)
+	{
+		((const FVectorFieldStaticResource*)Resource)->GetResourceSizeEx(CumulativeResourceSize);
+	}
 }
 
 #if WITH_EDITOR
