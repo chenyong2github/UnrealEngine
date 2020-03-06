@@ -131,7 +131,7 @@ bool FPakFileDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uin
 	return false;
 }
 
-void FPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArray<uint8>& InData, bool bPutEvenIfExists)
+void FPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
 	if (!bWriting || bClosed)
@@ -159,7 +159,8 @@ void FPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArray<uin
 			else
 			{
 				COOK_STAT(Timer.AddHit(InData.Num()));
-				FileHandle->Serialize(InData.GetData(), int64(InData.Num()));
+				// NOTE: Gross that FArchive doesn't have a const version just for saving...
+				FileHandle->Serialize(const_cast<uint8*>(InData.GetData()), int64(InData.Num()));
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("FPakFileDerivedDataBackend: Put %s"), CacheKey);
 				CacheItems.Add(Key,FCacheValue(Offset, InData.Num(), Crc));
 			}
@@ -403,7 +404,7 @@ FCompressedPakFileDerivedDataBackend::FCompressedPakFileDerivedDataBackend(const
 {
 }
 
-void FCompressedPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArray<uint8>& InData, bool bPutEvenIfExists)
+void FCompressedPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	int32 UncompressedSize = InData.Num();
 	int32 CompressedSize = FCompression::CompressMemoryBound(CompressionFormat, UncompressedSize, CompressionFlags);
