@@ -37,6 +37,7 @@ public:
 		, _ShowSeparator(true)
 		, _AllowContextMenu(true)
 		, _AllowClassesFolder(false)
+		, _AllowReadOnlyFolders(true)
 		, _SelectionMode( ESelectionMode::Multi )
 		{}
 
@@ -69,6 +70,9 @@ public:
 
 		/** If false, the classes folder will be suppressed */
 		SLATE_ARGUMENT( bool, AllowClassesFolder )
+
+		/** If true, read only folders will be displayed */
+		SLATE_ARGUMENT( bool, AllowReadOnlyFolders )
 
 		/** The selection mode for the tree view */
 		SLATE_ARGUMENT( ESelectionMode::Type, SelectionMode )
@@ -331,6 +335,9 @@ protected:
 	/** Blacklist filter to hide folders */
 	TSharedPtr<FBlacklistPaths> FolderBlacklist;
 
+	/** Writable folder filter */
+	TSharedPtr<FBlacklistPaths> WritableFolderBlacklist;
+
 private:
 
 	/** The paths that were last reported by OnPathExpanded event. Used in preserving expansion when filtering folders */
@@ -353,6 +360,9 @@ private:
 
 	/** If false, the classes folder will not be added to the tree automatically */
 	bool bAllowClassesFolder;
+
+	/** If true, read only folders will be displayed */
+	bool bAllowReadOnlyFolders;
 
 	/** The title of this path view */
 	FText TreeTitle;
