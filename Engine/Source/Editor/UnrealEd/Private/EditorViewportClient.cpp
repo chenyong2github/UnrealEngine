@@ -3698,8 +3698,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	float DeltaTimeSeconds;
 
 	UWorld* World = GetWorld();
-	// During Simulation blueprints are directly using the World time, causing a mismatch with Material's Frame time
-	if (!World || ( GetScene() != World->Scene) || (IsRealtime() && !IsSimulateInEditorViewport()))
+	if (!World || (GetScene() != World->Scene))
 	{
 		// Use time relative to start time to avoid issues with float vs double
 		TimeSeconds = FApp::GetCurrentTime() - GStartTime;
