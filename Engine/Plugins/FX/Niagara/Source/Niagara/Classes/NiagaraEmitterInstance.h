@@ -94,8 +94,6 @@ public:
 	ENiagaraExecutionState NIAGARA_API GetExecutionState() { return ExecutionState; }
 	void NIAGARA_API SetExecutionState(ENiagaraExecutionState InState);
 
-	FNiagaraDataSet* GetDataSet(FNiagaraDataSetID SetID);
-
 	FBox GetBounds();
 
 	FNiagaraScriptExecutionContext& GetSpawnExecutionContext() { return SpawnExecContext; }
@@ -200,7 +198,6 @@ private:
 
 	TArray<FNiagaraDataSet*> UpdateScriptEventDataSets;
 	TArray<FNiagaraDataSet*> SpawnScriptEventDataSets;
-	TMap<FNiagaraDataSetID, FNiagaraDataSet*> DataSetMap;
 
 	TArray<bool> UpdateEventGeneratorIsSharedByIndex;
 	TArray<bool> SpawnEventGeneratorIsSharedByIndex;
