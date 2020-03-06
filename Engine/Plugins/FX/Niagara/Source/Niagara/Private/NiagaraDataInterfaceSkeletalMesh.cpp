@@ -1232,7 +1232,6 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	Transform = FMatrix::Identity;
 	TransformInverseTransposed = FMatrix::Identity;
 	PrevTransform = FMatrix::Identity;
-	PrevTransformInverseTransposed = FMatrix::Identity;
 	DeltaSeconds = SystemInstance->GetComponent()->GetWorld()->GetDeltaSeconds();
 	ChangeId = Interface->ChangeId;
 	bIsGpuUniformlyDistributedSampling = false;
@@ -1268,7 +1267,6 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	Transform = Component->GetComponentToWorld().ToMatrixWithScale();
 	TransformInverseTransposed = Transform.InverseFast().GetTransposed();
 	PrevTransform = Transform;
-	PrevTransformInverseTransposed = TransformInverseTransposed;
 	
 	CachedAttachParent = Component->GetAttachParent();
 
@@ -1598,14 +1596,12 @@ bool FNDISkeletalMesh_InstanceData::Tick(UNiagaraDataInterfaceSkeletalMesh* Inte
 		if (Component.IsValid() && Mesh)
 		{
 			PrevTransform = Transform;
-			PrevTransformInverseTransposed = TransformInverseTransposed;
 			Transform = Component->GetComponentToWorld().ToMatrixWithScale();
 			TransformInverseTransposed = Transform.Inverse().GetTransposed();
 		}
 		else
 		{
 			PrevTransform = FMatrix::Identity;
-			PrevTransformInverseTransposed = FMatrix::Identity;
 			Transform = FMatrix::Identity;
 			TransformInverseTransposed = FMatrix::Identity;
 		}
