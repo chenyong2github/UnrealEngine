@@ -938,6 +938,57 @@ namespace Audio
 		});
 	}
 
+	int32 FMixerDevice::AddSubmixEffect(USoundSubmix* InSoundSubmix, uint32 SubmixEffectId, FSoundEffectSubmixPtr SoundEffect)
+	{
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+
+		int32 NumEffects = MixerSubmixPtr->GetNumEffects();
+
+		AudioRenderThreadCommand([this, MixerSubmixPtr, SubmixEffectId, SoundEffect]()
+		{
+			MixerSubmixPtr->AddSoundEffectSubmix(SubmixEffectId, SoundEffect);
+		});
+
+		return ++NumEffects;
+	}
+
+	void FMixerDevice::RemoveSubmixEffect(USoundSubmix* InSoundSubmix, uint32 SubmixEffectId)
+	{
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		AudioRenderThreadCommand([MixerSubmixPtr, SubmixEffectId]()
+		{
+			MixerSubmixPtr->RemoveSoundEffectSubmix(SubmixEffectId);
+		});
+	}
+
+	void FMixerDevice::RemoveSubmixEffectAtIndex(USoundSubmix* InSoundSubmix, int32 SubmixChainIndex)
+	{
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		AudioRenderThreadCommand([MixerSubmixPtr, SubmixChainIndex]()
+		{
+			MixerSubmixPtr->RemoveSoundEffectSubmixAtIndex(SubmixChainIndex);
+		});
+	}
+
+	void FMixerDevice::ReplaceSoundEffectSubmix(USoundSubmix* InSoundSubmix, int32 InSubmixChainIndex, int32 SubmixEffectId, FSoundEffectSubmixPtr SoundEffect)
+	{
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		AudioRenderThreadCommand([MixerSubmixPtr, InSubmixChainIndex, SubmixEffectId, SoundEffect]()
+		{
+			MixerSubmixPtr->ReplaceSoundEffectSubmix(InSubmixChainIndex, SubmixEffectId, SoundEffect);
+		});
+	}
+
+	void FMixerDevice::ClearSubmixEffects(USoundSubmix* InSoundSubmix)
+	{
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+
+		AudioRenderThreadCommand([MixerSubmixPtr]()
+		{
+			MixerSubmixPtr->ClearSoundEffectSubmixes();
+		});
+	}
+
 	void FMixerDevice::UpdateModulationControls(const uint32 InSourceId, const FSoundModulationControls& InControls)
 	{
 		SourceManager->UpdateModulationControls(InSourceId, InControls);

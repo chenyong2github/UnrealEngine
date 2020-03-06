@@ -365,6 +365,9 @@ public:
 	/** The manual send level to use if the sound is set to use manual send level. */
 	float ManualReverbSendLevel;
 
+	/** The submix send settings to use. */
+	TArray<FAttenuationSubmixSendSettings> SubmixSendSettings;
+
 	/** Cached type hash */
 	uint32 TypeHash;
 
