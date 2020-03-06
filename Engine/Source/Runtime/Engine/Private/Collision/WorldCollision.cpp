@@ -392,7 +392,6 @@ bool UWorld::ComponentSweepMulti(TArray<struct FHitResult>& OutHits, class UPrim
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomSweepMultiple);
 	bool bHaveBlockingHit = false;
 
-#if WITH_PHYSX
 	FPhysicsCommand::ExecuteRead(BodyInstance->ActorHandle, [&](const FPhysicsActorHandle& Actor)
 	{
 		if(!FPhysicsInterface::IsValid(Actor))
@@ -444,7 +443,6 @@ bool UWorld::ComponentSweepMulti(TArray<struct FHitResult>& OutHits, class UPrim
 			OutHits.Append(TmpHits);	//todo: should these be made unique?
 		}
 	});
-#endif //WITH_PHYSX
 
 	return bHaveBlockingHit;
 }

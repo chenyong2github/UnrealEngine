@@ -54,6 +54,9 @@ namespace Chaos
 
 	template <typename T>
 	class TCapsule;
+	
+	template<class T, int d>
+	struct TMassProperties;
 
 	template <typename T, int>
 	class TAABB;
@@ -371,6 +374,7 @@ public:
 
 	static bool ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Ar, UWorld* InWorld);
 
+	static void CalculateTMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM);
 #if WITH_PHYSX
     static void CalculateMassPropertiesFromShapeCollection(physx::PxMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM);
 #endif

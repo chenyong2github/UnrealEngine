@@ -20,7 +20,6 @@ bool UPostProcessComponent::EncompassesPoint(FVector Point, float SphereRadius/*
 	{
 		float Distance = -1.f;
 
-#if WITH_PHYSX
 		FVector ClosestPoint;
 		float DistanceSq = -1.f;
 
@@ -29,7 +28,6 @@ bool UPostProcessComponent::EncompassesPoint(FVector Point, float SphereRadius/*
 			Distance = FMath::Sqrt(DistanceSq);
 		}
 		else
-#endif
 		{
 			FBoxSphereBounds SphereBounds = ParentShape->CalcBounds(ParentShape->GetComponentTransform());	
 			if (ParentShape->IsA<USphereComponent>())

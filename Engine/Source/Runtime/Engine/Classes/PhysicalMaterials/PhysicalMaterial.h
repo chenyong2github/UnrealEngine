@@ -118,9 +118,7 @@ public:
 
 	FPhysicsMaterialHandle MaterialHandle;
 
-#if WITH_PHYSX
 	FPhysxUserData PhysxUserData;
-#endif
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR

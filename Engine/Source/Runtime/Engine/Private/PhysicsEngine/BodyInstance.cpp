@@ -2926,7 +2926,69 @@ float gPerCm3ToKgPerCm3(float gPerCm3)
 	return gPerCm3 * gToKG;
 }
 
-#if WITH_PHYSX
+#if WITH_CHAOS
+/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
+Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform)
+{
+	// physical material - nothing can weigh less than hydrogen (0.09 kg/m^3)
+	float DensityKGPerCubicUU = 1.0f;
+	float RaiseMassToPower = 0.75f;
+	if (UPhysicalMaterial* PhysMat = OwningBodyInstance->GetSimplePhysicalMaterial())
+	{
+		DensityKGPerCubicUU = FMath::Max(KgPerM3ToKgPerCm3(0.09f), gPerCm3ToKgPerCm3(PhysMat->Density));
+		RaiseMassToPower = PhysMat->RaiseMassToPower;
+	}
+
+	Chaos::TMassProperties<float, 3> MassProps;
+	FPhysicsInterface::CalculateTMassPropertiesFromShapeCollection(MassProps, Shapes, DensityKGPerCubicUU);
+
+	float OldMass = MassProps.Mass;
+	float NewMass = 0.f;
+
+	if (OwningBodyInstance->bOverrideMass == false)
+	{
+		float UsePow = FMath::Clamp<float>(RaiseMassToPower, KINDA_SMALL_NUMBER, 1.f);
+		NewMass = FMath::Pow(OldMass, UsePow);
+
+		// Apply user-defined mass scaling.
+		NewMass = FMath::Max(OwningBodyInstance->MassScale * NewMass, 0.001f);	//min weight of 1g
+	}
+	else
+	{
+		NewMass = FMath::Max(OwningBodyInstance->GetMassOverride(), 0.001f);	//min weight of 1g
+	}
+
+	check(NewMass > 0.f);
+
+	float MassRatio = NewMass / OldMass;
+
+
+	MassProps.Mass *= MassRatio;
+	MassProps.InertiaTensor *= MassRatio;
+
+	MassProps.CenterOfMass += MassModifierTransform.TransformVector(OwningBodyInstance->COMNudge);
+
+	// Scale the inertia tensor by the owning body instance's InertiaTensorScale
+	FVector diagonal(MassProps.InertiaTensor.M[0][0] , MassProps.InertiaTensor.M[1][1], MassProps.InertiaTensor.M[2][2]);
+
+	FVector xyz2 = FVector(FVector::DotProduct(diagonal, FVector(0.5f))) - diagonal; // original x^2, y^2, z^2
+	FVector scaledxyz2 = xyz2 * OwningBodyInstance->InertiaTensorScale * OwningBodyInstance->InertiaTensorScale;
+
+	float	xx = scaledxyz2.Y + scaledxyz2.Z,
+			yy = scaledxyz2.Z + scaledxyz2.X,
+			zz = scaledxyz2.X + scaledxyz2.Y;
+
+	float	xy = MassProps.InertiaTensor.M[0][1] * OwningBodyInstance->InertiaTensorScale.X * OwningBodyInstance->InertiaTensorScale.Y,
+			xz = MassProps.InertiaTensor.M[0][2] * OwningBodyInstance->InertiaTensorScale.X * OwningBodyInstance->InertiaTensorScale.Z,
+			yz = MassProps.InertiaTensor.M[1][2] * OwningBodyInstance->InertiaTensorScale.Y * OwningBodyInstance->InertiaTensorScale.Z;
+
+	MassProps.InertiaTensor = Chaos::PMatrix<float, 3, 3>(	FVector(xx, xy, xz),
+															FVector(xy, yy, yz),
+															FVector(xz, yz, zz));
+
+	return MassProps;
+}
+#elif WITH_PHYSX
 /** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
 PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform)
 {
@@ -2975,7 +3037,6 @@ void FBodyInstance::UpdateMassProperties()
 {
 	UPhysicalMaterial* PhysMat = GetSimplePhysicalMaterial();
 
-#if WITH_PHYSX
 	if (FPhysicsInterface::IsValid(ActorHandle) && FPhysicsInterface::IsRigidBody(ActorHandle))
 	{
 		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](FPhysicsActorHandle& Actor)
@@ -3003,7 +3064,11 @@ void FBodyInstance::UpdateMassProperties()
 					}
 				}
 
+#if WITH_CHAOS
+				Chaos::TMassProperties<float, 3> TotalMassProperties;
+#elif WITH_PHYSX
 				PxMassProperties TotalMassProperties;
+#endif
 				if (ShapeToBodiesMap.IsValid() && ShapeToBodiesMap->Num() > 0)
 				{
 					struct FWeldedBatch
@@ -3042,6 +3107,21 @@ void FBodyInstance::UpdateMassProperties()
 						}
 					}
 
+#if WITH_CHAOS
+					TArray<Chaos::TMassProperties<float, 3>> SubMassProperties;
+					for (auto BodyShapesItr : BodyToShapes)
+					{
+						const FBodyInstance* OwningBI = BodyShapesItr.Key;
+						const FWeldedBatch& WeldedBatch = BodyShapesItr.Value;
+						FTransform MassModifierTransform = WeldedBatch.RelTM;
+						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
+
+						Chaos::TMassProperties<float, 3> BodyMassProperties = ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
+						SubMassProperties.Add(BodyMassProperties);
+					}
+
+					TotalMassProperties = Chaos::Combine(SubMassProperties);
+#elif WITH_PHYSX
 					TArray<PxMassProperties> SubMassProperties;
 					TArray<PxTransform> MassTMs;
 					for (auto BodyShapesItr : BodyToShapes)
@@ -3057,6 +3137,7 @@ void FBodyInstance::UpdateMassProperties()
 					}
 
 					TotalMassProperties = PxMassProperties::sum(SubMassProperties.GetData(), MassTMs.GetData(), SubMassProperties.Num());
+#endif
 				}
 				else
 				{
@@ -3070,25 +3151,29 @@ void FBodyInstance::UpdateMassProperties()
 				}
 
 				// #PHYS2 Refactor out PxMassProperties (Our own impl?)
-				PxQuat MassOrientation;
 #if WITH_CHAOS
-				const PxMat33& IT = TotalMassProperties.inertiaTensor;
-				Chaos::PMatrix<float, 3, 3> InertiaTensor(IT[0][0], IT[0][1], IT[0][2], IT[1][1], IT[1][2], IT[2][2]);
-				const Chaos::TRotation<float, 3> Rotation = Chaos::TransformToLocalSpace(InertiaTensor);
-				const FVector MassSpaceInertiaTensor(InertiaTensor.M[0][0], InertiaTensor.M[1][1], InertiaTensor.M[2][2]);
-				MassOrientation = U2PQuat(Rotation);
-#else
-				const FVector MassSpaceInertiaTensor = P2UVector(PxMassProperties::getMassSpaceInertia(TotalMassProperties.inertiaTensor, MassOrientation));
-#endif
-				FPhysicsInterface::SetMass_AssumesLocked(Actor, TotalMassProperties.mass);
+				const Chaos::TRotation<float, 3> Rotation = Chaos::TransformToLocalSpace(TotalMassProperties.InertiaTensor);
+				const FVector MassSpaceInertiaTensor(TotalMassProperties.InertiaTensor.M[0][0], TotalMassProperties.InertiaTensor.M[1][1], TotalMassProperties.InertiaTensor.M[2][2]);
+
 				FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, MassSpaceInertiaTensor);
+
+				FPhysicsInterface::SetMass_AssumesLocked(Actor, TotalMassProperties.Mass);
+
+				FTransform Com(Rotation, TotalMassProperties.CenterOfMass);
+				FPhysicsInterface::SetComLocalPose_AssumesLocked(Actor, Com);
+#else
+				PxQuat MassOrientation;
+				const FVector MassSpaceInertiaTensor = P2UVector(PxMassProperties::getMassSpaceInertia(TotalMassProperties.inertiaTensor, MassOrientation));
+				FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, MassSpaceInertiaTensor);
+
+				FPhysicsInterface::SetMass_AssumesLocked(Actor, TotalMassProperties.mass);
 
 				FTransform Com(P2UQuat(MassOrientation), P2UVector(TotalMassProperties.centerOfMass));
 				FPhysicsInterface::SetComLocalPose_AssumesLocked(Actor, Com);
+#endif
 			}
 		});
 	}
-#endif
 
 	//Let anyone who cares about mass properties know they've been updated
 	if (BodyInstanceDelegates.IsValid())

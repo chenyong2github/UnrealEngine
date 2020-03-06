@@ -12,6 +12,7 @@
 #include "Experimental/SceneQueryChaosImp.h"
 #endif
 
+#include "PhysicsInterfaceUtilsCore.h"
 #include "ChaosInterfaceWrapperCore.h"
 #include "Chaos/CastingUtilities.h"
 #include "Chaos/ISpatialAcceleration.h"
@@ -97,10 +98,8 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, QueryFilterDataConcrete(P2UFilterData(QueryFilterData.data))
 		, QueryCallback(InQueryCallback)
 	{
-#if WITH_PHYSX
 		//#TODO - reimplement query flags alternative for Chaos
 		bAnyHit = QueryFilterData.flags & PxQueryFlag::eANY_HIT;
-#endif
 	}
 
 	TSQVisitor(const FTransform& InStartTM, const FVector& InDir, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& InHitBuffer, EHitFlags InOutputFlags,
@@ -117,10 +116,9 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, QueryCallback(InQueryCallback)
 		, StartTM(InStartTM)
 	{
-#if WITH_PHYSX
 		//#TODO - reimplement query flags alternative for Chaos
 		bAnyHit = QueryFilterData.flags & PxQueryFlag::eANY_HIT;
-#endif
+
 		//todo: check THitType is sweep
 	}
 
@@ -136,10 +134,9 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, QueryCallback(InQueryCallback)
 		, StartTM(InWorldTM)
 	{
-#if WITH_PHYSX
 		//#TODO - reimplement query flags alternative for Chaos
 		bAnyHit = QueryFilterData.flags & PxQueryFlag::eANY_HIT;
-#endif
+
 		//todo: check THitType is overlap
 	}
 
@@ -233,13 +230,8 @@ private:
 
 			//TODO: use gt particles directly
 			//#TODO alternative to px flags
-#if WITH_PHYSX
 			ECollisionQueryHitType HitType = QueryFilterData.flags & PxQueryFlag::ePREFILTER ? QueryCallback.PreFilter(QueryFilterDataConcrete, *Shape, *GeometryParticle) : ECollisionQueryHitType::Block;
-#else
-			//#TODO Chaos flag alternative
-			ensure(false);
-			ECollisionQueryHitType HitType = ECollisionQueryHitType::Block;
-#endif
+
 			if (HitType != ECollisionQueryHitType::None)
 			{
 				//QUICK_SCOPE_CYCLE_COUNTER(SQNarrow);
@@ -293,12 +285,9 @@ private:
 				{
 					//QUICK_SCOPE_CYCLE_COUNTER(SQNarrowHit);
 					FillHitHelper(Hit, Distance, WorldPosition, WorldNormal, FaceIdx, bComputeMTD);
-#if WITH_PHYSX
+
 					HitType = QueryFilterData.flags & PxQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
-#else
-					//#TODO Chaos flag alternative
-					ensure(false);
-#endif
+
 					if (HitType != ECollisionQueryHitType::None)
 					{
 
