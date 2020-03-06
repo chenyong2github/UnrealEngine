@@ -970,6 +970,7 @@ namespace Audio
 		// Now loop through any buffer listeners and feed the listeners the result of this audio callback
 		if(const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
 		{
+			CSV_SCOPED_TIMING_STAT(Audio, SubmixBufferListeners);
 			double AudioClock = MixerDevice->GetAudioTime();
 			float SampleRate = MixerDevice->GetSampleRate();
 			FScopeLock Lock(&BufferListenerCriticalSection);
@@ -1408,6 +1409,7 @@ namespace Audio
 		check(BufferListener);
 		BufferListeners.Remove(BufferListener);
 	}
+
 	void FMixerSubmix::StartEnvelopeFollowing(int32 AttackTime, int32 ReleaseTime)
 	{
 		if (!bIsEnvelopeFollowing)
