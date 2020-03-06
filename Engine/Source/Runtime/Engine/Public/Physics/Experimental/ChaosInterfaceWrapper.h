@@ -35,11 +35,7 @@ struct FScopedSceneReadLock
 
 inline FQueryFilterData MakeQueryFilterData(const FCollisionFilterData& FilterData, EQueryFlags QueryFlags, const FCollisionQueryParams& Params)
 {
-#if WITH_PHYSX
 	return PxQueryFilterData(U2PFilterData(FilterData), U2PQueryFlags(QueryFlags));
-#else
-	return FQueryFilterData();
-#endif
 }
 
 FBodyInstance* GetUserData(const Chaos::TGeometryParticle<float, 3>& Actor);

@@ -252,7 +252,6 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 	if (!BodyInstance.IsValidBodyInstance())
 	{
-#if WITH_PHYSX
 		CreateCollisionObject();
 
 		if (IsValidRef(HeightfieldRef))
@@ -280,9 +279,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 			LandscapeComponentMatrix.SetAxis(0, TerrainX);
 			LandscapeComponentMatrix.SetAxis(2, TerrainY);
 			LandscapeComponentMatrix.SetAxis(1, TerrainZ);
-
-			PxTransform PhysXLandscapeComponentTransform = U2PTransform(FTransform(LandscapeComponentMatrix));
-
+			
 			const bool bCreateSimpleCollision = SimpleCollisionSizeQuads > 0;
 			const float SimpleCollisionScale = bCreateSimpleCollision ? CollisionScale * CollisionSizeQuads / SimpleCollisionSizeQuads : 0;
 
@@ -290,6 +287,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 			FVector FinalScale(LandscapeScale.X * CollisionScale, LandscapeScale.Y * CollisionScale, LandscapeScale.Z * LANDSCAPE_ZSCALE);
 
 #if PHYSICS_INTERFACE_PHYSX
+			PxTransform PhysXLandscapeComponentTransform = U2PTransform(FTransform(LandscapeComponentMatrix));
 			PxHeightFieldGeometry LandscapeComponentGeom(HeightfieldRef->RBHeightfield, PxMeshGeometryFlag::eDOUBLE_SIDED, LandscapeScale.Z * LANDSCAPE_ZSCALE, LandscapeScale.Y * CollisionScale, LandscapeScale.X * CollisionScale);
 
 			if (LandscapeComponentGeom.isValid())
@@ -523,7 +521,6 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 			}
 #endif // WITH_CHAOS
 		}
-#endif// WITH_PHYSX
 	}
 }
 

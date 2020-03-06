@@ -100,7 +100,6 @@ template <> void UShapeComponent::AddShapeToGeomArray<FKBoxElem>() { ShapeBodySe
 template <> void UShapeComponent::AddShapeToGeomArray<FKSphereElem>() { ShapeBodySetup->AggGeom.SphereElems.Add(FKSphereElem()); }
 template <> void UShapeComponent::AddShapeToGeomArray<FKSphylElem>() { ShapeBodySetup->AggGeom.SphylElems.Add(FKSphylElem()); }
 
-#if WITH_PHYSX
 template <>
 void UShapeComponent::SetShapeToNewGeom<FKBoxElem>(const FPhysicsShapeHandle& Shape)
 {
@@ -118,7 +117,6 @@ void UShapeComponent::SetShapeToNewGeom<FKSphylElem>(const FPhysicsShapeHandle& 
 {
 	FPhysicsInterface::SetUserData(Shape, (void*)ShapeBodySetup->AggGeom.SphylElems[0].GetUserData());
 }
-#endif
 
 template <typename ShapeElemType>
 void UShapeComponent::CreateShapeBodySetupIfNeeded()
@@ -150,7 +148,6 @@ void UShapeComponent::CreateShapeBodySetupIfNeeded()
 		{
 			if(BodyInstance.IsValidBodyInstance())
 			{
-#if WITH_PHYSX
 				FPhysicsCommand::ExecuteWrite(BodyInstance.GetActorReferenceWithWelding(), [this](const FPhysicsActorHandle& Actor)
 				{
 					TArray<FPhysicsShapeHandle> Shapes;
@@ -165,7 +162,6 @@ void UShapeComponent::CreateShapeBodySetupIfNeeded()
 						}
 					}
 				});
-#endif
 			}
 		}
 	}
