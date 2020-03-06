@@ -706,7 +706,7 @@ void FPhysScene_ImmediatePhysX::DispatchPhysNotifications_AssumesLocked()
     FPhysicsDelegates::OnPhysDispatchNotifications.Broadcast(this);
 }
 
-void FPhysScene_ImmediatePhysX::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime)
+void FPhysScene_ImmediatePhysX::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime, float InMaxSubstepDeltaTime, int32 InMaxSubsteps)
 {
 	DeltaSeconds = FMath::Min(InDeltaSeconds, 0.033f);
 	//Create dynamic bodies and integrate their unconstrained velocities
