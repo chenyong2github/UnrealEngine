@@ -260,6 +260,9 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		bSupportsTiledReflections = true;
 		bSupportsDistanceFields = (FPlatformMisc::MacOSXVersionCompare(10,11,4) >= 0);
 		bSupportsRHIThread = true;
+		
+		// Current timestamp render query implementation using a completion handler only works reliably on AMD
+		GSupportsTimestampRenderQueries = true;
 	}
 	else if(GRHIAdapterName.Contains("Intel"))
 	{
