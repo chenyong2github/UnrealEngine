@@ -858,7 +858,7 @@ void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name
 
 			RHICmdList->EnqueueLambda
 			(
-				[InNumDrawCallsPtr](FRHICommandListImmediate& InRHICmdList)
+				[InNumDrawCallsPtr](FRHICommandListImmediate& CmdList_)
 				{
 					GCurrentNumDrawCallsRHIPtr = InNumDrawCallsPtr;
 				}
