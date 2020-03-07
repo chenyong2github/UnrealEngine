@@ -61,7 +61,7 @@ template<typename T, int d>
 using TRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(const T Dt, const TArray<TPBDCollisionConstraintHandle<T, d>*>&, bool)>;
 
 template <typename T, int d>
-using TCollisionModifierCallback = TFunction<ECollisionModifierResult(const TPBDCollisionConstraintHandle<T, d>*)>;
+using TCollisionModifierCallback = TFunction<ECollisionModifierResult(TPBDCollisionConstraintHandle<T, d>*)>;
 
 /**
  * A container and solver for collision constraints.
