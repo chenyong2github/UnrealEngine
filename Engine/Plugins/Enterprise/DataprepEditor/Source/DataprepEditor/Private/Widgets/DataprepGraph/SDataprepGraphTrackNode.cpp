@@ -541,6 +541,53 @@ void SDataprepGraphTrackNode::OnControlKeyChanged(bool bControlKeyDown)
 	}
 }
 
+void SDataprepGraphTrackNode::RequestViewportPan(const FVector2D& InScreenSpacePosition)
+{
+	// Note: Code copied from SNodePanel::RequestDeferredPan and its subsequent calls. Calling SNodePanel::RequestDeferredPan is not an option
+	//		 since it changes the view offset during the call to OnPaint which bypasses the adjustments done by the SDataprepGraphEditor in
+	//		 SDataprepGraphEditor::Tick 
+	if(SGraphPanel* GraphPanel = OwnerGraphPanelPtr.Pin().Get())
+	{
+		// How quickly to ramp up the pan speed as the user moves the mouse further past the edge of the graph panel.
+		constexpr float EdgePanSpeedCoefficient = 2.f;
+		constexpr float EdgePanSpeedPower = 0.6f;
+		// Never pan faster than this - probably not really required since we raise to a power of 0.6
+		constexpr float MaxPanSpeed = 200.0f;
+		// Start panning before we reach the edge of the graph panel.
+		constexpr float EdgePanForgivenessZone = 30.0f;
+
+		//const FVector2D PanAmount = ComputeEdgePanAmount( GraphPanel->GetTickSpaceGeometry(), InScreenSpacePosition ) / GraphPanel->GetZoomAmount();
+		const FGeometry& PanelGeometry = GraphPanel->GetTickSpaceGeometry();
+		const FVector2D PanelPosition = PanelGeometry.AbsoluteToLocal( InScreenSpacePosition );
+		const FVector2D PanelSize = PanelGeometry.GetLocalSize();
+		const float ZoomAmount = GraphPanel->GetZoomAmount();
+
+		FVector2D PanAmount(FVector2D::ZeroVector);
+		if ( PanelPosition.X <= EdgePanForgivenessZone )
+		{
+			PanAmount.X = FMath::Max( -MaxPanSpeed, EdgePanSpeedCoefficient * -FMath::Pow(EdgePanForgivenessZone - PanelPosition.X, EdgePanSpeedPower) );
+		}
+		else if( PanelPosition.X >= PanelSize.X - EdgePanForgivenessZone )
+		{
+			PanAmount.X = FMath::Min( MaxPanSpeed, EdgePanSpeedCoefficient * FMath::Pow(PanelPosition.X - PanelSize.X + EdgePanForgivenessZone, EdgePanSpeedPower) );
+		}
+
+		if ( PanelPosition.Y <= EdgePanForgivenessZone )
+		{
+			PanAmount.Y = FMath::Max( -MaxPanSpeed, EdgePanSpeedCoefficient * -FMath::Pow(EdgePanForgivenessZone - PanelPosition.Y, EdgePanSpeedPower) );
+		}
+		else if( PanelPosition.Y >= PanelSize.Y - EdgePanForgivenessZone )
+		{
+			PanAmount.Y = FMath::Min( MaxPanSpeed, EdgePanSpeedCoefficient * FMath::Pow(PanelPosition.Y - PanelSize.Y + EdgePanForgivenessZone, EdgePanSpeedPower) );
+		}
+
+		if(PanAmount != FVector2D::ZeroVector)
+		{
+			GraphPanel->RestoreViewSettings(GraphPanel->GetViewOffset() + PanAmount / ZoomAmount, ZoomAmount);
+		}
+	}
+}
+
 void SDataprepGraphTrackNode::RequestRename(const UEdGraphNode* Node)
 {
 	if(SGraphPanel* GraphPanel = OwnerGraphPanelPtr.Pin().Get())
