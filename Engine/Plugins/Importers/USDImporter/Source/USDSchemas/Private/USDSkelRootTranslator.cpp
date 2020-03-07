@@ -118,7 +118,7 @@ void FUsdSkelRootTranslator::CreateAssets()
 		bool bHasPrimDisplayColor = false;
 
 		// Note that there could be multiple skeleton bindings under the SkeletonRoot
-		// For now, extract just the first one 
+		// For now, extract just the first one
 		for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
 		{
 			const pxr::UsdSkelSkeleton& Skeleton = Binding.GetSkeleton();
@@ -160,9 +160,10 @@ void FUsdSkelRootTranslator::CreateAssets()
 	if ( !SkeletalMesh )
 	{
 		SkeletalMesh = UsdToUnreal::GetSkeletalMeshFromImportData( SkelMeshImportData, Context->ObjectFlags );
-		Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ), SkeletalMesh );
 		Context->AssetsCache.Add( SkeletalMeshHash.ToString(), SkeletalMesh );
 	}
+
+	Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ), SkeletalMesh );
 }
 
 USceneComponent* FUsdSkelRootTranslator::CreateComponents()
@@ -213,7 +214,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		std::vector< double > TimeSamples;
 
 		// Note that there could be multiple skeleton bindings under the SkeletonRoot
-		// For now, extract just the first one 
+		// For now, extract just the first one
 		for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
 		{
 			const pxr::UsdSkelSkeleton& Skeleton = Binding.GetSkeleton();
