@@ -252,4 +252,35 @@ namespace FNiagaraEditorUtilities
 	{
 		return GetUniqueObjectName(Outer, T::StaticClass(), CandidateName);
 	}
+
+	/** Gets the Scope and notifies if it does not apply due to an override being set.
+	 * @params MetaData				The MetaData to get the namespace string for.
+	 * @params OutScope		The Scope to return.
+	 * @return bool			Whether the returned scope is not overridden. Is false if bUseLegacyNameString is set.
+	 */
+	bool GetVariableMetaDataScope(const FNiagaraVariableMetaData& MetaData, ENiagaraParameterScope& OutScope);
+
+	/** Gets the Namespace string and notifies if it does not apply due to an override being set.
+	 * @params MetaData				The MetaData to get the namespace string for.
+	 * @params OutNamespaceString	The Namespace string to return.
+	 * @return bool					Whether the returned Namespace string is valid. Is false if bUseLegacyNameString is set.
+	 */
+	bool GetVariableMetaDataNamespaceString(const FNiagaraVariableMetaData& MetaData, FString& OutNamespaceString);
+
+	/** Gets the Namespace string and notifies if it does not apply due to an override being set.
+	 * @params MetaData				The MetaData to get the namespace string for.
+	 * @params NewScopeName			The NewScopeName to consider when getting the namespace string.
+	 * @params OutNamespaceString	The Namespace string to return.
+	 * @return bool					Whether the returned Namespace string is valid. Is false if bUseLegacyNameString is set.
+	 */
+	bool GetVariableMetaDataNamespaceStringForNewScope(const FNiagaraVariableMetaData& MetaData, const FName& NewScopeName, FString& OutNamespaceString);
+
+	FName GetScopeNameForParameterScope(ENiagaraParameterScope InScope);
+
+	TArray<FName> DecomposeVariableNamespace(const FName& InVarNameToken, FName& OutName);
+
+	void GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData);
+
+	FString GetNamespacelessVariableNameString(const FName& InVarName);
+
 };

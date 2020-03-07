@@ -464,6 +464,7 @@ enum class ENiagaraParameterScope : uint32
 
 	Custom UMETA(Hidden), //Convenience markup for expressing parameters using legacy editor mode to freetype namespace and name.
 
+	DISPLAY_ONLY_StaticSwitch UMETA(DisplayName="Static Switch", Hidden), //Only use for display string in SEnumComboBoxes; does not have implementation for classes that interact with ENiagaraParameterScope.
 	// insert new scopes before
 	None UMETA(Hidden),
 
@@ -505,6 +506,38 @@ public:
 };
 
 USTRUCT()
+struct NIAGARA_API FNiagaraParameterScopeInfo
+{
+	GENERATED_BODY();
+
+public:
+	FNiagaraParameterScopeInfo()
+		: Scope(ENiagaraParameterScope::None)
+		, NamespaceString()
+	{};
+
+	FNiagaraParameterScopeInfo(const ENiagaraParameterScope InScope, const FString& InNamespaceString)
+		: Scope(InScope)
+		, NamespaceString(InNamespaceString)
+	{};
+
+	bool operator == (const FNiagaraParameterScopeInfo& Other) const
+	{
+		return Scope == Other.Scope && NamespaceString == Other.NamespaceString;
+	}
+
+	ENiagaraParameterScope GetScope() const { return Scope; };
+	const FString& GetNamespaceString() const { return NamespaceString; };
+
+private:
+	UPROPERTY()
+		ENiagaraParameterScope Scope;
+
+	UPROPERTY()
+		FString NamespaceString;
+};
+
+USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
 {
 	GENERATED_USTRUCT_BODY()
@@ -513,7 +546,7 @@ public:
 		: bAdvancedDisplay(false)
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
-		, Scope(ENiagaraParameterScope::None)
+		, ScopeName()
 		, Usage(ENiagaraScriptParameterUsage::None)
 		, bIsStaticSwitch(false)
 		, StaticSwitchDefaultValue(0)
@@ -553,14 +586,9 @@ public:
 	TMap<FName, FString> PropertyMetaData;
 
 public:
-	FString GetNamespaceString() const;
 
-	/** Gets the Scope and notifies if it does not apply due to an override being set.
-	 * @params OutScope		The Scope to return;
-	 * @return bool			Whether the returned scope is not overridden. Is false if bUseLegacyNameString is set.
-	 */
-	bool GetScope(ENiagaraParameterScope& OutScope) const;
-	void SetScope(ENiagaraParameterScope InScope) { Scope = InScope; };
+	const FName& GetScopeName() const { return ScopeName; };
+	void SetScopeName(const FName& InScopeName) { ScopeName = InScopeName; };
 
 	ENiagaraScriptParameterUsage GetUsage() const { return Usage; };
 	void SetUsage(ENiagaraScriptParameterUsage InUsage) { Usage = InUsage; };
@@ -593,9 +621,9 @@ public:
 	void CopyPerScriptMetaData(const FNiagaraVariableMetaData& OtherMetaData);
 
 private:
-	/** Defines the scope of a variable that is an input to a script. */
+	/** Defines the scope of a variable that is an input to a script. Used to lookup registered scope infos and resolve the actual ENiagaraParameterScope and Namespace string to use. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
-	ENiagaraParameterScope Scope;
+	FName ScopeName;
 
 	/** Defines the usage of a variable as an argument or output relative to the script. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))

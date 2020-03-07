@@ -1519,7 +1519,7 @@ void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraT
 	for (const FNiagaraTypeDefinition& RegisteredParameterType : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
 	{
 		//Object types only allowed in user namespace at the moment.
-		if (RegisteredParameterType.IsUObject() && RegisteredParameterType.IsDataInterface() == false && Namespace != FNiagaraParameterHandle::UserNamespace)
+		if (RegisteredParameterType.IsUObject() && RegisteredParameterType.IsDataInterface() == false && Namespace != FNiagaraConstants::UserNamespace)
 		{
 			continue;
 		}
@@ -1608,13 +1608,13 @@ TOptional<FName> FNiagaraStackGraphUtilities::GetNamespaceForScriptUsage(ENiagar
 	case ENiagaraScriptUsage::ParticleUpdateScript:
 	case ENiagaraScriptUsage::ParticleEventScript:
 	case ENiagaraScriptUsage::ParticleSimulationStageScript:
-		return FNiagaraParameterHandle::ParticleAttributeNamespace;
+		return FNiagaraConstants::ParticleAttributeNamespace;
 	case ENiagaraScriptUsage::EmitterSpawnScript:
 	case ENiagaraScriptUsage::EmitterUpdateScript:
-		return FNiagaraParameterHandle::EmitterNamespace;
+		return FNiagaraConstants::EmitterNamespace;
 	case ENiagaraScriptUsage::SystemSpawnScript:
 	case ENiagaraScriptUsage::SystemUpdateScript:
-		return FNiagaraParameterHandle::SystemNamespace;
+		return FNiagaraConstants::SystemNamespace;
 	default:
 		return TOptional<FName>();
 	}
@@ -2538,159 +2538,6 @@ void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem& Sy
 			}
 		}
 	}
-}
-
-TArray<FName> FNiagaraStackGraphUtilities::DecomposeVariableNamespace(const FName& InVarNameToken, FName& OutName)
-{
-	int32 DotIndex;
-	TArray<FName> OutNamespaces;
-	FString VarNameString = InVarNameToken.ToString();
-	while (VarNameString.FindChar(TEXT('.'), DotIndex))
-	{
-		OutNamespaces.Add(FName(*VarNameString.Left(DotIndex)));
-		VarNameString = *VarNameString.RightChop(DotIndex + 1);
-	}
-	OutName = FName(*VarNameString);
-	return OutNamespaces;
-}
-
-void FNiagaraStackGraphUtilities::GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData)
-{
-	auto MarkAsLegacyCustomName = [&OutMetaData]() {
-		OutMetaData.SetScope(ENiagaraParameterScope::Custom);
-		OutMetaData.SetIsUsingLegacyNameString(true);
-	};
-
-	auto GetMetaDataForFirstNamespace = [MarkAsLegacyCustomName](const FName& Namespace, FNiagaraVariableMetaData& OutMetaData)-> bool /*bNextNamespaceCanBeValid*/ {
-		if (Namespace == FNiagaraParameterHandle::LocalNamespace)
-		{
-			OutMetaData.SetScope(ENiagaraParameterScope::Local);
-			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Local);
-			return true;
-		}
-		else if (Namespace == FNiagaraParameterHandle::ModuleNamespace)
-		{
-			OutMetaData.SetScope(ENiagaraParameterScope::Input);
-			return false;
-		}
-		else if (Namespace == FNiagaraParameterHandle::UserNamespace)
-		{
-			OutMetaData.SetScope(ENiagaraParameterScope::User);
-			return false;
-		}
-		else if (Namespace == FNiagaraParameterHandle::EngineNamespace)
-		{
-			OutMetaData.SetScope(ENiagaraParameterScope::Engine);
-			return true;
-		}
-		else if (Namespace == FNiagaraParameterHandle::SystemNamespace)
-		{
-			OutMetaData.SetScope(ENiagaraParameterScope::System);
-			return true;
-		}
-		else if (Namespace == FNiagaraParameterHandle::EmitterNamespace)
-		{
-			OutMetaData.SetScope(ENiagaraParameterScope::Emitter);
-			return true;
-		}
-		else if (Namespace == FNiagaraParameterHandle::ParticleAttributeNamespace)
-		{
-			OutMetaData.SetScope(ENiagaraParameterScope::Particles);
-			return true;
-		}
-
-		MarkAsLegacyCustomName();
-		return false;
-	};
-
-	auto GetMetaDataForInitialNamespace = [](const FName& Namespace, FNiagaraVariableMetaData& OutMetaData)-> bool /*bFoundInitialNamespace*/ {
-		if (Namespace == FNiagaraParameterHandle::InitialNamespace)
-		{
-			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::InitialValueInput);
-			return true;
-		}
-		return false;
-	};
-
-	auto GetScopeCanHaveInitialNamespaceSuffix = [](ENiagaraParameterScope InScope)-> bool /*bCanHaveInitialNamespaceSuffix*/ {
-		switch (InScope) {
-		case ENiagaraParameterScope::System:
-		case ENiagaraParameterScope::Emitter:
-		case ENiagaraParameterScope::Particles:
-			return true;
-		default:
-			return false;
-		};
-		return false;
-	};
-
-	FName NamespacelessName;
-	TArray<FName> DecomposedNamespaces = FNiagaraStackGraphUtilities::DecomposeVariableNamespace(InVarNameToken, NamespacelessName);
-	OutMetaData.SetCachedNamespacelessVariableName(NamespacelessName);
-	if (DecomposedNamespaces.Num() == 0)
-	{
-		UE_LOG(LogNiagaraEditor, Display, TEXT("Unexpected parameter encountered without a namespace: %s"), *InVarNameToken.ToString());
-		MarkAsLegacyCustomName();
-		return;
-	}
-	else if (DecomposedNamespaces.Num() == 1)
-	{
-		GetMetaDataForFirstNamespace(DecomposedNamespaces[0], OutMetaData);
-		return;
-	}
-	else if (DecomposedNamespaces.Num() == 2)
-	{
-		bool bNextNamespaceCanBeValid = GetMetaDataForFirstNamespace(DecomposedNamespaces[0], OutMetaData);
-		if (bNextNamespaceCanBeValid)
-		{
-			ENiagaraParameterScope FirstNamespaceScope;
-			OutMetaData.GetScope(FirstNamespaceScope);
-			if (FirstNamespaceScope == ENiagaraParameterScope::Local)
-			{
-				// "local.module." namespaces may be handled as local scopes and do not need to be marked as legacy namespaces.
-				if (DecomposedNamespaces[1] == FNiagaraParameterHandle::ModuleNamespace)
-				{
-					return;
-				}
-			}
-			else if (GetScopeCanHaveInitialNamespaceSuffix(FirstNamespaceScope))
-			{
-				bool bFoundInitialNamespace = GetMetaDataForInitialNamespace(DecomposedNamespaces[1], OutMetaData);
-				if (bFoundInitialNamespace)
-				{
-					return;
-				}
-			}
-		}
-		MarkAsLegacyCustomName();
-		return;
-	}
-
-	MarkAsLegacyCustomName();
-}
-
-FString FNiagaraStackGraphUtilities::GetNamespacelessVariableNameString(const FName& InVarName)
-{
-	int32 DotIndex;
-	FString VarNameString = InVarName.ToString();
-	if (VarNameString.FindLastChar(TEXT('.'), DotIndex))
-	{
-		return VarNameString.RightChop(DotIndex + 1);
-	}
-	// No dot index, must be a namespaceless variable name (e.g. static switch name) just return the name to string.
-	return VarNameString;
-}
-
-FName FNiagaraStackGraphUtilities::GetVariableNameForScope(const FName& CurrentVariableName, const ENiagaraParameterScope NewVariableScope, bool bIsInitialValue)
-{
-	FString NewVariableScopeString = FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(NewVariableScope);
-	if (bIsInitialValue)
-	{
-		NewVariableScopeString.Append(PARAM_MAP_INITIAL_STR);
-	}
-	const FString ExistingVariableNameString = FNiagaraStackGraphUtilities::GetNamespacelessVariableNameString(CurrentVariableName);
-	FName NewVariableName = FName(*(NewVariableScopeString + ExistingVariableNameString));
-	return NewVariableName;
 }
 
 #undef LOCTEXT_NAMESPACE

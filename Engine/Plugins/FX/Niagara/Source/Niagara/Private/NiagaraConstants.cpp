@@ -23,6 +23,28 @@ TArray<FNiagaraVariable> FNiagaraConstants::EngineManagedAttributes;
 const FName FNiagaraConstants::InputPinName("InputPin");
 const FName FNiagaraConstants::OutputPinName("OutputPin");
 
+const FName FNiagaraConstants::UserNamespace(TEXT("User"));
+const FName FNiagaraConstants::EngineNamespace(TEXT("Engine"));
+const FName FNiagaraConstants::SystemNamespace(TEXT("System"));
+const FName FNiagaraConstants::EmitterNamespace(TEXT("Emitter"));
+const FName FNiagaraConstants::ParticleAttributeNamespace(TEXT("Particles"));
+const FName FNiagaraConstants::ModuleNamespace(TEXT("Module"));
+const FName FNiagaraConstants::ParameterCollectionNamespace(TEXT("NPC"));
+const FString FNiagaraConstants::InitialPrefix(TEXT("Initial"));
+const FName FNiagaraConstants::LocalNamespace(TEXT("Local"));
+const FName FNiagaraConstants::InitialNamespace(TEXT("Initial"));
+const FName FNiagaraConstants::OwnerNamespace(TEXT("Owner"));
+
+const FName FNiagaraConstants::EngineOwnerScopeName(TEXT("EngineOwner"));
+const FName FNiagaraConstants::EngineSystemScopeName(TEXT("EngineSystem"));
+const FName FNiagaraConstants::EngineEmitterScopeName(TEXT("EngineEmitter"));
+const FName FNiagaraConstants::CustomScopeName(TEXT("Custom"));
+
+const FName FNiagaraConstants::InputScopeName(TEXT("Input"));
+const FName FNiagaraConstants::OutputScopeName(TEXT("Output"));
+const FName FNiagaraConstants::ScriptTransientScopeName(TEXT("ScriptTransient"));
+const FName FNiagaraConstants::ScriptPersistentScopeName(TEXT("ScriptPersistent"));
+
 void FNiagaraConstants::Init()
 {
 	if (SystemParameters.Num() == 0)
