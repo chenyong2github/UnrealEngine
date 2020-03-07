@@ -51,7 +51,8 @@ namespace UnrealGameSync
 	{
 		Initial = 0,
 		DefaultServerSettings = 1,
-		Latest = DefaultServerSettings
+		XgeShaderCompilation = 2,
+		Latest = XgeShaderCompilation
 	}
 
 	class ArchiveSettings
@@ -400,6 +401,10 @@ namespace UnrealGameSync
 
 			// Editor arguments
 			string[] Arguments = ConfigFile.GetValues("General.EditorArguments", new string[]{ "0:-log", "0:-fastload" });
+			if (Version < UserSettingsVersion.XgeShaderCompilation)
+			{
+				Arguments = Enumerable.Concat(Arguments, new string[] { "0:-noxgeshadercompile" }).ToArray();
+			}
 			foreach(string Argument in Arguments)
 			{
 				if(Argument.StartsWith("0:"))
