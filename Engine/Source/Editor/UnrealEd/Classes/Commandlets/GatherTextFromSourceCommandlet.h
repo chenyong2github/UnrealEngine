@@ -115,6 +115,7 @@ private:
 		FName FilePlatformName;
 		FString LineText;
 		FString Namespace;
+		FString RawStringLiteralClosingDelim;
 		bool ExcludedRegion;
 		bool EndParsingCurrentLine;
 		bool WithinBlockComment;
