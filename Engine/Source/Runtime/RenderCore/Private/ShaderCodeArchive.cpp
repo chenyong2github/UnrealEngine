@@ -121,7 +121,7 @@ void FSerializedShaderArchive::Finalize()
 	{
 		check(ShaderMapEntry.NumShaders > 0u);
 		TArray<FFileCachePreloadEntry> SortedPreloadEntries;
-		SortedPreloadEntries.Empty(ShaderMapEntry.NumShaders);
+		SortedPreloadEntries.Empty(ShaderMapEntry.NumShaders + 1);
 		for (uint32 i = 0; i < ShaderMapEntry.NumShaders; ++i)
 		{
 			const int32 ShaderIndex = ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
@@ -137,6 +137,8 @@ void FSerializedShaderArchive::Finalize()
 		{
 			const FFileCachePreloadEntry& PreloadEntry = SortedPreloadEntries[PreloadIndex];
 			const int64 Gap = PreloadEntry.Offset - CurrentPreloadEntry.Offset - CurrentPreloadEntry.Size;
+			checkf(Gap >= 0, TEXT("Overlapping preload entries, [%lld-%lld), [%lld-%lld)"),
+				CurrentPreloadEntry.Offset, CurrentPreloadEntry.Offset + CurrentPreloadEntry.Size, PreloadEntry.Offset, PreloadEntry.Offset + PreloadEntry.Size);
 			if (Gap > 1024)
 			{
 				++ShaderMapEntry.NumPreloadEntries;
