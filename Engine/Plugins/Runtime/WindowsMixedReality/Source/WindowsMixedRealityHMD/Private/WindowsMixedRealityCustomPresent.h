@@ -56,6 +56,8 @@ namespace WindowsMixedReality
 			{
 				hmd->CopyResources(D3D11Context, ViewportTexture);
 			}
+
+			InOutSyncInterval = 0;
 			
 			return hmd->Present();
 #else
