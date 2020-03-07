@@ -462,6 +462,7 @@ void UNiagaraStackScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 				ModuleItem->OnModifiedGroupItems().AddUObject(this, &UNiagaraStackScriptItemGroup::ChildModifiedGroupItems);
 				ModuleItem->SetOnRequestCanPaste(UNiagaraStackModuleItem::FOnRequestCanPaste::CreateUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestCanPaste));
 				ModuleItem->SetOnRequestPaste(UNiagaraStackModuleItem::FOnRequestPaste::CreateUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestPaste));
+				ModuleItem->SetOnRequestDeprecationRecommended(UNiagaraStackModuleItem::FOnRequestDeprecationRecommended::CreateUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestDeprecatedRecommendation));
 			}
 
 			NewChildren.Add(ModuleItem);
@@ -1012,6 +1013,44 @@ bool UNiagaraStackScriptItemGroup::ChildRequestCanPaste(const UNiagaraClipboardC
 void UNiagaraStackScriptItemGroup::ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex, FText& OutPasteWarning)
 {
 	PasteModules(ClipboardContent, PasteIndex, OutPasteWarning);
+}
+
+void UNiagaraStackScriptItemGroup::ChildRequestDeprecatedRecommendation(UNiagaraStackModuleItem* TargetChild)
+{
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("UpdateDeprecatedScript", "Update module script to new version"));
+
+	UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+	TargetChild->GetModuleNode().GetNiagaraGraph()->Modify();
+	TargetChild->GetModuleNode().Modify();
+	Modify();
+	TargetChild->Modify();
+
+	// Step 1: Make a copy of the existing node so that we can perform surgery on it to update.
+	UNiagaraScript* TargetScript = TargetChild->GetModuleNode().FunctionScript->DeprecationRecommendation;
+	TargetChild->Copy(ClipboardContent);
+
+	// Step 2: Disable the old master so that end users can use it as reference and inheritance isn't wiped out.
+	//TargetChild->Rename();
+	//TargetChild->GetModuleNode().SuggestName(TEXT("Deprecated Original " + TargetChild->GetModuleNode().GetFunctionName()), true);
+	TargetChild->OnRenamed(FText::Format(LOCTEXT("NewDeprecationName", "Deprecated Original {0}"), TargetChild->GetDisplayName()));
+	TargetChild->SetEnabled(false);
+
+	// Step 3: Paste in the copy
+	FText PasteWarning;
+	int32 NewChildIdx = TargetChild->GetModuleIndex() + 1;
+	PasteModules(ClipboardContent, TargetChild->GetModuleIndex() + 1, PasteWarning);
+	RefreshChildren();
+
+	// Step 4: convert new copy in place to suggested script.
+	TArray<UNiagaraStackModuleItem*> ModuleItems;
+	GetUnfilteredChildrenOfType(ModuleItems);
+
+	if (ModuleItems.Num() > NewChildIdx)
+	{
+		ModuleItems[NewChildIdx]->ReassignModuleScript(TargetScript);
+	}
+	//
 }
 
 void UNiagaraStackScriptItemGroup::OnScriptGraphChanged(const struct FEdGraphEditAction& InAction)
