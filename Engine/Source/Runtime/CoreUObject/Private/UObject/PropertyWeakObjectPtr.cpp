@@ -55,3 +55,8 @@ void FWeakObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UOb
 {
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));
 }
+
+uint32 FWeakObjectProperty::GetValueTypeHashInternal(const void* Src) const
+{
+	return GetTypeHash(*(FWeakObjectPtr*)Src);
+}
