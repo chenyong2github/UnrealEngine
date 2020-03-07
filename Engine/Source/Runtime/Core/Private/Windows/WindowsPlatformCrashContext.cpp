@@ -1008,8 +1008,11 @@ public:
 #endif
 
 #if USE_CRASH_REPORTER_MONITOR
-		CrashClientHandle = LaunchCrashReportClient(&CrashMonitorWritePipe, &CrashMonitorReadPipe);
-		FMemory::Memzero(SharedContext);
+		if (!FPlatformProperties::IsServerOnly())
+		{
+			CrashClientHandle = LaunchCrashReportClient(&CrashMonitorWritePipe, &CrashMonitorReadPipe);
+			FMemory::Memzero(SharedContext);
+		}
 #endif
 
 		// Create a background thread that will process the crash and generate crash reports
