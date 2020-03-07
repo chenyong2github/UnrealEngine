@@ -28,6 +28,7 @@ namespace UnrealBuildTool
 			set { bForDistribution = value; }
 		}
 		bool bForDistribution = false;
+		public static string LaunchStoryboardPath;
 
 		protected class VersionUtilities
 		{
@@ -42,7 +43,7 @@ namespace UnrealBuildTool
 				set;
 			}
 
-			
+			public static bool bLaunchscreenStoryboard = false;
 
 			static string RunningVersionFilename
 			{
@@ -210,11 +211,11 @@ namespace UnrealBuildTool
 			string OldPListData = File.Exists(PListFile) ? File.ReadAllText(PListFile) : "";
 
 			// determine if there is a Lanchscreen Storyboard THEN a launch.xib
-			string LaunchStoryboard = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboard";
+			LaunchStoryboardPath = InEngineDir + "/Build/IOS/Resources/Interface";
 			string LaunchXib = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.xib";
-			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard"))
-			{
-				LaunchStoryboard = BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard";
+			if (Directory.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc"))
+			{
+				LaunchStoryboardPath = BuildDirectory + "/Resources/Interface";
 			}
 			else if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.xib"))
 			{
@@ -401,6 +402,8 @@ namespace UnrealBuildTool
 			string ExtraData = "";
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "AdditionalPlistData", out ExtraData);
 
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bLaunchscreenStoryboard", out VersionUtilities.bLaunchscreenStoryboard);
+
 			// generate the plist file
 			StringBuilder Text = new StringBuilder();
 			Text.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -577,7 +580,7 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t</dict>");
 				Text.AppendLine("\t</dict>");
 			}
-			if (File.Exists(LaunchStoryboard) || File.Exists(LaunchXib))
+			if (Directory.Exists(LaunchStoryboardPath + "/LaunchScreen.storyboardc") || File.Exists(LaunchXib) && VersionUtilities.bLaunchscreenStoryboard)
 			{
 				Text.AppendLine("\t<key>UILaunchStoryboardName</key>");
 				Text.AppendLine("\t<string>LaunchScreen</string>");
@@ -878,8 +881,15 @@ namespace UnrealBuildTool
 			// copy engine assets in (IOS and TVOS shared in IOS)
 			if (bSkipDefaultPNGs)
 			{
-				//Copy storyboard or xib
-				CopyFiles(InEngineDir + "/Build/IOS/Resources/Interface", AppDirectory, "*", true);
+				if (VersionUtilities.bLaunchscreenStoryboard)
+				{
+					if(!Directory.Exists(AppDirectory + "/LaunchScreen.storyboardc"))
+					{
+						Directory.CreateDirectory(AppDirectory + "/LaunchScreen.storyboardc");
+					}
+					
+					CopyFolder(LaunchStoryboardPath + "/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
+				}
 				// we still want default icons
 				if (!bSkipIcons)
 				{
@@ -927,7 +937,7 @@ namespace UnrealBuildTool
 				{
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Icon*.png", true);
 				}
-				if (bSupportsPortrait)
+				if (bSupportsPortrait && !VersionUtilities.bLaunchscreenStoryboard)
 				{
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhone6.png", true);
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhone6Plus-Portrait.png", true);
@@ -939,7 +949,7 @@ namespace UnrealBuildTool
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXSMax-Portrait.png", true);
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXR-Portrait.png", true);
 				}
-				if (bSupportsLandscape)
+				if (bSupportsLandscape && !VersionUtilities.bLaunchscreenStoryboard)
 				{
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhone6-Landscape.png", true);
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhone6Plus-Landscape.png", true);
@@ -951,8 +961,11 @@ namespace UnrealBuildTool
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXSMax-Landscape.png", true);
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXR-Landscape.png", true);
 				}
-				CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default@2x.png", true);
-				CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-568h@2x.png", true);
+				if (!VersionUtilities.bLaunchscreenStoryboard)
+				{
+					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default@2x.png", true);
+					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-568h@2x.png", true);
+				}
 			}
 		}
 		protected virtual void CopyLocalizationsResources(string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir)
