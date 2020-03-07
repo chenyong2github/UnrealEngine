@@ -1133,8 +1133,11 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				SimulationParameters.Name = GetPathName();
 #endif
-				RestCollection->GetSharedSimulationParams(SimulationParameters.Shared);
-				SimulationParameters.RestCollection = RestCollection->GetGeometryCollection().Get();
+				if (RestCollection)
+				{
+					RestCollection->GetSharedSimulationParams(SimulationParameters.Shared);
+					SimulationParameters.RestCollection = RestCollection->GetGeometryCollection().Get();
+				}
 				SimulationParameters.Simulating = Simulating;
 				SimulationParameters.EnableClustering = EnableClustering;
 				SimulationParameters.ClusterGroupIndex = EnableClustering ? ClusterGroupIndex : 0;
