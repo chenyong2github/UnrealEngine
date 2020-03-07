@@ -497,6 +497,7 @@ extern RHI_API int32 GNumPrimitivesDrawnRHI;
 
 /** Num draw calls and primitives this frame (only accurate on RenderThread) */
 extern RHI_API int32 GCurrentNumDrawCallsRHI;
+extern RHI_API int32* GCurrentNumDrawCallsRHIPtr;
 extern RHI_API int32 GCurrentNumPrimitivesDrawnRHI;
 
 
@@ -1634,6 +1635,32 @@ struct FTextureMemoryStats
 	}
 };
 
+struct RHI_API FDrawCallCategoryName
+{
+	FDrawCallCategoryName() 
+	{ 
+	}
+
+	FDrawCallCategoryName(FName InName)
+		: Name(InName)
+		, Counter(0)
+	{
+		check(NumCategory < MAX_DRAWCALL_CATEGORY);
+		if (NumCategory < MAX_DRAWCALL_CATEGORY)
+		{
+			Array[NumCategory] = this;
+			NumCategory++;
+		}
+	}
+
+	FName Name;
+	int32 Counter = -1;
+
+	static constexpr int32 MAX_DRAWCALL_CATEGORY = 256;
+	static FDrawCallCategoryName* Array[MAX_DRAWCALL_CATEGORY];
+	static int32 NumCategory;
+};
+
 // RHI counter stats.
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("DrawPrimitive calls"),STAT_RHIDrawPrimitiveCalls,STATGROUP_RHI,RHI_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Triangles drawn"),STAT_RHITriangles,STATGROUP_RHI,RHI_API);
@@ -1642,7 +1669,7 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Lines drawn"),STAT_RHILines,STATGROUP_RH
 #if STATS
 	#define RHI_DRAW_CALL_INC() \
 		INC_DWORD_STAT(STAT_RHIDrawPrimitiveCalls); \
-		FPlatformAtomics::InterlockedIncrement(&GCurrentNumDrawCallsRHI);
+		FPlatformAtomics::InterlockedIncrement(GCurrentNumDrawCallsRHIPtr);
 
 	#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives) \
 		RHI_DRAW_CALL_INC(); \
@@ -1651,11 +1678,11 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Lines drawn"),STAT_RHILines,STATGROUP_RH
 		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI, NumPrimitives);
 #else
 	#define RHI_DRAW_CALL_INC() \
-		FPlatformAtomics::InterlockedIncrement(&GCurrentNumDrawCallsRHI);
+		FPlatformAtomics::InterlockedIncrement(GCurrentNumDrawCallsRHIPtr);
 
 	#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives) \
 		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI, NumPrimitives); \
-		FPlatformAtomics::InterlockedIncrement(&GCurrentNumDrawCallsRHI);
+		FPlatformAtomics::InterlockedIncrement(GCurrentNumDrawCallsRHIPtr);
 #endif
 
 // RHI memory stats.
