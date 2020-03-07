@@ -232,13 +232,14 @@ TSharedRef<SWidget> SNiagaraParameterPanel::CreateAddToSectionButton(const Niaga
 
 TSharedRef<SWidget> SNiagaraParameterPanel::OnGetParameterMenu(const NiagaraParameterPanelSectionID::Type InSection)
 {
-	ENiagaraParameterScope NewParameterScope = NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(InSection);
+	ENiagaraParameterScope NewParameterScopeForSection = NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(InSection);
 
-	TSharedRef<SNiagaraAddParameterMenu2> MenuWidget = SNew(SNiagaraAddParameterMenu2, ParameterPanelViewModel->GetEditableGraphs(), NewParameterScope)
+	TSharedRef<SNiagaraAddParameterMenu2> MenuWidget = SNew(SNiagaraAddParameterMenu2, ParameterPanelViewModel->GetEditableGraphs())
 		.OnAddParameter(this, &SNiagaraParameterPanel::AddParameter, InSection)
 		.OnAllowMakeType(this, &SNiagaraParameterPanel::AllowMakeType)
 		.ShowGraphParameters(false)
-		.AutoExpandMenu(true);
+		.AutoExpandMenu(true)
+		.NewParameterScope(NewParameterScopeForSection);
 
 	AddParameterButtons[(int32)InSection]->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox()->AsShared());
 	return MenuWidget;
@@ -321,7 +322,7 @@ void SNiagaraParameterPanel::Refresh()
 	/************************************************************************/
 	/* SNiagaraAddParameterMenu2                                             */
 	/************************************************************************/
-void SNiagaraAddParameterMenu2::Construct(const FArguments& InArgs, TArray<TWeakObjectPtr<UNiagaraGraph>> InGraphs, ENiagaraParameterScope InNewParameterScope)
+void SNiagaraAddParameterMenu2::Construct(const FArguments& InArgs, TArray<TWeakObjectPtr<UNiagaraGraph>> InGraphs)
 {
 	this->OnAddParameter = InArgs._OnAddParameter;
 	this->OnCollectCustomActions = InArgs._OnCollectCustomActions;
@@ -330,9 +331,9 @@ void SNiagaraAddParameterMenu2::Construct(const FArguments& InArgs, TArray<TWeak
 	this->ShowGraphParameters = InArgs._ShowGraphParameters;
 	this->AutoExpandMenu = InArgs._AutoExpandMenu;
 	this->IsParameterRead = InArgs._IsParameterRead;
+	this->NewParameterScope = InArgs._NewParameterScope;
 
 	Graphs = InGraphs;
-	NewParameterScope = InNewParameterScope;
 	NewParameterScopeText = FText::FromString(FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(NewParameterScope));
 
 	ChildSlot
