@@ -13,6 +13,7 @@
 #include "Templates/AlignmentTemplates.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "GameFramework/PlayerController.h"
+#include "NiagaraCrashReporterHandler.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -1971,6 +1972,8 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
 
+	FNiagaraCrashReporterScope CRScope(this);
+
 	UNiagaraSystem* System = GetSystem();
 	FScopeCycleCounter SystemStat(System->GetStatID(true, false));
 
@@ -1999,6 +2002,8 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
 	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
+
+	FNiagaraCrashReporterScope CRScope(this);
 
 	// Reset values that will be accumulated during emitter tick.
 	TotalGPUParamSize = 0;
@@ -2103,6 +2108,8 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 {
 	if (bNeedsFinalize)//We can come in here twice in one tick if the GT calls WaitForAsync() while there is a GT finalize task in the queue.
 	{
+		FNiagaraCrashReporterScope CRScope(this);
+
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_FinalizeGT);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);

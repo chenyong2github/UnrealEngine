@@ -1034,6 +1034,19 @@ void FNiagaraEmitterInstance::SetSystemFixedBoundsOverride(FBox SystemFixedBound
 	CachedSystemFixedBounds = SystemFixedBounds;
 }
 
+static int32 GbTriggerCrash = 0;
+static FAutoConsoleVariableRef CVarTriggerCrash(
+	TEXT("fx.TriggerDebugCrash"),
+	GbTriggerCrash,
+	TEXT("If > 0 we deliberately crash to test Crash Reporter integration."),
+	ECVF_Default
+);
+
+FORCENOINLINE void NiagaraTestCrash()
+{
+	check(0);
+}
+
 void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraTick);
@@ -1047,6 +1060,15 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+
+	//Test crash allowing us to test CR functionality.
+#if !UE_BUILD_SHIPPING
+	if (GbTriggerCrash)
+	{
+		GbTriggerCrash = 0;
+		NiagaraTestCrash();
+	}
+#endif
 
 	checkSlow(ParticleDataSet);
 	FNiagaraDataSet& Data = *ParticleDataSet;
