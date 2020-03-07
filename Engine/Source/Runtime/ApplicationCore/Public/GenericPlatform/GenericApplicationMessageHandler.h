@@ -470,4 +470,9 @@ public:
 	{
 		return true;
 	}
+
+	virtual void SetCursorPos(const FVector2D& MouseCoordinate)
+	{
+
+	}
 };
