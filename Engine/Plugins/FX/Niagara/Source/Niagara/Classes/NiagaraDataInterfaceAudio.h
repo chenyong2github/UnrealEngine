@@ -67,6 +67,9 @@ private:
 /** Niagara data interface proxy for audio submix listener. */
 struct FNiagaraDataInterfaceProxySubmix : public FNiagaraDataInterfaceProxy 
 {
+	FNiagaraDataInterfaceProxySubmix(const FNiagaraDataInterfaceProxySubmix& Other) = delete;
+	FNiagaraDataInterfaceProxySubmix& operator=(const FNiagaraDataInterfaceProxySubmix& Other) = delete;
+
 	/** Construct a FNiagaraDataInterfaceProxySubmix
 	 *
 	 *  @params InNumSamplesToBuffer - Number of audio sampels to buffer internally. 
@@ -99,11 +102,12 @@ struct FNiagaraDataInterfaceProxySubmix : public FNiagaraDataInterfaceProxy
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override;
 
 private:
+
 	void AddSubmixListener(const Audio::FDeviceId InDeviceId);
 	void RemoveSubmixListener(const Audio::FDeviceId InDeviceId);
 
 	void RegisterToAllAudioDevices();
-	void UnregisterFromAllAudioDevices(USoundSubmix* Submix);
+	void UnregisterFromAllAudioDevices();
 
 	void OnNewDeviceCreated(Audio::FDeviceId InDeviceId);
 	void OnDeviceDestroyed(Audio::FDeviceId InDeviceId);
@@ -135,6 +139,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Audio")
 	USoundSubmix* Submix;
 
+
+	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

@@ -240,6 +240,8 @@ namespace Audio
 	int32 FPatchMixer::MaxNumberOfSamplesThatCanBePopped()
 	{
 		FScopeLock ScopeLock(&CurrentPatchesCriticalSection);
+
+		CleanUpDisconnectedPatches();
 		ConnectNewPatches();
 
 		// Iterate through our inputs and see which input has the least audio buffered.
@@ -288,6 +290,18 @@ namespace Audio
 	void FPatchMixer::CleanUpDisconnectedPatches()
 	{
 		FScopeLock PendingInputDeletionScopeLock(&InputDeletionCriticalSection);
+
+		 // Callers of this function must have CurrentPatchesCritialSection locked so that 
+		 // this is not causing a race condition.
+		for (const FPatchOutputStrongPtr& Patch : CurrentInputs)
+		{
+			check(Patch.IsValid());
+
+			if (Patch->IsInputStale())
+			{
+				DisconnectedInputs.Add(Patch->PatchID);
+			}
+		}
 
 		// Iterate through all of the PatchIDs we need to clean up.
 		for (const int32& PatchID : DisconnectedInputs)
