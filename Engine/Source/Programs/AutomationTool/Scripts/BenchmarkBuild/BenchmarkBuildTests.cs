@@ -53,7 +53,7 @@ namespace AutomationTool.Benchmark
 			}
 		}
 
-		public BenchmarkBuildTask(string InProject, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions, int CoreCount=0)
+		public BenchmarkBuildTask(string InProject, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions, string InUBTArgs="", int CoreCount=0)
 		{
 			bool IsVanillaUE4 = InProject == null || string.Equals(InProject, "UE4", StringComparison.OrdinalIgnoreCase);
 
@@ -68,7 +68,7 @@ namespace AutomationTool.Benchmark
 			Command.NoTools = true;
 			Command.Clean = InOptions.HasFlag(BuildOptions.Clean);
 
-			Command.UBTArgs = "";
+			Command.UBTArgs = InUBTArgs;
 
 			bool WithAccel = !InOptions.HasFlag(BuildOptions.NoAcceleration);
 
@@ -90,7 +90,12 @@ namespace AutomationTool.Benchmark
 			else
 			{
 				TaskModifiers.Add(AccelerationName);
-			}			
+			}		
+			
+			if (!string.IsNullOrEmpty(InUBTArgs))
+			{
+				TaskModifiers.Add(InUBTArgs);
+			}
 		}
 
 		protected override bool PerformTask()

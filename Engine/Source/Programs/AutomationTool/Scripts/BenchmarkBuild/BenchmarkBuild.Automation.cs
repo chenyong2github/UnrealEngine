@@ -31,19 +31,179 @@ namespace AutomationTool.Benchmark
 	[Help("nopcompile", "Do a nothing-needs-compiled compile")]
 	[Help("cores=X+Y+Z", "Do noxge builds with these processor counts (default is Environment.ProcessorCount)")]
 	[Help("cook", "Do a cook for the specified platform")]
-	[Help("cookcold", "When cooking clear the local ddc before each run")]
-	[Help("cooknoshaderddc", "Do a cook test with no ddc for shaders")]
-	[Help("cooknoddc", "Do a cook test with nodcc (likely to take 10+ hours with cookfortnite)")]
+	[Help("cook-cold", "When cooking clear the local ddc before each run")]
+	[Help("cook-noshaderddc", "Do a cook test with no ddc for shaders")]
+	[Help("cook-noddc", "Do a cook test with nodcc (likely to take 10+ hours with cookfortnite)")]
+	[Help("editorstartup", "Launch the editor (only valid when -project is specified")]
+	[Help("editorstartup-cold", "Launch the editor with a cold ddc")]
+	[Help("editorstartup-hot", "Launch the editor with a hot ddc")]
+	[Help("startupmap=", "Maps to use with launcheditor. Should be one per project or specify 'none'")]
 	[Help("iterations=<n>", "How many times to perform each test)")]
 	[Help("wait=<n>", "How many seconds to wait between each test)")]
 	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
-	[Help("hotddc", "Before cooking do a non-timed cook to make sure and any remote/local DDCs are full")]
-	[Help("noclean", "Don't build from clean. (Mostly just to speed things up when testing)")]	
+	[Help("noclean", "Don't build from clean. (Mostly just to speed things up when testing)")]
+	[Help("ExtraCookArgs", "Extra args to use when cooking")]
 	class BenchmarkBuild : BuildCommand
 	{
-		protected List<BenchmarkTaskBase> Tasks = new List<BenchmarkTaskBase>();
+		class BenchmarkOptions : BuildCommand
+		{
+			public bool Preview = false;
 
-		protected Dictionary<BenchmarkTaskBase, List<TimeSpan>> Results = new Dictionary<BenchmarkTaskBase, List<TimeSpan>>();
+			public bool DoUE4Tests = false;
+			public IEnumerable<string> ProjectsToTest = Enumerable.Empty<string>();
+			public IEnumerable<UnrealTargetPlatform> PlatformsToTest = Enumerable.Empty<UnrealTargetPlatform>();
+
+			// building
+			public bool DoBuildEditorTests = false;
+			public bool DoBuildClientTests = false;
+			public bool DoNoCompileTests = false;
+			public bool DoSingleCompileTests = false;
+			public bool DoAcceleratedCompileTests = false;
+			public bool DoNoAcceleratedCompileTests = false;
+
+			public IEnumerable<int> CoresForLocalJobs = new[] { Environment.ProcessorCount };
+
+			// cooking
+			public bool DoCookTests = false;
+			public bool DoColdCookTests = false;
+			public bool DoHotCookTests = false;
+			public bool DoNoshaderDDCCookTests = false;
+			public bool DoNoDDCCookTests = false;
+
+			// editor startup tests
+			public bool DoEditorStartupTests = false;
+			public bool DoEditorColdStartupTests = false;
+			public bool DoEditorColdStartupHot = false;
+
+			// list of maps for each project
+			public IEnumerable<string> StartupMapList = Enumerable.Empty<string>();
+
+			// misc
+			public int Iterations = 1;
+			public bool NoClean = false;
+			public int TimeBetweenTasks = 0;
+			public string ExtraCookArgs = "";
+			public string FileName = string.Format("{0}_Results.csv", Environment.MachineName);
+
+			public void ParseParams(string[] InParams)
+			{
+				this.Params = InParams;
+
+				bool AllThings = ParseParam("all");
+				bool AllCompile = AllThings | ParseParam("allcompile");
+
+				Preview = ParseParam("preview");
+				DoUE4Tests = AllThings || ParseParam("ue4");
+
+				// compilation
+				DoBuildEditorTests = AllCompile | ParseParam("editor");
+				DoBuildClientTests = AllCompile | ParseParam("client");
+				DoNoCompileTests = AllCompile | ParseParam("nopcompile");
+				DoSingleCompileTests = AllCompile | ParseParam("singlecompile");
+				DoAcceleratedCompileTests = AllCompile | ParseParam("xge") | ParseParam("fastbuild");
+				DoNoAcceleratedCompileTests = AllCompile | ParseParam("noxge") | ParseParam("nofastbuild");
+
+				// cooking
+				DoCookTests = AllThings | ParseParam("cook");
+				DoColdCookTests = AllThings | ParseParam("cook-cold");
+				DoHotCookTests = AllThings | ParseParam("cook-hotddc");
+				DoNoshaderDDCCookTests = AllThings | ParseParam("cook-noshaderddc");
+				DoNoDDCCookTests = ParseParam("cook-noddc");
+
+				// editor startup tests
+				DoEditorStartupTests = AllThings | ParseParam("editorstartup");
+				DoEditorColdStartupTests = AllThings | ParseParam("editorstartup-cold");
+				DoEditorColdStartupHot = AllThings | ParseParam("editorhotstartup-hot");
+
+				// sanity
+				DoAcceleratedCompileTests = DoAcceleratedCompileTests && BenchmarkBuildTask.SupportsAcceleration;
+
+				Preview = ParseParam("Preview");
+				Iterations = ParseParamInt("Iterations", Iterations);
+				TimeBetweenTasks = ParseParamInt("Wait", TimeBetweenTasks);
+
+				FileName = ParseParamValue("filename", FileName);
+
+				ExtraCookArgs = ParseParamValue("ExtraCookArgs", "");
+
+				// Parse the project arg
+				{
+					string ProjectsArg = ParseParamValue("project", null);
+					ProjectsArg = ParseParamValue("projects", ProjectsArg);
+
+					// Look at the project argument and verify it's a valid uproject
+					if (!string.IsNullOrEmpty(ProjectsArg))
+					{
+						var ProjectList = ProjectsArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+						foreach (var Project in ProjectList)
+						{
+							if (!string.Equals(Project, "UE4", StringComparison.OrdinalIgnoreCase))
+							{
+								FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(Project);
+
+								if (ProjectFile == null)
+								{
+									throw new AutomationException("Could not find project file for {0}", Project);
+								}
+							}
+						}
+
+						ProjectsToTest = ProjectList;
+					}
+				}
+
+				// Parse and validate platform list from arguments
+				{
+					string PlatformArg = ParseParamValue("platform", "");
+					PlatformArg = ParseParamValue("platforms", PlatformArg);
+
+					if (!string.IsNullOrEmpty(PlatformArg))
+					{
+						List<UnrealTargetPlatform> ClientPlatforms = new List<UnrealTargetPlatform>();
+
+						var PlatformList = PlatformArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+						foreach (var Platform in PlatformList)
+						{
+							UnrealTargetPlatform PlatformEnum;
+							if (!UnrealTargetPlatform.TryParse(Platform, out PlatformEnum))
+							{
+								throw new AutomationException("{0} is not a valid Unreal Platform", Platform);
+							}
+
+							ClientPlatforms.Add(PlatformEnum);
+						}
+
+						PlatformsToTest = ClientPlatforms;
+					}
+					else
+					{
+						PlatformsToTest = new[] { BuildHostPlatform.Current.Platform };
+					}
+				}
+
+				// parse processor args
+				{
+					string ProcessorArg = ParseParamValue("cores", "");
+
+					if (!string.IsNullOrEmpty(ProcessorArg))
+					{
+						var ProcessorList = ProcessorArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+						CoresForLocalJobs = ProcessorList.Select(P => Convert.ToInt32(P));
+					}
+				}
+
+				// parse maps for startup tests
+				{
+					// pull the list of maps to use for startup tests
+					string MapArg = ParseParamValue("startupmap", "");
+					MapArg = ParseParamValue("startupmaps", MapArg);
+					StartupMapList = MapArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+				}
+			}
+		}
 
 		public BenchmarkBuild()
 		{ 
@@ -51,219 +211,35 @@ namespace AutomationTool.Benchmark
 
 		public override ExitCode Execute()
 		{
-			bool Preview = ParseParam("preview");
+			BenchmarkOptions Options = new BenchmarkOptions();
+			Options.ParseParams(this.Params);
 
-			bool AllThings = ParseParam("all");
+			List<BenchmarkTaskBase> Tasks = new List<BenchmarkTaskBase>();
 
-			bool AllCompile =  AllThings | ParseParam("allcompile");
+			Dictionary<BenchmarkTaskBase, List<TimeSpan>> Results = new Dictionary<BenchmarkTaskBase, List<TimeSpan>>();
 
-			bool DoUE4 = AllCompile | ParseParam("ue4");
-			bool DoBuildEditorTests = AllCompile | ParseParam("editor");
-			bool DoBuildClientTests = AllCompile | ParseParam("client");
-			bool DoNoCompile = AllCompile | ParseParam("nopcompile");
-			bool DoSingleCompile = AllCompile | ParseParam("singlecompile");
-			bool DoAcceleratedCompile = AllCompile | ParseParam("xge") | ParseParam("fastbuild");
-			bool DoNoAcceleratedCompile = AllCompile | ParseParam("noxge") | ParseParam("nofastbuild");
-
-			bool DoCookTests = AllThings | ParseParam("cook");
-			bool DoColdCook = AllThings | ParseParam("cookcold");
-			bool DoHotDDC = AllThings | ParseParam("hotddc");
-			bool DoNoShaderDDC = AllThings | ParseParam("cooknoshaderddc");
-			bool DoNoDDC = ParseParam("cooknoddc");
-
-			bool NoClean = ParseParam("noclean");
-			int TimeBetweenTasks = ParseParamInt("wait", 10);
-			int NumLoops = ParseParamInt("iterations", 1);
-
-			string FileName = ParseParamValue("filename", string.Format("{0}_Results.csv", Environment.MachineName));
-
-			// We always build the editor for the platform we're running on
-			UnrealTargetPlatform EditorPlatform = BuildHostPlatform.Current.Platform;
-
-			List<UnrealTargetPlatform> ClientPlatforms = new List<UnrealTargetPlatform>();
-
-			string PlatformArg = ParseParamValue("platform", "");
-
-			if (!string.IsNullOrEmpty(PlatformArg))
+			for (int ProjectIndex = 0; ProjectIndex <  Options.ProjectsToTest.Count(); ProjectIndex++)
 			{
-				var PlatformList = PlatformArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+				string Project = Options.ProjectsToTest.ElementAt(ProjectIndex);
 
-				foreach (var Platform in PlatformList)
+				if (Options.DoBuildEditorTests)
 				{
-					UnrealTargetPlatform PlatformEnum;
-					if (!UnrealTargetPlatform.TryParse(Platform, out PlatformEnum))
-					{
-						throw new AutomationException("{0} is not a valid Unreal Platform", Platform);
-					}
-
-					ClientPlatforms.Add(PlatformEnum);
-				}
-			}
-			else
-			{
-				ClientPlatforms.Add(EditorPlatform);
-			}
-
-			string ProcessorArg = ParseParamValue("cores", "");
-
-			IEnumerable<int> ProcessorCounts = new[] { Environment.ProcessorCount };
-
-			if (!string.IsNullOrEmpty(ProcessorArg))
-			{
-				var ProcessorList = ProcessorArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-				ProcessorCounts = ProcessorList.Select(P => Convert.ToInt32(P));
-			}
-
-			DoAcceleratedCompile = DoAcceleratedCompile && BenchmarkBuildTask.SupportsAcceleration;
-
-			// Set this based on whether the user specified -noclean
-			BuildOptions CleanFlag = NoClean ? BuildOptions.None : BuildOptions.Clean;
-
-			List<string> ProjectsToBenchmark = new List<string>();
-
-			string ProjectsArg = ParseParamValue("project", null);
-
-			// Look at the project argument and verify it's a valid uproject
-			if (!string.IsNullOrEmpty(ProjectsArg))
-			{
-				var ProjectList = ProjectsArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-				foreach (var Project in ProjectList)
-				{
-					if (!string.Equals(Project, "UE4", StringComparison.OrdinalIgnoreCase))
-					{
-						FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(Project);
-
-						if (ProjectFile == null)
-						{
-							throw new AutomationException("Could not find project file for {0}", Project);
-						}
-					}
-
-					ProjectsToBenchmark.Add(Project);
-				}
-			}
-
-			foreach (var Project in ProjectsToBenchmark)
-			{
-				bool IsVanillaUE4 = string.Equals(Project, "UE4", StringComparison.OrdinalIgnoreCase);
-
-				if (DoBuildEditorTests)
-				{
-					BuildOptions NoAndSingleCompileOptions = BuildOptions.None;
-
-					if (DoAcceleratedCompile)
-					{
-						Tasks.Add(new BenchmarkBuildTask(Project, "Editor", EditorPlatform, CleanFlag));
-					}
-
-					if (DoNoAcceleratedCompile)
-					{
-						foreach (int ProcessorCount in ProcessorCounts)
-						{
-							Tasks.Add(new BenchmarkBuildTask(Project, "Editor", EditorPlatform, CleanFlag | BuildOptions.NoAcceleration, ProcessorCount));
-						}
-						// do single compilation with these results
-						NoAndSingleCompileOptions |= BuildOptions.NoAcceleration;
-					}
-
-					if (DoNoCompile)
-					{
-						// note, don't clean since we build normally then build a single file
-						Tasks.Add(new BenchmarkNopCompileTask(Project, "Editor", EditorPlatform, NoAndSingleCompileOptions));
-					}
-
-					if (DoSingleCompile)
-					{
-						FileReference SourceFile = FindProjectSourceFile(Project);
-
-						// note, don't clean since we build normally then build again
-						Tasks.Add(new BenchmarkSingleCompileTask(Project, "Editor", EditorPlatform, SourceFile, NoAndSingleCompileOptions));
-					}
+					Tasks.AddRange(AddBuildTests(Project, BuildHostPlatform.Current.Platform, "Editor", Options));
 				}
 
-				if (DoBuildClientTests)
+				// do startup tests
+				Tasks.AddRange(AddStartupTests(Project, Options));
+
+				foreach (var ClientPlatform in Options.PlatformsToTest)
 				{
 					// build a client if the project supports it
 					string TargetName = ProjectSupportsClientBuild(Project) ? "Client" : "Game";
 
-					foreach (var ClientPlatform in ClientPlatforms)
-					{
-						BuildOptions NoAndSingleCompileOptions = BuildOptions.None;
+					// do build tests
+					Tasks.AddRange(AddBuildTests(Project, ClientPlatform, TargetName, Options));
 
-						if (DoAcceleratedCompile)
-						{
-							Tasks.Add(new BenchmarkBuildTask(Project, TargetName, ClientPlatform, CleanFlag));
-						}
-
-						if (DoNoAcceleratedCompile)
-						{
-							foreach (int ProcessorCount in ProcessorCounts)
-							{
-								Tasks.Add(new BenchmarkBuildTask(Project, TargetName, ClientPlatform, CleanFlag | BuildOptions.NoAcceleration, ProcessorCount));
-							}
-							// do single compilation with these results
-							NoAndSingleCompileOptions |= BuildOptions.NoAcceleration;
-						}
-
-						if (DoNoCompile)
-						{
-							// note, don't clean since we build normally then build again
-							Tasks.Add(new BenchmarkNopCompileTask(Project, TargetName, ClientPlatform, NoAndSingleCompileOptions));
-						}
-
-						if (DoSingleCompile)
-						{
-							FileReference SourceFile = FindProjectSourceFile(Project);
-
-							// note, don't clean since we build normally then build a single file
-							Tasks.Add(new BenchmarkSingleCompileTask(Project, TargetName, ClientPlatform, SourceFile, NoAndSingleCompileOptions));
-						}
-					}
-				}
-
-				// Do cook tests if this is a project and not the engine
-				if (DoCookTests && !IsVanillaUE4)
-				{
-					// Cook a client if the project supports it
-					CookOptions ClientCookOptions = ProjectSupportsClientBuild(Project) ? CookOptions.Client : CookOptions.None;
-
-					foreach (var ClientPlatform in ClientPlatforms)
-					{
-						CookOptions DefaultCookOptions = ClientCookOptions;
-						CookOptions TaskCookOptions = DefaultCookOptions;
-
-						if (DoHotDDC)
-						{
-							// only want to set this for the first cook for a platform
-							TaskCookOptions |= CookOptions.HotDDC;
-						}
-
-						if (DoCookTests)
-						{
-							Tasks.Add(new BenchmarkCookTask(Project, ClientPlatform, TaskCookOptions));
-							TaskCookOptions = DefaultCookOptions;
-						}
-
-						if (DoColdCook)
-						{
-							Tasks.Add(new BenchmarkCookTask(Project, ClientPlatform, TaskCookOptions | CookOptions.ColdDDC));
-							TaskCookOptions = DefaultCookOptions;
-						}
-
-						if (DoNoShaderDDC)
-						{
-							Tasks.Add(new BenchmarkCookTask(Project, ClientPlatform, TaskCookOptions | CookOptions.NoShaderDDC));
-							TaskCookOptions = DefaultCookOptions;
-						}
-
-						if (DoNoDDC)
-						{
-							Tasks.Add(new BenchmarkCookTask(Project, ClientPlatform, TaskCookOptions | CookOptions.NoDDC));
-							TaskCookOptions = DefaultCookOptions;
-						}
-					}
+					// do cook tests
+					Tasks.AddRange(AddCookTests(Project, ClientPlatform, Options));
 				}
 			}
 
@@ -274,7 +250,7 @@ namespace AutomationTool.Benchmark
 				Log.TraceInformation("{0}", Task.GetFullTaskName());
 			}
 
-			if (!Preview)
+			if (!Options.Preview)
 			{
 				// create results lists
 				foreach (var Task in Tasks)
@@ -284,7 +260,7 @@ namespace AutomationTool.Benchmark
 
 				DateTime StartTime = DateTime.Now;
 
-				for (int i = 0; i < NumLoops; i++)
+				for (int i = 0; i < Options.Iterations; i++)
 				{
 					foreach (var Task in Tasks)
 					{
@@ -296,10 +272,11 @@ namespace AutomationTool.Benchmark
 
 						Results[Task].Add(Task.TaskTime);
 
-						WriteCSVResults(FileName);
+						// write results so far
+						WriteCSVResults(Options.FileName, Tasks, Results);
 
-						Log.TraceInformation("Waiting {0} secs until next task", TimeBetweenTasks);
-						Thread.Sleep(TimeBetweenTasks * 1000);
+						Log.TraceInformation("Waiting {0} secs until next task", Options.TimeBetweenTasks);
+						Thread.Sleep(Options.TimeBetweenTasks * 1000);
 					}
 				}
 
@@ -345,20 +322,157 @@ namespace AutomationTool.Benchmark
 
 				Log.TraceInformation("Total benchmark time: {0}",  Elapsed.ToString(@"hh\:mm\:ss"));
 
-				WriteCSVResults(FileName);
+				WriteCSVResults(Options.FileName, Tasks, Results);
 			}
 
 			return ExitCode.Success;
+		}
+
+		IEnumerable<BenchmarkTaskBase> AddBuildTests(string InProjectName, UnrealTargetPlatform InPlatform, string InTargetName, BenchmarkOptions InOptions)
+		{
+			BuildOptions CleanFlag = InOptions.NoClean ? BuildOptions.None : BuildOptions.Clean;
+
+			BuildOptions NoAndSingleCompileOptions = BuildOptions.None;
+
+			List<BenchmarkTaskBase> NewTasks = new List<BenchmarkTaskBase>();
+
+			if (InOptions.DoAcceleratedCompileTests)
+			{
+				NewTasks.Add(new BenchmarkBuildTask(InProjectName, InTargetName, InPlatform, CleanFlag));
+			}
+
+			if (InOptions.DoNoAcceleratedCompileTests)
+			{
+				foreach (int ProcessorCount in InOptions.CoresForLocalJobs)
+				{
+					NewTasks.Add(new BenchmarkBuildTask(InProjectName, InTargetName, InPlatform, CleanFlag | BuildOptions.NoAcceleration, "", ProcessorCount));
+				}
+				// do single compilation with these results
+				NoAndSingleCompileOptions |= BuildOptions.NoAcceleration;
+			}
+
+			if (InOptions.DoNoCompileTests)
+			{
+				// note, don't clean since we build normally then build a single file
+				NewTasks.Add(new BenchmarkNopCompileTask(InProjectName, InTargetName, InPlatform, NoAndSingleCompileOptions));
+			}
+
+			if (InOptions.DoSingleCompileTests)
+			{
+				FileReference SourceFile = FindProjectSourceFile(InProjectName);
+
+				// note, don't clean since we build normally then build again
+				NewTasks.Add(new BenchmarkSingleCompileTask(InProjectName, InTargetName, InPlatform, SourceFile, NoAndSingleCompileOptions));
+			}
+
+			return NewTasks;
+		}
+
+		IEnumerable<BenchmarkTaskBase> AddCookTests(string InProjectName, UnrealTargetPlatform InPlatform, BenchmarkOptions InOptions)
+		{
+			if (InProjectName.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+			{
+				return Enumerable.Empty<BenchmarkTaskBase>();
+			}
+
+			List<BenchmarkTaskBase> NewTasks = new List<BenchmarkTaskBase>();
+
+			// Cook a client if the project supports i
+			bool CookClient = ProjectSupportsClientBuild(InProjectName);
+			EditorTaskOptions ClientCookOptions = CookClient ? EditorTaskOptions.CookClient : EditorTaskOptions.None;
+
+			EditorTaskOptions DefaultCookOptions = ClientCookOptions;
+			EditorTaskOptions TaskCookOptions = DefaultCookOptions;
+
+			if (InOptions.DoHotCookTests)
+			{
+				// only want to set this for the first cook for a platform
+				TaskCookOptions |= EditorTaskOptions.HotDDC;
+			}
+
+			if (InOptions.DoCookTests)
+			{
+				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, TaskCookOptions, InOptions.ExtraCookArgs));
+				TaskCookOptions = DefaultCookOptions;
+			}
+
+			if (InOptions.DoColdCookTests)
+			{
+				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, TaskCookOptions | EditorTaskOptions.ColdDDC, InOptions.ExtraCookArgs));
+				TaskCookOptions = DefaultCookOptions;
+			}
+
+			if (InOptions.DoNoshaderDDCCookTests)
+			{
+				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, TaskCookOptions | EditorTaskOptions.NoShaderDDC, InOptions.ExtraCookArgs));
+				TaskCookOptions = DefaultCookOptions;
+			}
+
+			if (InOptions.DoNoDDCCookTests)
+			{
+				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, TaskCookOptions | EditorTaskOptions.NoDDC, InOptions.ExtraCookArgs));
+				TaskCookOptions = DefaultCookOptions;
+			}
+
+			/*bool DoWriteHints = ParseParam("recordhints");
+			bool DoUseHints = ParseParam("usehints");
+
+			if (DoWriteHints)
+			{
+				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, ClientCookOptions, "-recordhints"));
+			}
+
+			if (DoUseHints)
+			{
+				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, ClientCookOptions | EditorTaskOptions.ColdDDC, "-usehints"));
+			}*/
+
+			return NewTasks;
+		}
+
+		IEnumerable<BenchmarkTaskBase> AddStartupTests(string InProjectName, BenchmarkOptions InOptions)
+		{
+			if (InProjectName.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+			{
+				return Enumerable.Empty<BenchmarkTaskBase>();
+			}
+
+			List<BenchmarkTaskBase> NewTasks = new List<BenchmarkTaskBase>();
+
+			bool HaveUE4Project = InOptions.ProjectsToTest.Where(P => P.ToLower() == "ue4").Any();
+			int ProjectIndex = InOptions.ProjectsToTest.ToList().FindIndex(P => P == InProjectName);
+
+			int MapIndex = HaveUE4Project ? ProjectIndex - 1 : ProjectIndex;
+			string ProjectMap = MapIndex < InOptions.StartupMapList.Count() ? InOptions.StartupMapList.ElementAt(ProjectIndex) : "";
+
+			if (ProjectMap.Equals("none", StringComparison.OrdinalIgnoreCase))
+			{
+				ProjectMap = "";
+			}
+
+			if (InOptions.DoEditorStartupTests)
+			{
+				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None, "-recordhints"));
+			}
+
+			if (InOptions.DoEditorColdStartupTests)
+			{
+				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None | EditorTaskOptions.ColdDDC));
+
+				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None | EditorTaskOptions.ColdDDC, "-usehints"));
+			}
+
+			return NewTasks;
 		}
 
 		/// <summary>
 		/// Writes our current result to a CSV file. It's expected that this function is called multiple times so results are
 		/// updated as we go
 		/// </summary>
-		void WriteCSVResults(string FileName)
+		void WriteCSVResults(string InFileName, List<BenchmarkTaskBase> InTasks, Dictionary<BenchmarkTaskBase, List<TimeSpan>> InResults)
 		{
 
-			Log.TraceInformation("Writing results to {0}", FileName);
+			Log.TraceInformation("Writing results to {0}", InFileName);
 
 			try
 			{
@@ -367,9 +481,9 @@ namespace AutomationTool.Benchmark
 				// first line is machine name,CPU count,Iteration 1, Iteration 2 etc
 				string FirstLine = string.Format("{0},{1}", Environment.MachineName, Environment.ProcessorCount);
 
-				if (Tasks.Count() > 0)
+				if (InTasks.Count() > 0)
 				{
-					int Iterations = Results[Tasks.First()].Count();
+					int Iterations = InResults[InTasks.First()].Count();
 
 					if (Iterations > 0)
 					{
@@ -383,13 +497,13 @@ namespace AutomationTool.Benchmark
 
 				Lines.Add(FirstLine);
 
-				foreach (var Task in Tasks)
+				foreach (var Task in InTasks)
 				{
 					// start with Name, StartTime
 					string Line = string.Format("{0},{1}", Task.GetFullTaskName(), Task.StartTime.ToString("yyyy-dd-MM HH:mm:ss"));
 
 					// now append all iteration times
-					foreach (TimeSpan TaskTime in Results[Task])
+					foreach (TimeSpan TaskTime in InResults[Task])
 					{
 						Line += ",";
 						if (TaskTime == TimeSpan.Zero)
@@ -405,11 +519,11 @@ namespace AutomationTool.Benchmark
 					Lines.Add(Line);
 				}
 
-				File.WriteAllLines(FileName, Lines.ToArray());
+				File.WriteAllLines(InFileName, Lines.ToArray());
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceError("Failed to write CSV to {0}. {1}", FileName, Ex);
+				Log.TraceError("Failed to write CSV to {0}. {1}", InFileName, Ex);
 			}
 		}
 
