@@ -616,13 +616,13 @@ void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, 
 						SourceVal.Serialize(SourceReader);
 						DestVal  .Serialize(DestReader);
 
-						if (!SourceReader.ArIsError && !DestReader.ArIsError)
-						{
-							SourceVal.ExportText(BeforePropertyVal);
-							DestVal  .ExportText(AfterPropertyVal);
-						}
-					}
-				}
+									if (!SourceReader.IsError() && !DestReader.IsError())
+									{
+										SourceVal.ExportText(BeforePropertyVal);
+										DestVal  .ExportText(AfterPropertyVal);
+									}
+								}
+							}
 
 				FString DiffValues;
 				if (BeforePropertyVal != AfterPropertyVal)

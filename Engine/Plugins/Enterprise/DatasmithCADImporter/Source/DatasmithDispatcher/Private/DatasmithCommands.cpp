@@ -39,7 +39,7 @@ namespace DatasmithDispatcher
 		if (TSharedPtr<ICommand> Command = CreateCommand(static_cast<ECommandId>(type)))
 		{
 			ArReader << *Command;
-			return ArReader.ArIsError ? nullptr : Command;
+			return ArReader.IsError() ? nullptr : Command;
 		}
 		return nullptr;
 	}
