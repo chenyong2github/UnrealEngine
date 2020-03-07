@@ -509,7 +509,11 @@ private:
 	void OnValueCommitted( NumericType NewValue, ETextCommit::Type CommitInfo )
 	{
 		const TSharedRef< IPropertyHandle > PropertyHandle = PropertyEditor->GetPropertyHandle();
-		PropertyHandle->SetValue( NewValue );
+		NumericType OrgValue(0);
+		if (PropertyHandle->GetValue(OrgValue) == FPropertyAccess::Fail || OrgValue != NewValue)
+		{
+			PropertyHandle->SetValue(NewValue);
+		}
 
 		if (TypeInterface.IsValid() && !TypeInterface->FixedDisplayUnits.IsSet())
 		{
