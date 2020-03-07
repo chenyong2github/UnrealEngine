@@ -137,7 +137,7 @@ void FNiagaraDataInterfaceProxySubmix::RegisterToAllAudioDevices()
 	}
 }
 
-void FNiagaraDataInterfaceProxySubmix::UnregisterFromAllAudioDevices(USoundSubmix* Submix)
+void FNiagaraDataInterfaceProxySubmix::UnregisterFromAllAudioDevices()
 {
 	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
@@ -153,7 +153,7 @@ void FNiagaraDataInterfaceProxySubmix::OnUpdateSubmix(USoundSubmix* Submix)
 {
 	if (bIsSubmixListenerRegistered)
 	{
-		UnregisterFromAllAudioDevices(Submix);
+		UnregisterFromAllAudioDevices();
 	}
 
 	SubmixRegisteredTo = Submix;
@@ -234,7 +234,7 @@ void FNiagaraDataInterfaceProxySubmix::OnBeginDestroy()
 {
 	if (bIsSubmixListenerRegistered)
 	{
-		UnregisterFromAllAudioDevices(SubmixRegisteredTo);
+		UnregisterFromAllAudioDevices();
 	}
 }
 
@@ -273,6 +273,16 @@ UNiagaraDataInterfaceAudioSubmix::UNiagaraDataInterfaceAudioSubmix(FObjectInitia
 	Proxy = MakeUnique<FNiagaraDataInterfaceProxySubmix>(DefaultNumSamplesToBuffer);
 }
 
+bool UNiagaraDataInterfaceAudioSubmix::Equals(const UNiagaraDataInterface* Other) const
+{
+	bool bIsEqual = Super::Equals(Other);
+
+	const UNiagaraDataInterfaceAudioSubmix* OtherSubmix = CastChecked<const UNiagaraDataInterfaceAudioSubmix>(Other);
+
+	bIsEqual &= OtherSubmix->Submix == Submix;
+
+	return bIsEqual;
+}
 
 #if WITH_EDITOR
 void UNiagaraDataInterfaceAudioSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -323,6 +333,7 @@ bool UNiagaraDataInterfaceAudioSubmix::CopyToInternal(UNiagaraDataInterface* Des
 	if (CastedDestination)
 	{
 		CastedDestination->Submix = Submix;
+		CastedDestination->GetProxyAs<FNiagaraDataInterfaceProxySubmix>()->OnUpdateSubmix(Submix);
 	}
 	
 	return true;
