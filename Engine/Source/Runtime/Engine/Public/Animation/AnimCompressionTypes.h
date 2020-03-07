@@ -539,11 +539,20 @@ public:
 			SIZE_T NumBytesPerElement
 		)
 		{
-			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
-			if (Data || NumElements)
+			if (MappedRegion || MappedHandle)
 			{
-				check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
-					//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
+				check(NumElements == 0); // Currently we can only support resizing of memory mapped regions to 0 size (ie delete)
+
+				delete MappedRegion;
+				delete MappedHandle;
+				MappedRegion = nullptr;
+				MappedHandle = nullptr;
+				Data = nullptr; // make sure we don't try to free this pointer
+			}
+			else if (Data || NumElements)
+			{
+				// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
+				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
 				Data = (FScriptContainerElement*)FMemory::Realloc(Data, NumElements*NumBytesPerElement, Alignment);
 			}
 		}
