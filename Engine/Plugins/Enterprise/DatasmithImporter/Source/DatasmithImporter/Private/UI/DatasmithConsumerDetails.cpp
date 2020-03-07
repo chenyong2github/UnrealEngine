@@ -90,15 +90,14 @@ namespace DatasmithConsumerDetailsUtil
 
 			ChildSlot
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(EHorizontalAlignment::HAlign_Fill)
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
 				.Padding(5.0f, 2.5f, 2.0f, 2.5f)
 				[
-					// Trick to force the splitter widget to fill up the space of its parent
-					// Strongly inspired from SDetailSingleItemRow
-					SNew(SConstrainedBox)
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(9.0f)
+					.HAlign(EHorizontalAlignment::HAlign_Fill)
 					[
 						SAssignNew(ContentFolderTextBox, SEditableTextBox)
 						.Font(IDetailLayoutBuilder::GetDetailFont())
@@ -107,12 +106,14 @@ namespace DatasmithConsumerDetailsUtil
 						.OnTextCommitted(FOnTextCommitted::CreateSP(this, &SFolderProperty::OnTextCommitted))
 						.OnVerifyTextChanged(FOnVerifyTextChanged::CreateSP(this, &SFolderProperty::OnVerifyText))
 					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.HAlign(EHorizontalAlignment::HAlign_Right)
+					[
+						BrowseButton
+					]
 				]
-				+ SHorizontalBox::Slot()
-				.HAlign(EHorizontalAlignment::HAlign_Right)
-				[
-					BrowseButton
-				]
+
 			];
 
 			UpdateContentFolderText();
@@ -159,16 +160,22 @@ namespace DatasmithConsumerDetailsUtil
 		{
 			FString FolderPath = InText.ToString();
 
-			if( FolderPath.StartsWith( TEXT("/Content") ) )
-			{
-				FolderPath = FolderPath.Replace( TEXT( "/Content" ), TEXT( "/Game" ) );
-			}
-
 			// Check length of the folder name
 			if ( FolderPath.Len() == 0 )
 			{
 				OutErrorMessage = LOCTEXT( "InvalidFolderName_IsTooShort", "Please provide a name for this folder." );
 				return false;
+			}
+
+			if(FolderPath.StartsWith( TEXT("..")))
+			{
+				OutErrorMessage = LOCTEXT( "InvalidFolderName_RelativePath", "Relative path is not accepted." );
+				return false;
+			}
+
+			if( FolderPath.StartsWith( TEXT("/Content") ) )
+			{
+				FolderPath = FolderPath.Replace( TEXT( "/Content" ), TEXT( "/Game" ) );
 			}
 
 			if ( FolderPath.Len() > FPlatformMisc::GetMaxPathLength() )
@@ -180,7 +187,7 @@ namespace DatasmithConsumerDetailsUtil
 
 			if(FolderPath[FolderPath.Len() - 1] == L'/')
 			{
-				return true;
+				FolderPath.LeftInline(FolderPath.Len() - 1, false);
 			}
 
 			FString FolderName = FPaths::GetBaseFilename(FolderPath);
@@ -321,6 +328,7 @@ namespace DatasmithConsumerDetailsUtil
 		{
 			ConsumerPtr = InConsumer;
 			bProcessing = false;
+			bValidText = true;
 
 			FSlateFontInfo FontInfo = IDetailLayoutBuilder::GetDetailFont();
 
@@ -359,13 +367,31 @@ namespace DatasmithConsumerDetailsUtil
 
 		bool OnVerifyText(const FText& InText, FText& OutErrorMessage)
 		{
-			return VerifyObjectName(InText.ToString(), OutErrorMessage);
+			const FString NewLevelName = InText.ToString();
+
+			int32 Index;
+			if(NewLevelName.FindChar(L'/', Index))
+			{
+				OutErrorMessage = LOCTEXT( "InvalidLevelName_RelativePath", "Path or relative path is not accepted." );
+				bValidText = false;
+			}
+
+			bValidText = VerifyObjectName(NewLevelName, OutErrorMessage);
+
+			return bValidText;
 		}
 
 		void OnTextCommitted( const FText& NewText, ETextCommit::Type CommitType)
 		{
 			if(bProcessing)
 			{
+				return;
+			}
+
+			if(!bValidText)
+			{
+				UpdateLevelText();
+				bValidText = true;
 				return;
 			}
 
@@ -397,6 +423,7 @@ namespace DatasmithConsumerDetailsUtil
 		TSharedPtr< SEditableTextBox > LevelTextBox;
 		// Boolean used to avoid re-entering UI event processing
 		bool bProcessing;
+		bool bValidText;
 	};
 }
 
