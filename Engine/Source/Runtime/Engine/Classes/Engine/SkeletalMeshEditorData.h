@@ -54,7 +54,7 @@ public:
 
 private:
 	/** Imported raw mesh data. Optional, only the imported mesh LOD has this, generated LOD or old asset will be empty. */
-	TArray<FRawSkeletalMeshBulkData> RawSkeletalMeshBulkDatas;
+	TArray<TSharedRef<FRawSkeletalMeshBulkData>> RawSkeletalMeshBulkDatas;
 
 
 #endif //WITH_EDITORONLY_DATA
