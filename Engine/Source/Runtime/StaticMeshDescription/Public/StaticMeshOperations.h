@@ -37,10 +37,18 @@ public:
 	{
 		FAppendSettings()
 			: bMergeVertexColor(true)
+			, bMergeUVChannels{ true }
 			, MergedAssetPivot(0.0f, 0.0f, 0.0f)
 		{}
+
+		enum
+		{
+			MAX_MESH_TEXTURE_COORDS = 8,
+		};
+
 		FAppendPolygonGroupsDelegate PolygonGroupsDelegate;
 		bool bMergeVertexColor;
+		bool bMergeUVChannels[MAX_MESH_TEXTURE_COORDS];
 		FVector MergedAssetPivot;
 		TOptional<FTransform> MeshTransform; // Apply a transformation on source mesh (see MeshTransform)
 	};
