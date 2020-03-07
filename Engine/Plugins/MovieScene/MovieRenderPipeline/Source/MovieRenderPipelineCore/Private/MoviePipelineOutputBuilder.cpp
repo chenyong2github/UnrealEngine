@@ -91,3 +91,10 @@ void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUn
 		FinishedFrames.Enqueue(MoveTemp(FinalFrame));
 	}
 }
+
+void FMoviePipelineOutputMerger::AbandonOutstandingWork()
+{
+	FScopeLock ScopeLock(&ActiveDataMutex);
+	FinishedFrames.Empty();
+	PendingData.Empty();
+}
