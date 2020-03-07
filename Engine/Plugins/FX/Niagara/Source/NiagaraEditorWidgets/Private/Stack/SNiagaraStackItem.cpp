@@ -43,8 +43,7 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 		.Padding(2, 0, 2, 0)
 		.VAlign(VAlign_Center)
 		[
-			SAssignNew(DisplayNameWidget, SNiagaraStackDisplayName, InItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
-			.TypeNameStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.TypeNameText")
+			SAssignNew(DisplayNameWidget, SNiagaraStackDisplayName, InItem, *InStackViewModel)
 		];
 
 	// Allow derived classes to add additional widgets.
