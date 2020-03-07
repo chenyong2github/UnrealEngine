@@ -132,11 +132,24 @@ namespace AutomationTool
 						}
 						else
 						{
-							string ProjectTarget = Properties.Targets.Where(T => T.Rules.Type.ToString().Equals(Target, StringComparison.OrdinalIgnoreCase)).Select(T => T.TargetName).FirstOrDefault();
+							// find targets that match (and there may be multiple...)
+							IEnumerable<string> MatchingTargetTypes = Properties.Targets.Where(T => T.Rules.Type.ToString().Equals(Target, StringComparison.OrdinalIgnoreCase)).Select(T => T.TargetName);
 
-							if (ProjectTarget == null)
+							if (!MatchingTargetTypes.Any())
 							{
 								throw new AutomationException("The {0} is not a valid target for {1}", Target, ProjectName);
+							}
+
+							string ProjectTarget;
+
+							if (MatchingTargetTypes.Count() == 0)
+							{
+								ProjectTarget = MatchingTargetTypes.First();
+							}
+							else
+							{
+								// if multiple targets, pick the one with our name (FN specific!)
+								ProjectTarget = MatchingTargetTypes.Where(T => string.CompareOrdinal(T, 0, ProjectName, 0, 1) == 0).FirstOrDefault();
 							}
 
 							ActualTargets.Add(ProjectTarget);
