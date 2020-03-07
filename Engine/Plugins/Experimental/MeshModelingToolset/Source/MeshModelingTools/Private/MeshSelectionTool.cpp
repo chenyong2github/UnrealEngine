@@ -108,6 +108,9 @@ void UMeshSelectionTool::Setup()
 	EditActions = CreateEditActions();
 	AddToolPropertySource(EditActions);
 
+	// set autocalculated tangents
+	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+
 	// enable wireframe on component
 	PreviewMesh->EnableWireframe(SelectionProps->bShowWireframe);
 
