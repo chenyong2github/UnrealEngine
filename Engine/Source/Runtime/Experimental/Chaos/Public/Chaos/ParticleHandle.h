@@ -232,7 +232,7 @@ private:
 
 public:
 #if CHAOS_DEBUG_DRAW
-	void DebugDraw(const bool bExternal) const;
+	void DebugDraw(const bool bExternal, const bool bHit) const;
 #endif
 };
 
@@ -2484,16 +2484,16 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>&
 
 #if CHAOS_DEBUG_DRAW
 template <typename T, int d>
-void TAccelerationStructureHandle<T, d>::DebugDraw(const bool bExternal) const
+void TAccelerationStructureHandle<T, d>::DebugDraw(const bool bExternal, const bool bHit) const
 {
 	if (ExternalGeometryParticle && bExternal)
 	{
-		DebugDraw::DrawParticleShapes(FRigidTransform3(), ExternalGeometryParticle, FColor(0, 255, 0));
+		DebugDraw::DrawParticleShapes(FRigidTransform3(), ExternalGeometryParticle, bHit ? FColor::Red : FColor::Green);
 	}
 
 	if (GeometryParticleHandle && !bExternal)
 	{
-		DebugDraw::DrawParticleShapes(FRigidTransform3(), GeometryParticleHandle, FColor(100, 255, 100));
+		DebugDraw::DrawParticleShapes(FRigidTransform3(), GeometryParticleHandle, bHit ? FColor(200, 100, 100) : FColor(100, 200, 100));
 	}
 }
 #endif
