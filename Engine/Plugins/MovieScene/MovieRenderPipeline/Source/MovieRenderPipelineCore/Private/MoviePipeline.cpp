@@ -840,9 +840,10 @@ TArray<FMoviePipelineShotInfo> UMoviePipeline::BuildShotListFromSequence(const U
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Shot %d/%d has %d Camera Cuts."), ShotIndex, NewShotList.Num(), Shot.CameraCuts.Num());
 		ShotIndex++;
 
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSetting<UMoviePipelineOutputSetting>(Shot);
 		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(Shot);
 		UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(Shot);
-		Shot.NumHandleFrames = AntiAliasingSettings->HandleFrameCount;
+		Shot.NumHandleFrames = OutputSettings->HandleFrameCount;
 		
 		// Expand the shot to encompass handle frames. This will modify our Camera Cuts bounds.
 		ExpandShot(Shot);

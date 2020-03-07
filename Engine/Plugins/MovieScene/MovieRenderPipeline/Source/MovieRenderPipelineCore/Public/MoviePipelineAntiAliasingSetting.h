@@ -17,7 +17,6 @@ public:
 		, TemporalSampleCount(1)
 		, bOverrideAntiAliasing(false)
 		, AntiAliasingMethod(EAntiAliasingMethod::AAM_None)
-		, HandleFrameCount(0)
 		, RenderWarmUpCount(32)
 		, EngineWarmUpCount(0)
 		, AccumulationGamma(1.f)
@@ -83,9 +82,6 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition="bOverrideAntiAliasing"), Category = "Movie Pipeline")
 	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0), Category = "Movie Pipeline")
-	int32 HandleFrameCount;
 
 	/**
 	* The number of frames at the start of each shot that the engine will render and then discard. This is useful for
