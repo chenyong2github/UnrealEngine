@@ -291,6 +291,13 @@ FGuid FNiagaraStackFunctionInputBinder::GetChangeIdFromFunctionScript() const
 
 void FNiagaraStackFunctionInputBinder::RefreshGraphPins() const
 {
+	if (FunctionCallNode->FunctionScript == nullptr || FunctionCallNode->FunctionScript->GetSource() == nullptr)
+	{
+		OverridePin = nullptr;
+		DefaultPin = nullptr;
+		return;
+	}
+
 	OverridePin = FNiagaraStackGraphUtilities::GetStackFunctionInputOverridePin(*FunctionCallNode, AliasedParameterHandle);
 	DefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(InputName, Script->GetUsage());
 	
