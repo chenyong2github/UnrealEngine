@@ -31,4 +31,8 @@ private:
 	/** Cached section start time */
 	UPROPERTY()
 	FFrameNumber SectionStartTime;
+
+	/** Cached section end time */
+	UPROPERTY()
+	FFrameNumber SectionEndTime;
 };

@@ -12,6 +12,7 @@
 
 struct FMovieSceneEvaluationTrack;
 struct FMovieSceneSegmentCompilerRules;
+class UCameraShakeSourceComponent;
 
 /**
  * 
@@ -22,7 +23,8 @@ class UMovieSceneCameraShakeSourceShakeTrack : public UMovieSceneNameableTrack
 	GENERATED_BODY()
 
 public:
-	virtual UMovieSceneSection* AddNewCameraShake(const FFrameNumber KeyTime, const TSubclassOf<UCameraShake> ShakeClass);
+	MOVIESCENETRACKS_API UMovieSceneSection* AddNewCameraShake(const FFrameNumber KeyTime, const UCameraShakeSourceComponent& ShakeSourceComponent);
+	MOVIESCENETRACKS_API UMovieSceneSection* AddNewCameraShake(const FFrameNumber KeyTime, const TSubclassOf<UCameraShake> ShakeClass, bool bIsAutomaticShake);
 	
 public:
 	// UMovieSceneTrack interface

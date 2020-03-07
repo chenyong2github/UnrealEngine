@@ -65,6 +65,7 @@
 #include "Channels/BuiltInChannelEditors.h"
 #include "Channels/MovieSceneObjectPathChannel.h"
 #include "Channels/MovieSceneEventChannel.h"
+#include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
 #include "Channels/EventChannelCurveModel.h"
 #include "Channels/SCurveEditorEventChannelView.h"
 #include "Sections/MovieSceneEventSection.h"
@@ -146,6 +147,8 @@ void FMovieSceneToolsModule::StartupModule()
 		SequencerModule.RegisterChannelInterface<FMovieSceneObjectPathChannel>();
 
 		SequencerModule.RegisterChannelInterface<FMovieSceneEventChannel>();
+
+		SequencerModule.RegisterChannelInterface<FMovieSceneCameraShakeSourceTriggerChannel>();
 
 		ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
 
