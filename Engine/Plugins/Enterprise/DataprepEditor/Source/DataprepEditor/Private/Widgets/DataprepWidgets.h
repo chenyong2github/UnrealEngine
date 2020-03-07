@@ -164,7 +164,7 @@ private:
 
 	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
 	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth < 0.3f ? 0.3f : InWidth; }
+	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth < 0.5f ? 0.5f : InWidth; }
 
 	/** Callback to track property changes on array properties */
 	void OnPropertyChanged( const struct FPropertyChangedEvent& InEvent );
@@ -276,7 +276,7 @@ private:
 
 	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
 	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
+	void OnSetColumnWidth(float InWidth)  { ColumnWidth = InWidth < 0.5f ? 0.5f : InWidth; }
 
 private:
 	/** Weak pointer on DataprepAsset instance */

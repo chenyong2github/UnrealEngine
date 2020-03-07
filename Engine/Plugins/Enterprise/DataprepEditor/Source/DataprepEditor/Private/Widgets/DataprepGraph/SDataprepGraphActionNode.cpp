@@ -26,7 +26,7 @@
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 
-float SDataprepGraphActionNode::DefaultWidth = 300.f;
+float SDataprepGraphActionNode::DefaultWidth = 350.f;
 float SDataprepGraphActionNode::DefaultHeight = 100.f;
 
 class SDataprepGraphActionProxyNode : public SGraphNode
@@ -466,7 +466,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 	.VAlign(VAlign_Center)
 	[
 		SNew(SBox)
-		.WidthOverride(300.f)
+		.WidthOverride(DefaultWidth)
 		[
 			SNew(SVerticalBox)
 
@@ -849,7 +849,7 @@ FText SDataprepGraphActionNode::GetBottomWidgetText() const
 		}
 	}
 
-	return LOCTEXT("DataprepEmptyActionStepNoLabel", ".....");
+	return LOCTEXT("DataprepEmptyActionStepNoLabel", "-----");
 }
 
 #undef LOCTEXT_NAMESPACE
