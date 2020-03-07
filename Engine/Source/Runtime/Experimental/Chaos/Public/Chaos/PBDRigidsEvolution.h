@@ -226,7 +226,7 @@ class FPBDRigidsEvolutionBase
 
 	friend void ChaosTest::TestPendingSpatialDataHandlePointerConflict();
 
-	CHAOS_API FPBDRigidsEvolutionBase(TPBDRigidsSOAs<FReal, 3>& InParticles, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
+	CHAOS_API FPBDRigidsEvolutionBase(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
 	CHAOS_API virtual ~FPBDRigidsEvolutionBase();
 
 	CHAOS_API TArray<TGeometryParticleHandle<FReal, 3>*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TGeometryParticleParameters<FReal, 3>& Params = TGeometryParticleParameters<FReal, 3>())
@@ -701,6 +701,7 @@ protected:
 	TArrayCollectionArray<bool> Collided;
 
 	TPBDRigidsSOAs<FReal, 3>& Particles;
+	THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials;
 	TUniquePtr<FAccelerationStructure> InternalAcceleration;
 	TUniquePtr<FAccelerationStructure> AsyncInternalAcceleration;
 	TUniquePtr<FAccelerationStructure> AsyncExternalAcceleration;

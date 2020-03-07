@@ -125,8 +125,9 @@ namespace Chaos
 		}
 	};
 
-	FPBDRigidsEvolutionBase::FPBDRigidsEvolutionBase(TPBDRigidsSOAs<FReal, 3>& InParticles, int32 InNumIterations, int32 InNumPushOutIterations, bool InIsSingleThreaded)
-		: Particles(InParticles)
+	FPBDRigidsEvolutionBase::FPBDRigidsEvolutionBase(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations, int32 InNumPushOutIterations, bool InIsSingleThreaded)
+	    : Particles(InParticles)
+		, SolverPhysicsMaterials(InSolverPhysicsMaterials)
 		, bExternalReady(false)
 		, bIsSingleThreaded(InIsSingleThreaded)
 		, NumIterations(InNumIterations)

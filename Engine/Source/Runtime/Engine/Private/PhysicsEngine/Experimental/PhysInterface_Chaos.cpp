@@ -316,6 +316,9 @@ void FPhysInterface_Chaos::UpdateMaterial(FPhysicsMaterialHandle& InHandle, UPhy
 	{
 		Material->Friction = InMaterial->Friction;
 		Material->Restitution = InMaterial->Restitution;
+		Material->SleepingLinearThreshold = InMaterial->SleepLinearVelocityThreshold;
+		Material->SleepingAngularThreshold = InMaterial->SleepAngularVelocityThreshold;
+		Material->SleepCounterThreshold = InMaterial->SleepCounterThreshold;
 	}
 
 	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
