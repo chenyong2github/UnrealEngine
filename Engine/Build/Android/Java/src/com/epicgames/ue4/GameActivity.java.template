@@ -4374,6 +4374,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public void AndroidThunkJava_ForceQuit()
 	{
+//$${gameActivityForceQuitAdditions}$$
 		System.exit(0);
 		// finish();
 	}
