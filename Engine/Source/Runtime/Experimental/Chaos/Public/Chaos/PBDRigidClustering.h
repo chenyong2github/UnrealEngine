@@ -62,7 +62,7 @@ public:
 		const int32 ClusterGroupIndex, 
 		TArray<Chaos::TPBDRigidParticleHandle<T,d>*>&& Children, 
 		const FClusterCreationParameters<T>& Parameters/* = FClusterCreationParameters<T>()*/,
-		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry = nullptr,
+		TSharedPtr<Chaos::FImplicitObject> ProxyGeometry = nullptr,
 		const TRigidTransform<T, d>* ForceMassOrientation = nullptr);
 
 	/**
@@ -285,7 +285,7 @@ public:
 	void UpdateGeometry(
 		Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Parent, 
 		const TSet<TPBDRigidParticleHandle<T, d>*>& Children, 
-		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
+		TSharedPtr<Chaos::FImplicitObject> ProxyGeometry,
 		const FClusterCreationParameters<T>& Parameters);
 
 	void ComputeStrainFromCollision(const FPBDCollisionConstraint& CollisionRule);
