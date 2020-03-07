@@ -164,7 +164,8 @@ private:
 	TArray<UObject*> UObjects;
 
 	/** Bindings between this parameter store and others we push data into when we tick. */
-	TMap<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> Bindings;
+	typedef TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> BindingPair;
+	TArray<BindingPair> Bindings;
 
 	/** Parameter stores we've been bound to and are feeding data into us. */
 	TArray<FNiagaraParameterStore*> SourceStores;
