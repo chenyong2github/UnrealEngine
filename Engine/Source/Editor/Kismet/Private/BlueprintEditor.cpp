@@ -6669,6 +6669,10 @@ void FBlueprintEditor::OnAssignReferencedActor()
 						// Store the node's current state and replace the referenced actor
 						CurrentEvent->Modify();
 						CurrentEvent->EventOwner = SelectedActor;
+						if (!SelectedActor->IsA(CurrentEvent->DelegateOwnerClass))
+						{
+							CurrentEvent->DelegateOwnerClass = SelectedActor->GetClass();
+						}
 						CurrentEvent->ReconstructNode();
 					}
 					FBlueprintEditorUtils::MarkBlueprintAsModified(GetBlueprintObj());
