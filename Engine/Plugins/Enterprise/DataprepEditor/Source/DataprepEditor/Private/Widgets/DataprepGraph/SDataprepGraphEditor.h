@@ -84,6 +84,10 @@ public:
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	// End of SWidget overrides
 
+	// SGraphEditor overrides
+	virtual void NotifyGraphChanged() override;
+	// End of SGraphEditor overrides
+
 	// #ueent_toremove: Temp code for the nodes development
 	void OnPipelineChanged(UBlueprint* InBlueprint);
 
