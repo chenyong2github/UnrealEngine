@@ -146,7 +146,14 @@ public:
 
 	bool operator == (const FDatasmithStaticMeshImportOptions& Other) const
 	{
-		return (MinLightmapResolution == Other.MinLightmapResolution && MaxLightmapResolution == Other.MaxLightmapResolution && bRemoveDegenerates == Other.bRemoveDegenerates);
+		return MinLightmapResolution == Other.MinLightmapResolution 
+			&& MaxLightmapResolution == Other.MaxLightmapResolution
+			&& bGenerateLightmapUVs == Other.bGenerateLightmapUVs
+			&& bRemoveDegenerates == Other.bRemoveDegenerates;
+	}
+
+	bool operator != (const FDatasmithStaticMeshImportOptions& Other) const {
+		return !operator==(Other);
 	}
 };
 
