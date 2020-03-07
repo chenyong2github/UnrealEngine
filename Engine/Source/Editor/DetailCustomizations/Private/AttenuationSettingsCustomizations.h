@@ -56,6 +56,7 @@ protected:
 	TSharedPtr<IPropertyHandle> bIsOcclusionEnabledHandle;
 	TSharedPtr<IPropertyHandle> bIsReverbSendEnabledHandle;
 	TSharedPtr<IPropertyHandle> bIsPriorityAttenuationEnabledHandle;
+	TSharedPtr<IPropertyHandle> bIsSubmixSendAttenuationEnabledHandle;
 	TSharedPtr<IPropertyHandle> ReverbSendMethodHandle;
 	TSharedPtr<IPropertyHandle> PriorityAttenuationMethodHandle;
 	TSharedPtr<IPropertyHandle> AbsorptionMethodHandle;
@@ -68,6 +69,7 @@ protected:
 	TAttribute<bool> GetIsAirAbsorptionEnabledAttribute() const;
 	TAttribute<bool> GetIsReverbSendEnabledAttribute() const;
 	TAttribute<bool> GetIsPriorityAttenuationEnabledAttribute() const;
+	TAttribute<bool> GetIsSubmixSendAttenuationEnabledAttribute() const;
 
 	EVisibility IsLinearMethodSelected() const;
 	EVisibility IsCustomReverbSendCurveSelected() const;

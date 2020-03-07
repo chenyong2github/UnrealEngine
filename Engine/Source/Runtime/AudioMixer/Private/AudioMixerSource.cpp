@@ -983,6 +983,41 @@ namespace Audio
 			MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), ReverbSendLevel);
 		}
 
+		if (WaveInstance->SubmixSendSettings.Num() > 0)
+		{
+			for (const FAttenuationSubmixSendSettings& SendSettings : WaveInstance->SubmixSendSettings)
+			{
+				if (SendSettings.Submix)
+				{
+					float SubmixSendLevel = 0.0f;
+
+					if (SendSettings.SubmixSendMethod == ESubmixSendMethod::Manual)
+					{
+						SubmixSendLevel = FMath::Clamp(SendSettings.ManualSubmixSendLevel, 0.0f, 1.0f);
+					}
+					else
+					{
+						// The alpha value is determined identically between manual and custom curve methods
+						const float Denom = FMath::Max(SendSettings.SubmixSendDistanceMax - SendSettings.SubmixSendDistanceMin, 1.0f);
+						const float Alpha = FMath::Clamp((WaveInstance->ListenerToSoundDistance - SendSettings.SubmixSendDistanceMin) / Denom, 0.0f, 1.0f);
+
+						if (WaveInstance->ReverbSendMethod == EReverbSendMethod::Linear)
+						{
+							SubmixSendLevel = FMath::Clamp(FMath::Lerp(SendSettings.SubmixSendLevelMin, SendSettings.SubmixSendLevelMax, Alpha), 0.0f, 1.0f);
+						}
+						else
+						{
+							SubmixSendLevel = FMath::Clamp(SendSettings.CustomSubmixSendCurve.GetRichCurveConst()->Eval(Alpha), 0.0f, 1.0f);
+						}
+					}
+
+
+					FMixerSubmixPtr SubmixPtr = MixerDevice->GetSubmixInstance(SendSettings.Submix).Pin();
+					MixerSourceVoice->SetSubmixSendInfo(SubmixPtr, SubmixSendLevel);
+				}
+			}
+		}
+
 		// Update submix send levels
 		for (FSoundSubmixSendInfo& SendInfo : WaveInstance->SoundSubmixSends)
 		{

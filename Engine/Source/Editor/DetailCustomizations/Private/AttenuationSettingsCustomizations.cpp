@@ -326,6 +326,7 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	bIsAirAbsorptionEnabledHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bAttenuateWithLPF)).ToSharedRef();
 	bIsReverbSendEnabledHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableReverbSend)).ToSharedRef();
 	bIsPriorityAttenuationEnabledHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnablePriorityAttenuation)).ToSharedRef();
+	bIsSubmixSendAttenuationEnabledHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableSubmixSends)).ToSharedRef();
 	ReverbSendMethodHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbSendMethod)).ToSharedRef();
 	PriorityAttenuationMethodHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PriorityAttenuationMethod)).ToSharedRef();
 	AbsorptionMethodHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, AbsorptionMethod)).ToSharedRef();
@@ -521,6 +522,12 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsManualPriorityAttenuationSelected))
 		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
 
+	// Add the submix send priority
+	LayoutBuilder.AddPropertyToCategory(bIsSubmixSendAttenuationEnabledHandle)
+		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, SubmixSendSettings)))
+		.EditCondition(GetIsSubmixSendAttenuationEnabledAttribute(), nullptr);
 
 	if (bIsAudioMixerEnabled)
 	{
@@ -528,14 +535,9 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 			.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 	}
 
-	if (PropertyHandles.Num() != 61)
+	if (PropertyHandles.Num() != 63)
 	{
-		FString PropertyList;
-		for (auto It(PropertyHandles.CreateConstIterator()); It; ++It)
-		{
-			PropertyList += It.Key().ToString() + TEXT(", ");
-		}
-		ensureMsgf(false, TEXT("Unexpected property handle(s) customizing FSoundAttenuationSettings: %s"), *PropertyList);
+		ensureMsgf(false, TEXT("Unexpected property handle(s) customizing FSoundAttenuationSettings. %d handles found"), PropertyHandles.Num());
 	}
 }
 
@@ -681,6 +683,24 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsPriorityAttenuatio
 
 		bool Value = GetValue(bOverrideAttenuationProperty);
 		Value &= GetValue(bIsPriorityAttenuationEnabledProperty);
+		return Value;
+	};
+
+	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
+}
+
+TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsSubmixSendAttenuationEnabledAttribute() const
+{
+	TWeakPtr<IPropertyHandle> bOverrideAttenuationPropertyWeakPtr = bOverrideAttenuationHandle;
+	TWeakPtr<IPropertyHandle> bIsSubmixSendWeakPtr = bIsSubmixSendAttenuationEnabledHandle;
+
+	auto Lambda = [bOverrideAttenuationPropertyWeakPtr, bIsSubmixSendWeakPtr]()
+	{
+		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
+		TSharedPtr<IPropertyHandle> bIsSubmixSendAttenuationEnabledProperty = bIsSubmixSendWeakPtr.Pin();
+
+		bool Value = GetValue(bOverrideAttenuationProperty);
+		Value &= GetValue(bIsSubmixSendAttenuationEnabledProperty);
 		return Value;
 	};
 
