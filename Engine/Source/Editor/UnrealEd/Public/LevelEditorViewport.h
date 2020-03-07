@@ -539,6 +539,8 @@ public:
 	 */
 	static UObject* GetOrCreateMaterialFromTexture( UTexture* UnrealTexture );
 
+	virtual bool UseAppTime() const override { return false; }
+
 protected:
 	/**
 	* Sets the state of creating a preview actor in the viewport.
