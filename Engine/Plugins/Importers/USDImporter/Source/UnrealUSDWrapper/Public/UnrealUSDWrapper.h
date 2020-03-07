@@ -210,7 +210,6 @@ public:
 	static UNREALUSDWRAPPER_API bool IsValidPrimName(const FString& Name, FText& OutReason);
 
 	static UNREALUSDWRAPPER_API EUsdPurpose GetPurpose(const pxr::UsdPrim& Prim, bool bComputed = true);
-	static UNREALUSDWRAPPER_API FName GetPurposeName(EUsdPurpose Purpose);
 
 	static UNREALUSDWRAPPER_API bool HasGeometryData(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API bool HasGeometryDataOrLODVariants(const pxr::UsdPrim& Prim);
