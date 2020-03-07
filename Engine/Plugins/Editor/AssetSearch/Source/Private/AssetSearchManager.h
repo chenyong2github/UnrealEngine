@@ -6,6 +6,7 @@
 #include "IAssetSearchModule.h"
 #include "AssetSearchDatabase.h"
 #include "Containers/Queue.h"
+#include "HAL/Runnable.h"
 
 class FRunnableThread;
 
