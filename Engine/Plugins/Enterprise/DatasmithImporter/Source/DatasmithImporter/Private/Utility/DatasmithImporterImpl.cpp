@@ -66,6 +66,7 @@
 #include "Serialization/ObjectReader.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "SourceControlOperations.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
 #include "UnrealEdGlobals.h"
@@ -120,6 +121,13 @@ UObject* FDatasmithImporterImpl::PublicizeAsset( UObject* SourceAsset, const TCH
 	else
 	{
 		DestinationPackage = ExistingAsset->GetOutermost();
+	}
+
+	// Close editors opened on existing asset if applicable
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	if (ExistingAsset && AssetEditorSubsystem->FindEditorForAsset(ExistingAsset, false) != nullptr)
+	{
+		AssetEditorSubsystem->CloseAllEditorsForAsset(ExistingAsset);
 	}
 
 	DestinationPackage->FullyLoad();
