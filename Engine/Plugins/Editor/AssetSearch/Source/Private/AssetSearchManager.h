@@ -23,6 +23,9 @@ public:
 
 	void Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback);
 
+	// Utility
+	void ForceIndexOnAssetsMissingIndex();
+
 private:
 	bool Tick_GameThread(float DeltaTime);
 	virtual uint32 Run() override;
@@ -44,7 +47,7 @@ private:
 	FString GetDerivedDataKey(const FSHAHash& IndexedContentHash);
 	FString GetDerivedDataKey(const FAssetData& UnindexedAsset);
 	bool HasIndexerForClass(UClass* AssetClass);
-	void StoreIndexForAsset(UObject* InAsset, bool Unindexed = false);
+	void StoreIndexForAsset(UObject* InAsset, bool Unindexed);
 	void LoadDDCContentIntoDatabase(const FAssetData& InAsset, const TArray<uint8>& Content, const FString& DerivedDataKey);
 
 private:
@@ -78,6 +81,8 @@ private:
 		uint32 DDCHandle;
 	};
 	TQueue<FAssetDDCRequest, EQueueMode::Mpsc> ProcessDDCQueue;
+
+	TArray<FAssetDDCRequest> FailedDDCRequests;
 
 	FDelegateHandle TickerHandle;
 

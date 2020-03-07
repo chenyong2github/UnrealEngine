@@ -19,8 +19,11 @@ enum class EAssetSearchDatabaseVersion
 {
 	Empty = 0,
 	Initial = 1,
+	IndexingAssetIdsAssetPathsUnique = 2,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 class FAssetSearchDatabaseStatements
@@ -163,7 +166,8 @@ public:
 		if (Statement_AddAssetToAssetTable.BindAndExecute(InAssetData.AssetName.ToString(), InAssetData.AssetClass.ToString(), InAssetData.ObjectPath.ToString(), IndexedJsonHash))
 		{
 			int64 AssetId = Database.GetLastInsertRowId();
-			//ensure(AssetId == GetAssetIdForAsset(InAssetData));
+
+			BeginTransaction();
 
 			TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(IndexedJson);
 
@@ -258,8 +262,11 @@ public:
 				}
 			}
 
+			CommitTransaction();
+
 			return true;
 		}
+
 		return false;
 	}
 
@@ -473,31 +480,37 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 
 	// Set the database to use exclusive WAL mode for performance (exclusive works even on platforms without a mmap implementation)
 	// Set the database "NORMAL" fsync mode to only perform a fsync when check-pointing the WAL to the main database file (fewer fsync calls are better for performance, with a very slight loss of WAL durability if the power fails)
+	Database->Execute(TEXT("PRAGMA cache_size=1000;"));
+	Database->Execute(TEXT("PRAGMA page_size=65535;"));
 	Database->Execute(TEXT("PRAGMA locking_mode=EXCLUSIVE;"));
-	Database->Execute(TEXT("PRAGMA journal_mode=WAL;"));
-	Database->Execute(TEXT("PRAGMA synchronous=NORMAL;"));
+
+	//Database->Execute(TEXT("PRAGMA journal_mode=WAL;"));
+	//Database->Execute(TEXT("PRAGMA synchronous=NORMAL;"));
+
+	Database->Execute(TEXT("PRAGMA journal_mode=NORMAL;"));
+	Database->Execute(TEXT("PRAGMA synchronous=OFF;"));
 
 	int32 LoadedDatabaseVersion = 0;
 	Database->GetUserVersion(LoadedDatabaseVersion);
 	if (LoadedDatabaseVersion != (int32)EAssetSearchDatabaseVersion::Empty)
 	{
-		if (LoadedDatabaseVersion > (int32)EAssetSearchDatabaseVersion::Current)
+		if (LoadedDatabaseVersion > (int32)EAssetSearchDatabaseVersion::LatestVersion)
 		{
 			Close();
-			UE_LOG(LogAssetSearch, Error, TEXT("Failed to open database for '%s': Database is too new (version %d, expected = %d)"), *InSessionPath, LoadedDatabaseVersion, (int32)EAssetSearchDatabaseVersion::Current);
+			UE_LOG(LogAssetSearch, Error, TEXT("Failed to open database for '%s': Database is too new (version %d, expected = %d)"), *InSessionPath, LoadedDatabaseVersion, (int32)EAssetSearchDatabaseVersion::LatestVersion);
 			return false;
 		}
-		else if (LoadedDatabaseVersion < (int32)EAssetSearchDatabaseVersion::Current)
+		else if (LoadedDatabaseVersion < (int32)EAssetSearchDatabaseVersion::LatestVersion)
 		{
 			Close(true);
-			UE_LOG(LogAssetSearch, Log, TEXT("Opened database '%s': Database is too old (version %d, expected = %d), creating new database"), *InSessionPath, LoadedDatabaseVersion, (int32)EAssetSearchDatabaseVersion::Current);
+			UE_LOG(LogAssetSearch, Log, TEXT("Opened database '%s': Database is too old (version %d, expected = %d), creating new database"), *InSessionPath, LoadedDatabaseVersion, (int32)EAssetSearchDatabaseVersion::LatestVersion);
 			return Open(InSessionPath, InOpenMode);
 		}
 	}
 
 	// Create our required tables
 	//========================================================================
-	if (!ensure(Database->Execute(TEXT("CREATE TABLE IF NOT EXISTS table_assets(assetid INTEGER PRIMARY KEY, asset_name, asset_class, asset_path, index_hash);"))))
+	if (!ensure(Database->Execute(TEXT("CREATE TABLE IF NOT EXISTS table_assets(assetid INTEGER PRIMARY KEY, asset_name, asset_class, asset_path TEXT UNIQUE, index_hash);"))))
 	{
 		LogLastError();
 		Close();
@@ -610,10 +623,19 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 		return false;
 	}
 
+	if (!ensure(Database->Execute(
+		TEXT("CREATE INDEX IF NOT EXISTS assetid_index ON table_asset_properties(assetid);")
+	)))
+	{
+		LogLastError();
+		Close();
+		return false;
+	}
+
 	//CREATE INDEX blueprint_nodes ON table_assets(json_extract(json, '$.Blueprint.Nodes'))
 
 	// The database will have the latest schema at this point, so update the user-version
-	if (!Database->SetUserVersion((int32)EAssetSearchDatabaseVersion::Current))
+	if (!Database->SetUserVersion((int32)EAssetSearchDatabaseVersion::LatestVersion))
 	{
 		Close();
 		return false;
@@ -717,6 +739,22 @@ int64 FAssetSearchDatabase::GetTotalSearchRecords() const
 	}
 
 	return INDEX_NONE;
+}
+
+void FAssetSearchDatabase::BeginTransaction()
+{
+	if (ensure(Statements))
+	{
+		Statements->BeginTransaction();
+	}
+}
+
+void FAssetSearchDatabase::CommitTransaction()
+{
+	if (ensure(Statements))
+	{
+		Statements->CommitTransaction();
+	}
 }
 
 PRAGMA_ENABLE_OPTIMIZATION
