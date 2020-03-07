@@ -45,7 +45,7 @@ void SDataprepGraphActionStepNode::Construct(const FArguments& InArgs, UDataprep
 	GraphNode = InActionStepNode;
 	DataprepEditor = InArgs._DataprepEditor;
 
-	SetCursor(EMouseCursor::ResizeUpDown);
+	SetCursor(EMouseCursor::CardinalCross);
 	UpdateGraphNode();
 }
 

@@ -69,13 +69,14 @@ void FDataprepEditorStyle::Initialize()
 
 	// Dataprep action UI
 	{
+		StyleSet->Set("Dataprep.Background.Black", FLinearColor(FColor(26, 26, 26)) );
 		StyleSet->Set("Dataprep.TextSeparator.Color", FLinearColor(FColor(200, 200, 200, 200)) );
 
-		const FMargin ActionOuter(1.f, 2.f, 2.f, 2.f);
-		StyleSet->Set("DataprepAction.Body.Padding", ActionOuter + FMargin(5.f, 0.f, 0.f, 0.f));
-		StyleSet->Set("DataprepAction.Outter.Regular.Padding", ActionOuter);
+		StyleSet->Set("DataprepAction.Outter.Regular.Padding", FMargin(1.f, 2.f, 4.f, 2.f));
 		StyleSet->Set("DataprepAction.Outter.Selected.Padding", FMargin(0.f));
-		StyleSet->Set("DataprepAction.Steps.Padding", ActionOuter + FMargin(10.f, 0.f, 4.f, 0.f));
+		StyleSet->Set("DataprepAction.Body.Padding", FMargin(6.f, 2.f, 2.f, 2.f));
+		StyleSet->Set("DataprepAction.Steps.Padding", FMargin(11.f, 2.f, 6.f, 2.f));
+		StyleSet->Set("DataprepAction.DragAndDrop", FLinearColor(FColor(212, 212, 59)) );
 
 		StyleSet->Set("DataprepAction.OutlineColor", FLinearColor(FColor(10, 177, 51)));
 		StyleSet->Set("DataprepAction.BackgroundColor", FLinearColor(FColor(61, 61, 61)));
