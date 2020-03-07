@@ -325,13 +325,30 @@ FBoxSphereBounds USimpleDynamicMeshComponent::CalcBounds(const FTransform& Local
 
 void USimpleDynamicMeshComponent::ApplyChange(const FMeshVertexChange* Change, bool bRevert)
 {
-	int NV = Change->Vertices.Num();
+	int32 NV = Change->Vertices.Num();
 	const TArray<FVector3d>& Positions = (bRevert) ? Change->OldPositions : Change->NewPositions;
-	
-	for (int k = 0; k < NV; ++k)
+	for (int32 k = 0; k < NV; ++k)
 	{
-		int vid = Change->Vertices[k];
-		Mesh->SetVertex(vid, Positions[k]);
+		int32 vid = Change->Vertices[k];
+		if (Mesh->IsVertex(vid))
+		{
+			Mesh->SetVertex(vid, Positions[k]);
+		}
+	}
+
+	if (Change->bHaveOverlayNormals && Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals() )
+	{
+		FDynamicMeshNormalOverlay* Overlay = Mesh->Attributes()->PrimaryNormals();
+		int32 NumNormals = Change->Normals.Num();
+		const TArray<FVector3f>& UseNormals = (bRevert) ? Change->OldNormals : Change->NewNormals;
+		for (int32 k = 0; k < NumNormals; ++k)
+		{
+			int32 elemid = Change->Normals[k];
+			if (Overlay->IsElement(elemid))
+			{
+				Overlay->SetElement(elemid, UseNormals[k]);
+			}
+		}
 	}
 
 	NotifyMeshUpdated();

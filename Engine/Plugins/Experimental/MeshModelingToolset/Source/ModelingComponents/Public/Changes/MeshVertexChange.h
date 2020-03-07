@@ -24,6 +24,11 @@ public:
 	TArray<FVector3d> OldPositions;
 	TArray<FVector3d> NewPositions;
 
+	bool bHaveOverlayNormals = false;
+	TArray<int32> Normals;
+	TArray<FVector3f> OldNormals;
+	TArray<FVector3f> NewNormals;
+
 
 	/** Makes the change to the object */
 	virtual void Apply(UObject* Object) override;
@@ -47,7 +52,10 @@ public:
 	TUniquePtr<FMeshVertexChange> Change;
 	TMap<int, int> SavedVertices;
 
-	FMeshVertexChangeBuilder();
+	bool bSaveOverlayNormals;
+	TMap<int, int> SavedNormalElements;
+
+	FMeshVertexChangeBuilder(bool bSaveOverlayNormals = false);
 
 	void UpdateVertex(int VertexID, const FVector3d& OldPosition, const FVector3d& NewPosition);
 	void UpdateVertexFinal(int VertexID, const FVector3d& NewPosition);
@@ -55,6 +63,14 @@ public:
 	void SavePosition(const FDynamicMesh3* Mesh, int VertexID, bool bInitial);
 	void SavePositions(const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, bool bInitial);
 	void SavePositions(const FDynamicMesh3* Mesh, const TSet<int>& VertexIDs, bool bInitial);
+
+
+	void UpdateOverlayNormal(int ElementID, const FVector3f& OldNormal, const FVector3f& NewNormal);
+	void UpdateOverlayNormalFinal(int ElementID, const FVector3f& NewNormal);
+	void SaveOverlayNormals(const FDynamicMesh3* Mesh, const TArray<int>& ElementIDs, bool bInitial);
+	void SaveOverlayNormals(const FDynamicMesh3* Mesh, const TSet<int>& ElementIDs, bool bInitial);
+
+
 };
 
 

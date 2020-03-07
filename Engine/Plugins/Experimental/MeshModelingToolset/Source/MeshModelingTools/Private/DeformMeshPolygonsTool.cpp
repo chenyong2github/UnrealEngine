@@ -1024,9 +1024,9 @@ void UDeformMeshPolygonsTool::UpdateChangeFromROI(bool bFinal)
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	const TSet<int>& ModifiedVertices = (bIsLaplacian) ? LaplacianDeformer.GetModifiedVertices() : LinearDeformer.GetModifiedVertices();
-	
 	ActiveVertexChange->SavePositions(Mesh, ModifiedVertices, !bFinal);
-
+	const TSet<int>& ModifiedNormals = (bIsLaplacian) ? LaplacianDeformer.GetModifiedOverlayNormals() : LinearDeformer.GetModifiedOverlayNormals();
+	ActiveVertexChange->SaveOverlayNormals(Mesh, ModifiedNormals, !bFinal);
 }
 
 
@@ -1211,7 +1211,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 		if (DeformationStrategy == EGroupTopologyDeformationStrategy::Linear)
 		{
 
-			DynamicMeshComponent->FastNotifyPositionsUpdated();
+			DynamicMeshComponent->FastNotifyPositionsUpdated(true);
 			GetToolManager()->PostInvalidation();
 		}
 		bUpdatePending = false;
@@ -1249,7 +1249,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 	//TODO: This is unseemly here, need to potentially defer this so that it's handled the same way as laplacian. Placeholder for now.
 	if (!bIsLaplacian)
 	{
-		DynamicMeshComponent->FastNotifyPositionsUpdated();
+		DynamicMeshComponent->FastNotifyPositionsUpdated(true);
 		GetToolManager()->PostInvalidation();
 	}
 	bUpdatePending = false;
@@ -1312,7 +1312,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 		//TODO: This is unseemly here, need to potentially defer this so that it's handled the same way as laplacian. Placeholder for now.
 		if (!bIsLaplacian)
 		{
-			DynamicMeshComponent->FastNotifyPositionsUpdated();
+			DynamicMeshComponent->FastNotifyPositionsUpdated(true);
 			GetToolManager()->PostInvalidation();
 		}
 	}
@@ -1448,7 +1448,7 @@ void UDeformMeshPolygonsTool::BeginChange()
 	{
 		if (ActiveVertexChange == nullptr)
 		{
-			ActiveVertexChange = new FMeshVertexChangeBuilder();
+			ActiveVertexChange = new FMeshVertexChangeBuilder(true);
 			UpdateChangeFromROI(false);
 		}
 	}
