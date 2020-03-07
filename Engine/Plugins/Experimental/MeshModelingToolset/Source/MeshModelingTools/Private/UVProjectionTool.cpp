@@ -149,6 +149,7 @@ void UUVProjectionTool::Setup()
 	{
 		Preview->InvalidateResult();
 	}
+	UpdateVisualization();
 }
 
 
@@ -314,21 +315,25 @@ void UUVProjectionTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 }
 #endif
 
-void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+void UUVProjectionTool::UpdateVisualization()
 {
-	// if we don't know what changed, or we know checker density changed, update checker material
 	MaterialSettings->UpdateMaterials();
 	for (int PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
 	{
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[PreviewIdx];
 		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	}
-	
+
 	UpdateNumPreviews();
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Preview->InvalidateResult();
 	}
+}
+
+void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+{
+	UpdateVisualization();
 }
 
 
