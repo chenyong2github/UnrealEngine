@@ -107,6 +107,8 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	 */
 	void SetFirstCrashHandlerFrame(uint64* ProgramCounter);
 
+	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const override;
+
 	void AddPlatformSpecificProperties() const;
 
 protected:
