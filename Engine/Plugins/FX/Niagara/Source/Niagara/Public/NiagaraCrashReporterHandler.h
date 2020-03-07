@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "HAL\ThreadSingleton.h"
-#include "HAL\CriticalSection.h"
+#include "HAL/ThreadSingleton.h"
+#include "HAL/CriticalSection.h"
 
 class FNiagaraSystemInstance;
 class FNiagaraSystemSimulation;
