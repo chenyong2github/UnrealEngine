@@ -81,13 +81,17 @@ struct FQueryDebugParams
 {
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) 
 	FQueryDebugParams()
-		: bDebugQuery(false) { }
+		: bDebugQuery(false)
+		, bExternalQuery(true) { }
 	bool bDebugQuery;
+	bool bExternalQuery;
 	bool IsDebugQuery() const { return bDebugQuery; }
+	bool IsExternalQuery() const { return bExternalQuery; }
 #else
 	// In test or shipping builds, this struct must be left empty
 	FQueryDebugParams() { }
 	constexpr bool IsDebugQuery() const { return false; }
+	constexpr bool IsExternalQuery() const { return true; }
 #endif
 };
 #endif
