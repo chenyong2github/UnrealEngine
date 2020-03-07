@@ -129,6 +129,11 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 		.SetFont(SystemOverviewItemFont);
 	Style->Set("NiagaraEditor.SystemOverview.ItemText", SystemOverviewItemText);
 
+	FSlateFontInfo SystemOverviewAlternateItemFont = DEFAULT_FONT("Italic", 9);
+	FTextBlockStyle SystemOverviewAlternateItemText = FTextBlockStyle(NormalText)
+		.SetFont(SystemOverviewAlternateItemFont);
+	Style->Set("NiagaraEditor.SystemOverview.AlternateItemText", SystemOverviewAlternateItemText);
+
 	Style->Set("NiagaraEditor.SystemOverview.Item.BackgroundColor", FLinearColor(FColor(62, 62, 62)));
 	Style->Set("NiagaraEditor.SystemOverview.Group.BackgroundColor", FLinearColor::Transparent);
 	Style->Set("NiagaraEditor.SystemOverview.CheckBoxColor", FLinearColor(FColor(160, 160, 160)));

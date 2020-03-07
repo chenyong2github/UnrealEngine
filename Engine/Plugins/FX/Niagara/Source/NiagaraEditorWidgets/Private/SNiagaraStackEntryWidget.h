@@ -30,8 +30,10 @@ protected:
 class SNiagaraStackDisplayName : public SNiagaraStackEntryWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SNiagaraStackDisplayName) { }
-		SLATE_EVENT(FOnTextCommitted, OnRenameCommitted);
+	SLATE_BEGIN_ARGS(SNiagaraStackDisplayName)
+	{
+		_Clipping = EWidgetClipping::OnDemand;
+	}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TypeNameStyle)
 	SLATE_END_ARGS();
 
@@ -50,12 +52,21 @@ private:
 
 	void StackViewModelStructureChanged();
 
+	void StackEntryItemAlternateNameChanged();
+
+	FText GetEntryDisplayName() const;
+
 	FText GetOriginalName() const;
 
-	EVisibility ShouldShowOriginalName() const;
+	FText GetEntryToolTipText() const;
+
+	bool GetEntryIsEnabled() const;
+
+	void EntryNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
 
 private:
 	FName TextStyleName;
+
 	const FTextBlockStyle* TypeNameStyle;
 
 	TSharedPtr<SBox> Container;
