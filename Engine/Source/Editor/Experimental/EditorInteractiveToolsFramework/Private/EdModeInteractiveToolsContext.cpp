@@ -486,7 +486,7 @@ void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* Editor
 
 
 	// set up standard materials
-	StandardVertexColorMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Game/Materials/VertexColor"));
+	StandardVertexColorMaterial = GEngine->VertexColorMaterial;
 }
 
 
