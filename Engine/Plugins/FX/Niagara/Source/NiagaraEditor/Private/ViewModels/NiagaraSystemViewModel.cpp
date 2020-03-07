@@ -510,6 +510,8 @@ void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 	ResetEmitterHandleViewModelsAndTracks();
 	RefreshAll();
 	GetDefault<UEdGraphSchema_NiagaraSystemOverview>()->ForceVisualizationCacheClear();
+	System->InvalidateActiveCompiles();
+	System->RequestCompile(false);
 }
 
 void FNiagaraSystemViewModel::Tick(float DeltaTime)
@@ -1233,7 +1235,6 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 				Component->SetDesiredAge(0);
 			}
 		}
-
 		else if (ReinitMode == EReinitMode::ReinitializeSystem)
 		{
 			Component->ReinitializeSystem();
