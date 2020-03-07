@@ -123,6 +123,9 @@ public:
 	/** Fill OutProfiles with all device proifles that have been overriden at the passed EffectsQuality. */
 	void GetOverridenDeviceProfiles(int32 EffectsQuality, TArray<UDeviceProfile*>& OutEnabledProfiles, TArray<UDeviceProfile*>& OutDisabledProfiles)const;
 
+	/** Returns true if this set is enabled for any profiles on the specified platform. */
+	bool IsEnabledForPlatform(const FString& PlatformName)const;
+
 	/** Returns true if the current platform can modify it's niagara scalability settings at runtime. */
 	static bool CanChangeScalabilityAtRuntime();
 
@@ -131,11 +134,11 @@ public:
 
 	static int32 GetEffectQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
 
+	/** Returns true if the passed platform should prune emitters on cook. */
+	static bool ShouldPruneEmittersOnCook(const FString& PlatformName);
+
 	//Editor only public API
 #if WITH_EDITOR
-	/** Returns true if this set is enabled for any profiles on the specified platform. */
-	bool IsEnabledForPlatform(const FString& PlatformName);
-
 	/**
 	Does the enabled set of profiles in this set conflict with those in another set.
 	In some cases this is not allowed.
@@ -157,9 +160,6 @@ public:
 
 	/** Returns true if the passed platform can modify it's niagara scalability settings at runtime. */
 	static bool CanChangeScalabilityAtRuntime(const FString& PlatformName);
-
-	/** Returns true if the passed platform should prune emitters on cook. */
-	static bool ShouldPruneEmittersOnCook(const FString& PlatformName);
 
 	/** Inspects the passed sets and generates an array of all conflicts between these sets. Used to keep arrays of platform sets orthogonal. */
 	static bool GatherConflicts(const TArray<const FNiagaraPlatformSet*>& PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);

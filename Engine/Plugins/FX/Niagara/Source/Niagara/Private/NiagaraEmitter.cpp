@@ -589,6 +589,21 @@ bool UNiagaraEmitter::IsEditorOnly() const
 #endif
 }
 
+bool UNiagaraEmitter::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform)const
+{
+	if (!FNiagaraPlatformSet::ShouldPruneEmittersOnCook(TargetPlatform->IniPlatformName()))
+	{
+		return true;
+	}
+
+	bool bIsEnabled = IsEnabledOnPlatform(TargetPlatform->IniPlatformName());
+	if(!bIsEnabled)
+	{
+		UE_LOG(LogNiagara, Verbose, TEXT("Pruned emitter %s for platform %s"), *GetFullName(), *TargetPlatform->DisplayName().ToString())
+	}
+	return bIsEnabled;
+}
+
 #if WITH_EDITOR
 /** Creates a new emitter with the supplied emitter as a parent emitter and the supplied system as it's owner. */
 UNiagaraEmitter* UNiagaraEmitter::CreateWithParentAndOwner(UNiagaraEmitter& InParentEmitter, UObject* InOwner, FName InName, EObjectFlags FlagMask)
@@ -744,14 +759,12 @@ UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnRenderersChanged()
 {
 	return OnRenderersChangedDelegate;
 }
-
-bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)
-{
-	bool bCanPrune = FNiagaraPlatformSet::ShouldPruneEmittersOnCook(PlatformName);
-	return bCanPrune && Platforms.IsEnabledForPlatform(PlatformName);
-}
 #endif
 
+bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)const
+{
+	return Platforms.IsEnabledForPlatform(PlatformName);
+}
 
 bool UNiagaraEmitter::IsValid()const
 {
