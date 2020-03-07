@@ -58,8 +58,8 @@ void FVPBookmarkTypeActions::ActivateBookmark(UVPBookmark* InBookmark, FEditorVi
 		const FVector ActorLocation = ActorTransform.GetLocation();
 
 		// Set Location
-		FVector Offset = ActorRotation.RotateVector(InBookmark->CachedViewportData.JumpToOffsetLocation);
-		Transform.SetLocation(ActorLocation - Offset);
+		FVector Offset = FVector(0, 0, 0);
+		
 
 		// Set Rotation
 		bool bIsRotationSet = false;
@@ -82,6 +82,8 @@ void FVPBookmarkTypeActions::ActivateBookmark(UVPBookmark* InBookmark, FEditorVi
 				}
 			}
 		}
+
+		Transform.SetLocation(ActorLocation - Offset);
 
 		if (!bIsRotationSet)
 		{
