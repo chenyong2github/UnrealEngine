@@ -128,6 +128,7 @@ public:
 	 */
 	FGeometryCollectionPhysicsProxy(
 		UObject* InOwner, 
+		FGeometryDynamicCollection& GameThreadCollection,
 		const FSimulationParameters& SimulationParameters,
 		FInitFunc InInitFunc, 
 		FCacheSyncFunc InCacheSyncFunc, 
@@ -332,7 +333,7 @@ private:
 	// uses the data, but at the start of the simulation the PhysicsThreadCollection
 	// is a deep copy from the GameThreadCollection. 
 	FGeometryDynamicCollection PhysicsThreadCollection;
-	FGeometryDynamicCollection GameThreadCollection;
+	FGeometryDynamicCollection& GameThreadCollection;
 
 	// Currently this is using triple buffers for game-physics and 
 	// physics-game thread communication, but not for any reason other than this 
