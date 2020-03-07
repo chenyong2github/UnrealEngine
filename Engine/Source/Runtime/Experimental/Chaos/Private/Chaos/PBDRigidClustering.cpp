@@ -342,7 +342,7 @@ namespace Chaos
 				Child = OriginalChild;
 				ChildPosition = Child->X();
 			}
-			else if (ProxyData->KeyChild == OriginalChild)
+			else if (ProxyData && ProxyData->KeyChild == OriginalChild)
 			{
 				Child = MultiChildProxyId.Id;
 				const TRigidTransform<T, d> ProxyWorldTM = 
@@ -2011,7 +2011,7 @@ namespace Chaos
 		TPBDRigidClusteredParticleHandle<T, d>* ClusteredChild1,
 		TPBDRigidClusteredParticleHandle<T, d>* ClusteredChild2)
 	{
-		check(ClusteredChild1 && ClusteredChild1);
+		check(ClusteredChild1 && ClusteredChild2);
 		if (ClusteredChild1 == ClusteredChild2)
 			return;
 		const T AvgStrain = (ClusteredChild1->Strains() + ClusteredChild2->Strains()) * (T)0.5;
