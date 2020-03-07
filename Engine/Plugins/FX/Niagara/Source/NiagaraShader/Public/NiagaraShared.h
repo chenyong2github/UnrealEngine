@@ -245,7 +245,7 @@ public:
 
 	friend uint32 GetTypeHash(const FNiagaraShaderMapId& Ref)
 	{
-		return GetTypeHash(Ref.BaseCompileHash.Hash);
+		return GetTypeHash(Ref.BaseCompileHash);
 	}
 
 	SIZE_T GetSizeBytes() const
