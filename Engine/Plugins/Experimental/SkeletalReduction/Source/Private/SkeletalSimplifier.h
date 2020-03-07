@@ -49,7 +49,7 @@ namespace SkeletalSimplifier
 	class FSimplifierTerminator : public FSimplifierTerminatorBase
 	{
 	public:
-		FSimplifierTerminator(int32 MinTri, int32 MaxTri, int32 MinVert, int32 MaxVert, float MaxCost, float MaxDist)
+		FSimplifierTerminator(uint32 MinTri, uint32 MaxTri, uint32 MinVert, uint32 MaxVert, float MaxCost, float MaxDist)
 			: FSimplifierTerminatorBase(MinTri, MinVert, MaxCost)
 			, MaxTriNumToRetain(MaxTri)
 			, MaxVertNumToRetain(MaxVert)
@@ -57,7 +57,7 @@ namespace SkeletalSimplifier
 		{}
 
 		// return true if the simplifier should terminate.
-		inline bool operator()(const int32 TriNum, const int32 VertNum, const float SqrError)
+		inline bool operator()(const uint32 TriNum, const uint32 VertNum, const float SqrError)
 		{
 			if (FSimplifierTerminatorBase::operator()(TriNum, VertNum, SqrError) && TriNum < MaxTriNumToRetain && VertNum < MaxVertNumToRetain)
 			{
@@ -70,8 +70,8 @@ namespace SkeletalSimplifier
 		}
 
 
-		int32 MaxTriNumToRetain;
-		int32 MaxVertNumToRetain;
+		uint32 MaxTriNumToRetain;
+		uint32 MaxVertNumToRetain;
 		float MaxDistance;
 
 	};
