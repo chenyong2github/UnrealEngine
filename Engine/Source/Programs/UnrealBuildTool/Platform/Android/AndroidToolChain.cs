@@ -1116,7 +1116,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		void GenerateEmptyLinkFunctionsForRemovedModules(List<FileItem> SourceFiles, string ModuleName, DirectoryReference OutputDirectory)
+		void GenerateEmptyLinkFunctionsForRemovedModules(List<FileItem> SourceFiles, string ModuleName, DirectoryReference OutputDirectory, IActionGraphBuilder Graph)
 		{
 			// Only add to Launch module
 			if (!ModuleName.Equals("Launch"))
@@ -1131,7 +1131,7 @@ namespace UnrealBuildTool
 			if (!FileReference.Exists(LinkerExceptionsCPPFilename))
 			{
 				// Create a dummy file in case it doesn't exist yet so that the module does not complain it's not there
-				FileItem.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, new List<string>());
+				Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, new List<string>());
 			}
 
 			List<string> Result = new List<string>();
@@ -1172,7 +1172,7 @@ namespace UnrealBuildTool
 			// If we determined that we should write the file, write it now.
 			if (bShouldWriteFile)
 			{
-				FileItem.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, Result);
+				Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, Result);
 			}
 
 			SourceFiles.Add(FileItem.GetItemByFileReference(LinkerExceptionsCPPFilename));
@@ -1210,7 +1210,7 @@ namespace UnrealBuildTool
 
 		static private bool bHasPrintedApiLevel = false;
 		static private bool bHasHandledLaunchModule = false;
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, List<Action> Actions)
+		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			if (Arches.Count == 0)
 			{
@@ -1279,7 +1279,7 @@ namespace UnrealBuildTool
 				// Directly added NDK files for NDK extensions
 				ModifySourceFiles(CompileEnvironment, InputFiles, ModuleName);
 				// Deal with dynamic modules removed by architecture
-				GenerateEmptyLinkFunctionsForRemovedModules(InputFiles, ModuleName, OutputDir);
+				GenerateEmptyLinkFunctionsForRemovedModules(InputFiles, ModuleName, OutputDir, Graph);
 
 				bHasHandledLaunchModule = true;
 			}
@@ -1372,7 +1372,7 @@ namespace UnrealBuildTool
 
 					foreach (FileItem SourceFile in InputFiles)
 					{
-						Action CompileAction = new Action(ActionType.Compile);
+						Action CompileAction = Graph.CreateAction(ActionType.Compile);
 						CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
 						CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
@@ -1505,7 +1505,7 @@ namespace UnrealBuildTool
 
 						// Create the response file
 						FileReference ResponseFileName = CompileAction.ProducedItems[0].Location + ".rsp";
-						FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, new List<string> { AllArguments });
+						FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, new List<string> { AllArguments });
 						string ResponseArgument = string.Format("@\"{0}\"", ResponseFileName);
 
 						CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
@@ -1536,8 +1536,6 @@ namespace UnrealBuildTool
 						CompileAction.bCanExecuteRemotely =
 							CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create ||
 							CompileEnvironment.bAllowRemotelyCompiledPCHs;
-
-						Actions.Add(CompileAction);
 					}
 				}
 			}
@@ -1545,7 +1543,7 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
+		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			return null;
 		}
@@ -1580,7 +1578,7 @@ namespace UnrealBuildTool
 			return DirectoryReference.Combine(PathRef, "include", Arch.Replace("-", "") + GPUArchitecture);
 		}
 
-		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			if (Arches.Count == 0)
 			{
@@ -1609,7 +1607,7 @@ namespace UnrealBuildTool
 
 					foreach (FileItem ISPCFile in InputFiles)
 					{
-						Action CompileAction = new Action(ActionType.Compile);
+						Action CompileAction = Graph.CreateAction(ActionType.Compile);
 						CompileAction.CommandDescription = "Compile";
 						CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 						CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
@@ -1684,8 +1682,6 @@ namespace UnrealBuildTool
 						CompileAction.PrerequisiteItems.Add(ISPCFile);
 						CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""));
 
-						Actions.Add(CompileAction);
-
 						FileItem ISPCFinalHeaderFile = FileItem.GetItemByFileReference(
 							FileReference.Combine(
 								InlineArchIncludeFolder(OutputDir, Arch, GPUArchitecture),
@@ -1700,7 +1696,7 @@ namespace UnrealBuildTool
 						FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
 						FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
 
-						Action CopyAction = new Action(ActionType.BuildProject);
+						Action CopyAction = Graph.CreateAction(ActionType.BuildProject);
 						CopyAction.CommandDescription = "Copy";
 						CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
 						if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
@@ -1717,7 +1713,6 @@ namespace UnrealBuildTool
 						CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
 						CopyAction.bCanExecuteRemotely = false;
 						CopyAction.bShouldOutputStatusDescription = false;
-						Actions.Add(CopyAction);
 
 						Result.GeneratedHeaderFiles.Add(TargetFileItem);
 
@@ -1729,7 +1724,7 @@ namespace UnrealBuildTool
 			return Result;
 		}
 		
-		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			if (Arches.Count == 0)
 			{
@@ -1756,7 +1751,7 @@ namespace UnrealBuildTool
 
 					foreach (FileItem ISPCFile in InputFiles)
 					{
-						Action CompileAction = new Action(ActionType.Compile);
+						Action CompileAction = Graph.CreateAction(ActionType.Compile);
 						CompileAction.CommandDescription = "Compile";
 						CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 						CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
@@ -1906,8 +1901,6 @@ namespace UnrealBuildTool
 							CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""));
 						}
 
-						Actions.Add(CompileAction);
-
 						for(int i = 0; i < CompiledISPCObjFiles.Count; i++)
 						{
 							// ISPC compiler can't add suffix on the end of the arch, so copy to put into what linker expects
@@ -1922,7 +1915,7 @@ namespace UnrealBuildTool
 							FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
 							FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
 
-							Action CopyAction = new Action(ActionType.BuildProject);
+							Action CopyAction = Graph.CreateAction(ActionType.BuildProject);
 							CopyAction.CommandDescription = "Copy";
 							CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
 							if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
@@ -1939,8 +1932,6 @@ namespace UnrealBuildTool
 							CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
 							CopyAction.bCanExecuteRemotely = false;
 							CopyAction.bShouldOutputStatusDescription = false;
-
-							Actions.Add(CopyAction);
 						}
 
 						Result.ObjectFiles.AddRange(FinalISPCObjFiles);
@@ -1953,7 +1944,7 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		public override FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
+		public override FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			List<FileItem> Outputs = new List<FileItem>();
 
@@ -1981,7 +1972,7 @@ namespace UnrealBuildTool
 					}
 
 					// Create an action that invokes the linker.
-					Action LinkAction = new Action(ActionType.Link);
+					Action LinkAction = Graph.CreateAction(ActionType.Link);
 					LinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 
 					if (LinkEnvironment.bIsBuildingLibrary)
@@ -2156,7 +2147,7 @@ namespace UnrealBuildTool
 					FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 					InputFileNames.Add(LinkResponseArguments.Replace("\\", "/"));
 
-					FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, InputFileNames);
+					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, InputFileNames);
 
 					LinkAction.CommandArguments += string.Format(" @\"{0}\"", ResponseFileName);
 					LinkAction.PrerequisiteItems.Add(ResponseFileItem);
@@ -2171,7 +2162,6 @@ namespace UnrealBuildTool
 					{
 						SetupActionToExecuteCompilerThroughShell(ref LinkAction, LinkAction.CommandPath.FullName, LinkAction.CommandArguments, "Link");
 					}
-					Actions.Add(LinkAction);
 
 					// Windows can run into an issue with too long of a commandline when clang tries to call ld to link.
 					// To work around this we call clang to just get the command it would execute and generate a
@@ -2214,7 +2204,7 @@ namespace UnrealBuildTool
 
 								// now create a response file for the full command using ld directly
 								FileReference FinalResponseFileName = FileReference.Combine(LinkEnvironment.IntermediateDirectory, OutputFile.Location.GetFileName() + ".responseFinal");
-								FileItem FinalResponseFileItem = FileItem.CreateIntermediateTextFile(FinalResponseFileName, LinkAction.CommandArguments);
+								FileItem FinalResponseFileItem = Graph.CreateIntermediateTextFile(FinalResponseFileName, LinkAction.CommandArguments);
 								LinkAction.CommandArguments = string.Format("@\"{0}\"", FinalResponseFileName);
 								LinkAction.PrerequisiteItems.Add(FinalResponseFileItem);
 							}
