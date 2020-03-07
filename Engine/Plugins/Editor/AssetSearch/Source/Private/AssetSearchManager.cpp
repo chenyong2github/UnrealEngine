@@ -17,6 +17,9 @@
 #include "HAL/RunnableThread.h"
 #include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
+#include "Misc/FeedbackContext.h"
+
+#define LOCTEXT_NAMESPACE "FAssetSearchManager"
 
 static bool bIndexUnindexAssetsOnLoad = false;
 FAutoConsoleVariableRef CVarIndexUnindexAssetsOnLoad(
@@ -59,6 +62,7 @@ FAssetSearchManager::FAssetSearchManager()
 FAssetSearchManager::~FAssetSearchManager()
 {
 	RunThread = false;
+	DatabaseThread->WaitForCompletion();
 
 	{
 		FScopeLock ScopedLock(&SearchDatabaseCS);
@@ -88,7 +92,14 @@ void FAssetSearchManager::Start()
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	AssetRegistry.OnAssetAdded().AddRaw(this, &FAssetSearchManager::OnAssetAdded);
-	AssetRegistry.GetAllAssets(ProcessAssetQueue, true);
+	
+	TArray<FAssetData> TempAssetData;
+	AssetRegistry.GetAllAssets(TempAssetData, true);
+
+	for (const FAssetData& Data : TempAssetData)
+	{
+		OnAssetAdded(Data);
+	}
 
 	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAssetSearchManager::Tick_GameThread), 0);
 
@@ -103,6 +114,7 @@ FSearchStats FAssetSearchManager::GetStats() const
 	Stats.Downloading = PendingDownloads;
 	Stats.PendingDatabaseUpdates = PendingDatabaseUpdates;
 	Stats.TotalRecords = TotalSearchRecords;
+	Stats.AssetsMissingIndex = FailedDDCRequests.Num();
 	return Stats;
 }
 
@@ -115,6 +127,20 @@ void FAssetSearchManager::RegisterIndexer(FName AssetClassName, IAssetIndexer* I
 void FAssetSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 {
 	check(IsInGameThread());
+
+	static const FString DeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir());
+	static const FString UsersDeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameUserDeveloperDir());
+	
+	// Don't process stuff in the other developer folders.
+	FString PackageName = InAssetData.PackageName.ToString();
+	if (PackageName.StartsWith(DeveloperPathWithSlash))
+	{
+		if (!PackageName.StartsWith(UsersDeveloperPathWithSlash))
+		{
+			return;
+		}
+	}
+
 	ProcessAssetQueue.Add(InAssetData);
 }
 
@@ -124,7 +150,7 @@ void FAssetSearchManager::OnObjectSaved(UObject* InObject)
 
 	if (!GIsCookerLoadingPackage)
 	{
-		StoreIndexForAsset(InObject);
+		StoreIndexForAsset(InObject, false);
 	}
 }
 
@@ -234,20 +260,17 @@ bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAsset)
 
 	if (!AssetJsonDDCKey.IsEmpty())
 	{
-		PendingDownloads++;
 		FeedOperations.Enqueue([this, InAsset, AssetJsonDDCKey]() {
 			FScopeLock ScopedLock(&SearchDatabaseCS);
 			if (!SearchDatabase.IsAssetUpToDate(InAsset, AssetJsonDDCKey))
 			{
+				PendingDownloads++;
+
 				FAssetDDCRequest DDCRequest;
 				DDCRequest.AssetData = InAsset;
 				DDCRequest.DDCKey_IndexDataHash = AssetJsonDDCKey;
 				DDCRequest.DDCHandle = GetDerivedDataCacheRef().GetAsynchronous(*AssetJsonDDCKey, InAsset.ObjectPath.ToString());
 				ProcessDDCQueue.Enqueue(DDCRequest);
-			}
-			else
-			{
-				PendingDownloads--;
 			}
 		});
 
@@ -387,6 +410,10 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 			{
 				LoadDDCContentIntoDatabase(PendingRequest->AssetData, OutContent, PendingRequest->DDCKey_IndexDataHash);
 			}
+			else
+			{
+				FailedDDCRequests.Add(*PendingRequest);
+			}
 
 			ProcessDDCQueue.Pop();
 			PendingDownloads--;
@@ -431,6 +458,34 @@ void FAssetSearchManager::Tick_DatabaseOperationThread()
 	}
 }
 
+void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
+{
+	check(IsInGameThread());
+
+	GWarn->BeginSlowTask(LOCTEXT("ForceIndexOnAssetsMissingIndex", "Indexing Assets"), true, true);
+
+	int32 RequestCount = 0;
+	for (const FAssetDDCRequest& Request : FailedDDCRequests)
+	{
+		if (GWarn->ReceivedUserCancel())
+		{
+			break;
+		}
+
+		if (UObject* AssetToIndex = Request.AssetData.GetAsset())
+		{
+			StoreIndexForAsset(AssetToIndex, true);
+		}
+
+		RequestCount++;
+		GWarn->StatusForceUpdate(RequestCount, FailedDDCRequests.Num(), FText::FromString(Request.AssetData.PackageName.ToString()));
+	}
+
+	GWarn->EndSlowTask();
+
+	FailedDDCRequests.Reset();
+}
+
 void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback)
 {
 	check(IsInGameThread());
@@ -456,3 +511,5 @@ void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArra
 		});
 	});
 }
+
+#undef LOCTEXT_NAMESPACE

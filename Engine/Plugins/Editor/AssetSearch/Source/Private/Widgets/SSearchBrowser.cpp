@@ -31,6 +31,7 @@
 #include "AssetRegistryModule.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Input/SHyperlink.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBrowser"
 
@@ -164,6 +165,15 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 					SNew(STextBlock)
 					.Text(this, &SSearchBrowser::GetStatusText)
 				]
+
+				// Index unindexed items
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SHyperlink)
+					.Text(this, &SSearchBrowser::GetUnindexedAssetsText)
+					.OnNavigate(this, &SSearchBrowser::HandleForceIndexOfAssetsMissingIndex)
+				]
 			]
 		]
 	];
@@ -176,6 +186,19 @@ FText SSearchBrowser::GetStatusText() const
 	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
 	FSearchStats SearchStats = SearchModule.GetStats();
 	return FText::Format(LOCTEXT("SearchStatusTextFmt", "Scanning {0}   Downloading {1}   Updating {2}            Total Records {3}"), SearchStats.Scanning, SearchStats.Downloading, SearchStats.PendingDatabaseUpdates, SearchStats.TotalRecords);
+}
+
+FText SSearchBrowser::GetUnindexedAssetsText() const
+{
+	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
+	FSearchStats SearchStats = SearchModule.GetStats();
+	return FText::Format(LOCTEXT("UnindexedAssetsLinkFormat", "{0} Missing"), SearchStats.AssetsMissingIndex);
+}
+
+void SSearchBrowser::HandleForceIndexOfAssetsMissingIndex()
+{
+	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
+	SearchModule.ForceIndexOnAssetsMissingIndex();
 }
 
 FReply SSearchBrowser::OnRefresh()

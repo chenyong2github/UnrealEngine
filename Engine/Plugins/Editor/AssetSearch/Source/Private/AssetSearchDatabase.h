@@ -84,6 +84,9 @@ public:
 	 */
 	int64 GetTotalSearchRecords() const;
 
+	void BeginTransaction();
+	void CommitTransaction();
+
 private:
 	void LogLastError() const;
 
