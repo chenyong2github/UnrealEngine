@@ -86,6 +86,7 @@ void UConvertToPolygonsTool::Setup()
 	PreviewMesh->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), FTransform::Identity);
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 	FComponentMaterialSet MaterialSet;
 	ComponentTarget->GetMaterialSet(MaterialSet);

@@ -75,9 +75,12 @@ void UShapeSprayTool::Setup()
 
 	UMaterialInterface* VtxColorMaterial = GetToolManager()->GetContextQueriesAPI()->GetStandardMaterial(EStandardToolContextMaterials::VertexColorMaterial);
 	check(VtxColorMaterial);
-	AccumMeshComponent->SetMaterial(0, VtxColorMaterial);
-	AccumMeshComponent->GetMesh()->EnableVertexColors(FVector3f::One());
-	AccumMeshComponent->GetMesh()->EnableVertexNormals(FVector3f::UnitX());
+	if (VtxColorMaterial)
+	{
+		AccumMeshComponent->SetMaterial(0, VtxColorMaterial);
+		AccumMeshComponent->GetMesh()->EnableVertexColors(FVector3f::One());
+		AccumMeshComponent->GetMesh()->EnableVertexNormals(FVector3f::UnitX());
+	}
 }
 
 
