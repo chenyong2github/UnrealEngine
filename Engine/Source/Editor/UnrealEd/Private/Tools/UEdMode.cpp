@@ -549,12 +549,6 @@ bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewpor
 		}
 	}
 
-	// if alt is down we do not process mouse event
-	if (ViewportClient->IsAltPressed())
-	{
-		return false;
-	}
-
 	if (Event == IE_Pressed || Event == IE_Released)
 	{
 		if (Key.IsMouseButton())
@@ -565,11 +559,11 @@ bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewpor
 
 			if (bIsLeftMouse || bIsMiddleMouse || bIsRightMouse)
 			{
-
-				// early-out here if we are going to do camera manipulation
-				if (ViewportClient->IsAltPressed())
+				// if alt is down and we are not capturing, somewhere higher in the ViewportClient/EdMode stack 
+				// is going to start doing alt+mouse camera manipulation. So we should ignore this mouse event.
+				if (ViewportClient->IsAltPressed() && ToolsContext->InputRouter->HasActiveMouseCapture() == false)
 				{
-					return bHandled;
+					return false;
 				}
 
 				FInputDeviceState InputState = CurrentMouseState;
