@@ -162,6 +162,7 @@ TSharedRef<SWidget>	SGraphPinVector::GetDefaultValueWidget()
 			.VisibleText_1( this, &SGraphPinVector::GetCurrentValue_1 )
 			.VisibleText_2( this, &SGraphPinVector::GetCurrentValue_2 )
 			.Visibility( this, &SGraphPin::GetDefaultValueVisibility )
+			.IsEnabled(this, &SGraphPin::GetDefaultValueIsEditable )
 			.OnFloatCommitted_Box_0( this, &SGraphPinVector::OnChangedValueTextBox_0 )
 			.OnFloatCommitted_Box_1( this, &SGraphPinVector::OnChangedValueTextBox_1 )
 			.OnFloatCommitted_Box_2( this, &SGraphPinVector::OnChangedValueTextBox_2 );

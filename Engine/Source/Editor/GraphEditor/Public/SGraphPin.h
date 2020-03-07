@@ -190,6 +190,9 @@ public:
 
 	/** True if pin can be edited */
 	bool IsEditingEnabled() const;
+
+	/** True if the pin's default value can be edited, false if it is read only */
+	bool GetDefaultValueIsEditable() const { return !GraphPinObj->bDefaultValueIsReadOnly; }
 	
 	/** 
 	  * Called when ed graph data is cleared, indicating this widget can no longer safely access GraphPinObj 
