@@ -727,9 +727,18 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	RegenerateCodeView(true);
 
 	ForceRefreshExpressionPreviews();
-	
+	if (Generator.IsValid())
+	{
+		TArray<UObject*> Objects;
+		Objects.Add(MaterialEditorInstance);
+		Generator->SetObjects(Objects);
+	}
 	// Update the parameter list now that the material has been fully initialized
 	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
+	if (MaterialLayersFunctionsInstance.IsValid())
+	{
+		MaterialLayersFunctionsInstance->SetEditorInstance(MaterialEditorInstance);
+	}
 
 	if (OriginalMaterial->bUsedAsSpecialEngineMaterial)
 	{
@@ -977,16 +986,26 @@ void FMaterialEditor::CreateInternalWidgets()
 	{
 		MaterialEditorInstance->OriginalFunction = MaterialFunction->ParentFunction;
 	}
+	FPropertyEditorModule& Module = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	if (!Generator.IsValid())
+	{
+		FPropertyRowGeneratorArgs Args;
+		Generator = Module.CreatePropertyRowGenerator(Args);
+	}
+
 	MaterialParametersOverviewWidget = SNew(SMaterialParametersOverviewPanel)
-		.InMaterialEditorInstance(MaterialEditorInstance);
-	MaterialParametersOverviewWidget->GetGenerator()->OnFinishedChangingProperties().AddSP(this, &FMaterialEditor::OnFinishedChangingParametersFromOverview);
+		.InMaterialEditorInstance(MaterialEditorInstance)
+		.InGenerator(Generator);
+	Generator->OnFinishedChangingProperties().AddSP(this, &FMaterialEditor::OnFinishedChangingParametersFromOverview);
+	Generator->OnRowsRefreshed().AddSP(this, &FMaterialEditor::GeneratorRowsRefreshed);
 	MaterialCustomPrimitiveDataWidget = SNew(SMaterialCustomPrimitiveDataPanel, MaterialEditorInstance);
 
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
 	if (MaterialEditorModule->MaterialLayersEnabled())
 	{
 		MaterialLayersFunctionsInstance = SNew(SMaterialLayersFunctionsMaterialWrapper)
-			.InMaterialEditorInstance(MaterialEditorInstance);
+			.InMaterialEditorInstance(MaterialEditorInstance)
+			.InGenerator(Generator);
 	}
 
 	Palette = SNew(SMaterialPalette, SharedThis(this));
@@ -1050,6 +1069,15 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 		MaterialDetailsView->SetObjects(SelectedObjects, true);
 		Material->MarkPackageDirty();
 		SetMaterialDirty();
+	}
+}
+
+void FMaterialEditor::GeneratorRowsRefreshed()
+{
+	MaterialParametersOverviewWidget->Refresh();
+	if (MaterialLayersFunctionsInstance)
+	{
+		MaterialLayersFunctionsInstance->Refresh();
 	}
 }
 
@@ -1834,7 +1862,6 @@ void FMaterialEditor::UpdatePreviewMaterial( bool bForce )
 		if (MaterialLayersFunctionsInstance.IsValid())
 		{
 			MaterialLayersFunctionsInstance->SetEditorInstance(MaterialEditorInstance);
-			MaterialLayersFunctionsInstance->Refresh();
 		}
 	}
 

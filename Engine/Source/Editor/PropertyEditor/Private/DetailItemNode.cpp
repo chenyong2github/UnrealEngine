@@ -96,7 +96,7 @@ EDetailNodeType FDetailItemNode::GetNodeType() const
 
 TSharedPtr<IPropertyHandle> FDetailItemNode::CreatePropertyHandle() const
 {
-	if (Customization.HasPropertyNode())
+	if (Customization.HasPropertyNode() && ParentCategory.IsValid())
 	{
 		return ParentCategory.Pin()->GetParentLayoutImpl().GetPropertyHandle(Customization.GetPropertyNode());
 	}
