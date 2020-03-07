@@ -1385,8 +1385,7 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 			// If SaveNum cannot be negated due to integer overflow, Ar is corrupted.
 			if (SaveNum == MIN_int32)
 			{
-				Ar.ArIsError = 1;
-				Ar.ArIsCriticalError = 1;
+				Ar.SetCriticalError();
 				UE_LOG(LogCore, Error, TEXT("Archive is corrupted"));
 				return Ar;
 			}
@@ -1398,8 +1397,7 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 		// Protect against network packets allocating too much memory
 		if ((MaxSerializeSize > 0) && (SaveNum > MaxSerializeSize))
 		{
-			Ar.ArIsError         = 1;
-			Ar.ArIsCriticalError = 1;
+			Ar.SetCriticalError();
 			UE_LOG(LogCore, Error, TEXT("String is too large (Size: %i, Max: %i)"), SaveNum, MaxSerializeSize);
 			return Ar;
 		}

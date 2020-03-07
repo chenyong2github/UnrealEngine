@@ -157,7 +157,7 @@ public:
 
 	virtual void Serialize(void* Data, int64 Num) override
 	{
-		if (Num > 0 && !ArIsError)
+		if (Num > 0 && !IsError())
 		{
 			if (Offset + Num <= TotalSize())
 			{
@@ -166,7 +166,7 @@ public:
 			}
 			else
 			{
-				ArIsError = true;
+				SetError();
 			}
 		}
 	}

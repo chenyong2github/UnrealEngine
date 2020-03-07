@@ -147,7 +147,7 @@ public:
 	void Serialize(void* Data, int64 Length) override
 	{
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
-		if (!Length || ArIsError)
+		if (!Length || IsError())
 		{
 			return;
 		}
@@ -1024,8 +1024,7 @@ public:
 			TEXT("Index: %d/%d"), NameIndex, GlobalNameMap->Num());
 
 		Name = FName();
-		ArIsError = true;
-		ArIsCriticalError = true;
+		SetCriticalError();
 	}
 
 	inline virtual FArchive& operator<<(FName& Name) override
