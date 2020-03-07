@@ -25,6 +25,7 @@
 #include "SkeletalMeshTypes.h"
 #include "Animation/MorphTarget.h"
 #include "AnimationRuntime.h"
+#include "Animation/SkinWeightProfileManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedMeshComp, Log, All);
 
@@ -3178,6 +3179,15 @@ void USkinnedMeshComponent::BeginDestroy()
 	Super::BeginDestroy();
 	ReleaseResources();
 
+	if (bSkinWeightProfilePending)
+	{
+		bSkinWeightProfilePending = false;
+		if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(GetWorld()))
+		{
+			Manager->CancelSkinWeightProfileRequest(this);
+		}
+	}
+
 	// Release ref pose override if allocated
 	if (RefPoseOverride)
 	{
@@ -3563,37 +3573,90 @@ void USkinnedMeshComponent::ClearSkinWeightOverride(int32 LODIndex)
 
 bool USkinnedMeshComponent::SetSkinWeightProfile(FName InProfileName)
 {
+	bool bContainsProfile = false;
+
 	if (FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData())
 	{
 		// Ensure the LOD infos array is initialized
 		InitLODInfos();
-        for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+		for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
         {
 			// Check whether or not setting a profile is allow for this LOD index
 			if (LODIndex > GSkinWeightProfilesAllowedFromLOD)
 			{
 				FSkeletalMeshLODRenderData& RenderData = SkelMeshRenderData->LODRenderData[LODIndex];
-				
+
+				bContainsProfile |= RenderData.SkinWeightProfilesData.ContainsProfile(InProfileName);
+
 				// Retrieve this profile's skin weight buffer
 				FSkinWeightVertexBuffer* Buffer = RenderData.SkinWeightProfilesData.GetOverrideBuffer(InProfileName);
+        
+				FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+				Info.OverrideProfileSkinWeights = Buffer;
+                
 				if (Buffer != nullptr)
 				{
-					FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
-					Info.OverrideProfileSkinWeights = Buffer;
-
 					bSkinWeightProfileSet = true;
-					CurrentSkinWeightProfileName = InProfileName;
 				}
 			}
         }
 
-		if (bSkinWeightProfileSet)
+		if (bContainsProfile)
 		{
-			UpdateSkinWeightOverrideBuffer();
+			CurrentSkinWeightProfileName = InProfileName;
+
+			if (bSkinWeightProfileSet)
+			{
+				UpdateSkinWeightOverrideBuffer();
+			}
+			else 
+			{
+				TWeakObjectPtr<USkinnedMeshComponent> WeakComponent = this;
+				FRequestFinished Callback = [WeakComponent](TWeakObjectPtr<USkeletalMesh> WeakMesh, FName ProfileName)
+				{
+					// Ensure that the request objects are still valid
+					if (WeakMesh.IsValid() && WeakComponent.IsValid())
+					{
+						USkinnedMeshComponent* Component = WeakComponent.Get();
+						Component->InitLODInfos();
+
+						Component->bSkinWeightProfilePending = false;
+						Component->bSkinWeightProfileSet = true;
+
+						if (FSkeletalMeshRenderData * RenderData = WeakMesh->GetResourceForRendering())
+						{
+							const int32 NumLODs = RenderData->LODRenderData.Num();
+							for (int32 Index = 0; Index < NumLODs; ++Index)
+							{
+								FSkeletalMeshLODRenderData& LODRenderData = RenderData->LODRenderData[Index];
+								FSkinWeightProfilesData& SkinweightData = LODRenderData.SkinWeightProfilesData;
+
+								// Check whether or not setting a profile is allow for this LOD index
+								if (Index > GSkinWeightProfilesAllowedFromLOD)
+								{
+									// Retrieve this profile's skin weight buffer
+									FSkinWeightVertexBuffer* Buffer = SkinweightData.GetOverrideBuffer(ProfileName);
+									FSkelMeshComponentLODInfo& Info = Component->LODInfo[Index];
+									Info.OverrideProfileSkinWeights = Buffer;
+								}
+							}
+
+							Component->UpdateSkinWeightOverrideBuffer();
+						}
+					}
+				};
+
+				// Put in a skin weight profile request
+				if (FSkinWeightProfileManager* Manager = FSkinWeightProfileManager::Get(GetWorld()))
+				{
+					Manager->RequestSkinWeightProfile(InProfileName, SkeletalMesh, this, Callback);
+					bSkinWeightProfilePending = true;
+				}
+			}
 		}
 	}
 
-	return bSkinWeightProfileSet;
+	return bContainsProfile;
 }
 
 void USkinnedMeshComponent::ClearSkinWeightProfile()
@@ -3602,20 +3665,33 @@ void USkinnedMeshComponent::ClearSkinWeightProfile()
 	{	
 		bool bCleared = false;
 
-		// Clear skin weight buffer set for all of the LODs
-		for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+		if (bSkinWeightProfileSet)
 		{
-			FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
-			bCleared |= (Info.OverrideProfileSkinWeights != nullptr);
-			Info.OverrideProfileSkinWeights = nullptr;
+			InitLODInfos();
+			// Clear skin weight buffer set for all of the LODs
+			for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+			{
+				FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+				bCleared |= (Info.OverrideProfileSkinWeights != nullptr);
+				Info.OverrideProfileSkinWeights = nullptr;
+			}
+
+			if (bCleared)
+			{
+				UpdateSkinWeightOverrideBuffer();
+			}
 		}
 
-		if (bCleared)
+		if (bSkinWeightProfilePending)
 		{
-			UpdateSkinWeightOverrideBuffer();
+			if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(GetWorld()))
+			{
+				Manager->CancelSkinWeightProfileRequest(this);
+			}
 		}
 	}
 
+	bSkinWeightProfilePending = false;
 	bSkinWeightProfileSet = false;
 	CurrentSkinWeightProfileName = NAME_None;
 }
@@ -3646,6 +3722,16 @@ void USkinnedMeshComponent::UnloadSkinWeightProfile(FName InProfileName)
 			{
 				UpdateSkinWeightOverrideBuffer();
 			}
+		}
+
+		if (bSkinWeightProfilePending)
+		{
+			if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(GetWorld()))
+			{
+				Manager->CancelSkinWeightProfileRequest(this);
+			}
+
+			bSkinWeightProfilePending = false;
 		}
 	}
 
