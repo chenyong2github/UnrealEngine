@@ -380,6 +380,9 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 	// blend with custom LDR color, used for Fade track in Matinee
 	float3 FilmColorNoGamma = lerp( FilmColor * ColorScale, OverlayColor.rgb, OverlayColor.a );
+	// Apply Fade track to linear outputs also
+	GradedColor = lerp(GradedColor * ColorScale, OverlayColor.rgb, OverlayColor.a);
+
 
 	// Apply "gamma" curve adjustment.
 	FilmColor = pow( max(0, FilmColorNoGamma), InverseGamma.y );
