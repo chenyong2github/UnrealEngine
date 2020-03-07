@@ -5042,14 +5042,14 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 		int32 CellX = (ClampedViewLoc.X - SpatialBias.X) / CellSize;
 		if (CellX < 0)
 		{
-			UE_LOG(LogReplicationGraph, Log, TEXT("Net view location.X %s is less than the spatial bias %s for %s"), *ClampedViewLoc.ToString(), *SpatialBias.ToString(), *CurViewer.Connection->Describe());
+			UE_LOG(LogReplicationGraph, Verbose, TEXT("Net view location.X %s is less than the spatial bias %s for %s"), *ClampedViewLoc.ToString(), *SpatialBias.ToString(), *CurViewer.Connection->Describe());
 			CellX = 0;
 		}
 
 		int32 CellY = (ClampedViewLoc.Y - SpatialBias.Y) / CellSize;
 		if (CellY < 0)
 		{
-			UE_LOG(LogReplicationGraph, Log, TEXT("Net view location.Y %s is less than the spatial bias %s for %s"), *ClampedViewLoc.ToString(), *SpatialBias.ToString(), *CurViewer.Connection->Describe());
+			UE_LOG(LogReplicationGraph, Verbose, TEXT("Net view location.Y %s is less than the spatial bias %s for %s"), *ClampedViewLoc.ToString(), *SpatialBias.ToString(), *CurViewer.Connection->Describe());
 			CellY = 0;
 		}
 
