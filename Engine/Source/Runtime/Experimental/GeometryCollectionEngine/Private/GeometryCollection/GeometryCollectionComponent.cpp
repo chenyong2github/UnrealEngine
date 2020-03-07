@@ -1345,8 +1345,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			}
 			// end temporary 
 
-			SimulationParameters.DynamicCollection = DynamicCollection.Get();
-			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, SimulationParameters, InitFunc, CacheSyncFunc, FinalSyncFunc);
+ 			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitFunc, CacheSyncFunc, FinalSyncFunc);
 			FPhysScene_Chaos* Scene = GetPhysicsScene();
 			Scene->AddObject(this, PhysicsProxy);
 
