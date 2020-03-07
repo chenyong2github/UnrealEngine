@@ -715,6 +715,15 @@ uint32 FOpenXRHMD::GetViewIndexForPass(EStereoscopicPass StereoPassType) const
 	}
 }
 
+uint32 FOpenXRHMD::DeviceGetLODViewIndex() const
+{
+	if (SelectedViewConfigurationType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO)
+	{
+		return GetViewIndexForPass(eSSP_LEFT_EYE_SIDE);
+	}
+	return IStereoRendering::DeviceGetLODViewIndex();
+}
+
 int32 FOpenXRHMD::GetDesiredNumberOfViews(bool bStereoRequested) const
 {
 	return bStereoRequested ? Views.Num() : 1; // FIXME: Monoscopic actually needs 2 views for quad vr
