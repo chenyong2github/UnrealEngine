@@ -18,6 +18,7 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, RHI);
 /** RHI Logging. */
 DEFINE_LOG_CATEGORY(LogRHI);
 CSV_DEFINE_CATEGORY(RHI, true);
+CSV_DEFINE_CATEGORY(DrawCall, true);
 
 // Define counter stats.
 DEFINE_STAT(STAT_RHIDrawPrimitiveCalls);
@@ -132,6 +133,8 @@ TLockFreePointerListUnordered<FRHIResource, PLATFORM_CACHE_LINE_SIZE> FRHIResour
 FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 TArray<FRHIResource::ResourcesToDelete> FRHIResource::DeferredDeletionQueue;
 uint32 FRHIResource::CurrentFrame = 0;
+RHI_API FDrawCallCategoryName* FDrawCallCategoryName::Array[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
+RHI_API int32 FDrawCallCategoryName::NumCategory = 0;
 
 FString FVertexElement::ToString() const
 {
@@ -731,8 +734,10 @@ RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = 
 
 // simple stats about draw calls. GNum is the previous frame and 
 // GCurrent is the current frame.
+// GCurrentNumDrawCallsRHIPtr points to the drawcall counter to increment
 RHI_API int32 GCurrentNumDrawCallsRHI = 0;
 RHI_API int32 GNumDrawCallsRHI = 0;
+RHI_API int32* GCurrentNumDrawCallsRHIPtr = &GCurrentNumDrawCallsRHI;
 RHI_API int32 GCurrentNumPrimitivesDrawnRHI = 0;
 RHI_API int32 GNumPrimitivesDrawnRHI = 0;
 
@@ -740,6 +745,17 @@ RHI_API int32 GNumPrimitivesDrawnRHI = 0;
 void RHIPrivateBeginFrame()
 {
 	GNumDrawCallsRHI = GCurrentNumDrawCallsRHI;
+	
+#if CSV_PROFILER
+	for (int32 Index=0; Index<FDrawCallCategoryName::NumCategory; ++Index)
+	{
+		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
+		GNumDrawCallsRHI += CategoryName->Counter;
+		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), CategoryName->Counter, ECsvCustomStatOp::Set);
+		CategoryName->Counter = 0;
+	}
+#endif
+
 	GNumPrimitivesDrawnRHI = GCurrentNumPrimitivesDrawnRHI;
 	CSV_CUSTOM_STAT(RHI, DrawCalls, GNumDrawCallsRHI, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(RHI, PrimitivesDrawn, GNumPrimitivesDrawnRHI, ECsvCustomStatOp::Set);
