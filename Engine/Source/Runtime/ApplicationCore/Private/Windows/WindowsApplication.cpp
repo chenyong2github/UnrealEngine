@@ -72,7 +72,7 @@ FAutoConsoleVariableRef	CVarPreventDuplicateMouseEventsForTouch(
 );
 
 
-static int32 EnableRawInputSimulationOverRDP = false;
+static int32 EnableRawInputSimulationOverRDP = true;
 FAutoConsoleVariableRef	CVarEnableRawInputSimulationOverRDP(
 	TEXT("Slate.EnableRawInputSimulationOverRDP"),
 	EnableRawInputSimulationOverRDP,
