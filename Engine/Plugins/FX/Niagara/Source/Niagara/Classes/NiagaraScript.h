@@ -558,6 +558,8 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+
+	virtual bool IsEditorOnly() const override;
 	//~ End UObject interface
 
 	// Infrastructure for GPU compute Shaders
