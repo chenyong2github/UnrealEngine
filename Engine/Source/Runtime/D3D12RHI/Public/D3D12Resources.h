@@ -1091,7 +1091,7 @@ public:
 	FD3D12GPUFence(FName InName, FD3D12Fence* InFence)
 		: FRHIGPUFence(InName)
 		, Fence(InFence)
-		, Value(0)
+		, Value(MAX_uint64)
 	{}
 
 	void WriteInternal(ED3D12CommandQueueType QueueType);

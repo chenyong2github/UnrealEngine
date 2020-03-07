@@ -475,6 +475,9 @@ protected:
 
 	/** Whether or not a Skin Weight profile is currently set for this component */
 	uint8 bSkinWeightProfileSet:1;
+
+	/** Whether or not a Skin Weight profile is currently pending load and creation for this component */
+	uint8 bSkinWeightProfilePending:1;
 public:
 
 	/** Whether we should use the min lod specified in MinLodModel for this component instead of the min lod in the mesh */
@@ -998,9 +1001,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	bool IsUsingSkinWeightProfile() const { return bSkinWeightProfileSet == 1;  }
 
-protected:
+	/** Check whether or not a Skin Weight Profile is currently pending load / create */
+	bool IsSkinWeightProfilePending() const { return bSkinWeightProfilePending == 1; }
+
 	/** Queues an update of the Skin Weight Buffer used by the current MeshObject */
 	void UpdateSkinWeightOverrideBuffer();
+protected:	
 
 	/** Name of currently set up Skin Weight profile, otherwise is 'none' */
 	FName CurrentSkinWeightProfileName;

@@ -9,6 +9,9 @@
 #include "RenderingThread.h"
 #include "HAL/UnrealMemory.h"
 #include "BoneIndices.h"
+#include "RHI/Public/RHIGPUReadback.h"
+#include "Core/Public/Templates/UniquePtr.h"
+
 #include "SkinWeightProfile.generated.h"
 
 class USkeletalMesh;
@@ -81,59 +84,38 @@ struct FRuntimeSkinWeightProfileData
 	{
 		/** Offset into FRuntimeSkinWeightOverrideData.Weights */
 		uint32 InfluencesOffset;
+#if WITH_EDITORONLY_DATA
 		/** Number of influences to be read from FRuntimeSkinWeightOverrideData.Weights */
-		uint8 NumInfluences;
-
+		uint8 NumInfluences_DEPRECATED;
+#endif
 		friend FArchive& operator<<(FArchive& Ar, FSkinWeightOverrideInfo& OverrideInfo);
 	};
 
-	void ApplyOverrides(FSkinWeightVertexBuffer* OverrideBuffer, const FSkinWeightVertexBuffer* BaseBuffer) const
-	{
-		const uint32 ExpectedNumVerts = BaseBuffer->GetNumVertices();
-		if (ExpectedNumVerts)
-		{
-			TArray<FSkinWeightInfo> OverrideArray;
-			BaseBuffer->GetSkinWeights(OverrideArray);
+	void ApplyOverrides(FSkinWeightVertexBuffer* OverrideBuffer, const void* DataBuffer, const int32 NumVerts) const;	
+	void ApplyDefaultOverride(FSkinWeightVertexBuffer* Buffer) const;
 
-			// Apply overrides
-			{
-				for (auto VertexIndexOverridePair : VertexIndexOverrideIndex)
-				{
-					const uint32 VertexIndex = VertexIndexOverridePair.Key;
-					FSkinWeightInfo& Entry = OverrideArray[VertexIndex];
-
-					const uint32 OverrideIndex = VertexIndexOverridePair.Value;
-					const FSkinWeightOverrideInfo& OverrideInfo = OverridesInfo[OverrideIndex];
-
-					FMemory::Memzero(Entry.InfluenceBones);
-					FMemory::Memzero(Entry.InfluenceWeights);
-
-					for (int32 Index = 0; Index < OverrideInfo.NumInfluences; ++Index)
-					{
-						const uint32 WeightData = Weights[OverrideInfo.InfluencesOffset + Index];
-
-						Entry.InfluenceBones[Index] = (WeightData) >> 16;
-						Entry.InfluenceWeights[Index] = (WeightData & 0xFF);
-					}
-				}
-			}
-
-			(*OverrideBuffer) = OverrideArray;
-		}
-		else
-		{
-			OverrideBuffer->CopyMetaData(*BaseBuffer);
-		}
-	}
-
+#if WITH_EDITORONLY_DATA
 	/** Per skin weight offset into Weights array and number of weights stored */
-	TArray<FSkinWeightOverrideInfo> OverridesInfo;
-	/** Bulk data containing all Weights, stored as bone id in upper and weight in lower (16) bits */
-	TArray<uint32> Weights;
-	/** Map between Vertex Indices and entries of OverridesInfo */
-	TMap<uint32, uint32> VertexIndexOverrideIndex;
+	TArray<FSkinWeightOverrideInfo> OverridesInfo_DEPRECATED;
+	/** Bulk data containing all Weights, stored as bone id in upper and weight in lower (8) bits */
+	TArray<uint16> Weights_DEPRECATED;	
+#endif 
+
+	TArray<FBoneIndexType> BoneIDs;
+	TArray<uint8> BoneWeights;
+	/** Map between Vertex Indices and the influence offset into BoneIDs/BoneWeights (DEPRECATED and entries of OverridesInfo) */
+	TMap<uint32, uint32> VertexIndexToInfluenceOffset;
+
+	uint8 NumWeightsPerVertex;
 	
 	friend FArchive& operator<<(FArchive& Ar, FRuntimeSkinWeightProfileData& OverrideData);
+};
+
+struct FSkinweightReadbackData
+{
+	TUniquePtr<FRHIGPUBufferReadback> BufferReadback;
+	TArray<uint8> ReadbackData;
+	uint32 ReadbackFinishedFrameIndex;
 };
 
 /** Runtime structure for keeping track of skin weight profile(s) and the associated buffer */
@@ -148,17 +130,21 @@ struct ENGINE_API FSkinWeightProfilesData
 	// Mark this as non-editor only to prevent mishaps from users
 	void OverrideBaseBufferSkinWeightData(USkeletalMesh* Mesh, int32 LODIndex);
 #endif 
-	void SetDynamicDefaultSkinWeightProfile(USkeletalMesh* Mesh, int32 LODIndex);	
+	void SetDynamicDefaultSkinWeightProfile(USkeletalMesh* Mesh, int32 LODIndex, bool bSerialization = false);	
 	void ClearDynamicDefaultSkinWeightProfile(USkeletalMesh* Mesh, int32 LODIndex);
+	void SetupDynamicDefaultSkinweightProfile();
 	FSkinWeightVertexBuffer* GetDefaultOverrideBuffer() const { return DefaultOverrideSkinWeightBuffer; }
 
-	void ApplyOverrideProfile(FSkinWeightVertexBuffer* OverrideBuffer, const FName& ProfileName);
+	bool ContainsProfile(const FName& ProfileName) const;
+	FSkinWeightVertexBuffer* GetOverrideBuffer(const FName& ProfileName) const;
+	bool ContainsOverrideBuffer(const FName& ProfileName) const;
 	
-	FSkinWeightVertexBuffer* GetOverrideBuffer(const FName& ProfileName);
+#if WITH_EDITOR
 	const FRuntimeSkinWeightProfileData* GetOverrideData(const FName& ProfileName) const;
 	FRuntimeSkinWeightProfileData& AddOverrideData(const FName& ProfileName);
+#endif // WITH_EDITOR
 	
-	void ReleaseBuffer(const FName& ProfileName);
+	void ReleaseBuffer(const FName& ProfileName, bool bForceRelease = false);
 	void ReleaseResources();
 
 	SIZE_T GetResourcesSize() const;
@@ -192,7 +178,18 @@ struct ENGINE_API FSkinWeightProfilesData
 		}
 	}
 
+	bool IsPendingReadback() const;
+	void EnqueueGPUReadback();
+	bool IsGPUReadbackFinished() const;
+	void EnqueueDataReadback();
+	bool IsDataReadbackPending() const;
+	bool IsDataReadbackFinished() const;
+	void ResetGPUReadback();
+	void InitialiseProfileBuffer(const FName& ProfileName);
+
 protected:
+	void ApplyOverrideProfile(FSkinWeightVertexBuffer* OverrideBuffer, const FName& ProfileName);
+
 	template <bool bRenderThread>
 	void CreateRHIBuffers_Internal(TArray<TPair<FName, FSkinWeightRHIInfo>>& OutBuffers);
 
@@ -205,5 +202,8 @@ protected:
 	bool bDefaultOverriden;
 	bool bStaticOverriden;
 	FName DefaultProfileName;
+
+protected:
+	FSkinweightReadbackData ReadbackData;
 };
 
