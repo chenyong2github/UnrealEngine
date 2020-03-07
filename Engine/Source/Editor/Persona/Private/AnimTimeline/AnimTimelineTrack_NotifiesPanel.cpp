@@ -85,7 +85,7 @@ void FAnimTimelineTrack_NotifiesPanel::RefreshOutlinerWidget()
 				.Padding(30.0f, 0.0f, 0.0f, 0.0f)
 				[
 					SAssignNew(InlineEditableTextBlock, SInlineEditableTextBlock)
-					.Text_Lambda([&AnimNotifyTrack](){ return FText::FromName(AnimNotifyTrack.TrackName); })
+					.Text_Lambda([TrackIndex, AnimSequence](){ return AnimSequence->AnimNotifyTracks.IsValidIndex(TrackIndex) ? FText::FromName(AnimSequence->AnimNotifyTracks[TrackIndex].TrackName) : FText::GetEmpty(); }) 
 					.IsSelected(FIsSelected::CreateLambda([](){ return true; }))
 					.OnTextCommitted(this, &FAnimTimelineTrack_NotifiesPanel::OnCommitTrackName, TrackIndex)
 				]
