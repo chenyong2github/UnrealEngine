@@ -21,6 +21,8 @@ class NIAGARAEDITOR_API UNiagaraStackModuleItem : public UNiagaraStackItem
 	GENERATED_BODY()
 
 public:
+	DECLARE_DELEGATE_OneParam(FOnRequestDeprecationRecommended, UNiagaraStackModuleItem*);
+
 	UNiagaraStackModuleItem();
 
 	UNiagaraNodeFunctionCall& GetModuleNode() const;
@@ -89,7 +91,19 @@ public:
 	virtual FText GetDeleteTransactionText() const override;
 	virtual void Delete() override;
 
+	void SetOnRequestDeprecationRecommended(FOnRequestDeprecationRecommended InOnRequest)
+	{
+		DeprecationDelegate = InOnRequest;
+	}
+
+	void SetEnabled(bool bEnabled)
+	{
+		SetIsEnabledInternal(bEnabled);
+	}
+
 protected:
+	FOnRequestDeprecationRecommended DeprecationDelegate;
+
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 	virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
 
