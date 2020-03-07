@@ -190,6 +190,7 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 					InRHICmdList,
 					BackBufferTarget,
 					ColorTarget,
+					ColorTarget,
 					DepthStencil,
 					BatchData.GetFirstRenderBatchIndex(),
 					BatchData.GetRenderBatches(),
