@@ -40,6 +40,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "RigVMModel/RigVMController.h"
+#include "Rigs/AdditiveControlRig.h"
+#include "EngineUtils.h"
 
 FName FControlRigEditMode::ModeName("EditMode.ControlRig");
 
@@ -56,6 +58,12 @@ enum class ETransformComponent
 
 	Scale
 };
+
+namespace ControlRigSelectionConstants
+{
+	/** Distance to trace for physics bodies */
+	static const float BodyTraceDistance = 100000.0f;
+}
 
 FControlRigEditMode::FControlRigEditMode()
 	: bIsTransacting(false)
@@ -607,8 +615,49 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 				return true;
 			}
+			else
+			{ 
+				//if we have an additive control rig active select the control based upon the selected bone.
+				UAdditiveControlRig* AdditiveControlRig = Cast<UAdditiveControlRig>(WeakControlRigEditing);
+				if (AdditiveControlRig)
+				{
+					if (USkeletalMeshComponent* RigMeshComp = Cast<USkeletalMeshComponent>(AdditiveControlRig->GetObjectBinding()->GetBoundObject()))
+					{
+						const USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(ActorHitProxy->PrimComponent);
+
+						if (SkelComp == RigMeshComp)
+						{
+							FHitResult Result(1.0f);
+							bool bHit = RigMeshComp->LineTraceComponent(Result, Click.GetOrigin(), Click.GetOrigin() + Click.GetDirection() * ControlRigSelectionConstants::BodyTraceDistance, FCollisionQueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(), true));
+
+							if (bHit)
+							{
+								FName ControlName(*(Result.BoneName.ToString() + TEXT("_CONTROL")));
+								if (WeakControlRigEditing->FindControl(ControlName))
+								{
+									FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);
+
+									if (Click.IsShiftDown() || Click.IsControlDown())
+									{
+										SetRigElementSelection(ERigElementType::Control, ControlName, true);
+									}
+									else
+									{
+										ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
+										SetRigElementSelection(ERigElementType::Control, ControlName, true);
+									}
+									return true;
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
+
+		
+	
 
 	// for now we show this menu all the time if body is selected
 	// if we want some global menu, we'll have to move this
