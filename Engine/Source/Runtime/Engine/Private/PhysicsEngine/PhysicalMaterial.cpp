@@ -34,9 +34,7 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	DestructibleDamageThresholdScale = 1.0f;
 	TireFrictionScale = 1.0f;
 	bOverrideFrictionCombineMode = false;
-#if PHYSICS_INTERFACE_PHYSX
-	PhysxUserData = FPhysxUserData(this);
-#endif
+	UserData = FChaosUserData(this);
 }
 
 #if WITH_EDITOR
@@ -89,7 +87,7 @@ FPhysicsMaterialHandle& UPhysicalMaterial::GetPhysicsMaterial()
 		MaterialHandle = FPhysicsInterface::CreateMaterial(this);
 		check(MaterialHandle.IsValid());
 
-		FPhysicsInterface::SetUserData(MaterialHandle, &PhysxUserData);
+		FPhysicsInterface::SetUserData(MaterialHandle, &UserData);
 		FPhysicsInterface::UpdateMaterial(MaterialHandle, this);
 	}
 
