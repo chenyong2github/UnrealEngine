@@ -171,9 +171,6 @@ public:
 
 	FORCEINLINE bool IsSolo()const { return bSolo; }
 
-	/** Gets a data set either from another emitter or one owned by the System itself. */
-	FNiagaraDataSet* GetDataSet(FNiagaraDataSetID SetID, FName EmitterName = NAME_None);
-
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
 	FOnInitialized& OnInitialized();
 
@@ -340,8 +337,6 @@ private:
 	/** LODDistance driven by our component. */
 	float LODDistance;
 	float MaxLODDistance;
-
-	TMap<FNiagaraDataSetID, FNiagaraDataSet> ExternalEvents;
 
 	TArray< TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > Emitters;
 
