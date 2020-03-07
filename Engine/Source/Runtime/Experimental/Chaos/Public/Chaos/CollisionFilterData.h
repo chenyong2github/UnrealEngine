@@ -4,7 +4,7 @@
 #include "ChaosArchive.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
-struct FCollisionFilterData
+struct CHAOS_API FCollisionFilterData
 {
 	uint32 Word0;
 	uint32 Word1;
