@@ -17,7 +17,7 @@ public class PhysicsCore: ModuleRules
 
 		SetupModulePhysicsSupport(Target); 
 
-		if(Target.bCompilePhysX)
+		if(Target.bCompilePhysX && Target.bCompileChaos == false && Target.bUseChaos == false)
         {
 			// Not ideal but as this module publicly exposes PhysX types
 			// to other modules when PhysX is enabled it requires that its
