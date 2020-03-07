@@ -195,6 +195,21 @@ namespace Audio
 		// Clear all submix effects from master submix
 		void ClearMasterSubmixEffects();
 
+		// Add submix effect to given submix
+		int32 AddSubmixEffect(USoundSubmix* InSoundSubmix, uint32 SubmixEffectId, FSoundEffectSubmixPtr SoundEffect);
+
+		// Remove submix effect to given submix
+		void RemoveSubmixEffect(USoundSubmix* InSoundSubmix, uint32 SubmixEffectId);
+
+		// Remove submix effect at the given submix chain index
+		void RemoveSubmixEffectAtIndex(USoundSubmix* InSoundSubmix, int32 SubmixChainIndex);
+
+		// Replace the submix effect of the given submix at the submix chain index with the new submix effect id and submix instance
+		void ReplaceSoundEffectSubmix(USoundSubmix* InSoundSubmix, int32 InSubmixChainIndex, int32 SubmixEffectId, FSoundEffectSubmixPtr SoundEffect);
+
+		// Clear all submix effects from given submix
+		void ClearSubmixEffects(USoundSubmix* InSoundSubmix);
+
 		// Returns the channel array for the given submix channel type
 		const TArray<EAudioMixerChannel::Type>& GetChannelArray() const;
 
