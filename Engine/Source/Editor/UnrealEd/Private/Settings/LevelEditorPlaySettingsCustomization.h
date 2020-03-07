@@ -3,34 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Margin.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "Settings/LevelEditorPlaySettings.h"
-#include "Editor.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
 #include "IDetailCustomization.h"
-#include "PropertyHandle.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboButton.h"
-#include "IDetailPropertyRow.h"
-#include "DetailWidgetRow.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Runtime/Engine/Classes/Sound/AudioSettings.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
-#include "DeviceProfiles/DeviceProfile.h"
+#include "Settings/LevelEditorPlaySettings.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
-#define LOCTEXT_NAMESPACE "FLevelEditorPlaySettingsCustomization"
+class FMenuBuilder;
+struct FSlateBrush;
+class IDetailCustomization;
+class IDetailLayoutBuilder;
+class IPropertyHandle;
+template <typename OptionType = TSharedPtr<FString>>
+class SComboBox;
+class SWidget;
 
 class SScreenPositionCustomization
 	: public SCompoundWidget
@@ -50,87 +35,12 @@ public:
 	 * @param InWindowPositionProperty The handle to the window position property.
 	 * @param InCenterWindowProperty The handle to the center window property.
 	 */
-	void Construct( const FArguments& InArgs, IDetailLayoutBuilder* LayoutBuilder, const TSharedRef<IPropertyHandle>& InWindowPositionProperty, const TSharedRef<IPropertyHandle>& InCenterWindowProperty )
-	{
-		check(LayoutBuilder != NULL);
-
-		CenterWindowProperty = InCenterWindowProperty;
-
-		ChildSlot
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			[
-				SNew(SVerticalBox)
-				.IsEnabled(this, &SScreenPositionCustomization::HandleNewWindowPositionPropertyIsEnabled)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					InWindowPositionProperty->CreatePropertyNameWidget(LOCTEXT("WindowPosXLabel", "Left Position"))
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					InWindowPositionProperty->GetChildHandle(0)->CreatePropertyValueWidget()
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-				.Padding(8.0f, 0.0f, 0.0f, 0.0f)
-				[
-					SNew(SVerticalBox)
-						.IsEnabled(this, &SScreenPositionCustomization::HandleNewWindowPositionPropertyIsEnabled)
-
-					+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							InWindowPositionProperty->CreatePropertyNameWidget(LOCTEXT("TopPositionLabel", "Top Position"))
-						]
-
-					+ SVerticalBox::Slot()
-						.AutoHeight()
-					[
-						InWindowPositionProperty->GetChildHandle(1)->CreatePropertyValueWidget()
-					]
-				]
-			]
-			+SVerticalBox::Slot()
-			.Padding(0.0f, 2.0f)
-			.AutoHeight()
-				[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					InCenterWindowProperty->CreatePropertyValueWidget()
-				]
-				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-					.VAlign(VAlign_Bottom)
-					[
-						InWindowPositionProperty->CreatePropertyNameWidget(LOCTEXT("CenterWindowLabel", "Always center window to screen"))
-					]
-				]
-		];
-	}
+	void Construct( const FArguments& InArgs, IDetailLayoutBuilder* LayoutBuilder, const TSharedRef<IPropertyHandle>& InWindowPositionProperty, const TSharedRef<IPropertyHandle>& InCenterWindowProperty );
 
 private:
 
 	// Callback for checking whether the window position properties are enabled.
-	bool HandleNewWindowPositionPropertyIsEnabled( ) const
-	{
-		bool CenterNewWindow;
-		CenterWindowProperty->GetValue(CenterNewWindow);
-
-		return !CenterNewWindow;
-
-	}
+	bool HandleNewWindowPositionPropertyIsEnabled() const;
 
 private:
 
@@ -160,102 +70,14 @@ public:
 	 * @param InWindowHeightProperty The handle to the window height property.
 	 * @param InWindowWidthProperty The handle to the window width property.
 	 */
-	void Construct( const FArguments& InArgs, IDetailLayoutBuilder* LayoutBuilder, const TSharedRef<IPropertyHandle>& InWindowHeightProperty, const TSharedRef<IPropertyHandle>& InWindowWidthProperty )
-	{
-		check(LayoutBuilder != NULL);
-
-		WindowHeightProperty = InWindowHeightProperty;
-		WindowWidthProperty = InWindowWidthProperty;
-		
-		FSimpleDelegate SizeChangeDelegate = FSimpleDelegate::CreateSP(this, &SScreenResolutionCustomization::OnSizeChanged);
-		WindowHeightProperty->SetOnPropertyValueChanged(SizeChangeDelegate);
-		WindowWidthProperty->SetOnPropertyValueChanged(SizeChangeDelegate);
-		ChildSlot
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.VAlign(VAlign_Bottom)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SComboButton)
-					.VAlign(VAlign_Center)
-					.ButtonContent()
-					[
-						SNew(STextBlock)
-						.Font(LayoutBuilder->GetDetailFont())
-						.Text(LOCTEXT("CommonResolutionsButtonText", "Common Resolutions"))
-					]
-					.ContentPadding(FMargin(6,2))
-					.MenuContent()
-					[
-						MakeCommonResolutionsMenu()
-					]
-					.ToolTipText(LOCTEXT("CommonResolutionsButtonTooltip", "Pick from a list of common screen resolutions"))
-				]
-				+ SHorizontalBox::Slot()
-				.Padding(0,0,6,0)
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.OnClicked(this, &SScreenResolutionCustomization::HandleSwapAspectRatioClicked)
-					.ContentPadding(FMargin(3,0,3,1))
-					.Content()
-					[
-						SNew(SImage)
-						.Image(this, &SScreenResolutionCustomization::GetAspectRatioSwitchImage)
-					]
-					.ToolTipText(LOCTEXT("SwapAspectRatioTooltip", "Swap between portrait and landscape orientation."))
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						WindowWidthProperty->CreatePropertyNameWidget(LOCTEXT("ViewportWidthLabel", "Viewport Width"))
-					]
-					+ SVerticalBox::Slot()
-					[
-						WindowWidthProperty->CreatePropertyValueWidget()
-					]
-				]
-				+ SHorizontalBox::Slot()
-				.Padding(8,0,0,0)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						WindowHeightProperty->CreatePropertyNameWidget(LOCTEXT("ViewportHeightLabel", "Viewport Height"))
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						WindowHeightProperty->CreatePropertyValueWidget()
-					]
-				]
-			]
-		];
-	}
+	void Construct( const FArguments& InArgs, IDetailLayoutBuilder* LayoutBuilder, const TSharedRef<IPropertyHandle>& InWindowHeightProperty, const TSharedRef<IPropertyHandle>& InWindowWidthProperty );
 
 protected:
 
 	/**
 	 * Adds a menu entry to the common screen resolutions menu.
 	 */
-	void AddCommonResolutionEntry( FMenuBuilder& MenuBuilder, int32 Width, int32 Height, const FString& AspectRatio, const FText& Description )
-	{
-	}
+	void AddCommonResolutionEntry( FMenuBuilder& MenuBuilder, int32 Width, int32 Height, const FString& AspectRatio, const FText& Description );
 
 	/**
 	 * Adds a section to the screen resolution menu.
@@ -264,204 +86,34 @@ protected:
 	 * @param Resolutions The collection of screen resolutions to add.
 	 * @param SectionName The name of the section to add.
 	 */
-	void AddScreenResolutionSection( FMenuBuilder& MenuBuilder, const TArray<FPlayScreenResolution> Resolutions, const FText SectionName )
-	{
-		MenuBuilder.BeginSection(NAME_None, SectionName);
-		{
-			for (auto Iter = Resolutions.CreateConstIterator(); Iter; ++Iter)
-			{
-				FUIAction Action(FExecuteAction::CreateRaw(this, &SScreenResolutionCustomization::HandleCommonResolutionSelected, *Iter));
-
-				FInternationalization& I18N = FInternationalization::Get();
-
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("Width"), FText::AsNumber(Iter->Width, NULL, I18N.GetInvariantCulture()));
-				Args.Add(TEXT("Height"), FText::AsNumber(Iter->Height, NULL, I18N.GetInvariantCulture()));
-				Args.Add(TEXT("AspectRatio"), FText::FromString(Iter->AspectRatio));
-
-				MenuBuilder.AddMenuEntry(FText::FromString(Iter->Description), FText::Format(LOCTEXT("CommonResolutionFormat", "{Width} x {Height} ({AspectRatio})"), Args), FSlateIcon(), Action);
-			}
-		}
-		MenuBuilder.EndSection();
-	}
+	void AddScreenResolutionSection( FMenuBuilder& MenuBuilder, const TArray<FPlayScreenResolution> Resolutions, const FText SectionName );
 
 	/**
 	 * Creates a widget for the resolution picker.
 	 *
 	 * @return The widget.
 	 */
-	TSharedRef<SWidget> MakeCommonResolutionsMenu( )
-	{
-		const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-		FMenuBuilder MenuBuilder(true, NULL);
+	TSharedRef<SWidget> MakeCommonResolutionsMenu();
+	
+	// Resets LevelEditorPlaySettings that relate to the title safe zone debug draw.
+	void ResetCustomTitleSafeZoneSettings(ULevelEditorPlaySettings* PlayInSettings, const int32 Width, const int32 Height);
 
+	// Called when the PIE safe zone override is changed. Performs final safe zone calculations and broadcasts the result.
+	void BroadcastSafeZoneChanged(const FMargin& SafeZoneRatio, const int32 Width, const int32 Height);
 
-		FText PhoneTitle = LOCTEXT("CommonPhonesSectionHeader", "Phones");
-		FText TabletTitle = LOCTEXT("CommonTabletsSectionHeader", "Tablets");
-		FText LaptopTitle = LOCTEXT("CommonLaptopsSectionHeader", "Laptops");
-		FText MonitorTitle = LOCTEXT("CommonMonitorsSectionHeader", "Monitors");
-		FText TelevisionTitle = LOCTEXT("CommonTelevesionsSectionHeader", "Televisions");
-		MenuBuilder.AddSubMenu(
-			PhoneTitle,
-			FText(),
-			FNewMenuDelegate::CreateRaw(this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->PhoneScreenResolutions), PhoneTitle),
-			false,
-			FSlateIcon());
-		MenuBuilder.AddSubMenu(
-			TabletTitle,
-			FText(),
-			FNewMenuDelegate::CreateRaw(this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->TabletScreenResolutions), TabletTitle),
-			false,
-			FSlateIcon());
-		MenuBuilder.AddSubMenu(
-			LaptopTitle,
-			FText(),
-			FNewMenuDelegate::CreateRaw(this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->LaptopScreenResolutions), LaptopTitle),
-			false,
-			FSlateIcon());
-		MenuBuilder.AddSubMenu(
-			MonitorTitle,
-			FText(),
-			FNewMenuDelegate::CreateRaw(this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->MonitorScreenResolutions), MonitorTitle),
-			false,
-			FSlateIcon());
-		MenuBuilder.AddSubMenu(
-			TelevisionTitle,
-			FText(),
-			FNewMenuDelegate::CreateRaw(this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->TelevisionScreenResolutions), TelevisionTitle),
-			false,
-			FSlateIcon());
+	// Handles swapping the current aspect ratio.
+	// Also will set a custom safe zone matching the device profile, if r.DebugSafeZone.TitleRatio is set to 1.0
+	FReply HandleSwapAspectRatioClicked();
 
-		return MenuBuilder.MakeWidget();
-	}
-
-	FReply HandleSwapAspectRatioClicked()
-	{
-		FString HeightString;
-		WindowHeightProperty->GetValueAsDisplayString(HeightString);
-		FString WidthString;
-		WindowWidthProperty->GetValueAsDisplayString(WidthString);
-		int32 NewHeight = FCString::Atoi(*WidthString);
-		int32 NewWidth = FCString::Atoi(*HeightString);
-
-		ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
-
-		if (!PlayInSettings->DeviceToEmulate.IsEmpty() && FDisplayMetrics::GetDebugTitleSafeZoneRatio() == 1.0f)
-		{
-			const UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(PlayInSettings->DeviceToEmulate, false);
-			// Rescale the swapped sizes if we are on Android
-			if (DeviceProfile && DeviceProfile->DeviceType == TEXT("Android"))
-			{
-				float ScaleFactor = 1.0f;
-				PlayInSettings->RescaleForMobilePreview(DeviceProfile, NewWidth, NewHeight, ScaleFactor);
-			}
-			PlayInSettings->PIESafeZoneOverride = PlayInSettings->CalculateCustomUnsafeZones(PlayInSettings->CustomUnsafeZoneStarts, PlayInSettings->CustomUnsafeZoneDimensions, PlayInSettings->DeviceToEmulate, FVector2D(NewWidth, NewHeight));
-		}
-		else
-		{
-			FSlateApplication::Get().ResetCustomSafeZone();
-			FSlateApplication::Get().GetSafeZoneSize(PlayInSettings->PIESafeZoneOverride, FVector2D(NewWidth, NewHeight));
-		}
-		FMargin SafeZoneRatio = PlayInSettings->PIESafeZoneOverride;
-		SafeZoneRatio.Left /= (NewWidth / 2.0f);
-		SafeZoneRatio.Right /= (NewWidth / 2.0f);
-		SafeZoneRatio.Bottom /= (NewHeight / 2.0f);
-		SafeZoneRatio.Top /= (NewHeight / 2.0f);
-		FSlateApplication::Get().OnDebugSafeZoneChanged.Broadcast(SafeZoneRatio, true);
-
-
-		bSetFromMenu = true;
-		WindowHeightProperty->SetValue(NewHeight);
-		bSetFromMenu = true;
-		WindowWidthProperty->SetValue(NewWidth);
-
-		return FReply::Handled();
-	}
 private:
 
 	// Handles selecting a common screen resolution.
-	void HandleCommonResolutionSelected(const FPlayScreenResolution Resolution)
-	{
-		int32 Width = Resolution.Width;
-		int32 Height = Resolution.Height;
-		float ScaleFactor;
-		ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
-		// Maintain previous orientation (i.e., swap Width and Height if required)
-		int32 PreviousWidth;
-		int32 PreviousHeight;
-		if (WindowWidthProperty->GetValue(PreviousWidth) == FPropertyAccess::Success && WindowHeightProperty->GetValue(PreviousHeight) == FPropertyAccess::Success)
-		{
-			const bool bIsOrientationPreserved = (PreviousWidth < PreviousHeight) != (Width < Height);
-			if (bIsOrientationPreserved)
-			{
-				Width = Resolution.Height;
-				Height = Resolution.Width;
-			}
-		}
+	// Also will set a custom safe zone matching the device profile, if r.DebugSafeZone.TitleRatio is set to 1.0
+	void HandleCommonResolutionSelected( const FPlayScreenResolution Resolution );
 
-		UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(Resolution.ProfileName, false);
-		if (DeviceProfile)
-		{
-			PlayInSettings->DeviceToEmulate = Resolution.ProfileName;
-			PlayInSettings->RescaleForMobilePreview(DeviceProfile, Width, Height, ScaleFactor);
-			PlayInSettings->PIESafeZoneOverride = PlayInSettings->CalculateCustomUnsafeZones(PlayInSettings->CustomUnsafeZoneStarts, PlayInSettings->CustomUnsafeZoneDimensions, PlayInSettings->DeviceToEmulate, FVector2D(Width, Height));
-		}
-		else
-		{
-			PlayInSettings->DeviceToEmulate = FString();
-			FSlateApplication::Get().ResetCustomSafeZone();
-			FSlateApplication::Get().GetSafeZoneSize(PlayInSettings->PIESafeZoneOverride, FVector2D(Width, Height));
-		}
-		FMargin SafeZoneRatio = PlayInSettings->PIESafeZoneOverride;
-		SafeZoneRatio.Left /= (Width / 2.0f);
-		SafeZoneRatio.Right /= (Width / 2.0f);
-		SafeZoneRatio.Bottom /= (Height / 2.0f);
-		SafeZoneRatio.Top /= (Height / 2.0f);
-		bSetFromMenu = true;
-		WindowHeightProperty->SetValue(Height);
-		bSetFromMenu = true;
-		WindowWidthProperty->SetValue(Width);
-		FSlateApplication::Get().OnDebugSafeZoneChanged.Broadcast(SafeZoneRatio, true);
-	}
+	const FSlateBrush* GetAspectRatioSwitchImage() const;
 
-	const FSlateBrush* GetAspectRatioSwitchImage() const
-	{
-		FString HeightString;
-		WindowHeightProperty->GetValueAsDisplayString(HeightString);
-		int32 Height = FCString::Atoi(*HeightString);
-		FString WidthString;
-		WindowWidthProperty->GetValueAsDisplayString(WidthString);
-		int32 Width = FCString::Atoi(*WidthString);
-		if(Height > Width)
-		{
-			return FEditorStyle::Get().GetBrush("UMGEditor.OrientPortrait");
-		}
-		return FEditorStyle::Get().GetBrush("UMGEditor.OrientLandscape");
-	}
-
-	void OnSizeChanged()
-	{
-		if (!bSetFromMenu)
-		{
-			FString HeightString;
-			WindowHeightProperty->GetValueAsDisplayString(HeightString);
-			int32 Height = FCString::Atoi(*HeightString);
-			FString WidthString;
-			WindowWidthProperty->GetValueAsDisplayString(WidthString);
-			int32 Width = FCString::Atoi(*WidthString);
-			ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
-			PlayInSettings->DeviceToEmulate = FString();
-			FSlateApplication::Get().ResetCustomSafeZone();
-			FSlateApplication::Get().GetSafeZoneSize(PlayInSettings->PIESafeZoneOverride, FVector2D(Width, Height));
-			FMargin SafeZoneRatio = PlayInSettings->PIESafeZoneOverride;
-			SafeZoneRatio.Left /= (Width / 2.0f);
-			SafeZoneRatio.Right /= (Width / 2.0f);
-			SafeZoneRatio.Bottom /= (Height / 2.0f);
-			SafeZoneRatio.Top /= (Height / 2.0f);
-			FSlateApplication::Get().OnDebugSafeZoneChanged.Broadcast(SafeZoneRatio, true);
-		}
-		bSetFromMenu = false;
-	}
+	void OnSizeChanged();
 
 private:
 
@@ -485,222 +137,12 @@ class FLevelEditorPlaySettingsCustomization
 public:
 
 	/** Virtual destructor. */
-	virtual ~FLevelEditorPlaySettingsCustomization( ) { }
+	virtual ~FLevelEditorPlaySettingsCustomization();
 
 public:
 
 	// IDetailCustomization interface
-
-	virtual void CustomizeDetails( IDetailLayoutBuilder& LayoutBuilder ) override
-	{
-		const float MaxPropertyWidth = 400.0f;
-
-		// play in editor settings
-		IDetailCategoryBuilder& PlayInEditorCategory = LayoutBuilder.EditCategory("PlayInEditor");
-		{
-			TArray<TSharedRef<IPropertyHandle>> PIECategoryProperties;
-			PlayInEditorCategory.GetDefaultProperties(PIECategoryProperties, true, false);
-
-			TSharedPtr<IPropertyHandle> PIEEnableSoundHandle = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, EnableGameSound));
-			PIESoundQualityLevelHandle = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, PlayInEditorSoundQualityLevel));
-			PIESoundQualityLevelHandle->MarkHiddenByCustomization();
-
-			for (TSharedRef<IPropertyHandle>& PropertyHandle : PIECategoryProperties)
-			{
-				if (PropertyHandle->GetProperty() != PIESoundQualityLevelHandle->GetProperty())
-				{
-					PlayInEditorCategory.AddProperty(PropertyHandle);
-				}
-
-				if (PropertyHandle->GetProperty() == PIEEnableSoundHandle->GetProperty())
-				{
-					PlayInEditorCategory.AddCustomRow(PIESoundQualityLevelHandle->GetPropertyDisplayName(), false)
-						.NameContent()
-						[
-							PIESoundQualityLevelHandle->CreatePropertyNameWidget()
-						]
-						.ValueContent()
-						.MaxDesiredWidth(MaxPropertyWidth)
-						[
-							SAssignNew(QualityLevelComboBox, SComboBox<TSharedPtr<FString>>)
-							.OptionsSource(&AvailableQualityLevels)
-							.OnComboBoxOpening(this, &FLevelEditorPlaySettingsCustomization::HandleQualityLevelComboBoxOpening)
-							.OnGenerateWidget(this, &FLevelEditorPlaySettingsCustomization::HandleQualityLevelComboBoxGenerateWidget)
-							.OnSelectionChanged(this, &FLevelEditorPlaySettingsCustomization::HandleQualityLevelSelectionChanged)
-							[
-								SNew(STextBlock)
-								.Text(this, &FLevelEditorPlaySettingsCustomization::GetSelectedQualityLevelName)
-							]
-						];
-				}
-			}
-
-
-		}
-		IDetailCategoryBuilder& GameViewportSettings = LayoutBuilder.EditCategory("GameViewportSettings");
-		{
-		// new window resolution
-		TSharedRef<IPropertyHandle> WindowHeightHandle = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, NewWindowHeight));
-		TSharedRef<IPropertyHandle> WindowWidthHandle = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, NewWindowWidth));
-		TSharedRef<IPropertyHandle> WindowPositionHandle = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, NewWindowPosition));
-		TSharedRef<IPropertyHandle> CenterNewWindowHandle = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, CenterNewWindow));
-		TSharedRef<IPropertyHandle> EmulatedDeviceHandle = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, DeviceToEmulate));
-
-		WindowHeightHandle->MarkHiddenByCustomization();
-		WindowWidthHandle->MarkHiddenByCustomization();
-		WindowPositionHandle->MarkHiddenByCustomization();
-		CenterNewWindowHandle->MarkHiddenByCustomization();
-		EmulatedDeviceHandle->MarkHiddenByCustomization();
-
-		GameViewportSettings.AddCustomRow(LOCTEXT("NewViewportResolutionRow", "New Viewport Resolution"), false)
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Font(LayoutBuilder.GetDetailFont())
-				.Text(LOCTEXT("NewViewportResolutionName", "New Viewport Resolution"))
-				.ToolTipText(LOCTEXT("NewWindowSizeTooltip", "Sets the width and height of floating PIE windows (in pixels)"))
-			]
-			.ValueContent()
-			.MaxDesiredWidth(MaxPropertyWidth)
-			[
-				SNew(SScreenResolutionCustomization, &LayoutBuilder, WindowHeightHandle, WindowWidthHandle)
-			];
-
-		GameViewportSettings.AddCustomRow(LOCTEXT("NewWindowPositionRow", "New Window Position"), false)
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Font(LayoutBuilder.GetDetailFont())
-				.Text(LOCTEXT("NewWindowPositionName", "New Window Position"))
-				.ToolTipText(LOCTEXT("NewWindowPositionTooltip", "Sets the screen coordinates for the top-left corner of floating PIE windows (in pixels)"))
-			]
-			.ValueContent()
-			.MaxDesiredWidth(MaxPropertyWidth)
-			[
-				SNew(SScreenPositionCustomization, &LayoutBuilder, WindowPositionHandle, CenterNewWindowHandle)
-			];
-
-		GameViewportSettings.AddCustomRow(LOCTEXT("SafeZonePreviewName", "Safe Zone Preview"), false)
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Font(LayoutBuilder.GetDetailFont())
-				.Text(LOCTEXT("SafeZonePreviewName", "Safe Zone Preview"))
-			]
-			.ValueContent()
-			[
-				SNew(STextBlock)
-				.Font(LayoutBuilder.GetDetailFont())
-				.Text(this, &FLevelEditorPlaySettingsCustomization::GetPreviewText)
-			];
-		}
-
-		// play in new window settings
-		IDetailCategoryBuilder& PlayInNewWindowCategory = LayoutBuilder.EditCategory("PlayInNewWindow");
-		{
-			// Mac does not support parenting, do not show
-#if PLATFORM_MAC
-			PlayInNewWindowCategory.AddProperty("PIEAlwaysOnTop")
-				.DisplayName(LOCTEXT("PIEAlwaysOnTop", "Always On Top"))
-				.IsEnabled(false);
-#else
-			PlayInNewWindowCategory.AddProperty("PIEAlwaysOnTop")
-				.DisplayName(LOCTEXT("PIEAlwaysOnTop", "Always On Top"));
-#endif
-		}
-			
-
-		// play in standalone game settings
-		IDetailCategoryBuilder& PlayInStandaloneCategory = LayoutBuilder.EditCategory("PlayInStandaloneGame");
-		{
-			// command line options
-			TSharedPtr<IPropertyHandle> DisableStandaloneSoundProperty = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, DisableStandaloneSound));
-
-			DisableStandaloneSoundProperty->MarkHiddenByCustomization();
-
-			PlayInStandaloneCategory.AddCustomRow(LOCTEXT("AdditionalStandaloneDetails", "Additional Options"), false)
-				.NameContent()
-				[
-					SNew(STextBlock)
-						.Font(LayoutBuilder.GetDetailFont())
-						.Text(LOCTEXT("ClientCmdLineName", "Command Line Options"))
-						.ToolTipText(LOCTEXT("ClientCmdLineTooltip", "Generates a command line for additional settings that will be passed to the game clients."))
-				]
-				.ValueContent()
-				.MaxDesiredWidth(MaxPropertyWidth)
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							DisableStandaloneSoundProperty->CreatePropertyValueWidget()
-						]
-
-					+ SHorizontalBox::Slot()
-						.Padding(0.0f, 2.5f)
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							DisableStandaloneSoundProperty->CreatePropertyNameWidget(LOCTEXT("DisableStandaloneSoundLabel", "Disable Sound (-nosound)"))
-						]
-		
-				];
-		}
-
-		// multi-player options
-		IDetailCategoryBuilder& NetworkCategory = LayoutBuilder.EditCategory("Multiplayer Options");
-		TArray<TSharedRef<IPropertyHandle>> AllProperties;
-		NetworkCategory.GetDefaultProperties(AllProperties);
-
-		{
-			// Add all the default properties in before we add custom rows at the bottom.
-			for (TSharedRef<IPropertyHandle> DefaultProperty : AllProperties)
-			{
-				NetworkCategory.AddProperty(DefaultProperty);
-			}
-			
-
-			// client window size
-			TSharedRef<IPropertyHandle> WindowHeightHandle = LayoutBuilder.GetProperty("ClientWindowHeight");
-			TSharedRef<IPropertyHandle> WindowWidthHandle = LayoutBuilder.GetProperty("ClientWindowWidth");
-
-			WindowHeightHandle->MarkHiddenByCustomization();
-			WindowWidthHandle->MarkHiddenByCustomization();
-
-			
-
-			NetworkCategory.AddCustomRow(LOCTEXT("PlayInNetworkViewportSize", "Viewport Size\n(Additional Clients)"), false)
-				.NameContent()
-				[
-					WindowHeightHandle->CreatePropertyNameWidget(LOCTEXT("ClientViewportSizeName", "Multiplayer Viewport Size (in pixels)"), LOCTEXT("ClientWindowSizeTooltip", "Width and Height to use when spawning additional clients. Useful when you need multiple clients connected but only interact with one window."))
-				]
-				.ValueContent()
-				.MaxDesiredWidth(MaxPropertyWidth)
-				[
-					SNew(SScreenResolutionCustomization, &LayoutBuilder, WindowHeightHandle, WindowWidthHandle)
-				]
-				.IsEnabled(TAttribute<bool>(this, &FLevelEditorPlaySettingsCustomization::HandleClientWindowSizePropertyIsEnabled));
-				
-			NetworkCategory.AddCustomRow(LOCTEXT("AdditionalMultiplayerDetails", "Additional Options"), true)
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Font(LayoutBuilder.GetDetailFont())
-					.Text(LOCTEXT("PlainTextName", "Play In Editor Description"))
-					.ToolTipText(LOCTEXT("PlainTextToolTip", "A brief description of the multiplayer settings and what to expect if you play with them in the editor."))
-				]
-				.ValueContent()
-				.MaxDesiredWidth(MaxPropertyWidth)
-				[
-					SNew(STextBlock)
-					.Font(LayoutBuilder.GetDetailFont())
-					.Text(this, &FLevelEditorPlaySettingsCustomization::HandleMultiplayerOptionsDescription)
-					.WrapTextAt(MaxPropertyWidth)
-				];
-		}
-	}
-
+	virtual void CustomizeDetails( IDetailLayoutBuilder& LayoutBuilder ) override;
 	// End IDetailCustomization interface
 
 public:
@@ -710,191 +152,36 @@ public:
 	 *
 	 * @return A new struct customization for play-in settings.
 	 */
-	static TSharedRef<IDetailCustomization> MakeInstance( )
-	{
-		return MakeShareable(new FLevelEditorPlaySettingsCustomization());
-	}
+	static TSharedRef<IDetailCustomization> MakeInstance();
 
 private:
 
 	// Callback for getting the description of the settings
-	FText HandleMultiplayerOptionsDescription( ) const
-	{
-		const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
-		const bool bLaunchSeparateServer = PlayInSettings->bLaunchSeparateServer;
-		const bool CanRunUnderOneProcess = [&PlayInSettings]{ bool RunUnderOneProcess(false); return (PlayInSettings->GetRunUnderOneProcess(RunUnderOneProcess) && RunUnderOneProcess); }();
-		const int32 PlayNumberOfClients = [&PlayInSettings] { int32 NumClients(0); return (PlayInSettings->GetPlayNumberOfClients(NumClients) ? NumClients : 0); }();
-		const EPlayNetMode PlayNetMode = [&PlayInSettings]{ EPlayNetMode NetMode(PIE_Standalone); return (PlayInSettings->GetPlayNetMode(NetMode) ? NetMode : PIE_Standalone); }();
-		FString Desc;
-		if (CanRunUnderOneProcess)
-		{
-			Desc += LOCTEXT("MultiplayerDescription_OneProcess", "The following will all run under one UE4 instance:\n").ToString();
-			if (PlayNetMode == EPlayNetMode::PIE_Client)
-			{
-				Desc += LOCTEXT("MultiplayerDescription_DedicatedServerHidden", "A hidden dedicated server instance will run in editor. ").ToString();
-				if (PlayNumberOfClients == 1)
-				{
-					Desc += LOCTEXT("MultiplayerDescription_EditorClient", "The editor will connect as a client. ").ToString();
-				}
-				else
-				{
-					Desc += FText::Format(LOCTEXT("MultiplayerDescription_EditorAndClients", "The editor will connect as a client and {0} additional client window(s) will also connect. "), FText::AsNumber(PlayNumberOfClients-1)).ToString();
-				}
-			}
-			else if(PlayNetMode == EPlayNetMode::PIE_ListenServer)
-			{
-				if (PlayNumberOfClients == 1)
-				{
-					Desc += LOCTEXT("MultiplayerDescription_EditorListenServer", "The editor will run as a listen server. ").ToString();
-				}
-				else
-				{
-					Desc += FText::Format(LOCTEXT("MultiplayerDescription_EditorListenServerAndClients", "The editor will run as a listen server and {0} additional client window(s) will also connect to it. "), FText::AsNumber(PlayNumberOfClients-1)).ToString();
-				}
-			}
-			else
-			{
-				if (PlayNumberOfClients == 1)
-				{
-					Desc += LOCTEXT("MultiplayerDescription_EditorStandalone", "The editor will run in offline mode. ").ToString();
-				}
-				else
-				{
-					Desc += FText::Format(LOCTEXT("MultiplayerDescription_StandaloneAndClients", "The editor will run offline and {0} additional offline mode window(s) will also open. "), FText::AsNumber(PlayNumberOfClients - 1)).ToString();
-				}
-
-				if (bLaunchSeparateServer)
-				{
-					Desc += LOCTEXT("MultiplayerDescription_StandaloneSeparateServer", "\nAn additional server instance will be launched but not connected to. Use \"open 127.0.0.1:<port>\" to connect. ").ToString();
-				}
-			}
-		}
-		else
-		{
-			Desc += LOCTEXT("MultiplayerDescription_MultiProcess", "The following will run with multiple UE4 instances:\n").ToString();
-			if (PlayNetMode == PIE_Standalone)
-			{
-				if (PlayNumberOfClients == 1)
-				{
-					Desc += LOCTEXT("MultiplayerDescription_EditorStandalone", "The editor will run in offline mode. ").ToString();
-				}
-				else
-				{
-					Desc += FText::Format(LOCTEXT("MultiplayerDescription_StandaloneAndClients", "The editor will run offline and {0} additional offline mode window(s) will also open. "), FText::AsNumber(PlayNumberOfClients - 1)).ToString();
-				}
-
-				if (bLaunchSeparateServer)
-				{
-					Desc += LOCTEXT("MultiplayerDescription_StandaloneSeparateServer", "\nAn additional server instance will be launched but not connected to. Use \"open 127.0.0.1:<port>\" to connect. ").ToString();
-				}
-			}
-			else if (PlayNetMode == PIE_ListenServer)
-			{
-				if (PlayNumberOfClients == 1)
-				{
-					Desc += LOCTEXT("MultiplayerDescription_EditorListenServer", "The editor will run as a listen server. ").ToString();
-				}
-				else
-				{
-					Desc += FText::Format(LOCTEXT("MultiplayerDescription_EditorListenServerAndClients", "The editor will run as a listen server and {0} additional client window(s) will also connect to it. "), FText::AsNumber(PlayNumberOfClients-1)).ToString();
-				}	
-			}
-			else
-			{
-				// Client requires additional dedicated server instance
-				Desc += LOCTEXT("MultiplayerDescription_DedicatedServerNewWindow", "A dedicated server will open in a new window. ").ToString();
-				if (PlayNumberOfClients == 1)
-				{
-					Desc += LOCTEXT("MultiplayerDescription_EditorClient", "The editor will connect as a client. ").ToString();
-				}
-				else
-				{
-					Desc += FText::Format(LOCTEXT("MultiplayerDescription_EditorAndClients", "The editor will connect as a client and {0} additional client window(s) will also connect. "), FText::AsNumber(PlayNumberOfClients-1)).ToString();
-				}
-
-			}
-		}
-		return FText::FromString(Desc);
-	}
+	FText HandleMultiplayerOptionsDescription() const;
 
 	// Callback for checking whether the ClientWindowHeight and ClientWindowWidth properties are enabled.
-	bool HandleClientWindowSizePropertyIsEnabled( ) const
-	{
-		return GetDefault<ULevelEditorPlaySettings>()->IsClientWindowSizeActive();
-	}
+	bool HandleClientWindowSizePropertyIsEnabled() const;
 
-	// Callback for checking whether the AdditionalServerGameOptions is enabled.
-	bool HandleGameOptionsIsEnabled( ) const
-	{
-		return GetDefault<ULevelEditorPlaySettings>()->IsAdditionalServerGameOptionsActive();
-	}
+	// Callback for checking whether the AdditionalServerGameOptions is enabled.;
+	bool HandleGameOptionsIsEnabled( ) const;
 
-	// Callback for getting the enabled state of the RerouteInputToSecondWindow property.
-	bool HandleRerouteInputToSecondWindowEnabled( ) const
-	{
-		return GetDefault<ULevelEditorPlaySettings>()->IsRouteGamepadToSecondWindowActive();
-	}
+	// Callback for getting the enabled state of the RerouteInputToSecondWindow property.;
+	bool HandleRerouteInputToSecondWindowEnabled( ) const;
 	
 	// Callback for getting the visibility of the RerouteInputToSecondWindow property.
-	EVisibility HandleRerouteInputToSecondWindowVisibility( ) const
-	{
-		return GetDefault<ULevelEditorPlaySettings>()->GetRouteGamepadToSecondWindowVisibility();
-	}
+	EVisibility HandleRerouteInputToSecondWindowVisibility() const;
 
-	void HandleQualityLevelComboBoxOpening()
-	{
-		const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-		AvailableQualityLevels.Empty(AudioSettings->QualityLevels.Num());
-		for (const FAudioQualitySettings& AQSettings : AudioSettings->QualityLevels)
-		{
-			AvailableQualityLevels.Add(MakeShareable(new FString(AQSettings.DisplayName.ToString())));
-		}
-		QualityLevelComboBox->RefreshOptions();
-	}
+	void HandleQualityLevelComboBoxOpening();
 
-	TSharedRef<SWidget> HandleQualityLevelComboBoxGenerateWidget(TSharedPtr<FString> InItem)
-	{
-		return SNew(STextBlock)
-				.Text(FText::FromString(*InItem));
-	}
+	TSharedRef<SWidget> HandleQualityLevelComboBoxGenerateWidget( TSharedPtr<FString> InItem );
 
-	void HandleQualityLevelSelectionChanged(TSharedPtr<FString> InSelection, ESelectInfo::Type SelectInfo)
-	{
-		if (InSelection.IsValid())
-		{
-			const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-			for (int32 QualityLevel = 0; QualityLevel < AudioSettings->QualityLevels.Num(); ++QualityLevel)
-			{
-				if (AudioSettings->QualityLevels[QualityLevel].DisplayName.ToString() == *InSelection)
-				{
-					PIESoundQualityLevelHandle->SetValue(QualityLevel);
-					break;
-				}
-			}
-		}
-	}
+	void HandleQualityLevelSelectionChanged( TSharedPtr<FString> InSelection, ESelectInfo::Type SelectInfo );
 
-	FText GetSelectedQualityLevelName() const
-	{
-		int32 QualityLevel = 0;
-		PIESoundQualityLevelHandle->GetValue(QualityLevel);
-		const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-		return (QualityLevel >= 0 && QualityLevel < AudioSettings->QualityLevels.Num() ? AudioSettings->QualityLevels[QualityLevel].DisplayName : FText::GetEmpty());
-	}
+	FText GetSelectedQualityLevelName() const;
 
-	FText GetPreviewText() const 
-	{
-		if (GetDefault<ULevelEditorPlaySettings>()->DeviceToEmulate.IsEmpty())
-		{
-			float SafeZone = FDisplayMetrics::GetDebugTitleSafeZoneRatio();
-			if (FMath::IsNearlyEqual(SafeZone, 1.0f))
-			{
-				return LOCTEXT("NoSafeZoneSet", "No Device Safe Zone Set");
-			}
-			return FText::Format(LOCTEXT("UniformSafeZone", "Uniform Safe Zone: {0}"), FText::AsNumber(SafeZone));
-		}
-		return FText::FromString(GetDefault<ULevelEditorPlaySettings>()->DeviceToEmulate);
-	}
+	FText GetPreviewText() const;
+
+	FText GetPreviewTextToolTipText() const;
 private:
 
 	/** Collection of possible quality levels we can use as a parent for this profile */
@@ -903,6 +190,3 @@ private:
 	TSharedPtr<SComboBox<TSharedPtr<FString>>> QualityLevelComboBox;
 
 };
-
-
-#undef LOCTEXT_NAMESPACE

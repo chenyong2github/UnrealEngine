@@ -154,22 +154,19 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 		// Ensure the executable writes out a differently named config file to avoid multiple instances overwriting each other.
 		// ToDo: Should this be on all multi-client launches?
 		CommandLine += TEXT(" -MultiprocessSaveConfig");
+	}
 
-		// In order for the mobile previewer to adjust its safe zone according to the device profile specified in the editor play settings,
-		// we need to pass the PIESafeZoneOverride's values as command line variables to the new process that we are about to launch.
-		FMargin PIESafeZoneOverride = InParams.EditorPlaySettings->PIESafeZoneOverride;
+	// In order for the previewer to adjust its safe zone according to the device profile specified in the editor play settings,
+	// we need to pass the PIESafeZoneOverride's values as command line variables to the new process that we are about to launch.
+	FMargin PIESafeZoneOverride = InParams.EditorPlaySettings->PIESafeZoneOverride;
+	if (!PIESafeZoneOverride.GetDesiredSize().IsZero())
+	{
 		CommandLine += FString::Printf(TEXT(" -SafeZonePaddingLeft=%f -SafeZonePaddingRight=%f -SafeZonePaddingTop=%f -SafeZonePaddingBottom=%f"),
 			PIESafeZoneOverride.Left,
 			PIESafeZoneOverride.Right,
 			PIESafeZoneOverride.Top,
 			PIESafeZoneOverride.Bottom
 		);
-
-		if (!PIESafeZoneOverride.GetDesiredSize().IsZero())
-		{
-			// Send -DrawUnSafeZones so that the red "unsafe" zones show up in the mobile previewer.
-			CommandLine += TEXT(" -DrawUnSafeZones");
-		}
 	}
 
 	if (InParams.SessionPreviewTypeOverride.Get(EPlaySessionPreviewType::NoPreview) == EPlaySessionPreviewType::VulkanPreview)
