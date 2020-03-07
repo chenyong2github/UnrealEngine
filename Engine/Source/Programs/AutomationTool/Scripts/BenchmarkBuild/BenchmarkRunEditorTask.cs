@@ -16,12 +16,11 @@ namespace AutomationTool.Benchmark
 		FileReference ProjectFile = null;
 
 		string Project = "";
-		string ProjectMap = "";
 		string EditorArgs = "";
 
 		EditorTaskOptions Options;
 
-		public BenchmarkRunEditorTask(string InProject, string InProjectMap="", EditorTaskOptions InOptions = EditorTaskOptions.None, string InEditorArgs="")
+		public BenchmarkRunEditorTask(string InProject, EditorTaskOptions InOptions = EditorTaskOptions.None, string InEditorArgs="")
 		{
 			Options = InOptions;
 			EditorArgs = InEditorArgs;
@@ -30,12 +29,6 @@ namespace AutomationTool.Benchmark
 			{
 				Project = InProject;
 				ProjectFile = ProjectUtils.FindProjectFileFromName(InProject);
-				ProjectMap = InProjectMap;
-
-				if (!string.IsNullOrEmpty(ProjectMap))
-				{
-					TaskModifiers.Add(ProjectMap);
-				}
 			}
 
 			if (Options.HasFlag(EditorTaskOptions.NoDDC))
@@ -57,8 +50,26 @@ namespace AutomationTool.Benchmark
 			{
 				TaskModifiers.Add(EditorArgs);
 			}
+			/*
+			DirectoryReference ProjectDir = ProjectUtils.FindProjectFileFromName(InProject).Directory;
+			FileReference EngineIni = FileReference.Combine(ProjectDir, "Config", "DefaultEngine.ini");
 
-			TaskName = string.Format("Launch {0} Editor", InProject, BuildHostPlatform.Current.Platform);
+			if (!FileReference.Exists(EngineIni))
+			{
+				throw new AutomationException("Could not find DefaultEngine.ini for {0}", InProject);
+			}
+
+			ConfigFile Config = new ConfigFile(EngineIni);
+			ConfigFileSection Section;
+			if (Config.TryGetSection("/Script/Engine.AutomationTestSettings", out Section))
+			{
+				ConfigLine ConfigLine;
+			if (!Section.TryGetLine("PIETestMapList", out ConfigLine))
+			{
+				throw new AutomationException("Unable to read \"Content->Label\" value from ini file:{0}", InputBuildInfoIniFile);
+			}*/
+
+			TaskName = string.Format("{0} PIE", InProject, BuildHostPlatform.Current.Platform);
 		}
 
 		protected override bool PerformPrequisites()
@@ -80,7 +91,7 @@ namespace AutomationTool.Benchmark
 				DeleteLocalDDC(ProjectFile);
 			}
 
-			// if they want a hot DDC thendo the test one time with no timing
+			// if they want a hot DDC then do the test one time with no timing
 			if (Options.HasFlag(EditorTaskOptions.HotDDC))
 			{
 				RunEditorAndWaitForMapLoad();
@@ -90,7 +101,7 @@ namespace AutomationTool.Benchmark
 		}
 
 		static IProcessResult CurrentProcess = null;
-		static bool CurrentProcessWasKilled = false;
+		//static bool TestCompleted = false;
 
 		/// <summary>
 		/// A filter that suppresses all output od stdout/stderr
@@ -101,10 +112,10 @@ namespace AutomationTool.Benchmark
 		{
 			if (CurrentProcess != null)
 			{
-				if (Message.Contains("MapCheck: Map check complete"))
+				if (Message.Contains("TEST COMPLETE"))
 				{
-					CurrentProcessWasKilled = true;
-					CurrentProcess.ProcessObject.Kill();
+					Log.TraceInformation("Automation test reported as complete.");
+					//TestCompleted = true;
 				}
 			}
 			return Message;
@@ -114,13 +125,13 @@ namespace AutomationTool.Benchmark
 		{
 			string ProjectArg = ProjectFile != null ? ProjectFile.ToString() : "";
 			string EditorPath = HostPlatform.Current.GetUE4ExePath("UE4Editor.exe");
-			string Arguments = string.Format("{0} {1} {2} -stdout -AllowStdOutLogVerbosity -unattended", ProjectArg, ProjectMap, EditorArgs);
+			string Arguments = string.Format("{0} {1} -execcmds=\"automation runtest System.Maps.PIE;Quit\" -stdout -AllowStdOutLogVerbosity -unattended", ProjectArg, EditorArgs);
 
 			var RunOptions = CommandUtils.ERunOptions.AllowSpew | CommandUtils.ERunOptions.NoWaitForExit;
 
 			var SpewDelegate = new ProcessResult.SpewFilterCallbackType(EndOnMapCheckFilter);
 
-			CurrentProcessWasKilled = false;
+			//TestCompleted = false;
 			CurrentProcess = CommandUtils.Run(EditorPath, Arguments, Options: RunOptions, SpewFilterCallback: SpewDelegate);
 
 			DateTime StartTime = DateTime.Now;
@@ -138,8 +149,21 @@ namespace AutomationTool.Benchmark
 				}
 			}
 
+			int ExitCode = CurrentProcess.ExitCode;
 			CurrentProcess = null;
-			return CurrentProcessWasKilled;
+
+			/*if (!TestCompleted)
+			{
+				// spew filter can lag slightly...
+				Thread.Sleep(1000);
+
+				if (!TestCompleted)
+				{
+					Log.TraceError("Editor exited without test completing");
+				}
+			}*/
+
+			return ExitCode == 0;
 		}
 
 		protected override bool PerformTask()
