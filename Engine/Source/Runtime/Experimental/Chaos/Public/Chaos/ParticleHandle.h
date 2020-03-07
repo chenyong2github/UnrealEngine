@@ -8,6 +8,10 @@
 #include "Chaos/ParticleIterator.h"
 #include "Chaos/ParticleDirtyFlags.h"
 #include "ChaosCheck.h"
+#include "Chaos/ChaosDebugDrawDeclares.h"
+#if CHAOS_DEBUG_DRAW
+#include "Chaos/ChaosDebugDraw.h"
+#endif
 
 
 
@@ -225,6 +229,11 @@ private:
 
 	template <typename TParticle>
 	void UpdatePrePreFilter(const TParticle& Particle);
+
+public:
+#if CHAOS_DEBUG_DRAW
+	void DebugDraw(const bool bExternal) const;
+#endif
 };
 
 template <typename T, int d>
@@ -2472,6 +2481,23 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>&
 	AccelerationHandle.Serialize(Ar);
 	return Ar;
 }
+
+#if CHAOS_DEBUG_DRAW
+template <typename T, int d>
+void TAccelerationStructureHandle<T, d>::DebugDraw(const bool bExternal) const
+{
+	if (ExternalGeometryParticle && bExternal)
+	{
+		DebugDraw::DrawParticleShapes(FRigidTransform3(), ExternalGeometryParticle, FColor(0, 255, 0));
+	}
+
+	if (GeometryParticleHandle && !bExternal)
+	{
+		DebugDraw::DrawParticleShapes(FRigidTransform3(), GeometryParticleHandle, FColor(100, 255, 100));
+	}
+}
+#endif
+
 #if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API TGeometryParticle<float, 3>;
 extern template class CHAOS_API TKinematicGeometryParticle<float, 3>;

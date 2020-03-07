@@ -194,13 +194,6 @@ private:
 	bool Visit(const Chaos::TSpatialVisitorData<TPayload>& Instance, Chaos::FQueryFastData* CurData)
 	{
 		//QUICK_SCOPE_CYCLE_COUNTER(SQVisit);
-#if CHAOS_DEBUG_DRAW && WITH_CHAOS
-		if (DebugParams.IsDebugQuery() && ChaosSQDrawDebugVisitorQueries)
-		{
-			DebugDraw<SQ>(Instance, CurData->CurrentLength);
-		}
-#endif
-
 		TPayload Payload = Instance.Payload;
 
 		//todo: add a check to ensure hitbuffer matches SQ type
@@ -211,6 +204,10 @@ private:
 		const bool bTestShapeBounds =  Shapes.Num() > 1;
 
 		const TRigidTransform<float, 3> ActorTM(GeometryParticle->X(), GeometryParticle->R());
+
+#if CHAOS_DEBUG_DRAW
+		bool bAllShapesIgnoredInPrefilter = true;
+#endif
 
 		for (const auto& Shape : Shapes)
 		{
@@ -259,6 +256,10 @@ private:
 
 			if (HitType != ECollisionQueryHitType::None)
 			{
+#if CHAOS_DEBUG_DRAW
+				bAllShapesIgnoredInPrefilter = false;
+#endif
+
 				//QUICK_SCOPE_CYCLE_COUNTER(SQNarrow);
 				THitType Hit;
 				Hit.Actor = GeometryParticle;
@@ -343,22 +344,39 @@ private:
 			}
 		}
 
+#if CHAOS_DEBUG_DRAW && WITH_CHAOS
+		if (DebugParams.IsDebugQuery() && ChaosSQDrawDebugVisitorQueries)
+		{
+			DebugDraw<SQ>(Instance, DebugParams, CurData->CurrentLength, bAllShapesIgnoredInPrefilter);
+		}
+#endif
+
 		return true;
 	}
 
-#if CHAOS_DEBUG_DRAW && !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+#if CHAOS_DEBUG_DRAW
+
+	template <typename TPayload> void DebugDrawPayloadImpl(const TPayload& Payload, const bool bExternal, decltype(&TPayload::DebugDraw)) { Payload.DebugDraw(bExternal); }
+	template <typename TPayload> void DebugDrawPayloadImpl(const TPayload& Payload, const bool bExternal, ...) { }
+	template <typename TPayload> void DebugDrawPayload(const TPayload& Payload, const bool bExternal) { DebugDrawPayloadImpl(Payload, bExternal, 0); }
+
 	template <ESQType SQ>
-	void DebugDraw(const Chaos::TSpatialVisitorData<TPayload>& Instance, const float CurLength)
+	void DebugDraw(const Chaos::TSpatialVisitorData<TPayload>& Instance, const FQueryDebugParams& DebugParams, const float CurLength, const bool bPrefiltered)
 	{
 		if (SQ == ESQType::Raycast)
 		{
 			const FVector EndPoint = StartPoint + (Dir * CurLength);
-			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(StartPoint, EndPoint, 5.f, FColor::Green, false, -1.f, 0, 1.f);
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(StartPoint, EndPoint, 5.f, FColor::Green);
 		}
 
 		if (Instance.bHasBounds)
 		{
-			Chaos::FDebugDrawQueue::GetInstance().DrawDebugBox(Instance.Bounds.Center(), Instance.Bounds.Extents(), FQuat::Identity, FColor::Red, false, -1.f, 0, 2.f);
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugBox(Instance.Bounds.Center(), Instance.Bounds.Extents(), FQuat::Identity, FColor(50, 200, 50), false, -1.f, 0, 0.f);
+		}
+
+		if (!bPrefiltered)
+		{
+			DebugDrawPayload(Instance.Payload, DebugParams.bExternalQuery);
 		}
 	}
 #endif
