@@ -40,12 +40,8 @@
 
 #include "../ShaderDrawDebug.ush"
 
-// Note: VOXEL_TRAVERSAL_TYPE is specified as a permutation
-// VOXEL_TRAVERSAL_LEGACY means old plain-voxel traversal
-#if VOXEL_TRAVERSAL_TYPE == 0 
-	#undef VOXEL_TRAVERSAL_TYPE
-	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LEGACY
-#endif 
+#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
+//#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
 #define VOXEL_TRAVERSAL_DEBUG 0
 #include "HairStrandsVoxelPageTraversal.ush"
 
@@ -100,29 +96,16 @@ float TransmissionDensityScaleFactor;
 
 uint  Voxel_MacroGroupId;
 float Voxel_TanConeAngle;
-float Voxel_DensityScale;
-float Voxel_DepthBiasScale;
-
-float3 Voxel_MinAABB;
-float3 Voxel_MaxAABB;
-uint   Voxel_Resolution;
-Texture3D<uint> Voxel_DensityTexture;
 
 FHairTraversalResult InternalComputeHairCountVoxel(
 	float3 WorldPosition, 
 	float3 LightPosition, 
-	float3 InVoxelAABBMin, 
-	float3 InVoxelAABBMax, 
-	float InVoxelResolution, 
-	Texture3D<uint> InDensityTexture, 
-	float DensityScale, 
+	float ExtraDensityScale, 
 	float CountThreshold, 
 	float DistanceThreshold,
 	bool bUseConeTracing,
 	bool bDebugEnabled)
 {
-#if VOXEL_TRAVERSAL_TYPE != VOXEL_TRAVERSAL_LEGACY
-
 	FVirtualVoxelCommonDesc CommonDesc;
 	CommonDesc.PageCountResolution = VirtualVoxel.PageCountResolution;
 	CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
@@ -133,7 +116,7 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
 	FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
-	TraversalSettings.DensityScale = DensityScale;
+	TraversalSettings.DensityScale = VirtualVoxel.DensityScale * ExtraDensityScale;
 	TraversalSettings.CountThreshold = GetOpaqueVoxelValue();
 	TraversalSettings.DistanceThreshold = DistanceThreshold;
 	TraversalSettings.bDebugEnabled = bDebugEnabled;
@@ -147,37 +130,6 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 		VirtualVoxel.PageIndexBuffer,
 		VirtualVoxel.PageTexture,
 		TraversalSettings);
-#else
-
-	if (bUseConeTracing)
-	{
-		return ComputeHairCountVoxelCone(
-			WorldPosition,
-			LightPosition,
-			InVoxelAABBMin,
-			InVoxelAABBMax,
-			InVoxelResolution,
-			InDensityTexture,
-			DensityScale,
-			CountThreshold,
-			DistanceThreshold,
-			Voxel_TanConeAngle);
-	}
-	else
-	{
-		return ComputeHairCountVoxel(
-			WorldPosition,
-			LightPosition,
-			InVoxelAABBMin,
-			InVoxelAABBMax,
-			InVoxelResolution,
-			InDensityTexture,
-			DensityScale,
-			CountThreshold,
-			DistanceThreshold);
-	}
-
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -197,13 +149,8 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	const uint2  PixelPosition	= SvPosition - ResolvedView.ViewRectMin.xy;
 	const float  PixelSceneDepth= GBuffer.Depth;
 
-#if VOXEL_TRAVERSAL_TYPE != VOXEL_TRAVERSAL_LEGACY
-	const float3 VoxelSize = VirtualVoxel.VoxelWorldSize; // Use the correct voxel size when we use virtual voxel volume.
-#else
-	const float3 VoxelSize = (Voxel_MaxAABB - Voxel_MinAABB) / Voxel_Resolution;
-#endif
 	const uint PrimitiveIdMod8 = (PrimitiveId % 8);
-	const float  VoxelMaxSize = max(VoxelSize.x, max(VoxelSize.y, VoxelSize.z));
+	const float  VoxelMaxSize = VirtualVoxel.VoxelWorldSize;
 	const float3 VoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + PrimitiveIdMod8);
 
 	const float3 V = -CameraToPixel;
@@ -275,7 +222,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 
 			// Compute the number of hair count between light & shading point
 			const float SinLightAngle = dot(SampleL, T);
-			const FHairTraversalResult Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, MaxSearchDistance, true, bDebugEnabled);
+			const FHairTraversalResult Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, true, bDebugEnabled);
 			const FHairTransmittanceMask TransmittanceMask = ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 
 			const float ScalarTransmittance = max(TransmittanceMask.Transmittance.x, max(TransmittanceMask.Transmittance.y, TransmittanceMask.Transmittance.z));
@@ -403,7 +350,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			const float3 SampleLightPosition = WorldPosition + L * MaxDistance;
 
 			// Compute the number of hair count between light & shading point
-			const FHairTraversalResult Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, MaxSearchDistance, true, bDebugEnabled);
+			const FHairTraversalResult Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, true, bDebugEnabled);
 			TransmittanceMask = ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
 
@@ -468,7 +415,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			}
 			else
 			{
-				Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale * TransmissionDensityScaleFactor, 0, DistanceThresholdTT, false, bDebugEnabled);
+				Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, TransmissionDensityScaleFactor, 0, DistanceThresholdTT, false, bDebugEnabled);
 			}
 			TransmittanceMask = ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
