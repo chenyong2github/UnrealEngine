@@ -263,6 +263,11 @@ bool FHlslNiagaraTranslator::ValidateTypePins(UNiagaraNode* NodeToValidate)
 				bPinsAreValid = false;
 			}
 		}
+
+		if (Pin->bOrphanedPin)
+		{
+			Error(LOCTEXT("OrphanedPinError", "Node pin is no longer valid.  This pin must be disconnected or reset to default so it can be removed."), NodeToValidate, Pin);
+		}
 	}
 	return bPinsAreValid;
 }
