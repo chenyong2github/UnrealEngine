@@ -96,6 +96,11 @@ bool UMovieSceneNiagaraEmitterTrack::CanRename() const
 	return false;
 }
 
+bool UMovieSceneNiagaraEmitterTrack::ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const
+{
+	return EmitterHandleViewModel.Pin()->VerifyNameTextChanged(NewDisplayName, OutErrorMessage);
+}
+
 FNiagaraSystemViewModel& UMovieSceneNiagaraEmitterTrack::GetSystemViewModel() const
 {
 	return *SystemViewModel;
