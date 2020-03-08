@@ -50,6 +50,7 @@ public:
 		PREPARE_STATEMENT(Statement_CommitTransaction);
 		PREPARE_STATEMENT(Statement_RollbackTransaction);
 
+		PREPARE_STATEMENT(Statement_GetAllAssets);
 		PREPARE_STATEMENT(Statement_GetAssetIdForAssetPath);
 		PREPARE_STATEMENT(Statement_IsAssetUpToDate);
 		PREPARE_STATEMENT(Statement_GetTotalSearchRecords);
@@ -274,7 +275,11 @@ public:
 	private: FDeleteEntriesForAsset Statement_DeleteEntriesForAsset;
 	public: bool DeleteEntriesForAsset(const FAssetData& InAssetData)
 	{
-		if (Statement_DeleteEntriesForAsset.BindAndExecute(InAssetData.ObjectPath.ToString()))
+		return DeleteEntriesForAsset(InAssetData.ObjectPath.ToString());
+	}
+	public: bool DeleteEntriesForAsset(const FString& InAssetObjectPath)
+	{
+		if (Statement_DeleteEntriesForAsset.BindAndExecute(InAssetObjectPath))
 		{
 			return true;
 		}
@@ -387,6 +392,25 @@ public:
 				Result.Score))
 			{
 				return InCallback(MoveTemp(Result));
+			}
+			return ESQLitePreparedStatementExecuteRowResult::Error;
+		}) != INDEX_NONE;
+	}
+
+	SQLITE_PREPARED_STATEMENT(FGetAllAssets,
+		"SELECT asset_path FROM table_assets;",
+		SQLITE_PREPARED_STATEMENT_COLUMNS(FString),
+		SQLITE_PREPARED_STATEMENT_BINDINGS()
+	);
+	FGetAllAssets Statement_GetAllAssets;
+	bool GetAllAssets(TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FString&&)> InCallback)
+	{
+		return Statement_GetAllAssets.BindAndExecute([&InCallback](const FGetAllAssets& InStatement)
+		{
+			FString AssetPath;
+			if (InStatement.GetColumnValues(AssetPath))
+			{
+				return InCallback(MoveTemp(AssetPath));
 			}
 			return ESQLitePreparedStatementExecuteRowResult::Error;
 		}) != INDEX_NONE;
@@ -741,19 +765,38 @@ int64 FAssetSearchDatabase::GetTotalSearchRecords() const
 	return INDEX_NONE;
 }
 
-void FAssetSearchDatabase::BeginTransaction()
+void FAssetSearchDatabase::RemoveAsset(const FAssetData& InAssetData)
 {
-	if (ensure(Statements))
+	if (!ensure(Statements->DeleteEntriesForAsset(InAssetData)))
 	{
-		Statements->BeginTransaction();
+		LogLastError();
 	}
 }
 
-void FAssetSearchDatabase::CommitTransaction()
+void FAssetSearchDatabase::RemoveAssetsNotInThisSet(const TArray<FAssetData>& InAssets)
 {
-	if (ensure(Statements))
+	TSet<FString> InAssetPaths;
+	for (const FAssetData& InAsset : InAssets)
 	{
-		Statements->CommitTransaction();
+		InAssetPaths.Add(InAsset.ObjectPath.ToString());
+	}
+
+	TArray<FString> MissingAssets;
+
+	Statements->GetAllAssets([&MissingAssets, &InAssetPaths](FString&& InResult)
+	{
+		if (!InAssetPaths.Contains(InResult))
+		{
+			MissingAssets.Add(InResult);
+		}
+
+		return ESQLitePreparedStatementExecuteRowResult::Continue;
+	});
+
+
+	for (const FString& MissingAsset : MissingAssets)
+	{
+		Statements->DeleteEntriesForAsset(MissingAsset);
 	}
 }
 
