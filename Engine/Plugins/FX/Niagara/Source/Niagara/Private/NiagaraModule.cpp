@@ -151,6 +151,7 @@ void INiagaraModule::StartupModule()
 	FNiagaraWorldManager::OnStartup();
 
 	//Force update on module load.
+	EngineEffectsQuality = Scalability::DefaultQualityLevel;
 	static const auto CVarEQ = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("sg.EffectsQuality"));
 	OnEffectsQualityChanged(CVarEQ->GetValueOnGameThread(), true);
 
