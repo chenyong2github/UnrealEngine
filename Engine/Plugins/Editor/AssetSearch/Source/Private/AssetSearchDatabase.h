@@ -84,8 +84,15 @@ public:
 	 */
 	int64 GetTotalSearchRecords() const;
 
-	void BeginTransaction();
-	void CommitTransaction();
+	/**
+	 * Remove asset from the the search database.
+	 */
+	void RemoveAsset(const FAssetData& InAssetData);
+
+	/**
+	 * Remove asset from the the search database that are not in this set of assets.
+	 */
+	void RemoveAssetsNotInThisSet(const TArray<FAssetData>& InAssets);
 
 private:
 	void LogLastError() const;

@@ -92,6 +92,8 @@ void FAssetSearchManager::Start()
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	AssetRegistry.OnAssetAdded().AddRaw(this, &FAssetSearchManager::OnAssetAdded);
+	AssetRegistry.OnAssetRemoved().AddRaw(this, &FAssetSearchManager::OnAssetRemoved);
+	AssetRegistry.OnFilesLoaded().AddRaw(this, &FAssetSearchManager::OnAssetScanFinished);
 	
 	TArray<FAssetData> TempAssetData;
 	AssetRegistry.GetAllAssets(TempAssetData, true);
@@ -141,7 +143,33 @@ void FAssetSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 		}
 	}
 
-	ProcessAssetQueue.Add(InAssetData);
+	FAssetOperation Operation;
+	Operation.Asset = InAssetData;
+	ProcessAssetQueue.Add(Operation);
+}
+
+void FAssetSearchManager::OnAssetRemoved(const FAssetData& InAssetData)
+{
+	check(IsInGameThread());
+
+	FAssetOperation Operation;
+	Operation.Asset = InAssetData;
+	Operation.bRemoval = true;
+	ProcessAssetQueue.Add(Operation);
+}
+
+void FAssetSearchManager::OnAssetScanFinished()
+{
+	check(IsInGameThread());
+
+	TArray<FAssetData> AllAssets;
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+	AssetRegistry.GetAllAssets(AllAssets, false);
+
+	UpdateOperations.Enqueue([this, AssetsAvailable = MoveTemp(AllAssets)]() mutable {
+		FScopeLock ScopedLock(&SearchDatabaseCS);
+		SearchDatabase.RemoveAssetsNotInThisSet(AssetsAvailable);
+	});
 }
 
 void FAssetSearchManager::OnObjectSaved(UObject* InObject)
@@ -168,7 +196,7 @@ void FAssetSearchManager::OnGetAssetTags(const UObject* Object, TArray<UObject::
 {
 	check(IsInGameThread());
 
-	FString ObjectPath = Object->GetPathName();
+	const FString ObjectPath = Object->GetPathName();
 	const FContentHashEntry* ContentEntry = ContentHashCache.Find(ObjectPath);
 
 	if (ContentEntry)
@@ -387,10 +415,22 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 	int32 ScanLimit = GameThread_AssetScanLimit;
 	while (ProcessAssetQueue.Num() > 0 && ScanLimit > 0 && PendingDownloads < PendingDownloadsMax)
 	{
-		FAssetData Asset = ProcessAssetQueue.Pop(false);
-		if (TryLoadIndexForAsset(Asset))
+		FAssetOperation Operation = ProcessAssetQueue.Pop(false);
+		FAssetData Asset = Operation.Asset;
+
+		if (Operation.bRemoval)
 		{
-			ScanLimit -= 10;
+			UpdateOperations.Enqueue([this, Asset]() {
+				FScopeLock ScopedLock(&SearchDatabaseCS);
+				SearchDatabase.RemoveAsset(Asset);
+			});
+		}
+		else
+		{
+			if (TryLoadIndexForAsset(Asset))
+			{
+				ScanLimit -= 10;
+			}
 		}
 
 		ScanLimit--;
@@ -474,7 +514,7 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 
 		if (UObject* AssetToIndex = Request.AssetData.GetAsset())
 		{
-			StoreIndexForAsset(AssetToIndex, true);
+			StoreIndexForAsset(AssetToIndex, Request.DDCKey_IndexDataHash.StartsWith(TEXT("AssetSearch_Legacy")));
 		}
 
 		RequestCount++;
