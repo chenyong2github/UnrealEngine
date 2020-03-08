@@ -71,7 +71,6 @@ void MainVoxel(
 	const float HairCoverage = WorldPositon_Coverage.w;
 
 #if VF_STRAND_HAIR  
-  #if SUPPORT_SPARSE	
 	const FPackedVirtualVoxelNodeDesc PackedNode = VoxelRasterPass.VirtualVoxel.NodeDescBuffer[VoxelRasterPass.MacroGroupId];
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VoxelRasterPass.VirtualVoxel.PageResolution);
 
@@ -112,7 +111,8 @@ void MainVoxel(
 			}
 		}
 	}
-  #else
+
+	#if 0 // This code is no longer used, but it is a reference for voxelizing material
 	const int3 VoxelCoord = (WorldPosition.xyz - VoxelRasterPass.VoxelMinAABB) / (VoxelRasterPass.VoxelMaxAABB - VoxelRasterPass.VoxelMinAABB) * VoxelRasterPass.VoxelResolution;
 		 
 	if (VoxelCoord.x >= 0 || VoxelCoord.y >= 0 || VoxelCoord.z >= 0 ||
@@ -157,6 +157,7 @@ void MainVoxel(
 	#if DEBUG_OUTPUT
 	OutColor = 0xFF;
 	#endif
-  #endif
+	#endif
+
 #endif
 }

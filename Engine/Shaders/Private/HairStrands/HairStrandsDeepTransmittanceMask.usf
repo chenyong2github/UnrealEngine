@@ -56,8 +56,8 @@ float3				LightDirection;
 uint				LightChannelMask;
 uint				MaxVisibilityNodeCount;
 float4				LightPosition;
-float				DepthBiasScale;
-float				DensityScale;
+float				DeepShadow_DepthBiasScale;
+float				DeepShadow_DensityScale;
 float				LightRadius;
 float				DeepShadow_KernelAperture;
 uint				DeepShadow_KernelType;
@@ -136,8 +136,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		Settings.WorldToLightTransform = WorldToLightTransform;
 		Settings.LightDirection = LightDirection;
 		Settings.LightPosition = LightPosition;
-		Settings.DeepShadowDepthBiasScale = DepthBiasScale;
-		Settings.DeepShadowDensityScale = DensityScale;
+		Settings.DeepShadowDepthBiasScale = DeepShadow_DepthBiasScale;
+		Settings.DeepShadowDensityScale = DeepShadow_DensityScale;
 		Settings.TransmittanceKernelApertureInDegree = DeepShadow_KernelAperture;
 		Settings.TransmittanceKernelType = DeepShadow_KernelType;
 		Settings.Random = TransmittanceRandom;
@@ -238,8 +238,8 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		#else
 		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
 		#endif
-
-		const float3 DepthBias = MaxVoxelSize * (Settings.DeepShadowDepthBiasScale*LightDirection + SampleRandom);
+		
+		const float3 DepthBias = MaxVoxelSize * (VirtualVoxel.DepthBiasScale*LightDirection + SampleRandom);
 		const float3 SampleWorldPosition = WorldPosition + DepthBias;
 
 		FVirtualVoxelCommonDesc CommonDesc;
@@ -332,8 +332,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		FTransmittanceSettings Settings;
 		Settings.LightDirection = LightDirection;
 		Settings.LightPosition = LightPosition;
-		Settings.DeepShadowDensityScale = DensityScale;
-		Settings.DeepShadowDepthBiasScale = DepthBiasScale;
+		Settings.DeepShadowDensityScale = 0;	// Use virtual voxel struct value
+		Settings.DeepShadowDepthBiasScale = 0;	// Use virtual voxel struct value
 		Settings.Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8);
 
 		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
