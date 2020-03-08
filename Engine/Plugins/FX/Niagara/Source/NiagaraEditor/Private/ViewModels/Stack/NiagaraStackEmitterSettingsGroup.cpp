@@ -129,8 +129,13 @@ void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewI
 
 void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 {
-	bCanResetToBaseCache.Reset();
-	RefreshChildren();
+	if (IsFinalized() == false)
+	{
+		// Undo/redo can cause objects to disappear and reappear which can prevent safe removal of delegates
+		// so guard against receiving an event when finalized here.
+		bCanResetToBaseCache.Reset();
+		RefreshChildren();
+	}
 }
 
 UNiagaraStackEmitterSettingsGroup::UNiagaraStackEmitterSettingsGroup()
