@@ -18,6 +18,12 @@
 #include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "Misc/FeedbackContext.h"
+#include "WidgetBlueprint.h"
+#include "Engine/Blueprint.h"
+#include "Engine/DataTable.h"
+#include "Engine/DataAsset.h"
+#include "Indexers/DialogueWaveIndexer.h"
+#include "Sound/DialogueWave.h"
 
 #define LOCTEXT_NAMESPACE "FAssetSearchManager"
 
@@ -78,10 +84,11 @@ FAssetSearchManager::~FAssetSearchManager()
 
 void FAssetSearchManager::Start()
 {
-	RegisterIndexer(TEXT("DataAsset"), new FDataAssetIndexer());
-	RegisterIndexer(TEXT("DataTable"), new FDataTableIndexer());
-	RegisterIndexer(TEXT("Blueprint"), new FBlueprintIndexer());
-	RegisterIndexer(TEXT("WidgetBlueprint"), new FWidgetBlueprintIndexer());
+	RegisterAssetIndexer(UDataAsset::StaticClass(), MakeUnique<FDataAssetIndexer>());
+	RegisterAssetIndexer(UDataTable::StaticClass(), MakeUnique<FDataTableIndexer>());
+	RegisterAssetIndexer(UBlueprint::StaticClass(), MakeUnique<FBlueprintIndexer>());
+	RegisterAssetIndexer(UWidgetBlueprint::StaticClass(), MakeUnique<FWidgetBlueprintIndexer>());
+	RegisterAssetIndexer(UDialogueWave::StaticClass(), MakeUnique<FDialogueWaveIndexer>());
 
 	const FString SessionPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Search")));
 	SearchDatabase.Open(SessionPath);
@@ -120,10 +127,11 @@ FSearchStats FAssetSearchManager::GetStats() const
 	return Stats;
 }
 
-void FAssetSearchManager::RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer)
+void FAssetSearchManager::RegisterAssetIndexer(const UClass* AssetClass, TUniquePtr<IAssetIndexer>&& Indexer)
 {
 	check(IsInGameThread());
-	Indexers.Add(AssetClassName, Indexer);
+
+	Indexers.Add(AssetClass->GetFName(), MoveTemp(Indexer));
 }
 
 void FAssetSearchManager::OnAssetAdded(const FAssetData& InAssetData)
@@ -325,12 +333,12 @@ FString FAssetSearchManager::GetDerivedDataKey(const FAssetData& UnindexedAsset)
 	return DDCKey;
 }
 
-bool FAssetSearchManager::HasIndexerForClass(UClass* AssetClass)
+bool FAssetSearchManager::HasIndexerForClass(const UClass* AssetClass)
 {
-	UClass* IndexableClass = AssetClass;
+	const UClass* IndexableClass = AssetClass;
 	while (IndexableClass)
 	{
-		if (IAssetIndexer* Indexer = Indexers.FindRef(IndexableClass->GetFName()))
+		if (Indexers.Contains(IndexableClass->GetFName()))
 		{
 			return true;
 		}
@@ -357,8 +365,10 @@ void FAssetSearchManager::StoreIndexForAsset(UObject* InAsset, bool bLegacyIndex
 			UClass* IndexableClass = InAsset->GetClass();
 			while (IndexableClass)
 			{
-				if (IAssetIndexer* Indexer = Indexers.FindRef(IndexableClass->GetFName()))
+				if (TUniquePtr<IAssetIndexer>* IndexerPtr = Indexers.Find(IndexableClass->GetFName()))
 				{
+					IAssetIndexer* Indexer = IndexerPtr->Get();
+
 					bWasIndexed = true;
 					Serializer.BeginIndexer(Indexer);
 					Indexer->IndexAsset(InAsset, Serializer);
