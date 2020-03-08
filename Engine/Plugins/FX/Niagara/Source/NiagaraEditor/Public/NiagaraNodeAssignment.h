@@ -53,6 +53,8 @@ public:
 
 	void UpdateUsageBitmaskFromOwningScript();
 
+	virtual FText GetTooltipText() const override;
+
 protected:
 
 	UPROPERTY()
@@ -70,11 +72,15 @@ protected:
 	UPROPERTY()
 	FString OldFunctionCallName;
 
+	FText Title;
+
 private:
 	void GenerateScript();
 
 	void InitializeScript(UNiagaraScript* NewScript);
 
 	int32 CalculateScriptUsageBitmask();
+
+	void RefreshTitle();
 };
 
