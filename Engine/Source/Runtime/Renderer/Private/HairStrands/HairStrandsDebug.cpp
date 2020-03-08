@@ -644,147 +644,6 @@ static void AddDeepShadowInfoPass(
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-class FVoxelRaymarchingPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FVoxelRaymarchingPS);
-	SHADER_USE_PARAMETER_STRUCT(FVoxelRaymarchingPS, FGlobalShader);
-
-	class FDebugMode : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG_MODE", 4);
-	using FPermutationDomain = TShaderPermutationDomain<FDebugMode>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-
-		SHADER_PARAMETER(FVector, VoxelMinAABB)
-		SHADER_PARAMETER(uint32, VoxelResolution)
-		SHADER_PARAMETER(FVector, VoxelMaxAABB)
-		SHADER_PARAMETER(float, DensityIsoline)
-		SHADER_PARAMETER(float, VoxelDensityScale)
-		SHADER_PARAMETER(FVector2D, OutputResolution)
-
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, DensityTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TangentXTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TangentYTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TangentZTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, MaterialTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
-
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		RENDER_TARGET_BINDING_SLOTS()
-		END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
-};
-
-IMPLEMENT_GLOBAL_SHADER(FVoxelRaymarchingPS, "/Engine/Private/HairStrands/HairStrandsVoxelRayMarching.usf", "MainPS", SF_Pixel);
-
-static void AddVoxelRaymarchingPass(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const EHairDebugMode DebugMode,
-	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
-	FRDGTextureRef& OutputTexture)
-{
-	check(DebugMode == EHairDebugMode::VoxelsDensity || DebugMode == EHairDebugMode::VoxelsTangent || DebugMode == EHairDebugMode::VoxelsBaseColor || DebugMode == EHairDebugMode::VoxelsRoughness);
-
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
-
-	const FIntPoint Resolution(OutputTexture->Desc.Extent);
-	for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
-	{
-		if (DebugMode == EHairDebugMode::VoxelsDensity && !MacroGroupData.VoxelResources.DensityTexture)
-			return;
-
-		if (DebugMode == EHairDebugMode::VoxelsTangent && (!MacroGroupData.VoxelResources.TangentXTexture || !MacroGroupData.VoxelResources.TangentYTexture || !MacroGroupData.VoxelResources.TangentZTexture))
-			return;
-
-		if ((DebugMode == EHairDebugMode::VoxelsBaseColor || DebugMode == EHairDebugMode::VoxelsRoughness) && !MacroGroupData.VoxelResources.MaterialTexture)
-			return;
-
-		const FRDGTextureRef VoxelDensityTexture  = GraphBuilder.RegisterExternalTexture(MacroGroupData.VoxelResources.DensityTexture  ? MacroGroupData.VoxelResources.DensityTexture : GSystemTextures.BlackDummy, TEXT("HairVoxelDensityTexture"));
-		const FRDGTextureRef VoxelTangentXTexture = GraphBuilder.RegisterExternalTexture(MacroGroupData.VoxelResources.TangentXTexture ? MacroGroupData.VoxelResources.TangentXTexture : GSystemTextures.BlackDummy, TEXT("HairVoxelTangentXTexture"));
-		const FRDGTextureRef VoxelTangentYTexture = GraphBuilder.RegisterExternalTexture(MacroGroupData.VoxelResources.TangentYTexture ? MacroGroupData.VoxelResources.TangentYTexture : GSystemTextures.BlackDummy, TEXT("HairVoxelTangentYTexture"));
-		const FRDGTextureRef VoxelTangentZTexture = GraphBuilder.RegisterExternalTexture(MacroGroupData.VoxelResources.TangentZTexture ? MacroGroupData.VoxelResources.TangentZTexture : GSystemTextures.BlackDummy, TEXT("HairVoxelTangentZTexture"));
-		const FRDGTextureRef VoxelMaterialTexture = GraphBuilder.RegisterExternalTexture(MacroGroupData.VoxelResources.MaterialTexture ? MacroGroupData.VoxelResources.MaterialTexture : GSystemTextures.BlackDummy, TEXT("HairVoxelMaterialTexture"));
-
-		FVoxelRaymarchingPS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelRaymarchingPS::FParameters>();
-		Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
-		Parameters->OutputResolution = Resolution;
-		Parameters->SceneTextures = SceneTextures;
-		Parameters->DensityTexture = VoxelDensityTexture;
-		Parameters->TangentXTexture = VoxelTangentXTexture;
-		Parameters->TangentYTexture = VoxelTangentYTexture;
-		Parameters->TangentZTexture = VoxelTangentZTexture;
-		Parameters->MaterialTexture = VoxelMaterialTexture;
-		Parameters->VoxelMinAABB = MacroGroupData.GetMinBound();
-		Parameters->VoxelMaxAABB = MacroGroupData.GetMaxBound();
-		Parameters->VoxelResolution = MacroGroupData.GetResolution();
-		Parameters->VoxelDensityScale = GetHairStrandsVoxelizationDensityScale();
-		Parameters->DensityIsoline = 1;
-		Parameters->LinearSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
-
-		const FIntPoint OutputResolution = SceneTextures.SceneDepthBuffer->Desc.Extent;
-		TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-
-		FVoxelRaymarchingPS::FPermutationDomain PermutationVector;
-		uint32 DebugPermutation = 0;
-		switch (DebugMode)
-		{
-		case EHairDebugMode::VoxelsDensity:		DebugPermutation = 0; break;
-		case EHairDebugMode::VoxelsTangent:		DebugPermutation = 1; break;
-		case EHairDebugMode::VoxelsBaseColor:	DebugPermutation = 2; break;
-		case EHairDebugMode::VoxelsRoughness:	DebugPermutation = 3; break;
-		};
-		PermutationVector.Set<FVoxelRaymarchingPS::FDebugMode>(DebugPermutation);
-
-		TShaderMapRef<FVoxelRaymarchingPS> PixelShader(View.ShaderMap, PermutationVector);
-		const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
-		const FIntRect Viewport = View.ViewRect;
-		const FViewInfo* CapturedView = &View;
-
-		ClearUnusedGraphResources(PixelShader, Parameters);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairStrandsVoxelRaymarching"),
-			Parameters,
-			ERDGPassFlags::Raster,
-			[Parameters, VertexShader, PixelShader, Viewport, Resolution, CapturedView](FRHICommandList& RHICmdList)
-		{
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-			VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
-			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
-
-			DrawRectangle(
-				RHICmdList,
-				0, 0,
-				Viewport.Width(), Viewport.Height(),
-				Viewport.Min.X, Viewport.Min.Y,
-				Viewport.Width(), Viewport.Height(),
-				Viewport.Size(),
-				Resolution,
-				VertexShader,
-				EDRF_UseTriangleOptimization);
-		});
-	}
-}
-
-	
-///////////////////////////////////////////////////////////////////////////////////////////////////
 class FVoxelVirtualRaymarchingCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVoxelVirtualRaymarchingCS);
@@ -1519,17 +1378,11 @@ void RenderHairStrandsDebugInfo(
 		// CPU bound of macro groups
 		FViewElementPDI ShadowFrustumPDI(&View, nullptr, nullptr);
 		const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
-		const bool bUseVirtualVoxel = MacroGroupDatas.VirtualVoxelResources.IsValid();
-		for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+		if (MacroGroupDatas.VirtualVoxelResources.IsValid())
 		{
-			if (bUseVirtualVoxel)
+			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
 			{
 				const FBox Bound(MacroGroupData.VirtualVoxelNodeDesc.WorldMinAABB, MacroGroupData.VirtualVoxelNodeDesc.WorldMaxAABB);
-				DrawWireBox(&ShadowFrustumPDI, Bound, FColor::Red, 0);
-			}
-			else
-			{
-				const FBox Bound(MacroGroupData.GetMinBound(), MacroGroupData.GetMaxBound());
 				DrawWireBox(&ShadowFrustumPDI, Bound, FColor::Red, 0);
 			}
 		}
@@ -1667,20 +1520,13 @@ void RenderHairStrandsDebugInfo(
 		if (bIsVoxelMode && ViewIndex < uint32(InMacroGroupViews.Views.Num()))
 		{
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
-			const bool bUseVirtualVoxel = MacroGroupDatas.VirtualVoxelResources.IsValid();
-			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+			if (MacroGroupDatas.VirtualVoxelResources.IsValid())
 			{
-				if (bUseVirtualVoxel)
+				for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
 				{
 					const FBox Bound(MacroGroupData.VirtualVoxelNodeDesc.WorldMinAABB, MacroGroupData.VirtualVoxelNodeDesc.WorldMaxAABB);
 					DrawWireBox(&ShadowFrustumPDI, Bound, FColor::Red, 0);
 					DrawFrustumWireframe(&ShadowFrustumPDI, MacroGroupData.VirtualVoxelNodeDesc.WorldToClip.Inverse(), FColor::Purple, 0);
-				}
-				else
-				{
-					const FBox VoxelizationBox(MacroGroupData.GetMinBound(), MacroGroupData.GetMaxBound());
-					DrawWireBox(&ShadowFrustumPDI, VoxelizationBox, FColor::Red, 0);
-					DrawFrustumWireframe(&ShadowFrustumPDI, MacroGroupData.VoxelResources.WorldToClip.Inverse(), FColor::Purple, 0);
 				}
 			}
 		}
@@ -1717,19 +1563,11 @@ void RenderHairStrandsDebugInfo(
 		if (ViewIndex < uint32(InMacroGroupViews.Views.Num()))
 		{
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
-			const bool bIsVirtualVoxelizationEnabled = MacroGroupDatas.VirtualVoxelResources.IsValid();
-			if (bIsVirtualVoxelizationEnabled)
+			if (MacroGroupDatas.VirtualVoxelResources.IsValid())
 			{
 				FRDGBuilder GraphBuilder(RHICmdList);
 				FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 				AddVoxelPageRaymarchingPass(GraphBuilder, View, MacroGroupDatas, SceneColorTexture);
-				GraphBuilder.Execute();
-			}
-			else
-			{
-				FRDGBuilder GraphBuilder(RHICmdList);
-				FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
-				AddVoxelRaymarchingPass(GraphBuilder, View, HairDebugMode, MacroGroupDatas, SceneColorTexture);
 				GraphBuilder.Execute();
 			}
 		}
