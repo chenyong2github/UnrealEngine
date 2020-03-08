@@ -260,13 +260,18 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Normal Text
 	{
-		Set( "RichTextBlock.TextHighlight", FTextBlockStyle(NormalText)
-			.SetColorAndOpacity( FLinearColor( 1.0f, 1.0f, 1.0f ) ) );
-		Set( "RichTextBlock.Bold", FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT("Bold", FCoreStyle::RegularTextSize )) );
-		Set( "RichTextBlock.BoldHighlight", FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT("Bold", FCoreStyle::RegularTextSize ))
-			.SetColorAndOpacity( FLinearColor( 1.0f, 1.0f, 1.0f ) ) );
+		Set("RichTextBlock.TextHighlight", FTextBlockStyle(NormalText)
+			.SetColorAndOpacity(FLinearColor( 1.0f, 1.0f, 1.0f)));
+		Set("RichTextBlock.Bold", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Bold", FCoreStyle::RegularTextSize)));
+		Set("RichTextBlock.BoldHighlight", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Bold", FCoreStyle::RegularTextSize))
+			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f)));
+		Set("RichTextBlock.Italic", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Italic", FCoreStyle::RegularTextSize)));
+		Set("RichTextBlock.ItalicHighlight", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Italic", FCoreStyle::RegularTextSize))
+			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f)));
 
 		Set( "TextBlock.HighlightShape",  new BOX_BRUSH( "Common/TextBlockHighlightShape", FMargin(3.f/8.f) ));
 		Set( "TextBlock.HighlighColor", FLinearColor( 0.02f, 0.3f, 0.0f ) );
