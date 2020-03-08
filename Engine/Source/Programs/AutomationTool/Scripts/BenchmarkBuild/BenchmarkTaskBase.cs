@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
+using UnrealBuildTool;
 
 namespace AutomationTool.Benchmark
 {
@@ -44,6 +45,11 @@ namespace AutomationTool.Benchmark
 		/// Perform any prerequisites the task requires
 		/// </summary>
 		virtual protected bool PerformPrequisites() { return true;  }
+
+		/// <summary>
+		/// Perform post-task cleanup
+		/// </summary>
+		virtual protected void PerformCleanup() { }
 
 		/// <summary>
 		/// Perform the actual task that is measured
@@ -101,6 +107,15 @@ namespace AutomationTool.Benchmark
 			{
 				Log.TraceError("{0} failed. {1}", GetFullTaskName(), FailureString);
 			}
+
+			try
+			{
+				PerformCleanup();
+			}
+			catch (Exception Ex)
+			{
+				Log.TraceError("Cleanup of {0} failed. {1}", GetFullTaskName(), Ex);
+			}
 		}
 
 		/// <summary>
@@ -148,7 +163,29 @@ namespace AutomationTool.Benchmark
 
 	abstract class BenchmarkEditorTaskBase : BenchmarkTaskBase
 	{
-		protected void DeleteLocalDDC(FileReference InProjectFile)
+		protected EditorTaskOptions TaskOptions;
+
+		protected FileReference ProjectFile = null;
+
+		protected string ProjectName
+		{
+			get
+			{
+				return ProjectFile == null ? null : ProjectFile.GetFileNameWithoutAnyExtensions();
+			}
+		}
+
+		protected BenchmarkEditorTaskBase(string InProject, EditorTaskOptions InTaskOptions)
+		{
+			TaskOptions = InTaskOptions;
+
+			if (!InProject.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+			{
+				ProjectFile = ProjectUtils.FindProjectFileFromName(InProject);
+			}
+		}
+
+		private void DeleteLocalDDC(FileReference InProjectFile)
 		{
 			List<DirectoryReference> DirsToClear = new List<DirectoryReference>();
 
@@ -179,6 +216,60 @@ namespace AutomationTool.Benchmark
 				{
 					Log.TraceWarning("Failed to remove path {0}. {1}", Dir.FullName, Ex.Message);
 				}
+			}
+		}
+
+		private DirectoryReference PrivateDDCPath = null;
+		private string OldLocalDCCPath = null;
+
+		private string GetLocalDDCPathEnvironmentKey()
+		{
+			string EnvVar = "UE-LocalDataCachePath";
+
+			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64)
+			{
+				EnvVar = EnvVar.Replace("-", "_");
+			}
+
+			return EnvVar;
+		}
+
+		protected override bool PerformPrequisites()
+		{
+			if (TaskOptions.HasFlag(EditorTaskOptions.ColdDDC))
+			{
+				PrivateDDCPath = DirectoryReference.Combine(CommandUtils.EngineDirectory, "BenchmarkDerivedDataCache");
+
+				string Key = GetLocalDDCPathEnvironmentKey();
+
+				OldLocalDCCPath = Environment.GetEnvironmentVariable(Key);
+				Environment.SetEnvironmentVariable(Key, PrivateDDCPath.FullName);
+
+				DirectoryReference BootDDC = DirectoryReference.Combine(ProjectFile.Directory, "DerivedDataCache");
+
+				try
+				{
+					DirectoryReference.Delete(BootDDC, true);
+				}
+				catch
+				{
+
+				}
+			}
+
+			return base.PerformPrequisites();
+		}
+
+		protected override void PerformCleanup()
+		{
+			if (PrivateDDCPath !=  null)
+			{
+				if (DirectoryReference.Exists(PrivateDDCPath))
+				{
+					DirectoryReference.Delete(PrivateDDCPath, true);
+				}
+
+				Environment.SetEnvironmentVariable(GetLocalDDCPathEnvironmentKey(), OldLocalDCCPath);
 			}
 		}
 	}
