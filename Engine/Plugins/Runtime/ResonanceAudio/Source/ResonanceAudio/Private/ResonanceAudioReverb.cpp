@@ -9,7 +9,7 @@
 #include "ResonanceAudioSettings.h"
 #include "Sound/SoundSubmix.h"
 
-static int32 IgnoreUserResonanceSubmixCVar = 1;
+static int32 IgnoreUserResonanceSubmixCVar = 0;
 FAutoConsoleVariableRef CVarIgnoreUserResonanceSubmix(
 	TEXT("au.IgnoreUserResonanceSubmix"),
 	IgnoreUserResonanceSubmixCVar,
