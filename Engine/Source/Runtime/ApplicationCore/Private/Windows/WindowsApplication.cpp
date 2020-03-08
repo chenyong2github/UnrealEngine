@@ -72,6 +72,7 @@ FAutoConsoleVariableRef	CVarPreventDuplicateMouseEventsForTouch(
 );
 
 
+#if !UE_BUILD_SHIPPING
 static int32 EnableRawInputSimulationOverRDP = true;
 FAutoConsoleVariableRef	CVarEnableRawInputSimulationOverRDP(
 	TEXT("Slate.EnableRawInputSimulationOverRDP"),
@@ -79,9 +80,25 @@ FAutoConsoleVariableRef	CVarEnableRawInputSimulationOverRDP(
 	TEXT("")
 );
 
+static int32 ForceRawInputSimulation = false;
+FAutoConsoleVariableRef	CVarForceRawInputSimulation(
+	TEXT("Slate.ForceRawInputSimulation"),
+	ForceRawInputSimulation,
+	TEXT("")
+);
+#else
+static int32 ForceRawInputSimulation = false;
+static int32 EnableRawInputSimulationOverRDP = false;
+#endif
+
 const FIntPoint FWindowsApplication::MinimizedWindowPosition(-32000,-32000);
 
 FWindowsApplication* WindowsApplication = nullptr;
+
+static bool ShouldSimulateRawInput()
+{
+	return ForceRawInputSimulation || (EnableRawInputSimulationOverRDP && FPlatformMisc::IsRemoteSession());
+}
 
 FWindowsApplication* FWindowsApplication::CreateWindowsApplication( const HINSTANCE InstanceHandle, const HICON IconHandle )
 {
@@ -439,7 +456,7 @@ void* FWindowsApplication::GetCapture( void ) const
 
 void FWindowsApplication::SetHighPrecisionMouseMode( const bool Enable, const TSharedPtr< FGenericWindow >& InWindow )
 {
-	if (EnableRawInputSimulationOverRDP && FPlatformMisc::IsRemoteSession())
+	if (ShouldSimulateRawInput())
 	{
 		if(Enable)
 		{
