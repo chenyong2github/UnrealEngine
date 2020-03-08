@@ -76,14 +76,9 @@ public:
 		SearchManager->ForceIndexOnAssetsMissingIndex();
 	}
 
-	virtual void RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer) override
+	virtual void RegisterAssetIndexer(const UClass* InAssetClass, TUniquePtr<IAssetIndexer>&& Indexer) override
 	{
-		SearchManager->RegisterIndexer(AssetClassName, Indexer);
-	}
-
-	virtual void UnregisterIndexer(IAssetIndexer* Indexer) override
-	{
-		
+		SearchManager->RegisterAssetIndexer(InAssetClass, MoveTemp(Indexer));
 	}
 
 private:

@@ -9,6 +9,7 @@
 #include "HAL/Runnable.h"
 
 class FRunnableThread;
+class UClass;
 
 class FAssetSearchManager : public FRunnable
 {
@@ -17,7 +18,7 @@ public:
 	~FAssetSearchManager();
 	
 	void Start();
-	void RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer);
+	void RegisterAssetIndexer(const UClass* AssetClass, TUniquePtr<IAssetIndexer>&& Indexer);
 
 	FSearchStats GetStats() const;
 
@@ -49,7 +50,7 @@ private:
 	FString TryGetDDCKeyForAsset(const FAssetData& InAsset);
 	FString GetDerivedDataKey(const FSHAHash& IndexedContentHash);
 	FString GetDerivedDataKey(const FAssetData& UnindexedAsset);
-	bool HasIndexerForClass(UClass* AssetClass);
+	bool HasIndexerForClass(const UClass* AssetClass);
 	void StoreIndexForAsset(UObject* InAsset, bool Unindexed);
 	void LoadDDCContentIntoDatabase(const FAssetData& InAsset, const TArray<uint8>& Content, const FString& DerivedDataKey);
 
@@ -71,7 +72,7 @@ private:
 	double LastRecordCountUpdateSeconds;
 
 private:
-	TMap<FName, IAssetIndexer*> Indexers;
+	TMap<FName, TUniquePtr<IAssetIndexer>> Indexers;
 
 	TArray<TWeakObjectPtr<UObject>> RequestIndexQueue;
 
