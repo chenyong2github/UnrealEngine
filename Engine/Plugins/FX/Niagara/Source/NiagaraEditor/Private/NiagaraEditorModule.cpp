@@ -37,6 +37,7 @@
 #include "NiagaraNodeConvert.h"
 #include "NiagaraNodeAssignment.h"
 #include "EdGraphSchema_Niagara.h"
+
 #include "TypeEditorUtilities/NiagaraFloatTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraIntegerTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraEnumTypeEditorUtilities.h"
@@ -46,10 +47,9 @@
 #include "TypeEditorUtilities/NiagaraColorTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraMatrixTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraDataInterfaceCurveTypeEditorUtilities.h"
+
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorCommands.h"
-#include "Sequencer/NiagaraSequence/NiagaraEmitterTrackEditor.h"
-#include "Sequencer/LevelSequence/NiagaraSystemTrackEditor.h"
 #include "PropertyEditorModule.h"
 #include "NiagaraSettings.h"
 #include "NiagaraModule.h"
@@ -64,7 +64,6 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "TNiagaraGraphPinEditableName.h"
-#include "Sequencer/NiagaraSequence/Sections/MovieSceneNiagaraEmitterSection.h"
 #include "UObject/Class.h"
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraEmitter.h"
@@ -87,15 +86,22 @@
 #include "Sections/MovieSceneVectorSection.h"
 #include "Sections/MovieSceneColorSection.h"
 
+#include "Sequencer/NiagaraSequence/Sections/MovieSceneNiagaraEmitterSection.h"
+#include "Sequencer/NiagaraSequence/NiagaraEmitterTrackEditor.h"
+#include "Sequencer/LevelSequence/NiagaraSystemTrackEditor.h"
+
 #include "ISequencerSection.h"
 #include "Sections/BoolPropertySection.h"
 #include "Sections/ColorPropertySection.h"
 
 #include "Customizations/NiagaraComponentDetails.h"
-#include "Customizations/NiagaraTypeCustomizations.h"
+#include "Customizations/NiagaraFunctionCallNodeDetails.h"
 #include "Customizations/NiagaraEventScriptPropertiesCustomization.h"
+#include "Customizations/NiagaraPlatformSetCustomization.h"
 #include "Customizations/NiagaraScriptVariableCustomization.h"
 #include "Customizations/NiagaraScriptDetails.h"
+#include "Customizations/NiagaraStaticSwitchNodeDetails.h"
+#include "Customizations/NiagaraTypeCustomizations.h"
 
 #include "NiagaraComponent.h"
 #include "NiagaraNodeStaticSwitch.h"
@@ -108,8 +114,6 @@
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraThumbnailRenderer.h"
 #include "Misc/FeedbackContext.h"
-#include "Customizations/NiagaraStaticSwitchNodeDetails.h"
-#include "Customizations/NiagaraFunctionCallNodeDetails.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "Engine/Selection.h"
 #include "NiagaraActor.h"
@@ -829,7 +833,7 @@ void FNiagaraEditorModule::StartupModule()
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraPlatformSet::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetTypeCustomization::MakeInstance)
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetCustomization::MakeInstance)
 	);
 	
 	PropertyModule.RegisterCustomPropertyTypeLayout(
