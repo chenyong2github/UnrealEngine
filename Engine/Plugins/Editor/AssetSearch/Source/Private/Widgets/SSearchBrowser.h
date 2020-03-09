@@ -41,6 +41,9 @@ public:
 private:
 
 	FText GetStatusText() const;
+	FText GetUnindexedAssetsText() const;
+
+	void HandleForceIndexOfAssetsMissingIndex();
 
 	FReply OnRefresh();
 
