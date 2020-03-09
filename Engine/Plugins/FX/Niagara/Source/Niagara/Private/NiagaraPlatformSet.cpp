@@ -6,6 +6,11 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Scalability.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Interfaces/ITargetPlatform.h"
+
+#if WITH_EDITOR
+#include "PlatformInfo.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "NiagaraPlatformSet"
 
@@ -19,6 +24,15 @@ static FAutoConsoleVariableRef CVarNiagaraAllowRuntimeScalabilityChanges(
 	CanChangeEQCVarName,
 	GbNiagaraAllowRuntimeScalabilityChanges,
 	TEXT("If > 0 this platform allows scalability level changes at runtime. \n"),
+	ECVF_ReadOnly
+);
+
+const TCHAR* PruneEmittersOnCookName = TEXT("fx.Niagara.PruneEmittersOnCook");
+int32 GbPruneEmittersOnCook = 1;
+static FAutoConsoleVariableRef CVarPruneEmittersOnCook(
+	PruneEmittersOnCookName,
+	GbPruneEmittersOnCook,
+	TEXT("If > 0 this platform will prune disabled emitters during cook. \n"),
 	ECVF_ReadOnly
 );
 
@@ -227,9 +241,7 @@ void FNiagaraPlatformSet::InvalidateCachedData()
 	LastDirtiedFrame = GFrameNumber;
 }
 
-#if WITH_EDITOR
-
-bool FNiagaraPlatformSet::IsEnabledForPlatform(const FString& PlatformName)
+bool FNiagaraPlatformSet::IsEnabledForPlatform(const FString& PlatformName)const
 {
 	for (const UObject* ProfileObj : UDeviceProfileManager::Get().Profiles)
 	{
@@ -248,6 +260,18 @@ bool FNiagaraPlatformSet::IsEnabledForPlatform(const FString& PlatformName)
 	//No enabled profiles for this platform.
 	return false;
 }
+
+bool FNiagaraPlatformSet::ShouldPruneEmittersOnCook(const FString& PlatformName)
+{
+#if WITH_EDITOR
+	FPlatformIniSettings Settings = GetPlatformIniSettings(PlatformName);
+	return Settings.bPruneEmittersOnCook != 0;
+#else
+	return GbPruneEmittersOnCook != 0;
+#endif
+}
+
+#if WITH_EDITOR
 
 // bool FNiagaraPlatformSet::Conflicts(const FNiagaraPlatformSet& Other, TArray<const UDeviceProfile*>& OutConflictingProfiles, bool bIncludeProfilesWithVariableEffectsQuality)const
 // {
@@ -359,12 +383,6 @@ bool FNiagaraPlatformSet::CanChangeScalabilityAtRuntime(const UDeviceProfile* De
 	return true;//Assuming true if we fail to find the platform seems safest.
 }
 
-bool FNiagaraPlatformSet::ShouldPruneEmittersOnCook(const FString& PlatformName)
-{
-	FPlatformIniSettings Settings = GetPlatformIniSettings(PlatformName);
-	return Settings.bPruneEmittersOnCook != 0;
-}
-
 bool FNiagaraPlatformSet::GatherConflicts(const TArray<const FNiagaraPlatformSet*>& PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts)
 {
 	Scalability::FQualityLevels NumLevels = Scalability::GetQualityLevelCounts();
@@ -456,7 +474,7 @@ FNiagaraPlatformSet::FPlatformIniSettings FNiagaraPlatformSet::GetPlatformIniSet
 	}
 
 	int32 PruneEmittersOnCook = 0;
-	FindCVarValue(TEXT("SystemSettings"), TEXT("fx.PruneEmittersOnCook"), PruneEmittersOnCook);
+	FindCVarValue(TEXT("SystemSettings"), PruneEmittersOnCookName, PruneEmittersOnCook);
 
 	FPlatformIniSettings& NewSetting = CachedPlatformIniSettings.Add(*PlatformName);
 	NewSetting = FPlatformIniSettings(CanChangeEffectQuality, PruneEmittersOnCook, EQMask);

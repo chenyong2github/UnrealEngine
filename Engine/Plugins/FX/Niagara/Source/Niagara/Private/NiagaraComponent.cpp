@@ -1317,6 +1317,11 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
 			UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
 
+			if(Emitter == nullptr)
+			{
+				continue;
+			}
+
 #if STATS
 			TStatId EmitterStatID = Emitter->GetStatID(true, true);
 			FScopeCycleCounter EmitterStatCounter(EmitterStatID);

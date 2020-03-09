@@ -1356,6 +1356,11 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
 	{
 		FNiagaraEmitterInstance& Sim = Simulation.Get();
+		if (Sim.IsDisabled())
+		{
+			continue;
+		}
+
 		CalcInstDataSize(Sim.GetSpawnExecutionContext().GetDataInterfaces());
 		CalcInstDataSize(Sim.GetUpdateExecutionContext().GetDataInterfaces());
 		for (int32 i = 0; i < Sim.GetEventExecutionContexts().Num(); i++)

@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarLogCompileIdGeneration(
 
 float INiagaraModule::EngineGlobalSpawnCountScale = 1.0f;
 float INiagaraModule::EngineGlobalSystemCountScale = 1.0f;
-int32 INiagaraModule::EngineEffectsQuality = 4;
+int32 INiagaraModule::EngineEffectsQuality = INDEX_NONE;
 
 int32 GEnableVerboseNiagaraChangeIdLogging = 0;
 static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
@@ -149,6 +149,10 @@ void INiagaraModule::StartupModule()
 	FNiagaraViewDataMgr::Init();
 
 	FNiagaraWorldManager::OnStartup();
+
+	//Force update on module load.
+	static const auto CVarEQ = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("sg.EffectsQuality"));
+	OnEffectsQualityChanged(CVarEQ->GetValueOnGameThread(), true);
 
 #if WITH_EDITOR	
 	// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
@@ -390,19 +394,22 @@ void INiagaraModule::UnregisterPrecompiler(FDelegateHandle DelegateHandle)
 
 #endif
 
-void INiagaraModule::OnEffectsQualityChanged(int32 NewEffectsQuality)
+void INiagaraModule::OnEffectsQualityChanged(int32 NewEffectsQuality, bool bForce)
 {
-	if (NewEffectsQuality != EngineEffectsQuality && FNiagaraPlatformSet::CanChangeScalabilityAtRuntime())
+	if (FNiagaraPlatformSet::CanChangeScalabilityAtRuntime() || bForce)
 	{
-		EngineEffectsQuality = NewEffectsQuality;
-
-		FNiagaraPlatformSet::InvalidateCachedData();
-
-		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+		if (NewEffectsQuality != EngineEffectsQuality)
 		{
-			UNiagaraSystem* System = *It;
-			check(System);
-			System->OnEffectsQualityChanged();
+			EngineEffectsQuality = NewEffectsQuality;
+
+			FNiagaraPlatformSet::InvalidateCachedData();
+
+			for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+			{
+				UNiagaraSystem* System = *It;
+				check(System);
+				System->OnEffectsQualityChanged();
+			}
 		}
 	}
 }
@@ -947,10 +954,8 @@ void INiagaraModule::ProcessShaderCompilationQueue()
 
 void CVarSinkFunc()
 {
-	//This Cvar sink can happen before the one which primes the cached scalability cvars so we must grab this ourselves.
-	IConsoleManager& ConsoleMan = IConsoleManager::Get();
-	static const auto CVarEQ = ConsoleMan.FindTConsoleVariableDataInt(TEXT("sg.EffectsQuality"));
-	INiagaraModule::OnEffectsQualityChanged(CVarEQ->GetValueOnGameThread());
+	static const auto CVarEQ = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("sg.EffectsQuality"));
+	INiagaraModule::OnEffectsQualityChanged(CVarEQ->GetValueOnGameThread(), false);
 }
 
 static FAutoConsoleVariableSink CVarSink(FConsoleCommandDelegate::CreateStatic(&CVarSinkFunc));
