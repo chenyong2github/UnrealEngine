@@ -2711,6 +2711,14 @@ static TAutoConsoleVariable<int32> CVarDisableVulkanSupport(
 	TEXT("  1 = vulkan will be disabled, opengl fall back will be used."),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarDisableVulkanSM5Support(
+	TEXT("r.Android.DisableVulkanSM5Support"),
+	0,
+	TEXT("Disable support for vulkan API. (Android Only)\n")
+	TEXT("  0 = Vulkan SM5 API will be used (providing device and project supports it) [default]\n")
+	TEXT("  1 = Vulkan SM5 will be disabled, Vulkan or OpenGL fall back will be used."),
+	ECVF_ReadOnly);
+
 static TAutoConsoleVariable<int32> CVarDisableOpenGLES31Support(
 	TEXT("r.Android.DisableOpenGLES31Support"),
 	0,
