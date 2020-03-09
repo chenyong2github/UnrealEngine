@@ -136,5 +136,7 @@ protected:
 	TArray<int> UVSeamEdges;
 	TArray<int> NormalSeamEdges;
 	TArray<int> GroupBoundaryEdges;
+
+	void UpdateVisualization();
 	void Precompute();
 };
