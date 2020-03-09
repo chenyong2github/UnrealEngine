@@ -89,7 +89,7 @@ protected:
 		SetHoveredTableCellDelegate.ExecuteIfBound(NAME_None, nullptr);
 	}
 
-	EVisibility GetColorBoxVisibility() const
+	EVisibility GetBoxVisibility() const
 	{
 		return StatsNodePtr->IsAddedToGraph() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
@@ -128,7 +128,7 @@ protected:
 		return TextColor;
 	}
 
-	FSlateColor GetStatsBoxColorAndOpacity() const
+	FSlateColor GetBoxColorAndOpacity() const
 	{
 		return StatsNodePtr->GetColor();
 	}

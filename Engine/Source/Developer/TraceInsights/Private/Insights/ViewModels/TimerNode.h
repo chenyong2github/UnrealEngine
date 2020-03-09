@@ -61,8 +61,15 @@ public:
 		: FBaseTreeNode(InId, InName, InType == ETimerNodeType::Group)
 		, MetaGroupName(InMetaGroupName)
 		, Type(InType)
+		, bIsAddedToGraph(false)
 		, bIsHotPath(false)
 	{
+		const uint32 HashColor = GetId() * 0x2c2c57ed;
+		Color.R = ((HashColor >> 16) & 0xFF) / 255.0f;
+		Color.G = ((HashColor >> 8) & 0xFF) / 255.0f;
+		Color.B = ((HashColor) & 0xFF) / 255.0f;
+		Color.A = 1.0;
+
 		ResetAggregatedStats();
 	}
 
@@ -70,6 +77,8 @@ public:
 	FTimerNode(const FName InGroupName)
 		: FBaseTreeNode(0, InGroupName, true)
 		, Type(ETimerNodeType::Group)
+		, Color(0.0, 0.0, 0.0, 1.0)
+		, bIsAddedToGraph(false)
 		, bIsHotPath(false)
 	{
 		ResetAggregatedStats();
@@ -86,6 +95,24 @@ public:
 	 * @return a type of this timer node or ETimerNodeType::Group for group nodes.
 	 */
 	const ETimerNodeType& GetType() const { return Type; }
+
+	/**
+	 * @return color of the node. Used when showing a graph series for a stats counter.
+	 */
+	FLinearColor GetColor() const
+	{
+		return Color;
+	}
+
+	bool IsAddedToGraph() const
+	{
+		return bIsAddedToGraph;
+	}
+
+	void SetAddedToGraphFlag(bool bOnOff)
+	{
+		bIsAddedToGraph = bOnOff;
+	}
 
 	/**
 	 * @return the aggregated stats for this timer.
@@ -105,11 +132,16 @@ private:
 	/** Holds the type of this timer. */
 	const ETimerNodeType Type;
 
-	/** Aggregated stats. */
-	Trace::FTimingProfilerAggregatedStats AggregatedStats;
+	/** Color of the node. */
+	FLinearColor Color;
+
+	bool bIsAddedToGraph;
 
 	/** True if this tree node is on the hot path. */
 	bool bIsHotPath;
+
+	/** Aggregated stats. */
+	Trace::FTimingProfilerAggregatedStats AggregatedStats;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

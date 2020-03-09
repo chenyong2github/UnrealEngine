@@ -100,6 +100,11 @@ protected:
 		return TimerNodePtr->IsHotPath() && !IsHovered() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
+	EVisibility GetBoxVisibility() const
+	{
+		return TimerNodePtr->IsAddedToGraph() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
 	EVisibility GetHintIconVisibility() const
 	{
 		return IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
@@ -132,6 +137,11 @@ protected:
 				FLinearColor(1.0f, 1.0f, 1.0f, 0.6f) :
 				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		return TextColor;
+	}
+
+	FSlateColor GetBoxColorAndOpacity() const
+	{
+		return TimerNodePtr->GetColor();
 	}
 
 	FLinearColor GetShadowColorAndOpacity() const

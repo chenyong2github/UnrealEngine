@@ -13,6 +13,18 @@
 class FTimingGraphSeries : public FGraphSeries
 {
 public:
+	struct FSimpleTimingEvent
+	{
+		double StartTime;
+		double Duration;
+	};
+
+	static bool CompareEventsByStartTime(const FSimpleTimingEvent& EventA, const FSimpleTimingEvent& EventB)
+	{
+		return EventA.StartTime < EventB.StartTime;
+	}
+
+public:
 	enum class ESeriesType
 	{
 		Frame,
@@ -25,6 +37,9 @@ public:
 public:
 	ESeriesType Type;
 	uint32 Id; // frame type, timer id or stats counter id
+
+	double CachedSessionDuration;
+	TArray<FSimpleTimingEvent> CachedEvents;
 
 	bool bIsFloatingPoint; // for stats counters
 	bool bIsMemory; // for stats counters
@@ -43,6 +58,10 @@ public:
 	virtual void Update(const ITimingTrackUpdateContext& Context) override;
 
 	void AddDefaultFrameSeries();
+
+	TSharedPtr<FTimingGraphSeries> GetTimerSeries(uint32 TimerId);
+	TSharedPtr<FTimingGraphSeries> AddTimerSeries(uint32 TimerId, FLinearColor Color);
+	void RemoveTimerSeries(uint32 TimerId);
 
 	TSharedPtr<FTimingGraphSeries> GetStatsCounterSeries(uint32 CounterId);
 	TSharedPtr<FTimingGraphSeries> AddStatsCounterSeries(uint32 CounterId, FLinearColor Color);

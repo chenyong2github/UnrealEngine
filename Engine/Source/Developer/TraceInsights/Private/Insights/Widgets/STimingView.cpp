@@ -940,11 +940,15 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		const FVector2D Position = AllottedGeometry.GetAbsolutePosition();
 		const float Scale = AllottedGeometry.GetAccumulatedLayoutTransform().GetScale();
 
+		// Draw the scrollable tracks.
 		{
+			const float TopY = Viewport.GetTopOffset();
+			const float BottomY = Viewport.GetHeight() - Viewport.GetBottomOffset();
+
 			const float L = Position.X;
 			const float R = Position.X + (Viewport.GetWidth() * Scale);
-			const float T = Position.Y + (Viewport.GetTopOffset() * Scale);
-			const float B = Position.Y + ((Viewport.GetHeight() - Viewport.GetBottomOffset()) * Scale);
+			const float T = Position.Y + (TopY * Scale);
+			const float B = Position.Y + (BottomY * Scale);
 			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
 			DrawContext.ElementList.PushClip(ClipZone);
 
@@ -952,6 +956,14 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			{
 				if (TrackPtr->IsVisible())
 				{
+					if (TrackPtr->GetPosY() + TrackPtr->GetHeight() <= TopY)
+					{
+						continue;
+					}
+					if (TrackPtr->GetPosY() >= BottomY)
+					{
+						break;
+					}
 					TrackPtr->Draw(TimingDrawContext);
 				}
 			}
@@ -959,6 +971,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			DrawContext.ElementList.PopClip();
 		}
 
+		// Draw the top docked tracks.
 		{
 			const float L = Position.X;
 			const float R = Position.X + (Viewport.GetWidth() * Scale);
@@ -978,6 +991,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			DrawContext.ElementList.PopClip();
 		}
 
+		// Draw the bottom docked tracks.
 		{
 			const float L = Position.X;
 			const float R = Position.X + (Viewport.GetWidth() * Scale);
@@ -997,6 +1011,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			DrawContext.ElementList.PopClip();
 		}
 
+		// Draw the foreground tracks.
 		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ForegroundTracks)
 		{
 			if (TrackPtr->IsVisible())
@@ -3044,6 +3059,30 @@ void STimingView::SetEventFilter(const TSharedPtr<ITimingEventFilter> InEventFil
 {
 	TimingEventFilter = InEventFilter;
 	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ToggleEventFilterByEventType(const uint64 EventType)
+{
+	bool bSameFilter = false;
+
+	if (TimingEventFilter.IsValid() &&
+		TimingEventFilter->Is<FTimingEventFilterByEventType>())
+	{
+		const FTimingEventFilterByEventType& EventFilterByEventType = TimingEventFilter->As<FTimingEventFilterByEventType>();
+		if (EventFilterByEventType.GetEventType() == EventType)
+		{
+			bSameFilter = true;
+			SetEventFilter(nullptr); // reset filter
+		}
+	}
+
+	if (!bSameFilter)
+	{
+		TSharedRef<FTimingEventFilterByEventType> NewEventFilter = MakeShared<FTimingEventFilterByEventType>(EventType);
+		SetEventFilter(NewEventFilter); // set new filter
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

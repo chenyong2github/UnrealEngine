@@ -89,13 +89,13 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBox)
-			.Visibility(this, &SStatsTableCell::GetColorBoxVisibility)
+			.Visibility(this, &SStatsTableCell::GetBoxVisibility)
 			.WidthOverride(14.0f)
 			.HeightOverride(14.0f)
 			[
 				SNew(SBorder)
 				.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(this, &SStatsTableCell::GetStatsBoxColorAndOpacity)
+				.BorderBackgroundColor(this, &SStatsTableCell::GetBoxColorAndOpacity)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 			]

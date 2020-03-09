@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/TimingProfiler.h"
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
@@ -35,7 +36,7 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 			const int64 MemValue = static_cast<int64>(Value);
 			return FString::Printf(TEXT("%s (%s bytes)"), *FText::AsMemory(MemValue).ToString(), *FText::AsNumber(MemValue).ToString());
 		}
-		if (bIsFloatingPoint)
+		else if (bIsFloatingPoint)
 		{
 			return FString::Printf(TEXT("%g"), Value);
 		}
@@ -71,6 +72,73 @@ FTimingGraphTrack::FTimingGraphTrack()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FTimingGraphTrack::~FTimingGraphTrack()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
+{
+	FGraphTrack::Update(Context);
+
+	const bool bIsEntireGraphTrackDirty = IsDirty() || Context.GetViewport().IsHorizontalViewportDirty();
+	bool bNeedsUpdate = bIsEntireGraphTrackDirty;
+
+	if (!bNeedsUpdate)
+	{
+		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
+		{
+			if (Series->IsVisible() && Series->IsDirty())
+			{
+				// At least one series is dirty.
+				bNeedsUpdate = true;
+				break;
+			}
+		}
+	}
+
+	if (bNeedsUpdate)
+	{
+		ClearDirtyFlag();
+
+		NumAddedEvents = 0;
+
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
+		{
+			if (Series->IsVisible() && (bIsEntireGraphTrackDirty || Series->IsDirty()))
+			{
+				// Clear the flag before updating, because the update itself may further need to set the series as dirty.
+				Series->ClearDirtyFlag();
+
+				TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
+				switch (TimingSeries->Type)
+				{
+				case FTimingGraphSeries::ESeriesType::Frame:
+					UpdateFrameSeries(*TimingSeries, Viewport);
+					break;
+
+				case FTimingGraphSeries::ESeriesType::Timer:
+					UpdateTimerSeries(*TimingSeries, Viewport);
+					break;
+
+				case FTimingGraphSeries::ESeriesType::StatsCounter:
+					UpdateStatsCounterSeries(*TimingSeries, Viewport);
+					break;
+				}
+			}
+		}
+
+		UpdateStats();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Frame Series
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTimingGraphTrack::AddDefaultFrameSeries()
 {
 	const float BaselineY = GetHeight() - 1.0f;
@@ -97,6 +165,149 @@ void FTimingGraphTrack::AddDefaultFrameSeries()
 	AllSeries.Add(RenderingFramesSeries);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::UpdateFrameSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
+{
+	FGraphTrackBuilder Builder(*this, Series, Viewport);
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
+		ETraceFrameType FrameType = static_cast<ETraceFrameType>(Series.Id);
+		uint64 FrameCount = FramesProvider.GetFrameCount(FrameType);
+		FramesProvider.EnumerateFrames(FrameType, 0, FrameCount - 1, [&Builder](const Trace::FFrame& Frame)
+		{
+			//TODO: add a "frame converter" (i.e. to fps, miliseconds or seconds)
+			const double Duration = Frame.EndTime - Frame.StartTime;
+			Builder.AddEvent(Frame.StartTime, Duration, Duration);
+		});
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Timer Series
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetTimerSeries(uint32 TimerId)
+{
+	TSharedPtr<FGraphSeries>* Ptr = AllSeries.FindByPredicate([TimerId](const TSharedPtr<FGraphSeries>& Series)
+	{
+		const TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
+		return TimingSeries->Type == FTimingGraphSeries::ESeriesType::Timer && TimingSeries->Id == TimerId;
+	});
+	return (Ptr != nullptr) ? StaticCastSharedPtr<FTimingGraphSeries>(*Ptr) : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddTimerSeries(uint32 TimerId, FLinearColor Color)
+{
+	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>();
+
+	Series->SetName(TEXT("<Timer>"));
+	Series->SetDescription(TEXT("Timer series"));
+
+	FLinearColor BorderColor(Color.R + 0.4f, Color.G + 0.4f, Color.B + 0.4f, 1.0f);
+	Series->SetColor(Color, BorderColor);
+
+	Series->Type = FTimingGraphSeries::ESeriesType::Timer;
+	Series->Id = TimerId;
+	//Series->CpuOrGpu = ;
+	//Series->TimelineIndex = ;
+
+	// Use same vertical viewport as the Frame series.
+	float BaselineY = GetHeight() - 1.0f;
+	double ScaleY = GetHeight() / 0.1; // 100ms
+	TSharedPtr<FGraphSeries>* FrameSeriesPtrPtr = AllSeries.FindByPredicate([](const TSharedPtr<FGraphSeries>& Series)
+	{
+		const TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
+		return TimingSeries->Type == FTimingGraphSeries::ESeriesType::Frame;
+	});
+	if (FrameSeriesPtrPtr != nullptr)
+	{
+		BaselineY = (*FrameSeriesPtrPtr)->GetBaselineY();
+		ScaleY = (*FrameSeriesPtrPtr)->GetScaleY();
+	}
+	Series->SetBaselineY(BaselineY);
+	Series->SetScaleY(ScaleY);
+
+	Series->CachedSessionDuration = 0.0;
+
+	AllSeries.Add(Series);
+	return Series;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::RemoveTimerSeries(uint32 TimerId)
+{
+	AllSeries.RemoveAll([TimerId](const TSharedPtr<FGraphSeries>& Series)
+	{
+		const TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
+		return TimingSeries->Type == FTimingGraphSeries::ESeriesType::Timer && TimingSeries->Id == TimerId;
+	});
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
+{
+	FGraphTrackBuilder Builder(*this, Series, Viewport);
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+		const double SessionDuration = Session->GetDurationSeconds();
+		if (Series.CachedSessionDuration != SessionDuration)
+		{
+			Series.CachedSessionDuration = SessionDuration;
+
+			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+			const uint32 TimerId = Series.Id;
+			const uint64 TimelineCount = TimingProfilerProvider.GetTimelineCount();
+			for (uint64 TimelineIndex = 0; TimelineIndex < TimelineCount; ++TimelineIndex)
+			{
+				TimingProfilerProvider.ReadTimeline(TimelineIndex, [&Series, SessionDuration, TimerId](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+				{
+					Timeline.EnumerateEvents(0.0, SessionDuration,
+						[&Series, TimerId](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+					{
+						if (Event.TimerIndex == TimerId)
+						{
+							//TODO: add a "frame converter" (i.e. to fps, miliseconds or seconds)
+							const double Duration = EndTime - StartTime;
+							Series.CachedEvents.Add({ StartTime, Duration });
+						}
+					});
+				});
+			}
+
+			Series.CachedEvents.Sort(&FTimingGraphSeries::CompareEventsByStartTime);
+		}
+
+		int32 StartIndex = Algo::UpperBoundBy(Series.CachedEvents, Viewport.GetStartTime(), &FTimingGraphSeries::FSimpleTimingEvent::StartTime);
+		if (StartIndex > 0)
+		{
+			StartIndex--;
+		}
+		int32 EndIndex = Algo::UpperBoundBy(Series.CachedEvents, Viewport.GetEndTime(), &FTimingGraphSeries::FSimpleTimingEvent::StartTime);
+		if (EndIndex < Series.CachedEvents.Num())
+		{
+			EndIndex++;
+		}
+		for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+		{
+			const FTimingGraphSeries::FSimpleTimingEvent& Event = Series.CachedEvents[Index];
+			Builder.AddEvent(Event.StartTime, Event.Duration, Event.Duration);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Stats Counter Series
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetStatsCounterSeries(uint32 CounterId)
@@ -168,108 +379,16 @@ void FTimingGraphTrack::RemoveStatsCounterSeries(uint32 CounterId)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingGraphTrack::~FTimingGraphTrack()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
-{
-	FGraphTrack::Update(Context);
-
-	const bool bIsEntireGraphTrackDirty = IsDirty() || Context.GetViewport().IsHorizontalViewportDirty();
-	bool bNeedsUpdate = bIsEntireGraphTrackDirty;
-
-	if (!bNeedsUpdate)
-	{
-		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
-		{
-			if (Series->IsVisible() && Series->IsDirty())
-			{
-				// At least one series is dirty.
-				bNeedsUpdate = true;
-				break;
-			}
-		}
-	}
-
-	if (bNeedsUpdate)
-	{
-		ClearDirtyFlag();
-
-		NumAddedEvents = 0;
-
-		const FTimingTrackViewport& Viewport = Context.GetViewport();
-
-		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
-		{
-			if (Series->IsVisible() && (bIsEntireGraphTrackDirty || Series->IsDirty()))
-			{
-				// Clear the flag before updating, becasue the update itself may further need to set the series as dirty.
-				Series->ClearDirtyFlag();
-
-				TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
-				switch (TimingSeries->Type)
-				{
-				case FTimingGraphSeries::ESeriesType::Frame:
-					UpdateFrameSeries(*TimingSeries, Viewport);
-					break;
-
-				case FTimingGraphSeries::ESeriesType::Timer:
-					UpdateTimerSeries(*TimingSeries, Viewport);
-					break;
-
-				case FTimingGraphSeries::ESeriesType::StatsCounter:
-					UpdateStatsCounterSeries(*TimingSeries, Viewport);
-					break;
-				}
-			}
-		}
-
-		UpdateStats();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FTimingGraphTrack::UpdateFrameSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
-{
-	FGraphTrackBuilder Builder(*this, Series, Viewport);
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
-	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
-		ETraceFrameType FrameType = static_cast<ETraceFrameType>(Series.Id);
-		uint64 FrameCount = FramesProvider.GetFrameCount(FrameType);
-		FramesProvider.EnumerateFrames(FrameType, 0, FrameCount - 1, [&Builder](const Trace::FFrame& Frame)
-		{
-			//TODO: add a "frame converter" (i.e. to fps, miliseconds or seconds)
-			const double Duration = Frame.EndTime - Frame.StartTime;
-			Builder.AddEvent(Frame.StartTime, Duration, Duration);
-		});
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
-{
-	//TODO
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
 {
 	FGraphTrackBuilder Builder(*this, Series, Viewport);
+
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
-		CountersProvider.ReadCounter(Series.Id, [this, &Viewport, &Builder, &Series](const Trace::ICounter& Counter)
+		const Trace::ICounterProvider& CounterProvider = Trace::ReadCounterProvider(*Session.Get());
+		CounterProvider.ReadCounter(Series.Id, [this, &Viewport, &Builder, &Series](const Trace::ICounter& Counter)
 		{
 			if (Series.IsAutoZoomEnabled())
 			{
@@ -331,6 +450,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

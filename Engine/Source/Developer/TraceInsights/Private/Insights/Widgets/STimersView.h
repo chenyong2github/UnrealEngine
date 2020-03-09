@@ -22,6 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMenuBuilder;
+class FTimingGraphTrack;
 
 namespace Trace
 {
@@ -74,7 +75,11 @@ public:
 	 * @param bResync - If true, it forces a resync with list of timers from Analysis, even if the list did not changed since last sync.
 	 */
 	void RebuildTree(bool bResync);
+
+	void ResetStats();
 	void UpdateStats(double StartTime, double EndTime);
+
+	void ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef TimerNodePtr);
 
 	void SelectTimerNode(uint64 Id);
 
@@ -82,8 +87,10 @@ public:
 	//const TMap<uint64, FTimerNodePtr> GetTimerNodesIdMap() const { return TimerNodesIdMap; }
 	const FTimerNodePtr* GetTimerNode(uint64 Id) const { return TimerNodesIdMap.Find(Id); }
 
-protected:
+private:
 	void UpdateTree();
+
+	void UpdateStatsInternal();
 
 	/** Called when the analysis session has changed. */
 	void InsightsManager_OnSessionChanged();
@@ -248,7 +255,7 @@ protected:
 	 */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-protected:
+private:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;
 
@@ -305,7 +312,7 @@ protected:
 
 	//bool bUseFiltering;
 
-	/** The search box widget used to filter items displayed in the stats and groups tree. */
+	/** The search box widget used to filter items displayed in the tree. */
 	TSharedPtr<SSearchBox> SearchBox;
 
 	/** The text based filter. */
