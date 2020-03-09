@@ -137,6 +137,7 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraAddParameterMenu2)
 		: _AllowCreatingNew(true)
 		, _ShowGraphParameters(true)
+		, _ShowKnownConstantParametersFilter(NiagaraParameterPanelSectionID::Type::NONE)
 		, _AutoExpandMenu(false)
 		, _IsParameterRead(true)
 		, _NewParameterScope(ENiagaraParameterScope::Particles) {}
@@ -145,8 +146,10 @@ public:
 		SLATE_EVENT(FOnAllowMakeType, OnAllowMakeType)
 		SLATE_ATTRIBUTE(bool, AllowCreatingNew)
 		SLATE_ATTRIBUTE(bool, ShowGraphParameters)
+		SLATE_ATTRIBUTE(NiagaraParameterPanelSectionID::Type, ShowKnownConstantParametersFilter)
 		SLATE_ATTRIBUTE(bool, AutoExpandMenu)
 		SLATE_ATTRIBUTE(bool, IsParameterRead)
+		SLATE_ATTRIBUTE(FString, NewParameterNamespace)
 		SLATE_ARGUMENT(ENiagaraParameterScope, NewParameterScope)
 	SLATE_END_ARGS();
 
@@ -171,8 +174,10 @@ private:
 
 	TAttribute<bool> AllowCreatingNew;
 	TAttribute<bool> ShowGraphParameters;
+	TAttribute<NiagaraParameterPanelSectionID::Type> ShowKnownConstantParametersFilter;
 	TAttribute<bool> AutoExpandMenu;
 	TAttribute<bool> IsParameterRead;
+	TAttribute<FString> NewParameterNamespace;
 
 	/** Default scope to give to new parameters created through this menu. Used when generating new variable names so that their namespace is correct. */
 	ENiagaraParameterScope NewParameterScope;

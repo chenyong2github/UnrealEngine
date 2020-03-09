@@ -79,6 +79,7 @@ UEdGraphPin* UNiagaraNodeWithDynamicPins::RequestNewTypedPin(EEdGraphPinDirectio
 
 UEdGraphPin* UNiagaraNodeWithDynamicPins::RequestNewTypedPin(EEdGraphPinDirection Direction, const FNiagaraTypeDefinition& Type, const FName InName)
 {
+	Modify();
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 	UEdGraphPin* AddPin = GetAddPin(GetAllPins(), Direction);
 	checkf(AddPin != nullptr, TEXT("Add pin is missing"));
@@ -108,10 +109,12 @@ void UNiagaraNodeWithDynamicPins::UpdateAddedPinMetaData(const UEdGraphPin* Adde
 	{
 		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 		FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(AddedPin, false);
+		
 		if (UNiagaraScriptVariable** ScriptVariable = Graph->GetAllMetaData().Find(PinVariable))
 		{
 			Graph->UpdateUsageForScriptVariable(*ScriptVariable);
 		}
+		
 	}
 }
 
@@ -277,17 +280,17 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 		// Parameter map type nodes create new parameters when adding pins.
 		FScopedTransaction AddNewPinTransaction(LOCTEXT("AddNewPinTransaction", "Add pin to node"));
 		UNiagaraGraph::FAddParameterOptions AddParameterOptions = UNiagaraGraph::FAddParameterOptions();
-		if (AddPin->Direction == EEdGraphPinDirection::EGPD_Input)
-		{
-			AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Output;
-		}
-		else
-		{
-			AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Input;
-		}
-		// Default scope of new parameters on a pin to Particles, by convention. //@todo(ng) choose based on usage
-		AddParameterOptions.NewParameterScopeName = FNiagaraConstants::ParticleAttributeNamespace;
-		//AddParameterOptions.bMakeParameterNameUnique //@todo(ng) consider
+		
+		FNiagaraVariableMetaData GuessedMetaData;
+		FNiagaraEditorUtilities::GetParameterMetaDataFromName(Parameter.GetName(), GuessedMetaData);
+
+		AddParameterOptions.NewParameterUsage = GuessedMetaData.GetUsage();
+		AddParameterOptions.NewParameterScopeName = GuessedMetaData.GetScopeName();
+
+		if (FNiagaraConstants::FindEngineConstant(Parameter) == nullptr)
+			AddParameterOptions.bMakeParameterNameUnique = true;
+	
+		AddParameterOptions.bRefreshMetaDataScopeAndUsage = true;
 
 		UNiagaraGraph* Graph = GetNiagaraGraph();
 		checkf(Graph != nullptr, TEXT("Failed to get niagara graph when adding pin!"));
